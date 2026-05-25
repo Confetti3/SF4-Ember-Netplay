@@ -122,6 +122,12 @@ Copy-Item $Launcher $PackageRoot
 
 Copy-Item $Sidecar $PackageRoot
 
+$RelayHost = Join-Path $InstallDir "RelayHost.exe"
+if (-not (Test-Path $RelayHost)) {
+    Write-Error "Missing RelayHost.exe in $InstallDir. Build RelayHost target and install first."
+}
+Copy-Item $RelayHost $PackageRoot
+
 
 
 $LauncherUiInstall = Join-Path $InstallDir "launcher-ui"
