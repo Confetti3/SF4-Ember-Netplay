@@ -1,6 +1,6 @@
 (function () {
   const PROTOCOL_VERSION = 1;
-  let state = {};
+  let state = { simpleUi: true, defaultConnectMethod: 0 };
 
   function post(msg) {
     if (window.chrome && window.chrome.webview) {
@@ -19,29 +19,67 @@
     }, 4000);
   }
 
+  function setStatus(text, kind) {
+    const el = document.getElementById("status-strip");
+    if (!text) {
+      el.classList.add("hidden");
+      return;
+    }
+    el.textContent = text;
+    el.className = "status-strip " + (kind || "");
+    el.classList.remove("hidden");
+  }
+
   function showScreen(id) {
     document.querySelectorAll(".screen").forEach(function (s) {
       s.classList.toggle("active", s.id === id);
     });
   }
 
-  function applyState(s) {
-    if (!s || s.type !== "state") return;
-    state = s;
-    const name = s.displayName || "Player";
-    const delay = s.inputDelay || 2;
-    const port = s.sessionPort || 23456;
+  function isSimple() {
+    const t = document.getElementById("toggle-simple-ui");
+    return t ? t.checked : true;
+  }
 
-    ["host-name", "join-name"].forEach(function (id) {
-      const el = document.getElementById(id);
-      if (el) el.value = name;
+  function renderUiMode() {
+    const simple = isSimple();
+    document.querySelectorAll(".simple-only").forEach(function (el) {
+      el.classList.toggle("hidden", !simple);
     });
-    ["host-delay", "join-delay"].forEach(function (id) {
+    document.querySelectorAll(".advanced-only").forEach(function (el) {
+      el.classList.toggle("hidden", simple);
+    });
+  }
+
+  function applyUiMode(fromSource) {
+    renderUiMode();
+    if (fromSource === "user") {
+      post({ type: "setUiMode", simpleUi: isSimple() });
+    }
+  }
+
+  function syncDelayFields(delay) {
+    ["host-delay", "host-delay-simple", "join-delay", "join-delay-simple"].forEach(function (id) {
       const el = document.getElementById(id);
       if (el) el.value = delay;
     });
+  }
+
+  function syncNameFields(name) {
+    ["host-name", "host-name-adv", "join-name", "join-name-adv"].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) el.value = name;
+    });
+  }
+
+  function applyState(s) {
+    if (!s || s.type !== "state") return;
+    state = s;
+    syncNameFields(s.displayName || "Player");
+    syncDelayFields(s.inputDelay || 2);
+
     const hostPort = document.getElementById("host-port");
-    if (hostPort) hostPort.value = port;
+    if (hostPort) hostPort.value = s.sessionPort || 23456;
 
     const lanCode = document.getElementById("host-lan-code");
     if (lanCode) lanCode.textContent = s.lanRoomCode || "—";
@@ -52,18 +90,50 @@
     const preview = document.getElementById("host-room-preview");
     if (preview) preview.textContent = s.roomCodePreview || "—";
 
+    const joinRoom = document.getElementById("join-room-code");
     const joinAddr = document.getElementById("join-address");
-    if (joinAddr && s.lastJoinHost) joinAddr.value = s.lastJoinHost;
+    const last = s.lastJoinHost || "";
+    if (joinRoom && last) joinRoom.value = last.indexOf("SF4-") === 0 ? last : last;
+    if (joinAddr && last) joinAddr.value = last;
+
+    const broker = document.getElementById("broker-url");
+    if (broker && s.brokerBaseUrl) broker.value = s.brokerBaseUrl;
+
+    const toggle = document.getElementById("toggle-simple-ui");
+    if (toggle && typeof s.simpleUi === "boolean" && toggle.checked !== s.simpleUi) {
+      toggle.checked = s.simpleUi;
+    }
+    renderUiMode();
+
+    if (s.connectionStatus) setStatus(s.connectionStatus, "success");
+    if (s.natStatus) {
+      const nat = document.getElementById("host-nat-status");
+      if (nat) nat.textContent = s.natStatus + (s.natDetail ? " — " + s.natDetail : "");
+    }
   }
 
-  function previewRoomCode() {
-    const adv = document.getElementById("host-advertise");
-    const port = document.getElementById("host-port");
-    post({
-      type: "previewRoomCode",
-      advertiseHost: adv ? adv.value : "",
-      sessionPort: port ? parseInt(port.value, 10) : 23456,
-    });
+  function getConnectMethod(hostOrJoin) {
+    if (isSimple()) return "relay";
+    const id = hostOrJoin === "host" ? "host-connect-method" : "join-connect-method";
+    const el = document.getElementById(id);
+    return el ? el.value : "relay";
+  }
+
+  function getDisplayName() {
+    const id = isSimple() ? (document.getElementById("screen-host").classList.contains("active") ? "host-name" : "join-name") : null;
+    if (id) {
+      const el = document.getElementById(id);
+      if (el && el.value) return el.value;
+    }
+    const adv = document.getElementById("host-name-adv") || document.getElementById("join-name-adv");
+    return adv ? adv.value : "Player";
+  }
+
+  function getInputDelay(hostOrJoin) {
+    const simpleId = hostOrJoin === "host" ? "host-delay-simple" : "join-delay-simple";
+    const advId = hostOrJoin === "host" ? "host-delay" : "join-delay";
+    const el = document.getElementById(isSimple() ? simpleId : advId);
+    return el ? parseInt(el.value, 10) : 2;
   }
 
   if (window.chrome && window.chrome.webview) {
@@ -80,9 +150,49 @@
         applyState(data);
       } else if (data.type === "error") {
         showToast(data.message || "Error", "error");
+        setStatus(data.message || "Something went wrong", "error");
       } else if (data.type === "copied") {
         showToast("Copied to clipboard", "success");
+      } else if (data.rooms) {
+        renderRoomList(data.rooms, data.listError);
+      } else if (data.roomCodePreview) {
+        const preview = document.getElementById("host-room-preview");
+        if (preview) preview.textContent = data.roomCodePreview;
+        if (data.connectionStatus) setStatus(data.connectionStatus, "success");
       }
+    });
+  }
+
+  function renderRoomList(rooms, listError) {
+    const ul = document.getElementById("room-list");
+    const empty = document.getElementById("room-list-empty");
+    if (!ul) return;
+    ul.innerHTML = "";
+    if (listError) {
+      showToast(listError, "error");
+      empty.classList.remove("hidden");
+      empty.textContent = listError;
+      return;
+    }
+    if (!rooms || !rooms.length) {
+      empty.classList.remove("hidden");
+      empty.textContent = "No open rooms. Ask a friend to host or create one.";
+      return;
+    }
+    empty.classList.add("hidden");
+    rooms.forEach(function (room) {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "room-list-item";
+      btn.textContent = (room.displayName || "Host") + " — " + (room.code || "?");
+      btn.addEventListener("click", function () {
+        document.getElementById("join-room-code").value = room.code || "";
+        document.getElementById("join-address").value = room.code || "";
+        showScreen("screen-join");
+      });
+      li.appendChild(btn);
+      ul.appendChild(li);
     });
   }
 
@@ -98,15 +208,46 @@
   document.querySelectorAll("[data-back]").forEach(function (btn) {
     btn.addEventListener("click", function () {
       showScreen("screen-home");
+      setStatus("");
     });
+  });
+
+  document.getElementById("toggle-simple-ui").addEventListener("change", function () {
+    applyUiMode("user");
   });
 
   document.getElementById("btn-refresh-ip").addEventListener("click", function () {
     post({ type: "fetchPublicIp" });
   });
 
-  document.getElementById("host-advertise").addEventListener("input", previewRoomCode);
-  document.getElementById("host-port").addEventListener("input", previewRoomCode);
+  document.getElementById("btn-try-upnp").addEventListener("click", function () {
+    const port = document.getElementById("host-port");
+    post({
+      type: "tryUpnp",
+      sessionPort: port ? parseInt(port.value, 10) : 23456,
+    });
+  });
+
+  document.getElementById("btn-create-relay-room").addEventListener("click", function () {
+    setStatus("Creating relay room…", "");
+    post({
+      type: "createRelayRoom",
+      displayName: getDisplayName(),
+    });
+  });
+
+  document.getElementById("host-advertise").addEventListener("input", function () {
+    const adv = document.getElementById("host-advertise");
+    const port = document.getElementById("host-port");
+    post({
+      type: "previewRoomCode",
+      advertiseHost: adv ? adv.value : "",
+      sessionPort: port ? parseInt(port.value, 10) : 23456,
+    });
+  });
+  document.getElementById("host-port").addEventListener("input", function () {
+    document.getElementById("host-advertise").dispatchEvent(new Event("input"));
+  });
 
   document.getElementById("btn-copy-room").addEventListener("click", function () {
     const text = document.getElementById("host-room-preview").textContent;
@@ -114,29 +255,69 @@
   });
 
   document.getElementById("btn-start-host").addEventListener("click", function () {
+    const broker = document.getElementById("broker-url");
+    if (broker && broker.value) {
+      post({ type: "saveSettings", brokerBaseUrl: broker.value });
+    }
+    const method = getConnectMethod("host");
+    const preview = document.getElementById("host-room-preview").textContent;
     post({
       type: "start",
       mode: "host",
-      displayName: document.getElementById("host-name").value,
-      inputDelay: parseInt(document.getElementById("host-delay").value, 10),
-      sessionPort: parseInt(document.getElementById("host-port").value, 10),
+      connectMethod: method,
+      displayName: getDisplayName(),
+      inputDelay: getInputDelay("host"),
+      sessionPort: parseInt(document.getElementById("host-port").value, 10) || 23456,
       advertiseHost: document.getElementById("host-advertise").value,
+      relayRoomCode: preview && preview.indexOf("SF4-") === 0 ? preview : "",
+      tryUpnp: method === "autoNat",
     });
   });
 
   document.getElementById("btn-start-join").addEventListener("click", function () {
+    const method = getConnectMethod("join");
+    const code = isSimple()
+      ? document.getElementById("join-room-code").value
+      : document.getElementById("join-address").value;
     post({
       type: "start",
       mode: "join",
-      connectMethod: "direct",
-      displayName: document.getElementById("join-name").value,
-      inputDelay: parseInt(document.getElementById("join-delay").value, 10),
-      joinAddress: document.getElementById("join-address").value,
+      connectMethod: method === "direct" && code.indexOf("SF4-") !== 0 ? "direct" : "relay",
+      displayName: getDisplayName(),
+      inputDelay: getInputDelay("join"),
+      joinAddress: code,
+      roomCode: code,
     });
   });
 
   document.getElementById("btn-start-offline").addEventListener("click", function () {
     post({ type: "start", mode: "offline" });
+  });
+
+  document.getElementById("btn-find-match").addEventListener("click", function () {
+    setStatus("Searching for an opponent…", "");
+    post({
+      type: "start",
+      mode: "join",
+      connectMethod: "matchmaking",
+      displayName: getDisplayName(),
+      inputDelay: 2,
+      joinAddress: "",
+    });
+  });
+
+  document.getElementById("btn-browse-rooms").addEventListener("click", function () {
+    showScreen("screen-rooms");
+    post({ type: "listRooms" });
+  });
+
+  document.getElementById("btn-refresh-rooms").addEventListener("click", function () {
+    post({ type: "listRooms" });
+  });
+
+  document.getElementById("broker-url").addEventListener("change", function () {
+    const broker = document.getElementById("broker-url");
+    if (broker) post({ type: "saveSettings", brokerBaseUrl: broker.value });
   });
 
   post({ type: "getState" });

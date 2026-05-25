@@ -1,10 +1,12 @@
 ﻿# SF4 Enhanced
 
-**SF4 Enhanced** is a netplay-focused fork of [sf4e](https://codeberg.org/adanducci/sf4e) — a process-inspection and modification tool for the Steam release of _Ultra Street Fighter IV_. It adds a **WebView2 launcher** (Host / Join / Offline), room codes, relay rollback, and packaged releases for testers.
+**SF4 Enhanced** is a netplay-focused fork of [sf4e](https://codeberg.org/adanducci/sf4e) — a process-inspection and modification tool for the Steam release of _Ultra Street Fighter IV_. It adds a **WebView2 launcher** (Host / Join / Offline), **relay room codes** (`SF4-XXXX`), **`RelayHost.exe`** on the host PC, and packaged releases for testers.
 
 See [ATTRIBUTION.md](ATTRIBUTION.md) for upstream credit and license details.
 
-**Downloads:** [GitHub Releases](https://github.com/Confetti3/SF4e/releases/latest) (team zip with `Launcher.exe`, `Sidecar.dll`, `WebView2Loader.dll`, and `launcher-ui/`).
+**Latest release:** [v0.2.0](https://github.com/Confetti3/SF4e/releases/latest) — relay-first casual netplay with a preconfigured room broker.
+
+**Downloads:** [GitHub Releases](https://github.com/Confetti3/SF4e/releases/latest) (team zip with `Launcher.exe`, `Sidecar.dll`, **`RelayHost.exe`**, `WebView2Loader.dll`, and `launcher-ui/`).
 
 [TOC]
 
@@ -12,9 +14,13 @@ See [ATTRIBUTION.md](ATTRIBUTION.md) for upstream credit and license details.
 
 ### Netplay (SF4 Enhanced launcher)
 
-See [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md) for hosting, joining with a room code, and relay mode. Run `Launcher.exe` to open the **SF4 Enhanced** launcher (or use `--offline` to skip netplay). Developer overlay: `--dev-overlay` or set `SF4E_NETPLAY_DEV=1`.
+**Simple mode (default):** Host → **Create relay room** → share **`SF4-XXXX`** → **Start game**. Joiner pastes the same code. The room broker is preconfigured; the host runs **`RelayHost.exe`** locally (forward **TCP+UDP 23456** or use UPnP in Advanced).
 
-**Publish a tester build:** `powershell -ExecutionPolicy Bypass -File scripts/release-team-build.ps1` then `scripts/github-release.ps1 -Tag v0.1.0-testers`. See [docs/RELEASE.md](docs/RELEASE.md).
+See [docs/CASUAL_NETPLAY.md](docs/CASUAL_NETPLAY.md) and [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md). Broker ops: [docs/ORACLE_BROKER.md](docs/ORACLE_BROKER.md). Run `Launcher.exe` (or `--offline` to skip netplay). Developer overlay: `--dev-overlay` or `SF4E_NETPLAY_DEV=1`.
+
+Override broker URL: `set SF4E_BROKER_URL=http://your-broker:8787` or Advanced → **Room broker URL**.
+
+**Publish a release:** `powershell -ExecutionPolicy Bypass -File scripts/github-release.ps1 -Tag v0.2.0`. See [docs/RELEASE.md](docs/RELEASE.md).
 
 **Testers:** download the zip from [Releases](https://github.com/Confetti3/SF4e/releases/latest), extract fully, run `preflight.ps1`, then `Launcher.exe`. Prerequisites: Steam USF4, [WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703), [VC++ x86](https://aka.ms/vs/17/release/vc_redist.x86.exe).
 ### Supported environments

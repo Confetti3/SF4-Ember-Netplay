@@ -256,47 +256,65 @@ namespace sf4e {
 		FixedPoint roundTime = { 0, (short)s_config.roundTimeIntegral };
 
 		if (s_config.mode == (int)NetplayMode::Host) {
-			// Connect to loopback; the session server listens locally. Room codes still
-			// advertise sessionHost (LAN IP) for remote joiners.
-			char hostAddr[128];
-			snprintf(hostAddr, sizeof(hostAddr), "127.0.0.1:%u", s_config.sessionPort);
-
-			std::string identity(s_config.sessionHost);
 			std::string hash = sf4e::sidecarHash;
-			bool serverOk = fUserApp::StartServer(
-				s_config.sessionPort,
-				identity,
-				hash,
-				s_config.editionSelect != 0,
-				s_config.roundCount,
-				roundTime
-			);
-			// #region agent log
-			{
-				char buf[128];
-				snprintf(buf, sizeof(buf), "{\"serverOk\":%d,\"port\":%u}", serverOk ? 1 : 0, s_config.sessionPort);
-				debug::AgentLog("H4", "NetplayFacade::TickMainMenu", "host StartServer", buf);
-			}
-			// #endregion
-			if (!serverOk) {
-				PushAlert("Could not start session server (port in use?).");
-				s_autoPending = false;
-				return;
-			}
+			char hostAddr[128];
 
-			fUserApp::StartSession(
-				hostAddr,
-				s_config.ggpoPort,
-				hash,
-				name,
-				deviceType,
-				deviceIdx,
-				s_config.inputDelay,
-				s_config.useRelay != 0
-			);
-			Overlay::SetNetplayLobbyVisible(true);
-			s_autoPending = false;
-			spdlog::info("NetplayFacade: host started session at {}", hostAddr);
+			if (s_config.useCentralSession != 0) {
+				snprintf(hostAddr, sizeof(hostAddr), "%s:%u", s_config.sessionHost, s_config.sessionPort);
+				fUserApp::StartSession(
+					hostAddr,
+					s_config.ggpoPort,
+					hash,
+					name,
+					deviceType,
+					deviceIdx,
+					s_config.inputDelay,
+					s_config.useRelay != 0
+				);
+				Overlay::SetNetplayLobbyVisible(true);
+				s_autoPending = false;
+				spdlog::info("NetplayFacade: host joined central relay at {}", hostAddr);
+			}
+			else {
+				// Local session server; join via loopback.
+				snprintf(hostAddr, sizeof(hostAddr), "127.0.0.1:%u", s_config.sessionPort);
+
+				std::string identity(s_config.sessionHost);
+				bool serverOk = fUserApp::StartServer(
+					s_config.sessionPort,
+					identity,
+					hash,
+					s_config.editionSelect != 0,
+					s_config.roundCount,
+					roundTime
+				);
+				// #region agent log
+				{
+					char buf[128];
+					snprintf(buf, sizeof(buf), "{\"serverOk\":%d,\"port\":%u}", serverOk ? 1 : 0, s_config.sessionPort);
+					debug::AgentLog("H4", "NetplayFacade::TickMainMenu", "host StartServer", buf);
+				}
+				// #endregion
+				if (!serverOk) {
+					PushAlert("Could not start session server (port in use?).");
+					s_autoPending = false;
+					return;
+				}
+
+				fUserApp::StartSession(
+					hostAddr,
+					s_config.ggpoPort,
+					hash,
+					name,
+					deviceType,
+					deviceIdx,
+					s_config.inputDelay,
+					s_config.useRelay != 0
+				);
+				Overlay::SetNetplayLobbyVisible(true);
+				s_autoPending = false;
+				spdlog::info("NetplayFacade: host started session at {}", hostAddr);
+			}
 		}
 		else if (s_config.mode == (int)NetplayMode::Join) {
 			char joinAddr[128];

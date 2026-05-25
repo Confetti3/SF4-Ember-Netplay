@@ -1,6 +1,14 @@
-# SF4 Enhanced v0.1.0-testers
+# SF4 Enhanced v0.2.0
 
-Rollback netplay for **Ultra Street Fighter IV** (Steam) with a modern **SF4 Enhanced** launcher.
+Relay-first rollback netplay for **Ultra Street Fighter IV** (Steam) with a modern **SF4 Enhanced** launcher.
+
+## What's new
+
+- **Simple mode** (default): relay room codes **`SF4-XXXX`** — no manual broker setup for testers
+- **`RelayHost.exe`** runs on the **host's PC** when they start a game (broker on Oracle VPS)
+- Preconfigured room broker: `http://150.136.121.155:8787` (override with `SF4E_BROKER_URL`)
+- Advanced mode: direct IP, UPnP, custom broker URL
+- Find match / Open rooms stubs (early)
 
 ## Based on sf4e
 
@@ -19,19 +27,30 @@ This build is a fork of [sf4e](https://codeberg.org/adanducci/sf4e) by Anthony D
 3. Run `powershell -ExecutionPolicy Bypass -File preflight.ps1`
 4. Run `Launcher.exe` — **Host**, **Join**, or **Offline**
 
-## Netplay quick test (LAN)
+## Quick start (relay)
 
 | Host | Joiner |
 |------|--------|
-| Host → Copy room code | Join → paste `IP:port` |
-| Both Ready in-game | Same zip on both PCs |
+| Simple mode → **Create relay room** | Paste **`SF4-XXXX`** from host |
+| **Start game** (starts `RelayHost.exe`) | **Start game** |
+| Forward **TCP+UDP 23456** (or UPnP in Advanced) | No port forward needed |
+| Both **Ready** in-game | Same zip on both PCs |
 
-Host may need port **23456** forwarded for internet play.
+## Broker override
+
+Default broker is baked into the launcher. To use another broker:
+
+```text
+set SF4E_BROKER_URL=http://your-broker:8787
+```
+
+If you upgraded from an older build, delete or edit `%APPDATA%\sf4e\config.json` if the broker URL is still `127.0.0.1`.
 
 ## Known limitations
 
-- Manual IP / port-forward for WAN; no matchmaking or auto-NAT yet
+- Host must reach the internet and expose port **23456** (relay runs on host PC, not the VPS)
 - Both players must use the **same release zip** (`Sidecar.dll` must match)
+- Find match / Open rooms are early stubs
 
 ## Support
 

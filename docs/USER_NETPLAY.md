@@ -26,7 +26,28 @@
 
 
 
-## Host
+## Simple mode (relay — recommended)
+
+**Simple mode** is on by default. Use short room codes — no manual IP entry.
+
+### Host (relay)
+
+1. **Host** → enter display name.
+2. Click **Create relay room** → copy **`SF4-XXXX`** and send it to your opponent.
+3. Click **Start game** — the launcher starts **`RelayHost.exe`** on your PC.
+4. Forward **TCP and UDP 23456** on your router (or use **Try UPnP** in Advanced).
+5. Wait in the in-game lobby; both players **Ready** to start.
+
+### Join (relay)
+
+1. **Join** → enter display name.
+2. Paste the host's **`SF4-XXXX`** code.
+3. Click **Start game** — no port forward needed on your PC.
+4. Press **Ready** in the lobby when connected.
+
+Broker URL is preconfigured in v0.2.0. Override with `SF4E_BROKER_URL` or Advanced → **Room broker URL**.
+
+## Host (Advanced — direct IP)
 
 
 
@@ -44,7 +65,7 @@
 
 
 
-## Join
+## Join (Advanced — direct IP)
 
 
 
@@ -74,6 +95,8 @@ Launches USF4 with sf4e hooks but no netplay session.
 
 Launcher.exe --host
 
+Launcher.exe --join SF4-AB12
+
 Launcher.exe --join 203.0.113.42:23456
 
 Launcher.exe --offline
@@ -94,12 +117,13 @@ Launcher.exe --console
 
 | Same `Sidecar.dll` on both PCs | Join fails with “version mismatch” otherwise |
 
-| Host port-forward **23456** | Session port (changeable on the Host screen) |
+| Host port-forward **23456** | Required for relay host (TCP+UDP); joiner needs none |
+
 | **WebView2 Runtime** | Launcher shows an install link if missing |
 
-| Room code uses **reachable IP** | Public IP, or VPN IP (ZeroTier, Tailscale, etc.) |
+| Room code **`SF4-XXXX`** | Default in Simple mode; broker resolves to host relay |
 
-| CGNAT / no public IP | Use a VPN; port-forward alone is not enough |
+| Direct **`IP:port`** | Advanced mode only |
 
 
 

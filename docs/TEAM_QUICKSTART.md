@@ -17,16 +17,29 @@ Upstream: [sf4e by adanducci](https://codeberg.org/adanducci/sf4e). See `ATTRIBU
 powershell -ExecutionPolicy Bypass -File preflight.ps1
 ```
 
+## Casual netplay (Simple mode — default)
+
+The launcher defaults to **Simple mode** and relay room codes (`SF4-XXXX`). No broker setup required — v0.2.0 ships with broker **`http://150.136.121.155:8787`**.
+
+| Host | Joiner |
+|------|--------|
+| **Create relay room** → copy `SF4-XXXX` | Paste code → **Start game** |
+| **Start game** (auto-starts **`RelayHost.exe`**) | No port forward needed |
+| Forward **TCP+UDP 23456** on router (or UPnP in Advanced) | Same zip as host |
+
+See [CASUAL_NETPLAY.md](CASUAL_NETPLAY.md) in `docs/`. Override broker: `set SF4E_BROKER_URL=http://your-broker:8787`.
+
 ## What you need for netplay
 
-- Two PCs on the **same LAN**, or the host **port-forwards** session port **23456** (TCP/UDP).
+- **Relay (recommended for WAN):** broker on VPS + **`RelayHost.exe`** on host PC (included in zip).
+- **Direct (Advanced):** same LAN or host port-forwards session port **23456** (TCP/UDP).
 - **Same zip on both players** — do not mix `Sidecar.dll` from another build.
 
 ## File checklist
 
 Confirm these sit **next to each other** in one folder:
 
-- `Launcher.exe`, `Sidecar.dll`, `WebView2Loader.dll`
+- `Launcher.exe`, `Sidecar.dll`, **`RelayHost.exe`**, `WebView2Loader.dll`
 - `launcher-ui\` (`index.html`, `app.js`, `styles.css`)
 - `spdlog.dll`, `fmt.dll`, `GameNetworkingSockets.dll`, `GGPO.dll`, `libcrypto-3.dll`, `libprotobuf.dll`, `abseil_dll.dll`
 
@@ -35,10 +48,10 @@ See `MANIFEST.txt` in the package to verify extraction.
 ## Run the launcher
 
 1. Double-click **`Launcher.exe`** (or `Launcher.exe --console` for logs).
-2. In the WebView2 launcher:
-   - **Host** — set name and delay; **Copy** the room code (`IP:port`) and send it to your opponent.
-   - **Join** — paste the host’s room code into **Host address** and enter your name.
-   - **Offline** — game only, no netplay session.
+2. In the WebView2 launcher (Simple mode):
+   - **Host** — **Create relay room** → **Copy code** → **Start game**
+   - **Join** — paste **`SF4-XXXX`** → **Start game**
+   - **Offline** — game only, no netplay session
 3. Click **Start game**. sf4e should find USF4 via Steam automatically.
 
 If Steam detection fails:
@@ -50,14 +63,14 @@ Launcher.exe
 
 ## Firewall
 
-- **Host:** allow inbound **TCP/UDP** on the session port (default **23456**).
-- Relay mode is on by default — you usually **do not** need separate GGPO UDP port forwards.
+- **Host:** allow inbound **TCP/UDP** on port **23456** (router port-forward or UPnP in Advanced).
+- **Joiner:** no port forward needed for relay mode.
 
 ## Quick 2-player test
 
 | Step | Host | Joiner |
 |------|------|--------|
-| 1 | Launcher → **Host** → Start game | Launcher → **Join** → paste room code → Start game |
+| 1 | **Create relay room** → **Start game** | Paste **SF4-XXXX** → **Start game** |
 | 2 | Wait in lobby | Connect |
 | 3 | Both **Ready** in-game | Both **Ready** |
 | 4 | Play a few rounds | Same zip / `Sidecar.dll` |
@@ -73,7 +86,9 @@ Full checklist: [SMOKE_TEST.md](SMOKE_TEST.md). Player guide: [USER_NETPLAY.md](
 | Blank launcher window | Ensure **`launcher-ui\`** is next to `Launcher.exe` |
 | Double-click does nothing | Run `Launcher.exe --console` from a terminal in the package folder |
 | “Version mismatch” on join | Same zip on both PCs |
-| Join times out | Same LAN, correct room code, host firewall, host port open |
+| Can't create relay room | Broker reachable? `curl http://150.136.121.155:8787/v1/health` |
+| Join times out | Host forwarded **23456** TCP+UDP; `RelayHost.exe` running; same `Sidecar.dll` |
+| Wrong broker URL | Delete `%APPDATA%\sf4e\config.json` or set `SF4E_BROKER_URL` |
 | Missing other DLL errors | Re-extract full zip; install [VC++ x86](https://aka.ms/vs/17/release/vc_redist.x86.exe) |
 | Host/Join issues at menu | Open in-game **Network** panel; both **Ready** |
 | Need logs | `Launcher.exe --console` or `%APPDATA%\sf4e\` |

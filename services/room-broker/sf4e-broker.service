@@ -1,0 +1,14 @@
+[Unit]
+Description=SF4 Enhanced room broker
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/sf4e/services/room-broker
+EnvironmentFile=/opt/sf4e/services/room-broker/.env
+ExecStart=/usr/bin/node /opt/sf4e/services/room-broker/server.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

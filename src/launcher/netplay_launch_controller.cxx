@@ -24,6 +24,10 @@
 
 #include "netplay_room_code.hxx"
 
+#include "relay_host_spawn.hxx"
+
+#include "room_broker_client.hxx"
+
 
 
 namespace sf4e {
@@ -33,6 +37,13 @@ namespace launcher {
 
 
 	static const int kProtocolVersion = 1;
+
+	static void ApplyBrokerUrlFromEnvironment(PersistedSettings& settings) {
+		const char* env = getenv("SF4E_BROKER_URL");
+		if (env && env[0]) {
+			strncpy_s(settings.brokerBaseUrl, env, _TRUNCATE);
+		}
+	}
 
 
 
@@ -44,6 +55,14 @@ namespace launcher {
 
 		sf4e::DetectLanIPv4(m_lanIp, sizeof(m_lanIp));
 
+		ApplyBrokerUrlFromEnvironment(m_settings);
+
+	}
+
+	static RelayRoomCreateResult CreateRelayRoomWithAdvertise(PersistedSettings& settings, const char* displayName) {
+		char advertiseHost[NETPLAY_SESSION_HOST_LEN] = { 0 };
+		FetchAdvertiseRelayHost(advertiseHost, sizeof(advertiseHost));
+		return CreateRelayRoom(settings.brokerBaseUrl, displayName, advertiseHost);
 	}
 
 
@@ -108,11 +127,25 @@ namespace launcher {
 
 		j["lanRoomCode"] = PreviewRoomCode(m_lanIp, m_settings.sessionPort);
 
+		j["simpleUi"] = m_settings.simpleUi != 0;
+
+		j["brokerBaseUrl"] = m_settings.brokerBaseUrl;
+
+		j["defaultConnectMethod"] = m_settings.defaultConnectMethod;
+
+		if (m_settings.relayRoomCode[0]) {
+
+			j["roomCodePreview"] = m_settings.relayRoomCode;
+
+		}
+
 		j["featureFlags"] = {
 
-			{ "matchmaking", false },
+			{ "matchmaking", true },
 
-			{ "autoNat", false }
+			{ "autoNat", true },
+
+			{ "relayRoom", true }
 
 		};
 
@@ -224,6 +257,138 @@ namespace launcher {
 
 		}
 
+		if (type == "setUiMode") {
+
+			m_settings.simpleUi = msg.value("simpleUi", true) ? 1 : 0;
+
+			nlohmann::json r = BuildStateJson();
+
+			return r;
+
+		}
+
+		if (type == "saveSettings") {
+
+			if (msg.contains("brokerBaseUrl")) {
+
+				std::string broker = msg.value("brokerBaseUrl", m_settings.brokerBaseUrl);
+
+				strncpy_s(m_settings.brokerBaseUrl, broker.c_str(), _TRUNCATE);
+
+			}
+
+			if (msg.contains("defaultConnectMethod")) {
+
+				m_settings.defaultConnectMethod = (uint8_t)msg.value("defaultConnectMethod", (int)m_settings.defaultConnectMethod);
+
+			}
+
+			return BuildStateJson();
+
+		}
+
+		if (type == "createRelayRoom") {
+
+			std::string name = msg.value("displayName", m_settings.displayName);
+
+			RelayRoomCreateResult created = CreateRelayRoomWithAdvertise(m_settings, name.c_str());
+
+			if (!created.ok) {
+
+				nlohmann::json err;
+
+				err["v"] = kProtocolVersion;
+
+				err["type"] = "error";
+
+				err["message"] = created.error;
+
+				return err;
+
+			}
+
+			strncpy_s(m_settings.relayRoomCode, created.shortCode.c_str(), _TRUNCATE);
+
+			nlohmann::json r = MakeStateEnvelope();
+
+			r["roomCodePreview"] = created.shortCode;
+
+			r["relayHost"] = created.relayHost;
+
+			r["relayPort"] = created.relayPort;
+
+			r["connectionStatus"] = "Relay room ready — share the code with your opponent.";
+
+			return r;
+
+		}
+
+		if (type == "tryUpnp") {
+
+			int port = msg.value("sessionPort", (int)m_settings.sessionPort);
+
+			HostNatResult nat = TryConfigureHostUpnp((uint16_t)port, m_settings.ggpoPort);
+
+			nlohmann::json r = MakeStateEnvelope();
+
+			r["natStatus"] = nat.status;
+
+			r["natDetail"] = nat.detail;
+
+			r["natOk"] = nat.ok;
+
+			return r;
+
+		}
+
+		if (type == "listRooms") {
+
+			BrokerUrlParts parts;
+
+			nlohmann::json r = MakeStateEnvelope();
+
+			r["rooms"] = nlohmann::json::array();
+
+			if (!ParseBrokerBaseUrl(m_settings.brokerBaseUrl, parts)) {
+
+				r["listError"] = "Room service URL is not configured.";
+
+				return r;
+
+			}
+
+			char body[8192] = { 0 };
+
+			if (!BrokerHttpGet(parts, "/v1/rooms", body, sizeof(body))) {
+
+				r["listError"] = "Could not load open rooms.";
+
+				return r;
+
+			}
+
+			try {
+
+				nlohmann::json j = nlohmann::json::parse(body);
+
+				if (j.contains("rooms") && j["rooms"].is_array()) {
+
+					r["rooms"] = j["rooms"];
+
+				}
+
+			}
+
+			catch (...) {
+
+				r["listError"] = "Invalid room list from service.";
+
+			}
+
+			return r;
+
+		}
+
 
 
 		if (type == "cancel") {
@@ -324,23 +489,127 @@ namespace launcher {
 
 
 
-			if (mode == (int)NetplayMode::Host) {
+			const std::string connectMethod = msg.value("connectMethod",
 
-				strncpy_s(m_outConfig.sessionHost, m_lanIp, _TRUNCATE);
+				mode == (int)NetplayMode::Host ? "relay" : "relay");
+
+			if (mode == (int)NetplayMode::Host) {
 
 				strncpy_s(m_outConfig.roomKey, "1", _TRUNCATE);
 
-				std::string advertise = msg.value("advertiseHost", "");
+				if (connectMethod == "relay") {
 
-				char advBuf[NETPLAY_SESSION_HOST_LEN] = { 0 };
+					std::string code = msg.value("relayRoomCode", "");
 
-				strncpy_s(advBuf, advertise.c_str(), _TRUNCATE);
+					if (code.empty() && m_settings.relayRoomCode[0]) {
 
-				sf4e::TrimRoomCodeInPlace(advBuf);
+						code = m_settings.relayRoomCode;
 
-				if (advBuf[0]) {
+					}
 
-					strncpy_s(m_settings.lastAdvertiseHost, advBuf, _TRUNCATE);
+					if (code.empty()) {
+
+						RelayRoomCreateResult created = CreateRelayRoomWithAdvertise(m_settings, m_settings.displayName);
+
+						if (!created.ok) {
+
+							nlohmann::json err;
+
+							err["v"] = kProtocolVersion;
+
+							err["type"] = "error";
+
+							err["message"] = created.error;
+
+							return err;
+
+						}
+
+						code = created.shortCode;
+
+						strncpy_s(m_settings.relayRoomCode, code.c_str(), _TRUNCATE);
+
+						strncpy_s(m_outConfig.sessionHost, created.relayHost, _TRUNCATE);
+
+						m_outConfig.sessionPort = created.relayPort;
+
+					}
+
+					else {
+
+						JoinRequest lookup;
+
+						lookup.roomCode = code;
+
+						StrategyResult sr = ResolveJoinRelayRoom(lookup, m_settings.brokerBaseUrl);
+
+						if (!sr.ok) {
+
+							nlohmann::json err;
+
+							err["v"] = kProtocolVersion;
+
+							err["type"] = "error";
+
+							err["message"] = sr.error;
+
+							return err;
+
+						}
+
+						strncpy_s(m_outConfig.sessionHost, sr.endpoint.host, _TRUNCATE);
+
+						m_outConfig.sessionPort = sr.endpoint.port;
+
+						strncpy_s(m_settings.relayRoomCode, code.c_str(), _TRUNCATE);
+
+					}
+
+					m_outConfig.useCentralSession = 1;
+
+					TryConfigureHostUpnp(m_outConfig.sessionPort, m_settings.ggpoPort);
+
+					if (!SpawnRelayHost(m_outConfig.sessionPort)) {
+
+						nlohmann::json err;
+
+						err["v"] = kProtocolVersion;
+
+						err["type"] = "error";
+
+						err["message"] = "Could not start RelayHost.exe. Rebuild/install and keep RelayHost.exe next to Launcher.exe.";
+
+						return err;
+
+					}
+
+				}
+
+				else {
+
+					m_outConfig.useCentralSession = 0;
+
+					strncpy_s(m_outConfig.sessionHost, m_lanIp, _TRUNCATE);
+
+					std::string advertise = msg.value("advertiseHost", "");
+
+					char advBuf[NETPLAY_SESSION_HOST_LEN] = { 0 };
+
+					strncpy_s(advBuf, advertise.c_str(), _TRUNCATE);
+
+					sf4e::TrimRoomCodeInPlace(advBuf);
+
+					if (advBuf[0]) {
+
+						strncpy_s(m_settings.lastAdvertiseHost, advBuf, _TRUNCATE);
+
+					}
+
+					if (connectMethod == "autoNat" || msg.value("tryUpnp", false)) {
+
+						TryConfigureHostUpnp(m_settings.sessionPort, m_settings.ggpoPort);
+
+					}
 
 				}
 
@@ -348,23 +617,33 @@ namespace launcher {
 
 			else if (mode == (int)NetplayMode::Join) {
 
-				const std::string connectMethod = msg.value("connectMethod", "direct");
-
 				JoinRequest req;
 
 				req.roomCode = msg.value("joinAddress", "");
+
+				if (req.roomCode.empty()) {
+
+					req.roomCode = msg.value("roomCode", "");
+
+				}
 
 				StrategyResult sr;
 
 				if (connectMethod == "matchmaking") {
 
-					sr = ResolveJoinMatchmaking(req);
+					sr = ResolveJoinMatchmaking(req, m_settings.brokerBaseUrl, m_settings.displayName);
 
 				}
 
 				else if (connectMethod == "autoNat") {
 
 					sr = ResolveJoinAutoNat(req);
+
+				}
+
+				else if (connectMethod == "relay" || IsShortRoomCode(req.roomCode.c_str())) {
+
+					sr = ResolveJoinRelayRoom(req, m_settings.brokerBaseUrl);
 
 				}
 
@@ -392,17 +671,29 @@ namespace launcher {
 
 				m_outConfig.sessionPort = sr.endpoint.port;
 
-				FormatRoomCode(
+				m_outConfig.useCentralSession = 0;
 
-					m_outConfig.sessionHost,
+				if (IsShortRoomCode(req.roomCode.c_str())) {
 
-					m_outConfig.sessionPort,
+					strncpy_s(m_settings.lastJoinHost, req.roomCode.c_str(), _TRUNCATE);
 
-					m_settings.lastJoinHost,
+				}
 
-					sizeof(m_settings.lastJoinHost)
+				else {
 
-				);
+					FormatRoomCode(
+
+						m_outConfig.sessionHost,
+
+						m_outConfig.sessionPort,
+
+						m_settings.lastJoinHost,
+
+						sizeof(m_settings.lastJoinHost)
+
+					);
+
+				}
 
 			}
 

@@ -367,6 +367,22 @@ int WINAPI wWinMain(
 	);
 	CLI11_PARSE(app, argc, argv);
 
+	// sf4e://join/SF4-XXXX from OS URI handler
+	for (int i = 1; i < argc; ++i) {
+		if (!argv[i]) {
+			continue;
+		}
+		std::wstring arg = argv[i];
+		const wchar_t* prefix = L"sf4e://join/";
+		size_t plen = wcslen(prefix);
+		if (arg.size() > plen && _wcsnicmp(arg.c_str(), prefix, plen) == 0) {
+			char narrow[64] = { 0 };
+			WideCharToMultiByte(CP_UTF8, 0, arg.c_str() + plen, -1, narrow, sizeof(narrow), NULL, NULL);
+			joinRoomCode = narrow;
+			break;
+		}
+	}
+
 	// Compute the path to the sidecar DLL based on the launcher's directory.
 	// Ideally, this wouldn't have to convert from wide-char to multibyte in
 	// the system's codepage, but Detours uses multibyte paths when injecting
@@ -414,7 +430,7 @@ int WINAPI wWinMain(
 		)) {
 			MessageBoxW(
 				NULL,
-				L"Invalid --join address. Use IP:port or hostname:port (example 203.0.113.42:23456).",
+				L"Invalid --join address. Use SF4-XXXX or IP:port (example 203.0.113.42:23456).",
 				L"sf4e",
 				MB_OK | MB_ICONWARNING
 			);

@@ -10,20 +10,27 @@
   <div id="app">
     <header class="header">
       <h1>SF4 Enhanced</h1>
-      <p class="subtitle">Ultra Street Fighter IV — rollback netplay (sf4e fork)</p>
+      <p class="subtitle">Ultra Street Fighter IV — rollback netplay</p>
+      <div class="header-actions">
+        <label class="toggle-simple">
+          <input type="checkbox" id="toggle-simple-ui" checked />
+          <span>Simple mode</span>
+        </label>
+      </div>
     </header>
 
+    <div id="status-strip" class="status-strip hidden"></div>
     <div id="toast" class="toast hidden"></div>
 
     <section id="screen-home" class="screen active">
       <div class="card-grid">
         <button type="button" class="mode-card" data-mode="host">
           <span class="mode-card-title">Host</span>
-          <span class="mode-card-desc">Start a session and share a room code</span>
+          <span class="mode-card-desc">Create a room and share a short code</span>
         </button>
         <button type="button" class="mode-card" data-mode="join">
           <span class="mode-card-title">Join</span>
-          <span class="mode-card-desc">Connect to a host's IP:port</span>
+          <span class="mode-card-desc">Paste a room code from your host</span>
         </button>
         <button type="button" class="mode-card mode-card-muted" data-mode="offline">
           <span class="mode-card-title">Offline</span>
@@ -31,74 +38,133 @@
         </button>
       </div>
       <div class="coming-soon">
-        <div class="coming-soon-card disabled">
+        <button type="button" class="coming-soon-card" id="btn-find-match">
           <strong>Find match</strong>
-          <span>Matchmaking — coming soon</span>
-        </div>
-        <div class="coming-soon-card disabled">
-          <strong>Auto NAT</strong>
-          <span>Automatic traversal — coming soon</span>
-        </div>
+          <span>Quick match — join the queue</span>
+        </button>
+        <button type="button" class="coming-soon-card" id="btn-browse-rooms">
+          <strong>Open rooms</strong>
+          <span>Browse hosted relay rooms</span>
+        </button>
       </div>
-      <p class="footer-hint">Logs: run <code>Launcher.exe --console</code></p>
+      <p class="footer-hint">Logs: <code>Launcher.exe --console</code></p>
     </section>
 
     <section id="screen-host" class="screen">
       <button type="button" class="back-btn" data-back>← Back</button>
       <h2>Host a game</h2>
-      <label class="field">
-        <span>Display name</span>
-        <input id="host-name" type="text" maxlength="31" />
-      </label>
-      <label class="field field-inline">
-        <span>Input delay (frames)</span>
-        <input id="host-delay" type="number" min="1" max="20" />
-      </label>
-      <label class="field field-inline">
-        <span>Session port</span>
-        <input id="host-port" type="number" min="1" max="65535" />
-      </label>
-      <div class="info-row">
-        <span class="badge">LAN</span>
-        <code id="host-lan-code">—</code>
-      </div>
-      <label class="field">
-        <span>Internet address (share with remote joiners)</span>
-        <div class="row">
-          <input id="host-advertise" type="text" />
-          <button type="button" id="btn-refresh-ip" class="btn-secondary">Refresh</button>
+
+      <div class="simple-only">
+        <label class="field">
+          <span>Display name</span>
+          <input id="host-name" type="text" maxlength="31" />
+        </label>
+        <div class="room-code-box">
+          <span class="room-code-label">Room code to share</span>
+          <code id="host-room-preview" class="room-code-value">—</code>
+          <button type="button" id="btn-create-relay-room" class="btn-primary">Create relay room</button>
+          <button type="button" id="btn-copy-room" class="btn-secondary">Copy code</button>
         </div>
-      </label>
-      <div class="room-code-box">
-        <span class="room-code-label">Room code to share</span>
-        <code id="host-room-preview" class="room-code-value">—</code>
-        <button type="button" id="btn-copy-room" class="btn-primary">Copy room code</button>
+        <p class="hint">Relay hosting needs no port forward. Share <strong>SF4-XXXX</strong> with your opponent.</p>
+        <label class="field field-inline">
+          <span>Input delay (frames)</span>
+          <input id="host-delay-simple" type="number" min="1" max="20" />
+        </label>
       </div>
-      <ul class="checklist">
-        <li>Forward this port on your router (TCP and UDP)</li>
-        <li>Allow the port in Windows Firewall</li>
-        <li>Remote joiners need your <strong>public</strong> or VPN IP (not 192.168.x.x)</li>
-      </ul>
+
+      <div class="advanced-only hidden">
+        <label class="field">
+          <span>Connection</span>
+          <select id="host-connect-method">
+            <option value="relay">Relay room (recommended)</option>
+            <option value="direct">Direct IP (LAN / port forward)</option>
+            <option value="autoNat">Direct + UPnP</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Display name</span>
+          <input id="host-name-adv" type="text" maxlength="31" />
+        </label>
+        <label class="field field-inline">
+          <span>Input delay</span>
+          <input id="host-delay" type="number" min="1" max="20" />
+        </label>
+        <label class="field field-inline">
+          <span>Session port</span>
+          <input id="host-port" type="number" min="1" max="65535" />
+        </label>
+        <div class="info-row">
+          <span class="badge">LAN</span>
+          <code id="host-lan-code">—</code>
+        </div>
+        <label class="field">
+          <span>Internet address (direct mode only)</span>
+          <div class="row">
+            <input id="host-advertise" type="text" />
+            <button type="button" id="btn-refresh-ip" class="btn-secondary">Refresh</button>
+            <button type="button" id="btn-try-upnp" class="btn-secondary">Try UPnP</button>
+          </div>
+        </label>
+        <p id="host-nat-status" class="hint"></p>
+        <label class="field">
+          <span>Room broker URL</span>
+          <input id="broker-url" type="text" placeholder="http://150.136.121.155:8787" />
+        </label>
+      </div>
+
       <button type="button" id="btn-start-host" class="btn-primary btn-large">Start game</button>
     </section>
 
     <section id="screen-join" class="screen">
       <button type="button" class="back-btn" data-back>← Back</button>
       <h2>Join a game</h2>
-      <label class="field">
-        <span>Display name</span>
-        <input id="join-name" type="text" maxlength="31" />
-      </label>
-      <label class="field">
-        <span>Host address (paste room code)</span>
-        <input id="join-address" type="text" placeholder="203.0.113.42:23456" />
-      </label>
-      <p class="hint">Use the host's public or VPN IP. LAN codes only work on the same network.</p>
-      <label class="field field-inline">
-        <span>Input delay (frames)</span>
-        <input id="join-delay" type="number" min="1" max="20" />
-      </label>
+
+      <div class="simple-only">
+        <label class="field">
+          <span>Display name</span>
+          <input id="join-name" type="text" maxlength="31" />
+        </label>
+        <label class="field">
+          <span>Room code</span>
+          <input id="join-room-code" type="text" placeholder="SF4-A1B2" />
+        </label>
+        <label class="field field-inline">
+          <span>Input delay</span>
+          <input id="join-delay-simple" type="number" min="1" max="20" />
+        </label>
+      </div>
+
+      <div class="advanced-only hidden">
+        <label class="field">
+          <span>Connection</span>
+          <select id="join-connect-method">
+            <option value="relay">Relay room code</option>
+            <option value="direct">Direct IP:port</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Display name</span>
+          <input id="join-name-adv" type="text" maxlength="31" />
+        </label>
+        <label class="field">
+          <span>Host address or room code</span>
+          <input id="join-address" type="text" placeholder="SF4-A1B2 or 203.0.113.42:23456" />
+        </label>
+        <label class="field field-inline">
+          <span>Input delay</span>
+          <input id="join-delay" type="number" min="1" max="20" />
+        </label>
+      </div>
+
       <button type="button" id="btn-start-join" class="btn-primary btn-large">Start game</button>
+    </section>
+
+    <section id="screen-rooms" class="screen">
+      <button type="button" class="back-btn" data-back>← Back</button>
+      <h2>Open rooms</h2>
+      <button type="button" id="btn-refresh-rooms" class="btn-secondary">Refresh</button>
+      <ul id="room-list" class="room-list"></ul>
+      <p id="room-list-empty" class="hint hidden">No open rooms. Ask a friend to host or create one.</p>
     </section>
 
     <section id="screen-offline" class="screen">

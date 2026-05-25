@@ -5,7 +5,7 @@
 From the repository root, with Visual Studio build tools and `gh` CLI installed:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/github-release.ps1 -Tag v0.1.0-testers
+powershell -ExecutionPolicy Bypass -File scripts/github-release.ps1 -Tag v0.2.0
 ```
 
 This builds, packages, validates the manifest, and creates a GitHub Release with the zip attached.
@@ -15,13 +15,13 @@ This builds, packages, validates the manifest, and creates a GitHub Release with
 1. **Build and package**
 
    ```powershell
-   powershell -ExecutionPolicy Bypass -File scripts/release-team-build.ps1 -VersionLabel v0.1.0-testers
+   powershell -ExecutionPolicy Bypass -File scripts/release-team-build.ps1 -VersionLabel v0.2.0
    ```
 
 2. **Create GitHub Release**
 
    ```powershell
-   gh release create v0.1.0-testers dist/sf4-enhanced-team-*.zip --title "SF4 Enhanced v0.1.0-testers" --notes-file docs/RELEASE_NOTES_TEMPLATE.md
+   gh release create v0.2.0 dist/sf4-enhanced-team-*.zip --title "SF4 Enhanced v0.2.0" --notes-file docs/RELEASE_NOTES_TEMPLATE.md
    ```
 
 3. **Share with testers**
@@ -32,10 +32,10 @@ This builds, packages, validates the manifest, and creates a GitHub Release with
 
 ## What ships in the zip
 
-- `Launcher.exe`, `Sidecar.dll`, `WebView2Loader.dll`, `launcher-ui/`
+- `Launcher.exe`, `Sidecar.dll`, **`RelayHost.exe`**, `WebView2Loader.dll`, `launcher-ui/`
 - Runtime DLLs (GNS, GGPO, spdlog, etc.)
 - `START_HERE.md`, `preflight.ps1`, `MANIFEST.txt`, `BUILD_INFO.txt`, `ATTRIBUTION.md`
 
 ## Version tags
 
-Use semantic tags like `v0.1.0-testers`. Match `-VersionLabel` in package scripts for support threads.
+Use semantic tags like `v0.2.0`. Match `-VersionLabel` in package scripts for support threads.

@@ -291,3 +291,87 @@ h2 {
 .toast.hidden {
   display: none;
 }
+
+.hidden {
+  display: none !important;
+}
+
+.header-actions {
+  margin-bottom: 12px;
+}
+
+.toggle-simple {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.status-strip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+.status-strip.success {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.status-strip.error {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.coming-soon-card {
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  width: 100%;
+}
+
+.coming-soon-card:hover {
+  border-color: var(--accent);
+}
+
+.coming-soon-card strong {
+  color: var(--text);
+}
+
+.room-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.room-list-item {
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.room-list-item:hover {
+  border-color: var(--accent);
+}
+
+.field select {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 0.95rem;
+}

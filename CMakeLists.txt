@@ -131,7 +131,19 @@ target_link_libraries(
 
 add_executable(SessionInteractiveTest "src/session/interactive_test.cxx")
 target_link_libraries(SessionInteractiveTest PRIVATE nlohmann_json::nlohmann_json imgui::imgui spdlog::spdlog Dimps sf4e Session "d3d9")
-# target_link_options(SessionInteractiveTest PRIVATE "/entry:wWinMainCRTStartup")
+
+add_executable(RelayHost "src/relay/relay_host.cxx")
+target_include_directories(RelayHost PRIVATE "src/common" "src/session")
+target_link_libraries(RelayHost PRIVATE
+    CLI11::CLI11
+    Session
+    spdlog::spdlog
+    GameNetworkingSockets::shared
+    "bcrypt"
+    "pathcch"
+    "ws2_32"
+)
+set_target_properties(RelayHost PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 
 add_executable(Launcher WIN32
     src/launcher/launcher.cxx
@@ -140,6 +152,9 @@ add_executable(Launcher WIN32
     src/launcher/netplay_room_code.cxx
     src/launcher/netplay_launch_controller.cxx
     src/launcher/connect_strategy.cxx
+    src/launcher/room_broker_client.cxx
+    src/launcher/upnp_portmap.cxx
+    src/launcher/relay_host_spawn.cxx
     src/launcher/webview_host.cxx
 )
 target_include_directories(Launcher PRIVATE ${VALVEFILEVDF_INCLUDE_DIRS} "src/common" "src/launcher")
@@ -155,6 +170,7 @@ target_link_libraries(Launcher PRIVATE
     "pathcch"
     "shell32"
     "ole32"
+    "oleaut32"
     "user32"
     "gdi32"
 )
@@ -167,7 +183,7 @@ target_compile_definitions(Launcher PRIVATE -D_UNICODE -DUNICODE)
 set_target_properties(Launcher PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 
 install(
-  TARGETS Launcher Sidecar
+  TARGETS Launcher Sidecar RelayHost
   RUNTIME DESTINATION "."
 )
 

@@ -72,6 +72,8 @@ $RequiredPackagePaths = @(
 
     "Sidecar.dll",
 
+    "RelayHost.exe",
+
     "WebView2Loader.dll",
 
     "launcher-ui\index.html",
@@ -175,6 +177,8 @@ $DocFiles = @(
     "docs\TEAM_QUICKSTART.md",
 
     "docs\USER_NETPLAY.md",
+
+    "docs\CASUAL_NETPLAY.md",
 
     "docs\SMOKE_TEST.md",
 

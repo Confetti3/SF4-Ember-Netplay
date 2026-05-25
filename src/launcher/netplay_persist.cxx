@@ -52,6 +52,12 @@ namespace launcher {
 			strncpy_s(out.lastJoinHost, lastJoin.c_str(), _TRUNCATE);
 			std::string lastAdv = j.value("lastAdvertiseHost", "");
 			strncpy_s(out.lastAdvertiseHost, lastAdv.c_str(), _TRUNCATE);
+			out.simpleUi = (uint8_t)j.value("simpleUi", 1);
+			out.defaultConnectMethod = (uint8_t)j.value("defaultConnectMethod", 0);
+			std::string broker = j.value("brokerBaseUrl", "http://150.136.121.155:8787");
+			strncpy_s(out.brokerBaseUrl, broker.c_str(), _TRUNCATE);
+			std::string relayCode = j.value("relayRoomCode", "");
+			strncpy_s(out.relayRoomCode, relayCode.c_str(), _TRUNCATE);
 			return true;
 		}
 		catch (...) {
@@ -77,6 +83,10 @@ namespace launcher {
 		j["useRelay"] = in.useRelay;
 		j["lastJoinHost"] = in.lastJoinHost;
 		j["lastAdvertiseHost"] = in.lastAdvertiseHost;
+		j["simpleUi"] = in.simpleUi;
+		j["defaultConnectMethod"] = in.defaultConnectMethod;
+		j["brokerBaseUrl"] = in.brokerBaseUrl;
+		j["relayRoomCode"] = in.relayRoomCode;
 
 		std::ofstream f(path);
 		if (!f.is_open()) {
