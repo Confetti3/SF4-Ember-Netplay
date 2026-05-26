@@ -11,7 +11,7 @@
     "type",
     "v",
   ];
-  let state = { simpleUi: false, defaultConnectMethod: 0 };
+  let state = { simpleUi: false, defaultConnectMethod: 1 };
   let updateInfo = { zipDownloadUrl: "", zipApiUrl: "", latestVersion: "", releaseUrl: "", updateAvailable: false };
   let updateBusy = false;
   let shareValues = { relay: "", lan: "", wan: "" };
@@ -212,7 +212,8 @@
             " on your router before joiners connect. Joiners connect to this port — click Start game first."
           : "Share the relay code for WAN play, or LAN address for same-network players.";
       } else if (!wanEmpty) {
-        hint.textContent = "Share relay code (recommended) or public/LAN address for direct connect.";
+        hint.textContent =
+          "Direct IP: share the public address card. Forward TCP+UDP on session port for WAN joiners.";
       } else {
         hint.textContent = "Create a relay room or refresh public IP to get shareable addresses.";
       }
@@ -399,9 +400,7 @@
   }
 
   function getHostConnectMethod() {
-    const preview = document.getElementById("host-room-preview");
-    const previewCode = preview ? preview.textContent : "";
-    if (isSimple() || isShortRoomCode(previewCode)) {
+    if (isSimple()) {
       return "relay";
     }
     return getConnectMethod("host");
@@ -664,6 +663,11 @@
         "Starting game — joiners connect on port " + relayPort + ". Forward TCP+UDP " + relayPort + " first.",
         ""
       );
+    } else if (method === "direct" || method === "autoNat") {
+      const wanAddr = shareValues.wan || "";
+      if (wanAddr) {
+        setStatus("Starting game — share " + wanAddr + " with joiner. Forward TCP+UDP on session port.", "");
+      }
     }
     post({
       type: "start",
@@ -673,13 +677,12 @@
       inputDelay: getInputDelay("host"),
       sessionPort: sessionPort || 23456,
       advertiseHost: advEl ? advEl.value : state.advertiseHost || "",
-      relayRoomCode: preview && preview.indexOf("SF4-") === 0 ? preview : "",
+      relayRoomCode: method === "relay" && preview && preview.indexOf("SF4-") === 0 ? preview : "",
       tryUpnp: method === "autoNat",
     });
   });
 
   document.getElementById("btn-start-join").addEventListener("click", function () {
-    const method = getConnectMethod("join");
     const code = isSimple()
       ? document.getElementById("join-room-code").value
       : document.getElementById("join-address").value;
@@ -688,11 +691,12 @@
       return;
     }
     setButtonLoading("btn-start-join", true);
-    setStatus("Resolving room and checking host reachability…", "");
+    const relayJoin = isShortRoomCode(code);
+    setStatus(relayJoin ? "Resolving room and checking host reachability…" : "Connecting via direct IP…", "");
     post({
       type: "start",
       mode: "join",
-      connectMethod: method === "direct" && code.indexOf("SF4-") !== 0 ? "direct" : "relay",
+      connectMethod: relayJoin ? "relay" : "direct",
       displayName: getDisplayName(),
       inputDelay: getInputDelay("join"),
       joinAddress: code,

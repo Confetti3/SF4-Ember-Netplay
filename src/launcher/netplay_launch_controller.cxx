@@ -119,11 +119,8 @@ namespace launcher {
 		const char* host,
 		const char* lanIp
 	) {
-		const bool shortCode = IsShortRoomCode(roomCode);
-		const bool relayMethod =
-			connectMethod &&
-			(strcmp(connectMethod, "relay") == 0 || strcmp(connectMethod, "matchmaking") == 0);
-		if (!relayMethod && !shortCode) {
+		(void)connectMethod;
+		if (!IsShortRoomCode(roomCode)) {
 			return false;
 		}
 		if (IsPrivateOrLocalHost(host, lanIp)) {
@@ -781,14 +778,6 @@ namespace launcher {
 
 				std::string hostConnectMethod = connectMethod;
 
-				if (hostConnectMethod != "relay" && IsShortRoomCode(relayCode.c_str())) {
-
-					spdlog::info("Host start: forcing relay mode for room code {}", relayCode);
-
-					hostConnectMethod = "relay";
-
-				}
-
 				if (hostConnectMethod == "relay") {
 
 					if (relayCode.empty()) {
@@ -940,7 +929,7 @@ namespace launcher {
 
 				}
 
-				else if (connectMethod == "relay" || IsShortRoomCode(req.roomCode.c_str())) {
+				else if (IsShortRoomCode(req.roomCode.c_str())) {
 
 					sr = ResolveJoinRelayRoom(req, m_settings.brokerBaseUrl);
 

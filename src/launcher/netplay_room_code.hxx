@@ -12,5 +12,7 @@ namespace launcher {
 	bool FormatShortRoomCode(const char* token, char* outCode, int outCodeLen);
 	bool ParseShortRoomCode(const char* roomCode, char* outToken, int outTokenLen);
 
+	bool LooksLikeHostPortAddress(const char* roomCode);
+
 } // namespace launcher
 } // namespace sf4e

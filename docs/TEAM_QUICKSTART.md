@@ -33,6 +33,18 @@ The launcher defaults to **Simple mode** and relay room codes (`SF4-XXXX`). No b
 
 See [CASUAL_NETPLAY.md](CASUAL_NETPLAY.md) in `docs/`. Override broker: `set SF4E_BROKER_URL=http://your-broker:8787`.
 
+## Direct IP over internet (Advanced mode)
+
+Use when you prefer port-forward on the host instead of relay room codes (same as v0.2.2 direct play).
+
+| Host | Joiner |
+|------|--------|
+| **Advanced** → **Direct IP** → enter **public IP** in Internet address | **Advanced** → **Direct IP:port** → paste `host.public.ip:23456` |
+| Forward **TCP+UDP** on **session port** (default 23456) | No port forward needed |
+| Share the **Public address** card on the host screen | Host must use Direct IP (not relay) |
+
+If join fails, confirm both players use **Advanced** mode and the joiner pasted **IP:port**, not `SF4-XXXX`.
+
 ## What you need for netplay
 
 - **Relay (recommended for WAN):** broker on VPS + **`RelayHost.exe`** on host PC (included in zip).
@@ -92,6 +104,7 @@ Full checklist: [SMOKE_TEST.md](SMOKE_TEST.md). Player guide: [USER_NETPLAY.md](
 | “Version mismatch” on join | Same zip on both PCs |
 | Can't create relay room | Broker reachable? `curl http://74.208.200.95:8787/v1/health` |
 | Joiner stuck / "Cannot reach host" | Host must **Start game** first (Connected: yes). Host forwards **assigned** TCP+UDP port from share hint (not always 23456). Test from outside: `Test-NetConnection HOST_IP -Port PORT` |
+| Direct IP join fails | Both use **Advanced** → **Direct IP**. Joiner pastes `public.ip:port` (not SF4-XXXX). Host forwards **session port** TCP+UDP. Delete `%APPDATA%\\sf4e\\config.json` if mode keeps resetting to Relay. |
 | In-app update "Download failed" | Use **Open release page** in launcher, or download zip manually once. Log: `%TEMP%\sf4e-update.log`. Test: `powershell -File scripts\test-updater-download.ps1` |
 | Join times out in-game | Same as above; allow `RelayHost.exe` in Windows Firewall on host |
 | Room expires while waiting | Deploy updated `server.js` on Oracle (adds `/heartbeat`); launcher sends keepalive every 60s |

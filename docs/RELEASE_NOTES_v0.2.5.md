@@ -4,6 +4,7 @@ Relay-first rollback netplay for **Ultra Street Fighter IV** (Steam) with a mode
 
 ## What's new
 
+- **Direct IP fix:** restore direct-as-default; join routes IP:port correctly (not via broker); stale relay codes no longer hijack direct host
 - **Join preflight:** launcher checks host reachability before launching USF4; clear error if host has not forwarded the assigned relay port
 - **Join overlay:** join-specific connecting messages (host must Start game + forward TCP+UDP on assigned port)
 - **Simple mode** (default): relay room codes **`SF4-XXXX`** — no manual broker setup for testers

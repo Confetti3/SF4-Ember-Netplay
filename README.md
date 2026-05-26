@@ -4,7 +4,7 @@
 
 See [ATTRIBUTION.md](ATTRIBUTION.md) for upstream credit and license details.
 
-**Latest release:** [v0.2.5](https://github.com/Confetti3/SF4e/releases/latest) — join preflight, hardened in-app updater (curl/TLS fallbacks, Open release page).
+**Latest release:** [v0.2.5](https://github.com/Confetti3/SF4e/releases/latest) — direct IP fix, join preflight, hardened in-app updater.
 
 **Downloads:** [GitHub Releases](https://github.com/Confetti3/SF4e/releases/latest) (team zip with `Launcher.exe`, `Sidecar.dll`, **`RelayHost.exe`**, `WebView2Loader.dll`, and `launcher-ui/`).
 

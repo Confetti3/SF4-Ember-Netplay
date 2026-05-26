@@ -89,5 +89,14 @@ namespace launcher {
 		return outToken[0] != 0;
 	}
 
+	bool LooksLikeHostPortAddress(const char* roomCode) {
+		if (!roomCode || !roomCode[0] || IsShortRoomCode(roomCode)) {
+			return false;
+		}
+		char host[128] = { 0 };
+		uint16_t port = 0;
+		return ParseRoomCode(roomCode, host, sizeof(host), &port);
+	}
+
 } // namespace launcher
 } // namespace sf4e
