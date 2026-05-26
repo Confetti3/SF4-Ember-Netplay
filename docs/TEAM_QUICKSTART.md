@@ -28,8 +28,8 @@ The launcher defaults to **Simple mode** and relay room codes (`SF4-XXXX`). No b
 | Host | Joiner |
 |------|--------|
 | **Create relay room** → copy `SF4-XXXX` | Paste code → **Start game** |
-| **Start game** (auto-starts **`RelayHost.exe`**) | No port forward needed |
-| Forward **TCP+UDP 23456** on router (or UPnP in Advanced) | Same zip as host |
+| **Start game** (auto-starts **`RelayHost.exe`**) | Wait for host **Connected**, then join |
+| Forward **TCP+UDP** on broker-assigned port (23456–23475; shown in share hint) | No port forward needed |
 
 See [CASUAL_NETPLAY.md](CASUAL_NETPLAY.md) in `docs/`. Override broker: `set SF4E_BROKER_URL=http://your-broker:8787`.
 
@@ -67,7 +67,7 @@ Launcher.exe
 
 ## Firewall
 
-- **Host:** allow inbound **TCP/UDP** on port **23456** (router port-forward or UPnP in Advanced).
+- **Host:** allow inbound **TCP/UDP** on the broker-assigned relay port (23456–23475; shown after **Create relay room**), via router port-forward or UPnP in Advanced.
 - **Joiner:** no port forward needed for relay mode.
 
 ## Quick 2-player test
@@ -91,9 +91,9 @@ Full checklist: [SMOKE_TEST.md](SMOKE_TEST.md). Player guide: [USER_NETPLAY.md](
 | Double-click does nothing | Run `Launcher.exe --console` from a terminal in the package folder |
 | “Version mismatch” on join | Same zip on both PCs |
 | Can't create relay room | Broker reachable? `curl http://74.208.200.95:8787/v1/health` |
-| Join times out | Host forwarded **assigned** TCP+UDP port (shown in host share hint); RelayHost console open |
+| Joiner stuck / "Cannot reach host" | Host must **Start game** first (Connected: yes). Host forwards **assigned** TCP+UDP port from share hint (not always 23456). Test from outside: `Test-NetConnection HOST_IP -Port PORT` |
+| Join times out in-game | Same as above; allow `RelayHost.exe` in Windows Firewall on host |
 | Room expires while waiting | Deploy updated `server.js` on Oracle (adds `/heartbeat`); launcher sends keepalive every 60s |
-| Join times out | Host forwarded **23456** TCP+UDP; `RelayHost.exe` running; same `Sidecar.dll` |
 | Wrong broker URL | Delete `%APPDATA%\sf4e\config.json` or set `SF4E_BROKER_URL` |
 | Missing other DLL errors | Re-extract full zip; install [VC++ x86](https://aka.ms/vs/17/release/vc_redist.x86.exe) |
 | Host/Join issues at menu | Open in-game **Network** panel; both **Ready** |

@@ -872,6 +872,70 @@ namespace sf4e {
 		return false;
 	}
 
+	bool ProbeRemoteTcpConnect(const char* host, uint16_t port, int timeoutMs) {
+		if (!host || !host[0] || port == 0 || timeoutMs <= 0) {
+			return false;
+		}
+		if (!EnsureWinsockStarted()) {
+			return false;
+		}
+
+		SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		if (s == INVALID_SOCKET) {
+			return false;
+		}
+
+		u_long nonBlocking = 1;
+		ioctlsocket(s, FIONBIO, &nonBlocking);
+
+		sockaddr_in addr = { 0 };
+		addr.sin_family = AF_INET;
+		addr.sin_port = htons(port);
+		if (inet_pton(AF_INET, host, &addr.sin_addr) != 1) {
+			closesocket(s);
+			return false;
+		}
+
+		const int rc = connect(s, (sockaddr*)&addr, sizeof(addr));
+		if (rc == 0) {
+			closesocket(s);
+			return true;
+		}
+
+		const int connectErr = WSAGetLastError();
+		if (connectErr != WSAEWOULDBLOCK && connectErr != WSAEINPROGRESS) {
+			closesocket(s);
+			return false;
+		}
+
+		fd_set wfds;
+		fd_set efds;
+		FD_ZERO(&wfds);
+		FD_ZERO(&efds);
+		FD_SET(s, &wfds);
+		FD_SET(s, &efds);
+
+		timeval tv = { 0, 0 };
+		tv.tv_sec = timeoutMs / 1000;
+		tv.tv_usec = (timeoutMs % 1000) * 1000;
+
+		const int sel = select(0, NULL, &wfds, &efds, &tv);
+		if (sel <= 0) {
+			closesocket(s);
+			return false;
+		}
+
+		int soError = 0;
+		int soErrorLen = sizeof(soError);
+		if (getsockopt(s, SOL_SOCKET, SO_ERROR, (char*)&soError, &soErrorLen) != 0) {
+			closesocket(s);
+			return false;
+		}
+
+		closesocket(s);
+		return soError == 0;
+	}
+
 	bool WaitForLocalTcpPort(uint16_t port, int timeoutMs, unsigned long ownerPid) {
 		if (port == 0 || timeoutMs <= 0) {
 			return false;

@@ -1097,11 +1097,25 @@ static void DrawNetplayPlayerPanel() {
 		TextWrapped("Not connected.");
 		return;
 	}
+	const sf4e::NetplayConfig& cfg = sf4e::NetplayFacade::GetConfig();
+	const bool isJoin = cfg.mode == (int)sf4e::NetplayMode::Join;
 	if (!st.connected) {
 		if (s_connectStartedMs == 0) {
 			s_connectStartedMs = GetTickCount();
 		}
-		if (GetTickCount() - s_connectStartedMs > 10000) {
+		const DWORD connectElapsedMs = GetTickCount() - s_connectStartedMs;
+		if (isJoin) {
+			if (connectElapsedMs > 10000) {
+				TextWrapped(
+					"Still connecting... ask host to Start game first and forward TCP+UDP %u on their router.",
+					cfg.sessionPort
+				);
+			}
+			else {
+				TextWrapped("Connecting to host...");
+			}
+		}
+		else if (connectElapsedMs > 10000) {
 			TextWrapped("Still connecting... check RelayHost is running and port forward for joiners.");
 		}
 		else {
@@ -1112,8 +1126,7 @@ static void DrawNetplayPlayerPanel() {
 		s_connectStartedMs = 0;
 		TextWrapped("Connected: yes");
 	}
-	const sf4e::NetplayConfig& cfg = sf4e::NetplayFacade::GetConfig();
-	if (cfg.mode == (int)sf4e::NetplayMode::Join) {
+	if (isJoin) {
 		TextWrapped("Join target: %s:%u", cfg.sessionHost, cfg.sessionPort);
 	}
 	else if (cfg.mode == (int)sf4e::NetplayMode::Host) {

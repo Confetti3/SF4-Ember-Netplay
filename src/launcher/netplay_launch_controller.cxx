@@ -82,6 +82,55 @@ namespace launcher {
 		return CreateRelayRoom(settings.brokerBaseUrl, displayName, advertiseHost);
 	}
 
+	static bool IsPrivateOrLocalHost(const char* host, const char* lanIp) {
+		if (!host || !host[0]) {
+			return true;
+		}
+		if (_stricmp(host, "127.0.0.1") == 0 || _stricmp(host, "localhost") == 0) {
+			return true;
+		}
+		if (lanIp && lanIp[0] && _stricmp(host, lanIp) == 0) {
+			return true;
+		}
+
+		unsigned a = 0;
+		unsigned b = 0;
+		unsigned c = 0;
+		unsigned d = 0;
+		if (sscanf_s(host, "%u.%u.%u.%u", &a, &b, &c, &d) != 4) {
+			return false;
+		}
+		if (a == 10) {
+			return true;
+		}
+		if (a == 172 && b >= 16 && b <= 31) {
+			return true;
+		}
+		if (a == 192 && b == 168) {
+			return true;
+		}
+		return false;
+	}
+
+	static bool ShouldProbeJoinEndpoint(
+		const char* connectMethod,
+		const char* roomCode,
+		const char* host,
+		const char* lanIp
+	) {
+		const bool shortCode = IsShortRoomCode(roomCode);
+		const bool relayMethod =
+			connectMethod &&
+			(strcmp(connectMethod, "relay") == 0 || strcmp(connectMethod, "matchmaking") == 0);
+		if (!relayMethod && !shortCode) {
+			return false;
+		}
+		if (IsPrivateOrLocalHost(host, lanIp)) {
+			return false;
+		}
+		return true;
+	}
+
 
 
 	nlohmann::json NetplayLaunchController::MakeStateEnvelope() const {
@@ -881,6 +930,29 @@ namespace launcher {
 				m_outConfig.sessionPort = sr.endpoint.port;
 
 				m_outConfig.useCentralSession = 0;
+
+				if (ShouldProbeJoinEndpoint(connectMethod.c_str(), req.roomCode.c_str(), sr.endpoint.host, m_lanIp)) {
+					if (!sf4e::ProbeRemoteTcpConnect(sr.endpoint.host, sr.endpoint.port, 5000)) {
+						nlohmann::json err;
+
+						err["v"] = kProtocolVersion;
+
+						err["type"] = "error";
+
+						char errMsg[512];
+						snprintf(
+							errMsg,
+							sizeof(errMsg),
+							"Cannot reach host at %s:%u. Ask the host to forward TCP+UDP %u on their router and allow RelayHost in Windows Firewall. Host must click Start game first.",
+							sr.endpoint.host,
+							(unsigned)sr.endpoint.port,
+							(unsigned)sr.endpoint.port
+						);
+						err["message"] = errMsg;
+
+						return err;
+					}
+				}
 
 				if (IsShortRoomCode(req.roomCode.c_str())) {
 

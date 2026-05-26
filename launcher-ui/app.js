@@ -207,7 +207,9 @@
       const relayPort = s.relayPort || s.relaySessionPort;
       if (relayCode) {
         hint.textContent = relayPort
-          ? "Share the relay code with your opponent. Forward TCP+UDP port " + relayPort + " on your router if joiners cannot connect."
+          ? "Share the relay code. Forward TCP+UDP port " +
+            relayPort +
+            " on your router before joiners connect. Joiners connect to this port — click Start game first."
           : "Share the relay code for WAN play, or LAN address for same-network players.";
       } else if (!wanEmpty) {
         hint.textContent = "Share relay code (recommended) or public/LAN address for direct connect.";
@@ -233,6 +235,7 @@
     }
     if (data.relayPort !== undefined) {
       state.relayPort = data.relayPort;
+      state.relaySessionPort = data.relayPort;
     }
     if (data.relayHost !== undefined) {
       state.relayHost = data.relayHost;
@@ -429,6 +432,7 @@
       }
       if (data.type === "error") {
         setButtonLoading("btn-create-relay-room", false);
+        setButtonLoading("btn-start-join", false);
         if (updateBusy) {
           setUpdateBusy(false);
           renderUpdateStatus(data.message || "Update failed", "error");
@@ -646,6 +650,13 @@
     const portEl = document.getElementById("host-port");
     const sessionPort = portEl ? parseInt(portEl.value, 10) : state.sessionPort || 23456;
     const advEl = document.getElementById("host-advertise");
+    const relayPort = state.relayPort || state.relaySessionPort;
+    if (preview && preview.indexOf("SF4-") === 0 && relayPort) {
+      setStatus(
+        "Starting game — joiners connect on port " + relayPort + ". Forward TCP+UDP " + relayPort + " first.",
+        ""
+      );
+    }
     post({
       type: "start",
       mode: "host",
@@ -664,6 +675,12 @@
     const code = isSimple()
       ? document.getElementById("join-room-code").value
       : document.getElementById("join-address").value;
+    if (!code || !String(code).trim()) {
+      setStatus("Enter a room code or host address.", "error");
+      return;
+    }
+    setButtonLoading("btn-start-join", true);
+    setStatus("Resolving room and checking host reachability…", "");
     post({
       type: "start",
       mode: "join",

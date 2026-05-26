@@ -27,6 +27,9 @@ namespace sf4e {
 	// Poll until UDP port is bound locally (optionally by ownerPid) or timeoutMs elapses.
 	bool WaitForLocalTcpPort(uint16_t port, int timeoutMs = 3000, unsigned long ownerPid = 0);
 
+	// Non-blocking TCP connect probe to a remote host:port. timeoutMs is the select wait budget.
+	bool ProbeRemoteTcpConnect(const char* host, uint16_t port, int timeoutMs = 5000);
+
 	// Strips leading/trailing whitespace and line endings in place.
 	void TrimRoomCodeInPlace(char* buf);
 
