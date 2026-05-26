@@ -336,6 +336,20 @@ int SessionServer::Step()
 				HandleResults(request.loserSide);
 				_dataDirty = true;
 			}
+			else if (type == SessionProtocol::MT_LOBBY_RESET) {
+				int side = -1;
+				for (int i = 0; i < 2; i++) {
+					if (clients.size() > i && clients.at(i).conn == conn) {
+						side = i;
+						break;
+					}
+				}
+				if (side == -1) {
+					spdlog::info("Server: sender {} tried to reset lobby, but is not playing", conn);
+					continue;
+				}
+				ResetLobbyForRematch();
+			}
 			else if (type == SessionProtocol::MT_BATTLE_SNAPSHOT) {
 				// Forward the snapshot to every other client.
 				for (auto clientIter = clients.begin(); clientIter != clients.end(); clientIter++) {
@@ -454,6 +468,13 @@ void SessionServer::ResetBattleSync()
 	for (int i = 0; i < clients.size(); i++) {
 		clients.at(i).data.flags &= (~SessionProtocol::MF_BATTLE_LOADED);
 	}
+}
+
+void SessionServer::ResetLobbyForRematch()
+{
+	_matchData.ClearReady();
+	ResetBattleSync();
+	_dataDirty = true;
 }
 
 void SessionServer::OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo)

@@ -346,6 +346,9 @@ int DrawServerWindow() {
         if (Button("Reeset battle sync")) {
             g_server->ResetBattleSync();
         }
+        if (Button("Reset lobby for rematch")) {
+            g_server->ResetLobbyForRematch();
+        }
     }
     else {
         Text("Waiting for server...");

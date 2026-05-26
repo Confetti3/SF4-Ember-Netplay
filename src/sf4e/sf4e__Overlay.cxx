@@ -1071,7 +1071,15 @@ static void DrawNetplayPlayerPanel() {
 	Text("Netplay status");
 	Separator();
 	if (sf4e::NetplayFacade::IsAutoNetplayPending()) {
-		Text("Starting netplay...");
+		if (sf4e::NetplayFacade::IsPadCapturePending()) {
+			Text("Press Start or LK on your controller to bind it.");
+		}
+		else if (!sf4e::NetplayFacade::IsPadCapturePhaseReady()) {
+			Text("Waiting for controller system...");
+		}
+		else {
+			Text("Starting netplay...");
+		}
 		return;
 	}
 	if (!st.active) {
@@ -1153,24 +1161,7 @@ void DrawNetworkWindow(bool* pOpen) {
 		switch (netState) {
 		case NWS_CAPTURE:
 			if (deviceIdx == 0xff && deviceType == 0xff) {
-				PadSystem* p = PadSystem::staticMethods.GetSingleton();
-				PadSystem::__publicMethods& methods = PadSystem::publicMethods;
-				if ((p->*methods.CaptureNextMatchingPadToSide)(0, 0x1040, 0xffffffff)) {
-					deviceIdx = (p->*methods.GetDeviceIndexForPlayer)(0);
-					deviceType = (p->*methods.GetDeviceTypeForPlayer)(0);
-					(p->*methods.SetSideHasAssignedController)(0, 0);
-					switch (deviceType) {
-					case rPad::PADTYPE_RAWINPUT:
-						(
-							rPad::System_RawInput::staticMethods.GetSingleton()->*rPad::System_RawInput::publicMethods.SetDeviceInUse
-						)(deviceIdx, 0);
-						break;
-					case rPad::PADTYPE_XINPUT:
-						(
-							rPad::System_XInput::staticMethods.GetSingleton()->*rPad::System_XInput::publicMethods.SetDeviceInUse
-						)(deviceIdx, 0);
-						break;
-					}
+				if (sf4e::NetplayFacade::TryCapturePadForSide(0, deviceIdx, deviceType)) {
 					netState = NWS_DECIDE;
 				}
 				else {

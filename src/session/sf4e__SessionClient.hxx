@@ -57,6 +57,7 @@ namespace sf4e {
 
 		EResult Lobby_Ready();
 		EResult Lobby_ReportResults(int loserSide);
+		EResult Lobby_ResetRematch();
 
 		EResult PreBattle_SetEnv(uint32_t rngSeed);
 		EResult PreBattle_SetChara(const Dimps::GameEvents::VsMode::ConfirmedCharaConditions& chara);

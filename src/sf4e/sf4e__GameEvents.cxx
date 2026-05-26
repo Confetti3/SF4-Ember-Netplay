@@ -275,8 +275,8 @@ void fVsBattle::RegisterTasks() {
 void fVsBattle::ExitForeground() {
 	rVsBattle* _this = (rVsBattle*)this;
 	(_this->*rVsBattle::publicMethods.ExitForeground)();
-	if (fUserApp::server) {
-		fUserApp::server->ResetBattleSync();
+	if (fUserApp::netplay) {
+		fUserApp::ResetLobbyForRematch();
 	}
 	bSessionSentLoaded = false;
 	bSessionSynced = false;

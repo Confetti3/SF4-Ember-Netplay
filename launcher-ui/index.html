@@ -13,7 +13,7 @@
       <p class="subtitle">Ultra Street Fighter IV — rollback netplay</p>
       <div class="header-actions">
         <label class="toggle-simple">
-          <input type="checkbox" id="toggle-simple-ui" checked />
+          <input type="checkbox" id="toggle-simple-ui" />
           <span>Simple mode</span>
         </label>
       </div>
@@ -76,8 +76,8 @@
         <label class="field">
           <span>Connection</span>
           <select id="host-connect-method">
+            <option value="direct" selected>Direct IP (LAN / port forward)</option>
             <option value="relay">Relay room (recommended)</option>
-            <option value="direct">Direct IP (LAN / port forward)</option>
             <option value="autoNat">Direct + UPnP</option>
           </select>
         </label>
@@ -138,8 +138,8 @@
         <label class="field">
           <span>Connection</span>
           <select id="join-connect-method">
+            <option value="direct" selected>Direct IP:port</option>
             <option value="relay">Relay room code</option>
-            <option value="direct">Direct IP:port</option>
           </select>
         </label>
         <label class="field">

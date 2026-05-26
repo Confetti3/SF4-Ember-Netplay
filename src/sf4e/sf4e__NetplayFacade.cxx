@@ -45,6 +45,7 @@ namespace sf4e {
 	static int s_autoStartDwellTicks = 0;
 	static int s_framesSinceReady = 0;
 	static bool s_gameReady = false;
+	static bool s_padCaptured = false;
 	static const int kMinFramesAfterReady = 180;
 	static const int kMinDwellBeforeAutoStart = 60;
 
@@ -74,6 +75,7 @@ namespace sf4e {
 		s_autoPending = NetplayConfigIsActive(s_config);
 		s_autoStartDwellTicks = 0;
 		s_framesSinceReady = 0;
+		s_padCaptured = s_config.deviceIdx != 0xff && s_config.deviceType != 0xff;
 		// #region agent log
 		{
 			char buf[256];
@@ -144,17 +146,58 @@ namespace sf4e {
 		return EventBase::GetName(child);
 	}
 
-	static void CapturePadIfNeeded(uint8_t& deviceIdx, uint8_t& deviceType) {
-		if (deviceIdx != 0xff && deviceType != 0xff) {
-			return;
-		}
+	bool NetplayFacade::TryCapturePadForSide(int side, uint8_t& outIdx, uint8_t& outType) {
 		Dimps::Pad::System* p = Dimps::Pad::System::staticMethods.GetSingleton();
 		if (!p) {
-			return;
+			return false;
 		}
 		Dimps::Pad::System::__publicMethods& methods = Dimps::Pad::System::publicMethods;
-		deviceIdx = (p->*methods.GetDeviceIndexForPlayer)(0);
-		deviceType = (p->*methods.GetDeviceTypeForPlayer)(0);
+		if (!(p->*methods.CaptureNextMatchingPadToSide)(side, 0x1040, 0xffffffff)) {
+			return false;
+		}
+		outIdx = (uint8_t)(p->*methods.GetDeviceIndexForPlayer)(side);
+		outType = (uint8_t)(p->*methods.GetDeviceTypeForPlayer)(side);
+		(p->*methods.SetSideHasAssignedController)(side, 0);
+		switch (outType) {
+		case Dimps::Pad::PADTYPE_RAWINPUT: {
+			Dimps::Pad::System_RawInput* raw = Dimps::Pad::System_RawInput::staticMethods.GetSingleton();
+			if (raw) {
+				(raw->*Dimps::Pad::System_RawInput::publicMethods.SetDeviceInUse)(outIdx, 0);
+			}
+			break;
+		}
+		case Dimps::Pad::PADTYPE_XINPUT: {
+			Dimps::Pad::System_XInput* xinput = Dimps::Pad::System_XInput::staticMethods.GetSingleton();
+			if (xinput) {
+				(xinput->*Dimps::Pad::System_XInput::publicMethods.SetDeviceInUse)(outIdx, 0);
+			}
+			break;
+		}
+		}
+		return true;
+	}
+
+	bool NetplayFacade::IsPadCapturePhaseReady() {
+		if (!s_autoPending || !s_gameReady) {
+			return false;
+		}
+		if (s_framesSinceReady < kMinFramesAfterReady) {
+			return false;
+		}
+		if (s_autoStartDwellTicks < kMinDwellBeforeAutoStart) {
+			return false;
+		}
+		return Dimps::Pad::System::staticMethods.GetSingleton() != nullptr;
+	}
+
+	bool NetplayFacade::IsPadCapturePending() {
+		if (!s_autoPending || s_padCaptured) {
+			return false;
+		}
+		if (s_config.deviceIdx != 0xff && s_config.deviceType != 0xff) {
+			return false;
+		}
+		return NetplayFacade::IsPadCapturePhaseReady();
 	}
 
 	void NetplayFacade::TickMainMenu() {
@@ -234,14 +277,37 @@ namespace sf4e {
 
 		CheckGraphicsWarning();
 
+		if (!s_padCaptured) {
+			uint8_t capturedIdx = 0xff;
+			uint8_t capturedType = 0xff;
+			if (!NetplayFacade::TryCapturePadForSide(0, capturedIdx, capturedType)) {
+				// #region agent log
+				static int s_captureWaitLogCount = 0;
+				if (s_captureWaitLogCount < 5 || (s_autoStartDwellTicks % 120) == 0) {
+					char buf[128];
+					snprintf(buf, sizeof(buf),
+						"{\"dwell\":%d,\"capturePending\":1}",
+						s_autoStartDwellTicks);
+					debug::AgentLog("H2", "NetplayFacade::TickMainMenu", "waiting pad capture", buf);
+					if (s_captureWaitLogCount < 5) {
+						s_captureWaitLogCount++;
+					}
+				}
+				// #endregion
+				return;
+			}
+			s_padCaptured = true;
+			s_config.deviceIdx = capturedIdx;
+			s_config.deviceType = capturedType;
+		}
+
 		uint8_t deviceIdx = s_config.deviceIdx;
 		uint8_t deviceType = s_config.deviceType;
-		CapturePadIfNeeded(deviceIdx, deviceType);
 		// #region agent log
 		{
-			char buf[192];
+			char buf[256];
 			snprintf(buf, sizeof(buf),
-				"{\"dwell\":%d,\"deviceIdx\":%u,\"deviceType\":%u,\"mode\":%d,\"onMainMenu\":%d,\"foreground\":\"%s\"}",
+				"{\"dwell\":%d,\"deviceIdx\":%u,\"deviceType\":%u,\"capturePending\":0,\"mode\":%d,\"onMainMenu\":%d,\"foreground\":\"%s\"}",
 				s_autoStartDwellTicks, deviceIdx, deviceType, s_config.mode,
 				IsOnMainMenu() ? 1 : 0, GetRootForegroundEventName());
 			debug::AgentLog("H2", "NetplayFacade::TickMainMenu", "auto-start session", buf);
@@ -338,6 +404,8 @@ namespace sf4e {
 	}
 
 	void NetplayFacade::TickFrame() {
+		fUserApp::TryStartPendingMatch();
+
 		if (fUserApp::netplay && fUserApp::netplay->client._useRelay && GgpoRelay::Instance().IsActive()) {
 			GgpoRelay::Instance().Pump();
 		}

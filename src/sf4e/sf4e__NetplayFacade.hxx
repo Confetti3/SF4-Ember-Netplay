@@ -21,6 +21,9 @@ namespace sf4e {
 		bool IsDevOverlayEnabled();
 		bool IsRelayEnabled();
 		bool IsAutoNetplayPending();
+		bool IsPadCapturePhaseReady();
+		bool IsPadCapturePending();
+		bool TryCapturePadForSide(int side, uint8_t& outIdx, uint8_t& outType);
 		void NotifyGameReady();
 		void TickMainMenu();
 		void TickFrame();

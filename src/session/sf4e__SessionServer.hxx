@@ -68,6 +68,7 @@ namespace sf4e {
 		int Close();
 		void PrepareForCallbacks();
 		void ResetBattleSync();
+		void ResetLobbyForRematch();
 
 		typedef struct SessionMember {
 			SessionProtocol::MemberData data;

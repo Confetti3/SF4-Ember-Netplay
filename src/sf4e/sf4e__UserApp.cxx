@@ -51,6 +51,39 @@ using sf4e::SessionServer;
 
 std::unique_ptr<fUserApp::Netplay> fUserApp::netplay;
 std::unique_ptr<SessionServer> fUserApp::server;
+static bool s_pendingMatchStart = false;
+
+static bool StartMatchFromLobby(SessionClient* const client) {
+    sf4e::NetplayFacade::ClearBattleState();
+    fVsBattle::bSessionSynced = false;
+    fVsBattle::bSessionSentLoaded = false;
+
+    RootEvent* root = App::GetRootEvent();
+    if (!root) {
+        return false;
+    }
+    char* mainMenuQuery[1] = { "MainMenu" };
+    rMainMenu* mainMenu = (rMainMenu*)EventBaseWithEC::FindForegroundEvent(
+        root,
+        mainMenuQuery,
+        1
+    );
+    if (!mainMenu) {
+        return false;
+    }
+
+    ProgressData* progressData = *RootEvent::GetProgressData(root);
+    ProgressData::BattleTypeSettings* BattleTypeSettings = &(ProgressData::GetBattleTypeSettings(progressData)[ProgressData::NBT_PVP]);
+    *ProgressData::GetNextBattleType(progressData) = ProgressData::NBT_PVP;
+    BattleTypeSettings->editionSelect = client->_lobbyData.editionSelect;
+    BattleTypeSettings->rounds = client->_lobbyData.roundCount;
+    BattleTypeSettings->timeLimit = client->_lobbyData.roundTime;
+    fVsPreBattle::bSkipToVersus = true;
+    fVsPreBattle::OnTasksRegistered = fUserApp::_OnVsPreBattleTasksRegistered;
+    fVsBattle::OnTasksRegistered = fUserApp::_OnVsBattleTasksRegistered;
+    (rMainMenu::ToItemObserver(mainMenu)->*rMainMenu::itemObserverMethods.GoToVersusMode)();
+    return true;
+}
 
 sf4e::UserApp::Netplay::Netplay(
     const SessionClient::Callbacks& callbacks,
@@ -209,39 +242,13 @@ void OnReady(sf4e::SessionClient* const client, const sf4e::SessionClient::Callb
         sf4e::debug::AgentLog("H5", "OnReady", "lobby all ready callback", buf);
     }
     // #endregion
-    sf4e::NetplayFacade::ClearBattleState();
-    fVsBattle::bSessionSynced = false;
-    fVsBattle::bSessionSentLoaded = false;
-
-    // Since handling a request forces the process to load into a battle,
-    // handling the request can only reasonably be done if the process is
-    // currently on the main menu.
-    RootEvent* root = App::GetRootEvent();
-    if (!root) {
-        spdlog::info("Client: ignoring that both clients are ready because root event is not ready");
-        return;
+    if (!StartMatchFromLobby(client)) {
+        s_pendingMatchStart = true;
+        spdlog::info("Client: deferring match start until main menu");
     }
-    char* mainMenuQuery[1] = { "MainMenu" };
-    rMainMenu* mainMenu = (rMainMenu*)EventBaseWithEC::FindForegroundEvent(
-        root,
-        mainMenuQuery,
-        1
-    );
-    if (!mainMenu) {
-        spdlog::info("Client: ignoring that both clients are ready because we're not on the main menu");
-        return;
+    else {
+        s_pendingMatchStart = false;
     }
-
-    ProgressData* progressData = *RootEvent::GetProgressData(root);
-    ProgressData::BattleTypeSettings* BattleTypeSettings = &(ProgressData::GetBattleTypeSettings(progressData)[ProgressData::NBT_PVP]);
-    *ProgressData::GetNextBattleType(progressData) = ProgressData::NBT_PVP;
-    BattleTypeSettings->editionSelect = client->_lobbyData.editionSelect;
-    BattleTypeSettings->rounds = client->_lobbyData.roundCount;
-    BattleTypeSettings->timeLimit = client->_lobbyData.roundTime;
-    fVsPreBattle::bSkipToVersus = true;
-    fVsPreBattle::OnTasksRegistered = fUserApp::_OnVsPreBattleTasksRegistered;
-    fVsBattle::OnTasksRegistered = fUserApp::_OnVsBattleTasksRegistered;
-    (rMainMenu::ToItemObserver(mainMenu)->*rMainMenu::itemObserverMethods.GoToVersusMode)();
 }
 
 void OnBattleSynced(SessionClient* const client, const sf4e::SessionClient::Callbacks& callbacks) {
@@ -260,7 +267,26 @@ void fUserApp::Install() {
 }
 
 void fUserApp::ShutdownNetplay(bool closeGgpo) {
+    s_pendingMatchStart = false;
     sf4e::NetplayFacade::ShutdownNetplay(closeGgpo);
+}
+
+void fUserApp::ResetLobbyForRematch() {
+    if (server) {
+        server->ResetLobbyForRematch();
+    }
+    else if (netplay) {
+        netplay->client.Lobby_ResetRematch();
+    }
+}
+
+void fUserApp::TryStartPendingMatch() {
+    if (!s_pendingMatchStart || !netplay) {
+        return;
+    }
+    if (StartMatchFromLobby(&netplay->client)) {
+        s_pendingMatchStart = false;
+    }
 }
 
 bool fUserApp::StartServer(uint16 hostPort, std::string& identity, std::string& sidecarHash, bool editionSelect, int roundCount, FixedPoint roundTime) {

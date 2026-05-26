@@ -1,6 +1,6 @@
 (function () {
   const PROTOCOL_VERSION = 1;
-  let state = { simpleUi: true, defaultConnectMethod: 0 };
+  let state = { simpleUi: false, defaultConnectMethod: 1 };
 
   function post(msg) {
     if (window.chrome && window.chrome.webview) {
@@ -38,7 +38,7 @@
 
   function isSimple() {
     const t = document.getElementById("toggle-simple-ui");
-    return t ? t.checked : true;
+    return t ? t.checked : false;
   }
 
   function renderUiMode() {
@@ -105,6 +105,12 @@
     }
     renderUiMode();
 
+    const hostMethod = document.getElementById("host-connect-method");
+    const joinMethod = document.getElementById("join-connect-method");
+    const methodValue = connectMethodFromDefault(s.defaultConnectMethod);
+    if (hostMethod) hostMethod.value = methodValue;
+    if (joinMethod) joinMethod.value = methodValue;
+
     if (s.connectionStatus) setStatus(s.connectionStatus, "success");
     if (s.natStatus) {
       const nat = document.getElementById("host-nat-status");
@@ -112,11 +118,17 @@
     }
   }
 
+  function connectMethodFromDefault(method) {
+    if (method === 0) return "relay";
+    if (method === 2) return "autoNat";
+    return "direct";
+  }
+
   function getConnectMethod(hostOrJoin) {
-    if (isSimple()) return "relay";
+    if (isSimple()) return connectMethodFromDefault(state.defaultConnectMethod);
     const id = hostOrJoin === "host" ? "host-connect-method" : "join-connect-method";
     const el = document.getElementById(id);
-    return el ? el.value : "relay";
+    return el ? el.value : connectMethodFromDefault(state.defaultConnectMethod);
   }
 
   function getDisplayName() {

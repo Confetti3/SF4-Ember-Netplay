@@ -74,6 +74,7 @@ namespace sf4e {
 		struct MatchData {
 			MatchData();
 			void Clear();
+			void ClearReady();
 			bool IsAllReady();
 
 			int64_t readyMessageNum[2];
@@ -93,6 +94,7 @@ namespace sf4e {
 			MT_LOBBY_READY,
 			MT_LOBBY_ALLREADY,
 			MT_LOBBY_REPORTRESULTS,
+			MT_LOBBY_RESET,
 
 			MT_PREBATTLE_SETENV,
 			MT_PREBATTLE_SETCHARA,
@@ -116,6 +118,7 @@ namespace sf4e {
 			{MT_LOBBY_READY, "lobby_ready"},
 			{MT_LOBBY_ALLREADY, "lobby_allready"},
 			{MT_LOBBY_REPORTRESULTS, "lobby_reportresults"},
+			{MT_LOBBY_RESET, "lobby_reset"},
 
 			{MT_PREBATTLE_SETENV, "prebattle_setenv"},
 			{MT_PREBATTLE_SETCHARA, "prebattle_setchara"},
@@ -184,6 +187,10 @@ namespace sf4e {
 		struct LobbyReportResults {
 			MessageType type = MT_LOBBY_REPORTRESULTS;
 			int32_t loserSide;
+		};
+
+		struct LobbyReset {
+			MessageType type = MT_LOBBY_RESET;
 		};
 
 		struct PreBattleSetEnv {
@@ -269,6 +276,7 @@ namespace sf4e {
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReady, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyAllReady, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReportResults, type, loserSide);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReset, type);
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PreBattleSetChara, type, chara);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PreBattleSetEnv, type, rngSeed);

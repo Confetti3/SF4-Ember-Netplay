@@ -45,6 +45,17 @@ namespace launcher {
 		}
 	}
 
+	static const char* DefaultConnectMethodString(uint8_t method) {
+		switch (method) {
+		case 0:
+			return "relay";
+		case 2:
+			return "autoNat";
+		default:
+			return "direct";
+		}
+	}
+
 
 
 	NetplayLaunchController::NetplayLaunchController(PersistedSettings& settings, NetplayConfig& outConfig)
@@ -490,8 +501,7 @@ namespace launcher {
 
 
 			const std::string connectMethod = msg.value("connectMethod",
-
-				mode == (int)NetplayMode::Host ? "relay" : "relay");
+				DefaultConnectMethodString(m_settings.defaultConnectMethod));
 
 			if (mode == (int)NetplayMode::Host) {
 

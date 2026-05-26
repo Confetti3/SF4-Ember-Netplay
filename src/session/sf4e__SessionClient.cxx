@@ -488,6 +488,17 @@ EResult SessionClient::Lobby_ReportResults(int loserSide)
 	return result;
 }
 
+EResult SessionClient::Lobby_ResetRematch()
+{
+	SessionProtocol::LobbyReset msg;
+	json j = msg;
+	EResult result = Send(j, nullptr);
+	if (result != k_EResultOK) {
+		spdlog::warn("Client: could not reset lobby for rematch! Result: {}", (int)result);
+	}
+	return result;
+}
+
 EResult SessionClient::PreBattle_SetEnv(uint32_t rngSeed)
 {
 	SessionProtocol::PreBattleSetEnv msg;

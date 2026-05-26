@@ -38,6 +38,8 @@ namespace sf4e {
         static void StartSession(char* joinAddr, uint16_t port, std::string& sidecarHash, std::string& name, uint8_t deviceType, uint8_t deviceIdx, uint8_t delay, bool useRelay = true);
         static void ShutdownNetplay(bool closeGgpo = true);
         static bool StartServer(uint16 hostPort, std::string& identity, std::string& sidecarHash, bool editionSelect, int roundCount, Dimps::Math::FixedPoint roundTime);
+        static void ResetLobbyForRematch();
+        static void TryStartPendingMatch();
         static void _OnVsPreBattleTasksRegistered();
         static void _OnVsBattleTasksRegistered();
     };
