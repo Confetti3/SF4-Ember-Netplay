@@ -103,6 +103,15 @@
     return !!state.simpleUi;
   }
 
+  function updateVersionHints() {
+    const raw = state.installedVersion || "";
+    const label = raw ? (raw.indexOf("v") === 0 ? raw : "v" + raw) : "this release";
+    const hint = "Both players must use the same build (" + label + ").";
+    document.querySelectorAll(".version-match-hint").forEach(function (el) {
+      el.textContent = hint;
+    });
+  }
+
   function renderUiMode() {
     const simple = isSimple();
     document.querySelectorAll(".simple-only").forEach(function (el) {
@@ -366,6 +375,7 @@
       const textEl = installedEl.querySelector(".version-badge-text");
       if (textEl) textEl.textContent = text;
     }
+    updateVersionHints();
 
     if (hasRelayRoomFields(s)) {
       finalizeRelayRoomResponse(s);

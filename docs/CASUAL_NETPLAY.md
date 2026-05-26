@@ -6,7 +6,7 @@ SF4 Enhanced launcher supports **Simple mode** (default): relay room codes, no p
 
 1. **Simple mode** (checkbox on home): Host → **Create relay room** → copy `SF4-XXXX` → Start game.
 2. Joiner: paste the same code → Start game.
-3. v0.2.7 ships with broker **`http://74.208.200.95:8787`**. The **session relay runs on the VPS** — host and joiner connect outbound; no host port forward.
+3. v0.2.7.3+ ships with broker **`http://74.208.200.95:8787`**. The **session relay runs on the VPS** — host and joiner connect outbound; no host port forward.
 
 Set broker URL once in Advanced, or:
 
@@ -21,8 +21,8 @@ set SF4E_BROKER_URL=http://YOUR_VPS:8787
 | **Relay room** | ~$5 VPS + broker | WAN friends, CGNAT, no port forward |
 | **Direct + UPnP** | $0 | Same network or router supports UPnP |
 | **Direct IP** | $0 | LAN party or you already forwarded ports |
-| **Find match** | Same broker | Unranked queue on broker |
-| **Open rooms** | Same broker | Small lobby list |
+| **Find match** | Same broker | Experimental — prefer Host + room code for beta |
+| **Open rooms** | Same broker | Experimental — browse list; not primary beta path |
 
 ## Invite links
 

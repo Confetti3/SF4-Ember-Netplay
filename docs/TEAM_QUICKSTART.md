@@ -13,6 +13,10 @@ Upstream: [sf4e by adanducci](https://codeberg.org/adanducci/sf4e). See `ATTRIBU
    - **Ultra Street Fighter IV** on Steam (app ID 45760)
 3. **Run** `preflight.ps1` (optional sanity check), then **`Launcher.exe`** from that folder → **Host**, **Join**, or **Offline**.
 
+## Beta testers
+
+Inviting friends? Share [`docs/BETA_TESTERS.md`](BETA_TESTERS.md) — same zip on both PCs, current `SF4-XXXX` from host, log paths for bug reports.
+
 ## Updating
 
 On the launcher home screen, use **Check for updates** to compare your install against the latest [GitHub release](https://github.com/Confetti3/SF4e/releases/latest). If a newer build is available, **Install update** downloads the team zip and replaces all files in the install folder (your settings in `%APPDATA%\sf4e\` are kept). Close USF4 before installing.
@@ -23,7 +27,7 @@ powershell -ExecutionPolicy Bypass -File preflight.ps1
 
 ## Casual netplay (Simple mode — default)
 
-The launcher defaults to **Simple mode** and relay room codes (`SF4-XXXX`). No broker setup required — v0.2.0 ships with broker **`http://74.208.200.95:8787`**.
+The launcher defaults to **Simple mode** and relay room codes (`SF4-XXXX`). Broker **`http://74.208.200.95:8787`** is preconfigured (VPS session relay — no host port forward).
 
 | Host | Joiner |
 |------|--------|

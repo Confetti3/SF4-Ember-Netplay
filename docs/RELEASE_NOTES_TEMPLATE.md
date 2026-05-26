@@ -1,16 +1,13 @@
-# SF4 Enhanced v0.2.6
+# SF4 Enhanced v0.2.7.3
 
-Relay-first rollback netplay for **Ultra Street Fighter IV** (Steam) with a modern **SF4 Enhanced** launcher.
+VPS relay rollback netplay for **Ultra Street Fighter IV** (Steam) with a modern **SF4 Enhanced** launcher.
 
 ## What's new
 
-- **Join preflight:** launcher checks host reachability before launching USF4; clear error if host has not forwarded the assigned relay port
-- **Join overlay:** join-specific connecting messages (host must Start game + forward TCP+UDP on assigned port)
-- **Simple mode** (default): relay room codes **`SF4-XXXX`** — no manual broker setup for testers
-- **`RelayHost.exe`** runs on the **host's PC** when they start a game
-- Preconfigured room broker: `http://74.208.200.95:8787` (override with `SF4E_BROKER_URL`)
-- Advanced mode: direct IP, UPnP, custom broker URL
-- **In-app updater:** hardened download chain (browser URL first, curl fallback, TLS 1.2, detailed errors, Open release page on failure)
+- **Simple mode** (default): VPS relay room codes **`SF4-XXXX`** — no port forward on the host PC
+- Session relay runs on the broker VPS; host and joiner connect outbound
+- **Advanced mode:** Direct IP, UPnP, custom broker URL (unchanged from v0.2.6 routing)
+- In-app updater: **Check for updates** on the launcher home screen
 
 ## Based on sf4e
 
@@ -29,32 +26,33 @@ This build is a fork of [sf4e](https://codeberg.org/adanducci/sf4e) by Anthony D
 3. Run `powershell -ExecutionPolicy Bypass -File preflight.ps1`
 4. Run `Launcher.exe` — **Host**, **Join**, or **Offline**
 
-## Quick start (relay)
+## Quick start (Simple VPS relay)
 
 | Host | Joiner |
 |------|--------|
-| Simple mode → **Create relay room** | Paste **`SF4-XXXX`** from host |
-| **Start game** (starts `RelayHost.exe`) | Wait for host **Connected**, then **Start game** |
-| Forward **TCP+UDP** on assigned port (23456–23475; share hint shows exact port) | No port forward needed |
-| Both **Ready** in-game | Same zip on both PCs |
+| **Create relay room** → copy **`SF4-XXXX`** | Paste code from host |
+| **Start game** | Wait for host **Connected**, then **Start game** |
+| No port forward on host PC | No port forward needed |
+| Both **Ready** in-game | **Same release zip** on both PCs |
+
+See `docs/BETA_TESTERS.md` in the zip for the full beta checklist.
 
 ## Broker override
 
-Default broker is baked into the launcher. To use another broker:
+Default broker is baked into the launcher (`http://74.208.200.95:8787`). To use another broker:
 
 ```text
 set SF4E_BROKER_URL=http://your-broker:8787
 ```
 
-If you upgraded from an older build, delete or edit `%APPDATA%\sf4e\config.json` if the broker URL is still the old Oracle VPS.
-
 ## Known limitations
 
-- Host must reach the internet and expose the broker-assigned relay port (23456–23475; relay runs on host PC, not the VPS)
-- Joiner launcher preflight uses TCP; host still needs **TCP+UDP** forwarded for gameplay
 - Both players must use the **same release zip** (`Sidecar.dll` must match)
-- Find match / Open rooms are early stubs
+- **Find match** and **Open rooms** are experimental — use **Host + room code** for beta testing
+- VPS relay supports up to **20** concurrent rooms on the default broker; idle rooms expire after ~15 minutes
+- Advanced Direct IP still requires host **TCP+UDP** port forward on the session port
+- Rematch, disconnect recovery, and spectator mode need more beta coverage
 
 ## Support
 
-Include the **Git** line from `BUILD_INFO.txt` and a screenshot when reporting issues.
+Include the **Git** line from `BUILD_INFO.txt`, `%APPDATA%\sf4e\logs\sf4e.log`, and a screenshot when reporting issues.

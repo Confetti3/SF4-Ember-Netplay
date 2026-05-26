@@ -184,6 +184,8 @@ $DocFiles = @(
 
     "docs\TEAM_QUICKSTART.md",
 
+    "docs\BETA_TESTERS.md",
+
     "docs\USER_NETPLAY.md",
 
     "docs\CASUAL_NETPLAY.md",

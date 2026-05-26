@@ -1,31 +1,112 @@
 ﻿# SF4 Enhanced
 
-**SF4 Enhanced** is a netplay-focused fork of [sf4e](https://codeberg.org/adanducci/sf4e) — a process-inspection and modification tool for the Steam release of _Ultra Street Fighter IV_. It adds a **WebView2 launcher** (Host / Join / Offline), **VPS-hosted relay room codes** (`SF4-XXXX`) for casual WAN play, and packaged releases for testers. **`RelayHost.exe`** is included for legacy/local relay and Advanced setups — not required for Simple mode on the VPS broker.
+**SF4 Enhanced** is a netplay-focused fork of [sf4e](https://codeberg.org/adanducci/sf4e) for the Steam release of _Ultra Street Fighter IV_. It adds rollback netplay (GGPO), a **WebView2 launcher** (Host / Join / Offline), and **VPS relay room codes** (`SF4-XXXX`) so friends can play online without port forwarding on the host PC.
 
 See [ATTRIBUTION.md](ATTRIBUTION.md) for upstream credit and license details.
 
-**Latest release:** [v0.2.7.3](https://github.com/Confetti3/SF4e/releases/latest) — fixes VPS relay black screen after portraits. Direct IP (Advanced) unchanged from v0.2.6.
+**Latest release:** [v0.2.7.3](https://github.com/Confetti3/SF4e/releases/latest)
 
-**Downloads:** [GitHub Releases](https://github.com/Confetti3/SF4e/releases/latest) (team zip with `Launcher.exe`, `Sidecar.dll`, `RelayHost.exe`, `WebView2Loader.dll`, and `launcher-ui/`).
+**Download:** [GitHub Releases](https://github.com/Confetti3/SF4e/releases/latest) — get the **team zip** asset (not "Source code" only).
 
 [TOC]
 
-## Running
+## Getting started
 
-### Netplay (SF4 Enhanced launcher)
+### 1. Prerequisites
 
-**Simple mode (default):** relay room codes (`SF4-XXXX`) — no port forward on the host PC. **Advanced mode:** Direct IP (`IP:port`), local relay, or UPnP via the connection dropdown.
+Install once on each PC:
 
-See [docs/CASUAL_NETPLAY.md](docs/CASUAL_NETPLAY.md) and [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md). Broker ops: [docs/ORACLE_BROKER.md](docs/ORACLE_BROKER.md). Run `Launcher.exe` (or `--offline` to skip netplay). Developer overlay: `--dev-overlay` or `SF4E_NETPLAY_DEV=1`.
+| Requirement | Link |
+|-------------|------|
+| **Ultra Street Fighter IV** (Steam, app 45760) | Not included in the zip |
+| [Microsoft Edge WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703) | Required for the launcher UI |
+| [VC++ Redistributable (x86)](https://aka.ms/vs/17/release/vc_redist.x86.exe) | Required for sf4e binaries |
 
-Override broker URL: `set SF4E_BROKER_URL=http://your-broker:8787` or Advanced → **Room broker URL**.
+### 2. Install
 
-**Publish a release:** `powershell -ExecutionPolicy Bypass -File scripts/github-release.ps1 -Tag v0.2.6`. See [docs/RELEASE.md](docs/RELEASE.md).
+1. Download the latest **team zip** from [Releases](https://github.com/Confetti3/SF4e/releases/latest).
+2. Extract the **entire** zip to one folder (e.g. `C:\Games\SF4-Enhanced\`). Keep all files together — do not copy only `Launcher.exe`.
+3. Optional: run `powershell -ExecutionPolicy Bypass -File preflight.ps1` to verify the package.
+4. Double-click **`Launcher.exe`**.
 
-**Testers:** download the zip from [Releases](https://github.com/Confetti3/SF4e/releases/latest), extract fully, run `preflight.ps1`, then `Launcher.exe`. Prerequisites: Steam USF4, [WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703), [VC++ x86](https://aka.ms/vs/17/release/vc_redist.x86.exe).
+Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.2.7.3`). Use **Check for updates** on the home screen to upgrade.
+
+### 3. Play online (Simple mode — recommended)
+
+The launcher defaults to **Simple mode**. No router setup on the host PC — traffic goes through the VPS relay.
+
+| Step | Host | Joiner |
+|------|------|--------|
+| 1 | Click **Host** → **Create relay room** | Wait |
+| 2 | Copy the **`SF4-XXXX`** code shown on screen | Click **Join** → paste that exact code |
+| 3 | Click **Start game** | Wait until host is in-game, then **Start game** |
+| 4 | Press **Ready** in the in-game lobby | Press **Ready** |
+| 5 | Pick characters and fight | Same |
+
+**Tips**
+
+- Share the **current** room code from the host screen — old codes point at empty or expired sessions.
+- Stay in **Simple mode** for beta testing. **Find match** and **Open rooms** (Advanced only) are experimental.
+- If USF4 is not detected automatically, set `STEAM_APP_PATH` to your `Super Street Fighter IV - Arcade Edition` folder before launching.
+
+### 4. Advanced mode (Direct IP)
+
+Switch to **Advanced** in the launcher for classic host/join with `IP:port`, local relay, or UPnP. The host must **port-forward TCP+UDP** on the session port (default **23456**). See [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md).
+
+Direct IP behavior is unchanged from v0.2.6 — use Advanced when you prefer port-forward over VPS room codes.
+
+## Documentation
+
+| Doc | Audience |
+|-----|----------|
+| [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md) | Beta testers — quick checklist and bug reports |
+| [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md) | Player guide — Simple + Advanced flows |
+| [docs/CASUAL_NETPLAY.md](docs/CASUAL_NETPLAY.md) | Casual WAN play overview |
+| [docs/TEAM_QUICKSTART.md](docs/TEAM_QUICKSTART.md) | Packaged as `START_HERE.md` in the release zip |
+| [docs/SMOKE_TEST.md](docs/SMOKE_TEST.md) | Manual test checklist |
+| [docs/VPS_RELAY_TEST_REPORT_v0.2.7.md](docs/VPS_RELAY_TEST_REPORT_v0.2.7.md) | VPS relay readiness and infra notes |
+| [docs/RELEASE.md](docs/RELEASE.md) | Building and publishing releases |
+
+## Troubleshooting
+
+| Problem | What to try |
+|---------|-------------|
+| Blank launcher / WebView2 error | Install [WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703); keep `launcher-ui/` next to `Launcher.exe` |
+| "Version mismatch" on join | Same zip on both PCs; use **Check for updates** |
+| Empty lobby / wrong opponent | Same **`SF4-XXXX`** from host's **current** screen |
+| Black screen after portraits | Update to **v0.2.7.3+** on **both** PCs |
+| Join fails before game starts | Host must click **Start game** first |
+| In-game "Still connecting" | Host and joiner on same build; create a **new** room after any firewall changes |
+
+**Logs:** `%APPDATA%\sf4e\logs\sf4e.log` · **Console:** `Launcher.exe --console` · **Build info:** `BUILD_INFO.txt` in the install folder
+
+**Report bugs:** include the Git line from `BUILD_INFO.txt`, both players' `sf4e.log` if possible, and steps to reproduce. See [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md).
+
+## Configuration
+
+| Setting | How |
+|---------|-----|
+| Broker URL | Advanced → **Room broker URL**, or `set SF4E_BROKER_URL=http://your-broker:8787` |
+| Developer overlay | `Launcher.exe --dev-overlay` or `set SF4E_NETPLAY_DEV=1` |
+| Offline (no netplay) | **Offline** on the launcher home screen |
+| Reset stuck settings | Delete or edit `%APPDATA%\sf4e\config.json` |
+
+Default broker: `http://74.208.200.95:8787` (VPS relay — no host port forward in Simple mode).
+
+## For developers
+
+**Publish a release:**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/github-release.ps1 -Tag v0.2.7.3 -NotesFile docs/RELEASE_NOTES_v0.2.7.3.md
+```
+
+See [docs/RELEASE.md](docs/RELEASE.md). Broker deployment: [docs/ORACLE_BROKER.md](docs/ORACLE_BROKER.md).
+
 ### Supported environments
+
 * Windows: Windows 10 or later
-* Linux: Fedora 40+, Steam Deck
+* Linux: Fedora 40+, Steam Deck (via Proton)
 
 ### Running on Windows
 

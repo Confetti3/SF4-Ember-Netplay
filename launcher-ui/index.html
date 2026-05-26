@@ -170,22 +170,23 @@
         </button>
       </div>
 
-      <div class="panel quick-actions">
-        <h3 class="section-label">Quick actions</h3>
+      <div class="panel quick-actions advanced-only">
+        <h3 class="section-label">Quick actions <span class="experimental-tag">Experimental</span></h3>
+        <p class="panel-hint">Use <strong>Host</strong> and share your room code for reliable beta play.</p>
         <div class="quick-actions-row">
-          <button type="button" class="quick-action-btn" id="btn-find-match">
+          <button type="button" class="quick-action-btn" id="btn-find-match" title="Experimental — use Host + room code for now">
             <span class="quick-action-icon" aria-hidden="true">
               <svg class="icon"><use href="#i-search"/></svg>
             </span>
             <strong>Find match</strong>
-            <span>Join the queue</span>
+            <span>Join the queue (beta)</span>
           </button>
-          <button type="button" class="quick-action-btn" id="btn-browse-rooms">
+          <button type="button" class="quick-action-btn" id="btn-browse-rooms" title="Experimental — use Host + room code for now">
             <span class="quick-action-icon" aria-hidden="true">
               <svg class="icon"><use href="#i-list"/></svg>
             </span>
             <strong>Open rooms</strong>
-            <span>Browse relay rooms</span>
+            <span>Browse relay list (beta)</span>
           </button>
         </div>
       </div>
@@ -279,6 +280,7 @@
             </button>
           </div>
           <p class="share-hint" id="host-share-hint">Create a relay room, then share the code with your opponent.</p>
+          <p class="field-hint version-match-hint" id="host-version-hint"></p>
           <code id="host-room-preview" class="hidden" aria-hidden="true">—</code>
         </section>
 
@@ -357,6 +359,7 @@
             <input id="join-room-code" class="input-mono input-lg" type="text" placeholder="SF4-A1B2" autocomplete="off" spellcheck="false" />
             <span class="field-hint">Wait until the host has clicked Start game and shows Connected, then join.</span>
           </label>
+          <p class="field-hint version-match-hint" id="join-version-hint"></p>
           <label class="field field-inline">
             <span>Input delay (frames)</span>
             <input id="join-delay-simple" type="number" min="1" max="20" />

@@ -90,6 +90,27 @@ body {
   white-space: nowrap;
 }
 
+.experimental-tag {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #e6a817;
+  vertical-align: middle;
+}
+
+.panel-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.version-match-hint {
+  margin-top: 8px;
+}
+
 /* Icons */
 .icon {
   width: 16px;
