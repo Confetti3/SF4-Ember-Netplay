@@ -460,8 +460,20 @@ namespace sf4e {
 		return true;
 	}
 
-	bool HttpDownloadUrlUtf8(const char* url, const wchar_t* destPath, int timeoutMs) {
+	bool HttpDownloadUrlUtf8(
+		const char* url,
+		const wchar_t* destPath,
+		int timeoutMs,
+		const char* extraHeaders,
+		HttpRequestResult* outResult
+	) {
+		if (outResult) {
+			*outResult = HttpRequestResult{};
+		}
 		if (!url || !destPath || !destPath[0]) {
+			if (outResult) {
+				outResult->error = HttpErrorKind::InvalidArgs;
+			}
 			return false;
 		}
 
@@ -470,6 +482,9 @@ namespace sf4e {
 		bool useHttps = true;
 		int port = 443;
 		if (!ParseHttpUrl(url, host, sizeof(host), path, sizeof(path), useHttps, port)) {
+			if (outResult) {
+				outResult->error = HttpErrorKind::InvalidArgs;
+			}
 			return false;
 		}
 
@@ -486,6 +501,9 @@ namespace sf4e {
 			0
 		);
 		if (!hSession) {
+			if (outResult) {
+				outResult->error = HttpErrorKind::OpenFailed;
+			}
 			return false;
 		}
 
@@ -496,6 +514,9 @@ namespace sf4e {
 		INTERNET_PORT winPort = (INTERNET_PORT)(port > 0 ? port : (useHttps ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT));
 		HINTERNET hConnect = WinHttpConnect(hSession, wHost, winPort, 0);
 		if (!hConnect) {
+			if (outResult) {
+				outResult->error = HttpErrorKind::ConnectFailed;
+			}
 			WinHttpCloseHandle(hSession);
 			return false;
 		}
@@ -511,6 +532,9 @@ namespace sf4e {
 			flags
 		);
 		if (!hRequest) {
+			if (outResult) {
+				outResult->error = HttpErrorKind::OpenFailed;
+			}
 			WinHttpCloseHandle(hConnect);
 			WinHttpCloseHandle(hSession);
 			return false;
@@ -519,8 +543,28 @@ namespace sf4e {
 		DWORD reqRedirect = WINHTTP_OPTION_REDIRECT_POLICY_ALWAYS;
 		WinHttpSetOption(hRequest, WINHTTP_OPTION_REDIRECT_POLICY, &reqRedirect, sizeof(reqRedirect));
 
-		if (!WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) ||
-			!WinHttpReceiveResponse(hRequest, NULL)) {
+		wchar_t headerBuf[512] = { 0 };
+		const wchar_t* headers = WINHTTP_NO_ADDITIONAL_HEADERS;
+		DWORD headersLen = 0;
+		if (extraHeaders && extraHeaders[0]) {
+			Utf8ToWide(extraHeaders, headerBuf, 512);
+			headers = headerBuf;
+			headersLen = (DWORD)-1L;
+		}
+
+		if (!WinHttpSendRequest(hRequest, headers, headersLen, WINHTTP_NO_REQUEST_DATA, 0, 0, 0)) {
+			if (outResult) {
+				outResult->error = HttpErrorKind::SendFailed;
+			}
+			WinHttpCloseHandle(hRequest);
+			WinHttpCloseHandle(hConnect);
+			WinHttpCloseHandle(hSession);
+			return false;
+		}
+		if (!WinHttpReceiveResponse(hRequest, NULL)) {
+			if (outResult) {
+				outResult->error = HttpErrorKind::ReceiveFailed;
+			}
 			WinHttpCloseHandle(hRequest);
 			WinHttpCloseHandle(hConnect);
 			WinHttpCloseHandle(hSession);
@@ -537,7 +581,13 @@ namespace sf4e {
 			&statusSize,
 			WINHTTP_NO_HEADER_INDEX
 		);
+		if (outResult) {
+			outResult->statusCode = (int)status;
+		}
 		if (status < 200 || status >= 300) {
+			if (outResult) {
+				outResult->error = HttpErrorKind::HttpStatus;
+			}
 			WinHttpCloseHandle(hRequest);
 			WinHttpCloseHandle(hConnect);
 			WinHttpCloseHandle(hSession);
@@ -546,6 +596,9 @@ namespace sf4e {
 
 		HANDLE hFile = CreateFileW(destPath, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 		if (hFile == INVALID_HANDLE_VALUE) {
+			if (outResult) {
+				outResult->error = HttpErrorKind::OpenFailed;
+			}
 			WinHttpCloseHandle(hRequest);
 			WinHttpCloseHandle(hConnect);
 			WinHttpCloseHandle(hSession);
@@ -553,22 +606,29 @@ namespace sf4e {
 		}
 
 		bool ok = true;
+		ULONGLONG totalWritten = 0;
 		for (;;) {
-			DWORD avail = 0;
-			if (!WinHttpQueryDataAvailable(hRequest, &avail) || avail == 0) {
+			char buf[65536];
+			DWORD read = 0;
+			if (!WinHttpReadData(hRequest, buf, sizeof(buf), &read)) {
+				ok = false;
+				if (outResult) {
+					outResult->error = HttpErrorKind::ReceiveFailed;
+				}
 				break;
 			}
-			char buf[65536];
-			DWORD toRead = avail > sizeof(buf) ? sizeof(buf) : avail;
-			DWORD read = 0;
-			if (!WinHttpReadData(hRequest, buf, toRead, &read) || read == 0) {
+			if (read == 0) {
 				break;
 			}
 			DWORD written = 0;
 			if (!WriteFile(hFile, buf, read, &written, NULL) || written != read) {
 				ok = false;
+				if (outResult) {
+					outResult->error = HttpErrorKind::ReceiveFailed;
+				}
 				break;
 			}
+			totalWritten += written;
 		}
 
 		CloseHandle(hFile);
@@ -576,10 +636,19 @@ namespace sf4e {
 		WinHttpCloseHandle(hConnect);
 		WinHttpCloseHandle(hSession);
 
-		if (!ok) {
+		if (!ok || totalWritten == 0) {
+			if (outResult && outResult->error == HttpErrorKind::None) {
+				outResult->error = HttpErrorKind::EmptyBody;
+			}
 			DeleteFileW(destPath);
+			return false;
 		}
-		return ok;
+
+		if (outResult) {
+			outResult->ok = true;
+			outResult->error = HttpErrorKind::None;
+		}
+		return true;
 	}
 
 	bool FetchPublicIPv4(char* outIp, int outIpLen, int timeoutMs) {

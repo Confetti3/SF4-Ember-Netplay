@@ -73,6 +73,12 @@ namespace sf4e {
 	);
 
 	// Download https?://host/path to a local file. Follows redirects.
-	bool HttpDownloadUrlUtf8(const char* url, const wchar_t* destPath, int timeoutMs = 120000);
+	bool HttpDownloadUrlUtf8(
+		const char* url,
+		const wchar_t* destPath,
+		int timeoutMs = 120000,
+		const char* extraHeaders = nullptr,
+		HttpRequestResult* outResult = nullptr
+	);
 
 } // namespace sf4e

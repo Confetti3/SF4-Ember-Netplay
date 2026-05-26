@@ -1,4 +1,4 @@
-# SF4 Enhanced v0.2.3
+# SF4 Enhanced v0.2.4
 
 Relay-first rollback netplay for **Ultra Street Fighter IV** (Steam) with a modern **SF4 Enhanced** launcher.
 

@@ -12,7 +12,7 @@
     "v",
   ];
   let state = { simpleUi: false, defaultConnectMethod: 0 };
-  let updateInfo = { zipDownloadUrl: "", latestVersion: "", updateAvailable: false };
+  let updateInfo = { zipDownloadUrl: "", zipApiUrl: "", latestVersion: "", updateAvailable: false };
   let updateBusy = false;
   let shareValues = { relay: "", lan: "", wan: "" };
   let relayHeartbeatTimer = null;
@@ -429,8 +429,14 @@
       }
       if (data.type === "error") {
         setButtonLoading("btn-create-relay-room", false);
-        showToast(data.message || "Error", "error");
-        setStatus(data.message || "Something went wrong", "error");
+        if (updateBusy) {
+          setUpdateBusy(false);
+          renderUpdateStatus(data.message || "Update failed", "error");
+          showInstallButton(!!updateInfo.updateAvailable);
+        } else {
+          showToast(data.message || "Error", "error");
+          setStatus(data.message || "Something went wrong", "error");
+        }
       } else if (data.type === "copied") {
         showToast("Copied to clipboard", "success");
       } else if (data.type === "state" && "heartbeatOk" in data) {
@@ -461,6 +467,7 @@
         }
         updateInfo = {
           zipDownloadUrl: data.zipDownloadUrl || "",
+          zipApiUrl: data.zipApiUrl || "",
           latestVersion: data.latestVersion || "",
           updateAvailable: !!data.updateAvailable,
         };
@@ -718,6 +725,7 @@
     post({
       type: "applyUpdate",
       zipDownloadUrl: updateInfo.zipDownloadUrl,
+      zipApiUrl: updateInfo.zipApiUrl,
       latestVersion: updateInfo.latestVersion,
     });
   });

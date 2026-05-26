@@ -356,6 +356,8 @@ namespace launcher {
 
 			r["zipDownloadUrl"] = check.zipDownloadUrl;
 
+			r["zipApiUrl"] = check.zipApiUrl;
+
 			return r;
 
 		}
@@ -377,6 +379,8 @@ namespace launcher {
 			}
 
 			std::string zipUrl = msg.value("zipDownloadUrl", "");
+
+			std::string zipApiUrl = msg.value("zipApiUrl", "");
 
 			std::string latestTag = msg.value("latestVersion", "");
 
@@ -414,11 +418,13 @@ namespace launcher {
 
 				zipUrl = check.zipDownloadUrl;
 
+				zipApiUrl = check.zipApiUrl;
+
 				latestTag = check.latestVersion;
 
 			}
 
-			ApplyUpdateResult applied = DownloadAndApplyUpdate(zipUrl.c_str(), latestTag.c_str());
+			ApplyUpdateResult applied = DownloadAndApplyUpdate(zipUrl.c_str(), zipApiUrl.c_str(), latestTag.c_str());
 
 			if (!applied.ok) {
 

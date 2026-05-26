@@ -14,6 +14,7 @@ namespace launcher {
 		std::string releaseNotes;
 		std::string releaseUrl;
 		std::string zipDownloadUrl;
+		std::string zipApiUrl;
 	};
 
 	struct ApplyUpdateResult {
@@ -26,7 +27,11 @@ namespace launcher {
 	bool IsGameProcessRunning();
 
 	UpdateCheckResult CheckForUpdate();
-	ApplyUpdateResult DownloadAndApplyUpdate(const char* zipDownloadUrl, const char* latestVersionTag);
+	ApplyUpdateResult DownloadAndApplyUpdate(
+		const char* zipDownloadUrl,
+		const char* zipApiUrl,
+		const char* latestVersionTag
+	);
 
 } // namespace launcher
 } // namespace sf4e

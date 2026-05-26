@@ -4,7 +4,7 @@
 
 See [ATTRIBUTION.md](ATTRIBUTION.md) for upstream credit and license details.
 
-**Latest release:** [v0.2.3](https://github.com/Confetti3/SF4e/releases/latest) — relay host session connect fix, RelayHost startup reliability, overlay error feedback.
+**Latest release:** [v0.2.4](https://github.com/Confetti3/SF4e/releases/latest) — in-app updater download fix, clearer update errors.
 
 **Downloads:** [GitHub Releases](https://github.com/Confetti3/SF4e/releases/latest) (team zip with `Launcher.exe`, `Sidecar.dll`, **`RelayHost.exe`**, `WebView2Loader.dll`, and `launcher-ui/`).
 
@@ -20,7 +20,7 @@ See [docs/CASUAL_NETPLAY.md](docs/CASUAL_NETPLAY.md) and [docs/USER_NETPLAY.md](
 
 Override broker URL: `set SF4E_BROKER_URL=http://your-broker:8787` or Advanced → **Room broker URL**.
 
-**Publish a release:** `powershell -ExecutionPolicy Bypass -File scripts/github-release.ps1 -Tag v0.2.3`. See [docs/RELEASE.md](docs/RELEASE.md).
+**Publish a release:** `powershell -ExecutionPolicy Bypass -File scripts/github-release.ps1 -Tag v0.2.4`. See [docs/RELEASE.md](docs/RELEASE.md).
 
 **Testers:** download the zip from [Releases](https://github.com/Confetti3/SF4e/releases/latest), extract fully, run `preflight.ps1`, then `Launcher.exe`. Prerequisites: Steam USF4, [WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703), [VC++ x86](https://aka.ms/vs/17/release/vc_redist.x86.exe).
 ### Supported environments

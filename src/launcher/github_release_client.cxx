@@ -216,6 +216,103 @@ namespace launcher {
 			}
 		}
 
+		static std::string HttpDownloadErrorMessage(const HttpRequestResult& httpResult) {
+			switch (httpResult.error) {
+			case HttpErrorKind::HttpStatus:
+				if (httpResult.statusCode > 0) {
+					char buf[64];
+					snprintf(buf, sizeof(buf), "HTTP %d", httpResult.statusCode);
+					return buf;
+				}
+				return "HTTP error";
+			case HttpErrorKind::Timeout:
+				return "timed out";
+			case HttpErrorKind::ConnectFailed:
+				return "could not connect";
+			case HttpErrorKind::ReceiveFailed:
+				return "transfer interrupted";
+			case HttpErrorKind::EmptyBody:
+				return "empty response";
+			default:
+				return "network error";
+			}
+		}
+
+		static bool TryHttpDownload(
+			const char* url,
+			const char* headers,
+			const wchar_t* zipPath,
+			std::string& outError
+		) {
+			if (!url || !url[0]) {
+				return false;
+			}
+			HttpRequestResult httpResult;
+			if (HttpDownloadUrlUtf8(url, zipPath, 300000, headers, &httpResult)) {
+				return true;
+			}
+			outError = HttpDownloadErrorMessage(httpResult);
+			return false;
+		}
+
+		static bool DownloadViaPowerShell(const char* url, const wchar_t* destPath) {
+			if (!url || !url[0] || !destPath) {
+				return false;
+			}
+
+			wchar_t urlWide[2048] = { 0 };
+			MultiByteToWideChar(CP_UTF8, 0, url, -1, urlWide, 2048);
+
+			wchar_t ps[8192] = { 0 };
+			swprintf_s(
+				ps,
+				L"try { Invoke-WebRequest -Uri \"%s\" -OutFile \"%s\" -UserAgent \"sf4e-updater/1.0\" -UseBasicParsing | Out-Null; exit 0 } catch { exit 1 }",
+				urlWide,
+				destPath
+			);
+			if (!RunPowerShellCommand(ps)) {
+				return false;
+			}
+
+			WIN32_FILE_ATTRIBUTE_DATA info = { 0 };
+			if (!GetFileAttributesExW(destPath, GetFileExInfoStandard, &info)) {
+				return false;
+			}
+			ULONGLONG size = ((ULONGLONG)info.nFileSizeHigh << 32) | info.nFileSizeLow;
+			return size > 0;
+		}
+
+		static bool DownloadReleaseZip(
+			const char* zipApiUrl,
+			const char* zipDownloadUrl,
+			const wchar_t* zipPath,
+			std::string& outError
+		) {
+			const char* apiHeaders = "Accept: application/octet-stream\r\nUser-Agent: sf4e-updater/1.0\r\n";
+			const char* browserHeaders = "User-Agent: sf4e-updater/1.0\r\n";
+
+			if (zipApiUrl && zipApiUrl[0] && TryHttpDownload(zipApiUrl, apiHeaders, zipPath, outError)) {
+				return true;
+			}
+			DeleteFileW(zipPath);
+
+			if (zipDownloadUrl && zipDownloadUrl[0] && TryHttpDownload(zipDownloadUrl, browserHeaders, zipPath, outError)) {
+				return true;
+			}
+			DeleteFileW(zipPath);
+
+			const char* psUrl = (zipDownloadUrl && zipDownloadUrl[0]) ? zipDownloadUrl : zipApiUrl;
+			if (psUrl && psUrl[0] && DownloadViaPowerShell(psUrl, zipPath)) {
+				return true;
+			}
+			DeleteFileW(zipPath);
+
+			if (outError.empty()) {
+				outError = "all download methods failed";
+			}
+			return false;
+		}
+
 	} // namespace
 
 	bool GetLauncherInstallDir(wchar_t* outDir, int outDirChars) {
@@ -344,6 +441,7 @@ namespace launcher {
 					std::string name = asset.value("name", "");
 					if (name.find(".zip") != std::string::npos && name.find("sf4-enhanced-team") != std::string::npos) {
 						result.zipDownloadUrl = asset.value("browser_download_url", "");
+						result.zipApiUrl = asset.value("url", "");
 						break;
 					}
 				}
@@ -363,10 +461,18 @@ namespace launcher {
 		return result;
 	}
 
-	ApplyUpdateResult DownloadAndApplyUpdate(const char* zipDownloadUrl, const char* latestVersionTag) {
+	ApplyUpdateResult DownloadAndApplyUpdate(
+		const char* zipDownloadUrl,
+		const char* zipApiUrl,
+		const char* latestVersionTag
+	) {
 		ApplyUpdateResult result;
-		if (!zipDownloadUrl || !zipDownloadUrl[0] || !latestVersionTag || !latestVersionTag[0]) {
-			result.error = "Missing download URL or version tag.";
+		if ((!zipDownloadUrl || !zipDownloadUrl[0]) && (!zipApiUrl || !zipApiUrl[0])) {
+			result.error = "Missing download URL.";
+			return result;
+		}
+		if (!latestVersionTag || !latestVersionTag[0]) {
+			result.error = "Missing version tag.";
 			return result;
 		}
 		if (IsGameProcessRunning()) {
@@ -401,8 +507,9 @@ namespace launcher {
 		PathCchCombine(extractDir, MAX_PATH, tempRoot, L"extract");
 		CreateDirectoryW(extractDir, NULL);
 
-		if (!HttpDownloadUrlUtf8(zipDownloadUrl, zipPath, 300000)) {
-			result.error = "Download failed. Check your connection and try again.";
+		std::string downloadError;
+		if (!DownloadReleaseZip(zipApiUrl, zipDownloadUrl, zipPath, downloadError)) {
+			result.error = "Download failed (" + downloadError + "). Check your connection or download the zip manually from GitHub Releases.";
 			return result;
 		}
 
