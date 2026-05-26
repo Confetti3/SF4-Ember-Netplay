@@ -27,7 +27,6 @@
 #include "sf4e__UserApp.hxx"
 
 #include "../session/sf4e__GgpoRelay.hxx"
-#include "../common/sf4e__DebugLog.hxx"
 
 namespace SessionProtocol = sf4e::SessionProtocol;
 using Dimps::App;
@@ -111,6 +110,10 @@ void fUserApp::_OnVsBattleTasksRegistered()
         }
     }
     if (isPlayer) {
+        if (netplay->client._useRelay) {
+            GgpoRelay::Instance().Start(netplay->client._ggpoPort, &netplay->client);
+        }
+
         GGPOPlayer players[MAX_SF4E_PROTOCOL_USERS];
         for (int i = 0; i < 2 && i < netplay->client._lobbyData.members.size(); i++) {
             SessionProtocol::MemberData& memberData = netplay->client._lobbyData.members[i];
@@ -138,7 +141,11 @@ void fUserApp::_OnVsBattleTasksRegistered()
                         32,
                         &player.u.remote.port
                     )) {
-                    // Relay endpoints configured by GgpoRelay (127.0.0.1:virtual).
+                    spdlog::info(
+                        "GgpoRelay: remote endpoint {}:{}",
+                        player.u.remote.ip_address,
+                        player.u.remote.port
+                    );
                 }
                 else if (memberData.ip.empty()) {
                     char szAddr[SteamNetworkingIPAddr::k_cchMaxString];
@@ -167,10 +174,6 @@ void fUserApp::_OnVsBattleTasksRegistered()
                 strcpy_s(player.u.remote.ip_address, 32, memberData.ip.c_str());
             }
         }
-        if (netplay->client._useRelay) {
-            GgpoRelay::Instance().Start(netplay->client._ggpoPort, &netplay->client);
-        }
-
         fSystem::StartGGPO(
             players,
             netplay->client._lobbyData.members.size(),
@@ -235,13 +238,6 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
 }
 
 void OnReady(sf4e::SessionClient* const client, const sf4e::SessionClient::Callbacks& c) {
-    // #region agent log
-    {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "{\"members\":%zu}", client->_lobbyData.members.size());
-        sf4e::debug::AgentLog("H5", "OnReady", "lobby all ready callback", buf);
-    }
-    // #endregion
     if (!StartMatchFromLobby(client)) {
         s_pendingMatchStart = true;
         spdlog::info("Client: deferring match start until main menu");
@@ -315,13 +311,6 @@ void fUserApp::StartSession(char* joinAddr, uint16_t port, std::string& sidecarH
     netplay->client._useRelay = useRelay;
     netplay->client.Connect(addr);
     netplay->client.PrepareForCallbacks();
-    // #region agent log
-    {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "{\"addr\":\"%s\",\"ggpoPort\":%u}", joinAddr, port);
-        sf4e::debug::AgentLog("H4", "UserApp::StartSession", "session connect", buf);
-    }
-    // #endregion
 }
 
 void fUserApp::Steam_PostUpdate() {
@@ -338,18 +327,12 @@ void fUserApp::Steam_PostUpdate() {
     if (netplay) {
         int stepResult = netplay->client.Step();
         if (stepResult < 0) {
-            // #region agent log
-            sf4e::debug::AgentLog("H5", "UserApp::Steam_PostUpdate", "netplay Step failed, deleting client", "{}");
-            // #endregion
             delete netplay.release();
         }
     }
 
     if (server) {
         if (server->Step() < 0) {
-            // #region agent log
-            sf4e::debug::AgentLog("H5", "UserApp::Steam_PostUpdate", "server Step failed, deleting server", "{}");
-            // #endregion
             delete server.release();
         }
     }

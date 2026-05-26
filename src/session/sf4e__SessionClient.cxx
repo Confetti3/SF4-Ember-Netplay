@@ -18,7 +18,6 @@
 #include "sf4e__SessionProtocol.hxx"
 #include "sf4e__GgpoRelay.hxx"
 #include "../sf4e/sf4e__NetplayFacade.hxx"
-#include "../common/sf4e__DebugLog.hxx"
 
 using nlohmann::json;
 
@@ -164,9 +163,6 @@ int SessionClient::Step()
 			msg = json::parse(start, start + pIncomingMsg->m_cbSize);
 		}
 		catch (json::exception&) {
-			// #region agent log
-			debug::AgentLog("H5", "SessionClient::Step", "json parse failed", "{}");
-			// #endregion
 			continue;
 		}
 		SteamNetworkingIPAddr peerAddr = *(pIncomingMsg->m_identityPeer.GetIPAddr());
@@ -260,13 +256,6 @@ int SessionClient::Step()
 			}
 		}
 		else if (type == SessionProtocol::MT_LOBBY_ALLREADY) {
-			// #region agent log
-			{
-				char buf[96];
-				snprintf(buf, sizeof(buf), "{\"members\":%zu}", _lobbyData.members.size());
-				debug::AgentLog("H5", "SessionClient::Step", "MT_LOBBY_ALLREADY", buf);
-			}
-			// #endregion
 			_callbacks.OnReady(this, _callbacks);
 		}
 		else if (type == SessionProtocol::MT_BATTLE_SYNCED) {
@@ -406,21 +395,6 @@ int SessionClient::Step()
 
 void SessionClient::OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo)
 {
-	// #region agent log
-	{
-		char endDebug[96] = { 0 };
-		if (pInfo->m_info.m_szEndDebug && pInfo->m_info.m_szEndDebug[0]) {
-			strncpy_s(endDebug, pInfo->m_info.m_szEndDebug, _TRUNCATE);
-		}
-		char buf[320];
-		snprintf(buf, sizeof(buf),
-			"{\"state\":%d,\"oldState\":%d,\"endReason\":%d,\"endDebug\":\"%s\"}",
-			(int)pInfo->m_info.m_eState, (int)pInfo->m_eOldState,
-			(int)pInfo->m_info.m_eEndReason, endDebug);
-		debug::AgentLog("H8", "SessionClient::OnSteamNetConnectionStatusChanged", "conn state", buf);
-	}
-	// #endregion
-
 	switch (pInfo->m_info.m_eState)
 	{
 	case k_ESteamNetworkingConnectionState_ClosedByPeer:
@@ -610,9 +584,6 @@ void SessionClient::SteamNetConnectionStatusChangedCallback(SteamNetConnectionSt
 {
 	SessionClient* instance = (SessionClient*)SteamNetworkingSockets()->GetConnectionUserData(pInfo->m_hConn);
 	if (!instance) {
-		// #region agent log
-		debug::AgentLog("H3", "SessionClient::SteamNetConnectionStatusChangedCallback", "null instance", "{}");
-		// #endregion
 		return;
 	}
 	instance->OnSteamNetConnectionStatusChanged(pInfo);

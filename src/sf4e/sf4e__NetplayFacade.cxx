@@ -5,8 +5,6 @@
 #include <deque>
 #include <string>
 
-#include "../common/sf4e__DebugLog.hxx"
-
 #include <GameNetworkingSockets/steam/steamnetworkingsockets.h>
 #include <spdlog/spdlog.h>
 
@@ -51,9 +49,6 @@ namespace sf4e {
 
 	void NetplayFacade::NotifyGameReady() {
 		s_gameReady = true;
-		// #region agent log
-		debug::AgentLog("H1", "NetplayFacade::NotifyGameReady", "game init complete", "{}");
-		// #endregion
 	}
 
 	void NetplayFacade::InitFromPayload(const NetplayConfig& cfg) {
@@ -76,17 +71,6 @@ namespace sf4e {
 		s_autoStartDwellTicks = 0;
 		s_framesSinceReady = 0;
 		s_padCaptured = s_config.deviceIdx != 0xff && s_config.deviceType != 0xff;
-		// #region agent log
-		{
-			char buf[384];
-			snprintf(buf, sizeof(buf),
-				"{\"mode\":%d,\"sessionPort\":%u,\"ggpoPort\":%u,\"useCentralSession\":%u,\"sessionHost\":\"%s\",\"autoPending\":%d}",
-				s_config.mode, s_config.sessionPort, s_config.ggpoPort,
-				(unsigned)s_config.useCentralSession, s_config.sessionHost,
-				s_autoPending ? 1 : 0);
-			debug::AgentLog("H6", "NetplayFacade::InitFromPayload", "payload init", buf);
-		}
-		// #endregion
 		if (s_autoPending) {
 			spdlog::info("NetplayFacade: auto netplay pending mode={}", s_config.mode);
 		}
@@ -130,22 +114,6 @@ namespace sf4e {
 		}
 		char* mainMenuQuery[1] = { "MainMenu" };
 		return EventBaseWithEC::FindForegroundEvent(root, mainMenuQuery, 1) != nullptr;
-	}
-
-	static const char* GetRootForegroundEventName() {
-		RootEvent* root = App::GetRootEvent();
-		if (!root) {
-			return "(no root)";
-		}
-		EventController* controller = (root->*EventBaseWithEC::publicMethods.GetChildEventController)();
-		if (!controller) {
-			return "(no controller)";
-		}
-		EventBase* child = (controller->*EventController::publicMethods.GetForegroundEvent)();
-		if (!child) {
-			return "(no foreground)";
-		}
-		return EventBase::GetName(child);
 	}
 
 	bool NetplayFacade::TryCapturePadForSide(int side, uint8_t& outIdx, uint8_t& outType) {
@@ -207,15 +175,6 @@ namespace sf4e {
 			return;
 		}
 		if (!s_gameReady) {
-			// #region agent log
-			static int s_waitReadyFrames = 0;
-			s_waitReadyFrames++;
-			if (s_waitReadyFrames == 180 || s_waitReadyFrames == 360) {
-				char buf[96];
-				snprintf(buf, sizeof(buf), "{\"waitFrames\":%d}", s_waitReadyFrames);
-				debug::AgentLog("H12", "NetplayFacade::TickMainMenu", "waiting NotifyGameReady", buf);
-			}
-			// #endregion
 			return;
 		}
 
@@ -223,28 +182,6 @@ namespace sf4e {
 		if (s_framesSinceReady < kMinFramesAfterReady) {
 			return;
 		}
-
-		// #region agent log
-		static int s_tickLogCount = 0;
-		if (s_tickLogCount < 5) {
-			char buf[96];
-			snprintf(buf, sizeof(buf), "{\"framesSinceReady\":%d}", s_framesSinceReady);
-			debug::AgentLog("H1", "NetplayFacade::TickMainMenu", "tick", buf);
-			s_tickLogCount++;
-		}
-		// #endregion
-
-		// #region agent log
-		static int s_foregroundLogCount = 0;
-		if (!IsOnMainMenu() && s_foregroundLogCount < 8 && (s_framesSinceReady % 60) == 0) {
-			char buf[192];
-			snprintf(buf, sizeof(buf),
-				"{\"foreground\":\"%s\",\"onMainMenu\":0,\"dwell\":%d}",
-				GetRootForegroundEventName(), s_autoStartDwellTicks);
-			debug::AgentLog("H7", "NetplayFacade::TickMainMenu", "not on main menu yet", buf);
-			s_foregroundLogCount++;
-		}
-		// #endregion
 
 		s_autoStartDwellTicks++;
 
@@ -256,24 +193,10 @@ namespace sf4e {
 		// Pad system may not be ready immediately after boot.
 		Dimps::Pad::System* padSys = Dimps::Pad::System::staticMethods.GetSingleton();
 		if (!padSys) {
-			// #region agent log
-			if (s_autoStartDwellTicks == 1 || s_autoStartDwellTicks % 30 == 0) {
-				char buf[128];
-				snprintf(buf, sizeof(buf), "{\"dwell\":%d,\"pad\":0}", s_autoStartDwellTicks);
-				debug::AgentLog("H1", "NetplayFacade::TickMainMenu", "waiting for pad", buf);
-			}
-			// #endregion
 			return;
 		}
 
 		if (s_autoStartDwellTicks < kMinDwellBeforeAutoStart) {
-			// #region agent log
-			if (s_autoStartDwellTicks == 1 || s_autoStartDwellTicks % 30 == 0) {
-				char buf[128];
-				snprintf(buf, sizeof(buf), "{\"dwell\":%d,\"need\":%d}", s_autoStartDwellTicks, kMinDwellBeforeAutoStart);
-				debug::AgentLog("H1", "NetplayFacade::TickMainMenu", "auto-start dwell", buf);
-			}
-			// #endregion
 			return;
 		}
 
@@ -283,19 +206,6 @@ namespace sf4e {
 			uint8_t capturedIdx = 0xff;
 			uint8_t capturedType = 0xff;
 			if (!NetplayFacade::TryCapturePadForSide(0, capturedIdx, capturedType)) {
-				// #region agent log
-				static int s_captureWaitLogCount = 0;
-				if (s_captureWaitLogCount < 5 || (s_autoStartDwellTicks % 120) == 0) {
-					char buf[128];
-					snprintf(buf, sizeof(buf),
-						"{\"dwell\":%d,\"capturePending\":1}",
-						s_autoStartDwellTicks);
-					debug::AgentLog("H2", "NetplayFacade::TickMainMenu", "waiting pad capture", buf);
-					if (s_captureWaitLogCount < 5) {
-						s_captureWaitLogCount++;
-					}
-				}
-				// #endregion
 				return;
 			}
 			s_padCaptured = true;
@@ -305,16 +215,6 @@ namespace sf4e {
 
 		uint8_t deviceIdx = s_config.deviceIdx;
 		uint8_t deviceType = s_config.deviceType;
-		// #region agent log
-		{
-			char buf[256];
-			snprintf(buf, sizeof(buf),
-				"{\"dwell\":%d,\"deviceIdx\":%u,\"deviceType\":%u,\"capturePending\":0,\"mode\":%d,\"onMainMenu\":%d,\"foreground\":\"%s\"}",
-				s_autoStartDwellTicks, deviceIdx, deviceType, s_config.mode,
-				IsOnMainMenu() ? 1 : 0, GetRootForegroundEventName());
-			debug::AgentLog("H2", "NetplayFacade::TickMainMenu", "auto-start session", buf);
-		}
-		// #endregion
 
 		std::string name(s_config.displayName);
 		if (name.empty()) {
@@ -382,13 +282,6 @@ namespace sf4e {
 					s_config.roundCount,
 					roundTime
 				);
-				// #region agent log
-				{
-					char buf[128];
-					snprintf(buf, sizeof(buf), "{\"serverOk\":%d,\"port\":%u}", serverOk ? 1 : 0, s_config.sessionPort);
-					debug::AgentLog("H4", "NetplayFacade::TickMainMenu", "host StartServer", buf);
-				}
-				// #endregion
 				if (!serverOk) {
 					PushAlert("Could not start session server (port in use?).");
 					s_autoPending = false;

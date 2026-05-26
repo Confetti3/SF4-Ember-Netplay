@@ -4,7 +4,7 @@
 
 See [ATTRIBUTION.md](ATTRIBUTION.md) for upstream credit and license details.
 
-**Latest release:** [v0.2.7.2](https://github.com/Confetti3/SF4e/releases/latest) — clearer VPS relay UX (room code in-game). Direct IP (Advanced) unchanged from v0.2.6.
+**Latest release:** [v0.2.7.3](https://github.com/Confetti3/SF4e/releases/latest) — fixes VPS relay black screen after portraits. Direct IP (Advanced) unchanged from v0.2.6.
 
 **Downloads:** [GitHub Releases](https://github.com/Confetti3/SF4e/releases/latest) (team zip with `Launcher.exe`, `Sidecar.dll`, `RelayHost.exe`, `WebView2Loader.dll`, and `launcher-ui/`).
 
