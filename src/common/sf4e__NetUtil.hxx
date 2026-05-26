@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace sf4e {
 
 	enum class HttpErrorKind {
@@ -21,6 +23,9 @@ namespace sf4e {
 	};
 
 	bool DetectLanIPv4(char* outIp, int outIpLen);
+
+	// Poll until UDP port is bound locally (optionally by ownerPid) or timeoutMs elapses.
+	bool WaitForLocalTcpPort(uint16_t port, int timeoutMs = 3000, unsigned long ownerPid = 0);
 
 	// Strips leading/trailing whitespace and line endings in place.
 	void TrimRoomCodeInPlace(char* buf);

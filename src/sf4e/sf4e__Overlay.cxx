@@ -129,12 +129,14 @@ using ImGui::MenuItem;
 using ImGui::NewFrame;
 using ImGui::NextColumn;
 using ImGui::Separator;
+using ImGui::Spacing;
 using ImGui::TableHeadersRow;
 using ImGui::TableNextColumn;
 using ImGui::TableNextRow;
 using ImGui::TableSetColumnIndex;
 using ImGui::TableSetupColumn;
 using ImGui::Text;
+using ImGui::TextWrapped;
 
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -1067,53 +1069,73 @@ void DrawNetworkLobbyPanel() {
 }
 
 static void DrawNetplayPlayerPanel() {
+	static DWORD s_connectStartedMs = 0;
 	sf4e::NetplayStatus st = sf4e::NetplayFacade::GetStatus();
 	Text("Netplay status");
+	Spacing();
 	Separator();
+	Spacing();
+	if (clientAlerts.size() > 0) {
+		ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 160, 160, 255));
+		TextWrapped("%s", clientAlerts.at(0).c_str());
+		ImGui::PopStyleColor();
+	}
 	if (sf4e::NetplayFacade::IsAutoNetplayPending()) {
 		if (sf4e::NetplayFacade::IsPadCapturePending()) {
-			Text("Press Start or LK on your controller to bind it.");
+			TextWrapped("Press Start or LK on your controller to bind it.");
 		}
 		else if (!sf4e::NetplayFacade::IsPadCapturePhaseReady()) {
-			Text("Waiting for controller system...");
+			TextWrapped("Waiting for controller system...");
 		}
 		else {
-			Text("Starting netplay...");
+			TextWrapped("Starting netplay...");
 		}
 		return;
 	}
 	if (!st.active) {
-		Text("Not connected.");
+		s_connectStartedMs = 0;
+		TextWrapped("Not connected.");
 		return;
 	}
 	if (!st.connected) {
-		Text("Connecting to session server...");
+		if (s_connectStartedMs == 0) {
+			s_connectStartedMs = GetTickCount();
+		}
+		if (GetTickCount() - s_connectStartedMs > 10000) {
+			TextWrapped("Still connecting... check RelayHost is running and port forward for joiners.");
+		}
+		else {
+			TextWrapped("Connecting to session server...");
+		}
 	}
 	else {
-		Text("Connected: yes");
+		s_connectStartedMs = 0;
+		TextWrapped("Connected: yes");
 	}
 	const sf4e::NetplayConfig& cfg = sf4e::NetplayFacade::GetConfig();
 	if (cfg.mode == (int)sf4e::NetplayMode::Join) {
-		Text("Join target: %s:%u", cfg.sessionHost, cfg.sessionPort);
+		TextWrapped("Join target: %s:%u", cfg.sessionHost, cfg.sessionPort);
 	}
 	else if (cfg.mode == (int)sf4e::NetplayMode::Host) {
-		Text("Session port: %u (share your public IP:port with joiners)", cfg.sessionPort);
+		TextWrapped("Session port: %u (share your public IP:port with joiners)", cfg.sessionPort);
 	}
 	if (st.opponentName[0]) {
-		Text("Opponent: %s", st.opponentName);
+		TextWrapped("Opponent: %s", st.opponentName);
 	}
-	Text("Input delay: %d frames", st.inputDelay);
+	TextWrapped("Input delay: %d frames", st.inputDelay);
 	if (st.pingMs >= 0) {
-		Text("Ping: %d ms", st.pingMs);
+		TextWrapped("Ping: %d ms", st.pingMs);
 	}
 	if (st.inLobby) {
-		Text("Lobby — configure character and press Ready below.");
+		TextWrapped("Lobby — configure character and press Ready below.");
 		DrawNetworkLobbyPanel();
 	}
 	else if (st.inMatch) {
-		Text("In match");
+		TextWrapped("In match");
 	}
+	Spacing();
 	Separator();
+	Spacing();
 	if (Button("Disconnect")) {
 		fUserApp::ShutdownNetplay(true);
 	}
@@ -1134,7 +1156,9 @@ void DrawNetworkWindow(bool* pOpen) {
 	Separator();
 
 	if (s_playerNetplayUi && !s_devNetplayOverlay) {
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.0f, 10.0f));
 		DrawNetplayPlayerPanel();
+		ImGui::PopStyleVar();
 		End();
 		return;
 	}

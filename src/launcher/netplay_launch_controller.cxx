@@ -778,7 +778,7 @@ namespace launcher {
 
 						err["type"] = "error";
 
-						err["message"] = "Could not start RelayHost.exe. Rebuild/install and keep RelayHost.exe next to Launcher.exe.";
+						err["message"] = "Could not start RelayHost.exe. Rebuild/install, keep RelayHost.exe next to Launcher.exe, and ensure the session port is free.";
 
 						return err;
 

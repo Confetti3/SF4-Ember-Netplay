@@ -17,6 +17,7 @@
 #include "sf4e__SessionClient.hxx"
 #include "sf4e__SessionProtocol.hxx"
 #include "sf4e__GgpoRelay.hxx"
+#include "../sf4e/sf4e__NetplayFacade.hxx"
 #include "../common/sf4e__DebugLog.hxx"
 
 using nlohmann::json;
@@ -423,11 +424,21 @@ void SessionClient::OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusCh
 		// Print an appropriate message
 		if (pInfo->m_eOldState == k_ESteamNetworkingConnectionState_Connecting)
 		{
-				spdlog::error("Client could not connect: {}", pInfo->m_info.m_szEndDebug);
+			const char* detail = pInfo->m_info.m_szEndDebug;
+			if (!detail || !detail[0]) {
+				detail = "Connection refused or timed out.";
+			}
+			spdlog::error("Client could not connect: {}", detail);
+			sf4e::NetplayFacade::PushAlert(detail);
 		}
 		else if (pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally)
 		{
-				spdlog::error("Client lost contact with host: {}", pInfo->m_info.m_szEndDebug);
+			const char* detail = pInfo->m_info.m_szEndDebug;
+			if (!detail || !detail[0]) {
+				detail = "Lost contact with session server.";
+			}
+			spdlog::error("Client lost contact with host: {}", detail);
+			sf4e::NetplayFacade::PushAlert(detail);
 		}
 
 		// Clean up the connection.  This is important!

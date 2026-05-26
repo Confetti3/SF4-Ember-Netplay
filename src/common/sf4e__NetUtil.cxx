@@ -694,4 +694,139 @@ namespace sf4e {
 		return found;
 	}
 
+	static bool EnsureWinsockStarted() {
+		static bool started = false;
+		if (started) {
+			return true;
+		}
+		WSADATA wsa = { 0 };
+		if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+			return false;
+		}
+		started = true;
+		return true;
+	}
+
+	static bool IsProcessAlive(unsigned long pid) {
+		if (pid == 0) {
+			return false;
+		}
+		HANDLE process = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+		if (!process) {
+			return false;
+		}
+		DWORD exitCode = STILL_ACTIVE;
+		const BOOL ok = GetExitCodeProcess(process, &exitCode);
+		CloseHandle(process);
+		return ok && exitCode == STILL_ACTIVE;
+	}
+
+	static bool IsLocalUdpPortOpen(uint16_t port, unsigned long ownerPid) {
+		PMIB_UDPTABLE_OWNER_PID table = nullptr;
+		ULONG size = 0;
+		if (GetExtendedUdpTable(nullptr, &size, FALSE, AF_INET, UDP_TABLE_OWNER_PID, 0) != ERROR_INSUFFICIENT_BUFFER) {
+			return false;
+		}
+
+		table = (PMIB_UDPTABLE_OWNER_PID)malloc(size);
+		if (!table) {
+			return false;
+		}
+
+		bool found = false;
+		if (GetExtendedUdpTable(table, &size, FALSE, AF_INET, UDP_TABLE_OWNER_PID, 0) == NO_ERROR) {
+			for (DWORD i = 0; i < table->dwNumEntries; i++) {
+				const MIB_UDPROW_OWNER_PID& row = table->table[i];
+				const uint16_t rowPort = ntohs((uint16_t)row.dwLocalPort);
+				if (rowPort != port) {
+					continue;
+				}
+				if (ownerPid == 0 || row.dwOwningPid == ownerPid) {
+					found = true;
+					break;
+				}
+			}
+		}
+
+		free(table);
+		return found;
+	}
+
+	static bool IsLocalPortBound(uint16_t port) {
+		SOCKET s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+		if (s == INVALID_SOCKET) {
+			return false;
+		}
+
+		sockaddr_in addr = { 0 };
+		addr.sin_family = AF_INET;
+		addr.sin_port = htons(port);
+		addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+		const int rc = bind(s, (sockaddr*)&addr, sizeof(addr));
+		const int err = (rc == SOCKET_ERROR) ? WSAGetLastError() : 0;
+		closesocket(s);
+		return rc == SOCKET_ERROR && err == WSAEADDRINUSE;
+	}
+
+	static bool ProbeLocalTcpConnect(uint16_t port) {
+		SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		if (s == INVALID_SOCKET) {
+			return false;
+		}
+
+		u_long nonBlocking = 1;
+		ioctlsocket(s, FIONBIO, &nonBlocking);
+
+		sockaddr_in addr = { 0 };
+		addr.sin_family = AF_INET;
+		addr.sin_port = htons(port);
+		inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
+
+		const int rc = connect(s, (sockaddr*)&addr, sizeof(addr));
+		if (rc == 0) {
+			closesocket(s);
+			return true;
+		}
+
+		if (WSAGetLastError() == WSAEWOULDBLOCK) {
+			fd_set wfds;
+			FD_ZERO(&wfds);
+			FD_SET(s, &wfds);
+			timeval tv = { 0, 100000 };
+			const int sel = select(0, NULL, &wfds, NULL, &tv);
+			closesocket(s);
+			return sel > 0;
+		}
+
+		closesocket(s);
+		return false;
+	}
+
+	bool WaitForLocalTcpPort(uint16_t port, int timeoutMs, unsigned long ownerPid) {
+		if (port == 0 || timeoutMs <= 0) {
+			return false;
+		}
+		if (!EnsureWinsockStarted()) {
+			return false;
+		}
+
+		const ULONGLONG deadline = GetTickCount64() + (ULONGLONG)timeoutMs;
+		const ULONGLONG minAliveMs = GetTickCount64() + 400;
+		while (GetTickCount64() < deadline) {
+			if (ownerPid != 0 && !IsProcessAlive(ownerPid)) {
+				return false;
+			}
+			if (IsLocalUdpPortOpen(port, ownerPid) || IsLocalPortBound(port) || ProbeLocalTcpConnect(port)) {
+				return true;
+			}
+			if (ownerPid != 0 && IsProcessAlive(ownerPid) && GetTickCount64() >= minAliveMs) {
+				// GNS binds UDP without always showing up in time; accept a live RelayHost after brief startup.
+				return true;
+			}
+			Sleep(50);
+		}
+		return false;
+	}
+
 } // namespace sf4e

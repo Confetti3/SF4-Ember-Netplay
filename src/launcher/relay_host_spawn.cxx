@@ -7,6 +7,8 @@
 
 #include "../common/sf4e__NetUtil.hxx"
 
+#include <spdlog/spdlog.h>
+
 namespace sf4e {
 namespace launcher {
 
@@ -93,6 +95,24 @@ namespace launcher {
 
 		CloseHandle(pi.hThread);
 		CloseHandle(pi.hProcess);
+
+		if (!sf4e::WaitForLocalTcpPort(sessionPort, 5000, g_relayHostPid)) {
+			DWORD exitCode = STILL_ACTIVE;
+			HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, g_relayHostPid);
+			if (process) {
+				GetExitCodeProcess(process, &exitCode);
+				CloseHandle(process);
+			}
+			if (exitCode != STILL_ACTIVE) {
+				spdlog::error("RelayHost exited early with code {}", exitCode);
+			}
+			else {
+				spdlog::error("RelayHost started but port {} is not listening yet", sessionPort);
+			}
+			StopRelayHostInternal();
+			return false;
+		}
+
 		return true;
 	}
 

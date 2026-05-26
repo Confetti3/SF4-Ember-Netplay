@@ -326,7 +326,7 @@ namespace sf4e {
 			char hostAddr[128];
 
 			if (s_config.useCentralSession != 0) {
-				snprintf(hostAddr, sizeof(hostAddr), "%s:%u", s_config.sessionHost, s_config.sessionPort);
+				snprintf(hostAddr, sizeof(hostAddr), "127.0.0.1:%u", s_config.sessionPort);
 				fUserApp::StartSession(
 					hostAddr,
 					s_config.ggpoPort,
@@ -339,7 +339,12 @@ namespace sf4e {
 				);
 				Overlay::SetNetplayLobbyVisible(true);
 				s_autoPending = false;
-				spdlog::info("NetplayFacade: host joined central relay at {}", hostAddr);
+				spdlog::info(
+					"NetplayFacade: host relay connect loopback {} (advertised {}:{})",
+					hostAddr,
+					s_config.sessionHost,
+					s_config.sessionPort
+				);
 			}
 			else {
 				// Local session server; join via loopback.
