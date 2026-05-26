@@ -17,8 +17,9 @@ namespace launcher {
 		char lastJoinHost[128] = { 0 };
 		char lastAdvertiseHost[NETPLAY_SESSION_HOST_LEN] = { 0 };
 		uint8_t simpleUi = 0;
-		uint8_t defaultConnectMethod = 1; // 0=relay, 1=direct, 2=autoNat host helper
-		char brokerBaseUrl[256] = "http://150.136.121.155:8787";
+		uint8_t defaultConnectMethod = 0; // 0=relay, 1=direct, 2=autoNat host helper
+		uint16_t relaySessionPort = 0;
+		char brokerBaseUrl[256] = "http://74.208.200.95:8787";
 		char relayRoomCode[16] = { 0 };
 	};
 

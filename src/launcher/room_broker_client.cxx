@@ -66,16 +66,41 @@ namespace launcher {
 		}
 	}
 
-	bool BrokerHttpGet(const BrokerUrlParts& parts, const char* path, char* outBody, int outBodyLen, int timeoutMs) {
+	bool BrokerHttpGet(
+		const BrokerUrlParts& parts,
+		const char* path,
+		char* outBody,
+		int outBodyLen,
+		int timeoutMs,
+		sf4e::HttpRequestResult* outResult
+	) {
 		char fullPath[512];
 		JoinBrokerPath(parts, path, fullPath, sizeof(fullPath));
-		return sf4e::HttpGetUtf8(parts.host, parts.port, parts.https, fullPath, timeoutMs, outBody, outBodyLen);
+		return sf4e::HttpGetUtf8(parts.host, parts.port, parts.https, fullPath, timeoutMs, outBody, outBodyLen, outResult);
 	}
 
-	bool BrokerHttpPostJson(const BrokerUrlParts& parts, const char* path, const char* jsonBody, char* outBody, int outBodyLen, int timeoutMs) {
+	bool BrokerHttpPostJson(
+		const BrokerUrlParts& parts,
+		const char* path,
+		const char* jsonBody,
+		char* outBody,
+		int outBodyLen,
+		int timeoutMs,
+		sf4e::HttpRequestResult* outResult
+	) {
 		char fullPath[512];
 		JoinBrokerPath(parts, path, fullPath, sizeof(fullPath));
-		return sf4e::HttpPostJsonUtf8(parts.host, parts.port, parts.https, fullPath, timeoutMs, jsonBody, outBody, outBodyLen);
+		return sf4e::HttpPostJsonUtf8(
+			parts.host,
+			parts.port,
+			parts.https,
+			fullPath,
+			timeoutMs,
+			jsonBody,
+			outBody,
+			outBodyLen,
+			outResult
+		);
 	}
 
 } // namespace launcher

@@ -10,6 +10,29 @@
 namespace sf4e {
 namespace launcher {
 
+	namespace {
+
+		const char* kDefaultBrokerBaseUrl = "http://74.208.200.95:8787";
+
+		bool BrokerUrlNeedsMigration(const char* brokerBaseUrl) {
+			if (!brokerBaseUrl || !brokerBaseUrl[0]) {
+				return false;
+			}
+			return _stricmp(brokerBaseUrl, "http://150.136.121.155:8787") == 0
+				|| _stricmp(brokerBaseUrl, "http://150.136.121.155:8787/") == 0;
+		}
+
+		void MigrateDeprecatedBrokerUrl(PersistedSettings& settings) {
+			if (!BrokerUrlNeedsMigration(settings.brokerBaseUrl)) {
+				return;
+			}
+			strncpy_s(settings.brokerBaseUrl, kDefaultBrokerBaseUrl, _TRUNCATE);
+			settings.relayRoomCode[0] = '\0';
+			settings.relaySessionPort = 0;
+		}
+
+	} // namespace
+
 	bool GetConfigFilePath(wchar_t* outPath, int outPathChars) {
 		wchar_t appData[MAX_PATH] = { 0 };
 		if (FAILED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, appData))) {
@@ -53,11 +76,17 @@ namespace launcher {
 			std::string lastAdv = j.value("lastAdvertiseHost", "");
 			strncpy_s(out.lastAdvertiseHost, lastAdv.c_str(), _TRUNCATE);
 			out.simpleUi = (uint8_t)j.value("simpleUi", 0);
-			out.defaultConnectMethod = (uint8_t)j.value("defaultConnectMethod", 1);
-			std::string broker = j.value("brokerBaseUrl", "http://150.136.121.155:8787");
+			out.defaultConnectMethod = (uint8_t)j.value("defaultConnectMethod", 0);
+			out.relaySessionPort = (uint16_t)j.value("relaySessionPort", 0);
+			std::string broker = j.value("brokerBaseUrl", kDefaultBrokerBaseUrl);
 			strncpy_s(out.brokerBaseUrl, broker.c_str(), _TRUNCATE);
 			std::string relayCode = j.value("relayRoomCode", "");
 			strncpy_s(out.relayRoomCode, relayCode.c_str(), _TRUNCATE);
+			const bool brokerMigrated = BrokerUrlNeedsMigration(out.brokerBaseUrl);
+			MigrateDeprecatedBrokerUrl(out);
+			if (brokerMigrated) {
+				SavePersistedSettings(out);
+			}
 			return true;
 		}
 		catch (...) {
@@ -87,6 +116,7 @@ namespace launcher {
 		j["defaultConnectMethod"] = in.defaultConnectMethod;
 		j["brokerBaseUrl"] = in.brokerBaseUrl;
 		j["relayRoomCode"] = in.relayRoomCode;
+		j["relaySessionPort"] = in.relaySessionPort;
 
 		std::ofstream f(path);
 		if (!f.is_open()) {

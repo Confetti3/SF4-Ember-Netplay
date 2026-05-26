@@ -134,7 +134,7 @@ namespace launcher {
 
 				}
 
-				if (ui->controller->IsFinished()) {
+				if (ui->controller->ShouldExitForUpdate() || ui->controller->IsFinished()) {
 
 					PostMessage(ui->hwnd, WM_CLOSE, 0, 0);
 
@@ -174,7 +174,7 @@ namespace launcher {
 
 			case WM_CLOSE:
 
-				if (ui && ui->controller && !ui->controller->IsFinished()) {
+				if (ui && ui->controller && !ui->controller->IsFinished() && !ui->controller->ShouldExitForUpdate()) {
 
 					ui->controller->HandleWebMessage(nlohmann::json{ {"type", "cancel"}, {"v", 1} });
 
@@ -250,9 +250,15 @@ namespace launcher {
 
 									ui->webviewController = controller;
 
+									ui->webviewController->put_ZoomFactor(1.0);
+
 									ui->webviewController->get_CoreWebView2(&ui->webview);
 
-
+									wil::com_ptr<ICoreWebView2Controller2> controller2;
+									if (SUCCEEDED(ui->webviewController->QueryInterface(IID_PPV_ARGS(&controller2)))) {
+										COREWEBVIEW2_COLOR bgColor = { 255, 22, 24, 29 };
+										controller2->put_DefaultBackgroundColor(bgColor);
+									}
 
 									wil::com_ptr<ICoreWebView2Settings> settings;
 

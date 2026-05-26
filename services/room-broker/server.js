@@ -160,6 +160,22 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  const heartbeatMatch = url.pathname.match(/^\/v1\/rooms\/(SF4-[A-Z0-9]+)\/heartbeat$/i);
+  if (req.method === "POST" && heartbeatMatch) {
+    const code = normalizeCode(heartbeatMatch[1]);
+    const room = rooms.get(code);
+    if (!room) {
+      json(res, 404, {
+        error: "not_found",
+        message: "Room not found or expired.",
+      });
+      return;
+    }
+    room.lastSeenAt = Date.now();
+    json(res, 200, { ok: true, code: room.code });
+    return;
+  }
+
   if (req.method === "POST" && url.pathname === "/v1/queue/join") {
     const body = await readBody(req);
     const name = body.displayName || "Player";

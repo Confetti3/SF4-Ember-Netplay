@@ -137,8 +137,10 @@ int main(int argc, char** argv) {
 	CLI::App app("SF4 Enhanced session relay host (headless SessionServer)");
 	uint16_t port = 23456;
 	std::string identity;
+	int idleExitSec = 120;
 	app.add_option("--port", port, "Session listen port (TCP/UDP)")->check(CLI::Range(1, 65535));
 	app.add_option("--identity", identity, "Session identity string (default: LAN IPv4)");
+	app.add_option("--idle-exit-sec", idleExitSec, "Exit after N seconds with no clients (0 disables)");
 	CLI11_PARSE(app, argc, argv);
 
 	char sidecarHash[128] = { 0 };
@@ -170,6 +172,13 @@ int main(int argc, char** argv) {
 
 	spdlog::info("RelayHost listening on port {} identity={}", port, identity);
 	spdlog::info("Sidecar hash {} (must match game Sidecar.dll)", sidecarHash);
+	if (idleExitSec > 0) {
+		spdlog::info("Idle auto-exit enabled: {}s with no clients", idleExitSec);
+	}
+
+	const ULONGLONG startMs = GetTickCount64();
+	ULONGLONG emptySinceMs = startMs;
+	bool hadClients = false;
 
 	for (;;) {
 		server->PrepareForCallbacks();
@@ -178,6 +187,30 @@ int main(int argc, char** argv) {
 			spdlog::error("Session server step failed");
 			break;
 		}
+
+		if (idleExitSec > 0) {
+			const ULONGLONG nowMs = GetTickCount64();
+			const size_t clientCount = server->ConnectedClientCount();
+			if (clientCount > 0) {
+				hadClients = true;
+				emptySinceMs = nowMs;
+			}
+			else {
+				if (emptySinceMs == 0) {
+					emptySinceMs = nowMs;
+				}
+				const ULONGLONG emptyMs = nowMs - emptySinceMs;
+				if (hadClients && emptyMs >= 30000) {
+					spdlog::info("RelayHost exiting: no clients for {}s after session ended", emptyMs / 1000);
+					break;
+				}
+				if (emptyMs >= (ULONGLONG)idleExitSec * 1000ULL) {
+					spdlog::info("RelayHost exiting: no clients for {}s", emptyMs / 1000);
+					break;
+				}
+			}
+		}
+
 		Sleep(1);
 	}
 

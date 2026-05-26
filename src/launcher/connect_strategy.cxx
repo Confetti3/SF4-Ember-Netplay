@@ -14,6 +14,43 @@
 namespace sf4e {
 namespace launcher {
 
+	static std::string BrokerMessageFromBody(const char* body) {
+		if (!body || !body[0]) {
+			return "";
+		}
+		try {
+			nlohmann::json j = nlohmann::json::parse(body);
+			return j.value("message", "");
+		}
+		catch (...) {
+			return "";
+		}
+	}
+
+	static std::string FormatBrokerPostError(
+		const char* brokerBaseUrl,
+		const sf4e::HttpRequestResult& http,
+		const char* body
+	) {
+		const char* url = brokerBaseUrl && brokerBaseUrl[0] ? brokerBaseUrl : "room broker";
+		if (http.error == sf4e::HttpErrorKind::Timeout) {
+			return std::string("Room broker unreachable at ") + url + ". Check your internet or try again later.";
+		}
+		if (http.error == sf4e::HttpErrorKind::ConnectFailed) {
+			return std::string("Room broker refused connection at ") + url + ".";
+		}
+		if (http.error == sf4e::HttpErrorKind::HttpStatus) {
+			std::string detail = BrokerMessageFromBody(body);
+			if (!detail.empty()) {
+				return detail;
+			}
+			char buf[160];
+			snprintf(buf, sizeof(buf), "Room broker at %s returned HTTP %d.", url, http.statusCode);
+			return buf;
+		}
+		return std::string("Could not reach room broker at ") + url + ". Is the room service running?";
+	}
+
 	StrategyResult ResolveJoinDirectIp(const JoinRequest& request) {
 		StrategyResult r;
 		if (request.roomCode.empty()) {
@@ -188,8 +225,9 @@ namespace launcher {
 		std::string reqBody = req.dump();
 
 		char body[4096] = { 0 };
-		if (!BrokerHttpPostJson(parts, "/v1/rooms", reqBody.c_str(), body, sizeof(body))) {
-			r.error = "Could not create a relay room. Is the room service running?";
+		sf4e::HttpRequestResult httpResult;
+		if (!BrokerHttpPostJson(parts, "/v1/rooms", reqBody.c_str(), body, sizeof(body), 8000, &httpResult)) {
+			r.error = FormatBrokerPostError(brokerBaseUrl, httpResult, body);
 			return r;
 		}
 
@@ -216,6 +254,28 @@ namespace launcher {
 			r.error = "Room service returned invalid data.";
 			return r;
 		}
+	}
+
+	bool HeartbeatRelayRoom(const char* brokerBaseUrl, const char* roomCode) {
+		if (!roomCode || !roomCode[0]) {
+			return false;
+		}
+
+		char token[16] = { 0 };
+		if (!ParseShortRoomCode(roomCode, token, sizeof(token))) {
+			return false;
+		}
+
+		BrokerUrlParts parts;
+		if (!ParseBrokerBaseUrl(brokerBaseUrl, parts)) {
+			return false;
+		}
+
+		char path[160];
+		snprintf(path, sizeof(path), "/v1/rooms/SF4-%s/heartbeat", token);
+
+		char body[512] = { 0 };
+		return BrokerHttpPostJson(parts, path, "{}", body, sizeof(body));
 	}
 
 } // namespace launcher

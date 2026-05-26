@@ -26,7 +26,13 @@
 
 #include "relay_host_spawn.hxx"
 
+#include "netplay_persist.hxx"
+
 #include "room_broker_client.hxx"
+
+#include "github_release_client.hxx"
+
+#include <spdlog/spdlog.h>
 
 
 
@@ -138,6 +144,12 @@ namespace launcher {
 
 		j["lanRoomCode"] = PreviewRoomCode(m_lanIp, m_settings.sessionPort);
 
+		j["lanAddress"] = j["lanRoomCode"];
+
+		const char* advertiseHost = m_settings.lastAdvertiseHost[0] ? m_settings.lastAdvertiseHost : m_lanIp;
+
+		j["wanAddress"] = PreviewRoomCode(advertiseHost, m_settings.sessionPort);
+
 		j["simpleUi"] = m_settings.simpleUi != 0;
 
 		j["brokerBaseUrl"] = m_settings.brokerBaseUrl;
@@ -150,6 +162,12 @@ namespace launcher {
 
 		}
 
+		if (m_settings.relaySessionPort > 0) {
+
+			j["relayPort"] = m_settings.relaySessionPort;
+
+		}
+
 		j["featureFlags"] = {
 
 			{ "matchmaking", true },
@@ -159,6 +177,12 @@ namespace launcher {
 			{ "relayRoom", true }
 
 		};
+
+		char installedVersion[64] = { 0 };
+
+		ReadInstalledVersion(installedVersion, sizeof(installedVersion));
+
+		j["installedVersion"] = installedVersion;
 
 		return j;
 
@@ -298,6 +322,134 @@ namespace launcher {
 
 		}
 
+		if (type == "checkUpdate") {
+
+			UpdateCheckResult check = CheckForUpdate();
+
+			nlohmann::json r;
+
+			r["v"] = kProtocolVersion;
+
+			r["type"] = "updateCheck";
+
+			r["installedVersion"] = check.installedVersion;
+
+			if (!check.ok) {
+
+				r["ok"] = false;
+
+				r["error"] = check.error;
+
+				return r;
+
+			}
+
+			r["ok"] = true;
+
+			r["latestVersion"] = check.latestVersion;
+
+			r["updateAvailable"] = check.updateAvailable;
+
+			r["releaseNotes"] = check.releaseNotes;
+
+			r["releaseUrl"] = check.releaseUrl;
+
+			r["zipDownloadUrl"] = check.zipDownloadUrl;
+
+			return r;
+
+		}
+
+		if (type == "applyUpdate") {
+
+			if (IsGameProcessRunning()) {
+
+				nlohmann::json err;
+
+				err["v"] = kProtocolVersion;
+
+				err["type"] = "error";
+
+				err["message"] = "Close Ultra Street Fighter IV before installing an update.";
+
+				return err;
+
+			}
+
+			std::string zipUrl = msg.value("zipDownloadUrl", "");
+
+			std::string latestTag = msg.value("latestVersion", "");
+
+			if (zipUrl.empty() || latestTag.empty()) {
+
+				UpdateCheckResult check = CheckForUpdate();
+
+				if (!check.ok) {
+
+					nlohmann::json err;
+
+					err["v"] = kProtocolVersion;
+
+					err["type"] = "error";
+
+					err["message"] = check.error;
+
+					return err;
+
+				}
+
+				if (!check.updateAvailable) {
+
+					nlohmann::json err;
+
+					err["v"] = kProtocolVersion;
+
+					err["type"] = "error";
+
+					err["message"] = "No update available.";
+
+					return err;
+
+				}
+
+				zipUrl = check.zipDownloadUrl;
+
+				latestTag = check.latestVersion;
+
+			}
+
+			ApplyUpdateResult applied = DownloadAndApplyUpdate(zipUrl.c_str(), latestTag.c_str());
+
+			if (!applied.ok) {
+
+				nlohmann::json err;
+
+				err["v"] = kProtocolVersion;
+
+				err["type"] = "error";
+
+				err["message"] = applied.error;
+
+				return err;
+
+			}
+
+			m_exitForUpdate = true;
+
+			nlohmann::json r;
+
+			r["v"] = kProtocolVersion;
+
+			r["type"] = "updateApply";
+
+			r["ok"] = true;
+
+			r["message"] = "Update downloaded. The launcher will close and restart.";
+
+			return r;
+
+		}
+
 		if (type == "createRelayRoom") {
 
 			std::string name = msg.value("displayName", m_settings.displayName);
@@ -320,6 +472,10 @@ namespace launcher {
 
 			strncpy_s(m_settings.relayRoomCode, created.shortCode.c_str(), _TRUNCATE);
 
+			m_settings.relaySessionPort = created.relayPort;
+
+			SavePersistedSettings(m_settings);
+
 			nlohmann::json r = MakeStateEnvelope();
 
 			r["roomCodePreview"] = created.shortCode;
@@ -329,6 +485,18 @@ namespace launcher {
 			r["relayPort"] = created.relayPort;
 
 			r["connectionStatus"] = "Relay room ready — share the code with your opponent.";
+
+			return r;
+
+		}
+
+		if (type == "relayHeartbeat") {
+
+			std::string code = msg.value("roomCode", m_settings.relayRoomCode);
+
+			nlohmann::json r = MakeStateEnvelope();
+
+			r["heartbeatOk"] = HeartbeatRelayRoom(m_settings.brokerBaseUrl, code.c_str());
 
 			return r;
 
@@ -507,17 +675,27 @@ namespace launcher {
 
 				strncpy_s(m_outConfig.roomKey, "1", _TRUNCATE);
 
-				if (connectMethod == "relay") {
+				std::string relayCode = msg.value("relayRoomCode", "");
 
-					std::string code = msg.value("relayRoomCode", "");
+				if (relayCode.empty() && m_settings.relayRoomCode[0]) {
 
-					if (code.empty() && m_settings.relayRoomCode[0]) {
+					relayCode = m_settings.relayRoomCode;
 
-						code = m_settings.relayRoomCode;
+				}
 
-					}
+				std::string hostConnectMethod = connectMethod;
 
-					if (code.empty()) {
+				if (hostConnectMethod != "relay" && IsShortRoomCode(relayCode.c_str())) {
+
+					spdlog::info("Host start: forcing relay mode for room code {}", relayCode);
+
+					hostConnectMethod = "relay";
+
+				}
+
+				if (hostConnectMethod == "relay") {
+
+					if (relayCode.empty()) {
 
 						RelayRoomCreateResult created = CreateRelayRoomWithAdvertise(m_settings, m_settings.displayName);
 
@@ -535,9 +713,11 @@ namespace launcher {
 
 						}
 
-						code = created.shortCode;
+						relayCode = created.shortCode;
 
-						strncpy_s(m_settings.relayRoomCode, code.c_str(), _TRUNCATE);
+						strncpy_s(m_settings.relayRoomCode, relayCode.c_str(), _TRUNCATE);
+
+						m_settings.relaySessionPort = created.relayPort;
 
 						strncpy_s(m_outConfig.sessionHost, created.relayHost, _TRUNCATE);
 
@@ -549,7 +729,7 @@ namespace launcher {
 
 						JoinRequest lookup;
 
-						lookup.roomCode = code;
+						lookup.roomCode = relayCode;
 
 						StrategyResult sr = ResolveJoinRelayRoom(lookup, m_settings.brokerBaseUrl);
 
@@ -571,15 +751,26 @@ namespace launcher {
 
 						m_outConfig.sessionPort = sr.endpoint.port;
 
-						strncpy_s(m_settings.relayRoomCode, code.c_str(), _TRUNCATE);
+						m_settings.relaySessionPort = sr.endpoint.port;
+
+						strncpy_s(m_settings.relayRoomCode, relayCode.c_str(), _TRUNCATE);
 
 					}
 
 					m_outConfig.useCentralSession = 1;
 
+					spdlog::info(
+						"Host relay start: code={} endpoint={}:{} centralSession=1",
+						relayCode,
+						m_outConfig.sessionHost,
+						m_outConfig.sessionPort
+					);
+
 					TryConfigureHostUpnp(m_outConfig.sessionPort, m_settings.ggpoPort);
 
-					if (!SpawnRelayHost(m_outConfig.sessionPort)) {
+					if (!SpawnRelayHost(m_outConfig.sessionPort, nullptr)) {
+
+						spdlog::error("SpawnRelayHost failed on port {}", m_outConfig.sessionPort);
 
 						nlohmann::json err;
 
@@ -592,6 +783,8 @@ namespace launcher {
 						return err;
 
 					}
+
+					spdlog::info("SpawnRelayHost succeeded on port {} (pid {})", m_outConfig.sessionPort, GetRelayHostPid());
 
 				}
 

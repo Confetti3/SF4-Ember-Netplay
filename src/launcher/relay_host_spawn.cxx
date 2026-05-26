@@ -10,6 +10,31 @@
 namespace sf4e {
 namespace launcher {
 
+	static unsigned long g_relayHostPid = 0;
+
+	static void StopRelayHostInternal() {
+		if (g_relayHostPid == 0) {
+			return;
+		}
+
+		HANDLE process = OpenProcess(PROCESS_TERMINATE | SYNCHRONIZE, FALSE, g_relayHostPid);
+		if (process) {
+			TerminateProcess(process, 0);
+			WaitForSingleObject(process, 5000);
+			CloseHandle(process);
+		}
+
+		g_relayHostPid = 0;
+	}
+
+	unsigned long GetRelayHostPid() {
+		return g_relayHostPid;
+	}
+
+	void StopRelayHost() {
+		StopRelayHostInternal();
+	}
+
 	bool FetchAdvertiseRelayHost(char* outHost, int outHostLen) {
 		if (!outHost || outHostLen <= 0) {
 			return false;
@@ -21,7 +46,9 @@ namespace launcher {
 		return sf4e::DetectLanIPv4(outHost, outHostLen);
 	}
 
-	bool SpawnRelayHost(uint16_t sessionPort) {
+	bool SpawnRelayHost(uint16_t sessionPort, unsigned long* outPid) {
+		StopRelayHostInternal();
+
 		wchar_t moduleDir[MAX_PATH] = { 0 };
 		wchar_t relayPath[MAX_PATH] = { 0 };
 		if (GetModuleFileNameW(NULL, moduleDir, MAX_PATH) == 0) {
@@ -50,13 +77,18 @@ namespace launcher {
 			NULL,
 			NULL,
 			FALSE,
-			CREATE_NEW_CONSOLE | CREATE_BREAKAWAY_FROM_JOB,
+			CREATE_NEW_CONSOLE,
 			NULL,
 			moduleDir,
 			&si,
 			&pi
 		)) {
 			return false;
+		}
+
+		g_relayHostPid = pi.dwProcessId;
+		if (outPid) {
+			*outPid = g_relayHostPid;
 		}
 
 		CloseHandle(pi.hThread);

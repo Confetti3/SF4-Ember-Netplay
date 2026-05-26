@@ -156,6 +156,7 @@ add_executable(Launcher WIN32
     src/launcher/upnp_portmap.cxx
     src/launcher/relay_host_spawn.cxx
     src/launcher/webview_host.cxx
+    src/launcher/github_release_client.cxx
 )
 target_include_directories(Launcher PRIVATE ${VALVEFILEVDF_INCLUDE_DIRS} "src/common" "src/launcher")
 target_link_libraries(Launcher PRIVATE

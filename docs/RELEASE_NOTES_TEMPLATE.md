@@ -1,14 +1,14 @@
-# SF4 Enhanced v0.2.0
+# SF4 Enhanced v0.2.2
 
 Relay-first rollback netplay for **Ultra Street Fighter IV** (Steam) with a modern **SF4 Enhanced** launcher.
 
 ## What's new
 
 - **Simple mode** (default): relay room codes **`SF4-XXXX`** — no manual broker setup for testers
-- **`RelayHost.exe`** runs on the **host's PC** when they start a game (broker on Oracle VPS)
-- Preconfigured room broker: `http://150.136.121.155:8787` (override with `SF4E_BROKER_URL`)
+- **`RelayHost.exe`** runs on the **host's PC** when they start a game
+- Preconfigured room broker: `http://74.208.200.95:8787` (override with `SF4E_BROKER_URL`)
 - Advanced mode: direct IP, UPnP, custom broker URL
-- Find match / Open rooms stubs (early)
+- In-app **Check for updates** from GitHub Releases
 
 ## Based on sf4e
 
@@ -44,11 +44,11 @@ Default broker is baked into the launcher. To use another broker:
 set SF4E_BROKER_URL=http://your-broker:8787
 ```
 
-If you upgraded from an older build, delete or edit `%APPDATA%\sf4e\config.json` if the broker URL is still `127.0.0.1`.
+If you upgraded from an older build, delete or edit `%APPDATA%\sf4e\config.json` if the broker URL is still the old Oracle VPS.
 
 ## Known limitations
 
-- Host must reach the internet and expose port **23456** (relay runs on host PC, not the VPS)
+- Host must reach the internet and expose the relay port (relay runs on host PC, not the VPS)
 - Both players must use the **same release zip** (`Sidecar.dll` must match)
 - Find match / Open rooms are early stubs
 

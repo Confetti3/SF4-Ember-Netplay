@@ -13,6 +13,8 @@
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "winhttp.lib")
 
+#include "sf4e__NetUtil.hxx"
+
 namespace sf4e {
 
 	void TrimRoomCodeInPlace(char* buf) {
@@ -34,6 +36,50 @@ namespace sf4e {
 		buf[end - start] = '\0';
 	}
 
+	static HttpErrorKind WinHttpErrorKind(DWORD err) {
+		if (err == ERROR_WINHTTP_TIMEOUT) {
+			return HttpErrorKind::Timeout;
+		}
+		return HttpErrorKind::ConnectFailed;
+	}
+
+	static void InitHttpRequestResult(HttpRequestResult* outResult) {
+		if (!outResult) {
+			return;
+		}
+		outResult->ok = false;
+		outResult->error = HttpErrorKind::None;
+		outResult->statusCode = 0;
+	}
+
+	static int ReadHttpResponseBody(HINTERNET hRequest, char* outBody, int outBodyLen) {
+		if (!outBody || outBodyLen <= 0) {
+			return 0;
+		}
+
+		int total = 0;
+		outBody[0] = '\0';
+		for (;;) {
+			DWORD avail = 0;
+			if (!WinHttpQueryDataAvailable(hRequest, &avail) || avail == 0) {
+				break;
+			}
+			if (total + (int)avail >= outBodyLen - 1) {
+				avail = (DWORD)(outBodyLen - 1 - total);
+			}
+			DWORD read = 0;
+			if (!WinHttpReadData(hRequest, outBody + total, avail, &read) || read == 0) {
+				break;
+			}
+			total += (int)read;
+			outBody[total] = '\0';
+			if (total >= outBodyLen - 1) {
+				break;
+			}
+		}
+		return total;
+	}
+
 	static bool HttpRequestUtf8(
 		const wchar_t* method,
 		const wchar_t* host,
@@ -43,9 +89,14 @@ namespace sf4e {
 		int timeoutMs,
 		const char* requestBody,
 		char* outBody,
-		int outBodyLen
+		int outBodyLen,
+		HttpRequestResult* outResult
 	) {
+		InitHttpRequestResult(outResult);
 		if (!host || !path || !outBody || outBodyLen <= 0 || !method) {
+			if (outResult) {
+				outResult->error = HttpErrorKind::InvalidArgs;
+			}
 			return false;
 		}
 
@@ -57,6 +108,9 @@ namespace sf4e {
 			0
 		);
 		if (!hSession) {
+			if (outResult) {
+				outResult->error = HttpErrorKind::OpenFailed;
+			}
 			return false;
 		}
 
@@ -65,6 +119,9 @@ namespace sf4e {
 		INTERNET_PORT winPort = (INTERNET_PORT)(port > 0 ? port : (useHttps ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT));
 		HINTERNET hConnect = WinHttpConnect(hSession, host, winPort, 0);
 		if (!hConnect) {
+			if (outResult) {
+				outResult->error = WinHttpErrorKind(GetLastError());
+			}
 			WinHttpCloseHandle(hSession);
 			return false;
 		}
@@ -80,6 +137,9 @@ namespace sf4e {
 			flags
 		);
 		if (!hRequest) {
+			if (outResult) {
+				outResult->error = HttpErrorKind::ConnectFailed;
+			}
 			WinHttpCloseHandle(hConnect);
 			WinHttpCloseHandle(hSession);
 			return false;
@@ -104,7 +164,185 @@ namespace sf4e {
 			bodyLen,
 			0
 		);
-		if (!ok || !WinHttpReceiveResponse(hRequest, NULL)) {
+		if (!ok) {
+			if (outResult) {
+				outResult->error = WinHttpErrorKind(GetLastError());
+			}
+			WinHttpCloseHandle(hRequest);
+			WinHttpCloseHandle(hConnect);
+			WinHttpCloseHandle(hSession);
+			return false;
+		}
+		if (!WinHttpReceiveResponse(hRequest, NULL)) {
+			if (outResult) {
+				outResult->error = WinHttpErrorKind(GetLastError());
+			}
+			WinHttpCloseHandle(hRequest);
+			WinHttpCloseHandle(hConnect);
+			WinHttpCloseHandle(hSession);
+			return false;
+		}
+
+		DWORD status = 0;
+		DWORD statusSize = sizeof(status);
+		WinHttpQueryHeaders(
+			hRequest,
+			WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+			WINHTTP_HEADER_NAME_BY_INDEX,
+			&status,
+			&statusSize,
+			WINHTTP_NO_HEADER_INDEX
+		);
+		if (outResult) {
+			outResult->statusCode = (int)status;
+		}
+
+		int total = ReadHttpResponseBody(hRequest, outBody, outBodyLen);
+
+		WinHttpCloseHandle(hRequest);
+		WinHttpCloseHandle(hConnect);
+		WinHttpCloseHandle(hSession);
+
+		if (status < 200 || status >= 300) {
+			if (outResult) {
+				outResult->error = HttpErrorKind::HttpStatus;
+			}
+			return false;
+		}
+		if (total <= 0) {
+			if (outResult) {
+				outResult->error = HttpErrorKind::EmptyBody;
+			}
+			return false;
+		}
+
+		if (outResult) {
+			outResult->ok = true;
+			outResult->error = HttpErrorKind::None;
+		}
+		return true;
+	}
+
+	static bool HttpGetFirstLine(const wchar_t* host, const wchar_t* path, int timeoutMs, char* outBody, int outBodyLen) {
+		if (!host || !path || !outBody || outBodyLen <= 0) {
+			return false;
+		}
+		bool ok = HttpRequestUtf8(L"GET", host, 0, true, path, timeoutMs, NULL, outBody, outBodyLen, nullptr);
+		TrimRoomCodeInPlace(outBody);
+		return ok;
+	}
+
+	static void Utf8ToWide(const char* utf8, wchar_t* out, int outChars) {
+		if (!utf8 || !out || outChars <= 0) {
+			if (out && outChars > 0) {
+				out[0] = 0;
+			}
+			return;
+		}
+		MultiByteToWideChar(CP_UTF8, 0, utf8, -1, out, outChars);
+	}
+
+	bool HttpGetUtf8(
+		const char* host,
+		int port,
+		bool useHttps,
+		const char* path,
+		int timeoutMs,
+		char* outBody,
+		int outBodyLen,
+		HttpRequestResult* outResult
+	) {
+		wchar_t wHost[256];
+		wchar_t wPath[512];
+		Utf8ToWide(host, wHost, 256);
+		Utf8ToWide(path, wPath, 512);
+		return HttpRequestUtf8(L"GET", wHost, port, useHttps, wPath, timeoutMs, NULL, outBody, outBodyLen, outResult);
+	}
+
+	bool HttpPostJsonUtf8(
+		const char* host,
+		int port,
+		bool useHttps,
+		const char* path,
+		int timeoutMs,
+		const char* jsonBody,
+		char* outBody,
+		int outBodyLen,
+		HttpRequestResult* outResult
+	) {
+		wchar_t wHost[256];
+		wchar_t wPath[512];
+		Utf8ToWide(host, wHost, 256);
+		Utf8ToWide(path, wPath, 512);
+		return HttpRequestUtf8(L"POST", wHost, port, useHttps, wPath, timeoutMs, jsonBody, outBody, outBodyLen, outResult);
+	}
+
+	static bool HttpGetUtf8WithHeadersInternal(
+		const char* host,
+		int port,
+		bool useHttps,
+		const char* path,
+		int timeoutMs,
+		const char* extraHeadersUtf8,
+		char* outBody,
+		int outBodyLen
+	) {
+		if (!host || !path || !outBody || outBodyLen <= 0) {
+			return false;
+		}
+
+		wchar_t wHost[256];
+		wchar_t wPath[512];
+		Utf8ToWide(host, wHost, 256);
+		Utf8ToWide(path, wPath, 512);
+
+		HINTERNET hSession = WinHttpOpen(
+			L"sf4e-updater/1.0",
+			WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+			WINHTTP_NO_PROXY_NAME,
+			WINHTTP_NO_PROXY_BYPASS,
+			0
+		);
+		if (!hSession) {
+			return false;
+		}
+
+		WinHttpSetTimeouts(hSession, timeoutMs, timeoutMs, timeoutMs, timeoutMs);
+
+		INTERNET_PORT winPort = (INTERNET_PORT)(port > 0 ? port : (useHttps ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT));
+		HINTERNET hConnect = WinHttpConnect(hSession, wHost, winPort, 0);
+		if (!hConnect) {
+			WinHttpCloseHandle(hSession);
+			return false;
+		}
+
+		DWORD flags = useHttps ? WINHTTP_FLAG_SECURE : 0;
+		HINTERNET hRequest = WinHttpOpenRequest(
+			hConnect,
+			L"GET",
+			wPath,
+			NULL,
+			WINHTTP_NO_REFERER,
+			WINHTTP_DEFAULT_ACCEPT_TYPES,
+			flags
+		);
+		if (!hRequest) {
+			WinHttpCloseHandle(hConnect);
+			WinHttpCloseHandle(hSession);
+			return false;
+		}
+
+		wchar_t headerBuf[512] = { 0 };
+		const wchar_t* headers = WINHTTP_NO_ADDITIONAL_HEADERS;
+		DWORD headersLen = 0;
+		if (extraHeadersUtf8 && extraHeadersUtf8[0]) {
+			Utf8ToWide(extraHeadersUtf8, headerBuf, 512);
+			headers = headerBuf;
+			headersLen = (DWORD)-1L;
+		}
+
+		if (!WinHttpSendRequest(hRequest, headers, headersLen, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) ||
+			!WinHttpReceiveResponse(hRequest, NULL)) {
 			WinHttpCloseHandle(hRequest);
 			WinHttpCloseHandle(hConnect);
 			WinHttpCloseHandle(hSession);
@@ -155,39 +393,193 @@ namespace sf4e {
 		return total > 0;
 	}
 
-	static bool HttpGetFirstLine(const wchar_t* host, const wchar_t* path, int timeoutMs, char* outBody, int outBodyLen) {
-		if (!host || !path || !outBody || outBodyLen <= 0) {
+	bool HttpGetUtf8WithHeaders(
+		const char* host,
+		int port,
+		bool useHttps,
+		const char* path,
+		int timeoutMs,
+		const char* extraHeaders,
+		char* outBody,
+		int outBodyLen
+	) {
+		return HttpGetUtf8WithHeadersInternal(host, port, useHttps, path, timeoutMs, extraHeaders, outBody, outBodyLen);
+	}
+
+	static bool ParseHttpUrl(const char* url, char* outHost, int outHostLen, char* outPath, int outPathLen, bool& outHttps, int& outPort) {
+		if (!url || !outHost || !outPath) {
 			return false;
 		}
-		bool ok = HttpRequestUtf8(L"GET", host, 0, true, path, timeoutMs, NULL, outBody, outBodyLen);
-		TrimRoomCodeInPlace(outBody);
-		return ok;
-	}
+		outHost[0] = '\0';
+		outPath[0] = '\0';
+		outHttps = true;
+		outPort = 443;
 
-	static void Utf8ToWide(const char* utf8, wchar_t* out, int outChars) {
-		if (!utf8 || !out || outChars <= 0) {
-			if (out && outChars > 0) {
-				out[0] = 0;
-			}
-			return;
+		const char* p = url;
+		if (strncmp(p, "https://", 8) == 0) {
+			p += 8;
+			outHttps = true;
+			outPort = 443;
 		}
-		MultiByteToWideChar(CP_UTF8, 0, utf8, -1, out, outChars);
+		else if (strncmp(p, "http://", 7) == 0) {
+			p += 7;
+			outHttps = false;
+			outPort = 80;
+		}
+		else {
+			return false;
+		}
+
+		const char* slash = strchr(p, '/');
+		const char* colon = strchr(p, ':');
+		if (slash && colon && colon < slash) {
+			size_t hostLen = (size_t)(colon - p);
+			if (hostLen >= (size_t)outHostLen) {
+				return false;
+			}
+			memcpy(outHost, p, hostLen);
+			outHost[hostLen] = '\0';
+			outPort = atoi(colon + 1);
+			strncpy_s(outPath, outPathLen, slash, _TRUNCATE);
+			return true;
+		}
+
+		if (slash) {
+			size_t hostLen = (size_t)(slash - p);
+			if (hostLen >= (size_t)outHostLen) {
+				return false;
+			}
+			memcpy(outHost, p, hostLen);
+			outHost[hostLen] = '\0';
+			strncpy_s(outPath, outPathLen, slash, _TRUNCATE);
+			return true;
+		}
+
+		strncpy_s(outHost, outHostLen, p, _TRUNCATE);
+		strcpy_s(outPath, outPathLen, "/");
+		return true;
 	}
 
-	bool HttpGetUtf8(const char* host, int port, bool useHttps, const char* path, int timeoutMs, char* outBody, int outBodyLen) {
-		wchar_t wHost[256];
-		wchar_t wPath[512];
-		Utf8ToWide(host, wHost, 256);
-		Utf8ToWide(path, wPath, 512);
-		return HttpRequestUtf8(L"GET", wHost, port, useHttps, wPath, timeoutMs, NULL, outBody, outBodyLen);
-	}
+	bool HttpDownloadUrlUtf8(const char* url, const wchar_t* destPath, int timeoutMs) {
+		if (!url || !destPath || !destPath[0]) {
+			return false;
+		}
 
-	bool HttpPostJsonUtf8(const char* host, int port, bool useHttps, const char* path, int timeoutMs, const char* jsonBody, char* outBody, int outBodyLen) {
+		char host[256] = { 0 };
+		char path[2048] = { 0 };
+		bool useHttps = true;
+		int port = 443;
+		if (!ParseHttpUrl(url, host, sizeof(host), path, sizeof(path), useHttps, port)) {
+			return false;
+		}
+
 		wchar_t wHost[256];
-		wchar_t wPath[512];
+		wchar_t wPath[2048];
 		Utf8ToWide(host, wHost, 256);
-		Utf8ToWide(path, wPath, 512);
-		return HttpRequestUtf8(L"POST", wHost, port, useHttps, wPath, timeoutMs, jsonBody, outBody, outBodyLen);
+		Utf8ToWide(path, wPath, 2048);
+
+		HINTERNET hSession = WinHttpOpen(
+			L"sf4e-updater/1.0",
+			WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+			WINHTTP_NO_PROXY_NAME,
+			WINHTTP_NO_PROXY_BYPASS,
+			0
+		);
+		if (!hSession) {
+			return false;
+		}
+
+		WinHttpSetTimeouts(hSession, timeoutMs, timeoutMs, timeoutMs, timeoutMs);
+		DWORD redirectPolicy = WINHTTP_OPTION_REDIRECT_POLICY_ALWAYS;
+		WinHttpSetOption(hSession, WINHTTP_OPTION_REDIRECT_POLICY, &redirectPolicy, sizeof(redirectPolicy));
+
+		INTERNET_PORT winPort = (INTERNET_PORT)(port > 0 ? port : (useHttps ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT));
+		HINTERNET hConnect = WinHttpConnect(hSession, wHost, winPort, 0);
+		if (!hConnect) {
+			WinHttpCloseHandle(hSession);
+			return false;
+		}
+
+		DWORD flags = useHttps ? WINHTTP_FLAG_SECURE : 0;
+		HINTERNET hRequest = WinHttpOpenRequest(
+			hConnect,
+			L"GET",
+			wPath,
+			NULL,
+			WINHTTP_NO_REFERER,
+			WINHTTP_DEFAULT_ACCEPT_TYPES,
+			flags
+		);
+		if (!hRequest) {
+			WinHttpCloseHandle(hConnect);
+			WinHttpCloseHandle(hSession);
+			return false;
+		}
+
+		DWORD reqRedirect = WINHTTP_OPTION_REDIRECT_POLICY_ALWAYS;
+		WinHttpSetOption(hRequest, WINHTTP_OPTION_REDIRECT_POLICY, &reqRedirect, sizeof(reqRedirect));
+
+		if (!WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) ||
+			!WinHttpReceiveResponse(hRequest, NULL)) {
+			WinHttpCloseHandle(hRequest);
+			WinHttpCloseHandle(hConnect);
+			WinHttpCloseHandle(hSession);
+			return false;
+		}
+
+		DWORD status = 0;
+		DWORD statusSize = sizeof(status);
+		WinHttpQueryHeaders(
+			hRequest,
+			WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+			WINHTTP_HEADER_NAME_BY_INDEX,
+			&status,
+			&statusSize,
+			WINHTTP_NO_HEADER_INDEX
+		);
+		if (status < 200 || status >= 300) {
+			WinHttpCloseHandle(hRequest);
+			WinHttpCloseHandle(hConnect);
+			WinHttpCloseHandle(hSession);
+			return false;
+		}
+
+		HANDLE hFile = CreateFileW(destPath, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (hFile == INVALID_HANDLE_VALUE) {
+			WinHttpCloseHandle(hRequest);
+			WinHttpCloseHandle(hConnect);
+			WinHttpCloseHandle(hSession);
+			return false;
+		}
+
+		bool ok = true;
+		for (;;) {
+			DWORD avail = 0;
+			if (!WinHttpQueryDataAvailable(hRequest, &avail) || avail == 0) {
+				break;
+			}
+			char buf[65536];
+			DWORD toRead = avail > sizeof(buf) ? sizeof(buf) : avail;
+			DWORD read = 0;
+			if (!WinHttpReadData(hRequest, buf, toRead, &read) || read == 0) {
+				break;
+			}
+			DWORD written = 0;
+			if (!WriteFile(hFile, buf, read, &written, NULL) || written != read) {
+				ok = false;
+				break;
+			}
+		}
+
+		CloseHandle(hFile);
+		WinHttpCloseHandle(hRequest);
+		WinHttpCloseHandle(hConnect);
+		WinHttpCloseHandle(hSession);
+
+		if (!ok) {
+			DeleteFileW(destPath);
+		}
+		return ok;
 	}
 
 	bool FetchPublicIPv4(char* outIp, int outIpLen, int timeoutMs) {

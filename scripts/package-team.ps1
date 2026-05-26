@@ -86,7 +86,9 @@ $RequiredPackagePaths = @(
 
     "BUILD_INFO.txt",
 
-    "preflight.ps1"
+    "preflight.ps1",
+
+    "apply-update.ps1"
 
 ) + $RuntimeDlls
 
@@ -226,6 +228,18 @@ if (Test-Path $PreflightSrc) {
 
 }
 
+$ApplyUpdateSrc = Join-Path $RepoRoot "scripts\apply-update.ps1"
+
+if (Test-Path $ApplyUpdateSrc) {
+
+    Copy-Item $ApplyUpdateSrc (Join-Path $PackageRoot "apply-update.ps1")
+
+} else {
+
+    Write-Warning "scripts\apply-update.ps1 not found; package will fail manifest validation."
+
+}
+
 
 
 # Build metadata
@@ -255,6 +269,8 @@ SF4 Enhanced team package (sf4e fork)
 Upstream: https://codeberg.org/adanducci/sf4e
 
 Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss zzz")
+
+$(if ($VersionLabel) { "Release: $VersionLabel`n" })
 
 Git: $(if ($GitRev) { $GitRev } else { "(not a git repo or git unavailable)" })
 

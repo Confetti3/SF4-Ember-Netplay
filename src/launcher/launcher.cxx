@@ -21,6 +21,7 @@
 #include "../common/sf4e__NetplayConfig.hxx"
 #include "netplay_persist.hxx"
 #include "netplay_wizard.hxx"
+#include "relay_host_spawn.hxx"
 
 LPCWCH szGameFilename = L"SSFIV.exe";
 LPCWCH szLibrarySuffix = L"steamapps\\common\\Super Street Fighter IV - Arcade Edition";
@@ -180,7 +181,7 @@ void CreateAppIDFile(LPWSTR szGuiltyDirectory) {
 	}
 }
 
-void CreateSF4Process(
+HANDLE CreateSF4Process(
 	const sf4e::Payload& payload,
 	LPWSTR szGameDirectory,
 	LPWSTR szExePath,
@@ -251,6 +252,9 @@ void CreateSF4Process(
 		}
 		CloseHandle(hSyncEvent);
 	}
+
+	CloseHandle(pi.hThread);
+	return pi.hProcess;
 }
 
 int UpdatePath(const wchar_t* const szLauncherDirW, wchar_t* const szErrorStringW, const int nErrorStringLen) {
@@ -327,6 +331,8 @@ int WINAPI wWinMain(
 	_In_ LPWSTR lpCmdLine,
 	_In_ int nShowCmd
 ) {
+	SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
 	HRESULT res = S_OK;
 	wchar_t szErrorStringW[4096] = { 0 };
 	wchar_t szLauncherDirW[1024] = { 0 };
@@ -446,6 +452,16 @@ int WINAPI wWinMain(
 	}
 
 	CreateAppIDFile(szGameDirectory);
-	CreateSF4Process(payload, szGameDirectory, szExePath, nDlls, dlls);
+	HANDLE hGame = CreateSF4Process(payload, szGameDirectory, szExePath, nDlls, dlls);
+	if (sf4e::launcher::GetRelayHostPid() != 0) {
+		spdlog::info(
+			"Launcher supervising game until exit (RelayHost pid {})",
+			sf4e::launcher::GetRelayHostPid()
+		);
+		WaitForSingleObject(hGame, INFINITE);
+		sf4e::launcher::StopRelayHost();
+		spdlog::info("Launcher stopped RelayHost after game exit");
+	}
+	CloseHandle(hGame);
 	return 0;
 }

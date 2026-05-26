@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include "../common/sf4e__NetUtil.hxx"
+
 namespace sf4e {
 namespace launcher {
 
@@ -14,8 +16,23 @@ namespace launcher {
 
 	bool ParseBrokerBaseUrl(const char* baseUrl, BrokerUrlParts& out);
 
-	bool BrokerHttpGet(const BrokerUrlParts& parts, const char* path, char* outBody, int outBodyLen, int timeoutMs = 8000);
-	bool BrokerHttpPostJson(const BrokerUrlParts& parts, const char* path, const char* jsonBody, char* outBody, int outBodyLen, int timeoutMs = 8000);
+	bool BrokerHttpGet(
+		const BrokerUrlParts& parts,
+		const char* path,
+		char* outBody,
+		int outBodyLen,
+		int timeoutMs = 8000,
+		sf4e::HttpRequestResult* outResult = nullptr
+	);
+	bool BrokerHttpPostJson(
+		const BrokerUrlParts& parts,
+		const char* path,
+		const char* jsonBody,
+		char* outBody,
+		int outBodyLen,
+		int timeoutMs = 8000,
+		sf4e::HttpRequestResult* outResult = nullptr
+	);
 
 } // namespace launcher
 } // namespace sf4e

@@ -13,13 +13,17 @@ Upstream: [sf4e by adanducci](https://codeberg.org/adanducci/sf4e). See `ATTRIBU
    - **Ultra Street Fighter IV** on Steam (app ID 45760)
 3. **Run** `preflight.ps1` (optional sanity check), then **`Launcher.exe`** from that folder → **Host**, **Join**, or **Offline**.
 
+## Updating
+
+On the launcher home screen, use **Check for updates** to compare your install against the latest [GitHub release](https://github.com/Confetti3/SF4e/releases/latest). If a newer build is available, **Install update** downloads the team zip and replaces all files in the install folder (your settings in `%APPDATA%\sf4e\` are kept). Close USF4 before installing.
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File preflight.ps1
 ```
 
 ## Casual netplay (Simple mode — default)
 
-The launcher defaults to **Simple mode** and relay room codes (`SF4-XXXX`). No broker setup required — v0.2.0 ships with broker **`http://150.136.121.155:8787`**.
+The launcher defaults to **Simple mode** and relay room codes (`SF4-XXXX`). No broker setup required — v0.2.0 ships with broker **`http://74.208.200.95:8787`**.
 
 | Host | Joiner |
 |------|--------|
@@ -86,7 +90,9 @@ Full checklist: [SMOKE_TEST.md](SMOKE_TEST.md). Player guide: [USER_NETPLAY.md](
 | Blank launcher window | Ensure **`launcher-ui\`** is next to `Launcher.exe` |
 | Double-click does nothing | Run `Launcher.exe --console` from a terminal in the package folder |
 | “Version mismatch” on join | Same zip on both PCs |
-| Can't create relay room | Broker reachable? `curl http://150.136.121.155:8787/v1/health` |
+| Can't create relay room | Broker reachable? `curl http://74.208.200.95:8787/v1/health` |
+| Join times out | Host forwarded **assigned** TCP+UDP port (shown in host share hint); RelayHost console open |
+| Room expires while waiting | Deploy updated `server.js` on Oracle (adds `/heartbeat`); launcher sends keepalive every 60s |
 | Join times out | Host forwarded **23456** TCP+UDP; `RelayHost.exe` running; same `Sidecar.dll` |
 | Wrong broker URL | Delete `%APPDATA%\sf4e\config.json` or set `SF4E_BROKER_URL` |
 | Missing other DLL errors | Re-extract full zip; install [VC++ x86](https://aka.ms/vs/17/release/vc_redist.x86.exe) |

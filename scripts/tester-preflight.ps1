@@ -26,6 +26,8 @@ $RequiredFiles = @(
 
     "Launcher.exe",
 
+    "RelayHost.exe",
+
     "Sidecar.dll",
 
     "WebView2Loader.dll",

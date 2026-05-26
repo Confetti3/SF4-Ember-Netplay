@@ -70,6 +70,8 @@ namespace sf4e {
 		void ResetBattleSync();
 		void ResetLobbyForRematch();
 
+		size_t ConnectedClientCount() const { return clients.size(); }
+
 		typedef struct SessionMember {
 			SessionProtocol::MemberData data;
 			HSteamNetConnection conn;

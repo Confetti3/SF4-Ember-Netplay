@@ -49,6 +49,7 @@ namespace launcher {
 	};
 
 	RelayRoomCreateResult CreateRelayRoom(const char* brokerBaseUrl, const char* displayName, const char* relayHost);
+	bool HeartbeatRelayRoom(const char* brokerBaseUrl, const char* roomCode);
 
 } // namespace launcher
 } // namespace sf4e

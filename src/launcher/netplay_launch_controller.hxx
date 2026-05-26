@@ -34,6 +34,8 @@ namespace launcher {
 
 		bool WasCancelled() const { return m_cancelled; }
 
+		bool ShouldExitForUpdate() const { return m_exitForUpdate; }
+
 
 
 		nlohmann::json BuildStateJson() const;
@@ -59,6 +61,8 @@ namespace launcher {
 		bool m_finished = false;
 
 		bool m_cancelled = false;
+
+		bool m_exitForUpdate = false;
 
 	};
 

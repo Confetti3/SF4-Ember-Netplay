@@ -2,178 +2,439 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="color-scheme" content="dark" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SF4 Enhanced</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div id="app">
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="i-host" viewBox="0 0 16 16">
+      <circle cx="8" cy="8" r="2"/>
+      <path d="M8 2.5v2M8 11.5v2M2.5 8h2M11.5 8h2"/>
+      <path d="M4.5 4.5l1.4 1.4M10.1 10.1l1.4 1.4M4.5 11.5l1.4-1.4M10.1 5.9l1.4-1.4"/>
+    </symbol>
+    <symbol id="i-join" viewBox="0 0 16 16">
+      <path d="M2.5 8h7"/>
+      <polyline points="7.5,5 10.5,8 7.5,11"/>
+      <path d="M10.5 4.5v7"/>
+    </symbol>
+    <symbol id="i-offline" viewBox="0 0 16 16">
+      <rect x="2.5" y="5" width="11" height="7" rx="2"/>
+      <path d="M5.5 9v2M4.5 10h2"/>
+      <circle cx="10.5" cy="9" r="0.75"/>
+      <circle cx="12.5" cy="10.5" r="0.75"/>
+    </symbol>
+    <symbol id="i-search" viewBox="0 0 16 16">
+      <circle cx="7" cy="7" r="3.5"/>
+      <path d="M10 10l3 3"/>
+    </symbol>
+    <symbol id="i-list" viewBox="0 0 16 16">
+      <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/>
+      <circle cx="5" cy="4.5" r="0.75" fill="currentColor" stroke="none"/>
+      <circle cx="5" cy="8" r="0.75" fill="currentColor" stroke="none"/>
+      <circle cx="5" cy="11.5" r="0.75" fill="currentColor" stroke="none"/>
+    </symbol>
+    <symbol id="i-copy" viewBox="0 0 16 16">
+      <rect x="5.5" y="5.5" width="7" height="7" rx="1"/>
+      <path d="M3.5 10.5V4.5a1 1 0 0 1 1-1h6"/>
+    </symbol>
+    <symbol id="i-check" viewBox="0 0 16 16">
+      <polyline points="3.5,8.5 6.5,11.5 12.5,4.5"/>
+    </symbol>
+    <symbol id="i-refresh" viewBox="0 0 16 16">
+      <path d="M12.5 4.5A5 5 0 1 0 13.5 9"/>
+      <polyline points="13.5,2.5 13.5,5.5 10.5,5.5"/>
+    </symbol>
+    <symbol id="i-download" viewBox="0 0 16 16">
+      <path d="M8 2.5v7"/>
+      <polyline points="5.5,7.5 8,10 10.5,7.5"/>
+      <path d="M3.5 12.5h9"/>
+    </symbol>
+    <symbol id="i-play" viewBox="0 0 16 16">
+      <polygon points="5.5,3.5 12.5,8 5.5,12.5" fill="currentColor" stroke="none"/>
+    </symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 16 16">
+      <polyline points="10.5,3.5 6,8 10.5,12.5"/>
+    </symbol>
+    <symbol id="i-plus" viewBox="0 0 16 16">
+      <path d="M8 3.5v9M3.5 8h9"/>
+    </symbol>
+    <symbol id="i-globe" viewBox="0 0 16 16">
+      <circle cx="8" cy="8" r="5.5"/>
+      <path d="M2.5 8h11M8 2.5a8 8 0 0 1 0 11M8 2.5a8 8 0 0 0 0 11"/>
+    </symbol>
+    <symbol id="i-lan" viewBox="0 0 16 16">
+      <rect x="2.5" y="4" width="11" height="7" rx="1"/>
+      <path d="M5.5 13.5h5"/>
+      <path d="M8 11v2.5"/>
+    </symbol>
+    <symbol id="i-relay" viewBox="0 0 16 16">
+      <path d="M4.5 11.5a4 4 0 0 1 0-7 5.5 5.5 0 0 1 10.5 1.5 3.5 3.5 0 0 1-1 6.5"/>
+    </symbol>
+    <symbol id="i-tag" viewBox="0 0 16 16">
+      <path d="M3.5 8.5V3.5h5l4.5 4.5-5 5-4.5-4.5z"/>
+      <circle cx="6.5" cy="6.5" r="0.75" fill="currentColor" stroke="none"/>
+    </symbol>
+    <symbol id="i-layout" viewBox="0 0 16 16">
+      <rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/>
+      <rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/>
+      <rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/>
+      <rect x="9" y="9" width="4.5" height="4.5" rx="1"/>
+    </symbol>
+    <symbol id="i-sliders" viewBox="0 0 16 16">
+      <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/>
+      <circle cx="5.5" cy="4.5" r="1.25" fill="currentColor" stroke="none"/>
+      <circle cx="10.5" cy="8" r="1.25" fill="currentColor" stroke="none"/>
+      <circle cx="7" cy="11.5" r="1.25" fill="currentColor" stroke="none"/>
+    </symbol>
+    <symbol id="i-user" viewBox="0 0 16 16">
+      <circle cx="8" cy="5.5" r="2.25" fill="currentColor" stroke="none"/>
+      <path d="M3.5 13.5a4.5 4.5 0 0 1 9 0"/>
+    </symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 16 16">
+      <polyline points="5.5,3.5 10,8 5.5,12.5"/>
+    </symbol>
+    <symbol id="i-alert" viewBox="0 0 16 16">
+      <circle cx="8" cy="8" r="5.5"/>
+      <path d="M8 5v3.5"/>
+      <circle cx="8" cy="11.25" r="0.75"/>
+    </symbol>
+    <symbol id="i-info" viewBox="0 0 16 16">
+      <circle cx="8" cy="8" r="5.5"/>
+      <path d="M8 7v3.5"/>
+      <circle cx="8" cy="5.25" r="0.75"/>
+    </symbol>
+    <symbol id="i-terminal" viewBox="0 0 16 16">
+      <path d="M3 5.5L6 8 3 10.5"/>
+      <path d="M7.5 10.5h5.5"/>
+      <rect x="2" y="3" width="12" height="10" rx="1"/>
+    </symbol>
+  </svg>
+
+  <div id="app" class="is-loading">
     <header class="header">
-      <h1>SF4 Enhanced</h1>
-      <p class="subtitle">Ultra Street Fighter IV — rollback netplay</p>
-      <div class="header-actions">
-        <label class="toggle-simple">
-          <input type="checkbox" id="toggle-simple-ui" />
-          <span>Simple mode</span>
-        </label>
+      <div class="header-top">
+        <div>
+          <h1>SF4 Enhanced</h1>
+          <p class="subtitle">Ultra Street Fighter IV rollback netplay</p>
+        </div>
+        <span id="installed-version" class="version-badge">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#i-tag"/></svg>
+          <span class="version-badge-text">—</span>
+        </span>
+      </div>
+      <div class="segmented-toggle" role="group" aria-label="UI mode">
+        <button type="button" class="segmented-btn" id="btn-mode-simple" data-simple="true">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#i-layout"/></svg>
+          Simple
+        </button>
+        <button type="button" class="segmented-btn active" id="btn-mode-advanced" data-simple="false">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#i-sliders"/></svg>
+          Advanced
+        </button>
       </div>
     </header>
 
-    <div id="status-strip" class="status-strip hidden"></div>
-    <div id="toast" class="toast hidden"></div>
+    <div id="status-strip" class="status-strip hidden" role="status"></div>
+    <div id="toast" class="toast hidden" role="alert"></div>
 
     <section id="screen-home" class="screen active">
       <div class="card-grid">
-        <button type="button" class="mode-card" data-mode="host">
-          <span class="mode-card-title">Host</span>
-          <span class="mode-card-desc">Create a room and share a short code</span>
+        <button type="button" class="mode-card mode-card-host" data-mode="host">
+          <span class="mode-card-icon" aria-hidden="true">
+            <svg class="icon icon-lg"><use href="#i-host"/></svg>
+          </span>
+          <span class="mode-card-body">
+            <span class="mode-card-title">Host</span>
+            <span class="mode-card-desc">Create a room and share a code</span>
+          </span>
         </button>
-        <button type="button" class="mode-card" data-mode="join">
-          <span class="mode-card-title">Join</span>
-          <span class="mode-card-desc">Paste a room code from your host</span>
+        <button type="button" class="mode-card mode-card-join" data-mode="join">
+          <span class="mode-card-icon" aria-hidden="true">
+            <svg class="icon icon-lg"><use href="#i-join"/></svg>
+          </span>
+          <span class="mode-card-body">
+            <span class="mode-card-title">Join</span>
+            <span class="mode-card-desc">Paste a room code from your host</span>
+          </span>
         </button>
-        <button type="button" class="mode-card mode-card-muted" data-mode="offline">
-          <span class="mode-card-title">Offline</span>
-          <span class="mode-card-desc">Launch without netplay</span>
+        <button type="button" class="mode-card mode-card-offline" data-mode="offline">
+          <span class="mode-card-icon" aria-hidden="true">
+            <svg class="icon icon-lg"><use href="#i-offline"/></svg>
+          </span>
+          <span class="mode-card-body">
+            <span class="mode-card-title">Offline</span>
+            <span class="mode-card-desc">Launch without netplay</span>
+          </span>
         </button>
       </div>
-      <div class="coming-soon">
-        <button type="button" class="coming-soon-card" id="btn-find-match">
-          <strong>Find match</strong>
-          <span>Quick match — join the queue</span>
-        </button>
-        <button type="button" class="coming-soon-card" id="btn-browse-rooms">
-          <strong>Open rooms</strong>
-          <span>Browse hosted relay rooms</span>
-        </button>
+
+      <div class="panel quick-actions">
+        <h3 class="section-label">Quick actions</h3>
+        <div class="quick-actions-row">
+          <button type="button" class="quick-action-btn" id="btn-find-match">
+            <span class="quick-action-icon" aria-hidden="true">
+              <svg class="icon"><use href="#i-search"/></svg>
+            </span>
+            <strong>Find match</strong>
+            <span>Join the queue</span>
+          </button>
+          <button type="button" class="quick-action-btn" id="btn-browse-rooms">
+            <span class="quick-action-icon" aria-hidden="true">
+              <svg class="icon"><use href="#i-list"/></svg>
+            </span>
+            <strong>Open rooms</strong>
+            <span>Browse relay rooms</span>
+          </button>
+        </div>
       </div>
-      <p class="footer-hint">Logs: <code>Launcher.exe --console</code></p>
+
+      <div class="panel update-panel" id="update-panel">
+        <div class="update-row">
+          <button type="button" id="btn-check-update" class="btn-secondary btn-sm btn-with-icon">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#i-refresh"/></svg>
+            Check for updates
+          </button>
+          <button type="button" id="btn-install-update" class="btn-primary btn-sm btn-with-icon hidden">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#i-download"/></svg>
+            Install update
+          </button>
+        </div>
+        <div id="update-status" class="update-status hidden"></div>
+      </div>
+
+      <p class="footer-hint">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#i-terminal"/></svg>
+        Logs: <code>Launcher.exe --console</code>
+      </p>
     </section>
 
-    <section id="screen-host" class="screen">
-      <button type="button" class="back-btn" data-back>← Back</button>
-      <h2>Host a game</h2>
-
-      <div class="simple-only">
-        <label class="field">
-          <span>Display name</span>
-          <input id="host-name" type="text" maxlength="31" />
-        </label>
-        <div class="room-code-box">
-          <span class="room-code-label">Room code to share</span>
-          <code id="host-room-preview" class="room-code-value">—</code>
-          <button type="button" id="btn-create-relay-room" class="btn-primary">Create relay room</button>
-          <button type="button" id="btn-copy-room" class="btn-secondary">Copy code</button>
-        </div>
-        <p class="hint">Relay hosting needs no port forward. Share <strong>SF4-XXXX</strong> with your opponent.</p>
-        <label class="field field-inline">
-          <span>Input delay (frames)</span>
-          <input id="host-delay-simple" type="number" min="1" max="20" />
-        </label>
+    <section id="screen-host" class="screen screen-with-footer">
+      <div class="screen-header">
+        <button type="button" class="back-btn" data-back aria-label="Back">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#i-chevron-left"/></svg>
+          Back
+        </button>
+        <h2>Host a game</h2>
       </div>
 
-      <div class="advanced-only hidden">
-        <label class="field">
-          <span>Connection</span>
-          <select id="host-connect-method">
-            <option value="direct" selected>Direct IP (LAN / port forward)</option>
-            <option value="relay">Relay room (recommended)</option>
-            <option value="autoNat">Direct + UPnP</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Display name</span>
-          <input id="host-name-adv" type="text" maxlength="31" />
-        </label>
-        <label class="field field-inline">
-          <span>Input delay</span>
-          <input id="host-delay" type="number" min="1" max="20" />
-        </label>
-        <label class="field field-inline">
-          <span>Session port</span>
-          <input id="host-port" type="number" min="1" max="65535" />
-        </label>
-        <div class="info-row">
-          <span class="badge">LAN</span>
-          <code id="host-lan-code">—</code>
-        </div>
-        <label class="field">
-          <span>Internet address (direct mode only)</span>
-          <div class="row">
-            <input id="host-advertise" type="text" />
-            <button type="button" id="btn-refresh-ip" class="btn-secondary">Refresh</button>
-            <button type="button" id="btn-try-upnp" class="btn-secondary">Try UPnP</button>
+      <div class="screen-body">
+        <section class="share-panel panel" id="host-share-panel">
+          <h3 class="section-label">Share with opponent</h3>
+          <div class="share-card share-card--empty" data-share-id="relay" data-copy="">
+            <div class="share-card-main">
+              <span class="share-label">
+                <svg class="icon icon-sm" aria-hidden="true"><use href="#i-relay"/></svg>
+                Relay code
+              </span>
+              <code class="share-value" id="share-relay-value">—</code>
+            </div>
+            <button type="button" class="icon-btn share-copy-btn" data-share="relay" aria-label="Copy relay code" disabled>
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#i-copy"/></svg>
+              Copy
+            </button>
           </div>
-        </label>
-        <p id="host-nat-status" class="hint"></p>
-        <label class="field">
-          <span>Room broker URL</span>
-          <input id="broker-url" type="text" placeholder="http://150.136.121.155:8787" />
-        </label>
+          <div class="share-actions">
+            <button type="button" id="btn-create-relay-room" class="btn-secondary btn-sm btn-with-icon">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#i-plus"/></svg>
+              Create relay room
+            </button>
+          </div>
+          <div class="share-card" data-share-id="lan" data-copy="">
+            <div class="share-card-main">
+              <span class="share-label">
+                <svg class="icon icon-sm" aria-hidden="true"><use href="#i-lan"/></svg>
+                LAN address
+              </span>
+              <code class="share-value" id="share-lan-value">—</code>
+            </div>
+            <button type="button" class="icon-btn share-copy-btn" data-share="lan" aria-label="Copy LAN address">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#i-copy"/></svg>
+              Copy
+            </button>
+          </div>
+          <div class="share-card share-card--empty" data-share-id="wan" data-copy="">
+            <div class="share-card-main">
+              <span class="share-label">
+                <svg class="icon icon-sm" aria-hidden="true"><use href="#i-globe"/></svg>
+                Public address
+              </span>
+              <code class="share-value" id="share-wan-value">—</code>
+            </div>
+            <button type="button" class="icon-btn share-copy-btn" data-share="wan" aria-label="Copy public address" disabled>
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#i-copy"/></svg>
+              Copy
+            </button>
+          </div>
+          <div class="share-actions">
+            <button type="button" id="btn-refresh-ip" class="btn-secondary btn-sm btn-with-icon">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#i-refresh"/></svg>
+              Refresh public IP
+            </button>
+            <button type="button" id="btn-try-upnp" class="btn-secondary btn-sm btn-with-icon advanced-only">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#i-globe"/></svg>
+              Try UPnP
+            </button>
+          </div>
+          <p class="share-hint" id="host-share-hint">Create a relay room or share your LAN address for local play.</p>
+          <code id="host-room-preview" class="hidden" aria-hidden="true">—</code>
+        </section>
+
+        <div class="panel simple-only hidden">
+          <h3 class="section-label">Settings</h3>
+          <label class="field">
+            <span>Display name</span>
+            <input id="host-name" type="text" maxlength="31" />
+          </label>
+          <label class="field field-inline">
+            <span>Input delay (frames)</span>
+            <input id="host-delay-simple" type="number" min="1" max="20" />
+          </label>
+        </div>
+
+        <div class="panel advanced-only">
+          <h3 class="section-label">Connection</h3>
+          <label class="field">
+            <span>Method</span>
+            <select id="host-connect-method">
+              <option value="direct" selected>Direct IP (LAN / port forward)</option>
+              <option value="relay">Relay room (recommended)</option>
+              <option value="autoNat">Direct + UPnP</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Display name</span>
+            <input id="host-name-adv" type="text" maxlength="31" />
+          </label>
+          <label class="field field-inline">
+            <span>Input delay</span>
+            <input id="host-delay" type="number" min="1" max="20" />
+          </label>
+          <label class="field field-inline">
+            <span>Session port</span>
+            <input id="host-port" type="number" min="1" max="65535" />
+          </label>
+          <label class="field">
+            <span>Internet address (direct mode)</span>
+            <input id="host-advertise" type="text" placeholder="Auto-detected or enter manually" />
+          </label>
+          <p id="host-nat-status" class="hint"></p>
+          <label class="field">
+            <span>Room broker URL</span>
+            <input id="broker-url" type="text" placeholder="http://74.208.200.95:8787" />
+          </label>
+        </div>
       </div>
 
-      <button type="button" id="btn-start-host" class="btn-primary btn-large">Start game</button>
+      <div class="sticky-footer">
+        <button type="button" id="btn-start-host" class="btn-primary btn-large btn-with-icon">
+          <svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>
+          Start game
+        </button>
+      </div>
     </section>
 
-    <section id="screen-join" class="screen">
-      <button type="button" class="back-btn" data-back>← Back</button>
-      <h2>Join a game</h2>
-
-      <div class="simple-only">
-        <label class="field">
-          <span>Display name</span>
-          <input id="join-name" type="text" maxlength="31" />
-        </label>
-        <label class="field">
-          <span>Room code</span>
-          <input id="join-room-code" type="text" placeholder="SF4-A1B2" />
-        </label>
-        <label class="field field-inline">
-          <span>Input delay</span>
-          <input id="join-delay-simple" type="number" min="1" max="20" />
-        </label>
+    <section id="screen-join" class="screen screen-with-footer">
+      <div class="screen-header">
+        <button type="button" class="back-btn" data-back aria-label="Back">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#i-chevron-left"/></svg>
+          Back
+        </button>
+        <h2>Join a game</h2>
       </div>
 
-      <div class="advanced-only hidden">
-        <label class="field">
-          <span>Connection</span>
-          <select id="join-connect-method">
-            <option value="direct" selected>Direct IP:port</option>
-            <option value="relay">Relay room code</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Display name</span>
-          <input id="join-name-adv" type="text" maxlength="31" />
-        </label>
-        <label class="field">
-          <span>Host address or room code</span>
-          <input id="join-address" type="text" placeholder="SF4-A1B2 or 203.0.113.42:23456" />
-        </label>
-        <label class="field field-inline">
-          <span>Input delay</span>
-          <input id="join-delay" type="number" min="1" max="20" />
-        </label>
+      <div class="screen-body">
+        <div class="panel simple-only hidden">
+          <label class="field">
+            <span>Display name</span>
+            <input id="join-name" type="text" maxlength="31" />
+          </label>
+          <label class="field">
+            <span>Room code</span>
+            <input id="join-room-code" class="input-mono input-lg" type="text" placeholder="SF4-A1B2" autocomplete="off" spellcheck="false" />
+            <span class="field-hint">Paste the code your host copied</span>
+          </label>
+          <label class="field field-inline">
+            <span>Input delay (frames)</span>
+            <input id="join-delay-simple" type="number" min="1" max="20" />
+          </label>
+        </div>
+
+        <div class="panel advanced-only">
+          <label class="field">
+            <span>Connection</span>
+            <select id="join-connect-method">
+              <option value="direct" selected>Direct IP:port</option>
+              <option value="relay">Relay room code</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Display name</span>
+            <input id="join-name-adv" type="text" maxlength="31" />
+          </label>
+          <label class="field">
+            <span>Host address or room code</span>
+            <input id="join-address" class="input-mono" type="text" placeholder="SF4-A1B2 or 203.0.113.42:23456" autocomplete="off" spellcheck="false" />
+          </label>
+          <label class="field field-inline">
+            <span>Input delay</span>
+            <input id="join-delay" type="number" min="1" max="20" />
+          </label>
+        </div>
       </div>
 
-      <button type="button" id="btn-start-join" class="btn-primary btn-large">Start game</button>
+      <div class="sticky-footer">
+        <button type="button" id="btn-start-join" class="btn-primary btn-large btn-with-icon">
+          <svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>
+          Start game
+        </button>
+      </div>
     </section>
 
     <section id="screen-rooms" class="screen">
-      <button type="button" class="back-btn" data-back>← Back</button>
-      <h2>Open rooms</h2>
-      <button type="button" id="btn-refresh-rooms" class="btn-secondary">Refresh</button>
+      <div class="screen-header">
+        <button type="button" class="back-btn" data-back aria-label="Back">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#i-chevron-left"/></svg>
+          Back
+        </button>
+        <h2>Open rooms</h2>
+        <button type="button" id="btn-refresh-rooms" class="btn-secondary btn-sm header-action btn-with-icon">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#i-refresh"/></svg>
+          Refresh
+        </button>
+      </div>
       <ul id="room-list" class="room-list"></ul>
-      <p id="room-list-empty" class="hint hidden">No open rooms. Ask a friend to host or create one.</p>
+      <div id="room-list-empty" class="empty-state hidden">
+        <span class="empty-state-icon" aria-hidden="true">
+          <svg class="icon icon-lg"><use href="#i-list"/></svg>
+        </span>
+        <p>No open rooms. Ask a friend to host or create one.</p>
+      </div>
     </section>
 
-    <section id="screen-offline" class="screen">
-      <button type="button" class="back-btn" data-back>← Back</button>
-      <h2>Offline</h2>
-      <p>Launch USF4 with sf4e hooks but no netplay session.</p>
-      <button type="button" id="btn-start-offline" class="btn-primary btn-large">Start game</button>
+    <section id="screen-offline" class="screen screen-with-footer">
+      <div class="screen-header">
+        <button type="button" class="back-btn" data-back aria-label="Back">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#i-chevron-left"/></svg>
+          Back
+        </button>
+        <h2>Offline</h2>
+      </div>
+      <div class="screen-body">
+        <div class="panel">
+          <p class="panel-text">Launch USF4 with sf4e hooks but no netplay session.</p>
+        </div>
+      </div>
+      <div class="sticky-footer">
+        <button type="button" id="btn-start-offline" class="btn-primary btn-large btn-with-icon">
+          <svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>
+          Start game
+        </button>
+      </div>
     </section>
   </div>
+  <script src="icons.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
