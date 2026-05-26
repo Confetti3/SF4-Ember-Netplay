@@ -22,6 +22,7 @@
 #include "netplay_persist.hxx"
 #include "netplay_wizard.hxx"
 #include "relay_host_spawn.hxx"
+#include "github_release_client.hxx"
 
 LPCWCH szGameFilename = L"SSFIV.exe";
 LPCWCH szLibrarySuffix = L"steamapps\\common\\Super Street Fighter IV - Arcade Edition";
@@ -356,6 +357,8 @@ int WINAPI wWinMain(
 	app.add_option("--join", joinRoomCode, "Join host at IP:port (skip wizard).")->expected(1);
 	bool devOverlay = false;
 	app.add_flag("--dev-overlay", devOverlay, "Enable developer netplay overlay in-game.");
+	bool applyUpdateOnly = false;
+	app.add_flag("--apply-update", applyUpdateOnly, "Download and install the latest GitHub release, then exit.");
 	int argc;
 	LPWSTR* argv = CommandLineToArgvW(
 		// Intentionally do _not_ use lpCmdLine here. Windows removes
@@ -400,6 +403,28 @@ int WINAPI wWinMain(
 
 	if (!UpdatePath(szLauncherDirW, szErrorStringW, 4096)) {
 		return 1;
+	}
+
+	if (applyUpdateOnly) {
+		sf4e::launcher::UpdateCheckResult check = sf4e::launcher::CheckForUpdate();
+		if (!check.ok) {
+			MessageBoxA(NULL, check.error.c_str(), "sf4e update", MB_OK | MB_ICONERROR);
+			return 1;
+		}
+		if (!check.updateAvailable) {
+			MessageBoxA(NULL, "No update available.", "sf4e update", MB_OK | MB_ICONINFORMATION);
+			return 0;
+		}
+		sf4e::launcher::ApplyUpdateResult applied = sf4e::launcher::DownloadAndApplyUpdate(
+			check.zipDownloadUrl.c_str(),
+			check.zipApiUrl.c_str(),
+			check.latestVersion.c_str()
+		);
+		if (!applied.ok) {
+			MessageBoxA(NULL, applied.error.c_str(), "sf4e update", MB_OK | MB_ICONERROR);
+			return 1;
+		}
+		return 0;
 	}
 
 	if (!FindSF4(szGameDirectory, 1024, szExePath, 1024)) {

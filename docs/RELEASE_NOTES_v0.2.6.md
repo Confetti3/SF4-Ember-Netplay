@@ -5,6 +5,7 @@ Rollback netplay for **Ultra Street Fighter IV** (Steam) with a modern **SF4 Enh
 ## What's new in v0.2.6
 
 - **Direct IP fix:** restores v0.2.2-style direct play — default connect mode is Direct IP again; joiners pasting `public.ip:23456` no longer hit the room broker; stale `SF4-XXXX` codes no longer force relay when the host selects Direct IP
+- **In-app updater fix:** downloads to `%TEMP%` reliably, applies updates via `apply-update.ps1` after the launcher exits (fixes silent update failures on v0.2.5 builds)
 - **WAN direct hints:** Advanced host/join screens explain public IP:port sharing and port-forward requirements
 
 Also includes v0.2.5 changes: join preflight for relay codes, join overlay improvements, hardened in-app updater (curl/TLS fallbacks, Open release page on failure).

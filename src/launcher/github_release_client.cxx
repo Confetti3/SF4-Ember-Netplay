@@ -9,6 +9,7 @@
 #include <windows.h>
 #include <pathcch.h>
 #include <shellapi.h>
+#include <shlobj.h>
 #include <tlhelp32.h>
 
 #include <nlohmann/json.hpp>
@@ -40,6 +41,9 @@ namespace launcher {
 			"libprotobuf.dll",
 			"abseil_dll.dll",
 		};
+
+		static void AppendUpdateLog(const char* message);
+		static bool WidePathToUtf8(const wchar_t* wide, char* out, int outLen);
 
 		static void GetGithubRepo(char* outRepo, int outRepoLen) {
 			const char* env = getenv("SF4E_GITHUB_REPO");
@@ -175,27 +179,41 @@ namespace launcher {
 				return false;
 			}
 			if (GetFileAttributesW(scriptPath) == INVALID_FILE_ATTRIBUTES) {
+				AppendUpdateLog("apply-update.ps1 missing in install dir");
 				return false;
 			}
 
-			wchar_t cmdLine[4096] = { 0 };
+			wchar_t params[4096] = { 0 };
 			swprintf_s(
-				cmdLine,
-				L"powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"%s\" -InstallDir \"%s\" -StagingDir \"%s\" -WaitPid %lu",
+				params,
+				L"-NoProfile -ExecutionPolicy Bypass -File \"%s\" -InstallDir \"%s\" -StagingDir \"%s\" -WaitPid %lu",
 				scriptPath,
 				installDir,
 				stagingDir,
 				waitPid
 			);
 
-			STARTUPINFOW si = { 0 };
-			PROCESS_INFORMATION pi = { 0 };
-			si.cb = sizeof(si);
-			if (!CreateProcessW(NULL, cmdLine, NULL, NULL, FALSE, DETACHED_PROCESS | CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+			char paramsUtf8[4096] = { 0 };
+			WidePathToUtf8(params, paramsUtf8, sizeof(paramsUtf8));
+			AppendUpdateLog(("spawn apply-update: powershell.exe " + std::string(paramsUtf8)).c_str());
+
+			SHELLEXECUTEINFOW sei = { 0 };
+			sei.cbSize = sizeof(sei);
+			sei.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NO_CONSOLE | SEE_MASK_FLAG_NO_UI;
+			sei.lpVerb = L"open";
+			sei.lpFile = L"powershell.exe";
+			sei.lpParameters = params;
+			sei.nShow = SW_HIDE;
+			if (!ShellExecuteExW(&sei)) {
+				char buf[128] = { 0 };
+				snprintf(buf, sizeof(buf), "spawn apply-update failed (Win32 %lu)", GetLastError());
+				AppendUpdateLog(buf);
 				return false;
 			}
-			CloseHandle(pi.hProcess);
-			CloseHandle(pi.hThread);
+			if (sei.hProcess) {
+				CloseHandle(sei.hProcess);
+			}
+			AppendUpdateLog("spawn apply-update ok");
 			return true;
 		}
 
@@ -217,6 +235,87 @@ namespace launcher {
 					*p = '_';
 				}
 			}
+		}
+
+		static bool WidePathToUtf8(const wchar_t* wide, char* out, int outLen) {
+			if (!wide || !out || outLen <= 0) {
+				return false;
+			}
+			int n = WideCharToMultiByte(CP_UTF8, 0, wide, -1, out, outLen, NULL, NULL);
+			return n > 0;
+		}
+
+		static bool EnsureDirectoryExistsW(const wchar_t* dir, std::string& outError) {
+			if (!dir || !dir[0]) {
+				outError = "empty directory path";
+				return false;
+			}
+
+			DWORD attrs = GetFileAttributesW(dir);
+			if (attrs != INVALID_FILE_ATTRIBUTES) {
+				if (attrs & FILE_ATTRIBUTE_DIRECTORY) {
+					return true;
+				}
+				outError = "path exists but is not a directory";
+				return false;
+			}
+
+			const int createResult = SHCreateDirectoryExW(NULL, dir, NULL);
+			if (createResult == ERROR_SUCCESS || createResult == ERROR_ALREADY_EXISTS) {
+				attrs = GetFileAttributesW(dir);
+				if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY)) {
+					return true;
+				}
+			}
+
+			char buf[160] = { 0 };
+			snprintf(buf, sizeof(buf), "could not create directory (Win32 %d)", createResult);
+			outError = buf;
+			return false;
+		}
+
+		static bool EnsureParentDirectoryExistsW(const wchar_t* filePath, std::string& outError) {
+			if (!filePath || !filePath[0]) {
+				outError = "empty file path";
+				return false;
+			}
+			wchar_t parent[MAX_PATH] = { 0 };
+			wcsncpy_s(parent, filePath, _TRUNCATE);
+			if (FAILED(PathCchRemoveFileSpec(parent, MAX_PATH))) {
+				outError = "could not resolve parent directory";
+				return false;
+			}
+			return EnsureDirectoryExistsW(parent, outError);
+		}
+
+		static bool BuildUpdateTempRoot(
+			const char* safeTag,
+			wchar_t* tempRoot,
+			size_t tempRootChars,
+			std::string& outError
+		) {
+			if (!tempRoot || tempRootChars == 0) {
+				outError = "invalid temp buffer";
+				return false;
+			}
+			tempRoot[0] = L'\0';
+
+			wchar_t tempSub[128] = { 0 };
+			MultiByteToWideChar(CP_UTF8, 0, safeTag ? safeTag : "", -1, tempSub, 128);
+
+			wchar_t tempBase[MAX_PATH] = { 0 };
+			if (GetTempPathW(MAX_PATH, tempBase) == 0) {
+				outError = "GetTempPathW failed";
+				return false;
+			}
+
+			wchar_t folderName[128] = { 0 };
+			swprintf_s(folderName, L"sf4e-update-%ls", tempSub);
+			if (FAILED(PathCchCombine(tempRoot, tempRootChars, tempBase, folderName))) {
+				outError = "PathCchCombine failed";
+				return false;
+			}
+			return true;
 		}
 
 		static void AppendUpdateLog(const char* message) {
@@ -313,6 +412,10 @@ namespace launcher {
 				outError = "missing URL";
 				return false;
 			}
+			if (!EnsureParentDirectoryExistsW(zipPath, outError)) {
+				AppendUpdateLog((std::string(label) + " mkdir failed: " + outError).c_str());
+				return false;
+			}
 			HttpRequestResult httpResult;
 			if (HttpDownloadUrlUtf8(url, zipPath, 300000, headers, &httpResult)) {
 				AppendUpdateLog((std::string(label) + " OK").c_str());
@@ -335,8 +438,10 @@ namespace launcher {
 			wchar_t ps[8192] = { 0 };
 			swprintf_s(
 				ps,
+				L"New-Item -ItemType Directory -Force -Path (Split-Path -Parent '%s') | Out-Null; "
 				L"[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; "
 				L"Invoke-WebRequest -Uri \"%s\" -OutFile \"%s\" -UserAgent \"sf4e-updater/1.0\" -UseBasicParsing -MaximumRedirection 10 | Out-Null",
+				destPath,
 				urlWide,
 				destPath
 			);
@@ -365,6 +470,11 @@ namespace launcher {
 		static bool DownloadViaCurl(const char* url, const wchar_t* destPath, std::string& outError) {
 			if (!url || !url[0] || !destPath) {
 				outError = "missing URL";
+				return false;
+			}
+
+			if (!EnsureParentDirectoryExistsW(destPath, outError)) {
+				AppendUpdateLog(("curl mkdir failed: " + outError).c_str());
 				return false;
 			}
 
@@ -660,22 +770,47 @@ namespace launcher {
 		SanitizeTagForPath(latestVersionTag, safeTag, sizeof(safeTag));
 
 		wchar_t tempRoot[MAX_PATH] = { 0 };
-		wchar_t tempSub[128] = { 0 };
-		MultiByteToWideChar(CP_UTF8, 0, safeTag, -1, tempSub, 128);
-		if (GetTempPathW(MAX_PATH, tempRoot) == 0) {
+		std::string tempPathError;
+		if (!BuildUpdateTempRoot(safeTag, tempRoot, MAX_PATH, tempPathError)) {
+			result.error = "Could not build update temp path (" + tempPathError + ").";
+			return result;
+		}
+
+		char tempRootUtf8[MAX_PATH * 2] = { 0 };
+		WidePathToUtf8(tempRoot, tempRootUtf8, sizeof(tempRootUtf8));
+		AppendUpdateLog(("update temp dir: " + std::string(tempRootUtf8)).c_str());
+
+		if (!EnsureDirectoryExistsW(tempRoot, tempPathError)) {
+			AppendUpdateLog(("update temp mkdir failed: " + tempPathError).c_str());
+			result.error = "Could not create update temp folder (" + tempPathError + ").";
+			return result;
+		}
+
+		wchar_t tempBase[MAX_PATH] = { 0 };
+		if (GetTempPathW(MAX_PATH, tempBase) == 0) {
 			result.error = "Could not access temp directory.";
 			return result;
 		}
-		PathCchAppend(tempRoot, MAX_PATH, L"sf4e-update-");
-		PathCchAppend(tempRoot, MAX_PATH, tempSub);
-
-		CreateDirectoryW(tempRoot, NULL);
 
 		wchar_t zipPath[MAX_PATH] = { 0 };
+		wchar_t zipName[128] = { 0 };
+		swprintf_s(zipName, L"sf4e-update-package-%hs.zip", safeTag);
+		if (FAILED(PathCchCombine(zipPath, MAX_PATH, tempBase, zipName))) {
+			result.error = "Could not build update zip path.";
+			return result;
+		}
+
+		char zipPathUtf8[MAX_PATH * 2] = { 0 };
+		WidePathToUtf8(zipPath, zipPathUtf8, sizeof(zipPathUtf8));
+		AppendUpdateLog(("update zip path: " + std::string(zipPathUtf8)).c_str());
+
 		wchar_t extractDir[MAX_PATH] = { 0 };
-		PathCchCombine(zipPath, MAX_PATH, tempRoot, L"package.zip");
 		PathCchCombine(extractDir, MAX_PATH, tempRoot, L"extract");
-		CreateDirectoryW(extractDir, NULL);
+		if (!EnsureDirectoryExistsW(extractDir, tempPathError)) {
+			AppendUpdateLog(("update extract mkdir failed: " + tempPathError).c_str());
+			result.error = "Could not create update extract folder (" + tempPathError + ").";
+			return result;
+		}
 
 		std::string downloadError;
 		AppendUpdateLog("DownloadAndApplyUpdate start");
@@ -697,12 +832,15 @@ namespace launcher {
 		}
 
 		if (!ExpandZipArchive(zipPath, extractDir)) {
+			AppendUpdateLog("extract failed");
 			result.error = "Could not extract update package.";
 			return result;
 		}
+		AppendUpdateLog("extract ok");
 
 		wchar_t stagingDir[MAX_PATH] = { 0 };
 		if (!FindPackageRoot(extractDir, stagingDir, MAX_PATH)) {
+			AppendUpdateLog("package root not found after extract");
 			result.error = "Downloaded package is missing Launcher.exe or Sidecar.dll.";
 			return result;
 		}
@@ -712,15 +850,20 @@ namespace launcher {
 			result.error = "Could not read staging path.";
 			return result;
 		}
+		AppendUpdateLog(("staging dir: " + std::string(stagingUtf8)).c_str());
 		if (!ValidateStagedPackage(stagingUtf8)) {
+			AppendUpdateLog("package validation failed");
 			result.error = "Downloaded package failed validation (missing required files).";
 			return result;
 		}
+		AppendUpdateLog("package validation ok");
 
 		if (!SpawnApplyUpdateScript(installDir, stagingDir, GetCurrentProcessId())) {
 			result.error = "Could not start apply-update.ps1. Reinstall from a fresh zip.";
 			return result;
 		}
+
+		AppendUpdateLog("DownloadAndApplyUpdate complete");
 
 		result.ok = true;
 		return result;
