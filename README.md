@@ -1,12 +1,12 @@
 ﻿# SF4 Enhanced
 
-**SF4 Enhanced** is a netplay-focused fork of [sf4e](https://codeberg.org/adanducci/sf4e) — a process-inspection and modification tool for the Steam release of _Ultra Street Fighter IV_. It adds a **WebView2 launcher** (Host / Join / Offline), **relay room codes** (`SF4-XXXX`), **`RelayHost.exe`** on the host PC, and packaged releases for testers.
+**SF4 Enhanced** is a netplay-focused fork of [sf4e](https://codeberg.org/adanducci/sf4e) — a process-inspection and modification tool for the Steam release of _Ultra Street Fighter IV_. It adds a **WebView2 launcher** (Host / Join / Offline), **VPS-hosted relay room codes** (`SF4-XXXX`) for casual WAN play, and packaged releases for testers. **`RelayHost.exe`** is included for legacy/local relay and Advanced setups — not required for Simple mode on the VPS broker.
 
 See [ATTRIBUTION.md](ATTRIBUTION.md) for upstream credit and license details.
 
-**Latest release:** [v0.2.6](https://github.com/Confetti3/SF4e/releases/latest) — direct IP netplay fix (restores v0.2.2-style WAN/LAN direct play).
+**Latest release:** [v0.2.7.2](https://github.com/Confetti3/SF4e/releases/latest) — clearer VPS relay UX (room code in-game). Direct IP (Advanced) unchanged from v0.2.6.
 
-**Downloads:** [GitHub Releases](https://github.com/Confetti3/SF4e/releases/latest) (team zip with `Launcher.exe`, `Sidecar.dll`, **`RelayHost.exe`**, `WebView2Loader.dll`, and `launcher-ui/`).
+**Downloads:** [GitHub Releases](https://github.com/Confetti3/SF4e/releases/latest) (team zip with `Launcher.exe`, `Sidecar.dll`, `RelayHost.exe`, `WebView2Loader.dll`, and `launcher-ui/`).
 
 [TOC]
 
@@ -14,7 +14,7 @@ See [ATTRIBUTION.md](ATTRIBUTION.md) for upstream credit and license details.
 
 ### Netplay (SF4 Enhanced launcher)
 
-**Simple mode:** enable the **Simple mode** checkbox for relay room codes (`SF4-XXXX`). **Advanced mode (default):** Host shares **IP:port**; joiner pastes the address. Relay and UPnP remain available in the connection dropdown.
+**Simple mode (default):** relay room codes (`SF4-XXXX`) — no port forward on the host PC. **Advanced mode:** Direct IP (`IP:port`), local relay, or UPnP via the connection dropdown.
 
 See [docs/CASUAL_NETPLAY.md](docs/CASUAL_NETPLAY.md) and [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md). Broker ops: [docs/ORACLE_BROKER.md](docs/ORACLE_BROKER.md). Run `Launcher.exe` (or `--offline` to skip netplay). Developer overlay: `--dev-overlay` or `SF4E_NETPLAY_DEV=1`.
 

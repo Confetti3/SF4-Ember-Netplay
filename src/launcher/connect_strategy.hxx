@@ -40,6 +40,14 @@ namespace launcher {
 
 	HostNatResult TryConfigureHostUpnp(uint16_t sessionPort, uint16_t ggpoPort);
 
+	struct BrokerHealth {
+		bool ok = false;
+		bool forceVpsRelay = false;
+		char relayHost[64] = { 0 };
+	};
+
+	bool FetchBrokerHealth(const char* brokerBaseUrl, BrokerHealth& out);
+
 	struct RelayRoomCreateResult {
 		bool ok = false;
 		std::string error;
@@ -48,7 +56,12 @@ namespace launcher {
 		uint16_t relayPort = 0;
 	};
 
-	RelayRoomCreateResult CreateRelayRoom(const char* brokerBaseUrl, const char* displayName, const char* relayHost);
+	RelayRoomCreateResult CreateRelayRoom(
+		const char* brokerBaseUrl,
+		const char* displayName,
+		const char* relayHost,
+		const char* sidecarHash = nullptr
+	);
 	bool HeartbeatRelayRoom(const char* brokerBaseUrl, const char* roomCode);
 
 } // namespace launcher

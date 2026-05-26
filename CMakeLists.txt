@@ -169,6 +169,7 @@ target_link_libraries(Launcher PRIVATE
     WIL::WIL
     "shlwapi"
     "pathcch"
+    "bcrypt"
     "shell32"
     "ole32"
     "oleaut32"

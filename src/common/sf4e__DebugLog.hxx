@@ -22,7 +22,7 @@ namespace debug {
 				wchar_t sf4eDir[MAX_PATH] = { 0 };
 				if (SUCCEEDED(PathCchCombine(sf4eDir, MAX_PATH, appData, L"sf4e"))) {
 					CreateDirectoryW(sf4eDir, nullptr);
-					if (SUCCEEDED(PathCchCombine(logPath, MAX_PATH, sf4eDir, L"debug-8c93b1.log"))) {
+					if (SUCCEEDED(PathCchCombine(logPath, MAX_PATH, sf4eDir, L"debug-56757f.log"))) {
 						_wfopen_s(&f, logPath, L"a");
 					}
 				}
@@ -33,7 +33,7 @@ namespace debug {
 		}
 		fprintf(
 			f,
-			"{\"sessionId\":\"8c93b1\",\"hypothesisId\":\"%s\",\"location\":\"%s\",\"message\":\"%s\",\"data\":%s,\"timestamp\":%lld}\n",
+			"{\"sessionId\":\"56757f\",\"hypothesisId\":\"%s\",\"location\":\"%s\",\"message\":\"%s\",\"data\":%s,\"timestamp\":%lld}\n",
 			hypothesisId ? hypothesisId : "",
 			location ? location : "",
 			message ? message : "",

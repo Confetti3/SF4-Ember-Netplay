@@ -1106,17 +1106,37 @@ static void DrawNetplayPlayerPanel() {
 		const DWORD connectElapsedMs = GetTickCount() - s_connectStartedMs;
 		if (isJoin) {
 			if (connectElapsedMs > 10000) {
-				TextWrapped(
-					"Still connecting... ask host to Start game first and forward TCP+UDP %u on their router.",
-					cfg.sessionPort
-				);
+				if (cfg.useCentralSession == 2) {
+					TextWrapped(
+						"Still connecting to the game room. Ask the host to Start game first, then try again."
+					);
+				}
+				else {
+					TextWrapped(
+						"Still connecting... ask host to Start game first and forward TCP+UDP %u on their router.",
+						cfg.sessionPort
+					);
+				}
+			}
+			else if (cfg.useCentralSession == 2) {
+				TextWrapped("Connecting to game room...");
 			}
 			else {
 				TextWrapped("Connecting to host...");
 			}
 		}
 		else if (connectElapsedMs > 10000) {
-			TextWrapped("Still connecting... check RelayHost is running and port forward for joiners.");
+			if (cfg.useCentralSession == 2) {
+				TextWrapped(
+					"Still connecting to the game room server. Check your internet, then create a new room and try again."
+				);
+			}
+			else {
+				TextWrapped("Still connecting... check RelayHost is running and port forward for joiners.");
+			}
+		}
+		else if (cfg.useCentralSession == 2) {
+			TextWrapped("Connecting to game room server...");
 		}
 		else {
 			TextWrapped("Connecting to session server...");
@@ -1127,10 +1147,34 @@ static void DrawNetplayPlayerPanel() {
 		TextWrapped("Connected: yes");
 	}
 	if (isJoin) {
-		TextWrapped("Join target: %s:%u", cfg.sessionHost, cfg.sessionPort);
+		if (cfg.useCentralSession == 2 && cfg.relayRoomCode[0]) {
+			TextWrapped("Join target: %s", cfg.relayRoomCode);
+			if (st.connected) {
+				TextWrapped("Joined room: %s", cfg.relayRoomCode);
+			}
+			if (cfg.devOverlay) {
+				TextWrapped("Endpoint: %s:%u", cfg.sessionHost, cfg.sessionPort);
+			}
+		}
+		else {
+			TextWrapped("Join target: %s:%u", cfg.sessionHost, cfg.sessionPort);
+		}
 	}
 	else if (cfg.mode == (int)sf4e::NetplayMode::Host) {
-		TextWrapped("Session port: %u (share your public IP:port with joiners)", cfg.sessionPort);
+		if (cfg.useCentralSession == 2) {
+			if (cfg.relayRoomCode[0]) {
+				TextWrapped("Room code: %s — share with joiner", cfg.relayRoomCode);
+			}
+			else {
+				TextWrapped("Share your relay code from the launcher with joiners.");
+			}
+			if (cfg.devOverlay) {
+				TextWrapped("Endpoint: %s:%u", cfg.sessionHost, cfg.sessionPort);
+			}
+		}
+		else {
+			TextWrapped("Session port: %u (share your public IP:port with joiners)", cfg.sessionPort);
+		}
 	}
 	if (st.opponentName[0]) {
 		TextWrapped("Opponent: %s", st.opponentName);

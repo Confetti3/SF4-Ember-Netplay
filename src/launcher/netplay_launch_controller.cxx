@@ -78,9 +78,22 @@ namespace launcher {
 	}
 
 	static RelayRoomCreateResult CreateRelayRoomWithAdvertise(PersistedSettings& settings, const char* displayName) {
+		BrokerHealth health;
+		FetchBrokerHealth(settings.brokerBaseUrl, health);
+
+		if (health.forceVpsRelay) {
+			char sidecarHash[128] = { 0 };
+			if (!HashSidecarDllNextToLauncher(sidecarHash, sizeof(sidecarHash))) {
+				RelayRoomCreateResult r;
+				r.error = "Could not read Sidecar.dll next to Launcher.exe (required for relay). Reinstall the game package.";
+				return r;
+			}
+			return CreateRelayRoom(settings.brokerBaseUrl, displayName, nullptr, sidecarHash);
+		}
+
 		char advertiseHost[NETPLAY_SESSION_HOST_LEN] = { 0 };
 		FetchAdvertiseRelayHost(advertiseHost, sizeof(advertiseHost));
-		return CreateRelayRoom(settings.brokerBaseUrl, displayName, advertiseHost);
+		return CreateRelayRoom(settings.brokerBaseUrl, displayName, advertiseHost, nullptr);
 	}
 
 	static bool IsPrivateOrLocalHost(const char* host, const char* lanIp) {
@@ -202,6 +215,11 @@ namespace launcher {
 		j["brokerBaseUrl"] = m_settings.brokerBaseUrl;
 
 		j["defaultConnectMethod"] = m_settings.defaultConnectMethod;
+
+		BrokerHealth brokerHealth;
+		if (FetchBrokerHealth(m_settings.brokerBaseUrl, brokerHealth)) {
+			j["forceVpsRelay"] = brokerHealth.forceVpsRelay;
+		}
 
 		if (m_settings.relayRoomCode[0]) {
 
@@ -569,6 +587,9 @@ namespace launcher {
 
 			SavePersistedSettings(m_settings);
 
+			BrokerHealth brokerHealth;
+			const bool vpsRelay = FetchBrokerHealth(m_settings.brokerBaseUrl, brokerHealth) && brokerHealth.forceVpsRelay;
+
 			nlohmann::json r = MakeStateEnvelope();
 
 			r["roomCodePreview"] = created.shortCode;
@@ -577,7 +598,16 @@ namespace launcher {
 
 			r["relayPort"] = created.relayPort;
 
-			r["connectionStatus"] = "Relay room ready — share the code with your opponent.";
+			r["forceVpsRelay"] = vpsRelay;
+
+			char statusMsg[128];
+			snprintf(
+				statusMsg,
+				sizeof(statusMsg),
+				"Room live — share %s. Click Start game when ready.",
+				created.shortCode.c_str()
+			);
+			r["connectionStatus"] = statusMsg;
 
 			return r;
 
@@ -623,7 +653,7 @@ namespace launcher {
 
 			if (!ParseBrokerBaseUrl(m_settings.brokerBaseUrl, parts)) {
 
-				r["listError"] = "Room service URL is not configured.";
+				r["listError"] = "Room broker URL is not set. Use Advanced → Room broker URL or SF4E_BROKER_URL.";
 
 				return r;
 
@@ -844,32 +874,46 @@ namespace launcher {
 
 					m_outConfig.useCentralSession = 1;
 
-					spdlog::info(
-						"Host relay start: code={} endpoint={}:{} centralSession=1",
-						relayCode,
-						m_outConfig.sessionHost,
-						m_outConfig.sessionPort
-					);
-
-					TryConfigureHostUpnp(m_outConfig.sessionPort, m_settings.ggpoPort);
-
-					if (!SpawnRelayHost(m_outConfig.sessionPort, nullptr)) {
-
-						spdlog::error("SpawnRelayHost failed on port {}", m_outConfig.sessionPort);
-
-						nlohmann::json err;
-
-						err["v"] = kProtocolVersion;
-
-						err["type"] = "error";
-
-						err["message"] = "Could not start RelayHost.exe. Rebuild/install, keep RelayHost.exe next to Launcher.exe, and ensure the session port is free.";
-
-						return err;
-
+					BrokerHealth brokerHealth;
+					FetchBrokerHealth(m_settings.brokerBaseUrl, brokerHealth);
+					if (brokerHealth.forceVpsRelay) {
+						m_outConfig.useCentralSession = 2;
 					}
 
-					spdlog::info("SpawnRelayHost succeeded on port {} (pid {})", m_outConfig.sessionPort, GetRelayHostPid());
+					spdlog::info(
+						"Host relay start: code={} endpoint={}:{} centralSession={}",
+						relayCode,
+						m_outConfig.sessionHost,
+						m_outConfig.sessionPort,
+						(int)m_outConfig.useCentralSession
+					);
+
+					strncpy_s(m_outConfig.relayRoomCode, relayCode.c_str(), _TRUNCATE);
+
+					if (m_outConfig.useCentralSession == 2) {
+						// VPS-hosted session relay — host connects outbound; no local RelayHost or UPnP.
+					}
+					else {
+						TryConfigureHostUpnp(m_outConfig.sessionPort, m_settings.ggpoPort);
+
+						if (!SpawnRelayHost(m_outConfig.sessionPort, nullptr)) {
+
+							spdlog::error("SpawnRelayHost failed on port {}", m_outConfig.sessionPort);
+
+							nlohmann::json err;
+
+							err["v"] = kProtocolVersion;
+
+							err["type"] = "error";
+
+							err["message"] = "Could not start RelayHost.exe. Rebuild/install, keep RelayHost.exe next to Launcher.exe, and ensure the session port is free.";
+
+							return err;
+
+						}
+
+						spdlog::info("SpawnRelayHost succeeded on port {} (pid {})", m_outConfig.sessionPort, GetRelayHostPid());
+					}
 
 				}
 
@@ -961,8 +1005,22 @@ namespace launcher {
 
 				m_outConfig.useCentralSession = 0;
 
+				BrokerHealth joinBrokerHealth;
+				const bool vpsRelay =
+					FetchBrokerHealth(m_settings.brokerBaseUrl, joinBrokerHealth) && joinBrokerHealth.forceVpsRelay;
+				const bool vpsRelayJoin =
+					vpsRelay
+					&& (IsShortRoomCode(req.roomCode.c_str()) || connectMethod == "matchmaking");
+				if (vpsRelayJoin) {
+					m_outConfig.useCentralSession = 2;
+				}
+
+				if (IsShortRoomCode(req.roomCode.c_str())) {
+					strncpy_s(m_outConfig.relayRoomCode, req.roomCode.c_str(), _TRUNCATE);
+				}
+
 				if (ShouldProbeJoinEndpoint(connectMethod.c_str(), req.roomCode.c_str(), sr.endpoint.host, m_lanIp)) {
-					if (!sf4e::ProbeRemoteTcpConnect(sr.endpoint.host, sr.endpoint.port, 5000)) {
+					if (!vpsRelay && !sf4e::ProbeRemoteTcpConnect(sr.endpoint.host, sr.endpoint.port, 5000)) {
 						nlohmann::json err;
 
 						err["v"] = kProtocolVersion;

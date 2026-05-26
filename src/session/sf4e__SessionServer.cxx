@@ -1,21 +1,11 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <windows.h>
 
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <GameNetworkingSockets/steam/steamnetworkingsockets.h>
 #include <GameNetworkingSockets/steam/isteamnetworkingutils.h>
-#include <ggponet.h>
-
-#include "../Dimps/Dimps.hxx"
-#include "../Dimps/Dimps__Event.hxx"
-#include "../Dimps/Dimps__GameEvents.hxx"
-#include "../Dimps/Dimps__Math.hxx"
-#include "../Dimps/Dimps__Pad.hxx"
-#include "../sf4e/sf4e__Game__Battle__System.hxx"
-#include "../sf4e/sf4e__GameEvents.hxx"
 
 #include "sf4e__SessionProtocol.hxx"
 #include "sf4e__SessionServer.hxx"
@@ -70,7 +60,7 @@ void SessionServer::AddConnection(HSteamNetConnection newConn) {
 	// function pointer directly. The failure mode if you pass the function
 	// pointer directly is _extremely_ confusing- it just appears to be
 	// a segfault in the GNS callback loop.
-	void* callback = SteamNetConnectionStatusChangedCallback;
+	void (*callback)(SteamNetConnectionStatusChangedCallback_t*) = SteamNetConnectionStatusChangedCallback;
 	SteamNetworkingUtils()->SetConfigValue(
 		k_ESteamNetworkingConfig_Callback_ConnectionStatusChanged,
 		k_ESteamNetworkingConfig_Connection,
@@ -419,7 +409,7 @@ int SessionServer::Step()
 	return 0;
 }
 
-void SessionServer::Respond(HSteamNetConnection client, nlohmann::json& msg) {
+void SessionServer::Respond(HSteamNetConnection client, const nlohmann::json& msg) {
 	std::string buf = msg.dump();
 	_interface->SendMessageToConnection(
 		client, buf.c_str(), (uint32)buf.length(),
@@ -427,7 +417,7 @@ void SessionServer::Respond(HSteamNetConnection client, nlohmann::json& msg) {
 	);
 }
 
-void SessionServer::BroadcastMessage(nlohmann::json& msg) {
+void SessionServer::BroadcastMessage(const nlohmann::json& msg) {
 	// XXX (adanducci) replace SendMessageToConnection with SendMessages for
 	// peformance gains, but ensuring low-copy with it is annoyingly difficult.
 	std::string buf = msg.dump();

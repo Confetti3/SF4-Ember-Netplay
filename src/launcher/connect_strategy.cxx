@@ -8,6 +8,7 @@
 
 #include "../common/sf4e__NetUtil.hxx"
 #include "netplay_room_code.hxx"
+#include "relay_host_spawn.hxx"
 #include "room_broker_client.hxx"
 #include "upnp_portmap.hxx"
 
@@ -48,7 +49,7 @@ namespace launcher {
 			snprintf(buf, sizeof(buf), "Room broker at %s returned HTTP %d.", url, http.statusCode);
 			return buf;
 		}
-		return std::string("Could not reach room broker at ") + url + ". Is the room service running?";
+		return std::string("Could not reach room broker at ") + url + ". Is the broker running?";
 	}
 
 	StrategyResult ResolveJoinDirectIp(const JoinRequest& request) {
@@ -86,7 +87,7 @@ namespace launcher {
 
 		BrokerUrlParts parts;
 		if (!ParseBrokerBaseUrl(brokerBaseUrl, parts)) {
-			r.error = "Room service URL is not configured. Set broker URL in Advanced or SF4E_BROKER_URL.";
+			r.error = "Room broker URL is not set. Use Advanced → Room broker URL or SF4E_BROKER_URL.";
 			return r;
 		}
 
@@ -95,20 +96,20 @@ namespace launcher {
 
 		char body[4096] = { 0 };
 		if (!BrokerHttpGet(parts, path, body, sizeof(body))) {
-			r.error = "Could not reach the room service. Check your internet or try again later.";
+			r.error = "Cannot reach the room broker. Check your internet or broker URL.";
 			return r;
 		}
 
 		try {
 			nlohmann::json j = nlohmann::json::parse(body);
 			if (j.value("error", "").size()) {
-				r.error = j.value("message", "Room not found or expired.");
+				r.error = j.value("message", "Room not found or expired. Ask the host to create a new SF4-XXXX code.");
 				return r;
 			}
 			std::string host = j.value("host", "");
 			int port = j.value("port", 0);
 			if (host.empty() || port < 1 || port > 65535) {
-				r.error = "Room service returned an invalid address.";
+				r.error = "Room broker returned an invalid address.";
 				return r;
 			}
 			strncpy_s(r.endpoint.host, host.c_str(), _TRUNCATE);
@@ -117,7 +118,7 @@ namespace launcher {
 			return r;
 		}
 		catch (...) {
-			r.error = "Room service returned invalid data.";
+			r.error = "Room broker returned invalid data.";
 			return r;
 		}
 	}
@@ -128,12 +129,23 @@ namespace launcher {
 
 		BrokerUrlParts parts;
 		if (!ParseBrokerBaseUrl(brokerBaseUrl, parts)) {
-			r.error = "Matchmaking requires a room service URL (broker).";
+			r.error = "Matchmaking requires a room broker URL.";
 			return r;
 		}
 
+		BrokerHealth health;
+		const bool vpsRelay = FetchBrokerHealth(brokerBaseUrl, health) && health.forceVpsRelay;
+
 		nlohmann::json req;
 		req["displayName"] = displayName && displayName[0] ? displayName : "Player";
+		if (vpsRelay) {
+			char sidecarHash[128] = { 0 };
+			if (!HashSidecarDllNextToLauncher(sidecarHash, sizeof(sidecarHash))) {
+				r.error = "Could not read Sidecar.dll next to Launcher.exe (required for relay). Reinstall the game package.";
+				return r;
+			}
+			req["sidecarHash"] = sidecarHash;
+		}
 		std::string reqBody = req.dump();
 
 		char body[4096] = { 0 };
@@ -208,18 +220,54 @@ namespace launcher {
 		return r;
 	}
 
-	RelayRoomCreateResult CreateRelayRoom(const char* brokerBaseUrl, const char* displayName, const char* relayHost) {
+	bool FetchBrokerHealth(const char* brokerBaseUrl, BrokerHealth& out) {
+		out = BrokerHealth();
+
+		BrokerUrlParts parts;
+		if (!ParseBrokerBaseUrl(brokerBaseUrl, parts)) {
+			return false;
+		}
+
+		char body[4096] = { 0 };
+		if (!BrokerHttpGet(parts, "/v1/health", body, sizeof(body), 5000)) {
+			return false;
+		}
+
+		try {
+			nlohmann::json j = nlohmann::json::parse(body);
+			out.ok = j.value("ok", false);
+			out.forceVpsRelay = j.value("forceVpsRelay", false);
+			std::string relayHost = j.value("relayHost", "");
+			if (!relayHost.empty()) {
+				strncpy_s(out.relayHost, relayHost.c_str(), _TRUNCATE);
+			}
+			return out.ok;
+		}
+		catch (...) {
+			return false;
+		}
+	}
+
+	RelayRoomCreateResult CreateRelayRoom(
+		const char* brokerBaseUrl,
+		const char* displayName,
+		const char* relayHost,
+		const char* sidecarHash
+	) {
 		RelayRoomCreateResult r;
 
 		BrokerUrlParts parts;
 		if (!ParseBrokerBaseUrl(brokerBaseUrl, parts)) {
-			r.error = "Room service URL is not configured.";
+			r.error = "Room broker URL is not set. Use Advanced → Room broker URL or SF4E_BROKER_URL.";
 			return r;
 		}
 
 		nlohmann::json req;
 		req["displayName"] = displayName && displayName[0] ? displayName : "Host";
-		if (relayHost && relayHost[0]) {
+		if (sidecarHash && sidecarHash[0]) {
+			req["sidecarHash"] = sidecarHash;
+		}
+		else if (relayHost && relayHost[0]) {
 			req["relayHost"] = relayHost;
 		}
 		std::string reqBody = req.dump();
@@ -241,7 +289,7 @@ namespace launcher {
 			std::string host = j.value("host", "");
 			int port = j.value("port", 0);
 			if (code.empty() || host.empty() || port < 1) {
-				r.error = "Room service returned incomplete room data.";
+				r.error = "Room broker returned incomplete room data.";
 				return r;
 			}
 			r.shortCode = code;
@@ -251,7 +299,7 @@ namespace launcher {
 			return r;
 		}
 		catch (...) {
-			r.error = "Room service returned invalid data.";
+			r.error = "Room broker returned invalid data.";
 			return r;
 		}
 	}
@@ -275,7 +323,20 @@ namespace launcher {
 		snprintf(path, sizeof(path), "/v1/rooms/SF4-%s/heartbeat", token);
 
 		char body[512] = { 0 };
-		return BrokerHttpPostJson(parts, path, "{}", body, sizeof(body));
+		if (!BrokerHttpPostJson(parts, path, "{}", body, sizeof(body))) {
+			return false;
+		}
+
+		try {
+			nlohmann::json j = nlohmann::json::parse(body);
+			if (j.contains("heartbeatOk")) {
+				return j.value("heartbeatOk", false);
+			}
+			return j.value("ok", false);
+		}
+		catch (...) {
+			return false;
+		}
 	}
 
 } // namespace launcher

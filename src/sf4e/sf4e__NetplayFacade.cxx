@@ -78,10 +78,12 @@ namespace sf4e {
 		s_padCaptured = s_config.deviceIdx != 0xff && s_config.deviceType != 0xff;
 		// #region agent log
 		{
-			char buf[256];
+			char buf[384];
 			snprintf(buf, sizeof(buf),
-				"{\"mode\":%d,\"sessionPort\":%u,\"ggpoPort\":%u,\"autoPending\":%d}",
-				s_config.mode, s_config.sessionPort, s_config.ggpoPort, s_autoPending ? 1 : 0);
+				"{\"mode\":%d,\"sessionPort\":%u,\"ggpoPort\":%u,\"useCentralSession\":%u,\"sessionHost\":\"%s\",\"autoPending\":%d}",
+				s_config.mode, s_config.sessionPort, s_config.ggpoPort,
+				(unsigned)s_config.useCentralSession, s_config.sessionHost,
+				s_autoPending ? 1 : 0);
 			debug::AgentLog("H6", "NetplayFacade::InitFromPayload", "payload init", buf);
 		}
 		// #endregion
@@ -325,7 +327,28 @@ namespace sf4e {
 			std::string hash = sf4e::sidecarHash;
 			char hostAddr[128];
 
-			if (s_config.useCentralSession != 0) {
+			if (s_config.useCentralSession == 2) {
+				snprintf(hostAddr, sizeof(hostAddr), "%s:%u", s_config.sessionHost, s_config.sessionPort);
+				fUserApp::StartSession(
+					hostAddr,
+					s_config.ggpoPort,
+					hash,
+					name,
+					deviceType,
+					deviceIdx,
+					s_config.inputDelay,
+					s_config.useRelay != 0
+				);
+				Overlay::SetNetplayLobbyVisible(true);
+				s_autoPending = false;
+				spdlog::info(
+					"NetplayFacade: host VPS relay connect {} (broker session {}:{})",
+					hostAddr,
+					s_config.sessionHost,
+					s_config.sessionPort
+				);
+			}
+			else if (s_config.useCentralSession == 1) {
 				snprintf(hostAddr, sizeof(hostAddr), "127.0.0.1:%u", s_config.sessionPort);
 				fUserApp::StartSession(
 					hostAddr,

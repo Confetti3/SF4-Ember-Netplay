@@ -62,11 +62,21 @@ systemctl restart sf4e-broker.service
 if command -v ufw >/dev/null 2>&1; then
   ufw allow OpenSSH 2>/dev/null || ufw allow 22/tcp 2>/dev/null || true
   ufw allow 8787/tcp 2>/dev/null || true
+  ufw allow 23456:23475/tcp 2>/dev/null || true
+  ufw allow 23456:23475/udp 2>/dev/null || true
   if ufw status | grep -q "Status: active"; then
     ufw reload 2>/dev/null || true
   else
     ufw --force enable 2>/dev/null || true
   fi
+fi
+
+	if [[ -x "$BROKER_DIR/install-vps-relay.sh" ]]; then
+  bash "$BROKER_DIR/install-vps-relay.sh"
+elif [[ -x "/opt/sf4e-relay/install-vps-relay.sh" ]]; then
+  bash "/opt/sf4e-relay/install-vps-relay.sh"
+else
+  echo "WARNING: install-vps-relay.sh not found — VPS relay manager not installed."
 fi
 
 sleep 2

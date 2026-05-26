@@ -6,7 +6,7 @@ SF4 Enhanced launcher supports **Simple mode** (default): relay room codes, no p
 
 1. **Simple mode** (checkbox on home): Host → **Create relay room** → copy `SF4-XXXX` → Start game.
 2. Joiner: paste the same code → Start game.
-3. Requires a running [room broker](../services/room-broker/README.md). For production, use an [Oracle Cloud broker](ORACLE_BROKER.md); the **relay runs on the host’s PC** (`RelayHost.exe`), not on the VPS.
+3. v0.2.7 ships with broker **`http://74.208.200.95:8787`**. The **session relay runs on the VPS** — host and joiner connect outbound; no host port forward.
 
 Set broker URL once in Advanced, or:
 
@@ -34,11 +34,14 @@ sf4e://join/SF4-XXXX
 
 CLI: `Launcher.exe --join SF4-XXXX`
 
-## VPS checklist (~$10/mo or $0 Oracle)
+## VPS checklist (~$10/mo)
 
-- **Broker only** on a small VM (Oracle Always Free works): port **8787**
-- **RelayHost.exe** on the **host’s Windows PC**: forward **23456 TCP+UDP** (or enable UPnP in Advanced)
-- Set `SF4E_BROKER_URL=http://YOUR_ORACLE_IP:8787` on all clients
+- **Broker + session relay** on the VPS: ports **8787/tcp** and **23456–23475/tcp+udp**
+- **IONOS (or provider) control-panel firewall** must allow **inbound UDP 23456–23475** to the VPS — `ufw` on the server is not enough if the cloud panel blocks UDP
+- Host and joiner use the same release zip (matching `Sidecar.dll`)
+- No port forward on the host PC for Simple mode relay
 - `MAX_ROOMS=20`, monitor bandwidth
 
-See [ORACLE_BROKER.md](ORACLE_BROKER.md) for step-by-step Oracle setup.
+Verify from your PC: `powershell -File scripts\relay-diag.ps1`. If relay-diag passes but in-game connect fails, open IONOS inbound UDP **23456–23475** and retest.
+
+See [TEAM_QUICKSTART.md](TEAM_QUICKSTART.md) for deploy notes.

@@ -3,14 +3,19 @@
 #include <stdio.h>
 
 #include <windows.h>
+#include <bcrypt.h>
 #include <pathcch.h>
 
 #include "../common/sf4e__NetUtil.hxx"
 
 #include <spdlog/spdlog.h>
 
+#define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
+
 namespace sf4e {
 namespace launcher {
+
+	static const int kHashBlockSize = 1024;
 
 	static unsigned long g_relayHostPid = 0;
 
@@ -35,6 +40,118 @@ namespace launcher {
 
 	void StopRelayHost() {
 		StopRelayHostInternal();
+	}
+
+	bool HashSidecarDllNextToLauncher(char* outHash, int outHashLen) {
+		if (!outHash || outHashLen <= 0) {
+			return false;
+		}
+		outHash[0] = 0;
+
+		wchar_t modulePath[MAX_PATH] = { 0 };
+		wchar_t sidecarPath[MAX_PATH] = { 0 };
+		if (GetModuleFileNameW(NULL, modulePath, MAX_PATH) == 0) {
+			return false;
+		}
+		if (FAILED(PathCchRemoveFileSpec(modulePath, MAX_PATH))) {
+			return false;
+		}
+		if (FAILED(PathCchCombine(sidecarPath, MAX_PATH, modulePath, L"Sidecar.dll"))) {
+			return false;
+		}
+
+		BCRYPT_ALG_HANDLE hAlg = NULL;
+		BCRYPT_HASH_HANDLE hHash = NULL;
+		NTSTATUS status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA256_ALGORITHM, NULL, 0);
+		if (!NT_SUCCESS(status)) {
+			return false;
+		}
+
+		DWORD cbHashObject = 0;
+		DWORD cbData = 0;
+		if (!NT_SUCCESS(BCryptGetProperty(hAlg, BCRYPT_OBJECT_LENGTH, (PUCHAR)&cbHashObject, sizeof(DWORD), &cbData, 0))) {
+			BCryptCloseAlgorithmProvider(hAlg, 0);
+			return false;
+		}
+		DWORD cbHash = 0;
+		if (!NT_SUCCESS(BCryptGetProperty(hAlg, BCRYPT_HASH_LENGTH, (PUCHAR)&cbHash, sizeof(DWORD), &cbData, 0))) {
+			BCryptCloseAlgorithmProvider(hAlg, 0);
+			return false;
+		}
+
+		PUCHAR pbHashObject = (PUCHAR)HeapAlloc(GetProcessHeap(), 0, cbHashObject);
+		PUCHAR pbHash = (PUCHAR)HeapAlloc(GetProcessHeap(), 0, cbHash);
+		if (!pbHashObject || !pbHash) {
+			if (pbHashObject) {
+				HeapFree(GetProcessHeap(), 0, pbHashObject);
+			}
+			if (pbHash) {
+				HeapFree(GetProcessHeap(), 0, pbHash);
+			}
+			BCryptCloseAlgorithmProvider(hAlg, 0);
+			return false;
+		}
+
+		if (!NT_SUCCESS(BCryptCreateHash(hAlg, &hHash, pbHashObject, cbHashObject, NULL, 0, 0))) {
+			HeapFree(GetProcessHeap(), 0, pbHashObject);
+			HeapFree(GetProcessHeap(), 0, pbHash);
+			BCryptCloseAlgorithmProvider(hAlg, 0);
+			return false;
+		}
+
+		HANDLE hFile = CreateFileW(
+			sidecarPath,
+			GENERIC_READ,
+			FILE_SHARE_READ,
+			NULL,
+			OPEN_EXISTING,
+			FILE_FLAG_SEQUENTIAL_SCAN,
+			NULL
+		);
+		if (hFile == INVALID_HANDLE_VALUE) {
+			BCryptDestroyHash(hHash);
+			HeapFree(GetProcessHeap(), 0, pbHashObject);
+			HeapFree(GetProcessHeap(), 0, pbHash);
+			BCryptCloseAlgorithmProvider(hAlg, 0);
+			return false;
+		}
+
+		BYTE rgbFile[kHashBlockSize];
+		DWORD cbRead = 0;
+		for (;;) {
+			if (!ReadFile(hFile, rgbFile, kHashBlockSize, &cbRead, NULL) || cbRead == 0) {
+				break;
+			}
+			if (!NT_SUCCESS(BCryptHashData(hHash, rgbFile, cbRead, 0))) {
+				CloseHandle(hFile);
+				BCryptDestroyHash(hHash);
+				HeapFree(GetProcessHeap(), 0, pbHashObject);
+				HeapFree(GetProcessHeap(), 0, pbHash);
+				BCryptCloseAlgorithmProvider(hAlg, 0);
+				return false;
+			}
+		}
+		CloseHandle(hFile);
+
+		if (!NT_SUCCESS(BCryptFinishHash(hHash, pbHash, cbHash, 0))) {
+			BCryptDestroyHash(hHash);
+			HeapFree(GetProcessHeap(), 0, pbHashObject);
+			HeapFree(GetProcessHeap(), 0, pbHash);
+			BCryptCloseAlgorithmProvider(hAlg, 0);
+			return false;
+		}
+
+		for (DWORD i = 0; i < cbHash; i++) {
+			char pair[3];
+			snprintf(pair, sizeof(pair), "%02x", pbHash[i]);
+			strncat_s(outHash, outHashLen, pair, _TRUNCATE);
+		}
+
+		BCryptDestroyHash(hHash);
+		HeapFree(GetProcessHeap(), 0, pbHashObject);
+		HeapFree(GetProcessHeap(), 0, pbHash);
+		BCryptCloseAlgorithmProvider(hAlg, 0);
+		return outHash[0] != 0;
 	}
 
 	bool FetchAdvertiseRelayHost(char* outHost, int outHostLen) {

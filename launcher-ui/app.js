@@ -11,7 +11,7 @@
     "type",
     "v",
   ];
-  let state = { simpleUi: false, defaultConnectMethod: 1 };
+  let state = { simpleUi: true, defaultConnectMethod: 1 };
   let updateInfo = { zipDownloadUrl: "", zipApiUrl: "", latestVersion: "", releaseUrl: "", updateAvailable: false };
   let updateBusy = false;
   let shareValues = { relay: "", lan: "", wan: "" };
@@ -202,15 +202,28 @@
     const wanEmpty = !wanAddr || wanAddr.indexOf("(enter") === 0;
     setShareCard("wan", wanEmpty ? "" : wanAddr, wanEmpty);
 
+    const vpsRelay = state.forceVpsRelay === true;
+    const hideDirectShare = isSimple() && vpsRelay && relayCode;
+    ["lan", "wan"].forEach(function (id) {
+      const card = document.querySelector('.share-card[data-share-id="' + id + '"]');
+      if (card) card.classList.toggle("hidden", hideDirectShare);
+    });
+    const refreshBtn = document.getElementById("btn-refresh-ip");
+    if (refreshBtn) refreshBtn.classList.toggle("hidden", hideDirectShare);
+
     const hint = document.getElementById("host-share-hint");
     if (hint) {
       const relayPort = s.relayPort || s.relaySessionPort;
       if (relayCode) {
-        hint.textContent = relayPort
-          ? "Share the relay code. Forward TCP+UDP port " +
-            relayPort +
-            " on your router before joiners connect. Joiners connect to this port — click Start game first."
-          : "Share the relay code for WAN play, or LAN address for same-network players.";
+        hint.textContent = vpsRelay
+          ? "Share the relay code. Click Start game — joiners paste SF4-XXXX (no port forward on your PC)."
+          : relayPort
+            ? "Share the relay code. Forward TCP+UDP port " +
+              relayPort +
+              " on your router before joiners connect. Click Start game first."
+            : "Share the relay code for WAN play, or LAN address for same-network players.";
+      } else if (isSimple() && vpsRelay) {
+        hint.textContent = "Click Create relay room to get your SF4-XXXX code.";
       } else if (!wanEmpty) {
         hint.textContent =
           "Direct IP: share the public address card. Forward TCP+UDP on session port for WAN joiners.";
@@ -241,6 +254,9 @@
     if (data.relayHost !== undefined) {
       state.relayHost = data.relayHost;
     }
+    if (data.forceVpsRelay !== undefined) {
+      state.forceVpsRelay = data.forceVpsRelay;
+    }
     const hiddenPreview = document.getElementById("host-room-preview");
     if (hiddenPreview && data.roomCodePreview !== undefined) {
       hiddenPreview.textContent = data.roomCodePreview;
@@ -251,6 +267,8 @@
     renderHostShareCards(state);
     syncRelayHeartbeat();
     setButtonLoading("btn-create-relay-room", false);
+    const startBtn = document.getElementById("btn-start-host");
+    if (startBtn) startBtn.disabled = false;
   }
 
   function applyPartialState(data) {
@@ -303,6 +321,9 @@
   function applyState(s) {
     if (!s || s.type !== "state") return;
     state = Object.assign({}, state, splitPersistentState(s));
+    if (s.forceVpsRelay !== undefined) {
+      state.forceVpsRelay = s.forceVpsRelay;
+    }
     syncNameFields(state.displayName || "Player");
     syncDelayFields(state.inputDelay || 2);
 
@@ -449,7 +470,15 @@
       } else if (data.type === "copied") {
         showToast("Copied to clipboard", "success");
       } else if (data.type === "state" && "heartbeatOk" in data) {
-        return;
+        if (data.heartbeatOk === false) {
+          showToast("Room connection lost — create a new room.", "error");
+          setStatus("Room connection lost — create a new relay room.", "error");
+          const startBtn = document.getElementById("btn-start-host");
+          if (startBtn) startBtn.disabled = true;
+        } else if (data.heartbeatOk === true) {
+          const startBtn = document.getElementById("btn-start-host");
+          if (startBtn) startBtn.disabled = false;
+        }
       } else if (data.rooms || data.listError) {
         if (data.type === "state") {
           applyState(data);
@@ -658,9 +687,12 @@
     const sessionPort = portEl ? parseInt(portEl.value, 10) : state.sessionPort || 23456;
     const advEl = document.getElementById("host-advertise");
     const relayPort = state.relayPort || state.relaySessionPort;
-    if (preview && preview.indexOf("SF4-") === 0 && relayPort) {
+    const vpsRelay = state.forceVpsRelay === true;
+    if (preview && preview.indexOf("SF4-") === 0 && (vpsRelay || relayPort)) {
       setStatus(
-        "Starting game — joiners connect on port " + relayPort + ". Forward TCP+UDP " + relayPort + " first.",
+        vpsRelay
+          ? "Starting game — joiners paste your relay code after you connect."
+          : "Starting game — joiners connect on port " + relayPort + ". Forward TCP+UDP " + relayPort + " first.",
         ""
       );
     } else if (method === "direct" || method === "autoNat") {
@@ -690,17 +722,40 @@
       setStatus("Enter a room code or host address.", "error");
       return;
     }
+    const trimmed = String(code).trim();
+    let connectMethod;
+    if (isSimple()) {
+      connectMethod = isShortRoomCode(trimmed) ? "relay" : "direct";
+    } else {
+      connectMethod = getConnectMethod("join");
+      if (connectMethod === "relay" && !isShortRoomCode(trimmed)) {
+        setStatus("Relay mode needs a room code like SF4-XXXX.", "error");
+        return;
+      }
+      if (connectMethod === "direct" && isShortRoomCode(trimmed)) {
+        setStatus("Direct IP mode needs an address like 203.0.113.42:23456.", "error");
+        return;
+      }
+    }
     setButtonLoading("btn-start-join", true);
-    const relayJoin = isShortRoomCode(code);
-    setStatus(relayJoin ? "Resolving room and checking host reachability…" : "Connecting via direct IP…", "");
+    const relayJoin = connectMethod === "relay";
+    const vpsRelay = state.forceVpsRelay === true;
+    setStatus(
+      relayJoin
+        ? vpsRelay
+          ? "Resolving room…"
+          : "Resolving room and checking host reachability…"
+        : "Connecting via direct IP…",
+      ""
+    );
     post({
       type: "start",
       mode: "join",
-      connectMethod: relayJoin ? "relay" : "direct",
+      connectMethod: connectMethod,
       displayName: getDisplayName(),
       inputDelay: getInputDelay("join"),
-      joinAddress: code,
-      roomCode: code,
+      joinAddress: trimmed,
+      roomCode: trimmed,
     });
   });
 

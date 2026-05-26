@@ -34,18 +34,17 @@
 
 1. **Host** → enter display name.
 2. Click **Create relay room** → copy **`SF4-XXXX`** and send it to your opponent.
-3. Click **Start game** — the launcher starts **`RelayHost.exe`** on your PC.
-4. Forward **TCP and UDP 23456** on your router (or use **Try UPnP** in Advanced).
-5. Wait in the in-game lobby; both players **Ready** to start.
+3. Click **Start game** — you connect to the VPS relay (no port forward on your PC). The in-game overlay shows your **SF4-XXXX** code to share.
+4. Wait in the in-game lobby; both players **Ready** to start.
 
 ### Join (relay)
 
 1. **Join** → enter display name.
 2. Paste the host's **`SF4-XXXX`** code.
-3. Click **Start game** — no port forward needed on your PC.
+3. Wait until the host has clicked **Start game**, then click **Start game** on your side.
 4. Press **Ready** in the lobby when connected.
 
-Broker URL is preconfigured in v0.2.0. Override with `SF4E_BROKER_URL` or Advanced → **Room broker URL**.
+Broker URL is preconfigured (`http://74.208.200.95:8787`). Override with `SF4E_BROKER_URL` or Advanced → **Room broker URL**.
 
 ## Host (Advanced — direct IP)
 
@@ -117,7 +116,7 @@ Launcher.exe --console
 
 | Same `Sidecar.dll` on both PCs | Join fails with “version mismatch” otherwise |
 
-| Host port-forward **23456** | Required for relay host (TCP+UDP); joiner needs none |
+| Host port-forward **23456** | **Simple relay:** no host port forward. **Direct IP (Advanced):** host forwards session port (default 23456, TCP+UDP) |
 
 | **WebView2 Runtime** | Launcher shows an install link if missing |
 

@@ -6,6 +6,7 @@ namespace sf4e {
 namespace launcher {
 
 	bool FetchAdvertiseRelayHost(char* outHost, int outHostLen);
+	bool HashSidecarDllNextToLauncher(char* outHash, int outHashLen);
 
 	bool SpawnRelayHost(uint16_t sessionPort, unsigned long* outPid = nullptr);
 

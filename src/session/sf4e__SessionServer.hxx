@@ -38,8 +38,8 @@ namespace sf4e {
 		static SessionServer* s_pCallbackInstance;
 		static void SteamNetConnectionStatusChangedCallback(SteamNetConnectionStatusChangedCallback_t* pInfo);
 		void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo);
-		void BroadcastMessage(nlohmann::json& msg);
-		void Respond(HSteamNetConnection client, nlohmann::json& msg);
+		void BroadcastMessage(const nlohmann::json& msg);
+		void Respond(HSteamNetConnection client, const nlohmann::json& msg);
 
 		// Direct lobby data manipulation utilities
 		SessionProtocol::JoinResult RegisterToWait(

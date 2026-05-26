@@ -1,4 +1,4 @@
-# SF4 Enhanced relay diagnostics - broker health, room create/resolve, local port check.
+# SF4 Enhanced relay diagnostics - broker health, room create/resolve, relay reachability.
 # Usage: powershell -ExecutionPolicy Bypass -File scripts\relay-diag.ps1 [-BrokerUrl URL] [-PackageDir path]
 
 param(
@@ -33,30 +33,45 @@ function Ok($msg) {
     Write-Host "[OK]   $msg"
 }
 
-$relayHostPath = Join-Path $PackageDir "RelayHost.exe"
-if (-not (Test-Path $relayHostPath)) {
-    Fail "RelayHost.exe not found at $relayHostPath"
+function Get-SidecarHash([string]$Dir) {
+    $sidecarPath = Join-Path $Dir "Sidecar.dll"
+    if (-not (Test-Path $sidecarPath)) {
+        Fail "Sidecar.dll not found at $sidecarPath"
+    }
+    return (Get-FileHash -Path $sidecarPath -Algorithm SHA256).Hash.ToLower()
 }
-Ok "RelayHost.exe present"
 
 try {
     $health = Invoke-RestMethod -Uri "$BrokerUrl/v1/health" -TimeoutSec 10
     if (-not $health.ok) { Fail "Broker health returned ok=false" }
-    Ok "Broker health (rooms=$($health.rooms)/$($health.maxRooms))"
+    $forceVpsRelay = [bool]$health.forceVpsRelay
+    $relayHost = if ($health.relayHost) { $health.relayHost } else { "127.0.0.1" }
+    Ok "Broker health (rooms=$($health.rooms)/$($health.maxRooms), forceVpsRelay=$forceVpsRelay, relayHost=$relayHost)"
 } catch {
     Fail "Broker health request failed: $_"
 }
 
-try {
-    $publicIp = Invoke-RestMethod -Uri "https://api.ipify.org" -TimeoutSec 10
-    Ok "Public IP: $publicIp"
-} catch {
-    Fail "Could not detect public IP: $_"
+if ($forceVpsRelay) {
+    $sidecarHash = Get-SidecarHash $PackageDir
+    Ok "Sidecar hash $($sidecarHash.Substring(0, 12))..."
+    $createBody = @{ displayName = "RelayDiag"; sidecarHash = $sidecarHash } | ConvertTo-Json
+} else {
+    $relayHostPath = Join-Path $PackageDir "RelayHost.exe"
+    if (-not (Test-Path $relayHostPath)) {
+        Fail "RelayHost.exe not found at $relayHostPath"
+    }
+    Ok "RelayHost.exe present"
+    try {
+        $publicIp = Invoke-RestMethod -Uri "https://api.ipify.org" -TimeoutSec 10
+        Ok "Public IP: $publicIp"
+    } catch {
+        Fail "Could not detect public IP: $_"
+    }
+    $createBody = @{ displayName = "RelayDiag"; relayHost = $publicIp } | ConvertTo-Json
 }
 
-$createBody = @{ displayName = "RelayDiag"; relayHost = $publicIp } | ConvertTo-Json
 try {
-    $created = Invoke-RestMethod -Uri "$BrokerUrl/v1/rooms" -Method POST -ContentType "application/json" -Body $createBody -TimeoutSec 10
+    $created = Invoke-RestMethod -Uri "$BrokerUrl/v1/rooms" -Method POST -ContentType "application/json" -Body $createBody -TimeoutSec 15
 } catch {
     Fail "Room create failed: $_"
 }
@@ -72,15 +87,17 @@ try {
     Fail "Room resolve failed: $_"
 }
 
-if ($resolved.host -ne $publicIp -or [int]$resolved.port -ne [int]$created.port) {
-    Fail "Resolve mismatch: expected ${publicIp}:$($created.port), got $($resolved.host):$($resolved.port)"
+$expectedHost = if ($forceVpsRelay) { $relayHost } else { $publicIp }
+if ($resolved.host -ne $expectedHost -or [int]$resolved.port -ne [int]$created.port) {
+    Fail "Resolve mismatch: expected ${expectedHost}:$($created.port), got $($resolved.host):$($resolved.port)"
 }
 Ok "Resolved room to $($resolved.host):$($resolved.port)"
 
 try {
     $heartbeat = Invoke-RestMethod -Uri "$BrokerUrl/v1/rooms/$($created.code)/heartbeat" -Method POST -ContentType "application/json" -Body "{}" -TimeoutSec 10
     if (-not $heartbeat.ok) { Fail "Heartbeat returned ok=false" }
-    Ok "Heartbeat accepted"
+    if ($heartbeat.heartbeatOk -eq $false) { Fail "Heartbeat ok but relay not listening (heartbeatOk=false)" }
+    Ok "Heartbeat accepted (relay listening=$($heartbeat.relayListening))"
 } catch {
     if ($_.Exception.Response.StatusCode.value__ -eq 404) {
         Write-Host "[WARN] Heartbeat endpoint missing on broker - deploy updated services/room-broker/server.js"
@@ -89,25 +106,60 @@ try {
     }
 }
 
-$relayProc = Start-Process -FilePath $relayHostPath -ArgumentList @("--port", $created.port) -WorkingDirectory $PackageDir -PassThru
-Start-Sleep -Seconds 2
-
-if ($relayProc.HasExited) {
-    Fail "RelayHost exited immediately with code $($relayProc.ExitCode)"
+if ($forceVpsRelay) {
+    try {
+        $roomHealth = Invoke-RestMethod -Uri "$BrokerUrl/v1/rooms/$($created.code)/health" -TimeoutSec 10
+        if (-not $roomHealth.relayOk) {
+            Fail "Room health check failed: relay not listening on port $($created.port)"
+        }
+        Ok "Room health relayOk=true on port $($created.port)"
+    } catch {
+        if ($_.Exception.Response.StatusCode.value__ -eq 404) {
+            Write-Host "[WARN] GET /v1/rooms/:code/health missing - deploy updated broker"
+        } else {
+            Fail "Room health check failed: $_"
+        }
+    }
 }
-Ok "RelayHost running (pid $($relayProc.Id)) on port $($created.port)"
 
-$listeners = netstat -ano | Select-String ":$($created.port)\s"
-if (-not $listeners) {
+if ($forceVpsRelay) {
+    $udp = New-Object System.Net.Sockets.UdpClient
+    try {
+        $bytes = [byte[]]@(0)
+        $null = $udp.Send($bytes, 1, $resolved.host, [int]$resolved.port)
+        Ok "VPS relay UDP reachable on $($resolved.host):$($resolved.port)"
+    } catch {
+        Fail "Cannot send UDP to VPS relay at $($resolved.host):$($resolved.port) - check VPS firewall (23456-23475/udp)"
+    } finally {
+        $udp.Close()
+    }
+} else {
+    $relayHostPath = Join-Path $PackageDir "RelayHost.exe"
+    $relayProc = Start-Process -FilePath $relayHostPath -ArgumentList @("--port", $created.port) -WorkingDirectory $PackageDir -PassThru
+    Start-Sleep -Seconds 2
+
+    if ($relayProc.HasExited) {
+        Fail "RelayHost exited immediately with code $($relayProc.ExitCode)"
+    }
+    Ok "RelayHost running (pid $($relayProc.Id)) on port $($created.port)"
+
+    $listeners = netstat -ano | Select-String ":$($created.port)\s"
+    if (-not $listeners) {
+        Stop-Process -Id $relayProc.Id -Force -ErrorAction SilentlyContinue
+        Fail "Nothing listening on port $($created.port)"
+    }
+    Ok "netstat shows listener on port $($created.port)"
+
     Stop-Process -Id $relayProc.Id -Force -ErrorAction SilentlyContinue
-    Fail "Nothing listening on port $($created.port)"
+    Ok "RelayHost stopped cleanly"
 }
-Ok "netstat shows listener on port $($created.port)"
-
-Stop-Process -Id $relayProc.Id -Force -ErrorAction SilentlyContinue
-Ok "RelayHost stopped cleanly"
 
 Write-Host ""
 Write-Host "RESULT: PASS"
 Write-Host "Next: run Launcher, create relay room, Start game, then have joiner use $($created.code)."
-Write-Host "Ensure router forwards TCP+UDP $($created.port) if testing across the internet."
+if ($forceVpsRelay) {
+    Write-Host "VPS relay mode - no host port forward required."
+    Write-Host "If in-game connect still fails: open IONOS panel inbound UDP 23456-23475 (ufw alone is not enough)."
+} else {
+    Write-Host "Ensure router forwards TCP+UDP $($created.port) if testing across the internet."
+}

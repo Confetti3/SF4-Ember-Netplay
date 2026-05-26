@@ -28,8 +28,8 @@ The launcher defaults to **Simple mode** and relay room codes (`SF4-XXXX`). No b
 | Host | Joiner |
 |------|--------|
 | **Create relay room** → copy `SF4-XXXX` | Paste code → **Start game** |
-| **Start game** (auto-starts **`RelayHost.exe`**) | Wait for host **Connected**, then join |
-| Forward **TCP+UDP** on broker-assigned port (23456–23475; shown in share hint) | No port forward needed |
+| **Start game** (connects outbound to VPS relay) | Wait for host **Connected**, then join |
+| No port forward on host PC | No port forward needed |
 
 See [CASUAL_NETPLAY.md](CASUAL_NETPLAY.md) in `docs/`. Override broker: `set SF4E_BROKER_URL=http://your-broker:8787`.
 
@@ -47,7 +47,7 @@ If join fails, confirm both players use **Advanced** mode and the joiner pasted 
 
 ## What you need for netplay
 
-- **Relay (recommended for WAN):** broker on VPS + **`RelayHost.exe`** on host PC (included in zip).
+- **Relay (recommended for WAN):** broker + session relay on VPS **`74.208.200.95`** — host and joiner connect outbound; no host port forward.
 - **Direct (Advanced):** same LAN or host port-forwards session port **23456** (TCP/UDP).
 - **Same zip on both players** — do not mix `Sidecar.dll` from another build.
 
@@ -79,7 +79,9 @@ Launcher.exe
 
 ## Firewall
 
-- **Host:** allow inbound **TCP/UDP** on the broker-assigned relay port (23456–23475; shown after **Create relay room**), via router port-forward or UPnP in Advanced.
+- **Relay host (Simple mode):** no router or Windows firewall setup on the host PC — traffic goes through the VPS.
+- **VPS operator:** open **8787/tcp** plus **23456–23475/tcp+udp** in both **ufw** and the **IONOS (or provider) cloud firewall**. Missing IONOS UDP rules causes in-game “Still connecting…” even when `relay-diag.ps1` passes.
+- **Direct IP host:** forward **TCP+UDP** on session port (default 23456).
 - **Joiner:** no port forward needed for relay mode.
 
 ## Quick 2-player test
@@ -103,10 +105,11 @@ Full checklist: [SMOKE_TEST.md](SMOKE_TEST.md). Player guide: [USER_NETPLAY.md](
 | Double-click does nothing | Run `Launcher.exe --console` from a terminal in the package folder |
 | “Version mismatch” on join | Same zip on both PCs |
 | Can't create relay room | Broker reachable? `curl http://74.208.200.95:8787/v1/health` |
-| Joiner stuck / "Cannot reach host" | Host must **Start game** first (Connected: yes). Host forwards **assigned** TCP+UDP port from share hint (not always 23456). Test from outside: `Test-NetConnection HOST_IP -Port PORT` |
+| Joiner stuck / "Cannot reach relay" | Host must **Start game** first. Check broker: `curl http://74.208.200.95:8787/v1/health` (should show `"forceVpsRelay":true`). |
+| In-game "Still connecting" (VPS relay) | Open **IONOS inbound UDP 23456–23475** (not just ufw). Run `scripts\relay-diag.ps1`; create a **new** room after firewall fix. |
 | Direct IP join fails | Both use **Advanced** → **Direct IP**. Joiner pastes `public.ip:port` (not SF4-XXXX). Host forwards **session port** TCP+UDP. Delete `%APPDATA%\\sf4e\\config.json` if mode keeps resetting to Relay. |
 | In-app update "Download failed" | Use **Open release page** in launcher, or download zip manually once. Log: `%TEMP%\sf4e-update.log`. Test: `powershell -File scripts\test-updater-download.ps1` |
-| Join times out in-game | Same as above; allow `RelayHost.exe` in Windows Firewall on host |
+| Join times out in-game | Same build on both PCs; host clicked **Start game**; broker health OK |
 | Room expires while waiting | Deploy updated `server.js` on Oracle (adds `/heartbeat`); launcher sends keepalive every 60s |
 | Wrong broker URL | Delete `%APPDATA%\sf4e\config.json` or set `SF4E_BROKER_URL` |
 | Missing other DLL errors | Re-extract full zip; install [VC++ x86](https://aka.ms/vs/17/release/vc_redist.x86.exe) |

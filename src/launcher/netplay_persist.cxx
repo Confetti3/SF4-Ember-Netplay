@@ -75,7 +75,7 @@ namespace launcher {
 			strncpy_s(out.lastJoinHost, lastJoin.c_str(), _TRUNCATE);
 			std::string lastAdv = j.value("lastAdvertiseHost", "");
 			strncpy_s(out.lastAdvertiseHost, lastAdv.c_str(), _TRUNCATE);
-			out.simpleUi = (uint8_t)j.value("simpleUi", 0);
+			out.simpleUi = (uint8_t)j.value("simpleUi", 1);
 			out.defaultConnectMethod = (uint8_t)j.value("defaultConnectMethod", 1);
 			out.relaySessionPort = (uint16_t)j.value("relaySessionPort", 0);
 			std::string broker = j.value("brokerBaseUrl", kDefaultBrokerBaseUrl);

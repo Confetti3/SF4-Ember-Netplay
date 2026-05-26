@@ -408,10 +408,15 @@ void SessionClient::OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusCh
 {
 	// #region agent log
 	{
-		char buf[160];
+		char endDebug[96] = { 0 };
+		if (pInfo->m_info.m_szEndDebug && pInfo->m_info.m_szEndDebug[0]) {
+			strncpy_s(endDebug, pInfo->m_info.m_szEndDebug, _TRUNCATE);
+		}
+		char buf[320];
 		snprintf(buf, sizeof(buf),
-			"{\"state\":%d,\"oldState\":%d}",
-			(int)pInfo->m_info.m_eState, (int)pInfo->m_eOldState);
+			"{\"state\":%d,\"oldState\":%d,\"endReason\":%d,\"endDebug\":\"%s\"}",
+			(int)pInfo->m_info.m_eState, (int)pInfo->m_eOldState,
+			(int)pInfo->m_info.m_eEndReason, endDebug);
 		debug::AgentLog("H8", "SessionClient::OnSteamNetConnectionStatusChanged", "conn state", buf);
 	}
 	// #endregion
@@ -429,7 +434,9 @@ void SessionClient::OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusCh
 				detail = "Connection refused or timed out.";
 			}
 			spdlog::error("Client could not connect: {}", detail);
-			sf4e::NetplayFacade::PushAlert(detail);
+			sf4e::NetplayFacade::PushAlert(
+				"Could not connect to the game room. Check your internet and try again."
+			);
 		}
 		else if (pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally)
 		{
@@ -438,7 +445,9 @@ void SessionClient::OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusCh
 				detail = "Lost contact with session server.";
 			}
 			spdlog::error("Client lost contact with host: {}", detail);
-			sf4e::NetplayFacade::PushAlert(detail);
+			sf4e::NetplayFacade::PushAlert(
+				"Lost connection to the game room. Check your internet and try again."
+			);
 		}
 
 		// Clean up the connection.  This is important!
