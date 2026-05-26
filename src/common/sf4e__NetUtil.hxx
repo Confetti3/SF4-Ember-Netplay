@@ -14,12 +14,14 @@ namespace sf4e {
 		ReceiveFailed,
 		HttpStatus,
 		EmptyBody,
+		WriteFailed,
 	};
 
 	struct HttpRequestResult {
 		bool ok = false;
 		HttpErrorKind error = HttpErrorKind::None;
 		int statusCode = 0;
+		unsigned long win32Error = 0;
 	};
 
 	bool DetectLanIPv4(char* outIp, int outIpLen);

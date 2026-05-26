@@ -10,7 +10,7 @@ Relay-first rollback netplay for **Ultra Street Fighter IV** (Steam) with a mode
 - **`RelayHost.exe`** runs on the **host's PC** when they start a game
 - Preconfigured room broker: `http://74.208.200.95:8787` (override with `SF4E_BROKER_URL`)
 - Advanced mode: direct IP, UPnP, custom broker URL
-- In-app **Check for updates** from GitHub Releases
+- **In-app updater:** hardened download chain (browser URL first, curl fallback, TLS 1.2, detailed errors, Open release page on failure)
 
 ## Based on sf4e
 

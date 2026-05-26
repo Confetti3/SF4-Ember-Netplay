@@ -14,6 +14,7 @@
 
 #include <pathcch.h>
 #include <shlobj.h>
+#include <shellapi.h>
 #include <strsafe.h>
 
 
@@ -312,6 +313,46 @@ namespace launcher {
 			if (!ok) {
 
 				r["message"] = "Could not copy to clipboard.";
+
+			}
+
+			return r;
+
+		}
+
+		if (type == "openUrl") {
+
+			std::string url = msg.value("url", "");
+
+			if (url.empty()) {
+
+				nlohmann::json err;
+
+				err["v"] = kProtocolVersion;
+
+				err["type"] = "error";
+
+				err["message"] = "No URL to open.";
+
+				return err;
+
+			}
+
+			wchar_t wUrl[2048] = { 0 };
+
+			MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1, wUrl, 2048);
+
+			HINSTANCE rc = ShellExecuteW(NULL, L"open", wUrl, NULL, NULL, SW_SHOWNORMAL);
+
+			nlohmann::json r;
+
+			r["v"] = kProtocolVersion;
+
+			r["type"] = (INT_PTR)rc > 32 ? "openedUrl" : "error";
+
+			if ((INT_PTR)rc <= 32) {
+
+				r["message"] = "Could not open link in browser.";
 
 			}
 

@@ -12,7 +12,7 @@
     "v",
   ];
   let state = { simpleUi: false, defaultConnectMethod: 0 };
-  let updateInfo = { zipDownloadUrl: "", zipApiUrl: "", latestVersion: "", updateAvailable: false };
+  let updateInfo = { zipDownloadUrl: "", zipApiUrl: "", latestVersion: "", releaseUrl: "", updateAvailable: false };
   let updateBusy = false;
   let shareValues = { relay: "", lan: "", wan: "" };
   let relayHeartbeatTimer = null;
@@ -354,6 +354,11 @@
     finishInitialLoad();
   }
 
+  function showOpenReleaseButton(show) {
+    const btn = document.getElementById("btn-open-release");
+    if (btn) btn.classList.toggle("hidden", !show);
+  }
+
   function renderUpdateStatus(text, kind) {
     const el = document.getElementById("update-status");
     if (!el) return;
@@ -437,6 +442,7 @@
           setUpdateBusy(false);
           renderUpdateStatus(data.message || "Update failed", "error");
           showInstallButton(!!updateInfo.updateAvailable);
+          showOpenReleaseButton(!!updateInfo.releaseUrl);
         } else {
           showToast(data.message || "Error", "error");
           setStatus(data.message || "Something went wrong", "error");
@@ -473,8 +479,10 @@
           zipDownloadUrl: data.zipDownloadUrl || "",
           zipApiUrl: data.zipApiUrl || "",
           latestVersion: data.latestVersion || "",
+          releaseUrl: data.releaseUrl || "",
           updateAvailable: !!data.updateAvailable,
         };
+        showOpenReleaseButton(false);
         if (data.updateAvailable) {
           const notes = data.releaseNotes ? "\n\n" + data.releaseNotes : "";
           renderUpdateStatus("Update available: " + data.latestVersion + notes, "success");
@@ -738,6 +746,7 @@
       "?\n\nThe launcher will close and replace all files in this folder. Custom files in the install folder will be removed.\n\nClose USF4 if it is running.";
     if (!window.confirm(msg)) return;
     setUpdateBusy(true);
+    showOpenReleaseButton(false);
     renderUpdateStatus("Downloading update…", "");
     post({
       type: "applyUpdate",
@@ -745,6 +754,11 @@
       zipApiUrl: updateInfo.zipApiUrl,
       latestVersion: updateInfo.latestVersion,
     });
+  });
+
+  document.getElementById("btn-open-release").addEventListener("click", function () {
+    if (!updateInfo.releaseUrl) return;
+    post({ type: "openUrl", url: updateInfo.releaseUrl });
   });
 
   const appEl = document.getElementById("app");

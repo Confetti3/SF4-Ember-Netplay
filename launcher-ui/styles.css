@@ -847,6 +847,11 @@ body {
   color: var(--text-muted);
 }
 
+#btn-open-release {
+  margin-top: 8px;
+  width: 100%;
+}
+
 .footer-hint {
   display: flex;
   align-items: center;

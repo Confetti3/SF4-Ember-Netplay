@@ -460,6 +460,24 @@ namespace sf4e {
 		return true;
 	}
 
+	static void ApplyWinHttpDownloadOptions(HINTERNET hSession, HINTERNET hRequest) {
+		if (hSession) {
+			DWORD redirectPolicy = WINHTTP_OPTION_REDIRECT_POLICY_ALWAYS;
+			WinHttpSetOption(hSession, WINHTTP_OPTION_REDIRECT_POLICY, &redirectPolicy, sizeof(redirectPolicy));
+			DWORD maxRedirects = 10;
+			WinHttpSetOption(hSession, WINHTTP_OPTION_MAX_HTTP_AUTOMATIC_REDIRECTS, &maxRedirects, sizeof(maxRedirects));
+		}
+		if (hRequest) {
+			DWORD reqRedirect = WINHTTP_OPTION_REDIRECT_POLICY_ALWAYS;
+			WinHttpSetOption(hRequest, WINHTTP_OPTION_REDIRECT_POLICY, &reqRedirect, sizeof(reqRedirect));
+			DWORD secureProtocols = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
+#ifdef WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_3
+			secureProtocols |= WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_3;
+#endif
+			WinHttpSetOption(hRequest, WINHTTP_OPTION_SECURE_PROTOCOLS, &secureProtocols, sizeof(secureProtocols));
+		}
+	}
+
 	bool HttpDownloadUrlUtf8(
 		const char* url,
 		const wchar_t* destPath,
@@ -503,19 +521,20 @@ namespace sf4e {
 		if (!hSession) {
 			if (outResult) {
 				outResult->error = HttpErrorKind::OpenFailed;
+				outResult->win32Error = GetLastError();
 			}
 			return false;
 		}
 
 		WinHttpSetTimeouts(hSession, timeoutMs, timeoutMs, timeoutMs, timeoutMs);
-		DWORD redirectPolicy = WINHTTP_OPTION_REDIRECT_POLICY_ALWAYS;
-		WinHttpSetOption(hSession, WINHTTP_OPTION_REDIRECT_POLICY, &redirectPolicy, sizeof(redirectPolicy));
+		ApplyWinHttpDownloadOptions(hSession, NULL);
 
 		INTERNET_PORT winPort = (INTERNET_PORT)(port > 0 ? port : (useHttps ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT));
 		HINTERNET hConnect = WinHttpConnect(hSession, wHost, winPort, 0);
 		if (!hConnect) {
 			if (outResult) {
 				outResult->error = HttpErrorKind::ConnectFailed;
+				outResult->win32Error = GetLastError();
 			}
 			WinHttpCloseHandle(hSession);
 			return false;
@@ -534,14 +553,14 @@ namespace sf4e {
 		if (!hRequest) {
 			if (outResult) {
 				outResult->error = HttpErrorKind::OpenFailed;
+				outResult->win32Error = GetLastError();
 			}
 			WinHttpCloseHandle(hConnect);
 			WinHttpCloseHandle(hSession);
 			return false;
 		}
 
-		DWORD reqRedirect = WINHTTP_OPTION_REDIRECT_POLICY_ALWAYS;
-		WinHttpSetOption(hRequest, WINHTTP_OPTION_REDIRECT_POLICY, &reqRedirect, sizeof(reqRedirect));
+		ApplyWinHttpDownloadOptions(NULL, hRequest);
 
 		wchar_t headerBuf[512] = { 0 };
 		const wchar_t* headers = WINHTTP_NO_ADDITIONAL_HEADERS;
@@ -555,6 +574,7 @@ namespace sf4e {
 		if (!WinHttpSendRequest(hRequest, headers, headersLen, WINHTTP_NO_REQUEST_DATA, 0, 0, 0)) {
 			if (outResult) {
 				outResult->error = HttpErrorKind::SendFailed;
+				outResult->win32Error = GetLastError();
 			}
 			WinHttpCloseHandle(hRequest);
 			WinHttpCloseHandle(hConnect);
@@ -564,6 +584,7 @@ namespace sf4e {
 		if (!WinHttpReceiveResponse(hRequest, NULL)) {
 			if (outResult) {
 				outResult->error = HttpErrorKind::ReceiveFailed;
+				outResult->win32Error = GetLastError();
 			}
 			WinHttpCloseHandle(hRequest);
 			WinHttpCloseHandle(hConnect);
@@ -597,7 +618,8 @@ namespace sf4e {
 		HANDLE hFile = CreateFileW(destPath, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 		if (hFile == INVALID_HANDLE_VALUE) {
 			if (outResult) {
-				outResult->error = HttpErrorKind::OpenFailed;
+				outResult->error = HttpErrorKind::WriteFailed;
+				outResult->win32Error = GetLastError();
 			}
 			WinHttpCloseHandle(hRequest);
 			WinHttpCloseHandle(hConnect);
@@ -614,6 +636,7 @@ namespace sf4e {
 				ok = false;
 				if (outResult) {
 					outResult->error = HttpErrorKind::ReceiveFailed;
+					outResult->win32Error = GetLastError();
 				}
 				break;
 			}
@@ -624,7 +647,8 @@ namespace sf4e {
 			if (!WriteFile(hFile, buf, read, &written, NULL) || written != read) {
 				ok = false;
 				if (outResult) {
-					outResult->error = HttpErrorKind::ReceiveFailed;
+					outResult->error = HttpErrorKind::WriteFailed;
+					outResult->win32Error = GetLastError();
 				}
 				break;
 			}

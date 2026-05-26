@@ -92,6 +92,7 @@ Full checklist: [SMOKE_TEST.md](SMOKE_TEST.md). Player guide: [USER_NETPLAY.md](
 | “Version mismatch” on join | Same zip on both PCs |
 | Can't create relay room | Broker reachable? `curl http://74.208.200.95:8787/v1/health` |
 | Joiner stuck / "Cannot reach host" | Host must **Start game** first (Connected: yes). Host forwards **assigned** TCP+UDP port from share hint (not always 23456). Test from outside: `Test-NetConnection HOST_IP -Port PORT` |
+| In-app update "Download failed" | Use **Open release page** in launcher, or download zip manually once. Log: `%TEMP%\sf4e-update.log`. Test: `powershell -File scripts\test-updater-download.ps1` |
 | Join times out in-game | Same as above; allow `RelayHost.exe` in Windows Firewall on host |
 | Room expires while waiting | Deploy updated `server.js` on Oracle (adds `/heartbeat`); launcher sends keepalive every 60s |
 | Wrong broker URL | Delete `%APPDATA%\sf4e\config.json` or set `SF4E_BROKER_URL` |

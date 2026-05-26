@@ -4,8 +4,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <vector>
+
 #include <windows.h>
 #include <pathcch.h>
+#include <shellapi.h>
 #include <tlhelp32.h>
 
 #include <nlohmann/json.hpp>
@@ -216,11 +219,58 @@ namespace launcher {
 			}
 		}
 
+		static void AppendUpdateLog(const char* message) {
+			if (!message || !message[0]) {
+				return;
+			}
+			wchar_t tempDir[MAX_PATH] = { 0 };
+			if (GetTempPathW(MAX_PATH, tempDir) == 0) {
+				return;
+			}
+			wchar_t logPath[MAX_PATH] = { 0 };
+			if (FAILED(PathCchCombine(logPath, MAX_PATH, tempDir, L"sf4e-update.log"))) {
+				return;
+			}
+
+			SYSTEMTIME st = { 0 };
+			GetLocalTime(&st);
+			char line[1024] = { 0 };
+			snprintf(
+				line,
+				sizeof(line),
+				"%04u-%02u-%02u %02u:%02u:%02u %s\r\n",
+				st.wYear,
+				st.wMonth,
+				st.wDay,
+				st.wHour,
+				st.wMinute,
+				st.wSecond,
+				message
+			);
+
+			HANDLE hFile = CreateFileW(
+				logPath,
+				FILE_APPEND_DATA,
+				FILE_SHARE_READ,
+				NULL,
+				OPEN_ALWAYS,
+				FILE_ATTRIBUTE_NORMAL,
+				NULL
+			);
+			if (hFile == INVALID_HANDLE_VALUE) {
+				return;
+			}
+			DWORD written = 0;
+			WriteFile(hFile, line, (DWORD)strlen(line), &written, NULL);
+			CloseHandle(hFile);
+		}
+
 		static std::string HttpDownloadErrorMessage(const HttpRequestResult& httpResult) {
+			const unsigned long win32 = httpResult.win32Error ? httpResult.win32Error : GetLastError();
+			char buf[160];
 			switch (httpResult.error) {
 			case HttpErrorKind::HttpStatus:
 				if (httpResult.statusCode > 0) {
-					char buf[64];
 					snprintf(buf, sizeof(buf), "HTTP %d", httpResult.statusCode);
 					return buf;
 				}
@@ -228,35 +278,54 @@ namespace launcher {
 			case HttpErrorKind::Timeout:
 				return "timed out";
 			case HttpErrorKind::ConnectFailed:
-				return "could not connect";
+				snprintf(buf, sizeof(buf), "could not connect (Win32 %lu)", win32);
+				return buf;
 			case HttpErrorKind::ReceiveFailed:
-				return "transfer interrupted";
+				snprintf(buf, sizeof(buf), "transfer interrupted (Win32 %lu)", win32);
+				return buf;
 			case HttpErrorKind::EmptyBody:
 				return "empty response";
+			case HttpErrorKind::SendFailed:
+				snprintf(buf, sizeof(buf), "request failed (Win32 %lu)", win32);
+				return buf;
+			case HttpErrorKind::OpenFailed:
+				snprintf(buf, sizeof(buf), "connection open failed (Win32 %lu)", win32);
+				return buf;
+			case HttpErrorKind::WriteFailed:
+				snprintf(buf, sizeof(buf), "could not write temp file (Win32 %lu)", win32);
+				return buf;
+			case HttpErrorKind::InvalidArgs:
+				return "invalid download URL";
 			default:
-				return "network error";
+				snprintf(buf, sizeof(buf), "unknown error (kind %d, Win32 %lu)", (int)httpResult.error, win32);
+				return buf;
 			}
 		}
 
 		static bool TryHttpDownload(
+			const char* label,
 			const char* url,
 			const char* headers,
 			const wchar_t* zipPath,
 			std::string& outError
 		) {
 			if (!url || !url[0]) {
+				outError = "missing URL";
 				return false;
 			}
 			HttpRequestResult httpResult;
 			if (HttpDownloadUrlUtf8(url, zipPath, 300000, headers, &httpResult)) {
+				AppendUpdateLog((std::string(label) + " OK").c_str());
 				return true;
 			}
 			outError = HttpDownloadErrorMessage(httpResult);
+			AppendUpdateLog((std::string(label) + " failed: " + outError).c_str());
 			return false;
 		}
 
-		static bool DownloadViaPowerShell(const char* url, const wchar_t* destPath) {
+		static bool DownloadViaPowerShell(const char* url, const wchar_t* destPath, std::string& outError) {
 			if (!url || !url[0] || !destPath) {
+				outError = "missing URL";
 				return false;
 			}
 
@@ -266,20 +335,85 @@ namespace launcher {
 			wchar_t ps[8192] = { 0 };
 			swprintf_s(
 				ps,
-				L"try { Invoke-WebRequest -Uri \"%s\" -OutFile \"%s\" -UserAgent \"sf4e-updater/1.0\" -UseBasicParsing | Out-Null; exit 0 } catch { exit 1 }",
+				L"[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; "
+				L"Invoke-WebRequest -Uri \"%s\" -OutFile \"%s\" -UserAgent \"sf4e-updater/1.0\" -UseBasicParsing -MaximumRedirection 10 | Out-Null",
 				urlWide,
 				destPath
 			);
 			if (!RunPowerShellCommand(ps)) {
+				outError = "PowerShell download failed";
+				AppendUpdateLog("powershell failed");
 				return false;
 			}
 
 			WIN32_FILE_ATTRIBUTE_DATA info = { 0 };
 			if (!GetFileAttributesExW(destPath, GetFileExInfoStandard, &info)) {
+				outError = "PowerShell wrote no file";
+				AppendUpdateLog("powershell wrote no file");
 				return false;
 			}
 			ULONGLONG size = ((ULONGLONG)info.nFileSizeHigh << 32) | info.nFileSizeLow;
-			return size > 0;
+			if (size == 0) {
+				outError = "PowerShell wrote empty file";
+				AppendUpdateLog("powershell wrote empty file");
+				return false;
+			}
+			AppendUpdateLog("powershell OK");
+			return true;
+		}
+
+		static bool DownloadViaCurl(const char* url, const wchar_t* destPath, std::string& outError) {
+			if (!url || !url[0] || !destPath) {
+				outError = "missing URL";
+				return false;
+			}
+
+			wchar_t urlWide[2048] = { 0 };
+			MultiByteToWideChar(CP_UTF8, 0, url, -1, urlWide, 2048);
+
+			wchar_t cmdLine[4096] = { 0 };
+			swprintf_s(
+				cmdLine,
+				L"curl.exe -fL --retry 2 --connect-timeout 30 --max-time 300 -o \"%s\" \"%s\"",
+				destPath,
+				urlWide
+			);
+
+			STARTUPINFOW si = { 0 };
+			PROCESS_INFORMATION pi = { 0 };
+			si.cb = sizeof(si);
+			if (!CreateProcessW(NULL, cmdLine, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+				outError = "curl.exe not available";
+				AppendUpdateLog("curl not available");
+				return false;
+			}
+			WaitForSingleObject(pi.hProcess, INFINITE);
+			DWORD exitCode = 1;
+			GetExitCodeProcess(pi.hProcess, &exitCode);
+			CloseHandle(pi.hProcess);
+			CloseHandle(pi.hThread);
+			if (exitCode != 0) {
+				char buf[64];
+				snprintf(buf, sizeof(buf), "curl exit %lu", exitCode);
+				outError = buf;
+				AppendUpdateLog((std::string("curl failed: ") + outError).c_str());
+				return false;
+			}
+
+			WIN32_FILE_ATTRIBUTE_DATA info = { 0 };
+			if (!GetFileAttributesExW(destPath, GetFileExInfoStandard, &info)) {
+				outError = "curl wrote no file";
+				AppendUpdateLog("curl wrote no file");
+				return false;
+			}
+			ULONGLONG size = ((ULONGLONG)info.nFileSizeHigh << 32) | info.nFileSizeLow;
+			if (size == 0) {
+				outError = "curl wrote empty file";
+				AppendUpdateLog("curl wrote empty file");
+				return false;
+			}
+			AppendUpdateLog("curl OK");
+			return true;
 		}
 
 		static bool DownloadReleaseZip(
@@ -290,26 +424,62 @@ namespace launcher {
 		) {
 			const char* apiHeaders = "Accept: application/octet-stream\r\nUser-Agent: sf4e-updater/1.0\r\n";
 			const char* browserHeaders = "User-Agent: sf4e-updater/1.0\r\n";
+			std::vector<std::string> attempts;
+			std::string attemptError;
 
-			if (zipApiUrl && zipApiUrl[0] && TryHttpDownload(zipApiUrl, apiHeaders, zipPath, outError)) {
-				return true;
-			}
-			DeleteFileW(zipPath);
+			auto recordFailure = [&](const char* label) {
+				if (!attemptError.empty()) {
+					attempts.push_back(std::string(label) + ": " + attemptError);
+				}
+				DeleteFileW(zipPath);
+			};
 
-			if (zipDownloadUrl && zipDownloadUrl[0] && TryHttpDownload(zipDownloadUrl, browserHeaders, zipPath, outError)) {
-				return true;
+			AppendUpdateLog("download start");
+
+			if (zipDownloadUrl && zipDownloadUrl[0]) {
+				if (TryHttpDownload("browser", zipDownloadUrl, browserHeaders, zipPath, attemptError)) {
+					return true;
+				}
+				recordFailure("browser");
 			}
-			DeleteFileW(zipPath);
+
+			if (zipApiUrl && zipApiUrl[0]) {
+				if (TryHttpDownload("api", zipApiUrl, apiHeaders, zipPath, attemptError)) {
+					return true;
+				}
+				recordFailure("api");
+			}
+
+			const char* curlUrl = (zipDownloadUrl && zipDownloadUrl[0]) ? zipDownloadUrl : zipApiUrl;
+			if (curlUrl && curlUrl[0]) {
+				if (DownloadViaCurl(curlUrl, zipPath, attemptError)) {
+					return true;
+				}
+				recordFailure("curl");
+			}
 
 			const char* psUrl = (zipDownloadUrl && zipDownloadUrl[0]) ? zipDownloadUrl : zipApiUrl;
-			if (psUrl && psUrl[0] && DownloadViaPowerShell(psUrl, zipPath)) {
-				return true;
+			if (psUrl && psUrl[0]) {
+				if (DownloadViaPowerShell(psUrl, zipPath, attemptError)) {
+					return true;
+				}
+				recordFailure("powershell");
 			}
-			DeleteFileW(zipPath);
 
-			if (outError.empty()) {
+			std::string detail;
+			for (size_t i = 0; i < attempts.size(); i++) {
+				if (i > 0) {
+					detail += "; ";
+				}
+				detail += attempts[i];
+			}
+			if (detail.empty()) {
 				outError = "all download methods failed";
 			}
+			else {
+				outError = detail;
+			}
+			AppendUpdateLog(("download failed: " + outError).c_str());
 			return false;
 		}
 
@@ -508,8 +678,21 @@ namespace launcher {
 		CreateDirectoryW(extractDir, NULL);
 
 		std::string downloadError;
+		AppendUpdateLog("DownloadAndApplyUpdate start");
 		if (!DownloadReleaseZip(zipApiUrl, zipDownloadUrl, zipPath, downloadError)) {
-			result.error = "Download failed (" + downloadError + "). Check your connection or download the zip manually from GitHub Releases.";
+			char repo[128] = { 0 };
+			GetGithubRepo(repo, sizeof(repo));
+			char releasePage[256] = { 0 };
+			snprintf(
+				releasePage,
+				sizeof(releasePage),
+				"https://github.com/%s/releases/tag/%s",
+				repo,
+				latestVersionTag
+			);
+			result.error =
+				"Download failed (" + downloadError + "). Manual download: " + releasePage +
+				" — details in %TEMP%\\sf4e-update.log";
 			return result;
 		}
 
