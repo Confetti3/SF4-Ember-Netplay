@@ -23,6 +23,13 @@ Thank you for testing VPS rollback netplay. Follow these steps so sessions work 
 
 Stay in **Simple mode** (default). Do not use **Find match** or **Open rooms** unless asked — those features are experimental.
 
+## Scope and limits (summary)
+
+- **Beta community port** — Windows + Steam USF4 only; you must own the game
+- **Same zip** on both PCs; default broker has **~20 rooms** and **~15 min** idle expiry
+- **Not tested enough yet:** rematch, disconnect recovery, spectator mode
+- Full details: [`docs/SCOPE_AND_LIMITATIONS.md`](SCOPE_AND_LIMITATIONS.md)
+
 ## If something goes wrong
 
 | Problem | What to check |

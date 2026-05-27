@@ -194,6 +194,8 @@ $DocFiles = @(
 
     "docs\BETA_TESTERS.md",
 
+    "docs\SCOPE_AND_LIMITATIONS.md",
+
     "docs\USER_NETPLAY.md",
 
     "docs\CASUAL_NETPLAY.md",
@@ -274,6 +276,10 @@ SF4 Netplay Launcher package — UNOFFICIAL PORT (not official sf4e)
 This is a community port. It is NOT maintained or endorsed by Anthony Danducci.
 Official sf4e by Anthony Danducci: https://codeberg.org/adanducci/sf4e
 This port: https://github.com/Confetti3/SF4-Netplay-Launcher
+
+Scope: USF4 Steam / Windows 10+ / rollback netplay for small groups (beta).
+Limits: shared broker (~20 rooms), experimental matchmaking, rematch/disconnect less tested.
+See docs/SCOPE_AND_LIMITATIONS.md
 
 Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss zzz")
 

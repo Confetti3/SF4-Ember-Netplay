@@ -146,6 +146,29 @@
     <div id="toast" class="toast hidden" role="alert"></div>
 
     <section id="screen-home" class="screen active">
+      <div class="panel scope-panel" role="note" aria-label="Project scope and limitations">
+        <h3 class="section-label">Scope and limitations</h3>
+        <div class="scope-grid">
+          <div>
+            <p class="scope-heading">In scope</p>
+            <ul class="scope-list">
+              <li>USF4 on Steam, Windows 10+</li>
+              <li>Simple mode: VPS room codes (<code>SF4-XXXX</code>)</li>
+              <li>Same release zip on all players</li>
+            </ul>
+          </div>
+          <div>
+            <p class="scope-heading">Limits</p>
+            <ul class="scope-list">
+              <li>Community beta — not official sf4e</li>
+              <li>Game not included; shared broker (~20 rooms)</li>
+              <li>Find match / Open rooms are experimental</li>
+            </ul>
+          </div>
+        </div>
+        <p class="scope-foot">Rematch, disconnect recovery, and spectator mode are less tested. See <code>docs/SCOPE_AND_LIMITATIONS.md</code> in the zip.</p>
+      </div>
+
       <div class="card-grid">
         <button type="button" class="mode-card mode-card-host" data-mode="host">
           <span class="mode-card-icon" aria-hidden="true">

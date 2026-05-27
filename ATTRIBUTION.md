@@ -25,6 +25,10 @@ Community additions in this unofficial port:
 - VPS relay room codes (`SF4-XXXX`) and team packaging
 - Release scripts and tester documentation
 
+**Scope:** USF4 on Steam, Windows 10+, rollback netplay for small groups. **Not** a commercial matchmaking service.
+
+**Limitations:** beta quality; shared public broker; experimental Find match / Open rooms; rematch/disconnect/spectator less tested. See [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md).
+
 Maintained at: [github.com/Confetti3/SF4-Netplay-Launcher](https://github.com/Confetti3/SF4-Netplay-Launcher)
 
 ## License

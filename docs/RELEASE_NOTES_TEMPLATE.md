@@ -47,6 +47,8 @@ set SF4E_BROKER_URL=http://your-broker:8787
 
 ## Known limitations
 
+See [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) for the full list. Summary:
+
 - Both players must use the **same release zip** (`Sidecar.dll` must match)
 - **Find match** and **Open rooms** are experimental — use **Host + room code** for beta testing
 - VPS relay supports up to **20** concurrent rooms on the default broker; idle rooms expire after ~15 minutes

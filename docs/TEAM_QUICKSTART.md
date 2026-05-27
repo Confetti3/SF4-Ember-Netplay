@@ -6,6 +6,17 @@ This folder is a **self-contained unofficial port** for netplay testing. It does
 
 **Official upstream:** [sf4e on Codeberg](https://codeberg.org/adanducci/sf4e) — use that for Anthony Danducci's official project and updates.
 
+## Scope and limitations
+
+| In scope | Limits |
+|----------|--------|
+| USF4 on Steam, Windows 10+ | Game **not included** |
+| Simple VPS room codes (`SF4-XXXX`) | Community **beta** — not official sf4e |
+| Same zip on all players | Shared broker (~**20 rooms**, ~**15 min** idle expiry) |
+| Advanced Direct IP / UPnP | Host port-forward for Direct IP; Find match / Open rooms **experimental** |
+
+Full list: [`docs/SCOPE_AND_LIMITATIONS.md`](SCOPE_AND_LIMITATIONS.md) in this folder.
+
 ## Quick start (3 steps)
 
 1. **Extract** the entire zip to one folder (e.g. `C:\Games\SF4-Netplay-Launcher\`). Do not copy only `Launcher.exe`.

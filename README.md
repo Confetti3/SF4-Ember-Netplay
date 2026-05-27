@@ -53,7 +53,23 @@ The launcher defaults to **Simple mode**. No router setup on the host PC ? traff
 
 Switch to **Advanced** in the launcher for classic host/join with `IP:port`, local relay, or UPnP. The host must **port-forward TCP+UDP** on the session port (default **23456**). See [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md).
 
-Direct IP behavior is unchanged from v0.2.6 ? use Advanced when you prefer port-forward over VPS room codes.
+Direct IP behavior is unchanged from v0.2.6 - use Advanced when you prefer port-forward over VPS room codes.
+
+## Scope and limitations
+
+This is a **community beta port** for friends playing USF4 rollback online ? not official sf4e and not a public matchmaking service.
+
+| In scope | Out of scope / limits |
+|----------|------------------------|
+| USF4 on **Steam**, **Windows 10+** | Game not included; no console/macOS native build |
+| **Simple mode**: VPS room codes (`SF4-XXXX`), no host port forward | **~20 rooms** on default broker; rooms expire after **~15 min** idle |
+| **Advanced mode**: Direct IP / UPnP / custom broker | Direct IP host must **port-forward** TCP+UDP (default **23456**) |
+| Same **release zip** on all players | **Find match** / **Open rooms** are **experimental** |
+| Unofficial launcher + packaging on upstream sf4e (MIT) | **Not** maintained or endorsed by Anthony Danducci |
+
+**Less tested:** rematch, disconnect recovery, spectator mode, Linux/Proton.
+
+Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (also in the release zip).
 
 ## Documentation
 
@@ -64,6 +80,7 @@ Direct IP behavior is unchanged from v0.2.6 ? use Advanced when you prefer port-
 | [docs/CASUAL_NETPLAY.md](docs/CASUAL_NETPLAY.md) | Casual WAN play overview |
 | [docs/TEAM_QUICKSTART.md](docs/TEAM_QUICKSTART.md) | Packaged as `START_HERE.md` in the release zip |
 | [docs/SMOKE_TEST.md](docs/SMOKE_TEST.md) | Manual test checklist |
+| [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) | What this port is for, and known limits |
 | [ATTRIBUTION.md](ATTRIBUTION.md) | Upstream sf4e credit (Anthony Danducci) |
 | [docs/RELEASE.md](docs/RELEASE.md) | Building and publishing releases |
 
