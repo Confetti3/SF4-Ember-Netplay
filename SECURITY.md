@@ -45,9 +45,9 @@ This is an **unofficial community port** for casual friends-only netplay:
 - Room broker uses **HTTP** by default and has **no room authentication**
 - Room codes are short; active rooms may be listed publicly
 - **Sidecar.dll hash** ensures matching builds between players; it is **not** anti-cheat or code signing
-- Updates trust **GitHub releases** without separate code signatures (see [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md))
+- Updates trust **GitHub releases** without separate code signatures
 
-Use only with people you trust until HTTPS broker and auth land (planned v0.3.x).
+Use only with people you trust until HTTPS broker and auth land.
 
 ## Safe usage
 
@@ -59,8 +59,3 @@ Use only with people you trust until HTTPS broker and auth land (planned v0.3.x)
 ## Disclosure
 
 We prefer coordinated disclosure. Credit will be given in release notes unless you request anonymity.
-
-## Audit documentation
-
-Full review: [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md)  
-Remediation plan: [docs/SECURITY_REMEDIATION.md](docs/SECURITY_REMEDIATION.md)

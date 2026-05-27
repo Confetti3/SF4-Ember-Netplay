@@ -84,7 +84,6 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 | [ATTRIBUTION.md](ATTRIBUTION.md) | Upstream sf4e credit (Anthony Danducci) |
 | [SECURITY.md](SECURITY.md) | Security policy and supported versions |
 | [docs/OLD_REPO_ARCHIVE.md](docs/OLD_REPO_ARCHIVE.md) | README text for archiving the old `Confetti3/SF4e` repo |
-| [docs/DISCORD_REPLY_ANTHONY.md](docs/DISCORD_REPLY_ANTHONY.md) | Draft message to Anthony Danducci after v0.2.8 |
 | [docs/RELEASE.md](docs/RELEASE.md) | Building and publishing releases |
 
 ## Troubleshooting
