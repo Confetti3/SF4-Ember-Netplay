@@ -16,7 +16,7 @@ Default: `http://127.0.0.1:8787`. Point the launcher at it (Advanced → broker 
 SF4E_BROKER_URL=http://127.0.0.1:8787
 ```
 
-**Oracle Free deploy:** see [docs/ORACLE_BROKER.md](../../docs/ORACLE_BROKER.md).
+**Production VPS (TLS):** see [docs/VPS_TLS_SETUP.md](../../docs/VPS_TLS_SETUP.md).
 
 ## Host PC relay (with Oracle broker)
 

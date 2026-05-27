@@ -2,6 +2,14 @@
 
 > **SF4 Netplay Launcher** is an **experimental unofficial port** — not production-ready software. Bug reports help improve a friends-only test build; do not present this project as stable or "working" netplay for general use.
 
+## Developers: local git ignores
+
+The public GitHub repo does not include a root `.gitignore`. After cloning, copy the template so build output and local secrets stay untracked:
+
+```powershell
+copy contrib\developer-gitignore .gitignore
+```
+
 ## Testers and players: Submitting bugs
 
 **Please do**:
