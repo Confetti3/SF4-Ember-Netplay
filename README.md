@@ -14,7 +14,7 @@ Experimental Simple-mode netplay (Host ? room code ? Join ? fight). This is a **
 
 Full quality: [`docs/demo/SF4Demo.mp4`](docs/demo/SF4Demo.mp4) (~34 MB)
 
-https://github.com/Confetti3/SF4-Netplay-Launcher/releases/download/v0.2.8.1/SF4Demo-readme.mp4
+<video controls width="100%" src="https://raw.githubusercontent.com/Confetti3/SF4-Netplay-Launcher/main/docs/demo/SF4Demo-readme.mp4"></video>
 
 [Download full demo (MP4)](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/download/v0.2.8.1/SF4Demo.mp4)
 
