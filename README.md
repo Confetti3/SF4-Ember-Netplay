@@ -57,7 +57,7 @@ Direct IP behavior is unchanged from v0.2.6 - use Advanced when you prefer port-
 
 ## Scope and limitations
 
-This is a **community beta port** for friends playing USF4 rollback online ? not official sf4e and not a public matchmaking service.
+This is a **community beta port** for friends playing USF4 rollback online - not official sf4e and not a public matchmaking service.
 
 | In scope | Out of scope / limits |
 |----------|------------------------|
