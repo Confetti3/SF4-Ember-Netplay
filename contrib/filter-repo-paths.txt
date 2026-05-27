@@ -1,0 +1,14 @@
+.gitignore
+.gitlab-ci.yml
+.gitlab/issue_templates/Bug.md
+docs/SECURITY_REVIEW.md
+docs/SECURITY_REMEDIATION.md
+docs/security-review/
+docs/PRE_RELEASE_SECURITY_v0.3.0.md
+docs/NETPLAY_INVESTIGATION_PLAN.md
+docs/ORACLE_BROKER.md
+docs/VPS_RELAY_TEST_REPORT_v0.2.7.md
+scripts/enable-transport-auto-vps.py
+scripts/vps-port-diag-remote.py
+scripts/vps-ggpo-health-test.py
+scripts/vps-ggpo-start-test.py
