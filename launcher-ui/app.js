@@ -161,7 +161,7 @@
     if (!card || !valueEl) return;
 
     shareValues[id] = value || "";
-    valueEl.textContent = value || "—";
+    valueEl.textContent = value || "-";
     card.dataset.copy = value || "";
     card.classList.toggle("share-card--empty", !!empty || !value);
     if (copyBtn) copyBtn.disabled = !value;
@@ -220,7 +220,7 @@
       const relayPort = s.relayPort || s.relaySessionPort;
       if (relayCode) {
         hint.textContent = vpsRelay
-          ? "Share the relay code. Click Start game — joiners paste SF4-XXXX (no port forward on your PC)."
+          ? "Share the relay code. Click Start game - joiners paste SF4-XXXX (no port forward on your PC)."
           : relayPort
             ? "Share the relay code. Forward TCP+UDP port " +
               relayPort +
@@ -284,7 +284,7 @@
     }
     if ("natStatus" in data) {
       const nat = document.getElementById("host-nat-status");
-      if (nat) nat.textContent = data.natStatus + (data.natDetail ? " — " + data.natDetail : "");
+      if (nat) nat.textContent = data.natStatus + (data.natDetail ? " - " + data.natDetail : "");
     }
     if (hasRelayRoomFields(data)) {
       finalizeRelayRoomResponse(data);
@@ -361,7 +361,7 @@
     if ("connectionStatus" in s && !hasRelayRoomFields(s)) setStatus(s.connectionStatus, "success");
     if ("natStatus" in s) {
       const nat = document.getElementById("host-nat-status");
-      if (nat) nat.textContent = s.natStatus + (s.natDetail ? " — " + s.natDetail : "");
+      if (nat) nat.textContent = s.natStatus + (s.natDetail ? " - " + s.natDetail : "");
     }
 
     const installedEl = document.getElementById("installed-version");
@@ -477,8 +477,8 @@
         showToast("Copied to clipboard", "success");
       } else if (data.type === "state" && "heartbeatOk" in data) {
         if (data.heartbeatOk === false) {
-          showToast("Room connection lost — create a new room.", "error");
-          setStatus("Room connection lost — create a new relay room.", "error");
+          showToast("Room connection lost - create a new room.", "error");
+          setStatus("Room connection lost - create a new relay room.", "error");
           const startBtn = document.getElementById("btn-start-host");
           if (startBtn) startBtn.disabled = true;
         } else if (data.heartbeatOk === true) {
@@ -527,9 +527,9 @@
         }
       } else if (data.type === "updateApply") {
         setUpdateBusy(true);
-        renderUpdateStatus(data.message || "Installing update…", "success");
+        renderUpdateStatus(data.message || "Installing update...", "success");
         showInstallButton(false);
-        showToast(data.message || "Installing update…", "success");
+        showToast(data.message || "Installing update...", "success");
       }
     });
   }
@@ -644,13 +644,13 @@
 
   document.getElementById("btn-refresh-ip").addEventListener("click", function () {
     setButtonLoading("btn-refresh-ip", true);
-    setStatus("Detecting public IP…", "");
+    setStatus("Detecting public IP...", "");
     post({ type: "fetchPublicIp" });
   });
 
   document.getElementById("btn-try-upnp").addEventListener("click", function () {
     const port = document.getElementById("host-port");
-    setStatus("Trying UPnP port mapping…", "");
+    setStatus("Trying UPnP port mapping...", "");
     post({
       type: "tryUpnp",
       sessionPort: port ? parseInt(port.value, 10) : 23456,
@@ -659,7 +659,7 @@
 
   document.getElementById("btn-create-relay-room").addEventListener("click", function () {
     setButtonLoading("btn-create-relay-room", true);
-    setStatus("Creating relay room…", "");
+    setStatus("Creating relay room...", "");
     post({
       type: "createRelayRoom",
       displayName: getDisplayName(),
@@ -701,14 +701,14 @@
     if (preview && preview.indexOf("SF4-") === 0 && (vpsRelay || relayPort)) {
       setStatus(
         vpsRelay
-          ? "Starting game — joiners paste your relay code after you connect."
-          : "Starting game — joiners connect on port " + relayPort + ". Forward TCP+UDP " + relayPort + " first.",
+          ? "Starting game - joiners paste your relay code after you connect."
+          : "Starting game - joiners connect on port " + relayPort + ". Forward TCP+UDP " + relayPort + " first.",
         ""
       );
     } else if (method === "direct" || method === "autoNat") {
       const wanAddr = shareValues.wan || "";
       if (wanAddr) {
-        setStatus("Starting game — share " + wanAddr + " with joiner. Forward TCP+UDP on session port.", "");
+        setStatus("Starting game - share " + wanAddr + " with joiner. Forward TCP+UDP on session port.", "");
       }
     }
     post({
@@ -753,9 +753,9 @@
     setStatus(
       relayJoin
         ? vpsRelay
-          ? "Resolving room…"
-          : "Resolving room and checking host reachability…"
-        : "Connecting via direct IP…",
+          ? "Resolving room..."
+          : "Resolving room and checking host reachability..."
+        : "Connecting via direct IP...",
       ""
     );
     post({
@@ -774,7 +774,7 @@
   });
 
   document.getElementById("btn-find-match").addEventListener("click", function () {
-    setStatus("Searching for an opponent…", "");
+    setStatus("Searching for an opponent...", "");
     post({
       type: "start",
       mode: "join",
@@ -802,7 +802,7 @@
   document.getElementById("btn-check-update").addEventListener("click", function () {
     setUpdateBusy(true);
     setButtonLoading("btn-check-update", true);
-    renderUpdateStatus("Checking for updates…", "");
+    renderUpdateStatus("Checking for updates...", "");
     showInstallButton(false);
     post({ type: "checkUpdate" });
   });
@@ -816,7 +816,7 @@
     if (!window.confirm(msg)) return;
     setUpdateBusy(true);
     showOpenReleaseButton(false);
-    renderUpdateStatus("Downloading update…", "");
+    renderUpdateStatus("Downloading update...", "");
     post({ type: "applyUpdate" });
   });
 

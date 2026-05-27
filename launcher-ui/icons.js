@@ -4,7 +4,9 @@
     svg.setAttribute("class", className || "icon");
     svg.setAttribute("aria-hidden", "true");
     var use = document.createElementNS("http://www.w3.org/2000/svg", "use");
-    use.setAttribute("href", "#i-" + name);
+    var ref = "#i-" + name;
+    use.setAttribute("href", ref);
+    use.setAttributeNS("http://www.w3.org/1999/xlink", "href", ref);
     svg.appendChild(use);
     return svg;
   }

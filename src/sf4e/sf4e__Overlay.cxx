@@ -216,7 +216,7 @@ void Overlay::SetNetplayLobbyVisible(bool visible) {
 void Overlay::OnClientError(SessionClient::ErrorType errType, SessionClient* const client, const SessionClient::Callbacks& callbacks) {
 	switch (errType) {
 	case SessionClient::ErrorType::SCE_JOIN_REJECTED_HASH_INVALID:
-		clientAlerts.push_back("Version mismatch — update sf4e to the same build on both PCs.");
+		clientAlerts.push_back("Version mismatch - update sf4e to the same build on both PCs.");
 		break;
 	case SessionClient::ErrorType::SCE_JOIN_REJECTED_LOBBY_FULL:
 		clientAlerts.push_back("Could not join lobby: lobby full");
@@ -1163,7 +1163,7 @@ static void DrawNetplayPlayerPanel() {
 	else if (cfg.mode == (int)sf4e::NetplayMode::Host) {
 		if (cfg.useCentralSession == 2) {
 			if (cfg.relayRoomCode[0]) {
-				TextWrapped("Room code: %s — share with joiner", cfg.relayRoomCode);
+				TextWrapped("Room code: %s - share with joiner", cfg.relayRoomCode);
 			}
 			else {
 				TextWrapped("Share your relay code from the launcher with joiners.");
@@ -1184,7 +1184,7 @@ static void DrawNetplayPlayerPanel() {
 		TextWrapped("Ping: %d ms", st.pingMs);
 	}
 	if (st.inLobby) {
-		TextWrapped("Lobby — configure character and press Ready below.");
+		TextWrapped("Lobby - configure character and press Ready below.");
 		DrawNetworkLobbyPanel();
 	}
 	else if (st.inMatch) {
