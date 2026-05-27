@@ -2,6 +2,8 @@
 
 This document describes what **SF4 Netplay Launcher** is for, what it is **not**, and what to expect while using it.
 
+> **Experimental software.** This port is **not production-ready** and should **not** be presented as stable or "working" netplay for general use. It is intended for a **small friends group** who accept failed sessions, bugs, and breaking changes between releases.
+
 ## What this project is
 
 | In scope | Details |
@@ -10,9 +12,9 @@ This document describes what **SF4 Netplay Launcher** is for, what it is **not**
 | **Platform** | **Windows 10+** is the primary target |
 | **Netplay** | Rollback online play built on upstream [sf4e](https://codeberg.org/adanducci/sf4e) (MIT) |
 | **This port adds** | WebView2 launcher (Host / Join / Offline), **VPS relay room codes** (`SF4-XXXX`), team zip packaging |
-| **Recommended path** | **Simple mode** — Host creates a relay room, joiner pastes the same code; no host port forward |
-| **Also supported** | **Advanced mode** — Direct IP, UPnP, custom broker URL (classic sf4e-style setup) |
-| **Audience** | Friends / small groups testing casual WAN rollback — not a commercial matchmaking service |
+| **Recommended path** | **Simple mode** (experimental) — Host creates a relay room, joiner pastes the same code; no host port forward when relay works |
+| **Also supported** | **Advanced mode** (more experimental on WAN) — Direct IP, UPnP, custom broker URL |
+| **Audience** | Friends / small groups **testing** casual WAN rollback — not a commercial matchmaking service |
 
 ## What this project is not
 
@@ -21,7 +23,7 @@ This document describes what **SF4 Netplay Launcher** is for, what it is **not**
 - **Not** a replacement for Steam's built-in USF4 online while the sidecar is loaded
 - **Does not** include the game, Steam, or any copyrighted game assets
 - **Not** console or macOS native support
-- **Not** guaranteed stable production software — treat this as a **community beta port**
+- **Not** guaranteed stable or production-ready software — treat this as an **experimental community port**
 
 For official sf4e updates and support, use [Codeberg](https://codeberg.org/adanducci/sf4e).
 
@@ -42,13 +44,14 @@ For official sf4e updates and support, use [Codeberg](https://codeberg.org/adand
 
 ### Experimental features
 
-- **Find match** and **Open rooms** exist but are **experimental** — use **Host + room code** for reliable play
+- **Find match** and **Open rooms** are **experimental** — prefer **Host + room code** for the least-bad path
+- **Simple mode (VPS relay)** has worked in limited testing but **can still fail** (black screen, disconnect, broker full)
 - **Rematch**, **disconnect recovery**, and **spectator mode** need more testing — expect rough edges
 
 ### Advanced mode (Direct IP)
 
 - Host must **port-forward TCP and UDP** on the session port (default **23456**) unless UPnP succeeds
-- WAN Direct IP is less validated than Simple VPS relay in current beta testing
+- WAN Direct IP is less validated than Simple VPS relay in current experimental testing
 
 ### Platform and upstream behavior
 

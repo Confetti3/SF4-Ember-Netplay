@@ -1,17 +1,17 @@
-# SF4 Netplay Launcher — beta tester guide
+# SF4 Netplay Launcher — experimental tester guide
 
-> **Unofficial port** — not the official [sf4e](https://codeberg.org/adanducci/sf4e) project by Anthony Danducci. Report bugs for this port on GitHub, not to upstream sf4e.
+> **Experimental unofficial port** — not the official [sf4e](https://codeberg.org/adanducci/sf4e) project by Anthony Danducci. **Not production-ready software.** Report bugs for this port on GitHub, not to upstream sf4e.
 
-Thank you for testing VPS rollback netplay. Follow these steps so sessions work reliably.
+Thank you for helping test this **friends-only experiment**. Sessions may fail — that is expected.
 
 ## Before you play
 
-1. Download the latest team zip from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) (currently **v0.2.8**).
+1. Download the latest team zip from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) (currently **v0.2.8.1**).
 2. Extract the **entire** zip to one folder on each PC — keep `Launcher.exe`, `Sidecar.dll`, and `launcher-ui/` together.
 3. Run **`preflight.cmd`** once per machine (optional sanity check).
-4. Confirm both players show the **same version** in the launcher header (e.g. `v0.2.8`). Use **Check for updates** if versions differ.
+4. Confirm both players show the **same version** in the launcher header (e.g. `v0.2.8.1`). Use **Check for updates** if versions differ.
 
-## Recommended flow (Simple mode)
+## Recommended flow (Simple mode — experimental)
 
 | Step | Host | Joiner |
 |------|------|--------|
@@ -21,11 +21,11 @@ Thank you for testing VPS rollback netplay. Follow these steps so sessions work 
 | 4 | Both press **Ready** in the in-game lobby | Same |
 | 5 | Play | Same |
 
-Stay in **Simple mode** (default). Do not use **Find match** or **Open rooms** unless asked — those features are experimental.
+Stay in **Simple mode** (default). Do not use **Find match** or **Open rooms** unless asked — those paths are even less tested.
 
 ## Scope and limits (summary)
 
-- **Beta community port** — Windows + Steam USF4 only; you must own the game
+- **Experimental port** — Windows + Steam USF4 only; you must own the game; **not finished software**
 - **Same zip** on both PCs; default broker has **~20 rooms** and **~15 min** idle expiry
 - **Not tested enough yet:** rematch, disconnect recovery, spectator mode
 - Full details: [`docs/SCOPE_AND_LIMITATIONS.md`](SCOPE_AND_LIMITATIONS.md)

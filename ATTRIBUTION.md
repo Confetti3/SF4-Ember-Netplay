@@ -2,7 +2,7 @@
 
 ## Important — unofficial port
 
-**SF4 Netplay Launcher is an unofficial port.** It is **not** the official [sf4e](https://codeberg.org/adanducci/sf4e) project, and it is **not** affiliated with or endorsed by **Anthony Danducci**, Capcom, or Valve.
+**SF4 Netplay Launcher is an experimental unofficial port.** It is **not** the official [sf4e](https://codeberg.org/adanducci/sf4e) project, and it is **not** affiliated with or endorsed by **Anthony Danducci**, Capcom, or Valve. It is **not production-ready software** and should not be presented as stable or "working" netplay.
 
 For the official upstream project and updates, use Anthony Danducci's sf4e on Codeberg — not this repository.
 
@@ -25,9 +25,9 @@ Community additions in this unofficial port:
 - VPS relay room codes (`SF4-XXXX`) and team packaging
 - Release scripts and tester documentation
 
-**Scope:** USF4 on Steam, Windows 10+, rollback netplay for small groups. **Not** a commercial matchmaking service.
+**Scope:** USF4 on Steam, Windows 10+, rollback netplay for a **small friends group**. **Not** a commercial matchmaking service. **Not production-ready software.**
 
-**Limitations:** beta quality; shared public broker; experimental Find match / Open rooms; rematch/disconnect/spectator less tested. See [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md).
+**Limitations:** **Experimental** community port — netplay may fail; shared public broker; Find match / Open rooms are extra experimental; rematch/disconnect/spectator barely tested. Do **not** present this as stable or "working" netplay for general use. See [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md).
 
 Maintained at: [github.com/Confetti3/SF4-Netplay-Launcher](https://github.com/Confetti3/SF4-Netplay-Launcher)
 

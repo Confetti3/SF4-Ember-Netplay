@@ -277,13 +277,14 @@ if (Test-Path $Security) {
 
 $BuildInfo = @"
 
-SF4 Netplay Launcher package — UNOFFICIAL PORT (not official sf4e)
-This is a community port. It is NOT maintained or endorsed by Anthony Danducci.
+SF4 Netplay Launcher package — EXPERIMENTAL UNOFFICIAL PORT (not official sf4e)
+NOT PRODUCTION-READY SOFTWARE. Friends-only testing; sessions may fail.
+This is a community experiment. It is NOT maintained or endorsed by Anthony Danducci.
 Official sf4e by Anthony Danducci: https://codeberg.org/adanducci/sf4e
 This port: https://github.com/Confetti3/SF4-Netplay-Launcher
 
-Scope: USF4 Steam / Windows 10+ / rollback netplay for small groups (beta).
-Limits: shared broker (~20 rooms), experimental matchmaking, rematch/disconnect less tested.
+Scope: USF4 Steam / Windows 10+ / experimental rollback for small friend groups.
+Limits: not finished software; shared broker (~20 rooms); failed sessions expected.
 See docs/SCOPE_AND_LIMITATIONS.md
 
 Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss zzz")

@@ -1,8 +1,8 @@
 # SF4 Netplay Launcher — team test package
 
-> **Unofficial port** — this is **not** the official [sf4e](https://codeberg.org/adanducci/sf4e) project by Anthony Danducci. See `ATTRIBUTION.md`.
+> **Experimental unofficial port** — this is **not** the official [sf4e](https://codeberg.org/adanducci/sf4e) project by Anthony Danducci. **Not production-ready.** See `ATTRIBUTION.md`.
 
-This folder is a **self-contained unofficial port** for netplay testing. It does not include the game itself.
+This folder is a **self-contained experimental port** for netplay testing with friends. It does not include the game itself. **Expect bugs and failed sessions.**
 
 **Official upstream:** [sf4e on Codeberg](https://codeberg.org/adanducci/sf4e) — use that for Anthony Danducci's official project and updates.
 
@@ -11,7 +11,7 @@ This folder is a **self-contained unofficial port** for netplay testing. It does
 | In scope | Limits |
 |----------|--------|
 | USF4 on Steam, Windows 10+ | Game **not included** |
-| Simple VPS room codes (`SF4-XXXX`) | Community **beta** — not official sf4e |
+| Simple VPS room codes (`SF4-XXXX`) | **Experimental** — not official sf4e |
 | Same zip on all players | Shared broker (~**20 rooms**, ~**15 min** idle expiry) |
 | Advanced Direct IP / UPnP | Host port-forward for Direct IP; Find match / Open rooms **experimental** |
 
@@ -26,7 +26,7 @@ Full list: [`docs/SCOPE_AND_LIMITATIONS.md`](SCOPE_AND_LIMITATIONS.md) in this f
    - **Ultra Street Fighter IV** on Steam (app ID 45760)
 3. **Run** `preflight.ps1` (optional sanity check), then **`Launcher.exe`** from that folder → **Host**, **Join**, or **Offline**.
 
-## Beta testers
+## Experimental testers
 
 Inviting friends? Share [`docs/BETA_TESTERS.md`](BETA_TESTERS.md) — same zip on both PCs, current `SF4-XXXX` from host, log paths for bug reports.
 

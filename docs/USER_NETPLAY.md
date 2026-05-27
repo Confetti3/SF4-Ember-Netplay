@@ -1,6 +1,6 @@
 # Ultra Street Fighter IV — SF4 Netplay Launcher (player guide)
 
-> **Unofficial port** — based on upstream [sf4e](https://codeberg.org/adanducci/sf4e) by Anthony Danducci (MIT). Anthony Danducci does not maintain or endorse this launcher. See `ATTRIBUTION.md`.
+> **Experimental unofficial port** — based on upstream [sf4e](https://codeberg.org/adanducci/sf4e) by Anthony Danducci (MIT). Anthony Danducci does not maintain or endorse this launcher. **Not production-ready** — netplay may fail. See `ATTRIBUTION.md`.
 
 ## Prerequisites
 
@@ -14,7 +14,7 @@
 3. In the WebView2 launcher, choose **Host**, **Join**, or **Offline**.
 4. Click **Start game** — USF4 launches with netplay configured.
 
-## Simple mode (relay — recommended)
+## Simple mode (relay — experimental, friends-only)
 
 **Simple mode** is on by default. Use short room codes — no manual IP entry.
 

@@ -1,10 +1,10 @@
 # SF4 Netplay Launcher
 
-> **Unofficial port** - **not** the official [sf4e](https://codeberg.org/adanducci/sf4e) project by **[Anthony Danducci](https://codeberg.org/adanducci/sf4e)**. This community build adds a launcher and VPS room codes on top of upstream sf4e (MIT). Anthony Danducci does not maintain, endorse, or support this port. See [ATTRIBUTION.md](ATTRIBUTION.md).
+> **Unofficial experimental port** - **not** the official [sf4e](https://codeberg.org/adanducci/sf4e) project by **[Anthony Danducci](https://codeberg.org/adanducci/sf4e)**. Anthony Danducci does not maintain, endorse, or support this build. This is **not production-ready software** - a friends-only experiment built on upstream sf4e (MIT). See [ATTRIBUTION.md](ATTRIBUTION.md) and [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md).
 
-**SF4 Netplay Launcher** is a **third-party, unofficial port** for _Ultra Street Fighter IV_ on Steam. It adds a WebView2 **Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e's rollback netplay - so friends can play online without port forwarding on the host PC.
+**SF4 Netplay Launcher** is a **third-party, experimental unofficial port** for _Ultra Street Fighter IV_ on Steam. It adds a WebView2 **Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e's rollback netplay. Netplay may fail, desync, or break between releases - use only with people who accept that risk.
 
-**Latest release:** [v0.2.8](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest)
+**Latest release:** [v0.2.8.1](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest)
 
 **Download:** [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) - get the **team zip** asset (not "Source code" only).
 
@@ -31,9 +31,9 @@ Install once on each PC:
 
 Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.2.7.3`). Use **Check for updates** on the home screen to upgrade.
 
-### 3. Play online (Simple mode - recommended)
+### 3. Play online (Simple mode - experimental)
 
-The launcher defaults to **Simple mode**. No router setup on the host PC - traffic goes through the VPS relay.
+The launcher defaults to **Simple mode**. This path is **experimental** - it has worked in small tests but is not guaranteed. No router setup on the host PC when the VPS relay path works.
 
 | Step | Host | Joiner |
 |------|------|--------|
@@ -46,7 +46,7 @@ The launcher defaults to **Simple mode**. No router setup on the host PC - traff
 **Tips**
 
 - Share the **current** room code from the host screen - old codes point at empty or expired sessions.
-- Stay in **Simple mode** for beta testing. **Find match** and **Open rooms** (Advanced only) are experimental.
+- Stay in **Simple mode** for testing with friends. **Find match** and **Open rooms** (Advanced only) are more experimental still.
 - If USF4 is not detected automatically, set `STEAM_APP_PATH` to your `Super Street Fighter IV - Arcade Edition` folder before launching.
 
 ### 4. Advanced mode (Direct IP)
@@ -57,7 +57,7 @@ Direct IP behavior is unchanged from v0.2.6 - use Advanced when you prefer port-
 
 ## Scope and limitations
 
-This is a **community beta port** for friends playing USF4 rollback online - not official sf4e and not a public matchmaking service.
+This is an **experimental unofficial port** for a **small friends group** - not official sf4e, not a public matchmaking service, and **not presented as finished or production-ready software**.
 
 | In scope | Out of scope / limits |
 |----------|------------------------|
@@ -75,7 +75,7 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 
 | Doc | Audience |
 |-----|----------|
-| [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md) | Beta testers - quick checklist and bug reports |
+| [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md) | Experimental testers - quick checklist and bug reports |
 | [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md) | Player guide - Simple + Advanced flows |
 | [docs/CASUAL_NETPLAY.md](docs/CASUAL_NETPLAY.md) | Casual WAN play overview |
 | [docs/TEAM_QUICKSTART.md](docs/TEAM_QUICKSTART.md) | Packaged as `START_HERE.md` in the release zip |
@@ -83,7 +83,6 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 | [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) | What this port is for, and known limits |
 | [ATTRIBUTION.md](ATTRIBUTION.md) | Upstream sf4e credit (Anthony Danducci) |
 | [SECURITY.md](SECURITY.md) | Security policy and supported versions |
-| [docs/OLD_REPO_ARCHIVE.md](docs/OLD_REPO_ARCHIVE.md) | README text for archiving the old `Confetti3/SF4e` repo |
 | [docs/RELEASE.md](docs/RELEASE.md) | Building and publishing releases |
 
 ## Troubleshooting
@@ -113,12 +112,12 @@ Default broker: `http://74.208.200.95:8787` (VPS relay - no host port forward in
 
 ## For developers
 
-This repository builds **SF4 Netplay Launcher** ? an **unofficial port** of upstream [sf4e](https://codeberg.org/adanducci/sf4e) by Anthony Danducci (MIT). The launcher, broker tooling, and packaging are maintained here; Anthony Danducci maintains official sf4e on Codeberg.
+This repository builds **SF4 Netplay Launcher** - an **unofficial port** of upstream [sf4e](https://codeberg.org/adanducci/sf4e) by Anthony Danducci (MIT). The launcher, broker tooling, and packaging are maintained here; Anthony Danducci maintains official sf4e on Codeberg.
 
 **Publish a release:**
 
 ```powershell
-powershell -NoProfile -File scripts/github-release.ps1 -Tag v0.2.8 -NotesFile docs/RELEASE_NOTES_v0.2.8.md
+powershell -NoProfile -File scripts/github-release.ps1 -Tag v0.2.8.1 -NotesFile docs/RELEASE_NOTES_v0.2.8.1.md
 ```
 
 See [docs/RELEASE.md](docs/RELEASE.md).
@@ -151,7 +150,7 @@ To build with VS2019 16.10+:
 
 1. Follow steps 1 and 2 in [`vcpkg`'s Getting Started guide](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started),
    stopping after `vcpkg` has been bootstrapped.
-   - You can stop at step 3 ? this repo already has a manifest file.
+   - You can stop at step 3 - this repo already has a manifest file.
 2. Set up a local `CMakeUserPresets.json` to describe your environment.
    The following can be used as a quickstart, making sure to provide the
    path to the copy of `vcpkg` checked out in step 1: 

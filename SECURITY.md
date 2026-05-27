@@ -4,7 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| 0.2.8+  | Yes (current team releases) |
+| 0.2.8.1+ | Yes (current team releases) |
+| 0.2.8    | Yes (same netplay build; use 0.2.8.1+ for current experimental messaging) |
 | ≤ 0.2.7 | No |
 
 Security fixes are published as GitHub releases on [Confetti3/SF4-Netplay-Launcher](https://github.com/Confetti3/SF4-Netplay-Launcher).
@@ -38,9 +39,9 @@ We aim to acknowledge within **7 days** and provide a fix or mitigation plan wit
 - Physical access to a user's PC
 - DDoS at scale against the public broker
 
-## Known limitations (beta)
+## Known limitations (experimental)
 
-This is an **unofficial community port** for casual friends-only netplay:
+This is an **experimental unofficial port** for casual friends-only netplay — **not production-ready software**:
 
 - Room broker uses **HTTP** by default and has **no room authentication**
 - Room codes are short; active rooms may be listed publicly

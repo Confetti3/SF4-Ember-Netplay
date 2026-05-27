@@ -1,6 +1,6 @@
 # SF4 Netplay Launcher room broker
 
-Lightweight HTTP broker for **~$10/month** casual netplay: short codes (`SF4-XXXX`), room caps, idle cleanup, and quick match queue.
+Lightweight HTTP broker for **~$10/month** casual netplay in an **experimental unofficial port**: short codes (`SF4-XXXX`), room caps, idle cleanup, and quick match queue. Not production infrastructure — friends-only testing scale.
 
 ## Run locally
 

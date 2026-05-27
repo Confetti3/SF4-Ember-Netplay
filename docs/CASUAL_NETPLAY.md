@@ -1,6 +1,6 @@
-# Casual netplay (budget setup)
+# Casual netplay (experimental setup)
 
-SF4 Netplay Launcher supports **Simple mode** (default): relay room codes, no port-forward talk, and optional Advanced direct IP / UPnP.
+SF4 Netplay Launcher supports **Simple mode** (default): relay room codes in an **experimental** friends-only setup, plus optional Advanced direct IP / UPnP.
 
 ## Tester quick start
 
@@ -21,8 +21,8 @@ set SF4E_BROKER_URL=http://YOUR_VPS:8787
 | **Relay room** | ~$5 VPS + broker | WAN friends, CGNAT, no port forward |
 | **Direct + UPnP** | $0 | Same network or router supports UPnP |
 | **Direct IP** | $0 | LAN party or you already forwarded ports |
-| **Find match** | Same broker | Experimental — prefer Host + room code for beta |
-| **Open rooms** | Same broker | Experimental — browse list; not primary beta path |
+| **Find match** | Same broker | Experimental — prefer Host + room code for friends testing |
+| **Open rooms** | Same broker | Experimental — browse list; not primary testing path |
 
 ## Invite links
 

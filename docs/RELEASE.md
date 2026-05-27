@@ -1,5 +1,7 @@
 # Publishing SF4 Netplay Launcher releases
 
+> **Experimental unofficial port** — release notes and zip assets should describe this as **not production-ready** friends-only test software. See [docs/SCOPE_AND_LIMITATIONS.md](SCOPE_AND_LIMITATIONS.md) and [docs/RELEASE_NOTES_TEMPLATE.md](RELEASE_NOTES_TEMPLATE.md).
+
 ## One-command release (recommended)
 
 From the repository root, with Visual Studio build tools and `gh` CLI installed:
@@ -33,6 +35,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 3. **Share with testers**
 
    - Link: `https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest`
+   - Tell them this is **experimental** test software — not production-ready; sessions may fail
    - Tell them to download the **Assets** zip (not source-only)
    - Same zip on both PCs; run `preflight.cmd` then `Launcher.exe`
 

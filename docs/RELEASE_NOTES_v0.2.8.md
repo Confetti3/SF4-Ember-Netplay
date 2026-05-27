@@ -1,6 +1,8 @@
 # SF4 Netplay Launcher v0.2.8
 
-Rebrand and security hardening release.
+Rebrand, security hardening, and **experimental** framing release.
+
+> **Not production-ready.** Experimental unofficial port for a small friends group — not presented as stable or finished netplay software.
 
 ## What's new
 
@@ -28,9 +30,9 @@ This build is an unofficial port of [sf4e](https://codeberg.org/adanducci/sf4e) 
 
 Both players must use the **same release zip**.
 
-## Simple mode (recommended)
+## Simple mode (experimental)
 
-Host → **Create relay room** → share **`SF4-XXXX`** → Joiner pastes code → both **Start game** → **Ready** in-game.
+Host → **Create relay room** → share **`SF4-XXXX`** → Joiner pastes code → both **Start game** → **Ready** in-game. This path has worked in limited testing but **may still fail**.
 
 ## Upgrade from v0.2.7.x
 

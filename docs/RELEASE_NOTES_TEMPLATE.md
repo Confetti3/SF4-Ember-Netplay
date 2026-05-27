@@ -2,6 +2,8 @@
 
 VPS relay rollback netplay for **Ultra Street Fighter IV** (Steam) with a modern **SF4 Netplay Launcher** UI.
 
+> **Experimental unofficial port** — not production-ready software. Friends-only testing; expect bugs and failed sessions.
+
 ## What's new
 
 - **Simple mode** (default): VPS relay room codes **`SF4-XXXX`** — no port forward on the host PC
@@ -35,7 +37,7 @@ This is an **unofficial port** of [sf4e](https://codeberg.org/adanducci/sf4e) by
 | No port forward on host PC | No port forward needed |
 | Both **Ready** in-game | **Same release zip** on both PCs |
 
-See `docs/BETA_TESTERS.md` in the zip for the full beta checklist.
+See `docs/BETA_TESTERS.md` in the zip for the full experimental tester checklist.
 
 ## Broker override
 
@@ -50,10 +52,10 @@ set SF4E_BROKER_URL=http://your-broker:8787
 See [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) for the full list. Summary:
 
 - Both players must use the **same release zip** (`Sidecar.dll` must match)
-- **Find match** and **Open rooms** are experimental — use **Host + room code** for beta testing
+- **Find match** and **Open rooms** are experimental — use **Host + room code** for friends testing
 - VPS relay supports up to **20** concurrent rooms on the default broker; idle rooms expire after ~15 minutes
 - Advanced Direct IP still requires host **TCP+UDP** port forward on the session port
-- Rematch, disconnect recovery, and spectator mode need more beta coverage
+- Rematch, disconnect recovery, and spectator mode need more experimental testing coverage
 
 ## Support
 

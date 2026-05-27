@@ -117,11 +117,12 @@
       <div class="header-top">
         <div>
           <h1>SF4 Netplay Launcher</h1>
-          <p class="subtitle">Ultra Street Fighter IV rollback netplay</p>
+          <p class="subtitle">Experimental unofficial port — USF4 rollback netplay (not production-ready)</p>
           <p class="disclaimer-banner" role="note">
-            <strong>Unofficial port</strong> — not the official
+            <strong>Experimental · unofficial</strong> — not the official
             <a href="https://codeberg.org/adanducci/sf4e" target="_blank" rel="noopener noreferrer">sf4e</a>
             project by Anthony Danducci. Anthony Danducci does not maintain or endorse this build.
+            This is friends-only test software — expect bugs and failed sessions.
             For upstream sf4e, use
             <a href="https://codeberg.org/adanducci/sf4e" target="_blank" rel="noopener noreferrer">Codeberg</a>.
           </p>
@@ -148,26 +149,26 @@
 
     <section id="screen-home" class="screen active">
       <div class="panel scope-panel" role="note" aria-label="Project scope and limitations">
-        <h3 class="section-label">Scope and limitations</h3>
+        <h3 class="section-label">Experimental — scope and limits</h3>
         <div class="scope-grid">
           <div>
-            <p class="scope-heading">In scope</p>
+            <p class="scope-heading">What this is</p>
             <ul class="scope-list">
-              <li>USF4 on Steam, Windows 10+</li>
+              <li>Friends-only experiment on USF4 (Steam)</li>
               <li>Simple mode: VPS room codes (<code>SF4-XXXX</code>)</li>
-              <li>Same release zip on all players</li>
+              <li>Same release zip required on all players</li>
             </ul>
           </div>
           <div>
-            <p class="scope-heading">Limits</p>
+            <p class="scope-heading">What to expect</p>
             <ul class="scope-list">
-              <li>Community beta — not official sf4e</li>
-              <li>Game not included; shared broker (~20 rooms)</li>
-              <li>Find match / Open rooms are experimental</li>
+              <li>Not official sf4e — not production software</li>
+              <li>Sessions may fail; shared broker (~20 rooms)</li>
+              <li>Find match / Open rooms are extra experimental</li>
             </ul>
           </div>
         </div>
-        <p class="scope-foot">Rematch, disconnect recovery, and spectator mode are less tested. See <code>docs/SCOPE_AND_LIMITATIONS.md</code> in the zip.</p>
+        <p class="scope-foot">Rematch, disconnect recovery, and spectator mode are barely tested. Use at your own risk. See <code>docs/SCOPE_AND_LIMITATIONS.md</code> in the zip.</p>
       </div>
 
       <div class="card-grid">
@@ -202,21 +203,21 @@
 
       <div class="panel quick-actions advanced-only">
         <h3 class="section-label">Quick actions <span class="experimental-tag">Experimental</span></h3>
-        <p class="panel-hint">Use <strong>Host</strong> and share your room code for reliable beta play.</p>
+        <p class="panel-hint">Experimental only — use <strong>Host</strong> + room code with friends who know this may not work.</p>
         <div class="quick-actions-row">
           <button type="button" class="quick-action-btn" id="btn-find-match" title="Experimental — use Host + room code for now">
             <span class="quick-action-icon" aria-hidden="true">
               <svg class="icon"><use href="#i-search"/></svg>
             </span>
             <strong>Find match</strong>
-            <span>Join the queue (beta)</span>
+            <span>Join the queue (experimental)</span>
           </button>
           <button type="button" class="quick-action-btn" id="btn-browse-rooms" title="Experimental — use Host + room code for now">
             <span class="quick-action-icon" aria-hidden="true">
               <svg class="icon"><use href="#i-list"/></svg>
             </span>
             <strong>Open rooms</strong>
-            <span>Browse relay list (beta)</span>
+            <span>Browse relay list (experimental)</span>
           </button>
         </div>
       </div>
