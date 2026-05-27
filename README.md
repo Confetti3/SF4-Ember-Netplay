@@ -1,12 +1,12 @@
 # SF4 Netplay Launcher
 
-> **Unofficial port** ? **not** the official [sf4e](https://codeberg.org/adanducci/sf4e) project by **[Anthony Danducci](https://codeberg.org/adanducci/sf4e)**. This community build adds a launcher and VPS room codes on top of upstream sf4e (MIT). Anthony Danducci does not maintain, endorse, or support this port. See [ATTRIBUTION.md](ATTRIBUTION.md).
+> **Unofficial port** - **not** the official [sf4e](https://codeberg.org/adanducci/sf4e) project by **[Anthony Danducci](https://codeberg.org/adanducci/sf4e)**. This community build adds a launcher and VPS room codes on top of upstream sf4e (MIT). Anthony Danducci does not maintain, endorse, or support this port. See [ATTRIBUTION.md](ATTRIBUTION.md).
 
-**SF4 Netplay Launcher** is a **third-party, unofficial port** for _Ultra Street Fighter IV_ on Steam. It adds a WebView2 **Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e's rollback netplay ? so friends can play online without port forwarding on the host PC.
+**SF4 Netplay Launcher** is a **third-party, unofficial port** for _Ultra Street Fighter IV_ on Steam. It adds a WebView2 **Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e's rollback netplay - so friends can play online without port forwarding on the host PC.
 
 **Latest release:** [v0.2.8](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest)
 
-**Download:** [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) ? get the **team zip** asset (not "Source code" only).
+**Download:** [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) - get the **team zip** asset (not "Source code" only).
 
 [TOC]
 
