@@ -12,7 +12,7 @@ Also includes v0.2.5 changes: join preflight for relay codes, join overlay impro
 
 ## Based on sf4e
 
-This build is a fork of [sf4e](https://codeberg.org/adanducci/sf4e) by Anthony Danducci and contributors (MIT). See `ATTRIBUTION.md` in the zip.
+This build is an **unofficial port** of [sf4e](https://codeberg.org/adanducci/sf4e) by Anthony Danducci and contributors (MIT). Anthony Danducci does not maintain or endorse this port. See `ATTRIBUTION.md` in the zip.
 
 ## Prerequisites
 

@@ -15,7 +15,7 @@ Relay-first rollback netplay for **Ultra Street Fighter IV** (Steam) with a mode
 
 ## Based on sf4e
 
-This build is a fork of [sf4e](https://codeberg.org/adanducci/sf4e) by Anthony Danducci and contributors (MIT). See `ATTRIBUTION.md` in the zip.
+This build is an **unofficial port** of [sf4e](https://codeberg.org/adanducci/sf4e) by Anthony Danducci and contributors (MIT). Anthony Danducci does not maintain or endorse this port. See `ATTRIBUTION.md` in the zip.
 
 ## Prerequisites
 

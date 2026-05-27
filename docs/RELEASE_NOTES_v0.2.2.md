@@ -13,7 +13,7 @@ Rollback netplay for **Ultra Street Fighter IV** (Steam) with launcher-driven Ho
 
 ## Based on sf4e
 
-Fork of [sf4e](https://codeberg.org/adanducci/sf4e) (MIT). See `ATTRIBUTION.md` in the zip.
+Unofficial port of [sf4e](https://codeberg.org/adanducci/sf4e) by Anthony Danducci (MIT). Anthony Danducci does not maintain or endorse this port. See `ATTRIBUTION.md` in the zip.
 
 ## Prerequisites
 

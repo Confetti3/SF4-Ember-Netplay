@@ -4,14 +4,14 @@ Rebrand and security hardening release.
 
 ## What's new
 
-- **Product rename:** SF4 Enhanced → **SF4 Netplay Launcher** ([Confetti3/SF4-netplay-launcher](https://github.com/Confetti3/SF4-netplay-launcher))
-- **Upstream attribution:** README, launcher UI, and `ATTRIBUTION.md` clearly credit [sf4e by Anthony Danducci](https://codeberg.org/adanducci/sf4e) as the upstream project — this is an **unofficial fork**
+- **Product rename:** SF4 Enhanced → **SF4 Netplay Launcher** ([Confetti3/SF4-Netplay-Launcher](https://github.com/Confetti3/SF4-Netplay-Launcher))
+- **Upstream attribution:** README, launcher UI, and `ATTRIBUTION.md` clearly credit [sf4e by Anthony Danducci](https://codeberg.org/adanducci/sf4e) as the upstream project — this is an **unofficial port** (not maintained or endorsed by Anthony Danducci)
 - **Safer in-app updater:** no PowerShell `-ExecutionPolicy Bypass` — updates use native `tar.exe` for zip extraction and **`Updater.exe`** to apply files
 - **Preflight helper:** double-click **`preflight.cmd`** instead of running PowerShell with bypass flags
 
 ## Based on sf4e
 
-This build is an unofficial fork of [sf4e](https://codeberg.org/adanducci/sf4e) by **Anthony Danducci** and contributors (MIT). See `ATTRIBUTION.md` in the zip.
+This build is an unofficial port of [sf4e](https://codeberg.org/adanducci/sf4e) by **Anthony Danducci** and contributors (MIT). Anthony Danducci does not maintain or endorse this port. See `ATTRIBUTION.md` in the zip.
 
 ## Prerequisites
 
@@ -21,7 +21,7 @@ This build is an unofficial fork of [sf4e](https://codeberg.org/adanducci/sf4e) 
 
 ## Install
 
-1. Download the **sf4-netplay-launcher-*.zip** asset from [Releases](https://github.com/Confetti3/SF4-netplay-launcher/releases/latest)
+1. Download the **sf4-netplay-launcher-*.zip** asset from [Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest)
 2. Extract the entire zip to one folder
 3. Optional: run **`preflight.cmd`**
 4. Run **`Launcher.exe`**

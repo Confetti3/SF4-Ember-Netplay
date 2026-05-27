@@ -270,6 +270,11 @@ if (Test-Path $Attribution) {
     Copy-Item $Attribution $PackageRoot
 }
 
+$Security = Join-Path $RepoRoot "SECURITY.md"
+if (Test-Path $Security) {
+    Copy-Item $Security $PackageRoot
+}
+
 $BuildInfo = @"
 
 SF4 Netplay Launcher package — UNOFFICIAL PORT (not official sf4e)
