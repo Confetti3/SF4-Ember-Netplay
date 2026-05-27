@@ -21,7 +21,7 @@ namespace launcher {
 
 	namespace {
 
-		static const char* kDefaultGithubRepo = "Confetti3/SF4-Netplay-Launcher";
+		static const char* kDefaultGithubRepo = "Confetti3/SF4-netplay-launcher";
 
 		static const char* kRequiredPackagePaths[] = {
 			"Launcher.exe",

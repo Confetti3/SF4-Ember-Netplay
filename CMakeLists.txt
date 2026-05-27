@@ -4,7 +4,7 @@ project (
     sf4e
     VERSION 0.0.1
     DESCRIPTION "A process-inspection and modification tool for the Steam release of Ultra Street Fighter 4."
-    HOMEPAGE_URL "https://github.com/Confetti3/SF4-Netplay-Launcher"
+    HOMEPAGE_URL "https://github.com/Confetti3/SF4-netplay-launcher"
 )
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")

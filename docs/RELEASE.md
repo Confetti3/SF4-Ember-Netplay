@@ -32,7 +32,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 
 3. **Share with testers**
 
-   - Link: `https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest`
+   - Link: `https://github.com/Confetti3/SF4-netplay-launcher/releases/latest`
    - Tell them to download the **Assets** zip (not source-only)
    - Same zip on both PCs; run `preflight.cmd` then `Launcher.exe`
 

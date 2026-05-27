@@ -1,12 +1,12 @@
-ï»¿# SF4 Netplay Launcher
+# SF4 Netplay Launcher
 
 > **Unofficial fork** of **[sf4e](https://codeberg.org/adanducci/sf4e)** by **[Anthony Danducci](https://codeberg.org/adanducci/sf4e)** and contributors (MIT). This is **not** the upstream sf4e project. See [ATTRIBUTION.md](ATTRIBUTION.md).
 
-**SF4 Netplay Launcher** adds a WebView2 **Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4eâ€™s rollback netplay for _Ultra Street Fighter IV_ on Steam â€” so friends can play online without port forwarding on the host PC.
+**SF4 Netplay Launcher** adds a WebView2 **Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e’s rollback netplay for _Ultra Street Fighter IV_ on Steam — so friends can play online without port forwarding on the host PC.
 
-**Latest release:** [v0.2.8](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest)
+**Latest release:** [v0.2.8](https://github.com/Confetti3/SF4-netplay-launcher/releases/latest)
 
-**Download:** [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) â€” get the **team zip** asset (not "Source code" only).
+**Download:** [GitHub Releases](https://github.com/Confetti3/SF4-netplay-launcher/releases/latest) — get the **team zip** asset (not "Source code" only).
 
 [TOC]
 
@@ -24,28 +24,28 @@ Install once on each PC:
 
 ### 2. Install
 
-1. Download the latest **team zip** from [Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest).
-2. Extract the **entire** zip to one folder (e.g. `C:\Games\SF4-Netplay-Launcher\`). Keep all files together â€” do not copy only `Launcher.exe`.
+1. Download the latest **team zip** from [Releases](https://github.com/Confetti3/SF4-netplay-launcher/releases/latest).
+2. Extract the **entire** zip to one folder (e.g. `C:\Games\SF4-Netplay-Launcher\`). Keep all files together — do not copy only `Launcher.exe`.
 3. Optional: run `preflight.cmd` to verify the package.
 4. Double-click **`Launcher.exe`**.
 
 Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.2.7.3`). Use **Check for updates** on the home screen to upgrade.
 
-### 3. Play online (Simple mode â€” recommended)
+### 3. Play online (Simple mode — recommended)
 
-The launcher defaults to **Simple mode**. No router setup on the host PC â€” traffic goes through the VPS relay.
+The launcher defaults to **Simple mode**. No router setup on the host PC — traffic goes through the VPS relay.
 
 | Step | Host | Joiner |
 |------|------|--------|
-| 1 | Click **Host** â†’ **Create relay room** | Wait |
-| 2 | Copy the **`SF4-XXXX`** code shown on screen | Click **Join** â†’ paste that exact code |
+| 1 | Click **Host** ? **Create relay room** | Wait |
+| 2 | Copy the **`SF4-XXXX`** code shown on screen | Click **Join** ? paste that exact code |
 | 3 | Click **Start game** | Wait until host is in-game, then **Start game** |
 | 4 | Press **Ready** in the in-game lobby | Press **Ready** |
 | 5 | Pick characters and fight | Same |
 
 **Tips**
 
-- Share the **current** room code from the host screen â€” old codes point at empty or expired sessions.
+- Share the **current** room code from the host screen — old codes point at empty or expired sessions.
 - Stay in **Simple mode** for beta testing. **Find match** and **Open rooms** (Advanced only) are experimental.
 - If USF4 is not detected automatically, set `STEAM_APP_PATH` to your `Super Street Fighter IV - Arcade Edition` folder before launching.
 
@@ -53,14 +53,14 @@ The launcher defaults to **Simple mode**. No router setup on the host PC â€” tra
 
 Switch to **Advanced** in the launcher for classic host/join with `IP:port`, local relay, or UPnP. The host must **port-forward TCP+UDP** on the session port (default **23456**). See [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md).
 
-Direct IP behavior is unchanged from v0.2.6 â€” use Advanced when you prefer port-forward over VPS room codes.
+Direct IP behavior is unchanged from v0.2.6 — use Advanced when you prefer port-forward over VPS room codes.
 
 ## Documentation
 
 | Doc | Audience |
 |-----|----------|
-| [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md) | Beta testers â€” quick checklist and bug reports |
-| [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md) | Player guide â€” Simple + Advanced flows |
+| [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md) | Beta testers — quick checklist and bug reports |
+| [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md) | Player guide — Simple + Advanced flows |
 | [docs/CASUAL_NETPLAY.md](docs/CASUAL_NETPLAY.md) | Casual WAN play overview |
 | [docs/TEAM_QUICKSTART.md](docs/TEAM_QUICKSTART.md) | Packaged as `START_HERE.md` in the release zip |
 | [docs/SMOKE_TEST.md](docs/SMOKE_TEST.md) | Manual test checklist |
@@ -77,7 +77,7 @@ Direct IP behavior is unchanged from v0.2.6 â€” use Advanced when you prefer por
 | Black screen after portraits | Update to **v0.2.7.3+** on **both** PCs |
 | Join fails before game starts | Host must click **Start game** first |
 
-**Logs:** `%APPDATA%\sf4e\logs\sf4e.log` Â· **Console:** `Launcher.exe --console` Â· **Build info:** `BUILD_INFO.txt`
+**Logs:** `%APPDATA%\sf4e\logs\sf4e.log` · **Console:** `Launcher.exe --console` · **Build info:** `BUILD_INFO.txt`
 
 **Report bugs:** include the Git line from `BUILD_INFO.txt`, both players' `sf4e.log` if possible, and steps to reproduce. See [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md).
 
@@ -85,12 +85,12 @@ Direct IP behavior is unchanged from v0.2.6 â€” use Advanced when you prefer por
 
 | Setting | How |
 |---------|-----|
-| Broker URL | Advanced â†’ **Room broker URL**, or `set SF4E_BROKER_URL=http://your-broker:8787` |
+| Broker URL | Advanced ? **Room broker URL**, or `set SF4E_BROKER_URL=http://your-broker:8787` |
 | Developer overlay | `Launcher.exe --dev-overlay` or `set SF4E_NETPLAY_DEV=1` |
 | Offline (no netplay) | **Offline** on the launcher home screen |
 | Reset stuck settings | Delete or edit `%APPDATA%\sf4e\config.json` |
 
-Default broker: `http://74.208.200.95:8787` (VPS relay â€” no host port forward in Simple mode).
+Default broker: `http://74.208.200.95:8787` (VPS relay — no host port forward in Simple mode).
 
 ## For developers
 
@@ -204,31 +204,31 @@ This project is licensed under the MIT License - see the LICENSE.md file for det
 ## External Licenses and Copyright Information
 
 Street Fighter, Street Fighter 4, Ultra Street Fighter 4, and all related software
-Copyright Â© CAPCOM.
+Copyright © CAPCOM.
 
 Steam
-Copyright Â© Valve Corporation.
+Copyright © Valve Corporation.
 
 Visual Studio, Visual Studio 2019, vcpkg, and Detours
-Copyright Â© Microsoft Corporation.
+Copyright © Microsoft Corporation.
 
 CMake - Cross Platform Makefile Generator
-Copyright Â© Kitware, Inc. and Contributors.
+Copyright © Kitware, Inc. and Contributors.
 
 ValveFileVDF
-Copyright Â© Matthias MÃ¶ller.
+Copyright © Matthias Möller.
 
 Dear Imgui
-Copyright Â© Omar Cornut
+Copyright © Omar Cornut
 
 spdlog
-Copyright Â© 2016 Gabi Melman.
+Copyright © 2016 Gabi Melman.
 
 nlohmann/json
-Copyright Â© 2013-2022 Niels Lohmann
+Copyright © 2013-2022 Niels Lohmann
 
 GameNetworkingSockets
-Copyright Â© 2018, Valve Corporation
+Copyright © 2018, Valve Corporation
 
 GGPO (Good Game Peace Out)
-Copyright Â© GroundStorm Studios, LLC.
+Copyright © GroundStorm Studios, LLC.

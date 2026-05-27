@@ -11,7 +11,7 @@ Hotfix for relay host session connection and RelayHost startup reliability.
 
 ## Upgrade from v0.2.2
 
-Download and extract the new team zip on **both PCs**. Use **Check for updates** on the launcher home screen, or grab the asset from [Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest).
+Download and extract the new team zip on **both PCs**. Use **Check for updates** on the launcher home screen, or grab the asset from [Releases](https://github.com/Confetti3/SF4-netplay-launcher/releases/latest).
 
 Host relay flow: **Create relay room** → **Start game** → overlay should show **Connected: yes** within a few seconds.
 

@@ -19,7 +19,7 @@ Inviting friends? Share [`docs/BETA_TESTERS.md`](BETA_TESTERS.md) — same zip o
 
 ## Updating
 
-On the launcher home screen, use **Check for updates** to compare your install against the latest [GitHub release](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest). If a newer build is available, **Install update** downloads the team zip and replaces all files in the install folder (your settings in `%APPDATA%\sf4e\` are kept). Close USF4 before installing.
+On the launcher home screen, use **Check for updates** to compare your install against the latest [GitHub release](https://github.com/Confetti3/SF4-netplay-launcher/releases/latest). If a newer build is available, **Install update** downloads the team zip and replaces all files in the install folder (your settings in `%APPDATA%\sf4e\` are kept). Close USF4 before installing.
 
 ```powershell
 preflight.cmd

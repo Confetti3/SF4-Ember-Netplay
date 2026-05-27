@@ -19,7 +19,7 @@ Community enhancements in this repository:
 - VPS relay room codes (`SF4-XXXX`) and team packaging
 - Release scripts and tester documentation
 
-Maintained at: [github.com/Confetti3/SF4-Netplay-Launcher](https://github.com/Confetti3/SF4-Netplay-Launcher)
+Maintained at: [github.com/Confetti3/SF4-netplay-launcher](https://github.com/Confetti3/SF4-netplay-launcher)
 
 ## License
 

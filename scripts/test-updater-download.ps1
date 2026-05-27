@@ -2,7 +2,7 @@
 # Usage: powershell -NoProfile -File scripts\test-updater-download.ps1
 
 param(
-    [string]$Repo = "Confetti3/SF4-Netplay-Launcher"
+    [string]$Repo = "Confetti3/SF4-netplay-launcher"
 )
 
 $ErrorActionPreference = "Stop"
