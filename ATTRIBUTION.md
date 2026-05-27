@@ -15,7 +15,7 @@ This port is based on **[sf4e](https://codeberg.org/adanducci/sf4e)** by **Antho
 
 Anthony Danducci's sf4e is a process-inspection and modification tool for the Steam release of *Ultra Street Fighter IV*, including rollback netplay via GGPO and GameNetworkingSockets.
 
-**Anthony Danducci does not maintain this port** 
+**Anthony Danducci does not maintain this port.** 
 
 ## This port (SF4 Netplay Launcher)
 
