@@ -1,8 +1,10 @@
 # SF4 Netplay Launcher — team test package
 
-This folder is a **self-contained SF4 Netplay Launcher build** (unofficial sf4e fork by Anthony Danducci) for netplay testing. It does not include the game itself.
+> **Unofficial port** — this is **not** the official [sf4e](https://codeberg.org/adanducci/sf4e) project by Anthony Danducci. See `ATTRIBUTION.md`.
 
-Upstream: [sf4e by adanducci](https://codeberg.org/adanducci/sf4e). See `ATTRIBUTION.md` in the full repository.
+This folder is a **self-contained unofficial port** for netplay testing. It does not include the game itself.
+
+**Official upstream:** [sf4e on Codeberg](https://codeberg.org/adanducci/sf4e) — use that for Anthony Danducci's official project and updates.
 
 ## Quick start (3 steps)
 
@@ -19,7 +21,7 @@ Inviting friends? Share [`docs/BETA_TESTERS.md`](BETA_TESTERS.md) — same zip o
 
 ## Updating
 
-On the launcher home screen, use **Check for updates** to compare your install against the latest [GitHub release](https://github.com/Confetti3/SF4-netplay-launcher/releases/latest). If a newer build is available, **Install update** downloads the team zip and replaces all files in the install folder (your settings in `%APPDATA%\sf4e\` are kept). Close USF4 before installing.
+On the launcher home screen, use **Check for updates** to compare your install against the latest [GitHub release](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest). If a newer build is available, **Install update** downloads the team zip and replaces all files in the install folder (your settings in `%APPDATA%\sf4e\` are kept). Close USF4 before installing.
 
 ```powershell
 preflight.cmd

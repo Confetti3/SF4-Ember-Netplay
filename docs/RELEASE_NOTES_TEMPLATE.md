@@ -9,9 +9,9 @@ VPS relay rollback netplay for **Ultra Street Fighter IV** (Steam) with a modern
 - **Advanced mode:** Direct IP, UPnP, custom broker URL (unchanged from v0.2.6 routing)
 - In-app updater: **Check for updates** on the launcher home screen
 
-## Based on sf4e
+## Unofficial port (not official sf4e)
 
-This build is an unofficial fork of [sf4e](https://codeberg.org/adanducci/sf4e) by **Anthony Danducci** and contributors (MIT). See `ATTRIBUTION.md` in the zip.
+This is an **unofficial port** of [sf4e](https://codeberg.org/adanducci/sf4e) by **Anthony Danducci** and contributors (MIT). It is **not** the upstream project and is **not** endorsed by Anthony Danducci. See `ATTRIBUTION.md` in the zip. For official sf4e, use [Codeberg](https://codeberg.org/adanducci/sf4e).
 
 ## Prerequisites
 

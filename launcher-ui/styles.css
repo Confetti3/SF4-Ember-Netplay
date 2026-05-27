@@ -76,19 +76,28 @@ body {
   font-size: 13px;
 }
 
-.upstream-credit {
-  margin: 6px 0 0;
+.disclaimer-banner {
+  margin: 8px 0 0;
+  padding: 8px 10px;
   font-size: 11px;
+  line-height: 1.45;
   color: var(--text-muted);
-  line-height: 1.4;
+  background: rgba(255, 180, 80, 0.08);
+  border: 1px solid rgba(255, 180, 80, 0.22);
+  border-radius: 6px;
+  max-width: 520px;
 }
 
-.upstream-credit a {
+.disclaimer-banner strong {
+  color: var(--text);
+}
+
+.disclaimer-banner a {
   color: var(--accent);
   text-decoration: none;
 }
 
-.upstream-credit a:hover {
+.disclaimer-banner a:hover {
   text-decoration: underline;
 }
 

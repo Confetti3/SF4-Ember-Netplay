@@ -1,25 +1,31 @@
 # Attribution
 
+## Important — unofficial port
+
+**SF4 Netplay Launcher is an unofficial port.** It is **not** the official [sf4e](https://codeberg.org/adanducci/sf4e) project, and it is **not** affiliated with or endorsed by **Anthony Danducci**, Capcom, or Valve.
+
+For the official upstream project and updates, use Anthony Danducci's sf4e on Codeberg — not this repository.
+
 ## Upstream project (sf4e)
 
-**SF4 Netplay Launcher** is an **unofficial fork** of **[sf4e](https://codeberg.org/adanducci/sf4e)** by **Anthony Danducci** and contributors.
+This port is based on **[sf4e](https://codeberg.org/adanducci/sf4e)** by **Anthony Danducci** and contributors (MIT).
 
 - Upstream repository: [codeberg.org/adanducci/sf4e](https://codeberg.org/adanducci/sf4e)
 - Mirror: [gitlab.com/adanducci/sf4e](https://gitlab.com/adanducci/sf4e)
 
-Anthony Danducci’s sf4e is a process-inspection and modification tool for the Steam release of *Ultra Street Fighter IV*, including rollback netplay via GGPO and GameNetworkingSockets.
+Anthony Danducci's sf4e is a process-inspection and modification tool for the Steam release of *Ultra Street Fighter IV*, including rollback netplay via GGPO and GameNetworkingSockets.
 
-**This repository is not the upstream sf4e project.** Anthony Danducci does not maintain this fork unless he chooses to contribute separately.
+**Anthony Danducci does not maintain this port** unless he chooses to contribute separately.
 
-## This fork (SF4 Netplay Launcher)
+## This port (SF4 Netplay Launcher)
 
-Community enhancements in this repository:
+Community additions in this unofficial port:
 
 - WebView2 launcher (Host / Join / Offline)
 - VPS relay room codes (`SF4-XXXX`) and team packaging
 - Release scripts and tester documentation
 
-Maintained at: [github.com/Confetti3/SF4-netplay-launcher](https://github.com/Confetti3/SF4-netplay-launcher)
+Maintained at: [github.com/Confetti3/SF4-Netplay-Launcher](https://github.com/Confetti3/SF4-Netplay-Launcher)
 
 ## License
 
@@ -29,4 +35,4 @@ This project remains under the [MIT License](LICENSE), consistent with upstream 
 
 See [README.md](README.md#external-licenses-and-copyright-information) for dependency and trademark notices (Capcom, Valve, Microsoft, etc.).
 
-**SF4 Netplay Launcher is not affiliated with or endorsed by Capcom, Valve, or Anthony Danducci beyond the open-source license.** You must own *Ultra Street Fighter IV* on Steam to play.
+You must own *Ultra Street Fighter IV* on Steam to play.

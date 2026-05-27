@@ -270,8 +270,10 @@ if (Test-Path $Attribution) {
 
 $BuildInfo = @"
 
-SF4 Netplay Launcher package (unofficial sf4e fork)
-Upstream sf4e by Anthony Danducci: https://codeberg.org/adanducci/sf4e
+SF4 Netplay Launcher package — UNOFFICIAL PORT (not official sf4e)
+This is a community port. It is NOT maintained or endorsed by Anthony Danducci.
+Official sf4e by Anthony Danducci: https://codeberg.org/adanducci/sf4e
+This port: https://github.com/Confetti3/SF4-Netplay-Launcher
 
 Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss zzz")
 

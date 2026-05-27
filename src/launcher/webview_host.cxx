@@ -430,7 +430,7 @@ namespace launcher {
 
 			wc.lpszClassName,
 
-			L"SF4 Netplay Launcher",
+			L"SF4 Netplay Launcher (unofficial port)",
 
 			WS_OVERLAPPEDWINDOW,
 
