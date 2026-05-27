@@ -53,8 +53,6 @@ namespace launcher {
 
 		static WebViewUiState* g_ui = nullptr;
 
-
-
 		static void PostJsonToWeb(ICoreWebView2* webview, const nlohmann::json& j) {
 
 			if (!webview || j.is_null() || j.empty()) {
@@ -293,14 +291,15 @@ namespace launcher {
 													args->put_Cancel(TRUE);
 													return S_OK;
 												}
-												wchar_t path[MAX_PATH * 2] = { 0 };
-												DWORD pathLen = MAX_PATH * 2;
-												if (UrlCanonicalizeW(uriWide.get(), path, &pathLen, URL_UNESCAPE) != S_OK) {
-													args->put_Cancel(TRUE);
-													return S_OK;
+												wchar_t localPath[MAX_PATH * 2] = { 0 };
+												wcsncpy_s(localPath, uriWide.get() + 8, _TRUNCATE);
+												for (wchar_t* p = localPath; *p; ++p) {
+													if (*p == L'/') {
+														*p = L'\\';
+													}
 												}
 												wchar_t fullPath[MAX_PATH * 2] = { 0 };
-												if (!GetFullPathNameW(path, MAX_PATH * 2, fullPath, NULL)) {
+												if (!GetFullPathNameW(localPath, MAX_PATH * 2, fullPath, NULL)) {
 													args->put_Cancel(TRUE);
 													return S_OK;
 												}

@@ -11,7 +11,7 @@
     "type",
     "v",
   ];
-  let state = { simpleUi: true, defaultConnectMethod: 1 };
+  let state = { simpleUi: true, defaultConnectMethod: 1, sessionRelayCode: "" };
   let updateInfo = { zipDownloadUrl: "", zipApiUrl: "", latestVersion: "", releaseUrl: "", updateAvailable: false };
   let updateBusy = false;
   let shareValues = { relay: "", lan: "", wan: "" };
@@ -195,12 +195,7 @@
     const hiddenPreview = document.getElementById("host-room-preview");
     if (hiddenPreview) hiddenPreview.textContent = preview;
 
-    let relayCode = "";
-    if (isShortRoomCode(preview)) {
-      relayCode = preview;
-    } else if (s.relayRoomCode && isShortRoomCode(s.relayRoomCode)) {
-      relayCode = s.relayRoomCode;
-    }
+    let relayCode = state.sessionRelayCode || "";
     setShareCard("relay", relayCode, !relayCode);
 
     const lanAddr = s.lanAddress || s.lanRoomCode || formatAddress(s.lanIp, port);
@@ -232,7 +227,7 @@
               " on your router before joiners connect. Click Start game first."
             : "Share the relay code for WAN play, or LAN address for same-network players.";
       } else if (isSimple() && vpsRelay) {
-        hint.textContent = "Click Create relay room to get your SF4-XXXX code.";
+        hint.textContent = "Click Get code to create a relay room, then share it with your opponent.";
       } else if (!wanEmpty) {
         hint.textContent =
           "Direct IP: share the public address card. Forward TCP+UDP on session port for WAN joiners.";
@@ -255,6 +250,7 @@
     if (!data) return;
     if (data.roomCodePreview !== undefined) {
       state.roomCodePreview = data.roomCodePreview;
+      state.sessionRelayCode = isShortRoomCode(data.roomCodePreview) ? data.roomCodePreview : "";
     }
     if (data.relayPort !== undefined) {
       state.relayPort = data.relayPort;
@@ -693,6 +689,10 @@
     }
     const method = getHostConnectMethod();
     const preview = document.getElementById("host-room-preview").textContent;
+    if (method === "relay" && (!preview || preview.indexOf("SF4-") !== 0)) {
+      setStatus("Click Get code before starting.", "error");
+      return;
+    }
     const portEl = document.getElementById("host-port");
     const sessionPort = portEl ? parseInt(portEl.value, 10) : state.sessionPort || 23456;
     const advEl = document.getElementById("host-advertise");

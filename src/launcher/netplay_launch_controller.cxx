@@ -272,18 +272,6 @@ namespace launcher {
 			j["forceVpsRelay"] = brokerHealth.forceVpsRelay;
 		}
 
-		if (m_settings.relayRoomCode[0]) {
-
-			j["roomCodePreview"] = m_settings.relayRoomCode;
-
-		}
-
-		if (m_settings.relaySessionPort > 0) {
-
-			j["relayPort"] = m_settings.relaySessionPort;
-
-		}
-
 		j["featureFlags"] = {
 
 			{ "matchmaking", true },
@@ -666,8 +654,6 @@ namespace launcher {
 
 			strncpy_s(m_settings.relayHostSecret, created.hostSecret.c_str(), _TRUNCATE);
 
-			SavePersistedSettings(m_settings);
-
 			BrokerHealth brokerHealth;
 			const bool vpsRelay = FetchBrokerHealth(m_settings.brokerBaseUrl, brokerHealth) && brokerHealth.forceVpsRelay;
 
@@ -897,37 +883,19 @@ namespace launcher {
 
 					if (relayCode.empty()) {
 
-						RelayRoomCreateResult created = CreateRelayRoomWithAdvertise(m_settings, m_settings.displayName);
+						nlohmann::json err;
 
-						if (!created.ok) {
+						err["v"] = kProtocolVersion;
 
-							nlohmann::json err;
+						err["type"] = "error";
 
-							err["v"] = kProtocolVersion;
+						err["message"] = "Click Get code before starting.";
 
-							err["type"] = "error";
-
-							err["message"] = created.error;
-
-							return err;
-
-						}
-
-						relayCode = created.shortCode;
-
-						strncpy_s(m_settings.relayRoomCode, relayCode.c_str(), _TRUNCATE);
-
-						strncpy_s(m_settings.relayHostSecret, created.hostSecret.c_str(), _TRUNCATE);
-
-						m_settings.relaySessionPort = created.relayPort;
-
-						strncpy_s(m_outConfig.sessionHost, created.relayHost, _TRUNCATE);
-
-						m_outConfig.sessionPort = created.relayPort;
+						return err;
 
 					}
 
-					else {
+					{
 
 						JoinRequest lookup;
 
