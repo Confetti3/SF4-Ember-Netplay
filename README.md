@@ -2,11 +2,11 @@
 
 > **Unofficial fork** of **[sf4e](https://codeberg.org/adanducci/sf4e)** by **[Anthony Danducci](https://codeberg.org/adanducci/sf4e)** and contributors (MIT). This is **not** the upstream sf4e project. See [ATTRIBUTION.md](ATTRIBUTION.md).
 
-**SF4 Netplay Launcher** adds a WebView2 **Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e’s rollback netplay for _Ultra Street Fighter IV_ on Steam — so friends can play online without port forwarding on the host PC.
+**SF4 Netplay Launcher** adds a WebView2 **Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e?s rollback netplay for _Ultra Street Fighter IV_ on Steam ? so friends can play online without port forwarding on the host PC.
 
-**Latest release:** [v0.2.8](https://github.com/Confetti3/SF4-netplay-launcher/releases/latest)
+**Latest release:** [v0.2.8](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest)
 
-**Download:** [GitHub Releases](https://github.com/Confetti3/SF4-netplay-launcher/releases/latest) — get the **team zip** asset (not "Source code" only).
+**Download:** [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) ? get the **team zip** asset (not "Source code" only).
 
 [TOC]
 
@@ -24,16 +24,16 @@ Install once on each PC:
 
 ### 2. Install
 
-1. Download the latest **team zip** from [Releases](https://github.com/Confetti3/SF4-netplay-launcher/releases/latest).
-2. Extract the **entire** zip to one folder (e.g. `C:\Games\SF4-Netplay-Launcher\`). Keep all files together — do not copy only `Launcher.exe`.
+1. Download the latest **team zip** from [Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest).
+2. Extract the **entire** zip to one folder (e.g. `C:\Games\SF4-Netplay-Launcher\`). Keep all files together ? do not copy only `Launcher.exe`.
 3. Optional: run `preflight.cmd` to verify the package.
 4. Double-click **`Launcher.exe`**.
 
 Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.2.7.3`). Use **Check for updates** on the home screen to upgrade.
 
-### 3. Play online (Simple mode — recommended)
+### 3. Play online (Simple mode ? recommended)
 
-The launcher defaults to **Simple mode**. No router setup on the host PC — traffic goes through the VPS relay.
+The launcher defaults to **Simple mode**. No router setup on the host PC ? traffic goes through the VPS relay.
 
 | Step | Host | Joiner |
 |------|------|--------|
@@ -45,7 +45,7 @@ The launcher defaults to **Simple mode**. No router setup on the host PC — traff
 
 **Tips**
 
-- Share the **current** room code from the host screen — old codes point at empty or expired sessions.
+- Share the **current** room code from the host screen ? old codes point at empty or expired sessions.
 - Stay in **Simple mode** for beta testing. **Find match** and **Open rooms** (Advanced only) are experimental.
 - If USF4 is not detected automatically, set `STEAM_APP_PATH` to your `Super Street Fighter IV - Arcade Edition` folder before launching.
 
@@ -53,14 +53,14 @@ The launcher defaults to **Simple mode**. No router setup on the host PC — traff
 
 Switch to **Advanced** in the launcher for classic host/join with `IP:port`, local relay, or UPnP. The host must **port-forward TCP+UDP** on the session port (default **23456**). See [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md).
 
-Direct IP behavior is unchanged from v0.2.6 — use Advanced when you prefer port-forward over VPS room codes.
+Direct IP behavior is unchanged from v0.2.6 ? use Advanced when you prefer port-forward over VPS room codes.
 
 ## Documentation
 
 | Doc | Audience |
 |-----|----------|
-| [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md) | Beta testers — quick checklist and bug reports |
-| [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md) | Player guide — Simple + Advanced flows |
+| [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md) | Beta testers ? quick checklist and bug reports |
+| [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md) | Player guide ? Simple + Advanced flows |
 | [docs/CASUAL_NETPLAY.md](docs/CASUAL_NETPLAY.md) | Casual WAN play overview |
 | [docs/TEAM_QUICKSTART.md](docs/TEAM_QUICKSTART.md) | Packaged as `START_HERE.md` in the release zip |
 | [docs/SMOKE_TEST.md](docs/SMOKE_TEST.md) | Manual test checklist |
@@ -90,7 +90,7 @@ Direct IP behavior is unchanged from v0.2.6 — use Advanced when you prefer port-
 | Offline (no netplay) | **Offline** on the launcher home screen |
 | Reset stuck settings | Delete or edit `%APPDATA%\sf4e\config.json` |
 
-Default broker: `http://74.208.200.95:8787` (VPS relay — no host port forward in Simple mode).
+Default broker: `http://74.208.200.95:8787` (VPS relay ? no host port forward in Simple mode).
 
 ## For developers
 

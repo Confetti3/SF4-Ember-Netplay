@@ -6,7 +6,7 @@ param(
     [string]$Tag,
     [string]$VersionLabel = "",
     [string]$OutDir = "dist",
-    [string]$Repo = "Confetti3/SF4-netplay-launcher",
+    [string]$Repo = "Confetti3/SF4-Netplay-Launcher",
     [string]$NotesFile = "",
     [switch]$SkipBuild
 )
