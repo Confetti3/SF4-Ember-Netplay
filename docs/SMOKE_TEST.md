@@ -17,6 +17,7 @@ Run after netplay or UX changes.
 
 - [ ] LAN 2P: three rounds, no desync dialog, rollback audio acceptable.
 - [ ] Relay 2P (default): NAT or without GGPO port forward still connects.
+- [ ] Transport modes: see [TRANSPORT_REGRESSION.md](TRANSPORT_REGRESSION.md) when changing GGPO transport.
 - [ ] Rematch: second game starts without snapshot/desync spam.
 - [ ] Disconnect mid-match: returns to menu without crash.
 - [ ] Spectator (3rd client in queue): can watch; host session stays up until spectator leaves or timeout.

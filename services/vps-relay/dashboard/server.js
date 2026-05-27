@@ -9,7 +9,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 
 const PORT = parseInt(process.env.DASHBOARD_PORT || "8789", 10);
-const BIND = process.env.DASHBOARD_BIND || "0.0.0.0";
+const BIND = process.env.DASHBOARD_BIND || "127.0.0.1";
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "admin";
 const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH || "";
 const SESSION_SECRET = process.env.SESSION_SECRET || "";
@@ -17,7 +17,10 @@ const SESSION_TTL_SEC = parseInt(process.env.SESSION_TTL_SEC || "28800", 10);
 const RELAY_MANAGER_URL =
   process.env.RELAY_MANAGER_URL || "http://127.0.0.1:8788";
 const BROKER_URL = process.env.BROKER_URL || "http://127.0.0.1:8787";
-const COOKIE_SECURE = process.env.COOKIE_SECURE === "1";
+const COOKIE_SECURE =
+  process.env.COOKIE_SECURE === "1" ||
+  (process.env.COOKIE_SECURE !== "0" && BIND === "127.0.0.1");
+const TRUST_PROXY = process.env.DASHBOARD_TRUST_PROXY !== "0";
 const STARTED_AT = Date.now();
 
 const SESSION_COOKIE = "sf4e_relay_session";
@@ -26,6 +29,9 @@ const SESSION_COOKIE = "sf4e_relay_session";
 const sessions = new Map();
 
 const app = express();
+if (TRUST_PROXY) {
+  app.set("trust proxy", ["127.0.0.1", "::1", "loopback"]);
+}
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
@@ -35,6 +41,9 @@ const LOGIN_RATE_LIMIT = 5;
 const LOGIN_RATE_WINDOW_MS = 15 * 60 * 1000;
 
 function clientIp(req) {
+  if (TRUST_PROXY && req.ip) {
+    return req.ip;
+  }
   const forwarded = req.headers["x-forwarded-for"];
   if (typeof forwarded === "string" && forwarded.trim()) {
     return forwarded.split(",")[0].trim();
@@ -533,6 +542,28 @@ app.get("/dashboard", requireAuth, (_req, res) => {
         </div>
 
         <div class="card">
+          <strong class="section-title">Match Coordinator</strong>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Room</th>
+                  <th>Match ID</th>
+                  <th>Transport</th>
+                  <th>Session</th>
+                  <th>GGPO UDP</th>
+                  <th>Started</th>
+                  <th>Last Event</th>
+                </tr>
+              </thead>
+              <tbody id="matches-body">
+                <tr><td colspan="7" class="empty">Loading matches…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
           <strong class="section-title">Relay Processes</strong>
           <div style="overflow-x:auto;">
             <table>
@@ -608,6 +639,28 @@ app.get("/dashboard", requireAuth, (_req, res) => {
           }).join("");
         }
 
+        function renderMatches(matches) {
+          const body = document.getElementById("matches-body");
+          if (!matches.length) {
+            body.innerHTML = '<tr><td colspan="7" class="empty">No active matches.</td></tr>';
+            return;
+          }
+          body.innerHTML = matches.map(function (m) {
+            const events = Array.isArray(m.events) ? m.events : [];
+            const lastEvent = events.length ? events[events.length - 1].type : "—";
+            const transport = m.transportActive || m.ggpoTransport || "pending";
+            return '<tr>' +
+              '<td><code>' + escapeHtml(m.code || "—") + '</code></td>' +
+              '<td><code title="' + escapeHtml(m.matchId || "") + '">' + escapeHtml((m.matchId || "—").slice(0, 8)) + '</code></td>' +
+              '<td>' + escapeHtml(transport) + '</td>' +
+              '<td><code>' + escapeHtml(m.port || "—") + '</code></td>' +
+              '<td><code>' + escapeHtml(m.ggpoPort || "—") + '</code></td>' +
+              '<td>' + (m.startedAt ? escapeHtml(new Date(m.startedAt).toLocaleTimeString()) : '<span class="muted">—</span>') + '</td>' +
+              '<td>' + escapeHtml(lastEvent) + '</td>' +
+            '</tr>';
+          }).join("");
+        }
+
         function renderSessions(sessions) {
           const body = document.getElementById("sessions-body");
           if (!sessions.length) {
@@ -674,7 +727,11 @@ app.get("/dashboard", requireAuth, (_req, res) => {
           document.getElementById("last-updated").textContent =
             "Updated " + new Date().toLocaleTimeString();
           renderRooms(data.rooms || []);
+          renderMatches(data.matches || []);
           renderSessions(data.sessions || []);
+          if (Array.isArray(data.ggpoSessions) && data.ggpoSessions.length) {
+            setText("stat-sessions", String(data.manager.sessions ?? 0) + " session / " + String(data.ggpoSessions.length) + " ggpo");
+          }
         }
 
         document.getElementById("refresh-btn").addEventListener("click", loadStatus);
@@ -687,12 +744,14 @@ app.get("/dashboard", requireAuth, (_req, res) => {
 
 app.get("/api/status", requireAuth, async (_req, res) => {
   try {
-    const [healthRes, sessionsRes, brokerHealthRes, brokerRoomsRes] =
+    const [healthRes, sessionsRes, ggpoSessionsRes, brokerHealthRes, brokerRoomsRes, brokerMatchesRes] =
       await Promise.all([
         relayFetch("/v1/health"),
         relayFetch("/v1/sessions"),
+        relayFetch("/v1/ggpo-sessions"),
         brokerFetch("/v1/health"),
         brokerFetch("/v1/rooms"),
+        brokerFetch("/v1/matches"),
       ]);
 
     if (healthRes.status >= 500) {
@@ -708,14 +767,37 @@ app.get("/api/status", requireAuth, async (_req, res) => {
     const rawSessions = Array.isArray(sessionsRes.body?.sessions)
       ? sessionsRes.body.sessions
       : [];
+    const rawGgpoSessions = Array.isArray(ggpoSessionsRes.body?.sessions)
+      ? ggpoSessionsRes.body.sessions
+      : [];
     const rawRooms = Array.isArray(brokerRoomsRes.body?.rooms)
       ? brokerRoomsRes.body.rooms
       : [];
+    const rawMatches = Array.isArray(brokerMatchesRes.body?.matches)
+      ? brokerMatchesRes.body.matches
+      : rawRooms;
     const now = Date.now();
     const roomIdleMs = broker.roomIdleMs || 15 * 60 * 1000;
     const maxRooms = broker.maxRooms || 20;
     const relayPortBase = broker.relayPortBase || 23456;
     const relayPortEnd = relayPortBase + maxRooms - 1;
+
+    const ggpoSessionsWithHealth = await Promise.all(
+      rawGgpoSessions.map(async (session) => {
+        const health = await relayFetch(`/v1/ggpo-sessions/${session.port}/health`);
+        const h = health.body || {};
+        return {
+          port: session.port,
+          sessionPort: session.sessionPort,
+          pid: session.pid,
+          startedAt: session.startedAt,
+          uptime: formatUptime(session.startedAt),
+          running: Boolean(h.running),
+          listening: Boolean(h.listening),
+          ok: Boolean(h.ok),
+        };
+      })
+    );
 
     const sessionsWithHealth = await Promise.all(
       rawSessions.map(async (session) => {
@@ -748,6 +830,10 @@ app.get("/api/status", requireAuth, async (_req, res) => {
         code: room.code,
         displayName: room.displayName,
         port: room.port,
+        ggpoPort: room.ggpoPort || 0,
+        matchId: room.matchId || null,
+        transportActive: room.transportActive || null,
+        ggpoTransport: room.ggpoTransport || null,
         host: room.host,
         age: formatDuration(ageMs),
         idleFor: formatDuration(idleMs),
@@ -755,6 +841,20 @@ app.get("/api/status", requireAuth, async (_req, res) => {
         relayOk: Boolean(session?.ok),
         relayRunning: Boolean(session?.running),
         relayListening: Boolean(session?.listening),
+      };
+    });
+
+    const matches = rawMatches.map((match) => {
+      const room = rawRooms.find((r) => r.code === match.code) || match;
+      return {
+        code: match.code || room.code,
+        matchId: match.matchId || room.matchId,
+        transportActive: match.transportActive || room.transportActive,
+        ggpoTransport: match.ggpoTransport || room.ggpoTransport,
+        port: match.port || room.port,
+        ggpoPort: match.ggpoPort || room.ggpoPort,
+        startedAt: match.startedAt || room.startedAt,
+        events: match.events || [],
       };
     });
 
@@ -791,12 +891,16 @@ app.get("/api/status", requireAuth, async (_req, res) => {
       manager: {
         ok: Boolean(manager.ok),
         sessions: manager.sessions ?? rawSessions.length,
+        ggpoSessions: manager.ggpoSessions ?? rawGgpoSessions.length,
         relayBin: manager.relayBin || null,
+        ggpoRelayBin: manager.ggpoRelayBin || null,
         identity: manager.identity || null,
         bind: manager.bind || null,
         port: manager.port || null,
       },
       rooms,
+      matches,
+      ggpoSessions: ggpoSessionsWithHealth,
       sessions,
     });
   } catch (err) {

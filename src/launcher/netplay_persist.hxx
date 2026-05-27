@@ -19,7 +19,7 @@ namespace launcher {
 		uint8_t simpleUi = 1;
 		uint8_t defaultConnectMethod = 1; // 0=relay, 1=direct, 2=autoNat host helper
 		uint16_t relaySessionPort = 0;
-		char brokerBaseUrl[256] = "http://74.208.200.95:8787";
+		char brokerBaseUrl[256] = "https://74-208-200-95.nip.io";
 		char relayRoomCode[32] = { 0 };
 		char relayHostSecret[128] = { 0 };
 	};

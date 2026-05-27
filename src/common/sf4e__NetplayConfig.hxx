@@ -12,7 +12,7 @@ namespace sf4e {
 
 	// Fixed-size config copied Launcher -> Sidecar via Detours payload.
 	// Keep POD and stable layout; bump SF4E_NETPLAY_CONFIG_VERSION if fields change.
-	static const int SF4E_NETPLAY_CONFIG_VERSION = 4;
+	static const int SF4E_NETPLAY_CONFIG_VERSION = 5;
 	static const int NETPLAY_SESSION_HOST_LEN = 64;
 	static const int NETPLAY_ROOM_KEY_LEN = 32;
 	static const int NETPLAY_DISPLAY_NAME_LEN = 32;
@@ -37,6 +37,13 @@ namespace sf4e {
 		uint8_t useCentralSession = 0;
 		// SF4-XXXX relay room code for overlay display (VPS/local relay only; empty for Direct IP).
 		char relayRoomCode[NETPLAY_ROOM_KEY_LEN] = { 0 };
+		// 0=legacy session tunnel, 1=udp relay, 2=p2p direct.
+		uint8_t ggpoTransport = 0;
+		uint8_t playerRole = 0; // 1=host, 2=guest
+		uint16_t ggpoRemotePort = 0;
+		char ggpoRemoteHost[NETPLAY_SESSION_HOST_LEN] = { 0 };
+		char matchId[33] = { 0 };
+		char ggpoRoomToken[33] = { 0 };
 	};
 
 	inline bool NetplayConfigIsActive(const NetplayConfig& cfg) {

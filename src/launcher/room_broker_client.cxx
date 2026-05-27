@@ -16,6 +16,11 @@ namespace launcher {
 			return env && (env[0] == '1' || _stricmp(env, "true") == 0);
 		}
 
+		static bool AllowHttpBroker() {
+			const char* env = getenv("SF4E_ALLOW_HTTP_BROKER");
+			return env && (env[0] == '1' || _stricmp(env, "true") == 0);
+		}
+
 		static bool IsBlockedBrokerHostLiteral(const char* host) {
 			if (!host || !host[0]) {
 				return true;
@@ -113,6 +118,9 @@ namespace launcher {
 			return false;
 		}
 		if (IsBlockedBrokerHostLiteral(out.host)) {
+			return false;
+		}
+		if (!out.https && !AllowHttpBroker()) {
 			return false;
 		}
 		return true;

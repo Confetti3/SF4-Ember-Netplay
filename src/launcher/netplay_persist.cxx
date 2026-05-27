@@ -12,14 +12,16 @@ namespace launcher {
 
 	namespace {
 
-		const char* kDefaultBrokerBaseUrl = "http://74.208.200.95:8787";
+		const char* kDefaultBrokerBaseUrl = "https://74-208-200-95.nip.io";
 
 		bool BrokerUrlNeedsMigration(const char* brokerBaseUrl) {
 			if (!brokerBaseUrl || !brokerBaseUrl[0]) {
 				return false;
 			}
 			return _stricmp(brokerBaseUrl, "http://150.136.121.155:8787") == 0
-				|| _stricmp(brokerBaseUrl, "http://150.136.121.155:8787/") == 0;
+				|| _stricmp(brokerBaseUrl, "http://150.136.121.155:8787/") == 0
+				|| _stricmp(brokerBaseUrl, "http://74.208.200.95:8787") == 0
+				|| _stricmp(brokerBaseUrl, "http://74.208.200.95:8787/") == 0;
 		}
 
 		void ClearSessionRelayFields(PersistedSettings& settings) {

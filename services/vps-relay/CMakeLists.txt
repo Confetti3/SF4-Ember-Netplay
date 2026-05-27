@@ -49,3 +49,14 @@ target_link_libraries(sf4e-session-relay PRIVATE
 )
 
 install(TARGETS sf4e-session-relay RUNTIME DESTINATION bin)
+
+add_executable(sf4e-ggpo-udp-relay "${SF4E_ROOT}/src/relay/ggpo_udp_relay.cxx")
+if(UNIX AND NOT APPLE)
+  target_include_directories(sf4e-ggpo-udp-relay SYSTEM BEFORE PUBLIC "${LINUX_SHIM}")
+endif()
+target_link_libraries(sf4e-ggpo-udp-relay PRIVATE
+  CLI11::CLI11
+  spdlog::spdlog
+)
+
+install(TARGETS sf4e-ggpo-udp-relay RUNTIME DESTINATION bin)

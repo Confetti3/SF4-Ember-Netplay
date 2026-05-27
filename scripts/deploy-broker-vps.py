@@ -10,7 +10,15 @@ import paramiko
 ROOT = Path(__file__).resolve().parents[1]
 BROKER_DIR = ROOT / "services" / "room-broker"
 RELAY_DIR = ROOT / "services" / "vps-relay"
-BROKER_FILES = ("server.js", ".env.example", "install-vps.sh", "install-vps-relay.sh", "Caddyfile.example")
+BROKER_FILES = (
+    "server.js",
+    ".env.example",
+    "install-vps.sh",
+    "install-vps-relay.sh",
+    "install-caddy.sh",
+    "secure-ufw.sh",
+    "Caddyfile.example",
+)
 RELAY_FILES = ("relay-manager.js", "install-vps-relay.sh", "build-linux.sh")
 
 
@@ -112,6 +120,12 @@ def main() -> int:
             upload_tree(sftp, ROOT / "src" / "Dimps", f"{remote_relay}/src/Dimps")
             upload_tree(sftp, ROOT / "src" / "common", f"{remote_relay}/src/common")
             sftp.put(str(RELAY_DIR / "CMakeLists.txt"), f"{remote_relay}/CMakeLists.txt")
+
+        ggpo_bin = RELAY_DIR / "bin" / "sf4e-ggpo-udp-relay"
+        if ggpo_bin.exists():
+            print("Uploading sf4e-ggpo-udp-relay binary...")
+            sftp.put(str(ggpo_bin), f"{remote_relay}/bin/sf4e-ggpo-udp-relay")
+            sftp.chmod(f"{remote_relay}/bin/sf4e-ggpo-udp-relay", 0o755)
     finally:
         sftp.close()
 
@@ -127,18 +141,31 @@ if [[ -n "${{VCPKG_ROOT:-}}" && -x "{remote_relay}/build-linux.sh" ]]; then
 fi
 """
 
+    domain = os.environ.get("SF4E_BROKER_DOMAIN", "")
+    dashboard_domain = os.environ.get("SF4E_DASHBOARD_DOMAIN", "")
+    acme_email = os.environ.get("SF4E_ACME_EMAIL", "")
+    caddy_step = ""
+    if domain:
+        caddy_step = f"""
+export SF4E_BROKER_DOMAIN={domain}
+export SF4E_DASHBOARD_DOMAIN={dashboard_domain}
+export SF4E_ACME_EMAIL={acme_email}
+bash install-caddy.sh
+"""
+
     commands = f"""set -e
 systemctl stop sf4e-relay-manager 2>/dev/null || true
 sleep 2
 cd {remote_broker}
 if [[ ! -f .env ]]; then cp -f .env.example .env; fi
-sed -i 's/\\r$//' server.js install-vps.sh install-vps-relay.sh .env .env.example 2>/dev/null || true
-chmod +x install-vps.sh install-vps-relay.sh
+sed -i 's/\\r$//' server.js install-vps.sh install-vps-relay.sh install-caddy.sh secure-ufw.sh .env .env.example 2>/dev/null || true
+chmod +x install-vps.sh install-vps-relay.sh install-caddy.sh secure-ufw.sh
 cp -f install-vps-relay.sh {remote_relay}/install-vps-relay.sh 2>/dev/null || true
 cp -f relay-manager.js {remote_relay}/relay-manager.js 2>/dev/null || true
 chmod +x {remote_relay}/install-vps-relay.sh 2>/dev/null || true
 {build_relay}
 bash install-vps.sh
+{caddy_step}
 """
     print("Running install...")
     _, stdout, stderr = client.exec_command(commands, get_pty=True, timeout=900)

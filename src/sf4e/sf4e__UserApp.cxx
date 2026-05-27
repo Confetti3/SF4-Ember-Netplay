@@ -27,6 +27,7 @@
 #include "sf4e__UserApp.hxx"
 
 #include "../session/sf4e__GgpoRelay.hxx"
+#include "../session/sf4e__GgpoTransport.hxx"
 
 namespace SessionProtocol = sf4e::SessionProtocol;
 using Dimps::App;
@@ -110,7 +111,26 @@ void fUserApp::_OnVsBattleTasksRegistered()
         }
     }
     if (isPlayer) {
-        if (netplay->client._useRelay) {
+        NetplayConfig transportCfg = sf4e::NetplayFacade::GetConfig();
+        bool useLegacyGgpoTunnel = netplay->client._useRelay;
+        if (transportCfg.useCentralSession == 2 && transportCfg.ggpoTransport != 0) {
+            GgpoTransportMode effective = GgpoTransport::PrepareForBattle(transportCfg);
+            sf4e::NetplayFacade::ApplyGgpoTransportConfig(transportCfg);
+            useLegacyGgpoTunnel = effective == GgpoTransportMode::LegacySessionTunnel;
+            if (!useLegacyGgpoTunnel) {
+                spdlog::info(
+                    "GgpoTransport: using {} remote {}:{}",
+                    GgpoTransport::TransportModeLabel(effective),
+                    transportCfg.ggpoRemoteHost,
+                    transportCfg.ggpoRemotePort
+                );
+            }
+            else {
+                sf4e::NetplayFacade::PushAlert("Netplay: UDP/P2P setup failed; using legacy GGPO tunnel.");
+            }
+        }
+
+        if (useLegacyGgpoTunnel) {
             GgpoRelay::Instance().Start(netplay->client._ggpoPort, &netplay->client);
         }
 
@@ -134,7 +154,8 @@ void fUserApp::_OnVsBattleTasksRegistered()
             else {
                 SessionProtocol::MemberData& memberData = netplay->client._lobbyData.members[i];
                 player.type = GGPO_PLAYERTYPE_REMOTE;
-                if (netplay->client._useRelay &&
+                const NetplayConfig& activeCfg = sf4e::NetplayFacade::GetConfig();
+                if (useLegacyGgpoTunnel &&
                     GgpoRelay::Instance().GetRemoteEndpoint(
                         memberData.connId,
                         player.u.remote.ip_address,
@@ -143,6 +164,23 @@ void fUserApp::_OnVsBattleTasksRegistered()
                     )) {
                     spdlog::info(
                         "GgpoRelay: remote endpoint {}:{}",
+                        player.u.remote.ip_address,
+                        player.u.remote.port
+                    );
+                }
+                else if (
+                    !useLegacyGgpoTunnel &&
+                    activeCfg.ggpoRemoteHost[0] &&
+                    activeCfg.ggpoRemotePort > 0
+                ) {
+                    strncpy_s(
+                        player.u.remote.ip_address,
+                        activeCfg.ggpoRemoteHost,
+                        _TRUNCATE
+                    );
+                    player.u.remote.port = activeCfg.ggpoRemotePort;
+                    spdlog::info(
+                        "GgpoTransport: remote endpoint {}:{}",
                         player.u.remote.ip_address,
                         player.u.remote.port
                     );

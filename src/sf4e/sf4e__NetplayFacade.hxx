@@ -15,9 +15,22 @@ namespace sf4e {
 		char lastError[256] = { 0 };
 	};
 
+	struct TransportDiagnostics {
+		uint8_t ggpoTransport = 0;
+		uint64_t relayOutboundFrames = 0;
+		uint64_t relayOutboundBytes = 0;
+		uint64_t relayInboundFrames = 0;
+		uint64_t relayInboundBytes = 0;
+		uint64_t tunnelSendCount = 0;
+		uint64_t tunnelSendBytes = 0;
+		uint64_t tunnelRecvCount = 0;
+		uint64_t tunnelRecvBytes = 0;
+	};
+
 	namespace NetplayFacade {
 		void InitFromPayload(const NetplayConfig& cfg);
 		const NetplayConfig& GetConfig();
+		void ApplyGgpoTransportConfig(const NetplayConfig& cfg);
 		bool IsDevOverlayEnabled();
 		bool IsRelayEnabled();
 		bool IsAutoNetplayPending();
@@ -28,6 +41,7 @@ namespace sf4e {
 		void TickMainMenu();
 		void TickFrame();
 		NetplayStatus GetStatus();
+		TransportDiagnostics GetTransportDiagnostics();
 		void SetLastError(const char* msg);
 		void PushAlert(const char* msg);
 		void ShutdownNetplay(bool closeGgpo);

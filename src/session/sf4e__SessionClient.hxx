@@ -69,6 +69,15 @@ namespace sf4e {
 		EResult SendGgpoFrame(const SessionProtocol::ConnectionID& dest, const uint8_t* data, uint32_t len);
 		void OnGgpoFrameReceived(const SessionProtocol::BattleGgpoFrame& frame);
 
+		struct GgpoTunnelStats {
+			uint64_t sendCount = 0;
+			uint64_t sendBytes = 0;
+			uint64_t recvCount = 0;
+			uint64_t recvBytes = 0;
+		};
+		GgpoTunnelStats GetGgpoTunnelStats() const { return _ggpoTunnelStats; }
+		void ResetGgpoTunnelStats() { _ggpoTunnelStats = {}; }
+
 		// Public for testing
 		EResult Send(nlohmann::json& msg, int64_t* outMessageNum);
 		
@@ -92,5 +101,7 @@ namespace sf4e {
 
 		static SessionClient* s_pCallbackInstance;
 		static void SteamNetConnectionStatusChangedCallback(SteamNetConnectionStatusChangedCallback_t* pInfo);
+
+		GgpoTunnelStats _ggpoTunnelStats = {};
 	};
 }

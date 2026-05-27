@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+"""Fix Caddy on VPS and finish TLS + dashboard update."""
 import os
 import sys
 from pathlib import Path
@@ -5,11 +7,7 @@ from pathlib import Path
 import paramiko
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = [
-    (ROOT / "services" / "vps-relay" / "dashboard" / "server.js", "/opt/sf4e-relay/dashboard/server.js"),
-    (ROOT / "services" / "vps-relay" / "relay-manager.js", "/opt/sf4e-relay/relay-manager.js"),
-    (ROOT / "services" / "room-broker" / "server.js", "/root/room-broker/server.js"),
-]
+DOMAIN = os.environ.get("SF4E_BROKER_DOMAIN", "74-208-200-95.nip.io")
 
 
 def safe_print(text: str) -> None:
@@ -24,42 +22,44 @@ def main() -> int:
         print("Set SF4E_VPS_PASSWORD", file=sys.stderr)
         return 1
 
+    host = os.environ.get("SF4E_VPS_HOST", "74.208.200.95")
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(
-        "74.208.200.95",
-        username="root",
-        password=password,
-        timeout=60,
-        allow_agent=False,
-        look_for_keys=False,
-    )
+    client.connect(host, username="root", password=password, timeout=60, allow_agent=False, look_for_keys=False)
 
     sftp = client.open_sftp()
     try:
-        for local, remote in FILES:
-            print(f"Uploading {local.name} -> {remote}")
+        local = ROOT / "services" / "room-broker" / "install-caddy.sh"
+        sftp.put(str(local), "/root/room-broker/install-caddy.sh")
+        for local, remote in [
+            (ROOT / "services" / "vps-relay" / "dashboard" / "server.js", "/opt/sf4e-relay/dashboard/server.js"),
+            (ROOT / "services" / "vps-relay" / "relay-manager.js", "/opt/sf4e-relay/relay-manager.js"),
+            (ROOT / "services" / "room-broker" / "server.js", "/root/room-broker/server.js"),
+        ]:
+            print(f"Uploading {local.name}...")
             sftp.put(str(local), remote)
     finally:
         sftp.close()
 
-    env_patch = r"""
-grep -q '^BROKER_URL=' /opt/sf4e-relay/dashboard/.env || echo 'BROKER_URL=http://127.0.0.1:8787' >> /opt/sf4e-relay/dashboard/.env
+    commands = f"""set -e
+sed -i 's/\\r$//' /root/room-broker/install-caddy.sh
+chmod +x /root/room-broker/install-caddy.sh
+export SF4E_BROKER_DOMAIN={DOMAIN}
+bash /root/room-broker/install-caddy.sh
 grep -q '^DASHBOARD_BIND=' /opt/sf4e-relay/dashboard/.env && sed -i 's|^DASHBOARD_BIND=.*|DASHBOARD_BIND=127.0.0.1|' /opt/sf4e-relay/dashboard/.env || echo 'DASHBOARD_BIND=127.0.0.1' >> /opt/sf4e-relay/dashboard/.env
 grep -q '^DASHBOARD_TRUST_PROXY=' /opt/sf4e-relay/dashboard/.env && sed -i 's|^DASHBOARD_TRUST_PROXY=.*|DASHBOARD_TRUST_PROXY=1|' /opt/sf4e-relay/dashboard/.env || echo 'DASHBOARD_TRUST_PROXY=1' >> /opt/sf4e-relay/dashboard/.env
 grep -q '^COOKIE_SECURE=' /opt/sf4e-relay/dashboard/.env && sed -i 's|^COOKIE_SECURE=.*|COOKIE_SECURE=1|' /opt/sf4e-relay/dashboard/.env || echo 'COOKIE_SECURE=1' >> /opt/sf4e-relay/dashboard/.env
-"""
-    commands = f"""set -e
-{env_patch}
-systemctl restart sf4e-relay-manager
-systemctl restart sf4e-broker
-systemctl restart sf4e-relay-dashboard
-sleep 2
-systemctl is-active sf4e-relay-manager sf4e-broker sf4e-relay-dashboard
+systemctl restart sf4e-relay-manager sf4e-broker sf4e-relay-dashboard
+sleep 3
+systemctl is-active caddy sf4e-broker sf4e-relay-manager sf4e-relay-dashboard
 curl -s http://127.0.0.1:8787/v1/health; echo
-curl -s http://127.0.0.1:8788/v1/health; echo
+curl -sk https://127.0.0.1/v1/health -H 'Host: {DOMAIN}'; echo
+curl -skI https://127.0.0.1/login -H 'Host: {DOMAIN}' | head -5
+ss -tlnp | grep -E '8787|8788|8789|443' || true
+ls -la /opt/sf4e-relay/bin/
 """
-    _, stdout, stderr = client.exec_command(commands, get_pty=True, timeout=120)
+    print("Finishing TLS setup...")
+    _, stdout, stderr = client.exec_command(commands, get_pty=True, timeout=600)
     out = stdout.read().decode("utf-8", errors="replace")
     err = stderr.read().decode("utf-8", errors="replace")
     code = stdout.channel.recv_exit_status()

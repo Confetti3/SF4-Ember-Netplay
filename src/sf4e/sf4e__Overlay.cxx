@@ -1183,6 +1183,29 @@ static void DrawNetplayPlayerPanel() {
 	if (st.pingMs >= 0) {
 		TextWrapped("Ping: %d ms", st.pingMs);
 	}
+	if (cfg.devOverlay) {
+		sf4e::TransportDiagnostics td = sf4e::NetplayFacade::GetTransportDiagnostics();
+		const char* transportLabel = "legacy";
+		if (td.ggpoTransport == 1) {
+			transportLabel = "udp_relay";
+		}
+		else if (td.ggpoTransport == 2) {
+			transportLabel = "p2p";
+		}
+		TextWrapped("Transport: %s", transportLabel);
+		if (cfg.ggpoRemoteHost[0]) {
+			TextWrapped("GGPO remote: %s:%u", cfg.ggpoRemoteHost, cfg.ggpoRemotePort);
+		}
+		if (td.tunnelSendCount || td.relayOutboundFrames) {
+			TextWrapped(
+				"Tunnel send: %llu (%llu B)  Relay out: %llu (%llu B)",
+				(unsigned long long)td.tunnelSendCount,
+				(unsigned long long)td.tunnelSendBytes,
+				(unsigned long long)td.relayOutboundFrames,
+				(unsigned long long)td.relayOutboundBytes
+			);
+		}
+	}
 	if (st.inLobby) {
 		TextWrapped("Lobby - configure character and press Ready below.");
 		DrawNetworkLobbyPanel();

@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <winsock2.h>
+#include <ws2tcpip.h>
+
 #include <nlohmann/json.hpp>
 
 #include "../common/sf4e__NetUtil.hxx"
@@ -296,6 +299,22 @@ namespace launcher {
 			r.hostSecret = j.value("hostSecret", "");
 			strncpy_s(r.relayHost, host.c_str(), _TRUNCATE);
 			r.relayPort = (uint16_t)port;
+			std::string ggpoTransport = j.value("ggpoTransport", "");
+			if (!ggpoTransport.empty()) {
+				strncpy_s(r.ggpoTransport, ggpoTransport.c_str(), _TRUNCATE);
+			}
+			int ggpoPort = j.value("ggpoPort", 0);
+			if (ggpoPort > 0) {
+				r.ggpoPort = (uint16_t)ggpoPort;
+			}
+			std::string matchId = j.value("matchId", "");
+			if (!matchId.empty()) {
+				strncpy_s(r.matchId, matchId.c_str(), _TRUNCATE);
+			}
+			std::string roomToken = j.value("roomToken", "");
+			if (!roomToken.empty()) {
+				strncpy_s(r.roomToken, roomToken.c_str(), _TRUNCATE);
+			}
 			r.ok = true;
 			return r;
 		}
@@ -344,6 +363,243 @@ namespace launcher {
 		catch (...) {
 			return false;
 		}
+	}
+
+	static uint8_t TransportFromString(const std::string& transport) {
+		if (transport == "udp_relay") {
+			return 1;
+		}
+		if (transport == "p2p") {
+			return 2;
+		}
+		return 0;
+	}
+
+	static bool EnsureConnectWinsock() {
+		static bool initialized = false;
+		if (initialized) {
+			return true;
+		}
+		WSADATA wsa;
+		if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+			return false;
+		}
+		initialized = true;
+		return true;
+	}
+
+	static bool SendBrokerNatProbe(const char* brokerHost, uint16_t probePort) {
+		if (!brokerHost || !brokerHost[0] || probePort == 0) {
+			return false;
+		}
+		if (!EnsureConnectWinsock()) {
+			return false;
+		}
+
+		SOCKET sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+		if (sock == INVALID_SOCKET) {
+			return false;
+		}
+
+		u_long nonBlocking = 1;
+		ioctlsocket(sock, FIONBIO, &nonBlocking);
+
+		sockaddr_in dest = {};
+		dest.sin_family = AF_INET;
+		dest.sin_port = htons(probePort);
+		if (inet_pton(AF_INET, brokerHost, &dest.sin_addr) != 1) {
+			closesocket(sock);
+			return false;
+		}
+
+		const char probe[] = "SF4E_PROBE";
+		if (sendto(sock, probe, sizeof(probe) - 1, 0, (sockaddr*)&dest, sizeof(dest)) == SOCKET_ERROR) {
+			closesocket(sock);
+			return false;
+		}
+
+		fd_set readfds;
+		FD_ZERO(&readfds);
+		FD_SET(sock, &readfds);
+		timeval tv = { 2, 0 };
+		const bool ok = select(0, &readfds, nullptr, nullptr, &tv) > 0;
+		closesocket(sock);
+		return ok;
+	}
+
+	static void ApplyConnectPlanJson(const nlohmann::json& j, ConnectPlanResult& out) {
+		std::string transport = j.value("transport", "legacy_session_tunnel");
+		out.ggpoTransport = TransportFromString(transport);
+		std::string host = j.value("ggpoRemoteHost", j.value("host", ""));
+		if (host.empty() && transport == "p2p") {
+			host = j.value("peerHost", "");
+		}
+		if (!host.empty()) {
+			strncpy_s(out.ggpoRemoteHost, host.c_str(), _TRUNCATE);
+		}
+		int remotePort = j.value("ggpoRemotePort", 0);
+		if (remotePort <= 0) {
+			remotePort = j.value("ggpoPort", 0);
+		}
+		if (remotePort <= 0 && transport == "p2p") {
+			remotePort = j.value("peerPort", 0);
+		}
+		if (remotePort > 0) {
+			out.ggpoRemotePort = (uint16_t)remotePort;
+		}
+		std::string matchId = j.value("matchId", "");
+		if (!matchId.empty()) {
+			strncpy_s(out.matchId, matchId.c_str(), _TRUNCATE);
+		}
+		std::string roomToken = j.value("roomToken", "");
+		if (!roomToken.empty()) {
+			strncpy_s(out.roomToken, roomToken.c_str(), _TRUNCATE);
+		}
+		out.ok = true;
+	}
+
+	ConnectPlanResult FetchConnectPlan(
+		const char* brokerBaseUrl,
+		const char* roomCode,
+		const char* role,
+		const char* hostSecret,
+		uint16_t ggpoPort
+	) {
+		ConnectPlanResult result;
+		if (!roomCode || !roomCode[0]) {
+			result.error = "Room code required for connect plan.";
+			return result;
+		}
+
+		char normalizedCode[32] = { 0 };
+		if (!NormalizeRelayRoomCode(roomCode, normalizedCode, sizeof(normalizedCode))) {
+			result.error = "Invalid room code.";
+			return result;
+		}
+
+		BrokerUrlParts parts;
+		if (!ParseBrokerBaseUrl(brokerBaseUrl, parts)) {
+			result.error = "Room broker URL is not set.";
+			return result;
+		}
+
+		char path[256];
+		snprintf(
+			path,
+			sizeof(path),
+			"/v1/rooms/%s/connect-plan?role=%s",
+			normalizedCode,
+			(role && role[0]) ? role : "guest"
+		);
+
+		char body[4096] = { 0 };
+		if (!BrokerHttpGet(parts, path, body, sizeof(body))) {
+			result.error = "Could not fetch connect plan from broker.";
+			return result;
+		}
+
+		try {
+			nlohmann::json j = nlohmann::json::parse(body);
+			if (j.value("error", "").size()) {
+				result.error = j.value("message", "Connect plan unavailable.");
+				return result;
+			}
+			ApplyConnectPlanJson(j, result);
+			if (ggpoPort > 0 && role && role[0]) {
+				const uint16_t probePort = (uint16_t)j.value("natProbePort", 8790);
+				if (!SendBrokerNatProbe(parts.host, probePort)) {
+					result.error = "Could not complete NAT probe with the room broker.";
+					result.ok = false;
+					return result;
+				}
+
+				nlohmann::json reg;
+				reg["role"] = role;
+				if (hostSecret && hostSecret[0]) {
+					reg["hostSecret"] = hostSecret;
+				}
+				reg["ggpoPort"] = ggpoPort;
+				reg["natType"] = "unknown";
+				char regPath[160];
+				snprintf(regPath, sizeof(regPath), "/v1/rooms/%s/register-endpoint", normalizedCode);
+				char regBody[4096] = { 0 };
+				sf4e::HttpRequestResult regHttp;
+				if (!BrokerHttpPostJson(parts, regPath, reg.dump().c_str(), regBody, sizeof(regBody), 8000, &regHttp)) {
+					result.error = BrokerMessageFromBody(regBody);
+					if (result.error.empty()) {
+						result.error = "Could not register endpoint with the room broker.";
+					}
+					result.ok = false;
+					return result;
+				}
+				try {
+					nlohmann::json regResp = nlohmann::json::parse(regBody);
+					if (regResp.value("error", "").size()) {
+						result.error = regResp.value("message", "Endpoint registration failed.");
+						result.ok = false;
+						return result;
+					}
+					if (regResp.contains("connectPlan")) {
+						ApplyConnectPlanJson(regResp["connectPlan"], result);
+					}
+				}
+				catch (...) {
+					result.error = "Invalid endpoint registration response from broker.";
+					result.ok = false;
+					return result;
+				}
+			}
+			return result;
+		}
+		catch (...) {
+			result.error = "Invalid connect plan from broker.";
+			return result;
+		}
+	}
+
+	bool PostRoomEvent(
+		const char* brokerBaseUrl,
+		const char* roomCode,
+		const char* eventType,
+		const char* hostSecret,
+		const char* transportActive,
+		const char* detailJson
+	) {
+		if (!roomCode || !roomCode[0] || !eventType || !eventType[0]) {
+			return false;
+		}
+
+		char normalizedCode[32] = { 0 };
+		if (!NormalizeRelayRoomCode(roomCode, normalizedCode, sizeof(normalizedCode))) {
+			return false;
+		}
+
+		BrokerUrlParts parts;
+		if (!ParseBrokerBaseUrl(brokerBaseUrl, parts)) {
+			return false;
+		}
+
+		nlohmann::json req;
+		req["type"] = eventType;
+		if (hostSecret && hostSecret[0]) {
+			req["hostSecret"] = hostSecret;
+		}
+		if (transportActive && transportActive[0]) {
+			req["transportActive"] = transportActive;
+		}
+		if (detailJson && detailJson[0]) {
+			try {
+				req["detail"] = nlohmann::json::parse(detailJson);
+			}
+			catch (...) {
+				req["detail"] = nlohmann::json::object();
+			}
+		}
+
+		char path[160];
+		snprintf(path, sizeof(path), "/v1/rooms/%s/events", normalizedCode);
+		char body[512] = { 0 };
+		return BrokerHttpPostJson(parts, path, req.dump().c_str(), body, sizeof(body));
 	}
 
 } // namespace launcher

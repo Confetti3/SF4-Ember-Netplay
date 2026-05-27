@@ -113,14 +113,15 @@ def main() -> int:
         sftp.close()
 
     env_content = f"""DASHBOARD_PORT=8789
-DASHBOARD_BIND=0.0.0.0
+DASHBOARD_BIND=127.0.0.1
+DASHBOARD_TRUST_PROXY=1
 ADMIN_USERNAME={creds['username']}
 ADMIN_PASSWORD_HASH={creds['password_hash']}
 SESSION_SECRET={creds['session_secret']}
 SESSION_TTL_SEC=28800
 RELAY_MANAGER_URL=http://127.0.0.1:8788
 BROKER_URL=http://127.0.0.1:8787
-COOKIE_SECURE=0
+COOKIE_SECURE=1
 """
 
     commands = f"""set -e
@@ -152,7 +153,8 @@ echo
         return code
 
     print("\n=== Dashboard ready ===")
-    print(f"URL:      http://{host}:8789")
+    domain = os.environ.get("SF4E_BROKER_DOMAIN", "74-208-200-95.nip.io")
+    print(f"URL:      https://{domain}/login")
     print(f"Username: {creds['username']}")
     print(f"Password: {creds['password']}")
     print("\nSave these credentials — the password is not stored locally.")

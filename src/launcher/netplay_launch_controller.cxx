@@ -147,6 +147,68 @@ namespace launcher {
 		return CreateRelayRoom(settings.brokerBaseUrl, displayName, advertiseHost, nullptr);
 	}
 
+	void NetplayLaunchController::ApplyConnectPlanToConfig(const ConnectPlanResult& plan) {
+		if (!plan.ok) {
+			return;
+		}
+		m_outConfig.ggpoTransport = plan.ggpoTransport;
+		m_outConfig.ggpoRemotePort = plan.ggpoRemotePort;
+		strncpy_s(m_outConfig.ggpoRemoteHost, plan.ggpoRemoteHost, _TRUNCATE);
+		strncpy_s(m_outConfig.matchId, plan.matchId, _TRUNCATE);
+		strncpy_s(m_outConfig.ggpoRoomToken, plan.roomToken, _TRUNCATE);
+	}
+
+	void NetplayLaunchController::ConfigureGgpoTransportForRelay(const char* roomCode, const char* role) {
+		const char* transportEnv = getenv("SF4E_GGPO_TRANSPORT");
+		if (transportEnv && _stricmp(transportEnv, "legacy") == 0) {
+			m_outConfig.ggpoTransport = 0;
+			return;
+		}
+
+		const char* hostSecret =
+			(role && strcmp(role, "host") == 0 && m_settings.relayHostSecret[0])
+				? m_settings.relayHostSecret
+				: nullptr;
+
+		ConnectPlanResult plan = FetchConnectPlan(
+			m_settings.brokerBaseUrl,
+			roomCode,
+			role,
+			hostSecret,
+			m_settings.ggpoPort
+		);
+		if (plan.ok) {
+			ApplyConnectPlanToConfig(plan);
+		}
+		else if (m_sessionRoomToken[0]) {
+			strncpy_s(m_outConfig.ggpoRoomToken, m_sessionRoomToken, _TRUNCATE);
+		}
+		if (m_sessionMatchId[0]) {
+			strncpy_s(m_outConfig.matchId, m_sessionMatchId, _TRUNCATE);
+		}
+		if (m_sessionGgpoPort > 0 && m_outConfig.ggpoRemotePort == 0) {
+			m_outConfig.ggpoRemotePort = m_sessionGgpoPort;
+			strncpy_s(m_outConfig.ggpoRemoteHost, m_outConfig.sessionHost, _TRUNCATE);
+			if (m_outConfig.ggpoTransport == 0 && transportEnv && _stricmp(transportEnv, "udp") == 0) {
+				m_outConfig.ggpoTransport = 1;
+			}
+		}
+
+		if (role && strcmp(role, "host") == 0) {
+			m_outConfig.playerRole = 1;
+		}
+		else if (role && strcmp(role, "guest") == 0) {
+			m_outConfig.playerRole = 2;
+		}
+
+		if (transportEnv && _stricmp(transportEnv, "udp") == 0) {
+			m_outConfig.ggpoTransport = 1;
+		}
+		else if (transportEnv && _stricmp(transportEnv, "p2p") == 0) {
+			m_outConfig.ggpoTransport = 2;
+		}
+	}
+
 	static bool IsPrivateOrLocalHost(const char* host, const char* lanIp) {
 		if (!host || !host[0]) {
 			return true;
@@ -654,6 +716,12 @@ namespace launcher {
 
 			strncpy_s(m_settings.relayHostSecret, created.hostSecret.c_str(), _TRUNCATE);
 
+			strncpy_s(m_sessionMatchId, created.matchId, _TRUNCATE);
+
+			strncpy_s(m_sessionRoomToken, created.roomToken, _TRUNCATE);
+
+			m_sessionGgpoPort = created.ggpoPort;
+
 			BrokerHealth brokerHealth;
 			const bool vpsRelay = FetchBrokerHealth(m_settings.brokerBaseUrl, brokerHealth) && brokerHealth.forceVpsRelay;
 
@@ -946,6 +1014,10 @@ namespace launcher {
 					strncpy_s(m_outConfig.relayRoomCode, relayCode.c_str(), _TRUNCATE);
 
 					if (m_outConfig.useCentralSession == 2) {
+						ConfigureGgpoTransportForRelay(relayCode.c_str(), "host");
+					}
+
+					if (m_outConfig.useCentralSession == 2) {
 						// VPS-hosted session relay — host connects outbound; no local RelayHost or UPnP.
 					}
 					else {
@@ -1074,6 +1146,10 @@ namespace launcher {
 					strncpy_s(m_outConfig.relayRoomCode, req.roomCode.c_str(), _TRUNCATE);
 				}
 
+				if (vpsRelayJoin && m_outConfig.relayRoomCode[0]) {
+					ConfigureGgpoTransportForRelay(m_outConfig.relayRoomCode, "guest");
+				}
+
 				if (ShouldProbeJoinEndpoint(connectMethod.c_str(), req.roomCode.c_str(), sr.endpoint.host, m_lanIp)) {
 					if (!vpsRelay && !sf4e::ProbeRemoteTcpConnect(sr.endpoint.host, sr.endpoint.port, 5000)) {
 						nlohmann::json err;
@@ -1122,6 +1198,21 @@ namespace launcher {
 			}
 
 
+
+			if (m_outConfig.useCentralSession == 2 && m_outConfig.relayRoomCode[0]) {
+				const char* transportLabel =
+					m_outConfig.ggpoTransport == 2
+						? "p2p"
+						: (m_outConfig.ggpoTransport == 1 ? "udp_relay" : "legacy_session_tunnel");
+				PostRoomEvent(
+					m_settings.brokerBaseUrl,
+					m_outConfig.relayRoomCode,
+					"battle_start",
+					m_settings.relayHostSecret[0] ? m_settings.relayHostSecret : nullptr,
+					transportLabel,
+					nullptr
+				);
+			}
 
 			m_finished = true;
 

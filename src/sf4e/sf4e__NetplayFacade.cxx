@@ -13,6 +13,7 @@
 #include "../Dimps/Dimps__Game.hxx"
 #include "../Dimps/Dimps__GameEvents.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
+#include "../session/sf4e__SessionClient.hxx"
 #include "../session/sf4e__GgpoRelay.hxx"
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__GameEvents.hxx"
@@ -80,6 +81,12 @@ namespace sf4e {
 
 	const NetplayConfig& NetplayFacade::GetConfig() {
 		return s_config;
+	}
+
+	void NetplayFacade::ApplyGgpoTransportConfig(const NetplayConfig& cfg) {
+		s_config.ggpoTransport = cfg.ggpoTransport;
+		s_config.ggpoRemotePort = cfg.ggpoRemotePort;
+		strncpy_s(s_config.ggpoRemoteHost, cfg.ggpoRemoteHost, _TRUNCATE);
 	}
 
 	bool NetplayFacade::IsDevOverlayEnabled() {
@@ -370,6 +377,24 @@ namespace sf4e {
 			}
 		}
 		return st;
+	}
+
+	TransportDiagnostics NetplayFacade::GetTransportDiagnostics() {
+		TransportDiagnostics td;
+		td.ggpoTransport = s_config.ggpoTransport;
+		const GgpoRelay::TransportStats relayStats = GgpoRelay::Instance().GetStats();
+		td.relayOutboundFrames = relayStats.outboundFrames;
+		td.relayOutboundBytes = relayStats.outboundBytes;
+		td.relayInboundFrames = relayStats.inboundFrames;
+		td.relayInboundBytes = relayStats.inboundBytes;
+		if (fUserApp::netplay) {
+			const SessionClient::GgpoTunnelStats tunnelStats = fUserApp::netplay->client.GetGgpoTunnelStats();
+			td.tunnelSendCount = tunnelStats.sendCount;
+			td.tunnelSendBytes = tunnelStats.sendBytes;
+			td.tunnelRecvCount = tunnelStats.recvCount;
+			td.tunnelRecvBytes = tunnelStats.recvBytes;
+		}
+		return td;
 	}
 
 	void NetplayFacade::ShutdownNetplay(bool closeGgpo) {

@@ -67,14 +67,9 @@ systemctl daemon-reload
 systemctl enable sf4e-relay-dashboard.service
 systemctl restart sf4e-relay-dashboard.service
 
-if command -v ufw >/dev/null 2>&1; then
-  DASHBOARD_PORT="$(grep -E '^DASHBOARD_PORT=' "$ENV_FILE" | cut -d= -f2- || echo 8789)"
-  ufw allow "${DASHBOARD_PORT}/tcp" 2>/dev/null || true
-  if ufw status | grep -q "Status: active"; then
-    ufw reload 2>/dev/null || true
-  fi
-fi
-
 sleep 2
 systemctl is-active sf4e-relay-dashboard.service
-echo "Dashboard installed. Open http://<vps-ip>:${DASHBOARD_PORT:-8789}"
+DASHBOARD_PORT="$(grep -E '^DASHBOARD_PORT=' "$ENV_FILE" | cut -d= -f2- || echo 8789)"
+DASHBOARD_BIND="$(grep -E '^DASHBOARD_BIND=' "$ENV_FILE" | cut -d= -f2- || echo 127.0.0.1)"
+echo "Dashboard installed on ${DASHBOARD_BIND}:${DASHBOARD_PORT}."
+echo "With Caddy: https://<your-domain>/login"

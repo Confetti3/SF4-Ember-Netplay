@@ -551,6 +551,8 @@ EResult SessionClient::SendGgpoFrame(const SessionProtocol::ConnectionID& dest, 
 	frame.data.assign(data, data + len);
 	json msg = frame;
 	std::string buf = msg.dump();
+	_ggpoTunnelStats.sendCount++;
+	_ggpoTunnelStats.sendBytes += buf.length();
 	return _interface->SendMessageToConnection(
 		_conn,
 		buf.c_str(),
@@ -564,6 +566,8 @@ void SessionClient::OnGgpoFrameReceived(const SessionProtocol::BattleGgpoFrame& 
 	if (!(frame.dest == _cid)) {
 		return;
 	}
+	_ggpoTunnelStats.recvCount++;
+	_ggpoTunnelStats.recvBytes += frame.data.size();
 	GgpoRelay::Instance().InjectFromPeer(frame.src, frame.data.data(), (uint32_t)frame.data.size());
 }
 

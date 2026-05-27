@@ -11,7 +11,7 @@
 
 
 #include "../common/sf4e__NetplayConfig.hxx"
-
+#include "connect_strategy.hxx"
 #include "netplay_persist.hxx"
 
 
@@ -48,6 +48,10 @@ namespace launcher {
 
 		nlohmann::json MakeStateEnvelope() const;
 
+		void ApplyConnectPlanToConfig(const ConnectPlanResult& plan);
+
+		void ConfigureGgpoTransportForRelay(const char* roomCode, const char* role);
+
 		std::string PreviewRoomCode(const char* shareIp, uint16_t port) const;
 
 
@@ -57,6 +61,12 @@ namespace launcher {
 		NetplayConfig& m_outConfig;
 
 		char m_lanIp[64];
+
+		char m_sessionMatchId[33] = { 0 };
+
+		char m_sessionRoomToken[33] = { 0 };
+
+		uint16_t m_sessionGgpoPort = 0;
 
 		bool m_finished = false;
 

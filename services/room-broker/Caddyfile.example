@@ -1,18 +1,55 @@
-# TLS reverse proxy for SF4e broker (8787) and dashboard (8789).
-# Install Caddy, copy to /etc/caddy/Caddyfile, set your domain, then: systemctl reload caddy
+# TLS reverse proxy for SF4e broker (127.0.0.1:8787) and dashboard (127.0.0.1:8789).
+#
+# Prerequisites:
+#   1. DNS A record: netplay.example.com -> your VPS IP
+#   2. Broker/dashboard bound to 127.0.0.1 (see .env.example)
+#   3. ufw: allow 443/tcp, 80/tcp; deny 8787/8788/8789 publicly
+#
+# Quick install: SF4E_BROKER_DOMAIN=netplay.example.com bash install-caddy.sh
+#
+# Manual install:
+#   sudo cp Caddyfile.example /etc/caddy/Caddyfile
+#   edit domain, then: sudo systemctl reload caddy
 
-your.domain.example {
-	encode gzip
+{
+	# Optional: email for Let's Encrypt expiry notices
+	# email you@example.com
+}
 
-	handle /v1/* {
-		reverse_proxy 127.0.0.1:8787
+netplay.example.com {
+	encode gzip zstd
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
 	}
 
+	# Room broker API (launcher + connect-plan)
+	handle /v1/* {
+		reverse_proxy 127.0.0.1:8787 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up Host {host}
+		}
+	}
+
+	# Relay dashboard (login at /login)
 	handle {
-		reverse_proxy 127.0.0.1:8789
+		reverse_proxy 127.0.0.1:8789 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up Host {host}
+		}
 	}
 }
 
-# After TLS is live, set launcher default broker URL to:
-#   https://your.domain.example
-# or https://your.vps.ip:8787 if using a cert on the IP directly.
+# Split dashboard to a separate subdomain (optional — use install-caddy.sh SF4E_DASHBOARD_DOMAIN):
+#
+# admin.example.com {
+#   encode gzip zstd
+#   header { Strict-Transport-Security "max-age=31536000" }
+#   reverse_proxy 127.0.0.1:8789
+# }

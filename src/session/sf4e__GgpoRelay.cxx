@@ -142,6 +142,8 @@ namespace sf4e {
 
 		for (auto& peer : _peers) {
 			if (peer.connId == src && peer.sock != INVALID_SOCKET) {
+				_stats.inboundFrames++;
+				_stats.inboundBytes += (uint64_t)len;
 				sendto(
 					peer.sock,
 					(const char*)data,
@@ -186,6 +188,8 @@ namespace sf4e {
 				if (n <= 0) {
 					break;
 				}
+				_stats.outboundFrames++;
+				_stats.outboundBytes += (uint64_t)n;
 				_client->SendGgpoFrame(peer.connId, (const uint8_t*)buf, (uint32_t)n);
 			}
 

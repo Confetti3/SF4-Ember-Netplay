@@ -55,6 +55,20 @@ namespace launcher {
 		std::string hostSecret;
 		char relayHost[64] = { 0 };
 		uint16_t relayPort = 0;
+		uint16_t ggpoPort = 0;
+		char matchId[33] = { 0 };
+		char roomToken[33] = { 0 };
+		char ggpoTransport[32] = { 0 };
+	};
+
+	struct ConnectPlanResult {
+		bool ok = false;
+		std::string error;
+		uint8_t ggpoTransport = 0;
+		char ggpoRemoteHost[64] = { 0 };
+		uint16_t ggpoRemotePort = 0;
+		char matchId[33] = { 0 };
+		char roomToken[33] = { 0 };
 	};
 
 	RelayRoomCreateResult CreateRelayRoom(
@@ -64,6 +78,23 @@ namespace launcher {
 		const char* sidecarHash = nullptr
 	);
 	bool HeartbeatRelayRoom(const char* brokerBaseUrl, const char* roomCode, const char* hostSecret = nullptr);
+
+	ConnectPlanResult FetchConnectPlan(
+		const char* brokerBaseUrl,
+		const char* roomCode,
+		const char* role,
+		const char* hostSecret = nullptr,
+		uint16_t ggpoPort = 0
+	);
+
+	bool PostRoomEvent(
+		const char* brokerBaseUrl,
+		const char* roomCode,
+		const char* eventType,
+		const char* hostSecret,
+		const char* transportActive,
+		const char* detailJson = nullptr
+	);
 
 } // namespace launcher
 } // namespace sf4e

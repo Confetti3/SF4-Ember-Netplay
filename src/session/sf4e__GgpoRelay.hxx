@@ -38,6 +38,16 @@ namespace sf4e {
 
 		bool IsActive() const { return _active; }
 
+		struct TransportStats {
+			uint64_t outboundFrames = 0;
+			uint64_t outboundBytes = 0;
+			uint64_t inboundFrames = 0;
+			uint64_t inboundBytes = 0;
+		};
+
+		TransportStats GetStats() const { return _stats; }
+		void ResetStats() { _stats = {}; }
+
 	private:
 		GgpoRelay() = default;
 
@@ -57,6 +67,7 @@ namespace sf4e {
 		uint16_t _localGgpoPort = 0;
 		SessionClient* _client = nullptr;
 		std::vector<VirtualPeer> _peers;
+		TransportStats _stats = {};
 	};
 
 } // namespace sf4e

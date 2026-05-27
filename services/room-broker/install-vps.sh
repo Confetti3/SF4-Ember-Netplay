@@ -20,6 +20,11 @@ if [[ ! -f "$BROKER_DIR/.env" ]]; then
   cp -f "$BROKER_DIR/.env.example" "$BROKER_DIR/.env" 2>/dev/null || true
 fi
 
+if [[ -f "$BROKER_DIR/.env" ]]; then
+  grep -q '^BROKER_BIND=' "$BROKER_DIR/.env" || echo "BROKER_BIND=127.0.0.1" >> "$BROKER_DIR/.env"
+  grep -q '^BROKER_TRUST_PROXY=' "$BROKER_DIR/.env" || echo "BROKER_TRUST_PROXY=1" >> "$BROKER_DIR/.env"
+fi
+
 if [[ ! -x "$NODE_DIR/bin/node" ]]; then
   mkdir -p /tmp/sf4e-node
   cd /tmp/sf4e-node
@@ -60,19 +65,25 @@ systemctl enable sf4e-broker.service
 systemctl restart sf4e-broker.service
 
 if command -v ufw >/dev/null 2>&1; then
-  ufw allow OpenSSH 2>/dev/null || ufw allow 22/tcp 2>/dev/null || true
-  ufw allow 8787/tcp 2>/dev/null || true
-  ufw allow 443/tcp 2>/dev/null || true
-  ufw allow 23456:23475/tcp 2>/dev/null || true
-  ufw allow 23456:23475/udp 2>/dev/null || true
-  if ufw status | grep -q "Status: active"; then
-    ufw reload 2>/dev/null || true
+  if [[ -x "$BROKER_DIR/secure-ufw.sh" ]]; then
+    bash "$BROKER_DIR/secure-ufw.sh"
   else
-    ufw --force enable 2>/dev/null || true
+    ufw allow OpenSSH 2>/dev/null || ufw allow 22/tcp 2>/dev/null || true
+    ufw allow 443/tcp 2>/dev/null || true
+    ufw allow 80/tcp 2>/dev/null || true
+    ufw allow 23456:23475/tcp 2>/dev/null || true
+    ufw allow 23456:23475/udp 2>/dev/null || true
+    ufw allow 24456:24475/udp 2>/dev/null || true
+    ufw allow 8790/udp 2>/dev/null || true
+    if ufw status | grep -q "Status: active"; then
+      ufw reload 2>/dev/null || true
+    else
+      ufw --force enable 2>/dev/null || true
+    fi
   fi
 fi
 
-	if [[ -x "$BROKER_DIR/install-vps-relay.sh" ]]; then
+if [[ -x "$BROKER_DIR/install-vps-relay.sh" ]]; then
   bash "$BROKER_DIR/install-vps-relay.sh"
 elif [[ -x "/opt/sf4e-relay/install-vps-relay.sh" ]]; then
   bash "/opt/sf4e-relay/install-vps-relay.sh"

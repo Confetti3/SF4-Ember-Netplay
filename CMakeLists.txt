@@ -122,6 +122,8 @@ add_library(Session STATIC
     "src/session/sf4e__SessionServer.cxx"
     "src/session/sf4e__GgpoRelay.hxx"
     "src/session/sf4e__GgpoRelay.cxx"
+    "src/session/sf4e__GgpoTransport.hxx"
+    "src/session/sf4e__GgpoTransport.cxx"
 )
 target_link_libraries(
     Session
@@ -159,7 +161,7 @@ add_executable(Launcher WIN32
     src/launcher/github_release_client.cxx
 )
 target_include_directories(Launcher PRIVATE ${VALVEFILEVDF_INCLUDE_DIRS} "src/common" "src/launcher")
-target_link_libraries(Launcher PRIVATE
+		target_link_libraries(Launcher PRIVATE
     ${LIB_DETOURS}
     CLI11::CLI11
     spdlog::spdlog
@@ -175,6 +177,7 @@ target_link_libraries(Launcher PRIVATE
     "oleaut32"
     "user32"
     "gdi32"
+    "ws2_32"
 )
 
 add_library(Sidecar SHARED src/sidecar/sidecar.cxx)

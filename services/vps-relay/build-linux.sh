@@ -32,3 +32,4 @@ if [[ -f "$GNS_LIB" ]]; then
 fi
 
 echo "Built: ${RELAY_DIR}/bin/sf4e-session-relay"
+echo "Built: ${RELAY_DIR}/bin/sf4e-ggpo-udp-relay"

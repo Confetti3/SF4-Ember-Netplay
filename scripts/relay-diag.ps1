@@ -13,6 +13,7 @@ if (-not $BrokerUrl) {
 }
 if (-not $BrokerUrl) {
     $BrokerUrl = "http://74.208.200.95:8787"
+    Write-Host "Note: production brokers should use HTTPS (see docs/VPS_TLS_SETUP.md). Set SF4E_BROKER_URL=https://your-domain"
 }
 
 if (-not $PackageDir) {
