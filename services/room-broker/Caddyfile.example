@@ -1,0 +1,18 @@
+# TLS reverse proxy for SF4e broker (8787) and dashboard (8789).
+# Install Caddy, copy to /etc/caddy/Caddyfile, set your domain, then: systemctl reload caddy
+
+your.domain.example {
+	encode gzip
+
+	handle /v1/* {
+		reverse_proxy 127.0.0.1:8787
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:8789
+	}
+}
+
+# After TLS is live, set launcher default broker URL to:
+#   https://your.domain.example
+# or https://your.vps.ip:8787 if using a cert on the IP directly.

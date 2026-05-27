@@ -10,7 +10,7 @@ import paramiko
 ROOT = Path(__file__).resolve().parents[1]
 BROKER_DIR = ROOT / "services" / "room-broker"
 RELAY_DIR = ROOT / "services" / "vps-relay"
-BROKER_FILES = ("server.js", ".env.example", "install-vps.sh", "install-vps-relay.sh")
+BROKER_FILES = ("server.js", ".env.example", "install-vps.sh", "install-vps-relay.sh", "Caddyfile.example")
 RELAY_FILES = ("relay-manager.js", "install-vps-relay.sh", "build-linux.sh")
 
 
@@ -131,7 +131,7 @@ fi
 systemctl stop sf4e-relay-manager 2>/dev/null || true
 sleep 2
 cd {remote_broker}
-cp -f .env.example .env
+if [[ ! -f .env ]]; then cp -f .env.example .env; fi
 sed -i 's/\\r$//' server.js install-vps.sh install-vps-relay.sh .env .env.example 2>/dev/null || true
 chmod +x install-vps.sh install-vps-relay.sh
 cp -f install-vps-relay.sh {remote_relay}/install-vps-relay.sh 2>/dev/null || true

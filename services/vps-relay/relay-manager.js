@@ -146,7 +146,21 @@ const server = http.createServer(async (req, res) => {
       ok: true,
       sessions: sessions.size,
       relayBin: RELAY_BIN,
+      identity: RELAY_IDENTITY,
+      bind: BIND,
+      port: PORT,
     });
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/v1/sessions") {
+    const list = [...sessions.entries()].map(([port, s]) => ({
+      port,
+      sidecarHash: s.sidecarHash,
+      startedAt: s.startedAt,
+      pid: s.proc.pid,
+    }));
+    json(res, 200, { ok: true, sessions: list });
     return;
   }
 

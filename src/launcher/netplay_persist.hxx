@@ -20,7 +20,8 @@ namespace launcher {
 		uint8_t defaultConnectMethod = 1; // 0=relay, 1=direct, 2=autoNat host helper
 		uint16_t relaySessionPort = 0;
 		char brokerBaseUrl[256] = "http://74.208.200.95:8787";
-		char relayRoomCode[16] = { 0 };
+		char relayRoomCode[32] = { 0 };
+		char relayHostSecret[128] = { 0 };
 	};
 
 	bool LoadPersistedSettings(PersistedSettings& out);

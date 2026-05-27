@@ -59,7 +59,7 @@ namespace launcher {
 		}
 		const char* token = buf + 4;
 		size_t len = strlen(token);
-		if (len < 4 || len > 8) {
+		if (len < 4 || len > 20) {
 			return false;
 		}
 		for (size_t i = 0; i < len; ++i) {
@@ -67,6 +67,30 @@ namespace launcher {
 				return false;
 			}
 		}
+		return true;
+	}
+
+	bool NormalizeRelayRoomCode(const char* roomCode, char* outCode, int outCodeLen) {
+		if (!roomCode || !outCode || outCodeLen <= 0) {
+			return false;
+		}
+		char buf[32];
+		strncpy_s(buf, roomCode, _TRUNCATE);
+		sf4e::TrimRoomCodeInPlace(buf);
+		if (_strnicmp(buf, "SF4-", 4) != 0) {
+			char prefixed[32] = { 0 };
+			snprintf(prefixed, sizeof(prefixed), "SF4-%s", buf);
+			strncpy_s(buf, prefixed, _TRUNCATE);
+		}
+		for (char* p = buf; *p; ++p) {
+			if (*p >= 'a' && *p <= 'z') {
+				*p = (char)(*p - 'a' + 'A');
+			}
+		}
+		if (!IsShortRoomCode(buf)) {
+			return false;
+		}
+		strncpy_s(outCode, outCodeLen, buf, _TRUNCATE);
 		return true;
 	}
 

@@ -47,9 +47,60 @@ namespace launcher {
 
 	static void ApplyBrokerUrlFromEnvironment(PersistedSettings& settings) {
 		const char* env = getenv("SF4E_BROKER_URL");
-		if (env && env[0]) {
-			strncpy_s(settings.brokerBaseUrl, env, _TRUNCATE);
+		if (!env || !env[0]) {
+			return;
 		}
+		BrokerUrlParts parts;
+		if (!ParseBrokerBaseUrl(env, parts)) {
+			spdlog::warn("SF4E_BROKER_URL ignored (invalid or disallowed): {}", env);
+			return;
+		}
+		strncpy_s(settings.brokerBaseUrl, env, _TRUNCATE);
+	}
+
+	static bool IsAllowedExternalUrl(const char* url) {
+		if (!url || !url[0]) {
+			return false;
+		}
+		if (_strnicmp(url, "https://", 8) != 0) {
+			return false;
+		}
+		const char* hostStart = url + 8;
+		const char* pathStart = strchr(hostStart, '/');
+		char host[256] = { 0 };
+		if (pathStart) {
+			strncpy_s(host, hostStart, pathStart - hostStart);
+		}
+		else {
+			strncpy_s(host, hostStart, _TRUNCATE);
+		}
+
+		char* at = strchr(host, '@');
+		if (at) {
+			memmove(host, at + 1, strlen(at + 1) + 1);
+		}
+		char* colon = strchr(host, ':');
+		if (colon) {
+			*colon = 0;
+		}
+
+		if (_stricmp(host, "github.com") == 0 || _stricmp(host, "www.github.com") == 0) {
+			return true;
+		}
+		const size_t hostLen = strlen(host);
+		if (hostLen > 10 && _stricmp(host + hostLen - 10, ".github.io") == 0) {
+			return true;
+		}
+		return false;
+	}
+
+	static bool RequiresProtocolVersion(const std::string& type) {
+		return type == "start"
+			|| type == "applyUpdate"
+			|| type == "saveSettings"
+			|| type == "openUrl"
+			|| type == "createRelayRoom"
+			|| type == "relayHeartbeat";
 	}
 
 	static const char* DefaultConnectMethodString(uint8_t method) {
@@ -259,6 +310,17 @@ namespace launcher {
 
 		const std::string type = msg.value("type", "");
 
+		if (RequiresProtocolVersion(type)) {
+			const int version = msg.value("v", 0);
+			if (version != kProtocolVersion) {
+				nlohmann::json err;
+				err["v"] = kProtocolVersion;
+				err["type"] = "error";
+				err["message"] = "Launcher UI protocol mismatch. Restart the launcher.";
+				return err;
+			}
+		}
+
 		if (type == "getState") {
 
 			return BuildStateJson();
@@ -353,6 +415,20 @@ namespace launcher {
 
 			}
 
+			if (!IsAllowedExternalUrl(url.c_str())) {
+
+				nlohmann::json err;
+
+				err["v"] = kProtocolVersion;
+
+				err["type"] = "error";
+
+				err["message"] = "Only HTTPS GitHub links can be opened from the launcher.";
+
+				return err;
+
+			}
+
 			wchar_t wUrl[2048] = { 0 };
 
 			MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1, wUrl, 2048);
@@ -412,6 +488,21 @@ namespace launcher {
 			if (msg.contains("brokerBaseUrl")) {
 
 				std::string broker = msg.value("brokerBaseUrl", m_settings.brokerBaseUrl);
+
+				BrokerUrlParts parts;
+				if (!ParseBrokerBaseUrl(broker.c_str(), parts)) {
+
+					nlohmann::json err;
+
+					err["v"] = kProtocolVersion;
+
+					err["type"] = "error";
+
+					err["message"] = "Invalid or disallowed room broker URL. Use a public http(s) address.";
+
+					return err;
+
+				}
 
 				strncpy_s(m_settings.brokerBaseUrl, broker.c_str(), _TRUNCATE);
 
@@ -483,53 +574,41 @@ namespace launcher {
 
 			}
 
-			std::string zipUrl = msg.value("zipDownloadUrl", "");
+			UpdateCheckResult check = CheckForUpdate();
 
-			std::string zipApiUrl = msg.value("zipApiUrl", "");
+			if (!check.ok) {
 
-			std::string latestTag = msg.value("latestVersion", "");
+				nlohmann::json err;
 
-			if (zipUrl.empty() || latestTag.empty()) {
+				err["v"] = kProtocolVersion;
 
-				UpdateCheckResult check = CheckForUpdate();
+				err["type"] = "error";
 
-				if (!check.ok) {
+				err["message"] = check.error;
 
-					nlohmann::json err;
-
-					err["v"] = kProtocolVersion;
-
-					err["type"] = "error";
-
-					err["message"] = check.error;
-
-					return err;
-
-				}
-
-				if (!check.updateAvailable) {
-
-					nlohmann::json err;
-
-					err["v"] = kProtocolVersion;
-
-					err["type"] = "error";
-
-					err["message"] = "No update available.";
-
-					return err;
-
-				}
-
-				zipUrl = check.zipDownloadUrl;
-
-				zipApiUrl = check.zipApiUrl;
-
-				latestTag = check.latestVersion;
+				return err;
 
 			}
 
-			ApplyUpdateResult applied = DownloadAndApplyUpdate(zipUrl.c_str(), zipApiUrl.c_str(), latestTag.c_str());
+			if (!check.updateAvailable) {
+
+				nlohmann::json err;
+
+				err["v"] = kProtocolVersion;
+
+				err["type"] = "error";
+
+				err["message"] = "No update available.";
+
+				return err;
+
+			}
+
+			ApplyUpdateResult applied = DownloadAndApplyUpdate(
+				check.zipDownloadUrl.c_str(),
+				check.zipApiUrl.c_str(),
+				check.latestVersion.c_str()
+			);
 
 			if (!applied.ok) {
 
@@ -585,6 +664,8 @@ namespace launcher {
 
 			m_settings.relaySessionPort = created.relayPort;
 
+			strncpy_s(m_settings.relayHostSecret, created.hostSecret.c_str(), _TRUNCATE);
+
 			SavePersistedSettings(m_settings);
 
 			BrokerHealth brokerHealth;
@@ -619,7 +700,11 @@ namespace launcher {
 
 			nlohmann::json r = MakeStateEnvelope();
 
-			r["heartbeatOk"] = HeartbeatRelayRoom(m_settings.brokerBaseUrl, code.c_str());
+			r["heartbeatOk"] = HeartbeatRelayRoom(
+				m_settings.brokerBaseUrl,
+				code.c_str(),
+				m_settings.relayHostSecret[0] ? m_settings.relayHostSecret : nullptr
+			);
 
 			return r;
 
@@ -831,6 +916,8 @@ namespace launcher {
 						relayCode = created.shortCode;
 
 						strncpy_s(m_settings.relayRoomCode, relayCode.c_str(), _TRUNCATE);
+
+						strncpy_s(m_settings.relayHostSecret, created.hostSecret.c_str(), _TRUNCATE);
 
 						m_settings.relaySessionPort = created.relayPort;
 

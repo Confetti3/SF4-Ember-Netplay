@@ -817,12 +817,7 @@
     setUpdateBusy(true);
     showOpenReleaseButton(false);
     renderUpdateStatus("Downloading update…", "");
-    post({
-      type: "applyUpdate",
-      zipDownloadUrl: updateInfo.zipDownloadUrl,
-      zipApiUrl: updateInfo.zipApiUrl,
-      latestVersion: updateInfo.latestVersion,
-    });
+    post({ type: "applyUpdate" });
   });
 
   document.getElementById("btn-open-release").addEventListener("click", function () {

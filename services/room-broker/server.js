@@ -3,6 +3,7 @@
  * Run: node server.js
  * Env: PORT=8787 RELAY_HOST=your.vps RELAY_PORT_BASE=23456 MAX_ROOMS=20 ROOM_IDLE_MS=900000
  *      FORCE_VPS_RELAY=1 RELAY_MANAGER_URL=http://127.0.0.1:8788
+ *      BROKER_ENABLE_ROOM_LIST=0
  */
 
 const http = require("http");
@@ -14,17 +15,28 @@ const RELAY_PORT_BASE = parseInt(process.env.RELAY_PORT_BASE || "23456", 10);
 const MAX_ROOMS = parseInt(process.env.MAX_ROOMS || "20", 10);
 const ROOM_IDLE_MS = parseInt(process.env.ROOM_IDLE_MS || String(15 * 60 * 1000), 10);
 const QUEUE_TICK_MS = parseInt(process.env.QUEUE_TICK_MS || "3000", 10);
+const MAX_QUEUE = parseInt(process.env.MAX_QUEUE || "50", 10);
+const MAX_BODY_BYTES = parseInt(process.env.MAX_BODY_BYTES || String(64 * 1024), 10);
+const ENABLE_ROOM_LIST =
+  process.env.BROKER_ENABLE_ROOM_LIST === "1" || process.env.BROKER_ENABLE_ROOM_LIST === "true";
 const FORCE_VPS_RELAY =
   process.env.FORCE_VPS_RELAY === "1" || process.env.FORCE_VPS_RELAY === "true";
 const RELAY_MANAGER_URL = process.env.RELAY_MANAGER_URL || "http://127.0.0.1:8788";
 
-/** @type {Map<string, { code: string, host: string, port: number, displayName: string, createdAt: number, lastSeenAt: number, sidecarHash?: string }>} */
+/** @type {Map<string, { code: string, host: string, port: number, displayName: string, createdAt: number, lastSeenAt: number, sidecarHash?: string, hostSecret: string }>} */
 const rooms = new Map();
 /** @type {string[]} */
 const queue = [];
 
+/** @type {Map<string, number[]>} */
+const rateBuckets = new Map();
+
 function makeToken() {
-  return crypto.randomBytes(3).toString("hex").toUpperCase().slice(0, 4);
+  return crypto.randomBytes(8).toString("hex").toUpperCase();
+}
+
+function makeHostSecret() {
+  return crypto.randomBytes(32).toString("hex");
 }
 
 function allocatePort() {
@@ -34,6 +46,51 @@ function allocatePort() {
     if (!used.has(port)) return port;
   }
   return 0;
+}
+
+function clientIp(req) {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (typeof forwarded === "string" && forwarded.trim()) {
+    return forwarded.split(",")[0].trim();
+  }
+  return req.socket.remoteAddress || "unknown";
+}
+
+function allowRate(key, limit, windowMs) {
+  const now = Date.now();
+  const bucket = rateBuckets.get(key) || [];
+  const recent = bucket.filter((ts) => now - ts < windowMs);
+  if (recent.length >= limit) {
+    rateBuckets.set(key, recent);
+    return false;
+  }
+  recent.push(now);
+  rateBuckets.set(key, recent);
+  return true;
+}
+
+function checkRate(req, bucket, limit, windowMs) {
+  const ip = clientIp(req);
+  const key = `${bucket}:${ip}`;
+  if (!allowRate(key, limit, windowMs)) {
+    return false;
+  }
+  return true;
+}
+
+function verifyHostSecret(room, hostSecret) {
+  if (!room || !room.hostSecret) {
+    return false;
+  }
+  if (typeof hostSecret !== "string" || !hostSecret) {
+    return false;
+  }
+  const a = Buffer.from(room.hostSecret, "utf8");
+  const b = Buffer.from(hostSecret, "utf8");
+  if (a.length !== b.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(a, b);
 }
 
 async function relayManagerRequest(method, path, body) {
@@ -139,15 +196,21 @@ function json(res, status, body) {
   const payload = JSON.stringify(body);
   res.writeHead(status, {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
   });
   res.end(payload);
 }
 
 function readBody(req) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let data = "";
+    let total = 0;
     req.on("data", (chunk) => {
+      total += chunk.length;
+      if (total > MAX_BODY_BYTES) {
+        reject(new Error("body_too_large"));
+        req.destroy();
+        return;
+      }
       data += chunk;
     });
     req.on("end", () => {
@@ -157,6 +220,7 @@ function readBody(req) {
         resolve({});
       }
     });
+    req.on("error", () => resolve({}));
   });
 }
 
@@ -205,6 +269,7 @@ async function createRoomRecord(displayName, relayHost, sidecarHash) {
   let token = makeToken();
   while (rooms.has(`SF4-${token}`)) token = makeToken();
   const code = `SF4-${token}`;
+  const hostSecret = makeHostSecret();
   const now = Date.now();
   const roomHost = FORCE_VPS_RELAY ? RELAY_HOST : relayHost || RELAY_HOST;
   rooms.set(code, {
@@ -215,17 +280,14 @@ async function createRoomRecord(displayName, relayHost, sidecarHash) {
     createdAt: now,
     lastSeenAt: now,
     sidecarHash: sidecarHash || undefined,
+    hostSecret,
   });
-  return { code, host: roomHost, port, token };
+  return { code, host: roomHost, port, token, hostSecret };
 }
 
 const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") {
-    res.writeHead(204, {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    });
+    res.writeHead(204);
     res.end();
     return;
   }
@@ -240,24 +302,48 @@ const server = http.createServer(async (req, res) => {
       maxRooms: MAX_ROOMS,
       relayHost: RELAY_HOST,
       forceVpsRelay: FORCE_VPS_RELAY,
+      queueSize: queue.length,
+      relayPortBase: RELAY_PORT_BASE,
+      roomIdleMs: ROOM_IDLE_MS,
     });
     return;
   }
 
   if (req.method === "GET" && url.pathname === "/v1/rooms") {
+    if (!ENABLE_ROOM_LIST) {
+      json(res, 404, { error: "not_found", message: "Room listing is disabled." });
+      return;
+    }
+    const now = Date.now();
     const list = [...rooms.values()]
-      .filter((r) => Date.now() - r.lastSeenAt < ROOM_IDLE_MS)
+      .filter((r) => now - r.lastSeenAt < ROOM_IDLE_MS)
       .map((r) => ({
         code: r.code,
         displayName: r.displayName,
         port: r.port,
+        host: r.host,
+        createdAt: r.createdAt,
+        lastSeenAt: r.lastSeenAt,
       }));
     json(res, 200, { rooms: list });
     return;
   }
 
   if (req.method === "POST" && url.pathname === "/v1/rooms") {
-    const body = await readBody(req);
+    if (!checkRate(req, "create", 10, 60_000)) {
+      json(res, 429, { error: "rate_limited", message: "Too many room create requests." });
+      return;
+    }
+    let body = {};
+    try {
+      body = await readBody(req);
+    } catch (err) {
+      if (err && err.message === "body_too_large") {
+        json(res, 413, { error: "payload_too_large", message: "Request body too large." });
+        return;
+      }
+      body = {};
+    }
     const sidecarHash = String(body.sidecarHash || "").trim();
     const relayHost =
       !FORCE_VPS_RELAY && body.relayHost ? String(body.relayHost).trim() : "";
@@ -300,6 +386,10 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "GET" && roomMatch) {
+    if (!checkRate(req, "resolve", 30, 60_000)) {
+      json(res, 429, { error: "rate_limited", message: "Too many room lookup requests." });
+      return;
+    }
     const code = normalizeCode(roomMatch[1]);
     const room = rooms.get(code);
     if (!room) {
@@ -321,12 +411,33 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "DELETE" && roomMatch) {
+    if (!checkRate(req, "mutate", 60, 60_000)) {
+      json(res, 429, { error: "rate_limited", message: "Too many room mutation requests." });
+      return;
+    }
+    let body = {};
+    try {
+      body = await readBody(req);
+    } catch (err) {
+      if (err && err.message === "body_too_large") {
+        json(res, 413, { error: "payload_too_large", message: "Request body too large." });
+        return;
+      }
+      body = {};
+    }
     const code = normalizeCode(roomMatch[1]);
     const room = rooms.get(code);
     if (!room) {
       json(res, 404, {
         error: "not_found",
         message: "Room not found or expired.",
+      });
+      return;
+    }
+    if (!verifyHostSecret(room, body.hostSecret)) {
+      json(res, 401, {
+        error: "unauthorized",
+        message: "Host secret required.",
       });
       return;
     }
@@ -338,12 +449,33 @@ const server = http.createServer(async (req, res) => {
 
   const heartbeatMatch = url.pathname.match(/^\/v1\/rooms\/(SF4-[A-Z0-9]+)\/heartbeat$/i);
   if (req.method === "POST" && heartbeatMatch) {
+    if (!checkRate(req, "mutate", 60, 60_000)) {
+      json(res, 429, { error: "rate_limited", message: "Too many room mutation requests." });
+      return;
+    }
+    let body = {};
+    try {
+      body = await readBody(req);
+    } catch (err) {
+      if (err && err.message === "body_too_large") {
+        json(res, 413, { error: "payload_too_large", message: "Request body too large." });
+        return;
+      }
+      body = {};
+    }
     const code = normalizeCode(heartbeatMatch[1]);
     const room = rooms.get(code);
     if (!room) {
       json(res, 404, {
         error: "not_found",
         message: "Room not found or expired.",
+      });
+      return;
+    }
+    if (!verifyHostSecret(room, body.hostSecret)) {
+      json(res, 401, {
+        error: "unauthorized",
+        message: "Host secret required.",
       });
       return;
     }
@@ -361,7 +493,23 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "POST" && url.pathname === "/v1/queue/join") {
-    const body = await readBody(req);
+    let body = {};
+    try {
+      body = await readBody(req);
+    } catch (err) {
+      if (err && err.message === "body_too_large") {
+        json(res, 413, { error: "payload_too_large", message: "Request body too large." });
+        return;
+      }
+      body = {};
+    }
+    if (queue.length >= MAX_QUEUE) {
+      json(res, 503, {
+        error: "queue_full",
+        message: "Matchmaking queue is full. Try again shortly.",
+      });
+      return;
+    }
     const name = body.displayName || "Player";
     queue.push(name);
     if (queue.length >= 2) {
@@ -381,6 +529,7 @@ const server = http.createServer(async (req, res) => {
         code: created.code,
         host: created.host,
         port: created.port,
+        hostSecret: created.hostSecret,
       });
       return;
     }
@@ -392,6 +541,18 @@ const server = http.createServer(async (req, res) => {
 });
 
 setInterval(pruneRooms, Math.min(ROOM_IDLE_MS, 60000));
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, bucket] of rateBuckets.entries()) {
+    const recent = bucket.filter((ts) => now - ts < 300_000);
+    if (recent.length) {
+      rateBuckets.set(key, recent);
+    } else {
+      rateBuckets.delete(key);
+    }
+  }
+}, 60_000);
 
 server.listen(PORT, () => {
   console.log(

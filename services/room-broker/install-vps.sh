@@ -62,6 +62,7 @@ systemctl restart sf4e-broker.service
 if command -v ufw >/dev/null 2>&1; then
   ufw allow OpenSSH 2>/dev/null || ufw allow 22/tcp 2>/dev/null || true
   ufw allow 8787/tcp 2>/dev/null || true
+  ufw allow 443/tcp 2>/dev/null || true
   ufw allow 23456:23475/tcp 2>/dev/null || true
   ufw allow 23456:23475/udp 2>/dev/null || true
   if ufw status | grep -q "Status: active"; then

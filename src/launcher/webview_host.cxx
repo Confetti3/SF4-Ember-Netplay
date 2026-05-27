@@ -8,6 +8,7 @@
 
 #include <pathcch.h>
 #include <shlobj.h>
+#include <shlwapi.h>
 #include <strsafe.h>
 
 #include <wrl.h>
@@ -270,7 +271,61 @@ namespace launcher {
 
 									settings->put_IsWebMessageEnabled(TRUE);
 
+#ifndef _DEBUG
+									settings->put_AreDevToolsEnabled(FALSE);
+#endif
 
+									wchar_t launcherDir[MAX_PATH] = { 0 };
+									GetModuleFileNameW(NULL, launcherDir, MAX_PATH);
+									PathCchRemoveFileSpec(launcherDir, MAX_PATH);
+
+									ui->webview->add_NavigationStarting(
+										Callback<ICoreWebView2NavigationStartingEventHandler>(
+											[launcherDir](ICoreWebView2* sender, ICoreWebView2NavigationStartingEventArgs* args) -> HRESULT {
+												(void)sender;
+												wil::unique_cotaskmem_string uriWide;
+												args->get_Uri(uriWide.put());
+												if (!uriWide) {
+													args->put_Cancel(TRUE);
+													return S_OK;
+												}
+												if (_wcsnicmp(uriWide.get(), L"file:///", 8) != 0) {
+													args->put_Cancel(TRUE);
+													return S_OK;
+												}
+												wchar_t path[MAX_PATH * 2] = { 0 };
+												DWORD pathLen = MAX_PATH * 2;
+												if (UrlCanonicalizeW(uriWide.get(), path, &pathLen, URL_UNESCAPE) != S_OK) {
+													args->put_Cancel(TRUE);
+													return S_OK;
+												}
+												wchar_t fullPath[MAX_PATH * 2] = { 0 };
+												if (!GetFullPathNameW(path, MAX_PATH * 2, fullPath, NULL)) {
+													args->put_Cancel(TRUE);
+													return S_OK;
+												}
+												wchar_t allowedRoot[MAX_PATH * 2] = { 0 };
+												wcsncpy_s(allowedRoot, launcherDir, _TRUNCATE);
+												PathCchAppend(allowedRoot, MAX_PATH * 2, L"launcher-ui");
+												wchar_t allowedFull[MAX_PATH * 2] = { 0 };
+												if (!GetFullPathNameW(allowedRoot, MAX_PATH * 2, allowedFull, NULL)) {
+													args->put_Cancel(TRUE);
+													return S_OK;
+												}
+												size_t rootLen = wcslen(allowedFull);
+												if (rootLen > 0 && allowedFull[rootLen - 1] != L'\\') {
+													wcscat_s(allowedFull, L"\\");
+													rootLen++;
+												}
+												if (_wcsnicmp(fullPath, allowedFull, rootLen) != 0) {
+													args->put_Cancel(TRUE);
+													return S_OK;
+												}
+												return S_OK;
+											}
+										).Get(),
+										nullptr
+									);
 
 									ui->webview->add_WebMessageReceived(
 

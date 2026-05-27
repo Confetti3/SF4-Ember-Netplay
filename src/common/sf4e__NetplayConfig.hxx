@@ -12,9 +12,9 @@ namespace sf4e {
 
 	// Fixed-size config copied Launcher -> Sidecar via Detours payload.
 	// Keep POD and stable layout; bump SF4E_NETPLAY_CONFIG_VERSION if fields change.
-	static const int SF4E_NETPLAY_CONFIG_VERSION = 3;
+	static const int SF4E_NETPLAY_CONFIG_VERSION = 4;
 	static const int NETPLAY_SESSION_HOST_LEN = 64;
-	static const int NETPLAY_ROOM_KEY_LEN = 16;
+	static const int NETPLAY_ROOM_KEY_LEN = 32;
 	static const int NETPLAY_DISPLAY_NAME_LEN = 32;
 
 	struct NetplayConfig {

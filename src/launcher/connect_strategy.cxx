@@ -75,13 +75,13 @@ namespace launcher {
 	StrategyResult ResolveJoinRelayRoom(const JoinRequest& request, const char* brokerBaseUrl) {
 		StrategyResult r;
 		if (request.roomCode.empty()) {
-			r.error = "Enter a room code (example SF4-A1B2).";
+			r.error = "Enter a room code (example SF4-A1B2C3D4E5F67890).";
 			return r;
 		}
 
-		char token[16] = { 0 };
-		if (!ParseShortRoomCode(request.roomCode.c_str(), token, sizeof(token))) {
-			r.error = "Invalid room code. Use SF4-XXXX from your host.";
+		char normalizedCode[32] = { 0 };
+		if (!NormalizeRelayRoomCode(request.roomCode.c_str(), normalizedCode, sizeof(normalizedCode))) {
+			r.error = "Invalid room code. Use the SF4- code from your host.";
 			return r;
 		}
 
@@ -91,8 +91,8 @@ namespace launcher {
 			return r;
 		}
 
-		char path[128];
-		snprintf(path, sizeof(path), "/v1/rooms/SF4-%s", token);
+		char path[160];
+		snprintf(path, sizeof(path), "/v1/rooms/%s", normalizedCode);
 
 		char body[4096] = { 0 };
 		if (!BrokerHttpGet(parts, path, body, sizeof(body))) {
@@ -103,7 +103,7 @@ namespace launcher {
 		try {
 			nlohmann::json j = nlohmann::json::parse(body);
 			if (j.value("error", "").size()) {
-				r.error = j.value("message", "Room not found or expired. Ask the host to create a new SF4-XXXX code.");
+				r.error = j.value("message", "Room not found or expired. Ask the host to create a new SF4- room code.");
 				return r;
 			}
 			std::string host = j.value("host", "");
@@ -293,6 +293,7 @@ namespace launcher {
 				return r;
 			}
 			r.shortCode = code;
+			r.hostSecret = j.value("hostSecret", "");
 			strncpy_s(r.relayHost, host.c_str(), _TRUNCATE);
 			r.relayPort = (uint16_t)port;
 			r.ok = true;
@@ -304,13 +305,13 @@ namespace launcher {
 		}
 	}
 
-	bool HeartbeatRelayRoom(const char* brokerBaseUrl, const char* roomCode) {
+	bool HeartbeatRelayRoom(const char* brokerBaseUrl, const char* roomCode, const char* hostSecret) {
 		if (!roomCode || !roomCode[0]) {
 			return false;
 		}
 
-		char token[16] = { 0 };
-		if (!ParseShortRoomCode(roomCode, token, sizeof(token))) {
+		char normalizedCode[32] = { 0 };
+		if (!NormalizeRelayRoomCode(roomCode, normalizedCode, sizeof(normalizedCode))) {
 			return false;
 		}
 
@@ -320,10 +321,16 @@ namespace launcher {
 		}
 
 		char path[160];
-		snprintf(path, sizeof(path), "/v1/rooms/SF4-%s/heartbeat", token);
+		snprintf(path, sizeof(path), "/v1/rooms/%s/heartbeat", normalizedCode);
+
+		nlohmann::json req;
+		if (hostSecret && hostSecret[0]) {
+			req["hostSecret"] = hostSecret;
+		}
+		std::string reqBody = req.dump();
 
 		char body[512] = { 0 };
-		if (!BrokerHttpPostJson(parts, path, "{}", body, sizeof(body))) {
+		if (!BrokerHttpPostJson(parts, path, reqBody.c_str(), body, sizeof(body))) {
 			return false;
 		}
 

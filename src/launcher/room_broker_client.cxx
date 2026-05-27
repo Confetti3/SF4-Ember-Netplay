@@ -9,6 +9,59 @@
 namespace sf4e {
 namespace launcher {
 
+	namespace {
+
+		static bool AllowLocalBrokerHost() {
+			const char* env = getenv("SF4E_ALLOW_LOCAL_BROKER");
+			return env && (env[0] == '1' || _stricmp(env, "true") == 0);
+		}
+
+		static bool IsBlockedBrokerHostLiteral(const char* host) {
+			if (!host || !host[0]) {
+				return true;
+			}
+			if (_stricmp(host, "localhost") == 0) {
+				return !AllowLocalBrokerHost();
+			}
+			if (_stricmp(host, "metadata.google.internal") == 0
+				|| _stricmp(host, "metadata.goog") == 0) {
+				return true;
+			}
+
+			unsigned a = 0;
+			unsigned b = 0;
+			unsigned c = 0;
+			unsigned d = 0;
+			if (sscanf_s(host, "%u.%u.%u.%u", &a, &b, &c, &d) != 4) {
+				return false;
+			}
+
+			if (a == 127) {
+				return !AllowLocalBrokerHost();
+			}
+			if (a == 10) {
+				return true;
+			}
+			if (a == 172 && b >= 16 && b <= 31) {
+				return true;
+			}
+			if (a == 192 && b == 168) {
+				return true;
+			}
+			if (a == 169 && b == 254) {
+				return true;
+			}
+			if (a == 100 && b >= 64 && b <= 127) {
+				return true;
+			}
+			if (a == 0) {
+				return true;
+			}
+			return false;
+		}
+
+	} // namespace
+
 	bool ParseBrokerBaseUrl(const char* baseUrl, BrokerUrlParts& out) {
 		if (!baseUrl) {
 			return false;
@@ -33,6 +86,9 @@ namespace launcher {
 		else if (_strnicmp(p, "http://", 7) == 0) {
 			p += 7;
 		}
+		else {
+			return false;
+		}
 
 		char* slash = strchr(p, '/');
 		char hostPort[256] = { 0 };
@@ -48,9 +104,18 @@ namespace launcher {
 		if (colon) {
 			*colon = 0;
 			out.port = atoi(colon + 1);
+			if (out.port < 1 || out.port > 65535) {
+				return false;
+			}
 		}
 		strncpy_s(out.host, hostPort, _TRUNCATE);
-		return out.host[0] != 0;
+		if (out.host[0] == 0) {
+			return false;
+		}
+		if (IsBlockedBrokerHostLiteral(out.host)) {
+			return false;
+		}
+		return true;
 	}
 
 	static void JoinBrokerPath(const BrokerUrlParts& parts, const char* suffix, char* outPath, int outPathLen) {

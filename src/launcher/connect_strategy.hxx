@@ -52,6 +52,7 @@ namespace launcher {
 		bool ok = false;
 		std::string error;
 		std::string shortCode;
+		std::string hostSecret;
 		char relayHost[64] = { 0 };
 		uint16_t relayPort = 0;
 	};
@@ -62,7 +63,7 @@ namespace launcher {
 		const char* relayHost,
 		const char* sidecarHash = nullptr
 	);
-	bool HeartbeatRelayRoom(const char* brokerBaseUrl, const char* roomCode);
+	bool HeartbeatRelayRoom(const char* brokerBaseUrl, const char* roomCode, const char* hostSecret = nullptr);
 
 } // namespace launcher
 } // namespace sf4e

@@ -28,6 +28,7 @@ namespace launcher {
 			}
 			strncpy_s(settings.brokerBaseUrl, kDefaultBrokerBaseUrl, _TRUNCATE);
 			settings.relayRoomCode[0] = '\0';
+			settings.relayHostSecret[0] = '\0';
 			settings.relaySessionPort = 0;
 		}
 
@@ -82,6 +83,8 @@ namespace launcher {
 			strncpy_s(out.brokerBaseUrl, broker.c_str(), _TRUNCATE);
 			std::string relayCode = j.value("relayRoomCode", "");
 			strncpy_s(out.relayRoomCode, relayCode.c_str(), _TRUNCATE);
+			std::string relaySecret = j.value("relayHostSecret", "");
+			strncpy_s(out.relayHostSecret, relaySecret.c_str(), _TRUNCATE);
 			const bool brokerMigrated = BrokerUrlNeedsMigration(out.brokerBaseUrl);
 			MigrateDeprecatedBrokerUrl(out);
 			if (brokerMigrated) {
@@ -116,6 +119,7 @@ namespace launcher {
 		j["defaultConnectMethod"] = in.defaultConnectMethod;
 		j["brokerBaseUrl"] = in.brokerBaseUrl;
 		j["relayRoomCode"] = in.relayRoomCode;
+		j["relayHostSecret"] = in.relayHostSecret;
 		j["relaySessionPort"] = in.relaySessionPort;
 
 		std::ofstream f(path);

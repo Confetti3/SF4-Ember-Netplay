@@ -90,12 +90,119 @@ namespace launcher {
 			return GetFileAttributesW(wPath) != INVALID_FILE_ATTRIBUTES;
 		}
 
+		static bool ParseHttpsHostFromUrl(const char* url, char* outHost, int outHostLen) {
+			if (!url || !outHost || outHostLen <= 0) {
+				return false;
+			}
+			if (_strnicmp(url, "https://", 8) != 0) {
+				return false;
+			}
+			const char* hostStart = url + 8;
+			const char* pathStart = strchr(hostStart, '/');
+			if (pathStart) {
+				strncpy_s(outHost, outHostLen, hostStart, pathStart - hostStart);
+			}
+			else {
+				strncpy_s(outHost, outHostLen, hostStart, _TRUNCATE);
+			}
+			char* at = strchr(outHost, '@');
+			if (at) {
+				memmove(outHost, at + 1, strlen(at + 1) + 1);
+			}
+			char* colon = strchr(outHost, ':');
+			if (colon) {
+				*colon = 0;
+			}
+			return outHost[0] != 0;
+		}
+
+		static bool IsAllowedUpdateHost(const char* host) {
+			if (!host || !host[0]) {
+				return false;
+			}
+			if (_stricmp(host, "api.github.com") == 0) {
+				return true;
+			}
+			if (_stricmp(host, "github.com") == 0 || _stricmp(host, "www.github.com") == 0) {
+				return true;
+			}
+			if (_stricmp(host, "objects.githubusercontent.com") == 0) {
+				return true;
+			}
+			if (_stricmp(host, "codeload.github.com") == 0) {
+				return true;
+			}
+			return false;
+		}
+
+		static bool IsAllowedUpdateUrl(const char* url) {
+			char host[256] = { 0 };
+			if (!ParseHttpsHostFromUrl(url, host, sizeof(host))) {
+				return false;
+			}
+			return IsAllowedUpdateHost(host);
+		}
+
 		static bool ValidateStagedPackage(const char* stagingDirUtf8) {
 			for (const char* rel : kRequiredPackagePaths) {
 				if (!PathExistsUtf8(stagingDirUtf8, rel)) {
 					return false;
 				}
 			}
+			return true;
+		}
+
+		static bool IsPathUnderRoot(const wchar_t* root, const wchar_t* candidate) {
+			wchar_t rootFull[MAX_PATH * 2] = { 0 };
+			wchar_t candidateFull[MAX_PATH * 2] = { 0 };
+			if (!GetFullPathNameW(root, MAX_PATH * 2, rootFull, NULL)) {
+				return false;
+			}
+			if (!GetFullPathNameW(candidate, MAX_PATH * 2, candidateFull, NULL)) {
+				return false;
+			}
+			size_t rootLen = wcslen(rootFull);
+			if (rootLen > 0 && rootFull[rootLen - 1] != L'\\') {
+				wcscat_s(rootFull, L"\\");
+				rootLen++;
+			}
+			if (_wcsnicmp(candidateFull, rootFull, rootLen) != 0) {
+				return false;
+			}
+			return true;
+		}
+
+		static bool ValidateExtractedTree(const wchar_t* extractRoot) {
+			if (!extractRoot || !extractRoot[0]) {
+				return false;
+			}
+			wchar_t pattern[MAX_PATH * 2] = { 0 };
+			wcsncpy_s(pattern, extractRoot, _TRUNCATE);
+			PathCchAppend(pattern, MAX_PATH * 2, L"*");
+
+			WIN32_FIND_DATAW fd = { 0 };
+			HANDLE hFind = FindFirstFileW(pattern, &fd);
+			if (hFind == INVALID_HANDLE_VALUE) {
+				return false;
+			}
+			do {
+				if (wcscmp(fd.cFileName, L".") == 0 || wcscmp(fd.cFileName, L"..") == 0) {
+					continue;
+				}
+				wchar_t entry[MAX_PATH * 2] = { 0 };
+				PathCchCombine(entry, MAX_PATH * 2, extractRoot, fd.cFileName);
+				if (!IsPathUnderRoot(extractRoot, entry)) {
+					FindClose(hFind);
+					return false;
+				}
+				if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+					if (!ValidateExtractedTree(entry)) {
+						FindClose(hFind);
+						return false;
+					}
+				}
+			} while (FindNextFileW(hFind, &fd));
+			FindClose(hFind);
 			return true;
 		}
 
@@ -425,6 +532,11 @@ namespace launcher {
 				outError = "missing URL";
 				return false;
 			}
+			if (!IsAllowedUpdateUrl(url)) {
+				outError = "download URL host is not allowlisted";
+				AppendUpdateLog((std::string(label) + " blocked: disallowed host").c_str());
+				return false;
+			}
 			if (!EnsureParentDirectoryExistsW(zipPath, outError)) {
 				AppendUpdateLog((std::string(label) + " mkdir failed: " + outError).c_str());
 				return false;
@@ -437,65 +549,6 @@ namespace launcher {
 			outError = HttpDownloadErrorMessage(httpResult);
 			AppendUpdateLog((std::string(label) + " failed: " + outError).c_str());
 			return false;
-		}
-
-		static bool DownloadViaCurl(const char* url, const wchar_t* destPath, std::string& outError) {
-			if (!url || !url[0] || !destPath) {
-				outError = "missing URL";
-				return false;
-			}
-
-			if (!EnsureParentDirectoryExistsW(destPath, outError)) {
-				AppendUpdateLog(("curl mkdir failed: " + outError).c_str());
-				return false;
-			}
-
-			wchar_t urlWide[2048] = { 0 };
-			MultiByteToWideChar(CP_UTF8, 0, url, -1, urlWide, 2048);
-
-			wchar_t cmdLine[4096] = { 0 };
-			swprintf_s(
-				cmdLine,
-				L"curl.exe -fL --retry 2 --connect-timeout 30 --max-time 300 -o \"%s\" \"%s\"",
-				destPath,
-				urlWide
-			);
-
-			STARTUPINFOW si = { 0 };
-			PROCESS_INFORMATION pi = { 0 };
-			si.cb = sizeof(si);
-			if (!CreateProcessW(NULL, cmdLine, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
-				outError = "curl.exe not available";
-				AppendUpdateLog("curl not available");
-				return false;
-			}
-			WaitForSingleObject(pi.hProcess, INFINITE);
-			DWORD exitCode = 1;
-			GetExitCodeProcess(pi.hProcess, &exitCode);
-			CloseHandle(pi.hProcess);
-			CloseHandle(pi.hThread);
-			if (exitCode != 0) {
-				char buf[64];
-				snprintf(buf, sizeof(buf), "curl exit %lu", exitCode);
-				outError = buf;
-				AppendUpdateLog((std::string("curl failed: ") + outError).c_str());
-				return false;
-			}
-
-			WIN32_FILE_ATTRIBUTE_DATA info = { 0 };
-			if (!GetFileAttributesExW(destPath, GetFileExInfoStandard, &info)) {
-				outError = "curl wrote no file";
-				AppendUpdateLog("curl wrote no file");
-				return false;
-			}
-			ULONGLONG size = ((ULONGLONG)info.nFileSizeHigh << 32) | info.nFileSizeLow;
-			if (size == 0) {
-				outError = "curl wrote empty file";
-				AppendUpdateLog("curl wrote empty file");
-				return false;
-			}
-			AppendUpdateLog("curl OK");
-			return true;
 		}
 
 		static bool DownloadReleaseZip(
@@ -530,14 +583,6 @@ namespace launcher {
 					return true;
 				}
 				recordFailure("api");
-			}
-
-			const char* curlUrl = (zipDownloadUrl && zipDownloadUrl[0]) ? zipDownloadUrl : zipApiUrl;
-			if (curlUrl && curlUrl[0]) {
-				if (DownloadViaCurl(curlUrl, zipPath, attemptError)) {
-					return true;
-				}
-				recordFailure("curl");
 			}
 
 			std::string detail;
@@ -814,6 +859,13 @@ namespace launcher {
 			return result;
 		}
 		AppendUpdateLog("extract ok");
+
+		if (!ValidateExtractedTree(extractDir)) {
+			AppendUpdateLog("extract path validation failed");
+			result.error = "Downloaded package contains invalid paths.";
+			return result;
+		}
+		AppendUpdateLog("extract path validation ok");
 
 		wchar_t stagingDir[MAX_PATH] = { 0 };
 		if (!FindPackageRoot(extractDir, stagingDir, MAX_PATH)) {
