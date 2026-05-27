@@ -15,18 +15,30 @@ VPS relay rollback netplay for **Ultra Street Fighter IV** (Steam) with a modern
 
 This is an **unofficial port** of [sf4e](https://codeberg.org/adanducci/sf4e) by **Anthony Danducci** and contributors (MIT). It is **not** the upstream project and is **not** endorsed by Anthony Danducci. See `ATTRIBUTION.md` in the zip. For official sf4e, use [Codeberg](https://codeberg.org/adanducci/sf4e).
 
-## Prerequisites
+## Prerequisites (install on each PC before playing)
 
-- **Ultra Street Fighter IV** on Steam (app 45760) — not included
-- [Microsoft Edge WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703)
-- [VC++ Redistributable (x86)](https://aka.ms/vs/17/release/vc_redist.x86.exe)
+**These are not included in the zip.** Install once per machine:
+
+| Requirement | Why | Download |
+|-------------|-----|----------|
+| **Ultra Street Fighter IV** (Steam app **45760**) | The game this launcher hooks into | [Steam](https://store.steampowered.com/app/45760/) |
+| **Microsoft Edge WebView2 Runtime** | Launcher UI (Host / Join / Offline) | [WebView2](https://go.microsoft.com/fwlink/p/?LinkId=2124703) |
+| **Microsoft Visual C++ Redistributable (x86)** | `Launcher.exe`, `Sidecar.dll`, and relay binaries | [VC++ x86](https://aka.ms/vs/17/release/vc_redist.x86.exe) |
+
+**OS:** Windows 10 or later (64-bit Windows; the launcher is **32-bit/x86** to match USF4).
+
+**After you extract the zip:** run **`preflight.cmd`**, then **`Launcher.exe`**.
+
+**Netplay:** Both players must use the **same release zip** (`BUILD_INFO.txt` Git line must match).
+
+(See also [docs/RELEASE_PREREQUISITES.md](RELEASE_PREREQUISITES.md) in the repo.)
 
 ## Install
 
 1. Download the **team zip** asset below (not "Source code" only).
-2. Extract the **entire** zip to one folder.
-3. Run `preflight.cmd`
-4. Run `Launcher.exe` — **Host**, **Join**, or **Offline**
+2. Extract the **entire** zip to one folder (keep all DLLs and `launcher-ui/` next to `Launcher.exe`).
+3. Run **`preflight.cmd`**
+4. Run **`Launcher.exe`** — **Host**, **Join**, or **Offline**
 
 ## Quick start (Simple VPS relay)
 
