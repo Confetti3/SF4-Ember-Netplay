@@ -4,8 +4,9 @@ Run after transport stack changes (Phases 1–3). Complements [SMOKE_TEST.md](SM
 
 ## Defaults during rollout
 
-- VPS: `BROKER_GGPO_TRANSPORT=legacy` until UDP soak passes, then `auto`
-- Client: `SF4E_GGPO_TRANSPORT` unset or `legacy` matches production default
+- VPS: `BROKER_GGPO_TRANSPORT=auto` (production default as of 2026-05-27)
+- Client: unset env uses connect-plan from broker (`udp_relay` with auto ladder fallback to legacy tunnel)
+- Override: `SF4E_GGPO_TRANSPORT=legacy|udp|p2p|auto`
 
 ## Matrix
 

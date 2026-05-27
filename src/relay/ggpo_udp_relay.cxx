@@ -140,7 +140,7 @@ int main(int argc, char** argv) {
 		lastTrafficMs = nowMs;
 
 		if (n == 4 && memcmp(buf, kMagicHealth, 4) == 0) {
-			sendto(sock, kRespHealth, 4, 0, (sockaddr*)&from, fromLen);
+			sendto(sock, kRespHealth, 5, 0, (sockaddr*)&from, fromLen);
 			continue;
 		}
 

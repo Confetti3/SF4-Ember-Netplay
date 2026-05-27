@@ -38,6 +38,9 @@ namespace sf4e {
 	// HTTPS lookup of public IPv4 (api.ipify.org, then icanhazip.com). timeoutMs per request.
 	bool FetchPublicIPv4(char* outIp, int outIpLen, int timeoutMs = 5000);
 
+	// Resolve hostname or dotted IPv4 to IPv4 string for UDP sockets.
+	bool ResolveHostToIPv4(const char* host, char* outIp, int outIpLen);
+
 	bool CopyTextToClipboardUtf8(const char* text);
 
 	// HTTP GET; returns response body (UTF-8). useHttps selects port 443 vs 80.

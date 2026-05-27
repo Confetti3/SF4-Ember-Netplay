@@ -12,8 +12,8 @@ if (-not $BrokerUrl) {
     $BrokerUrl = $env:SF4E_BROKER_URL
 }
 if (-not $BrokerUrl) {
-    $BrokerUrl = "http://74.208.200.95:8787"
-    Write-Host "Note: production brokers should use HTTPS (see docs/VPS_TLS_SETUP.md). Set SF4E_BROKER_URL=https://your-domain"
+    $BrokerUrl = "https://74-208-200-95.nip.io"
+    Write-Host "Note: using default production broker. Override with SF4E_BROKER_URL."
 }
 
 if (-not $PackageDir) {
@@ -95,7 +95,8 @@ if ($resolved.host -ne $expectedHost -or [int]$resolved.port -ne [int]$created.p
 Ok "Resolved room to $($resolved.host):$($resolved.port)"
 
 try {
-    $heartbeat = Invoke-RestMethod -Uri "$BrokerUrl/v1/rooms/$($created.code)/heartbeat" -Method POST -ContentType "application/json" -Body "{}" -TimeoutSec 10
+    $hbBody = @{ hostSecret = $created.hostSecret } | ConvertTo-Json
+    $heartbeat = Invoke-RestMethod -Uri "$BrokerUrl/v1/rooms/$($created.code)/heartbeat" -Method POST -ContentType "application/json" -Body $hbBody -TimeoutSec 10
     if (-not $heartbeat.ok) { Fail "Heartbeat returned ok=false" }
     if ($heartbeat.heartbeatOk -eq $false) { Fail "Heartbeat ok but relay not listening (heartbeatOk=false)" }
     Ok "Heartbeat accepted (relay listening=$($heartbeat.relayListening))"

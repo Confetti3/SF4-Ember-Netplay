@@ -787,6 +787,45 @@ namespace sf4e {
 		return found;
 	}
 
+	static bool EnsureWinsockStarted();
+
+	bool ResolveHostToIPv4(const char* host, char* outIp, int outIpLen) {
+		if (!host || !host[0] || !outIp || outIpLen < 16) {
+			return false;
+		}
+		if (!EnsureWinsockStarted()) {
+			return false;
+		}
+
+		in_addr addr = {};
+		if (inet_pton(AF_INET, host, &addr) == 1) {
+			strncpy_s(outIp, outIpLen, host, _TRUNCATE);
+			return true;
+		}
+
+		addrinfo hints = {};
+		hints.ai_family = AF_INET;
+		hints.ai_socktype = SOCK_DGRAM;
+		addrinfo* res = nullptr;
+		if (getaddrinfo(host, nullptr, &hints, &res) != 0 || !res) {
+			return false;
+		}
+
+		bool ok = false;
+		for (addrinfo* p = res; p; p = p->ai_next) {
+			if (p->ai_family != AF_INET || !p->ai_addr) {
+				continue;
+			}
+			const sockaddr_in* sin = (const sockaddr_in*)p->ai_addr;
+			if (inet_ntop(AF_INET, &sin->sin_addr, outIp, (socklen_t)outIpLen)) {
+				ok = true;
+				break;
+			}
+		}
+		freeaddrinfo(res);
+		return ok;
+	}
+
 	static bool EnsureWinsockStarted() {
 		static bool started = false;
 		if (started) {

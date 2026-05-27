@@ -538,7 +538,7 @@ async function createRoomRecord(displayName, relayHost, sidecarHash) {
 function startNatProbeServer() {
   const socket = dgram.createSocket("udp4");
   socket.on("message", (msg, rinfo) => {
-    if (msg.length < 8 || msg.slice(0, 8).toString("ascii") !== "SF4E_PROBE") {
+    if (msg.length < 10 || msg.slice(0, 10).toString("ascii") !== "SF4E_PROBE") {
       return;
     }
     if (!allowRate(`nat:${rinfo.address}`, 30, 60_000)) {

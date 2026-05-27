@@ -96,12 +96,14 @@ function ggpoHealthProbe(port, timeoutMs = 1500) {
     };
     socket.once("error", () => finish(false));
     socket.once("message", (msg) => {
-      finish(msg.length >= 4 && msg.slice(0, 4).toString("ascii") === "SF4OK");
+      finish(msg.length >= 5 && msg.slice(0, 5).toString("ascii") === "SF4OK");
     });
-    socket.send(Buffer.from("SF4H", "ascii"), port, "127.0.0.1", (err) => {
-      if (err) {
-        finish(false);
-      }
+    socket.bind(0, "127.0.0.1", () => {
+      socket.send(Buffer.from("SF4H", "ascii"), port, "127.0.0.1", (err) => {
+        if (err) {
+          finish(false);
+        }
+      });
     });
     setTimeout(() => finish(false), timeoutMs);
   });
@@ -217,16 +219,10 @@ function startGgpoSession(ggpoPort, sessionPort, roomToken) {
   ];
 
   const proc = spawn(GGPO_RELAY_BIN, args, {
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: ["ignore", "inherit", "inherit"],
     detached: false,
   });
 
-  proc.stdout.on("data", (chunk) => {
-    process.stdout.write(`[ggpo:${ggpoPort}] ${chunk}`);
-  });
-  proc.stderr.on("data", (chunk) => {
-    process.stderr.write(`[ggpo:${ggpoPort}] ${chunk}`);
-  });
   proc.on("exit", (code, signal) => {
     if (ggpoSessions.get(ggpoPort)?.proc === proc) {
       ggpoSessions.delete(ggpoPort);
@@ -351,10 +347,12 @@ const server = http.createServer(async (req, res) => {
 
     startGgpoSession(ggpoPort, sessionPort, roomToken);
 
+    await new Promise((r) => setTimeout(r, 300));
+
     let ready = false;
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 40; i++) {
       // eslint-disable-next-line no-await-in-loop
-      if (await ggpoHealthProbe(ggpoPort, 500)) {
+      if (await ggpoHealthProbe(ggpoPort, 1000)) {
         ready = true;
         break;
       }

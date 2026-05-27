@@ -407,7 +407,12 @@ namespace launcher {
 		sockaddr_in dest = {};
 		dest.sin_family = AF_INET;
 		dest.sin_port = htons(probePort);
-		if (inet_pton(AF_INET, brokerHost, &dest.sin_addr) != 1) {
+		char resolvedHost[64] = { 0 };
+		if (!sf4e::ResolveHostToIPv4(brokerHost, resolvedHost, sizeof(resolvedHost))) {
+			closesocket(sock);
+			return false;
+		}
+		if (inet_pton(AF_INET, resolvedHost, &dest.sin_addr) != 1) {
 			closesocket(sock);
 			return false;
 		}
