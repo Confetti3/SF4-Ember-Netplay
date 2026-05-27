@@ -4,9 +4,101 @@
 
 **SF4 Netplay Launcher** is a **third-party, experimental unofficial port** for _Ultra Street Fighter IV_ on Steam. It adds a WebView2 **Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e's rollback netplay. Netplay may fail, desync, or break between releases - use only with people who accept that risk.
 
-**Latest release:** [v0.2.8.1](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest)
+**Latest release:** [v0.3.0](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest)
 
 **Download:** [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) - get the **team zip** asset (not "Source code" only).
+
+## How it works
+
+Simple mode (default) uses a **shared VPS** so the host does not port-forward. Each player runs the same release zip. The launcher handles room codes over **HTTPS**; game rollback traffic uses **UDP/TCP** relay ports on the VPS (not TLS - that is normal for real-time netplay).
+
+### End-to-end flow (Simple mode)
+
+```mermaid
+flowchart LR
+  subgraph hostPC [Host PC]
+    LH[Launcher.exe]
+    GH[USF4 + Sidecar.dll]
+    LH -->|starts| GH
+  end
+
+  subgraph joinPC [Joiner PC]
+    LJ[Launcher.exe]
+    GJ[USF4 + Sidecar.dll]
+    LJ -->|starts| GJ
+  end
+
+  subgraph vps [VPS]
+    CY[Caddy :443 HTTPS]
+    BR[Room broker]
+    RM[Relay manager]
+    RL[Session relay GNS]
+    CY --> BR
+    BR --> RM
+    RM --> RL
+  end
+
+  LH -->|POST /v1/rooms| CY
+  LJ -->|GET resolve SF4-code| CY
+  GH <-->|rollback UDP/TCP| RL
+  GJ <-->|rollback UDP/TCP| RL
+```
+
+**Typical session**
+
+1. **Host** clicks Host, then **Get code** - launcher calls the broker over HTTPS and receives `SF4-XXXX` plus a per-room relay port.
+2. **Joiner** pastes the code - launcher resolves it on the broker (HTTPS).
+3. Both click **Start game** - launcher injects `Sidecar.dll` into USF4 with a shared `NetplayConfig` (room token, relay host/port, sidecar hash).
+4. **Sidecar** connects both players through the VPS **session relay** (GameNetworkingSockets). GGPO rollback runs inside that tunnel (**legacy** transport, production default).
+5. In-game lobby: Ready, character select, fight.
+
+### What runs where
+
+```mermaid
+flowchart TB
+  subgraph windows [Each Windows PC]
+    direction TB
+    L[Launcher.exe WebView2 UI]
+    U[Updater.exe optional]
+    S[Sidecar.dll hooks USF4]
+    L -->|creates netplay config| S
+  end
+
+  subgraph control [Control plane - TLS]
+    B["Broker API /v1/*"]
+    D[Operator dashboard /login]
+  end
+
+  subgraph data [Data plane - UDP/TCP]
+    GNS["Session relay 23456-23475"]
+    NAT["NAT probe 8790/udp"]
+    GGPO["GGPO UDP relay 24456-24475 optional"]
+  end
+
+  L -->|HTTPS| B
+  S -->|game packets| GNS
+  L -.->|connect-plan future| NAT
+  S -.->|auto transport future| GGPO
+```
+
+| Layer | Protocol | Purpose |
+|-------|----------|---------|
+| Room create/join, connect-plan | **HTTPS** (443) | Room codes, secrets, match metadata |
+| Session relay (default) | **UDP+TCP** (23456+) | Rollback frames via GNS tunnel |
+| GGPO UDP relay (optional) | **UDP** (24456+) | Direct GGPO when `BROKER_GGPO_TRANSPORT=auto` |
+| NAT probe (optional) | **UDP** (8790) | Public endpoint discovery for P2P/auto |
+
+Broker, relay-manager, and dashboard listen on **127.0.0.1** on the VPS; only Caddy and game ports are public. See [docs/VPS_TLS_SETUP.md](docs/VPS_TLS_SETUP.md).
+
+### Transport modes (v0.3.0+)
+
+Production VPS keeps **`BROKER_GGPO_TRANSPORT=legacy`** until soak tests pass. The client can ladder to faster paths when enabled:
+
+```
+p2p  -->  udp_relay  -->  legacy_session_tunnel (always available fallback)
+```
+
+Details: [docs/TRANSPORT_REGRESSION.md](docs/TRANSPORT_REGRESSION.md).
 
 ## Demo
 
@@ -39,7 +131,7 @@ Install once on each PC:
 3. Optional: run `preflight.cmd` to verify the package.
 4. Double-click **`Launcher.exe`**.
 
-Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.2.7.3`). Use **Check for updates** on the home screen to upgrade.
+Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.3.0`). Use **Check for updates** on the home screen to upgrade.
 
 ### 3. Play online (Simple mode - experimental)
 
@@ -47,7 +139,7 @@ The launcher defaults to **Simple mode**. This path is **experimental** - it has
 
 | Step | Host | Joiner |
 |------|------|--------|
-| 1 | Click **Host** -> **Create relay room** | Wait |
+| 1 | Click **Host** -> **Get code** | Wait |
 | 2 | Copy the **`SF4-XXXX`** code shown on screen | Click **Join** -> paste that exact code |
 | 3 | Click **Start game** | Wait until host is in-game, then **Start game** |
 | 4 | Press **Ready** in the in-game lobby | Press **Ready** |
@@ -85,6 +177,8 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 
 | Doc | Audience |
 |-----|----------|
+| [docs/VPS_TLS_SETUP.md](docs/VPS_TLS_SETUP.md) | VPS TLS, firewall, and port layout |
+| [docs/TRANSPORT_REGRESSION.md](docs/TRANSPORT_REGRESSION.md) | Transport ladder test matrix |
 | [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md) | Experimental testers - quick checklist and bug reports |
 | [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md) | Player guide - Simple + Advanced flows |
 | [docs/CASUAL_NETPLAY.md](docs/CASUAL_NETPLAY.md) | Casual WAN play overview |
@@ -113,12 +207,12 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 
 | Setting | How |
 |---------|-----|
-| Broker URL | Advanced -> **Room broker URL**, or `set SF4E_BROKER_URL=http://your-broker:8787` |
+| Broker URL | Advanced -> **Room broker URL**, or `set SF4E_BROKER_URL=https://74-208-200-95.nip.io` |
 | Developer overlay | `Launcher.exe --dev-overlay` or `set SF4E_NETPLAY_DEV=1` |
 | Offline (no netplay) | **Offline** on the launcher home screen |
 | Reset stuck settings | Delete or edit `%APPDATA%\sf4e\config.json` |
 
-Default broker: `http://74.208.200.95:8787` (VPS relay - no host port forward in Simple mode).
+Default broker: `https://74-208-200-95.nip.io` (HTTPS via Caddy; no host port forward in Simple mode).
 
 ## For developers
 
@@ -127,7 +221,7 @@ This repository builds **SF4 Netplay Launcher** - an **unofficial port** of upst
 **Publish a release:**
 
 ```powershell
-powershell -NoProfile -File scripts/github-release.ps1 -Tag v0.2.8.1 -NotesFile docs/RELEASE_NOTES_v0.2.8.1.md
+powershell -NoProfile -File scripts/github-release.ps1 -Tag v0.3.0 -NotesFile docs/RELEASE_NOTES_v0.3.0.md
 ```
 
 See [docs/RELEASE.md](docs/RELEASE.md).
