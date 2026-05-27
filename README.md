@@ -8,6 +8,14 @@
 
 **Download:** [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) - get the **team zip** asset (not "Source code" only).
 
+## Demo
+
+Experimental Simple-mode netplay (Host ? room code ? Join ? fight). This is a **friends-only test build**, not production-ready software.
+
+https://github.com/Confetti3/SF4-Netplay-Launcher/releases/download/v0.2.8.1/SF4Demo.mp4
+
+[Download demo video (MP4)](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/download/v0.2.8.1/SF4Demo.mp4)
+
 [TOC]
 
 ## Getting started
