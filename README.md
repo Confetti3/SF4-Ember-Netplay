@@ -4,7 +4,7 @@
 
 **SF4 Netplay Launcher** is a **third-party, experimental unofficial port** for _Ultra Street Fighter IV_ on Steam. It adds a WebView2 **Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e's rollback netplay. Netplay may fail, desync, or break between releases - use only with people who accept that risk.
 
-**Latest release:** [v0.3.0](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest)
+**Latest release:** [v0.3.1](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest)
 
 **Download:** [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) - get the **team zip** asset (not "Source code" only).
 
@@ -33,23 +33,27 @@ flowchart LR
     BR[Room broker]
     RM[Relay manager]
     RL[Session relay GNS]
+    GR[GGPO UDP relay]
     CY --> BR
     BR --> RM
     RM --> RL
+    RM --> GR
   end
 
   LH -->|POST /v1/rooms| CY
   LJ -->|GET resolve SF4-code| CY
   GH <-->|rollback UDP/TCP| RL
   GJ <-->|rollback UDP/TCP| RL
+  GH -.->|udp_relay or p2p| GR
+  GJ -.->|udp_relay or p2p| GR
 ```
 
 **Typical session**
 
-1. **Host** clicks Host, then **Get code** - launcher calls the broker over HTTPS and receives `SF4-XXXX` plus a per-room relay port.
+1. **Host** clicks Host, then **Get code** - launcher calls the broker over HTTPS and receives `SF4-XXXX`, a session relay port, and (when VPS transport is `auto`) a GGPO UDP relay port.
 2. **Joiner** pastes the code - launcher resolves it on the broker (HTTPS).
-3. Both click **Start game** - launcher injects `Sidecar.dll` into USF4 with a shared `NetplayConfig` (room token, relay host/port, sidecar hash).
-4. **Sidecar** connects both players through the VPS **session relay** (GameNetworkingSockets). GGPO rollback runs inside that tunnel (**legacy** transport, production default).
+3. Both click **Start game** - launcher fetches a **connect-plan**, runs a **NAT probe** (`8790/udp`), registers each player's GGPO endpoint, and injects `Sidecar.dll` with `NetplayConfig` (room token, relay host/ports, transport hint).
+4. **Sidecar** picks the best path: **p2p** (same public IP or punchable NAT), else **udp_relay** (direct GGPO via VPS), else **legacy_session_tunnel** (GGPO inside the GNS session relay). Legacy always works as fallback.
 5. In-game lobby: Ready, character select, fight.
 
 ### What runs where
@@ -72,33 +76,33 @@ flowchart TB
   subgraph data [Data plane - UDP/TCP]
     GNS["Session relay 23456-23475"]
     NAT["NAT probe 8790/udp"]
-    GGPO["GGPO UDP relay 24456-24475 optional"]
+    GGPO["GGPO UDP relay 24456-24475"]
   end
 
-  L -->|HTTPS| B
-  S -->|game packets| GNS
-  L -.->|connect-plan future| NAT
-  S -.->|auto transport future| GGPO
+  L -->|HTTPS connect-plan| B
+  L -->|NAT probe| NAT
+  S -->|preferred path| GGPO
+  S -->|fallback tunnel| GNS
 ```
 
 | Layer | Protocol | Purpose |
 |-------|----------|---------|
 | Room create/join, connect-plan | **HTTPS** (443) | Room codes, secrets, match metadata |
-| Session relay (default) | **UDP+TCP** (23456+) | Rollback frames via GNS tunnel |
-| GGPO UDP relay (optional) | **UDP** (24456+) | Direct GGPO when `BROKER_GGPO_TRANSPORT=auto` |
-| NAT probe (optional) | **UDP** (8790) | Public endpoint discovery for P2P/auto |
+| GGPO UDP relay (preferred) | **UDP** (24456+) | Direct GGPO when broker transport is `auto` |
+| Session relay (fallback) | **UDP+TCP** (23456+) | Rollback frames via GNS tunnel |
+| NAT probe | **UDP** (8790) | Public endpoint discovery for connect-plan / P2P |
 
 Broker, relay-manager, and dashboard listen on **127.0.0.1** on the VPS; only Caddy and game ports are public. See [docs/VPS_TLS_SETUP.md](docs/VPS_TLS_SETUP.md).
 
-### Transport modes (v0.3.0+)
+### Transport modes (v0.3.1+)
 
-Production VPS keeps **`BROKER_GGPO_TRANSPORT=legacy`** until soak tests pass. The client can ladder to faster paths when enabled:
+Production VPS uses **`BROKER_GGPO_TRANSPORT=auto`**. Each room gets a session relay plus a GGPO UDP relay. The client tries faster paths first:
 
 ```
-p2p  -->  udp_relay  -->  legacy_session_tunnel (always available fallback)
+p2p -> udp_relay -> legacy_session_tunnel (always available fallback)
 ```
 
-Details: [docs/TRANSPORT_REGRESSION.md](docs/TRANSPORT_REGRESSION.md).
+Override with `SF4E_GGPO_TRANSPORT=legacy|udp|p2p|auto` (optional). Details: [docs/TRANSPORT_REGRESSION.md](docs/TRANSPORT_REGRESSION.md).
 
 ## Demo
 
@@ -131,7 +135,7 @@ Install once on each PC:
 3. Optional: run `preflight.cmd` to verify the package.
 4. Double-click **`Launcher.exe`**.
 
-Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.3.0`). Use **Check for updates** on the home screen to upgrade.
+Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.3.1`). Use **Check for updates** on the home screen to upgrade.
 
 ### 3. Play online (Simple mode - experimental)
 
@@ -188,6 +192,7 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 | [ATTRIBUTION.md](ATTRIBUTION.md) | Upstream sf4e credit (Anthony Danducci) |
 | [SECURITY.md](SECURITY.md) | Security policy and supported versions |
 | [docs/RELEASE.md](docs/RELEASE.md) | Building and publishing releases |
+| [docs/RELEASE_NOTES_v0.3.1.md](docs/RELEASE_NOTES_v0.3.1.md) | v0.3.1 release notes |
 
 ## Troubleshooting
 
@@ -198,6 +203,7 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 | Empty lobby / wrong opponent | Same **`SF4-XXXX`** from host's **current** screen |
 | Black screen after portraits | Update to **v0.2.7.3+** on **both** PCs |
 | Join fails before game starts | Host must click **Start game** first |
+| Stuck on connect / wrong transport | Both on **v0.3.1**; broker `https://74-208-200-95.nip.io`; check dev overlay for `udp_relay` vs `legacy_session_tunnel` |
 
 **Logs:** `%APPDATA%\sf4e\logs\sf4e.log` - **Console:** `Launcher.exe --console` - **Build info:** `BUILD_INFO.txt`
 
@@ -221,7 +227,8 @@ This repository builds **SF4 Netplay Launcher** - an **unofficial port** of upst
 **Publish a release:**
 
 ```powershell
-powershell -NoProfile -File scripts/github-release.ps1 -Tag v0.3.0 -NotesFile docs/RELEASE_NOTES_v0.3.0.md
+powershell -NoProfile -File scripts/release-team-build.ps1 -VersionLabel v0.3.1
+gh release create v0.3.1 dist/sf4-netplay-launcher-*-v0.3.1.zip --title "SF4 Netplay Launcher v0.3.1" --notes-file docs/RELEASE_NOTES_v0.3.1.md
 ```
 
 See [docs/RELEASE.md](docs/RELEASE.md).
