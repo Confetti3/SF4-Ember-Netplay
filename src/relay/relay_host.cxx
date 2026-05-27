@@ -134,7 +134,7 @@ int main(int argc, char** argv) {
 	spdlog::set_default_logger(spdlog::stdout_color_mt("RelayHost"));
 	spdlog::set_level(spdlog::level::info);
 
-	CLI::App app("SF4 Enhanced session relay host (headless SessionServer)");
+	CLI::App app("SF4 Netplay Launcher session relay host (headless SessionServer)");
 	uint16_t port = 23456;
 	std::string identity;
 	int idleExitSec = 120;

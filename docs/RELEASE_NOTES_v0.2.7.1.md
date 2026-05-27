@@ -1,4 +1,4 @@
-# SF4 Enhanced v0.2.7.1
+# SF4 Netplay Launcher v0.2.7.1
 
 Patch release after IONOS firewall fix and VPS relay polish.
 

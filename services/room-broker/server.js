@@ -1,5 +1,5 @@
 /**
- * SF4 Enhanced room broker (budget MVP).
+ * SF4 Netplay Launcher room broker (budget MVP).
  * Run: node server.js
  * Env: PORT=8787 RELAY_HOST=your.vps RELAY_PORT_BASE=23456 MAX_ROOMS=20 ROOM_IDLE_MS=900000
  *      FORCE_VPS_RELAY=1 RELAY_MANAGER_URL=http://127.0.0.1:8788
@@ -395,6 +395,6 @@ setInterval(pruneRooms, Math.min(ROOM_IDLE_MS, 60000));
 
 server.listen(PORT, () => {
   console.log(
-    `SF4 Enhanced room broker on :${PORT} relay=${RELAY_HOST}:${RELAY_PORT_BASE}+ maxRooms=${MAX_ROOMS} forceVpsRelay=${FORCE_VPS_RELAY}`
+    `SF4 Netplay Launcher room broker on :${PORT} relay=${RELAY_HOST}:${RELAY_PORT_BASE}+ maxRooms=${MAX_ROOMS} forceVpsRelay=${FORCE_VPS_RELAY}`
   );
 });

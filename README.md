@@ -1,12 +1,12 @@
-﻿# SF4 Enhanced
+﻿# SF4 Netplay Launcher
 
-**SF4 Enhanced** is a netplay-focused fork of [sf4e](https://codeberg.org/adanducci/sf4e) for the Steam release of _Ultra Street Fighter IV_. It adds rollback netplay (GGPO), a **WebView2 launcher** (Host / Join / Offline), and **VPS relay room codes** (`SF4-XXXX`) so friends can play online without port forwarding on the host PC.
+> **Unofficial fork** of **[sf4e](https://codeberg.org/adanducci/sf4e)** by **[Anthony Danducci](https://codeberg.org/adanducci/sf4e)** and contributors (MIT). This is **not** the upstream sf4e project. See [ATTRIBUTION.md](ATTRIBUTION.md).
 
-See [ATTRIBUTION.md](ATTRIBUTION.md) for upstream credit and license details.
+**SF4 Netplay Launcher** adds a WebView2 **Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e’s rollback netplay for _Ultra Street Fighter IV_ on Steam — so friends can play online without port forwarding on the host PC.
 
-**Latest release:** [v0.2.7.3](https://github.com/Confetti3/SF4e/releases/latest)
+**Latest release:** [v0.2.8](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest)
 
-**Download:** [GitHub Releases](https://github.com/Confetti3/SF4e/releases/latest) — get the **team zip** asset (not "Source code" only).
+**Download:** [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) — get the **team zip** asset (not "Source code" only).
 
 [TOC]
 
@@ -24,9 +24,9 @@ Install once on each PC:
 
 ### 2. Install
 
-1. Download the latest **team zip** from [Releases](https://github.com/Confetti3/SF4e/releases/latest).
-2. Extract the **entire** zip to one folder (e.g. `C:\Games\SF4-Enhanced\`). Keep all files together — do not copy only `Launcher.exe`.
-3. Optional: run `powershell -ExecutionPolicy Bypass -File preflight.ps1` to verify the package.
+1. Download the latest **team zip** from [Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest).
+2. Extract the **entire** zip to one folder (e.g. `C:\Games\SF4-Netplay-Launcher\`). Keep all files together — do not copy only `Launcher.exe`.
+3. Optional: run `preflight.cmd` to verify the package.
 4. Double-click **`Launcher.exe`**.
 
 Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.2.7.3`). Use **Check for updates** on the home screen to upgrade.
@@ -64,7 +64,7 @@ Direct IP behavior is unchanged from v0.2.6 — use Advanced when you prefer por
 | [docs/CASUAL_NETPLAY.md](docs/CASUAL_NETPLAY.md) | Casual WAN play overview |
 | [docs/TEAM_QUICKSTART.md](docs/TEAM_QUICKSTART.md) | Packaged as `START_HERE.md` in the release zip |
 | [docs/SMOKE_TEST.md](docs/SMOKE_TEST.md) | Manual test checklist |
-| [docs/VPS_RELAY_TEST_REPORT_v0.2.7.md](docs/VPS_RELAY_TEST_REPORT_v0.2.7.md) | VPS relay readiness and infra notes |
+| [ATTRIBUTION.md](ATTRIBUTION.md) | Upstream sf4e credit (Anthony Danducci) |
 | [docs/RELEASE.md](docs/RELEASE.md) | Building and publishing releases |
 
 ## Troubleshooting
@@ -76,9 +76,8 @@ Direct IP behavior is unchanged from v0.2.6 — use Advanced when you prefer por
 | Empty lobby / wrong opponent | Same **`SF4-XXXX`** from host's **current** screen |
 | Black screen after portraits | Update to **v0.2.7.3+** on **both** PCs |
 | Join fails before game starts | Host must click **Start game** first |
-| In-game "Still connecting" | Host and joiner on same build; create a **new** room after any firewall changes |
 
-**Logs:** `%APPDATA%\sf4e\logs\sf4e.log` · **Console:** `Launcher.exe --console` · **Build info:** `BUILD_INFO.txt` in the install folder
+**Logs:** `%APPDATA%\sf4e\logs\sf4e.log` · **Console:** `Launcher.exe --console` · **Build info:** `BUILD_INFO.txt`
 
 **Report bugs:** include the Git line from `BUILD_INFO.txt`, both players' `sf4e.log` if possible, and steps to reproduce. See [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md).
 
@@ -98,10 +97,10 @@ Default broker: `http://74.208.200.95:8787` (VPS relay — no host port forward 
 **Publish a release:**
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/github-release.ps1 -Tag v0.2.7.3 -NotesFile docs/RELEASE_NOTES_v0.2.7.3.md
+powershell -NoProfile -File scripts/github-release.ps1 -Tag v0.2.8 -NotesFile docs/RELEASE_NOTES_v0.2.8.md
 ```
 
-See [docs/RELEASE.md](docs/RELEASE.md). Broker deployment: [docs/ORACLE_BROKER.md](docs/ORACLE_BROKER.md).
+See [docs/RELEASE.md](docs/RELEASE.md).
 
 ### Supported environments
 

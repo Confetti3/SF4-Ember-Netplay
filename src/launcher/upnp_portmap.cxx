@@ -26,7 +26,7 @@ namespace launcher {
 			bstrClient = SysAllocStringLen(NULL, wideLen);
 			MultiByteToWideChar(CP_UTF8, 0, clientIp, -1, bstrClient, wideLen);
 		}
-		BSTR bstrDesc = SysAllocString(L"SF4 Enhanced");
+		BSTR bstrDesc = SysAllocString(L"SF4 Netplay Launcher");
 		if (description && description[0]) {
 			int dlen = MultiByteToWideChar(CP_UTF8, 0, description, -1, NULL, 0);
 			if (dlen > 0) {

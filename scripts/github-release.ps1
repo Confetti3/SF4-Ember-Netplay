@@ -1,12 +1,12 @@
-# Build, package, and publish a GitHub Release for SF4 Enhanced.
-# Usage: powershell -ExecutionPolicy Bypass -File scripts/github-release.ps1 -Tag v0.1.0-testers
+# Build, package, and publish a GitHub Release for SF4 Netplay Launcher.
+# Usage: powershell -NoProfile -File scripts/github-release.ps1 -Tag v0.1.0-testers
 
 param(
     [Parameter(Mandatory = $true)]
     [string]$Tag,
     [string]$VersionLabel = "",
     [string]$OutDir = "dist",
-    [string]$Repo = "Confetti3/SF4e",
+    [string]$Repo = "Confetti3/SF4-Netplay-Launcher",
     [string]$NotesFile = "",
     [switch]$SkipBuild
 )
@@ -33,7 +33,7 @@ try {
 
     $zip = $script:PackageZipPath
     if (-not $zip -or -not (Test-Path $zip)) {
-        $candidates = Get-ChildItem -Path (Join-Path $RepoRoot $OutDir) -Filter "sf4-enhanced-team-*.zip" |
+        $candidates = Get-ChildItem -Path (Join-Path $RepoRoot $OutDir) -Filter "sf4-netplay-launcher-*.zip" |
             Sort-Object LastWriteTime -Descending
         if ($candidates.Count -eq 0) {
             $candidates = Get-ChildItem -Path (Join-Path $RepoRoot $OutDir) -Filter "sf4e-netplay-team-*.zip" |
@@ -67,7 +67,7 @@ try {
         Write-Host "Creating release $Tag on $Repo..."
         gh release create $Tag $zip `
             --repo $Repo `
-            --title "SF4 Enhanced $Tag" `
+            --title "SF4 Netplay Launcher $Tag" `
             --notes-file $NotesFile
     }
 

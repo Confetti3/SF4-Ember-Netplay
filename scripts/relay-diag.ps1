@@ -1,5 +1,5 @@
-# SF4 Enhanced relay diagnostics - broker health, room create/resolve, relay reachability.
-# Usage: powershell -ExecutionPolicy Bypass -File scripts\relay-diag.ps1 [-BrokerUrl URL] [-PackageDir path]
+# SF4 Netplay Launcher relay diagnostics - broker health, room create/resolve, relay reachability.
+# Usage: powershell -NoProfile -File scripts\relay-diag.ps1 [-BrokerUrl URL] [-PackageDir path]
 
 param(
     [string]$BrokerUrl = "",
@@ -19,7 +19,7 @@ if (-not $PackageDir) {
     $PackageDir = Join-Path (Split-Path $PSScriptRoot -Parent) "msvc-out\relwithdebinfo"
 }
 
-Write-Host "SF4 Enhanced relay diagnostics"
+Write-Host "SF4 Netplay Launcher relay diagnostics"
 Write-Host "Broker: $BrokerUrl"
 Write-Host "Package: $PackageDir"
 Write-Host ""

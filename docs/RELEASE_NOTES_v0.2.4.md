@@ -1,4 +1,4 @@
-# SF4 Enhanced v0.2.4
+# SF4 Netplay Launcher v0.2.4
 
 Hotfix for in-app **Install update** download failures.
 
@@ -28,7 +28,7 @@ After v0.2.4, use **Check for updates** / **Install update** on the home screen.
 
 1. Download the **team zip** asset below (not "Source code" only).
 2. Extract the **entire** zip to one folder.
-3. Run `powershell -ExecutionPolicy Bypass -File preflight.ps1`
+3. Run `preflight.cmd`
 4. Run `Launcher.exe` — **Host**, **Join**, or **Offline**
 
 ## Support

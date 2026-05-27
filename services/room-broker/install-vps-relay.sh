@@ -28,7 +28,7 @@ PUBLIC_IP="${RELAY_HOST:-$(curl -fsSL https://api.ipify.org 2>/dev/null || echo 
 
 cat > "$RELAY_SERVICE" <<EOF
 [Unit]
-Description=SF4 Enhanced VPS relay manager
+Description=SF4 Netplay Launcher VPS relay manager
 After=network.target
 
 [Service]

@@ -31,7 +31,7 @@ cp -f "$BROKER_DIR/.env.example" "$BROKER_DIR/.env"
 
 cat > "$SERVICE_DIR/sf4e-broker.service" <<EOF
 [Unit]
-Description=SF4 Enhanced room broker
+Description=SF4 Netplay Launcher room broker
 After=network.target
 
 [Service]

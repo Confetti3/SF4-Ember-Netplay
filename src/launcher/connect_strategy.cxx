@@ -197,9 +197,9 @@ namespace launcher {
 
 	HostNatResult TryConfigureHostUpnp(uint16_t sessionPort, uint16_t ggpoPort) {
 		HostNatResult r;
-		bool tcpOk = TryMapUpnpPort(sessionPort, sessionPort, "TCP", "SF4 Enhanced session");
-		bool udpSession = TryMapUpnpPort(sessionPort, sessionPort, "UDP", "SF4 Enhanced session UDP");
-		bool udpGgpo = TryMapUpnpPort(ggpoPort, ggpoPort, "UDP", "SF4 Enhanced GGPO");
+		bool tcpOk = TryMapUpnpPort(sessionPort, sessionPort, "TCP", "SF4 Netplay Launcher session");
+		bool udpSession = TryMapUpnpPort(sessionPort, sessionPort, "UDP", "SF4 Netplay Launcher session UDP");
+		bool udpGgpo = TryMapUpnpPort(ggpoPort, ggpoPort, "UDP", "SF4 Netplay Launcher GGPO");
 
 		if (tcpOk && udpSession) {
 			r.ok = true;

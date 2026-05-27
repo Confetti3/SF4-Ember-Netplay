@@ -1,6 +1,6 @@
 # sf4e tester preflight - run from the extracted package folder before Launcher.exe.
 
-# Usage: powershell -ExecutionPolicy Bypass -File preflight.ps1
+# Usage: preflight.cmd
 
 
 
@@ -62,7 +62,7 @@ $warnings = @()
 
 
 
-Write-Host "SF4 Enhanced preflight"
+Write-Host "SF4 Netplay Launcher preflight"
 
 Write-Host "Package folder: $PackageDir"
 

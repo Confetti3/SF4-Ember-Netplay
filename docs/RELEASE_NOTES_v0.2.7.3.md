@@ -1,4 +1,4 @@
-# SF4 Enhanced v0.2.7.3
+# SF4 Netplay Launcher v0.2.7.3
 
 Bugfix release — fixes VPS relay black screen after character portraits.
 

@@ -76,6 +76,22 @@ body {
   font-size: 13px;
 }
 
+.upstream-credit {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.upstream-credit a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.upstream-credit a:hover {
+  text-decoration: underline;
+}
+
 .version-badge {
   display: inline-flex;
   align-items: center;

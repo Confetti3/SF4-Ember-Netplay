@@ -2,7 +2,7 @@
 
 # Usage (from repo root):
 
-#   powershell -ExecutionPolicy Bypass -File scripts/release-team-build.ps1
+#   powershell -NoProfile -File scripts/release-team-build.ps1
 
 # Optional: -VersionLabel beta1, -OutDir dist, -SkipBuild
 
@@ -90,7 +90,7 @@ try {
 
     Write-Host "  1. Extract the FULL zip to one folder"
 
-    Write-Host "  2. Run: powershell -ExecutionPolicy Bypass -File preflight.ps1"
+    Write-Host "  2. Run: preflight.cmd"
 
     Write-Host "  3. Install WebView2 Runtime + VC++ x86 if preflight warns"
 

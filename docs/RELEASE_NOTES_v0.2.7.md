@@ -1,6 +1,6 @@
-# SF4 Enhanced v0.2.7
+# SF4 Netplay Launcher v0.2.7
 
-Relay-first rollback netplay for **Ultra Street Fighter IV** (Steam) with a modern **SF4 Enhanced** launcher.
+Relay-first rollback netplay for **Ultra Street Fighter IV** (Steam) with a modern **SF4 Netplay Launcher** launcher.
 
 ## What's new in v0.2.7
 
@@ -13,7 +13,7 @@ Also includes v0.2.6: direct IP fix, in-app updater download/apply fix.
 
 ## Download
 
-[Latest release zip](https://github.com/Confetti3/SF4e/releases/latest) — extract to one folder and run `Launcher.exe`.
+[Latest release zip](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) — extract to one folder and run `Launcher.exe`.
 
 ## Quick start (relay)
 

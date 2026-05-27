@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install SF4 Enhanced room broker on a generic Linux VPS (Ubuntu/Debian).
+# Install SF4 Netplay Launcher room broker on a generic Linux VPS (Ubuntu/Debian).
 # Usage (on the VPS, after copying server.js and .env.example to ~/room-broker/):
 #   bash install-vps.sh
 
@@ -37,7 +37,7 @@ fi
 
 cat > "$SERVICE_PATH" <<EOF
 [Unit]
-Description=SF4 Enhanced room broker
+Description=SF4 Netplay Launcher room broker
 After=network.target
 
 [Service]

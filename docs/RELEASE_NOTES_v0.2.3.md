@@ -1,4 +1,4 @@
-# SF4 Enhanced v0.2.3
+# SF4 Netplay Launcher v0.2.3
 
 Hotfix for relay host session connection and RelayHost startup reliability.
 
@@ -11,7 +11,7 @@ Hotfix for relay host session connection and RelayHost startup reliability.
 
 ## Upgrade from v0.2.2
 
-Download and extract the new team zip on **both PCs**. Use **Check for updates** on the launcher home screen, or grab the asset from [Releases](https://github.com/Confetti3/SF4e/releases/latest).
+Download and extract the new team zip on **both PCs**. Use **Check for updates** on the launcher home screen, or grab the asset from [Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest).
 
 Host relay flow: **Create relay room** → **Start game** → overlay should show **Connected: yes** within a few seconds.
 
@@ -27,7 +27,7 @@ Joiners still need the host to forward **TCP+UDP** on the broker-assigned port (
 
 1. Download the **team zip** asset below (not "Source code" only).
 2. Extract the **entire** zip to one folder.
-3. Run `powershell -ExecutionPolicy Bypass -File preflight.ps1`
+3. Run `preflight.cmd`
 4. Run `Launcher.exe` — **Host**, **Join**, or **Offline**
 
 ## Support

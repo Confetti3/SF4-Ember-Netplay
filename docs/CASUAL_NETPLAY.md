@@ -1,6 +1,6 @@
 # Casual netplay (budget setup)
 
-SF4 Enhanced launcher supports **Simple mode** (default): relay room codes, no port-forward talk, and optional Advanced direct IP / UPnP.
+SF4 Netplay Launcher launcher supports **Simple mode** (default): relay room codes, no port-forward talk, and optional Advanced direct IP / UPnP.
 
 ## Tester quick start
 

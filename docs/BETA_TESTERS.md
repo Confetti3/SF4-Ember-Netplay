@@ -1,10 +1,10 @@
-# SF4 Enhanced — beta tester guide
+# SF4 Netplay Launcher — beta tester guide
 
 Thank you for testing VPS rollback netplay. Follow these steps so sessions work reliably.
 
 ## Before you play
 
-1. Download the latest team zip from [GitHub Releases](https://github.com/Confetti3/SF4e/releases/latest) (currently **v0.2.7.3**).
+1. Download the latest team zip from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) (currently **v0.2.7.3**).
 2. Extract the **entire** zip to one folder on each PC — keep `Launcher.exe`, `Sidecar.dll`, and `launcher-ui/` together.
 3. Run `preflight.ps1` once per machine (optional sanity check).
 4. Confirm both players show the **same version** in the launcher header (e.g. `v0.2.7.3`). Use **Check for updates** if versions differ.

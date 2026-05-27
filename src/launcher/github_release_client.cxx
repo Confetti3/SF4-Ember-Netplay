@@ -21,7 +21,7 @@ namespace launcher {
 
 	namespace {
 
-		static const char* kDefaultGithubRepo = "Confetti3/SF4e";
+		static const char* kDefaultGithubRepo = "Confetti3/SF4-Netplay-Launcher";
 
 		static const char* kRequiredPackagePaths[] = {
 			"Launcher.exe",
@@ -32,7 +32,7 @@ namespace launcher {
 			"launcher-ui\\app.js",
 			"launcher-ui\\styles.css",
 			"BUILD_INFO.txt",
-			"apply-update.ps1",
+			"Updater.exe",
 			"spdlog.dll",
 			"fmt.dll",
 			"GameNetworkingSockets.dll",
@@ -145,13 +145,13 @@ namespace launcher {
 			return false;
 		}
 
-		static bool RunPowerShellCommand(const wchar_t* psCommand) {
-			wchar_t cmdLine[4096] = { 0 };
-			swprintf_s(cmdLine, L"powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"%s\"", psCommand);
+		static bool RunProcessAndWaitHidden(const wchar_t* cmdLine, DWORD* outExitCode) {
 			STARTUPINFOW si = { 0 };
 			PROCESS_INFORMATION pi = { 0 };
 			si.cb = sizeof(si);
-			if (!CreateProcessW(NULL, cmdLine, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+			wchar_t mutableCmd[4096] = { 0 };
+			wcsncpy_s(mutableCmd, cmdLine, _TRUNCATE);
+			if (!CreateProcessW(NULL, mutableCmd, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
 				return false;
 			}
 			WaitForSingleObject(pi.hProcess, INFINITE);
@@ -159,35 +159,48 @@ namespace launcher {
 			GetExitCodeProcess(pi.hProcess, &exitCode);
 			CloseHandle(pi.hProcess);
 			CloseHandle(pi.hThread);
-			return exitCode == 0;
+			if (outExitCode) {
+				*outExitCode = exitCode;
+			}
+			return true;
 		}
 
 		static bool ExpandZipArchive(const wchar_t* zipPath, const wchar_t* destDir) {
-			wchar_t ps[2048] = { 0 };
-			swprintf_s(
-				ps,
-				L"Expand-Archive -LiteralPath '%s' -DestinationPath '%s' -Force",
-				zipPath,
-				destDir
-			);
-			return RunPowerShellCommand(ps);
-		}
+			wchar_t cmdLine[4096] = { 0 };
+			swprintf_s(cmdLine, L"tar.exe -xf \"%s\" -C \"%s\"", zipPath, destDir);
 
-		static bool SpawnApplyUpdateScript(const wchar_t* installDir, const wchar_t* stagingDir, DWORD waitPid) {
-			wchar_t scriptPath[MAX_PATH] = { 0 };
-			if (FAILED(PathCchCombine(scriptPath, MAX_PATH, installDir, L"apply-update.ps1"))) {
+			char cmdUtf8[4096] = { 0 };
+			WidePathToUtf8(cmdLine, cmdUtf8, sizeof(cmdUtf8));
+			AppendUpdateLog(cmdUtf8);
+
+			DWORD exitCode = 1;
+			if (!RunProcessAndWaitHidden(cmdLine, &exitCode)) {
+				AppendUpdateLog("tar spawn failed");
 				return false;
 			}
-			if (GetFileAttributesW(scriptPath) == INVALID_FILE_ATTRIBUTES) {
-				AppendUpdateLog("apply-update.ps1 missing in install dir");
+			if (exitCode != 0) {
+				char buf[64] = { 0 };
+				snprintf(buf, sizeof(buf), "tar failed with exit code %lu", exitCode);
+				AppendUpdateLog(buf);
+				return false;
+			}
+			return true;
+		}
+
+		static bool SpawnUpdater(const wchar_t* installDir, const wchar_t* stagingDir, DWORD waitPid) {
+			wchar_t updaterPath[MAX_PATH] = { 0 };
+			if (FAILED(PathCchCombine(updaterPath, MAX_PATH, installDir, L"Updater.exe"))) {
+				return false;
+			}
+			if (GetFileAttributesW(updaterPath) == INVALID_FILE_ATTRIBUTES) {
+				AppendUpdateLog("Updater.exe missing in install dir");
 				return false;
 			}
 
 			wchar_t params[4096] = { 0 };
 			swprintf_s(
 				params,
-				L"-NoProfile -ExecutionPolicy Bypass -File \"%s\" -InstallDir \"%s\" -StagingDir \"%s\" -WaitPid %lu",
-				scriptPath,
+				L"-InstallDir \"%s\" -StagingDir \"%s\" -WaitPid %lu",
 				installDir,
 				stagingDir,
 				waitPid
@@ -195,25 +208,25 @@ namespace launcher {
 
 			char paramsUtf8[4096] = { 0 };
 			WidePathToUtf8(params, paramsUtf8, sizeof(paramsUtf8));
-			AppendUpdateLog(("spawn apply-update: powershell.exe " + std::string(paramsUtf8)).c_str());
+			AppendUpdateLog(("spawn Updater.exe " + std::string(paramsUtf8)).c_str());
 
 			SHELLEXECUTEINFOW sei = { 0 };
 			sei.cbSize = sizeof(sei);
 			sei.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NO_CONSOLE | SEE_MASK_FLAG_NO_UI;
 			sei.lpVerb = L"open";
-			sei.lpFile = L"powershell.exe";
+			sei.lpFile = updaterPath;
 			sei.lpParameters = params;
 			sei.nShow = SW_HIDE;
 			if (!ShellExecuteExW(&sei)) {
 				char buf[128] = { 0 };
-				snprintf(buf, sizeof(buf), "spawn apply-update failed (Win32 %lu)", GetLastError());
+				snprintf(buf, sizeof(buf), "spawn Updater failed (Win32 %lu)", GetLastError());
 				AppendUpdateLog(buf);
 				return false;
 			}
 			if (sei.hProcess) {
 				CloseHandle(sei.hProcess);
 			}
-			AppendUpdateLog("spawn apply-update ok");
+			AppendUpdateLog("spawn Updater ok");
 			return true;
 		}
 
@@ -310,7 +323,7 @@ namespace launcher {
 			}
 
 			wchar_t folderName[128] = { 0 };
-			swprintf_s(folderName, L"sf4e-update-%ls", tempSub);
+			swprintf_s(folderName, L"sf4-netplay-update-%ls", tempSub);
 			if (FAILED(PathCchCombine(tempRoot, tempRootChars, tempBase, folderName))) {
 				outError = "PathCchCombine failed";
 				return false;
@@ -327,7 +340,7 @@ namespace launcher {
 				return;
 			}
 			wchar_t logPath[MAX_PATH] = { 0 };
-			if (FAILED(PathCchCombine(logPath, MAX_PATH, tempDir, L"sf4e-update.log"))) {
+			if (FAILED(PathCchCombine(logPath, MAX_PATH, tempDir, L"sf4-netplay-update.log"))) {
 				return;
 			}
 
@@ -424,47 +437,6 @@ namespace launcher {
 			outError = HttpDownloadErrorMessage(httpResult);
 			AppendUpdateLog((std::string(label) + " failed: " + outError).c_str());
 			return false;
-		}
-
-		static bool DownloadViaPowerShell(const char* url, const wchar_t* destPath, std::string& outError) {
-			if (!url || !url[0] || !destPath) {
-				outError = "missing URL";
-				return false;
-			}
-
-			wchar_t urlWide[2048] = { 0 };
-			MultiByteToWideChar(CP_UTF8, 0, url, -1, urlWide, 2048);
-
-			wchar_t ps[8192] = { 0 };
-			swprintf_s(
-				ps,
-				L"New-Item -ItemType Directory -Force -Path (Split-Path -Parent '%s') | Out-Null; "
-				L"[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; "
-				L"Invoke-WebRequest -Uri \"%s\" -OutFile \"%s\" -UserAgent \"sf4e-updater/1.0\" -UseBasicParsing -MaximumRedirection 10 | Out-Null",
-				destPath,
-				urlWide,
-				destPath
-			);
-			if (!RunPowerShellCommand(ps)) {
-				outError = "PowerShell download failed";
-				AppendUpdateLog("powershell failed");
-				return false;
-			}
-
-			WIN32_FILE_ATTRIBUTE_DATA info = { 0 };
-			if (!GetFileAttributesExW(destPath, GetFileExInfoStandard, &info)) {
-				outError = "PowerShell wrote no file";
-				AppendUpdateLog("powershell wrote no file");
-				return false;
-			}
-			ULONGLONG size = ((ULONGLONG)info.nFileSizeHigh << 32) | info.nFileSizeLow;
-			if (size == 0) {
-				outError = "PowerShell wrote empty file";
-				AppendUpdateLog("powershell wrote empty file");
-				return false;
-			}
-			AppendUpdateLog("powershell OK");
-			return true;
 		}
 
 		static bool DownloadViaCurl(const char* url, const wchar_t* destPath, std::string& outError) {
@@ -566,14 +538,6 @@ namespace launcher {
 					return true;
 				}
 				recordFailure("curl");
-			}
-
-			const char* psUrl = (zipDownloadUrl && zipDownloadUrl[0]) ? zipDownloadUrl : zipApiUrl;
-			if (psUrl && psUrl[0]) {
-				if (DownloadViaPowerShell(psUrl, zipPath, attemptError)) {
-					return true;
-				}
-				recordFailure("powershell");
 			}
 
 			std::string detail;
@@ -717,18 +681,31 @@ namespace launcher {
 			}
 
 			if (release.contains("assets") && release["assets"].is_array()) {
+				std::string legacyZipUrl;
+				std::string legacyZipApiUrl;
 				for (const auto& asset : release["assets"]) {
 					std::string name = asset.value("name", "");
-					if (name.find(".zip") != std::string::npos && name.find("sf4-enhanced-team") != std::string::npos) {
+					if (name.find(".zip") == std::string::npos) {
+						continue;
+					}
+					if (name.find("sf4-netplay-launcher") != std::string::npos) {
 						result.zipDownloadUrl = asset.value("browser_download_url", "");
 						result.zipApiUrl = asset.value("url", "");
 						break;
 					}
+					if (name.find("sf4-enhanced-team") != std::string::npos) {
+						legacyZipUrl = asset.value("browser_download_url", "");
+						legacyZipApiUrl = asset.value("url", "");
+					}
+				}
+				if (result.zipDownloadUrl.empty() && !legacyZipUrl.empty()) {
+					result.zipDownloadUrl = legacyZipUrl;
+					result.zipApiUrl = legacyZipApiUrl;
 				}
 			}
 
 			if (result.zipDownloadUrl.empty()) {
-				result.error = "Latest release has no sf4-enhanced-team zip asset.";
+				result.error = "Latest release has no sf4-netplay-launcher zip asset.";
 				return result;
 			}
 
@@ -794,7 +771,7 @@ namespace launcher {
 
 		wchar_t zipPath[MAX_PATH] = { 0 };
 		wchar_t zipName[128] = { 0 };
-		swprintf_s(zipName, L"sf4e-update-package-%hs.zip", safeTag);
+		swprintf_s(zipName, L"sf4-netplay-update-package-%hs.zip", safeTag);
 		if (FAILED(PathCchCombine(zipPath, MAX_PATH, tempBase, zipName))) {
 			result.error = "Could not build update zip path.";
 			return result;
@@ -827,7 +804,7 @@ namespace launcher {
 			);
 			result.error =
 				"Download failed (" + downloadError + "). Manual download: " + releasePage +
-				" — details in %TEMP%\\sf4e-update.log";
+				" — details in %TEMP%\\sf4-netplay-update.log";
 			return result;
 		}
 
@@ -858,8 +835,8 @@ namespace launcher {
 		}
 		AppendUpdateLog("package validation ok");
 
-		if (!SpawnApplyUpdateScript(installDir, stagingDir, GetCurrentProcessId())) {
-			result.error = "Could not start apply-update.ps1. Reinstall from a fresh zip.";
+		if (!SpawnUpdater(installDir, stagingDir, GetCurrentProcessId())) {
+			result.error = "Could not start Updater.exe. Reinstall from a fresh zip.";
 			return result;
 		}
 

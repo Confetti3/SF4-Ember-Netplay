@@ -1,5 +1,6 @@
-# Applies a staged SF4 Enhanced package over the install directory after the launcher exits.
-# Usage: powershell -ExecutionPolicy Bypass -File apply-update.ps1 -InstallDir "C:\Games\SF4e" -StagingDir "$env:TEMP\sf4e-update-v0.2.2\package" -WaitPid 12345
+# Deprecated — use Updater.exe (shipped in the package). Kept for reference only.
+# Applies a staged SF4 Netplay Launcher package over the install directory after the launcher exits.
+# Usage: powershell -NoProfile -File apply-update.ps1 -InstallDir "C:\Games\SF4-Netplay-Launcher" ...
 
 param(
     [Parameter(Mandatory = $true)]

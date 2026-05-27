@@ -2,7 +2,7 @@
 
 # Usage (from repo root):
 
-#   powershell -ExecutionPolicy Bypass -File scripts/package-team.ps1
+#   powershell -NoProfile -File scripts/package-team.ps1
 
 # Optional: -BuildDir, -InstallDir, -OutDir, -VersionLabel
 
@@ -88,7 +88,9 @@ $RequiredPackagePaths = @(
 
     "preflight.ps1",
 
-    "apply-update.ps1"
+    "preflight.cmd",
+
+    "Updater.exe"
 
 ) + $RuntimeDlls
 
@@ -96,7 +98,7 @@ $RequiredPackagePaths = @(
 
 $Stamp = Get-Date -Format "yyyyMMdd"
 
-$PackageName = "sf4-enhanced-team-$Stamp"
+$PackageName = "sf4-netplay-launcher-$Stamp"
 
 if ($VersionLabel) {
 
@@ -123,6 +125,12 @@ New-Item -ItemType Directory -Path $DocsDir -Force | Out-Null
 Copy-Item $Launcher $PackageRoot
 
 Copy-Item $Sidecar $PackageRoot
+
+$Updater = Join-Path $InstallDir "Updater.exe"
+if (-not (Test-Path $Updater)) {
+    Write-Error "Missing Updater.exe in $InstallDir. Build Updater target and install first."
+}
+Copy-Item $Updater $PackageRoot
 
 $RelayHost = Join-Path $InstallDir "RelayHost.exe"
 if (-not (Test-Path $RelayHost)) {
@@ -230,16 +238,11 @@ if (Test-Path $PreflightSrc) {
 
 }
 
-$ApplyUpdateSrc = Join-Path $RepoRoot "scripts\apply-update.ps1"
-
-if (Test-Path $ApplyUpdateSrc) {
-
-    Copy-Item $ApplyUpdateSrc (Join-Path $PackageRoot "apply-update.ps1")
-
+$PreflightCmdSrc = Join-Path $RepoRoot "preflight.cmd"
+if (Test-Path $PreflightCmdSrc) {
+    Copy-Item $PreflightCmdSrc (Join-Path $PackageRoot "preflight.cmd")
 } else {
-
-    Write-Warning "scripts\apply-update.ps1 not found; package will fail manifest validation."
-
+    Write-Warning "preflight.cmd not found; package will fail manifest validation."
 }
 
 
@@ -267,8 +270,8 @@ if (Test-Path $Attribution) {
 
 $BuildInfo = @"
 
-SF4 Enhanced team package (sf4e fork)
-Upstream: https://codeberg.org/adanducci/sf4e
+SF4 Netplay Launcher package (unofficial sf4e fork)
+Upstream sf4e by Anthony Danducci: https://codeberg.org/adanducci/sf4e
 
 Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss zzz")
 
@@ -298,7 +301,7 @@ Prerequisites (not included):
 
 Start here: START_HERE.md
 
-Run preflight: powershell -ExecutionPolicy Bypass -File preflight.ps1
+Run preflight: double-click preflight.cmd (or run preflight.ps1 with PowerShell)
 
 "@
 
@@ -334,7 +337,7 @@ if ($MissingInPackage.Count -gt 0) {
 
 $manifestLines = @(
 
-    "SF4 Enhanced team package manifest",
+    "SF4 Netplay Launcher package manifest",
 
     "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz')",
 

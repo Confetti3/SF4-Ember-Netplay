@@ -1,6 +1,6 @@
-# SF4 Enhanced v0.2.6
+# SF4 Netplay Launcher v0.2.6
 
-Rollback netplay for **Ultra Street Fighter IV** (Steam) with a modern **SF4 Enhanced** launcher.
+Rollback netplay for **Ultra Street Fighter IV** (Steam) with a modern **SF4 Netplay Launcher** launcher.
 
 ## What's new in v0.2.6
 
@@ -12,7 +12,7 @@ Also includes v0.2.5 changes: join preflight for relay codes, join overlay impro
 
 ## Based on sf4e
 
-This build is a fork of [sf4e](https://codeberg.org/adanducci/sf4e) by Anthony D'Anducci and contributors (MIT). See `ATTRIBUTION.md` in the zip.
+This build is a fork of [sf4e](https://codeberg.org/adanducci/sf4e) by Anthony Danducci and contributors (MIT). See `ATTRIBUTION.md` in the zip.
 
 ## Prerequisites
 
@@ -24,7 +24,7 @@ This build is a fork of [sf4e](https://codeberg.org/adanducci/sf4e) by Anthony D
 
 1. Download the **team zip** asset below (not "Source code" only).
 2. Extract the **entire** zip to one folder.
-3. Run `powershell -ExecutionPolicy Bypass -File preflight.ps1`
+3. Run `preflight.cmd`
 4. Run `Launcher.exe` — **Host**, **Join**, or **Offline**
 
 ## Quick start (relay)

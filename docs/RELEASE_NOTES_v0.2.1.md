@@ -1,4 +1,4 @@
-# SF4 Enhanced v0.2.1
+# SF4 Netplay Launcher v0.2.1
 
 Rollback netplay for **Ultra Street Fighter IV** (Steam) with launcher-driven Host / Join / Offline.
 
@@ -22,7 +22,7 @@ Fork of [sf4e](https://codeberg.org/adanducci/sf4e) (MIT). See `ATTRIBUTION.md` 
 
 1. Download the **team zip** asset below (not "Source code" only).
 2. Extract the **entire** zip to one folder.
-3. Run `powershell -ExecutionPolicy Bypass -File preflight.ps1`
+3. Run `preflight.cmd`
 4. Run `Launcher.exe` — **Host**, **Join**, or **Offline**
 
 ## Quick start (direct IP — default)

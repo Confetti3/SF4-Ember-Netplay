@@ -10,7 +10,7 @@ pass() { echo "[OK]   $*"; }
 fail() { echo "[FAIL] $*"; FAIL=1; }
 warn() { echo "[WARN] $*"; }
 
-echo "SF4 Enhanced WSL build environment check"
+echo "SF4 Netplay Launcher WSL build environment check"
 echo "========================================="
 echo "WSL: $(uname -sr)"
 echo "Arch: $(uname -m)"

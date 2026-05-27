@@ -1,12 +1,12 @@
-# SF4 Enhanced — team test package
+# SF4 Netplay Launcher — team test package
 
-This folder is a **self-contained SF4 Enhanced build** (sf4e fork) for netplay testing. It does not include the game itself.
+This folder is a **self-contained SF4 Netplay Launcher build** (unofficial sf4e fork by Anthony Danducci) for netplay testing. It does not include the game itself.
 
 Upstream: [sf4e by adanducci](https://codeberg.org/adanducci/sf4e). See `ATTRIBUTION.md` in the full repository.
 
 ## Quick start (3 steps)
 
-1. **Extract** the entire zip to one folder (e.g. `C:\Games\SF4-Enhanced\`). Do not copy only `Launcher.exe`.
+1. **Extract** the entire zip to one folder (e.g. `C:\Games\SF4-Netplay-Launcher\`). Do not copy only `Launcher.exe`.
 2. **Install once** (if you have not already):
    - [Microsoft Edge WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703)
    - [VC++ Redistributable (x86)](https://aka.ms/vs/17/release/vc_redist.x86.exe)
@@ -19,10 +19,10 @@ Inviting friends? Share [`docs/BETA_TESTERS.md`](BETA_TESTERS.md) — same zip o
 
 ## Updating
 
-On the launcher home screen, use **Check for updates** to compare your install against the latest [GitHub release](https://github.com/Confetti3/SF4e/releases/latest). If a newer build is available, **Install update** downloads the team zip and replaces all files in the install folder (your settings in `%APPDATA%\sf4e\` are kept). Close USF4 before installing.
+On the launcher home screen, use **Check for updates** to compare your install against the latest [GitHub release](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest). If a newer build is available, **Install update** downloads the team zip and replaces all files in the install folder (your settings in `%APPDATA%\sf4e\` are kept). Close USF4 before installing.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File preflight.ps1
+preflight.cmd
 ```
 
 ## Casual netplay (Simple mode — default)

@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
 	spdlog::set_default_logger(spdlog::stdout_color_mt("SessionRelay"));
 	spdlog::set_level(spdlog::level::info);
 
-	CLI::App app("SF4 Enhanced VPS session relay (headless SessionServer)");
+	CLI::App app("SF4 Netplay Launcher VPS session relay (headless SessionServer)");
 	uint16_t port = 23456;
 	std::string identity;
 	std::string sidecarHash;

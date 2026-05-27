@@ -1,4 +1,4 @@
-# SF4 Enhanced v0.2.7.2
+# SF4 Netplay Launcher v0.2.7.2
 
 UX transparency pass — clearer VPS relay copy; Direct IP unchanged.
 

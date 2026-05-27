@@ -1,8 +1,8 @@
 # Test GitHub release zip download paths (same URLs the launcher uses).
-# Usage: powershell -ExecutionPolicy Bypass -File scripts\test-updater-download.ps1
+# Usage: powershell -NoProfile -File scripts\test-updater-download.ps1
 
 param(
-    [string]$Repo = "Confetti3/SF4e"
+    [string]$Repo = "Confetti3/SF4-Netplay-Launcher"
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,9 +38,9 @@ $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/l
     "User-Agent" = "sf4e-updater-test"
 }
 
-$asset = $release.assets | Where-Object { $_.name -like "sf4-enhanced-team-*.zip" } | Select-Object -First 1
+$asset = $release.assets | Where-Object { $_.name -like "sf4-netplay-launcher-*.zip" -or $_.name -like "sf4-enhanced-team-*.zip" } | Select-Object -First 1
 if (-not $asset) {
-    throw "No sf4-enhanced-team zip asset on latest release."
+    throw "No sf4-netplay-launcher (or legacy sf4-enhanced-team) zip asset on latest release."
 }
 
 Write-Host ("Latest: {0}" -f $release.tag_name)

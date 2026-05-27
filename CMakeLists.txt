@@ -4,7 +4,7 @@ project (
     sf4e
     VERSION 0.0.1
     DESCRIPTION "A process-inspection and modification tool for the Steam release of Ultra Street Fighter 4."
-    HOMEPAGE_URL "https://github.com/Confetti3/SF4e"
+    HOMEPAGE_URL "https://github.com/Confetti3/SF4-Netplay-Launcher"
 )
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
@@ -184,8 +184,14 @@ target_link_libraries(Sidecar PRIVATE ${LIB_DETOURS} Dimps sf4e)
 target_compile_definitions(Launcher PRIVATE -D_UNICODE -DUNICODE)
 set_target_properties(Launcher PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 
+add_executable(Updater
+    src/launcher/updater.cxx
+)
+target_link_libraries(Updater PRIVATE "pathcch" "shell32")
+set_target_properties(Updater PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+
 install(
-  TARGETS Launcher Sidecar RelayHost
+  TARGETS Launcher Sidecar RelayHost Updater
   RUNTIME DESTINATION "."
 )
 
