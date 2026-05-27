@@ -10,13 +10,13 @@
 
 ## Demo
 
+Experimental Simple-mode netplay (Host -> room code -> Join -> fight). This is a **friends-only test build**, not production-ready software.
+
 https://github.com/user-attachments/assets/1750fc8c-6f04-410c-8820-ec59638107f5
 
-Experimental Simple-mode netplay (Host ? room code ? Join ? fight). This is a **friends-only test build**, not production-ready software.
+Full quality: [`docs/demo/SF4Demo.mp4`](docs/demo/SF4Demo.mp4) (~34 MB)
 
-
-
-
+[Download full demo (MP4)](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/download/v0.2.8.1/SF4Demo.mp4)
 
 [TOC]
 
