@@ -2,6 +2,8 @@
 
 Measure baseline and post-change transport performance. Run after netplay transport changes.
 
+**Rollback tuning (input delay + LFB/RFB):** see [ROLLBACK_BENCHMARK.md](ROLLBACK_BENCHMARK.md) and `python scripts/netplay-rollback-benchmark.py`.
+
 ## Prerequisites
 
 - Two PCs (or one PC + VM) with matching `Launcher.exe` + `Sidecar.dll`

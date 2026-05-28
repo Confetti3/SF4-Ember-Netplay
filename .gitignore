@@ -11,6 +11,7 @@
 /CMakeUserPresets.json
 debug-*.log
 debug-screenshots/
+benchmark-results/
 
 services/vps-relay/build/
 services/vps-relay/bin/

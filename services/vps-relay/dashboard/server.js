@@ -21,7 +21,15 @@ const COOKIE_SECURE =
   process.env.COOKIE_SECURE === "1" ||
   (process.env.COOKIE_SECURE !== "0" && BIND === "127.0.0.1");
 const TRUST_PROXY = process.env.DASHBOARD_TRUST_PROXY !== "0";
+const CLIENT_VERSION = process.env.DASHBOARD_CLIENT_VERSION || "0.3.6";
+const PUBLIC_BROKER_URL =
+  process.env.DASHBOARD_PUBLIC_BROKER_URL ||
+  `https://${process.env.SF4E_BROKER_DOMAIN || "74-208-200-95.nip.io"}`;
+const GITHUB_RELEASES_URL =
+  process.env.DASHBOARD_GITHUB_RELEASES_URL ||
+  "https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest";
 const STARTED_AT = Date.now();
+const REFRESH_INTERVAL_MS = 10_000;
 
 const SESSION_COOKIE = "sf4e_relay_session";
 
@@ -386,6 +394,23 @@ function page(title, body) {
     }
     .warn-row td { background: rgba(212, 160, 23, 0.08); }
     .bad-row td { background: rgba(224, 90, 90, 0.08); }
+    .banner-error {
+      background: rgba(224, 90, 90, 0.12);
+      border: 1px solid rgba(224, 90, 90, 0.35);
+      color: #ffb4b4;
+      padding: 12px 14px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .banner-error.visible { display: block; }
+    .links { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+    .links a { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
+    .links a:hover { text-decoration: underline; }
+    .btn-sm { padding: 4px 8px; font-size: 0.8rem; }
+    .event-list { margin: 0; padding: 0; list-style: none; font-size: 0.85rem; }
+    .event-list li { margin-bottom: 4px; color: var(--muted); }
+    .event-list li strong { color: var(--text); font-weight: 600; }
   </style>
 </head>
 <body>
@@ -474,28 +499,40 @@ app.get("/dashboard", requireAuth, (_req, res) => {
       `<div class="wrap">
         <header>
           <div>
-            <h1>SF4e Relay Dashboard</h1>
-            <p class="muted">VPS session relay manager</p>
+            <h1>SF4e VPS Operations</h1>
+            <p class="muted">Room broker · session relay (GNS) · GGPO UDP relay · client ${CLIENT_VERSION}</p>
+            <div class="links">
+              <a href="${PUBLIC_BROKER_URL}/v1/health" target="_blank" rel="noopener">Broker health</a>
+              <a href="${GITHUB_RELEASES_URL}" target="_blank" rel="noopener">GitHub releases</a>
+            </div>
           </div>
           <form method="post" action="/logout">
             <button type="submit">Logout</button>
           </form>
         </header>
 
+        <div id="error-banner" class="banner-error" role="alert"></div>
+
         <div class="card">
           <div class="toolbar" style="margin-bottom: 16px;">
             <strong>Overview</strong>
+            <span class="muted" id="refresh-status">Refreshing every 10s</span>
             <span class="muted" id="last-updated">Loading…</span>
             <button type="button" id="refresh-btn">Refresh</button>
+            <button type="button" id="pause-btn">Pause</button>
           </div>
           <div class="stats">
             <div class="stat"><label>Broker</label><strong id="stat-broker">—</strong></div>
             <div class="stat"><label>Relay Manager</label><strong id="stat-manager">—</strong></div>
+            <div class="stat"><label>GGPO Transport</label><strong id="stat-ggpo-mode">—</strong></div>
             <div class="stat"><label>Active Rooms</label><strong id="stat-rooms">—</strong></div>
-            <div class="stat"><label>Relay Processes</label><strong id="stat-sessions">—</strong></div>
-            <div class="stat"><label>Port Pool</label><strong id="stat-ports">—</strong></div>
+            <div class="stat"><label>Session Relays</label><strong id="stat-sessions">—</strong></div>
+            <div class="stat"><label>GGPO UDP Relays</label><strong id="stat-ggpo-sessions">—</strong></div>
+            <div class="stat"><label>Session Ports</label><strong id="stat-ports">—</strong></div>
+            <div class="stat"><label>GGPO Ports</label><strong id="stat-ggpo-ports">—</strong></div>
             <div class="stat"><label>Matchmaking Queue</label><strong id="stat-queue">—</strong></div>
             <div class="stat"><label>Relay Host</label><strong id="stat-relay-host">—</strong></div>
+            <div class="stat"><label>NAT Probe</label><strong id="stat-nat-probe">—</strong></div>
             <div class="stat"><label>VPS Memory</label><strong id="stat-memory">—</strong></div>
             <div class="stat"><label>System Uptime</label><strong id="stat-uptime">—</strong></div>
             <div class="stat"><label>Load Avg</label><strong id="stat-load">—</strong></div>
@@ -512,16 +549,21 @@ app.get("/dashboard", requireAuth, (_req, res) => {
                 <thead>
                   <tr>
                     <th>Code</th>
+                    <th></th>
                     <th>Host</th>
-                    <th>Port</th>
+                    <th>Session</th>
+                    <th>GGPO</th>
+                    <th>Transport</th>
+                    <th>NAT</th>
                     <th>Created</th>
                     <th>Last Seen</th>
-                    <th>Expires In</th>
-                    <th>Relay</th>
+                    <th>Expires</th>
+                    <th>Session</th>
+                    <th>GGPO</th>
                   </tr>
                 </thead>
                 <tbody id="rooms-body">
-                  <tr><td colspan="7" class="empty">Loading rooms…</td></tr>
+                  <tr><td colspan="12" class="empty">Loading rooms…</td></tr>
                 </tbody>
               </table>
             </div>
@@ -535,9 +577,12 @@ app.get("/dashboard", requireAuth, (_req, res) => {
               <div class="stat"><label>Port Range</label><strong id="detail-port-range">—</strong></div>
               <div class="stat"><label>Room Idle Timeout</label><strong id="detail-room-idle">—</strong></div>
               <div class="stat"><label>Manager Identity</label><strong id="detail-identity">—</strong></div>
-              <div class="stat"><label>Relay Binary</label><strong id="detail-relay-bin" style="font-size:0.85rem;word-break:break-all;">—</strong></div>
+              <div class="stat"><label>Session Relay Bin</label><strong id="detail-relay-bin" style="font-size:0.85rem;word-break:break-all;">—</strong></div>
+              <div class="stat"><label>GGPO Relay Bin</label><strong id="detail-ggpo-relay-bin" style="font-size:0.85rem;word-break:break-all;">—</strong></div>
+              <div class="stat"><label>GGPO Port Range</label><strong id="detail-ggpo-port-range">—</strong></div>
               <div class="stat"><label>Hostname</label><strong id="detail-hostname">—</strong></div>
               <div class="stat"><label>VPS Relay Mode</label><strong id="detail-vps-mode">—</strong></div>
+              <div class="stat"><label>Client Release</label><strong id="detail-client-version">—</strong></div>
             </div>
           </div>
         </div>
@@ -554,7 +599,7 @@ app.get("/dashboard", requireAuth, (_req, res) => {
                   <th>Session</th>
                   <th>GGPO UDP</th>
                   <th>Started</th>
-                  <th>Last Event</th>
+                  <th>Recent Events</th>
                 </tr>
               </thead>
               <tbody id="matches-body">
@@ -565,7 +610,31 @@ app.get("/dashboard", requireAuth, (_req, res) => {
         </div>
 
         <div class="card">
-          <strong class="section-title">Relay Processes</strong>
+          <strong class="section-title">GGPO UDP Relays</strong>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>GGPO Port</th>
+                  <th>Session Port</th>
+                  <th>Room</th>
+                  <th>PID</th>
+                  <th>Uptime</th>
+                  <th>Running</th>
+                  <th>Listening</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="ggpo-body">
+                <tr><td colspan="9" class="empty">Loading GGPO relays…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <strong class="section-title">Session Relay Processes</strong>
           <div style="overflow-x:auto;">
             <table>
               <thead>
@@ -589,10 +658,24 @@ app.get("/dashboard", requireAuth, (_req, res) => {
         </div>
       </div>
       <script>
+        const REFRESH_MS = ${REFRESH_INTERVAL_MS};
+        let refreshTimer = null;
+        let autoRefreshPaused = false;
+
         function badge(ok, okText, badText, warn) {
           const cls = warn ? "warn" : (ok ? "ok" : "bad");
           const text = warn ? warn : (ok ? okText : badText);
           return '<span class="badge ' + cls + '">' + text + '</span>';
+        }
+
+        function eventBadge(type) {
+          const warnTypes = ["transport_fallback", "disconnect", "desync"];
+          const okTypes = ["endpoint_registered", "room_created"];
+          const badTypes = ["match_ended"];
+          if (warnTypes.indexOf(type) >= 0) return badge(false, type, type, type);
+          if (okTypes.indexOf(type) >= 0) return badge(true, type, type);
+          if (badTypes.indexOf(type) >= 0) return badge(false, type, type);
+          return '<span class="muted">' + escapeHtml(type) + '</span>';
         }
 
         function escapeHtml(value) {
@@ -608,64 +691,131 @@ app.get("/dashboard", requireAuth, (_req, res) => {
           if (el) el.textContent = value;
         }
 
+        function formatNatSummary(ep) {
+          if (!ep) return "—";
+          const parts = [];
+          if (ep.host && ep.host.natType) parts.push("H:" + ep.host.natType);
+          if (ep.guest && ep.guest.natType) parts.push("G:" + ep.guest.natType);
+          return parts.length ? parts.join(" · ") : "—";
+        }
+
+        function formatTransport(requested, active) {
+          if (active) return escapeHtml(requested || "?") + " → " + escapeHtml(active);
+          return escapeHtml(requested || "pending");
+        }
+
+        function formatRecentEvents(events, nowMs) {
+          const list = Array.isArray(events) ? events.slice(-3).reverse() : [];
+          if (!list.length) return '<span class="muted">—</span>';
+          return '<ul class="event-list">' + list.map(function (ev) {
+            const ago = ev.ts ? Math.max(0, Math.floor((nowMs - ev.ts) / 1000)) + "s ago" : "";
+            return '<li>' + eventBadge(ev.type) + (ago ? ' <span class="muted">' + escapeHtml(ago) + '</span>' : '') + '</li>';
+          }).join("") + '</ul>';
+        }
+
+        async function copyText(text) {
+          try {
+            await navigator.clipboard.writeText(text);
+          } catch (_e) {
+            prompt("Copy room code:", text);
+          }
+        }
+
         async function killSession(port) {
-          if (!confirm("Stop relay on port " + port + "?")) {
-            return;
-          }
+          if (!confirm("Stop session relay on port " + port + "?")) return;
           const res = await fetch("/api/sessions/" + port, { method: "DELETE" });
-          if (!res.ok) {
-            alert("Failed to stop session on port " + port);
-            return;
-          }
+          if (!res.ok) { alert("Failed to stop session on port " + port); return; }
+          await loadStatus();
+        }
+
+        async function killGgpo(port) {
+          if (!confirm("Stop GGPO UDP relay on port " + port + "?")) return;
+          const res = await fetch("/api/ggpo-sessions/" + port, { method: "DELETE" });
+          if (!res.ok) { alert("Failed to stop GGPO relay on port " + port); return; }
           await loadStatus();
         }
 
         function renderRooms(rooms) {
           const body = document.getElementById("rooms-body");
           if (!rooms.length) {
-            body.innerHTML = '<tr><td colspan="7" class="empty">No active broker rooms.</td></tr>';
+            body.innerHTML = '<tr><td colspan="12" class="empty">No active broker rooms.</td></tr>';
             return;
           }
           body.innerHTML = rooms.map(function (r) {
-            const rowClass = r.relayOk ? "" : (r.relayRunning ? "warn-row" : "bad-row");
+            const rowClass = r.relayOk ? "" : (r.relayRunning || r.ggpoRelayRunning ? "warn-row" : "bad-row");
+            const sessionBadge = badge(r.sessionRelayOk, "OK", "Down", r.relayRunning && !r.relayListening ? "No UDP" : null);
+            const ggpoBadge = !r.ggpoPort ? '<span class="muted">—</span>' :
+              badge(r.ggpoRelayOk, "OK", "Down", r.ggpoRelayRunning && !r.ggpoRelayListening ? "No UDP" : null);
             return '<tr class="' + rowClass + '">' +
               '<td><code>' + escapeHtml(r.code) + '</code></td>' +
+              '<td><button type="button" class="btn-sm btn-copy" data-code="' + escapeHtml(r.code) + '">Copy</button></td>' +
               '<td>' + escapeHtml(r.displayName || "—") + '</td>' +
               '<td><code>' + escapeHtml(r.port) + '</code></td>' +
+              '<td><code>' + escapeHtml(r.ggpoPort || "—") + '</code></td>' +
+              '<td>' + formatTransport(r.ggpoTransport, r.transportActive) + '</td>' +
+              '<td>' + escapeHtml(formatNatSummary(r.endpointsSummary)) + '</td>' +
               '<td>' + escapeHtml(r.age) + '</td>' +
               '<td>' + escapeHtml(r.idleFor) + '</td>' +
               '<td>' + escapeHtml(r.expiresIn) + '</td>' +
-              '<td>' + badge(r.relayOk, "Healthy", "Down", r.relayRunning && !r.relayListening ? "No UDP" : null) + '</td>' +
+              '<td>' + sessionBadge + '</td>' +
+              '<td>' + ggpoBadge + '</td>' +
             '</tr>';
           }).join("");
+          body.querySelectorAll(".btn-copy").forEach(function (btn) {
+            btn.addEventListener("click", function () { copyText(btn.getAttribute("data-code")); });
+          });
         }
 
-        function renderMatches(matches) {
+        function renderMatches(matches, nowMs) {
           const body = document.getElementById("matches-body");
           if (!matches.length) {
             body.innerHTML = '<tr><td colspan="7" class="empty">No active matches.</td></tr>';
             return;
           }
           body.innerHTML = matches.map(function (m) {
-            const events = Array.isArray(m.events) ? m.events : [];
-            const lastEvent = events.length ? events[events.length - 1].type : "—";
             const transport = m.transportActive || m.ggpoTransport || "pending";
             return '<tr>' +
               '<td><code>' + escapeHtml(m.code || "—") + '</code></td>' +
-              '<td><code title="' + escapeHtml(m.matchId || "") + '">' + escapeHtml((m.matchId || "—").slice(0, 8)) + '</code></td>' +
+              '<td><code title="' + escapeHtml(m.matchId || "") + '">' + escapeHtml((m.matchId || "—").slice(0, 8)) + '…</code></td>' +
               '<td>' + escapeHtml(transport) + '</td>' +
               '<td><code>' + escapeHtml(m.port || "—") + '</code></td>' +
               '<td><code>' + escapeHtml(m.ggpoPort || "—") + '</code></td>' +
               '<td>' + (m.startedAt ? escapeHtml(new Date(m.startedAt).toLocaleTimeString()) : '<span class="muted">—</span>') + '</td>' +
-              '<td>' + escapeHtml(lastEvent) + '</td>' +
+              '<td>' + formatRecentEvents(m.events, nowMs) + '</td>' +
             '</tr>';
           }).join("");
+        }
+
+        function renderGgpoSessions(ggpoSessions) {
+          const body = document.getElementById("ggpo-body");
+          if (!ggpoSessions.length) {
+            body.innerHTML = '<tr><td colspan="9" class="empty">No active GGPO UDP relays.</td></tr>';
+            return;
+          }
+          body.innerHTML = ggpoSessions.map(function (g) {
+            const rowClass = g.ok ? "" : (g.running ? "warn-row" : "bad-row");
+            const status = g.ok ? "Healthy" : (g.running ? "Not listening" : "Stopped");
+            return '<tr class="' + rowClass + '">' +
+              '<td><code>' + escapeHtml(g.port) + '</code></td>' +
+              '<td><code>' + escapeHtml(g.sessionPort || "—") + '</code></td>' +
+              '<td>' + (g.roomCode ? '<code>' + escapeHtml(g.roomCode) + '</code>' : '<span class="muted">—</span>') + '</td>' +
+              '<td>' + escapeHtml(g.pid ?? "—") + '</td>' +
+              '<td>' + escapeHtml(g.uptime) + '</td>' +
+              '<td>' + badge(g.running, "Yes", "No") + '</td>' +
+              '<td>' + badge(g.listening, "Yes", "No") + '</td>' +
+              '<td>' + badge(g.ok, "Healthy", status, !g.ok && g.running ? "Degraded" : null) + '</td>' +
+              '<td><button class="btn-danger btn-kill-ggpo" type="button" data-port="' + escapeHtml(g.port) + '">Kill</button></td>' +
+            '</tr>';
+          }).join("");
+          body.querySelectorAll(".btn-kill-ggpo").forEach(function (btn) {
+            btn.addEventListener("click", function () { killGgpo(btn.getAttribute("data-port")); });
+          });
         }
 
         function renderSessions(sessions) {
           const body = document.getElementById("sessions-body");
           if (!sessions.length) {
-            body.innerHTML = '<tr><td colspan="9" class="empty">No active relay processes.</td></tr>';
+            body.innerHTML = '<tr><td colspan="9" class="empty">No active session relay processes.</td></tr>';
             return;
           }
           body.innerHTML = sessions.map(function (s) {
@@ -680,15 +830,23 @@ app.get("/dashboard", requireAuth, (_req, res) => {
               '<td>' + badge(s.running, "Yes", "No") + '</td>' +
               '<td>' + badge(s.listening, "Yes", "No") + '</td>' +
               '<td>' + badge(s.ok, "Healthy", status, !s.ok && s.running ? "Degraded" : null) + '</td>' +
-              '<td><button class="btn-danger" type="button" data-port="' + escapeHtml(s.port) + '">Kill</button></td>' +
+              '<td><button class="btn-danger btn-kill-session" type="button" data-port="' + escapeHtml(s.port) + '">Kill</button></td>' +
             '</tr>';
           }).join("");
-
-          body.querySelectorAll("button[data-port]").forEach(function (btn) {
-            btn.addEventListener("click", function () {
-              killSession(btn.getAttribute("data-port"));
-            });
+          body.querySelectorAll(".btn-kill-session").forEach(function (btn) {
+            btn.addEventListener("click", function () { killSession(btn.getAttribute("data-port")); });
           });
+        }
+
+        function setErrorBanner(messages) {
+          const el = document.getElementById("error-banner");
+          if (!messages.length) {
+            el.classList.remove("visible");
+            el.textContent = "";
+            return;
+          }
+          el.textContent = messages.join(" ");
+          el.classList.add("visible");
         }
 
         async function loadStatus() {
@@ -699,17 +857,29 @@ app.get("/dashboard", requireAuth, (_req, res) => {
           }
           if (!res.ok) {
             document.getElementById("last-updated").textContent = "Failed to load status";
+            setErrorBanner(["Could not load status from VPS services."]);
             return;
           }
           const data = await res.json();
+          const nowMs = Date.now();
+          const errors = [];
+          if (!data.broker.ok) errors.push("Broker unhealthy.");
+          if (!data.manager.ok) errors.push("Relay manager unhealthy.");
+          setErrorBanner(errors);
 
           document.getElementById("stat-broker").innerHTML = badge(data.broker.ok, "Healthy", "Unhealthy");
           document.getElementById("stat-manager").innerHTML = badge(data.manager.ok, "Healthy", "Unhealthy");
+          const ggpoMode = data.broker.brokerGgpoTransport || "legacy";
+          document.getElementById("stat-ggpo-mode").innerHTML =
+            badge(ggpoMode === "auto", "auto", ggpoMode, ggpoMode !== "auto" && ggpoMode !== "legacy" ? ggpoMode : null);
           setText("stat-rooms", String(data.broker.rooms ?? 0) + " / " + String(data.broker.maxRooms ?? "?"));
           setText("stat-sessions", String(data.manager.sessions ?? 0));
-          setText("stat-ports", String(data.broker.usedPorts ?? 0) + " / " + String(data.broker.maxRooms ?? "?") + " used");
+          setText("stat-ggpo-sessions", String(data.manager.ggpoSessions ?? 0));
+          setText("stat-ports", String(data.broker.usedSessionPorts ?? 0) + " / " + String(data.broker.maxRooms ?? "?"));
+          setText("stat-ggpo-ports", String(data.broker.usedGgpoPorts ?? 0) + " / " + String(data.broker.maxRooms ?? "?"));
           setText("stat-queue", String(data.broker.queueSize ?? 0));
           setText("stat-relay-host", data.broker.relayHost || "—");
+          setText("stat-nat-probe", data.broker.natProbePort ? ":" + data.broker.natProbePort + "/udp" : "—");
           setText("stat-memory", (data.system.memoryUsedPct ?? "?") + "% (" + (data.system.memoryUsedMb ?? "?") + " / " + (data.system.memoryTotalMb ?? "?") + " MB)");
           setText("stat-uptime", data.system.uptime || "—");
           setText("stat-load", Array.isArray(data.system.loadAvg) ? data.system.loadAvg.join(", ") : "—");
@@ -719,25 +889,62 @@ app.get("/dashboard", requireAuth, (_req, res) => {
           setText("detail-broker-url", data.meta.brokerUrl || "—");
           setText("detail-manager-url", data.meta.relayManagerUrl || "—");
           setText("detail-port-range", data.broker.portRange || "—");
-          setText("detail-room-idle", data.broker.roomIdleMs ? Math.round(data.broker.roomIdleMs / 60000) + " min" : "—");
+          setText("detail-ggpo-port-range", data.broker.ggpoPortRange || "—");
+          const lobbyMin = data.broker.roomLobbyIdleMs
+            ? Math.round(data.broker.roomLobbyIdleMs / 60000)
+            : null;
+          const occMin = data.broker.roomOccupiedIdleMs
+            ? Math.round(data.broker.roomOccupiedIdleMs / 60000)
+            : data.broker.roomIdleMs
+              ? Math.round(data.broker.roomIdleMs / 60000)
+              : null;
+          const idleLabel =
+            lobbyMin != null && occMin != null
+              ? lobbyMin + " / " + occMin + " min (lobby / occupied)"
+              : occMin != null
+                ? occMin + " min"
+                : "—";
+          setText("detail-room-idle", idleLabel);
           setText("detail-identity", data.manager.identity || "—");
           setText("detail-relay-bin", data.manager.relayBin || "—");
+          setText("detail-ggpo-relay-bin", data.manager.ggpoRelayBin || "—");
           setText("detail-hostname", data.system.hostname || "—");
+          setText("detail-client-version", data.meta.clientVersion || "—");
           document.getElementById("detail-vps-mode").innerHTML = badge(data.broker.forceVpsRelay, "Enabled", "Disabled");
 
-          document.getElementById("last-updated").textContent =
-            "Updated " + new Date().toLocaleTimeString();
+          document.getElementById("last-updated").textContent = "Updated " + new Date().toLocaleTimeString();
           renderRooms(data.rooms || []);
-          renderMatches(data.matches || []);
+          renderMatches(data.matches || [], nowMs);
+          renderGgpoSessions(data.ggpoSessions || []);
           renderSessions(data.sessions || []);
-          if (Array.isArray(data.ggpoSessions) && data.ggpoSessions.length) {
-            setText("stat-sessions", String(data.manager.sessions ?? 0) + " session / " + String(data.ggpoSessions.length) + " ggpo");
+        }
+
+        function scheduleRefresh() {
+          if (refreshTimer) clearInterval(refreshTimer);
+          if (!autoRefreshPaused) {
+            refreshTimer = setInterval(loadStatus, REFRESH_MS);
           }
         }
 
         document.getElementById("refresh-btn").addEventListener("click", loadStatus);
+        document.getElementById("pause-btn").addEventListener("click", function () {
+          autoRefreshPaused = !autoRefreshPaused;
+          const btn = document.getElementById("pause-btn");
+          const status = document.getElementById("refresh-status");
+          if (autoRefreshPaused) {
+            btn.textContent = "Resume";
+            status.textContent = "Auto-refresh paused";
+            if (refreshTimer) clearInterval(refreshTimer);
+          } else {
+            btn.textContent = "Pause";
+            status.textContent = "Refreshing every " + (REFRESH_MS / 1000) + "s";
+            scheduleRefresh();
+            loadStatus();
+          }
+        });
+
         loadStatus();
-        setInterval(loadStatus, 10000);
+        scheduleRefresh();
       </script>`
     )
   );
@@ -778,18 +985,23 @@ app.get("/api/status", requireAuth, async (_req, res) => {
       ? brokerMatchesRes.body.matches
       : rawRooms;
     const now = Date.now();
-    const roomIdleMs = broker.roomIdleMs || 15 * 60 * 1000;
+    const roomLobbyIdleMs = broker.roomLobbyIdleMs || 5 * 60 * 1000;
+    const roomOccupiedIdleMs = broker.roomOccupiedIdleMs || broker.roomIdleMs || 30 * 60 * 1000;
     const maxRooms = broker.maxRooms || 20;
     const relayPortBase = broker.relayPortBase || 23456;
     const relayPortEnd = relayPortBase + maxRooms - 1;
+    const ggpoPortBase = broker.ggpoUdpPortBase || 24456;
+    const ggpoPortEnd = ggpoPortBase + maxRooms - 1;
 
     const ggpoSessionsWithHealth = await Promise.all(
       rawGgpoSessions.map(async (session) => {
         const health = await relayFetch(`/v1/ggpo-sessions/${session.port}/health`);
         const h = health.body || {};
+        const room = rawRooms.find((r) => r.ggpoPort === session.port);
         return {
           port: session.port,
           sessionPort: session.sessionPort,
+          roomCode: room?.code || null,
           pid: session.pid,
           startedAt: session.startedAt,
           uptime: formatUptime(session.startedAt),
@@ -798,6 +1010,10 @@ app.get("/api/status", requireAuth, async (_req, res) => {
           ok: Boolean(h.ok),
         };
       })
+    );
+
+    const ggpoByPort = new Map(
+      ggpoSessionsWithHealth.map((session) => [session.port, session])
     );
 
     const sessionsWithHealth = await Promise.all(
@@ -824,9 +1040,13 @@ app.get("/api/status", requireAuth, async (_req, res) => {
 
     const rooms = rawRooms.map((room) => {
       const session = sessionByPort.get(room.port);
+      const ggpo = room.ggpoPort ? ggpoByPort.get(room.ggpoPort) : null;
       const ageMs = room.createdAt ? now - room.createdAt : 0;
       const idleMs = room.lastSeenAt ? now - room.lastSeenAt : 0;
-      const expiresInMs = Math.max(0, roomIdleMs - idleMs);
+      const idleLimitMs = room.idleLimitMs || (room.roomOccupied ? roomOccupiedIdleMs : roomLobbyIdleMs);
+      const expiresInMs = Math.max(0, idleLimitMs - idleMs);
+      const sessionRelayOk = Boolean(session?.ok);
+      const ggpoRelayOk = !room.ggpoPort || Boolean(ggpo?.ok);
       return {
         code: room.code,
         displayName: room.displayName,
@@ -835,13 +1055,18 @@ app.get("/api/status", requireAuth, async (_req, res) => {
         matchId: room.matchId || null,
         transportActive: room.transportActive || null,
         ggpoTransport: room.ggpoTransport || null,
+        endpointsSummary: room.endpointsSummary || null,
         host: room.host,
         age: formatDuration(ageMs),
         idleFor: formatDuration(idleMs),
         expiresIn: formatDuration(expiresInMs),
-        relayOk: Boolean(session?.ok),
+        sessionRelayOk,
+        ggpoRelayOk,
+        relayOk: sessionRelayOk && ggpoRelayOk,
         relayRunning: Boolean(session?.running),
         relayListening: Boolean(session?.listening),
+        ggpoRelayRunning: Boolean(ggpo?.running),
+        ggpoRelayListening: Boolean(ggpo?.listening),
       };
     });
 
@@ -855,7 +1080,8 @@ app.get("/api/status", requireAuth, async (_req, res) => {
         port: match.port || room.port,
         ggpoPort: match.ggpoPort || room.ggpoPort,
         startedAt: match.startedAt || room.startedAt,
-        events: match.events || [],
+        events: match.events || room.events || [],
+        endpointsSummary: match.endpointsSummary || room.endpointsSummary || null,
       };
     });
 
@@ -873,21 +1099,31 @@ app.get("/api/status", requireAuth, async (_req, res) => {
       meta: {
         brokerUrl: BROKER_URL,
         relayManagerUrl: RELAY_MANAGER_URL,
+        publicBrokerUrl: PUBLIC_BROKER_URL,
+        clientVersion: CLIENT_VERSION,
       },
       system: getSystemStats(),
       broker: {
         ok: brokerHealthRes.status < 500 && broker.ok !== false,
         rooms: broker.rooms ?? rawRooms.length,
         maxRooms,
-        usedPorts: rawSessions.length,
+        usedSessionPorts: rawSessions.length,
+        usedGgpoPorts: rawGgpoSessions.length,
         availablePorts: Math.max(0, maxRooms - rawSessions.length),
         relayHost: broker.relayHost || null,
         forceVpsRelay: Boolean(broker.forceVpsRelay),
+        brokerGgpoTransport: broker.brokerGgpoTransport || "legacy",
+        natProbePort: broker.natProbePort ?? 8790,
         queueSize: broker.queueSize ?? 0,
         relayPortBase,
         relayPortEnd,
+        ggpoPortBase,
+        ggpoPortEnd,
         portRange: `${relayPortBase}–${relayPortEnd}`,
-        roomIdleMs,
+        ggpoPortRange: `${ggpoPortBase}–${ggpoPortEnd}`,
+        roomIdleMs: roomOccupiedIdleMs,
+        roomLobbyIdleMs,
+        roomOccupiedIdleMs,
       },
       manager: {
         ok: Boolean(manager.ok),
@@ -925,6 +1161,25 @@ app.delete("/api/sessions/:port", requireAuth, async (req, res) => {
     res.status(result.status).json(result.body);
   } catch (err) {
     console.error("delete session error:", err);
+    res.status(503).json({
+      error: "relay_manager_unavailable",
+      message: err.message,
+    });
+  }
+});
+
+app.delete("/api/ggpo-sessions/:port", requireAuth, async (req, res) => {
+  const port = parseInt(req.params.port, 10);
+  if (!port || port < 1 || port > 65535) {
+    res.status(400).json({ error: "invalid_port" });
+    return;
+  }
+
+  try {
+    const result = await relayFetch(`/v1/ggpo-sessions/${port}`, { method: "DELETE" });
+    res.status(result.status).json(result.body);
+  } catch (err) {
+    console.error("delete ggpo session error:", err);
     res.status(503).json({
       error: "relay_manager_unavailable",
       message: err.message,

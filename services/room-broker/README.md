@@ -37,7 +37,8 @@ On your VPS (same machine as the session relay):
 export RELAY_HOST=your.vps.ip
 export RELAY_PORT_BASE=23456
 export MAX_ROOMS=20
-export ROOM_IDLE_MS=900000
+export ROOM_LOBBY_IDLE_MS=300000
+export ROOM_OCCUPIED_IDLE_MS=1800000
 node server.js
 ```
 
@@ -49,7 +50,9 @@ node server.js
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `MAX_ROOMS` | 20 | Cap concurrent rooms |
-| `ROOM_IDLE_MS` | 900000 (15m) | Drop unused rooms |
+| `ROOM_LOBBY_IDLE_MS` | 300000 (5m) | Drop host-only rooms (no joiner) |
+| `ROOM_OCCUPIED_IDLE_MS` | 1800000 (30m) | Drop rooms with guest or in-match |
+| `ROOM_IDLE_MS` | (legacy) | Alias for `ROOM_OCCUPIED_IDLE_MS` if occupied var unset |
 | `RELAY_HOST` | 127.0.0.1 | Address returned to clients |
 | `RELAY_PORT_BASE` | 23456 | First port in pool |
 

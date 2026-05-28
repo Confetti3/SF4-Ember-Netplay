@@ -294,6 +294,21 @@
     setButtonLoading("btn-refresh-ip", false);
   }
 
+  function getActiveRelayRoomCode() {
+    const preview = document.getElementById("host-room-preview");
+    const fromPreview = preview && preview.textContent ? preview.textContent.trim() : "";
+    if (isShortRoomCode(fromPreview)) return fromPreview;
+    const fromState = (state.roomCodePreview || state.relayRoomCode || state.sessionRelayCode || "").trim();
+    if (isShortRoomCode(fromState)) return fromState;
+    return "";
+  }
+
+  function relayHeartbeatIntervalMs() {
+    const hostScreen = document.getElementById("screen-host");
+    if (hostScreen && hostScreen.classList.contains("active")) return 60000;
+    return 180000;
+  }
+
   function stopRelayHeartbeat() {
     if (relayHeartbeatTimer) {
       clearInterval(relayHeartbeatTimer);
@@ -303,20 +318,24 @@
 
   function startRelayHeartbeat() {
     stopRelayHeartbeat();
-    relayHeartbeatTimer = setInterval(function () {
-      const preview = document.getElementById("host-room-preview");
-      const code = preview ? preview.textContent : "";
-      if (!isShortRoomCode(code)) return;
-      if (!document.getElementById("screen-host").classList.contains("active")) return;
-      post({ type: "relayHeartbeat", roomCode: code });
-    }, 60000);
+    const code = getActiveRelayRoomCode();
+    if (!isShortRoomCode(code)) return;
+
+    function tick() {
+      const activeCode = getActiveRelayRoomCode();
+      if (!isShortRoomCode(activeCode)) {
+        stopRelayHeartbeat();
+        return;
+      }
+      post({ type: "relayHeartbeat", roomCode: activeCode });
+    }
+
+    tick();
+    relayHeartbeatTimer = setInterval(tick, relayHeartbeatIntervalMs());
   }
 
   function syncRelayHeartbeat() {
-    const hostActive = document.getElementById("screen-host").classList.contains("active");
-    const preview = document.getElementById("host-room-preview");
-    const code = preview ? preview.textContent : state.roomCodePreview || "";
-    if (hostActive && isShortRoomCode(code)) {
+    if (isShortRoomCode(getActiveRelayRoomCode())) {
       startRelayHeartbeat();
     } else {
       stopRelayHeartbeat();

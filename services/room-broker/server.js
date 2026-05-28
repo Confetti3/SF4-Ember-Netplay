@@ -19,7 +19,13 @@ const RELAY_HOST = process.env.RELAY_HOST || "127.0.0.1";
 const RELAY_PORT_BASE = parseInt(process.env.RELAY_PORT_BASE || "23456", 10);
 const GGPO_UDP_PORT_BASE = parseInt(process.env.GGPO_UDP_PORT_BASE || "24456", 10);
 const MAX_ROOMS = parseInt(process.env.MAX_ROOMS || "20", 10);
-const ROOM_IDLE_MS = parseInt(process.env.ROOM_IDLE_MS || String(15 * 60 * 1000), 10);
+const ROOM_OCCUPIED_IDLE_MS = parseInt(
+  process.env.ROOM_OCCUPIED_IDLE_MS || process.env.ROOM_IDLE_MS || String(30 * 60 * 1000),
+  10
+);
+const ROOM_LOBBY_IDLE_MS = parseInt(process.env.ROOM_LOBBY_IDLE_MS || String(5 * 60 * 1000), 10);
+/** @deprecated Use ROOM_OCCUPIED_IDLE_MS; kept for health/dashboard compat */
+const ROOM_IDLE_MS = ROOM_OCCUPIED_IDLE_MS;
 const MAX_QUEUE = parseInt(process.env.MAX_QUEUE || "50", 10);
 const MAX_BODY_BYTES = parseInt(process.env.MAX_BODY_BYTES || String(64 * 1024), 10);
 const ENABLE_ROOM_LIST =
@@ -324,6 +330,20 @@ async function ensureRelaySession(room) {
   };
 }
 
+function isRoomOccupied(room) {
+  if (room.startedAt) {
+    return true;
+  }
+  if (room.endpoints?.host && room.endpoints?.guest) {
+    return true;
+  }
+  return false;
+}
+
+function roomIdleLimitMs(room) {
+  return isRoomOccupied(room) ? ROOM_OCCUPIED_IDLE_MS : ROOM_LOBBY_IDLE_MS;
+}
+
 function endRoom(code, room, reason) {
   pushMatchEvent(room, "match_ended", { reason: reason || "prune" });
   room.endedAt = Date.now();
@@ -334,8 +354,9 @@ function endRoom(code, room, reason) {
 function pruneRooms() {
   const now = Date.now();
   for (const [code, room] of rooms) {
-    if (now - room.lastSeenAt > ROOM_IDLE_MS) {
-      endRoom(code, room, "idle_timeout");
+    const limit = roomIdleLimitMs(room);
+    if (now - room.lastSeenAt > limit) {
+      endRoom(code, room, isRoomOccupied(room) ? "idle_timeout_occupied" : "idle_timeout_lobby");
     }
   }
 }
@@ -446,6 +467,22 @@ function publicRoomFields(room) {
     lastSeenAt: room.lastSeenAt,
     startedAt: room.startedAt || null,
     endedAt: room.endedAt || null,
+    roomOccupied: isRoomOccupied(room),
+    idleLimitMs: roomIdleLimitMs(room),
+    endpointsSummary: {
+      host: room.endpoints?.host
+        ? {
+            natType: room.endpoints.host.natType || null,
+            ggpoPort: room.endpoints.host.ggpoPort || 0,
+          }
+        : null,
+      guest: room.endpoints?.guest
+        ? {
+            natType: room.endpoints.guest.natType || null,
+            ggpoPort: room.endpoints.guest.ggpoPort || 0,
+          }
+        : null,
+    },
   };
 }
 
@@ -637,6 +674,8 @@ const server = http.createServer(async (req, res) => {
       brokerGgpoTransport: BROKER_GGPO_TRANSPORT,
       natProbePort: NAT_PROBE_PORT,
       roomIdleMs: ROOM_IDLE_MS,
+      roomLobbyIdleMs: ROOM_LOBBY_IDLE_MS,
+      roomOccupiedIdleMs: ROOM_OCCUPIED_IDLE_MS,
     });
     return;
   }
@@ -691,7 +730,7 @@ const server = http.createServer(async (req, res) => {
     }
     const now = Date.now();
     const list = [...rooms.values()]
-      .filter((r) => now - r.lastSeenAt < ROOM_IDLE_MS)
+      .filter((r) => now - r.lastSeenAt < roomIdleLimitMs(r))
       .map((r) => publicRoomFields(r));
     json(res, 200, { rooms: list });
     return;
@@ -1056,7 +1095,7 @@ const server = http.createServer(async (req, res) => {
   json(res, 404, { error: "not_found", message: "Unknown API path." });
 });
 
-setInterval(pruneRooms, Math.min(ROOM_IDLE_MS, 60000));
+setInterval(pruneRooms, Math.min(ROOM_LOBBY_IDLE_MS, 60000));
 
 setInterval(() => {
   const now = Date.now();

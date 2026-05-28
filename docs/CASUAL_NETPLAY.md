@@ -40,7 +40,8 @@ CLI: `Launcher.exe --join SF4-XXXX`
 - **IONOS (or provider) control-panel firewall** must allow **inbound UDP 23456–23475** to the VPS — `ufw` on the server is not enough if the cloud panel blocks UDP
 - Host and joiner use the same release zip (matching `Sidecar.dll`)
 - No port forward on the host PC for Simple mode relay
-- `MAX_ROOMS=20`, monitor bandwidth
+- `MAX_ROOMS=20` (~**40 players** on relay: 20 matches × 2)
+- Idle recycle: **`ROOM_LOBBY_IDLE_MS=300000`** (5 min) drops abandoned host-only codes; **`ROOM_OCCUPIED_IDLE_MS=1800000`** (30 min) keeps rooms with a joiner or an active match. Host launcher sends heartbeats during play so long sessions are not pruned.
 
 Verify from your PC: `powershell -File scripts\relay-diag.ps1`. If relay-diag passes but in-game connect fails, open IONOS inbound UDP **23456–23475** and retest.
 
