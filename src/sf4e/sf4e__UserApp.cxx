@@ -6,6 +6,7 @@
 
 #include <GameNetworkingSockets/steam/steamnetworkingsockets.h>
 #include <GameNetworkingSockets/steam/isteamnetworkingutils.h>
+#include <ggponet.h>
 #include <spdlog/spdlog.h>
 
 #include "../Dimps/Dimps.hxx"
@@ -236,6 +237,7 @@ void fUserApp::_OnVsBattleTasksRegistered()
             netplay->delay,
             netplay->client._matchData.rngSeed
         );
+        sf4e::NetplayFacade::ResetGgpoBattleWatch();
     }
     else {
         // Always spectate from	P1 for now- the protocol has
@@ -262,6 +264,71 @@ void fUserApp::_OnVsBattleTasksRegistered()
             netplay->client._matchData.rngSeed
         );
     }
+}
+
+void fUserApp::TryRestartGgpoLegacyTunnel() {
+    if (!netplay || !fSystem::ggpo) {
+        return;
+    }
+
+    spdlog::warn("GgpoTransport: restarting GGPO on legacy session tunnel");
+    ggpo_close_session(fSystem::ggpo);
+    fSystem::ggpo = nullptr;
+    fSystem::bUpdateAllowed = false;
+
+    netplay->client._useRelay = true;
+    if (!GgpoRelay::Instance().Start(netplay->client._ggpoPort, &netplay->client)) {
+        spdlog::error("GgpoTransport: legacy tunnel restart failed (GgpoRelay start)");
+        sf4e::NetplayFacade::PushAlert("Netplay: GGPO sync failed. Disconnect and retry.");
+        return;
+    }
+
+    GGPOPlayer players[MAX_SF4E_PROTOCOL_USERS];
+    for (int i = 0; i < 2 && i < netplay->client._lobbyData.members.size(); i++) {
+        SessionProtocol::MemberData& memberData = netplay->client._lobbyData.members[i];
+        GGPOPlayer& player = players[i];
+        player.size = sizeof(GGPOPlayer);
+        player.player_num = i + 1;
+        if (netplay->client._lobbyData.members[i].name == netplay->client._name) {
+            player.type = GGPO_PLAYERTYPE_LOCAL;
+            Dimps::Pad::System* padSys = Dimps::Pad::System::staticMethods.GetSingleton();
+            Dimps::Pad::System::__publicMethods& padSysMethods = Dimps::Pad::System::publicMethods;
+            (padSys->*padSysMethods.AssociatePlayerAndGamepad)(i, netplay->deviceIdx);
+            (padSys->*padSysMethods.SetDeviceTypeForPlayer)(i, netplay->deviceType);
+            (padSys->*padSysMethods.SetSideHasAssignedController)(i, 1);
+            (padSys->*padSysMethods.SetActiveButtonMapping)(Dimps::Pad::System::BUTTON_MAPPING_FIGHT);
+        }
+        else {
+            player.type = GGPO_PLAYERTYPE_REMOTE;
+            if (!GgpoRelay::Instance().GetRemoteEndpoint(
+                    memberData.connId,
+                    player.u.remote.ip_address,
+                    32,
+                    &player.u.remote.port
+                )) {
+                spdlog::error("GgpoTransport: legacy tunnel missing remote virtual endpoint");
+                sf4e::NetplayFacade::PushAlert("Netplay: GGPO sync failed. Disconnect and retry.");
+                GgpoRelay::Instance().Reset();
+                return;
+            }
+            spdlog::info(
+                "GgpoRelay: remote endpoint {}:{}",
+                player.u.remote.ip_address,
+                player.u.remote.port
+            );
+        }
+    }
+
+    fSystem::StartGGPO(
+        players,
+        netplay->client._lobbyData.members.size(),
+        netplay->client._ggpoPort,
+        netplay->delay,
+        netplay->client._matchData.rngSeed
+    );
+    sf4e::NetplayFacade::ReportGgpoTransport(0, true, nullptr, 0);
+    sf4e::NetplayFacade::MarkGgpoBattleStarted();
+    sf4e::NetplayFacade::PushAlert("Netplay: UDP GGPO failed; using legacy session tunnel.");
 }
 
 void fUserApp::_OnVsPreBattleTasksRegistered()

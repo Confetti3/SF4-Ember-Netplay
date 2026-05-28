@@ -21,7 +21,8 @@ static const char kMagicHealth[] = "SF4H";
 static const char kRespHealth[] = "SF4OK";
 static const char kRespRegistered[] = "SF4R";
 static const char kRespWaiting[] = "SF4W";
-static const int kRegPacketLen = 4 + 32;
+static const int kRegPacketLenLegacy = 4 + 32;
+static const int kRegPacketLenV2 = 4 + 32 + 2;
 static const int kMaxPacket = 2048;
 
 struct Endpoint {
@@ -55,8 +56,34 @@ static bool SameEndpoint(const sockaddr_in& a, const sockaddr_in& b) {
 	return a.sin_addr.s_addr == b.sin_addr.s_addr && a.sin_port == b.sin_port;
 }
 
+static bool SameIp(const sockaddr_in& a, const sockaddr_in& b) {
+	return a.sin_addr.s_addr == b.sin_addr.s_addr;
+}
+
 static void CopyEndpoint(sockaddr_in& dst, const sockaddr_in& src) {
 	dst = src;
+}
+
+static int FindSlotByEndpoint(Endpoint* slots, const sockaddr_in& from) {
+	for (int i = 0; i < 2; i++) {
+		if (slots[i].active && SameEndpoint(slots[i].addr, from)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+static int FindSlotByIp(Endpoint* slots, const sockaddr_in& from) {
+	int found = -1;
+	for (int i = 0; i < 2; i++) {
+		if (slots[i].active && SameIp(slots[i].addr, from)) {
+			if (found >= 0) {
+				return -2;
+			}
+			found = i;
+		}
+	}
+	return found;
 }
 
 static uint64_t MonotonicMs() {
@@ -144,18 +171,14 @@ int main(int argc, char** argv) {
 			continue;
 		}
 
-		if (n == kRegPacketLen && memcmp(buf, kMagicReg, 4) == 0) {
+		const bool isRegLegacy = n == kRegPacketLenLegacy && memcmp(buf, kMagicReg, 4) == 0;
+		const bool isRegV2 = n == kRegPacketLenV2 && memcmp(buf, kMagicReg, 4) == 0;
+		if (isRegLegacy || isRegV2) {
 			if (!TokenMatches(roomToken.c_str(), buf + 4)) {
 				continue;
 			}
 
-			int slotIdx = -1;
-			for (int i = 0; i < 2; i++) {
-				if (slots[i].active && SameEndpoint(slots[i].addr, from)) {
-					slotIdx = i;
-					break;
-				}
-			}
+			int slotIdx = FindSlotByEndpoint(slots, from);
 			if (slotIdx < 0) {
 				for (int i = 0; i < 2; i++) {
 					if (!slots[i].active) {
@@ -168,12 +191,28 @@ int main(int argc, char** argv) {
 				continue;
 			}
 
-			CopyEndpoint(slots[slotIdx].addr, from);
+			sockaddr_in registered = from;
+			if (isRegV2) {
+				const uint16_t declaredPort =
+					(uint16_t)(((unsigned char)buf[36] << 8) | (unsigned char)buf[37]);
+				if (declaredPort != 0) {
+					registered.sin_port = htons(declaredPort);
+				}
+			}
+
+			CopyEndpoint(slots[slotIdx].addr, registered);
 			slots[slotIdx].active = true;
 
 			char ipStr[INET_ADDRSTRLEN] = { 0 };
-			inet_ntop(AF_INET, &from.sin_addr, ipStr, sizeof(ipStr));
-			spdlog::info("Registered slot {} from {}:{}", slotIdx, ipStr, ntohs(from.sin_port));
+			inet_ntop(AF_INET, &registered.sin_addr, ipStr, sizeof(ipStr));
+			spdlog::info(
+				"Registered slot {} at {}:{} (probe from {}:{})",
+				slotIdx,
+				ipStr,
+				ntohs(registered.sin_port),
+				ipStr,
+				ntohs(from.sin_port)
+			);
 
 			const char* resp = kRespRegistered;
 			if (!slots[0].active || !slots[1].active) {
@@ -183,11 +222,21 @@ int main(int argc, char** argv) {
 			continue;
 		}
 
-		int srcSlot = -1;
-		for (int i = 0; i < 2; i++) {
-			if (slots[i].active && SameEndpoint(slots[i].addr, from)) {
-				srcSlot = i;
-				break;
+		int srcSlot = FindSlotByEndpoint(slots, from);
+		if (srcSlot < 0) {
+			const int ipSlot = FindSlotByIp(slots, from);
+			if (ipSlot >= 0) {
+				char ipStr[INET_ADDRSTRLEN] = { 0 };
+				inet_ntop(AF_INET, &from.sin_addr, ipStr, sizeof(ipStr));
+				spdlog::info(
+					"Rebound slot {} to {}:{} (was port {})",
+					ipSlot,
+					ipStr,
+					ntohs(from.sin_port),
+					ntohs(slots[ipSlot].addr.sin_port)
+				);
+				CopyEndpoint(slots[ipSlot].addr, from);
+				srcSlot = ipSlot;
 			}
 		}
 		if (srcSlot < 0) {

@@ -1240,7 +1240,19 @@ static void DrawNetplayPlayerPanel() {
 		DrawNetworkLobbyPanel();
 	}
 	else if (st.inMatch) {
-		TextWrapped("In match");
+		const sf4e::GgpoSyncPhase syncPhase = sf4e::NetplayFacade::GetGgpoSyncPhase();
+		if (syncPhase == sf4e::GgpoSyncPhase::Running) {
+			TextWrapped("In match");
+		}
+		else if (syncPhase == sf4e::GgpoSyncPhase::Synchronizing) {
+			ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "GGPO: Synchronizing...");
+		}
+		else if (syncPhase == sf4e::GgpoSyncPhase::Connected) {
+			ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "GGPO: Connected, waiting to run...");
+		}
+		else {
+			ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.2f, 1.0f), "GGPO: Waiting for sync...");
+		}
 	}
 	Spacing();
 	Separator();

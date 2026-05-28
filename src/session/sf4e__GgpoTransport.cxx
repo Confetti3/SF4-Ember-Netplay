@@ -87,9 +87,10 @@ namespace sf4e {
 		const char* relayHost,
 		uint16_t relayPort,
 		const char* roomTokenHex,
+		uint16_t localGgpoPort,
 		int timeoutMs
 	) {
-		if (!relayHost || !relayHost[0] || !roomTokenHex || strlen(roomTokenHex) != 32) {
+		if (!relayHost || !relayHost[0] || !roomTokenHex || strlen(roomTokenHex) != 32 || localGgpoPort == 0) {
 			return false;
 		}
 		if (!EnsureWinsock()) {
@@ -119,8 +120,10 @@ namespace sf4e {
 			return false;
 		}
 
-		char packet[4 + 32] = { 'S', 'F', '4', 'G' };
+		char packet[4 + 32 + 2] = { 'S', 'F', '4', 'G' };
 		memcpy(packet + 4, roomTokenHex, 32);
+		packet[36] = (char)((localGgpoPort >> 8) & 0xff);
+		packet[37] = (char)(localGgpoPort & 0xff);
 
 		const DWORD deadline = GetTickCount() + (DWORD)timeoutMs;
 		while (GetTickCount() < deadline) {
@@ -128,7 +131,12 @@ namespace sf4e {
 			if (SendProbeAndWait(sock, dest, packet, sizeof(packet), response, sizeof(response), 500)) {
 				if (memcmp(response, "SF4R", 4) == 0) {
 					closesocket(sock);
-					spdlog::info("GgpoTransport: UDP relay registration OK {}:{}", relayHost, relayPort);
+					spdlog::info(
+						"GgpoTransport: UDP relay registration OK {}:{} localGgpoPort={}",
+						relayHost,
+						relayPort,
+						localGgpoPort
+					);
 					return true;
 				}
 			}
@@ -312,7 +320,7 @@ namespace sf4e {
 			else if (!cfg.ggpoRoomToken[0]) {
 				spdlog::warn("GgpoTransport: UDP relay missing room token");
 			}
-			else if (RegisterWithUdpRelay(relayHost, relayPort, cfg.ggpoRoomToken)) {
+			else if (RegisterWithUdpRelay(relayHost, relayPort, cfg.ggpoRoomToken, cfg.ggpoPort)) {
 				strncpy_s(cfg.ggpoRemoteHost, relayHost, _TRUNCATE);
 				cfg.ggpoRemotePort = relayPort;
 				cfg.ggpoTransport = (uint8_t)GgpoTransportMode::UdpRelay;

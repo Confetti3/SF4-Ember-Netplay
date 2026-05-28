@@ -27,6 +27,7 @@
 #include "../session/sf4e__SessionProtocol.hxx"
 
 #include "sf4e.hxx"
+#include "sf4e__NetplayFacade.hxx"
 #include "sf4e__Game.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__Game__Battle.hxx"
@@ -679,10 +680,12 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
     switch (info->code) {
     case GGPO_EVENTCODE_CONNECTED_TO_PEER:
         spdlog::info("GGPO: Connected!");
+        sf4e::NetplayFacade::NotifyGgpoSyncPhase(sf4e::GgpoSyncPhase::Connected);
         break;
     case GGPO_EVENTCODE_SYNCHRONIZING_WITH_PEER:
         progress = 100 * info->u.synchronizing.count / info->u.synchronizing.total;
         spdlog::info("GGPO: Synchronizing: {}", progress);
+        sf4e::NetplayFacade::NotifyGgpoSyncPhase(sf4e::GgpoSyncPhase::Synchronizing);
         break;
     case GGPO_EVENTCODE_SYNCHRONIZED_WITH_PEER:
         spdlog::info("GGPO: Synchronized with peer");
@@ -690,6 +693,7 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
     case GGPO_EVENTCODE_RUNNING:
         bUpdateAllowed = true;
         spdlog::info("GGPO: Running");
+        sf4e::NetplayFacade::NotifyGgpoSyncPhase(sf4e::GgpoSyncPhase::Running);
         break;
     case GGPO_EVENTCODE_CONNECTION_INTERRUPTED:
         spdlog::info("GGPO: GGPO_EVENTCODE_CONNECTION_INTERRUPTED");

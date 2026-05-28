@@ -36,6 +36,9 @@ namespace sf4e {
 
 	static NetplayConfig s_config = { 0 };
 	static GgpoTransportStatus s_ggpoTransportStatus = { 0 };
+	static GgpoSyncPhase s_ggpoSyncPhase = GgpoSyncPhase::None;
+	static DWORD s_ggpoBattleStartTick = 0;
+	static bool s_udpGgpoFallbackTried = false;
 	static bool s_autoPending = false;
 	static bool s_graphicsWarned = false;
 	static bool s_deferGgpoClose = false;
@@ -110,6 +113,25 @@ namespace sf4e {
 
 	GgpoTransportStatus NetplayFacade::GetGgpoTransportStatus() {
 		return s_ggpoTransportStatus;
+	}
+
+	GgpoSyncPhase NetplayFacade::GetGgpoSyncPhase() {
+		return s_ggpoSyncPhase;
+	}
+
+	void NetplayFacade::NotifyGgpoSyncPhase(GgpoSyncPhase phase) {
+		s_ggpoSyncPhase = phase;
+	}
+
+	void NetplayFacade::ResetGgpoBattleWatch() {
+		s_ggpoBattleStartTick = GetTickCount();
+		s_udpGgpoFallbackTried = false;
+		s_ggpoSyncPhase = GgpoSyncPhase::Starting;
+	}
+
+	void NetplayFacade::MarkGgpoBattleStarted() {
+		s_ggpoBattleStartTick = GetTickCount();
+		s_ggpoSyncPhase = GgpoSyncPhase::Starting;
 	}
 
 	const char* NetplayFacade::GgpoTransportModeName(uint8_t mode) {
@@ -372,6 +394,20 @@ namespace sf4e {
 			GgpoRelay::Instance().Pump();
 		}
 
+		if (
+			fSystem::ggpo &&
+			!fSystem::bUpdateAllowed &&
+			!s_udpGgpoFallbackTried &&
+			s_ggpoTransportStatus.effectiveMode == 1 &&
+			!s_ggpoTransportStatus.legacyTunnelActive &&
+			s_ggpoBattleStartTick != 0 &&
+			GetTickCount() - s_ggpoBattleStartTick > 3000
+		) {
+			s_udpGgpoFallbackTried = true;
+			spdlog::warn("GgpoTransport: UDP relay registered but GGPO did not reach Running; falling back to session tunnel");
+			fUserApp::TryRestartGgpoLegacyTunnel();
+		}
+
 		if (s_deferredGgpoPending && fSystem::ggpo && !ShouldDeferGgpoClose()) {
 			ggpo_close_session(fSystem::ggpo);
 			fSystem::ggpo = nullptr;
@@ -438,6 +474,9 @@ namespace sf4e {
 		}
 		GgpoRelay::Instance().Reset();
 		s_ggpoTransportStatus = { 0 };
+		s_ggpoSyncPhase = GgpoSyncPhase::None;
+		s_ggpoBattleStartTick = 0;
+		s_udpGgpoFallbackTried = false;
 		if (fUserApp::netplay) {
 			fUserApp::netplay->client.Disconnect();
 			fUserApp::netplay.reset();

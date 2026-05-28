@@ -64,8 +64,9 @@ def nat_probe() -> dict:
         s.close()
 
 
-def ggpo_register(ggpo_port: int, room_token: str) -> str:
+def ggpo_register(ggpo_port: int, room_token: str, local_ggpo_port: int = 23457) -> str:
     packet = b"SF4G" + room_token.encode("ascii")
+    packet += bytes([(local_ggpo_port >> 8) & 0xFF, local_ggpo_port & 0xFF])
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.settimeout(3)
     try:
@@ -76,6 +77,42 @@ def ggpo_register(ggpo_port: int, room_token: str) -> str:
         return "timeout"
     finally:
         s.close()
+
+
+def ggpo_relay_forward_test(ggpo_port: int, room_token: str) -> bool:
+    """Two local clients register with distinct GGPO ports; verify bidirectional relay."""
+    token = room_token.encode("ascii")
+    reg_a = b"SF4G" + token + bytes([(23457 >> 8) & 0xFF, 23457 & 0xFF])
+    reg_b = b"SF4G" + token + bytes([(23458 >> 8) & 0xFF, 23458 & 0xFF])
+    payload_a = b"GGPO_TEST_A"
+    payload_b = b"GGPO_TEST_B"
+
+    sa = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sb = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sa.settimeout(3)
+    sb.settimeout(3)
+    try:
+        sa.bind(("0.0.0.0", 23457))
+        sb.bind(("0.0.0.0", 23458))
+        dest = (HOST, ggpo_port)
+        sa.sendto(reg_a, dest)
+        ra, _ = sa.recvfrom(64)
+        sb.sendto(reg_b, dest)
+        rb, _ = sb.recvfrom(64)
+        if not (ra.startswith(b"SF4R") or ra.startswith(b"SF4W")):
+            return False
+        if not rb.startswith(b"SF4R"):
+            return False
+        sa.sendto(payload_a, dest)
+        sb.sendto(payload_b, dest)
+        fb, _ = sb.recvfrom(256)
+        fa, _ = sa.recvfrom(256)
+        return fb == payload_a and fa == payload_b
+    except OSError:
+        return False
+    finally:
+        sa.close()
+        sb.close()
 
 
 def run_checks() -> list[Check]:
@@ -210,12 +247,20 @@ def run_checks() -> list[Check]:
         )
 
         if room_token and ggpo_port:
-            ggpo_resp = ggpo_register(ggpo_port, room_token)
+            ggpo_resp = ggpo_register(ggpo_port, room_token, 23457)
             checks.append(
                 Check(
-                    "GGPO UDP relay registration",
+                    "GGPO UDP relay registration (v2)",
                     ggpo_resp.startswith("SF4R") or ggpo_resp.startswith("SF4W"),
                     f"response={ggpo_resp!r}",
+                )
+            )
+            forward_ok = ggpo_relay_forward_test(ggpo_port, room_token)
+            checks.append(
+                Check(
+                    "GGPO UDP relay bidirectional forward",
+                    forward_ok,
+                    "ports 23457/23458 via declared registration",
                 )
             )
 

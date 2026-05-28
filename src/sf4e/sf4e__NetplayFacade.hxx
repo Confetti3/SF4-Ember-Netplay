@@ -35,12 +35,24 @@ namespace sf4e {
 		uint16_t remotePort = 0;
 	};
 
+	enum class GgpoSyncPhase : uint8_t {
+		None = 0,
+		Starting = 1,
+		Connected = 2,
+		Synchronizing = 3,
+		Running = 4,
+	};
+
 	namespace NetplayFacade {
 		void InitFromPayload(const NetplayConfig& cfg);
 		const NetplayConfig& GetConfig();
 		void ApplyGgpoTransportConfig(const NetplayConfig& cfg);
 		void ReportGgpoTransport(uint8_t effectiveMode, bool legacyTunnelActive, const char* remoteHost, uint16_t remotePort);
 		GgpoTransportStatus GetGgpoTransportStatus();
+		GgpoSyncPhase GetGgpoSyncPhase();
+		void NotifyGgpoSyncPhase(GgpoSyncPhase phase);
+		void ResetGgpoBattleWatch();
+		void MarkGgpoBattleStarted();
 		const char* GgpoTransportModeName(uint8_t mode);
 		bool IsDevOverlayEnabled();
 		bool IsRelayEnabled();

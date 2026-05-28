@@ -27,6 +27,10 @@ Signed builds are the permanent mitigation for `Program:Win32/Wacapew.A!ml` on `
 1. Download **`sf4-netplay-launcher-*-v0.3.4.zip`** from GitHub Releases (Assets).
 2. Extract fully → run **`preflight.cmd`** → **`Launcher.exe`**.
 
+## What's fixed (UDP black screen)
+
+- **GGPO UDP relay registration** now includes each player's local `ggpoPort` so the VPS relay forwards packets on the same ports GGPO uses (fixes black screen after portraits when overlay showed UDP relay).
+
 ## What's included (from main since v0.3.1)
 
 - UDP GGPO relay transport (v0.3.2)

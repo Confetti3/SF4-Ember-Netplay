@@ -40,6 +40,7 @@ namespace sf4e {
         static bool StartServer(uint16 hostPort, std::string& identity, std::string& sidecarHash, bool editionSelect, int roundCount, Dimps::Math::FixedPoint roundTime);
         static void ResetLobbyForRematch();
         static void TryStartPendingMatch();
+        static void TryRestartGgpoLegacyTunnel();
         static void _OnVsPreBattleTasksRegistered();
         static void _OnVsBattleTasksRegistered();
     };
