@@ -12,7 +12,7 @@ on:
 
 permissions:
   actions: read
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -127,3 +127,25 @@ jobs:
             msvc-out/relwithdebinfo/Sidecar.dll
             msvc-out/relwithdebinfo/RelayHost.exe
             dist/*.zip
+
+      - name: Publish GitHub pre-release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $label = $tag.Substring(1)
+          $zip = Get-ChildItem -Path dist -Filter "sf4-netplay-launcher-*.zip" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $zip) { throw "No package zip under dist/" }
+          $notes = "docs/RELEASE_NOTES_v$label.md"
+          if (-not (Test-Path $notes)) { $notes = "docs/RELEASE_NOTES_TEMPLATE.md" }
+          $exists = $false
+          try { gh release view $tag --repo "${{ github.repository }}" 2>$null; if ($LASTEXITCODE -eq 0) { $exists = $true } } catch {}
+          if ($exists) {
+            gh release upload $tag $zip.FullName --repo "${{ github.repository }}" --clobber
+            gh release edit $tag --repo "${{ github.repository }}" --prerelease --notes-file $notes
+          } else {
+            gh release create $tag $zip.FullName --repo "${{ github.repository }}" --title "SF4 Netplay Launcher $tag (testing)" --notes-file $notes --prerelease
+          }
+          Write-Host "Published $($zip.Name) to release $tag"
