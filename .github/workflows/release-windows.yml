@@ -36,6 +36,14 @@ jobs:
         with:
           arch: x86
 
+      - name: Setup vcpkg
+        run: |
+          if (-not $env:VCPKG_ROOT -or -not (Test-Path "$env:VCPKG_ROOT\vcpkg.exe")) {
+            $env:VCPKG_ROOT = "C:\vcpkg"
+          }
+          Write-Host "VCPKG_ROOT=$env:VCPKG_ROOT"
+          echo "VCPKG_ROOT=$env:VCPKG_ROOT" >> $env:GITHUB_ENV
+
       - name: Configure CMake
         run: cmake --preset default
 

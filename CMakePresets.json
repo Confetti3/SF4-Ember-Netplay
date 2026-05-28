@@ -43,6 +43,10 @@
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/msvc-out/release",
         "CMAKE_BUILD_TYPE": "Release"
       }
+    },
+    {
+      "name": "default",
+      "inherits": "x86-msvc-ninja-relwithdebinfo"
     }
   ]
 }
