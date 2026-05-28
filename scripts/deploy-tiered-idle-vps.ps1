@@ -23,5 +23,5 @@ Write-Host "roomOccupiedIdleMs = $($health.roomOccupiedIdleMs)"
 if ($health.roomLobbyIdleMs -eq 300000 -and $health.roomOccupiedIdleMs -eq 1800000) {
     Write-Host "Tiered idle is live."
 } else {
-    Write-Warning "Health response missing new idle fields — broker may need restart or deploy retry."
+    Write-Warning "Health response missing new idle fields - broker may need restart or deploy retry."
 }

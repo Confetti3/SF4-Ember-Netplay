@@ -2,7 +2,12 @@
 $secretsFile = Join-Path $PSScriptRoot ".vps-env.ps1"
 if (Test-Path -LiteralPath $secretsFile) {
     . $secretsFile
-    return
+    if ($env:SF4E_VPS_PASSWORD -eq "YOUR_VPS_PASSWORD_HERE") {
+        $env:SF4E_VPS_PASSWORD = ""
+        Write-Warning "scripts\.vps-env.ps1 still has placeholder password - edit the file."
+    } elseif ($env:SF4E_VPS_PASSWORD) {
+        return
+    }
 }
 $userPass = [Environment]::GetEnvironmentVariable("SF4E_VPS_PASSWORD", "User")
 if ($userPass) {
