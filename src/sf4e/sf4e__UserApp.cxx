@@ -271,6 +271,19 @@ void fUserApp::TryRestartGgpoLegacyTunnel() {
         return;
     }
 
+    const sf4e::GgpoSyncPhase phase = sf4e::NetplayFacade::GetGgpoSyncPhase();
+    if (
+        phase == sf4e::GgpoSyncPhase::Connected ||
+        phase == sf4e::GgpoSyncPhase::Synchronizing ||
+        phase == sf4e::GgpoSyncPhase::Running
+    ) {
+        spdlog::warn(
+            "GgpoTransport: skip legacy tunnel restart during active GGPO sync (phase={})",
+            (int)phase
+        );
+        return;
+    }
+
     spdlog::warn("GgpoTransport: restarting GGPO on legacy session tunnel");
     ggpo_close_session(fSystem::ggpo);
     fSystem::ggpo = nullptr;

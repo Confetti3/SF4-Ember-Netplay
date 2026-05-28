@@ -5,6 +5,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 
 #include <spdlog/spdlog.h>
 #include <winsock2.h>
@@ -54,6 +55,43 @@ namespace sf4e {
 		int fromLen = sizeof(from);
 		int n = recvfrom(sock, recvBuf, recvBufLen, 0, (sockaddr*)&from, &fromLen);
 		return n > 0;
+	}
+
+	static bool ProbeUdpRelayHealth(const char* relayHost, uint16_t relayPort, int timeoutMs) {
+		if (!relayHost || !relayHost[0] || relayPort == 0) {
+			return false;
+		}
+		if (!EnsureWinsock()) {
+			return false;
+		}
+
+		SOCKET sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+		if (sock == INVALID_SOCKET) {
+			return false;
+		}
+
+		u_long nonBlocking = 1;
+		ioctlsocket(sock, FIONBIO, &nonBlocking);
+
+		sockaddr_in dest = {};
+		dest.sin_family = AF_INET;
+		dest.sin_port = htons(relayPort);
+		char resolvedHost[64] = { 0 };
+		if (!ResolveHostToIPv4(relayHost, resolvedHost, sizeof(resolvedHost))) {
+			closesocket(sock);
+			return false;
+		}
+		if (inet_pton(AF_INET, resolvedHost, &dest.sin_addr) != 1) {
+			closesocket(sock);
+			return false;
+		}
+
+		const char probe[] = { 'S', 'F', '4', 'H' };
+		char response[8] = { 0 };
+		const bool ok = SendProbeAndWait(sock, dest, probe, 4, response, sizeof(response), timeoutMs)
+			&& memcmp(response, "SF4OK", 5) == 0;
+		closesocket(sock);
+		return ok;
 	}
 
 	GgpoTransportMode GgpoTransport::ParseTransportEnv(uint8_t configTransport) {
@@ -129,13 +167,14 @@ namespace sf4e {
 		while (GetTickCount() < deadline) {
 			char response[8] = { 0 };
 			if (SendProbeAndWait(sock, dest, packet, sizeof(packet), response, sizeof(response), 500)) {
-				if (memcmp(response, "SF4R", 4) == 0) {
+				if (memcmp(response, "SF4R", 4) == 0 || memcmp(response, "SF4W", 4) == 0) {
 					closesocket(sock);
 					spdlog::info(
-						"GgpoTransport: UDP relay registration OK {}:{} localGgpoPort={}",
+						"GgpoTransport: UDP relay registration OK {}:{} localGgpoPort={} resp={}",
 						relayHost,
 						relayPort,
-						localGgpoPort
+						localGgpoPort,
+						std::string(response, 4)
 					);
 					return true;
 				}
@@ -320,7 +359,14 @@ namespace sf4e {
 			else if (!cfg.ggpoRoomToken[0]) {
 				spdlog::warn("GgpoTransport: UDP relay missing room token");
 			}
-			else if (RegisterWithUdpRelay(relayHost, relayPort, cfg.ggpoRoomToken, cfg.ggpoPort)) {
+			else if (!ProbeUdpRelayHealth(relayHost, relayPort, 1500)) {
+				spdlog::warn(
+					"GgpoTransport: UDP relay health probe failed {}:{} — using legacy tunnel",
+					relayHost,
+					relayPort
+				);
+			}
+			else if (RegisterWithUdpRelay(relayHost, relayPort, cfg.ggpoRoomToken, cfg.ggpoPort, 8000)) {
 				strncpy_s(cfg.ggpoRemoteHost, relayHost, _TRUNCATE);
 				cfg.ggpoRemotePort = relayPort;
 				cfg.ggpoTransport = (uint8_t)GgpoTransportMode::UdpRelay;

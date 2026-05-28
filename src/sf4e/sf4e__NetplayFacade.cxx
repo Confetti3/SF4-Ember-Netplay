@@ -400,6 +400,9 @@ namespace sf4e {
 			!s_udpGgpoFallbackTried &&
 			s_ggpoTransportStatus.effectiveMode == 1 &&
 			!s_ggpoTransportStatus.legacyTunnelActive &&
+			s_ggpoSyncPhase != GgpoSyncPhase::Connected &&
+			s_ggpoSyncPhase != GgpoSyncPhase::Synchronizing &&
+			s_ggpoSyncPhase != GgpoSyncPhase::Running &&
 			s_ggpoBattleStartTick != 0 &&
 			GetTickCount() - s_ggpoBattleStartTick > 3000
 		) {

@@ -242,10 +242,53 @@ async function getGgpoRelayHealth(ggpoPort) {
   };
 }
 
+async function ensureGgpoRelaySession(room) {
+  if (!FORCE_VPS_RELAY || !RELAY_MANAGER_URL || !room.ggpoPort) {
+    return { ok: true, skipped: true };
+  }
+  if (!room.roomToken) {
+    return {
+      ok: false,
+      message: "GGPO relay token missing. Create a new room.",
+    };
+  }
+
+  const health = await getGgpoRelayHealth(room.ggpoPort);
+  if (health.ok && health.listening) {
+    return { ok: true, relay: health };
+  }
+
+  const started = await startGgpoRelaySession(room.port, room.ggpoPort, room.roomToken);
+  if (!started.ok) {
+    return {
+      ok: false,
+      relay: health,
+      message: started.message || "Could not restart GGPO UDP relay.",
+    };
+  }
+
+  const after = await getGgpoRelayHealth(room.ggpoPort);
+  if (after.ok && after.listening) {
+    return { ok: true, relay: after, restarted: true };
+  }
+  return {
+    ok: false,
+    relay: after,
+    message: "GGPO UDP relay failed to start. Create a new room.",
+  };
+}
+
 async function ensureRelaySession(room) {
   const health = await getRelaySessionHealth(room.port);
   if (health.ok && health.listening) {
-    return { ok: true, relay: health };
+    const ggpo = await ensureGgpoRelaySession(room);
+    return {
+      ok: ggpo.ok,
+      relay: health,
+      ggpoRelay: ggpo.relay,
+      ggpoRestarted: ggpo.restarted === true,
+      message: ggpo.ok ? "" : ggpo.message || "",
+    };
   }
   if (!room.sidecarHash) {
     return {
@@ -263,13 +306,21 @@ async function ensureRelaySession(room) {
     };
   }
   const after = await getRelaySessionHealth(room.port);
-  if (after.ok && after.listening) {
-    return { ok: true, relay: after, restarted: true };
+  if (!(after.ok && after.listening)) {
+    return {
+      ok: false,
+      relay: after,
+      message: "Relay session failed to start. Create a new room.",
+    };
   }
+  const ggpo = await ensureGgpoRelaySession(room);
   return {
-    ok: false,
+    ok: ggpo.ok,
     relay: after,
-    message: "Relay session failed to start. Create a new room.",
+    restarted: true,
+    ggpoRelay: ggpo.relay,
+    ggpoRestarted: ggpo.restarted === true,
+    message: ggpo.ok ? "" : ggpo.message || "",
   };
 }
 
@@ -695,9 +746,20 @@ const server = http.createServer(async (req, res) => {
     }
     room.lastSeenAt = Date.now();
     const role = String(url.searchParams.get("role") || "guest").toLowerCase();
+    const relay = await ensureRelaySession(room);
+    const planRoom = { ...room };
+    if (planRoom.ggpoPort && !relay.ok) {
+      planRoom.ggpoPort = 0;
+    }
     // Room code is the join secret; include roomToken so clients can register on the GGPO UDP relay.
-    const plan = buildConnectPlan(room, role, true);
-    json(res, 200, { ok: true, code, ...plan });
+    const plan = buildConnectPlan(planRoom, role, true);
+    json(res, 200, {
+      ok: true,
+      code,
+      relayOk: relay.ok,
+      ggpoRelayOk: relay.ggpoRelay?.listening === true || !planRoom.ggpoPort,
+      ...plan,
+    });
     return;
   }
 
@@ -935,6 +997,8 @@ const server = http.createServer(async (req, res) => {
       heartbeatOk: relay.ok,
       code: room.code,
       relayListening: relay.relay?.listening === true,
+      ggpoRelayListening: relay.ggpoRelay?.listening === true || !room.ggpoPort,
+      ggpoRelayRestarted: relay.ggpoRestarted === true,
       restarted: relay.restarted === true,
       message: relay.message || "",
     });
