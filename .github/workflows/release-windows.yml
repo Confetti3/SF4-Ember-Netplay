@@ -17,6 +17,17 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CODESIGNING_ENDPOINT: ${{ secrets.AZURE_CODESIGNING_ENDPOINT }}
+      AZURE_CODESIGNING_ACCOUNT: ${{ secrets.AZURE_CODESIGNING_ACCOUNT }}
+      AZURE_CODESIGNING_PROFILE: ${{ secrets.AZURE_CODESIGNING_PROFILE }}
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+      SIGNPATH_ORGANIZATION_ID: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+      SIGNPATH_PROJECT_SLUG: ${{ secrets.SIGNPATH_PROJECT_SLUG }}
+      SIGNPATH_SIGNING_POLICY_SLUG: ${{ secrets.SIGNPATH_SIGNING_POLICY_SLUG }}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,20 +46,20 @@ jobs:
         run: cmake --install msvc-build/default --config RelWithDebInfo
 
       - name: Azure login (optional signing)
-        if: ${{ secrets.AZURE_CLIENT_ID != '' }}
+        if: env.AZURE_CLIENT_ID != ''
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
       - name: Sign with Azure Artifact Signing (optional)
-        if: ${{ secrets.AZURE_CODESIGNING_ENDPOINT != '' }}
+        if: env.AZURE_CODESIGNING_ENDPOINT != ''
         uses: azure/artifact-signing-action@v1
         with:
-          endpoint: ${{ secrets.AZURE_CODESIGNING_ENDPOINT }}
-          signing-account-name: ${{ secrets.AZURE_CODESIGNING_ACCOUNT }}
-          certificate-profile-name: ${{ secrets.AZURE_CODESIGNING_PROFILE }}
+          endpoint: ${{ env.AZURE_CODESIGNING_ENDPOINT }}
+          signing-account-name: ${{ env.AZURE_CODESIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ env.AZURE_CODESIGNING_PROFILE }}
           files-folder: ${{ github.workspace }}/msvc-out/relwithdebinfo
           files-folder-filter: exe,dll
           file-digest: SHA256
@@ -56,7 +67,7 @@ jobs:
           timestamp-digest: SHA256
 
       - name: Upload unsigned binaries for SignPath
-        if: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+        if: env.SIGNPATH_API_TOKEN != ''
         id: upload-unsigned
         uses: actions/upload-artifact@v4
         with:
@@ -65,20 +76,20 @@ jobs:
           archive: false
 
       - name: Sign with SignPath Foundation
-        if: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+        if: env.SIGNPATH_API_TOKEN != ''
         uses: signpath/github-action-submit-signing-request@v2
         with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: ${{ secrets.SIGNPATH_PROJECT_SLUG }}
-          signing-policy-slug: ${{ secrets.SIGNPATH_SIGNING_POLICY_SLUG }}
+          api-token: ${{ env.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ env.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ env.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ env.SIGNPATH_SIGNING_POLICY_SLUG }}
           github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
           wait-for-completion: true
           output-artifact-directory: msvc-out/relwithdebinfo
           skip-decompress: true
 
       - name: Verify Authenticode signatures
-        if: ${{ secrets.SIGNPATH_API_TOKEN != '' || secrets.AZURE_CODESIGNING_ENDPOINT != '' }}
+        if: env.SIGNPATH_API_TOKEN != '' || env.AZURE_CODESIGNING_ENDPOINT != ''
         shell: pwsh
         run: |
           $files = @('Launcher.exe','Sidecar.dll','RelayHost.exe','Updater.exe')
