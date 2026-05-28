@@ -4,9 +4,9 @@
 
 **SF4 Netplay Launcher** is a **third-party, experimental unofficial port** for _Ultra Street Fighter IV_ on Steam. It adds a WebView2 **Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e's rollback netplay. Netplay may fail, desync, or break between releases - use only with people who accept that risk.
 
-**Latest release:** [v0.3.3](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest)
+**Latest release:** [v0.3.6](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/v0.3.6) (tested; unsigned until SignPath signing)
 
-**Download:** [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) - get the **team zip** asset (not "Source code" only).
+**Download:** [GitHub Releases — Latest](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) — asset `sf4-netplay-launcher-*-v0.3.6.zip` (not "Source code" only).
 
 ## How it works
 
@@ -94,7 +94,7 @@ flowchart TB
 
 Broker, relay-manager, and dashboard listen on **127.0.0.1** on the VPS; only Caddy and game ports are public. See [docs/VPS_TLS_SETUP.md](docs/VPS_TLS_SETUP.md).
 
-### Transport modes (v0.3.2+)
+### Transport modes (v0.3.6)
 
 Production VPS uses **`BROKER_GGPO_TRANSPORT=auto`**. Each room gets a session relay plus a GGPO UDP relay. The client tries faster paths first:
 
@@ -102,7 +102,7 @@ Production VPS uses **`BROKER_GGPO_TRANSPORT=auto`**. Each room gets a session r
 p2p -> udp_relay -> legacy_session_tunnel (always available fallback)
 ```
 
-Override with `SF4E_GGPO_TRANSPORT=legacy|udp|p2p|auto` (optional). Details: [docs/TRANSPORT_REGRESSION.md](docs/TRANSPORT_REGRESSION.md).
+**v0.3.6** keeps **UDP relay** across rematches in the same room (relay re-binds slots; client preserves broker endpoint after fallback). Override with `SF4E_GGPO_TRANSPORT=legacy|udp|p2p|auto` (optional). Details: [docs/TRANSPORT_REGRESSION.md](docs/TRANSPORT_REGRESSION.md).
 
 ## Demo
 
@@ -135,7 +135,7 @@ Install once on each PC:
 3. Optional: run `preflight.cmd` to verify the package.
 4. Double-click **`Launcher.exe`**.
 
-Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.3.2`). Use **Check for updates** on the home screen to upgrade.
+Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.3.6`). Use **Check for updates** on the home screen to upgrade.
 
 ### 3. Play online (Simple mode - experimental)
 
@@ -173,7 +173,7 @@ This is an **experimental unofficial port** for a **small friends group** - not 
 | Same **release zip** on all players | **Find match** / **Open rooms** are **experimental** |
 | Unofficial launcher + packaging on upstream sf4e (MIT) | **Not** maintained or endorsed by Anthony Danducci |
 
-**Less tested:** rematch, disconnect recovery, spectator mode, Linux/Proton.
+**Less tested:** disconnect recovery, spectator mode, Linux/Proton. **Rematch** in the same VPS room is supported in v0.3.6+ (UDP relay re-registration).
 
 Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (also in the release zip).
 
@@ -193,10 +193,11 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 | [SECURITY.md](SECURITY.md) | Security policy and supported versions |
 | [docs/RELEASE.md](docs/RELEASE.md) | Building and publishing releases |
 | [docs/WINDOWS_DEFENDER.md](docs/WINDOWS_DEFENDER.md) | Defender false positives (`Wacapew.A!ml`) |
-| [docs/RELEASE_NOTES_v0.3.2.md](docs/RELEASE_NOTES_v0.3.2.md) | v0.3.2 release notes (pre-release) |
+| [docs/RELEASE_NOTES_v0.3.6.md](docs/RELEASE_NOTES_v0.3.6.md) | **Current release** notes (v0.3.6) |
+| [docs/RELEASE_NOTES_v0.3.2.md](docs/RELEASE_NOTES_v0.3.2.md) | v0.3.2 release notes |
 | [docs/DEFENDER_BINARY_COMPARISON.md](docs/DEFENDER_BINARY_COMPARISON.md) | v0.3.1 vs v0.3.3 Sidecar hash comparison |
-| [docs/SIGNPATH_APPLY.md](docs/SIGNPATH_APPLY.md) | SignPath Foundation checklist for v0.3.4 |
-| [docs/RELEASE_NOTES_v0.3.1.md](docs/RELEASE_NOTES_v0.3.1.md) | v0.3.1 release notes |
+| [docs/SIGNPATH_APPLY.md](docs/SIGNPATH_APPLY.md) | SignPath Foundation checklist |
+| [docs/RELEASE_NOTES_v0.3.1.md](docs/RELEASE_NOTES_v0.3.1.md) | v0.3.1 release notes (previous Latest) |
 
 ## Troubleshooting
 
@@ -205,9 +206,10 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 | Blank launcher / WebView2 error | Install [WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703); keep `launcher-ui/` next to `Launcher.exe` |
 | "Version mismatch" on join | Same zip on both PCs; use **Check for updates** |
 | Empty lobby / wrong opponent | Same **`SF4-XXXX`** from host's **current** screen |
-| Black screen after portraits | Update to **v0.2.7.3+** on **both** PCs |
+| Black screen after portraits | Both on **v0.3.6**; log should show `UDP relay registration OK` and `GGPO: Running` |
+| UDP works once, fails on rematch | Update to **v0.3.6** on **both** PCs (relay slot rebind + endpoint persistence) |
 | Join fails before game starts | Host must click **Start game** first |
-| Stuck on connect / wrong transport | Both on **v0.3.2**; broker `https://74-208-200-95.nip.io`; Network panel shows **GGPO path** (UDP relay vs legacy tunnel) |
+| Stuck on connect / wrong transport | Both on **v0.3.6**; broker `https://74-208-200-95.nip.io`; Network panel shows **GGPO path** (UDP relay vs legacy tunnel) |
 
 **Logs:** `%APPDATA%\sf4e\logs\sf4e.log` - **Console:** `Launcher.exe --console` - **Build info:** `BUILD_INFO.txt`
 
@@ -231,8 +233,8 @@ This repository builds **SF4 Netplay Launcher** - an **unofficial port** of upst
 **Publish a release:**
 
 ```powershell
-powershell -NoProfile -File scripts/release-team-build.ps1 -VersionLabel v0.3.2
-gh release create v0.3.2 dist/sf4-netplay-launcher-*-v0.3.2.zip --title "SF4 Netplay Launcher v0.3.2" --notes-file docs/RELEASE_NOTES_v0.3.2.md
+powershell -NoProfile -File scripts/release-team-build.ps1 -VersionLabel 0.3.6
+gh release create v0.3.6 dist/sf4-netplay-launcher-*-0.3.6.zip --title "SF4 Netplay Launcher v0.3.6" --notes-file docs/RELEASE_NOTES_v0.3.6.md
 ```
 
 See [docs/RELEASE.md](docs/RELEASE.md).
