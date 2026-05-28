@@ -1,0 +1,5 @@
+# Copy to scripts\.vps-env.ps1 (gitignored) and fill in. Do not commit .vps-env.ps1.
+$env:SF4E_VPS_HOST = "74.208.200.95"
+$env:SF4E_VPS_USER = "root"
+$env:SF4E_VPS_PASSWORD = "YOUR_VPS_PASSWORD_HERE"
+$env:SF4E_BROKER_DOMAIN = "74-208-200-95.nip.io"

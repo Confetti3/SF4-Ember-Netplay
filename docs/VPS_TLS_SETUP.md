@@ -51,10 +51,21 @@ This will:
 
 ## Deploy from Windows (one shot)
 
+**Persistent Windows credentials (recommended):**
+
 ```powershell
-$env:SF4E_VPS_PASSWORD = "..."
+# One-time: copy scripts\.vps-env.ps1.example → scripts\.vps-env.ps1, edit password, then:
+.\scripts\setup-vps-env.ps1 -FromSecretsFile
+# Or interactive (password not stored in a file):
+.\scripts\setup-vps-env.ps1
+```
+
+Restart Cursor/terminal after `setup-vps-env.ps1` so new User env vars are visible. For the current session only: `. .\scripts\load-vps-env.ps1`
+
+```powershell
 $env:SF4E_BROKER_DOMAIN = "netplay.example.com"
 python scripts/deploy-broker-vps.py
+python scripts/configure-room-idle-vps.py
 python scripts/deploy-dashboard-vps.py
 ```
 
