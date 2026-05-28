@@ -77,7 +77,7 @@ jobs:
       - name: Upload unsigned binaries for SignPath
         if: env.SIGNPATH_API_TOKEN != ''
         id: upload-unsigned
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sf4e-unsigned-binaries
           path: msvc-out/relwithdebinfo/
@@ -119,7 +119,7 @@ jobs:
           . ./scripts/package-team.ps1 -VersionLabel $label
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sf4-netplay-windows
           path: |
