@@ -1,6 +1,6 @@
 # SF4 Netplay Launcher v0.3.2
 
-Fix UDP GGPO relay fallback + in-game transport display. Pairs with VPS broker update (connect-plan `roomToken`).
+Fix UDP GGPO relay fallback + in-game transport display. Pairs with VPS broker update (connect-plan `roomToken`). Includes Defender false-positive guide (`docs/WINDOWS_DEFENDER.md`).
 
 > **Not production-ready.** Experimental unofficial port for a small friends group.
 
@@ -52,6 +52,10 @@ Fix UDP GGPO relay fallback + in-game transport display. Pairs with VPS broker u
 | **Ready** in lobby | **Ready** |
 
 During a match, open **Network** — you should see **GGPO path: UDP relay** (not legacy tunnel) when auto transport succeeds.
+
+## Windows Defender (`Wacapew.A!ml`)
+
+Some PCs flag **`Sidecar.dll`** as `Program:Win32/Wacapew.A!ml`. This is a **heuristic false positive** (unsigned game hook), not confirmed malware. Choose **Allow on device** or add your install folder as an exclusion. See `docs/WINDOWS_DEFENDER.md` in the zip.
 
 ## Bug reports
 

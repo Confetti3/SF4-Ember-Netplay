@@ -192,6 +192,7 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 | [ATTRIBUTION.md](ATTRIBUTION.md) | Upstream sf4e credit (Anthony Danducci) |
 | [SECURITY.md](SECURITY.md) | Security policy and supported versions |
 | [docs/RELEASE.md](docs/RELEASE.md) | Building and publishing releases |
+| [docs/WINDOWS_DEFENDER.md](docs/WINDOWS_DEFENDER.md) | Defender false positives (`Wacapew.A!ml`) |
 | [docs/RELEASE_NOTES_v0.3.2.md](docs/RELEASE_NOTES_v0.3.2.md) | v0.3.2 release notes |
 | [docs/RELEASE_NOTES_v0.3.1.md](docs/RELEASE_NOTES_v0.3.1.md) | v0.3.1 release notes |
 

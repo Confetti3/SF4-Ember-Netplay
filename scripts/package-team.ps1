@@ -202,7 +202,9 @@ $DocFiles = @(
 
     "docs\SMOKE_TEST.md",
 
-    "docs\NETPLAY_INVARIANTS.md"
+    "docs\NETPLAY_INVARIANTS.md",
+
+    "docs\WINDOWS_DEFENDER.md"
 
 )
 

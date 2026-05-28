@@ -6,6 +6,16 @@ This folder is a **self-contained experimental port** for netplay testing with f
 
 **Official upstream:** [sf4e on Codeberg](https://codeberg.org/adanducci/sf4e) — use that for Anthony Danducci's official project and updates.
 
+## Windows Defender says “Wacapew” or blocks install
+
+This is a **known false positive** on unsigned netplay tools that inject into USF4 (`Sidecar.dll`). It is **not** confirmed malware.
+
+1. Download only from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest).
+2. In the alert, use **Allow on device** (or restore quarantined files).
+3. Optional: add your **install folder** as a Defender exclusion.
+
+Full explanation: [`docs/WINDOWS_DEFENDER.md`](WINDOWS_DEFENDER.md) in this package.
+
 ## Scope and limitations
 
 | In scope | Limits |
