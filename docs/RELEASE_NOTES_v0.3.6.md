@@ -1,20 +1,31 @@
-# SF4 Netplay Launcher v0.3.6 (testing)
+# SF4 Netplay Launcher v0.3.6
 
-**Pre-release for testing** — supersedes v0.3.5. **v0.3.1** remains the default stable download until Authenticode signing ships.
+**Current release** — tested for VPS UDP GGPO netplay including rematches in the same room.
+
+> **Experimental unofficial port** — unsigned build (Windows Defender may flag `Sidecar.dll`). Authenticode signing via SignPath is planned.
 
 ## Install
 
-1. Download **`sf4-netplay-launcher-*-v0.3.6.zip`** (Assets).
-2. Extract on **both** PCs; run **`preflight.cmd`**, then **`Launcher.exe`**.
-3. Confirm **v0.3.6** in the launcher header.
+1. Download **`sf4-netplay-launcher-*-v0.3.6.zip`** from [Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) (Assets — not Source code).
+2. Extract the **entire** zip on **both** PCs.
+3. Run **`preflight.cmd`**, then **`Launcher.exe`**.
+4. Confirm both players show **v0.3.6** in the launcher header.
 
-## What's fixed in v0.3.6
+## What's in v0.3.6
 
-- **Rematch UDP drop:** VPS GGPO relay re-binds player slots on re-registration (rematch no longer times out when both slots were full).
-- **Rematch transport persistence:** broker UDP relay endpoint is preserved after legacy fallback so match 3+ still retries UDP.
+- **Rematch UDP:** VPS GGPO relay re-binds player slots on re-registration (no silent drop when both slots were full).
+- **Rematch transport:** broker UDP relay endpoint preserved after legacy fallback so later rematches still retry UDP.
+- **UDP GGPO:** registration with local `ggpoPort`, `SF4W`/`SF4R` responses, health probe, overlay sync state, legacy fallback when relay is down.
 
-Includes all v0.3.5 GGPO relay fixes.
+## Netplay (VPS)
 
-## Verify
+- Default broker: `https://74-208-200-95.nip.io` with `BROKER_GGPO_TRANSPORT=auto`
+- After portraits, logs should show `GgpoTransport: UDP relay registration OK` and `GGPO: Running`
 
-After rematch in the same room, `sf4e.log` should show `UDP relay registration OK` again (not timeout).
+## Security
+
+- No Defender exclusion scripts. Download only from this GitHub release page.
+
+## Bug reports
+
+Include `BUILD_INFO.txt`, room code, Network panel GGPO path, and `sf4e.log` from both PCs.
