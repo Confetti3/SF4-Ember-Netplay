@@ -27,10 +27,21 @@ namespace sf4e {
 		uint64_t tunnelRecvBytes = 0;
 	};
 
+	// Effective GGPO path chosen at battle start (may differ from launcher plan on fallback).
+	struct GgpoTransportStatus {
+		uint8_t effectiveMode = 0;
+		bool legacyTunnelActive = false;
+		char remoteHost[NETPLAY_SESSION_HOST_LEN] = { 0 };
+		uint16_t remotePort = 0;
+	};
+
 	namespace NetplayFacade {
 		void InitFromPayload(const NetplayConfig& cfg);
 		const NetplayConfig& GetConfig();
 		void ApplyGgpoTransportConfig(const NetplayConfig& cfg);
+		void ReportGgpoTransport(uint8_t effectiveMode, bool legacyTunnelActive, const char* remoteHost, uint16_t remotePort);
+		GgpoTransportStatus GetGgpoTransportStatus();
+		const char* GgpoTransportModeName(uint8_t mode);
 		bool IsDevOverlayEnabled();
 		bool IsRelayEnabled();
 		bool IsAutoNetplayPending();

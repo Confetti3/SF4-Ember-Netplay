@@ -161,6 +161,14 @@ def run_checks() -> list[Check]:
                 f"remote={plan_host.get('ggpoRemoteHost')}:{plan_host.get('ggpoRemotePort')}",
             )
         )
+        plan_token = plan_host.get("roomToken", "")
+        checks.append(
+            Check(
+                "Connect plan includes roomToken",
+                len(plan_token) == 32 and all(c in "0123456789abcdef" for c in plan_token.lower()),
+                f"token={plan_token[:8]}..." if plan_token else "missing (deploy broker server.js)",
+            )
+        )
 
         reg_host = broker.post(
             f"/v1/rooms/{room}/register-endpoint",

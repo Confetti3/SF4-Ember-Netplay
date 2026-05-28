@@ -35,6 +35,7 @@ using fVsBattle = sf4e::GameEvents::VsBattle;
 namespace sf4e {
 
 	static NetplayConfig s_config = { 0 };
+	static GgpoTransportStatus s_ggpoTransportStatus = { 0 };
 	static bool s_autoPending = false;
 	static bool s_graphicsWarned = false;
 	static bool s_deferGgpoClose = false;
@@ -87,6 +88,39 @@ namespace sf4e {
 		s_config.ggpoTransport = cfg.ggpoTransport;
 		s_config.ggpoRemotePort = cfg.ggpoRemotePort;
 		strncpy_s(s_config.ggpoRemoteHost, cfg.ggpoRemoteHost, _TRUNCATE);
+		strncpy_s(s_config.ggpoRoomToken, cfg.ggpoRoomToken, _TRUNCATE);
+	}
+
+	void NetplayFacade::ReportGgpoTransport(
+		uint8_t effectiveMode,
+		bool legacyTunnelActive,
+		const char* remoteHost,
+		uint16_t remotePort
+	) {
+		s_ggpoTransportStatus.effectiveMode = effectiveMode;
+		s_ggpoTransportStatus.legacyTunnelActive = legacyTunnelActive;
+		s_ggpoTransportStatus.remotePort = remotePort;
+		if (remoteHost && remoteHost[0]) {
+			strncpy_s(s_ggpoTransportStatus.remoteHost, remoteHost, _TRUNCATE);
+		}
+		else {
+			s_ggpoTransportStatus.remoteHost[0] = '\0';
+		}
+	}
+
+	GgpoTransportStatus NetplayFacade::GetGgpoTransportStatus() {
+		return s_ggpoTransportStatus;
+	}
+
+	const char* NetplayFacade::GgpoTransportModeName(uint8_t mode) {
+		switch (mode) {
+		case 1:
+			return "udp_relay";
+		case 2:
+			return "p2p";
+		default:
+			return "legacy_session_tunnel";
+		}
 	}
 
 	bool NetplayFacade::IsDevOverlayEnabled() {
@@ -403,6 +437,7 @@ namespace sf4e {
 			fSystem::ggpo = nullptr;
 		}
 		GgpoRelay::Instance().Reset();
+		s_ggpoTransportStatus = { 0 };
 		if (fUserApp::netplay) {
 			fUserApp::netplay->client.Disconnect();
 			fUserApp::netplay.reset();

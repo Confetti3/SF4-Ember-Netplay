@@ -113,6 +113,14 @@ void fUserApp::_OnVsBattleTasksRegistered()
     if (isPlayer) {
         NetplayConfig transportCfg = sf4e::NetplayFacade::GetConfig();
         bool useLegacyGgpoTunnel = netplay->client._useRelay;
+        if (
+            transportCfg.useCentralSession == 2
+            && transportCfg.ggpoTransport == 0
+            && transportCfg.ggpoRoomToken[0]
+            && transportCfg.ggpoRemotePort > 0
+        ) {
+            transportCfg.ggpoTransport = (uint8_t)GgpoTransportMode::UdpRelay;
+        }
         if (transportCfg.useCentralSession == 2 && transportCfg.ggpoTransport != 0) {
             GgpoTransportMode effective = GgpoTransport::PrepareForBattle(transportCfg);
             sf4e::NetplayFacade::ApplyGgpoTransportConfig(transportCfg);
@@ -128,6 +136,15 @@ void fUserApp::_OnVsBattleTasksRegistered()
             else {
                 sf4e::NetplayFacade::PushAlert("Netplay: UDP/P2P setup failed; using legacy GGPO tunnel.");
             }
+            sf4e::NetplayFacade::ReportGgpoTransport(
+                (uint8_t)effective,
+                useLegacyGgpoTunnel,
+                useLegacyGgpoTunnel ? nullptr : transportCfg.ggpoRemoteHost,
+                useLegacyGgpoTunnel ? 0 : transportCfg.ggpoRemotePort
+            );
+        }
+        else if (transportCfg.useCentralSession == 2) {
+            sf4e::NetplayFacade::ReportGgpoTransport(0, true, nullptr, 0);
         }
 
         if (useLegacyGgpoTunnel) {

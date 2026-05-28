@@ -695,7 +695,8 @@ const server = http.createServer(async (req, res) => {
     }
     room.lastSeenAt = Date.now();
     const role = String(url.searchParams.get("role") || "guest").toLowerCase();
-    const plan = buildConnectPlan(room, role, false);
+    // Room code is the join secret; include roomToken so clients can register on the GGPO UDP relay.
+    const plan = buildConnectPlan(room, role, true);
     json(res, 200, { ok: true, code, ...plan });
     return;
   }

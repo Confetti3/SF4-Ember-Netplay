@@ -107,7 +107,14 @@ namespace sf4e {
 		sockaddr_in dest = {};
 		dest.sin_family = AF_INET;
 		dest.sin_port = htons(relayPort);
-		if (inet_pton(AF_INET, relayHost, &dest.sin_addr) != 1) {
+		char resolvedHost[64] = { 0 };
+		if (!ResolveHostToIPv4(relayHost, resolvedHost, sizeof(resolvedHost))) {
+			spdlog::warn("GgpoTransport: could not resolve UDP relay host '{}'", relayHost);
+			closesocket(sock);
+			return false;
+		}
+		if (inet_pton(AF_INET, resolvedHost, &dest.sin_addr) != 1) {
+			spdlog::warn("GgpoTransport: invalid UDP relay address '{}'", resolvedHost);
 			closesocket(sock);
 			return false;
 		}
@@ -295,13 +302,21 @@ namespace sf4e {
 		if (requested == GgpoTransportMode::UdpRelay) {
 			const char* relayHost = cfg.ggpoRemoteHost[0] ? cfg.ggpoRemoteHost : cfg.sessionHost;
 			uint16_t relayPort = cfg.ggpoRemotePort > 0 ? cfg.ggpoRemotePort : 0;
-			if (relayHost[0] && relayPort > 0 && cfg.ggpoRoomToken[0]) {
-				if (RegisterWithUdpRelay(relayHost, relayPort, cfg.ggpoRoomToken)) {
-					strncpy_s(cfg.ggpoRemoteHost, relayHost, _TRUNCATE);
-					cfg.ggpoRemotePort = relayPort;
-					cfg.ggpoTransport = (uint8_t)GgpoTransportMode::UdpRelay;
-					return GgpoTransportMode::UdpRelay;
-				}
+			if (!relayHost[0] || relayPort == 0) {
+				spdlog::warn(
+					"GgpoTransport: UDP relay missing endpoint (host='{}' port={})",
+					relayHost ? relayHost : "",
+					relayPort
+				);
+			}
+			else if (!cfg.ggpoRoomToken[0]) {
+				spdlog::warn("GgpoTransport: UDP relay missing room token");
+			}
+			else if (RegisterWithUdpRelay(relayHost, relayPort, cfg.ggpoRoomToken)) {
+				strncpy_s(cfg.ggpoRemoteHost, relayHost, _TRUNCATE);
+				cfg.ggpoRemotePort = relayPort;
+				cfg.ggpoTransport = (uint8_t)GgpoTransportMode::UdpRelay;
+				return GgpoTransportMode::UdpRelay;
 			}
 			spdlog::warn("GgpoTransport: UDP relay failed, falling back to legacy tunnel");
 		}

@@ -8,6 +8,7 @@
 #include <ws2tcpip.h>
 
 #include <nlohmann/json.hpp>
+#include <spdlog/spdlog.h>
 
 #include "../common/sf4e__NetUtil.hxx"
 #include "netplay_room_code.hxx"
@@ -513,8 +514,11 @@ namespace launcher {
 			if (ggpoPort > 0 && role && role[0]) {
 				const uint16_t probePort = (uint16_t)j.value("natProbePort", 8790);
 				if (!SendBrokerNatProbe(parts.host, probePort)) {
-					result.error = "Could not complete NAT probe with the room broker.";
-					result.ok = false;
+					spdlog::warn(
+						"Connect plan: NAT probe to {}:{} failed; keeping broker transport plan without endpoint registration",
+						parts.host,
+						probePort
+					);
 					return result;
 				}
 
@@ -530,18 +534,19 @@ namespace launcher {
 				char regBody[4096] = { 0 };
 				sf4e::HttpRequestResult regHttp;
 				if (!BrokerHttpPostJson(parts, regPath, reg.dump().c_str(), regBody, sizeof(regBody), 8000, &regHttp)) {
-					result.error = BrokerMessageFromBody(regBody);
-					if (result.error.empty()) {
-						result.error = "Could not register endpoint with the room broker.";
-					}
-					result.ok = false;
+					spdlog::warn(
+						"Connect plan: endpoint registration failed ({}); keeping broker transport plan",
+						BrokerMessageFromBody(regBody)
+					);
 					return result;
 				}
 				try {
 					nlohmann::json regResp = nlohmann::json::parse(regBody);
 					if (regResp.value("error", "").size()) {
-						result.error = regResp.value("message", "Endpoint registration failed.");
-						result.ok = false;
+						spdlog::warn(
+							"Connect plan: endpoint registration rejected ({}); keeping broker transport plan",
+							regResp.value("message", "unknown")
+						);
 						return result;
 					}
 					if (regResp.contains("connectPlan")) {
@@ -549,9 +554,7 @@ namespace launcher {
 					}
 				}
 				catch (...) {
-					result.error = "Invalid endpoint registration response from broker.";
-					result.ok = false;
-					return result;
+					spdlog::warn("Connect plan: invalid register-endpoint response; keeping broker transport plan");
 				}
 			}
 			return result;

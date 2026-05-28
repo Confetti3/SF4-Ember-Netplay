@@ -4,7 +4,7 @@
 
 **SF4 Netplay Launcher** is a **third-party, experimental unofficial port** for _Ultra Street Fighter IV_ on Steam. It adds a WebView2 **Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e's rollback netplay. Netplay may fail, desync, or break between releases - use only with people who accept that risk.
 
-**Latest release:** [v0.3.1](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest)
+**Latest release:** [v0.3.2](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest)
 
 **Download:** [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) - get the **team zip** asset (not "Source code" only).
 
@@ -94,7 +94,7 @@ flowchart TB
 
 Broker, relay-manager, and dashboard listen on **127.0.0.1** on the VPS; only Caddy and game ports are public. See [docs/VPS_TLS_SETUP.md](docs/VPS_TLS_SETUP.md).
 
-### Transport modes (v0.3.1+)
+### Transport modes (v0.3.2+)
 
 Production VPS uses **`BROKER_GGPO_TRANSPORT=auto`**. Each room gets a session relay plus a GGPO UDP relay. The client tries faster paths first:
 
@@ -135,7 +135,7 @@ Install once on each PC:
 3. Optional: run `preflight.cmd` to verify the package.
 4. Double-click **`Launcher.exe`**.
 
-Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.3.1`). Use **Check for updates** on the home screen to upgrade.
+Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.3.2`). Use **Check for updates** on the home screen to upgrade.
 
 ### 3. Play online (Simple mode - experimental)
 
@@ -192,6 +192,7 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 | [ATTRIBUTION.md](ATTRIBUTION.md) | Upstream sf4e credit (Anthony Danducci) |
 | [SECURITY.md](SECURITY.md) | Security policy and supported versions |
 | [docs/RELEASE.md](docs/RELEASE.md) | Building and publishing releases |
+| [docs/RELEASE_NOTES_v0.3.2.md](docs/RELEASE_NOTES_v0.3.2.md) | v0.3.2 release notes |
 | [docs/RELEASE_NOTES_v0.3.1.md](docs/RELEASE_NOTES_v0.3.1.md) | v0.3.1 release notes |
 
 ## Troubleshooting
@@ -203,7 +204,7 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 | Empty lobby / wrong opponent | Same **`SF4-XXXX`** from host's **current** screen |
 | Black screen after portraits | Update to **v0.2.7.3+** on **both** PCs |
 | Join fails before game starts | Host must click **Start game** first |
-| Stuck on connect / wrong transport | Both on **v0.3.1**; broker `https://74-208-200-95.nip.io`; check dev overlay for `udp_relay` vs `legacy_session_tunnel` |
+| Stuck on connect / wrong transport | Both on **v0.3.2**; broker `https://74-208-200-95.nip.io`; Network panel shows **GGPO path** (UDP relay vs legacy tunnel) |
 
 **Logs:** `%APPDATA%\sf4e\logs\sf4e.log` - **Console:** `Launcher.exe --console` - **Build info:** `BUILD_INFO.txt`
 
@@ -227,8 +228,8 @@ This repository builds **SF4 Netplay Launcher** - an **unofficial port** of upst
 **Publish a release:**
 
 ```powershell
-powershell -NoProfile -File scripts/release-team-build.ps1 -VersionLabel v0.3.1
-gh release create v0.3.1 dist/sf4-netplay-launcher-*-v0.3.1.zip --title "SF4 Netplay Launcher v0.3.1" --notes-file docs/RELEASE_NOTES_v0.3.1.md
+powershell -NoProfile -File scripts/release-team-build.ps1 -VersionLabel v0.3.2
+gh release create v0.3.2 dist/sf4-netplay-launcher-*-v0.3.2.zip --title "SF4 Netplay Launcher v0.3.2" --notes-file docs/RELEASE_NOTES_v0.3.2.md
 ```
 
 See [docs/RELEASE.md](docs/RELEASE.md).

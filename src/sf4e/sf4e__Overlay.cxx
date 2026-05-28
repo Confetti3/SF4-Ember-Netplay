@@ -1183,6 +1183,35 @@ static void DrawNetplayPlayerPanel() {
 	if (st.pingMs >= 0) {
 		TextWrapped("Ping: %d ms", st.pingMs);
 	}
+	if (cfg.useCentralSession == 2) {
+		const sf4e::GgpoTransportStatus ggpoPath = sf4e::NetplayFacade::GetGgpoTransportStatus();
+		if (ggpoPath.legacyTunnelActive || ggpoPath.effectiveMode != 0 || st.inMatch) {
+			if (ggpoPath.legacyTunnelActive) {
+				ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "GGPO path: Legacy (session tunnel)");
+			}
+			else if (ggpoPath.effectiveMode == 1) {
+				ImGui::TextColored(ImVec4(0.35f, 1.0f, 0.45f, 1.0f), "GGPO path: UDP relay");
+				if (ggpoPath.remoteHost[0]) {
+					TextWrapped("  via %s:%u", ggpoPath.remoteHost, ggpoPath.remotePort);
+				}
+			}
+			else if (ggpoPath.effectiveMode == 2) {
+				ImGui::TextColored(ImVec4(0.35f, 1.0f, 0.45f, 1.0f), "GGPO path: P2P direct");
+				if (ggpoPath.remoteHost[0]) {
+					TextWrapped("  peer %s:%u", ggpoPath.remoteHost, ggpoPath.remotePort);
+				}
+			}
+		}
+		else if (cfg.ggpoTransport != 0) {
+			TextWrapped(
+				"GGPO plan: %s",
+				sf4e::NetplayFacade::GgpoTransportModeName(cfg.ggpoTransport)
+			);
+			if (cfg.ggpoRemoteHost[0] && cfg.ggpoRemotePort > 0) {
+				TextWrapped("  target %s:%u", cfg.ggpoRemoteHost, cfg.ggpoRemotePort);
+			}
+		}
+	}
 	if (cfg.devOverlay) {
 		sf4e::TransportDiagnostics td = sf4e::NetplayFacade::GetTransportDiagnostics();
 		const char* transportLabel = "legacy";

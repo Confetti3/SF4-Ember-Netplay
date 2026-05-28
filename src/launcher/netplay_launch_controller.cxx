@@ -180,7 +180,14 @@ namespace launcher {
 		if (plan.ok) {
 			ApplyConnectPlanToConfig(plan);
 		}
-		else if (m_sessionRoomToken[0]) {
+		else {
+			spdlog::warn(
+				"Connect plan unavailable for {} ({}); applying relay session fallbacks",
+				roomCode,
+				plan.error.empty() ? "unknown" : plan.error.c_str()
+			);
+		}
+		if (m_sessionRoomToken[0] && !m_outConfig.ggpoRoomToken[0]) {
 			strncpy_s(m_outConfig.ggpoRoomToken, m_sessionRoomToken, _TRUNCATE);
 		}
 		if (m_sessionMatchId[0]) {
@@ -189,9 +196,15 @@ namespace launcher {
 		if (m_sessionGgpoPort > 0 && m_outConfig.ggpoRemotePort == 0) {
 			m_outConfig.ggpoRemotePort = m_sessionGgpoPort;
 			strncpy_s(m_outConfig.ggpoRemoteHost, m_outConfig.sessionHost, _TRUNCATE);
-			if (m_outConfig.ggpoTransport == 0 && transportEnv && _stricmp(transportEnv, "udp") == 0) {
-				m_outConfig.ggpoTransport = 1;
-			}
+		}
+		// Broker auto / udp_relay plan: ensure Sidecar attempts UDP when we have relay credentials.
+		if (
+			m_outConfig.ggpoTransport == 0
+			&& m_outConfig.ggpoRemotePort > 0
+			&& m_outConfig.ggpoRoomToken[0]
+			&& (!transportEnv || _stricmp(transportEnv, "legacy") != 0)
+		) {
+			m_outConfig.ggpoTransport = 1;
 		}
 
 		if (role && strcmp(role, "host") == 0) {
