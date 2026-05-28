@@ -7,6 +7,11 @@ from pathlib import Path
 
 import paramiko
 
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
+from vps_ssh import connect_ssh
+
 ROOT = Path(__file__).resolve().parents[1]
 BROKER_DIR = ROOT / "services" / "room-broker"
 RELAY_DIR = ROOT / "services" / "vps-relay"
@@ -62,10 +67,10 @@ def main() -> int:
 
     remote_broker = "/root/room-broker"
     remote_relay = "/opt/sf4e-relay"
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     print(f"Connecting to {user}@{host}...")
-    client.connect(host, username=user, password=password, timeout=30, allow_agent=False, look_for_keys=False)
+    client = connect_ssh(
+        host, username=user, password=password, timeout=30, allow_agent=False, look_for_keys=False
+    )
 
     sftp = client.open_sftp()
     try:

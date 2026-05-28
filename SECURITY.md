@@ -4,8 +4,9 @@
 
 | Version | Supported |
 |---------|-----------|
-| 0.2.8.1+ | Yes (current team releases) |
-| 0.2.8    | Yes (same netplay build; use 0.2.8.1+ for current experimental messaging) |
+| 0.3.6+   | Yes (current releases; HTTPS broker on official VPS) |
+| 0.3.x    | Yes (same netplay stack; prefer latest patch) |
+| 0.2.8.x  | Best-effort only |
 | ≤ 0.2.7 | No |
 
 Security fixes are published as GitHub releases on [Confetti3/SF4-Netplay-Launcher](https://github.com/Confetti3/SF4-Netplay-Launcher).
@@ -43,13 +44,14 @@ We aim to acknowledge within **7 days** and provide a fix or mitigation plan wit
 
 This is an **experimental unofficial port** for casual friends-only netplay — **not production-ready software**:
 
-- Room broker uses **HTTP** by default and has **no room authentication**
+- Official VPS broker uses **HTTPS** (`https://74-208-200-95.nip.io`); custom broker URLs may still be HTTP
+- Room broker has **no room authentication** (friends-only codes)
 - Room codes are short; active rooms may be listed publicly
 - **Sidecar.dll hash** ensures matching builds between players; it is **not** anti-cheat or code signing
 - Updates trust **GitHub releases** without separate code signatures
 - **Windows Defender** may flag `Sidecar.dll` / `Launcher.exe` as `Program:Win32/Wacapew.A!ml` (heuristic **false positive** on unsigned game hooks). See [docs/WINDOWS_DEFENDER.md](docs/WINDOWS_DEFENDER.md).
 
-Use only with people you trust until HTTPS broker and auth land.
+Use only with people you trust until room auth and signed releases are in place.
 
 ## Safe usage
 

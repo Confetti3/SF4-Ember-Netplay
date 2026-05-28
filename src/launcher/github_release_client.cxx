@@ -287,7 +287,7 @@ namespace launcher {
 			}
 			if (exitCode != 0) {
 				char buf[64] = { 0 };
-				snprintf(buf, sizeof(buf), "tar failed with exit code %lu", exitCode);
+				snprintf(buf, sizeof(buf), "tar failed with exit code %u", (unsigned)exitCode);
 				AppendUpdateLog(buf);
 				return false;
 			}

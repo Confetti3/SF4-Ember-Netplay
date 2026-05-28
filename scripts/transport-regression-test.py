@@ -92,6 +92,7 @@ def ggpo_relay_forward_test(ggpo_port: int, room_token: str) -> bool:
     sa.settimeout(3)
     sb.settimeout(3)
     try:
+        # codeql py/bind-socket-all-network-interfaces: test harness; sends to remote VPS only
         sa.bind(("0.0.0.0", 23457))
         sb.bind(("0.0.0.0", 23458))
         dest = (HOST, ggpo_port)
@@ -130,6 +131,7 @@ def ggpo_relay_rematch_registration_test(ggpo_port: int, room_token: str) -> boo
     rematch.settimeout(3)
     try:
         dest = (HOST, ggpo_port)
+        # codeql py/bind-socket-all-network-interfaces: test harness; sends to remote VPS only
         sa.bind(("0.0.0.0", 23457))
         sb.bind(("0.0.0.0", 23458))
         sa.sendto(reg_a, dest)

@@ -2,7 +2,10 @@ import os
 import sys
 from pathlib import Path
 
-import paramiko
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
+from vps_ssh import connect_ssh
 
 ROOT = Path(__file__).resolve().parents[1]
 FILES = [
@@ -24,10 +27,9 @@ def main() -> int:
         print("Set SF4E_VPS_PASSWORD", file=sys.stderr)
         return 1
 
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(
-        "74.208.200.95",
+    host = os.environ.get("SF4E_VPS_HOST", "74.208.200.95")
+    client = connect_ssh(
+        host,
         username="root",
         password=password,
         timeout=60,

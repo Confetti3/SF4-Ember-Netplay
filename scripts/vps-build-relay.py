@@ -5,8 +5,12 @@ import argparse
 import os
 import sys
 import time
+from pathlib import Path
 
-import paramiko
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
+from vps_ssh import connect_ssh
 
 LOG_PATH = "/tmp/sf4e-relay-build.log"
 PID_PATH = "/tmp/sf4e-relay-build.pid"
@@ -30,10 +34,8 @@ def connect(retries: int = 5) -> paramiko.SSHClient:
 
     last_err = None
     for attempt in range(retries):
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            client.connect(
+            client = connect_ssh(
                 host,
                 username=user,
                 password=password,

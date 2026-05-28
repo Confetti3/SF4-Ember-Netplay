@@ -135,7 +135,7 @@ static bool RunRobocopyMirror(const wchar_t* stagingDir, const wchar_t* installD
 	}
 	if (exitCode > 7) {
 		char buf[64] = { 0 };
-		snprintf(buf, sizeof(buf), "robocopy failed with exit code %lu", exitCode);
+		snprintf(buf, sizeof(buf), "robocopy failed with exit code %u", (unsigned)exitCode);
 		AppendLog(buf);
 		return false;
 	}

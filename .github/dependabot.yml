@@ -1,0 +1,8 @@
+# GitHub Actions dependency updates only (no client/runtime impact).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5

@@ -6,9 +6,15 @@ import os
 import secrets
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import paramiko
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
+from vps_ssh import connect_ssh
 
 ROOT = Path(__file__).resolve().parents[1]
 DASHBOARD_DIR = ROOT / "services" / "vps-relay" / "dashboard"
@@ -38,6 +44,30 @@ def mkdir_p(sftp: paramiko.SFTPClient, remote_dir: str) -> None:
             sftp.mkdir(path)
         except OSError:
             pass
+
+
+def write_credentials_file(creds: dict[str, str], domain: str) -> Path:
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    out = Path.cwd() / f"dashboard-credentials-{stamp}.txt"
+    out.write_text(
+        "\n".join(
+            [
+                "SF4e relay dashboard credentials",
+                f"Generated (UTC): {datetime.now(timezone.utc).isoformat()}",
+                f"URL: https://{domain}/login",
+                f"Username: {creds['username']}",
+                f"Password: {creds['password']}",
+                "",
+                "Store securely and delete this file when done.",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    try:
+        os.chmod(out, 0o600)
+    except OSError:
+        pass
+    return out
 
 
 def generate_credentials() -> dict[str, str]:
@@ -81,10 +111,8 @@ def main() -> int:
     remote_dashboard = f"{remote_relay}/dashboard"
     creds = generate_credentials()
 
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     print(f"Connecting to {user}@{host}...")
-    client.connect(
+    client = connect_ssh(
         host,
         username=user,
         password=password,
@@ -152,12 +180,13 @@ echo
         print(f"Remote install failed (exit {code})", file=sys.stderr)
         return code
 
-    print("\n=== Dashboard ready ===")
     domain = os.environ.get("SF4E_BROKER_DOMAIN", "74-208-200-95.nip.io")
+    cred_file = write_credentials_file(creds, domain)
+    print("\n=== Dashboard ready ===")
     print(f"URL:      https://{domain}/login")
     print(f"Username: {creds['username']}")
-    print(f"Password: {creds['password']}")
-    print("\nSave these credentials — the password is not stored locally.")
+    print(f"Password: (see file) {cred_file.resolve()}")
+    print("\nOpen the credentials file for the password; it is not printed to stdout.")
     return 0
 
 

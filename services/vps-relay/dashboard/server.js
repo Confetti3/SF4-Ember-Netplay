@@ -431,6 +431,7 @@ app.get("/login", (req, res) => {
   );
 });
 
+// codeql[js/missing-rate-limiting]: per-IP limiter via isLoginRateLimited / recordLoginFailure
 app.post("/login", async (req, res) => {
   const ip = clientIp(req);
   if (isLoginRateLimited(ip)) {

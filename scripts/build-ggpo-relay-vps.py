@@ -4,7 +4,10 @@ import os
 import sys
 from pathlib import Path
 
-import paramiko
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
+from vps_ssh import connect_ssh
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src" / "relay" / "ggpo_udp_relay.cxx"
@@ -25,9 +28,9 @@ def main() -> int:
         return 1
 
     host = os.environ.get("SF4E_VPS_HOST", "74.208.200.95")
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(host, username="root", password=password, timeout=60, allow_agent=False, look_for_keys=False)
+    client = connect_ssh(
+        host, username="root", password=password, timeout=60, allow_agent=False, look_for_keys=False
+    )
 
     sftp = client.open_sftp()
     try:
