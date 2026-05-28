@@ -10,19 +10,9 @@ This folder is a **self-contained experimental port** for netplay testing with f
 
 This is a **known false positive** on unsigned netplay tools that inject into USF4 (`Sidecar.dll`). It is **not** confirmed malware.
 
-1. Download only from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest).
-2. In the alert, use **Allow on device** (or restore quarantined files).
-3. Optional: add your **install folder** as a Defender exclusion.
-
-Full explanation: [`docs/WINDOWS_DEFENDER.md`](WINDOWS_DEFENDER.md) in this package.
-
-**Quick fix (Administrator PowerShell):**
-
-```powershell
-powershell -ExecutionPolicy Bypass -File defender-add-exclusion.ps1 -InstallDir "C:\Games\SF4-Netplay-Launcher"
-```
-
-(Use your actual extract path.)
+1. Download only from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) (**v0.3.1** until a signed build ships).
+2. Verify SHA256 hashes match the release page.
+3. See [`docs/WINDOWS_DEFENDER.md`](WINDOWS_DEFENDER.md) — permanent fix is **Authenticode signing**, not Defender exclusions.
 
 ## Scope and limitations
 

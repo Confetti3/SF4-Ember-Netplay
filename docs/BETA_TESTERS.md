@@ -6,14 +6,14 @@ Thank you for helping test this **friends-only experiment**. Sessions may fail �
 
 ## Windows Defender / “Wacapew.A!ml”
 
-If Windows blocks **`Sidecar.dll`** or **`Launcher.exe`**, that is usually a **false positive** (game hook + unsigned build). Choose **Allow on device** or add your install folder as an exclusion. See [`docs/WINDOWS_DEFENDER.md`](WINDOWS_DEFENDER.md).
+If Windows blocks **`Sidecar.dll`** or **`Launcher.exe`**, that is usually a **false positive** (unsigned game hook via Detours). Download only from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) (**v0.3.1** until a signed build ships). Verify SHA256 hashes on the release page. See [`docs/WINDOWS_DEFENDER.md`](WINDOWS_DEFENDER.md) — we do **not** recommend Defender exclusions.
 
 ## Before you play
 
-1. Download the latest team zip from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) (currently **v0.3.2**).
+1. Download the latest team zip from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) (currently **v0.3.1**).
 2. Extract the **entire** zip to one folder on each PC — keep `Launcher.exe`, `Sidecar.dll`, and `launcher-ui/` together.
 3. Run **`preflight.cmd`** once per machine (optional sanity check).
-4. Confirm both players show the **same version** in the launcher header (e.g. `v0.3.2`). Use **Check for updates** if versions differ.
+4. Confirm both players show the **same version** in the launcher header (e.g. `v0.3.1`). Use **Check for updates** if versions differ.
 
 ## Recommended flow (Simple mode — experimental)
 
@@ -38,7 +38,7 @@ Stay in **Simple mode** (default). Do not use **Find match** or **Open rooms** u
 
 | Problem | What to check |
 |---------|----------------|
-| Defender blocks zip / `Wacapew.A!ml` | False positive — **Allow on device**; see `docs/WINDOWS_DEFENDER.md` |
+| Defender blocks zip / `Wacapew.A!ml` | False positive on unsigned hook — verify hashes; see `docs/WINDOWS_DEFENDER.md`; wait for signed release |
 | Empty lobby / wrong opponent | Host and joiner must use the **same** `SF4-XXXX` from the host's **current** screen |
 | Version mismatch in-game | Reinstall the same zip on both PCs |
 | Black screen after portraits | Update to **v0.2.7.3** or newer on **both** PCs |

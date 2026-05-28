@@ -55,7 +55,9 @@ During a match, open **Network** — you should see **GGPO path: UDP relay** (no
 
 ## Windows Defender (`Wacapew.A!ml`)
 
-Some PCs flag **`Sidecar.dll`** as `Program:Win32/Wacapew.A!ml`. This is a **heuristic false positive** (unsigned game hook), not confirmed malware. Choose **Allow on device** or add your install folder as an exclusion. See `docs/WINDOWS_DEFENDER.md` in the zip.
+**Pre-release — not recommended for general install.** Use [v0.3.1](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/v0.3.1) until a signed build ships.
+
+Some PCs flag **`Sidecar.dll`** as `Program:Win32/Wacapew.A!ml` (heuristic false positive on unsigned Detours hook). See `docs/WINDOWS_DEFENDER.md` in the zip.
 
 ## Bug reports
 

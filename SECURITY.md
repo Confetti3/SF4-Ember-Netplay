@@ -54,7 +54,7 @@ Use only with people you trust until HTTPS broker and auth land.
 ## Safe usage
 
 - Download only from official GitHub Releases
-- If Defender quarantines files, follow [docs/WINDOWS_DEFENDER.md](docs/WINDOWS_DEFENDER.md) — do not use random “cleaned” repacks from third parties
+- If Defender quarantines files, verify release SHA256 hashes and follow [docs/WINDOWS_DEFENDER.md](docs/WINDOWS_DEFENDER.md) — do not weaken Defender with exclusions; wait for signed releases
 - Keep `Launcher.exe`, `Sidecar.dll`, and `launcher-ui/` together from the **same zip**
 - Do not point the broker URL at untrusted servers
 - Close the game before applying in-app updates

@@ -1,6 +1,6 @@
 # SF4 Netplay Launcher v0.3.3
 
-Defender false-positive guidance + install helper. **Binaries are still unsigned** — see below.
+**Withdrawn from Latest — use [v0.3.1](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/v0.3.1)** until Authenticode-signed **v0.3.4+** ships.
 
 > **Not production-ready.** Experimental unofficial port for a small friends group.
 
@@ -8,32 +8,21 @@ Defender false-positive guidance + install helper. **Binaries are still unsigned
 
 Same as v0.3.2 — see [RELEASE_NOTES_v0.3.2.md](RELEASE_NOTES_v0.3.2.md).
 
-## Windows Defender (`Wacapew.A!ml`) — read this first
+## Windows Defender (`Wacapew.A!ml`)
 
-`Sidecar.dll` may be flagged when downloading or extracting. This is a **known false positive** on unsigned game-hook DLLs.
+**Pre-release.** `Sidecar.dll` may be flagged (`Program:Win32/Wacapew.A!ml`) — heuristic false positive on unsigned Detours hook, not confirmed malware.
 
-**Your friend should:**
+- Download only from official GitHub Releases
+- Verify SHA256 hashes on the release page
+- See `docs/WINDOWS_DEFENDER.md` — **we do not ship or recommend Defender exclusion scripts** (removed from source after this release)
+- Permanent fix: [SignPath Foundation](https://signpath.org/apply) signing — see `docs/CODE_SIGNING.md`
 
-1. Download from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) only.
-2. **Allow on device** in the Defender alert, **or**
-3. Run **`defender-add-exclusion.ps1`** as Administrator (included in zip):
+## What's in v0.3.3 (historical)
 
-```powershell
-powershell -ExecutionPolicy Bypass -File defender-add-exclusion.ps1 -InstallDir "C:\Games\SF4-Netplay-Launcher"
-```
-
-Full details: `docs/WINDOWS_DEFENDER.md` and `docs/CODE_SIGNING.md`.
-
-**Permanent fix in progress:** [SignPath Foundation](https://signpath.org/apply) free OSS code signing (see `.signpath/signpath.json` in repo).
-
-## What's in v0.3.3
-
-- `defender-add-exclusion.ps1` in the zip (folder exclusion helper)
-- Updated `docs/WINDOWS_DEFENDER.md`, `docs/CODE_SIGNING.md`
 - Windows **VERSIONINFO** on `Launcher.exe`, `Sidecar.dll`, `RelayHost.exe`, `Updater.exe`
+- Defender documentation (superseded — exclusion helper removed on `main`)
 - v0.3.2 netplay fixes unchanged (UDP relay, GGPO path UI)
 
 ## Install
 
-1. Download **`sf4-netplay-launcher-*-v0.3.3.zip`** (Assets — not Source code).
-2. Extract fully → run **`preflight.cmd`** → **`Launcher.exe`**.
+Do **not** use this build for general distribution. Install **[v0.3.1](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/v0.3.1)** instead.
