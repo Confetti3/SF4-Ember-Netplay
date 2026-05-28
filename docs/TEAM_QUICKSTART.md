@@ -16,6 +16,14 @@ This is a **known false positive** on unsigned netplay tools that inject into US
 
 Full explanation: [`docs/WINDOWS_DEFENDER.md`](WINDOWS_DEFENDER.md) in this package.
 
+**Quick fix (Administrator PowerShell):**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File defender-add-exclusion.ps1 -InstallDir "C:\Games\SF4-Netplay-Launcher"
+```
+
+(Use your actual extract path.)
+
 ## Scope and limitations
 
 | In scope | Limits |

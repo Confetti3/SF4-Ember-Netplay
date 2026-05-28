@@ -1,0 +1,35 @@
+{
+  "projectName": "SF4-Netplay-Launcher",
+  "repositoryUrl": "https://github.com/Confetti3/SF4-Netplay-Launcher",
+  "repositoryType": "git",
+  "defaultBranch": "main",
+  "signingProfiles": [
+    {
+      "name": "release",
+      "description": "Signed team zip binaries",
+      "certificateProfile": "SignPath Foundation",
+      "build": {
+        "workflow": "release-windows.yml",
+        "trigger": "manual"
+      },
+      "artifacts": [
+        {
+          "path": "msvc-out/relwithdebinfo/Launcher.exe",
+          "signatureType": "Authenticode"
+        },
+        {
+          "path": "msvc-out/relwithdebinfo/Sidecar.dll",
+          "signatureType": "Authenticode"
+        },
+        {
+          "path": "msvc-out/relwithdebinfo/RelayHost.exe",
+          "signatureType": "Authenticode"
+        },
+        {
+          "path": "msvc-out/relwithdebinfo/Updater.exe",
+          "signatureType": "Authenticode"
+        }
+      ]
+    }
+  ]
+}

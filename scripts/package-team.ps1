@@ -66,6 +66,10 @@ $RuntimeDlls = @(
 
 
 
+$RequiredPackagePathsOptional = @(
+    "defender-add-exclusion.ps1"
+)
+
 $RequiredPackagePaths = @(
 
     "Launcher.exe",
@@ -204,7 +208,9 @@ $DocFiles = @(
 
     "docs\NETPLAY_INVARIANTS.md",
 
-    "docs\WINDOWS_DEFENDER.md"
+    "docs\WINDOWS_DEFENDER.md",
+
+    "docs\CODE_SIGNING.md"
 
 )
 
@@ -247,6 +253,11 @@ if (Test-Path $PreflightCmdSrc) {
     Copy-Item $PreflightCmdSrc (Join-Path $PackageRoot "preflight.cmd")
 } else {
     Write-Warning "preflight.cmd not found; package will fail manifest validation."
+}
+
+$DefenderExclusion = Join-Path $RepoRoot "scripts\defender-add-install-exclusion.ps1"
+if (Test-Path $DefenderExclusion) {
+    Copy-Item $DefenderExclusion (Join-Path $PackageRoot "defender-add-exclusion.ps1")
 }
 
 

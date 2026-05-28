@@ -1,0 +1,69 @@
+# Build (and optionally sign) Windows release binaries.
+# Signing: configure Azure Artifact Signing secrets OR SignPath.io integration.
+# See docs/CODE_SIGNING.md
+
+name: Release Windows
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+
+      - name: Configure CMake
+        run: cmake --preset default
+
+      - name: Build RelWithDebInfo
+        run: cmake --build msvc-build/default --config RelWithDebInfo
+
+      - name: Install to msvc-out
+        run: cmake --install msvc-build/default --config RelWithDebInfo
+
+      - name: Azure login (optional signing)
+        if: ${{ secrets.AZURE_CLIENT_ID != '' }}
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign with Azure Artifact Signing (optional)
+        if: ${{ secrets.AZURE_CODESIGNING_ENDPOINT != '' }}
+        uses: azure/artifact-signing-action@v1
+        with:
+          endpoint: ${{ secrets.AZURE_CODESIGNING_ENDPOINT }}
+          signing-account-name: ${{ secrets.AZURE_CODESIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_CODESIGNING_PROFILE }}
+          files-folder: ${{ github.workspace }}/msvc-out/relwithdebinfo
+          files-folder-filter: exe,dll
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Package team zip
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if ($tag -match '^v') { $label = $tag.Substring(1) } else { $label = "ci" }
+          . ./scripts/package-team.ps1 -VersionLabel $label
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sf4-netplay-windows
+          path: |
+            msvc-out/relwithdebinfo/Launcher.exe
+            msvc-out/relwithdebinfo/Sidecar.dll
+            msvc-out/relwithdebinfo/RelayHost.exe
+            dist/*.zip

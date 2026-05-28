@@ -237,7 +237,7 @@ if ($warnings.Count -gt 0) {
 Write-Host "RESULT: PASS - run Launcher.exe from this folder."
 Write-Host ""
 Write-Host "Note: Windows Defender may flag Sidecar.dll as Wacapew.A!ml (false positive)."
-Write-Host "      See docs\WINDOWS_DEFENDER.md — use Allow on device or a folder exclusion."
+Write-Host "      See docs\WINDOWS_DEFENDER.md — Allow on device, or run defender-add-exclusion.ps1 as Admin."
 
 exit 0
 
