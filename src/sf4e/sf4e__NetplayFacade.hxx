@@ -47,6 +47,7 @@ namespace sf4e {
 		void InitFromPayload(const NetplayConfig& cfg);
 		const NetplayConfig& GetConfig();
 		void ApplyGgpoTransportConfig(const NetplayConfig& cfg);
+		void RestoreBrokerGgpoEndpoint(NetplayConfig& cfg);
 		void ReportGgpoTransport(uint8_t effectiveMode, bool legacyTunnelActive, const char* remoteHost, uint16_t remotePort);
 		GgpoTransportStatus GetGgpoTransportStatus();
 		GgpoSyncPhase GetGgpoSyncPhase();

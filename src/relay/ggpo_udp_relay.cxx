@@ -86,6 +86,36 @@ static int FindSlotByIp(Endpoint* slots, const sockaddr_in& from) {
 	return found;
 }
 
+// Rematch registration uses a new ephemeral probe port; rebind an existing slot by declared GGPO port or IP.
+static int FindSlotForRegistration(Endpoint* slots, const sockaddr_in& from, uint16_t declaredPort) {
+	int slotIdx = FindSlotByEndpoint(slots, from);
+	if (slotIdx >= 0) {
+		return slotIdx;
+	}
+
+	for (int i = 0; i < 2; i++) {
+		if (!slots[i].active) {
+			return i;
+		}
+	}
+
+	if (declaredPort != 0) {
+		const uint16_t declaredNetwork = htons(declaredPort);
+		for (int i = 0; i < 2; i++) {
+			if (slots[i].active && slots[i].addr.sin_port == declaredNetwork) {
+				return i;
+			}
+		}
+	}
+
+	const int ipSlot = FindSlotByIp(slots, from);
+	if (ipSlot >= 0) {
+		return ipSlot;
+	}
+
+	return -1;
+}
+
 static uint64_t MonotonicMs() {
 	using namespace std::chrono;
 	return (uint64_t)duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
@@ -178,26 +208,29 @@ int main(int argc, char** argv) {
 				continue;
 			}
 
-			int slotIdx = FindSlotByEndpoint(slots, from);
-			if (slotIdx < 0) {
-				for (int i = 0; i < 2; i++) {
-					if (!slots[i].active) {
-						slotIdx = i;
-						break;
-					}
-				}
+			uint16_t declaredPort = 0;
+			if (isRegV2) {
+				declaredPort =
+					(uint16_t)(((unsigned char)buf[36] << 8) | (unsigned char)buf[37]);
 			}
+
+			const int slotIdx = FindSlotForRegistration(slots, from, declaredPort);
 			if (slotIdx < 0) {
+				char ipStr[INET_ADDRSTRLEN] = { 0 };
+				inet_ntop(AF_INET, &from.sin_addr, ipStr, sizeof(ipStr));
+				spdlog::warn(
+					"Registration rejected: no slot for {}:{} declaredGgpoPort={}",
+					ipStr,
+					ntohs(from.sin_port),
+					declaredPort
+				);
 				continue;
 			}
 
+			const bool rematchRebind = slots[slotIdx].active;
 			sockaddr_in registered = from;
-			if (isRegV2) {
-				const uint16_t declaredPort =
-					(uint16_t)(((unsigned char)buf[36] << 8) | (unsigned char)buf[37]);
-				if (declaredPort != 0) {
-					registered.sin_port = htons(declaredPort);
-				}
+			if (declaredPort != 0) {
+				registered.sin_port = htons(declaredPort);
 			}
 
 			CopyEndpoint(slots[slotIdx].addr, registered);
@@ -205,14 +238,26 @@ int main(int argc, char** argv) {
 
 			char ipStr[INET_ADDRSTRLEN] = { 0 };
 			inet_ntop(AF_INET, &registered.sin_addr, ipStr, sizeof(ipStr));
-			spdlog::info(
-				"Registered slot {} at {}:{} (probe from {}:{})",
-				slotIdx,
-				ipStr,
-				ntohs(registered.sin_port),
-				ipStr,
-				ntohs(from.sin_port)
-			);
+			if (rematchRebind) {
+				spdlog::info(
+					"Rematch rebind slot {} at {}:{} (probe from {}:{})",
+					slotIdx,
+					ipStr,
+					ntohs(registered.sin_port),
+					ipStr,
+					ntohs(from.sin_port)
+				);
+			}
+			else {
+				spdlog::info(
+					"Registered slot {} at {}:{} (probe from {}:{})",
+					slotIdx,
+					ipStr,
+					ntohs(registered.sin_port),
+					ipStr,
+					ntohs(from.sin_port)
+				);
+			}
 
 			const char* resp = kRespRegistered;
 			if (!slots[0].active || !slots[1].active) {

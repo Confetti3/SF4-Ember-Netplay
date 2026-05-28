@@ -376,8 +376,6 @@ namespace sf4e {
 		}
 
 		cfg.ggpoTransport = (uint8_t)GgpoTransportMode::LegacySessionTunnel;
-		cfg.ggpoRemoteHost[0] = '\0';
-		cfg.ggpoRemotePort = 0;
 		return GgpoTransportMode::LegacySessionTunnel;
 	}
 

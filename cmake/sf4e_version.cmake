@@ -7,7 +7,7 @@ function(sf4e_configure_windows_version target file_description original_filenam
 
   set(SF4E_VERSION_MAJOR 0)
   set(SF4E_VERSION_MINOR 3)
-  set(SF4E_VERSION_PATCH 5)
+  set(SF4E_VERSION_PATCH 6)
   set(SF4E_FILE_DESCRIPTION "${file_description}")
   set(SF4E_INTERNAL_NAME "${original_filename}")
   set(SF4E_ORIGINAL_FILENAME "${original_filename}")

@@ -122,6 +122,7 @@ void fUserApp::_OnVsBattleTasksRegistered()
         ) {
             transportCfg.ggpoTransport = (uint8_t)GgpoTransportMode::UdpRelay;
         }
+        sf4e::NetplayFacade::RestoreBrokerGgpoEndpoint(transportCfg);
         if (transportCfg.useCentralSession == 2 && transportCfg.ggpoTransport != 0) {
             GgpoTransportMode effective = GgpoTransport::PrepareForBattle(transportCfg);
             sf4e::NetplayFacade::ApplyGgpoTransportConfig(transportCfg);

@@ -115,6 +115,42 @@ def ggpo_relay_forward_test(ggpo_port: int, room_token: str) -> bool:
         sb.close()
 
 
+def ggpo_relay_rematch_registration_test(ggpo_port: int, room_token: str) -> bool:
+    """After both slots are filled, a new probe socket must still get SF4R/SF4W (rematch)."""
+    token = room_token.encode("ascii")
+    reg_a = b"SF4G" + token + bytes([(23457 >> 8) & 0xFF, 23457 & 0xFF])
+    reg_b = b"SF4G" + token + bytes([(23458 >> 8) & 0xFF, 23458 & 0xFF])
+    reg_rematch = b"SF4G" + token + bytes([(23457 >> 8) & 0xFF, 23457 & 0xFF])
+
+    sa = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sb = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    rematch = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sa.settimeout(3)
+    sb.settimeout(3)
+    rematch.settimeout(3)
+    try:
+        dest = (HOST, ggpo_port)
+        sa.bind(("0.0.0.0", 23457))
+        sb.bind(("0.0.0.0", 23458))
+        sa.sendto(reg_a, dest)
+        ra, _ = sa.recvfrom(64)
+        sb.sendto(reg_b, dest)
+        rb, _ = sb.recvfrom(64)
+        if not (ra.startswith(b"SF4R") or ra.startswith(b"SF4W")):
+            return False
+        if not (rb.startswith(b"SF4R") or rb.startswith(b"SF4W")):
+            return False
+        rematch.sendto(reg_rematch, dest)
+        rr, _ = rematch.recvfrom(64)
+        return rr.startswith(b"SF4R") or rr.startswith(b"SF4W")
+    except (OSError, socket.timeout):
+        return False
+    finally:
+        sa.close()
+        sb.close()
+        rematch.close()
+
+
 def run_checks() -> list[Check]:
     checks: list[Check] = []
     broker = BrokerClient(BROKER)
@@ -261,6 +297,14 @@ def run_checks() -> list[Check]:
                     "GGPO UDP relay bidirectional forward",
                     forward_ok,
                     "ports 23457/23458 via declared registration",
+                )
+            )
+            rematch_ok = ggpo_relay_rematch_registration_test(ggpo_port, room_token)
+            checks.append(
+                Check(
+                    "GGPO UDP relay rematch re-registration",
+                    rematch_ok,
+                    "ephemeral probe after both slots full",
                 )
             )
 

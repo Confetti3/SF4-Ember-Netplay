@@ -35,6 +35,8 @@ using fVsBattle = sf4e::GameEvents::VsBattle;
 namespace sf4e {
 
 	static NetplayConfig s_config = { 0 };
+	static char s_brokerGgpoRemoteHost[NETPLAY_SESSION_HOST_LEN] = { 0 };
+	static uint16_t s_brokerGgpoRemotePort = 0;
 	static GgpoTransportStatus s_ggpoTransportStatus = { 0 };
 	static GgpoSyncPhase s_ggpoSyncPhase = GgpoSyncPhase::None;
 	static DWORD s_ggpoBattleStartTick = 0;
@@ -56,8 +58,23 @@ namespace sf4e {
 		s_gameReady = true;
 	}
 
+	static void CaptureBrokerGgpoEndpoint(const NetplayConfig& cfg) {
+		if (cfg.ggpoRemotePort > 0 && cfg.ggpoRemoteHost[0]) {
+			s_brokerGgpoRemotePort = cfg.ggpoRemotePort;
+			strncpy_s(s_brokerGgpoRemoteHost, cfg.ggpoRemoteHost, _TRUNCATE);
+		}
+	}
+
+	void NetplayFacade::RestoreBrokerGgpoEndpoint(NetplayConfig& cfg) {
+		if (s_brokerGgpoRemotePort > 0 && s_brokerGgpoRemoteHost[0]) {
+			cfg.ggpoRemotePort = s_brokerGgpoRemotePort;
+			strncpy_s(cfg.ggpoRemoteHost, s_brokerGgpoRemoteHost, _TRUNCATE);
+		}
+	}
+
 	void NetplayFacade::InitFromPayload(const NetplayConfig& cfg) {
 		s_config = cfg;
+		CaptureBrokerGgpoEndpoint(cfg);
 		const char* relayEnv = getenv("SF4E_RELAY");
 		if (relayEnv && relayEnv[0] == '0') {
 			s_config.useRelay = 0;
@@ -89,9 +106,17 @@ namespace sf4e {
 
 	void NetplayFacade::ApplyGgpoTransportConfig(const NetplayConfig& cfg) {
 		s_config.ggpoTransport = cfg.ggpoTransport;
-		s_config.ggpoRemotePort = cfg.ggpoRemotePort;
-		strncpy_s(s_config.ggpoRemoteHost, cfg.ggpoRemoteHost, _TRUNCATE);
-		strncpy_s(s_config.ggpoRoomToken, cfg.ggpoRoomToken, _TRUNCATE);
+		if (cfg.ggpoTransport != 0) {
+			s_config.ggpoRemotePort = cfg.ggpoRemotePort;
+			strncpy_s(s_config.ggpoRemoteHost, cfg.ggpoRemoteHost, _TRUNCATE);
+		}
+		else if (s_brokerGgpoRemotePort > 0 && s_brokerGgpoRemoteHost[0]) {
+			s_config.ggpoRemotePort = s_brokerGgpoRemotePort;
+			strncpy_s(s_config.ggpoRemoteHost, s_brokerGgpoRemoteHost, _TRUNCATE);
+		}
+		if (cfg.ggpoRoomToken[0]) {
+			strncpy_s(s_config.ggpoRoomToken, cfg.ggpoRoomToken, _TRUNCATE);
+		}
 	}
 
 	void NetplayFacade::ReportGgpoTransport(
@@ -490,6 +515,8 @@ namespace sf4e {
 		}
 		s_deferGgpoClose = false;
 		s_deferredGgpoPending = false;
+		s_brokerGgpoRemoteHost[0] = '\0';
+		s_brokerGgpoRemotePort = 0;
 	}
 
 	void NetplayFacade::ClearBattleState() {
