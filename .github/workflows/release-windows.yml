@@ -63,7 +63,7 @@ jobs:
 
       - name: Sign with Azure Artifact Signing (optional)
         if: env.AZURE_CODESIGNING_ENDPOINT != ''
-        uses: azure/artifact-signing-action@v1
+        uses: azure/artifact-signing-action@v2
         with:
           endpoint: ${{ env.AZURE_CODESIGNING_ENDPOINT }}
           signing-account-name: ${{ env.AZURE_CODESIGNING_ACCOUNT }}
