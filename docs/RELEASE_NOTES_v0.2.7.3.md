@@ -21,3 +21,7 @@ GgpoRelay: remote endpoint 127.0.0.1:40000
 GGPO: Connected!
 GGPO: Running
 ```
+
+## Troubleshooting
+
+[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) — black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.

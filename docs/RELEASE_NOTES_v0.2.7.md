@@ -38,6 +38,11 @@ curl http://74.208.200.95:8787/v1/health
 
 Expect `"forceVpsRelay": true` and `"relayHost": "74.208.200.95"`.
 
+
+## Troubleshooting
+
+[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) — black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.
+
 ## Reporting issues
 
 Include the **Git** line from `BUILD_INFO.txt` and a screenshot when reporting issues.

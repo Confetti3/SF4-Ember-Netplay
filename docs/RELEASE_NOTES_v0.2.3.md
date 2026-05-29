@@ -30,6 +30,11 @@ Joiners still need the host to forward **TCP+UDP** on the broker-assigned port (
 3. Run `preflight.cmd`
 4. Run `Launcher.exe` â€” **Host**, **Join**, or **Offline**
 
+
+## Troubleshooting
+
+[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) — black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.
+
 ## Support
 
 Include the **Git** line from `BUILD_INFO.txt` when reporting issues.

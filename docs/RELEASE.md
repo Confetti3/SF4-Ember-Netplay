@@ -38,12 +38,14 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
    - Tell them this is **experimental** test software — not production-ready; sessions may fail
    - Tell them to download the **Assets** zip (not source-only)
    - Same zip on both PCs; run `preflight.cmd` then `Launcher.exe`
+   - Link [docs/TROUBLESHOOTING.md](TROUBLESHOOTING.md) in release notes (see template) so GitHub Releases point players at the troubleshooting guide
 
 ## What ships in the zip
 
 - `Launcher.exe`, `Sidecar.dll`, **`RelayHost.exe`**, `Updater.exe`, `WebView2Loader.dll`, `launcher-ui/`
 - Runtime DLLs (GNS, GGPO, spdlog, etc.)
 - `START_HERE.md`, `preflight.ps1`, `MANIFEST.txt`, `BUILD_INFO.txt`, `ATTRIBUTION.md`
+- `docs/TROUBLESHOOTING.md` (player troubleshooting — also linked from each release on GitHub)
 
 ## Version tags
 

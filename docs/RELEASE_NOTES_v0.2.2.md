@@ -45,6 +45,11 @@ If relay create fails or joiners can't find your room, check Advanced â†’ **Room
 
 Both players must use the **same release zip** (`Sidecar.dll` must match).
 
+
+## Troubleshooting
+
+[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) — black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.
+
 ## Support
 
 Include the **Git** line from `BUILD_INFO.txt` when reporting issues.

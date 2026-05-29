@@ -122,6 +122,8 @@ Full checklist: [SMOKE_TEST.md](SMOKE_TEST.md). Player guide: [USER_NETPLAY.md](
 
 ## Troubleshooting
 
+**Detailed fixes:** [TROUBLESHOOTING.md](TROUBLESHOOTING.md) (black launcher, crash on launch, recommended settings, Direct IP ports).
+
 | Problem | What to try |
 |---------|-------------|
 | `WebView2Loader.dll was not found` | Re-extract the **full** zip; keep all files beside `Launcher.exe` |

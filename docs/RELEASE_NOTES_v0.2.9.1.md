@@ -25,6 +25,11 @@ Hotfix for v0.2.9 â€” fixes blank launcher window and relay code UX.
 
 Security hardening, longer room codes, broker host-secret auth, and VPS relay behavior are unchanged. No broker redeploy needed.
 
+
+## Troubleshooting
+
+[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) — black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.
+
 ## Bug reports
 
 Include `BUILD_INFO.txt` Git line, `%APPDATA%\sf4e\logs\sf4e.log`, and steps to reproduce.

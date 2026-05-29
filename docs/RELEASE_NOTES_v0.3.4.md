@@ -43,6 +43,11 @@ GGPO: Running
 - No Defender exclusion scripts in this build.
 - Download only from this GitHub release page; verify SHA256 on the release assets if Defender blocks files.
 
+
+## Troubleshooting
+
+[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) — black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.
+
 ## Bug reports
 
 Include `BUILD_INFO.txt` Git line, room code, **GGPO path** from Network panel, and `sf4e.log` from both PCs.

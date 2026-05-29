@@ -192,6 +192,7 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 | [ATTRIBUTION.md](ATTRIBUTION.md) | Upstream sf4e credit (Anthony Danducci) |
 | [SECURITY.md](SECURITY.md) | Security policy and supported versions |
 | [docs/RELEASE.md](docs/RELEASE.md) | Building and publishing releases |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Player troubleshooting — black launcher, crash on launch, settings, Direct IP |
 | [docs/WINDOWS_DEFENDER.md](docs/WINDOWS_DEFENDER.md) | Defender false positives (`Wacapew.A!ml`) |
 | [docs/RELEASE_NOTES_v0.3.6.md](docs/RELEASE_NOTES_v0.3.6.md) | **Current release** notes (v0.3.6) |
 | [docs/RELEASE_NOTES_v0.3.2.md](docs/RELEASE_NOTES_v0.3.2.md) | v0.3.2 release notes |
@@ -200,6 +201,8 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 | [docs/RELEASE_NOTES_v0.3.1.md](docs/RELEASE_NOTES_v0.3.1.md) | v0.3.1 release notes (previous Latest) |
 
 ## Troubleshooting
+
+**Full guide:** [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — launcher black screen, game crash on **Start game**, recommended settings, Direct IP firewall/port forwarding, and logs.
 
 | Problem | What to try |
 |---------|-------------|

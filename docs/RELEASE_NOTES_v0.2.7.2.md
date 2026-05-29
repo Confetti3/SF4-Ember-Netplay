@@ -15,3 +15,7 @@ Includes all v0.2.7 / v0.2.7.1 VPS relay features. **Direct IP (Advanced) behavi
 ## Upgrade note
 
 Update **both** `Launcher.exe` and `Sidecar.dll` together (NetplayConfig version 3).
+
+## Troubleshooting
+
+[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) — black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.

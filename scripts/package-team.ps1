@@ -206,6 +206,8 @@ $DocFiles = @(
 
     "docs\WINDOWS_DEFENDER.md",
 
+    "docs\TROUBLESHOOTING.md",
+
     "docs\CODE_SIGNING.md"
 
 )

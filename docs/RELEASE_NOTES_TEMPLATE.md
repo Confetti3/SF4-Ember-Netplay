@@ -69,6 +69,11 @@ See [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) for the full 
 - Advanced Direct IP still requires host **TCP+UDP** port forward on the session port
 - Rematch, disconnect recovery, and spectator mode need more experimental testing coverage
 
+
+## Troubleshooting
+
+[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) — black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.
+
 ## Support
 
 Include the **Git** line from `BUILD_INFO.txt`, `%APPDATA%\sf4e\logs\sf4e.log`, and a screenshot when reporting issues.

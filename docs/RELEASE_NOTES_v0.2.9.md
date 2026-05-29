@@ -35,6 +35,11 @@ Security hardening release — closes Critical update/URL handler issues and str
 
 Unchanged — USF4 on Steam, WebView2 Runtime, VC++ x86 redistributable.
 
+
+## Troubleshooting
+
+[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) � black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.
+
 ## Bug reports
 
 Include `BUILD_INFO.txt` Git line, `%APPDATA%\sf4e\logs\sf4e.log`, and steps to reproduce.

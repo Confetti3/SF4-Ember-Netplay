@@ -36,6 +36,8 @@ Stay in **Simple mode** (default). Do not use **Find match** or **Open rooms** u
 
 ## If something goes wrong
 
+Start with **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** — 60-second checklist, black launcher, crash on **Start game**, settings, and Direct IP firewall steps.
+
 | Problem | What to check |
 |---------|----------------|
 | Defender blocks zip / `Wacapew.A!ml` | False positive on unsigned hook — verify hashes; see `docs/WINDOWS_DEFENDER.md`; wait for signed release |

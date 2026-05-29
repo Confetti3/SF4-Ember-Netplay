@@ -38,6 +38,11 @@ Host â†’ **Create relay room** â†’ share **`SF4-XXXX`** â†’ Joiner pastes code â
 
 Use **Check for updates** on the launcher home screen, or download this zip manually on both PCs.
 
+
+## Troubleshooting
+
+[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) — black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.
+
 ## Bug reports
 
 Include the Git line from `BUILD_INFO.txt`, `%APPDATA%\sf4e\logs\sf4e.log`, and steps to reproduce. Update logs also write to `%TEMP%\sf4-netplay-update.log` when using the in-app updater.

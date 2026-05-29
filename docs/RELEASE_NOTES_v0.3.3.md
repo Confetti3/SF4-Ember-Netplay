@@ -26,3 +26,7 @@ Same as v0.3.2 â€” see [RELEASE_NOTES_v0.3.2.md](RELEASE_NOTES_v0.3.2.md).
 ## Install
 
 Do **not** use this build for general distribution. Install **[v0.3.1](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/v0.3.1)** instead.
+
+## Troubleshooting
+
+[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) — black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.

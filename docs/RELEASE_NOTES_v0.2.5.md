@@ -56,6 +56,11 @@ If you upgraded from an older build, delete or edit `%APPDATA%\sf4e\config.json`
 - Both players must use the **same release zip** (`Sidecar.dll` must match)
 - Find match / Open rooms are early stubs
 
+
+## Troubleshooting
+
+[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) — black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.
+
 ## Support
 
 Include the **Git** line from `BUILD_INFO.txt` and a screenshot when reporting issues.

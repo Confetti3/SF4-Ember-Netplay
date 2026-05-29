@@ -56,6 +56,11 @@ set SF4E_BROKER_URL=http://your-broker:8787
 - Relay host must forward the broker-assigned port; direct host must forward the session port
 - Both players must use the **same release zip** (`Sidecar.dll` must match)
 
+
+## Troubleshooting
+
+[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) — black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.
+
 ## Support
 
 Include the **Git** line from `BUILD_INFO.txt` and a screenshot when reporting issues.

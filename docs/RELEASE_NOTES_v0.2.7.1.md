@@ -13,3 +13,7 @@ Patch release after IONOS firewall fix and VPS relay polish.
 - **Docs:** IONOS inbound UDP 23456â€“23475 checklist in CASUAL_NETPLAY and TEAM_QUICKSTART
 
 Includes all v0.2.7 VPS relay features. Direct IP (Advanced) unchanged.
+
+## Troubleshooting
+
+[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) — black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.

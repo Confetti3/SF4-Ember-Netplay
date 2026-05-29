@@ -49,6 +49,11 @@ Transport + TLS release â€” HTTPS broker, VPS port hardening, and GGPO transport
 - Dashboard: `https://74-208-200-95.nip.io/login`
 - See [VPS_TLS_SETUP.md](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/VPS_TLS_SETUP.md)
 
+
+## Troubleshooting
+
+[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) — black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.
+
 ## Bug reports
 
 Include `BUILD_INFO.txt` Git line, `%APPDATA%\sf4e\logs\sf4e.log`, and broker URL from Advanced settings.

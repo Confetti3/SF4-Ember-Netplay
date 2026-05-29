@@ -59,6 +59,11 @@ During a match, open **Network** â€” you should see **GGPO path: UDP relay** (no
 
 Some PCs flag **`Sidecar.dll`** as `Program:Win32/Wacapew.A!ml` (heuristic false positive on unsigned Detours hook). See `docs/WINDOWS_DEFENDER.md` in the zip.
 
+
+## Troubleshooting
+
+[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) — black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.
+
 ## Bug reports
 
 Include `BUILD_INFO.txt` Git line, `%APPDATA%\sf4e\logs\sf4e.log`, room code, broker URL, and the **GGPO path** line from the Network panel.

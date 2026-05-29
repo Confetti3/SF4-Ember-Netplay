@@ -1,5 +1,7 @@
 # Ultra Street Fighter IV — SF4 Netplay Launcher (player guide)
 
+**Something broken?** See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for black launcher screen, crash on **Start game**, recommended settings, and Direct IP firewall help.
+
 > **Experimental unofficial port** — based on upstream [sf4e](https://codeberg.org/adanducci/sf4e) by Anthony Danducci (MIT). Anthony Danducci does not maintain or endorse this launcher. **Not production-ready** — netplay may fail. See `ATTRIBUTION.md`.
 
 ## Prerequisites
@@ -87,6 +89,8 @@ Disable **Smooth** frame rate in in-game graphics options if rollback feels wron
 ## Logs
 
 `Launcher.exe --console` or files under `%APPDATA%\sf4e\`.
+
+Full checklist and bug-report items: [TROUBLESHOOTING.md](TROUBLESHOOTING.md#collecting-logs-for-a-bug-report).
 
 ## Linux / Steam Deck
 
