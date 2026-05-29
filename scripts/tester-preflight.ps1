@@ -1,6 +1,6 @@
 # sf4e tester preflight - run from the extracted package folder before Launcher.exe.
 
-# Usage: preflight.cmd
+# Usage: preflight.cmd (from the package folder; cmd passes -PackageDir automatically)
 
 
 
@@ -15,9 +15,11 @@ param(
 $ErrorActionPreference = "Continue"
 
 if (-not $PackageDir) {
-
-    $PackageDir = if ($PSScriptRoot) { $PSScriptRoot } else { Get-Location }.Path
-
+    if ($PSScriptRoot) {
+        $PackageDir = $PSScriptRoot
+    } else {
+        $PackageDir = (Get-Location).Path
+    }
 }
 
 
@@ -237,7 +239,7 @@ if ($warnings.Count -gt 0) {
 Write-Host "RESULT: PASS - run Launcher.exe from this folder."
 Write-Host ""
 Write-Host "Note: Windows Defender may flag Sidecar.dll as Wacapew.A!ml (false positive on unsigned hook)."
-Write-Host "      See docs\WINDOWS_DEFENDER.md — verify release hashes; signed builds are the fix."
+Write-Host "      See docs\WINDOWS_DEFENDER.md - verify release hashes; signed builds are the fix."
 
 exit 0
 
