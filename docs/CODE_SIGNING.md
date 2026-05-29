@@ -64,5 +64,5 @@ Upload the output folder at [Microsoft file submission](https://www.microsoft.co
 
 - **Latest** on GitHub points at **v0.3.1** until **v0.3.4+** is Authenticode-signed.
 - Do not promote unsigned builds to Latest even if netplay fixes are newer.
-- Binary comparison (v0.3.1 vs v0.3.3): [`docs/DEFENDER_BINARY_COMPARISON.md`](DEFENDER_BINARY_COMPARISON.md)
+- Defender false positives (unchanged hook since v0.3.1): [`docs/WINDOWS_DEFENDER.md`](WINDOWS_DEFENDER.md)
 - SignPath checklist: [`docs/SIGNPATH_APPLY.md`](SIGNPATH_APPLY.md)

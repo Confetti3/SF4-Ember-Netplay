@@ -198,8 +198,6 @@ $DocFiles = @(
 
     "docs\USER_NETPLAY.md",
 
-    "docs\CASUAL_NETPLAY.md",
-
     "docs\SMOKE_TEST.md",
 
     "docs\NETPLAY_INVARIANTS.md",

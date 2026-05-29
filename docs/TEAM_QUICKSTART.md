@@ -56,7 +56,7 @@ The launcher defaults to **Simple mode** and relay room codes (`SF4-XXXX`). Brok
 | **Start game** (connects outbound to VPS relay) | Wait for host **Connected**, then join |
 | No port forward on host PC | No port forward needed |
 
-See [CASUAL_NETPLAY.md](CASUAL_NETPLAY.md) in `docs/`. Override broker: `set SF4E_BROKER_URL=http://your-broker:8787`.
+See [USER_NETPLAY.md](USER_NETPLAY.md) for relay room codes and broker override: `set SF4E_BROKER_URL=http://your-broker:8787`.
 
 ## Direct IP over internet (Advanced mode)
 

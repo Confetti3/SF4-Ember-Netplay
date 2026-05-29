@@ -185,7 +185,6 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 | [docs/TRANSPORT_REGRESSION.md](docs/TRANSPORT_REGRESSION.md) | Transport ladder test matrix |
 | [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md) | Experimental testers - quick checklist and bug reports |
 | [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md) | Player guide - Simple + Advanced flows |
-| [docs/CASUAL_NETPLAY.md](docs/CASUAL_NETPLAY.md) | Casual WAN play overview |
 | [docs/TEAM_QUICKSTART.md](docs/TEAM_QUICKSTART.md) | Packaged as `START_HERE.md` in the release zip |
 | [docs/SMOKE_TEST.md](docs/SMOKE_TEST.md) | Manual test checklist |
 | [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) | What this port is for, and known limits |
@@ -194,29 +193,14 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 | [docs/RELEASE.md](docs/RELEASE.md) | Building and publishing releases |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Player troubleshooting — black launcher, crash on launch, settings, Direct IP |
 | [docs/WINDOWS_DEFENDER.md](docs/WINDOWS_DEFENDER.md) | Defender false positives (`Wacapew.A!ml`) |
-| [docs/RELEASE_NOTES_v0.3.6.md](docs/RELEASE_NOTES_v0.3.6.md) | **Current release** notes (v0.3.6) |
-| [docs/RELEASE_NOTES_v0.3.2.md](docs/RELEASE_NOTES_v0.3.2.md) | v0.3.2 release notes |
-| [docs/DEFENDER_BINARY_COMPARISON.md](docs/DEFENDER_BINARY_COMPARISON.md) | v0.3.1 vs v0.3.3 Sidecar hash comparison |
+| [docs/RELEASE_NOTES_v0.3.7.md](docs/RELEASE_NOTES_v0.3.7.md) | Latest release notes (draft for next tag) |
 | [docs/SIGNPATH_APPLY.md](docs/SIGNPATH_APPLY.md) | SignPath Foundation checklist |
-| [docs/RELEASE_NOTES_v0.3.1.md](docs/RELEASE_NOTES_v0.3.1.md) | v0.3.1 release notes (previous Latest) |
 
 ## Troubleshooting
 
-**Full guide:** [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — launcher black screen, game crash on **Start game**, recommended settings, Direct IP firewall/port forwarding, and logs.
+See **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** for the full guide (black launcher, crash on **Start game**, recommended settings, Direct IP, logs). Release history: [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases).
 
-| Problem | What to try |
-|---------|-------------|
-| Blank launcher / WebView2 error | Install [WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703); keep `launcher-ui/` next to `Launcher.exe` |
-| "Version mismatch" on join | Same zip on both PCs; use **Check for updates** |
-| Empty lobby / wrong opponent | Same **`SF4-XXXX`** from host's **current** screen |
-| Black screen after portraits | Both on **v0.3.6**; log should show `UDP relay registration OK` and `GGPO: Running` |
-| UDP works once, fails on rematch | Update to **v0.3.6** on **both** PCs (relay slot rebind + endpoint persistence) |
-| Join fails before game starts | Host must click **Start game** first |
-| Stuck on connect / wrong transport | Both on **v0.3.6**; broker `https://74-208-200-95.nip.io`; Network panel shows **GGPO path** (UDP relay vs legacy tunnel) |
-
-**Logs:** `%APPDATA%\sf4e\logs\sf4e.log` - **Console:** `Launcher.exe --console` - **Build info:** `BUILD_INFO.txt`
-
-**Report bugs:** include the Git line from `BUILD_INFO.txt`, both players' `sf4e.log` if possible, and steps to reproduce. See [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md).
+**Report bugs:** Git line from `BUILD_INFO.txt`, both players' `sf4e.log`, steps to reproduce — [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md).
 
 ## Configuration
 
@@ -237,7 +221,7 @@ This repository builds **SF4 Netplay Launcher** - an **unofficial port** of upst
 
 ```powershell
 powershell -NoProfile -File scripts/release-team-build.ps1 -VersionLabel 0.3.6
-gh release create v0.3.6 dist/sf4-netplay-launcher-*-0.3.6.zip --title "SF4 Netplay Launcher v0.3.6" --notes-file docs/RELEASE_NOTES_v0.3.6.md
+gh release create v0.3.8 dist/sf4-netplay-launcher-*-0.3.8.zip --title "SF4 Netplay Launcher v0.3.8" --notes-file docs/RELEASE_NOTES_v0.3.8.md
 ```
 
 See [docs/RELEASE.md](docs/RELEASE.md).

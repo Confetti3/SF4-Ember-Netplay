@@ -2,11 +2,11 @@
 
 VPS relay rollback netplay for **Ultra Street Fighter IV** (Steam) with a modern **SF4 Netplay Launcher** UI.
 
-> **Experimental unofficial port** â€” not production-ready software. Friends-only testing; expect bugs and failed sessions.
+> **Experimental unofficial port** â?? not production-ready software. Friends-only testing; expect bugs and failed sessions.
 
 ## What's new
 
-- **Simple mode** (default): VPS relay room codes **`SF4-XXXX`** â€” no port forward on the host PC
+- **Simple mode** (default): VPS relay room codes **`SF4-XXXX`** â?? no port forward on the host PC
 - Session relay runs on the broker VPS; host and joiner connect outbound
 - **Advanced mode:** Direct IP, UPnP, custom broker URL (unchanged from v0.2.6 routing)
 - In-app updater: **Check for updates** on the launcher home screen
@@ -31,20 +31,20 @@ This is an **unofficial port** of [sf4e](https://codeberg.org/adanducci/sf4e) by
 
 **Netplay:** Both players must use the **same release zip** (`BUILD_INFO.txt` Git line must match).
 
-(See also [docs/RELEASE_PREREQUISITES.md](RELEASE_PREREQUISITES.md) in the repo.)
+(See also [docs/TROUBLESHOOTING.md](TROUBLESHOOTING.md) for install and crash fixes.)
 
 ## Install
 
 1. Download the **team zip** asset below (not "Source code" only).
 2. Extract the **entire** zip to one folder (keep all DLLs and `launcher-ui/` next to `Launcher.exe`).
 3. Run **`preflight.cmd`**
-4. Run **`Launcher.exe`** â€” **Host**, **Join**, or **Offline**
+4. Run **`Launcher.exe`** â?? **Host**, **Join**, or **Offline**
 
 ## Quick start (Simple VPS relay)
 
 | Host | Joiner |
 |------|--------|
-| **Create relay room** â†’ copy **`SF4-XXXX`** | Paste code from host |
+| **Create relay room** â?? copy **`SF4-XXXX`** | Paste code from host |
 | **Start game** | Wait for host **Connected**, then **Start game** |
 | No port forward on host PC | No port forward needed |
 | Both **Ready** in-game | **Same release zip** on both PCs |
@@ -64,7 +64,7 @@ set SF4E_BROKER_URL=http://your-broker:8787
 See [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) for the full list. Summary:
 
 - Both players must use the **same release zip** (`Sidecar.dll` must match)
-- **Find match** and **Open rooms** are experimental â€” use **Host + room code** for friends testing
+- **Find match** and **Open rooms** are experimental â?? use **Host + room code** for friends testing
 - VPS relay supports up to **20** concurrent rooms on the default broker; idle rooms expire after ~15 minutes
 - Advanced Direct IP still requires host **TCP+UDP** port forward on the session port
 - Rematch, disconnect recovery, and spectator mode need more experimental testing coverage
@@ -72,7 +72,7 @@ See [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) for the full 
 
 ## Troubleshooting
 
-[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) — black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.
+[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) ? black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.
 
 ## Support
 

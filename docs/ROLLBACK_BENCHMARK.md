@@ -112,21 +112,14 @@ The bottom bar does not show transport mode; log transport from the dev overlay 
 
 
 
-**Scenarios** (same as [NETPLAY_TRANSPORT_BENCHMARK.md](NETPLAY_TRANSPORT_BENCHMARK.md)):
+**Scenarios** (transport benchmark IDs):
 
-
-
-| ID | Setup |
-
-|----|--------|
-
-| D | Simple VPS, broker `auto` (production path) — default for `analyze --scenario D` |
-
-| C | Force UDP relay (if testing env allows) |
-
-| B | Legacy tunnel only (comparison) |
-
-| A | LAN direct (optional) |
+| ID | Setup | Expected transport |
+|----|--------|-------------------|
+| D | Simple VPS, broker `auto` (production path) — default for `analyze --scenario D` | Best available (UDP relay when enabled) |
+| C | Force UDP relay (`SF4E_GGPO_TRANSPORT=udp`) | UDP GGPO relay |
+| B | Legacy tunnel only (`SF4E_GGPO_TRANSPORT=legacy`) | Session tunnel |
+| A | LAN direct IP, relay off (optional) | Direct GGPO |
 
 
 

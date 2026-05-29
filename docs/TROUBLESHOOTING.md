@@ -2,7 +2,7 @@
 
 > **Experimental unofficial port** — not production-ready. Use this guide if the launcher shows a black screen, the game crashes right away, or netplay will not connect.
 
-For a short player guide see [USER_NETPLAY.md](USER_NETPLAY.md). For relay room codes see [CASUAL_NETPLAY.md](CASUAL_NETPLAY.md).
+For a short player guide see [USER_NETPLAY.md](USER_NETPLAY.md).
 
 ---
 

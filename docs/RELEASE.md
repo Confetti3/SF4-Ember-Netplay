@@ -28,8 +28,10 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 
 2. **Create GitHub Release**
 
+   Copy `docs/RELEASE_NOTES_TEMPLATE.md` to `docs/RELEASE_NOTES_v{version}.md`, edit for the tag, then publish. Older release notes stay on [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases) only — do not keep every version file on `main`.
+
    ```powershell
-   gh release create v0.2.0 dist/sf4-netplay-launcher-*.zip --title "SF4 Netplay Launcher v0.2.0" --notes-file docs/RELEASE_NOTES_TEMPLATE.md
+   gh release create v0.3.8 dist/sf4-netplay-launcher-*.zip --title "SF4 Netplay Launcher v0.3.8" --notes-file docs/RELEASE_NOTES_v0.3.8.md
    ```
 
 3. **Share with testers**

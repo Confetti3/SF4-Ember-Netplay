@@ -35,7 +35,7 @@ Signed releases show a verified publisher and build SmartScreen/Defender trust o
 | **Networking** | Online play | Extra scrutiny |
 | **No signature (yet)** | Indie OSS | Low reputation score |
 
-The injection code in [`src/sidecar/sidecar.cxx`](../src/sidecar/sidecar.cxx) is unchanged since **v0.3.1**; newer versions added netplay transport and PE version metadata, not a different hook mechanism. See [`docs/DEFENDER_BINARY_COMPARISON.md`](DEFENDER_BINARY_COMPARISON.md).
+The injection code in [`src/sidecar/sidecar.cxx`](../src/sidecar/sidecar.cxx) is unchanged since **v0.3.1**; newer versions added netplay transport and PE version metadata, not a different hook mechanism. Different release builds can have different `Sidecar.dll` SHA256 hashes from rebuilds and VERSIONINFO — that does not mean the hook behavior changed.
 
 Source: [github.com/Confetti3/SF4-Netplay-Launcher](https://github.com/Confetti3/SF4-Netplay-Launcher)
 
