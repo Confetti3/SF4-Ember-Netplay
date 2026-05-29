@@ -4,9 +4,9 @@
 
 **SF4 Netplay Launcher** is a **third-party, experimental unofficial port** for _Ultra Street Fighter IV_ on Steam. It adds a WebView2 **Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e's rollback netplay. Netplay may fail, desync, or break between releases - use only with people who accept that risk.
 
-**Latest release:** [v0.3.7](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/v0.3.7) (test build; unsigned until SignPath signing)
+**Latest release:** [v0.3.8](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/v0.3.8) (preflight fix + troubleshooting guide in zip; unsigned until SignPath signing)
 
-**Download:** [GitHub Releases — Latest](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) — asset `sf4-netplay-launcher-*-v0.3.7.zip` (not "Source code" only).
+**Download:** [GitHub Releases — Latest](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) — asset `sf4-netplay-launcher-*-v0.3.8.zip` (not "Source code" only).
 
 ## How it works
 
@@ -193,7 +193,7 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 | [docs/RELEASE.md](docs/RELEASE.md) | Building and publishing releases |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Player troubleshooting — black launcher, crash on launch, settings, Direct IP |
 | [docs/WINDOWS_DEFENDER.md](docs/WINDOWS_DEFENDER.md) | Defender false positives (`Wacapew.A!ml`) |
-| [docs/RELEASE_NOTES_v0.3.7.md](docs/RELEASE_NOTES_v0.3.7.md) | Latest release notes (draft for next tag) |
+| [docs/RELEASE_NOTES_v0.3.8.md](docs/RELEASE_NOTES_v0.3.8.md) | Latest release notes (draft for next tag) |
 | [docs/SIGNPATH_APPLY.md](docs/SIGNPATH_APPLY.md) | SignPath Foundation checklist |
 
 ## Troubleshooting
