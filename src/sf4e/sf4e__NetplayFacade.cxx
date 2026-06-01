@@ -51,11 +51,28 @@ namespace sf4e {
 	static int s_framesSinceReady = 0;
 	static bool s_gameReady = false;
 	static bool s_padCaptured = false;
+	static bool s_configLogged = false;
 	static const int kMinFramesAfterReady = 180;
 	static const int kMinDwellBeforeAutoStart = 60;
 
 	void NetplayFacade::NotifyGameReady() {
 		s_gameReady = true;
+		if (!s_configLogged) {
+			spdlog::info(
+				"NetplayFacade payload ready version={} mode={} displayName={} inputDelay={} devOverlay={} sessionMode={} steamPeerPresent={}",
+				s_config.version,
+				s_config.mode,
+				s_config.displayName,
+				(int)s_config.inputDelay,
+				(int)s_config.devOverlay,
+				(int)s_config.useCentralSession,
+				s_config.peerSteamId64 != 0
+			);
+			if (s_config.mode == (int)NetplayMode::Idle && s_config.devOverlay != 0) {
+				spdlog::info("NetplayFacade offline test active");
+			}
+			s_configLogged = true;
+		}
 	}
 
 	static void CaptureBrokerGgpoEndpoint(const NetplayConfig& cfg) {
@@ -92,6 +109,7 @@ namespace sf4e {
 		s_autoPending = NetplayConfigIsActive(s_config);
 		s_autoStartDwellTicks = 0;
 		s_framesSinceReady = 0;
+		s_configLogged = false;
 		s_padCaptured = s_config.deviceIdx != 0xff && s_config.deviceType != 0xff;
 		if (s_autoPending) {
 			spdlog::info("NetplayFacade: auto netplay pending mode={}", s_config.mode);
@@ -145,6 +163,9 @@ namespace sf4e {
 	}
 
 	void NetplayFacade::NotifyGgpoSyncPhase(GgpoSyncPhase phase) {
+		if (s_ggpoSyncPhase != phase) {
+			spdlog::info("NetplayFacade GGPO phase {} -> {}", (int)s_ggpoSyncPhase, (int)phase);
+		}
 		s_ggpoSyncPhase = phase;
 	}
 
@@ -336,6 +357,35 @@ namespace sf4e {
 					s_config.sessionPort
 				);
 			}
+			else if (s_config.useCentralSession == 3) {
+				std::string identity = "steam-p2p";
+				bool serverOk = fUserApp::StartSteamHost(
+					s_config.steamVirtualPort > 0 ? s_config.steamVirtualPort : 7,
+					identity,
+					hash,
+					s_config.editionSelect != 0,
+					s_config.roundCount,
+					roundTime,
+					name,
+					deviceType,
+					deviceIdx,
+					s_config.inputDelay,
+					s_config.ggpoPort,
+					s_config.useRelay != 0
+				);
+				if (!serverOk) {
+					PushAlert("Could not start Steam P2P host session. Is Steam running?");
+					s_autoPending = false;
+					return;
+				}
+				Overlay::SetNetplayLobbyVisible(true);
+				s_autoPending = false;
+				spdlog::info(
+					"NetplayFacade: host Steam P2P virtualPort={} peer={}",
+					s_config.steamVirtualPort,
+					s_config.peerSteamId64
+				);
+			}
 			else if (s_config.useCentralSession == 1) {
 				snprintf(hostAddr, sizeof(hostAddr), "127.0.0.1:%u", s_config.sessionPort);
 				fUserApp::StartSession(
@@ -392,23 +442,54 @@ namespace sf4e {
 			}
 		}
 		else if (s_config.mode == (int)NetplayMode::Join) {
-			char joinAddr[128];
-			snprintf(joinAddr, sizeof(joinAddr), "%s:%u", s_config.sessionHost, s_config.sessionPort);
-
 			std::string hash = sf4e::sidecarHash;
-			fUserApp::StartSession(
-				joinAddr,
-				s_config.ggpoPort,
-				hash,
-				name,
-				deviceType,
-				deviceIdx,
-				s_config.inputDelay,
-				s_config.useRelay != 0
-			);
-			Overlay::SetNetplayLobbyVisible(true);
-			s_autoPending = false;
-			spdlog::info("NetplayFacade: join connected to {}", joinAddr);
+			if (s_config.useCentralSession == 3) {
+				if (s_config.peerSteamId64 == 0) {
+					PushAlert("Steam join is missing the host SteamID.");
+					s_autoPending = false;
+					return;
+				}
+				bool joinOk = fUserApp::StartSteamJoin(
+					s_config.peerSteamId64,
+					s_config.steamVirtualPort > 0 ? s_config.steamVirtualPort : 7,
+					hash,
+					name,
+					deviceType,
+					deviceIdx,
+					s_config.inputDelay,
+					s_config.ggpoPort,
+					s_config.useRelay != 0
+				);
+				if (!joinOk) {
+					PushAlert("Could not connect Steam P2P session to host.");
+					s_autoPending = false;
+					return;
+				}
+				Overlay::SetNetplayLobbyVisible(true);
+				s_autoPending = false;
+				spdlog::info(
+					"NetplayFacade: join Steam P2P host={} virtualPort={}",
+					s_config.peerSteamId64,
+					s_config.steamVirtualPort
+				);
+			}
+			else {
+				char joinAddr[128];
+				snprintf(joinAddr, sizeof(joinAddr), "%s:%u", s_config.sessionHost, s_config.sessionPort);
+				fUserApp::StartSession(
+					joinAddr,
+					s_config.ggpoPort,
+					hash,
+					name,
+					deviceType,
+					deviceIdx,
+					s_config.inputDelay,
+					s_config.useRelay != 0
+				);
+				Overlay::SetNetplayLobbyVisible(true);
+				s_autoPending = false;
+				spdlog::info("NetplayFacade: join connected to {}", joinAddr);
+			}
 		}
 	}
 

@@ -41,6 +41,13 @@
       "name": "valvefilevdf",
       "version>=": "1.0.0#1"
     },
+    {
+      "name": "qtbase",
+      "default-features": false,
+      "features": [
+        "widgets"
+      ]
+    },
     "webview2",
     "wil"
   ],

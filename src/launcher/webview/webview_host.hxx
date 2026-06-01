@@ -6,7 +6,7 @@
 
 
 
-#include "netplay_launch_controller.hxx"
+#include "netplay/netplay_launch_controller.hxx"
 
 
 

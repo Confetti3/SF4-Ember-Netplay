@@ -25,13 +25,17 @@
 
 #include "netplay_room_code.hxx"
 
-#include "relay_host_spawn.hxx"
+#include "relay/relay_host_spawn.hxx"
 
 #include "netplay_persist.hxx"
 
 #include "room_broker_client.hxx"
 
-#include "github_release_client.hxx"
+#include "update/github_release_client.hxx"
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+#include "../steam_experiment/steam_p2p_payload.hxx"
+#include "steam/steam_p2p_launcher.hxx"
+#endif
 
 #include <spdlog/spdlog.h>
 
@@ -96,11 +100,33 @@ namespace launcher {
 
 	static bool RequiresProtocolVersion(const std::string& type) {
 		return type == "start"
+			|| type == "offlineStart"
 			|| type == "applyUpdate"
 			|| type == "saveSettings"
 			|| type == "openUrl"
 			|| type == "createRelayRoom"
-			|| type == "relayHeartbeat";
+			|| type == "relayHeartbeat"
+			|| type == "steamStatus"
+			|| type == "steamRefreshFriends"
+			|| type == "steamSendInvite"
+			|| type == "steamPollMessages"
+			|| type == "steamListen"
+			|| type == "steamConnect"
+			|| type == "steamClose"
+			|| type == "steamBuildInfo"
+			|| type == "steamPrepareHost"
+			|| type == "steamPrepareJoin"
+			|| type == "steamStart";
+	}
+
+	static nlohmann::json SteamExperimentUnavailable() {
+		nlohmann::json r;
+		r["v"] = kProtocolVersion;
+		r["type"] = "steamStatus";
+		r["steamExperiment"] = false;
+		r["initialized"] = false;
+		r["lastError"] = "Launcher was not built with SF4E_ENABLE_STEAMWORKS_EXPERIMENT.";
+		return r;
 	}
 
 	static const char* DefaultConnectMethodString(uint8_t method) {
@@ -353,7 +379,13 @@ namespace launcher {
 
 			{ "autoNat", true },
 
-			{ "relayRoom", true }
+			{ "relayRoom", true },
+
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+			{ "steamP2pExperiment", true }
+#else
+			{ "steamP2pExperiment", false }
+#endif
 
 		};
 
@@ -367,7 +399,194 @@ namespace launcher {
 
 	}
 
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
 
+	bool NetplayLaunchController::GetLocalSteamBuildInfo(
+		char* sidecarHash,
+		int sidecarHashLen,
+		char* buildGit,
+		int buildGitLen
+	) const {
+		if (!sidecarHash || sidecarHashLen <= 0 || !buildGit || buildGitLen <= 0) {
+			return false;
+		}
+		if (!HashSidecarDllNextToLauncher(sidecarHash, sidecarHashLen)) {
+			return false;
+		}
+		ReadInstalledVersion(buildGit, buildGitLen);
+		if (!buildGit[0]) {
+			strncpy_s(buildGit, buildGitLen, "dev-unknown", _TRUNCATE);
+		}
+		return true;
+	}
+
+	void NetplayLaunchController::GenerateSteamSessionToken(char* outToken, int outTokenLen) const {
+		if (!outToken || outTokenLen <= 0) {
+			return;
+		}
+		snprintf(
+			outToken,
+			(size_t)outTokenLen,
+			"sf4e-%llx-%08x",
+			(unsigned long long)GetTickCount64(),
+			(unsigned)GetCurrentProcessId()
+		);
+	}
+
+	nlohmann::json NetplayLaunchController::MakeSteamBuildInfoJson() const {
+		nlohmann::json j = steam_p2p::BuildInfoJson();
+		j["type"] = "steamBuildInfo";
+		char sidecarHash[65] = { 0 };
+		char buildGit[64] = { 0 };
+		if (GetLocalSteamBuildInfo(sidecarHash, sizeof(sidecarHash), buildGit, sizeof(buildGit))) {
+			j["sidecarHash"] = sidecarHash;
+			j["buildGit"] = buildGit;
+		}
+		else {
+			j["ok"] = false;
+			j["message"] = "Could not read Sidecar.dll next to Launcher.exe.";
+		}
+		return j;
+	}
+
+	nlohmann::json NetplayLaunchController::ConfigureSteamStart(int mode, const nlohmann::json& msg) {
+		char localSidecar[65] = { 0 };
+		char localBuild[64] = { 0 };
+		if (!GetLocalSteamBuildInfo(localSidecar, sizeof(localSidecar), localBuild, sizeof(localBuild))) {
+			nlohmann::json err;
+			err["v"] = kProtocolVersion;
+			err["type"] = "error";
+			err["message"] = "Could not read Sidecar.dll next to Launcher.exe. Reinstall the game package.";
+			return err;
+		}
+
+		const int virtualPort = msg.value("virtualPort", m_steamPendingVirtualPort > 0 ? m_steamPendingVirtualPort : 7);
+		if (virtualPort < 0 || virtualPort >= 1000) {
+			nlohmann::json err;
+			err["v"] = kProtocolVersion;
+			err["type"] = "error";
+			err["message"] = "Virtual port must be between 0 and 999.";
+			return err;
+		}
+
+		unsigned long long peerSteamId = 0;
+		try {
+			peerSteamId = std::stoull(msg.value("peerSteamId", "0"));
+		}
+		catch (...) {
+			peerSteamId = 0;
+		}
+
+		std::string sessionToken;
+		if (mode == (int)NetplayMode::Join && m_steamPendingSessionToken[0]) {
+			sessionToken = m_steamPendingSessionToken;
+		}
+		if (mode == (int)NetplayMode::Host && m_steamHostSessionToken[0]) {
+			sessionToken = m_steamHostSessionToken;
+		}
+
+		if (sessionToken.size() < 8) {
+			nlohmann::json err;
+			err["v"] = kProtocolVersion;
+			err["type"] = "error";
+			err["message"] = "Missing session token. Host must send an invite first.";
+			return err;
+		}
+
+		if (mode == (int)NetplayMode::Join) {
+			if (!m_steamHasPendingInvite) {
+				nlohmann::json err;
+				err["v"] = kProtocolVersion;
+				err["type"] = "error";
+				err["message"] = "No Steam invite received yet. Wait for the host invite.";
+				return err;
+			}
+			if (sessionToken != m_steamPendingSessionToken) {
+				nlohmann::json err;
+				err["v"] = kProtocolVersion;
+				err["type"] = "error";
+				err["message"] = "Invite session token does not match. Ask the host to send a new invite.";
+				return err;
+			}
+			if (peerSteamId == 0) {
+				peerSteamId = m_steamPendingPeerId;
+			}
+			if (peerSteamId != m_steamPendingPeerId) {
+				nlohmann::json err;
+				err["v"] = kProtocolVersion;
+				err["type"] = "error";
+				err["message"] = "Peer SteamID does not match the received invite.";
+				return err;
+			}
+
+			sf4e::steam_experiment::SteamInvitePayload invite;
+			invite.version = sf4e::steam_experiment::STEAM_P2P_INVITE_VERSION;
+			invite.senderSteamId = m_steamPendingPeerId;
+			invite.virtualPort = m_steamPendingVirtualPort;
+			invite.role = "host";
+			invite.sidecarHash = m_steamPendingSidecarHash;
+			invite.buildGit = m_steamPendingBuildGit;
+			invite.sessionToken = m_steamPendingSessionToken;
+			std::string inviteErr;
+			if (!sf4e::steam_experiment::CompareInviteToLocalBuild(invite, localSidecar, localBuild, inviteErr)) {
+				nlohmann::json err;
+				err["v"] = kProtocolVersion;
+				err["type"] = "error";
+				err["message"] = "Invite rejected: " + inviteErr + ". Both players need the same build.";
+				return err;
+			}
+		}
+		else if (mode == (int)NetplayMode::Host) {
+			if (peerSteamId == 0) {
+				nlohmann::json err;
+				err["v"] = kProtocolVersion;
+				err["type"] = "error";
+				err["message"] = "Select a friend or enter the peer SteamID64 before starting.";
+				return err;
+			}
+		}
+
+		nlohmann::json status = steam_p2p::BuildStatusJson();
+		if (!msg.value("launchWithoutConnected", false) && !status.value("connected", false)) {
+			nlohmann::json err;
+			err["v"] = kProtocolVersion;
+			err["type"] = "error";
+			err["message"] =
+				"Steam P2P is not connected yet. Host: Send invite and wait for Connected. Join: Accept invite and connect first.";
+			return err;
+		}
+
+		m_outConfig.useCentralSession = 3;
+		m_outConfig.peerSteamId64 = peerSteamId;
+		m_outConfig.steamVirtualPort = (uint8_t)virtualPort;
+		strncpy_s(m_outConfig.steamSessionToken, sessionToken.c_str(), _TRUNCATE);
+		m_outConfig.ggpoTransport = 0;
+		m_outConfig.playerRole = mode == (int)NetplayMode::Host ? 1 : 2;
+		m_outConfig.useRelay = 1;
+		m_outConfig.relayRoomCode[0] = '\0';
+		m_outConfig.ggpoRemoteHost[0] = '\0';
+		m_outConfig.ggpoRemotePort = 0;
+		m_outConfig.matchId[0] = '\0';
+		m_outConfig.ggpoRoomToken[0] = '\0';
+		m_outConfig.sessionHost[0] = '\0';
+		m_outConfig.sessionPort = m_settings.sessionPort;
+
+		if (mode == (int)NetplayMode::Host) {
+			strncpy_s(m_outConfig.roomKey, "1", _TRUNCATE);
+		}
+
+		steam_p2p::CloseJson();
+		spdlog::info(
+			"Steam start: mode={} peer={} virtualPort={} tokenPresent={}",
+			mode,
+			peerSteamId,
+			virtualPort,
+			!sessionToken.empty()
+		);
+		return nlohmann::json();
+	}
+
+#endif
 
 	nlohmann::json NetplayLaunchController::HandleWebMessage(const nlohmann::json& msg) {
 
@@ -390,7 +609,284 @@ namespace launcher {
 
 		}
 
+		if (type == "steamStatus") {
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+			return steam_p2p::BuildStatusJson();
+#else
+			return SteamExperimentUnavailable();
+#endif
+		}
 
+		if (type == "steamRefreshFriends") {
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+			return steam_p2p::RefreshFriendsJson(msg.value("onlySf4", false));
+#else
+			return SteamExperimentUnavailable();
+#endif
+		}
+
+		if (type == "steamSendInvite") {
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+			unsigned long long target = 0;
+			try {
+				target = std::stoull(msg.value("targetSteamId", "0"));
+			}
+			catch (...) {
+				target = 0;
+			}
+			return steam_p2p::SendInviteJson(
+				target,
+				msg.value("virtualPort", 7),
+				msg.value("sidecarHash", "manual-test").c_str(),
+				msg.value("buildGit", "manual-test").c_str(),
+				msg.value("sessionToken", "manual-test-token").c_str()
+			);
+#else
+			return SteamExperimentUnavailable();
+#endif
+		}
+
+		if (type == "steamPollMessages") {
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+			nlohmann::json poll = steam_p2p::PollMessagesJson();
+			if (poll.contains("messages") && poll["messages"].is_array()) {
+				for (auto& item : poll["messages"]) {
+					if (!item.contains("invite") || !item["invite"].is_object()) {
+						continue;
+					}
+					auto& invite = item["invite"];
+					std::string token = invite.value("sessionToken", "");
+					const std::string sender = invite.value("senderSteamId", "0");
+					unsigned long long senderId = 0;
+					try {
+						senderId = std::stoull(sender);
+					}
+					catch (...) {
+						senderId = 0;
+					}
+					if (senderId != 0 && token.size() >= 8) {
+						m_steamPendingPeerId = senderId;
+						m_steamPendingVirtualPort = invite.value("virtualPort", 7);
+						strncpy_s(m_steamPendingSessionToken, token.c_str(), _TRUNCATE);
+						strncpy_s(m_steamPendingSidecarHash, invite.value("sidecarHash", "").c_str(), _TRUNCATE);
+						strncpy_s(m_steamPendingBuildGit, invite.value("buildGit", "").c_str(), _TRUNCATE);
+					}
+					invite.erase("sessionToken");
+					invite["sessionTokenPresent"] = token.size() >= 8;
+				}
+			}
+			return poll;
+#else
+			return SteamExperimentUnavailable();
+#endif
+		}
+
+		if (type == "steamListen") {
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+			return steam_p2p::ListenJson(msg.value("virtualPort", 7));
+#else
+			return SteamExperimentUnavailable();
+#endif
+		}
+
+		if (type == "steamConnect") {
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+			unsigned long long target = 0;
+			try {
+				target = std::stoull(msg.value("targetSteamId", "0"));
+			}
+			catch (...) {
+				target = 0;
+			}
+			return steam_p2p::ConnectJson(target, msg.value("virtualPort", 7));
+#else
+			return SteamExperimentUnavailable();
+#endif
+		}
+
+		if (type == "steamClose") {
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+			return steam_p2p::CloseJson();
+#else
+			return SteamExperimentUnavailable();
+#endif
+		}
+
+		if (type == "steamBuildInfo") {
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+			return MakeSteamBuildInfoJson();
+#else
+			return SteamExperimentUnavailable();
+#endif
+		}
+
+		if (type == "steamPrepareHost") {
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+			unsigned long long target = 0;
+			try {
+				target = std::stoull(msg.value("targetSteamId", "0"));
+			}
+			catch (...) {
+				target = 0;
+			}
+			if (target == 0) {
+				nlohmann::json err;
+				err["v"] = kProtocolVersion;
+				err["type"] = "error";
+				err["message"] = "Select a friend before sending an invite.";
+				return err;
+			}
+			char sidecarHash[65] = { 0 };
+			char buildGit[64] = { 0 };
+			if (!GetLocalSteamBuildInfo(sidecarHash, sizeof(sidecarHash), buildGit, sizeof(buildGit))) {
+				nlohmann::json err;
+				err["v"] = kProtocolVersion;
+				err["type"] = "error";
+				err["message"] = "Could not read Sidecar.dll next to Launcher.exe.";
+				return err;
+			}
+			char generated[NETPLAY_STEAM_SESSION_TOKEN_LEN] = { 0 };
+			GenerateSteamSessionToken(generated, sizeof(generated));
+			std::string sessionToken = generated;
+			strncpy_s(m_steamHostSessionToken, sessionToken.c_str(), _TRUNCATE);
+			const int virtualPort = msg.value("virtualPort", 7);
+			m_steamPendingVirtualPort = virtualPort;
+			spdlog::info(
+				"Controller steamPrepareHost peer={} virtualPort={} sidecarHashPresent={} buildGit={}",
+				target,
+				virtualPort,
+				sidecarHash[0] != 0,
+				buildGit
+			);
+			return steam_p2p::PrepareHostJson(
+				target,
+				virtualPort,
+				sidecarHash,
+				buildGit,
+				sessionToken.c_str()
+			);
+#else
+			return SteamExperimentUnavailable();
+#endif
+		}
+
+		if (type == "steamPrepareJoin") {
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+			sf4e::steam_experiment::SteamInvitePayload invite;
+			invite.version = msg.value("inviteVersion", sf4e::steam_experiment::STEAM_P2P_INVITE_VERSION);
+			try {
+				invite.senderSteamId = std::stoull(msg.value("senderSteamId", "0"));
+			}
+			catch (...) {
+				invite.senderSteamId = 0;
+			}
+			invite.virtualPort = msg.value("virtualPort", 7);
+			invite.role = msg.value("role", "host");
+			invite.sidecarHash = msg.value("sidecarHash", "");
+			invite.buildGit = msg.value("buildGit", "");
+			invite.sessionToken = msg.value("sessionToken", "");
+			if (invite.sessionToken.empty()
+				&& invite.senderSteamId == m_steamPendingPeerId
+				&& invite.virtualPort == m_steamPendingVirtualPort
+				&& invite.sidecarHash == m_steamPendingSidecarHash
+				&& invite.buildGit == m_steamPendingBuildGit) {
+				invite.sessionToken = m_steamPendingSessionToken;
+			}
+			std::string err;
+			if (!sf4e::steam_experiment::ValidateInvite(invite, err)) {
+				nlohmann::json j;
+				j["v"] = kProtocolVersion;
+				j["type"] = "steamPrepareJoin";
+				j["ok"] = false;
+				j["message"] = err;
+				return j;
+			}
+			char localSidecar[65] = { 0 };
+			char localBuild[64] = { 0 };
+			if (!GetLocalSteamBuildInfo(localSidecar, sizeof(localSidecar), localBuild, sizeof(localBuild))) {
+				nlohmann::json j;
+				j["v"] = kProtocolVersion;
+				j["type"] = "steamPrepareJoin";
+				j["ok"] = false;
+				j["message"] = "Could not read Sidecar.dll next to Launcher.exe.";
+				return j;
+			}
+			if (!sf4e::steam_experiment::CompareInviteToLocalBuild(invite, localSidecar, localBuild, err)) {
+				nlohmann::json j;
+				j["v"] = kProtocolVersion;
+				j["type"] = "steamPrepareJoin";
+				j["ok"] = false;
+				j["message"] = "Invite rejected: " + err;
+				return j;
+			}
+			m_steamHasPendingInvite = true;
+			m_steamPendingPeerId = invite.senderSteamId;
+			m_steamPendingVirtualPort = invite.virtualPort;
+			strncpy_s(m_steamPendingSessionToken, invite.sessionToken.c_str(), _TRUNCATE);
+			strncpy_s(m_steamPendingSidecarHash, invite.sidecarHash.c_str(), _TRUNCATE);
+			strncpy_s(m_steamPendingBuildGit, invite.buildGit.c_str(), _TRUNCATE);
+			spdlog::info(
+				"Controller steamPrepareJoin peer={} virtualPort={} buildGit={} inviteOk=1",
+				m_steamPendingPeerId,
+				m_steamPendingVirtualPort,
+				m_steamPendingBuildGit
+			);
+			nlohmann::json connect = steam_p2p::ConnectJson(invite.senderSteamId, invite.virtualPort);
+			connect["type"] = "steamPrepareJoin";
+			connect["inviteOk"] = true;
+			return connect;
+#else
+			return SteamExperimentUnavailable();
+#endif
+		}
+
+		if (type == "steamStart") {
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+			const std::string modeStr = msg.value("mode", "host");
+			int mode = (int)NetplayMode::Idle;
+			if (modeStr == "host") {
+				mode = (int)NetplayMode::Host;
+			}
+			else if (modeStr == "join") {
+				mode = (int)NetplayMode::Join;
+			}
+			std::string name = msg.value("displayName", m_settings.displayName);
+			strncpy_s(m_settings.displayName, name.c_str(), _TRUNCATE);
+			int delay = msg.value("inputDelay", (int)m_settings.inputDelay);
+			if (delay < 1) {
+				delay = 1;
+			}
+			m_settings.inputDelay = (uint8_t)delay;
+			memset(&m_outConfig, 0, sizeof(m_outConfig));
+			m_outConfig.version = SF4E_NETPLAY_CONFIG_VERSION;
+			m_outConfig.mode = mode;
+			strncpy_s(m_outConfig.displayName, m_settings.displayName, _TRUNCATE);
+			m_outConfig.inputDelay = m_settings.inputDelay;
+			m_outConfig.sessionPort = m_settings.sessionPort;
+			m_outConfig.ggpoPort = m_settings.ggpoPort;
+			m_outConfig.editionSelect = m_settings.editionSelect;
+			m_outConfig.roundCount = m_settings.roundCount;
+			m_outConfig.roundTimeIntegral = m_settings.roundTimeIntegral;
+			m_outConfig.deviceIdx = 0xff;
+			m_outConfig.deviceType = 0xff;
+			spdlog::info(
+				"Controller steamStart mode={} inputDelay={} displayName={} virtualPort={}",
+				mode,
+				(int)m_outConfig.inputDelay,
+				m_outConfig.displayName,
+				msg.value("virtualPort", 7)
+			);
+			nlohmann::json steamResult = ConfigureSteamStart(mode, msg);
+			if (!steamResult.empty()) {
+				return steamResult;
+			}
+			m_finished = true;
+			m_cancelled = false;
+			return nlohmann::json();
+#else
+			return SteamExperimentUnavailable();
+#endif
+		}
 
 		if (type == "fetchPublicIp") {
 
@@ -857,6 +1353,82 @@ namespace launcher {
 
 
 
+		if (type == "offlineStart") {
+
+			std::string name = msg.value("displayName", m_settings.displayName);
+
+			if (name.empty()) {
+
+				name = "Offline Tester";
+
+			}
+
+			strncpy_s(m_settings.displayName, name.c_str(), _TRUNCATE);
+
+
+
+			int delay = msg.value("inputDelay", (int)m_settings.inputDelay);
+
+			if (delay < 1) {
+
+				delay = 1;
+
+			}
+
+			else if (delay > 10) {
+
+				delay = 10;
+
+			}
+
+			m_settings.inputDelay = (uint8_t)delay;
+
+
+
+			memset(&m_outConfig, 0, sizeof(m_outConfig));
+
+			m_outConfig.version = SF4E_NETPLAY_CONFIG_VERSION;
+
+			m_outConfig.mode = (int)NetplayMode::Idle;
+
+			strncpy_s(m_outConfig.displayName, m_settings.displayName, _TRUNCATE);
+
+			m_outConfig.inputDelay = m_settings.inputDelay;
+
+			m_outConfig.sessionPort = m_settings.sessionPort;
+
+			m_outConfig.ggpoPort = m_settings.ggpoPort;
+
+			m_outConfig.editionSelect = m_settings.editionSelect;
+
+			m_outConfig.roundCount = m_settings.roundCount;
+
+			m_outConfig.roundTimeIntegral = m_settings.roundTimeIntegral;
+
+			m_outConfig.deviceIdx = 0xff;
+
+			m_outConfig.deviceType = 0xff;
+
+			m_outConfig.devOverlay = msg.value("devOverlay", true) ? 1 : 0;
+
+			spdlog::info(
+				"Controller offlineStart displayName={} inputDelay={} devOverlay={} configVersion={}",
+				m_outConfig.displayName,
+				(int)m_outConfig.inputDelay,
+				(int)m_outConfig.devOverlay,
+				m_outConfig.version
+			);
+
+			m_finished = true;
+
+			m_cancelled = false;
+
+			return nlohmann::json();
+
+		}
+
+
+
 		if (type == "start") {
 
 			const std::string modeStr = msg.value("mode", "offline");
@@ -945,6 +1517,26 @@ namespace launcher {
 
 			const std::string connectMethod = msg.value("connectMethod",
 				DefaultConnectMethodString(m_settings.defaultConnectMethod));
+			spdlog::info(
+				"Controller start mode={} connectMethod={} inputDelay={} sessionPort={} ggpoPort={}",
+				mode,
+				connectMethod,
+				(int)m_outConfig.inputDelay,
+				m_outConfig.sessionPort,
+				m_outConfig.ggpoPort
+			);
+
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+			if (connectMethod == "steam") {
+				nlohmann::json steamResult = ConfigureSteamStart(mode, msg);
+				if (!steamResult.empty()) {
+					return steamResult;
+				}
+				m_finished = true;
+				m_cancelled = false;
+				return nlohmann::json();
+			}
+#endif
 
 			if (mode == (int)NetplayMode::Host) {
 

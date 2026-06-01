@@ -5,27 +5,70 @@
 #include <windows.h>
 #include <pathcch.h>
 #include <shellapi.h>
+#include <shlobj.h>
 #include <shlwapi.h>
 #include <strsafe.h>
 #include <winuser.h>
 
+#include <memory>
 #include <string>
+#include <vector>
 
 #include <CLI/CLI.hpp>
 #include <detours/detours.h>
+#include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/spdlog.h>
 #include <vdf_parser.hpp>
 
 #include "../sf4e/sf4e.hxx"
 #include "../sidecar/sidecar.hxx"
 #include "../common/sf4e__NetplayConfig.hxx"
-#include "netplay_persist.hxx"
-#include "netplay_wizard.hxx"
-#include "relay_host_spawn.hxx"
-#include "github_release_client.hxx"
+#include "../common/install_paths.hxx"
+#include "netplay/netplay_persist.hxx"
+#include "netplay/netplay_wizard.hxx"
+#include "netplay/netplay_launch_controller.hxx"
+#include "relay/relay_host_spawn.hxx"
+#include "update/github_release_client.hxx"
+#include "ipc/electron_ipc.hxx"
 
 LPCWCH szGameFilename = L"SSFIV.exe";
 LPCWCH szLibrarySuffix = L"steamapps\\common\\Super Street Fighter IV - Arcade Edition";
+
+void ConfigureLauncherLogging() {
+	PWSTR appData = NULL;
+	if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData) != S_OK) {
+		return;
+	}
+
+	wchar_t sf4eDir[MAX_PATH] = { 0 };
+	wchar_t logsDir[MAX_PATH] = { 0 };
+	wchar_t logPath[MAX_PATH] = { 0 };
+	if (SUCCEEDED(PathCchCombine(sf4eDir, MAX_PATH, appData, L"sf4e"))) {
+		CreateDirectoryW(sf4eDir, NULL);
+		if (SUCCEEDED(PathCchCombine(logsDir, MAX_PATH, sf4eDir, L"logs"))) {
+			CreateDirectoryW(logsDir, NULL);
+			if (SUCCEEDED(PathCchCombine(logPath, MAX_PATH, logsDir, L"launcher.log"))) {
+				try {
+					std::vector<spdlog::sink_ptr> sinks;
+					sinks.push_back(std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
+						logPath,
+						1048576 * 5,
+						10,
+						true
+					));
+					auto logger = std::make_shared<spdlog::logger>("sf4e-launcher", sinks.begin(), sinks.end());
+					spdlog::set_default_logger(logger);
+					spdlog::flush_on(spdlog::level::info);
+					spdlog::info("Launcher logging initialized");
+				}
+				catch (const spdlog::spdlog_ex&) {
+					// Logging should never block game startup.
+				}
+			}
+		}
+	}
+	CoTaskMemFree(appData);
+}
 
 int FindSF4ByEnvironmentVariable(
 	_Out_ LPWSTR szGameDirectory, _In_ int nGameDirSize,
@@ -159,7 +202,19 @@ void CreateAppIDFile(LPWSTR szGuiltyDirectory) {
 	wchar_t szAppIDPath[1024] = { 0 };
 	DWORD nBytesWritten = 0;
 
+	SetEnvironmentVariableA("SteamAppId", "45760");
+	SetEnvironmentVariableA("SteamGameId", "45760");
+
 	PathCombine(szAppIDPath, szGuiltyDirectory, L"steam_appid.txt");
+	if (PathFileExistsW(szAppIDPath)) {
+		return;
+	}
+
+	char allow[8] = { 0 };
+	if (GetEnvironmentVariableA("SF4E_ALLOW_STEAM_APPID_WRITE", allow, sizeof(allow)) == 0) {
+		spdlog::warn(L"Game steam_appid.txt missing at {}; runtime write disabled, relying on inherited SteamAppId/SteamGameId env", szAppIDPath);
+		return;
+	}
 
 	HANDLE hAppIDHandle = CreateFile(
 		szAppIDPath,
@@ -173,12 +228,16 @@ void CreateAppIDFile(LPWSTR szGuiltyDirectory) {
 
 
 	if (hAppIDHandle != INVALID_HANDLE_VALUE) {
-		// Didn't exist, auto-created the file.
+		// Dev fallback only. Tester packages rely on env vars and packaged app id files.
 		WriteFile(hAppIDHandle, "45760", 6, &nBytesWritten, NULL);
+		spdlog::info(L"Created game steam_appid.txt dev fallback at {}", szAppIDPath);
 		if (nBytesWritten != 6) {
-			// Error!
+			spdlog::warn(L"Could not fully write game steam_appid.txt at {}", szAppIDPath);
 		}
 		CloseHandle(hAppIDHandle);
+	}
+	else {
+		spdlog::warn(L"Could not create game steam_appid.txt dev fallback at {} (Win32 {})", szAppIDPath, GetLastError());
 	}
 }
 
@@ -196,6 +255,14 @@ HANDLE CreateSF4Process(
 	ZeroMemory(&si, sizeof(si));
 	ZeroMemory(&pi, sizeof(pi));
 	si.cb = sizeof(si);
+	spdlog::info(
+		L"CreateSF4Process start exe={} gameDir={} mode={} configVersion={} devOverlay={}",
+		szExePath,
+		szGameDirectory,
+		payload.netplay.mode,
+		payload.netplay.version,
+		(int)payload.netplay.devOverlay
+	);
 	HANDLE hSyncEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
 	if (hSyncEvent == NULL) {
 		spdlog::warn("CreateSF4Process: CreateEventW() could not create game sync handle, game may be unable to access Steam: err {}", GetLastError());
@@ -246,10 +313,14 @@ HANDLE CreateSF4Process(
 	}
 
 	ResumeThread(pi.hThread);
+	spdlog::info("CreateSF4Process resumed pid={}", pi.dwProcessId);
 	if (hSyncEvent != NULL) {
 		DWORD lockWaitResult = WaitForSingleObject(hSyncEvent, 60 * 1000);
 		if (lockWaitResult != 0) {
 			spdlog::warn("CreateSF4Process: WaitForSingleObject() could not wait for game sync handle, game may be unable to access Steam: err {}", GetLastError());
+		}
+		else {
+			spdlog::info("CreateSF4Process received Sidecar sync signal");
 		}
 		CloseHandle(hSyncEvent);
 	}
@@ -259,8 +330,8 @@ HANDLE CreateSF4Process(
 }
 
 int UpdatePath(const wchar_t* const szLauncherDirW, wchar_t* const szErrorStringW, const int nErrorStringLen) {
-	// Modify PATH to contain the launcher's directory. Child processes inherit
-	// the parent's environment, so SF4 will search the launcher folder for DLLs.
+	// Modify PATH to contain only the runtime DLL directory required by Sidecar.
+	// Child processes inherit this environment, so keep the prefix narrow.
 	// PATH can exceed 2K on developer machines; Windows allows up to 32767 chars.
 	const DWORD kMaxEnv = 32767;
 	DWORD nPathChars = GetEnvironmentVariableW(L"PATH", NULL, 0);
@@ -332,6 +403,8 @@ int WINAPI wWinMain(
 	_In_ LPWSTR lpCmdLine,
 	_In_ int nShowCmd
 ) {
+	sf4e::install::ConfigureDllSearch();
+	ConfigureLauncherLogging();
 	SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
 	HRESULT res = S_OK;
@@ -359,6 +432,10 @@ int WINAPI wWinMain(
 	app.add_flag("--dev-overlay", devOverlay, "Enable developer netplay overlay in-game.");
 	bool applyUpdateOnly = false;
 	app.add_flag("--apply-update", applyUpdateOnly, "Download and install the latest GitHub release, then exit.");
+	bool electronIpc = false;
+	app.add_flag("--electron-ipc", electronIpc, "JSON-lines UI bridge on stdin/stdout (automation / legacy Electron shell).");
+	bool headlessHandshake = false;
+	app.add_flag("--headless-test-handshake", headlessHandshake, "Same as --electron-ipc (CI smoke test).");
 	int argc;
 	LPWSTR* argv = CommandLineToArgvW(
 		// Intentionally do _not_ use lpCmdLine here. Windows removes
@@ -391,6 +468,16 @@ int WINAPI wWinMain(
 			break;
 		}
 	}
+	spdlog::info(
+		"Launcher args offline={} host={} join={} electronIpc={} headlessHandshake={} devOverlay={} applyUpdate={}",
+		offlineOnly,
+		hostOnly,
+		!joinRoomCode.empty(),
+		electronIpc,
+		headlessHandshake,
+		devOverlay,
+		applyUpdateOnly
+	);
 
 	// Compute the path to the sidecar DLL based on the launcher's directory.
 	// Ideally, this wouldn't have to convert from wide-char to multibyte in
@@ -399,10 +486,39 @@ int WINAPI wWinMain(
 	GetModuleFileNameW(NULL, szLauncherDirW, 1024);
 	PathCchRemoveFileSpec(szLauncherDirW, 1024);
 	WideCharToMultiByte(CP_ACP, 0, szLauncherDirW, 1024, szLauncherDirA, 1024, NULL, NULL);
-	PathCombineA(szSidecarDllPathA, szLauncherDirA, "Sidecar.dll");
+	{
+		wchar_t installRoot[MAX_PATH] = { 0 };
+		wchar_t dllRoot[MAX_PATH] = { 0 };
+		sf4e::install::GetInstallRoot(installRoot, MAX_PATH);
+		sf4e::install::GetPackageDllDirectory(dllRoot, MAX_PATH);
+		spdlog::info(L"Launcher paths exeDir={} installRoot={} dllRoot={}", szLauncherDirW, installRoot, dllRoot);
+	}
+	{
+		wchar_t sidecarPathW[1024] = { 0 };
+		if (!sf4e::install::ResolveInstallFile(L"Sidecar.dll", sidecarPathW, 1024)) {
+			PathCombineW(sidecarPathW, szLauncherDirW, L"Sidecar.dll");
+			PathCombineA(szSidecarDllPathA, szLauncherDirA, "Sidecar.dll");
+		} else {
+			WideCharToMultiByte(CP_ACP, 0, sidecarPathW, -1, szSidecarDllPathA, 1024, NULL, NULL);
+		}
+		spdlog::info(L"Launcher sidecar path {}", sidecarPathW);
+	}
 
-	if (!UpdatePath(szLauncherDirW, szErrorStringW, 4096)) {
-		return 1;
+	{
+		wchar_t pathForGame[MAX_PATH * 2] = { 0 };
+		if (sf4e::install::UsesDllSubdirectory()) {
+			wchar_t dllDir[MAX_PATH] = { 0 };
+			if (sf4e::install::GetPackageDllDirectory(dllDir, MAX_PATH)) {
+				if (FAILED(StringCchCopyW(pathForGame, MAX_PATH * 2, dllDir))) {
+					pathForGame[0] = 0;
+				}
+			}
+		}
+		const wchar_t* pathTarget = pathForGame[0] ? pathForGame : szLauncherDirW;
+		if (!UpdatePath(pathTarget, szErrorStringW, 4096)) {
+			return 1;
+		}
+		spdlog::info(L"Launcher updated child PATH prefix {}", pathTarget);
 	}
 
 	if (applyUpdateOnly) {
@@ -435,6 +551,7 @@ int WINAPI wWinMain(
 			L"sf4e", MB_OK | MB_ICONWARNING);
 		return 1;
 	}
+	spdlog::info(L"Launcher resolved game dir={} exe={}", szGameDirectory, szExePath);
 
 	sf4e::launcher::PersistedSettings settings;
 	sf4e::launcher::LoadPersistedSettings(settings);
@@ -443,7 +560,18 @@ int WINAPI wWinMain(
 	}
 
 	if (offlineOnly) {
+		payload.netplay.version = sf4e::SF4E_NETPLAY_CONFIG_VERSION;
 		payload.netplay.mode = (int)sf4e::NetplayMode::Idle;
+		strncpy_s(payload.netplay.displayName, settings.displayName, _TRUNCATE);
+		payload.netplay.inputDelay = settings.inputDelay;
+		payload.netplay.sessionPort = settings.sessionPort;
+		payload.netplay.ggpoPort = settings.ggpoPort;
+		payload.netplay.editionSelect = settings.editionSelect;
+		payload.netplay.roundCount = settings.roundCount;
+		payload.netplay.roundTimeIntegral = settings.roundTimeIntegral;
+		payload.netplay.deviceIdx = 0xff;
+		payload.netplay.deviceType = 0xff;
+		spdlog::info("Launcher selected CLI offline mode");
 	}
 	else if (hostOnly && joinRoomCode.empty()) {
 		if (!sf4e::launcher::ApplyNetplayConfigFromWizard(payload.netplay, settings, (int)sf4e::NetplayMode::Host, nullptr)) {
@@ -451,6 +579,7 @@ int WINAPI wWinMain(
 			return 1;
 		}
 		sf4e::launcher::SavePersistedSettings(settings);
+		spdlog::info("Launcher selected CLI host mode");
 	}
 	else if (!joinRoomCode.empty()) {
 		if (!sf4e::launcher::ApplyNetplayConfigFromWizard(
@@ -468,15 +597,32 @@ int WINAPI wWinMain(
 			return 1;
 		}
 		sf4e::launcher::SavePersistedSettings(settings);
+		spdlog::info("Launcher selected CLI join mode");
+	}
+	else if (electronIpc || headlessHandshake) {
+		sf4e::launcher::NetplayLaunchController controller(settings, payload.netplay);
+		spdlog::info("Launcher entering controller IPC mode");
+		if (!sf4e::launcher::RunElectronIpcBridge(controller)) {
+			return 0;
+		}
+		sf4e::launcher::SavePersistedSettings(settings);
+		spdlog::info("Launcher controller IPC completed mode={} devOverlay={}", payload.netplay.mode, (int)payload.netplay.devOverlay);
 	}
 	else {
+		spdlog::info("Launcher entering Qt/wizard UI mode");
 		if (!sf4e::launcher::RunNetplayWizard(NULL, payload.netplay, settings)) {
 			return 0;
 		}
 		sf4e::launcher::SavePersistedSettings(settings);
+		spdlog::info("Launcher UI completed mode={} devOverlay={}", payload.netplay.mode, (int)payload.netplay.devOverlay);
 	}
 
 	CreateAppIDFile(szGameDirectory);
+	spdlog::info("Launcher starting game with injected Sidecar mode={} inputDelay={} devOverlay={}",
+		payload.netplay.mode,
+		(int)payload.netplay.inputDelay,
+		(int)payload.netplay.devOverlay
+	);
 	HANDLE hGame = CreateSF4Process(payload, szGameDirectory, szExePath, nDlls, dlls);
 	if (sf4e::launcher::GetRelayHostPid() != 0) {
 		spdlog::info(

@@ -19,6 +19,7 @@
 #include "../session/sf4e__SessionClient.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 #include "../session/sf4e__SessionServer.hxx"
+#include "../session/sf4e__SteamP2pSession.hxx"
 
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__Game__Battle__System.hxx"
@@ -400,6 +401,7 @@ void fUserApp::Install() {
 
 void fUserApp::ShutdownNetplay(bool closeGgpo) {
     s_pendingMatchStart = false;
+    sf4e::SteamP2pSession::Shutdown();
     sf4e::NetplayFacade::ShutdownNetplay(closeGgpo);
 }
 
@@ -431,6 +433,73 @@ bool fUserApp::StartServer(uint16 hostPort, std::string& identity, std::string& 
     return true;
 }
 
+bool fUserApp::StartSteamHost(
+    int virtualPort,
+    std::string& identity,
+    std::string& sidecarHash,
+    bool editionSelect,
+    int roundCount,
+    Dimps::Math::FixedPoint roundTime,
+    std::string& name,
+    uint8_t deviceType,
+    uint8_t deviceIdx,
+    uint8_t delay,
+    uint16_t ggpoPort,
+    bool useRelay
+) {
+    server.reset(new SessionServer(identity, sidecarHash, editionSelect, roundCount, roundTime));
+    server->PrepareForCallbacks();
+    if (!sf4e::SteamP2pSession::HostBegin(server.get(), virtualPort)) {
+        server.reset();
+        return false;
+    }
+    netplay.reset(new Netplay(
+        clientCallbacks,
+        sidecarHash,
+        ggpoPort,
+        name,
+        deviceType,
+        deviceIdx,
+        delay
+    ));
+    netplay->client._useRelay = useRelay;
+    if (!sf4e::SteamP2pSession::ConnectHostLocalClient(&netplay->client)) {
+        sf4e::SteamP2pSession::Shutdown();
+        netplay.reset();
+        server.reset();
+        return false;
+    }
+    return true;
+}
+
+bool fUserApp::StartSteamJoin(
+    uint64_t peerSteamId64,
+    int virtualPort,
+    std::string& sidecarHash,
+    std::string& name,
+    uint8_t deviceType,
+    uint8_t deviceIdx,
+    uint8_t delay,
+    uint16_t ggpoPort,
+    bool useRelay
+) {
+    netplay.reset(new Netplay(
+        clientCallbacks,
+        sidecarHash,
+        ggpoPort,
+        name,
+        deviceType,
+        deviceIdx,
+        delay
+    ));
+    netplay->client._useRelay = useRelay;
+    if (!sf4e::SteamP2pSession::JoinBegin(&netplay->client, peerSteamId64, virtualPort)) {
+        netplay.reset();
+        return false;
+    }
+    return true;
+}
+
 void fUserApp::StartSession(char* joinAddr, uint16_t port, std::string& sidecarHash, std::string& name, uint8_t deviceType, uint8_t deviceIdx, uint8_t delay, bool useRelay) {
     SteamNetworkingIPAddr addr;
     addr.Clear();
@@ -459,6 +528,7 @@ void fUserApp::Steam_PostUpdate() {
         server->PrepareForCallbacks();
     }
     SteamNetworkingSockets()->RunCallbacks();
+    sf4e::SteamP2pSession::Pump();
 
     if (netplay) {
         int stepResult = netplay->client.Step();

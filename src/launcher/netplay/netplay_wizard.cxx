@@ -6,7 +6,11 @@
 #include "netplay_launch_controller.hxx"
 #include "connect_strategy.hxx"
 #include "netplay_room_code.hxx"
-#include "webview_host.hxx"
+#ifdef SF4E_LAUNCHER_QT_UI
+#include "qt/qt_launcher_app.hxx"
+#else
+#include "webview/webview_host.hxx"
+#endif
 
 namespace sf4e {
 namespace launcher {
@@ -72,7 +76,12 @@ namespace launcher {
 
 	bool RunNetplayWizard(HWND parent, NetplayConfig& outConfig, PersistedSettings& ioSettings) {
 		NetplayLaunchController controller(ioSettings, outConfig);
+#ifdef SF4E_LAUNCHER_QT_UI
+		(void)parent;
+		if (!RunNetplayQtUi(controller)) {
+#else
 		if (!RunNetplayWebViewUi(parent, controller)) {
+#endif
 			return false;
 		}
 		return !controller.WasCancelled();

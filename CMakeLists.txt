@@ -22,10 +22,54 @@ find_package(imgui CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(protobuf CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
-find_package(unofficial-webview2 CONFIG REQUIRED)
 find_package(wil CONFIG REQUIRED)
 
+option(SF4E_LAUNCHER_QT_UI "Use Qt Widgets for the launcher UI (Steam experiment)" OFF)
+if(SF4E_ENABLE_STEAMWORKS_EXPERIMENT)
+    set(SF4E_LAUNCHER_QT_UI ON CACHE BOOL "Use Qt Widgets for the launcher UI (Steam experiment)" FORCE)
+endif()
+
+if(SF4E_LAUNCHER_QT_UI)
+    set(CMAKE_AUTOMOC ON)
+    set(CMAKE_AUTORCC ON)
+    set(CMAKE_AUTOUIC ON)
+    find_package(Qt6 CONFIG REQUIRED COMPONENTS Widgets)
+else()
+    find_package(unofficial-webview2 CONFIG REQUIRED)
+endif()
+
 find_path(VALVEFILEVDF_INCLUDE_DIRS "vdf_parser.hpp")
+
+option(SF4E_ENABLE_STEAMWORKS_EXPERIMENT "Build experimental Steamworks P2P probe (off by default)" OFF)
+set(SF4E_STEAMWORKS_SDK_DIR "" CACHE PATH "Path to an unpacked Steamworks SDK, e.g. C:/.../sdk")
+
+if(SF4E_ENABLE_STEAMWORKS_EXPERIMENT)
+    if(NOT SF4E_STEAMWORKS_SDK_DIR)
+        message(FATAL_ERROR "SF4E_ENABLE_STEAMWORKS_EXPERIMENT requires SF4E_STEAMWORKS_SDK_DIR")
+    endif()
+    set(SF4E_STEAMWORKS_INCLUDE_DIR "${SF4E_STEAMWORKS_SDK_DIR}/public")
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        set(SF4E_STEAMWORKS_LIB "${SF4E_STEAMWORKS_SDK_DIR}/redistributable_bin/win64/steam_api64.lib")
+        set(SF4E_STEAMWORKS_DLL "${SF4E_STEAMWORKS_SDK_DIR}/redistributable_bin/win64/steam_api64.dll")
+    else()
+        set(SF4E_STEAMWORKS_LIB "${SF4E_STEAMWORKS_SDK_DIR}/redistributable_bin/steam_api.lib")
+        set(SF4E_STEAMWORKS_DLL "${SF4E_STEAMWORKS_SDK_DIR}/redistributable_bin/steam_api.dll")
+    endif()
+    if(NOT EXISTS "${SF4E_STEAMWORKS_INCLUDE_DIR}/steam/steam_api.h")
+        message(FATAL_ERROR "Steamworks headers not found under ${SF4E_STEAMWORKS_INCLUDE_DIR}")
+    endif()
+    if(NOT EXISTS "${SF4E_STEAMWORKS_LIB}")
+        message(FATAL_ERROR "Steamworks import library not found: ${SF4E_STEAMWORKS_LIB}")
+    endif()
+    if(NOT EXISTS "${SF4E_STEAMWORKS_DLL}")
+        message(FATAL_ERROR "Steamworks runtime DLL not found: ${SF4E_STEAMWORKS_DLL}")
+    endif()
+    add_library(SteamworksSDK UNKNOWN IMPORTED)
+    set_target_properties(SteamworksSDK PROPERTIES
+        IMPORTED_LOCATION "${SF4E_STEAMWORKS_LIB}"
+        INTERFACE_INCLUDE_DIRECTORIES "${SF4E_STEAMWORKS_INCLUDE_DIR}"
+    )
+endif()
 
 add_library(Dimps STATIC
     "src/Dimps/Dimps.hxx"
@@ -75,6 +119,8 @@ target_link_libraries(
 add_library(sf4e_common STATIC
     "src/common/sf4e__NetUtil.cxx"
     "src/common/sf4e__NetUtil.hxx"
+    "src/common/install_paths.cxx"
+    "src/common/install_paths.hxx"
 )
 target_link_libraries(sf4e_common PUBLIC "iphlpapi" "ws2_32" "winhttp")
 
@@ -109,6 +155,9 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__NetplayFacade.cxx"
 )
 target_include_directories(sf4e PUBLIC "src/common")
+if(SF4E_ENABLE_STEAMWORKS_EXPERIMENT)
+    target_compile_definitions(sf4e PRIVATE SF4E_STEAMWORKS_EXPERIMENT=1)
+endif()
 target_link_libraries(
     sf4e
     PRIVATE ${LIB_DETOURS} Session sf4e_common "Kernel32" "ws2_32" "Mswsock" "AdvApi32" "Shlwapi" "pathcch" "shell32" "Bcrypt" "Xinput9_1_0" "iphlpapi"
@@ -127,6 +176,15 @@ add_library(Session STATIC
     "src/session/sf4e__GgpoTransport.hxx"
     "src/session/sf4e__GgpoTransport.cxx"
 )
+if(SF4E_ENABLE_STEAMWORKS_EXPERIMENT)
+    target_sources(Session PRIVATE
+        src/session/sf4e__SteamP2pSession.hxx
+        src/session/sf4e__SteamP2pSession.cxx
+    )
+    target_compile_definitions(Session PRIVATE SF4E_STEAMWORKS_EXPERIMENT=1)
+    target_include_directories(Session PRIVATE "${SF4E_STEAMWORKS_INCLUDE_DIR}")
+    target_link_libraries(Session PRIVATE SteamworksSDK)
+endif()
 target_link_libraries(
     Session
     PRIVATE Dimps sf4e_common
@@ -149,27 +207,59 @@ target_link_libraries(RelayHost PRIVATE
 )
 set_target_properties(RelayHost PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 
-add_executable(Launcher WIN32
+set(SF4E_LAUNCHER_SOURCES
     src/launcher/launcher.cxx
-    src/launcher/netplay_wizard.cxx
-    src/launcher/netplay_persist.cxx
-    src/launcher/netplay_room_code.cxx
-    src/launcher/netplay_launch_controller.cxx
+    src/launcher/netplay/netplay_wizard.cxx
+    src/launcher/netplay/netplay_persist.cxx
+    src/launcher/netplay/netplay_room_code.cxx
+    src/launcher/netplay/netplay_launch_controller.cxx
     src/launcher/connect_strategy.cxx
-    src/launcher/room_broker_client.cxx
-    src/launcher/upnp_portmap.cxx
-    src/launcher/relay_host_spawn.cxx
-    src/launcher/webview_host.cxx
-    src/launcher/github_release_client.cxx
+    src/launcher/netplay/room_broker_client.cxx
+    src/launcher/netplay/upnp_portmap.cxx
+    src/launcher/relay/relay_host_spawn.cxx
+    src/launcher/update/github_release_client.cxx
+    src/launcher/ipc/electron_ipc.cxx
 )
-target_include_directories(Launcher PRIVATE ${VALVEFILEVDF_INCLUDE_DIRS} "src/common" "src/launcher")
-		target_link_libraries(Launcher PRIVATE
+if(SF4E_LAUNCHER_QT_UI)
+    list(APPEND SF4E_LAUNCHER_SOURCES
+        src/launcher/qt/controller_bridge.cxx
+        src/launcher/qt/steam_p2p_window.cxx
+        src/launcher/qt/qt_launcher_app.cxx
+    )
+else()
+    list(APPEND SF4E_LAUNCHER_SOURCES src/launcher/webview/webview_host.cxx)
+endif()
+if(SF4E_LAUNCHER_QT_UI)
+    add_executable(LauncherApp WIN32 ${SF4E_LAUNCHER_SOURCES})
+    set(_SF4E_LAUNCHER_EXE_TARGET LauncherApp)
+else()
+    add_executable(Launcher WIN32 ${SF4E_LAUNCHER_SOURCES})
+    set(_SF4E_LAUNCHER_EXE_TARGET Launcher)
+endif()
+if(SF4E_ENABLE_STEAMWORKS_EXPERIMENT)
+    target_sources(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE
+        src/launcher/steam/steam_p2p_launcher.hxx
+        src/launcher/steam/steam_p2p_launcher.cxx
+        src/steam_experiment/steam_p2p_payload.hxx
+        src/steam_experiment/steam_p2p_payload.cxx
+    )
+    target_compile_definitions(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE SF4E_STEAMWORKS_EXPERIMENT=1)
+endif()
+if(SF4E_LAUNCHER_QT_UI)
+    target_compile_definitions(LauncherApp PRIVATE SF4E_LAUNCHER_QT_UI=1)
+    target_link_libraries(LauncherApp PRIVATE Qt6::Widgets)
+    add_executable(Launcher WIN32 src/launcher/launcher_stub.cxx)
+    target_link_libraries(Launcher PRIVATE sf4e_common shlwapi pathcch shell32)
+    target_compile_definitions(Launcher PRIVATE -D_UNICODE -DUNICODE)
+    sf4e_configure_windows_version(Launcher "SF4 Netplay Launcher" "Launcher.exe" "VFT_APP")
+endif()
+target_include_directories(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE ${VALVEFILEVDF_INCLUDE_DIRS} "src/common" "src/launcher")
+		target_link_libraries(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE
     ${LIB_DETOURS}
     CLI11::CLI11
     spdlog::spdlog
     sf4e_common
     nlohmann_json::nlohmann_json
-    unofficial::webview2::webview2
     WIL::WIL
     "shlwapi"
     "pathcch"
@@ -181,15 +271,48 @@ target_include_directories(Launcher PRIVATE ${VALVEFILEVDF_INCLUDE_DIRS} "src/co
     "gdi32"
     "ws2_32"
 )
+if(NOT SF4E_LAUNCHER_QT_UI)
+    target_link_libraries(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE unofficial::webview2::webview2)
+endif()
+if(SF4E_ENABLE_STEAMWORKS_EXPERIMENT)
+    target_link_libraries(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE SteamworksSDK GameNetworkingSockets::shared)
+    add_custom_command(
+        TARGET ${_SF4E_LAUNCHER_EXE_TARGET} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${SF4E_STEAMWORKS_DLL}"
+            "$<TARGET_FILE_DIR:${_SF4E_LAUNCHER_EXE_TARGET}>"
+        COMMENT "Copy Steamworks runtime next to launcher app"
+    )
+endif()
 
 add_library(Sidecar SHARED src/sidecar/sidecar.cxx)
 target_include_directories(Sidecar PRIVATE ${VALVEFILEVDF_INCLUDE_DIRS})
 target_link_libraries(Sidecar PRIVATE ${LIB_DETOURS} Dimps sf4e)
+if(SF4E_ENABLE_STEAMWORKS_EXPERIMENT)
+    target_compile_definitions(Sidecar PRIVATE SF4E_STEAMWORKS_EXPERIMENT=1)
+    if(MSVC)
+        target_link_libraries(Sidecar PRIVATE delayimp)
+        target_link_options(Sidecar PRIVATE "/DELAYLOAD:steam_api.dll")
+    endif()
+    add_custom_command(
+        TARGET Sidecar POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${SF4E_STEAMWORKS_DLL}"
+            "$<TARGET_FILE_DIR:Sidecar>"
+        COMMENT "Copy Steamworks runtime next to Sidecar.dll"
+    )
+endif()
 sf4e_configure_windows_version(Sidecar "SF4 Netplay Sidecar (USF4 netplay hooks)" "Sidecar.dll" "VFT_DLL")
 
-target_compile_definitions(Launcher PRIVATE -D_UNICODE -DUNICODE)
-set_target_properties(Launcher PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-sf4e_configure_windows_version(Launcher "SF4 Netplay Launcher" "Launcher.exe" "VFT_APP")
+if(NOT SF4E_LAUNCHER_QT_UI)
+    target_compile_definitions(Launcher PRIVATE -D_UNICODE -DUNICODE)
+endif()
+set_target_properties(${_SF4E_LAUNCHER_EXE_TARGET} PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+if(NOT SF4E_LAUNCHER_QT_UI)
+    sf4e_configure_windows_version(Launcher "SF4 Netplay Launcher" "Launcher.exe" "VFT_APP")
+else()
+    sf4e_configure_windows_version(LauncherApp "SF4 Netplay Launcher (Qt)" "LauncherApp.exe" "VFT_APP")
+endif()
 sf4e_configure_windows_version(RelayHost "SF4 Netplay Relay Host" "RelayHost.exe" "VFT_APP")
 
 add_executable(Updater
@@ -199,29 +322,89 @@ target_link_libraries(Updater PRIVATE "pathcch" "shell32")
 set_target_properties(Updater PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 sf4e_configure_windows_version(Updater "SF4 Netplay Updater" "Updater.exe" "VFT_APP")
 
+add_executable(SteamP2PPayloadTest
+    src/steam_experiment/steam_p2p_payload.hxx
+    src/steam_experiment/steam_p2p_payload.cxx
+    src/steam_experiment/steam_p2p_payload_test.cxx
+)
+target_link_libraries(SteamP2PPayloadTest PRIVATE nlohmann_json::nlohmann_json)
+set_target_properties(SteamP2PPayloadTest PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+enable_testing()
+add_test(NAME SteamP2PPayloadTest COMMAND SteamP2PPayloadTest)
+
+if(SF4E_ENABLE_STEAMWORKS_EXPERIMENT)
+    add_executable(SteamP2PProbe
+        src/steam_experiment/steam_p2p_payload.hxx
+        src/steam_experiment/steam_p2p_payload.cxx
+        src/steam_experiment/steam_p2p_probe.cxx
+    )
+    target_link_libraries(SteamP2PProbe PRIVATE
+        CLI11::CLI11
+        nlohmann_json::nlohmann_json
+        SteamworksSDK
+        GameNetworkingSockets::shared
+        "ws2_32"
+    )
+    set_target_properties(SteamP2PProbe PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+    add_custom_command(
+        TARGET SteamP2PProbe POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${SF4E_STEAMWORKS_DLL}"
+            "$<TARGET_FILE_DIR:SteamP2PProbe>"
+        COMMENT "Copy Steamworks runtime next to SteamP2PProbe"
+    )
+    install(TARGETS SteamP2PProbe RUNTIME DESTINATION "steam-experiment")
+    install(FILES "${SF4E_STEAMWORKS_DLL}" DESTINATION "steam-experiment")
+endif()
+
 install(
   TARGETS Launcher Sidecar RelayHost Updater
   RUNTIME DESTINATION "."
 )
+if(SF4E_ENABLE_STEAMWORKS_EXPERIMENT)
+  install(FILES "${SF4E_STEAMWORKS_DLL}" DESTINATION ".")
+endif()
 
-install(DIRECTORY "${CMAKE_SOURCE_DIR}/launcher-ui" DESTINATION ".")
-
-get_target_property(WEBVIEW2_LOADER_DLL unofficial::webview2::webview2 IMPORTED_LOCATION)
-if(WEBVIEW2_LOADER_DLL)
-  install(FILES "${WEBVIEW2_LOADER_DLL}" DESTINATION ".")
+if(NOT SF4E_LAUNCHER_QT_UI)
+  install(DIRECTORY "${CMAKE_SOURCE_DIR}/launcher-ui" DESTINATION ".")
+  get_target_property(WEBVIEW2_LOADER_DLL unofficial::webview2::webview2 IMPORTED_LOCATION)
+  if(WEBVIEW2_LOADER_DLL)
+    install(FILES "${WEBVIEW2_LOADER_DLL}" DESTINATION ".")
+    add_custom_command(
+      TARGET Launcher POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${WEBVIEW2_LOADER_DLL}"
+        "$<TARGET_FILE_DIR:Launcher>"
+      COMMENT "Copy WebView2Loader.dll next to Launcher.exe"
+    )
+    add_custom_command(
+      TARGET Launcher POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/launcher-ui"
+        "$<TARGET_FILE_DIR:Launcher>/launcher-ui"
+      COMMENT "Copy launcher-ui next to Launcher.exe"
+    )
+  endif()
+endif()
+if(SF4E_LAUNCHER_QT_UI)
+  find_program(SF4E_WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${Qt6_DIR}/../../../tools/Qt6/bin")
+  if(SF4E_WINDEPLOYQT_EXECUTABLE)
+    add_custom_command(
+      TARGET LauncherApp POST_BUILD
+      COMMAND "${SF4E_WINDEPLOYQT_EXECUTABLE}"
+        --no-translations
+        --no-compiler-runtime
+        "$<TARGET_FILE:LauncherApp>"
+      COMMENT "Deploy Qt DLLs next to LauncherApp.exe"
+    )
+  endif()
   add_custom_command(
-    TARGET Launcher POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${WEBVIEW2_LOADER_DLL}"
-      "$<TARGET_FILE_DIR:Launcher>"
-    COMMENT "Copy WebView2Loader.dll next to Launcher.exe"
-  )
-  add_custom_command(
-    TARGET Launcher POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-      "${CMAKE_SOURCE_DIR}/launcher-ui"
-      "$<TARGET_FILE_DIR:Launcher>/launcher-ui"
-    COMMENT "Copy launcher-ui next to Launcher.exe"
+    TARGET LauncherApp POST_BUILD
+    COMMAND PowerShell -NoProfile -ExecutionPolicy Bypass -File
+      "${CMAKE_SOURCE_DIR}/scripts/sync-x86-qt-plugins.ps1"
+      -Dir "$<SHELL_PATH:$<TARGET_FILE_DIR:LauncherApp>>"
+      -BuildDir "$<SHELL_PATH:${CMAKE_BINARY_DIR}>"
+    COMMENT "Deploy x86 Qt plugins (windeployqt is x64 and breaks qwindows.dll)"
   )
 endif()
 

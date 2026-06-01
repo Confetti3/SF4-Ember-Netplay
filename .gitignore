@@ -18,6 +18,9 @@ services/vps-relay/bin/
 services/vps-relay/lib/
 services/vps-relay/wsl-build.log
 services/vps-relay/dashboard/node_modules/
+electron-launcher/node_modules/
+electron-launcher/dist/
+electron-launcher/ui/
 services/room-broker/.env
 services/vps-relay/dashboard/.env
 
@@ -38,3 +41,4 @@ scripts/vps-port-diag-remote.py
 scripts/vps-ggpo-health-test.py
 scripts/vps-ggpo-start-test.py
 scripts/vps-relay-health-all.py
+scripts/__pycache__/

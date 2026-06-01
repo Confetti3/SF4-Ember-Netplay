@@ -1,5 +1,7 @@
 #include "relay_host_spawn.hxx"
 
+#include "../../common/install_paths.hxx"
+
 #include <stdio.h>
 
 #include <windows.h>
@@ -56,7 +58,9 @@ namespace launcher {
 		if (FAILED(PathCchRemoveFileSpec(modulePath, MAX_PATH))) {
 			return false;
 		}
-		if (FAILED(PathCchCombine(sidecarPath, MAX_PATH, modulePath, L"Sidecar.dll"))) {
+		if (sf4e::install::ResolveInstallFile(L"Sidecar.dll", sidecarPath, MAX_PATH)) {
+			// resolved (dll\ or root)
+		} else if (FAILED(PathCchCombine(sidecarPath, MAX_PATH, modulePath, L"Sidecar.dll"))) {
 			return false;
 		}
 

@@ -54,6 +54,13 @@ namespace launcher {
 
 		std::string PreviewRoomCode(const char* shareIp, uint16_t port) const;
 
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+		nlohmann::json MakeSteamBuildInfoJson() const;
+		bool GetLocalSteamBuildInfo(char* sidecarHash, int sidecarHashLen, char* buildGit, int buildGitLen) const;
+		void GenerateSteamSessionToken(char* outToken, int outTokenLen) const;
+		nlohmann::json ConfigureSteamStart(int mode, const nlohmann::json& msg);
+#endif
+
 
 
 		PersistedSettings& m_settings;
@@ -73,6 +80,16 @@ namespace launcher {
 		bool m_cancelled = false;
 
 		bool m_exitForUpdate = false;
+
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+		bool m_steamHasPendingInvite = false;
+		uint64_t m_steamPendingPeerId = 0;
+		int m_steamPendingVirtualPort = 7;
+		char m_steamPendingSessionToken[NETPLAY_STEAM_SESSION_TOKEN_LEN] = { 0 };
+		char m_steamPendingSidecarHash[65] = { 0 };
+		char m_steamPendingBuildGit[64] = { 0 };
+		char m_steamHostSessionToken[NETPLAY_STEAM_SESSION_TOKEN_LEN] = { 0 };
+#endif
 
 	};
 

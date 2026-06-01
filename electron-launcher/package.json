@@ -1,0 +1,58 @@
+{
+  "name": "sf4e-launcher",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Electron UI shell for SF4e netplay (native Launcher.exe --electron-ipc)",
+  "main": "main.js",
+  "author": "SF4e",
+  "scripts": {
+    "sync-ui": "node scripts/sync-ui.js",
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "pack": "npm run sync-ui && electron-builder --win portable",
+    "pack:dir": "npm run sync-ui && electron-builder --win dir"
+  },
+  "build": {
+    "appId": "net.sf4e.launcher.ui",
+    "productName": "SF4 Netplay Launcher",
+    "executableName": "SF4NetplayLauncher",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "ui",
+        "to": "launcher-ui",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "SF4NetplayLauncher-${version}.${ext}",
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "SF4NetplayLauncher-${version}.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^25.1.8"
+  }
+}

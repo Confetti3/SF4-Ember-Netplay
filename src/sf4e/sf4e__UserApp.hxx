@@ -36,6 +36,31 @@ namespace sf4e {
         static void Install();
         static void Steam_PostUpdate();
         static void StartSession(char* joinAddr, uint16_t port, std::string& sidecarHash, std::string& name, uint8_t deviceType, uint8_t deviceIdx, uint8_t delay, bool useRelay = true);
+        static bool StartSteamHost(
+            int virtualPort,
+            std::string& identity,
+            std::string& sidecarHash,
+            bool editionSelect,
+            int roundCount,
+            Dimps::Math::FixedPoint roundTime,
+            std::string& name,
+            uint8_t deviceType,
+            uint8_t deviceIdx,
+            uint8_t delay,
+            uint16_t ggpoPort,
+            bool useRelay = true
+        );
+        static bool StartSteamJoin(
+            uint64_t peerSteamId64,
+            int virtualPort,
+            std::string& sidecarHash,
+            std::string& name,
+            uint8_t deviceType,
+            uint8_t deviceIdx,
+            uint8_t delay,
+            uint16_t ggpoPort,
+            bool useRelay = true
+        );
         static void ShutdownNetplay(bool closeGgpo = true);
         static bool StartServer(uint16 hostPort, std::string& identity, std::string& sidecarHash, bool editionSelect, int roundCount, Dimps::Math::FixedPoint roundTime);
         static void ResetLobbyForRematch();

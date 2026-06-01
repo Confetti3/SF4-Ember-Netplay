@@ -1,14 +1,36 @@
 # SF4 Netplay Launcher — troubleshooting guide
 
-> **Experimental unofficial port** — not production-ready. Use this guide if the launcher shows a black screen, the game crashes right away, or netplay will not connect.
+> **Experimental unofficial port** — not production-ready. Steam P2P Qt packages should start with the Steam P2P checklist below; older relay/WebView2 packages can use the legacy sections that follow.
 
 For a short player guide see [USER_NETPLAY.md](USER_NETPLAY.md).
 
 ---
 
-## Start here (60-second checklist)
+## Steam P2P Qt package checklist
 
-Do these on **each PC** before deeper fixes:
+Use this section for `sf4e-steam-p2p-*` tester zips.
+
+1. Extract the entire zip to one folder. Do not move only `Launcher.exe`.
+2. Run `preflight.cmd` from the package root.
+3. Confirm the root contains `Launcher.exe`, `Updater.exe`, `steam_appid.txt`, `qt.conf`, `plugins\platforms\qwindows.dll`, `scripts\`, `readme\`, and `tools\`.
+4. Confirm `dll\` contains `LauncherApp.exe`, `Sidecar.dll`, `steam_api.dll`, `steam_appid.txt`, Qt DLLs, and the netplay runtime DLLs.
+5. WebView2, `launcher-ui\`, and root-level runtime DLLs are not part of the Steam P2P Qt package.
+6. For local launch testing, run `tools\run-offline-test.ps1` and confirm the in-game overlay shows **Offline Test**.
+7. For Steam P2P testing, Steam must be running on both PCs and both testers must use the same zip.
+
+Useful logs for tester reports:
+
+- `%APPDATA%\sf4e\logs\launcher.log`
+- `%APPDATA%\sf4e\logs\sidecar_bootstrap.log`
+- `%APPDATA%\sf4e\logs\sf4e.log`
+
+If Steam friends do not load, first confirm `steam_appid.txt` exists in both the package root and `dll\`, then restart Steam and run `Launcher.exe` again.
+
+---
+
+## Legacy relay/WebView2 checklist
+
+Use this section only for older relay/WebView2 zips. Do these on **each PC** before deeper fixes:
 
 1. Download the **full** release zip from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) (the **Assets** zip, not "Source code").
 2. **Extract the entire zip** to one folder (for example `C:\Games\SF4-Netplay-Launcher\`). Do not copy only `Launcher.exe`.
@@ -24,9 +46,9 @@ Do these on **each PC** before deeper fixes:
 
 ---
 
-## Launcher opens to a black or blank window
+## Legacy launcher opens to a black or blank window
 
-The launcher UI uses **Microsoft WebView2** (like a small browser window). A solid dark or empty window usually means WebView2 or the UI files failed to load — not a problem with USF4 itself.
+Older relay packages use **Microsoft WebView2** (like a small browser window). A solid dark or empty window usually means WebView2 or the UI files failed to load — not a problem with USF4 itself. Steam P2P Qt packages do not use WebView2.
 
 Try these steps **in order**:
 
@@ -99,7 +121,7 @@ Try these steps **in order**:
 Unsigned netplay tools are often flagged as **false positives** (for example `Program:Win32/Wacapew.A!ml` on `Sidecar.dll`).
 
 1. Open your install folder.
-2. Confirm **`Sidecar.dll`** is still there next to `Launcher.exe`.
+2. Confirm **`Sidecar.dll`** is still present. Steam P2P Qt packages keep it at `dll\Sidecar.dll`; legacy relay packages keep it next to `Launcher.exe`.
 3. If it is **missing** or in quarantine:
    - Restore it from your antivirus, or
    - Re-extract the **full** zip from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest).
@@ -119,7 +141,7 @@ Missing runtime libraries cause instant crashes.
 
 If Windows blocked files during extract, the game may crash immediately.
 
-Confirm these DLLs sit beside `Launcher.exe`:
+For Steam P2P Qt packages, confirm these DLLs sit under `dll\`. For legacy relay packages, confirm they sit beside `Launcher.exe`:
 
 - `GameNetworkingSockets.dll`
 - `GGPO.dll`

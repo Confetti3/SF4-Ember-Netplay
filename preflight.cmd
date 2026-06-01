@@ -1,11 +1,12 @@
 @echo off
 setlocal EnableExtensions
 set "ROOT=%~dp0"
-set "PS1=%ROOT%preflight.ps1"
+set "PS1=%ROOT%scripts\preflight.ps1"
+if not exist "%PS1%" set "PS1=%ROOT%preflight.ps1"
 if not exist "%PS1%" set "PS1=%ROOT%scripts\tester-preflight.ps1"
 if not exist "%PS1%" (
     echo.
-    echo ERROR: Cannot find preflight.ps1 next to this file.
+    echo ERROR: Cannot find preflight.ps1 (expected scripts\preflight.ps1).
     echo        Re-extract the full release zip, or run from the package folder.
     echo.
     pause

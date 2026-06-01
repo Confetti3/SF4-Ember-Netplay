@@ -11,10 +11,10 @@
 #include <spdlog/spdlog.h>
 
 #include "../common/sf4e__NetUtil.hxx"
-#include "netplay_room_code.hxx"
-#include "relay_host_spawn.hxx"
-#include "room_broker_client.hxx"
-#include "upnp_portmap.hxx"
+#include "netplay/netplay_room_code.hxx"
+#include "relay/relay_host_spawn.hxx"
+#include "netplay/room_broker_client.hxx"
+#include "netplay/upnp_portmap.hxx"
 
 namespace sf4e {
 namespace launcher {

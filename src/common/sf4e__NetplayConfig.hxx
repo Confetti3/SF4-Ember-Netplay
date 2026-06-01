@@ -12,10 +12,11 @@ namespace sf4e {
 
 	// Fixed-size config copied Launcher -> Sidecar via Detours payload.
 	// Keep POD and stable layout; bump SF4E_NETPLAY_CONFIG_VERSION if fields change.
-	static const int SF4E_NETPLAY_CONFIG_VERSION = 5;
+	static const int SF4E_NETPLAY_CONFIG_VERSION = 6;
 	static const int NETPLAY_SESSION_HOST_LEN = 64;
 	static const int NETPLAY_ROOM_KEY_LEN = 32;
 	static const int NETPLAY_DISPLAY_NAME_LEN = 32;
+	static const int NETPLAY_STEAM_SESSION_TOKEN_LEN = 33;
 
 	struct NetplayConfig {
 		int version = SF4E_NETPLAY_CONFIG_VERSION;
@@ -33,7 +34,7 @@ namespace sf4e {
 		uint8_t devOverlay = 0;
 		uint8_t deviceType = 0xff;
 		uint8_t deviceIdx = 0xff;
-		// 0 = local SessionServer on host PC; 1 = local RelayHost (loopback); 2 = VPS central session relay.
+		// 0 = local SessionServer on host PC; 1 = local RelayHost (loopback); 2 = VPS central session relay; 3 = Steam P2P session.
 		uint8_t useCentralSession = 0;
 		// SF4-XXXX relay room code for overlay display (VPS/local relay only; empty for Direct IP).
 		char relayRoomCode[NETPLAY_ROOM_KEY_LEN] = { 0 };
@@ -44,6 +45,10 @@ namespace sf4e {
 		char ggpoRemoteHost[NETPLAY_SESSION_HOST_LEN] = { 0 };
 		char matchId[33] = { 0 };
 		char ggpoRoomToken[33] = { 0 };
+		// Steam P2P experiment (useCentralSession == 3).
+		uint64_t peerSteamId64 = 0;
+		uint8_t steamVirtualPort = 7;
+		char steamSessionToken[NETPLAY_STEAM_SESSION_TOKEN_LEN] = { 0 };
 	};
 
 	inline bool NetplayConfigIsActive(const NetplayConfig& cfg) {

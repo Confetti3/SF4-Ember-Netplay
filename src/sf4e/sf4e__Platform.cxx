@@ -150,7 +150,9 @@ int fMain::Initialize(void* a, void* b, void* c) {
             }
             std::shared_ptr<spdlog::logger> logger(new spdlog::logger("sf4e", sinks.begin(), sinks.end()));
             spdlog::set_default_logger(logger);
+            spdlog::flush_on(spdlog::level::info);
             spdlog::info("Welcome to sf4e");
+            spdlog::info("Sidecar logging initialized; install hooks are active");
         }
         catch (const spdlog::spdlog_ex& ex)
         {
