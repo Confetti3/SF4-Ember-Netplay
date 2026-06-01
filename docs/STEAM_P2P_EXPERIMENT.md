@@ -58,7 +58,7 @@ When `SF4E_ENABLE_STEAMWORKS_EXPERIMENT=ON`, `SF4E_LAUNCHER_QT_UI` defaults to *
 
 
 
-1. Download **`sf4e-steam-p2p-test-20260531.zip`** from that release (Assets — not Source code).
+1. Download **`sf4-netplay-p2p-steam-20260531.zip`** from that release (Assets — not Source code).
 2. Extract on both PCs, run **`preflight.cmd`**, then **`Launcher.exe`**.
 3. See [RELEASE_NOTES_STEAM_P2P_TEST_20260531.md](RELEASE_NOTES_STEAM_P2P_TEST_20260531.md) for install steps and bug-report checklist.
 
@@ -76,7 +76,7 @@ When `SF4E_ENABLE_STEAMWORKS_EXPERIMENT=ON`, `SF4E_LAUNCHER_QT_UI` defaults to *
 
 
 
-Produces `dist/sf4e-steam-p2p-<timestamp>/` and a zip.
+Produces `dist/sf4-netplay-p2p-steam-<timestamp>/` and a zip.
 
 **Package layout (root stays minimal on purpose):**
 
@@ -231,7 +231,7 @@ Search matches persona name, SteamID64, or `USF4` status. **only USF4** filters 
 
 ctest --test-dir msvc-build/steam-p2p -R SteamP2PPayloadTest --output-on-failure
 
-.\scripts\run-package-tests.ps1 -PackageDir .\dist\sf4e-steam-p2p-<timestamp> -BuildDir .\msvc-build\steam-p2p
+.\scripts\run-package-tests.ps1 -PackageDir .\dist\sf4-netplay-p2p-steam-<timestamp> -BuildDir .\msvc-build\steam-p2p
 
 ```
 

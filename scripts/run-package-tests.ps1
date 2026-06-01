@@ -20,7 +20,7 @@ if (-not $BuildDir) { $BuildDir = Join-Path $RepoRoot "msvc-build\steam-p2p" }
 
 if (-not $PackageDir) {
 
-    $latest = Get-ChildItem (Join-Path $RepoRoot "dist") -Directory -Filter "sf4e-steam-p2p-*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    $latest = Get-ChildItem (Join-Path $RepoRoot "dist") -Directory -Filter "sf4-netplay-p2p-steam-*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
     if ($latest) { $PackageDir = $latest.FullName }
 

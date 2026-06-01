@@ -8,7 +8,7 @@ For a short player guide see [USER_NETPLAY.md](USER_NETPLAY.md).
 
 ## Steam P2P Qt package checklist
 
-Use this section for `sf4e-steam-p2p-*` tester zips.
+Use this section for `sf4-netplay-p2p-steam-*` tester zips.
 
 1. Extract the entire zip to one folder. Do not move only `Launcher.exe`.
 2. Run `preflight.cmd` from the package root.

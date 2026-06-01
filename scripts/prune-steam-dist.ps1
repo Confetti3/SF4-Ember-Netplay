@@ -1,4 +1,4 @@
-# Remove old sf4e-steam-p2p-* folders/zips under dist/, keeping the newest N packages.
+# Remove old sf4-netplay-p2p-steam-* folders/zips under dist/, keeping the newest N packages.
 param(
     [int]$Keep = 2,
     [string]$DistDir = ""
@@ -12,7 +12,7 @@ if (-not (Test-Path $DistDir)) {
     exit 0
 }
 
-$packages = Get-ChildItem $DistDir -Directory -Filter "sf4e-steam-p2p-*" | Sort-Object LastWriteTime -Descending
+$packages = Get-ChildItem $DistDir -Directory -Filter "sf4-netplay-p2p-steam-*" | Sort-Object LastWriteTime -Descending
 if ($packages.Count -le $Keep) {
     Write-Host "Keeping all $($packages.Count) steam package folder(s)."
     exit 0

@@ -6,8 +6,8 @@
 
 ## Install (both PCs)
 
-1. Download **`sf4e-steam-p2p-test-20260531.zip`** from [this release](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/steam-p2p-test-20260531).
-2. Extract the **entire** zip to a short path (e.g. `C:\Games\sf4e-steam-p2p\`).
+1. Download **`sf4-netplay-p2p-steam-20260531.zip`** from [this release](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/steam-p2p-test-20260531).
+2. Extract the **entire** zip to a short path (e.g. `C:\Games\sf4-netplay-p2p-steam\`).
 3. Run **`preflight.cmd`** — expect `[OK]` on required files and **`Preflight PASSED`**.
 4. Optional smoke test: **`tools\run-offline-test.ps1`** (offline overlay; no Steam friend required).
 5. **Steam must be running** on both PCs. Launch **`Launcher.exe`** (native Qt UI — no WebView2).
@@ -29,8 +29,8 @@ Full flow and diagnostics: `readme\STEAM_P2P_EXPERIMENT.md` inside the zip.
 
 ## Build info
 
-- Package: `sf4e-steam-p2p-experiment-qt`
-- Built: `20260531-2119`
+- Package: `sf4-netplay-p2p-steam-qt`
+- Built: `20260531-2124`
 - Git: `29bf626` on branch `test/steam-p2p-qt`
 
 ## Bug reports

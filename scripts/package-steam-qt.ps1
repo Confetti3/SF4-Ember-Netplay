@@ -56,7 +56,7 @@ $AllowedQtPlugins = @(
 
 $Stamp = Get-Date -Format "yyyyMMdd-HHmm"
 
-$PackageName = "sf4e-steam-p2p-$Stamp"
+$PackageName = "sf4-netplay-p2p-steam-$Stamp"
 
 $PackageDir = Join-Path $OutDir $PackageName
 
@@ -448,7 +448,7 @@ try { $gitRev = (git -C $RepoRoot rev-parse --short HEAD 2>$null) } catch {}
 
 @(
 
-    "package=sf4e-steam-p2p-experiment-qt",
+    "package=sf4-netplay-p2p-steam-qt",
 
     "built=$Stamp",
 
