@@ -50,7 +50,21 @@ When `SF4E_ENABLE_STEAMWORKS_EXPERIMENT=ON`, `SF4E_LAUNCHER_QT_UI` defaults to *
 
 
 
-## Package for testers
+## Download for testers (GitHub)
+
+
+
+**Latest pre-release:** [steam-p2p-test-20260531](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/steam-p2p-test-20260531)
+
+
+
+1. Download **`sf4e-steam-p2p-test-20260531.zip`** from that release (Assets — not Source code).
+2. Extract on both PCs, run **`preflight.cmd`**, then **`Launcher.exe`**.
+3. See [RELEASE_NOTES_STEAM_P2P_TEST_20260531.md](RELEASE_NOTES_STEAM_P2P_TEST_20260531.md) for install steps and bug-report checklist.
+
+
+
+## Package for developers
 
 
 
