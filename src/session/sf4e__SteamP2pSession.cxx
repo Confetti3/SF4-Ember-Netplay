@@ -14,6 +14,7 @@
 
 #include "sf4e__SteamP2pSession.hxx"
 
+#include "../common/agent_debug_log.hxx"
 #include "sf4e__SessionClient.hxx"
 #include "sf4e__SessionServer.hxx"
 
@@ -115,11 +116,30 @@ namespace {
 	bool EnsureSteam() {
 		if (g_state.initialized) {
 			SteamAPI_RunCallbacks();
-			SteamNetworkingSockets()->RunCallbacks();
+			if (SteamNetworkingSockets()) {
+				SteamNetworkingSockets()->RunCallbacks();
+			}
 			return true;
 		}
 
 		EnsureSteamAppIdFile();
+		const bool steamAlreadyRunning =
+			SteamAPI_IsSteamRunning() != 0 && SteamUser() != nullptr && SteamNetworkingSockets() != nullptr;
+		if (steamAlreadyRunning) {
+			if (!SteamUser()->BLoggedOn()) {
+				spdlog::error("SteamP2pSession: Steam user not logged on (reused context)");
+				return false;
+			}
+			if (SteamNetworkingUtils()) {
+				SteamNetworkingUtils()->InitRelayNetworkAccess();
+			}
+			g_state.initialized = true;
+			spdlog::info("SteamP2pSession: reusing existing Steam API context in game process");
+			SteamAPI_RunCallbacks();
+			SteamNetworkingSockets()->RunCallbacks();
+			return true;
+		}
+
 		if (!SteamAPI_Init()) {
 			spdlog::error("SteamP2pSession: SteamAPI_Init failed");
 			return false;
@@ -128,8 +148,11 @@ namespace {
 			spdlog::error("SteamP2pSession: Steam user not logged on");
 			return false;
 		}
-		SteamNetworkingUtils()->InitRelayNetworkAccess();
+		if (SteamNetworkingUtils()) {
+			SteamNetworkingUtils()->InitRelayNetworkAccess();
+		}
 		g_state.initialized = true;
+		spdlog::info("SteamP2pSession: SteamAPI_Init ok");
 		return true;
 	}
 
@@ -161,7 +184,9 @@ namespace {
 	}
 
 	bool HostBegin(SessionServer* server, int virtualPort) {
+		agent_debug::Log("H2", "SteamP2pSession.cxx:HostBegin", "entry", { { "virtualPort", virtualPort } });
 		if (!EnsureSteam() || !server) {
+			agent_debug::Log("H2", "SteamP2pSession.cxx:HostBegin", "ensure_steam_or_server_failed", {});
 			return false;
 		}
 		Shutdown();
@@ -188,6 +213,7 @@ namespace {
 			return false;
 		}
 		spdlog::info("SteamP2pSession: listening on virtual port {}", virtualPort);
+		agent_debug::Log("H2", "SteamP2pSession.cxx:HostBegin", "ok", { { "virtualPort", virtualPort } });
 		return true;
 	}
 

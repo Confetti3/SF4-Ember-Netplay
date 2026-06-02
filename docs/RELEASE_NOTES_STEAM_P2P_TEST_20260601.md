@@ -10,11 +10,13 @@
 - **Synchronized launch** — both players press **Ready to launch game**; USF4 starts on both PCs only after the handshake completes (fixes solo-host crash).
 - **Launch handshake hardening** — resend launch-ready, faster polling while waiting, recovery if launch fails or one player is stuck.
 - **In-game lobby wait** — match/GGPO does not start until two players are in the lobby.
+- **GGPO match-start fix** — Steam P2P keeps rollback over the session tunnel (`GgpoRelay`); no invalid Steam-address fallback at character select / Start.
+- **Steam API reuse in-game** — avoids second `SteamAPI_Init()` when USF4 already loaded Steam.
 - **Joiner requirement called out** — joiner must have this launcher open on the **Join** tab before the host sends an invite (invites are not Steam chat messages).
 
 ## Install (both PCs)
 
-1. Download **`sf4-netplay-p2p-steam-20260601-2125.zip`** from [this release](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/steam-p2p-test-20260601) (not older `2100` / `20260531` assets).
+1. Download **`sf4-netplay-p2p-steam-20260601-2143.zip`** from [this release](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/steam-p2p-test-20260601) (not older `2125` / `2100` / `20260531` assets).
 2. Extract the **entire** zip to a short path (e.g. `C:\Games\sf4-netplay-p2p-steam\`).
 3. Run **`preflight.cmd`** — expect **`Preflight PASSED`**.
 4. Optional: **`tools\run-offline-test.ps1`** for local overlay smoke test.
@@ -33,8 +35,8 @@
 ## Build info
 
 - Package: `sf4-netplay-p2p-steam-qt`
-- Built: `20260601-2125`
-- Git: `6591e78` on `test/steam-p2p-qt`
+- Built: `20260601-2143`
+- Git: `test/steam-p2p-qt` (GGPO tunnel match-start fix)
 
 ## Bug reports
 

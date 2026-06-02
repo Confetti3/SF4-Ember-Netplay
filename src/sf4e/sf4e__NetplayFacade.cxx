@@ -13,6 +13,7 @@
 #include "../Dimps/Dimps__Game.hxx"
 #include "../Dimps/Dimps__GameEvents.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
+#include "../common/agent_debug_log.hxx"
 #include "../session/sf4e__SessionClient.hxx"
 #include "../session/sf4e__GgpoRelay.hxx"
 #include "sf4e__Game__Battle__System.hxx"
@@ -358,6 +359,18 @@ namespace sf4e {
 				);
 			}
 			else if (s_config.useCentralSession == 3) {
+				agent_debug::Log(
+					"H1",
+					"NetplayFacade.cxx:TickMainMenu",
+					"steam_host_autostart_begin",
+					{
+						{ "mode", s_config.mode },
+						{ "virtualPort", s_config.steamVirtualPort },
+						{ "peerSteamId64", s_config.peerSteamId64 },
+						{ "framesSinceReady", s_framesSinceReady },
+						{ "dwellTicks", s_autoStartDwellTicks }
+					}
+				);
 				std::string identity = "steam-p2p";
 				bool serverOk = fUserApp::StartSteamHost(
 					s_config.steamVirtualPort > 0 ? s_config.steamVirtualPort : 7,
@@ -372,6 +385,12 @@ namespace sf4e {
 					s_config.inputDelay,
 					s_config.ggpoPort,
 					s_config.useRelay != 0
+				);
+				agent_debug::Log(
+					"H2",
+					"NetplayFacade.cxx:TickMainMenu",
+					"steam_host_autostart_result",
+					{ { "serverOk", serverOk } }
 				);
 				if (!serverOk) {
 					PushAlert("Could not start Steam P2P host session. Is Steam running?");
@@ -496,8 +515,12 @@ namespace sf4e {
 	void NetplayFacade::TickFrame() {
 		fUserApp::TryStartPendingMatch();
 
-		if (fUserApp::netplay && fUserApp::netplay->client._useRelay && GgpoRelay::Instance().IsActive()) {
-			GgpoRelay::Instance().Pump();
+		if (fUserApp::netplay && GgpoRelay::Instance().IsActive()) {
+			const bool pumpGgpoTunnel =
+				fUserApp::netplay->client._useRelay || s_config.useCentralSession == 3;
+			if (pumpGgpoTunnel) {
+				GgpoRelay::Instance().Pump();
+			}
 		}
 
 		if (

@@ -33,6 +33,7 @@
 
 #include "update/github_release_client.hxx"
 #ifdef SF4E_STEAMWORKS_EXPERIMENT
+#include "../../common/agent_debug_log.hxx"
 #include "../steam_experiment/steam_p2p_payload.hxx"
 #include "steam/steam_p2p_launcher.hxx"
 #endif
@@ -564,6 +565,7 @@ namespace launcher {
 		strncpy_s(m_outConfig.steamSessionToken, sessionToken.c_str(), _TRUNCATE);
 		m_outConfig.ggpoTransport = 0;
 		m_outConfig.playerRole = mode == (int)NetplayMode::Host ? 1 : 2;
+		// GGPO session tunnel (GgpoRelay over Steam sockets), not VPS RelayHost.
 		m_outConfig.useRelay = 1;
 		m_outConfig.relayRoomCode[0] = '\0';
 		m_outConfig.ggpoRemoteHost[0] = '\0';
@@ -577,6 +579,17 @@ namespace launcher {
 			strncpy_s(m_outConfig.roomKey, "1", _TRUNCATE);
 		}
 
+		sf4e::agent_debug::Log(
+			"H4",
+			"netplay_launch_controller.cxx:ConfigureSteamStart",
+			"closing_launcher_steam_before_game",
+			{
+				{ "mode", mode },
+				{ "peerSteamId", peerSteamId },
+				{ "virtualPort", virtualPort },
+				{ "connected", status.value("connected", false) }
+			}
+		);
 		steam_p2p::CloseJson();
 		spdlog::info(
 			"Steam start: mode={} peer={} virtualPort={} tokenPresent={}",

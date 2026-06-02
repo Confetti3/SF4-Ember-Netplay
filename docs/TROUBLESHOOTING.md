@@ -55,6 +55,16 @@ This usually means the **launch-ready** Steam message reached only one PC. The l
 
 Steam P2P builds defer match start until **two** lobby members are present. Both players must use **Ready to launch** in the launcher so games start together, then **Ready** again in the in-game lobby.
 
+### In-game: crash when picking character and starting the match
+
+GGPO rollback still runs on Steam P2P via the **session tunnel** (`GgpoRelay` over Steam sockets), not direct UDP to Steam addresses.
+
+1. Both players must be **Ready** in the in-game lobby before either starts character select.
+2. If the game alerts that the GGPO session tunnel could not start, return to the lobby and press **Ready** again on both PCs.
+3. In `sf4e.log`, look for `GgpoRelay: started` then `GgpoRelay: remote endpoint 127.0.0.1:...` (not a Steam networking address string on the GGPO remote player line).
+4. Overlay should eventually show **GGPO: Running** during the match.
+5. For deep diagnosis, set `SF4E_AGENT_DEBUG=1` before launch and send `%APPDATA%\sf4e\debug-592d59.log` with both `sf4e.log` files.
+
 ---
 
 ## Legacy relay/WebView2 checklist

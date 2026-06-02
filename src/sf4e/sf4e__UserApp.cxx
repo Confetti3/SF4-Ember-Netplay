@@ -16,6 +16,7 @@
 #include "../Dimps/Dimps__Math.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__UserApp.hxx"
+#include "../common/agent_debug_log.hxx"
 #include "../session/sf4e__SessionClient.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 #include "../session/sf4e__SessionServer.hxx"
@@ -59,6 +60,16 @@ static bool StartMatchFromLobby(SessionClient* const client) {
     sf4e::NetplayFacade::ClearBattleState();
     fVsBattle::bSessionSynced = false;
     fVsBattle::bSessionSentLoaded = false;
+
+    sf4e::agent_debug::Log(
+        "H3",
+        "UserApp.cxx:StartMatchFromLobby",
+        "entry",
+        {
+            { "hasClient", client != nullptr },
+            { "memberCount", client ? (int)client->_lobbyData.members.size() : -1 }
+        }
+    );
 
     if (!client || client->_lobbyData.members.size() < 2) {
         spdlog::info("Client: deferring match start until opponent joins the lobby");
@@ -111,8 +122,19 @@ sf4e::UserApp::Netplay::Netplay(
 void fUserApp::_OnVsBattleTasksRegistered()
 {
     if (!netplay) {
+        sf4e::agent_debug::Log("H3", "UserApp.cxx:_OnVsBattleTasksRegistered", "netplay_null", {});
         return;
     }
+    sf4e::agent_debug::Log(
+        "H3",
+        "UserApp.cxx:_OnVsBattleTasksRegistered",
+        "entry",
+        {
+            { "memberCount", (int)netplay->client._lobbyData.members.size() },
+            { "useCentralSession", (int)sf4e::NetplayFacade::GetConfig().useCentralSession },
+            { "useRelay", netplay->client._useRelay ? 1 : 0 }
+        }
+    );
     if (netplay->client._lobbyData.members.size() < 2) {
         spdlog::warn("Netplay: waiting for second player before starting GGPO");
         sf4e::NetplayFacade::PushAlert("Waiting for opponent in the lobby before the match can start.");
@@ -127,9 +149,21 @@ void fUserApp::_OnVsBattleTasksRegistered()
             break;
         }
     }
+    sf4e::agent_debug::Log(
+        "H5",
+        "UserApp.cxx:_OnVsBattleTasksRegistered",
+        "is_player_branch",
+        { { "isPlayer", isPlayer } }
+    );
     if (isPlayer) {
         NetplayConfig transportCfg = sf4e::NetplayFacade::GetConfig();
+        const bool steamP2pSession = transportCfg.useCentralSession == 3;
         bool useLegacyGgpoTunnel = netplay->client._useRelay;
+        if (steamP2pSession) {
+            // Steam P2P: GGPO rollback over session tunnel (GgpoRelay), not direct Steam UDP.
+            useLegacyGgpoTunnel = true;
+            netplay->client._useRelay = true;
+        }
         if (
             transportCfg.useCentralSession == 2
             && transportCfg.ggpoTransport == 0
@@ -164,9 +198,18 @@ void fUserApp::_OnVsBattleTasksRegistered()
         else if (transportCfg.useCentralSession == 2) {
             sf4e::NetplayFacade::ReportGgpoTransport(0, true, nullptr, 0);
         }
+        else if (steamP2pSession) {
+            sf4e::NetplayFacade::ReportGgpoTransport(0, true, nullptr, 0);
+        }
 
         if (useLegacyGgpoTunnel) {
-            GgpoRelay::Instance().Start(netplay->client._ggpoPort, &netplay->client);
+            if (!GgpoRelay::Instance().Start(netplay->client._ggpoPort, &netplay->client)) {
+                spdlog::error("Netplay: GgpoRelay failed to start (Steam P2P session tunnel)");
+                sf4e::NetplayFacade::PushAlert(
+                    "Netplay: could not start GGPO session tunnel. Return to lobby and retry."
+                );
+                return;
+            }
         }
 
         GGPOPlayer players[MAX_SF4E_PROTOCOL_USERS];
@@ -190,6 +233,7 @@ void fUserApp::_OnVsBattleTasksRegistered()
                 SessionProtocol::MemberData& memberData = netplay->client._lobbyData.members[i];
                 player.type = GGPO_PLAYERTYPE_REMOTE;
                 const NetplayConfig& activeCfg = sf4e::NetplayFacade::GetConfig();
+                bool remoteResolved = false;
                 if (useLegacyGgpoTunnel &&
                     GgpoRelay::Instance().GetRemoteEndpoint(
                         memberData.connId,
@@ -197,6 +241,7 @@ void fUserApp::_OnVsBattleTasksRegistered()
                         32,
                         &player.u.remote.port
                     )) {
+                    remoteResolved = true;
                     spdlog::info(
                         "GgpoRelay: remote endpoint {}:{}",
                         player.u.remote.ip_address,
@@ -214,21 +259,36 @@ void fUserApp::_OnVsBattleTasksRegistered()
                         _TRUNCATE
                     );
                     player.u.remote.port = activeCfg.ggpoRemotePort;
+                    remoteResolved = true;
                     spdlog::info(
                         "GgpoTransport: remote endpoint {}:{}",
                         player.u.remote.ip_address,
                         player.u.remote.port
                     );
                 }
-                else if (memberData.ip.empty()) {
+                else if (!steamP2pSession && memberData.ip.empty()) {
                     char szAddr[SteamNetworkingIPAddr::k_cchMaxString];
                     netplay->client._serverAddr.ToString(szAddr, sizeof(szAddr), false);
                     strcpy_s(player.u.remote.ip_address, 32, szAddr);
                     player.u.remote.port = memberData.port;
+                    remoteResolved = true;
                 }
-                else {
+                else if (!steamP2pSession && !memberData.ip.empty()) {
                     strcpy_s(player.u.remote.ip_address, 32, memberData.ip.c_str());
                     player.u.remote.port = memberData.port;
+                    remoteResolved = true;
+                }
+                if (!remoteResolved) {
+                    spdlog::error(
+                        "Netplay: could not resolve GGPO remote endpoint (steamP2p={} tunnel={})",
+                        steamP2pSession,
+                        useLegacyGgpoTunnel
+                    );
+                    GgpoRelay::Instance().Reset();
+                    sf4e::NetplayFacade::PushAlert(
+                        "Netplay: GGPO could not connect to opponent. Return to lobby and retry."
+                    );
+                    return;
                 }
             }
         }
@@ -261,6 +321,11 @@ void fUserApp::_OnVsBattleTasksRegistered()
         // limited enough players that there's marginal bandwidth
         // differences.	
         // 
+        if (netplay->client._lobbyData.members.empty()) {
+            spdlog::error("Netplay: cannot spectate without lobby host member");
+            sf4e::NetplayFacade::PushAlert("Netplay: lobby host not available for spectate.");
+            return;
+        }
         char szAddr[SteamNetworkingIPAddr::k_cchMaxString];
         char* hostIP;
         if (netplay->client._lobbyData.members[0].ip.empty()) {
@@ -363,6 +428,24 @@ void fUserApp::TryRestartGgpoLegacyTunnel() {
 
 void fUserApp::_OnVsPreBattleTasksRegistered()
 {
+    sf4e::agent_debug::Log(
+        "H3",
+        "UserApp.cxx:_OnVsPreBattleTasksRegistered",
+        "entry",
+        {
+            { "hasNetplay", netplay != nullptr },
+            { "memberCount", netplay ? (int)netplay->client._lobbyData.members.size() : -1 }
+        }
+    );
+    if (!netplay) {
+        spdlog::error("VsPreBattle tasks registered but netplay is null");
+        return;
+    }
+    if (netplay->client._lobbyData.members.size() < 2) {
+        spdlog::warn("VsPreBattle: deferring until opponent is in lobby");
+        sf4e::NetplayFacade::PushAlert("Waiting for opponent in the lobby before the match can start.");
+        return;
+    }
     size_t charaConditionSize = sizeof(rVsMode::ConfirmedCharaConditions);
 
     // XXX (adanducci): this is a little fragile- it's technically possible
@@ -390,6 +473,15 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
 }
 
 void OnReady(sf4e::SessionClient* const client, const sf4e::SessionClient::Callbacks& c) {
+    sf4e::agent_debug::Log(
+        "H4",
+        "UserApp.cxx:OnReady",
+        "lobby_ready_callback",
+        {
+            { "memberCount", client ? (int)client->_lobbyData.members.size() : -1 },
+            { "allReady", client && client->_matchData.IsAllReady() }
+        }
+    );
     if (!StartMatchFromLobby(client)) {
         s_pendingMatchStart = true;
         spdlog::info("Client: deferring match start until main menu");
@@ -465,6 +557,12 @@ bool fUserApp::StartSteamHost(
     uint16_t ggpoPort,
     bool useRelay
 ) {
+    sf4e::agent_debug::Log(
+        "H2",
+        "UserApp.cxx:StartSteamHost",
+        "entry",
+        { { "virtualPort", virtualPort }, { "useRelay", useRelay ? 1 : 0 } }
+    );
     server.reset(new SessionServer(identity, sidecarHash, editionSelect, roundCount, roundTime));
     server->PrepareForCallbacks();
     if (!sf4e::SteamP2pSession::HostBegin(server.get(), virtualPort)) {
@@ -482,11 +580,13 @@ bool fUserApp::StartSteamHost(
     ));
     netplay->client._useRelay = useRelay;
     if (!sf4e::SteamP2pSession::ConnectHostLocalClient(&netplay->client)) {
+        sf4e::agent_debug::Log("H2", "UserApp.cxx:StartSteamHost", "connect_local_client_failed", {});
         sf4e::SteamP2pSession::Shutdown();
         netplay.reset();
         server.reset();
         return false;
     }
+    sf4e::agent_debug::Log("H2", "UserApp.cxx:StartSteamHost", "ok", {});
     return true;
 }
 
