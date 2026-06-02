@@ -37,6 +37,24 @@ Steam invites are **not** Steam chat messages. They are delivered through Steam 
 5. Confirm both players use the **same** `sf4-netplay-p2p-steam-*` zip (not the production `sf4-netplay-launcher-*` build).
 6. Diagnostic: `tools\SteamP2PProbe.exe` with `--write-appid 45760` on both PCs (see `readme\STEAM_P2P_EXPERIMENT.md`).
 
+### One player launches USF4, the other stays on the launcher
+
+This usually means the **launch-ready** Steam message reached only one PC. The launcher now resends that signal and polls faster while waiting, but both players must still press **Ready to launch game**.
+
+1. **Both** press **Ready to launch game** after **P2P connected** (order does not matter much).
+2. Wait until **both** see activity log **Both players ready — launching USF4** before either closes the launcher.
+3. In `launcher.log` on **each** PC, look for:
+   - `SendLaunchReady ok target=...`
+   - `ReceiveLaunchReady from=...` (or `Launch handshake: opponent already ready`)
+   - `Controller steamStart mode=1` (host) or `mode=2` (joiner)
+4. If stuck on **Waiting for opponent**, click **Ready to launch game** again (resends the signal). After ~90s the launcher auto-resends once.
+5. If P2P shows disconnected while waiting, the opponent may have started the game first — keep the launcher open and press **Ready** again.
+6. Send **both** `launcher.log` files when reporting the bug.
+
+### In-game: waiting for opponent / crash when alone in lobby
+
+Steam P2P builds defer match start until **two** lobby members are present. Both players must use **Ready to launch** in the launcher so games start together, then **Ready** again in the in-game lobby.
+
 ---
 
 ## Legacy relay/WebView2 checklist

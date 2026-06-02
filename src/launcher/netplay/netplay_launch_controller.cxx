@@ -117,6 +117,7 @@ namespace launcher {
 			|| type == "steamPrepareHost"
 			|| type == "steamPrepareJoin"
 			|| type == "steamMarkLaunchReady"
+			|| type == "steamFlushLaunchReady"
 			|| type == "steamStart";
 	}
 
@@ -841,7 +842,7 @@ namespace launcher {
 #endif
 		}
 
-		if (type == "steamMarkLaunchReady") {
+		if (type == "steamMarkLaunchReady" || type == "steamFlushLaunchReady") {
 #ifdef SF4E_STEAMWORKS_EXPERIMENT
 			unsigned long long target = 0;
 			try {
@@ -866,7 +867,17 @@ namespace launcher {
 					"Steam P2P is not connected yet. Complete invite + connect on both PCs first.";
 				return err;
 			}
-			nlohmann::json sent = steam_p2p::SendLaunchReadyJson(target);
+			const bool flush = (type == "steamFlushLaunchReady");
+			nlohmann::json sent = flush
+				? steam_p2p::ResendLaunchReadyJson(target, 4)
+				: steam_p2p::SendLaunchReadyJson(target);
+			if (sent.value("ok", false)) {
+				const bool peerReady = steam_p2p::PollPeerLaunchReady(target, flush ? 12 : 8);
+				sent["peerLaunchReady"] = peerReady;
+				if (peerReady) {
+					spdlog::info("Launch handshake: opponent already ready (target={})", target);
+				}
+			}
 			sent["type"] = "steamLaunchReady";
 			return sent;
 #else

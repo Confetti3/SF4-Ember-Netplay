@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <windows.h>
@@ -551,6 +552,72 @@ namespace {
 		return j;
 	}
 
+	static unsigned long long LaunchReadySenderFromItem(const nlohmann::json& item) {
+		if (item.contains("launchReady") && item["launchReady"].is_object()) {
+			const auto& lr = item["launchReady"];
+			if (lr.contains("senderSteamId")) {
+				if (lr["senderSteamId"].is_string()) {
+					try {
+						return std::stoull(lr["senderSteamId"].get<std::string>());
+					}
+					catch (...) {
+						return 0;
+					}
+				}
+				if (lr["senderSteamId"].is_number_unsigned()) {
+					return lr["senderSteamId"].get<unsigned long long>();
+				}
+			}
+		}
+		if (item.contains("fromSteamId")) {
+			if (item["fromSteamId"].is_string()) {
+				try {
+					return std::stoull(item["fromSteamId"].get<std::string>());
+				}
+				catch (...) {
+					return 0;
+				}
+			}
+			if (item["fromSteamId"].is_number_unsigned()) {
+				return item["fromSteamId"].get<unsigned long long>();
+			}
+		}
+		return 0;
+	}
+
+	static bool ItemIsLaunchReadyFromPeer(const nlohmann::json& item, unsigned long long expectedPeerSteamId) {
+		if (expectedPeerSteamId == 0 || item.value("kind", "") != "launch_ready") {
+			return false;
+		}
+		return LaunchReadySenderFromItem(item) == expectedPeerSteamId;
+	}
+
+	bool PollPeerLaunchReady(unsigned long long expectedPeerSteamId, int pumpAttempts) {
+		if (expectedPeerSteamId == 0 || !g_state.initialized) {
+			return false;
+		}
+		for (int attempt = 0; attempt < pumpAttempts; ++attempt) {
+			Pump();
+			nlohmann::json batch = DrainMessages();
+			if (!batch.is_array()) {
+				std::this_thread::sleep_for(std::chrono::milliseconds(40));
+				continue;
+			}
+			for (const auto& item : batch) {
+				if (ItemIsLaunchReadyFromPeer(item, expectedPeerSteamId)) {
+					spdlog::info(
+						"ReceiveLaunchReady from={} (pump attempt {})",
+						expectedPeerSteamId,
+						attempt + 1
+					);
+					return true;
+				}
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(40));
+		}
+		return false;
+	}
+
 	nlohmann::json SendLaunchReadyJson(unsigned long long targetSteamId) {
 		EnsureSteam();
 		nlohmann::json j = Envelope("steamLaunchReady");
@@ -598,6 +665,19 @@ namespace {
 			spdlog::info("SendLaunchReady ok target={}", targetSteamId);
 		}
 		return j;
+	}
+
+	nlohmann::json ResendLaunchReadyJson(unsigned long long targetSteamId, int repeatCount) {
+		nlohmann::json last = SendLaunchReadyJson(targetSteamId);
+		if (!last.value("ok", false) || repeatCount <= 1) {
+			return last;
+		}
+		for (int i = 1; i < repeatCount; ++i) {
+			Pump();
+			std::this_thread::sleep_for(std::chrono::milliseconds(60));
+			last = SendLaunchReadyJson(targetSteamId);
+		}
+		return last;
 	}
 
 	nlohmann::json PollMessagesJson() {

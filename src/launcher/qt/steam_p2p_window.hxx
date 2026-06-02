@@ -24,6 +24,8 @@
 
 #include <QTabWidget>
 
+#include <QTimer>
+
 #include <QVBoxLayout>
 
 #include <QWidget>
@@ -114,6 +116,8 @@ private slots:
 
 	void onClearLog();
 
+	void onLaunchWaitTimeout();
+
 	void onOnlySf4Changed();
 
 
@@ -162,6 +166,18 @@ private:
 
 	QString peerSteamId() const;
 
+	std::string expectedLaunchPeerSteamId() const;
+
+	void updateLaunchWaitPoll();
+
+	void armLaunchWaitTimer();
+
+	void disarmLaunchWaitTimer();
+
+	void recoverLaunchHandshake(const QString& reason, bool clearLocalReady);
+
+	void resendLaunchReady();
+
 	void startGame(const char* mode);
 
 	void resetLaunchHandshake();
@@ -203,6 +219,8 @@ private:
 	bool m_launchTriggered = false;
 
 	std::string m_launchRole;
+
+	QTimer m_launchWaitTimer;
 
 
 

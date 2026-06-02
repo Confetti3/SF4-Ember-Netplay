@@ -18,6 +18,8 @@ namespace steam_p2p {
 	);
 	nlohmann::json SendInviteJson(unsigned long long targetSteamId, int virtualPort, const char* sidecarHash, const char* buildGit, const char* sessionToken);
 	nlohmann::json SendLaunchReadyJson(unsigned long long targetSteamId);
+	nlohmann::json ResendLaunchReadyJson(unsigned long long targetSteamId, int repeatCount = 3);
+	bool PollPeerLaunchReady(unsigned long long expectedPeerSteamId, int pumpAttempts = 12);
 	nlohmann::json PollMessagesJson();
 	nlohmann::json ListenJson(int virtualPort);
 	nlohmann::json ConnectJson(unsigned long long targetSteamId, int virtualPort);
