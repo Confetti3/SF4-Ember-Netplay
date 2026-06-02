@@ -218,6 +218,12 @@ private:
 
 	bool m_peerLaunchReady = false;
 
+	bool m_localLaunchCommit = false;
+
+	bool m_peerLaunchCommit = false;
+
+	bool m_p2pEverConnected = false;
+
 	bool m_launchTriggered = false;
 
 	std::string m_launchRole;

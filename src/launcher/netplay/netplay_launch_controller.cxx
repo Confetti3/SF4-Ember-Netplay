@@ -121,6 +121,7 @@ namespace launcher {
 			|| type == "steamFlushLaunchReady"
 			|| type == "steamDrainLaunchReady"
 			|| type == "steamConfirmPeerLaunch"
+			|| type == "steamConfirmPeerLaunchCommit"
 			|| type == "steamStart";
 	}
 
@@ -592,9 +593,9 @@ namespace launcher {
 				{ "connected", status.value("connected", false) }
 			}
 		);
-		steam_p2p::CloseJson();
+		steam_p2p::CloseP2pSocketsOnly();
 		spdlog::info(
-			"Steam start: mode={} peer={} virtualPort={} tokenPresent={}",
+			"Steam start: mode={} peer={} virtualPort={} tokenPresent={} (P2P sockets only, messages kept)",
 			mode,
 			peerSteamId,
 			virtualPort,
@@ -775,6 +776,7 @@ namespace launcher {
 				sidecarHash[0] != 0,
 				buildGit
 			);
+			m_steamP2pWasConnected = true;
 			return steam_p2p::PrepareHostJson(
 				target,
 				virtualPort,
@@ -848,6 +850,7 @@ namespace launcher {
 				m_steamPendingVirtualPort,
 				m_steamPendingBuildGit
 			);
+			m_steamP2pWasConnected = true;
 			nlohmann::json connect = steam_p2p::ConnectJson(invite.senderSteamId, invite.virtualPort);
 			connect["type"] = "steamPrepareJoin";
 			connect["inviteOk"] = true;
@@ -862,7 +865,35 @@ namespace launcher {
 
 		if (type == "steamDrainLaunchReady") {
 #ifdef SF4E_STEAMWORKS_EXPERIMENT
-			return steam_p2p::DrainLaunchReadyMessagesJson();
+			return steam_p2p::DrainLaunchHandshakeMessagesJson();
+#else
+			return SteamExperimentUnavailable();
+#endif
+		}
+
+		if (type == "steamConfirmPeerLaunchCommit") {
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+			unsigned long long target = 0;
+			try {
+				target = std::stoull(msg.value("targetSteamId", "0"));
+			}
+			catch (...) {
+				target = 0;
+			}
+			std::string token = msg.value("sessionToken", "");
+			if (token.size() < 8) {
+				if (m_steamHostSessionToken[0]) {
+					token = m_steamHostSessionToken;
+				}
+				else if (m_steamPendingSessionToken[0]) {
+					token = m_steamPendingSessionToken;
+				}
+			}
+			return steam_p2p::ConfirmPeerLaunchCommitJson(
+				target,
+				token.c_str(),
+				msg.value("pumpAttempts", 24)
+			);
 #else
 			return SteamExperimentUnavailable();
 #endif
@@ -929,12 +960,19 @@ namespace launcher {
 				return err;
 			}
 			nlohmann::json status = steam_p2p::BuildStatusJson();
-			if (!status.value("connected", false)) {
+			if (!status.value("initialized", false)) {
+				nlohmann::json err;
+				err["v"] = kProtocolVersion;
+				err["type"] = "error";
+				err["message"] = "Steam is not initialized. Restart the launcher with Steam running.";
+				return err;
+			}
+			if (!m_steamP2pWasConnected && !status.value("connected", false)) {
 				nlohmann::json err;
 				err["v"] = kProtocolVersion;
 				err["type"] = "error";
 				err["message"] =
-					"Steam P2P is not connected yet. Complete invite + connect on both PCs first.";
+					"Complete invite + P2P connect on both PCs before readying up.";
 				return err;
 			}
 			const bool flush = (type == "steamFlushLaunchReady");
@@ -1000,6 +1038,19 @@ namespace launcher {
 			if (!steamResult.empty()) {
 				return steamResult;
 			}
+			unsigned long long startPeer = 0;
+			try {
+				startPeer = std::stoull(msg.value("peerSteamId", "0"));
+			}
+			catch (...) {
+				startPeer = 0;
+			}
+			sf4e::agent_debug::Log(
+				"H5",
+				"netplay_launch_controller.cxx:steamStart",
+				"finished_launcher",
+				{ { "mode", mode }, { "peerSteamId", startPeer } }
+			);
 			m_finished = true;
 			m_cancelled = false;
 			return nlohmann::json();

@@ -160,5 +160,51 @@ namespace steam_experiment {
 		}
 	}
 
+	std::string EncodeLaunchCommit(const SteamLaunchCommitPayload& payload) {
+		nlohmann::json j;
+		j["cmd"] = "sf4e_steam_p2p_launch_commit";
+		j["version"] = payload.version;
+		j["senderSteamId"] = std::to_string(payload.senderSteamId);
+		j["sessionToken"] = payload.sessionToken;
+		return j.dump();
+	}
+
+	bool DecodeLaunchCommit(const std::string& text, SteamLaunchCommitPayload& outPayload, std::string& outError) {
+		try {
+			nlohmann::json j = nlohmann::json::parse(text);
+			if (j.value("cmd", "") != "sf4e_steam_p2p_launch_commit") {
+				outError = "unexpected command";
+				return false;
+			}
+			SteamLaunchCommitPayload payload;
+			payload.version = j.value("version", 0);
+			payload.senderSteamId = std::stoull(j.value("senderSteamId", "0"));
+			payload.sessionToken = j.value("sessionToken", "");
+			if (payload.version != STEAM_P2P_LAUNCH_COMMIT_VERSION) {
+				outError = "unsupported launch-commit version";
+				return false;
+			}
+			if (payload.senderSteamId == 0) {
+				outError = "missing sender SteamID";
+				return false;
+			}
+			if (payload.sessionToken.size() < 8) {
+				outError = "missing session token on launch-commit";
+				return false;
+			}
+			outPayload = payload;
+			outError.clear();
+			return true;
+		}
+		catch (const std::exception& e) {
+			outError = e.what();
+			return false;
+		}
+		catch (...) {
+			outError = "unknown parse error";
+			return false;
+		}
+	}
+
 } // namespace steam_experiment
 } // namespace sf4e

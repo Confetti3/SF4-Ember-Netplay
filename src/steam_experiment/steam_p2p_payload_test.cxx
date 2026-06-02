@@ -4,8 +4,14 @@
 #include <string>
 
 using sf4e::steam_experiment::DecodeInvite;
+using sf4e::steam_experiment::DecodeLaunchCommit;
+using sf4e::steam_experiment::DecodeLaunchReady;
 using sf4e::steam_experiment::EncodeInvite;
+using sf4e::steam_experiment::EncodeLaunchCommit;
+using sf4e::steam_experiment::EncodeLaunchReady;
 using sf4e::steam_experiment::SteamInvitePayload;
+using sf4e::steam_experiment::SteamLaunchCommitPayload;
+using sf4e::steam_experiment::SteamLaunchReadyPayload;
 using sf4e::steam_experiment::CompareInviteToLocalBuild;
 using sf4e::steam_experiment::ValidateInvite;
 
@@ -67,6 +73,17 @@ int main() {
 		!CompareInviteToLocalBuild(original, "wrong-hash", original.buildGit.c_str(), err),
 		"sidecar mismatch should fail"
 	) ? 0 : 1;
+
+	SteamLaunchReadyPayload launchReady;
+	launchReady.senderSteamId = original.senderSteamId;
+	launchReady.sessionToken = original.sessionToken;
+	failures += Expect(DecodeLaunchReady(EncodeLaunchReady(launchReady), launchReady, err), "launch ready round trips") ? 0 : 1;
+
+	SteamLaunchCommitPayload launchCommit;
+	launchCommit.senderSteamId = original.senderSteamId;
+	launchCommit.sessionToken = original.sessionToken;
+	failures += Expect(DecodeLaunchCommit(EncodeLaunchCommit(launchCommit), launchCommit, err), "launch commit round trips") ? 0 : 1;
+	failures += Expect(!DecodeLaunchCommit("{\"cmd\":\"other\"}", launchCommit, err), "unexpected launch commit cmd should fail") ? 0 : 1;
 
 	if (failures != 0) {
 		std::cerr << failures << " payload test(s) failed\n";

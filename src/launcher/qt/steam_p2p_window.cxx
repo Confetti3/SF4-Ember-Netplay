@@ -1,6 +1,6 @@
 #include "steam_p2p_window.hxx"
 
-
+#include "../../common/agent_debug_log.hxx"
 
 #include <cstring>
 
@@ -90,6 +90,13 @@ bool SteamIdsMatch(const std::string& a, const std::string& b) {
 QString LaunchReadySessionTokenFromMessage(const nlohmann::json& m) {
 	if (m.contains("launchReady") && m["launchReady"].is_object()) {
 		return JsonString(m["launchReady"], "sessionToken", QString());
+	}
+	return QString();
+}
+
+QString LaunchCommitSessionTokenFromMessage(const nlohmann::json& m) {
+	if (m.contains("launchCommit") && m["launchCommit"].is_object()) {
+		return JsonString(m["launchCommit"], "sessionToken", QString());
 	}
 	return QString();
 }
@@ -1165,6 +1172,10 @@ void SteamP2pMainWindow::resetLaunchHandshake() {
 
 	m_peerLaunchReady = false;
 
+	m_localLaunchCommit = false;
+
+	m_peerLaunchCommit = false;
+
 	m_launchTriggered = false;
 
 	m_launchRole.clear();
@@ -1251,7 +1262,7 @@ void SteamP2pMainWindow::updateStartButtons() {
 
 	const bool canLaunch = !m_launchTriggered && !m_launchRole.empty();
 
-	const bool canSignalReady = canLaunch && (m_p2pConnected || m_localLaunchReady);
+	const bool canSignalReady = canLaunch && (m_p2pConnected || m_localLaunchReady || m_p2pEverConnected);
 
 	m_btnStartHost->setEnabled(canSignalReady && hasPeer && m_launchRole == "host");
 
@@ -1267,11 +1278,19 @@ void SteamP2pMainWindow::updateStartButtons() {
 
 	}
 
+	else if (m_localLaunchReady && m_peerLaunchReady && m_localLaunchCommit && m_peerLaunchCommit) {
+
+		m_hostStartHint->setText(QStringLiteral("Both committed — launching now."));
+
+		m_joinStartHint->setText(QStringLiteral("Both committed — launching now."));
+
+	}
+
 	else if (m_localLaunchReady && m_peerLaunchReady) {
 
-		m_hostStartHint->setText(QStringLiteral("Both ready — launching now."));
+		m_hostStartHint->setText(QStringLiteral("Both ready — confirming launch commit..."));
 
-		m_joinStartHint->setText(QStringLiteral("Both ready — launching now."));
+		m_joinStartHint->setText(QStringLiteral("Both ready — confirming launch commit..."));
 
 	}
 
@@ -1367,9 +1386,15 @@ void SteamP2pMainWindow::applySteamStatus(const nlohmann::json& s) {
 
 		m_p2pConnected = JsonBool(s, "connected", false);
 
-		if (wasConnected && !m_p2pConnected && m_localLaunchReady && !m_peerLaunchReady && !m_launchTriggered) {
+		if (m_p2pConnected) {
 
-			appendLog(QStringLiteral("P2P socket closed while waiting to launch — Steam messages may still deliver; press Ready again to resend"));
+			m_p2pEverConnected = true;
+
+		}
+
+		if (wasConnected && !m_p2pConnected && m_localLaunchReady && !m_launchTriggered) {
+
+			appendLog(QStringLiteral("P2P socket closed — launch handshake uses Steam messages; press Ready again if needed"));
 
 		}
 
@@ -1500,10 +1525,32 @@ void SteamP2pMainWindow::processMessages(const nlohmann::json& messages) {
 			if (m_launchSessionToken.empty() || readyToken.isEmpty()
 				|| readyToken.toStdString() != m_launchSessionToken) {
 				appendLog(QStringLiteral("Ignored stale launch-ready (session token mismatch)"));
+				sf4e::agent_debug::Log(
+					"H2",
+					"steam_p2p_window.cxx:processMessages",
+					"launch_ready_rejected",
+					{
+						{ "reason", "token_mismatch" },
+						{ "hasLocalToken", !m_launchSessionToken.empty() },
+						{ "hasReadyToken", !readyToken.isEmpty() },
+						{ "sender", sender },
+						{ "expectedPeer", expectedPeer }
+					}
+				);
 				continue;
 			}
 
 			m_peerLaunchReady = true;
+			sf4e::agent_debug::Log(
+				"H4",
+				"steam_p2p_window.cxx:processMessages",
+				"peer_launch_ready_set",
+				{
+					{ "sender", sender },
+					{ "localReady", m_localLaunchReady },
+					{ "launchRole", m_launchRole }
+				}
+			);
 
 			appendLog(QStringLiteral("Opponent is ready to launch"));
 
@@ -1512,6 +1559,97 @@ void SteamP2pMainWindow::processMessages(const nlohmann::json& messages) {
 			updateLaunchWaitPoll();
 
 			armLaunchWaitTimer();
+
+			trySynchronizedLaunch();
+
+			updateLaunchButtonLabels();
+
+			updateStartButtons();
+
+			continue;
+
+		}
+
+		if (m.contains("kind") && m["kind"] == "launch_commit") {
+
+			const std::string expectedPeer = expectedLaunchPeerSteamId();
+
+			std::string sender;
+
+			if (m.contains("launchCommit") && m["launchCommit"].is_object()) {
+
+				const auto& lc = m["launchCommit"];
+
+				if (lc.contains("senderSteamId")) {
+
+					if (lc["senderSteamId"].is_string()) {
+
+						sender = lc["senderSteamId"].get<std::string>();
+
+					}
+
+					else {
+
+						sender = std::to_string(lc["senderSteamId"].get<unsigned long long>());
+
+					}
+
+				}
+
+			}
+
+			if (sender.empty() && m.contains("fromSteamId")) {
+
+				if (m["fromSteamId"].is_string()) {
+
+					sender = m["fromSteamId"].get<std::string>();
+
+				}
+
+				else {
+
+					sender = std::to_string(m["fromSteamId"].get<unsigned long long>());
+
+				}
+
+			}
+
+			if (!expectedPeer.empty() && !sender.empty() && !SteamIdsMatch(sender, expectedPeer)) {
+
+				appendLog(QStringLiteral("Ignored launch-commit from unexpected SteamID ") + QString::fromStdString(sender));
+
+				continue;
+
+			}
+
+			const QString commitToken = LaunchCommitSessionTokenFromMessage(m);
+
+			if (m_launchSessionToken.empty() || commitToken.isEmpty()
+				|| commitToken.toStdString() != m_launchSessionToken) {
+
+				appendLog(QStringLiteral("Ignored stale launch-commit (session token mismatch)"));
+
+				sf4e::agent_debug::Log(
+					"H2",
+					"steam_p2p_window.cxx:processMessages",
+					"launch_commit_rejected",
+					{ { "reason", "token_mismatch" } }
+				);
+
+				continue;
+
+			}
+
+			m_peerLaunchCommit = true;
+
+			appendLog(QStringLiteral("Opponent committed to launch"));
+
+			sf4e::agent_debug::Log(
+				"H5",
+				"steam_p2p_window.cxx:processMessages",
+				"peer_launch_commit_set",
+				{ { "sender", sender } }
+			);
 
 			trySynchronizedLaunch();
 
@@ -1814,6 +1952,17 @@ void SteamP2pMainWindow::handleMessage(const nlohmann::json& msg) {
 		if (JsonBool(msg, "ok", false)) {
 
 			m_localLaunchReady = true;
+			sf4e::agent_debug::Log(
+				"H1",
+				"steam_p2p_window.cxx:steamLaunchReady",
+				"local_ready_set",
+				{
+					{ "peerLaunchReadyFromPoll", JsonBool(msg, "peerLaunchReady", false) },
+					{ "hasSessionToken", !m_launchSessionToken.empty() },
+					{ "launchRole", m_launchRole },
+					{ "expectedPeer", expectedLaunchPeerSteamId() }
+				}
+			);
 
 			if (JsonBool(msg, "peerLaunchReady", false)) {
 
@@ -2161,7 +2310,7 @@ void SteamP2pMainWindow::markLaunchReady(const char* mode) {
 
 	}
 
-	if (!m_p2pConnected && !m_localLaunchReady) {
+	if (!m_p2pConnected && !m_localLaunchReady && !m_p2pEverConnected) {
 
 		setStatus(QStringLiteral("P2P is not connected yet"), QStringLiteral("error"));
 
@@ -2185,6 +2334,18 @@ void SteamP2pMainWindow::markLaunchReady(const char* mode) {
 
 	}
 
+	sf4e::agent_debug::Log(
+		"H1",
+		"steam_p2p_window.cxx:markLaunchReady",
+		"send",
+		{
+			{ "mode", mode },
+			{ "hasSessionToken", !m_launchSessionToken.empty() },
+			{ "targetSteamId", req["targetSteamId"].get<std::string>() },
+			{ "p2pConnected", m_p2pConnected },
+			{ "localReadyAlready", m_localLaunchReady }
+		}
+	);
 	m_bridge.post(req);
 
 }
@@ -2192,6 +2353,19 @@ void SteamP2pMainWindow::markLaunchReady(const char* mode) {
 
 
 void SteamP2pMainWindow::trySynchronizedLaunch() {
+
+	sf4e::agent_debug::Log(
+		"H3",
+		"steam_p2p_window.cxx:trySynchronizedLaunch",
+		"entry",
+		{
+			{ "launchTriggered", m_launchTriggered },
+			{ "localReady", m_localLaunchReady },
+			{ "peerReady", m_peerLaunchReady },
+			{ "launchRole", m_launchRole },
+			{ "hasSessionToken", !m_launchSessionToken.empty() }
+		}
+	);
 
 	if (m_launchTriggered || !m_localLaunchReady || !m_peerLaunchReady || m_launchRole.empty()) {
 
@@ -2201,6 +2375,7 @@ void SteamP2pMainWindow::trySynchronizedLaunch() {
 
 	if (m_launchSessionToken.empty()) {
 
+		sf4e::agent_debug::Log("H1", "steam_p2p_window.cxx:trySynchronizedLaunch", "abort_no_session_token", {});
 		setStatus(QStringLiteral("Session token missing — resend invite and connect again"), QStringLiteral("error"));
 
 		return;
@@ -2219,35 +2394,65 @@ void SteamP2pMainWindow::trySynchronizedLaunch() {
 
 	disarmLaunchWaitTimer();
 
-	appendLog(QStringLiteral("Confirming opponent launch-ready..."));
+	if (!m_peerLaunchCommit || !m_localLaunchCommit) {
 
-	nlohmann::json confirm;
+		appendLog(QStringLiteral("Confirming launch commit with opponent..."));
 
-	confirm["type"] = "steamConfirmPeerLaunch";
+		nlohmann::json commit;
 
-	confirm["targetSteamId"] = peer;
+		commit["type"] = "steamConfirmPeerLaunchCommit";
 
-	confirm["sessionToken"] = m_launchSessionToken;
+		commit["targetSteamId"] = peer;
 
-	confirm["pumpAttempts"] = 24;
+		commit["sessionToken"] = m_launchSessionToken;
 
-	const nlohmann::json reply = m_bridge.post(confirm);
+		commit["pumpAttempts"] = 24;
 
-	if (!JsonBool(reply, "peerLaunchReady", false)) {
+		const nlohmann::json reply = m_bridge.post(commit);
 
-		appendLog(QStringLiteral("Opponent launch-ready not confirmed yet — keep waiting or press Ready again"));
+		const bool peerCommit = JsonBool(reply, "peerLaunchCommit", false);
 
-		setStatus(
+		if (JsonBool(reply, "localLaunchCommit", false)) {
 
-			QStringLiteral("Waiting for opponent to press Ready to launch game"),
+			m_localLaunchCommit = true;
 
-			QStringLiteral("error")
+		}
 
+		if (peerCommit) {
+
+			m_peerLaunchCommit = true;
+
+		}
+
+		sf4e::agent_debug::Log(
+			"H3",
+			"steam_p2p_window.cxx:trySynchronizedLaunch",
+			"confirm_commit_result",
+			{
+				{ "peerLaunchCommit", peerCommit },
+				{ "localLaunchCommit", m_localLaunchCommit },
+				{ "launchRole", m_launchRole },
+				{ "targetPeer", peer }
+			}
 		);
 
-		armLaunchWaitTimer();
+		if (!m_peerLaunchCommit || !m_localLaunchCommit) {
 
-		return;
+			appendLog(QStringLiteral("Waiting for opponent launch commit — press Ready again on both PCs"));
+
+			setStatus(
+
+				QStringLiteral("Waiting for opponent to confirm launch"),
+
+				QStringLiteral("error")
+
+			);
+
+			armLaunchWaitTimer();
+
+			return;
+
+		}
 
 	}
 
@@ -2273,6 +2478,12 @@ void SteamP2pMainWindow::trySynchronizedLaunch() {
 
 	m_bridge.post(flush);
 
+	sf4e::agent_debug::Log(
+		"H5",
+		"steam_p2p_window.cxx:trySynchronizedLaunch",
+		"start_game",
+		{ { "launchRole", m_launchRole } }
+	);
 	startGame(m_launchRole.c_str());
 
 }

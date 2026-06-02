@@ -19,6 +19,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include "../../common/agent_debug_log.hxx"
 #include "../steam_experiment/steam_p2p_payload.hxx"
 
 namespace sf4e {
@@ -357,9 +358,19 @@ namespace {
 				};
 			}
 			else {
-				item["kind"] = "raw";
-				item["body"] = body;
-				item["parseError"] = err;
+				sf4e::steam_experiment::SteamLaunchCommitPayload launchCommit;
+				if (sf4e::steam_experiment::DecodeLaunchCommit(body, launchCommit, err)) {
+					item["kind"] = "launch_commit";
+					item["launchCommit"] = {
+						{ "senderSteamId", std::to_string(launchCommit.senderSteamId) },
+						{ "sessionToken", launchCommit.sessionToken }
+					};
+				}
+					else {
+					item["kind"] = "raw";
+					item["body"] = body;
+					item["parseError"] = err;
+				}
 			}
 
 			messages.push_back(item);
@@ -633,6 +644,16 @@ namespace {
 						expectedPeerSteamId,
 						attempt + 1
 					);
+					sf4e::agent_debug::Log(
+						"H4",
+						"steam_p2p_launcher.cxx:PollPeerLaunchReady",
+						"peer_ready_seen",
+						{
+							{ "expectedPeer", expectedPeerSteamId },
+							{ "attempt", attempt + 1 },
+							{ "sender", LaunchReadySenderFromItem(item) }
+						}
+					);
 					return true;
 				}
 			}
@@ -641,8 +662,91 @@ namespace {
 		return false;
 	}
 
-	nlohmann::json DrainLaunchReadyMessagesJson() {
-		int drained = 0;
+	static unsigned long long LaunchCommitSenderFromItem(const nlohmann::json& item) {
+		if (item.value("kind", "") != "launch_commit" || !item.contains("launchCommit") || !item["launchCommit"].is_object()) {
+			return 0;
+		}
+		const auto& lc = item["launchCommit"];
+		if (lc.contains("senderSteamId")) {
+			if (lc["senderSteamId"].is_string()) {
+				try {
+					return std::stoull(lc["senderSteamId"].get<std::string>());
+				}
+				catch (...) {
+					return 0;
+				}
+			}
+			if (lc["senderSteamId"].is_number_unsigned()) {
+				return lc["senderSteamId"].get<unsigned long long>();
+			}
+		}
+		return 0;
+	}
+
+	static std::string LaunchCommitSessionTokenFromItem(const nlohmann::json& item) {
+		if (item.contains("launchCommit") && item["launchCommit"].is_object()) {
+			return item["launchCommit"].value("sessionToken", "");
+		}
+		return {};
+	}
+
+	static bool ItemIsLaunchCommitFromPeer(
+		const nlohmann::json& item,
+		unsigned long long expectedPeerSteamId,
+		const char* expectedSessionToken
+	) {
+		if (
+			expectedPeerSteamId == 0
+			|| !expectedSessionToken
+			|| expectedSessionToken[0] == '\0'
+			|| item.value("kind", "") != "launch_commit"
+		) {
+			return false;
+		}
+		if (LaunchCommitSenderFromItem(item) != expectedPeerSteamId) {
+			return false;
+		}
+		return LaunchCommitSessionTokenFromItem(item) == expectedSessionToken;
+	}
+
+	bool PollPeerLaunchCommit(unsigned long long expectedPeerSteamId, const char* sessionToken, int pumpAttempts) {
+		if (expectedPeerSteamId == 0 || !sessionToken || sessionToken[0] == '\0' || !g_state.initialized) {
+			return false;
+		}
+		for (int attempt = 0; attempt < pumpAttempts; ++attempt) {
+			Pump();
+			nlohmann::json batch = DrainMessages();
+			if (!batch.is_array()) {
+				std::this_thread::sleep_for(std::chrono::milliseconds(40));
+				continue;
+			}
+			for (const auto& item : batch) {
+				if (ItemIsLaunchCommitFromPeer(item, expectedPeerSteamId, sessionToken)) {
+					spdlog::info(
+						"ReceiveLaunchCommit from={} (pump attempt {})",
+						expectedPeerSteamId,
+						attempt + 1
+					);
+					sf4e::agent_debug::Log(
+						"H3",
+						"steam_p2p_launcher.cxx:PollPeerLaunchCommit",
+						"peer_commit_seen",
+						{
+							{ "expectedPeer", expectedPeerSteamId },
+							{ "attempt", attempt + 1 }
+						}
+					);
+					return true;
+				}
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(40));
+		}
+		return false;
+	}
+
+	nlohmann::json DrainLaunchHandshakeMessagesJson() {
+		int drainedReady = 0;
+		int drainedCommit = 0;
 		if (g_state.initialized) {
 			for (int pass = 0; pass < 16; ++pass) {
 				Pump();
@@ -651,15 +755,24 @@ namespace {
 					break;
 				}
 				for (const auto& item : batch) {
-					if (item.value("kind", "") == "launch_ready") {
-						drained++;
+					const std::string kind = item.value("kind", "");
+					if (kind == "launch_ready") {
+						drainedReady++;
+					}
+					else if (kind == "launch_commit") {
+						drainedCommit++;
 					}
 				}
 			}
 		}
-		nlohmann::json j = Envelope("steamLaunchReadyDrained");
-		j["drained"] = drained;
+		nlohmann::json j = Envelope("steamLaunchHandshakeDrained");
+		j["drainedReady"] = drainedReady;
+		j["drainedCommit"] = drainedCommit;
 		return j;
+	}
+
+	nlohmann::json DrainLaunchReadyMessagesJson() {
+		return DrainLaunchHandshakeMessagesJson();
 	}
 
 	nlohmann::json ConfirmPeerLaunchReadyJson(
@@ -678,6 +791,16 @@ namespace {
 		const bool peerReady = PollPeerLaunchReady(targetSteamId, sessionToken, pumpAttempts);
 		j["ok"] = peerReady;
 		j["peerLaunchReady"] = peerReady;
+		sf4e::agent_debug::Log(
+			"H3",
+			"steam_p2p_launcher.cxx:ConfirmPeerLaunchReady",
+			"result",
+			{
+				{ "target", targetSteamId },
+				{ "peerReady", peerReady },
+				{ "tokenPresent", sessionToken && sessionToken[0] }
+			}
+		);
 		if (!peerReady) {
 			j["message"] = "Opponent launch-ready not confirmed yet";
 		}
@@ -730,11 +853,23 @@ namespace {
 		if (result != k_EResultOK) {
 			j["message"] = std::string("Launch ready send failed (") + EResultName(result) + ")";
 			SetEvent("Launch ready send failed");
+			sf4e::agent_debug::Log(
+				"H4",
+				"steam_p2p_launcher.cxx:SendLaunchReady",
+				"sent_failed",
+				{ { "target", targetSteamId }, { "result", (int)result } }
+			);
 		}
 		else {
 			j["message"] = "Launch ready sent — waiting for opponent";
 			SetEvent("You are ready to launch");
 			spdlog::info("SendLaunchReady ok target={}", targetSteamId);
+			sf4e::agent_debug::Log(
+				"H4",
+				"steam_p2p_launcher.cxx:SendLaunchReady",
+				"sent_ok",
+				{ { "target", targetSteamId }, { "tokenPresent", true } }
+			);
 		}
 		return j;
 	}
@@ -750,6 +885,112 @@ namespace {
 			last = SendLaunchReadyJson(targetSteamId, sessionToken);
 		}
 		return last;
+	}
+
+	nlohmann::json SendLaunchCommitJson(unsigned long long targetSteamId, const char* sessionToken) {
+		EnsureSteam();
+		nlohmann::json j = Envelope("steamLaunchCommit");
+		if (!g_state.initialized) {
+			j["ok"] = false;
+			j["message"] = g_state.lastError.empty() ? "Steam not initialized" : g_state.lastError;
+			return j;
+		}
+		if (!EnsureRelayReady()) {
+			j["ok"] = false;
+			j["message"] = g_state.lastError;
+			return j;
+		}
+		if (targetSteamId == 0 || !sessionToken || sessionToken[0] == '\0') {
+			j["ok"] = false;
+			j["message"] = "Invalid peer or session token for launch commit";
+			return j;
+		}
+
+		sf4e::steam_experiment::SteamLaunchCommitPayload payload;
+		payload.senderSteamId = SteamUser()->GetSteamID().ConvertToUint64();
+		payload.sessionToken = sessionToken;
+		SteamNetworkingIdentity identity;
+		identity.SetSteamID64(targetSteamId);
+		SteamNetworkingMessages()->AcceptSessionWithUser(identity);
+		const std::string encoded = sf4e::steam_experiment::EncodeLaunchCommit(payload);
+		const int sendFlags = k_nSteamNetworkingSend_Reliable | k_nSteamNetworkingSend_AutoRestartBrokenSession;
+		const EResult result = SteamNetworkingMessages()->SendMessageToUser(
+			identity,
+			encoded.data(),
+			(uint32)encoded.size(),
+			sendFlags,
+			0
+		);
+		j["ok"] = result == k_EResultOK;
+		j["result"] = (int)result;
+		j["targetSteamId"] = std::to_string(targetSteamId);
+		if (result != k_EResultOK) {
+			j["message"] = std::string("Launch commit send failed (") + EResultName(result) + ")";
+			spdlog::error("SendLaunchCommit failed target={} result={}", targetSteamId, (int)result);
+		}
+		else {
+			j["message"] = "Launch commit sent";
+			spdlog::info("SendLaunchCommit ok target={}", targetSteamId);
+			sf4e::agent_debug::Log(
+				"H5",
+				"steam_p2p_launcher.cxx:SendLaunchCommit",
+				"sent_ok",
+				{ { "target", targetSteamId } }
+			);
+		}
+		return j;
+	}
+
+	nlohmann::json ResendLaunchCommitJson(unsigned long long targetSteamId, const char* sessionToken, int repeatCount) {
+		nlohmann::json last = SendLaunchCommitJson(targetSteamId, sessionToken);
+		if (!last.value("ok", false) || repeatCount <= 1) {
+			return last;
+		}
+		for (int i = 1; i < repeatCount; ++i) {
+			Pump();
+			std::this_thread::sleep_for(std::chrono::milliseconds(60));
+			last = SendLaunchCommitJson(targetSteamId, sessionToken);
+		}
+		return last;
+	}
+
+	nlohmann::json ConfirmPeerLaunchCommitJson(
+		unsigned long long targetSteamId,
+		const char* sessionToken,
+		int pumpAttempts
+	) {
+		nlohmann::json j = Envelope("steamConfirmPeerLaunch");
+		if (!sessionToken || sessionToken[0] == '\0' || targetSteamId == 0) {
+			j["ok"] = false;
+			j["peerLaunchCommit"] = false;
+			j["message"] = "Missing peer SteamID or session token for launch commit";
+			return j;
+		}
+		const nlohmann::json sent = SendLaunchCommitJson(targetSteamId, sessionToken);
+		if (!sent.value("ok", false)) {
+			j["ok"] = false;
+			j["peerLaunchCommit"] = false;
+			j["message"] = sent.value("message", "Launch commit send failed");
+			return j;
+		}
+		ResendLaunchCommitJson(targetSteamId, sessionToken, 3);
+		const bool peerCommit = PollPeerLaunchCommit(targetSteamId, sessionToken, pumpAttempts);
+		j["ok"] = peerCommit;
+		j["peerLaunchCommit"] = peerCommit;
+		j["localLaunchCommit"] = true;
+		sf4e::agent_debug::Log(
+			"H3",
+			"steam_p2p_launcher.cxx:ConfirmPeerLaunchCommit",
+			"result",
+			{
+				{ "target", targetSteamId },
+				{ "peerCommit", peerCommit }
+			}
+		);
+		if (!peerCommit) {
+			j["message"] = "Opponent launch commit not confirmed yet";
+		}
+		return j;
 	}
 
 	nlohmann::json PollMessagesJson() {
@@ -815,10 +1056,10 @@ namespace {
 		return j;
 	}
 
-	nlohmann::json CloseJson() {
+	void CloseP2pSocketsOnly() {
 		if (g_state.initialized && SteamNetworkingSockets()) {
 			if (g_state.conn != k_HSteamNetConnection_Invalid) {
-				SteamNetworkingSockets()->CloseConnection(g_state.conn, 0, "launcher close", false);
+				SteamNetworkingSockets()->CloseConnection(g_state.conn, 0, "launcher p2p handoff", false);
 			}
 			if (g_state.listenSock != k_HSteamListenSocket_Invalid) {
 				SteamNetworkingSockets()->CloseListenSocket(g_state.listenSock);
@@ -830,7 +1071,11 @@ namespace {
 		g_state.failed = false;
 		g_state.accepted = false;
 		g_state.acceptIncoming = false;
-		SetEvent("Steam P2P sockets closed");
+		SetEvent("Steam P2P sockets closed (messages still active)");
+	}
+
+	nlohmann::json CloseJson() {
+		CloseP2pSocketsOnly();
 		return Envelope("steamClosed");
 	}
 

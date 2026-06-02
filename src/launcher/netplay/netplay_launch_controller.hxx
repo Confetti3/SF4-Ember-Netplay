@@ -89,6 +89,7 @@ namespace launcher {
 		char m_steamPendingSidecarHash[65] = { 0 };
 		char m_steamPendingBuildGit[64] = { 0 };
 		char m_steamHostSessionToken[NETPLAY_STEAM_SESSION_TOKEN_LEN] = { 0 };
+		bool m_steamP2pWasConnected = false;
 #endif
 
 	};

@@ -30,9 +30,23 @@ namespace steam_p2p {
 		const char* sessionToken,
 		int pumpAttempts = 24
 	);
+	nlohmann::json SendLaunchCommitJson(unsigned long long targetSteamId, const char* sessionToken);
+	nlohmann::json ResendLaunchCommitJson(unsigned long long targetSteamId, const char* sessionToken, int repeatCount = 3);
+	bool PollPeerLaunchCommit(
+		unsigned long long expectedPeerSteamId,
+		const char* sessionToken,
+		int pumpAttempts = 24
+	);
+	nlohmann::json DrainLaunchHandshakeMessagesJson();
+	nlohmann::json ConfirmPeerLaunchCommitJson(
+		unsigned long long targetSteamId,
+		const char* sessionToken,
+		int pumpAttempts = 24
+	);
 	nlohmann::json PollMessagesJson();
 	nlohmann::json ListenJson(int virtualPort);
 	nlohmann::json ConnectJson(unsigned long long targetSteamId, int virtualPort);
+	void CloseP2pSocketsOnly();
 	nlohmann::json CloseJson();
 
 } // namespace steam_p2p

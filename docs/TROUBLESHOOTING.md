@@ -39,19 +39,18 @@ Steam invites are **not** Steam chat messages. They are delivered through Steam 
 
 ### One player launches USF4, the other stays on the launcher
 
-This usually means the **launch-ready** Steam message reached only one PC. The launcher now resends that signal and polls faster while waiting, but both players must still press **Ready to launch game**.
+The launcher uses a two-step handshake over **Steam Networking Messages** (not the P2P listen socket): **launch-ready**, then **launch-commit**. Neither PC starts USF4 until both steps complete for the same session token.
 
 1. **Both** press **Ready to launch game** after **P2P connected** (order does not matter much).
-2. Wait until **both** see activity log **Both players ready — launching USF4** before either closes the launcher.
+2. Wait until **both** see **Both committed — launching now** / **Launching USF4** before either closes the launcher.
 3. In `launcher.log` on **each** PC, look for:
-   - `SendLaunchReady ok target=...`
-   - `ReceiveLaunchReady from=...` (or `Launch handshake: opponent already ready`)
+   - `SendLaunchReady ok target=...` and `ReceiveLaunchReady from=...`
+   - `SendLaunchCommit` / `ReceiveLaunchCommit` (or activity log **launch commit**)
    - `Controller steamStart mode=1` (host) and `mode=2` (joiner) on **both** machines
-4. Both players must use the **same** tester zip build (`2143` or newer). Mixed builds break the launch-ready handshake.
-5. If stuck on **Waiting for opponent**, click **Ready to launch game** again on **both** PCs (resends the signal). After ~90s the launcher auto-resends once.
-6. If only one game started, the other launcher should still show waiting — do **not** close the launcher on the in-game PC until both show **Launching USF4**. Press **Ready** again on the stuck PC.
-7. If P2P shows disconnected while waiting, press **Ready** again after both launchers are open (Steam messages still work when the socket shows disconnected).
-8. Send **both** `launcher.log` files when reporting the bug.
+4. Both players must use the **same** tester zip build on the same release tag. Mixed builds break the handshake.
+5. If stuck on **Waiting for opponent** or **confirming launch commit**, click **Ready to launch game** again on **both** PCs.
+6. If only one game started, press **Ready** again on the stuck PC — launch-ready/commit still work if P2P shows **disconnected** (the first player only closes the P2P socket, not Steam messages).
+7. For agent-debug builds, set `SF4E_DEBUG_SESSION=1` and optional `SF4E_DEBUG_LOG`; send `%APPDATA%\sf4e\debug-592d59.log` with both `launcher.log` files.
 
 ### In-game: waiting for opponent / crash when alone in lobby
 
