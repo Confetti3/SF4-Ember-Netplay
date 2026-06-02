@@ -19,7 +19,7 @@
 
 ## Install (both PCs)
 
-1. Download **`sf4-netplay-p2p-steam-20260601-2209.zip`** from [this release](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/steam-p2p-test-20260601) (not older `2155` / `2143` / `20260531` assets).
+1. Download **`sf4-netplay-p2p-steam-20260601-2211.zip`** from [this release](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/steam-p2p-test-20260601) (not older `2155` / `2143` / `20260531` assets).
 2. Extract the **entire** zip to a short path (e.g. `C:\Games\sf4-netplay-p2p-steam\`).
 3. Run **`preflight.cmd`** — expect **`Preflight PASSED`**.
 4. Optional: **`tools\run-offline-test.ps1`** for local overlay smoke test.
@@ -38,8 +38,8 @@
 ## Build info
 
 - Package: `sf4-netplay-p2p-steam-qt`
-- Built: `20260601-2209`
-- Git: `test/steam-p2p-qt` (launch-ready + launch-commit barrier)
+- Built: `20260601-2211`
+- Git: `b23668e` on `test/steam-p2p-qt` (launch-ready + launch-commit barrier)
 
 ## Bug reports
 
