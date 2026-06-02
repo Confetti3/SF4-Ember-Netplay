@@ -60,7 +60,7 @@ When `SF4E_ENABLE_STEAMWORKS_EXPERIMENT=ON`, `SF4E_LAUNCHER_QT_UI` defaults to *
 
 
 
-1. Download **`sf4-netplay-p2p-steam-20260601-2100.zip`** from the latest release (Assets — not Source code; not the `20260531` zip).
+1. Download **`sf4-netplay-p2p-steam-20260601-2125.zip`** from the latest release (Assets — not Source code; not older `2100` / `20260531` zips).
 2. Extract on both PCs, run **`preflight.cmd`**, then **`Launcher.exe`**.
 3. **Joiner opens Join tab first**, then host sends invite; both press **Ready to launch game** before USF4 starts (see release notes).
 4. See [RELEASE_NOTES_STEAM_P2P_TEST_20260601.md](RELEASE_NOTES_STEAM_P2P_TEST_20260601.md) for install steps and bug-report checklist.
