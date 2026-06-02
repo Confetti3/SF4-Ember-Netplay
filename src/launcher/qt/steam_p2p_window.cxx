@@ -138,7 +138,7 @@ SteamP2pMainWindow::SteamP2pMainWindow(NetplayLaunchController& controller, QWid
 
 	m_bridge.post({ {"type", "getState"} });
 
-	m_bridge.startPoll(1000);
+	m_bridge.startPoll(250);
 
 }
 
@@ -250,9 +250,9 @@ QWidget* SteamP2pMainWindow::buildWarningBanner() {
 
 	auto* warning = new QLabel(QStringLiteral(
 
-		"<b>Steam experiment build.</b> Both players need the same launcher zip, Steam running, and matching Sidecar hash. "
-
-		"Use VPS relay on <code>main</code> if this path fails."));
+		"<b>Steam experiment build.</b> Both players need the same launcher zip and Steam running. "
+		"The <b>joiner must open this launcher on the Join tab</b> before the host sends an invite (Steam delivers invites only while the launcher is open). "
+		"Matching Sidecar hash required. Use VPS relay on <code>main</code> if this path fails."));
 
 	warning->setWordWrap(true);
 
@@ -1431,17 +1431,35 @@ void SteamP2pMainWindow::handleMessage(const nlohmann::json& msg) {
 
 		if (type == "steamPrepareHost") {
 
-			if (JsonBool(msg, "ok", false)) {
+			const bool inviteOk = JsonBool(msg, "inviteOk", JsonBool(msg, "ok", false));
 
-				setStatus(QStringLiteral("Host listening — waiting for joiner to connect"), QStringLiteral("success"));
+			const bool listenOk = JsonBool(msg, "listenOk", JsonBool(msg, "ok", false));
 
-				appendLog(QStringLiteral("Invite sent; listening on port ") + QString::number(m_virtualPort->value()));
+			if (!inviteOk) {
+
+				const QString detail = JsonString(msg, "message", JsonString(msg, "lastError", QStringLiteral("Steam invite send failed")));
+
+				setStatus(detail, QStringLiteral("error"));
+
+				appendLog(detail);
+
+			}
+
+			else if (!listenOk) {
+
+				const QString detail = JsonString(msg, "message", JsonString(msg, "lastError", QStringLiteral("Could not listen for P2P")));
+
+				setStatus(detail, QStringLiteral("error"));
+
+				appendLog(detail);
 
 			}
 
 			else {
 
-				setStatus(JsonString(msg, "lastError", QStringLiteral("Host prepare failed")), QStringLiteral("error"));
+				setStatus(QStringLiteral("Invite sent — waiting for joiner (they need this launcher open on Join)"), QStringLiteral("success"));
+
+				appendLog(QStringLiteral("Invite sent; listening on port ") + QString::number(m_virtualPort->value()));
 
 			}
 

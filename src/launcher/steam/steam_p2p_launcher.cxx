@@ -40,6 +40,26 @@ namespace {
 	};
 
 	static ProbeState g_state;
+	static bool g_relayReady = false;
+
+	bool EnsureSteam();
+
+	void SetEvent(const std::string& text);
+
+	void SetError(const std::string& text);
+
+	void AcceptPendingMessageSessions() {
+		if (!g_state.initialized || !SteamNetworkingMessages() || !SteamFriends()) {
+			return;
+		}
+		const int count = SteamFriends()->GetFriendCount(k_EFriendFlagImmediate);
+		for (int i = 0; i < count; ++i) {
+			const CSteamID friendId = SteamFriends()->GetFriendByIndex(i, k_EFriendFlagImmediate);
+			SteamNetworkingIdentity identity;
+			identity.SetSteamID(friendId);
+			SteamNetworkingMessages()->AcceptSessionWithUser(identity);
+		}
+	}
 
 	const char* ConnStateName(ESteamNetworkingConnectionState state) {
 		switch (state) {
@@ -60,13 +80,87 @@ namespace {
 		}
 	}
 
-	void SetEvent(const std::string& text) {
-		g_state.lastEvent = text;
+	const char* EResultName(EResult result) {
+		switch (result) {
+		case k_EResultOK:
+			return "OK";
+		case k_EResultFail:
+			return "Fail";
+		case k_EResultNoConnection:
+			return "NoConnection";
+		case k_EResultInvalidParam:
+			return "InvalidParam";
+		case k_EResultAccessDenied:
+			return "AccessDenied";
+		case k_EResultLimitExceeded:
+			return "LimitExceeded";
+		case k_EResultNotLoggedOn:
+			return "NotLoggedOn";
+		default:
+			return "Unknown";
+		}
 	}
 
-	void SetError(const std::string& text) {
-		g_state.lastError = text;
-		g_state.lastEvent = text;
+	const char* RelayAvailabilityName(ESteamNetworkingAvailability avail) {
+		switch (avail) {
+		case k_ESteamNetworkingAvailability_Current:
+			return "Current";
+		case k_ESteamNetworkingAvailability_Waiting:
+			return "Waiting";
+		case k_ESteamNetworkingAvailability_Attempting:
+			return "Attempting";
+		case k_ESteamNetworkingAvailability_Retrying:
+			return "Retrying";
+		case k_ESteamNetworkingAvailability_Failed:
+			return "Failed";
+		case k_ESteamNetworkingAvailability_CannotTry:
+			return "CannotTry";
+		default:
+			return "Unknown";
+		}
+	}
+
+	bool WaitForRelayNetwork(int timeoutMs) {
+		if (!SteamNetworkingUtils()) {
+			SetError("Steam networking utils unavailable");
+			return false;
+		}
+		SteamNetworkingUtils()->InitRelayNetworkAccess();
+		const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMs);
+		while (std::chrono::steady_clock::now() < deadline) {
+			SteamAPI_RunCallbacks();
+			if (SteamNetworkingSockets()) {
+				SteamNetworkingSockets()->RunCallbacks();
+			}
+			SteamRelayNetworkStatus_t status = {};
+			const ESteamNetworkingAvailability avail = SteamNetworkingUtils()->GetRelayNetworkStatus(&status);
+			if (avail == k_ESteamNetworkingAvailability_Current) {
+				g_relayReady = true;
+				return true;
+			}
+			if (avail == k_ESteamNetworkingAvailability_Failed || avail == k_ESteamNetworkingAvailability_CannotTry) {
+				std::ostringstream os;
+				os << "Steam relay network unavailable (" << RelayAvailabilityName(avail) << ")";
+				if (status.m_debugMsg[0]) {
+					os << ": " << status.m_debugMsg;
+				}
+				SetError(os.str());
+				return false;
+			}
+			Sleep(50);
+		}
+		SetError("Timed out waiting for Steam relay network (P2P invites need relay access)");
+		return false;
+	}
+
+	bool EnsureRelayReady() {
+		if (g_relayReady) {
+			return true;
+		}
+		if (!EnsureSteam()) {
+			return false;
+		}
+		return WaitForRelayNetwork(20000);
 	}
 
 	void OnConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* info) {
@@ -186,6 +280,7 @@ namespace {
 			return false;
 		}
 		SteamNetworkingUtils()->InitRelayNetworkAccess();
+		AcceptPendingMessageSessions();
 		g_state.initialized = true;
 		SetEvent("Steam initialized");
 		spdlog::info(
@@ -202,6 +297,7 @@ namespace {
 		}
 		SteamAPI_RunCallbacks();
 		SteamNetworkingSockets()->RunCallbacks();
+		AcceptPendingMessageSessions();
 	}
 
 	nlohmann::json Envelope(const char* responseType) {
@@ -282,6 +378,15 @@ namespace {
 		return messages;
 	}
 
+	void SetEvent(const std::string& text) {
+		g_state.lastEvent = text;
+	}
+
+	void SetError(const std::string& text) {
+		g_state.lastError = text;
+		g_state.lastEvent = text;
+	}
+
 } // namespace
 
 	nlohmann::json BuildStatusJson() {
@@ -336,13 +441,16 @@ namespace {
 		nlohmann::json invite = SendInviteJson(targetSteamId, virtualPort, sidecarHash, buildGit, sessionToken);
 		if (!invite.value("ok", false)) {
 			invite["type"] = "steamPrepareHost";
+			invite["inviteOk"] = false;
+			invite["listenOk"] = false;
 			return invite;
 		}
 		nlohmann::json listen = ListenJson(virtualPort);
 		nlohmann::json j = Envelope("steamPrepareHost");
-		j["ok"] = listen.value("ok", false);
-		j["inviteOk"] = invite.value("ok", false);
-		j["listenOk"] = listen.value("ok", false);
+		const bool listenOk = listen.value("ok", false);
+		j["ok"] = listenOk;
+		j["inviteOk"] = true;
+		j["listenOk"] = listenOk;
 		j["sessionTokenPresent"] = sessionToken && sessionToken[0];
 		j["virtualPort"] = virtualPort;
 		j["targetSteamId"] = std::to_string(targetSteamId);
@@ -354,6 +462,19 @@ namespace {
 		nlohmann::json j = Envelope("steamInviteSent");
 		if (!g_state.initialized) {
 			j["ok"] = false;
+			j["message"] = g_state.lastError.empty() ? "Steam not initialized" : g_state.lastError;
+			return j;
+		}
+		if (!EnsureRelayReady()) {
+			j["ok"] = false;
+			j["message"] = g_state.lastError;
+			SetEvent("Steam invite send failed");
+			return j;
+		}
+		if (targetSteamId == 0) {
+			j["ok"] = false;
+			j["message"] = "Invalid target SteamID";
+			SetEvent("Steam invite send failed");
 			return j;
 		}
 
@@ -373,18 +494,53 @@ namespace {
 
 		SteamNetworkingIdentity identity;
 		identity.SetSteamID64(targetSteamId);
+		SteamNetworkingMessages()->AcceptSessionWithUser(identity);
 		const std::string encoded = sf4e::steam_experiment::EncodeInvite(payload);
+		const int sendFlags = k_nSteamNetworkingSend_Reliable | k_nSteamNetworkingSend_AutoRestartBrokenSession;
 		EResult result = SteamNetworkingMessages()->SendMessageToUser(
 			identity,
 			encoded.data(),
 			(uint32)encoded.size(),
-			k_nSteamNetworkingSend_Reliable,
+			sendFlags,
 			0
 		);
 		j["ok"] = result == k_EResultOK;
 		j["result"] = (int)result;
+		j["resultName"] = EResultName(result);
 		j["payloadBytes"] = encoded.size();
-		SetEvent(result == k_EResultOK ? "Steam invite sent" : "Steam invite send failed");
+		j["targetSteamId"] = std::to_string(targetSteamId);
+		if (result != k_EResultOK) {
+			std::ostringstream os;
+			os << "Steam invite send failed (" << EResultName(result) << "=" << (int)result << ")";
+			SteamNetConnectionInfo_t info = {};
+			const ESteamNetworkingConnectionState sessionState =
+				SteamNetworkingMessages()->GetSessionConnectionInfo(identity, &info, nullptr);
+			os << " session=" << ConnStateName(sessionState);
+			if (info.m_szEndDebug[0]) {
+				os << " " << info.m_szEndDebug;
+			}
+			os << ". Joiner must run this same launcher build with Steam open on the Join tab.";
+			j["message"] = os.str();
+			SetError(os.str());
+			SetEvent("Steam invite send failed");
+			spdlog::warn(
+				"SendMessageToUser failed target={} result={} session={} relayReady={}",
+				targetSteamId,
+				(int)result,
+				ConnStateName(sessionState),
+				g_relayReady
+			);
+		}
+		else {
+			j["message"] = "Invite queued — joiner must have this launcher open with Steam running";
+			SetEvent("Steam invite sent");
+			spdlog::info(
+				"SendMessageToUser ok target={} bytes={} sender={}",
+				targetSteamId,
+				encoded.size(),
+				payload.senderSteamId
+			);
+		}
 		return j;
 	}
 
@@ -401,6 +557,11 @@ namespace {
 		nlohmann::json j = Envelope("steamListen");
 		if (!g_state.initialized) {
 			j["ok"] = false;
+			return j;
+		}
+		if (!EnsureRelayReady()) {
+			j["ok"] = false;
+			j["message"] = g_state.lastError;
 			return j;
 		}
 		CloseJson();
@@ -422,6 +583,11 @@ namespace {
 		nlohmann::json j = Envelope("steamConnect");
 		if (!g_state.initialized) {
 			j["ok"] = false;
+			return j;
+		}
+		if (!EnsureRelayReady()) {
+			j["ok"] = false;
+			j["message"] = g_state.lastError;
 			return j;
 		}
 		CloseJson();

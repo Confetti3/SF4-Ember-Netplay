@@ -26,6 +26,17 @@ Useful logs for tester reports:
 
 If Steam friends do not load, first confirm `steam_appid.txt` exists in both the package root and `dll\`, then restart Steam and run `Launcher.exe` again.
 
+### Activity log says "Steam invite send failed"
+
+Steam invites are **not** Steam chat messages. They are delivered through Steam Networking Messages while **both** players have this launcher running.
+
+1. **Joiner first:** The friend who will join must open `Launcher.exe`, go to the **Join** tab, and leave the launcher open (Steam running).
+2. **Host second:** Select that friend (or paste their SteamID64), then click **Send invite + listen**.
+3. If it still fails, check `%APPDATA%\sf4e\logs\launcher.log` for `SendMessageToUser failed` and the `result=` code.
+4. Wait up to ~20 seconds after opening the launcher (first invite may need Steam relay network access).
+5. Confirm both players use the **same** `sf4-netplay-p2p-steam-*` zip (not the production `sf4-netplay-launcher-*` build).
+6. Diagnostic: `tools\SteamP2PProbe.exe` with `--write-appid 45760` on both PCs (see `readme\STEAM_P2P_EXPERIMENT.md`).
+
 ---
 
 ## Legacy relay/WebView2 checklist
