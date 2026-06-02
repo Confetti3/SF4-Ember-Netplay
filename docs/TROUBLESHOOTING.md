@@ -46,10 +46,12 @@ This usually means the **launch-ready** Steam message reached only one PC. The l
 3. In `launcher.log` on **each** PC, look for:
    - `SendLaunchReady ok target=...`
    - `ReceiveLaunchReady from=...` (or `Launch handshake: opponent already ready`)
-   - `Controller steamStart mode=1` (host) or `mode=2` (joiner)
-4. If stuck on **Waiting for opponent**, click **Ready to launch game** again (resends the signal). After ~90s the launcher auto-resends once.
-5. If P2P shows disconnected while waiting, the opponent may have started the game first — keep the launcher open and press **Ready** again.
-6. Send **both** `launcher.log` files when reporting the bug.
+   - `Controller steamStart mode=1` (host) and `mode=2` (joiner) on **both** machines
+4. Both players must use the **same** tester zip build (`2143` or newer). Mixed builds break the launch-ready handshake.
+5. If stuck on **Waiting for opponent**, click **Ready to launch game** again on **both** PCs (resends the signal). After ~90s the launcher auto-resends once.
+6. If only one game started, the other launcher should still show waiting — do **not** close the launcher on the in-game PC until both show **Launching USF4**. Press **Ready** again on the stuck PC.
+7. If P2P shows disconnected while waiting, press **Ready** again after both launchers are open (Steam messages still work when the socket shows disconnected).
+8. Send **both** `launcher.log` files when reporting the bug.
 
 ### In-game: waiting for opponent / crash when alone in lobby
 

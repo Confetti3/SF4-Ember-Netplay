@@ -119,6 +119,7 @@ namespace steam_experiment {
 		j["cmd"] = "sf4e_steam_p2p_launch_ready";
 		j["version"] = payload.version;
 		j["senderSteamId"] = std::to_string(payload.senderSteamId);
+		j["sessionToken"] = payload.sessionToken;
 		return j.dump();
 	}
 
@@ -132,12 +133,17 @@ namespace steam_experiment {
 			SteamLaunchReadyPayload payload;
 			payload.version = j.value("version", 0);
 			payload.senderSteamId = std::stoull(j.value("senderSteamId", "0"));
+			payload.sessionToken = j.value("sessionToken", "");
 			if (payload.version != STEAM_P2P_LAUNCH_READY_VERSION) {
 				outError = "unsupported launch-ready version";
 				return false;
 			}
 			if (payload.senderSteamId == 0) {
 				outError = "missing sender SteamID";
+				return false;
+			}
+			if (payload.sessionToken.size() < 8) {
+				outError = "missing session token on launch-ready";
 				return false;
 			}
 			outPayload = payload;

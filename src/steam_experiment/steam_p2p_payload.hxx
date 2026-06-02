@@ -9,7 +9,7 @@ namespace sf4e {
 namespace steam_experiment {
 
 	static const int STEAM_P2P_INVITE_VERSION = 1;
-	static const int STEAM_P2P_LAUNCH_READY_VERSION = 1;
+	static const int STEAM_P2P_LAUNCH_READY_VERSION = 2;
 
 	struct SteamInvitePayload {
 		int version = STEAM_P2P_INVITE_VERSION;
@@ -35,6 +35,7 @@ namespace steam_experiment {
 	struct SteamLaunchReadyPayload {
 		int version = STEAM_P2P_LAUNCH_READY_VERSION;
 		uint64_t senderSteamId = 0;
+		std::string sessionToken;
 	};
 
 	std::string EncodeLaunchReady(const SteamLaunchReadyPayload& payload);

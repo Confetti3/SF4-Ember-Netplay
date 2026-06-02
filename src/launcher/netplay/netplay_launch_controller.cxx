@@ -119,6 +119,8 @@ namespace launcher {
 			|| type == "steamPrepareJoin"
 			|| type == "steamMarkLaunchReady"
 			|| type == "steamFlushLaunchReady"
+			|| type == "steamDrainLaunchReady"
+			|| type == "steamConfirmPeerLaunch"
 			|| type == "steamStart";
 	}
 
@@ -849,7 +851,46 @@ namespace launcher {
 			nlohmann::json connect = steam_p2p::ConnectJson(invite.senderSteamId, invite.virtualPort);
 			connect["type"] = "steamPrepareJoin";
 			connect["inviteOk"] = true;
+			if (m_steamPendingSessionToken[0]) {
+				connect["sessionToken"] = m_steamPendingSessionToken;
+			}
 			return connect;
+#else
+			return SteamExperimentUnavailable();
+#endif
+		}
+
+		if (type == "steamDrainLaunchReady") {
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+			return steam_p2p::DrainLaunchReadyMessagesJson();
+#else
+			return SteamExperimentUnavailable();
+#endif
+		}
+
+		if (type == "steamConfirmPeerLaunch") {
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+			unsigned long long target = 0;
+			try {
+				target = std::stoull(msg.value("targetSteamId", "0"));
+			}
+			catch (...) {
+				target = 0;
+			}
+			std::string token = msg.value("sessionToken", "");
+			if (token.size() < 8) {
+				if (m_steamHostSessionToken[0]) {
+					token = m_steamHostSessionToken;
+				}
+				else if (m_steamPendingSessionToken[0]) {
+					token = m_steamPendingSessionToken;
+				}
+			}
+			return steam_p2p::ConfirmPeerLaunchReadyJson(
+				target,
+				token.c_str(),
+				msg.value("pumpAttempts", 24)
+			);
 #else
 			return SteamExperimentUnavailable();
 #endif
@@ -871,6 +912,22 @@ namespace launcher {
 				err["message"] = "Select a friend or accept an invite before readying up.";
 				return err;
 			}
+			std::string token = msg.value("sessionToken", "");
+			if (token.size() < 8) {
+				if (m_steamHostSessionToken[0]) {
+					token = m_steamHostSessionToken;
+				}
+				else if (m_steamPendingSessionToken[0]) {
+					token = m_steamPendingSessionToken;
+				}
+			}
+			if (token.size() < 8) {
+				nlohmann::json err;
+				err["v"] = kProtocolVersion;
+				err["type"] = "error";
+				err["message"] = "Steam session token missing — resend invite and connect again.";
+				return err;
+			}
 			nlohmann::json status = steam_p2p::BuildStatusJson();
 			if (!status.value("connected", false)) {
 				nlohmann::json err;
@@ -882,16 +939,21 @@ namespace launcher {
 			}
 			const bool flush = (type == "steamFlushLaunchReady");
 			nlohmann::json sent = flush
-				? steam_p2p::ResendLaunchReadyJson(target, 4)
-				: steam_p2p::SendLaunchReadyJson(target);
+				? steam_p2p::ResendLaunchReadyJson(target, token.c_str(), 4)
+				: steam_p2p::SendLaunchReadyJson(target, token.c_str());
 			if (sent.value("ok", false)) {
-				const bool peerReady = steam_p2p::PollPeerLaunchReady(target, flush ? 12 : 8);
+				const bool peerReady = steam_p2p::PollPeerLaunchReady(
+					target,
+					token.c_str(),
+					flush ? 12 : 8
+				);
 				sent["peerLaunchReady"] = peerReady;
 				if (peerReady) {
 					spdlog::info("Launch handshake: opponent already ready (target={})", target);
 				}
 			}
 			sent["type"] = "steamLaunchReady";
+			sent["sessionTokenPresent"] = true;
 			return sent;
 #else
 			return SteamExperimentUnavailable();

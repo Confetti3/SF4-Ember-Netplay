@@ -66,6 +66,34 @@ bool JsonBool(const nlohmann::json& j, const char* key, bool fallback = false) {
 
 }
 
+unsigned long long ParseSteamId64(const std::string& text) {
+	if (text.empty()) {
+		return 0;
+	}
+	try {
+		return std::stoull(text);
+	}
+	catch (...) {
+		return 0;
+	}
+}
+
+bool SteamIdsMatch(const std::string& a, const std::string& b) {
+	const unsigned long long idA = ParseSteamId64(a);
+	const unsigned long long idB = ParseSteamId64(b);
+	if (idA != 0 && idB != 0) {
+		return idA == idB;
+	}
+	return a == b;
+}
+
+QString LaunchReadySessionTokenFromMessage(const nlohmann::json& m) {
+	if (m.contains("launchReady") && m["launchReady"].is_object()) {
+		return JsonString(m["launchReady"], "sessionToken", QString());
+	}
+	return QString();
+}
+
 
 
 QWidget* BuildStepper(QSpinBox* spinBox) {
@@ -1091,6 +1119,12 @@ void SteamP2pMainWindow::resendLaunchReady() {
 
 	req["targetSteamId"] = peer;
 
+	if (!m_launchSessionToken.empty()) {
+
+		req["sessionToken"] = m_launchSessionToken;
+
+	}
+
 	appendLog(QStringLiteral("Resending launch-ready to opponent..."));
 
 	m_bridge.post(req);
@@ -1134,6 +1168,10 @@ void SteamP2pMainWindow::resetLaunchHandshake() {
 	m_launchTriggered = false;
 
 	m_launchRole.clear();
+
+	m_launchSessionToken.clear();
+
+	m_bridge.post({ {"type", "steamDrainLaunchReady"} });
 
 	disarmLaunchWaitTimer();
 
@@ -1449,12 +1487,20 @@ void SteamP2pMainWindow::processMessages(const nlohmann::json& messages) {
 
 			}
 
-			if (!expectedPeer.empty() && !sender.empty() && sender != expectedPeer) {
+			if (!expectedPeer.empty() && !sender.empty() && !SteamIdsMatch(sender, expectedPeer)) {
 
 				appendLog(QStringLiteral("Ignored launch-ready from unexpected SteamID ") + QString::fromStdString(sender));
 
 				continue;
 
+			}
+
+			const QString readyToken = LaunchReadySessionTokenFromMessage(m);
+
+			if (m_launchSessionToken.empty() || readyToken.isEmpty()
+				|| readyToken.toStdString() != m_launchSessionToken) {
+				appendLog(QStringLiteral("Ignored stale launch-ready (session token mismatch)"));
+				continue;
 			}
 
 			m_peerLaunchReady = true;
@@ -1520,6 +1566,14 @@ void SteamP2pMainWindow::processMessages(const nlohmann::json& messages) {
 		m_pendingInvite.sidecarHash = invite.value("sidecarHash", "");
 
 		m_pendingInvite.buildGit = invite.value("buildGit", "");
+
+		m_pendingInvite.sessionToken = invite.value("sessionToken", "");
+
+		if (!m_pendingInvite.sessionToken.empty()) {
+
+			m_launchSessionToken = m_pendingInvite.sessionToken;
+
+		}
 
 		m_peerSteamId->setText(QString::fromStdString(m_pendingInvite.senderSteamId));
 
@@ -1857,6 +1911,14 @@ void SteamP2pMainWindow::handleMessage(const nlohmann::json& msg) {
 
 				m_launchRole = "host";
 
+				const QString token = JsonString(msg, "sessionToken", QString());
+
+				if (!token.isEmpty()) {
+
+					m_launchSessionToken = token.toStdString();
+
+				}
+
 			}
 
 			if (!inviteOk) {
@@ -1896,6 +1958,20 @@ void SteamP2pMainWindow::handleMessage(const nlohmann::json& msg) {
 				resetLaunchHandshake();
 
 				m_launchRole = "join";
+
+				const QString token = JsonString(msg, "sessionToken", QString());
+
+				if (!token.isEmpty()) {
+
+					m_launchSessionToken = token.toStdString();
+
+				}
+
+				else if (!m_pendingInvite.sessionToken.empty()) {
+
+					m_launchSessionToken = m_pendingInvite.sessionToken;
+
+				}
 
 				setStatus(QStringLiteral("Connected to host via Steam P2P"), QStringLiteral("success"));
 
@@ -2103,6 +2179,12 @@ void SteamP2pMainWindow::markLaunchReady(const char* mode) {
 
 		: (m_pendingInvite.valid ? m_pendingInvite.senderSteamId : peerSteamId().toStdString());
 
+	if (!m_launchSessionToken.empty()) {
+
+		req["sessionToken"] = m_launchSessionToken;
+
+	}
+
 	m_bridge.post(req);
 
 }
@@ -2117,7 +2199,57 @@ void SteamP2pMainWindow::trySynchronizedLaunch() {
 
 	}
 
+	if (m_launchSessionToken.empty()) {
+
+		setStatus(QStringLiteral("Session token missing — resend invite and connect again"), QStringLiteral("error"));
+
+		return;
+
+	}
+
+	const std::string peer = expectedLaunchPeerSteamId();
+
+	if (peer.empty()) {
+
+		setStatus(QStringLiteral("Missing peer SteamID — cannot launch"), QStringLiteral("error"));
+
+		return;
+
+	}
+
 	disarmLaunchWaitTimer();
+
+	appendLog(QStringLiteral("Confirming opponent launch-ready..."));
+
+	nlohmann::json confirm;
+
+	confirm["type"] = "steamConfirmPeerLaunch";
+
+	confirm["targetSteamId"] = peer;
+
+	confirm["sessionToken"] = m_launchSessionToken;
+
+	confirm["pumpAttempts"] = 24;
+
+	const nlohmann::json reply = m_bridge.post(confirm);
+
+	if (!JsonBool(reply, "peerLaunchReady", false)) {
+
+		appendLog(QStringLiteral("Opponent launch-ready not confirmed yet — keep waiting or press Ready again"));
+
+		setStatus(
+
+			QStringLiteral("Waiting for opponent to press Ready to launch game"),
+
+			QStringLiteral("error")
+
+		);
+
+		armLaunchWaitTimer();
+
+		return;
+
+	}
 
 	m_launchTriggered = true;
 
@@ -2131,19 +2263,15 @@ void SteamP2pMainWindow::trySynchronizedLaunch() {
 
 	setStatus(QStringLiteral("Launching USF4 on both PCs..."), QStringLiteral("success"));
 
-	const std::string peer = expectedLaunchPeerSteamId();
+	nlohmann::json flush;
 
-	if (!peer.empty()) {
+	flush["type"] = "steamFlushLaunchReady";
 
-		nlohmann::json flush;
+	flush["targetSteamId"] = peer;
 
-		flush["type"] = "steamFlushLaunchReady";
+	flush["sessionToken"] = m_launchSessionToken;
 
-		flush["targetSteamId"] = peer;
-
-		m_bridge.post(flush);
-
-	}
+	m_bridge.post(flush);
 
 	startGame(m_launchRole.c_str());
 

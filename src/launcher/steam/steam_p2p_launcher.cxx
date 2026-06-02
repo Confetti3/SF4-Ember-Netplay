@@ -352,7 +352,8 @@ namespace {
 			else if (sf4e::steam_experiment::DecodeLaunchReady(body, launchReady, err)) {
 				item["kind"] = "launch_ready";
 				item["launchReady"] = {
-					{ "senderSteamId", std::to_string(launchReady.senderSteamId) }
+					{ "senderSteamId", std::to_string(launchReady.senderSteamId) },
+					{ "sessionToken", launchReady.sessionToken }
 				};
 			}
 			else {
@@ -460,6 +461,9 @@ namespace {
 		j["inviteOk"] = true;
 		j["listenOk"] = listenOk;
 		j["sessionTokenPresent"] = sessionToken && sessionToken[0];
+		if (sessionToken && sessionToken[0]) {
+			j["sessionToken"] = sessionToken;
+		}
 		j["virtualPort"] = virtualPort;
 		j["targetSteamId"] = std::to_string(targetSteamId);
 		return j;
@@ -585,15 +589,34 @@ namespace {
 		return 0;
 	}
 
-	static bool ItemIsLaunchReadyFromPeer(const nlohmann::json& item, unsigned long long expectedPeerSteamId) {
-		if (expectedPeerSteamId == 0 || item.value("kind", "") != "launch_ready") {
-			return false;
+	static std::string LaunchReadySessionTokenFromItem(const nlohmann::json& item) {
+		if (item.contains("launchReady") && item["launchReady"].is_object()) {
+			return item["launchReady"].value("sessionToken", "");
 		}
-		return LaunchReadySenderFromItem(item) == expectedPeerSteamId;
+		return {};
 	}
 
-	bool PollPeerLaunchReady(unsigned long long expectedPeerSteamId, int pumpAttempts) {
-		if (expectedPeerSteamId == 0 || !g_state.initialized) {
+	static bool ItemIsLaunchReadyFromPeer(
+		const nlohmann::json& item,
+		unsigned long long expectedPeerSteamId,
+		const char* expectedSessionToken
+	) {
+		if (
+			expectedPeerSteamId == 0
+			|| !expectedSessionToken
+			|| expectedSessionToken[0] == '\0'
+			|| item.value("kind", "") != "launch_ready"
+		) {
+			return false;
+		}
+		if (LaunchReadySenderFromItem(item) != expectedPeerSteamId) {
+			return false;
+		}
+		return LaunchReadySessionTokenFromItem(item) == expectedSessionToken;
+	}
+
+	bool PollPeerLaunchReady(unsigned long long expectedPeerSteamId, const char* sessionToken, int pumpAttempts) {
+		if (expectedPeerSteamId == 0 || !sessionToken || sessionToken[0] == '\0' || !g_state.initialized) {
 			return false;
 		}
 		for (int attempt = 0; attempt < pumpAttempts; ++attempt) {
@@ -604,7 +627,7 @@ namespace {
 				continue;
 			}
 			for (const auto& item : batch) {
-				if (ItemIsLaunchReadyFromPeer(item, expectedPeerSteamId)) {
+				if (ItemIsLaunchReadyFromPeer(item, expectedPeerSteamId, sessionToken)) {
 					spdlog::info(
 						"ReceiveLaunchReady from={} (pump attempt {})",
 						expectedPeerSteamId,
@@ -618,7 +641,50 @@ namespace {
 		return false;
 	}
 
-	nlohmann::json SendLaunchReadyJson(unsigned long long targetSteamId) {
+	nlohmann::json DrainLaunchReadyMessagesJson() {
+		int drained = 0;
+		if (g_state.initialized) {
+			for (int pass = 0; pass < 16; ++pass) {
+				Pump();
+				nlohmann::json batch = DrainMessages();
+				if (!batch.is_array() || batch.empty()) {
+					break;
+				}
+				for (const auto& item : batch) {
+					if (item.value("kind", "") == "launch_ready") {
+						drained++;
+					}
+				}
+			}
+		}
+		nlohmann::json j = Envelope("steamLaunchReadyDrained");
+		j["drained"] = drained;
+		return j;
+	}
+
+	nlohmann::json ConfirmPeerLaunchReadyJson(
+		unsigned long long targetSteamId,
+		const char* sessionToken,
+		int pumpAttempts
+	) {
+		nlohmann::json j = Envelope("steamConfirmPeerLaunch");
+		if (!sessionToken || sessionToken[0] == '\0' || targetSteamId == 0) {
+			j["ok"] = false;
+			j["peerLaunchReady"] = false;
+			j["message"] = "Missing peer SteamID or session token for launch confirm";
+			return j;
+		}
+		ResendLaunchReadyJson(targetSteamId, sessionToken, 4);
+		const bool peerReady = PollPeerLaunchReady(targetSteamId, sessionToken, pumpAttempts);
+		j["ok"] = peerReady;
+		j["peerLaunchReady"] = peerReady;
+		if (!peerReady) {
+			j["message"] = "Opponent launch-ready not confirmed yet";
+		}
+		return j;
+	}
+
+	nlohmann::json SendLaunchReadyJson(unsigned long long targetSteamId, const char* sessionToken) {
 		EnsureSteam();
 		nlohmann::json j = Envelope("steamLaunchReady");
 		if (!g_state.initialized) {
@@ -636,9 +702,15 @@ namespace {
 			j["message"] = "Invalid peer SteamID for launch ready";
 			return j;
 		}
+		if (!sessionToken || sessionToken[0] == '\0') {
+			j["ok"] = false;
+			j["message"] = "Missing session token for launch ready";
+			return j;
+		}
 
 		sf4e::steam_experiment::SteamLaunchReadyPayload payload;
 		payload.senderSteamId = SteamUser()->GetSteamID().ConvertToUint64();
+		payload.sessionToken = sessionToken;
 		SteamNetworkingIdentity identity;
 		identity.SetSteamID64(targetSteamId);
 		SteamNetworkingMessages()->AcceptSessionWithUser(identity);
@@ -667,15 +739,15 @@ namespace {
 		return j;
 	}
 
-	nlohmann::json ResendLaunchReadyJson(unsigned long long targetSteamId, int repeatCount) {
-		nlohmann::json last = SendLaunchReadyJson(targetSteamId);
+	nlohmann::json ResendLaunchReadyJson(unsigned long long targetSteamId, const char* sessionToken, int repeatCount) {
+		nlohmann::json last = SendLaunchReadyJson(targetSteamId, sessionToken);
 		if (!last.value("ok", false) || repeatCount <= 1) {
 			return last;
 		}
 		for (int i = 1; i < repeatCount; ++i) {
 			Pump();
 			std::this_thread::sleep_for(std::chrono::milliseconds(60));
-			last = SendLaunchReadyJson(targetSteamId);
+			last = SendLaunchReadyJson(targetSteamId, sessionToken);
 		}
 		return last;
 	}

@@ -62,6 +62,8 @@ struct PendingInvite {
 
 	std::string buildGit;
 
+	std::string sessionToken;
+
 	bool valid = false;
 
 };
@@ -219,6 +221,8 @@ private:
 	bool m_launchTriggered = false;
 
 	std::string m_launchRole;
+
+	std::string m_launchSessionToken;
 
 	QTimer m_launchWaitTimer;
 
