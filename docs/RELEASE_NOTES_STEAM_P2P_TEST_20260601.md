@@ -36,7 +36,7 @@
 
 - Package: `sf4-netplay-p2p-steam-qt`
 - Built: `20260601-2143`
-- Git: `test/steam-p2p-qt` (GGPO tunnel match-start fix)
+- Git: `45997cc` on `test/steam-p2p-qt`
 
 ## Bug reports
 
