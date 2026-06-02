@@ -334,7 +334,7 @@ QWidget* SteamP2pMainWindow::buildHostTab() {
 
 
 
-	m_btnStartHost = new QPushButton(QStringLiteral("Start game"));
+	m_btnStartHost = new QPushButton(QStringLiteral("Ready to launch game"));
 
 	m_btnStartHost->setEnabled(false);
 
@@ -478,7 +478,7 @@ QWidget* SteamP2pMainWindow::buildJoinTab() {
 
 	joinForm->addRow(m_joinConnection);
 
-	m_btnStartJoin = new QPushButton(QStringLiteral("Start game"));
+	m_btnStartJoin = new QPushButton(QStringLiteral("Ready to launch game"));
 
 	m_btnStartJoin->setEnabled(false);
 
@@ -967,19 +967,123 @@ QString SteamP2pMainWindow::peerSteamId() const {
 
 
 
+void SteamP2pMainWindow::resetLaunchHandshake() {
+
+	m_localLaunchReady = false;
+
+	m_peerLaunchReady = false;
+
+	m_launchTriggered = false;
+
+	m_launchRole.clear();
+
+	updateLaunchButtonLabels();
+
+	updateStartButtons();
+
+}
+
+
+
+void SteamP2pMainWindow::updateLaunchButtonLabels() {
+
+	if (m_launchTriggered) {
+
+		const QString launching = QStringLiteral("Launching...");
+
+		if (m_btnStartHost) {
+
+			m_btnStartHost->setText(launching);
+
+		}
+
+		if (m_btnStartJoin) {
+
+			m_btnStartJoin->setText(launching);
+
+		}
+
+		return;
+
+	}
+
+	if (m_localLaunchReady && !m_peerLaunchReady) {
+
+		const QString waiting = QStringLiteral("Waiting for opponent...");
+
+		if (m_btnStartHost) {
+
+			m_btnStartHost->setText(waiting);
+
+		}
+
+		if (m_btnStartJoin) {
+
+			m_btnStartJoin->setText(waiting);
+
+		}
+
+		return;
+
+	}
+
+	const QString ready = QStringLiteral("Ready to launch game");
+
+	if (m_btnStartHost) {
+
+		m_btnStartHost->setText(ready);
+
+	}
+
+	if (m_btnStartJoin) {
+
+		m_btnStartJoin->setText(ready);
+
+	}
+
+}
+
+
+
 void SteamP2pMainWindow::updateStartButtons() {
 
 	const bool hasPeer = !peerSteamId().isEmpty();
 
-	m_btnStartHost->setEnabled(m_p2pConnected && hasPeer);
+	const bool canLaunch = m_p2pConnected && !m_launchTriggered;
 
-	m_btnStartJoin->setEnabled(m_p2pConnected && m_pendingInvite.valid);
+	m_btnStartHost->setEnabled(canLaunch && hasPeer && m_launchRole == "host");
+
+	m_btnStartJoin->setEnabled(canLaunch && m_pendingInvite.valid && m_launchRole == "join");
 
 
 
-	if (m_btnStartHost->isEnabled()) {
+	if (m_launchTriggered) {
 
-		m_hostStartHint->setText(QStringLiteral("P2P connected — you can launch USF4."));
+		m_hostStartHint->setText(QStringLiteral("Launching USF4..."));
+
+		m_joinStartHint->setText(QStringLiteral("Launching USF4..."));
+
+	}
+
+	else if (m_localLaunchReady && m_peerLaunchReady) {
+
+		m_hostStartHint->setText(QStringLiteral("Both ready — launching now."));
+
+		m_joinStartHint->setText(QStringLiteral("Both ready — launching now."));
+
+	}
+
+	else if (m_localLaunchReady) {
+
+		m_hostStartHint->setText(QStringLiteral("You are ready — waiting for opponent to press Ready to launch."));
+
+		m_joinStartHint->setText(QStringLiteral("You are ready — waiting for opponent to press Ready to launch."));
+
+	}
+
+	else if (m_btnStartHost->isEnabled()) {
+
+		m_hostStartHint->setText(QStringLiteral("P2P connected — press Ready to launch when you are both set."));
 
 	}
 
@@ -999,7 +1103,7 @@ void SteamP2pMainWindow::updateStartButtons() {
 
 	if (m_btnStartJoin->isEnabled()) {
 
-		m_joinStartHint->setText(QStringLiteral("P2P connected — you can launch USF4."));
+		m_joinStartHint->setText(QStringLiteral("P2P connected — press Ready to launch when you are both set."));
 
 	}
 
@@ -1129,6 +1233,24 @@ void SteamP2pMainWindow::processMessages(const nlohmann::json& messages) {
 
 	for (const auto& m : messages) {
 
+		if (m.contains("kind") && m["kind"] == "launch_ready") {
+
+			m_peerLaunchReady = true;
+
+			appendLog(QStringLiteral("Opponent is ready to launch"));
+
+			setStatus(QStringLiteral("Opponent ready — launching when you are too"), QStringLiteral("info"));
+
+			trySynchronizedLaunch();
+
+			updateLaunchButtonLabels();
+
+			updateStartButtons();
+
+			continue;
+
+		}
+
 		if (!m.contains("kind") || m["kind"] != "invite") {
 
 			continue;
@@ -1138,6 +1260,8 @@ void SteamP2pMainWindow::processMessages(const nlohmann::json& messages) {
 		nlohmann::json invite = m.contains("invite") ? m["invite"] : m;
 
 		m_pendingInvite.valid = true;
+
+		m_peerLaunchReady = false;
 
 		m_pendingInvite.senderSteamId.clear();
 
@@ -1399,6 +1523,36 @@ void SteamP2pMainWindow::handleMessage(const nlohmann::json& msg) {
 
 	}
 
+	if (type == "steamLaunchReady") {
+
+		if (JsonBool(msg, "ok", false)) {
+
+			m_localLaunchReady = true;
+
+			appendLog(QStringLiteral("You are ready to launch — waiting for opponent"));
+
+			updateLaunchButtonLabels();
+
+			updateStartButtons();
+
+			trySynchronizedLaunch();
+
+		}
+
+		else {
+
+			const QString err = JsonString(msg, "message", QStringLiteral("Could not send launch ready"));
+
+			setStatus(err, QStringLiteral("error"));
+
+			appendLog(QStringLiteral("ERROR: ") + err);
+
+		}
+
+		return;
+
+	}
+
 	if (type == "error") {
 
 		const QString err = JsonString(msg, "message", QStringLiteral("unknown"));
@@ -1435,6 +1589,14 @@ void SteamP2pMainWindow::handleMessage(const nlohmann::json& msg) {
 
 			const bool listenOk = JsonBool(msg, "listenOk", JsonBool(msg, "ok", false));
 
+			if (inviteOk && listenOk) {
+
+				resetLaunchHandshake();
+
+				m_launchRole = "host";
+
+			}
+
 			if (!inviteOk) {
 
 				const QString detail = JsonString(msg, "message", JsonString(msg, "lastError", QStringLiteral("Steam invite send failed")));
@@ -1468,6 +1630,10 @@ void SteamP2pMainWindow::handleMessage(const nlohmann::json& msg) {
 		if (type == "steamPrepareJoin") {
 
 			if (JsonBool(msg, "ok", false)) {
+
+				resetLaunchHandshake();
+
+				m_launchRole = "join";
 
 				setStatus(QStringLiteral("Connected to host via Steam P2P"), QStringLiteral("success"));
 
@@ -1649,9 +1815,63 @@ void SteamP2pMainWindow::startGame(const char* mode) {
 
 
 
+void SteamP2pMainWindow::markLaunchReady(const char* mode) {
+
+	if (m_launchTriggered || !m_p2pConnected) {
+
+		return;
+
+	}
+
+	nlohmann::json req;
+
+	req["type"] = "steamMarkLaunchReady";
+
+	req["targetSteamId"] = (strcmp(mode, "host") == 0)
+
+		? peerSteamId().toStdString()
+
+		: (m_pendingInvite.valid ? m_pendingInvite.senderSteamId : peerSteamId().toStdString());
+
+	m_bridge.post(req);
+
+}
+
+
+
+void SteamP2pMainWindow::trySynchronizedLaunch() {
+
+	if (m_launchTriggered || !m_localLaunchReady || !m_peerLaunchReady || m_launchRole.empty()) {
+
+		return;
+
+	}
+
+	m_launchTriggered = true;
+
+	updateLaunchButtonLabels();
+
+	updateStartButtons();
+
+	appendLog(QStringLiteral("Both players ready — launching USF4"));
+
+	setStatus(QStringLiteral("Launching USF4 on both PCs..."), QStringLiteral("success"));
+
+	startGame(m_launchRole.c_str());
+
+}
+
+
+
 void SteamP2pMainWindow::onStartHost() {
 
-	startGame("host");
+	if (m_localLaunchReady) {
+
+		return;
+
+	}
+
+	markLaunchReady("host");
 
 }
 
@@ -1659,7 +1879,13 @@ void SteamP2pMainWindow::onStartHost() {
 
 void SteamP2pMainWindow::onStartJoin() {
 
-	startGame("join");
+	if (m_localLaunchReady) {
+
+		return;
+
+	}
+
+	markLaunchReady("join");
 
 }
 

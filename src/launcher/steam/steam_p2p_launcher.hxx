@@ -17,6 +17,7 @@ namespace steam_p2p {
 		const char* sessionToken
 	);
 	nlohmann::json SendInviteJson(unsigned long long targetSteamId, int virtualPort, const char* sidecarHash, const char* buildGit, const char* sessionToken);
+	nlohmann::json SendLaunchReadyJson(unsigned long long targetSteamId);
 	nlohmann::json PollMessagesJson();
 	nlohmann::json ListenJson(int virtualPort);
 	nlohmann::json ConnectJson(unsigned long long targetSteamId, int virtualPort);

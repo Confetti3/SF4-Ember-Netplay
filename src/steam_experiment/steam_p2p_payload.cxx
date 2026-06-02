@@ -114,5 +114,45 @@ namespace steam_experiment {
 		return true;
 	}
 
+	std::string EncodeLaunchReady(const SteamLaunchReadyPayload& payload) {
+		nlohmann::json j;
+		j["cmd"] = "sf4e_steam_p2p_launch_ready";
+		j["version"] = payload.version;
+		j["senderSteamId"] = std::to_string(payload.senderSteamId);
+		return j.dump();
+	}
+
+	bool DecodeLaunchReady(const std::string& text, SteamLaunchReadyPayload& outPayload, std::string& outError) {
+		try {
+			nlohmann::json j = nlohmann::json::parse(text);
+			if (j.value("cmd", "") != "sf4e_steam_p2p_launch_ready") {
+				outError = "unexpected command";
+				return false;
+			}
+			SteamLaunchReadyPayload payload;
+			payload.version = j.value("version", 0);
+			payload.senderSteamId = std::stoull(j.value("senderSteamId", "0"));
+			if (payload.version != STEAM_P2P_LAUNCH_READY_VERSION) {
+				outError = "unsupported launch-ready version";
+				return false;
+			}
+			if (payload.senderSteamId == 0) {
+				outError = "missing sender SteamID";
+				return false;
+			}
+			outPayload = payload;
+			outError.clear();
+			return true;
+		}
+		catch (const std::exception& e) {
+			outError = e.what();
+			return false;
+		}
+		catch (...) {
+			outError = "unknown parse error";
+			return false;
+		}
+	}
+
 } // namespace steam_experiment
 } // namespace sf4e

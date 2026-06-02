@@ -1305,7 +1305,16 @@ static void DrawNetplayPlayerPanel() {
 		}
 	}
 	if (st.inLobby) {
-		TextWrapped("Lobby - configure character and press Ready below.");
+		if (cfg.useCentralSession == 3 && fUserApp::netplay && fUserApp::netplay->client._lobbyData.members.size() < 2) {
+			ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.35f, 1.0f), "Waiting for opponent to join the lobby...");
+			TextWrapped(
+				"Your friend must press Ready to launch in the launcher so both games start together. "
+				"Once they are in, pick character and press Ready here."
+			);
+		}
+		else {
+			TextWrapped("Lobby - configure character and press Ready below.");
+		}
 		DrawNetworkLobbyPanel();
 	}
 	else if (st.inMatch) {

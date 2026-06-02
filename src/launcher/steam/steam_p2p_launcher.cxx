@@ -335,6 +335,7 @@ namespace {
 			item["bodySize"] = msgs[i]->m_cbSize;
 
 			sf4e::steam_experiment::SteamInvitePayload invite;
+			sf4e::steam_experiment::SteamLaunchReadyPayload launchReady;
 			std::string err;
 			if (sf4e::steam_experiment::DecodeInvite(body, invite, err)) {
 				item["kind"] = "invite";
@@ -345,6 +346,12 @@ namespace {
 					{ "sidecarHash", invite.sidecarHash },
 					{ "buildGit", invite.buildGit },
 					{ "sessionToken", invite.sessionToken }
+				};
+			}
+			else if (sf4e::steam_experiment::DecodeLaunchReady(body, launchReady, err)) {
+				item["kind"] = "launch_ready";
+				item["launchReady"] = {
+					{ "senderSteamId", std::to_string(launchReady.senderSteamId) }
 				};
 			}
 			else {
@@ -540,6 +547,55 @@ namespace {
 				encoded.size(),
 				payload.senderSteamId
 			);
+		}
+		return j;
+	}
+
+	nlohmann::json SendLaunchReadyJson(unsigned long long targetSteamId) {
+		EnsureSteam();
+		nlohmann::json j = Envelope("steamLaunchReady");
+		if (!g_state.initialized) {
+			j["ok"] = false;
+			j["message"] = g_state.lastError.empty() ? "Steam not initialized" : g_state.lastError;
+			return j;
+		}
+		if (!EnsureRelayReady()) {
+			j["ok"] = false;
+			j["message"] = g_state.lastError;
+			return j;
+		}
+		if (targetSteamId == 0) {
+			j["ok"] = false;
+			j["message"] = "Invalid peer SteamID for launch ready";
+			return j;
+		}
+
+		sf4e::steam_experiment::SteamLaunchReadyPayload payload;
+		payload.senderSteamId = SteamUser()->GetSteamID().ConvertToUint64();
+		SteamNetworkingIdentity identity;
+		identity.SetSteamID64(targetSteamId);
+		SteamNetworkingMessages()->AcceptSessionWithUser(identity);
+		const std::string encoded = sf4e::steam_experiment::EncodeLaunchReady(payload);
+		const int sendFlags = k_nSteamNetworkingSend_Reliable | k_nSteamNetworkingSend_AutoRestartBrokenSession;
+		const EResult result = SteamNetworkingMessages()->SendMessageToUser(
+			identity,
+			encoded.data(),
+			(uint32)encoded.size(),
+			sendFlags,
+			0
+		);
+		j["ok"] = result == k_EResultOK;
+		j["result"] = (int)result;
+		j["resultName"] = EResultName(result);
+		j["targetSteamId"] = std::to_string(targetSteamId);
+		if (result != k_EResultOK) {
+			j["message"] = std::string("Launch ready send failed (") + EResultName(result) + ")";
+			SetEvent("Launch ready send failed");
+		}
+		else {
+			j["message"] = "Launch ready sent — waiting for opponent";
+			SetEvent("You are ready to launch");
+			spdlog::info("SendLaunchReady ok target={}", targetSteamId);
 		}
 		return j;
 	}

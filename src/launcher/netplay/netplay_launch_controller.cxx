@@ -116,6 +116,7 @@ namespace launcher {
 			|| type == "steamBuildInfo"
 			|| type == "steamPrepareHost"
 			|| type == "steamPrepareJoin"
+			|| type == "steamMarkLaunchReady"
 			|| type == "steamStart";
 	}
 
@@ -835,6 +836,39 @@ namespace launcher {
 			connect["type"] = "steamPrepareJoin";
 			connect["inviteOk"] = true;
 			return connect;
+#else
+			return SteamExperimentUnavailable();
+#endif
+		}
+
+		if (type == "steamMarkLaunchReady") {
+#ifdef SF4E_STEAMWORKS_EXPERIMENT
+			unsigned long long target = 0;
+			try {
+				target = std::stoull(msg.value("targetSteamId", "0"));
+			}
+			catch (...) {
+				target = 0;
+			}
+			if (target == 0) {
+				nlohmann::json err;
+				err["v"] = kProtocolVersion;
+				err["type"] = "error";
+				err["message"] = "Select a friend or accept an invite before readying up.";
+				return err;
+			}
+			nlohmann::json status = steam_p2p::BuildStatusJson();
+			if (!status.value("connected", false)) {
+				nlohmann::json err;
+				err["v"] = kProtocolVersion;
+				err["type"] = "error";
+				err["message"] =
+					"Steam P2P is not connected yet. Complete invite + connect on both PCs first.";
+				return err;
+			}
+			nlohmann::json sent = steam_p2p::SendLaunchReadyJson(target);
+			sent["type"] = "steamLaunchReady";
+			return sent;
 #else
 			return SteamExperimentUnavailable();
 #endif

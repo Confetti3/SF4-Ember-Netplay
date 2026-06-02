@@ -164,6 +164,14 @@ private:
 
 	void startGame(const char* mode);
 
+	void resetLaunchHandshake();
+
+	void markLaunchReady(const char* mode);
+
+	void trySynchronizedLaunch();
+
+	void updateLaunchButtonLabels();
+
 	void sendCancelIfNeeded();
 
 
@@ -187,6 +195,14 @@ private:
 	PendingInvite m_pendingInvite;
 
 	bool m_p2pConnected = false;
+
+	bool m_localLaunchReady = false;
+
+	bool m_peerLaunchReady = false;
+
+	bool m_launchTriggered = false;
+
+	std::string m_launchRole;
 
 
 

@@ -60,6 +60,12 @@ static bool StartMatchFromLobby(SessionClient* const client) {
     fVsBattle::bSessionSynced = false;
     fVsBattle::bSessionSentLoaded = false;
 
+    if (!client || client->_lobbyData.members.size() < 2) {
+        spdlog::info("Client: deferring match start until opponent joins the lobby");
+        sf4e::NetplayFacade::PushAlert("Waiting for opponent to join the lobby...");
+        return false;
+    }
+
     RootEvent* root = App::GetRootEvent();
     if (!root) {
         return false;
@@ -104,9 +110,18 @@ sf4e::UserApp::Netplay::Netplay(
 
 void fUserApp::_OnVsBattleTasksRegistered()
 {
+    if (!netplay) {
+        return;
+    }
+    if (netplay->client._lobbyData.members.size() < 2) {
+        spdlog::warn("Netplay: waiting for second player before starting GGPO");
+        sf4e::NetplayFacade::PushAlert("Waiting for opponent in the lobby before the match can start.");
+        return;
+    }
+
     // Start the GGPO connection
     bool isPlayer = false;
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 2 && i < (int)netplay->client._lobbyData.members.size(); i++) {
         if (netplay->client._lobbyData.members[i].name == netplay->client._name) {
             isPlayer = true;
             break;
@@ -416,6 +431,9 @@ void fUserApp::ResetLobbyForRematch() {
 
 void fUserApp::TryStartPendingMatch() {
     if (!s_pendingMatchStart || !netplay) {
+        return;
+    }
+    if (netplay->client._lobbyData.members.size() < 2) {
         return;
     }
     if (StartMatchFromLobby(&netplay->client)) {
