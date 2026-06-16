@@ -2,11 +2,11 @@
 
 > **Unofficial experimental port** - **not** the official [sf4e](https://codeberg.org/adanducci/sf4e) project by **[Anthony Danducci](https://codeberg.org/adanducci/sf4e)**. Anthony Danducci does not maintain, endorse, or support this build. This is **not production-ready software** - a friends-only experiment built on upstream sf4e (MIT). See [ATTRIBUTION.md](ATTRIBUTION.md) and [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md).
 
-**SF4 Netplay Launcher** is a **third-party, experimental unofficial port** for _Ultra Street Fighter IV_ on Steam. It adds a WebView2 **Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e's rollback netplay. Netplay may fail, desync, or break between releases - use only with people who accept that risk.
+**SF4 Netplay Launcher** is a **third-party, experimental unofficial port** for _Ultra Street Fighter IV_ on Steam. It adds a native **Qt Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e's rollback netplay. Netplay may fail, desync, or break between releases - use only with people who accept that risk.
 
-**Latest release:** [v0.3.8](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/v0.3.8) (preflight fix + troubleshooting guide in zip; unsigned until SignPath signing)
+**Latest release:** [v0.4.0](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/v0.4.0) (Qt launcher + VPS relay; Steam P2P experiment removed)
 
-**Download:** [GitHub Releases — Latest](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) — asset `sf4-netplay-launcher-*-v0.3.8.zip` (not "Source code" only).
+**Download:** [GitHub Releases — Latest](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) — asset `sf4-netplay-launcher-*-v0.4.0.zip` (not "Source code" only).
 
 ## How it works
 
@@ -62,7 +62,7 @@ flowchart LR
 flowchart TB
   subgraph windows [Each Windows PC]
     direction TB
-    L[Launcher.exe WebView2 UI]
+    L[Launcher.exe Qt UI]
     U[Updater.exe optional]
     S[Sidecar.dll hooks USF4]
     L -->|creates netplay config| S
@@ -125,7 +125,7 @@ Install once on each PC:
 | Requirement | Link |
 |-------------|------|
 | **Ultra Street Fighter IV** (Steam, app 45760) | Not included in the zip |
-| [Microsoft Edge WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703) | Required for the launcher UI |
+| **Qt 6 runtime** (included in release zip) | `Qt6Core/Gui/Widgets.dll` + `plugins/` — no separate install |
 | [VC++ Redistributable (x86)](https://aka.ms/vs/17/release/vc_redist.x86.exe) | Required for sf4e binaries |
 
 ### 2. Install
@@ -135,7 +135,7 @@ Install once on each PC:
 3. Optional: run `preflight.cmd` to verify the package.
 4. Double-click **`Launcher.exe`**.
 
-Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.3.6`). Use **Check for updates** on the home screen to upgrade.
+Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.4.0`). Use **Check for updates** on the home screen to upgrade.
 
 ### 3. Play online (Simple mode - experimental)
 

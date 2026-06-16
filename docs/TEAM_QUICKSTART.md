@@ -10,7 +10,7 @@ This folder is a **self-contained experimental port** for netplay testing with f
 
 This is a **known false positive** on unsigned netplay tools that inject into USF4 (`Sidecar.dll`). It is **not** confirmed malware.
 
-1. Download only from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) (**v0.3.1** until a signed build ships).
+1. Download only from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) (**v0.4.0** or newer).
 2. Verify SHA256 hashes match the release page.
 3. See [`docs/WINDOWS_DEFENDER.md`](WINDOWS_DEFENDER.md) — permanent fix is **Authenticode signing**, not Defender exclusions.
 
@@ -29,10 +29,11 @@ Full list: [`docs/SCOPE_AND_LIMITATIONS.md`](SCOPE_AND_LIMITATIONS.md) in this f
 
 1. **Extract** the entire zip to one folder (e.g. `C:\Games\SF4-Netplay-Launcher\`). Do not copy only `Launcher.exe`.
 2. **Install once** (if you have not already):
-   - [Microsoft Edge WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703)
    - [VC++ Redistributable (x86)](https://aka.ms/vs/17/release/vc_redist.x86.exe)
    - **Ultra Street Fighter IV** on Steam (app ID 45760)
-3. **Run** `preflight.ps1` (optional sanity check), then **`Launcher.exe`** from that folder → **Host**, **Join**, or **Offline**.
+
+   Qt 6 runtime DLLs are **included in the zip** (`Qt6Core.dll`, `Qt6Gui.dll`, `Qt6Widgets.dll`, `plugins/`).
+3. **Run** `preflight.cmd` (optional sanity check), then **`Launcher.exe`**. Use the **Simple / Advanced** toggle in the header; pick **Host**, **Join**, or **Offline** from the home screen.
 
 ## Experimental testers
 
@@ -80,8 +81,8 @@ If join fails, confirm both players use **Advanced** mode and the joiner pasted 
 
 Confirm these sit **next to each other** in one folder:
 
-- `Launcher.exe`, `Sidecar.dll`, **`RelayHost.exe`**, `WebView2Loader.dll`
-- `launcher-ui\` (`index.html`, `app.js`, `styles.css`)
+- `Launcher.exe`, `Sidecar.dll`, **`RelayHost.exe`**, `Updater.exe`
+- `qt.conf`, `plugins\platforms\qwindows.dll`, `Qt6Core.dll`, `Qt6Gui.dll`, `Qt6Widgets.dll`
 - `spdlog.dll`, `fmt.dll`, `GameNetworkingSockets.dll`, `GGPO.dll`, `libcrypto-3.dll`, `libprotobuf.dll`, `abseil_dll.dll`
 
 See `MANIFEST.txt` in the package to verify extraction.
@@ -89,7 +90,7 @@ See `MANIFEST.txt` in the package to verify extraction.
 ## Run the launcher
 
 1. Double-click **`Launcher.exe`** (or `Launcher.exe --console` for logs).
-2. In the WebView2 launcher (Simple mode):
+2. In the Qt launcher (**Host** / **Join** / **Offline** tabs):
    - **Host** — **Create relay room** → **Copy code** → **Start game**
    - **Join** — paste **`SF4-XXXX`** → **Start game**
    - **Offline** — game only, no netplay session
@@ -126,9 +127,8 @@ Full checklist: [SMOKE_TEST.md](SMOKE_TEST.md). Player guide: [USER_NETPLAY.md](
 
 | Problem | What to try |
 |---------|-------------|
-| `WebView2Loader.dll was not found` | Re-extract the **full** zip; keep all files beside `Launcher.exe` |
-| Launcher says WebView2 required | Install [WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703) |
-| Blank launcher window | Ensure **`launcher-ui\`** is next to `Launcher.exe` |
+| Missing `Qt6Core.dll` or `plugins\platforms\qwindows.dll` | Re-extract the **full** zip; keep all files beside `Launcher.exe` |
+| Launcher fails to start (Qt) | Install [VC++ x86](https://aka.ms/vs/17/release/vc_redist.x86.exe); run `preflight.cmd` |
 | Double-click does nothing | Run `Launcher.exe --console` from a terminal in the package folder |
 | “Version mismatch” on join | Same zip on both PCs |
 | Can't create relay room | Broker reachable? `curl http://74.208.200.95:8787/v1/health` |

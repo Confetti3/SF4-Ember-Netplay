@@ -6,14 +6,14 @@
 
 ## Prerequisites
 
-- **[Microsoft Edge WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703)** — required for the launcher UI (one-time install on Windows).
 - **[VC++ Redistributable (x86)](https://aka.ms/vs/17/release/vc_redist.x86.exe)** — required for the launcher and Sidecar binaries.
+- **Qt 6 runtime** — included in the release zip (`Qt6Core.dll`, `Qt6Gui.dll`, `Qt6Widgets.dll`, `plugins/`). No WebView2 Runtime needed.
 
 ## Quick start
 
-1. Extract a release build so `Launcher.exe`, `Sidecar.dll`, and the **`launcher-ui/`** folder sit in the same directory.
+1. Extract a release build so `Launcher.exe`, `Sidecar.dll`, `RelayHost.exe`, Qt DLLs, and `plugins/` sit in the same directory.
 2. Run **Launcher.exe**.
-3. In the WebView2 launcher, choose **Host**, **Join**, or **Offline**.
+3. In the Qt launcher home screen, pick **Host**, **Join**, or **Offline** (toggle **Advanced** for direct IP, UPnP, open rooms, and broker URL).
 4. Click **Start game** — USF4 launches with netplay configured.
 
 ## Simple mode (relay — experimental, friends-only)
@@ -22,14 +22,14 @@
 
 ### Host (relay)
 
-1. **Host** → enter display name.
-2. Click **Create relay room** → copy **`SF4-XXXX`** and send it to your opponent.
+1. **Host** (home → Host) → enter display name.
+2. Click **Get code** → copy **`SF4-XXXX`** and send it to your opponent.
 3. Click **Start game** — you connect to the VPS relay (no port forward on your PC). The in-game overlay shows your **SF4-XXXX** code to share.
 4. Wait in the in-game lobby; both players **Ready** to start.
 
 ### Join (relay)
 
-1. **Join** → enter display name.
+1. **Join** (home → Join) → enter display name.
 2. Paste the host's **`SF4-XXXX`** code.
 3. Wait until the host has clicked **Start game**, then click **Start game** on your side.
 4. Press **Ready** in the lobby when connected.
@@ -72,7 +72,7 @@ Launcher.exe --console
 |-------------|--------|
 | Same `Sidecar.dll` on both PCs | Join fails with "version mismatch" otherwise |
 | Host port-forward **23456** | **Simple relay:** no host port forward. **Direct IP (Advanced):** host forwards session port (default 23456, TCP+UDP) |
-| **WebView2 Runtime** | Launcher shows an install link if missing |
+| **WebView2 Runtime** | Not required (v0.4.0+ uses native Qt UI) |
 | Room code **`SF4-XXXX`** | Default in Simple mode; broker resolves to host relay |
 | Direct **`IP:port`** | Advanced mode only |
 

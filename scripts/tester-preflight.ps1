@@ -32,13 +32,17 @@ $RequiredFiles = @(
 
     "Sidecar.dll",
 
-    "WebView2Loader.dll",
+    "Updater.exe",
 
-    "launcher-ui\index.html",
+    "qt.conf",
 
-    "launcher-ui\app.js",
+    "plugins\platforms\qwindows.dll",
 
-    "launcher-ui\styles.css",
+    "Qt6Core.dll",
+
+    "Qt6Gui.dll",
+
+    "Qt6Widgets.dll",
 
     "spdlog.dll",
 
@@ -87,64 +91,6 @@ foreach ($rel in $RequiredFiles) {
         $failures += "Missing file: $rel"
 
     }
-
-}
-
-
-
-# WebView2 Runtime (Edge WebView2, not WebView2Loader.dll)
-
-$webview2Ok = $false
-
-$wv2RegPaths = @(
-
-    "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}",
-
-    "HKLM:\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
-
-)
-
-foreach ($regPath in $wv2RegPaths) {
-
-    if (Test-Path $regPath) {
-
-        $pv = (Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue).pv
-
-        if ($pv) {
-
-            $webview2Ok = $true
-
-            Write-Host "[OK]   WebView2 Runtime (registry pv=$pv)"
-
-            break
-
-        }
-
-    }
-
-}
-
-if (-not $webview2Ok) {
-
-    # Fallback: common install path
-
-    $edgeWebView = "${env:ProgramFiles(x86)}\Microsoft\EdgeWebView\Application"
-
-    if (Test-Path $edgeWebView) {
-
-        $webview2Ok = $true
-
-        Write-Host "[OK]   WebView2 Runtime (EdgeWebView folder found)"
-
-    }
-
-}
-
-if (-not $webview2Ok) {
-
-    Write-Host "[WARN] WebView2 Runtime not detected"
-
-    $warnings += "Install Microsoft Edge WebView2 Runtime: https://go.microsoft.com/fwlink/p/?LinkId=2124703"
 
 }
 
@@ -242,5 +188,3 @@ Write-Host "Note: Windows Defender may flag Sidecar.dll as Wacapew.A!ml (false p
 Write-Host "      See docs\WINDOWS_DEFENDER.md - verify release hashes; signed builds are the fix."
 
 exit 0
-
-

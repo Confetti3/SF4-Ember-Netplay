@@ -44,7 +44,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 
 ## What ships in the zip
 
-- `Launcher.exe`, `Sidecar.dll`, **`RelayHost.exe`**, `Updater.exe`, `WebView2Loader.dll`, `launcher-ui/`
+- `Launcher.exe`, `Sidecar.dll`, **`RelayHost.exe`**, `Updater.exe`, Qt runtime DLLs, `plugins/`, `qt.conf`
 - Runtime DLLs (GNS, GGPO, spdlog, etc.)
 - `START_HERE.md`, `preflight.ps1`, `MANIFEST.txt`, `BUILD_INFO.txt`, `ATTRIBUTION.md`
 - `docs/TROUBLESHOOTING.md` (player troubleshooting — also linked from each release on GitHub)

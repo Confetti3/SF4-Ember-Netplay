@@ -20,7 +20,6 @@
 #include "../session/sf4e__SessionClient.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 #include "../session/sf4e__SessionServer.hxx"
-#include "../session/sf4e__SteamP2pSession.hxx"
 
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__Game__Battle__System.hxx"
@@ -157,13 +156,7 @@ void fUserApp::_OnVsBattleTasksRegistered()
     );
     if (isPlayer) {
         NetplayConfig transportCfg = sf4e::NetplayFacade::GetConfig();
-        const bool steamP2pSession = transportCfg.useCentralSession == 3;
         bool useLegacyGgpoTunnel = netplay->client._useRelay;
-        if (steamP2pSession) {
-            // Steam P2P: GGPO rollback over session tunnel (GgpoRelay), not direct Steam UDP.
-            useLegacyGgpoTunnel = true;
-            netplay->client._useRelay = true;
-        }
         if (
             transportCfg.useCentralSession == 2
             && transportCfg.ggpoTransport == 0
@@ -198,13 +191,10 @@ void fUserApp::_OnVsBattleTasksRegistered()
         else if (transportCfg.useCentralSession == 2) {
             sf4e::NetplayFacade::ReportGgpoTransport(0, true, nullptr, 0);
         }
-        else if (steamP2pSession) {
-            sf4e::NetplayFacade::ReportGgpoTransport(0, true, nullptr, 0);
-        }
 
         if (useLegacyGgpoTunnel) {
             if (!GgpoRelay::Instance().Start(netplay->client._ggpoPort, &netplay->client)) {
-                spdlog::error("Netplay: GgpoRelay failed to start (Steam P2P session tunnel)");
+                spdlog::error("Netplay: GgpoRelay failed to start (session tunnel)");
                 sf4e::NetplayFacade::PushAlert(
                     "Netplay: could not start GGPO session tunnel. Return to lobby and retry."
                 );
@@ -266,22 +256,21 @@ void fUserApp::_OnVsBattleTasksRegistered()
                         player.u.remote.port
                     );
                 }
-                else if (!steamP2pSession && memberData.ip.empty()) {
+                else if (memberData.ip.empty()) {
                     char szAddr[SteamNetworkingIPAddr::k_cchMaxString];
                     netplay->client._serverAddr.ToString(szAddr, sizeof(szAddr), false);
                     strcpy_s(player.u.remote.ip_address, 32, szAddr);
                     player.u.remote.port = memberData.port;
                     remoteResolved = true;
                 }
-                else if (!steamP2pSession && !memberData.ip.empty()) {
+                else if (!memberData.ip.empty()) {
                     strcpy_s(player.u.remote.ip_address, 32, memberData.ip.c_str());
                     player.u.remote.port = memberData.port;
                     remoteResolved = true;
                 }
                 if (!remoteResolved) {
                     spdlog::error(
-                        "Netplay: could not resolve GGPO remote endpoint (steamP2p={} tunnel={})",
-                        steamP2pSession,
+                        "Netplay: could not resolve GGPO remote endpoint (tunnel={})",
                         useLegacyGgpoTunnel
                     );
                     GgpoRelay::Instance().Reset();
@@ -508,7 +497,6 @@ void fUserApp::Install() {
 
 void fUserApp::ShutdownNetplay(bool closeGgpo) {
     s_pendingMatchStart = false;
-    sf4e::SteamP2pSession::Shutdown();
     sf4e::NetplayFacade::ShutdownNetplay(closeGgpo);
 }
 
@@ -543,81 +531,6 @@ bool fUserApp::StartServer(uint16 hostPort, std::string& identity, std::string& 
     return true;
 }
 
-bool fUserApp::StartSteamHost(
-    int virtualPort,
-    std::string& identity,
-    std::string& sidecarHash,
-    bool editionSelect,
-    int roundCount,
-    Dimps::Math::FixedPoint roundTime,
-    std::string& name,
-    uint8_t deviceType,
-    uint8_t deviceIdx,
-    uint8_t delay,
-    uint16_t ggpoPort,
-    bool useRelay
-) {
-    sf4e::agent_debug::Log(
-        "H2",
-        "UserApp.cxx:StartSteamHost",
-        "entry",
-        { { "virtualPort", virtualPort }, { "useRelay", useRelay ? 1 : 0 } }
-    );
-    server.reset(new SessionServer(identity, sidecarHash, editionSelect, roundCount, roundTime));
-    server->PrepareForCallbacks();
-    if (!sf4e::SteamP2pSession::HostBegin(server.get(), virtualPort)) {
-        server.reset();
-        return false;
-    }
-    netplay.reset(new Netplay(
-        clientCallbacks,
-        sidecarHash,
-        ggpoPort,
-        name,
-        deviceType,
-        deviceIdx,
-        delay
-    ));
-    netplay->client._useRelay = useRelay;
-    if (!sf4e::SteamP2pSession::ConnectHostLocalClient(&netplay->client)) {
-        sf4e::agent_debug::Log("H2", "UserApp.cxx:StartSteamHost", "connect_local_client_failed", {});
-        sf4e::SteamP2pSession::Shutdown();
-        netplay.reset();
-        server.reset();
-        return false;
-    }
-    sf4e::agent_debug::Log("H2", "UserApp.cxx:StartSteamHost", "ok", {});
-    return true;
-}
-
-bool fUserApp::StartSteamJoin(
-    uint64_t peerSteamId64,
-    int virtualPort,
-    std::string& sidecarHash,
-    std::string& name,
-    uint8_t deviceType,
-    uint8_t deviceIdx,
-    uint8_t delay,
-    uint16_t ggpoPort,
-    bool useRelay
-) {
-    netplay.reset(new Netplay(
-        clientCallbacks,
-        sidecarHash,
-        ggpoPort,
-        name,
-        deviceType,
-        deviceIdx,
-        delay
-    ));
-    netplay->client._useRelay = useRelay;
-    if (!sf4e::SteamP2pSession::JoinBegin(&netplay->client, peerSteamId64, virtualPort)) {
-        netplay.reset();
-        return false;
-    }
-    return true;
-}
-
 void fUserApp::StartSession(char* joinAddr, uint16_t port, std::string& sidecarHash, std::string& name, uint8_t deviceType, uint8_t deviceIdx, uint8_t delay, bool useRelay) {
     SteamNetworkingIPAddr addr;
     addr.Clear();
@@ -646,7 +559,6 @@ void fUserApp::Steam_PostUpdate() {
         server->PrepareForCallbacks();
     }
     SteamNetworkingSockets()->RunCallbacks();
-    sf4e::SteamP2pSession::Pump();
 
     if (netplay) {
         int stepResult = netplay->client.Step();

@@ -1,74 +1,28 @@
 # SF4 Netplay Launcher — troubleshooting guide
 
-> **Experimental unofficial port** — not production-ready. Steam P2P Qt packages should start with the Steam P2P checklist below; older relay/WebView2 packages can use the legacy sections that follow.
+> **Experimental unofficial port** — not production-ready. v0.4.0+ uses the native Qt launcher with VPS relay room codes (`SF4-XXXX`).
 
 For a short player guide see [USER_NETPLAY.md](USER_NETPLAY.md).
 
 ---
 
-## Steam P2P Qt package checklist
-
-Use this section for `sf4-netplay-p2p-steam-*` tester zips.
+## Qt VPS relay package checklist (v0.4.0+)
 
 1. Extract the entire zip to one folder. Do not move only `Launcher.exe`.
 2. Run `preflight.cmd` from the package root.
-3. Confirm the root contains `Launcher.exe`, `Updater.exe`, `steam_appid.txt`, `qt.conf`, `plugins\platforms\qwindows.dll`, `scripts\`, `readme\`, and `tools\`.
-4. Confirm `dll\` contains `LauncherApp.exe`, `Sidecar.dll`, `steam_api.dll`, `steam_appid.txt`, Qt DLLs, and the netplay runtime DLLs.
-5. WebView2, `launcher-ui\`, and root-level runtime DLLs are not part of the Steam P2P Qt package.
-6. For local launch testing, run `tools\run-offline-test.ps1` and confirm the in-game overlay shows **Offline Test**.
-7. For Steam P2P testing, Steam must be running on both PCs and both testers must use the same zip.
+3. Confirm the root contains `Launcher.exe`, `Sidecar.dll`, `RelayHost.exe`, `Updater.exe`, `qt.conf`, `plugins\platforms\qwindows.dll`, and the Qt/runtime DLLs listed in preflight.
+4. Both players must use the **same** release zip (`BUILD_INFO.txt` Git line must match).
+5. Install [VC++ Redistributable (x86)](https://aka.ms/vs/17/release/vc_redist.x86.exe) if preflight warns.
 
-Useful logs for tester reports:
+Useful logs for bug reports:
 
 - `%APPDATA%\sf4e\logs\launcher.log`
 - `%APPDATA%\sf4e\logs\sidecar_bootstrap.log`
 - `%APPDATA%\sf4e\logs\sf4e.log`
 
-If Steam friends do not load, first confirm `steam_appid.txt` exists in both the package root and `dll\`, then restart Steam and run `Launcher.exe` again.
-
-### Activity log says "Steam invite send failed"
-
-Steam invites are **not** Steam chat messages. They are delivered through Steam Networking Messages while **both** players have this launcher running.
-
-1. **Joiner first:** The friend who will join must open `Launcher.exe`, go to the **Join** tab, and leave the launcher open (Steam running).
-2. **Host second:** Select that friend (or paste their SteamID64), then click **Send invite + listen**.
-3. If it still fails, check `%APPDATA%\sf4e\logs\launcher.log` for `SendMessageToUser failed` and the `result=` code.
-4. Wait up to ~20 seconds after opening the launcher (first invite may need Steam relay network access).
-5. Confirm both players use the **same** `sf4-netplay-p2p-steam-*` zip (not the production `sf4-netplay-launcher-*` build).
-6. Diagnostic: `tools\SteamP2PProbe.exe` with `--write-appid 45760` on both PCs (see `readme\STEAM_P2P_EXPERIMENT.md`).
-
-### One player launches USF4, the other stays on the launcher
-
-The launcher uses a two-step handshake over **Steam Networking Messages** (not the P2P listen socket): **launch-ready**, then **launch-commit**. Neither PC starts USF4 until both steps complete for the same session token.
-
-1. **Both** press **Ready to launch game** after **P2P connected** (order does not matter much).
-2. Wait until **both** see **Both committed — launching now** / **Launching USF4** before either closes the launcher.
-3. In `launcher.log` on **each** PC, look for:
-   - `SendLaunchReady ok target=...` and `ReceiveLaunchReady from=...`
-   - `SendLaunchCommit` / `ReceiveLaunchCommit` (or activity log **launch commit**)
-   - `Controller steamStart mode=1` (host) and `mode=2` (joiner) on **both** machines
-4. Both players must use the **same** tester zip build on the same release tag. Mixed builds break the handshake.
-5. If stuck on **Waiting for opponent** or **confirming launch commit**, click **Ready to launch game** again on **both** PCs.
-6. If only one game started, press **Ready** again on the stuck PC — launch-ready/commit still work if P2P shows **disconnected** (the first player only closes the P2P socket, not Steam messages).
-7. For agent-debug builds, set `SF4E_DEBUG_SESSION=1` and optional `SF4E_DEBUG_LOG`; send `%APPDATA%\sf4e\debug-592d59.log` with both `launcher.log` files.
-
-### In-game: waiting for opponent / crash when alone in lobby
-
-Steam P2P builds defer match start until **two** lobby members are present. Both players must use **Ready to launch** in the launcher so games start together, then **Ready** again in the in-game lobby.
-
-### In-game: crash when picking character and starting the match
-
-GGPO rollback still runs on Steam P2P via the **session tunnel** (`GgpoRelay` over Steam sockets), not direct UDP to Steam addresses.
-
-1. Both players must be **Ready** in the in-game lobby before either starts character select.
-2. If the game alerts that the GGPO session tunnel could not start, return to the lobby and press **Ready** again on both PCs.
-3. In `sf4e.log`, look for `GgpoRelay: started` then `GgpoRelay: remote endpoint 127.0.0.1:...` (not a Steam networking address string on the GGPO remote player line).
-4. Overlay should eventually show **GGPO: Running** during the match.
-5. For deep diagnosis, set `SF4E_AGENT_DEBUG=1` before launch and send `%APPDATA%\sf4e\debug-592d59.log` with both `sf4e.log` files.
-
 ---
 
-## Legacy relay/WebView2 checklist
+## Legacy WebView2 packages (v0.3.x and earlier)
 
 Use this section only for older relay/WebView2 zips. Do these on **each PC** before deeper fixes:
 

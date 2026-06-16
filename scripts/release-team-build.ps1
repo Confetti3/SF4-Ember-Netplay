@@ -92,7 +92,7 @@ try {
 
     Write-Host "  2. Run: preflight.cmd"
 
-    Write-Host "  3. Install WebView2 Runtime + VC++ x86 if preflight warns"
+    Write-Host "  3. Install VC++ x86 if preflight warns (Qt DLLs are in the zip)"
 
     Write-Host "  4. Run Launcher.exe - Host / Join / Offline"
 

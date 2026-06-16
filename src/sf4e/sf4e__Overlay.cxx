@@ -241,64 +241,6 @@ enum NetworkWindowState {
 	NWS_JOIN = 3,
 };
 
-static const char* NetplayModeLabel(int mode) {
-	switch (mode) {
-	case (int)sf4e::NetplayMode::Host:
-		return "Host";
-	case (int)sf4e::NetplayMode::Join:
-		return "Join";
-	default:
-		return "Offline / Idle";
-	}
-}
-
-static const char* SessionModeLabel(const sf4e::NetplayConfig& cfg) {
-	if (cfg.mode == (int)sf4e::NetplayMode::Idle) {
-		return "Offline test";
-	}
-	if (cfg.useCentralSession == 3) {
-		return "Steam P2P";
-	}
-	if (cfg.useCentralSession == 2) {
-		return "Relay broker";
-	}
-	if (cfg.useCentralSession == 1) {
-		return "Relay";
-	}
-	return "Direct";
-}
-
-static const char* GgpoSyncPhaseLabel(sf4e::GgpoSyncPhase phase) {
-	switch (phase) {
-	case sf4e::GgpoSyncPhase::Starting:
-		return "Starting";
-	case sf4e::GgpoSyncPhase::Connected:
-		return "Connected";
-	case sf4e::GgpoSyncPhase::Synchronizing:
-		return "Synchronizing";
-	case sf4e::GgpoSyncPhase::Running:
-		return "Running";
-	default:
-		return "Inactive";
-	}
-}
-
-static const char* OverlayGamePhaseLabel() {
-	System* system = System::staticMethods.GetSingleton();
-	if (system && (system->*System::publicMethods.IsFight)()) {
-		return "Battle";
-	}
-	RootEvent* root = App::GetRootEvent();
-	if (!root) {
-		return "Booting";
-	}
-	char* mainMenuQuery[1] = { "MainMenu" };
-	if (EventBaseWithEC::FindForegroundEvent(root, mainMenuQuery, 1) != nullptr) {
-		return "Main menu";
-	}
-	return "Game event active";
-}
-
 char* GetEditionLabel(BYTE edition) {
 	switch (edition) {
 	case rBattle::ED_SF4:
@@ -1129,19 +1071,7 @@ void DrawNetworkLobbyPanel() {
 static void DrawNetplayPlayerPanel() {
 	static DWORD s_connectStartedMs = 0;
 	sf4e::NetplayStatus st = sf4e::NetplayFacade::GetStatus();
-	const sf4e::NetplayConfig& cfg = sf4e::NetplayFacade::GetConfig();
 	Text("Netplay status");
-	Spacing();
-	Separator();
-	Spacing();
-	TextWrapped("Launcher prepared: yes");
-	TextWrapped("Game launched: yes");
-	TextWrapped("Sidecar loaded: yes");
-	TextWrapped("Session mode: %s", SessionModeLabel(cfg));
-	TextWrapped("Mode: %s", NetplayModeLabel(cfg.mode));
-	TextWrapped("Lobby state: %s", st.inLobby ? "in lobby" : (st.connected ? "connected" : "waiting"));
-	TextWrapped("Ready state: %s", st.inMatch ? "match started" : (st.inLobby ? "choose character and press Ready" : "not ready yet"));
-	TextWrapped("GGPO sync: %s", GgpoSyncPhaseLabel(sf4e::NetplayFacade::GetGgpoSyncPhase()));
 	Spacing();
 	Separator();
 	Spacing();
@@ -1167,6 +1097,7 @@ static void DrawNetplayPlayerPanel() {
 		TextWrapped("Not connected.");
 		return;
 	}
+	const sf4e::NetplayConfig& cfg = sf4e::NetplayFacade::GetConfig();
 	const bool isJoin = cfg.mode == (int)sf4e::NetplayMode::Join;
 	if (!st.connected) {
 		if (s_connectStartedMs == 0) {
@@ -1305,16 +1236,7 @@ static void DrawNetplayPlayerPanel() {
 		}
 	}
 	if (st.inLobby) {
-		if (cfg.useCentralSession == 3 && fUserApp::netplay && fUserApp::netplay->client._lobbyData.members.size() < 2) {
-			ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.35f, 1.0f), "Waiting for opponent to join the lobby...");
-			TextWrapped(
-				"Your friend must press Ready to launch in the launcher so both games start together. "
-				"Once they are in, pick character and press Ready here."
-			);
-		}
-		else {
-			TextWrapped("Lobby - configure character and press Ready below.");
-		}
+		TextWrapped("Lobby - configure character and press Ready below.");
 		DrawNetworkLobbyPanel();
 	}
 	else if (st.inMatch) {
@@ -1340,39 +1262,6 @@ static void DrawNetplayPlayerPanel() {
 	}
 }
 
-static void DrawOfflineTestPanel() {
-	const sf4e::NetplayConfig& cfg = sf4e::NetplayFacade::GetConfig();
-	Text("Offline Test");
-	Spacing();
-	Separator();
-	Spacing();
-	ImGui::TextColored(ImVec4(0.35f, 1.0f, 0.45f, 1.0f), "Sidecar loaded: yes");
-	TextWrapped("Build hash: %s", sf4e::sidecarHash.empty() ? "pending" : sf4e::sidecarHash.c_str());
-	TextWrapped("Config version: %d (expected %d)", cfg.version, sf4e::SF4E_NETPLAY_CONFIG_VERSION);
-	TextWrapped("Mode: %s", NetplayModeLabel(cfg.mode));
-	TextWrapped("Display name: %s", cfg.displayName[0] ? cfg.displayName : "Offline Tester");
-	TextWrapped("Input delay: %d frames", cfg.inputDelay);
-	TextWrapped("Steam P2P: disabled");
-	TextWrapped("GGPO: inactive");
-	TextWrapped("Controller capture: %s", PadSystem::staticMethods.GetSingleton() ? "controller system ready" : "waiting for controller system");
-	TextWrapped("Game phase: %s", OverlayGamePhaseLabel());
-	Spacing();
-	Separator();
-	Spacing();
-	TextWrapped("Tester steps:");
-	ImGui::BulletText("Confirm this Offline Test panel is visible.");
-	ImGui::BulletText("Confirm the game is responsive.");
-	ImGui::BulletText("If anything fails, send %APPDATA%\\sf4e\\logs\\launcher.log and sf4e.log.");
-	if (s_devNetplayOverlay) {
-		Spacing();
-		Separator();
-		TextWrapped("Dev details: auto netplay pending=%s, relay=%s",
-			sf4e::NetplayFacade::IsAutoNetplayPending() ? "yes" : "no",
-			sf4e::NetplayFacade::IsRelayEnabled() ? "yes" : "no"
-		);
-	}
-}
-
 void DrawNetworkWindow(bool* pOpen) {
 	static bool bDebug = false;
 	static NetworkWindowState netState = NWS_CAPTURE;
@@ -1386,13 +1275,6 @@ void DrawNetworkWindow(bool* pOpen) {
 	);
 	Text("Steam multiplayer is disabled while sf4e is running.");
 	Separator();
-
-	const sf4e::NetplayConfig& cfg = sf4e::NetplayFacade::GetConfig();
-	if (cfg.mode == (int)sf4e::NetplayMode::Idle && s_devNetplayOverlay && !s_playerNetplayUi) {
-		DrawOfflineTestPanel();
-		End();
-		return;
-	}
 
 	if (s_playerNetplayUi && !s_devNetplayOverlay) {
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.0f, 10.0f));

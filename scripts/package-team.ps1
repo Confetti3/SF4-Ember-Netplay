@@ -46,8 +46,6 @@ if (-not (Test-Path $Launcher) -or -not (Test-Path $Sidecar)) {
 
 $RuntimeDlls = @(
 
-    "WebView2Loader.dll",
-
     "spdlog.dll",
 
     "fmt.dll",
@@ -60,7 +58,31 @@ $RuntimeDlls = @(
 
     "libprotobuf.dll",
 
-    "abseil_dll.dll"
+    "abseil_dll.dll",
+
+    "Qt6Core.dll",
+
+    "Qt6Gui.dll",
+
+    "Qt6Widgets.dll"
+
+)
+
+$QtDeps = @(
+
+    "icudt78.dll",
+
+    "icuin78.dll",
+
+    "icuuc78.dll",
+
+    "double-conversion.dll",
+
+    "pcre2-16.dll",
+
+    "md4c.dll",
+
+    "zlib1.dll"
 
 )
 
@@ -74,13 +96,11 @@ $RequiredPackagePaths = @(
 
     "RelayHost.exe",
 
-    "WebView2Loader.dll",
+    "Updater.exe",
 
-    "launcher-ui\index.html",
+    "qt.conf",
 
-    "launcher-ui\app.js",
-
-    "launcher-ui\styles.css",
+    "plugins\platforms\qwindows.dll",
 
     "START_HERE.md",
 
@@ -88,9 +108,7 @@ $RequiredPackagePaths = @(
 
     "preflight.ps1",
 
-    "preflight.cmd",
-
-    "Updater.exe"
+    "preflight.cmd"
 
 ) + $RuntimeDlls
 
@@ -140,17 +158,53 @@ Copy-Item $RelayHost $PackageRoot
 
 
 
-$LauncherUiInstall = Join-Path $InstallDir "launcher-ui"
+foreach ($dll in $QtDeps) {
 
-$LauncherUi = Join-Path $RepoRoot "launcher-ui"
+    $srcInstall = Join-Path $InstallDir $dll
 
-if (Test-Path $LauncherUiInstall) {
+    $srcBuild = Join-Path $BuildDir $dll
 
-    Copy-Item -Recurse $LauncherUiInstall (Join-Path $PackageRoot "launcher-ui")
+    if (Test-Path $srcInstall) {
 
-} elseif (Test-Path $LauncherUi) {
+        Copy-Item $srcInstall $PackageRoot
 
-    Copy-Item -Recurse $LauncherUi (Join-Path $PackageRoot "launcher-ui")
+    } elseif (Test-Path $srcBuild) {
+
+        Copy-Item $srcBuild $PackageRoot
+
+    }
+
+}
+
+$QtConfInstall = Join-Path $InstallDir "qt.conf"
+
+$QtConfBuild = Join-Path $BuildDir "generated\qt.conf"
+
+if (Test-Path $QtConfInstall) {
+
+    Copy-Item $QtConfInstall $PackageRoot
+
+} elseif (Test-Path $QtConfBuild) {
+
+    Copy-Item $QtConfBuild $PackageRoot
+
+} else {
+
+    Set-Content -Path (Join-Path $PackageRoot "qt.conf") -Value "[Paths]`nPrefix=.`nPlugins=plugins`n" -Encoding ASCII
+
+}
+
+foreach ($pluginsRoot in @($InstallDir, $BuildDir)) {
+
+    $pluginsSrc = Join-Path $pluginsRoot "plugins"
+
+    if (Test-Path $pluginsSrc) {
+
+        Copy-Item -Recurse $pluginsSrc (Join-Path $PackageRoot "plugins") -Force
+
+        break
+
+    }
 
 }
 
@@ -305,9 +359,7 @@ Prerequisites (not included):
 
 - Steam install of Ultra Street Fighter IV: Arcade Edition (USF4)
 
-- Microsoft Edge WebView2 Runtime
-
-  https://go.microsoft.com/fwlink/p/?LinkId=2124703
+- Qt 6 runtime DLLs (included in this zip — Qt6Core/Gui/Widgets.dll and plugins/)
 
 - Microsoft Visual C++ 2015-2022 Redistributable (x86)
 
