@@ -194,16 +194,35 @@ if (Test-Path $QtConfInstall) {
 
 }
 
+$AllowedPluginRelPaths = @(
+    "generic\qtuiotouchplugin.dll",
+    "imageformats\qgif.dll",
+    "imageformats\qico.dll",
+    "imageformats\qjpeg.dll",
+    "networkinformation\qnetworklistmanager.dll",
+    "platforms\qwindows.dll",
+    "styles\qmodernwindowsstyle.dll",
+    "tls\qcertonlybackend.dll",
+    "tls\qschannelbackend.dll"
+)
+
 foreach ($pluginsRoot in @($InstallDir, $BuildDir)) {
 
     $pluginsSrc = Join-Path $pluginsRoot "plugins"
 
     if (Test-Path $pluginsSrc) {
 
-        Copy-Item -Recurse $pluginsSrc (Join-Path $PackageRoot "plugins") -Force
-
-        Get-ChildItem (Join-Path $PackageRoot "plugins") -Recurse -Filter "*.pdb" -File -ErrorAction SilentlyContinue |
-            Remove-Item -Force -ErrorAction SilentlyContinue
+        $pluginsDest = Join-Path $PackageRoot "plugins"
+        foreach ($rel in $AllowedPluginRelPaths) {
+            $src = Join-Path $pluginsSrc $rel
+            if (-not (Test-Path $src)) { continue }
+            $dest = Join-Path $pluginsDest $rel
+            $destDir = Split-Path $dest -Parent
+            if (-not (Test-Path $destDir)) {
+                New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+            }
+            Copy-Item $src $dest -Force
+        }
 
         break
 

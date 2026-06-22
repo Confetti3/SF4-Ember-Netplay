@@ -221,7 +221,7 @@ namespace launcher {
 			}
 			if (_wcsnicmp(relPath, L"plugins\\", 8) == 0) {
 				const wchar_t* ext = wcsrchr(relPath, L'.');
-				if (ext && _wcsicmp(ext, L".pdb") == 0) {
+				if (ext && (_wcsicmp(ext, L".dll") == 0 || _wcsicmp(ext, L".pdb") == 0)) {
 					return true;
 				}
 			}
