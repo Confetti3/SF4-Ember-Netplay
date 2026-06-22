@@ -202,6 +202,9 @@ foreach ($pluginsRoot in @($InstallDir, $BuildDir)) {
 
         Copy-Item -Recurse $pluginsSrc (Join-Path $PackageRoot "plugins") -Force
 
+        Get-ChildItem (Join-Path $PackageRoot "plugins") -Recurse -Filter "*.pdb" -File -ErrorAction SilentlyContinue |
+            Remove-Item -Force -ErrorAction SilentlyContinue
+
         break
 
     }
@@ -326,10 +329,7 @@ if (Test-Path $Attribution) {
     Copy-Item $Attribution $PackageRoot
 }
 
-$Security = Join-Path $RepoRoot "SECURITY.md"
-if (Test-Path $Security) {
-    Copy-Item $Security $PackageRoot
-}
+# SECURITY.md is linked from README on GitHub; omit from zip so in-app updater allowlists match.
 
 $BuildInfo = @"
 

@@ -143,6 +143,18 @@ static bool PathExistsUnderRoot(const wchar_t* root, const wchar_t* relPath) {
 }
 
 static bool IsAllowedPackagePath(const wchar_t* relPath) {
+	if (!relPath || !relPath[0]) {
+		return false;
+	}
+	if (_wcsicmp(relPath, L"SECURITY.md") == 0) {
+		return true;
+	}
+	if (_wcsnicmp(relPath, L"plugins\\", 8) == 0) {
+		const wchar_t* ext = wcsrchr(relPath, L'.');
+		if (ext && _wcsicmp(ext, L".pdb") == 0) {
+			return true;
+		}
+	}
 	for (const wchar_t* allowed : kAllowedPackagePaths) {
 		if (_wcsicmp(relPath, allowed) == 0) {
 			return true;
