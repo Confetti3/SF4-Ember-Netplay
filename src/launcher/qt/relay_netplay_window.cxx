@@ -74,7 +74,7 @@ void RelayNetplayWindow::buildUi() {
 	titleCol->addWidget(subtitle);
 	header->addLayout(titleCol);
 	header->addStretch();
-	m_versionLabel = new QLabel(QStringLiteral("v0.4.0"));
+	m_versionLabel = new QLabel(QStringLiteral("v0.4.1"));
 	m_versionLabel->setObjectName(QStringLiteral("versionBadge"));
 	header->addWidget(m_versionLabel, 0, Qt::AlignTop);
 	root->addLayout(header);
@@ -680,7 +680,7 @@ void RelayNetplayWindow::updateJoinControls() {
 	if (m_joinAddress && m_joinAddress->text().trimmed().isEmpty()) {
 		m_joinAddress->setText(lastJoin);
 	}
-	const QString ver = JsonString(m_state, "installedVersion", QStringLiteral("v0.4.0"));
+	const QString ver = JsonString(m_state, "installedVersion", QStringLiteral("v0.4.1"));
 	if (m_joinVersionHint) {
 		const QString label = ver.startsWith('v') ? ver : QStringLiteral("v") + ver;
 		m_joinVersionHint->setText(
@@ -740,7 +740,7 @@ void RelayNetplayWindow::syncFromState(const nlohmann::json& state) {
 		}
 	}
 	if (state.contains("installedVersion")) {
-		const QString ver = JsonString(state, "installedVersion", QStringLiteral("v0.4.0"));
+		const QString ver = JsonString(state, "installedVersion", QStringLiteral("v0.4.1"));
 		if (m_versionLabel) {
 			m_versionLabel->setText(ver.startsWith('v') ? ver : QStringLiteral("v") + ver);
 		}

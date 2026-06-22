@@ -10,11 +10,11 @@ Do not change these behaviors without regression testing (SessionInteractiveTest
 - Local input: `ggpo_add_local_input` in `fSystem::BattleUpdate`; rollback uses `ggpo_synchronize_input` and `fPadSystem::playbackData`.
 - When `bUsePureSounds` is enabled, call `fSoundPlayerManager::SyncState()` around simulation steps.
 - Create the GGPO session in `fUserApp::_OnVsBattleTasksRegistered` (after VsBattle load), not earlier.
-- Default disconnect timeouts: 1000 ms / notify 500 ms unless soak tests justify a change.
+- Default disconnect timeouts: **3000 ms / notify 1500 ms** (`NetplayConfig` v8+). Older launchers derive timeout from host input delay (`max(3000, 1000 + delay*500)`).
 
 ## Session protocol (`sf4e__SessionProtocol.hxx`)
 
-- Preserve JSON message `type` strings and field names for lobby, prebattle, battle sync, and snapshots.
+- Preserve JSON message `type` strings and field names for lobby, prebattle, battle sync, snapshots, and punch signaling (`punch_ready`, `punch_go`).
 - Keep `sidecarHash` join validation (`JR_HASH_INVALID`).
 - Desync detection via `StateSnapshot` exchange must remain enabled in normal play.
 

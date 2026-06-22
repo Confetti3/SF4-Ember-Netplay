@@ -34,6 +34,7 @@ namespace launcher {
 		outConfig.useRelay = ioSettings.useRelay;
 		outConfig.deviceIdx = 0xff;
 		outConfig.deviceType = 0xff;
+		NetplayConfigApplyGgpoDisconnectDefaults(outConfig);
 
 		if (mode == (int)NetplayMode::Host) {
 			char lanIp[64] = { 0 };

@@ -65,6 +65,10 @@ namespace sf4e {
 
 		EResult Battle_Loaded();
 
+		EResult Punch_SendReady();
+		void Punch_Reset();
+		bool Punch_GoReceived() const { return _punchGoReceived; }
+
 		EResult Forward(const SessionProtocol::ConnectionID& dest, const nlohmann::json& msg);
 		EResult SendGgpoFrame(const SessionProtocol::ConnectionID& dest, const uint8_t* data, uint32_t len);
 		void OnGgpoFrameReceived(const SessionProtocol::BattleGgpoFrame& frame);
@@ -103,5 +107,6 @@ namespace sf4e {
 		static void SteamNetConnectionStatusChangedCallback(SteamNetConnectionStatusChangedCallback_t* pInfo);
 
 		GgpoTunnelStats _ggpoTunnelStats = {};
+		bool _punchGoReceived = false;
 	};
 }

@@ -32,6 +32,7 @@ using Dimps::Math::FixedPoint;
 using fSystem = sf4e::Game::Battle::System;
 using fUserApp = sf4e::UserApp;
 using fVsBattle = sf4e::GameEvents::VsBattle;
+using rSystem = Dimps::Game::Battle::System;
 
 namespace sf4e {
 
@@ -214,6 +215,23 @@ namespace sf4e {
 			s_alerts.push_back(msg);
 			Overlay::PushNetplayAlert(msg);
 		}
+	}
+
+	void NetplayFacade::HandleNetplayFailure(const char* reason, bool closeGgpo) {
+		if (reason && reason[0]) {
+			PushAlert(reason);
+			SetLastError(reason);
+		}
+
+		if (fSystem::ggpo) {
+			rSystem* system = rSystem::staticMethods.GetSingleton();
+			if (system && *rSystem::staticVars.CurrentBattleFlow != rSystem::BF__IDLE) {
+				*rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
+			}
+			fSystem::bUpdateAllowed = false;
+		}
+
+		ShutdownNetplay(closeGgpo);
 	}
 
 	static bool IsOnMainMenu() {
@@ -452,10 +470,11 @@ namespace sf4e {
 			s_ggpoSyncPhase != GgpoSyncPhase::Synchronizing &&
 			s_ggpoSyncPhase != GgpoSyncPhase::Running &&
 			s_ggpoBattleStartTick != 0 &&
-			GetTickCount() - s_ggpoBattleStartTick > 3000
+			GetTickCount() - s_ggpoBattleStartTick > 5000
 		) {
 			s_udpGgpoFallbackTried = true;
 			spdlog::warn("GgpoTransport: UDP relay registered but GGPO did not reach Running; falling back to session tunnel");
+			PushAlert("Using backup netplay tunnel — connection may be less stable.");
 			fUserApp::TryRestartGgpoLegacyTunnel();
 		}
 

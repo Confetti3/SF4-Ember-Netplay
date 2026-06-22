@@ -65,9 +65,13 @@ namespace fHud = sf4e::Game::Battle::Hud;
 using fSoundPlayerManager = sf4e::Game::Battle::Sound::SoundPlayerManager;
 using fSystem = sf4e::Game::Battle::System;
 using fVsBattle = sf4e::GameEvents::VsBattle;
+using rSystem = Dimps::Game::Battle::System;
+
+static bool s_updateAllowedBeforeGgpoInterrupt = true;
 
 bool fSystem::bHaltAfterNext = false;
 bool fSystem::bUpdateAllowed = true;
+bool fSystem::bGgpoConnectionInterrupted = false;
 int fSystem::nExtraFramesToSimulate = 0;
 int fSystem::nNextBattleStartFlowTarget = -1;
 int fSystem::nRandomizeLocalInputsEveryXFramesInGGPO = 0;
@@ -294,7 +298,7 @@ void fSystem::BattleUpdate() {
                 fPadSystem::playbackFrame = -1;
                 GGPOErrorCode err = ggpo_advance_frame(ggpo);
                 if (!GGPO_SUCCEEDED(err)) {
-                    MessageBoxA(NULL, "sf4e system could not advance frame after normal sim! Will likely crash!", NULL, MB_OK);
+                    AbortGgpoMatch("Netplay sync failed — match ended.");
                 }
                 else {
                     if (fSoundPlayerManager::bUsePureSounds) {
@@ -492,6 +496,44 @@ void fSystem::RecordAllToInternalMementos(rSystem* system, GameMementoKey::Memen
 }
 
 
+void fSystem::ApplyGgpoDisconnectSettings(GGPOSession* session) {
+    if (!session) {
+        return;
+    }
+
+    const sf4e::NetplayConfig& cfg = sf4e::NetplayFacade::GetConfig();
+    uint16_t timeoutMs = 3000;
+    uint16_t notifyMs = 1500;
+    if (cfg.version >= 8 && cfg.ggpoDisconnectTimeoutMs > 0) {
+        timeoutMs = cfg.ggpoDisconnectTimeoutMs;
+        notifyMs = cfg.ggpoDisconnectNotifyMs > 0
+            ? cfg.ggpoDisconnectNotifyMs
+            : (uint16_t)(timeoutMs / 2);
+    }
+    else {
+        timeoutMs = (uint16_t)(1000 + cfg.inputDelay * 500);
+        if (timeoutMs < 3000) {
+            timeoutMs = 3000;
+        }
+        notifyMs = (uint16_t)(timeoutMs / 2);
+    }
+
+    ggpo_set_disconnect_timeout(session, timeoutMs);
+    ggpo_set_disconnect_notify_start(session, notifyMs);
+}
+
+void fSystem::AbortGgpoMatch(const char* reason) {
+    if (reason && reason[0]) {
+        spdlog::error("GGPO match abort: {}", reason);
+        sf4e::NetplayFacade::PushAlert(reason);
+    }
+    bUpdateAllowed = false;
+    rSystem* system = rSystem::staticMethods.GetSingleton();
+    if (system) {
+        *rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
+    }
+}
+
 void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay, DWORD rngSeed) {
     GGPOSessionCallbacks cb = { 0 };
     cb.begin_game = ggpo_begin_game_callback;
@@ -512,10 +554,11 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     );
     if (result != GGPO_OK) {
         spdlog::error("GGPO session could not start: {}", (int)result);
-        MessageBoxA(NULL, "GGPO could not start, check logs", NULL, MB_OK);
+        if (sf4e::NetplayFacade::IsDevOverlayEnabled()) {
+            MessageBoxA(NULL, "GGPO could not start, check logs", NULL, MB_OK);
+        }
     }
-    ggpo_set_disconnect_timeout(ggpo, 1000);
-    ggpo_set_disconnect_notify_start(ggpo, 500);
+    ApplyGgpoDisconnectSettings(ggpo);
 
     int localPlayerIdx = -1;
     for (int i = 0; i < 2; i++) {
@@ -523,7 +566,9 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
         result = ggpo_add_player(ggpo, inPlayers + i, &players[i].handle);
         if (!GGPO_SUCCEEDED(result)) {
             spdlog::error("GGPO session could not add player: {}", (int)result);
-            MessageBoxA(NULL, "GGPO could not add player", NULL, MB_OK);
+            if (sf4e::NetplayFacade::IsDevOverlayEnabled()) {
+                MessageBoxA(NULL, "GGPO could not add player", NULL, MB_OK);
+            }
             continue;
         }
 
@@ -539,7 +584,9 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
             result = ggpo_add_player(ggpo, inPlayers + i, &players[i].handle);
             if (!GGPO_SUCCEEDED(result)) {
                 spdlog::error("GGPO session could not add spectator: {}", (int)result);
-                MessageBoxA(NULL, "GGPO could not add spectator", NULL, MB_OK);
+                if (sf4e::NetplayFacade::IsDevOverlayEnabled()) {
+                    MessageBoxA(NULL, "GGPO could not add spectator", NULL, MB_OK);
+                }
                 continue;
             }
         }
@@ -575,8 +622,11 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
     );
     if (result != GGPO_OK) {
         spdlog::error("GGPO session could not start: {}", (int)result);
-        MessageBoxA(NULL, "GGPO could not start, check logs", NULL, MB_OK);
+        if (sf4e::NetplayFacade::IsDevOverlayEnabled()) {
+            MessageBoxA(NULL, "GGPO could not start, check logs", NULL, MB_OK);
+        }
     }
+    ApplyGgpoDisconnectSettings(ggpo);
 
     nNextBattleStartFlowTarget = BF__MATCH_START;
     bUpdateAllowed = false;
@@ -599,7 +649,8 @@ bool fSystem::ggpo_advance_frame_callback(int)
     // the game state instead of reading from the selected input device.
     GGPOErrorCode result = ggpo_synchronize_input(ggpo, (void*)inputs, sizeof(fPadSystem::Inputs) * 2, &disconnect_flags);
     if (!GGPO_SUCCEEDED(result)) {
-        MessageBoxA(NULL, "sf4e system could not sync input during forward-sim! Will likely crash!", NULL, MB_OK);
+        AbortGgpoMatch("Netplay sync failed — match ended.");
+        return true;
     }
     fPadSystem::playbackFrame = 0;
     fPadSystem::playbackData[0][0] = inputs[0];
@@ -614,7 +665,7 @@ bool fSystem::ggpo_advance_frame_callback(int)
 
     result = ggpo_advance_frame(ggpo);
     if (!GGPO_SUCCEEDED(result)) {
-        MessageBoxA(NULL, "sf4e system could not advance frame after callback! Will likely crash!", NULL, MB_OK);
+        AbortGgpoMatch("Netplay sync failed — match ended.");
     }
     else {
         CaptureSnapshot(system);
@@ -658,7 +709,7 @@ bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, in
     // states, or the states aren't being released or tracked correctly.
     *buffer = nullptr;
     spdlog::error("FATAL: Could not store GGPO state!");
-    MessageBoxA(NULL, "FATAL: Could not store GGPO state! Will likely crash! Attach a debugger here!", NULL, MB_OK);
+    AbortGgpoMatch("Netplay rollback buffer full — match ended.");
     return false;
 }
 
@@ -697,12 +748,24 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         break;
     case GGPO_EVENTCODE_CONNECTION_INTERRUPTED:
         spdlog::info("GGPO: GGPO_EVENTCODE_CONNECTION_INTERRUPTED");
+        if (!bGgpoConnectionInterrupted) {
+            bGgpoConnectionInterrupted = true;
+            s_updateAllowedBeforeGgpoInterrupt = bUpdateAllowed;
+            bUpdateAllowed = false;
+        }
+        sf4e::NetplayFacade::PushAlert("Connection unstable — waiting to reconnect...");
         break;
     case GGPO_EVENTCODE_CONNECTION_RESUMED:
         spdlog::info("GGPO: GGPO_EVENTCODE_CONNECTION_RESUMED");
+        if (bGgpoConnectionInterrupted) {
+            bGgpoConnectionInterrupted = false;
+            bUpdateAllowed = s_updateAllowedBeforeGgpoInterrupt;
+        }
+        sf4e::NetplayFacade::PushAlert("Connection restored.");
         break;
     case GGPO_EVENTCODE_DISCONNECTED_FROM_PEER:
         *rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
+        sf4e::NetplayFacade::PushAlert("Opponent disconnected.");
         break;
     case GGPO_EVENTCODE_TIMESYNC:
         Sleep(1000 * info->u.timesync.frames_ahead / 60);

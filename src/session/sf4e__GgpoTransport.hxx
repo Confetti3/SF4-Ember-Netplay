@@ -6,6 +6,8 @@
 
 namespace sf4e {
 
+	class SessionClient;
+
 	enum class GgpoTransportMode : uint8_t {
 		LegacySessionTunnel = 0,
 		UdpRelay = 1,
@@ -30,6 +32,14 @@ namespace sf4e {
 			int timeoutMs = 3000
 		);
 
+		bool TryCoordinatedP2pPunch(
+			SessionClient* sessionClient,
+			const char* peerHost,
+			uint16_t peerPort,
+			uint16_t localGgpoPort,
+			int timeoutMs = 3000
+		);
+
 		bool TryP2pPunch(
 			const char* peerHost,
 			uint16_t peerPort,
@@ -40,7 +50,7 @@ namespace sf4e {
 		NatProbeResult NatProbe(const char* brokerHost, uint16_t probePort, int timeoutMs = 2000);
 
 		// Apply env override and prepare config; returns effective mode (may downgrade on failure).
-		GgpoTransportMode PrepareForBattle(NetplayConfig& cfg);
+		GgpoTransportMode PrepareForBattle(NetplayConfig& cfg, SessionClient* sessionClient = nullptr);
 	}
 
 } // namespace sf4e

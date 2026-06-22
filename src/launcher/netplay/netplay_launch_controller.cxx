@@ -916,6 +916,8 @@ namespace launcher {
 
 			m_outConfig.deviceType = 0xff;
 
+			NetplayConfigApplyGgpoDisconnectDefaults(m_outConfig);
+
 			m_outConfig.devOverlay = msg.value("devOverlay", true) ? 1 : 0;
 
 			spdlog::info(
@@ -1019,6 +1021,8 @@ namespace launcher {
 			m_outConfig.deviceIdx = 0xff;
 
 			m_outConfig.deviceType = 0xff;
+
+			NetplayConfigApplyGgpoDisconnectDefaults(m_outConfig);
 
 
 

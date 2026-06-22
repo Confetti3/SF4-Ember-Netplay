@@ -1,6 +1,9 @@
 #include "sf4e__GgpoTransport.hxx"
 
 #include "../common/sf4e__NetUtil.hxx"
+#include "sf4e__SessionClient.hxx"
+
+#include <GameNetworkingSockets/steam/steamnetworkingsockets.h>
 
 #include <cctype>
 #include <cstdlib>
@@ -10,6 +13,8 @@
 #include <spdlog/spdlog.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+
+#include "../sf4e/sf4e__NetplayFacade.hxx"
 
 namespace sf4e {
 
@@ -252,6 +257,38 @@ namespace sf4e {
 		return false;
 	}
 
+	bool GgpoTransport::TryCoordinatedP2pPunch(
+		SessionClient* sessionClient,
+		const char* peerHost,
+		uint16_t peerPort,
+		uint16_t localGgpoPort,
+		int timeoutMs
+	) {
+		if (!sessionClient || !peerHost || !peerHost[0] || peerPort == 0 || localGgpoPort == 0) {
+			return false;
+		}
+
+		sessionClient->Punch_Reset();
+		if (sessionClient->Punch_SendReady() != k_EResultOK) {
+			return false;
+		}
+
+		const DWORD deadline = GetTickCount() + (DWORD)timeoutMs;
+		while (GetTickCount() < deadline) {
+			SteamNetworkingSockets()->RunCallbacks();
+			sessionClient->PrepareForCallbacks();
+			if (sessionClient->Step() < 0) {
+				return false;
+			}
+			if (sessionClient->Punch_GoReceived()) {
+				break;
+			}
+			Sleep(10);
+		}
+
+		return TryP2pPunch(peerHost, peerPort, localGgpoPort, 2000);
+	}
+
 	NatProbeResult GgpoTransport::NatProbe(const char* brokerHost, uint16_t probePort, int timeoutMs) {
 		NatProbeResult result;
 		if (!brokerHost || !brokerHost[0] || probePort == 0) {
@@ -321,7 +358,7 @@ namespace sf4e {
 		return result;
 	}
 
-	GgpoTransportMode GgpoTransport::PrepareForBattle(NetplayConfig& cfg) {
+	GgpoTransportMode GgpoTransport::PrepareForBattle(NetplayConfig& cfg, SessionClient* sessionClient) {
 		GgpoTransportMode requested = ParseTransportEnv(cfg.ggpoTransport);
 		const char* env = getenv("SF4E_GGPO_TRANSPORT");
 		const bool autoMode = env && _stricmp(env, "auto") == 0;
@@ -333,13 +370,27 @@ namespace sf4e {
 
 		if (requested == GgpoTransportMode::P2p) {
 			if (cfg.ggpoRemoteHost[0] && cfg.ggpoRemotePort > 0) {
-				if (TryP2pPunch(cfg.ggpoRemoteHost, cfg.ggpoRemotePort, cfg.ggpoPort)) {
+				bool punched = false;
+				if (sessionClient) {
+					punched = TryCoordinatedP2pPunch(
+						sessionClient,
+						cfg.ggpoRemoteHost,
+						cfg.ggpoRemotePort,
+						cfg.ggpoPort,
+						3000
+					);
+				}
+				if (!punched) {
+					punched = TryP2pPunch(cfg.ggpoRemoteHost, cfg.ggpoRemotePort, cfg.ggpoPort);
+				}
+				if (punched) {
 					cfg.ggpoTransport = (uint8_t)GgpoTransportMode::P2p;
 					return GgpoTransportMode::P2p;
 				}
 			}
 			if (!autoMode) {
 				spdlog::warn("GgpoTransport: P2P failed, falling back to legacy tunnel");
+				NetplayFacade::PushAlert("Using backup netplay tunnel — connection may be less stable.");
 				cfg.ggpoTransport = (uint8_t)GgpoTransportMode::LegacySessionTunnel;
 				return GgpoTransportMode::LegacySessionTunnel;
 			}
@@ -359,20 +410,41 @@ namespace sf4e {
 			else if (!cfg.ggpoRoomToken[0]) {
 				spdlog::warn("GgpoTransport: UDP relay missing room token");
 			}
-			else if (!ProbeUdpRelayHealth(relayHost, relayPort, 1500)) {
-				spdlog::warn(
-					"GgpoTransport: UDP relay health probe failed {}:{} — using legacy tunnel",
-					relayHost,
-					relayPort
-				);
-			}
-			else if (RegisterWithUdpRelay(relayHost, relayPort, cfg.ggpoRoomToken, cfg.ggpoPort, 8000)) {
-				strncpy_s(cfg.ggpoRemoteHost, relayHost, _TRUNCATE);
-				cfg.ggpoRemotePort = relayPort;
-				cfg.ggpoTransport = (uint8_t)GgpoTransportMode::UdpRelay;
-				return GgpoTransportMode::UdpRelay;
+			else {
+				bool relayHealthy = ProbeUdpRelayHealth(relayHost, relayPort, 1500);
+				if (!relayHealthy) {
+					spdlog::warn(
+						"GgpoTransport: UDP relay health probe failed {}:{} — retrying",
+						relayHost,
+						relayPort
+					);
+					Sleep(250);
+					relayHealthy = ProbeUdpRelayHealth(relayHost, relayPort, 1500);
+				}
+				if (!relayHealthy) {
+					spdlog::warn(
+						"GgpoTransport: UDP relay health probe failed {}:{} — using legacy tunnel",
+						relayHost,
+						relayPort
+					);
+				}
+				else {
+					for (int attempt = 0; attempt < 2; attempt++) {
+						if (RegisterWithUdpRelay(relayHost, relayPort, cfg.ggpoRoomToken, cfg.ggpoPort, 8000)) {
+							strncpy_s(cfg.ggpoRemoteHost, relayHost, _TRUNCATE);
+							cfg.ggpoRemotePort = relayPort;
+							cfg.ggpoTransport = (uint8_t)GgpoTransportMode::UdpRelay;
+							return GgpoTransportMode::UdpRelay;
+						}
+						if (attempt == 0) {
+							spdlog::warn("GgpoTransport: UDP relay registration retry {}:{}", relayHost, relayPort);
+							Sleep(500);
+						}
+					}
+				}
 			}
 			spdlog::warn("GgpoTransport: UDP relay failed, falling back to legacy tunnel");
+			NetplayFacade::PushAlert("Using backup netplay tunnel — connection may be less stable.");
 		}
 
 		cfg.ggpoTransport = (uint8_t)GgpoTransportMode::LegacySessionTunnel;

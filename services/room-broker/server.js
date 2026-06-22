@@ -277,6 +277,13 @@ async function ensureGgpoRelaySession(room) {
   if (after.ok && after.listening) {
     return { ok: true, relay: after, restarted: true };
   }
+  const retry = await startGgpoRelaySession(room.port, room.ggpoPort, room.roomToken);
+  if (retry.ok) {
+    const afterRetry = await getGgpoRelayHealth(room.ggpoPort);
+    if (afterRetry.ok && afterRetry.listening) {
+      return { ok: true, relay: afterRetry, restarted: true };
+    }
+  }
   return {
     ok: false,
     relay: after,
@@ -495,7 +502,8 @@ function predictP2pPossible(room) {
   if (host.observedPublic === guest.observedPublic) {
     return true;
   }
-  if (host.natType === "full_cone" && guest.natType === "full_cone") {
+  const punchableNat = new Set(["full_cone", "restricted_cone"]);
+  if (punchableNat.has(host.natType) && punchableNat.has(guest.natType)) {
     return true;
   }
   return false;

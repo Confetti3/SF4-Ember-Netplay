@@ -105,6 +105,9 @@ namespace sf4e {
 			MT_BATTLE_SNAPSHOT,
 			MT_BATTLE_GGPO_FRAME,
 
+			MT_PUNCH_READY,
+			MT_PUNCH_GO,
+
 			MT_FORWARD,
 		};
 
@@ -128,6 +131,9 @@ namespace sf4e {
 			{MT_BATTLE_SYNCED, "battle_synced"},
 			{MT_BATTLE_SNAPSHOT, "battle_snapshot"},
 			{MT_BATTLE_GGPO_FRAME, "battle_ggpo_frame"},
+
+			{MT_PUNCH_READY, "punch_ready"},
+			{MT_PUNCH_GO, "punch_go"},
 
 			{MT_FORWARD, "forward"},
 		})
@@ -253,6 +259,14 @@ namespace sf4e {
 			std::vector<uint8_t> data;
 		};
 
+		struct PunchReady {
+			MessageType type = MT_PUNCH_READY;
+		};
+
+		struct PunchGo {
+			MessageType type = MT_PUNCH_GO;
+		};
+
 		struct ForwardMessage {
 			MessageType type = MT_FORWARD;
 			ConnectionID src;
@@ -282,6 +296,8 @@ namespace sf4e {
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PreBattleSetEnv, type, rngSeed);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PreBattleSetStage, type, stageID);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(BattleGgpoFrame, type, src, dest, data);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PunchReady, type);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PunchGo, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ForwardMessage, type, src, dest, msg);
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(StateSnapshot::CharaStateSnapshot, status, rootPos, side, vit, vitmax, revenge, revengemax, recoverable, recoverablemax, super, supermax, sctimeamt, sctimemax, uctime, uctimemax, damage, combodamage);

@@ -249,6 +249,21 @@ In USF4 options, turn **Smooth** frame rate **OFF**. Smooth frame rate can make 
 
 ---
 
+## Connection lost behavior (in-game)
+
+| What you see | What happened |
+|--------------|----------------|
+| **Connection unstable — waiting to reconnect...** | Brief packet loss; the match pauses briefly and may resume |
+| **Connection restored.** | Link recovered; play continues |
+| **Opponent disconnected.** | Other player lost GGPO contact; you return to the lobby flow |
+| **Lost connection to the game room.** | Session relay dropped (lobby/signaling); netplay shuts down safely |
+| **Netplay rollback buffer full — match ended.** | Connection was too poor for rollback; match ends instead of crashing |
+| **Using backup netplay tunnel — connection may be less stable.** | UDP relay or P2P failed; fallback path in use — raise host **input delay** by 1 if stutter persists |
+
+If the game **crashes** instead of showing one of the messages above, collect `%APPDATA%\sf4e\logs\sf4e.log` from both PCs and file an issue.
+
+---
+
 ## Direct IP mode: firewall and port forwarding (Advanced only)
 
 Use **Direct IP** only if you intentionally use **Advanced** mode and share `public.ip:port` — not `SF4-XXXX`.

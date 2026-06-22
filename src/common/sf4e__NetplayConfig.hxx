@@ -12,7 +12,7 @@ namespace sf4e {
 
 	// Fixed-size config copied Launcher -> Sidecar via Detours payload.
 	// Keep POD and stable layout; bump SF4E_NETPLAY_CONFIG_VERSION if fields change.
-	static const int SF4E_NETPLAY_CONFIG_VERSION = 7;
+	static const int SF4E_NETPLAY_CONFIG_VERSION = 8;
 	static const int NETPLAY_SESSION_HOST_LEN = 64;
 	static const int NETPLAY_ROOM_KEY_LEN = 32;
 	static const int NETPLAY_DISPLAY_NAME_LEN = 32;
@@ -44,10 +44,22 @@ namespace sf4e {
 		char ggpoRemoteHost[NETPLAY_SESSION_HOST_LEN] = { 0 };
 		char matchId[33] = { 0 };
 		char ggpoRoomToken[33] = { 0 };
+		// GGPO peer disconnect tolerance (ms). Zero uses derived defaults from inputDelay.
+		uint16_t ggpoDisconnectTimeoutMs = 3000;
+		uint16_t ggpoDisconnectNotifyMs = 1500;
 	};
 
 	inline bool NetplayConfigIsActive(const NetplayConfig& cfg) {
 		return cfg.mode == (int)NetplayMode::Host || cfg.mode == (int)NetplayMode::Join;
+	}
+
+	inline void NetplayConfigApplyGgpoDisconnectDefaults(NetplayConfig& cfg) {
+		uint16_t timeoutMs = (uint16_t)(1000 + cfg.inputDelay * 500);
+		if (timeoutMs < 3000) {
+			timeoutMs = 3000;
+		}
+		cfg.ggpoDisconnectTimeoutMs = timeoutMs;
+		cfg.ggpoDisconnectNotifyMs = (uint16_t)(timeoutMs / 2);
 	}
 
 } // namespace sf4e

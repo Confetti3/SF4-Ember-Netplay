@@ -84,5 +84,6 @@ namespace sf4e {
 		bool _dataDirty;
 		SessionProtocol::LobbyData _lobbyData;
 		SessionProtocol::MatchData _matchData;
+		bool _punchReady[2] = { false, false };
 	};
 }

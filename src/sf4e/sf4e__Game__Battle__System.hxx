@@ -48,6 +48,7 @@ namespace sf4e {
 
 				static bool bHaltAfterNext;
 				static bool bUpdateAllowed;
+				static bool bGgpoConnectionInterrupted;
 				static int nExtraFramesToSimulate;
 				static int nNextBattleStartFlowTarget;
 				static int nRandomizeLocalInputsEveryXFramesInGGPO;
@@ -118,6 +119,8 @@ namespace sf4e {
 				static GGPOSession* ggpo;
 				static SaveState saveStates[NUM_SAVE_STATES];
 
+				static void ApplyGgpoDisconnectSettings(GGPOSession* session);
+				static void AbortGgpoMatch(const char* reason);
 				static void StartGGPO(GGPOPlayer* players, int numPlayers, int port, int frameDelay, DWORD rngSeed);
 				static void StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port, DWORD rngSeed);
 				static bool ggpo_on_event_callback(GGPOEvent* info);

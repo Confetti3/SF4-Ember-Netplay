@@ -68,6 +68,7 @@ namespace sf4e {
 		TransportDiagnostics GetTransportDiagnostics();
 		void SetLastError(const char* msg);
 		void PushAlert(const char* msg);
+		void HandleNetplayFailure(const char* reason, bool closeGgpo);
 		void ShutdownNetplay(bool closeGgpo);
 		void ClearBattleState();
 		bool ShouldDeferGgpoClose();

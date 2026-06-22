@@ -167,7 +167,7 @@ void fUserApp::_OnVsBattleTasksRegistered()
         }
         sf4e::NetplayFacade::RestoreBrokerGgpoEndpoint(transportCfg);
         if (transportCfg.useCentralSession == 2 && transportCfg.ggpoTransport != 0) {
-            GgpoTransportMode effective = GgpoTransport::PrepareForBattle(transportCfg);
+            GgpoTransportMode effective = GgpoTransport::PrepareForBattle(transportCfg, &netplay->client);
             sf4e::NetplayFacade::ApplyGgpoTransportConfig(transportCfg);
             useLegacyGgpoTunnel = effective == GgpoTransportMode::LegacySessionTunnel;
             if (!useLegacyGgpoTunnel) {
@@ -560,17 +560,32 @@ void fUserApp::Steam_PostUpdate() {
     }
     SteamNetworkingSockets()->RunCallbacks();
 
+    bool netplayStepFailed = false;
     if (netplay) {
         int stepResult = netplay->client.Step();
         if (stepResult < 0) {
-            delete netplay.release();
+            netplayStepFailed = true;
         }
     }
 
+    bool serverStepFailed = false;
     if (server) {
         if (server->Step() < 0) {
-            delete server.release();
+            serverStepFailed = true;
         }
+    }
+
+    if (netplayStepFailed) {
+        sf4e::NetplayFacade::HandleNetplayFailure(
+            "Lost connection to the game room. Check your internet and try again.",
+            true
+        );
+    }
+    else if (serverStepFailed) {
+        sf4e::NetplayFacade::HandleNetplayFailure(
+            "Session server error. Check your internet and try again.",
+            true
+        );
     }
 
     sf4e::NetplayFacade::TickFrame();

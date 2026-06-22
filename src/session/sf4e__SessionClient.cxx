@@ -165,7 +165,6 @@ int SessionClient::Step()
 		catch (json::exception&) {
 			continue;
 		}
-		SteamNetworkingIPAddr peerAddr = *(pIncomingMsg->m_identityPeer.GetIPAddr());
 		pIncomingMsg->Release();
 
 		SessionProtocol::MessageType type;
@@ -318,6 +317,9 @@ int SessionClient::Step()
 			}
 			OnGgpoFrameReceived(frame);
 		}
+		else if (type == SessionProtocol::MT_PUNCH_GO) {
+			_punchGoReceived = true;
+		}
 		else if (type == SessionProtocol::MT_FORWARD) {
 			spdlog::debug("Received forwarded message: {}", msg.dump());
 		}
@@ -395,6 +397,9 @@ int SessionClient::Step()
 
 void SessionClient::OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo)
 {
+	const bool wasConnected = pInfo->m_eOldState == k_ESteamNetworkingConnectionState_Connected;
+	const bool wasInMatch = wasConnected && fSystem::ggpo != nullptr;
+
 	switch (pInfo->m_info.m_eState)
 	{
 	case k_ESteamNetworkingConnectionState_ClosedByPeer:
@@ -412,7 +417,7 @@ void SessionClient::OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusCh
 				"Could not connect to the game room. Check your internet and try again."
 			);
 		}
-		else if (pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally)
+		else if (!wasInMatch && pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally)
 		{
 			const char* detail = pInfo->m_info.m_szEndDebug;
 			if (!detail || !detail[0]) {
@@ -433,6 +438,13 @@ void SessionClient::OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusCh
 		_interface->CloseConnection(pInfo->m_hConn, 0, nullptr, false);
 		_conn = k_HSteamNetConnection_Invalid;
 		_connected = false;
+
+		if (wasInMatch) {
+			sf4e::NetplayFacade::HandleNetplayFailure(
+				"Lost connection to the game room. Check your internet and try again.",
+				true
+			);
+		}
 		break;
 	}
 	case k_ESteamNetworkingConnectionState_Connected:
@@ -536,6 +548,20 @@ EResult SessionClient::Battle_Loaded()
 	EResult result = Send(j, nullptr);
 	if (result != k_EResultOK) {
 		spdlog::warn("Client: could not set battle loaded! Result: {}", (int)result);
+	}
+	return result;
+}
+
+void SessionClient::Punch_Reset() {
+	_punchGoReceived = false;
+}
+
+EResult SessionClient::Punch_SendReady() {
+	SessionProtocol::PunchReady msg;
+	json j = msg;
+	EResult result = Send(j, nullptr);
+	if (result != k_EResultOK) {
+		spdlog::warn("Client: could not send punch_ready! Result: {}", (int)result);
 	}
 	return result;
 }

@@ -351,6 +351,27 @@ int SessionServer::Step()
 					}
 				}
 			}
+			else if (type == SessionProtocol::MT_PUNCH_READY) {
+				int side = -1;
+				for (int i = 0; i < 2 && i < (int)clients.size(); i++) {
+					if (clients.at(i).conn == conn) {
+						side = i;
+						break;
+					}
+				}
+				if (side == -1) {
+					spdlog::info("Server: sender {} sent punch_ready but is not playing", conn);
+					continue;
+				}
+				_punchReady[side] = true;
+				if (_punchReady[0] && _punchReady[1]) {
+					SessionProtocol::PunchGo go;
+					json goMsg = go;
+					BroadcastMessage(goMsg);
+					_punchReady[0] = false;
+					_punchReady[1] = false;
+				}
+			}
 			else if (type == SessionProtocol::MT_BATTLE_GGPO_FRAME) {
 				SessionProtocol::BattleGgpoFrame frame;
 				try {
@@ -464,6 +485,8 @@ void SessionServer::ResetLobbyForRematch()
 {
 	_matchData.ClearReady();
 	ResetBattleSync();
+	_punchReady[0] = false;
+	_punchReady[1] = false;
 	_dataDirty = true;
 }
 
