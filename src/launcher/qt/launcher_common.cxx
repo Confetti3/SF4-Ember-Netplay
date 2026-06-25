@@ -2,6 +2,7 @@
 
 #include <QAbstractSpinBox>
 #include <QLabel>
+#include <QSizePolicy>
 #include <QVBoxLayout>
 
 #include "../netplay/netplay_room_code.hxx"
@@ -50,7 +51,30 @@ QWidget* BuildStepper(QSpinBox* spinBox) {
 	row->addWidget(minus);
 	row->addWidget(plus);
 	row->addStretch();
+	stepper->setMinimumHeight(32);
+	ConfigureFormField(spinBox);
 	return stepper;
+}
+
+void ConfigureFormField(QWidget* field) {
+	if (!field) {
+		return;
+	}
+	field->setMinimumHeight(32);
+	auto policy = field->sizePolicy();
+	policy.setVerticalPolicy(QSizePolicy::Fixed);
+	field->setSizePolicy(policy);
+}
+
+void ConfigureModeCard(QPushButton* btn) {
+	if (!btn) {
+		return;
+	}
+	btn->setMinimumHeight(72);
+	auto policy = btn->sizePolicy();
+	policy.setVerticalPolicy(QSizePolicy::Minimum);
+	policy.setHorizontalPolicy(QSizePolicy::Expanding);
+	btn->setSizePolicy(policy);
 }
 
 bool IsShortRoomCodeQString(const QString& code) {
@@ -74,6 +98,7 @@ QPushButton* MakeModeCard(const QString& title, const QString& desc, const QStri
 	descLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 	layout->addWidget(titleLabel);
 	layout->addWidget(descLabel);
+	ConfigureModeCard(btn);
 	return btn;
 }
 

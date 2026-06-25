@@ -201,7 +201,7 @@
         </button>
       </div>
 
-      <div class="panel quick-actions advanced-only">
+      <div class="panel quick-actions advanced-only hidden">
         <h3 class="section-label">Quick actions <span class="experimental-tag">Experimental</span></h3>
         <p class="panel-hint">Experimental only - use <strong>Host</strong> + room code with friends who know this may not work.</p>
         <div class="quick-actions-row">
@@ -327,7 +327,7 @@
           </label>
         </div>
 
-        <div class="panel advanced-only">
+        <div class="panel advanced-only hidden">
           <h3 class="section-label">Connection</h3>
           <label class="field">
             <span>Method</span>
@@ -397,7 +397,7 @@
           </label>
         </div>
 
-        <div class="panel advanced-only">
+        <div class="panel advanced-only hidden">
           <label class="field">
             <span>Connection</span>
             <select id="join-connect-method">
@@ -418,6 +418,7 @@
             <span>Input delay</span>
             <input id="join-delay" type="number" min="1" max="20" />
           </label>
+          <p class="field-hint version-match-hint" id="join-version-hint-adv"></p>
         </div>
       </div>
 

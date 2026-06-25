@@ -4,9 +4,9 @@
 
 **SF4 Netplay Launcher** is a **third-party, experimental unofficial port** for _Ultra Street Fighter IV_ on Steam. It adds a native **Qt Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e's rollback netplay. Netplay may fail, desync, or break between releases - use only with people who accept that risk.
 
-**Latest release:** [v0.4.1](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/v0.4.1) (netplay stability + connectivity improvements)
+**Latest release:** [v0.4.2](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/v0.4.2) (launcher Advanced mode + UI layout fixes)
 
-**Download:** [GitHub Releases — Latest](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) — asset `sf4-netplay-launcher-*-v0.4.1.zip` (not "Source code" only).
+**Download:** [GitHub Releases — Latest](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) — asset `sf4-netplay-launcher-*-v0.4.2.zip` (not "Source code" only).
 
 ## How it works
 
@@ -135,7 +135,7 @@ Install once on each PC:
 3. Optional: run `preflight.cmd` to verify the package.
 4. Double-click **`Launcher.exe`**.
 
-Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.4.1`). Use **Check for updates** on the home screen to upgrade.
+Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.4.2`). Use **Check for updates** on the home screen to upgrade.
 
 ### 3. Play online (Simple mode - experimental)
 

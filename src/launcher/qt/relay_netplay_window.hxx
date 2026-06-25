@@ -140,6 +140,7 @@ private:
 	QPushButton* m_btnCreateRoom = nullptr;
 	QPushButton* m_btnTryUpnp = nullptr;
 	QLabel* m_hostShareHint = nullptr;
+	QWidget* m_hostSimpleSettings = nullptr;
 	QLineEdit* m_hostNameSimple = nullptr;
 	QSpinBox* m_hostDelaySimple = nullptr;
 	QWidget* m_hostAdvancedSettings = nullptr;
@@ -153,6 +154,7 @@ private:
 	QPushButton* m_btnStartHost = nullptr;
 
 	// Join
+	QWidget* m_joinSimpleSettings = nullptr;
 	QLineEdit* m_joinNameSimple = nullptr;
 	QSpinBox* m_joinDelaySimple = nullptr;
 	QLineEdit* m_joinRoomCode = nullptr;

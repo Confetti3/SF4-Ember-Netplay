@@ -453,14 +453,17 @@
   }
 
   function getDisplayName() {
+    const hostActive = document.getElementById("screen-host").classList.contains("active");
     if (isSimple()) {
-      const hostActive = document.getElementById("screen-host").classList.contains("active");
       const id = hostActive ? "host-name" : "join-name";
       const el = document.getElementById(id);
       if (el && el.value) return el.value;
+    } else {
+      const id = hostActive ? "host-name-adv" : "join-name-adv";
+      const el = document.getElementById(id);
+      if (el && el.value) return el.value;
     }
-    const adv = document.getElementById("host-name-adv") || document.getElementById("join-name-adv");
-    return adv && adv.value ? adv.value : "Player";
+    return "Player";
   }
 
   function getInputDelay(hostOrJoin) {
@@ -846,5 +849,6 @@
 
   const appEl = document.getElementById("app");
   if (appEl) appEl.classList.add("is-loading");
+  renderUiMode();
   post({ type: "getState" });
 })();
