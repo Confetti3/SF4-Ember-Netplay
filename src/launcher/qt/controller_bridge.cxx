@@ -12,7 +12,17 @@ ControllerBridge::ControllerBridge(NetplayLaunchController& controller, QObject*
 nlohmann::json ControllerBridge::post(const nlohmann::json& msg) {
 	nlohmann::json payload = msg;
 	payload["v"] = kProtocolVersion;
-	nlohmann::json reply = m_controller.HandleWebMessage(payload);
+	nlohmann::json reply;
+	// HandleWebMessage performs network and JSON work; a thrown exception here
+	// would unwind through the Qt event loop, which is undefined behavior. Turn
+	// any failure into an error reply the UI can display instead of crashing.
+	try {
+		reply = m_controller.HandleWebMessage(payload);
+	} catch (const std::exception& ex) {
+		reply = { {"type", "error"}, {"message", ex.what()} };
+	} catch (...) {
+		reply = { {"type", "error"}, {"message", "The launcher hit an unexpected error."} };
+	}
 	if (!reply.is_null() && !reply.empty()) {
 		emit replyReceived(reply);
 	}

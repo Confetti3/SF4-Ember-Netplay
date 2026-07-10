@@ -18,6 +18,7 @@ const GGPO_RELAY_BIN =
   path.join(__dirname, "bin", "sf4e-ggpo-udp-relay");
 const RELAY_IDENTITY = process.env.RELAY_IDENTITY || "relay-vps";
 const MAX_BODY_BYTES = parseInt(process.env.RELAY_MANAGER_MAX_BODY_BYTES || String(64 * 1024), 10);
+const KILL_GRACE_MS = parseInt(process.env.RELAY_MANAGER_KILL_GRACE_MS || "3000", 10);
 
 /** @type {Map<number, { proc: import('child_process').ChildProcess, sidecarHash: string, startedAt: number }>} */
 const sessions = new Map();
@@ -123,16 +124,39 @@ function tcpProbe(port, timeoutMs = 1500) {
   });
 }
 
+// Send SIGTERM, then SIGKILL if the process has not exited within the grace
+// window. Without the forced follow-up a hung relay binary keeps its port
+// bound after we have already dropped it from our map, so the next session
+// spawned on that port fails to bind and reports a misleading start_failure.
+function terminateProcess(proc, label) {
+  try {
+    proc.kill("SIGTERM");
+  } catch {
+    /* ignore */
+  }
+  if (proc.exitCode !== null || proc.signalCode !== null) {
+    return;
+  }
+  const timer = setTimeout(() => {
+    try {
+      proc.kill("SIGKILL");
+      console.log(`[${label}] force-killed after ${KILL_GRACE_MS}ms grace`);
+    } catch {
+      /* ignore */
+    }
+  }, KILL_GRACE_MS);
+  if (typeof timer.unref === "function") {
+    timer.unref();
+  }
+  proc.once("exit", () => clearTimeout(timer));
+}
+
 function stopSession(port) {
   const entry = sessions.get(port);
   if (!entry) {
     return false;
   }
-  try {
-    entry.proc.kill("SIGTERM");
-  } catch {
-    /* ignore */
-  }
+  terminateProcess(entry.proc, `relay:${port}`);
   sessions.delete(port);
   return true;
 }
@@ -142,11 +166,7 @@ function stopGgpoSession(ggpoPort) {
   if (!entry) {
     return false;
   }
-  try {
-    entry.proc.kill("SIGTERM");
-  } catch {
-    /* ignore */
-  }
+  terminateProcess(entry.proc, `ggpo:${ggpoPort}`);
   ggpoSessions.delete(ggpoPort);
   return true;
 }
@@ -193,6 +213,16 @@ function startSession(port, sidecarHash) {
   proc.stderr.on("data", (chunk) => {
     process.stderr.write(`[relay:${port}] ${chunk}`);
   });
+  // A ChildProcess emits 'error' (not 'exit') when the binary cannot be
+  // spawned at all (missing file, EACCES, ...). Without this listener that
+  // becomes an unhandled 'error' event and crashes the whole manager,
+  // taking down every other active session on the box.
+  proc.on("error", (err) => {
+    if (sessions.get(port)?.proc === proc) {
+      sessions.delete(port);
+    }
+    console.error(`[relay:${port}] spawn error: ${err && err.message}`);
+  });
   proc.on("exit", (code, signal) => {
     if (sessions.get(port)?.proc === proc) {
       sessions.delete(port);
@@ -223,6 +253,14 @@ function startGgpoSession(ggpoPort, sessionPort, roomToken) {
     detached: false,
   });
 
+  // See startSession: without an 'error' listener a spawn failure crashes the
+  // whole manager instead of just failing this one session.
+  proc.on("error", (err) => {
+    if (ggpoSessions.get(ggpoPort)?.proc === proc) {
+      ggpoSessions.delete(ggpoPort);
+    }
+    console.error(`[ggpo:${ggpoPort}] spawn error: ${err && err.message}`);
+  });
   proc.on("exit", (code, signal) => {
     if (ggpoSessions.get(ggpoPort)?.proc === proc) {
       ggpoSessions.delete(ggpoPort);
@@ -390,6 +428,12 @@ const server = http.createServer(async (req, res) => {
   }
 
   json(res, 404, { error: "not_found" });
+});
+
+// Last-resort guard: keep the manager alive if an unexpected rejection slips
+// through, rather than letting it crash and kill every active relay session.
+process.on("unhandledRejection", (reason) => {
+  console.error("relay-manager unhandledRejection:", reason);
 });
 
 server.listen(PORT, BIND, () => {
