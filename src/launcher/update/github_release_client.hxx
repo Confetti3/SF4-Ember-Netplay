@@ -15,6 +15,10 @@ namespace launcher {
 		std::string releaseUrl;
 		std::string zipDownloadUrl;
 		std::string zipApiUrl;
+		// Lowercase hex SHA-256 of the release zip, from the GitHub asset's
+		// "digest" field ("sha256:<hex>"). Empty if the release predates GitHub
+		// asset digests; callers should treat an empty value as "unverifiable".
+		std::string expectedSha256;
 	};
 
 	struct ApplyUpdateResult {
@@ -30,7 +34,8 @@ namespace launcher {
 	ApplyUpdateResult DownloadAndApplyUpdate(
 		const char* zipDownloadUrl,
 		const char* zipApiUrl,
-		const char* latestVersionTag
+		const char* latestVersionTag,
+		const char* expectedSha256
 	);
 
 } // namespace launcher

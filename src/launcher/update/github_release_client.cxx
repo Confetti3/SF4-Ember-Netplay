@@ -10,11 +10,18 @@
 #include <vector>
 
 #include <windows.h>
+#include <bcrypt.h>
 #include <pathcch.h>
 #include <shellapi.h>
 #include <strsafe.h>
 #include <shlobj.h>
 #include <tlhelp32.h>
+
+#ifndef NT_SUCCESS
+#define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
+#endif
+
+#pragma comment(lib, "bcrypt.lib")
 
 #include <nlohmann/json.hpp>
 
@@ -420,6 +427,106 @@ namespace launcher {
 			CloseHandle(pi.hThread);
 			if (outExitCode) {
 				*outExitCode = exitCode;
+			}
+			return true;
+		}
+
+		// Streaming SHA-256 of a file, returned as lowercase hex. Used to verify a
+		// downloaded release zip against the digest GitHub publishes for the asset,
+		// so a tampered or corrupted download is rejected before we extract and run
+		// any of its contents.
+		static bool ComputeFileSha256Hex(const wchar_t* filePath, std::string& outHex) {
+			outHex.clear();
+
+			BCRYPT_ALG_HANDLE hAlg = NULL;
+			if (!NT_SUCCESS(BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA256_ALGORITHM, NULL, 0))) {
+				return false;
+			}
+
+			DWORD cbHashObject = 0;
+			DWORD cbData = 0;
+			DWORD cbHash = 0;
+			bool ok = NT_SUCCESS(BCryptGetProperty(
+						  hAlg, BCRYPT_OBJECT_LENGTH, (PUCHAR)&cbHashObject, sizeof(DWORD), &cbData, 0)) &&
+				NT_SUCCESS(BCryptGetProperty(
+					hAlg, BCRYPT_HASH_LENGTH, (PUCHAR)&cbHash, sizeof(DWORD), &cbData, 0));
+
+			PUCHAR pbHashObject = ok ? (PUCHAR)HeapAlloc(GetProcessHeap(), 0, cbHashObject) : NULL;
+			PUCHAR pbHash = ok ? (PUCHAR)HeapAlloc(GetProcessHeap(), 0, cbHash) : NULL;
+			BCRYPT_HASH_HANDLE hHash = NULL;
+			HANDLE hFile = INVALID_HANDLE_VALUE;
+			if (!pbHashObject || !pbHash) {
+				ok = false;
+			}
+
+			if (ok && !NT_SUCCESS(BCryptCreateHash(hAlg, &hHash, pbHashObject, cbHashObject, NULL, 0, 0))) {
+				ok = false;
+			}
+
+			if (ok) {
+				hFile = CreateFileW(
+					filePath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+					FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+				if (hFile == INVALID_HANDLE_VALUE) {
+					ok = false;
+				}
+			}
+
+			if (ok) {
+				BYTE buffer[8192];
+				DWORD cbRead = 0;
+				for (;;) {
+					if (!ReadFile(hFile, buffer, sizeof(buffer), &cbRead, NULL)) {
+						ok = false;
+						break;
+					}
+					if (cbRead == 0) {
+						break;
+					}
+					if (!NT_SUCCESS(BCryptHashData(hHash, buffer, cbRead, 0))) {
+						ok = false;
+						break;
+					}
+				}
+			}
+
+			if (ok && !NT_SUCCESS(BCryptFinishHash(hHash, pbHash, cbHash, 0))) {
+				ok = false;
+			}
+
+			if (ok) {
+				char pair[3];
+				for (DWORD i = 0; i < cbHash; i++) {
+					snprintf(pair, sizeof(pair), "%02x", pbHash[i]);
+					outHex += pair;
+				}
+			}
+
+			if (hFile != INVALID_HANDLE_VALUE) {
+				CloseHandle(hFile);
+			}
+			if (hHash) {
+				BCryptDestroyHash(hHash);
+			}
+			if (pbHashObject) {
+				HeapFree(GetProcessHeap(), 0, pbHashObject);
+			}
+			if (pbHash) {
+				HeapFree(GetProcessHeap(), 0, pbHash);
+			}
+			BCryptCloseAlgorithmProvider(hAlg, 0);
+			return ok;
+		}
+
+		// Case-insensitive equality for hex digests.
+		static bool HexEqualsIgnoreCase(const std::string& a, const std::string& b) {
+			if (a.size() != b.size()) {
+				return false;
+			}
+			for (size_t i = 0; i < a.size(); i++) {
+				if (tolower((unsigned char)a[i]) != tolower((unsigned char)b[i])) {
+					return false;
+				}
 			}
 			return true;
 		}
@@ -880,6 +987,18 @@ namespace launcher {
 			if (release.contains("assets") && release["assets"].is_array()) {
 				std::string legacyZipUrl;
 				std::string legacyZipApiUrl;
+				std::string legacyDigest;
+				// GitHub exposes an asset content digest as "sha256:<hex>". Strip
+				// the prefix so we store bare lowercase hex (empty for older
+				// releases whose assets predate the digest field).
+				auto parseSha256Digest = [](const std::string& digest) -> std::string {
+					const std::string prefix = "sha256:";
+					if (digest.size() > prefix.size() &&
+						digest.compare(0, prefix.size(), prefix) == 0) {
+						return digest.substr(prefix.size());
+					}
+					return "";
+				};
 				for (const auto& asset : release["assets"]) {
 					std::string name = asset.value("name", "");
 					if (name.find(".zip") == std::string::npos) {
@@ -888,16 +1007,19 @@ namespace launcher {
 					if (name.find("sf4-netplay-launcher") != std::string::npos) {
 						result.zipDownloadUrl = asset.value("browser_download_url", "");
 						result.zipApiUrl = asset.value("url", "");
+						result.expectedSha256 = parseSha256Digest(asset.value("digest", ""));
 						break;
 					}
 					if (name.find("sf4-enhanced-team") != std::string::npos) {
 						legacyZipUrl = asset.value("browser_download_url", "");
 						legacyZipApiUrl = asset.value("url", "");
+						legacyDigest = parseSha256Digest(asset.value("digest", ""));
 					}
 				}
 				if (result.zipDownloadUrl.empty() && !legacyZipUrl.empty()) {
 					result.zipDownloadUrl = legacyZipUrl;
 					result.zipApiUrl = legacyZipApiUrl;
+					result.expectedSha256 = legacyDigest;
 				}
 			}
 
@@ -918,7 +1040,8 @@ namespace launcher {
 	ApplyUpdateResult DownloadAndApplyUpdate(
 		const char* zipDownloadUrl,
 		const char* zipApiUrl,
-		const char* latestVersionTag
+		const char* latestVersionTag,
+		const char* expectedSha256
 	) {
 		ApplyUpdateResult result;
 		if ((!zipDownloadUrl || !zipDownloadUrl[0]) && (!zipApiUrl || !zipApiUrl[0])) {
@@ -1003,6 +1126,32 @@ namespace launcher {
 				"Download failed (" + downloadError + "). Manual download: " + releasePage +
 				" — details in %TEMP%\\sf4-netplay-update.log";
 			return result;
+		}
+
+		// Verify the download's SHA-256 against the digest GitHub published for the
+		// asset before we extract or run anything from it. A mismatch means the zip
+		// was tampered with or corrupted in transit, so refuse it. Releases that
+		// predate GitHub asset digests provide no expected hash; those can only be
+		// verified by filename allowlist downstream, so we log and continue.
+		std::string expectedHash = (expectedSha256 && expectedSha256[0]) ? expectedSha256 : "";
+		if (!expectedHash.empty()) {
+			std::string actualHash;
+			if (!ComputeFileSha256Hex(zipPath, actualHash)) {
+				AppendUpdateLog("hash computation failed");
+				result.error = "Could not verify the update download. Try again.";
+				return result;
+			}
+			if (!HexEqualsIgnoreCase(actualHash, expectedHash)) {
+				AppendUpdateLog(("hash mismatch expected=" + expectedHash + " actual=" + actualHash).c_str());
+				result.error =
+					"The update download failed its integrity check and was not installed. "
+					"This can happen if the download was corrupted; try again, or download "
+					"the release manually from GitHub.";
+				return result;
+			}
+			AppendUpdateLog("hash verification ok");
+		} else {
+			AppendUpdateLog("no published digest for asset; skipping hash verification");
 		}
 
 		if (!ExpandZipArchive(zipPath, extractDir)) {
