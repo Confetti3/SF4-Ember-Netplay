@@ -4,7 +4,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
 project (
     sf4e
-    VERSION 0.4.2
+    VERSION 0.4.3
     DESCRIPTION "A process-inspection and modification tool for the Steam release of Ultra Street Fighter 4."
     HOMEPAGE_URL "https://github.com/Confetti3/SF4-Netplay-Launcher"
 )
@@ -31,8 +31,6 @@ if(SF4E_LAUNCHER_QT_UI)
     set(CMAKE_AUTORCC ON)
     set(CMAKE_AUTOUIC ON)
     find_package(Qt6 CONFIG REQUIRED COMPONENTS Widgets)
-else()
-    find_package(unofficial-webview2 CONFIG REQUIRED)
 endif()
 
 find_path(VALVEFILEVDF_INCLUDE_DIRS "vdf_parser.hpp")
@@ -182,8 +180,6 @@ if(SF4E_LAUNCHER_QT_UI)
         src/launcher/qt/relay_netplay_window.cxx
         src/launcher/qt/qt_launcher_app.cxx
     )
-else()
-    list(APPEND SF4E_LAUNCHER_SOURCES src/launcher/webview/webview_host.cxx)
 endif()
 add_executable(Launcher WIN32 ${SF4E_LAUNCHER_SOURCES})
 set(_SF4E_LAUNCHER_EXE_TARGET Launcher)
@@ -209,9 +205,6 @@ target_include_directories(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE ${VALVEFILEVDF_I
     "gdi32"
     "ws2_32"
 )
-if(NOT SF4E_LAUNCHER_QT_UI)
-    target_link_libraries(Launcher PRIVATE unofficial::webview2::webview2)
-endif()
 
 add_library(Sidecar SHARED src/sidecar/sidecar.cxx)
 target_include_directories(Sidecar PRIVATE ${VALVEFILEVDF_INCLUDE_DIRS})
@@ -235,27 +228,6 @@ install(
   RUNTIME DESTINATION "."
 )
 
-if(NOT SF4E_LAUNCHER_QT_UI)
-  install(DIRECTORY "${CMAKE_SOURCE_DIR}/launcher-ui" DESTINATION ".")
-  get_target_property(WEBVIEW2_LOADER_DLL unofficial::webview2::webview2 IMPORTED_LOCATION)
-  if(WEBVIEW2_LOADER_DLL)
-    install(FILES "${WEBVIEW2_LOADER_DLL}" DESTINATION ".")
-    add_custom_command(
-      TARGET Launcher POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${WEBVIEW2_LOADER_DLL}"
-        "$<TARGET_FILE_DIR:Launcher>"
-      COMMENT "Copy WebView2Loader.dll next to Launcher.exe"
-    )
-    add_custom_command(
-      TARGET Launcher POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_SOURCE_DIR}/launcher-ui"
-        "$<TARGET_FILE_DIR:Launcher>/launcher-ui"
-      COMMENT "Copy launcher-ui next to Launcher.exe"
-    )
-  endif()
-endif()
 if(SF4E_LAUNCHER_QT_UI)
   find_program(SF4E_WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${Qt6_DIR}/../../../tools/Qt6/bin")
   if(SF4E_WINDEPLOYQT_EXECUTABLE)
