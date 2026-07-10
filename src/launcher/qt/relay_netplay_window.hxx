@@ -105,6 +105,7 @@ private:
 	bool m_updateBusy = false;
 	QString m_releaseUrl;
 	QString m_zipDownloadUrl;
+	QString m_updateLatestVersion;
 	bool m_updateAvailable = false;
 
 	QTimer m_heartbeatTimer;

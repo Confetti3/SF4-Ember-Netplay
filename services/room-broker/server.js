@@ -73,15 +73,28 @@ function ggpoPortForSessionPort(sessionPort) {
   return GGPO_UDP_PORT_BASE + index;
 }
 
+// Ports reserved by an in-flight createRoomRecord that has not yet inserted its
+// room into `rooms`. Without this, two concurrent room creations both read the
+// same "free" port from `rooms` before either commits, get assigned the same
+// session port, and the second relay start kills the first out from under it.
+const reservedPorts = new Set();
+
 function allocatePortPair() {
   const usedSession = new Set([...rooms.values()].map((r) => r.port));
   for (let i = 0; i < MAX_ROOMS; i++) {
     const port = RELAY_PORT_BASE + i;
-    if (!usedSession.has(port)) {
+    if (!usedSession.has(port) && !reservedPorts.has(port)) {
+      reservedPorts.add(port);
       return { sessionPort: port, ggpoPort: GGPO_UDP_PORT_BASE + i };
     }
   }
   return { sessionPort: 0, ggpoPort: 0 };
+}
+
+function releasePortReservation(port) {
+  if (port) {
+    reservedPorts.delete(port);
+  }
 }
 
 function normalizeIp(ip) {
@@ -212,9 +225,14 @@ function stopRelaySession(port, ggpoPort) {
   if (!FORCE_VPS_RELAY || !RELAY_MANAGER_URL || !port) {
     return;
   }
-  void relayManagerRequest("DELETE", `/v1/sessions/${port}`);
+  // Fire-and-forget, but relayManagerRequest's fetch rejects if the relay
+  // manager is unreachable. An unhandled rejection would crash the whole
+  // broker (Node's default) and drop every active room, so swallow it here.
+  const logStopError = (err) =>
+    console.error(`stopRelaySession failed for port ${port}:`, err && err.message);
+  relayManagerRequest("DELETE", `/v1/sessions/${port}`).catch(logStopError);
   if (ggpoPort) {
-    void relayManagerRequest("DELETE", `/v1/ggpo-sessions/${ggpoPort}`);
+    relayManagerRequest("DELETE", `/v1/ggpo-sessions/${ggpoPort}`).catch(logStopError);
   }
 }
 
@@ -555,80 +573,97 @@ async function createRoomRecord(displayName, relayHost, sidecarHash) {
     return { error: "full", message: "No relay ports available." };
   }
 
-  const matchId = makeMatchId();
-  const roomToken = makeRoomToken();
-  const transportRequested = BROKER_GGPO_TRANSPORT === "auto" ? "auto" : "legacy";
-  let ggpoRelayOk = false;
+  // The port is reserved (see allocatePortPair). Hold the reservation across the
+  // async relay-start calls so a concurrent request can't grab the same port,
+  // and release it once the room is committed to `rooms` or on any failure.
+  let committed = false;
+  let startedRelay = false;
+  try {
+    const matchId = makeMatchId();
+    const roomToken = makeRoomToken();
+    const transportRequested = BROKER_GGPO_TRANSPORT === "auto" ? "auto" : "legacy";
+    let ggpoRelayOk = false;
 
-  if (FORCE_VPS_RELAY) {
-    if (!sidecarHash) {
-      return {
-        error: "invalid_hash",
-        message: "sidecarHash required for VPS relay.",
-      };
-    }
-    if (!isValidSidecarHash(sidecarHash)) {
-      return {
-        error: "invalid_hash",
-        message: "sidecarHash must be a 64-character SHA-256 hex string.",
-      };
-    }
-    const started = await startRelaySession(port, sidecarHash);
-    if (!started.ok) {
-      return {
-        error: "relay_start_failed",
-        message: started.message || "Could not start VPS session relay.",
-      };
-    }
-    if (transportRequested === "auto") {
-      const ggpoStarted = await startGgpoRelaySession(port, ggpoPort, roomToken);
-      ggpoRelayOk = ggpoStarted.ok;
-      if (!ggpoStarted.ok) {
-        console.warn(`GGPO relay start failed for port ${ggpoPort}: ${ggpoStarted.message}`);
+    if (FORCE_VPS_RELAY) {
+      if (!sidecarHash) {
+        return {
+          error: "invalid_hash",
+          message: "sidecarHash required for VPS relay.",
+        };
+      }
+      if (!isValidSidecarHash(sidecarHash)) {
+        return {
+          error: "invalid_hash",
+          message: "sidecarHash must be a 64-character SHA-256 hex string.",
+        };
+      }
+      const started = await startRelaySession(port, sidecarHash);
+      if (!started.ok) {
+        return {
+          error: "relay_start_failed",
+          message: started.message || "Could not start VPS session relay.",
+        };
+      }
+      startedRelay = true;
+      if (transportRequested === "auto") {
+        const ggpoStarted = await startGgpoRelaySession(port, ggpoPort, roomToken);
+        ggpoRelayOk = ggpoStarted.ok;
+        if (!ggpoStarted.ok) {
+          console.warn(`GGPO relay start failed for port ${ggpoPort}: ${ggpoStarted.message}`);
+        }
       }
     }
+
+    let token = makeToken();
+    while (rooms.has(`SF4-${token}`)) token = makeToken();
+    const code = `SF4-${token}`;
+    const hostSecret = makeHostSecret();
+    const now = Date.now();
+    const roomHost = FORCE_VPS_RELAY ? RELAY_HOST : relayHost || RELAY_HOST;
+
+    const room = {
+      code,
+      host: roomHost,
+      port,
+      ggpoPort: transportRequested === "auto" && ggpoRelayOk ? ggpoPort : 0,
+      displayName: displayName || "Host",
+      createdAt: now,
+      lastSeenAt: now,
+      sidecarHash: sidecarHash || undefined,
+      hostSecret,
+      matchId,
+      roomToken,
+      transportRequested,
+      transportActive: null,
+      startedAt: null,
+      endedAt: null,
+      endpoints: { host: null, guest: null },
+      events: [],
+    };
+    pushMatchEvent(room, "room_created", { transportRequested });
+    rooms.set(code, room);
+    committed = true;
+
+    return {
+      code,
+      host: roomHost,
+      port,
+      ggpoPort: room.ggpoPort,
+      matchId,
+      roomToken,
+      ggpoTransport: transportRequested,
+      token,
+      hostSecret,
+    };
+  } finally {
+    // If we started a relay but never committed the room (validation failure or
+    // a thrown error after startRelaySession), tear it down so we don't leak a
+    // relay process on the reserved port.
+    if (!committed && startedRelay) {
+      stopRelaySession(port, ggpoPort);
+    }
+    releasePortReservation(port);
   }
-
-  let token = makeToken();
-  while (rooms.has(`SF4-${token}`)) token = makeToken();
-  const code = `SF4-${token}`;
-  const hostSecret = makeHostSecret();
-  const now = Date.now();
-  const roomHost = FORCE_VPS_RELAY ? RELAY_HOST : relayHost || RELAY_HOST;
-
-  const room = {
-    code,
-    host: roomHost,
-    port,
-    ggpoPort: transportRequested === "auto" && ggpoRelayOk ? ggpoPort : 0,
-    displayName: displayName || "Host",
-    createdAt: now,
-    lastSeenAt: now,
-    sidecarHash: sidecarHash || undefined,
-    hostSecret,
-    matchId,
-    roomToken,
-    transportRequested,
-    transportActive: null,
-    startedAt: null,
-    endedAt: null,
-    endpoints: { host: null, guest: null },
-    events: [],
-  };
-  pushMatchEvent(room, "room_created", { transportRequested });
-  rooms.set(code, room);
-
-  return {
-    code,
-    host: roomHost,
-    port,
-    ggpoPort: room.ggpoPort,
-    matchId,
-    roomToken,
-    ggpoTransport: transportRequested,
-    token,
-    hostSecret,
-  };
 }
 
 function startNatProbeServer() {
@@ -1118,6 +1153,12 @@ setInterval(() => {
 }, 60_000);
 
 startNatProbeServer();
+
+// Last-resort guard: keep the broker alive if an unexpected rejection slips
+// through, rather than letting it crash and drop every active room.
+process.on("unhandledRejection", (reason) => {
+  console.error("room-broker unhandledRejection:", reason);
+});
 
 server.listen(PORT, BROKER_BIND, () => {
   console.log(

@@ -11,6 +11,7 @@
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QMessageBox>
 #include <QScrollArea>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -920,6 +921,7 @@ void RelayNetplayWindow::handleMessage(const nlohmann::json& msg) {
 		if (m_updateAvailable) {
 			const QString notes = JsonString(msg, "releaseNotes");
 			const QString ver = JsonString(msg, "latestVersion");
+			m_updateLatestVersion = ver;
 			if (m_updateStatus) {
 				m_updateStatus->setText(
 					notes.isEmpty() ? QStringLiteral("Update available: %1").arg(ver)
@@ -1214,6 +1216,17 @@ void RelayNetplayWindow::onRoomSelected(QListWidgetItem* item) {
 	if (m_joinAddress) {
 		m_joinAddress->setText(code);
 	}
+	// Rooms in the browser are always relay rooms. In advanced mode the connect
+	// method dropdown may still be on "Direct IP:port" from an earlier session,
+	// which would make Start fail with a confusing "needs an IP:port" error.
+	// Force it to relay so the selected code works without the user hunting for
+	// the dropdown.
+	if (m_joinConnectMethod) {
+		const int idx = m_joinConnectMethod->findData(QStringLiteral("relay"));
+		if (idx >= 0) {
+			m_joinConnectMethod->setCurrentIndex(idx);
+		}
+	}
 	showScreen(Screen::Join);
 }
 
@@ -1226,6 +1239,28 @@ void RelayNetplayWindow::onCheckUpdate() {
 }
 
 void RelayNetplayWindow::onApplyUpdate() {
+	// Installing is destructive and irreversible: it replaces the install folder
+	// (removing files that are not part of the package) and then closes the
+	// launcher to restart. Confirm before proceeding so a stray click can't wipe
+	// an in-progress host/join session.
+	const QString ver = m_updateLatestVersion.isEmpty()
+		? QStringLiteral("the latest version")
+		: m_updateLatestVersion;
+	QMessageBox box(this);
+	box.setWindowTitle(QStringLiteral("Install update"));
+	box.setIcon(QMessageBox::Warning);
+	box.setText(QStringLiteral("Install %1?").arg(ver));
+	box.setInformativeText(QStringLiteral(
+		"The launcher will close and replace files in its install folder. "
+		"Any files you added there may be removed.\n\n"
+		"Close Ultra Street Fighter IV first if it is running."));
+	box.setStandardButtons(QMessageBox::Yes | QMessageBox::Cancel);
+	box.setDefaultButton(QMessageBox::Cancel);
+	box.button(QMessageBox::Yes)->setText(QStringLiteral("Install and restart"));
+	if (box.exec() != QMessageBox::Yes) {
+		return;
+	}
+
 	m_updateBusy = true;
 	if (m_btnInstallUpdate) {
 		m_btnInstallUpdate->setEnabled(false);
