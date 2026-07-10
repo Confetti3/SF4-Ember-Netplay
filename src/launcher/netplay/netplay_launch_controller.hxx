@@ -78,10 +78,6 @@ namespace launcher {
 
 
 
-	bool GetLauncherUiIndexUrl(wchar_t* outUrl, int outUrlChars);
-
-
-
 } // namespace launcher
 
 } // namespace sf4e
