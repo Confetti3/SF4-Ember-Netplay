@@ -44,14 +44,16 @@ jobs:
           Write-Host "VCPKG_ROOT=$env:VCPKG_ROOT"
           echo "VCPKG_ROOT=$env:VCPKG_ROOT" >> $env:GITHUB_ENV
 
+      # Use the checked-in preset. The "default" preset lives in
+      # CMakeUserPresets.json, which is git-ignored and therefore absent on CI.
       - name: Configure CMake
-        run: cmake --preset default
+        run: cmake --preset x86-msvc-ninja-relwithdebinfo
 
       - name: Build RelWithDebInfo
-        run: cmake --build msvc-build/default --config RelWithDebInfo
+        run: cmake --build msvc-build/x86-msvc-ninja-relwithdebinfo
 
       - name: Install to msvc-out
-        run: cmake --install msvc-build/default --config RelWithDebInfo
+        run: cmake --install msvc-build/x86-msvc-ninja-relwithdebinfo
 
       - name: Azure login (optional signing)
         if: env.AZURE_CLIENT_ID != ''
