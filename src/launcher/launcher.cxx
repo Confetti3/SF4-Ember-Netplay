@@ -534,7 +534,8 @@ int WINAPI wWinMain(
 		sf4e::launcher::ApplyUpdateResult applied = sf4e::launcher::DownloadAndApplyUpdate(
 			check.zipDownloadUrl.c_str(),
 			check.zipApiUrl.c_str(),
-			check.latestVersion.c_str()
+			check.latestVersion.c_str(),
+			check.expectedSha256.c_str()
 		);
 		if (!applied.ok) {
 			MessageBoxA(NULL, applied.error.c_str(), "sf4e update", MB_OK | MB_ICONERROR);

@@ -673,7 +673,8 @@ namespace launcher {
 			ApplyUpdateResult applied = DownloadAndApplyUpdate(
 				check.zipDownloadUrl.c_str(),
 				check.zipApiUrl.c_str(),
-				check.latestVersion.c_str()
+				check.latestVersion.c_str(),
+				check.expectedSha256.c_str()
 			);
 
 			if (!applied.ok) {
@@ -1339,52 +1340,6 @@ namespace launcher {
 		return err;
 
 	}
-
-
-
-	bool GetLauncherUiIndexUrl(wchar_t* outUrl, int outUrlChars) {
-
-		if (!outUrl || outUrlChars <= 0) {
-
-			return false;
-
-		}
-
-		wchar_t launcherDir[MAX_PATH] = { 0 };
-
-		wchar_t indexPath[MAX_PATH] = { 0 };
-
-		GetModuleFileNameW(NULL, launcherDir, MAX_PATH);
-
-		PathCchRemoveFileSpec(launcherDir, MAX_PATH);
-
-		if (FAILED(PathCchCombine(indexPath, MAX_PATH, launcherDir, L"launcher-ui\\index.html"))) {
-
-			return false;
-
-		}
-
-		wchar_t url[MAX_PATH * 2] = { 0 };
-
-		StringCchPrintfW(url, (int)(sizeof(url) / sizeof(url[0])), L"file:///%s", indexPath);
-
-		for (wchar_t* p = url; *p; ++p) {
-
-			if (*p == L'\\') {
-
-				*p = L'/';
-
-			}
-
-		}
-
-		StringCchCopyW(outUrl, outUrlChars, url);
-
-		return true;
-
-	}
-
-
 
 } // namespace launcher
 
