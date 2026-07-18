@@ -470,12 +470,18 @@ namespace sf4e {
 			s_ggpoSyncPhase != GgpoSyncPhase::Synchronizing &&
 			s_ggpoSyncPhase != GgpoSyncPhase::Running &&
 			s_ggpoBattleStartTick != 0 &&
-			GetTickCount() - s_ggpoBattleStartTick > 5000
+			GetTickCount() - s_ggpoBattleStartTick > 20000
 		) {
 			s_udpGgpoFallbackTried = true;
-			spdlog::warn("GgpoTransport: UDP relay registered but GGPO did not reach Running; falling back to session tunnel");
-			PushAlert("Using backup netplay tunnel — connection may be less stable.");
-			fUserApp::TryRestartGgpoLegacyTunnel();
+			const DWORD waitedMs = GetTickCount() - s_ggpoBattleStartTick;
+			spdlog::warn(
+				"GgpoTransport: UDP relay GGPO still not Running after {}ms (phase={}) — aborting match (no legacy tunnel)",
+				waitedMs,
+				(int)s_ggpoSyncPhase
+			);
+			fSystem::AbortGgpoMatch(
+				"Rematch sync failed — return to lobby and Ready again."
+			);
 		}
 
 		if (s_deferredGgpoPending && fSystem::ggpo && !ShouldDeferGgpoClose()) {
@@ -582,6 +588,8 @@ namespace sf4e {
 	void NetplayFacade::NotifyMatchEnded() {
 		ClearBattleState();
 		if (!fUserApp::netplay) {
+			s_deferGgpoClose = false;
+			s_deferredGgpoPending = false;
 			return;
 		}
 
@@ -595,6 +603,10 @@ namespace sf4e {
 			s_deferredGgpoPending = true;
 			s_deferGgpoCloseUntil = GetTickCount() + 120000;
 			spdlog::info("NetplayFacade: deferring GGPO close for {} spectators", spectators);
+		}
+		else {
+			s_deferGgpoClose = false;
+			s_deferredGgpoPending = false;
 		}
 	}
 

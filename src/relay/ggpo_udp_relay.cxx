@@ -86,7 +86,9 @@ static int FindSlotByIp(Endpoint* slots, const sockaddr_in& from) {
 	return found;
 }
 
-// Rematch registration uses a new ephemeral probe port; rebind an existing slot by declared GGPO port or IP.
+// Rematch registration uses a new ephemeral probe port; rebind an existing slot by IP
+// (preferred) or a unique declared GGPO port. Never bind both peers to slot 0 just
+// because they share the default declared port 23457.
 static int FindSlotForRegistration(Endpoint* slots, const sockaddr_in& from, uint16_t declaredPort) {
 	int slotIdx = FindSlotByEndpoint(slots, from);
 	if (slotIdx >= 0) {
@@ -99,18 +101,35 @@ static int FindSlotForRegistration(Endpoint* slots, const sockaddr_in& from, uin
 		}
 	}
 
-	if (declaredPort != 0) {
-		const uint16_t declaredNetwork = htons(declaredPort);
-		for (int i = 0; i < 2; i++) {
-			if (slots[i].active && slots[i].addr.sin_port == declaredNetwork) {
-				return i;
-			}
-		}
-	}
-
 	const int ipSlot = FindSlotByIp(slots, from);
 	if (ipSlot >= 0) {
 		return ipSlot;
+	}
+
+	if (declaredPort != 0) {
+		const uint16_t declaredNetwork = htons(declaredPort);
+		int match = -1;
+		int matches = 0;
+		for (int i = 0; i < 2; i++) {
+			if (slots[i].active && slots[i].addr.sin_port == declaredNetwork) {
+				match = i;
+				matches++;
+			}
+		}
+		if (matches == 1) {
+			return match;
+		}
+		if (matches > 1) {
+			char ipStr[INET_ADDRSTRLEN] = { 0 };
+			inet_ntop(AF_INET, &from.sin_addr, ipStr, sizeof(ipStr));
+			spdlog::warn(
+				"Registration ambiguous: declaredGgpoPort={} matches {} slots from {}:{}",
+				declaredPort,
+				matches,
+				ipStr,
+				ntohs(from.sin_port)
+			);
+		}
 	}
 
 	return -1;
@@ -235,6 +254,21 @@ int main(int argc, char** argv) {
 
 			CopyEndpoint(slots[slotIdx].addr, registered);
 			slots[slotIdx].active = true;
+
+			// Rematch: previous match left both slots active. Invalidate the peer so
+			// the first re-registrant gets SF4W until the other side rebinds too —
+			// otherwise StartGGPO races against a stale/dead peer endpoint.
+			if (rematchRebind) {
+				const int peerIdx = slotIdx == 0 ? 1 : 0;
+				if (slots[peerIdx].active) {
+					slots[peerIdx].active = false;
+					spdlog::info(
+						"Rematch rebind slot {}; invalidated peer slot {} until they re-register",
+						slotIdx,
+						peerIdx
+					);
+				}
+			}
 
 			char ipStr[INET_ADDRSTRLEN] = { 0 };
 			inet_ntop(AF_INET, &registered.sin_addr, ipStr, sizeof(ipStr));

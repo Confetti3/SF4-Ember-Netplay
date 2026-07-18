@@ -49,8 +49,15 @@ namespace sf4e {
 
 		NatProbeResult NatProbe(const char* brokerHost, uint16_t probePort, int timeoutMs = 2000);
 
-		// Apply env override and prepare config; returns effective mode (may downgrade on failure).
-		GgpoTransportMode PrepareForBattle(NetplayConfig& cfg, SessionClient* sessionClient = nullptr);
+		// Apply env override and prepare config. For non-legacy modes, never
+		// silently downgrade to the session tunnel — callers must abort/retry.
+		// Returns false if UDP/P2P could not be prepared (cfg.ggpoTransport unchanged
+		// except when forced legacy succeeds).
+		bool PrepareForBattle(
+			NetplayConfig& cfg,
+			GgpoTransportMode* outEffective,
+			SessionClient* sessionClient = nullptr
+		);
 	}
 
 } // namespace sf4e

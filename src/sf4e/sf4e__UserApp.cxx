@@ -156,9 +156,10 @@ void fUserApp::_OnVsBattleTasksRegistered()
     );
     if (isPlayer) {
         NetplayConfig transportCfg = sf4e::NetplayFacade::GetConfig();
-        bool useLegacyGgpoTunnel = netplay->client._useRelay;
+        bool useLegacyGgpoTunnel = false;
+        const bool vpsSession = transportCfg.useCentralSession == 2;
         if (
-            transportCfg.useCentralSession == 2
+            vpsSession
             && transportCfg.ggpoTransport == 0
             && transportCfg.ggpoRoomToken[0]
             && transportCfg.ggpoRemotePort > 0
@@ -166,9 +167,25 @@ void fUserApp::_OnVsBattleTasksRegistered()
             transportCfg.ggpoTransport = (uint8_t)GgpoTransportMode::UdpRelay;
         }
         sf4e::NetplayFacade::RestoreBrokerGgpoEndpoint(transportCfg);
-        if (transportCfg.useCentralSession == 2 && transportCfg.ggpoTransport != 0) {
-            GgpoTransportMode effective = GgpoTransport::PrepareForBattle(transportCfg, &netplay->client);
+        if (vpsSession && transportCfg.ggpoTransport != 0) {
+            GgpoTransportMode effective = GgpoTransportMode::UdpRelay;
+            const bool prepared = GgpoTransport::PrepareForBattle(
+                transportCfg,
+                &effective,
+                &netplay->client
+            );
             sf4e::NetplayFacade::ApplyGgpoTransportConfig(transportCfg);
+            if (!prepared) {
+                spdlog::error(
+                    "GgpoTransport: prepare failed (mode={}) — aborting battle start",
+                    GgpoTransport::TransportModeLabel(effective)
+                );
+                sf4e::NetplayFacade::ReportGgpoTransport((uint8_t)effective, false, nullptr, 0);
+                fSystem::AbortGgpoMatch(
+                    "UDP relay unavailable — return to lobby and Get code again."
+                );
+                return;
+            }
             useLegacyGgpoTunnel = effective == GgpoTransportMode::LegacySessionTunnel;
             if (!useLegacyGgpoTunnel) {
                 spdlog::info(
@@ -179,7 +196,7 @@ void fUserApp::_OnVsBattleTasksRegistered()
                 );
             }
             else {
-                sf4e::NetplayFacade::PushAlert("Netplay: UDP/P2P setup failed; using legacy GGPO tunnel.");
+                spdlog::info("GgpoTransport: using forced legacy session tunnel");
             }
             sf4e::NetplayFacade::ReportGgpoTransport(
                 (uint8_t)effective,
@@ -188,8 +205,17 @@ void fUserApp::_OnVsBattleTasksRegistered()
                 useLegacyGgpoTunnel ? 0 : transportCfg.ggpoRemotePort
             );
         }
-        else if (transportCfg.useCentralSession == 2) {
-            sf4e::NetplayFacade::ReportGgpoTransport(0, true, nullptr, 0);
+        else if (vpsSession) {
+            spdlog::error("GgpoTransport: VPS session missing UDP relay endpoint/token");
+            sf4e::NetplayFacade::ReportGgpoTransport(1, false, nullptr, 0);
+            fSystem::AbortGgpoMatch(
+                "UDP relay required — return to lobby and Get code again."
+            );
+            return;
+        }
+        else {
+            // Non-VPS / local relay: keep prior useRelay tunnel behavior for LAN direct.
+            useLegacyGgpoTunnel = netplay->client._useRelay;
         }
 
         if (useLegacyGgpoTunnel) {
@@ -274,8 +300,8 @@ void fUserApp::_OnVsBattleTasksRegistered()
                         useLegacyGgpoTunnel
                     );
                     GgpoRelay::Instance().Reset();
-                    sf4e::NetplayFacade::PushAlert(
-                        "Netplay: GGPO could not connect to opponent. Return to lobby and retry."
+                    fSystem::AbortGgpoMatch(
+                        "GGPO could not connect to opponent — return to lobby and Ready again."
                     );
                     return;
                 }

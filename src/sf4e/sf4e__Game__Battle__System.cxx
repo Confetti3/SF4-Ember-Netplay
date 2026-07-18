@@ -334,14 +334,16 @@ void fSystem::BattleUpdate() {
 void fSystem::CloseBattle() {
     rSystem* _this = (rSystem*)this;
     if (ggpo) {
+        // Decide defer *before* close so a prior spectator defer flag cannot
+        // leave this session open across rematch.
+        sf4e::NetplayFacade::NotifyMatchEnded();
         if (!sf4e::NetplayFacade::ShouldDeferGgpoClose()) {
             ggpo_close_session(ggpo);
             ggpo = nullptr;
             sf4e::GgpoRelay::Instance().Reset();
         }
-        sf4e::NetplayFacade::ClearBattleState();
-        sf4e::NetplayFacade::NotifyMatchEnded();
-    } 
+        bGgpoConnectionInterrupted = false;
+    }
     for (int i = 0; i < NUM_SAVE_STATES; i++) {
         if (saveStates[i].used) {
             SaveState::Free(&saveStates[i]);
@@ -528,6 +530,13 @@ void fSystem::AbortGgpoMatch(const char* reason) {
         sf4e::NetplayFacade::PushAlert(reason);
     }
     bUpdateAllowed = false;
+    bGgpoConnectionInterrupted = false;
+    if (ggpo) {
+        ggpo_close_session(ggpo);
+        ggpo = nullptr;
+    }
+    sf4e::GgpoRelay::Instance().Reset();
+    sf4e::NetplayFacade::ClearBattleState();
     rSystem* system = rSystem::staticMethods.GetSingleton();
     if (system) {
         *rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
@@ -535,6 +544,15 @@ void fSystem::AbortGgpoMatch(const char* reason) {
 }
 
 void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay, DWORD rngSeed) {
+    if (ggpo) {
+        spdlog::warn("StartGGPO: closing leftover GGPO session before rematch/restart");
+        ggpo_close_session(ggpo);
+        ggpo = nullptr;
+    }
+    sf4e::GgpoRelay::Instance().Reset();
+    bGgpoConnectionInterrupted = false;
+    localPlayerHandle = GGPO_INVALID_HANDLE;
+
     GGPOSessionCallbacks cb = { 0 };
     cb.begin_game = ggpo_begin_game_callback;
     cb.advance_frame = ggpo_advance_frame_callback;
@@ -554,9 +572,9 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     );
     if (result != GGPO_OK) {
         spdlog::error("GGPO session could not start: {}", (int)result);
-        if (sf4e::NetplayFacade::IsDevOverlayEnabled()) {
-            MessageBoxA(NULL, "GGPO could not start, check logs", NULL, MB_OK);
-        }
+        ggpo = nullptr;
+        AbortGgpoMatch("GGPO could not start — return to lobby and Ready again.");
+        return;
     }
     ApplyGgpoDisconnectSettings(ggpo);
 
@@ -566,10 +584,8 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
         result = ggpo_add_player(ggpo, inPlayers + i, &players[i].handle);
         if (!GGPO_SUCCEEDED(result)) {
             spdlog::error("GGPO session could not add player: {}", (int)result);
-            if (sf4e::NetplayFacade::IsDevOverlayEnabled()) {
-                MessageBoxA(NULL, "GGPO could not add player", NULL, MB_OK);
-            }
-            continue;
+            AbortGgpoMatch("GGPO could not add players — return to lobby and Ready again.");
+            return;
         }
 
         if (players[i].type == GGPO_PLAYERTYPE_LOCAL) {
@@ -764,7 +780,11 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         sf4e::NetplayFacade::PushAlert("Connection restored.");
         break;
     case GGPO_EVENTCODE_DISCONNECTED_FROM_PEER:
-        *rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
+        spdlog::info("GGPO: GGPO_EVENTCODE_DISCONNECTED_FROM_PEER");
+        if (system) {
+            *rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
+        }
+        bGgpoConnectionInterrupted = false;
         sf4e::NetplayFacade::PushAlert("Opponent disconnected.");
         break;
     case GGPO_EVENTCODE_TIMESYNC:
