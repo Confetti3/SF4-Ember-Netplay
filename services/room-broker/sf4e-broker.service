@@ -1,13 +1,14 @@
 [Unit]
 Description=SF4 Netplay Launcher room broker
-After=network.target
+After=network-online.target sf4e-relay-manager.service
+Wants=network-online.target sf4e-relay-manager.service
 
 [Service]
 Type=simple
 WorkingDirectory=/opt/sf4e/services/room-broker
 EnvironmentFile=/opt/sf4e/services/room-broker/.env
 ExecStart=/usr/bin/node /opt/sf4e/services/room-broker/server.js
-Restart=on-failure
+Restart=always
 RestartSec=5
 
 [Install]

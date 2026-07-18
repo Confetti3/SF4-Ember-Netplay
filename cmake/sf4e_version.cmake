@@ -5,9 +5,13 @@ function(sf4e_configure_windows_version target file_description original_filenam
     return()
   endif()
 
-  set(SF4E_VERSION_MAJOR 0)
-  set(SF4E_VERSION_MINOR 4)
-  set(SF4E_VERSION_PATCH 2)
+  if(NOT DEFINED PROJECT_VERSION_MAJOR)
+    message(FATAL_ERROR "sf4e_configure_windows_version requires project() to have been called first")
+  endif()
+
+  set(SF4E_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
+  set(SF4E_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
+  set(SF4E_VERSION_PATCH "${PROJECT_VERSION_PATCH}")
   set(SF4E_FILE_DESCRIPTION "${file_description}")
   set(SF4E_INTERNAL_NAME "${original_filename}")
   set(SF4E_ORIGINAL_FILENAME "${original_filename}")

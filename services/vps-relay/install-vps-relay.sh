@@ -29,7 +29,8 @@ PUBLIC_IP="${RELAY_HOST:-$(curl -fsSL https://api.ipify.org 2>/dev/null || echo 
 cat > "$RELAY_SERVICE" <<EOF
 [Unit]
 Description=SF4 Netplay Launcher VPS relay manager
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
@@ -40,7 +41,7 @@ Environment=SF4E_SESSION_RELAY_BIN=$RELAY_DIR/bin/sf4e-session-relay
 Environment=LD_LIBRARY_PATH=$RELAY_DIR/lib
 Environment=RELAY_IDENTITY=relay-vps
 ExecStart=$NODE_DIR/bin/node $RELAY_DIR/relay-manager.js
-Restart=on-failure
+Restart=always
 RestartSec=5
 
 [Install]

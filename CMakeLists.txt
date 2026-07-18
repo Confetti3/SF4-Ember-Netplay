@@ -4,7 +4,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
 project (
     sf4e
-    VERSION 0.4.3
+    VERSION 0.4.4
     DESCRIPTION "A process-inspection and modification tool for the Steam release of Ultra Street Fighter 4."
     HOMEPAGE_URL "https://github.com/Confetti3/SF4-Netplay-Launcher"
 )
@@ -109,6 +109,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__GameEvents.cxx"
     "src/sf4e/sf4e__Overlay.hxx"
     "src/sf4e/sf4e__Overlay.cxx"
+    "src/sf4e/sf4e__OverlayPrefs.hxx"
+    "src/sf4e/sf4e__OverlayPrefs.cxx"
     "src/sf4e/sf4e__Pad.hxx"
     "src/sf4e/sf4e__Pad.cxx"
     "src/sf4e/sf4e__Platform.hxx"
@@ -211,7 +213,7 @@ target_include_directories(Sidecar PRIVATE ${VALVEFILEVDF_INCLUDE_DIRS})
 target_link_libraries(Sidecar PRIVATE ${LIB_DETOURS} Dimps sf4e)
 sf4e_configure_windows_version(Sidecar "SF4 Netplay Sidecar (USF4 netplay hooks)" "Sidecar.dll" "VFT_DLL")
 
-target_compile_definitions(Launcher PRIVATE -D_UNICODE -DUNICODE)
+target_compile_definitions(Launcher PRIVATE -D_UNICODE -DUNICODE "SF4E_APP_VERSION=\"${PROJECT_VERSION}\"")
 set_target_properties(Launcher PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 sf4e_configure_windows_version(Launcher "SF4 Netplay Launcher" "Launcher.exe" "VFT_APP")
 sf4e_configure_windows_version(RelayHost "SF4 Netplay Relay Host" "RelayHost.exe" "VFT_APP")

@@ -874,7 +874,11 @@ namespace launcher {
 		if (!outVersion || outVersionLen <= 0) {
 			return false;
 		}
-		strncpy_s(outVersion, outVersionLen, "unknown", _TRUNCATE);
+#ifdef SF4E_APP_VERSION
+		strncpy_s(outVersion, outVersionLen, SF4E_APP_VERSION, _TRUNCATE);
+#else
+		strncpy_s(outVersion, outVersionLen, "dev", _TRUNCATE);
+#endif
 
 		wchar_t installDir[MAX_PATH] = { 0 };
 		if (!GetLauncherInstallDir(installDir, MAX_PATH)) {

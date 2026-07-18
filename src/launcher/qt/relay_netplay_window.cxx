@@ -7,25 +7,65 @@
 #include <QClipboard>
 #include <QCloseEvent>
 #include <QDesktopServices>
+#include <QFormLayout>
 #include <QFrame>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QMessageBox>
+#include <QRegularExpression>
 #include <QScrollArea>
+#include <QSizePolicy>
+#include <QStyle>
 #include <QUrl>
 #include <QVBoxLayout>
 
 namespace sf4e {
 namespace launcher {
 
+namespace {
+
+QString FormatVersionBadge(QString ver) {
+	ver = ver.trimmed();
+	if (ver.isEmpty()
+		|| ver.compare(QStringLiteral("unknown"), Qt::CaseInsensitive) == 0
+		|| ver.compare(QStringLiteral("vunknown"), Qt::CaseInsensitive) == 0) {
+#ifdef SF4E_APP_VERSION
+		ver = QStringLiteral(SF4E_APP_VERSION);
+#else
+		ver = QStringLiteral("dev");
+#endif
+	}
+	if (!ver.startsWith('v') && ver.compare(QStringLiteral("dev"), Qt::CaseInsensitive) != 0) {
+		ver.prepend('v');
+	}
+	return ver;
+}
+
+QString SoftenReleaseNotes(QString notes) {
+	notes.replace(QRegularExpression(QStringLiteral("^#+\\s*"), QRegularExpression::MultilineOption), QString());
+	notes.replace(QRegularExpression(QStringLiteral("^>\\s?"), QRegularExpression::MultilineOption), QString());
+	notes.replace(QStringLiteral("**"), QString());
+	notes.replace(QStringLiteral("__"), QString());
+	notes.replace(QRegularExpression(QStringLiteral("\\[([^\\]]+)\\]\\([^\\)]+\\)")), QStringLiteral("\\1"));
+	notes.replace(QRegularExpression(QStringLiteral("`([^`]+)`")), QStringLiteral("\\1"));
+	notes = notes.trimmed();
+	constexpr int kMaxChars = 360;
+	if (notes.size() > kMaxChars) {
+		notes = notes.left(kMaxChars).trimmed() + QStringLiteral("…");
+	}
+	return notes;
+}
+
+} // namespace
+
 RelayNetplayWindow::RelayNetplayWindow(NetplayLaunchController& controller, QWidget* parent)
 	: QMainWindow(parent)
 	, m_controller(controller)
 	, m_bridge(controller, this) {
 	setWindowTitle(QStringLiteral("SF4 Netplay Launcher"));
-	setMinimumSize(560, 640);
-	resize(640, 780);
+	setMinimumSize(460, 500);
+	resize(500, 600);
 
 	buildUi();
 	applyTheme();
@@ -60,30 +100,31 @@ void RelayNetplayWindow::buildUi() {
 	setCentralWidget(central);
 
 	auto* root = new QVBoxLayout(central);
-	root->setContentsMargins(20, 16, 20, 16);
-	root->setSpacing(12);
+	root->setContentsMargins(12, 10, 12, 10);
+	root->setSpacing(6);
 
 	auto* header = new QHBoxLayout();
 	auto* titleCol = new QVBoxLayout();
+	titleCol->setSpacing(1);
 	auto* eyebrow = new QLabel(QStringLiteral("ULTRA STREET FIGHTER IV"));
 	eyebrow->setObjectName(QStringLiteral("eyebrow"));
 	auto* title = new QLabel(QStringLiteral("SF4 Netplay Launcher"));
 	title->setObjectName(QStringLiteral("title"));
-	auto* subtitle = new QLabel(
-		QStringLiteral("Experimental unofficial port — USF4 rollback netplay (not production-ready)"));
-	subtitle->setObjectName(QStringLiteral("subtitle"));
+	m_subtitleLabel = new QLabel(
+		QStringLiteral("USF4 rollback netplay — friends-only experimental build"));
+	m_subtitleLabel->setObjectName(QStringLiteral("subtitle"));
 	titleCol->addWidget(eyebrow);
 	titleCol->addWidget(title);
-	titleCol->addWidget(subtitle);
+	titleCol->addWidget(m_subtitleLabel);
 	header->addLayout(titleCol);
 	header->addStretch();
-	m_versionLabel = new QLabel(QStringLiteral("v0.4.1"));
+	m_versionLabel = new QLabel(QStringLiteral("dev"));
 	m_versionLabel->setObjectName(QStringLiteral("versionBadge"));
 	header->addWidget(m_versionLabel, 0, Qt::AlignTop);
 	root->addLayout(header);
 
 	auto* modeRow = new QHBoxLayout();
-	modeRow->setSpacing(0);
+	modeRow->setSpacing(6);
 	m_btnModeSimple = new QPushButton(QStringLiteral("Simple"));
 	m_btnModeSimple->setObjectName(QStringLiteral("segmentBtn"));
 	m_btnModeSimple->setCheckable(true);
@@ -100,9 +141,10 @@ void RelayNetplayWindow::buildUi() {
 		QStringLiteral("Experimental unofficial port — netplay may fail. Both players need the same build."));
 	warning->setObjectName(QStringLiteral("warningBanner"));
 	warning->setWordWrap(true);
+	m_warningBanner = warning;
 	root->addWidget(warning);
 
-	m_statusStrip = new QLabel(QStringLiteral("Loading..."));
+	m_statusStrip = new QLabel(QStringLiteral("Ready"));
 	m_statusStrip->setObjectName(QStringLiteral("connectionLine"));
 	m_statusStrip->setWordWrap(true);
 	root->addWidget(m_statusStrip);
@@ -124,21 +166,10 @@ void RelayNetplayWindow::buildUi() {
 	homeScroll->setFrameShape(QFrame::NoFrame);
 	auto* homeInner = new QWidget();
 	auto* homeLayout = new QVBoxLayout(homeInner);
-	homeLayout->setSpacing(10);
-
-	auto* scope = new QGroupBox(QStringLiteral("Experimental — scope and limits"));
-	auto* scopeLayout = new QVBoxLayout(scope);
-	auto* scopeText = new QLabel(
-		QStringLiteral(
-			"Friends-only experiment on USF4 (Steam). Simple mode uses VPS room codes (SF4-XXXX). "
-			"Same release zip required on all players. Find match / Open rooms are extra experimental."));
-	scopeText->setObjectName(QStringLiteral("scopeText"));
-	scopeText->setWordWrap(true);
-	scopeLayout->addWidget(scopeText);
-	homeLayout->addWidget(scope);
+	homeLayout->setSpacing(8);
 
 	auto* cards = new QVBoxLayout();
-	cards->setSpacing(10);
+	cards->setSpacing(6);
 	auto* btnHost = MakeModeCard(
 		QStringLiteral("Host"),
 		QStringLiteral("Create a room and share a code"),
@@ -156,7 +187,7 @@ void RelayNetplayWindow::buildUi() {
 	cards->addWidget(btnOffline);
 	homeLayout->addLayout(cards);
 
-	m_homeAdvancedPanel = new QGroupBox(QStringLiteral("Quick actions (experimental)"));
+	m_homeAdvancedPanel = new QGroupBox(QStringLiteral("Quick actions"));
 	auto* quickLayout = new QVBoxLayout(m_homeAdvancedPanel);
 	m_btnFindMatch = new QPushButton(QStringLiteral("Find match"));
 	m_btnFindMatch->setObjectName(QStringLiteral("secondaryButton"));
@@ -167,9 +198,16 @@ void RelayNetplayWindow::buildUi() {
 	homeLayout->addWidget(m_homeAdvancedPanel);
 
 	auto* updateGroup = new QGroupBox(QStringLiteral("Updates"));
+	updateGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 	auto* updateLayout = new QVBoxLayout(updateGroup);
+	updateLayout->setContentsMargins(6, 6, 6, 6);
+	updateLayout->setSpacing(4);
 	m_updateStatus = new QLabel();
 	m_updateStatus->setObjectName(QStringLiteral("updateStatus"));
+	m_updateStatus->setWordWrap(true);
+	m_updateStatus->setMaximumHeight(72);
+	m_updateStatus->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+	m_updateStatus->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 	m_updateStatus->hide();
 	auto* updateButtons = new QHBoxLayout();
 	m_btnCheckUpdate = new QPushButton(QStringLiteral("Check for updates"));
@@ -187,6 +225,7 @@ void RelayNetplayWindow::buildUi() {
 	updateLayout->addWidget(m_updateStatus);
 	updateLayout->addLayout(updateButtons);
 	homeLayout->addWidget(updateGroup);
+	homeLayout->addStretch(1);
 
 	homeScroll->setWidget(homeInner);
 	homeOuter->addWidget(homeScroll, 1);
@@ -200,6 +239,8 @@ void RelayNetplayWindow::buildUi() {
 	// --- Host ---
 	auto* hostPage = new QWidget();
 	auto* hostOuter = new QVBoxLayout(hostPage);
+	hostOuter->setContentsMargins(0, 0, 0, 0);
+	hostOuter->setSpacing(6);
 	auto* hostBack = new QPushButton(QStringLiteral("← Back"));
 	hostBack->setObjectName(QStringLiteral("backButton"));
 	hostOuter->addWidget(hostBack);
@@ -208,58 +249,78 @@ void RelayNetplayWindow::buildUi() {
 	m_hostScroll = new QScrollArea();
 	m_hostScroll->setWidgetResizable(true);
 	m_hostScroll->setFrameShape(QFrame::NoFrame);
+	m_hostScroll->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
+	m_hostScroll->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+	m_hostScroll->setAlignment(Qt::AlignTop | Qt::AlignLeft);
 	auto* hostInner = new QWidget();
+	hostInner->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 	auto* hostLayout = new QVBoxLayout(hostInner);
-	hostLayout->setSpacing(10);
+	hostLayout->setContentsMargins(0, 0, 0, 0);
+	hostLayout->setSpacing(6);
 
 	auto* shareGroup = new QGroupBox(QStringLiteral("Share with opponent"));
 	auto* shareLayout = new QVBoxLayout(shareGroup);
+	shareLayout->setContentsMargins(6, 6, 6, 6);
+	shareLayout->setSpacing(4);
 	auto* shareGrid = new QGridLayout();
-	shareGrid->setSpacing(8);
+	shareGrid->setSpacing(4);
 	auto* relayCard = MakeShareCard(QStringLiteral("relay"), &m_shareRelayValue, &m_btnCopyRelay);
 	m_hostShareLan = MakeShareCard(QStringLiteral("lan"), &m_shareLanValue, &m_btnCopyLan);
 	m_hostShareWan = MakeShareCard(QStringLiteral("wan"), &m_shareWanValue, &m_btnCopyWan);
-	shareGrid->addWidget(relayCard, 0, 0);
-	shareGrid->addWidget(m_hostShareLan, 0, 1);
-	shareGrid->addWidget(m_hostShareWan, 1, 0, 1, 2);
-	shareLayout->addLayout(shareGrid);
-
-	auto* shareActions = new QHBoxLayout();
 	m_btnCreateRoom = new QPushButton(QStringLiteral("Get code"));
 	m_btnCreateRoom->setObjectName(QStringLiteral("secondaryButton"));
+	m_btnCreateRoom->setMinimumWidth(88);
+	auto* relayRow = new QHBoxLayout();
+	relayRow->setContentsMargins(0, 0, 0, 0);
+	relayRow->setSpacing(6);
+	relayRow->addWidget(relayCard, 1);
+	relayRow->addWidget(m_btnCreateRoom, 0, Qt::AlignTop);
+	shareGrid->addLayout(relayRow, 0, 0, 1, 2);
+	shareGrid->addWidget(m_hostShareLan, 1, 0);
+	shareGrid->addWidget(m_hostShareWan, 1, 1);
+	shareLayout->addLayout(shareGrid);
+
+	auto* shareActions = new QWidget();
+	auto* shareActionsLayout = new QHBoxLayout(shareActions);
+	shareActionsLayout->setContentsMargins(0, 0, 0, 0);
+	shareActionsLayout->setSpacing(6);
 	m_btnRefreshIp = new QPushButton(QStringLiteral("Refresh public IP"));
 	m_btnRefreshIp->setObjectName(QStringLiteral("secondaryButton"));
 	m_btnTryUpnp = new QPushButton(QStringLiteral("Try UPnP"));
 	m_btnTryUpnp->setObjectName(QStringLiteral("secondaryButton"));
-	shareActions->addWidget(m_btnCreateRoom);
-	shareActions->addWidget(m_btnRefreshIp);
-	shareActions->addWidget(m_btnTryUpnp);
-	shareActions->addStretch();
-	shareLayout->addLayout(shareActions);
+	shareActionsLayout->addWidget(m_btnRefreshIp);
+	shareActionsLayout->addWidget(m_btnTryUpnp);
+	shareActionsLayout->addStretch();
+	m_hostShareActions = shareActions;
+	shareLayout->addWidget(shareActions);
 	m_hostShareHint = new QLabel(
-		QStringLiteral("Click Get code to create a relay room, then share it with your opponent."));
+		QStringLiteral("Get a relay code, share it, then Start game."));
 	m_hostShareHint->setObjectName(QStringLiteral("hint"));
 	m_hostShareHint->setWordWrap(true);
 	shareLayout->addWidget(m_hostShareHint);
 	hostLayout->addWidget(shareGroup);
 
 	m_hostSimpleSettings = new QGroupBox(QStringLiteral("Host settings"));
-	auto* hostSimpleLayout = new QVBoxLayout(m_hostSimpleSettings);
+	auto* hostSimpleLayout = new QFormLayout(m_hostSimpleSettings);
+	hostSimpleLayout->setContentsMargins(6, 6, 6, 6);
+	hostSimpleLayout->setHorizontalSpacing(8);
+	hostSimpleLayout->setVerticalSpacing(4);
+	hostSimpleLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
 	m_hostNameSimple = new QLineEdit();
 	m_hostNameSimple->setPlaceholderText(QStringLiteral("Display name"));
 	ConfigureFormField(m_hostNameSimple);
 	m_hostDelaySimple = new QSpinBox();
 	m_hostDelaySimple->setRange(1, 20);
 	m_hostDelaySimple->setValue(2);
-	hostSimpleLayout->addWidget(new QLabel(QStringLiteral("Display name")));
-	hostSimpleLayout->addWidget(m_hostNameSimple);
-	hostSimpleLayout->addWidget(new QLabel(QStringLiteral("Input delay (frames)")));
-	hostSimpleLayout->addWidget(BuildStepper(m_hostDelaySimple));
+	hostSimpleLayout->addRow(QStringLiteral("Display name"), m_hostNameSimple);
+	hostSimpleLayout->addRow(QStringLiteral("Input delay"), BuildStepper(m_hostDelaySimple));
 	hostLayout->addWidget(m_hostSimpleSettings);
 
 	m_hostAdvancedSettings = new QGroupBox(QStringLiteral("Advanced host settings"));
 	m_hostAdvancedSettings->setProperty("advancedOnly", true);
 	auto* hostAdvLayout = new QVBoxLayout(m_hostAdvancedSettings);
+	hostAdvLayout->setContentsMargins(8, 8, 8, 8);
+	hostAdvLayout->setSpacing(4);
 	m_hostNameAdv = new QLineEdit();
 	m_hostNameAdv->setPlaceholderText(QStringLiteral("Display name"));
 	ConfigureFormField(m_hostNameAdv);
@@ -298,12 +359,13 @@ void RelayNetplayWindow::buildUi() {
 	hostAdvLayout->addWidget(m_brokerUrl);
 	hostLayout->addWidget(m_hostAdvancedSettings);
 
+	m_hostScroll->setWidget(hostInner);
+	hostOuter->addWidget(m_hostScroll, 0);
+
 	m_btnStartHost = new QPushButton(QStringLiteral("Start game"));
 	m_btnStartHost->setObjectName(QStringLiteral("primaryButton"));
-	hostLayout->addWidget(m_btnStartHost);
-	hostLayout->addStretch();
-	m_hostScroll->setWidget(hostInner);
-	hostOuter->addWidget(m_hostScroll, 1);
+	hostOuter->addWidget(m_btnStartHost);
+	hostOuter->addStretch(1);
 	m_stack->addWidget(hostPage);
 
 	// --- Join ---
@@ -319,10 +381,14 @@ void RelayNetplayWindow::buildUi() {
 	joinScroll->setFrameShape(QFrame::NoFrame);
 	auto* joinInner = new QWidget();
 	auto* joinLayout = new QVBoxLayout(joinInner);
-	joinLayout->setSpacing(10);
+	joinLayout->setSpacing(8);
 
 	m_joinSimpleSettings = new QGroupBox(QStringLiteral("Join settings"));
-	auto* joinSimpleLayout = new QVBoxLayout(m_joinSimpleSettings);
+	auto* joinSimpleLayout = new QFormLayout(m_joinSimpleSettings);
+	joinSimpleLayout->setContentsMargins(6, 6, 6, 6);
+	joinSimpleLayout->setHorizontalSpacing(8);
+	joinSimpleLayout->setVerticalSpacing(4);
+	joinSimpleLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
 	m_joinNameSimple = new QLineEdit();
 	m_joinNameSimple->setPlaceholderText(QStringLiteral("Display name"));
 	ConfigureFormField(m_joinNameSimple);
@@ -333,19 +399,11 @@ void RelayNetplayWindow::buildUi() {
 	m_joinRoomCode->setObjectName(QStringLiteral("roomCodeInput"));
 	m_joinRoomCode->setPlaceholderText(QStringLiteral("SF4-XXXX"));
 	ConfigureFormField(m_joinRoomCode);
-	m_joinRoomCode->setMinimumHeight(44);
-	joinSimpleLayout->addWidget(new QLabel(QStringLiteral("Display name")));
-	joinSimpleLayout->addWidget(m_joinNameSimple);
-	joinSimpleLayout->addWidget(new QLabel(QStringLiteral("Input delay (frames)")));
-	joinSimpleLayout->addWidget(BuildStepper(m_joinDelaySimple));
-	joinSimpleLayout->addWidget(new QLabel(QStringLiteral("Room code")));
-	joinSimpleLayout->addWidget(m_joinRoomCode);
+	m_joinRoomCode->setMinimumHeight(30);
+	joinSimpleLayout->addRow(QStringLiteral("Display name"), m_joinNameSimple);
+	joinSimpleLayout->addRow(QStringLiteral("Input delay"), BuildStepper(m_joinDelaySimple));
+	joinSimpleLayout->addRow(QStringLiteral("Room code"), m_joinRoomCode);
 	joinLayout->addWidget(m_joinSimpleSettings);
-
-	m_joinVersionHint = new QLabel();
-	m_joinVersionHint->setObjectName(QStringLiteral("hint"));
-	m_joinVersionHint->setWordWrap(true);
-	joinLayout->addWidget(m_joinVersionHint);
 
 	m_joinAdvancedSettings = new QGroupBox(QStringLiteral("Advanced join settings"));
 	m_joinAdvancedSettings->setProperty("advancedOnly", true);
@@ -415,7 +473,8 @@ void RelayNetplayWindow::buildUi() {
 	QObject::connect(offlineBack, &QPushButton::clicked, this, &RelayNetplayWindow::onGoHome);
 	auto* offlineForm = new QGroupBox(QStringLiteral("Offline"));
 	auto* offlineLayout = new QVBoxLayout(offlineForm);
-	m_offlineName = new QLineEdit(QStringLiteral("Offline Tester"));
+	m_offlineName = new QLineEdit();
+	m_offlineName->setPlaceholderText(QStringLiteral("Display name"));
 	ConfigureFormField(m_offlineName);
 	m_offlineDelay = new QSpinBox();
 	m_offlineDelay->setRange(1, 20);
@@ -491,9 +550,46 @@ void RelayNetplayWindow::showScreen(Screen screen) {
 		return;
 	}
 	m_stack->setCurrentIndex(static_cast<int>(screen));
+	if (m_warningBanner) {
+		m_warningBanner->setVisible(screen == Screen::Home);
+	}
+	if (m_subtitleLabel) {
+		m_subtitleLabel->setVisible(screen == Screen::Home);
+	}
 }
 
 void RelayNetplayWindow::applyUiMode(bool fromUser) {
+	if (fromUser) {
+		// Keep Simple/Advanced name + delay in sync when toggling.
+		if (m_simpleUi) {
+			if (m_hostNameSimple && m_hostNameAdv && !m_hostNameAdv->text().trimmed().isEmpty()) {
+				m_hostNameSimple->setText(m_hostNameAdv->text());
+			}
+			if (m_joinNameSimple && m_joinNameAdv && !m_joinNameAdv->text().trimmed().isEmpty()) {
+				m_joinNameSimple->setText(m_joinNameAdv->text());
+			}
+			if (m_hostDelaySimple && m_hostDelayAdv) {
+				m_hostDelaySimple->setValue(m_hostDelayAdv->value());
+			}
+			if (m_joinDelaySimple && m_joinDelayAdv) {
+				m_joinDelaySimple->setValue(m_joinDelayAdv->value());
+			}
+		}
+		else {
+			if (m_hostNameAdv && m_hostNameSimple && !m_hostNameSimple->text().trimmed().isEmpty()) {
+				m_hostNameAdv->setText(m_hostNameSimple->text());
+			}
+			if (m_joinNameAdv && m_joinNameSimple && !m_joinNameSimple->text().trimmed().isEmpty()) {
+				m_joinNameAdv->setText(m_joinNameSimple->text());
+			}
+			if (m_hostDelayAdv && m_hostDelaySimple) {
+				m_hostDelayAdv->setValue(m_hostDelaySimple->value());
+			}
+			if (m_joinDelayAdv && m_joinDelaySimple) {
+				m_joinDelayAdv->setValue(m_joinDelaySimple->value());
+			}
+		}
+	}
 	m_btnModeSimple->setChecked(m_simpleUi);
 	m_btnModeAdvanced->setChecked(!m_simpleUi);
 	setAdvancedVisible(!m_simpleUi);
@@ -522,6 +618,27 @@ void RelayNetplayWindow::setAdvancedVisible(bool advanced) {
 	if (m_btnTryUpnp) {
 		m_btnTryUpnp->setVisible(advanced);
 	}
+	if (m_btnRefreshIp) {
+		m_btnRefreshIp->setVisible(advanced);
+	}
+	if (m_hostShareActions) {
+		m_hostShareActions->setVisible(advanced);
+	}
+	if (m_hostShareLan) {
+		m_hostShareLan->setVisible(advanced);
+	}
+	if (m_hostShareWan) {
+		m_hostShareWan->setVisible(advanced);
+	}
+	if (m_btnToggleLog) {
+		m_btnToggleLog->setVisible(advanced);
+	}
+	if (m_logPanel && !advanced) {
+		m_logPanel->setVisible(false);
+		if (m_btnToggleLog) {
+			m_btnToggleLog->setText(QStringLiteral("Show log"));
+		}
+	}
 }
 
 void RelayNetplayWindow::appendLog(const QString& text) {
@@ -536,18 +653,15 @@ void RelayNetplayWindow::setStatus(const QString& text, const QString& kind) {
 	}
 	if (text.isEmpty()) {
 		m_statusStrip->setText(QStringLiteral("Ready"));
-		m_statusStrip->setStyleSheet(QStringLiteral("color: #d7dce0; font-weight: 700;"));
-		return;
-	}
-	m_statusStrip->setText(text);
-	if (kind == QStringLiteral("error")) {
-		m_statusStrip->setStyleSheet(QStringLiteral("color: #f0a0a0; font-weight: 700;"));
-	}
-	else if (kind == QStringLiteral("success")) {
-		m_statusStrip->setStyleSheet(QStringLiteral("color: #a8d4a0; font-weight: 700;"));
+		m_statusStrip->setProperty("statusKind", QString());
 	}
 	else {
-		m_statusStrip->setStyleSheet(QStringLiteral("color: #d7dce0; font-weight: 700;"));
+		m_statusStrip->setText(text);
+		m_statusStrip->setProperty("statusKind", kind);
+	}
+	if (m_statusStrip->style()) {
+		m_statusStrip->style()->unpolish(m_statusStrip);
+		m_statusStrip->style()->polish(m_statusStrip);
 	}
 }
 
@@ -658,19 +772,22 @@ void RelayNetplayWindow::renderHostShareCards() {
 
 	setShareCard(QStringLiteral("relay"), activeRelayRoomCode());
 
-	const bool hideDirectShare = m_simpleUi && m_forceVpsRelay && !activeRelayRoomCode().isEmpty();
+	const bool showDirectShare = !m_simpleUi;
 	if (m_hostShareLan) {
-		m_hostShareLan->setVisible(!hideDirectShare);
+		m_hostShareLan->setVisible(showDirectShare);
 	}
 	if (m_hostShareWan) {
-		m_hostShareWan->setVisible(!hideDirectShare);
+		m_hostShareWan->setVisible(showDirectShare);
 	}
 	if (m_btnRefreshIp) {
-		m_btnRefreshIp->setVisible(!hideDirectShare);
+		m_btnRefreshIp->setVisible(showDirectShare);
+	}
+	if (m_hostShareActions) {
+		m_hostShareActions->setVisible(showDirectShare);
 	}
 
-	setShareCard(QStringLiteral("lan"), hideDirectShare ? QString() : lanAddr);
-	setShareCard(QStringLiteral("wan"), hideDirectShare ? QString() : wanAddr);
+	setShareCard(QStringLiteral("lan"), showDirectShare ? lanAddr : QString());
+	setShareCard(QStringLiteral("wan"), showDirectShare ? wanAddr : QString());
 
 	if (m_hostShareHint) {
 		const QString relayCode = activeRelayRoomCode();
@@ -713,12 +830,6 @@ void RelayNetplayWindow::updateJoinControls() {
 	if (m_joinAddress && m_joinAddress->text().trimmed().isEmpty()) {
 		m_joinAddress->setText(lastJoin);
 	}
-	const QString ver = JsonString(m_state, "installedVersion", QStringLiteral("v0.4.1"));
-	if (m_joinVersionHint) {
-		const QString label = ver.startsWith('v') ? ver : QStringLiteral("v") + ver;
-		m_joinVersionHint->setText(
-			QStringLiteral("Both players must use the same build (%1).").arg(label));
-	}
 }
 
 void RelayNetplayWindow::syncFromState(const nlohmann::json& state) {
@@ -740,6 +851,9 @@ void RelayNetplayWindow::syncFromState(const nlohmann::json& state) {
 		}
 		if (m_joinNameAdv && m_joinNameAdv->text().isEmpty()) {
 			m_joinNameAdv->setText(name);
+		}
+		if (m_offlineName && (m_offlineName->text().isEmpty() || m_offlineName->text() == QStringLiteral("Offline Tester"))) {
+			m_offlineName->setText(name);
 		}
 	}
 	if (state.contains("inputDelay")) {
@@ -773,9 +887,9 @@ void RelayNetplayWindow::syncFromState(const nlohmann::json& state) {
 		}
 	}
 	if (state.contains("installedVersion")) {
-		const QString ver = JsonString(state, "installedVersion", QStringLiteral("v0.4.1"));
+		const QString ver = FormatVersionBadge(JsonString(state, "installedVersion"));
 		if (m_versionLabel) {
-			m_versionLabel->setText(ver.startsWith('v') ? ver : QStringLiteral("v") + ver);
+			m_versionLabel->setText(ver);
 		}
 	}
 	if (state.contains("forceVpsRelay")) {
@@ -879,7 +993,6 @@ void RelayNetplayWindow::handleMessage(const nlohmann::json& msg) {
 		}
 		else {
 			showToast(text, QStringLiteral("error"));
-			setStatus(text, QStringLiteral("error"));
 		}
 		appendLog(text);
 		if (m_btnCreateRoom) {
@@ -919,14 +1032,18 @@ void RelayNetplayWindow::handleMessage(const nlohmann::json& msg) {
 			m_btnOpenRelease->setVisible(false);
 		}
 		if (m_updateAvailable) {
-			const QString notes = JsonString(msg, "releaseNotes");
-			const QString ver = JsonString(msg, "latestVersion");
+			const QString notes = SoftenReleaseNotes(JsonString(msg, "releaseNotes"));
+			const QString ver = FormatVersionBadge(JsonString(msg, "latestVersion"));
 			m_updateLatestVersion = ver;
 			if (m_updateStatus) {
 				m_updateStatus->setText(
 					notes.isEmpty() ? QStringLiteral("Update available: %1").arg(ver)
 									: QStringLiteral("Update available: %1\n\n%2").arg(ver, notes));
 				m_updateStatus->setProperty("updateKind", QStringLiteral("success"));
+				if (m_updateStatus->style()) {
+					m_updateStatus->style()->unpolish(m_updateStatus);
+					m_updateStatus->style()->polish(m_updateStatus);
+				}
 				m_updateStatus->show();
 			}
 			if (m_btnInstallUpdate) {
@@ -934,10 +1051,15 @@ void RelayNetplayWindow::handleMessage(const nlohmann::json& msg) {
 			}
 		}
 		else {
-			const QString ver = JsonString(msg, "latestVersion", JsonString(msg, "installedVersion"));
+			const QString ver = FormatVersionBadge(
+				JsonString(msg, "latestVersion", JsonString(msg, "installedVersion")));
 			if (m_updateStatus) {
 				m_updateStatus->setText(QStringLiteral("Up to date (%1)").arg(ver));
 				m_updateStatus->setProperty("updateKind", QString());
+				if (m_updateStatus->style()) {
+					m_updateStatus->style()->unpolish(m_updateStatus);
+					m_updateStatus->style()->polish(m_updateStatus);
+				}
 				m_updateStatus->show();
 			}
 			if (m_btnInstallUpdate) {
@@ -972,7 +1094,6 @@ void RelayNetplayWindow::handleMessage(const nlohmann::json& msg) {
 		}
 		if (msg.contains("heartbeatOk")) {
 			if (msg.value("heartbeatOk", true) == false) {
-				showToast(QStringLiteral("Room connection lost — create a new room."), QStringLiteral("error"));
 				setStatus(QStringLiteral("Room connection lost — create a new relay room."), QStringLiteral("error"));
 				stopRelayHeartbeat();
 				m_sessionRelayCode.clear();
@@ -1108,7 +1229,7 @@ void RelayNetplayWindow::startGameHost() {
 	const QString method = getHostConnectMethod();
 	const QString relayCode = activeRelayRoomCode();
 	if (method == QStringLiteral("relay") && relayCode.isEmpty()) {
-		setStatus(QStringLiteral("Click Get code before starting."), QStringLiteral("error"));
+		showToast(QStringLiteral("Click Get code before starting."), QStringLiteral("error"));
 		return;
 	}
 	nlohmann::json payload;
@@ -1138,17 +1259,17 @@ void RelayNetplayWindow::startGameJoin() {
 		m_simpleUi ? (m_joinRoomCode ? m_joinRoomCode->text().trimmed() : QString())
 				   : (m_joinAddress ? m_joinAddress->text().trimmed() : QString());
 	if (code.isEmpty()) {
-		setStatus(QStringLiteral("Enter a room code or host address."), QStringLiteral("error"));
+		showToast(QStringLiteral("Enter a room code or host address."), QStringLiteral("error"));
 		return;
 	}
 	const QString method = getJoinConnectMethod(code);
 	if (!m_simpleUi) {
 		if (method == QStringLiteral("relay") && !IsShortRoomCodeQString(code)) {
-			setStatus(QStringLiteral("Relay mode needs a room code like SF4-XXXX."), QStringLiteral("error"));
+			showToast(QStringLiteral("Relay mode needs a room code like SF4-XXXX."), QStringLiteral("error"));
 			return;
 		}
 		if (method == QStringLiteral("direct") && IsShortRoomCodeQString(code)) {
-			setStatus(QStringLiteral("Direct IP mode needs an address like 203.0.113.42:23456."), QStringLiteral("error"));
+			showToast(QStringLiteral("Direct IP mode needs an address like 203.0.113.42:23456."), QStringLiteral("error"));
 			return;
 		}
 	}

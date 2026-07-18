@@ -752,11 +752,11 @@ namespace launcher {
 
 			r["forceVpsRelay"] = vpsRelay;
 
-			char statusMsg[128];
+			char statusMsg[64];
 			snprintf(
 				statusMsg,
 				sizeof(statusMsg),
-				"Room live — share %s. Click Start game when ready.",
+				"Room live — %s",
 				created.shortCode.c_str()
 			);
 			r["connectionStatus"] = statusMsg;

@@ -112,6 +112,8 @@ private:
 	QTimer m_toastTimer;
 
 	QLabel* m_versionLabel = nullptr;
+	QLabel* m_subtitleLabel = nullptr;
+	QLabel* m_warningBanner = nullptr;
 	QLabel* m_statusStrip = nullptr;
 	QLabel* m_toastLabel = nullptr;
 	QStackedWidget* m_stack = nullptr;
@@ -131,6 +133,7 @@ private:
 	QScrollArea* m_hostScroll = nullptr;
 	QWidget* m_hostShareLan = nullptr;
 	QWidget* m_hostShareWan = nullptr;
+	QWidget* m_hostShareActions = nullptr;
 	QPushButton* m_btnRefreshIp = nullptr;
 	QLabel* m_shareRelayValue = nullptr;
 	QLabel* m_shareLanValue = nullptr;
@@ -164,7 +167,6 @@ private:
 	QSpinBox* m_joinDelayAdv = nullptr;
 	QComboBox* m_joinConnectMethod = nullptr;
 	QLineEdit* m_joinAddress = nullptr;
-	QLabel* m_joinVersionHint = nullptr;
 	QPushButton* m_btnStartJoin = nullptr;
 
 	// Rooms

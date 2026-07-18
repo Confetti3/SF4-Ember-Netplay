@@ -28,21 +28,22 @@ QString JsonString(const nlohmann::json& j, const char* key, const QString& fall
 
 QWidget* BuildStepper(QSpinBox* spinBox) {
 	spinBox->setButtonSymbols(QAbstractSpinBox::NoButtons);
-	spinBox->setMinimumWidth(78);
+	spinBox->setMinimumWidth(48);
+	spinBox->setMaximumWidth(64);
 	spinBox->setObjectName(QStringLiteral("stepperValue"));
 
 	auto* stepper = new QWidget();
 	stepper->setObjectName(QStringLiteral("stepperControl"));
 	auto* row = new QHBoxLayout(stepper);
 	row->setContentsMargins(0, 0, 0, 0);
-	row->setSpacing(4);
+	row->setSpacing(3);
 
 	auto* minus = new QPushButton(QStringLiteral("-"));
 	minus->setObjectName(QStringLiteral("stepperButton"));
-	minus->setFixedWidth(32);
+	minus->setFixedSize(24, 24);
 	auto* plus = new QPushButton(QStringLiteral("+"));
 	plus->setObjectName(QStringLiteral("stepperButton"));
-	plus->setFixedWidth(32);
+	plus->setFixedSize(24, 24);
 
 	QObject::connect(minus, &QPushButton::clicked, spinBox, [spinBox]() { spinBox->stepDown(); });
 	QObject::connect(plus, &QPushButton::clicked, spinBox, [spinBox]() { spinBox->stepUp(); });
@@ -51,7 +52,7 @@ QWidget* BuildStepper(QSpinBox* spinBox) {
 	row->addWidget(minus);
 	row->addWidget(plus);
 	row->addStretch();
-	stepper->setMinimumHeight(32);
+	stepper->setMinimumHeight(26);
 	ConfigureFormField(spinBox);
 	return stepper;
 }
@@ -60,7 +61,7 @@ void ConfigureFormField(QWidget* field) {
 	if (!field) {
 		return;
 	}
-	field->setMinimumHeight(32);
+	field->setMinimumHeight(24);
 	auto policy = field->sizePolicy();
 	policy.setVerticalPolicy(QSizePolicy::Fixed);
 	field->setSizePolicy(policy);
@@ -70,9 +71,10 @@ void ConfigureModeCard(QPushButton* btn) {
 	if (!btn) {
 		return;
 	}
-	btn->setMinimumHeight(72);
+	btn->setMinimumHeight(52);
+	btn->setMaximumHeight(56);
 	auto policy = btn->sizePolicy();
-	policy.setVerticalPolicy(QSizePolicy::Minimum);
+	policy.setVerticalPolicy(QSizePolicy::Fixed);
 	policy.setHorizontalPolicy(QSizePolicy::Expanding);
 	btn->setSizePolicy(policy);
 }
@@ -87,8 +89,8 @@ QPushButton* MakeModeCard(const QString& title, const QString& desc, const QStri
 	btn->setObjectName(objectName);
 	btn->setCursor(Qt::PointingHandCursor);
 	auto* layout = new QVBoxLayout(btn);
-	layout->setContentsMargins(14, 12, 14, 12);
-	layout->setSpacing(4);
+	layout->setContentsMargins(12, 8, 12, 8);
+	layout->setSpacing(2);
 	auto* titleLabel = new QLabel(title);
 	titleLabel->setObjectName(QStringLiteral("modeCardTitle"));
 	titleLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -107,8 +109,8 @@ QWidget* MakeShareCard(const QString& shareId, QLabel** valueOut, QPushButton** 
 	card->setObjectName(QStringLiteral("shareCard"));
 	card->setProperty("shareId", shareId);
 	auto* layout = new QVBoxLayout(card);
-	layout->setContentsMargins(12, 10, 12, 10);
-	layout->setSpacing(6);
+	layout->setContentsMargins(8, 6, 8, 6);
+	layout->setSpacing(2);
 
 	auto* title = new QLabel(shareId == QStringLiteral("relay") ? QStringLiteral("Relay code")
 		: shareId == QStringLiteral("lan") ? QStringLiteral("LAN address")
@@ -121,10 +123,16 @@ QWidget* MakeShareCard(const QString& shareId, QLabel** valueOut, QPushButton** 
 	copy->setObjectName(QStringLiteral("secondaryButton"));
 	copy->setProperty("shareId", shareId);
 	copy->setEnabled(false);
+	copy->setMaximumWidth(72);
+
+	auto* valueRow = new QHBoxLayout();
+	valueRow->setContentsMargins(0, 0, 0, 0);
+	valueRow->setSpacing(6);
+	valueRow->addWidget(value, 1);
+	valueRow->addWidget(copy, 0, Qt::AlignTop);
 
 	layout->addWidget(title);
-	layout->addWidget(value);
-	layout->addWidget(copy, 0, Qt::AlignLeft);
+	layout->addLayout(valueRow);
 
 	if (valueOut) {
 		*valueOut = value;

@@ -4,9 +4,9 @@
 
 **SF4 Netplay Launcher** is a **third-party, experimental unofficial port** for _Ultra Street Fighter IV_ on Steam. It adds a native **Qt Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e's rollback netplay. Netplay may fail, desync, or break between releases - use only with people who accept that risk.
 
-**Latest release:** [v0.4.2](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/v0.4.2) (launcher Advanced mode + UI layout fixes)
+**Latest release:** [v0.4.4](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/v0.4.4) (launcher + overlay UX polish)
 
-**Download:** [GitHub Releases — Latest](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) — asset `sf4-netplay-launcher-*-v0.4.2.zip` (not "Source code" only).
+**Download:** [GitHub Releases — Latest](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) — asset `sf4-netplay-launcher-*-v0.4.4.zip` (not "Source code" only).
 
 ## How it works
 
@@ -135,7 +135,7 @@ Install once on each PC:
 3. Optional: run `preflight.cmd` to verify the package.
 4. Double-click **`Launcher.exe`**.
 
-Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.4.2`). Use **Check for updates** on the home screen to upgrade.
+Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.4.4`). Use **Check for updates** on the home screen to upgrade.
 
 ### 3. Play online (Simple mode - experimental)
 
@@ -193,7 +193,7 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 | [docs/RELEASE.md](docs/RELEASE.md) | Building and publishing releases |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Player troubleshooting — black launcher, crash on launch, settings, Direct IP |
 | [docs/WINDOWS_DEFENDER.md](docs/WINDOWS_DEFENDER.md) | Defender false positives (`Wacapew.A!ml`) |
-| [docs/RELEASE_NOTES_v0.3.8.md](docs/RELEASE_NOTES_v0.3.8.md) | Latest release notes (draft for next tag) |
+| [docs/RELEASE_NOTES_v0.4.4.md](docs/RELEASE_NOTES_v0.4.4.md) | Latest release notes |
 | [docs/SIGNPATH_APPLY.md](docs/SIGNPATH_APPLY.md) | SignPath Foundation checklist |
 
 ## Troubleshooting
@@ -220,8 +220,8 @@ This repository builds **SF4 Netplay Launcher** - an **unofficial port** of upst
 **Publish a release:**
 
 ```powershell
-powershell -NoProfile -File scripts/release-team-build.ps1 -VersionLabel 0.3.6
-gh release create v0.3.8 dist/sf4-netplay-launcher-*-0.3.8.zip --title "SF4 Netplay Launcher v0.3.8" --notes-file docs/RELEASE_NOTES_v0.3.8.md
+powershell -NoProfile -File scripts/release-team-build.ps1 -VersionLabel 0.4.4
+gh release create v0.4.4 dist/sf4-netplay-launcher-*-0.4.4.zip --title "SF4 Netplay Launcher v0.4.4" --notes-file docs/RELEASE_NOTES_v0.4.4.md
 ```
 
 See [docs/RELEASE.md](docs/RELEASE.md).

@@ -43,14 +43,15 @@ fi
 cat > "$SERVICE_PATH" <<EOF
 [Unit]
 Description=SF4 Netplay Launcher room broker
-After=network.target
+After=network-online.target sf4e-relay-manager.service
+Wants=network-online.target sf4e-relay-manager.service
 
 [Service]
 Type=simple
 WorkingDirectory=$BROKER_DIR
 EnvironmentFile=-$BROKER_DIR/.env
 ExecStart=$NODE_DIR/bin/node $BROKER_DIR/server.js
-Restart=on-failure
+Restart=always
 RestartSec=5
 
 [Install]

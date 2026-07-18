@@ -1,6 +1,9 @@
 #include <algorithm>
+#include <cstring>
+#include <deque>
 #include <memory>
 #include <random>
+#include <string>
 #include <vector>
 #include <windows.h>
 
@@ -42,6 +45,7 @@
 #include "sf4e__Game__Battle__Vfx.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__Overlay.hxx"
+#include "sf4e__OverlayPrefs.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "../common/sf4e__NetUtil.hxx"
 #include "../common/sf4e__NetUtil.hxx"
@@ -165,9 +169,42 @@ static int nExtraFramesToSimulate = 1;
 
 static bool mainMenuShouldJump = false;
 static int mainMenuCharaIDs[2] = { 0 };
-static Dimps::GameEvents::VsMode::ConfirmedCharaConditions mainMenuJumpCharaConditions[2] = { 0 };
+static Dimps::GameEvents::VsMode::ConfirmedCharaConditions mainMenuJumpCharaConditions[2] = {
+	{ 0, 0, 0, 0, 0, 0, 0, 0, (BYTE)rBattle::ED_USF4 },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, (BYTE)rBattle::ED_USF4 },
+};
 static int mainMenuJumpCharaCount = 2;
 static int mainMenuJumpStageID = 0;
+static bool mainMenuEditionSelect = true;
+static int mainMenuRoundCountIdx = 1;
+static int mainMenuRoundTimeIdx = 2;
+
+// Lobby ready state (shared by Network panel + toolbar Rematch)
+static int lobbyStageID = 0;
+static int lobbyMenuCharaID = 0;
+static rVsMode::ConfirmedCharaConditions lobbyConditions = {
+	0, 0, 0, 0, 0, 0, 0, 0, (BYTE)rBattle::ED_USF4
+};
+
+// Dev host / join panel fields
+static uint8_t hostDelay = 1;
+static char hostName[32] = { 0 };
+static uint16_t hostPort = 23456;
+static uint16_t hostGgpoPort = 23457;
+static int hostRoundCountIdx = 1;
+static int hostRoundTimeIdx = 2;
+static bool hostEditionSelect = true;
+
+static uint8_t joinDelay = 1;
+static uint16_t joinGgpoPort = 23456;
+static char joinName[32] = { 0 };
+static char joinAddr[64] = { 0 };
+
+static bool networkShowDebug = false;
+static uint8_t networkDeviceIdx = 0xff;
+static uint8_t networkDeviceType = 0xff;
+static bool soundShowDetails = false;
+
 static std::deque<std::string> clientAlerts;
 
 // Yes, this is correct- SF4's menu uses the fractional section of the fixed
@@ -191,6 +228,216 @@ const char* GetRoundCountLabel(void* options, int idx) {
 
 const char* GetRoundTimeLabel(void* options, int idx) {
 	return ((std::pair<FixedPoint, const char* const>*)options)[idx].second;
+}
+
+static void CaptureOverlayPrefs(sf4e::OverlayPrefs::Data& out) {
+	sf4e::OverlayPrefs::FromConfirmed(out.lobby, lobbyConditions);
+	out.stageID = lobbyStageID;
+
+	out.hostDelay = hostDelay;
+	strncpy_s(out.hostName, hostName, _TRUNCATE);
+	out.hostPort = hostPort;
+	out.hostGgpoPort = hostGgpoPort;
+	out.hostRoundCountIdx = hostRoundCountIdx;
+	out.hostRoundTimeIdx = hostRoundTimeIdx;
+	out.hostEditionSelect = hostEditionSelect;
+
+	out.joinDelay = joinDelay;
+	out.joinGgpoPort = joinGgpoPort;
+	strncpy_s(out.joinName, joinName, _TRUNCATE);
+	strncpy_s(out.joinAddr, joinAddr, _TRUNCATE);
+
+	out.mainMenuShouldJump = mainMenuShouldJump;
+	out.mainMenuJumpStageID = mainMenuJumpStageID;
+	sf4e::OverlayPrefs::FromConfirmed(out.mainMenuP1, mainMenuJumpCharaConditions[0]);
+	sf4e::OverlayPrefs::FromConfirmed(out.mainMenuP2, mainMenuJumpCharaConditions[1]);
+	out.mainMenuRoundCountIdx = mainMenuRoundCountIdx;
+	out.mainMenuRoundTimeIdx = mainMenuRoundTimeIdx;
+	out.mainMenuEditionSelect = mainMenuEditionSelect;
+
+	out.show_chara_window = show_chara_window;
+	out.show_command_window = show_command_window;
+	out.show_demo_window = show_demo_window;
+	out.show_event_window = show_event_window;
+	out.show_gfxapp_window = show_gfxapp_window;
+	out.show_help_window = show_help_window;
+	out.show_hud_window = show_hud_window;
+	out.show_log_window = show_log_window;
+	out.show_main_menu_window = show_main_menu_window;
+	out.show_memento_window = show_memento_window;
+	out.show_network_window = show_network_window;
+	out.show_pad_window = show_pad_window;
+	out.show_sound_window = show_sound_window;
+	out.show_system_window = show_system_window;
+	out.show_task_window = show_task_window;
+	out.show_vfx_window = show_vfx_window;
+	out.show_vsbattle_window = show_vsbattle_window;
+	out.show_vscharaselect_window = show_vscharaselect_window;
+	out.show_vsstageselect_window = show_vsstageselect_window;
+
+	out.verboseLogging = sf4e::SessionClient::bVerboseLogging;
+	out.networkDebug = networkShowDebug;
+	out.trackSoundRequests = fSoundPlayerManager::bTrackRequests;
+	out.usePureSounds = fSoundPlayerManager::bUsePureSounds;
+	out.soundShowDetails = soundShowDetails;
+	out.blockBattleInit = fVsBattle::bBlockInitialization;
+	out.blockBattleTermination = fVsBattle::bBlockTermination;
+	out.forceNextMatchOnline = fVsBattle::bForceNextMatchOnline;
+	out.terminateOnNextLeftBattle = fVsBattle::bTerminateOnNextLeftBattle;
+	out.overrideNextRandomSeed = fVsBattle::bOverrideNextRandomSeed;
+	out.nextMatchRandomSeed = fVsBattle::nextMatchRandomSeed;
+	out.forceTimerOnNextStageSelect = fVsStageSelect::forceTimerOnNextStageSelect;
+	out.randomizeLocalInputsEveryXFrames = fSystem::nRandomizeLocalInputsEveryXFramesInGGPO;
+	out.extraFramesToSimulate = nExtraFramesToSimulate;
+
+	out.deviceIdx = networkDeviceIdx;
+	out.deviceType = networkDeviceType;
+}
+
+static void ApplyOverlayPrefs(const sf4e::OverlayPrefs::Data& in) {
+	sf4e::OverlayPrefs::ToConfirmed(lobbyConditions, in.lobby);
+	lobbyStageID = in.stageID;
+	lobbyMenuCharaID = lobbyConditions.charaID;
+
+	hostDelay = in.hostDelay;
+	strncpy_s(hostName, in.hostName, _TRUNCATE);
+	hostPort = in.hostPort;
+	hostGgpoPort = in.hostGgpoPort;
+	hostRoundCountIdx = in.hostRoundCountIdx;
+	hostRoundTimeIdx = in.hostRoundTimeIdx;
+	hostEditionSelect = in.hostEditionSelect;
+
+	joinDelay = in.joinDelay;
+	joinGgpoPort = in.joinGgpoPort;
+	strncpy_s(joinName, in.joinName, _TRUNCATE);
+	strncpy_s(joinAddr, in.joinAddr, _TRUNCATE);
+
+	mainMenuShouldJump = in.mainMenuShouldJump;
+	mainMenuJumpStageID = in.mainMenuJumpStageID;
+	sf4e::OverlayPrefs::ToConfirmed(mainMenuJumpCharaConditions[0], in.mainMenuP1);
+	sf4e::OverlayPrefs::ToConfirmed(mainMenuJumpCharaConditions[1], in.mainMenuP2);
+	mainMenuCharaIDs[0] = mainMenuJumpCharaConditions[0].charaID;
+	mainMenuCharaIDs[1] = mainMenuJumpCharaConditions[1].charaID;
+	mainMenuRoundCountIdx = in.mainMenuRoundCountIdx;
+	mainMenuRoundTimeIdx = in.mainMenuRoundTimeIdx;
+	mainMenuEditionSelect = in.mainMenuEditionSelect;
+
+	show_chara_window = in.show_chara_window;
+	show_command_window = in.show_command_window;
+	show_demo_window = in.show_demo_window;
+	show_event_window = in.show_event_window;
+	show_gfxapp_window = in.show_gfxapp_window;
+	show_help_window = in.show_help_window;
+	show_hud_window = in.show_hud_window;
+	show_log_window = in.show_log_window;
+	show_main_menu_window = in.show_main_menu_window;
+	show_memento_window = in.show_memento_window;
+	show_network_window = in.show_network_window;
+	show_pad_window = in.show_pad_window;
+	show_sound_window = in.show_sound_window;
+	show_system_window = in.show_system_window;
+	show_task_window = in.show_task_window;
+	show_vfx_window = in.show_vfx_window;
+	show_vsbattle_window = in.show_vsbattle_window;
+	show_vscharaselect_window = in.show_vscharaselect_window;
+	show_vsstageselect_window = in.show_vsstageselect_window;
+
+	sf4e::SessionClient::bVerboseLogging = in.verboseLogging;
+	networkShowDebug = in.networkDebug;
+	fSoundPlayerManager::bTrackRequests = in.trackSoundRequests;
+	fSoundPlayerManager::bUsePureSounds = in.usePureSounds;
+	soundShowDetails = in.soundShowDetails;
+	fVsBattle::bBlockInitialization = in.blockBattleInit;
+	fVsBattle::bBlockTermination = in.blockBattleTermination;
+	fVsBattle::bForceNextMatchOnline = in.forceNextMatchOnline;
+	fVsBattle::bTerminateOnNextLeftBattle = in.terminateOnNextLeftBattle;
+	fVsBattle::bOverrideNextRandomSeed = in.overrideNextRandomSeed;
+	fVsBattle::nextMatchRandomSeed = in.nextMatchRandomSeed;
+	fVsStageSelect::forceTimerOnNextStageSelect = in.forceTimerOnNextStageSelect;
+	fSystem::nRandomizeLocalInputsEveryXFramesInGGPO = in.randomizeLocalInputsEveryXFrames;
+	nExtraFramesToSimulate = in.extraFramesToSimulate;
+
+	networkDeviceIdx = in.deviceIdx;
+	networkDeviceType = in.deviceType;
+}
+
+static void PersistOverlayPrefsNow() {
+	sf4e::OverlayPrefs::Data data{};
+	CaptureOverlayPrefs(data);
+	sf4e::OverlayPrefs::Save(data);
+}
+
+static void MaybePersistOverlayPrefs() {
+	static sf4e::OverlayPrefs::Data s_last{};
+	static bool s_haveLast = false;
+	sf4e::OverlayPrefs::Data current{};
+	CaptureOverlayPrefs(current);
+	sf4e::OverlayPrefs::Clamp(current);
+
+	if (s_haveLast && memcmp(&current, &s_last, sizeof(current)) == 0) {
+		return;
+	}
+	if (sf4e::OverlayPrefs::Save(current)) {
+		s_last = current;
+		s_haveLast = true;
+	}
+}
+
+static int GetLocalLobbyActiveSide() {
+	if (!fUserApp::netplay) {
+		return -1;
+	}
+	sf4e::SessionClient& client = fUserApp::netplay->client;
+	std::vector<sf4e::SessionProtocol::MemberData>& members = client._lobbyData.members;
+	for (int i = 0; i < 2 && i < (int)members.size(); i++) {
+		if (members[i].connId == client._cid) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+static bool CanLobbyReady() {
+	if (!fUserApp::netplay) {
+		return false;
+	}
+	sf4e::NetplayStatus st = sf4e::NetplayFacade::GetStatus();
+	if (!st.inLobby) {
+		return false;
+	}
+	const int side = GetLocalLobbyActiveSide();
+	if (side < 0) {
+		return false;
+	}
+	if (fUserApp::netplay->client._outstandingReadyRequestNumber > -1) {
+		return false;
+	}
+	if (fUserApp::netplay->client._matchData.readyMessageNum[side] > -1) {
+		return false;
+	}
+	return true;
+}
+
+static bool TryLobbyReady() {
+	if (!CanLobbyReady()) {
+		return false;
+	}
+	const int isSelfActiveSide = GetLocalLobbyActiveSide();
+	lobbyConditions.charaID = (BYTE)lobbyMenuCharaID;
+	if (fUserApp::netplay->client.PreBattle_SetChara(lobbyConditions) != k_EResultOK) {
+		Overlay::PushNetplayAlert("Could not send character selection.");
+	}
+	if (isSelfActiveSide == 0) {
+		if (fUserApp::netplay->client.PreBattle_SetEnv(sf4e::localRand()) != k_EResultOK) {
+			Overlay::PushNetplayAlert("Could not send match environment.");
+		}
+		if (fUserApp::netplay->client.PreBattle_SetStage(lobbyStageID) != k_EResultOK) {
+			Overlay::PushNetplayAlert("Could not send stage.");
+		}
+	}
+	fUserApp::netplay->client.Lobby_Ready();
+	PersistOverlayPrefsNow();
+	return true;
 }
 
 void Overlay::PushNetplayAlert(const char* msg) {
@@ -771,9 +1018,6 @@ void DrawHashOverlay() {
 
 void DrawMainMenuWindow(bool* pOpen) {
 	static BYTE skipStep = 1;
-	static bool bEditionSelect = true;
-	static int roundCountIdx = 1;
-	static int roundTimeIdx = 2;
 
 	Begin(
 		"MainMenu",
@@ -798,9 +1042,9 @@ void DrawMainMenuWindow(bool* pOpen) {
 	Text("Name: %s", EventBase::GetName(mainMenu));
 	ImGui::Checkbox("VS mode: Skip chara/stage select?", &mainMenuShouldJump);
 	if (mainMenuShouldJump) {
-		ImGui::Combo("Round count", &roundCountIdx, GetRoundCountLabel, (void*)roundCountList, 4);
-		ImGui::Combo("Round time", &roundTimeIdx, GetRoundTimeLabel, (void*)roundTimeList, 3);
-		ImGui::Checkbox("Edition select", &bEditionSelect);
+		ImGui::Combo("Round count", &mainMenuRoundCountIdx, GetRoundCountLabel, (void*)roundCountList, 4);
+		ImGui::Combo("Round time", &mainMenuRoundTimeIdx, GetRoundTimeLabel, (void*)roundTimeList, 3);
+		ImGui::Checkbox("Edition select", &mainMenuEditionSelect);
 		ImGui::Combo("Stage", &mainMenuJumpStageID, Dimps::stageNames, 30);
 		if (BeginTable("Main Menu", 3)) {
 			TableSetupColumn("Property");
@@ -855,9 +1099,9 @@ void DrawMainMenuWindow(bool* pOpen) {
 			ProgressData::BattleTypeSettings* BattleTypeSettings = &(ProgressData::GetBattleTypeSettings(progressData)[ProgressData::NBT_PVP]);
 			*ProgressData::GetNextBattleType(progressData) = ProgressData::NBT_PVP;
 
-			BattleTypeSettings->editionSelect = bEditionSelect;
-			BattleTypeSettings->rounds = roundCountList[roundCountIdx].first;
-			BattleTypeSettings->timeLimit = roundTimeList[roundTimeIdx].first;
+			BattleTypeSettings->editionSelect = mainMenuEditionSelect;
+			BattleTypeSettings->rounds = roundCountList[mainMenuRoundCountIdx].first;
+			BattleTypeSettings->timeLimit = roundTimeList[mainMenuRoundTimeIdx].first;
 			fVsPreBattle::bSkipToVersus = true;
 			fVsPreBattle::OnTasksRegistered = _OnPreBattleTasksRegistered;
 
@@ -885,11 +1129,10 @@ void DrawMainMenuWindow(bool* pOpen) {
 	End();
 }
 
-void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions) {
-	static int menuCharaID = 0;
+void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, int& menuCharaID) {
 	static const int stepSize = 1;
 	ImGui::Combo("Chara", &menuCharaID, Dimps::characterNames, 0x2c);
-	charaConditions.charaID = menuCharaID;
+	charaConditions.charaID = (BYTE)menuCharaID;
 	ImGui::InputScalar("Color", ImGuiDataType_U8, &charaConditions.color, &stepSize);
 	ImGui::InputScalar("Costume", ImGuiDataType_U8, &charaConditions.costume, &stepSize);
 	ImGui::InputScalar("Handicap", ImGuiDataType_U8, &charaConditions.handicap, &stepSize);
@@ -900,11 +1143,6 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions) 
 }
 
 void DrawNetworkJoinPanel(uint8_t deviceIdx, uint8_t deviceType) {
-	static uint8_t delay = 1;
-	static uint16 port = 23456;
-	static char name[32] = { 0 };
-	static char joinAddr[64] = { 0 };
-
 	char* mainMenuQuery[1] = { "MainMenu" };
 	rMainMenu* mainMenu = (rMainMenu*)EventBaseWithEC::FindForegroundEvent(App::GetRootEvent(), mainMenuQuery, 1);
 	if (!mainMenu) {
@@ -914,24 +1152,16 @@ void DrawNetworkJoinPanel(uint8_t deviceIdx, uint8_t deviceType) {
 	Text("Join a game");
 	Separator();
 	ImGui::InputText("Session server", joinAddr, 64);
-	ImGui::InputText("Name", name, 32);
-	ImGui::InputScalar("Local GGPO port", ImGuiDataType_U16, &port);
-	ImGui::InputScalar("Delay", ImGuiDataType_U8, &delay);
+	ImGui::InputText("Name", joinName, 32);
+	ImGui::InputScalar("Local GGPO port", ImGuiDataType_U16, &joinGgpoPort);
+	ImGui::InputScalar("Delay", ImGuiDataType_U8, &joinDelay);
 
 	if (Button("Join")) {
-		fUserApp::StartSession(joinAddr, port, sf4e::sidecarHash, std::string(name), deviceType, deviceIdx, delay);
+		fUserApp::StartSession(joinAddr, joinGgpoPort, sf4e::sidecarHash, std::string(joinName), deviceType, deviceIdx, joinDelay);
 	}
 }
 
 void DrawNetworkHostPanel(uint8_t deviceIdx, uint8_t deviceType) {
-	static uint8_t delay = 1;
-	static char name[32] = { 0 };
-	static uint16 hostPort = 23456;
-	static uint16 ggpoPort = 23457;
-	static int roundCountIdx = 1;
-	static int roundTimeIdx = 2;
-	static bool bEditionSelect = true;
-
 	char* mainMenuQuery[1] = { "MainMenu" };
 	rMainMenu* mainMenu = (rMainMenu*)EventBaseWithEC::FindForegroundEvent(App::GetRootEvent(), mainMenuQuery, 1);
 	if (!mainMenu) {
@@ -941,41 +1171,38 @@ void DrawNetworkHostPanel(uint8_t deviceIdx, uint8_t deviceType) {
 
 	Text("Host a game");
 	Separator();
-	ImGui::InputScalar("Delay", ImGuiDataType_U8, &delay);
+	ImGui::InputScalar("Delay", ImGuiDataType_U8, &hostDelay);
 	ImGui::InputScalar("Session host port", ImGuiDataType_U16, &hostPort);
-	ImGui::InputScalar("GGPO port", ImGuiDataType_U16, &ggpoPort);
-	ImGui::InputText("Name", name, 32);
+	ImGui::InputScalar("GGPO port", ImGuiDataType_U16, &hostGgpoPort);
+	ImGui::InputText("Name", hostName, 32);
 	Separator();
-	ImGui::Combo("Round cound", &roundCountIdx, GetRoundCountLabel, (void*)roundCountList, 4);
-	ImGui::Combo("Round time", &roundTimeIdx, GetRoundTimeLabel, (void*)roundTimeList, 3);
-	ImGui::Checkbox("Edition select", &bEditionSelect);
+	ImGui::Combo("Round cound", &hostRoundCountIdx, GetRoundCountLabel, (void*)roundCountList, 4);
+	ImGui::Combo("Round time", &hostRoundTimeIdx, GetRoundTimeLabel, (void*)roundTimeList, 3);
+	ImGui::Checkbox("Edition select", &hostEditionSelect);
 
 	bool valid = true;
-	if (hostPort == ggpoPort) {
+	if (hostPort == hostGgpoPort) {
 		Text("Session host port and GGPO port cannot be the same");
 		valid = false;
 	}
 
 	ImGui::BeginDisabled(!valid);
 	if (Button("Start hosting")) {
-		char hostAddr[64];
+		char hostAddrBuf[64];
 		char lanIp[64] = { 0 };
 		sf4e::DetectLanIPv4(lanIp, sizeof(lanIp));
-		snprintf(hostAddr, sizeof(hostAddr), "%s:%d", lanIp, hostPort);
-		if (!fUserApp::StartServer(hostPort, std::string("localhost"), sf4e::sidecarHash, bEditionSelect, roundCountList[roundCountIdx].first, roundTimeList[roundTimeIdx].first)) {
+		snprintf(hostAddrBuf, sizeof(hostAddrBuf), "%s:%d", lanIp, hostPort);
+		if (!fUserApp::StartServer(hostPort, std::string("localhost"), sf4e::sidecarHash, hostEditionSelect, roundCountList[hostRoundCountIdx].first, roundTimeList[hostRoundTimeIdx].first)) {
 			Overlay::PushNetplayAlert("Could not start session server (port in use?).");
 		}
 		else {
-			fUserApp::StartSession(hostAddr, ggpoPort, sf4e::sidecarHash, std::string(name), deviceType, deviceIdx, delay);
+			fUserApp::StartSession(hostAddrBuf, hostGgpoPort, sf4e::sidecarHash, std::string(hostName), deviceType, deviceIdx, hostDelay);
 		}
 	}
 	ImGui::EndDisabled();
 }
 
 void DrawNetworkLobbyPanel() {
-	static int stageID = 0;
-	static rVsMode::ConfirmedCharaConditions myConditions = { 0, 0, 0, 0, 0, 0, 0, 0, rBattle::ED_USF4};
-
 	if (!fUserApp::netplay) {
 		Text("Netplay not active");
 		return;
@@ -988,14 +1215,13 @@ void DrawNetworkLobbyPanel() {
 		Separator();
 		Text("LID: %s@%s", client._lobbyData.id.host.c_str(), client._lobbyData.id.key.c_str());
 		Text("CID: %s@%s", client._cid.user.c_str(), client._cid.host.c_str());
+		Text("Round count: %d", client._lobbyData.roundCount);
+		Text("Round time: %d", client._lobbyData.roundTime.integral);
+		Text("Edition select: %d", client._lobbyData.editionSelect);
 	}
 
-	// List the members
-	Text("Round count: %d", client._lobbyData.roundCount);
-	Text("Round time: %d", client._lobbyData.roundTime.integral);
-	Text("Edition select: %d", client._lobbyData.editionSelect);
 	std::vector<sf4e::SessionProtocol::MemberData>& members = client._lobbyData.members;
-	for (int i = 0; i < 2 && i < members.size(); i++) {
+	for (int i = 0; i < 2 && i < (int)members.size(); i++) {
 		const char* label = i == 0 ? "P1" : "P2";
 		const char* isMe = client._lobbyData.members[i].connId == client._cid ? " [Me] " : " ";
 		Text(
@@ -1005,24 +1231,26 @@ void DrawNetworkLobbyPanel() {
 			isMe,
 			client._matchData.readyMessageNum[i] > -1 ? "Ready!" : "Waiting"
 		);
-		if (members[i].name == fUserApp::netplay->client._name) {
+		if (members[i].connId == client._cid) {
 			isSelfActiveSide = i;
 		}
 	}
-	Separator();
-	Text("Queue:");
-	if (members.size() > 2) {
-		for (int i = 2; i < members.size(); i++) {
-			const char* isMe = client._lobbyData.members[i].connId == client._cid ? " [Me] " : " ";
-			Text(
-				"%s%s",
-				members[i].name.c_str(),
-				isMe
-			);
+	if (s_devNetplayOverlay) {
+		Separator();
+		Text("Queue:");
+		if (members.size() > 2) {
+			for (int i = 2; i < (int)members.size(); i++) {
+				const char* isMe = client._lobbyData.members[i].connId == client._cid ? " [Me] " : " ";
+				Text(
+					"%s%s",
+					members[i].name.c_str(),
+					isMe
+				);
+			}
 		}
-	}
-	else {
-		Text("(No one in queue)");
+		else {
+			Text("(No one in queue)");
+		}
 	}
 	
 	Separator();
@@ -1035,25 +1263,18 @@ void DrawNetworkLobbyPanel() {
 			Text("Ready!");
 		}
 		else {
-			DrawNetworkCharaConfig(myConditions);
-			if (isSelfActiveSide == 0) {
-				ImGui::Combo("Stage", &stageID, Dimps::stageNames, 30);
-			}
 			const char* readyLabel = s_devNetplayOverlay ? "Send chara / Ready" : "Ready";
-			if (Button(readyLabel)) {
-				if (fUserApp::netplay->client.PreBattle_SetChara(myConditions) != k_EResultOK) {
-					Overlay::PushNetplayAlert("Could not send character selection.");
-				}
-				if (isSelfActiveSide == 0) {
-					if (fUserApp::netplay->client.PreBattle_SetEnv(sf4e::localRand()) != k_EResultOK) {
-						Overlay::PushNetplayAlert("Could not send match environment.");
-					}
-					if (fUserApp::netplay->client.PreBattle_SetStage(stageID) != k_EResultOK) {
-						Overlay::PushNetplayAlert("Could not send stage.");
-					}
-				}
-				fUserApp::netplay->client.Lobby_Ready();
+			if (!s_devNetplayOverlay) {
+				// Player toolbar also has Rematch; keep one clear lobby CTA.
+				readyLabel = "Ready / Rematch";
 			}
+			if (Button(readyLabel)) {
+				TryLobbyReady();
+			}
+			if (isSelfActiveSide == 0) {
+				ImGui::Combo("Stage", &lobbyStageID, Dimps::stageNames, 30);
+			}
+			DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID);
 		}
 
 		if (s_devNetplayOverlay && Button("Report win")) {
@@ -1187,29 +1408,20 @@ static void DrawNetplayPlayerPanel() {
 		const sf4e::GgpoTransportStatus ggpoPath = sf4e::NetplayFacade::GetGgpoTransportStatus();
 		if (ggpoPath.legacyTunnelActive || ggpoPath.effectiveMode != 0 || st.inMatch) {
 			if (ggpoPath.legacyTunnelActive) {
-				ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "GGPO path: Legacy (session tunnel)");
+				ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "Path: relay tunnel");
 			}
 			else if (ggpoPath.effectiveMode == 1) {
-				ImGui::TextColored(ImVec4(0.35f, 1.0f, 0.45f, 1.0f), "GGPO path: UDP relay");
-				if (ggpoPath.remoteHost[0]) {
-					TextWrapped("  via %s:%u", ggpoPath.remoteHost, ggpoPath.remotePort);
-				}
+				ImGui::TextColored(ImVec4(0.35f, 1.0f, 0.45f, 1.0f), "Path: UDP relay");
 			}
 			else if (ggpoPath.effectiveMode == 2) {
-				ImGui::TextColored(ImVec4(0.35f, 1.0f, 0.45f, 1.0f), "GGPO path: P2P direct");
-				if (ggpoPath.remoteHost[0]) {
-					TextWrapped("  peer %s:%u", ggpoPath.remoteHost, ggpoPath.remotePort);
-				}
+				ImGui::TextColored(ImVec4(0.35f, 1.0f, 0.45f, 1.0f), "Path: P2P direct");
 			}
 		}
-		else if (cfg.ggpoTransport != 0) {
+		else if (cfg.ggpoTransport != 0 && cfg.devOverlay) {
 			TextWrapped(
-				"GGPO plan: %s",
+				"Path plan: %s",
 				sf4e::NetplayFacade::GgpoTransportModeName(cfg.ggpoTransport)
 			);
-			if (cfg.ggpoRemoteHost[0] && cfg.ggpoRemotePort > 0) {
-				TextWrapped("  target %s:%u", cfg.ggpoRemoteHost, cfg.ggpoRemotePort);
-			}
 		}
 	}
 	if (cfg.devOverlay) {
@@ -1236,7 +1448,7 @@ static void DrawNetplayPlayerPanel() {
 		}
 	}
 	if (st.inLobby) {
-		TextWrapped("Lobby - configure character and press Ready below.");
+		TextWrapped("Lobby - configure character and press Ready.");
 		DrawNetworkLobbyPanel();
 	}
 	else if (st.inMatch) {
@@ -1245,13 +1457,13 @@ static void DrawNetplayPlayerPanel() {
 			TextWrapped("In match");
 		}
 		else if (syncPhase == sf4e::GgpoSyncPhase::Synchronizing) {
-			ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "GGPO: Synchronizing...");
+			ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "Syncing...");
 		}
 		else if (syncPhase == sf4e::GgpoSyncPhase::Connected) {
-			ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "GGPO: Connected, waiting to run...");
+			ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "Connected, starting match...");
 		}
 		else {
-			ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.2f, 1.0f), "GGPO: Waiting for sync...");
+			ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.2f, 1.0f), "Waiting to sync...");
 		}
 	}
 	Spacing();
@@ -1263,18 +1475,17 @@ static void DrawNetplayPlayerPanel() {
 }
 
 void DrawNetworkWindow(bool* pOpen) {
-	static bool bDebug = false;
 	static NetworkWindowState netState = NWS_CAPTURE;
-	static uint8_t deviceIdx = 0xff;
-	static uint8_t deviceType = 0xff;
 
 	Begin(
 		"Network",
 		pOpen,
 		ImGuiWindowFlags_None
 	);
-	Text("Steam multiplayer is disabled while sf4e is running.");
-	Separator();
+	if (s_devNetplayOverlay || !s_playerNetplayUi) {
+		Text("Steam multiplayer is disabled while sf4e is running.");
+		Separator();
+	}
 
 	if (s_playerNetplayUi && !s_devNetplayOverlay) {
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.0f, 10.0f));
@@ -1286,7 +1497,7 @@ void DrawNetworkWindow(bool* pOpen) {
 
 	if (s_devNetplayOverlay) {
 		ImGui::InputInt("Randomize inputs every X frames", &fSystem::nRandomizeLocalInputsEveryXFramesInGGPO);
-		ImGui::Checkbox("Show debug data?", &bDebug);
+		ImGui::Checkbox("Show debug data?", &networkShowDebug);
 		Separator();
 	}
 	if (clientAlerts.size() > 0) {
@@ -1305,13 +1516,14 @@ void DrawNetworkWindow(bool* pOpen) {
 	else {
 		switch (netState) {
 		case NWS_CAPTURE:
-			if (deviceIdx == 0xff && deviceType == 0xff) {
-				if (sf4e::NetplayFacade::TryCapturePadForSide(0, deviceIdx, deviceType)) {
-					netState = NWS_DECIDE;
-				}
-				else {
-					Text("Press start or LK...");
-				}
+			if (networkDeviceIdx != 0xff && networkDeviceType != 0xff) {
+				netState = NWS_DECIDE;
+			}
+			else if (sf4e::NetplayFacade::TryCapturePadForSide(0, networkDeviceIdx, networkDeviceType)) {
+				netState = NWS_DECIDE;
+			}
+			else {
+				Text("Press start or LK...");
 			}
 			break;
 		case NWS_DECIDE:
@@ -1324,13 +1536,13 @@ void DrawNetworkWindow(bool* pOpen) {
 			break;
 		case NWS_HOST:
 			if (!fUserApp::server) {
-				DrawNetworkHostPanel(deviceIdx, deviceType);
+				DrawNetworkHostPanel(networkDeviceIdx, networkDeviceType);
 				if (Button("Go back")) {
 					netState = NWS_DECIDE;
 				}
 			}
 			else {
-				if (bDebug) {
+				if (networkShowDebug) {
 					Text("Server initialized, client map:");
 					for (auto iter = fUserApp::server->clients.begin(); iter != fUserApp::server->clients.end(); iter++) {
 						Text(
@@ -1351,7 +1563,7 @@ void DrawNetworkWindow(bool* pOpen) {
 			break;
 		case NWS_JOIN:
 			if (!fUserApp::netplay) {
-				DrawNetworkJoinPanel(deviceIdx, deviceType);
+				DrawNetworkJoinPanel(networkDeviceIdx, networkDeviceType);
 				if (Button("Go back")) {
 					netState = NWS_DECIDE;
 				}
@@ -1548,7 +1760,6 @@ void DrawAdapterSummary(rSoundPlayerManager::CriPlayerAdapter* adapter) {
 
 void DrawSoundWindow(bool* pOpen) {
 	static int currentManagerIdx = -1;
-	static bool bShowDetails = false;
 
 	Begin(
 		"Sound",
@@ -1556,7 +1767,7 @@ void DrawSoundWindow(bool* pOpen) {
 		ImGuiWindowFlags_None
 	);
 	ImGui::Checkbox("Track plays?", &fSoundPlayerManager::bTrackRequests);
-	ImGui::Checkbox("Show details?", &bShowDetails);
+	ImGui::Checkbox("Show details?", &soundShowDetails);
 
 	System* system = System::staticMethods.GetSingleton();
 	int isFight = (system->*System::publicMethods.IsFight)();
@@ -1588,7 +1799,7 @@ void DrawSoundWindow(bool* pOpen) {
 	}
 
 	Text("Deferred playback: %d", fSoundPlayerManager::bUsePureSounds);
-	if (bShowDetails) {
+	if (soundShowDetails) {
 		ImGui::BeginChild("left pane", ImVec2(150, 0), true);
 		for (int i = 0; i < 8; i++) {
 			char label[128];
@@ -2233,6 +2444,11 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	ImGui_ImplWin32_Init(hWnd);
 	ImGui_ImplDX9_Init(lpDevice);
 	fMainMenu::OnModeSelectedOverride = OnMainMenuModeSelected;
+
+	sf4e::OverlayPrefs::Data prefs{};
+	if (sf4e::OverlayPrefs::Load(prefs)) {
+		ApplyOverlayPrefs(prefs);
+	}
 }
 
 void Overlay::DrawOverlay() {
@@ -2240,116 +2456,146 @@ void Overlay::DrawOverlay() {
 	ImGui_ImplWin32_NewFrame();
 	NewFrame();
 
-	DrawHashOverlay();
-	if (ImGui::IsMousePosValid() && ImGui::GetIO().MousePos.y < 200) {
-		if (BeginMainMenuBar()) {
-			if (BeginMenu("Eva")) {
-				if (MenuItem("Tasks")) {
-					show_task_window = true;
+	// Original sf4e debug tooling (hash + Eva/Event/Battle menus) is DEV-only.
+	// Players keep a slim top toolbar so Network/Rematch stay reachable after closing the panel.
+	if (s_devNetplayOverlay) {
+		DrawHashOverlay();
+		if (ImGui::IsMousePosValid() && ImGui::GetIO().MousePos.y < 200) {
+			if (BeginMainMenuBar()) {
+				if (BeginMenu("Eva")) {
+					if (MenuItem("Tasks")) {
+						show_task_window = true;
+					}
+					ImGui::EndMenu();
 				}
-				ImGui::EndMenu();
+
+				if (BeginMenu("Event")) {
+					if (MenuItem("Overview")) {
+						show_event_window = true;
+					}
+					ImGui::EndMenu();
+				}
+
+				if (BeginMenu("Game")) {
+					if (MenuItem("Mementos")) {
+						show_memento_window = true;
+					}
+					ImGui::EndMenu();
+				}
+
+				if (BeginMenu("GameEvents")) {
+					if (MenuItem("MainMenu")) {
+						show_main_menu_window = true;
+					}
+					if (MenuItem("VsBattle")) {
+						show_vsbattle_window = true;
+					}
+					if (MenuItem("VsCharaSelect")) {
+						show_vscharaselect_window = true;
+					}
+					if (MenuItem("VsStageSelect")) {
+						show_vsstageselect_window = true;
+					}
+					ImGui::EndMenu();
+				}
+
+				if (BeginMenu("Battle")) {
+					if (MenuItem("Chara")) {
+						show_chara_window = true;
+					}
+
+					if (MenuItem("Command")) {
+						show_command_window = true;
+					}
+
+					if (MenuItem("HUD")) {
+						show_hud_window = true;
+					}
+
+					if (MenuItem("Sound")) {
+						show_sound_window = true;
+					}
+
+					if (MenuItem("System")) {
+						show_system_window = true;
+					}
+
+					if (MenuItem("Vfx")) {
+						show_vfx_window = true;
+					}
+
+					ImGui::EndMenu();
+				}
+
+				if (BeginMenu("Pad")) {
+					if (MenuItem("System")) {
+						show_pad_window = true;
+					}
+
+					ImGui::EndMenu();
+				}
+
+				if (BeginMenu("Platform")) {
+					if (MenuItem("GFxApp")) {
+						show_gfxapp_window = true;
+					}
+
+					ImGui::EndMenu();
+				}
+
+				if (BeginMenu("Network")) {
+					if (MenuItem("Network test")) {
+						show_network_window = true;
+					}
+
+					ImGui::EndMenu();
+				}
+
+				if (BeginMenu("Imgui")) {
+					if (MenuItem("Demo")) {
+						show_demo_window = true;
+					}
+
+					if (MenuItem("Help")) {
+						show_help_window = true;
+					}
+
+					ImGui::EndMenu();
+				}
+
+				if (MenuItem("Log")) {
+					show_log_window = true;
+				}
+
+				{
+					const bool canRematch = CanLobbyReady();
+					ImGui::BeginDisabled(!canRematch);
+					if (MenuItem("Rematch")) {
+						TryLobbyReady();
+					}
+					ImGui::EndDisabled();
+				}
+
+				EndMainMenuBar();
 			}
-
-			if (BeginMenu("Event")) {
-				if (MenuItem("Overview")) {
-					show_event_window = true;
-				}
-				ImGui::EndMenu();
-			}
-
-			if (BeginMenu("Game")) {
-				if (MenuItem("Mementos")) {
-					show_memento_window = true;
-				}
-				ImGui::EndMenu();
-			}
-
-			if (BeginMenu("GameEvents")) {
-				if (MenuItem("MainMenu")) {
-					show_main_menu_window = true;
-				}
-				if (MenuItem("VsBattle")) {
-					show_vsbattle_window = true;
-				}
-				if (MenuItem("VsCharaSelect")) {
-					show_vscharaselect_window = true;
-				}
-				if (MenuItem("VsStageSelect")) {
-					show_vsstageselect_window = true;
-				}
-				ImGui::EndMenu();
-			}
-
-			if (BeginMenu("Battle")) {
-				if (MenuItem("Chara")) {
-					show_chara_window = true;
-				}
-
-				if (MenuItem("Command")) {
-					show_command_window = true;
-				}
-
-				if (MenuItem("HUD")) {
-					show_hud_window = true;
-				}
-
-				if (MenuItem("Sound")) {
-					show_sound_window = true;
-				}
-
-				if (MenuItem("System")) {
-					show_system_window = true;
-				}
-
-				if (MenuItem("Vfx")) {
-					show_vfx_window = true;
-				}
-
-				ImGui::EndMenu();
-			}
-
-			if (BeginMenu("Pad")) {
-				if (MenuItem("System")) {
-					show_pad_window = true;
-				}
-
-				ImGui::EndMenu();
-			}
-			
-			if (BeginMenu("Platform")) {
-				if (MenuItem("GFxApp")) {
-					show_gfxapp_window = true;
-				}
-
-				ImGui::EndMenu();
-			}
-
-			if (BeginMenu("Network")) {
-				if (MenuItem("Network test")) {
+		}
+	}
+	else if (s_playerNetplayUi) {
+		if (ImGui::IsMousePosValid() && ImGui::GetIO().MousePos.y < 200) {
+			if (BeginMainMenuBar()) {
+				if (MenuItem("Network")) {
 					show_network_window = true;
 				}
-
-				ImGui::EndMenu();
-			}
-
-			if (BeginMenu("Imgui")) {
-				if (MenuItem("Demo")) {
-					show_demo_window = true;
+				{
+					const bool canRematch = CanLobbyReady();
+					ImGui::BeginDisabled(!canRematch);
+					if (MenuItem("Rematch")) {
+						TryLobbyReady();
+					}
+					ImGui::EndDisabled();
 				}
-
-				if (MenuItem("Help")) {
-					show_help_window = true;
-				}
-
-				ImGui::EndMenu();
+				EndMainMenuBar();
 			}
-
-
-			if (MenuItem("Log")) {
-				show_log_window = true;
-			}
-
-			EndMainMenuBar();
 		}
 	}
 
@@ -2440,12 +2686,15 @@ void Overlay::DrawOverlay() {
 		}
 	}
 
+	MaybePersistOverlayPrefs();
+
 	EndFrame();
 	ImGui::Render();
 	ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 }
 
 void Overlay::FreeOverlay() {
+	PersistOverlayPrefsNow();
 	ImGui_ImplDX9_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();

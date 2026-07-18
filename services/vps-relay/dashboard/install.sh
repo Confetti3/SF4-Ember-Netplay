@@ -48,15 +48,15 @@ popd >/dev/null
 cat > "$DASHBOARD_SERVICE" <<EOF
 [Unit]
 Description=SF4e VPS relay dashboard
-After=network.target sf4e-relay-manager.service
-Wants=sf4e-relay-manager.service
+After=network-online.target sf4e-relay-manager.service
+Wants=network-online.target sf4e-relay-manager.service
 
 [Service]
 Type=simple
 WorkingDirectory=$DASHBOARD_DIR
 EnvironmentFile=$ENV_FILE
 ExecStart=$NODE_DIR/bin/node $DASHBOARD_DIR/server.js
-Restart=on-failure
+Restart=always
 RestartSec=5
 
 [Install]
