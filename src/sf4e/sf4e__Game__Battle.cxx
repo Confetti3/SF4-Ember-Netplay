@@ -76,10 +76,23 @@ void fSoundPlayerManager::Install() {
 	CriPlayerAdapter::Install();
 }
 
+// Reset the tracked metadata for every adapter owned by this manager.
+// A freshly created manager's adapters can land on heap addresses that
+// a previous battle's adapters occupied; any metadata surviving at those
+// keys (see the purge in the destructor, which this backstops) would
+// attach stale sounds to brand-new adapters.
+static void ResetAdapterMetadata(rSoundPlayerManager* m) {
+	rSoundPlayerManager::CriPlayerAdapter* adapters = *rSoundPlayerManager::GetAdapters(m);
+	for (int i = 0; i < *rSoundPlayerManager::GetNumAdapters(m); i++) {
+		fSoundPlayerManager::adapterToCurrentSound[&adapters[i]] = fSoundPlayerManager::DeferredSoundRequest{};
+	}
+}
+
 rSoundPlayerManager* fSoundPlayerManager::Factory(DWORD param_1, DWORD param_2, int* numAdapters) {
 	if (!bUsePureSounds) {
 		rSoundPlayerManager* out = rSoundPlayerManager::staticMethods.Factory(param_1, param_2, numAdapters);
 		shadowManagerMap[out] = NULL;
+		ResetAdapterMetadata(out);
 		return out;
 	}
 
@@ -91,13 +104,31 @@ rSoundPlayerManager* fSoundPlayerManager::Factory(DWORD param_1, DWORD param_2, 
 	Platform::Sound::bAllowNewPlayers = _bAllowNewPlayers;
 	shadowManagerMap[stub] = real;
 	queuedStops[stub] = std::vector<DeferredSoundRequest>();
+	ResetAdapterMetadata(stub);
+	ResetAdapterMetadata(real);
 	return stub;
 }
 
 void fSoundPlayerManager::destructor(BOOL param_1) {
+	// Purge this manager's adapters (and its shadow's) from the metadata
+	// map before the adapter arrays are freed. Entries left behind would
+	// be keyed by dangling pointers- and because the heap likes to reuse
+	// same-sized blocks, the next battle's adapters frequently land on
+	// these exact addresses and inherit stale "live" sounds with handles
+	// into cue sheets that no longer exist.
 	if (bUsePureSounds) {
 		rSoundPlayerManager* real = shadowManagerMap[this];
-		(real->*rSoundPlayerManager::publicMethods.destructor)(param_1);
+		if (real) {
+			rSoundPlayerManager::CriPlayerAdapter* realAdapters = *rSoundPlayerManager::GetAdapters(real);
+			for (int i = 0; i < *rSoundPlayerManager::GetNumAdapters(real); i++) {
+				adapterToCurrentSound.erase(&realAdapters[i]);
+			}
+			(real->*rSoundPlayerManager::publicMethods.destructor)(param_1);
+		}
+	}
+	rSoundPlayerManager::CriPlayerAdapter* adapters = *rSoundPlayerManager::GetAdapters(this);
+	for (int i = 0; i < *rSoundPlayerManager::GetNumAdapters(this); i++) {
+		adapterToCurrentSound.erase(&adapters[i]);
 	}
 	queuedStops.erase(this);
 	shadowManagerMap.erase(this);
@@ -162,14 +193,25 @@ SoundHandle fSoundPlayerManager::PlaySound(
 				}
 			}
 
-			this->StopSound(oldestReq->currentAdapterHandle, 1);
-			out = (this->*rSoundPlayerManager::publicMethods.PlaySound)(
-				cueSheetHandle,
-				cueIdx,
-				type,
-				flags,
-				position
-			);
+			if (oldestReq != NULL) {
+				this->StopSound(oldestReq->currentAdapterHandle, 1);
+				out = (this->*rSoundPlayerManager::publicMethods.PlaySound)(
+					cueSheetHandle,
+					cueIdx,
+					type,
+					flags,
+					position
+				);
+			}
+		}
+
+		if (out == 0xffffffff) {
+			// The play failed and freeing a player either wasn't possible
+			// or didn't help- e.g. the request itself is invalid (a cue
+			// sheet handle from a torn-down battle). Don't record metadata
+			// for a sound that isn't playing: decoding this handle would
+			// produce adapter index 0xffff, far outside the adapter array.
+			return out;
 		}
 
 		SoundReference adapterReference = SoundReference::FromHandle(out);
@@ -180,8 +222,13 @@ SoundHandle fSoundPlayerManager::PlaySound(
 			// If this adapter was already live, the successful `PlaySound`
 			// call must have interrupted an existing sound. The syncing
 			// step can't really differentiate between interrupts and
-			// stops, so just treat it as a stop.
-			queuedStops[this].push_back(meta);
+			// stops, so just treat it as a stop. Only stub managers queue
+			// stops- for the real manager (reached via SyncState), the
+			// interrupt already took effect and nothing ever drains a
+			// real manager's queue.
+			if (shadowManagerMap.count(this)) {
+				queuedStops[this].push_back(meta);
+			}
 		}
 		meta.bLive = true;
 		meta.nFrame = System::GetNumFramesSimulated_FixedPoint(System::staticMethods.GetSingleton())->integral;
@@ -202,7 +249,9 @@ void fSoundPlayerManager::StopSound(SoundHandle adapterHandle, BOOL criParam) {
 		rSoundPlayerManager::CriPlayerAdapter* adapter = &(*rSoundPlayerManager::GetAdapters(this))[adapterReference.index];
 		DeferredSoundRequest& meta = adapterToCurrentSound[adapter];
 		meta.bLive = false;
-		queuedStops[this].push_back(meta);
+		if (shadowManagerMap.count(this)) {
+			queuedStops[this].push_back(meta);
+		}
 	}
 
 	rSoundPlayerManager* _this = this;
@@ -212,10 +261,13 @@ void fSoundPlayerManager::StopSound(SoundHandle adapterHandle, BOOL criParam) {
 void fSoundPlayerManager::StopAll(BOOL criParam) {
 	if (bUsePureSounds) {
 		rSoundPlayerManager::CriPlayerAdapter* adapters = *rSoundPlayerManager::GetAdapters(this);
+		bool bIsStub = shadowManagerMap.count(this) > 0;
 		for (int i = 0; i < *rSoundPlayerManager::GetNumAdapters(this); i++) {
 			DeferredSoundRequest& meta = adapterToCurrentSound[&adapters[i]];
 			meta.bLive = false;
-			queuedStops[this].push_back(meta);
+			if (bIsStub) {
+				queuedStops[this].push_back(meta);
+			}
 		}
 		return;
 	}
@@ -252,15 +304,19 @@ void fSoundPlayerManager::SyncState() {
 		rSoundPlayerManager::CriPlayerAdapter* realPlayers = *rSoundPlayerManager::GetAdapters(realManager);
 
 		// If a sound in the stub manager was imperatively stopped, stop
-		// up to one corresponding sound that is actively playing. If no
-		// corresponding sound is actively playing, it may be a stop
-		// command for a sound that was already predictively stopped
-		// during forward simulation. If there's two corresponding sounds
-		// and there's only a stop command for one of them, we can stop
-		// either corresponding sound arbitrarily- the last phase (the
-		// update phase) can then freely associate the remaining corresponding
-		// sound with a playing sound, and update parameters like fades
-		// appropriately.
+		// up to one corresponding sound that is actively playing. A stop
+		// targets a specific sound *instance*, so a corresponding sound
+		// must match both the request arguments and the frame the sound
+		// started on (real-side metadata mirrors the stub's start frame,
+		// see the reconciliation phase below). If no corresponding sound
+		// is actively playing, the target instance was already stopped-
+		// either predictively during forward simulation, or by this same
+		// stop being applied before a rollback that re-simulated (and
+		// therefore re-queued) it. Re-applying such a stop by matching on
+		// arguments alone would kill an unrelated instance of the same
+		// cue- typically the freshly retriggered copy- which the
+		// reconciliation phase would then audibly restart from the
+		// beginning.
 		for (auto iter = queuedStops[stubManager].begin(); iter != queuedStops[stubManager].end(); iter++) {
 			DeferredSoundRequest stoppedSound = *iter;
 			for (int i = 0; i < *rSoundPlayerManager::GetNumAdapters(realManager); i++) {
@@ -270,7 +326,10 @@ void fSoundPlayerManager::SyncState() {
 					continue;
 				}
 
-				if (DeferredSoundRequest::IsEqual(&stoppedSound, realSound)) {
+				if (
+					DeferredSoundRequest::IsEqual(&stoppedSound, realSound) &&
+					realSound->nFrame == stoppedSound.nFrame
+				) {
 					((fSoundPlayerManager*)realManager)->StopSound(realSound->currentAdapterHandle, 1);
 					break;
 				}
@@ -356,11 +415,32 @@ void fSoundPlayerManager::SyncState() {
 					stubSound->flags,
 					stubSound->position
 				);
-				assert(playerHandle != 0xffffffff);
+				if (playerHandle == 0xffffffff) {
+					// The real manager couldn't serve the request- most
+					// likely the stub sound carries a stale handle (e.g.
+					// a cue sheet from a previous battle). Skip this sound
+					// rather than decoding the failure sentinel into an
+					// adapter index (0xffff) and scribbling far past the
+					// adapter array. This was previously only an assert,
+					// which NDEBUG builds compile out.
+					spdlog::warn(
+						"SyncState: real PlaySound failed for cue {} (sheet {:#x}); skipping reconcile",
+						stubSound->cueIdx,
+						stubSound->cueSheetHandle
+					);
+					continue;
+				}
 				SoundReference playerRef = SoundReference::FromHandle(playerHandle);
 				targetAdapter = playerRef.index;
 			}
 			rSoundPlayerManager::CriPlayerAdapter* realPlayer = &realPlayers[targetAdapter];
+			// Mirror the stub instance's start frame onto the real-side
+			// metadata. The stop phase above uses it to target the exact
+			// instance a queued stop was issued against; adopting the
+			// stub's frame here (rather than the wall-clock frame the
+			// real sound happened to start on) keeps that association
+			// stable across rollbacks that shift a sound's start frame.
+			adapterToCurrentSound[realPlayer].nFrame = stubSound->nFrame;
 			// XXX (adanducci): This is extremely likely to be broken.
 			realPlayer->flags = stubPlayer->flags;
 			realPlayer->position = stubPlayer->position;

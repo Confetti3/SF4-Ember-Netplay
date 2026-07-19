@@ -951,6 +951,22 @@ void fSystem::SaveState::Free(SaveState* victim) {
 void fSystem::SaveState::Load(SaveState* src) {
     std::vector<std::pair<rKey*, rKey>> tmpVec;
 
+    // Loading a state abandons the current timeline, and with it any
+    // stop intents queued by frames that are about to be re-simulated
+    // (or, for training-mode loads, discarded outright). Re-simulation
+    // re-queues every stop that survives in the corrected timeline, and
+    // the sync step's "shouldn't be playing" pass covers sounds that die
+    // with the abandoned one, so stale entries must not linger here-
+    // they'd stop (and audibly restart) sounds that are still supposed
+    // to be playing. Note this deliberately does NOT happen in
+    // CopyIntoPlace: SaveState::Free round-trips through that with the
+    // current timeline still live, and must preserve the queue.
+    if (fSoundPlayerManager::bUsePureSounds) {
+        for (auto& queue : fSoundPlayerManager::queuedStops) {
+            queue.second.clear();
+        }
+    }
+
     // Copy and zero all currently tracked keys. It's possible that the
     // initialization detour started tracking keys that were only
     // initialized after the save state was created.
