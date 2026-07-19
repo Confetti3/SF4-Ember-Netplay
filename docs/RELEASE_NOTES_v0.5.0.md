@@ -13,7 +13,9 @@ Both players must use the same release.
 
 ## New
 
-- **Training room (endless sparring)**: a checkbox on the Host screen. The match runs as an endless VS session — maximum rounds, no round timer — for both players. Experimental: if you see a round timer counting down in a training room, report it.
+- **Training room (endless sparring)**: a checkbox on the Host screen. The match runs as an endless VS session for both players — maximum rounds, and a round timer so long (~2.7 hours per round) it cannot expire in practice. The on-screen timer display may look odd since the HUD expects two digits; that's cosmetic.
+
+> **Re-download note:** the v0.5.0 zip was re-uploaded after the first training-room test — the initial asset had a zero-length round timer that instantly ended training rounds in a time over. If you grabbed the zip before the re-upload, download it again; both players must use the same zip.
 - Host settings (rounds, round time, edition select, training room) now reach the lobby on VPS-relay rooms. Previously relay rooms silently used server defaults and ignored the host's launcher settings.
 
 ## Fixes

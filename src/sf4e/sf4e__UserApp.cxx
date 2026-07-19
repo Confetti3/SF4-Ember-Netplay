@@ -101,13 +101,17 @@ static bool StartMatchFromLobby(SessionClient* const client) {
         // sparring session. Both clients derive these from the same lobby
         // flag, so the settings stay deterministic across peers.
         //
-        // EXPERIMENTAL VALUES: rounds beyond the menu's 1-7 range appear
-        // to work as "first to N/2+1", and a zero time limit is the
-        // candidate encoding for the VS menu's infinite timer. If testing
-        // shows a countdown or a broken round HUD, adjust these two
-        // values- everything else is plumbing.
+        // Rounds beyond the menu's 1-7 range work as "first to N/2+1".
+        //
+        // The time limit is deliberately a huge finite value rather than
+        // an "infinite" sentinel: live testing showed a zero time limit
+        // is taken literally (the round starts at 0 and instantly ends
+        // in time over), and the engine's encoding for the menu's
+        // infinite option is unknown. ~2.7 hours per round cannot expire
+        // in practice; the worst case is cosmetic (the HUD timer only
+        // expects two digits).
         BattleTypeSettings->rounds = 99;
-        BattleTypeSettings->timeLimit = { 0, 0 };
+        BattleTypeSettings->timeLimit = { 0, 9999 };
         spdlog::info("Netplay: lobby requested training mode; using endless sparring settings");
     }
     fVsPreBattle::bSkipToVersus = true;
