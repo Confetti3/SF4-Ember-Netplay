@@ -9,6 +9,7 @@
 
 #include <chrono>
 #include <cctype>
+#include <cstdint>
 #include <string>
 #include <thread>
 
@@ -23,11 +24,23 @@ static const char kRespRegistered[] = "SF4R";
 static const char kRespWaiting[] = "SF4W";
 static const int kRegPacketLenLegacy = 4 + 32;
 static const int kRegPacketLenV2 = 4 + 32 + 2;
+static const int kRegPacketLenV3 = 4 + 32 + 1 + 1 + 8 + 8;
+static const unsigned char kRegistrationVersionV3 = 3;
 static const int kMaxPacket = 2048;
 
 struct Endpoint {
 	sockaddr_in addr = {};
 	bool active = false;
+};
+
+struct GenerationKey {
+	uint64_t readyMessageNum[2] = {};
+	bool valid = false;
+};
+
+struct GenerationState {
+	GenerationKey key = {};
+	Endpoint slots[2] = {};
 };
 
 static bool IsHexToken(const char* token, int len) {
@@ -62,6 +75,31 @@ static bool SameIp(const sockaddr_in& a, const sockaddr_in& b) {
 
 static void CopyEndpoint(sockaddr_in& dst, const sockaddr_in& src) {
 	dst = src;
+}
+
+static uint64_t ReadU64Be(const unsigned char* data) {
+	uint64_t value = 0;
+	for (int i = 0; i < 8; i++) {
+		value = (value << 8) | data[i];
+	}
+	return value;
+}
+
+static bool SameGeneration(const GenerationKey& a, const GenerationKey& b) {
+	return
+		a.valid &&
+		b.valid &&
+		a.readyMessageNum[0] == b.readyMessageNum[0] &&
+		a.readyMessageNum[1] == b.readyMessageNum[1];
+}
+
+static bool BothSlotsActive(const Endpoint* slots) {
+	return slots[0].active && slots[1].active;
+}
+
+static void ResetGeneration(GenerationState& state, const GenerationKey& key) {
+	state = {};
+	state.key = key;
 }
 
 static int FindSlotByEndpoint(Endpoint* slots, const sockaddr_in& from) {
@@ -180,6 +218,8 @@ int main(int argc, char** argv) {
 	spdlog::info("GgpoUdpRelay listening on UDP {} token={}...", port, roomToken.substr(0, 8));
 
 	Endpoint slots[2];
+	GenerationState activeGeneration;
+	GenerationState pendingGeneration;
 	uint64_t lastTrafficMs = MonotonicMs();
 
 	for (;;) {
@@ -222,6 +262,85 @@ int main(int argc, char** argv) {
 
 		const bool isRegLegacy = n == kRegPacketLenLegacy && memcmp(buf, kMagicReg, 4) == 0;
 		const bool isRegV2 = n == kRegPacketLenV2 && memcmp(buf, kMagicReg, 4) == 0;
+		const bool isRegV3 =
+			n == kRegPacketLenV3 &&
+			memcmp(buf, kMagicReg, 4) == 0 &&
+			(unsigned char)buf[36] == kRegistrationVersionV3;
+
+		if (isRegV3) {
+			if (!TokenMatches(roomToken.c_str(), buf + 4)) {
+				continue;
+			}
+
+			const unsigned char playerSlot = (unsigned char)buf[37];
+			if (playerSlot > 1) {
+				spdlog::warn("V3 registration rejected: invalid player slot {}", playerSlot);
+				continue;
+			}
+
+			GenerationKey key;
+			key.readyMessageNum[0] = ReadU64Be((const unsigned char*)buf + 38);
+			key.readyMessageNum[1] = ReadU64Be((const unsigned char*)buf + 46);
+			key.valid = true;
+
+			GenerationState* target = nullptr;
+			bool isPending = false;
+			if (SameGeneration(activeGeneration.key, key)) {
+				target = &activeGeneration;
+			}
+			else {
+				if (!SameGeneration(pendingGeneration.key, key)) {
+					ResetGeneration(pendingGeneration, key);
+					spdlog::info(
+						"V3 pending generation ready=[{},{}]",
+						key.readyMessageNum[0],
+						key.readyMessageNum[1]
+					);
+				}
+				target = &pendingGeneration;
+				isPending = true;
+			}
+
+			const bool wasActive = target->slots[playerSlot].active;
+			const bool endpointChanged =
+				wasActive && !SameEndpoint(target->slots[playerSlot].addr, from);
+			CopyEndpoint(target->slots[playerSlot].addr, from);
+			target->slots[playerSlot].active = true;
+
+			char ipStr[INET_ADDRSTRLEN] = { 0 };
+			inet_ntop(AF_INET, &from.sin_addr, ipStr, sizeof(ipStr));
+			if (!wasActive || endpointChanged) {
+				spdlog::info(
+					"V3 registered generation=[{},{}] slot={} endpoint={}:{}{}",
+					key.readyMessageNum[0],
+					key.readyMessageNum[1],
+					playerSlot,
+					ipStr,
+					ntohs(from.sin_port),
+					endpointChanged ? " (rebound)" : ""
+				);
+			}
+
+			if (isPending && BothSlotsActive(pendingGeneration.slots)) {
+				activeGeneration = pendingGeneration;
+				pendingGeneration = {};
+				target = &activeGeneration;
+				isPending = false;
+				spdlog::info(
+					"V3 promoted generation ready=[{},{}]",
+					activeGeneration.key.readyMessageNum[0],
+					activeGeneration.key.readyMessageNum[1]
+				);
+			}
+
+			const char* resp =
+				!isPending && BothSlotsActive(target->slots)
+					? kRespRegistered
+					: kRespWaiting;
+			sendto(sock, resp, 4, 0, (sockaddr*)&from, fromLen);
+			continue;
+		}
+
 		if (isRegLegacy || isRegV2) {
 			if (!TokenMatches(roomToken.c_str(), buf + 4)) {
 				continue;
@@ -246,7 +365,8 @@ int main(int argc, char** argv) {
 				continue;
 			}
 
-			const bool rematchRebind = slots[slotIdx].active;
+			const bool rematchRebind =
+				slots[slotIdx].active && !SameEndpoint(slots[slotIdx].addr, from);
 			// Always keep the real NAT 5-tuple from recvfrom. Overwriting with the
 			// client's declared GGPO port (usually 23457) black-holes GGPO traffic
 			// behind consumer NATs after SF4R succeeds.
@@ -301,9 +421,15 @@ int main(int argc, char** argv) {
 			continue;
 		}
 
-		int srcSlot = FindSlotByEndpoint(slots, from);
+		Endpoint* forwardingSlots =
+			activeGeneration.key.valid ? activeGeneration.slots : slots;
+		int srcSlot = FindSlotByEndpoint(forwardingSlots, from);
 		if (srcSlot < 0) {
-			const int ipSlot = FindSlotByIp(slots, from);
+			// Legacy/v2 clients have no explicit player slot, so retain the
+			// unambiguous-IP rebind fallback. V3 endpoints must match exactly;
+			// this keeps same-public-IP peers from stealing each other's slot.
+			const int ipSlot =
+				activeGeneration.key.valid ? -1 : FindSlotByIp(forwardingSlots, from);
 			if (ipSlot >= 0) {
 				char ipStr[INET_ADDRSTRLEN] = { 0 };
 				inet_ntop(AF_INET, &from.sin_addr, ipStr, sizeof(ipStr));
@@ -312,9 +438,9 @@ int main(int argc, char** argv) {
 					ipSlot,
 					ipStr,
 					ntohs(from.sin_port),
-					ntohs(slots[ipSlot].addr.sin_port)
+					ntohs(forwardingSlots[ipSlot].addr.sin_port)
 				);
-				CopyEndpoint(slots[ipSlot].addr, from);
+				CopyEndpoint(forwardingSlots[ipSlot].addr, from);
 				srcSlot = ipSlot;
 			}
 		}
@@ -322,10 +448,17 @@ int main(int argc, char** argv) {
 			continue;
 		}
 		int dstSlot = srcSlot == 0 ? 1 : 0;
-		if (!slots[dstSlot].active) {
+		if (!forwardingSlots[dstSlot].active) {
 			continue;
 		}
-		sendto(sock, buf, n, 0, (sockaddr*)&slots[dstSlot].addr, sizeof(slots[dstSlot].addr));
+		sendto(
+			sock,
+			buf,
+			n,
+			0,
+			(sockaddr*)&forwardingSlots[dstSlot].addr,
+			sizeof(forwardingSlots[dstSlot].addr)
+		);
 	}
 
 	close(sock);

@@ -5,21 +5,22 @@ Run after transport stack changes (Phases 1–3). Complements [SMOKE_TEST.md](SM
 ## Defaults during rollout
 
 - VPS: `BROKER_GGPO_TRANSPORT=auto` (production default as of 2026-05-27)
-- Client: unset env uses connect-plan from broker (`udp_relay` with auto ladder fallback to legacy tunnel)
+- Client: unset env uses the broker connect-plan; VPS matches require UDP relay and never auto-fall back to the session tunnel
 - Override: `SF4E_GGPO_TRANSPORT=legacy|udp|p2p|auto`
 
 ## Matrix
 
 | # | Mode | Steps | Pass |
 |---|------|-------|------|
-| 1 | Legacy VPS | `SF4E_GGPO_TRANSPORT=legacy`, Get code, 2P match, rematch | Session tunnel works; dev overlay shows tunnel sends |
-| 2 | UDP relay | VPS `BROKER_GGPO_TRANSPORT=auto`, client `SF4E_GGPO_TRANSPORT=udp`, 2P match | Overlay transport `udp_relay`; no desync |
-| 3 | Auto ladder | VPS + client `SF4E_GGPO_TRANSPORT=auto`, 2P match | Match completes; dashboard shows `transportActive` |
-| 4 | UDP fallback | Block ggpo UDP port on client firewall, `auto` | Match still starts via legacy tunnel; `transport_fallback` event on dashboard |
-| 5 | P2P LAN | Same LAN, `auto`, both register endpoints | Prefer `p2p` when broker predicts punchable |
-| 6 | Join path | Guest joins via SF4- code only | Connect plan applied; guest registers endpoint |
-| 7 | Prune | Idle room past timeout | Both session + ggpo relay processes stopped on VPS |
-| 8 | Version | Launcher v5 config + old Sidecar v4 | Clear version mismatch, no silent failure |
+| 1 | UDP initial match | VPS `BROKER_GGPO_TRANSPORT=auto`, two v0.4.7 clients, fresh room | Both log `SF4R`, then phases `Connected → Synchronizing → Running` |
+| 2 | UDP rematch | Complete row 1, Ready again twice | Each generation gates on both slots; both rematches reach `Running` |
+| 3 | Asymmetric load | Delay one player before entering battle | First player sees `SF4W`; neither starts alone; both eventually reach `SF4R` |
+| 4 | UDP blocked | Block the allocated `24456–24475/udp` path | Clear timeout/abort to lobby; no asymmetric legacy fallback |
+| 5 | Same public IP | Two clients behind one NAT | Explicit player slots pair and forward bidirectionally |
+| 6 | Forced legacy diagnostics | `SF4E_GGPO_TRANSPORT=legacy` on both clients | Session tunnel works only as an explicit ops/debug override |
+| 7 | Join path | Guest joins via SF4- code only | Connect plan applied; guest registers endpoint |
+| 8 | Prune | Idle room past timeout | Both session + GGPO relay processes stop on VPS |
+| 9 | Version | Mismatched Sidecar builds | Clear hash/version rejection; no silent failure |
 
 ## VPS checks
 
@@ -37,10 +38,6 @@ curl -s http://127.0.0.1:8787/v1/rooms/SF4-XXXX/health
 
 Expect `ggpoRelayOk: true` when `BROKER_GGPO_TRANSPORT=auto`.
 
-## Flip production default
+## Automated gate
 
-Only after rows 1–4 pass on two machines:
-
-1. Set VPS `BROKER_GGPO_TRANSPORT=auto`
-2. Ship launcher with default `auto` (optional env still overrides)
-3. Monitor dashboard Matches panel for `transportActive` and disconnect events
+Run `python scripts/transport-regression-test.py` before the two-machine matrix. It must pass v2 compatibility, v3 generations, socket handoff, forwarding, stale-generation isolation, and same-IP rebinding.

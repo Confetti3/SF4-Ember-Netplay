@@ -71,6 +71,7 @@ namespace sf4e {
 		void HandleNetplayFailure(const char* reason, bool closeGgpo);
 		void ShutdownNetplay(bool closeGgpo);
 		void ClearBattleState();
+		void CancelDeferredGgpoClose();
 		bool ShouldDeferGgpoClose();
 		void NotifyMatchEnded();
 		void CheckGraphicsWarning();

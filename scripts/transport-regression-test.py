@@ -64,93 +64,149 @@ def nat_probe() -> dict:
         s.close()
 
 
-def ggpo_register(ggpo_port: int, room_token: str, local_ggpo_port: int = 23457) -> str:
-    packet = b"SF4G" + room_token.encode("ascii")
-    packet += bytes([(local_ggpo_port >> 8) & 0xFF, local_ggpo_port & 0xFF])
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.settimeout(3)
-    try:
-        s.sendto(packet, (HOST, ggpo_port))
-        data, _ = s.recvfrom(64)
-        return data.decode("ascii", errors="replace")
-    except socket.timeout:
-        return "timeout"
-    finally:
-        s.close()
-
-
-def ggpo_relay_forward_test(ggpo_port: int, room_token: str) -> bool:
-    """Two local clients register with distinct GGPO ports; verify bidirectional relay."""
+def v2_registration(room_token: str, local_ggpo_port: int) -> bytes:
     token = room_token.encode("ascii")
-    reg_a = b"SF4G" + token + bytes([(23457 >> 8) & 0xFF, 23457 & 0xFF])
-    reg_b = b"SF4G" + token + bytes([(23458 >> 8) & 0xFF, 23458 & 0xFF])
-    payload_a = b"GGPO_TEST_A"
-    payload_b = b"GGPO_TEST_B"
+    return b"SF4G" + token + local_ggpo_port.to_bytes(2, "big")
+
+
+def v3_registration(room_token: str, player_slot: int, ready0: int, ready1: int) -> bytes:
+    token = room_token.encode("ascii")
+    return (
+        b"SF4G"
+        + token
+        + bytes([3, player_slot])
+        + ready0.to_bytes(8, "big")
+        + ready1.to_bytes(8, "big")
+    )
+
+
+def send_registration(sock: socket.socket, dest: tuple[str, int], packet: bytes) -> bytes:
+    sock.sendto(packet, dest)
+    response, source = sock.recvfrom(64)
+    if source[0] != socket.gethostbyname(HOST) or source[1] != dest[1]:
+        raise OSError(f"registration response from unexpected source {source}")
+    return response
+
+
+def ggpo_v2_compatibility_test(ggpo_port: int, room_token: str) -> bool:
+    """v0.4.6: repeated keepalives must not unpair a fresh two-client room."""
+    local_a = 23557
+    local_b = 23558
+    reg_a = v2_registration(room_token, local_a)
+    reg_b = v2_registration(room_token, local_b)
 
     sa = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sb = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sa.settimeout(3)
     sb.settimeout(3)
     try:
-        # codeql py/bind-socket-all-network-interfaces: test harness; sends to remote VPS only
-        sa.bind(("0.0.0.0", 23457))
-        sb.bind(("0.0.0.0", 23458))
+        sa.bind(("0.0.0.0", local_a))
+        sb.bind(("0.0.0.0", local_b))
         dest = (HOST, ggpo_port)
-        sa.sendto(reg_a, dest)
-        ra, _ = sa.recvfrom(64)
-        sb.sendto(reg_b, dest)
-        rb, _ = sb.recvfrom(64)
-        if not (ra.startswith(b"SF4R") or ra.startswith(b"SF4W")):
+        if send_registration(sa, dest, reg_a) != b"SF4W":
             return False
-        if not rb.startswith(b"SF4R"):
+        if send_registration(sb, dest, reg_b) != b"SF4R":
             return False
-        sa.sendto(payload_a, dest)
-        sb.sendto(payload_b, dest)
-        fb, _ = sb.recvfrom(256)
-        fa, _ = sa.recvfrom(256)
-        return fb == payload_a and fa == payload_b
-    except OSError:
-        return False
-    finally:
-        sa.close()
-        sb.close()
+        if send_registration(sa, dest, reg_a) != b"SF4R":
+            return False
+        if send_registration(sa, dest, reg_a) != b"SF4R":
+            return False
 
-
-def ggpo_relay_rematch_registration_test(ggpo_port: int, room_token: str) -> bool:
-    """After both slots are filled, a new probe socket must still get SF4R/SF4W (rematch)."""
-    token = room_token.encode("ascii")
-    reg_a = b"SF4G" + token + bytes([(23457 >> 8) & 0xFF, 23457 & 0xFF])
-    reg_b = b"SF4G" + token + bytes([(23458 >> 8) & 0xFF, 23458 & 0xFF])
-    reg_rematch = b"SF4G" + token + bytes([(23457 >> 8) & 0xFF, 23457 & 0xFF])
-
-    sa = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sb = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    rematch = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sa.settimeout(3)
-    sb.settimeout(3)
-    rematch.settimeout(3)
-    try:
-        dest = (HOST, ggpo_port)
-        # codeql py/bind-socket-all-network-interfaces: test harness; sends to remote VPS only
-        sa.bind(("0.0.0.0", 23457))
-        sb.bind(("0.0.0.0", 23458))
-        sa.sendto(reg_a, dest)
-        ra, _ = sa.recvfrom(64)
-        sb.sendto(reg_b, dest)
-        rb, _ = sb.recvfrom(64)
-        if not (ra.startswith(b"SF4R") or ra.startswith(b"SF4W")):
+        sa.sendto(b"V2_A", dest)
+        if sb.recvfrom(64)[0] != b"V2_A":
             return False
-        if not (rb.startswith(b"SF4R") or rb.startswith(b"SF4W")):
-            return False
-        rematch.sendto(reg_rematch, dest)
-        rr, _ = rematch.recvfrom(64)
-        return rr.startswith(b"SF4R") or rr.startswith(b"SF4W")
+        sb.sendto(b"V2_B", dest)
+        return sa.recvfrom(64)[0] == b"V2_B"
     except (OSError, socket.timeout):
         return False
     finally:
         sa.close()
         sb.close()
-        rematch.close()
+
+
+def ggpo_v3_generation_test(ggpo_port: int, room_token: str) -> bool:
+    """Exercise initial pairing, handoff, same-IP peers, stale packets, and rematches."""
+    local_a = 23657
+    local_b = 23658
+    dest = (HOST, ggpo_port)
+
+    def new_socket(port: int) -> socket.socket:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(3)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind(("0.0.0.0", port))
+        return s
+
+    sa = new_socket(local_a)
+    sb = new_socket(local_b)
+    try:
+        gen1_a = v3_registration(room_token, 0, 1001, 2001)
+        gen1_b = v3_registration(room_token, 1, 1001, 2001)
+        if send_registration(sa, dest, gen1_a) != b"SF4W":
+            return False
+        if send_registration(sa, dest, gen1_a) != b"SF4W":
+            return False
+        if send_registration(sb, dest, gen1_b) != b"SF4R":
+            return False
+        if send_registration(sa, dest, gen1_a) != b"SF4R":
+            return False
+
+        # Close/rebind exactly like the client-to-GGPO socket handoff.
+        sa.close()
+        sb.close()
+        sa = new_socket(local_a)
+        sb = new_socket(local_b)
+        sa.sendto(b"GEN1_A", dest)
+        if sb.recvfrom(64)[0] != b"GEN1_A":
+            return False
+        sb.sendto(b"GEN1_B", dest)
+        if sa.recvfrom(64)[0] != b"GEN1_B":
+            return False
+
+        # First rematch registrant waits while the old generation still forwards.
+        gen2_a = v3_registration(room_token, 0, 1002, 2002)
+        gen2_b = v3_registration(room_token, 1, 1002, 2002)
+        if send_registration(sa, dest, gen2_a) != b"SF4W":
+            return False
+        if send_registration(sa, dest, gen2_a) != b"SF4W":
+            return False
+        sa.sendto(b"OLD_ACTIVE", dest)
+        if sb.recvfrom(64)[0] != b"OLD_ACTIVE":
+            return False
+        if send_registration(sb, dest, gen2_b) != b"SF4R":
+            return False
+        if send_registration(sa, dest, gen2_a) != b"SF4R":
+            return False
+
+        # A stale old-generation packet may create pending state but cannot replace active.
+        if send_registration(sa, dest, gen1_a) != b"SF4W":
+            return False
+        sa.sendto(b"GEN2_STILL_ACTIVE", dest)
+        if sb.recvfrom(64)[0] != b"GEN2_STILL_ACTIVE":
+            return False
+
+        # A new explicit slot endpoint can rebind safely even when both clients share an IP.
+        sa.close()
+        local_a_rebound = 23659
+        sa = new_socket(local_a_rebound)
+        gen3_a = v3_registration(room_token, 0, 1003, 2003)
+        gen3_b = v3_registration(room_token, 1, 1003, 2003)
+        if send_registration(sa, dest, gen3_a) != b"SF4W":
+            return False
+        if send_registration(sb, dest, gen3_b) != b"SF4R":
+            return False
+        if send_registration(sa, dest, gen3_a) != b"SF4R":
+            return False
+        sa.sendto(b"GEN3_A", dest)
+        if sb.recvfrom(64)[0] != b"GEN3_A":
+            return False
+        sb.sendto(b"GEN3_B", dest)
+        return sa.recvfrom(64)[0] == b"GEN3_B"
+    except (OSError, socket.timeout):
+        return False
+    finally:
+        sa.close()
+        sb.close()
 
 
 def run_checks() -> list[Check]:
@@ -285,28 +341,20 @@ def run_checks() -> list[Check]:
         )
 
         if room_token and ggpo_port:
-            ggpo_resp = ggpo_register(ggpo_port, room_token, 23457)
+            v2_ok = ggpo_v2_compatibility_test(ggpo_port, room_token)
             checks.append(
                 Check(
-                    "GGPO UDP relay registration (v2)",
-                    ggpo_resp.startswith("SF4R") or ggpo_resp.startswith("SF4W"),
-                    f"response={ggpo_resp!r}",
+                    "GGPO UDP relay v2 compatibility",
+                    v2_ok,
+                    "stable keepalive pairing + bidirectional forwarding",
                 )
             )
-            forward_ok = ggpo_relay_forward_test(ggpo_port, room_token)
+            v3_ok = ggpo_v3_generation_test(ggpo_port, room_token)
             checks.append(
                 Check(
-                    "GGPO UDP relay bidirectional forward",
-                    forward_ok,
-                    "ports 23457/23458 via declared registration",
-                )
-            )
-            rematch_ok = ggpo_relay_rematch_registration_test(ggpo_port, room_token)
-            checks.append(
-                Check(
-                    "GGPO UDP relay rematch re-registration",
-                    rematch_ok,
-                    "ephemeral probe after both slots full",
+                    "GGPO UDP relay v3 generations",
+                    v3_ok,
+                    "initial pair + handoff + stale generation + rematches + same-IP rebind",
                 )
             )
 

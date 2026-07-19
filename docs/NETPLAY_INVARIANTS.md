@@ -22,3 +22,8 @@ Do not change these behaviors without regression testing (SessionInteractiveTest
 
 - Relay only changes how UDP reaches peers; it must not alter memento save/load or advance-frame callback semantics.
 - When relay is off, behavior matches direct `memberData.ip` / `memberData.port` GGPO endpoints.
+- UDP registration succeeds only on `SF4R`; `SF4W` means the peer has not registered the same match generation.
+- V3 registration identifies the player by lobby slot and the match by both `readyMessageNum` values. Do not infer v3 slots from public IP or declared local port.
+- A pending rematch generation must not replace the active forwarding pair until both player slots register it.
+- Registration and GGPO use the same local UDP port; release the previous GGPO session before registration and preserve the VPS-observed NAT endpoint.
+- VPS UDP sync failures abort to the lobby; never switch one peer automatically to the legacy session tunnel.

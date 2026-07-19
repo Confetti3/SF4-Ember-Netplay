@@ -151,6 +151,24 @@ function terminateProcess(proc, label) {
   proc.once("exit", () => clearTimeout(timer));
 }
 
+function waitForProcessExit(proc, timeoutMs = KILL_GRACE_MS + 1000) {
+  if (proc.exitCode !== null || proc.signalCode !== null) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(finish, timeoutMs);
+    proc.once("exit", finish);
+    proc.once("error", finish);
+  });
+}
+
 function stopSession(port) {
   const entry = sessions.get(port);
   if (!entry) {
@@ -169,6 +187,28 @@ function stopGgpoSession(ggpoPort) {
   terminateProcess(entry.proc, `ggpo:${ggpoPort}`);
   ggpoSessions.delete(ggpoPort);
   return true;
+}
+
+async function stopGgpoSessionAndWait(ggpoPort) {
+  const entry = ggpoSessions.get(ggpoPort);
+  if (!entry) {
+    return false;
+  }
+  terminateProcess(entry.proc, `ggpo:${ggpoPort}`);
+  ggpoSessions.delete(ggpoPort);
+  await waitForProcessExit(entry.proc);
+  if (entry.proc.exitCode === null && entry.proc.signalCode === null) {
+    throw new Error(`GGPO relay ${ggpoPort} did not exit`);
+  }
+  for (let i = 0; i < 20; i++) {
+    // eslint-disable-next-line no-await-in-loop
+    if (!(await ggpoHealthProbe(ggpoPort, 100))) {
+      return true;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`GGPO relay UDP port ${ggpoPort} did not release`);
 }
 
 function stopPairedSession(sessionPort, ggpoPort) {
@@ -234,9 +274,19 @@ function startSession(port, sidecarHash) {
   return proc;
 }
 
-function startGgpoSession(ggpoPort, sessionPort, roomToken) {
-  if (ggpoSessions.has(ggpoPort)) {
-    stopGgpoSession(ggpoPort);
+async function startGgpoSession(ggpoPort, sessionPort, roomToken) {
+  const existing = ggpoSessions.get(ggpoPort);
+  if (
+    existing &&
+    existing.sessionPort === sessionPort &&
+    existing.roomToken === roomToken &&
+    existing.proc.exitCode === null &&
+    existing.proc.signalCode === null
+  ) {
+    return { proc: existing.proc, reused: true };
+  }
+  if (existing) {
+    await stopGgpoSessionAndWait(ggpoPort);
   }
 
   const args = [
@@ -269,7 +319,7 @@ function startGgpoSession(ggpoPort, sessionPort, roomToken) {
   });
 
   ggpoSessions.set(ggpoPort, { proc, sessionPort, roomToken, startedAt: Date.now() });
-  return proc;
+  return { proc, reused: false };
 }
 
 const server = http.createServer(async (req, res) => {
@@ -383,9 +433,20 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    startGgpoSession(ggpoPort, sessionPort, roomToken);
+    let startResult;
+    try {
+      startResult = await startGgpoSession(ggpoPort, sessionPort, roomToken);
+    } catch (err) {
+      json(res, 503, {
+        error: "replace_failed",
+        message: err && err.message ? err.message : String(err),
+      });
+      return;
+    }
 
-    await new Promise((r) => setTimeout(r, 300));
+    if (!startResult.reused) {
+      await new Promise((r) => setTimeout(r, 300));
+    }
 
     let ready = false;
     for (let i = 0; i < 40; i++) {
@@ -399,7 +460,11 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (!ready) {
-      stopGgpoSession(ggpoPort);
+      try {
+        await stopGgpoSessionAndWait(ggpoPort);
+      } catch (err) {
+        console.error(`[ggpo:${ggpoPort}] cleanup failed: ${err && err.message}`);
+      }
       json(res, 503, {
         error: "start_failed",
         message: `sf4e-ggpo-udp-relay did not listen on port ${ggpoPort}`,
@@ -407,7 +472,12 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    json(res, 201, { ok: true, ggpoPort, sessionPort });
+    json(res, startResult.reused ? 200 : 201, {
+      ok: true,
+      ggpoPort,
+      sessionPort,
+      reused: startResult.reused,
+    });
     return;
   }
 
@@ -422,8 +492,17 @@ const server = http.createServer(async (req, res) => {
   const ggpoDeleteMatch = url.pathname.match(/^\/v1\/ggpo-sessions\/(\d+)$/);
   if (req.method === "DELETE" && ggpoDeleteMatch) {
     const port = parseInt(ggpoDeleteMatch[1], 10);
-    const stopped = stopGgpoSession(port);
-    json(res, 200, { ok: true, port, stopped });
+    try {
+      const stopped = await stopGgpoSessionAndWait(port);
+      json(res, 200, { ok: true, port, stopped });
+    } catch (err) {
+      json(res, 503, {
+        ok: false,
+        port,
+        error: "stop_failed",
+        message: err && err.message ? err.message : String(err),
+      });
+    }
     return;
   }
 

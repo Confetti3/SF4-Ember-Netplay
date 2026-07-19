@@ -544,6 +544,7 @@ void fSystem::AbortGgpoMatch(const char* reason) {
 }
 
 void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay, DWORD rngSeed) {
+    sf4e::NetplayFacade::CancelDeferredGgpoClose();
     if (ggpo) {
         spdlog::warn("StartGGPO: closing leftover GGPO session before rematch/restart");
         ggpo_close_session(ggpo);
@@ -562,6 +563,12 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     cb.on_event = ggpo_on_event_callback;
     cb.log_game_state = ggpo_log_game_state;
 
+    spdlog::info(
+        "GGPO: starting session localPort={} players={} frameDelay={}",
+        port,
+        numPlayers,
+        frameDelay
+    );
     GGPOErrorCode result = ggpo_start_session(
         &ggpo,
         &cb,
@@ -576,6 +583,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
         AbortGgpoMatch("GGPO could not start — return to lobby and Ready again.");
         return;
     }
+    spdlog::info("GGPO: session started localPort={}", port);
     ApplyGgpoDisconnectSettings(ggpo);
 
     int localPlayerIdx = -1;

@@ -143,7 +143,7 @@ void fUserApp::_OnVsBattleTasksRegistered()
     // Start the GGPO connection
     bool isPlayer = false;
     for (int i = 0; i < 2 && i < (int)netplay->client._lobbyData.members.size(); i++) {
-        if (netplay->client._lobbyData.members[i].name == netplay->client._name) {
+        if (netplay->client._lobbyData.members[i].connId == netplay->client._cid) {
             isPlayer = true;
             break;
         }
@@ -157,6 +157,7 @@ void fUserApp::_OnVsBattleTasksRegistered()
     if (isPlayer) {
         NetplayConfig transportCfg = sf4e::NetplayFacade::GetConfig();
         bool useLegacyGgpoTunnel = false;
+        DWORD udpRegisteredAt = 0;
         const bool vpsSession = transportCfg.useCentralSession == 2;
         if (
             vpsSession
@@ -168,6 +169,16 @@ void fUserApp::_OnVsBattleTasksRegistered()
         }
         sf4e::NetplayFacade::RestoreBrokerGgpoEndpoint(transportCfg);
         if (vpsSession && transportCfg.ggpoTransport != 0) {
+            // Registration owns the same local UDP port as GGPO. Release any
+            // deferred/leftover session before binding the v3 registration socket.
+            if (fSystem::ggpo) {
+                spdlog::info("GgpoTransport: closing previous GGPO session before registration");
+                sf4e::NetplayFacade::CancelDeferredGgpoClose();
+                ggpo_close_session(fSystem::ggpo);
+                fSystem::ggpo = nullptr;
+                GgpoRelay::Instance().Reset();
+            }
+
             GgpoTransportMode effective = GgpoTransportMode::UdpRelay;
             const bool prepared = GgpoTransport::PrepareForBattle(
                 transportCfg,
@@ -188,6 +199,9 @@ void fUserApp::_OnVsBattleTasksRegistered()
             }
             useLegacyGgpoTunnel = effective == GgpoTransportMode::LegacySessionTunnel;
             if (!useLegacyGgpoTunnel) {
+                if (effective == GgpoTransportMode::UdpRelay) {
+                    udpRegisteredAt = GetTickCount();
+                }
                 spdlog::info(
                     "GgpoTransport: using {} remote {}:{}",
                     GgpoTransport::TransportModeLabel(effective),
@@ -234,7 +248,7 @@ void fUserApp::_OnVsBattleTasksRegistered()
             GGPOPlayer& player = players[i];
             player.size = sizeof(GGPOPlayer);
             player.player_num = i + 1;
-            if (netplay->client._lobbyData.members[i].name == netplay->client._name) {
+            if (netplay->client._lobbyData.members[i].connId == netplay->client._cid) {
                 player.type = GGPO_PLAYERTYPE_LOCAL;
 
                 // Inject the chosen device into this player's side
@@ -321,6 +335,13 @@ void fUserApp::_OnVsBattleTasksRegistered()
             else {
                 strcpy_s(player.u.remote.ip_address, 32, memberData.ip.c_str());
             }
+        }
+        if (udpRegisteredAt != 0) {
+            spdlog::info(
+                "GgpoTransport: registration-to-GGPO handoff gap={}ms localPort={}",
+                GetTickCount() - udpRegisteredAt,
+                netplay->client._ggpoPort
+            );
         }
         fSystem::StartGGPO(
             players,

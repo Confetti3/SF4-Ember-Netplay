@@ -29,6 +29,9 @@ namespace sf4e {
 			uint16_t relayPort,
 			const char* roomTokenHex,
 			uint16_t localGgpoPort,
+			uint8_t playerSlot,
+			int64_t readyMessageNum0,
+			int64_t readyMessageNum1,
 			int timeoutMs = 3000
 		);
 

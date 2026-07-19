@@ -32,6 +32,20 @@ namespace sf4e {
 		return true;
 	}
 
+	static bool SameUdpEndpoint(const sockaddr_in& a, const sockaddr_in& b) {
+		return
+			a.sin_family == b.sin_family &&
+			a.sin_addr.s_addr == b.sin_addr.s_addr &&
+			a.sin_port == b.sin_port;
+	}
+
+	static void WriteU64Be(char* out, uint64_t value) {
+		for (int i = 7; i >= 0; i--) {
+			out[i] = (char)(value & 0xff);
+			value >>= 8;
+		}
+	}
+
 	static bool SendProbeAndWait(
 		SOCKET sock,
 		const sockaddr_in& dest,
@@ -59,7 +73,7 @@ namespace sf4e {
 		sockaddr_in from = {};
 		int fromLen = sizeof(from);
 		int n = recvfrom(sock, recvBuf, recvBufLen, 0, (sockaddr*)&from, &fromLen);
-		return n > 0;
+		return n > 0 && SameUdpEndpoint(from, dest);
 	}
 
 	static bool ProbeUdpRelayHealth(const char* relayHost, uint16_t relayPort, int timeoutMs) {
@@ -131,9 +145,27 @@ namespace sf4e {
 		uint16_t relayPort,
 		const char* roomTokenHex,
 		uint16_t localGgpoPort,
+		uint8_t playerSlot,
+		int64_t readyMessageNum0,
+		int64_t readyMessageNum1,
 		int timeoutMs
 	) {
-		if (!relayHost || !relayHost[0] || !roomTokenHex || strlen(roomTokenHex) != 32 || localGgpoPort == 0) {
+		if (
+			!relayHost ||
+			!relayHost[0] ||
+			!roomTokenHex ||
+			strlen(roomTokenHex) != 32 ||
+			localGgpoPort == 0 ||
+			playerSlot > 1 ||
+			readyMessageNum0 < 0 ||
+			readyMessageNum1 < 0
+		) {
+			spdlog::warn(
+				"GgpoTransport: invalid UDP relay registration context slot={} ready=[{},{}]",
+				playerSlot,
+				readyMessageNum0,
+				readyMessageNum1
+			);
 			return false;
 		}
 		if (!EnsureWinsock()) {
@@ -164,6 +196,13 @@ namespace sf4e {
 			closesocket(sock);
 			return false;
 		}
+		spdlog::info(
+			"GgpoTransport: UDP relay register bound localPort={} slot={} generation=[{},{}]",
+			localGgpoPort,
+			playerSlot,
+			readyMessageNum0,
+			readyMessageNum1
+		);
 
 		u_long nonBlocking = 1;
 		ioctlsocket(sock, FIONBIO, &nonBlocking);
@@ -183,10 +222,12 @@ namespace sf4e {
 			return false;
 		}
 
-		char packet[4 + 32 + 2] = { 'S', 'F', '4', 'G' };
+		char packet[4 + 32 + 1 + 1 + 8 + 8] = { 'S', 'F', '4', 'G' };
 		memcpy(packet + 4, roomTokenHex, 32);
-		packet[36] = (char)((localGgpoPort >> 8) & 0xff);
-		packet[37] = (char)(localGgpoPort & 0xff);
+		packet[36] = 3;
+		packet[37] = (char)playerSlot;
+		WriteU64Be(packet + 38, (uint64_t)readyMessageNum0);
+		WriteU64Be(packet + 46, (uint64_t)readyMessageNum1);
 
 		const DWORD deadline = GetTickCount() + (DWORD)timeoutMs;
 		bool sawWaiting = false;
@@ -196,10 +237,13 @@ namespace sf4e {
 				if (memcmp(response, "SF4R", 4) == 0) {
 					closesocket(sock);
 					spdlog::info(
-						"GgpoTransport: UDP relay registration OK {}:{} localGgpoPort={} resp=SF4R{}",
+						"GgpoTransport: UDP relay registration OK {}:{} localGgpoPort={} slot={} generation=[{},{}] resp=SF4R{}",
 						relayHost,
 						relayPort,
 						localGgpoPort,
+						playerSlot,
+						readyMessageNum0,
+						readyMessageNum1,
 						sawWaiting ? " (after SF4W)" : ""
 					);
 					return true;
@@ -207,10 +251,13 @@ namespace sf4e {
 				if (memcmp(response, "SF4W", 4) == 0) {
 					if (!sawWaiting) {
 						spdlog::info(
-							"GgpoTransport: UDP relay waiting for peer {}:{} localGgpoPort={}",
+							"GgpoTransport: UDP relay waiting for peer {}:{} localGgpoPort={} slot={} generation=[{},{}]",
 							relayHost,
 							relayPort,
-							localGgpoPort
+							localGgpoPort,
+							playerSlot,
+							readyMessageNum0,
+							readyMessageNum1
 						);
 						sawWaiting = true;
 					}
@@ -222,9 +269,12 @@ namespace sf4e {
 
 		closesocket(sock);
 		spdlog::warn(
-			"GgpoTransport: UDP relay registration timed out {}:{} (sawWaiting={})",
+			"GgpoTransport: UDP relay registration timed out {}:{} slot={} generation=[{},{}] (sawWaiting={})",
 			relayHost,
 			relayPort,
+			playerSlot,
+			readyMessageNum0,
+			readyMessageNum1,
 			sawWaiting ? 1 : 0
 		);
 		return false;
@@ -469,7 +519,27 @@ namespace sf4e {
 			else if (!cfg.ggpoRoomToken[0]) {
 				spdlog::warn("GgpoTransport: UDP relay missing room token");
 			}
+			else if (!sessionClient || !sessionClient->_matchData.IsAllReady()) {
+				spdlog::warn("GgpoTransport: UDP relay missing all-ready match generation");
+			}
 			else {
+				int playerSlot = -1;
+				for (
+					int i = 0;
+					i < 2 && i < (int)sessionClient->_lobbyData.members.size();
+					i++
+				) {
+					if (sessionClient->_lobbyData.members[i].connId == sessionClient->_cid) {
+						playerSlot = i;
+						break;
+					}
+				}
+				if (playerSlot < 0) {
+					spdlog::warn("GgpoTransport: local player is not in a relay player slot");
+					setOut(GgpoTransportMode::UdpRelay);
+					return false;
+				}
+
 				bool relayHealthy = ProbeUdpRelayHealth(relayHost, relayPort, 1500);
 				if (!relayHealthy) {
 					spdlog::warn(
@@ -489,7 +559,16 @@ namespace sf4e {
 				}
 				else {
 					for (int attempt = 0; attempt < 2; attempt++) {
-						if (RegisterWithUdpRelay(relayHost, relayPort, cfg.ggpoRoomToken, cfg.ggpoPort, 15000)) {
+						if (RegisterWithUdpRelay(
+							relayHost,
+							relayPort,
+							cfg.ggpoRoomToken,
+							cfg.ggpoPort,
+							(uint8_t)playerSlot,
+							sessionClient->_matchData.readyMessageNum[0],
+							sessionClient->_matchData.readyMessageNum[1],
+							15000
+						)) {
 							strncpy_s(cfg.ggpoRemoteHost, relayHost, _TRUNCATE);
 							cfg.ggpoRemotePort = relayPort;
 							cfg.ggpoTransport = (uint8_t)GgpoTransportMode::UdpRelay;

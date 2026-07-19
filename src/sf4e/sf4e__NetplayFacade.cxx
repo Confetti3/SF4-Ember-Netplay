@@ -466,8 +466,6 @@ namespace sf4e {
 			!s_udpGgpoFallbackTried &&
 			s_ggpoTransportStatus.effectiveMode == 1 &&
 			!s_ggpoTransportStatus.legacyTunnelActive &&
-			s_ggpoSyncPhase != GgpoSyncPhase::Connected &&
-			s_ggpoSyncPhase != GgpoSyncPhase::Synchronizing &&
 			s_ggpoSyncPhase != GgpoSyncPhase::Running &&
 			s_ggpoBattleStartTick != 0 &&
 			GetTickCount() - s_ggpoBattleStartTick > 20000
@@ -475,12 +473,14 @@ namespace sf4e {
 			s_udpGgpoFallbackTried = true;
 			const DWORD waitedMs = GetTickCount() - s_ggpoBattleStartTick;
 			spdlog::warn(
-				"GgpoTransport: UDP relay GGPO still not Running after {}ms (phase={}) — aborting match (no legacy tunnel)",
+				"GgpoTransport: UDP relay GGPO sync timed out after {}ms (phase={} remote={}:{}) — aborting match",
 				waitedMs,
-				(int)s_ggpoSyncPhase
+				(int)s_ggpoSyncPhase,
+				s_ggpoTransportStatus.remoteHost,
+				s_ggpoTransportStatus.remotePort
 			);
 			fSystem::AbortGgpoMatch(
-				"Rematch sync failed — return to lobby and Ready again."
+				"GGPO sync timed out — return to lobby and Ready again."
 			);
 		}
 
@@ -572,6 +572,12 @@ namespace sf4e {
 		if (fUserApp::netplay) {
 			fUserApp::netplay->client.pendingRemoteSnapshots.clear();
 		}
+	}
+
+	void NetplayFacade::CancelDeferredGgpoClose() {
+		s_deferGgpoClose = false;
+		s_deferredGgpoPending = false;
+		s_deferGgpoCloseUntil = 0;
 	}
 
 	bool NetplayFacade::ShouldDeferGgpoClose() {
