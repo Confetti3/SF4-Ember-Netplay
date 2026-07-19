@@ -1218,6 +1218,9 @@ void DrawNetworkLobbyPanel() {
 		Text("Round count: %d", client._lobbyData.roundCount);
 		Text("Round time: %d", client._lobbyData.roundTime.integral);
 		Text("Edition select: %d", client._lobbyData.editionSelect);
+		if (client._lobbyData.trainingMode) {
+			Text("Mode: training room");
+		}
 	}
 
 	std::vector<sf4e::SessionProtocol::MemberData>& members = client._lobbyData.members;

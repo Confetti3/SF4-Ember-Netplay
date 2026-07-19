@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>
 #include <QLineEdit>
@@ -147,6 +148,7 @@ private:
 	QWidget* m_hostSimpleSettings = nullptr;
 	QLineEdit* m_hostNameSimple = nullptr;
 	QSpinBox* m_hostDelaySimple = nullptr;
+	QCheckBox* m_hostTrainingMode = nullptr;
 	QWidget* m_hostAdvancedSettings = nullptr;
 	QLineEdit* m_hostNameAdv = nullptr;
 	QSpinBox* m_hostDelayAdv = nullptr;

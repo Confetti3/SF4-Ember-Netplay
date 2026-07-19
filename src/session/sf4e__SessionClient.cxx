@@ -505,6 +505,26 @@ EResult SessionClient::Lobby_ResetRematch()
 	return result;
 }
 
+EResult SessionClient::Lobby_SetSettings(
+	bool editionSelect,
+	int roundCount,
+	Dimps::Math::FixedPoint roundTime,
+	bool trainingMode
+)
+{
+	SessionProtocol::LobbySetSettings msg;
+	msg.editionSelect = editionSelect;
+	msg.roundCount = roundCount;
+	msg.roundTime = roundTime;
+	msg.trainingMode = trainingMode;
+	json j = msg;
+	EResult result = Send(j, nullptr);
+	if (result != k_EResultOK) {
+		spdlog::warn("Client: could not send lobby settings! Result: {}", (int)result);
+	}
+	return result;
+}
+
 EResult SessionClient::PreBattle_SetEnv(uint32_t rngSeed)
 {
 	SessionProtocol::PreBattleSetEnv msg;

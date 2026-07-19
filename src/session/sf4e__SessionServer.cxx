@@ -278,6 +278,40 @@ int SessionServer::Step()
 				_matchData.stageID = request.stageID;
 				_dataDirty = true;
 			}
+			else if (type == SessionProtocol::MT_LOBBY_SETSETTINGS) {
+				int side = -1;
+				for (int i = 0; i < 2; i++) {
+					if (clients.size() > i && clients.at(i).conn == conn) {
+						side = i;
+						break;
+					}
+				}
+				if (side != 0) {
+					spdlog::info("Server: sender {} tried to set lobby settings, but is not P1", conn);
+					continue;
+				}
+				SessionProtocol::LobbySetSettings request;
+				try {
+					msg.get_to(request);
+				}
+				catch (json::exception e) {
+					spdlog::info("Server: could not deserialize LobbySetSettings");
+					continue;
+				}
+
+				_lobbyData.editionSelect = request.editionSelect;
+				_lobbyData.roundCount = request.roundCount;
+				_lobbyData.roundTime = request.roundTime;
+				_lobbyData.trainingMode = request.trainingMode;
+				spdlog::info(
+					"Server: lobby settings set by host: edition={} rounds={} time={} training={}",
+					request.editionSelect,
+					request.roundCount,
+					request.roundTime.integral,
+					request.trainingMode
+				);
+				_dataDirty = true;
+			}
 			else if (type == SessionProtocol::MT_BATTLE_LOADED) {
 				bSendBattleSynced = true;
 				for (int i = 0; i < clients.size(); i++) {

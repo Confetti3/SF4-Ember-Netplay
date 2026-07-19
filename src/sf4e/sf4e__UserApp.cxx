@@ -96,6 +96,20 @@ static bool StartMatchFromLobby(SessionClient* const client) {
     BattleTypeSettings->editionSelect = client->_lobbyData.editionSelect;
     BattleTypeSettings->rounds = client->_lobbyData.roundCount;
     BattleTypeSettings->timeLimit = client->_lobbyData.roundTime;
+    if (client->_lobbyData.trainingMode) {
+        // Training room: an ordinary VS battle stretched into an endless
+        // sparring session. Both clients derive these from the same lobby
+        // flag, so the settings stay deterministic across peers.
+        //
+        // EXPERIMENTAL VALUES: rounds beyond the menu's 1-7 range appear
+        // to work as "first to N/2+1", and a zero time limit is the
+        // candidate encoding for the VS menu's infinite timer. If testing
+        // shows a countdown or a broken round HUD, adjust these two
+        // values- everything else is plumbing.
+        BattleTypeSettings->rounds = 99;
+        BattleTypeSettings->timeLimit = { 0, 0 };
+        spdlog::info("Netplay: lobby requested training mode; using endless sparring settings");
+    }
     fVsPreBattle::bSkipToVersus = true;
     fVsPreBattle::OnTasksRegistered = fUserApp::_OnVsPreBattleTasksRegistered;
     fVsBattle::OnTasksRegistered = fUserApp::_OnVsBattleTasksRegistered;

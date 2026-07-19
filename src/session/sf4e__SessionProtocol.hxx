@@ -63,9 +63,13 @@ namespace sf4e {
 
 		struct LobbyData {
 			LobbyID id;
-			bool editionSelect;
-			int roundCount;
-			FixedPoint roundTime;
+			// Default the battle settings so that WITH_DEFAULT
+			// deserialization (below) fills sane values when talking to a
+			// peer that predates a given field.
+			bool editionSelect = true;
+			int roundCount = 3;
+			FixedPoint roundTime = { 0, 99 };
+			bool trainingMode = false;
 			std::vector<MemberData> members;
 
 			static const LobbyData NULL_LOBBY;
@@ -95,6 +99,7 @@ namespace sf4e {
 			MT_LOBBY_ALLREADY,
 			MT_LOBBY_REPORTRESULTS,
 			MT_LOBBY_RESET,
+			MT_LOBBY_SETSETTINGS,
 
 			MT_PREBATTLE_SETENV,
 			MT_PREBATTLE_SETCHARA,
@@ -122,6 +127,7 @@ namespace sf4e {
 			{MT_LOBBY_ALLREADY, "lobby_allready"},
 			{MT_LOBBY_REPORTRESULTS, "lobby_reportresults"},
 			{MT_LOBBY_RESET, "lobby_reset"},
+			{MT_LOBBY_SETSETTINGS, "lobby_setsettings"},
 
 			{MT_PREBATTLE_SETENV, "prebattle_setenv"},
 			{MT_PREBATTLE_SETCHARA, "prebattle_setchara"},
@@ -197,6 +203,18 @@ namespace sf4e {
 
 		struct LobbyReset {
 			MessageType type = MT_LOBBY_RESET;
+		};
+
+		// Sent by the host (member 0) after joining its lobby, so that the
+		// lobby's battle settings reflect the host's launcher configuration
+		// even when the SessionServer runs remotely (VPS relay) with
+		// defaulted settings.
+		struct LobbySetSettings {
+			MessageType type = MT_LOBBY_SETSETTINGS;
+			bool editionSelect = true;
+			int32_t roundCount = 3;
+			FixedPoint roundTime = { 0, 99 };
+			bool trainingMode = false;
 		};
 
 		struct PreBattleSetEnv {
@@ -278,7 +296,10 @@ namespace sf4e {
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyID, host, key);
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MemberData, connId, name, ip, port);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyData, id, editionSelect, roundCount, roundTime, members);
+		// WITH_DEFAULT so a LobbyData from a peer built before a field was
+		// added (e.g. trainingMode) deserializes with that field's default
+		// instead of throwing on the missing key.
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LobbyData, id, editionSelect, roundCount, roundTime, trainingMode, members);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MatchData, readyMessageNum, chara, stageID, rngSeed);
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SessionHelloMsg, type);
@@ -291,6 +312,7 @@ namespace sf4e {
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyAllReady, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReportResults, type, loserSide);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReset, type);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LobbySetSettings, type, editionSelect, roundCount, roundTime, trainingMode);
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PreBattleSetChara, type, chara);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PreBattleSetEnv, type, rngSeed);

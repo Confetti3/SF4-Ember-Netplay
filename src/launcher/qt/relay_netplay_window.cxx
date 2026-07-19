@@ -316,6 +316,13 @@ void RelayNetplayWindow::buildUi() {
 	hostSimpleLayout->addRow(QStringLiteral("Input delay"), BuildStepper(m_hostDelaySimple));
 	hostLayout->addWidget(m_hostSimpleSettings);
 
+	// Deliberately outside both the simple and advanced groups so the
+	// option stays visible in either UI mode.
+	m_hostTrainingMode = new QCheckBox(QStringLiteral("Training room (endless sparring)"));
+	m_hostTrainingMode->setToolTip(QStringLiteral(
+		"Host an endless training-style session: maximum rounds and no round timer. Experimental."));
+	hostLayout->addWidget(m_hostTrainingMode);
+
 	m_hostAdvancedSettings = new QGroupBox(QStringLiteral("Advanced host settings"));
 	m_hostAdvancedSettings->setProperty("advancedOnly", true);
 	auto* hostAdvLayout = new QVBoxLayout(m_hostAdvancedSettings);
@@ -1238,6 +1245,7 @@ void RelayNetplayWindow::startGameHost() {
 	payload["connectMethod"] = method.toStdString();
 	payload["displayName"] = getDisplayName(true).toStdString();
 	payload["inputDelay"] = getInputDelay(true);
+	payload["trainingMode"] = m_hostTrainingMode && m_hostTrainingMode->isChecked();
 	payload["sessionPort"] = m_hostPort ? m_hostPort->value() : 23456;
 	payload["advertiseHost"] = m_hostAdvertise ? m_hostAdvertise->text().trimmed().toStdString() : std::string();
 	if (method == QStringLiteral("relay") && !relayCode.isEmpty()) {

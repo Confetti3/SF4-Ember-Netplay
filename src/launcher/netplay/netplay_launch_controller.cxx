@@ -1017,6 +1017,8 @@ namespace launcher {
 
 			m_outConfig.roundTimeIntegral = m_settings.roundTimeIntegral;
 
+			m_outConfig.trainingMode = msg.value("trainingMode", false) ? 1 : 0;
+
 			m_outConfig.useRelay = m_settings.useRelay;
 
 			m_outConfig.deviceIdx = 0xff;

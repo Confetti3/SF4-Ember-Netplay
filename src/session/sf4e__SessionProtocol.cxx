@@ -21,6 +21,7 @@ namespace sf4e {
 			false,
 			0,
 			{0, 0},
+			false,
 			{}
 		};
 

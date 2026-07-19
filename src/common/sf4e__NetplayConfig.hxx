@@ -12,7 +12,7 @@ namespace sf4e {
 
 	// Fixed-size config copied Launcher -> Sidecar via Detours payload.
 	// Keep POD and stable layout; bump SF4E_NETPLAY_CONFIG_VERSION if fields change.
-	static const int SF4E_NETPLAY_CONFIG_VERSION = 8;
+	static const int SF4E_NETPLAY_CONFIG_VERSION = 9;
 	static const int NETPLAY_SESSION_HOST_LEN = 64;
 	static const int NETPLAY_ROOM_KEY_LEN = 32;
 	static const int NETPLAY_DISPLAY_NAME_LEN = 32;
@@ -47,6 +47,8 @@ namespace sf4e {
 		// GGPO peer disconnect tolerance (ms). Zero uses derived defaults from inputDelay.
 		uint16_t ggpoDisconnectTimeoutMs = 3000;
 		uint16_t ggpoDisconnectNotifyMs = 1500;
+		// 1 = host requested a training room (endless sparring settings).
+		uint8_t trainingMode = 0;
 	};
 
 	inline bool NetplayConfigIsActive(const NetplayConfig& cfg) {

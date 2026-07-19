@@ -58,6 +58,12 @@ namespace sf4e {
 		EResult Lobby_Ready();
 		EResult Lobby_ReportResults(int loserSide);
 		EResult Lobby_ResetRematch();
+		EResult Lobby_SetSettings(
+			bool editionSelect,
+			int roundCount,
+			Dimps::Math::FixedPoint roundTime,
+			bool trainingMode
+		);
 
 		EResult PreBattle_SetEnv(uint32_t rngSeed);
 		EResult PreBattle_SetChara(const Dimps::GameEvents::VsMode::ConfirmedCharaConditions& chara);

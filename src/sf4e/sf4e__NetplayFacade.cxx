@@ -54,6 +54,7 @@ namespace sf4e {
 	static bool s_gameReady = false;
 	static bool s_padCaptured = false;
 	static bool s_configLogged = false;
+	static bool s_sentLobbySettings = false;
 	static const int kMinFramesAfterReady = 180;
 	static const int kMinDwellBeforeAutoStart = 60;
 
@@ -111,6 +112,7 @@ namespace sf4e {
 		s_autoStartDwellTicks = 0;
 		s_framesSinceReady = 0;
 		s_configLogged = false;
+		s_sentLobbySettings = false;
 		s_padCaptured = s_config.deviceIdx != 0xff && s_config.deviceType != 0xff;
 		if (s_autoPending) {
 			spdlog::info("NetplayFacade: auto netplay pending mode={}", s_config.mode);
@@ -453,6 +455,37 @@ namespace sf4e {
 	void NetplayFacade::TickFrame() {
 		fUserApp::TryStartPendingMatch();
 
+		// Once the host is present in its own lobby as P1, push the
+		// launcher's battle settings to the session server. This matters
+		// most for VPS-relay lobbies: their SessionServer is constructed
+		// remotely with defaulted settings, so without this message the
+		// host's round/time/training choices would be ignored.
+		if (
+			!s_sentLobbySettings &&
+			s_config.mode == (int)NetplayMode::Host &&
+			fUserApp::netplay &&
+			fUserApp::netplay->client.IsConnected() &&
+			!fUserApp::netplay->client._lobbyData.members.empty() &&
+			fUserApp::netplay->client._lobbyData.members[0].name == fUserApp::netplay->client._name
+		) {
+			FixedPoint lobbyRoundTime = { 0, (short)s_config.roundTimeIntegral };
+			bool training = s_config.version >= 9 && s_config.trainingMode != 0;
+			if (fUserApp::netplay->client.Lobby_SetSettings(
+				s_config.editionSelect != 0,
+				s_config.roundCount,
+				lobbyRoundTime,
+				training
+			) == k_EResultOK) {
+				s_sentLobbySettings = true;
+				spdlog::info(
+					"NetplayFacade: sent lobby settings (rounds={} time={} training={})",
+					s_config.roundCount,
+					s_config.roundTimeIntegral,
+					training
+				);
+			}
+		}
+
 		if (fUserApp::netplay && GgpoRelay::Instance().IsActive()) {
 			const bool pumpGgpoTunnel = fUserApp::netplay->client._useRelay;
 			if (pumpGgpoTunnel) {
@@ -563,6 +596,7 @@ namespace sf4e {
 		}
 		s_deferGgpoClose = false;
 		s_deferredGgpoPending = false;
+		s_sentLobbySettings = false;
 		s_brokerGgpoRemoteHost[0] = '\0';
 		s_brokerGgpoRemotePort = 0;
 	}
