@@ -50,6 +50,12 @@ try {
 
     }
 
+    Write-Host "==> Testing GGPO UDP validation..."
+
+    & ctest --test-dir $BuildDir -C RelWithDebInfo --output-on-failure -R GgpoUdpValidation
+
+    if ($LASTEXITCODE -ne 0) { throw "GGPO UDP validation test failed with exit $LASTEXITCODE" }
+
 
 
     Write-Host "==> Packaging team zip..."

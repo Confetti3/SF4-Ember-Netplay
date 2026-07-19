@@ -11,8 +11,9 @@ diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
 index 4f9ce52..1028751 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
-@@ -40,6 +40,13 @@ install(
+@@ -40,6 +40,14 @@ install(
  	ARCHIVE DESTINATION lib
++	INCLUDES DESTINATION include
  )
  
 +install(

@@ -5,6 +5,7 @@ vcpkg_from_github(
     SHA512 340b908deef907549e9ab2a08f97310ebd27717f80f9c63eb9d202adfc9307e2f59a080553bc91aea77c3e44022433ad6c3c26e2191b7a2e1d8c64b30fc6ad5c
     PATCHES
         "install-cmake-export.patch"
+        "reject-invalid-udp-messages.patch"
 )
 
 vcpkg_cmake_configure(

@@ -26,4 +26,5 @@ Do not change these behaviors without regression testing (SessionInteractiveTest
 - V3 registration identifies the player by lobby slot and the match by both `readyMessageNum` values. Do not infer v3 slots from public IP or declared local port.
 - A pending rematch generation must not replace the active forwarding pair until both player slots register it.
 - Registration and GGPO use the same local UDP port; release the previous GGPO session before registration and preserve the VPS-observed NAT endpoint.
+- Treat every datagram on the GGPO port as untrusted. Short, unknown-type, and structurally invalid packets must be dropped before GGPO logs or dispatches them; network input must never trigger an assertion.
 - VPS UDP sync failures abort to the lobby; never switch one peer automatically to the legacy session tunnel.

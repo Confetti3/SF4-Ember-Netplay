@@ -4,9 +4,9 @@
 
 **SF4 Netplay Launcher** is a **third-party, experimental unofficial port** for _Ultra Street Fighter IV_ on Steam. It adds a native **Qt Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e's rollback netplay. Netplay may fail, desync, or break between releases - use only with people who accept that risk.
 
-**Latest release:** [v0.4.7](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/v0.4.7) (reliable initial sync and rematches)
+**Latest release:** [v0.4.8](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/v0.4.8) (hardened GGPO UDP packet validation)
 
-**Download:** [GitHub Releases — Latest](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) — asset `sf4-netplay-launcher-*-0.4.7.zip` (not "Source code" only).
+**Download:** [GitHub Releases — Latest](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) — asset `sf4-netplay-launcher-*-0.4.8.zip` (not "Source code" only).
 
 ## How it works
 

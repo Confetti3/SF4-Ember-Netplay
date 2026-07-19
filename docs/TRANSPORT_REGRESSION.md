@@ -12,7 +12,7 @@ Run after transport stack changes (Phases 1–3). Complements [SMOKE_TEST.md](SM
 
 | # | Mode | Steps | Pass |
 |---|------|-------|------|
-| 1 | UDP initial match | VPS `BROKER_GGPO_TRANSPORT=auto`, two v0.4.7 clients, fresh room | Both log `SF4R`, then phases `Connected → Synchronizing → Running` |
+| 1 | UDP initial match | VPS `BROKER_GGPO_TRANSPORT=auto`, two v0.4.8 clients, fresh room | Both log `SF4R`, then phases `Connected → Synchronizing → Running` |
 | 2 | UDP rematch | Complete row 1, Ready again twice | Each generation gates on both slots; both rematches reach `Running` |
 | 3 | Asymmetric load | Delay one player before entering battle | First player sees `SF4W`; neither starts alone; both eventually reach `SF4R` |
 | 4 | UDP blocked | Block the allocated `24456–24475/udp` path | Clear timeout/abort to lobby; no asymmetric legacy fallback |
@@ -21,6 +21,7 @@ Run after transport stack changes (Phases 1–3). Complements [SMOKE_TEST.md](SM
 | 7 | Join path | Guest joins via SF4- code only | Connect plan applied; guest registers endpoint |
 | 8 | Prune | Idle room past timeout | Both session + GGPO relay processes stop on VPS |
 | 9 | Version | Mismatched Sidecar builds | Clear hash/version rejection; no silent failure |
+| 10 | Malformed GGPO UDP | Run `ctest -R GgpoUdpValidation` | Late relay replies and malformed packets are dropped; a subsequent valid SyncRequest receives SyncReply |
 
 ## VPS checks
 
@@ -40,4 +41,4 @@ Expect `ggpoRelayOk: true` when `BROKER_GGPO_TRANSPORT=auto`.
 
 ## Automated gate
 
-Run `python scripts/transport-regression-test.py` before the two-machine matrix. It must pass v2 compatibility, v3 generations, socket handoff, forwarding, stale-generation isolation, and same-IP rebinding.
+Run `ctest --test-dir msvc-build/default -C RelWithDebInfo --output-on-failure -R GgpoUdpValidation`, then `python scripts/transport-regression-test.py` before the two-machine matrix. They must pass malformed-packet handling, v2 compatibility, v3 generations, socket handoff, forwarding, stale-generation isolation, and same-IP rebinding.

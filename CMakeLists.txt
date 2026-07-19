@@ -4,10 +4,12 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
 project (
     sf4e
-    VERSION 0.4.7
+    VERSION 0.4.8
     DESCRIPTION "A process-inspection and modification tool for the Steam release of Ultra Street Fighter 4."
     HOMEPAGE_URL "https://github.com/Confetti3/SF4-Netplay-Launcher"
 )
+
+include(CTest)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
 set(CMAKE_CXX_STANDARD 11)
@@ -147,6 +149,13 @@ target_link_libraries(
 
 add_executable(SessionInteractiveTest "src/session/interactive_test.cxx")
 target_link_libraries(SessionInteractiveTest PRIVATE nlohmann_json::nlohmann_json imgui::imgui spdlog::spdlog Dimps sf4e Session "d3d9")
+
+if(BUILD_TESTING)
+    add_executable(GgpoUdpValidationTest "src/tests/ggpo_udp_validation_test.cxx")
+    target_link_libraries(GgpoUdpValidationTest PRIVATE ggpo::GGPO "ws2_32")
+    add_test(NAME GgpoUdpValidation COMMAND GgpoUdpValidationTest)
+    set_tests_properties(GgpoUdpValidation PROPERTIES TIMEOUT 15)
+endif()
 
 add_executable(RelayHost "src/relay/relay_host.cxx")
 target_include_directories(RelayHost PRIVATE "src/common" "src/session")

@@ -1,0 +1,81 @@
+diff --git a/src/lib/ggpo/network/udp_proto.cpp b/src/lib/ggpo/network/udp_proto.cpp
+index 3d18bbb..08d60b2 100644
+--- a/src/lib/ggpo/network/udp_proto.cpp
++++ b/src/lib/ggpo/network/udp_proto.cpp
+@@ -7,6 +7,7 @@
+ 
+ #include "types.h"
+ #include "udp_proto.h"
++#include <stddef.h>
+ #include "bitvector.h"
+ 
+ static const int UDP_HEADER_SIZE = 28; /* Size of IP + UDP headers */
+@@ -20,5 +21,56 @@ static const int UDP_SHUTDOWN_TIMER = 5000;
+ static const int MAX_SEQ_DISTANCE = (1 << 15);
+ 
++/*
++ * UDP is an untrusted datagram boundary.  In particular, applications may
++ * briefly use the GGPO port for NAT/relay registration before GGPO binds it.
++ * Reject short, stale control, and malformed packets before reading or logging
++ * any fields which are not present in the datagram.
++ */
++static bool
++IsValidUdpMsg(UdpMsg *msg, int len)
++{
++ int expected;
++ if (!msg || len < (int)sizeof(msg->hdr)) {
++ return false;
++ }
++
++ switch (msg->hdr.type) {
++ case UdpMsg::SyncRequest:
++ expected = sizeof(msg->hdr) + sizeof(msg->u.sync_request);
++ break;
++ case UdpMsg::SyncReply:
++ expected = sizeof(msg->hdr) + sizeof(msg->u.sync_reply);
++ break;
++ case UdpMsg::QualityReport:
++ expected = sizeof(msg->hdr) + sizeof(msg->u.quality_report);
++ break;
++ case UdpMsg::QualityReply:
++ expected = sizeof(msg->hdr) + sizeof(msg->u.quality_reply);
++ break;
++ case UdpMsg::KeepAlive:
++ expected = sizeof(msg->hdr);
++ break;
++ case UdpMsg::InputAck:
++ expected = sizeof(msg->hdr) + sizeof(msg->u.input_ack);
++ break;
++ case UdpMsg::Input: {
++ const int prefix = (int)offsetof(UdpMsg, u.input.bits);
++ if (len < prefix) {
++ return false;
++ }
++ const int bitBytes = (msg->u.input.num_bits + 7) / 8;
++ if (bitBytes > (int)sizeof(msg->u.input.bits)) {
++ return false;
++ }
++ expected = prefix + bitBytes;
++ break;
++ }
++ default:
++ return false;
++ }
++ return len == expected;
++}
++
+ UdpProtocol::UdpProtocol() :
+  _local_frame_advantage(0),
+  _remote_frame_advantage(0),
+@@ -328,6 +380,11 @@ void
+ UdpProtocol::OnMsg(UdpMsg *msg, int len)
+ {
+  bool handled = false;
++ if (!IsValidUdpMsg(msg, len)) {
++ Log("dropping invalid UDP packet (len:%d).\n", len);
++ return;
++ }
++
+  typedef bool (UdpProtocol::*DispatchFn)(UdpMsg *msg, int len);
+  static const DispatchFn table[] = {
+  &UdpProtocol::OnInvalid, /* Invalid */
