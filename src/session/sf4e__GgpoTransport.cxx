@@ -145,6 +145,26 @@ namespace sf4e {
 			return false;
 		}
 
+		// Bind to the GGPO port so NAT maps the same 5-tuple GGPO will use after
+		// StartGGPO. An ephemeral probe left the relay holding a dead mapping and
+		// both peers stuck in "Waiting to sync..." after SF4R.
+		BOOL reuse = TRUE;
+		setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuse, sizeof(reuse));
+
+		sockaddr_in bindAddr = {};
+		bindAddr.sin_family = AF_INET;
+		bindAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+		bindAddr.sin_port = htons(localGgpoPort);
+		if (bind(sock, (sockaddr*)&bindAddr, sizeof(bindAddr)) == SOCKET_ERROR) {
+			spdlog::warn(
+				"GgpoTransport: UDP relay register bind({}) failed err={}",
+				localGgpoPort,
+				WSAGetLastError()
+			);
+			closesocket(sock);
+			return false;
+		}
+
 		u_long nonBlocking = 1;
 		ioctlsocket(sock, FIONBIO, &nonBlocking);
 

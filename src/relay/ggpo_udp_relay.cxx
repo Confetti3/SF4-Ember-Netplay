@@ -247,10 +247,10 @@ int main(int argc, char** argv) {
 			}
 
 			const bool rematchRebind = slots[slotIdx].active;
+			// Always keep the real NAT 5-tuple from recvfrom. Overwriting with the
+			// client's declared GGPO port (usually 23457) black-holes GGPO traffic
+			// behind consumer NATs after SF4R succeeds.
 			sockaddr_in registered = from;
-			if (declaredPort != 0) {
-				registered.sin_port = htons(declaredPort);
-			}
 
 			CopyEndpoint(slots[slotIdx].addr, registered);
 			slots[slotIdx].active = true;
