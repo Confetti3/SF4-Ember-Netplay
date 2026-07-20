@@ -69,7 +69,26 @@ using fSystem = sf4e::Game::Battle::System;
 using fVsBattle = sf4e::GameEvents::VsBattle;
 using rSystem = Dimps::Game::Battle::System;
 
-static bool s_updateAllowedBeforeGgpoInterrupt = true;
+// Last disconnect_flags observed from ggpo_synchronize_input; logged on
+// change for diagnostics only (no gameplay semantics attached).
+static int s_lastDisconnectFlags = 0;
+
+static void NoteDisconnectFlags(int flags) {
+    if (flags != s_lastDisconnectFlags) {
+        spdlog::info(
+            "GGPO: disconnect_flags changed {:#x} -> {:#x}",
+            s_lastDisconnectFlags,
+            flags
+        );
+        s_lastDisconnectFlags = flags;
+    }
+}
+
+// Restores pad playback mode on every exit path. GGPO input playback must
+// never leak past the simulation step that installed it.
+struct PlaybackFrameScopeGuard {
+    ~PlaybackFrameScopeGuard() { fPadSystem::playbackFrame = -1; }
+};
 
 // Emits the complete diagnostics summary through the normal log. Called at
 // match end / abort, before battle state is torn down.
@@ -93,6 +112,16 @@ int fSystem::nRandomizeLocalInputsEveryXFramesInGGPO = 0;
 
 GGPOPlayerHandle fSystem::localPlayerHandle = GGPO_INVALID_HANDLE;
 GGPOSession* fSystem::ggpo = nullptr;
+sf4e::gate::GgpoGateModel fSystem::simGate = { sf4e::gate::PHASE_NO_SESSION };
+
+bool fSystem::MayAdvanceDeterministicFrame() {
+    // bUpdateAllowed still carries: lifecycle gating (StartGGPO -> RUNNING),
+    // manual/debug pause (overlay), terminal failure (AbortGgpoMatch), and
+    // room failure (HandleNetplayFailure). It no longer changes on
+    // connection warnings, and prediction stalls are enforced by GGPO
+    // refusing local input rather than by this gate.
+    return bUpdateAllowed;
+}
 fSystem::PlayerConnectionInfo fSystem::players[MAX_SF4E_PROTOCOL_USERS];
 fSystem::SaveState fSystem::saveStates[NUM_SAVE_STATES];
 
@@ -270,7 +299,7 @@ void fSystem::BattleUpdate() {
 
     diag::ScopedTimer _updateTimer(diag::OP_DETOURED_BATTLE_UPDATE);
 
-    if (!bUpdateAllowed) {
+    if (!MayAdvanceDeterministicFrame()) {
         if (ggpo && diag::Enabled()) {
             diag::G().RecordSkip(diag::SKIP_UPDATE_GATE, diag::NowMs());
         }
@@ -303,23 +332,42 @@ void fSystem::BattleUpdate() {
                     }
                     if (diag::Enabled()) {
                         diag::G().RecordGgpoResult(diag::CALL_ADD_LOCAL_INPUT, (int)result);
-                        if (!GGPO_SUCCEEDED(result)) {
-                            int skip = diag::SKIP_ADD_INPUT_ERROR;
-                            if (result == GGPO_ERRORCODE_PREDICTION_THRESHOLD) {
-                                skip = diag::SKIP_PREDICTION_THRESHOLD;
-                            }
-                            else if (result == GGPO_ERRORCODE_NOT_SYNCHRONIZED) {
-                                skip = diag::SKIP_NOT_SYNCHRONIZED;
-                            }
-                            diag::G().RecordSkip(skip, diag::NowMs());
-                        }
                     }
                     break;
                 }
             }
         }
 
-        if (GGPO_SUCCEEDED(result)) {
+        switch (sf4e::gate::ClassifyGgpoResult((int)result)) {
+        case sf4e::gate::POLICY_CONTINUE:
+            break;
+        case sf4e::gate::POLICY_STALL_PREDICTION:
+            // GGPO refuses further prediction. Do not synchronize, do not
+            // run the engine update, do not advance for this outer frame.
+            simGate.OnPredictionThreshold();
+            if (diag::Enabled()) {
+                diag::G().RecordSkip(diag::SKIP_PREDICTION_THRESHOLD, diag::NowMs());
+            }
+            return;
+        case sf4e::gate::POLICY_SKIP_NOT_SYNCED:
+            if (diag::Enabled()) {
+                diag::G().RecordSkip(diag::SKIP_NOT_SYNCHRONIZED, diag::NowMs());
+            }
+            return;
+        case sf4e::gate::POLICY_SKIP_OTHER:
+            spdlog::warn("GGPO: add_local_input returned {}; skipping frame", (int)result);
+            if (diag::Enabled()) {
+                diag::G().RecordSkip(diag::SKIP_ADD_INPUT_ERROR, diag::NowMs());
+            }
+            return;
+        case sf4e::gate::POLICY_FATAL:
+        default:
+            spdlog::error("GGPO: add_local_input returned irrecoverable {}", (int)result);
+            AbortGgpoMatch("Netplay input failed — match ended.");
+            return;
+        }
+
+        {
             fPadSystem::Inputs ggpoInputs[2] = { {0, 0}, {0, 0} };
             int disconnect_flags = 0;
             {
@@ -328,11 +376,25 @@ void fSystem::BattleUpdate() {
             }
             if (diag::Enabled()) {
                 diag::G().RecordGgpoResult(diag::CALL_SYNC_INPUT, (int)result);
-                if (!GGPO_SUCCEEDED(result)) {
+            }
+            switch (sf4e::gate::ClassifyGgpoResult((int)result)) {
+            case sf4e::gate::POLICY_CONTINUE:
+                break;
+            case sf4e::gate::POLICY_FATAL:
+                spdlog::error("GGPO: synchronize_input returned irrecoverable {}", (int)result);
+                AbortGgpoMatch("Netplay sync failed — match ended.");
+                return;
+            default:
+                // NOT_SYNCHRONIZED during startup/resync, or another
+                // transient refusal: skip this frame without simulating.
+                if (diag::Enabled()) {
                     diag::G().RecordSkip(diag::SKIP_SYNC_INPUT_ERROR, diag::NowMs());
                 }
+                return;
             }
-            if (GGPO_SUCCEEDED(result)) {
+            NoteDisconnectFlags(disconnect_flags);
+            {
+                PlaybackFrameScopeGuard _playbackGuard;
                 fPadSystem::playbackFrame = 0;
                 fPadSystem::playbackData[0][0] = ggpoInputs[0];
                 fPadSystem::playbackData[0][1] = ggpoInputs[1];
@@ -343,27 +405,33 @@ void fSystem::BattleUpdate() {
                     diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
                     (_this->*sysMethods.BattleUpdate)();
                 }
+                // Playback mode must be off before ggpo_advance_frame: the
+                // save callback and any nested GGPO work must not read the
+                // stale playback inputs. The guard also restores on every
+                // early exit above.
                 fPadSystem::playbackFrame = -1;
-                GGPOErrorCode err;
-                {
-                    diag::ScopedTimer _t(diag::OP_ADVANCE_FRAME_API);
-                    err = ggpo_advance_frame(ggpo);
-                }
+            }
+            GGPOErrorCode err;
+            {
+                diag::ScopedTimer _t(diag::OP_ADVANCE_FRAME_API);
+                err = ggpo_advance_frame(ggpo);
+            }
+            if (diag::Enabled()) {
+                diag::G().RecordGgpoResult(diag::CALL_ADVANCE_FRAME, (int)err);
+            }
+            if (!GGPO_SUCCEEDED(err)) {
+                spdlog::error("GGPO: advance_frame returned {}", (int)err);
+                AbortGgpoMatch("Netplay sync failed — match ended.");
+            }
+            else {
+                simGate.OnFrameAccepted();
                 if (diag::Enabled()) {
-                    diag::G().RecordGgpoResult(diag::CALL_ADVANCE_FRAME, (int)err);
+                    diag::G().OnFrameAdvanced(diag::NowMs());
                 }
-                if (!GGPO_SUCCEEDED(err)) {
-                    AbortGgpoMatch("Netplay sync failed — match ended.");
+                if (fSoundPlayerManager::bUsePureSounds) {
+                    fSoundPlayerManager::SyncState();
                 }
-                else {
-                    if (diag::Enabled()) {
-                        diag::G().OnFrameAdvanced(diag::NowMs());
-                    }
-                    if (fSoundPlayerManager::bUsePureSounds) {
-                        fSoundPlayerManager::SyncState();
-                    }
-                    CaptureSnapshot(_this);
-                }
+                CaptureSnapshot(_this);
             }
         }
     }
@@ -392,6 +460,7 @@ void fSystem::BattleUpdate() {
 void fSystem::CloseBattle() {
     rSystem* _this = (rSystem*)this;
     if (ggpo) {
+        simGate.OnBattleClosing();
         // Decide defer *before* close so a prior spectator defer flag cannot
         // leave this session open across rematch.
         sf4e::NetplayFacade::NotifyMatchEnded();
@@ -399,6 +468,7 @@ void fSystem::CloseBattle() {
             ggpo_close_session(ggpo);
             ggpo = nullptr;
             sf4e::GgpoRelay::Instance().Reset();
+            simGate.OnSessionClosed();
         }
         bGgpoConnectionInterrupted = false;
     }
@@ -589,11 +659,13 @@ void fSystem::AbortGgpoMatch(const char* reason) {
         sf4e::NetplayFacade::PushAlert(reason);
     }
     EmitRollbackDiagSummary("abort");
+    simGate.OnFatal();
     bUpdateAllowed = false;
     bGgpoConnectionInterrupted = false;
     if (ggpo) {
         ggpo_close_session(ggpo);
         ggpo = nullptr;
+        simGate.OnSessionClosed();
     }
     sf4e::GgpoRelay::Instance().Reset();
     sf4e::NetplayFacade::ClearBattleState();
@@ -613,6 +685,8 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
         ggpo = nullptr;
     }
     sf4e::GgpoRelay::Instance().Reset();
+    simGate.OnSessionStarted();
+    s_lastDisconnectFlags = 0;
     bGgpoConnectionInterrupted = false;
     localPlayerHandle = GGPO_INVALID_HANDLE;
 
@@ -688,6 +762,8 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
 void fSystem::StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port, DWORD rngSeed) {
     diag::InitFromEnvironment();
     diag::G().ResetForMatch(diag::NowMs());
+    simGate.OnSessionStarted();
+    s_lastDisconnectFlags = 0;
     localPlayerHandle = GGPO_INVALID_HANDLE;
     GGPOSessionCallbacks cb = { 0 };
     cb.begin_game = ggpo_begin_game_callback;
@@ -748,6 +824,11 @@ bool fSystem::ggpo_advance_frame_callback(int)
         AbortGgpoMatch("Netplay sync failed — match ended.");
         return true;
     }
+    NoteDisconnectFlags(disconnect_flags);
+
+    // Restored on every exit; rollback resimulation must never leak
+    // playback mode into subsequent engine work.
+    PlaybackFrameScopeGuard _playbackGuard;
     fPadSystem::playbackFrame = 0;
     fPadSystem::playbackData[0][0] = inputs[0];
     fPadSystem::playbackData[0][1] = inputs[1];
@@ -773,7 +854,6 @@ bool fSystem::ggpo_advance_frame_callback(int)
         CaptureSnapshot(system);
     }
 
-    fPadSystem::playbackFrame = -1;
     return true;
 }
 
@@ -854,6 +934,7 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         spdlog::info("GGPO: Synchronized with peer");
         break;
     case GGPO_EVENTCODE_RUNNING:
+        simGate.OnRunning();
         bUpdateAllowed = true;
         spdlog::info("GGPO: Running");
         sf4e::NetplayFacade::NotifyGgpoSyncPhase(sf4e::GgpoSyncPhase::Running);
@@ -863,23 +944,27 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         if (diag::Enabled()) {
             diag::G().OnConnectionInterrupted(diag::NowMs());
         }
-        if (!bGgpoConnectionInterrupted) {
+        // Phase 2 behavior change: a connection warning marks quality
+        // degraded but does NOT stop deterministic simulation. The game
+        // keeps advancing while GGPO accepts local input, and stalls only
+        // when the prediction threshold is reached. One alert per episode.
+        if (simGate.OnConnectionInterrupted(GetTickCount())) {
             bGgpoConnectionInterrupted = true;
-            s_updateAllowedBeforeGgpoInterrupt = bUpdateAllowed;
-            bUpdateAllowed = false;
+            sf4e::NetplayFacade::PushAlert("Connection unstable — playing on prediction...");
         }
-        sf4e::NetplayFacade::PushAlert("Connection unstable — waiting to reconnect...");
         break;
     case GGPO_EVENTCODE_CONNECTION_RESUMED:
         spdlog::info("GGPO: GGPO_EVENTCODE_CONNECTION_RESUMED");
         if (diag::Enabled()) {
             diag::G().OnConnectionResumed(diag::NowMs());
         }
-        if (bGgpoConnectionInterrupted) {
+        // Clears only the warning. It cannot undo a manual pause, a fatal
+        // transition, or the startup gate, and it never "catches up" by
+        // double-advancing; GGPO resumes progression on its own.
+        if (simGate.OnConnectionResumed()) {
             bGgpoConnectionInterrupted = false;
-            bUpdateAllowed = s_updateAllowedBeforeGgpoInterrupt;
+            sf4e::NetplayFacade::PushAlert("Connection restored.");
         }
-        sf4e::NetplayFacade::PushAlert("Connection restored.");
         break;
     case GGPO_EVENTCODE_DISCONNECTED_FROM_PEER:
         spdlog::info("GGPO: GGPO_EVENTCODE_DISCONNECTED_FROM_PEER");
@@ -889,6 +974,7 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         if (system) {
             *rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
         }
+        simGate.OnConnectionResumed(); // close any open warning episode
         bGgpoConnectionInterrupted = false;
         sf4e::NetplayFacade::PushAlert("Opponent disconnected.");
         break;

@@ -10,6 +10,7 @@
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
 #include "../Dimps/Dimps__Math.hxx"
 
+#include "../common/sf4e__GgpoGate.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 
 #include "sf4e__Platform.hxx"
@@ -49,6 +50,17 @@ namespace sf4e {
 				static bool bHaltAfterNext;
 				static bool bUpdateAllowed;
 				static bool bGgpoConnectionInterrupted;
+
+				// Explicit gate model (Phase 2). Tracks session phase,
+				// connection warnings, and prediction stalls separately from
+				// bUpdateAllowed, which now carries only lifecycle gating,
+				// manual/debug pause, and terminal failure.
+				static sf4e::gate::GgpoGateModel simGate;
+
+				// The one central answer to "may the next deterministic
+				// frame advance?". Connection warnings and prediction
+				// stalls intentionally do not gate here.
+				static bool MayAdvanceDeterministicFrame();
 				static int nExtraFramesToSimulate;
 				static int nNextBattleStartFlowTarget;
 				static int nRandomizeLocalInputsEveryXFramesInGGPO;
