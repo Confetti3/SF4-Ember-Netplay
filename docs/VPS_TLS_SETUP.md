@@ -12,8 +12,8 @@ Internet
    │
    ├─ :80/tcp   ──► Caddy (ACME + HTTP→HTTPS redirect)
    │
-   ├─ :23456-23475/tcp+udp  ──► sf4e-session-relay (GNS)
-   ├─ :24456-24475/udp      ──► sf4e-ggpo-udp-relay
+   ├─ :23456-23505/tcp+udp  ──► sf4e-session-relay (GNS)
+   ├─ :24456-24505/udp      ──► sf4e-ggpo-udp-relay
    └─ :8790/udp             ──► NAT probe (connect-plan)
 
 NOT public: 8787, 8788, 8789 (localhost only)
@@ -101,13 +101,16 @@ SF4E_ALLOW_HTTP_BROKER=1
 | 22 | tcp | SSH |
 | 80 | tcp | ACME + redirect |
 | 443 | tcp | HTTPS (Caddy) |
-| 23456–23475 | tcp+udp | Session relay |
-| 24456–24475 | udp | GGPO UDP relay |
+| 23456–23505 | tcp+udp | Session relay (`MAX_ROOMS=50` default) |
+| 24456–24505 | udp | GGPO UDP relay |
 | 8790 | udp | NAT probe |
 
 **Blocked from internet:** 8787 (broker), 8788 (relay-manager), 8789 (dashboard).
 
 Port ranges follow `RELAY_PORT_BASE`, `GGPO_UDP_PORT_BASE`, and `MAX_ROOMS` in `/root/room-broker/.env`.
+`secure-ufw.sh` derives end ports dynamically and validates ranges **before** resetting UFW.
+
+**Provider firewalls are separate:** expand the same ranges in IONOS / cloud security groups / hosting ACLs. UFW alone is not enough. See [VPS_CAPACITY_50.md](VPS_CAPACITY_50.md).
 
 ## Trust proxy
 

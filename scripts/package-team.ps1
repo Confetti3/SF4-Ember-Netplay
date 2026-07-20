@@ -359,7 +359,7 @@ Official sf4e by Anthony Danducci: https://codeberg.org/adanducci/sf4e
 This port: https://github.com/Confetti3/SF4-Netplay-Launcher
 
 Scope: USF4 Steam / Windows 10+ / experimental rollback for small friend groups.
-Limits: not finished software; shared broker (~20 rooms); failed sessions expected.
+Limits: not finished software; shared broker (~50 rooms configured ceiling); failed sessions expected.
 See docs/SCOPE_AND_LIMITATIONS.md
 
 Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss zzz")

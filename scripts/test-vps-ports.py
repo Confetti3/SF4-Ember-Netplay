@@ -192,7 +192,7 @@ def main() -> int:
 
     if not nat_ok:
         print()
-        print("ACTION: Open UDP 8790 and 24456-24475 in IONOS cloud firewall (ufw alone is not enough).")
+        print("ACTION: Open UDP 8790 and the GGPO range (default 24456-24505 for MAX_ROOMS=50) in the provider cloud firewall (ufw alone is not enough).")
 
     return 0 if health.get("ok") and relay_udp_ok else 1
 

@@ -30,7 +30,7 @@ Stay in **Simple mode** (default). Do not use **Find match** or **Open rooms** u
 ## Scope and limits (summary)
 
 - **Experimental port** — Windows + Steam USF4 only; you must own the game; **not finished software**
-- **Same zip** on both PCs; default broker has **~20 rooms** and **~15 min** idle expiry
+- **Same zip** on both PCs; default broker has **~50 rooms** and tiered idle expiry (empty lobby ~5 min / occupied ~30 min)
 - **Not tested enough yet:** rematch, disconnect recovery, spectator mode
 - Full details: [`docs/SCOPE_AND_LIMITATIONS.md`](SCOPE_AND_LIMITATIONS.md)
 

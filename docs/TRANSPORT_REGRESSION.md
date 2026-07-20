@@ -15,7 +15,7 @@ Run after transport stack changes (Phases 1–3). Complements [SMOKE_TEST.md](SM
 | 1 | UDP initial match | VPS `BROKER_GGPO_TRANSPORT=auto`, two v0.4.8 clients, fresh room | Both log `SF4R`, then phases `Connected → Synchronizing → Running` |
 | 2 | UDP rematch | Complete row 1, Ready again twice | Each generation gates on both slots; both rematches reach `Running` |
 | 3 | Asymmetric load | Delay one player before entering battle | First player sees `SF4W`; neither starts alone; both eventually reach `SF4R` |
-| 4 | UDP blocked | Block the allocated `24456–24475/udp` path | Clear timeout/abort to lobby; no asymmetric legacy fallback |
+| 4 | UDP blocked | Block the allocated `24456–24505/udp` path (default `MAX_ROOMS=50`) | Clear timeout/abort to lobby; no asymmetric legacy fallback |
 | 5 | Same public IP | Two clients behind one NAT | Explicit player slots pair and forward bidirectionally |
 | 6 | Forced legacy diagnostics | `SF4E_GGPO_TRANSPORT=legacy` on both clients | Session tunnel works only as an explicit ops/debug override |
 | 7 | Join path | Guest joins via SF4- code only | Connect plan applied; guest registers endpoint |

@@ -74,9 +74,9 @@ flowchart TB
   end
 
   subgraph data [Data plane - UDP/TCP]
-    GNS["Session relay 23456-23475"]
+    GNS["Session relay 23456-23505"]
     NAT["NAT probe 8790/udp"]
-    GGPO["GGPO UDP relay 24456-24475"]
+    GGPO["GGPO UDP relay 24456-24505"]
   end
 
   L -->|HTTPS connect-plan| B
@@ -167,7 +167,7 @@ This is an **experimental unofficial port** for a **small friends group** - not 
 | In scope | Out of scope / limits |
 |----------|------------------------|
 | USF4 on **Steam**, **Windows 10+** | Game not included; no console/macOS native build |
-| **Simple mode**: VPS room codes (`SF4-XXXX`), no host port forward | **~20 rooms** on default broker; rooms expire after **~15 min** idle |
+| **Simple mode**: VPS room codes (`SF4-XXXX`), no host port forward | **~50 rooms** configured ceiling on default broker; tiered idle expiry (~5 / ~30 min) |
 | **Advanced mode**: Direct IP / UPnP / custom broker | Direct IP host must **port-forward** TCP+UDP (default **23456**) |
 | Same **release zip** on all players | **Find match** / **Open rooms** are **experimental** |
 | Unofficial launcher + packaging on upstream sf4e (MIT) | **Not** maintained or endorsed by Anthony Danducci |
@@ -181,6 +181,7 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 | Doc | Audience |
 |-----|----------|
 | [docs/VPS_TLS_SETUP.md](docs/VPS_TLS_SETUP.md) | VPS TLS, firewall, and port layout |
+| [docs/VPS_CAPACITY_50.md](docs/VPS_CAPACITY_50.md) | Raise default VPS capacity to 50 rooms / migrate live `.env` |
 | [docs/TRANSPORT_REGRESSION.md](docs/TRANSPORT_REGRESSION.md) | Transport ladder test matrix |
 | [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md) | Experimental testers - quick checklist and bug reports |
 | [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md) | Player guide - Simple + Advanced flows |
