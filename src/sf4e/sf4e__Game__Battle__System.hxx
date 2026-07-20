@@ -90,8 +90,27 @@ namespace sf4e {
 				void SysMain_HandleTrainingModeFeatures();
 				void SysMain_UpdatePauseState();
 
+				// Canonical semantic hashes (desync detection v2). One
+				// overall hash plus subsystem hashes for mismatch
+				// classification. Computed only from stable semantic
+				// values via the canonical encoder; never from raw
+				// struct bytes, pointers, or padding.
+				struct SemanticHashes {
+					uint64_t overall = 0;
+					uint64_t flow = 0;
+					uint64_t chara[2] = { 0, 0 };
+				};
+
 				struct SaveState {
 					bool used = false;
+
+					// Frame identity (v2). simulationFrame is the engine
+					// frames-simulated count; ggpoFrame is GGPO's frame
+					// argument to the save callback. Reset on slot reuse.
+					int simulationFrame = -1;
+					int ggpoFrame = -1;
+					bool hashValid = false;
+					SemanticHashes hashes;
 					std::vector<std::pair<GameMementoKey*, GameMementoKey>> keys;
 					std::map<
 						Dimps::Game::Battle::Sound::SoundPlayerManager::CriPlayerAdapter*,
@@ -132,6 +151,30 @@ namespace sf4e {
 
 				static void CaptureSnapshot(Dimps::Game::Battle::System* src);
 				static std::map<int, std::pair<SessionProtocol::StateSnapshot, StateSnapshotMeta>> snapshotMap;
+
+				// Desync detection v2: a bounded ring of per-frame hash
+				// checkpoints captured every HASH_CHECKPOINT_INTERVAL
+				// frames. Entries are exchanged by SessionClient once aged
+				// past the rollback/prediction window ("aged", NOT formally
+				// GGPO-confirmed). The legacy 60-frame snapshot system
+				// above stays fully operational alongside.
+				struct HashCheckpoint {
+					int frameIdx = -1;
+					bool valid = false;
+					bool sent = false;
+					SemanticHashes hashes;
+				};
+				static const int NUM_HASH_CHECKPOINTS = 64;
+				static const int HASH_CHECKPOINT_INTERVAL = 30;
+				// A checkpoint may be exchanged once the sender has
+				// simulated this many frames past it (> GGPO's 8-frame
+				// prediction window plus input delay margin).
+				static const int HASH_CHECKPOINT_AGE_FRAMES = 30;
+				static HashCheckpoint hashCheckpoints[NUM_HASH_CHECKPOINTS];
+				static SemanticHashes ComputeSemanticHashes(Dimps::Game::Battle::System* src);
+				static void CaptureHashCheckpoint(Dimps::Game::Battle::System* src);
+				static HashCheckpoint* FindHashCheckpoint(int frameIdx);
+				static void ClearHashCheckpoints();
 				static GGPOPlayerHandle localPlayerHandle;
 				static PlayerConnectionInfo players[MAX_SF4E_PROTOCOL_USERS];
 				static GGPOSession* ggpo;

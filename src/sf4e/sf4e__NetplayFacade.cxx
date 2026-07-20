@@ -611,8 +611,10 @@ namespace sf4e {
 
 	void NetplayFacade::ClearBattleState() {
 		fSystem::snapshotMap.clear();
+		fSystem::ClearHashCheckpoints();
 		if (fUserApp::netplay) {
 			fUserApp::netplay->client.pendingRemoteSnapshots.clear();
+			fUserApp::netplay->client.pendingRemoteHashes.clear();
 		}
 	}
 

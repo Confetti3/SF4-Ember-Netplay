@@ -26,6 +26,7 @@
 #include "../Dimps/Dimps__Platform.hxx"
 
 #include "../common/sf4e__RollbackDiagnostics.hxx"
+#include "../common/sf4e__StateHash.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 
 #include "sf4e.hxx"
@@ -496,6 +497,7 @@ void fSystem::BattleUpdate() {
                     fSoundPlayerManager::SyncState();
                 }
                 CaptureSnapshot(_this);
+                CaptureHashCheckpoint(_this);
             }
         }
     }
@@ -922,6 +924,7 @@ bool fSystem::ggpo_advance_frame_callback(int)
     }
     else {
         CaptureSnapshot(system);
+        CaptureHashCheckpoint(system);
     }
 
     return true;
@@ -934,7 +937,7 @@ bool fSystem::ggpo_load_game_state_callback(unsigned char* buffer, int len)
     return true;
 }
 
-bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, int* checksum, int)
+bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, int* checksum, int frame)
 {
     // No GGPO callback allocates data, then hands ownership to GGPO-
     // sf4e preallocates and manages all its savestates, and the memory
@@ -953,6 +956,18 @@ bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, in
         SaveState::Save(&saveStates[i]);
         *buffer = (unsigned char*)&saveStates[i];
         *checksum = 0;
+
+        // v2 frame identity: record which frame this state represents and
+        // its semantic hashes. GGPO's checksum stays 0 — our hash is wider
+        // than its int and is exchanged through the room channel instead.
+        {
+            rSystem* system = rSystem::staticMethods.GetSingleton();
+            saveStates[i].simulationFrame =
+                rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
+            saveStates[i].ggpoFrame = frame;
+            saveStates[i].hashes = ComputeSemanticHashes(system);
+            saveStates[i].hashValid = true;
+        }
 
         if (diag::Enabled()) {
             uint32_t occupied = 0;
@@ -1074,6 +1089,116 @@ fSystem::SaveState::SaveState() {
 }
 
 std::map<int, std::pair<StateSnapshot, fSystem::StateSnapshotMeta>> fSystem::snapshotMap;
+fSystem::HashCheckpoint fSystem::hashCheckpoints[fSystem::NUM_HASH_CHECKPOINTS];
+
+// Computes the v2 semantic hashes for the current frame. Coverage is
+// deliberately conservative: the frame counter, battle-flow numeric state,
+// and per-character semantic values read through engine getters (the same
+// values the legacy snapshot exchanges, which are known deterministic
+// across peers). Explicitly EXCLUDED: the battle-flow function pointers,
+// the raw GameManager block (shallow pointer fields), GameMementoKey bytes,
+// sound maps (process-local pointer keys), RNG (the evolving RNG state has
+// not been located; the match seed alone is not it), and all
+// presentation/log/overlay state.
+fSystem::SemanticHashes fSystem::ComputeSemanticHashes(rSystem* src) {
+    using sf4e::statehash::Hasher;
+    SemanticHashes out;
+
+    FixedPoint* numFrames = rSystem::GetNumFramesSimulated_FixedPoint(src);
+
+    Hasher flow;
+    flow.Fixed(numFrames->fractional, numFrames->integral);
+    flow.U32(*rSystem::staticVars.CurrentBattleFlow);
+    flow.U32(*rSystem::staticVars.PreviousBattleFlow);
+    flow.U32(*rSystem::staticVars.CurrentBattleFlowSubstate);
+    flow.U32(*rSystem::staticVars.PreviousBattleFlowSubstate);
+    flow.Fixed(
+        rSystem::staticVars.CurrentBattleFlowFrame->fractional,
+        rSystem::staticVars.CurrentBattleFlowFrame->integral
+    );
+    flow.Fixed(
+        rSystem::staticVars.CurrentBattleFlowSubstateFrame->fractional,
+        rSystem::staticVars.CurrentBattleFlowSubstateFrame->integral
+    );
+    flow.Fixed(
+        rSystem::staticVars.PreviousBattleFlowFrame->fractional,
+        rSystem::staticVars.PreviousBattleFlowFrame->integral
+    );
+    flow.Fixed(
+        rSystem::staticVars.PreviousBattleFlowSubstateFrame->fractional,
+        rSystem::staticVars.PreviousBattleFlowSubstateFrame->integral
+    );
+    out.flow = flow.Value();
+
+    CharaActor::__publicMethods& methods = CharaActor::publicMethods;
+    CharaUnit* lpCharaUnit = (src->*rSystem::publicMethods.GetCharaUnit)();
+    for (int i = 0; i < 2; i++) {
+        CharaActor* a = (lpCharaUnit->*CharaUnit::publicMethods.GetActorByIndex)(i);
+        Hasher ch;
+        ch.I32((a->*methods.GetStatus)());
+        ch.I32((a->*methods.GetCurrentSide)());
+        float* rootPos = (a->*methods.GetCurrentRootPosition)();
+        for (int c = 0; c < 4; c++) {
+            ch.F32(rootPos[c]);
+        }
+        FixedPoint fp;
+        (a->*methods.GetVitalityAmt_FixedPoint)(&fp);          ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetVitalityMax_FixedPoint)(&fp);          ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetRevengeAmt_FixedPoint)(&fp);           ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetRevengeMax_FixedPoint)(&fp);           ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetRecoverableVitalityAmt_FixedPoint)(&fp); ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetRecoverableVitalityMax_FixedPoint)(&fp); ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetSuperComboAmt_FixedPoint)(&fp);        ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetSuperComboMax_FixedPoint)(&fp);        ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetSCTimeAmt_FixedPoint)(&fp);            ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetSCTimeMax_FixedPoint)(&fp);            ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetUCTimeAmt_FixedPoint)(&fp);            ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetUCTimeMax_FixedPoint)(&fp);            ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetComboDamage)(&fp);                     ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetDamage)(&fp);                          ch.Fixed(fp.fractional, fp.integral);
+        out.chara[i] = ch.Value();
+    }
+
+    Hasher overall;
+    overall.U64(out.flow);
+    overall.U64(out.chara[0]);
+    overall.U64(out.chara[1]);
+    out.overall = overall.Value();
+    return out;
+}
+
+void fSystem::CaptureHashCheckpoint(rSystem* src) {
+    int frameIdx = rSystem::GetNumFramesSimulated_FixedPoint(src)->integral;
+    if (frameIdx % HASH_CHECKPOINT_INTERVAL != 0) {
+        return;
+    }
+    HashCheckpoint& slot =
+        hashCheckpoints[(frameIdx / HASH_CHECKPOINT_INTERVAL) % NUM_HASH_CHECKPOINTS];
+    // Rollback resimulation legitimately re-captures a frame with corrected
+    // values; the aging threshold guarantees an entry cannot change after
+    // it becomes eligible for sending.
+    if (slot.frameIdx != frameIdx) {
+        slot.frameIdx = frameIdx;
+        slot.sent = false;
+    }
+    slot.hashes = ComputeSemanticHashes(src);
+    slot.valid = true;
+}
+
+fSystem::HashCheckpoint* fSystem::FindHashCheckpoint(int frameIdx) {
+    if (frameIdx < 0 || frameIdx % HASH_CHECKPOINT_INTERVAL != 0) {
+        return nullptr;
+    }
+    HashCheckpoint& slot =
+        hashCheckpoints[(frameIdx / HASH_CHECKPOINT_INTERVAL) % NUM_HASH_CHECKPOINTS];
+    return (slot.valid && slot.frameIdx == frameIdx) ? &slot : nullptr;
+}
+
+void fSystem::ClearHashCheckpoints() {
+    for (int i = 0; i < NUM_HASH_CHECKPOINTS; i++) {
+        hashCheckpoints[i] = HashCheckpoint();
+    }
+}
 
 void fSystem::CaptureSnapshot(rSystem* src) {
     int frameIdx = rSystem::GetNumFramesSimulated_FixedPoint(src)->integral;
@@ -1172,8 +1297,14 @@ void Clear(fSystem::SaveState* victim) {
     }
     victim->keys.clear();
 
-    // Restore all non-memento-key state to a sane default.
+    // Restore all non-memento-key state to a sane default. Slot reuse must
+    // also reset the v2 frame/hash metadata so a stale hash can never be
+    // attributed to a new frame.
     victim->used = false;
+    victim->simulationFrame = -1;
+    victim->ggpoFrame = -1;
+    victim->hashValid = false;
+    victim->hashes = fSystem::SemanticHashes();
     victim->d.CurrentBattleFlow = 0;
     victim->d.PreviousBattleFlow = 0;
     victim->d.CurrentBattleFlowSubstate = 0;

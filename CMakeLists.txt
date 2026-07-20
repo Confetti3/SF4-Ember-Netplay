@@ -174,6 +174,10 @@ if(BUILD_TESTING)
     add_executable(PacingControllerTest "src/tests/pacing_controller_test.cxx")
     add_test(NAME PacingController COMMAND PacingControllerTest)
     set_tests_properties(PacingController PROPERTIES TIMEOUT 15)
+
+    add_executable(StateHashTest "src/tests/state_hash_test.cxx")
+    add_test(NAME StateHash COMMAND StateHashTest)
+    set_tests_properties(StateHash PROPERTIES TIMEOUT 15)
 endif()
 
 add_executable(RelayHost "src/relay/relay_host.cxx")

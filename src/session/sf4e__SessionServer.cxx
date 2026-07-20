@@ -374,8 +374,14 @@ int SessionServer::Step()
 				}
 				ResetLobbyForRematch();
 			}
-			else if (type == SessionProtocol::MT_BATTLE_SNAPSHOT) {
-				// Forward the snapshot to every other client.
+			else if (
+				type == SessionProtocol::MT_BATTLE_SNAPSHOT ||
+				type == SessionProtocol::MT_BATTLE_HASH
+			) {
+				// Forward verification payloads (legacy snapshots and v2
+				// hash checkpoints) to every other client. Forwarding is
+				// deliberately identical for both: the receiving client
+				// decides what a mismatch means (player vs spectator).
 				for (auto clientIter = clients.begin(); clientIter != clients.end(); clientIter++) {
 					if (clientIter->conn != conn) {
 						_interface->SendMessageToConnection(
