@@ -23,6 +23,17 @@ Base ports remain `RELAY_PORT_BASE=23456` and `GGPO_UDP_PORT_BASE=24456`. End po
 - `scripts/deploy-broker-vps.py` and `install-vps.sh` **preserve** an existing live `.env`.
 - An existing VPS that still has `MAX_ROOMS=20` will keep that value after a normal deploy until an operator edits `.env`.
 
+## Deploy helper (Windows → VPS)
+
+With `SF4E_VPS_PASSWORD` set:
+
+```powershell
+python scripts/migrate-vps-capacity-50.py
+python scripts/check-vps-capacity.py --max-rooms 50 --health-url https://<broker-domain>/v1/health
+```
+
+This uploads broker/dashboard capacity files, backs up `.env`, sets `MAX_ROOMS=50`, runs local `secure-ufw.sh`, and restarts services. It does **not** change IONOS/cloud firewall rules.
+
 ## Live migration (existing VPS)
 
 Service unit names in this repo:
