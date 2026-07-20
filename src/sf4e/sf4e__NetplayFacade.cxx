@@ -297,6 +297,7 @@ namespace sf4e {
 			if (system && *rSystem::staticVars.CurrentBattleFlow != rSystem::BF__IDLE) {
 				*rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
 			}
+			fSystem::simGate.OnFatal();
 			fSystem::bUpdateAllowed = false;
 		}
 

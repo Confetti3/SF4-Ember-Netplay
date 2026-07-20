@@ -195,12 +195,12 @@ static void LogPacerSummary(const char* label) {
 }
 
 bool fSystem::MayAdvanceDeterministicFrame() {
-    // bUpdateAllowed still carries: lifecycle gating (StartGGPO -> RUNNING),
-    // manual/debug pause (overlay), terminal failure (AbortGgpoMatch), and
-    // room failure (HandleNetplayFailure). It no longer changes on
-    // connection warnings, and prediction stalls are enforced by GGPO
-    // refusing local input rather than by this gate.
-    return bUpdateAllowed;
+    // Preserve the legacy Boolean for offline/development controls, but make
+    // the explicit model authoritative for GGPO lifecycle and terminal state.
+    // Connection warnings and prediction stalls intentionally remain absent.
+    return !ggpo
+        ? bUpdateAllowed
+        : bUpdateAllowed && simGate.CanAdvanceDeterministicFrame();
 }
 fSystem::PlayerConnectionInfo fSystem::players[MAX_SF4E_PROTOCOL_USERS];
 fSystem::SaveState fSystem::saveStates[NUM_SAVE_STATES];
@@ -535,6 +535,7 @@ void fSystem::BattleUpdate() {
     if (bHaltAfterNext) {
         bHaltAfterNext = false;
         bUpdateAllowed = false;
+        simGate.SetManualPause(true);
     }
 }
 
@@ -789,6 +790,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     diag::G().ResetForMatch(diag::NowMs());
     sf4e::GgpoRelay::Instance().Reset();
     simGate.OnSessionStarted();
+    bUpdateAllowed = !simGate.manualPause;
     ResetPacerForSession();
     s_lastDisconnectFlags = 0;
     bGgpoConnectionInterrupted = false;
@@ -858,7 +860,6 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     }
 
     nNextBattleStartFlowTarget = BF__MATCH_START;
-    bUpdateAllowed = false;
     fVsBattle::bTerminateOnNextLeftBattle = true;
     fVsBattle::bOverrideNextRandomSeed = true;
     fVsBattle::nextMatchRandomSeed = rngSeed;
@@ -873,6 +874,7 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
     }
     diag::G().ResetForMatch(diag::NowMs());
     simGate.OnSessionStarted();
+    bUpdateAllowed = !simGate.manualPause;
     ResetPacerForSession();
     s_lastDisconnectFlags = 0;
     localPlayerHandle = GGPO_INVALID_HANDLE;
@@ -905,7 +907,6 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
     ApplyGgpoDisconnectSettings(ggpo);
 
     nNextBattleStartFlowTarget = BF__MATCH_START;
-    bUpdateAllowed = false;
     fVsBattle::bTerminateOnNextLeftBattle = true;
     fVsBattle::bOverrideNextRandomSeed = true;
     fVsBattle::nextMatchRandomSeed = rngSeed;
@@ -1059,7 +1060,6 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         break;
     case GGPO_EVENTCODE_RUNNING:
         simGate.OnRunning();
-        bUpdateAllowed = true;
         spdlog::info("GGPO: Running");
         sf4e::NetplayFacade::NotifyGgpoSyncPhase(sf4e::GgpoSyncPhase::Running);
         break;

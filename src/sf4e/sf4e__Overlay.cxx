@@ -1943,15 +1943,18 @@ void DrawSystemWindow(bool* pOpen) {
 			Text("Update allowed: %s", fSystem::bUpdateAllowed ? "true" : "false");
 			if (Button("Pause")) {
 				fSystem::bUpdateAllowed = false;
+				fSystem::simGate.SetManualPause(true);
 			}
 			if (Button("Play")) {
 				fSystem::bUpdateAllowed = true;
+				fSystem::simGate.SetManualPause(false);
 			}
 			if (Button("Halt after next")) {
 				fSystem::bHaltAfterNext = true;
 			}
 			if (Button("Step")) {
 				fSystem::bUpdateAllowed = true;
+				fSystem::simGate.SetManualPause(false);
 				fSystem::bHaltAfterNext = true;
 			}
 
