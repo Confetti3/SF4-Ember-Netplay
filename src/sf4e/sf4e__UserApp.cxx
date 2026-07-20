@@ -663,8 +663,17 @@ void fUserApp::Steam_PostUpdate() {
     }
 
     if (fSystem::ggpo) {
+        // Nonblocking poll. In the pinned fork a nonzero timeout is an
+        // unconditional Sleep(1) at the end of Peer2PeerBackend::DoPoll
+        // (annotated "obviously a farce" upstream), i.e. a 1-15.6 ms hard
+        // stall every tick depending on timer resolution. Timeout 0 performs
+        // the identical pump work (Poll::Pump(0); the UDP socket is a
+        // nonblocking loop sink) without the sleep. The outer game loop
+        // already owns frame cadence; GGPO still gets exactly one pump
+        // opportunity per application tick. Setup-time registration waits
+        // are unaffected (they live in GgpoTransport, not here).
         diag::ScopedTimer _t(diag::OP_GGPO_IDLE);
-        ggpo_idle(fSystem::ggpo, 1);
+        ggpo_idle(fSystem::ggpo, 0);
     }
 
     if (diag::Enabled()) {
