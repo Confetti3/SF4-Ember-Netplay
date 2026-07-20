@@ -18,6 +18,30 @@ Do not change these behaviors without regression testing (SessionInteractiveTest
 - Keep `sidecarHash` join validation (`JR_HASH_INVALID`).
 - Desync detection via `StateSnapshot` exchange must remain enabled in normal play.
 
+## Rollback remediation (2026-07, feat/rollback-diagnostics-and-pacing)
+
+- `bUpdateAllowed` carries only lifecycle gating, manual/debug pause, terminal
+  failure, and room failure — read via `fSystem::MayAdvanceDeterministicFrame()`.
+  Connection warnings must NOT freeze simulation; prediction stalls are enforced
+  by GGPO refusing local input (`GgpoGateModel`, `ClassifyGgpoResult`).
+- A `CONNECTION_RESUMED` event clears only the warning; it can never undo a
+  manual pause, a fatal abort, or the startup gate.
+- Routine in-match polling is `ggpo_idle(session, 0)` (nonblocking; the fork's
+  nonzero timeout is an unconditional Sleep). Do not reintroduce a sleep there.
+- The timesync event callback must not block; corrections flow through
+  `PacingController` (bounded, replace-not-sum, reset on session lifecycle) and
+  are repaid ≤ `maxStepMs` per outer frame, never by skipping/doubling
+  deterministic simulation.
+- SaveState Save/Load/Free stay on the game main thread (debug-asserted).
+- Desync v2 (`battle_hash`) is diagnostics-first: no default termination,
+  spectator mismatches never end the players' fight, and the legacy
+  `battle_snapshot` system stays active (see docs/DESYNC_V2.md).
+- Room loss during an active healthy non-tunneled GGPO fight degrades
+  (fight continues; rematch/results/verification disabled; safe exit at match
+  end) instead of closing GGPO. Legacy-tunnel matches still fail fully.
+- Diagnostics (`SF4E_ROLLBACK_DIAGNOSTICS=1`) must never change simulation
+  state and must stay allocation-free per frame.
+
 ## Relay mode
 
 - Relay only changes how UDP reaches peers; it must not alter memento save/load or advance-frame callback semantics.
