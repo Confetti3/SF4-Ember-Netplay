@@ -45,6 +45,7 @@ const char* TimedOpName(int op) {
 	case OP_FREE_CLEAR:             return "free.clear";
 	case OP_FREE_LIVE_RESTORE:      return "free.live_restore";
 	case OP_TIMESYNC_SLEEP:         return "timesync_sleep";
+	case OP_PACING_WAIT:            return "pacing_wait";
 	default:                        return "?";
 	}
 }
@@ -334,6 +335,7 @@ size_t RollbackDiagnostics::FormatSummary(char* buf, size_t cap, const char* lab
 		"  timesync events=%u framesTotal=%llu max=%u\n",
 		timesyncEvents, (unsigned long long)timesyncFramesTotal, timesyncMaxFrames);
 	AppendStatLine(buf, cap, &used, "timesync_sleep", ops[OP_TIMESYNC_SLEEP]);
+	AppendStatLine(buf, cap, &used, "pacing_wait", ops[OP_PACING_WAIT]);
 
 	// -- Simulation hitches: cost of work inside an outer frame.
 	Append(buf, cap, &used, " simulation hitches:\n");

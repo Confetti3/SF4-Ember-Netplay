@@ -55,6 +55,7 @@ enum TimedOp {
 
 	// Blocking behavior we intend to remove (measured for before/after)
 	OP_TIMESYNC_SLEEP,             // sleep inside the timesync event callback
+	OP_PACING_WAIT,                // distributed pacing wait in the outer tick
 
 	OP_COUNT
 };

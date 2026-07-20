@@ -586,7 +586,9 @@ namespace sf4e {
 		if (closeGgpo && fSystem::ggpo) {
 			ggpo_close_session(fSystem::ggpo);
 			fSystem::ggpo = nullptr;
+			fSystem::simGate.OnSessionClosed();
 		}
+		fSystem::pacer.Reset();
 		GgpoRelay::Instance().Reset();
 		s_ggpoTransportStatus = { 0 };
 		s_ggpoSyncPhase = GgpoSyncPhase::None;

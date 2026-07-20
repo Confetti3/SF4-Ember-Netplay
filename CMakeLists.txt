@@ -89,6 +89,7 @@ add_library(sf4e_common STATIC
     "src/common/sf4e__RollbackDiagnostics.hxx"
     "src/common/sf4e__GgpoGate.cxx"
     "src/common/sf4e__GgpoGate.hxx"
+    "src/common/sf4e__PacingController.hxx"
     "src/common/install_paths.cxx"
     "src/common/install_paths.hxx"
 )
@@ -169,6 +170,10 @@ if(BUILD_TESTING)
     target_link_libraries(GgpoGateTest PRIVATE sf4e_common)
     add_test(NAME GgpoGate COMMAND GgpoGateTest)
     set_tests_properties(GgpoGate PROPERTIES TIMEOUT 15)
+
+    add_executable(PacingControllerTest "src/tests/pacing_controller_test.cxx")
+    add_test(NAME PacingController COMMAND PacingControllerTest)
+    set_tests_properties(PacingController PROPERTIES TIMEOUT 15)
 endif()
 
 add_executable(RelayHost "src/relay/relay_host.cxx")

@@ -56,6 +56,37 @@ std::unique_ptr<fUserApp::Netplay> fUserApp::netplay;
 std::unique_ptr<SessionServer> fUserApp::server;
 static bool s_pendingMatchStart = false;
 
+#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
+#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
+#endif
+
+// Waits approximately `ms` without touching the global timer resolution
+// (no timeBeginPeriod). Prefers a high-resolution waitable timer
+// (Win10 1803+); falls back to a plain waitable timer, then Sleep. The
+// caller measures the actual elapsed time — coarse waits self-correct
+// through PacingController::OnWaited.
+static void PacedWaitMs(double ms) {
+    static HANDLE s_timer = INVALID_HANDLE_VALUE;
+    if (s_timer == INVALID_HANDLE_VALUE) {
+        s_timer = CreateWaitableTimerExW(
+            NULL, NULL, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS
+        );
+        if (!s_timer) {
+            s_timer = CreateWaitableTimerExW(NULL, NULL, 0, TIMER_ALL_ACCESS);
+        }
+    }
+    if (s_timer) {
+        LARGE_INTEGER due;
+        due.QuadPart = -(LONGLONG)(ms * 10000.0); // relative, 100 ns units
+        if (SetWaitableTimer(s_timer, &due, 0, NULL, NULL, FALSE)) {
+            // Bounded backstop so a timer failure can never hang the tick.
+            WaitForSingleObject(s_timer, (DWORD)(ms + 50.0));
+            return;
+        }
+    }
+    Sleep((DWORD)(ms + 0.5));
+}
+
 static bool StartMatchFromLobby(SessionClient* const client) {
     sf4e::NetplayFacade::ClearBattleState();
     fVsBattle::bSessionSynced = false;
@@ -674,6 +705,28 @@ void fUserApp::Steam_PostUpdate() {
         // are unaffected (they live in GgpoTransport, not here).
         diag::ScopedTimer _t(diag::OP_GGPO_IDLE);
         ggpo_idle(fSystem::ggpo, 0);
+    }
+
+    // Distributed time-sync pacing (Phase 4): repay a small, bounded slice
+    // of the outstanding correction per rendered frame, outside every GGPO
+    // callback. Deterministic simulation is never skipped or doubled;
+    // this only delays presentation. Skipped while GGPO already stalls us
+    // (prediction threshold) and while the gate is closed.
+    if (
+        fSystem::ggpo &&
+        fSystem::MayAdvanceDeterministicFrame() &&
+        !fSystem::simGate.predictionStalled
+    ) {
+        double wantMs = fSystem::pacer.NextWaitMs();
+        if (wantMs > 0.0) {
+            double t0 = diag::NowMs();
+            PacedWaitMs(wantMs);
+            double actual = diag::NowMs() - t0;
+            fSystem::pacer.OnWaited(actual);
+            if (diag::Enabled()) {
+                diag::G().RecordOp(diag::OP_PACING_WAIT, actual);
+            }
+        }
     }
 
     if (diag::Enabled()) {

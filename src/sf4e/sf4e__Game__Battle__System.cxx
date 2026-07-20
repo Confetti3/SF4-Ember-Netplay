@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <stdlib.h>
 #include <string.h>
 #include <utility>
 #include <vector>
@@ -113,6 +114,49 @@ int fSystem::nRandomizeLocalInputsEveryXFramesInGGPO = 0;
 GGPOPlayerHandle fSystem::localPlayerHandle = GGPO_INVALID_HANDLE;
 GGPOSession* fSystem::ggpo = nullptr;
 sf4e::gate::GgpoGateModel fSystem::simGate = { sf4e::gate::PHASE_NO_SESSION };
+// maxRecommendationFrames, maxStepMs, minWaitMs; state/stats zeroed.
+sf4e::pacing::PacingController fSystem::pacer = { 9.0, 3.0, 1.0 };
+
+// Applies development overrides for the pacing caps and resets the
+// controller for a new session. Called from StartGGPO/StartSpectating.
+static void ResetPacerForSession() {
+    const char* stepEnv = getenv("SF4E_PACING_MAX_STEP_MS");
+    if (stepEnv && stepEnv[0]) {
+        double v = atof(stepEnv);
+        if (v > 0.0 && v <= 20.0) {
+            fSystem::pacer.maxStepMs = v;
+        }
+    }
+    const char* framesEnv = getenv("SF4E_PACING_MAX_FRAMES");
+    if (framesEnv && framesEnv[0]) {
+        double v = atof(framesEnv);
+        if (v > 0.0 && v <= 30.0) {
+            fSystem::pacer.maxRecommendationFrames = v;
+        }
+    }
+    fSystem::pacer.Reset();
+    fSystem::pacer.ResetStats();
+}
+
+static void LogPacerSummary(const char* label) {
+    const sf4e::pacing::PacingController& p = fSystem::pacer;
+    if (p.recommendationsReceived == 0 && p.msAppliedTotal == 0.0) {
+        return;
+    }
+    spdlog::info(
+        "Pacing [{}]: recs={} framesRec={} acceptedMs={:.1f} appliedMs={:.1f} "
+        "maxWaitMs={:.2f} maxOutstandingMs={:.1f} discardedMs={:.1f} outstandingMs={:.1f}",
+        label,
+        p.recommendationsReceived,
+        p.framesRecommendedTotal,
+        p.msAcceptedTotal,
+        p.msAppliedTotal,
+        p.maxSingleWaitMs,
+        p.maxOutstandingMs,
+        p.msDiscardedOnReset,
+        p.outstandingMs
+    );
+}
 
 bool fSystem::MayAdvanceDeterministicFrame() {
     // bUpdateAllowed still carries: lifecycle gating (StartGGPO -> RUNNING),
@@ -461,6 +505,8 @@ void fSystem::CloseBattle() {
     rSystem* _this = (rSystem*)this;
     if (ggpo) {
         simGate.OnBattleClosing();
+        LogPacerSummary("battle_close");
+        pacer.Reset();
         // Decide defer *before* close so a prior spectator defer flag cannot
         // leave this session open across rematch.
         sf4e::NetplayFacade::NotifyMatchEnded();
@@ -659,6 +705,8 @@ void fSystem::AbortGgpoMatch(const char* reason) {
         sf4e::NetplayFacade::PushAlert(reason);
     }
     EmitRollbackDiagSummary("abort");
+    LogPacerSummary("abort");
+    pacer.Reset();
     simGate.OnFatal();
     bUpdateAllowed = false;
     bGgpoConnectionInterrupted = false;
@@ -686,6 +734,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     }
     sf4e::GgpoRelay::Instance().Reset();
     simGate.OnSessionStarted();
+    ResetPacerForSession();
     s_lastDisconnectFlags = 0;
     bGgpoConnectionInterrupted = false;
     localPlayerHandle = GGPO_INVALID_HANDLE;
@@ -763,6 +812,7 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
     diag::InitFromEnvironment();
     diag::G().ResetForMatch(diag::NowMs());
     simGate.OnSessionStarted();
+    ResetPacerForSession();
     s_lastDisconnectFlags = 0;
     localPlayerHandle = GGPO_INVALID_HANDLE;
     GGPOSessionCallbacks cb = { 0 };
@@ -982,10 +1032,15 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         if (diag::Enabled()) {
             diag::G().OnTimesyncEvent(info->u.timesync.frames_ahead);
         }
-        {
-            diag::ScopedTimer _t(diag::OP_TIMESYNC_SLEEP);
-            Sleep(1000 * info->u.timesync.frames_ahead / 60);
-        }
+        // Phase 4: no blocking here. The recommendation (a fresh clamped
+        // estimate of frames ahead — see PacingController) is recorded and
+        // repaid in small slices in the outer tick, outside this callback.
+        pacer.OnRecommendation(info->u.timesync.frames_ahead);
+        spdlog::info(
+            "GGPO: timesync recommends {} frames; outstanding pacing {:.1f} ms",
+            info->u.timesync.frames_ahead,
+            pacer.outstandingMs
+        );
         break;
     }
     return true;

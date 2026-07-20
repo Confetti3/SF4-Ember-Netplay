@@ -11,6 +11,7 @@
 #include "../Dimps/Dimps__Math.hxx"
 
 #include "../common/sf4e__GgpoGate.hxx"
+#include "../common/sf4e__PacingController.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 
 #include "sf4e__Platform.hxx"
@@ -61,6 +62,11 @@ namespace sf4e {
 				// frame advance?". Connection warnings and prediction
 				// stalls intentionally do not gate here.
 				static bool MayAdvanceDeterministicFrame();
+
+				// Time-sync pacing (Phase 4): the timesync event only
+				// records a bounded correction here; the outer tick
+				// repays it in small slices (see fUserApp).
+				static sf4e::pacing::PacingController pacer;
 				static int nExtraFramesToSimulate;
 				static int nNextBattleStartFlowTarget;
 				static int nRandomizeLocalInputsEveryXFramesInGGPO;
