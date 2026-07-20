@@ -17,6 +17,7 @@ BROKER_DIR = ROOT / "services" / "room-broker"
 RELAY_DIR = ROOT / "services" / "vps-relay"
 BROKER_FILES = (
     "server.js",
+    "capacity-config.js",
     ".env.example",
     "install-vps.sh",
     "install-vps-relay.sh",
@@ -162,8 +163,11 @@ bash install-caddy.sh
 systemctl stop sf4e-relay-manager 2>/dev/null || true
 sleep 2
 cd {remote_broker}
+# Preserve an existing live .env. New installs copy .env.example once.
+# Raising MAX_ROOMS on an existing VPS requires an explicit operator edit
+# (see docs/VPS_CAPACITY_50.md); deploy does not mutate production capacity.
 if [[ ! -f .env ]]; then cp -f .env.example .env; fi
-sed -i 's/\\r$//' server.js install-vps.sh install-vps-relay.sh install-caddy.sh secure-ufw.sh .env .env.example 2>/dev/null || true
+sed -i 's/\\r$//' server.js install-vps.sh install-vps-relay.sh install-caddy.sh secure-ufw.sh capacity-config.js .env .env.example 2>/dev/null || true
 chmod +x install-vps.sh install-vps-relay.sh install-caddy.sh secure-ufw.sh
 cp -f install-vps-relay.sh {remote_relay}/install-vps-relay.sh 2>/dev/null || true
 cp -f relay-manager.js {remote_relay}/relay-manager.js 2>/dev/null || true

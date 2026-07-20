@@ -3,6 +3,7 @@
  * Run: node server.js
  * Env: PORT=8787 BROKER_BIND=127.0.0.1 BROKER_TRUST_PROXY=1
  *      RELAY_HOST=your.vps RELAY_PORT_BASE=23456 GGPO_UDP_PORT_BASE=24456
+ *      MAX_ROOMS=50 ROOM_CAPACITY_WARNING_PERCENT=80
  *      FORCE_VPS_RELAY=1 RELAY_MANAGER_URL=http://127.0.0.1:8788
  *      BROKER_ENABLE_ROOM_LIST=0 BROKER_GGPO_TRANSPORT=legacy|auto
  *      NAT_PROBE_PORT=8790 NAT_PROBE_BIND=0.0.0.0
@@ -11,14 +12,33 @@
 const http = require("http");
 const crypto = require("crypto");
 const dgram = require("dgram");
+const {
+  loadCapacityConfig,
+  allocatePortPair: allocatePortPairFromConfig,
+  releasePortReservation: releasePortReservationFromConfig,
+  ggpoPortForSessionPort: ggpoPortForSessionPortFromConfig,
+} = require("./capacity-config");
+
+let capacityConfig;
+try {
+  capacityConfig = loadCapacityConfig(process.env);
+} catch (err) {
+  console.error(`Invalid room capacity configuration: ${err.message}`);
+  process.exit(1);
+}
 
 const PORT = parseInt(process.env.PORT || "8787", 10);
 const BROKER_BIND = process.env.BROKER_BIND || "127.0.0.1";
 const TRUST_PROXY = process.env.BROKER_TRUST_PROXY !== "0";
 const RELAY_HOST = process.env.RELAY_HOST || "127.0.0.1";
-const RELAY_PORT_BASE = parseInt(process.env.RELAY_PORT_BASE || "23456", 10);
-const GGPO_UDP_PORT_BASE = parseInt(process.env.GGPO_UDP_PORT_BASE || "24456", 10);
-const MAX_ROOMS = parseInt(process.env.MAX_ROOMS || "20", 10);
+const RELAY_PORT_BASE = capacityConfig.relayPortBase;
+const GGPO_UDP_PORT_BASE = capacityConfig.ggpoUdpPortBase;
+const RELAY_PORT_END = capacityConfig.relayPortEnd;
+const GGPO_UDP_PORT_END = capacityConfig.ggpoUdpPortEnd;
+const MAX_ROOMS = capacityConfig.maxRooms;
+const ROOM_CAPACITY_WARNING_PERCENT = capacityConfig.roomCapacityWarningPercent;
+const ROOM_FULL_MESSAGE =
+  "The relay is currently at room capacity. Try again shortly or select another relay.";
 const ROOM_OCCUPIED_IDLE_MS = parseInt(
   process.env.ROOM_OCCUPIED_IDLE_MS || process.env.ROOM_IDLE_MS || String(30 * 60 * 1000),
   10
@@ -66,11 +86,7 @@ function makeRoomToken() {
 }
 
 function ggpoPortForSessionPort(sessionPort) {
-  const index = sessionPort - RELAY_PORT_BASE;
-  if (index < 0 || index >= MAX_ROOMS) {
-    return 0;
-  }
-  return GGPO_UDP_PORT_BASE + index;
+  return ggpoPortForSessionPortFromConfig(sessionPort, capacityConfig);
 }
 
 // Ports reserved by an in-flight createRoomRecord that has not yet inserted its
@@ -80,21 +96,11 @@ function ggpoPortForSessionPort(sessionPort) {
 const reservedPorts = new Set();
 
 function allocatePortPair() {
-  const usedSession = new Set([...rooms.values()].map((r) => r.port));
-  for (let i = 0; i < MAX_ROOMS; i++) {
-    const port = RELAY_PORT_BASE + i;
-    if (!usedSession.has(port) && !reservedPorts.has(port)) {
-      reservedPorts.add(port);
-      return { sessionPort: port, ggpoPort: GGPO_UDP_PORT_BASE + i };
-    }
-  }
-  return { sessionPort: 0, ggpoPort: 0 };
+  return allocatePortPairFromConfig(capacityConfig, rooms.values(), reservedPorts);
 }
 
 function releasePortReservation(port) {
-  if (port) {
-    reservedPorts.delete(port);
-  }
+  releasePortReservationFromConfig(reservedPorts, port);
 }
 
 function normalizeIp(ip) {
@@ -566,11 +572,11 @@ function buildConnectPlan(room, role, includeSecrets = false) {
 
 async function createRoomRecord(displayName, relayHost, sidecarHash) {
   if (rooms.size >= MAX_ROOMS) {
-    return { error: "full", message: "Relay is full. Try again in a few minutes or use LAN/direct play." };
+    return { error: "full", message: ROOM_FULL_MESSAGE };
   }
   const { sessionPort: port, ggpoPort } = allocatePortPair();
   if (!port) {
-    return { error: "full", message: "No relay ports available." };
+    return { error: "full", message: ROOM_FULL_MESSAGE };
   }
 
   // The port is reserved (see allocatePortPair). Hold the reservation across the
@@ -705,6 +711,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
 
   if (req.method === "GET" && url.pathname === "/v1/health") {
+    const capacityRatio = MAX_ROOMS > 0 ? rooms.size / MAX_ROOMS : 1;
     json(res, 200, {
       ok: true,
       rooms: rooms.size,
@@ -713,7 +720,11 @@ const server = http.createServer(async (req, res) => {
       forceVpsRelay: FORCE_VPS_RELAY,
       queueSize: queue.length,
       relayPortBase: RELAY_PORT_BASE,
+      relayPortEnd: RELAY_PORT_END,
       ggpoUdpPortBase: GGPO_UDP_PORT_BASE,
+      ggpoUdpPortEnd: GGPO_UDP_PORT_END,
+      capacityWarningPercent: ROOM_CAPACITY_WARNING_PERCENT,
+      capacityWarning: capacityRatio >= ROOM_CAPACITY_WARNING_PERCENT / 100,
       brokerGgpoTransport: BROKER_GGPO_TRANSPORT,
       natProbePort: NAT_PROBE_PORT,
       roomIdleMs: ROOM_IDLE_MS,
@@ -1138,30 +1149,57 @@ const server = http.createServer(async (req, res) => {
   json(res, 404, { error: "not_found", message: "Unknown API path." });
 });
 
-setInterval(pruneRooms, Math.min(ROOM_LOBBY_IDLE_MS, 60000));
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, bucket] of rateBuckets.entries()) {
-    const recent = bucket.filter((ts) => now - ts < 300_000);
-    if (recent.length) {
-      rateBuckets.set(key, recent);
-    } else {
-      rateBuckets.delete(key);
-    }
-  }
-}, 60_000);
-
-startNatProbeServer();
-
 // Last-resort guard: keep the broker alive if an unexpected rejection slips
 // through, rather than letting it crash and drop every active room.
 process.on("unhandledRejection", (reason) => {
   console.error("room-broker unhandledRejection:", reason);
 });
 
-server.listen(PORT, BROKER_BIND, () => {
-  console.log(
-    `SF4 room broker on ${BROKER_BIND}:${PORT} trustProxy=${TRUST_PROXY} relay=${RELAY_HOST}:${RELAY_PORT_BASE}+ ggpo=${GGPO_UDP_PORT_BASE}+ transport=${BROKER_GGPO_TRANSPORT} forceVpsRelay=${FORCE_VPS_RELAY}`
-  );
-});
+function start() {
+  setInterval(pruneRooms, Math.min(ROOM_LOBBY_IDLE_MS, 60000));
+
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, bucket] of rateBuckets.entries()) {
+      const recent = bucket.filter((ts) => now - ts < 300_000);
+      if (recent.length) {
+        rateBuckets.set(key, recent);
+      } else {
+        rateBuckets.delete(key);
+      }
+    }
+  }, 60_000);
+
+  startNatProbeServer();
+
+  server.listen(PORT, BROKER_BIND, () => {
+    console.log(
+      `SF4 room broker on ${BROKER_BIND}:${PORT} trustProxy=${TRUST_PROXY} relay=${RELAY_HOST}:${RELAY_PORT_BASE}-${RELAY_PORT_END} ggpo=${GGPO_UDP_PORT_BASE}-${GGPO_UDP_PORT_END} maxRooms=${MAX_ROOMS} transport=${BROKER_GGPO_TRANSPORT} forceVpsRelay=${FORCE_VPS_RELAY}`
+    );
+  });
+  return server;
+}
+
+if (require.main === module) {
+  start();
+}
+
+module.exports = {
+  server,
+  start,
+  rooms,
+  reservedPorts,
+  allocatePortPair,
+  releasePortReservation,
+  createRoomRecord,
+  endRoom,
+  ggpoPortForSessionPort,
+  MAX_ROOMS,
+  RELAY_PORT_BASE,
+  RELAY_PORT_END,
+  GGPO_UDP_PORT_BASE,
+  GGPO_UDP_PORT_END,
+  ROOM_CAPACITY_WARNING_PERCENT,
+  ROOM_FULL_MESSAGE,
+  capacityConfig,
+};

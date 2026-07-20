@@ -60,14 +60,29 @@ systemctl restart sf4e-relay-manager.service
 systemctl restart sf4e-broker.service 2>/dev/null || true
 
 if command -v ufw >/dev/null 2>&1; then
-  ufw allow OpenSSH 2>/dev/null || ufw allow 22/tcp 2>/dev/null || true
-  ufw allow 8787/tcp 2>/dev/null || true
-  ufw allow 23456:23475/tcp 2>/dev/null || true
-  ufw allow 23456:23475/udp 2>/dev/null || true
-  if ufw status | grep -q "Status: active"; then
-    ufw reload 2>/dev/null || true
+  if [[ -x "$BROKER_DIR/secure-ufw.sh" ]]; then
+    bash "$BROKER_DIR/secure-ufw.sh"
   else
-    ufw --force enable 2>/dev/null || true
+    RELAY_PORT_BASE="${RELAY_PORT_BASE:-23456}"
+    MAX_ROOMS="${MAX_ROOMS:-50}"
+    if [[ -f "$BROKER_DIR/.env" ]]; then
+      # shellcheck disable=SC1090
+      set -a
+      # shellcheck disable=SC1091
+      source "$BROKER_DIR/.env"
+      set +a
+      RELAY_PORT_BASE="${RELAY_PORT_BASE:-23456}"
+      MAX_ROOMS="${MAX_ROOMS:-50}"
+    fi
+    SESSION_PORT_END=$((RELAY_PORT_BASE + MAX_ROOMS - 1))
+    ufw allow OpenSSH 2>/dev/null || ufw allow 22/tcp 2>/dev/null || true
+    ufw allow "${RELAY_PORT_BASE}:${SESSION_PORT_END}/tcp" 2>/dev/null || true
+    ufw allow "${RELAY_PORT_BASE}:${SESSION_PORT_END}/udp" 2>/dev/null || true
+    if ufw status | grep -q "Status: active"; then
+      ufw reload 2>/dev/null || true
+    else
+      ufw --force enable 2>/dev/null || true
+    fi
   fi
 fi
 
