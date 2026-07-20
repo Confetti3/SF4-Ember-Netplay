@@ -24,6 +24,7 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
 
+#include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 
 #include "sf4e.hxx"
@@ -60,6 +61,7 @@ using fKey = sf4e::Game::GameMementoKey;
 using rPadSystem = Dimps::Pad::System;
 using fPadSystem = sf4e::Pad::System;
 using StateSnapshot = sf4e::SessionProtocol::StateSnapshot;
+namespace diag = sf4e::diag;
 
 namespace fHud = sf4e::Game::Battle::Hud;
 using fSoundPlayerManager = sf4e::Game::Battle::Sound::SoundPlayerManager;
@@ -68,6 +70,19 @@ using fVsBattle = sf4e::GameEvents::VsBattle;
 using rSystem = Dimps::Game::Battle::System;
 
 static bool s_updateAllowedBeforeGgpoInterrupt = true;
+
+// Emits the complete diagnostics summary through the normal log. Called at
+// match end / abort, before battle state is torn down.
+static void EmitRollbackDiagSummary(const char* label) {
+    if (!diag::Enabled()) {
+        return;
+    }
+    static char s_diagBuf[8192];
+    size_t n = diag::G().FormatSummary(s_diagBuf, sizeof(s_diagBuf), label);
+    if (n) {
+        spdlog::info("\n{}", s_diagBuf);
+    }
+}
 
 bool fSystem::bHaltAfterNext = false;
 bool fSystem::bUpdateAllowed = true;
@@ -253,7 +268,12 @@ void fSystem::BattleUpdate() {
     static int nLastRandomInputFrame = -1;
     static fPadSystem::Inputs randomInputs = { 0, 0 };
 
+    diag::ScopedTimer _updateTimer(diag::OP_DETOURED_BATTLE_UPDATE);
+
     if (!bUpdateAllowed) {
+        if (ggpo && diag::Enabled()) {
+            diag::G().RecordSkip(diag::SKIP_UPDATE_GATE, diag::NowMs());
+        }
         return;
     }
 
@@ -277,7 +297,23 @@ void fSystem::BattleUpdate() {
                     else {
                         inputs = { (p->*padMethods.GetButtons_MappedOn)(i), (p->*padMethods.GetButtons_RawOn)(i) };
                     }
-                    result = ggpo_add_local_input(ggpo, players[i].handle, &inputs, sizeof(fPadSystem::Inputs));
+                    {
+                        diag::ScopedTimer _t(diag::OP_ADD_LOCAL_INPUT);
+                        result = ggpo_add_local_input(ggpo, players[i].handle, &inputs, sizeof(fPadSystem::Inputs));
+                    }
+                    if (diag::Enabled()) {
+                        diag::G().RecordGgpoResult(diag::CALL_ADD_LOCAL_INPUT, (int)result);
+                        if (!GGPO_SUCCEEDED(result)) {
+                            int skip = diag::SKIP_ADD_INPUT_ERROR;
+                            if (result == GGPO_ERRORCODE_PREDICTION_THRESHOLD) {
+                                skip = diag::SKIP_PREDICTION_THRESHOLD;
+                            }
+                            else if (result == GGPO_ERRORCODE_NOT_SYNCHRONIZED) {
+                                skip = diag::SKIP_NOT_SYNCHRONIZED;
+                            }
+                            diag::G().RecordSkip(skip, diag::NowMs());
+                        }
+                    }
                     break;
                 }
             }
@@ -286,7 +322,16 @@ void fSystem::BattleUpdate() {
         if (GGPO_SUCCEEDED(result)) {
             fPadSystem::Inputs ggpoInputs[2] = { {0, 0}, {0, 0} };
             int disconnect_flags = 0;
-            result = ggpo_synchronize_input(ggpo, (void*)ggpoInputs, sizeof(fPadSystem::Inputs) * 2, &disconnect_flags);
+            {
+                diag::ScopedTimer _t(diag::OP_SYNC_INPUT);
+                result = ggpo_synchronize_input(ggpo, (void*)ggpoInputs, sizeof(fPadSystem::Inputs) * 2, &disconnect_flags);
+            }
+            if (diag::Enabled()) {
+                diag::G().RecordGgpoResult(diag::CALL_SYNC_INPUT, (int)result);
+                if (!GGPO_SUCCEEDED(result)) {
+                    diag::G().RecordSkip(diag::SKIP_SYNC_INPUT_ERROR, diag::NowMs());
+                }
+            }
             if (GGPO_SUCCEEDED(result)) {
                 fPadSystem::playbackFrame = 0;
                 fPadSystem::playbackData[0][0] = ggpoInputs[0];
@@ -294,13 +339,26 @@ void fSystem::BattleUpdate() {
                 if (fSoundPlayerManager::bUsePureSounds) {
                     fSoundPlayerManager::SyncState();
                 }
-                (_this->*sysMethods.BattleUpdate)();
+                {
+                    diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
+                    (_this->*sysMethods.BattleUpdate)();
+                }
                 fPadSystem::playbackFrame = -1;
-                GGPOErrorCode err = ggpo_advance_frame(ggpo);
+                GGPOErrorCode err;
+                {
+                    diag::ScopedTimer _t(diag::OP_ADVANCE_FRAME_API);
+                    err = ggpo_advance_frame(ggpo);
+                }
+                if (diag::Enabled()) {
+                    diag::G().RecordGgpoResult(diag::CALL_ADVANCE_FRAME, (int)err);
+                }
                 if (!GGPO_SUCCEEDED(err)) {
                     AbortGgpoMatch("Netplay sync failed — match ended.");
                 }
                 else {
+                    if (diag::Enabled()) {
+                        diag::G().OnFrameAdvanced(diag::NowMs());
+                    }
                     if (fSoundPlayerManager::bUsePureSounds) {
                         fSoundPlayerManager::SyncState();
                     }
@@ -349,6 +407,7 @@ void fSystem::CloseBattle() {
             SaveState::Free(&saveStates[i]);
         }
     }
+    EmitRollbackDiagSummary("battle_close");
     (_this->*rSystem::publicMethods.CloseBattle)();
 
 }
@@ -529,6 +588,7 @@ void fSystem::AbortGgpoMatch(const char* reason) {
         spdlog::error("GGPO match abort: {}", reason);
         sf4e::NetplayFacade::PushAlert(reason);
     }
+    EmitRollbackDiagSummary("abort");
     bUpdateAllowed = false;
     bGgpoConnectionInterrupted = false;
     if (ggpo) {
@@ -544,6 +604,8 @@ void fSystem::AbortGgpoMatch(const char* reason) {
 }
 
 void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay, DWORD rngSeed) {
+    diag::InitFromEnvironment();
+    diag::G().ResetForMatch(diag::NowMs());
     sf4e::NetplayFacade::CancelDeferredGgpoClose();
     if (ggpo) {
         spdlog::warn("StartGGPO: closing leftover GGPO session before rematch/restart");
@@ -624,6 +686,8 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
 }
 
 void fSystem::StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port, DWORD rngSeed) {
+    diag::InitFromEnvironment();
+    diag::G().ResetForMatch(diag::NowMs());
     localPlayerHandle = GGPO_INVALID_HANDLE;
     GGPOSessionCallbacks cb = { 0 };
     cb.begin_game = ggpo_begin_game_callback;
@@ -666,12 +730,20 @@ bool fSystem::ggpo_begin_game_callback(const char*)
 
 bool fSystem::ggpo_advance_frame_callback(int)
 {
+    diag::ScopedTimer _cbTimer(diag::OP_ROLLBACK_CALLBACK);
+    if (diag::Enabled()) {
+        diag::G().OnRollbackCallback(diag::NowMs());
+    }
+
     fPadSystem::Inputs inputs[2] = { {0, 0}, {0, 0} };
     int disconnect_flags = 0;
 
     // Make sure we fetch new inputs from GGPO and use those to update
     // the game state instead of reading from the selected input device.
     GGPOErrorCode result = ggpo_synchronize_input(ggpo, (void*)inputs, sizeof(fPadSystem::Inputs) * 2, &disconnect_flags);
+    if (diag::Enabled()) {
+        diag::G().RecordGgpoResult(diag::CALL_SYNC_INPUT, (int)result);
+    }
     if (!GGPO_SUCCEEDED(result)) {
         AbortGgpoMatch("Netplay sync failed — match ended.");
         return true;
@@ -685,9 +757,15 @@ bool fSystem::ggpo_advance_frame_callback(int)
     // if it called fSystem::BattleUpdate, it'd be restricted to the same
     // update-halting that the detoured method is.
     rSystem* system = rSystem::staticMethods.GetSingleton();
-    (system->*rSystem::publicMethods.BattleUpdate)();
+    {
+        diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
+        (system->*rSystem::publicMethods.BattleUpdate)();
+    }
 
     result = ggpo_advance_frame(ggpo);
+    if (diag::Enabled()) {
+        diag::G().RecordGgpoResult(diag::CALL_ADVANCE_FRAME, (int)result);
+    }
     if (!GGPO_SUCCEEDED(result)) {
         AbortGgpoMatch("Netplay sync failed — match ended.");
     }
@@ -725,6 +803,16 @@ bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, in
         SaveState::Save(&saveStates[i]);
         *buffer = (unsigned char*)&saveStates[i];
         *checksum = 0;
+
+        if (diag::Enabled()) {
+            uint32_t occupied = 0;
+            for (int j = 0; j < NUM_SAVE_STATES; j++) {
+                if (saveStates[j].used) {
+                    occupied++;
+                }
+            }
+            diag::G().occupiedSaveSlots.Update(occupied);
+        }
 
         return true;
     }
@@ -772,6 +860,9 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         break;
     case GGPO_EVENTCODE_CONNECTION_INTERRUPTED:
         spdlog::info("GGPO: GGPO_EVENTCODE_CONNECTION_INTERRUPTED");
+        if (diag::Enabled()) {
+            diag::G().OnConnectionInterrupted(diag::NowMs());
+        }
         if (!bGgpoConnectionInterrupted) {
             bGgpoConnectionInterrupted = true;
             s_updateAllowedBeforeGgpoInterrupt = bUpdateAllowed;
@@ -781,6 +872,9 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         break;
     case GGPO_EVENTCODE_CONNECTION_RESUMED:
         spdlog::info("GGPO: GGPO_EVENTCODE_CONNECTION_RESUMED");
+        if (diag::Enabled()) {
+            diag::G().OnConnectionResumed(diag::NowMs());
+        }
         if (bGgpoConnectionInterrupted) {
             bGgpoConnectionInterrupted = false;
             bUpdateAllowed = s_updateAllowedBeforeGgpoInterrupt;
@@ -789,6 +883,9 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         break;
     case GGPO_EVENTCODE_DISCONNECTED_FROM_PEER:
         spdlog::info("GGPO: GGPO_EVENTCODE_DISCONNECTED_FROM_PEER");
+        if (diag::Enabled()) {
+            diag::G().OnTerminalDisconnect(diag::NowMs());
+        }
         if (system) {
             *rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
         }
@@ -796,7 +893,13 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         sf4e::NetplayFacade::PushAlert("Opponent disconnected.");
         break;
     case GGPO_EVENTCODE_TIMESYNC:
-        Sleep(1000 * info->u.timesync.frames_ahead / 60);
+        if (diag::Enabled()) {
+            diag::G().OnTimesyncEvent(info->u.timesync.frames_ahead);
+        }
+        {
+            diag::ScopedTimer _t(diag::OP_TIMESYNC_SLEEP);
+            Sleep(1000 * info->u.timesync.frames_ahead / 60);
+        }
         break;
     }
     return true;
@@ -925,9 +1028,13 @@ void Clear(fSystem::SaveState* victim) {
 }
 
 void fSystem::SaveState::Free(SaveState* victim) {
+    diag::ScopedTimer _freeTimer(diag::OP_FREE_TOTAL);
     SaveState tmp;
 
-    SaveState::Save(&tmp);
+    {
+        diag::ScopedTimer _t(diag::OP_FREE_TMP_SAVE);
+        SaveState::Save(&tmp);
+    }
 
     // Calls to clear SF4's mementos delegate those calls to the mementoable
     // object. If the mementoable object pointer isn't valid, the key can't
@@ -935,20 +1042,30 @@ void fSystem::SaveState::Free(SaveState* victim) {
     // is only ever done on re-initialization after a save, but manually
     // clearing keys when releasing the state is necessary for GGPO to avoid
     // memory leaks.
-    // 
+    //
     // Copy the victim state into the engine. Once the victim state is copied,
     // the mementoable object pointers in each key are valid, and each key can
     // be safely cleared.
-    CopyIntoPlace(victim);
-    Clear(victim);
+    {
+        diag::ScopedTimer _t(diag::OP_FREE_VICTIM_INSTALL);
+        CopyIntoPlace(victim);
+    }
+    {
+        diag::ScopedTimer _t(diag::OP_FREE_CLEAR);
+        Clear(victim);
+    }
 
     // Restore the state at the start of the function. We don't need to
     // handle clearing the keys injected by this operation, because the
     // SaveState managing the keys is short-lived.
-    CopyIntoPlace(&tmp);
+    {
+        diag::ScopedTimer _t(diag::OP_FREE_LIVE_RESTORE);
+        CopyIntoPlace(&tmp);
+    }
 }
 
 void fSystem::SaveState::Load(SaveState* src) {
+    diag::ScopedTimer _loadTimer(diag::OP_LOAD_TOTAL);
     std::vector<std::pair<rKey*, rKey>> tmpVec;
 
     // Loading a state abandons the current timeline, and with it any
@@ -970,12 +1087,20 @@ void fSystem::SaveState::Load(SaveState* src) {
     // Copy and zero all currently tracked keys. It's possible that the
     // initialization detour started tracking keys that were only
     // initialized after the save state was created.
-    for (auto iter = fKey::trackedKeys.begin(); iter != fKey::trackedKeys.end(); iter++) {
-        tmpVec.push_back(std::make_pair(*iter, **iter));
-        memset(*iter, 0, sizeof(rKey));
+    {
+        diag::ScopedTimer _t(diag::OP_LOAD_KEY_BACKUP);
+        for (auto iter = fKey::trackedKeys.begin(); iter != fKey::trackedKeys.end(); iter++) {
+            tmpVec.push_back(std::make_pair(*iter, **iter));
+            memset(*iter, 0, sizeof(rKey));
+        }
     }
 
-    CopyIntoPlace(src);
+    {
+        diag::ScopedTimer _t(diag::OP_LOAD_COPY_INTO_PLACE);
+        CopyIntoPlace(src);
+    }
+
+    diag::ScopedTimer _restoreTimer(diag::OP_LOAD_RESTORE_KEYS);
 
     // Zero the keys that were injected by the load.
     //
@@ -998,38 +1123,60 @@ void fSystem::SaveState::Load(SaveState* src) {
 }
 
 void fSystem::SaveState::Save(SaveState* dst) {
+    diag::ScopedTimer _saveTimer(diag::OP_SAVE_TOTAL);
     rSystem* system = rSystem::staticMethods.GetSingleton();
     assert(dst->keys.empty());
 
     dst->used = true;
 
-    RecordAllToInternalMementos(system, &GGPO_MEMENTO_ID);
-    for (auto iter = fKey::trackedKeys.begin(); iter != fKey::trackedKeys.end(); iter++) {
-        dst->keys.emplace_back(*iter, **iter);
-
-        // If we leave the data in the source key, reinitialization
-        // of the source key will end up freeing _our_ data. Make
-        // absolutely sure to zero the source key. Ideally, we could
-        // just replace the key's state with the state the key had
-        // before the call to RecordAll... but the mementos won't
-        // be tracked until after that call.
-        memset(*iter, 0, sizeof(rKey));
+    {
+        diag::ScopedTimer _t(diag::OP_SAVE_RECORD_MEMENTOS);
+        RecordAllToInternalMementos(system, &GGPO_MEMENTO_ID);
     }
+    {
+        diag::ScopedTimer _t(diag::OP_SAVE_COPY_KEYS);
+        for (auto iter = fKey::trackedKeys.begin(); iter != fKey::trackedKeys.end(); iter++) {
+            dst->keys.emplace_back(*iter, **iter);
 
-    for (
-        auto managerIter = Sound::SoundPlayerManager::shadowManagerMap.begin();
-        managerIter != Sound::SoundPlayerManager::shadowManagerMap.end();
-        managerIter++) {
-        rSoundPlayerManager* stubManager = managerIter->first;
-        rSoundPlayerManager::CriPlayerAdapter* adapters = *rSoundPlayerManager::GetAdapters(stubManager);
-        for (int i = 0; i < *rSoundPlayerManager::GetNumAdapters(stubManager); i++) {
-            dst->criPlayerState[&adapters[i]] = fSoundPlayerManager::adapterToCurrentSound[&adapters[i]];
+            // If we leave the data in the source key, reinitialization
+            // of the source key will end up freeing _our_ data. Make
+            // absolutely sure to zero the source key. Ideally, we could
+            // just replace the key's state with the state the key had
+            // before the call to RecordAll... but the mementos won't
+            // be tracked until after that call.
+            memset(*iter, 0, sizeof(rKey));
         }
-        Platform::SoundObjectPool<4>::SaveState poolState;
-        Platform::SoundObjectPool<4>::Save(rSoundPlayerManager::GetAdapterPool(stubManager), &poolState);
-        dst->managerState[stubManager] = poolState;
     }
 
+    {
+        diag::ScopedTimer _t(diag::OP_SAVE_SOUND);
+        for (
+            auto managerIter = Sound::SoundPlayerManager::shadowManagerMap.begin();
+            managerIter != Sound::SoundPlayerManager::shadowManagerMap.end();
+            managerIter++) {
+            rSoundPlayerManager* stubManager = managerIter->first;
+            rSoundPlayerManager::CriPlayerAdapter* adapters = *rSoundPlayerManager::GetAdapters(stubManager);
+            for (int i = 0; i < *rSoundPlayerManager::GetNumAdapters(stubManager); i++) {
+                dst->criPlayerState[&adapters[i]] = fSoundPlayerManager::adapterToCurrentSound[&adapters[i]];
+            }
+            Platform::SoundObjectPool<4>::SaveState poolState;
+            Platform::SoundObjectPool<4>::Save(rSoundPlayerManager::GetAdapterPool(stubManager), &poolState);
+            dst->managerState[stubManager] = poolState;
+        }
+    }
+
+    if (diag::Enabled()) {
+        diag::RollbackDiagnostics& d = diag::G();
+        d.trackedKeys.Update((uint32_t)fKey::trackedKeys.size());
+        d.saveKeyVectorSize.Update((uint32_t)dst->keys.size());
+        d.saveKeyVectorCapacity.Update((uint32_t)dst->keys.capacity());
+        d.soundManagers.Update((uint32_t)Sound::SoundPlayerManager::shadowManagerMap.size());
+        d.soundAdapters.Update((uint32_t)fSoundPlayerManager::adapterToCurrentSound.size());
+        d.criPlayerStateSize.Update((uint32_t)dst->criPlayerState.size());
+        d.managerStateSize.Update((uint32_t)dst->managerState.size());
+    }
+
+    diag::ScopedTimer _globalsTimer(diag::OP_SAVE_GLOBALS);
     dst->d.CurrentBattleFlow = *rSystem::staticVars.CurrentBattleFlow;
     dst->d.PreviousBattleFlow = *rSystem::staticVars.PreviousBattleFlow;
     dst->d.CurrentBattleFlowSubstate = *rSystem::staticVars.CurrentBattleFlowSubstate;

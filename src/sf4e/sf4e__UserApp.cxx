@@ -17,6 +17,7 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__UserApp.hxx"
 #include "../common/agent_debug_log.hxx"
+#include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../session/sf4e__SessionClient.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 #include "../session/sf4e__SessionServer.hxx"
@@ -615,6 +616,7 @@ void fUserApp::StartSession(char* joinAddr, uint16_t port, std::string& sidecarH
 }
 
 void fUserApp::Steam_PostUpdate() {
+    namespace diag = sf4e::diag;
     sf4e::NetplayFacade::TickMainMenu();
 
     if (netplay) {
@@ -627,6 +629,7 @@ void fUserApp::Steam_PostUpdate() {
 
     bool netplayStepFailed = false;
     if (netplay) {
+        diag::ScopedTimer _t(diag::OP_SESSION_CLIENT_STEP);
         int stepResult = netplay->client.Step();
         if (stepResult < 0) {
             netplayStepFailed = true;
@@ -635,6 +638,7 @@ void fUserApp::Steam_PostUpdate() {
 
     bool serverStepFailed = false;
     if (server) {
+        diag::ScopedTimer _t(diag::OP_SESSION_SERVER_STEP);
         if (server->Step() < 0) {
             serverStepFailed = true;
         }
@@ -653,11 +657,32 @@ void fUserApp::Steam_PostUpdate() {
         );
     }
 
-    sf4e::NetplayFacade::TickFrame();
+    {
+        diag::ScopedTimer _t(diag::OP_FACADE_TICK_FRAME);
+        sf4e::NetplayFacade::TickFrame();
+    }
 
     if (fSystem::ggpo) {
+        diag::ScopedTimer _t(diag::OP_GGPO_IDLE);
         ggpo_idle(fSystem::ggpo, 1);
     }
 
-    rUserApp::staticMethods.Steam_PostUpdate();
+    if (diag::Enabled()) {
+        double now = diag::NowMs();
+        diag::G().OnOuterFrame(now);
+        // Periodic development summary — only while a GGPO session exists,
+        // and never per frame.
+        if (fSystem::ggpo && diag::G().PeriodicSummaryDue(now, 10.0)) {
+            static char s_diagBuf[8192];
+            size_t n = diag::G().FormatSummary(s_diagBuf, sizeof(s_diagBuf), "periodic");
+            if (n) {
+                spdlog::info("\n{}", s_diagBuf);
+            }
+        }
+    }
+
+    {
+        diag::ScopedTimer _t(diag::OP_STEAM_POST_UPDATE);
+        rUserApp::staticMethods.Steam_PostUpdate();
+    }
 }

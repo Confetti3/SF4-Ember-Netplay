@@ -14,6 +14,7 @@
 #include "../Dimps/Dimps__GameEvents.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../common/agent_debug_log.hxx"
+#include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../session/sf4e__SessionClient.hxx"
 #include "../session/sf4e__GgpoRelay.hxx"
 #include "sf4e__Game__Battle__System.hxx"
@@ -547,8 +548,13 @@ namespace sf4e {
 				GGPONetworkStats stats;
 				for (int i = 0; i < MAX_SF4E_PROTOCOL_USERS; i++) {
 					if (fSystem::players[i].type == GGPO_PLAYERTYPE_REMOTE) {
-						if (GGPO_SUCCEEDED(ggpo_get_network_stats(fSystem::ggpo, fSystem::players[i].handle, &stats))) {
+						GGPOErrorCode statsResult =
+							ggpo_get_network_stats(fSystem::ggpo, fSystem::players[i].handle, &stats);
+						if (GGPO_SUCCEEDED(statsResult)) {
 							st.pingMs = stats.network.ping;
+						}
+						else if (diag::Enabled()) {
+							diag::G().RecordGgpoResult(diag::CALL_GET_NETWORK_STATS, (int)statsResult);
 						}
 						break;
 					}
