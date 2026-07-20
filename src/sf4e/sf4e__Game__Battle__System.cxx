@@ -85,6 +85,26 @@ static void NoteDisconnectFlags(int flags) {
     }
 }
 
+// SaveState operations mutate live engine objects (memento record/restore,
+// key clearing) and are only valid on the game main thread — the thread that
+// runs BattleUpdate, Steam_PostUpdate, and every GGPO callback (see
+// docs/GGPO_LIFECYCLE.md). Debug builds assert this; engine-memento work
+// must never move to a background thread.
+static DWORD s_saveStateThreadId = 0;
+static void AssertSaveStateThreadAffinity() {
+#ifndef NDEBUG
+    DWORD tid = GetCurrentThreadId();
+    if (s_saveStateThreadId == 0) {
+        s_saveStateThreadId = tid;
+    }
+    assert(tid == s_saveStateThreadId && "SaveState ops must stay on the game main thread");
+#else
+    if (s_saveStateThreadId == 0) {
+        s_saveStateThreadId = GetCurrentThreadId();
+    }
+#endif
+}
+
 // Restores pad playback mode on every exit path. GGPO input playback must
 // never leak past the simulation step that installed it.
 struct PlaybackFrameScopeGuard {
@@ -1170,6 +1190,7 @@ void Clear(fSystem::SaveState* victim) {
 
 void fSystem::SaveState::Free(SaveState* victim) {
     diag::ScopedTimer _freeTimer(diag::OP_FREE_TOTAL);
+    AssertSaveStateThreadAffinity();
     SaveState tmp;
 
     {
@@ -1207,7 +1228,11 @@ void fSystem::SaveState::Free(SaveState* victim) {
 
 void fSystem::SaveState::Load(SaveState* src) {
     diag::ScopedTimer _loadTimer(diag::OP_LOAD_TOTAL);
+    AssertSaveStateThreadAffinity();
     std::vector<std::pair<rKey*, rKey>> tmpVec;
+    // Reserve using the live tracked-key count so the backup loop below
+    // performs one allocation instead of growth doublings on every load.
+    tmpVec.reserve(fKey::trackedKeys.size());
 
     // Loading a state abandons the current timeline, and with it any
     // stop intents queued by frames that are about to be re-simulated
@@ -1265,6 +1290,7 @@ void fSystem::SaveState::Load(SaveState* src) {
 
 void fSystem::SaveState::Save(SaveState* dst) {
     diag::ScopedTimer _saveTimer(diag::OP_SAVE_TOTAL);
+    AssertSaveStateThreadAffinity();
     rSystem* system = rSystem::staticMethods.GetSingleton();
     assert(dst->keys.empty());
 
@@ -1303,6 +1329,21 @@ void fSystem::SaveState::Save(SaveState* dst) {
             Platform::SoundObjectPool<4>::SaveState poolState;
             Platform::SoundObjectPool<4>::Save(rSoundPlayerManager::GetAdapterPool(stubManager), &poolState);
             dst->managerState[stubManager] = poolState;
+        }
+    }
+
+    // The constructor reserves 88 keys (the observed lower bound). Record
+    // growth past that once per process so live telemetry can establish
+    // the real stable count before any capacity change is made.
+    if (dst->keys.size() > 88) {
+        static bool s_warnedKeyGrowth = false;
+        if (!s_warnedKeyGrowth) {
+            s_warnedKeyGrowth = true;
+            spdlog::warn(
+                "SaveState: key count {} exceeds the 88-key reservation (capacity {})",
+                dst->keys.size(),
+                dst->keys.capacity()
+            );
         }
     }
 
