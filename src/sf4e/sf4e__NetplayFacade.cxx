@@ -220,6 +220,72 @@ namespace sf4e {
 		}
 	}
 
+	static bool s_controlPlaneLost = false;
+	static int s_verificationLostAtFrame = -1;
+
+	bool NetplayFacade::IsControlPlaneLost() {
+		return s_controlPlaneLost;
+	}
+
+	int NetplayFacade::GetVerificationLostFrame() {
+		return s_verificationLostAtFrame;
+	}
+
+	void NetplayFacade::HandleControlPlaneLoss(const char* reason) {
+		if (s_controlPlaneLost) {
+			// Already degraded; nothing further to do (and no alert spam).
+			return;
+		}
+
+		rSystem* system = rSystem::staticMethods.GetSingleton();
+		const bool fightRunning =
+			fSystem::ggpo &&
+			fSystem::simGate.phase == sf4e::gate::PHASE_RUNNING &&
+			!fSystem::simGate.fatalError &&
+			system &&
+			*rSystem::staticVars.CurrentBattleFlow != rSystem::BF__IDLE;
+
+		// The legacy session tunnel carries GGPO traffic *through* the room
+		// connection — a room loss there means GGPO is dead too, so degraded
+		// mode is impossible.
+		const bool ggpoRidesOnRoom = GgpoRelay::Instance().IsActive();
+
+		if (!fightRunning || ggpoRidesOnRoom) {
+			HandleNetplayFailure(reason, true);
+			return;
+		}
+
+		s_controlPlaneLost = true;
+		s_verificationLostAtFrame =
+			rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
+		spdlog::warn(
+			"Netplay: control plane lost at frame {} — continuing fight on GGPO UDP; "
+			"verification, results, rematch, and spectator coordination disabled",
+			s_verificationLostAtFrame
+		);
+		// One clear warning. The SessionClient connection is already closed
+		// (Step() no-ops, snapshot/hash sends stop); the netplay objects are
+		// kept alive until the fight ends so nothing dangles, and no
+		// reconnection is attempted — room identity and lobby IDs are
+		// ephemeral, so a new client could not safely resume this lobby.
+		PushAlert("Room connection lost — the fight continues, but rematch and results are disabled.");
+	}
+
+	void NetplayFacade::FinalizeControlPlaneLossAfterBattle() {
+		if (!s_controlPlaneLost) {
+			return;
+		}
+		spdlog::warn(
+			"Netplay: match ended after control-plane loss; snapshot/hash verification "
+			"was unavailable from frame {} to match end — that interval is UNVERIFIED",
+			s_verificationLostAtFrame
+		);
+		PushAlert("Returned to menu — the room connection was lost during the match.");
+		// Full teardown to a safe disconnected state (also resets the
+		// degraded flags via ShutdownNetplay).
+		ShutdownNetplay(true);
+	}
+
 	void NetplayFacade::HandleNetplayFailure(const char* reason, bool closeGgpo) {
 		if (reason && reason[0]) {
 			PushAlert(reason);
@@ -607,6 +673,8 @@ namespace sf4e {
 		s_sentLobbySettings = false;
 		s_brokerGgpoRemoteHost[0] = '\0';
 		s_brokerGgpoRemotePort = 0;
+		s_controlPlaneLost = false;
+		s_verificationLostAtFrame = -1;
 	}
 
 	void NetplayFacade::ClearBattleState() {
@@ -637,6 +705,13 @@ namespace sf4e {
 
 	void NetplayFacade::NotifyMatchEnded() {
 		ClearBattleState();
+		if (s_controlPlaneLost) {
+			// Without a room there is nothing to coordinate spectators
+			// through; never hold the GGPO session open on stale lobby data.
+			s_deferGgpoClose = false;
+			s_deferredGgpoPending = false;
+			return;
+		}
 		if (!fUserApp::netplay) {
 			s_deferGgpoClose = false;
 			s_deferredGgpoPending = false;

@@ -548,6 +548,9 @@ void fSystem::CloseBattle() {
     EmitRollbackDiagSummary("battle_close");
     (_this->*rSystem::publicMethods.CloseBattle)();
 
+    // If the room was lost mid-fight (degraded mode), the fight is now
+    // over: exit to a safe disconnected state instead of a fake lobby.
+    sf4e::NetplayFacade::FinalizeControlPlaneLossAfterBattle();
 }
 
 void fSystem::OnBattleFlow_BattleStart(System* s) {

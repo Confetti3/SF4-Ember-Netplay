@@ -598,6 +598,12 @@ void fUserApp::ShutdownNetplay(bool closeGgpo) {
 }
 
 void fUserApp::ResetLobbyForRematch() {
+    if (sf4e::NetplayFacade::IsControlPlaneLost()) {
+        // Degraded mode: the room is gone; no rematch coordination and no
+        // stale messages toward a dead connection.
+        spdlog::info("Netplay: skipping rematch reset — control plane lost");
+        return;
+    }
     if (server) {
         server->ResetLobbyForRematch();
     }
@@ -676,15 +682,15 @@ void fUserApp::Steam_PostUpdate() {
     }
 
     if (netplayStepFailed) {
-        sf4e::NetplayFacade::HandleNetplayFailure(
-            "Lost connection to the game room. Check your internet and try again.",
-            true
+        // Degrades instead of killing an active healthy GGPO fight; falls
+        // back to full failure outside that case (Phase 7).
+        sf4e::NetplayFacade::HandleControlPlaneLoss(
+            "Lost connection to the game room. Check your internet and try again."
         );
     }
     else if (serverStepFailed) {
-        sf4e::NetplayFacade::HandleNetplayFailure(
-            "Session server error. Check your internet and try again.",
-            true
+        sf4e::NetplayFacade::HandleControlPlaneLoss(
+            "Session server error. Check your internet and try again."
         );
     }
 

@@ -1281,9 +1281,14 @@ void DrawNetworkLobbyPanel() {
 		}
 
 		if (s_devNetplayOverlay && Button("Report win")) {
-			int loser = (isSelfActiveSide == 0) ? 1 : 0;
-			if (fUserApp::netplay->client.Lobby_ReportResults(loser) != k_EResultOK) {
-				Overlay::PushNetplayAlert("Could not report match results.");
+			if (sf4e::NetplayFacade::IsControlPlaneLost()) {
+				Overlay::PushNetplayAlert("Results unavailable — room connection was lost.");
+			}
+			else {
+				int loser = (isSelfActiveSide == 0) ? 1 : 0;
+				if (fUserApp::netplay->client.Lobby_ReportResults(loser) != k_EResultOK) {
+					Overlay::PushNetplayAlert("Could not report match results.");
+				}
 			}
 		}
 	}

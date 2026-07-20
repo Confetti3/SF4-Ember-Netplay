@@ -565,9 +565,11 @@ void SessionClient::OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusCh
 		_connected = false;
 
 		if (wasInMatch) {
-			sf4e::NetplayFacade::HandleNetplayFailure(
-				"Lost connection to the game room. Check your internet and try again.",
-				true
+			// Phase 7: during an active healthy GGPO fight this degrades
+			// (fight continues, room features disabled) rather than closing
+			// the GGPO session; otherwise it performs the full failure.
+			sf4e::NetplayFacade::HandleControlPlaneLoss(
+				"Lost connection to the game room. Check your internet and try again."
 			);
 		}
 		break;
