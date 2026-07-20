@@ -960,16 +960,14 @@ bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, in
         *buffer = (unsigned char*)&saveStates[i];
         *checksum = 0;
 
-        // v2 frame identity: record which frame this state represents and
-        // its semantic hashes. GGPO's checksum stays 0 — our hash is wider
-        // than its int and is exchanged through the room channel instead.
+        // Preserve callback/engine frame identity for rollback diagnostics.
+        // Semantic hashes are computed only by the separate periodic
+        // checkpoint ring below; no consumer reads hashes from save slots.
         {
             rSystem* system = rSystem::staticMethods.GetSingleton();
             saveStates[i].simulationFrame =
                 rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
             saveStates[i].ggpoFrame = frame;
-            saveStates[i].hashes = ComputeSemanticHashes(system);
-            saveStates[i].hashValid = true;
         }
 
         if (diag::Enabled()) {
@@ -1184,7 +1182,10 @@ void fSystem::CaptureHashCheckpoint(rSystem* src) {
         slot.frameIdx = frameIdx;
         slot.sent = false;
     }
-    slot.hashes = ComputeSemanticHashes(src);
+    {
+        diag::ScopedTimer _hashTimer(diag::OP_SEMANTIC_HASH);
+        slot.hashes = ComputeSemanticHashes(src);
+    }
     slot.valid = true;
 }
 
@@ -1301,13 +1302,11 @@ void Clear(fSystem::SaveState* victim) {
     victim->keys.clear();
 
     // Restore all non-memento-key state to a sane default. Slot reuse must
-    // also reset the v2 frame/hash metadata so a stale hash can never be
+    // also reset frame metadata so a stale callback identity can never be
     // attributed to a new frame.
     victim->used = false;
     victim->simulationFrame = -1;
     victim->ggpoFrame = -1;
-    victim->hashValid = false;
-    victim->hashes = fSystem::SemanticHashes();
     victim->d.CurrentBattleFlow = 0;
     victim->d.PreviousBattleFlow = 0;
     victim->d.CurrentBattleFlowSubstate = 0;

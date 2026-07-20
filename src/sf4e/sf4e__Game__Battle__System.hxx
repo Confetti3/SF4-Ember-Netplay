@@ -109,8 +109,6 @@ namespace sf4e {
 					// argument to the save callback. Reset on slot reuse.
 					int simulationFrame = -1;
 					int ggpoFrame = -1;
-					bool hashValid = false;
-					SemanticHashes hashes;
 					std::vector<std::pair<GameMementoKey*, GameMementoKey>> keys;
 					std::map<
 						Dimps::Game::Battle::Sound::SoundPlayerManager::CriPlayerAdapter*,
