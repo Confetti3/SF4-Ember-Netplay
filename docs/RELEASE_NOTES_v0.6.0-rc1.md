@@ -31,7 +31,12 @@ Both players must use the same release (the room will reject mixed builds).
   hitch.
 - **New rollback diagnostics** (off by default): set
   `SF4E_ROLLBACK_DIAGNOSTICS=1` to log frame-time/rollback/stall telemetry
-  every 10 s and a full summary at match end.
+  every 10 s and a full summary at match end. Detailed `FreezeCandidate`
+  records are rate-limited; summaries count operation hitches at 16.67, 25,
+  33.33, 50, and 100 ms.
+- **Distributed pacing A/B switch**: pacing remains enabled by default. Set
+  `SF4E_GGPO_DISTRIBUTED_TIMESYNC=0` before launch to disable it for a
+  controlled comparison without changing transport or input delay.
 - **New desync detection (v2, observational)**: peers exchange state
   checksums every half second and log exactly which subsystem diverged.
   It does NOT end matches in this RC (the old detection still does);

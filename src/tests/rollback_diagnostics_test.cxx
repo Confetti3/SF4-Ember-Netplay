@@ -144,6 +144,19 @@ static void TestStallSpansOuterTicks() {
 	CHECK(d.predictionStallStartMs < 0.0);
 }
 
+static void TestSessionEndClosesActiveStall() {
+	RollbackDiagnostics& d = G();
+	SetEnabled(true);
+	d.ResetForMatch(0.0);
+	d.RecordSkip(SKIP_PREDICTION_THRESHOLD, 25.0);
+	d.OnSessionEnded(125.0);
+
+	CHECK(d.predictionStalls == 1);
+	CHECK(d.predictionStallDuration.count == 1);
+	CHECK(d.predictionStallDuration.maxMs == 100.0);
+	CHECK(d.predictionStallStartMs < 0.0);
+}
+
 static void TestConnectionWarningAccounting() {
 	RollbackDiagnostics& d = G();
 	SetEnabled(true);
@@ -262,6 +275,7 @@ int main() {
 	TestBurstTracking();
 	TestStallAccounting();
 	TestStallSpansOuterTicks();
+	TestSessionEndClosesActiveStall();
 	TestConnectionWarningAccounting();
 	TestGgpoResultSlots();
 	TestTimesyncAccounting();
