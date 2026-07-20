@@ -41,6 +41,7 @@ using Dimps::Game::ProgressData;
 using Dimps::GameEvents::RootEvent;
 using Dimps::Math::FixedPoint;
 using rMainMenu = Dimps::GameEvents::MainMenu;
+using rSystem = Dimps::Game::Battle::System;
 using rVsMode = Dimps::GameEvents::VsMode;
 using rUserApp = Dimps::UserApp;
 using fSystem = sf4e::Game::Battle::System;
@@ -663,6 +664,10 @@ void fUserApp::StartSession(char* joinAddr, uint16_t port, std::string& sidecarH
 
 void fUserApp::Steam_PostUpdate() {
     namespace diag = sf4e::diag;
+    const bool diagnosticsEnabled = diag::Enabled();
+    const double outerTickStartMs = diagnosticsEnabled ? diag::NowMs() : 0.0;
+    double pacingRequestedThisTickMs = 0.0;
+    double pacingActualThisTickMs = 0.0;
     sf4e::NetplayFacade::TickMainMenu();
 
     if (netplay) {
@@ -735,10 +740,12 @@ void fUserApp::Steam_PostUpdate() {
     ) {
         double wantMs = fSystem::pacer.NextWaitMs();
         if (wantMs > 0.0) {
+            pacingRequestedThisTickMs = wantMs;
             fSystem::pacer.OnWaitRequested(wantMs);
             double t0 = diag::NowMs();
             PacedWaitResult waitResult = PacedWaitMs(wantMs);
             double actual = diag::NowMs() - t0;
+            pacingActualThisTickMs = actual;
             fSystem::pacer.OnWaited(actual);
             if (waitResult == PACED_WAIT_FALLBACK_SLEEP) {
                 fSystem::pacer.OnFallbackSleep();
@@ -752,22 +759,94 @@ void fUserApp::Steam_PostUpdate() {
         }
     }
 
-    if (diag::Enabled()) {
-        double now = diag::NowMs();
-        diag::G().OnOuterFrame(now);
+    {
+        // This timer is deliberately only the original engine method. The
+        // complete detoured outer tick is recorded separately below.
+        diag::ScopedTimer _t(diag::OP_STEAM_POST_UPDATE);
+        rUserApp::staticMethods.Steam_PostUpdate();
+    }
+
+    if (diagnosticsEnabled) {
+        const double now = diag::NowMs();
+        const double outerTickMs = now - outerTickStartMs;
+        diag::RollbackDiagnostics& d = diag::G();
+        d.RecordOp(diag::OP_OUTER_TICK, outerTickMs);
+
+        // A 25 ms complete outer tick is a useful rendered-frame hitch
+        // candidate at 60 Hz. Rate-limit detailed records: summaries retain
+        // exact threshold counts for every occurrence.
+        static double s_lastFreezeCandidateMs = -1.0;
+        if (
+            fSystem::ggpo &&
+            outerTickMs >= 25.0 &&
+            (s_lastFreezeCandidateMs < 0.0 || now - s_lastFreezeCandidateMs >= 2000.0)
+        ) {
+            s_lastFreezeCandidateMs = now;
+            rSystem* system = rSystem::staticMethods.GetSingleton();
+            int simulationFrame = system
+                ? rSystem::GetNumFramesSimulated_FixedPoint(system)->integral
+                : -1;
+            int pingMs = -1;
+            int localBehind = 0;
+            int remoteBehind = 0;
+            for (int i = 0; i < MAX_SF4E_PROTOCOL_USERS; i++) {
+                if (fSystem::players[i].type != GGPO_PLAYERTYPE_REMOTE) {
+                    continue;
+                }
+                GGPONetworkStats stats = { 0 };
+                GGPOErrorCode result = ggpo_get_network_stats(
+                    fSystem::ggpo, fSystem::players[i].handle, &stats
+                );
+                d.RecordGgpoResult(diag::CALL_GET_NETWORK_STATS, (int)result);
+                if (GGPO_SUCCEEDED(result)) {
+                    pingMs = stats.network.ping;
+                    localBehind = stats.timesync.local_frames_behind;
+                    remoteBehind = stats.timesync.remote_frames_behind;
+                }
+                break;
+            }
+            const sf4e::GgpoTransportStatus transport =
+                sf4e::NetplayFacade::GetGgpoTransportStatus();
+            const long long wallMs = (long long)std::chrono::duration_cast<
+                std::chrono::milliseconds
+            >(std::chrono::system_clock::now().time_since_epoch()).count();
+            spdlog::warn(
+                "FreezeCandidate wallMs={} outerTickMs={:.2f} simFrame={} ggpoSaveFrame={} "
+                "gate={} predictionStalled={} connectionWarning={} pacingDebtMs={:.2f} "
+                "pacingRequestedMs={:.2f} pacingActualMs={:.2f} rollbackCallbacks={} "
+                "lastSaveMs={:.2f} lastLoadMs={:.2f} lastFreeMs={:.2f} saveSlots={} "
+                "transport={} pingMs={} localBehind={} remoteBehind={}",
+                wallMs,
+                outerTickMs,
+                simulationFrame,
+                fSystem::lastGgpoSaveFrame,
+                sf4e::gate::PhaseName(fSystem::simGate.phase),
+                fSystem::simGate.predictionStalled,
+                fSystem::simGate.connectionWarningActive,
+                fSystem::pacer.outstandingMs,
+                pacingRequestedThisTickMs,
+                pacingActualThisTickMs,
+                d.rollbackCallbacksThisOuterFrame,
+                d.ops[diag::OP_SAVE_TOTAL].lastMs,
+                d.ops[diag::OP_LOAD_TOTAL].lastMs,
+                d.ops[diag::OP_FREE_TOTAL].lastMs,
+                d.occupiedSaveSlots.current,
+                sf4e::NetplayFacade::GgpoTransportModeName(transport.effectiveMode),
+                pingMs,
+                localBehind,
+                remoteBehind
+            );
+        }
+
+        d.OnOuterFrame(now);
         // Periodic development summary — only while a GGPO session exists,
         // and never per frame.
-        if (fSystem::ggpo && diag::G().PeriodicSummaryDue(now, 10.0)) {
+        if (fSystem::ggpo && d.PeriodicSummaryDue(now, 10.0)) {
             static char s_diagBuf[8192];
-            size_t n = diag::G().FormatSummary(s_diagBuf, sizeof(s_diagBuf), "periodic");
+            size_t n = d.FormatSummary(s_diagBuf, sizeof(s_diagBuf), "periodic");
             if (n) {
                 spdlog::info("\n{}", s_diagBuf);
             }
         }
-    }
-
-    {
-        diag::ScopedTimer _t(diag::OP_STEAM_POST_UPDATE);
-        rUserApp::staticMethods.Steam_PostUpdate();
     }
 }

@@ -174,6 +174,7 @@ namespace sf4e {
 				static HashCheckpoint* FindHashCheckpoint(int frameIdx);
 				static void ClearHashCheckpoints();
 				static GGPOPlayerHandle localPlayerHandle;
+				static int lastGgpoSaveFrame;
 				static PlayerConnectionInfo players[MAX_SF4E_PROTOCOL_USERS];
 				static GGPOSession* ggpo;
 				static SaveState saveStates[NUM_SAVE_STATES];

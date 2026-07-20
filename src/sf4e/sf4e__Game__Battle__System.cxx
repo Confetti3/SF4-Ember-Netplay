@@ -133,6 +133,7 @@ int fSystem::nNextBattleStartFlowTarget = -1;
 int fSystem::nRandomizeLocalInputsEveryXFramesInGGPO = 0;
 
 GGPOPlayerHandle fSystem::localPlayerHandle = GGPO_INVALID_HANDLE;
+int fSystem::lastGgpoSaveFrame = -1;
 GGPOSession* fSystem::ggpo = nullptr;
 sf4e::gate::GgpoGateModel fSystem::simGate = { sf4e::gate::PHASE_NO_SESSION };
 // maxRecommendationFrames, maxStepMs, minWaitMs, enabled; state/stats zeroed.
@@ -792,6 +793,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     s_lastDisconnectFlags = 0;
     bGgpoConnectionInterrupted = false;
     localPlayerHandle = GGPO_INVALID_HANDLE;
+    lastGgpoSaveFrame = -1;
 
     GGPOSessionCallbacks cb = { 0 };
     cb.begin_game = ggpo_begin_game_callback;
@@ -874,6 +876,7 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
     ResetPacerForSession();
     s_lastDisconnectFlags = 0;
     localPlayerHandle = GGPO_INVALID_HANDLE;
+    lastGgpoSaveFrame = -1;
     GGPOSessionCallbacks cb = { 0 };
     cb.begin_game = ggpo_begin_game_callback;
     cb.advance_frame = ggpo_advance_frame_callback;
@@ -976,6 +979,7 @@ bool fSystem::ggpo_load_game_state_callback(unsigned char* buffer, int len)
 
 bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, int* checksum, int frame)
 {
+    lastGgpoSaveFrame = frame;
     // No GGPO callback allocates data, then hands ownership to GGPO-
     // sf4e preallocates and manages all its savestates, and the memory
     // allocation all happens internally. Consequently the memory
