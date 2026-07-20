@@ -135,12 +135,14 @@ int fSystem::nRandomizeLocalInputsEveryXFramesInGGPO = 0;
 GGPOPlayerHandle fSystem::localPlayerHandle = GGPO_INVALID_HANDLE;
 GGPOSession* fSystem::ggpo = nullptr;
 sf4e::gate::GgpoGateModel fSystem::simGate = { sf4e::gate::PHASE_NO_SESSION };
-// maxRecommendationFrames, maxStepMs, minWaitMs; state/stats zeroed.
-sf4e::pacing::PacingController fSystem::pacer = { 9.0, 3.0, 1.0 };
+// maxRecommendationFrames, maxStepMs, minWaitMs, enabled; state/stats zeroed.
+sf4e::pacing::PacingController fSystem::pacer = { 9.0, 3.0, 1.0, true };
 
 // Applies development overrides for the pacing caps and resets the
 // controller for a new session. Called from StartGGPO/StartSpectating.
 static void ResetPacerForSession() {
+    const char* enabledEnv = getenv("SF4E_GGPO_DISTRIBUTED_TIMESYNC");
+    fSystem::pacer.enabled = !(enabledEnv && enabledEnv[0] == '0');
     const char* stepEnv = getenv("SF4E_PACING_MAX_STEP_MS");
     if (stepEnv && stepEnv[0]) {
         double v = atof(stepEnv);
@@ -165,16 +167,28 @@ static void LogPacerSummary(const char* label) {
         return;
     }
     spdlog::info(
-        "Pacing [{}]: recs={} framesRec={} acceptedMs={:.1f} appliedMs={:.1f} "
-        "maxWaitMs={:.2f} maxOutstandingMs={:.1f} discardedMs={:.1f} outstandingMs={:.1f}",
+        "Pacing [{}]: enabled={} recs={} framesRec={} acceptedMs={:.1f} "
+        "replacedMs={:.1f} disabledDiscardMs={:.1f} resetDiscardMs={:.1f} "
+        "waits={} requestedMs={:.1f} actualMs={:.1f} maxRequestedMs={:.2f} "
+        "maxActualMs={:.2f} failures={} timeouts={} fallbacks={} "
+        "maxOutstandingMs={:.1f} outstandingMs={:.1f}",
         label,
+        p.enabled,
         p.recommendationsReceived,
         p.framesRecommendedTotal,
         p.msAcceptedTotal,
-        p.msAppliedTotal,
-        p.maxSingleWaitMs,
-        p.maxOutstandingMs,
+        p.msReplacedTotal,
+        p.msDiscardedDisabled,
         p.msDiscardedOnReset,
+        p.waitRequests,
+        p.msRequestedTotal,
+        p.msAppliedTotal,
+        p.maxRequestedWaitMs,
+        p.maxSingleWaitMs,
+        p.waitFailures,
+        p.waitTimeouts,
+        p.fallbackSleeps,
+        p.maxOutstandingMs,
         p.outstandingMs
     );
 }

@@ -65,7 +65,14 @@ static bool s_pendingMatchStart = false;
 // (Win10 1803+); falls back to a plain waitable timer, then Sleep. The
 // caller measures the actual elapsed time — coarse waits self-correct
 // through PacingController::OnWaited.
-static void PacedWaitMs(double ms) {
+enum PacedWaitResult {
+    PACED_WAIT_TIMER = 0,
+    PACED_WAIT_FALLBACK_SLEEP,
+    PACED_WAIT_TIMEOUT,
+    PACED_WAIT_FAILED
+};
+
+static PacedWaitResult PacedWaitMs(double ms) {
     static HANDLE s_timer = INVALID_HANDLE_VALUE;
     if (s_timer == INVALID_HANDLE_VALUE) {
         s_timer = CreateWaitableTimerExW(
@@ -80,11 +87,15 @@ static void PacedWaitMs(double ms) {
         due.QuadPart = -(LONGLONG)(ms * 10000.0); // relative, 100 ns units
         if (SetWaitableTimer(s_timer, &due, 0, NULL, NULL, FALSE)) {
             // Bounded backstop so a timer failure can never hang the tick.
-            WaitForSingleObject(s_timer, (DWORD)(ms + 50.0));
-            return;
+            DWORD result = WaitForSingleObject(s_timer, (DWORD)(ms + 50.0));
+            if (result == WAIT_OBJECT_0) {
+                return PACED_WAIT_TIMER;
+            }
+            return result == WAIT_TIMEOUT ? PACED_WAIT_TIMEOUT : PACED_WAIT_FAILED;
         }
     }
     Sleep((DWORD)(ms + 0.5));
+    return PACED_WAIT_FALLBACK_SLEEP;
 }
 
 static bool StartMatchFromLobby(SessionClient* const client) {
@@ -719,16 +730,24 @@ void fUserApp::Steam_PostUpdate() {
     // this only delays presentation. Skipped while GGPO already stalls us
     // (prediction threshold) and while the gate is closed.
     if (
+        fSystem::pacer.enabled &&
         fSystem::ggpo &&
         fSystem::MayAdvanceDeterministicFrame() &&
         !fSystem::simGate.predictionStalled
     ) {
         double wantMs = fSystem::pacer.NextWaitMs();
         if (wantMs > 0.0) {
+            fSystem::pacer.OnWaitRequested(wantMs);
             double t0 = diag::NowMs();
-            PacedWaitMs(wantMs);
+            PacedWaitResult waitResult = PacedWaitMs(wantMs);
             double actual = diag::NowMs() - t0;
             fSystem::pacer.OnWaited(actual);
+            if (waitResult == PACED_WAIT_FALLBACK_SLEEP) {
+                fSystem::pacer.OnFallbackSleep();
+            }
+            else if (waitResult == PACED_WAIT_TIMEOUT || waitResult == PACED_WAIT_FAILED) {
+                fSystem::pacer.OnWaitFailure(waitResult == PACED_WAIT_TIMEOUT);
+            }
             if (diag::Enabled()) {
                 diag::G().RecordOp(diag::OP_PACING_WAIT, actual);
             }

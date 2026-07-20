@@ -35,6 +35,7 @@ struct PacingController {
 	double maxRecommendationFrames; // clamp on one recommendation (default 9)
 	double maxStepMs;               // budget per outer frame (default 3.0)
 	double minWaitMs;               // below this, don't bother waiting (1.0)
+	bool enabled;                   // runtime A/B gate (default true)
 
 	// State
 	double outstandingMs;
@@ -47,6 +48,14 @@ struct PacingController {
 	double maxSingleWaitMs;      // largest single reported wait
 	double maxOutstandingMs;     // high-water mark of debt
 	double msDiscardedOnReset;   // debt thrown away by lifecycle resets
+	double msReplacedTotal;      // outstanding debt replaced by a fresh estimate
+	double msDiscardedDisabled;  // recommendations observed while A/B-disabled
+	uint64_t waitRequests;
+	double msRequestedTotal;
+	double maxRequestedWaitMs;
+	uint32_t waitFailures;
+	uint32_t waitTimeouts;
+	uint32_t fallbackSleeps;
 
 	void ResetStats() {
 		recommendationsReceived = 0;
@@ -56,12 +65,21 @@ struct PacingController {
 		maxSingleWaitMs = 0.0;
 		maxOutstandingMs = 0.0;
 		msDiscardedOnReset = 0.0;
+		msReplacedTotal = 0.0;
+		msDiscardedDisabled = 0.0;
+		waitRequests = 0;
+		msRequestedTotal = 0.0;
+		maxRequestedWaitMs = 0.0;
+		waitFailures = 0;
+		waitTimeouts = 0;
+		fallbackSleeps = 0;
 	}
 
 	void InitDefaults() {
 		maxRecommendationFrames = 9.0;
 		maxStepMs = 3.0;
 		minWaitMs = 1.0;
+		enabled = true;
 		outstandingMs = 0.0;
 		ResetStats();
 	}
@@ -87,6 +105,11 @@ struct PacingController {
 			frames = maxRecommendationFrames;
 		}
 		double ms = frames * (1000.0 / 60.0);
+		if (!enabled) {
+			msDiscardedDisabled += ms;
+			return;
+		}
+		msReplacedTotal += outstandingMs;
 		outstandingMs = ms;
 		msAcceptedTotal += ms;
 		if (outstandingMs > maxOutstandingMs) {
@@ -96,10 +119,32 @@ struct PacingController {
 
 	// How long the host should wait this outer frame (0 = don't wait).
 	double NextWaitMs() const {
-		if (outstandingMs < minWaitMs) {
+		if (!enabled || outstandingMs < minWaitMs) {
 			return 0.0;
 		}
 		return outstandingMs < maxStepMs ? outstandingMs : maxStepMs;
+	}
+
+	void OnWaitRequested(double requestedMs) {
+		if (requestedMs <= 0.0) {
+			return;
+		}
+		waitRequests++;
+		msRequestedTotal += requestedMs;
+		if (requestedMs > maxRequestedWaitMs) {
+			maxRequestedWaitMs = requestedMs;
+		}
+	}
+
+	void OnWaitFailure(bool timeout) {
+		waitFailures++;
+		if (timeout) {
+			waitTimeouts++;
+		}
+	}
+
+	void OnFallbackSleep() {
+		fallbackSleeps++;
 	}
 
 	// Host reports how long it actually waited (which may exceed the

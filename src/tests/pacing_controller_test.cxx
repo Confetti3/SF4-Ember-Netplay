@@ -55,10 +55,45 @@ static void TestRepeatedRecommendationsDoNotAccumulate() {
 	p.OnRecommendation(9);
 	p.OnRecommendation(9);
 	CHECK(Near(p.outstandingMs, 150.0));
+	CHECK(Near(p.msReplacedTotal, 300.0));
 
 	// A smaller fresh estimate lowers the target.
 	p.OnRecommendation(3);
 	CHECK(Near(p.outstandingMs, 50.0));
+}
+
+static void TestEnabledDisabledABGate() {
+	PacingController p = Fresh();
+	p.enabled = false;
+	p.OnRecommendation(3);
+	CHECK(p.recommendationsReceived == 1);
+	CHECK(Near(p.outstandingMs, 0.0));
+	CHECK(Near(p.msAcceptedTotal, 0.0));
+	CHECK(Near(p.msDiscardedDisabled, 50.0));
+	CHECK(Near(p.NextWaitMs(), 0.0));
+
+	p.enabled = true;
+	p.OnRecommendation(3);
+	CHECK(Near(p.outstandingMs, 50.0));
+	CHECK(Near(p.NextWaitMs(), 3.0));
+}
+
+static void TestWaitResultAccounting() {
+	PacingController p = Fresh();
+	p.OnRecommendation(3);
+	p.OnWaitRequested(3.0);
+	p.OnWaited(3.25);
+	p.OnFallbackSleep();
+	CHECK(p.waitRequests == 1);
+	CHECK(Near(p.msRequestedTotal, 3.0));
+	CHECK(Near(p.maxRequestedWaitMs, 3.0));
+	CHECK(Near(p.msAppliedTotal, 3.25));
+	CHECK(p.fallbackSleeps == 1);
+
+	p.OnWaitFailure(false);
+	p.OnWaitFailure(true);
+	CHECK(p.waitFailures == 2);
+	CHECK(p.waitTimeouts == 1);
 }
 
 static void TestPerFrameBudgetAndRepayment() {
@@ -136,6 +171,8 @@ static void TestConfigurableCaps() {
 int main() {
 	TestClamping();
 	TestRepeatedRecommendationsDoNotAccumulate();
+	TestEnabledDisabledABGate();
+	TestWaitResultAccounting();
 	TestPerFrameBudgetAndRepayment();
 	TestOverWaitClampsToZero();
 	TestMinGranularity();
