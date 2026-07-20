@@ -35,7 +35,8 @@ enum TimedOp {
 	OP_SESSION_SERVER_STEP,        // SessionServer::Step
 	OP_FACADE_TICK_FRAME,          // NetplayFacade::TickFrame
 	OP_GGPO_IDLE,                  // ggpo_idle
-	OP_STEAM_POST_UPDATE,          // original Steam_PostUpdate
+	OP_STEAM_POST_UPDATE,          // original (undetoured) Steam_PostUpdate
+	OP_OUTER_TICK,                 // complete detoured Steam_PostUpdate
 
 	// Rollback state operations
 	OP_SAVE_TOTAL,                 // entire SaveState::Save
@@ -43,6 +44,7 @@ enum TimedOp {
 	OP_SAVE_COPY_KEYS,             // copying tracked keys
 	OP_SAVE_SOUND,                 // sound-state capture
 	OP_SAVE_GLOBALS,               // global-data capture
+	OP_SEMANTIC_HASH,              // periodic semantic checkpoint hashing
 	OP_LOAD_TOTAL,                 // entire SaveState::Load
 	OP_LOAD_KEY_BACKUP,            // temporary live-key backup
 	OP_LOAD_COPY_INTO_PLACE,       // CopyIntoPlace + RestoreAllFromInternalMementos
@@ -67,6 +69,8 @@ const char* TimedOpName(int op);
 // Fixed hitch buckets (upper bounds, ms). The last bucket is open-ended.
 static const int NUM_BUCKETS = 10;
 extern const double kBucketUpperMs[NUM_BUCKETS]; // .25 .5 1 2 4 8 16.67 33 50 inf
+static const int NUM_HITCH_THRESHOLDS = 5;
+extern const double kHitchThresholdMs[NUM_HITCH_THRESHOLDS]; // 16.67 25 33.33 50 100
 
 struct TimingStat {
 	uint64_t count;
@@ -74,6 +78,7 @@ struct TimingStat {
 	double maxMs;
 	double lastMs;
 	uint32_t buckets[NUM_BUCKETS];
+	uint64_t hitchCounts[NUM_HITCH_THRESHOLDS];
 
 	void Reset();
 	void Record(double ms);
@@ -188,7 +193,8 @@ struct RollbackDiagnostics {
 	void RecordGgpoResult(int callSite, int ggpoErrorCode);
 	void OnFrameAdvanced(double nowMs);   // a deterministic frame advanced normally
 	void OnRollbackCallback(double nowMs);
-	void OnOuterFrame(double nowMs);      // once per Steam_PostUpdate
+	void OnOuterFrame(double nowMs);      // outer-tick accounting only
+	void OnSessionEnded(double nowMs);    // closes active stall/burst episodes
 	void OnConnectionInterrupted(double nowMs);
 	void OnConnectionResumed(double nowMs);
 	void OnTerminalDisconnect(double nowMs);

@@ -13,6 +13,10 @@ const double kBucketUpperMs[NUM_BUCKETS] = {
 	0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.67, 33.0, 50.0, 1e300
 };
 
+const double kHitchThresholdMs[NUM_HITCH_THRESHOLDS] = {
+	16.67, 25.0, 33.33, 50.0, 100.0
+};
+
 static const uint32_t kBurstUpper[RollbackDiagnostics::NUM_BURST_BUCKETS] = {
 	1, 2, 3, 4, 6, 8, 12, 0xffffffffu
 };
@@ -30,11 +34,13 @@ const char* TimedOpName(int op) {
 	case OP_FACADE_TICK_FRAME:      return "facade_tick";
 	case OP_GGPO_IDLE:              return "ggpo_idle";
 	case OP_STEAM_POST_UPDATE:      return "steam_post_update";
+	case OP_OUTER_TICK:             return "outer_tick";
 	case OP_SAVE_TOTAL:             return "save";
 	case OP_SAVE_RECORD_MEMENTOS:   return "save.mementos";
 	case OP_SAVE_COPY_KEYS:         return "save.keys";
 	case OP_SAVE_SOUND:             return "save.sound";
 	case OP_SAVE_GLOBALS:           return "save.globals";
+	case OP_SEMANTIC_HASH:          return "semantic_hash";
 	case OP_LOAD_TOTAL:             return "load";
 	case OP_LOAD_KEY_BACKUP:        return "load.key_backup";
 	case OP_LOAD_COPY_INTO_PLACE:   return "load.copy_into_place";
@@ -79,6 +85,7 @@ void TimingStat::Reset() {
 	maxMs = 0.0;
 	lastMs = 0.0;
 	memset(buckets, 0, sizeof(buckets));
+	memset(hitchCounts, 0, sizeof(hitchCounts));
 }
 
 void TimingStat::Record(double ms) {
@@ -90,6 +97,11 @@ void TimingStat::Record(double ms) {
 	lastMs = ms;
 	if (ms > maxMs) {
 		maxMs = ms;
+	}
+	for (int i = 0; i < NUM_HITCH_THRESHOLDS; i++) {
+		if (ms >= kHitchThresholdMs[i]) {
+			hitchCounts[i]++;
+		}
 	}
 	for (int i = 0; i < NUM_BUCKETS; i++) {
 		if (ms < kBucketUpperMs[i]) {
@@ -198,6 +210,7 @@ void RollbackDiagnostics::OnRollbackCallback(double nowMs) {
 }
 
 void RollbackDiagnostics::OnOuterFrame(double nowMs) {
+	(void)nowMs;
 	if (!enabled) {
 		return;
 	}
@@ -209,9 +222,35 @@ void RollbackDiagnostics::OnOuterFrame(double nowMs) {
 		}
 		rollbackCallbacksThisOuterFrame = 0;
 	}
-	// An outer tick also bounds a resim burst (rollback resimulation never
-	// spans outer frames).
-	OnFrameAdvanced(nowMs);
+	// An outer tick bounds rollback-resimulation work, but it is not proof
+	// that deterministic simulation advanced. In particular it must not
+	// close a prediction-threshold stall episode.
+	if (currentResimBurst > 0) {
+		if (currentResimBurst > maxResimBurst) {
+			maxResimBurst = currentResimBurst;
+		}
+		resimBursts++;
+		for (int i = 0; i < NUM_BURST_BUCKETS; i++) {
+			if (currentResimBurst <= kBurstUpper[i]) {
+				resimBurstBuckets[i]++;
+				break;
+			}
+		}
+		currentResimBurst = 0;
+	}
+}
+
+void RollbackDiagnostics::OnSessionEnded(double nowMs) {
+	if (!enabled) {
+		return;
+	}
+	if (predictionStallStartMs >= 0.0) {
+		predictionStallDuration.Record(nowMs - predictionStallStartMs);
+		predictionStallStartMs = -1.0;
+	}
+	if (currentResimBurst > 0) {
+		OnOuterFrame(nowMs);
+	}
 }
 
 void RollbackDiagnostics::OnConnectionInterrupted(double nowMs) {
@@ -293,14 +332,20 @@ static void AppendStatLine(
 	}
 	Append(
 		buf, cap, used,
-		"  %-22s n=%llu p50=%.2f p95=%.2f p99=%.2f max=%.2f mean=%.3f ms\n",
+		"  %-22s n=%llu p50=%.2f p95=%.2f p99=%.2f max=%.2f mean=%.3f ms "
+		"hitch[>=16.67,25,33.33,50,100]=%llu,%llu,%llu,%llu,%llu\n",
 		name,
 		(unsigned long long)s.count,
 		s.ApproxPercentileMs(0.50),
 		s.ApproxPercentileMs(0.95),
 		s.ApproxPercentileMs(0.99),
 		s.maxMs,
-		s.MeanMs()
+		s.MeanMs(),
+		(unsigned long long)s.hitchCounts[0],
+		(unsigned long long)s.hitchCounts[1],
+		(unsigned long long)s.hitchCounts[2],
+		(unsigned long long)s.hitchCounts[3],
+		(unsigned long long)s.hitchCounts[4]
 	);
 }
 
@@ -343,9 +388,9 @@ size_t RollbackDiagnostics::FormatSummary(char* buf, size_t cap, const char* lab
 		OP_DETOURED_BATTLE_UPDATE, OP_ENGINE_BATTLE_UPDATE, OP_ADD_LOCAL_INPUT,
 		OP_SYNC_INPUT, OP_ADVANCE_FRAME_API, OP_ROLLBACK_CALLBACK,
 		OP_SESSION_CLIENT_STEP, OP_SESSION_SERVER_STEP, OP_FACADE_TICK_FRAME,
-		OP_GGPO_IDLE, OP_STEAM_POST_UPDATE,
+		OP_GGPO_IDLE, OP_STEAM_POST_UPDATE, OP_OUTER_TICK,
 		OP_SAVE_TOTAL, OP_SAVE_RECORD_MEMENTOS, OP_SAVE_COPY_KEYS,
-		OP_SAVE_SOUND, OP_SAVE_GLOBALS,
+		OP_SAVE_SOUND, OP_SAVE_GLOBALS, OP_SEMANTIC_HASH,
 		OP_LOAD_TOTAL, OP_LOAD_KEY_BACKUP, OP_LOAD_COPY_INTO_PLACE,
 		OP_LOAD_RESTORE_KEYS,
 		OP_FREE_TOTAL, OP_FREE_TMP_SAVE, OP_FREE_VICTIM_INSTALL,

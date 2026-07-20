@@ -40,6 +40,11 @@ static void TestHistogramAccounting() {
 	CHECK(s.maxMs == 120.0);
 	CHECK(s.lastMs == 120.0);
 	CHECK(s.totalMs > 201.0 && s.totalMs < 202.0);
+	CHECK(s.hitchCounts[0] == 3); // 20, 40, 120
+	CHECK(s.hitchCounts[1] == 2); // 40, 120
+	CHECK(s.hitchCounts[2] == 2);
+	CHECK(s.hitchCounts[3] == 1);
+	CHECK(s.hitchCounts[4] == 1);
 
 	// Negative durations clamp to zero rather than corrupting totals.
 	TimingStat n;
@@ -116,6 +121,27 @@ static void TestStallAccounting() {
 	// A later stall is a new episode.
 	d.RecordSkip(SKIP_PREDICTION_THRESHOLD, 200.0);
 	CHECK(d.predictionStalls == 2);
+}
+
+static void TestStallSpansOuterTicks() {
+	RollbackDiagnostics& d = G();
+	SetEnabled(true);
+	d.ResetForMatch(0.0);
+
+	// Exact production sequence: outer application ticks do not imply
+	// deterministic progression and therefore cannot split the episode.
+	d.RecordSkip(SKIP_PREDICTION_THRESHOLD, 100.0);
+	d.OnOuterFrame(110.0);
+	d.RecordSkip(SKIP_PREDICTION_THRESHOLD, 120.0);
+	d.OnOuterFrame(130.0);
+	d.RecordSkip(SKIP_PREDICTION_THRESHOLD, 140.0);
+	d.OnFrameAdvanced(175.0);
+
+	CHECK(d.predictionStalls == 1);
+	CHECK(d.skipReasons[SKIP_PREDICTION_THRESHOLD] == 3);
+	CHECK(d.predictionStallDuration.count == 1);
+	CHECK(d.predictionStallDuration.maxMs == 75.0);
+	CHECK(d.predictionStallStartMs < 0.0);
 }
 
 static void TestConnectionWarningAccounting() {
@@ -221,6 +247,7 @@ static void TestFormatSummary() {
 	CHECK(strstr(buf, "save") != NULL);
 	CHECK(strstr(buf, "skip[update_gate]=1") != NULL);
 	CHECK(strstr(buf, "trackedKeys=88/88") != NULL);
+	CHECK(strstr(buf, "hitch[>=16.67,25,33.33,50,100]") != NULL);
 
 	// A tiny buffer must not overflow and stays terminated.
 	char tiny[16];
@@ -234,6 +261,7 @@ int main() {
 	TestPercentiles();
 	TestBurstTracking();
 	TestStallAccounting();
+	TestStallSpansOuterTicks();
 	TestConnectionWarningAccounting();
 	TestGgpoResultSlots();
 	TestTimesyncAccounting();
