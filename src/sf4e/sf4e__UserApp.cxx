@@ -235,8 +235,7 @@ void fUserApp::_OnVsBattleTasksRegistered()
             if (fSystem::ggpo) {
                 spdlog::info("GgpoTransport: closing previous GGPO session before registration");
                 sf4e::NetplayFacade::CancelDeferredGgpoClose();
-                ggpo_close_session(fSystem::ggpo);
-                fSystem::ggpo = nullptr;
+                fSystem::RetireGgpoSession("transport_registration_close");
                 GgpoRelay::Instance().Reset();
             }
 
@@ -464,8 +463,7 @@ void fUserApp::TryRestartGgpoLegacyTunnel() {
     }
 
     spdlog::warn("GgpoTransport: restarting GGPO on legacy session tunnel");
-    ggpo_close_session(fSystem::ggpo);
-    fSystem::ggpo = nullptr;
+    fSystem::RetireGgpoSession("legacy_tunnel_restart");
     fSystem::bUpdateAllowed = false;
 
     netplay->client._useRelay = true;

@@ -539,18 +539,23 @@ void fSystem::BattleUpdate() {
 
 void fSystem::CloseBattle() {
     rSystem* _this = (rSystem*)this;
+    bool summaryEmitted = false;
     if (ggpo) {
         simGate.OnBattleClosing();
-        LogPacerSummary("battle_close");
-        pacer.Reset();
         // Decide defer *before* close so a prior spectator defer flag cannot
         // leave this session open across rematch.
         sf4e::NetplayFacade::NotifyMatchEnded();
         if (!sf4e::NetplayFacade::ShouldDeferGgpoClose()) {
-            ggpo_close_session(ggpo);
-            ggpo = nullptr;
+            RetireGgpoSession("battle_close");
             sf4e::GgpoRelay::Instance().Reset();
-            simGate.OnSessionClosed();
+            summaryEmitted = true;
+        }
+        else {
+            if (diag::Enabled()) {
+                diag::G().OnSessionEnded(diag::NowMs());
+            }
+            LogPacerSummary("battle_close_deferred");
+            pacer.Reset();
         }
         bGgpoConnectionInterrupted = false;
     }
@@ -559,7 +564,9 @@ void fSystem::CloseBattle() {
             SaveState::Free(&saveStates[i]);
         }
     }
-    EmitRollbackDiagSummary("battle_close");
+    if (!summaryEmitted) {
+        EmitRollbackDiagSummary("battle_close_deferred");
+    }
     (_this->*rSystem::publicMethods.CloseBattle)();
 
     // If the room was lost mid-fight (degraded mode), the fight is now
@@ -738,22 +745,31 @@ void fSystem::ApplyGgpoDisconnectSettings(GGPOSession* session) {
     ggpo_set_disconnect_notify_start(session, notifyMs);
 }
 
+void fSystem::RetireGgpoSession(const char* diagnosticsLabel) {
+    if (!ggpo) {
+        return;
+    }
+    if (diag::Enabled()) {
+        diag::G().OnSessionEnded(diag::NowMs());
+    }
+    LogPacerSummary(diagnosticsLabel);
+    ggpo_close_session(ggpo);
+    ggpo = nullptr;
+    simGate.OnSessionClosed();
+    bGgpoConnectionInterrupted = false;
+    EmitRollbackDiagSummary(diagnosticsLabel);
+    pacer.Reset();
+}
+
 void fSystem::AbortGgpoMatch(const char* reason) {
     if (reason && reason[0]) {
         spdlog::error("GGPO match abort: {}", reason);
         sf4e::NetplayFacade::PushAlert(reason);
     }
-    EmitRollbackDiagSummary("abort");
-    LogPacerSummary("abort");
-    pacer.Reset();
     simGate.OnFatal();
     bUpdateAllowed = false;
     bGgpoConnectionInterrupted = false;
-    if (ggpo) {
-        ggpo_close_session(ggpo);
-        ggpo = nullptr;
-        simGate.OnSessionClosed();
-    }
+    RetireGgpoSession("abort");
     sf4e::GgpoRelay::Instance().Reset();
     sf4e::NetplayFacade::ClearBattleState();
     rSystem* system = rSystem::staticMethods.GetSingleton();
@@ -764,13 +780,12 @@ void fSystem::AbortGgpoMatch(const char* reason) {
 
 void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay, DWORD rngSeed) {
     diag::InitFromEnvironment();
-    diag::G().ResetForMatch(diag::NowMs());
     sf4e::NetplayFacade::CancelDeferredGgpoClose();
     if (ggpo) {
         spdlog::warn("StartGGPO: closing leftover GGPO session before rematch/restart");
-        ggpo_close_session(ggpo);
-        ggpo = nullptr;
+        RetireGgpoSession("leftover_before_start");
     }
+    diag::G().ResetForMatch(diag::NowMs());
     sf4e::GgpoRelay::Instance().Reset();
     simGate.OnSessionStarted();
     ResetPacerForSession();
@@ -849,6 +864,11 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
 
 void fSystem::StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port, DWORD rngSeed) {
     diag::InitFromEnvironment();
+    sf4e::NetplayFacade::CancelDeferredGgpoClose();
+    if (ggpo) {
+        spdlog::warn("StartSpectating: closing leftover GGPO session before restart");
+        RetireGgpoSession("leftover_before_spectating");
+    }
     diag::G().ResetForMatch(diag::NowMs());
     simGate.OnSessionStarted();
     ResetPacerForSession();
@@ -1342,7 +1362,7 @@ void fSystem::SaveState::Free(SaveState* victim) {
 
     {
         diag::ScopedTimer _t(diag::OP_FREE_TMP_SAVE);
-        SaveState::Save(&tmp);
+        SaveState::Save(&tmp, true);
     }
 
     // Calls to clear SF4's mementos delegate those calls to the mementoable
@@ -1370,6 +1390,15 @@ void fSystem::SaveState::Free(SaveState* victim) {
     {
         diag::ScopedTimer _t(diag::OP_FREE_LIVE_RESTORE);
         CopyIntoPlace(&tmp);
+    }
+    if (diag::Enabled()) {
+        uint32_t occupied = 0;
+        for (int i = 0; i < NUM_SAVE_STATES; i++) {
+            if (saveStates[i].used) {
+                occupied++;
+            }
+        }
+        diag::G().occupiedSaveSlots.Update(occupied);
     }
 }
 
@@ -1435,8 +1464,8 @@ void fSystem::SaveState::Load(SaveState* src) {
     }
 }
 
-void fSystem::SaveState::Save(SaveState* dst) {
-    diag::ScopedTimer _saveTimer(diag::OP_SAVE_TOTAL);
+void fSystem::SaveState::Save(SaveState* dst, bool temporary) {
+    diag::ScopedTimer _saveTimer(temporary ? -1 : diag::OP_SAVE_TOTAL);
     AssertSaveStateThreadAffinity();
     rSystem* system = rSystem::staticMethods.GetSingleton();
     assert(dst->keys.empty());
@@ -1444,11 +1473,11 @@ void fSystem::SaveState::Save(SaveState* dst) {
     dst->used = true;
 
     {
-        diag::ScopedTimer _t(diag::OP_SAVE_RECORD_MEMENTOS);
+        diag::ScopedTimer _t(temporary ? -1 : diag::OP_SAVE_RECORD_MEMENTOS);
         RecordAllToInternalMementos(system, &GGPO_MEMENTO_ID);
     }
     {
-        diag::ScopedTimer _t(diag::OP_SAVE_COPY_KEYS);
+        diag::ScopedTimer _t(temporary ? -1 : diag::OP_SAVE_COPY_KEYS);
         for (auto iter = fKey::trackedKeys.begin(); iter != fKey::trackedKeys.end(); iter++) {
             dst->keys.emplace_back(*iter, **iter);
 
@@ -1463,7 +1492,7 @@ void fSystem::SaveState::Save(SaveState* dst) {
     }
 
     {
-        diag::ScopedTimer _t(diag::OP_SAVE_SOUND);
+        diag::ScopedTimer _t(temporary ? -1 : diag::OP_SAVE_SOUND);
         for (
             auto managerIter = Sound::SoundPlayerManager::shadowManagerMap.begin();
             managerIter != Sound::SoundPlayerManager::shadowManagerMap.end();
@@ -1494,7 +1523,7 @@ void fSystem::SaveState::Save(SaveState* dst) {
         }
     }
 
-    if (diag::Enabled()) {
+    if (!temporary && diag::Enabled()) {
         diag::RollbackDiagnostics& d = diag::G();
         d.trackedKeys.Update((uint32_t)fKey::trackedKeys.size());
         d.saveKeyVectorSize.Update((uint32_t)dst->keys.size());
@@ -1505,7 +1534,7 @@ void fSystem::SaveState::Save(SaveState* dst) {
         d.managerStateSize.Update((uint32_t)dst->managerState.size());
     }
 
-    diag::ScopedTimer _globalsTimer(diag::OP_SAVE_GLOBALS);
+    diag::ScopedTimer _globalsTimer(temporary ? -1 : diag::OP_SAVE_GLOBALS);
     dst->d.CurrentBattleFlow = *rSystem::staticVars.CurrentBattleFlow;
     dst->d.PreviousBattleFlow = *rSystem::staticVars.PreviousBattleFlow;
     dst->d.CurrentBattleFlowSubstate = *rSystem::staticVars.CurrentBattleFlowSubstate;

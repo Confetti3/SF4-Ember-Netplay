@@ -585,8 +585,7 @@ namespace sf4e {
 		}
 
 		if (s_deferredGgpoPending && fSystem::ggpo && !ShouldDeferGgpoClose()) {
-			ggpo_close_session(fSystem::ggpo);
-			fSystem::ggpo = nullptr;
+			fSystem::RetireGgpoSession("deferred_close");
 			GgpoRelay::Instance().Reset();
 			s_deferredGgpoPending = false;
 			s_deferGgpoClose = false;
@@ -650,9 +649,7 @@ namespace sf4e {
 
 	void NetplayFacade::ShutdownNetplay(bool closeGgpo) {
 		if (closeGgpo && fSystem::ggpo) {
-			ggpo_close_session(fSystem::ggpo);
-			fSystem::ggpo = nullptr;
-			fSystem::simGate.OnSessionClosed();
+			fSystem::RetireGgpoSession("shutdown");
 		}
 		fSystem::pacer.Reset();
 		GgpoRelay::Instance().Reset();

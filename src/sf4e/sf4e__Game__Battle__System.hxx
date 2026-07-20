@@ -138,7 +138,7 @@ namespace sf4e {
 					SaveState();
 
 					static void Free(SaveState* dst);
-					static void Save(SaveState* dst);
+					static void Save(SaveState* dst, bool temporary = false);
 					static void Load(SaveState* src);
 				};
 
@@ -179,6 +179,7 @@ namespace sf4e {
 				static SaveState saveStates[NUM_SAVE_STATES];
 
 				static void ApplyGgpoDisconnectSettings(GGPOSession* session);
+				static void RetireGgpoSession(const char* diagnosticsLabel);
 				static void AbortGgpoMatch(const char* reason);
 				static void StartGGPO(GGPOPlayer* players, int numPlayers, int port, int frameDelay, DWORD rngSeed);
 				static void StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port, DWORD rngSeed);
