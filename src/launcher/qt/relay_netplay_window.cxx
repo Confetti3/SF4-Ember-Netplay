@@ -404,12 +404,12 @@ void RelayNetplayWindow::buildUi() {
 	m_joinDelaySimple->setValue(2);
 	m_joinRoomCode = new QLineEdit();
 	m_joinRoomCode->setObjectName(QStringLiteral("roomCodeInput"));
-	m_joinRoomCode->setPlaceholderText(QStringLiteral("SF4-XXXX"));
+	m_joinRoomCode->setPlaceholderText(QStringLiteral("SF4-XXXX or 203.0.113.42:23456"));
 	ConfigureFormField(m_joinRoomCode);
 	m_joinRoomCode->setMinimumHeight(30);
 	joinSimpleLayout->addRow(QStringLiteral("Display name"), m_joinNameSimple);
 	joinSimpleLayout->addRow(QStringLiteral("Input delay"), BuildStepper(m_joinDelaySimple));
-	joinSimpleLayout->addRow(QStringLiteral("Room code"), m_joinRoomCode);
+	joinSimpleLayout->addRow(QStringLiteral("Room code or IP:port"), m_joinRoomCode);
 	joinLayout->addWidget(m_joinSimpleSettings);
 
 	m_joinAdvancedSettings = new QGroupBox(QStringLiteral("Advanced join settings"));
@@ -547,6 +547,11 @@ void RelayNetplayWindow::wireSignals() {
 	QObject::connect(m_hostAdvertise, &QLineEdit::textChanged, this, &RelayNetplayWindow::onAdvertiseChanged);
 	QObject::connect(m_hostPort, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int) {
 		onAdvertiseChanged();
+	});
+	QObject::connect(m_hostConnectMethod, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int) {
+		// Relay requires a broker room code, while Direct IP does not. Re-evaluate
+		// the Start button immediately when the user changes the transport.
+		renderHostShareCards();
 	});
 	QObject::connect(m_brokerUrl, &QLineEdit::editingFinished, this, &RelayNetplayWindow::onBrokerChanged);
 	QObject::connect(m_roomList, &QListWidget::itemClicked, this, &RelayNetplayWindow::onRoomSelected);
@@ -798,7 +803,12 @@ void RelayNetplayWindow::renderHostShareCards() {
 
 	if (m_hostShareHint) {
 		const QString relayCode = activeRelayRoomCode();
-		if (!relayCode.isEmpty()) {
+		const QString method = getHostConnectMethod();
+		if (method != QStringLiteral("relay")) {
+			m_hostShareHint->setText(QStringLiteral(
+				"Direct IP does not use a room code. Share the LAN or Internet IP:port and start the host first."));
+		}
+		else if (!relayCode.isEmpty()) {
 			m_hostShareHint->setText(
 				m_forceVpsRelay
 					? QStringLiteral(
@@ -1263,20 +1273,20 @@ void RelayNetplayWindow::startGameHost() {
 }
 
 void RelayNetplayWindow::startGameJoin() {
-	const QString code =
+	const QString target =
 		m_simpleUi ? (m_joinRoomCode ? m_joinRoomCode->text().trimmed() : QString())
 				   : (m_joinAddress ? m_joinAddress->text().trimmed() : QString());
-	if (code.isEmpty()) {
+	if (target.isEmpty()) {
 		showToast(QStringLiteral("Enter a room code or host address."), QStringLiteral("error"));
 		return;
 	}
-	const QString method = getJoinConnectMethod(code);
+	const QString method = getJoinConnectMethod(target);
 	if (!m_simpleUi) {
-		if (method == QStringLiteral("relay") && !IsShortRoomCodeQString(code)) {
+		if (method == QStringLiteral("relay") && !IsShortRoomCodeQString(target)) {
 			showToast(QStringLiteral("Relay mode needs a room code like SF4-XXXX."), QStringLiteral("error"));
 			return;
 		}
-		if (method == QStringLiteral("direct") && IsShortRoomCodeQString(code)) {
+		if (method == QStringLiteral("direct") && IsShortRoomCodeQString(target)) {
 			showToast(QStringLiteral("Direct IP mode needs an address like 203.0.113.42:23456."), QStringLiteral("error"));
 			return;
 		}
@@ -1289,15 +1299,20 @@ void RelayNetplayWindow::startGameJoin() {
 		m_btnStartJoin->setEnabled(false);
 	}
 	stopRelayHeartbeat();
-	m_bridge.post({
+	nlohmann::json payload = {
 		{ "type", "start" },
 		{ "mode", "join" },
 		{ "connectMethod", method.toStdString() },
 		{ "displayName", getDisplayName(false).toStdString() },
 		{ "inputDelay", getInputDelay(false) },
-		{ "joinAddress", code.toStdString() },
-		{ "roomCode", code.toStdString() },
-	});
+	};
+	if (method == QStringLiteral("relay")) {
+		payload["roomCode"] = target.toStdString();
+	}
+	else {
+		payload["joinAddress"] = target.toStdString();
+	}
+	m_bridge.post(payload);
 }
 
 void RelayNetplayWindow::onStartHost() {

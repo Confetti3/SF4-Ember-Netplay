@@ -1044,17 +1044,16 @@ namespace launcher {
 
 				strncpy_s(m_outConfig.roomKey, "1", _TRUNCATE);
 
-				std::string relayCode = msg.value("relayRoomCode", "");
-
-				if (relayCode.empty() && m_settings.relayRoomCode[0]) {
-
-					relayCode = m_settings.relayRoomCode;
-
-				}
-
 				std::string hostConnectMethod = connectMethod;
 
 				if (hostConnectMethod == "relay") {
+					std::string relayCode = msg.value("relayRoomCode", "");
+
+					if (relayCode.empty() && m_settings.relayRoomCode[0]) {
+
+						relayCode = m_settings.relayRoomCode;
+
+					}
 
 					if (relayCode.empty()) {
 
@@ -1207,7 +1206,7 @@ namespace launcher {
 
 				}
 
-				else if (IsShortRoomCode(req.roomCode.c_str())) {
+				else if (connectMethod == "relay") {
 
 					sr = ResolveJoinRelayRoom(req, m_settings.brokerBaseUrl);
 
@@ -1242,14 +1241,13 @@ namespace launcher {
 				BrokerHealth joinBrokerHealth;
 				const bool vpsRelay =
 					FetchBrokerHealth(m_settings.brokerBaseUrl, joinBrokerHealth) && joinBrokerHealth.forceVpsRelay;
-				const bool vpsRelayJoin =
-					vpsRelay
-					&& (IsShortRoomCode(req.roomCode.c_str()) || connectMethod == "matchmaking");
+				const bool relayJoin = connectMethod == "relay" || connectMethod == "matchmaking";
+				const bool vpsRelayJoin = vpsRelay && relayJoin;
 				if (vpsRelayJoin) {
 					m_outConfig.useCentralSession = 2;
 				}
 
-				if (IsShortRoomCode(req.roomCode.c_str())) {
+				if (connectMethod == "relay") {
 					strncpy_s(m_outConfig.relayRoomCode, req.roomCode.c_str(), _TRUNCATE);
 				}
 
@@ -1280,7 +1278,7 @@ namespace launcher {
 					}
 				}
 
-				if (IsShortRoomCode(req.roomCode.c_str())) {
+				if (connectMethod == "relay") {
 
 					strncpy_s(m_settings.lastJoinHost, req.roomCode.c_str(), _TRUNCATE);
 
