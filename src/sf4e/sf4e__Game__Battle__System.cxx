@@ -788,11 +788,14 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
         RetireGgpoSession("leftover_before_start");
     }
     diag::G().ResetForMatch(diag::NowMs());
-    sf4e::GgpoRelay::Instance().Reset();
     simGate.OnSessionStarted();
     bUpdateAllowed = !simGate.manualPause;
     ResetPacerForSession();
     s_lastDisconnectFlags = 0;
+    // Do not reset GgpoRelay here. The legacy Direct-IP/session-tunnel path
+    // creates its virtual peer immediately before calling StartGGPO; resetting
+    // it here destroys the transport before GGPO can exchange its handshake.
+    // GgpoRelay::Start handles stale state, and battle close/abort own teardown.
     bGgpoConnectionInterrupted = false;
     localPlayerHandle = GGPO_INVALID_HANDLE;
     lastGgpoSaveFrame = -1;

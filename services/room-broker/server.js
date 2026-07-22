@@ -40,7 +40,7 @@ const ROOM_CAPACITY_WARNING_PERCENT = capacityConfig.roomCapacityWarningPercent;
 const ROOM_FULL_MESSAGE =
   "The relay is currently at room capacity. Try again shortly or select another relay.";
 const ROOM_OCCUPIED_IDLE_MS = parseInt(
-  process.env.ROOM_OCCUPIED_IDLE_MS || process.env.ROOM_IDLE_MS || String(30 * 60 * 1000),
+  process.env.ROOM_OCCUPIED_IDLE_MS || process.env.ROOM_IDLE_MS || "0",
   10
 );
 const ROOM_LOBBY_IDLE_MS = parseInt(process.env.ROOM_LOBBY_IDLE_MS || String(5 * 60 * 1000), 10);
@@ -375,6 +375,13 @@ function roomIdleLimitMs(room) {
   return isRoomOccupied(room) ? ROOM_OCCUPIED_IDLE_MS : ROOM_LOBBY_IDLE_MS;
 }
 
+function shouldPruneRoom(room, now = Date.now()) {
+  const limit = roomIdleLimitMs(room);
+  // A non-positive occupied timeout explicitly disables age-based cleanup.
+  // Empty host-only rooms retain their separate finite lobby timeout.
+  return limit > 0 && now - room.lastSeenAt > limit;
+}
+
 function endRoom(code, room, reason) {
   pushMatchEvent(room, "match_ended", { reason: reason || "prune" });
   room.endedAt = Date.now();
@@ -385,8 +392,7 @@ function endRoom(code, room, reason) {
 function pruneRooms() {
   const now = Date.now();
   for (const [code, room] of rooms) {
-    const limit = roomIdleLimitMs(room);
-    if (now - room.lastSeenAt > limit) {
+    if (shouldPruneRoom(room, now)) {
       endRoom(code, room, isRoomOccupied(room) ? "idle_timeout_occupied" : "idle_timeout_lobby");
     }
   }
@@ -784,7 +790,7 @@ const server = http.createServer(async (req, res) => {
     }
     const now = Date.now();
     const list = [...rooms.values()]
-      .filter((r) => now - r.lastSeenAt < roomIdleLimitMs(r))
+      .filter((r) => !shouldPruneRoom(r, now))
       .map((r) => publicRoomFields(r));
     json(res, 200, { rooms: list });
     return;
@@ -1201,5 +1207,10 @@ module.exports = {
   GGPO_UDP_PORT_END,
   ROOM_CAPACITY_WARNING_PERCENT,
   ROOM_FULL_MESSAGE,
+  ROOM_LOBBY_IDLE_MS,
+  ROOM_OCCUPIED_IDLE_MS,
+  isRoomOccupied,
+  roomIdleLimitMs,
+  shouldPruneRoom,
   capacityConfig,
 };

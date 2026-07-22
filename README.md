@@ -167,7 +167,7 @@ This is an **experimental unofficial port** for a **small friends group** - not 
 | In scope | Out of scope / limits |
 |----------|------------------------|
 | USF4 on **Steam**, **Windows 10+** | Game not included; no console/macOS native build |
-| **Simple mode**: VPS room codes (`SF4-XXXX`), no host port forward | **~50 rooms** configured ceiling on default broker; tiered idle expiry (~5 / ~30 min) |
+| **Simple mode**: VPS room codes (`SF4-XXXX`), no host port forward | **~50 rooms** configured ceiling on default broker; empty lobbies expire after ~5 min, occupied rooms do not age out by default |
 | **Advanced mode**: Direct IP / UPnP / custom broker | Direct IP host must **port-forward** TCP+UDP (default **23456**) |
 | Same **release zip** on all players | **Find match** / **Open rooms** are **experimental** |
 | Unofficial launcher + packaging on upstream sf4e (MIT) | **Not** maintained or endorsed by Anthony Danducci |

@@ -914,13 +914,18 @@ app.get("/dashboard", requireAuth, (_req, res) => {
           const lobbyMin = data.broker.roomLobbyIdleMs
             ? Math.round(data.broker.roomLobbyIdleMs / 60000)
             : null;
-          const occMin = data.broker.roomOccupiedIdleMs
-            ? Math.round(data.broker.roomOccupiedIdleMs / 60000)
-            : data.broker.roomIdleMs
-              ? Math.round(data.broker.roomIdleMs / 60000)
+          const occupiedIdleMs = Number.isFinite(data.broker.roomOccupiedIdleMs)
+            ? data.broker.roomOccupiedIdleMs
+            : Number.isFinite(data.broker.roomIdleMs)
+              ? data.broker.roomIdleMs
               : null;
+          const occMin = occupiedIdleMs != null && occupiedIdleMs > 0
+            ? Math.round(occupiedIdleMs / 60000)
+            : null;
           const idleLabel =
-            lobbyMin != null && occMin != null
+            lobbyMin != null && occupiedIdleMs === 0
+              ? lobbyMin + " min lobby / disabled occupied"
+              : lobbyMin != null && occMin != null
               ? lobbyMin + " / " + occMin + " min (lobby / occupied)"
               : occMin != null
                 ? occMin + " min"
@@ -1007,7 +1012,11 @@ app.get("/api/status", requireAuth, async (_req, res) => {
       : rawRooms;
     const now = Date.now();
     const roomLobbyIdleMs = broker.roomLobbyIdleMs || 5 * 60 * 1000;
-    const roomOccupiedIdleMs = broker.roomOccupiedIdleMs || broker.roomIdleMs || 30 * 60 * 1000;
+    const roomOccupiedIdleMs = Number.isFinite(broker.roomOccupiedIdleMs)
+      ? broker.roomOccupiedIdleMs
+      : Number.isFinite(broker.roomIdleMs)
+        ? broker.roomIdleMs
+        : 0;
     const maxRooms = broker.maxRooms || 50;
     const relayPortBase = broker.relayPortBase || 23456;
     const relayPortEnd = broker.relayPortEnd || relayPortBase + maxRooms - 1;
@@ -1064,8 +1073,12 @@ app.get("/api/status", requireAuth, async (_req, res) => {
       const ggpo = room.ggpoPort ? ggpoByPort.get(room.ggpoPort) : null;
       const ageMs = room.createdAt ? now - room.createdAt : 0;
       const idleMs = room.lastSeenAt ? now - room.lastSeenAt : 0;
-      const idleLimitMs = room.idleLimitMs || (room.roomOccupied ? roomOccupiedIdleMs : roomLobbyIdleMs);
-      const expiresInMs = Math.max(0, idleLimitMs - idleMs);
+      const idleLimitMs = Number.isFinite(room.idleLimitMs)
+        ? room.idleLimitMs
+        : room.roomOccupied
+          ? roomOccupiedIdleMs
+          : roomLobbyIdleMs;
+      const expiresInMs = idleLimitMs > 0 ? Math.max(0, idleLimitMs - idleMs) : null;
       const sessionRelayOk = Boolean(session?.ok);
       const ggpoRelayOk = !room.ggpoPort || Boolean(ggpo?.ok);
       return {
@@ -1080,7 +1093,7 @@ app.get("/api/status", requireAuth, async (_req, res) => {
         host: room.host,
         age: formatDuration(ageMs),
         idleFor: formatDuration(idleMs),
-        expiresIn: formatDuration(expiresInMs),
+        expiresIn: expiresInMs == null ? "disabled" : formatDuration(expiresInMs),
         sessionRelayOk,
         ggpoRelayOk,
         relayOk: sessionRelayOk && ggpoRelayOk,

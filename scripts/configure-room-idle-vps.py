@@ -11,7 +11,7 @@ if str(_SCRIPT_DIR) not in sys.path:
 from vps_ssh import connect_ssh
 
 LOBBY_MS = os.environ.get("SF4E_ROOM_LOBBY_IDLE_MS", "300000")
-OCCUPIED_MS = os.environ.get("SF4E_ROOM_OCCUPIED_IDLE_MS", "1800000")
+OCCUPIED_MS = os.environ.get("SF4E_ROOM_OCCUPIED_IDLE_MS", "0")
 ENV_PATH = "/root/room-broker/.env"
 
 

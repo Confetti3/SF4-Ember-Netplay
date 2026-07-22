@@ -20,7 +20,7 @@ This is a **known false positive** on unsigned netplay tools that inject into US
 |----------|--------|
 | USF4 on Steam, Windows 10+ | Game **not included** |
 | Simple VPS room codes (`SF4-XXXX`) | **Experimental** — not official sf4e |
-| Same zip on all players | Shared broker (~**50 rooms** ≈ 100 players; **5 min** idle for empty codes, **30 min** when occupied) |
+| Same zip on all players | Shared broker (~**50 rooms** ≈ 100 players; **5 min** idle for empty codes, no occupied-room age limit by default) |
 | Advanced Direct IP / UPnP | Host port-forward for Direct IP; Find match / Open rooms **experimental** |
 
 Full list: [`docs/SCOPE_AND_LIMITATIONS.md`](SCOPE_AND_LIMITATIONS.md) in this folder.

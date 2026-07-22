@@ -38,7 +38,7 @@ export RELAY_HOST=your.vps.ip
 export RELAY_PORT_BASE=23456
 export MAX_ROOMS=50
 export ROOM_LOBBY_IDLE_MS=300000
-export ROOM_OCCUPIED_IDLE_MS=1800000
+export ROOM_OCCUPIED_IDLE_MS=0
 node server.js
 ```
 
@@ -52,7 +52,7 @@ node server.js
 | `MAX_ROOMS` | 50 | Cap concurrent rooms (session `23456–23505`, GGPO `24456–24505`) |
 | `ROOM_CAPACITY_WARNING_PERCENT` | 80 | Soft dashboard/health warning only |
 | `ROOM_LOBBY_IDLE_MS` | 300000 (5m) | Drop host-only rooms (no joiner) |
-| `ROOM_OCCUPIED_IDLE_MS` | 1800000 (30m) | Drop rooms with guest or in-match |
+| `ROOM_OCCUPIED_IDLE_MS` | 0 (disabled) | Optional idle timeout for rooms with a guest or match; `0` keeps them until explicit deletion or broker restart |
 | `ROOM_IDLE_MS` | (legacy) | Alias for `ROOM_OCCUPIED_IDLE_MS` if occupied var unset |
 | `RELAY_HOST` | 127.0.0.1 | Address returned to clients |
 | `RELAY_PORT_BASE` | 23456 | First port in pool |
