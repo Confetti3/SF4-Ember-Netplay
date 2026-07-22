@@ -196,3 +196,37 @@ Run `analyze` after at least two delays with 3+ matches each.
 | Probe smooth, matches stable at standard | WAN hosts use smooth; LAN-like paths may use standard |
 
 
+
+## Rollback diagnostics telemetry (v0.5.x, Phase 1+)
+
+Set `SF4E_ROLLBACK_DIAGNOSTICS=1` before launching the game. A summary is
+logged every 10 s during a match and in full at match end/abort, split into
+**hard stalls** (skip reasons, prediction-stall episodes, connection-warning
+durations, timesync events, pacing waits), **simulation hitches** (p50/p95/
+p99/max for battle update, engine update, GGPO API calls, save/load/free
+sub-phases, session steps, `ggpo_idle`), and **visible corrections**
+(resimulation bursts — a proxy for rollback work, NOT exact rollback
+distance; the callback API does not expose origin/destination).
+
+Record per comparable match (same input delay before/after!):
+
+| Column | Source |
+|--------|--------|
+| transport, delay, RTT, LFB/RFB | as above |
+| outer-frame p50/p95/p99/max | `steam_post_update` + `battle_update` stats |
+| frames > 16.67 / 33 / 50 ms | histogram buckets |
+| save/load/free p50/p95/p99/max | `save` / `load` / `free` stats |
+| resim burst histogram + max | "visible corrections" section |
+| threshold stalls count/duration | `prediction stalls` / `stall_duration` |
+| conn warnings count/duration | `conn warnings` / `warning_duration` |
+| timesync recs + max pacing wait | `timesync events` / `Pacing [...]` log |
+| room-step / ggpo_idle p95/p99/max | `client_step` / `ggpo_idle` stats |
+| occupied slots / tracked keys max | "state sizes" line |
+| desync outcome | v1 snapshot logs + v2 `Desync v2:` logs |
+
+Pacing caps are dev-tunable: `SF4E_PACING_MAX_STEP_MS` (default 3),
+`SF4E_PACING_MAX_FRAMES` (default 9). Strict v2 desync termination:
+`SF4E_STRICT_DESYNC=1` (players only; never spectators).
+
+Do not raise input delay to disguise a pacing regression: before/after
+comparisons are only valid at identical delay settings.

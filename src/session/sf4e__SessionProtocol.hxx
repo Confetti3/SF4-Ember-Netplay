@@ -108,6 +108,7 @@ namespace sf4e {
 			MT_BATTLE_LOADED,
 			MT_BATTLE_SYNCED,
 			MT_BATTLE_SNAPSHOT,
+			MT_BATTLE_HASH,
 			MT_BATTLE_GGPO_FRAME,
 
 			MT_PUNCH_READY,
@@ -136,6 +137,7 @@ namespace sf4e {
 			{MT_BATTLE_LOADED, "battle_loaded"},
 			{MT_BATTLE_SYNCED, "battle_synced"},
 			{MT_BATTLE_SNAPSHOT, "battle_snapshot"},
+			{MT_BATTLE_HASH, "battle_hash"},
 			{MT_BATTLE_GGPO_FRAME, "battle_ggpo_frame"},
 
 			{MT_PUNCH_READY, "punch_ready"},
@@ -270,6 +272,27 @@ namespace sf4e {
 			StateSnapshot snapshot;
 		};
 
+		// Desync detection v2 (Phase 6): a canonical semantic hash of one
+		// aged (non-speculative) frame checkpoint. "Aged" means the frame
+		// is older than the maximum rollback/prediction window on the
+		// sender; it is NOT a formal GGPO confirmed frame. Subsystem hashes
+		// (battle flow / per-character) classify mismatches. Compatibility:
+		// the existing sidecarHash join gate guarantees both clients run
+		// the same build, and therefore the same encoder; servers that
+		// predate this message simply do not forward it, leaving legacy
+		// snapshot verification (which stays active) as the only channel.
+		struct BattleHashV2 {
+			MessageType type = MT_BATTLE_HASH;
+			int32_t frameIdx = -1;
+			uint64_t overall = 0;
+			uint64_t flow = 0;
+			uint64_t chara0 = 0;
+			uint64_t chara1 = 0;
+			// True when the sender is one of the two players. Spectator
+			// hashes are diagnostics only and must never affect the fight.
+			bool fromPlayer = false;
+		};
+
 		struct BattleGgpoFrame {
 			MessageType type = MT_BATTLE_GGPO_FRAME;
 			ConnectionID src;
@@ -325,6 +348,9 @@ namespace sf4e {
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(StateSnapshot::CharaStateSnapshot, status, rootPos, side, vit, vitmax, revenge, revengemax, recoverable, recoverablemax, super, supermax, sctimeamt, sctimemax, uctime, uctimemax, damage, combodamage);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(StateSnapshot, frameIdx, chara);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(BattleSnapshot, type, snapshot);
+		// WITH_DEFAULT so fields added later deserialize with defaults
+		// instead of throwing when talking to an older same-hash dev build.
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(BattleHashV2, type, frameIdx, overall, flow, chara0, chara1, fromPlayer);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(BattleLoaded, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(BattleSynced, type);
 	}

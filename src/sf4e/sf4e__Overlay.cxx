@@ -1281,9 +1281,14 @@ void DrawNetworkLobbyPanel() {
 		}
 
 		if (s_devNetplayOverlay && Button("Report win")) {
-			int loser = (isSelfActiveSide == 0) ? 1 : 0;
-			if (fUserApp::netplay->client.Lobby_ReportResults(loser) != k_EResultOK) {
-				Overlay::PushNetplayAlert("Could not report match results.");
+			if (sf4e::NetplayFacade::IsControlPlaneLost()) {
+				Overlay::PushNetplayAlert("Results unavailable — room connection was lost.");
+			}
+			else {
+				int loser = (isSelfActiveSide == 0) ? 1 : 0;
+				if (fUserApp::netplay->client.Lobby_ReportResults(loser) != k_EResultOK) {
+					Overlay::PushNetplayAlert("Could not report match results.");
+				}
 			}
 		}
 	}
@@ -1938,15 +1943,18 @@ void DrawSystemWindow(bool* pOpen) {
 			Text("Update allowed: %s", fSystem::bUpdateAllowed ? "true" : "false");
 			if (Button("Pause")) {
 				fSystem::bUpdateAllowed = false;
+				fSystem::simGate.SetManualPause(true);
 			}
 			if (Button("Play")) {
 				fSystem::bUpdateAllowed = true;
+				fSystem::simGate.SetManualPause(false);
 			}
 			if (Button("Halt after next")) {
 				fSystem::bHaltAfterNext = true;
 			}
 			if (Button("Step")) {
 				fSystem::bUpdateAllowed = true;
+				fSystem::simGate.SetManualPause(false);
 				fSystem::bHaltAfterNext = true;
 			}
 

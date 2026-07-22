@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <string>
 #include <utility>
 
@@ -30,6 +31,75 @@ using sf4e::SessionProtocol::LobbyReady;
 const int sf4e::SESSION_CLIENT_MAX_MESSAGES_PER_POLL = 20;
 SessionClient* SessionClient::s_pCallbackInstance;
 bool SessionClient::bVerboseLogging = false;
+
+// Bound for buffered remote v2 hashes (matches the checkpoint ring span).
+static const size_t MAX_PENDING_REMOTE_HASHES = 64;
+
+// Strict debug mode: terminate the match on an authoritative v2 mismatch.
+// Default (unset) logs and reports only — v2 must not end release matches
+// while it is being validated; the legacy snapshot system retains its
+// existing termination behavior.
+static bool StrictDesyncEnabled() {
+	static int s_cached = -1;
+	if (s_cached < 0) {
+		const char* env = getenv("SF4E_STRICT_DESYNC");
+		s_cached = (env && env[0] == '1') ? 1 : 0;
+	}
+	return s_cached == 1;
+}
+
+// Diagnostic report for one v2 mismatch: exact frame, per-subsystem
+// classification, and nearby checkpoint hashes. Never touches the legacy
+// snapshot state. Termination only in strict mode, only between players.
+static void ReportHashMismatch(
+	SessionClient* client,
+	const fSystem::HashCheckpoint& local,
+	const sf4e::SessionProtocol::BattleHashV2& remote
+) {
+	if (local.hashes.overall == remote.overall) {
+		return;
+	}
+	spdlog::error(
+		"Desync v2: mismatch @ frame {} overall {:016x} != remote {:016x} (fromPlayer={})",
+		local.frameIdx, local.hashes.overall, remote.overall, remote.fromPlayer
+	);
+	spdlog::error(
+		"Desync v2: subsystems flow:{} chara0:{} chara1:{}",
+		local.hashes.flow == remote.flow ? "match" : "MISMATCH",
+		local.hashes.chara[0] == remote.chara0 ? "match" : "MISMATCH",
+		local.hashes.chara[1] == remote.chara1 ? "match" : "MISMATCH"
+	);
+	for (int i = 0; i < fSystem::NUM_HASH_CHECKPOINTS; i++) {
+		const fSystem::HashCheckpoint& cp = fSystem::hashCheckpoints[i];
+		if (!cp.valid || cp.frameIdx == local.frameIdx) {
+			continue;
+		}
+		int distance = cp.frameIdx - local.frameIdx;
+		if (distance >= -90 && distance <= 90) {
+			spdlog::error(
+				"Desync v2: nearby frame {} overall {:016x} flow {:016x} c0 {:016x} c1 {:016x}",
+				cp.frameIdx, cp.hashes.overall, cp.hashes.flow,
+				cp.hashes.chara[0], cp.hashes.chara[1]
+			);
+		}
+	}
+
+	// A spectator's mismatch (either side) must never terminate the two
+	// players' fight; strict termination requires both peers to be players.
+	if (StrictDesyncEnabled() && remote.fromPlayer && client->IsLocalPlayer()) {
+		spdlog::error("Desync v2 (strict): terminating match at frame {}", local.frameIdx);
+		*rSystem::GetReadyState(rSystem::staticMethods.GetSingleton()) = rSystem::RS_ISLEAVING;
+	}
+}
+
+bool SessionClient::IsLocalPlayer() const {
+	for (int i = 0; i < 2 && i < (int)_lobbyData.members.size(); i++) {
+		if (_lobbyData.members[i].connId == _cid) {
+			return true;
+		}
+	}
+	return false;
+}
 
 SessionClient::SessionClient(
 	const Callbacks& callbacks,
@@ -306,6 +376,23 @@ int SessionClient::Step()
 				pendingRemoteSnapshots.emplace(m.snapshot.frameIdx, m.snapshot);
 			}
 		}
+		else if (type == SessionProtocol::MT_BATTLE_HASH) {
+			SessionProtocol::BattleHashV2 m;
+			try {
+				msg.get_to(m);
+			}
+			catch (json::exception&) {
+				spdlog::info("Client: could not deserialize v2 hash msg");
+				continue;
+			}
+			// Always buffer; the aged reconcile pass below compares only
+			// once the LOCAL checkpoint is also non-speculative (a local
+			// value inside the rollback window could still change).
+			if (pendingRemoteHashes.size() >= MAX_PENDING_REMOTE_HASHES) {
+				pendingRemoteHashes.erase(pendingRemoteHashes.begin());
+			}
+			pendingRemoteHashes[m.frameIdx] = m;
+		}
 		else if (type == SessionProtocol::MT_BATTLE_GGPO_FRAME) {
 			SessionProtocol::BattleGgpoFrame frame;
 			try {
@@ -390,6 +477,44 @@ int SessionClient::Step()
 				localSnapshotIter++;
 			}
 		}
+
+		// Desync v2: aged-hash exchange. A checkpoint becomes eligible once
+		// this client has simulated HASH_CHECKPOINT_AGE_FRAMES past it —
+		// older than the rollback/prediction window, so the value can no
+		// longer change ("aged"/non-speculative; NOT formally GGPO
+		// confirmed). Only players send; spectators compare received hashes
+		// locally as diagnostics. At most a couple of small messages per
+		// second; no per-frame serialization.
+		{
+			const bool isPlayer = IsLocalPlayer();
+			for (int i = 0; i < fSystem::NUM_HASH_CHECKPOINTS; i++) {
+				fSystem::HashCheckpoint& cp = fSystem::hashCheckpoints[i];
+				if (!cp.valid) {
+					continue;
+				}
+				if (mostRecentPredictiveFrame - cp.frameIdx < fSystem::HASH_CHECKPOINT_AGE_FRAMES) {
+					continue;
+				}
+				if (!cp.sent && isPlayer) {
+					SessionProtocol::BattleHashV2 m;
+					m.frameIdx = cp.frameIdx;
+					m.overall = cp.hashes.overall;
+					m.flow = cp.hashes.flow;
+					m.chara0 = cp.hashes.chara[0];
+					m.chara1 = cp.hashes.chara[1];
+					m.fromPlayer = true;
+					json hashMsg = m;
+					if (Send(hashMsg, nullptr) == k_EResultOK) {
+						cp.sent = true;
+					}
+				}
+				auto pendingIter = pendingRemoteHashes.find(cp.frameIdx);
+				if (pendingIter != pendingRemoteHashes.end()) {
+					ReportHashMismatch(this, cp, pendingIter->second);
+					pendingRemoteHashes.erase(pendingIter);
+				}
+			}
+		}
 	}
 
 	return 0;
@@ -440,9 +565,11 @@ void SessionClient::OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusCh
 		_connected = false;
 
 		if (wasInMatch) {
-			sf4e::NetplayFacade::HandleNetplayFailure(
-				"Lost connection to the game room. Check your internet and try again.",
-				true
+			// Phase 7: during an active healthy GGPO fight this degrades
+			// (fight continues, room features disabled) rather than closing
+			// the GGPO session; otherwise it performs the full failure.
+			sf4e::NetplayFacade::HandleControlPlaneLoss(
+				"Lost connection to the game room. Check your internet and try again."
 			);
 		}
 		break;

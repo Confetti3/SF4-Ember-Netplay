@@ -52,8 +52,8 @@ jobs:
       - name: Build RelWithDebInfo
         run: cmake --build msvc-build/x86-msvc-ninja-relwithdebinfo
 
-      - name: Test GGPO UDP validation
-        run: ctest --test-dir msvc-build/x86-msvc-ninja-relwithdebinfo -C RelWithDebInfo --output-on-failure -R GgpoUdpValidation
+      - name: Run automated tests
+        run: ctest --test-dir msvc-build/x86-msvc-ninja-relwithdebinfo -C RelWithDebInfo --output-on-failure
 
       - name: Install to msvc-out
         run: cmake --install msvc-build/x86-msvc-ninja-relwithdebinfo

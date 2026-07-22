@@ -97,7 +97,14 @@ namespace sf4e {
 		bool _useRelay = true;
 		SteamNetworkingIPAddr _serverAddr;
 		std::map<int, SessionProtocol::StateSnapshot> pendingRemoteSnapshots;
+		// Desync v2: remote hash checkpoints received before this client
+		// simulated (or aged) the same frame. Bounded — see Step().
+		std::map<int, SessionProtocol::BattleHashV2> pendingRemoteHashes;
 		SessionProtocol::ConnectionID _cid;
+
+		// True when this client occupies one of the two player slots of the
+		// current lobby. Spectator hash mismatches are diagnostics only.
+		bool IsLocalPlayer() const;
 	private:
 
 		// Connection related data

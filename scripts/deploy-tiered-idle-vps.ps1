@@ -20,7 +20,7 @@ Write-Host "Verifying broker health..."
 $health = Invoke-RestMethod -Uri "https://74-208-200-95.nip.io/v1/health" -TimeoutSec 20
 Write-Host "roomLobbyIdleMs    = $($health.roomLobbyIdleMs)"
 Write-Host "roomOccupiedIdleMs = $($health.roomOccupiedIdleMs)"
-if ($health.roomLobbyIdleMs -eq 300000 -and $health.roomOccupiedIdleMs -eq 1800000) {
+if ($health.roomLobbyIdleMs -eq 300000 -and $health.roomOccupiedIdleMs -eq 0) {
     Write-Host "Tiered idle is live."
 } else {
     Write-Warning "Health response missing new idle fields - broker may need restart or deploy retry."

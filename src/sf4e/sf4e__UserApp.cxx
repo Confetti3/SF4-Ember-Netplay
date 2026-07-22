@@ -17,6 +17,7 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__UserApp.hxx"
 #include "../common/agent_debug_log.hxx"
+#include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../session/sf4e__SessionClient.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 #include "../session/sf4e__SessionServer.hxx"
@@ -40,6 +41,7 @@ using Dimps::Game::ProgressData;
 using Dimps::GameEvents::RootEvent;
 using Dimps::Math::FixedPoint;
 using rMainMenu = Dimps::GameEvents::MainMenu;
+using rSystem = Dimps::Game::Battle::System;
 using rVsMode = Dimps::GameEvents::VsMode;
 using rUserApp = Dimps::UserApp;
 using fSystem = sf4e::Game::Battle::System;
@@ -54,6 +56,48 @@ using sf4e::SessionServer;
 std::unique_ptr<fUserApp::Netplay> fUserApp::netplay;
 std::unique_ptr<SessionServer> fUserApp::server;
 static bool s_pendingMatchStart = false;
+
+#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
+#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
+#endif
+
+// Waits approximately `ms` without touching the global timer resolution
+// (no timeBeginPeriod). Prefers a high-resolution waitable timer
+// (Win10 1803+); falls back to a plain waitable timer, then Sleep. The
+// caller measures the actual elapsed time — coarse waits self-correct
+// through PacingController::OnWaited.
+enum PacedWaitResult {
+    PACED_WAIT_TIMER = 0,
+    PACED_WAIT_FALLBACK_SLEEP,
+    PACED_WAIT_TIMEOUT,
+    PACED_WAIT_FAILED
+};
+
+static PacedWaitResult PacedWaitMs(double ms) {
+    static HANDLE s_timer = INVALID_HANDLE_VALUE;
+    if (s_timer == INVALID_HANDLE_VALUE) {
+        s_timer = CreateWaitableTimerExW(
+            NULL, NULL, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS
+        );
+        if (!s_timer) {
+            s_timer = CreateWaitableTimerExW(NULL, NULL, 0, TIMER_ALL_ACCESS);
+        }
+    }
+    if (s_timer) {
+        LARGE_INTEGER due;
+        due.QuadPart = -(LONGLONG)(ms * 10000.0); // relative, 100 ns units
+        if (SetWaitableTimer(s_timer, &due, 0, NULL, NULL, FALSE)) {
+            // Bounded backstop so a timer failure can never hang the tick.
+            DWORD result = WaitForSingleObject(s_timer, (DWORD)(ms + 50.0));
+            if (result == WAIT_OBJECT_0) {
+                return PACED_WAIT_TIMER;
+            }
+            return result == WAIT_TIMEOUT ? PACED_WAIT_TIMEOUT : PACED_WAIT_FAILED;
+        }
+    }
+    Sleep((DWORD)(ms + 0.5));
+    return PACED_WAIT_FALLBACK_SLEEP;
+}
 
 static bool StartMatchFromLobby(SessionClient* const client) {
     sf4e::NetplayFacade::ClearBattleState();
@@ -192,8 +236,7 @@ void fUserApp::_OnVsBattleTasksRegistered()
             if (fSystem::ggpo) {
                 spdlog::info("GgpoTransport: closing previous GGPO session before registration");
                 sf4e::NetplayFacade::CancelDeferredGgpoClose();
-                ggpo_close_session(fSystem::ggpo);
-                fSystem::ggpo = nullptr;
+                fSystem::RetireGgpoSession("transport_registration_close");
                 GgpoRelay::Instance().Reset();
             }
 
@@ -421,8 +464,7 @@ void fUserApp::TryRestartGgpoLegacyTunnel() {
     }
 
     spdlog::warn("GgpoTransport: restarting GGPO on legacy session tunnel");
-    ggpo_close_session(fSystem::ggpo);
-    fSystem::ggpo = nullptr;
+    fSystem::RetireGgpoSession("legacy_tunnel_restart");
     fSystem::bUpdateAllowed = false;
 
     netplay->client._useRelay = true;
@@ -566,6 +608,12 @@ void fUserApp::ShutdownNetplay(bool closeGgpo) {
 }
 
 void fUserApp::ResetLobbyForRematch() {
+    if (sf4e::NetplayFacade::IsControlPlaneLost()) {
+        // Degraded mode: the room is gone; no rematch coordination and no
+        // stale messages toward a dead connection.
+        spdlog::info("Netplay: skipping rematch reset — control plane lost");
+        return;
+    }
     if (server) {
         server->ResetLobbyForRematch();
     }
@@ -615,6 +663,11 @@ void fUserApp::StartSession(char* joinAddr, uint16_t port, std::string& sidecarH
 }
 
 void fUserApp::Steam_PostUpdate() {
+    namespace diag = sf4e::diag;
+    const bool diagnosticsEnabled = diag::Enabled();
+    const double outerTickStartMs = diagnosticsEnabled ? diag::NowMs() : 0.0;
+    double pacingRequestedThisTickMs = 0.0;
+    double pacingActualThisTickMs = 0.0;
     sf4e::NetplayFacade::TickMainMenu();
 
     if (netplay) {
@@ -627,6 +680,7 @@ void fUserApp::Steam_PostUpdate() {
 
     bool netplayStepFailed = false;
     if (netplay) {
+        diag::ScopedTimer _t(diag::OP_SESSION_CLIENT_STEP);
         int stepResult = netplay->client.Step();
         if (stepResult < 0) {
             netplayStepFailed = true;
@@ -635,29 +689,164 @@ void fUserApp::Steam_PostUpdate() {
 
     bool serverStepFailed = false;
     if (server) {
+        diag::ScopedTimer _t(diag::OP_SESSION_SERVER_STEP);
         if (server->Step() < 0) {
             serverStepFailed = true;
         }
     }
 
     if (netplayStepFailed) {
-        sf4e::NetplayFacade::HandleNetplayFailure(
-            "Lost connection to the game room. Check your internet and try again.",
-            true
+        // Degrades instead of killing an active healthy GGPO fight; falls
+        // back to full failure outside that case (Phase 7).
+        sf4e::NetplayFacade::HandleControlPlaneLoss(
+            "Lost connection to the game room. Check your internet and try again."
         );
     }
     else if (serverStepFailed) {
-        sf4e::NetplayFacade::HandleNetplayFailure(
-            "Session server error. Check your internet and try again.",
-            true
+        sf4e::NetplayFacade::HandleControlPlaneLoss(
+            "Session server error. Check your internet and try again."
         );
     }
 
-    sf4e::NetplayFacade::TickFrame();
-
-    if (fSystem::ggpo) {
-        ggpo_idle(fSystem::ggpo, 1);
+    {
+        diag::ScopedTimer _t(diag::OP_FACADE_TICK_FRAME);
+        sf4e::NetplayFacade::TickFrame();
     }
 
-    rUserApp::staticMethods.Steam_PostUpdate();
+    if (fSystem::ggpo) {
+        // Nonblocking poll. In the pinned fork a nonzero timeout is an
+        // unconditional Sleep(1) at the end of Peer2PeerBackend::DoPoll
+        // (annotated "obviously a farce" upstream), i.e. a 1-15.6 ms hard
+        // stall every tick depending on timer resolution. Timeout 0 performs
+        // the identical pump work (Poll::Pump(0); the UDP socket is a
+        // nonblocking loop sink) without the sleep. The outer game loop
+        // already owns frame cadence; GGPO still gets exactly one pump
+        // opportunity per application tick. Setup-time registration waits
+        // are unaffected (they live in GgpoTransport, not here).
+        diag::ScopedTimer _t(diag::OP_GGPO_IDLE);
+        ggpo_idle(fSystem::ggpo, 0);
+    }
+
+    // Distributed time-sync pacing (Phase 4): repay a small, bounded slice
+    // of the outstanding correction per rendered frame, outside every GGPO
+    // callback. Deterministic simulation is never skipped or doubled;
+    // this only delays presentation. Skipped while GGPO already stalls us
+    // (prediction threshold) and while the gate is closed.
+    if (
+        fSystem::pacer.enabled &&
+        fSystem::ggpo &&
+        fSystem::MayAdvanceDeterministicFrame() &&
+        !fSystem::simGate.predictionStalled
+    ) {
+        double wantMs = fSystem::pacer.NextWaitMs();
+        if (wantMs > 0.0) {
+            pacingRequestedThisTickMs = wantMs;
+            fSystem::pacer.OnWaitRequested(wantMs);
+            double t0 = diag::NowMs();
+            PacedWaitResult waitResult = PacedWaitMs(wantMs);
+            double actual = diag::NowMs() - t0;
+            pacingActualThisTickMs = actual;
+            fSystem::pacer.OnWaited(actual);
+            if (waitResult == PACED_WAIT_FALLBACK_SLEEP) {
+                fSystem::pacer.OnFallbackSleep();
+            }
+            else if (waitResult == PACED_WAIT_TIMEOUT || waitResult == PACED_WAIT_FAILED) {
+                fSystem::pacer.OnWaitFailure(waitResult == PACED_WAIT_TIMEOUT);
+            }
+            if (diag::Enabled()) {
+                diag::G().RecordOp(diag::OP_PACING_WAIT, actual);
+            }
+        }
+    }
+
+    {
+        // This timer is deliberately only the original engine method. The
+        // complete detoured outer tick is recorded separately below.
+        diag::ScopedTimer _t(diag::OP_STEAM_POST_UPDATE);
+        rUserApp::staticMethods.Steam_PostUpdate();
+    }
+
+    if (diagnosticsEnabled) {
+        const double now = diag::NowMs();
+        const double outerTickMs = now - outerTickStartMs;
+        diag::RollbackDiagnostics& d = diag::G();
+        d.RecordOp(diag::OP_OUTER_TICK, outerTickMs);
+
+        // A 25 ms complete outer tick is a useful rendered-frame hitch
+        // candidate at 60 Hz. Rate-limit detailed records: summaries retain
+        // exact threshold counts for every occurrence.
+        static double s_lastFreezeCandidateMs = -1.0;
+        if (
+            fSystem::ggpo &&
+            outerTickMs >= 25.0 &&
+            (s_lastFreezeCandidateMs < 0.0 || now - s_lastFreezeCandidateMs >= 2000.0)
+        ) {
+            s_lastFreezeCandidateMs = now;
+            rSystem* system = rSystem::staticMethods.GetSingleton();
+            int simulationFrame = system
+                ? rSystem::GetNumFramesSimulated_FixedPoint(system)->integral
+                : -1;
+            int pingMs = -1;
+            int localBehind = 0;
+            int remoteBehind = 0;
+            for (int i = 0; i < MAX_SF4E_PROTOCOL_USERS; i++) {
+                if (fSystem::players[i].type != GGPO_PLAYERTYPE_REMOTE) {
+                    continue;
+                }
+                GGPONetworkStats stats = { 0 };
+                GGPOErrorCode result = ggpo_get_network_stats(
+                    fSystem::ggpo, fSystem::players[i].handle, &stats
+                );
+                d.RecordGgpoResult(diag::CALL_GET_NETWORK_STATS, (int)result);
+                if (GGPO_SUCCEEDED(result)) {
+                    pingMs = stats.network.ping;
+                    localBehind = stats.timesync.local_frames_behind;
+                    remoteBehind = stats.timesync.remote_frames_behind;
+                }
+                break;
+            }
+            const sf4e::GgpoTransportStatus transport =
+                sf4e::NetplayFacade::GetGgpoTransportStatus();
+            const long long wallMs = (long long)std::chrono::duration_cast<
+                std::chrono::milliseconds
+            >(std::chrono::system_clock::now().time_since_epoch()).count();
+            spdlog::warn(
+                "FreezeCandidate wallMs={} outerTickMs={:.2f} simFrame={} ggpoSaveFrame={} "
+                "gate={} predictionStalled={} connectionWarning={} pacingDebtMs={:.2f} "
+                "pacingRequestedMs={:.2f} pacingActualMs={:.2f} rollbackCallbacks={} "
+                "lastSaveMs={:.2f} lastLoadMs={:.2f} lastFreeMs={:.2f} saveSlots={} "
+                "transport={} pingMs={} localBehind={} remoteBehind={}",
+                wallMs,
+                outerTickMs,
+                simulationFrame,
+                fSystem::lastGgpoSaveFrame,
+                sf4e::gate::PhaseName(fSystem::simGate.phase),
+                fSystem::simGate.predictionStalled,
+                fSystem::simGate.connectionWarningActive,
+                fSystem::pacer.outstandingMs,
+                pacingRequestedThisTickMs,
+                pacingActualThisTickMs,
+                d.rollbackCallbacksThisOuterFrame,
+                d.ops[diag::OP_SAVE_TOTAL].lastMs,
+                d.ops[diag::OP_LOAD_TOTAL].lastMs,
+                d.ops[diag::OP_FREE_TOTAL].lastMs,
+                d.occupiedSaveSlots.current,
+                sf4e::NetplayFacade::GgpoTransportModeName(transport.effectiveMode),
+                pingMs,
+                localBehind,
+                remoteBehind
+            );
+        }
+
+        d.OnOuterFrame(now);
+        // Periodic development summary — only while a GGPO session exists,
+        // and never per frame.
+        if (fSystem::ggpo && d.PeriodicSummaryDue(now, 10.0)) {
+            static char s_diagBuf[8192];
+            size_t n = d.FormatSummary(s_diagBuf, sizeof(s_diagBuf), "periodic");
+            if (n) {
+                spdlog::info("\n{}", s_diagBuf);
+            }
+        }
+    }
 }

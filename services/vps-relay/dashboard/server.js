@@ -348,6 +348,10 @@ function page(title, body) {
     .badge.ok { background: rgba(76, 175, 130, 0.15); color: var(--ok); }
     .badge.bad { background: rgba(224, 90, 90, 0.15); color: var(--danger); }
     .badge.warn { background: rgba(212, 160, 23, 0.15); color: var(--warn); }
+    .capacity-ok { color: var(--ok); }
+    .capacity-warn { color: var(--warn); }
+    .capacity-high { color: #e67e22; }
+    .capacity-critical { color: var(--danger); font-weight: 700; }
     button, .btn {
       appearance: none;
       border: 1px solid var(--border);
@@ -691,6 +695,23 @@ app.get("/dashboard", requireAuth, (_req, res) => {
           if (el) el.textContent = value;
         }
 
+        function capacityClass(used, max) {
+          if (!max || max <= 0) return "capacity-critical";
+          const pct = used / max;
+          if (pct >= 0.95) return "capacity-critical";
+          if (pct >= 0.80) return "capacity-high";
+          if (pct >= 0.60) return "capacity-warn";
+          return "capacity-ok";
+        }
+
+        function setCapacityText(id, used, max) {
+          const el = document.getElementById(id);
+          if (!el) return;
+          const maxLabel = max == null ? "?" : String(max);
+          el.textContent = String(used ?? 0) + " / " + maxLabel;
+          el.className = capacityClass(Number(used) || 0, Number(max) || 0);
+        }
+
         function formatNatSummary(ep) {
           if (!ep) return "—";
           const parts = [];
@@ -872,11 +893,11 @@ app.get("/dashboard", requireAuth, (_req, res) => {
           const ggpoMode = data.broker.brokerGgpoTransport || "legacy";
           document.getElementById("stat-ggpo-mode").innerHTML =
             badge(ggpoMode === "auto", "auto", ggpoMode, ggpoMode !== "auto" && ggpoMode !== "legacy" ? ggpoMode : null);
-          setText("stat-rooms", String(data.broker.rooms ?? 0) + " / " + String(data.broker.maxRooms ?? "?"));
+          setCapacityText("stat-rooms", data.broker.rooms ?? 0, data.broker.maxRooms);
           setText("stat-sessions", String(data.manager.sessions ?? 0));
           setText("stat-ggpo-sessions", String(data.manager.ggpoSessions ?? 0));
-          setText("stat-ports", String(data.broker.usedSessionPorts ?? 0) + " / " + String(data.broker.maxRooms ?? "?"));
-          setText("stat-ggpo-ports", String(data.broker.usedGgpoPorts ?? 0) + " / " + String(data.broker.maxRooms ?? "?"));
+          setCapacityText("stat-ports", data.broker.usedSessionPorts ?? 0, data.broker.maxRooms);
+          setCapacityText("stat-ggpo-ports", data.broker.usedGgpoPorts ?? 0, data.broker.maxRooms);
           setText("stat-queue", String(data.broker.queueSize ?? 0));
           setText("stat-relay-host", data.broker.relayHost || "—");
           setText("stat-nat-probe", data.broker.natProbePort ? ":" + data.broker.natProbePort + "/udp" : "—");
@@ -893,13 +914,18 @@ app.get("/dashboard", requireAuth, (_req, res) => {
           const lobbyMin = data.broker.roomLobbyIdleMs
             ? Math.round(data.broker.roomLobbyIdleMs / 60000)
             : null;
-          const occMin = data.broker.roomOccupiedIdleMs
-            ? Math.round(data.broker.roomOccupiedIdleMs / 60000)
-            : data.broker.roomIdleMs
-              ? Math.round(data.broker.roomIdleMs / 60000)
+          const occupiedIdleMs = Number.isFinite(data.broker.roomOccupiedIdleMs)
+            ? data.broker.roomOccupiedIdleMs
+            : Number.isFinite(data.broker.roomIdleMs)
+              ? data.broker.roomIdleMs
               : null;
+          const occMin = occupiedIdleMs != null && occupiedIdleMs > 0
+            ? Math.round(occupiedIdleMs / 60000)
+            : null;
           const idleLabel =
-            lobbyMin != null && occMin != null
+            lobbyMin != null && occupiedIdleMs === 0
+              ? lobbyMin + " min lobby / disabled occupied"
+              : lobbyMin != null && occMin != null
               ? lobbyMin + " / " + occMin + " min (lobby / occupied)"
               : occMin != null
                 ? occMin + " min"
@@ -986,12 +1012,16 @@ app.get("/api/status", requireAuth, async (_req, res) => {
       : rawRooms;
     const now = Date.now();
     const roomLobbyIdleMs = broker.roomLobbyIdleMs || 5 * 60 * 1000;
-    const roomOccupiedIdleMs = broker.roomOccupiedIdleMs || broker.roomIdleMs || 30 * 60 * 1000;
-    const maxRooms = broker.maxRooms || 20;
+    const roomOccupiedIdleMs = Number.isFinite(broker.roomOccupiedIdleMs)
+      ? broker.roomOccupiedIdleMs
+      : Number.isFinite(broker.roomIdleMs)
+        ? broker.roomIdleMs
+        : 0;
+    const maxRooms = broker.maxRooms || 50;
     const relayPortBase = broker.relayPortBase || 23456;
-    const relayPortEnd = relayPortBase + maxRooms - 1;
+    const relayPortEnd = broker.relayPortEnd || relayPortBase + maxRooms - 1;
     const ggpoPortBase = broker.ggpoUdpPortBase || 24456;
-    const ggpoPortEnd = ggpoPortBase + maxRooms - 1;
+    const ggpoPortEnd = broker.ggpoUdpPortEnd || ggpoPortBase + maxRooms - 1;
 
     const ggpoSessionsWithHealth = await Promise.all(
       rawGgpoSessions.map(async (session) => {
@@ -1043,8 +1073,12 @@ app.get("/api/status", requireAuth, async (_req, res) => {
       const ggpo = room.ggpoPort ? ggpoByPort.get(room.ggpoPort) : null;
       const ageMs = room.createdAt ? now - room.createdAt : 0;
       const idleMs = room.lastSeenAt ? now - room.lastSeenAt : 0;
-      const idleLimitMs = room.idleLimitMs || (room.roomOccupied ? roomOccupiedIdleMs : roomLobbyIdleMs);
-      const expiresInMs = Math.max(0, idleLimitMs - idleMs);
+      const idleLimitMs = Number.isFinite(room.idleLimitMs)
+        ? room.idleLimitMs
+        : room.roomOccupied
+          ? roomOccupiedIdleMs
+          : roomLobbyIdleMs;
+      const expiresInMs = idleLimitMs > 0 ? Math.max(0, idleLimitMs - idleMs) : null;
       const sessionRelayOk = Boolean(session?.ok);
       const ggpoRelayOk = !room.ggpoPort || Boolean(ggpo?.ok);
       return {
@@ -1059,7 +1093,7 @@ app.get("/api/status", requireAuth, async (_req, res) => {
         host: room.host,
         age: formatDuration(ageMs),
         idleFor: formatDuration(idleMs),
-        expiresIn: formatDuration(expiresInMs),
+        expiresIn: expiresInMs == null ? "disabled" : formatDuration(expiresInMs),
         sessionRelayOk,
         ggpoRelayOk,
         relayOk: sessionRelayOk && ggpoRelayOk,
@@ -1119,6 +1153,10 @@ app.get("/api/status", requireAuth, async (_req, res) => {
         relayPortEnd,
         ggpoPortBase,
         ggpoPortEnd,
+        ggpoUdpPortBase: ggpoPortBase,
+        ggpoUdpPortEnd: ggpoPortEnd,
+        capacityWarningPercent: broker.capacityWarningPercent ?? 80,
+        capacityWarning: Boolean(broker.capacityWarning),
         portRange: `${relayPortBase}–${relayPortEnd}`,
         ggpoPortRange: `${ggpoPortBase}–${ggpoPortEnd}`,
         roomIdleMs: roomOccupiedIdleMs,

@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <stdlib.h>
 #include <string.h>
 #include <utility>
 #include <vector>
@@ -24,6 +25,8 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
 
+#include "../common/sf4e__RollbackDiagnostics.hxx"
+#include "../common/sf4e__StateHash.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 
 #include "sf4e.hxx"
@@ -60,6 +63,7 @@ using fKey = sf4e::Game::GameMementoKey;
 using rPadSystem = Dimps::Pad::System;
 using fPadSystem = sf4e::Pad::System;
 using StateSnapshot = sf4e::SessionProtocol::StateSnapshot;
+namespace diag = sf4e::diag;
 
 namespace fHud = sf4e::Game::Battle::Hud;
 using fSoundPlayerManager = sf4e::Game::Battle::Sound::SoundPlayerManager;
@@ -67,7 +71,59 @@ using fSystem = sf4e::Game::Battle::System;
 using fVsBattle = sf4e::GameEvents::VsBattle;
 using rSystem = Dimps::Game::Battle::System;
 
-static bool s_updateAllowedBeforeGgpoInterrupt = true;
+// Last disconnect_flags observed from ggpo_synchronize_input; logged on
+// change for diagnostics only (no gameplay semantics attached).
+static int s_lastDisconnectFlags = 0;
+
+static void NoteDisconnectFlags(int flags) {
+    if (flags != s_lastDisconnectFlags) {
+        spdlog::info(
+            "GGPO: disconnect_flags changed {:#x} -> {:#x}",
+            s_lastDisconnectFlags,
+            flags
+        );
+        s_lastDisconnectFlags = flags;
+    }
+}
+
+// SaveState operations mutate live engine objects (memento record/restore,
+// key clearing) and are only valid on the game main thread — the thread that
+// runs BattleUpdate, Steam_PostUpdate, and every GGPO callback (see
+// docs/GGPO_LIFECYCLE.md). Debug builds assert this; engine-memento work
+// must never move to a background thread.
+static DWORD s_saveStateThreadId = 0;
+static void AssertSaveStateThreadAffinity() {
+#ifndef NDEBUG
+    DWORD tid = GetCurrentThreadId();
+    if (s_saveStateThreadId == 0) {
+        s_saveStateThreadId = tid;
+    }
+    assert(tid == s_saveStateThreadId && "SaveState ops must stay on the game main thread");
+#else
+    if (s_saveStateThreadId == 0) {
+        s_saveStateThreadId = GetCurrentThreadId();
+    }
+#endif
+}
+
+// Restores pad playback mode on every exit path. GGPO input playback must
+// never leak past the simulation step that installed it.
+struct PlaybackFrameScopeGuard {
+    ~PlaybackFrameScopeGuard() { fPadSystem::playbackFrame = -1; }
+};
+
+// Emits the complete diagnostics summary through the normal log. Called at
+// match end / abort, before battle state is torn down.
+static void EmitRollbackDiagSummary(const char* label) {
+    if (!diag::Enabled()) {
+        return;
+    }
+    static char s_diagBuf[8192];
+    size_t n = diag::G().FormatSummary(s_diagBuf, sizeof(s_diagBuf), label);
+    if (n) {
+        spdlog::info("\n{}", s_diagBuf);
+    }
+}
 
 bool fSystem::bHaltAfterNext = false;
 bool fSystem::bUpdateAllowed = true;
@@ -77,7 +133,75 @@ int fSystem::nNextBattleStartFlowTarget = -1;
 int fSystem::nRandomizeLocalInputsEveryXFramesInGGPO = 0;
 
 GGPOPlayerHandle fSystem::localPlayerHandle = GGPO_INVALID_HANDLE;
+int fSystem::lastGgpoSaveFrame = -1;
 GGPOSession* fSystem::ggpo = nullptr;
+sf4e::gate::GgpoGateModel fSystem::simGate = { sf4e::gate::PHASE_NO_SESSION };
+// maxRecommendationFrames, maxStepMs, minWaitMs, enabled; state/stats zeroed.
+sf4e::pacing::PacingController fSystem::pacer = { 9.0, 3.0, 1.0, true };
+
+// Applies development overrides for the pacing caps and resets the
+// controller for a new session. Called from StartGGPO/StartSpectating.
+static void ResetPacerForSession() {
+    const char* enabledEnv = getenv("SF4E_GGPO_DISTRIBUTED_TIMESYNC");
+    fSystem::pacer.enabled = !(enabledEnv && enabledEnv[0] == '0');
+    const char* stepEnv = getenv("SF4E_PACING_MAX_STEP_MS");
+    if (stepEnv && stepEnv[0]) {
+        double v = atof(stepEnv);
+        if (v > 0.0 && v <= 20.0) {
+            fSystem::pacer.maxStepMs = v;
+        }
+    }
+    const char* framesEnv = getenv("SF4E_PACING_MAX_FRAMES");
+    if (framesEnv && framesEnv[0]) {
+        double v = atof(framesEnv);
+        if (v > 0.0 && v <= 30.0) {
+            fSystem::pacer.maxRecommendationFrames = v;
+        }
+    }
+    fSystem::pacer.Reset();
+    fSystem::pacer.ResetStats();
+}
+
+static void LogPacerSummary(const char* label) {
+    const sf4e::pacing::PacingController& p = fSystem::pacer;
+    if (p.recommendationsReceived == 0 && p.msAppliedTotal == 0.0) {
+        return;
+    }
+    spdlog::info(
+        "Pacing [{}]: enabled={} recs={} framesRec={} acceptedMs={:.1f} "
+        "replacedMs={:.1f} disabledDiscardMs={:.1f} resetDiscardMs={:.1f} "
+        "waits={} requestedMs={:.1f} actualMs={:.1f} maxRequestedMs={:.2f} "
+        "maxActualMs={:.2f} failures={} timeouts={} fallbacks={} "
+        "maxOutstandingMs={:.1f} outstandingMs={:.1f}",
+        label,
+        p.enabled,
+        p.recommendationsReceived,
+        p.framesRecommendedTotal,
+        p.msAcceptedTotal,
+        p.msReplacedTotal,
+        p.msDiscardedDisabled,
+        p.msDiscardedOnReset,
+        p.waitRequests,
+        p.msRequestedTotal,
+        p.msAppliedTotal,
+        p.maxRequestedWaitMs,
+        p.maxSingleWaitMs,
+        p.waitFailures,
+        p.waitTimeouts,
+        p.fallbackSleeps,
+        p.maxOutstandingMs,
+        p.outstandingMs
+    );
+}
+
+bool fSystem::MayAdvanceDeterministicFrame() {
+    // Preserve the legacy Boolean for offline/development controls, but make
+    // the explicit model authoritative for GGPO lifecycle and terminal state.
+    // Connection warnings and prediction stalls intentionally remain absent.
+    return !ggpo
+        ? bUpdateAllowed
+        : bUpdateAllowed && simGate.CanAdvanceDeterministicFrame();
+}
 fSystem::PlayerConnectionInfo fSystem::players[MAX_SF4E_PROTOCOL_USERS];
 fSystem::SaveState fSystem::saveStates[NUM_SAVE_STATES];
 
@@ -253,7 +377,12 @@ void fSystem::BattleUpdate() {
     static int nLastRandomInputFrame = -1;
     static fPadSystem::Inputs randomInputs = { 0, 0 };
 
-    if (!bUpdateAllowed) {
+    diag::ScopedTimer _updateTimer(diag::OP_DETOURED_BATTLE_UPDATE);
+
+    if (!MayAdvanceDeterministicFrame()) {
+        if (ggpo && diag::Enabled()) {
+            diag::G().RecordSkip(diag::SKIP_UPDATE_GATE, diag::NowMs());
+        }
         return;
     }
 
@@ -277,35 +406,113 @@ void fSystem::BattleUpdate() {
                     else {
                         inputs = { (p->*padMethods.GetButtons_MappedOn)(i), (p->*padMethods.GetButtons_RawOn)(i) };
                     }
-                    result = ggpo_add_local_input(ggpo, players[i].handle, &inputs, sizeof(fPadSystem::Inputs));
+                    {
+                        diag::ScopedTimer _t(diag::OP_ADD_LOCAL_INPUT);
+                        result = ggpo_add_local_input(ggpo, players[i].handle, &inputs, sizeof(fPadSystem::Inputs));
+                    }
+                    if (diag::Enabled()) {
+                        diag::G().RecordGgpoResult(diag::CALL_ADD_LOCAL_INPUT, (int)result);
+                    }
                     break;
                 }
             }
         }
 
-        if (GGPO_SUCCEEDED(result)) {
+        switch (sf4e::gate::ClassifyGgpoResult((int)result)) {
+        case sf4e::gate::POLICY_CONTINUE:
+            break;
+        case sf4e::gate::POLICY_STALL_PREDICTION:
+            // GGPO refuses further prediction. Do not synchronize, do not
+            // run the engine update, do not advance for this outer frame.
+            simGate.OnPredictionThreshold();
+            if (diag::Enabled()) {
+                diag::G().RecordSkip(diag::SKIP_PREDICTION_THRESHOLD, diag::NowMs());
+            }
+            return;
+        case sf4e::gate::POLICY_SKIP_NOT_SYNCED:
+            if (diag::Enabled()) {
+                diag::G().RecordSkip(diag::SKIP_NOT_SYNCHRONIZED, diag::NowMs());
+            }
+            return;
+        case sf4e::gate::POLICY_SKIP_OTHER:
+            spdlog::warn("GGPO: add_local_input returned {}; skipping frame", (int)result);
+            if (diag::Enabled()) {
+                diag::G().RecordSkip(diag::SKIP_ADD_INPUT_ERROR, diag::NowMs());
+            }
+            return;
+        case sf4e::gate::POLICY_FATAL:
+        default:
+            spdlog::error("GGPO: add_local_input returned irrecoverable {}", (int)result);
+            AbortGgpoMatch("Netplay input failed — match ended.");
+            return;
+        }
+
+        {
             fPadSystem::Inputs ggpoInputs[2] = { {0, 0}, {0, 0} };
             int disconnect_flags = 0;
-            result = ggpo_synchronize_input(ggpo, (void*)ggpoInputs, sizeof(fPadSystem::Inputs) * 2, &disconnect_flags);
-            if (GGPO_SUCCEEDED(result)) {
+            {
+                diag::ScopedTimer _t(diag::OP_SYNC_INPUT);
+                result = ggpo_synchronize_input(ggpo, (void*)ggpoInputs, sizeof(fPadSystem::Inputs) * 2, &disconnect_flags);
+            }
+            if (diag::Enabled()) {
+                diag::G().RecordGgpoResult(diag::CALL_SYNC_INPUT, (int)result);
+            }
+            switch (sf4e::gate::ClassifyGgpoResult((int)result)) {
+            case sf4e::gate::POLICY_CONTINUE:
+                break;
+            case sf4e::gate::POLICY_FATAL:
+                spdlog::error("GGPO: synchronize_input returned irrecoverable {}", (int)result);
+                AbortGgpoMatch("Netplay sync failed — match ended.");
+                return;
+            default:
+                // NOT_SYNCHRONIZED during startup/resync, or another
+                // transient refusal: skip this frame without simulating.
+                if (diag::Enabled()) {
+                    diag::G().RecordSkip(diag::SKIP_SYNC_INPUT_ERROR, diag::NowMs());
+                }
+                return;
+            }
+            NoteDisconnectFlags(disconnect_flags);
+            {
+                PlaybackFrameScopeGuard _playbackGuard;
                 fPadSystem::playbackFrame = 0;
                 fPadSystem::playbackData[0][0] = ggpoInputs[0];
                 fPadSystem::playbackData[0][1] = ggpoInputs[1];
                 if (fSoundPlayerManager::bUsePureSounds) {
                     fSoundPlayerManager::SyncState();
                 }
-                (_this->*sysMethods.BattleUpdate)();
+                {
+                    diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
+                    (_this->*sysMethods.BattleUpdate)();
+                }
+                // Playback mode must be off before ggpo_advance_frame: the
+                // save callback and any nested GGPO work must not read the
+                // stale playback inputs. The guard also restores on every
+                // early exit above.
                 fPadSystem::playbackFrame = -1;
-                GGPOErrorCode err = ggpo_advance_frame(ggpo);
-                if (!GGPO_SUCCEEDED(err)) {
-                    AbortGgpoMatch("Netplay sync failed — match ended.");
+            }
+            GGPOErrorCode err;
+            {
+                diag::ScopedTimer _t(diag::OP_ADVANCE_FRAME_API);
+                err = ggpo_advance_frame(ggpo);
+            }
+            if (diag::Enabled()) {
+                diag::G().RecordGgpoResult(diag::CALL_ADVANCE_FRAME, (int)err);
+            }
+            if (!GGPO_SUCCEEDED(err)) {
+                spdlog::error("GGPO: advance_frame returned {}", (int)err);
+                AbortGgpoMatch("Netplay sync failed — match ended.");
+            }
+            else {
+                simGate.OnFrameAccepted();
+                if (diag::Enabled()) {
+                    diag::G().OnFrameAdvanced(diag::NowMs());
                 }
-                else {
-                    if (fSoundPlayerManager::bUsePureSounds) {
-                        fSoundPlayerManager::SyncState();
-                    }
-                    CaptureSnapshot(_this);
+                if (fSoundPlayerManager::bUsePureSounds) {
+                    fSoundPlayerManager::SyncState();
                 }
+                CaptureSnapshot(_this);
+                CaptureHashCheckpoint(_this);
             }
         }
     }
@@ -328,19 +535,29 @@ void fSystem::BattleUpdate() {
     if (bHaltAfterNext) {
         bHaltAfterNext = false;
         bUpdateAllowed = false;
+        simGate.SetManualPause(true);
     }
 }
 
 void fSystem::CloseBattle() {
     rSystem* _this = (rSystem*)this;
+    bool summaryEmitted = false;
     if (ggpo) {
+        simGate.OnBattleClosing();
         // Decide defer *before* close so a prior spectator defer flag cannot
         // leave this session open across rematch.
         sf4e::NetplayFacade::NotifyMatchEnded();
         if (!sf4e::NetplayFacade::ShouldDeferGgpoClose()) {
-            ggpo_close_session(ggpo);
-            ggpo = nullptr;
+            RetireGgpoSession("battle_close");
             sf4e::GgpoRelay::Instance().Reset();
+            summaryEmitted = true;
+        }
+        else {
+            if (diag::Enabled()) {
+                diag::G().OnSessionEnded(diag::NowMs());
+            }
+            LogPacerSummary("battle_close_deferred");
+            pacer.Reset();
         }
         bGgpoConnectionInterrupted = false;
     }
@@ -349,8 +566,14 @@ void fSystem::CloseBattle() {
             SaveState::Free(&saveStates[i]);
         }
     }
+    if (!summaryEmitted) {
+        EmitRollbackDiagSummary("battle_close_deferred");
+    }
     (_this->*rSystem::publicMethods.CloseBattle)();
 
+    // If the room was lost mid-fight (degraded mode), the fight is now
+    // over: exit to a safe disconnected state instead of a fake lobby.
+    sf4e::NetplayFacade::FinalizeControlPlaneLossAfterBattle();
 }
 
 void fSystem::OnBattleFlow_BattleStart(System* s) {
@@ -524,17 +747,31 @@ void fSystem::ApplyGgpoDisconnectSettings(GGPOSession* session) {
     ggpo_set_disconnect_notify_start(session, notifyMs);
 }
 
+void fSystem::RetireGgpoSession(const char* diagnosticsLabel) {
+    if (!ggpo) {
+        return;
+    }
+    if (diag::Enabled()) {
+        diag::G().OnSessionEnded(diag::NowMs());
+    }
+    LogPacerSummary(diagnosticsLabel);
+    ggpo_close_session(ggpo);
+    ggpo = nullptr;
+    simGate.OnSessionClosed();
+    bGgpoConnectionInterrupted = false;
+    EmitRollbackDiagSummary(diagnosticsLabel);
+    pacer.Reset();
+}
+
 void fSystem::AbortGgpoMatch(const char* reason) {
     if (reason && reason[0]) {
         spdlog::error("GGPO match abort: {}", reason);
         sf4e::NetplayFacade::PushAlert(reason);
     }
+    simGate.OnFatal();
     bUpdateAllowed = false;
     bGgpoConnectionInterrupted = false;
-    if (ggpo) {
-        ggpo_close_session(ggpo);
-        ggpo = nullptr;
-    }
+    RetireGgpoSession("abort");
     sf4e::GgpoRelay::Instance().Reset();
     sf4e::NetplayFacade::ClearBattleState();
     rSystem* system = rSystem::staticMethods.GetSingleton();
@@ -544,15 +781,24 @@ void fSystem::AbortGgpoMatch(const char* reason) {
 }
 
 void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay, DWORD rngSeed) {
+    diag::InitFromEnvironment();
     sf4e::NetplayFacade::CancelDeferredGgpoClose();
     if (ggpo) {
         spdlog::warn("StartGGPO: closing leftover GGPO session before rematch/restart");
-        ggpo_close_session(ggpo);
-        ggpo = nullptr;
+        RetireGgpoSession("leftover_before_start");
     }
-    sf4e::GgpoRelay::Instance().Reset();
+    diag::G().ResetForMatch(diag::NowMs());
+    simGate.OnSessionStarted();
+    bUpdateAllowed = !simGate.manualPause;
+    ResetPacerForSession();
+    s_lastDisconnectFlags = 0;
+    // Do not reset GgpoRelay here. The legacy Direct-IP/session-tunnel path
+    // creates its virtual peer immediately before calling StartGGPO; resetting
+    // it here destroys the transport before GGPO can exchange its handshake.
+    // GgpoRelay::Start handles stale state, and battle close/abort own teardown.
     bGgpoConnectionInterrupted = false;
     localPlayerHandle = GGPO_INVALID_HANDLE;
+    lastGgpoSaveFrame = -1;
 
     GGPOSessionCallbacks cb = { 0 };
     cb.begin_game = ggpo_begin_game_callback;
@@ -617,14 +863,25 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     }
 
     nNextBattleStartFlowTarget = BF__MATCH_START;
-    bUpdateAllowed = false;
     fVsBattle::bTerminateOnNextLeftBattle = true;
     fVsBattle::bOverrideNextRandomSeed = true;
     fVsBattle::nextMatchRandomSeed = rngSeed;
 }
 
 void fSystem::StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port, DWORD rngSeed) {
+    diag::InitFromEnvironment();
+    sf4e::NetplayFacade::CancelDeferredGgpoClose();
+    if (ggpo) {
+        spdlog::warn("StartSpectating: closing leftover GGPO session before restart");
+        RetireGgpoSession("leftover_before_spectating");
+    }
+    diag::G().ResetForMatch(diag::NowMs());
+    simGate.OnSessionStarted();
+    bUpdateAllowed = !simGate.manualPause;
+    ResetPacerForSession();
+    s_lastDisconnectFlags = 0;
     localPlayerHandle = GGPO_INVALID_HANDLE;
+    lastGgpoSaveFrame = -1;
     GGPOSessionCallbacks cb = { 0 };
     cb.begin_game = ggpo_begin_game_callback;
     cb.advance_frame = ggpo_advance_frame_callback;
@@ -653,7 +910,6 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
     ApplyGgpoDisconnectSettings(ggpo);
 
     nNextBattleStartFlowTarget = BF__MATCH_START;
-    bUpdateAllowed = false;
     fVsBattle::bTerminateOnNextLeftBattle = true;
     fVsBattle::bOverrideNextRandomSeed = true;
     fVsBattle::nextMatchRandomSeed = rngSeed;
@@ -666,16 +922,29 @@ bool fSystem::ggpo_begin_game_callback(const char*)
 
 bool fSystem::ggpo_advance_frame_callback(int)
 {
+    diag::ScopedTimer _cbTimer(diag::OP_ROLLBACK_CALLBACK);
+    if (diag::Enabled()) {
+        diag::G().OnRollbackCallback(diag::NowMs());
+    }
+
     fPadSystem::Inputs inputs[2] = { {0, 0}, {0, 0} };
     int disconnect_flags = 0;
 
     // Make sure we fetch new inputs from GGPO and use those to update
     // the game state instead of reading from the selected input device.
     GGPOErrorCode result = ggpo_synchronize_input(ggpo, (void*)inputs, sizeof(fPadSystem::Inputs) * 2, &disconnect_flags);
+    if (diag::Enabled()) {
+        diag::G().RecordGgpoResult(diag::CALL_SYNC_INPUT, (int)result);
+    }
     if (!GGPO_SUCCEEDED(result)) {
         AbortGgpoMatch("Netplay sync failed — match ended.");
         return true;
     }
+    NoteDisconnectFlags(disconnect_flags);
+
+    // Restored on every exit; rollback resimulation must never leak
+    // playback mode into subsequent engine work.
+    PlaybackFrameScopeGuard _playbackGuard;
     fPadSystem::playbackFrame = 0;
     fPadSystem::playbackData[0][0] = inputs[0];
     fPadSystem::playbackData[0][1] = inputs[1];
@@ -685,17 +954,23 @@ bool fSystem::ggpo_advance_frame_callback(int)
     // if it called fSystem::BattleUpdate, it'd be restricted to the same
     // update-halting that the detoured method is.
     rSystem* system = rSystem::staticMethods.GetSingleton();
-    (system->*rSystem::publicMethods.BattleUpdate)();
+    {
+        diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
+        (system->*rSystem::publicMethods.BattleUpdate)();
+    }
 
     result = ggpo_advance_frame(ggpo);
+    if (diag::Enabled()) {
+        diag::G().RecordGgpoResult(diag::CALL_ADVANCE_FRAME, (int)result);
+    }
     if (!GGPO_SUCCEEDED(result)) {
         AbortGgpoMatch("Netplay sync failed — match ended.");
     }
     else {
         CaptureSnapshot(system);
+        CaptureHashCheckpoint(system);
     }
 
-    fPadSystem::playbackFrame = -1;
     return true;
 }
 
@@ -706,8 +981,9 @@ bool fSystem::ggpo_load_game_state_callback(unsigned char* buffer, int len)
     return true;
 }
 
-bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, int* checksum, int)
+bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, int* checksum, int frame)
 {
+    lastGgpoSaveFrame = frame;
     // No GGPO callback allocates data, then hands ownership to GGPO-
     // sf4e preallocates and manages all its savestates, and the memory
     // allocation all happens internally. Consequently the memory
@@ -725,6 +1001,26 @@ bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, in
         SaveState::Save(&saveStates[i]);
         *buffer = (unsigned char*)&saveStates[i];
         *checksum = 0;
+
+        // Preserve callback/engine frame identity for rollback diagnostics.
+        // Semantic hashes are computed only by the separate periodic
+        // checkpoint ring below; no consumer reads hashes from save slots.
+        {
+            rSystem* system = rSystem::staticMethods.GetSingleton();
+            saveStates[i].simulationFrame =
+                rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
+            saveStates[i].ggpoFrame = frame;
+        }
+
+        if (diag::Enabled()) {
+            uint32_t occupied = 0;
+            for (int j = 0; j < NUM_SAVE_STATES; j++) {
+                if (saveStates[j].used) {
+                    occupied++;
+                }
+            }
+            diag::G().occupiedSaveSlots.Update(occupied);
+        }
 
         return true;
     }
@@ -766,37 +1062,62 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         spdlog::info("GGPO: Synchronized with peer");
         break;
     case GGPO_EVENTCODE_RUNNING:
-        bUpdateAllowed = true;
+        simGate.OnRunning();
         spdlog::info("GGPO: Running");
         sf4e::NetplayFacade::NotifyGgpoSyncPhase(sf4e::GgpoSyncPhase::Running);
         break;
     case GGPO_EVENTCODE_CONNECTION_INTERRUPTED:
         spdlog::info("GGPO: GGPO_EVENTCODE_CONNECTION_INTERRUPTED");
-        if (!bGgpoConnectionInterrupted) {
-            bGgpoConnectionInterrupted = true;
-            s_updateAllowedBeforeGgpoInterrupt = bUpdateAllowed;
-            bUpdateAllowed = false;
+        if (diag::Enabled()) {
+            diag::G().OnConnectionInterrupted(diag::NowMs());
         }
-        sf4e::NetplayFacade::PushAlert("Connection unstable — waiting to reconnect...");
+        // Phase 2 behavior change: a connection warning marks quality
+        // degraded but does NOT stop deterministic simulation. The game
+        // keeps advancing while GGPO accepts local input, and stalls only
+        // when the prediction threshold is reached. One alert per episode.
+        if (simGate.OnConnectionInterrupted(GetTickCount())) {
+            bGgpoConnectionInterrupted = true;
+            sf4e::NetplayFacade::PushAlert("Connection unstable — playing on prediction...");
+        }
         break;
     case GGPO_EVENTCODE_CONNECTION_RESUMED:
         spdlog::info("GGPO: GGPO_EVENTCODE_CONNECTION_RESUMED");
-        if (bGgpoConnectionInterrupted) {
-            bGgpoConnectionInterrupted = false;
-            bUpdateAllowed = s_updateAllowedBeforeGgpoInterrupt;
+        if (diag::Enabled()) {
+            diag::G().OnConnectionResumed(diag::NowMs());
         }
-        sf4e::NetplayFacade::PushAlert("Connection restored.");
+        // Clears only the warning. It cannot undo a manual pause, a fatal
+        // transition, or the startup gate, and it never "catches up" by
+        // double-advancing; GGPO resumes progression on its own.
+        if (simGate.OnConnectionResumed()) {
+            bGgpoConnectionInterrupted = false;
+            sf4e::NetplayFacade::PushAlert("Connection restored.");
+        }
         break;
     case GGPO_EVENTCODE_DISCONNECTED_FROM_PEER:
         spdlog::info("GGPO: GGPO_EVENTCODE_DISCONNECTED_FROM_PEER");
+        if (diag::Enabled()) {
+            diag::G().OnTerminalDisconnect(diag::NowMs());
+        }
         if (system) {
             *rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
         }
+        simGate.OnConnectionResumed(); // close any open warning episode
         bGgpoConnectionInterrupted = false;
         sf4e::NetplayFacade::PushAlert("Opponent disconnected.");
         break;
     case GGPO_EVENTCODE_TIMESYNC:
-        Sleep(1000 * info->u.timesync.frames_ahead / 60);
+        if (diag::Enabled()) {
+            diag::G().OnTimesyncEvent(info->u.timesync.frames_ahead);
+        }
+        // Phase 4: no blocking here. The recommendation (a fresh clamped
+        // estimate of frames ahead — see PacingController) is recorded and
+        // repaid in small slices in the outer tick, outside this callback.
+        pacer.OnRecommendation(info->u.timesync.frames_ahead);
+        spdlog::info(
+            "GGPO: timesync recommends {} frames; outstanding pacing {:.1f} ms",
+            info->u.timesync.frames_ahead,
+            pacer.outstandingMs
+        );
         break;
     }
     return true;
@@ -810,6 +1131,119 @@ fSystem::SaveState::SaveState() {
 }
 
 std::map<int, std::pair<StateSnapshot, fSystem::StateSnapshotMeta>> fSystem::snapshotMap;
+fSystem::HashCheckpoint fSystem::hashCheckpoints[fSystem::NUM_HASH_CHECKPOINTS];
+
+// Computes the v2 semantic hashes for the current frame. Coverage is
+// deliberately conservative: the frame counter, battle-flow numeric state,
+// and per-character semantic values read through engine getters (the same
+// values the legacy snapshot exchanges, which are known deterministic
+// across peers). Explicitly EXCLUDED: the battle-flow function pointers,
+// the raw GameManager block (shallow pointer fields), GameMementoKey bytes,
+// sound maps (process-local pointer keys), RNG (the evolving RNG state has
+// not been located; the match seed alone is not it), and all
+// presentation/log/overlay state.
+fSystem::SemanticHashes fSystem::ComputeSemanticHashes(rSystem* src) {
+    using sf4e::statehash::Hasher;
+    SemanticHashes out;
+
+    FixedPoint* numFrames = rSystem::GetNumFramesSimulated_FixedPoint(src);
+
+    Hasher flow;
+    flow.Fixed(numFrames->fractional, numFrames->integral);
+    flow.U32(*rSystem::staticVars.CurrentBattleFlow);
+    flow.U32(*rSystem::staticVars.PreviousBattleFlow);
+    flow.U32(*rSystem::staticVars.CurrentBattleFlowSubstate);
+    flow.U32(*rSystem::staticVars.PreviousBattleFlowSubstate);
+    flow.Fixed(
+        rSystem::staticVars.CurrentBattleFlowFrame->fractional,
+        rSystem::staticVars.CurrentBattleFlowFrame->integral
+    );
+    flow.Fixed(
+        rSystem::staticVars.CurrentBattleFlowSubstateFrame->fractional,
+        rSystem::staticVars.CurrentBattleFlowSubstateFrame->integral
+    );
+    flow.Fixed(
+        rSystem::staticVars.PreviousBattleFlowFrame->fractional,
+        rSystem::staticVars.PreviousBattleFlowFrame->integral
+    );
+    flow.Fixed(
+        rSystem::staticVars.PreviousBattleFlowSubstateFrame->fractional,
+        rSystem::staticVars.PreviousBattleFlowSubstateFrame->integral
+    );
+    out.flow = flow.Value();
+
+    CharaActor::__publicMethods& methods = CharaActor::publicMethods;
+    CharaUnit* lpCharaUnit = (src->*rSystem::publicMethods.GetCharaUnit)();
+    for (int i = 0; i < 2; i++) {
+        CharaActor* a = (lpCharaUnit->*CharaUnit::publicMethods.GetActorByIndex)(i);
+        Hasher ch;
+        ch.I32((a->*methods.GetStatus)());
+        ch.I32((a->*methods.GetCurrentSide)());
+        float* rootPos = (a->*methods.GetCurrentRootPosition)();
+        for (int c = 0; c < 4; c++) {
+            ch.F32(rootPos[c]);
+        }
+        FixedPoint fp;
+        (a->*methods.GetVitalityAmt_FixedPoint)(&fp);          ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetVitalityMax_FixedPoint)(&fp);          ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetRevengeAmt_FixedPoint)(&fp);           ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetRevengeMax_FixedPoint)(&fp);           ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetRecoverableVitalityAmt_FixedPoint)(&fp); ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetRecoverableVitalityMax_FixedPoint)(&fp); ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetSuperComboAmt_FixedPoint)(&fp);        ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetSuperComboMax_FixedPoint)(&fp);        ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetSCTimeAmt_FixedPoint)(&fp);            ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetSCTimeMax_FixedPoint)(&fp);            ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetUCTimeAmt_FixedPoint)(&fp);            ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetUCTimeMax_FixedPoint)(&fp);            ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetComboDamage)(&fp);                     ch.Fixed(fp.fractional, fp.integral);
+        (a->*methods.GetDamage)(&fp);                          ch.Fixed(fp.fractional, fp.integral);
+        out.chara[i] = ch.Value();
+    }
+
+    Hasher overall;
+    overall.U64(out.flow);
+    overall.U64(out.chara[0]);
+    overall.U64(out.chara[1]);
+    out.overall = overall.Value();
+    return out;
+}
+
+void fSystem::CaptureHashCheckpoint(rSystem* src) {
+    int frameIdx = rSystem::GetNumFramesSimulated_FixedPoint(src)->integral;
+    if (frameIdx % HASH_CHECKPOINT_INTERVAL != 0) {
+        return;
+    }
+    HashCheckpoint& slot =
+        hashCheckpoints[(frameIdx / HASH_CHECKPOINT_INTERVAL) % NUM_HASH_CHECKPOINTS];
+    // Rollback resimulation legitimately re-captures a frame with corrected
+    // values; the aging threshold guarantees an entry cannot change after
+    // it becomes eligible for sending.
+    if (slot.frameIdx != frameIdx) {
+        slot.frameIdx = frameIdx;
+        slot.sent = false;
+    }
+    {
+        diag::ScopedTimer _hashTimer(diag::OP_SEMANTIC_HASH);
+        slot.hashes = ComputeSemanticHashes(src);
+    }
+    slot.valid = true;
+}
+
+fSystem::HashCheckpoint* fSystem::FindHashCheckpoint(int frameIdx) {
+    if (frameIdx < 0 || frameIdx % HASH_CHECKPOINT_INTERVAL != 0) {
+        return nullptr;
+    }
+    HashCheckpoint& slot =
+        hashCheckpoints[(frameIdx / HASH_CHECKPOINT_INTERVAL) % NUM_HASH_CHECKPOINTS];
+    return (slot.valid && slot.frameIdx == frameIdx) ? &slot : nullptr;
+}
+
+void fSystem::ClearHashCheckpoints() {
+    for (int i = 0; i < NUM_HASH_CHECKPOINTS; i++) {
+        hashCheckpoints[i] = HashCheckpoint();
+    }
+}
 
 void fSystem::CaptureSnapshot(rSystem* src) {
     int frameIdx = rSystem::GetNumFramesSimulated_FixedPoint(src)->integral;
@@ -908,8 +1342,12 @@ void Clear(fSystem::SaveState* victim) {
     }
     victim->keys.clear();
 
-    // Restore all non-memento-key state to a sane default.
+    // Restore all non-memento-key state to a sane default. Slot reuse must
+    // also reset frame metadata so a stale callback identity can never be
+    // attributed to a new frame.
     victim->used = false;
+    victim->simulationFrame = -1;
+    victim->ggpoFrame = -1;
     victim->d.CurrentBattleFlow = 0;
     victim->d.PreviousBattleFlow = 0;
     victim->d.CurrentBattleFlowSubstate = 0;
@@ -925,9 +1363,14 @@ void Clear(fSystem::SaveState* victim) {
 }
 
 void fSystem::SaveState::Free(SaveState* victim) {
+    diag::ScopedTimer _freeTimer(diag::OP_FREE_TOTAL);
+    AssertSaveStateThreadAffinity();
     SaveState tmp;
 
-    SaveState::Save(&tmp);
+    {
+        diag::ScopedTimer _t(diag::OP_FREE_TMP_SAVE);
+        SaveState::Save(&tmp, true);
+    }
 
     // Calls to clear SF4's mementos delegate those calls to the mementoable
     // object. If the mementoable object pointer isn't valid, the key can't
@@ -935,21 +1378,44 @@ void fSystem::SaveState::Free(SaveState* victim) {
     // is only ever done on re-initialization after a save, but manually
     // clearing keys when releasing the state is necessary for GGPO to avoid
     // memory leaks.
-    // 
+    //
     // Copy the victim state into the engine. Once the victim state is copied,
     // the mementoable object pointers in each key are valid, and each key can
     // be safely cleared.
-    CopyIntoPlace(victim);
-    Clear(victim);
+    {
+        diag::ScopedTimer _t(diag::OP_FREE_VICTIM_INSTALL);
+        CopyIntoPlace(victim);
+    }
+    {
+        diag::ScopedTimer _t(diag::OP_FREE_CLEAR);
+        Clear(victim);
+    }
 
     // Restore the state at the start of the function. We don't need to
     // handle clearing the keys injected by this operation, because the
     // SaveState managing the keys is short-lived.
-    CopyIntoPlace(&tmp);
+    {
+        diag::ScopedTimer _t(diag::OP_FREE_LIVE_RESTORE);
+        CopyIntoPlace(&tmp);
+    }
+    if (diag::Enabled()) {
+        uint32_t occupied = 0;
+        for (int i = 0; i < NUM_SAVE_STATES; i++) {
+            if (saveStates[i].used) {
+                occupied++;
+            }
+        }
+        diag::G().occupiedSaveSlots.Update(occupied);
+    }
 }
 
 void fSystem::SaveState::Load(SaveState* src) {
+    diag::ScopedTimer _loadTimer(diag::OP_LOAD_TOTAL);
+    AssertSaveStateThreadAffinity();
     std::vector<std::pair<rKey*, rKey>> tmpVec;
+    // Reserve using the live tracked-key count so the backup loop below
+    // performs one allocation instead of growth doublings on every load.
+    tmpVec.reserve(fKey::trackedKeys.size());
 
     // Loading a state abandons the current timeline, and with it any
     // stop intents queued by frames that are about to be re-simulated
@@ -970,12 +1436,20 @@ void fSystem::SaveState::Load(SaveState* src) {
     // Copy and zero all currently tracked keys. It's possible that the
     // initialization detour started tracking keys that were only
     // initialized after the save state was created.
-    for (auto iter = fKey::trackedKeys.begin(); iter != fKey::trackedKeys.end(); iter++) {
-        tmpVec.push_back(std::make_pair(*iter, **iter));
-        memset(*iter, 0, sizeof(rKey));
+    {
+        diag::ScopedTimer _t(diag::OP_LOAD_KEY_BACKUP);
+        for (auto iter = fKey::trackedKeys.begin(); iter != fKey::trackedKeys.end(); iter++) {
+            tmpVec.push_back(std::make_pair(*iter, **iter));
+            memset(*iter, 0, sizeof(rKey));
+        }
     }
 
-    CopyIntoPlace(src);
+    {
+        diag::ScopedTimer _t(diag::OP_LOAD_COPY_INTO_PLACE);
+        CopyIntoPlace(src);
+    }
+
+    diag::ScopedTimer _restoreTimer(diag::OP_LOAD_RESTORE_KEYS);
 
     // Zero the keys that were injected by the load.
     //
@@ -997,39 +1471,77 @@ void fSystem::SaveState::Load(SaveState* src) {
     }
 }
 
-void fSystem::SaveState::Save(SaveState* dst) {
+void fSystem::SaveState::Save(SaveState* dst, bool temporary) {
+    diag::ScopedTimer _saveTimer(temporary ? -1 : diag::OP_SAVE_TOTAL);
+    AssertSaveStateThreadAffinity();
     rSystem* system = rSystem::staticMethods.GetSingleton();
     assert(dst->keys.empty());
 
     dst->used = true;
 
-    RecordAllToInternalMementos(system, &GGPO_MEMENTO_ID);
-    for (auto iter = fKey::trackedKeys.begin(); iter != fKey::trackedKeys.end(); iter++) {
-        dst->keys.emplace_back(*iter, **iter);
-
-        // If we leave the data in the source key, reinitialization
-        // of the source key will end up freeing _our_ data. Make
-        // absolutely sure to zero the source key. Ideally, we could
-        // just replace the key's state with the state the key had
-        // before the call to RecordAll... but the mementos won't
-        // be tracked until after that call.
-        memset(*iter, 0, sizeof(rKey));
+    {
+        diag::ScopedTimer _t(temporary ? -1 : diag::OP_SAVE_RECORD_MEMENTOS);
+        RecordAllToInternalMementos(system, &GGPO_MEMENTO_ID);
     }
+    {
+        diag::ScopedTimer _t(temporary ? -1 : diag::OP_SAVE_COPY_KEYS);
+        for (auto iter = fKey::trackedKeys.begin(); iter != fKey::trackedKeys.end(); iter++) {
+            dst->keys.emplace_back(*iter, **iter);
 
-    for (
-        auto managerIter = Sound::SoundPlayerManager::shadowManagerMap.begin();
-        managerIter != Sound::SoundPlayerManager::shadowManagerMap.end();
-        managerIter++) {
-        rSoundPlayerManager* stubManager = managerIter->first;
-        rSoundPlayerManager::CriPlayerAdapter* adapters = *rSoundPlayerManager::GetAdapters(stubManager);
-        for (int i = 0; i < *rSoundPlayerManager::GetNumAdapters(stubManager); i++) {
-            dst->criPlayerState[&adapters[i]] = fSoundPlayerManager::adapterToCurrentSound[&adapters[i]];
+            // If we leave the data in the source key, reinitialization
+            // of the source key will end up freeing _our_ data. Make
+            // absolutely sure to zero the source key. Ideally, we could
+            // just replace the key's state with the state the key had
+            // before the call to RecordAll... but the mementos won't
+            // be tracked until after that call.
+            memset(*iter, 0, sizeof(rKey));
         }
-        Platform::SoundObjectPool<4>::SaveState poolState;
-        Platform::SoundObjectPool<4>::Save(rSoundPlayerManager::GetAdapterPool(stubManager), &poolState);
-        dst->managerState[stubManager] = poolState;
     }
 
+    {
+        diag::ScopedTimer _t(temporary ? -1 : diag::OP_SAVE_SOUND);
+        for (
+            auto managerIter = Sound::SoundPlayerManager::shadowManagerMap.begin();
+            managerIter != Sound::SoundPlayerManager::shadowManagerMap.end();
+            managerIter++) {
+            rSoundPlayerManager* stubManager = managerIter->first;
+            rSoundPlayerManager::CriPlayerAdapter* adapters = *rSoundPlayerManager::GetAdapters(stubManager);
+            for (int i = 0; i < *rSoundPlayerManager::GetNumAdapters(stubManager); i++) {
+                dst->criPlayerState[&adapters[i]] = fSoundPlayerManager::adapterToCurrentSound[&adapters[i]];
+            }
+            Platform::SoundObjectPool<4>::SaveState poolState;
+            Platform::SoundObjectPool<4>::Save(rSoundPlayerManager::GetAdapterPool(stubManager), &poolState);
+            dst->managerState[stubManager] = poolState;
+        }
+    }
+
+    // The constructor reserves 88 keys (the observed lower bound). Record
+    // growth past that once per process so live telemetry can establish
+    // the real stable count before any capacity change is made.
+    if (dst->keys.size() > 88) {
+        static bool s_warnedKeyGrowth = false;
+        if (!s_warnedKeyGrowth) {
+            s_warnedKeyGrowth = true;
+            spdlog::warn(
+                "SaveState: key count {} exceeds the 88-key reservation (capacity {})",
+                dst->keys.size(),
+                dst->keys.capacity()
+            );
+        }
+    }
+
+    if (!temporary && diag::Enabled()) {
+        diag::RollbackDiagnostics& d = diag::G();
+        d.trackedKeys.Update((uint32_t)fKey::trackedKeys.size());
+        d.saveKeyVectorSize.Update((uint32_t)dst->keys.size());
+        d.saveKeyVectorCapacity.Update((uint32_t)dst->keys.capacity());
+        d.soundManagers.Update((uint32_t)Sound::SoundPlayerManager::shadowManagerMap.size());
+        d.soundAdapters.Update((uint32_t)fSoundPlayerManager::adapterToCurrentSound.size());
+        d.criPlayerStateSize.Update((uint32_t)dst->criPlayerState.size());
+        d.managerStateSize.Update((uint32_t)dst->managerState.size());
+    }
+
+    diag::ScopedTimer _globalsTimer(temporary ? -1 : diag::OP_SAVE_GLOBALS);
     dst->d.CurrentBattleFlow = *rSystem::staticVars.CurrentBattleFlow;
     dst->d.PreviousBattleFlow = *rSystem::staticVars.PreviousBattleFlow;
     dst->d.CurrentBattleFlowSubstate = *rSystem::staticVars.CurrentBattleFlowSubstate;

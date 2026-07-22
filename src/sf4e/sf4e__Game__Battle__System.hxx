@@ -10,6 +10,8 @@
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
 #include "../Dimps/Dimps__Math.hxx"
 
+#include "../common/sf4e__GgpoGate.hxx"
+#include "../common/sf4e__PacingController.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 
 #include "sf4e__Platform.hxx"
@@ -49,6 +51,22 @@ namespace sf4e {
 				static bool bHaltAfterNext;
 				static bool bUpdateAllowed;
 				static bool bGgpoConnectionInterrupted;
+
+				// Explicit gate model (Phase 2). Tracks session phase,
+				// connection warnings, and prediction stalls separately from
+				// bUpdateAllowed, which now carries only lifecycle gating,
+				// manual/debug pause, and terminal failure.
+				static sf4e::gate::GgpoGateModel simGate;
+
+				// The one central answer to "may the next deterministic
+				// frame advance?". Connection warnings and prediction
+				// stalls intentionally do not gate here.
+				static bool MayAdvanceDeterministicFrame();
+
+				// Time-sync pacing (Phase 4): the timesync event only
+				// records a bounded correction here; the outer tick
+				// repays it in small slices (see fUserApp).
+				static sf4e::pacing::PacingController pacer;
 				static int nExtraFramesToSimulate;
 				static int nNextBattleStartFlowTarget;
 				static int nRandomizeLocalInputsEveryXFramesInGGPO;
@@ -72,8 +90,25 @@ namespace sf4e {
 				void SysMain_HandleTrainingModeFeatures();
 				void SysMain_UpdatePauseState();
 
+				// Canonical semantic hashes (desync detection v2). One
+				// overall hash plus subsystem hashes for mismatch
+				// classification. Computed only from stable semantic
+				// values via the canonical encoder; never from raw
+				// struct bytes, pointers, or padding.
+				struct SemanticHashes {
+					uint64_t overall = 0;
+					uint64_t flow = 0;
+					uint64_t chara[2] = { 0, 0 };
+				};
+
 				struct SaveState {
 					bool used = false;
+
+					// Frame identity (v2). simulationFrame is the engine
+					// frames-simulated count; ggpoFrame is GGPO's frame
+					// argument to the save callback. Reset on slot reuse.
+					int simulationFrame = -1;
+					int ggpoFrame = -1;
 					std::vector<std::pair<GameMementoKey*, GameMementoKey>> keys;
 					std::map<
 						Dimps::Game::Battle::Sound::SoundPlayerManager::CriPlayerAdapter*,
@@ -103,7 +138,7 @@ namespace sf4e {
 					SaveState();
 
 					static void Free(SaveState* dst);
-					static void Save(SaveState* dst);
+					static void Save(SaveState* dst, bool temporary = false);
 					static void Load(SaveState* src);
 				};
 
@@ -114,12 +149,38 @@ namespace sf4e {
 
 				static void CaptureSnapshot(Dimps::Game::Battle::System* src);
 				static std::map<int, std::pair<SessionProtocol::StateSnapshot, StateSnapshotMeta>> snapshotMap;
+
+				// Desync detection v2: a bounded ring of per-frame hash
+				// checkpoints captured every HASH_CHECKPOINT_INTERVAL
+				// frames. Entries are exchanged by SessionClient once aged
+				// past the rollback/prediction window ("aged", NOT formally
+				// GGPO-confirmed). The legacy 60-frame snapshot system
+				// above stays fully operational alongside.
+				struct HashCheckpoint {
+					int frameIdx = -1;
+					bool valid = false;
+					bool sent = false;
+					SemanticHashes hashes;
+				};
+				static const int NUM_HASH_CHECKPOINTS = 64;
+				static const int HASH_CHECKPOINT_INTERVAL = 30;
+				// A checkpoint may be exchanged once the sender has
+				// simulated this many frames past it (> GGPO's 8-frame
+				// prediction window plus input delay margin).
+				static const int HASH_CHECKPOINT_AGE_FRAMES = 30;
+				static HashCheckpoint hashCheckpoints[NUM_HASH_CHECKPOINTS];
+				static SemanticHashes ComputeSemanticHashes(Dimps::Game::Battle::System* src);
+				static void CaptureHashCheckpoint(Dimps::Game::Battle::System* src);
+				static HashCheckpoint* FindHashCheckpoint(int frameIdx);
+				static void ClearHashCheckpoints();
 				static GGPOPlayerHandle localPlayerHandle;
+				static int lastGgpoSaveFrame;
 				static PlayerConnectionInfo players[MAX_SF4E_PROTOCOL_USERS];
 				static GGPOSession* ggpo;
 				static SaveState saveStates[NUM_SAVE_STATES];
 
 				static void ApplyGgpoDisconnectSettings(GGPOSession* session);
+				static void RetireGgpoSession(const char* diagnosticsLabel);
 				static void AbortGgpoMatch(const char* reason);
 				static void StartGGPO(GGPOPlayer* players, int numPlayers, int port, int frameDelay, DWORD rngSeed);
 				static void StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port, DWORD rngSeed);

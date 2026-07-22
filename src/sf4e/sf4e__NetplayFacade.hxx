@@ -69,6 +69,22 @@ namespace sf4e {
 		void SetLastError(const char* msg);
 		void PushAlert(const char* msg);
 		void HandleNetplayFailure(const char* reason, bool closeGgpo);
+
+		// Phase 7: room/control-plane failure handling. During an active,
+		// healthy, non-tunneled GGPO fight this degrades instead of
+		// killing the match: the fight continues on GGPO UDP, room sends
+		// stop, verification is marked unavailable, and rematch/results/
+		// spectator coordination are disabled. In every other situation it
+		// falls back to full HandleNetplayFailure.
+		void HandleControlPlaneLoss(const char* reason);
+		bool IsControlPlaneLost();
+		// Frame at which snapshot/hash verification became unavailable
+		// (-1 when the control plane is healthy).
+		int GetVerificationLostFrame();
+		// Called after the battle fully closes while degraded: logs the
+		// unverified interval and returns to a safe disconnected state
+		// (never a fake healthy lobby).
+		void FinalizeControlPlaneLossAfterBattle();
 		void ShutdownNetplay(bool closeGgpo);
 		void ClearBattleState();
 		void CancelDeferredGgpoClose();

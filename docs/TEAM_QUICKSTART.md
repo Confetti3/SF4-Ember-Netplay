@@ -20,7 +20,7 @@ This is a **known false positive** on unsigned netplay tools that inject into US
 |----------|--------|
 | USF4 on Steam, Windows 10+ | Game **not included** |
 | Simple VPS room codes (`SF4-XXXX`) | **Experimental** — not official sf4e |
-| Same zip on all players | Shared broker (~**20 rooms** ≈ 40 players; **5 min** idle for empty codes, **30 min** when occupied) |
+| Same zip on all players | Shared broker (~**50 rooms** ≈ 100 players; **5 min** idle for empty codes, no occupied-room age limit by default) |
 | Advanced Direct IP / UPnP | Host port-forward for Direct IP; Find match / Open rooms **experimental** |
 
 Full list: [`docs/SCOPE_AND_LIMITATIONS.md`](SCOPE_AND_LIMITATIONS.md) in this folder.
@@ -106,7 +106,7 @@ Launcher.exe
 ## Firewall
 
 - **Relay host (Simple mode):** no router or Windows firewall setup on the host PC — traffic goes through the VPS.
-- **VPS operator:** open **8787/tcp** plus **23456–23475/tcp+udp** in both **ufw** and the **IONOS (or provider) cloud firewall**. Missing IONOS UDP rules causes in-game “Still connecting…” even when `relay-diag.ps1` passes.
+- **VPS operator:** open **8787/tcp** (dev only) or production **443** plus **23456–23505/tcp+udp** and **24456–24505/udp** in both **ufw** and the **IONOS (or provider) cloud firewall**. Missing provider UDP rules causes in-game “Still connecting…” even when `relay-diag.ps1` passes. See [VPS_CAPACITY_50.md](VPS_CAPACITY_50.md).
 - **Direct IP host:** forward **TCP+UDP** on session port (default 23456).
 - **Joiner:** no port forward needed for relay mode.
 
@@ -133,7 +133,7 @@ Full checklist: [SMOKE_TEST.md](SMOKE_TEST.md). Player guide: [USER_NETPLAY.md](
 | “Version mismatch” on join | Same zip on both PCs |
 | Can't create relay room | Broker reachable? `curl http://74.208.200.95:8787/v1/health` |
 | Joiner stuck / "Cannot reach relay" | Host must **Start game** first. Check broker: `curl http://74.208.200.95:8787/v1/health` (should show `"forceVpsRelay":true`). |
-| In-game "Still connecting" (VPS relay) | Open **IONOS inbound UDP 23456–23475** (not just ufw). Run `scripts\relay-diag.ps1`; create a **new** room after firewall fix. |
+| In-game "Still connecting" (VPS relay) | Open **IONOS inbound UDP 23456–23505** (and GGPO **24456–24505**) — not just ufw. Run `scripts\relay-diag.ps1`; create a **new** room after firewall fix. |
 | Direct IP join fails | Both use **Advanced** → **Direct IP**. Joiner pastes `public.ip:port` (not SF4-XXXX). Host forwards **session port** TCP+UDP. Delete `%APPDATA%\\sf4e\\config.json` if mode keeps resetting to Relay. |
 | In-app update "Download failed" | Use **Open release page** in launcher, or download zip manually once. Log: `%TEMP%\sf4e-update.log`. Test: `powershell -File scripts\test-updater-download.ps1` |
 | Join times out in-game | Same build on both PCs; host clicked **Start game**; broker health OK |

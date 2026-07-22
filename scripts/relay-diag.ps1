@@ -131,7 +131,7 @@ if ($forceVpsRelay) {
         $null = $udp.Send($bytes, 1, $resolved.host, [int]$resolved.port)
         Ok "VPS relay UDP reachable on $($resolved.host):$($resolved.port)"
     } catch {
-        Fail "Cannot send UDP to VPS relay at $($resolved.host):$($resolved.port) - check VPS firewall (23456-23475/udp)"
+        Fail "Cannot send UDP to VPS relay at $($resolved.host):$($resolved.port) - check VPS firewall (session relay UDP range from broker health / MAX_ROOMS)"
     } finally {
         $udp.Close()
     }
@@ -161,7 +161,7 @@ Write-Host "RESULT: PASS"
 Write-Host "Next: run Launcher, create relay room, Start game, then have joiner use $($created.code)."
 if ($forceVpsRelay) {
     Write-Host "VPS relay mode - no host port forward required."
-    Write-Host "If in-game connect still fails: open IONOS panel inbound UDP 23456-23475 (ufw alone is not enough)."
+    Write-Host "If in-game connect still fails: open provider inbound UDP for the broker session+GGPO ranges (ufw alone is not enough). Default MAX_ROOMS=50 => 23456-23505 and 24456-24505."
 } else {
     Write-Host "Ensure router forwards TCP+UDP $($created.port) if testing across the internet."
 }

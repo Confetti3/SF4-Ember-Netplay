@@ -14,6 +14,7 @@
 #include "../Dimps/Dimps__GameEvents.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../common/agent_debug_log.hxx"
+#include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../session/sf4e__SessionClient.hxx"
 #include "../session/sf4e__GgpoRelay.hxx"
 #include "sf4e__Game__Battle__System.hxx"
@@ -219,6 +220,72 @@ namespace sf4e {
 		}
 	}
 
+	static bool s_controlPlaneLost = false;
+	static int s_verificationLostAtFrame = -1;
+
+	bool NetplayFacade::IsControlPlaneLost() {
+		return s_controlPlaneLost;
+	}
+
+	int NetplayFacade::GetVerificationLostFrame() {
+		return s_verificationLostAtFrame;
+	}
+
+	void NetplayFacade::HandleControlPlaneLoss(const char* reason) {
+		if (s_controlPlaneLost) {
+			// Already degraded; nothing further to do (and no alert spam).
+			return;
+		}
+
+		rSystem* system = rSystem::staticMethods.GetSingleton();
+		const bool fightRunning =
+			fSystem::ggpo &&
+			fSystem::simGate.phase == sf4e::gate::PHASE_RUNNING &&
+			!fSystem::simGate.fatalError &&
+			system &&
+			*rSystem::staticVars.CurrentBattleFlow != rSystem::BF__IDLE;
+
+		// The legacy session tunnel carries GGPO traffic *through* the room
+		// connection — a room loss there means GGPO is dead too, so degraded
+		// mode is impossible.
+		const bool ggpoRidesOnRoom = GgpoRelay::Instance().IsActive();
+
+		if (!fightRunning || ggpoRidesOnRoom) {
+			HandleNetplayFailure(reason, true);
+			return;
+		}
+
+		s_controlPlaneLost = true;
+		s_verificationLostAtFrame =
+			rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
+		spdlog::warn(
+			"Netplay: control plane lost at frame {} — continuing fight on GGPO UDP; "
+			"verification, results, rematch, and spectator coordination disabled",
+			s_verificationLostAtFrame
+		);
+		// One clear warning. The SessionClient connection is already closed
+		// (Step() no-ops, snapshot/hash sends stop); the netplay objects are
+		// kept alive until the fight ends so nothing dangles, and no
+		// reconnection is attempted — room identity and lobby IDs are
+		// ephemeral, so a new client could not safely resume this lobby.
+		PushAlert("Room connection lost — the fight continues, but rematch and results are disabled.");
+	}
+
+	void NetplayFacade::FinalizeControlPlaneLossAfterBattle() {
+		if (!s_controlPlaneLost) {
+			return;
+		}
+		spdlog::warn(
+			"Netplay: match ended after control-plane loss; snapshot/hash verification "
+			"was unavailable from frame {} to match end — that interval is UNVERIFIED",
+			s_verificationLostAtFrame
+		);
+		PushAlert("Returned to menu — the room connection was lost during the match.");
+		// Full teardown to a safe disconnected state (also resets the
+		// degraded flags via ShutdownNetplay).
+		ShutdownNetplay(true);
+	}
+
 	void NetplayFacade::HandleNetplayFailure(const char* reason, bool closeGgpo) {
 		if (reason && reason[0]) {
 			PushAlert(reason);
@@ -230,6 +297,7 @@ namespace sf4e {
 			if (system && *rSystem::staticVars.CurrentBattleFlow != rSystem::BF__IDLE) {
 				*rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
 			}
+			fSystem::simGate.OnFatal();
 			fSystem::bUpdateAllowed = false;
 		}
 
@@ -518,8 +586,7 @@ namespace sf4e {
 		}
 
 		if (s_deferredGgpoPending && fSystem::ggpo && !ShouldDeferGgpoClose()) {
-			ggpo_close_session(fSystem::ggpo);
-			fSystem::ggpo = nullptr;
+			fSystem::RetireGgpoSession("deferred_close");
 			GgpoRelay::Instance().Reset();
 			s_deferredGgpoPending = false;
 			s_deferGgpoClose = false;
@@ -547,8 +614,13 @@ namespace sf4e {
 				GGPONetworkStats stats;
 				for (int i = 0; i < MAX_SF4E_PROTOCOL_USERS; i++) {
 					if (fSystem::players[i].type == GGPO_PLAYERTYPE_REMOTE) {
-						if (GGPO_SUCCEEDED(ggpo_get_network_stats(fSystem::ggpo, fSystem::players[i].handle, &stats))) {
+						GGPOErrorCode statsResult =
+							ggpo_get_network_stats(fSystem::ggpo, fSystem::players[i].handle, &stats);
+						if (GGPO_SUCCEEDED(statsResult)) {
 							st.pingMs = stats.network.ping;
+						}
+						else if (diag::Enabled()) {
+							diag::G().RecordGgpoResult(diag::CALL_GET_NETWORK_STATS, (int)statsResult);
 						}
 						break;
 					}
@@ -578,9 +650,9 @@ namespace sf4e {
 
 	void NetplayFacade::ShutdownNetplay(bool closeGgpo) {
 		if (closeGgpo && fSystem::ggpo) {
-			ggpo_close_session(fSystem::ggpo);
-			fSystem::ggpo = nullptr;
+			fSystem::RetireGgpoSession("shutdown");
 		}
+		fSystem::pacer.Reset();
 		GgpoRelay::Instance().Reset();
 		s_ggpoTransportStatus = { 0 };
 		s_ggpoSyncPhase = GgpoSyncPhase::None;
@@ -599,12 +671,16 @@ namespace sf4e {
 		s_sentLobbySettings = false;
 		s_brokerGgpoRemoteHost[0] = '\0';
 		s_brokerGgpoRemotePort = 0;
+		s_controlPlaneLost = false;
+		s_verificationLostAtFrame = -1;
 	}
 
 	void NetplayFacade::ClearBattleState() {
 		fSystem::snapshotMap.clear();
+		fSystem::ClearHashCheckpoints();
 		if (fUserApp::netplay) {
 			fUserApp::netplay->client.pendingRemoteSnapshots.clear();
+			fUserApp::netplay->client.pendingRemoteHashes.clear();
 		}
 	}
 
@@ -627,6 +703,13 @@ namespace sf4e {
 
 	void NetplayFacade::NotifyMatchEnded() {
 		ClearBattleState();
+		if (s_controlPlaneLost) {
+			// Without a room there is nothing to coordinate spectators
+			// through; never hold the GGPO session open on stale lobby data.
+			s_deferGgpoClose = false;
+			s_deferredGgpoPending = false;
+			return;
+		}
 		if (!fUserApp::netplay) {
 			s_deferGgpoClose = false;
 			s_deferredGgpoPending = false;

@@ -4,7 +4,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
 project (
     sf4e
-    VERSION 0.5.0
+    VERSION 0.6.2
     DESCRIPTION "A process-inspection and modification tool for the Steam release of Ultra Street Fighter 4."
     HOMEPAGE_URL "https://github.com/Confetti3/SF4-Netplay-Launcher"
 )
@@ -85,6 +85,11 @@ target_link_libraries(
 add_library(sf4e_common STATIC
     "src/common/sf4e__NetUtil.cxx"
     "src/common/sf4e__NetUtil.hxx"
+    "src/common/sf4e__RollbackDiagnostics.cxx"
+    "src/common/sf4e__RollbackDiagnostics.hxx"
+    "src/common/sf4e__GgpoGate.cxx"
+    "src/common/sf4e__GgpoGate.hxx"
+    "src/common/sf4e__PacingController.hxx"
     "src/common/install_paths.cxx"
     "src/common/install_paths.hxx"
 )
@@ -155,6 +160,24 @@ if(BUILD_TESTING)
     target_link_libraries(GgpoUdpValidationTest PRIVATE ggpo::GGPO "ws2_32")
     add_test(NAME GgpoUdpValidation COMMAND GgpoUdpValidationTest)
     set_tests_properties(GgpoUdpValidation PROPERTIES TIMEOUT 15)
+
+    add_executable(RollbackDiagnosticsTest "src/tests/rollback_diagnostics_test.cxx")
+    target_link_libraries(RollbackDiagnosticsTest PRIVATE sf4e_common)
+    add_test(NAME RollbackDiagnostics COMMAND RollbackDiagnosticsTest)
+    set_tests_properties(RollbackDiagnostics PROPERTIES TIMEOUT 15)
+
+    add_executable(GgpoGateTest "src/tests/ggpo_gate_test.cxx")
+    target_link_libraries(GgpoGateTest PRIVATE sf4e_common)
+    add_test(NAME GgpoGate COMMAND GgpoGateTest)
+    set_tests_properties(GgpoGate PROPERTIES TIMEOUT 15)
+
+    add_executable(PacingControllerTest "src/tests/pacing_controller_test.cxx")
+    add_test(NAME PacingController COMMAND PacingControllerTest)
+    set_tests_properties(PacingController PROPERTIES TIMEOUT 15)
+
+    add_executable(StateHashTest "src/tests/state_hash_test.cxx")
+    add_test(NAME StateHash COMMAND StateHashTest)
+    set_tests_properties(StateHash PROPERTIES TIMEOUT 15)
 endif()
 
 add_executable(RelayHost "src/relay/relay_host.cxx")
