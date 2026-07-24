@@ -1017,7 +1017,10 @@ namespace launcher {
 
 			m_outConfig.roundTimeIntegral = m_settings.roundTimeIntegral;
 
-			m_outConfig.trainingMode = msg.value("trainingMode", false) ? 1 : 0;
+			// Vestigial. Round count and timer are configured in the overlay's
+			// lobby panel now (see DrawNetworkLobbyPanel); nothing consumes
+			// this flag any more.
+			m_outConfig.trainingMode = 0;
 
 			m_outConfig.useRelay = m_settings.useRelay;
 

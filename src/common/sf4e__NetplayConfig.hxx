@@ -47,7 +47,11 @@ namespace sf4e {
 		// GGPO peer disconnect tolerance (ms). Zero uses derived defaults from inputDelay.
 		uint16_t ggpoDisconnectTimeoutMs = 3000;
 		uint16_t ggpoDisconnectNotifyMs = 1500;
-		// 1 = host requested a training room (endless sparring settings).
+		// Vestigial: formerly requested a "training room" with endless
+		// sparring settings. Round count and timer are now set directly in
+		// the overlay's lobby panel, which offers long values outright, so
+		// nothing sets or reads this. Kept only to keep the struct layout
+		// stable for the version gate below.
 		uint8_t trainingMode = 0;
 	};
 

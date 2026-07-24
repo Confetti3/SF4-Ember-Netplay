@@ -7,6 +7,12 @@
 namespace sf4e {
 namespace OverlayPrefs {
 
+	// Lengths of roundCountList / roundTimeList in sf4e__Overlay.cxx. Kept
+	// here so Clamp can bound the saved indices against the same values the
+	// combos are built from.
+	const int ROUND_COUNT_OPTIONS = 6;
+	const int ROUND_TIME_OPTIONS = 5;
+
 	struct CharaPick {
 		uint8_t charaID = 0;
 		uint8_t costume = 0;
@@ -22,6 +28,11 @@ namespace OverlayPrefs {
 		// Lobby
 		CharaPick lobby;
 		int stageID = 0;
+
+		// Lobby match settings (host-editable in the network panel)
+		int lobbyRoundCountIdx = 1;
+		int lobbyRoundTimeIdx = 2;
+		bool lobbyEditionSelect = true;
 
 		// Dev host panel
 		uint8_t hostDelay = 1;

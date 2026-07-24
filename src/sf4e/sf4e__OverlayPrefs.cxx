@@ -115,16 +115,23 @@ namespace OverlayPrefs {
 		if (data.mainMenuJumpStageID < 0 || data.mainMenuJumpStageID >= 30) {
 			data.mainMenuJumpStageID = 0;
 		}
-		if (data.hostRoundCountIdx < 0 || data.hostRoundCountIdx > 3) {
+		// Must track roundCountList / roundTimeList in sf4e__Overlay.cxx.
+		if (data.lobbyRoundCountIdx < 0 || data.lobbyRoundCountIdx >= ROUND_COUNT_OPTIONS) {
+			data.lobbyRoundCountIdx = 1;
+		}
+		if (data.lobbyRoundTimeIdx < 0 || data.lobbyRoundTimeIdx >= ROUND_TIME_OPTIONS) {
+			data.lobbyRoundTimeIdx = 2;
+		}
+		if (data.hostRoundCountIdx < 0 || data.hostRoundCountIdx >= ROUND_COUNT_OPTIONS) {
 			data.hostRoundCountIdx = 1;
 		}
-		if (data.hostRoundTimeIdx < 0 || data.hostRoundTimeIdx > 2) {
+		if (data.hostRoundTimeIdx < 0 || data.hostRoundTimeIdx >= ROUND_TIME_OPTIONS) {
 			data.hostRoundTimeIdx = 2;
 		}
-		if (data.mainMenuRoundCountIdx < 0 || data.mainMenuRoundCountIdx > 3) {
+		if (data.mainMenuRoundCountIdx < 0 || data.mainMenuRoundCountIdx >= ROUND_COUNT_OPTIONS) {
 			data.mainMenuRoundCountIdx = 1;
 		}
-		if (data.mainMenuRoundTimeIdx < 0 || data.mainMenuRoundTimeIdx > 2) {
+		if (data.mainMenuRoundTimeIdx < 0 || data.mainMenuRoundTimeIdx >= ROUND_TIME_OPTIONS) {
 			data.mainMenuRoundTimeIdx = 2;
 		}
 		if (data.extraFramesToSimulate < 1) {
@@ -169,6 +176,13 @@ namespace OverlayPrefs {
 				CharaFromJson(j["lobby"], out.lobby);
 			}
 			out.stageID = j.value("stageID", out.stageID);
+
+			if (j.contains("lobbySettings") && j["lobbySettings"].is_object()) {
+				const auto& ls = j["lobbySettings"];
+				out.lobbyRoundCountIdx = ls.value("roundCountIdx", out.lobbyRoundCountIdx);
+				out.lobbyRoundTimeIdx = ls.value("roundTimeIdx", out.lobbyRoundTimeIdx);
+				out.lobbyEditionSelect = ls.value("editionSelect", out.lobbyEditionSelect);
+			}
 
 			if (j.contains("host") && j["host"].is_object()) {
 				const auto& h = j["host"];
@@ -275,6 +289,12 @@ namespace OverlayPrefs {
 		nlohmann::json j;
 		CharaToJson(j["lobby"], clamped.lobby);
 		j["stageID"] = clamped.stageID;
+
+		j["lobbySettings"] = {
+			{"roundCountIdx", clamped.lobbyRoundCountIdx},
+			{"roundTimeIdx", clamped.lobbyRoundTimeIdx},
+			{"editionSelect", clamped.lobbyEditionSelect},
+		};
 
 		j["host"] = {
 			{"delay", clamped.hostDelay},
