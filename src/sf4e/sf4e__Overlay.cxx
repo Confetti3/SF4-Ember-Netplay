@@ -186,6 +186,13 @@ static rVsMode::ConfirmedCharaConditions lobbyConditions = {
 	0, 0, 0, 0, 0, 0, 0, 0, (BYTE)rBattle::ED_USF4
 };
 
+// Match settings the host edits in the lobby panel. Indices into
+// roundCountList / roundTimeList below. The guest mirrors these from
+// _lobbyData every frame; only P1's edits are ever sent.
+static int lobbyRoundCountIdx = 1;
+static int lobbyRoundTimeIdx = 2;
+static bool lobbyEditionSelect = true;
+
 // Dev host / join panel fields
 static uint8_t hostDelay = 1;
 static char hostName[32] = { 0 };
@@ -208,19 +215,36 @@ static bool soundShowDetails = false;
 static std::deque<std::string> clientAlerts;
 
 // Yes, this is correct- SF4's menu uses the fractional section of the fixed
-// point values 
-static const std::pair<int, const char* const> roundCountList[4] = {
+// point values
+//
+// The first four entries are what the game's own menu offers. The last two go
+// beyond it so a lobby can be set up for a long sparring session without
+// needing a separate mode; rounds past 7 behave as "first to N/2+1".
+static const std::pair<int, const char* const> roundCountList[sf4e::OverlayPrefs::ROUND_COUNT_OPTIONS] = {
 	{1, "1"},
 	{3, "3"},
 	{5, "5"},
-	{7, "7"}
+	{7, "7"},
+	{15, "15"},
+	{99, "99 (endless)"},
 };
 
-static const std::pair<FixedPoint, const char* const> roundTimeList[3] = {
+// As above, the last two entries exceed the menu's range. 9999 is deliberately
+// a huge finite value rather than an "infinite" sentinel: live testing showed a
+// zero time limit is taken literally (the round starts at 0 and instantly ends
+// in time over), and the engine's encoding for the menu's infinite option is
+// unknown. ~2.7 hours per round cannot expire in practice; the worst case is
+// cosmetic, as the HUD timer only expects two digits.
+static const std::pair<FixedPoint, const char* const> roundTimeList[sf4e::OverlayPrefs::ROUND_TIME_OPTIONS] = {
 	{{0, 30}, "30"},
 	{{0, 60}, "60"},
 	{{0, 99}, "99"},
+	{{0, 300}, "300"},
+	{{0, 9999}, "9999 (endless)"},
 };
+
+static const int kRoundCountListLen = sf4e::OverlayPrefs::ROUND_COUNT_OPTIONS;
+static const int kRoundTimeListLen = sf4e::OverlayPrefs::ROUND_TIME_OPTIONS;
 
 const char* GetRoundCountLabel(void* options, int idx) {
 	return ((std::pair<int, const char* const>*)options)[idx].second;
@@ -233,6 +257,10 @@ const char* GetRoundTimeLabel(void* options, int idx) {
 static void CaptureOverlayPrefs(sf4e::OverlayPrefs::Data& out) {
 	sf4e::OverlayPrefs::FromConfirmed(out.lobby, lobbyConditions);
 	out.stageID = lobbyStageID;
+
+	out.lobbyRoundCountIdx = lobbyRoundCountIdx;
+	out.lobbyRoundTimeIdx = lobbyRoundTimeIdx;
+	out.lobbyEditionSelect = lobbyEditionSelect;
 
 	out.hostDelay = hostDelay;
 	strncpy_s(out.hostName, hostName, _TRUNCATE);
@@ -298,6 +326,10 @@ static void ApplyOverlayPrefs(const sf4e::OverlayPrefs::Data& in) {
 	sf4e::OverlayPrefs::ToConfirmed(lobbyConditions, in.lobby);
 	lobbyStageID = in.stageID;
 	lobbyMenuCharaID = lobbyConditions.charaID;
+
+	lobbyRoundCountIdx = in.lobbyRoundCountIdx;
+	lobbyRoundTimeIdx = in.lobbyRoundTimeIdx;
+	lobbyEditionSelect = in.lobbyEditionSelect;
 
 	hostDelay = in.hostDelay;
 	strncpy_s(hostName, in.hostName, _TRUNCATE);
@@ -395,6 +427,82 @@ static int GetLocalLobbyActiveSide() {
 		}
 	}
 	return -1;
+}
+
+static bool IsLocalLobbyHost() {
+	return GetLocalLobbyActiveSide() == 0;
+}
+
+// Map a wire value back onto its menu list index, so the guest's mirrored
+// widgets show the host's choice. Falls back to the current index when the
+// host is running something off-list (e.g. teaching mode's rounds=99), which
+// keeps the combo from snapping to an unrelated entry.
+static int RoundCountIdxFromValue(int roundCount, int fallbackIdx) {
+	for (int i = 0; i < kRoundCountListLen; i++) {
+		if (roundCountList[i].first == roundCount) {
+			return i;
+		}
+	}
+	return fallbackIdx;
+}
+
+static int RoundTimeIdxFromValue(FixedPoint roundTime, int fallbackIdx) {
+	for (int i = 0; i < kRoundTimeListLen; i++) {
+		if (roundTimeList[i].first.integral == roundTime.integral) {
+			return i;
+		}
+	}
+	return fallbackIdx;
+}
+
+// Push the host's current match settings to the session server. The server
+// only accepts these from P1 (see SessionServer's MT_LOBBY_SETSETTINGS
+// handling), and rebroadcasts to both peers, which is what keeps the guest's
+// mirrored widgets and the eventual StartMatchFromLobby read in agreement.
+static void PushLobbySettingsIfHost() {
+	if (!fUserApp::netplay || !IsLocalLobbyHost()) {
+		return;
+	}
+	if (fUserApp::netplay->client.Lobby_SetSettings(
+		lobbyEditionSelect,
+		roundCountList[lobbyRoundCountIdx].first,
+		roundTimeList[lobbyRoundTimeIdx].first,
+		false
+	) != k_EResultOK) {
+		Overlay::PushNetplayAlert("Could not update match settings.");
+		return;
+	}
+	PersistOverlayPrefsNow();
+}
+
+// Keep the lobby settings widgets in step with the server's copy. The guest
+// re-syncs every frame so the host's live edits show up; the host only syncs
+// on entering a lobby, otherwise its own echoed state would stomp an edit in
+// progress.
+static void SyncLobbySettingsFromServerState() {
+	static sf4e::SessionProtocol::LobbyID s_lastSyncedLobbyId;
+	static bool s_haveSyncedLobby = false;
+
+	if (!fUserApp::netplay) {
+		s_haveSyncedLobby = false;
+		return;
+	}
+	const sf4e::SessionProtocol::LobbyData& lobby = fUserApp::netplay->client._lobbyData;
+	const bool isNewLobby =
+		!s_haveSyncedLobby ||
+		s_lastSyncedLobbyId.host != lobby.id.host ||
+		s_lastSyncedLobbyId.key != lobby.id.key;
+
+	if (IsLocalLobbyHost() && !isNewLobby) {
+		return;
+	}
+
+	lobbyRoundCountIdx = RoundCountIdxFromValue(lobby.roundCount, lobbyRoundCountIdx);
+	lobbyRoundTimeIdx = RoundTimeIdxFromValue(lobby.roundTime, lobbyRoundTimeIdx);
+	lobbyEditionSelect = lobby.editionSelect;
+
+	s_lastSyncedLobbyId = lobby.id;
+	s_haveSyncedLobby = true;
 }
 
 static bool CanLobbyReady() {
@@ -1042,8 +1150,8 @@ void DrawMainMenuWindow(bool* pOpen) {
 	Text("Name: %s", EventBase::GetName(mainMenu));
 	ImGui::Checkbox("VS mode: Skip chara/stage select?", &mainMenuShouldJump);
 	if (mainMenuShouldJump) {
-		ImGui::Combo("Round count", &mainMenuRoundCountIdx, GetRoundCountLabel, (void*)roundCountList, 4);
-		ImGui::Combo("Round time", &mainMenuRoundTimeIdx, GetRoundTimeLabel, (void*)roundTimeList, 3);
+		ImGui::Combo("Round count", &mainMenuRoundCountIdx, GetRoundCountLabel, (void*)roundCountList, kRoundCountListLen);
+		ImGui::Combo("Round time", &mainMenuRoundTimeIdx, GetRoundTimeLabel, (void*)roundTimeList, kRoundTimeListLen);
 		ImGui::Checkbox("Edition select", &mainMenuEditionSelect);
 		ImGui::Combo("Stage", &mainMenuJumpStageID, Dimps::stageNames, 30);
 		if (BeginTable("Main Menu", 3)) {
@@ -1176,8 +1284,8 @@ void DrawNetworkHostPanel(uint8_t deviceIdx, uint8_t deviceType) {
 	ImGui::InputScalar("GGPO port", ImGuiDataType_U16, &hostGgpoPort);
 	ImGui::InputText("Name", hostName, 32);
 	Separator();
-	ImGui::Combo("Round cound", &hostRoundCountIdx, GetRoundCountLabel, (void*)roundCountList, 4);
-	ImGui::Combo("Round time", &hostRoundTimeIdx, GetRoundTimeLabel, (void*)roundTimeList, 3);
+	ImGui::Combo("Round cound", &hostRoundCountIdx, GetRoundCountLabel, (void*)roundCountList, kRoundCountListLen);
+	ImGui::Combo("Round time", &hostRoundTimeIdx, GetRoundTimeLabel, (void*)roundTimeList, kRoundTimeListLen);
 	ImGui::Checkbox("Edition select", &hostEditionSelect);
 
 	bool valid = true;
@@ -1210,17 +1318,12 @@ void DrawNetworkLobbyPanel() {
 
 	int isSelfActiveSide = -1;
 	sf4e::SessionClient& client = fUserApp::netplay->client;
+	SyncLobbySettingsFromServerState();
 	if (s_devNetplayOverlay) {
 		ImGui::Checkbox("Verbose logging?", &sf4e::SessionClient::bVerboseLogging);
 		Separator();
 		Text("LID: %s@%s", client._lobbyData.id.host.c_str(), client._lobbyData.id.key.c_str());
 		Text("CID: %s@%s", client._cid.user.c_str(), client._cid.host.c_str());
-		Text("Round count: %d", client._lobbyData.roundCount);
-		Text("Round time: %d", client._lobbyData.roundTime.integral);
-		Text("Edition select: %d", client._lobbyData.editionSelect);
-		if (client._lobbyData.trainingMode) {
-			Text("Mode: training room");
-		}
 	}
 
 	std::vector<sf4e::SessionProtocol::MemberData>& members = client._lobbyData.members;
@@ -1257,6 +1360,40 @@ void DrawNetworkLobbyPanel() {
 	}
 	
 	Separator();
+	Text("Match settings");
+	{
+		sf4e::NetplayStatus settingsStatus = sf4e::NetplayFacade::GetStatus();
+		const bool isHost = IsLocalLobbyHost();
+		// Only P1 may change these, and only between matches: both peers
+		// derive the battle settings from the lobby copy at match start, so
+		// editing mid-match would desync.
+		const bool editable = isHost && settingsStatus.inLobby && !settingsStatus.inMatch;
+
+		ImGui::BeginDisabled(!editable);
+		bool settingsChanged = false;
+		settingsChanged |= ImGui::Combo(
+			"Round count", &lobbyRoundCountIdx, GetRoundCountLabel, (void*)roundCountList, kRoundCountListLen
+		);
+		settingsChanged |= ImGui::Combo(
+			"Round time", &lobbyRoundTimeIdx, GetRoundTimeLabel, (void*)roundTimeList, kRoundTimeListLen
+		);
+		ImGui::EndDisabled();
+
+		if (!isHost) {
+			Text("(Host controls these settings)");
+		}
+		else if (settingsStatus.inMatch) {
+			Text("(Settings lock during a match)");
+		}
+
+		// Send only on the frame a widget actually changed, so holding a
+		// combo open doesn't spam the session server.
+		if (settingsChanged && editable) {
+			PushLobbySettingsIfHost();
+		}
+	}
+
+	Separator();
 	// Draw the config if the player's active
 	if (isSelfActiveSide > -1) {
 		if (fUserApp::netplay->client._outstandingReadyRequestNumber > -1) {
@@ -1264,6 +1401,13 @@ void DrawNetworkLobbyPanel() {
 		}
 		else if (fUserApp::netplay->client._matchData.readyMessageNum[isSelfActiveSide] > -1) {
 			Text("Ready!");
+			// There is no per-player unready in the protocol, so back out via
+			// the lobby reset the post-match rematch flow already uses. It
+			// clears both sides' ready flags, hence the label: the opponent
+			// gets put back to the lobby too.
+			if (Button("Cancel ready (resets both players)")) {
+				fUserApp::ResetLobbyForRematch();
+			}
 		}
 		else {
 			const char* readyLabel = s_devNetplayOverlay ? "Send chara / Ready" : "Ready";
@@ -1278,6 +1422,23 @@ void DrawNetworkLobbyPanel() {
 				ImGui::Combo("Stage", &lobbyStageID, Dimps::stageNames, 30);
 			}
 			DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID);
+
+			// Sits with the character options rather than the round settings:
+			// it decides which edition's movesets are available, so it reads
+			// as part of picking a character. Still host-only and lobby-wide.
+			{
+				sf4e::NetplayStatus editionStatus = sf4e::NetplayFacade::GetStatus();
+				const bool editionEditable =
+					IsLocalLobbyHost() && editionStatus.inLobby && !editionStatus.inMatch;
+				Separator();
+				ImGui::BeginDisabled(!editionEditable);
+				const bool editionChanged =
+					ImGui::Checkbox("Edition select", &lobbyEditionSelect);
+				ImGui::EndDisabled();
+				if (editionChanged && editionEditable) {
+					PushLobbySettingsIfHost();
+				}
+			}
 		}
 
 		if (s_devNetplayOverlay && Button("Report win")) {
@@ -1473,12 +1634,6 @@ static void DrawNetplayPlayerPanel() {
 		else {
 			ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.2f, 1.0f), "Waiting to sync...");
 		}
-	}
-	Spacing();
-	Separator();
-	Spacing();
-	if (Button("Disconnect")) {
-		fUserApp::ShutdownNetplay(true);
 	}
 }
 
