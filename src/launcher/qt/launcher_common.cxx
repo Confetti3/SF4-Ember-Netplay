@@ -38,12 +38,14 @@ QWidget* BuildStepper(QSpinBox* spinBox) {
 	row->setContentsMargins(0, 0, 0, 0);
 	row->setSpacing(3);
 
+	// Match the input height from the stylesheet so the stepper reads as one
+	// control rather than short buttons floating beside a taller field.
 	auto* minus = new QPushButton(QStringLiteral("-"));
 	minus->setObjectName(QStringLiteral("stepperButton"));
-	minus->setFixedSize(24, 24);
+	minus->setFixedSize(30, 30);
 	auto* plus = new QPushButton(QStringLiteral("+"));
 	plus->setObjectName(QStringLiteral("stepperButton"));
-	plus->setFixedSize(24, 24);
+	plus->setFixedSize(30, 30);
 
 	QObject::connect(minus, &QPushButton::clicked, spinBox, [spinBox]() { spinBox->stepDown(); });
 	QObject::connect(plus, &QPushButton::clicked, spinBox, [spinBox]() { spinBox->stepUp(); });
@@ -52,7 +54,7 @@ QWidget* BuildStepper(QSpinBox* spinBox) {
 	row->addWidget(minus);
 	row->addWidget(plus);
 	row->addStretch();
-	stepper->setMinimumHeight(26);
+	stepper->setMinimumHeight(30);
 	ConfigureFormField(spinBox);
 	return stepper;
 }
@@ -109,8 +111,8 @@ QWidget* MakeShareCard(const QString& shareId, QLabel** valueOut, QPushButton** 
 	card->setObjectName(QStringLiteral("shareCard"));
 	card->setProperty("shareId", shareId);
 	auto* layout = new QVBoxLayout(card);
-	layout->setContentsMargins(8, 6, 8, 6);
-	layout->setSpacing(2);
+	layout->setContentsMargins(12, 10, 12, 10);
+	layout->setSpacing(5);
 
 	auto* title = new QLabel(shareId == QStringLiteral("relay") ? QStringLiteral("Relay code")
 		: shareId == QStringLiteral("lan") ? QStringLiteral("LAN address")
@@ -122,7 +124,11 @@ QWidget* MakeShareCard(const QString& shareId, QLabel** valueOut, QPushButton** 
 	auto* copy = new QPushButton(QStringLiteral("Copy"));
 	copy->setObjectName(QStringLiteral("secondaryButton"));
 	copy->setProperty("shareId", shareId);
+	// Seed the property so the [copied="false"] selector resolves on the first
+	// polish; without it the confirmation style only applies after a click.
+	copy->setProperty("copied", false);
 	copy->setEnabled(false);
+	copy->setCursor(Qt::PointingHandCursor);
 	copy->setMaximumWidth(72);
 
 	auto* valueRow = new QHBoxLayout();
