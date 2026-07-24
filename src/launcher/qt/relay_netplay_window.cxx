@@ -12,7 +12,9 @@
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QKeyEvent>
 #include <QMessageBox>
+#include <QPointer>
 #include <QRegularExpression>
 #include <QScrollArea>
 #include <QSizePolicy>
@@ -24,6 +26,29 @@ namespace sf4e {
 namespace launcher {
 
 namespace {
+
+// Shared label-column width so form rows line up across separate group boxes.
+// Sized for the longest label on the host page ("Internet address").
+const int kFormLabelWidth = 104;
+
+// One spacing scale for the whole window. Everything used to sit at 4-6px,
+// which read as cramped; these give each control room to breathe without
+// pushing content off a short page.
+const int kGroupPadding = 12;  // inside a group box
+const int kRowSpacing = 10;    // between rows within a group
+const int kGroupSpacing = 12;  // between group boxes
+const int kLabelGap = 12;      // between a label and its field
+
+// Back buttons should hug their text on the left rather than stretching the
+// full page width, which makes them read as a banner instead of a control.
+QPushButton* MakeBackButton() {
+	auto* btn = new QPushButton(QStringLiteral("←  Back"));
+	btn->setObjectName(QStringLiteral("backButton"));
+	btn->setCursor(Qt::PointingHandCursor);
+	btn->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	btn->setToolTip(QStringLiteral("Return to the main menu (Esc)"));
+	return btn;
+}
 
 QString FormatVersionBadge(QString ver) {
 	ver = ver.trimmed();
@@ -64,8 +89,10 @@ RelayNetplayWindow::RelayNetplayWindow(NetplayLaunchController& controller, QWid
 	, m_controller(controller)
 	, m_bridge(controller, this) {
 	setWindowTitle(QStringLiteral("SF4 Netplay Launcher"));
-	setMinimumSize(460, 500);
-	resize(500, 600);
+	// Sized for the roomier spacing scale: the host page in Advanced is the
+	// tallest layout, and this fits it without forcing a scrollbar.
+	setMinimumSize(500, 560);
+	resize(560, 760);
 
 	buildUi();
 	applyTheme();
@@ -84,6 +111,19 @@ RelayNetplayWindow::RelayNetplayWindow(NetplayLaunchController& controller, QWid
 	});
 
 	m_bridge.post({ { "type", "getState" } });
+}
+
+void RelayNetplayWindow::keyPressEvent(QKeyEvent* event) {
+	// One window-level handler rather than a shortcut on each of the four back
+	// buttons: those would be ambiguous across the stacked pages. On Home there
+	// is nowhere to go back to, so Esc falls through to the default handling.
+	if (event->key() == Qt::Key_Escape && m_stack &&
+		m_stack->currentIndex() != static_cast<int>(Screen::Home)) {
+		onGoHome();
+		event->accept();
+		return;
+	}
+	QMainWindow::keyPressEvent(event);
 }
 
 void RelayNetplayWindow::closeEvent(QCloseEvent* event) {
@@ -166,7 +206,7 @@ void RelayNetplayWindow::buildUi() {
 	homeScroll->setFrameShape(QFrame::NoFrame);
 	auto* homeInner = new QWidget();
 	auto* homeLayout = new QVBoxLayout(homeInner);
-	homeLayout->setSpacing(8);
+	homeLayout->setSpacing(kGroupSpacing);
 
 	auto* cards = new QVBoxLayout();
 	cards->setSpacing(6);
@@ -187,6 +227,10 @@ void RelayNetplayWindow::buildUi() {
 	cards->addWidget(btnOffline);
 	homeLayout->addLayout(cards);
 
+	// Matchmaking and the room browser are built but not ready to ship, so the
+	// entry points stay hidden. The Rooms screen, its list widget and the
+	// broker refresh plumbing are all still wired up below — re-showing this
+	// panel is all that is needed to bring the feature back.
 	m_homeAdvancedPanel = new QGroupBox(QStringLiteral("Quick actions"));
 	auto* quickLayout = new QVBoxLayout(m_homeAdvancedPanel);
 	m_btnFindMatch = new QPushButton(QStringLiteral("Find match"));
@@ -196,6 +240,7 @@ void RelayNetplayWindow::buildUi() {
 	quickLayout->addWidget(m_btnFindMatch);
 	quickLayout->addWidget(m_btnBrowseRooms);
 	homeLayout->addWidget(m_homeAdvancedPanel);
+	m_homeAdvancedPanel->hide();
 
 	auto* updateGroup = new QGroupBox(QStringLiteral("Updates"));
 	updateGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
@@ -240,42 +285,62 @@ void RelayNetplayWindow::buildUi() {
 	auto* hostPage = new QWidget();
 	auto* hostOuter = new QVBoxLayout(hostPage);
 	hostOuter->setContentsMargins(0, 0, 0, 0);
-	hostOuter->setSpacing(6);
-	auto* hostBack = new QPushButton(QStringLiteral("← Back"));
-	hostBack->setObjectName(QStringLiteral("backButton"));
-	hostOuter->addWidget(hostBack);
+	hostOuter->setSpacing(kGroupSpacing);
+	auto* hostBack = MakeBackButton();
+	hostOuter->addWidget(hostBack, 0, Qt::AlignLeft);
 	QObject::connect(hostBack, &QPushButton::clicked, this, &RelayNetplayWindow::onGoHome);
 
 	m_hostScroll = new QScrollArea();
 	m_hostScroll->setWidgetResizable(true);
 	m_hostScroll->setFrameShape(QFrame::NoFrame);
-	m_hostScroll->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
-	m_hostScroll->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+	m_hostScroll->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 	m_hostScroll->setAlignment(Qt::AlignTop | Qt::AlignLeft);
 	auto* hostInner = new QWidget();
-	hostInner->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 	auto* hostLayout = new QVBoxLayout(hostInner);
 	hostLayout->setContentsMargins(0, 0, 0, 0);
-	hostLayout->setSpacing(6);
+	hostLayout->setSpacing(kGroupSpacing);
+
+	// Above the share cards on purpose: this choice decides which of those
+	// cards are relevant, so burying it below them reads backwards.
+	m_hostConnectMethod = new QComboBox();
+	m_hostConnectMethod->addItem(QStringLiteral("Relay room code"), QStringLiteral("relay"));
+	m_hostConnectMethod->addItem(QStringLiteral("Direct IP"), QStringLiteral("direct"));
+	m_hostConnectMethod->addItem(QStringLiteral("Direct + UPnP"), QStringLiteral("autoNat"));
+	m_hostConnectMethod->setToolTip(QStringLiteral(
+		"Relay room code works behind most routers. Direct IP needs a forwarded "
+		"port. Direct + UPnP asks the router to forward it for you."));
+	ConfigureFormField(m_hostConnectMethod);
+	m_hostConnectMethodRow = new QGroupBox(QStringLiteral("Connection"));
+	m_hostConnectMethodRow->setProperty("advancedOnly", true);
+	auto* hostMethodLayout = new QFormLayout(m_hostConnectMethodRow);
+	hostMethodLayout->setContentsMargins(kGroupPadding, kGroupPadding, kGroupPadding, kGroupPadding);
+	hostMethodLayout->setHorizontalSpacing(kLabelGap);
+	hostMethodLayout->setVerticalSpacing(kRowSpacing);
+	hostMethodLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+	hostMethodLayout->addRow(QStringLiteral("Method"), m_hostConnectMethod);
+	hostLayout->addWidget(m_hostConnectMethodRow);
 
 	auto* shareGroup = new QGroupBox(QStringLiteral("Share with opponent"));
 	auto* shareLayout = new QVBoxLayout(shareGroup);
-	shareLayout->setContentsMargins(6, 6, 6, 6);
-	shareLayout->setSpacing(4);
+	shareLayout->setContentsMargins(kGroupPadding, kGroupPadding, kGroupPadding, kGroupPadding);
+	shareLayout->setSpacing(kRowSpacing);
 	auto* shareGrid = new QGridLayout();
-	shareGrid->setSpacing(4);
+	shareGrid->setSpacing(kRowSpacing);
 	auto* relayCard = MakeShareCard(QStringLiteral("relay"), &m_shareRelayValue, &m_btnCopyRelay);
 	m_hostShareLan = MakeShareCard(QStringLiteral("lan"), &m_shareLanValue, &m_btnCopyLan);
 	m_hostShareWan = MakeShareCard(QStringLiteral("wan"), &m_shareWanValue, &m_btnCopyWan);
 	m_btnCreateRoom = new QPushButton(QStringLiteral("Get code"));
 	m_btnCreateRoom->setObjectName(QStringLiteral("secondaryButton"));
 	m_btnCreateRoom->setMinimumWidth(88);
-	auto* relayRow = new QHBoxLayout();
+	// Wrapped in a widget so the whole row can be hidden when the host is not
+	// using relay: a bare layout has no setVisible().
+	m_hostShareRelayRow = new QWidget();
+	auto* relayRow = new QHBoxLayout(m_hostShareRelayRow);
 	relayRow->setContentsMargins(0, 0, 0, 0);
 	relayRow->setSpacing(6);
 	relayRow->addWidget(relayCard, 1);
 	relayRow->addWidget(m_btnCreateRoom, 0, Qt::AlignTop);
-	shareGrid->addLayout(relayRow, 0, 0, 1, 2);
+	shareGrid->addWidget(m_hostShareRelayRow, 0, 0, 1, 2);
 	shareGrid->addWidget(m_hostShareLan, 1, 0);
 	shareGrid->addWidget(m_hostShareWan, 1, 1);
 	shareLayout->addLayout(shareGrid);
@@ -300,11 +365,13 @@ void RelayNetplayWindow::buildUi() {
 	shareLayout->addWidget(m_hostShareHint);
 	hostLayout->addWidget(shareGroup);
 
+	// Always visible in both UI modes: advanced only adds fields, it never
+	// swaps these out, so there is exactly one widget per setting.
 	m_hostSimpleSettings = new QGroupBox(QStringLiteral("Host settings"));
 	auto* hostSimpleLayout = new QFormLayout(m_hostSimpleSettings);
-	hostSimpleLayout->setContentsMargins(6, 6, 6, 6);
-	hostSimpleLayout->setHorizontalSpacing(8);
-	hostSimpleLayout->setVerticalSpacing(4);
+	hostSimpleLayout->setContentsMargins(kGroupPadding, kGroupPadding, kGroupPadding, kGroupPadding);
+	hostSimpleLayout->setHorizontalSpacing(kLabelGap);
+	hostSimpleLayout->setVerticalSpacing(kRowSpacing);
 	hostSimpleLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
 	m_hostNameSimple = new QLineEdit();
 	m_hostNameSimple->setPlaceholderText(QStringLiteral("Display name"));
@@ -312,75 +379,91 @@ void RelayNetplayWindow::buildUi() {
 	m_hostDelaySimple = new QSpinBox();
 	m_hostDelaySimple->setRange(1, 20);
 	m_hostDelaySimple->setValue(2);
+	m_hostDelaySimple->setToolTip(QStringLiteral(
+		"Frames of input delay. Higher hides more lag but feels less responsive; "
+		"2 suits most connections."));
 	hostSimpleLayout->addRow(QStringLiteral("Display name"), m_hostNameSimple);
 	hostSimpleLayout->addRow(QStringLiteral("Input delay"), BuildStepper(m_hostDelaySimple));
 	hostLayout->addWidget(m_hostSimpleSettings);
 
-	// Deliberately outside both the simple and advanced groups so the
-	// option stays visible in either UI mode.
-	m_hostTrainingMode = new QCheckBox(QStringLiteral("Training room (endless sparring)"));
-	m_hostTrainingMode->setToolTip(QStringLiteral(
-		"Host an endless training-style session: maximum rounds and no round timer. Experimental."));
-	hostLayout->addWidget(m_hostTrainingMode);
-
 	m_hostAdvancedSettings = new QGroupBox(QStringLiteral("Advanced host settings"));
 	m_hostAdvancedSettings->setProperty("advancedOnly", true);
-	auto* hostAdvLayout = new QVBoxLayout(m_hostAdvancedSettings);
-	hostAdvLayout->setContentsMargins(8, 8, 8, 8);
-	hostAdvLayout->setSpacing(4);
-	m_hostNameAdv = new QLineEdit();
-	m_hostNameAdv->setPlaceholderText(QStringLiteral("Display name"));
-	ConfigureFormField(m_hostNameAdv);
-	m_hostDelayAdv = new QSpinBox();
-	m_hostDelayAdv->setRange(1, 20);
-	m_hostDelayAdv->setValue(2);
-	m_hostConnectMethod = new QComboBox();
-	m_hostConnectMethod->addItem(QStringLiteral("Relay room code"), QStringLiteral("relay"));
-	m_hostConnectMethod->addItem(QStringLiteral("Direct IP"), QStringLiteral("direct"));
-	m_hostConnectMethod->addItem(QStringLiteral("Direct + UPnP"), QStringLiteral("autoNat"));
-	ConfigureFormField(m_hostConnectMethod);
+	auto* hostAdvLayout = new QFormLayout(m_hostAdvancedSettings);
+	hostAdvLayout->setContentsMargins(kGroupPadding, kGroupPadding, kGroupPadding, kGroupPadding);
+	hostAdvLayout->setHorizontalSpacing(kLabelGap);
+	hostAdvLayout->setVerticalSpacing(kRowSpacing);
+	hostAdvLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
 	m_hostPort = new QSpinBox();
 	m_hostPort->setRange(1024, 65535);
 	m_hostPort->setValue(23456);
-	ConfigureFormField(m_hostPort);
+	m_hostPort->setToolTip(QStringLiteral(
+		"UDP port this machine listens on. Only matters for Direct IP; forward "
+		"it on your router."));
+	// Port needs room for 5 digits, so it gets a wider value box than the
+	// delay stepper but the same styled -/+ buttons instead of Qt's native
+	// arrows, which render as an unusable sliver at this row height.
+	QWidget* hostPortStepper = BuildStepper(m_hostPort);
+	m_hostPort->setMinimumWidth(72);
+	m_hostPort->setMaximumWidth(88);
 	m_hostAdvertise = new QLineEdit();
 	m_hostAdvertise->setPlaceholderText(QStringLiteral("Public IP (auto-detect or enter)"));
+	m_hostAdvertise->setToolTip(QStringLiteral(
+		"The address your opponent connects to. Detected automatically; override "
+		"only if detection picks the wrong one."));
 	ConfigureFormField(m_hostAdvertise);
 	m_hostNatStatus = new QLabel(QStringLiteral("NAT: —"));
 	m_hostNatStatus->setObjectName(QStringLiteral("hint"));
 	m_brokerUrl = new QLineEdit();
-	m_brokerUrl->setPlaceholderText(QStringLiteral("https://74-208-200-95.nip.io"));
+	m_brokerUrl->setPlaceholderText(QStringLiteral("Default room broker"));
+	m_brokerUrl->setToolTip(QStringLiteral(
+		"Server that hands out relay room codes. Leave blank unless you run "
+		"your own."));
 	ConfigureFormField(m_brokerUrl);
-	hostAdvLayout->addWidget(new QLabel(QStringLiteral("Connection method")));
-	hostAdvLayout->addWidget(m_hostConnectMethod);
-	hostAdvLayout->addWidget(new QLabel(QStringLiteral("Display name")));
-	hostAdvLayout->addWidget(m_hostNameAdv);
-	hostAdvLayout->addWidget(new QLabel(QStringLiteral("Input delay (frames)")));
-	hostAdvLayout->addWidget(BuildStepper(m_hostDelayAdv));
-	hostAdvLayout->addWidget(new QLabel(QStringLiteral("Session port")));
-	hostAdvLayout->addWidget(m_hostPort);
-	hostAdvLayout->addWidget(new QLabel(QStringLiteral("Internet address")));
-	hostAdvLayout->addWidget(m_hostAdvertise);
-	hostAdvLayout->addWidget(m_hostNatStatus);
-	hostAdvLayout->addWidget(new QLabel(QStringLiteral("Room broker URL")));
-	hostAdvLayout->addWidget(m_brokerUrl);
+	hostAdvLayout->addRow(QStringLiteral("Session port"), hostPortStepper);
+	hostAdvLayout->addRow(QStringLiteral("Internet address"), m_hostAdvertise);
+	hostAdvLayout->addRow(QString(), m_hostNatStatus);
+	hostAdvLayout->addRow(QStringLiteral("Room broker URL"), m_brokerUrl);
 	hostLayout->addWidget(m_hostAdvancedSettings);
 
+	// Each box should be exactly as tall as its contents. Without this the
+	// spare height is divided among them and short boxes (Connection, with a
+	// single row) stretch into a large empty void.
+	for (QWidget* box : { m_hostConnectMethodRow, static_cast<QWidget*>(shareGroup), m_hostSimpleSettings, m_hostAdvancedSettings }) {
+		if (box) {
+			box->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
+		}
+	}
+	// Each QFormLayout sizes its label column from its own longest label, so
+	// without a shared floor the labels start at a different x in every box.
+	// One width across all of them gives the page a single alignment edge.
+	for (QFormLayout* form : { hostMethodLayout, hostSimpleLayout, hostAdvLayout }) {
+		for (int i = 0; i < form->rowCount(); ++i) {
+			if (QLayoutItem* labelItem = form->itemAt(i, QFormLayout::LabelRole)) {
+				if (QWidget* labelWidget = labelItem->widget()) {
+					labelWidget->setMinimumWidth(kFormLabelWidth);
+				}
+			}
+		}
+	}
+	// Absorb the remainder at the bottom so the boxes stay top-aligned.
+	hostLayout->addStretch(1);
+
 	m_hostScroll->setWidget(hostInner);
-	hostOuter->addWidget(m_hostScroll, 0);
+	// Stretch 1 with no trailing spacer: the scroll area must absorb the spare
+	// height, otherwise it collapses to its minimum and the settings below the
+	// share card become unreachable.
+	hostOuter->addWidget(m_hostScroll, 1);
 
 	m_btnStartHost = new QPushButton(QStringLiteral("Start game"));
 	m_btnStartHost->setObjectName(QStringLiteral("primaryButton"));
 	hostOuter->addWidget(m_btnStartHost);
-	hostOuter->addStretch(1);
 	m_stack->addWidget(hostPage);
 
 	// --- Join ---
 	auto* joinPage = new QWidget();
 	auto* joinOuter = new QVBoxLayout(joinPage);
-	auto* joinBack = new QPushButton(QStringLiteral("← Back"));
-	joinBack->setObjectName(QStringLiteral("backButton"));
-	joinOuter->addWidget(joinBack);
+	auto* joinBack = MakeBackButton();
+	joinOuter->addWidget(joinBack, 0, Qt::AlignLeft);
 	QObject::connect(joinBack, &QPushButton::clicked, this, &RelayNetplayWindow::onGoHome);
 
 	auto* joinScroll = new QScrollArea();
@@ -388,13 +471,13 @@ void RelayNetplayWindow::buildUi() {
 	joinScroll->setFrameShape(QFrame::NoFrame);
 	auto* joinInner = new QWidget();
 	auto* joinLayout = new QVBoxLayout(joinInner);
-	joinLayout->setSpacing(8);
+	joinLayout->setSpacing(kGroupSpacing);
 
 	m_joinSimpleSettings = new QGroupBox(QStringLiteral("Join settings"));
 	auto* joinSimpleLayout = new QFormLayout(m_joinSimpleSettings);
-	joinSimpleLayout->setContentsMargins(6, 6, 6, 6);
-	joinSimpleLayout->setHorizontalSpacing(8);
-	joinSimpleLayout->setVerticalSpacing(4);
+	joinSimpleLayout->setContentsMargins(kGroupPadding, kGroupPadding, kGroupPadding, kGroupPadding);
+	joinSimpleLayout->setHorizontalSpacing(kLabelGap);
+	joinSimpleLayout->setVerticalSpacing(kRowSpacing);
 	joinSimpleLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
 	m_joinNameSimple = new QLineEdit();
 	m_joinNameSimple->setPlaceholderText(QStringLiteral("Display name"));
@@ -402,40 +485,64 @@ void RelayNetplayWindow::buildUi() {
 	m_joinDelaySimple = new QSpinBox();
 	m_joinDelaySimple->setRange(1, 20);
 	m_joinDelaySimple->setValue(2);
+	m_joinDelaySimple->setToolTip(QStringLiteral(
+		"Frames of input delay. Higher hides more lag but feels less responsive; "
+		"2 suits most connections."));
 	m_joinRoomCode = new QLineEdit();
 	m_joinRoomCode->setObjectName(QStringLiteral("roomCodeInput"));
 	m_joinRoomCode->setPlaceholderText(QStringLiteral("SF4-XXXX or 203.0.113.42:23456"));
+	m_joinRoomCode->setToolTip(QStringLiteral(
+		"Paste whatever the host shared: a relay room code, or an address and "
+		"port for a direct connection."));
 	ConfigureFormField(m_joinRoomCode);
 	m_joinRoomCode->setMinimumHeight(30);
+	// Pasting is how a code actually arrives (Discord, chat), so give it a
+	// first-class button instead of relying on Ctrl+V.
+	m_btnPasteRoomCode = new QPushButton(QStringLiteral("Paste"));
+	m_btnPasteRoomCode->setObjectName(QStringLiteral("secondaryButton"));
+	m_btnPasteRoomCode->setToolTip(QStringLiteral("Paste a room code or address from the clipboard."));
+	m_btnPasteRoomCode->setProperty("copied", false);
+	m_btnPasteRoomCode->setCursor(Qt::PointingHandCursor);
+	m_btnPasteRoomCode->setMaximumWidth(72);
+	auto* joinCodeRow = new QWidget();
+	auto* joinCodeLayout = new QHBoxLayout(joinCodeRow);
+	joinCodeLayout->setContentsMargins(0, 0, 0, 0);
+	joinCodeLayout->setSpacing(6);
+	joinCodeLayout->addWidget(m_joinRoomCode, 1);
+	joinCodeLayout->addWidget(m_btnPasteRoomCode, 0);
+
 	joinSimpleLayout->addRow(QStringLiteral("Display name"), m_joinNameSimple);
 	joinSimpleLayout->addRow(QStringLiteral("Input delay"), BuildStepper(m_joinDelaySimple));
-	joinSimpleLayout->addRow(QStringLiteral("Room code or IP:port"), m_joinRoomCode);
+	joinSimpleLayout->addRow(QStringLiteral("Room code or IP:port"), joinCodeRow);
 	joinLayout->addWidget(m_joinSimpleSettings);
 
+	// Advanced only adds the connection-method override; the name, delay and
+	// address fields above stay put so there is one widget per setting.
 	m_joinAdvancedSettings = new QGroupBox(QStringLiteral("Advanced join settings"));
 	m_joinAdvancedSettings->setProperty("advancedOnly", true);
-	auto* joinAdvLayout = new QVBoxLayout(m_joinAdvancedSettings);
-	m_joinNameAdv = new QLineEdit();
-	ConfigureFormField(m_joinNameAdv);
-	m_joinDelayAdv = new QSpinBox();
-	m_joinDelayAdv->setRange(1, 20);
-	m_joinDelayAdv->setValue(2);
+	auto* joinAdvLayout = new QFormLayout(m_joinAdvancedSettings);
+	joinAdvLayout->setContentsMargins(kGroupPadding, kGroupPadding, kGroupPadding, kGroupPadding);
+	joinAdvLayout->setHorizontalSpacing(kLabelGap);
+	joinAdvLayout->setVerticalSpacing(kRowSpacing);
+	joinAdvLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
 	m_joinConnectMethod = new QComboBox();
+	m_joinConnectMethod->addItem(QStringLiteral("Auto-detect"), QStringLiteral("auto"));
 	m_joinConnectMethod->addItem(QStringLiteral("Relay room code"), QStringLiteral("relay"));
 	m_joinConnectMethod->addItem(QStringLiteral("Direct IP:port"), QStringLiteral("direct"));
+	m_joinConnectMethod->setToolTip(QStringLiteral(
+		"Auto-detect picks relay or direct from what you typed above. Override "
+		"only if you need to force one."));
 	ConfigureFormField(m_joinConnectMethod);
-	m_joinAddress = new QLineEdit();
-	m_joinAddress->setPlaceholderText(QStringLiteral("SF4-XXXX or host:port"));
-	ConfigureFormField(m_joinAddress);
-	joinAdvLayout->addWidget(new QLabel(QStringLiteral("Connection method")));
-	joinAdvLayout->addWidget(m_joinConnectMethod);
-	joinAdvLayout->addWidget(new QLabel(QStringLiteral("Display name")));
-	joinAdvLayout->addWidget(m_joinNameAdv);
-	joinAdvLayout->addWidget(new QLabel(QStringLiteral("Input delay (frames)")));
-	joinAdvLayout->addWidget(BuildStepper(m_joinDelayAdv));
-	joinAdvLayout->addWidget(new QLabel(QStringLiteral("Host address or room code")));
-	joinAdvLayout->addWidget(m_joinAddress);
+	joinAdvLayout->addRow(QStringLiteral("Connection method"), m_joinConnectMethod);
 	joinLayout->addWidget(m_joinAdvancedSettings);
+
+	// Same as the host page: content-height boxes, slack at the bottom.
+	for (QWidget* box : { m_joinSimpleSettings, m_joinAdvancedSettings }) {
+		if (box) {
+			box->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
+		}
+	}
+	joinLayout->addStretch(1);
 
 	joinScroll->setWidget(joinInner);
 	joinOuter->addWidget(joinScroll, 1);
@@ -448,9 +555,8 @@ void RelayNetplayWindow::buildUi() {
 	// --- Rooms ---
 	auto* roomsPage = new QWidget();
 	auto* roomsOuter = new QVBoxLayout(roomsPage);
-	auto* roomsBack = new QPushButton(QStringLiteral("← Back"));
-	roomsBack->setObjectName(QStringLiteral("backButton"));
-	roomsOuter->addWidget(roomsBack);
+	auto* roomsBack = MakeBackButton();
+	roomsOuter->addWidget(roomsBack, 0, Qt::AlignLeft);
 	QObject::connect(roomsBack, &QPushButton::clicked, this, &RelayNetplayWindow::onGoHome);
 	auto* roomsHeader = new QHBoxLayout();
 	auto* roomsTitle = new QLabel(QStringLiteral("Open rooms"));
@@ -474,9 +580,8 @@ void RelayNetplayWindow::buildUi() {
 	// --- Offline ---
 	auto* offlinePage = new QWidget();
 	auto* offlineOuter = new QVBoxLayout(offlinePage);
-	auto* offlineBack = new QPushButton(QStringLiteral("← Back"));
-	offlineBack->setObjectName(QStringLiteral("backButton"));
-	offlineOuter->addWidget(offlineBack);
+	auto* offlineBack = MakeBackButton();
+	offlineOuter->addWidget(offlineBack, 0, Qt::AlignLeft);
 	QObject::connect(offlineBack, &QPushButton::clicked, this, &RelayNetplayWindow::onGoHome);
 	auto* offlineForm = new QGroupBox(QStringLiteral("Offline"));
 	auto* offlineLayout = new QVBoxLayout(offlineForm);
@@ -538,6 +643,18 @@ void RelayNetplayWindow::wireSignals() {
 	QObject::connect(m_btnCopyWan, &QPushButton::clicked, this, &RelayNetplayWindow::onCopyShare);
 	QObject::connect(m_btnStartHost, &QPushButton::clicked, this, &RelayNetplayWindow::onStartHost);
 	QObject::connect(m_btnStartJoin, &QPushButton::clicked, this, &RelayNetplayWindow::onStartJoin);
+	QObject::connect(m_btnPasteRoomCode, &QPushButton::clicked, this, &RelayNetplayWindow::onPasteRoomCode);
+	// Normalise once the user finishes editing rather than on every keystroke,
+	// so uppercasing never fights the cursor mid-type.
+	QObject::connect(m_joinRoomCode, &QLineEdit::editingFinished, this, [this]() {
+		if (!m_joinRoomCode) {
+			return;
+		}
+		const QString normalized = NormalizeRoomCodeText(m_joinRoomCode->text());
+		if (normalized != m_joinRoomCode->text()) {
+			m_joinRoomCode->setText(normalized);
+		}
+	});
 	QObject::connect(m_btnFindMatch, &QPushButton::clicked, this, &RelayNetplayWindow::onFindMatch);
 	QObject::connect(m_btnBrowseRooms, &QPushButton::clicked, this, &RelayNetplayWindow::onBrowseRooms);
 	QObject::connect(m_btnCheckUpdate, &QPushButton::clicked, this, &RelayNetplayWindow::onCheckUpdate);
@@ -555,6 +672,13 @@ void RelayNetplayWindow::wireSignals() {
 	});
 	QObject::connect(m_brokerUrl, &QLineEdit::editingFinished, this, &RelayNetplayWindow::onBrokerChanged);
 	QObject::connect(m_roomList, &QListWidget::itemClicked, this, &RelayNetplayWindow::onRoomSelected);
+
+	// One sweep instead of a setCursor call per button: every clickable button
+	// should read as clickable, and this cannot drift as buttons are added.
+	const QList<QPushButton*> buttons = findChildren<QPushButton*>();
+	for (QPushButton* btn : buttons) {
+		btn->setCursor(Qt::PointingHandCursor);
+	}
 }
 
 void RelayNetplayWindow::showScreen(Screen screen) {
@@ -571,37 +695,8 @@ void RelayNetplayWindow::showScreen(Screen screen) {
 }
 
 void RelayNetplayWindow::applyUiMode(bool fromUser) {
-	if (fromUser) {
-		// Keep Simple/Advanced name + delay in sync when toggling.
-		if (m_simpleUi) {
-			if (m_hostNameSimple && m_hostNameAdv && !m_hostNameAdv->text().trimmed().isEmpty()) {
-				m_hostNameSimple->setText(m_hostNameAdv->text());
-			}
-			if (m_joinNameSimple && m_joinNameAdv && !m_joinNameAdv->text().trimmed().isEmpty()) {
-				m_joinNameSimple->setText(m_joinNameAdv->text());
-			}
-			if (m_hostDelaySimple && m_hostDelayAdv) {
-				m_hostDelaySimple->setValue(m_hostDelayAdv->value());
-			}
-			if (m_joinDelaySimple && m_joinDelayAdv) {
-				m_joinDelaySimple->setValue(m_joinDelayAdv->value());
-			}
-		}
-		else {
-			if (m_hostNameAdv && m_hostNameSimple && !m_hostNameSimple->text().trimmed().isEmpty()) {
-				m_hostNameAdv->setText(m_hostNameSimple->text());
-			}
-			if (m_joinNameAdv && m_joinNameSimple && !m_joinNameSimple->text().trimmed().isEmpty()) {
-				m_joinNameAdv->setText(m_joinNameSimple->text());
-			}
-			if (m_hostDelayAdv && m_hostDelaySimple) {
-				m_hostDelayAdv->setValue(m_hostDelaySimple->value());
-			}
-			if (m_joinDelayAdv && m_joinDelaySimple) {
-				m_joinDelayAdv->setValue(m_joinDelaySimple->value());
-			}
-		}
-	}
+	// Nothing to reconcile between modes: each setting has exactly one widget,
+	// and Advanced only reveals additional ones.
 	m_btnModeSimple->setChecked(m_simpleUi);
 	m_btnModeAdvanced->setChecked(!m_simpleUi);
 	setAdvancedVisible(!m_simpleUi);
@@ -612,17 +707,14 @@ void RelayNetplayWindow::applyUiMode(bool fromUser) {
 }
 
 void RelayNetplayWindow::setAdvancedVisible(bool advanced) {
-	if (m_homeAdvancedPanel) {
-		m_homeAdvancedPanel->setVisible(advanced);
-	}
-	if (m_hostSimpleSettings) {
-		m_hostSimpleSettings->setVisible(!advanced);
+	// Deliberately not driven by the advanced toggle: matchmaking and the room
+	// browser are deferred, so this panel stays hidden in both modes.
+	// The basics boxes stay visible in both modes; advanced is purely additive.
+	if (m_hostConnectMethodRow) {
+		m_hostConnectMethodRow->setVisible(advanced);
 	}
 	if (m_hostAdvancedSettings) {
 		m_hostAdvancedSettings->setVisible(advanced);
-	}
-	if (m_joinSimpleSettings) {
-		m_joinSimpleSettings->setVisible(!advanced);
 	}
 	if (m_joinAdvancedSettings) {
 		m_joinAdvancedSettings->setVisible(advanced);
@@ -697,22 +789,13 @@ QString RelayNetplayWindow::activeRelayRoomCode() const {
 }
 
 QString RelayNetplayWindow::getDisplayName(bool hostScreen) const {
-	if (m_simpleUi) {
-		const QLineEdit* field = hostScreen ? m_hostNameSimple : m_joinNameSimple;
-		const QString name = field ? field->text().trimmed() : QString();
-		return name.isEmpty() ? QStringLiteral("Player") : name;
-	}
-	const QLineEdit* field = hostScreen ? m_hostNameAdv : m_joinNameAdv;
+	const QLineEdit* field = hostScreen ? m_hostNameSimple : m_joinNameSimple;
 	const QString name = field ? field->text().trimmed() : QString();
 	return name.isEmpty() ? QStringLiteral("Player") : name;
 }
 
 int RelayNetplayWindow::getInputDelay(bool hostScreen) const {
-	if (m_simpleUi) {
-		const QSpinBox* box = hostScreen ? m_hostDelaySimple : m_joinDelaySimple;
-		return box ? box->value() : 2;
-	}
-	const QSpinBox* box = hostScreen ? m_hostDelayAdv : m_joinDelayAdv;
+	const QSpinBox* box = hostScreen ? m_hostDelaySimple : m_joinDelaySimple;
 	return box ? box->value() : 2;
 }
 
@@ -724,10 +807,16 @@ QString RelayNetplayWindow::getHostConnectMethod() const {
 }
 
 QString RelayNetplayWindow::getJoinConnectMethod(const QString& trimmedCode) const {
-	if (m_simpleUi) {
+	// Simple mode always infers from the entered text. Advanced exposes the
+	// same inference as "auto" plus explicit overrides.
+	const QString selected =
+		(!m_simpleUi && m_joinConnectMethod)
+			? m_joinConnectMethod->currentData().toString()
+			: QStringLiteral("auto");
+	if (selected == QStringLiteral("auto")) {
 		return IsShortRoomCodeQString(trimmedCode) ? QStringLiteral("relay") : QStringLiteral("direct");
 	}
-	return m_joinConnectMethod ? m_joinConnectMethod->currentData().toString() : QStringLiteral("relay");
+	return selected;
 }
 
 void RelayNetplayWindow::setShareCard(const QString& id, const QString& value) {
@@ -784,7 +873,14 @@ void RelayNetplayWindow::renderHostShareCards() {
 
 	setShareCard(QStringLiteral("relay"), activeRelayRoomCode());
 
-	const bool showDirectShare = !m_simpleUi;
+	// Show only what the chosen method actually needs: a room code for relay,
+	// an IP:port for direct. Simple mode is always relay.
+	const bool usingRelay = getHostConnectMethod() == QStringLiteral("relay");
+	if (m_hostShareRelayRow) {
+		m_hostShareRelayRow->setVisible(usingRelay);
+	}
+
+	const bool showDirectShare = !m_simpleUi && !usingRelay;
 	if (m_hostShareLan) {
 		m_hostShareLan->setVisible(showDirectShare);
 	}
@@ -844,9 +940,6 @@ void RelayNetplayWindow::updateJoinControls() {
 	if (m_joinRoomCode && m_joinRoomCode->text().trimmed().isEmpty()) {
 		m_joinRoomCode->setText(lastJoin);
 	}
-	if (m_joinAddress && m_joinAddress->text().trimmed().isEmpty()) {
-		m_joinAddress->setText(lastJoin);
-	}
 }
 
 void RelayNetplayWindow::syncFromState(const nlohmann::json& state) {
@@ -860,14 +953,8 @@ void RelayNetplayWindow::syncFromState(const nlohmann::json& state) {
 		if (m_hostNameSimple && m_hostNameSimple->text().isEmpty()) {
 			m_hostNameSimple->setText(name);
 		}
-		if (m_hostNameAdv && m_hostNameAdv->text().isEmpty()) {
-			m_hostNameAdv->setText(name);
-		}
 		if (m_joinNameSimple && m_joinNameSimple->text().isEmpty()) {
 			m_joinNameSimple->setText(name);
-		}
-		if (m_joinNameAdv && m_joinNameAdv->text().isEmpty()) {
-			m_joinNameAdv->setText(name);
 		}
 		if (m_offlineName && (m_offlineName->text().isEmpty() || m_offlineName->text() == QStringLiteral("Offline Tester"))) {
 			m_offlineName->setText(name);
@@ -878,14 +965,8 @@ void RelayNetplayWindow::syncFromState(const nlohmann::json& state) {
 		if (m_hostDelaySimple) {
 			m_hostDelaySimple->setValue(delay);
 		}
-		if (m_hostDelayAdv) {
-			m_hostDelayAdv->setValue(delay);
-		}
 		if (m_joinDelaySimple) {
 			m_joinDelaySimple->setValue(delay);
-		}
-		if (m_joinDelayAdv) {
-			m_joinDelayAdv->setValue(delay);
 		}
 	}
 	if (state.contains("sessionPort") && m_hostPort) {
@@ -1172,6 +1253,40 @@ void RelayNetplayWindow::onCopyShare() {
 		return;
 	}
 	copyShareValue(btn->property("shareId").toString());
+	flashCopied(btn);
+}
+
+// Briefly relabel a copy button so the confirmation appears where the user
+// clicked, not just in the corner toast. Re-clicking restarts the timer rather
+// than stacking, and the QPointer guard covers the button outliving the timer.
+void RelayNetplayWindow::flashCopied(QPushButton* btn, const QString& confirmText) {
+	if (!btn) {
+		return;
+	}
+	if (btn->property("copyOriginalText").isNull()) {
+		btn->setProperty("copyOriginalText", btn->text());
+	}
+	btn->setText(confirmText);
+	btn->setProperty("copied", true);
+	if (btn->style()) {
+		btn->style()->unpolish(btn);
+		btn->style()->polish(btn);
+	}
+	QPointer<QPushButton> guarded(btn);
+	QTimer::singleShot(1500, this, [guarded]() {
+		if (!guarded) {
+			return;
+		}
+		const QVariant original = guarded->property("copyOriginalText");
+		if (original.isValid() && !original.isNull()) {
+			guarded->setText(original.toString());
+		}
+		guarded->setProperty("copied", false);
+		if (guarded->style()) {
+			guarded->style()->unpolish(guarded);
+			guarded->style()->polish(guarded);
+		}
+	});
 }
 
 void RelayNetplayWindow::copyShareValue(const QString& id) {
@@ -1255,7 +1370,6 @@ void RelayNetplayWindow::startGameHost() {
 	payload["connectMethod"] = method.toStdString();
 	payload["displayName"] = getDisplayName(true).toStdString();
 	payload["inputDelay"] = getInputDelay(true);
-	payload["trainingMode"] = m_hostTrainingMode && m_hostTrainingMode->isChecked();
 	payload["sessionPort"] = m_hostPort ? m_hostPort->value() : 23456;
 	payload["advertiseHost"] = m_hostAdvertise ? m_hostAdvertise->text().trimmed().toStdString() : std::string();
 	if (method == QStringLiteral("relay") && !relayCode.isEmpty()) {
@@ -1273,15 +1387,16 @@ void RelayNetplayWindow::startGameHost() {
 }
 
 void RelayNetplayWindow::startGameJoin() {
-	const QString target =
-		m_simpleUi ? (m_joinRoomCode ? m_joinRoomCode->text().trimmed() : QString())
-				   : (m_joinAddress ? m_joinAddress->text().trimmed() : QString());
+	const QString target = m_joinRoomCode ? m_joinRoomCode->text().trimmed() : QString();
 	if (target.isEmpty()) {
 		showToast(QStringLiteral("Enter a room code or host address."), QStringLiteral("error"));
 		return;
 	}
 	const QString method = getJoinConnectMethod(target);
-	if (!m_simpleUi) {
+	// Only complain when the user explicitly overrode the method; "auto"
+	// derives from the same text and cannot contradict it.
+	if (!m_simpleUi && m_joinConnectMethod &&
+		m_joinConnectMethod->currentData().toString() != QStringLiteral("auto")) {
 		if (method == QStringLiteral("relay") && !IsShortRoomCodeQString(target)) {
 			showToast(QStringLiteral("Relay mode needs a room code like SF4-XXXX."), QStringLiteral("error"));
 			return;
@@ -1340,6 +1455,35 @@ void RelayNetplayWindow::onFindMatch() {
 	});
 }
 
+// Tidy up what people actually paste: chat clients add stray whitespace, and
+// codes get retyped in lower case. Only the SF4- form is touched -- addresses
+// and hostnames are left exactly as entered, since case can matter there.
+QString RelayNetplayWindow::NormalizeRoomCodeText(const QString& raw) {
+	QString cleaned = raw.simplified();
+	cleaned.remove(QLatin1Char(' '));
+	if (cleaned.startsWith(QStringLiteral("sf4-"), Qt::CaseInsensitive)) {
+		return cleaned.toUpper();
+	}
+	return cleaned;
+}
+
+void RelayNetplayWindow::onPasteRoomCode() {
+	const QClipboard* clip = QApplication::clipboard();
+	if (!clip || !m_joinRoomCode) {
+		return;
+	}
+	const QString pasted = NormalizeRoomCodeText(clip->text());
+	if (pasted.isEmpty()) {
+		showToast(QStringLiteral("Clipboard is empty."), QStringLiteral("error"));
+		return;
+	}
+	m_joinRoomCode->setText(pasted);
+	m_joinRoomCode->setFocus();
+	if (m_btnPasteRoomCode) {
+		flashCopied(m_btnPasteRoomCode, QStringLiteral("Pasted"));
+	}
+}
+
 void RelayNetplayWindow::onBrowseRooms() {
 	showScreen(Screen::Rooms);
 	onRefreshRooms();
@@ -1356,9 +1500,6 @@ void RelayNetplayWindow::onRoomSelected(QListWidgetItem* item) {
 	const QString code = item->data(Qt::UserRole).toString();
 	if (m_joinRoomCode) {
 		m_joinRoomCode->setText(code);
-	}
-	if (m_joinAddress) {
-		m_joinAddress->setText(code);
 	}
 	// Rooms in the browser are always relay rooms. In advanced mode the connect
 	// method dropdown may still be on "Direct IP:port" from an earlier session,

@@ -30,6 +30,7 @@ public:
 
 protected:
 	void closeEvent(QCloseEvent* event) override;
+	void keyPressEvent(QKeyEvent* event) override;
 
 private slots:
 	void onReply(const nlohmann::json& msg);
@@ -37,6 +38,7 @@ private slots:
 	void onExitForUpdate();
 	void onCreateRelayRoom();
 	void onCopyShare();
+	void onPasteRoomCode();
 	void onRefreshPublicIp();
 	void onTryUpnp();
 	void onStartHost();
@@ -80,6 +82,8 @@ private:
 	void renderHostShareCards();
 	void setShareCard(const QString& id, const QString& value);
 	void copyShareValue(const QString& id);
+	void flashCopied(QPushButton* btn, const QString& confirmText = QStringLiteral("Copied"));
+	static QString NormalizeRoomCodeText(const QString& raw);
 	void updateHostControls();
 	void updateJoinControls();
 	void renderRoomList(const nlohmann::json& rooms, const QString& listError);
@@ -145,13 +149,12 @@ private:
 	QPushButton* m_btnCreateRoom = nullptr;
 	QPushButton* m_btnTryUpnp = nullptr;
 	QLabel* m_hostShareHint = nullptr;
+	QWidget* m_hostShareRelayRow = nullptr;
+	QWidget* m_hostConnectMethodRow = nullptr;
 	QWidget* m_hostSimpleSettings = nullptr;
 	QLineEdit* m_hostNameSimple = nullptr;
 	QSpinBox* m_hostDelaySimple = nullptr;
-	QCheckBox* m_hostTrainingMode = nullptr;
 	QWidget* m_hostAdvancedSettings = nullptr;
-	QLineEdit* m_hostNameAdv = nullptr;
-	QSpinBox* m_hostDelayAdv = nullptr;
 	QComboBox* m_hostConnectMethod = nullptr;
 	QSpinBox* m_hostPort = nullptr;
 	QLineEdit* m_hostAdvertise = nullptr;
@@ -164,11 +167,9 @@ private:
 	QLineEdit* m_joinNameSimple = nullptr;
 	QSpinBox* m_joinDelaySimple = nullptr;
 	QLineEdit* m_joinRoomCode = nullptr;
+	QPushButton* m_btnPasteRoomCode = nullptr;
 	QWidget* m_joinAdvancedSettings = nullptr;
-	QLineEdit* m_joinNameAdv = nullptr;
-	QSpinBox* m_joinDelayAdv = nullptr;
 	QComboBox* m_joinConnectMethod = nullptr;
-	QLineEdit* m_joinAddress = nullptr;
 	QPushButton* m_btnStartJoin = nullptr;
 
 	// Rooms
