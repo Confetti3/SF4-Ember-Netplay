@@ -93,17 +93,27 @@ static void NoteDisconnectFlags(int flags) {
 // must never move to a background thread.
 static DWORD s_saveStateThreadId = 0;
 static void AssertSaveStateThreadAffinity() {
-#ifndef NDEBUG
     DWORD tid = GetCurrentThreadId();
     if (s_saveStateThreadId == 0) {
         s_saveStateThreadId = tid;
+        return;
     }
-    assert(tid == s_saveStateThreadId && "SaveState ops must stay on the game main thread");
-#else
-    if (s_saveStateThreadId == 0) {
-        s_saveStateThreadId = GetCurrentThreadId();
+    if (tid != s_saveStateThreadId) {
+        // Release builds previously latched the id and said nothing, so a
+        // violation was invisible in exactly the builds players run. There is
+        // no safe recovery (the engine memento calls are already in flight),
+        // but the log line makes it diagnosable instead of silent.
+        static bool s_warnedThreadAffinity = false;
+        if (!s_warnedThreadAffinity) {
+            s_warnedThreadAffinity = true;
+            spdlog::error(
+                "SaveState: op ran on thread {} but pool is owned by thread {}",
+                tid,
+                s_saveStateThreadId
+            );
+        }
+        assert(false && "SaveState ops must stay on the game main thread");
     }
-#endif
 }
 
 // Restores pad playback mode on every exit path. GGPO input playback must
@@ -539,9 +549,34 @@ void fSystem::BattleUpdate() {
     }
 }
 
+// Emits the occupancy of the savestate pool. Called on entry to every
+// teardown/startup path so the log alone distinguishes "the pool was already
+// corrupt when we got here" from "this teardown corrupted it", without
+// needing a crash dump.
+void fSystem::LogSaveSlotOccupancy(const char* label) {
+    uint32_t occupied = 0;
+    for (int i = 0; i < NUM_SAVE_STATES; i++) {
+        if (saveStates[i].used || !saveStates[i].keys.empty()) {
+            occupied++;
+            spdlog::info(
+                "SaveSlots [{}]: slot {} used={} keys={} ownsKeys={} simFrame={} ggpoFrame={}",
+                label,
+                i,
+                saveStates[i].used,
+                saveStates[i].keys.size(),
+                saveStates[i].ownsKeys,
+                saveStates[i].simulationFrame,
+                saveStates[i].ggpoFrame
+            );
+        }
+    }
+    spdlog::info("SaveSlots [{}]: {}/{} occupied", label, occupied, NUM_SAVE_STATES);
+}
+
 void fSystem::CloseBattle() {
     rSystem* _this = (rSystem*)this;
     bool summaryEmitted = false;
+    LogSaveSlotOccupancy("battle_close_entry");
     if (ggpo) {
         simGate.OnBattleClosing();
         // Decide defer *before* close so a prior spectator defer flag cannot
@@ -565,6 +600,12 @@ void fSystem::CloseBattle() {
         if (saveStates[i].used) {
             SaveState::Free(&saveStates[i]);
         }
+    }
+    // Anything still holding records after the free loop is leaked: Free
+    // clears every slot it touches. Reclaim without engine calls, since the
+    // battle those keys point into is being torn down right now.
+    for (int i = 0; i < NUM_SAVE_STATES; i++) {
+        SaveState::Reclaim(&saveStates[i], "battle_close_sweep", i);
     }
     if (!summaryEmitted) {
         EmitRollbackDiagSummary("battle_close_deferred");
@@ -768,6 +809,7 @@ void fSystem::AbortGgpoMatch(const char* reason) {
         spdlog::error("GGPO match abort: {}", reason);
         sf4e::NetplayFacade::PushAlert(reason);
     }
+    LogSaveSlotOccupancy("abort_entry");
     simGate.OnFatal();
     bUpdateAllowed = false;
     bGgpoConnectionInterrupted = false;
@@ -788,6 +830,16 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
         RetireGgpoSession("leftover_before_start");
     }
     diag::G().ResetForMatch(diag::NowMs());
+    // The savestate pool must start empty. A slot still holding records here
+    // is leaked from the previous match — most often via the deferred-close
+    // path, which retires the session from NetplayFacade::TickFrame and so
+    // never runs CloseBattle's free loop. Reclaim without engine calls: the
+    // previous battle's objects are gone, so ClearKey through those pointers
+    // would fault. Reusing a dirty slot is what corrupts the next match.
+    LogSaveSlotOccupancy("start_ggpo_entry");
+    for (int i = 0; i < NUM_SAVE_STATES; i++) {
+        SaveState::Reclaim(&saveStates[i], "start_ggpo", i);
+    }
     simGate.OnSessionStarted();
     bUpdateAllowed = !simGate.manualPause;
     ResetPacerForSession();
@@ -876,6 +928,11 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
         RetireGgpoSession("leftover_before_spectating");
     }
     diag::G().ResetForMatch(diag::NowMs());
+    // Same rationale as StartGGPO: the pool must start empty.
+    LogSaveSlotOccupancy("start_spectating_entry");
+    for (int i = 0; i < NUM_SAVE_STATES; i++) {
+        SaveState::Reclaim(&saveStates[i], "start_spectating", i);
+    }
     simGate.OnSessionStarted();
     bUpdateAllowed = !simGate.manualPause;
     ResetPacerForSession();
@@ -1040,7 +1097,35 @@ bool fSystem::ggpo_log_game_state(char* filename, unsigned char* buffer, int)
 
 void fSystem::ggpo_free_buffer(void* buffer)
 {
-    SaveState* victim = (SaveState*)buffer;
+    // GGPO hands back the pointer the save callback gave it, which is always
+    // &saveStates[i]. Validate rather than trust: a stale or duplicated free
+    // would otherwise run CopyIntoPlace on an arbitrary address and push
+    // garbage keys into live engine objects.
+    if (!buffer) {
+        spdlog::error("GGPO: free_buffer called with null buffer; ignoring");
+        return;
+    }
+    const char* base = (const char*)&saveStates[0];
+    const char* target = (const char*)buffer;
+    ptrdiff_t offset = target - base;
+    if (offset < 0 ||
+        offset >= (ptrdiff_t)(sizeof(SaveState) * NUM_SAVE_STATES) ||
+        (offset % sizeof(SaveState)) != 0) {
+        spdlog::error(
+            "GGPO: free_buffer called with a pointer outside the savestate pool ({}); ignoring",
+            buffer
+        );
+        return;
+    }
+
+    SaveState* victim = &saveStates[offset / sizeof(SaveState)];
+    if (!victim->used) {
+        spdlog::error(
+            "GGPO: free_buffer on slot {} which is already free; ignoring",
+            offset / sizeof(SaveState)
+        );
+        return;
+    }
     SaveState::Free(victim);
 }
 
@@ -1334,13 +1419,20 @@ void CopyIntoPlace(fSystem::SaveState* src) {
 }
 
 void Clear(fSystem::SaveState* victim) {
-    for (auto iter = victim->keys.begin(); iter != victim->keys.end(); iter++) {
-        if (iter->first) {
-            (iter->first->*rKey::publicMethods.ClearKey)();
-            memset(iter->first, 0, sizeof(rKey));
+    // Only release payloads this state still has a claim on. A state whose
+    // ownership was handed back (see SaveState::Free) holds stale copies
+    // whose payloads now belong to the live keys; clearing through them
+    // would be a double free.
+    if (victim->ownsKeys) {
+        for (auto iter = victim->keys.begin(); iter != victim->keys.end(); iter++) {
+            if (iter->first) {
+                (iter->first->*rKey::publicMethods.ClearKey)();
+                memset(iter->first, 0, sizeof(rKey));
+            }
         }
     }
     victim->keys.clear();
+    victim->ownsKeys = true;
 
     // Restore all non-memento-key state to a sane default. Slot reuse must
     // also reset frame metadata so a stale callback identity can never be
@@ -1360,6 +1452,27 @@ void Clear(fSystem::SaveState* victim) {
     victim->d.BattleFlowCallback_CallEveryFrame_aa9254 = nullptr;
     victim->criPlayerState.clear();
     victim->managerState.clear();
+}
+
+void fSystem::SaveState::Reclaim(SaveState* victim, const char* reason, int slotIndex) {
+    if (!victim->used && victim->keys.empty()) {
+        return;
+    }
+    spdlog::warn(
+        "SaveState: reclaiming leaked slot {} ({}) used={} keys={} simFrame={} ggpoFrame={}",
+        slotIndex,
+        reason ? reason : "?",
+        victim->used,
+        victim->keys.size(),
+        victim->simulationFrame,
+        victim->ggpoFrame
+    );
+    // Drop the records without engine calls. At the points that call this
+    // (session start, post-teardown sweep) the battle objects the keys point
+    // at are either gone or owned by a fresh battle, so ClearKey through
+    // those pointers is exactly what must not happen.
+    victim->ownsKeys = false;
+    Clear(victim);
 }
 
 void fSystem::SaveState::Free(SaveState* victim) {
@@ -1391,12 +1504,21 @@ void fSystem::SaveState::Free(SaveState* victim) {
         Clear(victim);
     }
 
-    // Restore the state at the start of the function. We don't need to
-    // handle clearing the keys injected by this operation, because the
-    // SaveState managing the keys is short-lived.
+    // Restore the state at the start of the function.
+    //
+    // CopyIntoPlace copies each key struct back into its live slot, which
+    // hands ownership of every memento payload back to the engine. `tmp`
+    // still holds identical copies pointing at those same payloads, so its
+    // ownership record is now stale and must be dropped WITHOUT calling
+    // ClearKey — releasing it through the engine would free the payloads the
+    // live keys just took back. Being short-lived is not sufficient: `tmp`
+    // has no destructor, and CloseBattle calls Free in a loop, so a stale
+    // claim here is freed again by the next iteration's Clear().
     {
         diag::ScopedTimer _t(diag::OP_FREE_LIVE_RESTORE);
         CopyIntoPlace(&tmp);
+        tmp.ownsKeys = false;
+        tmp.keys.clear();
     }
     if (diag::Enabled()) {
         uint32_t occupied = 0;
@@ -1475,9 +1597,26 @@ void fSystem::SaveState::Save(SaveState* dst, bool temporary) {
     diag::ScopedTimer _saveTimer(temporary ? -1 : diag::OP_SAVE_TOTAL);
     AssertSaveStateThreadAffinity();
     rSystem* system = rSystem::staticMethods.GetSingleton();
-    assert(dst->keys.empty());
+
+    // Saving into a slot that still holds records would append to them,
+    // overwriting the only pointers to the previous payloads and leaking
+    // every one. This was assert-only, so in release it corrupted silently.
+    // Recover by releasing the slot properly first: the payloads are still
+    // owned here, so Free (not Reclaim) is the correct release.
+    if (!dst->keys.empty()) {
+        spdlog::error(
+            "SaveState: saving into a dirty slot (keys={} used={} simFrame={} ggpoFrame={}); releasing first",
+            dst->keys.size(),
+            dst->used,
+            dst->simulationFrame,
+            dst->ggpoFrame
+        );
+        assert(false && "SaveState::Save into a non-empty slot");
+        SaveState::Free(dst);
+    }
 
     dst->used = true;
+    dst->ownsKeys = true;
 
     {
         diag::ScopedTimer _t(temporary ? -1 : diag::OP_SAVE_RECORD_MEMENTOS);
