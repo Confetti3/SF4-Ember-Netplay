@@ -4,7 +4,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
 project (
     sf4e
-    VERSION 0.6.4
+    VERSION 0.6.5
     DESCRIPTION "A process-inspection and modification tool for the Steam release of Ultra Street Fighter 4."
     HOMEPAGE_URL "https://github.com/Confetti3/SF4-Netplay-Launcher"
 )
@@ -178,6 +178,10 @@ if(BUILD_TESTING)
     add_executable(StateHashTest "src/tests/state_hash_test.cxx")
     add_test(NAME StateHash COMMAND StateHashTest)
     set_tests_properties(StateHash PROPERTIES TIMEOUT 15)
+
+    add_executable(SaveStateOwnershipTest "src/tests/savestate_ownership_test.cxx")
+    add_test(NAME SaveStateOwnership COMMAND SaveStateOwnershipTest)
+    set_tests_properties(SaveStateOwnership PROPERTIES TIMEOUT 15)
 endif()
 
 add_executable(RelayHost "src/relay/relay_host.cxx")

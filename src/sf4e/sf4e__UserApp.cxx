@@ -291,7 +291,7 @@ void fUserApp::_OnVsBattleTasksRegistered()
         }
 
         GGPOPlayer players[MAX_SF4E_PROTOCOL_USERS];
-        for (int i = 0; i < 2 && i < netplay->client._lobbyData.members.size(); i++) {
+        for (int i = 0; i < 2 && (size_t)i < netplay->client._lobbyData.members.size(); i++) {
             SessionProtocol::MemberData& memberData = netplay->client._lobbyData.members[i];
             GGPOPlayer& player = players[i];
             player.size = sizeof(GGPOPlayer);
@@ -369,9 +369,23 @@ void fUserApp::_OnVsBattleTasksRegistered()
                 }
             }
         }
-        for (int i = 2; i < netplay->client._lobbyData.members.size(); i++) {
+        // members.size() arrives off the wire from the room server. Bounding
+        // the loop only by it lets a misbehaving or spoofed broker write past
+        // players[MAX_SF4E_PROTOCOL_USERS] on the stack.
+        size_t memberCount = netplay->client._lobbyData.members.size();
+        if (memberCount > MAX_SF4E_PROTOCOL_USERS) {
+            spdlog::warn(
+                "Netplay: lobby reported {} members, clamping to protocol max {}",
+                memberCount,
+                MAX_SF4E_PROTOCOL_USERS
+            );
+            memberCount = MAX_SF4E_PROTOCOL_USERS;
+        }
+        for (size_t i = 2; i < memberCount; i++) {
             SessionProtocol::MemberData& memberData = netplay->client._lobbyData.members[i];
             GGPOPlayer& player = players[i];
+            player.size = sizeof(GGPOPlayer);
+            player.player_num = (int)i + 1;
             player.type = GGPO_PLAYERTYPE_SPECTATOR;
             player.u.remote.port = memberData.port;
 
@@ -393,7 +407,7 @@ void fUserApp::_OnVsBattleTasksRegistered()
         }
         fSystem::StartGGPO(
             players,
-            netplay->client._lobbyData.members.size(),
+            (int)memberCount,
             netplay->client._ggpoPort,
             netplay->delay,
             netplay->client._matchData.rngSeed
@@ -462,7 +476,7 @@ void fUserApp::TryRestartGgpoLegacyTunnel() {
     }
 
     GGPOPlayer players[MAX_SF4E_PROTOCOL_USERS];
-    for (int i = 0; i < 2 && i < netplay->client._lobbyData.members.size(); i++) {
+    for (int i = 0; i < 2 && (size_t)i < netplay->client._lobbyData.members.size(); i++) {
         SessionProtocol::MemberData& memberData = netplay->client._lobbyData.members[i];
         GGPOPlayer& player = players[i];
         player.size = sizeof(GGPOPlayer);
@@ -497,9 +511,20 @@ void fUserApp::TryRestartGgpoLegacyTunnel() {
         }
     }
 
+    // This path only ever populates the two player slots above, but the
+    // count still crosses into GGPO from the wire — clamp it the same way.
+    size_t legacyMemberCount = netplay->client._lobbyData.members.size();
+    if (legacyMemberCount > MAX_SF4E_PROTOCOL_USERS) {
+        spdlog::warn(
+            "Netplay: lobby reported {} members on legacy tunnel, clamping to protocol max {}",
+            legacyMemberCount,
+            MAX_SF4E_PROTOCOL_USERS
+        );
+        legacyMemberCount = MAX_SF4E_PROTOCOL_USERS;
+    }
     fSystem::StartGGPO(
         players,
-        netplay->client._lobbyData.members.size(),
+        (int)legacyMemberCount,
         netplay->client._ggpoPort,
         netplay->delay,
         netplay->client._matchData.rngSeed

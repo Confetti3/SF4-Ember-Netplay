@@ -104,6 +104,17 @@ namespace sf4e {
 				struct SaveState {
 					bool used = false;
 
+					// Whether this state still owns the memento payloads
+					// referenced by `keys`. `Save` transfers ownership in (it
+					// zeroes the live key afterwards), so a payload is
+					// reachable only through `keys` until something hands it
+					// back. `Free` restores the live keys from its scratch
+					// copy and must then drop that copy's claim WITHOUT
+					// calling the engine's ClearKey, or it frees the payloads
+					// out from under the keys that just took them back.
+					// See fSystem::SaveState::Free.
+					bool ownsKeys = true;
+
 					// Frame identity (v2). simulationFrame is the engine
 					// frames-simulated count; ggpoFrame is GGPO's frame
 					// argument to the save callback. Reset on slot reuse.
@@ -137,9 +148,22 @@ namespace sf4e {
 
 					SaveState();
 
+					// Copying would duplicate the `keys` ownership records
+					// and hand two objects a claim on the same memento
+					// payloads — the exact aliasing this type exists to
+					// prevent. Slots are referenced by pointer everywhere.
+					SaveState(const SaveState&) = delete;
+					SaveState& operator=(const SaveState&) = delete;
+
 					static void Free(SaveState* dst);
 					static void Save(SaveState* dst, bool temporary = false);
 					static void Load(SaveState* src);
+
+					// Returns a slot to the clean, unowned, unused state
+					// without touching engine memento data. Only safe when
+					// the payloads are known to be owned elsewhere (or gone,
+					// as after a battle teardown) — otherwise use Free.
+					static void Reclaim(SaveState* victim, const char* reason, int slotIndex);
 				};
 
 				struct StateSnapshotMeta {
@@ -178,6 +202,11 @@ namespace sf4e {
 				static PlayerConnectionInfo players[MAX_SF4E_PROTOCOL_USERS];
 				static GGPOSession* ggpo;
 				static SaveState saveStates[NUM_SAVE_STATES];
+
+				// Logs savestate pool occupancy on teardown/startup paths so
+				// the existing log files can localize pool corruption without
+				// a crash dump.
+				static void LogSaveSlotOccupancy(const char* label);
 
 				static void ApplyGgpoDisconnectSettings(GGPOSession* session);
 				static void RetireGgpoSession(const char* diagnosticsLabel);
