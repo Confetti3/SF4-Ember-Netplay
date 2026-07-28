@@ -62,7 +62,7 @@ Upload the output folder at [Microsoft file submission](https://www.microsoft.co
 
 ## Release policy
 
-- **Latest** on GitHub points at **v0.3.1** until **v0.3.4+** is Authenticode-signed.
-- Do not promote unsigned builds to Latest even if netplay fixes are newer.
-- Defender false positives (unchanged hook since v0.3.1): [`docs/WINDOWS_DEFENDER.md`](WINDOWS_DEFENDER.md)
+- Prefer promoting **Authenticode-signed** builds as GitHub **Latest** when signing is available.
+- Unsigned experimental builds may still ship for friends testing — always verify SHA256 hashes.
+- Defender false positives (Detours injection into USF4): [`docs/WINDOWS_DEFENDER.md`](WINDOWS_DEFENDER.md)
 - SignPath checklist: [`docs/SIGNPATH_APPLY.md`](SIGNPATH_APPLY.md)

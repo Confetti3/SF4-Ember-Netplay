@@ -21,7 +21,7 @@ Anthony Danducci's sf4e is a process-inspection and modification tool for the St
 
 Community additions in this unofficial port:
 
-- WebView2 launcher (Host / Join / Offline)
+- Qt Host / Join / Offline launcher
 - VPS relay room codes (`SF4-XXXX`) and team packaging
 - Release scripts and tester documentation
 

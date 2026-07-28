@@ -4,9 +4,9 @@
 
 **SF4 Netplay Launcher** is a **third-party, experimental unofficial port** for _Ultra Street Fighter IV_ on Steam. It adds a native **Qt Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e's rollback netplay. Netplay may fail, desync, or break between releases - use only with people who accept that risk.
 
-**Latest release:** [v0.4.8](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/v0.4.8) (hardened GGPO UDP packet validation)
+**Latest release:** [v0.6.5](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/v0.6.5) (rematch/disconnect teardown crash fix)
 
-**Download:** [GitHub Releases — Latest](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) — asset `sf4-netplay-launcher-*-0.4.8.zip` (not "Source code" only).
+**Download:** [GitHub Releases — Latest](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) — asset `sf4-netplay-launcher-*-0.6.5.zip` (not "Source code" only).
 
 ## How it works
 
@@ -133,7 +133,7 @@ Install once on each PC:
 3. Optional: run `preflight.cmd` to verify the package.
 4. Double-click **`Launcher.exe`**.
 
-Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.4.7`). Use **Check for updates** on the home screen to upgrade.
+Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.6.5`). Use **Check for updates** on the home screen to upgrade.
 
 ### 3. Play online (Simple mode - experimental)
 
@@ -193,7 +193,9 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 | [docs/RELEASE.md](docs/RELEASE.md) | Building and publishing releases |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Player troubleshooting — black launcher, crash on launch, settings, Direct IP |
 | [docs/WINDOWS_DEFENDER.md](docs/WINDOWS_DEFENDER.md) | Defender false positives (`Wacapew.A!ml`) |
-| [docs/RELEASE_NOTES_v0.4.7.md](docs/RELEASE_NOTES_v0.4.7.md) | Latest release notes |
+| [docs/RELEASE_NOTES_v0.6.5.md](docs/RELEASE_NOTES_v0.6.5.md) | Latest release notes |
+| [docs/NETPLAY_INVARIANTS.md](docs/NETPLAY_INVARIANTS.md) | Hard GGPO/session rules that must not regress |
+| [docs/GGPO_LIFECYCLE.md](docs/GGPO_LIFECYCLE.md) | GGPO lifecycle / desync internals |
 | [docs/SIGNPATH_APPLY.md](docs/SIGNPATH_APPLY.md) | SignPath Foundation checklist |
 
 ## Troubleshooting
@@ -221,8 +223,8 @@ This repository builds **SF4 Netplay Launcher** - an **unofficial port** of upst
 **Publish a release:**
 
 ```powershell
-powershell -NoProfile -File scripts/release-team-build.ps1 -VersionLabel 0.4.7
-gh release create v0.4.7 dist/sf4-netplay-launcher-*-0.4.7.zip --title "SF4 Netplay Launcher v0.4.7" --notes-file docs/RELEASE_NOTES_v0.4.7.md
+powershell -NoProfile -File scripts/release-team-build.ps1 -VersionLabel 0.6.5
+gh release create v0.6.5 dist/sf4-netplay-launcher-*-0.6.5.zip --title "SF4 Netplay Launcher v0.6.5" --notes-file docs/RELEASE_NOTES_v0.6.5.md
 ```
 
 See [docs/RELEASE.md](docs/RELEASE.md).
@@ -234,9 +236,7 @@ See [docs/RELEASE.md](docs/RELEASE.md).
 
 ### Running on Windows
 
-Windows users with a working Steam installation can run the launcher by extracting a release zip and double-clicking `Launcher.exe`. The launcher attempts to detect your SF4 installation automatically. Windows users with uncommon or damaged Steam installations may set the `STEAM_APP_PATH` environment variable to the absolute path of the `Super Street Fighter IV - Arcade Edition` directory installed by Steam. You can navigate to this directory using the Steam library's context menu by right-clicking on Ultra Street Fighter IV's library entry, hovering over "Manage", then selecting "Browse local files", as shown below.
-
-![The Steam right-click context menu, opened on the Ultra Street Fighter 4 library list entry](images/browse-local-files-context-menu.png)
+Windows users with a working Steam installation can run the launcher by extracting a release zip and double-clicking `Launcher.exe`. The launcher attempts to detect your SF4 installation automatically. Windows users with uncommon or damaged Steam installations may set the `STEAM_APP_PATH` environment variable to the absolute path of the `Super Street Fighter IV - Arcade Edition` directory installed by Steam. You can navigate to this directory using the Steam library's context menu by right-clicking on Ultra Street Fighter IV's library entry, hovering over "Manage", then selecting "Browse local files".
 
 ### Running on Linux
 
@@ -325,7 +325,7 @@ provide the following dependencies:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE.md file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## External Licenses and Copyright Information
 

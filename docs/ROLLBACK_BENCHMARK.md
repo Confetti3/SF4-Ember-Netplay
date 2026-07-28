@@ -191,7 +191,7 @@ Run `analyze` after at least two delays with 3+ matches each.
 
 | Probe FAIL on transport regression | Fix VPS before tuning delay |
 
-| Good LFB/RFB, legacy rare | Current v0.3.6 path is working |
+| Good LFB/RFB, legacy rare | Current Simple-mode / transport path is working |
 
 | Probe smooth, matches stable at standard | WAN hosts use smooth; LAN-like paths may use standard |
 

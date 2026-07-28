@@ -11,8 +11,8 @@ This document describes what **SF4 Netplay Launcher** is for, what it is **not**
 | **Game** | _Ultra Street Fighter IV_ on **Steam** (app 45760) only — you must own the game |
 | **Platform** | **Windows 10+** is the primary target |
 | **Netplay** | Rollback online play built on upstream [sf4e](https://codeberg.org/adanducci/sf4e) (MIT) |
-| **This port adds** | WebView2 launcher (Host / Join / Offline), **VPS relay room codes** (`SF4-XXXX`), team zip packaging |
-| **Recommended path** | **Simple mode** (experimental) — Host creates a relay room, joiner pastes the same code; no host port forward when relay works |
+| **This port adds** | Qt Host / Join / Offline launcher, **VPS relay room codes** (`SF4-XXXX`), team zip packaging |
+| **Recommended path** | **Simple mode** (experimental) — Host clicks **Get code**, joiner pastes the same `SF4-XXXX`; no host port forward when the VPS path works |
 | **Also supported** | **Advanced mode** (more experimental on WAN) — Direct IP, UPnP, custom broker URL |
 | **Audience** | Friends / small groups **testing** casual WAN rollback — not a commercial matchmaking service |
 
@@ -32,21 +32,22 @@ For official sf4e updates and support, use [Codeberg](https://codeberg.org/adand
 ### Setup and versions
 
 - Both players must use the **same release zip** (`Sidecar.dll` / build must match)
-- Install **WebView2 Runtime** and **VC++ x86 redistributable** on each PC
+- Install the **VC++ x86 redistributable** on each PC (Qt 6 runtime DLLs ship in the zip)
 - Keep the whole extracted folder together — do not copy only `Launcher.exe`
 
 ### Simple mode (VPS relay)
 
-- Uses a **shared public broker** by default (`http://74.208.200.95:8787`) — suitable for testing, not private production scale
-- Relay supports up to **~20 concurrent rooms** on the default broker; idle rooms expire after **~15 minutes**
+- Uses a **shared public broker** by default (`https://74-208-200-95.nip.io`) — suitable for friends testing, not private production scale
+- Default broker ceiling is **~50 concurrent rooms**; empty lobbies expire after **~5 minutes**; occupied rooms do not age out by default
 - Host must **Start game** before the joiner; both need the **current** `SF4-XXXX` from the host screen
-- Requires **v0.2.7.3+** on both PCs for VPS relay fights (fixes black screen after character select)
+- Sidecar transport ladder: **p2p → udp_relay → legacy_session_tunnel** (legacy always available as fallback)
 
 ### Experimental features
 
 - **Find match** and **Open rooms** are **experimental** — prefer **Host + room code** for the least-bad path
 - **Simple mode (VPS relay)** has worked in limited testing but **can still fail** (black screen, disconnect, broker full)
-- **Rematch**, **disconnect recovery**, and **spectator mode** need more testing — expect rough edges
+- **Disconnect recovery** and **spectator mode** need more testing — expect rough edges
+- **Rematch** in the same VPS room is supported but still evolving
 
 ### Advanced mode (Direct IP)
 

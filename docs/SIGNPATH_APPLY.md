@@ -1,6 +1,6 @@
 # SignPath Foundation application checklist
 
-Complete these steps **before** tagging **v0.3.4** as Latest.
+Complete these steps to enable Authenticode signing for release builds.
 
 ## 1. Apply
 
@@ -23,22 +23,24 @@ Complete these steps **before** tagging **v0.3.4** as Latest.
 | `SIGNPATH_PROJECT_SLUG` | e.g. `SF4-Netplay-Launcher` |
 | `SIGNPATH_SIGNING_POLICY_SLUG` | `release` |
 
-## 4. Release v0.3.4
+## 4. Release a signed build
+
+Tag and push the version you want signed (example: current tree `v0.6.5`):
 
 ```powershell
-git tag v0.3.4
-git push origin v0.3.4
+git tag v0.6.5
+git push origin v0.6.5
 ```
 
-Workflow [`.github/workflows/release-windows.yml`](../.github/workflows/release-windows.yml) builds, signs via SignPath, verifies Authenticode, packages zip.
+Workflow [`.github/workflows/release-windows.yml`](../.github/workflows/release-windows.yml) builds, signs via SignPath (when secrets are set), verifies Authenticode, and packages the zip.
 
 ## 5. Publish and promote
 
 - [ ] Attach zip from CI artifacts to GitHub Release
 - [ ] Post SHA256 hashes in release notes
 - [ ] Run `scripts/prepare-defender-submission.ps1` → [Microsoft WDSI](https://www.microsoft.com/en-us/wdsi/filesubmission)
-- [ ] `gh release edit v0.3.4 --latest`
+- [ ] `gh release edit v0.6.5 --latest` (or the tag you just published)
 
-## 6. Deprecate unsigned Latest
+## 6. After signing works
 
-Keep **v0.3.2** and **v0.3.3** as pre-release. **v0.3.1** remains fallback until v0.3.4 is verified signed.
+Keep unsigned test builds as **pre-release** when practical. Prefer a verified signed build as GitHub **Latest**.

@@ -4,10 +4,10 @@
 
 | Version | Supported |
 |---------|-----------|
-| 0.3.6+   | Yes (current releases; HTTPS broker on official VPS) |
-| 0.3.x    | Yes (same netplay stack; prefer latest patch) |
-| 0.2.8.x  | Best-effort only |
-| ≤ 0.2.7 | No |
+| 0.6.x   | Yes (current releases; HTTPS broker on official VPS) |
+| 0.5.x   | Best-effort only — prefer latest 0.6.x |
+| 0.4.x   | Best-effort only |
+| ≤ 0.3.x | No |
 
 Security fixes are published as GitHub releases on [Confetti3/SF4-Netplay-Launcher](https://github.com/Confetti3/SF4-Netplay-Launcher).
 
@@ -44,7 +44,7 @@ We aim to acknowledge within **7 days** and provide a fix or mitigation plan wit
 
 This is an **experimental unofficial port** for casual friends-only netplay — **not production-ready software**:
 
-- Official VPS broker uses **HTTPS** (`https://74-208-200-95.nip.io`); custom broker URLs may still be HTTP
+- Official VPS broker uses **HTTPS** (`https://74-208-200-95.nip.io`); custom broker URLs may still be HTTP (requires `SF4E_ALLOW_HTTP_BROKER=1` on the client)
 - Room broker has **no room authentication** (friends-only codes)
 - Room codes are short; active rooms may be listed publicly
 - **Sidecar.dll hash** ensures matching builds between players; it is **not** anti-cheat or code signing
@@ -57,7 +57,7 @@ Use only with people you trust until room auth and signed releases are in place.
 
 - Download only from official GitHub Releases
 - If Defender quarantines files, verify release SHA256 hashes and follow [docs/WINDOWS_DEFENDER.md](docs/WINDOWS_DEFENDER.md) — do not weaken Defender with exclusions; wait for signed releases
-- Keep `Launcher.exe`, `Sidecar.dll`, and `launcher-ui/` together from the **same zip**
+- Keep `Launcher.exe`, `Sidecar.dll`, and Qt runtime files together from the **same zip**
 - Do not point the broker URL at untrusted servers
 - Close the game before applying in-app updates
 

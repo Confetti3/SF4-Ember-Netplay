@@ -1,4 +1,4 @@
-# Local only — see contrib/developer-gitignore (not published on GitHub).
+# Local only — see CONTRIBUTING.md. Build output and private docs stay untracked.
 
 /build
 /dist
@@ -27,6 +27,7 @@ services/vps-relay/dashboard/.env
 docs/SECURITY_REVIEW.md
 docs/SECURITY_REMEDIATION.md
 docs/security-review/
+docs/archive/webview-security-2026/
 docs/DISCORD_REPLY_ANTHONY.md
 docs/PRE_RELEASE_SECURITY*.md
 docs/NETPLAY_INVESTIGATION_PLAN.md
