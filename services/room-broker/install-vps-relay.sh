@@ -40,6 +40,8 @@ Environment=RELAY_MANAGER_BIND=127.0.0.1
 Environment=SF4E_SESSION_RELAY_BIN=$RELAY_DIR/bin/sf4e-session-relay
 Environment=LD_LIBRARY_PATH=$RELAY_DIR/lib
 Environment=RELAY_IDENTITY=relay-vps
+# Optional RELAY_MANAGER_TOKEN and port allowlists live in broker .env (PC/VPS only — not in git).
+EnvironmentFile=-$BROKER_DIR/.env
 ExecStart=$NODE_DIR/bin/node $RELAY_DIR/relay-manager.js
 Restart=always
 RestartSec=5

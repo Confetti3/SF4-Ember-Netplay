@@ -51,6 +51,7 @@ namespace sf4e {
 			SessionProtocol::ConnectionID& cid
 		);
 		void HandleResults(int loserSide);
+		bool IsLobbyMember(HSteamNetConnection conn) const;
 
 	public:
 		SessionServer(

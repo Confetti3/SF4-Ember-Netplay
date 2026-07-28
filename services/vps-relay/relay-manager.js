@@ -3,6 +3,7 @@
  * Bind locally; broker calls http://127.0.0.1:8788
  */
 const http = require("http");
+const crypto = require("crypto");
 const { spawn } = require("child_process");
 const net = require("net");
 const path = require("path");
@@ -19,6 +20,11 @@ const GGPO_RELAY_BIN =
 const RELAY_IDENTITY = process.env.RELAY_IDENTITY || "relay-vps";
 const MAX_BODY_BYTES = parseInt(process.env.RELAY_MANAGER_MAX_BODY_BYTES || String(64 * 1024), 10);
 const KILL_GRACE_MS = parseInt(process.env.RELAY_MANAGER_KILL_GRACE_MS || "3000", 10);
+const RELAY_MANAGER_TOKEN = String(process.env.RELAY_MANAGER_TOKEN || "").trim();
+const SESSION_PORT_MIN = parseInt(process.env.SESSION_PORT_MIN || "23456", 10);
+const SESSION_PORT_MAX = parseInt(process.env.SESSION_PORT_MAX || "23505", 10);
+const GGPO_PORT_MIN = parseInt(process.env.GGPO_PORT_MIN || "24456", 10);
+const GGPO_PORT_MAX = parseInt(process.env.GGPO_PORT_MAX || "24505", 10);
 
 /** @type {Map<number, { proc: import('child_process').ChildProcess, sidecarHash: string, startedAt: number }>} */
 const sessions = new Map();
@@ -29,6 +35,34 @@ function json(res, status, body) {
   const payload = JSON.stringify(body);
   res.writeHead(status, { "Content-Type": "application/json" });
   res.end(payload);
+}
+
+function timingSafeEqualString(a, b) {
+  const ba = Buffer.from(String(a || ""), "utf8");
+  const bb = Buffer.from(String(b || ""), "utf8");
+  if (ba.length !== bb.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(ba, bb);
+}
+
+function authorizeManager(req) {
+  if (!RELAY_MANAGER_TOKEN) {
+    return true;
+  }
+  const auth = String(req.headers.authorization || "");
+  const bearer = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+  const headerToken = String(req.headers["x-relay-manager-token"] || "").trim();
+  const provided = bearer || headerToken;
+  return timingSafeEqualString(provided, RELAY_MANAGER_TOKEN);
+}
+
+function isSessionPortAllowed(port) {
+  return Number.isInteger(port) && port >= SESSION_PORT_MIN && port <= SESSION_PORT_MAX;
+}
+
+function isGgpoPortAllowed(port) {
+  return Number.isInteger(port) && port >= GGPO_PORT_MIN && port <= GGPO_PORT_MAX;
 }
 
 function readBody(req) {
@@ -330,12 +364,21 @@ const server = http.createServer(async (req, res) => {
       ok: true,
       sessions: sessions.size,
       ggpoSessions: ggpoSessions.size,
-      relayBin: RELAY_BIN,
-      ggpoRelayBin: GGPO_RELAY_BIN,
-      identity: RELAY_IDENTITY,
-      bind: BIND,
-      port: PORT,
+      sessionPortMin: SESSION_PORT_MIN,
+      sessionPortMax: SESSION_PORT_MAX,
+      ggpoPortMin: GGPO_PORT_MIN,
+      ggpoPortMax: GGPO_PORT_MAX,
+      tokenRequired: Boolean(RELAY_MANAGER_TOKEN),
     });
+    return;
+  }
+
+  // Health probes for individual sessions stay open on localhost; mutating
+  // routes optionally require RELAY_MANAGER_TOKEN when configured.
+  const mutating =
+    req.method === "POST" || req.method === "DELETE" || req.method === "PUT" || req.method === "PATCH";
+  if (mutating && !authorizeManager(req)) {
+    json(res, 401, { error: "unauthorized", message: "Relay manager token required." });
     return;
   }
 
@@ -384,8 +427,11 @@ const server = http.createServer(async (req, res) => {
     const body = await readBody(req);
     const port = parseInt(body.port, 10);
     const sidecarHash = String(body.sidecarHash || "").trim();
-    if (!port || port < 1 || port > 65535) {
-      json(res, 400, { error: "invalid_port", message: "port required" });
+    if (!isSessionPortAllowed(port)) {
+      json(res, 400, {
+        error: "invalid_port",
+        message: `port must be in ${SESSION_PORT_MIN}-${SESSION_PORT_MAX}`,
+      });
       return;
     }
     if (!sidecarHash) {
@@ -424,8 +470,18 @@ const server = http.createServer(async (req, res) => {
     const ggpoPort = parseInt(body.ggpoPort, 10);
     const sessionPort = parseInt(body.sessionPort, 10);
     const roomToken = String(body.roomToken || "").trim();
-    if (!ggpoPort || ggpoPort < 1 || ggpoPort > 65535) {
-      json(res, 400, { error: "invalid_port", message: "ggpoPort required" });
+    if (!isGgpoPortAllowed(ggpoPort)) {
+      json(res, 400, {
+        error: "invalid_port",
+        message: `ggpoPort must be in ${GGPO_PORT_MIN}-${GGPO_PORT_MAX}`,
+      });
+      return;
+    }
+    if (sessionPort && !isSessionPortAllowed(sessionPort)) {
+      json(res, 400, {
+        error: "invalid_port",
+        message: `sessionPort must be in ${SESSION_PORT_MIN}-${SESSION_PORT_MAX}`,
+      });
       return;
     }
     if (!roomToken || !/^[a-f0-9]{32}$/i.test(roomToken)) {

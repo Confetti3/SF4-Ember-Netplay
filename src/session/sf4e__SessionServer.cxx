@@ -141,6 +141,13 @@ int SessionServer::Step()
 		}
 		else {
 			SessionProtocol::ConnectionID cid = cidMap[conn];
+			// After HELLO, only JOINREQ may proceed without lobby membership.
+			// Everything else requires a successful join (clients[] entry).
+			const bool joined = IsLobbyMember(conn);
+			if (!joined && type != SessionProtocol::MT_SESSION_JOINREQ) {
+				spdlog::info("Server: dropping type {} from unjoined conn {}", (int)type, conn);
+				continue;
+			}
 			if (type == SessionProtocol::MT_FORWARD) {
 				SessionProtocol::ForwardMessage fwdMsg;
 				try {
@@ -158,6 +165,7 @@ int SessionServer::Step()
 				if (fwdMsg.src.host == _identity) {
 					if (fwdMsg.src.user != std::to_string(conn)) {
 						spdlog::debug("Server: dropping fraudulent packet; {} masqueraded as {}", conn, fwdMsg.src.user);
+						continue;
 					}
 				}
 
@@ -354,6 +362,12 @@ int SessionServer::Step()
 				}
 				catch (json::exception e) {
 					spdlog::info("Server: could not deserialize ReportResultsRequest");
+					continue;
+				}
+
+				if (request.loserSide < 0 || request.loserSide > 1 ||
+					request.loserSide >= static_cast<int>(clients.size())) {
+					spdlog::info("Server: ignoring REPORTRESULTS with invalid loserSide {}", request.loserSide);
 					continue;
 				}
 
@@ -567,6 +581,7 @@ void SessionServer::OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusCh
 					break;
 				}
 			}
+			cidMap.erase(pInfo->m_hConn);
 
 			// Clean up the connection.  This is important!
 			// The connection is "closed" in the network sense, but
@@ -642,6 +657,15 @@ SessionProtocol::JoinResult SessionServer::RegisterToWait(
 	SessionMember newMember{ {cid, name, peerAddrStr, port}, conn };
 	clients.push_back(std::move(newMember));
 	return SessionProtocol::JOIN_OK;
+}
+
+bool SessionServer::IsLobbyMember(HSteamNetConnection conn) const {
+	for (const auto& member : clients) {
+		if (member.conn == conn) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void SessionServer::HandleResults(int loserIndex) {

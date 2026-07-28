@@ -41,6 +41,9 @@ namespace sf4e {
 	// Resolve hostname or dotted IPv4 to IPv4 string for UDP sockets.
 	bool ResolveHostToIPv4(const char* host, char* outIp, int outIpLen);
 
+	// Idempotent Winsock init for callers that use getaddrinfo/sockets directly.
+	bool EnsureNetworkingStarted();
+
 	bool CopyTextToClipboardUtf8(const char* text);
 
 	// HTTP GET; returns response body (UTF-8). useHttps selects port 443 vs 80.
@@ -80,13 +83,19 @@ namespace sf4e {
 		int outBodyLen
 	);
 
-	// Download https?://host/path to a local file. Follows redirects.
+	// Download https?://host/path to a local file.
+	// When allowUrl is non-null, redirects are followed manually and only if allowUrl
+	// accepts each hop (used by the updater host allowlist). When null, WinHTTP
+	// auto-follows redirects (legacy behavior).
+	using HttpUrlAllowFn = bool (*)(const char* url);
+
 	bool HttpDownloadUrlUtf8(
 		const char* url,
 		const wchar_t* destPath,
 		int timeoutMs = 120000,
 		const char* extraHeaders = nullptr,
-		HttpRequestResult* outResult = nullptr
+		HttpRequestResult* outResult = nullptr,
+		HttpUrlAllowFn allowUrl = nullptr
 	);
 
 } // namespace sf4e

@@ -36,6 +36,7 @@ docs/VPS_RELAY_TEST_REPORT*.md
 docs/ORACLE_BROKER.md
 
 scripts/.vps-env.ps1
+dashboard-credentials-*.txt
 scripts/strip-cursor-coauthor.ps1
 scripts/check-vps-rooms.py
 scripts/enable-transport-auto-vps.py
