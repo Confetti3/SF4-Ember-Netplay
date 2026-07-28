@@ -55,7 +55,7 @@ Use only with people you trust until room auth and signed releases are in place.
 
 ## Audit status (0.6.x)
 
-A full-stack launcher → VPS security audit was performed against **v0.6.5** (2026-07-28). Critical WebView-era client issues (`applyUpdate` client URLs, unrestricted `openUrl`, default HTTP broker) are mitigated in the current Qt + HTTPS path. Residual accepted risks remain as listed above (unsigned updates, room-code join model, plaintext game UDP). Detailed findings are kept private and are not published in this repository.
+A full-stack launcher → VPS security audit was performed against **v0.6.5** (2026-07-28). Critical WebView-era client issues (`applyUpdate` client URLs, unrestricted `openUrl`, default HTTP broker) are mitigated in the current Qt + HTTPS path. Follow-up hardening on this line closes session post-HELLO ACL gaps, broker queue/health rate limits, update redirect host checks, broker post-DNS SSRF filtering, optional relay-manager token + port allowlists, and dashboard cookie compare / body limits. Residual accepted risks remain as listed above (unsigned updates, room-code join model, plaintext game UDP). Detailed findings are kept private and are not published in this repository.
 
 ## Safe usage
 

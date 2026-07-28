@@ -40,8 +40,8 @@ const app = express();
 if (TRUST_PROXY) {
   app.set("trust proxy", ["127.0.0.1", "::1", "loopback"]);
 }
-app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
+app.use(express.urlencoded({ extended: false, limit: "64kb" }));
+app.use(express.json({ limit: "64kb" }));
 
 /** @type {Map<string, { count: number, resetAt: number }>} */
 const loginAttempts = new Map();
@@ -143,7 +143,10 @@ function getSession(req) {
   }
   const token = raw.slice(0, dot);
   const sig = raw.slice(dot + 1);
-  if (signToken(token) !== sig) {
+  const expected = signToken(token);
+  const sigBuf = Buffer.from(sig, "utf8");
+  const expectedBuf = Buffer.from(expected, "utf8");
+  if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
     return null;
   }
   const session = sessions.get(token);

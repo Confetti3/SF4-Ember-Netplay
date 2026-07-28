@@ -53,6 +53,7 @@ const ENABLE_ROOM_LIST =
 const FORCE_VPS_RELAY =
   process.env.FORCE_VPS_RELAY === "1" || process.env.FORCE_VPS_RELAY === "true";
 const RELAY_MANAGER_URL = process.env.RELAY_MANAGER_URL || "http://127.0.0.1:8788";
+const RELAY_MANAGER_TOKEN = String(process.env.RELAY_MANAGER_TOKEN || "").trim();
 const BROKER_GGPO_TRANSPORT = String(process.env.BROKER_GGPO_TRANSPORT || "legacy").toLowerCase();
 const NAT_PROBE_PORT = parseInt(process.env.NAT_PROBE_PORT || "8790", 10);
 const NAT_PROBE_BIND = process.env.NAT_PROBE_BIND || "0.0.0.0";
@@ -182,6 +183,10 @@ async function relayManagerRequest(method, path, body) {
     method,
     headers: { "Content-Type": "application/json" },
   };
+  if (RELAY_MANAGER_TOKEN) {
+    opts.headers.Authorization = `Bearer ${RELAY_MANAGER_TOKEN}`;
+    opts.headers["X-Relay-Manager-Token"] = RELAY_MANAGER_TOKEN;
+  }
   if (body !== undefined) {
     opts.body = JSON.stringify(body);
   }
@@ -970,6 +975,10 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "GET" && roomHealthMatch) {
+    if (!checkRate(req, "health", 30, 60_000)) {
+      json(res, 429, { error: "rate_limited", message: "Too many room health requests." });
+      return;
+    }
     const code = normalizeCode(roomHealthMatch[1]);
     const room = rooms.get(code);
     if (!room) {
@@ -1105,6 +1114,10 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "POST" && url.pathname === "/v1/queue/join") {
+    if (!checkRate(req, "queue", 20, 60_000)) {
+      json(res, 429, { error: "rate_limited", message: "Too many queue join requests." });
+      return;
+    }
     let body = {};
     try {
       body = await readBody(req);

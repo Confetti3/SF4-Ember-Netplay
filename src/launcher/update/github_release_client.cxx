@@ -112,7 +112,9 @@ namespace launcher {
 
 		static void GetGithubRepo(char* outRepo, int outRepoLen) {
 			const char* env = getenv("SF4E_GITHUB_REPO");
-			if (env && env[0]) {
+			const char* allow = getenv("SF4E_ALLOW_GITHUB_REPO_OVERRIDE");
+			const bool overrideAllowed = allow && (allow[0] == '1' || _stricmp(allow, "true") == 0);
+			if (env && env[0] && overrideAllowed) {
 				strncpy_s(outRepo, outRepoLen, env, _TRUNCATE);
 				return;
 			}
@@ -194,7 +196,18 @@ namespace launcher {
 			if (_stricmp(host, "objects.githubusercontent.com") == 0) {
 				return true;
 			}
+			// Current GitHub release asset CDN (browser + API asset redirects).
+			if (_stricmp(host, "release-assets.githubusercontent.com") == 0) {
+				return true;
+			}
 			if (_stricmp(host, "codeload.github.com") == 0) {
+				return true;
+			}
+			// Defensive: any githubusercontent.com CDN subdomain used for release blobs.
+			const char* suffix = ".githubusercontent.com";
+			size_t hostLen = strlen(host);
+			size_t suffixLen = strlen(suffix);
+			if (hostLen > suffixLen && _stricmp(host + (hostLen - suffixLen), suffix) == 0) {
 				return true;
 			}
 			return false;
@@ -801,7 +814,7 @@ namespace launcher {
 				return false;
 			}
 			HttpRequestResult httpResult;
-			if (HttpDownloadUrlUtf8(url, zipPath, 300000, headers, &httpResult)) {
+			if (HttpDownloadUrlUtf8(url, zipPath, 300000, headers, &httpResult, IsAllowedUpdateUrl)) {
 				AppendUpdateLog((std::string(label) + " OK").c_str());
 				return true;
 			}

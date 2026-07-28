@@ -1,5 +1,10 @@
 #include "room_broker_client.hxx"
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -65,6 +70,50 @@ namespace launcher {
 			return false;
 		}
 
+		// Reject hostnames that resolve to private/metadata addresses (DNS rebinding).
+		static bool ResolvesToBlockedBrokerAddress(const char* host) {
+			if (!host || !host[0]) {
+				return true;
+			}
+			// Literal IPs already handled by IsBlockedBrokerHostLiteral.
+			unsigned a = 0, b = 0, c = 0, d = 0;
+			if (sscanf_s(host, "%u.%u.%u.%u", &a, &b, &c, &d) == 4) {
+				return false;
+			}
+
+			if (!sf4e::EnsureNetworkingStarted()) {
+				return true;
+			}
+
+			addrinfo hints = {};
+			hints.ai_family = AF_INET;
+			hints.ai_socktype = SOCK_STREAM;
+			addrinfo* res = nullptr;
+			if (getaddrinfo(host, nullptr, &hints, &res) != 0 || !res) {
+				// Fail closed if we cannot resolve.
+				return true;
+			}
+
+			bool blocked = false;
+			for (addrinfo* p = res; p; p = p->ai_next) {
+				if (p->ai_family != AF_INET || !p->ai_addr) {
+					continue;
+				}
+				const sockaddr_in* sin = (const sockaddr_in*)p->ai_addr;
+				char ip[64] = { 0 };
+				if (!inet_ntop(AF_INET, &sin->sin_addr, ip, sizeof(ip))) {
+					blocked = true;
+					break;
+				}
+				if (IsBlockedBrokerHostLiteral(ip)) {
+					blocked = true;
+					break;
+				}
+			}
+			freeaddrinfo(res);
+			return blocked;
+		}
+
 	} // namespace
 
 	bool ParseBrokerBaseUrl(const char* baseUrl, BrokerUrlParts& out) {
@@ -118,6 +167,9 @@ namespace launcher {
 			return false;
 		}
 		if (IsBlockedBrokerHostLiteral(out.host)) {
+			return false;
+		}
+		if (ResolvesToBlockedBrokerAddress(out.host)) {
 			return false;
 		}
 		if (!out.https && !AllowHttpBroker()) {
