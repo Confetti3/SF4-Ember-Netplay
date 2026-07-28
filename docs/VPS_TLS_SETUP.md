@@ -127,9 +127,11 @@ sudo ufw status numbered
 
 From the launcher: create/join a room using `https://your-domain` as broker URL.
 
-## Rollback / dev without TLS
+## Rollback / dev without TLS (DANGEROUS — emergency only)
 
-In `/root/room-broker/.env`:
+**Do not use for production or friends testing on a public IP.** Binding the broker to `0.0.0.0:8787` exposes an unauthenticated control plane over plaintext HTTP. Prefer fixing Caddy/TLS instead.
+
+Emergency / local-lab only — in `/root/room-broker/.env`:
 
 ```
 BROKER_BIND=0.0.0.0
@@ -144,14 +146,14 @@ COOKIE_SECURE=0
 DASHBOARD_TRUST_PROXY=0
 ```
 
-Open firewall temporarily (not recommended for production):
+Open firewall temporarily (**dangerous**):
 
 ```bash
 ufw allow 8787/tcp
 ufw allow 8789/tcp
 ```
 
-Set launcher `SF4E_ALLOW_HTTP_BROKER=1` while using `http://vps-ip:8787`.
+Set launcher `SF4E_ALLOW_HTTP_BROKER=1` while using `http://vps-ip:8787`. Close those UFW rules as soon as HTTPS works again.
 
 ## Upgrading an existing VPS (HTTP on :8787)
 
