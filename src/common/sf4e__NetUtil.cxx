@@ -6,6 +6,7 @@
 #include <windows.h>
 #include <winhttp.h>
 #include <iphlpapi.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
