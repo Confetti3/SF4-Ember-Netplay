@@ -10,7 +10,7 @@ We do **not** recommend weakening Windows Defender (folder exclusions, disabling
 
 ## What to do if Defender blocks install (unsigned build)
 
-1. Download only from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) (currently **v0.3.1** until a signed build ships).
+1. Download only from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) (currently **v0.6.5**).
 2. Compare SHA256 hashes with the release page (see below).
 3. If you believe the detection is wrong, report it to Microsoft at [file submission](https://www.microsoft.com/en-us/wdsi/filesubmission) (**Incorrectly detected as malware** → `Program:Win32/Wacapew.A!ml`).
 4. Wait for a **signed** release (see [`docs/CODE_SIGNING.md`](CODE_SIGNING.md)) — that is what we ship as the permanent fix.

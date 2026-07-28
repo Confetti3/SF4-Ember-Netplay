@@ -1,12 +1,12 @@
 # SF4 Netplay Launcher — troubleshooting guide
 
-> **Experimental unofficial port** — not production-ready. v0.4.0+ uses the native Qt launcher with VPS relay room codes (`SF4-XXXX`).
+> **Experimental unofficial port** — not production-ready. Current releases use the native **Qt** launcher with VPS relay room codes (`SF4-XXXX`).
 
 For a short player guide see [USER_NETPLAY.md](USER_NETPLAY.md).
 
 ---
 
-## Qt VPS relay package checklist (v0.4.0+)
+## Qt VPS relay package checklist (current releases)
 
 1. Extract the entire zip to one folder. Do not move only `Launcher.exe`.
 2. Run `preflight.cmd` from the package root.
@@ -24,83 +24,7 @@ Useful logs for bug reports:
 
 ## Legacy WebView2 packages (v0.3.x and earlier)
 
-Use this section only for older relay/WebView2 zips. Do these on **each PC** before deeper fixes:
-
-1. Download the **full** release zip from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) (the **Assets** zip, not "Source code").
-2. **Extract the entire zip** to one folder (for example `C:\Games\SF4-Netplay-Launcher\`). Do not copy only `Launcher.exe`.
-3. Confirm these sit **next to each other** in that folder:
-   - `Launcher.exe`, `Sidecar.dll`, `RelayHost.exe`, `WebView2Loader.dll`
-   - Folder `launcher-ui\` with `index.html`, `app.js`, `styles.css`
-4. Install once (if you have not already):
-   - [Microsoft Edge WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703)
-   - [VC++ Redistributable (x86)](https://aka.ms/vs/17/release/vc_redist.x86.exe)
-5. Own **Ultra Street Fighter IV** on Steam and launch it at least once through Steam.
-6. Both players use the **same version** — check the version in the launcher header (for example `v0.3.7`).
-7. Optional: run `preflight.cmd` in the install folder for a quick sanity check.
-
----
-
-## Legacy launcher opens to a black or blank window
-
-Older relay packages use **Microsoft WebView2** (like a small browser window). A solid dark or empty window usually means WebView2 or the UI files failed to load — not a problem with USF4 itself. Steam P2P Qt packages do not use WebView2.
-
-Try these steps **in order**:
-
-### 1. Install or repair WebView2 Runtime
-
-1. Install [WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703).
-2. **Restart your PC**.
-3. Open `Launcher.exe` again.
-
-If the launcher showed a message about WebView2, this step fixes it most of the time.
-
-### 2. Confirm `launcher-ui` is present
-
-1. Open your install folder (where `Launcher.exe` lives).
-2. You must see a folder named **`launcher-ui`** with `index.html`, `app.js`, and `styles.css` inside.
-3. If it is missing, **re-extract the full zip** — do not move only `Launcher.exe` out of the zip.
-
-### 3. Reset the launcher display cache
-
-A corrupted WebView2 profile can cause a permanent black window.
-
-1. **Close** the launcher completely.
-2. Press **Win + R**, paste this path, press Enter:
-
-   ```
-   %LOCALAPPDATA%\sf4e\launcher-webview2
-   ```
-
-3. Delete the **`launcher-webview2`** folder (or everything inside it).
-4. Start `Launcher.exe` again.
-
-Your netplay settings in `%APPDATA%\sf4e\config.json` are **not** removed by this step.
-
-### 4. Update graphics drivers
-
-WebView2 needs a working GPU and up-to-date drivers.
-
-1. Update **NVIDIA / AMD / Intel** graphics drivers from the vendor site or Windows Update.
-2. If you run the game in a **VM** or on very old hardware, WebView2 may not work — use a normal Windows gaming PC if possible.
-
-### 5. See error messages (console + logs)
-
-1. Open **Command Prompt** or PowerShell in your install folder.
-2. Run:
-
-   ```bat
-   Launcher.exe --console
-   ```
-
-3. Note any red error text in the window.
-4. Also check: `%APPDATA%\sf4e\logs\sf4e.log`
-
-| Symptom | Likely cause |
-|---------|----------------|
-| Message about WebView2 | Install WebView2 Runtime (step 1) |
-| `WebView2Loader.dll was not found` | Re-extract full zip |
-| Blank window, no message | Reset `launcher-webview2` (step 3) or missing `launcher-ui` (step 2) |
-| Launcher never appears | Run `--console`; check Defender did not remove `Launcher.exe` |
+Older zips used WebView2 + a `launcher-ui/` folder. Those packages are **unsupported**. Download the current Qt release from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) instead of debugging WebView2 Runtime / `launcher-ui` issues.
 
 ---
 
@@ -115,7 +39,7 @@ Try these steps **in order**:
 Unsigned netplay tools are often flagged as **false positives** (for example `Program:Win32/Wacapew.A!ml` on `Sidecar.dll`).
 
 1. Open your install folder.
-2. Confirm **`Sidecar.dll`** is still present. Steam P2P Qt packages keep it at `dll\Sidecar.dll`; legacy relay packages keep it next to `Launcher.exe`.
+2. Confirm **`Sidecar.dll`** is still present next to `Launcher.exe`.
 3. If it is **missing** or in quarantine:
    - Restore it from your antivirus, or
    - Re-extract the **full** zip from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest).
@@ -135,7 +59,7 @@ Missing runtime libraries cause instant crashes.
 
 If Windows blocked files during extract, the game may crash immediately.
 
-For Steam P2P Qt packages, confirm these DLLs sit under `dll\`. For legacy relay packages, confirm they sit beside `Launcher.exe`:
+Confirm these DLLs sit beside `Launcher.exe`:
 
 - `GameNetworkingSockets.dll`
 - `GGPO.dll`
@@ -144,6 +68,7 @@ For Steam P2P Qt packages, confirm these DLLs sit under `dll\`. For legacy relay
 - `abseil_dll.dll`
 - `spdlog.dll`
 - `fmt.dll`
+- Qt: `Qt6Core.dll`, `Qt6Gui.dll`, `Qt6Widgets.dll`, `plugins\platforms\qwindows.dll`
 
 Compare with `MANIFEST.txt` in your install folder. Re-download and extract the **whole** zip if anything is missing.
 
@@ -205,10 +130,10 @@ Use these defaults unless you have a good reason to change them.
 | Setting | Recommendation |
 |---------|----------------|
 | Launcher mode | **Simple mode** (default) — use `SF4-XXXX` room codes |
-| Host port forwarding | **Not needed** — traffic uses the shared VPS relay |
+| Host port forwarding | **Not needed** — traffic uses the shared VPS |
 | Broker | Default `https://74-208-200-95.nip.io` (preconfigured) |
 
-**Host flow:** Create relay room → share **current** `SF4-XXXX` → **Start game** → wait in lobby.  
+**Host flow:** **Get code** → share **current** `SF4-XXXX` → **Start game** → wait in lobby.  
 **Joiner flow:** Paste code → wait until host connected → **Start game** → both **Ready**.
 
 ### Input delay (frames)
@@ -241,11 +166,11 @@ In USF4 options, turn **Smooth** frame rate **OFF**. Smooth frame rate can make 
 |---------|-------------|
 | Joiner stuck before game | Host must click **Start game** first |
 | Wrong opponent / empty lobby | Use the host's **current** `SF4-XXXX`, not an old code |
-| "Cannot reach relay" / room expired | Host creates a **new** room; broker may be full — wait a few minutes |
+| "Cannot reach relay" / room expired | Host clicks **Get code** for a **new** room; broker may be full — wait a few minutes |
 | In-game "Still connecting" (relay) | Both on latest release; host and joiner both clicked Start game |
 | Version mismatch | Same zip on both PCs |
 
-**Host tip (v0.3.7+):** keep the launcher running during long matches so the room stays registered on the broker.
+**Host tip:** keep the launcher running during long matches so the room stays registered on the broker (heartbeat every 60s).
 
 ---
 

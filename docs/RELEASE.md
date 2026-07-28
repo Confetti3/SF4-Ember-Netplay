@@ -7,7 +7,7 @@
 From the repository root, with Visual Studio build tools and `gh` CLI installed:
 
 ```powershell
-powershell -NoProfile -File scripts/github-release.ps1 -Tag v0.2.0
+powershell -NoProfile -File scripts/github-release.ps1 -Tag v0.6.5
 ```
 
 This builds, packages, validates the manifest, and creates a GitHub Release with the zip attached.
@@ -23,15 +23,15 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 1. **Build and package**
 
    ```powershell
-   powershell -NoProfile -File scripts/release-team-build.ps1 -VersionLabel v0.2.0
+   powershell -NoProfile -File scripts/release-team-build.ps1 -VersionLabel 0.6.5
    ```
 
 2. **Create GitHub Release**
 
-   Copy `docs/RELEASE_NOTES_TEMPLATE.md` to `docs/RELEASE_NOTES_v{version}.md`, edit for the tag, then publish. Older release notes stay on [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases) only — do not keep every version file on `main`.
+   Copy `docs/RELEASE_NOTES_TEMPLATE.md` to `docs/RELEASE_NOTES_v{version}.md`, edit for the tag, then publish. Older release notes stay on [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases) only — do not keep every version file on `main` (keep the current major line, e.g. 0.5.0 + 0.6.x).
 
    ```powershell
-   gh release create v0.3.8 dist/sf4-netplay-launcher-*.zip --title "SF4 Netplay Launcher v0.3.8" --notes-file docs/RELEASE_NOTES_v0.3.8.md
+   gh release create v0.6.5 dist/sf4-netplay-launcher-*-0.6.5.zip --title "SF4 Netplay Launcher v0.6.5" --notes-file docs/RELEASE_NOTES_v0.6.5.md
    ```
 
 3. **Share with testers**
@@ -46,9 +46,9 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 
 - `Launcher.exe`, `Sidecar.dll`, **`RelayHost.exe`**, `Updater.exe`, Qt runtime DLLs, `plugins/`, `qt.conf`
 - Runtime DLLs (GNS, GGPO, spdlog, etc.)
-- `START_HERE.md`, `preflight.ps1`, `MANIFEST.txt`, `BUILD_INFO.txt`, `ATTRIBUTION.md`
+- `START_HERE.md` (from `docs/TEAM_QUICKSTART.md`), `preflight.cmd`, `preflight.ps1`, `MANIFEST.txt`, `BUILD_INFO.txt`, `ATTRIBUTION.md`
 - `docs/TROUBLESHOOTING.md` (player troubleshooting — also linked from each release on GitHub)
 
 ## Version tags
 
-Use semantic tags like `v0.2.0`. Match `-VersionLabel` in package scripts for support threads.
+Use semantic tags like `v0.6.5`. Match `-VersionLabel` in package scripts for support threads.

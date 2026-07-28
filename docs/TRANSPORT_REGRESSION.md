@@ -12,7 +12,7 @@ Run after transport stack changes (Phases 1–3). Complements [SMOKE_TEST.md](SM
 
 | # | Mode | Steps | Pass |
 |---|------|-------|------|
-| 1 | UDP initial match | VPS `BROKER_GGPO_TRANSPORT=auto`, two v0.4.8 clients, fresh room | Both log `SF4R`, then phases `Connected → Synchronizing → Running` |
+| 1 | UDP initial match | VPS `BROKER_GGPO_TRANSPORT=auto`, two current-release clients (e.g. v0.6.5), fresh room | Both log `SF4R`, then phases `Connected → Synchronizing → Running` |
 | 2 | UDP rematch | Complete row 1, Ready again twice | Each generation gates on both slots; both rematches reach `Running` |
 | 3 | Asymmetric load | Delay one player before entering battle | First player sees `SF4W`; neither starts alone; both eventually reach `SF4R` |
 | 4 | UDP blocked | Block the allocated `24456–24505/udp` path (default `MAX_ROOMS=50`) | Clear timeout/abort to lobby; no asymmetric legacy fallback |

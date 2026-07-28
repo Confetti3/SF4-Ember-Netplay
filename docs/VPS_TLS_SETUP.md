@@ -171,4 +171,4 @@ If you already ran `secure-ufw.sh` without Caddy, use SSH and run `bash install-
 ## Related
 
 - [Caddyfile.example](../services/room-broker/Caddyfile.example)
-- [SECURITY_REMEDIATION.md](SECURITY_REMEDIATION.md) — P2-3 (SEC-008)
+- Historical WebView-era security remediation notes (SEC-008) are kept local only — see `.gitignore` (`docs/archive/webview-security-2026/`)

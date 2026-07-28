@@ -1,15 +1,13 @@
-# SF4 Netplay Launcher v0.2.7.3
+# SF4 Netplay Launcher v0.6.5
 
-VPS relay rollback netplay for **Ultra Street Fighter IV** (Steam) with a modern **SF4 Netplay Launcher** UI.
+VPS relay rollback netplay for **Ultra Street Fighter IV** (Steam) with a native **Qt** Host / Join / Offline launcher.
 
-> **Experimental unofficial port** â?? not production-ready software. Friends-only testing; expect bugs and failed sessions.
+> **Experimental unofficial port** — not production-ready software. Friends-only testing; expect bugs and failed sessions.
 
 ## What's new
 
-- **Simple mode** (default): VPS relay room codes **`SF4-XXXX`** â?? no port forward on the host PC
-- Session relay runs on the broker VPS; host and joiner connect outbound
-- **Advanced mode:** Direct IP, UPnP, custom broker URL (unchanged from v0.2.6 routing)
-- In-app updater: **Check for updates** on the launcher home screen
+- Summarize user-facing changes for this tag (copy from the previous notes and edit)
+- Keep the experimental / friends-only framing
 
 ## Unofficial port (not official sf4e)
 
@@ -22,10 +20,11 @@ This is an **unofficial port** of [sf4e](https://codeberg.org/adanducci/sf4e) by
 | Requirement | Why | Download |
 |-------------|-----|----------|
 | **Ultra Street Fighter IV** (Steam app **45760**) | The game this launcher hooks into | [Steam](https://store.steampowered.com/app/45760/) |
-| **Microsoft Edge WebView2 Runtime** | Launcher UI (Host / Join / Offline) | [WebView2](https://go.microsoft.com/fwlink/p/?LinkId=2124703) |
 | **Microsoft Visual C++ Redistributable (x86)** | `Launcher.exe`, `Sidecar.dll`, and relay binaries | [VC++ x86](https://aka.ms/vs/17/release/vc_redist.x86.exe) |
 
 **OS:** Windows 10 or later (64-bit Windows; the launcher is **32-bit/x86** to match USF4).
+
+**Qt 6 runtime** (`Qt6Core.dll`, `Qt6Gui.dll`, `Qt6Widgets.dll`, `plugins/`) ships **inside** the release zip — no separate UI runtime install.
 
 **After you extract the zip:** run **`preflight.cmd`**, then **`Launcher.exe`**.
 
@@ -36,15 +35,15 @@ This is an **unofficial port** of [sf4e](https://codeberg.org/adanducci/sf4e) by
 ## Install
 
 1. Download the **team zip** asset below (not "Source code" only).
-2. Extract the **entire** zip to one folder (keep all DLLs and `launcher-ui/` next to `Launcher.exe`).
+2. Extract the **entire** zip to one folder (keep all DLLs and `plugins/` next to `Launcher.exe`).
 3. Run **`preflight.cmd`**
-4. Run **`Launcher.exe`** â?? **Host**, **Join**, or **Offline**
+4. Run **`Launcher.exe`** — **Host**, **Join**, or **Offline**
 
 ## Quick start (Simple VPS relay)
 
 | Host | Joiner |
 |------|--------|
-| **Create relay room** â?? copy **`SF4-XXXX`** | Paste code from host |
+| **Get code** — copy **`SF4-XXXX`** | Paste code from host |
 | **Start game** | Wait for host **Connected**, then **Start game** |
 | No port forward on host PC | No port forward needed |
 | Both **Ready** in-game | **Same release zip** on both PCs |
@@ -53,26 +52,27 @@ See `docs/BETA_TESTERS.md` in the zip for the full experimental tester checklist
 
 ## Broker override
 
-Default broker is baked into the launcher (`http://74.208.200.95:8787`). To use another broker:
+Default broker is baked into the launcher (`https://74-208-200-95.nip.io`). To use another broker:
 
 ```text
-set SF4E_BROKER_URL=http://your-broker:8787
+set SF4E_BROKER_URL=https://your-broker.example
 ```
+
+For a local HTTP broker during development, also set `SF4E_ALLOW_HTTP_BROKER=1`.
 
 ## Known limitations
 
 See [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) for the full list. Summary:
 
 - Both players must use the **same release zip** (`Sidecar.dll` must match)
-- **Find match** and **Open rooms** are experimental â?? use **Host + room code** for friends testing
-- VPS relay supports up to **20** concurrent rooms on the default broker; idle rooms expire after ~15 minutes
+- **Find match** and **Open rooms** are experimental — use **Host + room code** for friends testing
+- VPS relay supports up to **~50** concurrent rooms on the default broker; empty lobbies expire after ~5 minutes
 - Advanced Direct IP still requires host **TCP+UDP** port forward on the session port
-- Rematch, disconnect recovery, and spectator mode need more experimental testing coverage
-
+- Disconnect recovery and spectator mode need more experimental testing coverage
 
 ## Troubleshooting
 
-[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) ? black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.
+[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) — black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.
 
 ## Support
 
