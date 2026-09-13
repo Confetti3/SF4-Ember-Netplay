@@ -51,6 +51,12 @@ Browse costume previews, choose an available outfit and fine-tune its color befo
 
 The screenshots above are fresh captures from the **actual 0.8.0 UI renderer**, using sample session data. They are not photographs of a live multiplayer test.
 
+### Frame meter
+
+![Ember frame meter showing player timelines and frame advantage during Juri versus Hakan training](docs/images/ember-frame-meter.png)
+
+An in-game capture supplied by the project owner, showing Ember's frame meter, player timelines and frame-advantage readout during training.
+
 ## Get started
 
 You need **Windows 10 or later (x64)**, an owned **Steam copy of Ultra Street Fighter IV**, and the **Microsoft Visual C++ x86 runtime**. The game is not included.
@@ -79,6 +85,8 @@ Back returns through menus and can hide Ember. Leaving a room requires the expli
 Existing Ember preferences remain under `%APPDATA%\sf4e`. Help & About provides the version, update checking, attribution and redacted diagnostic exports. Ember updates use the renamed repository and verify the downloaded ZIP's SHA-256 before installation.
 
 **`release` is the current Ember branch.** [Legacy `main`](https://github.com/Confetti3/SF4-Ember-Netplay/tree/main) preserves the previous SF4 Netplay Launcher. Its releases and [archived README](docs/archive/README-pre-ember.md) remain available. Legacy in-place upgrades to 0.8.0 are not supported; follow the fresh-install steps above.
+
+Browse the [branch archive](docs/archive/README.md) for all retired development branches, preserved as tagged snapshots with their original commit history.
 
 ## Status and documentation
 
