@@ -35,7 +35,9 @@ namespace sf4e {
 			readyMessageNum[1] = -1;
 			stageID = -1;
 			rngSeed = 0xffffffff;
-			memset(chara, 0, sizeof(Dimps::GameEvents::VsMode::ConfirmedCharaConditions) * 2);
+			memset(chara.data(), 0, sizeof(Dimps::GameEvents::VsMode::ConfirmedCharaConditions) * 2);
+			chara[0].unc_edition = chara[1].unc_edition = 14; // USFIV default; edition 0 is not selectable.
+			inputDelay[0] = inputDelay[1] = 2;
 		}
 
 		void MatchData::ClearReady() {

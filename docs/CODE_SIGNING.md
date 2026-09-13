@@ -1,5 +1,7 @@
 # Code signing (fix Windows Defender false positives)
 
+> **Legacy workflow reference.** Ember 0.8.0 is built and packaged locally as described in [BUILDING.md](BUILDING.md). The tag-triggered Release Windows workflow is retired on `release`; the historical signing setup below does not sign current releases. Signing status must be checked on the actual package binaries.
+
 `Program:Win32/Wacapew.A!ml` on **`Sidecar.dll`** is a **heuristic** flag. Unsigned game-hook DLLs are routinely misclassified. **Authenticode signing** is the reliable fix.
 
 We do **not** ship Defender folder-exclusion scripts. Do not ask users to run `Add-MpPreference` or disable scanning.
@@ -19,12 +21,12 @@ We do **not** ship Defender folder-exclusion scripts. Do not ask users to run `A
 | `SIGNPATH_ORGANIZATION_ID` | Your SignPath organization GUID |
 | `SIGNPATH_SIGNING_POLICY_SLUG` | e.g. `release` (matches `.signpath/signpath.json`) |
 
-The workflow [`.github/workflows/release-windows.yml`](../.github/workflows/release-windows.yml) submits artifacts to SignPath when these secrets are set.
+The workflow [`.github/workflows/release-windows.yml`](https://github.com/Confetti3/SF4-Ember-Netplay/blob/main/.github/workflows/release-windows.yml) submits artifacts to SignPath when these secrets are set.
 
 ## Option B — Azure Artifact Signing (~$10/month)
 
 1. Create an [Azure Artifact Signing](https://learn.microsoft.com/en-us/azure/artifact-signing/overview) account
-2. Add GitHub secrets (see [`.github/workflows/release-windows.yml`](../.github/workflows/release-windows.yml)):
+2. Add GitHub secrets (see [`.github/workflows/release-windows.yml`](https://github.com/Confetti3/SF4-Ember-Netplay/blob/main/.github/workflows/release-windows.yml)):
    - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
    - `AZURE_CODESIGNING_ENDPOINT`, `AZURE_CODESIGNING_ACCOUNT`, `AZURE_CODESIGNING_PROFILE`
 3. Run workflow **Release Windows** on a version tag before publishing the zip
@@ -41,7 +43,7 @@ powershell -File scripts/sign-release-binaries.ps1 -InputDir msvc-out\relwithdeb
 ## Verify signatures after signing
 
 ```powershell
-Get-AuthenticodeSignature Launcher.exe, Sidecar.dll, RelayHost.exe, Updater.exe | Format-List
+Get-AuthenticodeSignature Launcher.exe, Sidecar.dll, sf4-net.exe, Updater.exe | Format-List
 ```
 
 Status should be **Valid** with publisher **SignPath Foundation** (or your org).
@@ -52,7 +54,7 @@ Submit **only these files** (not the whole zip):
 
 - `Launcher.exe`
 - `Sidecar.dll`
-- `RelayHost.exe`
+- `sf4-net.exe`
 
 ```powershell
 powershell -File scripts/prepare-defender-submission.ps1

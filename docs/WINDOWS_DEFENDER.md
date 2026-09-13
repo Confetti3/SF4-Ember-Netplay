@@ -10,7 +10,7 @@ We do **not** recommend weakening Windows Defender (folder exclusions, disabling
 
 ## What to do if Defender blocks install (unsigned build)
 
-1. Download only from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) (currently **v0.6.5**).
+1. Download only from [GitHub Releases](https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest) (currently **v0.8.0**).
 2. Compare SHA256 hashes with the release page (see below).
 3. If you believe the detection is wrong, report it to Microsoft at [file submission](https://www.microsoft.com/en-us/wdsi/filesubmission) (**Incorrectly detected as malware** → `Program:Win32/Wacapew.A!ml`).
 4. Wait for a **signed** release (see [`docs/CODE_SIGNING.md`](CODE_SIGNING.md)) — that is what we ship as the permanent fix.
@@ -37,19 +37,19 @@ Signed releases show a verified publisher and build SmartScreen/Defender trust o
 
 The injection code in [`src/sidecar/sidecar.cxx`](../src/sidecar/sidecar.cxx) is unchanged since **v0.3.1**; newer versions added netplay transport and PE version metadata, not a different hook mechanism. Different release builds can have different `Sidecar.dll` SHA256 hashes from rebuilds and VERSIONINFO — that does not mean the hook behavior changed.
 
-Source: [github.com/Confetti3/SF4-Netplay-Launcher](https://github.com/Confetti3/SF4-Netplay-Launcher)
+Source: [github.com/Confetti3/SF4-Ember-Netplay](https://github.com/Confetti3/SF4-Ember-Netplay)
 
 ## Verify files (recommended)
 
 ```powershell
-Get-FileHash Launcher.exe, Sidecar.dll, RelayHost.exe -Algorithm SHA256 | Format-Table
+Get-FileHash Launcher.exe, Sidecar.dll, sf4-net.exe -Algorithm SHA256 | Format-Table
 ```
 
 Compare with hashes on the GitHub release page.
 
 ## Maintainer checklist each release
 
-1. Run `scripts/prepare-defender-submission.ps1` and submit `Launcher.exe`, `Sidecar.dll`, and `RelayHost.exe` at [Microsoft file submission](https://www.microsoft.com/en-us/wdsi/filesubmission) (**Incorrectly detected** → `Wacapew.A!ml`).
+1. Run `scripts/prepare-defender-submission.ps1` and submit `Launcher.exe`, `Sidecar.dll`, and `sf4-net.exe` at [Microsoft file submission](https://www.microsoft.com/en-us/wdsi/filesubmission) (**Incorrectly detected** → `Wacapew.A!ml`).
 2. Ship **signed** binaries when SignPath/Azure is configured (`docs/CODE_SIGNING.md`).
 3. Post SHA256 hashes in release notes.
 4. Promote a release to **Latest** only after Authenticode signatures validate.

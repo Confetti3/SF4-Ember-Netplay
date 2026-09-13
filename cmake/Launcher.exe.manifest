@@ -5,7 +5,7 @@
     processorArchitecture="x86"
     name="SF4NetplayLauncher.Launcher"
     type="win32"/>
-  <description>SF4 Netplay Launcher — unofficial USF4 rollback netplay host</description>
+  <description>SF4 Ember Netplay — unofficial USF4 rollback netplay</description>
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>
       <requestedPrivileges>

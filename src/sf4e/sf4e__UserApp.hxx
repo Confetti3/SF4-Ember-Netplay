@@ -28,6 +28,7 @@ namespace sf4e {
             uint8_t deviceType;
             uint8_t deviceIdx;
             uint8_t delay;
+            std::string matchNames[2];
         };
 
         static std::unique_ptr<Netplay> netplay;
@@ -35,12 +36,12 @@ namespace sf4e {
 
         static void Install();
         static void Steam_PostUpdate();
-        static void StartSession(char* joinAddr, uint16_t port, std::string& sidecarHash, std::string& name, uint8_t deviceType, uint8_t deviceIdx, uint8_t delay, bool useRelay = true);
+        static void StartIrohSession(std::unique_ptr<session::ClientTransport> transport,
+            uint16_t port, std::string& name, uint8_t deviceType, uint8_t deviceIdx, uint8_t delay);
+        static bool EnterAuthorizedMatch();
         static void ShutdownNetplay(bool closeGgpo = true);
-        static bool StartServer(uint16 hostPort, std::string& identity, std::string& sidecarHash, bool editionSelect, int roundCount, Dimps::Math::FixedPoint roundTime);
         static void ResetLobbyForRematch();
         static void TryStartPendingMatch();
-        static void TryRestartGgpoLegacyTunnel();
         static void _OnVsPreBattleTasksRegistered();
         static void _OnVsBattleTasksRegistered();
     };

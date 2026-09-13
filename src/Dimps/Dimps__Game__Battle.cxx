@@ -73,6 +73,7 @@ void GameManager::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 	*(PVOID*)&publicMethods.GetAgglutinateTime = (PVOID)(peRootOffset + 0x1d14f0);
 	*(PVOID*)&publicMethods.GetRoundTime = (PVOID)(peRootOffset + 0x1d14d0);
+	*(PVOID*)&publicMethods.GetNativeResultIndex = (PVOID)(peRootOffset + 0x1d1370);
 }
 
 Task** Battle::Pause::Unit::GetPauseTask(Unit* u) {

@@ -11,12 +11,8 @@
       "version>=": "4.0.1#7"
     },
     {
-      "name": "gamenetworkingsockets",
-      "version>=": "1.4.1#1"
-    },
-    {
       "name": "ggpo",
-      "version>=": "1.0.0#4"
+      "version>=": "1.0.0#5"
     },
     {
       "name": "imgui",
@@ -41,15 +37,8 @@
       "name": "valvefilevdf",
       "version>=": "1.0.0#1"
     },
-    {
-      "name": "qtbase",
-      "default-features": false,
-      "features": [
-        "widgets"
-      ]
-    },
-    "webview2",
-    "wil"
+    "wil",
+    "zlib"
   ],
   "builtin-baseline": "fafcc0e93bfba303e5e48790def745d27e6d449b"
 }

@@ -71,6 +71,10 @@ sf4e::Payload* FindPayload() {
 	for (hMod = DetourEnumerateModules(NULL); hMod != NULL; hMod = DetourEnumerateModules(hMod)) {
 		payload = (sf4e::Payload*)DetourFindPayload(hMod, sf4eSidecar::s_guidSidecarPayload, &payloadLength);
 		if (GetLastError() == 0 && payload != NULL) {
+			if (!sf4e::IsCompatiblePayload(payload, payloadLength)) {
+				BootstrapLog("Incompatible launcher bootstrap payload");
+				return NULL;
+			}
 			return payload;
 		}
 	}
@@ -94,6 +98,7 @@ __declspec(dllexport) BOOL WINAPI DllMain(
 		DetourRestoreAfterWith();
 		BootstrapLog("Sidecar DLL_PROCESS_ATTACH");
 		payload = FindPayload();
+		if (!payload) return FALSE;
 		if (payload) {
 			char msg[256] = { 0 };
 			sprintf_s(
@@ -108,6 +113,7 @@ __declspec(dllexport) BOOL WINAPI DllMain(
 		Dimps::Locate(LocatePERoot());
 		DetourTransactionBegin();
 		sf4e::Install(hinstDLL, payload);
+		SecureZeroMemory(payload->helper.nonce, sizeof(payload->helper.nonce));
 		payload = NULL;
 		error = DetourTransactionCommit();
 		if (error != NO_ERROR) {

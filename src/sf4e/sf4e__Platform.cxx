@@ -8,8 +8,6 @@
 #include <strsafe.h>
 
 #include <detours/detours.h>
-#include <steam/steamnetworkingsockets.h>
-#include <steam/isteamnetworkingutils.h>
 
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/rotating_file_sink.h"
@@ -21,6 +19,7 @@
 #include "sf4e__Platform.hxx"
 #include "sf4e__UserApp.hxx"
 #include "sf4e__Overlay.hxx"
+#include "sf4e__OverlayPrefs.hxx"
 #include "sf4e__NetplayFacade.hxx"
 
 namespace rPlatform = Dimps::Platform;
@@ -112,6 +111,8 @@ void fMain::Install() {
 }
 
 int fMain::Initialize(void* a, void* b, void* c) {
+	// This hook is outside DllMain: worker creation and named-pipe IPC are safe.
+	sf4e::NetplayFacade::StartHelper();
     if (sf4e::hSyncEvent != NULL) {
         SetEvent(sf4e::hSyncEvent);
         CloseHandle(sf4e::hSyncEvent);
@@ -170,11 +171,6 @@ int fMain::Initialize(void* a, void* b, void* c) {
         Dimps::Platform::D3D::staticMethods.GetSingleton()->lpD3DDevice
     );
 
-    SteamDatagramErrMsg errMsg;
-    if (!GameNetworkingSockets_Init(nullptr, errMsg)) {
-        spdlog::error("GameNetworkingSockets_Init failed.  {}", errMsg);
-    }
-
     sf4e::NetplayFacade::NotifyGameReady();
 
     return rval;
@@ -182,9 +178,11 @@ int fMain::Initialize(void* a, void* b, void* c) {
 
 void fMain::Destroy() {
     fUserApp::ShutdownNetplay(true);
-    GameNetworkingSockets_Kill();
-    spdlog::shutdown();
+	sf4e::NetplayFacade::StopHelper();
+
     (this->*rMain::publicMethods.Destroy)();
+	sf4e::OverlayPrefs::StopPersistence();
+    spdlog::shutdown();
 }
 
 void WINAPI fMain::RunWindowFunc(rMain* lpMain, HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {

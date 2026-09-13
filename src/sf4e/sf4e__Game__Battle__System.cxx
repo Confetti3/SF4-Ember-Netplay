@@ -6,8 +6,6 @@
 
 #include <windows.h>
 #include <detours/detours.h>
-#include <GameNetworkingSockets/steam/steamnetworkingsockets.h>
-#include <GameNetworkingSockets/steam/isteamnetworkingutils.h>
 #include <ggponet.h>
 #include <spdlog/spdlog.h>
 
@@ -20,13 +18,17 @@
 #include "../Dimps/Dimps__Game__Battle__Hud.hxx"
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
 #include "../Dimps/Dimps__Game__Battle__Training.hxx"
+#include "../training/TrainingRuntime.hxx"
 #include "../Dimps/Dimps__Game__Battle__Vfx.hxx"
 #include "../Dimps/Dimps__Math.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
 
 #include "../common/sf4e__RollbackDiagnostics.hxx"
+#include "../common/RollbackHud.hxx"
+static sf4e::RollbackHud rollbackHud;
 #include "../common/sf4e__StateHash.hxx"
+#include "../common/NativeMatchResult.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 
 #include "sf4e.hxx"
@@ -39,7 +41,6 @@
 #include "sf4e__Pad.hxx"
 #include "sf4e__Platform.hxx"
 #include "sf4e__NetplayFacade.hxx"
-#include "../session/sf4e__GgpoRelay.hxx"
 
 using Dimps::Platform::WithReleaser;
 
@@ -74,6 +75,74 @@ using rSystem = Dimps::Game::Battle::System;
 // Last disconnect_flags observed from ggpo_synchronize_input; logged on
 // change for diagnostics only (no gameplay semantics attached).
 static int s_lastDisconnectFlags = 0;
+
+// Native result state is captured in GGPO saves, including resimulation. The
+// history is rewound to each restored state; the emitted latch is deliberately
+// match state and survives a rollback so a
+// result cannot be submitted twice after re-simulation.
+static sf4e::native_result::Timeline s_nativeResultTimeline;
+static bool s_nativeResultEmitted = false;
+
+static void ResetNativeResultMatch() {
+    s_nativeResultTimeline.Reset();
+    s_nativeResultEmitted = false;
+}
+
+static void CaptureNativeMatchResult(rSystem* system, int stateFrame) {
+    if (!system || !rSystem::staticVars.CurrentBattleFlow) {
+        s_nativeResultTimeline.Capture(stateFrame, sf4e::native_result::Flow::Other, -1);
+        return;
+    }
+
+    const DWORD flowValue = *rSystem::staticVars.CurrentBattleFlow;
+    sf4e::native_result::Flow flow = sf4e::native_result::Flow::Other;
+    int winnerIndex = -1;
+    if (flowValue == rSystem::BF__MATCH_RESULT) {
+        flow = sf4e::native_result::Flow::MatchResult;
+        GameManager* manager = (system->*rSystem::publicMethods.GetGameManager)();
+        if (!manager || !GameManager::publicMethods.GetNativeResultIndex) {
+            s_nativeResultTimeline.Capture(stateFrame, sf4e::native_result::Flow::Other, -1);
+            return;
+        }
+
+        // The native result flow (SSFIV.exe absolute VA 0x005DD93A, RVA
+        // 0x001DD93A; GameManager vtable +0x30) uses -1 for BF_DRAW_RESULT and
+        // a player index for BF_MATCH_RESULT.  This is the match-level field
+        // written by the native round-score finalizer; the separate +0x4C field is the
+        // current round winner used by the result HUD and is not used here.
+        winnerIndex = (manager->*GameManager::publicMethods.GetNativeResultIndex)();
+    }
+    else if (flowValue == rSystem::BF__DRAW_RESULT) {
+        flow = sf4e::native_result::Flow::DrawResult;
+    }
+
+    s_nativeResultTimeline.Capture(stateFrame, flow, winnerIndex);
+}
+
+static void PublishConfirmedNativeMatchResult() {
+    if (s_nativeResultEmitted || !fSystem::ggpo ||
+        fSystem::localPlayerHandle == GGPO_INVALID_HANDLE) return;
+    int confirmed = -1;
+    if (!GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(fSystem::ggpo, &confirmed))) return;
+    const auto result = s_nativeResultTimeline.Confirmed(confirmed);
+    if (result == sf4e::native_result::Result::None) return;
+
+    s_nativeResultEmitted = true;
+    spdlog::info("Match result: confirmed native outcome={} input_frame={}", static_cast<int>(result), confirmed);
+    switch (result) {
+    case sf4e::native_result::Result::P1Win:
+        sf4e::NetplayFacade::NotifyRuntimeMatchResult(sf4e::room::MatchResult::P1Win);
+        break;
+    case sf4e::native_result::Result::P2Win:
+        sf4e::NetplayFacade::NotifyRuntimeMatchResult(sf4e::room::MatchResult::P2Win);
+        break;
+    case sf4e::native_result::Result::Draw:
+        sf4e::NetplayFacade::NotifyRuntimeMatchResult(sf4e::room::MatchResult::Draw);
+        break;
+    case sf4e::native_result::Result::None:
+        break;
+    }
+}
 
 static void NoteDisconnectFlags(int flags) {
     if (flags != s_lastDisconnectFlags) {
@@ -212,7 +281,7 @@ bool fSystem::MayAdvanceDeterministicFrame() {
         ? bUpdateAllowed
         : bUpdateAllowed && simGate.CanAdvanceDeterministicFrame();
 }
-fSystem::PlayerConnectionInfo fSystem::players[MAX_SF4E_PROTOCOL_USERS];
+fSystem::PlayerConnectionInfo fSystem::players[sf4e::room::MaxMatchParticipants];
 fSystem::SaveState fSystem::saveStates[NUM_SAVE_STATES];
 
 rKey::MementoID GGPO_MEMENTO_ID = { 1, 1 };
@@ -376,7 +445,8 @@ int fSystem::RestoreFromMemento(Memento* m, GameMementoKey::MementoID* id) {
         }
     }
 
-    return (this->*rSystem::mementoableMethods.RestoreFromMemento)(m, id);
+    const int result = (this->*rSystem::mementoableMethods.RestoreFromMemento)(m, id);
+    return result;
 }
 
 void fSystem::BattleUpdate() {
@@ -414,7 +484,9 @@ void fSystem::BattleUpdate() {
                         inputs = randomInputs;
                     }
                     else {
-                        inputs = { (p->*padMethods.GetButtons_MappedOn)(i), (p->*padMethods.GetButtons_RawOn)(i) };
+                        if(sf4e::NetplayFacade::IsRuntimeRoomActive())
+                            sf4e::NetplayFacade::ReadRuntimeMatchInput(i,inputs.mappedOn,inputs.rawOn);
+                        else inputs = { (p->*padMethods.GetButtons_MappedOn)(i), (p->*padMethods.GetButtons_RawOn)(i) };
                     }
                     {
                         diag::ScopedTimer _t(diag::OP_ADD_LOCAL_INPUT);
@@ -523,6 +595,7 @@ void fSystem::BattleUpdate() {
                 }
                 CaptureSnapshot(_this);
                 CaptureHashCheckpoint(_this);
+                PublishConfirmedNativeMatchResult();
             }
         }
     }
@@ -530,9 +603,11 @@ void fSystem::BattleUpdate() {
         if (fSoundPlayerManager::bUsePureSounds) {
             fSoundPlayerManager::SyncState();
         }
+        sf4e::training::BeforeUpdate(_this, ggpo != nullptr);
         (_this->*rSystem::publicMethods.BattleUpdate)();
+        sf4e::training::AfterUpdate(_this);
     }
-    
+
     if (nExtraFramesToSimulate > 0) {
         for (int i = 0; i < nExtraFramesToSimulate; i++) {
             fPadSystem::playbackFrame = i;
@@ -575,16 +650,17 @@ void fSystem::LogSaveSlotOccupancy(const char* label) {
 
 void fSystem::CloseBattle() {
     rSystem* _this = (rSystem*)this;
+    sf4e::training::CloseBattle();
     bool summaryEmitted = false;
     LogSaveSlotOccupancy("battle_close_entry");
     if (ggpo) {
+        spdlog::info("Match result: native teardown outcome_emitted={}", s_nativeResultEmitted);
         simGate.OnBattleClosing();
         // Decide defer *before* close so a prior spectator defer flag cannot
         // leave this session open across rematch.
         sf4e::NetplayFacade::NotifyMatchEnded();
         if (!sf4e::NetplayFacade::ShouldDeferGgpoClose()) {
             RetireGgpoSession("battle_close");
-            sf4e::GgpoRelay::Instance().Reset();
             summaryEmitted = true;
         }
         else {
@@ -611,6 +687,7 @@ void fSystem::CloseBattle() {
         EmitRollbackDiagSummary("battle_close_deferred");
     }
     (_this->*rSystem::publicMethods.CloseBattle)();
+    ResetNativeResultMatch();
 
     // If the room was lost mid-fight (degraded mode), the fight is now
     // over: exit to a safe disconnected state instead of a fake lobby.
@@ -789,6 +866,7 @@ void fSystem::ApplyGgpoDisconnectSettings(GGPOSession* session) {
 }
 
 void fSystem::RetireGgpoSession(const char* diagnosticsLabel) {
+    rollbackHud.Reset();
     if (!ggpo) {
         return;
     }
@@ -814,7 +892,6 @@ void fSystem::AbortGgpoMatch(const char* reason) {
     bUpdateAllowed = false;
     bGgpoConnectionInterrupted = false;
     RetireGgpoSession("abort");
-    sf4e::GgpoRelay::Instance().Reset();
     sf4e::NetplayFacade::ClearBattleState();
     rSystem* system = rSystem::staticMethods.GetSingleton();
     if (system) {
@@ -823,6 +900,11 @@ void fSystem::AbortGgpoMatch(const char* reason) {
 }
 
 void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay, DWORD rngSeed) {
+    rollbackHud.Reset();
+    if (!inPlayers || numPlayers < 2 || numPlayers > static_cast<int>(sf4e::room::MaxMatchParticipants)) {
+        sf4e::NetplayFacade::PushAlert("Invalid match roster. Return to the room and try again.");
+        return;
+    }
     diag::InitFromEnvironment();
     sf4e::NetplayFacade::CancelDeferredGgpoClose();
     if (ggpo) {
@@ -830,6 +912,8 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
         RetireGgpoSession("leftover_before_start");
     }
     diag::G().ResetForMatch(diag::NowMs());
+    ResetNativeResultMatch();
+    for (auto& player : players) { player = {}; player.handle = GGPO_INVALID_HANDLE; }
     // The savestate pool must start empty. A slot still holding records here
     // is leaked from the previous match — most often via the deferred-close
     // path, which retires the session from NetplayFacade::TickFrame and so
@@ -921,6 +1005,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
 }
 
 void fSystem::StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port, DWORD rngSeed) {
+    rollbackHud.Reset();
     diag::InitFromEnvironment();
     sf4e::NetplayFacade::CancelDeferredGgpoClose();
     if (ggpo) {
@@ -928,6 +1013,7 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
         RetireGgpoSession("leftover_before_spectating");
     }
     diag::G().ResetForMatch(diag::NowMs());
+    ResetNativeResultMatch();
     // Same rationale as StartGGPO: the pool must start empty.
     LogSaveSlotOccupancy("start_spectating_entry");
     for (int i = 0; i < NUM_SAVE_STATES; i++) {
@@ -977,6 +1063,8 @@ bool fSystem::ggpo_begin_game_callback(const char*)
     return true;
 }
 
+unsigned fSystem::RecentRollbackFrames() { return rollbackHud.Recent(GetTickCount64()); }
+
 bool fSystem::ggpo_advance_frame_callback(int)
 {
     diag::ScopedTimer _cbTimer(diag::OP_ROLLBACK_CALLBACK);
@@ -1024,6 +1112,7 @@ bool fSystem::ggpo_advance_frame_callback(int)
         AbortGgpoMatch("Netplay sync failed — match ended.");
     }
     else {
+        rollbackHud.Replayed(GetTickCount64());
         CaptureSnapshot(system);
         CaptureHashCheckpoint(system);
     }
@@ -1033,6 +1122,7 @@ bool fSystem::ggpo_advance_frame_callback(int)
 
 bool fSystem::ggpo_load_game_state_callback(unsigned char* buffer, int len)
 {
+    rollbackHud.Begin(GetTickCount64());
     SaveState* state = (SaveState*)buffer;
     SaveState::Load(state);
     return true;
@@ -1056,6 +1146,7 @@ bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, in
         }
 
         SaveState::Save(&saveStates[i]);
+        CaptureNativeMatchResult(rSystem::staticMethods.GetSingleton(), frame);
         *buffer = (unsigned char*)&saveStates[i];
         *checksum = 0;
 
@@ -1295,19 +1386,26 @@ fSystem::SemanticHashes fSystem::ComputeSemanticHashes(rSystem* src) {
 }
 
 void fSystem::CaptureHashCheckpoint(rSystem* src) {
-    int frameIdx = rSystem::GetNumFramesSimulated_FixedPoint(src)->integral;
-    if (frameIdx % HASH_CHECKPOINT_INTERVAL != 0) {
+    // The engine counter is a signed 16-bit field and wraps during a long
+    // match. GGPO's save callback uses a monotonic frame identity; spectators
+    // have no save callback, so the confirmed input boundary plus one is the
+    // equivalent state frame.
+    int stateFrame = lastGgpoSaveFrame;
+    if (localPlayerHandle == GGPO_INVALID_HANDLE) {
+        int confirmed = -1;
+        stateFrame = ggpo && GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(ggpo, &confirmed))
+            ? sf4e::statehash::SpectatorCheckpointStateFrame(confirmed) : -1;
+    }
+    const int ringIndex = sf4e::statehash::CheckpointRingIndex(stateFrame);
+    if (ringIndex < 0) {
         return;
     }
     HashCheckpoint& slot =
-        hashCheckpoints[(frameIdx / HASH_CHECKPOINT_INTERVAL) % NUM_HASH_CHECKPOINTS];
+        hashCheckpoints[ringIndex];
     // Rollback resimulation legitimately re-captures a frame with corrected
-    // values; the aging threshold guarantees an entry cannot change after
-    // it becomes eligible for sending.
-    if (slot.frameIdx != frameIdx) {
-        slot.frameIdx = frameIdx;
-        slot.sent = false;
-    }
+    // values. The GGPO input-confirmation boundary gates exchange, rather
+    // than elapsed engine frames (which have a different frame origin).
+    sf4e::statehash::PrepareCheckpointIdentity(slot.frameIdx,slot.ggpoStateFrame,slot.sent,stateFrame);
     {
         diag::ScopedTimer _hashTimer(diag::OP_SEMANTIC_HASH);
         slot.hashes = ComputeSemanticHashes(src);
@@ -1316,11 +1414,12 @@ void fSystem::CaptureHashCheckpoint(rSystem* src) {
 }
 
 fSystem::HashCheckpoint* fSystem::FindHashCheckpoint(int frameIdx) {
-    if (frameIdx < 0 || frameIdx % HASH_CHECKPOINT_INTERVAL != 0) {
+    const int ringIndex = sf4e::statehash::CheckpointRingIndex(frameIdx);
+    if (ringIndex < 0) {
         return nullptr;
     }
     HashCheckpoint& slot =
-        hashCheckpoints[(frameIdx / HASH_CHECKPOINT_INTERVAL) % NUM_HASH_CHECKPOINTS];
+        hashCheckpoints[ringIndex];
     return (slot.valid && slot.frameIdx == frameIdx) ? &slot : nullptr;
 }
 
@@ -1342,7 +1441,7 @@ void fSystem::CaptureSnapshot(rSystem* src) {
     if (iter != snapshotMap.end()) {
         snapshotMap.erase(iter);
     }
-    
+
     StateSnapshot snapshot;
     snapshot.frameIdx = frameIdx;
 
@@ -1570,6 +1669,10 @@ void fSystem::SaveState::Load(SaveState* src) {
         diag::ScopedTimer _t(diag::OP_LOAD_COPY_INTO_PLACE);
         CopyIntoPlace(src);
     }
+    // Preserve samples on the retained timeline and discard speculative
+    // outcomes after the restored GGPO state. Corrected saves refill them.
+    // Free() only round-trips storage and must not rewind this history.
+    s_nativeResultTimeline.Rewind(src->ggpoFrame);
 
     diag::ScopedTimer _restoreTimer(diag::OP_LOAD_RESTORE_KEYS);
 

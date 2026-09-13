@@ -1,3 +1,5 @@
+#include "update/PackageInstaller.hxx"
+#include "../common/PackageInventory.hxx"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,81 +9,12 @@
 #include <shellapi.h>
 #include <strsafe.h>
 #include <tlhelp32.h>
+#include "../common/SelectionAssetPath.hxx"
 
 namespace {
 
-static const wchar_t* kRequiredPackagePaths[] = {
-	L"Launcher.exe",
-	L"Sidecar.dll",
-	L"RelayHost.exe",
-	L"Updater.exe",
-	L"spdlog.dll",
-	L"fmt.dll",
-	L"GameNetworkingSockets.dll",
-	L"GGPO.dll",
-	L"libcrypto-3.dll",
-	L"libprotobuf.dll",
-	L"abseil_dll.dll",
-	L"Qt6Core.dll",
-	L"Qt6Gui.dll",
-	L"Qt6Widgets.dll",
-	L"qt.conf",
-	L"plugins\\platforms\\qwindows.dll",
-	L"preflight.ps1",
-	L"preflight.cmd",
-	L"START_HERE.md",
-	L"BUILD_INFO.txt",
-};
-
-static const wchar_t* kAllowedPackagePaths[] = {
-	L"Launcher.exe",
-	L"Sidecar.dll",
-	L"RelayHost.exe",
-	L"Updater.exe",
-	L"START_HERE.md",
-	L"preflight.cmd",
-	L"preflight.ps1",
-	L"qt.conf",
-	L"MANIFEST.txt",
-	L"ATTRIBUTION.md",
-	L"BUILD_INFO.txt",
-	L"spdlog.dll",
-	L"fmt.dll",
-	L"GameNetworkingSockets.dll",
-	L"GGPO.dll",
-	L"libcrypto-3.dll",
-	L"libprotobuf.dll",
-	L"abseil_dll.dll",
-	L"Qt6Core.dll",
-	L"Qt6Gui.dll",
-	L"Qt6Widgets.dll",
-	L"Qt6Network.dll",
-	L"icudt78.dll",
-	L"icuin78.dll",
-	L"icuuc78.dll",
-	L"double-conversion.dll",
-	L"pcre2-16.dll",
-	L"md4c.dll",
-	L"zlib1.dll",
-	L"plugins\\generic\\qtuiotouchplugin.dll",
-	L"plugins\\imageformats\\qgif.dll",
-	L"plugins\\imageformats\\qico.dll",
-	L"plugins\\imageformats\\qjpeg.dll",
-	L"plugins\\networkinformation\\qnetworklistmanager.dll",
-	L"plugins\\platforms\\qwindows.dll",
-	L"plugins\\styles\\qmodernwindowsstyle.dll",
-	L"plugins\\tls\\qcertonlybackend.dll",
-	L"plugins\\tls\\qschannelbackend.dll",
-	L"docs\\TROUBLESHOOTING.md",
-	L"docs\\USER_NETPLAY.md",
-	L"docs\\BETA_TESTERS.md",
-	L"docs\\SCOPE_AND_LIMITATIONS.md",
-	L"docs\\TEAM_QUICKSTART.md",
-	L"docs\\SMOKE_TEST.md",
-	L"docs\\NETPLAY_INVARIANTS.md",
-	L"docs\\WINDOWS_DEFENDER.md",
-	L"docs\\CODE_SIGNING.md",
-};
+static const auto& kRequiredPackagePaths = sf4e::package::Required;
+static const auto& kAllowedPackagePaths = sf4e::package::Allowed;
 
 static void AppendLog(const char* message) {
 	wchar_t tempDir[MAX_PATH] = { 0 };
@@ -142,26 +75,7 @@ static bool PathExistsUnderRoot(const wchar_t* root, const wchar_t* relPath) {
 	return GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES;
 }
 
-static bool IsAllowedPackagePath(const wchar_t* relPath) {
-	if (!relPath || !relPath[0]) {
-		return false;
-	}
-	if (_wcsicmp(relPath, L"SECURITY.md") == 0) {
-		return true;
-	}
-	if (_wcsnicmp(relPath, L"plugins\\", 8) == 0) {
-		const wchar_t* ext = wcsrchr(relPath, L'.');
-		if (ext && (_wcsicmp(ext, L".dll") == 0 || _wcsicmp(ext, L".pdb") == 0)) {
-			return true;
-		}
-	}
-	for (const wchar_t* allowed : kAllowedPackagePaths) {
-		if (_wcsicmp(relPath, allowed) == 0) {
-			return true;
-		}
-	}
-	return false;
-}
+static bool IsAllowedPackagePath(const wchar_t* path) { return sf4e::package::IsAllowed(path); }
 
 static bool ValidatePackageTree(const wchar_t* root, const wchar_t* relPrefix) {
 	wchar_t dir[MAX_PATH * 2] = { 0 };
@@ -245,29 +159,7 @@ static bool WaitForProcessExit(DWORD pid, DWORD timeoutMs) {
 	}
 	DWORD waitResult = WaitForSingleObject(process, timeoutMs);
 	CloseHandle(process);
-	return waitResult == WAIT_OBJECT_0 || waitResult == WAIT_TIMEOUT;
-}
-
-static void StopProcessesByName(const wchar_t* exeName) {
-	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-	if (snapshot == INVALID_HANDLE_VALUE) {
-		return;
-	}
-
-	PROCESSENTRY32W entry = { 0 };
-	entry.dwSize = sizeof(entry);
-	if (Process32FirstW(snapshot, &entry)) {
-		do {
-			if (_wcsicmp(entry.szExeFile, exeName) == 0) {
-				HANDLE process = OpenProcess(PROCESS_TERMINATE, FALSE, entry.th32ProcessID);
-				if (process) {
-					TerminateProcess(process, 1);
-					CloseHandle(process);
-				}
-			}
-		} while (Process32NextW(snapshot, &entry));
-	}
-	CloseHandle(snapshot);
+	return waitResult == WAIT_OBJECT_0;
 }
 
 static bool RunProcessAndWait(const wchar_t* cmdLine, DWORD* outExitCode) {
@@ -290,34 +182,12 @@ static bool RunProcessAndWait(const wchar_t* cmdLine, DWORD* outExitCode) {
 	return true;
 }
 
-static bool RunRobocopyMirror(const wchar_t* stagingDir, const wchar_t* installDir) {
-	wchar_t cmdLine[4096] = { 0 };
-	swprintf_s(
-		cmdLine,
-		L"robocopy.exe \"%s\" \"%s\" /MIR /R:2 /W:2 /NFL /NDL /NJH /NJS",
-		stagingDir,
-		installDir
-	);
-
-	char cmdUtf8[4096] = { 0 };
-	WideToUtf8(cmdLine, cmdUtf8, sizeof(cmdUtf8));
-	AppendLog(cmdUtf8);
-
-	DWORD exitCode = 99;
-	if (!RunProcessAndWait(cmdLine, &exitCode)) {
-		AppendLog("robocopy spawn failed");
-		return false;
-	}
-	if (exitCode > 7) {
-		char buf[64] = { 0 };
-		snprintf(buf, sizeof(buf), "robocopy failed with exit code %u", (unsigned)exitCode);
-		AppendLog(buf);
-		return false;
-	}
-	return true;
+static bool InstallFiles(const wchar_t* staging, const wchar_t* install) {
+    std::string error;
+    if (sf4e::launcher::InstallPackage(staging, install, error)) return true;
+    AppendLog(error.c_str()); return false;
 }
-
-static bool StartLauncher(const wchar_t* installDir) {
+static bool StartLauncher(const wchar_t* installDir, const wchar_t* arguments = nullptr) {
 	wchar_t launcherPath[MAX_PATH] = { 0 };
 	if (FAILED(PathCchCombine(launcherPath, MAX_PATH, installDir, L"Launcher.exe"))) {
 		return false;
@@ -333,6 +203,7 @@ static bool StartLauncher(const wchar_t* installDir) {
 	sei.lpVerb = L"open";
 	sei.lpFile = launcherPath;
 	sei.lpDirectory = installDir;
+    sei.lpParameters = arguments;
 	sei.nShow = SW_SHOWNORMAL;
 	if (!ShellExecuteExW(&sei)) {
 		char buf[128] = { 0 };
@@ -404,13 +275,16 @@ int wmain(int argc, wchar_t** argv) {
 	}
 
 	if (!WaitForProcessExit(waitPid, 30000)) {
-		AppendLog("WARNING: launcher process did not exit within timeout");
+		AppendLog("ERROR: launcher is still running; update cancelled");
+        StartLauncher(installDir, L"--updates --update-error");
+        return 1;
 	}
 
-	StopProcessesByName(L"RelayHost.exe");
+
 	Sleep(500);
 
-	if (!RunRobocopyMirror(stagingDir, installDir)) {
+	if (!InstallFiles(stagingDir, installDir)) {
+        StartLauncher(installDir, L"--updates --update-error");
 		return 1;
 	}
 

@@ -1,79 +1,17 @@
-# SF4 Netplay Launcher v0.6.5
+# SF4 Ember Netplay <version>
 
-VPS relay rollback netplay for **Ultra Street Fighter IV** (Steam) with a native **Qt** Host / Join / Offline launcher.
+Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by Anthony Danducci and contributors](https://codeberg.org/adanducci/sf4e). Preserve upstream attribution and bundled licenses.
 
-> **Experimental unofficial port** — not production-ready software. Friends-only testing; expect bugs and failed sessions.
+## Changes
 
-## What's new
+- Describe the player-visible changes for this candidate.
+- State actual SF4, different-network and clean-machine evidence separately from synthetic tests.
+- List open acceptance gates and known issues.
 
-- Summarize user-facing changes for this tag (copy from the previous notes and edit)
-- Keep the experimental / friends-only framing
+## Install and play
 
-## Unofficial port (not official sf4e)
+Requires Windows 10 or later (x64), Ultra Street Fighter IV on Steam, and the Microsoft Visual C++ x86 runtime. Extract the entire `sf4-ember-netplay-` ZIP, run `preflight.cmd`, then `Launcher.exe`. Both players should use the same package.
 
-This is an **unofficial port** of [sf4e](https://codeberg.org/adanducci/sf4e) by **Anthony Danducci** and contributors (MIT). It is **not** the upstream project and is **not** endorsed by Anthony Danducci. See `ATTRIBUTION.md` in the zip. For official sf4e, use [Codeberg](https://codeberg.org/adanducci/sf4e).
+The fixed in-game menu provides private Iroh rooms, fighter selection, spectators and offline play. Host copies a private invitation; Join pastes it. Both players select Ready. Graphics and button mappings are configured in the native game Options menu.
 
-## Prerequisites (install on each PC before playing)
-
-**These are not included in the zip.** Install once per machine:
-
-| Requirement | Why | Download |
-|-------------|-----|----------|
-| **Ultra Street Fighter IV** (Steam app **45760**) | The game this launcher hooks into | [Steam](https://store.steampowered.com/app/45760/) |
-| **Microsoft Visual C++ Redistributable (x86)** | `Launcher.exe`, `Sidecar.dll`, and relay binaries | [VC++ x86](https://aka.ms/vs/17/release/vc_redist.x86.exe) |
-
-**OS:** Windows 10 or later (64-bit Windows; the launcher is **32-bit/x86** to match USF4).
-
-**Qt 6 runtime** (`Qt6Core.dll`, `Qt6Gui.dll`, `Qt6Widgets.dll`, `plugins/`) ships **inside** the release zip — no separate UI runtime install.
-
-**After you extract the zip:** run **`preflight.cmd`**, then **`Launcher.exe`**.
-
-**Netplay:** Both players must use the **same release zip** (`BUILD_INFO.txt` Git line must match).
-
-(See also [docs/TROUBLESHOOTING.md](TROUBLESHOOTING.md) for install and crash fixes.)
-
-## Install
-
-1. Download the **team zip** asset below (not "Source code" only).
-2. Extract the **entire** zip to one folder (keep all DLLs and `plugins/` next to `Launcher.exe`).
-3. Run **`preflight.cmd`**
-4. Run **`Launcher.exe`** — **Host**, **Join**, or **Offline**
-
-## Quick start (Simple VPS relay)
-
-| Host | Joiner |
-|------|--------|
-| **Get code** — copy **`SF4-XXXX`** | Paste code from host |
-| **Start game** | Wait for host **Connected**, then **Start game** |
-| No port forward on host PC | No port forward needed |
-| Both **Ready** in-game | **Same release zip** on both PCs |
-
-See `docs/BETA_TESTERS.md` in the zip for the full experimental tester checklist.
-
-## Broker override
-
-Default broker is baked into the launcher (`https://74-208-200-95.nip.io`). To use another broker:
-
-```text
-set SF4E_BROKER_URL=https://your-broker.example
-```
-
-For a local HTTP broker during development, also set `SF4E_ALLOW_HTTP_BROKER=1`.
-
-## Known limitations
-
-See [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) for the full list. Summary:
-
-- Both players must use the **same release zip** (`Sidecar.dll` must match)
-- **Find match** and **Open rooms** are experimental — use **Host + room code** for friends testing
-- VPS relay supports up to **~50** concurrent rooms on the default broker; empty lobbies expire after ~5 minutes
-- Advanced Direct IP still requires host **TCP+UDP** port forward on the session port
-- Disconnect recovery and spectator mode need more experimental testing coverage
-
-## Troubleshooting
-
-[Player troubleshooting guide](https://github.com/Confetti3/SF4-Netplay-Launcher/blob/main/docs/TROUBLESHOOTING.md) — black launcher, crash on **Start game**, recommended settings, Direct IP firewall/ports, and logs.
-
-## Support
-
-Include the **Git** line from `BUILD_INFO.txt`, `%APPDATA%\sf4e\logs\sf4e.log`, and a screenshot when reporting issues.
+See [the player guide](USER_NETPLAY.md) and [troubleshooting](TROUBLESHOOTING.md). Keep invitations private. This local implementation does not authorize publication or any remote infrastructure change.

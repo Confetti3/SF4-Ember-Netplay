@@ -1,3 +1,4 @@
+#include "../../common/PackageInventory.hxx"
 #include "github_release_client.hxx"
 
 #include "../../common/install_paths.hxx"
@@ -25,87 +26,16 @@
 
 #include <nlohmann/json.hpp>
 
-#include "../common/sf4e__NetUtil.hxx"
+#include "../../common/sf4e__NetUtil.hxx"
 
 namespace sf4e {
 namespace launcher {
 
 	namespace {
 
-		static const char* kDefaultGithubRepo = "Confetti3/SF4-Netplay-Launcher";
 
-		static const wchar_t* kRequiredPackagePaths[] = {
-			L"Launcher.exe",
-			L"Sidecar.dll",
-			L"RelayHost.exe",
-			L"Updater.exe",
-			L"spdlog.dll",
-			L"fmt.dll",
-			L"GameNetworkingSockets.dll",
-			L"GGPO.dll",
-			L"libcrypto-3.dll",
-			L"libprotobuf.dll",
-			L"abseil_dll.dll",
-			L"Qt6Core.dll",
-			L"Qt6Gui.dll",
-			L"Qt6Widgets.dll",
-			L"qt.conf",
-			L"plugins\\platforms\\qwindows.dll",
-			L"preflight.ps1",
-			L"preflight.cmd",
-			L"START_HERE.md",
-			L"BUILD_INFO.txt",
-		};
-
-		static const wchar_t* kAllowedPackagePaths[] = {
-			L"Launcher.exe",
-			L"Sidecar.dll",
-			L"RelayHost.exe",
-			L"Updater.exe",
-			L"START_HERE.md",
-			L"preflight.cmd",
-			L"preflight.ps1",
-			L"qt.conf",
-			L"MANIFEST.txt",
-			L"ATTRIBUTION.md",
-			L"BUILD_INFO.txt",
-			L"spdlog.dll",
-			L"fmt.dll",
-			L"GameNetworkingSockets.dll",
-			L"GGPO.dll",
-			L"libcrypto-3.dll",
-			L"libprotobuf.dll",
-			L"abseil_dll.dll",
-			L"Qt6Core.dll",
-			L"Qt6Gui.dll",
-			L"Qt6Widgets.dll",
-			L"Qt6Network.dll",
-			L"icudt78.dll",
-			L"icuin78.dll",
-			L"icuuc78.dll",
-			L"double-conversion.dll",
-			L"pcre2-16.dll",
-			L"md4c.dll",
-			L"zlib1.dll",
-			L"plugins\\generic\\qtuiotouchplugin.dll",
-			L"plugins\\imageformats\\qgif.dll",
-			L"plugins\\imageformats\\qico.dll",
-			L"plugins\\imageformats\\qjpeg.dll",
-			L"plugins\\networkinformation\\qnetworklistmanager.dll",
-			L"plugins\\platforms\\qwindows.dll",
-			L"plugins\\styles\\qmodernwindowsstyle.dll",
-			L"plugins\\tls\\qcertonlybackend.dll",
-			L"plugins\\tls\\qschannelbackend.dll",
-			L"docs\\TROUBLESHOOTING.md",
-			L"docs\\USER_NETPLAY.md",
-			L"docs\\BETA_TESTERS.md",
-			L"docs\\SCOPE_AND_LIMITATIONS.md",
-			L"docs\\TEAM_QUICKSTART.md",
-			L"docs\\SMOKE_TEST.md",
-			L"docs\\NETPLAY_INVARIANTS.md",
-			L"docs\\WINDOWS_DEFENDER.md",
-			L"docs\\CODE_SIGNING.md",
-		};
+		static const auto& kRequiredPackagePaths = sf4e::package::Required;
+static const auto& kAllowedPackagePaths = sf4e::package::Allowed;
 
 		static void AppendUpdateLog(const char* message);
 		static bool WidePathToUtf8(const wchar_t* wide, char* out, int outLen);
@@ -219,26 +149,7 @@ namespace launcher {
 			return GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES;
 		}
 
-		static bool IsAllowedPackagePath(const wchar_t* relPath) {
-			if (!relPath || !relPath[0]) {
-				return false;
-			}
-			if (_wcsicmp(relPath, L"SECURITY.md") == 0) {
-				return true;
-			}
-			if (_wcsnicmp(relPath, L"plugins\\", 8) == 0) {
-				const wchar_t* ext = wcsrchr(relPath, L'.');
-				if (ext && (_wcsicmp(ext, L".dll") == 0 || _wcsicmp(ext, L".pdb") == 0)) {
-					return true;
-				}
-			}
-			for (const wchar_t* allowed : kAllowedPackagePaths) {
-				if (_wcsicmp(relPath, allowed) == 0) {
-					return true;
-				}
-			}
-			return false;
-		}
+		static bool IsAllowedPackagePath(const wchar_t* path) { return sf4e::package::IsAllowed(path); }
 
 		static bool ValidatePackageTree(const wchar_t* root, const wchar_t* relPrefix) {
 			wchar_t dir[MAX_PATH * 2] = { 0 };
@@ -785,7 +696,8 @@ namespace launcher {
 			const char* url,
 			const char* headers,
 			const wchar_t* zipPath,
-			std::string& outError
+			std::string& outError,
+            const std::function<bool(std::uint64_t, std::uint64_t)>& progress
 		) {
 			if (!url || !url[0]) {
 				outError = "missing URL";
@@ -801,7 +713,7 @@ namespace launcher {
 				return false;
 			}
 			HttpRequestResult httpResult;
-			if (HttpDownloadUrlUtf8(url, zipPath, 300000, headers, &httpResult)) {
+			if (HttpDownloadUrlUtf8(url, zipPath, 20000, headers, &httpResult, progress)) {
 				AppendUpdateLog((std::string(label) + " OK").c_str());
 				return true;
 			}
@@ -814,7 +726,8 @@ namespace launcher {
 			const char* zipApiUrl,
 			const char* zipDownloadUrl,
 			const wchar_t* zipPath,
-			std::string& outError
+			std::string& outError,
+            const std::function<bool(std::uint64_t, std::uint64_t)>& progress
 		) {
 			const char* apiHeaders = "Accept: application/octet-stream\r\nUser-Agent: sf4e-updater/1.0\r\n";
 			const char* browserHeaders = "User-Agent: sf4e-updater/1.0\r\n";
@@ -831,14 +744,15 @@ namespace launcher {
 			AppendUpdateLog("download start");
 
 			if (zipDownloadUrl && zipDownloadUrl[0]) {
-				if (TryHttpDownload("browser", zipDownloadUrl, browserHeaders, zipPath, attemptError)) {
+				if (TryHttpDownload("browser", zipDownloadUrl, browserHeaders, zipPath, attemptError, progress)) {
 					return true;
 				}
 				recordFailure("browser");
+                if (progress && !progress(0,0)) { outError = "Cancelled"; return false; }
 			}
 
 			if (zipApiUrl && zipApiUrl[0]) {
-				if (TryHttpDownload("api", zipApiUrl, apiHeaders, zipPath, attemptError)) {
+				if (TryHttpDownload("api", zipApiUrl, apiHeaders, zipPath, attemptError, progress)) {
 					return true;
 				}
 				recordFailure("api");
@@ -973,6 +887,13 @@ namespace launcher {
 			return result;
 		}
 
+        return ParseGithubReleaseResponse(body, installed);
+    }
+
+    UpdateCheckResult ParseGithubReleaseResponse(const std::string& body, const char* installed) {
+        UpdateCheckResult result;
+        if (!installed) installed = "";
+        result.installedVersion = installed;
 		try {
 			nlohmann::json release = nlohmann::json::parse(body);
 			result.latestVersion = release.value("tag_name", "");
@@ -989,9 +910,6 @@ namespace launcher {
 			}
 
 			if (release.contains("assets") && release["assets"].is_array()) {
-				std::string legacyZipUrl;
-				std::string legacyZipApiUrl;
-				std::string legacyDigest;
 				// GitHub exposes an asset content digest as "sha256:<hex>". Strip
 				// the prefix so we store bare lowercase hex (empty for older
 				// releases whose assets predate the digest field).
@@ -1005,30 +923,22 @@ namespace launcher {
 				};
 				for (const auto& asset : release["assets"]) {
 					std::string name = asset.value("name", "");
-					if (name.find(".zip") == std::string::npos) {
+					if (name.size() < 4 || name.compare(name.size()-4, 4, ".zip") != 0) {
 						continue;
 					}
-					if (name.find("sf4-netplay-launcher") != std::string::npos) {
+					if (name.compare(0, strlen(kReleaseZipPrefix), kReleaseZipPrefix) == 0) {
 						result.zipDownloadUrl = asset.value("browser_download_url", "");
 						result.zipApiUrl = asset.value("url", "");
 						result.expectedSha256 = parseSha256Digest(asset.value("digest", ""));
 						break;
 					}
-					if (name.find("sf4-enhanced-team") != std::string::npos) {
-						legacyZipUrl = asset.value("browser_download_url", "");
-						legacyZipApiUrl = asset.value("url", "");
-						legacyDigest = parseSha256Digest(asset.value("digest", ""));
-					}
+
 				}
-				if (result.zipDownloadUrl.empty() && !legacyZipUrl.empty()) {
-					result.zipDownloadUrl = legacyZipUrl;
-					result.zipApiUrl = legacyZipApiUrl;
-					result.expectedSha256 = legacyDigest;
-				}
+
 			}
 
 			if (result.zipDownloadUrl.empty()) {
-				result.error = "Latest release has no sf4-netplay-launcher zip asset.";
+				result.error = "Latest release has no SF4 Ember Netplay ZIP asset.";
 				return result;
 			}
 
@@ -1045,7 +955,8 @@ namespace launcher {
 		const char* zipDownloadUrl,
 		const char* zipApiUrl,
 		const char* latestVersionTag,
-		const char* expectedSha256
+		const char* expectedSha256,
+        const std::function<bool(std::uint64_t, std::uint64_t)>& progress
 	) {
 		ApplyUpdateResult result;
 		if ((!zipDownloadUrl || !zipDownloadUrl[0]) && (!zipApiUrl || !zipApiUrl[0])) {
@@ -1115,7 +1026,7 @@ namespace launcher {
 
 		std::string downloadError;
 		AppendUpdateLog("DownloadAndApplyUpdate start");
-		if (!DownloadReleaseZip(zipApiUrl, zipDownloadUrl, zipPath, downloadError)) {
+		if (!DownloadReleaseZip(zipApiUrl, zipDownloadUrl, zipPath, downloadError, progress)) {
 			char repo[128] = { 0 };
 			GetGithubRepo(repo, sizeof(repo));
 			char releasePage[256] = { 0 };
@@ -1155,7 +1066,7 @@ namespace launcher {
 			}
 			AppendUpdateLog("hash verification ok");
 		} else {
-			AppendUpdateLog("no published digest for asset; skipping hash verification");
+			result.error = "The release has no published SHA-256 digest. Automatic installation is unavailable."; return result;
 		}
 
 		if (!ExpandZipArchive(zipPath, extractDir)) {
@@ -1192,7 +1103,9 @@ namespace launcher {
 		}
 		AppendUpdateLog("package validation ok");
 
-		if (!SpawnUpdater(installDir, stagingDir, GetCurrentProcessId())) {
+        if (progress && !progress(0,0)) { result.error = "Update cancelled before installation."; return result; }
+        if (IsGameProcessRunning()) { result.error = "Close the game before installing the update."; return result; }
+        if (!SpawnUpdater(installDir, stagingDir, GetCurrentProcessId())) {
 			result.error = "Could not start Updater.exe. Reinstall from a fresh zip.";
 			return result;
 		}

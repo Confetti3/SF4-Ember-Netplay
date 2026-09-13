@@ -16,7 +16,7 @@ if (-not (Test-Path $Src)) {
 }
 
 New-Item -ItemType Directory -Force -Path $Dst | Out-Null
-$files = @("Launcher.exe", "Sidecar.dll", "RelayHost.exe")
+$files = @("Launcher.exe", "Sidecar.dll", "sf4-net.exe")
 foreach ($name in $files) {
     $from = Join-Path $Src $name
     if (-not (Test-Path $from)) {
@@ -31,8 +31,8 @@ $lines = @(
     "",
     "Category: Incorrectly detected as malware/malicious",
     "Detection name: Program:Win32/Wacapew.A!ml",
-    "Product: SF4 Netplay Launcher (unofficial USF4 rollback netplay, open source)",
-    "Source: https://github.com/Confetti3/SF4-Netplay-Launcher",
+    "Product: SF4 Ember Netplay (unofficial USF4 rollback netplay, open source)",
+    "Source: https://github.com/Confetti3/SF4-Ember-Netplay",
     "",
     "SHA256:"
 )

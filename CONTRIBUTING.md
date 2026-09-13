@@ -1,6 +1,6 @@
 # How to contribute
 
-> **SF4 Netplay Launcher** is an **experimental unofficial port** — not production-ready software. Bug reports help improve a friends-only test build; do not present this project as stable or "working" netplay for general use.
+> **SF4 Ember Netplay** is an **experimental unofficial port** — not production-ready software. Bug reports help improve a friends-only test build; do not present this project as stable or "working" netplay for general use.
 
 ## Testers and players: Submitting bugs
 

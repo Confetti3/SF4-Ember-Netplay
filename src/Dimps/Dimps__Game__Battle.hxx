@@ -57,6 +57,10 @@ namespace Dimps {
 				typedef struct __publicMethods {
 					void (GameManager::* GetAgglutinateTime)(FixedPoint* out);
 					void (GameManager::* GetRoundTime)(FixedPoint* out);
+					// This no-argument reader is native result state, not
+					// presentation data.  In the shipped USF4 binary it is the
+					// match-result selector/index used by the native flow.
+					int (GameManager::* GetNativeResultIndex)();
 				} __publicMethods;
 
 				static void Locate(HMODULE peRoot);

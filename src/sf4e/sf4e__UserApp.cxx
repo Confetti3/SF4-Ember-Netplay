@@ -4,8 +4,6 @@
 #include <windows.h>
 #include <detours/detours.h>
 
-#include <GameNetworkingSockets/steam/steamnetworkingsockets.h>
-#include <GameNetworkingSockets/steam/isteamnetworkingutils.h>
 #include <ggponet.h>
 #include <spdlog/spdlog.h>
 
@@ -17,6 +15,7 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__UserApp.hxx"
 #include "../common/agent_debug_log.hxx"
+#include "../common/StageCatalog.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../session/sf4e__SessionClient.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
@@ -28,9 +27,8 @@
 #include "sf4e__Overlay.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__UserApp.hxx"
+#include "sf4e__Pad.hxx"
 
-#include "../session/sf4e__GgpoRelay.hxx"
-#include "../session/sf4e__GgpoTransport.hxx"
 
 namespace SessionProtocol = sf4e::SessionProtocol;
 using Dimps::App;
@@ -167,372 +165,55 @@ sf4e::UserApp::Netplay::Netplay(
     delay(_delay)
 {}
 
-void fUserApp::_OnVsBattleTasksRegistered()
-{
-    if (!netplay) {
-        sf4e::agent_debug::Log("H3", "UserApp.cxx:_OnVsBattleTasksRegistered", "netplay_null", {});
-        return;
-    }
-    sf4e::agent_debug::Log(
-        "H3",
-        "UserApp.cxx:_OnVsBattleTasksRegistered",
-        "entry",
-        {
-            { "memberCount", (int)netplay->client._lobbyData.members.size() },
-            { "useCentralSession", (int)sf4e::NetplayFacade::GetConfig().useCentralSession },
-            { "useRelay", netplay->client._useRelay ? 1 : 0 }
-        }
-    );
-    if (netplay->client._lobbyData.members.size() < 2) {
-        spdlog::warn("Netplay: waiting for second player before starting GGPO");
-        sf4e::NetplayFacade::PushAlert("Waiting for opponent in the lobby before the match can start.");
-        return;
-    }
-
-    // Start the GGPO connection
-    bool isPlayer = false;
-    for (int i = 0; i < 2 && i < (int)netplay->client._lobbyData.members.size(); i++) {
-        if (netplay->client._lobbyData.members[i].connId == netplay->client._cid) {
-            isPlayer = true;
-            break;
-        }
-    }
-    sf4e::agent_debug::Log(
-        "H5",
-        "UserApp.cxx:_OnVsBattleTasksRegistered",
-        "is_player_branch",
-        { { "isPlayer", isPlayer } }
-    );
-    if (isPlayer) {
-        NetplayConfig transportCfg = sf4e::NetplayFacade::GetConfig();
-        bool useLegacyGgpoTunnel = false;
-        DWORD udpRegisteredAt = 0;
-        const bool vpsSession = transportCfg.useCentralSession == 2;
-        if (
-            vpsSession
-            && transportCfg.ggpoTransport == 0
-            && transportCfg.ggpoRoomToken[0]
-            && transportCfg.ggpoRemotePort > 0
-        ) {
-            transportCfg.ggpoTransport = (uint8_t)GgpoTransportMode::UdpRelay;
-        }
-        sf4e::NetplayFacade::RestoreBrokerGgpoEndpoint(transportCfg);
-        if (vpsSession && transportCfg.ggpoTransport != 0) {
-            // Registration owns the same local UDP port as GGPO. Release any
-            // deferred/leftover session before binding the v3 registration socket.
-            if (fSystem::ggpo) {
-                spdlog::info("GgpoTransport: closing previous GGPO session before registration");
-                sf4e::NetplayFacade::CancelDeferredGgpoClose();
-                fSystem::RetireGgpoSession("transport_registration_close");
-                GgpoRelay::Instance().Reset();
-            }
-
-            GgpoTransportMode effective = GgpoTransportMode::UdpRelay;
-            const bool prepared = GgpoTransport::PrepareForBattle(
-                transportCfg,
-                &effective,
-                &netplay->client
-            );
-            sf4e::NetplayFacade::ApplyGgpoTransportConfig(transportCfg);
-            if (!prepared) {
-                spdlog::error(
-                    "GgpoTransport: prepare failed (mode={}) — aborting battle start",
-                    GgpoTransport::TransportModeLabel(effective)
-                );
-                sf4e::NetplayFacade::ReportGgpoTransport((uint8_t)effective, false, nullptr, 0);
-                fSystem::AbortGgpoMatch(
-                    "UDP relay unavailable — return to lobby and Get code again."
-                );
-                return;
-            }
-            useLegacyGgpoTunnel = effective == GgpoTransportMode::LegacySessionTunnel;
-            if (!useLegacyGgpoTunnel) {
-                if (effective == GgpoTransportMode::UdpRelay) {
-                    udpRegisteredAt = GetTickCount();
-                }
-                spdlog::info(
-                    "GgpoTransport: using {} remote {}:{}",
-                    GgpoTransport::TransportModeLabel(effective),
-                    transportCfg.ggpoRemoteHost,
-                    transportCfg.ggpoRemotePort
-                );
-            }
-            else {
-                spdlog::info("GgpoTransport: using forced legacy session tunnel");
-            }
-            sf4e::NetplayFacade::ReportGgpoTransport(
-                (uint8_t)effective,
-                useLegacyGgpoTunnel,
-                useLegacyGgpoTunnel ? nullptr : transportCfg.ggpoRemoteHost,
-                useLegacyGgpoTunnel ? 0 : transportCfg.ggpoRemotePort
-            );
-        }
-        else if (vpsSession) {
-            spdlog::error("GgpoTransport: VPS session missing UDP relay endpoint/token");
-            sf4e::NetplayFacade::ReportGgpoTransport(1, false, nullptr, 0);
-            fSystem::AbortGgpoMatch(
-                "UDP relay required — return to lobby and Get code again."
-            );
-            return;
-        }
-        else {
-            // Non-VPS / local relay: keep prior useRelay tunnel behavior for LAN direct.
-            useLegacyGgpoTunnel = netplay->client._useRelay;
-        }
-
-        if (useLegacyGgpoTunnel) {
-            if (!GgpoRelay::Instance().Start(netplay->client._ggpoPort, &netplay->client)) {
-                spdlog::error("Netplay: GgpoRelay failed to start (session tunnel)");
-                sf4e::NetplayFacade::PushAlert(
-                    "Netplay: could not start GGPO session tunnel. Return to lobby and retry."
-                );
-                return;
-            }
-        }
-
-        GGPOPlayer players[MAX_SF4E_PROTOCOL_USERS];
-        for (int i = 0; i < 2 && (size_t)i < netplay->client._lobbyData.members.size(); i++) {
-            SessionProtocol::MemberData& memberData = netplay->client._lobbyData.members[i];
-            GGPOPlayer& player = players[i];
-            player.size = sizeof(GGPOPlayer);
-            player.player_num = i + 1;
-            if (netplay->client._lobbyData.members[i].connId == netplay->client._cid) {
+static bool StartRuntimeGgpo() {
+    static_assert(sizeof(sf4e::Pad::System::Inputs) == sf4e::session::GgpoInputBytes, "Recalculate gameplay packet admission when SF4 inputs change");
+    sf4e::NetplayFacade::RuntimeMatchEndpoints endpoints;
+    if (!sf4e::NetplayFacade::GetRuntimeMatchEndpoints(endpoints)) return false;
+    auto& netplay = fUserApp::netplay;
+    if (!netplay || endpoints.participantCount < 2 || endpoints.participantCount > sf4e::room::MaxMatchParticipants) return false;
+    for (std::size_t side = 0; side < 2; ++side)
+        netplay->matchNames[side] = side < netplay->client._lobbyData.members.size() ?
+            netplay->client._lobbyData.members[side].name : std::string{};
+    if (endpoints.localSlot >= 2) {
+        if (!endpoints.remotePorts[0]) return false;
+        sf4e::NetplayFacade::ReleaseRuntimePortToGgpo();
+        char loopback[] = "127.0.0.1";
+        fSystem::StartSpectating(endpoints.localPort, 2, loopback, endpoints.remotePorts[0], netplay->client._matchData.rngSeed);
+    } else {
+        GGPOPlayer players[sf4e::room::MaxMatchParticipants] = {};
+        const auto count = endpoints.localSlot == 0 ? endpoints.participantCount : 2;
+        for (std::size_t slot = 0; slot < count; ++slot) {
+            auto& player = players[slot]; player.size = sizeof(player); player.player_num = static_cast<int>(slot) + 1;
+            if (slot == endpoints.localSlot) {
                 player.type = GGPO_PLAYERTYPE_LOCAL;
-
-                // Inject the chosen device into this player's side
-                Dimps::Pad::System* padSys = Dimps::Pad::System::staticMethods.GetSingleton();
-                Dimps::Pad::System::__publicMethods& padSysMethods = Dimps::Pad::System::publicMethods;
-                (padSys->*padSysMethods.AssociatePlayerAndGamepad)(i, netplay->deviceIdx);
-                (padSys->*padSysMethods.SetDeviceTypeForPlayer)(i, netplay->deviceType);
-                (padSys->*padSysMethods.SetSideHasAssignedController)(i, 1);
-                (padSys->*padSysMethods.SetActiveButtonMapping)(Dimps::Pad::System::BUTTON_MAPPING_FIGHT);
-            }
-            else {
-                SessionProtocol::MemberData& memberData = netplay->client._lobbyData.members[i];
-                player.type = GGPO_PLAYERTYPE_REMOTE;
-                const NetplayConfig& activeCfg = sf4e::NetplayFacade::GetConfig();
-                bool remoteResolved = false;
-                if (useLegacyGgpoTunnel &&
-                    GgpoRelay::Instance().GetRemoteEndpoint(
-                        memberData.connId,
-                        player.u.remote.ip_address,
-                        32,
-                        &player.u.remote.port
-                    )) {
-                    remoteResolved = true;
-                    spdlog::info(
-                        "GgpoRelay: remote endpoint {}:{}",
-                        player.u.remote.ip_address,
-                        player.u.remote.port
-                    );
-                }
-                else if (
-                    !useLegacyGgpoTunnel &&
-                    activeCfg.ggpoRemoteHost[0] &&
-                    activeCfg.ggpoRemotePort > 0
-                ) {
-                    strncpy_s(
-                        player.u.remote.ip_address,
-                        activeCfg.ggpoRemoteHost,
-                        _TRUNCATE
-                    );
-                    player.u.remote.port = activeCfg.ggpoRemotePort;
-                    remoteResolved = true;
-                    spdlog::info(
-                        "GgpoTransport: remote endpoint {}:{}",
-                        player.u.remote.ip_address,
-                        player.u.remote.port
-                    );
-                }
-                else if (memberData.ip.empty()) {
-                    char szAddr[SteamNetworkingIPAddr::k_cchMaxString];
-                    netplay->client._serverAddr.ToString(szAddr, sizeof(szAddr), false);
-                    strcpy_s(player.u.remote.ip_address, 32, szAddr);
-                    player.u.remote.port = memberData.port;
-                    remoteResolved = true;
-                }
-                else if (!memberData.ip.empty()) {
-                    strcpy_s(player.u.remote.ip_address, 32, memberData.ip.c_str());
-                    player.u.remote.port = memberData.port;
-                    remoteResolved = true;
-                }
-                if (!remoteResolved) {
-                    spdlog::error(
-                        "Netplay: could not resolve GGPO remote endpoint (tunnel={})",
-                        useLegacyGgpoTunnel
-                    );
-                    GgpoRelay::Instance().Reset();
-                    fSystem::AbortGgpoMatch(
-                        "GGPO could not connect to opponent — return to lobby and Ready again."
-                    );
-                    return;
-                }
+                if (!sf4e::NetplayFacade::BindRuntimeInput(static_cast<int>(slot))) return false;
+            } else {
+                if (!endpoints.remotePorts[slot]) return false;
+                player.type = slot < 2 ? GGPO_PLAYERTYPE_REMOTE : GGPO_PLAYERTYPE_SPECTATOR;
+                strcpy_s(player.u.remote.ip_address, "127.0.0.1");
+                player.u.remote.port = endpoints.remotePorts[slot];
             }
         }
-        // members.size() arrives off the wire from the room server. Bounding
-        // the loop only by it lets a misbehaving or spoofed broker write past
-        // players[MAX_SF4E_PROTOCOL_USERS] on the stack.
-        size_t memberCount = netplay->client._lobbyData.members.size();
-        if (memberCount > MAX_SF4E_PROTOCOL_USERS) {
-            spdlog::warn(
-                "Netplay: lobby reported {} members, clamping to protocol max {}",
-                memberCount,
-                MAX_SF4E_PROTOCOL_USERS
-            );
-            memberCount = MAX_SF4E_PROTOCOL_USERS;
+        sf4e::NetplayFacade::ReleaseRuntimePortToGgpo();
+        if (netplay->client.IsCustomRoom()) {
+            const auto committedDelay=netplay->client._matchData.inputDelay[endpoints.localSlot];
+            if (committedDelay>10) return false;
+            netplay->delay=committedDelay;
         }
-        for (size_t i = 2; i < memberCount; i++) {
-            SessionProtocol::MemberData& memberData = netplay->client._lobbyData.members[i];
-            GGPOPlayer& player = players[i];
-            player.size = sizeof(GGPOPlayer);
-            player.player_num = (int)i + 1;
-            player.type = GGPO_PLAYERTYPE_SPECTATOR;
-            player.u.remote.port = memberData.port;
-
-            if (memberData.ip.empty()) {
-                char szAddr[SteamNetworkingIPAddr::k_cchMaxString];
-                netplay->client._serverAddr.ToString(szAddr, sizeof(szAddr), false);
-                strcpy_s(player.u.remote.ip_address, 32, szAddr);
-            }
-            else {
-                strcpy_s(player.u.remote.ip_address, 32, memberData.ip.c_str());
-            }
-        }
-        if (udpRegisteredAt != 0) {
-            spdlog::info(
-                "GgpoTransport: registration-to-GGPO handoff gap={}ms localPort={}",
-                GetTickCount() - udpRegisteredAt,
-                netplay->client._ggpoPort
-            );
-        }
-        fSystem::StartGGPO(
-            players,
-            (int)memberCount,
-            netplay->client._ggpoPort,
-            netplay->delay,
-            netplay->client._matchData.rngSeed
-        );
-        sf4e::NetplayFacade::ResetGgpoBattleWatch();
+        fSystem::StartGGPO(players, static_cast<int>(count), endpoints.localPort, netplay->delay, netplay->client._matchData.rngSeed);
     }
-    else {
-        // Always spectate from	P1 for now- the protocol has
-        // limited enough players that there's marginal bandwidth
-        // differences.	
-        // 
-        if (netplay->client._lobbyData.members.empty()) {
-            spdlog::error("Netplay: cannot spectate without lobby host member");
-            sf4e::NetplayFacade::PushAlert("Netplay: lobby host not available for spectate.");
-            return;
-        }
-        char szAddr[SteamNetworkingIPAddr::k_cchMaxString];
-        char* hostIP;
-        if (netplay->client._lobbyData.members[0].ip.empty()) {
-            netplay->client._serverAddr.ToString(szAddr, sizeof(szAddr), false);
-            hostIP = szAddr;
-        }
-        else {
-            // Safe-_ish_ removal of const. This gets passed through
-            // to an inet_pton() call and never modified.
-            hostIP = (char*)netplay->client._lobbyData.members[0].ip.c_str();
-        }
-
-        fSystem::StartSpectating(
-            netplay->client._ggpoPort,
-            2,
-            hostIP,
-            netplay->client._lobbyData.members[0].port,
-            netplay->client._matchData.rngSeed
-        );
-    }
+    sf4e::NetplayFacade::ReportGgpoTransport( "127.0.0.1", endpoints.remotePorts[endpoints.localSlot == 0 ? 1 : 0]);
+    sf4e::NetplayFacade::ResetGgpoBattleWatch();
+    return fSystem::ggpo != nullptr;
 }
 
-void fUserApp::TryRestartGgpoLegacyTunnel() {
-    if (!netplay || !fSystem::ggpo) {
-        return;
-    }
-
-    const sf4e::GgpoSyncPhase phase = sf4e::NetplayFacade::GetGgpoSyncPhase();
-    if (
-        phase == sf4e::GgpoSyncPhase::Connected ||
-        phase == sf4e::GgpoSyncPhase::Synchronizing ||
-        phase == sf4e::GgpoSyncPhase::Running
-    ) {
-        spdlog::warn(
-            "GgpoTransport: skip legacy tunnel restart during active GGPO sync (phase={})",
-            (int)phase
-        );
-        return;
-    }
-
-    spdlog::warn("GgpoTransport: restarting GGPO on legacy session tunnel");
-    fSystem::RetireGgpoSession("legacy_tunnel_restart");
-    fSystem::bUpdateAllowed = false;
-
-    netplay->client._useRelay = true;
-    if (!GgpoRelay::Instance().Start(netplay->client._ggpoPort, &netplay->client)) {
-        spdlog::error("GgpoTransport: legacy tunnel restart failed (GgpoRelay start)");
-        sf4e::NetplayFacade::PushAlert("Netplay: GGPO sync failed. Disconnect and retry.");
-        return;
-    }
-
-    GGPOPlayer players[MAX_SF4E_PROTOCOL_USERS];
-    for (int i = 0; i < 2 && (size_t)i < netplay->client._lobbyData.members.size(); i++) {
-        SessionProtocol::MemberData& memberData = netplay->client._lobbyData.members[i];
-        GGPOPlayer& player = players[i];
-        player.size = sizeof(GGPOPlayer);
-        player.player_num = i + 1;
-        if (netplay->client._lobbyData.members[i].name == netplay->client._name) {
-            player.type = GGPO_PLAYERTYPE_LOCAL;
-            Dimps::Pad::System* padSys = Dimps::Pad::System::staticMethods.GetSingleton();
-            Dimps::Pad::System::__publicMethods& padSysMethods = Dimps::Pad::System::publicMethods;
-            (padSys->*padSysMethods.AssociatePlayerAndGamepad)(i, netplay->deviceIdx);
-            (padSys->*padSysMethods.SetDeviceTypeForPlayer)(i, netplay->deviceType);
-            (padSys->*padSysMethods.SetSideHasAssignedController)(i, 1);
-            (padSys->*padSysMethods.SetActiveButtonMapping)(Dimps::Pad::System::BUTTON_MAPPING_FIGHT);
-        }
-        else {
-            player.type = GGPO_PLAYERTYPE_REMOTE;
-            if (!GgpoRelay::Instance().GetRemoteEndpoint(
-                    memberData.connId,
-                    player.u.remote.ip_address,
-                    32,
-                    &player.u.remote.port
-                )) {
-                spdlog::error("GgpoTransport: legacy tunnel missing remote virtual endpoint");
-                sf4e::NetplayFacade::PushAlert("Netplay: GGPO sync failed. Disconnect and retry.");
-                GgpoRelay::Instance().Reset();
-                return;
-            }
-            spdlog::info(
-                "GgpoRelay: remote endpoint {}:{}",
-                player.u.remote.ip_address,
-                player.u.remote.port
-            );
-        }
-    }
-
-    // This path only ever populates the two player slots above, but the
-    // count still crosses into GGPO from the wire — clamp it the same way.
-    size_t legacyMemberCount = netplay->client._lobbyData.members.size();
-    if (legacyMemberCount > MAX_SF4E_PROTOCOL_USERS) {
-        spdlog::warn(
-            "Netplay: lobby reported {} members on legacy tunnel, clamping to protocol max {}",
-            legacyMemberCount,
-            MAX_SF4E_PROTOCOL_USERS
-        );
-        legacyMemberCount = MAX_SF4E_PROTOCOL_USERS;
-    }
-    fSystem::StartGGPO(
-        players,
-        (int)legacyMemberCount,
-        netplay->client._ggpoPort,
-        netplay->delay,
-        netplay->client._matchData.rngSeed
-    );
-    sf4e::NetplayFacade::ReportGgpoTransport(0, true, nullptr, 0);
-    sf4e::NetplayFacade::MarkGgpoBattleStarted();
-    sf4e::NetplayFacade::PushAlert("Netplay: UDP GGPO failed; using legacy session tunnel.");
+void fUserApp::_OnVsBattleTasksRegistered() {
+    if (!netplay) return;
+    if (!sf4e::NetplayFacade::IsRuntimeRoomActive() || !StartRuntimeGgpo())
+        fSystem::AbortGgpoMatch("The authorized match connection is unavailable.");
 }
+
+
 
 void fUserApp::_OnVsPreBattleTasksRegistered()
 {
@@ -552,6 +233,11 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
     if (netplay->client._lobbyData.members.size() < 2) {
         spdlog::warn("VsPreBattle: deferring until opponent is in lobby");
         sf4e::NetplayFacade::PushAlert("Waiting for opponent in the lobby before the match can start.");
+        return;
+    }
+    if (!sf4e::selection::FindStage(netplay->client._matchData.stageID)) {
+        spdlog::error("VsPreBattle: rejected unsupported stage ID {}", netplay->client._matchData.stageID);
+        sf4e::NetplayFacade::PushAlert("The room supplied an unsupported stage. Reset the lobby before trying again.");
         return;
     }
     size_t charaConditionSize = sizeof(rVsMode::ConfirmedCharaConditions);
@@ -603,6 +289,10 @@ void OnBattleSynced(SessionClient* const client, const sf4e::SessionClient::Call
     fVsBattle::bSessionSynced = true;
 }
 
+bool fUserApp::EnterAuthorizedMatch() {
+    return netplay && StartMatchFromLobby(&netplay->client);
+}
+
 sf4e::SessionClient::Callbacks clientCallbacks = {
     nullptr,
     sf4e::Overlay::OnClientError,
@@ -626,7 +316,10 @@ void fUserApp::ResetLobbyForRematch() {
         spdlog::info("Netplay: skipping rematch reset — control plane lost");
         return;
     }
-    if (server) {
+    if (netplay && netplay->client.GetRoomSnapshot().roomEpoch) {
+        netplay->client.Lobby_ResetRematch();
+    }
+    else if (server) {
         server->ResetLobbyForRematch();
     }
     else if (netplay) {
@@ -646,32 +339,17 @@ void fUserApp::TryStartPendingMatch() {
     }
 }
 
-bool fUserApp::StartServer(uint16 hostPort, std::string& identity, std::string& sidecarHash, bool editionSelect, int roundCount, FixedPoint roundTime) {
-    server.reset(new SessionServer(identity, sidecarHash, editionSelect, roundCount, roundTime));
-    if (server->Listen(hostPort) != 0) {
-        server.reset();
-        return false;
-    }
-    server->PrepareForCallbacks();
-    return true;
-}
 
-void fUserApp::StartSession(char* joinAddr, uint16_t port, std::string& sidecarHash, std::string& name, uint8_t deviceType, uint8_t deviceIdx, uint8_t delay, bool useRelay) {
-    SteamNetworkingIPAddr addr;
-    addr.Clear();
-    addr.ParseString(joinAddr);
-    netplay.reset(new Netplay(
-        clientCallbacks,
-        sidecarHash,
-        port,
-        name,
-        deviceType,
-        deviceIdx,
-        delay
-    ));
-    netplay->client._useRelay = useRelay;
-    netplay->client.Connect(addr);
-    netplay->client.PrepareForCallbacks();
+
+
+
+void fUserApp::StartIrohSession(std::unique_ptr<session::ClientTransport> transport,
+    uint16_t port, std::string& name, uint8_t deviceType, uint8_t deviceIdx, uint8_t delay) {
+    SessionClient::Callbacks callbacks = clientCallbacks;
+    // IrohMatchSession requires authorization and suppresses legacy all-ready.
+    // The normal battle-loaded synchronization callback remains shared.
+    netplay.reset(new Netplay(callbacks, sf4e::sidecarHash, port, name, deviceType, deviceIdx, delay));
+    netplay->client.Connect(std::move(transport));
 }
 
 void fUserApp::Steam_PostUpdate() {
@@ -680,7 +358,8 @@ void fUserApp::Steam_PostUpdate() {
     const double outerTickStartMs = diagnosticsEnabled ? diag::NowMs() : 0.0;
     double pacingRequestedThisTickMs = 0.0;
     double pacingActualThisTickMs = 0.0;
-    sf4e::NetplayFacade::TickMainMenu();
+    sf4e::NetplayFacade::TickRuntime();
+
 
     if (netplay) {
         netplay->client.PrepareForCallbacks();
@@ -688,7 +367,7 @@ void fUserApp::Steam_PostUpdate() {
     if (server) {
         server->PrepareForCallbacks();
     }
-    SteamNetworkingSockets()->RunCallbacks();
+
 
     bool netplayStepFailed = false;
     if (netplay) {
@@ -734,7 +413,7 @@ void fUserApp::Steam_PostUpdate() {
         // nonblocking loop sink) without the sleep. The outer game loop
         // already owns frame cadence; GGPO still gets exactly one pump
         // opportunity per application tick. Setup-time registration waits
-        // are unaffected (they live in GgpoTransport, not here).
+        // are unaffected (they use the authenticated Iroh UDP bridge).
         diag::ScopedTimer _t(diag::OP_GGPO_IDLE);
         ggpo_idle(fSystem::ggpo, 0);
     }
@@ -843,7 +522,7 @@ void fUserApp::Steam_PostUpdate() {
                 d.ops[diag::OP_LOAD_TOTAL].lastMs,
                 d.ops[diag::OP_FREE_TOTAL].lastMs,
                 d.occupiedSaveSlots.current,
-                sf4e::NetplayFacade::GgpoTransportModeName(transport.effectiveMode),
+                "Iroh",
                 pingMs,
                 localBehind,
                 remoteBehind

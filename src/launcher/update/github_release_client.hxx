@@ -1,6 +1,8 @@
 #pragma once
 
 #include <string>
+#include <functional>
+#include <cstdint>
 
 namespace sf4e {
 namespace launcher {
@@ -30,12 +32,17 @@ namespace launcher {
 	bool ReadInstalledVersion(char* outVersion, int outVersionLen);
 	bool IsGameProcessRunning();
 
+    constexpr const char* kDefaultGithubRepo = "Confetti3/SF4-Ember-Netplay";
+    constexpr const char* kReleaseZipPrefix = "sf4-ember-netplay-";
+    // Pure release parsing; HTTP and installation remain separate.
+    UpdateCheckResult ParseGithubReleaseResponse(const std::string& body, const char* installed);
 	UpdateCheckResult CheckForUpdate();
 	ApplyUpdateResult DownloadAndApplyUpdate(
 		const char* zipDownloadUrl,
 		const char* zipApiUrl,
 		const char* latestVersionTag,
-		const char* expectedSha256
+		const char* expectedSha256,
+        const std::function<bool(std::uint64_t, std::uint64_t)>& progress = {}
 	);
 
 } // namespace launcher

@@ -1,5 +1,7 @@
 # GGPO integration lifecycle audit (Phase 0)
 
+Historical audit: this document describes the pre-Iroh baseline below. Current transport ownership is documented in [EMBER_IMPLEMENTATION.md](EMBER_IMPLEMENTATION.md); the simulation and callback-affinity constraints still apply.
+
 Baseline: branch `main` @ `a6a3aa9fa0de40aa` ("Fix training room round timer instantly
 expiring"), clean working tree (untracked `crash-logs-20260718/` only). Build preset
 `default` (= `x86-msvc-ninja-relwithdebinfo`) builds clean; `ctest` baseline:

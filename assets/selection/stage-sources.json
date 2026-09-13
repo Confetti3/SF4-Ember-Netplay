@@ -1,0 +1,488 @@
+{
+  "source_date": "2014-06-16",
+  "credit": "SuperSoluce / Pierre Durden; game imagery copyright Capcom",
+  "native_stage_table_rva": "0x66b678",
+  "executable_sha256": "5d724595a8ab3c6c6d6f4959187f756f5be35bb497e51e5233c4e73b18b0b9eb",
+  "excluded_bonus_ids": [
+    22,
+    23
+  ],
+  "images": [
+    {
+      "id": 0,
+      "code": "TRN",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-028.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "a693d1c8a81c4595ea408a286a64d046e53c799b23724ef39b3a644c540ebb5f",
+      "path": "stages/TRN.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "f0d4a4d2fe4704c24a8ba0bd8263400ceb95ec273ea449acbb5d535b2835f186"
+    },
+    {
+      "id": 1,
+      "code": "CHN",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-006.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "62d2f3b1006b61cb63ba238b4e1176b114d9bea591df970e0a6456cfe16b06fa",
+      "path": "stages/CHN.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "8a72ad0e65f912589b588fb98fc51c487e1ad05d8fe554537b546c1772ae29ec"
+    },
+    {
+      "id": 2,
+      "code": "USA",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-007.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "9dbc42b9164e4b9c7a4feb2ca2608259d7eda6cef4e37adecb23d16e39c11277",
+      "path": "stages/USA.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "2dfe654d2c08c1c11adb6cc68617582ca32aa6670357b2f181c3dea88d1fa82c"
+    },
+    {
+      "id": 3,
+      "code": "RUS",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-010.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "d465a765d59e4ca9b7b4a97130a0125f39248127c9e79ea9a79a3e7622126bc1",
+      "path": "stages/RUS.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "337e10b15da0d9739a130a90b687acda53f2ad028d2dbbd94f8c5cbdea35bffd"
+    },
+    {
+      "id": 4,
+      "code": "BRA",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-011.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "5ada8947e1552e4a09befbefd330fc4a79b397608453253956569458bec09ae2",
+      "path": "stages/BRA.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "fff9529f3f364080c239accf039732ebc0ba9db06bf4ac536f032abbbdeae9e8"
+    },
+    {
+      "id": 5,
+      "code": "AFR",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-012.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "81e06bc0bb78aa06920789de347800898d4a1e068ecaa09ddc6c962fa2dacd30",
+      "path": "stages/AFR.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "6e36b9990291cd9e92a6200a117f31a334d35600fb59b49e7c4c17cdef5dfd59"
+    },
+    {
+      "id": 6,
+      "code": "VIE",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-013.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "d0b5689992c3124c581257e4327c1fdc9b3c5715f04e50bc18dbfe8830ec3984",
+      "path": "stages/VIE.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "7eb8bdab6ecc56e26d884a0df9691947bd472a4d831f8cc7c78addad8049314f"
+    },
+    {
+      "id": 7,
+      "code": "EUR",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-018.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "c88d48e4a47ea94ab272154a4d11dfd615f55727ac8e17d9a2b21d456fd6f3d7",
+      "path": "stages/EUR.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "9a7fa680ba6cd79aacc37154dbef79b362c7773fe1e7c46f59a3b153519760bb"
+    },
+    {
+      "id": 8,
+      "code": "RVR",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-023.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "cbb4b809349cc7beac66bfef2d94a7fae5013b332ab8f80b1a83b8a8b7ea4cb4",
+      "path": "stages/RVR.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "603dc260dcc7072216083cf3439d96a579181b2e25ab95484b197999d7a211d0"
+    },
+    {
+      "id": 9,
+      "code": "VCN",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-024.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "c16bd7f5499cae1552d4fb377a438fb6393747ce2cf5de09a0a125211d0f907b",
+      "path": "stages/VCN.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "e156379a74d8301d4e6433cf20eb927caf08343aad55b7441ad7c3755aa9b42d"
+    },
+    {
+      "id": 10,
+      "code": "SCO",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-017.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "e1f10a03c9846c403eb0df7a9220323966c9f76ee19319a65892062b18582b97",
+      "path": "stages/SCO.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "066d064716ba912d7d76cda28f403b57c02b4cdf6383fdfde9d03a9fbf69c7d4"
+    },
+    {
+      "id": 11,
+      "code": "JPN",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-020.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "80f415e238d20998dde366f6e544ec7f7bde57aa4f83498c3a7ade2e363a2e93",
+      "path": "stages/JPN.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "f74e6ded626cc4eaa84e1bd5c4e8974fc12142c270537a373764f9f86177736d"
+    },
+    {
+      "id": 12,
+      "code": "LAB",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-022.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "ce7ab4082d7659666c55b758bdaf7b4eec6de7151034a72ef01bb7e59e01172d",
+      "path": "stages/LAB.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "fb2b6ec1d7a29b3b9cff216e8fd817033b872777326cbd0d53c081bcae5144b7"
+    },
+    {
+      "id": 13,
+      "code": "IND",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-002.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "2757f82564b0e3e6fc95e536012278349869656bcd59ec3aaf6ecb9c7d8a1e23",
+      "path": "stages/IND.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "57dfb120f07845be23722c1acb948c13b7b1e2b74d7697e998a2897932d4e44f"
+    },
+    {
+      "id": 14,
+      "code": "KOR",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-003.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "fa9b77cdc650d2258f2fca997da31d0fe59137480493445ed0075af8753ff4c9",
+      "path": "stages/KOR.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "5ab1d01cd19c2afb02f39afaa70455d1a506ee947d630252b72a99d47478cd55"
+    },
+    {
+      "id": 15,
+      "code": "BLD",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-001.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "4262c2b282265d0cdcf4183aabc7d5cbc0d3c3d20ec9a78731e590e41cff0dd8",
+      "path": "stages/BLD.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "65dad7d1c65b4034423989dd23020eb2029eb4aa54eaa05a78340fe04304371b"
+    },
+    {
+      "id": 16,
+      "code": "CNX",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-025.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "7c4b90e7f7fa417fb88b9577270db3066ede8ff3e0d0be417d61d2bbe6bce5fc",
+      "path": "stages/CNX.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "8dfc0f296311898fa373ac3e7e3a71daa5c8443fa9e32d1b510d3ebef34baed0"
+    },
+    {
+      "id": 17,
+      "code": "BRX",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-029.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "57501d39d593585e29b1fc1faba8c11e1e91b0b0c5018a32e4acec7edd7dc3a3",
+      "path": "stages/BRX.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "786d2c94e4d6d3064b7557a31c8f961b24f3b97c41fdad9c05a923780cc72343"
+    },
+    {
+      "id": 18,
+      "code": "VNX",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-050.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "207a0bf952085428415ae3ce886a15098bc6f9ae164c9bda809efc5e50632791",
+      "path": "stages/VNX.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "51fdd3884672b1b1e844e68af3f4e16e296501a039089428e1ee22a33b995990"
+    },
+    {
+      "id": 19,
+      "code": "JPX",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-016.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "34a1d96a1fd8a757b930a682347ad79a900158a1a9f79917966f29e48bacd6c5",
+      "path": "stages/JPX.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "2a0267702ec959c4569a10737411d959c1a37c054d396081cd06ff8634622787"
+    },
+    {
+      "id": 20,
+      "code": "AFX",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-009.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "3f41374cf67d36cc7d632a542eeba5eedad4538e927cef798c516f23041dd887",
+      "path": "stages/AFX.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "4637469efb806e429486279578e017c3e227f3ca02377de9799da73651c11c59"
+    },
+    {
+      "id": 21,
+      "code": "LBX",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-008.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "ac377428b9370d471ed5e7ff8137d250f378a1100b4b507231b433a6b3949469",
+      "path": "stages/LBX.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "7126e757d0e03a558d6dfcc66a0ff8955cf6f5975503762de45a944507602831"
+    },
+    {
+      "id": 24,
+      "code": "DET",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-027.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "31db9838ac12ede3fd645d81f2d9f717ece7a2720b2685541903bb67b58d5df8",
+      "path": "stages/DET.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "ec34da0bafdff30241cf33f1db6d00f693d4ca7c3a73e8d0b7ef20fce98d1ab0"
+    },
+    {
+      "id": 25,
+      "code": "ELV",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-004.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "455badeb62ae108fa2011173b2f9f98940a4d534d68f0429931d37fd2d930acd",
+      "path": "stages/ELV.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "03113b04abe140ac7e210d1e5e68af280eb5e603f638167e9074efc64f4501ba"
+    },
+    {
+      "id": 26,
+      "code": "HFP",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-005.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "b2ec80269739ef363e0feb240fd2672d9c30e4f02ad95f3da12a279bf52adf6e",
+      "path": "stages/HFP.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "720897cbba168ef83544c393800bc44e78149597910cc24557ddcf0ff52c6d1e"
+    },
+    {
+      "id": 27,
+      "code": "MAD",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-014.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "65ef439428a909fbf7275dcadd36549df9d3c10e7b9d34a1701e8617b9301448",
+      "path": "stages/MAD.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "d909e2d6ff2bc364f1cc6106836b303ae547ad58997fec82d30273b979c7a2b0"
+    },
+    {
+      "id": 28,
+      "code": "BFU",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-015.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "6e2996276b6ea2b7189721c57b842f7c71b536818f799e1422c7bb7eac7ce24f",
+      "path": "stages/BFU.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "c134bf91620fbbaafa7406a74433cf9e6c35f63c60cf0c998698b00a486e4b1d"
+    },
+    {
+      "id": 29,
+      "code": "JUR",
+      "url": "https://www.supersoluce.com/sites/default/files/node/52349/carte-street-fighter-ultra-026.jpg",
+      "source_page": "https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages",
+      "source_size": [
+        1280,
+        720
+      ],
+      "source_sha256": "8720e4f4c31aa31a47b2a44acd8b112e9f4621c871a0bba214e5f53aa27fcddd",
+      "path": "stages/JUR.jpg",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "afddb0b5c4ac5fbae5a0ce042caf39c4c96ddce5a1269ede3aabec5355fe58a8"
+    }
+  ]
+}

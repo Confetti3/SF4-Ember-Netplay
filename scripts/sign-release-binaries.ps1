@@ -27,7 +27,7 @@ if (-not $signtool) {
     Write-Error "signtool.exe not found. Install Windows SDK."
 }
 
-$files = @("Launcher.exe", "Sidecar.dll", "RelayHost.exe", "Updater.exe")
+$files = @("Launcher.exe", "Sidecar.dll", "sf4-net.exe", "Updater.exe")
 foreach ($name in $files) {
     $path = Join-Path $Dir $name
     if (-not (Test-Path $path)) {
