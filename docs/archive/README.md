@@ -28,4 +28,8 @@ git switch -c restored-work refs/tags/archive/feat/async-ui-and-update-verificat
 
 [Legacy main](https://github.com/Confetti3/SF4-Ember-Netplay/tree/main) remains at `53750e69069aa1a45dc6da09ad8b7fa8000497cb`. Existing release tags, releases and local feature checkouts are preserved.
 
+## Historical documentation
+
+The other documents in this directory describe retired Qt, direct-IP, broker and VPS releases. They are retained as history and are not current player or operator instructions. The active product uses Iroh private invitations. No remote infrastructure changes accompany this retirement.
+
 [Read the pre-Ember README](README-pre-ember.md) · [Return to Ember](../../README.md)
