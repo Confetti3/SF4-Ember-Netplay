@@ -59,7 +59,10 @@ bool GetInstallRoot(wchar_t* outDir, int outDirChars) {
 	if (!outDir || outDirChars <= 0) {
 		return false;
 	}
-	if (GetModuleFileNameW(NULL, outDir, (DWORD)outDirChars) == 0) {
+	HMODULE module = nullptr;
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        reinterpret_cast<LPCWSTR>(&GetInstallRoot), &module)) return false;
+    if (GetModuleFileNameW(module, outDir, (DWORD)outDirChars) == 0) {
 		return false;
 	}
 	if (!SUCCEEDED(PathCchRemoveFileSpec(outDir, (size_t)outDirChars))) {
@@ -81,13 +84,15 @@ bool GetPackageDllDirectory(wchar_t* outDir, int outDirChars) {
 	if (FAILED(PathCchCombine(outDir, (size_t)outDirChars, root, kDllDirName))) {
 		return false;
 	}
-	if (DirExists(outDir)) {
+	if (UsesDllSubdirectory() && DirExists(outDir)) {
 		return true;
 	}
 	return SUCCEEDED(StringCchCopyW(outDir, (size_t)outDirChars, root));
 }
 
 bool UsesDllSubdirectory() {
+    wchar_t current[MAX_PATH] = {}, sidecar[MAX_PATH] = {};
+    if (GetInstallRoot(current,MAX_PATH) && SUCCEEDED(PathCchCombine(sidecar,MAX_PATH,current,L"Sidecar.dll")) && PathFileExistsW(sidecar)) return false;
 	wchar_t root[MAX_PATH] = { 0 };
 	wchar_t dllDir[MAX_PATH] = { 0 };
 	if (!GetInstallRoot(root, MAX_PATH)) {

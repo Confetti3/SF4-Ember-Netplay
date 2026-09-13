@@ -9,7 +9,7 @@
 | 0.4.x   | Best-effort only |
 | ≤ 0.3.x | No |
 
-Security fixes are published as GitHub releases on [Confetti3/SF4-Netplay-Launcher](https://github.com/Confetti3/SF4-Netplay-Launcher).
+Security fixes are published as GitHub releases on [Confetti3/SF4-Ember-Netplay](https://github.com/Confetti3/SF4-Ember-Netplay).
 
 ## Reporting a vulnerability
 
@@ -28,9 +28,9 @@ We aim to acknowledge within **7 days** and provide a fix or mitigation plan wit
 
 **In scope**
 
-- SF4 Netplay Launcher (`Launcher.exe`, `Updater.exe`, `RelayHost.exe`, shipped DLLs)
+- SF4 Ember Netplay (`Launcher.exe`, `Updater.exe`, `RelayHost.exe`, shipped DLLs)
 - Official room broker and VPS relay operated for the project
-- GitHub release packages (`sf4-netplay-launcher-*.zip`)
+- GitHub release packages (`sf4-ember-netplay-*.zip`)
 
 **Out of scope**
 

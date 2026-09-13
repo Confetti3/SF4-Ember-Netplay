@@ -1,0 +1,20 @@
+Inter font assets
+
+Designer: Rasmus Andersson and the Inter Project Authors
+Upstream: https://github.com/rsms/inter
+Release: v4.1
+Distribution: https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip
+
+Unmodified source paths in release archive:
+  extras/ttf/Inter-Regular.ttf
+  extras/ttf/Inter-SemiBold.ttf
+  LICENSE.txt (stored as OFL.txt)
+
+SHA256:
+  Inter-Regular.ttf
+    40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82
+  Inter-SemiBold.ttf
+    78a843fade9d4612a5567302fb595b56976eb5fcebf4fea5a5912d638bafcde3
+
+Licensed under SIL Open Font License 1.1; see OFL.txt.
+CMake embeds the original font bytes and license into the UI library.

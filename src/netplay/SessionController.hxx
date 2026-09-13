@@ -1,0 +1,87 @@
+#pragma once
+
+#include <cstdint>
+#include <string>
+
+namespace sf4e { namespace netplay {
+
+// Orchestration state only. SessionServer remains the authority for lobby
+// membership, settings, readiness, and match conditions.
+enum class RoomState { Idle, Opening, Joined, Closing, Lost };
+enum class MatchState { None, Preparing, Playing, PostMatch, Failed };
+enum class Health { Offline, Connecting, Healthy, Lost };
+enum class Recovery { None, Recovering, ReplacementOffered };
+enum class Page { Home, Host, Join, Lobby, Match, PostMatch, Settings, Diagnostics };
+enum class CommandKind { HostRoom, JoinInvite, LeaveRoom, Ready, Rematch, StartOffline, RequestUpdate, SavePreferences, SetLobbySettings, RoomAction, ReplaceRoom, CheckConnection, ApplyDelay };
+enum class EventKind { RoomJoined, RoomFailed, RoomClosed, ReadyAcknowledged,
+    MatchPreparing, GameplayReady, MatchStarted, MatchEnded, ControlLost, GameplayLost, HelperLost, MatchRecovered };
+enum class Effect { None, HostRoom, JoinInvite, CloseSession, SendReady, StartOffline,
+    CheckUpdate, AbortMatch, FinishDegradedMatch, SavePreferences, SetLobbySettings, SendRoomAction, ReplaceRoom, CheckConnection, ApplyDelay };
+
+struct Generation {
+    uint64_t room = 0;
+    uint64_t match = 0;
+    bool operator==(const Generation& other) const { return room == other.room && match == other.match; }
+};
+
+struct Command {
+    CommandKind kind;
+    // UI commands are tagged with the snapshot they were drawn from. This
+    // prevents a queued Ready/Leave from acting on a newly created room.
+    Generation generation;
+    std::string invitation;
+};
+
+struct Event {
+    EventKind kind;
+    Generation generation;
+    std::string error;
+};
+
+struct Snapshot {
+    Generation generation;
+    Page page = Page::Home;
+    RoomState room = RoomState::Idle;
+    MatchState match = MatchState::None;
+    Health control = Health::Offline;
+    Health gameplay = Health::Offline;
+    bool readyPending = false;
+    bool isHost = false;
+    bool verificationAvailable = false;
+    bool coordinated = false;
+    bool authorityWritable = false;
+    std::uint64_t authorityTerm = 0, authorityRevision = 0;
+    Recovery recovery = Recovery::None;
+    std::uint64_t recoveryStartedMs = 0;
+    std::string error;
+};
+
+struct Decision {
+    bool accepted = false;
+    Effect effect = Effect::None;
+    Generation generation;
+    // Only returned to the backend for JoinInvite. Never part of Snapshot.
+    std::string invitation;
+};
+
+// Own on the game thread. Workers enqueue events; the renderer consumes a
+// copied Snapshot and enqueues commands. No network or game callbacks here.
+class SessionController {
+public:
+    Snapshot GetSnapshot() const { return state_; }
+    Decision Execute(const Command& command);
+    Decision Apply(const Event& event);
+    // Called only from locally applied helper coordination state. A remote
+    // message claiming a newer term is not evidence of room authority.
+    bool ObserveCoordination(std::uint64_t term, std::uint64_t revision,
+        bool writable, std::uint64_t nowMs, bool locallyApplied = true);
+    void AdvanceRecovery(std::uint64_t nowMs);
+    void ShowPage(Page page) { state_.page = page; }
+
+private:
+    Snapshot state_;
+    Decision Accept(Effect effect = Effect::None) const;
+    void ResetRoom();
+};
+
+} } // namespace sf4e::netplay

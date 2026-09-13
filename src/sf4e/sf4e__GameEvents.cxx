@@ -8,6 +8,7 @@
 #include "../Dimps/Dimps__Platform.hxx"
 #include "sf4e__Event.hxx"
 #include "sf4e__GameEvents.hxx"
+#include "sf4e__NetplayFacade.hxx"
 #include "sf4e__UserApp.hxx"
 
 using Dimps::Game::Request;
@@ -135,6 +136,7 @@ void fMainMenu::Install() {
 
 
 int fMainMenu::GetItemObserverState() {
+	sf4e::NetplayFacade::NotifyRuntimeEventSystemReady();
 	if (bOverrideItemObserverState != -1) {
 		return bOverrideItemObserverState;
 	}

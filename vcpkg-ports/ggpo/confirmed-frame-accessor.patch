@@ -1,0 +1,83 @@
+diff --git a/src/include/ggponet.h b/src/include/ggponet.h
+--- a/src/include/ggponet.h
++++ b/src/include/ggponet.h
+@@ -499,6 +499,15 @@
+  */
+ GGPO_API GGPOErrorCode __cdecl ggpo_advance_frame(GGPOSession *);
+ 
++/*
++ * Read-only, game-thread accessor for the last confirmed INPUT frame.
++ * Returns -1 until input is confirmed. State saved as frame N contains
++ * inputs through N-1. Unsupported backends return UNSUPPORTED, not an
++ * estimated frame. This call does not poll, advance, or change pacing.
++ */
++GGPO_API GGPOErrorCode __cdecl ggpo_get_last_confirmed_frame(GGPOSession *,
++                                                           int *frame);
++
+ /*
+  * ggpo_get_network_stats --
+  *
+diff --git a/src/lib/ggpo/backends/backend.h b/src/lib/ggpo/backends/backend.h
+--- a/src/lib/ggpo/backends/backend.h
++++ b/src/lib/ggpo/backends/backend.h
+@@ -22,6 +22,7 @@
+    virtual GGPOErrorCode GetNetworkStats(GGPONetworkStats *stats, GGPOPlayerHandle handle) { return GGPO_OK; }
+    virtual GGPOErrorCode Logv(const char *fmt, va_list list) { ::Logv(fmt, list); return GGPO_OK; }
+ 
++   virtual GGPOErrorCode GetLastConfirmedFrame(int *frame) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode SetFrameDelay(GGPOPlayerHandle player, int delay) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode SetDisconnectTimeout(int timeout) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode SetDisconnectNotifyStart(int timeout) { return GGPO_ERRORCODE_UNSUPPORTED; }
+diff --git a/src/lib/ggpo/backends/p2p.h b/src/lib/ggpo/backends/p2p.h
+--- a/src/lib/ggpo/backends/p2p.h
++++ b/src/lib/ggpo/backends/p2p.h
+@@ -29,6 +29,7 @@
+    virtual GGPOErrorCode IncrementFrame(void);
+    virtual GGPOErrorCode DisconnectPlayer(GGPOPlayerHandle handle);
+    virtual GGPOErrorCode GetNetworkStats(GGPONetworkStats *stats, GGPOPlayerHandle handle);
++   virtual GGPOErrorCode GetLastConfirmedFrame(int *frame) { *frame = _sync.GetLastConfirmedFrame(); return GGPO_OK; }
+    virtual GGPOErrorCode SetFrameDelay(GGPOPlayerHandle player, int delay);
+    virtual GGPOErrorCode SetDisconnectTimeout(int timeout);
+    virtual GGPOErrorCode SetDisconnectNotifyStart(int timeout);
+diff --git a/src/lib/ggpo/sync.h b/src/lib/ggpo/sync.h
+--- a/src/lib/ggpo/sync.h
++++ b/src/lib/ggpo/sync.h
+@@ -61,6 +61,7 @@
+    void IncrementFrame(void);
+ 
+    int GetFrameCount() { return _framecount; }
++   int GetLastConfirmedFrame() const { return _last_confirmed_frame; }
+    bool InRollback() { return _rollingback; }
+ 
+    bool GetEvent(Event &e);
+diff --git a/src/lib/ggpo/backends/spectator.h b/src/lib/ggpo/backends/spectator.h
+--- a/src/lib/ggpo/backends/spectator.h
++++ b/src/lib/ggpo/backends/spectator.h
+@@ -32,6 +32,8 @@
+    virtual GGPOErrorCode IncrementFrame(void);
+    virtual GGPOErrorCode DisconnectPlayer(GGPOPlayerHandle handle) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode GetNetworkStats(GGPONetworkStats *stats, GGPOPlayerHandle handle) { return GGPO_ERRORCODE_UNSUPPORTED; }
++   // Spectators consume only the source fighter's confirmed input stream.
++   virtual GGPOErrorCode GetLastConfirmedFrame(int *frame) { *frame = _next_input_to_send - 1; return GGPO_OK; }
+    virtual GGPOErrorCode SetFrameDelay(GGPOPlayerHandle player, int delay) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode SetDisconnectTimeout(int timeout) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode SetDisconnectNotifyStart(int timeout) { return GGPO_ERRORCODE_UNSUPPORTED; }
+diff --git a/src/lib/ggpo/main.cpp b/src/lib/ggpo/main.cpp
+--- a/src/lib/ggpo/main.cpp
++++ b/src/lib/ggpo/main.cpp
+@@ -159,6 +159,15 @@
+    return ggpo->GetNetworkStats(stats, player);
+ }
+ 
++GGPOErrorCode
++ggpo_get_last_confirmed_frame(GGPOSession *ggpo, int *frame)
++{
++   if (!ggpo) { return GGPO_ERRORCODE_INVALID_SESSION; }
++   if (!frame) { return GGPO_ERRORCODE_INVALID_REQUEST; }
++   *frame = -1;
++   return ggpo->GetLastConfirmedFrame(frame);
++}
++
+ 
+ GGPOErrorCode
+ ggpo_close_session(GGPOSession *ggpo)

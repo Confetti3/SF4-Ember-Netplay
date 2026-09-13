@@ -31,6 +31,11 @@ void Actor::Locate(HMODULE peRoot) {
 	*(PVOID*)(&publicMethods.GetCurrentSide) = (PVOID)(peRootOffset + 0x141d20);
 	*(PVOID*)(&publicMethods.GetDamage) = (PVOID)(peRootOffset + 0x1423d0);
 	*(PVOID*)(&publicMethods.GetStatus) = (PVOID)(peRootOffset + 0x142520);
+	*(PVOID*)(&publicMethods.GetActionID) = (PVOID)(peRootOffset + 0x12d700);
+	*(PVOID*)(&publicMethods.GetActionFrame) = (PVOID)(peRootOffset + 0x12d720);
+	*(PVOID*)(&publicMethods.GetActionPosture) = (PVOID)(peRootOffset + 0x141ea0);
+	*(PVOID*)(&publicMethods.GetBasicActionInhibit) = (PVOID)(peRootOffset + 0x142390);
+	*(PVOID*)(&publicMethods.GetActionScript) = (PVOID)(peRootOffset + 0x12da50);
 
 	*(PVOID*)(&publicMethods.GetVitalityAmt_FixedPoint) = (PVOID)(peRootOffset + 0x141ee0);
 	*(PVOID*)(&publicMethods.GetVitalityMax_FixedPoint) = (PVOID)(peRootOffset + 0x141f00);

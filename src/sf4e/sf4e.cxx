@@ -217,6 +217,8 @@ void sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
 		sf4e::args = payload->args;
 		sf4e::hSyncEvent = payload->hSyncEvent;
 		NetplayFacade::InitFromPayload(payload->netplay);
+		NetplayFacade::ConfigureHelper(payload->helper, payload->helperError);
+        NetplayFacade::ConfigureDiscord(payload->discord);
 	}
 
 	HRESULT r = GetHash(hinstDll, sidecarHash);

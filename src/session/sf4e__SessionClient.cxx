@@ -1,39 +1,66 @@
 #include <stdlib.h>
+#include <algorithm>
 #include <string>
 #include <utility>
+#include <limits>
 
 #include <windows.h>
 
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
-#include <GameNetworkingSockets/steam/steamnetworkingsockets.h>
-#include <GameNetworkingSockets/steam/isteamnetworkingutils.h>
 #include <ggponet.h>
 
 #include "../Dimps/Dimps.hxx"
+#include "../common/FighterCatalog.hxx"
+#include "../common/ConfirmedCheckpoint.hxx"
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
 
 #include "../sf4e/sf4e__Game__Battle__System.hxx"
 
 #include "sf4e__SessionClient.hxx"
 #include "sf4e__SessionProtocol.hxx"
-#include "sf4e__GgpoRelay.hxx"
 #include "../sf4e/sf4e__NetplayFacade.hxx"
 
 using nlohmann::json;
 
 namespace SessionProtocol = sf4e::SessionProtocol;
+namespace session = sf4e::session;
 using rSystem = Dimps::Game::Battle::System;
 using fSystem = sf4e::Game::Battle::System;
 using sf4e::SessionClient;
 using sf4e::SessionProtocol::LobbyReady;
 
 const int sf4e::SESSION_CLIENT_MAX_MESSAGES_PER_POLL = 20;
-SessionClient* SessionClient::s_pCallbackInstance;
 bool SessionClient::bVerboseLogging = false;
 
 // Bound for buffered remote v2 hashes (matches the checkpoint ring span).
 static const size_t MAX_PENDING_REMOTE_HASHES = 64;
+
+static const char* RoomRejectText(sf4e::room::RejectReason reason) {
+	using sf4e::room::RejectReason;
+	switch (reason) {
+	case RejectReason::Closed: return "room_closed";
+	case RejectReason::RoomFull: return "room_full";
+	case RejectReason::AdmissionLocked: return "room_locked";
+	case RejectReason::NameTaken: return "name_taken";
+	case RejectReason::StaleRoom: return "room_changed_refresh";
+	case RejectReason::StaleTable: return "table_changed_refresh";
+	case RejectReason::WrongPhase: return "table_not_ready_for_action";
+	case RejectReason::WrongGeneration: return "match_generation_expired";
+	case RejectReason::Unauthorized: return "room_permission_denied";
+	case RejectReason::NotSeated: return "not_seated";
+	case RejectReason::AlreadySeated: return "already_seated";
+	case RejectReason::AlreadyQueued: return "already_queued";
+	case RejectReason::NotQueued: return "not_queued";
+	case RejectReason::NotWatching: return "not_watching";
+	case RejectReason::InvalidRules: return "invalid_table_rules";
+	case RejectReason::InvalidCapacity: return "invalid_capacity";
+	case RejectReason::InvalidChat: return "invalid_chat";
+	case RejectReason::MemberKicked: return "member_kicked";
+	case RejectReason::TerminalLedgerFull: return "terminal_result_backlog";
+	default: return "room_action_rejected";
+	}
+}
 
 // Strict debug mode: terminate the match on an authoritative v2 mismatch.
 // Default (unset) logs and reports only — v2 must not end release matches
@@ -111,168 +138,526 @@ SessionClient::SessionClient(
 	_sidecarHash(sidecarHash),
 	_name(name),
 	_ggpoPort(ggpoPort),
-	_interface(SteamNetworkingSockets()),
-	_conn(k_HSteamNetConnection_Invalid),
 	_connected(false),
 	_lobbyData(SessionProtocol::LobbyData::NULL_LOBBY)
 {
-	s_pCallbackInstance = this;
-	_serverAddr.Clear();
 }
 
-int SessionClient::Connect(HSteamNetConnection newConn) {
-	_snapshotsEnabled = false;
-	_serverAddr.SetIPv6LocalHost();
-	_conn = newConn;
-	_connected = true;
-	_interface->SetConnectionUserData(newConn, (int64)this);
-
-	// XXX (adanducci): It is absolutely critical to note that
-	// `SetConfigValue`'s interface to set callbacks is _not_ the
-	// same as the one used by `ConnectByIPAddress`/`SteamNetworkingConfigValue_t`.
-	// 
-	// Per the documentation for `SetConfigValue` and the header comment @
-	// https://github.com/ValveSoftware/GameNetworkingSockets/blob/62b395172f157ca4f01eea3387d1131400f8d604/include/steam/isteamnetworkingutils.h#L296-L307 :
-	//
-	// NOTE: When setting pointers (e.g. callback functions), do not pass the function pointer
-	// directly. Your argument should be a pointer to a function pointer.
-	//
-	// `ConnectByIPAddress`/`SteamNetworkingConfigValue_t` just takes the
-	// function pointer directly. The failure mode if you pass the function
-	// pointer directly is _extremely_ confusing- it just appears to be
-	// a segfault in the GNS callback loop.
-	void* callback = SteamNetConnectionStatusChangedCallback;
-	SteamNetworkingUtils()->SetConfigValue(
-		k_ESteamNetworkingConfig_Callback_ConnectionStatusChanged,
-		k_ESteamNetworkingConfig_Connection,
-		newConn,
-		k_ESteamNetworkingConfig_Ptr,
-		&callback
-	);
-
-	return 0;
+int SessionClient::Connect(std::unique_ptr<session::ClientTransport> transport,
+	bool snapshotsEnabled, bool sendHello) {
+	Disconnect();
+	_transport = std::move(transport);
+	_snapshotsEnabled = snapshotsEnabled;
+	_helloPending = sendHello;
+	_joinRequestPending = false;
+	_joinRequestNextStep = 0;
+	return _transport && _transport->State() != session::ConnectionState::Failed ? 0 : -1;
 }
 
-int SessionClient::Connect(const SteamNetworkingIPAddr& serverAddr) {
-	char szAddr[SteamNetworkingIPAddr::k_cchMaxString];
-	SteamNetworkingConfigValue_t opts[2];
-	_serverAddr = serverAddr;
-	_serverAddr.ToString(szAddr, sizeof(szAddr), true);
-	spdlog::info("Connecting to session server at {}", szAddr);
-
-	opts[0].SetInt64(
-		k_ESteamNetworkingConfig_ConnectionUserData,
-		(int64)this
-	);
-	opts[1].SetPtr(
-		k_ESteamNetworkingConfig_Callback_ConnectionStatusChanged,
-		(void*)SteamNetConnectionStatusChangedCallback
-	);
-	_snapshotsEnabled = true;
-	_conn = _interface->ConnectByIPAddress(_serverAddr, 2, opts);
-	if (_conn == k_HSteamNetConnection_Invalid) {
-		spdlog::error("Client failed to create connection");
-	}
-	return 0;
+std::string SessionClient::ServerAddress() const {
+	return _transport ? _transport->PeerAddress() : std::string();
 }
 
 void SessionClient::Disconnect() {
-	if (_conn != k_HSteamNetConnection_Invalid) {
-		_interface->CloseConnection(_conn, k_ESteamNetConnectionEnd_App_Generic, nullptr, true);
-		_conn = k_HSteamNetConnection_Invalid;
-		_connected = false;
-		_lobbyData = SessionProtocol::LobbyData::NULL_LOBBY;
+	if (_transport) _transport->Close();
+	_transport.reset();
+	_connected = false;
+	_helloPending = false;
+	_joinRequestPending = false;
+	_joinRequestNextStep = 0;
+	_gameplayMessages.clear(); _gameplayGeneration = 0; _matchAuthorizationRequired = false;
+	_lobbyData = SessionProtocol::LobbyData::NULL_LOBBY;
+	_matchData.Clear();
+	_cid = {};
+	_roomSnapshot = {};
+	_roomError.clear();
+	_customRoomsSeen = false;
+	_nextRoomActionId = 1;
+	_resultRetry = {}; _finishRetry = {};
+    _actionReplies.clear();
+	_projectionFrozen = false;
+	_pendingRoomProjection.reset();
+	_queuedGrantProjection.reset();
+	_queuedGrantGeneration = 0;
+	_appliedRoomProjectionGeneration = 0;
+	_selectedRoomTable = 0;
+	_outstandingReadyRequestNumber = -1;
+	_stepCounter = 0;
+	pendingRemoteSnapshots.clear();
+	pendingRemoteHashes.clear();
+	_roomEvents.clear();
+}
+
+void SessionClient::TrySendPendingJoinRequest() {
+	if (!_joinRequestPending || !_transport || !_connected || _stepCounter < _joinRequestNextStep) return;
+	SessionProtocol::SessionJoinRequest request;
+	request.sidecarHash = _sidecarHash;
+	request.username = _name;
+	request.port = _ggpoPort;
+	request.customRooms = _customRoomsRequired;
+	request.roomProtocol = _customRoomsRequired ? room::ProtocolVersion : 0;
+	request.mainFighter = _mainFighter;
+	json payload = request;
+	const auto sent = Send(payload, nullptr);
+	if (sent == session::SendResult::Queued) {
+		// Local queue acceptance is not authenticated admission.  Keep the
+		// request pending until a committed custom-room snapshot or a legacy data
+		// update proves this exact CID was admitted. A control send can fail after
+		// this enqueue during leader recovery, and the retry is idempotent at the
+		// server.
+		_joinRequestNextStep = _stepCounter + 8;
+		return;
 	}
+	// The CID response and the authenticated join request are separate
+	// reliable messages. A temporary degraded/rebinding transport must not
+	// consume the one-shot projection admission request.
+	_joinRequestNextStep = _stepCounter + ((sent == session::SendResult::NotConnected || sent == session::SendResult::QueueFull) ? 1 : 4);
+	if (sent != session::SendResult::NotConnected && sent != session::SendResult::QueueFull)
+		_roomError = "join_request_send_failed";
+}
+
+void SessionClient::ReconcileTerminalAcks() {
+	for (auto pending = _pendingTerminalAcks.begin(); pending != _pendingTerminalAcks.end();) {
+		if (pending->roomEpoch != _roomSnapshot.roomEpoch) {
+			pending = _pendingTerminalAcks.erase(pending);
+			continue;
+		}
+		const auto local = std::find_if(_roomSnapshot.members.begin(), _roomSnapshot.members.end(),
+			[&](const room::Member& member) { return member.id == _roomSnapshot.localMember; });
+		if (_roomSnapshot.localMember != pending->member || local == _roomSnapshot.members.end() ||
+			local->incarnation != pending->incarnation) {
+			pending = _pendingTerminalAcks.erase(pending);
+			continue;
+		}
+		if (_roomSnapshot.localTerminalPending && pending->table < room::TableCount &&
+			_roomSnapshot.localTerminalGenerations[pending->table] == pending->generation) {
+			pending->observedPendingRevision = (std::max)(pending->observedPendingRevision, _roomSnapshot.revision);
+			++pending;
+			continue;
+		}
+		// Aggregate false is authoritative only after a same-room projection
+		// first proved this exact recipient/generation was pending. This rejects
+		// delayed preterminal snapshots and receipts from an older generation.
+		if (pending->observedPendingRevision && !_roomSnapshot.localTerminalPending &&
+			_roomSnapshot.revision > pending->observedPendingRevision) {
+			pending = _pendingTerminalAcks.erase(pending);
+			continue;
+		}
+		++pending;
+	}
+}
+
+bool SessionClient::TakeRoomEvent(room::Event& event) {
+	if (_roomEvents.empty()) return false;
+	event = _roomEvents.front();
+	_roomEvents.pop_front();
+	return true;
+}
+
+bool SessionClient::LocalSelectionLocked(int slot) const {
+	if (_roomSnapshot.roomEpoch) {
+		const auto member = std::find_if(_roomSnapshot.members.begin(), _roomSnapshot.members.end(),
+			[&](const room::Member& value) { return value.id == _roomSnapshot.localMember; });
+		if (_roomSnapshot.closed || member == _roomSnapshot.members.end() || member->seat != slot ||
+			slot < 0 || slot >= 2 || member->table < 0 || member->table >= room::TableCount) return true;
+		const auto& table = _roomSnapshot.tables[member->table];
+		if ((slot == 0 ? table.p1 : table.p2) != member->id) return true;
+		return table.phase != room::TablePhase::Waiting || table.ready[slot];
+	}
+	return slot < 0 || slot >= 2 || _matchData.readyMessageNum[slot] != -1;
+}
+
+bool SessionClient::ReleaseRoomProjection() {
+	if (!_projectionFrozen) return true;
+	_projectionFrozen = false;
+	ProjectSelectedRoomTable();
+	return true;
+}
+
+bool SessionClient::ApplyPendingRoomProjection(std::uint64_t generation) {
+	if (!_projectionFrozen || !generation) return false;
+	const auto* projection = _queuedGrantProjection && _queuedGrantGeneration == generation
+		? &*_queuedGrantProjection : _pendingRoomProjection && _pendingRoomProjection->matchGeneration == generation
+		? &*_pendingRoomProjection : nullptr;
+	if (!projection) return _appliedRoomProjectionGeneration == generation;
+	// This committed projection is the native roster for the exact grant
+	// generation. It may add queued members which BeginMatch promoted to frozen
+	// spectators after the preceding Waiting snapshot, so apply it atomically
+	// with the native settings before the grant validates the roster.
+	_lobbyData = projection->lobbyData;
+	_matchData = projection->matchData;
+	_appliedRoomProjectionGeneration = generation;
+	if (_queuedGrantProjection && _queuedGrantGeneration == generation) {
+		_queuedGrantProjection.reset(); _queuedGrantGeneration = 0;
+	}
+	if (_pendingRoomProjection && _pendingRoomProjection->matchGeneration == generation) _pendingRoomProjection.reset();
+	return true;
+}
+
+void SessionClient::ProjectSelectedRoomTable() {
+	if (!_customRoomsSeen || _projectionFrozen || _selectedRoomTable >= room::TableCount) return;
+	for (const auto& member : _roomSnapshot.members) {
+		if (member.id == _roomSnapshot.localMember && member.table >= 0 && member.table < static_cast<std::int8_t>(room::TableCount)) {
+			_selectedRoomTable = static_cast<std::uint8_t>(member.table);
+			break;
+		}
+	}
+	const auto& table = _roomSnapshot.tables[_selectedRoomTable];
+	_lobbyData.members.clear();
+	_lobbyData.editionSelect = table.rules.editionSelect;
+	_lobbyData.roundCount = table.rules.roundCount;
+	_lobbyData.roundTime.integral = table.rules.roundTime;
+	_lobbyData.roundTime.fractional = 0;
+	_lobbyData.trainingMode = false;
+	for (const auto id : {table.p1, table.p2}) {
+		if (!id) {
+			_lobbyData.members.push_back(SessionProtocol::MemberData{});
+			continue;
+		}
+		for (const auto& member : _roomSnapshot.members) if (member.id == id) {
+			SessionProtocol::MemberData data;
+			data.connId.host = member.connection.host;
+			data.connId.user = member.connection.user;
+			data.name = member.name;
+			data.port = 0; data.ip.clear(); data.flags = 0;
+			_lobbyData.members.push_back(data);
+			break;
+		}
+	}
+	for (const auto id : table.spectators) {
+		for (const auto& member : _roomSnapshot.members) if (member.id == id) {
+			SessionProtocol::MemberData data;
+			data.connId.host = member.connection.host;
+			data.connId.user = member.connection.user;
+			data.name = member.name;
+			data.port = 0; data.ip.clear(); data.flags = 0;
+			_lobbyData.members.push_back(data);
+			break;
+		}
+	}
+	_matchData.ClearReady();
+	_matchData.readyMessageNum[0] = table.ready[0] ? 0 : -1;
+	_matchData.readyMessageNum[1] = table.ready[1] ? 0 : -1;
+}
+
+void SessionClient::SelectRoomTable(std::uint8_t table) {
+	if (table >= room::TableCount) return;
+	_selectedRoomTable = table;
+	ProjectSelectedRoomTable();
+}
+
+session::SendResult SessionClient::SendRoomAction(room::Action action, std::uint64_t* actionId) {
+	if (!_transport || !_customRoomsSeen || _nextRoomActionId == (std::numeric_limits<std::uint64_t>::max)()) return session::SendResult::NotConnected;
+	action.protocolVersion = room::ProtocolVersion;
+	action.actionId = _nextRoomActionId++;
+	if (!action.roomEpoch) action.roomEpoch = _roomSnapshot.roomEpoch;
+	SessionProtocol::RoomActionMessage message;
+	message.action = action;
+	json payload = message;
+    const auto sent=Send(payload,nullptr);
+	if (sent==session::SendResult::Queued) {
+		if (auto* retry=RetryRecord(action.kind)) {
+			retry->actionId=action.actionId;
+			retry->payload=payload.dump();
+		}
+		if (actionId) *actionId=action.actionId;
+	}
+    return sent;
+}
+
+session::SendResult SessionClient::RetryRoomResult(room::Action action, std::uint64_t actionId) {
+	return RetryRoomLifecycleAction(std::move(action),actionId,room::ActionKind::RecordResult);
+}
+
+session::SendResult SessionClient::RetryMatchFinished(room::Action action, std::uint64_t actionId) {
+	return RetryRoomLifecycleAction(std::move(action),actionId,room::ActionKind::MatchFinished);
+}
+
+SessionClient::RetainedRoomRetry* SessionClient::RetryRecord(room::ActionKind kind) {
+	if(kind==room::ActionKind::RecordResult) return &_resultRetry;
+	if(kind==room::ActionKind::MatchFinished) return &_finishRetry;
+	return nullptr;
+}
+
+session::SendResult SessionClient::RetryRoomLifecycleAction(room::Action action,
+	std::uint64_t actionId, room::ActionKind expectedKind) {
+	if (!_transport || !_customRoomsSeen) return session::SendResult::NotConnected;
+	if (action.kind != expectedKind || !actionId || actionId >= _nextRoomActionId)
+		return session::SendResult::InvalidPayload;
+	action.protocolVersion = room::ProtocolVersion;
+	action.actionId = actionId;
+	SessionProtocol::RoomActionMessage message;
+	message.action = action;
+	json payload = message;
+	const auto* retry=RetryRecord(expectedKind);
+	if(!retry || retry->actionId!=actionId || retry->payload!=payload.dump())
+		return session::SendResult::InvalidPayload;
+	return Send(payload, nullptr);
+}
+
+session::SendResult SessionClient::AcknowledgeTerminal(std::uint8_t table, std::uint64_t generation) {
+	if (!_transport || !_customRoomsSeen || !generation || table >= room::TableCount || !_roomSnapshot.roomEpoch)
+		return session::SendResult::NotConnected;
+	for (const auto& pending : _pendingTerminalAcks)
+		if (pending.table == table && pending.generation == generation && pending.roomEpoch == _roomSnapshot.roomEpoch)
+			return session::SendResult::Queued;
+	if (_pendingTerminalAcks.size() >= 32) return session::SendResult::QueueFull;
+	const auto local = std::find_if(_roomSnapshot.members.begin(), _roomSnapshot.members.end(),
+		[&](const room::Member& member) { return member.id == _roomSnapshot.localMember; });
+	if (!_roomSnapshot.localMember || local == _roomSnapshot.members.end() || !local->incarnation)
+		return session::SendResult::NotConnected;
+	const auto observed = _roomSnapshot.localTerminalPending &&
+		_roomSnapshot.localTerminalGenerations[table] == generation
+		? _roomSnapshot.revision : 0;
+	_pendingTerminalAcks.push_back({table, generation, _roomSnapshot.roomEpoch, _stepCounter + 1,
+		0, _roomSnapshot.localMember, local->incarnation, observed});
+	return session::SendResult::Queued;
+}
+
+	bool SessionClient::TakeActionReply(ActionReply& reply) {
+	if (_actionReplies.empty()) return false;
+	reply=_actionReplies.front(); _actionReplies.pop_front();
+	if(reply.accepted || reply.reason==room::RejectReason::DuplicateResult) {
+		for(auto* retry:{&_resultRetry,&_finishRetry})
+			if(retry->actionId==reply.actionId) *retry={};
+	}
+	for (auto pending = _pendingTerminalAcks.begin(); pending != _pendingTerminalAcks.end();) {
+		if (pending->actionId != reply.actionId) { ++pending; continue; }
+		if (reply.accepted) pending = _pendingTerminalAcks.erase(pending);
+		else {
+			pending->nextStep = _stepCounter + 4;
+			++pending;
+		}
+		break;
+	}
+	return true;
 }
 
 SessionClient::~SessionClient()
 {
 	Disconnect();
-	_interface = nullptr;
+}
+
+bool SessionClient::TakeGameplayMessage(json& message) {
+	if (_gameplayMessages.empty()) return false;
+	message = std::move(_gameplayMessages.front()); _gameplayMessages.pop_front(); return true;
 }
 
 void SessionClient::PrepareForCallbacks()
 {
-	s_pCallbackInstance = this;
+	// Callback ownership belongs to each transport, never a global client.
 }
 
 int SessionClient::Step()
 {
-	if (_interface == nullptr) {
+	if (!_transport) return 0;
+	std::vector<session::Message> incoming;
+	if (!_transport->Poll(incoming, SESSION_CLIENT_MAX_MESSAGES_PER_POLL) ||
+		_transport->State() == session::ConnectionState::Failed ||
+		_transport->State() == session::ConnectionState::Closed) {
+		_connected = false;
+		// Let the owner handle loss after Step returns. Calling the facade
+		// here can delete this client while its method is still executing.
 		return -1;
 	}
-
-	if (_conn == k_HSteamNetConnection_Invalid) {
-		// Connection not established yet or still handshaking — not fatal.
-		return 0;
+	if (_transport->State() != session::ConnectionState::Connected) return 0;
+	_connected = true;
+	if (_helloPending) {
+		json hello = SessionProtocol::SessionHelloMsg();
+        if(_customRoomsRequired) {
+            SessionProtocol::SessionJoinRequest admission;
+            admission.sidecarHash=_sidecarHash; admission.username=_name; admission.port=_ggpoPort;
+            admission.customRooms=true; admission.roomProtocol=room::ProtocolVersion; admission.mainFighter=_mainFighter;
+            hello["admission"]=admission;
+        }
+        const auto sent=Send(hello,nullptr);
+        if(sent==session::SendResult::NotConnected || sent==session::SendResult::QueueFull) return 0;
+        if(sent!=session::SendResult::Queued) return -1;
+		_helloPending = false;
 	}
-
-	if (!_connected) {
-		// Not yet connected- not an error state, but nothing to do.
-		return 0;
-	}
-
-	ISteamNetworkingMessage* pIncomingMsgs[SESSION_CLIENT_MAX_MESSAGES_PER_POLL] = { 0 };
-	int numMsgs = _interface->ReceiveMessagesOnConnection(_conn, pIncomingMsgs, SESSION_CLIENT_MAX_MESSAGES_PER_POLL);
-
-	if (numMsgs < 0) {
-		spdlog::error("Session client error checking for messages: {}", numMsgs);
-		return -1;
-	}
-
-	for (int i = 0; i < numMsgs; i++) {
-		ISteamNetworkingMessage* pIncomingMsg = pIncomingMsgs[i];
-		if (!pIncomingMsg) {
-			spdlog::error("Client: incoming message enumerated, but not data retrieved");
-			return -1;
-		}
-
-		const char* start = (const char*)pIncomingMsg->m_pData;
-		json msg;
-		try {
-			msg = json::parse(start, start + pIncomingMsg->m_cbSize);
-		}
-		catch (json::exception&) {
+	++_stepCounter;
+	// Every recipient acknowledges a durable terminal event through the same
+	// authenticated room action path. Reuse one action ID for the exact
+	// room/table/generation so arbitrary response latency cannot evict its proof.
+	for (auto pending = _pendingTerminalAcks.begin(); pending != _pendingTerminalAcks.end();) {
+		if (_roomSnapshot.roomEpoch && _roomSnapshot.roomEpoch != pending->roomEpoch) {
+			pending = _pendingTerminalAcks.erase(pending);
 			continue;
 		}
-		pIncomingMsg->Release();
+		if (!_customRoomsSeen || !_roomSnapshot.roomEpoch || _stepCounter < pending->nextStep) {
+			++pending;
+			continue;
+		}
+		// A reliable send can be accepted by the local transport while its
+		// room-result reply is lost during leader recovery. Bound the in-flight
+		// wait and retry the same idempotent table/generation acknowledgement;
+		// otherwise the Application clears its local queue after the first send
+		// and the receipt can remain blocked forever.
+		if (!pending->actionId) {
+			if (_nextRoomActionId == (std::numeric_limits<std::uint64_t>::max)()) {
+				pending->nextStep = _stepCounter + 4;
+				++pending;
+				continue;
+			}
+			pending->actionId = _nextRoomActionId++;
+		}
+		room::Action acknowledgment;
+		acknowledgment.kind = room::ActionKind::AcknowledgeTerminal;
+		acknowledgment.protocolVersion = room::ProtocolVersion;
+		acknowledgment.actionId = pending->actionId;
+		acknowledgment.roomEpoch = pending->roomEpoch;
+		acknowledgment.table = pending->table;
+		acknowledgment.matchGeneration = pending->generation;
+		acknowledgment.tableRevision = pending->table < room::TableCount ? _roomSnapshot.tables[pending->table].revision : 0;
+		SessionProtocol::RoomActionMessage message;
+		message.action = acknowledgment;
+		json payload = message;
+		if (Send(payload, nullptr) == session::SendResult::Queued) {
+			pending->nextStep = _stepCounter + 8;
+			++pending;
+		} else {
+			pending->nextStep = _stepCounter + 4;
+			++pending;
+		}
+	}
+	for (const auto& message : incoming) {
+		json msg;
+		try {
+			msg = json::parse(message.payload);
+		}
+		catch (const json::exception&) {
+			continue;
+		}
 
 		SessionProtocol::MessageType type;
 		try {
 			msg.at("type").get_to(type);
 		}
-		catch (json::exception e) {
+		catch (const json::exception&) {
 			spdlog::info("Client: got a message without a type, or a type that was not a string");
 			continue;
 		}
 
-		if (type == SessionProtocol::MT_SESSION_HELLO_RESP) {
+		if (type == SessionProtocol::MT_ROOM_SNAPSHOT) {
+			SessionProtocol::RoomSnapshotMessage snapshot;
+			try { msg.get_to(snapshot); }
+			catch (const std::exception&) { _roomError = "invalid_room_snapshot"; return -1; }
+			if (snapshot.snapshot.protocolVersion != room::ProtocolVersion ||
+				(snapshot.snapshot.localMember == 0 && _customRoomsRequired)) { _roomError = "incompatible_room_protocol"; return -1; }
+            if(_roomSnapshot.roomEpoch && (snapshot.snapshot.roomEpoch!=_roomSnapshot.roomEpoch ||
+                snapshot.snapshot.revision<_roomSnapshot.revision)) continue;
+			_roomSnapshot = std::move(snapshot.snapshot);
+			_customRoomsSeen = true;
+			if (_roomSnapshot.localMember != 0) _joinRequestPending = false;
+			ReconcileTerminalAcks();
+			_roomError.clear();
+			ProjectSelectedRoomTable();
+			if (_callbacks.OnRoomSnapshot) _callbacks.OnRoomSnapshot(this, _roomSnapshot, _callbacks);
+		}
+		else if (type == SessionProtocol::MT_ROOM_RESULT) {
+			SessionProtocol::RoomResultMessage result;
+			try { msg.get_to(result); }
+			catch (const std::exception&) { _roomError = "invalid_room_result"; continue; }
+            const auto replyId=result.actionId;
+            if (replyId) {
+                if (_actionReplies.size()>=32) _actionReplies.pop_front();
+                _actionReplies.push_back({replyId,result.result.accepted,result.result.reason});
+            }
+			if (result.result.snapshot.roomEpoch != 0 && (!_roomSnapshot.roomEpoch ||
+                (result.result.snapshot.roomEpoch==_roomSnapshot.roomEpoch && result.result.snapshot.revision>=_roomSnapshot.revision))) {
+				_roomSnapshot = std::move(result.result.snapshot);
+				_customRoomsSeen = true;
+				if (_roomSnapshot.localMember != 0) _joinRequestPending = false;
+				ReconcileTerminalAcks();
+				ProjectSelectedRoomTable();
+			}
+			if (!result.result.accepted) { _roomError = RoomRejectText(result.result.reason); }
+			else { _roomError.clear(); }
+			if (_callbacks.OnRoomSnapshot) _callbacks.OnRoomSnapshot(this, _roomSnapshot, _callbacks);
+		}
+		else if (type == SessionProtocol::MT_ROOM_EVENT) {
+			SessionProtocol::RoomEventMessage event;
+			try { msg.get_to(event); }
+			catch (const std::exception&) { _roomError = "invalid_room_event"; continue; }
+			const bool lifecycle = event.event.kind == room::Event::Kind::MatchReady ||
+				event.event.kind == room::Event::Kind::MatchStarted ||
+				event.event.kind == room::Event::Kind::MatchEnded ||
+				event.event.kind == room::Event::Kind::RoomClosed ||
+				event.event.kind == room::Event::Kind::ResultDisputed;
+			if (_roomEvents.size() >= 64) {
+				if (!lifecycle) continue; // the accompanying snapshot is authoritative
+				auto discard = std::find_if(_roomEvents.begin(), _roomEvents.end(), [&](const room::Event& queued) {
+					return queued.kind != room::Event::Kind::MatchReady && queued.kind != room::Event::Kind::MatchStarted &&
+						queued.kind != room::Event::Kind::MatchEnded && queued.kind != room::Event::Kind::RoomClosed &&
+						queued.kind != room::Event::Kind::ResultDisputed;
+				});
+				if (discard == _roomEvents.end()) { _roomError = "room_event_overflow"; return -1; }
+				_roomEvents.erase(discard);
+			}
+			_roomEvents.push_back(event.event);
+			// MatchEnded is only an outcome notification. The application queues
+			// AcknowledgeTerminal after profile persistence and native/helper
+			// retirement; spectators and fighters therefore cannot release a
+			// durable receipt merely by receiving this event.
+			if (_callbacks.OnRoomEvent) _callbacks.OnRoomEvent(this, event.event, _callbacks);
+		}
+		else if (type == SessionProtocol::MT_GAME_PREPARE || type == SessionProtocol::MT_GAME_CONNECT ||
+			type == SessionProtocol::MT_GAME_START || type == SessionProtocol::MT_GAME_END ||
+			type == SessionProtocol::MT_GAME_PEER_END) {
+			if (!_matchAuthorizationRequired) return -1;
+			if (_gameplayMessages.size() >= 32 || message.payload.size() > 16384) return -1;
+			if (type == SessionProtocol::MT_GAME_PREPARE) {
+				_projectionFrozen = true;
+				const auto incomingGeneration = msg.value("generation", std::uint64_t(0));
+				if (incomingGeneration != _queuedGrantGeneration) _queuedGrantProjection.reset();
+				_queuedGrantGeneration = incomingGeneration;
+				if (_queuedGrantGeneration && _pendingRoomProjection &&
+					_pendingRoomProjection->matchGeneration == _queuedGrantGeneration) {
+					_queuedGrantProjection = std::move(_pendingRoomProjection);
+					_pendingRoomProjection.reset();
+				} else if (_queuedGrantGeneration &&
+					_appliedRoomProjectionGeneration == _queuedGrantGeneration) {
+					// The normal direct path applied the projection before the
+					// prepare message. Capture that exact state so a later update
+					// cannot replace the grant's native inputs.
+					SessionProtocol::SessionDataUpdate captured;
+					captured.lobbyData = _lobbyData;
+					captured.matchData = _matchData;
+					captured.matchGeneration = _queuedGrantGeneration;
+					_queuedGrantProjection = std::move(captured);
+				}
+			}
+			_gameplayMessages.push_back(std::move(msg));
+		}
+		else if (type == SessionProtocol::MT_SESSION_HELLO_RESP) {
 			SessionProtocol::SessionHelloResp cidMsg;
 			try {
 				msg.get_to(cidMsg);
 			}
-			catch (json::exception e) {
+			catch (const json::exception&) {
 				spdlog::info("Client: couldn't deserialize CID?");
 				continue;
 			}
-			
-			_cid = cidMsg.cid;
 
-			SessionProtocol::SessionJoinRequest request;
-			request.sidecarHash = _sidecarHash;
-			request.username = _name;
-			request.port = _ggpoPort;
-			json msg = request;
-			if (Send(msg, nullptr) != k_EResultOK) {
-				spdlog::warn("Client could send initial join request");
+			_cid = cidMsg.cid;
+			// A nonzero room member proves the recovery bootstrap hello already
+			// committed this custom-room admission. Starting the legacy join_req
+			// retry loop here can enqueue duplicate full checkpoints while the
+			// accompanying room projection is still crossing a relay.
+			const bool bootstrapAdmitted = _customRoomsRequired && cidMsg.roomMember != 0;
+			_joinRequestPending = !bootstrapAdmitted;
+			if (_joinRequestPending) {
+				_joinRequestNextStep = _stepCounter;
+				TrySendPendingJoinRequest();
 			}
 		}
 		else if (type == SessionProtocol::MT_SESSION_JOINREJ) {
+			_joinRequestPending = false;
 			SessionProtocol::SessionJoinReject reject;
 			try {
 				msg.get_to(reject);
 			}
-			catch (json::exception e) {
+			catch (const json::exception&) {
 				spdlog::info("Client: couldn't deserialize join rejection?");
 				continue;
 			}
@@ -296,8 +681,7 @@ int SessionClient::Step()
 				break;
 			}
 			_callbacks.OnError(errType, this, _callbacks);
-			_interface->CloseConnection(_conn, 0, nullptr, false);
-			_conn = k_HSteamNetConnection_Invalid;
+			Disconnect();
 			return -1;
 		}
 		else if (type == SessionProtocol::MT_SESSION_DATAUPDATE) {
@@ -305,12 +689,28 @@ int SessionClient::Step()
 			try {
 				msg.get_to(update);
 			}
-			catch (json::exception e) {
+			catch (const json::exception&) {
 				spdlog::info("Client: could not deserialize response");
 				continue;
 			}
-			_lobbyData = update.lobbyData;
-			_matchData = update.matchData;
+			if (_joinRequestPending && !_customRoomsRequired &&
+				std::any_of(update.lobbyData.members.begin(), update.lobbyData.members.end(),
+					[&](const SessionProtocol::MemberData& member) { return member.connId == _cid; }))
+				_joinRequestPending = false;
+			if (!_customRoomsSeen || !_projectionFrozen) {
+				_lobbyData = update.lobbyData;
+				_matchData = update.matchData;
+				_appliedRoomProjectionGeneration = update.matchGeneration;
+			} else if (_queuedGrantGeneration && update.matchGeneration == _queuedGrantGeneration &&
+				!_queuedGrantProjection) {
+				// If transport delivery puts the projection after game_prepare,
+				// capture the first matching update as that grant's immutable input.
+				_queuedGrantProjection = std::move(update);
+			} else if (!_pendingRoomProjection || update.matchGeneration >= _pendingRoomProjection->matchGeneration) {
+				// Keep at most one generation-matched native projection while the
+				// prior GGPO roster is frozen. The next accepted grant selects it.
+				_pendingRoomProjection = std::move(update);
+			}
 
 			if (_outstandingReadyRequestNumber > -1) {
 				for (int i = 0; i < _lobbyData.members.size() && i < 2; i++) {
@@ -325,7 +725,7 @@ int SessionClient::Step()
 			}
 		}
 		else if (type == SessionProtocol::MT_LOBBY_ALLREADY) {
-			_callbacks.OnReady(this, _callbacks);
+			if (!_matchAuthorizationRequired && _callbacks.OnReady) _callbacks.OnReady(this, _callbacks);
 		}
 		else if (type == SessionProtocol::MT_BATTLE_SYNCED) {
 			_callbacks.OnBattleSynced(this, _callbacks);
@@ -335,7 +735,7 @@ int SessionClient::Step()
 			try {
 				msg.get_to(m);
 			}
-			catch (json::exception e) {
+			catch (const json::exception&) {
 				spdlog::info("Client: could not deserialize incoming checksum msg");
 				continue;
 			}
@@ -393,20 +793,8 @@ int SessionClient::Step()
 			}
 			pendingRemoteHashes[m.frameIdx] = m;
 		}
-		else if (type == SessionProtocol::MT_BATTLE_GGPO_FRAME) {
-			SessionProtocol::BattleGgpoFrame frame;
-			try {
-				msg.get_to(frame);
-			}
-			catch (json::exception e) {
-				spdlog::info("Client: could not deserialize GGPO frame");
-				continue;
-			}
-			OnGgpoFrameReceived(frame);
-		}
-		else if (type == SessionProtocol::MT_PUNCH_GO) {
-			_punchGoReceived = true;
-		}
+
+
 		else if (type == SessionProtocol::MT_FORWARD) {
 			spdlog::debug("Received forwarded message: {}", msg.dump());
 		}
@@ -442,7 +830,7 @@ int SessionClient::Step()
 				SessionProtocol::BattleSnapshot m;
 				m.snapshot = localSnapshotIter->second.first;
 				json msg = m;
-				if (Send(msg, nullptr) != k_EResultOK) {
+				if (Send(msg, nullptr) != session::SendResult::Queued) {
 					spdlog::error("Client: Could not send snapshot update");
 				}
 			}
@@ -478,21 +866,18 @@ int SessionClient::Step()
 			}
 		}
 
-		// Desync v2: aged-hash exchange. A checkpoint becomes eligible once
-		// this client has simulated HASH_CHECKPOINT_AGE_FRAMES past it —
-		// older than the rollback/prediction window, so the value can no
-		// longer change ("aged"/non-speculative; NOT formally GGPO
-		// confirmed). Only players send; spectators compare received hashes
-		// locally as diagnostics. At most a couple of small messages per
-		// second; no per-frame serialization.
+		// Read-only game-thread query. No polling or pacing changes here.
+		// Only players send; spectators compare the confirmed source stream.
 		{
 			const bool isPlayer = IsLocalPlayer();
+			int confirmedInput = -1;
+			if (fSystem::ggpo) ggpo_get_last_confirmed_frame(fSystem::ggpo, &confirmedInput);
 			for (int i = 0; i < fSystem::NUM_HASH_CHECKPOINTS; i++) {
 				fSystem::HashCheckpoint& cp = fSystem::hashCheckpoints[i];
 				if (!cp.valid) {
 					continue;
 				}
-				if (mostRecentPredictiveFrame - cp.frameIdx < fSystem::HASH_CHECKPOINT_AGE_FRAMES) {
+				if (!sf4e::statehash::IsConfirmedCheckpoint(cp.ggpoStateFrame, confirmedInput)) {
 					continue;
 				}
 				if (!cp.sent && isPlayer) {
@@ -504,7 +889,7 @@ int SessionClient::Step()
 					m.chara1 = cp.hashes.chara[1];
 					m.fromPlayer = true;
 					json hashMsg = m;
-					if (Send(hashMsg, nullptr) == k_EResultOK) {
+					if (Send(hashMsg, nullptr) == session::SendResult::Queued) {
 						cp.sent = true;
 					}
 				}
@@ -516,252 +901,178 @@ int SessionClient::Step()
 			}
 		}
 	}
-
+	TrySendPendingJoinRequest();
 	return 0;
 }
 
-void SessionClient::OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo)
-{
-	const bool wasConnected = pInfo->m_eOldState == k_ESteamNetworkingConnectionState_Connected;
-	const bool wasInMatch = wasConnected && fSystem::ggpo != nullptr;
-
-	switch (pInfo->m_info.m_eState)
-	{
-	case k_ESteamNetworkingConnectionState_ClosedByPeer:
-	case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
-	{
-		// Print an appropriate message
-		if (pInfo->m_eOldState == k_ESteamNetworkingConnectionState_Connecting)
-		{
-			const char* detail = pInfo->m_info.m_szEndDebug;
-			if (!detail || !detail[0]) {
-				detail = "Connection refused or timed out.";
-			}
-			spdlog::error("Client could not connect: {}", detail);
-			sf4e::NetplayFacade::PushAlert(
-				"Could not connect to the game room. Check your internet and try again."
-			);
-		}
-		else if (!wasInMatch && pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally)
-		{
-			const char* detail = pInfo->m_info.m_szEndDebug;
-			if (!detail || !detail[0]) {
-				detail = "Lost contact with session server.";
-			}
-			spdlog::error("Client lost contact with host: {}", detail);
-			sf4e::NetplayFacade::PushAlert(
-				"Lost connection to the game room. Check your internet and try again."
-			);
-		}
-
-		// Clean up the connection.  This is important!
-		// The connection is "closed" in the network sense, but
-		// it has not been destroyed.  We must close it on our end, too
-		// to finish up.  The reason information do not matter in this case,
-		// and we cannot linger because it's already closed on the other end,
-		// so we just pass 0's.
-		_interface->CloseConnection(pInfo->m_hConn, 0, nullptr, false);
-		_conn = k_HSteamNetConnection_Invalid;
-		_connected = false;
-
-		if (wasInMatch) {
-			// Phase 7: during an active healthy GGPO fight this degrades
-			// (fight continues, room features disabled) rather than closing
-			// the GGPO session; otherwise it performs the full failure.
-			sf4e::NetplayFacade::HandleControlPlaneLoss(
-				"Lost connection to the game room. Check your internet and try again."
-			);
-		}
-		break;
-	}
-	case k_ESteamNetworkingConnectionState_Connected:
-	{
-		spdlog::info("Client connected to server OK, attempting to join...");
-		_connected = true;
-		SessionProtocol::SessionHelloMsg hello;
-		json msg = hello;
-		if (Send(msg, nullptr) != k_EResultOK) {
-			spdlog::warn("Client could not send hello");
-		}
-		break;
-	}
-	default:
-		break;
-	}
+session::SendResult SessionClient::Send(nlohmann::json& msg, int64_t* outMessageNum) {
+	if (!_transport) return session::SendResult::NotConnected;
+	return _transport->Send(msg.dump(), true, outMessageNum);
 }
 
-EResult SessionClient::Send(nlohmann::json& msg, int64_t* outMessageNum) {
-	std::string buf = msg.dump();
-	return _interface->SendMessageToConnection(
-		_conn, buf.c_str(), (uint32)buf.length(),
-		k_nSteamNetworkingSend_Reliable, outMessageNum
-	);
-}
-
-EResult SessionClient::Lobby_Ready()
+session::SendResult SessionClient::Lobby_Ready()
 {
+	if (_customRoomsSeen) {
+		room::Action action;
+		action.kind = room::ActionKind::Ready;
+        action.inputDelay=_selectedDelay;
+		action.roomEpoch = _roomSnapshot.roomEpoch;
+		action.revision = _roomSnapshot.revision;
+		action.table = _selectedRoomTable;
+		action.tableRevision = _roomSnapshot.tables[_selectedRoomTable].revision;
+		return SendRoomAction(action);
+	}
 	LobbyReady msg;
 	json j = msg;
-	EResult result = Send(j, &_outstandingReadyRequestNumber);
-	if (result != k_EResultOK) {
+	session::SendResult result = Send(j, &_outstandingReadyRequestNumber);
+	if (result != session::SendResult::Queued) {
 		spdlog::warn("Client: could not send ready! Result: {}", (int)result);
 	}
 	return result;
 }
 
-EResult SessionClient::Lobby_ReportResults(int loserSide)
+session::SendResult SessionClient::Lobby_ReportResults(int loserSide)
 {
+	if (_customRoomsSeen) {
+		room::Action action;
+		action.kind = room::ActionKind::RecordResult;
+		action.roomEpoch = _roomSnapshot.roomEpoch;
+		action.table = _selectedRoomTable;
+		action.matchGeneration = _roomSnapshot.tables[_selectedRoomTable].matchGeneration;
+		action.result = loserSide == 0 ? room::MatchResult::P2Win : room::MatchResult::P1Win;
+		return SendRoomAction(action);
+	}
 	SessionProtocol::LobbyReportResults r;
 	r.loserSide = loserSide;
 	json msg = r;
-	EResult result = Send(msg, nullptr);
-	if (result != k_EResultOK) {
+	if (_matchAuthorizationRequired) msg["generation"] = _gameplayGeneration;
+	session::SendResult result = Send(msg, nullptr);
+	if (result != session::SendResult::Queued) {
 		spdlog::warn("Client: could not report results! Result: {}", (int)result);
 	}
 	return result;
 }
 
-EResult SessionClient::Lobby_ResetRematch()
+session::SendResult SessionClient::Lobby_ResetRematch()
 {
+	if (_customRoomsSeen) {
+		room::Action action;
+		action.kind = room::ActionKind::Unready;
+		action.roomEpoch = _roomSnapshot.roomEpoch;
+		action.revision = _roomSnapshot.revision;
+		action.table = _selectedRoomTable;
+		action.tableRevision = _roomSnapshot.tables[_selectedRoomTable].revision;
+		return SendRoomAction(action);
+	}
 	SessionProtocol::LobbyReset msg;
 	json j = msg;
-	EResult result = Send(j, nullptr);
-	if (result != k_EResultOK) {
+	if (_matchAuthorizationRequired) j["generation"] = _gameplayGeneration;
+	session::SendResult result = Send(j, nullptr);
+	if (result != session::SendResult::Queued) {
 		spdlog::warn("Client: could not reset lobby for rematch! Result: {}", (int)result);
 	}
 	return result;
 }
 
-EResult SessionClient::Lobby_SetSettings(
+session::SendResult SessionClient::Lobby_SetSettings(
 	bool editionSelect,
 	int roundCount,
 	Dimps::Math::FixedPoint roundTime,
 	bool trainingMode
 )
 {
+	if (_customRoomsSeen) {
+		room::Action action;
+		action.kind = room::ActionKind::SetRules;
+		action.roomEpoch = _roomSnapshot.roomEpoch;
+		action.revision = _roomSnapshot.revision;
+		action.table = _selectedRoomTable;
+		action.tableRevision = _roomSnapshot.tables[_selectedRoomTable].revision;
+		action.rules = _roomSnapshot.tables[_selectedRoomTable].rules;
+		action.rules.editionSelect = editionSelect;
+		action.rules.roundCount = static_cast<std::uint8_t>(roundCount);
+		action.rules.roundTime = static_cast<std::uint16_t>(roundTime.integral);
+		return SendRoomAction(action);
+	}
 	SessionProtocol::LobbySetSettings msg;
 	msg.editionSelect = editionSelect;
 	msg.roundCount = roundCount;
 	msg.roundTime = roundTime;
 	msg.trainingMode = trainingMode;
 	json j = msg;
-	EResult result = Send(j, nullptr);
-	if (result != k_EResultOK) {
+	session::SendResult result = Send(j, nullptr);
+	if (result != session::SendResult::Queued) {
 		spdlog::warn("Client: could not send lobby settings! Result: {}", (int)result);
 	}
 	return result;
 }
 
-EResult SessionClient::PreBattle_SetEnv(uint32_t rngSeed)
+session::SendResult SessionClient::PreBattle_SetEnv(uint32_t rngSeed)
 {
 	SessionProtocol::PreBattleSetEnv msg;
 	msg.rngSeed = rngSeed;
 	json j = msg;
-	EResult result = Send(j, nullptr);
-	if (result != k_EResultOK) {
+	session::SendResult result = Send(j, nullptr);
+	if (result != session::SendResult::Queued) {
 		spdlog::warn("Client: could not set prebattle environment! Result: {}", (int)result);
 	}
 	return result;
 }
 
-EResult SessionClient::PreBattle_SetChara(const Dimps::GameEvents::VsMode::ConfirmedCharaConditions& chara)
+session::SendResult SessionClient::PreBattle_SetChara(const Dimps::GameEvents::VsMode::ConfirmedCharaConditions& chara)
 {
+	if (!sf4e::selection::Valid(sf4e::selection::FromNative(chara), _lobbyData.editionSelect)) return session::SendResult::InvalidPayload;
 	SessionProtocol::PreBattleSetChara msg;
 	msg.chara = chara;
 	json j = msg;
-	EResult result = Send(j, nullptr);
-	if (result != k_EResultOK) {
+	session::SendResult result = Send(j, nullptr);
+	if (result != session::SendResult::Queued) {
 		spdlog::warn("Client: could not set prebattle character! Result: {}", (int)result);
 	}
 	return result;
 }
 
-EResult SessionClient::PreBattle_SetStage(int32_t stageID)
+session::SendResult SessionClient::PreBattle_SetStage(int32_t stageID)
 {
+	if (!selection::FindStage(stageID)) return session::SendResult::InvalidPayload;
 	SessionProtocol::PreBattleSetStage msg;
 	msg.stageID = stageID;
 	json j = msg;
-	EResult result = Send(j, nullptr);
-	if (result != k_EResultOK) {
+	session::SendResult result = Send(j, nullptr);
+	if (result != session::SendResult::Queued) {
 		spdlog::warn("Client: could not set prebattle stage! Result: {}", (int)result);
 	}
 	return result;
 }
 
-EResult SessionClient::Battle_Loaded()
+session::SendResult SessionClient::Battle_Loaded()
 {
 	SessionProtocol::BattleLoaded msg;
 	json j = msg;
-	EResult result = Send(j, nullptr);
-	if (result != k_EResultOK) {
+	session::SendResult result = Send(j, nullptr);
+	if (result != session::SendResult::Queued) {
 		spdlog::warn("Client: could not set battle loaded! Result: {}", (int)result);
 	}
 	return result;
 }
 
-void SessionClient::Punch_Reset() {
-	_punchGoReceived = false;
-}
 
-EResult SessionClient::Punch_SendReady() {
-	SessionProtocol::PunchReady msg;
-	json j = msg;
-	EResult result = Send(j, nullptr);
-	if (result != k_EResultOK) {
-		spdlog::warn("Client: could not send punch_ready! Result: {}", (int)result);
-	}
-	return result;
-}
 
-EResult SessionClient::SendGgpoFrame(const SessionProtocol::ConnectionID& dest, const uint8_t* data, uint32_t len) {
-	if (_conn == k_HSteamNetConnection_Invalid || !data || len == 0) {
-		return k_EResultInvalidParam;
-	}
 
-	SessionProtocol::BattleGgpoFrame frame;
-	frame.dest = dest;
-	frame.src = _cid;
-	frame.data.assign(data, data + len);
-	json msg = frame;
-	std::string buf = msg.dump();
-	_ggpoTunnelStats.sendCount++;
-	_ggpoTunnelStats.sendBytes += buf.length();
-	return _interface->SendMessageToConnection(
-		_conn,
-		buf.c_str(),
-		(uint32)buf.length(),
-		k_nSteamNetworkingSend_Unreliable,
-		nullptr
-	);
-}
 
-void SessionClient::OnGgpoFrameReceived(const SessionProtocol::BattleGgpoFrame& frame) {
-	if (!(frame.dest == _cid)) {
-		return;
-	}
-	_ggpoTunnelStats.recvCount++;
-	_ggpoTunnelStats.recvBytes += frame.data.size();
-	GgpoRelay::Instance().InjectFromPeer(frame.src, frame.data.data(), (uint32_t)frame.data.size());
-}
 
-EResult SessionClient::Forward(const SessionProtocol::ConnectionID& dest, const json& fwd) {
+
+
+
+session::SendResult SessionClient::Forward(const SessionProtocol::ConnectionID& dest, const json& fwd) {
 	SessionProtocol::ForwardMessage msg;
 	msg.dest = dest;
 	msg.src = _cid;
 	msg.msg = fwd;
 	json j = msg;
-	EResult result = Send(j, nullptr);
-	if (result != k_EResultOK) {
+	session::SendResult result = Send(j, nullptr);
+	if (result != session::SendResult::Queued) {
 		spdlog::warn("Client: could not forward! Result: {}", (int)result);
 	}
 	return result;
-}
-
-void SessionClient::SteamNetConnectionStatusChangedCallback(SteamNetConnectionStatusChangedCallback_t* pInfo)
-{
-	SessionClient* instance = (SessionClient*)SteamNetworkingSockets()->GetConnectionUserData(pInfo->m_hConn);
-	if (!instance) {
-		return;
-	}
-	instance->OnSteamNetConnectionStatusChanged(pInfo);
 }

@@ -9,6 +9,7 @@ function(sf4e_configure_windows_version target file_description original_filenam
     message(FATAL_ERROR "sf4e_configure_windows_version requires project() to have been called first")
   endif()
 
+  set(SF4E_BRAND_SOURCE_DIR "${CMAKE_SOURCE_DIR}")
   set(SF4E_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
   set(SF4E_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
   set(SF4E_VERSION_PATCH "${PROJECT_VERSION_PATCH}")
@@ -34,8 +35,7 @@ function(sf4e_embed_manifest target manifest_filename)
     message(WARNING "Manifest not found: ${_manifest}")
     return()
   endif()
-  target_link_options("${target}" PRIVATE
-    "/MANIFEST:EMBED"
-    "/MANIFESTINPUT:${_manifest}"
-  )
+  # Let CMake merge this with its generated manifest, including incremental
+  # Ninja links. /MANIFEST:EMBED would embed it again and duplicate resource 1.
+  target_sources("${target}" PRIVATE "${_manifest}")
 endfunction()

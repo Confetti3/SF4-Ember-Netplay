@@ -29,15 +29,15 @@ namespace sf4e {
 		uint8_t editionSelect = 1;
 		int roundCount = 3;
 		int roundTimeIntegral = 99;
-		uint8_t useRelay = 1;
+		uint8_t useRelay = 0;
 		uint8_t devOverlay = 0;
 		uint8_t deviceType = 0xff;
 		uint8_t deviceIdx = 0xff;
-		// 0 = local SessionServer on host PC; 1 = local RelayHost (loopback); 2 = VPS central session relay.
+		// Reserved obsolete payload fields; ignored by the Iroh-only application.
 		uint8_t useCentralSession = 0;
-		// SF4-XXXX relay room code for overlay display (VPS/local relay only; empty for Direct IP).
+		// Reserved broker code storage; never imported into active preferences.
 		char relayRoomCode[NETPLAY_ROOM_KEY_LEN] = { 0 };
-		// 0=legacy session tunnel, 1=udp relay, 2=p2p direct.
+		// Reserved transport selector; the application always uses Iroh.
 		uint8_t ggpoTransport = 0;
 		uint8_t playerRole = 0; // 1=host, 2=guest
 		uint16_t ggpoRemotePort = 0;

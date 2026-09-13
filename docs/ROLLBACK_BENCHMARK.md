@@ -1,5 +1,15 @@
 # Rollback benchmark (internal)
 
+> Historical VPS-era procedure, not the current Ember/Iroh benchmark workflow.
+> Do not use its VPS ping, broker presets or scenario-D delay advice to tune
+> `sf4-current`. Use `scripts/test-current-network.ps1` for explicit transport
+> checks and the [current hardening report](2026-09-08_networking-ember-report.md)
+> for verification limits. Use the [current helper comparison](RECOVERY_BENCHMARK.md)
+> for the seeded Iroh/GGPO performance procedure.
+> Measure the actual Iroh route and native frame/replay costs; keep input delay
+> advisory and fixed during a fight. The historical procedure is retained below
+> only to interpret older results.
+
 
 
 Measure infrastructure and tune **host input delay** using the in-game bottom overlay (**RTT**, **LFB**, **RFB**). Launcher UI stays as-is.

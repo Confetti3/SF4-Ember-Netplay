@@ -4,6 +4,7 @@
 #include <windows.h>
 
 #include <nlohmann/json.hpp>
+#include "../common/SelectionValue.hxx"
 
 #include "Dimps__Event.hxx"
 #include "Dimps__Game.hxx"
@@ -249,17 +250,26 @@ namespace Dimps {
 			static __staticMethods staticMethods;
 		};
 
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(
-			VsMode::ConfirmedCharaConditions,
-			charaID,
-			costume,
-			color,
-			_unused,
-			personalAction,
-			winQuote,
-			ultraCombo,
-			handicap,
-			unc_edition
-		);
+		inline void to_json(nlohmann::json& j, const VsMode::ConfirmedCharaConditions& c) {
+			j = {{"charaID", c.charaID}, {"costume", c.costume}, {"color", c.color},
+				{"_unused", c._unused}, {"personalAction", c.personalAction}, {"winQuote", c.winQuote},
+				{"ultraCombo", c.ultraCombo}, {"handicap", c.handicap}, {"unc_edition", c.unc_edition}};
+		}
+
+		inline void from_json(const nlohmann::json& j, VsMode::ConfirmedCharaConditions& c) {
+			using sf4e::selection::ReadByte;
+			// Decode into a temporary so a malformed field never partially changes a pick.
+			VsMode::ConfirmedCharaConditions decoded{};
+			decoded.charaID = ReadByte(j.at("charaID"));
+			decoded.costume = ReadByte(j.at("costume"));
+			decoded.color = ReadByte(j.at("color"));
+			decoded._unused = ReadByte(j.at("_unused"));
+			decoded.personalAction = ReadByte(j.at("personalAction"));
+			decoded.winQuote = ReadByte(j.at("winQuote"));
+			decoded.ultraCombo = ReadByte(j.at("ultraCombo"));
+			decoded.handicap = ReadByte(j.at("handicap"));
+			decoded.unc_edition = ReadByte(j.at("unc_edition"));
+			c = decoded;
+		}
 	}
 }

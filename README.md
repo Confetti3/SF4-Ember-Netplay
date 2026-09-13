@@ -1,331 +1,100 @@
-# SF4 Netplay Launcher
-
-> **Unofficial experimental port** - **not** the official [sf4e](https://codeberg.org/adanducci/sf4e) project by **[Anthony Danducci](https://codeberg.org/adanducci/sf4e)**. Anthony Danducci does not maintain, endorse, or support this build. This is **not production-ready software** - a friends-only experiment built on upstream sf4e (MIT). See [ATTRIBUTION.md](ATTRIBUTION.md) and [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md).
-
-**SF4 Netplay Launcher** is a **third-party, experimental unofficial port** for _Ultra Street Fighter IV_ on Steam. It adds a native **Qt Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e's rollback netplay. Netplay may fail, desync, or break between releases - use only with people who accept that risk.
-
-**Latest release:** [v0.6.5](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/tag/v0.6.5) (rematch/disconnect teardown crash fix)
-
-**Download:** [GitHub Releases — Latest](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) — asset `sf4-netplay-launcher-*-0.6.5.zip` (not "Source code" only).
-
-## How it works
-
-Simple mode (default) uses a **shared VPS** so the host does not port-forward. Each player runs the same release zip. The launcher handles room codes over **HTTPS**; game rollback traffic uses **UDP/TCP** relay ports on the VPS (not TLS - that is normal for real-time netplay).
-
-### End-to-end flow (Simple mode)
+<div align="center">
+  <img src="src/ui/ember.png" alt="Ember orange ink and smoke emblem" width="112">
+  <h1>SF4 Ember Netplay</h1>
+  <p><strong>Your room. Your rivals. One more game.</strong></p>
+  <p>Private rollback rooms and a controller-first overlay for Ultra Street Fighter IV.</p>
+  <p>
+    <a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/tag/v0.8.0"><img alt="Release 0.8.0" src="https://img.shields.io/badge/release-0.8.0-e97835?style=flat-square&labelColor=242321"></a>
+    <img alt="Windows x64" src="https://img.shields.io/badge/platform-Windows_x64-e97835?style=flat-square&labelColor=242321">
+    <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-e97835?style=flat-square&labelColor=242321"></a>
+  </p>
+  <p>
+    <strong><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v0.8.0/sf4-ember-netplay-0.8.0.zip">Download v0.8.0 for Windows</a></strong>
+    &nbsp; · &nbsp; <a href="#get-started">Get started</a>
+    &nbsp; · &nbsp; <a href="docs/USER_NETPLAY.md">Player guide</a>
+    &nbsp; · &nbsp; <a href="docs/RELEASE_NOTES_v0.8.0.md">Release notes</a>
+  </p>
+</div>
 
-```mermaid
-flowchart LR
-  subgraph hostPC [Host PC]
-    LH[Launcher.exe]
-    GH[USF4 + Sidecar.dll]
-    LH -->|starts| GH
-  end
+![SF4 Ember Netplay home overlay with the Ember background and controller navigation](docs/images/ember-home.png)
 
-  subgraph joinPC [Joiner PC]
-    LJ[Launcher.exe]
-    GJ[USF4 + Sidecar.dll]
-    LJ -->|starts| GJ
-  end
+**SF4 Ember Netplay** brings private rooms, four rollback battle tables, spectators and offline training tools into a fixed in-game interface. Create a room, share an invitation and choose where to play or watch. The charcoal, ivory and orange interface supports controllers, arcade sticks and keyboard navigation.
 
-  subgraph vps [VPS]
-    CY[Caddy :443 HTTPS]
-    BR[Room broker]
-    RM[Relay manager]
-    RL[Session relay GNS]
-    GR[GGPO UDP relay]
-    CY --> BR
-    BR --> RM
-    RM --> RL
-    RM --> GR
-  end
+An **experimental unofficial port** of **[sf4e](https://codeberg.org/adanducci/sf4e)** by **Anthony Danducci and contributors**, under the MIT license. Anthony Danducci does not maintain, endorse or support this build. Ember is not affiliated with Capcom or Valve. See [attribution](ATTRIBUTION.md) and [scope and limitations](docs/SCOPE_AND_LIMITATIONS.md).
 
-  LH -->|POST /v1/rooms| CY
-  LJ -->|GET resolve SF4-code| CY
-  GH <-->|rollback UDP/TCP| RL
-  GJ <-->|rollback UDP/TCP| RL
-  GH -.->|udp_relay or p2p| GR
-  GJ -.->|udp_relay or p2p| GR
-```
+## Inside Ember
 
-**Typical session**
+| Play together | Make it yours |
+| --- | --- |
+| Private rooms for up to 16 members | Fighter, edition, costume, color and Ultra selection |
+| Four battle tables, queues and spectators | Player profile, main fighter and confirmed online record |
+| Room chat and short invitations | SF4 controller assignment, including DirectInput sticks |
+| Iroh networking and Discord invitations | Controller prompts and interface settings |
 
-1. **Host** clicks Host, then **Get code** - launcher calls the broker over HTTPS and receives `SF4-XXXX`, a session relay port, and (when VPS transport is `auto`) a GGPO UDP relay port.
-2. **Joiner** pastes the code - launcher resolves it on the broker (HTTPS).
-3. Both click **Start game** - launcher fetches a **connect-plan**, runs a **NAT probe** (`8790/udp`), registers each player's GGPO endpoint, and injects `Sidecar.dll` with `NetplayConfig` (room token, relay host/ports, transport hint).
-4. **Sidecar** picks the best path: **p2p** (same public IP or punchable NAT), else **udp_relay** (direct GGPO via VPS), else **legacy_session_tunnel** (GGPO inside the GNS session relay). Legacy always works as fallback.
-5. In-game lobby: **Ready** / **Rematch**, character select, fight. Character and stage picks persist between sessions.
+### A room for the whole group
 
-### What runs where
+![Ember room overlay showing battle tables, members, fighter portraits and room chat with sample session data](docs/images/ember-room.png)
 
-```mermaid
-flowchart TB
-  subgraph windows [Each Windows PC]
-    direction TB
-    L[Launcher.exe Qt UI]
-    U[Updater.exe optional]
-    S[Sidecar.dll hooks USF4]
-    L -->|creates netplay config| S
-  end
+Join a table, enter its queue or watch the next game. Room membership and active matches are separate, and each member plays one game at a time.
 
-  subgraph control [Control plane - TLS]
-    B["Broker API /v1/*"]
-    D[Operator dashboard /login]
-  end
+### Choose your fighter
 
-  subgraph data [Data plane - UDP/TCP]
-    GNS["Session relay 23456-23505"]
-    NAT["NAT probe 8790/udp"]
-    GGPO["GGPO UDP relay 24456-24505"]
-  end
+![Ember fighter selection showing the character roster and selected fighter artwork](docs/images/ember-fighter-selection.png)
 
-  L -->|HTTPS connect-plan| B
-  L -->|NAT probe| NAT
-  S -->|preferred path| GGPO
-  S -->|fallback tunnel| GNS
-```
+Save your fighter and appearance before joining a room or while waiting. Select your edition, Ultra and available costume and color; P1 chooses the stage.
 
-| Layer | Protocol | Purpose |
-|-------|----------|---------|
-| Room create/join, connect-plan | **HTTPS** (443) | Room codes, secrets, match metadata |
-| GGPO UDP relay (preferred) | **UDP** (24456+) | Direct GGPO when broker transport is `auto` |
-| Session relay (fallback) | **UDP+TCP** (23456+) | Rollback frames via GNS tunnel |
-| NAT probe | **UDP** (8790) | Public endpoint discovery for connect-plan / P2P |
+### Find your look
 
-Broker, relay-manager, and dashboard listen on **127.0.0.1** on the VPS; only Caddy and game ports are public. See [docs/VPS_TLS_SETUP.md](docs/VPS_TLS_SETUP.md).
+![Ember costume selection showing alternate outfits and the selected costume preview](docs/images/ember-costumes.png)
 
-### Transport modes
+Browse costume previews, choose an available outfit and fine-tune its color before returning to your room.
 
-Production VPS uses **`BROKER_GGPO_TRANSPORT=auto`**. Each room gets a session relay plus a GGPO UDP relay. The client tries faster paths first:
+The screenshots above are fresh captures from the **actual 0.8.0 UI renderer**, using sample session data. They are not photographs of a live multiplayer test.
 
-```
-p2p -> udp_relay -> legacy_session_tunnel (always available fallback)
-```
+## Get started
 
-**UDP relay** is kept across rematches in the same room (relay re-binds slots; client preserves broker endpoint after fallback). Override with `SF4E_GGPO_TRANSPORT=legacy|udp|p2p|auto` (optional). Details: [docs/TRANSPORT_REGRESSION.md](docs/TRANSPORT_REGRESSION.md).
+You need **Windows 10 or later (x64)**, an owned **Steam copy of Ultra Street Fighter IV**, and the **Microsoft Visual C++ x86 runtime**. The game is not included.
 
-## Demo
+1. [Download the complete v0.8.0 ZIP](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v0.8.0/sf4-ember-netplay-0.8.0.zip) and, optionally, verify it against the [SHA-256 checksum](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v0.8.0/sf4-ember-netplay-0.8.0.zip.sha256). Choose the release ZIP, not GitHub's source-code download.
+2. Extract everything into a **new writable folder**. Keep your old launcher installation separate; moving from the legacy launcher to Ember is a fresh install.
+3. Run `preflight.cmd`, then `Launcher.exe`. Successful startup goes directly to the game. If needed, select the folder containing `SSFIV.exe` in launch recovery.
+4. At the main menu, choose your controller and player name. Use **Online Play → Create Room**, then copy the invitation. Guests choose **Join Room** and paste it.
+5. Choose a table, join its queue or watch. Save your fighter selection and ready when seated. **All participants must use the same Ember release.**
 
-Experimental Simple-mode netplay (Host -> room code -> Join -> fight). This is a **friends-only test build**, not production-ready software.
+No VPS account or manual port configuration is required. Iroh can use public relays when a direct connection is unavailable. Discord support is included in the package.
 
-https://github.com/user-attachments/assets/1750fc8c-6f04-410c-8820-ec59638107f5
+### Controls
 
-Full quality: [`docs/demo/SF4Demo.mp4`](docs/demo/SF4Demo.mp4) (~34 MB)
+| Action | Keyboard | Assigned XInput controller | DirectInput / arcade stick |
+| --- | --- | --- | --- |
+| Navigate | Arrow keys | D-pad | SF4-mapped directions |
+| Select | Enter | A | SF4-mapped Light Punch |
+| Back | Escape | B | SF4-mapped Light Kick |
+| Open at safe menu states | F10 | Start | SF4-mapped Start |
 
-[Download full demo (MP4)](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/download/v0.2.8.1/SF4Demo.mp4)
+Back returns through menus and can hide Ember. Leaving a room requires the explicit **Leave room** action. Use **Play Offline** for native game menus. More detail: [controller guide](docs/CONTROLLER_MENUS.md).
 
-## Getting started
+## Settings, updates and legacy builds
 
-### 1. Prerequisites
+Existing Ember preferences remain under `%APPDATA%\sf4e`. Help & About provides the version, update checking, attribution and redacted diagnostic exports. Ember updates use the renamed repository and verify the downloaded ZIP's SHA-256 before installation.
 
-Install once on each PC:
+**`release` is the current Ember branch.** [Legacy `main`](https://github.com/Confetti3/SF4-Ember-Netplay/tree/main) preserves the previous SF4 Netplay Launcher. Its releases and [archived README](docs/archive/README-pre-ember.md) remain available. Legacy in-place upgrades to 0.8.0 are not supported; follow the fresh-install steps above.
 
-| Requirement | Link |
-|-------------|------|
-| **Ultra Street Fighter IV** (Steam, app 45760) | Not included in the zip |
-| **Qt 6 runtime** (included in release zip) | `Qt6Core/Gui/Widgets.dll` + `plugins/` — no separate install |
-| [VC++ Redistributable (x86)](https://aka.ms/vs/17/release/vc_redist.x86.exe) | Required for sf4e binaries |
+## Status and documentation
 
-### 2. Install
+Ember remains experimental. Local builds, automated UI and transport tests, and package verification do not establish native gameplay acceptance. Results and repeated rematches, spectators, disconnect recovery, different-network play and clean-machine behavior require recorded SF4 testing. Read the [limitations](docs/SCOPE_AND_LIMITATIONS.md) before playing.
 
-1. Download the latest **team zip** from [Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest).
-2. Extract the **entire** zip to one folder (e.g. `C:\Games\SF4-Netplay-Launcher\`). Keep all files together - do not copy only `Launcher.exe`.
-3. Optional: run `preflight.cmd` to verify the package.
-4. Double-click **`Launcher.exe`**.
+| Guide | What it covers |
+| --- | --- |
+| [Player guide](docs/USER_NETPLAY.md) | Hosting, joining, controls and day-to-day play |
+| [Custom rooms](docs/CUSTOM_ROOMS.md) | Tables, queues, spectators and room behavior |
+| [Discord](docs/DISCORD.md) | Presence, invitations and privacy |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | Startup, connections and diagnostics |
+| [Build and package](docs/BUILDING.md) | Reproducible local builds and release provenance |
 
-Both players must use the **same release zip** (`Sidecar.dll` must match). The launcher header shows your installed version (e.g. `v0.6.5`). Use **Check for updates** on the home screen to upgrade.
+## License and credits
 
-### 3. Play online (Simple mode - experimental)
-
-The launcher defaults to **Simple mode**. This path is **experimental** - it has worked in small tests but is not guaranteed. No router setup on the host PC when the VPS relay path works.
-
-| Step | Host | Joiner |
-|------|------|--------|
-| 1 | Click **Host** → **Get code** | Wait |
-| 2 | Copy the **`SF4-XXXX`** code shown on screen | Click **Join** → paste that exact code |
-| 3 | Click **Start game** | Wait until host is in-game, then **Start game** |
-| 4 | Press **Ready** in the in-game lobby (or **Rematch** after a game) | Same |
-| 5 | Pick characters and fight | Same |
-
-**Tips**
-
-- Share the **current** room code from the host screen — old codes point at empty or expired sessions.
-- Stay in **Simple mode** for testing with friends. **Find match** and **Open rooms** (Advanced only) are more experimental still.
-- After a match, use **Rematch** in the lobby panel or the slim top toolbar (**Network** / **Rematch**) without scrolling.
-- If USF4 is not detected automatically, set `STEAM_APP_PATH` to your `Super Street Fighter IV - Arcade Edition` folder before launching.
-
-### 4. Advanced mode (Direct IP)
-
-Switch to **Advanced** in the launcher for classic host/join with `IP:port`, local relay, or UPnP. The host must **port-forward TCP+UDP** on the session port (default **23456**). See [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md).
-
-Use Advanced when you prefer port-forward over VPS room codes.
-
-## Scope and limitations
-
-This is an **experimental unofficial port** for a **small friends group** - not official sf4e, not a public matchmaking service, and **not presented as finished or production-ready software**.
-
-| In scope | Out of scope / limits |
-|----------|------------------------|
-| USF4 on **Steam**, **Windows 10+** | Game not included; no console/macOS native build |
-| **Simple mode**: VPS room codes (`SF4-XXXX`), no host port forward | **~50 rooms** configured ceiling on default broker; empty lobbies expire after ~5 min, occupied rooms do not age out by default |
-| **Advanced mode**: Direct IP / UPnP / custom broker | Direct IP host must **port-forward** TCP+UDP (default **23456**) |
-| Same **release zip** on all players | **Find match** / **Open rooms** are **experimental** |
-| Unofficial launcher + packaging on upstream sf4e (MIT) | **Not** maintained or endorsed by Anthony Danducci |
-
-**Less tested:** disconnect recovery, spectator mode, Linux/Proton. **Rematch** in the same VPS room is supported (UDP relay re-registration + in-game Ready/Rematch).
-
-Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (also in the release zip).
-
-## Documentation
-
-| Doc | Audience |
-|-----|----------|
-| [docs/VPS_TLS_SETUP.md](docs/VPS_TLS_SETUP.md) | VPS TLS, firewall, and port layout |
-| [docs/VPS_CAPACITY_50.md](docs/VPS_CAPACITY_50.md) | Raise default VPS capacity to 50 rooms / migrate live `.env` |
-| [docs/TRANSPORT_REGRESSION.md](docs/TRANSPORT_REGRESSION.md) | Transport ladder test matrix |
-| [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md) | Experimental testers - quick checklist and bug reports |
-| [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md) | Player guide - Simple + Advanced flows |
-| [docs/TEAM_QUICKSTART.md](docs/TEAM_QUICKSTART.md) | Packaged as `START_HERE.md` in the release zip |
-| [docs/SMOKE_TEST.md](docs/SMOKE_TEST.md) | Manual test checklist |
-| [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) | What this port is for, and known limits |
-| [ATTRIBUTION.md](ATTRIBUTION.md) | Upstream sf4e credit (Anthony Danducci) |
-| [SECURITY.md](SECURITY.md) | Security policy and supported versions |
-| [docs/RELEASE.md](docs/RELEASE.md) | Building and publishing releases |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Player troubleshooting — black launcher, crash on launch, settings, Direct IP |
-| [docs/WINDOWS_DEFENDER.md](docs/WINDOWS_DEFENDER.md) | Defender false positives (`Wacapew.A!ml`) |
-| [docs/RELEASE_NOTES_v0.6.5.md](docs/RELEASE_NOTES_v0.6.5.md) | Latest release notes |
-| [docs/NETPLAY_INVARIANTS.md](docs/NETPLAY_INVARIANTS.md) | Hard GGPO/session rules that must not regress |
-| [docs/GGPO_LIFECYCLE.md](docs/GGPO_LIFECYCLE.md) | GGPO lifecycle / desync internals |
-| [docs/SIGNPATH_APPLY.md](docs/SIGNPATH_APPLY.md) | SignPath Foundation checklist |
-
-## Troubleshooting
-
-See **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** for the full guide (black launcher, crash on **Start game**, recommended settings, Direct IP, logs). Release history: [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases).
-
-**Report bugs:** Git line from `BUILD_INFO.txt`, both players' `sf4e.log`, steps to reproduce — [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md).
-
-## Configuration
-
-| Setting | How |
-|---------|-----|
-| Broker URL | Advanced → **Room broker URL**, or `set SF4E_BROKER_URL=https://74-208-200-95.nip.io` |
-| Developer overlay | `Launcher.exe --dev-overlay` or `set SF4E_NETPLAY_DEV=1` (full Eva/Event/Battle debug menus) |
-| Offline (no netplay) | **Offline** on the launcher home screen |
-| Reset launcher settings | Delete or edit `%APPDATA%\sf4e\config.json` |
-| Reset overlay picks | Delete `%APPDATA%\sf4e\overlay_prefs.json` (character, stage, delay, etc.) |
-
-Default broker: `https://74-208-200-95.nip.io` (HTTPS via Caddy; no host port forward in Simple mode).
-
-## For developers
-
-This repository builds **SF4 Netplay Launcher** - an **unofficial port** of upstream [sf4e](https://codeberg.org/adanducci/sf4e) by Anthony Danducci (MIT). The launcher, broker tooling, and packaging are maintained here; Anthony Danducci maintains official sf4e on Codeberg.
-
-**Publish a release:**
-
-```powershell
-powershell -NoProfile -File scripts/release-team-build.ps1 -VersionLabel 0.6.5
-gh release create v0.6.5 dist/sf4-netplay-launcher-*-0.6.5.zip --title "SF4 Netplay Launcher v0.6.5" --notes-file docs/RELEASE_NOTES_v0.6.5.md
-```
-
-See [docs/RELEASE.md](docs/RELEASE.md).
-
-### Supported environments
-
-* Windows: Windows 10 or later
-* Linux: Fedora 40+, Steam Deck (via Proton)
-
-### Running on Windows
-
-Windows users with a working Steam installation can run the launcher by extracting a release zip and double-clicking `Launcher.exe`. The launcher attempts to detect your SF4 installation automatically. Windows users with uncommon or damaged Steam installations may set the `STEAM_APP_PATH` environment variable to the absolute path of the `Super Street Fighter IV - Arcade Edition` directory installed by Steam. You can navigate to this directory using the Steam library's context menu by right-clicking on Ultra Street Fighter IV's library entry, hovering over "Manage", then selecting "Browse local files".
-
-### Running on Linux
-
-The most straightforward way to launch on Linux is with [protontricks](https://github.com/Matoking/protontricks). Extract the release, then run `protontricks-launch Launcher.exe` and select SF4 from the popup UI. For convenience, `protontricks-launch --appid 45760 Launcher.exe` can be used to launch non-interactively, e.g. from shell scripts or program shortcuts.
-
-Linux users who do not install `protontricks` may set the `STEAM_APP_PATH` environment variable to the path of the `Super Street Fighter IV - Arcade Edition` directory installed by Steam, as demonstrated above. Users should take care to ensure the variable points to a Windows-formatted path accessible from within the Proton container for SF4, and it may be helpful to take advantage of Wine providing the Linux system root as the `Z:` root inside Wine to specify the path. For example, if the local directory is available at `/home/steamdeck/.local/share/Steam/steamapps/common/Super Street Fighter IV - Arcade Edition`, the corresponding path through the Proton container would be `Z:\\home\\steamdeck\\.local\\share\\Steam\\steamapps\\common\\Super Street Fighter IV - Arcade Edition`.
-
-## Building
-
-The codebase inherits from upstream **sf4e** and is built primarily with [Visual Studio](https://visualstudio.microsoft.com/)
-**2022** (or 2019 16.10+) with Visual C++ and **Qt 6 Widgets** (via vcpkg). Other development environments will need
-support for installing dependencies, ideally via [vcpkg](https://vcpkg.io/en/index.html)
-and build file generation via [CMake](https://cmake.org/).
-
-To build with Visual Studio CMake:
-
-1. Follow steps 1 and 2 in [`vcpkg`'s Getting Started guide](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started),
-   stopping after `vcpkg` has been bootstrapped.
-   - You can stop at step 3 — this repo already has a manifest file (`qtbase` Widgets is included).
-2. Set up a local `CMakeUserPresets.json` to describe your environment.
-   The following can be used as a quickstart, making sure to provide the
-   path to the copy of `vcpkg` checked out in step 1:
-```
-{
-    "version": 2,
-    "configurePresets": [
-      {
-        "name": "default",
-        "inherits": "x86-msvc-ninja-relwithdebinfo",
-        "environment": {
-          "VCPKG_ROOT": "C:/Users/myuser/path/to/vcpkg"
-        }
-      }
-    ]
-  }
-  
-```
-   - Since SF4 is a 32-bit executable, binaries and dependencies
-     (most importantly Detours and Qt) also need to be built targeting a
-     32-bit host to properly hook SF4's instructions.
-3. Open `CMakeLists.txt` with Visual Studio's native CMake integration.
-   - Ensure [CMakePresets.json integration in Visual Studio](https://learn.microsoft.com/en-us/cpp/build/cmake-presets-vs?view=msvc-170#enable-cmakepresets-json-integration) is enabled.
-4. Run `Build All`. Confirm that `Launcher.exe` and `Sidecar.dll` are in
-   the build output (`msvc-build/default` when using the preset above).
-5. Run `Launcher.exe`.
-
-To build with the CMake command line:
-
-1. Set up `vcpkg`, as above in step 1.
-2. Set up a local `CMakeUserPresets.json` to describe your environment,
-   as above in step 2.
-3. Using a CLI environment with CMake and a compiler prepared, run
-   `cmake --preset default` from the root of the repository.
-   - VS users may wish to use either the x86 Native Tools or the
-     x64_x86 Cross Tools developer command prompts, as they already
-     provide tools like Ninja and Cmake, and have the various environment
-     variables used by CMake already prepared.
-4. Build by running `cmake --build ./path-to-binary-dir/` from the root
-   of the repository. Confirm that `Launcher.exe` and `Sidecar.dll` are in
-   the build output.
-   * If a `CMakeUserPresets.json` file like the one in step 2 is used, the
-     the binary dir is `./msvc-build/default`.
-5. Run `Launcher.exe`.
-
-Builds generated with CMake that cannot take advantage of `vcpkg` will need to
-provide the following dependencies:
-
-* [Detours](https://github.com/microsoft/Detours). Detours is used to install
-  custom netplay hooks at runtime.
-* [ValveFileVDF](https://github.com/TinyTinni/ValveFileVDF). ValveFileVDF
-  is used to parse Steam's configuration files, to automatically detect
-  your installation of SF4.
-* [Dear Imgui](https://github.com/ocornut/imgui). Dear Imgui is used to
-  provide custom overlays for new features and non-durable,
-  development-time debugging.
-* [spdlog](https://github.com/gabime/spdlog). `spdlog` is used to provide
-  durable file logging, both at development time and in release builds.
-* [nlohmann/json](https://github.com/nlohmann/json). `json` is used for
-  message serialization.
-* [GameNetworkingSockets](https://github.com/ValveSoftware/GameNetworkingSockets/).
-  `GamenNetworkingSockets` provides a very helpful high-level API on top
-  of message passing, and additionally supports NAT hole punching if
-  a signalling server is run.
-* [GGPO](https://github.com/pond3r/ggpo), used to provide rollback.
-* [Qt 6](https://www.qt.io/) (Widgets), used for the native Host / Join / Offline launcher UI.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project retains the [MIT license](LICENSE), upstream copyright and **Anthony Danducci's sf4e** attribution. [ATTRIBUTION.md](ATTRIBUTION.md) records upstream, dependency, font and artwork credits. Packages include dependency notices, Inter's OFL and Kenney's input-prompt license. Capcom game imagery is separate from the source-code license.
 
 ## External Licenses and Copyright Information
 
@@ -337,9 +106,6 @@ Copyright (c) Valve Corporation.
 
 Visual Studio, vcpkg, and Detours
 Copyright (c) Microsoft Corporation.
-
-Qt
-Copyright (c) The Qt Company Ltd. and other contributors.
 
 CMake - Cross Platform Makefile Generator
 Copyright (c) Kitware, Inc. and Contributors.
@@ -355,9 +121,6 @@ Copyright (c) 2016 Gabi Melman.
 
 nlohmann/json
 Copyright (c) 2013-2022 Niels Lohmann
-
-GameNetworkingSockets
-Copyright (c) 2018, Valve Corporation
 
 GGPO (Good Game Peace Out)
 Copyright (c) GroundStorm Studios, LLC.

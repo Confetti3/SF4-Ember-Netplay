@@ -2,6 +2,7 @@
 
 /build
 /dist
+*.obj
 /msvc-build
 /msvc-out
 /.vs
@@ -9,6 +10,7 @@
 /.cursor
 /CMakeSettings.json
 /CMakeUserPresets.json
+/rust/sf4-net/target/
 debug-*.log
 debug-screenshots/
 benchmark-results/
@@ -45,3 +47,5 @@ scripts/vps-ggpo-health-test.py
 scripts/vps-ggpo-start-test.py
 scripts/vps-relay-health-all.py
 scripts/__pycache__/
+
+# Pinned third-party runtime binaries are fetched and hash-verified locally.

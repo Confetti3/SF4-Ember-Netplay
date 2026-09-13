@@ -13,6 +13,9 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <filesystem>
+#include "../ui/RecoverySurface.hxx"
+#include "../platform/LauncherInstance.hxx"
 
 #include <CLI/CLI.hpp>
 #include <detours/detours.h>
@@ -25,11 +28,7 @@
 #include "../common/sf4e__NetplayConfig.hxx"
 #include "../common/install_paths.hxx"
 #include "netplay/netplay_persist.hxx"
-#include "netplay/netplay_wizard.hxx"
-#include "netplay/netplay_launch_controller.hxx"
-#include "relay/relay_host_spawn.hxx"
 #include "update/github_release_client.hxx"
-#include "ipc/electron_ipc.hxx"
 
 LPCWCH szGameFilename = L"SSFIV.exe";
 LPCWCH szLibrarySuffix = L"steamapps\\common\\Super Street Fighter IV - Arcade Edition";
@@ -141,6 +140,7 @@ int FindSF4ByEstimatedSteamPath(
 	std::ifstream libraryFoldersFile(szLibraryFolderVDFPath);
 	tyti::vdf::object libraryFoldersRoot = tyti::vdf::read(libraryFoldersFile);
 	for (auto it = libraryFoldersRoot.childs.begin(); it != libraryFoldersRoot.childs.end(); ++it) {
+		if (nLibrariesUsed >= 8) break;
 		MultiByteToWideChar(
 			CP_ACP,
 			0,
@@ -243,6 +243,9 @@ void CreateAppIDFile(LPWSTR szGuiltyDirectory) {
 
 HANDLE CreateSF4Process(
 	const sf4e::Payload& payload,
+	sf4e::platform::HelperProcess& helper,
+    sf4e::platform::HelperProcess& discord,
+	const std::wstring& helperPath,
 	LPWSTR szGameDirectory,
 	LPWSTR szExePath,
 	int nDlls,
@@ -288,19 +291,22 @@ HANDLE CreateSF4Process(
 		)) {
 		dwError = GetLastError();
 		StringCchPrintf(szErrorString, 1024, L"DetourCreateProcessWithDllEx failed: %d", dwError);
-		MessageBox(NULL, szErrorString, NULL, MB_OK);
-		MessageBox(NULL, szGameDirectory, NULL, MB_OK);
-		MessageBox(NULL, szExePath, NULL, MB_OK);
-		for (int i = 0; i < nDlls; i++) {
-			MessageBoxA(NULL, rlpDlls[i], NULL, MB_OK);
-		}
-		if (dwError == ERROR_INVALID_HANDLE) {
-			MessageBox(NULL, L"Can't detour a 64-bit target process from a 32-bit parent process or vice versa.", NULL, MB_OK);
-		}
-		ExitProcess(9009);
+        spdlog::error("Could not start the game with Sidecar (Win32 {})", dwError);
+        if (hSyncEvent) CloseHandle(hSyncEvent);
+        return nullptr;
 	}
 
 	sf4e::Payload p = payload;
+    wchar_t discordPath[32768] = {};
+    if (sf4e::install::ResolveInstallFile(L"ember-discord.exe",discordPath,32768) &&
+        discord.Start(discordPath,pi.dwProcessId)) p.discord=discord.Bootstrap();
+	if (helper.Start(helperPath, pi.dwProcessId)) {
+		p.helper = helper.Bootstrap();
+	}
+	else {
+		p.helperError = helper.LastError();
+		spdlog::warn("Networking helper unavailable (Win32 {}). Offline remains available.", p.helperError);
+	}
 	if (hSyncEvent != NULL) {
 		if (!DuplicateHandle(GetCurrentProcess(), hSyncEvent, pi.hProcess, &p.hSyncEvent, 0, false, DUPLICATE_SAME_ACCESS)) {
 			spdlog::warn("CreateSF4Process: DuplicateHandle() could not duplicate game sync handle, game may be unable to access Steam: err {}", GetLastError());
@@ -308,16 +314,40 @@ HANDLE CreateSF4Process(
 	}
 	if (!DetourCopyPayloadToProcess(pi.hProcess, sf4eSidecar::s_guidSidecarPayload, &p, sizeof(sf4e::Payload))) {
 		StringCchPrintf(szErrorString, 1024, L"DetourCopyPayloadToProcess failed: %d", GetLastError());
-		MessageBox(NULL, szErrorString, NULL, MB_OK);
-		ExitProcess(9008);
+		SecureZeroMemory(p.helper.nonce, sizeof(p.helper.nonce));
+        SecureZeroMemory(p.discord.nonce, sizeof(p.discord.nonce));
+		helper.Stop(0); discord.Stop(0);
+		TerminateProcess(pi.hProcess, 9008);
+		CloseHandle(pi.hThread);
+		CloseHandle(pi.hProcess);
+		if (hSyncEvent) CloseHandle(hSyncEvent);
+		return nullptr;
 	}
+	SecureZeroMemory(p.helper.nonce, sizeof(p.helper.nonce));
+        SecureZeroMemory(p.discord.nonce, sizeof(p.discord.nonce));
 
-	ResumeThread(pi.hThread);
+	if (ResumeThread(pi.hThread) == static_cast<DWORD>(-1)) {
+		helper.Stop(0); discord.Stop(0);
+		TerminateProcess(pi.hProcess, 9007);
+		CloseHandle(pi.hThread);
+		CloseHandle(pi.hProcess);
+		if (hSyncEvent) CloseHandle(hSyncEvent);
+		return NULL;
+	}
 	spdlog::info("CreateSF4Process resumed pid={}", pi.dwProcessId);
 	if (hSyncEvent != NULL) {
-		DWORD lockWaitResult = WaitForSingleObject(hSyncEvent, 60 * 1000);
-		if (lockWaitResult != 0) {
-			spdlog::warn("CreateSF4Process: WaitForSingleObject() could not wait for game sync handle, game may be unable to access Steam: err {}", GetLastError());
+		HANDLE startupHandles[] = { hSyncEvent, pi.hProcess };
+		DWORD lockWaitResult = WaitForMultipleObjects(2, startupHandles, FALSE, 60 * 1000);
+		if (lockWaitResult == WAIT_OBJECT_0 + 1) {
+			DWORD exitCode = 0;
+			GetExitCodeProcess(pi.hProcess, &exitCode);
+			spdlog::warn("Game exited before Sidecar startup completed (exit code {})", exitCode);
+		}
+		else if (lockWaitResult == WAIT_TIMEOUT) {
+			spdlog::warn("Sidecar startup did not signal within 60 seconds");
+		}
+		else if (lockWaitResult == WAIT_FAILED) {
+			spdlog::warn("Could not wait for Sidecar startup (Win32 {})", GetLastError());
 		}
 		else {
 			spdlog::info("CreateSF4Process received Sidecar sync signal");
@@ -343,7 +373,6 @@ int UpdatePath(const wchar_t* const szLauncherDirW, wchar_t* const szErrorString
 			spdlog::warn(L"UpdatePath: GetEnvironmentVariable(\"PATH\", ...) failed: {}", err);
 			StringCchPrintfW(szErrorStringW, nErrorStringLen,
 				L"Could not read PATH environment variable (error %lu).", err);
-			MessageBoxW(NULL, szErrorStringW, L"sf4e", MB_OK | MB_ICONERROR);
 		}
 		return 0;
 	}
@@ -351,7 +380,6 @@ int UpdatePath(const wchar_t* const szLauncherDirW, wchar_t* const szErrorString
 	wchar_t* szPathW = (wchar_t*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, nPathChars * sizeof(wchar_t));
 	if (!szPathW) {
 		StringCchPrintfW(szErrorStringW, nErrorStringLen, L"Out of memory while updating PATH.");
-		MessageBoxW(NULL, szErrorStringW, L"sf4e", MB_OK | MB_ICONERROR);
 		return 0;
 	}
 
@@ -360,7 +388,6 @@ int UpdatePath(const wchar_t* const szLauncherDirW, wchar_t* const szErrorString
 		HeapFree(GetProcessHeap(), 0, szPathW);
 		StringCchPrintfW(szErrorStringW, nErrorStringLen,
 			L"Could not read PATH environment variable (error %lu).", err);
-		MessageBoxW(NULL, szErrorStringW, L"sf4e", MB_OK | MB_ICONERROR);
 		return 0;
 	}
 
@@ -370,7 +397,6 @@ int UpdatePath(const wchar_t* const szLauncherDirW, wchar_t* const szErrorString
 		HeapFree(GetProcessHeap(), 0, szPathW);
 		StringCchPrintfW(szErrorStringW, nErrorStringLen,
 			L"PATH is too long to prepend the sf4e folder. Shorten your system PATH or launch from a shorter directory.");
-		MessageBoxW(NULL, szErrorStringW, L"sf4e", MB_OK | MB_ICONERROR);
 		return 0;
 	}
 
@@ -378,14 +404,12 @@ int UpdatePath(const wchar_t* const szLauncherDirW, wchar_t* const szErrorString
 	if (!szNewPathW) {
 		HeapFree(GetProcessHeap(), 0, szPathW);
 		StringCchPrintfW(szErrorStringW, nErrorStringLen, L"Out of memory while updating PATH.");
-		MessageBoxW(NULL, szErrorStringW, L"sf4e", MB_OK | MB_ICONERROR);
 		return 0;
 	}
 
 	if ((res = StringCchPrintf(szNewPathW, newLen, TEXT("%s;%s"), szLauncherDirW, szPathW)) != S_OK) {
 		StringCchPrintfW(szErrorStringW, nErrorStringLen,
 			L"Could not create new PATH (error %lu).", res);
-		MessageBoxW(NULL, szErrorStringW, L"sf4e", MB_OK | MB_ICONERROR);
 		HeapFree(GetProcessHeap(), 0, szPathW);
 		HeapFree(GetProcessHeap(), 0, szNewPathW);
 		return 0;
@@ -397,243 +421,83 @@ int UpdatePath(const wchar_t* const szLauncherDirW, wchar_t* const szErrorString
 	return 1;
 }
 
-int WINAPI wWinMain(
-	_In_ HINSTANCE hInstance,
-	_In_opt_ HINSTANCE hPrevInstance,
-	_In_ LPWSTR lpCmdLine,
-	_In_ int nShowCmd
-) {
-	sf4e::install::ConfigureDllSearch();
-	ConfigureLauncherLogging();
-	SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
-	HRESULT res = S_OK;
-	wchar_t szErrorStringW[4096] = { 0 };
-	wchar_t szLauncherDirW[1024] = { 0 };
-	wchar_t szGameDirectory[1024] = { 0 };
-	wchar_t szExePath[1024] = { 0 };
-	char szLauncherDirA[1024] = { 0 };
-	char szSidecarDllPathA[1024] = { 0 };
-	int nDlls = 1;
-	const char* dlls[1] = {
-		szSidecarDllPathA,
-	};
-
-	sf4e::Payload payload = { 0 };
-	CLI::App app("A process-inspection and modification tool for the Steam release of Ultra Street Fighter 4.", "sf4e");
-	app.add_flag("--console", payload.args.bShowConsole, "Show a console with live logging. The console may interfere with inputs to the main window.");
-	bool offlineOnly = false;
-	app.add_flag("--offline", offlineOnly, "Launch without netplay setup.");
-	bool hostOnly = false;
-	app.add_flag("--host", hostOnly, "Host a netplay session (skip wizard).");
-	std::string joinRoomCode;
-	app.add_option("--join", joinRoomCode, "Join host at IP:port (skip wizard).")->expected(1);
-	bool devOverlay = false;
-	app.add_flag("--dev-overlay", devOverlay, "Enable developer netplay overlay in-game.");
-	bool applyUpdateOnly = false;
-	app.add_flag("--apply-update", applyUpdateOnly, "Download and install the latest GitHub release, then exit.");
-	bool electronIpc = false;
-	app.add_flag("--electron-ipc", electronIpc, "JSON-lines UI bridge on stdin/stdout (automation / legacy Electron shell).");
-	bool headlessHandshake = false;
-	app.add_flag("--headless-test-handshake", headlessHandshake, "Same as --electron-ipc (CI smoke test).");
-	int argc;
-	LPWSTR* argv = CommandLineToArgvW(
-		// Intentionally do _not_ use lpCmdLine here. Windows removes
-		// the path or name of the program from the start of lpCmdLine,
-		// so if it were parsed with `CommandLineToArgvW`, argv[0]
-		// would be the first argument. This isn't standards-compatible-
-		// in pretty much every other context, argv[0] is a path to or
-		// name of the program invoked, and CLI11 assumes that standard.
-		// Once passed to CLI11, parsing the nonstandard argv array
-		// would effectively ignore the first CLI option.
-		//
-		// Instead, use the raw command line.
-		GetCommandLineW(),
-		&argc
-	);
-	CLI11_PARSE(app, argc, argv);
-
-	// sf4e://join/SF4-XXXX from OS URI handler
-	for (int i = 1; i < argc; ++i) {
-		if (!argv[i]) {
-			continue;
-		}
-		std::wstring arg = argv[i];
-		const wchar_t* prefix = L"sf4e://join/";
-		size_t plen = wcslen(prefix);
-		if (arg.size() > plen && _wcsnicmp(arg.c_str(), prefix, plen) == 0) {
-			char narrow[64] = { 0 };
-			WideCharToMultiByte(CP_UTF8, 0, arg.c_str() + plen, -1, narrow, sizeof(narrow), NULL, NULL);
-			joinRoomCode = narrow;
-			break;
-		}
-	}
-	spdlog::info(
-		"Launcher args offline={} host={} join={} electronIpc={} headlessHandshake={} devOverlay={} applyUpdate={}",
-		offlineOnly,
-		hostOnly,
-		!joinRoomCode.empty(),
-		electronIpc,
-		headlessHandshake,
-		devOverlay,
-		applyUpdateOnly
-	);
-
-	// Compute the path to the sidecar DLL based on the launcher's directory.
-	// Ideally, this wouldn't have to convert from wide-char to multibyte in
-	// the system's codepage, but Detours uses multibyte paths when injecting
-	// DLLs.
-	GetModuleFileNameW(NULL, szLauncherDirW, 1024);
-	PathCchRemoveFileSpec(szLauncherDirW, 1024);
-	WideCharToMultiByte(CP_ACP, 0, szLauncherDirW, 1024, szLauncherDirA, 1024, NULL, NULL);
-	{
-		wchar_t installRoot[MAX_PATH] = { 0 };
-		wchar_t dllRoot[MAX_PATH] = { 0 };
-		sf4e::install::GetInstallRoot(installRoot, MAX_PATH);
-		sf4e::install::GetPackageDllDirectory(dllRoot, MAX_PATH);
-		spdlog::info(L"Launcher paths exeDir={} installRoot={} dllRoot={}", szLauncherDirW, installRoot, dllRoot);
-	}
-	{
-		wchar_t sidecarPathW[1024] = { 0 };
-		if (!sf4e::install::ResolveInstallFile(L"Sidecar.dll", sidecarPathW, 1024)) {
-			PathCombineW(sidecarPathW, szLauncherDirW, L"Sidecar.dll");
-			PathCombineA(szSidecarDllPathA, szLauncherDirA, "Sidecar.dll");
-		} else {
-			WideCharToMultiByte(CP_ACP, 0, sidecarPathW, -1, szSidecarDllPathA, 1024, NULL, NULL);
-		}
-		spdlog::info(L"Launcher sidecar path {}", sidecarPathW);
-	}
-
-	{
-		wchar_t pathForGame[MAX_PATH * 2] = { 0 };
-		if (sf4e::install::UsesDllSubdirectory()) {
-			wchar_t dllDir[MAX_PATH] = { 0 };
-			if (sf4e::install::GetPackageDllDirectory(dllDir, MAX_PATH)) {
-				if (FAILED(StringCchCopyW(pathForGame, MAX_PATH * 2, dllDir))) {
-					pathForGame[0] = 0;
-				}
-			}
-		}
-		const wchar_t* pathTarget = pathForGame[0] ? pathForGame : szLauncherDirW;
-		if (!UpdatePath(pathTarget, szErrorStringW, 4096)) {
-			return 1;
-		}
-		spdlog::info(L"Launcher updated child PATH prefix {}", pathTarget);
-	}
-
-	if (applyUpdateOnly) {
-		sf4e::launcher::UpdateCheckResult check = sf4e::launcher::CheckForUpdate();
-		if (!check.ok) {
-			MessageBoxA(NULL, check.error.c_str(), "sf4e update", MB_OK | MB_ICONERROR);
-			return 1;
-		}
-		if (!check.updateAvailable) {
-			MessageBoxA(NULL, "No update available.", "sf4e update", MB_OK | MB_ICONINFORMATION);
-			return 0;
-		}
-		sf4e::launcher::ApplyUpdateResult applied = sf4e::launcher::DownloadAndApplyUpdate(
-			check.zipDownloadUrl.c_str(),
-			check.zipApiUrl.c_str(),
-			check.latestVersion.c_str(),
-			check.expectedSha256.c_str()
-		);
-		if (!applied.ok) {
-			MessageBoxA(NULL, applied.error.c_str(), "sf4e update", MB_OK | MB_ICONERROR);
-			return 1;
-		}
-		return 0;
-	}
-
-	if (!FindSF4(szGameDirectory, 1024, szExePath, 1024)) {
-		MessageBoxW(NULL,
-			L"Cannot find Ultra Street Fighter IV (SSFIV.exe).\n\n"
-			L"Install USF4 on Steam, or set STEAM_APP_PATH to the game folder.\n"
-			L"Run Launcher.exe --console for logs (%APPDATA%\\sf4e\\).",
-			L"sf4e", MB_OK | MB_ICONWARNING);
-		return 1;
-	}
-	spdlog::info(L"Launcher resolved game dir={} exe={}", szGameDirectory, szExePath);
-
-	sf4e::launcher::PersistedSettings settings;
-	sf4e::launcher::LoadPersistedSettings(settings);
-	if (devOverlay) {
-		payload.netplay.devOverlay = 1;
-	}
-
-	if (offlineOnly) {
-		payload.netplay.version = sf4e::SF4E_NETPLAY_CONFIG_VERSION;
-		payload.netplay.mode = (int)sf4e::NetplayMode::Idle;
-		strncpy_s(payload.netplay.displayName, settings.displayName, _TRUNCATE);
-		payload.netplay.inputDelay = settings.inputDelay;
-		payload.netplay.sessionPort = settings.sessionPort;
-		payload.netplay.ggpoPort = settings.ggpoPort;
-		payload.netplay.editionSelect = settings.editionSelect;
-		payload.netplay.roundCount = settings.roundCount;
-		payload.netplay.roundTimeIntegral = settings.roundTimeIntegral;
-		payload.netplay.deviceIdx = 0xff;
-		payload.netplay.deviceType = 0xff;
-		spdlog::info("Launcher selected CLI offline mode");
-	}
-	else if (hostOnly && joinRoomCode.empty()) {
-		if (!sf4e::launcher::ApplyNetplayConfigFromWizard(payload.netplay, settings, (int)sf4e::NetplayMode::Host, nullptr)) {
-			MessageBoxW(NULL, L"Failed to configure host mode.", L"sf4e", MB_OK | MB_ICONWARNING);
-			return 1;
-		}
-		sf4e::launcher::SavePersistedSettings(settings);
-		spdlog::info("Launcher selected CLI host mode");
-	}
-	else if (!joinRoomCode.empty()) {
-		if (!sf4e::launcher::ApplyNetplayConfigFromWizard(
-			payload.netplay,
-			settings,
-			(int)sf4e::NetplayMode::Join,
-			joinRoomCode.c_str()
-		)) {
-			MessageBoxW(
-				NULL,
-				L"Invalid --join address. Use SF4-XXXX or IP:port (example 203.0.113.42:23456).",
-				L"sf4e",
-				MB_OK | MB_ICONWARNING
-			);
-			return 1;
-		}
-		sf4e::launcher::SavePersistedSettings(settings);
-		spdlog::info("Launcher selected CLI join mode");
-	}
-	else if (electronIpc || headlessHandshake) {
-		sf4e::launcher::NetplayLaunchController controller(settings, payload.netplay);
-		spdlog::info("Launcher entering controller IPC mode");
-		if (!sf4e::launcher::RunElectronIpcBridge(controller)) {
-			return 0;
-		}
-		sf4e::launcher::SavePersistedSettings(settings);
-		spdlog::info("Launcher controller IPC completed mode={} devOverlay={}", payload.netplay.mode, (int)payload.netplay.devOverlay);
-	}
-	else {
-		spdlog::info("Launcher entering Qt/wizard UI mode");
-		if (!sf4e::launcher::RunNetplayWizard(NULL, payload.netplay, settings)) {
-			return 0;
-		}
-		sf4e::launcher::SavePersistedSettings(settings);
-		spdlog::info("Launcher UI completed mode={} devOverlay={}", payload.netplay.mode, (int)payload.netplay.devOverlay);
-	}
-
-	CreateAppIDFile(szGameDirectory);
-	spdlog::info("Launcher starting game with injected Sidecar mode={} inputDelay={} devOverlay={}",
-		payload.netplay.mode,
-		(int)payload.netplay.inputDelay,
-		(int)payload.netplay.devOverlay
-	);
-	HANDLE hGame = CreateSF4Process(payload, szGameDirectory, szExePath, nDlls, dlls);
-	if (sf4e::launcher::GetRelayHostPid() != 0) {
-		spdlog::info(
-			"Launcher supervising game until exit (RelayHost pid {})",
-			sf4e::launcher::GetRelayHostPid()
-		);
-		WaitForSingleObject(hGame, INFINITE);
-		sf4e::launcher::StopRelayHost();
-		spdlog::info("Launcher stopped RelayHost after game exit");
-	}
-	CloseHandle(hGame);
-	return 0;
+int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
+    sf4e::install::ConfigureDllSearch(); ConfigureLauncherLogging();
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    sf4e::Payload payload{};
+    bool offline = false, updates = false, recovery = false, updateError = false, discordLaunch = false;
+    DWORD waitPid = 0;
+    CLI::App app("SF4 Ember Netplay for Ultra Street Fighter IV", "Launcher");
+    app.add_flag("--discord-launch", discordLaunch, "Start Ember for an accepted Discord invitation.");
+    app.add_flag("--console", payload.args.bShowConsole, "Show diagnostic logging.");
+    app.add_flag("--offline", offline, "Start at the native game menu without networking.");
+    app.add_flag("--updates", updates, "Open update and recovery controls.");
+    app.add_flag("--recovery", recovery, "Open launch recovery controls.");
+    app.add_flag("--update-error", updateError, "Show updater recovery after an installation failure.");
+    app.add_option("--wait-pid", waitPid, "Wait for the current game to exit before opening update controls.");
+    int argc = 0; auto** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    try { app.parse(argc, argv); } catch (const CLI::ParseError& e) { LocalFree(argv); return app.exit(e); }
+    LocalFree(argv);
+    sf4e::platform::LauncherInstance instance;
+    std::wstring chosenDirectory;
+    if (waitPid) {
+        HANDLE oldGame = OpenProcess(SYNCHRONIZE, FALSE, waitPid);
+        if (oldGame) { WaitForSingleObject(oldGame, 30000); CloseHandle(oldGame); }
+    }
+    if (updates) { sf4e::ui::RunRecovery(updateError ? "The update could not be installed. Close the game and previous launcher before retrying. See %TEMP%\\sf4-netplay-update.log; preserved product copies are in .ember-update-backups." : "", chosenDirectory, true); return 0; }
+    if (recovery && !sf4e::ui::RunRecovery("Launch recovery", chosenDirectory)) return 0;
+    if (!instance.Acquire()) return 0;
+    wchar_t installRoot[MAX_PATH] = {}, dllDirectory[MAX_PATH] = {}, pathError[1024] = {};
+    if (!sf4e::install::GetInstallRoot(installRoot, MAX_PATH) || !sf4e::install::GetPackageDllDirectory(dllDirectory, MAX_PATH) ||
+        !UpdatePath(dllDirectory, pathError, 1024)) {
+        sf4e::ui::RunRecovery("The runtime search path could not be configured. Extract the complete package to a writable folder.", chosenDirectory);
+        return 1;
+    }
+    sf4e::launcher::PersistedSettings settings;
+    sf4e::launcher::LoadPersistedSettings(settings);
+    payload.netplay.mode = static_cast<int>(sf4e::NetplayMode::Idle);
+    payload.netplay.version = sf4e::SF4E_NETPLAY_CONFIG_VERSION;
+    strncpy_s(payload.netplay.displayName, settings.displayName, _TRUNCATE);
+    payload.netplay.inputDelay = settings.inputDelay;
+    payload.netplay.editionSelect = settings.editionSelect;
+    payload.netplay.roundCount = settings.roundCount;
+    payload.netplay.roundTimeIntegral = settings.roundTimeIntegral;
+    payload.netplay.deviceIdx = payload.netplay.deviceType = 0xff;
+    payload.netplay.useRelay = 0;
+    SetEnvironmentVariableW(L"SF4E_START_OFFLINE", offline ? L"1" : nullptr);
+    for (;;) {
+        wchar_t directory[1024] = {}, executable[1024] = {};
+        bool found = false;
+        if (!chosenDirectory.empty()) {
+            StringCchCopyW(directory,1024,chosenDirectory.c_str());
+            PathCchCombine(executable,1024,directory,L"SSFIV.exe"); found = PathFileExistsW(executable) != FALSE;
+        } else found = FindSF4(directory,1024,executable,1024) != 0;
+        if (!found) {
+            if (!sf4e::ui::RunRecovery("Ultra Street Fighter IV could not be found.",chosenDirectory)) return 0;
+            continue;
+        }
+        wchar_t sidecar[MAX_PATH] = {};
+        char sidecarAnsi[1024] = {};
+        BOOL substituted = FALSE;
+        if (!sf4e::install::ResolveInstallFile(L"Sidecar.dll",sidecar,MAX_PATH) ||
+            !WideCharToMultiByte(CP_ACP,WC_NO_BEST_FIT_CHARS,sidecar,-1,sidecarAnsi,1024,nullptr,&substituted) || substituted) {
+            if (!sf4e::ui::RunRecovery("Sidecar.dll is missing or its path cannot be used by the injector. Extract the full package to a simple local path.",chosenDirectory)) return 0;
+            continue;
+        }
+        const char* dlls[] = {sidecarAnsi};
+        CreateAppIDFile(directory);
+        sf4e::platform::HelperProcess helper, discord;
+        const auto helperPath = std::filesystem::path(installRoot)/L"sf4-net.exe";
+        HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),directory,executable,1,dlls);
+        if (!game) {
+            if (!sf4e::ui::RunRecovery("Game startup or injection failed. Check the launcher log, then retry.",chosenDirectory)) return 0;
+            continue;
+        }
+        WaitForSingleObject(game,INFINITE);
+        DWORD exitCode = 0; GetExitCodeProcess(game,&exitCode);
+        discord.Stop(); helper.Stop(); CloseHandle(game);
+        if (exitCode != 0 && sf4e::ui::RunRecovery("The game exited with an error. Inspect the launcher log, then retry.",chosenDirectory)) continue;
+        return 0;
+    }
 }

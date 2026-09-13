@@ -6,6 +6,7 @@
 
 #include "../Dimps/Dimps__Eva.hxx"
 #include "../common/sf4e__NetplayConfig.hxx"
+#include "../platform/HelperProcess.hxx"
 
 namespace sf4e {
 	typedef struct Args {
@@ -13,10 +14,19 @@ namespace sf4e {
 	} Args;
 
 	typedef struct Payload {
+		uint32_t magic = 0x53463442; // SF4 bootstrap, independent of session settings.
+		uint32_t version = 1;
 		Args args;
 		HANDLE hSyncEvent = NULL;
+		platform::HelperBootstrap helper;
+        platform::HelperBootstrap discord;
+		uint32_t helperError = 0;
 		NetplayConfig netplay = { 0 };
 	} Payload;
+
+	inline bool IsCompatiblePayload(const Payload* payload, size_t length) {
+		return payload && length == sizeof(Payload) && payload->magic == 0x53463442 && payload->version == 1;
+	}
 
 	extern std::string sidecarHash;
 	extern std::mt19937 localRand;

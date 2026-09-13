@@ -1,15 +1,21 @@
 #pragma once
 
 #include <map>
+#include <array>
+#include <memory>
+#include <set>
 #include <string>
+#include <tuple>
 #include <vector>
 
-#include <GameNetworkingSockets/steam/isteamnetworkingutils.h>
-#include <GameNetworkingSockets/steam/steamnetworkingsockets.h>
+#include "SessionTransport.hxx"
+#include "MatchAuthority.hxx"
+#include "SessionRecovery.hxx"
 #include <nlohmann/json.hpp>
 
 #include "../Dimps/Dimps__Math.hxx"
 #include "sf4e__SessionProtocol.hxx"
+#include "RoomModel.hxx"
 
 namespace sf4e {
 	extern const int SESSION_SERVER_MAX_MESSAGES_PER_POLL;
@@ -30,54 +36,162 @@ namespace sf4e {
 
 		// Connection related data
 		std::string _sidecarHash;
-		HSteamListenSocket _listenSock;
-		HSteamNetPollGroup _pollGroup;
-		ISteamNetworkingSockets* _interface;
+		std::unique_ptr<session::ServerTransport> _transport;
+		bool _transportFailed = false;
+		std::unique_ptr<session::MatchAuthority> _matchAuthority;
+		std::array<std::unique_ptr<session::MatchAuthority>, room::TableCount> _roomMatchAuthorities{};
+		std::array<std::uint8_t, 16> _matchAuthorizationRoom{};
+		session::MatchAuthority::Identity _matchAuthorizationIdentity;
+		std::function<std::uint64_t(session::Connection)> _memberIncarnation;
+		bool _matchAuthorizationConfigured = false;
+		std::vector<std::pair<session::Connection, nlohmann::json>> _afterDataMessages;
+		session::MatchAuthority::Send MatchSender();
+		bool BeginAuthorizedTable(std::uint8_t table, std::uint64_t generation);
+		session::MatchAuthority* RoomMatchAuthority(std::uint8_t table);
+		const session::MatchAuthority* RoomMatchAuthority(std::uint8_t table) const;
+		std::uint8_t RoomTableForGeneration(std::uint64_t generation) const;
+		void SendRoomTable(std::uint8_t table, const nlohmann::json& message);
+		bool IsRoomTableParticipant(session::Connection connection, std::uint8_t table) const;
 
-		// Connection callbacks and message utilities
-		static SessionServer* s_pCallbackInstance;
-		static void SteamNetConnectionStatusChangedCallback(SteamNetConnectionStatusChangedCallback_t* pInfo);
-		void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo);
 		void BroadcastMessage(const nlohmann::json& msg);
-		void Respond(HSteamNetConnection client, const nlohmann::json& msg);
+		void Respond(session::Connection client, const nlohmann::json& msg, bool retainPublicReplay = true);
 
 		// Direct lobby data manipulation utilities
 		SessionProtocol::JoinResult RegisterToWait(
-			const HSteamNetConnection& conn,
+			const session::Connection& conn,
 			const uint16_t& port,
 			const std::string& sidecarHash,
 			const std::string& name,
-			const SteamNetworkingIPAddr& peerAddr,
-			SessionProtocol::ConnectionID& cid
+			const std::string& peerAddr,
+			SessionProtocol::ConnectionID& cid,
+			int mainFighter = -1
 		);
 		void HandleResults(int loserSide);
 
 	public:
-		SessionServer(
-			std::string identity,
-			std::string sidecarHash,
-			bool editionSelect,
-			int roundCount,
-			Dimps::Math::FixedPoint roundTime
-		);
+		SessionServer(std::string identity, std::string sidecarHash,
+			bool editionSelect, int roundCount, Dimps::Math::FixedPoint roundTime,
+			std::unique_ptr<session::ServerTransport> transport);
 		~SessionServer();
 
-		void AddConnection(HSteamNetConnection newConn);
-		int Listen(uint16 nPort);
+		void AddConnection(session::Connection newConn);
+		int Listen(uint16_t nPort);
 		int Step();
 		int Close();
 		void PrepareForCallbacks();
 		void ResetBattleSync();
 		void ResetLobbyForRematch();
+		void EnableMatchAuthorization(std::array<std::uint8_t, 16> room, session::MatchAuthority::Identity identity,
+			std::function<std::uint64_t(session::Connection)> incarnation = {});
+		// Enables the multi-table room authority while retaining the legacy
+		// two-player path until this method is called by the room bootstrap.
+		void EnableCustomRooms(const std::string& name = "Private room",
+			std::uint8_t capacity = static_cast<std::uint8_t>(room::MaximumMembers),
+			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules());
+		bool CustomRoomsEnabled() const { return static_cast<bool>(_roomAuthority); }
+		const room::Snapshot* RoomSnapshot() const { return !_roomAuthority ? nullptr : (_hasRecoveryProjection ? &_recoveryProjection : &_roomAuthority->SnapshotView()); }
+		void AdvanceCustomRoom(std::uint64_t nowMs);
+		// Private recovery state, never a player-facing room snapshot. Import is
+		// atomic and does not send messages, create capabilities, or touch sockets.
+		nlohmann::json Checkpoint() const;
+		bool RestoreCheckpoint(const nlohmann::json& checkpoint);
+		nlohmann::json RecoveryCheckpoint() const;
+		bool RestoreRecoveryCheckpoint(const nlohmann::json& checkpoint);
+
+		// Root/helper authority bridge. A proposal is made only after the owner
+		// has privately applied a poll/timer command and journaled its effects.
+		void SetAuthority(std::uint64_t term, std::uint64_t revision, bool writable,
+			bool coordinationHealthy = false);
+		bool RecoveryEnabled() const { return _recovery.Enabled(); }
+		bool RecoveryWritable() const { return _recovery.Writable(); }
+		bool HasRecoveryCandidate() const { return _recoveryCandidateReady; }
+		bool RecoveryCandidateOverflowed() const { return _recoveryCandidateOverflow; }
+		bool ProposeCheckpoint(std::uint64_t request, std::uint64_t term, std::uint64_t baseRevision,
+			const nlohmann::json& checkpoint);
+		std::shared_ptr<const session::SessionProposal> PendingProposal() const { return _recovery.PendingProposal(); }
+		bool ApplyCommit(std::uint64_t request, std::uint64_t term, std::uint64_t revision,
+			const nlohmann::json& committedCheckpoint, const session::EffectDigest& effectsDigest);
+		void DiscardProposal();
+		// After a term transition, the new writable owner calls this once after
+		// its stable control handles have been rebound. It creates a normal
+		// private candidate that tears down committed-but-not-Started native
+		// preparations and publishes the ordered game_end/room effects.
+		bool CancelInterruptedPreparations();
+		const std::vector<session::EffectEnvelope>& CommittedEffectHistory() const { return _committedEffectHistory; }
+		using StableRebind = std::tuple<room::MemberId, session::Connection, SessionProtocol::ConnectionID, std::uint64_t>;
+		// Rebind the complete stable roster in one operation. Numeric handles
+		// may be a permutation of the prior process; all native authorities and
+		// readiness sets are updated only after every endpoint validates.
+		bool RebindMembers(const std::vector<StableRebind>& bindings);
+		bool RebindMember(room::MemberId member, session::Connection local, const SessionProtocol::ConnectionID& cid,
+			std::uint64_t incarnation);
 
 		size_t ConnectedClientCount() const { return clients.size(); }
 
 		typedef struct SessionMember {
 			SessionProtocol::MemberData data;
-			HSteamNetConnection conn;
+			session::Connection conn;
 		} SessionMember;
 
-		std::map<HSteamNetConnection, SessionProtocol::ConnectionID> cidMap;
+		std::map<session::Connection, SessionProtocol::ConnectionID> cidMap;
+		std::map<session::Connection, room::MemberId> roomMembers;
+		std::map<session::Connection, std::uint8_t> roomSelectedTables;
+		// RoomModel keeps the native ConnectionID in Member.connection. The
+		// authorization identity used to prevent a kicked peer from reconnecting
+		// is tracked separately so UI/native projections remain CID-compatible.
+		std::map<room::MemberId, std::string> roomPeerIdentities;
+		std::map<room::MemberId, std::uint64_t> roomIncarnations;
+		// A spectator can leave after native Started while its frozen slot and
+		// departed endpoint remain in MatchAuthority. Keep that stable tombstone
+		// outside the public RoomModel roster so portable recovery can restore the
+		// authority without treating the departed peer as a live room member.
+		struct FrozenMember {
+			room::ConnectionRef endpoint;
+			SessionProtocol::MemberData data;
+			std::uint64_t incarnation = 1;
+		};
+		std::map<room::MemberId, FrozenMember> roomFrozenMembers;
+		std::map<room::MemberId, std::uint8_t> _recoveryPendingSelected;
+		std::array<std::set<room::MemberId>, room::TableCount> _recoveryPendingBattleLoaded{};
+		std::array<std::set<room::MemberId>, room::TableCount> _recoveryPendingPunchReady{};
+		std::set<std::string> roomBannedIdentities;
+		std::set<session::Connection> _departingConnections;
+		std::uint64_t _incarnation = 1;
+		session::SessionRecoveryGate _recovery;
+		bool _recoveryCandidateReady = false;
+		bool _recoveryFlushing = false;
+		bool _recoveryCandidateOverflow = false;
+		nlohmann::json _recoveryBaseline;
+		std::vector<session::EffectEnvelope> _recoveryEffects;
+		struct LocalEffect { session::EffectEnvelope envelope; nlohmann::json payload; session::Connection local = 0; };
+		std::vector<LocalEffect> _recoveryLocalEffects;
+		std::vector<session::EffectEnvelope> _committedEffectHistory;
+		// Captured before a private candidate mutates the authenticated maps. A
+		// rejected term transition must rebind the exact prior handles, including
+		// a join/leave permutation, rather than resolving from the candidate.
+		std::vector<StableRebind> _recoveryBaselineBindings;
+		struct InterruptedPreparation { std::uint8_t table = 0; std::uint64_t generation = 0; };
+		std::vector<InterruptedPreparation> _pendingInterruptedPreparations;
+		bool _preparationCancellationRequested = false;
+		bool _cancellationCandidate = false;
+		std::uint64_t _nextEffectSequence = 1;
+		// Passive replicas retain relative timer ages. This local anchor advances
+		// them only while the helper still reports a writable, rebound quorum.
+		std::uint64_t _passiveTimerClock = 0;
+		bool _coordinationHealthy = false;
+		bool _hasRecoveryProjection = false;
+		room::Snapshot _recoveryProjection;
+		void BeginRecoveryCandidate();
+		void FinishRecoveryCandidate();
+		void JournalEffect(session::Connection client, const nlohmann::json& payload, bool retainPublicReplay = true);
+		bool ValidateEffectRecipient(const session::EffectEnvelope& effect, session::Connection candidate, session::Connection& local) const;
+		void CancelPrecommittedGenerations();
+		void RememberInterruptedPreparations();
+		bool IsInterruptedPreparation(std::uint8_t table, std::uint64_t generation) const;
+		void DropRecoveryCandidate();
+		bool RestoreRecoveryBaseline();
+		void CaptureFrozenMember(room::MemberId member, const room::Snapshot& prior);
+		void PruneFrozenMembers();
 		std::vector<SessionMember> clients;
 
 		// Lobby data: Public for visibility into tests only.
@@ -85,5 +199,15 @@ namespace sf4e {
 		SessionProtocol::LobbyData _lobbyData;
 		SessionProtocol::MatchData _matchData;
 		bool _punchReady[2] = { false, false };
+		std::unique_ptr<room::RoomAuthority> _roomAuthority;
+		std::map<std::uint8_t, SessionProtocol::MatchData> _roomMatchData;
+		std::array<std::set<session::Connection>, room::TableCount> _roomBattleLoaded{};
+		std::array<std::set<session::Connection>, room::TableCount> _roomPunchReady{};
+
+		void BroadcastRoomState(const std::vector<room::Event>& events = {});
+		void SendRoomProjection(session::Connection connection);
+		void ProjectRoomTable(session::Connection connection, std::uint8_t table);
+		std::uint8_t RoomTableFor(session::Connection connection) const;
+		int RoomSideFor(session::Connection connection, std::uint8_t table) const;
 	};
 }

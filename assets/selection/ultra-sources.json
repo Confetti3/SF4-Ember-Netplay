@@ -1,0 +1,1601 @@
+{
+  "credit": "iPlayWinner SSFIV guides (2010), Capcom / 4Gamer press media (2010-2011), Capcom / ComboFiend USFIV announcement (2013), and GamesRadar Decapre preview (2014); game imagery copyright Capcom",
+  "images": [
+    {
+      "fighter_id": 0,
+      "code": "RYU",
+      "ultra": 0,
+      "move": "Metsu Hadoken",
+      "source_heading": "ULTRA 1 - METSU HADOUKEN",
+      "source_page": "https://iplaywinner.squarespace.com/ryu-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/ryu/ultra1.png",
+      "path": "RYU/ultra-0.png",
+      "source_sha256": "fc5b352e507e25d99149615f0ab4d42e93b2da9f28fd4478ba490376b43d391a",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "134a36ccec396842797db3e4356a72e4a71a6500a11cfaaf37c017c8fa0550a5"
+    },
+    {
+      "fighter_id": 0,
+      "code": "RYU",
+      "ultra": 1,
+      "move": "Metsu Shoryuken",
+      "source_heading": "ULTRA 2 - METSU SHORYUKEN",
+      "source_page": "https://iplaywinner.squarespace.com/ryu-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/ryu/ultra2.png",
+      "path": "RYU/ultra-1.png",
+      "source_sha256": "b36e460d1cbbab86908d87d16c68ca87b9a442f359ca50d6234cafd2ec3bbe4e",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "7f25c49faeecfc89f6a2733e4fb61534e7005f8d0c0b1f9ecd24faba0dedd7b7"
+    },
+    {
+      "fighter_id": 1,
+      "code": "KEN",
+      "ultra": 0,
+      "move": "Shinryuken",
+      "source_heading": "ULTRA 1 - SHINRYUUKEN",
+      "source_page": "https://iplaywinner.squarespace.com/ken-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/ken/ultra-1.png",
+      "path": "KEN/ultra-0.png",
+      "source_sha256": "13d460eac06f0f3ab3360f945f2e5e5567222cf5540ae5cc8b01704d52d6bf71",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "dc59da8dfc0ac0faed3e468d51c66dd14b4992e72d299b4fe0b700573b4c2f93"
+    },
+    {
+      "fighter_id": 1,
+      "code": "KEN",
+      "ultra": 1,
+      "move": "Guren Senpukyaku",
+      "source_heading": "ULTRA 2 - GUREN SENPUKYAKU",
+      "source_page": "https://iplaywinner.squarespace.com/ken-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/ken/ultra2.png",
+      "path": "KEN/ultra-1.png",
+      "source_sha256": "f7c776f5583fd6c24c6df217b8bac1f4948aacf138ec717335ec1d21b2f3fc3b",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "a5a5d3bb167fc2487f0c6a57815715bd6d35dfe9ce40ced6fae4171f2014181e"
+    },
+    {
+      "fighter_id": 2,
+      "code": "CNL",
+      "ultra": 0,
+      "move": "Hosenka",
+      "source_heading": "ULTRA 1 - HOUSENKA",
+      "source_page": "https://iplaywinner.squarespace.com/chun-li-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/chunli/ultra1.png",
+      "path": "CNL/ultra-0.png",
+      "source_sha256": "cd45aafd4a15474b2b40cb9642654366043dbe767a5901d1b43a6b2d6143e03d",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "fcae0337267aea6d28a25198c520cd25cc42f58d8db2cd743331fbd48252ef19"
+    },
+    {
+      "fighter_id": 2,
+      "code": "CNL",
+      "ultra": 1,
+      "move": "Kikosho",
+      "source_heading": "ULTRA 2 - KIKOSHO",
+      "source_page": "https://iplaywinner.squarespace.com/chun-li-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/chunli/chunli-ultra2.png",
+      "path": "CNL/ultra-1.png",
+      "source_sha256": "365471df44a064b9d9617ce7adab20d5e6bf1ff9e803ebbdd73bab1ad711cca3",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "58aa9e9064cc91dfc0739751c45acc29ffc1e85fb18100a6b757a3ff3aa3ecf5"
+    },
+    {
+      "fighter_id": 3,
+      "code": "HND",
+      "ultra": 0,
+      "move": "Ultimate Killer Head Ram",
+      "source_heading": "ULTRA 1 - ULTIMATE KILLER HEAD RAM (SHIN ONI MUSOU) *ARMOR BREAKING*",
+      "source_page": "https://iplaywinner.squarespace.com/ehonda-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/ehonda/ultra1.png",
+      "path": "HND/ultra-0.png",
+      "source_sha256": "28280edfd70c10995bbead9ee6fd2742eeb7ca8702ff42140bac0cb680ad5e61",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "ec55688ea2f07052266201b060efc15d74216ff75fc836ea899151e3db8ee6fe"
+    },
+    {
+      "fighter_id": 3,
+      "code": "HND",
+      "ultra": 1,
+      "move": "Orochi Breaker",
+      "source_heading": "ULTRA 2 - OROCHI BREAKER",
+      "source_page": "https://iplaywinner.squarespace.com/ehonda-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/ehonda/ehonda-ultra2.png",
+      "path": "HND/ultra-1.png",
+      "source_sha256": "4d7a7a24a6930a5fd3013fd7c97d6ff8f123e54ee387fb45a216515ac7515b06",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "47fba63d0bc7502991549d2abf2b5a7edfc70950f17595557bc012c2d3fabb18"
+    },
+    {
+      "fighter_id": 4,
+      "code": "BLK",
+      "ultra": 0,
+      "move": "Lightning Cannonball",
+      "source_heading": "ULTRA 1 - LIGHTNING CANNONBALL",
+      "source_page": "https://iplaywinner.squarespace.com/blanka-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/blanka/ultra1.png",
+      "path": "BLK/ultra-0.png",
+      "source_sha256": "107c7edc0c8d950a955373a668b92d5a370df1740f809ca8ef21b35b19b1b2fa",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "dc8c913e27f391ecccf73a311ab79b03c6edf90000f93bdd65c09a4e70b3558b"
+    },
+    {
+      "fighter_id": 4,
+      "code": "BLK",
+      "ultra": 1,
+      "move": "Shout of Earth",
+      "source_heading": "ULTRA 2 - SHOUT OF EARTH",
+      "source_page": "https://iplaywinner.squarespace.com/blanka-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/blanka/ultra2-kicks.png",
+      "path": "BLK/ultra-1.png",
+      "source_sha256": "0dce371f4dc610a417b321b1bfe437fa506a662c1a1d29e9ba3ce4040f7678f3",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "911485b09bb6f619258b1767d6ccebf34e7e12293bcfdd664e045295ad316e25"
+    },
+    {
+      "fighter_id": 5,
+      "code": "ZGF",
+      "ultra": 0,
+      "move": "Ultimate Atomic Buster",
+      "source_heading": "ULTRA 1 - ULTRA ATOMIC BUSTER",
+      "source_page": "https://iplaywinner.squarespace.com/zangief-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/zangief/ultra1.png",
+      "path": "ZGF/ultra-0.png",
+      "source_sha256": "75768b4a0777076fa97d82f6ff44aebe17ab293e415665ab9df65b0d3310839c",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "8c5c9fbe73420e0bdcf4e839f8cb00e6a22bb921de0de41e2f134f4058b4eaa2"
+    },
+    {
+      "fighter_id": 5,
+      "code": "ZGF",
+      "ultra": 1,
+      "move": "Siberian Blizzard",
+      "source_heading": "ULTRA 2 - SIBERIAN BLIZZARD",
+      "source_page": "https://iplaywinner.squarespace.com/zangief-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/zangief/ultra2.png",
+      "path": "ZGF/ultra-1.png",
+      "source_sha256": "348321c625ea984fef6049e01085c385d003c884176311be6e830d2e24b7bd8c",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "b252efdcd9d691d3acc4cd2e19e1f901e82d6bd09cdb241ac8ca243df30f376d"
+    },
+    {
+      "fighter_id": 6,
+      "code": "GUL",
+      "ultra": 0,
+      "move": "Flash Explosion",
+      "source_heading": "ULTRA 1 - FLASH EXPLOSION",
+      "source_page": "https://iplaywinner.squarespace.com/guile-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/guile/ultra1.png",
+      "path": "GUL/ultra-0.png",
+      "source_sha256": "5825d00341fb7862a78f6435b16366befddde99f0508e4ab4de44bd0853f9c86",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "a813dd0c9eb4cc17799dc861d58e6bf550816f0333a1467705448852dc6d2523"
+    },
+    {
+      "fighter_id": 6,
+      "code": "GUL",
+      "ultra": 1,
+      "move": "Sonic Hurricane",
+      "source_heading": "ULTRA 2 - SONIC HURRICANE",
+      "source_page": "https://iplaywinner.squarespace.com/guile-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/guile/guile-ultra2.png",
+      "path": "GUL/ultra-1.png",
+      "source_sha256": "36c43a2f64b206916617471274cb47d8397b762e2a38f6dc6bed142f52eb32cf",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "5ce68c7c5bcfbf510f51c406ae8b37e0d76b709fa5f4949cf1b7a04b7a0d5cba"
+    },
+    {
+      "fighter_id": 7,
+      "code": "DSM",
+      "ultra": 0,
+      "move": "Yoga Catastrophe",
+      "source_heading": "ULTRA 1 - YOGA CATASROPHE",
+      "source_page": "https://iplaywinner.squarespace.com/dhalsim-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/dhalsim/ultra1.png",
+      "path": "DSM/ultra-0.png",
+      "source_sha256": "a292419637c226199ef9d593dfe17d2a2cc838c8f5eeada6be2f00f6c6c619e2",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "6912c21cffc83e8b613dc25c607cad7c54d830bcfc2c7358029c27dba7e4e29e"
+    },
+    {
+      "fighter_id": 7,
+      "code": "DSM",
+      "ultra": 1,
+      "move": "Yoga Shangri-La",
+      "source_heading": "ULTRA 2 - YOGA SHANGRI-LA",
+      "source_page": "https://iplaywinner.squarespace.com/dhalsim-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/dhalsim/dhalsim-ultra2.png",
+      "path": "DSM/ultra-1.png",
+      "source_sha256": "79af4146b861a1c053881669a70f6c1f9b16e5363e8f7f8f0f1071188e5a6994",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "5287790ed3d666c19ed72f4029fd7b81e000bfe76e20b7366b1ea98d3cdbac9f"
+    },
+    {
+      "fighter_id": 8,
+      "code": "BSN",
+      "ultra": 0,
+      "move": "Violent Buffalo",
+      "source_heading": "ULTRA 1 - VIOLENT BUFFALO *ARMOR BREAKING*",
+      "source_page": "https://iplaywinner.squarespace.com/balrog-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/balrog/ultra1.png",
+      "path": "BSN/ultra-0.png",
+      "source_sha256": "01857ae01606d36ffc10569dd992a04ef1d56bbb36967b308d317d424fc52f73",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "eb1d8b854725b3d7e15d249a040497445268c2bc0f0a4171f8d6dbcdb62e7d9d"
+    },
+    {
+      "fighter_id": 8,
+      "code": "BSN",
+      "ultra": 1,
+      "move": "Dirty Bull",
+      "source_heading": "ULTRA 2 - DIRTY BULL",
+      "source_page": "https://iplaywinner.squarespace.com/balrog-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/balrog/ultra2.png",
+      "path": "BSN/ultra-1.png",
+      "source_sha256": "214d1293875b1ab2e308bbac201fea86810ceb964489cfb0af09e170cca1dcb9",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "5fbcb936809ec11a03caaf8c98c36ee92281502809104e2e086001ca28b33247"
+    },
+    {
+      "fighter_id": 9,
+      "code": "BLR",
+      "ultra": 0,
+      "move": "Bloody High Claw",
+      "source_heading": "ULTRA 1 - BLOODY HIGH CLAW",
+      "source_page": "https://iplaywinner.squarespace.com/vega-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/vega/ultra1.png",
+      "path": "BLR/ultra-0.png",
+      "source_sha256": "4b25e02ad3703a24b33e06a1762979b142b0a5f2abfc6ae51aa74154bd75aeac",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "2a86c49ae10d9d7ce2e934e6b274bd2f0316cea12c68c0c18a0a54f522822837"
+    },
+    {
+      "fighter_id": 9,
+      "code": "BLR",
+      "ultra": 1,
+      "move": "Splendid Claw",
+      "source_heading": "ULTRA 2 - SPLENDID CLAW",
+      "source_page": "https://iplaywinner.squarespace.com/vega-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/vega/ultra2.png",
+      "path": "BLR/ultra-1.png",
+      "source_sha256": "26f6a7529d34a22c055e5688cc53dd368aac21ca532ce4e884dee5ebc5175921",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "bbfe089566336e83daf716d3970b87fde25116942819760c61ce9a424d18c318"
+    },
+    {
+      "fighter_id": 10,
+      "code": "SGT",
+      "ultra": 0,
+      "move": "Tiger Destruction",
+      "source_heading": "ULTRA 1 - TIGER DESTRUCTION",
+      "source_page": "https://iplaywinner.squarespace.com/sagat-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/sagat/ultra1.png",
+      "path": "SGT/ultra-0.png",
+      "source_sha256": "ddae4b507555f4eff6244bb1e1f6529e04c5dcb88fce41f66344334f7a5a5a62",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "9bb50d2e5cc12c2533d277223a0d00c92b48575516f6c03e81175c96ab1317fa"
+    },
+    {
+      "fighter_id": 10,
+      "code": "SGT",
+      "ultra": 1,
+      "move": "Tiger Cannon",
+      "source_heading": "ULTRA 2 - TIGER CANNON",
+      "source_page": "https://iplaywinner.squarespace.com/sagat-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/sagat/ultra2.png",
+      "path": "SGT/ultra-1.png",
+      "source_sha256": "73dca4736e44e91984168001fde3f69649d2d23dc5755cd18b9d39d581ffce82",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "b3166d1b522daf8092b6378d60aeff1821ab4d06f654953c00821d7a017246ab"
+    },
+    {
+      "fighter_id": 11,
+      "code": "VEG",
+      "ultra": 0,
+      "move": "Nightmare Booster",
+      "source_heading": "ULTRA 1 - NIGHTMARE BOOSTER",
+      "source_page": "https://iplaywinner.squarespace.com/mbison-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/mbison/ultra1.png",
+      "path": "VEG/ultra-0.png",
+      "source_sha256": "eac7153790b6b07541a41403e8717159f217e960492295d0e0ac6d9719561c70",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "c60e2fc05dc844d98a44798bfd2710258432884380d684638f7af582c9173c74"
+    },
+    {
+      "fighter_id": 11,
+      "code": "VEG",
+      "ultra": 1,
+      "move": "Psycho Punisher",
+      "source_heading": "ULTRA 2 - PSYCHO PUNISHER",
+      "source_page": "https://iplaywinner.squarespace.com/mbison-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/mbison/ultra2.png",
+      "path": "VEG/ultra-1.png",
+      "source_sha256": "587665fb44b452e0f1843c60aa4b69f51ee2db740f395419038dfca37e8aa159",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "b0768d45594e6d4051845168d8336147719d941ea61c85546221a3dcc025707d"
+    },
+    {
+      "fighter_id": 12,
+      "code": "AGL",
+      "ultra": 0,
+      "move": "Burst Time",
+      "source_heading": "ULTRA 1 -BURST TIME",
+      "source_page": "https://iplaywinner.squarespace.com/cviper-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/cviper/ultra1.png",
+      "path": "AGL/ultra-0.png",
+      "source_sha256": "3bd215bdf428af151fdb98f46d4f033e337b4a66027f604fd1b82ef19ce93da7",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "0caf1d2508520608191142b9c87c5d8ca5393cd705fc0dc5690f17b570725474"
+    },
+    {
+      "fighter_id": 12,
+      "code": "AGL",
+      "ultra": 1,
+      "move": "Burning Dance",
+      "source_heading": "ULTRA 2 - BURNING DANCE",
+      "source_page": "https://iplaywinner.squarespace.com/cviper-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/cviper/cviper-ultra2.png",
+      "path": "AGL/ultra-1.png",
+      "source_sha256": "456a74bf680c933e19a0ae685a0fb990ed6211e6754c2e96483b4570fbd2c661",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "d3bc85a1dcaaf900114b3d0b0e41c693abb99d8a5eed9fdd7e15538a90fd3b27"
+    },
+    {
+      "fighter_id": 13,
+      "code": "CHB",
+      "ultra": 0,
+      "move": "Space Opera Symphony",
+      "source_heading": "ULTRA 1 - SPACE OPERA SYMPHONY",
+      "source_page": "https://iplaywinner.squarespace.com/rufus-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/rufus/ultra1.png",
+      "path": "CHB/ultra-0.png",
+      "source_sha256": "0381d7cb8e7ab2154808f33d1e1b38cdcc3f29ef92ff9155053e49fcce6e90a5",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "713ef8f41783cf464fcfae9a8a7bdafdd27df14f5508e85cead5e5554d1b1aaf"
+    },
+    {
+      "fighter_id": 13,
+      "code": "CHB",
+      "ultra": 1,
+      "move": "Big Bang Typhoon",
+      "source_heading": "ULTRA 2 - BIG BANG TYPHOON",
+      "source_page": "https://iplaywinner.squarespace.com/rufus-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/rufus/ultra2.png",
+      "path": "CHB/ultra-1.png",
+      "source_sha256": "4db85a5e56ecb8ebb9468f3405694cce2784e291590a9611b45b3c43394e71b5",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "9eab779401e5d14e29534db0ae6b852bba25135756a331ba4f5a71effef2f4ec"
+    },
+    {
+      "fighter_id": 14,
+      "code": "RIC",
+      "ultra": 0,
+      "move": "El Fuerte Flying Giga Buster",
+      "source_heading": "ULTRA 1 -\u00a0 FLYING GIGA BUSTER",
+      "source_page": "https://iplaywinner.squarespace.com/elfuerte-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/elfuerte/ultra1.png",
+      "path": "RIC/ultra-0.png",
+      "source_sha256": "ed117dcdb06a061d27ebdf90c9ffe799dedd16ffd464984cb2c23cd2536a064a",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "25a5abe0e81d2b693e497942a00272c6aaa9ffbdf848ad0b4a2cdc92f1e9c252"
+    },
+    {
+      "fighter_id": 14,
+      "code": "RIC",
+      "ultra": 1,
+      "move": "El Fuerte Ultra Spark",
+      "source_heading": "ULTRA 2 - ULTRA SPARK",
+      "source_page": "https://iplaywinner.squarespace.com/elfuerte-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/elfuerte/elfuerte-ultra2.png",
+      "path": "RIC/ultra-1.png",
+      "source_sha256": "9ed4818bee02e6f003af7e8cf99c9b23c2f409ec862741193227cf293759714f",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "489cb55c2b5f2a6092c71003a6b8c604f53f11e9185ecf133a1d392855bad09b"
+    },
+    {
+      "fighter_id": 15,
+      "code": "JHA",
+      "ultra": 0,
+      "move": "Soulless",
+      "source_heading": "ULTRA 1 - SOULLESS",
+      "source_page": "https://iplaywinner.squarespace.com/abel-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/abel/ultra1.png",
+      "path": "JHA/ultra-0.png",
+      "source_sha256": "5762d78af97394d67e46456b0402967dd3acad418c14e7a576b9408d8a3e632b",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "551f831ebf1667a6188cbc72f2bed7acae49cfefc3ea4a04c2d462a7d4c070fe"
+    },
+    {
+      "fighter_id": 15,
+      "code": "JHA",
+      "ultra": 1,
+      "move": "Breathless",
+      "source_heading": "ULTRA 2 - BREATHLESS",
+      "source_page": "https://iplaywinner.squarespace.com/abel-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/abel/ultra2-2.png",
+      "path": "JHA/ultra-1.png",
+      "source_sha256": "d767930d8ad8225e60b538c00a61f5af2820a701790ac1d3ccf3431ecff4fc34",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "00408b67ea33e86c75c013ba9d7000fa538a3381e72fa19e3912fe906e5f35c5"
+    },
+    {
+      "fighter_id": 16,
+      "code": "BOS",
+      "ultra": 0,
+      "move": "Tanden Stream",
+      "source_heading": "ULTRA 1 - TANDEN STREAM",
+      "source_page": "https://iplaywinner.squarespace.com/seth-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/seth/ultra1.png",
+      "path": "BOS/ultra-0.png",
+      "source_sha256": "17cd1057830a39f959a9164f35b6d7fceba5bfc0f9cf08f866dde9c3a685d787",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "db65d85d15954efdba9b852535d80324ddf03695d00e14d1210615c59d41e514"
+    },
+    {
+      "fighter_id": 16,
+      "code": "BOS",
+      "ultra": 1,
+      "move": "Tanden Typhoon",
+      "source_heading": "ULTRA 2 - TANDEN TYPHOON",
+      "source_page": "https://iplaywinner.squarespace.com/seth-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/seth/ultra2.png",
+      "path": "BOS/ultra-1.png",
+      "source_sha256": "c30e514c15db68011b0480c7148433731211b83f479f211df84a710e91558db9",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "cac4e54dbdd8fe238581beb882af74a93712bf666796485421f432ec6ea45af5"
+    },
+    {
+      "fighter_id": 17,
+      "code": "GKI",
+      "ultra": 0,
+      "move": "Wrath of the Raging Demon",
+      "source_heading": "ULTRA 1 - SHIN SHUN GOKU SATSU (WRATH OF THE RAGING DEMON)",
+      "source_page": "https://iplaywinner.squarespace.com/akuma-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/akuma/ultra1.png",
+      "path": "GKI/ultra-0.png",
+      "source_sha256": "1a6761e26ed599790439f6ed995d6270443eea21c1e2d6b9102bd5868be365bc",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "9e4d396e883c3e19eff5e58b3f620c5be5ef84f3055b8c16043bc22cc4af45bf"
+    },
+    {
+      "fighter_id": 17,
+      "code": "GKI",
+      "ultra": 1,
+      "move": "Demon Armageddon",
+      "source_heading": "ULTRA 2 - DEMON ARMAGEDDON",
+      "source_page": "https://iplaywinner.squarespace.com/akuma-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/akuma/ultra2.png",
+      "path": "GKI/ultra-1.png",
+      "source_sha256": "de324937121a776f4ff65bfe258070497e9069132f1c99780d7041e4d8f267ad",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "1f999b26cd45134e76da47d6934abbd1667a54b56c085311d116b00b6516ae73"
+    },
+    {
+      "fighter_id": 18,
+      "code": "GKN",
+      "ultra": 0,
+      "move": "Shin Shoryuken",
+      "source_heading": "ULTRA 1 - SHIN SHORYUKEN",
+      "source_page": "https://iplaywinner.squarespace.com/gouken-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/gouken/shinshoryuken.png",
+      "path": "GKN/ultra-0.png",
+      "source_sha256": "0d54a05294bda32a7c359a837130098426751c7ba9d2c85182d46bf182f319c4",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "7ff3d56f618fed779560d3b8d8bff5b6b7ab278e7e3a87492cede29f4131b4c5"
+    },
+    {
+      "fighter_id": 18,
+      "code": "GKN",
+      "ultra": 1,
+      "move": "Denjin Hadoken",
+      "source_heading": "ULTRA 2 - DENJIN HADOUKEN",
+      "source_page": "https://iplaywinner.squarespace.com/gouken-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/gouken/gouken-ultra2.png",
+      "path": "GKN/ultra-1.png",
+      "source_sha256": "b4b5a005e299c62cb0fda576691e1dfb4706bf84b4dbf1700222c79b88c8605d",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "a35ce769344fa9ce0b8c5a503fb0f4290a0d97363dfa3243c95143b9cf4fcf44"
+    },
+    {
+      "fighter_id": 19,
+      "code": "HWK",
+      "ultra": 0,
+      "move": "Raging Typhoon",
+      "source_heading": "ULTRA 1 - RAGING TYPHOON",
+      "source_page": "https://iplaywinner.squarespace.com/thawk-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/thawk/ultra1.png",
+      "path": "HWK/ultra-0.png",
+      "source_sha256": "09f22a43c850056c673e3352c7d5abca4acb9ae29a5216a5c010aa59d6a419a1",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "896c8ae854ea0696dcbe4fd9c2d384aab32933079224743baa234a5d813bdb07"
+    },
+    {
+      "fighter_id": 19,
+      "code": "HWK",
+      "ultra": 1,
+      "move": "Raging Slash",
+      "source_heading": "ULTRA 2 - RAGING SLASH",
+      "source_page": "https://iplaywinner.squarespace.com/thawk-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/thawk/ultra2.png",
+      "path": "HWK/ultra-1.png",
+      "source_sha256": "99ac72d7b344043d6bd0d0971a178cacd6e45e900a05c6d6a3889014dfaacbc3",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "3a4ec4e0abde39d393ec16b87a5f333b4112745b5e5c7f81fa103463073a05e8"
+    },
+    {
+      "fighter_id": 20,
+      "code": "CMY",
+      "ultra": 0,
+      "move": "Gyro Drive Smasher",
+      "source_heading": "ULTRA 1 - GYRO DRIVE SMASHER",
+      "source_page": "https://iplaywinner.squarespace.com/cammy-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/cammy/cammy-ultra1.png",
+      "path": "CMY/ultra-0.png",
+      "source_sha256": "8c38468931b5e6e27b45a149259837329bc27fb1f68fe58ec8273c3a1aac7fb9",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "afd26e44c61418a47f75e9b63a5555644d30d3b59d562d8960d41f590e5aee28"
+    },
+    {
+      "fighter_id": 20,
+      "code": "CMY",
+      "ultra": 1,
+      "move": "CQC (Cammy Quick Combination)",
+      "source_heading": "ULTRA 2 - CQC (Cammy Quick Combination)",
+      "source_page": "https://iplaywinner.squarespace.com/cammy-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/cammy/cammy-utra2.png",
+      "path": "CMY/ultra-1.png",
+      "source_sha256": "23ded267dc41fa31153c68bc27c88c65bc09a3e625436d1c0f9caf77720e6734",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "70f4953b7bbef5e89fbc76ef4546bc1c41bef9b937f428b77735721a6776ee88"
+    },
+    {
+      "fighter_id": 21,
+      "code": "FLN",
+      "ultra": 0,
+      "move": "Rekkashingeki",
+      "source_heading": "ULTRA 1 - REKKASHINGEKI",
+      "source_page": "https://iplaywinner.squarespace.com/feilong-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/feilong/ultra1.png",
+      "path": "FLN/ultra-0.png",
+      "source_sha256": "0e186c0f3f871a14c60c6aa95e222da793f76033f4183c5d8d855204dead9c24",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "0c54a93aba24e76c0fc23439fa6c606baf31bcf77ccc4aab4bf3a46d9e3b8f3b"
+    },
+    {
+      "fighter_id": 21,
+      "code": "FLN",
+      "ultra": 1,
+      "move": "Gekirinken",
+      "source_heading": "ULTRA 2 - GEKIRENKIN",
+      "source_page": "https://iplaywinner.squarespace.com/feilong-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/feilong/feilong-ultra2.png",
+      "path": "FLN/ultra-1.png",
+      "source_sha256": "ea9967dfb0dc0fab7513f6c6fb03f0255e5e356e99b416d6a63abdb726d9c04e",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "a5221268a74de6e355bb747402e8136b4314d3f3b128d510ac9cb26641d37c41"
+    },
+    {
+      "fighter_id": 22,
+      "code": "DJY",
+      "ultra": 0,
+      "move": "Sobat Festival",
+      "source_heading": "ULTRA 1 - SOBAT FESTIVAL",
+      "source_page": "https://iplaywinner.squarespace.com/deejay-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/deejay/ultra1.png",
+      "path": "DJY/ultra-0.png",
+      "source_sha256": "0a2b4540acac5a9deffff552b1026cbf74737de7348d4f1697e45c2a0368d9fb",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "bd5c2d80f3abdba072c1fd3c13bdb9e86ae22eb89f914d6bc5a60238c897d1c1"
+    },
+    {
+      "fighter_id": 22,
+      "code": "DJY",
+      "ultra": 1,
+      "move": "Climax Beat",
+      "source_heading": "ULTRA 2 - CLIMAX BEAT",
+      "source_page": "https://iplaywinner.squarespace.com/deejay-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/deejay/ultra2.png",
+      "path": "DJY/ultra-1.png",
+      "source_sha256": "439258c12bbcda5e3842dcec1b6a4b09dd1e2808e6f4ae70adb24880e3e5de75",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "1c198fe8d45296586b6ba41e3961576d6a24caca4db9fe2d4a2aba1552503538"
+    },
+    {
+      "fighter_id": 23,
+      "code": "SKR",
+      "ultra": 0,
+      "move": "Haru Ranman",
+      "source_heading": "ULTRA 1 - HARU RANMAN",
+      "source_page": "https://iplaywinner.squarespace.com/sakura-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/sakura/ultra1.png",
+      "path": "SKR/ultra-0.png",
+      "source_sha256": "763106d4b24d61006e08017ca16469ec8d45e4e5ce2d718f86f7bc87cbbbb594",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "27153eb1f4ebff280e2692f02dec540259e4d4524af22f6cc48ff6f3859d2563"
+    },
+    {
+      "fighter_id": 23,
+      "code": "SKR",
+      "ultra": 1,
+      "move": "Shinku Hadoken",
+      "source_heading": "ULTRA 2 - SHINKU HADOUKEN & TENGYO HADOUKEN",
+      "source_page": "https://iplaywinner.squarespace.com/sakura-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/sakura/ultra2.png",
+      "path": "SKR/ultra-1.png",
+      "source_sha256": "e7529297e89ffc13212fd7bbd6adeb862d80aacf7e5d21c80d72d7c0735990c2",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "95dbf50329579c7e6d2febd7c6b4318fb6fa2a1f5d01a6d36d0c0c8babd34d0f"
+    },
+    {
+      "fighter_id": 24,
+      "code": "ROS",
+      "ultra": 0,
+      "move": "Illusion Spark",
+      "source_heading": "ULTRA 1 - ILLUSION SPARK *ARMOR BREAKING*",
+      "source_page": "https://iplaywinner.squarespace.com/rose-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/rose/illusionspark.png",
+      "path": "ROS/ultra-0.png",
+      "source_sha256": "c4c0202c20c3fb8d06a5aef36f9834f81a7eb35cc0d8568e5423de2f54da586d",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "c602de6f122d6a24e830bd8927412d4f16f1d3292a6cbd278347667a7763cf97"
+    },
+    {
+      "fighter_id": 24,
+      "code": "ROS",
+      "ultra": 1,
+      "move": "Soul Satellite",
+      "source_heading": "ULTRA 2 - SOUL SATELLITE *ARMOR BREAKING*",
+      "source_page": "https://iplaywinner.squarespace.com/rose-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/rose/ultra2.png",
+      "path": "ROS/ultra-1.png",
+      "source_sha256": "53e3914a78fb1cc23bd141d1f23432f6da9f6cdd3cc601b6b10033de1473d8d3",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "bda2d8059982a5e0e4c570fe2108e5165e94e5ac1664c5d42ad712cc25c9650c"
+    },
+    {
+      "fighter_id": 25,
+      "code": "GEN",
+      "ultra": 0,
+      "move": "Zetsuei / Ryukoha",
+      "source_heading": "ULTRA 1 - ZETSUEI",
+      "source_page": "https://iplaywinner.squarespace.com/gen-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/gen/mantis/ultra1.png",
+      "path": "GEN/ultra-0.png",
+      "source_sha256": "c8835cb7a903acccc4583f664bfd29266e8f42fbc3f7a69f1ac5d8738d2f6301",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "a8e80e9639c961f097813da7dce2ae29d1ef3e578345889e126a750c3433cd1a"
+    },
+    {
+      "fighter_id": 25,
+      "code": "GEN",
+      "ultra": 1,
+      "move": "Shitenketsu / Teiga",
+      "source_heading": "ULTRA 2 - SHITKENKETSU",
+      "source_page": "https://iplaywinner.squarespace.com/gen-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/gen/crane/ultra2.png",
+      "path": "GEN/ultra-1.png",
+      "source_sha256": "bef976bec3095d9c5727249ac301cf53165d918c0923812a0d95f876d2cd83e3",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "8779c45b1c63d7a76b6d88b4811189a4685dd8c05452fa5820495942426872c6"
+    },
+    {
+      "fighter_id": 26,
+      "code": "DAN",
+      "ultra": 0,
+      "move": "Shisso Buraiken",
+      "source_heading": "ULTRA 1 - SHISSO BURAIKEN",
+      "source_page": "https://iplaywinner.squarespace.com/dan-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/dan/ultra1.png",
+      "path": "DAN/ultra-0.png",
+      "source_sha256": "d8a019eaf78be2450dcbe7f1578dd038b0bbb75eee0ac249a65bcbe3d7961095",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "f19d3c875524ff01f6a74cb61b9ed60943801d99b7cdb92ae28bf312be2b67b7"
+    },
+    {
+      "fighter_id": 26,
+      "code": "DAN",
+      "ultra": 1,
+      "move": "Haoh Gadoken",
+      "source_heading": "ULTRA 2 - HAOH GADOUKEN",
+      "source_page": "https://iplaywinner.squarespace.com/dan-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/dan/dan-ultra2.png",
+      "path": "DAN/ultra-1.png",
+      "source_sha256": "a65a3ded92c305c552225c4f208229dbf4d084c06b525dce4334864a2fa3a1a0",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "29c239dcecee23f25894312d2836d8c3d4c0d9bafdb8a1c36436da23d5c3d614"
+    },
+    {
+      "fighter_id": 27,
+      "code": "GUY",
+      "ultra": 0,
+      "move": "Bushin Goraisenpujin",
+      "source_heading": "ULTRA 1 - BUSHIN GORAISENPUJIN",
+      "source_page": "https://iplaywinner.squarespace.com/guy-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/guy/ultra1.png",
+      "path": "GUY/ultra-0.png",
+      "source_sha256": "1133a4350ccb82c6c277c32242f4353acefc02778c069a2f30ec5e3a3139580e",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "c545ae07d60b11eb144bed172071f8645ecb7fb890fb012363a82dd6b5cf3c7f"
+    },
+    {
+      "fighter_id": 27,
+      "code": "GUY",
+      "ultra": 1,
+      "move": "Bushin Muso Renge",
+      "source_heading": "ULTRA 2 - BUSHIN MUSO RENGE",
+      "source_page": "https://iplaywinner.squarespace.com/guy-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/guy/ultra2.png",
+      "path": "GUY/ultra-1.png",
+      "source_sha256": "2d21ac7bc5eef4865c50bd8e496f750af6c4fda0c53132fbe7b6be24b00800ba",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "ae61b1d2f33fa5fc8a0af9bb4dffbd04b65df6d05427053b025f808fe1cbf98c"
+    },
+    {
+      "fighter_id": 28,
+      "code": "CDY",
+      "ultra": 0,
+      "move": "Final Destruction",
+      "source_heading": "ULTRA 1 - FINAL DESTRUCTION",
+      "source_page": "https://iplaywinner.squarespace.com/cody-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/cody/ultra-1thumb",
+      "path": "CDY/ultra-0.png",
+      "source_sha256": "e3715bd7ddafaa228396627c8fc501f6fc2e470bebbe29ee5b13034414eb1820",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "90b88883e23d24c4950b4b1c05e2d1076d7f51892374515a95f3aab42d35b4fb"
+    },
+    {
+      "fighter_id": 28,
+      "code": "CDY",
+      "ultra": 1,
+      "move": "Last Dread Dust",
+      "source_heading": "ULTRA 2 - LAST DREAD DUST",
+      "source_page": "https://iplaywinner.squarespace.com/cody-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/cody/ultra-2thumb",
+      "path": "CDY/ultra-1.png",
+      "source_sha256": "56331b5563eccc00d01df8db5171407df13413473da1ce0e34995d46640a9d2e",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "379ffaceab70a5a99c14acd095cd9475fa2aaa69616ff1efa898ce40670928d3"
+    },
+    {
+      "fighter_id": 29,
+      "code": "IBK",
+      "ultra": 0,
+      "move": "Yoroitoshi",
+      "source_heading": "ULTRA 1 - YOROITOSHI",
+      "source_page": "https://iplaywinner.squarespace.com/ibuki-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/ibuki/ultra1.png",
+      "path": "IBK/ultra-0.png",
+      "source_sha256": "504348c0e3d347d35e49ec8e666589e2e9e65838a96fcb80372aa8b2d50b0003",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "e22c50c798d2c3c97f0358af0540cc003020be259c1cf5eb2e529e75ba515391"
+    },
+    {
+      "fighter_id": 29,
+      "code": "IBK",
+      "ultra": 1,
+      "move": "Hashinsho",
+      "source_heading": "ULTRA 2 - HASHINSHO",
+      "source_page": "https://iplaywinner.squarespace.com/ibuki-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/ibuki/ultra2.png",
+      "path": "IBK/ultra-1.png",
+      "source_sha256": "f3d33d139745c2d56cb03df92d05d56429fea6e4ccf213d51f4361ba1e6e3daf",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "e594e5a0521429d9823b9a78cb26ffb68785d52b5bd5c7231ab122114d3d55bc"
+    },
+    {
+      "fighter_id": 30,
+      "code": "MKT",
+      "ultra": 0,
+      "move": "Seichusen Godanzuki",
+      "source_heading": "ULTRA 1 - SEICHUSEN GODANZAKI",
+      "source_page": "https://iplaywinner.squarespace.com/makoto-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/makoto/ultra1.png",
+      "path": "MKT/ultra-0.png",
+      "source_sha256": "6440c56edf5f32253899f41f4a7365b83be9e97f73758cbd0a5df618cc132ab8",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "ae74cab8417b77d613198b3b225231f7f49cf073024c5a5f747539665fd030c4"
+    },
+    {
+      "fighter_id": 30,
+      "code": "MKT",
+      "ultra": 1,
+      "move": "Abare Tosanami",
+      "source_heading": "ULTRA 2 - ABARE TOSANAMI",
+      "source_page": "https://iplaywinner.squarespace.com/makoto-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/makoto/ultra2.png",
+      "path": "MKT/ultra-1.png",
+      "source_sha256": "6ba6fa59ae1655ca532361840f3140f07303a72ac963b41d05cf7304b7138d4c",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "87a3d9ffa8b96d6cc2a30867c74fe9a8f76299d12f7554453b1e70304b026b62"
+    },
+    {
+      "fighter_id": 31,
+      "code": "DDL",
+      "ultra": 0,
+      "move": "Rolling Thunder",
+      "source_heading": "ULTRA 1 - ROLLING THUNDER",
+      "source_page": "https://iplaywinner.squarespace.com/dudley-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/dudley/rollingthunder.png",
+      "path": "DDL/ultra-0.png",
+      "source_sha256": "3e3ee5df3ecd8f7c8843e598a4f3ee2765719fa969f0da0ed62dad6b89624a32",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "d9688288e9b6c42274a8d0d068b7bae8c240a3b9bb17c6d897c079c26ceba9e4"
+    },
+    {
+      "fighter_id": 31,
+      "code": "DDL",
+      "ultra": 1,
+      "move": "Corkscrew Cross",
+      "source_heading": "ULTRA 2 - CORKSCREW CROSS",
+      "source_page": "https://iplaywinner.squarespace.com/dudley-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/dudley/corkscrewblow.png",
+      "path": "DDL/ultra-1.png",
+      "source_sha256": "6e82babeae29ff91bab207302f306649aa7489a67025738f72cbe71ca8d03a4b",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "37d8c95b9e36080424e8fa0ccdfdb313811e8fc9776ed5f66fa3a72c0c0022db"
+    },
+    {
+      "fighter_id": 32,
+      "code": "ADN",
+      "ultra": 0,
+      "move": "Jaguar Revolver",
+      "source_heading": "ULTRA 1 - JAGUAR REVOLVER",
+      "source_page": "https://iplaywinner.squarespace.com/adon-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/adon/ultra1.png",
+      "path": "ADN/ultra-0.png",
+      "source_sha256": "24237ef317c3891f3aff8fdeb237402afc20dea5afa501622e8ba171f3c3e29d",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "0a7e152903529eb104b04d616073dcab08e0e68425fdc965b4735c1d3f51f362"
+    },
+    {
+      "fighter_id": 32,
+      "code": "ADN",
+      "ultra": 1,
+      "move": "Jaguar Avalanche",
+      "source_heading": "ULTRA 2 - JAGUAR AVALANCHE",
+      "source_page": "https://iplaywinner.squarespace.com/adon-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/adon/ultra2.png",
+      "path": "ADN/ultra-1.png",
+      "source_sha256": "09751a35eab0535b86f156785402777aab8d8088f0ef127b03a45cbc6d8de4ff",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "872d92b83e4e14eacd888c813e75889a865ad08ebec95aa24308eda6b9675462"
+    },
+    {
+      "fighter_id": 33,
+      "code": "HKN",
+      "ultra": 0,
+      "move": "Oil Coaster",
+      "source_heading": "ULTRA 1 - OIL COASTER",
+      "source_page": "https://iplaywinner.squarespace.com/hakan-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/hakan/ultra1.png",
+      "path": "HKN/ultra-0.png",
+      "source_sha256": "fada387153a3ab247f55af30388f527850e22b030d1a8bc11b1aabcfc4999216",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "2c82a52146b5a7177e83a195960a01b55838c3ac7d338e6fd1f2bb1ed7ae2b55"
+    },
+    {
+      "fighter_id": 33,
+      "code": "HKN",
+      "ultra": 1,
+      "move": "Oil Combination Hold",
+      "source_heading": "ULTRA 2 - OIL COMBINATION HOLD",
+      "source_page": "https://iplaywinner.squarespace.com/hakan-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/hakan/oilcombinationhold.png",
+      "path": "HKN/ultra-1.png",
+      "source_sha256": "11d73c575cbb03813796d28ee701c5b6f0a5b635cf96f29947a8a611bae34877",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "bbd7a9c3bd7865cce968d3571df79cbfdf895d17676fb98c9327c5e3634ef75f"
+    },
+    {
+      "fighter_id": 34,
+      "code": "JRI",
+      "ultra": 0,
+      "move": "Feng Shui Engine",
+      "source_heading": "ULTRA 1 - FENG SHUI ENGINE",
+      "source_page": "https://iplaywinner.squarespace.com/juri-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/juri/ultra-1.png",
+      "path": "JRI/ultra-0.png",
+      "source_sha256": "fe185bbb621a0468b7a8a070451075c530766863942c9d9b993233011a8aca8a",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "289e3ea7ad961149bb7884c983fa72499fcc063fbfcc27bb9c7ea1db1cfd1d2b"
+    },
+    {
+      "fighter_id": 34,
+      "code": "JRI",
+      "ultra": 1,
+      "move": "Kaisen Dankairaku",
+      "source_heading": "ULTRA II - KAISEN DANKAIRAKU",
+      "source_page": "https://iplaywinner.squarespace.com/juri-ssf4/",
+      "url": "https://iplaywinner.squarespace.com/storage/ssf4-images/juri/ultra-2.png",
+      "path": "JRI/ultra-1.png",
+      "source_sha256": "472cc3d8fa12d1640017b066911534807f69c13a60a1a0f52eaefae1588092e7",
+      "source_size": [
+        256,
+        144
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "d96592f7669975ce21b8f541d4b0ccb6c866018dfe0629e210836c26531f77fe"
+    },
+    {
+      "fighter_id": 35,
+      "code": "YUN",
+      "ultra": 0,
+      "move": "You Hou",
+      "source_heading": "TGS 2010 Capcom trailer: \u63da\u70ae",
+      "source_page": "https://www.4gamer.net/games/111/G011109/20100921073/",
+      "url": "https://stream.4gamer.net/2010g/20100921_SSF4AE_yun_yang.mp4",
+      "frame_seconds": 90.0,
+      "video_sha256": "2b2acc16b673ed8796f3601f3bf4b5fd666a14d6b9a48fd1b462951cfcf40542",
+      "path": "YUN/ultra-0.png",
+      "credit": "Capcom promotional trailer, 4Gamer, September 22, 2010",
+      "mapping_note": "Named Ultra in the accompanying article; the cinematic sequence was visually reviewed.",
+      "source_sha256": "edf85be91ef168c2f230141522baa877492a9f6f9cb1bb9bd2c4b343988bf052",
+      "source_size": [
+        512,
+        288
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "90546bf6ee63ef93767db051cd758844340d9c6cce0a4b218999ff01f109d904"
+    },
+    {
+      "fighter_id": 36,
+      "code": "YAN",
+      "ultra": 0,
+      "move": "Raishin Mahhaken",
+      "source_heading": "TGS 2010 Capcom trailer: \u96f7\u795e\u9b54\u7834\u62f3",
+      "source_page": "https://www.4gamer.net/games/111/G011109/20100921073/",
+      "url": "https://stream.4gamer.net/2010g/20100921_SSF4AE_yun_yang.mp4",
+      "frame_seconds": 117.5,
+      "video_sha256": "2b2acc16b673ed8796f3601f3bf4b5fd666a14d6b9a48fd1b462951cfcf40542",
+      "path": "YAN/ultra-0.png",
+      "credit": "Capcom promotional trailer, 4Gamer, September 22, 2010",
+      "mapping_note": "Named Ultra in the accompanying article; the cinematic sequence was visually reviewed.",
+      "source_sha256": "394cc9e4d92cd75b7487fc05d241270d1c32044ae51e5fe8f129102b9a66a7f6",
+      "source_size": [
+        512,
+        288
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "98cb619543bcc669f89a90facd43ea113574ecd03206f8ff155daedf02f15204"
+    },
+    {
+      "fighter_id": 37,
+      "code": "RYX",
+      "ultra": 0,
+      "move": "Metsu Hadoken",
+      "source_heading": "Capcom character reveal gallery, image 007",
+      "source_page": "https://www.4gamer.net/games/111/G011109/20110325017/",
+      "url": "https://www.4gamer.net/games/111/G011109/20110325017/SS/007.jpg",
+      "path": "RYX/ultra-0.png",
+      "credit": "Capcom press screenshot, 4Gamer, 2011-03-25",
+      "mapping_note": "Visually identified projectile Ultra cinematic; the source gallery does not caption the move name.",
+      "source_sha256": "075f8761b23fb3df2be980b80183f22327bee57a975ec6118a2e8c4346ae8ae9",
+      "source_size": [
+        1280,
+        720
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "d60aecbe45a1ff7061837e404c229698576687d0775dbed6b2ca26fef9be61f0"
+    },
+    {
+      "fighter_id": 38,
+      "code": "GKX",
+      "ultra": 0,
+      "move": "Meido Gohado",
+      "source_heading": "Capcom character reveal gallery, image 004",
+      "source_page": "https://www.4gamer.net/games/111/G011109/20110408015/",
+      "url": "https://www.4gamer.net/games/111/G011109/20110408015/SS/004.jpg",
+      "path": "GKX/ultra-0.png",
+      "credit": "Capcom press screenshot, 4Gamer, 2011-04-08",
+      "mapping_note": "Visually identified projectile Ultra cinematic; the source gallery does not caption the move name.",
+      "source_sha256": "f55380873b0ab011fc1bfa99005f1b96010ddc43a7f479d4aa7970602193cd1a",
+      "source_size": [
+        1024,
+        576
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "3bc27dffb3c8ec0a01a4185fa14dea5b22eba70aa13d227db68d9d41c8b71fd4"
+    },
+    {
+      "fighter_id": 39,
+      "code": "RLN",
+      "ultra": 1,
+      "move": "Take No Prisoners",
+      "source_heading": "Take No Prisoners",
+      "source_page": "https://news.capcomusa.com/lets/browse/ultras-and-supers-for-the-new-usfiv-characters",
+      "url": "https://cdn.capcom-unity.com/capcom-unity.com/user/combofiend/269e0a120753c293b2fefc079e985ab5.jpg?v=202200",
+      "path": "RLN/ultra-1.png",
+      "credit": "Capcom / ComboFiend, November 23, 2013",
+      "source_sha256": "1891a4708a8c6410748c6d4d6708213c7b32f04d746212f37132dc9693593e47",
+      "source_size": [
+        600,
+        337
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "5b77bc144aff5582278bc45fbb6ee8ee612fff7c5db1c8781e41b99e8f95321e"
+    },
+    {
+      "fighter_id": 40,
+      "code": "ELN",
+      "ultra": 1,
+      "move": "Healing",
+      "source_heading": "Healing",
+      "source_page": "https://news.capcomusa.com/lets/browse/ultras-and-supers-for-the-new-usfiv-characters",
+      "url": "https://cdn.capcom-unity.com/capcom-unity.com/user/combofiend/cf065029038b122f0e680cabe4df0929.jpg?v=202200",
+      "path": "ELN/ultra-1.png",
+      "credit": "Capcom / ComboFiend, November 23, 2013",
+      "source_sha256": "f52033f10530de78c566297d0735670104ea2c9be1fb6e7fd76d0b0461418e10",
+      "source_size": [
+        600,
+        337
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "d77ad2275ebe259ca3071dcada924fdf467ed559a8f28891db2a13a27a9d3d0e"
+    },
+    {
+      "fighter_id": 41,
+      "code": "PSN",
+      "ultra": 0,
+      "move": "Love Storm",
+      "source_heading": "Love Storm",
+      "source_page": "https://news.capcomusa.com/lets/browse/ultras-and-supers-for-the-new-usfiv-characters",
+      "url": "https://cdn.capcom-unity.com/capcom-unity.com/user/combofiend/79d8dd3436ae319383be041465c85693.jpg?v=202200",
+      "path": "PSN/ultra-0.png",
+      "credit": "Capcom / ComboFiend, November 23, 2013",
+      "source_sha256": "72d9e0d731b5461cf276f04943a767b1a4cdfc662eca42f7cd7e8fdd06e557e0",
+      "source_size": [
+        600,
+        337
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "c4e069a8ec8ba86cf257cf480efd1148dfc1ed6db005a4cd91fdb377c665084e"
+    },
+    {
+      "fighter_id": 42,
+      "code": "HUG",
+      "ultra": 0,
+      "move": "Gigas Breaker",
+      "source_heading": "Gigas Breaker",
+      "source_page": "https://news.capcomusa.com/lets/browse/ultras-and-supers-for-the-new-usfiv-characters",
+      "url": "https://cdn.capcom-unity.com/capcom-unity.com/user/combofiend/f49016f448a71d770ac8667c538a264e.jpg?v=202200",
+      "path": "HUG/ultra-0.png",
+      "credit": "Capcom / ComboFiend, November 23, 2013",
+      "source_sha256": "0a1602f786b5b44ec8b0eb534ab42fa5598d97d23e0f0f001ea23875b1491000",
+      "source_size": [
+        600,
+        337
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "54d6d301d5963cce2cc1303366d5be8a4a901268db47281d772debe373dae044"
+    },
+    {
+      "fighter_id": 43,
+      "code": "DCP",
+      "ultra": 1,
+      "move": "DCM",
+      "source_heading": "DCM Ultra screenshot caption",
+      "source_page": "https://www.gamesradar.com/ultra-street-fighter-4s-decapre-plays-nothing-cammy/",
+      "url": "https://cdn.mos.cms.futurecdn.net/3b8813b1bd4124d5bd9bd43f7e26a67f.jpg",
+      "path": "DCP/ultra-1.png",
+      "source_sha256": "5b44d07ab9ee2e34e07685db0dcc14b40d4c868c5fef38858ef37a4c09cdcc4f",
+      "source_size": [
+        1920,
+        1080
+      ],
+      "size": [
+        256,
+        144
+      ],
+      "sha256": "52fe09b437c339fdbcc34e657b025f974272d7e171a36edeeb910c12b1fca3c5"
+    }
+  ]
+}

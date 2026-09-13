@@ -1,479 +1,80 @@
-# Packages Launcher + Sidecar + runtime DLLs + docs for team testing.
-
-# Usage (from repo root):
-
-#   powershell -NoProfile -File scripts/package-team.ps1
-
-# Optional: -BuildDir, -InstallDir, -OutDir, -VersionLabel
-
-
-
-param(
-
-    [string]$BuildDir = "",
-
-    [string]$InstallDir = "",
-
-    [string]$OutDir = "dist",
-
-    [string]$VersionLabel = ""
-
-)
-
-
-
+# Assemble only the shared product inventory. Never reuse or mirror a previous package.
+param([string]$BuildDir = "", [string]$InstallDir = "",
+      [string]$OutDir = "dist", [string]$VersionLabel = "", [string]$QuickStartPath = "")
 $ErrorActionPreference = "Stop"
-
-$RepoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-
-if (-not $BuildDir) { $BuildDir = Join-Path $RepoRoot "msvc-build\default" }
-
-if (-not $InstallDir) { $InstallDir = Join-Path $RepoRoot "msvc-out\relwithdebinfo" }
-
-
-
-$Launcher = Join-Path $InstallDir "Launcher.exe"
-
-$Sidecar = Join-Path $InstallDir "Sidecar.dll"
-
-if (-not (Test-Path $Launcher) -or -not (Test-Path $Sidecar)) {
-
-    Write-Error "Missing install artifacts. Build and install first:`n  cmake --preset default`n  cmake --build msvc-build/default --config RelWithDebInfo`n  cmake --install msvc-build/default --config RelWithDebInfo"
-
+$repo = Split-Path $PSScriptRoot -Parent
+. (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
+. (Join-Path $PSScriptRoot 'BuildProvenance.ps1')
+$designation = Get-EmberBuildTarget $repo
+if (!$BuildDir) { $BuildDir = Join-Path $repo $designation.buildDirectory }
+if (!$InstallDir) { $InstallDir = Join-Path $repo $designation.installDirectory }
+$BuildDir = [IO.Path]::GetFullPath($BuildDir)
+$InstallDir = [IO.Path]::GetFullPath($InstallDir)
+if ($BuildDir -ne (Join-Path $repo $designation.buildDirectory) -or $InstallDir -ne (Join-Path $repo $designation.installDirectory)) { throw 'Use the designated build and stage directories from build-target.json' }
+$receipt = Assert-BuildReceipt $repo $BuildDir $InstallDir
+if (!$receipt.testsPassed) { throw 'The current build has no passing test receipt' }
+if (!$receipt.baseRevision -or $receipt.baseRevision -ne (& git -C $repo rev-parse HEAD)) { throw 'The build receipt is for a different source commit; rebuild the release commit.' }
+if (!$VersionLabel) { $VersionLabel = Get-Date -Format "yyyyMMdd-HHmmss" }
+if ($VersionLabel -notmatch '^[a-zA-Z0-9._-]+$') { throw "Invalid version label" }
+$discordBuild = Join-Path $InstallDir 'discord-build.json'
+if (!(Test-Path -LiteralPath $discordBuild -PathType Leaf)) { throw 'Discord-enabled packaging requires an installed, configured Discord build.' }
+$discord = Get-Content -LiteralPath $discordBuild -Raw | ConvertFrom-Json
+if ($discord.applicationId -notmatch '^[1-9][0-9]+$' -or $discord.sdkSha256 -notmatch '^[0-9a-f]{64}$' -or !$discord.sdkVersion) {
+    throw 'Discord build identity is missing or invalid.'
 }
-
-
-
-$RuntimeDlls = @(
-
-    "spdlog.dll",
-
-    "fmt.dll",
-
-    "GameNetworkingSockets.dll",
-
-    "GGPO.dll",
-
-    "libcrypto-3.dll",
-
-    "libprotobuf.dll",
-
-    "abseil_dll.dll",
-
-    "Qt6Core.dll",
-
-    "Qt6Gui.dll",
-
-    "Qt6Widgets.dll"
-
-)
-
-$QtDeps = @(
-
-    "icudt78.dll",
-
-    "icuin78.dll",
-
-    "icuuc78.dll",
-
-    "double-conversion.dll",
-
-    "pcre2-16.dll",
-
-    "md4c.dll",
-
-    "zlib1.dll"
-
-)
-
-
-
-$RequiredPackagePaths = @(
-
-    "Launcher.exe",
-
-    "Sidecar.dll",
-
-    "RelayHost.exe",
-
-    "Updater.exe",
-
-    "qt.conf",
-
-    "plugins\platforms\qwindows.dll",
-
-    "START_HERE.md",
-
-    "BUILD_INFO.txt",
-
-    "preflight.ps1",
-
-    "preflight.cmd"
-
-) + $RuntimeDlls
-
-
-
-$Stamp = Get-Date -Format "yyyyMMdd"
-
-$PackageName = "sf4-netplay-launcher-$Stamp"
-
-if ($VersionLabel) {
-
-    $safeLabel = ($VersionLabel -replace '[^\w\-.]', '-')
-
-    $PackageName = "$PackageName-$safeLabel"
-
-}
-
-$PackageRoot = Join-Path $RepoRoot (Join-Path $OutDir $PackageName)
-
-$DocsDir = Join-Path $PackageRoot "docs"
-
-
-
-if (Test-Path $PackageRoot) { Remove-Item -Recurse -Force $PackageRoot }
-
-New-Item -ItemType Directory -Path $PackageRoot -Force | Out-Null
-
-New-Item -ItemType Directory -Path $DocsDir -Force | Out-Null
-
-
-
-Copy-Item $Launcher $PackageRoot
-
-Copy-Item $Sidecar $PackageRoot
-
-$Updater = Join-Path $InstallDir "Updater.exe"
-if (-not (Test-Path $Updater)) {
-    Write-Error "Missing Updater.exe in $InstallDir. Build Updater target and install first."
-}
-Copy-Item $Updater $PackageRoot
-
-$RelayHost = Join-Path $InstallDir "RelayHost.exe"
-if (-not (Test-Path $RelayHost)) {
-    Write-Error "Missing RelayHost.exe in $InstallDir. Build RelayHost target and install first."
-}
-Copy-Item $RelayHost $PackageRoot
-
-
-
-foreach ($dll in $QtDeps) {
-
-    $srcInstall = Join-Path $InstallDir $dll
-
-    $srcBuild = Join-Path $BuildDir $dll
-
-    if (Test-Path $srcInstall) {
-
-        Copy-Item $srcInstall $PackageRoot
-
-    } elseif (Test-Path $srcBuild) {
-
-        Copy-Item $srcBuild $PackageRoot
-
+$destination = Join-Path $OutDir "sf4-ember-netplay-$VersionLabel"
+if (Test-Path -LiteralPath $destination) { throw "Package destination already exists: $destination" }
+New-Item -ItemType Directory -Path $destination -Force | Out-Null
+$destination = (Resolve-Path -LiteralPath $destination).Path
+$inventory = Join-Path $repo "src/common/PackageInventory.inc"
+$entries = foreach ($line in Get-Content -LiteralPath $inventory) {
+    if ($line -match '^SF4E_PACKAGE_(REQUIRED|OPTIONAL)\("(.*)"\)') {
+        [pscustomobject]@{ Required = $Matches[1] -eq 'REQUIRED'; Path = $Matches[2].Replace('\\','\') }
     }
-
 }
-
-$QtConfInstall = Join-Path $InstallDir "qt.conf"
-
-$QtConfBuild = Join-Path $BuildDir "generated\qt.conf"
-
-if (Test-Path $QtConfInstall) {
-
-    Copy-Item $QtConfInstall $PackageRoot
-
-} elseif (Test-Path $QtConfBuild) {
-
-    Copy-Item $QtConfBuild $PackageRoot
-
-} else {
-
-    Set-Content -Path (Join-Path $PackageRoot "qt.conf") -Value "[Paths]`nPrefix=.`nPlugins=plugins`n" -Encoding ASCII
-
+$generated = @('PackageInventory.inc','preflight.ps1','preflight.cmd','START_HERE.md','MANIFEST.txt','BUILD_INFO.txt','build-provenance.json','notices\THIRD_PARTY_LICENSES.txt')
+foreach ($entry in $entries) {
+    if ($generated -contains $entry.Path) { continue }
+    $source = @((Join-Path $InstallDir $entry.Path), (Join-Path $BuildDir "candidate/$($entry.Path)"),
+        (Join-Path $BuildDir $entry.Path), (Join-Path $repo $entry.Path)) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+    if (!$source) { if ($entry.Required) { throw "Required package file missing: $($entry.Path)" }; continue }
+    $target = Join-Path $destination $entry.Path
+    New-Item -ItemType Directory -Path (Split-Path $target -Parent) -Force | Out-Null
+    Copy-Item -LiteralPath $source -Destination $target
 }
-
-$AllowedPluginRelPaths = @(
-    "generic\qtuiotouchplugin.dll",
-    "imageformats\qgif.dll",
-    "imageformats\qico.dll",
-    "imageformats\qjpeg.dll",
-    "networkinformation\qnetworklistmanager.dll",
-    "platforms\qwindows.dll",
-    "styles\qmodernwindowsstyle.dll",
-    "tls\qcertonlybackend.dll",
-    "tls\qschannelbackend.dll"
-)
-
-foreach ($pluginsRoot in @($InstallDir, $BuildDir)) {
-
-    $pluginsSrc = Join-Path $pluginsRoot "plugins"
-
-    if (Test-Path $pluginsSrc) {
-
-        $pluginsDest = Join-Path $PackageRoot "plugins"
-        foreach ($rel in $AllowedPluginRelPaths) {
-            $src = Join-Path $pluginsSrc $rel
-            if (-not (Test-Path $src)) { continue }
-            $dest = Join-Path $pluginsDest $rel
-            $destDir = Split-Path $dest -Parent
-            if (-not (Test-Path $destDir)) {
-                New-Item -ItemType Directory -Path $destDir -Force | Out-Null
-            }
-            Copy-Item $src $dest -Force
-        }
-
-        break
-
-    }
-
+Copy-Item -LiteralPath $inventory -Destination (Join-Path $destination 'PackageInventory.inc')
+Copy-Item -LiteralPath (Join-Path $BuildDir 'build-provenance.json') -Destination (Join-Path $destination 'build-provenance.json')
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'tester-preflight.ps1') -Destination (Join-Path $destination 'preflight.ps1')
+Set-Content -LiteralPath (Join-Path $destination 'preflight.cmd') -Encoding ASCII -Value '@powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0preflight.ps1" -PackageDir "%~dp0"'
+if (!$QuickStartPath) { $QuickStartPath = Join-Path $repo 'docs/USER_NETPLAY.md' }
+if (!(Test-Path -LiteralPath $QuickStartPath -PathType Leaf)) { throw "Quick-start guide missing: $QuickStartPath" }
+$quickStart = (Resolve-Path -LiteralPath $QuickStartPath).Path
+# The guide is renamed inside the package. Keep it free of repository-relative
+# links; maintainer references are carried separately through the optional docs
+# in PackageInventory.inc.
+Copy-Item -LiteralPath $quickStart -Destination (Join-Path $destination 'START_HERE.md')
+$art = Join-Path $repo 'assets/selection'
+New-Item -ItemType Directory -Path (Join-Path $destination 'assets') -Force | Out-Null
+Copy-Item -LiteralPath $art -Destination (Join-Path $destination 'assets') -Recurse
+& python (Join-Path $PSScriptRoot 'collect-notices.py') --build-dir $BuildDir --output (Join-Path $destination 'notices/THIRD_PARTY_LICENSES.txt')
+if ($LASTEXITCODE -ne 0) { throw 'Dependency notice collection failed' }
+$revision = git -C $repo rev-parse HEAD
+Set-Content -LiteralPath (Join-Path $destination 'BUILD_INFO.txt') -Encoding UTF8 -Value "SF4 Ember Netplay`nRelease: $VersionLabel`nSource revision: $revision`nSee build-provenance.json for the exact source fingerprint and validation.`n"
+Add-Content -LiteralPath (Join-Path $destination 'BUILD_INFO.txt') -Value "Source: $repo`nSource fingerprint: $($receipt.sourceFingerprint)`nFeatures: $($receipt.features -join ', ')"
+$manifest = Get-ChildItem -LiteralPath $destination -File -Recurse | Sort-Object FullName | ForEach-Object {
+    '{0}  {1}' -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.FullName.Substring($destination.Length + 1)
 }
-
-
-
-$MissingDll = @()
-
-foreach ($dll in $RuntimeDlls) {
-
-    $srcInstall = Join-Path $InstallDir $dll
-
-    $srcBuild = Join-Path $BuildDir $dll
-
-    if (Test-Path $srcInstall) {
-
-        Copy-Item $srcInstall $PackageRoot
-
-    } elseif (Test-Path $srcBuild) {
-
-        Copy-Item $srcBuild $PackageRoot
-
-    } else {
-
-        $MissingDll += $dll
-
-    }
-
-}
-
-if ($MissingDll.Count -gt 0) {
-
-    Write-Error "Missing runtime DLL(s) in InstallDir or BuildDir: $($MissingDll -join ', ')"
-
-}
-
-
-
-$DocFiles = @(
-
-    "docs\TEAM_QUICKSTART.md",
-
-    "docs\BETA_TESTERS.md",
-
-    "docs\SCOPE_AND_LIMITATIONS.md",
-
-    "docs\USER_NETPLAY.md",
-
-    "docs\SMOKE_TEST.md",
-
-    "docs\NETPLAY_INVARIANTS.md",
-
-    "docs\WINDOWS_DEFENDER.md",
-
-    "docs\TROUBLESHOOTING.md",
-
-    "docs\CODE_SIGNING.md"
-
-)
-
-foreach ($rel in $DocFiles) {
-
-    $src = Join-Path $RepoRoot $rel
-
-    if (Test-Path $src) {
-
-        Copy-Item $src (Join-Path $DocsDir (Split-Path -Leaf $rel))
-
-    }
-
-}
-
-$QuickStart = Join-Path $RepoRoot "docs\TEAM_QUICKSTART.md"
-
-if (Test-Path $QuickStart) {
-
-    Copy-Item $QuickStart (Join-Path $PackageRoot "START_HERE.md")
-
-}
-
-
-
-$PreflightSrc = Join-Path $RepoRoot "scripts\tester-preflight.ps1"
-
-if (Test-Path $PreflightSrc) {
-
-    Copy-Item $PreflightSrc (Join-Path $PackageRoot "preflight.ps1")
-
-} else {
-
-    Write-Warning "scripts\tester-preflight.ps1 not found; package will fail manifest validation."
-
-}
-
-$PreflightCmdSrc = Join-Path $RepoRoot "preflight.cmd"
-if (Test-Path $PreflightCmdSrc) {
-    Copy-Item $PreflightCmdSrc (Join-Path $PackageRoot "preflight.cmd")
-} else {
-    Write-Warning "preflight.cmd not found; package will fail manifest validation."
-}
-
-# Build metadata
-
-$GitRev = ""
-
-Push-Location $RepoRoot
-
-try {
-
-    $null = git rev-parse --short HEAD 2>$null
-
-    if ($LASTEXITCODE -eq 0) { $GitRev = (git rev-parse --short HEAD).Trim() }
-
-} finally { Pop-Location }
-
-
-
-$Attribution = Join-Path $RepoRoot "ATTRIBUTION.md"
-if (Test-Path $Attribution) {
-    Copy-Item $Attribution $PackageRoot
-}
-
-# SECURITY.md is linked from README on GitHub; omit from zip so in-app updater allowlists match.
-
-$BuildInfo = @"
-
-SF4 Netplay Launcher package — EXPERIMENTAL UNOFFICIAL PORT (not official sf4e)
-NOT PRODUCTION-READY SOFTWARE. Friends-only testing; sessions may fail.
-This is a community experiment. It is NOT maintained or endorsed by Anthony Danducci.
-Official sf4e by Anthony Danducci: https://codeberg.org/adanducci/sf4e
-This port: https://github.com/Confetti3/SF4-Netplay-Launcher
-
-Scope: USF4 Steam / Windows 10+ / experimental rollback for small friend groups.
-Limits: not finished software; shared broker (~50 rooms configured ceiling); failed sessions expected.
-See docs/SCOPE_AND_LIMITATIONS.md
-
-Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss zzz")
-
-$(if ($VersionLabel) { "Release: $VersionLabel`n" })
-
-Git: $(if ($GitRev) { $GitRev } else { "(not a git repo or git unavailable)" })
-
-Config: RelWithDebInfo x86
-
-$(if ($VersionLabel) { "Label: $VersionLabel`n" })
-
-
-
-Prerequisites (not included):
-
-- Steam install of Ultra Street Fighter IV: Arcade Edition (USF4)
-
-- Qt 6 runtime DLLs (included in this zip — Qt6Core/Gui/Widgets.dll and plugins/)
-
-- Microsoft Visual C++ 2015-2022 Redistributable (x86)
-
-  https://aka.ms/vs/17/release/vc_redist.x86.exe
-
-
-
-Start here: START_HERE.md
-
-Run preflight: double-click preflight.cmd (or run preflight.ps1 with PowerShell)
-
-"@
-
-Set-Content -Path (Join-Path $PackageRoot "BUILD_INFO.txt") -Value $BuildInfo -Encoding UTF8
-
-
-
-# Pre-zip manifest validation
-
-$MissingInPackage = @()
-
-foreach ($rel in $RequiredPackagePaths) {
-
-    $full = Join-Path $PackageRoot $rel
-
-    if (-not (Test-Path $full)) {
-
-        $MissingInPackage += $rel
-
-    }
-
-}
-
-if ($MissingInPackage.Count -gt 0) {
-
-    Write-Error "Package manifest incomplete. Missing in $PackageRoot :`n  $($MissingInPackage -join "`n  ")"
-
-}
-
-
-
-# MANIFEST.txt (all files with sizes)
-
-$manifestLines = @(
-
-    "SF4 Netplay Launcher package manifest",
-
-    "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz')",
-
-    "Git: $(if ($GitRev) { $GitRev } else { 'unknown' })",
-
-    ""
-
-)
-
-Get-ChildItem -Path $PackageRoot -Recurse -File | Sort-Object FullName | ForEach-Object {
-
-    $rel = $_.FullName.Substring($PackageRoot.Length + 1)
-
-    $manifestLines += ("{0,-48} {1,12}" -f $rel, $_.Length)
-
-}
-
-Set-Content -Path (Join-Path $PackageRoot "MANIFEST.txt") -Value $manifestLines -Encoding UTF8
-
-
-
-$ZipPath = Join-Path $RepoRoot "$OutDir\$PackageName.zip"
-
-if (Test-Path $ZipPath) { Remove-Item -Force $ZipPath }
-
-Compress-Archive -Path $PackageRoot -DestinationPath $ZipPath -Force
-
-
-
-Write-Host ""
-
-Write-Host "Package folder: $PackageRoot"
-
-Write-Host "Zip archive:    $ZipPath"
-
-if ($GitRev) { Write-Host "Build git:      $GitRev" }
-
-Write-Host ""
-
-Get-ChildItem $PackageRoot | Format-Table Name, Length -AutoSize
-
-
-
-# Return paths for release-team-build.ps1
-
-$script:PackageZipPath = $ZipPath
-
-$script:PackageFolderPath = $PackageRoot
-
-$script:PackageGitRev = $GitRev
-
-
+Set-Content -LiteralPath (Join-Path $destination 'MANIFEST.txt') -Encoding UTF8 -Value $manifest
+& (Join-Path $PSScriptRoot 'tester-preflight.ps1') -PackageDir $destination
+if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "Package preflight failed" }
+$validator = @((Join-Path $BuildDir 'PackageInstallerTest.exe'), (Join-Path $BuildDir 'candidate/PackageInstallerTest.exe')) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+if (!$validator) { throw 'Build PackageInstallerTest before packaging so the native update inventory can validate the output.' }
+& $validator $destination
+if ($LASTEXITCODE -ne 0) { throw 'The native updater rejected the package inventory' }
+Compress-Archive -LiteralPath $destination -DestinationPath "$destination.zip"
+$hash = (Get-FileHash -LiteralPath "$destination.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
+Set-Content -LiteralPath "$destination.zip.sha256" -Encoding ASCII -Value "$hash  $([IO.Path]::GetFileName($destination)).zip"
+$script:PackageZipPath = "$destination.zip"
+$script:PackageFolderPath = $destination
+$script:PackageGitRev = $revision
+Write-Host "SF4 Ember Netplay package: $destination.zip"

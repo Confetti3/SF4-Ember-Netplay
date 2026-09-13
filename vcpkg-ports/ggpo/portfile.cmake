@@ -6,6 +6,7 @@ vcpkg_from_github(
     PATCHES
         "install-cmake-export.patch"
         "reject-invalid-udp-messages.patch"
+        "confirmed-frame-accessor.patch"
 )
 
 vcpkg_cmake_configure(

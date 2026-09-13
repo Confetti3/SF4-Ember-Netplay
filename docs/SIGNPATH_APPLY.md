@@ -1,5 +1,7 @@
 # SignPath Foundation application checklist
 
+> **Legacy setup record.** Ember releases use the guarded local process in [BUILDING.md](BUILDING.md). This checklist describes the old launcher's GitHub workflow and does not establish signing for Ember 0.8.0.
+
 Complete these steps to enable Authenticode signing for release builds.
 
 ## 1. Apply

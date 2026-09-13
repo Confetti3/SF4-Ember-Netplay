@@ -9,8 +9,12 @@ namespace Dimps {
 		enum PadType {
 			PADTYPE_RAWINPUT = 1,
 			PADTYPE_XINPUT = 3,
+            PADTYPE_DIRECTINPUT = 4,
 		};
 
+		// Game thread, main menu or offline training; never assigns a side.
+		bool ReadController(int deviceType, int deviceIndex, unsigned int& held, unsigned int* physicalButtons = nullptr,
+                            unsigned int* selectPhysical = nullptr, unsigned int* backPhysical = nullptr);
 		struct System {
 			static const int BUTTON_MAPPING_FIGHT;
 			static const int BUTTON_MAPPING_MENU;
@@ -24,6 +28,7 @@ namespace Dimps {
 			};
 
 			typedef struct __publicMethods {
+				void (System::* UpdateInputs)();
 				unsigned int(System::* GetButtons_RawOn)(int pindex);
 				unsigned int(System::* GetButtons_MappedOn)(int pindex);
 				unsigned int(System::* GetButtons_RawRising)(int pindex);
@@ -67,6 +72,10 @@ namespace Dimps {
 
 		struct System_XInput {
 			typedef struct __publicMethods {
+                int(System_XInput::* GetDeviceCount)();
+                int(System_XInput::* GetDeviceStatus)(int index);
+                char*(System_XInput::* GetDeviceName)(int index);
+                unsigned int(System_XInput::* GetButtonsOn)(int index);
 				unsigned int(System_XInput::* SetDeviceInUse)(int deviceIdx, int bInUse);
 			} __publicMethods;
 

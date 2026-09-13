@@ -8,6 +8,7 @@
 #include "Dimps__Pad.hxx"
 #include "Dimps__Platform.hxx"
 #include "Dimps__UserApp.hxx"
+#include "Dimps__Selection.hxx"
 
 char** Dimps::characterCodes;
 char** Dimps::characterNames;
@@ -31,6 +32,7 @@ void Dimps::Locate(HMODULE peRoot) {
 	Pad::Locate(peRoot);
 	Platform::Locate(peRoot);
 	UserApp::Locate(peRoot);
+	Selection::Locate(peRoot);
 }
 
 void Dimps::App::Locate(HMODULE peRoot) {

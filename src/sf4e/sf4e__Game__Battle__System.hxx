@@ -2,7 +2,7 @@
 #include <utility>
 #include <vector>
 
-#include <GameNetworkingSockets/steam/steamnetworkingtypes.h>
+
 #include <ggponet.h>
 
 #include "../Dimps/Dimps__Game.hxx"
@@ -11,6 +11,8 @@
 #include "../Dimps/Dimps__Math.hxx"
 
 #include "../common/sf4e__GgpoGate.hxx"
+#include "../common/ConfirmedCheckpoint.hxx"
+#include "../common/RoomLimits.hxx"
 #include "../common/sf4e__PacingController.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 
@@ -176,22 +178,20 @@ namespace sf4e {
 
 				// Desync detection v2: a bounded ring of per-frame hash
 				// checkpoints captured every HASH_CHECKPOINT_INTERVAL
-				// frames. Entries are exchanged by SessionClient once aged
-				// past the rollback/prediction window ("aged", NOT formally
-				// GGPO-confirmed). The legacy 60-frame snapshot system
-				// above stays fully operational alongside.
+				// frames. `frameIdx` is the non-wrapping GGPO state frame, not
+				// the signed 16-bit engine counter. Entries are exchanged only
+				// after GGPO confirms all inputs contributing to the captured
+				// state. The legacy snapshot system above stays fully operational
+				// alongside.
 				struct HashCheckpoint {
 					int frameIdx = -1;
+					int ggpoStateFrame = -1;
 					bool valid = false;
 					bool sent = false;
 					SemanticHashes hashes;
 				};
-				static const int NUM_HASH_CHECKPOINTS = 64;
-				static const int HASH_CHECKPOINT_INTERVAL = 30;
-				// A checkpoint may be exchanged once the sender has
-				// simulated this many frames past it (> GGPO's 8-frame
-				// prediction window plus input delay margin).
-				static const int HASH_CHECKPOINT_AGE_FRAMES = 30;
+				static const int NUM_HASH_CHECKPOINTS = sf4e::statehash::CheckpointRingSize;
+				static const int HASH_CHECKPOINT_INTERVAL = sf4e::statehash::CheckpointInterval;
 				static HashCheckpoint hashCheckpoints[NUM_HASH_CHECKPOINTS];
 				static SemanticHashes ComputeSemanticHashes(Dimps::Game::Battle::System* src);
 				static void CaptureHashCheckpoint(Dimps::Game::Battle::System* src);
@@ -199,7 +199,7 @@ namespace sf4e {
 				static void ClearHashCheckpoints();
 				static GGPOPlayerHandle localPlayerHandle;
 				static int lastGgpoSaveFrame;
-				static PlayerConnectionInfo players[MAX_SF4E_PROTOCOL_USERS];
+				static PlayerConnectionInfo players[room::MaxMatchParticipants];
 				static GGPOSession* ggpo;
 				static SaveState saveStates[NUM_SAVE_STATES];
 
@@ -215,7 +215,8 @@ namespace sf4e {
 				static void StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port, DWORD rngSeed);
 				static bool ggpo_on_event_callback(GGPOEvent* info);
 				static bool ggpo_begin_game_callback(const char*);
-				static bool ggpo_advance_frame_callback(int);
+				static unsigned RecentRollbackFrames();
+                static bool ggpo_advance_frame_callback(int);
 				static bool ggpo_load_game_state_callback(unsigned char*, int);
 				static bool ggpo_save_game_state_callback(unsigned char** buffer, int* len, int* checksum, int);
 				static void ggpo_free_buffer(void* buffer);

@@ -1,0 +1,107 @@
+#include "ApplicationServices.hxx"
+#include "../common/install_paths.hxx"
+#include "../netplay/SettingsStore.hxx"
+#include <windows.h>
+#include <filesystem>
+#include <fstream>
+
+namespace sf4e { namespace platform {
+std::string DescribeDiagnostics(const DiagnosticsView& view) {
+    const char* rooms[] = {"Idle", "Opening", "Joined", "Closing", "Lost"};
+    const char* matches[] = {"None", "Preparing", "Playing", "Post-match", "Failed"};
+    const char* health[] = {"Offline", "Connecting", "Healthy", "Lost"};
+    const auto label = [](int value, const char* const* names, int count) { return value >= 0 && value < count ? names[value] : "Unavailable"; };
+    return std::string("Helper: ") + (view.helperReady ? "Ready" : "Unavailable") +
+        " | Room: " + label(view.room,rooms,5) + " | Match: " + label(view.match,matches,5) +
+        " | Control: " + label(view.control,health,4) + " | Gameplay: " + label(view.gameplay,health,4) +
+        " | Verification: " + (view.verificationAvailable ? "Available" : "Unavailable");
+}
+ApplicationServices::ApplicationServices(std::wstring diagnosticsDirectory) : diagnosticsDirectory_(std::move(diagnosticsDirectory)), worker_(&ApplicationServices::Run, this) {}
+ApplicationServices::~ApplicationServices() {
+    Cancel();
+    { std::lock_guard<std::mutex> lock(mutex_); stop_ = true; }
+    wake_.notify_one(); worker_.join();
+}
+ServiceSnapshot ApplicationServices::Snapshot() const { std::lock_guard<std::mutex> lock(mutex_); return state_; }
+void ApplicationServices::Observe(const DiagnosticsView& diagnostics) {
+    const auto description = DescribeDiagnostics(diagnostics);
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto& history = state_.connectionHistory;
+    if (!history.empty() && history.back() == description) return;
+    if (history.size() == 16) history.erase(history.begin());
+    history.push_back(description);
+}
+bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& diagnostics) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stop_ || state_.pending || action == ServiceAction::None) return false;
+    cancelled_ = false;
+    state_.downloadedBytes = state_.totalBytes = 0;
+    request_ = action; diagnostics_ = diagnostics; state_.pending = true;
+    state_.message = action == ServiceAction::CheckUpdates ? "Checking for updates..." :
+        action == ServiceAction::ExportDiagnostics ? "Exporting diagnostics..." :
+        action == ServiceAction::InstallUpdate ? "Downloading and verifying the update..." : "Opening the updater...";
+    wake_.notify_one(); return true;
+}
+void ApplicationServices::Run() {
+    for (;;) {
+        ServiceAction action; DiagnosticsView diagnostics; ServiceSnapshot next;
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+            wake_.wait(lock, [&] { return stop_ || request_ != ServiceAction::None; });
+            if (stop_) return;
+            action = request_; request_ = ServiceAction::None; diagnostics = diagnostics_; next = state_;
+        }
+        try {
+            if (action == ServiceAction::CheckUpdates) {
+                next.update = launcher::CheckForUpdate();
+                next.message = !next.update.ok ? next.update.error : next.update.updateAvailable ?
+                    "An update is available: " + next.update.latestVersion : "You are up to date.";
+            } else if (action == ServiceAction::ExportDiagnostics) {
+                const auto directory = diagnosticsDirectory_.empty() ? std::filesystem::path(netplay::SettingsStore::DefaultDirectory()) / L"diagnostics" : std::filesystem::path(diagnosticsDirectory_);
+                std::filesystem::create_directories(directory);
+                const auto path = directory / L"ember-diagnostics.txt";
+                std::ofstream output(path, std::ios::trunc);
+                output << "SF4 Ember Netplay\nVersion: " << SF4E_APP_VERSION
+                    << "\nTransport: Iroh / GGPO\n" << DescribeDiagnostics(diagnostics)
+                    << "\nPing: " << (diagnostics.pingMs < 0 ? "Unavailable" : std::to_string(diagnostics.pingMs) + " ms")
+                    << "\nRecent connection transitions (oldest first):\n";
+                for (const auto& event : next.connectionHistory) output << event << '\n';
+                output.close();
+                next.message = output ? "Saved %APPDATA%\\sf4e\\diagnostics\\ember-diagnostics.txt" : "Diagnostics could not be saved. Try again.";
+            } else if (action == ServiceAction::OpenUpdater || action == ServiceAction::OpenRecovery) {
+                wchar_t root[MAX_PATH] = {};
+                if (!install::GetInstallRoot(root, MAX_PATH)) throw std::runtime_error("install directory");
+                const auto executable = std::filesystem::path(root) / L"Launcher.exe";
+                std::wstring command = L"\"" + executable.wstring() + L"\" " +
+                    (action == ServiceAction::OpenRecovery ? L"--recovery" : L"--updates") + L" --wait-pid " + std::to_wstring(GetCurrentProcessId());
+                STARTUPINFOW startup{}; startup.cb = sizeof(startup); PROCESS_INFORMATION process{};
+                if (!CreateProcessW(executable.c_str(), &command[0], nullptr, nullptr, FALSE, 0, nullptr, root, &startup, &process)) {
+                    next.message = "The updater could not start. Try again.";
+                } else {
+                    CloseHandle(process.hThread); CloseHandle(process.hProcess);
+                    next.closeGame = true; next.message = "Closing the game. The updater will open after it exits.";
+                }
+            } else if (action == ServiceAction::InstallUpdate) {
+                if (!next.update.ok || !next.update.updateAvailable || next.update.expectedSha256.size() != 64) {
+                    next.message = "A verified update is not available. Check for updates again.";
+                } else {
+                    const auto result = launcher::DownloadAndApplyUpdate(next.update.zipDownloadUrl.c_str(), next.update.zipApiUrl.c_str(),
+                        next.update.latestVersion.c_str(), next.update.expectedSha256.c_str(),
+                        [&](std::uint64_t received, std::uint64_t total) {
+                            if (cancelled_) return false;
+                            next.downloadedBytes = received; next.totalBytes = total;
+                            std::lock_guard<std::mutex> lock(mutex_);
+                            state_.downloadedBytes = received; state_.totalBytes = total;
+                            return true;
+                        });
+                    next.installed = result.ok;
+                    next.message = result.ok ? "Update prepared. Restarting SF4 Ember Netplay..." : result.error;
+                }
+            }
+        } catch (...) { next.message = "The operation failed. Please retry. Update recovery copies are kept in .ember-update-backups."; }
+        if (cancelled_ && !next.installed) next.message = "Operation cancelled.";
+        next.pending = false;
+        { std::lock_guard<std::mutex> lock(mutex_); next.connectionHistory = std::move(state_.connectionHistory); state_ = std::move(next); }
+    }
+}
+} }

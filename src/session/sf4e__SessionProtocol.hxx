@@ -2,13 +2,17 @@
 
 #include <string>
 #include <utility>
+#include <array>
 
 
-#include <GameNetworkingSockets/steam/isteamnetworkingutils.h>
+#include <cstdint>
+#include <vector>
 #include <nlohmann/json.hpp>
 
 #include "../Dimps/Dimps__GameEvents.hxx"
 #include "../Dimps/Dimps__Math.hxx"
+#include "../common/StageValue.hxx"
+#include "RoomModel.hxx"
 
 #define MAX_SF4E_PROTOCOL_USERS 4
 
@@ -57,8 +61,13 @@ namespace sf4e {
 			// be reachable, other P2P libraries (ex. GGPO) can try to leverage
 			// this to connect directly.
 			std::string ip;
-			uint16_t port;
-			uint64_t flags;
+			uint16_t port = 0;
+			uint64_t flags = 0;
+			// Stable room identity survives helper/server process restart. The
+			// numeric connId remains a local projection only.
+			room::MemberId roomMember = 0;
+			std::string authenticatedEndpoint;
+			std::uint64_t incarnation = 0;
 		};
 
 		struct LobbyData {
@@ -81,10 +90,11 @@ namespace sf4e {
 			void ClearReady();
 			bool IsAllReady();
 
-			int64_t readyMessageNum[2];
-			Dimps::GameEvents::VsMode::ConfirmedCharaConditions chara[2];
+			std::array<int64_t, 2> readyMessageNum = {{ -1, -1 }};
+			std::array<Dimps::GameEvents::VsMode::ConfirmedCharaConditions, 2> chara;
 			int64_t stageID;
 			DWORD rngSeed;
+			std::array<std::uint8_t, 2> inputDelay = {{ 2, 2 }};
 		};
 
 		enum MessageType {
@@ -114,7 +124,9 @@ namespace sf4e {
 			MT_PUNCH_READY,
 			MT_PUNCH_GO,
 
-			MT_FORWARD,
+		MT_FORWARD,
+		MT_GAME_PREPARE, MT_GAME_PREPARED, MT_GAME_CONNECT, MT_GAME_READY, MT_GAME_START, MT_GAME_END, MT_GAME_PEER_END,
+		MT_ROOM_SNAPSHOT, MT_ROOM_ACTION, MT_ROOM_RESULT, MT_ROOM_EVENT,
 		};
 
 		NLOHMANN_JSON_SERIALIZE_ENUM(MessageType, {
@@ -144,6 +156,11 @@ namespace sf4e {
 			{MT_PUNCH_GO, "punch_go"},
 
 			{MT_FORWARD, "forward"},
+			{MT_GAME_PREPARE, "game_prepare"}, {MT_GAME_PREPARED, "game_prepared"},
+			{MT_GAME_CONNECT, "game_connect"}, {MT_GAME_READY, "game_ready"},
+			{MT_GAME_START, "game_start"}, {MT_GAME_END, "game_end"}, {MT_GAME_PEER_END, "game_peer_end"},
+			{MT_ROOM_SNAPSHOT, "room_snapshot"}, {MT_ROOM_ACTION, "room_action"},
+			{MT_ROOM_RESULT, "room_result"}, {MT_ROOM_EVENT, "room_event"},
 		})
 
 		enum JoinResult {
@@ -165,17 +182,31 @@ namespace sf4e {
 		struct SessionHelloMsg {
 			MessageType type = MT_SESSION_HELLO;
 			ConnectionID cid;
+			std::string authenticatedEndpoint;
+			std::uint64_t incarnation = 0;
+			// New recovery bootstrap clients carry the complete admission request
+			// in the first authenticated hello. Older clients leave this object
+			// empty and continue with the legacy join_req round trip.
+			nlohmann::json admission = nlohmann::json::object();
 		};
 
 		struct SessionHelloResp {
 			MessageType type = MT_SESSION_HELLO_RESP;
 			ConnectionID cid;
+			room::MemberId roomMember = 0;
+			std::string authenticatedEndpoint;
+			std::uint64_t incarnation = 0;
 		};
 
 		struct SessionDataUpdate {
 			MessageType type = MT_SESSION_DATAUPDATE;
 			LobbyData lobbyData;
 			MatchData matchData;
+			// Custom-room projections carry the room-wide generation that produced
+			// this native roster/settings payload. Legacy sessions leave it zero.
+			std::uint64_t matchGeneration = 0;
+			std::uint64_t authorityTerm = 0;
+			std::uint64_t authorityRevision = 0;
 		};
 
 		struct SessionJoinReject {
@@ -188,6 +219,9 @@ namespace sf4e {
 			std::string sidecarHash;
 			std::string username;
 			uint16_t port;
+			bool customRooms = false;
+			std::uint32_t roomProtocol = 0;
+			int mainFighter = -1;
 		};
 
 		struct LobbyReady {
@@ -315,21 +349,44 @@ namespace sf4e {
 			nlohmann::json msg;
 		};
 
+		struct RoomSnapshotMessage {
+			MessageType type = MT_ROOM_SNAPSHOT;
+			room::Snapshot snapshot;
+		};
+
+		struct RoomActionMessage {
+			MessageType type = MT_ROOM_ACTION;
+			room::Action action;
+		};
+
+		struct RoomResultMessage {
+			MessageType type = MT_ROOM_RESULT;
+			room::Result result;
+			// Echoes the client action so a retry can retire its pending command.
+			// Zero preserves the legacy fixture shape.
+			std::uint64_t actionId = 0;
+		};
+
+		struct RoomEventMessage {
+			MessageType type = MT_ROOM_EVENT;
+			room::Event event;
+		};
+
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConnectionID, host, user);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyID, host, key);
 
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MemberData, connId, name, ip, port);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(MemberData, connId, name, ip, port, flags, roomMember, authenticatedEndpoint, incarnation);
 		// WITH_DEFAULT so a LobbyData from a peer built before a field was
 		// added (e.g. trainingMode) deserializes with that field's default
 		// instead of throwing on the missing key.
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LobbyData, id, editionSelect, roundCount, roundTime, trainingMode, members);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MatchData, readyMessageNum, chara, stageID, rngSeed);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(MatchData, readyMessageNum, chara, stageID, rngSeed, inputDelay);
 
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SessionHelloMsg, type);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SessionHelloResp, type, cid);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SessionDataUpdate, type, lobbyData, matchData);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionHelloMsg, type, cid, authenticatedEndpoint, incarnation, admission);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionHelloResp, type, cid, roomMember, authenticatedEndpoint, incarnation);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionDataUpdate, type, lobbyData, matchData, matchGeneration, authorityTerm, authorityRevision);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SessionJoinReject, type, result);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SessionJoinRequest, type, sidecarHash, username, port);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionJoinRequest, type, sidecarHash, username, port, customRooms, roomProtocol, mainFighter);
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReady, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyAllReady, type);
@@ -339,11 +396,23 @@ namespace sf4e {
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PreBattleSetChara, type, chara);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PreBattleSetEnv, type, rngSeed);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PreBattleSetStage, type, stageID);
+		inline void to_json(nlohmann::json& j, const PreBattleSetStage& value) {
+			j = nlohmann::json{{"type", value.type}, {"stageID", value.stageID}};
+		}
+		inline void from_json(const nlohmann::json& j, PreBattleSetStage& value) {
+			PreBattleSetStage parsed;
+			j.at("type").get_to(parsed.type);
+			parsed.stageID = selection::ReadStage(j.at("stageID"));
+			value = parsed;
+		}
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(BattleGgpoFrame, type, src, dest, data);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PunchReady, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PunchGo, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ForwardMessage, type, src, dest, msg);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomSnapshotMessage, type, snapshot);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomActionMessage, type, action);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(RoomResultMessage, type, result, actionId);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomEventMessage, type, event);
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(StateSnapshot::CharaStateSnapshot, status, rootPos, side, vit, vitmax, revenge, revengemax, recoverable, recoverablemax, super, supermax, sctimeamt, sctimemax, uctime, uctimemax, damage, combodamage);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(StateSnapshot, frameIdx, chara);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 
 namespace sf4e {
 
@@ -24,50 +25,6 @@ namespace sf4e {
 		unsigned long win32Error = 0;
 	};
 
-	bool DetectLanIPv4(char* outIp, int outIpLen);
-
-	// Poll until UDP port is bound locally (optionally by ownerPid) or timeoutMs elapses.
-	bool WaitForLocalTcpPort(uint16_t port, int timeoutMs = 3000, unsigned long ownerPid = 0);
-
-	// Non-blocking TCP connect probe to a remote host:port. timeoutMs is the select wait budget.
-	bool ProbeRemoteTcpConnect(const char* host, uint16_t port, int timeoutMs = 5000);
-
-	// Strips leading/trailing whitespace and line endings in place.
-	void TrimRoomCodeInPlace(char* buf);
-
-	// HTTPS lookup of public IPv4 (api.ipify.org, then icanhazip.com). timeoutMs per request.
-	bool FetchPublicIPv4(char* outIp, int outIpLen, int timeoutMs = 5000);
-
-	// Resolve hostname or dotted IPv4 to IPv4 string for UDP sockets.
-	bool ResolveHostToIPv4(const char* host, char* outIp, int outIpLen);
-
-	bool CopyTextToClipboardUtf8(const char* text);
-
-	// HTTP GET; returns response body (UTF-8). useHttps selects port 443 vs 80.
-	bool HttpGetUtf8(
-		const char* host,
-		int port,
-		bool useHttps,
-		const char* path,
-		int timeoutMs,
-		char* outBody,
-		int outBodyLen,
-		HttpRequestResult* outResult = nullptr
-	);
-
-	// HTTP POST with application/json body.
-	bool HttpPostJsonUtf8(
-		const char* host,
-		int port,
-		bool useHttps,
-		const char* path,
-		int timeoutMs,
-		const char* jsonBody,
-		char* outBody,
-		int outBodyLen,
-		HttpRequestResult* outResult = nullptr
-	);
-
 	// HTTPS GET with optional request headers (UTF-8). headers is CRLF-separated, e.g. "Accept: application/json\r\n".
 	bool HttpGetUtf8WithHeaders(
 		const char* host,
@@ -86,7 +43,8 @@ namespace sf4e {
 		const wchar_t* destPath,
 		int timeoutMs = 120000,
 		const char* extraHeaders = nullptr,
-		HttpRequestResult* outResult = nullptr
+		HttpRequestResult* outResult = nullptr,
+        const std::function<bool(std::uint64_t, std::uint64_t)>& progress = {}
 	);
 
 } // namespace sf4e

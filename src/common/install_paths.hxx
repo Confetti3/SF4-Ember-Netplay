@@ -5,7 +5,7 @@
 namespace sf4e {
 namespace install {
 
-// Subfolder beside Launcher.exe that holds runtime DLLs (Qt, Steam, Sidecar, etc.).
+// Subfolder beside Launcher.exe that holds runtime DLLs (recovery, Steam, Sidecar, etc.).
 extern const wchar_t kDllDirName[];
 
 // Call first in wWinMain before any delay-loaded DLL is used.

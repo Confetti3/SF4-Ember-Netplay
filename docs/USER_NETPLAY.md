@@ -1,111 +1,42 @@
-# Ultra Street Fighter IV — SF4 Netplay Launcher (player guide)
+# SF4 Ember Netplay — player guide
 
-**Something broken?** See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for black launcher screen, crash on **Start game**, recommended settings, and Direct IP firewall help.
+Own and install Ultra Street Fighter IV on Steam. Use the complete package on both machines and install the Microsoft Visual C++ x86 runtime if Windows reports a missing runtime DLL.
 
-> **Experimental unofficial port** — based on upstream [sf4e](https://codeberg.org/adanducci/sf4e) by Anthony Danducci (MIT). Anthony Danducci does not maintain or endorse this launcher. **Not production-ready** — netplay may fail. See `ATTRIBUTION.md`.
+1. Download `sf4-ember-netplay-0.8.0.zip` and extract it into a **new writable folder**, then run `preflight.cmd`. Keep your old launcher installation separate; upgrading from the legacy launcher is a fresh install. Existing Ember preferences remain under `%APPDATA%\sf4e`.
+2. Run `Launcher.exe`. Successful startup goes directly to the game. If the game cannot be found, choose the folder containing `SSFIV.exe` in launch recovery.
+3. At the main menu, Ember opens across the game viewport. Set your player name in Settings. In Play or Settings, select **Change controller**, release held buttons, press a button on your controller, then release it. Confirm the displayed gameplay device. **Use keyboard** is an explicit alternative.
+4. The host selects **Online Play > Create Room**, sets the room name, capacity and default rules, then chooses **Copy invitation**. Send that private invitation through your own messaging app. A guest chooses **Join room** and pastes the invitation.
+5. A joined member starts idle. Choose a table, then explicitly **Join queue** to seek a fighter seat or **Watch next game** to reserve a spectator place. A room has up to 16 members and four independent tables.
+6. Open **Fighter Select** to save your fighter, edition, costume, color and Ultra. You can do this before joining a room or while waiting alone. P1 chooses the match stage. Return to Play and select **Ready**; it uses your saved selection. Choose **Unready** before changing it.
+7. The menu hides for loading and gameplay. A tiny line at the very bottom shows both fighter names and **RB** frames. RB is the largest number of replayed frames in a single rollback during the preceding second; it returns to zero when none occur.
+8. After a game, the same pair may ready again for unlimited rematches. Their score remains attached to that pair, and no automatic set rotation occurs. A fighter who leaves opens the seat to the next queued member.
 
-## Prerequisites
+Queued members can watch from the next game while retaining their queue position. Spectators have no Ready action; while waiting outside a match, they can save a fighter choice for their next turn. **Stop watching** leaves the spectator roster while the fighters continue. A table can include up to 14 spectators in addition to its two fighters.
 
-- **[VC++ Redistributable (x86)](https://aka.ms/vs/17/release/vc_redist.x86.exe)** — required for the launcher and Sidecar binaries.
-- **Qt 6 runtime** — included in the release zip (`Qt6Core.dll`, `Qt6Gui.dll`, `Qt6Widgets.dll`, `plugins/`). No separate UI runtime install needed.
+**Connection advice:** Battle setup shows Recommended delay and your saved Selected delay. **Check connection** is optional and takes about five seconds. **Checking connection...** shows that a check is running; wait for it to finish before retrying. If it cannot produce a recommendation, choose **Retry connection check** or set a delay manually and Ready. Apply recommendation explicitly copies the measured value; you can also adjust Selected delay from zero to ten. A new profile starts at two. Ready locks your own delay for that game, and Unready unlocks it. Insufficient samples never block manual Ready. Half of round-trip latency is only an estimate, and the recommendation includes a two-frame prediction allowance. A later route change never alters delay during a fight.
 
-## Quick start
+**Invitations:** new copied invitations start with `sf4e3:`; Discord uses `emd2:` secrets within its 128-character limit. Use the same package on both PCs. Invitations identify the room's current authority and expire. Copy a fresh invitation after an authority change; stale references cannot admit new members.
 
-1. Extract a release build so `Launcher.exe`, `Sidecar.dll`, `RelayHost.exe`, Qt DLLs, and `plugins/` sit in the same directory.
-2. Run **Launcher.exe**.
-3. In the Qt launcher home screen, pick **Host**, **Join**, or **Offline** (toggle **Advanced** for direct IP, UPnP, open rooms, and broker URL).
-4. Click **Start game** — USF4 launches with netplay configured.
+**Discord:** keep the Discord desktop app open. Ember shares basic activity, elapsed session time, and room occupancy. A host or guest can invite friends using Discord's interface while the room is unlocked and has space. Accepting an invite starts Ember when needed and waits for the main menu, networking, and your gameplay device. You enter idle and choose a table, queue, or spectator place yourself. If you are already in another room or playing offline, return to the main menu and choose **Switch to invited room**, or **Cancel Discord invite**. No fight is interrupted.
 
-## Simple mode (relay — experimental, friends-only)
+Settings includes **Show activity on Discord** and **Allow invites from my activity**, both initially enabled. Turning off activity also stops advertising invites. These controls do not revoke invitations already shared or change the host's admission policy. Discord receives no room names, player names, fighter selections, stages, scores, or connection metrics. Discord being closed or unavailable does not prevent normal play.
 
-**Simple mode** is on by default. Use short room codes — no manual IP entry.
+The room host is separate from the P1 seat. The host can rename the room, lock admission, change capacity, edit rules for a waiting table, and kick members. A kicked peer cannot rejoin that room under another name. The host can cancel an unresolved game after conflicting or missing native result reports; cancellation awards no win and preserves earlier scores. A result counts only when both fighter reports agree.
 
-### Host (relay)
+**Host transfer:** the current host can select another member and choose Transfer host. The confirmation starts on Cancel. Normal host departure transfers moderation to the oldest eligible remaining member. Moderation ownership is separate from the technical coordination leader.
 
-1. **Host** (home → Host) → enter display name.
-2. Click **Get code** → copy **`SF4-XXXX`** and send it to your opponent.
-3. Click **Start game** — you connect to the VPS (no port forward on your PC). The in-game overlay shows your **SF4-XXXX** code to share.
-4. Wait in the in-game lobby; both players **Ready** to start.
+**Room recovery:** room actions pause immediately when control becomes unavailable, while a healthy active game keeps its existing gameplay connection. Confirmed results wait for reconciliation, and result deadlines pause during recovery. After 15 seconds, Replace room offers a fresh room with new invitations. It remains unavailable while local gameplay owns its sockets. For incomplete preparation, explicit selection cancels setup and waits for its local connections to close before creating the room. Preferences and local records remain. Recovery continues in the background while you decide. A two-member room cannot recover its old quorum after one member is unexpectedly lost. Larger rooms need their existing voter majority. Replacement never recreates authority for the old room.
 
-### Join (relay)
+**Leaving a room:** choose **Leave room** from the room board or your table, then confirm. **Leaving room...** stays visible until the connection closes, and Ember returns to Home. Hiding Ember keeps you in the room. During **Updating room**, wait for the controls to return; Leave remains available.
 
-1. **Join** (home → Join) → enter display name.
-2. Paste the host's **`SF4-XXXX`** code.
-3. Wait until the host has clicked **Start game**, then click **Start game** on your side.
-4. Press **Ready** in the lobby when connected.
+**Offline:** select Play Offline. Native Options contains button mappings and graphics settings. Fighter Select saves the choice used by online matches, including rematches, and shows only options available in your game under the current rules.
 
-Default broker: `https://74-208-200-95.nip.io`. Override with `SF4E_BROKER_URL` or Advanced → **Room broker URL**. For a local HTTP broker during development, also set `SF4E_ALLOW_HTTP_BROKER=1`.
+**Training controls:** in offline training, press **F6** to open or close Training Lab. Use the keyboard and mouse: arrows navigate, Enter selects, and Escape returns or closes the panel. **F5** toggles the frame-meter HUD. Controller Start opens the native pause menu when Training Lab is closed. Gameplay inputs are captured while Training Lab is open and until held buttons are released. Record, Play, and Restore return to practice after acceptance; an error stays visible. Overwriting or clearing a recording requires confirmation, initially focused on Cancel.
 
-### Transport (Simple mode)
+**Navigation:** F10 toggles at safe menu states; controller Start opens. Escape / controller Back closes a popup first, returns from a secondary page, then hides Play. Hiding the menu never leaves a room. Reopening is disabled during fights.
 
-After **Start game**, the launcher fetches a connect-plan, probes NAT (`8790/udp`), and registers endpoints. Sidecar then picks the best path:
+**Settings:** profile and input delay, room defaults, controller guidance, HUD visibility and interface scale. You can change gameplay device while unready, including inside a room. Any controller supported by SF4 can be assigned, including DirectInput sticks and leverless devices. The device stays selected across matches in this game session. Reconnect a disconnected device or explicitly choose another before Ready. Menu navigation is paused during capture; use Cancel or F10 to leave it. Display options remain in the native game menus.
 
-```
-p2p → udp_relay → legacy_session_tunnel (always available fallback)
-```
+**Help & About:** readable connection state, redacted diagnostics export, attribution, version and update checking. Leave your room before handing off to updates. Installation waits for shutdown and verifies the downloaded ZIP. Your own files and recovery backups are preserved.
 
-Optional override: `SF4E_GGPO_TRANSPORT=legacy|udp|p2p|auto`. Details: [TRANSPORT_REGRESSION.md](TRANSPORT_REGRESSION.md).
-
-## Host (Advanced — direct IP)
-
-1. Select **Host**, enter display name and input delay.
-2. The launcher shows your **LAN address** (same Wi‑Fi/Ethernet) and your **public internet address** (use **Refresh** if needed; you can edit it).
-3. Click **Copy** on the room code and send it to your opponent (format `IP:port`, default port **23456**).
-4. **Internet play:** joiners must use your **public** or **VPN** IP in the room code, not `192.168.x.x`, unless they are on the same LAN.
-5. On your router, **port-forward TCP and UDP** on the session port to this PC. Allow the port in **Windows Firewall**.
-6. Wait in the in-game lobby; when both players are **Ready** on the main menu, the match starts.
-
-## Join (Advanced — direct IP)
-
-1. Select **Join**, enter your display name.
-2. Paste the host's room code into **Host address** (`IP:port` or `hostname:port`). The field remembers your last join.
-3. You can use a **different IP** than the host's LAN address (e.g. their public IP or a VPN IP).
-4. Click **Start game**; the Network panel shows your **join target**. Press **Ready** in the lobby when connected.
-
-## Offline
-
-Launches USF4 with the Sidecar netplay layer loaded but no online session.
-
-## Command line (optional)
-
-```bat
-Launcher.exe --host
-Launcher.exe --join SF4-AB12
-Launcher.exe --join 203.0.113.42:23456
-Launcher.exe --offline
-Launcher.exe --console
-Launcher.exe --dev-overlay
-Launcher.exe --apply-update
-```
-
-Automation / legacy bridges (not for normal play): `--electron-ipc`, `--headless-test-handshake`.
-
-## Playing over the internet (WAN)
-
-| Requirement | Notes |
-|-------------|--------|
-| Same `Sidecar.dll` on both PCs | Join fails with "version mismatch" otherwise |
-| Host port-forward **23456** | **Simple relay:** no host port forward. **Direct IP (Advanced):** host forwards session port (default 23456, TCP+UDP) |
-| Qt 6 DLLs in zip | Included in the release package |
-| Room code **`SF4-XXXX`** | Default in Simple mode; broker resolves to VPS relays |
-| Direct **`IP:port`** | Advanced mode only |
-
-**Simple mode:** prefer **p2p** or **udp_relay**; **legacy_session_tunnel** always works as fallback. Set `SF4E_RELAY=0` only for advanced LAN troubleshooting.
-
-## Build ID (version check)
-
-Both players need the same `Sidecar.dll` build. Enable developer overlay (`SF4E_NETPLAY_DEV=1` or `--dev-overlay`) to see the build hash in-game.
-
-## Graphics
-
-Disable **Smooth** frame rate in in-game graphics options if rollback feels wrong.
-
-## Logs
-
-`Launcher.exe --console` or files under `%APPDATA%\sf4e\`.
-
-Full checklist and bug-report items: [TROUBLESHOOTING.md](TROUBLESHOOTING.md#collecting-logs-for-a-bug-report).
-
-## Linux / Steam Deck
-
-Use `protontricks-launch --appid 45760 Launcher.exe` as described in the main README.
+This experimental release has automated transport coverage. Actual SF4 host/join, native fights, repeated rematches, spectators, different-network and clean-machine results must be recorded separately. The source repository contains the implementation record at `docs/EMBER_IMPLEMENTATION.md`; this package guide has no repository-relative links so it remains valid as `START_HERE.md`.

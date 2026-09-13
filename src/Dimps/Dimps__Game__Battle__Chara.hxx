@@ -141,7 +141,17 @@ namespace Dimps {
 						int (Actor::* GetComboDamage)(Dimps::Math::FixedPoint* out);
 						int (Actor::* GetCurrentSide)();
 						int (Actor::* GetDamage)(Dimps::Math::FixedPoint* out);
-						unsigned int (Actor::* GetStatus)();
+                        unsigned int (Actor::* GetStatus)();
+                        // Native debug queries getAction/getCharacterFrame use
+                        // these inherited Action::Actor readers (vtable +50/+54).
+                        int (Actor::* GetActionID)();
+                        Dimps::Math::FixedPoint* (Actor::* GetActionFrame)(Dimps::Math::FixedPoint* out);
+                        // Used by native recovery dispatch (0 standing, 1 crouching).
+                        int (Actor::* GetActionPosture)();
+                        // Nonzero makes the native basic-action evaluator return early.
+                        int (Actor::* GetBasicActionInhibit)();
+                        // Resolves an action ID in the actor's current BAC bank.
+                        const unsigned short* (Actor::* GetActionScript)(int action);
 
 						void (Actor::* GetVitalityAmt_FixedPoint)(Dimps::Math::FixedPoint* out);
 						void (Actor::* GetVitalityMax_FixedPoint)(Dimps::Math::FixedPoint* out);

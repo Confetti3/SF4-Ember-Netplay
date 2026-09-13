@@ -1,190 +1,34 @@
-# sf4e tester preflight - run from the extracted package folder before Launcher.exe.
-
-# Usage: preflight.cmd (from the package folder; cmd passes -PackageDir automatically)
-
-
-
-param(
-
-    [string]$PackageDir = ""
-
-)
-
-
-
-$ErrorActionPreference = "Continue"
-
-if (-not $PackageDir) {
-    if ($PSScriptRoot) {
-        $PackageDir = $PSScriptRoot
-    } else {
-        $PackageDir = (Get-Location).Path
+param([string]$PackageDir = $PSScriptRoot)
+$ErrorActionPreference = 'Stop'
+$package = (Resolve-Path -LiteralPath $PackageDir).Path.TrimEnd('\','/')
+$inventory = Join-Path $package 'PackageInventory.inc'
+$allowed = @(); $obsolete = @()
+foreach ($line in Get-Content -LiteralPath $inventory) {
+    if ($line -match '^SF4E_PACKAGE_(REQUIRED|OPTIONAL|OBSOLETE)\("(.*)"\)') {
+        $kind = $Matches[1]; $path = $Matches[2].Replace('\\','\')
+        if ($kind -eq 'OBSOLETE') { $obsolete += $path; continue }
+        $allowed += $path
+        if ($kind -eq 'REQUIRED' -and !(Test-Path -LiteralPath (Join-Path $package $path) -PathType Leaf)) { throw "Missing $path" }
     }
 }
-
-
-
-$RequiredFiles = @(
-
-    "Launcher.exe",
-
-    "RelayHost.exe",
-
-    "Sidecar.dll",
-
-    "Updater.exe",
-
-    "qt.conf",
-
-    "plugins\platforms\qwindows.dll",
-
-    "Qt6Core.dll",
-
-    "Qt6Gui.dll",
-
-    "Qt6Widgets.dll",
-
-    "spdlog.dll",
-
-    "fmt.dll",
-
-    "GameNetworkingSockets.dll",
-
-    "GGPO.dll",
-
-    "libcrypto-3.dll",
-
-    "libprotobuf.dll",
-
-    "abseil_dll.dll"
-
-)
-
-
-
-$failures = @()
-
-$warnings = @()
-
-
-
-Write-Host "SF4 Netplay Launcher preflight"
-
-Write-Host "Package folder: $PackageDir"
-
-Write-Host ""
-
-
-
-foreach ($rel in $RequiredFiles) {
-
-    $path = Join-Path $PackageDir $rel
-
-    if (Test-Path $path) {
-
-        Write-Host "[OK]   $rel"
-
-    } else {
-
-        Write-Host "[FAIL] $rel"
-
-        $failures += "Missing file: $rel"
-
-    }
-
+foreach ($path in $obsolete) { if (Test-Path -LiteralPath (Join-Path $package $path)) { throw "Obsolete product file: $path" } }
+foreach ($file in Get-ChildItem -LiteralPath $package -File -Recurse) {
+    $relative = $file.FullName.Substring($package.Length + 1)
+    if ($relative -notin $allowed -and $relative -notmatch '^assets\\selection\\') { throw "Unexpected package file: $relative" }
 }
-
-
-
-# VC++ 2015-2022 x86 (best-effort registry check)
-
-$vcOk = $false
-
-$vcReg = @(
-
-    "HKLM:\SOFTWARE\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\x86",
-
-    "HKLM:\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86"
-
-)
-
-foreach ($regPath in $vcReg) {
-
-    if (Test-Path $regPath) {
-
-        $installed = (Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue).Installed
-
-        if ($installed -eq 1) {
-
-            $vcOk = $true
-
-            Write-Host "[OK]   VC++ 2015-2022 Redistributable (x86)"
-
-            break
-
-        }
-
-    }
-
+$manifestPaths = @{}
+foreach ($line in Get-Content -LiteralPath (Join-Path $package 'MANIFEST.txt')) {
+    if ($line -notmatch '^([0-9a-fA-F]{64})  (.+)$') { throw 'Malformed manifest' }
+    $expected = $Matches[1]; $relative = $Matches[2]
+    if ($relative.Contains('..') -or [IO.Path]::IsPathRooted($relative)) { throw 'Invalid manifest path' }
+    if ($manifestPaths.ContainsKey($relative)) { throw "Duplicate manifest entry: $relative" }
+    $manifestPaths[$relative] = $true
+    if ((Get-FileHash -LiteralPath (Join-Path $package $relative) -Algorithm SHA256).Hash -ne $expected) { throw "Hash mismatch: $relative" }
 }
-
-if (-not $vcOk) {
-
-    Write-Host "[WARN] VC++ x86 redistributable not detected"
-
-    $warnings += "Install VC++ x86 redist: https://aka.ms/vs/17/release/vc_redist.x86.exe"
-
+foreach ($file in Get-ChildItem -LiteralPath $package -File -Recurse) {
+    $relative = $file.FullName.Substring($package.Length + 1)
+    if ($relative -ne 'MANIFEST.txt' -and !$manifestPaths.ContainsKey($relative)) { throw "Missing manifest hash: $relative" }
 }
-
-
-
-$buildInfo = Join-Path $PackageDir "BUILD_INFO.txt"
-
-if (Test-Path $buildInfo) {
-
-    Write-Host ""
-
-    Write-Host "--- BUILD_INFO.txt ---"
-
-    Get-Content $buildInfo | ForEach-Object { Write-Host $_ }
-
-}
-
-
-
-Write-Host ""
-
-if ($failures.Count -gt 0) {
-
-    Write-Host "RESULT: FAIL"
-
-    Write-Host "Fix:"
-
-    foreach ($f in $failures) { Write-Host "  - $f" }
-
-    Write-Host "  Re-extract the full zip. Do not copy only Launcher.exe."
-
-    exit 1
-
-}
-
-
-
-if ($warnings.Count -gt 0) {
-
-    Write-Host "RESULT: PASS with warnings"
-
-    foreach ($w in $warnings) { Write-Host "  - $w" }
-
-    exit 0
-
-}
-
-
-
-Write-Host "RESULT: PASS - run Launcher.exe from this folder."
-Write-Host ""
-Write-Host "Note: Windows Defender may flag Sidecar.dll as Wacapew.A!ml (false positive on unsigned hook)."
-Write-Host "      See docs\WINDOWS_DEFENDER.md - verify release hashes; signed builds are the fix."
-
-exit 0
+$artCount = @(Get-ChildItem -LiteralPath (Join-Path $package 'assets/selection') -Recurse -File -Filter '*.png').Count
+if ($artCount -lt 44) { throw 'Fighter artwork is incomplete' }
+Write-Host "SF4 Ember Netplay preflight passed: required files, obsolete runtime exclusion, manifest hashes, $artCount artwork images."
