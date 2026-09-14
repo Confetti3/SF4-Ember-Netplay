@@ -181,6 +181,9 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      ready?"Choose Unready to check the connection before the next match.":
      !delayEditable?"Finish the current match before checking the connection.":check.detail,
      v.canProbe&&delayEditable&&!check.checking));
+    rows.push_back(Row("benchmark-connection","Benchmark connection (30 seconds)",
+     "Measure gameplay-size datagrams to your opponent. Reports network performance, not game FPS.",
+     v.canProbe&&delayEditable&&!check.checking));
     rows.push_back(Row("apply-recommendation","Apply recommendation",recommended?
      "Set your selected delay to "+std::to_string(v.recommendedDelay)+" frames.":"Run Check connection before applying a recommendation.",
      v.canApplyDelay&&recommended&&delayEditable&&!check.checking));
@@ -354,12 +357,12 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
 }
 void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const Submit& submit) {
  using namespace room;auto& nav=menu_.navigation;
- const auto sendDelay=[&](netplay::CommandKind kind,int selected){
+ const auto sendDelay=[&](netplay::CommandKind kind,int selected,bool benchmark=false){
   if(!RoomActionsAvailable(v) || v.delayLocked ||
      (kind==netplay::CommandKind::CheckConnection && (!v.canProbe || v.probeStatus=="checking"))) {
    error_=RoomWaitReason(v);return false;
   }
-  ShellAction request;request.command.kind=kind;request.command.generation=v.session.generation;request.selectedDelay=selected;
+  ShellAction request;request.command.kind=kind;request.command.generation=v.session.generation;request.selectedDelay=selected;request.command.benchmark=benchmark;
   if(!submit(std::move(request))){error_="The delay action could not be queued. Please try again.";return false;}
   error_.clear();return true;
  };
@@ -372,6 +375,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();notice_="Invitation copied.";noticeUntil_=ImGui::GetTime()+3;return;}
   if(a.id=="replace-room"){ShellAction request;request.command.kind=netplay::CommandKind::ReplaceRoom;request.command.generation=v.session.generation;
    if(!submit(std::move(request)))error_="The replacement room could not be queued. Please try again.";else error_.clear();return;}
+  if(a.id=="benchmark-connection"){sendDelay(netplay::CommandKind::CheckConnection,-1,true);return;}
   if(a.id=="check-connection"){sendDelay(netplay::CommandKind::CheckConnection,-1);return;}
   if(a.id=="apply-recommendation"){sendDelay(netplay::CommandKind::ApplyDelay,-1);return;}
   if(a.id=="selected-delay"&&a.kind==MenuAction::Adjust){

@@ -11,6 +11,12 @@ enum class ServiceAction { None, CheckUpdates, ExportDiagnostics, OpenUpdater, I
 struct DiagnosticsView {
     int room = 0, match = 0, control = 0, gameplay = 0, pingMs = -1;
     bool helperReady = false, verificationAvailable = false;
+    // Typed allowlist: no endpoint addresses, identities, credentials or names.
+    int probeState=0, probeRoute=0;
+    unsigned sent=0, expected=0;
+    bool benchmark=false;
+    unsigned replies=0, missed=0, directLinks=0, relayedLinks=0;
+    std::uint64_t p50Us=0,p95Us=0,p99Us=0,jitterUs=0,routeChanges=0,localDrops=0,sendPressure=0;
 };
 struct ServiceSnapshot {
     bool pending = false, closeGame = false, installed = false;

@@ -11,10 +11,20 @@ std::string DescribeDiagnostics(const DiagnosticsView& view) {
     const char* matches[] = {"None", "Preparing", "Playing", "Post-match", "Failed"};
     const char* health[] = {"Offline", "Connecting", "Healthy", "Lost"};
     const auto label = [](int value, const char* const* names, int count) { return value >= 0 && value < count ? names[value] : "Unavailable"; };
+    const char* probes[] = {"Not checked","Checking","Complete","Invalidated","Unavailable","Timed out","Local overload"};
+    const char* routes[] = {"Unknown","Direct","Relayed"};
     return std::string("Helper: ") + (view.helperReady ? "Ready" : "Unavailable") +
         " | Room: " + label(view.room,rooms,5) + " | Match: " + label(view.match,matches,5) +
         " | Control: " + label(view.control,health,4) + " | Gameplay: " + label(view.gameplay,health,4) +
-        " | Verification: " + (view.verificationAvailable ? "Available" : "Unavailable");
+        " | Verification: " + (view.verificationAvailable ? "Available" : "Unavailable") +
+        " | Network check: " + label(view.probeState,probes,7) + (view.benchmark ? " (30s benchmark)" : " (5s check)") +
+        " | Measured route: " + label(view.probeRoute,routes,3) +
+        " | Sent/scheduled: " + std::to_string(view.sent) + "/" + std::to_string(view.expected) +
+        " | Replies/missed: " + std::to_string(view.replies) + "/" + std::to_string(view.missed) +
+        " | RTT p50/p95/p99 us: " + std::to_string(view.p50Us) + "/" + std::to_string(view.p95Us) + "/" + std::to_string(view.p99Us) +
+        " | RTT variation us: " + std::to_string(view.jitterUs) +
+        " | Gameplay direct/relay links: " + std::to_string(view.directLinks) + "/" + std::to_string(view.relayedLinks) +
+        " | Route changes/local drops/send pressure: " + std::to_string(view.routeChanges) + "/" + std::to_string(view.localDrops) + "/" + std::to_string(view.sendPressure);
 }
 ApplicationServices::ApplicationServices(std::wstring diagnosticsDirectory) : diagnosticsDirectory_(std::move(diagnosticsDirectory)), worker_(&ApplicationServices::Run, this) {}
 ApplicationServices::~ApplicationServices() {

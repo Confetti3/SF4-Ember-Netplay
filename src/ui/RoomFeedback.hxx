@@ -24,24 +24,38 @@ struct ConnectionCheckFeedback {
     std::string value, detail, action;
     bool checking = false;
 };
+inline std::string ProbeMilliseconds(std::uint64_t us) {
+    return std::to_string(us/1000)+"."+std::to_string((us%1000)/100);
+}
 inline ConnectionCheckFeedback DescribeConnectionCheck(const ShellView& view) {
     ConnectionCheckFeedback result;
     result.checking = view.probeStatus == "checking";
     const bool measured = view.recommendedDelay >= 0 && view.recommendedDelay <= 10;
     if (result.checking) {
         result.value = "Checking...";
-        result.detail = "Measuring your opponent's connection. This usually takes a few seconds. You can still choose a delay manually.";
+        result.detail = view.probeBenchmark ?
+            "Benchmarking gameplay-size datagrams for 30 seconds, plus connection setup. This measures network performance, not game FPS." :
+            "Measuring gameplay datagrams for five seconds, plus connection setup. You can still choose a delay manually.";
         result.action = "Checking connection...";
     } else if (measured) {
         result.value = std::to_string(view.recommendedDelay) + " frames";
-        result.detail = "Check complete: " + std::to_string(view.probeSamples) + " replies, " +
-            std::to_string(view.probeLost) + " missed. Apply this recommendation or choose your own delay.";
+        result.detail = view.probeRoute + " connection. RTT median " + ProbeMilliseconds(view.probeP50Us) +
+            " ms; p95 " + ProbeMilliseconds(view.probeP95Us) + " ms; p99 " + ProbeMilliseconds(view.probeP99Us) +
+            " ms. RTT variation " + ProbeMilliseconds(view.probeJitterUs) + " ms. " +
+            std::to_string(view.probeSent) + " sent, " + std::to_string(view.probeSamples) + " replies, " + std::to_string(view.probeLost) +
+            " missed. Apply this recommendation or choose your own delay.";
         result.action = "Check connection again";
     } else if (!view.probeStatus.empty()) {
         result.value = "No recommendation";
-        result.detail = view.probeStatus == "invalidated" ?
+        result.detail = view.probeStatus == "timed_out" ?
+            "The connection check timed out. Retry, or choose a delay and Ready." : view.probeStatus == "invalidated" ?
             "The connection or opponent changed. Run the check again, or choose a delay and Ready." :
+            view.probeStatus == "local_overload" ?
+            "This PC could not send the full workload on time. Retry with less background load, or choose a delay manually." :
             "The check could not collect enough replies. Retry, or choose a delay and Ready; a recommendation is optional.";
+        if(view.probeSent && view.probeStatus!="invalidated") result.detail += " Sent " + std::to_string(view.probeSent) +
+            " of " + std::to_string(view.probeExpected) + " scheduled packets; " + std::to_string(view.probeSamples) +
+            " replies, " + std::to_string(view.probeLost) + " missed.";
         result.action = "Retry connection check";
     } else {
         result.value = "Not checked";

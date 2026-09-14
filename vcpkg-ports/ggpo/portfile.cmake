@@ -7,6 +7,7 @@ vcpkg_from_github(
         "install-cmake-export.patch"
         "reject-invalid-udp-messages.patch"
         "confirmed-frame-accessor.patch"
+        "spectator-poll-capacity.patch"
 )
 
 vcpkg_cmake_configure(

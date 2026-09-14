@@ -4,7 +4,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
 project (
     sf4e
-    VERSION 0.8.0
+    VERSION 0.8.1
     DESCRIPTION "SF4 Ember Netplay: private rollback rooms and an in-game overlay for Ultra Street Fighter IV."
     HOMEPAGE_URL "https://github.com/Confetti3/SF4-Ember-Netplay"
 )
@@ -378,6 +378,10 @@ if(BUILD_TESTING)
     target_link_libraries(GgpoUdpValidationTest PRIVATE ggpo::GGPO "ws2_32")
     add_test(NAME GgpoUdpValidation COMMAND GgpoUdpValidationTest)
     set_tests_properties(GgpoUdpValidation PROPERTIES TIMEOUT 15)
+    add_executable(GgpoSpectatorCapacityTest "src/tests/ggpo_spectator_capacity_test.cxx")
+    target_link_libraries(GgpoSpectatorCapacityTest PRIVATE ggpo::GGPO "ws2_32")
+    add_test(NAME GgpoSpectatorCapacity COMMAND GgpoSpectatorCapacityTest)
+    set_tests_properties(GgpoSpectatorCapacity PROPERTIES TIMEOUT 15 PASS_REGULAR_EXPRESSION "GGPO spectator capacity passed")
     add_executable(GgpoConfirmedFrameTest "src/tests/ggpo_confirmed_frame_test.cxx")
     target_link_libraries(GgpoConfirmedFrameTest PRIVATE ggpo::GGPO "ws2_32")
     add_test(NAME GgpoConfirmedFrame COMMAND GgpoConfirmedFrameTest)

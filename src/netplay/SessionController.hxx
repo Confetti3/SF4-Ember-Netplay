@@ -30,6 +30,7 @@ struct Command {
     // prevents a queued Ready/Leave from acting on a newly created room.
     Generation generation;
     std::string invitation;
+    bool benchmark = false;
 };
 
 struct Event {

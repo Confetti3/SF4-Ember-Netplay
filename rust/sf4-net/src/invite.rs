@@ -347,6 +347,13 @@ impl Invite {
     /// editing the expiry field in a copied ticket.
     pub(crate) fn admit(&self, proof: &RoomProof, now: u64) -> io::Result<()> {
         self.validate(now)?;
+        self.admit_member(proof)
+    }
+
+    /// Only the service's current endpoint/incarnation membership gate may
+    /// use this path. Expiry still applies to every new-member invitation.
+    pub(crate) fn admit_member(&self, proof: &RoomProof) -> io::Result<()> {
+        self.validate(self.expires.saturating_sub(1))?;
         if proof.version != VERSION
             || proof.room != self.room
             || proof.build != self.build

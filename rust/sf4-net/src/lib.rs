@@ -6,6 +6,7 @@ pub mod coordination_iroh;
 pub mod invite;
 #[cfg(windows)]
 pub mod ipc;
+pub mod probe;
 pub mod recovery;
 pub mod service;
 pub mod transport;
