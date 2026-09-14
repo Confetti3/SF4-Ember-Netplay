@@ -11,6 +11,6 @@
 - **Preferences could not be saved:** keep the window open, resolve a read-only or busy settings directory, then Apply preferences again. Original settings and migration backups remain under `%APPDATA%\sf4e`.
 - **Update failed:** retry from Help & About or `Launcher.exe --updates`. Installation requires orderly game shutdown. Logs are in `%TEMP%\sf4-netplay-update.log`; previous product files are preserved in `.ember-update-backups`. Do not delete those recovery copies while investigating.
 
-Export diagnostics from Help & About before reporting a problem. The export intentionally omits invitations, capabilities, player names, credentials, arbitrary log text and settings backups. Never paste a private invitation into a public issue.
+Before reporting a problem, follow [Saving logs for a bug report](SAVING_LOGS.md) to save the full logs folder and export diagnostics from Help & About. For online match issues, collect logs from both players. The diagnostic export intentionally omits invitations, capabilities, player names, credentials, arbitrary log text and settings backups. Never paste a private invitation into a public issue.
 
 Old VPS, Qt and direct-IP instructions are under `docs/archive` and do not describe this build.

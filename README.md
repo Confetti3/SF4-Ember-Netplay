@@ -98,6 +98,7 @@ Ember remains experimental. Local builds, automated UI and transport tests, and 
 | [Custom rooms](docs/CUSTOM_ROOMS.md) | Tables, queues, spectators and room behavior |
 | [Discord](docs/DISCORD.md) | Presence, invitations and privacy |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Startup, connections and diagnostics |
+| [Saving logs](docs/SAVING_LOGS.md) | Save logs and diagnostics from both players for a bug report |
 | [Build and package](docs/BUILDING.md) | Reproducible local builds and release provenance |
 
 ## License and credits
