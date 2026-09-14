@@ -333,6 +333,13 @@ int wmain(int argc, wchar_t** argv) {
 			});
 			CHECK(client->GetRoomSnapshot().tables[readyTable].revision >= 1);
 		}
+        // Preparation and connection each have their own native deadline.
+        // A sixteen-client fixture must observe both phases rather than
+        // spend one 45-second allowance across both replicated fan-outs.
+        wait([&]() { pump(); return std::all_of(matches.begin(),matches.end(),[](const std::unique_ptr<session::IrohMatchSession>& match) {
+            const auto phase=match->GetPhase();
+            return phase==Phase::Prepared || phase==Phase::Connecting || phase==Phase::Started;
+        }); });
 		wait([&]() { pump(); return std::all_of(matches.begin(), matches.end(), [](const std::unique_ptr<session::IrohMatchSession>& match) { return match->GetPhase() == Phase::Started; }); });
 		for (const auto& match : matches) CHECK(match->Generation() != 0);
 		for(std::size_t i=0;i<Count;++i) if(matches[i]->LocalSlot()==1) {

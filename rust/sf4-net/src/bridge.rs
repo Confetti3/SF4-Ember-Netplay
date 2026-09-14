@@ -12,6 +12,16 @@ use std::{
 use crate::{transport::GameConnection, wire::MAX_UDP_PAYLOAD};
 use tokio::{net::UdpSocket, sync::watch};
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Failure {
+    PacketLimit,
+    DatagramLimit,
+    SendFailed,
+    PeerClosed,
+    LocalSocket,
+}
+
 #[derive(Default)]
 pub struct BridgeStats {
     pub sent_packets: AtomicU64,
@@ -52,7 +62,7 @@ impl Bridge {
         self.socket.local_addr()
     }
 
-    pub async fn run(self, mut stop: watch::Receiver<bool>) -> io::Result<()> {
+    pub async fn run(self, mut stop: watch::Receiver<bool>) -> Result<(), Failure> {
         // Hold the full UDP ceiling to detect oversized packets, not a small
         // receive buffer that silently truncates before validation.
         let mut buffer = vec![0; MAX_UDP_PAYLOAD + 1];
@@ -75,26 +85,26 @@ impl Bridge {
                             self.stats.local_drops.fetch_add(1, Ordering::Relaxed);
                             continue;
                         }
-                        Err(error) => return Err(error),
+                        Err(_) => return Err(Failure::LocalSocket),
                     };
                     if size == 0 { self.stats.rejected_packets.fetch_add(1, Ordering::Relaxed); continue; }
                     if size > self.game.authorization.max_packet {
-                        return Err(io::Error::new(io::ErrorKind::InvalidData, "GGPO packet exceeds admitted maximum"));
+                        return Err(Failure::PacketLimit);
                     }
                     let maximum = self.game.connection.max_datagram_size().unwrap_or(0);
-                    let packet = self.game.authorization.key.encode(&buffer[..size], maximum)?;
+                    let packet = self.game.authorization.key.encode(&buffer[..size], maximum).map_err(|_|Failure::DatagramLimit)?;
                     if self.game.connection.datagram_send_buffer_space() < packet.len() {
                         // send_datagram evicts older queued datagrams when full.
                         // Record pressure without waiting for older traffic.
                         self.stats.congestion_events.fetch_add(1, Ordering::Relaxed);
                     }
                     self.game.connection.send_datagram(packet.into())
-                        .map_err(|_| io::Error::new(io::ErrorKind::ConnectionAborted, "gameplay datagram send failed"))?;
+                        .map_err(|_| Failure::SendFailed)?;
                     self.stats.sent_packets.fetch_add(1, Ordering::Relaxed);
                     self.stats.sent_bytes.fetch_add(size as u64, Ordering::Relaxed);
                 }
                 incoming = self.game.connection.read_datagram() => {
-                    let packet = incoming.map_err(|_| io::Error::new(io::ErrorKind::ConnectionAborted, "gameplay connection closed"))?;
+                    let packet = incoming.map_err(|_| Failure::PeerClosed)?;
                     let payload = match self.game.authorization.key.decode(&packet) {
                         Ok(payload) if payload.len() <= self.game.authorization.max_packet => payload,
                         _ => { self.stats.rejected_packets.fetch_add(1, Ordering::Relaxed); continue; }
@@ -104,7 +114,7 @@ impl Bridge {
                             self.stats.received_packets.fetch_add(1, Ordering::Relaxed);
                             self.stats.received_bytes.fetch_add(size as u64, Ordering::Relaxed);
                         }
-                        Err(error) if error.kind() != io::ErrorKind::WouldBlock && !local_unreachable(&error) => return Err(error),
+                        Err(error) if error.kind() != io::ErrorKind::WouldBlock && !local_unreachable(&error) => return Err(Failure::LocalSocket),
                         _ => { self.stats.local_drops.fetch_add(1, Ordering::Relaxed); }
                     }
                 }

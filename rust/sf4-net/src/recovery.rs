@@ -388,6 +388,27 @@ impl RecoverySession {
         Ok(())
     }
 
+    /// A removed leader can retain a stale leader view. Query every remaining
+    /// admitted voter so a slow follower cannot hide the elected successor.
+    pub async fn confirm_available_successor(
+        &self,
+        minimum_term: u64,
+        minimum_revision: u64,
+    ) -> io::Result<()> {
+        let mut candidates = self.applied_voter_ids().await;
+        candidates.remove(&self.incarnation);
+        let recovery = self.clone();
+        first_confirmed_successor(candidates, move |successor| {
+            let recovery = recovery.clone();
+            async move {
+                recovery
+                    .confirm_successor(successor, minimum_term, minimum_revision)
+                    .await
+            }
+        })
+        .await
+    }
+
     /// Confirm a follower's committed removal through the current leader.
     /// OpenRaft's retain=false membership change may stop replicating to the
     /// departing process before its local metrics learn that it is no longer
@@ -814,7 +835,7 @@ pub fn summarize_probe(samples_us: &[u64], duration: Duration) -> ProbeResult {
         loss_count,
         p95_rtt_us: p95,
         recommended_delay: recommended_delay(p95),
-        status: if sample_count >= PROBE_MIN_SAMPLES {
+        status: if sample_count >= expected * 4 / 5 {
             "ready".into()
         } else {
             "unavailable".into()
@@ -822,9 +843,85 @@ pub fn summarize_probe(samples_us: &[u64], duration: Duration) -> ProbeResult {
     }
 }
 
+async fn first_confirmed_successor<F, Fut>(candidates: BTreeSet<u64>, confirm: F) -> io::Result<()>
+where
+    F: Fn(u64) -> Fut,
+    Fut: std::future::Future<Output = io::Result<()>> + Send + 'static,
+{
+    let mut claims = tokio::task::JoinSet::new();
+    for candidate in candidates {
+        claims.spawn(confirm(candidate));
+    }
+    while let Some(result) = claims.join_next().await {
+        if matches!(result, Ok(Ok(()))) {
+            return Ok(());
+        }
+    }
+    Err(io::Error::other("successor authority unavailable"))
+}
+
+/// Separate absent replies from packets the local scheduler never sent.
+pub fn summarize_datagram_probe(samples_us: &[u64], expected: u32, sent: u32) -> ProbeResult {
+    let mut result = summarize_probe(samples_us, Duration::from_millis(u64::from(expected) * 50));
+    result.loss_count = sent.saturating_sub(result.sample_count);
+    if expected == 0 {
+        result.status = "unavailable".into();
+    } else if sent < expected {
+        result.status = "local_overload".into();
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn elected_successor_is_not_hidden_by_a_stalled_first_voter() {
+        tokio::time::timeout(
+            Duration::from_millis(200),
+            first_confirmed_successor(BTreeSet::from([1, 2, 3]), |candidate| async move {
+                match candidate {
+                    1 => std::future::pending().await,
+                    2 => Err(io::Error::other("not the elected leader")),
+                    _ => Ok(()),
+                }
+            }),
+        )
+        .await
+        .expect("first voter blocked the elected successor")
+        .unwrap();
+        assert!(
+            first_confirmed_successor(BTreeSet::from([1, 2]), |_| async {
+                Err(io::Error::other("no quorum claim"))
+            })
+            .await
+            .is_err()
+        );
+        assert!(
+            first_confirmed_successor(BTreeSet::new(), |_| async { Ok(()) })
+                .await
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn unsent_probe_packets_are_not_reported_as_network_loss() {
+        assert_eq!(summarize_datagram_probe(&[], 0, 0).status, "unavailable");
+        let result = summarize_datagram_probe(&[1_000; 60], 100, 75);
+        assert_eq!(result.loss_count, 15);
+        assert_eq!(result.status, "local_overload");
+    }
+
+    #[test]
+    fn long_probe_requires_eighty_percent_of_the_long_workload() {
+        let poor = summarize_probe(&[1_000; 100], Duration::from_secs(30));
+        assert_eq!(poor.status, "unavailable");
+        assert_eq!(poor.loss_count, 500);
+        let enough = summarize_probe(&[1_000; 480], Duration::from_secs(30));
+        assert_eq!(enough.status, "ready");
+        assert_eq!(enough.loss_count, 120);
+    }
 
     #[test]
     fn stable_voters_skip_four_and_cap_at_five() {

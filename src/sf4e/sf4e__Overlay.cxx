@@ -130,7 +130,10 @@ static void DrawApplicationHome() {
 	view.settingsPending = snapshot.settingsPending;
     view.selectedDelay=snapshot.selectedDelay; view.recommendedDelay=snapshot.recommendedDelay;
     view.delayLocked=snapshot.delayLocked; view.canProbe=snapshot.canProbe; view.canApplyDelay=snapshot.canApplyDelay;
+    view.probeRoute=snapshot.probeRoute; view.probeP50Us=snapshot.probeP50Us; view.probeP95Us=snapshot.probeP95Us;
+    view.probeP99Us=snapshot.probeP99Us; view.probeJitterUs=snapshot.probeJitterUs; view.probeBenchmark=snapshot.probeBenchmark;
     view.probeStatus=snapshot.probeStatus; view.probeSamples=snapshot.probeSamples; view.probeLost=snapshot.probeLost;
+    view.probeSent=snapshot.probeSent; view.probeExpected=snapshot.probeExpected;
 	view.localSlot = snapshot.localSlot;
 	view.invitation = snapshot.invitation;
 	view.error = snapshot.helperError;

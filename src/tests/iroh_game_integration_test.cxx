@@ -1,6 +1,7 @@
 #include <winsock2.h>
 #include "../session/IrohRoom.hxx"
 #include <bcrypt.h>
+#include <nlohmann/json.hpp>
 #include <cstdlib>
 #include <functional>
 #include <iostream>
@@ -40,6 +41,17 @@ struct LocalUdp {
 
 int wmain(int argc, wchar_t** argv) {
 	CHECK(argc == 2 || (argc == 3 && std::wstring(argv[2]) == L"--relay-only"));
+    session::IrohRoom::GameSnapshot routeSnapshot;
+    routeSnapshot.route="ip:127.0.0.1:1";
+    nlohmann::json statistics={{"sent_packets",1},{"received_packets",1},{"sent_bytes",1024},{"received_bytes",1024},
+        {"rejected_packets",0},{"congestion_events",0},{"local_drops",0},{"route","relay:test"}};
+    routeSnapshot.ObserveStatistics(statistics);
+    CHECK(routeSnapshot.route=="relay:test" && routeSnapshot.routeChanges==1);
+    routeSnapshot.ObserveStatistics(statistics);
+    CHECK(routeSnapshot.routeChanges==1);
+    statistics["route"]="ip:127.0.0.1:2";
+    routeSnapshot.ObserveStatistics(statistics);
+    CHECK(routeSnapshot.route=="ip:127.0.0.1:2" && routeSnapshot.routeChanges==2);
 	WSADATA winsock; CHECK(WSAStartup(MAKEWORD(2, 2), &winsock) == 0);
 	platform::HelperProcess hostProcess, guestProcess;
 	CHECK(hostProcess.Start(argv[1], GetCurrentProcessId(), argc == 3));
@@ -108,6 +120,14 @@ int wmain(int argc, wchar_t** argv) {
 			hostUdp.Send(packet); wait([&]() { return guestUdp.Receive(packet); });
 		}
 		wait([&]() { return host->Game(guestId).receivedPackets >= 10 && guest->Game(hostId).receivedPackets >= 10; });
+        if (generation==2) {
+            std::array<char,1025> oversized{};
+            CHECK(send(hostUdp.socket,oversized.data(),static_cast<int>(oversized.size()),0)==oversized.size());
+            wait([&]() { return host->Game(guestId).state==GameState::Closed && guest->Game(hostId).state==GameState::Closed; });
+            CHECK(host->Game(guestId).error=="gameplay_packet_limit");
+            CHECK(guest->Game(hostId).error=="gameplay_peer_closed");
+            CHECK(host->Game(guestId).receivedPackets>=10);
+        }
 		CHECK(host->EndMatch(generation)); CHECK(guest->EndMatch(generation));
 		CHECK(host->Game(guestId).virtualPort == 0 && guest->Game(hostId).virtualPort == 0);
 		wait([&]() { return host->Game(guestId).state == GameState::Closed && guest->Game(hostId).state == GameState::Closed; });

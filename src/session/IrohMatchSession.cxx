@@ -399,7 +399,10 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 				link = links_.erase(link);
 				continue;
 			}
-			if (state == IrohRoom::GameState::Closed || state == IrohRoom::GameState::Closing) return Fail("gameplay_connection_lost");
+			if (state == IrohRoom::GameState::Closed || state == IrohRoom::GameState::Closing) {
+                const auto failure=room_->Game(link->peer).error;
+                return Fail(failure.empty()?"gameplay_connection_lost":failure.c_str());
+            }
 			ready = ready && state == IrohRoom::GameState::Ready;
 			++link;
 		}

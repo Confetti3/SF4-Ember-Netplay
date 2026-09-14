@@ -37,6 +37,16 @@ $hashes = foreach ($artifact in $artifacts) {
     [ordered]@{path=$artifact;sha256=(Get-FileHash -LiteralPath $artifact -Algorithm SHA256).Hash}
 }
 $hashes | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'artifacts.json')
+$completionMarkers=@{
+    'room'='C++ SessionClient/SessionServer over two Iroh helpers passed:'
+    'queue-acks'='C++ SessionClient/SessionServer over two Iroh helpers passed:'
+    'game'='C++ raw UDP bridge:'
+    'authorized'='Four participants, three fresh authorized GGPO matches'
+    'terminal-recovery'='Four participants, three fresh authorized GGPO matches'
+    'recovery'='Helper recovery integration passed.'
+    'four-tables'='six games without automatic rotation and spectator input verification passed.'
+    'spectators'='six games without automatic rotation and spectator input verification passed.'
+}
 $results = @()
 foreach ($case in $plan) {
     foreach ($route in ($Routes | Select-Object -Unique)) {
@@ -59,13 +69,14 @@ foreach ($case in $plan) {
             $ErrorActionPreference = $nativeErrorPreference
         }
         $changed = @($hashes | Where-Object { (Get-FileHash -LiteralPath $_.path -Algorithm SHA256).Hash -ne $_.sha256 })
+        $completed=Select-String -LiteralPath $log -SimpleMatch -Quiet -Pattern $completionMarkers[$case.name]
         $result = [pscustomobject]@{test=$case.name;executable=$case.executable;routePolicy=$route;
-            exitCode=$exitCode;artifactsUnchanged=($changed.Count -eq 0);startedUtc=$started.ToString('o');
+            exitCode=$exitCode;completed=[bool]$completed;artifactsUnchanged=($changed.Count -eq 0);startedUtc=$started.ToString('o');
             elapsedSeconds=([DateTime]::UtcNow-$started).TotalSeconds;log=$log}
         $results += $result
         $results | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'results.json')
         if ($changed.Count) { throw "Binaries changed during acceptance; see $OutputDirectory" }
-        if ($exitCode) { throw "Failed $($case.name) ($route); see $log" }
+        if ($exitCode -or !$completed) { throw "Failed $($case.name) ($route); see $log" }
         Write-Output "PASS $($case.name) ($route). Synthetic transport/GGPO only. Log: $log"
     }
 }

@@ -208,13 +208,33 @@ bool IrohRoom::EndMatch(std::uint64_t generation) {
 	return true;
 }
 
+void IrohRoom::GameSnapshot::ObserveStatistics(const json& event) {
+	sentPackets = event.at("sent_packets").get<std::uint64_t>();
+	receivedPackets = event.at("received_packets").get<std::uint64_t>();
+	sentBytes = event.at("sent_bytes").get<std::uint64_t>();
+	receivedBytes = event.at("received_bytes").get<std::uint64_t>();
+	rejectedPackets = event.at("rejected_packets").get<std::uint64_t>();
+	congestionEvents = event.at("congestion_events").get<std::uint64_t>();
+	localDrops = event.at("local_drops").get<std::uint64_t>();
+	const auto currentRoute = event.value("route", std::string());
+	if (currentRoute != route) ++routeChanges;
+	route = currentRoute;
+}
+
 bool IrohRoom::ConsumeGameEvent(const json& event, const std::string& type) {
-	if (type != "game_waiting" && type != "game_ready" && type != "game_closed" && type != "statistics") return false;
+	if (type != "game_waiting" && type != "game_ready" && type != "game_closed" && type != "statistics" && type != "game_failed") return false;
 	const auto game = games_.find(event.at("peer").get<std::string>());
 	if (game == games_.end() || event.at("generation").get<std::uint64_t>() != game->second.generation) return true;
 	auto& snapshot = game->second;
 	if (type == "game_closed") { snapshot.state = GameState::Closed; snapshot.virtualPort = 0; return true; }
 	if (snapshot.state == GameState::Closing || snapshot.state == GameState::Closed) return true;
+    if(type=="game_failed") {
+        const auto reason=event.value("reason",std::string());
+        if(reason=="packet_limit" || reason=="datagram_limit" || reason=="send_failed" || reason=="peer_closed" || reason=="local_socket")
+            snapshot.error="gameplay_"+reason;
+        snapshot.datagramLimit=event.value("max_datagram",std::size_t(0));
+        return true;
+    }
 	if (type == "game_waiting" && snapshot.state == GameState::Preparing) snapshot.state = GameState::Waiting;
 	if (type == "game_ready") {
 		const auto port = event.at("virtual_port").get<std::uint64_t>();
@@ -226,13 +246,7 @@ bool IrohRoom::ConsumeGameEvent(const json& event, const std::string& type) {
 		snapshot.route = event.value("route",std::string());
 		snapshot.state = GameState::Ready;
 	} else if (type == "statistics") {
-		snapshot.sentPackets = event.at("sent_packets").get<std::uint64_t>();
-		snapshot.receivedPackets = event.at("received_packets").get<std::uint64_t>();
-		snapshot.sentBytes = event.at("sent_bytes").get<std::uint64_t>();
-		snapshot.receivedBytes = event.at("received_bytes").get<std::uint64_t>();
-		snapshot.rejectedPackets = event.at("rejected_packets").get<std::uint64_t>();
-		snapshot.congestionEvents = event.at("congestion_events").get<std::uint64_t>();
-		snapshot.localDrops = event.at("local_drops").get<std::uint64_t>();
+        snapshot.ObserveStatistics(event);
 	}
 	return true;
 }
@@ -533,11 +547,11 @@ void IrohRoom::PumpCheckpoint() {
         if (helper_.Send(message.dump())) proposalEnded_=true;
     }
 }
-bool IrohRoom::RequestProbe(const std::string& peer, std::uint64_t request, std::uint64_t pairRevision) {
+bool IrohRoom::RequestProbe(const std::string& peer, std::uint64_t request, std::uint64_t pairRevision, bool benchmark) {
     if (!coordination_.writable || !IsEndpointIdentity(peer) || peer==localIdentity_ || !request) return false;
     if (!helper_.Send(json{{"type","probe_request"},{"epoch",epoch_},{"room",room_},
-        {"peer",peer},{"request",request},{"pair_revision",pairRevision}}.dump())) return false;
-    probe_={}; probe_.peer=peer; probe_.request=request; probe_.pairRevision=pairRevision; probe_.status="checking";
+        {"peer",peer},{"request",request},{"pair_revision",pairRevision},{"benchmark",benchmark}}.dump())) return false;
+    probe_={}; probe_.peer=peer; probe_.request=request; probe_.pairRevision=pairRevision; probe_.status="checking"; probe_.benchmark=benchmark; probe_.deadlineMs=GetTickCount64()+(benchmark?50000:25000);
     return true;
 }
 bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& type) {
@@ -709,13 +723,19 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
         } catch(const std::exception&) { checkpointReceiver_.Reset(); error_="invalid_checkpoint_proposal"; return true; }
     }
     if (type=="probe_result") {
+        if(probe_.status=="timed_out") return true;
         if (event.at("request")!=probe_.request || event.at("peer")!=probe_.peer ||
             event.at("pair_revision")!=probe_.pairRevision) return true;
         probe_.status=event.at("status"); probe_.route=event.at("route");
         probe_.samples=event.at("sample_count"); probe_.lost=event.at("loss_count"); probe_.p95RttUs=event.at("p95_rtt_us");
+        if(event.contains("metrics")) { const auto& metrics=event.at("metrics");
+            probe_.p50RttUs=metrics.value("p50_rtt_us",0ULL); probe_.p99RttUs=metrics.value("p99_rtt_us",0ULL);
+            probe_.jitterUs=metrics.value("jitter_us",0ULL);
+            probe_.sent=metrics.value("sent",0U); probe_.expected=metrics.value("expected",0U); probe_.packetBytes=metrics.value("packet_bytes",0U); }
+        const unsigned expected=probe_.benchmark?600:100;
         const int recommendation=event.at("recommended_delay");
-        probe_.recommended=(probe_.status=="complete" || probe_.status=="ready") && probe_.samples>=80 &&
-            probe_.samples<=100 && probe_.samples+probe_.lost==100 && recommendation>=0 && recommendation<=10 ? recommendation : -1;
+        probe_.recommended=(probe_.status=="complete" || probe_.status=="ready") && probe_.samples>=expected*4/5 &&
+            probe_.samples<=expected && probe_.samples+probe_.lost==expected && recommendation>=0 && recommendation<=10 ? recommendation : -1;
         return true;
     }
     return true;
@@ -868,6 +888,7 @@ void IrohRoom::PruneRetiredPeers() {
 }
 
 void IrohRoom::Poll() {
+    if(probe_.status=="checking" && GetTickCount64()>=probe_.deadlineMs) { probe_.status="timed_out";probe_.recommended=-1; }
     PruneRetiredPeers();
 	if (helper_.State() == platform::HelperState::Failed || helper_.State() == platform::HelperState::Stopped) {
 		for (auto& game : games_) { game.second.state = GameState::Closed; game.second.virtualPort = 0; }

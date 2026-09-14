@@ -162,6 +162,8 @@ pub enum Command {
         peer: EndpointId,
         request: u64,
         pair_revision: u64,
+        #[serde(default)]
+        benchmark: bool,
     },
     Shutdown,
 }
@@ -251,6 +253,8 @@ pub enum Event {
         loss_count: u32,
         p95_rtt_us: u64,
         recommended_delay: i16,
+        #[serde(default)]
+        metrics: crate::probe::Metrics,
     },
     Status {
         request_id: u64,
@@ -300,6 +304,15 @@ pub enum Event {
         /// authorized. This is observational metadata; the committed probe
         /// connection is upgraded in place before GGPO owns its datagrams.
         route: String,
+    },
+    GameFailed {
+        epoch: u64,
+        peer: EndpointId,
+        generation: u64,
+        reason: crate::bridge::Failure,
+        route: String,
+        max_packet: usize,
+        max_datagram: usize,
     },
     GameClosed {
         epoch: u64,
@@ -393,14 +406,24 @@ impl<'de> Deserialize<'de> for NativeControlMessage {
         })
     }
 }
+struct IncomingGame {
+    epoch: u64,
+    peer: EndpointId,
+    connection: Connection,
+    generation: Option<u64>,
+    probe: Option<(u64, u64)>,
+    deadline: tokio::time::Instant,
+}
 enum Completion {
     GuestControl(u64, Invite, io::Result<ControlChannel>),
     Incoming(u64, io::Result<Connection>),
+    ClassifiedGame(IncomingGame, io::Result<transport::GameStream>),
     Hosted(u64, io::Result<Invite>),
     Control(u64, io::Result<ControlChannel>),
+    MemberControl(u64, u64, io::Result<ControlChannel>),
     Reconnect(u64, EndpointId, io::Result<ControlChannel>),
     Game(u64, EndpointId, u64, io::Result<GameConnection>),
-    BridgeEnded(u64, EndpointId, u64),
+    BridgeEnded(u64, EndpointId, u64, Option<crate::bridge::Failure>),
     CheckpointProposal(
         CheckpointProposalKey,
         CheckpointTransfer,
@@ -495,6 +518,7 @@ struct ProbeAuthorizationKey {
     target_incarnation: u64,
     request: u64,
     pair_revision: u64,
+    benchmark: bool,
 }
 
 struct ProbeAuthorization {
@@ -538,6 +562,7 @@ struct PendingCheckpointCommitted {
 }
 
 struct ProbeReservation {
+    reported: bool,
     connection: Connection,
     request: u64,
     pair_revision: u64,
@@ -591,10 +616,10 @@ struct ProbeCompletion {
     request: u64,
     pair_revision: u64,
     samples_us: Vec<u64>,
-    duration: Duration,
     connection: Option<Connection>,
     report: bool,
     route_changed: bool,
+    metrics: crate::probe::Metrics,
 }
 impl Drop for GameSlot {
     fn drop(&mut self) {
@@ -744,6 +769,7 @@ struct Actor {
     /// connected would launch one ten-second dial per state tick.
     reconnect_target: Option<EndpointId>,
     probe_reservations: BTreeMap<EndpointId, ProbeReservation>,
+    pending_game_admissions: BTreeMap<EndpointId, (Connection, tokio::task::AbortHandle)>,
     /// Invalidations are retained until the bounded native event queue has
     /// room. Otherwise a closed or migrated reserved connection could leave
     /// native code recommending a route that can no longer be upgraded.
@@ -1204,6 +1230,28 @@ impl Actor {
             self.pending_membership_publications.insert(peer);
             self.pump_membership_publications();
         }
+    }
+
+    fn control_rejoin_member(&self, peer: EndpointId) -> Option<u64> {
+        if !self
+            .committed_native_members
+            .as_ref()
+            .is_some_and(|members| members.contains(&peer))
+        {
+            return None;
+        }
+        self.admissions
+            .values()
+            .find(|admission| {
+                self.room == Some(admission.room)
+                    && admission.primary_endpoint == peer
+                    && admission.incarnation != 0
+                    && !self.retired_incarnations.contains(&admission.incarnation)
+                    && !self
+                        .pending_retired_incarnations
+                        .contains(&admission.incarnation)
+            })
+            .map(|admission| admission.incarnation)
     }
 
     fn reconnect_control(&mut self, peer: EndpointId) {
@@ -2314,6 +2362,7 @@ impl Actor {
                 loss_count: 100,
                 p95_rtt_us: 0,
                 recommended_delay: -1,
+                metrics: crate::probe::Metrics::default(),
             }) {
                 break;
             }
@@ -2360,12 +2409,17 @@ impl Actor {
             })
             .collect();
         for (peer, request, pair_revision, route) in invalidated {
-            if let Some(reservation) = self.probe_reservations.remove(&peer) {
-                reservation
-                    .connection
-                    .close(1u32.into(), b"probe route changed");
+            if let Some(mut reservation) = self.probe_reservations.remove(&peer) {
+                let reported = reservation.reported;
+                if reservation.connection.close_reason().is_none() {
+                    reservation.route = route.clone();
+                    reservation.reported = false;
+                    self.probe_reservations.insert(peer, reservation);
+                }
+                if reported {
+                    self.queue_probe_invalidation(peer, request, pair_revision, route);
+                }
             }
-            self.queue_probe_invalidation(peer, request, pair_revision, route);
         }
     }
 
@@ -2598,22 +2652,10 @@ impl Actor {
                 } else {
                     timeout(Duration::from_secs(5), async {
                         loop {
-                            let mut successor = recovery
-                                .coordinator
-                                .current_leader()
-                                .filter(|id| *id != recovery.incarnation);
-                            if successor.is_none() {
-                                successor = recovery
-                                    .applied_voter_ids()
-                                    .await
-                                    .into_iter()
-                                    .find(|id| *id != recovery.incarnation);
-                            }
-                            if let Some(successor) = successor
-                                && recovery
-                                    .confirm_successor(successor, minimum_term, minimum_revision)
-                                    .await
-                                    .is_ok()
+                            if recovery
+                                .confirm_available_successor(minimum_term, minimum_revision)
+                                .await
+                                .is_ok()
                             {
                                 break true;
                             }
@@ -2795,6 +2837,7 @@ impl Actor {
         self.unwritable_leader_since = None;
         self.reconnect_target = None;
         self.probe_reservations.clear();
+        self.pending_game_admissions.clear();
         self.pending_probe_invalidations.clear();
         self.probe_peers.clear();
         self.probe_permissions.clear();
@@ -2869,6 +2912,7 @@ impl Actor {
         peer: EndpointId,
         request: u64,
         pair_revision: u64,
+        benchmark: bool,
     ) -> io::Result<()> {
         if !self.matches(epoch)
             || self.room != Some(room)
@@ -2898,6 +2942,7 @@ impl Actor {
             target_incarnation,
             request,
             pair_revision,
+            benchmark,
         };
         self.probe_peers.insert(peer);
         self.pending_probe_authorizations.insert(peer, key.clone());
@@ -2922,7 +2967,7 @@ impl Actor {
                 }
                 let expires = now()
                     .unwrap_or_default()
-                    .saturating_add(recovery::PROBE_DURATION.as_secs())
+                    .saturating_add(crate::probe::duration(benchmark).as_secs() + 5)
                     .saturating_add(transport::HANDSHAKE_TIMEOUT.as_secs());
                 recovery
                     .reserve_probe(
@@ -3057,6 +3102,7 @@ impl Actor {
         self.unwritable_leader_since = None;
         self.reconnect_target = None;
         self.probe_reservations.clear();
+        self.pending_game_admissions.clear();
         self.pending_probe_invalidations.clear();
         self.probe_peers.clear();
         self.probe_permissions.clear();
@@ -3323,6 +3369,10 @@ impl Actor {
                 let peers: Vec<_> = self.games.keys().copied().collect();
                 self.games.clear();
                 for peer in peers {
+                    if let Some((connection, task)) = self.pending_game_admissions.remove(&peer) {
+                        connection.close(0u32.into(), b"match ended during admission");
+                        task.abort();
+                    }
                     self.emit(Event::GameClosed {
                         epoch,
                         peer,
@@ -3354,6 +3404,10 @@ impl Actor {
                     return Ok(true);
                 }
                 self.games.remove(&peer);
+                if let Some((connection, task)) = self.pending_game_admissions.remove(&peer) {
+                    connection.close(0u32.into(), b"peer ended during admission");
+                    task.abort();
+                }
                 self.emit(Event::GameClosed {
                     epoch,
                     peer,
@@ -3375,6 +3429,23 @@ impl Actor {
         let (completion, joined_invite) = match completion {
             Completion::GuestControl(epoch, invite, result) => {
                 (Completion::Control(epoch, result), Some(invite))
+            }
+            Completion::MemberControl(epoch, incarnation, result) => {
+                if let Ok(channel) = &result {
+                    let peer = channel.connection.remote_id();
+                    let current = epoch == self.epoch
+                        && self.control_rejoin_member(peer) == Some(incarnation);
+                    let active = if let Some(recovery) = &self.recovery {
+                        recovery.applied_member_ids().await.contains(&incarnation)
+                    } else {
+                        false
+                    };
+                    if !current || !active {
+                        channel.connection.close(1u32.into(), b"member retired");
+                        return Ok(());
+                    }
+                }
+                (Completion::Control(epoch, result), None)
             }
             Completion::Reconnect(epoch, peer, result) => {
                 if epoch == self.epoch {
@@ -3401,7 +3472,7 @@ impl Actor {
             other => (other, None),
         };
         match completion {
-            Completion::GuestControl(..) => unreachable!(),
+            Completion::GuestControl(..) | Completion::MemberControl(..) => unreachable!(),
             Completion::Reconnect(..) => unreachable!(),
             Completion::CheckpointProposal(key, transfer, _waiter_result) => {
                 if self.pending_checkpoint_proposal.as_ref() != Some(&key) {
@@ -3680,6 +3751,7 @@ impl Actor {
                         key.peer,
                         key.request,
                         key.pair_revision,
+                        key.benchmark,
                     )
                     .await
                     .unwrap_or(ProbeCompletion {
@@ -3687,10 +3759,10 @@ impl Actor {
                         request: key.request,
                         pair_revision: key.pair_revision,
                         samples_us: Vec::new(),
-                        duration: recovery::PROBE_DURATION,
                         connection: None,
                         report: true,
                         route_changed: false,
+                        metrics: crate::probe::Metrics::default(),
                     });
                     Completion::Probe(key.epoch, Ok(result))
                 });
@@ -3745,103 +3817,186 @@ impl Actor {
                                     || self.controls.contains_key(&peer)
                             })
                         {
+                            let member = self.control_rejoin_member(peer);
+                            let recovery = self.recovery.clone();
                             self.tasks.spawn(async move {
-                                Completion::Control(
-                                    epoch,
-                                    transport::accept_control(connection, &invite).await,
-                                )
+                                if let (Some(incarnation), Some(recovery)) = (member, recovery) {
+                                    let result = if recovery
+                                        .applied_member_ids()
+                                        .await
+                                        .contains(&incarnation)
+                                    {
+                                        transport::accept_control_member(connection, &invite, peer)
+                                            .await
+                                    } else {
+                                        connection.close(1u32.into(), b"member retired");
+                                        Err(failed("member retired"))
+                                    };
+                                    Completion::MemberControl(epoch, incarnation, result)
+                                } else {
+                                    Completion::Control(
+                                        epoch,
+                                        transport::accept_control(connection, &invite).await,
+                                    )
+                                }
                             });
                         } else {
                             connection.close(1u32.into(), b"room unavailable");
                         }
                     } else if connection.alpn() == GAME_ALPN {
-                        let mode = match transport::accept_game_stream(&connection).await {
-                            Ok(mode) => mode,
-                            Err(_) => {
-                                connection.close(1u32.into(), b"invalid game stream");
-                                return Ok(());
-                            }
-                        };
-                        match mode {
-                            transport::GameStream::Probe(send, recv)
-                                if self.probe_peers.contains(&peer) =>
-                            {
-                                let room = self.room.unwrap_or([0; 16]);
-                                let (request, pair_revision) = self
-                                    .probe_permissions
-                                    .get(&peer)
-                                    .filter(|permission| {
-                                        permission.expires > tokio::time::Instant::now()
-                                    })
-                                    .map(|permission| {
-                                        (permission.request, permission.pair_revision)
-                                    })
-                                    .unwrap_or((0, 0));
-                                self.tasks.spawn(async move {
-                                    let result = match serve_probe(
-                                        connection,
-                                        send,
-                                        recv,
-                                        room,
-                                        request,
-                                        pair_revision,
-                                    )
-                                    .await
-                                    {
-                                        Ok(connection) => Ok(ProbeCompletion {
-                                            peer,
-                                            request,
-                                            pair_revision,
-                                            samples_us: Vec::new(),
-                                            duration: recovery::PROBE_DURATION,
-                                            connection: Some(connection),
-                                            report: false,
-                                            route_changed: false,
-                                        }),
-                                        Err(_) => Ok(ProbeCompletion {
-                                            peer,
-                                            request,
-                                            pair_revision,
-                                            samples_us: Vec::new(),
-                                            duration: recovery::PROBE_DURATION,
-                                            connection: None,
-                                            report: false,
-                                            route_changed: false,
-                                        }),
-                                    };
-                                    Completion::Probe(epoch, result)
-                                });
-                            }
-                            transport::GameStream::Gameplay(send, recv) => {
-                                if let Some(slot) =
-                                    self.games.get_mut(&peer).filter(|slot| slot.waiting)
-                                {
-                                    slot.waiting = false;
-                                    let auth = slot.auth.clone();
-                                    let generation = auth.key.generation;
-                                    slot.task = Some(self.tasks.spawn(async move {
-                                        Completion::Game(
-                                            epoch,
-                                            peer,
-                                            generation,
-                                            transport::accept_game_stream_with(
-                                                connection, auth, send, recv,
-                                            )
-                                            .await,
-                                        )
-                                    }));
-                                } else {
-                                    connection.close(1u32.into(), b"gameplay not authorized");
-                                }
-                            }
-                            transport::GameStream::Probe(send, recv) => {
-                                drop(send);
-                                drop(recv);
-                                connection.close(1u32.into(), b"probe not reserved");
-                            }
+                        let generation = self
+                            .games
+                            .get(&peer)
+                            .filter(|slot| slot.waiting)
+                            .map(|slot| slot.auth.key.generation);
+                        let probe = self
+                            .probe_permissions
+                            .get(&peer)
+                            .filter(|p| p.expires > tokio::time::Instant::now())
+                            .map(|p| (p.request, p.pair_revision));
+                        if (generation.is_none() && probe.is_none())
+                            || self.pending_game_admissions.contains_key(&peer)
+                        {
+                            connection.close(1u32.into(), b"gameplay not authorized");
+                            return Ok(());
                         }
+                        let admission_connection = connection.clone();
+                        let incoming = IncomingGame {
+                            epoch,
+                            peer,
+                            connection,
+                            generation,
+                            probe,
+                            deadline: tokio::time::Instant::now() + transport::HANDSHAKE_TIMEOUT,
+                        };
+                        let task = self.tasks.spawn(async move {
+                            let result = transport::accept_game_stream_until(
+                                &incoming.connection,
+                                incoming.deadline,
+                            )
+                            .await;
+                            Completion::ClassifiedGame(incoming, result)
+                        });
+                        self.pending_game_admissions
+                            .insert(peer, (admission_connection, task));
                     } else {
                         connection.close(1u32.into(), b"unsupported protocol");
+                    }
+                }
+            }
+            Completion::ClassifiedGame(incoming, result) => {
+                let IncomingGame {
+                    epoch,
+                    peer,
+                    connection,
+                    generation,
+                    probe,
+                    deadline,
+                } = incoming;
+                if epoch != self.epoch {
+                    connection.close(1u32.into(), b"obsolete room");
+                    return Ok(());
+                }
+                if !self
+                    .pending_game_admissions
+                    .get(&peer)
+                    .is_some_and(|(pending, _)| pending.stable_id() == connection.stable_id())
+                {
+                    connection.close(1u32.into(), b"superseded game admission");
+                    return Ok(());
+                }
+                self.pending_game_admissions.remove(&peer);
+                let Ok(mode) = result else {
+                    return Ok(());
+                };
+                let authorized = tokio::time::Instant::now() < deadline
+                    && match &mode {
+                        transport::GameStream::Gameplay(_, _) => {
+                            self.games.get(&peer).is_some_and(|slot| {
+                                slot.waiting && Some(slot.auth.key.generation) == generation
+                            })
+                        }
+                        transport::GameStream::Probe(_, _) => {
+                            self.probe_permissions.get(&peer).is_some_and(|p| {
+                                p.expires > tokio::time::Instant::now()
+                                    && Some((p.request, p.pair_revision)) == probe
+                            })
+                        }
+                    };
+                if !authorized {
+                    connection.close(1u32.into(), b"obsolete game admission");
+                    return Ok(());
+                }
+                match mode {
+                    transport::GameStream::Probe(send, recv)
+                        if self.probe_peers.contains(&peer) =>
+                    {
+                        let room = self.room.unwrap_or([0; 16]);
+                        let (request, pair_revision) = self
+                            .probe_permissions
+                            .get(&peer)
+                            .filter(|permission| permission.expires > tokio::time::Instant::now())
+                            .map(|permission| (permission.request, permission.pair_revision))
+                            .unwrap_or((0, 0));
+                        self.tasks.spawn(async move {
+                            let result = match serve_probe(
+                                connection,
+                                send,
+                                recv,
+                                room,
+                                request,
+                                pair_revision,
+                            )
+                            .await
+                            {
+                                Ok(connection) => Ok(ProbeCompletion {
+                                    peer,
+                                    request,
+                                    pair_revision,
+                                    samples_us: Vec::new(),
+                                    connection: Some(connection),
+                                    report: false,
+                                    route_changed: false,
+                                    metrics: crate::probe::Metrics::default(),
+                                }),
+                                Err(_) => Ok(ProbeCompletion {
+                                    peer,
+                                    request,
+                                    pair_revision,
+                                    samples_us: Vec::new(),
+                                    connection: None,
+                                    report: false,
+                                    route_changed: false,
+                                    metrics: crate::probe::Metrics::default(),
+                                }),
+                            };
+                            Completion::Probe(epoch, result)
+                        });
+                    }
+                    transport::GameStream::Gameplay(send, recv) => {
+                        if let Some(slot) = self.games.get_mut(&peer).filter(|slot| slot.waiting) {
+                            slot.waiting = false;
+                            let auth = slot.auth.clone();
+                            let generation = auth.key.generation;
+                            slot.task = Some(self.tasks.spawn(async move {
+                                Completion::Game(
+                                    epoch,
+                                    peer,
+                                    generation,
+                                    transport::accept_game_stream_with_until(
+                                        connection, auth, send, recv, deadline,
+                                    )
+                                    .await,
+                                )
+                            }));
+                        } else {
+                            connection.close(1u32.into(), b"gameplay not authorized");
+                        }
+                    }
+                    transport::GameStream::Probe(send, recv) => {
+                        drop(send);
+                        drop(recv);
+                        connection.close(1u32.into(), b"probe not reserved");
                     }
                 }
             }
@@ -3938,8 +4093,8 @@ impl Actor {
                         let max_packet = slot.auth.max_packet;
                         slot.task = Some(self.tasks.spawn(async move {
                             let (_keep_running, stop) = watch::channel(false);
-                            let _ = bridge.run(stop).await;
-                            Completion::BridgeEnded(epoch, peer, generation)
+                            let failure = bridge.run(stop).await.err();
+                            Completion::BridgeEnded(epoch, peer, generation, failure)
                         }));
                         self.emit(Event::GameReady {
                             epoch,
@@ -3961,14 +4116,50 @@ impl Actor {
                     }
                 }
             }
-            Completion::BridgeEnded(epoch, peer, generation) => {
+            Completion::BridgeEnded(epoch, peer, generation, failure) => {
                 if epoch == self.epoch
                     && self
                         .games
                         .get(&peer)
                         .is_some_and(|slot| slot.auth.key.generation == generation)
                 {
-                    self.games.remove(&peer);
+                    if let Some(slot) = self.games.remove(&peer) {
+                        let route = slot
+                            .route_connection
+                            .as_ref()
+                            .map(selected_probe_route)
+                            .unwrap_or_else(|| "unavailable".into());
+                        if let Some(stats) = slot.stats.as_ref() {
+                            self.emit(Event::Statistics {
+                                epoch,
+                                peer,
+                                generation,
+                                sent_packets: stats.sent_packets.load(Ordering::Relaxed),
+                                received_packets: stats.received_packets.load(Ordering::Relaxed),
+                                sent_bytes: stats.sent_bytes.load(Ordering::Relaxed),
+                                received_bytes: stats.received_bytes.load(Ordering::Relaxed),
+                                rejected_packets: stats.rejected_packets.load(Ordering::Relaxed),
+                                congestion_events: stats.congestion_events.load(Ordering::Relaxed),
+                                local_drops: stats.local_drops.load(Ordering::Relaxed),
+                                route: route.clone(),
+                            })?;
+                        }
+                        if let Some(reason) = failure {
+                            self.emit(Event::GameFailed {
+                                epoch,
+                                peer,
+                                generation,
+                                reason,
+                                route,
+                                max_packet: slot.auth.max_packet,
+                                max_datagram: slot
+                                    .route_connection
+                                    .as_ref()
+                                    .and_then(Connection::max_datagram_size)
+                                    .unwrap_or(0),
+                            })?;
+                        }
+                    }
                     self.emit(Event::GameClosed {
                         epoch,
                         peer,
@@ -3997,6 +4188,22 @@ impl Actor {
                     self.probe_peers.remove(&probe.peer);
                     self.probe_permissions.remove(&probe.peer);
                     self.pending_probe_invalidations.remove(&probe.peer);
+                    // A check initiated by the other player may replace our
+                    // measured connection. Retire its recommendation explicitly.
+                    if let Some(previous) = self.probe_reservations.remove(&probe.peer) {
+                        if previous.reported && !probe.report {
+                            self.queue_probe_invalidation(
+                                probe.peer,
+                                previous.request,
+                                previous.pair_revision,
+                                probe
+                                    .connection
+                                    .as_ref()
+                                    .map(selected_probe_route)
+                                    .unwrap_or_default(),
+                            );
+                        }
+                    }
                     if probe.report {
                         let route = probe
                             .connection
@@ -4005,7 +4212,18 @@ impl Actor {
                             .unwrap_or_else(|| "unavailable".into());
                         if probe.route_changed {
                             if let Some(connection) = probe.connection {
-                                connection.close(1u32.into(), b"probe route changed");
+                                if connection.close_reason().is_none() {
+                                    self.probe_reservations.insert(
+                                        probe.peer,
+                                        ProbeReservation {
+                                            reported: false,
+                                            connection,
+                                            request: probe.request,
+                                            pair_revision: probe.pair_revision,
+                                            route: route.clone(),
+                                        },
+                                    );
+                                }
                             }
                             self.queue_probe_invalidation(
                                 probe.peer,
@@ -4015,12 +4233,17 @@ impl Actor {
                             );
                             return Ok(());
                         }
-                        let summary = recovery::summarize_probe(&probe.samples_us, probe.duration);
+                        let summary = recovery::summarize_datagram_probe(
+                            &probe.samples_us,
+                            probe.metrics.expected,
+                            probe.metrics.sent,
+                        );
                         if summary.status == "ready" {
                             if let Some(connection) = probe.connection {
                                 self.probe_reservations.insert(
                                     probe.peer,
                                     ProbeReservation {
+                                        reported: true,
                                         connection,
                                         request: probe.request,
                                         pair_revision: probe.pair_revision,
@@ -4038,16 +4261,22 @@ impl Actor {
                             request: probe.request,
                             pair_revision: probe.pair_revision,
                             route,
-                            status: summary.status,
+                            status: summary.status.clone(),
                             sample_count: summary.sample_count,
                             loss_count: summary.loss_count,
                             p95_rtt_us: summary.p95_rtt_us,
-                            recommended_delay: i16::from(summary.recommended_delay),
+                            recommended_delay: if summary.status == "ready" {
+                                i16::from(summary.recommended_delay)
+                            } else {
+                                -1
+                            },
+                            metrics: probe.metrics,
                         })?;
                     } else if let Some(connection) = probe.connection {
                         self.probe_reservations.insert(
                             probe.peer,
                             ProbeReservation {
+                                reported: false,
                                 route: selected_probe_route(&connection),
                                 connection,
                                 request: probe.request,
@@ -4223,8 +4452,8 @@ impl Actor {
                                 if self.checkpoint_ack(epoch, room, transfer, offset).is_err() {
                                     self.error(id, "checkpoint_ack_rejected")?;
                                 },
-                            Command::ProbeRequest { epoch, room, peer, request, pair_revision } => {
-                                self.spawn_probe(epoch, room, peer, request, pair_revision).await?;
+                            Command::ProbeRequest { epoch, room, peer, request, pair_revision, benchmark } => {
+                                self.spawn_probe(epoch, room, peer, request, pair_revision, benchmark).await?;
                             }
                             Command::Leave { epoch, abandon } => {
                                 if !self.leave_command(epoch, abandon, &mut commands, &mut failed_ipc).await? {
@@ -4297,99 +4526,28 @@ async fn run_probe(
     peer: EndpointId,
     request: u64,
     pair_revision: u64,
+    benchmark: bool,
 ) -> io::Result<ProbeCompletion> {
-    let (connection, mut send, mut recv) = connect_probe_stream(&endpoint, &address).await?;
-    let started = tokio::time::Instant::now();
-    let initial_route = selected_probe_route(&connection);
-    let path_connection = connection.clone();
-    let (samples_tx, mut samples_rx) = tokio::sync::mpsc::channel(128);
-    let reader = tokio::spawn(async move {
-        loop {
-            let mut payload = [0; 48];
-            if recv.read_exact(&mut payload).await.is_err() {
-                return;
-            }
-            let arrival_us = started.elapsed().as_micros().min(u64::MAX as u128) as u64;
-            let route = selected_probe_route(&path_connection);
-            if samples_tx.send((payload, arrival_us, route)).await.is_err() {
-                return;
-            }
-        }
-    });
-    let mut samples = Vec::new();
-    let mut sent_at = BTreeMap::new();
-    let mut ticker = tokio::time::interval(recovery::PROBE_INTERVAL);
-    ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-    for sequence in 1..=100u64 {
-        ticker.tick().await;
-        if started.elapsed() >= recovery::PROBE_DURATION {
-            break;
-        }
-        let timestamp = started.elapsed().as_micros() as u64;
-        sent_at.insert(sequence, timestamp);
-        send.write_all(&room)
-            .await
-            .map_err(|_| failed("probe write"))?;
-        send.write_u64(request)
-            .await
-            .map_err(|_| failed("probe write"))?;
-        send.write_u64(pair_revision)
-            .await
-            .map_err(|_| failed("probe write"))?;
-        send.write_u64(sequence)
-            .await
-            .map_err(|_| failed("probe write"))?;
-        send.write_u64(timestamp)
-            .await
-            .map_err(|_| failed("probe write"))?;
-        send.flush().await.map_err(|_| failed("probe write"))?;
-    }
-    // End the request half cleanly, then let the responder finish every echo
-    // and its response half. Aborting the reader first sends STOP_SENDING;
-    // paired with the responder treating the request FIN as an error, that
-    // could drop its last Connection handle before gameplay reused the route.
-    send.finish().map_err(|_| failed("probe finish"))?;
-    let mut reader = reader;
-    if timeout(Duration::from_secs(1), &mut reader).await.is_err() {
-        reader.abort();
-    }
-    let mut unique = BTreeSet::new();
-    let mut route_changed = false;
-    while let Ok((payload, arrival_us, route)) = samples_rx.try_recv() {
-        if route != initial_route {
-            route_changed = true;
-            continue;
-        }
-        let echoed_room: [u8; 16] = payload[..16].try_into().unwrap_or([0; 16]);
-        let echoed_request = u64::from_be_bytes(payload[16..24].try_into().unwrap_or([0; 8]));
-        let echoed_pair = u64::from_be_bytes(payload[24..32].try_into().unwrap_or([0; 8]));
-        let echoed_sequence = u64::from_be_bytes(payload[32..40].try_into().unwrap_or([0; 8]));
-        let timestamp = u64::from_be_bytes(payload[40..48].try_into().unwrap_or([0; 8]));
-        if echoed_room == room
-            && echoed_request == request
-            && echoed_pair == pair_revision
-            && echoed_sequence != 0
-            && sent_at
-                .get(&echoed_sequence)
-                .is_some_and(|sent| *sent == timestamp)
-            && unique.insert(echoed_sequence)
-        {
-            samples.push(arrival_us.saturating_sub(timestamp));
-        }
-    }
-    let final_route = selected_probe_route(&connection);
-    route_changed |= connection.close_reason().is_some()
-        || final_route == "unavailable"
-        || final_route != initial_route;
+    let (connection, send, recv) = connect_probe_stream(&endpoint, &address).await?;
+    let measurement = crate::probe::measure(
+        &connection,
+        send,
+        recv,
+        room,
+        request,
+        pair_revision,
+        benchmark,
+    )
+    .await?;
     Ok(ProbeCompletion {
         peer,
         request,
         pair_revision,
-        samples_us: samples,
-        duration: recovery::PROBE_DURATION,
+        samples_us: measurement.samples,
         connection: Some(connection),
         report: true,
-        route_changed,
+        route_changed: measurement.route_changed,
+        metrics: measurement.metrics,
     })
 }
 
@@ -4448,68 +4606,19 @@ async fn connect_probe_stream(
     }
 }
 
-fn accept_probe_sequence(
-    payload: &[u8; 48],
-    room: [u8; 16],
-    request: u64,
-    pair_revision: u64,
-    sequences: &mut BTreeSet<u64>,
-) -> bool {
-    let sequence = u64::from_be_bytes(payload[32..40].try_into().unwrap_or([0; 8]));
-    payload[..16] == room
-        && u64::from_be_bytes(payload[16..24].try_into().unwrap_or([0; 8])) == request
-        && u64::from_be_bytes(payload[24..32].try_into().unwrap_or([0; 8])) == pair_revision
-        && (1..=100).contains(&sequence)
-        && sequences.insert(sequence)
-}
-
 async fn serve_probe(
     connection: Connection,
     mut send: SendStream,
-    mut recv: RecvStream,
+    recv: RecvStream,
     room: [u8; 16],
     request: u64,
     pair_revision: u64,
 ) -> io::Result<Connection> {
-    let deadline = tokio::time::Instant::now() + recovery::PROBE_DURATION + Duration::from_secs(1);
-    let mut sequences = BTreeSet::new();
     send.write_all(&transport::GAME_PROBE_MAGIC)
         .await
         .map_err(|_| failed("probe acknowledgment"))?;
-    send.flush()
-        .await
-        .map_err(|_| failed("probe acknowledgment"))?;
-    loop {
-        let mut payload = [0u8; 48];
-        let mut filled = 0;
-        while filled < payload.len() {
-            tokio::select! {
-                result = recv.read(&mut payload[filled..]) => match result {
-                    Ok(None) if filled == 0 && !sequences.is_empty() => {
-                        send.finish().map_err(|_| failed("probe finish"))?;
-                        return Ok(connection);
-                    }
-                    Ok(None) => return Err(failed("probe read")),
-                    Ok(Some(read)) => filled += read,
-                    Err(_) => return Err(failed("probe read")),
-                },
-                _ = tokio::time::sleep_until(deadline) => {
-                    if sequences.is_empty() || filled != 0 {
-                        return Err(failed("probe read"));
-                    }
-                    send.finish().map_err(|_| failed("probe finish"))?;
-                    return Ok(connection);
-                },
-            }
-        }
-        if !accept_probe_sequence(&payload, room, request, pair_revision, &mut sequences) {
-            return Err(failed("invalid probe sequence"));
-        }
-        send.write_all(&payload)
-            .await
-            .map_err(|_| failed("probe write"))?;
-        send.flush().await.map_err(|_| failed("probe write"))?;
-    }
+    crate::probe::respond(&connection, send, recv, room, request, pair_revision).await?;
+    Ok(connection)
 }
 
 fn selected_probe_route(connection: &Connection) -> String {
@@ -4627,6 +4736,7 @@ pub async fn run<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         unwritable_leader_since: None,
         reconnect_target: None,
         probe_reservations: BTreeMap::new(),
+        pending_game_admissions: BTreeMap::new(),
         pending_probe_invalidations: BTreeMap::new(),
         probe_peers: BTreeSet::new(),
         probe_permissions: BTreeMap::new(),
@@ -4752,6 +4862,7 @@ mod tests {
             unwritable_leader_since: None,
             reconnect_target: None,
             probe_reservations: BTreeMap::new(),
+            pending_game_admissions: BTreeMap::new(),
             pending_probe_invalidations: BTreeMap::new(),
             probe_peers: BTreeSet::new(),
             probe_permissions: BTreeMap::new(),
@@ -5287,6 +5398,170 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn rejoin_expiry_exception_requires_current_native_membership() {
+        let local = endpoint().await;
+        let remote = endpoint().await;
+        let (events, _receiver) = mpsc::channel(128);
+        let mut actor = test_actor(local.clone(), events);
+        actor.room = Some([7; 16]);
+        actor.remember_admission(Admission {
+            room: [7; 16],
+            incarnation: 9,
+            authority_term: 1,
+            coordination_endpoint: remote.id(),
+            coordination_address: address(&remote),
+            primary_endpoint: remote.id(),
+        });
+        assert_eq!(actor.control_rejoin_member(remote.id()), None);
+        actor.committed_native_members = Some(BTreeSet::from([remote.id()]));
+        assert_eq!(actor.control_rejoin_member(remote.id()), Some(9));
+        assert_eq!(actor.control_rejoin_member(local.id()), None);
+        actor.pending_retired_incarnations.insert(9);
+        assert_eq!(actor.control_rejoin_member(remote.id()), None);
+        actor.pending_retired_incarnations.clear();
+        actor.retired_incarnations.insert(9);
+        assert_eq!(actor.control_rejoin_member(remote.id()), None);
+        actor.retired_incarnations.clear();
+        actor.room = Some([8; 16]);
+        assert_eq!(actor.control_rejoin_member(remote.id()), None);
+        actor.room = Some([7; 16]);
+        actor.committed_native_members.as_mut().unwrap().clear();
+        assert_eq!(actor.control_rejoin_member(remote.id()), None);
+        local.close().await;
+        remote.close().await;
+    }
+
+    #[tokio::test]
+    async fn incomplete_game_marker_does_not_block_actor_commands() {
+        let local = endpoint().await;
+        let remote = endpoint().await;
+        let (client, server) = tokio::join!(remote.connect(address(&local), GAME_ALPN), async {
+            local.accept().await.unwrap().await
+        });
+        let client = client.unwrap();
+        let server = server.unwrap();
+        let retired_connection = server.clone();
+        let (events, mut receiver) = mpsc::channel(128);
+        let mut actor = test_actor(local.clone(), events);
+        actor.epoch = 7;
+        actor.room = Some([71; 16]);
+        actor.games.insert(
+            remote.id(),
+            GameSlot {
+                auth: GameAuthorization {
+                    peer: remote.id(),
+                    key: crate::wire::MatchKey {
+                        room: [71; 16],
+                        generation: 3,
+                    },
+                    capability: [1; 32],
+                    max_packet: 1024,
+                },
+                local_port: 9,
+                waiting: true,
+                task: None,
+                stats: None,
+                route_connection: None,
+                expires: tokio::time::Instant::now() + Duration::from_secs(60),
+                prepare_deadline: None,
+            },
+        );
+        actor.probe_peers.insert(remote.id());
+        actor.probe_permissions.insert(
+            remote.id(),
+            ProbePermission {
+                request: 1,
+                pair_revision: 1,
+                expires: tokio::time::Instant::now() + Duration::from_secs(20),
+            },
+        );
+        timeout(
+            Duration::from_millis(200),
+            actor.completed(Completion::Incoming(7, Ok(server))),
+        )
+        .await
+        .expect("remote marker blocked the actor")
+        .unwrap();
+        assert!(
+            actor
+                .command(Request {
+                    id: 17,
+                    command: Command::Status
+                })
+                .unwrap()
+        );
+        assert!(matches!(
+            receiver.recv().await,
+            Some(Event::Status { request_id: 17, .. })
+        ));
+        assert!(
+            actor
+                .command(Request {
+                    id: 19,
+                    command: Command::EndMatch {
+                        epoch: 7,
+                        generation: 3
+                    }
+                })
+                .unwrap()
+        );
+        assert!(actor.pending_game_admissions.is_empty());
+        // Cancellation releases the preliminary connection immediately, so
+        // a new match from this peer need not wait for the old deadline.
+        let _ = actor.tasks.join_next().await;
+        timeout(Duration::from_secs(1), client.closed())
+            .await
+            .unwrap();
+        let (retry_client, retry_server) =
+            tokio::join!(remote.connect(address(&local), GAME_ALPN), async {
+                local.accept().await.unwrap().await
+            });
+        let retry_client = retry_client.unwrap();
+        let retry_server = retry_server.unwrap();
+        let retry_id = retry_server.stable_id();
+        actor
+            .completed(Completion::Incoming(7, Ok(retry_server)))
+            .await
+            .unwrap();
+        actor
+            .completed(Completion::ClassifiedGame(
+                IncomingGame {
+                    epoch: 7,
+                    peer: remote.id(),
+                    connection: retired_connection,
+                    generation: Some(3),
+                    probe: Some((1, 1)),
+                    deadline: tokio::time::Instant::now() + Duration::from_secs(10),
+                },
+                Err(failed("old completion queued before cancellation")),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(
+            actor
+                .pending_game_admissions
+                .get(&remote.id())
+                .unwrap()
+                .0
+                .stable_id(),
+            retry_id
+        );
+        drop(retry_client);
+
+        assert!(
+            !actor
+                .command(Request {
+                    id: 18,
+                    command: Command::Shutdown
+                })
+                .unwrap()
+        );
+        drop(client);
+        local.close().await;
+        remote.close().await;
+    }
+
+    #[tokio::test]
     async fn completed_probe_keeps_connection_open_for_gameplay_upgrade() {
         timeout(Duration::from_secs(15), async {
             let host = endpoint().await;
@@ -5302,6 +5577,7 @@ mod tests {
                     guest.id(),
                     request,
                     pair_revision,
+                    false,
                 ),
                 async {
                     let connection = guest.accept().await.unwrap().await.unwrap();
@@ -5321,7 +5597,12 @@ mod tests {
             assert!(host_connection.close_reason().is_none());
             assert!(guest_connection.close_reason().is_none());
             assert_eq!(
-                recovery::summarize_probe(&host_probe.samples_us, host_probe.duration).status,
+                recovery::summarize_datagram_probe(
+                    &host_probe.samples_us,
+                    host_probe.metrics.expected,
+                    host_probe.metrics.sent
+                )
+                .status,
                 "ready"
             );
 
@@ -5354,57 +5635,6 @@ mod tests {
         .unwrap();
     }
 
-    #[test]
-    fn probe_responder_accepts_only_one_of_each_bounded_sequence() {
-        let room = [53; 16];
-        let request = 19u64;
-        let pair_revision = 31u64;
-        let mut payload = [0u8; 48];
-        payload[..16].copy_from_slice(&room);
-        payload[16..24].copy_from_slice(&request.to_be_bytes());
-        payload[24..32].copy_from_slice(&pair_revision.to_be_bytes());
-        payload[32..40].copy_from_slice(&1u64.to_be_bytes());
-        let mut sequences = BTreeSet::new();
-        assert!(accept_probe_sequence(
-            &payload,
-            room,
-            request,
-            pair_revision,
-            &mut sequences
-        ));
-        assert!(!accept_probe_sequence(
-            &payload,
-            room,
-            request,
-            pair_revision,
-            &mut sequences
-        ));
-        payload[32..40].copy_from_slice(&100u64.to_be_bytes());
-        assert!(accept_probe_sequence(
-            &payload,
-            room,
-            request,
-            pair_revision,
-            &mut sequences
-        ));
-        payload[32..40].copy_from_slice(&101u64.to_be_bytes());
-        assert!(!accept_probe_sequence(
-            &payload,
-            room,
-            request,
-            pair_revision,
-            &mut sequences
-        ));
-        payload[32..40].copy_from_slice(&2u64.to_be_bytes());
-        assert!(!accept_probe_sequence(
-            &payload,
-            room,
-            request + 1,
-            pair_revision,
-            &mut sequences
-        ));
-    }
-
     #[tokio::test]
     async fn closed_probe_invalidation_retries_after_bulk_backpressure() {
         timeout(Duration::from_secs(10), async {
@@ -5426,6 +5656,7 @@ mod tests {
             actor.probe_reservations.insert(
                 remote.id(),
                 ProbeReservation {
+                    reported: true,
                     connection: connection.clone(),
                     request: 23,
                     pair_revision: 37,
@@ -5503,6 +5734,7 @@ mod tests {
             actor.probe_reservations.insert(
                 remote.id(),
                 ProbeReservation {
+                    reported: true,
                     route: selected_probe_route(&new_connection),
                     connection: new_connection,
                     request: 29,
@@ -5526,10 +5758,10 @@ mod tests {
                         request: 11,
                         pair_revision: 17,
                         samples_us: Vec::new(),
-                        duration: recovery::PROBE_DURATION,
                         connection: Some(old_connection),
                         report: false,
                         route_changed: false,
+                        metrics: crate::probe::Metrics::default(),
                     }),
                 ))
                 .await
@@ -6509,6 +6741,7 @@ mod tests {
             target_incarnation,
             request: 51,
             pair_revision: 7,
+            benchmark: false,
         };
         actor
             .pending_probe_authorizations
@@ -6597,6 +6830,7 @@ mod tests {
                 unwritable_leader_since: None,
                 reconnect_target: None,
                 probe_reservations: BTreeMap::new(),
+                pending_game_admissions: BTreeMap::new(),
                 pending_probe_invalidations: BTreeMap::new(),
                 probe_peers: BTreeSet::new(),
                 probe_permissions: BTreeMap::new(),
@@ -6875,6 +7109,7 @@ mod tests {
             unwritable_leader_since: None,
             reconnect_target: None,
             probe_reservations: BTreeMap::new(),
+            pending_game_admissions: BTreeMap::new(),
             pending_probe_invalidations: BTreeMap::new(),
             probe_peers: BTreeSet::new(),
             probe_permissions: BTreeMap::new(),
@@ -6992,6 +7227,7 @@ mod tests {
                 unwritable_leader_since: None,
                 reconnect_target: None,
                 probe_reservations: BTreeMap::new(),
+                pending_game_admissions: BTreeMap::new(),
                 pending_probe_invalidations: BTreeMap::new(),
                 probe_peers: BTreeSet::new(),
                 probe_permissions: BTreeMap::new(),
@@ -7292,6 +7528,7 @@ mod tests {
                 unwritable_leader_since: None,
                 reconnect_target: None,
                 probe_reservations: BTreeMap::new(),
+                pending_game_admissions: BTreeMap::new(),
                 pending_probe_invalidations: BTreeMap::new(),
                 probe_peers: BTreeSet::new(),
                 probe_permissions: BTreeMap::new(),

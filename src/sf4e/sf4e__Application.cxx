@@ -226,6 +226,24 @@ bool CanBeginReplacement() {
 	return runtime->match ? runtime->match->CanBeginReplacement(ggpoOwnsSocket) : !ggpoOwnsSocket;
 }
 
+void FillNetworkDiagnostics(platform::DiagnosticsView& view) {
+    if(!runtime || !runtime->room) return;
+    const auto& probe=runtime->room->Probe();
+    view.probeState=probe.status.empty()?0:probe.status=="checking"?1:
+        probe.status=="ready"||probe.status=="complete"?2:probe.status=="invalidated"?3:probe.status=="timed_out"?5:probe.status=="local_overload"?6:4;
+    view.probeRoute=probe.route.rfind("ip:",0)==0?1:probe.route.rfind("relay:",0)==0?2:0;
+    view.sent=probe.sent;view.expected=probe.expected;
+    view.benchmark=probe.benchmark;view.replies=probe.samples;view.missed=probe.lost;
+    view.p50Us=probe.p50RttUs;view.p95Us=probe.p95RttUs;view.p99Us=probe.p99RttUs;view.jitterUs=probe.jitterUs;
+    if(runtime->match) for(const auto& entry:runtime->room->Games()) {
+        const auto& game=entry.second;
+        if(game.generation!=runtime->match->Generation()) continue;
+        if(game.route.rfind("ip:",0)==0) ++view.directLinks;
+        if(game.route.rfind("relay:",0)==0) ++view.relayedLinks;
+        view.routeChanges+=game.routeChanges;view.localDrops+=game.localDrops;view.sendPressure+=game.congestionEvents;
+    }
+}
+
 void Publish() {
 	RuntimeSnapshot snapshot;
 	snapshot.session = runtime->controller.GetSnapshot();
@@ -236,6 +254,7 @@ void Publish() {
     diagnostic.room = static_cast<int>(snapshot.session.room); diagnostic.match = static_cast<int>(snapshot.session.match);
     diagnostic.control = static_cast<int>(snapshot.session.control); diagnostic.gameplay = static_cast<int>(snapshot.session.gameplay);
     diagnostic.helperReady = snapshot.helperReady;
+    FillNetworkDiagnostics(diagnostic);
     runtime->services.Observe(diagnostic);
     snapshot.services = runtime->services.Snapshot();
     snapshot.inputDevice = runtime->input.Selected();
@@ -348,7 +367,11 @@ void Publish() {
                     const auto& probe=runtime->room->Probe();
                     if (peer!=UserApp::server->roomPeerIdentities.end() && probe.peer==peer->second &&
                         probe.pairRevision==table->revision) {
+                        snapshot.probeRoute=probe.route.rfind("ip:",0)==0?"Direct":probe.route.rfind("relay:",0)==0?"Relayed":"Unknown";
+                        snapshot.probeP50Us=probe.p50RttUs; snapshot.probeP95Us=probe.p95RttUs; snapshot.probeP99Us=probe.p99RttUs;
+                        snapshot.probeJitterUs=probe.jitterUs; snapshot.probeBenchmark=probe.benchmark;
                         snapshot.probeStatus=probe.status; snapshot.probeSamples=probe.samples; snapshot.probeLost=probe.lost;
+                        snapshot.probeSent=probe.sent; snapshot.probeExpected=probe.expected;
                         snapshot.recommendedDelay=probe.recommended;
                         snapshot.canApplyDelay=!snapshot.delayLocked && probe.recommended>=0;
                         if(probe.status=="checking") snapshot.canProbe=false;
@@ -368,7 +391,7 @@ void Publish() {
 	}
     snapshot.canChangeController = snapshot.canEditSelection && !runtime->pendingReady &&
         !snapshot.session.readyPending && !runtime->pendingLobbyEdit && !runtime->pendingAbort;
-    snapshot.canReady = snapshot.canReady && snapshot.controllerReady;
+    snapshot.canReady = snapshot.canReady && snapshot.controllerReady && !(snapshot.probeBenchmark && snapshot.probeStatus=="checking");
     // Report the actual gate; a pending transition is not the same as Ready.
     if (!snapshot.canEditSelection) {
         snapshot.selectionLockReason = !snapshot.atMainMenu ? "Return to the native main menu to change your fighter." :
@@ -379,7 +402,7 @@ void Publish() {
             "Waiting for the current match or selection update to finish.";
     }
 	if (!snapshot.canReady) {
-		snapshot.readyLockReason = !snapshot.controllerReady ? "Assign or reconnect your controller in Settings > Player & Controller." :
+		snapshot.readyLockReason = snapshot.probeBenchmark && snapshot.probeStatus=="checking" ? "Wait for the connection benchmark to finish before Ready." : !snapshot.controllerReady ? "Assign or reconnect your controller in Settings > Player & Controller." :
 			!snapshot.atMainMenu ? "Return to the native main menu before readying up." :
 			runtime->pendingLobbySettings || runtime->pendingLobbyEdit ? "Waiting for table settings to finish applying." :
 			runtime->pendingAbort ? "Waiting for the previous game to close." :
@@ -791,6 +814,7 @@ void TickRuntime() {
             diagnostics.control = static_cast<int>(state.control); diagnostics.gameplay = static_cast<int>(state.gameplay);
             diagnostics.helperReady = helperReady; diagnostics.verificationAvailable = state.verificationAvailable;
             diagnostics.pingMs = GetStatus().pingMs;
+            FillNetworkDiagnostics(diagnostics);
             if (!runtime->services.Request(command.service, diagnostics)) runtime->error = "The operation is busy. Try again.";
             continue;
         }
@@ -939,7 +963,7 @@ void TickRuntime() {
             if(!GetRuntimeSnapshot().canProbe) break;
             if(runtime->room->Probe().status=="checking") break;
             std::uint64_t revision=0; const auto peer=CurrentProbePeer(revision);
-            if(peer.empty() || !runtime->room->RequestProbe(peer,runtime->nextProbeRequest++,revision))
+            if(peer.empty() || !runtime->room->RequestProbe(peer,runtime->nextProbeRequest++,revision,command.command.benchmark))
                 runtime->error="Connection check is unavailable. You can still choose a delay and Ready.";
             else if(runtime->error=="Connection check is unavailable. You can still choose a delay and Ready.")
                 runtime->error.clear();
@@ -1333,7 +1357,11 @@ void TickRuntime() {
         {"native_socket", Game::Battle::System::ggpo != nullptr},
         {"result_pending", runtime->resultOutbox.Pending()}, {"finish_pending", runtime->matchFinishedPending},
         {"leave_pending", runtime->leaveRequested}, {"terminal_pending", runtime->terminalAckPending},
-        {"probe", runtime->room ? runtime->room->Probe().status : std::string()}
+        {"probe", runtime->room ? runtime->room->Probe().status : std::string()},
+        {"probe_route",view.probeRoute},{"probe_benchmark",view.probeBenchmark},
+        {"probe_replies",view.probeSamples},{"probe_missed",view.probeLost},
+        {"probe_p50_us",view.probeP50Us},{"probe_p95_us",view.probeP95Us},
+        {"probe_p99_us",view.probeP99Us},{"probe_jitter_us",view.probeJitterUs}
     }.dump());
     std::string currentParty; std::uint64_t expiry=0;
     if (view.session.room==netplay::RoomState::Joined && runtime->room)

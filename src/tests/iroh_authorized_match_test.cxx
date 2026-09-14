@@ -113,10 +113,11 @@ struct DiscardedControlStream {
 int wmain(int argc, wchar_t** argv) {
 	std::cout << std::unitbuf;
 	CHECK(argc >= 2 && argc <= 4);
-	bool relayOnly = false, terminalRecovery = false;
+	bool relayOnly = false, terminalRecovery = false, benchmark = false;
 	for (int i = 2; i < argc; ++i) {
 		const std::wstring option = argv[i];
 		if (option == L"--relay-only") relayOnly = true;
+		else if (option == L"--benchmark") benchmark = true;
 		else if (option == L"--terminal-recovery") terminalRecovery = true;
 		else CHECK(false);
 	}
@@ -146,7 +147,7 @@ int wmain(int argc, wchar_t** argv) {
 	std::function<void()> serviceAdmissions;
 	auto wait = [&](const std::function<bool()>& progress) {
 		const auto attempt=++waitNumber;
-		const auto deadline = GetTickCount64() + 25000;
+		const auto deadline = GetTickCount64() + (benchmark ? 50000 : 25000);
 		do {
 			for (std::size_t i = 0; i < Count; ++i) {
 				if (held[i]) CHECK(discarded[i].Pump(helpers[i]));
@@ -280,12 +281,13 @@ int wmain(int argc, wchar_t** argv) {
 	// Match the player UI: probe occupied seats before Ready sends selections.
 	CHECK(clients[0]->GetRoomSnapshot().members[0].fighter == -1);
 	const auto pairRevision = clients[0]->GetRoomSnapshot().tables[0].revision;
-	CHECK(rooms[0]->RequestProbe(probePeer, 1, pairRevision));
+	CHECK(rooms[0]->RequestProbe(probePeer, 1, pairRevision, benchmark));
 	wait([&]() {
 		pump();
 		const auto& probe = rooms[0]->Probe();
-		return (probe.status == "ready" || probe.status == "complete") && probe.samples >= 80 &&
-			probe.samples + probe.lost == 100 && probe.route != "" && probe.recommended >= 0;
+		return (probe.status == "ready" || probe.status == "complete") && probe.samples >= (benchmark ? 480U : 80U) &&
+            probe.sent == (benchmark ? 600U : 100U) &&
+			probe.samples + probe.lost == (benchmark ? 600 : 100) && probe.route != "" && probe.recommended >= 0;
 	});
 	const auto probeRoute = rooms[0]->Probe().route;
 	std::cout << "Probe route=" << probeRoute << " valid=" << rooms[0]->Probe().samples
@@ -293,13 +295,21 @@ int wmain(int argc, wchar_t** argv) {
 		<< " recommended_delay=" << rooms[0]->Probe().recommended << '\n';
 	const auto probeControl = rooms[0]->ConnectionForIdentity(probePeer);
 	CHECK(probeControl != 0);
+    const auto& measured=rooms[0]->Probe();
+    if(benchmark) CHECK(measured.packetBytes==session::GgpoMaximumPacket+26);
+    std::cout << "Datagram measurement bytes=" << measured.packetBytes << " sent=" << measured.sent << " scheduled=" << measured.expected
+        << " replies=" << measured.samples << " missed=" << measured.lost << " p50_us=" << measured.p50RttUs
+        << " p95_us=" << measured.p95RttUs << " p99_us=" << measured.p99RttUs << " variation_us=" << measured.jitterUs << '\n';
 	CHECK(rooms[1]->RequestProbe(rooms[0]->LocalIdentity(), 1, pairRevision));
 	wait([&]() {
 		pump();
 		const auto& probe = rooms[1]->Probe();
 		return (probe.status == "ready" || probe.status == "complete") && probe.samples >= 80 && probe.recommended >= 0;
 	});
+
 	std::cout << "Both seated players completed the connection check before Ready\n";
+    const auto finalProbeRoute=rooms[1]->Probe().route;
+    wait([&](){pump();return rooms[0]->Probe().status=="invalidated";});
 	// The pair reservation is bound to the committed native table, including
 	// both selected fighters and the exact table revision.  Exercise the same
 	// pre-battle path the game uses before asking the helper to reserve QUIC.
@@ -349,10 +359,10 @@ int wmain(int argc, wchar_t** argv) {
 			<< "," << rooms[1]->Game(rooms[0]->LocalIdentity()).route
 			<< " frozen_delays=" << p1Delay << "," << p2Delay << '\n';
 		if (cycle == 1) {
-			// The first gameplay authorization must upgrade the retained probe
-			// connection. GameSnapshot exposes its selected path; the control
+			// Gameplay must upgrade the most recent check, initiated by P2.
+            // P1's earlier recommendation was explicitly invalidated. GameSnapshot exposes its selected path; the control
 			// identity also must remain the same while that reservation is used.
-			CHECK(rooms[0]->Game(probePeer).route == probeRoute);
+			CHECK(rooms[1]->Game(rooms[0]->LocalIdentity()).route == finalProbeRoute);
 			CHECK(rooms[0]->ConnectionForIdentity(probePeer) == probeControl);
 		}
 		std::cout << "Generation " << cycle << " authorized; creating GGPO sessions\n";

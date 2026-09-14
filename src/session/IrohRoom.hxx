@@ -30,9 +30,12 @@ public:
 		std::uint16_t virtualPort = 0;
 		std::size_t maxPacket = 0;
 		std::uint64_t sentPackets = 0, receivedPackets = 0, sentBytes = 0, receivedBytes = 0;
-		std::uint64_t rejectedPackets = 0, congestionEvents = 0, localDrops = 0;
-        std::string route;
+		std::uint64_t rejectedPackets = 0, congestionEvents = 0, localDrops = 0, routeChanges = 0;
+        std::string route, error;
+        std::size_t datagramLimit=0;
+        void ObserveStatistics(const nlohmann::json& event);
 	};
+    const std::map<std::string, GameSnapshot>& Games() const { return games_; }
     struct CoordinationSnapshot {
         bool active=false, writable=false, leaderLocal=false, rebound=false;
         std::uint64_t term=0, revision=0, incarnation=0;
@@ -44,9 +47,10 @@ public:
         nlohmann::json checkpoint;
     };
     struct ProbeSnapshot {
-        std::uint64_t request=0, pairRevision=0, p95RttUs=0;
+        std::uint64_t request=0, pairRevision=0, p95RttUs=0, p50RttUs=0, p99RttUs=0, jitterUs=0, deadlineMs=0;
+        bool benchmark=false;
         std::string peer, route, status;
-        unsigned samples=0, lost=0;
+        unsigned samples=0, lost=0, sent=0, expected=0, packetBytes=0;
         int recommended=-1;
     };
     struct RecoverySnapshot {
@@ -96,7 +100,7 @@ public:
     bool ActivateCommittedCheckpoint(const coordination::TransferIdentity& identity);
     bool ReadyForMatch() const;
     bool ProposalInFlight() const { return !proposalBytes_.empty(); }
-    bool RequestProbe(const std::string& peer, std::uint64_t request, std::uint64_t pairRevision);
+    bool RequestProbe(const std::string& peer, std::uint64_t request, std::uint64_t pairRevision, bool benchmark=false);
     Connection ConnectionForIdentity(const std::string& identity) const;
     std::map<Connection,std::string> ControlIdentities() const;
 	// The C++ room authority supplies admission and a fresh pair capability.

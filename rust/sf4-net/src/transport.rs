@@ -29,7 +29,7 @@ pub const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 pub const PREPARED_GAME_TIMEOUT: Duration = Duration::from_secs(60);
 /// The first bytes on a GAME_ALPN stream identify its purpose. This lets a
 /// probe and gameplay handshake share one authenticated QUIC connection.
-pub const GAME_PROBE_MAGIC: [u8; 4] = *b"PRB1";
+pub const GAME_PROBE_MAGIC: [u8; 4] = *b"PRB2";
 pub const GAME_PLAY_MAGIC: [u8; 4] = *b"GME1";
 
 fn failed() -> io::Error {
@@ -196,11 +196,15 @@ pub async fn connect_control_to(
     address: EndpointAddr,
     invite: &Invite,
 ) -> io::Result<ControlChannel> {
-    let connection = endpoint
-        .connect(address.clone(), CONTROL_ALPN)
-        .await
-        .map_err(|_| failed())?;
-    connect_control_on_expected(connection, invite, Some(address.id)).await
+    timeout(HANDSHAKE_TIMEOUT, async {
+        let connection = endpoint
+            .connect(address.clone(), CONTROL_ALPN)
+            .await
+            .map_err(|_| failed())?;
+        connect_control_on_expected(connection, invite, Some(address.id)).await
+    })
+    .await
+    .map_err(|_| failed())?
 }
 
 async fn connect_control_on_expected(
@@ -232,6 +236,23 @@ async fn connect_control_on_expected(
 }
 
 pub async fn accept_control(connection: Connection, room: &Invite) -> io::Result<ControlChannel> {
+    accept_control_policy(connection, room, None, now()?).await
+}
+
+pub(crate) async fn accept_control_member(
+    connection: Connection,
+    room: &Invite,
+    member: EndpointId,
+) -> io::Result<ControlChannel> {
+    accept_control_policy(connection, room, Some(member), now()?).await
+}
+
+async fn accept_control_policy(
+    connection: Connection,
+    room: &Invite,
+    member: Option<EndpointId>,
+    clock: u64,
+) -> io::Result<ControlChannel> {
     let mut pending = PendingConnection(Some(connection.clone()));
     let result = timeout(HANDSHAKE_TIMEOUT, async {
         if connection.alpn() != CONTROL_ALPN {
@@ -239,7 +260,14 @@ pub async fn accept_control(connection: Connection, room: &Invite) -> io::Result
         }
         let (mut send, mut recv) = connection.accept_bi().await.map_err(|_| failed())?;
         let proof: RoomProof = read_handshake(&mut recv).await?;
-        room.admit(&proof, now()?)?;
+        if let Some(member) = member {
+            if connection.remote_id() != member {
+                return Err(failed());
+            }
+            room.admit_member(&proof)?;
+        } else {
+            room.admit(&proof, clock)?;
+        }
         send_handshake(&mut send, &Accepted { version: VERSION }).await?;
         Ok(control_channel(connection, (send, recv)))
     })
@@ -421,7 +449,15 @@ pub enum GameStream {
 /// Consume the purpose marker while leaving the application handshake in the
 /// stream for the caller that owns that mode.
 pub async fn accept_game_stream(connection: &Connection) -> io::Result<GameStream> {
-    timeout(HANDSHAKE_TIMEOUT, async {
+    accept_game_stream_until(connection, Instant::now() + HANDSHAKE_TIMEOUT).await
+}
+
+pub async fn accept_game_stream_until(
+    connection: &Connection,
+    deadline: Instant,
+) -> io::Result<GameStream> {
+    let mut pending = PendingConnection(Some(connection.clone()));
+    let result = tokio::time::timeout_at(deadline, async {
         if connection.alpn() != GAME_ALPN {
             return Err(failed());
         }
@@ -429,7 +465,11 @@ pub async fn accept_game_stream(connection: &Connection) -> io::Result<GameStrea
         classify_game_stream(send, recv).await
     })
     .await
-    .map_err(|_| failed())?
+    .map_err(|_| failed())?;
+    if result.is_ok() {
+        pending.0 = None;
+    }
+    result
 }
 
 async fn classify_game_stream(send: SendStream, mut recv: RecvStream) -> io::Result<GameStream> {
@@ -547,17 +587,43 @@ pub async fn accept_game_on(
 pub async fn accept_game_stream_with(
     connection: Connection,
     auth: GameAuthorization,
+    send: SendStream,
+    recv: RecvStream,
+) -> io::Result<GameConnection> {
+    accept_game_stream_with_until(
+        connection,
+        auth,
+        send,
+        recv,
+        Instant::now() + HANDSHAKE_TIMEOUT,
+    )
+    .await
+}
+
+pub async fn accept_game_stream_with_until(
+    connection: Connection,
+    auth: GameAuthorization,
     mut send: SendStream,
     mut recv: RecvStream,
+    deadline: Instant,
 ) -> io::Result<GameConnection> {
-    let proof: GameProof = read_handshake(&mut recv).await?;
-    auth.validate(&connection, &proof)?;
-    send_handshake(&mut send, &auth.proof()).await?;
-    send.finish().map_err(|_| failed())?;
-    Ok(GameConnection {
-        connection,
-        authorization: auth,
+    let mut pending = PendingConnection(Some(connection.clone()));
+    let result = tokio::time::timeout_at(deadline, async {
+        let proof: GameProof = read_handshake(&mut recv).await?;
+        auth.validate(&connection, &proof)?;
+        send_handshake(&mut send, &auth.proof()).await?;
+        send.finish().map_err(|_| failed())?;
+        Ok(GameConnection {
+            connection,
+            authorization: auth,
+        })
     })
+    .await
+    .map_err(|_| failed())?;
+    if result.is_ok() {
+        pending.0 = None;
+    }
+    result
 }
 
 #[cfg(test)]
@@ -636,6 +702,83 @@ mod tests {
             accept_game(connection, b_auth).await
         });
         (client.unwrap(), server.unwrap())
+    }
+
+    #[tokio::test]
+    async fn expired_invite_reauthenticates_only_the_admitted_endpoint_after_handoff() {
+        let a = local_endpoint().await;
+        let b = local_endpoint().await;
+        let successor = local_endpoint().await;
+        let invite = room(&b);
+        let clock = now().unwrap() + 7200;
+        for (server, member, allowed) in [
+            (&b, None, false),
+            (&b, Some(a.id()), true),
+            (&successor, Some(a.id()), true),
+            (&b, Some(b.id()), false),
+        ] {
+            let (client, accepted) = tokio::join!(
+                async {
+                    let connection = a.connect(address(server), CONTROL_ALPN).await.unwrap();
+                    connect_control_on_expected(connection, &invite, Some(server.id())).await
+                },
+                async {
+                    let connection = server.accept().await.unwrap().await.unwrap();
+                    accept_control_policy(connection, &invite, member, clock).await
+                }
+            );
+            assert_eq!(client.is_ok(), allowed);
+            assert_eq!(accepted.is_ok(), allowed);
+        }
+        a.close().await;
+        b.close().await;
+        successor.close().await;
+    }
+
+    #[tokio::test]
+    async fn partial_game_proof_uses_remaining_marker_deadline_and_releases_connection() {
+        let a = local_endpoint().await;
+        let b = local_endpoint().await;
+        let (client, server) = tokio::join!(a.connect(address(&b), GAME_ALPN), async {
+            b.accept().await.unwrap().await
+        });
+        let client = client.unwrap();
+        let server = server.unwrap();
+        let (mut send, _recv) = client.open_bi().await.unwrap();
+        send.write_all(&GAME_PLAY_MAGIC).await.unwrap();
+        let started = Instant::now();
+        let deadline = started + Duration::from_millis(250);
+        let GameStream::Gameplay(tx, rx) =
+            accept_game_stream_until(&server, deadline).await.unwrap()
+        else {
+            panic!("wrong purpose")
+        };
+        tokio::time::sleep(Duration::from_millis(150)).await;
+        let auth = GameAuthorization {
+            peer: a.id(),
+            key: MatchKey {
+                room: [39; 16],
+                generation: 1,
+            },
+            capability: [11; 32],
+            max_packet: 1024,
+        };
+        assert!(
+            timeout(
+                Duration::from_millis(300),
+                accept_game_stream_with_until(server, auth, tx, rx, deadline)
+            )
+            .await
+            .unwrap()
+            .is_err()
+        );
+        assert!(started.elapsed() < Duration::from_millis(500));
+        timeout(Duration::from_secs(1), client.closed())
+            .await
+            .unwrap();
+        let _new_generation = game_pair(&a, &b, 2).await;
+        a.close().await;
+        b.close().await;
     }
 
     #[tokio::test]

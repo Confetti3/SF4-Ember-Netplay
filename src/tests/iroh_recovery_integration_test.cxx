@@ -119,6 +119,20 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
                     << " local_member=" << snapshot.localMember
                     << " client_error=" << peers[i].client->RoomError();
             }
+            if(peers[i].server) {
+                const auto checkpoint=peers[i].server->RecoveryCheckpoint();
+                const auto transport=peers[i].room->RecoveryState();
+                std::cerr << " candidate=" << peers[i].server->HasRecoveryCandidate()
+                    << " proposal=" << bool(peers[i].server->PendingProposal())
+                    << " queued_server=" << transport.serverQueueMessages << " queued_client=" << transport.clientQueueMessages;
+                if(checkpoint.contains("room") && checkpoint["room"].contains("terminal_receipts"))
+                    for(const auto& receipt:checkpoint["room"]["terminal_receipts"]) {
+                        std::cerr << " terminal=" << receipt.at("table") << '/' << receipt.at("generation")
+                            << " acknowledged=" << receipt.at("acknowledged");
+                        for(const auto& recipient:receipt.at("recipients"))
+                            std::cerr << " recipient=" << recipient.at("member") << ':' << recipient.at("acknowledged");
+                    }
+            }
             std::cerr << '\n';
         }
         CHECK(false);
@@ -245,6 +259,10 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
             }return leaders==1;});
         CHECK(processes[0].IsRunning());
         phase="new native command after graceful transfer";
+        // Recovery rebases the existing one-second chat cooldown. A fast
+        // transfer must not turn this authority check into a rate-limit test.
+        const auto chatReadyAt=GetTickCount64()+1010;
+        wait([&](){pump();return GetTickCount64()>=chatReadyAt;});
         action(1,room::ActionKind::Chat,"After normal transfer");
         for(std::size_t i=0;i<count;++i) CHECK(helpers[i].Send("{\"type\":\"shutdown\"}"));
         phase="graceful fixture shutdown";
@@ -680,7 +698,15 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
             CHECK(table.inputDelay[0]==fighterOneDelay && table.inputDelay[1]==fighterTwoDelay);
             const auto game=peers[i].room->Game(i==1 ? peers[2].room->LocalIdentity() : peers[1].room->LocalIdentity());
             CHECK(game.state==session::IrohRoom::GameState::Ready && game.generation==generations[i-1]);
-            CHECK(game.virtualPort==beforeGames[i-1].virtualPort && game.route==routes[i-1]);
+            CHECK(game.virtualPort==beforeGames[i-1].virtualPort);
+            CHECK(!game.route.empty() && game.route!="unavailable");
+            CHECK(game.routeChanges>=beforeGames[i-1].routeChanges);
+            if(game.route!=beforeGames[i-1].route) CHECK(game.routeChanges>beforeGames[i-1].routeChanges);
+            if(relayOnly) CHECK(game.route.rfind("relay:",0)==0);
+            // Path migration updates telemetry without replacing the live
+            // match generation, local sockets, roster, capability or delay.
+            std::cout << "Recovered gameplay route changes=" << game.routeChanges
+                << " current=" << game.route << '\n';
             CHECK(game.sentPackets>beforeGames[i-1].sentPackets && game.receivedPackets>beforeGames[i-1].receivedPackets);
             CHECK(peers[i].client->_ggpoPort==localPorts[i-1]);
             const auto afterRecovery=peers[i].server->RecoveryCheckpoint();

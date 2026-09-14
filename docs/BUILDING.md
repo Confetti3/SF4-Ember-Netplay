@@ -35,13 +35,13 @@ The local suite excludes public-network and live Discord tests. Explicit helper 
 ## Package
 
 ```powershell
-pwsh -NoProfile -File ./scripts/package-team.ps1 -VersionLabel 0.8.0
+pwsh -NoProfile -File ./scripts/package-team.ps1 -VersionLabel 0.8.1
 ```
 
-This creates `dist/sf4-ember-netplay-0.8.0.zip` and its `.sha256` sidecar. It requires the designated source, fresh build receipt and matching staged binaries, collects notices, validates the package inventory and runs preflight. Existing package destinations are never overwritten.
+This creates `dist/sf4-ember-netplay-0.8.1.zip` and its `.sha256` sidecar. It requires the designated source, fresh build receipt and matching staged binaries, collects notices, validates the package inventory and runs preflight. Existing package destinations are never overwritten.
 
 ## Publish a release
 
-Commit the final source, README and screenshots before the final build. Build from that exact commit, review the package, then push the `release` branch and a version tag pointing to that commit. Keep legacy `main` unchanged. Use the verified local ZIP and checksum with GitHub's release upload, or use `scripts/github-release.ps1 -Tag v0.8.0` to package a fresh destination and publish the already-pushed tag as Latest. That script refuses dirty source, mismatched tags and existing releases.
+Commit the final source, README and screenshots before the final build. Build from that exact commit, review the package, then push the `release` branch and a version tag pointing to that commit. Keep legacy `main` unchanged. Use the verified local ZIP and checksum with GitHub's release upload, or use `scripts/github-release.ps1 -Tag v0.8.1` to package a fresh destination and publish the already-pushed tag as Latest. That script refuses dirty source, mismatched tags and existing releases.
 
 Public release notes must distinguish local tests, helper network tests and observed gameplay. A package or test pass alone is not a clean-machine or two-PC gameplay result.

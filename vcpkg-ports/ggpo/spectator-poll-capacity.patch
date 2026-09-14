@@ -1,0 +1,22 @@
+--- a/src/lib/ggpo/poll.h
++++ b/src/lib/ggpo/poll.h
+@@ -57,7 +57,7 @@
+    PollSinkCb        _handle_sinks[MAX_POLLABLE_HANDLES];
+ 
+    StaticBuffer<PollSinkCb, 16>          _msg_sinks;
+-   StaticBuffer<PollSinkCb, 16>          _loop_sinks;
++   StaticBuffer<PollSinkCb, MAX_POLLABLE_HANDLES> _loop_sinks;
+    StaticBuffer<PollPeriodicSinkCb, 16>  _periodic_sinks;
+ };
+ 
+--- a/src/lib/ggpo/types.h
++++ b/src/lib/ggpo/types.h
+@@ -61,7 +61,7 @@
+          Log("\n");                                         \
+          Log("\n");                                         \
+          Platform::AssertFailed(assert_buf);                \
+-         exit(0);                                           \
++         exit(1);                                           \
+       }                                                     \
+    } while (false)
+ 
