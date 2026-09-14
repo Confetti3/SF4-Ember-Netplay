@@ -96,6 +96,7 @@ namespace sf4e {
 		nlohmann::json Checkpoint() const;
 		bool RestoreCheckpoint(const nlohmann::json& checkpoint);
 		nlohmann::json RecoveryCheckpoint() const;
+		std::uint64_t RecoveryCheckpointBuilds() const { return _recoveryCheckpointBuilds; }
 		bool RestoreRecoveryCheckpoint(const nlohmann::json& checkpoint);
 
 		// Root/helper authority bridge. A proposal is made only after the owner
@@ -158,6 +159,7 @@ namespace sf4e {
 		std::set<session::Connection> _departingConnections;
 		std::uint64_t _incarnation = 1;
 		session::SessionRecoveryGate _recovery;
+		mutable std::uint64_t _recoveryCheckpointBuilds = 0;
 		bool _recoveryCandidateReady = false;
 		bool _recoveryFlushing = false;
 		bool _recoveryCandidateOverflow = false;

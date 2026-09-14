@@ -25,12 +25,14 @@ static SessionClient::Callbacks Callbacks(Observer& observer) {
 int wmain(int argc, wchar_t** argv) {
 	std::cout << std::unitbuf;
 	CHECK(argc >= 2 && argc <= 4);
-	bool relayOnly=false, quick=false, queueAcks=false;
+	bool relayOnly=false, quick=false, queueAcks=false, probeCheck=false, benchmark=false;
 	for(int i=2;i<argc;++i) {
 		const std::wstring option=argv[i];
 		if(option==L"--relay-only") relayOnly=true;
 		else if(option==L"--quick") quick=true;
 		else if(option==L"--queue-acks") { queueAcks=true; quick=true; }
+		else if(option==L"--probe") { probeCheck=true; quick=true; }
+		else if(option==L"--benchmark") { probeCheck=true; benchmark=true; quick=true; }
 		else CHECK(false);
 	}
 	platform::HelperProcess hostProcess, guestProcess;
@@ -193,7 +195,10 @@ int wmain(int argc, wchar_t** argv) {
 			guestPeer.recovery=session::RoomRecoveryRuntime{};
 			std::cout << "Rejected mismatching native build without hanging admission" << std::endl;
 		}
-		CHECK(guest->Join(roomCycle == 1 ? host->DiscordInvitation() : host->Invitation(), "cpp-room-test"));
+		// Shared clipboards may carry a Windows line ending after the invitation.
+		const auto pastedInvitation = roomCycle == 0 ? host->Invitation() + "\r\n" :
+			(roomCycle == 1 ? host->DiscordInvitation() : host->Invitation());
+		CHECK(guest->Join(pastedInvitation, "cpp-room-test"));
 		wait([&]() { guest->Poll(); const bool pumped=test::PumpIrohIntegrationPeers(hostOnly);
 			if(!pumped) std::cerr << "Helper diagnostic: host_state=" << static_cast<int>(hostHelper.State())
 				<< " host_error=" << hostHelper.LastError() << " host_running=" << hostProcess.IsRunning()
@@ -263,7 +268,42 @@ int wmain(int argc, wchar_t** argv) {
 		waitAction(guestClient(), makeAction(guestClient(), room::ActionKind::Queue));
 		wait([&]() { pump(); return hostClient().GetRoomSnapshot().tables[0].p1 != 0 &&
 			guestClient().GetRoomSnapshot().tables[0].p2 != 0; });
-        CHECK(hostClient().IsLocalPlayer() && guestClient().IsLocalPlayer());
+        if(!probeCheck) CHECK(hostClient().IsLocalPlayer() && guestClient().IsLocalPlayer());
+        if(probeCheck) {
+            // Match the menu's admission gate on each source, including its
+            // complete occupied pair, before choosing its table revision.
+            wait([&]() { pump(); return std::all_of(peers.begin(),peers.end(),[](const auto* peer) {
+                const auto& table=peer->client->GetRoomSnapshot().tables[0];
+                return table.p1 && table.p2;
+            }); });
+            CHECK(hostClient().GetRoomSnapshot().tables[0].p1==hostClient().GetRoomSnapshot().localMember);
+            CHECK(guestClient().GetRoomSnapshot().tables[0].p2==guestClient().GetRoomSnapshot().localMember);
+            for(const auto& source:peers) {
+                const auto target=source==&hostPeer?guest:host;
+                const auto revision=source->client->GetRoomSnapshot().tables[0].revision;
+                CHECK(source->room->RequestProbe(target->LocalIdentity(),1,revision,benchmark));
+                wait([&]() {
+                    pump(); const auto& probe=source->room->Probe();
+                    if(probe.status!="checking")std::cout << "Two-peer probe: status=" << probe.status
+                        << " sent=" << probe.sent << " replies=" << probe.samples
+                        << " rejection=" << probe.failureReason << '\n';
+                    CHECK(probe.status!="unavailable"&&probe.status!="timed_out"&&probe.status!="invalidated");
+                    return probe.status=="ready"||probe.status=="complete";
+                });
+                const auto& probe=source->room->Probe();
+                CHECK(probe.sent==(benchmark?600U:100U));
+                CHECK(probe.samples>=(benchmark?480U:80U));
+                CHECK(probe.recommended>=0);
+            }
+            // An invalid revision must remain rejected, with a readable reason
+            // transported from the real helper and no damage to room control.
+            CHECK(host->RequestProbe(guest->LocalIdentity(),2,
+                hostClient().GetRoomSnapshot().tables[0].revision+1000));
+            wait([&]() { pump(); return host->Probe().status=="unavailable"; });
+            CHECK(host->Probe().failureReason==8 && host->Probe().sent==0 && host->Probe().recommended==-1);
+            CHECK(host->GetState()==session::IrohRoom::State::Ready);
+            std::cout << "Stale probe rejected with reason 8; room control remains ready\n";
+        }
         auto rules=makeAction(hostClient(),room::ActionKind::SetRules);
         rules.rules=hostClient().GetRoomSnapshot().tables[0].rules;
         rules.rules.roundCount=5; rules.rules.roundTime=60; rules.rules.editionSelect=false;

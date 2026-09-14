@@ -4,7 +4,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
 project (
     sf4e
-    VERSION 0.8.1
+    VERSION 0.8.2
     DESCRIPTION "SF4 Ember Netplay: private rollback rooms and an in-game overlay for Ultra Street Fighter IV."
     HOMEPAGE_URL "https://github.com/Confetti3/SF4-Ember-Netplay"
 )
@@ -468,6 +468,10 @@ if(BUILD_TESTING)
     add_executable(OverlayPresentationTest src/tests/overlay_presentation_test.cxx)
     target_compile_features(OverlayPresentationTest PRIVATE cxx_std_17)
     add_test(NAME OverlayPresentation COMMAND OverlayPresentationTest)
+    add_executable(OverlayResetTest src/tests/overlay_reset_test.cxx)
+    target_link_libraries(OverlayResetTest PRIVATE Session sf4e Dimps sf4e_helper_platform d3d9)
+    add_test(NAME OverlayReset COMMAND OverlayResetTest)
+    set_tests_properties(OverlayReset PROPERTIES TIMEOUT 30)
     add_executable(PackageInstallerTest src/tests/package_installer_test.cxx)
     target_link_libraries(PackageInstallerTest PRIVATE sf4e_package_installer)
     add_test(NAME PackageInstaller COMMAND PackageInstallerTest)

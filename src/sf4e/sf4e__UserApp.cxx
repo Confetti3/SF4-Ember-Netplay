@@ -358,7 +358,10 @@ void fUserApp::Steam_PostUpdate() {
     const double outerTickStartMs = diagnosticsEnabled ? diag::NowMs() : 0.0;
     double pacingRequestedThisTickMs = 0.0;
     double pacingActualThisTickMs = 0.0;
-    sf4e::NetplayFacade::TickRuntime();
+    {
+        diag::ScopedTimer runtimeTimer(diag::OP_RUNTIME_TICK);
+        sf4e::NetplayFacade::TickRuntime();
+    }
 
 
     if (netplay) {

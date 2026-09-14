@@ -98,6 +98,9 @@ int main() try {
     view.session.coordinated = true; view.session.authorityWritable = false; frame();
     Check(!row("ready").enabled && !row("check-connection").enabled && row("leave").enabled,
         "Room update shows actionable controls which the runtime rejects");
+    Check(menuStatus.find("Updating room")==std::string::npos,
+        "A one-frame checkpoint delay flashed the room-update message");
+    for(int i=0;i<20;++i)frame();
     Check(menuStatus.find("Updating room") != std::string::npos,
         "Room update has no player-facing explanation");
     Check(row("ready").detail.find("Updating room") != std::string::npos,
@@ -391,7 +394,134 @@ int main() try {
                 if (recovering) Check(menuStatus.find("recovering") != std::string::npos,
                     "Stable layout hid the room recovery reason");
             }
-            Check(actions.size() == beforeCycles, "Background room refresh dispatched an action");
+    Check(actions.size() == beforeCycles, "Background room refresh dispatched an action");
+            requireMenuFrame = false;
+        }
+      }
+    }
+
+    // The runtime increments the match generation as preparation starts. This
+    // must cancel stale dialogs without replacing the player's table screen.
+    view.session.control = netplay::Health::Healthy;
+    view.session.recovery = netplay::Recovery::None; view.session.error.clear();
+    shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
+    ++view.session.generation.match; frame();
+    Check(shell.Navigation().Screen() == "room-table",
+        "Match preparation replaced the table page with the room overview");
+    view.session.match=netplay::MatchState::PostMatch;
+    shell.ShowPlay(); frame();
+    Check(shell.Navigation().Screen()=="room-table",
+        "Reopening Ember after a match discarded the room's table page");
+
+    // Ordinary checkpoint bursts must not make update text appear/disappear
+    // every other frame on the room overview, which has no match-status row.
+    shell.Navigation().Home(); shell.Navigation().Push("room");
+    view.session.coordinated = true;
+    view.session.authorityWritable = true; frame();
+    const auto healthyStatus=menuStatus;
+    for(int cycle=0;cycle<60;++cycle) {
+        view.session.authorityWritable=cycle%2!=0; frame();
+        Check(menuStatus==healthyStatus,"Brief room updates replaced stable room status");
+    }
+    view.session.authorityWritable=false;
+    for(int i=0;i<20;++i)frame();
+    const auto updateStatus = menuStatus;
+    Check(updateStatus.find("Updating room")!=std::string::npos,"Sustained checkpoint wait was hidden");
+    for (int cycle = 0; cycle < 60; ++cycle) {
+        view.session.authorityWritable = cycle % 2 == 0;
+        ++view.session.authorityRevision; frame();
+        Check(menuStatus == updateStatus, "Room update text flashed between healthy checkpoint revisions");
+    }
+    view.session.authorityWritable = true;
+    for (int i = 0; i < 40; ++i) frame();
+    Check(menuStatus != updateStatus, "Room update feedback did not clear after updates settled");
+    view.room.members = {local, peer};
+    view.room.tables[0].p1=1; view.room.tables[0].p2=2;
+    view.room.tables[0].phase=room::TablePhase::Waiting;
+    view.room.tables[0].ready[0]=true;
+    view.canReady=false; view.canEditSelection=false;
+    shell.Navigation().Push("room-table");
+    view.session.authorityWritable=true; frame(); focus("ready"); frame();
+    const auto pendingReadyDetail=row("ready").detail;
+    const auto beforeReadyRefresh=actions.size();
+    for(int cycle=0;cycle<60;++cycle) {
+        view.session.authorityWritable=cycle%2==0;
+        frame(view.session.authorityWritable?0:MenuInput::Select);
+        Check(row("ready").detail==pendingReadyDetail,
+            "Ready explanation flashed during checkpoint bursts");
+        Check(row("ready").enabled==view.session.authorityWritable,
+            "Readable feedback changed immediate Unready eligibility");
+    }
+    Check(actions.size()==beforeReadyRefresh,"Pending checkpoint accepted Unready");
+    view.session.authorityWritable=true;
+    for(int i=0;i<40;++i)frame();
+    Check(row("ready").detail.find("You are READY")!=std::string::npos,
+        "Readable update feedback hid settled readiness");
+    ++view.session.generation.room; ++view.room.roomEpoch; frame();
+    Check(shell.Navigation().Screen()=="room","A new room retained the previous room's table page");
+
+    // Both fighters have readied. Healthy control revisions can arrive before
+    // their checkpoint is applied (authorityWritable=false); the committed
+    // match status must not flash between preparation and room-update text.
+    view = ShellView{};
+    view.controllerReady = true;
+    view.session.room = netplay::RoomState::Joined;
+    view.session.control = netplay::Health::Healthy;
+    view.session.coordinated = true;
+    view.session.generation.room = 1;
+    view.room.roomEpoch = 4; view.room.localMember = 1; view.room.host = 1;
+    view.room.members = {local, peer};
+    view.room.tables[0].p1 = 1; view.room.tables[0].p2 = 2;
+    view.room.tables[0].ready[0] = view.room.tables[0].ready[1] = true;
+    view.delayLocked = true;
+    for (const float scale : {1.f, 1.5f}) {
+      ApplyTheme(scale); io.Fonts->Build();
+      for (const auto size : {ImVec2(1280, 960), ImVec2(640, 720)}) {
+        io.DisplaySize = size;
+        for (const auto phase : {room::TablePhase::Ready, room::TablePhase::Playing, room::TablePhase::Paused}) {
+            view.room.tables[0].phase = phase;
+            view.session.authorityWritable = true;
+            shell.Navigation().Home(); frame(); shell.Navigation().Push("room-table");
+            frame(); focus("ready"); frame();
+            const auto readyStatus = menuStatus;
+            Check(readyStatus.find(phase == room::TablePhase::Ready ? "Preparing match" :
+                phase == room::TablePhase::Playing ? "Match in progress" : "Result unresolved") != std::string::npos,
+                "Post-Ready fixture did not render the committed match phase");
+            const auto readyDetail = row("ready").detail;
+            const auto selectionDetail = row("selection").detail;
+            const auto beforeUpdates = actions.size();
+            requireMenuFrame = true;
+            for (int cycle = 0; cycle < 60; ++cycle) {
+                view.session.authorityWritable = cycle % 2 != 0;
+                ++view.session.authorityRevision;
+                frame(cycle % 2 == 0 ? MenuInput::Select : 0);
+                Check(menuStatus == readyStatus,
+                    "Healthy room updates replaced the post-Ready status text");
+                Check(row("ready").detail == readyDetail && row("selection").detail == selectionDetail,
+                    "Healthy room updates replaced the locked fighter explanation");
+                Check(!row("ready").enabled && !row("selection").enabled && !row("unqueue").enabled,
+                    "Post-Ready refresh enabled a locked match action");
+            }
+            Check(actions.size() == beforeUpdates, "Post-Ready refresh dispatched a locked action");
+            view.session.authorityWritable = false;
+            view.session.control = netplay::Health::Lost;
+            view.session.recovery = netplay::Recovery::Recovering; frame();
+            Check(menuStatus.find("recovering") != std::string::npos &&
+                row("ready").detail.find("recovering") != std::string::npos,
+                "Committed match feedback hid a real control disconnect");
+            view.session.control = netplay::Health::Healthy;
+            view.session.recovery = netplay::Recovery::None;
+            view.error = "Match setup failed."; frame();
+            Check(menuStatus == view.error, "Committed match feedback hid a runtime error");
+            view.error.clear(); view.room.closed = true; frame();
+            Check(menuStatus.find("closed") != std::string::npos &&
+                row("ready").detail.find("closed") != std::string::npos,
+                "Committed match feedback hid room closure");
+            view.room.closed = false; view.session.room = netplay::RoomState::Closing; frame();
+            Check(menuStatus.find("Leaving room") != std::string::npos &&
+                row("ready").detail.find("Leaving room") != std::string::npos,
+                "Committed match feedback hid the room-exit transition");
+            view.session.room = netplay::RoomState::Joined;
             requireMenuFrame = false;
         }
       }

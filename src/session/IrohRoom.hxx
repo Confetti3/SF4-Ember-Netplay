@@ -52,6 +52,7 @@ public:
         std::string peer, route, status;
         unsigned samples=0, lost=0, sent=0, expected=0, packetBytes=0;
         int recommended=-1;
+        unsigned failureReason=0;
     };
     struct RecoverySnapshot {
         bool checkpointActive=false, checkpointComplete=false;

@@ -19,6 +19,7 @@
 #include "../netplay/RoomPreferences.hxx"
 #include "../common/StageCatalog.hxx"
 #include "../common/SessionTrace.hxx"
+#include "../common/sf4e__RollbackDiagnostics.hxx"
 #include <algorithm>
 #include <mutex>
 #include <optional>
@@ -232,6 +233,7 @@ void FillNetworkDiagnostics(platform::DiagnosticsView& view) {
     view.probeState=probe.status.empty()?0:probe.status=="checking"?1:
         probe.status=="ready"||probe.status=="complete"?2:probe.status=="invalidated"?3:probe.status=="timed_out"?5:probe.status=="local_overload"?6:4;
     view.probeRoute=probe.route.rfind("ip:",0)==0?1:probe.route.rfind("relay:",0)==0?2:0;
+    view.probeFailure=probe.failureReason;
     view.sent=probe.sent;view.expected=probe.expected;
     view.benchmark=probe.benchmark;view.replies=probe.samples;view.missed=probe.lost;
     view.p50Us=probe.p50RttUs;view.p95Us=probe.p95RttUs;view.p99Us=probe.p99RttUs;view.jitterUs=probe.jitterUs;
@@ -815,6 +817,20 @@ void TickRuntime() {
             diagnostics.helperReady = helperReady; diagnostics.verificationAvailable = state.verificationAvailable;
             diagnostics.pingMs = GetStatus().pingMs;
             FillNetworkDiagnostics(diagnostics);
+            diagnostics.selectedDelay=GetRuntimeSnapshot().selectedDelay;
+            diagnostics.performanceEnabled=diag::Enabled();
+            if(diagnostics.performanceEnabled) {
+                const auto& performance=diag::G();
+                const int ops[]={diag::OP_OUTER_TICK,diag::OP_RUNTIME_TICK,diag::OP_ROLLBACK_CALLBACK,
+                    diag::OP_SAVE_TOTAL,diag::OP_LOAD_TOTAL,diag::OP_PACING_WAIT};
+                for(int i=0;i<6;++i) {
+                    const auto& stat=performance.ops[ops[i]];
+                    diagnostics.timings[i]={stat.count,stat.hitchCounts[1],stat.MeanMs(),stat.maxMs};
+                }
+                diagnostics.rollbackCallbacks=performance.totalRollbackCallbacks;
+                diagnostics.predictionStalls=performance.predictionStalls;
+                diagnostics.predictionSkippedFrames=performance.skipReasons[diag::SKIP_PREDICTION_THRESHOLD];
+            }
             if (!runtime->services.Request(command.service, diagnostics)) runtime->error = "The operation is busy. Try again.";
             continue;
         }
@@ -1358,6 +1374,7 @@ void TickRuntime() {
         {"result_pending", runtime->resultOutbox.Pending()}, {"finish_pending", runtime->matchFinishedPending},
         {"leave_pending", runtime->leaveRequested}, {"terminal_pending", runtime->terminalAckPending},
         {"probe", runtime->room ? runtime->room->Probe().status : std::string()},
+        {"probe_failure",runtime->room ? runtime->room->Probe().failureReason : 0U},
         {"probe_route",view.probeRoute},{"probe_benchmark",view.probeBenchmark},
         {"probe_replies",view.probeSamples},{"probe_missed",view.probeLost},
         {"probe_p50_us",view.probeP50Us},{"probe_p95_us",view.probeP95Us},

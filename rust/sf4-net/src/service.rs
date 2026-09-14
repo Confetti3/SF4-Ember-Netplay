@@ -339,6 +339,8 @@ pub enum Event {
         request_id: u64,
         epoch: u64,
         #[serde(skip_serializing_if = "Option::is_none")]
+        probe_failure: Option<u8>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         peer: Option<EndpointId>,
         code: String,
     },
@@ -875,6 +877,7 @@ impl Actor {
     }
     fn error(&self, request_id: u64, code: &str) -> io::Result<()> {
         self.emit(Event::Error {
+            probe_failure: None,
             request_id,
             epoch: self.epoch,
             peer: None,
@@ -882,8 +885,21 @@ impl Actor {
         })
     }
 
+    // Additive, allowlisted diagnostics: keep the existing error code so older
+    // native clients still treat a rejected probe as a nonfatal operation.
+    fn probe_error(&self, reason: u8) -> io::Result<()> {
+        self.emit(Event::Error {
+            request_id: 0,
+            epoch: self.epoch,
+            peer: None,
+            code: "probe_unavailable".into(),
+            probe_failure: Some(reason),
+        })
+    }
+
     fn peer_error(&self, request_id: u64, peer: EndpointId, code: &str) -> io::Result<()> {
         self.emit(Event::Error {
+            probe_failure: None,
             request_id,
             epoch: self.epoch,
             peer: Some(peer),
@@ -2314,6 +2330,7 @@ impl Actor {
             self.incoming_transfer = None;
             self.pending_checkpoint_ack = None;
             let _ = self.emit_bulk(Event::Error {
+                probe_failure: None,
                 request_id: 0,
                 epoch: self.epoch,
                 peer: None,
@@ -2335,6 +2352,7 @@ impl Actor {
                 self.last_exported_revision = revision.saturating_sub(1);
             }
             let _ = self.emit_bulk(Event::Error {
+                probe_failure: None,
                 request_id: 0,
                 epoch: self.epoch,
                 peer: None,
@@ -2753,6 +2771,7 @@ impl Actor {
                         Command::Leave { epoch: requested_epoch, abandon: true } => {
                             if requested_epoch != epoch || requested_epoch == 0 {
                                 let _ = events.try_send(Event::Error {
+                                    probe_failure: None,
                                     request_id: request.id,
                                     epoch: status_epoch,
                                     peer: None,
@@ -2773,6 +2792,7 @@ impl Actor {
                                 // quorum has committed our exclusion and a
                                 // successor has proved its authority.
                                 Event::Error {
+                                    probe_failure: None,
                                     request_id: request.id,
                                     epoch: status_epoch,
                                     peer: None,
@@ -2780,6 +2800,7 @@ impl Actor {
                                 }
                             } else {
                                 Event::Error {
+                                    probe_failure: None,
                                     request_id: request.id,
                                     epoch: status_epoch,
                                     peer: None,
@@ -2790,6 +2811,7 @@ impl Actor {
                         }
                         _ => {
                             let _ = events.try_send(Event::Error {
+                                probe_failure: None,
                                 request_id: request.id,
                                 epoch: status_epoch,
                                 peer: None,
@@ -2914,17 +2936,20 @@ impl Actor {
         pair_revision: u64,
         benchmark: bool,
     ) -> io::Result<()> {
-        if !self.matches(epoch)
-            || self.room != Some(room)
-            || request == 0
-            || self.tasks.len() >= MAX_TASKS
-            || !self.controls.contains_key(&peer)
-            || self.probe_peers.contains(&peer)
-        {
-            return self.error(0, "probe_unavailable");
+        if !self.matches(epoch) || self.room != Some(room) || request == 0 {
+            return self.probe_error(1);
+        }
+        if self.tasks.len() >= MAX_TASKS {
+            return self.probe_error(2);
+        }
+        if !self.controls.contains_key(&peer) {
+            return self.probe_error(3);
+        }
+        if self.probe_peers.contains(&peer) {
+            return self.probe_error(4);
         }
         let Some(recovery) = self.recovery.clone() else {
-            return self.error(0, "probe_unavailable");
+            return self.probe_error(5);
         };
         let Some(target_incarnation) = self
             .admissions
@@ -2932,7 +2957,7 @@ impl Actor {
             .find(|admission| admission.primary_endpoint == peer && admission.room == room)
             .map(|admission| admission.incarnation)
         else {
-            return self.error(0, "probe_unavailable");
+            return self.probe_error(6);
         };
         let key = ProbeAuthorizationKey {
             epoch,
@@ -2953,7 +2978,10 @@ impl Actor {
                 if !state.writable
                     || recovery.coordinator.current_term() != state.term
                     || recovery.coordinator.current_leader().is_none()
-                    || !recovery
+                {
+                    return Err(failed("probe authority unavailable"));
+                }
+                if !recovery
                         .probe_pair_bound(
                             recovery.incarnation,
                             target_incarnation,
@@ -2963,7 +2991,7 @@ impl Actor {
                         )
                         .await
                 {
-                    return Err(failed("probe unavailable"));
+                    return Err(failed("probe pair unavailable"));
                 }
                 let expires = now()
                     .unwrap_or_default()
@@ -3708,14 +3736,23 @@ impl Actor {
                 } else {
                     false
                 };
-                let Ok(authorization) = result else {
-                    self.probe_peers.remove(&key.peer);
-                    self.error(0, "probe_unavailable")?;
-                    return Ok(());
+                let authorization = match result {
+                    Ok(authorization) => authorization,
+                    Err(error) => {
+                        let reason = match error.to_string().as_str() {
+                            "probe authority unavailable" => 7,
+                            "probe pair unavailable" => 8,
+                            "room proposal busy" => 11,
+                            _ => 9,
+                        };
+                        self.probe_peers.remove(&key.peer);
+                        self.probe_error(reason)?;
+                        return Ok(());
+                    }
                 };
                 if !valid {
                     self.probe_peers.remove(&key.peer);
-                    self.error(0, "probe_unavailable")?;
+                    self.probe_error(10)?;
                     return Ok(());
                 }
                 self.pending_probe_invalidations.remove(&key.peer);

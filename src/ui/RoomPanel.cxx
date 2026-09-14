@@ -152,7 +152,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    const bool ready=t.phase==TablePhase::Waiting&&t.ready[local->seat];
    const bool terminalBlocked=s.localTerminalPending || s.terminalPending[selectedTable_];
    const bool awaitingResult=t.phase==TablePhase::Playing&&(t.resultPending||v.session.match==netplay::MatchState::PostMatch);
-   const std::string blocked=!mutableRoom?reason:
+   const std::string blocked=!mutableRoom&&!(active&&RoomCheckpointPending(v))?reason:
     terminalBlocked?TerminalPendingReason():
     t.phase==TablePhase::Paused?"The previous result is unresolved. Ask the host to cancel the unresolved game; no win will be awarded.":
     awaitingResult?"Waiting for both fighters to report the result. Ready resets when the result is confirmed; you have not readied for another match.":
@@ -230,6 +230,20 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   rows.push_back(Value("lock","Admission",s.locked?"Locked":"Open","Lock stops new members joining.",host));
   rows.push_back(Row("apply-name","Apply room name","Submit this room name.",host&&roomName_[0]));
   rows.push_back(Row("apply-capacity","Apply capacity","Submit this capacity.",host&&roomCapacity_>=static_cast<int>(s.members.size())));
+ }
+ if(!active) {
+  for(auto& row:rows)if(row.id=="ready"||row.id=="selection"||row.id=="check-connection"||
+   row.id=="selected-delay"||row.id=="queue"||row.id=="watch") {
+    const auto key=screen+"/"+row.id;
+    if(roomUpdateVisible_)row.detail=RoomWaitReason(v);
+    else if(RoomCheckpointPending(v)) {
+     // Only reuse an explanation for the same action. Labels, values and
+     // eligibility always come from the live snapshot, never this cache.
+     const auto previous=roomDetails_.find(key);
+     if(row.detail==RoomWaitReason(v)&&previous!=roomDetails_.end()&&previous->second.first==row.label)
+      row.detail=previous->second.second;
+    }else if(mutableRoom)roomDetails_[key]={row.label,row.detail};
+   }
  }
  return rows;
 }
