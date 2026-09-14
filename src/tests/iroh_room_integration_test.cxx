@@ -266,16 +266,14 @@ int wmain(int argc, wchar_t** argv) {
 		// substitute for a committed room action.
 		waitAction(hostClient(), makeAction(hostClient(), room::ActionKind::Queue));
 		waitAction(guestClient(), makeAction(guestClient(), room::ActionKind::Queue));
-		wait([&]() { pump(); return hostClient().GetRoomSnapshot().tables[0].p1 != 0 &&
-			guestClient().GetRoomSnapshot().tables[0].p2 != 0; });
-        if(!probeCheck) CHECK(hostClient().IsLocalPlayer() && guestClient().IsLocalPlayer());
+        // An action reply can precede the other client's updated projection.
+        // Wait for the complete pair on each source, and for native ownership
+        // when this test will exercise the native player callbacks below.
+        wait([&]() { pump(); return std::all_of(peers.begin(),peers.end(),[&](const auto* peer) {
+            const auto& table=peer->client->GetRoomSnapshot().tables[0];
+            return table.p1 && table.p2 && (probeCheck || peer->client->IsLocalPlayer());
+        }); });
         if(probeCheck) {
-            // Match the menu's admission gate on each source, including its
-            // complete occupied pair, before choosing its table revision.
-            wait([&]() { pump(); return std::all_of(peers.begin(),peers.end(),[](const auto* peer) {
-                const auto& table=peer->client->GetRoomSnapshot().tables[0];
-                return table.p1 && table.p2;
-            }); });
             CHECK(hostClient().GetRoomSnapshot().tables[0].p1==hostClient().GetRoomSnapshot().localMember);
             CHECK(guestClient().GetRoomSnapshot().tables[0].p2==guestClient().GetRoomSnapshot().localMember);
             for(const auto& source:peers) {
