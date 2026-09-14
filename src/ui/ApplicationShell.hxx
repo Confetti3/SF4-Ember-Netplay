@@ -9,6 +9,7 @@
 #include <functional>
 #include <vector>
 #include <set>
+#include <map>
 #include "GameMenu.hxx"
 
 namespace sf4e { namespace ui {
@@ -66,7 +67,10 @@ public:
     using DrawSelection = std::function<void()>;
     void Draw(const ShellView& view, bool* open, const Submit& submit, const DrawSelection& selection,
               const DrawSelection& developer = {});
-    void ShowPlay() { menu_.navigation.Home(); }
+    void ShowPlay() {
+        // Reopening after battle must retain the active room's navigation.
+        if(previousRoomState_==netplay::RoomState::Idle)menu_.navigation.Home();
+    }
     MenuNavigation& Navigation() { return menu_.navigation; }
 private:
     GameMenu menu_;
@@ -83,6 +87,10 @@ private:
     room::MemberId selectedMember_ = 0;
     std::uint64_t inviteRevision_ = 0;
     std::uint64_t tableGeneration_ = 0;
+    double roomUpdateUntil_ = 0;
+    double roomUpdateStarted_ = -1;
+    bool roomUpdateVisible_ = false;
+    std::map<std::string,std::pair<std::string,std::string>> roomDetails_;
     char invitation_[4097] = {};
     bool preferencesDirty_ = false;
     netplay::Generation generation_;

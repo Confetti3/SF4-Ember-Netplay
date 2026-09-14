@@ -9,10 +9,17 @@
 namespace sf4e { namespace platform {
 enum class ServiceAction { None, CheckUpdates, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery };
 struct DiagnosticsView {
+    struct Timing { std::uint64_t count=0, over25Ms=0; double meanMs=0, maxMs=0; };
+    bool performanceEnabled=false;
+    // Snapshot of game-thread counters; the export worker never reads live state.
+    Timing timings[6]{};
+    std::uint64_t rollbackCallbacks=0, predictionStalls=0, predictionSkippedFrames=0;
+    int selectedDelay=-1;
     int room = 0, match = 0, control = 0, gameplay = 0, pingMs = -1;
     bool helperReady = false, verificationAvailable = false;
     // Typed allowlist: no endpoint addresses, identities, credentials or names.
     int probeState=0, probeRoute=0;
+    unsigned probeFailure=0;
     unsigned sent=0, expected=0;
     bool benchmark=false;
     unsigned replies=0, missed=0, directLinks=0, relayedLinks=0;

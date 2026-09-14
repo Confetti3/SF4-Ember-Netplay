@@ -46,10 +46,24 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }
  previousRoomState_=v.session.room;
  if(!(generation_==v.session.generation)) {
+  const bool roomChanged=generation_.room!=v.session.generation.room;
   generation_=v.session.generation; nav.Cancel(); error_.clear();notice_.clear();
-  if(v.session.room!=RoomState::Idle&&nav.Screen()!="room"){nav.Home();nav.Push("room");}
+  if(roomChanged&&v.session.room!=RoomState::Idle&&nav.Screen()!="room"){nav.Home();nav.Push("room");}
   if(v.session.room==RoomState::Idle&&nav.Screen().compare(0,4,"room")==0)nav.Home();
+  if(roomChanged){roomUpdateUntil_=0;roomUpdateStarted_=-1;roomDetails_.clear();}
  }
+ // Ignore brief checkpoint delays; hold visible feedback through short gaps.
+ // Eligibility still uses the current snapshot on every frame.
+ if(v.room.roomEpoch!=roomEpoch_){roomUpdateUntil_=0;roomUpdateStarted_=-1;roomDetails_.clear();}
+ const bool healthyRoom=v.session.room==RoomState::Joined&&v.session.control==Health::Healthy&&
+  v.session.recovery==Recovery::None&&!v.room.closed;
+ if(!healthyRoom){roomUpdateUntil_=0;roomUpdateStarted_=-1;roomDetails_.clear();}
+ else if(RoomCheckpointPending(v)) {
+  if(roomUpdateStarted_<0)roomUpdateStarted_=ImGui::GetTime();
+  if(ImGui::GetTime()-roomUpdateStarted_>=.25||ImGui::GetTime()<roomUpdateUntil_)
+   roomUpdateUntil_=ImGui::GetTime()+.5;
+ }else roomUpdateStarted_=-1;
+ roomUpdateVisible_=healthyRoom&&ImGui::GetTime()<roomUpdateUntil_;
  if(saveQueued_&&!v.settingsPending){
   if(SamePreferences(v.preferences,savingPreferences_)&&v.settingsError.empty()){
    saveQueued_=false;retrySave_=false;preferencesDirty_=!SamePreferences(preferences_,savingPreferences_);
@@ -169,8 +183,13 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(roomScreen&&v.session.recovery!=Recovery::None)status=!v.session.error.empty()?v.session.error:
   v.session.recovery==Recovery::ReplacementOffered?"Room control is unavailable. Replace the room when no match is active.":
   "Room control is recovering. Room actions are paused.";
+ const auto tablePhase=v.room.tables[selectedTable_].phase;
+ const bool committedMatchStatus=screen=="room-table" && healthyRoom &&
+  (tablePhase==room::TablePhase::Ready || tablePhase==room::TablePhase::Playing || tablePhase==room::TablePhase::Paused);
  if(roomScreen && (v.session.room==RoomState::Closing ||
-    (v.session.control==Health::Healthy && v.session.recovery==Recovery::None && !RoomActionsAvailable(v))))
+    (v.session.control==Health::Healthy && v.session.recovery==Recovery::None &&
+     ((!RoomActionsAvailable(v)&&!RoomCheckpointPending(v))||roomUpdateVisible_) && !committedMatchStatus &&
+     !v.controllerUnavailable&&v.session.error.empty()&&v.error.empty()&&error_.empty())))
   status=RoomWaitReason(v);
  PlayerCardView card;card.name=preferences_.displayName;card.fighter=preferences_.mainFighter;
  card.fighterName=selection::FindFighter(preferences_.mainFighter)->name;card.inputDelay=preferences_.inputDelay;

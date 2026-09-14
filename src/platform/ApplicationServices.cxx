@@ -13,11 +13,15 @@ std::string DescribeDiagnostics(const DiagnosticsView& view) {
     const auto label = [](int value, const char* const* names, int count) { return value >= 0 && value < count ? names[value] : "Unavailable"; };
     const char* probes[] = {"Not checked","Checking","Complete","Invalidated","Unavailable","Timed out","Local overload"};
     const char* routes[] = {"Unknown","Direct","Relayed"};
+    const char* probeFailures[] = {"Unspecified", "Room or request changed", "Helper busy", "Peer control unavailable",
+        "Check already active", "Room authority missing", "Peer admission missing", "Authority not ready",
+        "Seat or table revision changed", "Reservation not committed", "Authorization changed or expired", "Room proposal busy"};
     return std::string("Helper: ") + (view.helperReady ? "Ready" : "Unavailable") +
         " | Room: " + label(view.room,rooms,5) + " | Match: " + label(view.match,matches,5) +
         " | Control: " + label(view.control,health,4) + " | Gameplay: " + label(view.gameplay,health,4) +
         " | Verification: " + (view.verificationAvailable ? "Available" : "Unavailable") +
         " | Network check: " + label(view.probeState,probes,7) + (view.benchmark ? " (30s benchmark)" : " (5s check)") +
+        (view.probeState==4 ? std::string(" | Check rejection: ") + label(view.probeFailure,probeFailures,12) : std::string()) +
         " | Measured route: " + label(view.probeRoute,routes,3) +
         " | Sent/scheduled: " + std::to_string(view.sent) + "/" + std::to_string(view.expected) +
         " | Replies/missed: " + std::to_string(view.replies) + "/" + std::to_string(view.missed) +
@@ -74,7 +78,21 @@ void ApplicationServices::Run() {
                 output << "SF4 Ember Netplay\nVersion: " << SF4E_APP_VERSION
                     << "\nTransport: Iroh / GGPO\n" << DescribeDiagnostics(diagnostics)
                     << "\nPing: " << (diagnostics.pingMs < 0 ? "Unavailable" : std::to_string(diagnostics.pingMs) + " ms")
-                    << "\nRecent connection transitions (oldest first):\n";
+                    << "\nSelected input delay: " << (diagnostics.selectedDelay<0?"Unavailable":
+                        std::to_string(diagnostics.selectedDelay)+" frames") << '\n';
+                if(diagnostics.performanceEnabled) {
+                    output << "CPU work since latest match diagnostics reset (not displayed FPS):\n";
+                    const char* names[]={"Outer tick","Room runtime","Rollback callback","Save state","Load state","Pacing wait"};
+                    for(int i=0;i<6;++i) {
+                        const auto& t=diagnostics.timings[i];
+                        output << names[i] << ": samples=" << t.count << " mean_ms=" << t.meanMs
+                            << " max_ms=" << t.maxMs << " over_25ms=" << t.over25Ms << '\n';
+                    }
+                    output << "Rollback callbacks: " << diagnostics.rollbackCallbacks
+                        << " | Prediction stalls: " << diagnostics.predictionStalls
+                        << " | Prediction-skipped frames: " << diagnostics.predictionSkippedFrames << '\n';
+                } else output << "CPU timing: unavailable (launch with rollback diagnostics enabled).\n";
+                output << "Recent connection transitions (oldest first):\n";
                 for (const auto& event : next.connectionHistory) output << event << '\n';
                 output.close();
                 next.message = output ? "Saved %APPDATA%\\sf4e\\diagnostics\\ember-diagnostics.txt" : "Diagnostics could not be saved. Try again.";

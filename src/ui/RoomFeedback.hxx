@@ -9,6 +9,15 @@ inline bool RoomActionsAvailable(const ShellView& view) {
         (!view.session.coordinated || view.session.authorityWritable);
 }
 
+// A healthy control revision may precede application of its checkpoint.
+// Commands remain fenced, but committed match feedback is still valid.
+inline bool RoomCheckpointPending(const ShellView& view) {
+    return view.session.room == netplay::RoomState::Joined &&
+        view.session.control == netplay::Health::Healthy &&
+        view.session.recovery == netplay::Recovery::None && !view.room.closed &&
+        view.session.coordinated && !view.session.authorityWritable;
+}
+
 inline const char* RoomWaitReason(const ShellView& view) {
     if (view.session.room == netplay::RoomState::Closing)
         return "Leaving room. Waiting for the connection to close...";
@@ -17,7 +26,7 @@ inline const char* RoomWaitReason(const ShellView& view) {
     if (view.room.closed) return "This room has closed. Return to Online Play to join another.";
     if (view.session.control != netplay::Health::Healthy || view.session.recovery != netplay::Recovery::None)
         return "Room connection is recovering. You can still leave the room.";
-    return "Updating room. Controls will return when the update finishes.";
+    return "Updating room. Controls may pause briefly.";
 }
 
 struct ConnectionCheckFeedback {

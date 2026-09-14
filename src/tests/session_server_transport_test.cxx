@@ -1,6 +1,7 @@
 #include "../session/sf4e__SessionServer.hxx"
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstdlib>
 #include <iostream>
 #include <iterator>
@@ -580,6 +581,24 @@ static void TestTerminalAcknowledgmentBatch() {
 	CHECK(replicaTransport->outgoing[0].second.at("result").at("accepted").get<bool>());
 }
 
+static void CheckIdleRecoveryWork(SessionServer& server, const char* phase) {
+	server.AdvanceCustomRoom(0);
+	CHECK(server.Step()==0 && !server.HasRecoveryCandidate());
+	const auto before=server.RecoveryCheckpoint();
+	const auto builds=server.RecoveryCheckpointBuilds();
+	const auto started=std::chrono::steady_clock::now();
+	for(int tick=0;tick<240;++tick) {
+		server.AdvanceCustomRoom(0);
+		CHECK(server.Step()==0 && !server.HasRecoveryCandidate());
+	}
+	const auto elapsed=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-started).count();
+	const auto built=server.RecoveryCheckpointBuilds()-builds;
+	std::cout << "Idle recovery " << phase << ": ticks=240 checkpoint_builds=" << built
+		<< " total_ms=" << elapsed << " mean_ms=" << elapsed/240 << std::endl;
+	CHECK(server.RecoveryCheckpoint()==before);
+	CHECK(built==0);
+}
+
 static void TestCommittedSessionGate() {
 	auto* transport = new MockTransport();
 	SessionServer server("gated-room", "build", true, 3, {0, 99},
@@ -657,6 +676,7 @@ static void TestCommittedSessionGate() {
 	};
 	admissionHello(1, "Gate-one");
 	admissionHello(2, "Gate-two");
+	CheckIdleRecoveryWork(server,"two-member room");
 	const auto action = [&](session::Connection connection, room::ActionKind kind, std::uint64_t actionId) {
 		const auto snapshot = *server.RoomSnapshot();
 		room::Action value;
@@ -811,6 +831,7 @@ static void TestCommittedSessionGate() {
 	acknowledge(2, "game_ready");
 	commitCandidate(true, "game_start");
 	CHECK(server.RoomSnapshot()->tables[0].phase == room::TablePhase::Playing);
+	CheckIdleRecoveryWork(server,"playing");
 	// Gameplay diagnostics used to consume one full quorum proposal each,
 	// filling the router while the native fight kept producing new frames.
 	// A diagnostic prefix now shares one bounded commit; the result boundary

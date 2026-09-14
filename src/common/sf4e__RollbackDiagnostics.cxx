@@ -52,6 +52,7 @@ const char* TimedOpName(int op) {
 	case OP_FREE_LIVE_RESTORE:      return "free.live_restore";
 	case OP_TIMESYNC_SLEEP:         return "timesync_sleep";
 	case OP_PACING_WAIT:            return "pacing_wait";
+	case OP_RUNTIME_TICK:           return "room_runtime";
 	default:                        return "?";
 	}
 }

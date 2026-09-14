@@ -69,6 +69,12 @@ impl Invite {
     /// Discord carries the routing/capability header only. The caller supplies
     /// its actual local build; the host still checks that build in RoomProof.
     pub fn parse_for_build(text: &str, now: u64, build: &str) -> io::Result<Self> {
+        // Clipboard sharing can append CRLF. Normalize only the surrounding
+        // whitespace; keep the raw input bound and all token validation intact.
+        if text.len() > MAX_INVITE_LENGTH {
+            return Err(invalid());
+        }
+        let text = text.trim_matches(|character: char| character.is_ascii_whitespace());
         if let Some(payload) = text
             .strip_prefix(DISCORD_PREFIX)
             .or_else(|| text.strip_prefix(RECOVERY_DISCORD_PREFIX))
@@ -432,6 +438,46 @@ mod tests {
                 .is_err()
             );
         }
+    }
+
+    #[test]
+    fn clipboard_invites_accept_outer_whitespace_without_relaxing_validation() {
+        let mut original = invite();
+        original.build = "a".repeat(64);
+        let mut tokens = vec![
+            original.encode().unwrap(),
+            legacy(&original),
+            original.encode_discord().unwrap(),
+        ];
+        original.coordination_endpoint = Some(iroh::SecretKey::generate().public());
+        original.authority_term = 1;
+        original.authority_incarnation = 1;
+        let recovery = original.encode().unwrap();
+        assert_eq!(recovery.len(), 277);
+        // Matches the laptop capture: a 277-character invitation plus CRLF.
+        tokens.push(recovery);
+        tokens.push(original.encode_discord().unwrap());
+        for token in tokens {
+            let canonical = Invite::parse_for_build(&token, 101, original.build()).unwrap();
+            for pasted in [format!("{token}\r\n"), format!(" \t{token}\r\n ")] {
+                let parsed = Invite::parse_for_build(&pasted, 101, original.build())
+                    .expect("clipboard whitespace must not reject a valid invitation");
+                assert_eq!(parsed.encode().unwrap(), canonical.encode().unwrap());
+                assert!(Invite::parse_for_build(&pasted, 3700, original.build()).is_err());
+                if !token.starts_with("emd") {
+                    assert!(Invite::parse_for_build(&pasted, 101, "wrong-build").is_err());
+                }
+            }
+            let split = token.find(':').unwrap() + 5;
+            for inserted in [" ", "\r\n", "\\"] {
+                let mut damaged = token.clone();
+                damaged.insert_str(split, inserted);
+                assert!(Invite::parse_for_build(&damaged, 101, original.build()).is_err());
+            }
+            let oversized = format!("{}{token}", " ".repeat(MAX_INVITE_LENGTH));
+            assert!(Invite::parse_for_build(&oversized, 101, original.build()).is_err());
+        }
+        assert!(Invite::parse_for_build(" \t\r\n", 101, original.build()).is_err());
     }
 
     #[test]

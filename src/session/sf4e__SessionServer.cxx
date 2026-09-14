@@ -276,6 +276,7 @@ bool SessionServer::RestoreCheckpoint(const json& value) {
 }
 
 json SessionServer::RecoveryCheckpoint() const {
+	++_recoveryCheckpointBuilds;
 	if (!_roomAuthority || !_departingConnections.empty() || !_afterDataMessages.empty())
 		throw std::logic_error("recovery checkpoint requires a completed command boundary");
 	json value = Checkpoint();
@@ -1123,6 +1124,17 @@ void SessionServer::AdvanceCustomRoom(std::uint64_t nowMs) {
 	}
 	_passiveTimerClock = 0;
 	if (_recovery.Enabled() && (_recoveryCandidateReady || _recovery.PendingProposal())) return;
+	// With no outstanding result timer or frozen spectator, AdvanceTime can
+	// only advance the local clock. Keep that clock current without serializing
+	// two full checkpoints merely to rediscover unchanged room state. Pending
+	// result ages retain the existing commit/pause/rebase behavior below.
+	if (_recovery.Enabled() && roomFrozenMembers.empty()) {
+		const auto& tables = _roomAuthority->SnapshotView().tables;
+		if (std::none_of(tables.begin(), tables.end(), [](const room::Table& table) { return table.resultPending; })) {
+			_roomAuthority->AdvanceTime(nowMs);
+			return;
+		}
+	}
 	if (_recovery.Enabled()) {
 		BeginRecoveryCandidate();
 		if (!_recoveryCandidateReady) return;
@@ -1283,8 +1295,6 @@ int SessionServer::Step()
 		// not been proposed; once the helper has a pending proposal the candidate
 		// is immutable until the quorum result arrives.
 		if (_recovery.PendingProposal()) return 0;
-		BeginRecoveryCandidate();
-		if (!_recoveryCandidateReady) return -1;
 	}
 	std::vector<session::Message> messages;
 	std::vector<session::Connection> closed;
@@ -1294,6 +1304,16 @@ int SessionServer::Step()
 		: _transport->Poll(messages, closed, static_cast<std::size_t>(SESSION_SERVER_MAX_MESSAGES_PER_POLL)));
 	if (!polled) {
 		return -1;
+	}
+	if (_recovery.Enabled()) {
+		// Polling only transfers the bounded inbox; it does not mutate native
+		// session state. Capture the baseline before processing actual work,
+		// including deferred output and frozen-member cleanup. An empty inbox
+		// must not manufacture and compare two full recovery checkpoints.
+		if (!_recoveryCandidateReady && messages.empty() && closed.empty() &&
+			!_dataDirty && _afterDataMessages.empty() && roomFrozenMembers.empty()) return 0;
+		BeginRecoveryCandidate();
+		if (!_recoveryCandidateReady) return -1;
 	}
 	for (auto connection : closed) {
 		_departingConnections.insert(connection);

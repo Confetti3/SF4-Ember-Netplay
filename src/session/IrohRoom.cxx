@@ -1021,6 +1021,7 @@ void IrohRoom::Poll() {
 			} else if (type == "error") {
 				const auto code = event.at("code").get<std::string>();
                 if(code=="probe_unavailable") {
+                    probe_.failureReason=event.value("probe_failure",0U);
                     probe_.status="unavailable"; probe_.recommended=-1; continue;
                 }
 				if(code=="gameplay_prepare_failed") {

@@ -277,17 +277,22 @@ void Overlay::FreeOverlay() {
     ImGui_ImplDX9_Shutdown(); ImGui_ImplWin32_Shutdown(); ImGui::DestroyContext();
 }
 LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, LPARAM l) {
-    if (!ImGui::GetCurrentContext()) return 0;
+    // Native display resets can pump activation messages after FreeOverlay and
+    // before InitializeOverlay. Focus belongs to the window, not its ImGui
+    // context: dropping reactivation here leaves F10/Start permanently gated.
     if (message == WM_ACTIVATEAPP) {
         focused = w != 0;
         if (!focused) {
             const auto training = sf4e::training::ReadView();
             sf4e::training::Submit({sf4e::training::Action::Stop, 0, training.generation});
             capture = false;
-            sf4e::ui::SetOverlayCursorOwnership(false);
-            ImGui::GetIO().ClearInputKeys(); ImGui::GetIO().ClearInputMouse();
+            if (ImGui::GetCurrentContext()) {
+                sf4e::ui::SetOverlayCursorOwnership(false);
+                ImGui::GetIO().ClearInputKeys(); ImGui::GetIO().ClearInputMouse();
+            }
         }
     }
+    if (!ImGui::GetCurrentContext()) return 0;
     const auto handled = sf4e::ui::HandleOverlayMessage(window, message, w, l, capture, presentation.Available());
     if (trainingAvailable && w >= VK_F5 && w <= VK_F8 &&
         (message == WM_KEYDOWN || message == WM_KEYUP || message == WM_SYSKEYDOWN || message == WM_SYSKEYUP)) return 1;
