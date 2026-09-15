@@ -41,6 +41,10 @@ Copy `ember-diagnostics.txt` alongside your log ZIP and include both in your rep
 
 The export contains Ember's version and connection-state information. It omits invitations, credentials, player names, raw log text and settings backups. **It is an additional report; it does not include the logs folder.**
 
+When rollback diagnostics are enabled, the export also includes nine fixed CPU-work timing groups: outer tick, room runtime, session-client step, session-server step, GGPO idle, rollback callback, save state, load state and pacing wait. Their sample counts, mean and maximum durations, and over-25-ms counts describe where Ember spent CPU time. They are not displayed-frame measurements and do not by themselves establish frame pacing, rendering performance or input latency.
+
+`Recovery checkpoint builds` counts checkpoint serialization attempts during the lifetime of the current hosted room. A value of zero means that the available room counter observed no builds; `Unavailable` means there was no hosted-room counter to read, so it must not be interpreted as zero. Starting a different hosted room starts a different counter lifetime.
+
 ## Send a useful report
 
 Include:

@@ -1124,13 +1124,12 @@ void SessionServer::AdvanceCustomRoom(std::uint64_t nowMs) {
 	}
 	_passiveTimerClock = 0;
 	if (_recovery.Enabled() && (_recoveryCandidateReady || _recovery.PendingProposal())) return;
-	// With no outstanding result timer or frozen spectator, AdvanceTime can
-	// only advance the local clock. Keep that clock current without serializing
-	// two full checkpoints merely to rediscover unchanged room state. Pending
-	// result ages retain the existing commit/pause/rebase behavior below.
-	if (_recovery.Enabled() && roomFrozenMembers.empty()) {
-		const auto& tables = _roomAuthority->SnapshotView().tables;
-		if (std::none_of(tables.begin(), tables.end(), [](const room::Table& table) { return table.resultPending; })) {
+	// Before a result deadline, AdvanceTime can only advance the local clock.
+	// Keep that clock current without serializing a full checkpoint merely to
+	// rediscover the unchanged room. RoomAuthority owns the deadline rules so a
+	// paused unresolved result does not masquerade as recurring timer work.
+	if (_recovery.Enabled()) {
+		if (!_roomAuthority->HasDueTimerTransition(nowMs)) {
 			_roomAuthority->AdvanceTime(nowMs);
 			return;
 		}
@@ -1308,10 +1307,12 @@ int SessionServer::Step()
 	if (_recovery.Enabled()) {
 		// Polling only transfers the bounded inbox; it does not mutate native
 		// session state. Capture the baseline before processing actual work,
-		// including deferred output and frozen-member cleanup. An empty inbox
-		// must not manufacture and compare two full recovery checkpoints.
+		// including deferred output. Frozen members are retained data, not pending
+		// cleanup: every command which can release their native authority reaches
+		// the PruneFrozenMembers boundary below. An empty inbox must not manufacture
+		// and compare two full recovery checkpoints.
 		if (!_recoveryCandidateReady && messages.empty() && closed.empty() &&
-			!_dataDirty && _afterDataMessages.empty() && roomFrozenMembers.empty()) return 0;
+			!_dataDirty && _afterDataMessages.empty()) return 0;
 		BeginRecoveryCandidate();
 		if (!_recoveryCandidateReady) return -1;
 	}

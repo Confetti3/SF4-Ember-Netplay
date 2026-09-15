@@ -33,10 +33,20 @@ int main() {
         CHECK(contents.find("Replies/missed: 96/4")!=std::string::npos);
         CHECK(contents.find("Gameplay direct/relay links: 3/0")!=std::string::npos);
         CHECK(contents.find("CPU timing: unavailable")!=std::string::npos);
+        CHECK(contents.find("Recovery checkpoint builds (current room lifetime): Unavailable")!=std::string::npos);
         service.Observe(view);
         const auto history=service.Snapshot().connectionHistory;
         view.performanceEnabled=true; view.selectedDelay=2;
-        view.timings[0]={600,4,3.5,31.0}; view.timings[1]={600,0,0.2,1.0};
+        view.TimingAt(DiagnosticTiming::OuterTick)={600,4,3.5,31.0};
+        view.TimingAt(DiagnosticTiming::RoomRuntime)={600,0,0.2,1.0};
+        view.TimingAt(DiagnosticTiming::SessionClientStep)={600,1,0.3,26.0};
+        view.TimingAt(DiagnosticTiming::SessionServerStep)={600,2,0.4,27.0};
+        view.TimingAt(DiagnosticTiming::GgpoIdle)={600,3,0.5,28.0};
+        view.TimingAt(DiagnosticTiming::RollbackCallback)={12,0,0.6,2.0};
+        view.TimingAt(DiagnosticTiming::SaveState)={12,0,0.7,3.0};
+        view.TimingAt(DiagnosticTiming::LoadState)={12,0,0.8,4.0};
+        view.TimingAt(DiagnosticTiming::PacingWait)={600,0,0.9,5.0};
+        view.recoveryCheckpointBuildsAvailable=true; view.recoveryCheckpointBuilds=42;
         view.rollbackCallbacks=12; view.predictionStalls=3; view.predictionSkippedFrames=5;
         service.Observe(view);
         CHECK(service.Snapshot().connectionHistory==history);
@@ -49,10 +59,22 @@ int main() {
         CHECK(performance.find("not displayed FPS")!=std::string::npos);
         CHECK(performance.find("Outer tick: samples=600 mean_ms=3.5 max_ms=31 over_25ms=4")!=std::string::npos);
         CHECK(performance.find("Room runtime: samples=600 mean_ms=0.2")!=std::string::npos);
+        CHECK(performance.find("Session-client step: samples=600 mean_ms=0.3")!=std::string::npos);
+        CHECK(performance.find("Session-server step: samples=600 mean_ms=0.4")!=std::string::npos);
+        CHECK(performance.find("GGPO idle: samples=600 mean_ms=0.5")!=std::string::npos);
+        CHECK(performance.find("Rollback callback: samples=12 mean_ms=0.6")!=std::string::npos);
+        CHECK(performance.find("Save state: samples=12 mean_ms=0.7")!=std::string::npos);
+        CHECK(performance.find("Load state: samples=12 mean_ms=0.8")!=std::string::npos);
+        CHECK(performance.find("Pacing wait: samples=600 mean_ms=0.9")!=std::string::npos);
+        CHECK(performance.find("Recovery checkpoint builds (current room lifetime): 42")!=std::string::npos);
         CHECK(performance.find("Prediction stalls: 3 | Prediction-skipped frames: 5")!=std::string::npos);
         CHECK(performance.find("Selected input delay: 2 frames")!=std::string::npos);
+        CHECK(performance.size()<8192);
         // Export is constructed from this typed allowlist, never arbitrary logs/settings.
-        CHECK(contents.find("invitation")==std::string::npos && contents.find("capability")==std::string::npos);
+        for(const auto* forbidden:{"invitation","capability","identity","arbitrary log"}) {
+            CHECK(contents.find(forbidden)==std::string::npos);
+            CHECK(performance.find(forbidden)==std::string::npos);
+        }
     }
     fs::remove_all(root);
     std::cout<<"Bounded readable diagnostics, unavailable state and worker export passed\n";
