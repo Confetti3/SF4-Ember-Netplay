@@ -82,8 +82,10 @@ void ApplicationServices::Run() {
                         std::to_string(diagnostics.selectedDelay)+" frames") << '\n';
                 if(diagnostics.performanceEnabled) {
                     output << "CPU work since latest match diagnostics reset (not displayed FPS):\n";
-                    const char* names[]={"Outer tick","Room runtime","Rollback callback","Save state","Load state","Pacing wait"};
-                    for(int i=0;i<6;++i) {
+                    const char* names[]={"Outer tick","Room runtime","Session-client step","Session-server step","GGPO idle",
+                        "Rollback callback","Save state","Load state","Pacing wait"};
+                    static_assert(sizeof(names)/sizeof(names[0]) == DiagnosticTimingCount, "diagnostic timing labels must stay fixed");
+                    for(std::size_t i=0;i<DiagnosticTimingCount;++i) {
                         const auto& t=diagnostics.timings[i];
                         output << names[i] << ": samples=" << t.count << " mean_ms=" << t.meanMs
                             << " max_ms=" << t.maxMs << " over_25ms=" << t.over25Ms << '\n';
@@ -92,6 +94,8 @@ void ApplicationServices::Run() {
                         << " | Prediction stalls: " << diagnostics.predictionStalls
                         << " | Prediction-skipped frames: " << diagnostics.predictionSkippedFrames << '\n';
                 } else output << "CPU timing: unavailable (launch with rollback diagnostics enabled).\n";
+                output << "Recovery checkpoint builds (current room lifetime): "
+                    << (diagnostics.recoveryCheckpointBuildsAvailable ? std::to_string(diagnostics.recoveryCheckpointBuilds) : "Unavailable") << '\n';
                 output << "Recent connection transitions (oldest first):\n";
                 for (const auto& event : next.connectionHistory) output << event << '\n';
                 output.close();
