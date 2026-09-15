@@ -80,6 +80,7 @@ private:
     std::string roomBoardFocus_;
     std::uint64_t chatSequence_=0;
     double saveAt_ = 0;
+    double lastUiTime_ = -1;
     bool saveFailed_ = false;
     bool saveQueued_ = false, retrySave_ = false;
     bool profileSavePending_ = false;

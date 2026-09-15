@@ -39,10 +39,22 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
 
 void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer) {
  using namespace netplay; auto& nav=menu_.navigation;
+ const double now = ImGui::GetTime();
+ if(lastUiTime_ >= 0 && now < lastUiTime_) {
+  // DX9 reset recreates ImGui, but these deadlines belong to the surviving shell.
+  // Keep raw-clock users in RoomAction in the same epoch, including queued saves.
+  saveAt_ = RebaseUiTimestamp(saveAt_, lastUiTime_, now);
+  noticeUntil_ = RebaseUiTimestamp(noticeUntil_, lastUiTime_, now);
+  roomUpdateUntil_ = RebaseUiTimestamp(roomUpdateUntil_, lastUiTime_, now);
+  roomUpdateStarted_ = -1;
+ }
+ lastUiTime_ = now;
  if(previousRoomState_!=RoomState::Idle && v.session.room==RoomState::Idle) {
   nav.Cancel();
   if(nav.Screen().compare(0,4,"room")==0 || nav.Screen()=="selection")nav.Home();
-  error_.clear();notice_="You left the room.";noticeUntil_=ImGui::GetTime()+3;
+  error_.clear();
+  notice_=previousRoomState_==RoomState::Opening?"":"You left the room.";
+  noticeUntil_=now+3;
  }
  previousRoomState_=v.session.room;
  if(!(generation_==v.session.generation)) {
@@ -212,7 +224,12 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  };
  GameMenu::Body board;
  if(screen=="room"&&v.room.roomEpoch)board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height){DrawRoomBoard(v,entries,navigation,action,height);};
- auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,100,roomScreen);
+ // Visual grace cannot grant permission: enabled and all dispatch checks stay live.
+ const bool checkpointPending=roomScreen && RoomCheckpointPending(v) && !v.controllerUnavailable &&
+  v.session.error.empty() && v.error.empty() && error_.empty();
+ for(auto& row:rows)row.pending=checkpointPending;
+ const bool stableFeedback=roomScreen || personal || screen=="join" || screen=="create" || screen=="about";
+ auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,100,stableFeedback);
  if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){
   ShellAction r;r.command.generation=v.session.generation;r.inputAction=input::Action::Cancel;submit(std::move(r));
  }else if(a.kind==MenuAction::Close||a.id=="return"){if(open)*open=false;
