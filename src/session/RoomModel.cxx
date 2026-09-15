@@ -10,6 +10,8 @@
 namespace sf4e { namespace room {
 namespace {
 
+constexpr std::uint64_t ResultDisputeTimeoutMs = 30000;
+
 template <typename T>
 bool InRange(T value, T low, T high) { return value >= low && value <= high; }
 
@@ -386,7 +388,7 @@ void RoomAuthority::AdvancePausedTimers(std::uint64_t elapsedMs) {
 		return value >= maximum || elapsedMs >= maximum - value ? maximum : value + elapsedMs;
 	};
 	for (std::size_t i = 0; i < TableCount; ++i)
-		if (snapshot_.tables[i].resultPending) resultPendingSince_[i] = add(resultPendingSince_[i], 30000);
+		if (snapshot_.tables[i].resultPending) resultPendingSince_[i] = add(resultPendingSince_[i], ResultDisputeTimeoutMs);
 	for (auto& entry : lastChatMs_) entry.second = add(entry.second, 1000);
 }
 
@@ -1237,6 +1239,20 @@ Result RoomAuthority::Apply(MemberId member, const Action& action) {
 	return Reject(RejectReason::Unauthorized);
 }
 
+bool RoomAuthority::HasDueTimerTransition(std::uint64_t nowMs) const {
+	for (std::size_t i = 0; i < TableCount; ++i) {
+		const auto& table = snapshot_.tables[i];
+		if (!table.resultPending || table.phase != TablePhase::Playing) continue;
+		if (recoveryPaused_) {
+			if (resultPendingSince_[i] >= ResultDisputeTimeoutMs) return true;
+			continue;
+		}
+		const auto effectiveNow = (std::max)(nowMs, nowMs_);
+		if (effectiveNow - resultPendingSince_[i] >= ResultDisputeTimeoutMs) return true;
+	}
+	return false;
+}
+
 std::vector<Event> RoomAuthority::AdvanceTime(std::uint64_t nowMs) {
 	if (recoveryPaused_) {
 		ResumeRecovery(nowMs);
@@ -1247,7 +1263,7 @@ std::vector<Event> RoomAuthority::AdvanceTime(std::uint64_t nowMs) {
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		Table& table = snapshot_.tables[i];
 		if (!table.resultPending || table.phase != TablePhase::Playing ||
-			nowMs_ - resultPendingSince_[i] < 30000) continue;
+			nowMs_ - resultPendingSince_[i] < ResultDisputeTimeoutMs) continue;
 		table.phase = TablePhase::Paused;
 		Touch(table);
 		events.push_back(Event{Event::Kind::ResultDisputed, static_cast<std::uint8_t>(i), table.matchGeneration, resultReporter_[i], pendingResult_[i]});

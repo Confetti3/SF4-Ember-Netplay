@@ -677,15 +677,16 @@ static void TestCommittedSessionGate() {
 	admissionHello(1, "Gate-one");
 	admissionHello(2, "Gate-two");
 	CheckIdleRecoveryWork(server,"two-member room");
-	const auto action = [&](session::Connection connection, room::ActionKind kind, std::uint64_t actionId) {
+	const auto action = [&](session::Connection connection, room::ActionKind kind, std::uint64_t actionId,
+		std::uint8_t table = 0) {
 		const auto snapshot = *server.RoomSnapshot();
 		room::Action value;
 		value.kind = kind;
 		value.roomEpoch = snapshot.roomEpoch;
 		value.revision = snapshot.revision;
-		value.tableRevision = snapshot.tables[0].revision;
+		value.tableRevision = snapshot.tables[table].revision;
 		value.actionId = actionId;
-		value.table = 0;
+		value.table = table;
 		protocol::RoomActionMessage message;
 		message.action = value;
 		transport->Push(connection, json(message));
@@ -818,8 +819,8 @@ static void TestCommittedSessionGate() {
 	commitCandidate(true, "game_prepare");
 	auto generation = server.RoomSnapshot()->tables[0].matchGeneration;
 	CHECK(generation > interruptedGeneration);
-	auto acknowledge = [&](session::Connection connection, const char* type) {
-		transport->Push(connection, json{{"type", type}, {"generation", generation}});
+	auto acknowledge = [&](session::Connection connection, const char* type, std::uint64_t matchGeneration = 0) {
+		transport->Push(connection, json{{"type", type}, {"generation", matchGeneration ? matchGeneration : generation}});
 		CHECK(server.Step() == 0);
 	};
 	acknowledge(1, "game_prepared");
@@ -844,6 +845,30 @@ static void TestCommittedSessionGate() {
 	CHECK(server.Step() == 0);
 	CHECK(transport->incoming.empty());
 	commitCandidate(true, "battle_hash", -1, -1, -1, 8);
+	// Keep another table in a healthy Started generation while table zero enters
+	// result reconciliation. A pending or disputed result on one table must not
+	// manufacture room-wide recovery work on every game-thread tick.
+	admissionHello(3, "Gate-three");
+	admissionHello(4, "Gate-four");
+	action(3, room::ActionKind::Queue, 1, 1);
+	commitCandidate(true, "room_result");
+	action(4, room::ActionKind::Queue, 1, 1);
+	commitCandidate(true, "room_result");
+	action(3, room::ActionKind::Ready, 2, 1);
+	commitCandidate(true, "room_result");
+	action(4, room::ActionKind::Ready, 2, 1);
+	commitCandidate(true, "game_prepare");
+	const auto otherGeneration = server.RoomSnapshot()->tables[1].matchGeneration;
+	acknowledge(3, "game_prepared", otherGeneration);
+	commitCandidate(false);
+	acknowledge(4, "game_prepared", otherGeneration);
+	commitCandidate(true, "game_connect");
+	acknowledge(3, "game_ready", otherGeneration);
+	commitCandidate(false);
+	acknowledge(4, "game_ready", otherGeneration);
+	commitCandidate(true, "game_start");
+	CHECK(server.RoomSnapshot()->tables[0].phase == room::TablePhase::Playing &&
+		server.RoomSnapshot()->tables[1].phase == room::TablePhase::Playing);
 	// A same-term follower transition must freeze the relative result age even
 	// when no new term is elected. The writable tick later rebases the clock
 	// and preserves the five-second age rather than disputing after 40 seconds
@@ -866,12 +891,13 @@ static void TestCommittedSessionGate() {
 	transport->Push(1, json(finishedMessage));
 	CHECK(server.Step() == 0);
 	commitCandidate(true, "room_result");
+	const auto pendingBuilds = server.RecoveryCheckpointBuilds();
 	server.AdvanceCustomRoom(5000);
-	CHECK(server.HasRecoveryCandidate());
-	// Commit the timer candidate before toggling authority. Otherwise the
-	// private candidate short-circuits AdvanceCustomRoom and would make the
-	// non-writable interval assertion vacuous.
-	commitCandidate(false);
+	CHECK(!server.HasRecoveryCandidate());
+	CHECK(server.RecoveryCheckpointBuilds() == pendingBuilds);
+	// Advancing the owner clock before the deadline is local bookkeeping. The
+	// five-second age must still survive a follower interval without requiring
+	// a private candidate or quorum proposal.
 	auto timed = server.RecoveryCheckpoint();
 	CHECK(timed.at("room").at("snapshot").at("tables").at(0).at("result_pending") == true);
 	CHECK(timed.at("room").at("result_age").at(0) == 5000);
@@ -894,6 +920,20 @@ static void TestCommittedSessionGate() {
 	CHECK(server.CancelInterruptedPreparations());
 	CHECK(!server.HasRecoveryCandidate());
 	CHECK(server.RoomSnapshot()->tables[0].phase == room::TablePhase::Playing);
+	CHECK(server.RoomSnapshot()->tables[1].phase == room::TablePhase::Playing);
+	// Resume the five-second age at the new owner's clock, then cross the exact
+	// thirty-second deadline once. Only that transition should create a
+	// candidate, and the unrelated table must remain in its healthy fight.
+	const auto resumedBuilds = server.RecoveryCheckpointBuilds();
+	server.AdvanceCustomRoom(90000);
+	CHECK(!server.HasRecoveryCandidate() && server.RecoveryCheckpointBuilds() == resumedBuilds);
+	server.AdvanceCustomRoom(115000);
+	CHECK(server.HasRecoveryCandidate());
+	commitCandidate(true, "room_snapshot");
+	CHECK(server.RoomSnapshot()->tables[0].phase == room::TablePhase::Paused);
+	CHECK(server.RoomSnapshot()->tables[0].resultPending);
+	CHECK(server.RoomSnapshot()->tables[1].phase == room::TablePhase::Playing);
+	CheckIdleRecoveryWork(server, "paused result beside playing table");
 }
 
 static void TestCustomRoomDepartures() {
@@ -1002,6 +1042,7 @@ static void TestCustomRoomDepartures() {
 	CHECK(server.RoomSnapshot()->tables[0].phase == room::TablePhase::Playing);
 	CHECK(hasMessage("game_peer_end", 2));
 	CHECK(!hasMessage("game_end"));
+	const auto spectatorMember = server.roomMembers.at(4);
 
 	// A spectator removed after Started is absent from the public room roster,
 	// but its frozen native slot must survive a portable restore and handle
@@ -1017,18 +1058,43 @@ static void TestCustomRoomDepartures() {
 	CHECK(portable.RestoreRecoveryCheckpoint(portableCheckpoint));
 	std::vector<SessionServer::StableRebind> restoredBindings;
 	session::Connection reboundHandle = 200;
+	session::Connection spectatorHandle = 0;
 	for (const auto& row : portableCheckpoint.at("members")) {
 		if (row.value("frozen", false)) continue;
 		const auto data = row.at("data").get<protocol::MemberData>();
-		restoredBindings.emplace_back(row.at("member").get<room::MemberId>(), reboundHandle++,
+		const auto member = row.at("member").get<room::MemberId>();
+		if (member == spectatorMember) spectatorHandle = reboundHandle;
+		restoredBindings.emplace_back(member, reboundHandle++,
 			data.connId, row.at("incarnation").get<std::uint64_t>());
 	}
-	CHECK(portable.RebindMembers(restoredBindings));
+	CHECK(spectatorHandle && portable.RebindMembers(restoredBindings));
 	const auto continued = portable.RecoveryCheckpoint();
 	CHECK(continued.at("match_authorities").at(0).at("phase") == static_cast<int>(session::MatchAuthority::Phase::Started));
 	CHECK(continued.at("match_authorities").at(0).at("participants").size() == 3);
 	CHECK(portable.RoomSnapshot()->tables[0].phase == room::TablePhase::Playing);
 	CHECK(portableTransport->outgoing.empty());
+	portable.SetAuthority(1, 0, true);
+	room::Action leave;
+	leave.kind = room::ActionKind::Leave;
+	leave.roomEpoch = portable.RoomSnapshot()->roomEpoch;
+	leave.revision = portable.RoomSnapshot()->revision;
+	leave.actionId = 3;
+	protocol::RoomActionMessage leaveMessage;
+	leaveMessage.action = leave;
+	portableTransport->Push(spectatorHandle, json(leaveMessage));
+	CHECK(portable.Step() == 0 && portable.HasRecoveryCandidate());
+	CHECK(portable.ProposeCheckpoint(1, 1, 0, portable.RecoveryCheckpoint()));
+	const auto leaveProposal = portable.PendingProposal();
+	CHECK(leaveProposal != nullptr);
+	CHECK(portable.ApplyCommit(1, 1, 1, leaveProposal->checkpoint, leaveProposal->effectsDigest));
+	CHECK(portable.roomFrozenMembers.size() == 1);
+	const auto retained = portable.RecoveryCheckpoint();
+	CHECK(std::count_if(retained.at("members").begin(), retained.at("members").end(),
+		[](const json& member) { return member.value("frozen", false); }) == 1);
+	CheckIdleRecoveryWork(portable, "retained started spectator");
+	const auto stillRetained = portable.RecoveryCheckpoint();
+	CHECK(std::count_if(stillRetained.at("members").begin(), stillRetained.at("members").end(),
+		[](const json& member) { return member.value("frozen", false); }) == 1);
 
 	// A recovery checkpoint includes native setup and match coordination, not
 	// only the UI roster. Restoring it must not send grants or touch a socket.

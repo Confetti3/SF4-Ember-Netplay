@@ -263,6 +263,10 @@ public:
 	// game teardown.
 	Result BeginMatch(std::uint8_t table, MemberId p1, MemberId p2);
 	Result EndMatch(std::uint8_t table, std::uint64_t generation, MatchResult result);
+	// True only when AdvanceTime(nowMs) can emit a timer-driven room event.
+	// Pending results which have not reached their deadline, and unresolved
+	// results already paused for host review, are not timer work.
+	bool HasDueTimerTransition(std::uint64_t nowMs) const;
 	std::vector<Event> AdvanceTime(std::uint64_t nowMs);
 	// Recovery rebases result deadlines against a fresh monotonic clock. The
 	// first owner tick resumes the paused timer; no wall-clock deadline elapses

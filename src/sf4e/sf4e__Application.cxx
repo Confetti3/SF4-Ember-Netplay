@@ -818,12 +818,16 @@ void TickRuntime() {
             diagnostics.pingMs = GetStatus().pingMs;
             FillNetworkDiagnostics(diagnostics);
             diagnostics.selectedDelay=GetRuntimeSnapshot().selectedDelay;
+            diagnostics.recoveryCheckpointBuildsAvailable=static_cast<bool>(UserApp::server);
+            if(UserApp::server) diagnostics.recoveryCheckpointBuilds=UserApp::server->RecoveryCheckpointBuilds();
             diagnostics.performanceEnabled=diag::Enabled();
             if(diagnostics.performanceEnabled) {
                 const auto& performance=diag::G();
-                const int ops[]={diag::OP_OUTER_TICK,diag::OP_RUNTIME_TICK,diag::OP_ROLLBACK_CALLBACK,
+                const int ops[]={diag::OP_OUTER_TICK,diag::OP_RUNTIME_TICK,diag::OP_SESSION_CLIENT_STEP,
+                    diag::OP_SESSION_SERVER_STEP,diag::OP_GGPO_IDLE,diag::OP_ROLLBACK_CALLBACK,
                     diag::OP_SAVE_TOTAL,diag::OP_LOAD_TOTAL,diag::OP_PACING_WAIT};
-                for(int i=0;i<6;++i) {
+                static_assert(sizeof(ops)/sizeof(ops[0])==platform::DiagnosticTimingCount, "diagnostic timing operations must stay fixed");
+                for(std::size_t i=0;i<platform::DiagnosticTimingCount;++i) {
                     const auto& stat=performance.ops[ops[i]];
                     diagnostics.timings[i]={stat.count,stat.hitchCounts[1],stat.MeanMs(),stat.maxMs};
                 }

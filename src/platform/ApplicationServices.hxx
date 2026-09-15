@@ -1,6 +1,9 @@
 #pragma once
 #include "../launcher/update/github_release_client.hxx"
 #include <condition_variable>
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <mutex>
 #include <thread>
 #include <vector>
@@ -8,12 +11,29 @@
 
 namespace sf4e { namespace platform {
 enum class ServiceAction { None, CheckUpdates, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery };
+enum class DiagnosticTiming : std::size_t {
+    OuterTick,
+    RoomRuntime,
+    SessionClientStep,
+    SessionServerStep,
+    GgpoIdle,
+    RollbackCallback,
+    SaveState,
+    LoadState,
+    PacingWait,
+    Count
+};
+constexpr std::size_t DiagnosticTimingCount = static_cast<std::size_t>(DiagnosticTiming::Count);
 struct DiagnosticsView {
     struct Timing { std::uint64_t count=0, over25Ms=0; double meanMs=0, maxMs=0; };
     bool performanceEnabled=false;
     // Snapshot of game-thread counters; the export worker never reads live state.
-    Timing timings[6]{};
+    std::array<Timing, DiagnosticTimingCount> timings{};
+    Timing& TimingAt(DiagnosticTiming timing) { return timings[static_cast<std::size_t>(timing)]; }
+    const Timing& TimingAt(DiagnosticTiming timing) const { return timings[static_cast<std::size_t>(timing)]; }
     std::uint64_t rollbackCallbacks=0, predictionStalls=0, predictionSkippedFrames=0;
+    bool recoveryCheckpointBuildsAvailable=false;
+    std::uint64_t recoveryCheckpointBuilds=0;
     int selectedDelay=-1;
     int room = 0, match = 0, control = 0, gameplay = 0, pingMs = -1;
     bool helperReady = false, verificationAvailable = false;
