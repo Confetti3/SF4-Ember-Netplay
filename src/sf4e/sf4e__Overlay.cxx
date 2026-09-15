@@ -89,10 +89,10 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	}
 }
 
-void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, int& menuCharaID, int* stageId) {
+void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, int& menuCharaID, int* stageId,
+	const sf4e::NetplayFacade::RuntimeSnapshot& snapshot) {
 	auto pick = sf4e::selection::FromNative(charaConditions);
 	pick.fighter = menuCharaID;
-	const auto snapshot = sf4e::NetplayFacade::GetRuntimeSnapshot();
 	const bool editionSelect = snapshot.session.room == sf4e::netplay::RoomState::Joined ? snapshot.lobbySettings.editionSelect : true;
     int stagedStage = stageId ? *stageId : 0;
 	s_fighterSelectors[0].Draw(pick, editionSelect, s_selectionArt.get(), [&](int fighter) { return snapshot.fighterAvailability[fighter]; }, stageId ? &stagedStage : nullptr, snapshot.canEditSelection);
@@ -104,9 +104,7 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
 
 }
 
-static void DrawApplicationHome() {
-
-	const auto snapshot = sf4e::NetplayFacade::GetRuntimeSnapshot();
+static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot) {
 	sf4e::ui::ShellView view;
     view.controllerAvailable = controllerNavigation.Available();
     view.controllerUnavailable = controllerNavigation.Unavailable();
@@ -175,7 +173,8 @@ static void DrawApplicationHome() {
 		request.stage = lobbyStageID;
 		return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
 	}, [&] {
-		DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID, (snapshot.session.room == sf4e::netplay::RoomState::Idle || snapshot.localSlot == 0) ? &lobbyStageID : nullptr);
+		DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID,
+			(snapshot.session.room == sf4e::netplay::RoomState::Idle || snapshot.localSlot == 0) ? &lobbyStageID : nullptr, snapshot);
 	}
 #ifdef SF4E_DEVELOPER_UI
     , [] { sf4e::ui::DrawDeveloperOverlay(s_selectionArt.get()); }
@@ -188,9 +187,8 @@ static void DrawApplicationHome() {
 void Overlay::DrawOverlay() {
 
     if (!ImGui::GetCurrentContext()) return;
-    if (s_selectionArt) s_selectionArt->Pump();
-    if (sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(s_overlayWindow) * sf4e::NetplayFacade::GetRuntimeSnapshot().preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
     const auto snapshot = sf4e::NetplayFacade::GetRuntimeSnapshot();
+    if (sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(s_overlayWindow) * snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
     presentation.Update(snapshot.atMainMenu, snapshot.session.match, snapshot.offlineRequested, focused);
     if(mainRequested.exchange(false) && presentation.Available()) presentation.Open();
     static bool inviteShown=false;
@@ -210,7 +208,10 @@ void Overlay::DrawOverlay() {
     sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.selectPhysical,snapshot.menuController.backPhysical);
     if (presentation.Reopened()) shell.ShowPlay();
     if (ImGui::IsKeyPressed(ImGuiKey_F10, false)) presentation.Toggle();
-    if (presentation.Visible()) DrawApplicationHome();
+    if (presentation.Visible()) {
+        if (s_selectionArt) s_selectionArt->Pump();
+        DrawApplicationHome(snapshot);
+    }
     if (!presentation.Visible() && assigning) {
         sf4e::NetplayFacade::RuntimeCommand cancel;
         cancel.command = {sf4e::netplay::CommandKind::HostRoom, snapshot.session.generation, {}};

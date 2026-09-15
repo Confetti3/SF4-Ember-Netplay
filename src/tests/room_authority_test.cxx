@@ -195,13 +195,21 @@ static void TestMatchFinishedAndSeatLifecycle() {
 	for (const auto member : {initial.p1, initial.p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
 	CHECK(authority.BeginMatch(0, initial.p1, initial.p2).accepted);
 	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
+	CHECK(!authority.HasDueTimerTransition(0)); // no pending result
 	Action finished = TableAction(authority, p1, 0, ActionKind::MatchFinished);
 	finished.matchGeneration = generation;
 	CHECK(authority.Apply(p1, finished).accepted);
 	CHECK(authority.SnapshotView().tables[0].phase == TablePhase::Playing);
-	CHECK(authority.AdvanceTime(29999).empty());
+	CHECK(!authority.HasDueTimerTransition(0));
+	CHECK(authority.AdvanceTime(10000).empty());
+	CHECK(!authority.HasDueTimerTransition(9999)); // backward clock input
+	CHECK(!authority.HasDueTimerTransition(10000)); // equal clock input
+	CHECK(!authority.HasDueTimerTransition(29999)); // immediately before deadline
+	CHECK(authority.HasDueTimerTransition(30000)); // exact deadline
 	const auto timeout = authority.AdvanceTime(30000);
 	CHECK(!timeout.empty() && authority.SnapshotView().tables[0].phase == TablePhase::Paused);
+	CHECK(authority.SnapshotView().tables[0].resultPending);
+	CHECK(!authority.HasDueTimerTransition(60000)); // paused but still pending
 	const auto unresolved = authority.SnapshotView().tables[0];
 	Action pausedRules = TableAction(authority, host, 0, ActionKind::SetRules);
 	pausedRules.rules.roundTime = 300;
