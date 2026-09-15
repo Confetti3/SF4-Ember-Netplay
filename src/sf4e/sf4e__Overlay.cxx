@@ -259,6 +259,9 @@ void Overlay::DrawOverlay() {
         sf4e::ui::MatchStripView strip;
         for (int side = 0; side < 2; ++side) strip.names[side] = status.matchNames[side];
         strip.rollbackFrames = status.rollbackFrames;
+        strip.pingMs = status.pingMs; strip.appliedDelay = status.appliedDelay;
+        strip.spectator = status.spectator;
+        strip.size = snapshot.preferences.matchHudSize; strip.raised = snapshot.preferences.matchHudRaised;
         sf4e::ui::DrawMatchStrip(strip);
     }
     sf4e::OverlayPrefs::Data prefs = s_prefs;

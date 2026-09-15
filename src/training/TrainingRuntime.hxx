@@ -11,6 +11,7 @@ bool ControlsAvailable();
 void BeforeUpdate(Dimps::Game::Battle::System* system, bool networkOwned);
 void AfterUpdate(Dimps::Game::Battle::System* system);
 void CloseBattle();
+void StopCapture();
 // The override exists only during one native offline training update.
 bool ReadOverride(int side, Input& result);
 } }

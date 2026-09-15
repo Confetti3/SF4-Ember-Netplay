@@ -37,6 +37,9 @@ enum TimedOp {
 	OP_GGPO_IDLE,                  // ggpo_idle
 	OP_STEAM_POST_UPDATE,          // original (undetoured) Steam_PostUpdate
 	OP_OUTER_TICK,                 // complete detoured Steam_PostUpdate
+	OP_COMPLETE_OUTER_CALL,        // detoured call including diagnostic enqueue
+	OP_DIAGNOSTIC_ENQUEUE,         // formatting/enqueue before async file I/O
+	OP_TRACE_ENQUEUE,              // lifecycle comparison/enqueue before async file I/O
 
 	// Rollback state operations
 	OP_SAVE_TOTAL,                 // entire SaveState::Save

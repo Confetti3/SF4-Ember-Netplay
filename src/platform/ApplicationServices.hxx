@@ -12,6 +12,7 @@
 namespace sf4e { namespace platform {
 enum class ServiceAction { None, CheckUpdates, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery };
 enum class DiagnosticTiming : std::size_t {
+    CompleteOuterCall,
     OuterTick,
     RoomRuntime,
     SessionClientStep,
@@ -21,6 +22,8 @@ enum class DiagnosticTiming : std::size_t {
     SaveState,
     LoadState,
     PacingWait,
+    DiagnosticEnqueue,
+    TraceEnqueue,
     Count
 };
 constexpr std::size_t DiagnosticTimingCount = static_cast<std::size_t>(DiagnosticTiming::Count);
@@ -32,6 +35,8 @@ struct DiagnosticsView {
     Timing& TimingAt(DiagnosticTiming timing) { return timings[static_cast<std::size_t>(timing)]; }
     const Timing& TimingAt(DiagnosticTiming timing) const { return timings[static_cast<std::size_t>(timing)]; }
     std::uint64_t rollbackCallbacks=0, predictionStalls=0, predictionSkippedFrames=0;
+    std::uint64_t traceDropped=0, logDropped=0;
+    double traceLastWriteMs=0;
     bool recoveryCheckpointBuildsAvailable=false;
     std::uint64_t recoveryCheckpointBuilds=0;
     int selectedDelay=-1;

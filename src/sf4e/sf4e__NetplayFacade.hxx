@@ -30,6 +30,8 @@ namespace sf4e {
 		char lastError[256] = { 0 };
         std::string matchNames[2];
         unsigned rollbackFrames = 0;
+        int appliedDelay = -1;
+        bool spectator = false;
 	};
 
 	// Authenticated Iroh loopback bridge endpoint selected for this match.

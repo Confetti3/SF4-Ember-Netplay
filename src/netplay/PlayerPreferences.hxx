@@ -25,6 +25,8 @@ struct PlayerPreferences {
     ProfileRecord record;
     int inputDelay = 2;
     bool showMatchHud = true;
+    int matchHudSize = 1;
+    bool matchHudRaised = false;
     bool discordPresence = true, discordInvites = true;
     float interfaceScale = 1.f;
     LobbySettings lobby;
@@ -33,7 +35,7 @@ struct PlayerPreferences {
     room::Rules tableRules;
     bool Valid() const {
         if (displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=44 || inputDelay < 0 || inputDelay > 10 ||
-            !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || !lobby.Valid() ||
+            matchHudSize < 0 || matchHudSize > 2 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || !lobby.Valid() ||
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;

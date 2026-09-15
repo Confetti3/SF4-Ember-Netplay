@@ -41,7 +41,7 @@ Copy `ember-diagnostics.txt` alongside your log ZIP and include both in your rep
 
 The export contains Ember's version and connection-state information. It omits invitations, credentials, player names, raw log text and settings backups. **It is an additional report; it does not include the logs folder.**
 
-When rollback diagnostics are enabled, the export also includes nine fixed CPU-work timing groups: outer tick, room runtime, session-client step, session-server step, GGPO idle, rollback callback, save state, load state and pacing wait. Their sample counts, mean and maximum durations, and over-25-ms counts describe where Ember spent CPU time. They are not displayed-frame measurements and do not by themselves establish frame pacing, rendering performance or input latency.
+When rollback diagnostics are enabled, the export includes twelve fixed CPU-work timing groups: complete outer call, outer tick, room runtime, session-client step, session-server step, GGPO idle, rollback callback, save state, load state, pacing wait, diagnostic enqueue and lifecycle-trace enqueue. Their sample counts, mean and maximum durations, and over-25-ms counts describe where Ember spent CPU time. The export also reports dropped asynchronous game-log/lifecycle records and the latest lifecycle writer duration. These are CPU and queue indicators, not displayed-frame measurements; use the repository's PresentMon capture runner for presentation pacing.
 
 `Recovery checkpoint builds` counts checkpoint serialization attempts during the lifetime of the current hosted room. A value of zero means that the available room counter observed no builds; `Unavailable` means there was no hosted-room counter to read, so it must not be interpreted as zero. Starting a different hosted room starts a different counter lifetime.
 
@@ -66,5 +66,6 @@ Use the repository's [Issues page](https://github.com/Confetti3/SF4-Ember-Netpla
 - **The logs look old:** sort the folder by **Date modified**, check the `session-*.log` files too, and include the whole folder with the incident time. Do not assume an old `sf4e.log` describes the latest match.
 - **Windows cannot zip a file because it is in use:** make sure the game and launcher have closed, then try again.
 - **The problem is an update failure:** also copy `%TEMP%\sf4-netplay-update.log`, if present. Keep `.ember-update-backups` in the install folder for recovery.
+- **An update says recovery is required:** extract the matching upgrade package outside the installation and run `Install-Upgrade.ps1 -InstallDir <Ember folder> -RecoverOnly`. `-CheckOnly` only reports the pending transaction and never changes installed files. Preserve the transaction and backups if recovery reports damaged evidence.
 
 For fixes to common problems, see [Troubleshooting](TROUBLESHOOTING.md).

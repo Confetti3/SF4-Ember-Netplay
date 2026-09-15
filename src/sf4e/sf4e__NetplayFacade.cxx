@@ -199,6 +199,7 @@ namespace sf4e {
 
 
 	void NetplayFacade::TickFrame() {
+        fSystem::PollMatchTelemetry();
         if (s_deferredGgpoPending && fSystem::ggpo && !ShouldDeferGgpoClose()) {
             fSystem::RetireGgpoSession("deferred_close");
             s_deferredGgpoPending = s_deferGgpoClose = false;
@@ -223,22 +224,11 @@ namespace sf4e {
 				}
 			}
 
-			if (fSystem::ggpo) {
-				GGPONetworkStats stats;
-				for (int i = 0; i < MAX_SF4E_PROTOCOL_USERS; i++) {
-					if (fSystem::players[i].type == GGPO_PLAYERTYPE_REMOTE) {
-						GGPOErrorCode statsResult =
-							ggpo_get_network_stats(fSystem::ggpo, fSystem::players[i].handle, &stats);
-						if (GGPO_SUCCEEDED(statsResult)) {
-							st.pingMs = stats.network.ping;
-						}
-						else if (diag::Enabled()) {
-							diag::G().RecordGgpoResult(diag::CALL_GET_NETWORK_STATS, (int)statsResult);
-						}
-						break;
-					}
-				}
-			}
+            if (fSystem::ggpo) {
+                st.pingMs = fSystem::matchTelemetry.Ping(GetTickCount64());
+                st.appliedDelay = fSystem::matchTelemetry.appliedDelay;
+                st.spectator = fSystem::matchTelemetry.spectator;
+            }
 		}
 		return st;
 	}

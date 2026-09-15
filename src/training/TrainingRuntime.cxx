@@ -1,4 +1,5 @@
 #include "TrainingRuntime.hxx"
+#include "TrainingCapture.hxx"
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../sf4e/sf4e__Game__Battle__System.hxx"
@@ -13,6 +14,9 @@ using Battle = sf4e::Game::Battle::System;
 using Pad = Dimps::Pad::System;
 Session session;
 FrameMeter meter;
+// Normal shutdown owns this worker. Never join a thread from a DLL destructor
+// while Windows holds the loader lock.
+TrainingCapture* capture = nullptr;
 std::mutex mutex;
 View published;
 std::deque<Command> commands;
@@ -121,8 +125,11 @@ void AfterUpdate(Native* system) {
                 // Native BAC action header: first/last attack boundary,
                 // interruptible frame, total animation frames. Zero/zero is
                 // common on recovery-only actions and is not 0f startup.
-                if (script && script[1] > script[0] && script[0] < script[3] && script[3] <= 4096)
+                if (script && script[1] > script[0] && script[0] < script[3] && script[3] <= 4096) {
                     sample.firstActiveFrame = script[0];
+                    sample.lastActiveFrame = script[1];
+                    sample.boundaryProvenance = BoundaryProvenance::BacActionHeader;
+                }
             }
             (actor->*Actor::publicMethods.GetDamage)(&value);
             sample.damage = Dimps::Math::FixedToFloat(&value);
@@ -133,6 +140,8 @@ void AfterUpdate(Native* system) {
             sample.valid = true;
         }
         meter.Observe(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters);
+        if (!capture) capture = new TrainingCapture();
+        capture->Record(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters, meter.View());
     } else if (sampling && delta != 0) {
         meter.Reset();
     }
@@ -141,6 +150,7 @@ void AfterUpdate(Native* system) {
     published.commandId=commandId;published.commandAccepted=commandAccepted;
     if(commandId&&!commandAccepted)published.commandError="Practice state changed. The command was not applied.";
 }
+void StopCapture() { delete capture; capture = nullptr; }
 void CloseBattle() {
     overriding = false; sampling = false;
     if (checkpoint.used) Battle::SaveState::Free(&checkpoint);

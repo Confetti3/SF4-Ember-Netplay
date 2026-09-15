@@ -104,10 +104,11 @@ int main(int argc, char** argv) {
         const std::string output = argc > 1 ? argv[1] : "";
         const bool trainingShotsOnly = argc > 2 && std::string(argv[2]) == "--training-shots-only";
         const bool recoveryShotsOnly = argc > 2 && std::string(argv[2]) == "--recovery-shots-only";
+        const bool matchShotsOnly = argc > 2 && std::string(argv[2]) == "--match-shots-only";
         const bool uxShotsOnly = argc > 4 && std::string(argv[4]) == "--ux-shots-only";
         const bool readmeShots = argc > 4 && std::string(argv[4]) == "--readme-shots";
         std::unique_ptr<sf4e::ui::SelectionArt> art;
-        if (argc > 2 && !trainingShotsOnly && !recoveryShotsOnly) {
+        if (argc > 2 && !trainingShotsOnly && !recoveryShotsOnly && !matchShotsOnly) {
             const std::string root = argv[2];
             const std::string assets = argc > 3 ? argv[3] : "assets/selection";
             art.reset(new sf4e::ui::SelectionArt(renderer.device, std::wstring(root.begin(), root.end()), std::wstring(assets.begin(), assets.end())));
@@ -271,6 +272,8 @@ int main(int argc, char** argv) {
             }
             training.meter=meter.View();training.history[0]={{0x14,5},{1,3},{0,16}};training.history[1]={{0x40,2},{0,10}};
             int mode=0;
+            MatchStripView matchStrip;matchStrip.names[0]="Player One";matchStrip.names[1]="Player Two";
+            matchStrip.pingMs=68;matchStrip.rollbackFrames=2;matchStrip.appliedDelay=3;
             training::Command trainingCommand;
             bool acceptTraining=false;
             GameMenu recoveryMenu;recoveryMenu.navigation=MenuNavigation("close");
@@ -288,8 +291,14 @@ int main(int argc, char** argv) {
                     else if(mode==2)DrawTrainingHud(training);
                     else if(mode==5)DrawControllerWarning("Match input blocked: reconnect your controller. If its slot changed, return to the room to reassign it.");
                     else if(mode==4)DrawRecoveryMenu(recoveryMenu,recoveryState,"The selected folder does not contain SSFIV.exe. Choose the installed game folder or close recovery without starting SF4.",recoveryUpdates);
-                    else {MatchStripView strip;strip.names[0]="Player One";strip.names[1]="Player Two";strip.rollbackFrames=2;DrawMatchStrip(strip);}
+                    else DrawMatchStrip(matchStrip);
                     CheckStacks();ImGui::Render();renderer.Draw();++frames;
+                    if(mode==3){
+                        Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Match HUD captured gameplay input");
+                        const auto* list=ImGui::GetForegroundDrawList();
+                        for(const auto& vertex:list->VtxBuffer)Require(vertex.pos.x>=size.w*.1f-2&&vertex.pos.x<=size.w*.9f+2&&
+                            vertex.pos.y>=0&&vertex.pos.y<=size.h,"Match HUD escaped safe viewport bounds");
+                    }
                     if((mode==0||mode==4)&&i==settle-1&&settle>=3){
                         const auto* root=FindWindow(mode==0?"EmberShell":"Ember recovery");
                         if(root->ScrollMax.y>=1)throw std::runtime_error(std::string("Player menu footer escaped on ")+(mode==0?shell.Navigation().Screen():"recovery")+" by "+std::to_string(root->ScrollMax.y)+" pixels");
@@ -311,8 +320,17 @@ int main(int argc, char** argv) {
                         std::string(shot).find("room-transfer-host")==0 ||
                         std::string(shot).find("table-terminal-pending")==0 ||
                         std::string(shot).find("table-recover")==0 || std::string(shot).find("table-replacement")==0);
+                    const bool matchShot=shot&&mode==3&&(
+                        (std::string(shot)=="match-hud"&&((size.w==1280&&size.h==720&&size.dpi==1)||
+                         (size.w==1920&&size.h==1080&&size.dpi==1)||(size.w==2560&&size.h==1440)||
+                         (size.w==3440&&size.h==1440)||(size.w==3840&&size.h==2160&&size.dpi==1)))||
+                        (size.w==1920&&size.h==1080&&size.dpi==1&&
+                         (std::string(shot)=="match-hud-size-0"||std::string(shot)=="match-hud-size-2"||
+                          std::string(shot)=="match-hud-raised"||std::string(shot)=="match-hud-long"||
+                          std::string(shot)=="match-hud-unavailable"||std::string(shot)=="match-hud-spectator"||
+                          std::string(shot)=="match-hud-reset")));
                     if(i==settle-1&&shot&&!output.empty()&&(!trainingShotsOnly||mode==1||mode==2)&&
-                        (!recoveryShotsOnly||recoveryShot) && (!uxShotsOnly ||
+                        (!recoveryShotsOnly||recoveryShot)&&(!matchShotsOnly||matchShot) && (!uxShotsOnly ||
                             ((std::string(shot)=="table-delay-checking" || std::string(shot)=="table-delay-retry" ||
                               std::string(shot)=="table-recover-updating" || std::string(shot)=="table-recover-leaving") &&
                              ((size.w==1280&&size.dpi==1) || (size.w==1920&&size.dpi==1.5f) || size.w==640))))
@@ -514,6 +532,16 @@ int main(int argc, char** argv) {
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"DirectInput HUD captured input");
             SetMenuGlyphs(0,0,0);draw("training-hud-keyboard");SetMenuGlyphs(3,0x40000,0x20000);
             mode=3;draw("match-hud");
+            for(int hudSize=0;hudSize<3;++hudSize){
+                matchStrip.size=hudSize;
+                const auto shot="match-hud-size-"+std::to_string(hudSize);draw(shot.c_str());
+            }
+            matchStrip.raised=true;draw("match-hud-raised");
+            matchStrip.names[0]="Long player name with UTF-8 \xc3\xa9\xc3\xa9\xc3\xa9";matchStrip.names[1]="Another very long player name";
+            matchStrip.pingMs=9999;matchStrip.rollbackFrames=999;matchStrip.appliedDelay=10;draw("match-hud-long");
+            matchStrip.pingMs=-1;matchStrip.appliedDelay=-1;draw("match-hud-unavailable");
+            matchStrip.spectator=true;draw("match-hud-spectator");
+            ImGui_ImplDX9_InvalidateDeviceObjects();draw("match-hud-reset");
             mode=5;draw("controller-warning");
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Controller warning captured input");
             auto* warning=FindWindow("Controller warning");

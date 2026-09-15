@@ -20,7 +20,7 @@ void RetireLegacy(Json& document) {
     auto& overlay = document["overlay"];
     for (const char* key : {"host", "join", "mainMenu", "windows", "debug"}) overlay.erase(key);
 }
-const char* NetplayKeys[] = { "inputDelay", "editionSelect", "roundCount", "roundTimeIntegral", "showMatchHud", "discordPresence", "discordInvites", "interfaceScale", "roomDefaults" };
+const char* NetplayKeys[] = { "inputDelay", "editionSelect", "roundCount", "roundTimeIntegral", "showMatchHud", "matchHudSize", "matchHudRaised", "discordPresence", "discordInvites", "interfaceScale", "roomDefaults" };
 
 struct Handle {
     HANDLE value;

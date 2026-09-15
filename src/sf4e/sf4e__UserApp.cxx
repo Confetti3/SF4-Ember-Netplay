@@ -354,6 +354,7 @@ void fUserApp::StartIrohSession(std::unique_ptr<session::ClientTransport> transp
 
 void fUserApp::Steam_PostUpdate() {
     namespace diag = sf4e::diag;
+    diag::ScopedTimer completeOuterCall(diag::OP_COMPLETE_OUTER_CALL);
     const bool diagnosticsEnabled = diag::Enabled();
     const double outerTickStartMs = diagnosticsEnabled ? diag::NowMs() : 0.0;
     double pacingRequestedThisTickMs = 0.0;
@@ -504,6 +505,7 @@ void fUserApp::Steam_PostUpdate() {
             const long long wallMs = (long long)std::chrono::duration_cast<
                 std::chrono::milliseconds
             >(std::chrono::system_clock::now().time_since_epoch()).count();
+            diag::ScopedTimer logTimer(diag::OP_DIAGNOSTIC_ENQUEUE);
             spdlog::warn(
                 "FreezeCandidate wallMs={} outerTickMs={:.2f} simFrame={} ggpoSaveFrame={} "
                 "gate={} predictionStalled={} connectionWarning={} pacingDebtMs={:.2f} "
@@ -536,6 +538,7 @@ void fUserApp::Steam_PostUpdate() {
         // Periodic development summary — only while a GGPO session exists,
         // and never per frame.
         if (fSystem::ggpo && d.PeriodicSummaryDue(now, 10.0)) {
+            diag::ScopedTimer logTimer(diag::OP_DIAGNOSTIC_ENQUEUE);
             static char s_diagBuf[8192];
             size_t n = d.FormatSummary(s_diagBuf, sizeof(s_diagBuf), "periodic");
             if (n) {
