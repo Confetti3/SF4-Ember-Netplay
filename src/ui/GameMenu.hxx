@@ -1,5 +1,6 @@
 #pragma once
 #include "MenuNavigation.hxx"
+#include "MenuFeedback.hxx"
 #include <functional>
 #include <imgui.h>
 namespace sf4e { namespace ui {
@@ -48,5 +49,7 @@ public:
 private:
     std::string lastScreen_,lastFocus_,lastEdit_;
     int lastFrame_ = -2;
+    UiClock clock_;
+    MenuVisualFeedback feedback_;
 };
 } }
