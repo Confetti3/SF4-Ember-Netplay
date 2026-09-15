@@ -40,17 +40,22 @@ For a multi-configuration generator, supply `--config Release` to the build and
 `-C Release` to CTest. This small standalone project does not replace or alter
 the existing native suite. Its count is not 357 separate CTest cases.
 
-## Not validated in this pass
+After merging the current `release` checkpoint/performance work into the polish
+branch, the same standalone fixture passed under Windows/MSVC. The designated
+`scripts/build-current.ps1` pipeline then configured and built the combined
+32-bit Windows product, staged it, and passed **38/38** local synthetic tests,
+including RoomPanelNavigation, ControllerNavigation, UiRender,
+OverlayPresentation and OverlayReset.
 
-The complete Windows build, ImGui/DX9 renderer integration, existing native test
-suite, actual SF4 gameplay, and visual frame-time measurements were not run.
-These changes are a draft for native acceptance, not a released binary or proof
-that all reported flicker/stutter is resolved. The headless fixture tests the
-production navigation/feedback helpers, not GameMenu or ApplicationShell rendering.
+## Remaining native acceptance
 
-Before merging, build the native targets and run the existing UI/navigation/reset
-regressions, including RoomPanelNavigation, ControllerNavigation, UiRender,
-OverlayPresentation and OverlayReset. Confirm the following on actual Windows:
+Actual SF4 gameplay acceptance for the UI-polish changes and visual frame-time
+measurements were not run. The successful Windows build and synthetic renderer
+tests are not proof that every reported flicker or stutter is resolved. The
+earlier checkpoint/performance candidate was tested successfully in gameplay,
+but that does not automatically validate these later menu-behavior changes.
+
+Confirm the following in actual SF4 gameplay:
 
 1. Alternate ready/unready and healthy checkpoint waits from two PCs. Shared list
    colors, hints and geometry should remain stable while unavailable actions
