@@ -214,10 +214,11 @@ static bool StartLauncher(const wchar_t* installDir, const wchar_t* arguments = 
 	return true;
 }
 
-static bool ParseArgs(int argc, wchar_t** argv, wchar_t* installDir, int installDirChars, wchar_t* stagingDir, int stagingDirChars, DWORD* waitPid) {
+static bool ParseArgs(int argc, wchar_t** argv, wchar_t* installDir, int installDirChars, wchar_t* stagingDir, int stagingDirChars, DWORD* waitPid, bool* recoverOnly) {
 	installDir[0] = L'\0';
 	stagingDir[0] = L'\0';
 	*waitPid = 0;
+	*recoverOnly = false;
 
 	for (int i = 1; i < argc; i++) {
 		if (_wcsicmp(argv[i], L"-InstallDir") == 0 && i + 1 < argc) {
@@ -229,9 +230,10 @@ static bool ParseArgs(int argc, wchar_t** argv, wchar_t* installDir, int install
 		else if (_wcsicmp(argv[i], L"-WaitPid") == 0 && i + 1 < argc) {
 			*waitPid = (DWORD)_wtoi(argv[++i]);
 		}
+		else if (_wcsicmp(argv[i], L"-RecoverOnly") == 0) { *recoverOnly = true; }
 	}
 
-	return installDir[0] != L'\0' && stagingDir[0] != L'\0';
+	return installDir[0] != L'\0' && (*recoverOnly || stagingDir[0] != L'\0');
 }
 
 } // namespace
@@ -240,10 +242,16 @@ int wmain(int argc, wchar_t** argv) {
 	wchar_t installDir[MAX_PATH] = { 0 };
 	wchar_t stagingDir[MAX_PATH] = { 0 };
 	DWORD waitPid = 0;
+	bool recoverOnly = false;
 
-	if (!ParseArgs(argc, argv, installDir, MAX_PATH, stagingDir, MAX_PATH, &waitPid)) {
+	if (!ParseArgs(argc, argv, installDir, MAX_PATH, stagingDir, MAX_PATH, &waitPid, &recoverOnly)) {
 		AppendLog("ERROR: missing -InstallDir or -StagingDir");
 		return 1;
+	}
+	if (recoverOnly) {
+		std::string recoveryError;
+		if (!sf4e::launcher::RecoverPackage(installDir,recoveryError,false)) { AppendLog(recoveryError.c_str()); return 1; }
+		AppendLog("Update recovery complete"); return 0;
 	}
 
 	char startLine[1024] = { 0 };

@@ -114,6 +114,14 @@ For a non-modifying check:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-Upgrade.ps1 -InstallDir "C:\Games\Ember" -CheckOnly
 ~~~
 
+If the check reports an interrupted transaction, keep the backup (either the sibling Ember-backup folder or the installation's .ember-update-backups folder) and run recovery from this extracted package:
+
+~~~powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-Upgrade.ps1 -InstallDir "C:\Games\Ember" -RecoverOnly
+~~~
+
+Recovery verifies the saved bytes before restoring them. If it reports missing or damaged evidence, preserve the installation, transaction and backup instead of retrying a normal update.
+
 If the selected folder is modified or is not the exact published $FromVersion package, use the complete $ToVersion package instead. Everyone in a room must use the same Ember version.
 
 Release notes: https://github.com/Confetti3/SF4-Ember-Netplay/releases/tag/v$ToVersion

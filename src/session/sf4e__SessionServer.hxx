@@ -165,6 +165,7 @@ namespace sf4e {
 		bool _recoveryCandidateOverflow = false;
 		nlohmann::json _recoveryBaseline;
 		std::vector<session::EffectEnvelope> _recoveryEffects;
+		std::size_t _recoveryEffectBytes = 2;
 		struct LocalEffect { session::EffectEnvelope envelope; nlohmann::json payload; session::Connection local = 0; };
 		std::vector<LocalEffect> _recoveryLocalEffects;
 		std::vector<session::EffectEnvelope> _committedEffectHistory;

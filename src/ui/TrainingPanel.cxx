@@ -27,6 +27,11 @@ void Advantage(const FrameAdvantage& advantage, int side) {
     if (advantage.valid) ImGui::TextColored(AdvantageColor(advantage.frames[side]), "%+d f", advantage.frames[side]);
     else ImGui::TextDisabled("--");
 }
+const char* Unavailable(const char* label, MeasurementUnavailable reason) {
+    static thread_local std::string text;
+    text = std::string(label) + ": " + MeasurementUnavailableName(reason);
+    return text.c_str();
+}
 void Meter(const MeterView& meter, float hudScale) {
     const float label = 178 * hudScale;
     const float height = 12 * hudScale;
@@ -38,7 +43,10 @@ void Meter(const MeterView& meter, float hudScale) {
         ImGui::SameLine(rowStart + 27 * hudScale); Advantage(meter.advantage, side);
         ImGui::SameLine(rowStart + 85 * hudScale);
         if (meter.startupFrames[side] >= 0) ImGui::Text("Start %d f", meter.startupFrames[side]);
-        else ImGui::TextDisabled("Start --");
+        else {
+            ImGui::TextDisabled("Start --");
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", Unavailable("Startup", meter.startupUnavailable[side]));
+        }
         ImGui::SameLine(rowStart + label);
         const ImVec2 origin = ImGui::GetCursorScreenPos();
         auto* draw = ImGui::GetWindowDrawList();
@@ -184,6 +192,8 @@ void DrawTrainingHud(const training::View& view) {
         Meter(view.meter, hudScale);
         ImGui::TextDisabled("FRAME ADVANTAGE | %s",
             view.meter.advantage.pending ? "measuring" : view.meter.advantage.knockdown ? "wakeup" : view.meter.frozen ? "held" : "live");
+        if (!view.meter.advantage.valid && ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", Unavailable("Advantage", view.meter.advantage.unavailable));
         // Training shortcuts are keyboard-only; this passive HUD never captures input.
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImVec2(0,0));
         DrawTrainingOpenPrompt(hudScale);

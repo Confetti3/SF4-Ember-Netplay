@@ -58,8 +58,11 @@ void EndToolWindow();
 struct MatchStripView {
     std::string names[2];
     unsigned rollbackFrames = 0;
+    int pingMs = -1, appliedDelay = -1, size = 1;
+    bool spectator = false, raised = false;
 };
 void DrawMatchStrip(const MatchStripView& view);
+void DrawMatchStripPreview(const MatchStripView& view);
 void DrawControllerWarning(const std::string& message);
 struct DiagnosticStripView {
     bool hasRemote = false, networkAvailable = false;

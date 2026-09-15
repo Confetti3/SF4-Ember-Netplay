@@ -2,5 +2,5 @@
   "sourceDirectory": ".",
   "buildDirectory": "build/current",
   "installDirectory": "build/current/stage",
-  "features": ["Ember fixed UI", "custom rooms", "controller assignment and tiny HUD", "short invitations", "Discord", "training test3", "native controller navigation", "controller-first menus and native input suppression", "Ember artwork and controller button glyphs", "player profile main and confirmed online record", "SF6-style room layout with character portraits and A/B menu defaults"]
+  "features": ["Ember fixed UI", "custom rooms", "controller assignment and readable match telemetry HUD", "short invitations", "Discord", "training test3", "native controller navigation", "controller-first menus and native input suppression", "Ember artwork and controller button glyphs", "player profile main and confirmed online record", "SF6-style room layout with character portraits and A/B menu defaults"]
 }

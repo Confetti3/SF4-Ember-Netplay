@@ -40,6 +40,8 @@ struct Runtime {
     std::string discordStatus = "Discord integration is unavailable in this build.";
     std::string discordPublished;
     ULONGLONG discordLastPublish = 0;
+    std::array<std::uint64_t,8> discordPresenceKey{};
+    bool discordPresenceKeyValid=false;
 
     input::Assignment input;
     bool inputInitialized = false;
@@ -246,7 +248,11 @@ void FillNetworkDiagnostics(platform::DiagnosticsView& view) {
     }
 }
 
-void Publish() {
+struct PostPublishState {
+    netplay::Snapshot session;
+    bool discordCanSwitch=false, canOpenRoom=false;
+};
+PostPublishState Publish() {
 	RuntimeSnapshot snapshot;
 	snapshot.session = runtime->controller.GetSnapshot();
 	snapshot.helperReady = runtime->helper && runtime->helper->State() == platform::HelperState::Connected;
@@ -423,6 +429,16 @@ void Publish() {
         (snapshot.session.match == netplay::MatchState::None || snapshot.session.match == netplay::MatchState::PostMatch);
     snapshot.discordStatus = runtime->discordStatus;
     if (runtime->discordClient && runtime->discordClient->State() == platform::HelperState::Connected) {
+        const auto nowTick=GetTickCount64();
+        const std::array<std::uint64_t,8> key{{runtime->eventSystemReady,
+            runtime->offlineRequested || (runtime->eventSystemReady && !snapshot.atMainMenu && snapshot.session.room==netplay::RoomState::Idle),
+            static_cast<std::uint64_t>(runtime->preferences.discordPresence) | (static_cast<std::uint64_t>(runtime->preferences.discordInvites)<<1),
+            snapshot.session.generation.room,snapshot.room.revision,
+            static_cast<std::uint64_t>(snapshot.session.room) | (static_cast<std::uint64_t>(snapshot.session.match)<<8) |
+                (static_cast<std::uint64_t>(snapshot.session.control)<<16),
+            snapshot.room.localMember,static_cast<std::uint64_t>(snapshot.atMainMenu)}};
+        const bool publishDue=nowTick-runtime->discordLastPublish>=1000;
+        if (!runtime->discordPresenceKeyValid || key!=runtime->discordPresenceKey || publishDue) {
         discord::PresenceInput input;
         input.ready = runtime->eventSystemReady;
         input.offline = runtime->offlineRequested || (input.ready && !snapshot.atMainMenu &&
@@ -438,14 +454,37 @@ void Publish() {
         const auto message = nlohmann::json{{"type","presence"},{"epoch",snapshot.session.generation.room},
             {"show",value.show},{"activity",value.activity},{"party",value.party},{"size",value.size},
             {"capacity",value.capacity},{"secret",value.secret},{"expires",value.expires}}.dump();
-        if (message != runtime->discordPublished || GetTickCount64()-runtime->discordLastPublish >= 1000) {
+        if (message != runtime->discordPublished || publishDue) {
             if (runtime->discordClient->Send(message)) {
-                runtime->discordPublished=message; runtime->discordLastPublish=GetTickCount64();
+                runtime->discordPublished=message; runtime->discordLastPublish=nowTick;
+                runtime->discordPresenceKey=key;runtime->discordPresenceKeyValid=true;
             }
         }
+        }
     }
-    std::lock_guard<std::mutex> lock(runtime->snapshotMutex);
-	runtime->snapshot = std::move(snapshot);
+    {
+        diag::ScopedTimer traceTimer(diag::OP_TRACE_ENQUEUE);
+        runtime->trace.Record(nlohmann::json{
+            {"room", static_cast<int>(snapshot.session.room)}, {"match", static_cast<int>(snapshot.session.match)},
+            {"control", static_cast<int>(snapshot.session.control)}, {"recovery", static_cast<int>(snapshot.session.recovery)},
+            {"router", runtime->room ? static_cast<int>(runtime->room->GetState()) : -1},
+            {"router_error", runtime->room ? runtime->room->Error() : std::string()},
+            {"match_phase", runtime->match ? static_cast<int>(runtime->match->GetPhase()) : -1},
+            {"match_error", runtime->match ? runtime->match->Error() : std::string()},
+            {"native_socket", Game::Battle::System::ggpo != nullptr},
+            {"result_pending", runtime->resultOutbox.Pending()}, {"finish_pending", runtime->matchFinishedPending},
+            {"leave_pending", runtime->leaveRequested}, {"terminal_pending", runtime->terminalAckPending},
+            {"probe", runtime->room ? runtime->room->Probe().status : std::string()},
+            {"probe_failure",runtime->room ? runtime->room->Probe().failureReason : 0U},
+            {"probe_route",snapshot.probeRoute},{"probe_benchmark",snapshot.probeBenchmark},
+            {"probe_replies",snapshot.probeSamples},{"probe_missed",snapshot.probeLost},
+            {"probe_p50_us",snapshot.probeP50Us},{"probe_p95_us",snapshot.probeP95Us},
+            {"probe_p99_us",snapshot.probeP99Us},{"probe_jitter_us",snapshot.probeJitterUs}
+        });
+    }
+    PostPublishState result{snapshot.session,snapshot.discordCanSwitch,snapshot.canOpenRoom};
+    { std::lock_guard<std::mutex> lock(runtime->snapshotMutex); runtime->snapshot = std::move(snapshot); }
+    return result;
 }
 } // namespace
 
@@ -470,6 +509,9 @@ void StartHelper() {
             runtime->error="The local match record is invalid and has been preserved. Tracking is unavailable.";
         try {
             runtime->preferences.showMatchHud = saved.value("showMatchHud", true);
+            const int hudSize = saved.value("matchHudSize", 1);
+            runtime->preferences.matchHudSize = hudSize >= 0 && hudSize <= 2 ? hudSize : 1;
+            runtime->preferences.matchHudRaised = saved.value("matchHudRaised", false);
             runtime->preferences.discordPresence = saved.value("discordPresence", true);
             runtime->preferences.discordInvites = saved.value("discordInvites", true);
             const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;
@@ -515,6 +557,7 @@ void NotifyRuntimeGameReady() { if (runtime) runtime->ready = true; }
 void NotifyRuntimeEventSystemReady() { if (runtime) runtime->eventSystemReady = true; }
 
 void StopHelper() {
+    training::StopCapture();
 	if (!runtime) return;
     if (runtime->discordClient) {
         runtime->discordClient->Send("{\"type\":\"shutdown\"}");
@@ -821,11 +864,15 @@ void TickRuntime() {
             diagnostics.recoveryCheckpointBuildsAvailable=static_cast<bool>(UserApp::server);
             if(UserApp::server) diagnostics.recoveryCheckpointBuilds=UserApp::server->RecoveryCheckpointBuilds();
             diagnostics.performanceEnabled=diag::Enabled();
+            diagnostics.traceDropped=runtime->trace.Dropped();
+            diagnostics.traceLastWriteMs=runtime->trace.LastWriteMs();
+            diagnostics.logDropped=Platform::AsyncLogDropped();
             if(diagnostics.performanceEnabled) {
                 const auto& performance=diag::G();
-                const int ops[]={diag::OP_OUTER_TICK,diag::OP_RUNTIME_TICK,diag::OP_SESSION_CLIENT_STEP,
+                const int ops[]={diag::OP_COMPLETE_OUTER_CALL,diag::OP_OUTER_TICK,diag::OP_RUNTIME_TICK,diag::OP_SESSION_CLIENT_STEP,
                     diag::OP_SESSION_SERVER_STEP,diag::OP_GGPO_IDLE,diag::OP_ROLLBACK_CALLBACK,
-                    diag::OP_SAVE_TOTAL,diag::OP_LOAD_TOTAL,diag::OP_PACING_WAIT};
+                    diag::OP_SAVE_TOTAL,diag::OP_LOAD_TOTAL,diag::OP_PACING_WAIT,
+                    diag::OP_DIAGNOSTIC_ENQUEUE,diag::OP_TRACE_ENQUEUE};
                 static_assert(sizeof(ops)/sizeof(ops[0])==platform::DiagnosticTimingCount, "diagnostic timing operations must stay fixed");
                 for(std::size_t i=0;i<platform::DiagnosticTimingCount;++i) {
                     const auto& stat=performance.ops[ops[i]];
@@ -1365,25 +1412,7 @@ void TickRuntime() {
         replacement.preferences=runtime->preferences;
         if(SubmitRuntimeCommand(std::move(replacement))) runtime->replacementPending=false;
     }
-	Publish();
-    const auto view=GetRuntimeSnapshot();
-    runtime->trace.Record(nlohmann::json{
-        {"room", static_cast<int>(view.session.room)}, {"match", static_cast<int>(view.session.match)},
-        {"control", static_cast<int>(view.session.control)}, {"recovery", static_cast<int>(view.session.recovery)},
-        {"router", runtime->room ? static_cast<int>(runtime->room->GetState()) : -1},
-        {"router_error", runtime->room ? runtime->room->Error() : std::string()},
-        {"match_phase", runtime->match ? static_cast<int>(runtime->match->GetPhase()) : -1},
-        {"match_error", runtime->match ? runtime->match->Error() : std::string()},
-        {"native_socket", Game::Battle::System::ggpo != nullptr},
-        {"result_pending", runtime->resultOutbox.Pending()}, {"finish_pending", runtime->matchFinishedPending},
-        {"leave_pending", runtime->leaveRequested}, {"terminal_pending", runtime->terminalAckPending},
-        {"probe", runtime->room ? runtime->room->Probe().status : std::string()},
-        {"probe_failure",runtime->room ? runtime->room->Probe().failureReason : 0U},
-        {"probe_route",view.probeRoute},{"probe_benchmark",view.probeBenchmark},
-        {"probe_replies",view.probeSamples},{"probe_missed",view.probeLost},
-        {"probe_p50_us",view.probeP50Us},{"probe_p95_us",view.probeP95Us},
-        {"probe_p99_us",view.probeP99Us},{"probe_jitter_us",view.probeJitterUs}
-    }.dump());
+	const auto view=Publish();
     std::string currentParty; std::uint64_t expiry=0;
     if (view.session.room==netplay::RoomState::Joined && runtime->room)
         discord::TicketMetadata(runtime->room->DiscordInvitation(),currentParty,expiry);

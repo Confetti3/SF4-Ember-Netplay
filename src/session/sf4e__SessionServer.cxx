@@ -512,6 +512,7 @@ void SessionServer::BeginRecoveryCandidate() {
 		_recoveryProjection = _roomAuthority->SnapshotCopy();
 		_hasRecoveryProjection = true;
 		_recoveryEffects.clear();
+		_recoveryEffectBytes = 2;
 		_recoveryLocalEffects.clear();
 		_recoveryCandidateOverflow = false;
 		_recoveryCandidateReady = true;
@@ -545,6 +546,7 @@ void SessionServer::DropRecoveryCandidate() {
 	// and rebase an otherwise healthy monotonic clock.
 	_recovery.Discard();
 	_recoveryEffects.clear();
+	_recoveryEffectBytes = 2;
 	_recoveryLocalEffects.clear();
 	_recoveryCandidateOverflow = false;
 	_recoveryCandidateReady = false;
@@ -559,7 +561,7 @@ bool SessionServer::RestoreRecoveryBaseline() {
 	const auto bindings = _recoveryBaselineBindings;
 	const bool restored = RestoreRecoveryCheckpoint(_recoveryBaseline);
 	const bool rebound = restored && RebindMembers(bindings);
-	_recoveryEffects.clear(); _recoveryLocalEffects.clear(); _recoveryCandidateReady = false; _recoveryBaseline.clear();
+	_recoveryEffects.clear(); _recoveryEffectBytes = 2; _recoveryLocalEffects.clear(); _recoveryCandidateReady = false; _recoveryBaseline.clear();
 	_recoveryBaselineBindings.clear();
 	_recoveryCandidateOverflow = false;
 	_cancellationCandidate = false;
@@ -675,6 +677,8 @@ void SessionServer::JournalEffect(session::Connection client, const json& payloa
 	if (type == "room_snapshot" || type == "data_update") {
 		for (std::size_t i = 0; i < _recoveryEffects.size();) {
 			if (_recoveryEffects[i].recipient == envelope.recipient && _recoveryEffects[i].type == type) {
+				_recoveryEffectBytes -= nlohmann::json(_recoveryEffects[i]).dump().size();
+				if (_recoveryEffects.size() > 1) --_recoveryEffectBytes;
 				_recoveryEffects.erase(_recoveryEffects.begin() + i);
 				_recoveryLocalEffects.erase(_recoveryLocalEffects.begin() + i);
 			} else ++i;
@@ -682,6 +686,14 @@ void SessionServer::JournalEffect(session::Connection client, const json& payloa
 	}
 	for (const auto& prior : _recoveryEffects) {
 		if (prior.recipient == envelope.recipient && prior.revision == envelope.revision && prior.type == envelope.type && prior.payloadDigest == envelope.payloadDigest) return;
+	}
+	const auto envelopeBytes = nlohmann::json(envelope).dump().size();
+	const auto appendedBytes = _recoveryEffectBytes + (_recoveryEffects.empty() ? 0 : 1) + envelopeBytes;
+	if (_recoveryEffects.size() + 1 <= session::MaxEffectJournalEntries && appendedBytes <= session::MaxEffectJournalBytes) {
+		_recoveryEffects.push_back(envelope);
+		_recoveryEffectBytes = appendedBytes;
+		_recoveryLocalEffects.push_back({envelope, payload, client});
+		return;
 	}
 	std::vector<session::EffectEnvelope> prospective = _recoveryEffects;
 	prospective.push_back(envelope);
@@ -696,6 +708,7 @@ void SessionServer::JournalEffect(session::Connection client, const json& payloa
 		_recoveryLocalEffects[i].envelope = prospective[i];
 	envelope = prospective.back();
 	_recoveryEffects = std::move(prospective);
+	_recoveryEffectBytes = session::EffectJournalBytes(_recoveryEffects);
 	_recoveryLocalEffects.push_back({envelope, payload, client});
 }
 
@@ -782,7 +795,7 @@ bool SessionServer::ApplyCommit(std::uint64_t request, std::uint64_t term, std::
 	// supersedable projections. The same helper is used by the root recovery
 	// bridge when it merges a checkpoint journal with a committed proposal.
 	session::CompactEffectJournal(_committedEffectHistory);
-	_recoveryEffects.clear(); _recoveryLocalEffects.clear(); _recoveryCandidateReady = false; _recoveryBaseline.clear(); _recoveryBaselineBindings.clear();
+	_recoveryEffects.clear(); _recoveryEffectBytes = 2; _recoveryLocalEffects.clear(); _recoveryCandidateReady = false; _recoveryBaseline.clear(); _recoveryBaselineBindings.clear();
 	_recoveryCandidateOverflow = false;
 	_hasRecoveryProjection = false;
 	if (_cancellationCandidate) {

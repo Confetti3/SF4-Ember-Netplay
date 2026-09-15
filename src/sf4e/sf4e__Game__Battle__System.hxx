@@ -12,6 +12,7 @@
 
 #include "../common/sf4e__GgpoGate.hxx"
 #include "../common/ConfirmedCheckpoint.hxx"
+#include "../common/MatchTelemetry.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../common/sf4e__PacingController.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
@@ -216,6 +217,8 @@ namespace sf4e {
 				static bool ggpo_on_event_callback(GGPOEvent* info);
 				static bool ggpo_begin_game_callback(const char*);
 				static unsigned RecentRollbackFrames();
+                static sf4e::MatchTelemetry matchTelemetry;
+                static void PollMatchTelemetry();
                 static bool ggpo_advance_frame_callback(int);
 				static bool ggpo_load_game_state_callback(unsigned char*, int);
 				static bool ggpo_save_game_state_callback(unsigned char** buffer, int* len, int* checksum, int);

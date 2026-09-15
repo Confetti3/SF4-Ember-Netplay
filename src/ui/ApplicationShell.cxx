@@ -149,7 +149,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    Row("controls","Open native menus","Ember will close. Choose Options in the game menu to configure fighting buttons.",idle)};
  }else if(screen=="interface"){
   title="INTERFACE";char size[32];std::snprintf(size,sizeof(size),"%.2fx",preferences_.interfaceScale);
-  rows={Value("hud","Match HUD",preferences_.showMatchHud?"On":"Off",reason,v.canEditPreferences),Value("scale","Interface size",size,reason,v.canEditPreferences)};
+  const char* hudSizes[]={"Small","Standard","Large"};
+  rows={Value("hud","Match HUD",preferences_.showMatchHud?"On":"Off",reason,v.canEditPreferences),
+   Value("hud-size","Match HUD size",hudSizes[(std::max)(0,(std::min)(2,preferences_.matchHudSize))],"Changes in-match text and panel size.",v.canEditPreferences),
+   Value("hud-spacing","Bottom spacing",preferences_.matchHudRaised?"Raised":"Normal","Moves the match HUD above the bottom edge.",v.canEditPreferences),
+   Value("scale","Interface size",size,reason,v.canEditPreferences)};
  }else if(screen=="discord"){
   title="DISCORD";rows={Value("presence","Show activity",preferences_.discordPresence?"On":"Off",v.discordStatus,v.canEditPreferences),
    Value("invites","Allow invitations",preferences_.discordInvites?"On":"Off",preferences_.discordPresence?"Invitations share access to your room.":"Enable Discord activity first.",v.canEditPreferences&&preferences_.discordPresence)};
@@ -223,6 +227,13 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(size>=48*Scale()){const auto p=ImGui::GetCursorScreenPos();DrawCharacterPortrait(fighter,p,ImVec2(p.x+size,p.y+size));ImGui::Dummy(ImVec2(size,size));}
  };
  GameMenu::Body board;
+ if(screen=="interface")profilePreview=[&](const std::string&){
+  ImGui::TextUnformatted("Preview");
+  MatchStripView preview;preview.names[0]="Player One";preview.names[1]="Player Two";
+  preview.pingMs=68;preview.rollbackFrames=2;preview.appliedDelay=3;
+  preview.size=preferences_.matchHudSize;preview.raised=preferences_.matchHudRaised;
+  DrawMatchStripPreview(preview);
+ };
  if(screen=="room"&&v.room.roomEpoch)board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height){DrawRoomBoard(v,entries,navigation,action,height);};
  // Visual grace cannot grant permission: enabled and all dispatch checks stay live.
  const bool checkpointPending=roomScreen && RoomCheckpointPending(v) && !v.controllerUnavailable &&
@@ -257,6 +268,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    if(a.id=="name")preferences_.displayName=a.text;else if(a.id=="room-name")preferences_.roomName=a.text;
    else if(a.id=="capacity")preferences_.roomCapacity=(std::max)(2,(std::min)(16,preferences_.roomCapacity+a.delta));
    else if(a.id=="delay")preferences_.inputDelay=(std::max)(0,(std::min)(10,preferences_.inputDelay+a.delta));
+   else if(a.id=="hud-size")preferences_.matchHudSize=(std::max)(0,(std::min)(2,preferences_.matchHudSize+a.delta));
+   else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
    else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
    else if(a.id=="hud")preferences_.showMatchHud=a.delta>0;else if(a.id=="presence")preferences_.discordPresence=a.delta>0;
    else if(a.id=="invites")preferences_.discordInvites=a.delta>0;else AdjustRule(preferences_.tableRules,a);

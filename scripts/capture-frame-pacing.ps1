@@ -1,0 +1,52 @@
+param([Parameter(Mandatory=$true)][string]$PresentMonPath,
+      [ValidateRange(10,3600)][int]$DurationSeconds=300,
+      [string]$ProcessName='SSFIV.exe',
+      [string]$Label='capture',
+      [string]$OutputDirectory='build/current/performance')
+$ErrorActionPreference='Stop'
+$repo=Split-Path $PSScriptRoot -Parent
+$presentMon=(Resolve-Path -LiteralPath $PresentMonPath).Path
+if($Label -notmatch '^[a-zA-Z0-9._-]+$'){throw 'Label may contain only letters, numbers, dot, underscore and dash.'}
+$outputRoot=if([IO.Path]::IsPathRooted($OutputDirectory)){$OutputDirectory}else{Join-Path $repo $OutputDirectory}
+$null=[IO.Directory]::CreateDirectory($outputRoot)
+$stamp=Get-Date -Format 'yyyyMMdd-HHmmss'
+$csv=Join-Path $outputRoot "$Label-$stamp.csv"
+& $presentMon --process_name $ProcessName --timed $DurationSeconds --terminate_after_timed --output_file $csv --qpc_time_ms --no_console_stats
+if($LASTEXITCODE -ne 0){throw "PresentMon failed with exit code $LASTEXITCODE"}
+if(!(Test-Path -LiteralPath $csv -PathType Leaf)){throw 'PresentMon did not create a CSV capture.'}
+$rows=@(Import-Csv -LiteralPath $csv)
+if($rows.Count -lt 30){throw "Capture has only $($rows.Count) presentation samples."}
+$columns=@($rows[0].PSObject.Properties.Name)
+$qpcName=@('CPUStartQPC','CPUStartQPCTime')|Where-Object{$columns -contains $_}|Select-Object -First 1
+if(!$qpcName){throw "Capture is missing absolute QPC timestamps. Columns: $($columns -join ', ')"}
+if($columns -contains 'Application'){$rows=@($rows|Where-Object{$_.Application -ieq $ProcessName})}
+if($columns -contains 'ProcessID' -and $columns -contains 'SwapChainAddress') {
+    # Multiple instances/swap chains must never be blended into one percentile.
+    $stream=$rows|Group-Object ProcessID,SwapChainAddress|Sort-Object Count -Descending|Select-Object -First 1
+    $rows=@($stream.Group)
+}
+$intervals=@();$intervalName='';$displayAvailable=$false
+foreach($candidate in @('DisplayedTime','MsBetweenDisplayChange','MsBetweenPresents')) {
+    if($columns -notcontains $candidate){continue}
+    $usable=@($rows|ForEach-Object{ $value=0.0;$qpc=0.0
+        if([double]::TryParse([string]$_.$qpcName,[Globalization.NumberStyles]::Float,[Globalization.CultureInfo]::InvariantCulture,[ref]$qpc)-and$qpc-gt 0-and
+           [double]::TryParse([string]$_.$candidate,[Globalization.NumberStyles]::Float,[Globalization.CultureInfo]::InvariantCulture,[ref]$value)-and$value-gt 0-and ![double]::IsInfinity($value)){$value}
+    }|Sort-Object)
+    if($usable.Count-ge 30){$intervals=$usable;$intervalName=$candidate;$displayAvailable=$candidate-ne'MsBetweenPresents';break}
+}
+if($intervals.Count -lt 30){throw 'Capture does not contain enough usable display or presentation intervals.'}
+function Percentile([double[]]$Values,[double]$P){$Values[[Math]::Min($Values.Count-1,[Math]::Floor(($Values.Count-1)*$P))]}
+$receipt=[ordered]@{
+ schema=1;capture=$csv;process=$ProcessName;label=$Label;capturedUtc=[DateTime]::UtcNow.ToString('o');samples=$intervals.Count
+ intervalColumn=$intervalName;qpcColumn=$qpcName;p50Ms=Percentile $intervals .50;p95Ms=Percentile $intervals .95
+ displayMetricsAvailable=$displayAvailable;displayMetricsStatus=if($displayAvailable){'available'}else{'unavailable; presentation intervals only'}
+ processId=if($rows.Count-and$columns-contains'ProcessID'){$rows[0].ProcessID}else{$null}
+ swapChain=if($rows.Count-and$columns-contains'SwapChainAddress'){$rows[0].SwapChainAddress}else{$null}
+ p99Ms=Percentile $intervals .99;over25Ms=@($intervals|Where-Object{$_-gt 25}).Count;over50Ms=@($intervals|Where-Object{$_-gt 50}).Count
+ sourceRevision=(& git -C $repo rev-parse HEAD);sourceDirty=[bool](& git -C $repo status --porcelain)
+}
+$receiptPath=[IO.Path]::ChangeExtension($csv,'.json')
+$receipt|ConvertTo-Json -Depth 4|Set-Content -LiteralPath $receiptPath -Encoding UTF8
+Write-Host "Frame capture: $csv"
+Write-Host "Receipt: $receiptPath"
+Write-Host ("samples={0} p50={1:N2}ms p95={2:N2}ms p99={3:N2}ms over25={4} over50={5}" -f $receipt.samples,$receipt.p50Ms,$receipt.p95Ms,$receipt.p99Ms,$receipt.over25Ms,$receipt.over50Ms)

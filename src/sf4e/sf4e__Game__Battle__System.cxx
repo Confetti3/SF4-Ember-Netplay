@@ -866,6 +866,7 @@ void fSystem::ApplyGgpoDisconnectSettings(GGPOSession* session) {
 }
 
 void fSystem::RetireGgpoSession(const char* diagnosticsLabel) {
+    matchTelemetry.Reset();
     rollbackHud.Reset();
     if (!ggpo) {
         return;
@@ -900,6 +901,7 @@ void fSystem::AbortGgpoMatch(const char* reason) {
 }
 
 void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay, DWORD rngSeed) {
+    matchTelemetry.Reset();
     rollbackHud.Reset();
     if (!inPlayers || numPlayers < 2 || numPlayers > static_cast<int>(sf4e::room::MaxMatchParticipants)) {
         sf4e::NetplayFacade::PushAlert("Invalid match roster. Return to the room and try again.");
@@ -979,7 +981,8 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
         }
 
         if (players[i].type == GGPO_PLAYERTYPE_LOCAL) {
-            ggpo_set_frame_delay(ggpo, players[i].handle, frameDelay);
+            const auto delayResult = ggpo_set_frame_delay(ggpo, players[i].handle, frameDelay);
+            matchTelemetry.AppliedDelay(frameDelay, GGPO_SUCCEEDED(delayResult));
             localPlayerHandle = players[i].handle;
             localPlayerIdx = i;
         }
@@ -1012,6 +1015,7 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
         spdlog::warn("StartSpectating: closing leftover GGPO session before restart");
         RetireGgpoSession("leftover_before_spectating");
     }
+    matchTelemetry.Reset(true);
     diag::G().ResetForMatch(diag::NowMs());
     ResetNativeResultMatch();
     // Same rationale as StartGGPO: the pool must start empty.
@@ -1064,6 +1068,21 @@ bool fSystem::ggpo_begin_game_callback(const char*)
 }
 
 unsigned fSystem::RecentRollbackFrames() { return rollbackHud.Recent(GetTickCount64()); }
+sf4e::MatchTelemetry fSystem::matchTelemetry;
+void fSystem::PollMatchTelemetry() {
+    if (!ggpo) return;
+    const auto now = GetTickCount64();
+    // A spectator has no local fighter handle; do not label its host link as fighter RTT.
+    matchTelemetry.spectator = localPlayerHandle == GGPO_INVALID_HANDLE;
+    if (!matchTelemetry.PollDue(now)) return;
+    int ping = -1;
+    for (int side = 0; side < 2; ++side) if (players[side].type == GGPO_PLAYERTYPE_REMOTE) {
+        GGPONetworkStats stats{};
+        if (GGPO_SUCCEEDED(ggpo_get_network_stats(ggpo, players[side].handle, &stats))) ping = stats.network.ping;
+        break;
+    }
+    matchTelemetry.Sample(now, ping);
+}
 
 bool fSystem::ggpo_advance_frame_callback(int)
 {

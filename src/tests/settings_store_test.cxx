@@ -61,6 +61,13 @@ int main() {
     CHECK(Read(path / L"settings.json").find("old-test-secret") == std::string::npos);
 
     sf4e::netplay::PlayerPreferences discordDefaults;
+    CHECK(discordDefaults.matchHudSize==1&&!discordDefaults.matchHudRaised);
+    discordDefaults.matchHudSize=-1;CHECK(!discordDefaults.Valid());
+    discordDefaults.matchHudSize=3;CHECK(!discordDefaults.Valid());
+    discordDefaults.matchHudSize=2;CHECK(discordDefaults.Valid());
+    CHECK(store.SaveLauncher({{"matchHudSize",2},{"matchHudRaised",true}},error));
+    CHECK(store.LoadLauncher(result,error)&&result["matchHudSize"]==2&&result["matchHudRaised"]==true);
+    CHECK(Json::parse(Read(path / L"settings.json"))["netplay"]["matchHudSize"]==2);
     CHECK(discordDefaults.discordPresence && discordDefaults.discordInvites);
     CHECK(discordDefaults.inputDelay == 2);
     discordDefaults.inputDelay = 0; CHECK(discordDefaults.Valid());

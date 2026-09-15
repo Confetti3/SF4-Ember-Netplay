@@ -1,8 +1,11 @@
 # Hash-validated SF4 Ember Netplay incremental upgrade installer.
 [CmdletBinding()]
-param([string]$InstallDir = '', [switch]$CheckOnly)
+param([string]$InstallDir = '', [switch]$CheckOnly, [switch]$RecoverOnly)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+# Do not depend on inherited PSModulePath ordering when an extracted installer
+# is launched across Windows PowerShell and PowerShell 7 hosts.
+Import-Module (Join-Path $PSHOME 'Modules\Microsoft.PowerShell.Utility') -ErrorAction Stop
 
 function SafePath([string]$Root, [string]$Relative) {
     if ([IO.Path]::IsPathRooted($Relative) -or $Relative -match '[:*?"<>|]' -or
@@ -62,6 +65,111 @@ function SameList($Left, $Right) {
 function CopyOne([string]$Source, [string]$Destination) {
     $null = [IO.Directory]::CreateDirectory((Split-Path $Destination -Parent))
     Copy-Item -LiteralPath $Source -Destination $Destination -Force
+}
+
+function ReplaceOne([string]$Source, [string]$Destination, [string]$ExpectedHash) {
+    $null = [IO.Directory]::CreateDirectory((Split-Path $Destination -Parent))
+    $temporary = $Destination + '.ember-' + [Guid]::NewGuid().ToString('N') + '.tmp'
+    $inputStream = [IO.File]::OpenRead($Source)
+    try {
+        $outputStream = [IO.File]::Open($temporary,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+        try { $inputStream.CopyTo($outputStream); $outputStream.Flush($true) } finally { $outputStream.Dispose() }
+    } finally { $inputStream.Dispose() }
+    if ((Get-FileHash -LiteralPath $temporary -Algorithm SHA256).Hash -ine $ExpectedHash) {
+        throw "Temporary update file failed verification: $Destination"
+    }
+    if ([IO.File]::Exists($Destination)) { [IO.File]::Replace($temporary,$Destination,[NullString]::Value) }
+    else { [IO.File]::Move($temporary,$Destination) }
+    if ((Get-FileHash -LiteralPath $Destination -Algorithm SHA256).Hash -ine $ExpectedHash) {
+        throw "Installed update file failed verification: $Destination"
+    }
+}
+
+function WriteTransaction([string]$Path, $Value) {
+    $temporary = $Path + '.' + [Guid]::NewGuid().ToString('N') + '.tmp'
+    $json = $Value | ConvertTo-Json -Depth 8
+    $bytes = [Text.UTF8Encoding]::new($false).GetBytes($json)
+    $stream = [IO.File]::Open($temporary,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+    try { $stream.Write($bytes,0,$bytes.Length); $stream.Flush($true) } finally { $stream.Dispose() }
+    if ([IO.File]::Exists($Path)) { [IO.File]::Replace($temporary,$Path,[NullString]::Value) }
+    else { [IO.File]::Move($temporary,$Path) }
+}
+
+function RecoverTransaction([string]$Install, [string]$Path, [switch]$InspectOnly) {
+    if (!(Test-Path -LiteralPath $Path)) { return $false }
+    if (!(Test-Path -LiteralPath $Path -PathType Leaf)) { throw 'Invalid update transaction path.' }
+    $transaction = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($transaction.schema -ne 1 -or $transaction.installation -ine $Install -or !$transaction.backup -or !$transaction.operations -or
+        $transaction.state -notin 'prepared','committed' -or $transaction.target -isnot [pscustomobject]) {
+        throw 'The pending update transaction is invalid. Preserve the installation and backup for manual recovery.'
+    }
+    if ($InspectOnly) {
+        Write-Host "Pending update recovery is required. Run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -InstallDir `"$Install`" -RecoverOnly"
+        return $true
+    }
+    CheckClosed $Install
+    $backupRoot = [IO.Path]::GetFullPath([string]$transaction.backup).TrimEnd('\','/')
+    $backupParent = Split-Path $backupRoot -Parent
+    if ($backupParent -ine (Join-Path $Install '.ember-update-backups') -and
+        !($backupParent -ieq (Split-Path $Install -Parent) -and (Split-Path $backupRoot -Leaf) -clike 'Ember-backup-*')) {
+        throw 'Invalid update backup location.'
+    }
+    $target = @{}
+    foreach ($property in $transaction.target.PSObject.Properties) {
+        $null = SafePath $Install $property.Name
+        $key = $property.Name.Replace('/','\')
+        if ($target.ContainsKey($key) -or [string]$property.Value -notmatch '^[a-fA-F0-9]{64}$') { throw 'Invalid target inventory.' }
+        $target[$key] = [string]$property.Value
+    }
+    $seen = @{}
+    foreach ($operation in @($transaction.operations)) {
+        $key = ([string]$operation.path).Replace('/','\')
+        $destination = SafePath $Install $key
+        $source = SafePath $backupRoot $key
+        if ($seen.ContainsKey($key) -or $key -in '.ember-update.lock','.ember-update-transaction-v1.json' -or
+            $key -like '.ember-update-backups*' -or $operation.existed -isnot [bool] -or
+            (Test-Path -LiteralPath $destination -PathType Container)) { throw 'Invalid recovery operation.' }
+        $seen[$key] = $true
+        if (($operation.existed -and [string]$operation.priorSha256 -notmatch '^[a-fA-F0-9]{64}$') -or
+            (!$operation.existed -and [string]$operation.priorSha256 -ne '')) { throw 'Invalid prior hash.' }
+        if ($transaction.state -eq 'prepared' -and $operation.existed -and
+            (!(Test-Path -LiteralPath $source -PathType Leaf) -or (Get-FileHash -LiteralPath $source).Hash -ine [string]$operation.priorSha256)) {
+            throw "The recovery backup is missing or damaged: $key"
+        }
+    }
+    if ($transaction.state -eq 'committed') {
+        VerifyFiles $Install $target
+        foreach ($key in $seen.Keys) {
+            if (!$target.ContainsKey($key) -and (Test-Path -LiteralPath (SafePath $Install $key))) { throw "Obsolete file remains in committed update: $key" }
+        }
+        Remove-Item -LiteralPath $Path -Force
+        Write-Host 'The completed update transaction was verified.'
+        return $true
+    }
+    foreach ($operation in @($transaction.operations)) {
+        $destination = SafePath $Install ([string]$operation.path)
+        if ($operation.existed) {
+            $source = SafePath ([string]$transaction.backup) ([string]$operation.path)
+            if (!(Test-Path -LiteralPath $source -PathType Leaf) -or
+                (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -ine [string]$operation.priorSha256) {
+                throw "The recovery backup is missing or damaged: $($operation.path)"
+            }
+            ReplaceOne $source $destination ([string]$operation.priorSha256)
+        } elseif (Test-Path -LiteralPath $destination -PathType Leaf) {
+            Remove-Item -LiteralPath $destination -Force
+        }
+    }
+    $restored = @{}
+    foreach ($operation in @($transaction.operations)) {
+        if ($operation.existed) { $restored[[string]$operation.path] = [string]$operation.priorSha256 }
+        elseif (Test-Path -LiteralPath (SafePath $Install ([string]$operation.path))) {
+            throw "A newly added update file could not be removed during recovery: $($operation.path)"
+        }
+    }
+    VerifyFiles $Install $restored
+    Remove-Item -LiteralPath $Path -Force
+    Write-Host "The interrupted update was restored from $($transaction.backup)."
+    return $true
 }
 
 function CheckClosed([string]$Root) {
@@ -127,6 +235,17 @@ if ($packageRoot -ieq $install -or $packageRoot.StartsWith($install + '\', [Stri
     $install.StartsWith($packageRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
     throw 'Extract this upgrade into a separate folder outside the Ember installation.'
 }
+$lockPath = SafePath $install '.ember-update.lock'
+$transactionPath = SafePath $install '.ember-update-transaction-v1.json'
+$lock = $null
+try {
+    if (!$CheckOnly) { $lock = [IO.File]::Open($lockPath,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None) }
+} catch { throw 'Another Ember update or recovery is using this installation.' }
+try {
+if (RecoverTransaction $install $transactionPath -InspectOnly:$CheckOnly) {
+    if ($CheckOnly -or $RecoverOnly) { return }
+}
+if ($RecoverOnly) { Write-Host 'No interrupted update transaction was found.'; return }
 $installedManifest = SafePath $install 'MANIFEST.txt'
 if ((Test-Path -LiteralPath $installedManifest -PathType Leaf) -and
     (Get-FileHash -LiteralPath $installedManifest).Hash -ieq $metadata.targetManifestSha256) {
@@ -139,8 +258,10 @@ VerifyFiles $install $before
 CheckClosed $install
 foreach ($relative in @($changed + $removed)) {
     $path = SafePath $install $relative
+    if (Test-Path -LiteralPath $path -PathType Container) { throw "A package file collides with a directory: $relative" }
     if (Test-Path -LiteralPath $path -PathType Leaf) {
-        $stream = [IO.File]::Open($path, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+        $access = if ($CheckOnly) { [IO.FileAccess]::Read } else { [IO.FileAccess]::ReadWrite }
+        $stream = [IO.File]::Open($path, [IO.FileMode]::Open, $access, [IO.FileShare]::None)
         $stream.Dispose()
     }
 }
@@ -163,16 +284,27 @@ try {
     & (SafePath $stage 'preflight.ps1') -PackageDir $stage
     CheckClosed $install; VerifyFiles $install $before
     $null = [IO.Directory]::CreateDirectory($backup)
+    $operations = @()
     foreach ($relative in @($changed + $removed)) {
-        if ($before.ContainsKey($relative)) { CopyOne (SafePath $install $relative) (SafePath $backup $relative) }
+        $destination = SafePath $install $relative
+        if (Test-Path -LiteralPath $destination -PathType Container) { throw "A package file collides with a directory: $relative" }
+        $existed = Test-Path -LiteralPath $destination -PathType Leaf
+        $priorHash = if ($existed) { (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash } else { '' }
+        if ($existed) { ReplaceOne $destination (SafePath $backup $relative) $priorHash }
+        $operations += [ordered]@{path=$relative;existed=$existed;priorSha256=$priorHash;
+            targetSha256=if($after.ContainsKey($relative)){$after[$relative]}else{''}}
     }
-    $backupHashes = @{}; foreach ($relative in @($changed + $removed)) {
-        if ($before.ContainsKey($relative)) { $backupHashes[$relative] = $before[$relative] }
+    $backupHashes = @{}; foreach ($operation in $operations) {
+        if ($operation.existed) { $backupHashes[$operation.path] = $operation.priorSha256 }
     }
     VerifyFiles $backup $backupHashes
     [ordered]@{installation=$install;from=$metadata.from;to=$metadata.to;changed=$changed;removed=$removed;createdUtc=[DateTime]::UtcNow.ToString('o')} |
         ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $backup 'UPGRADE-BACKUP.json') -Encoding UTF8
     $backupMade = $true
+    $targetTransaction = @{}; foreach($relative in $after.Keys){$targetTransaction[$relative]=$after[$relative]}
+    $transaction = [ordered]@{schema=1;state='prepared';installation=$install;backup=$backup;
+        from=$metadata.from;to=$metadata.to;operations=$operations;target=$targetTransaction;createdUtc=[DateTime]::UtcNow.ToString('o')}
+    WriteTransaction $transactionPath $transaction
     Write-Host 'Installing the verified files...'
     foreach ($relative in $removed) {
         $touched.Add($relative)
@@ -180,11 +312,18 @@ try {
         if (Test-Path -LiteralPath $path -PathType Leaf) { Remove-Item -LiteralPath $path -Force }
     }
     $writeOrder = @($changed | Where-Object { $_ -ne 'MANIFEST.txt' }) + @('MANIFEST.txt')
+    $completedWrites = 0
     foreach ($relative in $writeOrder) {
         $touched.Add($relative)
-        CopyOne (SafePath $stage $relative) (SafePath $install $relative)
+        ReplaceOne (SafePath $stage $relative) (SafePath $install $relative) $after[$relative]
+        ++$completedWrites
+        if ($env:SF4E_UPDATE_TEST_TERMINATE_AFTER -and $completedWrites -eq [int]$env:SF4E_UPDATE_TEST_TERMINATE_AFTER) {
+            Stop-Process -Id $PID -Force
+        }
     }
     VerifyFiles $install $after; VerifyAbsent $install $removed
+    $transaction.state='committed'; WriteTransaction $transactionPath $transaction
+    Remove-Item -LiteralPath $transactionPath -Force
     Write-Host "Upgrade complete: SF4 Ember Netplay $($metadata.to) verified."
     Write-Host "Backup of replaced $($metadata.from) files: $backup"
     Write-Host 'You can now run Launcher.exe from your Ember folder.'
@@ -193,11 +332,7 @@ try {
     if ($backupMade -and $touched.Count) {
         Write-Warning 'Upgrade failed. Restoring replaced files from the backup.'
         try {
-            foreach ($relative in $touched) {
-                $destination = SafePath $install $relative
-                if ($before.ContainsKey($relative)) { CopyOne (SafePath $backup $relative) $destination }
-                elseif (Test-Path -LiteralPath $destination -PathType Leaf) { Remove-Item -LiteralPath $destination -Force }
-            }
+            if (Test-Path -LiteralPath $transactionPath -PathType Leaf) { $null = RecoverTransaction $install $transactionPath }
             VerifyFiles $install $before
             Write-Warning "The original $($metadata.from) package was restored and verified."
         } catch { Write-Warning "Automatic restore could not finish. Keep the backup at $backup. Restore error: $_" }
@@ -213,4 +348,7 @@ try {
             if (Test-Path -LiteralPath $resolvedStage) { Remove-Item -LiteralPath $resolvedStage -Recurse -Force }
         } catch { Write-Warning "Temporary staging folder retained: $resolvedStage" }
     }
+}
+} finally {
+    if ($lock) { $lock.Dispose() }
 }

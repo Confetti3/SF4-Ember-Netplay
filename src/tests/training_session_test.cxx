@@ -106,8 +106,35 @@ int main() {
         move.status = 16; move.action = 103; move.firstActiveFrame = -1; move.actionFrame = 1;
         startup.Observe(9, startupSamples); move.actionFrame = 2; startup.Observe(10, startupSamples);
         Require(startup.View().startupFrames[0] == -1, "Missing attack boundary fabricated startup");
-        move.action = 104; move.firstActiveFrame = 1; move.actionFrame = 1; startup.Observe(11, startupSamples);
+        Require(startup.View().startupUnavailable[0] == MeasurementUnavailable::NoAttackBoundary,
+            "Missing attack boundary had no explanation");
+        move.action = 104; move.firstActiveFrame = 1; move.actionFrame = 1;
+        move.boundaryProvenance = BoundaryProvenance::BacActionHeader; startup.Observe(11, startupSamples);
         Require(startup.View().startupFrames[0] == 3, "Multi-phase startup discarded its initial phase");
+        Require(startup.View().startupBoundaryProvenance[0] == BoundaryProvenance::BacActionHeader,
+            "Multi-phase startup retained provenance from the earlier boundary-less action");
+
+        // DP -> focus cancel -> dash: an authored DP startup remains useful,
+        // while advantage completes only once both fighters are actionable.
+        FrameMeter fadc;
+        std::array<FighterSample, 2> fadcSamples;
+        for (auto& sample : fadcSamples) {
+            sample.valid=true; sample.status=0; sample.action=0; sample.posture=0;
+            sample.timeScale=1; sample.basicActionInhibited=false;
+        }
+        fadc.Observe(0,fadcSamples);
+        fadcSamples[0].status=16; fadcSamples[0].action=300; fadcSamples[0].firstActiveFrame=4;
+        for(int frame=1;frame<=4;++frame){fadcSamples[0].actionFrame=(float)frame;fadc.Observe(frame,fadcSamples);}
+        Require(fadc.View().startupFrames[0]==4,"DP startup was not measured");
+        fadcSamples[1].status=22;fadcSamples[1].action=400;fadcSamples[1].actionFrame=1;fadc.Observe(5,fadcSamples);
+        fadcSamples[0].action=301;fadcSamples[0].actionFrame=1;fadcSamples[0].firstActiveFrame=-1;fadc.Observe(6,fadcSamples);
+        fadcSamples[0].status=5;fadcSamples[0].action=302;fadcSamples[0].actionFrame=1;fadc.Observe(7,fadcSamples);
+        Require(fadc.View().startupFrames[0]==4,"FADC discarded completed DP startup");
+        fadcSamples[1].status=0;fadcSamples[1].action=0;fadcSamples[1].actionFrame=0;fadc.Observe(8,fadcSamples);
+        Require(fadc.View().advantage.pending,"FADC measured advantage before the dash completed");
+        fadcSamples[0].status=0;fadcSamples[0].action=0;fadcSamples[0].actionFrame=0;fadc.Observe(9,fadcSamples);
+        Require(fadc.View().advantage.valid && fadc.View().advantage.frames[0]==-1,
+            "FADC advantage did not use the first actionable post-dash frame");
         startup.Reset();
         Require(startup.View().startupFrames[0] == -1, "Reset retained startup");
 

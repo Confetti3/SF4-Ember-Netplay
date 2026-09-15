@@ -10,6 +10,7 @@
 #include <detours/detours.h>
 
 #include "spdlog/spdlog.h"
+#include "spdlog/async.h"
 #include "spdlog/sinks/rotating_file_sink.h"
 #include "spdlog/sinks/wincolor_sink.h"
 
@@ -42,6 +43,11 @@ template <int N>
 using fSoundObjectPool = fPlatform::SoundObjectPool<N>;
 
 bool fSound::bAllowNewPlayers = true;
+
+unsigned long long fPlatform::AsyncLogDropped() {
+    const auto pool = spdlog::thread_pool();
+    return pool ? pool->overrun_counter() : 0;
+}
 
 void fPlatform::Install() {
     D3D::Install();
@@ -149,7 +155,9 @@ int fMain::Initialize(void* a, void* b, void* c) {
                     new spdlog::sinks::wincolor_stdout_sink_mt()
                 ));
             }
-            std::shared_ptr<spdlog::logger> logger(new spdlog::logger("sf4e", sinks.begin(), sinks.end()));
+            spdlog::init_thread_pool(8192, 1);
+            std::shared_ptr<spdlog::logger> logger(new spdlog::async_logger("sf4e", sinks.begin(), sinks.end(),
+                spdlog::thread_pool(), spdlog::async_overflow_policy::overrun_oldest));
             spdlog::set_default_logger(logger);
             spdlog::flush_on(spdlog::level::info);
             spdlog::info("Welcome to sf4e");

@@ -4,7 +4,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
 project (
     sf4e
-    VERSION 0.8.3
+    VERSION 0.8.4
     DESCRIPTION "SF4 Ember Netplay: private rollback rooms and an in-game overlay for Ultra Street Fighter IV."
     HOMEPAGE_URL "https://github.com/Confetti3/SF4-Ember-Netplay"
 )
@@ -254,6 +254,7 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__Overlay.hxx"
     "src/sf4e/sf4e__Overlay.cxx"
     "src/training/TrainingRuntime.cxx"
+    "src/training/TrainingCapture.cxx"
     "src/sf4e/sf4e__OverlayPrefs.hxx"
     "src/sf4e/sf4e__OverlayPrefs.cxx"
     "src/sf4e/sf4e__Pad.hxx"
@@ -463,7 +464,7 @@ add_executable(Updater
 )
 add_library(sf4e_package_installer STATIC src/launcher/update/PackageInstaller.cxx)
 target_compile_features(sf4e_package_installer PUBLIC cxx_std_17)
-target_link_libraries(sf4e_package_installer PUBLIC sf4e_selection)
+target_link_libraries(sf4e_package_installer PUBLIC sf4e_selection nlohmann_json::nlohmann_json bcrypt)
 if(BUILD_TESTING)
     add_executable(OverlayPresentationTest src/tests/overlay_presentation_test.cxx)
     target_compile_features(OverlayPresentationTest PRIVATE cxx_std_17)
@@ -475,6 +476,8 @@ if(BUILD_TESTING)
     add_executable(PackageInstallerTest src/tests/package_installer_test.cxx)
     target_link_libraries(PackageInstallerTest PRIVATE sf4e_package_installer)
     add_test(NAME PackageInstaller COMMAND PackageInstallerTest)
+    add_test(NAME UpgradeRecoveryPowerShell COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-upgrade-recovery.ps1 -NativeFixture $<TARGET_FILE:PackageInstallerTest>)
+    set_tests_properties(UpgradeRecoveryPowerShell PROPERTIES TIMEOUT 120)
 endif()
 target_link_libraries(Updater PRIVATE sf4e_package_installer sf4e_selection "pathcch" "shell32")
 set_target_properties(Updater PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)

@@ -5,7 +5,7 @@
 namespace sf4e { namespace ui {
 inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::PlayerPreferences& b) {
     return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.showMatchHud==b.showMatchHud&&
-        a.discordPresence==b.discordPresence&&a.discordInvites==b.discordInvites&&a.interfaceScale==b.interfaceScale&&
+        a.matchHudSize==b.matchHudSize&&a.matchHudRaised==b.matchHudRaised&&a.discordPresence==b.discordPresence&&a.discordInvites==b.discordInvites&&a.interfaceScale==b.interfaceScale&&
         a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.tableRules==b.tableRules;
 }
 inline MenuEntry Row(std::string id,std::string label,std::string detail,bool enabled=true) {

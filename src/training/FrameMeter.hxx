@@ -5,6 +5,22 @@
 
 namespace sf4e { namespace training {
 enum class Phase { Neutral, Movement, Attack, Guard, Hit, Down, Unknown };
+enum class BoundaryProvenance : std::uint8_t { None, BacActionHeader };
+enum class MeasurementUnavailable : std::uint8_t {
+    None, WaitingForAttackBoundary, NoAttackBoundary, NoContact, MeasuringRecovery,
+    Interrupted, InvalidSample
+};
+inline const char* MeasurementUnavailableName(MeasurementUnavailable reason) {
+    switch (reason) {
+    case MeasurementUnavailable::WaitingForAttackBoundary: return "waiting for the authored attack boundary";
+    case MeasurementUnavailable::NoAttackBoundary: return "this native action has no usable attack boundary";
+    case MeasurementUnavailable::NoContact: return "waiting for a hit or block";
+    case MeasurementUnavailable::MeasuringRecovery: return "measuring recovery";
+    case MeasurementUnavailable::Interrupted: return "the exchange was interrupted";
+    case MeasurementUnavailable::InvalidSample: return "native action data is unavailable";
+    default: return "available";
+    }
+}
 inline Phase ClassifyStatus(unsigned status) {
     // Values are Dimps::Game::Battle::Chara::Actor::Status. Attack is kept
     // whole: AS_SKILL does not distinguish startup, active and recovery.
@@ -42,6 +58,8 @@ struct FighterSample {
     float timeScale = 0;
     bool basicActionInhibited = true;
     int firstActiveFrame = -1;
+    int lastActiveFrame = -1;
+    BoundaryProvenance boundaryProvenance = BoundaryProvenance::None;
 };
 inline bool GroundedRecoveryState(unsigned status) {
     switch (status) {
@@ -54,6 +72,7 @@ struct FrameAdvantage {
     std::array<int, 2> frames{};
     bool valid = false, pending = false;
     bool knockdown = false;
+    MeasurementUnavailable unavailable = MeasurementUnavailable::NoContact;
 };
 struct MeterFrame {
     std::array<FighterSample, 2> fighters;
@@ -67,6 +86,9 @@ struct MeterView {
     std::array<unsigned, 2> lastAttackFrames{};
     FrameAdvantage advantage;
     std::array<int, 2> startupFrames{{-1, -1}};
+    std::array<MeasurementUnavailable, 2> startupUnavailable{{MeasurementUnavailable::NoAttackBoundary,
+        MeasurementUnavailable::NoAttackBoundary}};
+    std::array<BoundaryProvenance, 2> startupBoundaryProvenance{};
     bool frozen = false, autoFreeze = true;
 };
 class FrameMeter {
@@ -94,11 +116,16 @@ public:
             const bool actionChanged = sample.action != previous.action || sample.actionFrame < previous.actionFrame;
             if (!sample.valid) {
                 view_.startupFrames[side] = -1; startupPending_[side] = false;
+                view_.startupUnavailable[side] = MeasurementUnavailable::InvalidSample;
+                view_.startupBoundaryProvenance[side] = BoundaryProvenance::None;
             } else if (sample.status == 16) {
                 if (previous.valid && (previous.status != 16 ||
                     (actionChanged && sample.firstActiveFrame >= 0 && !startupPending_[side]))) {
                     startupElapsed_[side] = 0; startupPending_[side] = true;
                     view_.startupFrames[side] = -1;
+                    view_.startupUnavailable[side] = sample.firstActiveFrame >= 0 ?
+                        MeasurementUnavailable::WaitingForAttackBoundary : MeasurementUnavailable::NoAttackBoundary;
+                    view_.startupBoundaryProvenance[side] = sample.boundaryProvenance;
                 }
                 // Count accepted advancing frames, not BAC animation ticks:
                 // normals and specials commonly change animation speed.
@@ -109,6 +136,8 @@ public:
                     ++startupElapsed_[side];
                     if (sample.firstActiveFrame >= 0 && sample.actionFrame >= sample.firstActiveFrame) {
                         view_.startupFrames[side] = startupElapsed_[side];
+                        view_.startupBoundaryProvenance[side] = sample.boundaryProvenance;
+                        view_.startupUnavailable[side] = MeasurementUnavailable::None;
                         startupPending_[side] = false;
                     }
                 }
@@ -135,12 +164,14 @@ public:
     }
 private:
     void ObserveAdvantage(std::int64_t frame, const std::array<FighterSample, 2>& fighters) {
-        auto clear = [&] { view_.advantage = {}; recovered_ = {{-1, -1}}; };
+        auto clear = [&](MeasurementUnavailable reason) {
+            view_.advantage = {}; view_.advantage.unavailable = reason; recovered_ = {{-1, -1}};
+        };
         for (const auto& sample : fighters) {
             if (!sample.valid || sample.action < 0 || sample.status > 24 ||
                 sample.timeScale < 0 ||
                 sample.posture < 0) {
-                clear(); armed_ = {}; return;
+                clear(MeasurementUnavailable::InvalidSample); armed_ = {}; return;
             }
         }
         for (int side = 0; side < 2; ++side) {
@@ -150,7 +181,7 @@ private:
                 (previous.status != 16 || previous.action != sample.action || sample.actionFrame < previous.actionFrame);
             if (attackStarted) {
                 if (!armed_[side] || view_.advantage.valid) {
-                    clear(); armed_ = {}; armed_[side] = true;
+                    clear(MeasurementUnavailable::NoContact); armed_ = {}; armed_[side] = true;
                 }
                 // Target combos, special cancels and internal action changes
                 // continue the exchange. The new action has not recovered yet.
@@ -168,11 +199,12 @@ private:
         }
         // A trade/interruption cannot inherit the earlier attack's recovery.
         if ((contacts[0] && contacts[1]) || (contacts[0] && armed_[0]) || (contacts[1] && armed_[1])) {
-            clear(); armed_ = {}; return;
+            clear(MeasurementUnavailable::Interrupted); armed_ = {}; return;
         }
         for (int defender = 0; defender < 2; ++defender) {
             if (contacts[defender] && armed_[1 - defender]) {
                 view_.advantage.valid = false; view_.advantage.pending = true;
+                view_.advantage.unavailable = MeasurementUnavailable::MeasuringRecovery;
                 recovered_[defender] = -1;
                 // Preserve an already recovered attacker's timestamp: a
                 // projectile may connect after its owner's recovery ends.
@@ -180,7 +212,7 @@ private:
             }
         }
         if (frame - contactFrame_ > 600) {
-            if (!view_.advantage.valid) clear();
+            if (!view_.advantage.valid) clear(MeasurementUnavailable::Interrupted);
             armed_ = {}; return;
         }
         for (int side = 0; side < 2; ++side) {
@@ -197,6 +229,7 @@ private:
             view_.advantage.frames[0] = static_cast<int>(recovered_[1] - recovered_[0]);
             view_.advantage.frames[1] = -view_.advantage.frames[0];
             view_.advantage.valid = true; view_.advantage.pending = false;
+            view_.advantage.unavailable = MeasurementUnavailable::None;
         }
     }
     MeterView view_;

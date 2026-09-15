@@ -8,6 +8,7 @@
 namespace sf4e {
 	namespace Platform {
 		void Install();
+		unsigned long long AsyncLogDropped();
 
 		struct D3D : Dimps::Platform::D3D
 		{

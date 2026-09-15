@@ -35,6 +35,9 @@ const char* TimedOpName(int op) {
 	case OP_GGPO_IDLE:              return "ggpo_idle";
 	case OP_STEAM_POST_UPDATE:      return "steam_post_update";
 	case OP_OUTER_TICK:             return "outer_tick";
+	case OP_COMPLETE_OUTER_CALL:    return "outer_call";
+	case OP_DIAGNOSTIC_ENQUEUE:     return "diagnostic_enqueue";
+	case OP_TRACE_ENQUEUE:          return "trace_enqueue";
 	case OP_SAVE_TOTAL:             return "save";
 	case OP_SAVE_RECORD_MEMENTOS:   return "save.mementos";
 	case OP_SAVE_COPY_KEYS:         return "save.keys";
