@@ -35,13 +35,15 @@ The local suite excludes public-network and live Discord tests. Explicit helper 
 ## Package
 
 ```powershell
-pwsh -NoProfile -File ./scripts/package-team.ps1 -VersionLabel 0.8.2
+pwsh -NoProfile -File ./scripts/package-team.ps1 -VersionLabel 0.8.3
 ```
 
-This creates `dist/sf4-ember-netplay-0.8.2.zip` and its `.sha256` sidecar. It requires the designated source, fresh build receipt and matching staged binaries, collects notices, validates the package inventory and runs preflight. Existing package destinations are never overwritten.
+This creates `dist/sf4-ember-netplay-0.8.3.zip` and its `.sha256` sidecar. It requires the designated source, fresh build receipt and matching staged binaries, collects notices, validates the package inventory and runs preflight. Existing package destinations are never overwritten.
+
+Every published release also includes a smaller incremental package for users of the previous release. `scripts/package-upgrade.ps1` compares the complete previous and target manifests, includes only changed product files, preserves unrelated user files, and exercises both check-only and real upgrade paths against temporary extraction of the exact previous package. The installer verifies the old installation, payload, reconstructed target and backup before completing.
 
 ## Publish a release
 
-Commit the final source, README and screenshots before the final build. Build from that exact commit, review the package, then push the `release` branch and a version tag pointing to that commit. Keep legacy `main` unchanged. Use the verified local ZIP and checksum with GitHub's release upload, or use `scripts/github-release.ps1 -Tag v0.8.2` to package a fresh destination and publish the already-pushed tag as Latest. That script refuses dirty source, mismatched tags and existing releases.
+Commit the final source, README and screenshots before the final build. Build from that exact commit, review the package, then push the `release` branch and a version tag pointing to that commit. Keep legacy `main` unchanged. Keep the verified previous full package and checksum in `dist`, then use `scripts/github-release.ps1 -Tag v0.8.3`. It packages a fresh complete ZIP, constructs and validates the mandatory previous-version upgrade ZIP, and uploads both with SHA-256 sidecars. The script refuses dirty source, mismatched tags, non-published base packages and existing releases.
 
 Public release notes must distinguish local tests, helper network tests and observed gameplay. A package or test pass alone is not a clean-machine or two-PC gameplay result.
