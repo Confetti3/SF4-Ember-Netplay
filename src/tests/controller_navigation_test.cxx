@@ -191,7 +191,7 @@ void Journeys() {
  h.view.canEditSelection=true;h.Frame();Check(row("selection").enabled,"Waiting solo player cannot change fighter");
   h.view.room.tables[2].p2=2;h.view.room.tables[2].phase=room::TablePhase::Playing;
  h.view.room.tables[2].ready[0]=h.view.room.tables[2].ready[1]=true;
- std::string tableStatus;SetMenuStatusProbe([&](const char* status){tableStatus=status;});
+ std::string tableStatus;SetMenuStatusProbe([&](const char* status,Tone){tableStatus=status;});
  h.view.session.match=netplay::MatchState::PostMatch;h.view.canEditSelection=false;h.Frame();
  Check(row("ready").label=="Waiting for results","Finished match still offers Unready instead of waiting for results");
  Check(row("selection").detail.find("Unready")==std::string::npos,"Finished match incorrectly asks the player to Unready");
@@ -277,7 +277,7 @@ void PresentationJourneys(){
  auto confirm=ConfirmRow("leave","Leave room","Disconnect");
  Check(std::strcmp(MenuPrimaryHint(&text),"Edit")==0&&MenuPrimaryHint(&value)==nullptr&&std::strcmp(MenuPrimaryHint(&confirm),"Review")==0,"Contextual legend does not match action");
  text.enabled=false;Check(MenuPrimaryHint(&text)==nullptr,"Disabled field advertises submission");
- Harness h;std::string status;SetMenuStatusProbe([&](const char* text){status=text;});h.Screen("interface");ImVec2 leftArrow,otherRow;
+ Harness h;std::string status;SetMenuStatusProbe([&](const char* text,Tone){status=text;});h.Screen("interface");ImVec2 leftArrow,otherRow;
  SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){
   if(std::strcmp(id,"hud")==0)leftArrow=ImVec2(min.x+(max.x-min.x)*.75f,(min.y+max.y)*.5f);
   if(std::strcmp(id,"scale")==0)otherRow=ImVec2((min.x+max.x)*.5f,(min.y+max.y)*.5f);

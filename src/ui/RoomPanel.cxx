@@ -125,7 +125,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    for(const auto& m:s.members)rows.push_back(Row("member-"+std::to_string(m.id),m.name+(m.id==s.localMember?" / YOU":""),std::string(StatusName(m.status))+(m.host?" / HOST":"")));
    rows.push_back(Row("room-members","Members",std::to_string(s.members.size())+" / "+std::to_string(s.capacity)+" members."));
    rows.push_back(Row("room-chat","Chat","Read messages and explicitly compose text with a keyboard."));
-   rows.push_back(Row("selection","Change fighter & appearance",mutableRoom&&v.canEditSelection&&!s.localTerminalPending?v.selectionSummary:
+   rows.push_back(Row("selection","Change fighter",mutableRoom&&v.canEditSelection&&!s.localTerminalPending?v.selectionSummary:
     (s.localTerminalPending?TerminalPendingReason():"Open your table for Ready status and fighter-change requirements."),
     mutableRoom&&v.canEditSelection&&!s.localTerminalPending));
    rows.push_back(Row("room-admin","Room settings",host?"Room name, capacity and admission.":"Only the host can administer the room.",host));
@@ -138,7 +138,8 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    "Disconnect from this room. Hiding Ember keeps you in the room.",v.session.room!=netplay::RoomState::Closing));
   if(v.session.recovery==netplay::Recovery::ReplacementOffered)
    rows.push_back(ConfirmRow("replace-room","Replace room",v.canReplaceRoom?
-    "Close the frozen room and open a replacement. Any unresolved room state will be discarded.":
+    "Close the frozen room and open a replacement. Everyone must rejoin, and your current invitation "
+    "link stops working - you will need to send the new one. Any unresolved room state will be discarded.":
     "The previous match is still closing. Replacement will be available when it finishes.",v.canReplaceRoom));
   for(std::size_t i=0;i<rows.size();++i){auto& e=rows[i];
    if(e.id.compare(0,6,"table-")==0)e.right=s.members.empty()?"room-members":"member-"+std::to_string(s.members.front().id);
@@ -203,7 +204,8 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   if(t.phase==TablePhase::Paused)rows.push_back(ConfirmRow("cancel-result","Cancel unresolved game","Host only. No result will be recorded.",host));
   if(v.session.recovery==netplay::Recovery::ReplacementOffered)
    rows.push_back(ConfirmRow("replace-room","Replace room",v.canReplaceRoom?
-    "Close the frozen room and open a replacement. Any unresolved room state will be discarded.":
+    "Close the frozen room and open a replacement. Everyone must rejoin, and your current invitation "
+    "link stops working - you will need to send the new one. Any unresolved room state will be discarded.":
     "The previous match is still closing. Replacement will be available when it finishes.",v.canReplaceRoom));
   rows.push_back(ConfirmRow("leave",v.session.room==netplay::RoomState::Closing?"Leaving room...":"Leave room",
    "Disconnect from this room and return to Home.",v.session.room!=netplay::RoomState::Closing));
@@ -247,13 +249,20 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  }
  return rows;
 }
-void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height) {
+void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,
+                                     const MenuVisualFeedback& feedback) {
  const float s=Scale(),gap=12*s;const bool wide=ImGui::GetContentRegionAvail().x>=820*s;
  const auto focus=nav.Focus();const bool changed=focus!=roomBoardFocus_;
+ // The board renders in place of the menu list, so it uses the same smoothed
+ // verdict and the same wording. Presentation only: nav.Choose still gates on
+ // the live entry and SendRoom still re-checks room authority at dispatch.
+ const auto shown=[&](const MenuEntry& e){return feedback.Enabled(e);};
+ const auto hint=[&](const MenuEntry& e){return feedback.Enabled(e)?"":feedback.Pending(e)?"Updating room...":"Unavailable";};
  const auto origin=ImGui::GetCursorScreenPos();
  const float fullHeight=height;
  if(!wide)height=(std::max)(80*s,height-64*s);
  if(focus.compare(0,6,"table-")==0)selectedTable_=std::stoi(focus.substr(6));
+ std::string elided;
  const auto text=[&](ImVec2 p,float width,const std::string& value,float size,ImU32 color){
   if(width<=0)return;
   auto* font=ImGui::GetFont();std::string label=value;
@@ -261,8 +270,14 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    const char* end=nullptr;const float dots=font->CalcTextSizeA(size,FLT_MAX,0,"...").x;
    font->CalcTextSizeA(size,(std::max)(1.f,width-dots),0,label.c_str(),nullptr,&end);
    label=std::string(label.c_str(),end)+"...";
+   elided+=(elided.empty()?"":"\n")+value;
   }
   ImGui::GetWindowDrawList()->AddText(font,size,p,color,label.c_str());
+ };
+ // Flushed once per row, while the row's button is still the hovered item.
+ const auto tip=[&]{
+  if(!elided.empty()&&ImGui::IsItemHovered())ImGui::SetTooltip("%s",elided.c_str());
+  elided.clear();
  };
  const auto press=[&](const MenuEntry& e,ImVec2 size){
   ImGui::PushID(e.id.c_str());
@@ -281,22 +296,25 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   const float width=ImGui::GetContentRegionAvail().x;press(e,ImVec2(width,h));
   text(ImVec2(p.x+12*s,p.y+8*s),width*.57f,"BATTLE SLOT "+std::to_string(t.id+1),14*s,palette::Ivory);
   text(ImVec2(p.x+width*.60f,p.y+8*s),width*.40f-12*s,PhaseName(t.phase),12*s,palette::Ember);
-  const float top=p.y+28*s,portrait=(std::min)(56*s,h-52*s),half=(width-50*s)*.5f;
+  const float top=p.y+28*s,portrait=(std::min)(56*s,h-52*s),half=(width-58*s)*.5f;
   const room::MemberId ids[]={t.p1,t.p2};
   for(int side=0;side<2;++side){
-   const float x=p.x+12*s+side*(half+26*s);const auto* m=Member(v.room,ids[side]);const int id=fighter(m);
+   const float x=p.x+12*s+side*(half+34*s);const auto* m=Member(v.room,ids[side]);const int id=fighter(m);
    if(m)DrawCharacterPortrait(id,ImVec2(x,top),ImVec2(x+portrait,top+portrait));
    const float tx=x+(m?portrait+8*s:0),tw=half-(m?portrait+8*s:0);
    text(ImVec2(tx,top+2*s),tw,m?m->name:"Looking for a fight",16*s,m?palette::Ivory:palette::Muted);
    const auto* f=selection::FindFighter(id);
-   std::string caption=m?(f?f->name:"Fighter not shared"):"Open seat";
+   // An empty seat already reads "Looking for a fight" above; a second
+   // "Open seat" underneath said nothing new.
+   std::string caption=m?(f?f->name:"Fighter not shared"):std::string();
    const bool ready=t.phase==room::TablePhase::Waiting&&t.ready[side];
    if(m)caption+=ready?" / READY":m->id==v.room.localMember?" / YOU":"";
-   text(ImVec2(tx,top+21*s),tw,caption,12*s,ready?IM_COL32(151,197,143,255):palette::Muted);
+   if(!caption.empty())text(ImVec2(tx,top+21*s),tw,caption,12*s,ready?palette::Ready:palette::Muted);
   }
-  text(ImVec2(p.x+width*.5f-12*s,top+18*s),30*s,"VS",16*s,palette::Ember);
+  text(ImVec2(p.x+width*.5f-15*s,top+18*s),30*s,"VS",16*s,palette::Ember);
   const auto rule=std::to_string(t.rules.roundCount)+" rounds / "+std::to_string(t.rules.roundTime)+" sec";
   text(ImVec2(p.x+12*s,p.y+h-21*s),width-24*s,rule+"     Queue "+std::to_string(t.queue.size())+"     Watching "+std::to_string(t.spectators.size()+t.watchingNext.size()),12*s,palette::Muted);
+  tip();
  };
  const auto memberCard=[&](const MenuEntry& e){
   const auto* m=Member(v.room,std::stoull(e.id.substr(7)));if(!m)return;
@@ -306,10 +324,15 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   text(ImVec2(p.x+64*s,p.y+7*s),width-76*s,e.label,16*s,palette::Ivory);
   const auto status=std::string(m->host?"HOST / ":"")+StatusName(m->status)+(m->table>=0?" / Slot "+std::to_string(m->table+1):"");
   text(ImVec2(p.x+64*s,p.y+32*s),width-76*s,status,12*s,palette::Muted);
+  tip();
  };
  const auto button=[&](const MenuEntry& e,float width){
   const auto p=ImGui::GetCursorScreenPos();press(e,ImVec2(width,40*s));
-  text(ImVec2(p.x+12*s,p.y+11*s),width-24*s,e.label,16*s,e.enabled?palette::Ivory:palette::Muted);
+  // Our own action labels must fit; only player-supplied text may elide.
+  ReportMenuText(("board-"+e.id).c_str(),16*s,40*s,
+   ImGui::GetFont()->CalcTextSizeA(16*s,FLT_MAX,0,e.label.c_str()).x,width-24*s);
+  text(ImVec2(p.x+12*s,p.y+11*s),width-24*s,e.label,16*s,shown(e)?palette::Ivory:palette::Muted);
+  tip();
  };
  std::vector<const MenuEntry*> toolbar;
  for(const auto& e:rows)if(e.id.compare(0,6,"table-")&&e.id.compare(0,7,"member-"))toolbar.push_back(&e);
@@ -326,7 +349,11 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   ImGui::EndChild();ImGui::SameLine(0,gap);
   ImGui::BeginChild("Room community",ImVec2(0,boardHeight),0,ImGuiWindowFlags_NoNavInputs);
   ImGui::Text("MEMBERS  %d / %d",static_cast<int>(v.room.members.size()),v.room.capacity);
-  ImGui::BeginChild("Member list",ImVec2(0,(boardHeight-48*s)*.56f),0,ImGuiWindowFlags_NoNavInputs);
+  // Whole cards only. A free fraction of the board height always clipped the
+  // bottom card through its portrait.
+  const float cardPitch=58*s+ImGui::GetStyle().ItemSpacing.y,childPadding=12*s;
+  const int memberRows=(std::max)(1,static_cast<int>(((boardHeight-48*s)*.56f-childPadding+ImGui::GetStyle().ItemSpacing.y)/cardPitch));
+  ImGui::BeginChild("Member list",ImVec2(0,memberRows*cardPitch-ImGui::GetStyle().ItemSpacing.y+childPadding),0,ImGuiWindowFlags_NoNavInputs);
   for(const auto& e:rows)if(e.id.compare(0,7,"member-")==0)memberCard(e);
   ImGui::EndChild();ImGui::TextUnformatted("CHAT");
   ImGui::BeginChild("Recent chat",ImVec2(0,0),0,ImGuiWindowFlags_NoNavInputs);
@@ -344,7 +371,13 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   const float w=(ImGui::GetContentRegionAvail().x-(toolColumns-1)*8*s)/toolColumns;
   for(std::size_t i=0;i<toolbar.size();++i){if(i%toolColumns)ImGui::SameLine(0,8*s);button(*toolbar[i],w);}
   const auto e=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& row){return row.id==nav.Focus();});
-  if(e!=rows.end())text(ImGui::GetCursorScreenPos(),ImGui::GetContentRegionAvail().x,e->detail.substr(0,e->detail.find('\n')),12*s,palette::Muted);
+  if(e!=rows.end()){
+   std::string line=e->detail.substr(0,e->detail.find('\n'));
+   const std::string reason=hint(*e);
+   if(!reason.empty())line=line.empty()?reason:line+"  -  "+reason;
+   text(ImGui::GetCursorScreenPos(),ImGui::GetContentRegionAvail().x,line,12*s,
+    reason.empty()?palette::Muted:ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)));
+  }
   ImGui::EndChild();
  }else{
   ImGui::BeginChild("Room stacked",ImVec2(0,height),0,ImGuiWindowFlags_NoNavInputs);
@@ -362,7 +395,9 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    if(selected->id.compare(0,6,"table-")==0){const auto& table=v.room.tables[selectedTable_];const auto* local=Member(v.room,v.room.localMember);
     explanation=std::string(PhaseName(table.phase))+" / You: "+(local?StatusName(local->status):"Connecting")+
         "\nQueue: "+std::to_string(table.queue.size())+" / Watching: "+std::to_string(table.spectators.size()+table.watchingNext.size());}
-   ImGui::PushStyleColor(ImGuiCol_Text,selected->enabled?ToneColor(Tone::Neutral):ToneColor(Tone::Pending));
+   const std::string reason=hint(*selected);
+   if(!reason.empty())explanation=explanation.empty()?reason:explanation+"\n"+reason;
+   ImGui::PushStyleColor(ImGuiCol_Text,reason.empty()?ToneColor(Tone::Neutral):ToneColor(Tone::Pending));
    ImGui::TextWrapped("%s",explanation.c_str());ImGui::PopStyleColor();
   }
   ImGui::EndChild();
@@ -388,7 +423,13 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(a.id=="room-members"||a.id=="room-chat"||a.id=="room-admin"||a.id=="room-rules"){nav.Push(a.id);return;}
   if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();notice_="Invitation copied.";noticeUntil_=ImGui::GetTime()+3;return;}
   if(a.id=="replace-room"){ShellAction request;request.command.kind=netplay::CommandKind::ReplaceRoom;request.command.generation=v.session.generation;
-   if(!submit(std::move(request)))error_="The replacement room could not be queued. Please try again.";else error_.clear();return;}
+   if(!submit(std::move(request)))error_="The replacement room could not be queued. Please try again.";
+   else{error_.clear();
+    // The old invitation dies with the old room epoch. Say so while the row is
+    // still on screen, rather than letting friends fail to rejoin silently.
+    notice_="Replacement room opening. Choose Copy invitation and send the new link - the old one no longer works.";
+    noticeUntil_=ImGui::GetTime()+8;}
+   return;}
   if(a.id=="benchmark-connection"){sendDelay(netplay::CommandKind::CheckConnection,-1,true);return;}
   if(a.id=="check-connection"){sendDelay(netplay::CommandKind::CheckConnection,-1);return;}
   if(a.id=="apply-recommendation"){sendDelay(netplay::CommandKind::ApplyDelay,-1);return;}

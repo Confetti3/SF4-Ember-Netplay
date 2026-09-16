@@ -119,7 +119,40 @@ static void TestClock() {
     CHECK(clock.Update(std::numeric_limits<double>::quiet_NaN())==before);
     CHECK(clock.Update(-1)==before);
 }
+
+// Regression for the reported "room options glitch ... frantic clicking or
+// button-mashing". The room board used to paint straight from entry.enabled and
+// so flickered once per checkpoint. The smoothed verdict the board now reads
+// must stay put while a healthy room churns, and must still follow a real change.
+static void TestBoardFlickerBound() {
+    auto entries=Entries(); MenuVisualFeedback feedback;
+    feedback.Update("room",entries,0);
+    bool previous=feedback.Enabled(entries[1]);
+    unsigned rendered=0, raw=0; bool rawPrevious=entries[1].enabled;
+    // Ten seconds of 60fps checkpoint churn on the Leave row.
+    for (int frame=1; frame<=600; ++frame) {
+        const double now=frame/60.0;
+        entries[1].enabled=frame%2==0; entries[1].pending=true;
+        if (entries[1].enabled!=rawPrevious) { ++raw; rawPrevious=entries[1].enabled; }
+        feedback.Update("room",entries,now);
+        const bool shown=feedback.Enabled(entries[1]);
+        if (shown!=previous) { ++rendered; previous=shown; }
+    }
+    CHECK(raw>500);      // The underlying gate really is churning.
+    CHECK(rendered==0);  // The player sees a steady button, not a strobe.
+
+    // A sustained loss of eligibility must still reach the player.
+    entries[1].enabled=false; entries[1].pending=true;
+    for (int frame=1; frame<=60; ++frame) feedback.Update("room",entries,10+frame/60.0);
+    CHECK(!feedback.Enabled(entries[1]));
+    CHECK(feedback.Pending(entries[1]));
+
+    // ...and so must its return, once it holds.
+    entries[1].enabled=true; entries[1].pending=false;
+    feedback.Update("room",entries,12); feedback.Update("room",entries,12.5);
+    CHECK(feedback.Enabled(entries[1]));
+}
 int main() {
-    TestDraftAndConfirmation(); TestDeferredText(); TestNavigation(); TestFeedback(); TestClock();
+    TestDraftAndConfirmation(); TestDeferredText(); TestNavigation(); TestFeedback(); TestBoardFlickerBound(); TestClock();
     std::cout << checks << " UI polish checks passed\n";
 }

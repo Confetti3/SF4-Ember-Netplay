@@ -197,6 +197,10 @@ private:
 	bool leavePending_ = false;
     bool leaveAbandon_=false;
     std::uint64_t leaveRetryAt_=0;
+    // Departure cannot depend on the helper confirming it. Every retryable
+    // leave failure re-arms the send, but only until this deadline; after that
+    // the room is released locally so the player is never stuck in Closing.
+    std::uint64_t leaveDeadline_=0;
 	bool localOpen_ = false;
 	bool pendingAdmission_ = false;
 	bool serverOpen_ = false;

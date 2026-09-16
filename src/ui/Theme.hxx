@@ -5,11 +5,13 @@
 
 namespace sf4e { namespace ui {
 enum class Tone { Neutral, Success, Pending, Error };
-enum class ButtonKind { Secondary, Primary, Destructive };
 namespace palette {
 constexpr ImU32 Ember = IM_COL32(255, 135, 56, 255);
 constexpr ImU32 Ivory = IM_COL32(243, 235, 221, 255);
 constexpr ImU32 Muted = IM_COL32(181, 169, 155, 255);
+// Ready/confirmed. Matches ToneColor(Tone::Success) so a ready seat and a
+// success status are the same green rather than two near-identical ones.
+constexpr ImU32 Ready = IM_COL32(164, 206, 160, 255);
 }
 
 // Call between frames. A true result requires backend font texture recreation.
@@ -23,20 +25,10 @@ void Header(const char* title, const char* subtitle = nullptr);
 void MenuHeader(const char* title);
 void Section(const char* title);
 void Status(const char* text, Tone tone = Tone::Neutral);
-bool ActionButton(const char* label, ButtonKind kind = ButtonKind::Secondary,
-                  ImVec2 size = ImVec2(0, 0));
-bool NavigationTab(const char* label, bool selected);
-void BeginPanel(const char* id, const char* title);
-void EndPanel();
-void Metric(const char* label, const char* value);
 void Text(const char* format, ...);
 void FieldLabel(const char* label);
 // Preserve native widget behavior while placing long labels above their fields.
 // Hidden table-cell labels remain hidden and retain their existing IDs.
-template<typename... Args> bool InputScalar(const char* label, Args&&... args) {
-    FieldLabel(label);
-    return ImGui::InputScalar((label[0] == '#' ? std::string(label) : "##" + std::string(label)).c_str(), std::forward<Args>(args)...);
-}
 template<typename... Args> bool InputInt(const char* label, Args&&... args) {
     FieldLabel(label);
     return ImGui::InputInt((label[0] == '#' ? std::string(label) : "##" + std::string(label)).c_str(), std::forward<Args>(args)...);
@@ -62,6 +54,8 @@ struct MatchStripView {
     bool spectator = false, raised = false;
 };
 void DrawMatchStrip(const MatchStripView& view);
+// Exposed for the render harness: Small/Standard/Large must not collapse.
+float MatchStripScale(const MatchStripView& view);
 void DrawMatchStripPreview(const MatchStripView& view);
 void DrawControllerWarning(const std::string& message);
 struct DiagnosticStripView {

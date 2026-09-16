@@ -145,6 +145,10 @@ int PreviewColor(int fighter,int costume,const selection::Availability& availabi
     const auto colors=selection::AllowedColors(fighter,costume,availability);
     return colors.empty()?0:colors.front();
 }
+const char* HandicapLabel(int handicap) {
+    static const char* const labels[]={"Normal (100%)","One hit","25%","50%","75%"};
+    return labels[(std::max)(0,(std::min)(4,handicap))];
+}
 std::string CostumeLabel(const selection::Pick& pick) {
     if (pick.costume == 0) return "Original";
     return "Alternate " + std::to_string(pick.costume) + " / " + selection::CostumePack(pick.fighter, pick.costume);
@@ -188,7 +192,7 @@ bool DrawStageSelector(int& nativeId, SelectionArt* art) {
 }
 
 
-bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt* art,const AvailabilityReader& readAvailability,int* stageId,bool editable) {
+bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt* art,const AvailabilityReader& readAvailability,int* stageId,bool editable,const std::string& selectionError) {
  using namespace selection;
  bool changed=false;auto& nav=menu_.navigation;const auto screen=nav.Screen();
  const auto availability=readAvailability?readAvailability(pick.fighter):Availability{};
@@ -231,13 +235,15 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  }else if(screen=="stage"){
   page_=Page::Stage;title="STAGE";
   for(const auto& stage:StageList())rows.push_back(Row("stage-"+std::to_string(stage.id),stage.name,stageId?locked:"Only P1 can change the stage.",editable&&stageId));
-  columns=3;
+  // Derive columns like the roster and the galleries do. A fixed three columns
+  // left 16:9 stage cards far below the width the sibling grids guarantee.
+  columns=(std::max)(2,(std::min)(4,static_cast<int>(ImGui::GetContentRegionAvail().x/(220*Scale()))));
  }else{
   title="FIGHTER OPTIONS";
   rows={Value("edition","Edition",FindEdition(pick.edition)->name,editionSelect?locked:"The room uses USFIV rules.",editable&&editionSelect),
    Value("action","Personal action",pick.personalAction==255?"None":std::to_string(pick.personalAction+1),locked,editable&&availability.ready),
    Value("quote","Win quote",pick.winQuote==255?"Random":std::to_string(pick.winQuote+1),locked,editable),
-   Value("handicap","Handicap",std::vector<std::string>{"Normal (100%)","One hit","25%","50%","75%"}[pick.handicap],locked,editable)};
+   Value("handicap","Handicap",HandicapLabel(pick.handicap),locked,editable)};
  }
  const bool compactAppearance=(screen=="costumes"||screen=="colors")&&ImGui::GetContentRegionAvail().x<820*Scale();
  const auto preview=[&](const std::string& id){
@@ -286,8 +292,12 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    ImGui::GetWindowDrawList()->AddText(ImVec2(p.x+4*Scale(),p.y),palette::Ember,"SAVED");}
   return true;
  };
- const auto a=menu_.Draw(title.c_str(),rows,editable?"Select saves / Back returns one level.":"Selection locked - return to your table for status.",preview,columns,card,{},0,
-  screen=="costumes"||screen=="colors"?180.f:100.f);
+ const std::string status=!selectionError.empty()?selectionError:
+  editable?"Select saves / Back returns one level.":"Selection locked - return to your table for status.";
+ // stableStatus: the galleries must not shift under a highlight when the
+ // status grows from one line to two.
+ const auto a=menu_.Draw(title.c_str(),rows,status.c_str(),preview,columns,card,{},0,
+  screen=="costumes"||screen=="colors"?180.f:100.f,true,selectionError.empty()?Tone::Neutral:Tone::Error);
  if(a.kind==MenuAction::Close)RequestMenuReturn();
  if(a.kind==MenuAction::Activate){
   if(screen=="home"||screen=="appearance")nav.Push(a.id);

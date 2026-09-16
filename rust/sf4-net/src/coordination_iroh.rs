@@ -84,11 +84,15 @@ impl IrohRpc {
         if incarnation == 0 || room == [0; 16] {
             return Err(failure());
         }
+        // Same reasoning as the gameplay endpoint in transport.rs: take iroh's
+        // default port mapping so coordination can also form a direct path
+        // behind NATs that need a gateway mapping.
         let builder = Endpoint::builder(presets::N0)
-            .alpns(vec![ALPN.to_vec()])
-            .portmapper_config(PortmapperConfig::Disabled);
+            .alpns(vec![ALPN.to_vec()]);
         let builder = if relay_only {
-            builder.clear_ip_transports()
+            builder
+                .clear_ip_transports()
+                .portmapper_config(PortmapperConfig::Disabled)
         } else {
             builder
         };

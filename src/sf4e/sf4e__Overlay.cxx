@@ -95,7 +95,11 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
 	pick.fighter = menuCharaID;
 	const bool editionSelect = snapshot.session.room == sf4e::netplay::RoomState::Joined ? snapshot.lobbySettings.editionSelect : true;
     int stagedStage = stageId ? *stageId : 0;
-	s_fighterSelectors[0].Draw(pick, editionSelect, s_selectionArt.get(), [&](int fighter) { return snapshot.fighterAvailability[fighter]; }, stageId ? &stagedStage : nullptr, snapshot.canEditSelection);
+	// The room screens direct the player here when a selection is unusable, so
+	// say what is wrong on this screen too, not only on the table.
+	const std::string selectionError = sf4e::selection::Available(pick, editionSelect, snapshot.fighterAvailability[pick.fighter]) ? std::string() :
+		"This combination is unavailable under the room's rules. Choose another fighter, costume, colour or edition.";
+	s_fighterSelectors[0].Draw(pick, editionSelect, s_selectionArt.get(), [&](int fighter) { return snapshot.fighterAvailability[fighter]; }, stageId ? &stagedStage : nullptr, snapshot.canEditSelection, selectionError);
 	if (snapshot.canEditSelection) {
         sf4e::selection::ToNative(pick, charaConditions);
         menuCharaID = pick.fighter;

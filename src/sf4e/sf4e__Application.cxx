@@ -81,6 +81,9 @@ struct Runtime {
 	std::unique_ptr<room::Action> pendingAbort;
 	ULONGLONG pendingAbortDeadline = 0;
 	std::unique_ptr<RuntimeCommand> pendingRoomAction;
+	// Set only when a room action is parked behind the authority catch-up fence.
+	// Zero means the existing GGPO teardown deferrals, which must not expire.
+	std::uint64_t pendingRoomActionDeadline = 0;
 	std::unique_ptr<RuntimeCommand> pendingReady;
 	std::unique_ptr<RuntimeCommand> pendingLobbyEdit;
 	std::unique_ptr<netplay::LobbySettings> pendingLobbySettings;
@@ -128,6 +131,7 @@ void CloseRoom() {
 	runtime->pendingLobbyEdit.reset();
 	runtime->pendingLobbySettings.reset();
 	runtime->pendingRoomAction.reset();
+	runtime->pendingRoomActionDeadline = 0;
 	runtime->resultOutbox.Reset();
 	runtime->recoveringMatch = false;
 	runtime->matchFinishedPending = false;
@@ -515,7 +519,7 @@ void StartHelper() {
             runtime->preferences.discordPresence = saved.value("discordPresence", true);
             runtime->preferences.discordInvites = saved.value("discordInvites", true);
             const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;
-            runtime->preferences.mainFighter=main>=0&&main<44?main:0;
+            runtime->preferences.mainFighter=main>=0&&main<sf4e::selection::FighterCount?main:0;
             const float scale = saved.value("interfaceScale", 1.f);
             runtime->preferences.interfaceScale = scale >= 1.f && scale <= 1.5f ? scale : 1.f;
         } catch (...) { runtime->error = "Interface preferences could not be read; defaults are in use."; }
@@ -565,6 +569,20 @@ void StopHelper() {
     }
 	runtime->commands.Close();
 	CloseRoom();
+	if (runtime->room && runtime->helper) {
+		// Closing the game must mean the same thing to the room as Leave room.
+		// Shutdown cancels an in-flight graceful leave in the helper, so give the
+		// departure a bounded window to be sent and acknowledged first; otherwise
+		// the roster keeps this member until some later teardown prunes them.
+		// Process exit may wait briefly; rendering and simulation never do.
+		const auto departure = GetTickCount64() + 1200;
+		while (runtime->room->GetState() != session::IrohRoom::State::Idle &&
+			runtime->helper->State() == platform::HelperState::Connected &&
+			GetTickCount64() < departure) {
+			runtime->room->Poll();
+			Sleep(1);
+		}
+	}
 	if (runtime->helper) {
 		runtime->helper->Send("{\"type\":\"shutdown\"}");
 		// Game teardown may wait briefly; rendering/simulation never does.
@@ -967,6 +985,20 @@ void TickRuntime() {
 			runtime->error = "Return to the game main menu before opening a room."; continue;
 		}
 		if (kind == netplay::CommandKind::ReplaceRoom && !CanBeginReplacement()) continue;
+		{
+			// The authority checkpoint fence is transient. Dropping the command here
+			// silently discarded a press the interface had already accepted, which is
+			// what produced repeated pressing until one attempt landed between
+			// updates. Park the newest intent instead; the drain below revalidates
+			// the generation and resubmits it through this same pump once writable.
+			const auto& fence = runtime->controller.GetSnapshot();
+			if (kind == netplay::CommandKind::RoomAction && fence.coordinated && !fence.authorityWritable &&
+				!runtime->recoveringMatch) {
+				runtime->pendingRoomAction.reset(new RuntimeCommand(command));
+				runtime->pendingRoomActionDeadline = GetTickCount64() + 3000;
+				continue;
+			}
+		}
 		const auto decision = runtime->controller.Execute(command.command);
 		if (!decision.accepted) continue;
         if (command.discordRevision) {
@@ -1324,7 +1356,13 @@ void TickRuntime() {
 	}
 	const auto currentGeneration = runtime->controller.GetSnapshot().generation;
 	if (runtime->pendingRoomAction && !(runtime->pendingRoomAction->command.generation == currentGeneration))
-		runtime->pendingRoomAction.reset();
+		{ runtime->pendingRoomAction.reset(); runtime->pendingRoomActionDeadline = 0; }
+	if (runtime->pendingRoomAction && runtime->pendingRoomActionDeadline &&
+		GetTickCount64() >= runtime->pendingRoomActionDeadline) {
+		// Say so rather than applying a stale intent or failing silently.
+		runtime->pendingRoomAction.reset(); runtime->pendingRoomActionDeadline = 0;
+		runtime->error = "The room did not catch up in time. Your last action was not applied; try again.";
+	}
 	if (runtime->pendingReady && !(runtime->pendingReady->command.generation == currentGeneration))
 		runtime->pendingReady.reset();
 	if (runtime->pendingLobbyEdit && !(runtime->pendingLobbyEdit->command.generation == currentGeneration))
@@ -1338,7 +1376,7 @@ void TickRuntime() {
 		 runtime->pendingRoomAction->roomAction.kind == room::ActionKind::Unwatch)) {
 		const auto action = runtime->pendingRoomAction->roomAction.kind;
 		if (UserApp::netplay->client.SendRoomAction(runtime->pendingRoomAction->roomAction) == session::SendResult::Queued) {
-			runtime->pendingRoomAction.reset();
+			runtime->pendingRoomAction.reset(); runtime->pendingRoomActionDeadline = 0;
 			if (action == room::ActionKind::Unwatch) {
 				CancelDeferredGgpoClose();
 				Game::Battle::System::AbortGgpoMatch("Leaving spectator view.");
@@ -1347,7 +1385,7 @@ void TickRuntime() {
 		}
 	} else if (runtime->pendingRoomAction && healthyRoomControl && !runtime->recoveringMatch && AtMainMenu() && runtime->match &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle) {
-		if (SubmitRuntimeCommand(*runtime->pendingRoomAction)) runtime->pendingRoomAction.reset();
+		if (SubmitRuntimeCommand(*runtime->pendingRoomAction)) { runtime->pendingRoomAction.reset(); runtime->pendingRoomActionDeadline = 0; }
 	}
 	if (runtime->pendingReady && healthyRoomControl && runtime->match && runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle) {
 		if (SubmitRuntimeCommand(*runtime->pendingReady)) runtime->pendingReady.reset();

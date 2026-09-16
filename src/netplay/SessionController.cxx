@@ -37,6 +37,8 @@ bool SessionController::ObserveCoordination(std::uint64_t term, std::uint64_t re
     const bool connected = writable && term != 0;
     state_.authorityWritable = connected && locallyApplied;
     if (connected) {
+        if (state_.authorityWritable) state_.authorityStalledMs = 0;
+        else if (state_.authorityStalledMs == 0) state_.authorityStalledMs = nowMs ? nowMs : 1;
         state_.recovery = Recovery::None;
         state_.recoveryStartedMs = 0;
         if (state_.room != RoomState::Opening) {
@@ -44,7 +46,9 @@ bool SessionController::ObserveCoordination(std::uint64_t term, std::uint64_t re
             state_.control = Health::Healthy;
         }
         state_.error.clear();
+        AdvanceCatchUp(nowMs);
     } else {
+        state_.authorityStalledMs = 0;
         if (state_.recovery == Recovery::None) {
             state_.recovery = Recovery::Recovering;
             state_.recoveryStartedMs = nowMs;
@@ -56,6 +60,22 @@ bool SessionController::ObserveCoordination(std::uint64_t term, std::uint64_t re
         AdvanceRecovery(nowMs);
     }
     return true;
+}
+
+// A connected same-term stream whose checkpoint never applies locally leaves
+// every room mutation fenced with recovery None, no explanation and no way out.
+// Ordinary lag clears in well under a second, so a persistent stall is a fault:
+// name it, then offer replacement on the same schedule as a lost stream.
+void SessionController::AdvanceCatchUp(std::uint64_t nowMs) {
+    if (!state_.authorityStalledMs || state_.authorityWritable) return;
+    if (nowMs < state_.authorityStalledMs) { state_.authorityStalledMs = nowMs ? nowMs : 1; return; }
+    const auto stalled = nowMs - state_.authorityStalledMs;
+    if (stalled >= 10000)
+        state_.error = "The room is still catching up on this PC. Room actions are paused.";
+    if (stalled >= 30000 && state_.recovery == Recovery::None) {
+        state_.recovery = Recovery::ReplacementOffered;
+        state_.recoveryStartedMs = state_.authorityStalledMs;
+    }
 }
 
 void SessionController::AdvanceRecovery(std::uint64_t nowMs) {

@@ -173,7 +173,15 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(saveFailed_)rows.push_back(Row("retry-save","Retry saving",v.settingsError.empty()?error_:v.settingsError,v.canEditPreferences&&!v.settingsPending));
  const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="defaults"||screen=="interface"||screen=="discord";
  std::string status=saveFailed_?"Save failed":v.settingsPending||preferencesDirty_||saveQueued_?"Saving...":personal?"Saved":"";
- if(screen=="room"&&status.empty())status=v.session.control==Health::Healthy?(v.room.locked?"Room locked / invitation only":"Private room / invitation only"):"Reconnecting to room...";
+ // Severity travels with the status string. This line is the shell's only
+ // feedback channel, so a failure must not render like ordinary text.
+ Tone statusTone=saveFailed_?Tone::Error:v.settingsPending||preferencesDirty_||saveQueued_?Tone::Pending:
+  personal?Tone::Success:Tone::Neutral;
+ if(screen=="room"&&status.empty()){
+  const bool healthy=v.session.control==Health::Healthy;
+  status=healthy?(v.room.locked?"Room locked / invitation only":"Private room / invitation only"):"Reconnecting to room...";
+  if(!healthy)statusTone=Tone::Pending;
+ }
  if(screen=="room-table"){
   title="TABLE "+std::to_string(selectedTable_+1)+" / BATTLE SETUP";
   const auto& table=v.room.tables[selectedTable_];
@@ -192,13 +200,18 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   else if(table.phase==room::TablePhase::Closed)status="Table closed";
  }
  if(ImGui::GetTime()>=noticeUntil_)notice_.clear();
- if(!notice_.empty()&&!saveFailed_&&!v.settingsPending&&!preferencesDirty_&&!saveQueued_)status=notice_;
- if(v.controllerUnavailable)status="Controller disconnected. Reconnect or assign explicitly.";
- if(!v.session.error.empty())status=v.session.error;if(!v.error.empty())status=v.error;if(!error_.empty())status=error_;
+ if(!notice_.empty()&&!saveFailed_&&!v.settingsPending&&!preferencesDirty_&&!saveQueued_){status=notice_;statusTone=Tone::Success;}
+ if(v.controllerUnavailable){status="Controller disconnected. Reconnect or assign explicitly.";statusTone=Tone::Error;}
+ if(!v.session.error.empty()){status=v.session.error;statusTone=Tone::Error;}
+ if(!v.error.empty()){status=v.error;statusTone=Tone::Error;}
+ if(!error_.empty()){status=error_;statusTone=Tone::Error;}
  const bool roomScreen=screen.compare(0,4,"room")==0;
- if(roomScreen&&v.session.recovery!=Recovery::None)status=!v.session.error.empty()?v.session.error:
-  v.session.recovery==Recovery::ReplacementOffered?"Room control is unavailable. Replace the room when no match is active.":
-  "Room control is recovering. Room actions are paused.";
+ if(roomScreen&&v.session.recovery!=Recovery::None){
+  status=!v.session.error.empty()?v.session.error:
+   v.session.recovery==Recovery::ReplacementOffered?"Room control is unavailable. Replace the room when no match is active.":
+   "Room control is recovering. Room actions are paused.";
+  statusTone=v.session.error.empty()?Tone::Pending:Tone::Error;
+ }
  const auto tablePhase=v.room.tables[selectedTable_].phase;
  const bool committedMatchStatus=screen=="room-table" && healthyRoom &&
   (tablePhase==room::TablePhase::Ready || tablePhase==room::TablePhase::Playing || tablePhase==room::TablePhase::Paused);
@@ -206,7 +219,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
     (v.session.control==Health::Healthy && v.session.recovery==Recovery::None &&
      ((!RoomActionsAvailable(v)&&!RoomCheckpointPending(v))||roomUpdateVisible_) && !committedMatchStatus &&
      !v.controllerUnavailable&&v.session.error.empty()&&v.error.empty()&&error_.empty())))
-  status=RoomWaitReason(v);
+  {status=RoomWaitReason(v);statusTone=Tone::Pending;}
  PlayerCardView card;card.name=preferences_.displayName;card.fighter=preferences_.mainFighter;
  card.fighterName=selection::FindFighter(preferences_.mainFighter)->name;card.inputDelay=preferences_.inputDelay;
  card.wins=v.preferences.record.wins;card.losses=v.preferences.record.losses;card.recordAvailable=v.preferences.record.available;
@@ -234,13 +247,16 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   preview.size=preferences_.matchHudSize;preview.raised=preferences_.matchHudRaised;
   DrawMatchStripPreview(preview);
  };
- if(screen=="room"&&v.room.roomEpoch)board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height){DrawRoomBoard(v,entries,navigation,action,height);};
+ if(screen=="room"&&v.room.roomEpoch)board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawRoomBoard(v,entries,navigation,action,height,feedback);};
  // Visual grace cannot grant permission: enabled and all dispatch checks stay live.
  const bool checkpointPending=roomScreen && RoomCheckpointPending(v) && !v.controllerUnavailable &&
   v.session.error.empty() && v.error.empty() && error_.empty();
  for(auto& row:rows)row.pending=checkpointPending;
- const bool stableFeedback=roomScreen || personal || screen=="join" || screen=="create" || screen=="about";
- auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,100,stableFeedback);
+ // Every shell screen except Home reserves the status area, so a status that
+ // grows can never displace the list under a highlight or a mouse click.
+ // Home renders its status in the small-print line below the list instead.
+ const bool stableFeedback=screen!="home";
+ auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,100,stableFeedback,statusTone);
  if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){
   ShellAction r;r.command.generation=v.session.generation;r.inputAction=input::Action::Cancel;submit(std::move(r));
  }else if(a.kind==MenuAction::Close||a.id=="return"){if(open)*open=false;
