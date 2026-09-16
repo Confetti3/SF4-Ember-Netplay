@@ -164,7 +164,13 @@ namespace OverlayPrefs {
 	std::string PersistenceError() { return writer ? writer->GetStatus().error : startupError; }
 	bool PersistencePending() { return writer && writer->GetStatus().pending; }
 	bool SavePlayerPreferences(const netplay::PlayerPreferences& preferences) {
-		if (!writer || !preferences.Valid()) return false;
+		return QueuePlayerPreferences(preferences) != 0;
+	}
+	bool PlayerPreferencesSaved(std::uint64_t revision) {
+		return writer && revision && writer->SavedLauncherRevision() >= revision;
+	}
+	std::uint64_t QueuePlayerPreferences(const netplay::PlayerPreferences& preferences) {
+		if (!writer || !preferences.Valid()) return 0;
         nlohmann::json values={{"displayName", preferences.displayName}, {"mainFighter",preferences.mainFighter}, {"inputDelay", preferences.inputDelay},
 			{"editionSelect", preferences.lobby.editionSelect ? 1 : 0}, {"roundCount", preferences.lobby.roundCount},
 			{"roundTimeIntegral", preferences.lobby.roundTime}, {"showMatchHud", preferences.showMatchHud},

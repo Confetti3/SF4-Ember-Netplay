@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <cstdint>
 #include <string>
 #include "../netplay/PlayerPreferences.hxx"
 
@@ -57,7 +58,12 @@ namespace OverlayPrefs {
 	void StopPersistence();
 	std::string PersistenceError();
 	bool PersistencePending();
+	// Queues a complete profile snapshot. True means accepted, not written.
 	bool SavePlayerPreferences(const netplay::PlayerPreferences& preferences);
+	// As above, returning the accepted revision (0 when rejected). Pass it to
+	// PlayerPreferencesSaved when the caller must know the write completed.
+	std::uint64_t QueuePlayerPreferences(const netplay::PlayerPreferences& preferences);
+	bool PlayerPreferencesSaved(std::uint64_t revision);
 	// Accepts a copied snapshot; completion/errors belong to the settings worker.
 	bool Save(const Data& in);
 

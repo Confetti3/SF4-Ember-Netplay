@@ -67,6 +67,7 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
     const bool tableActive = table.phase == room::TablePhase::Ready || table.phase == room::TablePhase::Playing ||
         table.phase == room::TablePhase::Paused;
     if ((action.kind == room::ActionKind::Queue || action.kind == room::ActionKind::Watch) && localSeated) return false;
+    if (action.kind == room::ActionKind::AbortMatch && (!localSeated || table.phase != room::TablePhase::Paused)) return false;
     if (action.kind == room::ActionKind::Unqueue && localSeated &&
         (tableActive || view.session.match == netplay::MatchState::Preparing || view.session.match == netplay::MatchState::Playing)) return false;
     action.protocolVersion = room::ProtocolVersion;
@@ -155,7 +156,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    const bool awaitingResult=t.phase==TablePhase::Playing&&(t.resultPending||v.session.match==netplay::MatchState::PostMatch);
    const std::string blocked=!mutableRoom&&!(active&&RoomCheckpointPending(v))?reason:
     terminalBlocked?TerminalPendingReason():
-    t.phase==TablePhase::Paused?"The previous result is unresolved. Ask the host to cancel the unresolved game; no win will be awarded.":
+    t.phase==TablePhase::Paused?"The previous result is unresolved. Choose Abandon unresolved game, or ask the host to cancel it; no win will be awarded.":
     awaitingResult?"Waiting for both fighters to report the result. Ready resets when the result is confirmed; you have not readied for another match.":
     active?"The current match is preparing or in progress. Wait for it to finish.":
     !t.p1||!t.p2?"Waiting for an opponent to take the other seat. You can change your fighter while waiting.":
@@ -193,7 +194,12 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    rows.push_back(Row("selection","Change fighter & appearance",mutableRoom&&v.canEditSelection&&!s.localTerminalPending?
     "Choose a fighter, then browse Costume and Color galleries. Return here and select Ready up.\n"+v.selectionSummary:
     (s.localTerminalPending?TerminalPendingReason():editReason),mutableRoom&&v.canEditSelection&&!s.localTerminalPending));
-    rows.push_back(Row("unqueue","Leave seat",active?"Finish or resolve the current game first.":"Release your seat.",mutableRoom&&!active&&!playing));
+    rows.push_back(Row("unqueue","Leave seat",t.phase==TablePhase::Paused?"Abandon the unresolved game first.":
+     active?"Finish or resolve the current game first.":"Release your seat.",mutableRoom&&!active&&!playing));
+    // The authority accepts AbortMatch from either fighter. Offer it only once
+    // the result is Paused, so a fighter can never cut a live game short.
+    if(t.phase==TablePhase::Paused)rows.push_back(ConfirmRow("abandon-result","Abandon unresolved game",
+     "No result will be recorded. Both fighters stay seated and can ready again.",mutableRoom));
    }else{
     const bool terminalBlocked=s.localTerminalPending || s.terminalPending[selectedTable_];
     const std::string queueReason=terminalBlocked?TerminalPendingReason():reason;
@@ -451,6 +457,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   else if(a.id=="kick"){request.kind=ActionKind::Kick;request.target=selectedMember_;}
   else if(a.id=="transfer-host"){request.kind=ActionKind::TransferHost;request.target=selectedMember_;}
  else if(a.id=="cancel-result")request.kind=ActionKind::CancelResult;
+ else if(a.id=="abandon-result")request.kind=ActionKind::AbortMatch;
  else if(a.id=="apply-rules"){request.kind=ActionKind::SetRules;request.rules=tableRules_;}
  else if(a.id=="apply-name"){request.kind=ActionKind::Rename;request.text=roomName_;}
  else if(a.id=="apply-capacity"){request.kind=ActionKind::SetCapacity;request.capacity=static_cast<std::uint8_t>(roomCapacity_);}

@@ -18,6 +18,12 @@ checkpoints; it does not replace v1 until it has demonstrated reliability.
   super/max, SC time/max, UC time/max, combo damage, damage — all read via
   engine getters, the same values the legacy snapshot already proves
   comparable across peers.
+- **action timing** (v0.8.6, inside each per-character hash): action id,
+  action frame (fixed point), action posture, and the side's unit time scale
+  (hitstop and slowdown). These are the Training Lab frame-meter getters. A
+  replay that keeps positions and health but reaches a move or its active
+  frames on a different frame now shows up as a character mismatch. Hitbox
+  geometry and the evolving RNG are still not hashed.
 - **overall** = hash of the three subsystem hashes.
 
 ## Explicitly excluded (do not add without a determinism argument)
@@ -75,6 +81,34 @@ added. `battle_hash` uses `WITH_DEFAULT` deserialization for
 forward-compatible field additions. Servers that predate the message do not
 forward it (clients then silently fall back to v1-only verification);
 updated servers forward it exactly like `battle_snapshot`.
+
+## Local rollback stress (one PC)
+
+`SF4E_ROLLBACK_STRESS=<1..8>` makes an offline Versus or Training battle drive
+save states the way a GGPO session with that rollback distance does:
+
+- every frame frees the oldest of ten ring slots and saves before simulating;
+- every `<distance>` frames the state from `<distance>` frames ago is loaded
+  and those frames are re-simulated with their recorded inputs, freeing and
+  saving on each one.
+
+After each re-simulated frame the semantic hash is compared with the original
+pass. A difference logs `RollbackStress: replay diverged` with the frame, the
+free path, which subsystem differed (flow, p1, p2) and the inputs. Training Lab
+playback drives the recorded side, so a specific sequence can be replayed
+under rollback, for example the reported C. Viper crouching medium kick into
+a special and then Super against Dudley. Recording is interrupted and the history restarts when the
+simulation does not advance by exactly one frame (pause, training restore).
+
+Combine it with `SF4E_ROLLBACK_DIAGNOSTICS=1` for the timing summary every 600
+frames, and with `SF4E_LEGACY_SAVESTATE_FREE=1` to compare the two free paths
+([SAVESTATE_FREE.md](SAVESTATE_FREE.md)). GGPO's synctest backend is not used
+because it breaks into the debugger on a mismatch and writes a log file per
+frame.
+
+This checks that one machine replays its own frames identically. It does not
+replace two-PC validation: peers can still diverge through state that the
+hash does not cover.
 
 ## Live validation checklist (not automatable offline)
 

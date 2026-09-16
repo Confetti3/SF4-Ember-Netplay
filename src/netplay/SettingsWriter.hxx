@@ -18,14 +18,20 @@ public:
     };
     explicit SettingsWriter(std::wstring directory);
     ~SettingsWriter();
-    bool QueueOverlay(nlohmann::json snapshot);
-    bool QueueLauncher(nlohmann::json snapshot);
+    // Returns the accepted revision (never 0), or 0 when the snapshot was
+    // rejected. Acceptance is not persistence: a revision is on disk only once
+    // the matching Saved*Revision() reaches it. Snapshots are complete, so a
+    // later saved revision also persists every earlier one.
+    std::uint64_t QueueOverlay(nlohmann::json snapshot);
+    std::uint64_t QueueLauncher(nlohmann::json snapshot);
+    std::uint64_t SavedOverlayRevision() const;
+    std::uint64_t SavedLauncherRevision() const;
     Status GetStatus() const;
     void Stop();
 
 private:
     void Run();
-    bool Queue(std::size_t section, nlohmann::json snapshot);
+    std::uint64_t Queue(std::size_t section, nlohmann::json snapshot);
     SettingsStore store_;
     mutable std::mutex mutex_;
     std::condition_variable wake_;

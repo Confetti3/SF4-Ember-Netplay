@@ -527,6 +527,33 @@ int main() try {
       }
     }
 
+    // A Paused table has no result coming. Either seated fighter may abandon
+    // it with a generation-scoped AbortMatch; the row never exists for a live
+    // game or for a spectator.
+    ApplyTheme(1.f); io.Fonts->Build(); io.DisplaySize = ImVec2(1280, 960);
+    const auto hasRow = [&](const char* id) {
+        return std::any_of(rows.begin(), rows.end(), [&](const MenuEntry& entry) { return entry.id == id; });
+    };
+    view.room.tables[0].phase = room::TablePhase::Playing;
+    view.room.tables[0].matchGeneration = 9;
+    view.session.authorityWritable = true;
+    shell.Navigation().Home(); frame(); shell.Navigation().Push("room-table"); frame();
+    Check(!hasRow("abandon-result"), "A live game offered Abandon unresolved game");
+    view.room.tables[0].phase = room::TablePhase::Paused; ++view.room.tables[0].revision; ++view.room.revision;
+    for (int i = 0; i < 5; ++i) frame();
+    Check(hasRow("abandon-result") && row("abandon-result").enabled, "A seated fighter cannot abandon an unresolved game");
+    Check(!row("unqueue").enabled && row("unqueue").detail.find("Abandon") != std::string::npos,
+        "Leave seat does not point a fighter at Abandon unresolved game");
+    focus("abandon-result"); const auto beforeAbandon = actions.size(); press(MenuInput::Select);
+    Check(actions.size() == beforeAbandon, "Abandon confirmation did not default to Cancel");
+    press(MenuInput::Right); press(MenuInput::Select);
+    Check(actions.size() == beforeAbandon + 1 && actions.back().roomAction.kind == room::ActionKind::AbortMatch &&
+        actions.back().roomAction.matchGeneration == 9, "Confirmed abandon did not submit a generation-scoped AbortMatch");
+    view.room.tables[0].p1 = 3; view.room.members[0].seat = -1; view.room.tables[0].spectators = {1};
+    ++view.room.tables[0].revision; ++view.room.revision;
+    for (int i = 0; i < 5; ++i) frame();
+    Check(!hasRow("abandon-result"), "A spectator was offered Abandon unresolved game");
+
     SetMenuStatusProbe({}); SetMenuCardProbe({}); SetMenuEntriesProbe({}); ImGui::DestroyContext();
     std::cout << "Room controls and uninterrupted controller, keyboard, mouse and queue frames passed.\n";
     return 0;

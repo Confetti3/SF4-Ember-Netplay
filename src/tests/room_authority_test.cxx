@@ -430,6 +430,80 @@ static void TestTerminalLifecycleGate() {
 	CHECK(authority.BeginMatch(0, p1, p2).accepted);
 }
 
+// Diverged peers report different results, which pauses the table at once.
+// Neither fighter can leave the seat or ready while Paused, so either fighter
+// must be able to abandon it without the host. The abandon awards nothing and
+// its receipt drains through the same terminal ACKs as any other ending.
+static void TestFighterAbandonsDisputedResult() {
+	RoomAuthority authority("Disputed result", 8, 311);
+	const auto host = Join(authority, 0, true);
+	const auto p1 = Join(authority, 1);
+	const auto p2 = Join(authority, 2);
+	const auto spectator = Join(authority, 3);
+	for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	CHECK(authority.Apply(spectator, TableAction(authority, spectator, 0, ActionKind::Watch)).accepted);
+	for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+	CHECK(authority.BeginMatch(0, p1, p2).accepted);
+	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
+	Action first = TableAction(authority, p1, 0, ActionKind::RecordResult);
+	first.matchGeneration = generation; first.result = MatchResult::P1Win;
+	CHECK(authority.Apply(p1, first).accepted);
+	Action second = TableAction(authority, p2, 0, ActionKind::RecordResult);
+	second.matchGeneration = generation; second.result = MatchResult::P2Win;
+	const auto disputed = authority.Apply(p2, second);
+	CHECK(disputed.accepted && authority.SnapshotView().tables[0].phase == TablePhase::Paused);
+
+	CHECK(!authority.Apply(p1, TableAction(authority, p1, 0, ActionKind::Unqueue)).accepted);
+	CHECK(!authority.Apply(p2, TableAction(authority, p2, 0, ActionKind::Ready)).accepted);
+	Action spectatorAbort = TableAction(authority, spectator, 0, ActionKind::AbortMatch);
+	spectatorAbort.matchGeneration = generation;
+	CHECK(!authority.Apply(spectator, spectatorAbort).accepted);
+	Action staleAbort = TableAction(authority, p2, 0, ActionKind::AbortMatch);
+	staleAbort.matchGeneration = generation + 1;
+	CHECK(!authority.Apply(p2, staleAbort).accepted);
+
+	Action abandon = TableAction(authority, p2, 0, ActionKind::AbortMatch);
+	abandon.matchGeneration = generation;
+	CHECK(authority.Apply(p2, abandon).accepted);
+	const auto released = authority.SnapshotView().tables[0];
+	CHECK(released.phase == TablePhase::Waiting && !released.resultPending);
+	CHECK(released.p1 == p1 && released.p2 == p2);
+	CHECK(released.score[0] == 0 && released.score[1] == 0);
+	CHECK(released.matchGeneration == generation);
+	Action replayedAbandon = TableAction(authority, p1, 0, ActionKind::AbortMatch);
+	replayedAbandon.matchGeneration = generation;
+	CHECK(authority.Apply(p1, replayedAbandon).accepted); // idempotent replay of the same terminal
+	CHECK(authority.SnapshotView().tables[0].score[0] == 0 && authority.SnapshotView().tables[0].score[1] == 0);
+
+	// The table stays fenced until every frozen recipient acknowledges. (A new
+	// action id: the replay above did not advance the revision.)
+	Action earlyReady = TableAction(authority, p1, 0, ActionKind::Ready);
+	++earlyReady.actionId;
+	const auto earlyReadyResult = authority.Apply(p1, earlyReady);
+	CHECK(!earlyReadyResult.accepted && earlyReadyResult.reason == RejectReason::TerminalLedgerFull);
+	for (const auto member : {p1, p2, spectator}) {
+		Action acknowledgment = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
+		acknowledgment.matchGeneration = generation;
+		CHECK(authority.Apply(member, acknowledgment).accepted);
+	}
+	for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+	CHECK(authority.BeginMatch(0, p1, p2).accepted);
+	CHECK(authority.SnapshotView().host == host);
+
+	// A fighter can also leave the seat once the abandoned game has drained.
+	const auto nextGeneration = authority.SnapshotView().tables[0].matchGeneration;
+	Action nextAbort = TableAction(authority, p1, 0, ActionKind::AbortMatch);
+	nextAbort.matchGeneration = nextGeneration;
+	CHECK(authority.Apply(p1, nextAbort).accepted);
+	for (const auto member : {p1, p2, spectator}) {
+		Action acknowledgment = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
+		acknowledgment.matchGeneration = nextGeneration;
+		CHECK(authority.Apply(member, acknowledgment).accepted);
+	}
+	CHECK(authority.Apply(p1, TableAction(authority, p1, 0, ActionKind::Unqueue)).accepted);
+	CHECK(authority.SnapshotView().tables[0].p1 != p1);
+}
+
 static void TestTerminalReceiptSurvivesCompaction() {
 	// Explicit native retirement may remove a fighter from the mutable room
 	// roster. The frozen endpoint/incarnation is still enough to restore the
@@ -624,6 +698,7 @@ int main() {
 	TestUnlimitedRematch();
 	TestMatchFinishedAndSeatLifecycle();
 	TestTerminalLifecycleGate();
+	TestFighterAbandonsDisputedResult();
 	TestQueueWatchAndReplay();
 	TestSnapshotBound();
 	TestDepartureRecoveryAndSnapshotValidation();

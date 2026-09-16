@@ -24,6 +24,9 @@ enum class DiagnosticTiming : std::size_t {
     PacingWait,
     DiagnosticEnqueue,
     TraceEnqueue,
+    FreeState,
+    EffectRestore,
+    VfxRestore,
     Count
 };
 constexpr std::size_t DiagnosticTimingCount = static_cast<std::size_t>(DiagnosticTiming::Count);

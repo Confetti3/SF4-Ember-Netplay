@@ -191,7 +191,8 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 void Overlay::DrawOverlay() {
 
     if (!ImGui::GetCurrentContext()) return;
-    const auto snapshot = sf4e::NetplayFacade::GetRuntimeSnapshot();
+    const auto sharedSnapshot = sf4e::NetplayFacade::GetRuntimeSnapshotShared();
+    const auto& snapshot = *sharedSnapshot;
     if (sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(s_overlayWindow) * snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
     presentation.Update(snapshot.atMainMenu, snapshot.session.match, snapshot.offlineRequested, focused);
     if(mainRequested.exchange(false) && presentation.Available()) presentation.Open();

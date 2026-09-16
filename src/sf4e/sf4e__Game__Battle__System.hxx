@@ -111,11 +111,12 @@ namespace sf4e {
 					// referenced by `keys`. `Save` transfers ownership in (it
 					// zeroes the live key afterwards), so a payload is
 					// reachable only through `keys` until something hands it
-					// back. `Free` restores the live keys from its scratch
-					// copy and must then drop that copy's claim WITHOUT
+					// back. `FreeByRoundTrip` restores the live keys from its
+					// scratch copy and must then drop that copy's claim WITHOUT
 					// calling the engine's ClearKey, or it frees the payloads
-					// out from under the keys that just took them back.
-					// See fSystem::SaveState::Free.
+					// out from under the keys that just took them back. The
+					// swap release clears the payloads itself and then drops
+					// the claim the same way. See fSystem::SaveState::Free.
 					bool ownsKeys = true;
 
 					// Frame identity (v2). simulationFrame is the engine
@@ -158,7 +159,13 @@ namespace sf4e {
 					SaveState(const SaveState&) = delete;
 					SaveState& operator=(const SaveState&) = delete;
 
+					// Releases a state's memento payloads without changing
+					// the live game. Swap-and-clear by default; see
+					// docs/SAVESTATE_FREE.md.
 					static void Free(SaveState* dst);
+					// The v0.8.5 release (install victim, clear, restore live),
+					// selected with SF4E_LEGACY_SAVESTATE_FREE=1.
+					static void FreeByRoundTrip(SaveState* dst);
 					static void Save(SaveState* dst, bool temporary = false);
 					static void Load(SaveState* src);
 
@@ -217,6 +224,9 @@ namespace sf4e {
 				static bool ggpo_on_event_callback(GGPOEvent* info);
 				static bool ggpo_begin_game_callback(const char*);
 				static unsigned RecentRollbackFrames();
+				// Publishes a GGPO-confirmed native outcome if one is waiting.
+				// Safe to call outside GGPO callbacks at any time.
+				static void PollNativeMatchResult();
                 static sf4e::MatchTelemetry matchTelemetry;
                 static void PollMatchTelemetry();
                 static bool ggpo_advance_frame_callback(int);

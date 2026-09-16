@@ -175,6 +175,20 @@ namespace sf4e {
 		};
 		RetainedRoomRetry _resultRetry, _finishRetry;
         std::deque<ActionReply> _actionReplies;
+		// Recently sent room actions, so a rejection reply can be logged with
+		// the action it refused. Diagnostics only; bounded and overwritten.
+		struct SentRoomAction {
+			std::uint64_t actionId = 0;
+			room::ActionKind kind = room::ActionKind::Queue;
+			std::uint8_t table = 0;
+			std::uint64_t generation = 0;
+		};
+		std::deque<SentRoomAction> _sentRoomActions;
+		// Retried actions keep their id; log each id/reason pair once.
+		std::uint64_t _lastRejectedActionId = 0;
+		room::RejectReason _lastRejectedReason = room::RejectReason::None;
+		void RememberSentRoomAction(const room::Action& action);
+		void LogRejectedRoomAction(std::uint64_t actionId, room::RejectReason reason);
         std::uint8_t _selectedDelay=2;
 		bool _customRoomsRequired = false;
 		int _mainFighter = -1;

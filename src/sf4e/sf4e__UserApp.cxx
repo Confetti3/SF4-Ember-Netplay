@@ -421,6 +421,9 @@ void fUserApp::Steam_PostUpdate() {
         diag::ScopedTimer _t(diag::OP_GGPO_IDLE);
         ggpo_idle(fSystem::ggpo, 0);
     }
+    // After the final advance, the peer's inputs for the result frames can
+    // still be confirmed by this poll. Publish from here too.
+    fSystem::PollNativeMatchResult();
 
     // Distributed time-sync pacing (Phase 4): repay a small, bounded slice
     // of the outstanding correction per rendered frame, outside every GGPO
@@ -539,7 +542,7 @@ void fUserApp::Steam_PostUpdate() {
         // and never per frame.
         if (fSystem::ggpo && d.PeriodicSummaryDue(now, 10.0)) {
             diag::ScopedTimer logTimer(diag::OP_DIAGNOSTIC_ENQUEUE);
-            static char s_diagBuf[8192];
+            static char s_diagBuf[16384];
             size_t n = d.FormatSummary(s_diagBuf, sizeof(s_diagBuf), "periodic");
             if (n) {
                 spdlog::info("\n{}", s_diagBuf);
