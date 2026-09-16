@@ -160,7 +160,9 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
         snapshot.lobbySettings.editionSelect, snapshot.fighterAvailability[lobbyMenuCharaID]))
         view.selectionError = "Selection unavailable under these rules. Open Fighter Select to choose an available option.";
     const auto status = sf4e::NetplayFacade::GetStatus();
-    if (view.error.empty() && status.lastError[0]) view.error = status.lastError;
+    // Outside a fight the shell status line carries the notice; transient
+    // info ("Connection restored.") belongs to the match HUD only.
+    if (view.error.empty() && status.lastError[0] && status.lastErrorSeverity != sf4e::NoticeSeverity::Info) view.error = status.lastError;
 	bool open = true;
     shell.Draw(view, &open, [&](sf4e::ui::ShellAction action) {
 		sf4e::NetplayFacade::RuntimeCommand request;
@@ -259,7 +261,7 @@ void Overlay::DrawOverlay() {
         ImGui::TextUnformatted("SF4 Ember Netplay  /  F10 or Start"); ImGui::End();
     }
     if(fSystem::ggpo)sf4e::ui::DrawControllerWarning(snapshot.gameplayInputError);
-    if (fSystem::ggpo && snapshot.preferences.showMatchHud) {
+    if (fSystem::ggpo) {
         const auto status = sf4e::NetplayFacade::GetStatus();
         sf4e::ui::MatchStripView strip;
         for (int side = 0; side < 2; ++side) strip.names[side] = status.matchNames[side];
@@ -267,7 +269,16 @@ void Overlay::DrawOverlay() {
         strip.pingMs = status.pingMs; strip.appliedDelay = status.appliedDelay;
         strip.spectator = status.spectator;
         strip.size = snapshot.preferences.matchHudSize; strip.raised = snapshot.preferences.matchHudRaised;
-        sf4e::ui::DrawMatchStrip(strip);
+        strip.notice = status.lastError; strip.noticeSeverity = static_cast<int>(status.lastErrorSeverity);
+        strip.connectionWarning = status.connectionWarning; strip.predictionStalled = status.predictionStalled;
+        strip.disconnectCountdownMs = status.disconnectCountdownMs;
+        if (snapshot.preferences.showMatchHud) sf4e::ui::DrawMatchStrip(strip);
+        else {
+            // The player hid the telemetry, not the reasons a fight stalls or ends.
+            const auto line = sf4e::ui::MatchStripStateLine(strip);
+            const int severity = strip.noticeSeverity >= 2 ? 2 : (strip.connectionWarning || strip.predictionStalled) ? 1 : strip.noticeSeverity;
+            sf4e::ui::DrawMatchNotice(line, severity);
+        }
     }
     sf4e::OverlayPrefs::Data prefs = s_prefs;
     sf4e::OverlayPrefs::FromConfirmed(prefs.lobby, lobbyConditions); prefs.stageID = lobbyStageID;

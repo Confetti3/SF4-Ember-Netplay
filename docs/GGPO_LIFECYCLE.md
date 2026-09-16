@@ -2,6 +2,44 @@
 
 Historical audit: this document describes the pre-Iroh baseline below. Current transport ownership is documented in [EMBER_IMPLEMENTATION.md](EMBER_IMPLEMENTATION.md); the simulation and callback-affinity constraints still apply.
 
+## Status of the phase items (v0.8.7)
+
+The audit below is kept as written. What it flagged has since changed:
+
+- **Playback scope guard (Phase 2):** `PlaybackFrameScopeGuard` restores
+  `fPadSystem::playbackFrame` on every exit of the netplay step, the rollback
+  callback and the stress harness. Only the developer `nExtraFramesToSimulate`
+  loop still sets it by hand.
+- **Save frame (Phase 6):** the save callback stores its frame argument in
+  `SaveState::ggpoFrame` next to the engine frame. `SaveState` holds no hashes;
+  the checkpoint ring does.
+- **`ggpo_idle` sleep (Phase 3):** the outer tick calls `ggpo_idle(ggpo, 0)`.
+  Since v0.8.7 `fSystem::BattleUpdate` also pumps once immediately before
+  `ggpo_add_local_input`, so remote inputs that arrived since the previous
+  post-render poll are used on this frame rather than the next.
+- **Timesync (Phase 4):** the event callback no longer sleeps; corrections go
+  through `PacingController` and are repaid in bounded slices in the outer tick.
+- **`SaveState::Free`:** the default release is the v0.8.6 swap-and-clear path
+  ([SAVESTATE_FREE.md](SAVESTATE_FREE.md)); the round trip described below is
+  the `SF4E_LEGACY_SAVESTATE_FREE=1` path. Sound records are flat vectors that
+  keep their capacity, and a restore never inserts entries the save did not record.
+- **`bUpdateAllowed` writers:** the table below predates `GgpoGateModel`.
+  `s_updateAllowedBeforeGgpoInterrupt` no longer exists. Since v0.8.7
+  `RetireGgpoSession` reopens the gate (`bUpdateAllowed = !manualPause`) once
+  the session is gone; before that an abort left it closed and the next
+  offline battle never advanced.
+- **Closing the session:** `ggpo_close_session` deletes the backend and the
+  fork keeps invoking the advance-frame callback after a callback returns, so
+  since v0.8.7 no callback closes the session. `AbortGgpoMatch` inside a
+  callback latches (`sf4e__GgpoAbortLatch.hxx`), marks the gate fatal, and
+  `DrainPendingAbort` closes the session after the GGPO API call returns.
+- **Phase 7:** control-plane loss during a healthy fight degrades instead of
+  closing GGPO (`NetplayFacade::HandleControlPlaneLoss`).
+- **Spectator mismatch policy (Phase 6):** both the v1 snapshot path and the v2
+  hash path send only from players and never let a local spectator end the
+  players' fight. A spectator's own disconnect event is also ignored by the
+  fighters' session.
+
 Baseline: branch `main` @ `a6a3aa9fa0de40aa` ("Fix training room round timer instantly
 expiring"), clean working tree (untracked `crash-logs-20260718/` only). Build preset
 `default` (= `x86-msvc-ninja-relwithdebinfo`) builds clean; `ctest` baseline:

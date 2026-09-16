@@ -121,7 +121,9 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     if(entriesProbe)entriesProbe(entries);
     const bool changed=lastScreen_!=navigation.Screen();
     const bool home=std::strcmp(title,"SF4 EMBER")==0;
-    const auto windowSize=ImGui::GetWindowSize();const bool roomy=windowSize.x>=1000&&windowSize.x/windowSize.y>=1.5f;
+    // Scaled like every other breakpoint, so a 1.5x interface on a 1024-wide
+    // window takes the same layout decision as the header and the galleries.
+    const auto windowSize=ImGui::GetWindowSize();const bool roomy=windowSize.x>=1000*Scale()&&windowSize.x/windowSize.y>=1.5f;
     const float homeMargin=roomy?windowSize.x*.10f:20*Scale();
     if(menuArt&&!flyout) {
         const auto art=menuArt->MenuBackdrop();const auto p=ImGui::GetWindowPos(),size=ImGui::GetWindowSize();

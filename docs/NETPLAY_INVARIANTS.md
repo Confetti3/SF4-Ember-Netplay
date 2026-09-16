@@ -41,6 +41,20 @@ Do not change these behaviors without regression testing (SessionInteractiveTest
   end) instead of closing GGPO. Legacy-tunnel matches still fail fully.
 - Diagnostics (`SF4E_ROLLBACK_DIAGNOSTICS=1`) must never change simulation
   state and must stay allocation-free per frame.
+- Never call `ggpo_close_session` from inside a GGPO callback. The fork deletes
+  the backend and keeps calling the advance-frame callback afterwards. Every
+  callback body is wrapped in `GgpoCallbackScope`; an abort raised inside one
+  latches and `fSystem::DrainPendingAbort()` completes it after the top-level
+  GGPO call returns (see `sf4e__GgpoAbortLatch.hxx`).
+- `RetireGgpoSession` reopens `bUpdateAllowed` (unless manually paused). An
+  abort must not leave offline battles gated.
+- A spectator handle's `DISCONNECTED_FROM_PEER`, and a spectator's v1 snapshot
+  or v2 hash mismatch, never end the two fighters' game.
+- `fSystem::BattleUpdate` pumps `ggpo_idle(ggpo, 0)` before adding local
+  input. Do not remove it: without it a remote input that arrived after the
+  post-render poll is used one frame late.
+- Every netplay alert goes through `NetplayFacade::PushAlert(text, severity)`
+  and is shown by the match HUD state line; do not add a second channel.
 
 ## Relay mode
 

@@ -52,8 +52,19 @@ struct MatchStripView {
     unsigned rollbackFrames = 0;
     int pingMs = -1, appliedDelay = -1, size = 1;
     bool spectator = false, raised = false;
+    // Link state and the latest netplay notice, drawn on a line above the
+    // telemetry. Severity: 0 info, 1 warning, 2 error (matches NoticeSeverity).
+    std::string notice;
+    int noticeSeverity = 0;
+    bool connectionWarning = false, predictionStalled = false;
+    int disconnectCountdownMs = -1;
 };
 void DrawMatchStrip(const MatchStripView& view);
+// The single line the strip shows for the link state, or empty. Exposed so
+// the render harness and tests can check the wording without a draw list.
+std::string MatchStripStateLine(const MatchStripView& view);
+// A notice without the telemetry strip (match HUD hidden by the player).
+void DrawMatchNotice(const std::string& message, int severity);
 // Exposed for the render harness: Small/Standard/Large must not collapse.
 float MatchStripScale(const MatchStripView& view);
 void DrawMatchStripPreview(const MatchStripView& view);

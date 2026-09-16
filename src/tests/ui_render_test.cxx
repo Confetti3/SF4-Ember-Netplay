@@ -551,6 +551,28 @@ int main(int argc, char** argv) {
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"DirectInput HUD captured input");
             SetMenuGlyphs(0,0,0);draw("training-hud-keyboard");SetMenuGlyphs(3,0x40000,0x20000);
             mode=3;draw("match-hud");
+            {
+                // The strip's link-state line: the most urgent condition wins,
+                // a stall names itself, a warning carries the drop countdown.
+                MatchStripView strip;strip.names[0]="P1";strip.names[1]="P2";
+                Require(MatchStripStateLine(strip).empty(),"Match HUD shows a state line with nothing to say");
+                strip.notice="Connection restored.";strip.noticeSeverity=0;
+                Require(MatchStripStateLine(strip)=="Connection restored.","Info notice not shown on the match HUD");
+                strip.connectionWarning=true;strip.disconnectCountdownMs=2100;
+                Require(MatchStripStateLine(strip)=="Connection unstable. Opponent dropped in 3 s","Connection warning countdown missing or wrong rounding");
+                strip.disconnectCountdownMs=-1;
+                Require(MatchStripStateLine(strip)=="Connection unstable","Connection warning without a countdown");
+                strip.predictionStalled=true;
+                Require(MatchStripStateLine(strip)=="Waiting for opponent...","A prediction stall must be named on the match HUD");
+                strip.notice="Opponent disconnected. The match is over.";strip.noticeSeverity=2;
+                Require(MatchStripStateLine(strip)=="Opponent disconnected. The match is over.","An error notice must outrank the stall and warning lines");
+                strip.pingMs=68;strip.rollbackFrames=7;strip.appliedDelay=2;
+                matchStrip=strip;mode=3;draw("match-hud-disconnected");
+                matchStrip.notice.clear();matchStrip.noticeSeverity=0;matchStrip.predictionStalled=false;
+                matchStrip.connectionWarning=true;matchStrip.disconnectCountdownMs=1400;draw("match-hud-warning");
+                matchStrip.connectionWarning=false;matchStrip.disconnectCountdownMs=-1;matchStrip.predictionStalled=true;draw("match-hud-stalled");
+                matchStrip.predictionStalled=false;
+            }
             for(int hudSize=0;hudSize<3;++hudSize){
                 matchStrip.size=hudSize;
                 const auto shot="match-hud-size-"+std::to_string(hudSize);draw(shot.c_str());

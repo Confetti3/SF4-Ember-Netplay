@@ -314,6 +314,137 @@ static void TestMaximumRoomResultBurst() {
 		CHECK(replies.count({connection, connection == 1 ? room::MaximumChatMessages + 1 : 1}) == 1);
 }
 
+// A recipient that missed its MatchEnded (lost while reconnecting) can never
+// acknowledge the receipt, and the table stays fenced. The server must be
+// able to replay exactly the receipts a member still owes: once, to the
+// member's connection, with the terminal-replay flag, plus the native
+// game_end the fighter may still be waiting for.
+static void TestTerminalReceiptReplay() {
+	auto* transport = new MockTransport();
+	SessionServer server("terminal-replay", "build", true, 3, {0, 99},
+		std::unique_ptr<session::ServerTransport>(transport));
+	std::array<std::uint8_t, 16> authorizationRoom = {};
+	authorizationRoom[0] = 74;
+	server.EnableMatchAuthorization(authorizationRoom, [](session::Connection connection) {
+		std::string identity(64, '0');
+		identity[63] = "0123456789abcdef"[static_cast<std::size_t>(connection) & 15];
+		return identity;
+	});
+	server.EnableCustomRooms("Terminal replay", 4, 80);
+	CHECK(server.Listen(0) == 0);
+	for (session::Connection connection = 1; connection <= 3; ++connection) {
+		protocol::SessionJoinRequest join;
+		join.username = "Replay-" + std::to_string(connection);
+		join.sidecarHash = "build";
+		join.port = static_cast<std::uint16_t>(34000 + connection);
+		join.customRooms = true;
+		join.roomProtocol = room::ProtocolVersion;
+		protocol::SessionHelloMsg hello;
+		hello.admission = json(join);
+		transport->Push(connection, json(hello));
+		CHECK(server.Step() == 0);
+		CHECK(server.roomMembers.count(connection) == 1);
+	}
+	const auto admitted = *server.RoomSnapshot();
+	room::RoomAuthority model("Terminal replay", 4, admitted.roomEpoch);
+	for (const auto& member : admitted.members) {
+		CHECK(model.Join(member.name, member.connection, member.id == admitted.host, member.mainFighter).accepted);
+		model.SetMemberIncarnation(member.id, member.incarnation);
+	}
+	const auto applyTable = [&](room::MemberId member, room::ActionKind kind, std::uint64_t actionId) {
+		room::Action action;
+		action.kind = kind;
+		action.roomEpoch = model.SnapshotView().roomEpoch;
+		action.revision = model.SnapshotView().revision;
+		action.tableRevision = model.SnapshotView().tables[0].revision;
+		action.actionId = actionId;
+		action.table = 0;
+		return model.Apply(member, action);
+	};
+	CHECK(applyTable(admitted.members[0].id, room::ActionKind::Queue, 1).accepted);
+	CHECK(applyTable(admitted.members[1].id, room::ActionKind::Queue, 2).accepted);
+	CHECK(applyTable(admitted.members[2].id, room::ActionKind::Watch, 3).accepted);
+	const auto seated = model.SnapshotView().tables[0];
+	CHECK(applyTable(seated.p1, room::ActionKind::Ready, 4).accepted);
+	CHECK(applyTable(seated.p2, room::ActionKind::Ready, 5).accepted);
+	CHECK(model.BeginMatch(0, seated.p1, seated.p2).accepted);
+	const auto generation = model.SnapshotView().tables[0].matchGeneration;
+	CHECK(model.EndMatch(0, generation, room::MatchResult::P2Win).accepted);
+	// The spectator already acknowledged; the two fighters did not.
+	{
+		room::Action ack;
+		ack.kind = room::ActionKind::AcknowledgeTerminal;
+		ack.roomEpoch = model.SnapshotView().roomEpoch;
+		ack.table = 0; ack.matchGeneration = generation; ack.actionId = 6;
+		CHECK(model.Apply(admitted.members[2].id, ack).accepted);
+	}
+	auto checkpoint = server.Checkpoint();
+	checkpoint["room"] = model.Checkpoint();
+	CHECK(server.RestoreCheckpoint(checkpoint));
+
+	const auto typeNamed = [](const json& message, const char* type) {
+		return message.contains("type") && message.at("type").is_string() && message.at("type").get<std::string>() == type;
+	};
+	const auto replayedEvents = [&](session::Connection connection) {
+		std::size_t events = 0;
+		for (const auto& sent : transport->outgoing) {
+			if (sent.first != connection) continue;
+			if (!typeNamed(sent.second, "room_event")) continue;
+			const auto event = sent.second.at("event");
+			CHECK(event.at("kind").get<int>() == static_cast<int>(room::Event::Kind::MatchEnded));
+			CHECK(event.at("match_generation").get<std::uint64_t>() == generation);
+			CHECK(event.at("result").get<int>() == static_cast<int>(room::MatchResult::P2Win));
+			CHECK(event.at("terminal_replay").get<bool>());
+			++events;
+		}
+		return events;
+	};
+	const auto nativeEnds = [&](session::Connection connection) {
+		std::size_t count = 0;
+		for (const auto& sent : transport->outgoing)
+			if (sent.first == connection && typeNamed(sent.second, "game_end") &&
+				sent.second.at("generation").get<std::uint64_t>() == generation) ++count;
+		return count;
+	};
+	// A fighter that owes the receipt gets exactly one replay and one game_end.
+	transport->outgoing.clear();
+	CHECK(server.ReplayPendingTerminalEvents(1, server.roomMembers.at(1)) == 1);
+	CHECK(replayedEvents(1) == 1);
+	// game_end is an after-data message: it leaves with the next step.
+	CHECK(server.Step() == 0);
+	CHECK(replayedEvents(1) == 1);
+	CHECK(nativeEnds(1) == 1);
+	CHECK(replayedEvents(2) == 0);
+	// The spectator that already acknowledged owes nothing.
+	transport->outgoing.clear();
+	CHECK(server.ReplayPendingTerminalEvents(3, server.roomMembers.at(3)) == 0);
+	CHECK(transport->outgoing.empty());
+	// Unknown member or connection: nothing is sent.
+	CHECK(server.ReplayPendingTerminalEvents(0, server.roomMembers.at(2)) == 0);
+	CHECK(server.ReplayPendingTerminalEvents(2, 0) == 0);
+	CHECK(transport->outgoing.empty());
+	// An acknowledgement for a generation the ledger does not hold is
+	// answered with the receipts the member actually owes.
+	{
+		room::Action wrong;
+		wrong.kind = room::ActionKind::AcknowledgeTerminal;
+		wrong.roomEpoch = server.RoomSnapshot()->roomEpoch;
+		wrong.table = 0; wrong.matchGeneration = generation + 40; wrong.actionId = 7;
+		protocol::RoomActionMessage message;
+		message.action = wrong;
+		transport->outgoing.clear();
+		transport->Push(2, json(message));
+		CHECK(server.Step() == 0);
+		bool rejected = false;
+		for (const auto& sent : transport->outgoing)
+			if (sent.first == 2 && typeNamed(sent.second, "room_result"))
+				rejected = !sent.second.at("result").at("accepted").get<bool>();
+		CHECK(rejected);
+		CHECK(replayedEvents(2) == 1);
+		CHECK(nativeEnds(2) == 1);
+	}
+}
+
 static void TestTerminalAcknowledgmentBatch() {
 	auto* transport = new MockTransport();
 	SessionServer server("terminal-ack-batch", "build", true, 3, {0, 99},
@@ -1417,6 +1548,7 @@ int main() {
 	TestSameTermProposalPause();
 	TestMaximumRoomResultBurst();
 	TestTerminalAcknowledgmentBatch();
+	TestTerminalReceiptReplay();
 	TestCommittedSessionGate();
 	TestCustomRoomDepartures();
 	std::cout << "Session server mock transport tests passed\n";

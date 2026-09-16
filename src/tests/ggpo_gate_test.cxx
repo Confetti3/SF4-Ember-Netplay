@@ -3,6 +3,9 @@
 #include <stdio.h>
 
 #include "../common/sf4e__GgpoGate.hxx"
+#include "../common/sf4e__GgpoAbortLatch.hxx"
+
+#include <string.h>
 
 using namespace sf4e::gate;
 
@@ -171,7 +174,80 @@ static void TestClassifier() {
 	CHECK(ClassifyGgpoResult(12345) == POLICY_FATAL); // unknown codes are fatal
 }
 
+// The session must never be closed from inside a GGPO callback: the fork
+// keeps calling the advance-frame callback after it returns. Outside a
+// callback an abort proceeds at once; inside one it is latched and handed
+// out only once every callback frame has unwound.
+static void TestAbortLatchOutsideCallbackIsImmediate() {
+	AbortLatch latch;
+	CHECK(!latch.InCallback());
+	CHECK(!latch.Request("sync failed")); // not latched: caller closes now
+	CHECK(!latch.pending);
+	char reason[256] = "untouched";
+	CHECK(!latch.Take(reason, sizeof(reason)));
+	CHECK(strcmp(reason, "untouched") == 0);
+}
+
+static void TestAbortLatchInsideCallbackDefers() {
+	AbortLatch latch;
+	char reason[256] = {};
+	{
+		AbortLatch::Scope callback(latch);
+		CHECK(latch.InCallback());
+		CHECK(latch.Request("first reason"));
+		CHECK(latch.pending);
+		// A second abort in the same burst keeps the first explanation.
+		CHECK(latch.Request("second reason"));
+		CHECK(strcmp(latch.reason, "first reason") == 0);
+		// Still inside the callback: nothing may be taken yet.
+		CHECK(!latch.Take(reason, sizeof(reason)));
+		CHECK(reason[0] == '\0');
+	}
+	CHECK(!latch.InCallback());
+	CHECK(latch.Take(reason, sizeof(reason)));
+	CHECK(strcmp(reason, "first reason") == 0);
+	CHECK(!latch.pending);
+	CHECK(latch.reason[0] == '\0');
+	CHECK(!latch.Take(reason, sizeof(reason))); // drained exactly once
+}
+
+static void TestAbortLatchNestedCallbacks() {
+	// ggpo_advance_frame inside the rollback callback runs the save
+	// callback: depth two. The abort is taken only after both unwind.
+	AbortLatch latch;
+	char reason[256] = {};
+	{
+		AbortLatch::Scope outer(latch);
+		{
+			AbortLatch::Scope inner(latch);
+			CHECK(latch.depth == 2);
+			CHECK(latch.Request("buffer full"));
+		}
+		CHECK(latch.depth == 1);
+		CHECK(!latch.Take(reason, sizeof(reason)));
+	}
+	CHECK(latch.depth == 0);
+	CHECK(latch.Take(reason, sizeof(reason)));
+	CHECK(strcmp(reason, "buffer full") == 0);
+}
+
+static void TestAbortLatchResetDropsPending() {
+	AbortLatch latch;
+	{
+		AbortLatch::Scope callback(latch);
+		CHECK(latch.Request("stale"));
+	}
+	latch.Reset(); // a new session started before the outer tick drained it
+	char reason[256] = {};
+	CHECK(!latch.Take(reason, sizeof(reason)));
+	CHECK(!latch.pending);
+}
+
 int main() {
+	TestAbortLatchOutsideCallbackIsImmediate();
+	TestAbortLatchInsideCallbackDefers();
+	TestAbortLatchNestedCallbacks();
+	TestAbortLatchResetDropsPending();
 	TestLifecycleGating();
 	TestConnectionWarningDoesNotBlock();
 	TestWarningPlusManualPause();

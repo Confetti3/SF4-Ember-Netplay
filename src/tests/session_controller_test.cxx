@@ -20,6 +20,27 @@ static Decision EventNow(SessionController& controller, EventKind kind) {
     event.kind = kind; event.generation = controller.GetSnapshot().generation;
     return controller.Apply(event);
 }
+// A battle that closes before GGPO reaches Running (the peer never
+// synchronised) must still end the match. Rejecting MatchEnded from
+// Preparing left the controller there for good, and Ready stays refused
+// while the match state is not None or PostMatch.
+static void TestMatchEndedFromPreparing() {
+    SessionController controller;
+    CHECK(CommandNow(controller, CommandKind::HostRoom).accepted);
+    CHECK(EventNow(controller, EventKind::RoomJoined).accepted);
+    CHECK(CommandNow(controller, CommandKind::Ready).effect == Effect::SendReady);
+    CHECK(EventNow(controller, EventKind::MatchPreparing).accepted);
+    CHECK(controller.GetSnapshot().match == MatchState::Preparing);
+    CHECK(EventNow(controller, EventKind::MatchEnded).accepted);
+    CHECK(controller.GetSnapshot().match == MatchState::PostMatch);
+    CHECK(CommandNow(controller, CommandKind::Rematch).effect == Effect::SendReady);
+    // From None there is still nothing to end.
+    SessionController idle;
+    CHECK(CommandNow(idle, CommandKind::HostRoom).accepted);
+    CHECK(EventNow(idle, EventKind::RoomJoined).accepted);
+    CHECK(!EventNow(idle, EventKind::MatchEnded).accepted);
+}
+
 static void StartMatch(SessionController& controller) {
     CHECK(CommandNow(controller, CommandKind::Ready).effect == Effect::SendReady);
     CHECK(!CommandNow(controller, CommandKind::Ready).accepted);
@@ -30,6 +51,7 @@ static void StartMatch(SessionController& controller) {
 }
 
 int main() {
+    TestMatchEndedFromPreparing();
     // Ordinary checkpoint delivery can trail the healthy coordination watch.
     // It pauses mutation, but must not announce a lost connection or erase Ready.
     SessionController syncing;

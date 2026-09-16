@@ -210,7 +210,10 @@ Decision SessionController::Apply(const Event& event) {
         state_.verificationAvailable = true;
         return Accept();
     case EventKind::MatchEnded:
-        if (state_.match != MatchState::Playing) { return Decision(); }
+        // A battle that closes before GGPO ever reached Running (the peer
+        // never synchronised) still ends the match; leaving Preparing in
+        // place fenced Ready for the rest of the room's life.
+        if (state_.match != MatchState::Playing && state_.match != MatchState::Preparing) { return Decision(); }
         state_.verificationAvailable = false;
         state_.gameplay = Health::Offline;
         if (state_.control == Health::Lost && !state_.coordinated) {

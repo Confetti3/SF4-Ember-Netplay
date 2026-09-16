@@ -53,7 +53,6 @@ namespace sf4e {
 
 				static bool bHaltAfterNext;
 				static bool bUpdateAllowed;
-				static bool bGgpoConnectionInterrupted;
 
 				// Explicit gate model (Phase 2). Tracks session phase,
 				// connection warnings, and prediction stalls separately from
@@ -125,14 +124,20 @@ namespace sf4e {
 					int simulationFrame = -1;
 					int ggpoFrame = -1;
 					std::vector<std::pair<GameMementoKey*, GameMementoKey>> keys;
-					std::map<
+					// Flat, capacity-retaining records of the sound state. A
+					// save runs once per simulated and once per re-simulated
+					// frame, so these must not allocate per save. Entries are
+					// appended in shadowManagerMap order and looked up by a
+					// linear scan on restore; an adapter or manager that was
+					// not recorded is left untouched (never zeroed).
+					std::vector<std::pair<
 						Dimps::Game::Battle::Sound::SoundPlayerManager::CriPlayerAdapter*,
 						Sound::SoundPlayerManager::DeferredSoundRequest
-					> criPlayerState;
-					std::map<
+					>> criPlayerState;
+					std::vector<std::pair<
 						Dimps::Game::Battle::Sound::SoundPlayerManager*,
 						Platform::SoundObjectPool<4>::SaveState
-					> managerState;
+					>> managerState;
 
 					struct GlobalData {
 						DWORD CurrentBattleFlow = 0;
@@ -218,7 +223,17 @@ namespace sf4e {
 
 				static void ApplyGgpoDisconnectSettings(GGPOSession* session);
 				static void RetireGgpoSession(const char* diagnosticsLabel);
+				// Safe to call from anywhere, including GGPO callbacks: inside a
+				// callback the abort is latched and completed by
+				// DrainPendingAbort() once the top-level GGPO call returns.
 				static void AbortGgpoMatch(const char* reason);
+				// Completes an abort latched inside a callback. Returns true
+				// when a session was closed. Must be called after every
+				// top-level GGPO API call that can run callbacks.
+				static bool DrainPendingAbort();
+				// Milliseconds until GGPO drops the interrupted peer, or -1
+				// when no connection warning is active. HUD only.
+				static int DisconnectCountdownMs();
 				static void StartGGPO(GGPOPlayer* players, int numPlayers, int port, int frameDelay, DWORD rngSeed);
 				static void StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port, DWORD rngSeed);
 				static bool ggpo_on_event_callback(GGPOEvent* info);

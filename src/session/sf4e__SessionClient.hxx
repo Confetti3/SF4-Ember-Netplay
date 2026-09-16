@@ -139,6 +139,9 @@ namespace sf4e {
 		// True when this client occupies one of the two player slots of the
 		// current lobby. Spectator hash mismatches are diagnostics only.
 		bool IsLocalPlayer() const;
+		// Ends the fight after a confirmed divergence and notifies the player.
+		// A local spectator is never allowed to end the players' fight.
+		void TerminateOnDesync(const char* stage, int frameIdx);
 	private:
 
 		// Connection related data
@@ -163,6 +166,8 @@ namespace sf4e {
 			// A later authenticated projection may confirm a lost action reply,
 			// but only after this exact recipient/generation was observed pending.
 			std::uint64_t observedPendingRevision = 0;
+			// WrongGeneration replies so far; the ack is dropped after three.
+			unsigned rejections = 0;
 		};
 		std::deque<PendingTerminalAck> _pendingTerminalAcks;
 		std::uint64_t _stepCounter = 0;

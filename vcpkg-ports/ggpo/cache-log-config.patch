@@ -1,0 +1,65 @@
+diff --git a/src/lib/ggpo/log.cpp b/src/lib/ggpo/log.cpp
+--- a/src/lib/ggpo/log.cpp
++++ b/src/lib/ggpo/log.cpp
+@@ -26,9 +26,23 @@ void Log(const char *fmt, ...)
+    va_end(args);
+ }
+ 
++/*
++ * The configuration lookups read environment variables, and Log is called
++ * several times per packet and once per poll. Read them once per process so
++ * a disabled log costs a branch, not a formatting pass and two lookups.
++ */
++bool LogEnabled()
++{
++   static int enabled = -1;
++   if (enabled < 0) {
++      enabled = (Platform::GetConfigBool("ggpo.log") && !Platform::GetConfigBool("ggpo.log.ignore")) ? 1 : 0;
++   }
++   return enabled == 1;
++}
++
+ void Logv(const char *fmt, va_list args)
+ {
+-   if (!Platform::GetConfigBool("ggpo.log") || Platform::GetConfigBool("ggpo.log.ignore")) {
++   if (!LogEnabled()) {
+       return;
+    }
+    if (!logfile) {
+@@ -40,7 +54,11 @@ void Logv(const char *fmt, va_list args)
+ 
+ void Logv(FILE *fp, const char *fmt, va_list args)
+ {
+-   if (Platform::GetConfigBool("ggpo.log.timestamps")) {
++   static int timestamps = -1;
++   if (timestamps < 0) {
++      timestamps = Platform::GetConfigBool("ggpo.log.timestamps") ? 1 : 0;
++   }
++   if (timestamps == 1) {
+       static int start = 0;
+       int t = 0;
+       if (!start) {
+diff --git a/src/lib/ggpo/log.h b/src/lib/ggpo/log.h
+--- a/src/lib/ggpo/log.h
++++ b/src/lib/ggpo/log.h
+@@ -8,6 +8,7 @@
+ #ifndef _LOG_H
+ #define _LOG_H
+ 
++extern bool LogEnabled();
+ extern void Log(const char *fmt, ...);
+ extern void Logv(const char *fmt, va_list list);
+ extern void Logv(FILE *fp, const char *fmt, va_list args);
+diff --git a/src/lib/ggpo/network/udp_proto.cpp b/src/lib/ggpo/network/udp_proto.cpp
+--- a/src/lib/ggpo/network/udp_proto.cpp
++++ b/src/lib/ggpo/network/udp_proto.cpp
+@@ -491,6 +491,9 @@ UdpProtocol::Log(const char *fmt, ...)
+    size_t offset;
+    va_list args;
+ 
++   if (!LogEnabled()) {
++      return;
++   }
+    sprintf_s(buf, ARRAY_SIZE(buf), "udpproto%d | ", _queue);
+    offset = strlen(buf);
+    va_start(args, fmt);

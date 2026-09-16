@@ -45,7 +45,8 @@ void Meter(const MeterView& meter, float hudScale) {
         if (meter.startupFrames[side] >= 0) ImGui::Text("Start %d f", meter.startupFrames[side]);
         else {
             ImGui::TextDisabled("Start --");
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", Unavailable("Startup", meter.startupUnavailable[side]));
+            if (ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), false))
+                ImGui::SetTooltip("%s", Unavailable("Startup", meter.startupUnavailable[side]));
         }
         ImGui::SameLine(rowStart + label);
         const ImVec2 origin = ImGui::GetCursorScreenPos();
@@ -193,7 +194,10 @@ void DrawTrainingHud(const training::View& view) {
         Meter(view.meter, hudScale);
         ImGui::TextDisabled("FRAME ADVANTAGE | %s",
             view.meter.advantage.pending ? "measuring" : view.meter.advantage.knockdown ? "wakeup" : view.meter.frozen ? "held" : "live");
-        if (!view.meter.advantage.valid && ImGui::IsItemHovered())
+        // The HUD is a NoInputs window, so IsItemHovered is always false here;
+        // test the pointer against the item rectangle instead. The tooltip is
+        // its own window and does not make the HUD capture input.
+        if (!view.meter.advantage.valid && ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), false))
             ImGui::SetTooltip("%s", Unavailable("Advantage", view.meter.advantage.unavailable));
         // Training shortcuts are keyboard-only; this passive HUD never captures input.
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImVec2(0,0));

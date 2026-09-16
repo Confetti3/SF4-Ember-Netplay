@@ -126,6 +126,11 @@ namespace sf4e {
 		bool RebindMembers(const std::vector<StableRebind>& bindings);
 		bool RebindMember(room::MemberId member, session::Connection local, const SessionProtocol::ConnectionID& cid,
 			std::uint64_t incarnation);
+		// Re-delivers every MatchEnded receipt this member has not yet
+		// acknowledged (lost while disconnected or compacted). Returns the
+		// number of events sent. Without this a recipient that missed its
+		// MatchEnded could never acknowledge, and the table stayed fenced.
+		std::size_t ReplayPendingTerminalEvents(session::Connection connection, room::MemberId member);
 
 		size_t ConnectedClientCount() const { return clients.size(); }
 

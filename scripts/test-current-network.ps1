@@ -39,7 +39,7 @@ $hashes = foreach ($artifact in $artifacts) {
 $hashes | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'artifacts.json')
 $completionMarkers=@{
     'room'='C++ SessionClient/SessionServer over two Iroh helpers passed:'
-    'queue-acks'='C++ SessionClient/SessionServer over two Iroh helpers passed:'
+    'queue-acks'='192 identical terminal retries retained one queued action'
     'game'='C++ raw UDP bridge:'
     'authorized'='Four participants, three fresh authorized GGPO matches'
     'terminal-recovery'='Four participants, three fresh authorized GGPO matches'

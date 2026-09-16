@@ -25,6 +25,7 @@
 #include "../Dimps/Dimps__Platform.hxx"
 
 #include "../common/sf4e__RollbackDiagnostics.hxx"
+#include "../common/sf4e__GgpoAbortLatch.hxx"
 #include "../common/RollbackHud.hxx"
 static sf4e::RollbackHud rollbackHud;
 #include "../common/sf4e__StateHash.hxx"
@@ -76,6 +77,17 @@ using rSystem = Dimps::Game::Battle::System;
 // Last disconnect_flags observed from ggpo_synchronize_input; logged on
 // change for diagnostics only (no gameplay semantics attached).
 static int s_lastDisconnectFlags = 0;
+
+// GGPO callback re-entrancy. ggpo_close_session deletes the backend, and the
+// fork keeps calling the advance-frame callback from Sync::AdjustSimulation
+// after the callback returns, so the session must never be closed from inside
+// a callback. Aborts raised while a callback is on the stack are latched here
+// and drained by DrainPendingAbort() once the top-level GGPO call returns.
+static sf4e::gate::AbortLatch s_abortLatch;
+
+struct GgpoCallbackScope : sf4e::gate::AbortLatch::Scope {
+    GgpoCallbackScope() : sf4e::gate::AbortLatch::Scope(s_abortLatch) {}
+};
 
 // Native result state is captured in GGPO saves, including resimulation. The
 // history is rewound to each restored state; the emitted latch is deliberately
@@ -218,7 +230,18 @@ static void EmitRollbackDiagSummary(const char* label) {
 
 bool fSystem::bHaltAfterNext = false;
 bool fSystem::bUpdateAllowed = true;
-bool fSystem::bGgpoConnectionInterrupted = false;
+
+// Disconnect countdown for the HUD: GGPO reports the timeout with the
+// CONNECTION_INTERRUPTED event; the warning start time lives in simGate.
+static int s_disconnectTimeoutMs = 0;
+
+int fSystem::DisconnectCountdownMs() {
+    if (!ggpo || !simGate.connectionWarningActive || s_disconnectTimeoutMs <= 0) {
+        return -1;
+    }
+    const uint32_t elapsed = GetTickCount() - simGate.connectionWarningStartedAtMs;
+    return elapsed >= (uint32_t)s_disconnectTimeoutMs ? 0 : (int)(s_disconnectTimeoutMs - elapsed);
+}
 int fSystem::nExtraFramesToSimulate = 0;
 int fSystem::nNextBattleStartFlowTarget = -1;
 int fSystem::nRandomizeLocalInputsEveryXFramesInGGPO = 0;
@@ -540,6 +563,19 @@ void StressReset() {
     stress.primed = false;
 }
 
+// Drops any records left over from a battle that ended without reaching
+// StressCloseBattle. Their keys point into destroyed objects, so this must
+// not call the engine (same rule as fSystem::StartGGPO's sweep).
+void StressReclaimAll(const char* reason) {
+    auto& stress = Stress();
+    for (int i = 0; i < RollbackStress::kRing; i++) {
+        fSystem::SaveState::Reclaim(&stress.states[i], reason, i);
+        stress.stateFrame[i] = -1;
+    }
+    stress.frame = 0;
+    stress.primed = false;
+}
+
 fPadSystem::Inputs StressReadInput(rPadSystem* pad, int side) {
     sf4e::training::Input practice;
     if (sf4e::training::ReadOverride(side, practice)) {
@@ -594,6 +630,10 @@ bool StressStep(rSystem* system) {
         stress.resets++;
     }
     if (!stress.primed) {
+        // A previous battle that never reached StressCloseBattle leaves
+        // slots pointing into freed engine objects. Sweep before the first
+        // save of this battle.
+        StressReclaimAll("stress_prime");
         diag::InitFromEnvironment();
         if (diag::Enabled() && stress.rollbacks == 0) {
             diag::G().ResetForMatch(diag::NowMs());
@@ -708,6 +748,19 @@ void fSystem::BattleUpdate() {
     }
 
     if (ggpo && *rSystem::staticVars.CurrentBattleFlow != BF__IDLE) {
+        // Pump the network right before the inputs are needed. The outer
+        // tick's poll runs after this frame was rendered, so without this
+        // pump any remote input that arrived since then is used one frame
+        // late and predicted for one frame more than the link requires. A
+        // rollback triggered here is the same rollback the outer poll would
+        // have run, just before the frame that needs it.
+        {
+            diag::ScopedTimer _t(diag::OP_GGPO_IDLE_PRE_SIM);
+            ggpo_idle(ggpo, 0);
+        }
+        if (DrainPendingAbort() || !ggpo || !MayAdvanceDeterministicFrame()) {
+            return;
+        }
         GGPOErrorCode result = GGPO_OK;
         if (localPlayerHandle != GGPO_INVALID_HANDLE) {
             for (int i = 0; i < 2; i++) {
@@ -740,6 +793,9 @@ void fSystem::BattleUpdate() {
                 }
             }
         }
+        if (DrainPendingAbort()) {
+            return;
+        }
 
         switch (sf4e::gate::ClassifyGgpoResult((int)result)) {
         case sf4e::gate::POLICY_CONTINUE:
@@ -766,7 +822,7 @@ void fSystem::BattleUpdate() {
         case sf4e::gate::POLICY_FATAL:
         default:
             spdlog::error("GGPO: add_local_input returned irrecoverable {}", (int)result);
-            AbortGgpoMatch("Netplay input failed — match ended.");
+            AbortGgpoMatch("Netplay input failed. The match has ended.");
             return;
         }
 
@@ -780,12 +836,15 @@ void fSystem::BattleUpdate() {
             if (diag::Enabled()) {
                 diag::G().RecordGgpoResult(diag::CALL_SYNC_INPUT, (int)result);
             }
+            if (DrainPendingAbort()) {
+                return;
+            }
             switch (sf4e::gate::ClassifyGgpoResult((int)result)) {
             case sf4e::gate::POLICY_CONTINUE:
                 break;
             case sf4e::gate::POLICY_FATAL:
                 spdlog::error("GGPO: synchronize_input returned irrecoverable {}", (int)result);
-                AbortGgpoMatch("Netplay sync failed — match ended.");
+                AbortGgpoMatch("Netplay sync failed. The match has ended.");
                 return;
             default:
                 // NOT_SYNCHRONIZED during startup/resync, or another
@@ -822,9 +881,12 @@ void fSystem::BattleUpdate() {
             if (diag::Enabled()) {
                 diag::G().RecordGgpoResult(diag::CALL_ADVANCE_FRAME, (int)err);
             }
+            if (DrainPendingAbort()) {
+                return;
+            }
             if (!GGPO_SUCCEEDED(err)) {
                 spdlog::error("GGPO: advance_frame returned {}", (int)err);
-                AbortGgpoMatch("Netplay sync failed — match ended.");
+                AbortGgpoMatch("Netplay sync failed. The match has ended.");
             }
             else {
                 simGate.OnFrameAccepted();
@@ -845,7 +907,10 @@ void fSystem::BattleUpdate() {
             fSoundPlayerManager::SyncState();
         }
         sf4e::training::BeforeUpdate(_this, ggpo != nullptr);
-        if (!StressStep(_this)) {
+        // The stress harness owns the memento keys while it runs. This branch
+        // is also taken with a live session while the flow is idle, so it
+        // must never run alongside GGPO's own pool.
+        if (ggpo || !StressStep(_this)) {
             (_this->*rSystem::publicMethods.BattleUpdate)();
         }
         sf4e::training::AfterUpdate(_this);
@@ -924,7 +989,6 @@ void fSystem::CloseBattle() {
             LogPacerSummary("battle_close_deferred");
             pacer.Reset();
         }
-        bGgpoConnectionInterrupted = false;
     }
     for (int i = 0; i < NUM_SAVE_STATES; i++) {
         if (saveStates[i].used) {
@@ -977,18 +1041,23 @@ void fSystem::SysMain_HandleTrainingModeFeatures() {
         mementoSaveRequest.hi = -1;
     }
 
+    // The developer extended save/load borrows GGPO ring slot 0. While a
+    // session owns the pool that slot may be GGPO's, so the request is
+    // dropped rather than stealing the slot out from under the ring.
     if (extendedLoadRequest) {
-        if (saveStates[0].used) {
+        if (!ggpo && saveStates[0].used) {
             fSystem::SaveState::Load(&saveStates[0]);
         }
         extendedLoadRequest = false;
     }
 
     if (extendedSaveRequest) {
-        if (saveStates[0].used) {
-            fSystem::SaveState::Free(&saveStates[0]);
+        if (!ggpo) {
+            if (saveStates[0].used) {
+                fSystem::SaveState::Free(&saveStates[0]);
+            }
+            fSystem::SaveState::Save(&saveStates[0]);
         }
-        fSystem::SaveState::Save(&saveStates[0]);
         extendedSaveRequest = false;
     }
 
@@ -1191,29 +1260,60 @@ void fSystem::RetireGgpoSession(const char* diagnosticsLabel) {
         diag::G().OnSessionEnded(diag::NowMs());
     }
     LogPacerSummary(diagnosticsLabel);
+    if (s_abortLatch.InCallback()) {
+        // Closing here would delete the backend under GGPO's own stack frame.
+        // The pending-abort latch closes it from the outer tick instead.
+        spdlog::error("GGPO: RetireGgpoSession({}) called from inside a GGPO callback; deferring", diagnosticsLabel);
+        simGate.OnFatal();
+        s_abortLatch.Request("");
+        return;
+    }
     ggpo_close_session(ggpo);
     ggpo = nullptr;
     simGate.OnSessionClosed();
-    bGgpoConnectionInterrupted = false;
+    s_abortLatch.Reset();
+    s_disconnectTimeoutMs = 0;
+    // Offline play reads bUpdateAllowed directly. A netplay abort or failure
+    // closes the gate; without a session that gate must reopen, otherwise the
+    // next offline Versus or Training battle never advances a frame.
+    bUpdateAllowed = !simGate.manualPause;
+    sf4e::NetplayFacade::ClearMatchNotice();
     EmitRollbackDiagSummary(diagnosticsLabel);
     pacer.Reset();
 }
 
 void fSystem::AbortGgpoMatch(const char* reason) {
+    if (s_abortLatch.Request(reason)) {
+        // Inside a GGPO callback: mark the session fatal so the remaining
+        // callbacks of this burst do no engine work, remember the reason, and
+        // let the outer tick close the session once GGPO has unwound.
+        simGate.OnFatal();
+        bUpdateAllowed = false;
+        spdlog::error("GGPO match abort deferred from callback (depth {}): {}", s_abortLatch.depth, reason ? reason : "");
+        return;
+    }
     if (reason && reason[0]) {
         spdlog::error("GGPO match abort: {}", reason);
-        sf4e::NetplayFacade::PushAlert(reason);
+        sf4e::NetplayFacade::PushAlert(reason, sf4e::NoticeSeverity::Error);
     }
     LogSaveSlotOccupancy("abort_entry");
     simGate.OnFatal();
     bUpdateAllowed = false;
-    bGgpoConnectionInterrupted = false;
     RetireGgpoSession("abort");
     sf4e::NetplayFacade::ClearBattleState();
     rSystem* system = rSystem::staticMethods.GetSingleton();
     if (system) {
         *rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
     }
+}
+
+bool fSystem::DrainPendingAbort() {
+    char reason[256];
+    if (!s_abortLatch.Take(reason, sizeof(reason))) {
+        return false;
+    }
+    AbortGgpoMatch(reason);
+    return true;
 }
 
 void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay, DWORD rngSeed) {
@@ -1251,7 +1351,8 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     // creates its virtual peer immediately before calling StartGGPO; resetting
     // it here destroys the transport before GGPO can exchange its handshake.
     // GgpoRelay::Start handles stale state, and battle close/abort own teardown.
-    bGgpoConnectionInterrupted = false;
+    s_disconnectTimeoutMs = 0;
+    s_abortLatch.Reset();
     localPlayerHandle = GGPO_INVALID_HANDLE;
     lastGgpoSaveFrame = -1;
 
@@ -1344,6 +1445,11 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
     bUpdateAllowed = !simGate.manualPause;
     ResetPacerForSession();
     s_lastDisconnectFlags = 0;
+    s_disconnectTimeoutMs = 0;
+    s_abortLatch.Reset();
+    // No fighter handles on a spectator client; stale ones from an earlier
+    // match must not classify the host stream's events.
+    for (auto& player : players) { player = {}; player.handle = GGPO_INVALID_HANDLE; }
     localPlayerHandle = GGPO_INVALID_HANDLE;
     lastGgpoSaveFrame = -1;
     GGPOSessionCallbacks cb = { 0 };
@@ -1403,9 +1509,16 @@ void fSystem::PollMatchTelemetry() {
 
 bool fSystem::ggpo_advance_frame_callback(int)
 {
+    GgpoCallbackScope _callbackScope;
     diag::ScopedTimer _cbTimer(diag::OP_ROLLBACK_CALLBACK);
     if (diag::Enabled()) {
         diag::G().OnRollbackCallback(diag::NowMs());
+    }
+
+    // Once the session is fatal (an earlier callback in this burst aborted),
+    // GGPO still calls back for the remaining frames. Do no engine work.
+    if (!ggpo || simGate.fatalError) {
+        return true;
     }
 
     fPadSystem::Inputs inputs[2] = { {0, 0}, {0, 0} };
@@ -1418,7 +1531,7 @@ bool fSystem::ggpo_advance_frame_callback(int)
         diag::G().RecordGgpoResult(diag::CALL_SYNC_INPUT, (int)result);
     }
     if (!GGPO_SUCCEEDED(result)) {
-        AbortGgpoMatch("Netplay sync failed — match ended.");
+        AbortGgpoMatch("Netplay sync failed. The match has ended.");
         return true;
     }
     NoteDisconnectFlags(disconnect_flags);
@@ -1445,7 +1558,7 @@ bool fSystem::ggpo_advance_frame_callback(int)
         diag::G().RecordGgpoResult(diag::CALL_ADVANCE_FRAME, (int)result);
     }
     if (!GGPO_SUCCEEDED(result)) {
-        AbortGgpoMatch("Netplay sync failed — match ended.");
+        AbortGgpoMatch("Netplay sync failed. The match has ended.");
     }
     else {
         rollbackHud.Replayed(GetTickCount64());
@@ -1458,6 +1571,10 @@ bool fSystem::ggpo_advance_frame_callback(int)
 
 bool fSystem::ggpo_load_game_state_callback(unsigned char* buffer, int len)
 {
+    GgpoCallbackScope _callbackScope;
+    if (simGate.fatalError) {
+        return true;
+    }
     rollbackHud.Begin(GetTickCount64());
     SaveState* state = (SaveState*)buffer;
     SaveState::Load(state);
@@ -1466,6 +1583,7 @@ bool fSystem::ggpo_load_game_state_callback(unsigned char* buffer, int len)
 
 bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, int* checksum, int frame)
 {
+    GgpoCallbackScope _callbackScope;
     lastGgpoSaveFrame = frame;
     // No GGPO callback allocates data, then hands ownership to GGPO-
     // sf4e preallocates and manages all its savestates, and the memory
@@ -1513,7 +1631,7 @@ bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, in
     // states, or the states aren't being released or tracked correctly.
     *buffer = nullptr;
     spdlog::error("FATAL: Could not store GGPO state!");
-    AbortGgpoMatch("Netplay rollback buffer full — match ended.");
+    AbortGgpoMatch("Netplay rollback buffer full. The match has ended.");
     return false;
 }
 
@@ -1524,6 +1642,7 @@ bool fSystem::ggpo_log_game_state(char* filename, unsigned char* buffer, int)
 
 void fSystem::ggpo_free_buffer(void* buffer)
 {
+    GgpoCallbackScope _callbackScope;
     // GGPO hands back the pointer the save callback gave it, which is always
     // &saveStates[i]. Validate rather than trust: a stale or duplicated free
     // would otherwise run CopyIntoPlace on an arbitrary address and push
@@ -1556,7 +1675,26 @@ void fSystem::ggpo_free_buffer(void* buffer)
     SaveState::Free(victim);
 }
 
+// True when the handle belongs to a spectator queue (any roster slot past
+// the two fighters). Fighter handles are players[0..1]; a handle that
+// matches neither fighter is treated as a spectator so a bogus handle can
+// never end the fight.
+static bool IsSpectatorHandle(GGPOPlayerHandle handle) {
+    // A spectator client has one peer, the host stream; every event it sees
+    // is about the link it depends on.
+    if (fSystem::localPlayerHandle == GGPO_INVALID_HANDLE) {
+        return false;
+    }
+    for (int i = 0; i < 2; i++) {
+        if (fSystem::players[i].handle != GGPO_INVALID_HANDLE && fSystem::players[i].handle == handle) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
+    GgpoCallbackScope _callbackScope;
     rSystem* system = rSystem::staticMethods.GetSingleton();
     int progress;
 
@@ -1579,43 +1717,66 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         sf4e::NetplayFacade::NotifyGgpoSyncPhase(sf4e::GgpoSyncPhase::Running);
         break;
     case GGPO_EVENTCODE_CONNECTION_INTERRUPTED:
-        spdlog::info("GGPO: GGPO_EVENTCODE_CONNECTION_INTERRUPTED");
+        spdlog::info(
+            "GGPO: GGPO_EVENTCODE_CONNECTION_INTERRUPTED player={} timeout_ms={}",
+            info->u.connection_interrupted.player,
+            info->u.connection_interrupted.disconnect_timeout
+        );
         if (diag::Enabled()) {
             diag::G().OnConnectionInterrupted(diag::NowMs());
+        }
+        // A spectator's link is not the fight's link: note it, keep playing.
+        if (IsSpectatorHandle(info->u.connection_interrupted.player)) {
+            break;
         }
         // Phase 2 behavior change: a connection warning marks quality
         // degraded but does NOT stop deterministic simulation. The game
         // keeps advancing while GGPO accepts local input, and stalls only
         // when the prediction threshold is reached. One alert per episode.
+        s_disconnectTimeoutMs = info->u.connection_interrupted.disconnect_timeout;
         if (simGate.OnConnectionInterrupted(GetTickCount())) {
-            bGgpoConnectionInterrupted = true;
-            sf4e::NetplayFacade::PushAlert("Connection unstable — playing on prediction...");
+            sf4e::NetplayFacade::PushAlert("Connection unstable. Playing on prediction.", sf4e::NoticeSeverity::Warning);
         }
         break;
     case GGPO_EVENTCODE_CONNECTION_RESUMED:
-        spdlog::info("GGPO: GGPO_EVENTCODE_CONNECTION_RESUMED");
+        spdlog::info("GGPO: GGPO_EVENTCODE_CONNECTION_RESUMED player={}", info->u.connection_resumed.player);
         if (diag::Enabled()) {
             diag::G().OnConnectionResumed(diag::NowMs());
+        }
+        if (IsSpectatorHandle(info->u.connection_resumed.player)) {
+            break;
         }
         // Clears only the warning. It cannot undo a manual pause, a fatal
         // transition, or the startup gate, and it never "catches up" by
         // double-advancing; GGPO resumes progression on its own.
         if (simGate.OnConnectionResumed()) {
-            bGgpoConnectionInterrupted = false;
-            sf4e::NetplayFacade::PushAlert("Connection restored.");
+            s_disconnectTimeoutMs = 0;
+            sf4e::NetplayFacade::PushAlert("Connection restored.", sf4e::NoticeSeverity::Info);
         }
         break;
     case GGPO_EVENTCODE_DISCONNECTED_FROM_PEER:
-        spdlog::info("GGPO: GGPO_EVENTCODE_DISCONNECTED_FROM_PEER");
+        spdlog::info("GGPO: GGPO_EVENTCODE_DISCONNECTED_FROM_PEER player={}", info->u.disconnected.player);
         if (diag::Enabled()) {
             diag::G().OnTerminalDisconnect(diag::NowMs());
+        }
+        // The fork raises this for spectator queues too. A spectator
+        // dropping must not end the two fighters' game; GGPO has already
+        // stopped forwarding to that spectator.
+        if (IsSpectatorHandle(info->u.disconnected.player)) {
+            spdlog::info("GGPO: spectator handle {} disconnected; fight continues", info->u.disconnected.player);
+            sf4e::NetplayFacade::PushAlert("A spectator disconnected.", sf4e::NoticeSeverity::Info);
+            break;
         }
         if (system) {
             *rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
         }
         simGate.OnConnectionResumed(); // close any open warning episode
-        bGgpoConnectionInterrupted = false;
-        sf4e::NetplayFacade::PushAlert("Opponent disconnected.");
+        simGate.OnBattleClosing();     // the gate must not report RUNNING for a dead peer
+        s_disconnectTimeoutMs = 0;
+        sf4e::NetplayFacade::PushAlert(
+            localPlayerHandle == GGPO_INVALID_HANDLE ? "The match connection was lost." : "Opponent disconnected. The match is over.",
+            sf4e::NoticeSeverity::Error
+        );
         break;
     case GGPO_EVENTCODE_TIMESYNC:
         if (diag::Enabled()) {
@@ -1631,6 +1792,9 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
             pacer.outstandingMs
         );
         break;
+    default:
+        spdlog::warn("GGPO: unhandled event code {}", (int)info->code);
+        break;
     }
     return true;
 }
@@ -1640,6 +1804,10 @@ fSystem::SaveState::SaveState() {
     // is unclear, but we can minimize memory allocation delays by
     // reserving the lower bound.
     keys.reserve(88);
+    // Sound records: clear() keeps this capacity, so after the first save of
+    // a battle these never allocate again.
+    criPlayerState.reserve(64);
+    managerState.reserve(8);
 }
 
 std::map<int, std::pair<StateSnapshot, fSystem::StateSnapshotMeta>> fSystem::snapshotMap;
@@ -1786,6 +1954,18 @@ void fSystem::CaptureSnapshot(rSystem* src) {
     if (iter != snapshotMap.end()) {
         snapshotMap.erase(iter);
     }
+    // Entries are normally retired by SessionClient::Step once sent and
+    // confirmed. When the control plane is lost that never happens, and the
+    // signed 16-bit engine counter wraps in a long match, so keep the map
+    // bounded to the last ten seconds of checkpoints.
+    for (auto old = snapshotMap.begin(); old != snapshotMap.end();) {
+        if (old->first > frameIdx || frameIdx - old->first > 600) {
+            old = snapshotMap.erase(old);
+        }
+        else {
+            ++old;
+        }
+    }
 
     StateSnapshot snapshot;
     snapshot.frameIdx = frameIdx;
@@ -1822,6 +2002,22 @@ void fSystem::CaptureSnapshot(rSystem* src) {
     snapshotMap.emplace(frameIdx, std::make_pair(std::move(snapshot), meta));
 }
 
+// Looks up `key` in a flat save record. Records are appended in
+// shadowManagerMap order, so the cursor makes the common case O(1); the
+// scan covers a changed adapter set. Returns null when the key was not saved.
+template <class Key, class Value>
+static Value* FindSavedEntry(std::vector<std::pair<Key, Value>>& entries, Key key, size_t& cursor) {
+    const size_t count = entries.size();
+    for (size_t probe = 0; probe < count; probe++) {
+        const size_t index = (cursor + probe) % count;
+        if (entries[index].first == key) {
+            cursor = index + 1;
+            return &entries[index].second;
+        }
+    }
+    return nullptr;
+}
+
 void CopyIntoPlace(fSystem::SaveState* src) {
     rSystem* system = rSystem::staticMethods.GetSingleton();
 
@@ -1837,20 +2033,29 @@ void CopyIntoPlace(fSystem::SaveState* src) {
     *rSystem::staticVars.BattleFlowCallback_CallEveryFrame_aa9254 = src->d.BattleFlowCallback_CallEveryFrame_aa9254;
     memcpy_s((system->*rSystem::publicMethods.GetGameManager)(), sizeof(GameManager), &src->d.gameManager, sizeof(GameManager));
 
-    for (
-        auto managerIter = fSoundPlayerManager::shadowManagerMap.begin();
-        managerIter != fSoundPlayerManager::shadowManagerMap.end();
-        managerIter++) {
-        rSoundPlayerManager* stubManager = managerIter->first;
-        rSoundPlayerManager::CriPlayerAdapter* adapters = *rSoundPlayerManager::GetAdapters(stubManager);
-        for (int i = 0; i < *rSoundPlayerManager::GetNumAdapters(stubManager); i++) {
-            fSoundPlayerManager::adapterToCurrentSound[&adapters[i]] = src->criPlayerState[&adapters[i]];
+    // Restore only what the state recorded. An adapter or manager that did
+    // not exist at save time is left alone; the old map-based lookup
+    // inserted and restored a zeroed entry for it.
+    {
+        size_t adapterCursor = 0;
+        size_t managerCursor = 0;
+        for (
+            auto managerIter = fSoundPlayerManager::shadowManagerMap.begin();
+            managerIter != fSoundPlayerManager::shadowManagerMap.end();
+            managerIter++) {
+            rSoundPlayerManager* stubManager = managerIter->first;
+            rSoundPlayerManager::CriPlayerAdapter* adapters = *rSoundPlayerManager::GetAdapters(stubManager);
+            for (int i = 0; i < *rSoundPlayerManager::GetNumAdapters(stubManager); i++) {
+                const auto* record = FindSavedEntry(src->criPlayerState, &adapters[i], adapterCursor);
+                if (record) {
+                    fSoundPlayerManager::adapterToCurrentSound[&adapters[i]] = *record;
+                }
+            }
+            auto* pool = FindSavedEntry(src->managerState, stubManager, managerCursor);
+            if (pool) {
+                sf4e::Platform::SoundObjectPool<4>::Load(rSoundPlayerManager::GetAdapterPool(stubManager), pool);
+            }
         }
-        sf4e::Platform::SoundObjectPool<4>::SaveState poolState;
-        sf4e::Platform::SoundObjectPool<4>::Load(
-            rSoundPlayerManager::GetAdapterPool(stubManager),
-            &src->managerState[stubManager]
-        );
     }
 
     // Place each memento key back into its position.
@@ -2093,9 +2298,10 @@ void fSystem::SaveState::FreeByRoundTrip(SaveState* victim) {
 void fSystem::SaveState::Load(SaveState* src) {
     diag::ScopedTimer _loadTimer(diag::OP_LOAD_TOTAL);
     AssertSaveStateThreadAffinity();
-    std::vector<std::pair<rKey*, rKey>> tmpVec;
-    // Reserve using the live tracked-key count so the backup loop below
-    // performs one allocation instead of growth doublings on every load.
+    // Main-thread scratch (asserted above). Kept across loads so a rollback
+    // does not allocate; clear() retains the capacity.
+    static std::vector<std::pair<rKey*, rKey>> tmpVec;
+    tmpVec.clear();
     tmpVec.reserve(fKey::trackedKeys.size());
 
     // Loading a state abandons the current timeline, and with it any
@@ -2132,7 +2338,11 @@ void fSystem::SaveState::Load(SaveState* src) {
     // Preserve samples on the retained timeline and discard speculative
     // outcomes after the restored GGPO state. Corrected saves refill them.
     // Free() only round-trips storage and must not rewind this history.
-    s_nativeResultTimeline.Rewind(src->ggpoFrame);
+    // Only GGPO saves carry a frame; a training or stress load has none and
+    // must not wipe the timeline.
+    if (src->ggpoFrame >= 0) {
+        s_nativeResultTimeline.Rewind(src->ggpoFrame);
+    }
 
     diag::ScopedTimer _restoreTimer(diag::OP_LOAD_RESTORE_KEYS);
 
@@ -2209,11 +2419,19 @@ void fSystem::SaveState::Save(SaveState* dst, bool temporary) {
             rSoundPlayerManager* stubManager = managerIter->first;
             rSoundPlayerManager::CriPlayerAdapter* adapters = *rSoundPlayerManager::GetAdapters(stubManager);
             for (int i = 0; i < *rSoundPlayerManager::GetNumAdapters(stubManager); i++) {
-                dst->criPlayerState[&adapters[i]] = fSoundPlayerManager::adapterToCurrentSound[&adapters[i]];
+                // Read-only lookup: an adapter with no current sound is
+                // recorded as an empty request rather than inserted into the
+                // live map from the save path.
+                const auto current = fSoundPlayerManager::adapterToCurrentSound.find(&adapters[i]);
+                dst->criPlayerState.emplace_back(
+                    &adapters[i],
+                    current != fSoundPlayerManager::adapterToCurrentSound.end()
+                        ? current->second
+                        : Sound::SoundPlayerManager::DeferredSoundRequest()
+                );
             }
-            Platform::SoundObjectPool<4>::SaveState poolState;
-            Platform::SoundObjectPool<4>::Save(rSoundPlayerManager::GetAdapterPool(stubManager), &poolState);
-            dst->managerState[stubManager] = poolState;
+            dst->managerState.emplace_back(stubManager, Platform::SoundObjectPool<4>::SaveState());
+            Platform::SoundObjectPool<4>::Save(rSoundPlayerManager::GetAdapterPool(stubManager), &dst->managerState.back().second);
         }
     }
 

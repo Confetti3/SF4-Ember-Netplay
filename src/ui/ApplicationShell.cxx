@@ -10,7 +10,7 @@
 namespace sf4e { namespace ui {
 bool ApplicationShell::Service(platform::ServiceAction kind, const ShellView& view, const Submit& submit) {
     ShellAction action; action.service = kind; action.command.generation = view.session.generation;
-    if (!submit(std::move(action))) { error_ = "The operation is busy. Please try again."; return false; }
+    if (!submit(std::move(action))) { error_ = "The action could not be queued. Please try again."; return false; }
     error_.clear(); return true;
 }
 bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit) {
@@ -29,7 +29,7 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
         action.preferences.lobby.roundTime = action.preferences.tableRules.roundTime;
     }
     if (kind == netplay::CommandKind::JoinInvite) action.command.invitation = invitation_;
-    if (!submit(std::move(action))) { error_ = "Could not accept the action. Please try again."; return false; }
+    if (!submit(std::move(action))) { error_ = "The action could not be queued. Please try again."; return false; }
     error_.clear();
     if (kind == netplay::CommandKind::JoinInvite || kind == netplay::CommandKind::LeaveRoom)
         std::fill(std::begin(invitation_), std::end(invitation_), '\0');
@@ -54,7 +54,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(nav.Screen().compare(0,4,"room")==0 || nav.Screen()=="selection")nav.Home();
   error_.clear();
   notice_=previousRoomState_==RoomState::Opening?"":"You left the room.";
-  noticeUntil_=now+3;
+  noticeTone_=Tone::Neutral;noticeUntil_=now+3;
  }
  previousRoomState_=v.session.room;
  if(!(generation_==v.session.generation)) {
@@ -80,7 +80,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(SamePreferences(v.preferences,savingPreferences_)&&v.settingsError.empty()){
    saveQueued_=false;retrySave_=false;preferencesDirty_=!SamePreferences(preferences_,savingPreferences_);
    if(profileSavePending_&&!preferencesDirty_){
-    profileSavePending_=false;error_.clear();notice_="Profile portrait saved: "+std::string(selection::FindFighter(v.preferences.mainFighter)->name);noticeUntil_=ImGui::GetTime()+3;
+    profileSavePending_=false;error_.clear();notice_="Profile portrait saved: "+std::string(selection::FindFighter(v.preferences.mainFighter)->name);noticeTone_=Tone::Success;noticeUntil_=ImGui::GetTime()+3;
     if(nav.Screen()=="main-character")nav.Return();
    }
   }else if(ImGui::GetTime()>saveAt_+2){saveQueued_=false;saveFailed_=true;retrySave_=false;error_="Settings were not saved. Retry when the menu is available.";}
@@ -165,10 +165,13 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }else{
   title="HELP & ABOUT";rows={Row("help","Controls","Xbox: A selects; B returns, independently of fighting bindings. DirectInput: mapped LP selects; LK returns. D-pad moves; Left/Right adjusts. Training controls use keyboard and mouse: F6 opens/closes, arrows navigate, Enter selects, Escape goes back. Start only opens native pause in training. F10 opens Ember at the main menu; F5-F8 are training shortcuts."),
    Row("credits","About Ember","Unofficial Ultra Street Fighter IV mod, based on sf4e by Anthony Danducci. Iroh / QUIC, GGPO, Dear ImGui and Inter typography. Build: "+v.build),
-   Row("font","Font license",FontLicense()),Row("diagnostics","Export diagnostics","Exports connection states without invitations or credentials.",!v.services.pending),
-   Row("updates","Check for updates",v.services.message,!v.services.pending)};
+   Row("font","Font license",FontLicense()),Row("diagnostics","Export diagnostics",
+    v.services.lastAction==platform::ServiceAction::ExportDiagnostics&&!v.services.message.empty()?v.services.message:
+    "Exports connection states without invitations or credentials.",!v.services.pending),
+   Row("updates","Check for updates",v.services.lastAction==platform::ServiceAction::ExportDiagnostics||v.services.message.empty()?"Look for a newer Ember release.":v.services.message,!v.services.pending)};
   if(v.services.update.ok&&v.services.update.updateAvailable)rows.push_back(ConfirmRow("updater","Exit and open updater","The game will close. Leave your room first.",v.canEditPreferences&&!v.services.pending));
-  if(v.network==NetworkAvailability::Unavailable)rows.push_back(ConfirmRow("recovery","Exit to recovery","Close the game and open recovery.",!v.services.pending));
+  if(v.network==NetworkAvailability::Unavailable)rows.push_back(ConfirmRow("recovery","Exit to recovery",
+   v.canEditPreferences?"Close the game and open recovery.":"Leave your room and return to the main menu first.",v.canEditPreferences&&!v.services.pending));
  }
  if(saveFailed_)rows.push_back(Row("retry-save","Retry saving",v.settingsError.empty()?error_:v.settingsError,v.canEditPreferences&&!v.settingsPending));
  const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="defaults"||screen=="interface"||screen=="discord";
@@ -192,15 +195,25 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
     (table.ready[side]?" - READY":" - Not ready");
   };
   status=state(table.p1,0)+" | "+state(table.p2,1);
-  if(table.phase==room::TablePhase::Paused)status="Result unresolved / host can cancel the previous game";
-  else if(table.phase==room::TablePhase::Ready)status="Preparing match / fighter choices locked";
-  else if(table.phase==room::TablePhase::Playing)status=table.resultPending||
-   (v.session.match==MatchState::PostMatch&&(table.p1==v.room.localMember||table.p2==v.room.localMember))?
-   "Waiting for results / next match is not ready":"Match in progress";
+  // Table phases carry their own tone: an unresolved result is a problem
+  // the player must act on, a pending result or preparation is a wait.
+  if(table.phase==room::TablePhase::Paused){status="Result unresolved / abandon it, or the host can cancel it";statusTone=Tone::Error;}
+  else if(table.phase==room::TablePhase::Ready){status="Preparing match / fighter choices locked";statusTone=Tone::Pending;}
+  else if(table.phase==room::TablePhase::Playing){
+   const bool waiting=table.resultPending||
+    (v.session.match==MatchState::PostMatch&&(table.p1==v.room.localMember||table.p2==v.room.localMember));
+   status=waiting?"Waiting for results / next match is not ready":"Match in progress";
+   statusTone=Tone::Pending;
+  }
   else if(table.phase==room::TablePhase::Closed)status="Table closed";
  }
  if(ImGui::GetTime()>=noticeUntil_)notice_.clear();
- if(!notice_.empty()&&!saveFailed_&&!v.settingsPending&&!preferencesDirty_&&!saveQueued_){status=notice_;statusTone=Tone::Success;}
+ if(error_!=lastError_){lastError_=error_;errorSince_=ImGui::GetTime();}
+ if(!error_.empty()&&ImGui::GetTime()-errorSince_>=20){error_.clear();lastError_.clear();}
+ // A notice outranks routine save feedback: "Invitation copied." must not
+ // vanish because a preference write happens to be in flight. Save failures
+ // still win below.
+ if(!notice_.empty()&&!saveFailed_){status=notice_;statusTone=noticeTone_;}
  if(v.controllerUnavailable){status="Controller disconnected. Reconnect or assign explicitly.";statusTone=Tone::Error;}
  if(!v.session.error.empty()){status=v.session.error;statusTone=Tone::Error;}
  if(!v.error.empty()){status=v.error;statusTone=Tone::Error;}

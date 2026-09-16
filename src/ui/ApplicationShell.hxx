@@ -100,8 +100,14 @@ private:
     netplay::PlayerPreferences preferences_;
     netplay::LobbySettings lobby_;
     std::string error_;
+    // A shell error has no natural clear point (a paste that failed, an
+    // invalid value), so it expires after a while instead of following the
+    // player across every screen.
+    std::string lastError_;
+    double errorSince_=0;
     std::string notice_;
     double noticeUntil_=0;
+    Tone noticeTone_=Tone::Success;
     std::uint64_t roomEpoch_ = 0, rulesRevision_ = 0, nextActionId_ = 1;
     int selectedTable_ = 0, roomCapacity_ = 16;
     char roomName_[65] = {}, chat_[257] = {};

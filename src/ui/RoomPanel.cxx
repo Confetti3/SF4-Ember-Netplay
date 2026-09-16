@@ -44,6 +44,21 @@ const char* PhaseName(room::TablePhase phase) {
 const char* TerminalPendingReason() {
     return "Waiting for all players and spectators to finish returning from the previous match.";
 }
+// One description of Leave room for both screens, stating what it costs.
+std::string LeaveRoomDetail(const ShellView& v) {
+    std::string detail = "Disconnect from this room and return to Home. Hiding Ember keeps you in the room.";
+    const auto* local = Member(v.room, v.room.localMember);
+    if (local && local->table >= 0 && local->table < static_cast<std::int8_t>(room::TableCount)) {
+        const auto& table = v.room.tables[local->table];
+        const bool seated = local->seat >= 0 && local->seat < 2;
+        if (seated && table.phase == room::TablePhase::Paused) detail += " The unresolved game will not be recorded.";
+        else if (seated && (table.phase == room::TablePhase::Playing || table.phase == room::TablePhase::Ready)) detail += " The current game ends with no result, and your seat is released.";
+        else if (seated) detail += " Your seat is released.";
+        else if (local->status == room::MemberStatus::Queued) detail += " You lose your place in the queue.";
+    }
+    if (local && local->host && v.room.members.size() > 1) detail += " Another member becomes host.";
+    return detail;
+}
 }
 bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, const Submit& submit) {
     // Button disabled state is a rendering affordance; keyboard/controller
@@ -88,7 +103,7 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
     request.command.kind = netplay::CommandKind::RoomAction;
     request.command.generation = view.session.generation;
     request.roomAction = std::move(action);
-    if (!submit(std::move(request))) { error_ = "The room action could not be queued. Please try again."; return false; }
+    if (!submit(std::move(request))) { error_ = "The action could not be queued. Please try again."; return false; }
     error_.clear(); return true;
 }
 
@@ -136,7 +151,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   }
   rows.push_back(Row("copy","Copy invitation","Share the private invitation with friends.",!v.invitation.empty()));
   rows.push_back(ConfirmRow("leave",v.session.room==netplay::RoomState::Closing?"Leaving room...":"Leave room",
-   "Disconnect from this room. Hiding Ember keeps you in the room.",v.session.room!=netplay::RoomState::Closing));
+   LeaveRoomDetail(v),v.session.room!=netplay::RoomState::Closing));
   if(v.session.recovery==netplay::Recovery::ReplacementOffered)
    rows.push_back(ConfirmRow("replace-room","Replace room",v.canReplaceRoom?
     "Close the frozen room and open a replacement. Everyone must rejoin, and your current invitation "
@@ -166,7 +181,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    rows.push_back(Row("ready",t.phase==TablePhase::Paused?"Result unresolved":awaitingResult?"Waiting for results":
     t.phase==TablePhase::Playing?"Match in progress":t.phase==TablePhase::Ready?"Preparing match":
     ready?"Unready / unlock fighter":v.session.match==netplay::MatchState::PostMatch?"Ready for rematch":"Ready up",
-    canUnready?"You are READY. Select to cancel Ready, then choose Change fighter & appearance.":
+    canUnready?"You are READY. Select to cancel Ready, then choose Change fighter.":
     mutableRoom&&v.canReady&&!terminalBlocked?"Select to lock in your fighter. The match starts when both players are ready.\n"+v.selectionSummary:blocked,
      canUnready||(mutableRoom&&v.canReady&&!terminalBlocked&&t.phase==TablePhase::Waiting)));
     const bool delayEditable=mutableRoom&&!active&&!v.delayLocked;
@@ -191,11 +206,12 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      v.canApplyDelay&&recommended&&delayEditable&&!check.checking));
    const std::string editReason=active?blocked:ready?"Choose Unready above to unlock your fighter and appearance.":
      !mutableRoom?reason:!v.selectionLockReason.empty()?v.selectionLockReason:"Waiting for the current match or selection update to finish.";
-   rows.push_back(Row("selection","Change fighter & appearance",mutableRoom&&v.canEditSelection&&!s.localTerminalPending?
+   rows.push_back(Row("selection","Change fighter",mutableRoom&&v.canEditSelection&&!s.localTerminalPending?
     "Choose a fighter, then browse Costume and Color galleries. Return here and select Ready up.\n"+v.selectionSummary:
     (s.localTerminalPending?TerminalPendingReason():editReason),mutableRoom&&v.canEditSelection&&!s.localTerminalPending));
     rows.push_back(Row("unqueue","Leave seat",t.phase==TablePhase::Paused?"Abandon the unresolved game first.":
-     active?"Finish or resolve the current game first.":"Release your seat.",mutableRoom&&!active&&!playing));
+     active?"Finish or resolve the current game first.":
+     t.queue.empty()?"Release your seat.":"Release your seat. The next player in the queue takes it.",mutableRoom&&!active&&!playing));
     // The authority accepts AbortMatch from either fighter. Offer it only once
     // the result is Paused, so a fighter can never cut a live game short.
     if(t.phase==TablePhase::Paused)rows.push_back(ConfirmRow("abandon-result","Abandon unresolved game",
@@ -208,13 +224,20 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   }
   rows.push_back(Row("room-rules","Table rules",host?"Edit this table's rules.":"View this table's rules."));
   if(t.phase==TablePhase::Paused)rows.push_back(ConfirmRow("cancel-result","Cancel unresolved game","Host only. No result will be recorded.",host));
+  // A table can be left in Playing when neither fighter's finish report
+  // reached the room (both clients lost control at battle close). The
+  // authority accepts a host cancel in that phase; offer it to a host who is
+  // not one of the fighters, so a live game can never be cut short by its
+  // own participant from this row.
+  else if(t.phase==TablePhase::Playing&&host&&!seated&&!t.resultPending)
+   rows.push_back(ConfirmRow("cancel-result","Cancel stuck game","Host only. Use this when a finished game never reported its result. No result will be recorded.",true));
   if(v.session.recovery==netplay::Recovery::ReplacementOffered)
    rows.push_back(ConfirmRow("replace-room","Replace room",v.canReplaceRoom?
     "Close the frozen room and open a replacement. Everyone must rejoin, and your current invitation "
     "link stops working - you will need to send the new one. Any unresolved room state will be discarded.":
     "The previous match is still closing. Replacement will be available when it finishes.",v.canReplaceRoom));
   rows.push_back(ConfirmRow("leave",v.session.room==netplay::RoomState::Closing?"Leaving room...":"Leave room",
-   "Disconnect from this room and return to Home.",v.session.room!=netplay::RoomState::Closing));
+   LeaveRoomDetail(v),v.session.room!=netplay::RoomState::Closing));
  }else if(screen=="room-rules"){
   if(!rulesDirty_&&rulesRevision_!=t.revision){tableRules_=t.rules;rulesRevision_=t.revision;}
   RuleRows(rows,tableRules_,host&&!active,host?(active?"Finish the active game before changing rules.":"Changes apply only after Apply."): "Only the host can change table rules.");
@@ -378,11 +401,18 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   for(std::size_t i=0;i<toolbar.size();++i){if(i%toolColumns)ImGui::SameLine(0,8*s);button(*toolbar[i],w);}
   const auto e=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& row){return row.id==nav.Focus();});
   if(e!=rows.end()){
-   std::string line=e->detail.substr(0,e->detail.find('\n'));
+   // The wide board has one line for the focused row's explanation. Lines
+   // after the first (the fighter summary under Ready, for example) and any
+   // elided text are reachable on hover, like the narrow board's cards.
+   const auto newline=e->detail.find('\n');
+   std::string line=e->detail.substr(0,newline);
    const std::string reason=hint(*e);
    if(!reason.empty())line=line.empty()?reason:line+"  -  "+reason;
-   text(ImGui::GetCursorScreenPos(),ImGui::GetContentRegionAvail().x,line,12*s,
-    reason.empty()?palette::Muted:ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)));
+   const auto p=ImGui::GetCursorScreenPos();const float lineWidth=ImGui::GetContentRegionAvail().x;
+   text(p,lineWidth,line,12*s,reason.empty()?palette::Muted:ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)));
+   if(newline!=std::string::npos)elided+=(elided.empty()?"":"\n")+e->detail;
+   ImGui::Dummy(ImVec2(lineWidth,ImGui::GetFontSize()));
+   tip();
   }
   ImGui::EndChild();
  }else{
@@ -418,7 +448,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    error_=RoomWaitReason(v);return false;
   }
   ShellAction request;request.command.kind=kind;request.command.generation=v.session.generation;request.selectedDelay=selected;request.command.benchmark=benchmark;
-  if(!submit(std::move(request))){error_="The delay action could not be queued. Please try again.";return false;}
+  if(!submit(std::move(request))){error_="The action could not be queued. Please try again.";return false;}
   error_.clear();return true;
  };
  if(a.id.compare(0,6,"table-")==0){
@@ -427,14 +457,15 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  }
  if(a.id.compare(0,7,"member-")==0){selectedMember_=std::stoull(a.id.substr(7));nav.Push("room-member");return;}
  if(a.id=="room-members"||a.id=="room-chat"||a.id=="room-admin"||a.id=="room-rules"){nav.Push(a.id);return;}
-  if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();notice_="Invitation copied.";noticeUntil_=ImGui::GetTime()+3;return;}
+  if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();notice_="Invitation copied.";noticeTone_=Tone::Success;noticeUntil_=ImGui::GetTime()+3;return;}
   if(a.id=="replace-room"){ShellAction request;request.command.kind=netplay::CommandKind::ReplaceRoom;request.command.generation=v.session.generation;
-   if(!submit(std::move(request)))error_="The replacement room could not be queued. Please try again.";
+   if(!submit(std::move(request)))error_="The action could not be queued. Please try again.";
    else{error_.clear();
     // The old invitation dies with the old room epoch. Say so while the row is
     // still on screen, rather than letting friends fail to rejoin silently.
+    // This is a caution, not a success.
     notice_="Replacement room opening. Choose Copy invitation and send the new link - the old one no longer works.";
-    noticeUntil_=ImGui::GetTime()+8;}
+    noticeTone_=Tone::Pending;noticeUntil_=ImGui::GetTime()+8;}
    return;}
   if(a.id=="benchmark-connection"){sendDelay(netplay::CommandKind::CheckConnection,-1,true);return;}
   if(a.id=="check-connection"){sendDelay(netplay::CommandKind::CheckConnection,-1);return;}
