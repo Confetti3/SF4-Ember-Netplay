@@ -71,8 +71,25 @@ static void TestDrawInvalidFramesAndLongMatches() {
     CHECK(timeline.Confirmed(1000) == Result::None); // overwritten ring slot
 }
 
+// Simulation stops at the end of the fight while the peer's inputs for the
+// result frames are still in flight. No further capture happens, so the
+// outcome must still be publishable when confirmation arrives later from a
+// plain GGPO poll.
+static void TestConfirmationAfterSimulationStops() {
+    Timeline timeline;
+    for (int frame = 500; frame < 540; ++frame)
+        timeline.Capture(frame, frame >= 520 ? Flow::MatchResult : Flow::Other, 1);
+    CHECK(timeline.Confirmed(515) == Result::None);
+    CHECK(timeline.Latest().frame == 539 && timeline.Latest().result == Result::P2Win);
+    CHECK(timeline.Confirmed(519) == Result::P2Win);
+    CHECK(timeline.Confirmed(600) == Result::P2Win);
+    timeline.Reset();
+    CHECK(timeline.Latest().frame == -1 && timeline.Latest().result == Result::None);
+}
+
 int main() {
     TestResultSurvivesContinuousRollback();
+    TestConfirmationAfterSimulationStops();
     TestPredictionCannotAwardWinner();
     TestRetainedTimelineAndShortResultFlow();
     TestDrawInvalidFramesAndLongMatches();

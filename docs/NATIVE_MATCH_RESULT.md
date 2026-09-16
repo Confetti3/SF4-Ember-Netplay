@@ -35,22 +35,34 @@ The observer uses the native `+0x30` selector/index because it is written by
 the match-level round-score finalizer and is the field consumed by the
 native match/draw flow.  It does not use the separate `+0x4C` round-winner
 HUD field.  This keeps winner identity tied to the engine's native result
-object while avoiding any presentation text or developer report path.  The
-observer runs only after a successful outer `ggpo_advance_frame` and never
-from the rollback callback or extra-frame path.  It records a candidate when
-the native flow is `5` or `6`, then waits more than
-`GGPO_MAX_PREDICTION_FRAMES` (`8`) successful outer frames before notifying
-`NotifyRuntimeMatchResult`.
-The candidate is cleared after every rollback state load; the once-emitted
-latch is per match and is not rollback state.
+object while avoiding any presentation text or developer report path.
 
-Confirmation age uses SF4E's monotonic count of successful outer
-`ggpo_advance_frame` calls.  It does not use the native simulation counter:
-`Dimps::Math::FixedPoint::integral` is a signed 16-bit field, so it wraps
-after 32767 frames in a long match.  The outer counter is reset only at match
-start/close and is not rewound by rollback; loading a rollback state clears
-the candidate before re-simulation, so the age still belongs to the current
-timeline.
+Capture and publication are separate (`src/common/NativeMatchResult.hxx`):
+
+- **Capture.** Every GGPO save callback, including saves made while
+  re-simulating after a rollback, records the native flow and winner index
+  against the GGPO state frame in a 64-entry `Timeline`. A state load rewinds
+  the timeline to the restored frame, so outcomes from a discarded prediction
+  are dropped and corrected saves replace them.
+- **Publication.** `NotifyRuntimeMatchResult` receives the newest captured
+  outcome whose inputs GGPO has confirmed: save frame `N` qualifies once
+  `ggpo_get_last_confirmed_frame >= N - 1`. The once-emitted latch is per match
+  and is not rollback state.
+
+Publication is attempted after every successful outer `ggpo_advance_frame`,
+after every application tick's `ggpo_idle`, and once more in `CloseBattle`
+before the session is retired. The poll entries matter at the end of a fight:
+local simulation stops, but the peer's inputs for the result frames can still
+be confirmed by a plain GGPO poll. Before v0.8.6 publication happened only
+after an advance, so a result confirmed after the last simulated frame was
+never sent. That fighter reported only `MatchFinished`, and the table paused
+after 30 seconds. `CloseBattle` logs `outcome_emitted`, the newest candidate
+and its frame, and the confirmed input frame, so a missing report can be
+traced to capture or to confirmation.
+
+Frame identity is the monotonic GGPO state frame, never the native simulation
+counter: `Dimps::Math::FixedPoint::integral` is a signed 16-bit field and
+wraps after 32767 frames in a long match.
 
 The index mapping is also present in the native object accessors: System's
 `+0xB4` accessor at absolute `0x005D72D0` asks the Chara Unit for an actor,
@@ -87,9 +99,7 @@ The confirmation bound follows the pinned GGPO source at
 - `src/lib/ggpo/backends/p2p.cpp:102-145` computes the minimum remote
   confirmed frame and feeds it to `SetLastConfirmedFrame` during polling.
 
-Therefore, once a candidate is observed at successful outer frame `f`, the
-observer may publish after successful outer frame `f + 9`, provided no state
-load occurred in between.  The extra frame avoids coupling the score to the
-ordering of the engine's simulation-frame counter and GGPO's pre-advance
-input counter.  A load resets the candidate, so a terminal native state from
-a discarded timeline cannot age into a score.
+The confirmed-frame accessor itself is added by
+`vcpkg-ports/ggpo/confirmed-frame-accessor.patch`. Because publication waits
+for GGPO's own confirmation boundary rather than an age heuristic, a terminal
+native state from a discarded timeline cannot become a score.

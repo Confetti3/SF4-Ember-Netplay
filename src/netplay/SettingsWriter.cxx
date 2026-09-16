@@ -7,20 +7,30 @@ namespace sf4e { namespace netplay {
 SettingsWriter::SettingsWriter(std::wstring directory) : store_(std::move(directory)), worker_([this] { Run(); }) {}
 SettingsWriter::~SettingsWriter() { Stop(); }
 
-bool SettingsWriter::QueueOverlay(nlohmann::json snapshot) { return Queue(0, std::move(snapshot)); }
-bool SettingsWriter::QueueLauncher(nlohmann::json snapshot) { return Queue(1, std::move(snapshot)); }
+std::uint64_t SettingsWriter::QueueOverlay(nlohmann::json snapshot) { return Queue(0, std::move(snapshot)); }
+std::uint64_t SettingsWriter::QueueLauncher(nlohmann::json snapshot) { return Queue(1, std::move(snapshot)); }
 
-bool SettingsWriter::Queue(std::size_t section, nlohmann::json snapshot) {
+std::uint64_t SettingsWriter::SavedOverlayRevision() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return saved_[0];
+}
+
+std::uint64_t SettingsWriter::SavedLauncherRevision() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return saved_[1];
+}
+
+std::uint64_t SettingsWriter::Queue(std::size_t section, nlohmann::json snapshot) {
     try {
         // Bound copied UI data before it enters the worker's pending slot.
-        if (!snapshot.is_object() || snapshot.dump().size() > 256 * 1024) return false;
+        if (!snapshot.is_object() || snapshot.dump().size() > 256 * 1024) return 0;
         std::lock_guard<std::mutex> lock(mutex_);
-        if (stopping_) return false;
+        if (stopping_) return 0;
         pending_[section] = std::move(snapshot);
-        ++submitted_[section];
+        const auto revision = ++submitted_[section];
         wake_.notify_one();
-        return true;
-    } catch (...) { return false; }
+        return revision;
+    } catch (...) { return 0; }
 }
 
 SettingsWriter::Status SettingsWriter::GetStatus() const {

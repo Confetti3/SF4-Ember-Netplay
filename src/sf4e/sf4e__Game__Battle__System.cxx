@@ -41,6 +41,7 @@ static sf4e::RollbackHud rollbackHud;
 #include "sf4e__Pad.hxx"
 #include "sf4e__Platform.hxx"
 #include "sf4e__NetplayFacade.hxx"
+#include "sf4e__Overlay.hxx"
 
 using Dimps::Platform::WithReleaser;
 
@@ -144,6 +145,17 @@ static void PublishConfirmedNativeMatchResult() {
     }
 }
 
+// The frame loop only publishes after a successful advance. Once the fight
+// has stopped simulating, confirmation of the result frames can still arrive
+// through a plain GGPO poll; without this entry that outcome was never sent.
+void fSystem::PollNativeMatchResult() {
+    PublishConfirmedNativeMatchResult();
+}
+
+// Defined with SaveState::Free.
+static void LogSaveStateFreePolicy();
+static const char* SaveStateFreePathName();
+
 static void NoteDisconnectFlags(int flags) {
     if (flags != s_lastDisconnectFlags) {
         spdlog::info(
@@ -197,7 +209,7 @@ static void EmitRollbackDiagSummary(const char* label) {
     if (!diag::Enabled()) {
         return;
     }
-    static char s_diagBuf[8192];
+    static char s_diagBuf[16384];
     size_t n = diag::G().FormatSummary(s_diagBuf, sizeof(s_diagBuf), label);
     if (n) {
         spdlog::info("\n{}", s_diagBuf);
@@ -449,6 +461,235 @@ int fSystem::RestoreFromMemento(Memento* m, GameMementoKey::MementoID* id) {
     return result;
 }
 
+// ---------------------------------------------------------------------------
+// Local rollback stress (development only).
+//
+// SF4E_ROLLBACK_STRESS=<1..8> makes an offline battle (Versus or Training)
+// drive save states the way a GGPO session with that rollback distance does:
+//
+//   * every frame frees the oldest ring slot and saves before simulating;
+//   * every <distance> frames the state from <distance> frames ago is loaded
+//     and those frames are re-simulated with their recorded inputs, freeing
+//     and saving again on each one, exactly as Sync::AdjustSimulation does.
+//
+// After each re-simulated frame the semantic hash is compared with the
+// original pass and any divergence is logged with its subsystem. Inputs pass
+// through the same playback path as netplay, and Training Lab playback is
+// honoured, so a recorded sequence can be replayed under rollback on one PC.
+// With SF4E_ROLLBACK_DIAGNOSTICS=1 the usual timing summary is logged every
+// 600 frames, which makes per-character save/free/restore cost comparable
+// without a network. GGPO's own synctest backend is not used: it breaks into
+// the debugger on a mismatch and writes a log file for every frame.
+// ---------------------------------------------------------------------------
+namespace {
+struct RollbackStress {
+    static constexpr int kRing = NUM_SAVE_STATES;
+    int distance = 0; // 0 disables
+    bool configured = false;
+    bool primed = false;
+    int frame = 0;
+    int16_t lastEngineFrame = 0;
+    fSystem::SaveState states[kRing];
+    int stateFrame[kRing] = {};
+    fPadSystem::Inputs inputs[kRing][2] = {};
+    // hashes[g % kRing] is the state after simulating stress frame g.
+    fSystem::SemanticHashes hashes[kRing];
+    uint64_t rollbacks = 0;
+    uint64_t divergences = 0;
+    uint64_t resets = 0;
+};
+
+RollbackStress& Stress() {
+    static RollbackStress stress;
+    return stress;
+}
+
+int16_t StressEngineFrame(rSystem* system) {
+    return rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
+}
+
+void StressConfigure() {
+    auto& stress = Stress();
+    if (stress.configured) {
+        return;
+    }
+    stress.configured = true;
+    char value[8] = {};
+    const DWORD length = GetEnvironmentVariableA("SF4E_ROLLBACK_STRESS", value, sizeof(value));
+    if (length == 0 || length >= sizeof(value)) {
+        return;
+    }
+    const int distance = atoi(value);
+    if (distance < 1 || distance > GGPO_MAX_PREDICTION_FRAMES) {
+        spdlog::warn("RollbackStress: SF4E_ROLLBACK_STRESS={} ignored; use 1..{}", value, GGPO_MAX_PREDICTION_FRAMES);
+        return;
+    }
+    stress.distance = distance;
+    spdlog::warn("RollbackStress: enabled for offline battles, distance={} frames", distance);
+}
+
+void StressReset() {
+    auto& stress = Stress();
+    for (int i = 0; i < RollbackStress::kRing; i++) {
+        if (stress.states[i].used) {
+            fSystem::SaveState::Free(&stress.states[i]);
+        }
+        stress.stateFrame[i] = -1;
+    }
+    stress.frame = 0;
+    stress.primed = false;
+}
+
+fPadSystem::Inputs StressReadInput(rPadSystem* pad, int side) {
+    sf4e::training::Input practice;
+    if (sf4e::training::ReadOverride(side, practice)) {
+        return { practice.mapped, practice.raw };
+    }
+    if (sf4e::Overlay::CapturesMenuInput()) {
+        return { 0, 0 };
+    }
+    return {
+        (pad->*rPadSystem::publicMethods.GetButtons_MappedOn)(side),
+        (pad->*rPadSystem::publicMethods.GetButtons_RawOn)(side),
+    };
+}
+
+void StressSimulate(rSystem* system, const fPadSystem::Inputs* inputs) {
+    PlaybackFrameScopeGuard playbackGuard;
+    fPadSystem::playbackFrame = 0;
+    fPadSystem::playbackData[0][0] = inputs[0];
+    fPadSystem::playbackData[0][1] = inputs[1];
+    diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
+    (system->*rSystem::publicMethods.BattleUpdate)();
+}
+
+// GGPO frees the ring slot, then saves, before every simulated frame.
+void StressSaveBefore(int stressFrame) {
+    auto& stress = Stress();
+    const int index = stressFrame % RollbackStress::kRing;
+    if (stress.states[index].used) {
+        fSystem::SaveState::Free(&stress.states[index]);
+    }
+    fSystem::SaveState::Save(&stress.states[index]);
+    stress.stateFrame[index] = stressFrame;
+}
+
+const char* SubsystemState(uint64_t replay, uint64_t original) {
+    return replay == original ? "match" : "DIFF";
+}
+
+// Runs this outer frame's update under the stress schedule. Returns false when
+// stress is disabled so the caller runs the plain update.
+bool StressStep(rSystem* system) {
+    StressConfigure();
+    auto& stress = Stress();
+    if (!stress.distance) {
+        return false;
+    }
+    const int16_t before = StressEngineFrame(system);
+    if (stress.primed && before != stress.lastEngineFrame) {
+        // A training restore or other jump outside this loop: the recorded
+        // history no longer describes the live timeline.
+        StressReset();
+        stress.resets++;
+    }
+    if (!stress.primed) {
+        diag::InitFromEnvironment();
+        if (diag::Enabled() && stress.rollbacks == 0) {
+            diag::G().ResetForMatch(diag::NowMs());
+        }
+        stress.primed = true;
+    }
+
+    rPadSystem* pad = rPadSystem::staticMethods.GetSingleton();
+    const int current = stress.frame;
+    const int index = current % RollbackStress::kRing;
+    stress.inputs[index][0] = StressReadInput(pad, 0);
+    stress.inputs[index][1] = StressReadInput(pad, 1);
+    StressSaveBefore(current);
+    StressSimulate(system, stress.inputs[index]);
+    stress.lastEngineFrame = StressEngineFrame(system);
+    if (static_cast<int16_t>(stress.lastEngineFrame - before) != 1) {
+        // Paused, or the native flow held the simulation: not a replayable
+        // frame. Start the history again from the next one.
+        StressReset();
+        stress.primed = true;
+        return true;
+    }
+    stress.hashes[index] = fSystem::ComputeSemanticHashes(system);
+    stress.frame++;
+    if (diag::Enabled()) {
+        diag::G().OnFrameAdvanced(diag::NowMs());
+    }
+
+    if (stress.frame < stress.distance || stress.frame % stress.distance != 0) {
+        return true;
+    }
+    const int target = stress.frame - stress.distance;
+    const int targetIndex = target % RollbackStress::kRing;
+    if (!stress.states[targetIndex].used || stress.stateFrame[targetIndex] != target) {
+        return true;
+    }
+    fSystem::SaveState::Load(&stress.states[targetIndex]);
+    for (int replayed = target; replayed < stress.frame; replayed++) {
+        diag::ScopedTimer _cb(diag::OP_ROLLBACK_CALLBACK);
+        if (diag::Enabled()) {
+            diag::G().OnRollbackCallback(diag::NowMs());
+        }
+        const int replayIndex = replayed % RollbackStress::kRing;
+        StressSaveBefore(replayed);
+        StressSimulate(system, stress.inputs[replayIndex]);
+        const auto replay = fSystem::ComputeSemanticHashes(system);
+        const auto& original = stress.hashes[replayIndex];
+        if (replay.overall != original.overall) {
+            stress.divergences++;
+            spdlog::error(
+                "RollbackStress: replay diverged stress_frame={} engine_frame={} distance={} free_path={} flow={} p1={} p2={} inputs={:08x}/{:08x} {:08x}/{:08x}",
+                replayed,
+                StressEngineFrame(system),
+                stress.distance,
+                SaveStateFreePathName(),
+                SubsystemState(replay.flow, original.flow),
+                SubsystemState(replay.chara[0], original.chara[0]),
+                SubsystemState(replay.chara[1], original.chara[1]),
+                stress.inputs[replayIndex][0].mappedOn,
+                stress.inputs[replayIndex][0].rawOn,
+                stress.inputs[replayIndex][1].mappedOn,
+                stress.inputs[replayIndex][1].rawOn
+            );
+            // Continue from the replayed timeline so one divergence is not
+            // reported again on every later rollback.
+            stress.hashes[replayIndex] = replay;
+        }
+    }
+    stress.rollbacks++;
+    stress.lastEngineFrame = StressEngineFrame(system);
+
+    if (stress.rollbacks % (600 / stress.distance) == 0) {
+        spdlog::info(
+            "RollbackStress: distance={} free_path={} rollbacks={} divergences={} resets={}",
+            stress.distance, SaveStateFreePathName(), stress.rollbacks, stress.divergences, stress.resets
+        );
+        EmitRollbackDiagSummary("rollback_stress");
+    }
+    return true;
+}
+
+void StressCloseBattle() {
+    auto& stress = Stress();
+    if (!stress.distance) {
+        return;
+    }
+    spdlog::info(
+        "RollbackStress: battle closed distance={} free_path={} rollbacks={} divergences={} resets={}",
+        stress.distance, SaveStateFreePathName(), stress.rollbacks, stress.divergences, stress.resets
+    );
+    EmitRollbackDiagSummary("rollback_stress_close");
+    StressReset();
+    stress.rollbacks = stress.divergences = stress.resets = 0;
+}
+}
+
 void fSystem::BattleUpdate() {
     rSystem* _this = (rSystem*)this;
     rSystem::__publicMethods& sysMethods = rSystem::publicMethods;
@@ -604,7 +845,9 @@ void fSystem::BattleUpdate() {
             fSoundPlayerManager::SyncState();
         }
         sf4e::training::BeforeUpdate(_this, ggpo != nullptr);
-        (_this->*rSystem::publicMethods.BattleUpdate)();
+        if (!StressStep(_this)) {
+            (_this->*rSystem::publicMethods.BattleUpdate)();
+        }
         sf4e::training::AfterUpdate(_this);
     }
 
@@ -654,7 +897,18 @@ void fSystem::CloseBattle() {
     bool summaryEmitted = false;
     LogSaveSlotOccupancy("battle_close_entry");
     if (ggpo) {
-        spdlog::info("Match result: native teardown outcome_emitted={}", s_nativeResultEmitted);
+        PublishConfirmedNativeMatchResult();
+        int confirmedInput = -1;
+        ggpo_get_last_confirmed_frame(ggpo, &confirmedInput);
+        const auto candidate = s_nativeResultTimeline.Latest();
+        spdlog::info(
+            "Match result: native teardown outcome_emitted={} candidate={} candidate_frame={} confirmed_input={} last_save_frame={}",
+            s_nativeResultEmitted,
+            static_cast<int>(candidate.result),
+            candidate.frame,
+            confirmedInput,
+            lastGgpoSaveFrame
+        );
         simGate.OnBattleClosing();
         // Decide defer *before* close so a prior spectator defer flag cannot
         // leave this session open across rematch.
@@ -683,6 +937,7 @@ void fSystem::CloseBattle() {
     for (int i = 0; i < NUM_SAVE_STATES; i++) {
         SaveState::Reclaim(&saveStates[i], "battle_close_sweep", i);
     }
+    StressCloseBattle();
     if (!summaryEmitted) {
         EmitRollbackDiagSummary("battle_close_deferred");
     }
@@ -746,46 +1001,96 @@ void fSystem::SysMain_UpdatePauseState() {
     }
 }
 
+namespace {
+// Sums the memento work of each unit group across one Record/RestoreAll pass
+// and records one sample per group, so a character whose effects are costly
+// shows up as a larger effect/VFX share. Reads no clock when diagnostics are
+// off.
+class MementoUnitTimer {
+public:
+    enum Group { CHARA = 0, EFFECT, VFX, OTHER, GROUP_COUNT };
+    explicit MementoUnitTimer(const int* ops) : ops_(ops), timed_(diag::Enabled()) {}
+    ~MementoUnitTimer() {
+        if (!timed_) return;
+        for (int group = 0; group < GROUP_COUNT; group++) {
+            diag::G().RecordOp(ops_[group], ms_[group]);
+        }
+    }
+    template <class Call> void Time(Group group, Call&& call) {
+        if (!timed_) {
+            call();
+            return;
+        }
+        const double t0 = diag::NowMs();
+        call();
+        ms_[group] += diag::NowMs() - t0;
+    }
+private:
+    MementoUnitTimer(const MementoUnitTimer&) = delete;
+    MementoUnitTimer& operator=(const MementoUnitTimer&) = delete;
+    const int* ops_;
+    bool timed_;
+    double ms_[GROUP_COUNT] = {};
+};
+
+const int kRecordOps[MementoUnitTimer::GROUP_COUNT] = {
+    diag::OP_RECORD_CHARA, diag::OP_RECORD_EFFECT, diag::OP_RECORD_VFX, diag::OP_RECORD_OTHER
+};
+const int kRestoreOps[MementoUnitTimer::GROUP_COUNT] = {
+    diag::OP_RESTORE_CHARA, diag::OP_RESTORE_EFFECT, diag::OP_RESTORE_VFX, diag::OP_RESTORE_OTHER
+};
+}
+
 void fSystem::RestoreAllFromInternalMementos(rSystem* system, rKey::MementoID * id) {
     void* (rSystem:: * GetUnitByIndex)(unsigned int) = rSystem::publicMethods.GetUnitByIndex;
     CharaUnit* charaUnit = (CharaUnit*)(system->*GetUnitByIndex)(rSystem::U_CHARA);
+    MementoUnitTimer timer(kRestoreOps);
 
-    (system->*rSystem::publicMethods.RestoreFromInternalMementoKey)(id);
-    (charaUnit->*CharaUnit::publicMethods.RestoreFromInternalMementoKey)(id);
-    (
-        ((EffectUnit*)(system->*GetUnitByIndex)(rSystem::U_EFFECT))->*
-        EffectUnit::publicMethods.RestoreFromInternalMementoKey
-        )(id);
+    timer.Time(MementoUnitTimer::OTHER, [&] {
+        (system->*rSystem::publicMethods.RestoreFromInternalMementoKey)(id);
+    });
+    timer.Time(MementoUnitTimer::CHARA, [&] {
+        (charaUnit->*CharaUnit::publicMethods.RestoreFromInternalMementoKey)(id);
+    });
+    timer.Time(MementoUnitTimer::EFFECT, [&] {
+        (
+            ((EffectUnit*)(system->*GetUnitByIndex)(rSystem::U_EFFECT))->*
+            EffectUnit::publicMethods.RestoreFromInternalMementoKey
+            )(id);
+    });
+    timer.Time(MementoUnitTimer::VFX, [&] {
+        (
+            ((VfxUnit*)(system->*GetUnitByIndex)(rSystem::U_VFX))->*
+            VfxUnit::publicMethods.RestoreFromInternalMementoKey
+            )(id);
+    });
 
-    (
-        ((VfxUnit*)(system->*GetUnitByIndex)(rSystem::U_VFX))->*
-        VfxUnit::publicMethods.RestoreFromInternalMementoKey
-        )(id);
+    timer.Time(MementoUnitTimer::OTHER, [&] {
+        (
+            ((CommandUnit*)(system->*GetUnitByIndex)(rSystem::U_COMMAND))->*
+            CommandUnit::publicMethods.RestoreFromInternalMementoKey
+            )(id);
 
+        (
+            ((HudUnit*)(system->*GetUnitByIndex)(rSystem::U_HUD))->*
+            HudUnit::publicMethods.RestoreFromInternalMementoKey
+            )(id);
 
-    (
-        ((CommandUnit*)(system->*GetUnitByIndex)(rSystem::U_COMMAND))->*
-        CommandUnit::publicMethods.RestoreFromInternalMementoKey
-        )(id);
+        (
+            ((CameraUnit*)(system->*GetUnitByIndex)(rSystem::U_CAMERA))->*
+            CameraUnit::publicMethods.RestoreFromInternalMementoKey
+            )(id);
 
+        (
+            TrainingManager::staticMethods.GetSingleton()->*
+            TrainingManager::publicMethods.RestoreFromInternalMementoKey
+            )(id);
+    });
 
-    (
-        ((HudUnit*)(system->*GetUnitByIndex)(rSystem::U_HUD))->*
-        HudUnit::publicMethods.RestoreFromInternalMementoKey
-        )(id);
-
-    (
-        ((CameraUnit*)(system->*GetUnitByIndex)(rSystem::U_CAMERA))->*
-        CameraUnit::publicMethods.RestoreFromInternalMementoKey
-        )(id);
-
-    (
-        TrainingManager::staticMethods.GetSingleton()->*
-        TrainingManager::publicMethods.RestoreFromInternalMementoKey
-        )(id);
-
-    CharaActor::staticMethods.ResetAfterMemento((charaUnit->*CharaUnit::publicMethods.GetActorByIndex)(0));
-    CharaActor::staticMethods.ResetAfterMemento((charaUnit->*CharaUnit::publicMethods.GetActorByIndex)(1));
+    timer.Time(MementoUnitTimer::CHARA, [&] {
+        CharaActor::staticMethods.ResetAfterMemento((charaUnit->*CharaUnit::publicMethods.GetActorByIndex)(0));
+        CharaActor::staticMethods.ResetAfterMemento((charaUnit->*CharaUnit::publicMethods.GetActorByIndex)(1));
+    });
 
     // Intentionally omit the reset of the Network unit. All in-game inputs
     // are passed into and read back out of the network unit, regardless
@@ -800,42 +1105,53 @@ void fSystem::RecordAllToInternalMementos(rSystem* system, GameMementoKey::Memen
     // replaced just by no-oping the `jz` instruction at 0x5d7fa0, but this
     // is probably more legible.
     void* (rSystem:: * GetUnitByIndex)(unsigned int) = rSystem::publicMethods.GetUnitByIndex;
-    (system->*rSystem::publicMethods.RecordToInternalMementoKey)(id);
+    MementoUnitTimer timer(kRecordOps);
+    timer.Time(MementoUnitTimer::OTHER, [&] {
+        (system->*rSystem::publicMethods.RecordToInternalMementoKey)(id);
+    });
 
-    (
-        ((CharaUnit*)(system->*GetUnitByIndex)(rSystem::U_CHARA))->*
-        CharaUnit::publicMethods.RecordToInternalMementoKey
-        )(id);
+    timer.Time(MementoUnitTimer::CHARA, [&] {
+        (
+            ((CharaUnit*)(system->*GetUnitByIndex)(rSystem::U_CHARA))->*
+            CharaUnit::publicMethods.RecordToInternalMementoKey
+            )(id);
+    });
 
-    (
-        ((EffectUnit*)(system->*GetUnitByIndex)(rSystem::U_EFFECT))->*
-        EffectUnit::publicMethods.RecordToInternalMementoKey
-        )(id);
+    timer.Time(MementoUnitTimer::EFFECT, [&] {
+        (
+            ((EffectUnit*)(system->*GetUnitByIndex)(rSystem::U_EFFECT))->*
+            EffectUnit::publicMethods.RecordToInternalMementoKey
+            )(id);
+    });
 
-    (
-        ((VfxUnit*)(system->*GetUnitByIndex)(rSystem::U_VFX))->*
-        VfxUnit::publicMethods.RecordToInternalMementoKey
-        )(id);
+    timer.Time(MementoUnitTimer::VFX, [&] {
+        (
+            ((VfxUnit*)(system->*GetUnitByIndex)(rSystem::U_VFX))->*
+            VfxUnit::publicMethods.RecordToInternalMementoKey
+            )(id);
+    });
 
-    (
-        ((CommandUnit*)(system->*GetUnitByIndex)(rSystem::U_COMMAND))->*
-        CommandUnit::publicMethods.RecordToInternalMementoKey
-        )(id);
+    timer.Time(MementoUnitTimer::OTHER, [&] {
+        (
+            ((CommandUnit*)(system->*GetUnitByIndex)(rSystem::U_COMMAND))->*
+            CommandUnit::publicMethods.RecordToInternalMementoKey
+            )(id);
 
-    (
-        ((HudUnit*)(system->*GetUnitByIndex)(rSystem::U_HUD))->*
-        HudUnit::publicMethods.RecordToInternalMementoKey
-        )(id);
+        (
+            ((HudUnit*)(system->*GetUnitByIndex)(rSystem::U_HUD))->*
+            HudUnit::publicMethods.RecordToInternalMementoKey
+            )(id);
 
-    (
-        ((CameraUnit*)(system->*GetUnitByIndex)(rSystem::U_CAMERA))->*
-        CameraUnit::publicMethods.RecordToInternalMementoKey
-        )(id);
+        (
+            ((CameraUnit*)(system->*GetUnitByIndex)(rSystem::U_CAMERA))->*
+            CameraUnit::publicMethods.RecordToInternalMementoKey
+            )(id);
 
-    (
-        TrainingManager::staticMethods.GetSingleton()->*
-        TrainingManager::publicMethods.RecordToInternalMementoKey
-        )(id);
+        (
+            TrainingManager::staticMethods.GetSingleton()->*
+            TrainingManager::publicMethods.RecordToInternalMementoKey
+            )(id);
+    });
 }
 
 
@@ -923,6 +1239,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     // previous battle's objects are gone, so ClearKey through those pointers
     // would fault. Reusing a dirty slot is what corrupts the next match.
     LogSaveSlotOccupancy("start_ggpo_entry");
+    LogSaveStateFreePolicy();
     for (int i = 0; i < NUM_SAVE_STATES; i++) {
         SaveState::Reclaim(&saveStates[i], "start_ggpo", i);
     }
@@ -1332,7 +1649,8 @@ fSystem::HashCheckpoint fSystem::hashCheckpoints[fSystem::NUM_HASH_CHECKPOINTS];
 // deliberately conservative: the frame counter, battle-flow numeric state,
 // and per-character semantic values read through engine getters (the same
 // values the legacy snapshot exchanges, which are known deterministic
-// across peers). Explicitly EXCLUDED: the battle-flow function pointers,
+// across peers, plus action id, action frame, posture and time scale).
+// Explicitly EXCLUDED: the battle-flow function pointers,
 // the raw GameManager block (shallow pointer fields), GameMementoKey bytes,
 // sound maps (process-local pointer keys), RNG (the evolving RNG state has
 // not been located; the match seed alone is not it), and all
@@ -1393,6 +1711,14 @@ fSystem::SemanticHashes fSystem::ComputeSemanticHashes(rSystem* src) {
         (a->*methods.GetUCTimeMax_FixedPoint)(&fp);            ch.Fixed(fp.fractional, fp.integral);
         (a->*methods.GetComboDamage)(&fp);                     ch.Fixed(fp.fractional, fp.integral);
         (a->*methods.GetDamage)(&fp);                          ch.Fixed(fp.fractional, fp.integral);
+        // Action timing (v0.8.6): the running move, how far into it the
+        // character is, its posture, and the side's time scale (hitstop and
+        // slowdown). A replay that keeps positions and health but lands a
+        // move on a different frame now differs here.
+        ch.I32((a->*methods.GetActionID)());
+        (a->*methods.GetActionFrame)(&fp);                     ch.Fixed(fp.fractional, fp.integral);
+        ch.I32((a->*methods.GetActionPosture)());
+        (src->*rSystem::publicMethods.GetUnitTimeScale_Fixed)(&fp, i); ch.Fixed(fp.fractional, fp.integral);
         out.chara[i] = ch.Value();
     }
 
@@ -1593,9 +1919,133 @@ void fSystem::SaveState::Reclaim(SaveState* victim, const char* reason, int slot
     Clear(victim);
 }
 
+static bool EnvironmentFlagSet(const char* name) {
+    char value[8] = {};
+    const DWORD length = GetEnvironmentVariableA(name, value, sizeof(value));
+    return length > 0 && length < sizeof(value) && value[0] == '1';
+}
+
+// Read once per process. SF4E_LEGACY_SAVESTATE_FREE=1 selects the v0.8.5
+// round-trip release for A/B comparison; SF4E_SAVESTATE_FREE_VERIFY=1 checks
+// that each release leaves the live game state untouched.
+struct SaveStateFreePolicy {
+    bool legacyRoundTrip;
+    bool verify;
+};
+
+static const SaveStateFreePolicy& FreePolicy() {
+    static const SaveStateFreePolicy policy = {
+        EnvironmentFlagSet("SF4E_LEGACY_SAVESTATE_FREE"),
+        EnvironmentFlagSet("SF4E_SAVESTATE_FREE_VERIFY"),
+    };
+    return policy;
+}
+
+static const char* SaveStateFreePathName() {
+    return FreePolicy().legacyRoundTrip ? "legacy_round_trip" : "swap";
+}
+
+static void LogSaveStateFreePolicy() {
+    spdlog::info(
+        "SaveState: free path={} verify={}",
+        FreePolicy().legacyRoundTrip ? "legacy_round_trip" : "swap",
+        FreePolicy().verify
+    );
+}
+
+// Everything a release must not change: the semantic gameplay hash, the
+// battle-flow globals, the GameManager block and, for the swap path, every
+// live memento key byte. The legacy round trip hands the temporary save's
+// payloads to the live keys by design, so its key bytes always differ.
+static uint64_t HashLiveStateForFreeCheck(bool includeKeys) {
+    sf4e::statehash::Hasher hasher;
+    rSystem* system = rSystem::staticMethods.GetSingleton();
+    if (!system) {
+        return 0;
+    }
+    hasher.U64(fSystem::ComputeSemanticHashes(system).overall);
+    const auto bytes = [&](const void* data, size_t size) {
+        const auto* cursor = static_cast<const uint8_t*>(data);
+        for (size_t i = 0; i < size; i++) {
+            hasher.U8(cursor[i]);
+        }
+    };
+    bytes(rSystem::staticVars.CurrentBattleFlow, sizeof(DWORD));
+    bytes(rSystem::staticVars.CurrentBattleFlowSubstate, sizeof(DWORD));
+    bytes(rSystem::staticVars.CurrentBattleFlowFrame, sizeof(FixedPoint));
+    bytes((system->*rSystem::publicMethods.GetGameManager)(), sizeof(GameManager));
+    if (includeKeys) {
+        for (rKey* key : fKey::trackedKeys) {
+            hasher.U32(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(key)));
+            bytes(key, sizeof(rKey));
+        }
+    }
+    return hasher.Value();
+}
+
+// Default release. The engine's ClearKey (0x52F3D0) uses the live mementoable
+// object only to find its vtable, and every memento destructor it reaches
+// touches memento-owned memory alone (docs/SAVESTATE_FREE.md). So the victim's
+// key is installed just long enough to release it, and the live key is put
+// back. No temporary save and no memento restore is needed.
+static void FreeBySwap(fSystem::SaveState* victim) {
+    diag::ScopedTimer _t(diag::OP_FREE_SWAP);
+    if (victim->ownsKeys) {
+        for (auto& entry : victim->keys) {
+            if (!entry.first) {
+                continue;
+            }
+            const rKey live = *entry.first;
+            *entry.first = entry.second;
+            // The original engine function, not the tracking detour: the
+            // address still belongs to a live, tracked key.
+            (entry.first->*rKey::publicMethods.ClearKey)();
+            *entry.first = live;
+        }
+    }
+    // The payloads were released above; Clear must only drop the records.
+    victim->ownsKeys = false;
+    Clear(victim);
+}
+
 void fSystem::SaveState::Free(SaveState* victim) {
     diag::ScopedTimer _freeTimer(diag::OP_FREE_TOTAL);
     AssertSaveStateThreadAffinity();
+    const auto& policy = FreePolicy();
+    const uint64_t before = policy.verify ? HashLiveStateForFreeCheck(!policy.legacyRoundTrip) : 0;
+    if (policy.legacyRoundTrip) {
+        FreeByRoundTrip(victim);
+    }
+    else {
+        FreeBySwap(victim);
+    }
+    if (policy.verify) {
+        const uint64_t after = HashLiveStateForFreeCheck(!policy.legacyRoundTrip);
+        if (after != before) {
+            spdlog::error(
+                "SaveState: releasing a state changed live game state (path={} simFrame={} before={:016x} after={:016x})",
+                policy.legacyRoundTrip ? "legacy_round_trip" : "swap",
+                rSystem::staticMethods.GetSingleton()
+                    ? (int)rSystem::GetNumFramesSimulated_FixedPoint(rSystem::staticMethods.GetSingleton())->integral
+                    : -1,
+                before,
+                after
+            );
+        }
+    }
+    if (diag::Enabled()) {
+        uint32_t occupied = 0;
+        for (int i = 0; i < NUM_SAVE_STATES; i++) {
+            if (saveStates[i].used) {
+                occupied++;
+            }
+        }
+        diag::G().occupiedSaveSlots.Update(occupied);
+    }
+}
+
+// v0.8.5 release, kept for SF4E_LEGACY_SAVESTATE_FREE A/B comparison.
+void fSystem::SaveState::FreeByRoundTrip(SaveState* victim) {
     SaveState tmp;
 
     {
@@ -1637,15 +2087,6 @@ void fSystem::SaveState::Free(SaveState* victim) {
         CopyIntoPlace(&tmp);
         tmp.ownsKeys = false;
         tmp.keys.clear();
-    }
-    if (diag::Enabled()) {
-        uint32_t occupied = 0;
-        for (int i = 0; i < NUM_SAVE_STATES; i++) {
-            if (saveStates[i].used) {
-                occupied++;
-            }
-        }
-        diag::G().occupiedSaveSlots.Update(occupied);
     }
 }
 

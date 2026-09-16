@@ -160,11 +160,20 @@ int main() {
     CHECK(lock != INVALID_HANDLE_VALUE);
     sf4e::netplay::SettingsWriter writer(asyncPath.wstring());
     for (int i = 0; i < 100; ++i) CHECK(writer.QueueOverlay({{"stageID", i % 30}, {"revision", i}}));
-    CHECK(writer.QueueLauncher({{"displayName", "From ImGui"}, {"mainFighter", 4}, {"inputDelay", 7}, {"roundCount", 15}}));
+    const auto launcherRevision = writer.QueueLauncher({{"displayName", "From ImGui"}, {"mainFighter", 4}, {"inputDelay", 7}, {"roundCount", 15}});
+    CHECK(launcherRevision != 0);
     const auto deadline = GetTickCount64() + 3000;
     while (writer.GetStatus().error.empty() && GetTickCount64() < deadline) Sleep(1);
     CHECK(writer.GetStatus().pending && !writer.GetStatus().error.empty());
+    // Acceptance is not persistence: a failing write must not report the
+    // revision as saved, however long the caller waits.
+    CHECK(writer.SavedLauncherRevision() < launcherRevision);
     CloseHandle(lock);
+    // The worker retries on its own; the revision is reported only once written.
+    const auto savedDeadline = GetTickCount64() + 5000;
+    while (writer.SavedLauncherRevision() < launcherRevision && GetTickCount64() < savedDeadline) Sleep(1);
+    CHECK(writer.SavedLauncherRevision() >= launcherRevision);
+    CHECK(asyncStore.LoadLauncher(result, error) && result["displayName"] == "From ImGui");
     writer.Stop();
     CHECK(!writer.GetStatus().pending && writer.GetStatus().error.empty());
     CHECK(!writer.QueueOverlay({{"stageID", 1}}));

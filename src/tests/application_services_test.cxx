@@ -46,6 +46,8 @@ int main() {
         view.TimingAt(DiagnosticTiming::SaveState)={12,0,0.7,3.0};
         view.TimingAt(DiagnosticTiming::LoadState)={12,0,0.8,4.0};
         view.TimingAt(DiagnosticTiming::PacingWait)={600,0,0.9,5.0};
+        view.TimingAt(DiagnosticTiming::FreeState)={600,0,1.1,6.0};
+        view.TimingAt(DiagnosticTiming::VfxRestore)={24,0,1.2,7.0};
         view.recoveryCheckpointBuildsAvailable=true; view.recoveryCheckpointBuilds=42;
         view.rollbackCallbacks=12; view.predictionStalls=3; view.predictionSkippedFrames=5;
         service.Observe(view);
@@ -66,6 +68,8 @@ int main() {
         CHECK(performance.find("Save state: samples=12 mean_ms=0.7")!=std::string::npos);
         CHECK(performance.find("Load state: samples=12 mean_ms=0.8")!=std::string::npos);
         CHECK(performance.find("Pacing wait: samples=600 mean_ms=0.9")!=std::string::npos);
+        CHECK(performance.find("Free state: samples=600 mean_ms=1.1")!=std::string::npos);
+        CHECK(performance.find("VFX restore: samples=24 mean_ms=1.2")!=std::string::npos);
         CHECK(performance.find("Recovery checkpoint builds (current room lifetime): 42")!=std::string::npos);
         CHECK(performance.find("Prediction stalls: 3 | Prediction-skipped frames: 5")!=std::string::npos);
         CHECK(performance.find("Selected input delay: 2 frames")!=std::string::npos);

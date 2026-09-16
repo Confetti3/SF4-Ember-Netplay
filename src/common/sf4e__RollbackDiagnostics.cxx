@@ -53,6 +53,15 @@ const char* TimedOpName(int op) {
 	case OP_FREE_VICTIM_INSTALL:    return "free.victim_install";
 	case OP_FREE_CLEAR:             return "free.clear";
 	case OP_FREE_LIVE_RESTORE:      return "free.live_restore";
+	case OP_FREE_SWAP:              return "free.swap";
+	case OP_RECORD_CHARA:           return "record.chara";
+	case OP_RECORD_EFFECT:          return "record.effect";
+	case OP_RECORD_VFX:             return "record.vfx";
+	case OP_RECORD_OTHER:           return "record.other";
+	case OP_RESTORE_CHARA:          return "restore.chara";
+	case OP_RESTORE_EFFECT:         return "restore.effect";
+	case OP_RESTORE_VFX:            return "restore.vfx";
+	case OP_RESTORE_OTHER:          return "restore.other";
 	case OP_TIMESYNC_SLEEP:         return "timesync_sleep";
 	case OP_PACING_WAIT:            return "pacing_wait";
 	case OP_RUNTIME_TICK:           return "room_runtime";
@@ -398,7 +407,9 @@ size_t RollbackDiagnostics::FormatSummary(char* buf, size_t cap, const char* lab
 		OP_LOAD_TOTAL, OP_LOAD_KEY_BACKUP, OP_LOAD_COPY_INTO_PLACE,
 		OP_LOAD_RESTORE_KEYS,
 		OP_FREE_TOTAL, OP_FREE_TMP_SAVE, OP_FREE_VICTIM_INSTALL,
-		OP_FREE_CLEAR, OP_FREE_LIVE_RESTORE,
+		OP_FREE_CLEAR, OP_FREE_LIVE_RESTORE, OP_FREE_SWAP,
+		OP_RECORD_CHARA, OP_RECORD_EFFECT, OP_RECORD_VFX, OP_RECORD_OTHER,
+		OP_RESTORE_CHARA, OP_RESTORE_EFFECT, OP_RESTORE_VFX, OP_RESTORE_OTHER,
 	};
 	for (size_t i = 0; i < sizeof(hitchOps) / sizeof(hitchOps[0]); i++) {
 		AppendStatLine(buf, cap, &used, TimedOpName(hitchOps[i]), ops[hitchOps[i]]);

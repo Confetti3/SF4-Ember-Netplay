@@ -66,8 +66,15 @@ public:
 		}
 		return latest ? latest->result : Result::None;
 	}
-private:
+	// Newest captured outcome regardless of confirmation, for teardown logs.
 	struct Sample { int frame = -1; Result result = Result::None; };
+	Sample Latest() const {
+		Sample latest;
+		for (const auto& sample : samples_)
+			if (sample.result != Result::None && sample.frame > latest.frame) latest = sample;
+		return latest;
+	}
+private:
 	std::array<Sample, Capacity> samples_{};
 };
 

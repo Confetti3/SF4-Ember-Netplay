@@ -404,6 +404,7 @@ session::SendResult SessionClient::SendRoomAction(room::Action action, std::uint
 	json payload = message;
     const auto sent=Send(payload,nullptr);
 	if (sent==session::SendResult::Queued) {
+		RememberSentRoomAction(action);
 		if (auto* retry=RetryRecord(action.kind)) {
 			retry->actionId=action.actionId;
 			retry->payload=payload.dump();
@@ -411,6 +412,29 @@ session::SendResult SessionClient::SendRoomAction(room::Action action, std::uint
 		if (actionId) *actionId=action.actionId;
 	}
     return sent;
+}
+
+void SessionClient::RememberSentRoomAction(const room::Action& action) {
+	for (const auto& sent : _sentRoomActions)
+		if (sent.actionId == action.actionId) return;
+	if (_sentRoomActions.size() >= 32) _sentRoomActions.pop_front();
+	_sentRoomActions.push_back({action.actionId, action.kind, action.table, action.matchGeneration});
+}
+
+void SessionClient::LogRejectedRoomAction(std::uint64_t actionId, room::RejectReason reason) {
+	if (actionId == _lastRejectedActionId && reason == _lastRejectedReason) return;
+	_lastRejectedActionId = actionId;
+	_lastRejectedReason = reason;
+	const auto found = std::find_if(_sentRoomActions.begin(), _sentRoomActions.end(),
+		[&](const SentRoomAction& sent) { return sent.actionId == actionId; });
+	// A duplicate result report is the expected reply to a retried report.
+	const auto level = reason == room::RejectReason::DuplicateResult ? spdlog::level::info : spdlog::level::warn;
+	if (found == _sentRoomActions.end()) {
+		spdlog::log(level, "Room action rejected action={} kind=unknown reason={}", actionId, static_cast<int>(reason));
+		return;
+	}
+	spdlog::log(level, "Room action rejected action={} kind={} table={} generation={} reason={}",
+		actionId, static_cast<int>(found->kind), found->table, found->generation, static_cast<int>(reason));
 }
 
 session::SendResult SessionClient::RetryRoomResult(room::Action action, std::uint64_t actionId) {
@@ -561,6 +585,7 @@ int SessionClient::Step()
 		message.action = acknowledgment;
 		json payload = message;
 		if (Send(payload, nullptr) == session::SendResult::Queued) {
+			RememberSentRoomAction(acknowledgment);
 			pending->nextStep = _stepCounter + 8;
 			++pending;
 		} else {
@@ -610,6 +635,7 @@ int SessionClient::Step()
             if (replyId) {
                 if (_actionReplies.size()>=32) _actionReplies.pop_front();
                 _actionReplies.push_back({replyId,result.result.accepted,result.result.reason});
+                if (!result.result.accepted) LogRejectedRoomAction(replyId, result.result.reason);
             }
 			if (result.result.snapshot.roomEpoch != 0 && (!_roomSnapshot.roomEpoch ||
                 (result.result.snapshot.roomEpoch==_roomSnapshot.roomEpoch && result.result.snapshot.revision>=_roomSnapshot.revision))) {

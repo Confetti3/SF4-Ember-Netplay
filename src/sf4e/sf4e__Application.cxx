@@ -33,8 +33,35 @@ namespace {
 platform::HelperBootstrap pendingBootstrap, pendingDiscord;
 uint32_t pendingError = 0;
 
+// The lifecycle trace records only changes. Publish runs every application
+// tick, so the traced values are compared here first and the JSON document is
+// built only when one of them moved.
+struct TraceFields {
+    int room = -1, match = -1, control = -1, recovery = -1, router = -1, matchPhase = -1;
+    std::string routerError, matchError, probe, probeRoute;
+    bool nativeSocket = false, resultPending = false, finishPending = false;
+    bool leavePending = false, terminalPending = false, probeBenchmark = false;
+    unsigned probeFailure = 0, probeReplies = 0, probeMissed = 0;
+    std::uint64_t probeP50Us = 0, probeP95Us = 0, probeP99Us = 0, probeJitterUs = 0;
+
+    bool operator==(const TraceFields& other) const {
+        return room == other.room && match == other.match && control == other.control &&
+            recovery == other.recovery && router == other.router && matchPhase == other.matchPhase &&
+            routerError == other.routerError && matchError == other.matchError &&
+            probe == other.probe && probeRoute == other.probeRoute &&
+            nativeSocket == other.nativeSocket && resultPending == other.resultPending &&
+            finishPending == other.finishPending && leavePending == other.leavePending &&
+            terminalPending == other.terminalPending && probeBenchmark == other.probeBenchmark &&
+            probeFailure == other.probeFailure && probeReplies == other.probeReplies &&
+            probeMissed == other.probeMissed && probeP50Us == other.probeP50Us &&
+            probeP95Us == other.probeP95Us && probeP99Us == other.probeP99Us &&
+            probeJitterUs == other.probeJitterUs;
+    }
+};
+
 struct Runtime {
     SessionTrace trace;
+    std::optional<TraceFields> lastTraceFields;
     std::unique_ptr<platform::HelperClient> discordClient;
     discord::PendingInvite discordInvite;
     std::string discordStatus = "Discord integration is unavailable in this build.";
@@ -74,6 +101,9 @@ struct Runtime {
 	// fighter may still own GGPO's socket when the event is delivered.
 	bool terminalAckPending = false;
 	bool terminalOutcomeConsumed = false;
+	// Settings revision carrying the recorded outcome. The ACK waits until the
+	// writer reports this revision on disk, not merely accepted into its queue.
+	std::uint64_t terminalPersistRevision = 0;
 	std::uint8_t terminalAckTable = 0;
 	std::uint64_t terminalAckGeneration = 0;
 	std::uint64_t matchFinishedGeneration = 0;
@@ -92,7 +122,8 @@ struct Runtime {
 	netplay::SessionController controller;
 	netplay::BoundedMailbox<RuntimeCommand> commands{32, 128 * 1024};
 	std::mutex snapshotMutex;
-	RuntimeSnapshot snapshot;
+	// Replaced whole on each publish, never mutated, so readers share it.
+	std::shared_ptr<const RuntimeSnapshot> snapshot = std::make_shared<const RuntimeSnapshot>();
 	std::string displayName;
 	std::string error;
 	bool ready = false;
@@ -143,6 +174,7 @@ void CloseRoom() {
 	runtime->matchEntered = runtime->matchEnded = false;
 	runtime->terminalAckPending = false;
 	runtime->terminalOutcomeConsumed = false;
+	runtime->terminalPersistRevision = 0;
 	runtime->terminalAckTable = 0;
 	runtime->terminalAckGeneration = 0;
 	if (runtime->attached) {
@@ -468,26 +500,57 @@ PostPublishState Publish() {
     }
     {
         diag::ScopedTimer traceTimer(diag::OP_TRACE_ENQUEUE);
-        runtime->trace.Record(nlohmann::json{
-            {"room", static_cast<int>(snapshot.session.room)}, {"match", static_cast<int>(snapshot.session.match)},
-            {"control", static_cast<int>(snapshot.session.control)}, {"recovery", static_cast<int>(snapshot.session.recovery)},
-            {"router", runtime->room ? static_cast<int>(runtime->room->GetState()) : -1},
-            {"router_error", runtime->room ? runtime->room->Error() : std::string()},
-            {"match_phase", runtime->match ? static_cast<int>(runtime->match->GetPhase()) : -1},
-            {"match_error", runtime->match ? runtime->match->Error() : std::string()},
-            {"native_socket", Game::Battle::System::ggpo != nullptr},
-            {"result_pending", runtime->resultOutbox.Pending()}, {"finish_pending", runtime->matchFinishedPending},
-            {"leave_pending", runtime->leaveRequested}, {"terminal_pending", runtime->terminalAckPending},
-            {"probe", runtime->room ? runtime->room->Probe().status : std::string()},
-            {"probe_failure",runtime->room ? runtime->room->Probe().failureReason : 0U},
-            {"probe_route",snapshot.probeRoute},{"probe_benchmark",snapshot.probeBenchmark},
-            {"probe_replies",snapshot.probeSamples},{"probe_missed",snapshot.probeLost},
-            {"probe_p50_us",snapshot.probeP50Us},{"probe_p95_us",snapshot.probeP95Us},
-            {"probe_p99_us",snapshot.probeP99Us},{"probe_jitter_us",snapshot.probeJitterUs}
-        });
+        TraceFields fields;
+        fields.room = static_cast<int>(snapshot.session.room);
+        fields.match = static_cast<int>(snapshot.session.match);
+        fields.control = static_cast<int>(snapshot.session.control);
+        fields.recovery = static_cast<int>(snapshot.session.recovery);
+        fields.router = runtime->room ? static_cast<int>(runtime->room->GetState()) : -1;
+        if (runtime->room) fields.routerError = runtime->room->Error();
+        fields.matchPhase = runtime->match ? static_cast<int>(runtime->match->GetPhase()) : -1;
+        if (runtime->match) fields.matchError = runtime->match->Error();
+        fields.nativeSocket = Game::Battle::System::ggpo != nullptr;
+        fields.resultPending = runtime->resultOutbox.Pending();
+        fields.finishPending = runtime->matchFinishedPending;
+        fields.leavePending = runtime->leaveRequested;
+        fields.terminalPending = runtime->terminalAckPending;
+        if (runtime->room) fields.probe = runtime->room->Probe().status;
+        fields.probeFailure = runtime->room ? runtime->room->Probe().failureReason : 0U;
+        fields.probeRoute = snapshot.probeRoute;
+        fields.probeBenchmark = snapshot.probeBenchmark;
+        fields.probeReplies = snapshot.probeSamples;
+        fields.probeMissed = snapshot.probeLost;
+        fields.probeP50Us = snapshot.probeP50Us;
+        fields.probeP95Us = snapshot.probeP95Us;
+        fields.probeP99Us = snapshot.probeP99Us;
+        fields.probeJitterUs = snapshot.probeJitterUs;
+        if (!runtime->lastTraceFields || !(*runtime->lastTraceFields == fields)) {
+            const bool recorded = runtime->trace.Record(nlohmann::json{
+                {"room", fields.room}, {"match", fields.match},
+                {"control", fields.control}, {"recovery", fields.recovery},
+                {"router", fields.router}, {"router_error", fields.routerError},
+                {"match_phase", fields.matchPhase}, {"match_error", fields.matchError},
+                {"native_socket", fields.nativeSocket},
+                {"result_pending", fields.resultPending}, {"finish_pending", fields.finishPending},
+                {"leave_pending", fields.leavePending}, {"terminal_pending", fields.terminalPending},
+                {"probe", fields.probe}, {"probe_failure", fields.probeFailure},
+                {"probe_route", fields.probeRoute}, {"probe_benchmark", fields.probeBenchmark},
+                {"probe_replies", fields.probeReplies}, {"probe_missed", fields.probeMissed},
+                {"probe_p50_us", fields.probeP50Us}, {"probe_p95_us", fields.probeP95Us},
+                {"probe_p99_us", fields.probeP99Us}, {"probe_jitter_us", fields.probeJitterUs}
+            });
+            if (recorded) runtime->lastTraceFields = std::move(fields);
+        }
     }
     PostPublishState result{snapshot.session,snapshot.discordCanSwitch,snapshot.canOpenRoom};
-    { std::lock_guard<std::mutex> lock(runtime->snapshotMutex); runtime->snapshot = std::move(snapshot); }
+    auto published = std::make_shared<const RuntimeSnapshot>(std::move(snapshot));
+    std::shared_ptr<const RuntimeSnapshot> previous;
+    {
+        std::lock_guard<std::mutex> lock(runtime->snapshotMutex);
+        previous = std::move(runtime->snapshot);
+        runtime->snapshot = std::move(published);
+    }
+    // `previous` is released here, outside the lock, unless a reader still holds it.
     return result;
 }
 } // namespace
@@ -595,10 +658,15 @@ void StopHelper() {
 	runtime = nullptr;
 }
 
-RuntimeSnapshot GetRuntimeSnapshot() {
-	if (!runtime) return {};
+std::shared_ptr<const RuntimeSnapshot> GetRuntimeSnapshotShared() {
+	static const auto empty = std::make_shared<const RuntimeSnapshot>();
+	if (!runtime) return empty;
 	std::lock_guard<std::mutex> lock(runtime->snapshotMutex);
 	return runtime->snapshot;
+}
+
+RuntimeSnapshot GetRuntimeSnapshot() {
+	return *GetRuntimeSnapshotShared();
 }
 
 bool SubmitRuntimeCommand(RuntimeCommand command) {
@@ -848,7 +916,7 @@ void TickRuntime() {
         if (command.discordAction != discord::InviteAction::None) {
             if (!runtime->discordInvite.Matches(command.discordRevision)) continue;
             if (command.discordAction == discord::InviteAction::Cancel) runtime->discordInvite.Cancel();
-            else if (AtMainMenu() && GetRuntimeSnapshot().discordCanSwitch && !Game::Battle::System::ggpo &&
+            else if (AtMainMenu() && GetRuntimeSnapshotShared()->discordCanSwitch && !Game::Battle::System::ggpo &&
                 runtime->discordInvite.Confirm(command.command.generation.room, command.discordRevision))
                 runtime->offlineRequested=false;
             continue;
@@ -856,7 +924,7 @@ void TickRuntime() {
         if (command.inputAction != input::Action::None) {
             if (command.inputAction == input::Action::Cancel) { runtime->input.Cancel(); runtime->inputInitialized=true; continue; }
             const auto current = runtime->controller.GetSnapshot();
-            if (!AtMainMenu() || !GetRuntimeSnapshot().canChangeController || runtime->pendingReady ||
+            if (!AtMainMenu() || !GetRuntimeSnapshotShared()->canChangeController || runtime->pendingReady ||
                 current.readyPending || (current.match != netplay::MatchState::None && current.match != netplay::MatchState::PostMatch)) continue;
             if (command.inputAction == input::Action::BeginCapture) runtime->input.Begin();
             else if (command.inputAction == input::Action::UseKeyboard) {
@@ -870,7 +938,7 @@ void TickRuntime() {
         }
         if (command.service != platform::ServiceAction::None) {
             if (command.service == platform::ServiceAction::InstallUpdate ||
-                ((command.service == platform::ServiceAction::OpenUpdater || command.service == platform::ServiceAction::OpenRecovery) && !GetRuntimeSnapshot().canEditPreferences)) continue;
+                ((command.service == platform::ServiceAction::OpenUpdater || command.service == platform::ServiceAction::OpenRecovery) && !GetRuntimeSnapshotShared()->canEditPreferences)) continue;
             platform::DiagnosticsView diagnostics;
             const auto state = runtime->controller.GetSnapshot();
             diagnostics.room = static_cast<int>(state.room); diagnostics.match = static_cast<int>(state.match);
@@ -878,7 +946,7 @@ void TickRuntime() {
             diagnostics.helperReady = helperReady; diagnostics.verificationAvailable = state.verificationAvailable;
             diagnostics.pingMs = GetStatus().pingMs;
             FillNetworkDiagnostics(diagnostics);
-            diagnostics.selectedDelay=GetRuntimeSnapshot().selectedDelay;
+            diagnostics.selectedDelay=GetRuntimeSnapshotShared()->selectedDelay;
             diagnostics.recoveryCheckpointBuildsAvailable=static_cast<bool>(UserApp::server);
             if(UserApp::server) diagnostics.recoveryCheckpointBuilds=UserApp::server->RecoveryCheckpointBuilds();
             diagnostics.performanceEnabled=diag::Enabled();
@@ -890,7 +958,8 @@ void TickRuntime() {
                 const int ops[]={diag::OP_COMPLETE_OUTER_CALL,diag::OP_OUTER_TICK,diag::OP_RUNTIME_TICK,diag::OP_SESSION_CLIENT_STEP,
                     diag::OP_SESSION_SERVER_STEP,diag::OP_GGPO_IDLE,diag::OP_ROLLBACK_CALLBACK,
                     diag::OP_SAVE_TOTAL,diag::OP_LOAD_TOTAL,diag::OP_PACING_WAIT,
-                    diag::OP_DIAGNOSTIC_ENQUEUE,diag::OP_TRACE_ENQUEUE};
+                    diag::OP_DIAGNOSTIC_ENQUEUE,diag::OP_TRACE_ENQUEUE,
+                    diag::OP_FREE_TOTAL,diag::OP_RESTORE_EFFECT,diag::OP_RESTORE_VFX};
                 static_assert(sizeof(ops)/sizeof(ops[0])==platform::DiagnosticTimingCount, "diagnostic timing operations must stay fixed");
                 for(std::size_t i=0;i<platform::DiagnosticTimingCount;++i) {
                     const auto& stat=performance.ops[ops[i]];
@@ -908,7 +977,7 @@ void TickRuntime() {
         // A replacement or Cancel must also invalidate a queued Join/Leave.
         if (command.discordRevision) {
             if (!runtime->discordInvite.Matches(command.discordRevision) || !AtMainMenu() ||
-                !GetRuntimeSnapshot().discordCanSwitch || Game::Battle::System::ggpo) continue;
+                !GetRuntimeSnapshotShared()->discordCanSwitch || Game::Battle::System::ggpo) continue;
             if (runtime->discordInvite.Expired(static_cast<std::uint64_t>(std::time(nullptr)))) {
                 runtime->discordInvite.Cancel();
                 runtime->error="The Discord invitation expired. Ask for a new invitation.";
@@ -949,7 +1018,7 @@ void TickRuntime() {
 			}
 		}
 		if (kind == netplay::CommandKind::SavePreferences &&
-			(!GetRuntimeSnapshot().canEditPreferences || !command.preferences.Valid())) continue;
+			(!GetRuntimeSnapshotShared()->canEditPreferences || !command.preferences.Valid())) continue;
 		if (kind == netplay::CommandKind::SetLobbySettings &&
 			(!CanEditLobby() || !command.preferences.lobby.Valid())) continue;
 		if (kind == netplay::CommandKind::SetLobbySettings && runtime->match &&
@@ -963,9 +1032,9 @@ void TickRuntime() {
 			continue;
 		}
 		if ((kind == netplay::CommandKind::Ready || kind == netplay::CommandKind::Rematch) &&
-			(!runtime->input.Ready() || !GetRuntimeSnapshot().canReady || runtime->pendingLobbySettings || runtime->pendingLobbyEdit || !selection::FindStage(command.stage) || command.character.charaID >= 44)) continue;
+			(!runtime->input.Ready() || !GetRuntimeSnapshotShared()->canReady || runtime->pendingLobbySettings || runtime->pendingLobbyEdit || !selection::FindStage(command.stage) || command.character.charaID >= 44)) continue;
 		if ((kind == netplay::CommandKind::Ready || kind == netplay::CommandKind::Rematch) &&
-			!selection::Available(selection::FromNative(command.character), GetRuntimeSnapshot().lobbySettings.editionSelect,
+			!selection::Available(selection::FromNative(command.character), GetRuntimeSnapshotShared()->lobbySettings.editionSelect,
 				Dimps::Selection::ReadAvailability(command.character.charaID))) {
 			runtime->error = "This fighter selection is unavailable. Choose an available costume, color, edition, and Ultra.";
 			continue;
@@ -1059,7 +1128,7 @@ void TickRuntime() {
             if(runtime->match) runtime->match->BeginReplacement();
             break;
         case netplay::Effect::CheckConnection: {
-            if(!GetRuntimeSnapshot().canProbe) break;
+            if(!GetRuntimeSnapshotShared()->canProbe) break;
             if(runtime->room->Probe().status=="checking") break;
             std::uint64_t revision=0; const auto peer=CurrentProbePeer(revision);
             if(peer.empty() || !runtime->room->RequestProbe(peer,runtime->nextProbeRequest++,revision,command.command.benchmark))
@@ -1069,7 +1138,7 @@ void TickRuntime() {
             break;
         }
         case netplay::Effect::ApplyDelay: {
-            if(GetRuntimeSnapshot().delayLocked) break;
+            if(GetRuntimeSnapshotShared()->delayLocked) break;
             int selected=command.selectedDelay;
             if(selected==-1) {
                 std::uint64_t revision=0; const auto peer=CurrentProbePeer(revision);
@@ -1122,6 +1191,7 @@ void TickRuntime() {
 				if (event.terminalReplay && event.matchGeneration && runtime->room) {
 					runtime->terminalAckPending = true;
 					runtime->terminalOutcomeConsumed = true; // spectators and aborts need no profile write
+					runtime->terminalPersistRevision = 0;
 					runtime->terminalAckTable = event.table;
 					runtime->terminalAckGeneration = event.matchGeneration;
 					const auto* capture = runtime->resultOutbox.Captured();
@@ -1129,15 +1199,16 @@ void TickRuntime() {
 						event.result == room::MatchResult::P2Win;
 					const bool profileMatch = countedResult && capture &&
 						resultTerminal == netplay::MatchResultOutbox::TerminalResult::Confirmed;
-					if (profileMatch) {
-						const auto consumption = runtime->resultOutbox.PrepareProfileConsumption(runtime->preferences.record);
-						const bool saved = consumption == netplay::MatchResultOutbox::ProfileConsumption::NoPersistenceRequired ||
-							(consumption == netplay::MatchResultOutbox::ProfileConsumption::PersistenceRequired &&
-								OverlayPrefs::SavePlayerPreferences(runtime->preferences));
-						if (!saved) runtime->error = "The match record could not be persisted; teardown acknowledgement is waiting.";
-						runtime->terminalOutcomeConsumed = saved;
-					}
+					// Profile persistence is completed by the poll below, which
+					// waits for the writer to report the revision on disk.
+					if (profileMatch) runtime->terminalOutcomeConsumed = false;
+				}
+				spdlog::info("Room: match ended table={} generation={} result={} replay={}",
+					event.table, event.matchGeneration, static_cast<int>(event.result), event.terminalReplay);
             }
+			if (event.kind == room::Event::Kind::ResultDisputed)
+				spdlog::warn("Match result: disputed table={} generation={} reporter={} result={}",
+					event.table, event.matchGeneration, event.member, static_cast<int>(event.result));
 			if (!runtime->match || event.kind != room::Event::Kind::MatchEnded ||
 				event.matchGeneration != runtime->match->Generation() ||
 				(event.result != room::MatchResult::Abort && event.result != room::MatchResult::Cancel)) continue;
@@ -1147,19 +1218,38 @@ void TickRuntime() {
 			runtime->match->Abort(); runtime->recoveringMatch = true;
 		}
 	}
-	}
-	// A settings write can fail transiently after Record() has updated the
-	// in-memory key. Retry the same bounded persistence boundary while the
-	// receipt remains held; no new result action is generated.
+	// Record the confirmed outcome in the profile and hold the terminal receipt
+	// until the settings writer reports that exact revision on disk. The writer
+	// retries failed writes itself, so a snapshot is queued once per receipt and
+	// only queued again if the writer refused it. PrepareProfileConsumption is
+	// idempotent for a key already in the recent list.
 	const auto* capturedResult = runtime->resultOutbox.Captured();
 	if (runtime->terminalAckPending && !runtime->terminalOutcomeConsumed && runtime->room && capturedResult &&
 		runtime->terminalAckGeneration == capturedResult->generation &&
 		runtime->terminalAckTable == capturedResult->table && capturedResult->slot < 2 &&
 		(capturedResult->result == room::MatchResult::P1Win || capturedResult->result == room::MatchResult::P2Win)) {
-		const auto consumption = runtime->resultOutbox.PrepareProfileConsumption(runtime->preferences.record);
-		if (consumption == netplay::MatchResultOutbox::ProfileConsumption::NoPersistenceRequired ||
-			(consumption == netplay::MatchResultOutbox::ProfileConsumption::PersistenceRequired &&
-				OverlayPrefs::SavePlayerPreferences(runtime->preferences))) runtime->terminalOutcomeConsumed = true;
+		static const char* const persistenceWaiting =
+			"The match record could not be saved yet; returning to the room is waiting for it.";
+		if (!runtime->terminalPersistRevision) {
+			const auto consumption = runtime->resultOutbox.PrepareProfileConsumption(runtime->preferences.record);
+			if (consumption == netplay::MatchResultOutbox::ProfileConsumption::NoPersistenceRequired) {
+				runtime->terminalOutcomeConsumed = true;
+			} else if (consumption == netplay::MatchResultOutbox::ProfileConsumption::PersistenceRequired) {
+				runtime->terminalPersistRevision = OverlayPrefs::QueuePlayerPreferences(runtime->preferences);
+				if (!runtime->terminalPersistRevision && runtime->error != persistenceWaiting) runtime->error = persistenceWaiting;
+			}
+		}
+		if (runtime->terminalPersistRevision) {
+			if (OverlayPrefs::PlayerPreferencesSaved(runtime->terminalPersistRevision)) {
+				spdlog::info("Match result: profile record saved revision={}", runtime->terminalPersistRevision);
+				runtime->terminalOutcomeConsumed = true;
+				runtime->terminalPersistRevision = 0;
+				if (runtime->error == persistenceWaiting) runtime->error.clear();
+			} else if (!OverlayPrefs::PersistenceError().empty() && runtime->error != persistenceWaiting) {
+				spdlog::warn("Match result: profile record write failed: {}", OverlayPrefs::PersistenceError());
+				runtime->error = persistenceWaiting;
+			}
+		}
 	}
 	if (runtime->attached && UserApp::netplay) {
         SessionClient::ActionReply reply;

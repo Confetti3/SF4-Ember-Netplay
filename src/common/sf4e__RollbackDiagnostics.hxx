@@ -57,6 +57,18 @@ enum TimedOp {
 	OP_FREE_VICTIM_INSTALL,        // CopyIntoPlace(victim)
 	OP_FREE_CLEAR,                 // victim-key cleanup
 	OP_FREE_LIVE_RESTORE,          // live-state restoration
+	OP_FREE_SWAP,                  // swap-and-clear release (default Free path)
+
+	// Per-unit memento work inside RecordAll/RestoreAll. Rollback saves,
+	// loads and the legacy free path all pass through these.
+	OP_RECORD_CHARA,               // CharaUnit record
+	OP_RECORD_EFFECT,              // EffectUnit record
+	OP_RECORD_VFX,                 // VfxUnit record
+	OP_RECORD_OTHER,               // System, command, HUD, camera, training
+	OP_RESTORE_CHARA,              // CharaUnit restore + ResetAfterMemento
+	OP_RESTORE_EFFECT,             // EffectUnit restore
+	OP_RESTORE_VFX,                // VfxUnit restore
+	OP_RESTORE_OTHER,              // System, command, HUD, camera, training
 
 	// Blocking behavior we intend to remove (measured for before/after)
 	OP_TIMESYNC_SLEEP,             // sleep inside the timesync event callback

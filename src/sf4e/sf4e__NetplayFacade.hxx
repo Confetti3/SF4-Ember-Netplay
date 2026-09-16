@@ -15,6 +15,7 @@
 #include "../session/RoomModel.hxx"
 #include <vector>
 #include <array>
+#include <memory>
 #include "../Dimps/Dimps__GameEvents.hxx"
 
 namespace sf4e {
@@ -115,6 +116,10 @@ namespace sf4e {
 		void StopHelper();
 		void TickRuntime();
 		RuntimeSnapshot GetRuntimeSnapshot();
+		// The published snapshot itself, shared rather than copied. Per-frame
+		// readers (overlay, input) use this; the snapshot is immutable once
+		// published and is never null.
+		std::shared_ptr<const RuntimeSnapshot> GetRuntimeSnapshotShared();
 		bool SubmitRuntimeCommand(RuntimeCommand command);
 		bool IsRuntimeRoomActive();
         bool IsRuntimeRecoveryEnabled();

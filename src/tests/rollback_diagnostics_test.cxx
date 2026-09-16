@@ -262,6 +262,21 @@ static void TestFormatSummary() {
 	CHECK(strstr(buf, "trackedKeys=88/88") != NULL);
 	CHECK(strstr(buf, "hitch[>=16.67,25,33.33,50,100]") != NULL);
 
+	// Every timed operation populated at once (legacy and swap free paths plus
+	// per-unit memento timers) must still fit the host's summary buffer.
+	for (int op = 0; op < OP_COUNT; op++) {
+		d.RecordOp(op, 123.456);
+	}
+	char full[16384];
+	size_t fullLength = d.FormatSummary(full, sizeof(full), "every-operation");
+	CHECK(fullLength > 0 && fullLength < sizeof(full) - 1);
+	CHECK(strstr(full, "free.swap") != NULL);
+	CHECK(strstr(full, "restore.vfx") != NULL);
+	CHECK(strstr(full, "record.effect") != NULL);
+	for (int op = 0; op < OP_COUNT; op++) {
+		CHECK(strcmp(TimedOpName(op), "?") != 0);
+	}
+
 	// A tiny buffer must not overflow and stays terminated.
 	char tiny[16];
 	size_t tn = d.FormatSummary(tiny, sizeof(tiny), "test");

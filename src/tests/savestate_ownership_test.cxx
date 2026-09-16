@@ -177,6 +177,24 @@ static void MirrorFree(MirrorSaveState* victim) {
 	MirrorClear(&tmp);
 }
 
+// Mirror of the default swap release: install each victim key just long enough
+// for the engine to clear it, put the live key back, then drop the records.
+static void MirrorFreeBySwap(MirrorSaveState* victim) {
+	if (victim->ownsKeys) {
+		for (auto& e : victim->keys) {
+			if (!e.first) {
+				continue;
+			}
+			const FakeKey live = *e.first;
+			*e.first = e.second;
+			e.first->ClearKey();
+			*e.first = live;
+		}
+	}
+	victim->ownsKeys = false;
+	MirrorClear(victim);
+}
+
 // Mirror of SaveState::Reclaim: drop records with no engine calls.
 static void MirrorReclaim(MirrorSaveState* victim) {
 	victim->ownsKeys = false;
@@ -387,7 +405,88 @@ static void TestMirrorDetectsTheOriginalBug() {
 	CHECK(g_heap.doubleFrees == 0);
 }
 
+static std::vector<int> LivePayloads() {
+	std::vector<int> payloads;
+	for (size_t i = 0; i < g_liveKeys.size(); i++) {
+		payloads.push_back(g_liveKeys[i].payloadId);
+	}
+	return payloads;
+}
+
+// The swap release frees exactly the slot's payloads and leaves every live key
+// byte-identical, including keys the engine has not repopulated yet.
+static void TestSwapFreeReleasesSlotAndKeepsLiveKeys() {
+	ResetWorld(4);
+	MirrorSaveState slot;
+	MirrorSave(&slot);
+	AdvanceEngineFrame();
+	g_liveKeys[2].ClearKey(); // one live key currently owns nothing
+	const auto before = LivePayloads();
+
+	MirrorFreeBySwap(&slot);
+	CHECK(slot.keys.empty());
+	CHECK(!slot.used);
+	CHECK(slot.ownsKeys);
+	CHECK(g_heap.doubleFrees == 0);
+	CHECK(g_heap.freesOfUnowned == 0);
+	CHECK(LivePayloads() == before);
+	CHECK(g_liveKeys[2].IsZeroed());
+	CHECK(g_heap.Leaked() == 3); // only the three live payloads remain
+}
+
+// GGPO's steady state: a ten-slot ring where every save first frees the
+// oldest slot, with rollbacks loading older slots, and a CloseBattle loop at
+// the end. Both release paths must balance the heap exactly.
+static void TestRingOfSavesBalancesWithEitherRelease() {
+	for (int path = 0; path < 2; path++) {
+		const auto release = path == 0 ? MirrorFreeBySwap : MirrorFree;
+		ResetWorld(5);
+		const int kSlots = 10;
+		MirrorSaveState slots[kSlots];
+		for (int frame = 0; frame < 200; frame++) {
+			MirrorSaveState& slot = slots[frame % kSlots];
+			if (slot.used) {
+				release(&slot);
+			}
+			MirrorSave(&slot);
+			AdvanceEngineFrame();
+			CHECK(g_heap.doubleFrees == 0);
+			CHECK(g_heap.freesOfUnowned == 0);
+		}
+		const auto live = LivePayloads();
+		for (int i = 0; i < kSlots; i++) {
+			if (slots[i].used) {
+				release(&slots[i]);
+			}
+		}
+		CHECK(g_heap.doubleFrees == 0);
+		CHECK(g_heap.freesOfUnowned == 0);
+		CHECK(LivePayloads() == live);
+		CHECK(g_heap.Leaked() == 5);
+	}
+}
+
+// Guard: a swap release that forgets to put the live key back is caught, so
+// the swap tests keep their diagnostic power.
+static void TestMirrorDetectsLostLiveKey() {
+	ResetWorld(3);
+	MirrorSaveState slot;
+	MirrorSave(&slot);
+	AdvanceEngineFrame();
+	const auto before = LivePayloads();
+	for (auto& e : slot.keys) {
+		*e.first = e.second;
+		e.first->ClearKey(); // (missing: restore the live key)
+	}
+	slot.ownsKeys = false;
+	MirrorClear(&slot);
+	CHECK(LivePayloads() != before);
+}
+
 int main() {
+	TestSwapFreeReleasesSlotAndKeepsLiveKeys();
+	TestRingOfSavesBalancesWithEitherRelease();
+	TestMirrorDetectsLostLiveKey();
 	TestFreeReleasesSlotButKeepsLivePayloads();
 	TestFreeLoopDoesNotDoubleFree();
 	TestSaveIntoDirtySlotRecovers();

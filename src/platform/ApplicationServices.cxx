@@ -83,7 +83,8 @@ void ApplicationServices::Run() {
                 if(diagnostics.performanceEnabled) {
                     output << "CPU work since latest match diagnostics reset (not displayed FPS):\n";
                     const char* names[]={"Complete outer call","Outer tick","Room runtime","Session-client step","Session-server step","GGPO idle",
-                        "Rollback callback","Save state","Load state","Pacing wait","Diagnostic enqueue","Trace enqueue"};
+                        "Rollback callback","Save state","Load state","Pacing wait","Diagnostic enqueue","Trace enqueue",
+                        "Free state","Effect restore","VFX restore"};
                     static_assert(sizeof(names)/sizeof(names[0]) == DiagnosticTimingCount, "diagnostic timing labels must stay fixed");
                     for(std::size_t i=0;i<DiagnosticTimingCount;++i) {
                         const auto& t=diagnostics.timings[i];

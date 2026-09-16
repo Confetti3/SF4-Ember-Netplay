@@ -37,7 +37,8 @@ void fSystem::UpdateInputs() {
     // This is the native input publication boundary (00512180). Both
     // players' held/rising/falling/repeat caches are complete before any
     // event, including native pause, reads them. The provider stays intact.
-    const auto snapshot=sf4e::NetplayFacade::GetRuntimeSnapshot();
+    const auto sharedSnapshot=sf4e::NetplayFacade::GetRuntimeSnapshotShared();
+    const auto& snapshot=*sharedSnapshot;
     const auto& device=snapshot.inputDevice;
     unsigned mapped=0,physical=0;
     const bool connected=Dimps::Pad::ReadController(device.type,device.index,mapped,&physical);

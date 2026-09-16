@@ -34,14 +34,17 @@ public:
         worker_ = std::thread([this] { Run(); });
         Record(nlohmann::json{{"event", "runtime_started"}});
     }
-    void Record(nlohmann::json state) {
-        if (file_ == INVALID_HANDLE_VALUE || state == previous_) return;
+    // Returns false only when the state was dropped, so a caller that skips
+    // unchanged states can offer the same state again on its next tick.
+    bool Record(nlohmann::json state) {
+        if (file_ == INVALID_HANDLE_VALUE || state == previous_) return true;
         std::unique_lock<std::mutex> lock(mutex_, std::try_to_lock);
-        if (!lock.owns_lock() || stopping_ || queue_.size() >= 256) { ++dropped_; return; }
+        if (!lock.owns_lock() || stopping_ || queue_.size() >= 256) { ++dropped_; return false; }
         previous_ = state;
         LARGE_INTEGER qpc{}; QueryPerformanceCounter(&qpc);
         queue_.push_back({std::move(state), GetTickCount64(), qpc.QuadPart});
         lock.unlock(); wake_.notify_one();
+        return true;
     }
     unsigned long long Dropped() const { return dropped_.load(); }
     double LastWriteMs() const { return lastWriteUs_.load() / 1000.0; }
