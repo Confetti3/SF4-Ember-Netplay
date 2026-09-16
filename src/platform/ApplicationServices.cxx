@@ -50,7 +50,7 @@ bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& d
     if (stop_ || state_.pending || action == ServiceAction::None) return false;
     cancelled_ = false;
     state_.downloadedBytes = state_.totalBytes = 0;
-    request_ = action; diagnostics_ = diagnostics; state_.pending = true;
+    request_ = action; diagnostics_ = diagnostics; state_.pending = true; state_.lastAction = action;
     state_.message = action == ServiceAction::CheckUpdates ? "Checking for updates..." :
         action == ServiceAction::ExportDiagnostics ? "Exporting diagnostics..." :
         action == ServiceAction::InstallUpdate ? "Downloading and verifying the update..." : "Opening the updater...";

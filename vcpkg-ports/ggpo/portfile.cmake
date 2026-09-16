@@ -8,6 +8,7 @@ vcpkg_from_github(
         "reject-invalid-udp-messages.patch"
         "confirmed-frame-accessor.patch"
         "spectator-poll-capacity.patch"
+        "cache-log-config.patch"
 )
 
 vcpkg_cmake_configure(

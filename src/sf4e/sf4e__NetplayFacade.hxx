@@ -20,6 +20,10 @@
 
 namespace sf4e {
 
+	// Severity of a netplay notice. Info expires on its own; Warning and
+	// Error stay until the session ends or a newer notice replaces them.
+	enum class NoticeSeverity : uint8_t { Info = 0, Warning = 1, Error = 2 };
+
 	struct NetplayStatus {
 		bool active = false;
 		bool connected = false;
@@ -28,11 +32,18 @@ namespace sf4e {
 		int pingMs = -1;
 		uint8_t inputDelay = 0;
 		char opponentName[NETPLAY_DISPLAY_NAME_LEN] = { 0 };
+		// The most recent netplay notice (connection events, aborts, room
+		// loss, join rejections), or empty. Filled by GetStatus.
 		char lastError[256] = { 0 };
+		NoticeSeverity lastErrorSeverity = NoticeSeverity::Info;
         std::string matchNames[2];
         unsigned rollbackFrames = 0;
         int appliedDelay = -1;
         bool spectator = false;
+        // Live GGPO link state for the match HUD.
+        bool connectionWarning = false;   // GGPO CONNECTION_INTERRUPTED active
+        bool predictionStalled = false;   // GGPO refused local input this frame
+        int disconnectCountdownMs = -1;   // time until GGPO drops the peer, or -1
 	};
 
 	// Authenticated Iroh loopback bridge endpoint selected for this match.
@@ -146,8 +157,14 @@ namespace sf4e {
 		void NotifyGameReady();
 		void TickFrame();
 		NetplayStatus GetStatus();
+		// Records a notice for the player. Both are read back through
+		// GetStatus().lastError; SetLastError and the one-argument PushAlert
+		// record an Error.
 		void SetLastError(const char* msg);
 		void PushAlert(const char* msg);
+		void PushAlert(const char* msg, NoticeSeverity severity);
+		// Drops the current notice (session retired, room shut down).
+		void ClearMatchNotice();
 		void HandleNetplayFailure(const char* reason, bool closeGgpo);
 
 		// Phase 7: room/control-plane failure handling. During an active,

@@ -41,23 +41,25 @@ checkpoints; it does not replace v1 until it has demonstrated reliability.
 
 ## Frame identity
 
-The GGPO save callback's frame argument is now stored per `SaveState`
-(`ggpoFrame`) together with the engine frame (`simulationFrame`), hash
-validity, and the semantic hashes. Slot reuse (`Clear`) resets all of it.
+The GGPO save callback's frame argument is stored per `SaveState`
+(`ggpoFrame`) together with the engine frame (`simulationFrame`). Slot reuse
+(`Clear`) resets both. Save states hold no hashes; the semantic hashes live
+only in the checkpoint ring below. A training or stress load carries no
+GGPO frame (`ggpoFrame == -1`) and does not rewind the native-result timeline.
 
-## Exchange policy (conservative initial approach)
+## Exchange policy
 
 - A checkpoint is captured every 30 simulated frames into a fixed 64-entry
   ring (`fSystem::hashCheckpoints`); rollback resimulation overwrites the
   entry for a re-simulated frame.
-- A checkpoint is exchanged only once the sender has simulated 30+ frames
-  past it — older than GGPO's 8-frame prediction window plus margin. These
-  are labeled **aged / non-speculative**, NOT "confirmed": no formal GGPO
-  confirmed-frame value is exposed by the current fork API. (The stronger
-  approach — patching the fork to expose the last confirmed frame — is
-  documented as future work and must be a separate vcpkg patch.)
+- A checkpoint is exchanged only once GGPO has confirmed every input that
+  contributed to it. The pinned fork exposes the last confirmed input frame
+  through `ggpo_get_last_confirmed_frame`
+  (`vcpkg-ports/ggpo/confirmed-frame-accessor.patch`); `IsConfirmedCheckpoint`
+  in `ConfirmedCheckpoint.hxx` is the gate. Spectators have no save callback
+  and use the confirmed boundary plus one as their state frame.
 - Received hashes are buffered (bounded, 64 entries) and compared only when
-  the *local* checkpoint is aged too.
+  the *local* checkpoint is confirmed too.
 - Only players send (`fromPlayer=true`); spectators receive forwarded
   hashes and compare locally as diagnostics.
 - Storage is bounded everywhere; hashes are computed from ~50 getters per

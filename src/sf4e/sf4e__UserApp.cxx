@@ -421,6 +421,9 @@ void fUserApp::Steam_PostUpdate() {
         diag::ScopedTimer _t(diag::OP_GGPO_IDLE);
         ggpo_idle(fSystem::ggpo, 0);
     }
+    // An abort raised inside a callback during that poll closes the session
+    // here, once GGPO has unwound.
+    fSystem::DrainPendingAbort();
     // After the final advance, the peer's inputs for the result frames can
     // still be confirmed by this poll. Publish from here too.
     fSystem::PollNativeMatchResult();

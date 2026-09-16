@@ -35,6 +35,7 @@ enum TimedOp {
 	OP_SESSION_SERVER_STEP,        // SessionServer::Step
 	OP_FACADE_TICK_FRAME,          // NetplayFacade::TickFrame
 	OP_GGPO_IDLE,                  // ggpo_idle
+	OP_GGPO_IDLE_PRE_SIM,          // ggpo_idle immediately before add_local_input
 	OP_STEAM_POST_UPDATE,          // original (undetoured) Steam_PostUpdate
 	OP_OUTER_TICK,                 // complete detoured Steam_PostUpdate
 	OP_COMPLETE_OUTER_CALL,        // detoured call including diagnostic enqueue

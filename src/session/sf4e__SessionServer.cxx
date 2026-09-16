@@ -1021,7 +1021,25 @@ bool SessionServer::RebindMember(room::MemberId member, session::Connection loca
 	_recoveryPendingSelected.erase(member);
 	for (auto& authority : _roomMatchAuthorities) if (authority) authority->RebindConnection(cid, local);
 	if (_matchAuthority) _matchAuthority->RebindConnection(cid, local);
+	// The rebound member may have missed the MatchEnded that ended its last
+	// game. Replay it now so the acknowledgement can be produced.
+	ReplayPendingTerminalEvents(local, member);
 	return true;
+}
+
+std::size_t SessionServer::ReplayPendingTerminalEvents(session::Connection connection, room::MemberId member) {
+	if (!_roomAuthority || !connection || !member) return 0;
+	const auto pending = _roomAuthority->PendingTerminalEvents(member);
+	for (const auto& replay : pending) {
+		SessionProtocol::RoomEventMessage eventMessage;
+		eventMessage.event = room::Event{room::Event::Kind::MatchEnded, replay.table, replay.generation, 0, replay.result, true};
+		Respond(connection, json(eventMessage));
+		// The native side may also still be waiting for its game_end.
+		if (!MatchSender()(connection, json{{"type", "game_end"}, {"generation", replay.generation}})) _transportFailed = true;
+		spdlog::info("Server: replayed terminal event member={} table={} generation={} result={}",
+			member, replay.table, replay.generation, static_cast<int>(replay.result));
+	}
+	return pending.size();
 }
 
 void SessionServer::EnableCustomRooms(const std::string& name, std::uint8_t capacity,
@@ -1602,6 +1620,12 @@ int SessionServer::Step()
 				// leaving the optional successor replay copy out of the bounded journal;
 				// a successor answers the stable retry from the receipt/tombstone.
 				Respond(conn, json(response), actionMessage.action.kind != room::ActionKind::AcknowledgeTerminal);
+				// An acknowledgement for a generation the ledger does not hold
+				// means the client is acting on a stale MatchEnded. Send it the
+				// receipts it actually owes so it can acknowledge those instead.
+				if (!result.accepted && actionMessage.action.kind == room::ActionKind::AcknowledgeTerminal &&
+					result.reason == room::RejectReason::WrongGeneration)
+					ReplayPendingTerminalEvents(conn, roomMember->second);
 				if (result.accepted && actionMessage.action.kind == room::ActionKind::Leave) {
 					const auto leavingConnection = conn;
 					const auto leavingMember = roomMember->second;

@@ -79,8 +79,9 @@ Confirm the following in actual SF4 gameplay:
 
 - Existing fonts, colors, artwork and general layout identity.
 - Room actions' enabled flags, server validation and generation fences.
-- The custom room-board toolbar's own enabled-color rendering; it does not use
-  the shared list renderer's feedback cache. Inspect it separately in acceptance.
+- (Superseded in v0.8.5: the room board now paints through the shared
+  `MenuVisualFeedback` cache. Since v0.8.7 its single explanation line also
+  exposes elided and multi-line text on hover.)
 - Overlay-wide snapshot copying, selection texture uploads and recovery-checkpoint
   performance work identified in the earlier audits. Those need separate profiling.
 - No attempt to convert an underlying networking failure into healthy UI state.

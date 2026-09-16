@@ -55,6 +55,9 @@ struct DiagnosticsView {
 };
 struct ServiceSnapshot {
     bool pending = false, closeGame = false, installed = false;
+    // The action `message` describes, so the interface can show it on the
+    // row that requested it rather than on whichever row happens to bind it.
+    ServiceAction lastAction = ServiceAction::None;
     std::string message;
     std::uint64_t downloadedBytes = 0, totalBytes = 0;
     launcher::UpdateCheckResult update;

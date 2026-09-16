@@ -25,12 +25,15 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
     ImGui::Begin("Ember recovery",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
     const std::string status=state.message.empty()?message:state.message;
+    // stableStatus: GameMenu only draws the status line for a flyout or a
+    // stable-status screen. Recovery is neither, so its launch and update
+    // messages were never rendered.
     const auto action=menu.Draw(updates?"UPDATES":"LAUNCH RECOVERY",rows,status.c_str(),[&](const std::string&){
         if(!state.pending||!state.downloadedBytes)return;
         if(state.totalBytes)ImGui::ProgressBar((std::min)(1.f,float(state.downloadedBytes)/state.totalBytes),ImVec2(-1,0));
         char progress[80];std::snprintf(progress,sizeof(progress),"Downloaded %.1f MB",state.downloadedBytes/1048576.0);
         ImGui::TextWrapped("%s",progress);
-    });
+    },1,{},{},0,100,true,state.pending?Tone::Pending:message.empty()&&state.message.empty()?Tone::Neutral:Tone::Error);
     ImGui::End();
     if(action.kind==MenuAction::Close)return RecoveryChoice::Close;
     if(action.kind!=MenuAction::Activate)return RecoveryChoice::None;

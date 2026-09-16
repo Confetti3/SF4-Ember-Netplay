@@ -116,6 +116,19 @@ struct Runtime {
 	std::uint64_t pendingRoomActionDeadline = 0;
 	std::unique_ptr<RuntimeCommand> pendingReady;
 	std::unique_ptr<RuntimeCommand> pendingLobbyEdit;
+	// A parked Ready/Rematch or lobby edit waits for the previous match to
+	// finish draining. Bounded so a stall is reported instead of the press
+	// vanishing.
+	ULONGLONG pendingReadyDeadline = 0;
+	ULONGLONG pendingLobbyEditDeadline = 0;
+	// Generation for which "a participant left" was already announced.
+	std::uint64_t participantLeftGeneration = 0;
+	// `error` is cleared by only a handful of successful actions, so every
+	// transient message otherwise stayed pinned for the session and hid save
+	// feedback. Transient errors expire; the helper-unavailable startup
+	// errors stay because the condition they describe persists.
+	std::string errorShown;
+	ULONGLONG errorShownAtMs = 0;
 	std::unique_ptr<netplay::LobbySettings> pendingLobbySettings;
 	ULONGLONG lobbySettingsDeadline = 0;
 	netplay::PlayerPreferences preferences;
@@ -553,6 +566,56 @@ PostPublishState Publish() {
     // `previous` is released here, outside the lock, unless a reader still holds it.
     return result;
 }
+
+// Publish() deep-copies the room snapshot, preferences and member list. In a
+// menu it must run every tick (it samples the menu controller), but during a
+// fight nothing reads the snapshot except the match HUD and input fault
+// check, so republish only when an input to it changed, or every sixth tick
+// as a backstop for anything the fingerprint does not cover.
+std::uint64_t PublishFingerprint() {
+    std::uint64_t h = 1469598103934665603ULL;
+    const auto mix = [&](std::uint64_t v) { h ^= v; h *= 1099511628211ULL; };
+    const auto mixString = [&](const std::string& s) { for (unsigned char c : s) mix(c); mix(0xffULL); };
+    const auto state = runtime->controller.GetSnapshot();
+    mix(static_cast<std::uint64_t>(state.room)); mix(static_cast<std::uint64_t>(state.match));
+    mix(static_cast<std::uint64_t>(state.control)); mix(static_cast<std::uint64_t>(state.gameplay));
+    mix(static_cast<std::uint64_t>(state.recovery)); mix(state.readyPending); mix(state.coordinated);
+    mix(state.authorityWritable); mix(state.authorityTerm); mix(state.authorityRevision); mix(state.authorityStalledMs != 0);
+    mix(state.generation.room); mix(state.generation.match); mixString(state.error);
+    if (runtime->attached && UserApp::netplay) {
+        const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+        mix(room.roomEpoch); mix(room.revision); mix(room.localMember);
+        mixString(UserApp::netplay->client.RoomError());
+        mix(UserApp::netplay->client._outstandingReadyRequestNumber);
+    }
+    mixString(runtime->error); mix(runtime->matchInputFault); mix(runtime->matchInput.connected);
+    mix(runtime->helper ? static_cast<std::uint64_t>(runtime->helper->State()) : 0);
+    mix(runtime->match ? static_cast<std::uint64_t>(runtime->match->GetPhase()) : 0);
+    mix(runtime->pendingReady != nullptr); mix(runtime->pendingLobbyEdit != nullptr); mix(runtime->pendingAbort != nullptr);
+    mix(runtime->recoveringMatch); mix(OverlayPrefs::PersistencePending()); mixString(OverlayPrefs::PersistenceError());
+    mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatus); mix(runtime->discordInvite.Revision());
+    mix(runtime->preferences.showMatchHud); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudRaised);
+    mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
+    mix(AtMainMenu());
+    return h;
+}
+
+PostPublishState PublishThrottled() {
+    static PostPublishState cached;
+    static std::uint64_t fingerprint = 0;
+    static unsigned ticksSincePublish = 0;
+    if (!Game::Battle::System::ggpo) {
+        fingerprint = 0; ticksSincePublish = 0;
+        cached = Publish();
+        return cached;
+    }
+    const auto now = PublishFingerprint();
+    if (now != fingerprint || ++ticksSincePublish >= 6) {
+        fingerprint = now; ticksSincePublish = 0;
+        cached = Publish();
+    }
+    return cached;
+}
 } // namespace
 
 void ConfigureHelper(const platform::HelperBootstrap& bootstrap, uint32_t startupError) {
@@ -737,8 +800,16 @@ void NotifyRuntimeMatchEnded() {
 		member->table < 0 || member->table >= static_cast<std::int8_t>(room::TableCount)) return;
 	const auto table = static_cast<std::uint8_t>(member->table);
 	const auto generation = runtime->match->Generation();
-	if (!(snapshot.tables[table].matchGeneration == generation) ||
-		(snapshot.tables[table].phase != room::TablePhase::Playing && snapshot.tables[table].phase != room::TablePhase::Paused)) return;
+	// The retry loop in TickRuntime revalidates the table's generation and
+	// drops the notice once the table has moved on. Do not also gate on the
+	// phase here: a projection that is one checkpoint behind (Ready, or not
+	// yet Playing) used to swallow the only MatchFinished this client sends,
+	// and a table where both clients hit that never armed its result timer.
+	if (snapshot.tables[table].matchGeneration != generation) {
+		spdlog::warn("Match finished: table {} projection generation {} != local {}; not reporting",
+			table, snapshot.tables[table].matchGeneration, generation);
+		return;
+	}
 	// Keep a native-finish notice separate from resultPending: a successful
 	// result callback may already be waiting for its peer confirmation.
 	runtime->matchFinishedPending = true;
@@ -804,8 +875,19 @@ void ReleaseRuntimePortToGgpo() {
 	if (runtime && runtime->match) runtime->match->ReleasePortToGgpo();
 }
 
+static bool StickyRuntimeError(const std::string& error) {
+	return error.compare(0, 10, "Networking") == 0;
+}
+
 void TickRuntime() {
 	if (!runtime) return;
+	{
+		const auto now = GetTickCount64();
+		if (runtime->error != runtime->errorShown) { runtime->errorShown = runtime->error; runtime->errorShownAtMs = now; }
+		else if (!runtime->error.empty() && !StickyRuntimeError(runtime->error) && now - runtime->errorShownAtMs >= 30000) {
+			runtime->error.clear(); runtime->errorShown.clear();
+		}
+	}
     // Observe locally applied coordination before accepting any room mutation.
     if (runtime->room) {
         runtime->room->Poll();
@@ -1026,13 +1108,25 @@ void TickRuntime() {
 			// P1 may edit the next match before pressing Ready. Use the same
 			// explicit post-match drain/retirement boundary as rematch readiness.
 			runtime->pendingLobbyEdit.reset(new RuntimeCommand(command));
+			runtime->pendingLobbyEditDeadline = GetTickCount64() + 15000;
 			CancelDeferredGgpoClose();
 			Game::Battle::System::RetireGgpoSession("iroh_lobby_settings");
 			runtime->match->End();
 			continue;
 		}
-		if ((kind == netplay::CommandKind::Ready || kind == netplay::CommandKind::Rematch) &&
-			(!runtime->input.Ready() || !GetRuntimeSnapshotShared()->canReady || runtime->pendingLobbySettings || runtime->pendingLobbyEdit || !selection::FindStage(command.stage) || command.character.charaID >= 44)) continue;
+		if (kind == netplay::CommandKind::Ready || kind == netplay::CommandKind::Rematch) {
+			// Every refusal names its reason: a press that does nothing was
+			// the most common "Ready is broken" report.
+			const auto publishedShared = GetRuntimeSnapshotShared();
+			const auto& published = *publishedShared;
+			const char* refusal = nullptr;
+			if (!runtime->input.Ready()) refusal = "Assign or reconnect your controller before readying up.";
+			else if (runtime->pendingLobbySettings || runtime->pendingLobbyEdit) refusal = "Waiting for table settings to finish applying.";
+			else if (!selection::FindStage(command.stage)) refusal = "The selected stage is unavailable. Choose another stage in Fighter Select.";
+			else if (command.character.charaID >= 44) refusal = "The selected fighter is unavailable. Choose another fighter in Fighter Select.";
+			else if (!published.canReady) refusal = published.readyLockReason.empty() ? "Ready is not available right now." : published.readyLockReason.c_str();
+			if (refusal) { runtime->error = refusal; continue; }
+		}
 		if ((kind == netplay::CommandKind::Ready || kind == netplay::CommandKind::Rematch) &&
 			!selection::Available(selection::FromNative(command.character), GetRuntimeSnapshotShared()->lobbySettings.editionSelect,
 				Dimps::Selection::ReadAvailability(command.character.charaID))) {
@@ -1044,6 +1138,7 @@ void TickRuntime() {
 			// Ready is the explicit handoff from post-match spectator draining.
 			// Retire GGPO first and await helper mapping closure before sending it.
 			runtime->pendingReady.reset(new RuntimeCommand(command));
+			runtime->pendingReadyDeadline = GetTickCount64() + 15000;
 			CancelDeferredGgpoClose();
 			Game::Battle::System::RetireGgpoSession("iroh_rematch");
 			runtime->match->End();
@@ -1171,7 +1266,10 @@ void TickRuntime() {
 		default: break;
 		}
 	}
-	if (runtime->room) runtime->room->Poll();
+	// The helper was already polled at the top of this tick (and again by
+	// the recovery runtime when coordination is active); a reply to a command
+	// sent above cannot arrive within the same tick, so a third poll here
+	// only repeated the checkpoint pump and message parsing.
 	if (runtime->attached && UserApp::netplay) {
 		room::Event event;
         while (UserApp::netplay->client.TakeRoomEvent(event)) {
@@ -1344,7 +1442,15 @@ void TickRuntime() {
 		}
 			netplay::MatchResultSubmission submission;
 			const auto now = GetTickCount64();
-			if (runtime->resultOutbox.Poll(roomView, now, submission) == netplay::MatchResultOutbox::PollResult::Ready) {
+			const auto poll = runtime->resultOutbox.Poll(roomView, now, submission);
+			if (poll == netplay::MatchResultOutbox::PollResult::Invalidated) {
+				// The captured win no longer matches the room's table. It was
+				// discarded with no trace before; say so and log it.
+				spdlog::warn("Match result: captured outcome invalidated table={} generation={} live_generation={} table_generation={}",
+					capture ? capture->table : -1, capture ? capture->generation : 0, roomView.liveGeneration, roomView.matchGeneration);
+				PushAlert("The result could not be recorded: the table changed before it was confirmed.", NoticeSeverity::Warning);
+			}
+			if (poll == netplay::MatchResultOutbox::PollResult::Ready) {
 			room::Action action; action.kind = room::ActionKind::RecordResult;
 			action.roomEpoch = submission.roomEpoch; action.revision = submission.revision;
 			action.table = submission.table; action.tableRevision = submission.tableRevision;
@@ -1419,6 +1525,13 @@ void TickRuntime() {
 					return std::none_of(members.begin(), members.end(), [&](const SessionProtocol::MemberData& member) { return member.connId == id; });
 				});
 				if (missing && !UserApp::netplay->client.GetRoomSnapshot().roomEpoch) Apply(netplay::EventKind::ControlLost, "A match participant left the room.");
+				else if (missing && runtime->participantLeftGeneration != runtime->match->Generation()) {
+					// Custom rooms: the authority ends the game itself (MatchEnded/
+					// Abort). The survivor was never told why, only that GGPO
+					// timed out. Say it once per game.
+					runtime->participantLeftGeneration = runtime->match->Generation();
+					PushAlert("A match participant left the room. The game will end.", NoticeSeverity::Warning);
+				}
 			}
 		}
 	}
@@ -1454,9 +1567,19 @@ void TickRuntime() {
 		runtime->error = "The room did not catch up in time. Your last action was not applied; try again.";
 	}
 	if (runtime->pendingReady && !(runtime->pendingReady->command.generation == currentGeneration))
-		runtime->pendingReady.reset();
+		{ runtime->pendingReady.reset(); runtime->pendingReadyDeadline = 0; }
 	if (runtime->pendingLobbyEdit && !(runtime->pendingLobbyEdit->command.generation == currentGeneration))
-		runtime->pendingLobbyEdit.reset();
+		{ runtime->pendingLobbyEdit.reset(); runtime->pendingLobbyEditDeadline = 0; }
+	// A parked Ready or lobby edit that never gets its turn is reported, not
+	// forgotten: the player pressed it and GGPO was already retired for it.
+	if (runtime->pendingReady && runtime->pendingReadyDeadline && GetTickCount64() >= runtime->pendingReadyDeadline) {
+		runtime->pendingReady.reset(); runtime->pendingReadyDeadline = 0;
+		runtime->error = "The previous match did not finish closing in time. Press Ready again.";
+	}
+	if (runtime->pendingLobbyEdit && runtime->pendingLobbyEditDeadline && GetTickCount64() >= runtime->pendingLobbyEditDeadline) {
+		runtime->pendingLobbyEdit.reset(); runtime->pendingLobbyEditDeadline = 0;
+		runtime->error = "The previous match did not finish closing in time. Apply the table settings again.";
+	}
 	const auto& controlState = runtime->controller.GetSnapshot();
 	const bool healthyRoomControl = controlState.control == netplay::Health::Healthy &&
         (!controlState.coordinated || controlState.authorityWritable);
@@ -1478,10 +1601,10 @@ void TickRuntime() {
 		if (SubmitRuntimeCommand(*runtime->pendingRoomAction)) { runtime->pendingRoomAction.reset(); runtime->pendingRoomActionDeadline = 0; }
 	}
 	if (runtime->pendingReady && healthyRoomControl && runtime->match && runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle) {
-		if (SubmitRuntimeCommand(*runtime->pendingReady)) runtime->pendingReady.reset();
+		if (SubmitRuntimeCommand(*runtime->pendingReady)) { runtime->pendingReady.reset(); runtime->pendingReadyDeadline = 0; }
 	}
 	if (runtime->pendingLobbyEdit && healthyRoomControl && runtime->match && runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle) {
-		if (SubmitRuntimeCommand(*runtime->pendingLobbyEdit)) runtime->pendingLobbyEdit.reset();
+		if (SubmitRuntimeCommand(*runtime->pendingLobbyEdit)) { runtime->pendingLobbyEdit.reset(); runtime->pendingLobbyEditDeadline = 0; }
 	}
 	if (runtime->attached && UserApp::netplay && runtime->controller.GetSnapshot().readyPending &&
 		UserApp::netplay->client._outstandingReadyRequestNumber == -1) Apply(netplay::EventKind::ReadyAcknowledged);
@@ -1540,7 +1663,7 @@ void TickRuntime() {
         replacement.preferences=runtime->preferences;
         if(SubmitRuntimeCommand(std::move(replacement))) runtime->replacementPending=false;
     }
-	const auto view=Publish();
+	const auto view=PublishThrottled();
     std::string currentParty; std::uint64_t expiry=0;
     if (view.session.room==netplay::RoomState::Joined && runtime->room)
         discord::TicketMetadata(runtime->room->DiscordInvitation(),currentParty,expiry);

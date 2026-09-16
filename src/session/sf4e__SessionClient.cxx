@@ -36,29 +36,33 @@ bool SessionClient::bVerboseLogging = false;
 // Bound for buffered remote v2 hashes (matches the checkpoint ring span).
 static const size_t MAX_PENDING_REMOTE_HASHES = 64;
 
+// Player-facing text for a refused room action. This string reaches the
+// status line unchanged, so it must read as a sentence, not a token. A
+// DuplicateResult is the normal reply to a retried report and is not an error.
 static const char* RoomRejectText(sf4e::room::RejectReason reason) {
 	using sf4e::room::RejectReason;
 	switch (reason) {
-	case RejectReason::Closed: return "room_closed";
-	case RejectReason::RoomFull: return "room_full";
-	case RejectReason::AdmissionLocked: return "room_locked";
-	case RejectReason::NameTaken: return "name_taken";
-	case RejectReason::StaleRoom: return "room_changed_refresh";
-	case RejectReason::StaleTable: return "table_changed_refresh";
-	case RejectReason::WrongPhase: return "table_not_ready_for_action";
-	case RejectReason::WrongGeneration: return "match_generation_expired";
-	case RejectReason::Unauthorized: return "room_permission_denied";
-	case RejectReason::NotSeated: return "not_seated";
-	case RejectReason::AlreadySeated: return "already_seated";
-	case RejectReason::AlreadyQueued: return "already_queued";
-	case RejectReason::NotQueued: return "not_queued";
-	case RejectReason::NotWatching: return "not_watching";
-	case RejectReason::InvalidRules: return "invalid_table_rules";
-	case RejectReason::InvalidCapacity: return "invalid_capacity";
-	case RejectReason::InvalidChat: return "invalid_chat";
-	case RejectReason::MemberKicked: return "member_kicked";
-	case RejectReason::TerminalLedgerFull: return "terminal_result_backlog";
-	default: return "room_action_rejected";
+	case RejectReason::Closed: return "The room has closed.";
+	case RejectReason::RoomFull: return "The room is full.";
+	case RejectReason::AdmissionLocked: return "The room is not admitting new members.";
+	case RejectReason::NameTaken: return "That player name is already in the room. Change it in Settings.";
+	case RejectReason::StaleRoom: return "The room changed before your action arrived. Try again.";
+	case RejectReason::StaleTable: return "The table changed before your action arrived. Try again.";
+	case RejectReason::WrongPhase: return "The table is not ready for that action.";
+	case RejectReason::WrongGeneration: return "That game has already ended.";
+	case RejectReason::Unauthorized: return "Only the host can do that.";
+	case RejectReason::NotSeated: return "You are not seated at this table.";
+	case RejectReason::AlreadySeated: return "You are already seated.";
+	case RejectReason::AlreadyQueued: return "You are already in the queue.";
+	case RejectReason::NotQueued: return "You are not in the queue.";
+	case RejectReason::NotWatching: return "You are not watching this table.";
+	case RejectReason::InvalidRules: return "Those table rules are not valid.";
+	case RejectReason::InvalidCapacity: return "That capacity is not valid.";
+	case RejectReason::InvalidChat: return "That message could not be sent.";
+	case RejectReason::MemberKicked: return "You were removed from the room.";
+	case RejectReason::TerminalLedgerFull: return "Waiting for everyone to finish returning from the previous match.";
+	case RejectReason::DuplicateResult: return "";
+	default: return "The room refused that action.";
 	}
 }
 
@@ -163,8 +167,26 @@ static void ReportHashMismatch(
 	// players' fight; strict termination requires both peers to be players.
 	if (StrictDesyncEnabled() && remote.fromPlayer && client->IsLocalPlayer()) {
 		spdlog::error("Desync v2 (strict): terminating match at frame {}", local.frameIdx);
-		*rSystem::GetReadyState(rSystem::staticMethods.GetSingleton()) = rSystem::RS_ISLEAVING;
+		client->TerminateOnDesync("v2_strict", local.frameIdx);
 	}
+}
+
+// Ends the fight after a confirmed state divergence, and tells the player
+// why: without this the game simply returned to the menu and the table
+// paused thirty seconds later. Only a player may end the fight; a spectator
+// that diverged is a spectator problem and is logged only.
+void SessionClient::TerminateOnDesync(const char* stage, int frameIdx) {
+	if (!IsLocalPlayer()) {
+		spdlog::error("Desync ({}): local spectator diverged at frame {}; the players' fight continues", stage, frameIdx);
+		sf4e::NetplayFacade::PushAlert("Your spectator view diverged from the fight. Leave and watch again.", sf4e::NoticeSeverity::Warning);
+		return;
+	}
+	spdlog::error("Desync ({}): terminating match at frame {}", stage, frameIdx);
+	sf4e::NetplayFacade::PushAlert(
+		"Match ended: the two games diverged (desync). Export diagnostics from both players.",
+		sf4e::NoticeSeverity::Error
+	);
+	*rSystem::GetReadyState(rSystem::staticMethods.GetSingleton()) = rSystem::RS_ISLEAVING;
 }
 
 bool SessionClient::IsLocalPlayer() const {
@@ -496,6 +518,14 @@ session::SendResult SessionClient::AcknowledgeTerminal(std::uint8_t table, std::
 	for (auto pending = _pendingTerminalAcks.begin(); pending != _pendingTerminalAcks.end();) {
 		if (pending->actionId != reply.actionId) { ++pending; continue; }
 		if (reply.accepted) pending = _pendingTerminalAcks.erase(pending);
+		else if (reply.reason == room::RejectReason::WrongGeneration && ++pending->rejections >= 3) {
+			// The authority no longer knows this generation (a stale
+			// MatchEnded from a table that had already moved on). Retrying
+			// forever only re-raised the same error every four steps.
+			spdlog::warn("Client: dropping terminal acknowledgement table={} generation={} after {} WrongGeneration replies",
+				pending->table, pending->generation, pending->rejections);
+			pending = _pendingTerminalAcks.erase(pending);
+		}
 		else {
 			pending->nextStep = _stepCounter + 4;
 			++pending;
@@ -645,7 +675,10 @@ int SessionClient::Step()
 				ReconcileTerminalAcks();
 				ProjectSelectedRoomTable();
 			}
-			if (!result.result.accepted) { _roomError = RoomRejectText(result.result.reason); }
+			if (!result.result.accepted) {
+				const char* text = RoomRejectText(result.result.reason);
+				if (text[0]) _roomError = text;
+			}
 			else { _roomError.clear(); }
 			if (_callbacks.OnRoomSnapshot) _callbacks.OnRoomSnapshot(this, _roomSnapshot, _callbacks);
 		}
@@ -825,7 +858,7 @@ int SessionClient::Step()
 				if (memcmp(&m.snapshot, &localSnapshot, sizeof(SessionProtocol::StateSnapshot)) != 0) {
 					spdlog::error("Client: snapshot receipt: Desync detected!");
 					ReportSnapshotDivergence("receipt", localSnapshot, m.snapshot);
-					*rSystem::GetReadyState(rSystem::staticMethods.GetSingleton()) = rSystem::RS_ISLEAVING;
+					TerminateOnDesync("receipt", localSnapshot.frameIdx);
 				}
 
 				if (bVerboseLogging) {
@@ -897,13 +930,17 @@ int SessionClient::Step()
 				if (bVerboseLogging) {
 					spdlog::error("Client: snapshot reconciliation: snapshot @ {} not yet sent, confirmed val: {}", localSnapshotIter->first, localSnapshotIter->second.second.confirmed);
 				}
-				// Snapshot not yet sent. Send it.
+				// Snapshot not yet sent. Send it. Only a player's snapshot is
+				// authoritative; a spectator compares but never publishes, the
+				// same rule the v2 hash exchange already follows.
 				localSnapshotIter->second.second.sent = true;
-				SessionProtocol::BattleSnapshot m;
-				m.snapshot = localSnapshotIter->second.first;
-				json msg = m;
-				if (Send(msg, nullptr) != session::SendResult::Queued) {
-					spdlog::error("Client: Could not send snapshot update");
+				if (IsLocalPlayer()) {
+					SessionProtocol::BattleSnapshot m;
+					m.snapshot = localSnapshotIter->second.first;
+					json msg = m;
+					if (Send(msg, nullptr) != session::SendResult::Queued) {
+						spdlog::error("Client: Could not send snapshot update");
+					}
 				}
 			}
 
@@ -921,7 +958,7 @@ int SessionClient::Step()
 					if (memcmp(&remoteSnapshotIter->second, &localSnapshot, sizeof(SessionProtocol::StateSnapshot)) != 0) {
 						spdlog::error("Client: snapshot reconciliation: Desync detected from pending!");
 						ReportSnapshotDivergence("reconciliation", localSnapshot, remoteSnapshotIter->second);
-						*rSystem::GetReadyState(rSystem::staticMethods.GetSingleton()) = rSystem::RS_ISLEAVING;
+						TerminateOnDesync("reconciliation", localSnapshot.frameIdx);
 					}
 					localSnapshotIter->second.second.confirmed = true;
 				}

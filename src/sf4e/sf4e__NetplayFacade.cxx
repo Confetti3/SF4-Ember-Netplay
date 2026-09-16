@@ -40,8 +40,20 @@ namespace sf4e {
 	static GgpoSyncPhase s_ggpoSyncPhase = GgpoSyncPhase::None;
 	static bool s_deferGgpoClose = false;
 	static bool s_deferredGgpoPending = false;
-	static DWORD s_deferGgpoCloseUntil = 0;
-	static std::deque<std::string> s_alerts;
+	static ULONGLONG s_deferGgpoCloseUntil = 0;
+
+	// The single current notice. Earlier builds queued alerts here but
+	// nothing read the queue and GetStatus never filled lastError, so every
+	// in-match message was lost. One slot is enough: the newest event is
+	// the one the player needs, and severity decides how long it stays.
+	struct MatchNotice {
+		std::string text;
+		NoticeSeverity severity = NoticeSeverity::Info;
+		ULONGLONG shownAtMs = 0;
+	};
+	static MatchNotice s_notice;
+	static const ULONGLONG kInfoNoticeMs = 6000;
+	static const ULONGLONG kWarningNoticeMs = 12000;
 
 	void NetplayFacade::NotifyGameReady() { NotifyRuntimeGameReady(); }
 
@@ -99,11 +111,30 @@ namespace sf4e {
 #endif
     }
 
-	void NetplayFacade::SetLastError(const char* msg) {
-        if (msg) { s_alerts.clear(); s_alerts.emplace_back(msg, (std::min)(strlen(msg), size_t(256))); }
-    }
+	void NetplayFacade::PushAlert(const char* msg, NoticeSeverity severity) {
+		if (!msg || !msg[0]) return;
+		s_notice.text.assign(msg, (std::min)(strlen(msg), size_t(255)));
+		s_notice.severity = severity;
+		s_notice.shownAtMs = GetTickCount64();
+		spdlog::info("Netplay notice ({}): {}", (int)severity, s_notice.text);
+	}
 
-	void NetplayFacade::PushAlert(const char* msg) { SetLastError(msg); }
+	void NetplayFacade::SetLastError(const char* msg) { PushAlert(msg, NoticeSeverity::Error); }
+
+	void NetplayFacade::PushAlert(const char* msg) { PushAlert(msg, NoticeSeverity::Error); }
+
+	void NetplayFacade::ClearMatchNotice() {
+		s_notice = MatchNotice();
+	}
+
+	static void ExpireNotice(ULONGLONG now) {
+		if (s_notice.text.empty()) return;
+		const ULONGLONG age = now - s_notice.shownAtMs;
+		if ((s_notice.severity == NoticeSeverity::Info && age >= kInfoNoticeMs) ||
+			(s_notice.severity == NoticeSeverity::Warning && age >= kWarningNoticeMs)) {
+			s_notice = MatchNotice();
+		}
+	}
 
 	static bool s_controlPlaneLost = false;
 	static int s_verificationLostAtFrame = -1;
@@ -125,7 +156,7 @@ namespace sf4e {
         if (IsRuntimeRecoveryEnabled()) {
             s_controlPlaneLost = true;
             s_verificationLostAtFrame = fSystem::lastGgpoSaveFrame;
-            PushAlert("Room control is recovering. Your match connection is retained.");
+            PushAlert("Room control is recovering. Your match connection is retained.", NoticeSeverity::Warning);
             return;
         }
 
@@ -155,7 +186,7 @@ namespace sf4e {
 		// kept alive until the fight ends so nothing dangles, and no
 		// reconnection is attempted — room identity and lobby IDs are
 		// ephemeral, so a new client could not safely resume this lobby.
-		PushAlert("Room connection lost — the fight continues, but rematch and results are disabled.");
+		PushAlert("Room connection lost. The fight continues, but rematch and results are disabled.", NoticeSeverity::Warning);
 	}
 
 	void NetplayFacade::FinalizeControlPlaneLossAfterBattle() {
@@ -168,7 +199,7 @@ namespace sf4e {
 			"was unavailable from frame {} to match end — that interval is UNVERIFIED",
 			s_verificationLostAtFrame
 		);
-		PushAlert("Returned to menu — the room connection was lost during the match.");
+		PushAlert("Returned to the menu: the room connection was lost during the match.");
 		// Full teardown to a safe disconnected state (also resets the
 		// degraded flags via ShutdownNetplay).
 		ShutdownNetplay(true);
@@ -208,6 +239,17 @@ namespace sf4e {
 
 	NetplayStatus NetplayFacade::GetStatus() {
 		NetplayStatus st;
+		const ULONGLONG now = GetTickCount64();
+		ExpireNotice(now);
+		if (!s_notice.text.empty()) {
+			strncpy_s(st.lastError, s_notice.text.c_str(), _TRUNCATE);
+			st.lastErrorSeverity = s_notice.severity;
+		}
+		if (fSystem::ggpo) {
+			st.connectionWarning = fSystem::simGate.connectionWarningActive;
+			st.predictionStalled = fSystem::simGate.predictionStalled;
+			st.disconnectCountdownMs = fSystem::DisconnectCountdownMs();
+		}
 		st.active = fUserApp::netplay != nullptr || fUserApp::server != nullptr;
 		if (fUserApp::netplay) {
 			st.connected = fUserApp::netplay->client.IsConnected();
@@ -252,6 +294,9 @@ namespace sf4e {
 		s_deferredGgpoPending = false;
 		s_controlPlaneLost = false;
 		s_verificationLostAtFrame = -1;
+		// Keep an Error visible across the shutdown (it explains why the
+		// player is back in the menu); drop transient notices.
+		if (s_notice.severity != NoticeSeverity::Error) ClearMatchNotice();
 	}
 
 	void NetplayFacade::ClearBattleState() {
@@ -273,7 +318,7 @@ namespace sf4e {
 		if (!s_deferGgpoClose) {
 			return false;
 		}
-		if (GetTickCount() < s_deferGgpoCloseUntil) {
+		if (GetTickCount64() < s_deferGgpoCloseUntil) {
 			return true;
 		}
 		s_deferGgpoClose = false;
@@ -304,7 +349,7 @@ namespace sf4e {
 		if (spectators > 0) {
 			s_deferGgpoClose = true;
 			s_deferredGgpoPending = true;
-			s_deferGgpoCloseUntil = GetTickCount() + 120000;
+			s_deferGgpoCloseUntil = GetTickCount64() + 120000;
 			spdlog::info("NetplayFacade: deferring GGPO close for {} spectators", spectators);
 		}
 		else {

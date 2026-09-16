@@ -258,9 +258,33 @@ void DrawControllerWarning(const std::string& message) {
         ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoFocusOnAppearing);
     ImGui::TextWrapped("%s",message.c_str());ImGui::End();
 }
+std::string MatchStripStateLine(const MatchStripView& view) {
+    // The most urgent condition wins: a hard notice, then a stall (the game
+    // is visibly frozen and the player needs to know why), then a warning.
+    if(view.noticeSeverity>=2&&!view.notice.empty())return view.notice;
+    if(view.predictionStalled)return "Waiting for opponent...";
+    if(view.connectionWarning){
+        if(view.disconnectCountdownMs>=0)
+            return "Connection unstable. Opponent dropped in "+std::to_string((view.disconnectCountdownMs+999)/1000)+" s";
+        return "Connection unstable";
+    }
+    return view.notice;
+}
+void DrawMatchNotice(const std::string& message,int severity) {
+    if(message.empty())return;
+    const auto* vp=ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x*.5f,vp->Pos.y+vp->Size.y-24*Scale()),ImGuiCond_Always,ImVec2(.5f,1));
+    ImGui::SetNextWindowSize(ImVec2(vp->Size.x*.6f,0));
+    ImGui::Begin("Match notice",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoInputs|
+        ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoFocusOnAppearing);
+    const ImVec4 colors[]={ImVec4(.71f,.66f,.61f,1),ImVec4(1,.77f,.38f,1),ImVec4(1,.46f,.38f,1)};
+    ImGui::PushStyleColor(ImGuiCol_Text,colors[(std::max)(0,(std::min)(2,severity))]);
+    ImGui::TextWrapped("%s",message.c_str());ImGui::PopStyleColor();ImGui::End();
+}
 namespace {
 constexpr float MatchWidth=520.f;
 constexpr float MatchHeight=62.f;
+constexpr float MatchStateHeight=24.f;
 float MatchScale(const MatchStripView& view) {
     const float sizes[]={.85f,1.f,1.25f};
     // The readability floor belongs to the viewport term alone. Flooring the
@@ -285,6 +309,18 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
     draw->AddRectFilled(p,ImVec2(p.x+w,p.y+MatchHeight*s),IM_COL32(20,19,18,255),6*s);
     draw->AddRect(p,ImVec2(p.x+w,p.y+MatchHeight*s),IM_COL32(88,76,65,160),6*s);
     const auto text=[&](float x,float y,const std::string& t,float size,ImU32 color){draw->AddText(font,size,ImVec2(x,y),color,t.c_str());};
+    // Link state / notice line above the panel. Same width, own background so
+    // it reads against any stage; colour follows severity.
+    const auto state=MatchStripStateLine(view);
+    if(!state.empty()){
+        const int severity=view.noticeSeverity>0||view.connectionWarning||view.predictionStalled?
+            (std::max)(view.noticeSeverity,view.connectionWarning||view.predictionStalled?1:0):0;
+        const ImU32 colors[]={IM_COL32(181,169,155,255),IM_COL32(255,196,96,255),IM_COL32(255,118,96,255)};
+        const float h=MatchStateHeight*s;
+        draw->AddRectFilled(ImVec2(p.x,p.y-h-4*s),ImVec2(p.x+w,p.y-4*s),IM_COL32(20,19,18,235),4*s);
+        const auto line=fit(state,w-16*s,16*s);
+        text(p.x+8*s,p.y-h-4*s+(h-16*s)*.5f,line,16*s,colors[(std::max)(0,(std::min)(2,severity))]);
+    }
     const auto nameWidth=(w-70*s)*.5f;
     const auto left=fit(view.names[0],nameWidth,20*s),right=fit(view.names[1],nameWidth,20*s);
     text(p.x+w*.5f-24*s-measure(left,20*s),p.y+4*s,left,20*s,IM_COL32(243,235,221,255));

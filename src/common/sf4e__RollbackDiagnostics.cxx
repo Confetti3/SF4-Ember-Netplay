@@ -33,6 +33,7 @@ const char* TimedOpName(int op) {
 	case OP_SESSION_SERVER_STEP:    return "server_step";
 	case OP_FACADE_TICK_FRAME:      return "facade_tick";
 	case OP_GGPO_IDLE:              return "ggpo_idle";
+	case OP_GGPO_IDLE_PRE_SIM:      return "ggpo_idle.pre_sim";
 	case OP_STEAM_POST_UPDATE:      return "steam_post_update";
 	case OP_OUTER_TICK:             return "outer_tick";
 	case OP_COMPLETE_OUTER_CALL:    return "outer_call";
@@ -401,7 +402,7 @@ size_t RollbackDiagnostics::FormatSummary(char* buf, size_t cap, const char* lab
 		OP_DETOURED_BATTLE_UPDATE, OP_ENGINE_BATTLE_UPDATE, OP_ADD_LOCAL_INPUT,
 		OP_SYNC_INPUT, OP_ADVANCE_FRAME_API, OP_ROLLBACK_CALLBACK,
 		OP_SESSION_CLIENT_STEP, OP_SESSION_SERVER_STEP, OP_FACADE_TICK_FRAME,
-		OP_GGPO_IDLE, OP_STEAM_POST_UPDATE, OP_OUTER_TICK,
+		OP_GGPO_IDLE, OP_GGPO_IDLE_PRE_SIM, OP_STEAM_POST_UPDATE, OP_OUTER_TICK,
 		OP_SAVE_TOTAL, OP_SAVE_RECORD_MEMENTOS, OP_SAVE_COPY_KEYS,
 		OP_SAVE_SOUND, OP_SAVE_GLOBALS, OP_SEMANTIC_HASH,
 		OP_LOAD_TOTAL, OP_LOAD_KEY_BACKUP, OP_LOAD_COPY_INTO_PLACE,
