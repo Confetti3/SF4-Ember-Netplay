@@ -62,6 +62,54 @@ static const char* RoomRejectText(sf4e::room::RejectReason reason) {
 	}
 }
 
+// The legacy snapshot comparison is a whole-struct memcmp, so a mismatch used
+// to be reported as "Desync detected!" and nothing else. That is not enough to
+// find a determinism bug afterwards: name the exact frame and the exact fields
+// that diverged, with both values, so a player's log identifies the subsystem.
+// StateSnapshot is 4-byte-aligned throughout with no padding, so every byte the
+// memcmp sees is covered by the fields below.
+static void ReportSnapshotDivergence(
+	const char* stage,
+	const sf4e::SessionProtocol::StateSnapshot& local,
+	const sf4e::SessionProtocol::StateSnapshot& remote
+) {
+	spdlog::error("Desync v1 ({}): mismatch @ local frame {} remote frame {}",
+		stage, local.frameIdx, remote.frameIdx);
+	if (local.frameIdx != remote.frameIdx) {
+		spdlog::error("Desync v1 ({}): frameIdx differs; snapshots are not for the same frame", stage);
+	}
+	const auto fixed = [](const Dimps::Math::FixedPoint& value) {
+		return static_cast<int>(value.integral) + static_cast<double>(value.fractional) / 65536.0;
+	};
+	for (int i = 0; i < 2; i++) {
+		const auto& a = local.chara[i];
+		const auto& b = remote.chara[i];
+		if (a.status != b.status) spdlog::error("Desync v1 ({}): chara{} status {} != {}", stage, i, a.status, b.status);
+		if (a.side != b.side) spdlog::error("Desync v1 ({}): chara{} side {} != {}", stage, i, a.side, b.side);
+		for (int axis = 0; axis < 4; axis++) {
+			if (memcmp(&a.rootPos[axis], &b.rootPos[axis], sizeof(float)) != 0) {
+				spdlog::error("Desync v1 ({}): chara{} rootPos[{}] {:a} != {:a}",
+					stage, i, axis, a.rootPos[axis], b.rootPos[axis]);
+			}
+		}
+		const struct { const char* name; const Dimps::Math::FixedPoint& mine; const Dimps::Math::FixedPoint& theirs; } fields[] = {
+			{"vit", a.vit, b.vit}, {"vitmax", a.vitmax, b.vitmax},
+			{"revenge", a.revenge, b.revenge}, {"revengemax", a.revengemax, b.revengemax},
+			{"recoverable", a.recoverable, b.recoverable}, {"recoverablemax", a.recoverablemax, b.recoverablemax},
+			{"super", a.super, b.super}, {"supermax", a.supermax, b.supermax},
+			{"sctimeamt", a.sctimeamt, b.sctimeamt}, {"sctimemax", a.sctimemax, b.sctimemax},
+			{"uctime", a.uctime, b.uctime}, {"uctimemax", a.uctimemax, b.uctimemax},
+			{"damage", a.damage, b.damage}, {"combodamage", a.combodamage, b.combodamage},
+		};
+		for (const auto& field : fields) {
+			if (field.mine.integral != field.theirs.integral || field.mine.fractional != field.theirs.fractional) {
+				spdlog::error("Desync v1 ({}): chara{} {} {:.4f} != {:.4f}",
+					stage, i, field.name, fixed(field.mine), fixed(field.theirs));
+			}
+		}
+	}
+}
+
 // Strict debug mode: terminate the match on an authoritative v2 mismatch.
 // Default (unset) logs and reports only — v2 must not end release matches
 // while it is being validated; the legacy snapshot system retains its
@@ -749,10 +797,8 @@ int SessionClient::Step()
 					spdlog::error("Client: snapshot receipt: valid snapshot @ frame {} on receipt, confirm {}, sent {}", localSnapshot.frameIdx, localSnapshotIter->second.second.confirmed, localSnapshotIter->second.second.sent);
 				}
 				if (memcmp(&m.snapshot, &localSnapshot, sizeof(SessionProtocol::StateSnapshot)) != 0) {
-					if (bVerboseLogging) {
-						spdlog::error("Client: snapshot receipt: Desync detected!");
-					}
 					spdlog::error("Client: snapshot receipt: Desync detected!");
+					ReportSnapshotDivergence("receipt", localSnapshot, m.snapshot);
 					*rSystem::GetReadyState(rSystem::staticMethods.GetSingleton()) = rSystem::RS_ISLEAVING;
 				}
 
@@ -848,7 +894,7 @@ int SessionClient::Step()
 					SessionProtocol::StateSnapshot& localSnapshot = localSnapshotIter->second.first;
 					if (memcmp(&remoteSnapshotIter->second, &localSnapshot, sizeof(SessionProtocol::StateSnapshot)) != 0) {
 						spdlog::error("Client: snapshot reconciliation: Desync detected from pending!");
-						spdlog::error("Client: snapshot reconciliation: Desync detected from pending!");
+						ReportSnapshotDivergence("reconciliation", localSnapshot, remoteSnapshotIter->second);
 						*rSystem::GetReadyState(rSystem::staticMethods.GetSingleton()) = rSystem::RS_ISLEAVING;
 					}
 					localSnapshotIter->second.second.confirmed = true;

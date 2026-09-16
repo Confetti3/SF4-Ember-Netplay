@@ -210,6 +210,47 @@ int main() {
         else { std::this_thread::yield(); }
     }
     producer.join(); CHECK(producerDone); concurrent.Close();
+    // A connected same-term stream whose checkpoint never applies locally used to
+    // fence every room mutation for good: recovery None, no error, and Replace
+    // room refused, so the player sat in the lobby unable to queue, ready or
+    // watch. Brief lag must stay silent; a persistent stall must become visible
+    // and recoverable.
+    {
+        SessionController stalled;
+        CHECK(CommandNow(stalled, CommandKind::HostRoom).accepted);
+        CHECK(stalled.ObserveCoordination(1, 1, true, 1000));
+        CHECK(EventNow(stalled, EventKind::RoomJoined).accepted);
+        CHECK(stalled.GetSnapshot().authorityWritable);
+
+        // Ordinary lag: fenced, but no alarm and nothing to recover from.
+        CHECK(stalled.ObserveCoordination(1, 2, true, 1500, false));
+        CHECK(!stalled.GetSnapshot().authorityWritable);
+        CHECK(stalled.GetSnapshot().control == Health::Healthy);
+        CHECK(stalled.GetSnapshot().recovery == Recovery::None);
+        CHECK(stalled.GetSnapshot().error.empty());
+        CHECK(!CommandNow(stalled, CommandKind::RoomAction).accepted);
+
+        // Catching up clears the stall without leaving residue.
+        CHECK(stalled.ObserveCoordination(1, 3, true, 2000));
+        CHECK(stalled.GetSnapshot().authorityWritable);
+        CHECK(stalled.GetSnapshot().authorityStalledMs == 0);
+
+        // A stall that persists is named at ten seconds...
+        CHECK(stalled.ObserveCoordination(1, 4, true, 3000, false));
+        CHECK(stalled.GetSnapshot().error.empty());
+        CHECK(stalled.ObserveCoordination(1, 5, true, 12000, false));
+        CHECK(stalled.GetSnapshot().error.empty());
+        CHECK(stalled.ObserveCoordination(1, 6, true, 13000, false));
+        CHECK(!stalled.GetSnapshot().error.empty());
+        CHECK(stalled.GetSnapshot().recovery == Recovery::None);
+
+        // ...and offers a way out at thirty, without ever claiming a disconnect.
+        CHECK(stalled.ObserveCoordination(1, 7, true, 33000, false));
+        CHECK(stalled.GetSnapshot().recovery == Recovery::ReplacementOffered);
+        CHECK(stalled.GetSnapshot().control == Health::Healthy);
+        CHECK(CommandNow(stalled, CommandKind::ReplaceRoom).accepted);
+    }
+
     std::printf("SessionController: %d failure(s)\n", failures);
     return failures ? 1 : 0;
 }

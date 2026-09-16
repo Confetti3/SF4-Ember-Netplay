@@ -464,13 +464,51 @@ static const auto& kAllowedPackagePaths = sf4e::package::Allowed;
 			return true;
 		}
 
-		static bool SpawnUpdater(const wchar_t* installDir, const wchar_t* stagingDir, DWORD waitPid) {
-			wchar_t updaterPath[MAX_PATH] = { 0 };
-			if (FAILED(PathCchCombine(updaterPath, MAX_PATH, installDir, L"Updater.exe"))) {
+		// The updater must not run from the directory it is about to rewrite:
+		// Windows refuses to replace the image of a running executable, so the
+		// old in-place launch made its own replacement the expected failure.
+		// Copy the staged (new, already validated) updater to a unique directory
+		// outside the replacement set and run that. This also means an upgrade
+		// started from an older install executes the new updater implementation
+		// rather than the one already on disk. Updater.exe imports only system
+		// DLLs and the MSVC runtime, so the single file is self-sufficient.
+		static bool StageUpdaterOutsideInstall(const wchar_t* installDir, const wchar_t* stagingDir,
+			wchar_t* outPath, size_t outLen) {
+			wchar_t source[MAX_PATH] = { 0 };
+			if (FAILED(PathCchCombine(source, MAX_PATH, stagingDir, L"Updater.exe")) ||
+				GetFileAttributesW(source) == INVALID_FILE_ATTRIBUTES) {
+				// Fall back to the installed copy only if the package lacks one.
+				if (FAILED(PathCchCombine(source, MAX_PATH, installDir, L"Updater.exe")) ||
+					GetFileAttributesW(source) == INVALID_FILE_ATTRIBUTES) {
+					AppendUpdateLog("Updater.exe missing in staged package and install dir");
+					return false;
+				}
+				AppendUpdateLog("staged Updater.exe missing; using installed copy");
+			}
+			wchar_t tempRoot[MAX_PATH] = { 0 };
+			if (!GetTempPathW(MAX_PATH, tempRoot)) {
+				AppendUpdateLog("GetTempPath failed");
 				return false;
 			}
-			if (GetFileAttributesW(updaterPath) == INVALID_FILE_ATTRIBUTES) {
-				AppendUpdateLog("Updater.exe missing in install dir");
+			wchar_t leaf[64] = { 0 };
+			swprintf_s(leaf, L"sf4e-updater-%lu-%llu", GetCurrentProcessId(),
+				static_cast<unsigned long long>(GetTickCount64()));
+			wchar_t dir[MAX_PATH] = { 0 };
+			if (FAILED(PathCchCombine(dir, MAX_PATH, tempRoot, leaf)) || !CreateDirectoryW(dir, NULL)) {
+				AppendUpdateLog("could not create updater temp directory");
+				return false;
+			}
+			if (FAILED(PathCchCombine(outPath, outLen, dir, L"Updater.exe")) ||
+				!CopyFileW(source, outPath, TRUE)) {
+				AppendUpdateLog("could not copy Updater.exe outside the install");
+				return false;
+			}
+			return true;
+		}
+
+		static bool SpawnUpdater(const wchar_t* installDir, const wchar_t* stagingDir, DWORD waitPid) {
+			wchar_t updaterPath[MAX_PATH] = { 0 };
+			if (!StageUpdaterOutsideInstall(installDir, stagingDir, updaterPath, MAX_PATH)) {
 				return false;
 			}
 

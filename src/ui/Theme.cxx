@@ -142,7 +142,7 @@ bool ApplyTheme(float dpiScale) {
 
 ImVec4 ToneColor(Tone tone) {
     switch (tone) {
-    case Tone::Success: return Color(0xA4CEA0);
+    case Tone::Success: return Color(0xA4CEA0); // Keep in step with palette::Ready.
     case Tone::Pending: return Color(0xF1C477);
     case Tone::Error: return Color(0xFFAAA0);
     default: return Color(Muted);
@@ -212,35 +212,6 @@ void Status(const char* text, Tone tone) {
     ImGui::SetCursorScreenPos(origin);
     ImGui::Dummy(ImVec2(width, height));
 }
-bool ActionButton(const char* label, ButtonKind kind, ImVec2 size) {
-    int colors = 0;
-    if (kind == ButtonKind::Primary) {
-        ImGui::PushStyleColor(ImGuiCol_Button, Color(Ember));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Color(0xFFA05F));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, Color(0xE87525));
-        ImGui::PushStyleColor(ImGuiCol_Text, Color(Ink)); colors = 4;
-    } else if (kind == ButtonKind::Destructive) {
-        ImGui::PushStyleColor(ImGuiCol_Text, ToneColor(Tone::Error)); colors = 1;
-    }
-    bool clicked = ImGui::Button(label, size);
-    ImGui::PopStyleColor(colors);
-    return clicked;
-}
-bool NavigationTab(const char* label, bool selected) {
-    bool clicked = ActionButton(label, selected ? ButtonKind::Primary : ButtonKind::Secondary);
-    return clicked;
-}
-void BeginPanel(const char* id, const char* title) {
-    ImGui::BeginChild(id, ImVec2(0, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_NavFlattened,
-                      ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-    Section(title);
-    ImGui::PushItemWidth((std::max)(80.f * Scale(), ImGui::GetContentRegionAvail().x * .56f));
-}
-void EndPanel() { ImGui::PopItemWidth(); ImGui::EndChild(); }
-void Metric(const char* label, const char* value) {
-    ImGui::TextDisabled("%s", label);
-    ImGui::TextWrapped("%s", value);
-}
 void Text(const char* format, ...) {
     va_list args; va_start(args, format);
     ImGui::PushTextWrapPos(0);
@@ -292,7 +263,11 @@ constexpr float MatchWidth=520.f;
 constexpr float MatchHeight=62.f;
 float MatchScale(const MatchStripView& view) {
     const float sizes[]={.85f,1.f,1.25f};
-    return (std::max)(.8f,(ImGui::GetMainViewport()->Size.y/1080.f)*sizes[(std::max)(0,(std::min)(2,view.size))]);
+    // The readability floor belongs to the viewport term alone. Flooring the
+    // product made Small and Standard identical at 720p and collapsed all three
+    // at 480p, so two of the three settings did nothing.
+    const float viewport=(std::max)(.8f,ImGui::GetMainViewport()->Size.y/1080.f);
+    return viewport*sizes[(std::max)(0,(std::min)(2,view.size))];
 }
 void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, float w, float s) {
     auto* font=DiagnosticFont();
@@ -329,6 +304,7 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
     }
 }
 }
+float MatchStripScale(const MatchStripView& view) { return MatchScale(view); }
 void DrawMatchStrip(const MatchStripView& view) {
     const auto* vp=ImGui::GetMainViewport();const float s=MatchScale(view);
     const float w=(std::min)(MatchWidth*s,vp->Size.x*.8f);

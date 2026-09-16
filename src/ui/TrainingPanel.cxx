@@ -150,11 +150,12 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  }
  const char* modes[]={"Practice ready","Recording suspended while controls are open","Playback suspended while controls are open"};
  std::string status=pending?"Applying command...":!error.empty()?error:!v.ready?"Waiting for the battle to be ready...":modes[static_cast<int>(v.mode)];
+ const Tone statusTone=pending?Tone::Pending:!error.empty()?Tone::Error:!v.ready?Tone::Pending:Tone::Neutral;
  const auto a=trainingMenu.Draw("TRAINING LAB",rows,status.c_str(),[&](const std::string& id){
   if(screen=="history"&&(id=="p1"||id=="p2")){
    for(const auto& run:v.history[id=="p1"?0:1])ImGui::TextWrapped("%u f  %s",run.frames,Buttons(run.buttons).c_str());
   }
- },1,{},{},ImGui::GetFontSize()/ImGui::GetFont()->FontSize);
+ },1,{},{},ImGui::GetFontSize()/ImGui::GetFont()->FontSize,100,false,statusTone);
  if(a.kind==MenuAction::Close||a.id=="return"){RequestMenuReturn();return;}
  if(a.kind==MenuAction::Activate&&screen=="home"){nav.Push(a.id);return;}
  if(a.kind!=MenuAction::Activate&&a.kind!=MenuAction::Adjust)return;
@@ -196,7 +197,7 @@ void DrawTrainingHud(const training::View& view) {
             ImGui::SetTooltip("%s", Unavailable("Advantage", view.meter.advantage.unavailable));
         // Training shortcuts are keyboard-only; this passive HUD never captures input.
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImVec2(0,0));
-        DrawTrainingOpenPrompt(hudScale);
+        DrawTrainingOpenPrompt();
         ImGui::PopStyleVar();
         ImGui::SetWindowFontScale(1.f);
     }

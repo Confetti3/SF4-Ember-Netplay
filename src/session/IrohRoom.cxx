@@ -7,6 +7,10 @@
 #include <limits>
 
 namespace sf4e { namespace session {
+// Bound on waiting for the helper to confirm a departure before the room is
+// released locally. Generous for a normal confirm, short enough not to read
+// as a hang behind the "Leaving room..." status.
+static const std::uint64_t kLeaveTimeoutMs = 8000;
 using nlohmann::json;
 namespace {
 constexpr std::size_t MaximumPayload = 65536;
@@ -77,6 +81,7 @@ bool IrohRoom::Begin(bool host) {
 	leavePending_ = false;
     leaveAbandon_=false;
     leaveRetryAt_=0;
+    leaveDeadline_=0;
 	localOpen_ = false;
 	pendingAdmission_ = false;
 	serverOpen_ = false;
@@ -120,6 +125,8 @@ void IrohRoom::Leave(bool abandon) {
     }
     leaveAbandon_=abandon;
 	state_ = State::Closing;
+    leaveDeadline_ = GetTickCount64() + kLeaveTimeoutMs;
+
 	localOpen_ = false;
 	invitation_.clear(); discordInvitation_.clear();
 	serverMessages_.clear();
@@ -899,6 +906,16 @@ void IrohRoom::Poll() {
 	// game ticks while continuing to drain events; never block the game thread.
 	if (leavePending_ && GetTickCount64()>=leaveRetryAt_ &&
         helper_.Send(json{{"type", "leave"}, {"epoch", epoch_},{"abandon",leaveAbandon_}}.dump())) leavePending_ = false;
+	if (state_ == State::Closing && leaveDeadline_ && GetTickCount64() >= leaveDeadline_) {
+		// The helper never confirmed the departure. Give the room up locally so
+		// the player can open or join another one; the authority still removes
+		// this member through its own connection teardown.
+		for (auto& game : games_) { game.second.state = GameState::Closed; game.second.virtualPort = 0; }
+		roomCommandQueued_ = false; leavePending_ = false; leaveDeadline_ = 0;
+		state_ = State::Idle; peers_.clear(); closed_.clear();
+		error_ = "The room did not confirm your departure. You have left locally.";
+		return;
+	}
 	PumpCheckpoint();
 	// Bound dispatch independently of each transport's application-message cap.
 	for (int budget = 0; budget < 8 && helper_.TryReceive(frame); ++budget) {
@@ -917,16 +934,22 @@ void IrohRoom::Poll() {
 			}
 			if (event.value("epoch", std::uint64_t(0)) != epoch_) continue;
 			if (type == "room_closed") {
-				roomCommandQueued_ = false; leavePending_ = false;
+				roomCommandQueued_ = false; leavePending_ = false; leaveDeadline_ = 0;
 				for (auto& game : games_) { game.second.state = GameState::Closed; game.second.virtualPort = 0; }
 				state_ = State::Idle; peers_.clear(); closed_.clear(); continue;
 			}
 			// Gameplay is independent of room health. Its lifecycle and counters
 			// remain observable after control_closed, until explicit teardown.
 			if (ConsumeGameEvent(event, type)) continue;
-            if(state_==State::Closing && type=="error" && event.value("code",std::string())=="leave_successor_unconfirmed") {
-                leavePending_=true; leaveRetryAt_=GetTickCount64()+500;
-                error_="Waiting for the room successor to confirm the transfer."; continue;
+            if(state_==State::Closing && type=="error") {
+                const auto code=event.value("code",std::string());
+                if(code=="leave_successor_unconfirmed"||code=="leave_membership_unconfirmed"||code=="leave_membership_failed") {
+                    leavePending_=true; leaveRetryAt_=GetTickCount64()+500;
+                    error_=code=="leave_successor_unconfirmed"?
+                        "Waiting for the room successor to confirm the transfer.":
+                        "Waiting for the room to confirm your departure.";
+                    continue;
+                }
             }
 			if (state_ == State::Closing || state_ == State::Idle || state_ == State::Failed) continue;
 			if (ConsumeCoordinationEvent(event,type)) continue;

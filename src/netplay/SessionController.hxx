@@ -54,6 +54,11 @@ struct Snapshot {
     std::uint64_t authorityTerm = 0, authorityRevision = 0;
     Recovery recovery = Recovery::None;
     std::uint64_t recoveryStartedMs = 0;
+    // A connected, same-term control stream whose checkpoint has not applied
+    // locally fences every room mutation. Ordinary lag is brief; a stall that
+    // never clears must become visible and recoverable instead of silently
+    // refusing Ready, Queue and Watch for the rest of the session.
+    std::uint64_t authorityStalledMs = 0;
     std::string error;
 };
 
@@ -77,6 +82,7 @@ public:
     bool ObserveCoordination(std::uint64_t term, std::uint64_t revision,
         bool writable, std::uint64_t nowMs, bool locallyApplied = true);
     void AdvanceRecovery(std::uint64_t nowMs);
+    void AdvanceCatchUp(std::uint64_t nowMs);
     void ShowPage(Page page) { state_.page = page; }
 
 private:

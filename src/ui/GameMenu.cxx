@@ -40,16 +40,20 @@ void DrawPlayerCard(ImVec2 p,float width,bool compact) {
         d->AddText(ImGui::GetFont(),font,ImVec2(p.x+x,p.y+y),color,shown.c_str());};
     text(portrait+24*s,13*s,playerCard.name.empty()?"PLAYER":playerCard.name,18*s,palette::Ivory);
     text(portrait+24*s,38*s,playerCard.fighterName.empty()?"Choose your fighter":playerCard.fighterName,12*s,palette::Muted);
-    if(!compact)text(12*s,82*s,playerCard.controllerReady?"CONTROLLER READY":"ASSIGN CONTROLLER",11*s,playerCard.controllerReady?IM_COL32(151,197,143,255):palette::Ember);
+    if(!compact)text(12*s,82*s,playerCard.controllerReady?"CONTROLLER READY":"ASSIGN CONTROLLER",11*s,playerCard.controllerReady?palette::Ready:palette::Ember);
     const float y=(compact?70:116)*s;
     text(12*s,y,playerCard.recordAvailable?std::to_string(playerCard.wins)+"  WINS":"-- WINS",11*s,palette::Ivory);
     text(width*.35f,y,playerCard.recordAvailable?std::to_string(playerCard.losses)+"  LOSSES":"-- LOSSES",11*s,palette::Muted);
     const auto games=playerCard.wins+playerCard.losses;
-    text(width*.7f,y,playerCard.recordAvailable&&games?std::to_string(playerCard.wins*100/games)+"% WIN":"-- WIN %",11*s,palette::Muted);
+    text(width*.7f,y,!playerCard.recordAvailable?std::string("-- WIN %"):
+        games?std::to_string(playerCard.wins*100/games)+"% WIN":std::string("0% WIN"),11*s,palette::Muted);
 }
 }
 void SetMenuPlayerCard(PlayerCardView view){playerCard=std::move(view);}
 void SetMenuTextProbe(MenuTextProbe probe){textProbe=std::move(probe);}
+void ReportMenuText(const char* id,float textHeight,float interiorHeight,float textWidth,float availableWidth){
+    if(textProbe)textProbe(id,textHeight,interiorHeight,textWidth,availableWidth);
+}
 void SetMenuCardProbe(MenuCardProbe probe){cardProbe=std::move(probe);}
 void SetMenuStatusProbe(MenuStatusProbe probe){statusProbe=std::move(probe);}
 void SetMenuEntriesProbe(MenuEntriesProbe probe){entriesProbe=std::move(probe);}
@@ -82,7 +86,7 @@ void SetMenuGlyphs(int type,unsigned select,unsigned back){
     selectGlyph=type!=3&&type!=4?"Enter":PhysicalGlyph(type,select,"LP");
     backGlyph=type!=3&&type!=4?"Esc":PhysicalGlyph(type,back,"LK");
 }
-void DrawTrainingOpenPrompt(float scale) {
+void DrawTrainingOpenPrompt() {
     ImGui::TextWrapped("F6 Training controls | F5 Hide HUD");
 }
 void SetMenuArt(SelectionArt* art) { menuArt=art; }
@@ -96,7 +100,7 @@ MenuInput ReadMenuInput() {
     value.acceptText=ImGui::IsKeyPressed(ImGuiKey_Enter,false);
     return value;
 }
-MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entries,const char* status,const Detail& detail,int columns,const Card& card,const Body& body,float flyoutScale,float cardHeight,bool stableStatus) {
+MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entries,const char* status,const Detail& detail,int columns,const Card& card,const Body& body,float flyoutScale,float cardHeight,bool stableStatus,Tone statusTone) {
     const bool flyout=flyoutScale>0;
     const float unit=flyout?flyoutScale:Scale();
     columns=(std::max)(1,columns);
@@ -113,7 +117,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     if(acceptEditText)action={};
     feedback_.Update(navigation.Screen(),entries,now);
     bool backRequested=action.kind==MenuAction::Back;
-    if(statusProbe)statusProbe(status);
+    if(statusProbe)statusProbe(status,statusTone);
     if(entriesProbe)entriesProbe(entries);
     const bool changed=lastScreen_!=navigation.Screen();
     const bool home=std::strcmp(title,"SF4 EMBER")==0;
@@ -152,14 +156,14 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         // depends only on width, so changing feedback cannot move the controls.
         const bool inlineFeedback=stableStatus && !flyout && ImGui::GetContentRegionAvail().x>=820*unit;
         if(inlineFeedback) ImGui::SameLine();
-        ImGui::BeginChild("Command feedback",ImVec2(0,inlineFeedback?ImGui::GetFrameHeight():ImGui::GetTextLineHeightWithSpacing()*2));
-        ImGui::TextWrapped("%s",status);ImGui::EndChild();
-    } else if(!home){
-        if(ImGui::CalcTextSize(status).x<ImGui::GetContentRegionAvail().x-20*Scale())ImGui::SameLine();
-        if(*status){const auto p=ImGui::GetCursorScreenPos();const auto measured=ImGui::CalcTextSize(status,nullptr,false,ImGui::GetContentRegionAvail().x);
-            ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(p.x-3*unit,p.y-2*unit),ImVec2(p.x+measured.x+3*unit,p.y+measured.y+2*unit),IM_COL32(16,15,14,230),2*unit);}
-        ImGui::PushStyleColor(ImGuiCol_Text,ToneColor(!std::strcmp(status,"Saved")?Tone::Success:Tone::Neutral));
-        ImGui::TextWrapped("%s",status);ImGui::PopStyleColor();
+        // Two reserved lines cost more than a short viewport can spare, and the
+        // appearance galleries collapse their artwork to pay for it. Both the
+        // width and the height tests read geometry only, never the status text,
+        // so the reserved area still cannot move under a highlight or a click.
+        const float feedbackLines=ImGui::GetContentRegionAvail().y>=520*unit?2.f:1.f;
+        ImGui::BeginChild("Command feedback",ImVec2(0,inlineFeedback?ImGui::GetFrameHeight():ImGui::GetTextLineHeightWithSpacing()*feedbackLines));
+        ImGui::PushStyleColor(ImGuiCol_Text,ToneColor(statusTone));
+        ImGui::TextWrapped("%s",status);ImGui::PopStyleColor();ImGui::EndChild();
     }
     const auto focusedEntry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.Focus();});
     MenuEntry presentationEntry;
@@ -187,7 +191,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     };
     if(body){
         ImGui::BeginDisabled(modalAtStart||navigation.Editing()||navigation.Confirming());
-        body(entries,navigation,action,(std::max)(60.f,available.y-footer));
+        body(entries,navigation,action,(std::max)(60.f,available.y-footer),feedback_);
         ImGui::EndDisabled();
     }
     else {
@@ -249,6 +253,14 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
                 }
             }
         }
+        // Row text is drawn through the draw list, so it is not hoverable and an
+        // ellipsis would otherwise be unrecoverable. The row button carries it.
+        if(ImGui::IsItemHovered()) {
+            std::string full;
+            if(label!=e.label) full=e.label;
+            if(valueRow&&!e.value.empty()&&value!=e.value) full=full.empty()?e.value:full+"\n"+e.value;
+            if(!full.empty()) ImGui::SetTooltip("%s",full.c_str());
+        }
         if(textProbe&&!drawnCard){const auto measured=ImGui::CalcTextSize(label.c_str());textProbe(e.id.c_str(),measured.y,height-2*ImGui::GetStyle().FramePadding.y,measured.x,labelWidth);
             if(valueRow)textProbe((e.id+"-value").c_str(),ImGui::GetTextLineHeight(),height-2*ImGui::GetStyle().FramePadding.y,ImGui::CalcTextSize(value.c_str()).x,valueWidth-(e.adjustable?52*unit:0));}
         if(home)ImGui::PopFont();ImGui::PopStyleColor(2);ImGui::PopStyleVar(3);
@@ -272,8 +284,12 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         ImGui::SetCursorPosX(homeMargin);
         const auto current=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.Focus();});
         if(current!=entries.end()){
-            const char* text=*status&&std::strcmp(status,"Saved")?status:current->detail.c_str();
-            const auto p=ImGui::GetCursorScreenPos();ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),12*Scale(),p,palette::Muted,text,nullptr,ImGui::GetContentRegionAvail().x);
+            // Home shows the status in place of the focused row's help text, so
+            // it must carry the same severity rather than reading as help.
+            const bool showStatus=*status&&std::strcmp(status,"Saved");
+            const char* text=showStatus?status:current->detail.c_str();
+            const auto color=showStatus&&statusTone!=Tone::Neutral?ImGui::ColorConvertFloat4ToU32(ToneColor(statusTone)):palette::Muted;
+            const auto p=ImGui::GetCursorScreenPos();ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),12*Scale(),p,color,text,nullptr,ImGui::GetContentRegionAvail().x);
         }
         ImGui::Dummy(ImVec2(0,36*Scale()));ImGui::SetCursorPosX(homeMargin);
     }

@@ -50,7 +50,7 @@ int main() try {
     bool requireMenuFrame = false;
     std::map<std::string, ImVec2> targets;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries) { rows = entries; ++menuDraws; });
-    SetMenuStatusProbe([&](const char* status) { menuStatus = status; });
+    SetMenuStatusProbe([&](const char* status, Tone) { menuStatus = status; });
     SetMenuCardProbe([&](const char* id, ImVec2 min, ImVec2 max) {
         ++cardDraws;
         targets[id] = ImVec2((min.x + max.x) * .5f, (min.y + max.y) * .5f);

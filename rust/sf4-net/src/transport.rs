@@ -51,11 +51,19 @@ pub async fn bind_endpoint() -> io::Result<Endpoint> {
 
 /// Relay-only is a diagnostic/test policy, never an alternate gameplay protocol.
 pub async fn bind_endpoint_with_policy(relay_only: bool) -> io::Result<Endpoint> {
+    // Port mapping was switched off to demonstrate the transport did not
+    // depend on it. Leaving it off in the shipping endpoint also removed a
+    // NAT-traversal aid: iroh documents the cost of Disabled as "potentially
+    // worse direct connectivity behind some NATs", which is what players who
+    // cannot reach each other directly are hitting. Take iroh's default
+    // (enabled) for gameplay; relay-only keeps it off, where it is moot
+    // because that diagnostic clears the IP transports anyway.
     let builder = Endpoint::builder(presets::N0)
-        .alpns(vec![CONTROL_ALPN.to_vec(), GAME_ALPN.to_vec()])
-        .portmapper_config(PortmapperConfig::Disabled);
+        .alpns(vec![CONTROL_ALPN.to_vec(), GAME_ALPN.to_vec()]);
     let builder = if relay_only {
-        builder.clear_ip_transports()
+        builder
+            .clear_ip_transports()
+            .portmapper_config(PortmapperConfig::Disabled)
     } else {
         builder
     };

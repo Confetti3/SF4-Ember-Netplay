@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include "../common/FighterCatalog.hxx"
 #include "../common/RoomRules.hxx"
 #include "ProfileRecord.hxx"
 
@@ -34,7 +35,7 @@ struct PlayerPreferences {
     int roomCapacity = 16;
     room::Rules tableRules;
     bool Valid() const {
-        if (displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=44 || inputDelay < 0 || inputDelay > 10 ||
+        if (displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < 0 || inputDelay > 10 ||
             matchHudSize < 0 || matchHudSize > 2 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || !lobby.Valid() ||
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;

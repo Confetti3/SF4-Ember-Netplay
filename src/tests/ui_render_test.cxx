@@ -10,6 +10,7 @@
 #include <windows.h>
 #include <d3d9.h>
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <fstream>
 #include <stdexcept>
@@ -459,12 +460,13 @@ int main(int argc, char** argv) {
             view.session.recovery=netplay::Recovery::Recovering;
             view.session.error="Room control is recovering. Room actions are paused.";
             const auto recoveryFocus=shell.Navigation().Focus();
-            std::string recoveryStatus;
-            SetMenuStatusProbe([&](const char* status){recoveryStatus=status;});
+            std::string recoveryStatus;Tone recoveryTone=Tone::Neutral;
+            SetMenuStatusProbe([&](const char* status,Tone tone){recoveryStatus=status;recoveryTone=tone;});
             draw();
             SetMenuStatusProbe({});
             Require(shell.Navigation().Focus()==recoveryFocus,"Recovery feedback displaced menu focus");
             Require(recoveryStatus==view.session.error,"Pinned recovery status lost its explanation");
+            Require(recoveryTone==Tone::Error,"Room control failure is not rendered as an error");
             const auto* feedback=FindWindow("Command feedback");
             Require(feedback->Active&&feedback->DrawList->VtxBuffer.Size>0&&feedback->Size.y>0&&
                 feedback->Pos.y>=0&&feedback->Pos.y+feedback->Size.y<=size.h,
@@ -494,8 +496,16 @@ int main(int argc, char** argv) {
             view.controllerReady=view.canReady=true;
             const auto roomTitle=view.room.name;view.room.name=std::string(64,'W');page("room");draw("room-long-title");view.room.name=roomTitle;
             page("room");
-            if(size.w-40*size.dpi>=820*size.dpi&&size.h/size.dpi>=700)
+            if(size.w-40*size.dpi>=820*size.dpi&&size.h/size.dpi>=700) {
                 Require(FindWindow("Battle slots")->ScrollMax.y<2,"Four room battle slots must fit at standard landscape scale");
+                // The wide board sizes its member list to whole cards, so the
+                // bottom one is never cut through its portrait.
+                const auto* members=FindWindow("Member list");
+                const float pitch=58*Scale()+ImGui::GetStyle().ItemSpacing.y;
+                const float content=members->Size.y-12*Scale()+ImGui::GetStyle().ItemSpacing.y;
+                Require(content>=pitch-.5f&&std::fabs(content/pitch-std::floor(content/pitch+.5f))<.02f,
+                    "Member list height is not a whole number of member cards");
+            }
             // Move to Leave by clamped navigation, then open the safe dialog.
             for(int i=0;i<64&&shell.Navigation().Focus()!="leave";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             draw(nullptr,MenuInput::Select,1);draw("leave-confirmation");
@@ -527,6 +537,15 @@ int main(int argc, char** argv) {
             training.ready=true;training.mode=training::Mode::Recording;draw("training-recording-suspended");training.mode=training::Mode::Idle;
             mode=2;draw("training-hud");
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Passive training HUD captured input");
+            {
+                MatchStripView strip;strip.names[0]="P1";strip.names[1]="P2";
+                // 'small' is a windows.h macro; never name a local that.
+                strip.size=0;const float sizeSmall=MatchStripScale(strip);
+                strip.size=1;const float sizeStandard=MatchStripScale(strip);
+                strip.size=2;const float sizeLarge=MatchStripScale(strip);
+                Require(sizeSmall<sizeStandard&&sizeStandard<sizeLarge,
+                    "Match HUD size settings collapse at this viewport; two of the three choices do nothing");
+            }
             auto* hud=FindWindow("Training frame meter");Require(hud->Size.x<=size.w*.76f&&hud->Size.y<size.h*.13f,"Passive HUD too large");
             SetMenuGlyphs(4,0,0);draw("training-hud-directinput");
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"DirectInput HUD captured input");

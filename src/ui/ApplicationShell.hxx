@@ -76,7 +76,8 @@ private:
     GameMenu menu_;
     std::vector<MenuEntry> RoomEntries(const ShellView& view);
     void RoomAction(const MenuAction& action, const ShellView& view, const Submit& submit);
-    void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height);
+    void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
+                       const MenuVisualFeedback& feedback);
     std::string roomBoardFocus_;
     std::uint64_t chatSequence_=0;
     double saveAt_ = 0;
