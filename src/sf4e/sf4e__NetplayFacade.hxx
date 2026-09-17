@@ -85,6 +85,15 @@ namespace sf4e {
 			bool canOpenRoom = false;
 			bool canReplaceRoom = false;
 			bool canReady = false;
+			// The environment accepts a Ready send now (no in-flight request
+			// considered). The runtime drains a parked press against this.
+			bool readyGate = false;
+			// A Ready press is being carried through drain, fence, send and
+			// commit. The interface shows one steady "Readying up..." state.
+			bool readyRequested = false;
+			// Set when a press could not be honoured; the sequence changes per failure.
+			std::string readyFailure;
+			std::uint64_t readyFailureSequence = 0;
 			bool canEditSelection = false;
             std::string selectionLockReason, readyLockReason;
 			bool canEditPreferences = false;

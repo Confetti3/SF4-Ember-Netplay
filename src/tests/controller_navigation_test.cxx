@@ -159,6 +159,15 @@ void Journeys() {
  h.view.inputCapture=input::Capture::Idle;h.Frame();Check(h.shell.Navigation().Screen()=="player","Assignment lost return destination");
  h.Screen("home");h.Choose("online");Check(h.shell.Navigation().Screen()=="online","Online route");
  h.Choose("create");h.Choose("host");Check(h.actions.back().command.kind==Kind::HostRoom,"Create journey");
+ // Opening a room keeps the player on Create with a Cancel; the room screen
+ // appears only once the committed snapshot says the room is joined.
+ h.view.session.generation.room=1;h.view.session.room=netplay::RoomState::Opening;h.Frame();
+ Check(h.shell.Navigation().Screen()=="create","Opening room showed the placeholder room screen");
+ h.Choose("cancel-open");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+ Check(h.actions.back().command.kind==Kind::LeaveRoom,"Cancel while opening did not leave the room");
+ h.view.session.room=netplay::RoomState::Joined;h.view.session.control=netplay::Health::Healthy;h.view.room.roomEpoch=9;h.view.room.localMember=1;h.Frame();
+ Check(h.shell.Navigation().Screen()=="room","Joined room did not open the room screen");
+ h.view.session.room=netplay::RoomState::Idle;h.view.session.generation.room=0;h.view.room.roomEpoch=0;h.view.room.localMember=0;h.Frame();h.Screen("home");
  h.Screen("join");h.Choose("invite-text");ImGui::GetIO().AddInputCharactersUTF8("sf4://invitation");h.Frame();
  ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,true);h.Frame();ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,false);h.Frame();
  h.Choose("join-now");Check(h.actions.back().command.kind==Kind::JoinInvite&&h.actions.back().command.invitation=="sf4://invitation","Join draft journey");
@@ -193,11 +202,23 @@ void Journeys() {
  h.view.room.tables[2].ready[0]=h.view.room.tables[2].ready[1]=true;
  std::string tableStatus;SetMenuStatusProbe([&](const char* status,Tone){tableStatus=status;});
  h.view.session.match=netplay::MatchState::PostMatch;h.view.canEditSelection=false;h.Frame();
- Check(row("ready").label=="Waiting for results","Finished match still offers Unready instead of waiting for results");
+ // The finished game's bookkeeping (result, receipt, drain) is the runtime's
+ // job: the player sees one Ready for rematch control and presses it once.
+ Check(row("ready").label=="Ready for rematch"&&row("ready").enabled,"Finished match hides Ready for rematch behind the result wait");
  Check(row("selection").detail.find("Unready")==std::string::npos,"Finished match incorrectly asks the player to Unready");
  Check(tableStatus.find("READY")==std::string::npos,"Post-match footer falsely reports READY");
+ Check(tableStatus.find("Waiting for results")==std::string::npos,"Post-match footer exposes the result wait");
  const auto postMatchActions=h.actions.size();h.Choose("ready");
- Check(h.actions.size()==postMatchActions,"Pending result submitted Ready");
+ Check(h.actions.size()==postMatchActions+1&&h.actions.back().command.kind==Kind::Rematch,"Pending result dropped the rematch press");
+ h.view.readyRequested=true;h.Frame();
+ Check(row("ready").label=="Readying up..."&&!row("ready").enabled,"In-flight Ready still offers a second press");
+ Check(tableStatus.find("Readying up")!=std::string::npos,"In-flight Ready is not shown on the seat line");
+ h.view.readyRequested=false;
+ h.view.readyFailure="Your Ready did not go through.";h.view.readyFailureSequence=1;h.Frame();
+ const auto beforeNotice=h.actions.size();h.Press(MenuInput::Select);
+ Check(h.actions.size()==beforeNotice,"Dismissing the failure notice activated the focused row");
+ h.Press(MenuInput::Select);
+ Check(h.actions.size()==beforeNotice+1,"Ready unavailable after the failure notice was dismissed");
  h.view.room.tables[2].phase=room::TablePhase::Paused;h.Frame();
  Check(row("ready").label=="Result unresolved"&&!row("ready").enabled,"Unresolved result presented as Ready");
  SetMenuStatusProbe({});
@@ -225,7 +246,7 @@ void Journeys() {
  count=h.actions.size();h.Frame(0,20);Check(h.actions.size()==count,"Autosave not coalesced");
  h.Frame(0,20);Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.showMatchHud,"Autosave did not queue");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-size");h.Press(MenuInput::Right);h.Frame(0,45);
- Check(h.actions.back().preferences.matchHudSize==2,"HUD size did not save");
+ Check(h.actions.back().preferences.matchHudSize==1,"HUD size did not save"); // Small by default; Right steps to Standard.
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-spacing");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudRaised,"HUD spacing did not save");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("scale");h.Press(MenuInput::Right);
@@ -277,7 +298,9 @@ void PresentationJourneys(){
  auto confirm=ConfirmRow("leave","Leave room","Disconnect");
  Check(std::strcmp(MenuPrimaryHint(&text),"Edit")==0&&MenuPrimaryHint(&value)==nullptr&&std::strcmp(MenuPrimaryHint(&confirm),"Review")==0,"Contextual legend does not match action");
  text.enabled=false;Check(MenuPrimaryHint(&text)==nullptr,"Disabled field advertises submission");
- Harness h;std::string status;SetMenuStatusProbe([&](const char* text,Tone){status=text;});h.Screen("interface");ImVec2 leftArrow,otherRow;
+ Harness h;std::string status;SetMenuStatusProbe([&](const char* text,Tone){status=text;});
+ h.view.preferences.showMatchHud=true;h.Frame(); // The HUD defaults to off; the click below must change a saved value.
+ h.Screen("interface");ImVec2 leftArrow,otherRow;
  SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){
   if(std::strcmp(id,"hud")==0)leftArrow=ImVec2(min.x+(max.x-min.x)*.75f,(min.y+max.y)*.5f);
   if(std::strcmp(id,"scale")==0)otherRow=ImVec2((min.x+max.x)*.5f,(min.y+max.y)*.5f);

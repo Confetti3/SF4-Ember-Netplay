@@ -25,8 +25,9 @@ struct PlayerPreferences {
     int mainFighter = 0;
     ProfileRecord record;
     int inputDelay = 2;
+    // On by default so a stall or rollback spike is visible, but Small: the standard strip drew the eye mid-fight.
     bool showMatchHud = true;
-    int matchHudSize = 1;
+    int matchHudSize = 0;
     bool matchHudRaised = false;
     bool discordPresence = true, discordInvites = true;
     float interfaceScale = 1.f;

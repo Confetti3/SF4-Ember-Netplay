@@ -56,11 +56,16 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   notice_=previousRoomState_==RoomState::Opening?"":"You left the room.";
   noticeTone_=Tone::Neutral;noticeUntil_=now+3;
  }
+ // The room screen opens only once the committed room snapshot has the local
+ // member in it. Before that the player stays where they pressed Create or
+ // Join, with a pending status, instead of seeing a bare placeholder list.
+ if(v.session.room==RoomState::Joined&&previousRoomState_!=RoomState::Joined&&nav.Screen().compare(0,4,"room")!=0){nav.Home();nav.Push("room");}
  previousRoomState_=v.session.room;
  if(!(generation_==v.session.generation)) {
   const bool roomChanged=generation_.room!=v.session.generation.room;
   generation_=v.session.generation; nav.Cancel(); error_.clear();notice_.clear();
-  if(roomChanged&&v.session.room!=RoomState::Idle&&nav.Screen()!="room"){nav.Home();nav.Push("room");}
+  // A replacement room that is already joined lands on its own room screen.
+  if(roomChanged&&v.session.room==RoomState::Joined&&nav.Screen()!="room"){nav.Home();nav.Push("room");}
   if(v.session.room==RoomState::Idle&&nav.Screen().compare(0,4,"room")==0)nav.Home();
   if(roomChanged){roomUpdateUntil_=0;roomUpdateStarted_=-1;roomDetails_.clear();}
  }
@@ -90,6 +95,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending&&v.canEditPreferences&&preferences_.Valid()&&ImGui::GetTime()>=saveAt_){
   if(Send(CommandKind::SavePreferences,v,submit)){saveQueued_=true;savingPreferences_=preferences_;saveAt_=ImGui::GetTime();}else saveFailed_=true;
  }
+ if(v.readyFailureSequence!=readyFailureSequence_){
+  readyFailureSequence_=v.readyFailureSequence;
+  if(readyFailureSequence_&&!v.readyFailure.empty())menu_.ShowNotice(v.readyFailure);
+ }
  if(v.discordPending&&inviteRevision_!=v.discordRevision){inviteRevision_=v.discordRevision;nav.Push("discord-invitation");}
  if(!v.discordPending&&nav.Screen()=="discord-invitation")nav.Return();
  if(v.inputCapture!=input::Capture::Idle&&nav.Screen()!="assignment")nav.Push("assignment");
@@ -102,7 +111,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(TakeMenuReturn())nav.Return();ImGui::End();ImGui::PopStyleVar(2);return;
  }
  const std::string screen=nav.Screen();std::vector<MenuEntry> rows;std::string title="SF4 EMBER";
- const bool idle=v.session.room==RoomState::Idle;
+ const bool idle=v.session.room==RoomState::Idle, opening=v.session.room==RoomState::Opening;
  const char* reason=v.canEditPreferences?"Changes save automatically.":"Leave the room to change personal settings.";
  if(v.inputCapture!=input::Capture::Idle){
   title="ASSIGN CONTROLLER";rows={Row("capture-cancel","Cancel controller assignment",v.inputCapture==input::Capture::Press?"Press a button on your chosen controller.":"Release all buttons to continue.")};
@@ -134,10 +143,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   rows.push_back(TextRow("room-name","Room name",preferences_.roomName,64,can));
   rows.push_back(Value("capacity","Capacity",std::to_string(preferences_.roomCapacity),"Maximum members, including spectators.",can));
   RuleRows(rows,preferences_.tableRules,can,reason);
-  if(screen=="create")rows.push_back(Row("host","Create Room","Networking and an assigned gameplay controller must be ready.",can&&preferences_.Valid()));
+  if(screen=="create")rows.push_back(opening?ConfirmRow("cancel-open","Cancel","Stop creating this room.",true):
+   Row("host","Create Room","Networking and an assigned gameplay controller must be ready.",can&&preferences_.Valid()));
  }else if(screen=="join"){
   title="JOIN ROOM";rows={Row("paste","Paste Invitation","Copy an Ember invitation, then select this row.",v.canOpenRoom),
-   Row("join-now","Join","Join using the pasted invitation.",v.canOpenRoom&&invitation_[0]),
+   opening?ConfirmRow("cancel-open","Cancel","Stop joining this room.",true):Row("join-now","Join","Join using the pasted invitation.",v.canOpenRoom&&invitation_[0]),
    TextRow("invite-text","Edit invitation",invitation_,sizeof(invitation_)-1,v.canOpenRoom)};
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?"ROOM":v.room.name;rows=RoomEntries(v);
  }else if(screen=="settings"){
@@ -180,6 +190,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // feedback channel, so a failure must not render like ordinary text.
  Tone statusTone=saveFailed_?Tone::Error:v.settingsPending||preferencesDirty_||saveQueued_?Tone::Pending:
   personal?Tone::Success:Tone::Neutral;
+ if((screen=="create"||screen=="join")&&opening&&status.empty()){
+  status=screen=="create"?"Creating room. Waiting for the network...":"Joining room. Waiting for the network...";statusTone=Tone::Pending;
+ }
  if(screen=="room"&&status.empty()){
   const bool healthy=v.session.control==Health::Healthy;
   status=healthy?(v.room.locked?"Room locked / invitation only":"Private room / invitation only"):"Reconnecting to room...";
@@ -188,21 +201,24 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(screen=="room-table"){
   title="TABLE "+std::to_string(selectedTable_+1)+" / BATTLE SETUP";
   const auto& table=v.room.tables[selectedTable_];
+  const bool seatedLocal=table.p1==v.room.localMember||table.p2==v.room.localMember;
+  // A seated fighter's finished game is background bookkeeping: its stale
+  // ready flags and pending result are not the next match's readiness.
+  const bool finishedGame=seatedLocal&&table.phase==room::TablePhase::Playing&&v.session.match==MatchState::PostMatch;
   const auto state=[&](room::MemberId id,int side){
    if(!id)return std::string("Waiting for opponent");
    const auto member=std::find_if(v.room.members.begin(),v.room.members.end(),[&](const room::Member& m){return m.id==id;});
-   return (id==v.room.localMember?std::string("You"):member==v.room.members.end()?std::string("Player"):member->name)+
-    (table.ready[side]?" - READY":" - Not ready");
+   const bool local=id==v.room.localMember;
+   return (local?std::string("You"):member==v.room.members.end()?std::string("Player"):member->name)+
+    (table.ready[side]&&!finishedGame?" - READY":local&&v.readyRequested?" - Readying up...":" - Not ready");
   };
   status=state(table.p1,0)+" | "+state(table.p2,1);
   // Table phases carry their own tone: an unresolved result is a problem
   // the player must act on, a pending result or preparation is a wait.
   if(table.phase==room::TablePhase::Paused){status="Result unresolved / abandon it, or the host can cancel it";statusTone=Tone::Error;}
   else if(table.phase==room::TablePhase::Ready){status="Preparing match / fighter choices locked";statusTone=Tone::Pending;}
-  else if(table.phase==room::TablePhase::Playing){
-   const bool waiting=table.resultPending||
-    (v.session.match==MatchState::PostMatch&&(table.p1==v.room.localMember||table.p2==v.room.localMember));
-   status=waiting?"Waiting for results / next match is not ready":"Match in progress";
+  else if(table.phase==room::TablePhase::Playing&&!finishedGame){
+   status=table.resultPending?"Waiting for results / next match is not ready":"Match in progress";
    statusTone=Tone::Pending;
   }
   else if(table.phase==room::TablePhase::Closed)status="Table closed";
@@ -225,12 +241,15 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    "Room control is recovering. Room actions are paused.";
   statusTone=v.session.error.empty()?Tone::Pending:Tone::Error;
  }
- const auto tablePhase=v.room.tables[selectedTable_].phase;
+ const auto& selectedTable=v.room.tables[selectedTable_];const auto tablePhase=selectedTable.phase;
  const bool committedMatchStatus=screen=="room-table" && healthyRoom &&
   (tablePhase==room::TablePhase::Ready || tablePhase==room::TablePhase::Playing || tablePhase==room::TablePhase::Paused);
+ // A seated fighter's table never swaps its seat line for checkpoint chatter;
+ // the runtime carries a Ready press through those gaps on its own.
+ const bool seatedTableStatus=screen=="room-table" && (selectedTable.p1==v.room.localMember||selectedTable.p2==v.room.localMember);
  if(roomScreen && (v.session.room==RoomState::Closing ||
     (v.session.control==Health::Healthy && v.session.recovery==Recovery::None &&
-     ((!RoomActionsAvailable(v)&&!RoomCheckpointPending(v))||roomUpdateVisible_) && !committedMatchStatus &&
+     ((!RoomActionsAvailable(v)&&!RoomCheckpointPending(v))||(roomUpdateVisible_&&!seatedTableStatus)) && !committedMatchStatus &&
      !v.controllerUnavailable&&v.session.error.empty()&&v.error.empty()&&error_.empty())))
   {status=RoomWaitReason(v);statusTone=Tone::Pending;}
  PlayerCardView card;card.name=preferences_.displayName;card.fighter=preferences_.mainFighter;
@@ -278,7 +297,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
   else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
   else if(a.id=="selection"||a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="developer")nav.Push(a.id);
-  else if(a.id=="host"||a.id=="join-now"){if(Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit)){nav.Home();nav.Push("room");}}
+  else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
+  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
   else if(a.id=="offline"||a.id=="controls")Send(CommandKind::StartOffline,v,submit);
   else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_="Invitation is empty or too long.";}
   else if(a.id=="capture"||a.id=="keyboard"){ShellAction r;r.command.generation=v.session.generation;r.inputAction=a.id=="capture"?input::Action::BeginCapture:input::Action::UseKeyboard;submit(std::move(r));}

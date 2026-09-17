@@ -96,15 +96,19 @@ int main() try {
     view.probeStatus.clear(); view.recommendedDelay = 4; frame();
     Check(row("leave").enabled, "Leave room is missing from the table screen");
     view.session.coordinated = true; view.session.authorityWritable = false; frame();
-    Check(!row("ready").enabled && !row("check-connection").enabled && row("leave").enabled,
-        "Room update shows actionable controls which the runtime rejects");
+    // A checkpoint is the runtime's business: Ready stays pressable and the
+    // seated table keeps its seat line instead of room-update chatter.
+    Check(row("ready").enabled && !row("check-connection").enabled && row("leave").enabled,
+        "Room update hid Ready, which the runtime parks and resubmits");
     Check(menuStatus.find("Updating room")==std::string::npos,
         "A one-frame checkpoint delay flashed the room-update message");
     for(int i=0;i<20;++i)frame();
-    Check(menuStatus.find("Updating room") != std::string::npos,
+    Check(menuStatus.find("Updating room") == std::string::npos,
+        "Checkpoint chatter replaced the seated table's status line");
+    Check(row("ready").detail.find("Updating room") == std::string::npos,
+        "Ready exposes the room update instead of the lock-in instruction");
+    Check(row("check-connection").detail.find("Updating room") != std::string::npos,
         "Room update has no player-facing explanation");
-    Check(row("ready").detail.find("Updating room") != std::string::npos,
-        "Disabled Ready still asks the player to lock in during a room update");
     view.session.authorityWritable = true; view.session.room = netplay::RoomState::Closing; frame();
     Check(!row("ready").enabled && !row("leave").enabled && menuStatus.find("Leaving room") != std::string::npos,
         "Closing room still advertises playable actions");
@@ -224,13 +228,15 @@ int main() try {
     ++view.room.revision; frame();
     Check(shell.Navigation().Focus() == "ready", "Terminal wait changed the focused Ready control");
     const auto beforeBlockedReady = actions.size();
-    Check(!row("ready").enabled && !row("selection").enabled &&
-        row("ready").detail.find("finish returning") != std::string::npos &&
+    // The receipt fence is invisible to Ready (the runtime parks the press);
+    // fighter changes still wait, with the committed reason.
+    Check(row("ready").enabled && !row("selection").enabled &&
+        row("ready").detail.find("finish returning") == std::string::npos &&
         row("selection").detail.find("finish returning") != std::string::npos,
-        "Seated terminal receipt did not explain the Ready and selection fence");
+        "Seated terminal receipt blocked Ready or hid the selection fence");
     press(MenuInput::Select);
-    Check(actions.size() == beforeBlockedReady && shell.Navigation().Focus() == "ready",
-        "Disabled Ready dispatched an action or lost focus");
+    Check(actions.size() == beforeBlockedReady + 1 && actions.back().command.kind == netplay::CommandKind::Ready &&
+        shell.Navigation().Focus() == "ready", "Ready during the receipt wait was dropped or lost focus");
     focus("selection"); const auto beforeBlockedSelection = selectionDraws;
     press(MenuInput::Select);
     Check(shell.Navigation().Screen() == "room-table" && selectionDraws == beforeBlockedSelection,
@@ -241,7 +247,7 @@ int main() try {
     Check(row("ready").enabled && row("selection").enabled && shell.Navigation().Focus() == "ready",
         "Committed terminal completion failed to unlock controls with focus intact");
     press(MenuInput::Select);
-    Check(actions.size() == beforeBlockedReady + 1 && actions.back().command.kind == netplay::CommandKind::Ready,
+    Check(actions.size() == beforeBlockedReady + 2 && actions.back().command.kind == netplay::CommandKind::Ready,
         "Ready did not dispatch after terminal completion");
     focus("selection"); press(MenuInput::Select);
     Check(shell.Navigation().Screen() == "selection" && selectionDraws > beforeBlockedSelection,

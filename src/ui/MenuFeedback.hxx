@@ -38,11 +38,15 @@ public:
             const std::string signature = entry.label + '\n' + entry.value + '\n' +
                 (entry.adjustable ? "a" : "-") + (entry.text ? "t" : "-") + (entry.confirm ? "c" : "-");
             if (found == states_.end() || found->second.signature != signature) {
-                states_[entry.id] = {signature, entry.enabled, entry.enabled, now, entry.pending ? now + .5 : 0};
+                states_[entry.id] = {signature, entry.enabled, entry.enabled, now, entry.pending ? now + .5 : 0, entry.pending, entry.pending, now};
                 continue;
             }
             auto& state = found->second;
             if (entry.pending) state.transientUntil = now + .5;
+            // The checkpoint flag itself churns per revision. The "Updating
+            // room..." hint follows it only once it has held either way.
+            if (state.pendingCandidate != entry.pending) { state.pendingCandidate = entry.pending; state.pendingSince = now; }
+            if (now - state.pendingSince >= .25) state.pendingVisible = state.pendingCandidate;
             const bool softRecovery = entry.enabled && now < state.transientUntil;
             if (!entry.pending && !softRecovery) {
                 state.visible = state.candidate = entry.enabled;
@@ -64,11 +68,14 @@ public:
     }
     bool Pending(const MenuEntry& entry) const {
         const auto found = states_.find(entry.id);
-        return entry.pending || (entry.enabled && found != states_.end() &&
-            !found->second.visible && previousTime_ < found->second.transientUntil);
+        return (found == states_.end() ? entry.pending : found->second.pendingVisible) ||
+            (entry.enabled && found != states_.end() && !found->second.visible && previousTime_ < found->second.transientUntil);
     }
 private:
-    struct State { std::string signature; bool visible, candidate; double since, transientUntil; };
+    struct State {
+        std::string signature; bool visible, candidate; double since, transientUntil;
+        bool pendingCandidate = false, pendingVisible = false; double pendingSince = 0;
+    };
     std::map<std::string, State> states_;
     std::string screen_;
     double previousTime_ = 0;

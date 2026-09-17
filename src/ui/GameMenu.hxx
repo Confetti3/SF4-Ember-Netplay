@@ -57,8 +57,12 @@ public:
     MenuAction Draw(const char* title,const std::vector<MenuEntry>& entries,
                     const char* status = "",const Detail& detail = {},int columns=1,const Card& card = {},const Body& body = {},float flyoutScale=0,float cardHeight=100,bool stableStatus=false,
                     Tone statusTone=Tone::Neutral);
+    // A modal notice: owns menu input until Select, Back or OK dismisses it.
+    void ShowNotice(std::string text) { notice_=std::move(text); }
+    bool NoticeOpen() const { return !notice_.empty(); }
 private:
-    std::string lastScreen_,lastFocus_,lastEdit_;
+    std::string lastScreen_,lastFocus_,lastEdit_,notice_;
+    unsigned noticePrevious_=~0u;
     int lastFrame_ = -2;
     UiClock clock_;
     MenuVisualFeedback feedback_;

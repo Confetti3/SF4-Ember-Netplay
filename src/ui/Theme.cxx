@@ -304,10 +304,11 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
         }
         return measure(ellipsis,size)<=maxWidth?t+ellipsis:std::string();
     };
-    // A solid neutral panel prevents bright stages from bleeding through the
-    // telemetry. Keep the border quiet; the small "vs" is the only accent.
-    draw->AddRectFilled(p,ImVec2(p.x+w,p.y+MatchHeight*s),IM_COL32(20,19,18,255),6*s);
-    draw->AddRect(p,ImVec2(p.x+w,p.y+MatchHeight*s),IM_COL32(88,76,65,160),6*s);
+    // A neutral panel keeps the telemetry readable on bright stages, but a
+    // solid block pulled the eye mid-fight: let the stage show through a
+    // little. Keep the border quiet; the small "vs" is the only accent.
+    draw->AddRectFilled(p,ImVec2(p.x+w,p.y+MatchHeight*s),IM_COL32(20,19,18,200),6*s);
+    draw->AddRect(p,ImVec2(p.x+w,p.y+MatchHeight*s),IM_COL32(88,76,65,100),6*s);
     const auto text=[&](float x,float y,const std::string& t,float size,ImU32 color){draw->AddText(font,size,ImVec2(x,y),color,t.c_str());};
     // Link state / notice line above the panel. Same width, own background so
     // it reads against any stage; colour follows severity.
