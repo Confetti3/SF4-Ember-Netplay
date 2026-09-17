@@ -1,0 +1,42 @@
+diff --git a/src/lib/ggpo/network/udp_proto.cpp b/src/lib/ggpo/network/udp_proto.cpp
+index 357ff6b..e0f5cca 100644
+--- a/src/lib/ggpo/network/udp_proto.cpp
++++ b/src/lib/ggpo/network/udp_proto.cpp
+@@ -153,7 +153,21 @@ UdpProtocol::SendInput(GameInput &input)
+           * (better, but still ug).  For the meantime, make this queue really big to decrease
+           * the odds of this happening...
+           */
+-         _pending_output.push(input);
++         if (_pending_output.full()) {
++            /*
++             * The peer has not acked anything for N-1 frames.  A live peer that honours the
++             * prediction barrier can never get this far behind, so it has stopped consuming
++             * our stream (a stalled or departed spectator, or a player that already dropped
++             * us).  Treat it exactly like the receive timeout instead of asserting.
++             */
++            Log("Pending output full (%d unacked frames).  Disconnecting endpoint.\n", _pending_output.size());
++            if (!_disconnect_event_sent) {
++               QueueEvent(Event(Event::Disconnected));
++               _disconnect_event_sent = true;
++            }
++         } else {
++            _pending_output.push(input);
++         }
+       }
+       SendPendingOutput();
+    }  
+diff --git a/src/lib/ggpo/ring_buffer.h b/src/lib/ggpo/ring_buffer.h
+index 9a5d9d6..2cd9c95 100644
+--- a/src/lib/ggpo/ring_buffer.h
++++ b/src/lib/ggpo/ring_buffer.h
+@@ -42,6 +42,10 @@ public:
+       _size++;
+    }
+ 
++   bool full() {
++      return _size == (N-1);
++   }
++
+    int size() {
+       return _size;
+    }

@@ -9,6 +9,7 @@ vcpkg_from_github(
         "confirmed-frame-accessor.patch"
         "spectator-poll-capacity.patch"
         "cache-log-config.patch"
+        "pending-output-disconnect.patch"
 )
 
 vcpkg_cmake_configure(
