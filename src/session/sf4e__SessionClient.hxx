@@ -75,7 +75,8 @@ namespace sf4e {
 		// The queue is retried by Step() and remains live until the server accepts
 		// the exact room/table/generation action.
 		session::SendResult AcknowledgeTerminal(std::uint8_t table, std::uint64_t generation);
-		struct ActionReply { std::uint64_t actionId=0; bool accepted=false; room::RejectReason reason=room::RejectReason::None; };
+		struct ActionReply { std::uint64_t actionId=0; bool accepted=false; room::RejectReason reason=room::RejectReason::None;
+			room::ActionKind kind=room::ActionKind::Queue; bool kindKnown=false; };
         bool TakeActionReply(ActionReply& reply);
         void SetSelectedDelay(unsigned delay) { if (delay<=10) _selectedDelay=static_cast<std::uint8_t>(delay); }
 		void RequireCustomRooms() { _customRoomsRequired = true; }
@@ -189,6 +190,10 @@ namespace sf4e {
 			std::uint64_t generation = 0;
 		};
 		std::deque<SentRoomAction> _sentRoomActions;
+		// A Ready/Unready that raced the player's own previous table action is
+		// resent from the reply's fresher snapshot; bounded so a real conflict
+		// still surfaces.
+		unsigned _staleTableRetries = 0;
 		// Retried actions keep their id; log each id/reason pair once.
 		std::uint64_t _lastRejectedActionId = 0;
 		room::RejectReason _lastRejectedReason = room::RejectReason::None;

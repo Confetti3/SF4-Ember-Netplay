@@ -42,9 +42,7 @@ inline ConnectionCheckFeedback DescribeConnectionCheck(const ShellView& view) {
     const bool measured = view.recommendedDelay >= 0 && view.recommendedDelay <= 10;
     if (result.checking) {
         result.value = "Checking...";
-        result.detail = view.probeBenchmark ?
-            "Benchmarking gameplay-size datagrams for 30 seconds, plus connection setup. This measures network performance, not game FPS." :
-            "Measuring gameplay datagrams for five seconds, plus connection setup. You can still choose a delay manually.";
+        result.detail = "Measuring gameplay datagrams for five seconds, plus connection setup. You can still choose a delay manually.";
         result.action = "Checking connection...";
     } else if (measured) {
         result.value = std::to_string(view.recommendedDelay) + " frames";
