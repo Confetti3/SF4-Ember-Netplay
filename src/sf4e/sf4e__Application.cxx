@@ -469,7 +469,7 @@ PostPublishState Publish() {
 	}
     snapshot.canChangeController = snapshot.canEditSelection && !runtime->pendingReady &&
         !snapshot.session.readyPending && !runtime->pendingLobbyEdit && !runtime->pendingAbort;
-    snapshot.readyGate = snapshot.readyGate && snapshot.controllerReady && !(snapshot.probeBenchmark && snapshot.probeStatus=="checking");
+    snapshot.readyGate = snapshot.readyGate && snapshot.controllerReady;
     snapshot.canReady = snapshot.canReady && snapshot.readyGate;
     snapshot.readyRequested = runtime->pendingReadyDeadline != 0;
     snapshot.readyFailure = runtime->readyFailure; snapshot.readyFailureSequence = runtime->readyFailureSequence;
@@ -483,7 +483,7 @@ PostPublishState Publish() {
             "Waiting for the current match or selection update to finish.";
     }
 	if (!snapshot.canReady) {
-		snapshot.readyLockReason = snapshot.probeBenchmark && snapshot.probeStatus=="checking" ? "Wait for the connection benchmark to finish before Ready." : !snapshot.controllerReady ? "Assign or reconnect your controller in Settings > Player & Controller." :
+		snapshot.readyLockReason = !snapshot.controllerReady ? "Assign or reconnect your controller in Settings > Player & Controller." :
 			!snapshot.atMainMenu ? "Return to the native main menu before readying up." :
 			runtime->pendingLobbySettings || runtime->pendingLobbyEdit ? "Waiting for table settings to finish applying." :
 			runtime->pendingAbort ? "Waiting for the previous game to close." :
@@ -1174,7 +1174,6 @@ void TickRuntime() {
 			else if (!selection::Available(selection::FromNative(command.character), published.lobbySettings.editionSelect,
 				Dimps::Selection::ReadAvailability(command.character.charaID)))
 				refusal = "This fighter selection is unavailable. Choose an available costume, color, edition, and Ultra.";
-			else if (published.probeBenchmark && published.probeStatus == "checking") refusal = "Wait for the connection benchmark to finish before Ready.";
 			else if (published.session.room != netplay::RoomState::Joined || published.localSlot < 0 || published.localSlot > 1)
 				refusal = "Take a seat at a table before readying up.";
 			if (refusal) { FailReady(refusal); continue; }
@@ -1421,11 +1420,22 @@ void TickRuntime() {
         SessionClient::ActionReply reply;
         while (UserApp::netplay->client.TakeActionReply(reply)) {
             if(reply.actionId==runtime->leaveActionId && reply.accepted) runtime->leaveAcknowledged=true;
+			// A refused Ready fails now, with the room's reason, instead of
+			// sitting as "Readying up..." until the intent timeout blames the
+			// previous match.
+			if (!reply.accepted && reply.kindKnown && reply.kind == room::ActionKind::Ready && runtime->pendingReadyDeadline) {
+				const auto& text = UserApp::netplay->client.RoomError();
+				FailReady(text.empty() ? "The room refused your Ready. Press Ready again." : text.c_str());
+			}
 			if (runtime->resultOutbox.ObserveReply(reply.actionId, reply.accepted,
 				reply.reason == room::RejectReason::DuplicateResult))
 				spdlog::info("Match result: report acknowledged action={} duplicate={}",
 					reply.actionId, reply.reason == room::RejectReason::DuplicateResult);
-			if (reply.actionId==runtime->finishActionId && reply.accepted) {
+			// WrongGeneration means the table already left this game (the
+			// opponent's result closed it first); the authority will never
+			// accept the finish report, and retrying it every 500 ms made a
+			// checkpoint proposal per retry for the rest of the lobby wait.
+			if (reply.actionId==runtime->finishActionId && (reply.accepted || reply.reason==room::RejectReason::WrongGeneration)) {
 				runtime->matchFinishedPending=false;
 				runtime->finishActionId=runtime->finishRetryAt=0;
 				runtime->matchFinishedAction.reset();

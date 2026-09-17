@@ -243,7 +243,7 @@ void SessionClient::Disconnect() {
 	_roomError.clear();
 	_customRoomsSeen = false;
 	_nextRoomActionId = 1;
-	_resultRetry = {}; _finishRetry = {};
+	_resultRetry = {}; _finishRetry = {}; _staleTableRetries = 0;
     _actionReplies.clear();
 	_projectionFrozen = false;
 	_pendingRoomProjection.reset();
@@ -662,11 +662,10 @@ int SessionClient::Step()
 			try { msg.get_to(result); }
 			catch (const std::exception&) { _roomError = "invalid_room_result"; continue; }
             const auto replyId=result.actionId;
-            if (replyId) {
-                if (_actionReplies.size()>=32) _actionReplies.pop_front();
-                _actionReplies.push_back({replyId,result.result.accepted,result.result.reason});
-                if (!result.result.accepted) LogRejectedRoomAction(replyId, result.result.reason);
-            }
+			const auto sent = std::find_if(_sentRoomActions.begin(), _sentRoomActions.end(),
+				[&](const SentRoomAction& entry) { return entry.actionId == replyId; });
+			const bool readiness = sent != _sentRoomActions.end() &&
+				(sent->kind == room::ActionKind::Ready || sent->kind == room::ActionKind::Unready);
 			if (result.result.snapshot.roomEpoch != 0 && (!_roomSnapshot.roomEpoch ||
                 (result.result.snapshot.roomEpoch==_roomSnapshot.roomEpoch && result.result.snapshot.revision>=_roomSnapshot.revision))) {
 				_roomSnapshot = std::move(result.result.snapshot);
@@ -675,12 +674,35 @@ int SessionClient::Step()
 				ReconcileTerminalAcks();
 				ProjectSelectedRoomTable();
 			}
+			// Ready pressed right after the player's own Unready (or vice versa)
+			// carries a table revision the authority has already moved past. The
+			// rejection brings the current snapshot, so resend from it instead of
+			// leaving the press parked until its timeout.
+			if (readiness && result.result.accepted) _staleTableRetries = 0;
+			if (readiness && !result.result.accepted && result.result.reason == room::RejectReason::StaleTable &&
+				_staleTableRetries < 3) {
+				++_staleTableRetries;
+				const auto kind = sent->kind;
+				const auto resent = kind == room::ActionKind::Ready ? Lobby_Ready() : Lobby_ResetRematch();
+				if (resent == session::SendResult::Queued) {
+					spdlog::info("Client: {} raced the table revision; resent (attempt {})",
+						kind == room::ActionKind::Ready ? "Ready" : "Unready", _staleTableRetries);
+					if (_callbacks.OnRoomSnapshot) _callbacks.OnRoomSnapshot(this, _roomSnapshot, _callbacks);
+					continue;
+				}
+			}
+            if (replyId) {
+                if (_actionReplies.size()>=32) _actionReplies.pop_front();
+				ActionReply reply;
+				reply.actionId = replyId; reply.accepted = result.result.accepted; reply.reason = result.result.reason;
+				if (sent != _sentRoomActions.end()) { reply.kind = sent->kind; reply.kindKnown = true; }
+                _actionReplies.push_back(reply);
+                if (!result.result.accepted) LogRejectedRoomAction(replyId, result.result.reason);
+            }
 			if (!result.result.accepted) {
 				// A finish or result report for a game the authority already
 				// closed (the opponent's report landed first) is routine
 				// bookkeeping, not something the player needs to read.
-				const auto sent = std::find_if(_sentRoomActions.begin(), _sentRoomActions.end(),
-					[&](const SentRoomAction& entry) { return entry.actionId == replyId; });
 				const bool staleReport = sent != _sentRoomActions.end() &&
 					(sent->kind == room::ActionKind::MatchFinished || sent->kind == room::ActionKind::RecordResult) &&
 					(result.result.reason == room::RejectReason::WrongGeneration || result.result.reason == room::RejectReason::DuplicateResult);

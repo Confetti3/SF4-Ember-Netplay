@@ -1335,6 +1335,24 @@ int SessionServer::Step()
 	if (!polled) {
 		return -1;
 	}
+	// Verification (battle_hash / battle_snapshot) never mutates room state.
+	// Forward it to the other table participants straight away, before any
+	// recovery candidate exists: journaling it used to turn every 30 frames of
+	// a fight into a full checkpoint proposal that fenced the whole room.
+	// Delivery is best effort; a peer whose control socket is gone simply
+	// misses a frame, as it did when journaling skipped it.
+	for (auto it = messages.begin(); it != messages.end();) {
+		if (!session::IsRoomVerificationMessage(*it)) { ++it; continue; }
+		const auto conn = it->connection;
+		const auto table = _roomAuthority ? RoomTableFor(conn) : static_cast<std::uint8_t>(room::TableCount);
+		const bool live = cidMap.find(conn) != cidMap.end() && (!_roomAuthority || (RoomMatchAuthority(table) &&
+			RoomMatchAuthority(table)->GetPhase() != session::MatchAuthority::Phase::Idle && IsRoomTableParticipant(conn, table)));
+		if (live && _transport)
+			for (const auto& client : clients)
+				if (client.conn != conn && (!_roomAuthority || IsRoomTableParticipant(client.conn, table)))
+					_transport->Send(client.conn, it->payload);
+		it = messages.erase(it);
+	}
 	if (_recovery.Enabled()) {
 		// Polling only transfers the bounded inbox; it does not mutate native
 		// session state. Capture the baseline before processing actual work,
@@ -1984,23 +2002,6 @@ int SessionServer::Step()
 					continue;
 				}
 				ResetLobbyForRematch();
-			}
-			else if (
-				type == SessionProtocol::MT_BATTLE_SNAPSHOT ||
-				type == SessionProtocol::MT_BATTLE_HASH
-			) {
-				// Forward verification payloads (legacy snapshots and v2
-				// hash checkpoints) to every other client. Forwarding is
-				// deliberately identical for both: the receiving client
-				// decides what a mismatch means (player vs spectator).
-				const auto sourceTable = _roomAuthority ? RoomTableFor(conn) : static_cast<std::uint8_t>(room::TableCount);
-				if (_roomAuthority && (!RoomMatchAuthority(sourceTable) || RoomMatchAuthority(sourceTable)->GetPhase() == session::MatchAuthority::Phase::Idle ||
-					!IsRoomTableParticipant(conn, sourceTable))) continue;
-				for (auto clientIter = clients.begin(); clientIter != clients.end(); clientIter++) {
-						if (clientIter->conn != conn && (!_roomAuthority || IsRoomTableParticipant(clientIter->conn, sourceTable))) {
-							Respond(clientIter->conn, msg);
-					}
-				}
 			}
 			else if (type == SessionProtocol::MT_PUNCH_READY) {
 				if (_roomAuthority) {

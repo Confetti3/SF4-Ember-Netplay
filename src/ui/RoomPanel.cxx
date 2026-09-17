@@ -212,9 +212,6 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      ready?"Choose Unready to check the connection before the next match.":
      !delayEditable?"Finish the current match before checking the connection.":check.detail,
      v.canProbe&&delayEditable&&!check.checking));
-    rows.push_back(Row("benchmark-connection","Benchmark connection (30 seconds)",
-     "Measure gameplay-size datagrams to your opponent. Reports network performance, not game FPS.",
-     v.canProbe&&delayEditable&&!check.checking));
     rows.push_back(Row("apply-recommendation","Apply recommendation",recommended?
      "Set your selected delay to "+std::to_string(v.recommendedDelay)+" frames.":"Run Check connection before applying a recommendation.",
      v.canApplyDelay&&recommended&&delayEditable&&!check.checking));
@@ -306,15 +303,18 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  if(!wide)height=(std::max)(80*s,height-64*s);
  if(focus.compare(0,6,"table-")==0)selectedTable_=std::stoi(focus.substr(6));
  std::string elided;
- const auto text=[&](ImVec2 p,float width,const std::string& value,float size,ImU32 color){
+ const auto text=[&](ImVec2 p,float width,const std::string& value,float size,ImU32 color,bool centred=false){
   if(width<=0)return;
   auto* font=ImGui::GetFont();std::string label=value;
-  if(font->CalcTextSizeA(size,FLT_MAX,0,label.c_str()).x>width){
+  float measured=font->CalcTextSizeA(size,FLT_MAX,0,label.c_str()).x;
+  if(measured>width){
    const char* end=nullptr;const float dots=font->CalcTextSizeA(size,FLT_MAX,0,"...").x;
    font->CalcTextSizeA(size,(std::max)(1.f,width-dots),0,label.c_str(),nullptr,&end);
    label=std::string(label.c_str(),end)+"...";
    elided+=(elided.empty()?"":"\n")+value;
+   measured=font->CalcTextSizeA(size,FLT_MAX,0,label.c_str()).x;
   }
+  if(centred)p.x+=(std::max)(0.f,(width-measured)*.5f);
   ImGui::GetWindowDrawList()->AddText(font,size,p,color,label.c_str());
  };
  // Flushed once per row, while the row's button is still the hovered item.
@@ -345,14 +345,16 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    const float x=p.x+12*s+side*(half+34*s);const auto* m=Member(v.room,ids[side]);const int id=fighter(m);
    if(m)DrawCharacterPortrait(id,ImVec2(x,top),ImVec2(x+portrait,top+portrait));
    const float tx=x+(m?portrait+8*s:0),tw=half-(m?portrait+8*s:0);
-   text(ImVec2(tx,top+2*s),tw,m?m->name:"Looking for a fight",16*s,m?palette::Ivory:palette::Muted);
+   // Names of different lengths read ragged when flush left; centre each
+   // in its own slot so the pair stays symmetric about VS.
+   text(ImVec2(tx,top+2*s),tw,m?m->name:"Looking for a fight",16*s,m?palette::Ivory:palette::Muted,true);
    const auto* f=selection::FindFighter(id);
    // An empty seat already reads "Looking for a fight" above; a second
    // "Open seat" underneath said nothing new.
    std::string caption=m?(f?f->name:"Fighter not shared"):std::string();
    const bool ready=t.phase==room::TablePhase::Waiting&&t.ready[side];
    if(m)caption+=ready?" / READY":m->id==v.room.localMember?" / YOU":"";
-   if(!caption.empty())text(ImVec2(tx,top+21*s),tw,caption,12*s,ready?palette::Ready:palette::Muted);
+   if(!caption.empty())text(ImVec2(tx,top+21*s),tw,caption,12*s,ready?palette::Ready:palette::Muted,true);
   }
   text(ImVec2(p.x+width*.5f-15*s,top+18*s),30*s,"VS",16*s,palette::Ember);
   const auto rule=std::to_string(t.rules.roundCount)+" rounds / "+std::to_string(t.rules.roundTime)+" sec";
@@ -456,12 +458,12 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
 }
 void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const Submit& submit) {
  using namespace room;auto& nav=menu_.navigation;
- const auto sendDelay=[&](netplay::CommandKind kind,int selected,bool benchmark=false){
+ const auto sendDelay=[&](netplay::CommandKind kind,int selected){
   if(!RoomActionsAvailable(v) || v.delayLocked ||
      (kind==netplay::CommandKind::CheckConnection && (!v.canProbe || v.probeStatus=="checking"))) {
    error_=RoomWaitReason(v);return false;
   }
-  ShellAction request;request.command.kind=kind;request.command.generation=v.session.generation;request.selectedDelay=selected;request.command.benchmark=benchmark;
+  ShellAction request;request.command.kind=kind;request.command.generation=v.session.generation;request.selectedDelay=selected;
   if(!submit(std::move(request))){error_="The action could not be queued. Please try again.";return false;}
   error_.clear();return true;
  };
@@ -481,7 +483,6 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
     notice_="Replacement room opening. Choose Copy invitation and send the new link - the old one no longer works.";
     noticeTone_=Tone::Pending;noticeUntil_=ImGui::GetTime()+8;}
    return;}
-  if(a.id=="benchmark-connection"){sendDelay(netplay::CommandKind::CheckConnection,-1,true);return;}
   if(a.id=="check-connection"){sendDelay(netplay::CommandKind::CheckConnection,-1);return;}
   if(a.id=="apply-recommendation"){sendDelay(netplay::CommandKind::ApplyDelay,-1);return;}
   if(a.id=="selected-delay"&&a.kind==MenuAction::Adjust){

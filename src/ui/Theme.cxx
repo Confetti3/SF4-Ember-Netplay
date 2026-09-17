@@ -322,11 +322,15 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
         const auto line=fit(state,w-16*s,16*s);
         text(p.x+8*s,p.y-h-4*s+(h-16*s)*.5f,line,16*s,colors[(std::max)(0,(std::min)(2,severity))]);
     }
-    const auto nameWidth=(w-70*s)*.5f;
+    // One centred "A vs B" line. Anchoring each name to a fixed "vs" made the
+    // pair lopsided whenever the names differed in length.
+    const auto nameWidth=(w-70*s)*.5f,gap=12*s;
     const auto left=fit(view.names[0],nameWidth,20*s),right=fit(view.names[1],nameWidth,20*s);
-    text(p.x+w*.5f-24*s-measure(left,20*s),p.y+4*s,left,20*s,IM_COL32(243,235,221,255));
-    text(p.x+w*.5f-measure("vs",16*s)*.5f,p.y+6*s,"vs",16*s,IM_COL32(255,135,56,230));
-    text(p.x+w*.5f+24*s,p.y+4*s,right,20*s,IM_COL32(243,235,221,255));
+    const auto leftWidth=measure(left,20*s),vsWidth=measure("vs",16*s);
+    auto x=p.x+(w-(leftWidth+gap+vsWidth+gap+measure(right,20*s)))*.5f;
+    text(x,p.y+4*s,left,20*s,IM_COL32(243,235,221,255));x+=leftWidth+gap;
+    text(x,p.y+6*s,"vs",16*s,IM_COL32(255,135,56,230));x+=vsWidth+gap;
+    text(x,p.y+4*s,right,20*s,IM_COL32(243,235,221,255));
     const std::string labels[]={"Ping","Rollback",view.spectator?"":"Delay"};
     const std::string values[]={view.pingMs<0?"\xe2\x80\x94":std::to_string(view.pingMs)+" ms",
         std::to_string(view.rollbackFrames)+"f",view.spectator?"Spectating":view.appliedDelay<0?"\xe2\x80\x94":std::to_string(view.appliedDelay)+"f"};

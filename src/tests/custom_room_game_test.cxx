@@ -342,6 +342,25 @@ int wmain(int argc, wchar_t** argv) {
         }); });
 		wait([&]() { pump(); return std::all_of(matches.begin(), matches.end(), [](const std::unique_ptr<session::IrohMatchSession>& match) { return match->GetPhase() == Phase::Started; }); });
 		for (const auto& match : matches) CHECK(match->Generation() != 0);
+		{
+			// A fighter's desync check is forwarded by the leader straight to
+			// the other participants of its table, without a commit token and
+			// without building a room checkpoint. Every spectator and the
+			// opponent must receive it; a member at another table must not.
+			CHECK(matches[0]->LocalSlot() == 0);
+			const auto builds = server.RecoveryCheckpointBuilds();
+			SessionProtocol::BattleHashV2 hash;
+			hash.frameIdx = static_cast<int>(30 * cycle); hash.fromPlayer = true;
+			nlohmann::json payload = hash;
+			CHECK(clients[0]->Send(payload, nullptr) == session::SendResult::Queued);
+			const std::size_t participants = singleTable ? Count : 4;
+			wait([&]() { pump(); return std::all_of(clients.begin() + 1, clients.begin() + participants,
+				[&](const std::unique_ptr<SessionClient>& client) { return client->pendingRemoteHashes.count(hash.frameIdx) == 1; }); });
+			for (std::size_t i = participants; i < Count; ++i) CHECK(clients[i]->pendingRemoteHashes.count(hash.frameIdx) == 0);
+			CHECK(server.RecoveryCheckpointBuilds() == builds);
+			std::cout << "Cycle " << cycle << " verification frame " << hash.frameIdx << " forwarded to " << (participants - 1)
+				<< " participants without a checkpoint\n";
+		}
 		for(std::size_t i=0;i<Count;++i) if(matches[i]->LocalSlot()==1) {
 			const auto table=singleTable?0:i/4;
 			const auto hostIndex=singleTable?0:table*4;

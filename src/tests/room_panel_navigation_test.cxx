@@ -79,12 +79,9 @@ int main() try {
     const auto focus = [&](const char* id) { shell.Navigation().Focus(id, rows); };
 
     shell.Navigation().Home(); frame(); shell.Navigation().Push("room-table"); frame();
-    Check(row("benchmark-connection").enabled, "Seated player cannot start benchmark");
-    view.probeBenchmark=true;
+    Check(std::none_of(rows.begin(), rows.end(), [](const MenuEntry& entry) { return entry.id == "benchmark-connection"; }),
+        "The removed 30 second benchmark row is still offered");
     view.probeStatus = "checking"; frame();
-    Check(!row("benchmark-connection").enabled, "Running check allowed overlapping benchmark");
-    Check(row("recommended-delay").detail.find("30 seconds")!=std::string::npos, "Benchmark duration is hidden");
-    view.probeBenchmark=false;
     Check(!row("check-connection").enabled && row("check-connection").label == "Checking connection...",
         "A running connection check still accepts another request");
     Check(row("recommended-delay").value == "Checking...", "Connection check progress is not visible");

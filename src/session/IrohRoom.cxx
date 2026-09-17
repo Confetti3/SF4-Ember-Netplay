@@ -783,8 +783,9 @@ int IrohRoom::AuthorizedEffect(Message& message) {
         }
         if(!payload.contains("_commit")) {
             const auto messageType=payload.value("type",std::string());
-            return pendingAdmission_ && coordination_.writable && PeerIdentity(message.connection)==coordination_.leader &&
-                (messageType=="hello_resp" || messageType=="join_rej") ? 1 : -1;
+            const bool fromLeader=coordination_.writable && PeerIdentity(message.connection)==coordination_.leader;
+            return fromLeader && ((pendingAdmission_ && (messageType=="hello_resp" || messageType=="join_rej")) ||
+                IsVerificationType(messageType)) ? 1 : -1;
         }
         const auto token=payload.at("_commit").get<EffectEnvelope>();
         payload.erase("_commit");
@@ -1036,10 +1037,15 @@ void IrohRoom::Poll() {
                     // leader enters the local client queue.  Other untagged
                     // peer payloads remain server intents.
                     const auto messageType=decoded.value("type",std::string());
-                    const bool leaderHandshake=!effect && pendingAdmission_ && coordination_.active &&
-                        peer->second.identity==coordination_.leader && coordination_.writable &&
+                    const bool fromLeader=!effect && coordination_.active && coordination_.writable &&
+                        peer->second.identity==coordination_.leader;
+                    const bool leaderHandshake=fromLeader && pendingAdmission_ &&
                         (messageType=="hello_resp" || messageType=="join_rej");
-                    if (!Queue((effect || leaderHandshake) ? clientMessages_ : serverMessages_, {peer->first, id, payload, ""})) return;
+                    // Verification is forwarded by the leader without a commit
+                    // token; it carries no room mutation, so it is delivered
+                    // directly rather than through a checkpoint.
+                    const bool leaderVerification=fromLeader && IsVerificationType(messageType);
+                    if (!Queue((effect || leaderHandshake || leaderVerification) ? clientMessages_ : serverMessages_, {peer->first, id, payload, ""})) return;
 				}
 			} else if (type == "error") {
 				const auto code = event.at("code").get<std::string>();

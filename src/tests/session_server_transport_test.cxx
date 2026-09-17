@@ -964,18 +964,29 @@ static void TestCommittedSessionGate() {
 	commitCandidate(true, "game_start");
 	CHECK(server.RoomSnapshot()->tables[0].phase == room::TablePhase::Playing);
 	CheckIdleRecoveryWork(server,"playing");
-	// Gameplay diagnostics used to consume one full quorum proposal each,
-	// filling the router while the native fight kept producing new frames.
-	// A diagnostic prefix now shares one bounded commit; the result boundary
-	// following it still obeys ordinary authority validation.
-	for (int frame = 30; frame <= 240; frame += 30) {
-		protocol::BattleHashV2 hash;
-		hash.frameIdx = frame; hash.fromPlayer = true;
-		transport->Push(1, json(hash));
+	// Gameplay diagnostics used to be journaled as committed effects, so every
+	// 30 frames of a fight built and proposed a full room checkpoint that
+	// fenced the room until each peer imported it. They carry no room
+	// mutation: forward them directly, with no candidate and no commit token.
+	{
+		const auto hashBuilds = server.RecoveryCheckpointBuilds();
+		for (int frame = 30; frame <= 240; frame += 30) {
+			protocol::BattleHashV2 hash;
+			hash.frameIdx = frame; hash.fromPlayer = true;
+			transport->Push(1, json(hash));
+		}
+		CHECK(server.Step() == 0);
+		CHECK(transport->incoming.empty());
+		CHECK(!server.HasRecoveryCandidate());
+		CHECK(server.PendingProposal() == nullptr);
+		CHECK(server.RecoveryCheckpointBuilds() == hashBuilds);
+		CHECK(transport->outgoing.size() == 8);
+		CHECK(std::all_of(transport->outgoing.begin(), transport->outgoing.end(), [](const auto& message) {
+			return message.first == 2 && message.second.value("type", std::string()) == "battle_hash" &&
+				!message.second.contains("_commit");
+		}));
+		transport->outgoing.clear();
 	}
-	CHECK(server.Step() == 0);
-	CHECK(transport->incoming.empty());
-	commitCandidate(true, "battle_hash", -1, -1, -1, 8);
 	// Keep another table in a healthy Started generation while table zero enters
 	// result reconciliation. A pending or disputed result on one table must not
 	// manufacture room-wide recovery work on every game-thread tick.

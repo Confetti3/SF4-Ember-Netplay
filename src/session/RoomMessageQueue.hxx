@@ -9,11 +9,13 @@ enum class RoomQueueResult { Queued, BytesFull, MessagesFull };
 constexpr std::size_t MaximumRoomQueueMessages = 64;
 constexpr std::size_t MaximumRoomQueueBytes = 4 * 1024 * 1024;
 
+inline bool IsVerificationType(const std::string& type) {
+    return type == "battle_hash" || type == "battle_snapshot";
+}
 inline bool IsRoomVerificationMessage(const Message& message) {
     try {
         const auto payload = nlohmann::json::parse(message.payload);
-        const auto type = payload.value("type", std::string());
-        return type == "battle_hash" || type == "battle_snapshot";
+        return IsVerificationType(payload.value("type", std::string()));
     } catch (const std::exception&) { return false; }
 }
 

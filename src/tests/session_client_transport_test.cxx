@@ -296,6 +296,62 @@ int main() {
     SessionClient::ActionReply actionReply;
 	CHECK(roomClient.TakeActionReply(actionReply) && actionReply.actionId==42 && actionReply.accepted);
 	CHECK(!roomClient.TakeActionReply(actionReply));
+	// A Ready that raced the player's own previous table action carries a
+	// table revision the authority already moved past. The rejection brings the
+	// current snapshot; the client resends from it, silently, up to three times.
+	// A fourth rejection is surfaced as a Ready reply so the press can fail now.
+	{
+		CHECK(roomClient.Lobby_Ready() == session::SendResult::Queued);
+		auto readyPayload = roomTransport->sent.back();
+		CHECK(readyPayload.at("action").at("kind").get<int>() == static_cast<int>(room::ActionKind::Ready));
+		auto current = roomClient.GetRoomSnapshot();
+		for (int attempt = 1; attempt <= 4; ++attempt) {
+			protocol::RoomResultMessage stale;
+			stale.actionId = readyPayload.at("action").at("action_id").get<std::uint64_t>();
+			stale.result.accepted = false;
+			stale.result.reason = room::RejectReason::StaleTable;
+			++current.revision; ++current.tables[0].revision;
+			stale.result.snapshot = current;
+			const auto sentBefore = roomTransport->sent.size();
+			roomTransport->Push(json(stale));
+			CHECK(roomClient.Step() == 0);
+			if (attempt <= 3) {
+				CHECK(roomTransport->sent.size() == sentBefore + 1);
+				readyPayload = roomTransport->sent.back();
+				CHECK(readyPayload.at("action").at("kind").get<int>() == static_cast<int>(room::ActionKind::Ready));
+				CHECK(readyPayload.at("action").at("table_revision").get<std::uint64_t>() == current.tables[0].revision);
+				CHECK(!roomClient.TakeActionReply(actionReply));
+				CHECK(roomClient.RoomError().empty());
+			} else {
+				CHECK(roomTransport->sent.size() == sentBefore);
+				CHECK(roomClient.TakeActionReply(actionReply) && !actionReply.accepted && actionReply.kindKnown &&
+					actionReply.kind == room::ActionKind::Ready && actionReply.reason == room::RejectReason::StaleTable);
+				CHECK(!roomClient.RoomError().empty());
+				CHECK(!roomClient.TakeActionReply(actionReply));
+			}
+		}
+		// An accepted readiness reply re-arms the budget.
+		CHECK(roomClient.Lobby_Ready() == session::SendResult::Queued);
+		protocol::RoomResultMessage accepted;
+		accepted.actionId = roomTransport->sent.back().at("action").at("action_id").get<std::uint64_t>();
+		accepted.result.accepted = true;
+		accepted.result.snapshot = current;
+		roomTransport->Push(json(accepted));
+		CHECK(roomClient.Step() == 0);
+		CHECK(roomClient.TakeActionReply(actionReply) && actionReply.accepted && actionReply.kindKnown && actionReply.kind == room::ActionKind::Ready);
+		CHECK(roomClient.Lobby_Ready() == session::SendResult::Queued);
+		protocol::RoomResultMessage staleAgain;
+		staleAgain.actionId = roomTransport->sent.back().at("action").at("action_id").get<std::uint64_t>();
+		staleAgain.result.accepted = false;
+		staleAgain.result.reason = room::RejectReason::StaleTable;
+		++current.revision; ++current.tables[0].revision;
+		staleAgain.result.snapshot = current;
+		const auto sentBefore = roomTransport->sent.size();
+		roomTransport->Push(json(staleAgain));
+		CHECK(roomClient.Step() == 0);
+		CHECK(roomTransport->sent.size() == sentBefore + 1);
+		CHECK(!roomClient.TakeActionReply(actionReply));
+	}
 	// MatchEnded is an outcome notification, not an automatic receipt release.
 	// The explicit acknowledgement remains in the client queue until the
 	// authenticated action reply arrives, which lets the native owner fence it
