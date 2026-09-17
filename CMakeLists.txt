@@ -4,7 +4,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
 project (
     sf4e
-    VERSION 0.8.8
+    VERSION 0.8.9
     DESCRIPTION "SF4 Ember Netplay: private rollback rooms and an in-game overlay for Ultra Street Fighter IV."
     HOMEPAGE_URL "https://github.com/Confetti3/SF4-Ember-Netplay"
 )
@@ -387,6 +387,10 @@ if(BUILD_TESTING)
     target_link_libraries(GgpoConfirmedFrameTest PRIVATE ggpo::GGPO "ws2_32")
     add_test(NAME GgpoConfirmedFrame COMMAND GgpoConfirmedFrameTest)
     set_tests_properties(GgpoConfirmedFrame PROPERTIES TIMEOUT 15)
+    add_executable(GgpoPendingOutputTest "src/tests/ggpo_pending_output_test.cxx")
+    target_link_libraries(GgpoPendingOutputTest PRIVATE ggpo::GGPO "ws2_32")
+    add_test(NAME GgpoPendingOutput COMMAND GgpoPendingOutputTest)
+    set_tests_properties(GgpoPendingOutput PROPERTIES TIMEOUT 15)
 
     add_executable(RollbackDiagnosticsTest "src/tests/rollback_diagnostics_test.cxx")
     target_link_libraries(RollbackDiagnosticsTest PRIVATE sf4e_common)
