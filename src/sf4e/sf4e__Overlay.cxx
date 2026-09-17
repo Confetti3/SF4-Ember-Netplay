@@ -127,6 +127,8 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.canEditSelection = snapshot.canEditSelection;
     view.selectionLockReason = snapshot.selectionLockReason;
     view.readyLockReason = snapshot.readyLockReason;
+    view.readyRequested = snapshot.readyRequested; view.readyFailure = snapshot.readyFailure;
+    view.readyFailureSequence = snapshot.readyFailureSequence;
 	view.canEditPreferences = snapshot.canEditPreferences;
 	view.canEditLobby = snapshot.canEditLobby;
 	view.settingsPending = snapshot.settingsPending;

@@ -110,6 +110,14 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     lastFrame_=ImGui::GetFrameCount();
     const bool modalAtStart=navigation.Editing()||navigation.Confirming();
     auto menuInput=ReadMenuInput(); menuInput.time=now;
+    // A notice owns the input until dismissed, so the dismissing press can
+    // neither activate the focused row nor leak into the list behind it.
+    const bool noticeOpen=!notice_.empty();
+    if(noticeOpen) {
+        const unsigned pressed=menuInput.held&~noticePrevious_; noticePrevious_=menuInput.held;
+        if(pressed&(MenuInput::Select|MenuInput::Back)) notice_.clear();
+        menuInput.held=0; menuInput.acceptText=false;
+    } else noticePrevious_=~0u;
     // InputText consumes this frame's characters before the requested acceptance.
     // The navigation model still owns the neutral gate and Back/Enter ordering.
     auto action=navigation.Update(menuInput,entries,columns,true,true);
@@ -368,6 +376,22 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         }
         ImGui::EndPopup();
     }
+    if(!notice_.empty()) ImGui::OpenPopup("Notice");
+    popupSize();
+    if(ImGui::BeginPopupModal("Notice",nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
+        if(notice_.empty()) ImGui::CloseCurrentPopup();
+        else {
+            ImGui::TextColored(ToneColor(Tone::Error),"Something went wrong");
+            ImGui::TextWrapped("%s",notice_.c_str());
+            ImGui::Dummy(ImVec2(0,8*Scale()));
+            ImGui::PushStyleColor(ImGuiCol_Button,ImVec4(.5f,.25f,.1f,1));
+            if(ImGui::Button("OK",ImVec2(ImGui::GetContentRegionAvail().x,48*Scale()))) notice_.clear();
+            ImGui::PopStyleColor();
+            if(notice_.empty()) ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+    if(noticeOpen&&notice_.empty()) navigation.NeutralGate();
     if(navigation.Editing()) ImGui::OpenPopup("Edit text");
     popupSize();
     if(ImGui::BeginPopupModal("Edit text",nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {

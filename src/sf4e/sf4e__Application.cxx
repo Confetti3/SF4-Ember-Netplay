@@ -41,6 +41,7 @@ struct TraceFields {
     std::string routerError, matchError, probe, probeRoute;
     bool nativeSocket = false, resultPending = false, finishPending = false;
     bool leavePending = false, terminalPending = false, probeBenchmark = false;
+    bool authorityWritable = false, readyRequested = false, readyGate = false;
     unsigned probeFailure = 0, probeReplies = 0, probeMissed = 0;
     std::uint64_t probeP50Us = 0, probeP95Us = 0, probeP99Us = 0, probeJitterUs = 0;
 
@@ -52,6 +53,7 @@ struct TraceFields {
             nativeSocket == other.nativeSocket && resultPending == other.resultPending &&
             finishPending == other.finishPending && leavePending == other.leavePending &&
             terminalPending == other.terminalPending && probeBenchmark == other.probeBenchmark &&
+            authorityWritable == other.authorityWritable && readyRequested == other.readyRequested && readyGate == other.readyGate &&
             probeFailure == other.probeFailure && probeReplies == other.probeReplies &&
             probeMissed == other.probeMissed && probeP50Us == other.probeP50Us &&
             probeP95Us == other.probeP95Us && probeP99Us == other.probeP99Us &&
@@ -116,11 +118,16 @@ struct Runtime {
 	std::uint64_t pendingRoomActionDeadline = 0;
 	std::unique_ptr<RuntimeCommand> pendingReady;
 	std::unique_ptr<RuntimeCommand> pendingLobbyEdit;
-	// A parked Ready/Rematch or lobby edit waits for the previous match to
-	// finish draining. Bounded so a stall is reported instead of the press
-	// vanishing.
+	// A Ready/Rematch press is one intent with one budget: it may be parked
+	// behind the previous match's drain, the authority fence or the terminal
+	// receipt, then sent, then awaits the committed seat flag. Non-zero from
+	// the accepted press until commit or failure, so the interface shows one
+	// steady state and a stall is reported instead of the press vanishing.
 	ULONGLONG pendingReadyDeadline = 0;
 	ULONGLONG pendingLobbyEditDeadline = 0;
+	netplay::Generation pendingReadyGeneration;
+	std::string readyFailure;
+	std::uint64_t readyFailureSequence = 0;
 	// Generation for which "a participant left" was already announced.
 	std::uint64_t participantLeftGeneration = 0;
 	// `error` is cleared by only a handful of successful actions, so every
@@ -172,6 +179,7 @@ void CloseRoom() {
     runtime->matchInput={};runtime->matchInputSide=-1;runtime->matchInputFault=false;
 	runtime->match.reset();
 	runtime->pendingReady.reset();
+	runtime->pendingReadyDeadline = 0;
 	runtime->pendingLobbyEdit.reset();
 	runtime->pendingLobbySettings.reset();
 	runtime->pendingRoomAction.reset();
@@ -395,10 +403,14 @@ PostPublishState Publish() {
 			(snapshot.session.match == netplay::MatchState::None || snapshot.session.match == netplay::MatchState::PostMatch) &&
 			!snapshot.session.readyPending && !runtime->pendingReady && client._outstandingReadyRequestNumber == -1 &&
 			!client.LocalSelectionLocked(snapshot.localSlot);
-		snapshot.canReady = snapshot.atMainMenu && matchCanReady && !runtime->pendingReady && !runtime->pendingLobbySettings && !runtime->pendingLobbyEdit &&
+		// readyGate is the environment; canReady additionally requires no Ready
+		// in flight. A parked press drains against the gate alone.
+		snapshot.readyGate = snapshot.atMainMenu && matchCanReady && !runtime->pendingLobbySettings && !runtime->pendingLobbyEdit &&
 			snapshot.session.room == netplay::RoomState::Joined && snapshot.localSlot >= 0 && snapshot.localSlot < 2 &&
-			client._lobbyData.members.size() >= 2 && client._outstandingReadyRequestNumber == -1 &&
-			!client.LocalSelectionLocked(snapshot.localSlot) && !snapshot.session.readyPending;
+			client._lobbyData.members.size() >= 2;
+		const bool readyInFlight = runtime->pendingReady || client._outstandingReadyRequestNumber != -1 ||
+			client.LocalSelectionLocked(snapshot.localSlot) || snapshot.session.readyPending;
+		snapshot.canReady = snapshot.readyGate && !readyInFlight;
 		if (snapshot.room.roomEpoch) {
 			// Terminal eligibility is part of the committed room snapshot. Keep
 			// the player menu gated before any action is attempted; an unrelated
@@ -438,17 +450,29 @@ PostPublishState Publish() {
             if (!seated && snapshot.atMainMenu && (snapshot.session.match == netplay::MatchState::None ||
                 snapshot.session.match == netplay::MatchState::PostMatch)) snapshot.canEditSelection = healthyControl;
 			const bool tableTerminalPending = seated && snapshot.room.terminalPending[localMember->table];
-			snapshot.canReady = snapshot.canReady && healthyControl && tableReady && !runtime->recoveringMatch &&
+			snapshot.readyGate = snapshot.readyGate && healthyControl && tableReady && !runtime->recoveringMatch &&
 				!snapshot.room.localTerminalPending && !tableTerminalPending;
+			snapshot.canReady = snapshot.canReady && snapshot.readyGate;
+			// The intent completes when the committed seat flag arrives, or when
+			// the table has already moved on to preparing the match.
+			if (runtime->pendingReadyDeadline && !runtime->pendingReady && !snapshot.session.readyPending && table &&
+				(table->ready[localMember->seat] || table->phase != room::TablePhase::Waiting)) runtime->pendingReadyDeadline = 0;
 			snapshot.canEditSelection = snapshot.canEditSelection && healthyControl && (!seated || (tableWaiting && !table->ready[localMember->seat])) &&
 				!runtime->recoveringMatch && !snapshot.room.localTerminalPending;
 		}
+		snapshot.readyGate = snapshot.readyGate && !runtime->pendingAbort;
 		snapshot.canReady = snapshot.canReady && !runtime->pendingAbort;
 		snapshot.canEditSelection = snapshot.canEditSelection && !runtime->pendingAbort;
+		// Legacy lobbies have no committed seat flag; the acknowledged request is the commit.
+		if (!snapshot.room.roomEpoch && runtime->pendingReadyDeadline && !runtime->pendingReady && !snapshot.session.readyPending &&
+			client._outstandingReadyRequestNumber == -1) runtime->pendingReadyDeadline = 0;
 	}
     snapshot.canChangeController = snapshot.canEditSelection && !runtime->pendingReady &&
         !snapshot.session.readyPending && !runtime->pendingLobbyEdit && !runtime->pendingAbort;
-    snapshot.canReady = snapshot.canReady && snapshot.controllerReady && !(snapshot.probeBenchmark && snapshot.probeStatus=="checking");
+    snapshot.readyGate = snapshot.readyGate && snapshot.controllerReady && !(snapshot.probeBenchmark && snapshot.probeStatus=="checking");
+    snapshot.canReady = snapshot.canReady && snapshot.readyGate;
+    snapshot.readyRequested = runtime->pendingReadyDeadline != 0;
+    snapshot.readyFailure = runtime->readyFailure; snapshot.readyFailureSequence = runtime->readyFailureSequence;
     // Report the actual gate; a pending transition is not the same as Ready.
     if (!snapshot.canEditSelection) {
         snapshot.selectionLockReason = !snapshot.atMainMenu ? "Return to the native main menu to change your fighter." :
@@ -527,6 +551,8 @@ PostPublishState Publish() {
         fields.finishPending = runtime->matchFinishedPending;
         fields.leavePending = runtime->leaveRequested;
         fields.terminalPending = runtime->terminalAckPending;
+        fields.authorityWritable = !snapshot.session.coordinated || snapshot.session.authorityWritable;
+        fields.readyRequested = snapshot.readyRequested; fields.readyGate = snapshot.readyGate;
         if (runtime->room) fields.probe = runtime->room->Probe().status;
         fields.probeFailure = runtime->room ? runtime->room->Probe().failureReason : 0U;
         fields.probeRoute = snapshot.probeRoute;
@@ -546,6 +572,7 @@ PostPublishState Publish() {
                 {"native_socket", fields.nativeSocket},
                 {"result_pending", fields.resultPending}, {"finish_pending", fields.finishPending},
                 {"leave_pending", fields.leavePending}, {"terminal_pending", fields.terminalPending},
+                {"authority_writable", fields.authorityWritable}, {"ready_requested", fields.readyRequested}, {"ready_gate", fields.readyGate},
                 {"probe", fields.probe}, {"probe_failure", fields.probeFailure},
                 {"probe_route", fields.probeRoute}, {"probe_benchmark", fields.probeBenchmark},
                 {"probe_replies", fields.probeReplies}, {"probe_missed", fields.probeMissed},
@@ -592,6 +619,7 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->helper ? static_cast<std::uint64_t>(runtime->helper->State()) : 0);
     mix(runtime->match ? static_cast<std::uint64_t>(runtime->match->GetPhase()) : 0);
     mix(runtime->pendingReady != nullptr); mix(runtime->pendingLobbyEdit != nullptr); mix(runtime->pendingAbort != nullptr);
+    mix(runtime->pendingReadyDeadline != 0); mix(runtime->readyFailureSequence);
     mix(runtime->recoveringMatch); mix(OverlayPrefs::PersistencePending()); mixString(OverlayPrefs::PersistenceError());
     mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatus); mix(runtime->discordInvite.Revision());
     mix(runtime->preferences.showMatchHud); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudRaised);
@@ -879,6 +907,14 @@ static bool StickyRuntimeError(const std::string& error) {
 	return error.compare(0, 10, "Networking") == 0;
 }
 
+// A Ready press that cannot be honoured ends its intent and is announced once.
+static void FailReady(const char* reason) {
+	runtime->pendingReady.reset(); runtime->pendingReadyDeadline = 0;
+	runtime->error = reason; runtime->readyFailure = reason; ++runtime->readyFailureSequence;
+	spdlog::warn("Ready failed: {}", reason);
+}
+static constexpr ULONGLONG ReadyIntentTimeoutMs = 20000;
+
 void TickRuntime() {
 	if (!runtime) return;
 	{
@@ -898,7 +934,12 @@ void TickRuntime() {
             if((changed || !authority.writable) && runtime->match) {
                 // Freeze requested mutations now. Native mappings retire only
                 // after the successor's committed cancellation is delivered.
-                runtime->pendingReady.reset(); runtime->pendingLobbyEdit.reset();
+                // A parked Ready survives an ordinary checkpoint fence (it is
+                // only sent once the gate reopens); a new authority term
+                // discards it and says so.
+                runtime->pendingLobbyEdit.reset();
+                if (changed && (runtime->pendingReady || runtime->pendingReadyDeadline))
+                    FailReady("Room control changed before your Ready was applied. Press Ready again.");
             }
             if (runtime->controller.GetSnapshot().room==netplay::RoomState::Opening &&
                 runtime->room->GetState()==session::IrohRoom::State::Ready && !runtime->attached) AttachRoom();
@@ -1115,34 +1156,49 @@ void TickRuntime() {
 			continue;
 		}
 		if (kind == netplay::CommandKind::Ready || kind == netplay::CommandKind::Rematch) {
-			// Every refusal names its reason: a press that does nothing was
-			// the most common "Ready is broken" report.
+			// A press is never silently dropped. Something the player must fix
+			// fails immediately and visibly; everything the room is still
+			// finishing (drain, fence, receipt, result) parks the press under
+			// one budget and resubmits it here once the gate reopens.
 			const auto publishedShared = GetRuntimeSnapshotShared();
 			const auto& published = *publishedShared;
+			auto* client = UserApp::netplay ? &UserApp::netplay->client : nullptr;
+			const bool inFlight = runtime->pendingReady || runtime->controller.GetSnapshot().readyPending ||
+				(client && (client->_outstandingReadyRequestNumber != -1 ||
+					(published.localSlot >= 0 && published.localSlot < 2 && client->LocalSelectionLocked(published.localSlot))));
+			if (inFlight) continue;
 			const char* refusal = nullptr;
 			if (!runtime->input.Ready()) refusal = "Assign or reconnect your controller before readying up.";
-			else if (runtime->pendingLobbySettings || runtime->pendingLobbyEdit) refusal = "Waiting for table settings to finish applying.";
 			else if (!selection::FindStage(command.stage)) refusal = "The selected stage is unavailable. Choose another stage in Fighter Select.";
 			else if (command.character.charaID >= 44) refusal = "The selected fighter is unavailable. Choose another fighter in Fighter Select.";
-			else if (!published.canReady) refusal = published.readyLockReason.empty() ? "Ready is not available right now." : published.readyLockReason.c_str();
-			if (refusal) { runtime->error = refusal; continue; }
-		}
-		if ((kind == netplay::CommandKind::Ready || kind == netplay::CommandKind::Rematch) &&
-			!selection::Available(selection::FromNative(command.character), GetRuntimeSnapshotShared()->lobbySettings.editionSelect,
-				Dimps::Selection::ReadAvailability(command.character.charaID))) {
-			runtime->error = "This fighter selection is unavailable. Choose an available costume, color, edition, and Ultra.";
-			continue;
-		}
-		if ((kind == netplay::CommandKind::Ready || kind == netplay::CommandKind::Rematch) && runtime->match &&
-			(runtime->match->GetPhase() != session::IrohMatchSession::Phase::Idle || Game::Battle::System::ggpo)) {
-			// Ready is the explicit handoff from post-match spectator draining.
-			// Retire GGPO first and await helper mapping closure before sending it.
-			runtime->pendingReady.reset(new RuntimeCommand(command));
-			runtime->pendingReadyDeadline = GetTickCount64() + 15000;
-			CancelDeferredGgpoClose();
-			Game::Battle::System::RetireGgpoSession("iroh_rematch");
-			runtime->match->End();
-			continue;
+			else if (!selection::Available(selection::FromNative(command.character), published.lobbySettings.editionSelect,
+				Dimps::Selection::ReadAvailability(command.character.charaID)))
+				refusal = "This fighter selection is unavailable. Choose an available costume, color, edition, and Ultra.";
+			else if (published.probeBenchmark && published.probeStatus == "checking") refusal = "Wait for the connection benchmark to finish before Ready.";
+			else if (published.session.room != netplay::RoomState::Joined || published.localSlot < 0 || published.localSlot > 1)
+				refusal = "Take a seat at a table before readying up.";
+			if (refusal) { FailReady(refusal); continue; }
+			// A parked Rematch may drain after the session left PostMatch; the
+			// controller accepts Ready in either state.
+			if (kind == netplay::CommandKind::Rematch && runtime->controller.GetSnapshot().match != netplay::MatchState::PostMatch)
+				command.command.kind = netplay::CommandKind::Ready;
+			if (!runtime->pendingReadyDeadline) {
+				runtime->pendingReadyDeadline = GetTickCount64() + ReadyIntentTimeoutMs;
+				runtime->pendingReadyGeneration = command.command.generation;
+			}
+			const bool draining = runtime->match &&
+				(runtime->match->GetPhase() != session::IrohMatchSession::Phase::Idle || Game::Battle::System::ggpo);
+			if (draining || !published.readyGate) {
+				runtime->pendingReady.reset(new RuntimeCommand(command));
+				if (draining) {
+					// Ready is the explicit handoff from post-match spectator draining.
+					// Retire GGPO first and await helper mapping closure before sending it.
+					CancelDeferredGgpoClose();
+					Game::Battle::System::RetireGgpoSession("iroh_rematch");
+					runtime->match->End();
+				}
+				continue;
+			}
 		}
 		if ((kind == netplay::CommandKind::HostRoom || kind == netplay::CommandKind::JoinInvite) &&
 			(!helperReady || !AtMainMenu() || UserApp::netplay || UserApp::server || Game::Battle::System::ggpo)) {
@@ -1164,7 +1220,16 @@ void TickRuntime() {
 			}
 		}
 		const auto decision = runtime->controller.Execute(command.command);
-		if (!decision.accepted) continue;
+		if (!decision.accepted) {
+			// The fence closed between publish and execute: park the press
+			// under its existing budget rather than losing it.
+			if ((kind == netplay::CommandKind::Ready || kind == netplay::CommandKind::Rematch) &&
+				command.command.generation == runtime->controller.GetSnapshot().generation && !runtime->pendingReady)
+				runtime->pendingReady.reset(new RuntimeCommand(command));
+			continue;
+		}
+		if (kind == netplay::CommandKind::RoomAction && command.roomAction.kind == room::ActionKind::Unready)
+			{ runtime->pendingReady.reset(); runtime->pendingReadyDeadline = 0; }
         if (command.discordRevision) {
             if (kind == netplay::CommandKind::JoinInvite) runtime->discordInvite.Cancel();
             else if (kind == netplay::CommandKind::LeaveRoom) runtime->discordInvite.LeaveQueued();
@@ -1256,7 +1321,10 @@ void TickRuntime() {
 				sent = client.PreBattle_SetEnv(sf4e::localRand()) == session::SendResult::Queued && sent;
 				sent = client.PreBattle_SetStage(command.stage) == session::SendResult::Queued && sent;
 			}
-			if (!sent || client.Lobby_Ready() != session::SendResult::Queued) Apply(netplay::EventKind::ControlLost, "Could not send match settings.");
+			if (!sent || client.Lobby_Ready() != session::SendResult::Queued) {
+				FailReady("Could not send match settings.");
+				Apply(netplay::EventKind::ControlLost, "Could not send match settings.");
+			}
 			break;
 		}
 		case netplay::Effect::StartOffline:
@@ -1568,14 +1636,13 @@ void TickRuntime() {
 	}
 	if (runtime->pendingReady && !(runtime->pendingReady->command.generation == currentGeneration))
 		{ runtime->pendingReady.reset(); runtime->pendingReadyDeadline = 0; }
+	if (runtime->pendingReadyDeadline && !(runtime->pendingReadyGeneration == currentGeneration)) runtime->pendingReadyDeadline = 0;
 	if (runtime->pendingLobbyEdit && !(runtime->pendingLobbyEdit->command.generation == currentGeneration))
 		{ runtime->pendingLobbyEdit.reset(); runtime->pendingLobbyEditDeadline = 0; }
 	// A parked Ready or lobby edit that never gets its turn is reported, not
 	// forgotten: the player pressed it and GGPO was already retired for it.
-	if (runtime->pendingReady && runtime->pendingReadyDeadline && GetTickCount64() >= runtime->pendingReadyDeadline) {
-		runtime->pendingReady.reset(); runtime->pendingReadyDeadline = 0;
-		runtime->error = "The previous match did not finish closing in time. Press Ready again.";
-	}
+	if (runtime->pendingReadyDeadline && GetTickCount64() >= runtime->pendingReadyDeadline)
+		FailReady("Your Ready did not go through. The room did not finish the previous match in time. Press Ready again.");
 	if (runtime->pendingLobbyEdit && runtime->pendingLobbyEditDeadline && GetTickCount64() >= runtime->pendingLobbyEditDeadline) {
 		runtime->pendingLobbyEdit.reset(); runtime->pendingLobbyEditDeadline = 0;
 		runtime->error = "The previous match did not finish closing in time. Apply the table settings again.";
@@ -1600,8 +1667,10 @@ void TickRuntime() {
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle) {
 		if (SubmitRuntimeCommand(*runtime->pendingRoomAction)) { runtime->pendingRoomAction.reset(); runtime->pendingRoomActionDeadline = 0; }
 	}
-	if (runtime->pendingReady && healthyRoomControl && runtime->match && runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle) {
-		if (SubmitRuntimeCommand(*runtime->pendingReady)) { runtime->pendingReady.reset(); runtime->pendingReadyDeadline = 0; }
+	if (runtime->pendingReady && healthyRoomControl && GetRuntimeSnapshotShared()->readyGate && !Game::Battle::System::ggpo &&
+		runtime->match && runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle) {
+		// The budget set at the press stays; the pump clears it on commit or failure.
+		if (SubmitRuntimeCommand(*runtime->pendingReady)) runtime->pendingReady.reset();
 	}
 	if (runtime->pendingLobbyEdit && healthyRoomControl && runtime->match && runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle) {
 		if (SubmitRuntimeCommand(*runtime->pendingLobbyEdit)) { runtime->pendingLobbyEdit.reset(); runtime->pendingLobbyEditDeadline = 0; }

@@ -676,8 +676,16 @@ int SessionClient::Step()
 				ProjectSelectedRoomTable();
 			}
 			if (!result.result.accepted) {
+				// A finish or result report for a game the authority already
+				// closed (the opponent's report landed first) is routine
+				// bookkeeping, not something the player needs to read.
+				const auto sent = std::find_if(_sentRoomActions.begin(), _sentRoomActions.end(),
+					[&](const SentRoomAction& entry) { return entry.actionId == replyId; });
+				const bool staleReport = sent != _sentRoomActions.end() &&
+					(sent->kind == room::ActionKind::MatchFinished || sent->kind == room::ActionKind::RecordResult) &&
+					(result.result.reason == room::RejectReason::WrongGeneration || result.result.reason == room::RejectReason::DuplicateResult);
 				const char* text = RoomRejectText(result.result.reason);
-				if (text[0]) _roomError = text;
+				if (text[0] && !staleReport) _roomError = text;
 			}
 			else { _roomError.clear(); }
 			if (_callbacks.OnRoomSnapshot) _callbacks.OnRoomSnapshot(this, _roomSnapshot, _callbacks);

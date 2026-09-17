@@ -47,6 +47,11 @@ struct ShellView {
             bool canChangeController = false, controllerReady = false;
     std::string selectionSummary, selectionError;
     std::string selectionLockReason, readyLockReason;
+    // A Ready press in flight (parked, sent or awaiting commit), and the
+    // last failure with a sequence that changes per occurrence.
+    bool readyRequested = false;
+    std::string readyFailure;
+    std::uint64_t readyFailureSequence = 0;
     int selectedFighter = 0;
 };
 
@@ -108,7 +113,7 @@ private:
     std::string notice_;
     double noticeUntil_=0;
     Tone noticeTone_=Tone::Success;
-    std::uint64_t roomEpoch_ = 0, rulesRevision_ = 0, nextActionId_ = 1;
+    std::uint64_t roomEpoch_ = 0, rulesRevision_ = 0, nextActionId_ = 1, readyFailureSequence_ = 0;
     int selectedTable_ = 0, roomCapacity_ = 16;
     char roomName_[65] = {}, chat_[257] = {};
     room::Rules tableRules_;

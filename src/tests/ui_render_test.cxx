@@ -448,8 +448,10 @@ int main(int argc, char** argv) {
             // when the room table is narrow or scaled.
             view.room.localTerminalPending=true;view.room.terminalPending[0]=true;
             view.canReady=true;view.canEditSelection=true;
-            for(int i=0;i<24&&shell.Navigation().Focus()!="ready";++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
-            Require(shell.Navigation().Focus()=="ready","Terminal waiting reason is unreachable at this viewport/DPI");
+            // Ready itself stays pressable (the runtime parks it); the fighter
+            // change control carries the committed waiting reason.
+            for(int i=0;i<24&&shell.Navigation().Focus()!="selection";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+            Require(shell.Navigation().Focus()=="selection","Terminal waiting reason is unreachable at this viewport/DPI");
             draw("table-terminal-pending");
             view.room.localTerminalPending=false;view.room.terminalPending[0]=false;
             view.session.coordinated=true;view.session.authorityWritable=false;

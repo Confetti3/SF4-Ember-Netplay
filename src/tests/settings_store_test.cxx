@@ -61,7 +61,7 @@ int main() {
     CHECK(Read(path / L"settings.json").find("old-test-secret") == std::string::npos);
 
     sf4e::netplay::PlayerPreferences discordDefaults;
-    CHECK(discordDefaults.matchHudSize==1&&!discordDefaults.matchHudRaised);
+    CHECK(discordDefaults.showMatchHud&&discordDefaults.matchHudSize==0&&!discordDefaults.matchHudRaised); // On, Small, normal spacing by default.
     discordDefaults.matchHudSize=-1;CHECK(!discordDefaults.Valid());
     discordDefaults.matchHudSize=3;CHECK(!discordDefaults.Valid());
     discordDefaults.matchHudSize=2;CHECK(discordDefaults.Valid());

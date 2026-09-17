@@ -178,12 +178,26 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     !v.controllerReady?"Assign or reconnect your controller in Settings > Player & Controller.":
     !v.selectionError.empty()?v.selectionError:!v.readyLockReason.empty()?v.readyLockReason:"Waiting for the current room update to finish.";
     const bool canUnready=mutableRoom&&ready&&t.phase==TablePhase::Waiting;
-   rows.push_back(Row("ready",t.phase==TablePhase::Paused?"Result unresolved":awaitingResult?"Waiting for results":
-    t.phase==TablePhase::Playing?"Match in progress":t.phase==TablePhase::Ready?"Preparing match":
-    ready?"Unready / unlock fighter":v.session.match==netplay::MatchState::PostMatch?"Ready for rematch":"Ready up",
-    canUnready?"You are READY. Select to cancel Ready, then choose Change fighter.":
-    mutableRoom&&v.canReady&&!terminalBlocked?"Select to lock in your fighter. The match starts when both players are ready.\n"+v.selectionSummary:blocked,
-     canUnready||(mutableRoom&&v.canReady&&!terminalBlocked&&t.phase==TablePhase::Waiting)));
+    // Ready is the player's one job here. Everything the room is still
+    // finishing (draining, checkpoint, receipt, result) stays behind the
+    // runtime, which parks the press and reports only a real failure.
+    const bool roomReachable=mutableRoom||RoomCheckpointPending(v);
+    const bool finishedGame=t.phase==TablePhase::Playing&&v.session.match==netplay::MatchState::PostMatch;
+    const bool readyable=roomReachable&&!ready&&!v.readyRequested&&(t.phase==TablePhase::Waiting||finishedGame)&&
+     t.p1&&t.p2&&v.controllerReady&&v.selectionError.empty();
+    const std::string readyDetail=ready?"You are READY. Select to cancel Ready, then choose Change fighter.":
+     v.readyRequested?"Locking in your fighter. The match starts when both players are ready.":
+     readyable?"Select to lock in your fighter. The match starts when both players are ready.\n"+v.selectionSummary:
+     !roomReachable?reason:
+     t.phase==TablePhase::Paused?"The previous result is unresolved. Choose Abandon unresolved game, or ask the host to cancel it; no win will be awarded.":
+     t.phase==TablePhase::Ready?"Both fighters are ready. The match is starting.":
+     t.phase==TablePhase::Playing?"The current match is in progress. Wait for it to finish.":
+     !t.p1||!t.p2?"Waiting for an opponent to take the other seat. You can change your fighter while waiting.":
+     !v.controllerReady?"Assign or reconnect your controller in Settings > Player & Controller.":v.selectionError;
+   rows.push_back(Row("ready",ready?"Unready / unlock fighter":v.readyRequested?"Readying up...":
+    t.phase==TablePhase::Paused?"Result unresolved":t.phase==TablePhase::Ready?"Preparing match":
+    t.phase==TablePhase::Playing&&!finishedGame?"Match in progress":
+    v.session.match==netplay::MatchState::PostMatch?"Ready for rematch":"Ready up",readyDetail,canUnready||readyable));
     const bool delayEditable=mutableRoom&&!active&&!v.delayLocked;
     const int selectedDelay=(std::max)(0,(std::min)(10,v.selectedDelay));
     const bool recommended=v.recommendedDelay>=0&&v.recommendedDelay<=10;
@@ -263,7 +277,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   rows.push_back(Row("apply-capacity","Apply capacity","Submit this capacity.",host&&roomCapacity_>=static_cast<int>(s.members.size())));
  }
  if(!active) {
-  for(auto& row:rows)if(row.id=="ready"||row.id=="selection"||row.id=="check-connection"||
+  for(auto& row:rows)if(row.id=="selection"||row.id=="check-connection"||
    row.id=="selected-delay"||row.id=="queue"||row.id=="watch") {
     const auto key=screen+"/"+row.id;
     if(roomUpdateVisible_)row.detail=RoomWaitReason(v);
@@ -495,12 +509,15 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  else if(a.id=="lock"){request.kind=ActionKind::Lock;request.locked=a.delta<0;}
  else if(a.id=="send-chat"){request.kind=ActionKind::Chat;request.text=chat_;}
  else if(a.id=="ready"){
-  if(!RoomActionsAvailable(v)) { error_=RoomWaitReason(v);return; }
-  if(v.room.localTerminalPending || v.room.terminalPending[selectedTable_]) { error_=TerminalPendingReason(); return; }
-  const auto* local=Member(v.room,v.room.localMember);
-  if(local&&local->seat>=0&&local->seat<2&&v.room.tables[selectedTable_].ready[local->seat]){
+  const auto* local=Member(v.room,v.room.localMember);const auto& table=v.room.tables[selectedTable_];
+  if(local&&local->seat>=0&&local->seat<2&&table.ready[local->seat]&&table.phase==TablePhase::Waiting){
+   if(!RoomActionsAvailable(v)) { error_=RoomWaitReason(v);return; }
    request.kind=ActionKind::Unready;request.seat=local->seat;
-  }else{Send(v.session.match==netplay::MatchState::PostMatch?netplay::CommandKind::Rematch:netplay::CommandKind::Ready,v,submit);return;}
+  }else{
+   // Ready is never refused here for a transient room state; the runtime
+   // parks it and reports a failure through the notice.
+   Send(v.session.match==netplay::MatchState::PostMatch?netplay::CommandKind::Rematch:netplay::CommandKind::Ready,v,submit);return;
+  }
  }else return;
  if(SendRoom(std::move(request),v,submit)){
   if(a.id=="send-chat")chat_[0]=0;
