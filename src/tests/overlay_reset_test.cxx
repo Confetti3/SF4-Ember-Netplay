@@ -7,7 +7,37 @@
 #include <imgui_impl_win32.h>
 #include <cstdio>
 
+// Customization is remembered per fighter. Pure; needs no device.
+static int CheckPerFighterPicks() {
+    namespace Prefs = sf4e::OverlayPrefs;
+    int failures = 0;
+    const auto check = [&](bool value, const char* message) {
+        if (!value) { ++failures; std::printf("FAIL: %s\n", message); }
+    };
+    // A section written before picks were per fighter.
+    Prefs::Data migrated;
+    Prefs::FromJson({{"lobby", {{"charaID", 12}, {"costume", 2}, {"color", 5}}}}, migrated);
+    Prefs::Clamp(migrated);
+    check(migrated.fighters[12].costume == 2 && migrated.fighters[12].color == 5, "shared pick was not remembered for its fighter");
+    check(migrated.fighters[3].charaID == 3 && migrated.fighters[3].costume == 0 && migrated.fighters[3].color == 0,
+        "another fighter did not start from defaults");
+
+    Prefs::Data data;
+    data.lobby.charaID = 12; data.lobby.costume = 2; data.lobby.color = 5;
+    data.fighters[3].costume = 1; data.fighters[3].color = 7;
+    data.fighters[5].costume = 200;
+    Prefs::Clamp(data);
+    Prefs::Data loaded;
+    Prefs::FromJson(Prefs::ToJson(data), loaded);
+    Prefs::Clamp(loaded);
+    check(loaded.fighters[12].costume == 2 && loaded.fighters[12].color == 5, "current fighter's pick did not round-trip");
+    check(loaded.fighters[3].costume == 1 && loaded.fighters[3].color == 7, "a second fighter's pick did not stay separate");
+    check(loaded.fighters[5].costume < sf4e::selection::CostumeCount(5), "an out-of-range remembered costume was not clamped");
+    return failures;
+}
+
 int main() {
+    if (CheckPerFighterPicks()) return 1;
     HWND window = CreateWindowW(L"STATIC", L"Ember display reset regression", WS_OVERLAPPEDWINDOW,
         0, 0, 640, 480, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
     if (!window) return 2;

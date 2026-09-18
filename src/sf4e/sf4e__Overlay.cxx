@@ -100,6 +100,13 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
 	const std::string selectionError = sf4e::selection::Available(pick, editionSelect, snapshot.fighterAvailability[pick.fighter]) ? std::string() :
 		"This combination is unavailable under the room's rules. Choose another fighter, costume, colour or edition.";
 	s_fighterSelectors[0].Draw(pick, editionSelect, s_selectionArt.get(), [&](int fighter) { return snapshot.fighterAvailability[fighter]; }, stageId ? &stagedStage : nullptr, snapshot.canEditSelection, selectionError);
+	if (snapshot.canEditSelection && pick.fighter != menuCharaID && pick.fighter >= 0 && pick.fighter < sf4e::selection::FighterCount) {
+		// Customization is per fighter: the selector carried the previous
+		// fighter's values over, so restore what this one last used, fitted to
+		// what is unlocked and to the room's edition rule.
+		pick = sf4e::selection::FromNative(s_prefs.fighters[pick.fighter]);
+		sf4e::selection::Normalize(pick, editionSelect, &snapshot.fighterAvailability[pick.fighter]);
+	}
 	if (snapshot.canEditSelection) {
         sf4e::selection::ToNative(pick, charaConditions);
         menuCharaID = pick.fighter;
@@ -284,6 +291,8 @@ void Overlay::DrawOverlay() {
     }
     sf4e::OverlayPrefs::Data prefs = s_prefs;
     sf4e::OverlayPrefs::FromConfirmed(prefs.lobby, lobbyConditions); prefs.stageID = lobbyStageID;
+    // Every edit is remembered for the fighter it was made on.
+    if (prefs.lobby.charaID < prefs.fighters.size()) prefs.fighters[prefs.lobby.charaID] = prefs.lobby;
     if (memcmp(&prefs, &s_prefs, sizeof(prefs)) != 0 && sf4e::OverlayPrefs::Save(prefs)) s_prefs = prefs;
     ImGui::Render(); ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 

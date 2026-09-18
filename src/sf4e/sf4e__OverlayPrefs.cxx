@@ -93,11 +93,73 @@ namespace OverlayPrefs {
 
 	void Clamp(Data& data) {
         ClampChara(data.lobby, data.lobbyEditionSelect);
+        for (int id = 0; id < selection::FighterCount; ++id) {
+            data.fighters[id].charaID = static_cast<uint8_t>(id);
+            // Keep a remembered edition whatever the current rule; restoring a
+            // fighter normalizes it against the room's rule at that time.
+            ClampChara(data.fighters[id], true);
+        }
+        if (data.lobby.charaID < data.fighters.size()) data.fighters[data.lobby.charaID] = data.lobby;
         data.stageID = selection::NormalizeStage(data.stageID);
         if (data.lobbyRoundCountIdx < 0 || data.lobbyRoundCountIdx >= ROUND_COUNT_OPTIONS) data.lobbyRoundCountIdx = 1;
         if (data.lobbyRoundTimeIdx < 0 || data.lobbyRoundTimeIdx >= ROUND_TIME_OPTIONS) data.lobbyRoundTimeIdx = 2;
         if ((data.deviceType != 1 && data.deviceType != 3) || (data.deviceType == 3 && data.deviceIdx > 3)) data.deviceIdx = data.deviceType = 0xff;
     }
+
+	void FromJson(const nlohmann::json& j, Data& out) {
+		if (j.contains("lobby")) {
+			CharaFromJson(j["lobby"], out.lobby);
+		}
+		if (j.contains("fighters") && j["fighters"].is_array()) {
+			const auto& fighters = j["fighters"];
+			for (std::size_t id = 0; id < fighters.size() && id < out.fighters.size(); ++id) {
+				CharaFromJson(fighters[id], out.fighters[id]);
+				out.fighters[id].charaID = static_cast<uint8_t>(id);
+			}
+		} else if (out.lobby.charaID < out.fighters.size()) {
+			// Written before picks were per fighter: the one shared pick belongs
+			// to the fighter it was last used on.
+			out.fighters[out.lobby.charaID] = out.lobby;
+		}
+		out.stageID = selection::PreferenceStage(j, "stageID", out.stageID);
+
+		if (j.contains("lobbySettings") && j["lobbySettings"].is_object()) {
+			const auto& ls = j["lobbySettings"];
+			out.lobbyRoundCountIdx = ls.value("roundCountIdx", out.lobbyRoundCountIdx);
+			out.lobbyRoundTimeIdx = ls.value("roundTimeIdx", out.lobbyRoundTimeIdx);
+			out.lobbyEditionSelect = ls.value("editionSelect", out.lobbyEditionSelect);
+		}
+
+		if (j.contains("device") && j["device"].is_object()) {
+			const auto& dev = j["device"];
+			out.deviceIdx = (uint8_t)dev.value("idx", (int)out.deviceIdx);
+			out.deviceType = (uint8_t)dev.value("type", (int)out.deviceType);
+		}
+	}
+
+	nlohmann::json ToJson(const Data& data) {
+		nlohmann::json j;
+		CharaToJson(j["lobby"], data.lobby);
+		j["fighters"] = nlohmann::json::array();
+		for (const auto& fighter : data.fighters) {
+			nlohmann::json row;
+			CharaToJson(row, fighter);
+			j["fighters"].push_back(std::move(row));
+		}
+		j["stageID"] = data.stageID;
+
+		j["lobbySettings"] = {
+			{"roundCountIdx", data.lobbyRoundCountIdx},
+			{"roundTimeIdx", data.lobbyRoundTimeIdx},
+			{"editionSelect", data.lobbyEditionSelect},
+		};
+
+		j["device"] = {
+			{"idx", data.deviceIdx},
+			{"type", data.deviceType},
+		};
+		return j;
+	}
 
 	bool Load(Data& out) {
 		// Device recreation must not reload older disk state over queued edits.
@@ -115,24 +177,7 @@ namespace OverlayPrefs {
 				return false;
 			}
 
-			if (j.contains("lobby")) {
-				CharaFromJson(j["lobby"], out.lobby);
-			}
-			out.stageID = selection::PreferenceStage(j, "stageID", out.stageID);
-
-			if (j.contains("lobbySettings") && j["lobbySettings"].is_object()) {
-				const auto& ls = j["lobbySettings"];
-				out.lobbyRoundCountIdx = ls.value("roundCountIdx", out.lobbyRoundCountIdx);
-				out.lobbyRoundTimeIdx = ls.value("roundTimeIdx", out.lobbyRoundTimeIdx);
-				out.lobbyEditionSelect = ls.value("editionSelect", out.lobbyEditionSelect);
-			}
-
-			if (j.contains("device") && j["device"].is_object()) {
-				const auto& dev = j["device"];
-				out.deviceIdx = (uint8_t)dev.value("idx", (int)out.deviceIdx);
-				out.deviceType = (uint8_t)dev.value("type", (int)out.deviceType);
-			}
-
+			FromJson(j, out);
 			Clamp(out);
 			cached = out;
 			haveCached = true;
@@ -185,22 +230,7 @@ namespace OverlayPrefs {
 		Data clamped = in;
 		Clamp(clamped);
 
-		nlohmann::json j;
-		CharaToJson(j["lobby"], clamped.lobby);
-		j["stageID"] = clamped.stageID;
-
-		j["lobbySettings"] = {
-			{"roundCountIdx", clamped.lobbyRoundCountIdx},
-			{"roundTimeIdx", clamped.lobbyRoundTimeIdx},
-			{"editionSelect", clamped.lobbyEditionSelect},
-		};
-
-		j["device"] = {
-			{"idx", clamped.deviceIdx},
-			{"type", clamped.deviceType},
-		};
-
-		if (!writer || !writer->QueueOverlay(std::move(j))) return false;
+		if (!writer || !writer->QueueOverlay(ToJson(clamped))) return false;
 		cached = clamped;
 		haveCached = true;
 		return true;

@@ -2,7 +2,10 @@
 
 #include <stdint.h>
 #include <cstdint>
+#include <array>
 #include <string>
+#include <nlohmann/json.hpp>
+#include "../common/FighterCatalog.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 
 #include "../Dimps/Dimps__GameEvents.hxx"
@@ -28,8 +31,13 @@ namespace OverlayPrefs {
 	};
 
 	struct Data {
-		// Lobby
+		Data() { for (int id = 0; id < selection::FighterCount; ++id) fighters[id].charaID = static_cast<uint8_t>(id); }
+
+		// Lobby: the current selection, which every consumer reads.
 		CharaPick lobby;
+		// What each fighter last used, indexed by charaID. Switching fighter
+		// restores that fighter's entry; fighters[lobby.charaID] equals lobby.
+		std::array<CharaPick, selection::FighterCount> fighters;
 		int stageID = 0;
 
 		// Lobby match settings (host-editable in the network panel)
@@ -51,6 +59,11 @@ namespace OverlayPrefs {
 		const CharaPick& in
 	);
 	void Clamp(Data& data);
+	// The settings file's "overlay" section. FromJson accepts a section written
+	// before per-fighter picks existed and remembers its one pick for that
+	// fighter. Neither clamps; Load and Save do.
+	void FromJson(const nlohmann::json& section, Data& out);
+	nlohmann::json ToJson(const Data& data);
 
 	bool Load(Data& out);
 	// Start outside DllMain; keep the writer alive across D3D device resets.
