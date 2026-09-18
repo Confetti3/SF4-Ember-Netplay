@@ -16,12 +16,14 @@
 #include "RoomMessageQueue.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "../common/FighterCatalog.hxx"
+#include "../common/sf4e__RollbackDiagnostics.hxx"
 
 using nlohmann::json;
 
 namespace SessionProtocol = sf4e::SessionProtocol;
 namespace session = sf4e::session;
 namespace room = sf4e::room;
+namespace diag = sf4e::diag;
 using Dimps::Math::FixedPoint;
 using sf4e::SessionServer;
 
@@ -276,6 +278,7 @@ bool SessionServer::RestoreCheckpoint(const json& value) {
 }
 
 json SessionServer::RecoveryCheckpoint() const {
+	diag::ScopedTimer timer(diag::OP_ROOM_CHECKPOINT_BUILD);
 	++_recoveryCheckpointBuilds;
 	if (!_roomAuthority || !_departingConnections.empty() || !_afterDataMessages.empty())
 		throw std::logic_error("recovery checkpoint requires a completed command boundary");
@@ -354,22 +357,41 @@ json SessionServer::RecoveryCheckpoint() const {
 		}
 	}
 	value["authority"] = {{"term", _recovery.Authority().term}, {"revision", _recovery.Authority().revision}, {"writable", _recovery.Authority().writable}};
+	// Uncommitted effects travel once, in SessionProposal.effects.
 	value["effect_journal"] = _committedEffectHistory;
-	value["pending_effects"] = _recoveryEffects;
-	value["pending_effects_digest"] = session::EffectsDigest(_recoveryEffects);
 	return value;
 }
 
 bool SessionServer::RestoreRecoveryCheckpoint(const json& value) {
 	try {
+		auto history = value.value("effect_journal", std::vector<session::EffectEnvelope>{});
+		if (json(history).dump().size() > session::MaxEffectJournalBytes) return false;
+		const auto authority = value.value("authority", json::object());
+		if (authority.empty()) return RestoreRecoveryState(value, std::move(history), nullptr);
+		const session::AuthorityStamp stamp{authority.value("term", 0ULL), authority.value("revision", 0ULL), authority.value("writable", false)};
+		return RestoreRecoveryState(value, std::move(history), &stamp);
+	} catch (const std::exception&) { return false; }
+}
+
+bool SessionServer::RestoreRecoveryCheckpoint(const json& value,
+	std::vector<session::EffectEnvelope> journal, const session::AuthorityStamp& authority) {
+	return RestoreRecoveryState(value, std::move(journal), &authority);
+}
+
+bool SessionServer::RestoreRecoveryState(const json& value,
+	std::vector<session::EffectEnvelope> incomingHistory, const session::AuthorityStamp* authority) {
+	try {
 		if (value.value("schema", std::string()) != "session-recovery-v2" || !value.at("room").is_object() ||
 			!value.at("members").is_array() || value.at("members").size() > room::MaximumMembers + room::TableCount * room::MaxMatchParticipants) return false;
-		const auto incomingHistory = value.value("effect_journal", std::vector<session::EffectEnvelope>{});
-		if (incomingHistory.size() > session::MaxEffectJournalEntries || json(incomingHistory).dump().size() > session::MaxEffectJournalBytes) return false;
+		if (incomingHistory.size() > session::MaxEffectJournalEntries) return false;
 		for (const auto& effect : incomingHistory)
 			if (effect.term == 0 || effect.recipient == 0 || !session::recovery_detail::IsSha256(effect.payloadDigest)) return false;
-		json legacy = value;
-		legacy.erase("schema"); legacy.erase("authority"); legacy.erase("effect_journal"); legacy.erase("incarnation");
+		// Everything but the recovery envelope. The journal is the bulk of a
+		// checkpoint and RestoreCheckpoint does not read it, so it is not copied.
+		json legacy = json::object();
+		for (auto field = value.begin(); field != value.end(); ++field)
+			if (field.key() != "schema" && field.key() != "authority" && field.key() != "effect_journal" && field.key() != "incarnation")
+				legacy[field.key()] = field.value();
 		json legacyMembers = json::array(), cids = json::array(), roomMemberRows = json::array(), selected = json::array();
 		std::map<room::MemberId, session::Connection> synthetic;
 		std::map<room::MemberId, SessionProtocol::ConnectionID> endpoints;
@@ -426,25 +448,10 @@ bool SessionServer::RestoreRecoveryCheckpoint(const json& value) {
 		if (decodeSets("battle_loaded_members", "battle_loaded").is_null() || decodeSets("punch_ready_members", "punch_ready").is_null()) return false;
 		const auto convertAuthority = [&](const json& portable) {
 			if (portable.is_null()) return json(nullptr);
-			json authority = portable;
-			json rows = json::array();
-			for (const auto& row : portable.at("participants")) {
-				const auto endpoint = row.at("endpoint").get<SessionProtocol::ConnectionID>();
+			return session::MatchAuthority::LocalCheckpoint(portable, [&](const SessionProtocol::ConnectionID& endpoint) {
 				auto iter = std::find_if(endpoints.begin(), endpoints.end(), [&](const auto& p) { return p.second == endpoint; });
-				if (iter == endpoints.end()) return json();
-				rows.push_back({{"connection", synthetic.at(iter->first)}, {"member", endpoint}});
-			}
-			authority["participants"] = std::move(rows);
-			for (const char* key : {"acknowledgments", "departed"}) {
-				json mapped = json::array();
-				for (const auto& endpointValue : portable.at(key)) {
-					const auto endpoint = endpointValue.get<SessionProtocol::ConnectionID>();
-					auto iter = std::find_if(endpoints.begin(), endpoints.end(), [&](const auto& p) { return p.second == endpoint; });
-					if (iter == endpoints.end()) return json(); mapped.push_back(synthetic.at(iter->first));
-				}
-				authority[key] = std::move(mapped);
-			}
-			return authority;
+				return iter == endpoints.end() ? session::Connection(0) : synthetic.at(iter->first);
+			});
 		};
 		json authorities = json::array();
 		for (const auto& authority : value.at("match_authorities")) { auto converted = convertAuthority(authority); if (converted.is_discarded()) return false; authorities.push_back(std::move(converted)); }
@@ -454,13 +461,12 @@ bool SessionServer::RestoreRecoveryCheckpoint(const json& value) {
 		const auto previousAuthorityTerm = _recovery.Authority().term;
 		if (!RestoreCheckpoint(legacy)) return false;
 		if (_roomAuthority && !_roomAuthority->RecoveryPaused()) _roomAuthority->PauseForRecovery();
-		_committedEffectHistory = incomingHistory;
+		_committedEffectHistory = std::move(incomingHistory);
+		_committedEffectSizes.clear();
 		_incarnation = value.value("incarnation", 1ULL);
-		const auto authority = value.value("authority", json::object());
-		if (!authority.empty()) {
-			const auto importedTerm = authority.value("term", 0ULL);
-			_recovery.SetAuthority(importedTerm, authority.value("revision", 0ULL), authority.value("writable", false));
-			if (importedTerm && importedTerm != previousAuthorityTerm) _preparationCancellationRequested = true;
+		if (authority) {
+			_recovery.SetAuthority(authority->term, authority->revision, authority->writable);
+			if (authority->term && authority->term != previousAuthorityTerm) _preparationCancellationRequested = true;
 		}
 		roomIncarnations.clear();
 		roomFrozenMembers.clear();
@@ -511,10 +517,7 @@ void SessionServer::BeginRecoveryCandidate() {
 		}
 		_recoveryProjection = _roomAuthority->SnapshotCopy();
 		_hasRecoveryProjection = true;
-		_recoveryEffects.clear();
-		_recoveryEffectBytes = 2;
-		_recoveryLocalEffects.clear();
-		_recoveryCandidateOverflow = false;
+		_candidate = {};
 		_recoveryCandidateReady = true;
 	} catch (const std::exception&) {
 		_recoveryCandidateReady = false;
@@ -528,7 +531,7 @@ void SessionServer::FinishRecoveryCandidate() {
 	// is still a logical mutation and therefore remains a candidate; the only
 	// discarded case here is an exact checkpoint match.
 	try {
-		if (_recoveryEffects.empty() && RecoveryCheckpoint() == _recoveryBaseline) {
+		if (_candidate.effects.empty() && RecoveryCheckpoint() == _recoveryBaseline) {
 			DropRecoveryCandidate();
 			return;
 		}
@@ -545,10 +548,7 @@ void SessionServer::DropRecoveryCandidate() {
 	// round-tripping the portable checkpoint here would destroy local grants
 	// and rebase an otherwise healthy monotonic clock.
 	_recovery.Discard();
-	_recoveryEffects.clear();
-	_recoveryEffectBytes = 2;
-	_recoveryLocalEffects.clear();
-	_recoveryCandidateOverflow = false;
+	_candidate = {};
 	_recoveryCandidateReady = false;
 	_recoveryBaseline.clear();
 	_recoveryBaselineBindings.clear();
@@ -561,9 +561,8 @@ bool SessionServer::RestoreRecoveryBaseline() {
 	const auto bindings = _recoveryBaselineBindings;
 	const bool restored = RestoreRecoveryCheckpoint(_recoveryBaseline);
 	const bool rebound = restored && RebindMembers(bindings);
-	_recoveryEffects.clear(); _recoveryEffectBytes = 2; _recoveryLocalEffects.clear(); _recoveryCandidateReady = false; _recoveryBaseline.clear();
+	_candidate = {}; _recoveryCandidateReady = false; _recoveryBaseline.clear();
 	_recoveryBaselineBindings.clear();
-	_recoveryCandidateOverflow = false;
 	_cancellationCandidate = false;
 	return restored && rebound;
 }
@@ -633,6 +632,7 @@ void SessionServer::JournalEffect(session::Connection client, const json& payloa
 	}
 	if (!_recoveryCandidateReady) BeginRecoveryCandidate();
 	if (!_recoveryCandidateReady) return;
+	diag::ScopedTimer timer(diag::OP_ROOM_JOURNAL);
 	room::MemberId member = 0;
 	const auto iter = roomMembers.find(client);
 	if (iter != roomMembers.end()) member = iter->second;
@@ -666,7 +666,10 @@ void SessionServer::JournalEffect(session::Connection client, const json& payloa
 	envelope.recipient = member;
 	envelope.endpoint = endpoint;
 	envelope.type = payload.value("type", std::string());
-	envelope.payloadDigest = session::PayloadDigest(payload);
+	// Encoded once: for the digest here, the journal size below, and the live
+	// send in ApplyCommit.
+	std::string encoded = payload.dump();
+	envelope.payloadDigest = session::recovery_detail::Sha256(encoded);
 	const auto type = envelope.type;
 	const bool publicReplay = type == "room_snapshot" || type == "room_result" || type == "room_event" ||
 		type == "data_update" || type == "game_start" || type == "game_end" || type == "game_peer_end";
@@ -674,42 +677,54 @@ void SessionServer::JournalEffect(session::Connection client, const json& payloa
 	// connection setup are never replayed from a replicated payload.
 	envelope.privatePayload = !publicReplay || session::ContainsCapabilityField(payload);
 	if (!envelope.privatePayload && retainPublicReplay) envelope.publicPayload = payload;
+	auto& effects = _candidate.effects;
 	if (type == "room_snapshot" || type == "data_update") {
-		for (std::size_t i = 0; i < _recoveryEffects.size();) {
-			if (_recoveryEffects[i].recipient == envelope.recipient && _recoveryEffects[i].type == type) {
-				_recoveryEffectBytes -= nlohmann::json(_recoveryEffects[i]).dump().size();
-				if (_recoveryEffects.size() > 1) --_recoveryEffectBytes;
-				_recoveryEffects.erase(_recoveryEffects.begin() + i);
-				_recoveryLocalEffects.erase(_recoveryLocalEffects.begin() + i);
+		for (std::size_t i = 0; i < effects.size();) {
+			if (effects[i].envelope.recipient == envelope.recipient && effects[i].envelope.type == type) {
+				_candidate.bytes -= effects[i].envelopeBytes;
+				if (effects.size() > 1) --_candidate.bytes;
+				effects.erase(effects.begin() + i);
 			} else ++i;
 		}
 	}
-	for (const auto& prior : _recoveryEffects) {
+	for (const auto& effect : effects) {
+		const auto& prior = effect.envelope;
 		if (prior.recipient == envelope.recipient && prior.revision == envelope.revision && prior.type == envelope.type && prior.payloadDigest == envelope.payloadDigest) return;
 	}
-	const auto envelopeBytes = nlohmann::json(envelope).dump().size();
-	const auto appendedBytes = _recoveryEffectBytes + (_recoveryEffects.empty() ? 0 : 1) + envelopeBytes;
-	if (_recoveryEffects.size() + 1 <= session::MaxEffectJournalEntries && appendedBytes <= session::MaxEffectJournalBytes) {
-		_recoveryEffects.push_back(envelope);
-		_recoveryEffectBytes = appendedBytes;
-		_recoveryLocalEffects.push_back({envelope, payload, client});
+	auto envelopeBytes = session::EncodedEnvelopeBytes(envelope, encoded.size());
+	const auto appended = [&](std::size_t bytes) { return _candidate.bytes + (effects.empty() ? 0 : 1) + bytes; };
+	const auto fits = [&](std::size_t bytes) {
+		return effects.size() + 1 <= session::MaxEffectJournalEntries && appended(bytes) <= session::MaxEffectJournalBytes;
+	};
+	// A projection's replay copy is optional; its digest still authenticates
+	// the live delivery. When the candidate is full, drop this copy rather than
+	// run the whole-candidate pass below, which re-encodes every entry and in a
+	// large room would run again for each remaining recipient. That pass is for
+	// making room for a record that must be kept whole.
+	if (!fits(envelopeBytes) && session::SupersedableProjection(envelope) && !envelope.publicPayload.is_null()) {
+		envelope.publicPayload = nullptr;
+		envelopeBytes = session::EncodedEnvelopeBytes(envelope, encoded.size());
+	}
+	if (fits(envelopeBytes)) {
+		_candidate.bytes = appended(envelopeBytes);
+		effects.push_back({std::move(envelope), client, std::move(encoded), envelopeBytes});
 		return;
 	}
-	std::vector<session::EffectEnvelope> prospective = _recoveryEffects;
+	auto prospective = _candidate.Envelopes();
 	prospective.push_back(envelope);
 	const auto prospectiveBytes = session::ShedOptionalEffectPayloads(prospective, session::MaxEffectJournalBytes);
 	if (prospective.size() > session::MaxEffectJournalEntries || prospectiveBytes > session::MaxEffectJournalBytes) {
-		_recoveryCandidateOverflow = true;
+		_candidate.overflow = true;
 		return;
 	}
-	// Existing local payloads remain intact; only their replicated envelope's
-	// optional replay copy may have been shed by the whole-candidate pass.
-	for (std::size_t i = 0; i < _recoveryLocalEffects.size(); ++i)
-		_recoveryLocalEffects[i].envelope = prospective[i];
-	envelope = prospective.back();
-	_recoveryEffects = std::move(prospective);
-	_recoveryEffectBytes = session::EffectJournalBytes(_recoveryEffects);
-	_recoveryLocalEffects.push_back({envelope, payload, client});
+	// Existing local payloads remain intact; only an envelope's optional replay
+	// copy may have been shed by the whole-candidate pass.
+	effects.push_back({session::EffectEnvelope{}, client, std::move(encoded), 0});
+	for (std::size_t i = 0; i < effects.size(); ++i) {
+		effects[i].envelope = std::move(prospective[i]);
+		effects[i].envelopeBytes = nlohmann::json(effects[i].envelope).dump().size();
+	}
+	_candidate.bytes = prospectiveBytes;
 }
 
 bool SessionServer::ValidateEffectRecipient(const session::EffectEnvelope& effect, session::Connection candidate, session::Connection& local) const {
@@ -755,7 +770,7 @@ bool SessionServer::ValidateEffectRecipient(const session::EffectEnvelope& effec
 
 bool SessionServer::ProposeCheckpoint(std::uint64_t request, std::uint64_t term, std::uint64_t baseRevision, const json& checkpoint) {
 	if (!_recoveryCandidateReady || !_recovery.Writable() || term != _recovery.Authority().term || baseRevision != _recovery.Authority().revision || request == 0) return false;
-	if (_recoveryCandidateOverflow) return false;
+	if (_candidate.overflow) return false;
 	json local;
 	try { local = RecoveryCheckpoint(); } catch (...) { return false; }
 	// Root may attach its own metadata, but state must be byte-for-byte the
@@ -763,8 +778,12 @@ bool SessionServer::ProposeCheckpoint(std::uint64_t request, std::uint64_t term,
 	if (!checkpoint.is_null() && checkpoint != local) return false;
 	session::SessionProposal proposal;
 	proposal.request = request; proposal.term = term; proposal.baseRevision = baseRevision;
-	proposal.checkpoint = local; proposal.effects = _recoveryEffects; proposal.effectsDigest = session::EffectsDigest(proposal.effects);
-	if (json(proposal).dump().size() > kRecoveryProposalBytes) return false;
+	proposal.checkpoint = std::move(local); proposal.effects = _candidate.Envelopes();
+	// The effects are encoded once, for their digest and inside the proposal.
+	const auto encodedEffects = json(proposal.effects).dump();
+	proposal.effectsDigest = session::recovery_detail::Sha256(encodedEffects);
+	proposal.encoded = session::EncodeSessionProposal(proposal, encodedEffects);
+	if (proposal.encoded.size() > kRecoveryProposalBytes) return false;
 	return _recovery.Prepare(std::move(proposal));
 }
 
@@ -776,27 +795,39 @@ bool SessionServer::ApplyCommit(std::uint64_t request, std::uint64_t term, std::
 	if (!committedCheckpoint.is_null() && committedCheckpoint != pending->checkpoint) return false;
 	if (!_recovery.Commit(request, term, revision, effectsDigest)) return false;
 	_recoveryFlushing = true;
-	for (const auto& effect : _recoveryLocalEffects) {
-		session::Connection local = effect.local;
-		if (!ValidateEffectRecipient(effect.envelope, effect.local, local)) continue; // departed member; helper owns the removal decision
-		// The client still consumes the original protocol object.  The commit
-		// envelope is additive and gives the recipient enough immutable material
-		// to reject a stale/mutated replay before dispatching the payload.
-		json wire = effect.payload;
-		// Keep this byte-for-byte aligned with EffectEnvelope::to_json so the
-		// recipient can parse one token shape from both a live effect and a
-		// checkpoint journal.
-		wire["_commit"] = session::EffectCommitToken(effect.envelope);
-		if (!_transport || !_transport->Send(local, wire.dump())) _transportFailed = true;
+	{
+		diag::ScopedTimer sendTimer(diag::OP_ROOM_COMMIT_SEND);
+		for (const auto& effect : _candidate.effects) {
+			session::Connection local = effect.local;
+			if (!ValidateEffectRecipient(effect.envelope, effect.local, local)) continue; // departed member; helper owns the removal decision
+			// The client still consumes the original protocol object.  The commit
+			// envelope is additive and gives the recipient enough immutable material
+			// to reject a stale/mutated replay before dispatching the payload. The
+			// token has the same shape as a checkpoint journal entry, so the
+			// recipient parses one form for both.
+			if (!_transport || !_transport->Send(local, session::CommittedEffectWire(effect.envelope, effect.encoded))) _transportFailed = true;
+		}
 	}
 	_recoveryFlushing = false;
-	for (const auto& effect : _recoveryEffects) _committedEffectHistory.push_back(effect);
+	for (auto& client : clients) {
+		const auto sent = _candidate.chatSent.find(client.conn);
+		if (sent != _candidate.chatSent.end()) { client.chatSent = true; client.chatVersion = sent->second; }
+	}
+	diag::ScopedTimer compactTimer(diag::OP_ROOM_COMPACT);
+	// Sizes are unknown once after a restore; measure the inherited journal once.
+	if (_committedEffectSizes.size() != _committedEffectHistory.size()) {
+		_committedEffectSizes.clear();
+		for (const auto& effect : _committedEffectHistory) _committedEffectSizes.push_back(json(effect).dump().size());
+	}
+	for (auto& effect : _candidate.effects) {
+		_committedEffectHistory.push_back(std::move(effect.envelope));
+		_committedEffectSizes.push_back(effect.envelopeBytes);
+	}
 	// Keep lifecycle/final-result effects in order while compacting only
 	// supersedable projections. The same helper is used by the root recovery
 	// bridge when it merges a checkpoint journal with a committed proposal.
-	session::CompactEffectJournal(_committedEffectHistory);
-	_recoveryEffects.clear(); _recoveryEffectBytes = 2; _recoveryLocalEffects.clear(); _recoveryCandidateReady = false; _recoveryBaseline.clear(); _recoveryBaselineBindings.clear();
-	_recoveryCandidateOverflow = false;
+	session::CompactEffectJournal(_committedEffectHistory, _committedEffectSizes);
+	_candidate = {}; _recoveryCandidateReady = false; _recoveryBaseline.clear(); _recoveryBaselineBindings.clear();
 	_hasRecoveryProjection = false;
 	if (_cancellationCandidate) {
 		// ApplyCommit has already advanced the authoritative revision. The
@@ -1129,8 +1160,11 @@ bool SessionServer::BeginAuthorizedTable(std::uint8_t tableId, std::uint64_t gen
 		participants.push_back({connection, cid->second});
 		return true;
 	};
-	if (!add(table.p1) || !add(table.p2)) return false;
-	for (const auto spectator : table.spectators) if (!add(spectator)) return false;
+	// The roster RoomAuthority froze for this generation: the fighters, then
+	// every spectator not still retiring an earlier generation.
+	const auto roster = _roomAuthority->MatchRoster(tableId);
+	if (roster.size() < 2 || roster[0] != table.p1 || roster[1] != table.p2) return false;
+	for (const auto member : roster) if (!add(member)) return false;
 	// Send the immutable native projection before any prepare grant. Clients
 	// freeze their legacy game buffers when that grant arrives.
 	for (const auto& participant : participants) ProjectRoomTable(participant.connection, tableId);
@@ -1176,7 +1210,7 @@ void SessionServer::AdvanceCustomRoom(std::uint64_t nowMs) {
 	// released the native slot, so a rematch on another table remains able to
 	// rebind the departed endpoint.
 	PruneFrozenMembers();
-	if (_recovery.Enabled() && _recoveryCandidateReady && events.empty() && _recoveryEffects.empty()) {
+	if (_recovery.Enabled() && _recoveryCandidateReady && events.empty() && _candidate.effects.empty()) {
 		// AdvanceTime records a monotonic clock even when no deadline fired. It
 		// is not a room mutation worth a quorum round; preserve relative result
 		// ages, however, by retaining any candidate whose room state changed.
@@ -1278,13 +1312,38 @@ int SessionServer::RoomSideFor(session::Connection connection, std::uint8_t tabl
 	return table.p1 == roomMember->second ? 0 : table.p2 == roomMember->second ? 1 : -1;
 }
 
+SessionServer::ChatVersion SessionServer::CurrentChatVersion() const {
+	ChatVersion version;
+	if (!_roomAuthority) return version;
+	const auto& chat = _roomAuthority->SnapshotView().chat;
+	version.count = chat.size();
+	version.last = chat.empty() ? 0 : chat.back().sequence;
+	return version;
+}
+
+void SessionServer::EnableChatDelta(session::Connection connection, bool enabled) {
+	for (auto& client : clients) if (client.conn == connection) { client.chatDelta = enabled; client.chatSent = false; }
+}
+
 void SessionServer::BroadcastRoomState(const std::vector<room::Event>& events) {
 	if (!_roomAuthority) return;
-	for (const auto& client : clients) {
+	diag::ScopedTimer timer(diag::OP_ROOM_BROADCAST);
+	const auto chat = CurrentChatVersion();
+	for (auto& client : clients) {
 		const auto member = roomMembers.find(client.conn);
 		if (member == roomMembers.end()) continue;
 		SessionProtocol::RoomSnapshotMessage snapshot;
 		snapshot.snapshot = _roomAuthority->SnapshotFor(member->second);
+		// Room chat is most of a snapshot and rarely changes. A client that
+		// accepts it gets the chat only when its committed copy is stale.
+		snapshot.chatUnchanged = client.chatDelta && client.chatSent && client.chatVersion == chat;
+		if (snapshot.chatUnchanged) snapshot.snapshot.chat.clear();
+		else if (client.chatDelta) {
+			// Counts as held once it commits; until then a later snapshot in the
+			// same candidate, which supersedes this one, carries the chat too.
+			if (_recovery.Enabled() && !_recoveryFlushing) _candidate.chatSent[client.conn] = chat;
+			else { client.chatSent = true; client.chatVersion = chat; }
+		}
 		Respond(client.conn, json(snapshot));
 		for (const auto& event : events) {
 			// The snapshot already carries roster/chat changes. Wire events are
@@ -1314,6 +1373,19 @@ void SessionServer::AddConnection(session::Connection connection) {
 
 int SessionServer::Listen(uint16_t port) {
 	return _transport && _transport->Listen(port) ? 0 : -1;
+}
+
+bool SessionServer::IsStaleMatchAck(const session::Message& message) const {
+	if (message.payload.find("\"game_") == std::string::npos) return false;
+	try {
+		const auto payload = json::parse(message.payload);
+		const auto type = payload.value("type", std::string());
+		if (type != "game_prepared" && type != "game_ready") return false;
+		const auto* authority = _roomAuthority
+			? RoomMatchAuthority(RoomTableForGeneration(payload.value("generation", std::uint64_t(0))))
+			: _matchAuthority.get();
+		return !authority || !authority->Expects(message.connection, payload);
+	} catch (const std::exception&) { return false; }
 }
 
 int SessionServer::Step()
@@ -1353,6 +1425,13 @@ int SessionServer::Step()
 					_transport->Send(client.conn, it->payload);
 		it = messages.erase(it);
 	}
+	// A match acknowledgement its authority no longer expects changes nothing.
+	// With optional spectators, a spectator's game_prepared/game_ready routinely
+	// arrives after the fighters have moved on; opening a recovery candidate for
+	// each would build a full checkpoint per spectator for no mutation.
+	if (_recovery.Enabled())
+		messages.erase(std::remove_if(messages.begin(), messages.end(),
+			[&](const session::Message& message) { return IsStaleMatchAck(message); }), messages.end());
 	if (_recovery.Enabled()) {
 		// Polling only transfers the bounded inbox; it does not mutate native
 		// session state. Capture the baseline before processing actual work,
@@ -1468,6 +1547,7 @@ int SessionServer::Step()
 						else admissionResult = RegisterToWait(conn, admission.port, admission.sidecarHash, admission.username,
 							incoming.peerAddress, cidMsg.cid, admission.mainFighter);
 						admitted = admissionResult == SessionProtocol::JOIN_OK;
+						if (admitted) EnableChatDelta(conn, admission.roomChatDelta);
 					} catch (const std::exception&) { admissionResult = SessionProtocol::JR_REQUEST_INVALID; }
 				}
 				if (admitted && _roomAuthority) {
@@ -1768,6 +1848,7 @@ int SessionServer::Step()
 					Respond(conn, rejectMsg);
 					continue;
 				}
+				EnableChatDelta(conn, request.roomChatDelta);
 
 				_dataDirty = true;
 			}

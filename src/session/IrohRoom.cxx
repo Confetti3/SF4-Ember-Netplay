@@ -2,6 +2,8 @@
 #include "RoomMessageQueue.hxx"
 #include "sf4e__SessionProtocol.hxx"
 #include "../common/RoomLimits.hxx"
+#include "../common/EnvFlag.hxx"
+#include "../common/sf4e__RollbackDiagnostics.hxx"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <limits>
@@ -65,6 +67,10 @@ bool IrohRoom::Begin(bool host) {
 		epoch_ == (std::numeric_limits<std::uint64_t>::max)()) return false;
 	++epoch_;
 	coordination_ = {}; probe_ = {}; checkpointReceiver_.Reset(); committedCheckpoints_.clear();
+	// Decodes still in flight belong to the previous room; with no pending
+	// entry left their results are dropped on arrival.
+	decoding_.clear();
+	decodeOffThread_ = EnvFlag("SF4E_ROOM_WORKER", true);
 	checkpointRestarts_=checkpointTimeouts_=checkpointTransferErrors_=0;
     coordination_.active=true;
 	proposalBytes_.clear(); proposalIdentity_ = {}; proposalBegun_ = proposalEnded_ = false;
@@ -276,7 +282,7 @@ IrohRoom::RecoverySnapshot IrohRoom::RecoveryState() const {
         state.checkpointOffset=checkpointReceiver_.Offset();
         state.checkpointLength=identity.length;
     }
-    state.stagedCheckpoints=committedCheckpoints_.size();
+    state.stagedCheckpoints=committedCheckpoints_.size()+decoding_.size();
     state.pendingCheckpointAck=!pendingCheckpointAck_.is_null();
     state.pendingCommittedMarker=!pendingCommittedMarker_.is_null();
     state.checkpointRestarts=checkpointRestarts_;
@@ -333,8 +339,8 @@ std::map<Connection,std::string> IrohRoom::ControlIdentities() const {
     for (const auto& peer : peers_) identities.emplace(peer.first,peer.second.identity);
     return identities;
 }
-bool IrohRoom::ProposeCheckpoint(std::uint64_t request, std::uint64_t term,
-    std::uint64_t baseRevision, const json& checkpoint) {
+bool IrohRoom::ProposeCheckpointBytes(std::uint64_t request, std::uint64_t term,
+    std::uint64_t baseRevision, std::string bytes) {
     if (!request) { proposalStatus_="invalid_request"; return false; }
     if (!coordination_.active) { proposalStatus_="coordination_inactive"; return false; }
     if (!coordination_.writable) { proposalStatus_="coordination_not_writable"; return false; }
@@ -342,7 +348,9 @@ bool IrohRoom::ProposeCheckpoint(std::uint64_t request, std::uint64_t term,
     if (term != coordination_.term) { proposalStatus_="term_mismatch"; return false; }
     if (baseRevision != coordination_.revision) { proposalStatus_="base_revision_mismatch"; return false; }
     if (!proposalBytes_.empty()) { proposalStatus_="proposal_in_flight"; return false; }
-    auto bytes=checkpoint.dump();
+    {
+    // Digest only; PumpCheckpoint below times itself.
+    diag::ScopedTimer timer(diag::OP_ROOM_PROPOSE);
     if (bytes.empty()) { proposalStatus_="empty_checkpoint"; return false; }
     if (bytes.size()>coordination::MaximumCheckpoint) { proposalStatus_="checkpoint_too_large"; return false; }
     if (baseRevision==UINT64_MAX) { proposalStatus_="base_revision_exhausted"; return false; }
@@ -352,15 +360,97 @@ bool IrohRoom::ProposeCheckpoint(std::uint64_t request, std::uint64_t term,
     proposalBytes_=std::move(bytes); proposalSent_=proposalAcknowledged_=0;
     proposalBegun_=proposalEnded_=false; proposalStartedMs_=GetTickCount64();
     proposalStatus_="in_flight";
+    }
     PumpCheckpoint(); return true;
+}
+void IrohRoom::SubmitCommittedCheckpoint(const coordination::TransferIdentity& receiverIdentity) {
+    const auto identity=receiverIdentity; // the receiver is reset below
+    const auto ticket=nextDecodeTicket_++;
+    // Claim the revision now so a replayed transfer of this same commit is
+    // ignored while it decodes. A failed decode gives the revision back.
+    decoding_.push_back({ticket,identity,receivedRevision_});
+    receivedRevision_=identity.revision;
+    const std::string bytes=checkpointReceiver_.Bytes();
+    checkpointReceiver_.Reset();
+    if(decodeOffThread_ && decoder_.Submit(ticket,bytes)) return;
+    // The worker is disabled or its thread could not start. Decode inline from
+    // now on; this one can complete inline only if nothing older is still
+    // decoding, because results are matched oldest first. Otherwise fail it
+    // closed like an undecodable one.
+    decodeOffThread_=false;
+    if(decoding_.size()==1) { FinishCommittedCheckpoint(CheckpointDecodeWorker::Decode(ticket,bytes)); return; }
+    receivedRevision_=decoding_.back().previousReceivedRevision;
+    decoding_.pop_back();
+    error_="invalid_checkpoint_proposal";
+}
+void IrohRoom::CompleteCommittedCheckpoints() {
+    CheckpointDecodeWorker::Result decoded;
+    while(decoder_.TryTake(decoded)) FinishCommittedCheckpoint(std::move(decoded));
+}
+void IrohRoom::FinishCommittedCheckpoint(CheckpointDecodeWorker::Result&& decoded) {
+    // A result for a room that has since been reset has no pending entry.
+    if(decoding_.empty() || decoding_.front().ticket!=decoded.ticket) return;
+    const auto pending=decoding_.front();
+    decoding_.pop_front();
+    const auto& identity=pending.identity;
+    bool staged=false;
+    try {
+        if(decoded.ok && decoded.proposal.term==identity.term && decoded.proposal.request==identity.transfer &&
+            decoded.proposal.baseRevision==identity.baseRevision && identity.revision==decoded.proposal.baseRevision+1) {
+            StageCommittedCheckpoint(identity,std::move(decoded));
+            staged=true;
+        }
+    } catch(const std::exception&) {}
+    if(staged) return;
+    if(receivedRevision_==identity.revision) receivedRevision_=pending.previousReceivedRevision;
+    error_="invalid_checkpoint_proposal";
+    // Staging capacity came back without an activation; release a parked marker.
+    if(!pendingCommittedMarker_.is_null()) {
+        auto marker=std::move(pendingCommittedMarker_); pendingCommittedMarker_=nullptr;
+        ConsumeCoordinationEvent(marker,"checkpoint_committed");
+    }
+}
+void IrohRoom::StageCommittedCheckpoint(const coordination::TransferIdentity& identity,
+    CheckpointDecodeWorker::Result&& decoded) {
+    auto& proposal=decoded.proposal;
+    auto& journal=decoded.journal;
+    std::map<room::MemberId,room::ConnectionRef> recipients;
+    std::set<std::string> committedMembers;
+    for(const auto& member:proposal.checkpoint.at("members")) {
+        const auto& data=member.at("data");
+        committedMembers.insert(data.at("authenticatedEndpoint").get<std::string>());
+        if(data.value("authenticatedEndpoint",std::string())==localIdentity_)
+            recipients.emplace(member.at("member").get<room::MemberId>(),member.at("endpoint").get<room::ConnectionRef>());
+    }
+    // Keep the prior identity long enough to authenticate an accepted
+    // neutral departure response from the removal's committed journal.
+    for(const auto& prior:effectRecipients_) {
+        if(std::any_of(journal.begin(),journal.end(),[&](const EffectEnvelope& e){return e.recipient==prior.first;})) recipients.emplace(prior);
+    }
+    // A received commit is staged until the native recovery bridge has
+    // imported it and rebound every endpoint.  This keeps
+    // ClientAdapter from consuming effects for an unapplied room.
+    for(const auto& staged:committedCheckpoints_) {
+        for(const auto& prior:staged.recipients) {
+            if(std::any_of(journal.begin(),journal.end(),[&](const EffectEnvelope& e){return e.recipient==prior.first;}))
+                recipients.emplace(prior);
+        }
+    }
+    committedCheckpoints_.push_back({identity,std::move(proposal),std::move(journal),
+        std::move(recipients),std::move(committedMembers)});
+    if (identity.transfer==proposalIdentity_.transfer && identity.term==proposalIdentity_.term) {
+        proposalBytes_.clear(); proposalStatus_="committed";
+    }
 }
 bool IrohRoom::TakeCommittedCheckpoint(CommittedCheckpoint& checkpoint) {
     if (committedCheckpoints_.empty()) return false;
     // Keep the head in place until the recovery bridge has imported it and
     // rebound every authenticated member.  A failed import must be retried in
     // order and must never expose the following commit.
-    checkpoint.identity=committedCheckpoints_.front().identity;
-    checkpoint.checkpoint=committedCheckpoints_.front().checkpoint;
+    const auto& head=committedCheckpoints_.front();
+    checkpoint.identity=head.identity;
+    checkpoint.proposal=&head.proposal;
+    checkpoint.journal=&head.effects;
     return true;
 }
 bool IrohRoom::BuildTerminalReplayEffects(const StagedCheckpoint& staged,
@@ -371,10 +461,7 @@ bool IrohRoom::BuildTerminalReplayEffects(const StagedCheckpoint& staged,
     activeKeys.clear();
     // Old checkpoints do not have the durable receipt ledger. They remain
     // valid and simply have no local terminal replay to synthesize.
-    SessionProposal proposal;
-    try { proposal=staged.checkpoint.get<SessionProposal>(); }
-    catch (...) { return false; }
-    const auto& checkpoint=proposal.checkpoint;
+    const auto& checkpoint=staged.proposal.checkpoint;
     const auto roomState=checkpoint.value("room",json::object());
     if (!roomState.is_object() || !roomState.contains("terminal_receipts")) return true;
     const auto receipts=roomState.at("terminal_receipts");
@@ -516,9 +603,10 @@ bool IrohRoom::ReadyForMatch() const {
     if(state_ != State::Ready) return false;
     if(!coordination_.active) return true;
     return coordination_.writable && coordination_.rebound &&
-        effectsRevision_ >= coordination_.revision && committedCheckpoints_.empty();
+        effectsRevision_ >= coordination_.revision && committedCheckpoints_.empty() && decoding_.empty();
 }
 void IrohRoom::PumpCheckpoint() {
+    diag::ScopedTimer timer(diag::OP_ROOM_PROPOSE);
     const auto now=GetTickCount64();
     if (!pendingCheckpointAck_.is_null() && helper_.Send(pendingCheckpointAck_.dump())) pendingCheckpointAck_=nullptr;
     if (checkpointReceiver_.Expired(now) && pendingCommittedMarker_.is_null()) {
@@ -684,50 +772,12 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
         if (!checkpointReceiver_.Complete() || !checkpointReceiver_.Identity().Matches(event) ||
             event.at("digest")!=checkpointReceiver_.Identity().digest) return true;
         if(checkpointReceiver_.Identity().revision<=receivedRevision_) {checkpointReceiver_.Reset(); return true;}
-        if (committedCheckpoints_.size()>=4) {
+        if (committedCheckpoints_.size()+decoding_.size()>=4) {
             if (pendingCommittedMarker_.is_null()) pendingCommittedMarker_=event;
             return true;
         }
-        const auto identity=checkpointReceiver_.Identity();
-        try {
-            auto checkpoint=json::parse(checkpointReceiver_.Bytes());
-            const auto proposal=checkpoint.get<SessionProposal>();
-            if(proposal.term!=identity.term || proposal.request!=identity.transfer ||
-                proposal.baseRevision!=identity.baseRevision || identity.revision!=proposal.baseRevision+1)
-                throw std::invalid_argument("checkpoint proposal identity");
-            auto journal=proposal.checkpoint.value("effect_journal",std::vector<EffectEnvelope>{});
-            journal.insert(journal.end(),proposal.effects.begin(),proposal.effects.end());
-            CompactEffectJournal(journal);
-            std::map<room::MemberId,room::ConnectionRef> recipients;
-            std::set<std::string> committedMembers;
-            for(const auto& member:proposal.checkpoint.at("members")) {
-                const auto& data=member.at("data");
-                committedMembers.insert(data.at("authenticatedEndpoint").get<std::string>());
-                if(data.value("authenticatedEndpoint",std::string())==localIdentity_)
-                    recipients.emplace(member.at("member").get<room::MemberId>(),member.at("endpoint").get<room::ConnectionRef>());
-            }
-            // Keep the prior identity long enough to authenticate an accepted
-            // neutral departure response from the removal's committed journal.
-            for(const auto& prior:effectRecipients_) {
-                if(std::any_of(journal.begin(),journal.end(),[&](const EffectEnvelope& e){return e.recipient==prior.first;})) recipients.emplace(prior);
-            }
-            // A received commit is staged until the native recovery bridge has
-            // imported it and rebound every endpoint.  This keeps
-            // ClientAdapter from consuming effects for an unapplied room.
-            for(const auto& staged:committedCheckpoints_) {
-                for(const auto& prior:staged.recipients) {
-                    if(std::any_of(journal.begin(),journal.end(),[&](const EffectEnvelope& e){return e.recipient==prior.first;}))
-                        recipients.emplace(prior);
-                }
-            }
-            committedCheckpoints_.push_back({identity,std::move(checkpoint),std::move(journal),
-                std::move(recipients),std::move(committedMembers)});
-            receivedRevision_=identity.revision;
-            if (identity.transfer==proposalIdentity_.transfer && identity.term==proposalIdentity_.term) {
-                proposalBytes_.clear(); proposalStatus_="committed";
-            }
-            checkpointReceiver_.Reset(); return true;
-        } catch(const std::exception&) { checkpointReceiver_.Reset(); error_="invalid_checkpoint_proposal"; return true; }
+        SubmitCommittedCheckpoint(checkpointReceiver_.Identity());
+        return true;
     }
     if (type=="probe_result") {
         if(probe_.status=="timed_out") return true;
@@ -789,18 +839,30 @@ int IrohRoom::AuthorizedEffect(Message& message) {
         }
         const auto token=payload.at("_commit").get<EffectEnvelope>();
         payload.erase("_commit");
-        if(token.term<coordination_.term || PayloadDigest(payload)!=token.payloadDigest) return -1;
-        // The helper's committed effect stream and its coordination watch are
-        // independent.  A private grant can therefore beat the watch which
-        // announces the checkpoint that activates its recipient mapping. Keep
-        // the bounded client queue parked until that activation either makes
-        // the token deliverable or rejects the staged checkpoint; dropping it
-        // here strands a valid native grant permanently.
-        if(token.term>coordination_.term || token.revision>effectsRevision_) return 0;
+        if(PayloadDigest(payload)!=token.payloadDigest) return -1;
+        // An effect in the activated journal is committed whatever its term.
+        // That is how a successor's replay reaches this client after a handoff:
+        // the replay keeps the term it was committed in, which by then is older
+        // than the coordination term.
+        const bool activated=token.revision<=effectsRevision_ &&
+            std::find(appliedEffects_.begin(),appliedEffects_.end(),token)!=appliedEffects_.end();
+        if(!activated) {
+            // An older term's effect that is not in the activated journal may
+            // never commit; drop it rather than park it at the queue head. If it
+            // did commit, activation replays its public form.
+            if(token.term<coordination_.term) return -1;
+            // The helper's committed effect stream and its coordination watch are
+            // independent.  A private grant can therefore beat the watch which
+            // announces the checkpoint that activates its recipient mapping. Keep
+            // the bounded client queue parked until that activation either makes
+            // the token deliverable or rejects the staged checkpoint; dropping it
+            // here strands a valid native grant permanently.
+            if(token.term>coordination_.term || token.revision>effectsRevision_) return 0;
+            return -1;
+        }
         const auto recipient=effectRecipients_.find(token.recipient);
         if(recipient==effectRecipients_.end() || recipient->second.host!=token.endpoint.host ||
             recipient->second.user!=token.endpoint.user ||
-            std::find(appliedEffects_.begin(),appliedEffects_.end(),token)==appliedEffects_.end() ||
             !deliveredEffects_.insert({token.term,token.sequence}).second) return -1;
         message.payload=payload.dump(); return 1;
     } catch(const std::exception&) { return -1; }
@@ -879,7 +941,7 @@ SendResult IrohRoom::SendRemote(Connection connection, const std::string& payloa
 void IrohRoom::PruneRetiredPeers() {
     // Wait until native application of the committed candidate has queued its
     // final effects. Socket loss alone never retires a stable member mapping.
-    if(!haveCommittedMembers_ || !committedCheckpoints_.empty()) return;
+    if(!haveCommittedMembers_ || !committedCheckpoints_.empty() || !decoding_.empty()) return;
     for(auto peer=peers_.begin();peer!=peers_.end();) {
         const auto& identity=peer->second.identity;
         if(!peer->second.admitted) {++peer;continue;}
@@ -896,6 +958,10 @@ void IrohRoom::PruneRetiredPeers() {
 }
 
 void IrohRoom::Poll() {
+    diag::ScopedTimer timer(diag::OP_ROOM_POLL);
+    // Stage whatever finished decoding since the last poll, before anything
+    // below looks at the staging queue. Never waits.
+    CompleteCommittedCheckpoints();
     if(probe_.status=="checking" && GetTickCount64()>=probe_.deadlineMs) { probe_.status="timed_out";probe_.recommended=-1; }
     PruneRetiredPeers();
 	if (helper_.State() == platform::HelperState::Failed || helper_.State() == platform::HelperState::Stopped) {
@@ -938,6 +1004,13 @@ void IrohRoom::Poll() {
 				roomCommandQueued_ = false; leavePending_ = false; leaveDeadline_ = 0;
 				for (auto& game : games_) { game.second.state = GameState::Closed; game.second.virtualPort = 0; }
 				state_ = State::Idle; peers_.clear(); closed_.clear(); continue;
+			}
+			if (type == "helper_load") {
+				helperLoad_.samples++;
+				helperLoad_.actorTickLagMaxUs = event.at("actor_tick_lag_max_us").get<std::uint64_t>();
+				helperLoad_.actorTickBodyMaxUs = event.at("actor_tick_body_max_us").get<std::uint64_t>();
+				helperLoad_.eventQueueFreeMin = event.at("event_queue_free_min").get<std::uint64_t>();
+				continue;
 			}
 			// Gameplay is independent of room health. Its lifecycle and counters
 			// remain observable after control_closed, until explicit teardown.

@@ -242,6 +242,9 @@ namespace sf4e {
 				// Publishes a GGPO-confirmed native outcome if one is waiting.
 				// Safe to call outside GGPO callbacks at any time.
 				static void PollNativeMatchResult();
+				// P1 only: drops a spectator that has not synchronized in time or
+				// has fallen too far behind (SpectatorPolicy). Outside callbacks.
+				static void PollSpectators();
                 static sf4e::MatchTelemetry matchTelemetry;
                 static void PollMatchTelemetry();
                 static bool ggpo_advance_frame_callback(int);

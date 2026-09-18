@@ -1,6 +1,7 @@
 #pragma once
 #include "IrohRoom.hxx"
 #include "sf4e__SessionServer.hxx"
+#include "../common/sf4e__RollbackDiagnostics.hxx"
 
 namespace sf4e { namespace session {
 // The production bridge is also used by helper integration tests. It never
@@ -16,10 +17,10 @@ public:
         IrohRoom::CommittedCheckpoint committed;
         while(room.TakeCommittedCheckpoint(committed)) {
             try {
-                const auto proposal=committed.checkpoint.get<SessionProposal>();
-                if(proposal.term!=committed.identity.term || proposal.request!=committed.identity.transfer ||
-                    proposal.baseRevision!=committed.identity.baseRevision ||
-                    committed.identity.revision!=proposal.baseRevision+1) throw std::runtime_error("checkpoint identity");
+                // IrohRoom decoded this commit, verified it against its transfer
+                // identity and compacted it when it arrived; repeating that here
+                // doubled every member's import.
+                const auto& proposal=*committed.proposal;
                 const auto pending=server.PendingProposal();
                 bool applied=false;
                 const bool matchingLocalCandidate=pending && pending->request==proposal.request &&
@@ -36,25 +37,23 @@ public:
                     deferredLocalCommit=true;
                     break;
                 }
-                if(matchingLocalCandidate && localAuthorityReady) {
-                    // SetAuthority at the end of the paused pump deliberately
-                    // kept the gate non-writable at the candidate base. Restore
-                    // that exact local authority before ApplyCommit; otherwise
-                    // the first healthy pump would reject the retained commit.
-                    server.SetAuthority(proposal.term,proposal.baseRevision,true,
-                        authority.writable && authority.rebound);
-                    applied=server.ApplyCommit(proposal.request,proposal.term,committed.identity.revision,
-                        proposal.checkpoint,proposal.effectsDigest);
-                } else {
-                    server.DiscardProposal();
-                    auto restored=proposal.checkpoint;
-                    auto history=restored.value("effect_journal",std::vector<EffectEnvelope>{});
-                    history.insert(history.end(),proposal.effects.begin(),proposal.effects.end());
-                    CompactEffectJournal(history);
-                    restored["effect_journal"]=history;
-                    restored["authority"]={{"term",proposal.term},{"revision",committed.identity.revision},{"writable",false}};
-                    applied=server.RestoreRecoveryCheckpoint(restored);
-                    if(applied) { needsRebind_=true; }
+                {
+                    diag::ScopedTimer applyTimer(diag::OP_ROOM_IMPORT_APPLY);
+                    if(matchingLocalCandidate && localAuthorityReady) {
+                        // SetAuthority at the end of the paused pump deliberately
+                        // kept the gate non-writable at the candidate base. Restore
+                        // that exact local authority before ApplyCommit; otherwise
+                        // the first healthy pump would reject the retained commit.
+                        server.SetAuthority(proposal.term,proposal.baseRevision,true,
+                            authority.writable && authority.rebound);
+                        applied=server.ApplyCommit(proposal.request,proposal.term,committed.identity.revision,
+                            proposal.checkpoint,proposal.effectsDigest);
+                    } else {
+                        server.DiscardProposal();
+                        applied=server.RestoreRecoveryCheckpoint(proposal.checkpoint,*committed.journal,
+                            AuthorityStamp{proposal.term,committed.identity.revision,false});
+                        if(applied) { needsRebind_=true; }
+                    }
                 }
                 if(!applied) throw std::runtime_error(matchingLocalCandidate
                     ? "local committed candidate rejected" : "replicated checkpoint import rejected");
@@ -64,11 +63,14 @@ public:
                 // this exact head queued for retry and cannot be overtaken.
                 if(needsRebind_ && !Rebind(server,room))
                     throw std::runtime_error("replicated checkpoint rebind pending");
+                // Activation retires the staged head, and with it `proposal`.
+                // identity.transfer is the proposal's request, held by value.
                 if(!room.ActivateCommittedCheckpoint(committed.identity))
                     throw std::runtime_error("committed checkpoint activation pending");
+                const auto request=committed.identity.transfer;
                 needsRebind_=false;
-                if(proposal.request==UINT64_MAX) throw std::runtime_error("checkpoint request exhausted");
-                nextRequest_=(std::max)(nextRequest_,proposal.request+1);
+                if(request==UINT64_MAX) throw std::runtime_error("checkpoint request exhausted");
+                nextRequest_=(std::max)(nextRequest_,request+1);
                 appliedRevision_=committed.identity.revision;
                 failed_=false;
                 error_.clear();
@@ -99,7 +101,7 @@ public:
             server.ProposeCheckpoint(nextRequest_++,authority.term,appliedRevision_,nullptr);
         if(const auto next=server.PendingProposal()) {
             if(!deferredLocalCommit && !room.ProposalInFlight())
-                room.ProposeCheckpoint(next->request,next->term,next->baseRevision,nlohmann::json(*next));
+                room.ProposeCheckpointBytes(next->request,next->term,next->baseRevision,next->encoded);
         }
         return !failed_;
     }
@@ -110,6 +112,7 @@ public:
     }
 private:
     static bool Rebind(SessionServer& server, const IrohRoom& room) {
+        diag::ScopedTimer timer(diag::OP_ROOM_IMPORT_REBIND);
         const auto* snapshot=server.RoomSnapshot();
         if(!snapshot) return false;
         if(snapshot->members.empty()) return true;

@@ -616,6 +616,98 @@ static void TestTerminalReceiptSurvivesCompaction() {
 	CHECK(!source.Apply(p1, unknownAck).accepted);
 }
 
+// A spectator still retiring its session keeps its own receipt row but no
+// longer holds the table: the fighters rematch at once, the spectator sits
+// the new generation out, and it rejoins the one after its acknowledgment.
+// A snapshot must stay readable by clients after someone who chatted leaves.
+static void TestChatAfterSenderLeaves() {
+	RoomAuthority authority("Chat departure", 8, 313);
+	const auto host = Join(authority, 0, true);
+	const auto guest = Join(authority, 1);
+	Action chat = TableAction(authority, guest, 0, ActionKind::Chat);
+	chat.text = "hello";
+	CHECK(authority.Apply(guest, chat).accepted);
+	CHECK(authority.Apply(guest, TableAction(authority, guest, 0, ActionKind::Leave)).accepted);
+	Snapshot parsed;
+	bool readable = true;
+	try { nlohmann::json(authority.SnapshotFor(host)).get_to(parsed); } catch (const std::exception&) { readable = false; }
+	CHECK(readable && parsed.chat.empty());
+	// A successor restores the room.
+	RoomAuthority replica("Replica");
+	CHECK(replica.RestoreCheckpoint(nlohmann::json::parse(authority.Checkpoint().dump())));
+	// State from an older owner that kept the departed sender's line still reads.
+	auto legacy = nlohmann::json(authority.SnapshotFor(host));
+	nlohmann::json orphan = nlohmann::json::object();
+	orphan["sequence"] = std::uint64_t(1); orphan["sender"] = guest; orphan["text"] = "hello";
+	legacy["chat"] = nlohmann::json::array();
+	legacy["chat"].push_back(orphan);
+	readable = true;
+	try { legacy.get_to(parsed); } catch (const std::exception& error) { std::printf("legacy chat: %s\n", error.what()); readable = false; }
+	CHECK(readable && parsed.chat.empty());
+}
+
+static void TestSpectatorDoesNotHoldTable() {
+	RoomAuthority authority("Spectator retirement", 8, 312);
+	Join(authority, 0, true);
+	const auto p1 = Join(authority, 1);
+	const auto p2 = Join(authority, 2);
+	const auto spectator = Join(authority, 3);
+	for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	CHECK(authority.Apply(spectator, TableAction(authority, spectator, 0, ActionKind::Watch)).accepted);
+	const auto begin = [&]() {
+		for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+		CHECK(authority.BeginMatch(0, p1, p2).accepted);
+		return authority.SnapshotView().tables[0].matchGeneration;
+	};
+	const auto acknowledge = [&](MemberId member, std::uint64_t generation) {
+		Action acknowledgment = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
+		acknowledgment.matchGeneration = generation;
+		return authority.Apply(member, acknowledgment).accepted;
+	};
+
+	const auto first = begin();
+	CHECK((authority.MatchRoster(0) == std::vector<MemberId>{p1, p2, spectator}));
+	CHECK(authority.EndMatch(0, first, MatchResult::P1Win).accepted);
+	CHECK(authority.MatchRoster(0).empty());
+	CHECK(authority.SnapshotFor(p1).terminalPending[0]);
+	CHECK(acknowledge(p1, first) && acknowledge(p2, first));
+	// Only the spectator is still retiring generation one.
+	CHECK(!authority.SnapshotFor(p1).terminalPending[0]);
+	CHECK(authority.SnapshotFor(spectator).localTerminalPending && !authority.SnapshotFor(p1).localTerminalPending);
+
+	const auto second = begin();
+	CHECK(second > first);
+	CHECK((authority.MatchRoster(0) == std::vector<MemberId>{p1, p2}));
+	// The spectator stays in the room view, and its own gates still hold.
+	const auto& table = authority.SnapshotView().tables[0];
+	CHECK(std::find(table.spectators.begin(), table.spectators.end(), spectator) != table.spectators.end());
+	CHECK(authority.PendingTerminalEvents(spectator).size() == 1);
+	const auto crossTable = authority.Apply(spectator, TableAction(authority, spectator, 1, ActionKind::Watch));
+	CHECK(!crossTable.accepted && crossTable.reason == RejectReason::TerminalLedgerFull);
+
+	// A successor restores the same frozen roster and receipt state.
+	RoomAuthority replica("Replica");
+	CHECK(replica.RestoreCheckpoint(nlohmann::json::parse(authority.Checkpoint().dump())));
+	CHECK(replica.MatchRoster(0) == authority.MatchRoster(0));
+	CHECK(!replica.SnapshotFor(p1).terminalPending[0] && replica.SnapshotFor(spectator).localTerminalPending);
+
+	CHECK(authority.EndMatch(0, second, MatchResult::P2Win).accepted);
+	// A late duplicate completion never awards a second score.
+	CHECK(!authority.EndMatch(0, second, MatchResult::P2Win).accepted);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
+	// Generation two's receipt never included the spectator.
+	CHECK((authority.TerminalMembers(0, second) == std::vector<MemberId>{p1, p2}));
+	CHECK(!acknowledge(spectator, second));
+	CHECK(acknowledge(p1, second) && acknowledge(p2, second));
+
+	// Once it acknowledges generation one, the spectator joins the next roster.
+	CHECK(acknowledge(spectator, first));
+	CHECK(!authority.SnapshotFor(spectator).localTerminalPending);
+	const auto third = begin();
+	CHECK(third > second);
+	CHECK((authority.MatchRoster(0) == std::vector<MemberId>{p1, p2, spectator}));
+}
+
 int main() {
     TestProfileMain();
 	RoomAuthority authority("Test room", 16, 77);
@@ -698,6 +790,8 @@ int main() {
 	TestUnlimitedRematch();
 	TestMatchFinishedAndSeatLifecycle();
 	TestTerminalLifecycleGate();
+	TestSpectatorDoesNotHoldTable();
+	TestChatAfterSenderLeaves();
 	TestFighterAbandonsDisputedResult();
 	TestQueueWatchAndReplay();
 	TestSnapshotBound();

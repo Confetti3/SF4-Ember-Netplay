@@ -2,10 +2,15 @@
 #include "../session/sf4e__SessionServer.hxx"
 #include "../netplay/MatchResultOutbox.hxx"
 #include "iroh_integration_fixture.hxx"
+#include "../common/sf4e__RollbackDiagnostics.hxx"
 #include <ggponet.h>
 #include <cstdlib>
+#include <deque>
+#include <fstream>
 #include <functional>
+#include <iomanip>
 #include <iostream>
+#include <map>
 
 #define CHECK(c) do { if (!(c)) { std::cerr << "Check failed at " << __LINE__ << ": " #c << '\n'; std::exit(1); } } while (false)
 using namespace sf4e;
@@ -29,22 +34,54 @@ static GGPOSessionCallbacks GameCallbacks() {
 
 int wmain(int argc, wchar_t** argv) {
 	std::cout << std::unitbuf;
-	CHECK(argc >= 2 && argc <= 4);
-	bool relay = false, singleTable = false;
+	CHECK(argc >= 2);
+	// Layout: members fill tables in order, perTable at each; the first two at
+	// a table fight and the rest spectate. --perf measures each member's tick
+	// as its own slice, with a busy spin standing in for SF4's frame cost.
+	// --stall-spectator: the last member, a spectator, does not tick its match
+	// session during the first game's setup. The fighters must start without it
+	// after P1's grace, and it must retire that generation cleanly and join the
+	// next one.
+	bool relay = false, perf = false, stallSpectator = false;
+	std::size_t count = room::MaxMembers, perTable = 4;
+	int perfFrames = 600, gameCostUs = 1000;
+	std::uint64_t rematchCycles = 6;
+	std::wstring jsonPath;
 	for (int i = 2; i < argc; ++i) {
-		if (std::wstring(argv[i]) == L"--relay-only") relay = true;
-		else if (std::wstring(argv[i]) == L"--single-table") singleTable = true;
+		const std::wstring arg = argv[i];
+		const auto number = [&]() { CHECK(i + 1 < argc); return std::wcstoul(argv[++i], nullptr, 10); };
+		if (arg == L"--relay-only") relay = true;
+		else if (arg == L"--single-table") perTable = 0;
+		else if (arg == L"--perf") perf = true;
+		else if (arg == L"--stall-spectator") stallSpectator = true;
+		else if (arg == L"--members") count = number();
+		else if (arg == L"--per-table") perTable = number();
+		else if (arg == L"--frames") perfFrames = static_cast<int>(number());
+		else if (arg == L"--game-cost-us") gameCostUs = static_cast<int>(number());
+		else if (arg == L"--cycles") rematchCycles = number();
+		else if (arg == L"--json") { CHECK(i + 1 < argc); jsonPath = argv[++i]; }
 		else CHECK(false);
 	}
-	constexpr std::size_t Count = room::MaxMembers;
-	std::array<platform::HelperProcess, Count> processes;
-	std::array<platform::HelperClient, Count> helpers;
-	std::array<std::shared_ptr<session::IrohRoom>, Count> rooms;
-	std::array<test::IrohServerPeer, Count> recoveryPeers;
-	std::array<std::unique_ptr<SessionClient>, Count> clients;
-	std::array<std::unique_ptr<session::IrohMatchSession>, Count> matches;
-	std::array<GGPOSession*, Count> ggpo = {};
-	std::array<std::string, Count> names;
+	if (!perTable) perTable = count;
+	CHECK(count >= 2 && count <= room::MaxMembers && perTable >= 2 && count % perTable == 0);
+	CHECK(perTable <= room::MaxMatchParticipants && count / perTable <= room::TableCount && rematchCycles >= 1);
+	const bool singleTable = count == perTable;
+	const std::size_t tableCount = count / perTable;
+	const int playerFrames = perf ? perfFrames + 20 : 80, watchFrames = perf ? perfFrames : 60;
+	if (perf) diag::SetEnabled(true);
+	const std::size_t Count = count;
+	const std::size_t stalled = stallSpectator ? Count - 1 : Count;
+	CHECK(!stallSpectator || (Count - 1) % perTable >= 2);
+	bool stallActive = false;
+	const auto live = [&](std::size_t i) { return !(stallActive && i == stalled); };
+	std::vector<platform::HelperProcess> processes(Count);
+	std::vector<platform::HelperClient> helpers(Count);
+	std::vector<std::shared_ptr<session::IrohRoom>> rooms(Count);
+	std::vector<test::IrohServerPeer> recoveryPeers(Count);
+	std::vector<std::unique_ptr<SessionClient>> clients(Count);
+	std::vector<std::unique_ptr<session::IrohMatchSession>> matches(Count);
+	std::vector<GGPOSession*> ggpo(Count, nullptr);
+	std::vector<std::string> names(Count);
 	for (std::size_t i = 0; i < Count; ++i) {
 		names[i] = "Member " + std::to_string(i + 1);
 		CHECK(processes[i].Start(argv[1], GetCurrentProcessId(), relay));
@@ -57,9 +94,12 @@ int wmain(int argc, wchar_t** argv) {
 	std::function<void()> serviceJoins;
 	std::function<void()> failureDump;
 	std::string phase="helper startup";
-	auto wait = [&](const std::function<bool()>& progress) {
-		const auto deadline = GetTickCount64() + 45000;
-		do { for (auto& room : rooms) room->Poll(); if(serviceJoins) serviceJoins(); if (progress()) return; Sleep(2); } while (GetTickCount64() < deadline);
+	// Once set, each member's tick is a timed slice that polls its own room
+	// (RoomRecoveryRuntime::Tick does), so the shared poll below is skipped.
+	bool sliced = false;
+	auto wait = [&](const std::function<bool()>& progress, std::uint64_t timeoutMs = 45000) {
+		const auto deadline = GetTickCount64() + timeoutMs;
+		do { if (!sliced) for (auto& room : rooms) room->Poll(); if(serviceJoins) serviceJoins(); if (progress()) return; Sleep(2); } while (GetTickCount64() < deadline);
 		std::cerr << "Large room timeout during " << phase << '\n';
 		if (failureDump) failureDump();
 		for (std::size_t i = 0; i < Count; ++i) {
@@ -211,7 +251,7 @@ int wmain(int argc, wchar_t** argv) {
 		const auto& table = server.RoomSnapshot()->tables[0];
 		bool changed = tableZeroTrace.roomPhase != static_cast<int>(table.phase) ||
 			tableZeroTrace.roomRevision != table.revision || tableZeroTrace.generation != table.matchGeneration;
-		for (std::size_t i = 0; i < 4; ++i) {
+		for (std::size_t i = 0; i < (std::min<std::size_t>)(4, Count); ++i) {
 			const int matchPhase = static_cast<int>(matches[i]->GetPhase());
 			const auto matchGeneration = matches[i]->Generation();
 			changed = changed || tableZeroTrace.clientPhases[i] != matchPhase ||
@@ -230,11 +270,45 @@ int wmain(int argc, wchar_t** argv) {
 		std::cout << "Table0 transition tick=" << elapsed() << " room_phase=" << tableZeroTrace.roomPhase
 			<< " table_revision=" << tableZeroTrace.roomRevision << " generation=" << tableZeroTrace.generation
 			<< " authority_phase=" << authorityPhase << " authority_generation=" << authorityGeneration;
-		for (std::size_t i = 0; i < 4; ++i)
+		for (std::size_t i = 0; i < (std::min<std::size_t>)(4, Count); ++i)
 			std::cout << " client" << i << "=" << tableZeroTrace.clientPhases[i] << "/" << tableZeroTrace.clientGenerations[i];
 		std::cout << '\n';
 	};
+	// --perf: one member's whole tick in the order the application runs it.
+	// Raw samples are kept because TimingStat percentiles are bucket bounds.
+	static const char* const kParts[] = {"recovery_tick", "room_advance", "server_step", "client_step", "match_tick", "game"};
+	// Attributed from the diagnostics' per-frame accumulator. room.poll nests
+	// inside recovery_tick and includes the checkpoint pump.
+	static const int kOps[] = {diag::OP_ROOM_POLL, diag::OP_ROOM_IMPORT_APPLY,
+		diag::OP_ROOM_IMPORT_REBIND, diag::OP_ROOM_CHECKPOINT_BUILD, diag::OP_ROOM_BROADCAST, diag::OP_ROOM_PROPOSE,
+		diag::OP_ROOM_JOURNAL, diag::OP_ROOM_COMMIT_SEND, diag::OP_ROOM_COMPACT};
+	constexpr std::size_t kOpCount = sizeof(kOps) / sizeof(kOps[0]);
+	struct Samples { std::vector<double> total, parts[6], ops[kOpCount]; };
+	std::map<std::string, Samples> samples;
+	std::uint64_t helperTickLagMaxUs = 0, helperTickBodyMaxUs = 0, helperEventFreeMin = UINT64_MAX;
+	const auto role = [&](std::size_t i) {
+		return i == 0 ? "host_p1" : i % perTable == 0 ? "p1" : i % perTable == 1 ? "p2" : "spectator";
+	};
+	const auto slice = [&](std::size_t i, const char* phaseName, const std::function<void()>& game) {
+		auto& d = diag::G();
+		d.OnOuterFrame(0.0); // clears per-frame attribution
+		const double t0 = diag::NowMs();
+		double mark[7] = {t0};
+		CHECK(recoveryPeers[i].recovery.Tick(*recoveryPeers[i].server, *rooms[i])); mark[1] = diag::NowMs();
+		recoveryPeers[i].server->AdvanceCustomRoom(GetTickCount64()); mark[2] = diag::NowMs();
+		CHECK(recoveryPeers[i].server->Step() == 0); mark[3] = diag::NowMs();
+		CHECK(clients[i]->Step() == 0); mark[4] = diag::NowMs();
+		if (live(i) && !matches[i]->Tick(ggpo[i] != nullptr)) { std::cerr << "match " << i << " " << matches[i]->Error() << '\n'; CHECK(false); }
+		mark[5] = diag::NowMs();
+		if (game) game();
+		mark[6] = diag::NowMs();
+		auto& bucket = samples[std::string(role(i)) + "." + phaseName];
+		bucket.total.push_back(mark[6] - t0);
+		for (std::size_t part = 0; part < 6; ++part) bucket.parts[part].push_back(mark[part + 1] - mark[part]);
+		for (std::size_t op = 0; op < kOpCount; ++op) bucket.ops[op].push_back(d.frameMs[kOps[op]]);
+	};
 	auto pump = [&]() {
+		if (sliced) { for (std::size_t i = 0; i < Count; ++i) slice(i, "lifecycle", {}); traceTableZero(); return; }
 		CHECK(test::PumpIrohRecoveryPeers(recovery));
 		if (!test::PumpIrohIntegrationClients(clientViews)) {
 			for (std::size_t i = 0; i < Count; ++i) {
@@ -250,7 +324,7 @@ int wmain(int argc, wchar_t** argv) {
 			}
 			CHECK(false);
 		}
-		for (std::size_t i = 0; i < Count; ++i) if (!matches[i]->Tick(ggpo[i] != nullptr)) {
+		for (std::size_t i = 0; i < Count; ++i) if (live(i) && !matches[i]->Tick(ggpo[i] != nullptr)) {
 			std::cerr << "match " << i << " " << matches[i]->Error() << '\n'; CHECK(false);
 		}
 		traceTableZero();
@@ -262,8 +336,9 @@ int wmain(int argc, wchar_t** argv) {
 		});
 	};
 	wait([&]() { pump(); return std::all_of(clients.begin(), clients.end(), [&](const std::unique_ptr<SessionClient>& client) { return client->GetRoomSnapshot().members.size() == Count; }); });
+	sliced = perf;
 	for (std::size_t i = 0; i < Count; ++i) {
-		const auto table = static_cast<std::uint8_t>(singleTable ? 0 : i / 4);
+		const auto table = static_cast<std::uint8_t>(i / perTable);
 		bool queueSent = false;
 		wait([&]() {
 			pump();
@@ -287,9 +362,15 @@ int wmain(int argc, wchar_t** argv) {
 	}
 	using Phase = session::IrohMatchSession::Phase;
 	const auto initialTables = server.RoomSnapshot()->tables;
-	constexpr std::uint64_t RematchCycles = 6;
-	for (std::uint64_t cycle = 1; cycle <= RematchCycles; ++cycle) {
+	for (std::uint64_t cycle = 1; cycle <= rematchCycles; ++cycle) {
 		phase="match " + std::to_string(cycle);
+		stallActive = stallSpectator && cycle == 1;
+		const bool stalledThisCycle = stallActive;
+		const auto skip = [&](std::size_t i) { return stalledThisCycle && i == stalled; };
+		const auto allLive = [&](const std::function<bool(const session::IrohMatchSession&)>& predicate) {
+			for (std::size_t i = 0; i < Count; ++i) if (live(i) && !predicate(*matches[i])) return false;
+			return true;
+		};
 		for (std::size_t readyIndex = 0; readyIndex < clients.size(); ++readyIndex) if (clients[readyIndex]->IsLocalPlayer()) {
 			auto& client = clients[readyIndex];
 			const auto previousRevision = server.RoomSnapshot()->revision;
@@ -336,12 +417,21 @@ int wmain(int argc, wchar_t** argv) {
         // Preparation and connection each have their own native deadline.
         // A sixteen-client fixture must observe both phases rather than
         // spend one 45-second allowance across both replicated fan-outs.
-        wait([&]() { pump(); return std::all_of(matches.begin(),matches.end(),[](const std::unique_ptr<session::IrohMatchSession>& match) {
-            const auto phase=match->GetPhase();
+        wait([&]() { pump(); return allLive([](const session::IrohMatchSession& match) {
+            const auto phase=match.GetPhase();
             return phase==Phase::Prepared || phase==Phase::Connecting || phase==Phase::Started;
         }); });
-		wait([&]() { pump(); return std::all_of(matches.begin(), matches.end(), [](const std::unique_ptr<session::IrohMatchSession>& match) { return match->GetPhase() == Phase::Started; }); });
-		for (const auto& match : matches) CHECK(match->Generation() != 0);
+		const auto setupStarted = GetTickCount64();
+		wait([&]() { pump(); return allLive([](const session::IrohMatchSession& match) { return match.GetPhase() == Phase::Started; }); });
+		for (std::size_t i = 0; i < Count; ++i) if (!skip(i)) CHECK(matches[i]->Generation() != 0);
+		if (stalledThisCycle) {
+			// The fighters and the other spectators started without it, within
+			// P1's grace plus ordinary setup time. It then resumes, retires the
+			// generation it never joined, and must be back in the next one.
+			CHECK(matches[stalled]->GetPhase() == Phase::Idle);
+			std::cout << "Started without the stalled spectator after " << (GetTickCount64() - setupStarted) << " ms\n";
+			stallActive = false;
+		}
 		{
 			// A fighter's desync check is forwarded by the leader straight to
 			// the other participants of its table, without a commit token and
@@ -353,7 +443,7 @@ int wmain(int argc, wchar_t** argv) {
 			hash.frameIdx = static_cast<int>(30 * cycle); hash.fromPlayer = true;
 			nlohmann::json payload = hash;
 			CHECK(clients[0]->Send(payload, nullptr) == session::SendResult::Queued);
-			const std::size_t participants = singleTable ? Count : 4;
+			const std::size_t participants = perTable;
 			wait([&]() { pump(); return std::all_of(clients.begin() + 1, clients.begin() + participants,
 				[&](const std::unique_ptr<SessionClient>& client) { return client->pendingRemoteHashes.count(hash.frameIdx) == 1; }); });
 			for (std::size_t i = participants; i < Count; ++i) CHECK(clients[i]->pendingRemoteHashes.count(hash.frameIdx) == 0);
@@ -361,9 +451,9 @@ int wmain(int argc, wchar_t** argv) {
 			std::cout << "Cycle " << cycle << " verification frame " << hash.frameIdx << " forwarded to " << (participants - 1)
 				<< " participants without a checkpoint\n";
 		}
-		for(std::size_t i=0;i<Count;++i) if(matches[i]->LocalSlot()==1) {
-			const auto table=singleTable?0:i/4;
-			const auto hostIndex=singleTable?0:table*4;
+		for(std::size_t i=0;i<Count;++i) if(!skip(i) && matches[i]->LocalSlot()==1) {
+			const auto table=i/perTable;
+			const auto hostIndex=table*perTable;
 			const auto hostRoute=rooms[hostIndex]->Game(rooms[i]->LocalIdentity()).route;
 			const auto guestRoute=rooms[i]->Game(rooms[hostIndex]->LocalIdentity()).route;
 			CHECK(!hostRoute.empty() && !guestRoute.empty());
@@ -371,12 +461,13 @@ int wmain(int argc, wchar_t** argv) {
 			std::cout << "Cycle " << cycle << " table " << table << " generation=" << matches[i]->Generation()
 				<< " selected routes=" << hostRoute << "," << guestRoute << '\n';
 		}
-		if (!singleTable) for (std::size_t table = 1; table < room::TableCount; ++table)
-			CHECK(matches[table * 4]->Generation() != matches[0]->Generation());
+		for (std::size_t table = 1; table < tableCount; ++table)
+			CHECK(matches[table * perTable]->Generation() != matches[0]->Generation());
 		std::cout << "Generation " << cycle << " authorized; creating GGPO sessions\n";
-		std::array<GGPOPlayerHandle, Count> localHandles = {};
+		std::vector<GGPOPlayerHandle> localHandles(Count);
 		auto callbacks = GameCallbacks();
 		for (std::size_t i = 0; i < Count; ++i) {
+			if (skip(i)) continue;
 			const auto slot = matches[i]->LocalSlot();
 			const auto& roster = matches[i]->Roster();
 			matches[i]->ReleasePortToGgpo();
@@ -391,6 +482,13 @@ int wmain(int argc, wchar_t** argv) {
 				for (std::size_t p = 0; p < members; ++p) {
 					GGPOPlayer player = {}; player.size = sizeof(player); player.player_num = static_cast<int>(p) + 1;
 					player.type = p == slot ? GGPO_PLAYERTYPE_LOCAL : p < 2 ? GGPO_PLAYERTYPE_REMOTE : GGPO_PLAYERTYPE_SPECTATOR;
+					// P1 dropped the stalled spectator's link; like StartRuntimeGgpo,
+					// leave it out of GGPO.
+					if (p >= 2 && !matches[i]->RemotePort(roster[p])) {
+						CHECK(stalledThisCycle && slot == 0);
+						std::cout << "P1 started GGPO without spectator slot " << p << '\n';
+						continue;
+					}
 					if (p != slot) {
 						CHECK(matches[i]->RemotePort(roster[p]) != 0);
 						strcpy_s(player.u.remote.ip_address, "127.0.0.1"); player.u.remote.port = matches[i]->RemotePort(roster[p]);
@@ -400,22 +498,22 @@ int wmain(int argc, wchar_t** argv) {
 				}
 			}
 		}
-		std::array<int, Count> frames = {};
-		std::array<bool, Count> inputAdded = {};
-		wait([&]() {
-			pump();
-			for (std::size_t i = 0; i < Count; ++i) {
+		std::vector<int> frames(Count, 0);
+		if (stalledThisCycle) frames[stalled] = watchFrames;
+		std::deque<bool> inputAdded(Count, false);
+		const auto advance = [&](std::size_t i) {
+				if (!ggpo[i]) return;
 				activeSession = ggpo[i]; CHECK(ggpo_idle(ggpo[i], 0) == GGPO_OK);
 				const bool player = matches[i]->LocalSlot() < 2;
-				if (frames[i] >= (player ? 80 : 60)) continue;
+				if (frames[i] >= (player ? playerFrames : watchFrames)) return;
 				if (player && !inputAdded[i]) {
 					std::array<unsigned char, session::GgpoInputBytes> input;
 					for (std::size_t byte = 0; byte < input.size(); ++byte) input[byte] = static_cast<unsigned char>((frames[i] * 73 + byte * 31 + i) & 255);
-					if (ggpo_add_local_input(ggpo[i], localHandles[i], input.data(), static_cast<int>(input.size())) != GGPO_OK) continue;
+					if (ggpo_add_local_input(ggpo[i], localHandles[i], input.data(), static_cast<int>(input.size())) != GGPO_OK) return;
 					inputAdded[i] = true;
 				}
 				unsigned char inputs[2 * session::GgpoInputBytes] = {}; int disconnected = 0;
-				if (ggpo_synchronize_input(ggpo[i], inputs, sizeof(inputs), &disconnected) != GGPO_OK) continue;
+				if (ggpo_synchronize_input(ggpo[i], inputs, sizeof(inputs), &disconnected) != GGPO_OK) return;
 				if (!player && frames[i] >= 2) {
 					for (std::size_t side = 0; side < 2; ++side) {
 						std::size_t sender = 0;
@@ -429,25 +527,46 @@ int wmain(int argc, wchar_t** argv) {
 				}
 				CHECK(disconnected == 0); CHECK(ggpo_advance_frame(ggpo[i]) == GGPO_OK);
 				++frames[i]; inputAdded[i] = false;
+		};
+		// The 45 s allowance covers 60 frames; scale it for a long timed run.
+		wait([&]() {
+			const double tickStart = diag::NowMs();
+			if (!sliced) { pump(); for (std::size_t i = 0; i < Count; ++i) advance(i); Sleep(14); } // approximate a game tick
+			else {
+				for (std::size_t i = 0; i < Count; ++i) slice(i, "match", [&]() {
+					advance(i);
+					// Synthetic SF4 frame cost, inside the slice so the 16.67 ms counts mean something.
+					const double spinStart = diag::NowMs();
+					while ((diag::NowMs() - spinStart) * 1000.0 < gameCostUs) {}
+				});
+				traceTableZero();
+				for (const auto& room : rooms) {
+					const auto& load = room->HelperLoad();
+					if (!load.samples) continue;
+					helperTickLagMaxUs = (std::max)(helperTickLagMaxUs, load.actorTickLagMaxUs);
+					helperTickBodyMaxUs = (std::max)(helperTickBodyMaxUs, load.actorTickBodyMaxUs);
+					helperEventFreeMin = (std::min)(helperEventFreeMin, load.eventQueueFreeMin);
+				}
+				const double spent = diag::NowMs() - tickStart;
+				if (spent < 16.0) Sleep(static_cast<DWORD>(16.0 - spent));
 			}
-			Sleep(14); // Together with the outer pump, approximate a game tick.
-			return std::all_of(frames.begin(), frames.end(), [](int frame) { return frame >= 60; });
-		});
+			return std::all_of(frames.begin(), frames.end(), [&](int frame) { return frame >= watchFrames; });
+		}, 45000 + static_cast<std::uint64_t>(watchFrames) * (20 + Count * (2 + gameCostUs / 1000)));
 		std::cout << "Generation " << cycle << " input streams completed; retiring GGPO\n";
-		std::array<std::uint64_t, Count> retiredGenerations{};
-		for (std::size_t i = 0; i < Count; ++i) retiredGenerations[i] = matches[i]->Generation();
+		std::vector<std::uint64_t> retiredGenerations(Count, 0);
+		for (std::size_t i = 0; i < Count; ++i) retiredGenerations[i] = matches[(skip(i) ? i / perTable * perTable : i)]->Generation();
 		// Mirror the game's match-ended notification before retiring its socket.
 		// Control and QUIC close events may otherwise arrive in either order.
 		for (auto& match : matches) match->End();
-		for (auto& session : ggpo) { activeSession = session; CHECK(ggpo_close_session(session) == GGPO_OK); session = nullptr; }
+		for (auto& session : ggpo) if (session) { activeSession = session; CHECK(ggpo_close_session(session) == GGPO_OK); session = nullptr; }
 		// Capture the native outcome identity before pumping teardown. Control may
 		// be transiently unavailable and LocalSlot may retire while this immutable
 		// report remains pending.
-		std::array<room::Action, Count> retainedResults{};
-		std::array<bool, Count> resultParticipant{}, resultConfirmed{};
-		std::array<std::uint64_t, Count> resultRetryAt{};
-		std::array<std::uint64_t, Count> resultActionIds{};
-		for (std::size_t i = 0; i < Count; ++i) if (matches[i]->LocalSlot() < 2) {
+		std::vector<room::Action> retainedResults(Count);
+		std::deque<bool> resultParticipant(Count, false), resultConfirmed(Count, false);
+		std::vector<std::uint64_t> resultRetryAt(Count, 0);
+		std::vector<std::uint64_t> resultActionIds(Count, 0);
+		for (std::size_t i = 0; i < Count; ++i) if (!skip(i) && matches[i]->LocalSlot() < 2) {
 			const auto& view = clients[i]->GetRoomSnapshot();
 			const auto member = std::find_if(view.members.begin(), view.members.end(), [&](const room::Member& item) { return item.id == view.localMember; });
 			CHECK(member != view.members.end() && member->table >= 0);
@@ -492,21 +611,21 @@ int wmain(int argc, wchar_t** argv) {
 			return std::equal(resultParticipant.begin(), resultParticipant.end(), resultConfirmed.begin());
 		});
 		wait([&]() { pump(); return allViewsCurrent() && std::all_of(matches.begin(), matches.end(), [](const std::unique_ptr<session::IrohMatchSession>& match) { return match->GetPhase() == Phase::Idle; }); });
-		std::array<bool, Count> observedTerminals{}, queuedTerminalAcks{};
+		std::deque<bool> observedTerminals(Count, false), queuedTerminalAcks(Count, false);
 		std::vector<std::pair<std::uint8_t, std::uint64_t>> terminalKeys;
-		for (std::size_t table = 0; table < (singleTable ? 1 : room::TableCount); ++table)
-			terminalKeys.emplace_back(static_cast<std::uint8_t>(table), retiredGenerations[singleTable ? 0 : table * 4]);
+		for (std::size_t table = 0; table < tableCount; ++table)
+			terminalKeys.emplace_back(static_cast<std::uint8_t>(table), retiredGenerations[table * perTable]);
 		phase = "terminal receipt acknowledgement " + std::to_string(cycle);
 		wait([&]() {
 			pump();
 			for (std::size_t i = 0; i < Count; ++i)
-				test::AcknowledgeIrohFixtureTerminal(*clients[i], static_cast<std::uint8_t>(singleTable ? 0 : i / 4),
+				test::AcknowledgeIrohFixtureTerminal(*clients[i], static_cast<std::uint8_t>(i / perTable),
 					retiredGenerations[i], ggpo[i] == nullptr && matches[i]->GetPhase() == Phase::Idle,
 					observedTerminals[i], queuedTerminalAcks[i]);
 			return std::all_of(queuedTerminalAcks.begin(), queuedTerminalAcks.end(), [](bool value) { return value; }) &&
 				test::IrohFixtureTerminalsCommitted(server, terminalKeys) && allViewsCurrent();
 		});
-		for (std::size_t table = 0; table < (singleTable ? 1 : room::TableCount); ++table) {
+		for (std::size_t table = 0; table < tableCount; ++table) {
 			const auto& current = server.RoomSnapshot()->tables[table];
 			CHECK(current.p1 == initialTables[table].p1 && current.p2 == initialTables[table].p2);
 			CHECK(current.queue == initialTables[table].queue);
@@ -514,11 +633,48 @@ int wmain(int argc, wchar_t** argv) {
 		}
 		std::cout << "Custom room cycle " << cycle << ": independently authorized input streams passed\n";
 	}
+	sliced = false;
+	if (perf) {
+		// "lifecycle" slices are a member's control-plane tick during ready,
+		// prepare, connect, result and terminal phases: what a fighter at
+		// another table pays on top of its frame while this one rematches.
+		nlohmann::json report = {{"members", Count}, {"per_table", perTable}, {"relay", relay}, {"frames", perfFrames},
+			{"game_cost_us", gameCostUs}, {"cycles", rematchCycles}, {"roles", nlohmann::json::object()},
+			// Worst helper-side load reported during matches, across all helpers.
+			{"helper", {{"tick_lag_max_us", helperTickLagMaxUs}, {"tick_body_max_us", helperTickBodyMaxUs},
+				{"event_queue_free_min", helperEventFreeMin == UINT64_MAX ? 0 : helperEventFreeMin}}}};
+		std::cout << "RoomPerf helper " << report["helper"].dump() << '\n';
+		const auto summary = [](std::vector<double> values) {
+			std::sort(values.begin(), values.end());
+			const auto at = [&](double p) { return values.empty() ? 0.0 : values[(std::min)(values.size() - 1, static_cast<std::size_t>(p * values.size()))]; };
+			return nlohmann::json{{"n", values.size()}, {"p50", at(0.50)}, {"p95", at(0.95)}, {"p99", at(0.99)},
+				{"max", values.empty() ? 0.0 : values.back()},
+				{"over_16_67", std::count_if(values.begin(), values.end(), [](double v) { return v > 16.67; })},
+				{"over_25", std::count_if(values.begin(), values.end(), [](double v) { return v > 25.0; })}};
+		};
+		for (const auto& entry : samples) {
+			auto& out = report["roles"][entry.first];
+			out = {{"tick_ms", summary(entry.second.total)}};
+			for (std::size_t part = 0; part < 6; ++part) out[kParts[part]] = summary(entry.second.parts[part]);
+			for (std::size_t op = 0; op < kOpCount; ++op) out[diag::TimedOpName(kOps[op])] = summary(entry.second.ops[op]);
+		}
+		// One line per role and phase; the JSON file carries every distribution.
+		std::cout << std::fixed << std::setprecision(2);
+		for (const auto& entry : report["roles"].items()) {
+			std::cout << "RoomPerf " << entry.key() << " [p99/max ms]";
+			for (const auto& field : entry.value().items())
+				std::cout << ' ' << field.key() << '=' << field.value()["p99"].get<double>() << '/' << field.value()["max"].get<double>();
+			std::cout << " over16.67=" << entry.value()["tick_ms"]["over_16_67"] << " over25=" << entry.value()["tick_ms"]["over_25"] << '\n';
+		}
+		static char diagnostics[16384];
+		if (diag::G().FormatSummary(diagnostics, sizeof(diagnostics), "room-perf")) std::cout << diagnostics << '\n';
+		if (!jsonPath.empty()) { std::ofstream file(jsonPath); file << report.dump(1); CHECK(file.good()); }
+	}
 	for (auto& match : matches) match.reset();
 	for (auto& client : clients) client->Disconnect();
 	server.Close();
 	for (auto& helper : helpers) CHECK(helper.Send("{\"type\":\"shutdown\"}"));
 	wait([&]() { return std::all_of(processes.begin(), processes.end(), [](const platform::HelperProcess& process) { return !process.IsRunning(); }); });
-	std::cout << "Sixteen members; " << (singleTable ? "two fighters and fourteen spectators" : "four concurrent matches")
-		<< "; six games without automatic rotation and spectator input verification passed. No SF4 simulation tested.\n";
+	std::cout << Count << " members; " << tableCount << " concurrent match(es) with " << (perTable - 2) << " spectator(s) each; "
+		<< rematchCycles << " games without automatic rotation and spectator input verification passed. No SF4 simulation tested.\n";
 }

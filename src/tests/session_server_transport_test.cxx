@@ -102,6 +102,161 @@ static void TestAtomicMatchRebind() {
 	CHECK(authority.Checkpoint() == beforeInvalid);
 }
 
+// Spectators hold back the fighters' start only when P1 has not accepted the
+// authority's optional-spectator offer (an older P1 client).
+static void TestOptionalSpectatorBarrier() {
+	std::array<std::uint8_t, 16> room = {};
+	room[0] = 9;
+	const auto identity = [](session::Connection connection) {
+		std::string value(64, '0');
+		value[63] = "0123456789abcdef"[static_cast<std::size_t>(connection) & 15];
+		return value;
+	};
+	const std::vector<session::MatchAuthority::Participant> participants = {
+		{1, {"relay", "p1"}}, {2, {"relay", "p2"}}, {3, {"relay", "s1"}}, {4, {"relay", "s2"}}};
+	std::vector<std::pair<session::Connection, json>> sent;
+	const session::MatchAuthority::Send send = [&](session::Connection connection, const json& message) {
+		sent.emplace_back(connection, message); return true;
+	};
+	const auto ack = [](session::Connection connection, const char* type, json extra = json::object()) {
+		extra["type"] = type; extra["generation"] = 12; return extra;
+	};
+	const auto count = [&](const char* type, session::Connection connection) {
+		return std::count_if(sent.begin(), sent.end(), [&](const std::pair<session::Connection, json>& item) {
+			return item.first == connection && item.second.at("type") == type;
+		});
+	};
+	using Phase = session::MatchAuthority::Phase;
+	{
+		// An older P1 does not echo the offer: every participant still gates.
+		session::MatchAuthority authority(room, identity);
+		CHECK(authority.BeginAtGeneration(participants, 12, send));
+		for (const auto& item : sent) CHECK(item.second.at("spectators_optional") == true);
+		CHECK(authority.Acknowledge(1, ack(1, "game_prepared"), send));
+		CHECK(authority.Acknowledge(2, ack(2, "game_prepared"), send));
+		CHECK(authority.GetPhase() == Phase::Preparing);
+		CHECK(authority.Acknowledge(3, ack(3, "game_prepared"), send));
+		CHECK(authority.Acknowledge(4, ack(4, "game_prepared"), send));
+		CHECK(authority.GetPhase() == Phase::Connecting);
+		// And a spectator leaving before the start still ends the setup.
+		CHECK(authority.MemberDeparted(4, send));
+		CHECK(authority.GetPhase() == Phase::Idle);
+	}
+	sent.clear();
+	{
+		session::MatchAuthority authority(room, identity);
+		CHECK(authority.BeginAtGeneration(participants, 12, send));
+		CHECK(authority.Acknowledge(1, ack(1, "game_prepared", {{"spectators_optional", true}}), send));
+		CHECK(authority.Acknowledge(2, ack(2, "game_prepared"), send));
+		// The fighters alone open Connecting; the spectators are told too.
+		CHECK(authority.GetPhase() == Phase::Connecting);
+		for (session::Connection connection = 1; connection <= 4; ++connection) CHECK(count("game_connect", connection) == 1);
+		CHECK(authority.Acknowledge(3, ack(3, "game_ready"), send));
+		CHECK(authority.Acknowledge(2, ack(2, "game_ready"), send));
+		CHECK(authority.GetPhase() == Phase::Connecting); // P1 has not reported yet
+
+		// A successor mid-Connecting keeps the agreement and the partial acks.
+		const auto portable = authority.PortableCheckpoint();
+		session::MatchAuthority successor(room, identity);
+		CHECK(successor.RestorePortableCheckpoint(portable, [&](const protocol::ConnectionID& member) {
+			for (const auto& participant : participants) if (participant.member == member) return participant.connection;
+			return session::Connection(0);
+		}));
+		CHECK(successor.PortableCheckpoint() == portable);
+
+		// P1 reports only s1's link up: s2 sits this generation out.
+		CHECK(successor.Acknowledge(1, ack(1, "game_ready", {{"slots", json::array({2})}}), send));
+		CHECK(successor.GetPhase() == Phase::Started);
+		CHECK(count("game_start", 1) == 1 && count("game_start", 2) == 1 && count("game_start", 3) == 1);
+		CHECK(count("game_start", 4) == 0 && count("game_end", 4) == 1);
+		// The dropped spectator is departed, so a rebind need not name it.
+		CHECK(successor.RebindConnections({{{"relay", "p1"}, 1}, {{"relay", "p2"}, 2}, {{"relay", "s1"}, 3}}));
+	}
+	sent.clear();
+	{
+		// A spectator leaving before the start no longer ends the fighters' setup.
+		session::MatchAuthority authority(room, identity);
+		CHECK(authority.BeginAtGeneration(participants, 12, send));
+		CHECK(authority.Acknowledge(1, ack(1, "game_prepared", {{"spectators_optional", true}}), send));
+		CHECK(authority.Acknowledge(2, ack(2, "game_prepared"), send));
+		CHECK(authority.MemberDeparted(4, send));
+		CHECK(authority.GetPhase() == Phase::Connecting);
+		CHECK(std::any_of(sent.begin(), sent.end(), [](const std::pair<session::Connection, json>& item) {
+			return item.first == 1 && item.second.at("type") == "game_peer_end" && item.second.at("slot") == 3;
+		}));
+		CHECK(authority.Acknowledge(2, ack(2, "game_ready"), send));
+		CHECK(authority.Acknowledge(1, ack(1, "game_ready", {{"slots", json::array({2})}}), send));
+		CHECK(authority.GetPhase() == Phase::Started);
+		CHECK(count("game_start", 4) == 0);
+	}
+}
+
+// Room chat is sent to a roomChatDelta client only when its committed copy is
+// stale; an older client always gets the full chat.
+static void TestRoomChatDelta() {
+	auto* transport = new MockTransport();
+	SessionServer server("chat-delta", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport));
+	std::array<std::uint8_t, 16> room = {};
+	room[0] = 31;
+	server.EnableMatchAuthorization(room, [](session::Connection connection) {
+		std::string identity(64, '0');
+		identity[63] = "0123456789abcdef"[static_cast<std::size_t>(connection) & 15];
+		return identity;
+	});
+	server.EnableCustomRooms("Chat delta", 16, 48);
+	std::uint64_t request = 1, revision = 0;
+	constexpr std::uint64_t term = 7;
+	server.SetAuthority(term, revision, true);
+	const auto commit = [&]() {
+		transport->outgoing.clear();
+		CHECK(server.HasRecoveryCandidate());
+		CHECK(server.ProposeCheckpoint(request, term, revision, nullptr));
+		const auto proposal = server.PendingProposal();
+		CHECK(server.ApplyCommit(request, term, revision + 1, proposal->checkpoint, proposal->effectsDigest));
+		++request; ++revision;
+	};
+	const auto admit = [&](session::Connection connection, bool chatDelta) {
+		protocol::SessionJoinRequest join;
+		join.username = "Chat-" + std::to_string(connection); join.sidecarHash = "build"; join.port = 30000;
+		join.customRooms = true; join.roomProtocol = room::ProtocolVersion; join.roomChatDelta = chatDelta;
+		protocol::SessionHelloMsg hello; hello.admission = json(join);
+		transport->Push(connection, json(hello));
+		CHECK(server.Step() == 0);
+		commit();
+	};
+	std::uint64_t actionId = 0;
+	const auto act = [&](session::Connection connection, room::ActionKind kind, const std::string& text = "") {
+		const auto snapshot = *server.RoomSnapshot();
+		room::Action value;
+		value.kind = kind; value.roomEpoch = snapshot.roomEpoch; value.revision = snapshot.revision;
+		value.tableRevision = snapshot.tables[0].revision; value.actionId = ++actionId; value.table = 0; value.text = text;
+		protocol::RoomActionMessage message; message.action = value;
+		transport->Push(connection, json(message));
+		CHECK(server.Step() == 0);
+		commit();
+	};
+	// The broadcast snapshot each client received in the last commit.
+	const auto snapshotFor = [&](session::Connection connection) {
+		for (const auto& sent : transport->outgoing)
+			if (sent.first == connection && sent.second.value("type", std::string()) == "room_snapshot") return sent.second.at("snapshot");
+		return json();
+	};
+	admit(1, true);
+	admit(2, false);
+	act(1, room::ActionKind::Chat, "hello");
+	CHECK(snapshotFor(1).at("chat").size() == 1 && snapshotFor(2).at("chat").size() == 1);
+	act(1, room::ActionKind::Queue);
+	CHECK(snapshotFor(1).value("chat_unchanged", false) && !snapshotFor(1).contains("chat"));
+	CHECK(!snapshotFor(2).contains("chat_unchanged") && snapshotFor(2).at("chat").size() == 1);
+	act(2, room::ActionKind::Chat, "again");
+	CHECK(snapshotFor(1).at("chat").size() == 2);
+	act(2, room::ActionKind::Queue);
+	CHECK(snapshotFor(1).value("chat_unchanged", false));
+	// A departure prunes the leaver's lines, which counts as a change.
+	act(2, room::ActionKind::Leave);
+	CHECK(snapshotFor(1).at("chat").size() == 1);
+}
+
 static void TestSameTermProposalPause() {
 	auto* transport = new MockTransport();
 	SessionServer server("same-term-pause", "build", true, 3, {0, 99},
@@ -690,6 +845,18 @@ static void TestTerminalAcknowledgmentBatch() {
 		return identity;
 	});
 	CHECK(replica.RestoreRecoveryCheckpoint(imported));
+	{
+		// The recovery bridge imports the leader's untouched checkpoint with the
+		// compacted journal and authority passed beside it. That must produce
+		// the same replica as splicing both into a JSON copy first.
+		SessionServer direct("terminal-ack-batch", "build", true, 3, {0, 99},
+			std::unique_ptr<session::ServerTransport>(new MockTransport()));
+		direct.EnableMatchAuthorization(authorizationRoom, [](session::Connection) { return std::string(64, '0'); });
+		CHECK(direct.RestoreRecoveryCheckpoint(acknowledgmentProposal->checkpoint, history,
+			session::AuthorityStamp{term, acknowledgmentProposal->baseRevision + 1, false}));
+		CHECK(direct.RecoveryCheckpoint() == replica.RecoveryCheckpoint());
+		CHECK(direct.CommittedEffectHistory() == history);
+	}
 	std::vector<SessionServer::StableRebind> bindings;
 	for (const auto& row : imported.at("members")) {
 		const auto data = row.at("data").get<protocol::MemberData>();
@@ -849,6 +1016,8 @@ static void TestCommittedSessionGate() {
 	CHECK(server.HasRecoveryCandidate());
 	CHECK(server.ProposeCheckpoint(request, term, revision, server.RecoveryCheckpoint()));
 	CHECK(server.PendingProposal() != nullptr);
+	// The bytes retained for the helper are exactly the proposal's encoding.
+	CHECK(server.PendingProposal()->encoded == json(*server.PendingProposal()).dump());
 	server.SetAuthority(2, revision, false);
 	CHECK(server.PendingProposal() == nullptr);
 	CHECK(transport->outgoing.empty());
@@ -1172,13 +1341,19 @@ static void TestCustomRoomDepartures() {
 	const auto generation0 = server.RoomSnapshot()->tables[0].matchGeneration;
 	CHECK(server.RoomSnapshot()->tables[0].phase == room::TablePhase::Playing);
 	CHECK(hasMessage("game_prepare", 2) && hasMessage("game_prepare", 3) && hasMessage("game_prepare", 4));
-	auto acknowledge = [&](session::Connection connection, const char* type, std::uint64_t generation) {
+	auto acknowledge = [&](session::Connection connection, const char* type, std::uint64_t generation, json extra = json::object()) {
 		transport->outgoing.clear();
-		transport->Push(connection, json{{"type", type}, {"generation", generation}});
+		extra["type"] = type; extra["generation"] = generation;
+		transport->Push(connection, extra);
 		step();
 	};
-	for (session::Connection connection = 2; connection <= 4; ++connection) acknowledge(connection, "game_prepared", generation0);
-	for (session::Connection connection = 2; connection <= 4; ++connection) acknowledge(connection, "game_ready", generation0);
+	// P1 (connection 2) accepts the optional-spectator start and reports the
+	// spectator's link up, so the Started authority carries a start set that
+	// the portable restore below must convert.
+	acknowledge(2, "game_prepared", generation0, {{"spectators_optional", true}});
+	for (session::Connection connection = 3; connection <= 4; ++connection) acknowledge(connection, "game_prepared", generation0);
+	acknowledge(2, "game_ready", generation0, {{"slots", json::array({2})}});
+	for (session::Connection connection = 3; connection <= 4; ++connection) acknowledge(connection, "game_ready", generation0);
 	CHECK(server.RoomSnapshot()->tables[0].phase == room::TablePhase::Playing);
 	action(4, room::ActionKind::Unwatch, 0);
 	CHECK(server.RoomSnapshot()->tables[0].phase == room::TablePhase::Playing);
@@ -1197,7 +1372,13 @@ static void TestCustomRoomDepartures() {
 	portable.EnableMatchAuthorization(room, [](session::Connection connection) {
 		std::string identity(64, '0'); identity[63] = "0123456789abcdef"[connection & 15]; return identity;
 	});
-	CHECK(portable.RestoreRecoveryCheckpoint(portableCheckpoint));
+	// Checkpoints no longer duplicate the proposal's pending effects, and one
+	// written by an older owner that still carries them must restore.
+	CHECK(!portableCheckpoint.contains("pending_effects"));
+	auto legacyCheckpoint = portableCheckpoint;
+	legacyCheckpoint["pending_effects"] = json::array();
+	legacyCheckpoint["pending_effects_digest"] = std::string(64, '0');
+	CHECK(portable.RestoreRecoveryCheckpoint(legacyCheckpoint));
 	std::vector<SessionServer::StableRebind> restoredBindings;
 	session::Connection reboundHandle = 200;
 	session::Connection spectatorHandle = 0;
@@ -1212,6 +1393,8 @@ static void TestCustomRoomDepartures() {
 	CHECK(spectatorHandle && portable.RebindMembers(restoredBindings));
 	const auto continued = portable.RecoveryCheckpoint();
 	CHECK(continued.at("match_authorities").at(0).at("phase") == static_cast<int>(session::MatchAuthority::Phase::Started));
+	CHECK(continued.at("match_authorities").at(0).at("spectators_optional") == true);
+	CHECK(continued.at("match_authorities").at(0).at("start_spectators").size() == 1);
 	CHECK(continued.at("match_authorities").at(0).at("participants").size() == 3);
 	CHECK(portable.RoomSnapshot()->tables[0].phase == room::TablePhase::Playing);
 	CHECK(portableTransport->outgoing.empty());
@@ -1556,6 +1739,8 @@ int main() {
 	server.Close();
 	CHECK(transport->closed && server.cidMap.empty() && server.clients.empty());
 	TestAtomicMatchRebind();
+	TestOptionalSpectatorBarrier();
+	TestRoomChatDelta();
 	TestSameTermProposalPause();
 	TestMaximumRoomResultBurst();
 	TestTerminalAcknowledgmentBatch();

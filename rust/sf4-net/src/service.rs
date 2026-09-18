@@ -332,6 +332,16 @@ pub enum Event {
         local_drops: u64,
         route: String,
     },
+    // Helper load over the last second, once per second while a room is open.
+    // The actor's 2 ms tick shares the runtime workers with every bridge task,
+    // so its lag is the scheduling delay a gameplay packet can also see.
+    HelperLoad {
+        epoch: u64,
+        actor_tick_lag_max_us: u64,
+        actor_tick_body_max_us: u64,
+        // Fewest free slots seen in the IPC event queue (capacity 128).
+        event_queue_free_min: u64,
+    },
     RoomClosed {
         epoch: u64,
     },
@@ -4466,6 +4476,9 @@ impl Actor {
         let mut tick = interval(Duration::from_millis(2));
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         let mut statistics = interval(Duration::from_secs(1));
+        // Load over the current statistics second; see Event::HelperLoad.
+        let (mut tick_lag_max, mut tick_body_max) = (Duration::ZERO, Duration::ZERO);
+        let mut event_free_min = usize::MAX;
         loop {
             tokio::select! {
                 _ = failed_ipc.changed() => return Err(failed("IPC disconnected")),
@@ -4524,7 +4537,10 @@ impl Actor {
                     match result { Some(Ok(completion)) => self.completed(completion).await?,
                         Some(Err(error)) if error.is_cancelled() => (), _ => return Err(failed("helper worker failed")) }
                 }
-                _ = tick.tick() => {
+                scheduled = tick.tick() => {
+                    let started = Instant::now();
+                    tick_lag_max = tick_lag_max.max(started.saturating_duration_since(scheduled));
+                    event_free_min = event_free_min.min(self.events.capacity());
                     self.expire_departure_grace();
                     self.start_next_admission_operation();
                     self.pump_membership_publications();
@@ -4536,9 +4552,18 @@ impl Actor {
                     self.invalidate_changed_probe_routes();
                     self.pump_outgoing_checkpoint();
                     self.pump_committed_checkpoint().await?;
+                    tick_body_max = tick_body_max.max(started.elapsed());
                 },
                 _ = statistics.tick() => {
                     self.emit_coordination_state().await?;
+                    let micros = |value: Duration| u64::try_from(value.as_micros()).unwrap_or(u64::MAX);
+                    let (lag, body) = (micros(tick_lag_max), micros(tick_body_max));
+                    let free = if event_free_min == usize::MAX { self.events.capacity() } else { event_free_min } as u64;
+                    (tick_lag_max, tick_body_max, event_free_min) = (Duration::ZERO, Duration::ZERO, usize::MAX);
+                    if !self.games.is_empty() && self.events.capacity() > LIFECYCLE_EVENT_RESERVE {
+                        self.emit(Event::HelperLoad { epoch: self.epoch, actor_tick_lag_max_us: lag,
+                            actor_tick_body_max_us: body, event_queue_free_min: free })?;
+                    }
                     for (peer, slot) in &self.games {
                         if self.events.capacity() <= LIFECYCLE_EVENT_RESERVE { break; }
                         if let Some(stats) = &slot.stats {

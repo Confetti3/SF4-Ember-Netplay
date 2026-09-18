@@ -46,10 +46,20 @@ expiring"), clean working tree (untracked `crash-logs-20260718/` only). Build pr
 `GgpoUdpValidation` **PASSED** (the only automated test). `SessionInteractiveTest`
 and the two-machine matrix in `docs/TRANSPORT_REGRESSION.md` are live-test-only.
 
-Pinned GGPO: `adanducci/ggpo@c88b667` via `vcpkg-ports/ggpo` with
-`install-cmake-export.patch` + `reject-invalid-udp-messages.patch`. All fork claims
-below were verified against the extracted patched source in the local vcpkg
-buildtree (`buildtrees/ggpo/src/c88b667-*.clean`).
+Pinned GGPO: `adanducci/ggpo@c88b667` via `vcpkg-ports/ggpo` with the patches
+listed in its `portfile.cmake`. All fork claims below were verified against the
+extracted patched source in the local vcpkg buildtree
+(`buildtrees/ggpo/src/c88b667-*.clean`).
+
+`spectator-handle-control.patch` (port-version 8) makes a spectator addressable
+by its handle (`queue + 1000`): `ggpo_add_player` now returns it (upstream left
+it unwritten), `ggpo_get_network_stats` reports its `send_queue_len` (frames
+not yet acknowledged), and `ggpo_disconnect_player` drops that spectator alone,
+without touching the players' connect status or the simulation. A dropped or
+disconnected spectator no longer holds back `GGPO_EVENTCODE_RUNNING`, which
+upstream withheld until every spectator had synchronized. P1 uses this through
+`fSystem::PollSpectators` and `SpectatorPolicy`, from the outer tick and never
+inside a callback.
 
 ## Thread affinity
 

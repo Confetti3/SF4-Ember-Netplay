@@ -1,4 +1,5 @@
 #include "TrainingCapture.hxx"
+#include "../common/EnvFlag.hxx"
 #include <windows.h>
 #include <KnownFolders.h>
 #include <ShlObj.h>
@@ -10,8 +11,7 @@ namespace sf4e { namespace training {
 namespace { constexpr std::size_t MaximumQueuedRows = 4096; }
 
 TrainingCapture::TrainingCapture() {
-    char value[8]{};
-    enabled_ = GetEnvironmentVariableA("SF4E_TRAINING_CAPTURE", value, sizeof(value)) > 0 && value[0] == '1';
+    enabled_ = EnvFlag("SF4E_TRAINING_CAPTURE");
     if (enabled_) worker_ = std::thread([this] { Run(); });
 }
 TrainingCapture::~TrainingCapture() {

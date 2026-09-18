@@ -25,17 +25,17 @@ namespace sf4e { namespace session {
 
 using EffectDigest = std::string;
 
-// A small, dependency-free SHA-256 implementation.  The C++ server uses the
-// same canonical JSON dump as the Rust helper, so payload/effect digests are
-// stable across processes and platforms.  Keeping this here avoids making
-// recovery depend on the Windows BCrypt import library.
+// SHA-256 of the canonical JSON dump, the same digest the Rust helper computes.
+// Sha256 uses Windows CNG, which uses the CPU's SHA instructions: a large room
+// hashes several hundred KB per committed mutation on the game thread. The
+// dependency-free Sha256Portable is the fallback and the reference for tests.
 namespace recovery_detail {
 
 inline std::uint32_t ShaRotate(std::uint32_t value, std::uint32_t amount) {
 	return (value >> amount) | (value << (32U - amount));
 }
 
-inline std::string Sha256(const std::string& input) {
+inline std::string Sha256Portable(const std::string& input) {
 	static constexpr std::uint32_t k[64] = {
 		0x428a2f98U, 0x71374491U, 0xb5c0fbcfU, 0xe9b5dba5U,
 		0x3956c25bU, 0x59f111f1U, 0x923f82a4U, 0xab1c5ed5U,
@@ -92,6 +92,9 @@ inline std::string Sha256(const std::string& input) {
 	for (const auto value : h) for (int shift = 28; shift >= 0; shift -= 4) result.push_back(hex[(value >> shift) & 0xfU]);
 	return result;
 }
+
+// Defined in RoomDigest.cxx, so this header stays free of Windows headers.
+std::string Sha256(const std::string& input);
 
 inline bool IsSha256(const std::string& value) {
 	if (value.size() != 64) return false;
@@ -159,6 +162,28 @@ inline nlohmann::json EffectCommitToken(const EffectEnvelope& effect) {
 		{"private_payload", effect.privatePayload} };
 }
 
+// Encoded size of json(effect).dump() when its replay copy, if any, encodes to
+// payloadBytes bytes, without encoding that copy again. Object keys are sorted
+// and "public_payload" is never the first, so the copy adds exactly
+// `,"public_payload":` plus its own bytes.
+inline std::size_t EncodedEnvelopeBytes(EffectEnvelope& effect, std::size_t payloadBytes) {
+	if (effect.privatePayload || effect.publicPayload.is_null()) return nlohmann::json(effect).dump().size();
+	auto copy = std::move(effect.publicPayload);
+	effect.publicPayload = nullptr;
+	const auto bytes = nlohmann::json(effect).dump().size();
+	effect.publicPayload = std::move(copy);
+	return bytes + sizeof(",\"public_payload\":") - 1 + payloadBytes;
+}
+
+// The live wire form of a committed effect: its already encoded payload object
+// with the commit token added, so the payload is not copied or encoded again.
+inline std::string CommittedEffectWire(const EffectEnvelope& effect, const std::string& encodedPayload) {
+	std::string wire = "{\"_commit\":" + EffectCommitToken(effect).dump();
+	if (encodedPayload.size() > 2) { wire += ','; wire.append(encodedPayload, 1, std::string::npos); }
+	else wire += '}';
+	return wire;
+}
+
 inline void from_json(const nlohmann::json& value, EffectEnvelope& effect) {
 	effect.sequence = value.at("sequence").get<std::uint64_t>();
 	effect.roomEpoch = value.value("room_epoch", std::uint64_t(0));
@@ -217,7 +242,10 @@ inline std::size_t ShedOptionalEffectPayloads(std::vector<EffectEnvelope>& histo
 	return bytes;
 }
 
-inline void CompactEffectJournal(std::vector<EffectEnvelope>& history) {
+// encoded[i] is json(history[i]).dump().size() and is kept in step with
+// history, so an owner that tracks it avoids re-encoding its whole journal on
+// every commit. Both vectors are left compacted.
+inline void CompactEffectJournal(std::vector<EffectEnvelope>& history, std::vector<std::size_t>& encoded) {
 	// Verification history is best effort, not a room lifecycle receipt. Retain
 	// only a recent window so a long fight cannot fill every later checkpoint
 	// with obsolete hashes or evict the admission/result/teardown identities.
@@ -225,17 +253,13 @@ inline void CompactEffectJournal(std::vector<EffectEnvelope>& history) {
 		return effect.type == "battle_hash" || effect.type == "battle_snapshot";
 	};
 	auto diagnostics = std::count_if(history.begin(), history.end(), diagnostic);
-	for (auto item = history.begin(); item != history.end() && diagnostics > 32;) {
-		if (diagnostic(*item)) { item = history.erase(item); --diagnostics; }
-		else ++item;
+	for (std::size_t item = 0; item < history.size() && diagnostics > 32;) {
+		if (diagnostic(history[item])) {
+			history.erase(history.begin() + item); encoded.erase(encoded.begin() + item); --diagnostics;
+		} else ++item;
 	}
-	std::vector<std::size_t> encoded;
-	encoded.reserve(history.size());
 	std::size_t bytes = history.empty() ? 2 : history.size() + 1;
-	for (const auto& effect : history) {
-		const auto size = nlohmann::json(effect).dump().size();
-		encoded.push_back(size); bytes += size;
-	}
+	for (const auto size : encoded) bytes += size;
 	const auto erase = [&](std::size_t index) {
 		bytes -= encoded[index];
 		if (history.size() > 1) --bytes; // one array comma disappears
@@ -278,6 +302,13 @@ inline void CompactEffectJournal(std::vector<EffectEnvelope>& history) {
 	}
 }
 
+inline void CompactEffectJournal(std::vector<EffectEnvelope>& history) {
+	std::vector<std::size_t> encoded;
+	encoded.reserve(history.size());
+	for (const auto& effect : history) encoded.push_back(nlohmann::json(effect).dump().size());
+	CompactEffectJournal(history, encoded);
+}
+
 inline bool ContainsCapabilityField(const nlohmann::json& value, unsigned depth = 0) {
 	if (depth > 16) return true;
 	if (value.is_object()) {
@@ -297,6 +328,9 @@ struct SessionProposal {
 	nlohmann::json checkpoint;
 	std::vector<EffectEnvelope> effects;
 	EffectDigest effectsDigest;
+	// Local only, never serialized: json(*this).dump() as produced when the
+	// owner bounded the proposal's size, so sending it does not encode again.
+	std::string encoded;
 
 	bool Valid() const {
 		if (!request || !term || !recovery_detail::IsSha256(effectsDigest) || !checkpoint.is_object()) return false;
@@ -320,15 +354,34 @@ inline void to_json(nlohmann::json& value, const SessionProposal& proposal) {
 		{"effects", proposal.effects}, {"effects_digest", proposal.effectsDigest} };
 }
 
-inline void from_json(const nlohmann::json& value, SessionProposal& proposal) {
+// Exactly json(proposal).dump() (keys in the same sorted order), given the
+// effects already encoded, without building a JSON copy of the checkpoint.
+inline std::string EncodeSessionProposal(const SessionProposal& proposal, const std::string& encodedEffects) {
+	return "{\"base_revision\":" + std::to_string(proposal.baseRevision) +
+		",\"checkpoint\":" + proposal.checkpoint.dump() +
+		",\"effects\":" + encodedEffects +
+		",\"effects_digest\":" + nlohmann::json(proposal.effectsDigest).dump() +
+		",\"request\":" + std::to_string(proposal.request) +
+		",\"term\":" + std::to_string(proposal.term) + ",\"version\":1}";
+}
+
+// Consumes the parsed document so the checkpoint, by far its largest member,
+// is moved rather than deep copied. Validates exactly as from_json does.
+inline SessionProposal DecodeSessionProposal(nlohmann::json&& value) {
 	if (value.value("version", 0) != 1) throw std::invalid_argument("unsupported session proposal");
+	SessionProposal proposal;
 	proposal.request = value.at("request").get<std::uint64_t>();
 	proposal.term = value.at("term").get<std::uint64_t>();
 	proposal.baseRevision = value.at("base_revision").get<std::uint64_t>();
-	proposal.checkpoint = value.at("checkpoint");
+	proposal.checkpoint = std::move(value.at("checkpoint"));
 	value.at("effects").get_to(proposal.effects);
 	proposal.effectsDigest = value.at("effects_digest").get<std::string>();
 	if (!proposal.Valid() || EffectsDigest(proposal.effects) != proposal.effectsDigest) throw std::invalid_argument("invalid session proposal");
+	return proposal;
+}
+
+inline void from_json(const nlohmann::json& value, SessionProposal& proposal) {
+	proposal = DecodeSessionProposal(nlohmann::json(value));
 }
 
 // The gate owns only immutable proposal metadata and local payloads.  State

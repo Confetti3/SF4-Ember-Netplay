@@ -1,0 +1,104 @@
+diff --git a/src/lib/ggpo/backends/p2p.cpp b/src/lib/ggpo/backends/p2p.cpp
+index eba2516..e85bc48 100644
+--- a/src/lib/ggpo/backends/p2p.cpp
++++ b/src/lib/ggpo/backends/p2p.cpp
+@@ -245,7 +245,12 @@ Peer2PeerBackend::AddPlayer(GGPOPlayer *player,
+                             GGPOPlayerHandle *handle)
+ {
+    if (player->type == GGPO_PLAYERTYPE_SPECTATOR) {
+-      return AddSpectator(player->u.remote.ip_address, player->u.remote.port);
++      /* Report the spectator's handle so the caller can address it later. */
++      GGPOErrorCode result = AddSpectator(player->u.remote.ip_address, player->u.remote.port);
++      if (GGPO_SUCCEEDED(result)) {
++         *handle = QueueToSpectatorHandle(_num_spectators - 1);
++      }
++      return result;
+    }
+ 
+    int queue = player->player_num - 1;
+@@ -405,6 +410,8 @@ Peer2PeerBackend::OnUdpProtocolSpectatorEvent(UdpProtocol::Event &evt, int queue
+       info.u.disconnected.player = handle;
+       _callbacks.on_event(&info);
+ 
++      /* A spectator that never synchronized must not hold back RUNNING. */
++      CheckInitialSync();
+       break;
+    }
+ }
+@@ -461,6 +468,24 @@ Peer2PeerBackend::DisconnectPlayer(GGPOPlayerHandle player)
+    int queue;
+    GGPOErrorCode result;
+ 
++   /*
++    * A spectator is dropped on its own: the players' connect status and the
++    * simulation are untouched, and it no longer holds back initial sync.
++    */
++   if (SpectatorHandleToQueue(player, &queue)) {
++      if (_spectators[queue].IsDisconnected() || !_spectators[queue].IsInitialized()) {
++         return GGPO_ERRORCODE_PLAYER_DISCONNECTED;
++      }
++      Log("Disconnecting spectator %d by user request.\n", queue);
++      _spectators[queue].Disconnect();
++      GGPOEvent info;
++      info.code = GGPO_EVENTCODE_DISCONNECTED_FROM_PEER;
++      info.u.disconnected.player = player;
++      _callbacks.on_event(&info);
++      CheckInitialSync();
++      return GGPO_OK;
++   }
++
+    result = PlayerHandleToQueue(player, &queue);
+    if (!GGPO_SUCCEEDED(result)) {
+       return result;
+@@ -528,6 +553,13 @@ Peer2PeerBackend::GetNetworkStats(GGPONetworkStats *stats, GGPOPlayerHandle play
+    int queue;
+    GGPOErrorCode result;
+ 
++   /* send_queue_len for a spectator is its count of unacknowledged frames. */
++   if (SpectatorHandleToQueue(player, &queue)) {
++      memset(stats, 0, sizeof *stats);
++      _spectators[queue].GetNetworkStats(stats);
++      return GGPO_OK;
++   }
++
+    result = PlayerHandleToQueue(player, &queue);
+    if (!GGPO_SUCCEEDED(result)) {
+       return result;
+@@ -621,7 +653,7 @@ Peer2PeerBackend::CheckInitialSync()
+          }
+       }
+       for (i = 0; i < _num_spectators; i++) {
+-         if (_spectators[i].IsInitialized() && !_spectators[i].IsSynchronized()) {
++         if (_spectators[i].IsInitialized() && !_spectators[i].IsSynchronized() && !_spectators[i].IsDisconnected()) {
+             return;
+          }
+       }
+diff --git a/src/lib/ggpo/backends/p2p.h b/src/lib/ggpo/backends/p2p.h
+index 294a110..f28cbf6 100644
+--- a/src/lib/ggpo/backends/p2p.h
++++ b/src/lib/ggpo/backends/p2p.h
+@@ -41,6 +41,12 @@ protected:
+    GGPOErrorCode PlayerHandleToQueue(GGPOPlayerHandle player, int *queue);
+    GGPOPlayerHandle QueueToPlayerHandle(int queue) { return (GGPOPlayerHandle)(queue + 1); }
+    GGPOPlayerHandle QueueToSpectatorHandle(int queue) { return (GGPOPlayerHandle)(queue + 1000); } /* out of range of the player array, basically */
++   bool SpectatorHandleToQueue(GGPOPlayerHandle player, int *queue) {
++      int offset = (int)player - 1000;
++      if (offset < 0 || offset >= _num_spectators) return false;
++      *queue = offset;
++      return true;
++   }
+    void DisconnectPlayerQueue(int queue, int syncto);
+    void PollSyncEvents(void);
+    void PollUdpProtocolEvents(void);
+diff --git a/src/lib/ggpo/network/udp_proto.h b/src/lib/ggpo/network/udp_proto.h
+index 57699aa..9a5a6eb 100644
+--- a/src/lib/ggpo/network/udp_proto.h
++++ b/src/lib/ggpo/network/udp_proto.h
+@@ -70,6 +70,7 @@ public:
+    bool IsInitialized() { return _udp != NULL; }
+    bool IsSynchronized() { return _current_state == Running; }
+    bool IsRunning() { return _current_state == Running; }
++   bool IsDisconnected() { return _current_state == Disconnected; }
+    void SendInput(GameInput &input);
+    void SendInputAck();
+    bool HandlesMsg(sockaddr_in &from, UdpMsg *msg);

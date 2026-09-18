@@ -11,6 +11,7 @@ vcpkg_from_github(
         "cache-log-config.patch"
         "pending-output-disconnect.patch"
         "disconnect-before-input.patch"
+        "spectator-handle-control.patch"
 )
 
 vcpkg_cmake_configure(

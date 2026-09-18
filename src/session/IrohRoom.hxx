@@ -4,6 +4,7 @@
 #include "../platform/HelperClient.hxx"
 #include "CheckpointTransfer.hxx"
 #include "SessionRecovery.hxx"
+#include "CheckpointDecodeWorker.hxx"
 #include <array>
 #include <deque>
 #include <map>
@@ -36,15 +37,27 @@ public:
         void ObserveStatistics(const nlohmann::json& event);
 	};
     const std::map<std::string, GameSnapshot>& Games() const { return games_; }
+    // The helper process's load over its last second. The actor's 2 ms tick
+    // shares the runtime workers with every bridge task, so its lag is the
+    // scheduling delay a gameplay packet can also see. samples is zero until
+    // the first report arrives.
+    struct HelperLoadSnapshot {
+        std::uint64_t samples=0, actorTickLagMaxUs=0, actorTickBodyMaxUs=0, eventQueueFreeMin=0;
+    };
+    const HelperLoadSnapshot& HelperLoad() const { return helperLoad_; }
     struct CoordinationSnapshot {
         bool active=false, writable=false, leaderLocal=false, rebound=false;
         std::uint64_t term=0, revision=0, incarnation=0;
         std::size_t voterCount=0, learnerCount=0;
         std::string leader;
     };
+    // The head commit as decoded and digest-verified once, at receipt. The
+    // pointers stay valid until ActivateCommittedCheckpoint retires that head.
     struct CommittedCheckpoint {
         coordination::TransferIdentity identity;
-        nlohmann::json checkpoint;
+        const SessionProposal* proposal=nullptr;
+        // proposal->checkpoint's journal plus proposal->effects, compacted.
+        const std::vector<EffectEnvelope>* journal=nullptr;
     };
     struct ProbeSnapshot {
         std::uint64_t request=0, pairRevision=0, p95RttUs=0, p50RttUs=0, p99RttUs=0, jitterUs=0, deadlineMs=0;
@@ -92,8 +105,10 @@ public:
     const CoordinationSnapshot& Coordination() const { return coordination_; }
     const ProbeSnapshot& Probe() const { return probe_; }
     RecoverySnapshot RecoveryState() const;
-    bool ProposeCheckpoint(std::uint64_t request, std::uint64_t term,
-        std::uint64_t baseRevision, const nlohmann::json& checkpoint);
+    // bytes is the encoded proposal (SessionProposal::encoded). Deliberately not
+    // an overload on json: json converts to std::string implicitly and throws.
+    bool ProposeCheckpointBytes(std::uint64_t request, std::uint64_t term,
+        std::uint64_t baseRevision, std::string bytes);
     bool TakeCommittedCheckpoint(CommittedCheckpoint& checkpoint);
     // A received checkpoint is only a staged wire record.  The recovery
     // bridge calls this after the native room import and exact connection
@@ -142,7 +157,7 @@ private:
     void PumpCommittedEffects();
     struct StagedCheckpoint {
         coordination::TransferIdentity identity;
-        nlohmann::json checkpoint;
+        SessionProposal proposal;
         std::vector<EffectEnvelope> effects;
         std::map<room::MemberId,room::ConnectionRef> recipients;
         std::set<std::string> members;
@@ -224,6 +239,24 @@ private:
     coordination::CheckpointReceiver checkpointReceiver_;
     std::uint64_t checkpointRestarts_=0, checkpointTimeouts_=0, checkpointTransferErrors_=0;
     std::deque<StagedCheckpoint> committedCheckpoints_;
+    // Commits whose bytes are being decoded off the game thread, oldest first.
+    // They count toward the staging capacity and are staged in this order.
+    struct PendingDecode {
+        std::uint64_t ticket=0;
+        coordination::TransferIdentity identity;
+        std::uint64_t previousReceivedRevision=0;
+    };
+    void SubmitCommittedCheckpoint(const coordination::TransferIdentity& identity);
+    void CompleteCommittedCheckpoints();
+    void FinishCommittedCheckpoint(CheckpointDecodeWorker::Result&& decoded);
+    void StageCommittedCheckpoint(const coordination::TransferIdentity& identity,
+        CheckpointDecodeWorker::Result&& decoded);
+    HelperLoadSnapshot helperLoad_;
+    std::deque<PendingDecode> decoding_;
+    std::uint64_t nextDecodeTicket_=1;
+    // SF4E_ROOM_WORKER=0 decodes inline on the game thread instead.
+    bool decodeOffThread_=true;
+    CheckpointDecodeWorker decoder_;
     coordination::TransferIdentity proposalIdentity_;
     std::string proposalBytes_;
     std::size_t proposalSent_=0, proposalAcknowledged_=0;

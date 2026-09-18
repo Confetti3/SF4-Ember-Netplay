@@ -268,6 +268,7 @@ void SessionClient::TrySendPendingJoinRequest() {
 	request.customRooms = _customRoomsRequired;
 	request.roomProtocol = _customRoomsRequired ? room::ProtocolVersion : 0;
 	request.mainFighter = _mainFighter;
+	request.roomChatDelta = _customRoomsRequired;
 	json payload = request;
 	const auto sent = Send(payload, nullptr);
 	if (sent == session::SendResult::Queued) {
@@ -441,7 +442,17 @@ void SessionClient::RememberSentRoomAction(const room::Action& action) {
 	for (const auto& sent : _sentRoomActions)
 		if (sent.actionId == action.actionId) return;
 	if (_sentRoomActions.size() >= 32) _sentRoomActions.pop_front();
-	_sentRoomActions.push_back({action.actionId, action.kind, action.table, action.matchGeneration});
+	_sentRoomActions.push_back({action.actionId, action.kind, action.table, action.matchGeneration,
+		action.inputDelay, action.actionId});
+}
+
+sf4e::room::Action SessionClient::TableAction(room::ActionKind kind, std::uint8_t table, std::uint8_t inputDelay) const {
+	room::Action action;
+	action.kind = kind; action.table = table; action.inputDelay = inputDelay;
+	action.roomEpoch = _roomSnapshot.roomEpoch;
+	action.revision = _roomSnapshot.revision;
+	action.tableRevision = _roomSnapshot.tables[table].revision;
+	return action;
 }
 
 void SessionClient::LogRejectedRoomAction(std::uint64_t actionId, room::RejectReason reason) {
@@ -571,6 +582,7 @@ int SessionClient::Step()
             SessionProtocol::SessionJoinRequest admission;
             admission.sidecarHash=_sidecarHash; admission.username=_name; admission.port=_ggpoPort;
             admission.customRooms=true; admission.roomProtocol=room::ProtocolVersion; admission.mainFighter=_mainFighter;
+            admission.roomChatDelta=true;
             hello["admission"]=admission;
         }
         const auto sent=Send(hello,nullptr);
@@ -646,6 +658,11 @@ int SessionClient::Step()
 			SessionProtocol::RoomSnapshotMessage snapshot;
 			try { msg.get_to(snapshot); }
 			catch (const std::exception&) { _roomError = "invalid_room_snapshot"; return -1; }
+			// The owner leaves out chat this client already holds (it advertised
+			// roomChatDelta). Keep the current room's chat; a different room has
+			// none to keep.
+			if (snapshot.chatUnchanged && _roomSnapshot.roomEpoch && snapshot.snapshot.roomEpoch == _roomSnapshot.roomEpoch)
+				snapshot.snapshot.chat = _roomSnapshot.chat;
 			if (snapshot.snapshot.protocolVersion != room::ProtocolVersion ||
 				(snapshot.snapshot.localMember == 0 && _customRoomsRequired)) { _roomError = "incompatible_room_protocol"; return -1; }
             if(_roomSnapshot.roomEpoch && (snapshot.snapshot.roomEpoch!=_roomSnapshot.roomEpoch ||
@@ -662,9 +679,10 @@ int SessionClient::Step()
 			SessionProtocol::RoomResultMessage result;
 			try { msg.get_to(result); }
 			catch (const std::exception&) { _roomError = "invalid_room_result"; continue; }
-            const auto replyId=result.actionId;
 			const auto sent = std::find_if(_sentRoomActions.begin(), _sentRoomActions.end(),
-				[&](const SentRoomAction& entry) { return entry.actionId == replyId; });
+				[&](const SentRoomAction& entry) { return entry.actionId == result.actionId; });
+			// A resent Ready/Unready answers under the id its caller was given.
+			const auto replyId = sent != _sentRoomActions.end() ? sent->callerId : result.actionId;
 			const bool readiness = sent != _sentRoomActions.end() &&
 				(sent->kind == room::ActionKind::Ready || sent->kind == room::ActionKind::Unready);
 			if (result.result.snapshot.roomEpoch != 0 && (!_roomSnapshot.roomEpoch ||
@@ -683,9 +701,14 @@ int SessionClient::Step()
 			if (readiness && !result.result.accepted && result.result.reason == room::RejectReason::StaleTable &&
 				_staleTableRetries < 3) {
 				++_staleTableRetries;
+				// Resend the same request (kind, table, input delay) from the
+				// fresher snapshot. Copy first: sending may evict `sent`.
 				const auto kind = sent->kind;
-				const auto resent = kind == room::ActionKind::Ready ? Lobby_Ready() : Lobby_ResetRematch();
+				const auto callerId = sent->callerId;
+				const auto resent = SendRoomAction(TableAction(kind, sent->table, sent->inputDelay));
 				if (resent == session::SendResult::Queued) {
+					// SendRoomAction just remembered the resend as the newest entry.
+					_sentRoomActions.back().callerId = callerId;
 					spdlog::info("Client: {} raced the table revision; resent (attempt {})",
 						kind == room::ActionKind::Ready ? "Ready" : "Unready", _staleTableRetries);
 					if (_callbacks.OnRoomSnapshot) _callbacks.OnRoomSnapshot(this, _roomSnapshot, _callbacks);
@@ -1053,14 +1076,7 @@ session::SendResult SessionClient::Send(nlohmann::json& msg, int64_t* outMessage
 session::SendResult SessionClient::Lobby_Ready()
 {
 	if (_customRoomsSeen) {
-		room::Action action;
-		action.kind = room::ActionKind::Ready;
-        action.inputDelay=_selectedDelay;
-		action.roomEpoch = _roomSnapshot.roomEpoch;
-		action.revision = _roomSnapshot.revision;
-		action.table = _selectedRoomTable;
-		action.tableRevision = _roomSnapshot.tables[_selectedRoomTable].revision;
-		return SendRoomAction(action);
+		return SendRoomAction(TableAction(room::ActionKind::Ready, _selectedRoomTable, _selectedDelay));
 	}
 	LobbyReady msg;
 	json j = msg;
@@ -1096,13 +1112,7 @@ session::SendResult SessionClient::Lobby_ReportResults(int loserSide)
 session::SendResult SessionClient::Lobby_ResetRematch()
 {
 	if (_customRoomsSeen) {
-		room::Action action;
-		action.kind = room::ActionKind::Unready;
-		action.roomEpoch = _roomSnapshot.roomEpoch;
-		action.revision = _roomSnapshot.revision;
-		action.table = _selectedRoomTable;
-		action.tableRevision = _roomSnapshot.tables[_selectedRoomTable].revision;
-		return SendRoomAction(action);
+		return SendRoomAction(TableAction(room::ActionKind::Unready, _selectedRoomTable, room::Action{}.inputDelay));
 	}
 	SessionProtocol::LobbyReset msg;
 	json j = msg;

@@ -43,6 +43,8 @@ static sf4e::RollbackHud rollbackHud;
 #include "sf4e__Platform.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__Overlay.hxx"
+#include "../common/SpectatorPolicy.hxx"
+#include "../common/EnvFlag.hxx"
 
 using Dimps::Platform::WithReleaser;
 
@@ -162,6 +164,26 @@ static void PublishConfirmedNativeMatchResult() {
 // through a plain GGPO poll; without this entry that outcome was never sent.
 void fSystem::PollNativeMatchResult() {
     PublishConfirmedNativeMatchResult();
+}
+
+static sf4e::SpectatorPolicy s_spectatorPolicy;
+
+void fSystem::PollSpectators() {
+    if (!ggpo || localPlayerHandle == GGPO_INVALID_HANDLE || players[0].handle != localPlayerHandle) return;
+    const auto now = GetTickCount64();
+    const auto drop = [&](int handle, const char* reason) {
+        spdlog::info("GGPO: dropping spectator handle {} ({})", handle, reason);
+        const auto result = ggpo_disconnect_player(ggpo, handle);
+        if (!GGPO_SUCCEEDED(result) && result != GGPO_ERRORCODE_PLAYER_DISCONNECTED)
+            spdlog::warn("GGPO: spectator handle {} could not be dropped: {}", handle, (int)result);
+    };
+    for (const auto handle : s_spectatorPolicy.SyncOverdue(now)) drop(handle, "not synchronized in time");
+    if (!s_spectatorPolicy.SampleDue(now)) return;
+    for (const auto handle : s_spectatorPolicy.Handles()) {
+        GGPONetworkStats stats = {};
+        if (!GGPO_SUCCEEDED(ggpo_get_network_stats(ggpo, handle, &stats))) continue;
+        if (s_spectatorPolicy.Sample(handle, stats.network.send_queue_len)) drop(handle, "too far behind");
+    }
 }
 
 // Defined with SaveState::Free.
@@ -1406,6 +1428,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
             localPlayerIdx = i;
         }
     }
+    std::vector<int> spectatorHandles;
     if (localPlayerIdx == 0) {
         for (int i = 2; i < numPlayers; i++) {
             players[i].type = inPlayers[i].type;
@@ -1417,8 +1440,10 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
                 }
                 continue;
             }
+            if (players[i].handle != GGPO_INVALID_HANDLE) spectatorHandles.push_back(players[i].handle);
         }
     }
+    s_spectatorPolicy.Start(GetTickCount64(), spectatorHandles);
 
     nNextBattleStartFlowTarget = BF__MATCH_START;
     fVsBattle::bTerminateOnNextLeftBattle = true;
@@ -1711,8 +1736,10 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         break;
     case GGPO_EVENTCODE_SYNCHRONIZED_WITH_PEER:
         spdlog::info("GGPO: Synchronized with peer");
+        s_spectatorPolicy.OnSynchronized(info->u.synchronized.player);
         break;
     case GGPO_EVENTCODE_RUNNING:
+        s_spectatorPolicy.OnRunning();
         simGate.OnRunning();
         spdlog::info("GGPO: Running");
         sf4e::NetplayFacade::NotifyGgpoSyncPhase(sf4e::GgpoSyncPhase::Running);
@@ -1764,6 +1791,7 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         // dropping must not end the two fighters' game; GGPO has already
         // stopped forwarding to that spectator.
         if (IsSpectatorHandle(info->u.disconnected.player)) {
+            s_spectatorPolicy.OnDisconnected(info->u.disconnected.player);
             spdlog::info("GGPO: spectator handle {} disconnected; fight continues", info->u.disconnected.player);
             sf4e::NetplayFacade::PushAlert("A spectator disconnected.", sf4e::NoticeSeverity::Info);
             break;
@@ -2125,12 +2153,6 @@ void fSystem::SaveState::Reclaim(SaveState* victim, const char* reason, int slot
     Clear(victim);
 }
 
-static bool EnvironmentFlagSet(const char* name) {
-    char value[8] = {};
-    const DWORD length = GetEnvironmentVariableA(name, value, sizeof(value));
-    return length > 0 && length < sizeof(value) && value[0] == '1';
-}
-
 // Read once per process. SF4E_LEGACY_SAVESTATE_FREE=1 selects the v0.8.5
 // round-trip release for A/B comparison; SF4E_SAVESTATE_FREE_VERIFY=1 checks
 // that each release leaves the live game state untouched.
@@ -2141,8 +2163,8 @@ struct SaveStateFreePolicy {
 
 static const SaveStateFreePolicy& FreePolicy() {
     static const SaveStateFreePolicy policy = {
-        EnvironmentFlagSet("SF4E_LEGACY_SAVESTATE_FREE"),
-        EnvironmentFlagSet("SF4E_SAVESTATE_FREE_VERIFY"),
+        sf4e::EnvFlag("SF4E_LEGACY_SAVESTATE_FREE"),
+        sf4e::EnvFlag("SF4E_SAVESTATE_FREE_VERIFY"),
     };
     return policy;
 }

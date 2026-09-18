@@ -49,7 +49,7 @@ private:
 	bool ControlReadyForSetup() const;
 	bool StartConnecting();
 	bool StartQueuedSetup();
-	bool Acknowledge(const char* type);
+	bool Acknowledge(const char* type, nlohmann::json extra = nlohmann::json::object());
 	bool FlushPendingAcks();
 	bool Fail(const char* error);
 	void ClearLinks();
@@ -72,7 +72,21 @@ private:
 	ULONGLONG deadline_ = 0;
 	ULONGLONG deadlineRemaining_ = 0;
 	bool deadlineSuspended_ = false;
-	struct PendingAck { std::string type; std::uint64_t generation = 0; };
+	// message is the whole acknowledgement; type and generation identify it.
+	struct PendingAck { std::string type; std::uint64_t generation = 0; nlohmann::json message; };
+	// Set when the authority's grant offers it. P1 then starts once its fighter
+	// link is up and either every spectator link is up or the grace has passed;
+	// a spectator link that is late or fails is dropped for this generation.
+	static constexpr ULONGLONG SpectatorGraceMs = 1500;
+	bool spectatorsOptional_ = false;
+	ULONGLONG fighterReadyAt_ = 0;
+	// A fighter closes its link when it processes the committed game_end, which
+	// can reach this client a moment later. Wait this long for that game_end
+	// before treating the closed link as a lost connection.
+	static constexpr ULONGLONG PeerCloseGraceMs = 2000;
+	ULONGLONG fighterClosedAt_ = 0;
+	bool DropSpectatorLink(std::vector<Link>::iterator& link);
+	bool ReportReady(ULONGLONG now, bool spectatorsReady);
 	std::deque<PendingAck> pendingAcks_;
 	SOCKET reservedPort_ = INVALID_SOCKET;
 	bool winsock_ = false;

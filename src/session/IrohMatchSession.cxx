@@ -26,12 +26,13 @@ void IrohMatchSession::ReleasePortToGgpo() {
 	if (reservedPort_ != INVALID_SOCKET) { closesocket(reservedPort_); reservedPort_ = INVALID_SOCKET; }
 }
 bool IrohMatchSession::Fail(const char* error) { error_ = error; phase_ = Phase::Failed; return false; }
-bool IrohMatchSession::Acknowledge(const char* type) {
+bool IrohMatchSession::Acknowledge(const char* type, json extra) {
 	if (!type || generation_ == 0) return Fail("match_control_send_failed");
 	const std::string name(type);
 	for (const auto& pending : pendingAcks_)
 		if (pending.generation == generation_ && pending.type == name) return true;
-	json message{{"type", name}, {"generation", generation_}};
+	json message = std::move(extra);
+	message["type"] = name; message["generation"] = generation_;
 	const auto result = client_.Send(message, nullptr);
 	if (result == SendResult::Queued) return true;
 	// A temporary control outage is recoverable. Keep the logical
@@ -40,7 +41,7 @@ bool IrohMatchSession::Acknowledge(const char* type) {
 	// authority may already have committed the corresponding preparation.
 	if (result == SendResult::NotConnected || result == SendResult::QueueFull) {
 		if (pendingAcks_.size() >= 8) return Fail("match_control_queue_full");
-		pendingAcks_.push_back({name, generation_});
+		pendingAcks_.push_back({name, generation_, std::move(message)});
 		return true;
 	}
 	return Fail("match_control_send_failed");
@@ -49,8 +50,7 @@ bool IrohMatchSession::Acknowledge(const char* type) {
 bool IrohMatchSession::FlushPendingAcks() {
 	for (auto it = pendingAcks_.begin(); it != pendingAcks_.end();) {
 		if (it->generation != generation_) { it = pendingAcks_.erase(it); continue; }
-		json message{{"type", it->type}, {"generation", it->generation}};
-		const auto result = client_.Send(message, nullptr);
+		const auto result = client_.Send(it->message, nullptr);
 		if (result == SendResult::Queued) { it = pendingAcks_.erase(it); continue; }
 		if (result == SendResult::NotConnected || result == SendResult::QueueFull) return true;
 		return Fail("match_control_send_failed");
@@ -124,7 +124,9 @@ bool IrohMatchSession::StartQueuedSetup() {
         pendingConnect_=false;
         if (!StartConnecting()) return false;
     }
-    if (pendingStart_ && phase_ == Phase::Connecting) {
+    // game_start can outrun this spectator's own ready report; it starts once
+    // its link to P1 is up and that report has gone out.
+    if (pendingStart_ && phase_ == Phase::Connecting && readySent_) {
         pendingStart_=false;
         phase_=Phase::Started;
     }
@@ -188,6 +190,9 @@ bool IrohMatchSession::AcceptGrant(const json& message) {
 	pendingGrantTerm_ = room_ && room_->Coordination().active ? room_->Coordination().term : 0;
 	readySent_ = mappingsPrepared_ = endSent_ = false;
 	roomEndReceived_ = false;
+	spectatorsOptional_ = message.value("spectators_optional", false);
+	fighterReadyAt_ = 0;
+	fighterClosedAt_ = 0;
 	pendingAcks_.clear();
 	pendingConnect_ = pendingStart_ = false;
 	deadlineSuspended_ = false;
@@ -298,22 +303,27 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 				// native session is Started, the fixed GGPO roster cannot shrink;
 				// fail setup so the authority can issue a fresh reduced grant.
 				if (slot_ != 0 || peerSlot < 2 || peerSlot >= roster_.size()) return Fail("invalid_match_peer_end");
-				if (phase_ != Phase::Started) return Fail("spectator_peer_ended_before_start");
+				// Without the authority's optional-spectator offer a pre-start
+				// peer end cannot be absorbed: the older authority still waits
+				// for that spectator.
+				if (phase_ != Phase::Started && !spectatorsOptional_) return Fail("spectator_peer_ended_before_start");
 				auto link = std::find_if(links_.begin(), links_.end(), [&](const Link& candidate) {
 					return candidate.slot == peerSlot;
 				});
 				if (link == links_.end()) continue; // Tolerate a late duplicate event.
-				if (!room_->EndPeer(link->peer, generation_)) return Fail("spectator_teardown_failed");
-				SecureZeroMemory(link->capability.data(), link->capability.size());
-				links_.erase(link);
+				if (!DropSpectatorLink(link)) return false;
 				continue;
 			}
 			if (type == "game_end") { roomEndReceived_ = true; End(); continue; }
 			if (type == "game_connect" && phase_ == Phase::Prepared) {
 				if (!ControlReadyForSetup()) pendingConnect_=true;
 				else if (!StartConnecting()) return false;
-			} else if (type == "game_start" && phase_ == Phase::Connecting && readySent_) {
-				if (!ControlReadyForSetup()) pendingStart_=true;
+			} else if (type == "game_connect" && phase_ == Phase::Preparing) {
+				// The fighters may be told to connect before this spectator has
+				// prepared; connect as soon as it has.
+				pendingConnect_=true;
+			} else if (type == "game_start" && phase_ == Phase::Connecting) {
+				if (!ControlReadyForSetup() || !readySent_) pendingStart_=true;
 				else phase_ = Phase::Started;
 			}
 		} catch (const json::exception&) { return Fail("invalid_match_message"); }
@@ -386,28 +396,69 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 			const auto state = room_->Game(link.peer).state;
 			return link.dial || state == IrohRoom::GameState::Waiting || state == IrohRoom::GameState::Ready;
 		});
-		if (waiting) { if (!Acknowledge("game_prepared")) return false; phase_ = Phase::Prepared; }
+		if (waiting) {
+			// P1 accepts the authority's offer, which switches the start barrier
+			// to the two fighters.
+			json extra = json::object();
+			if (slot_ == 0 && spectatorsOptional_) extra["spectators_optional"] = true;
+			if (!Acknowledge("game_prepared", std::move(extra))) return false;
+			phase_ = Phase::Prepared;
+		}
 	}
 	if (phase_ == Phase::Connecting || phase_ == Phase::Started) {
-		bool ready = true;
+		const bool optionalSpectators = slot_ == 0 && (phase_ == Phase::Started || spectatorsOptional_);
+		bool fighterReady = true, spectatorsReady = true;
 		for (auto link = links_.begin(); link != links_.end();) {
 			const auto state = room_->Game(link->peer).state;
-			if (phase_ == Phase::Started && slot_ == 0 && link->slot >= 2 &&
-				(state == IrohRoom::GameState::Closed || state == IrohRoom::GameState::Closing)) {
-				if (!room_->EndPeer(link->peer, generation_)) return Fail("spectator_teardown_failed");
-				SecureZeroMemory(link->capability.data(), link->capability.size());
-				link = links_.erase(link);
+			const bool closed = state == IrohRoom::GameState::Closed || state == IrohRoom::GameState::Closing;
+			if (closed && optionalSpectators && link->slot >= 2) {
+				if (!DropSpectatorLink(link)) return false;
 				continue;
 			}
-			if (state == IrohRoom::GameState::Closed || state == IrohRoom::GameState::Closing) {
+			if (closed) {
+				if (!fighterClosedAt_) fighterClosedAt_ = now;
+				if (now - fighterClosedAt_ < PeerCloseGraceMs) { fighterReady = false; ++link; continue; }
                 const auto failure=room_->Game(link->peer).error;
                 return Fail(failure.empty()?"gameplay_connection_lost":failure.c_str());
             }
-			ready = ready && state == IrohRoom::GameState::Ready;
+			const bool up = state == IrohRoom::GameState::Ready;
+			if (slot_ == 0 && link->slot >= 2) spectatorsReady = spectatorsReady && up;
+			else fighterReady = fighterReady && up;
 			++link;
 		}
-		if (ready && !readySent_) { if (!Acknowledge("game_ready")) return false; readySent_ = true; }
+		if (!readySent_ && fighterReady && !ReportReady(now, spectatorsReady)) return false;
 	}
+	return true;
+}
+
+// Sends game_ready once this client's links allow it. False only on failure.
+bool IrohMatchSession::ReportReady(ULONGLONG now, bool spectatorsReady) {
+	json extra = json::object();
+	if (slot_ == 0 && spectatorsOptional_) {
+		if (!fighterReadyAt_) fighterReadyAt_ = now;
+		if (!spectatorsReady) {
+			if (now - fighterReadyAt_ < SpectatorGraceMs) return true;
+			// Late spectators sit this generation out.
+			for (auto link = links_.begin(); link != links_.end();) {
+				if (link->slot >= 2 && room_->Game(link->peer).state != IrohRoom::GameState::Ready) {
+					if (!DropSpectatorLink(link)) return false;
+				} else ++link;
+			}
+		}
+		// P1 owns the spectator links, so it reports which of them came up.
+		json slots = json::array();
+		for (const auto& link : links_) if (link.slot >= 2) slots.push_back(link.slot);
+		extra["slots"] = std::move(slots);
+	} else if (!spectatorsReady) return true;
+	if (!Acknowledge("game_ready", std::move(extra))) return false;
+	readySent_ = true;
+	return true;
+}
+
+bool IrohMatchSession::DropSpectatorLink(std::vector<Link>::iterator& link) {
+	if (!room_->EndPeer(link->peer, generation_)) return Fail("spectator_teardown_failed");
+	SecureZeroMemory(link->capability.data(), link->capability.size());
+	link = links_.erase(link);
 	return true;
 }
 
