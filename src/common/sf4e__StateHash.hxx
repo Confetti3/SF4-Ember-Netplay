@@ -21,9 +21,28 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdio.h>
+#include <float.h>
+#include <xmmintrin.h>
+#include <string>
 
 namespace sf4e {
 namespace statehash {
+
+// The game thread's floating-point control state. Logged at match start and
+// with every desync report so two PCs' runs can be compared: an x87
+// precision or rounding difference shows up as last-bit drift in positions.
+inline std::string FpEnvironment() {
+	unsigned int cw = 0;
+	_controlfp_s(&cw, 0, 0);
+	const unsigned int pc = cw & _MCW_PC, rc = cw & _MCW_RC;
+	char text[64];
+	snprintf(text, sizeof(text), "x87 pc=%s rc=%s mxcsr=0x%04x",
+		pc == _PC_24 ? "24" : pc == _PC_53 ? "53" : pc == _PC_64 ? "64" : "?",
+		rc == _RC_NEAR ? "near" : rc == _RC_DOWN ? "down" : rc == _RC_UP ? "up" : "chop",
+		_mm_getcsr());
+	return text;
+}
 
 struct Hasher {
 	uint64_t h;

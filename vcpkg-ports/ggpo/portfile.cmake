@@ -10,6 +10,7 @@ vcpkg_from_github(
         "spectator-poll-capacity.patch"
         "cache-log-config.patch"
         "pending-output-disconnect.patch"
+        "disconnect-before-input.patch"
 )
 
 vcpkg_cmake_configure(
