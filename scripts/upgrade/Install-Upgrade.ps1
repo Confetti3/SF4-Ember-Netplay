@@ -178,6 +178,16 @@ function CheckClosed([string]$Root) {
         if ($process.ProcessName -ieq 'SSFIV') { throw 'Close Ultra Street Fighter IV before upgrading.' }
         if ($process.ProcessName -in 'Launcher','Updater','sf4-net','ember-discord') {
             try { $path = $process.Path } catch { throw 'Close Ember and its helper processes before upgrading.' }
+            # A 32-bit PowerShell cannot read a 64-bit process's module path, and
+            # sf4-net is 64-bit. WMI reports it for either. A process WMI no
+            # longer lists has exited and holds no files; one that is listed
+            # without a path still fails closed.
+            if (!$path) {
+                try { $listed = Get-CimInstance Win32_Process -Filter "ProcessId=$($process.Id)" -ErrorAction Stop }
+                catch { throw 'Close Ember and its helper processes before upgrading.' }
+                if (!$listed) { continue }
+                $path = $listed.ExecutablePath
+            }
             if (!$path -or $path.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
                 throw 'Close Ember and its helper processes before upgrading.'
             }
