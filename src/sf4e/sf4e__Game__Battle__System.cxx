@@ -1386,6 +1386,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
         return;
     }
     spdlog::info("GGPO: session started localPort={}", port);
+    spdlog::info("GGPO: fp {}", sf4e::statehash::FpEnvironment());
     ApplyGgpoDisconnectSettings(ggpo);
 
     int localPlayerIdx = -1;

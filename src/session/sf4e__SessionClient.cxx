@@ -13,6 +13,7 @@
 #include "../Dimps/Dimps.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/ConfirmedCheckpoint.hxx"
+#include "../common/sf4e__StateHash.hxx"
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
 
 #include "../sf4e/sf4e__Game__Battle__System.hxx"
@@ -139,8 +140,8 @@ static void ReportHashMismatch(
 		return;
 	}
 	spdlog::error(
-		"Desync v2: mismatch @ frame {} overall {:016x} != remote {:016x} (fromPlayer={})",
-		local.frameIdx, local.hashes.overall, remote.overall, remote.fromPlayer
+		"Desync v2: mismatch @ frame {} overall {:016x} != remote {:016x} (fromPlayer={}) fp={}",
+		local.frameIdx, local.hashes.overall, remote.overall, remote.fromPlayer, sf4e::statehash::FpEnvironment()
 	);
 	spdlog::error(
 		"Desync v2: subsystems flow:{} chara0:{} chara1:{}",

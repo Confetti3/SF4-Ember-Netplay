@@ -1,0 +1,20 @@
+diff --git a/src/lib/ggpo/backends/p2p.cpp b/src/lib/ggpo/backends/p2p.cpp
+index 6aa0f37..eba2516 100644
+--- a/src/lib/ggpo/backends/p2p.cpp
++++ b/src/lib/ggpo/backends/p2p.cpp
+@@ -503,7 +503,14 @@ Peer2PeerBackend::DisconnectPlayerQueue(int queue, int syncto)
+ 
+    if (syncto < framecount) {
+       Log("adjusting simulation to account for the fact that %d disconnected @ %d.\n", queue, syncto);
+-      _sync.AdjustSimulation(syncto);
++      /*
++       * A peer that never delivered an input this session has last_frame -1.
++       * Frame 0 is the oldest saved state (saved before the first local input),
++       * and SynchronizeInputs already zeroes a disconnected queue for every
++       * frame > last_frame, so replaying from 0 is the consistent recovery.
++       * Loading frame -1 asserts in FindSavedFrameIndex and kills the game.
++       */
++      _sync.AdjustSimulation(MAX(syncto, 0));
+       Log("finished adjusting simulation.\n");
+    }
+ 
