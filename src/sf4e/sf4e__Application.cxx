@@ -18,6 +18,7 @@
 #include "../netplay/ProfileRecordJson.hxx"
 #include "../netplay/RoomPreferences.hxx"
 #include "../common/StageCatalog.hxx"
+#include "../common/EnvFlag.hxx"
 #include "../common/SessionTrace.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 #include <algorithm>
@@ -678,8 +679,7 @@ void StartHelper() {
             runtime->preferences.interfaceScale = scale >= 1.f && scale <= 1.5f ? scale : 1.f;
         } catch (...) { runtime->error = "Interface preferences could not be read; defaults are in use."; }
     }
-    char offline[2] = {}; GetEnvironmentVariableA("SF4E_START_OFFLINE",offline,2);
-    runtime->offlineRequested = offline[0] == '1';
+    runtime->offlineRequested = EnvFlag("SF4E_START_OFFLINE");
 	runtime->preferences.inputDelay = GetConfig().inputDelay;
 	runtime->preferences.lobby.editionSelect = GetConfig().editionSelect != 0;
 	runtime->preferences.lobby.roundCount = GetConfig().roundCount;
@@ -943,7 +943,9 @@ void TickRuntime() {
             }
             if (runtime->controller.GetSnapshot().room==netplay::RoomState::Opening &&
                 runtime->room->GetState()==session::IrohRoom::State::Ready && !runtime->attached) AttachRoom();
-            if (UserApp::server && !runtime->recovery.Tick(*UserApp::server,*runtime->room))
+            bool recovered=true;
+            if (UserApp::server) { diag::ScopedTimer timer(diag::OP_ROOM_RECOVERY_TICK); recovered=runtime->recovery.Tick(*UserApp::server,*runtime->room); }
+            if (!recovered)
                 runtime->error="Room recovery state could not be applied. Recovery remains paused.";
             const auto appliedAuthority=runtime->room->Coordination();
             const bool connected=appliedAuthority.writable && appliedAuthority.rebound;
@@ -1004,7 +1006,7 @@ void TickRuntime() {
 	// consumes room actions. This drives result-dispute and chat-rate deadlines
 	// on the same owner tick as the server, while clients retain their control
 	// stream and existing gameplay links.
-	if (UserApp::server) UserApp::server->AdvanceCustomRoom(GetTickCount64());
+	if (UserApp::server) { diag::ScopedTimer timer(diag::OP_ROOM_ADVANCE); UserApp::server->AdvanceCustomRoom(GetTickCount64()); }
 	const bool helperReady = runtime->helper && runtime->helper->State() == platform::HelperState::Connected;
     if (AtMainMenu()) {
         runtime->inputDevices = input::ReadDevices();
@@ -1559,6 +1561,7 @@ void TickRuntime() {
 		}
 	}
 	if (runtime->match) {
+		diag::ScopedTimer lifecycleTimer(diag::OP_MATCH_LIFECYCLE);
 		if (runtime->matchEnded) {
 			runtime->matchEnded = false; runtime->match->End();
 			Apply(netplay::EventKind::MatchEnded);

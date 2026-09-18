@@ -66,6 +66,18 @@ const char* TimedOpName(int op) {
 	case OP_TIMESYNC_SLEEP:         return "timesync_sleep";
 	case OP_PACING_WAIT:            return "pacing_wait";
 	case OP_RUNTIME_TICK:           return "room_runtime";
+	case OP_ROOM_POLL:              return "room.poll";
+	case OP_ROOM_RECOVERY_TICK:     return "room.recovery_tick";
+	case OP_ROOM_IMPORT_APPLY:      return "room.import_apply";
+	case OP_ROOM_IMPORT_REBIND:     return "room.import_rebind";
+	case OP_ROOM_CHECKPOINT_BUILD:  return "room.checkpoint_build";
+	case OP_ROOM_BROADCAST:         return "room.broadcast";
+	case OP_ROOM_PROPOSE:           return "room.propose";
+	case OP_ROOM_ADVANCE:           return "room.advance";
+	case OP_ROOM_JOURNAL:           return "room.journal";
+	case OP_ROOM_COMMIT_SEND:       return "room.commit_send";
+	case OP_ROOM_COMPACT:           return "room.compact";
+	case OP_MATCH_LIFECYCLE:        return "match_lifecycle";
 	default:                        return "?";
 	}
 }
@@ -167,6 +179,7 @@ void RollbackDiagnostics::RecordOp(int op, double ms) {
 		return;
 	}
 	ops[op].Record(ms);
+	frameMs[op] += ms < 0.0 ? 0.0 : ms;
 }
 
 void RollbackDiagnostics::RecordSkip(int reason, double nowMs) {
@@ -229,6 +242,7 @@ void RollbackDiagnostics::OnOuterFrame(double nowMs) {
 		return;
 	}
 	outerFrames++;
+	memset(frameMs, 0, sizeof(frameMs));
 	if (rollbackCallbacksThisOuterFrame > 0) {
 		outerFramesWithRollback++;
 		if (rollbackCallbacksThisOuterFrame > maxRollbackCallbacksPerOuterFrame) {
@@ -403,6 +417,10 @@ size_t RollbackDiagnostics::FormatSummary(char* buf, size_t cap, const char* lab
 		OP_SYNC_INPUT, OP_ADVANCE_FRAME_API, OP_ROLLBACK_CALLBACK,
 		OP_SESSION_CLIENT_STEP, OP_SESSION_SERVER_STEP, OP_FACADE_TICK_FRAME,
 		OP_GGPO_IDLE, OP_GGPO_IDLE_PRE_SIM, OP_STEAM_POST_UPDATE, OP_OUTER_TICK,
+		OP_RUNTIME_TICK, OP_ROOM_POLL, OP_ROOM_RECOVERY_TICK,
+		OP_ROOM_IMPORT_APPLY, OP_ROOM_IMPORT_REBIND, OP_ROOM_CHECKPOINT_BUILD,
+		OP_ROOM_BROADCAST, OP_ROOM_PROPOSE, OP_ROOM_ADVANCE, OP_ROOM_JOURNAL,
+		OP_ROOM_COMMIT_SEND, OP_ROOM_COMPACT, OP_MATCH_LIFECYCLE,
 		OP_SAVE_TOTAL, OP_SAVE_RECORD_MEMENTOS, OP_SAVE_COPY_KEYS,
 		OP_SAVE_SOUND, OP_SAVE_GLOBALS, OP_SEMANTIC_HASH,
 		OP_LOAD_TOTAL, OP_LOAD_KEY_BACKUP, OP_LOAD_COPY_INTO_PLACE,

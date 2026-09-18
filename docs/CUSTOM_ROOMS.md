@@ -51,6 +51,13 @@ queue positions. Leaving the queue and stopping spectating are separate actions.
 game already in progress cannot be joined halfway through. **Stop watching**
 returns the spectator to the room; the fighters continue playing.
 
+The fighters never wait for a spectator. A spectator whose connection is still
+being set up when the fighters are ready (after a short grace period) misses
+that game and watches the next one. A spectator that falls about half a second
+behind the live game is dropped from it. A spectator still closing out the
+previous game does not stop the fighters starting the next one; it joins the
+game after that.
+
 ## Manage the room
 
 The host can rename the room, lock admission, change its capacity, edit a waiting
@@ -58,7 +65,7 @@ table's battle rules, and kick members. Capacity cannot be reduced below current
 membership. A kicked peer cannot rejoin the same room under another name.
 
 Room chat retains the latest 100 messages, with a limit of 256 UTF-8 bytes per
-message. **Mute chat** hides a member's messages locally.
+message. A member's messages are removed when they leave the room. **Mute chat** hides a member's messages locally.
 
 Both fighters report the game's native outcome. A win is counted only when the
 reports agree. Conflicting reports, or missing reports after the result deadline,

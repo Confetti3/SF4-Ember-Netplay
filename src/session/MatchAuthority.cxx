@@ -15,25 +15,27 @@ json MatchAuthority::Checkpoint() const {
     return {{"version", 1}, {"room", room_}, {"phase", static_cast<int>(phase_)},
         {"generation", generation_}, {"participants", participants},
         {"acknowledgments", acknowledgments_}, {"departed", departed_},
-        {"cap_digest", capabilityDigest_}};
+        {"cap_digest", capabilityDigest_}, {"spectators_optional", spectatorsOptional_},
+        {"start_reported", startReported_}, {"start_spectators", startSpectators_}};
 }
 
 json MatchAuthority::PortableCheckpoint() const {
     json participants = json::array();
     for (const auto& participant : participants_)
         participants.push_back({{"endpoint", participant.member}});
-    json acknowledged = json::array(), departed = json::array();
-    for (const auto connection : acknowledgments_) {
-        for (const auto& participant : participants_)
-            if (participant.connection == connection) { acknowledged.push_back(participant.member); break; }
-    }
-    for (const auto connection : departed_) {
-        for (const auto& participant : participants_)
-            if (participant.connection == connection) { departed.push_back(participant.member); break; }
-    }
+    const auto endpoints = [&](const std::set<Connection>& connections) {
+        json rows = json::array();
+        for (const auto connection : connections) {
+            for (const auto& participant : participants_)
+                if (participant.connection == connection) { rows.push_back(participant.member); break; }
+        }
+        return rows;
+    };
     return {{"version", 1}, {"room", room_}, {"phase", static_cast<int>(phase_)},
         {"generation", generation_}, {"participants", participants},
-        {"acknowledgments", acknowledged}, {"departed", departed}, {"cap_digest", capabilityDigest_}};
+        {"acknowledgments", endpoints(acknowledgments_)}, {"departed", endpoints(departed_)},
+        {"cap_digest", capabilityDigest_}, {"spectators_optional", spectatorsOptional_},
+        {"start_reported", startReported_}, {"start_spectators", endpoints(startSpectators_)}};
 }
 
 bool MatchAuthority::RestorePortableCheckpoint(const json& value, const Rebind& rebind) {
@@ -67,11 +69,16 @@ bool MatchAuthority::RestorePortableCheckpoint(const json& value, const Rebind& 
             }
             return true;
         };
-        if (!readSet("acknowledgments", acknowledgments) || !readSet("departed", departed)) return false;
+        std::set<Connection> startSpectators;
+        if (!readSet("acknowledgments", acknowledgments) || !readSet("departed", departed) ||
+            (value.contains("start_spectators") && !readSet("start_spectators", startSpectators))) return false;
         const auto digest = value.value("cap_digest", std::string());
         if (!digest.empty() && !recovery_detail::IsSha256(digest)) return false;
         phase_ = static_cast<Phase>(phase); generation_ = generation; participants_ = std::move(participants);
         acknowledgments_ = std::move(acknowledgments); departed_ = std::move(departed); capabilityDigest_ = digest;
+        spectatorsOptional_ = value.value("spectators_optional", false);
+        startReported_ = value.value("start_reported", false);
+        startSpectators_ = std::move(startSpectators);
         return true;
     } catch (const std::exception&) { return false; }
 }
@@ -108,14 +115,44 @@ bool MatchAuthority::RestoreCheckpoint(const json& value) {
             }
             return true;
         };
-        if (!readSet("acknowledgments", acknowledgments) || !readSet("departed", departed)) return false;
+        std::set<Connection> startSpectators;
+        if (!readSet("acknowledgments", acknowledgments) || !readSet("departed", departed) ||
+            (value.contains("start_spectators") && !readSet("start_spectators", startSpectators))) return false;
         const auto digest = value.value("cap_digest", std::string());
         if (!digest.empty() && !recovery_detail::IsSha256(digest)) return false;
         phase_ = static_cast<Phase>(phase); generation_ = generation;
         participants_ = std::move(participants); acknowledgments_ = std::move(acknowledgments); departed_ = std::move(departed);
         capabilityDigest_ = digest;
+        spectatorsOptional_ = value.value("spectators_optional", false);
+        startReported_ = value.value("start_reported", false);
+        startSpectators_ = std::move(startSpectators);
         return true;
     } catch (const std::exception&) { return false; }
+}
+
+json MatchAuthority::LocalCheckpoint(const json& portable, const Rebind& rebind) {
+    json local = portable;
+    json rows = json::array();
+    for (const auto& row : portable.at("participants")) {
+        const auto endpoint = row.at("endpoint").get<SessionProtocol::ConnectionID>();
+        const auto connection = rebind(endpoint);
+        if (!connection) return json();
+        rows.push_back({{"connection", connection}, {"member", endpoint}});
+    }
+    local["participants"] = std::move(rows);
+    // The endpoint sets PortableCheckpoint writes; start_spectators is absent
+    // from older owners.
+    for (const char* key : {"acknowledgments", "departed", "start_spectators"}) {
+        if (!portable.contains(key)) continue;
+        json mapped = json::array();
+        for (const auto& value : portable.at(key)) {
+            const auto connection = rebind(value.get<SessionProtocol::ConnectionID>());
+            if (!connection) return json();
+            mapped.push_back(connection);
+        }
+        local[key] = std::move(mapped);
+    }
+    return local;
 }
 
 bool MatchAuthority::Broadcast(const json& message, const Send& send) {
@@ -150,13 +187,18 @@ bool MatchAuthority::BeginAtGeneration(const std::vector<Participant>& participa
 	participants_ = participants;
 	acknowledgments_.clear();
 	departed_.clear();
+	spectatorsOptional_ = startReported_ = false;
+	startSpectators_.clear();
 	std::vector<json> grants;
 	std::vector<SessionProtocol::ConnectionID> roster;
 	for (const auto& participant : participants) roster.push_back(participant.member);
 	for (std::size_t slot = 0; slot < participants.size(); ++slot) {
 		grants.push_back(json{{"type", "game_prepare"}, {"version", 1}, {"room", room_},
 			{"generation", generation_}, {"slot", slot}, {"roster", roster}, {"max_packet", GgpoMaximumPacket},
-			{"local_identity", endpoints[slot]}, {"links", json::array()}});
+			{"local_identity", endpoints[slot]}, {"links", json::array()},
+			// An offer that spectators need not hold back the fighters. It takes
+			// effect only once P1 echoes it; see Acknowledge.
+			{"spectators_optional", true}});
 	}
 	// P1 owns the spectator stream, matching the existing StartSpectating path.
 	// Each edge has a unique capability shared only with its two endpoints.
@@ -185,43 +227,96 @@ bool MatchAuthority::BeginAtGeneration(const std::vector<Participant>& participa
 	return true;
 }
 
-bool MatchAuthority::Acknowledge(Connection connection, const json& message, const Send& send) {
-	if (phase_ == Phase::Idle || phase_ == Phase::Started) return true;
+bool MatchAuthority::Expects(Connection connection, const json& message) const {
+	if (phase_ != Phase::Preparing && phase_ != Phase::Connecting) return false;
 	const auto type = message.value("type", std::string());
 	if (message.value("generation", std::uint64_t(0)) != generation_ ||
-		std::none_of(participants_.begin(), participants_.end(), [&](const Participant& p) { return p.connection == connection; })) return true;
+		std::none_of(participants_.begin(), participants_.end(), [&](const Participant& p) { return p.connection == connection; })) return false;
 	if ((phase_ == Phase::Preparing && type != "game_prepared") ||
-		(phase_ == Phase::Connecting && type != "game_ready")) return true;
+		(phase_ == Phase::Connecting && type != "game_ready")) return false;
+	return !departed_.count(connection);
+}
+
+bool MatchAuthority::Acknowledge(Connection connection, const json& message, const Send& send) {
+	if (!Expects(connection, message)) return true;
+	const bool fromP1 = participants_.front().connection == connection;
+	if (fromP1 && phase_ == Phase::Preparing && message.value("spectators_optional", false)) spectatorsOptional_ = true;
+	if (fromP1 && phase_ == Phase::Connecting && spectatorsOptional_) {
+		// P1 owns the spectator links, so it alone knows which of them came up.
+		const auto slots = message.value("slots", json::array());
+		if (!slots.is_array()) return true;
+		std::set<Connection> ready;
+		for (const auto& value : slots) {
+			if (!value.is_number_integer() || value.get<long long>() < 2) return true;
+			const auto slot = value.get<std::size_t>();
+			if (slot >= participants_.size()) return true;
+			if (!departed_.count(participants_[slot].connection)) ready.insert(participants_[slot].connection);
+		}
+		startSpectators_ = std::move(ready);
+		startReported_ = true;
+	}
 	acknowledgments_.insert(connection);
-	if (acknowledgments_.size() != participants_.size()) return true;
+	return TryAdvance(send);
+}
+
+bool MatchAuthority::Acked(std::size_t slot) const {
+	return slot < participants_.size() && acknowledgments_.count(participants_[slot].connection) != 0;
+}
+
+bool MatchAuthority::TryAdvance(const Send& send) {
+	if (phase_ != Phase::Preparing && phase_ != Phase::Connecting) return true;
+	if (spectatorsOptional_) {
+		if (!Acked(0) || !Acked(1) || (phase_ == Phase::Connecting && !startReported_)) return true;
+	} else {
+		for (const auto& participant : participants_)
+			if (!acknowledgments_.count(participant.connection) && !departed_.count(participant.connection)) return true;
+	}
 	acknowledgments_.clear();
+	const auto sendLive = [&](const json& message) {
+		bool sent = true;
+		for (const auto& participant : participants_)
+			if (!departed_.count(participant.connection)) sent = send(participant.connection, message) && sent;
+		return sent;
+	};
 	if (phase_ == Phase::Preparing) {
 		phase_ = Phase::Connecting;
-		return Broadcast(json{{"type", "game_connect"}, {"generation", generation_}}, send);
+		// A spectator still preparing keeps this and connects once it is ready.
+		return sendLive(json{{"type", "game_connect"}, {"generation", generation_}});
+	}
+	bool sent = true;
+	if (spectatorsOptional_) {
+		// A spectator whose link to P1 did not come up sits this generation
+		// out. P1 has already dropped that link and will not add it to GGPO.
+		for (std::size_t slot = 2; slot < participants_.size(); ++slot) {
+			const auto connection = participants_[slot].connection;
+			if (departed_.count(connection) || startSpectators_.count(connection)) continue;
+			departed_.insert(connection);
+			sent = send(connection, json{{"type", "game_end"}, {"generation", generation_}}) && sent;
+		}
 	}
 	phase_ = Phase::Started;
-	return Broadcast(json{{"type", "game_start"}, {"generation", generation_}}, send);
+	return sendLive(json{{"type", "game_start"}, {"generation", generation_}}) && sent;
 }
 
 bool MatchAuthority::End(const Send& send) {
 	if (phase_ == Phase::Idle) return true;
 	const bool sent = Broadcast(json{{"type", "game_end"}, {"generation", generation_}}, send);
-	phase_ = Phase::Idle;
-	capabilityDigest_.clear();
-	acknowledgments_.clear();
-	participants_.clear();
-	departed_.clear();
-	capabilityDigest_.clear();
+	Reset();
 	return sent;
 }
 
 void MatchAuthority::CancelPreparation() {
-	if (phase_ == Phase::Started) return;
+	if (phase_ != Phase::Started) Reset();
+}
+
+void MatchAuthority::Reset() {
 	phase_ = Phase::Idle;
 	acknowledgments_.clear();
 	participants_.clear();
 	departed_.clear();
 	capabilityDigest_.clear();
+	spectatorsOptional_ = startReported_ = false;
+	startSpectators_.clear();
 }
 
 bool MatchAuthority::RebindConnections(const std::vector<RebindEntry>& mapping) {
@@ -270,11 +365,13 @@ bool MatchAuthority::RebindConnections(const std::vector<RebindEntry>& mapping) 
 		}
 		return true;
 	};
-	std::set<Connection> reboundAcknowledgments, reboundDeparted;
-	if (!remapSet(acknowledgments_, reboundAcknowledgments) || !remapSet(departed_, reboundDeparted)) return false;
+	std::set<Connection> reboundAcknowledgments, reboundDeparted, reboundStart;
+	if (!remapSet(acknowledgments_, reboundAcknowledgments) || !remapSet(departed_, reboundDeparted) ||
+		!remapSet(startSpectators_, reboundStart)) return false;
 	participants_ = std::move(rebound);
 	acknowledgments_ = std::move(reboundAcknowledgments);
 	departed_ = std::move(reboundDeparted);
+	startSpectators_ = std::move(reboundStart);
 	return true;
 }
 
@@ -309,9 +406,13 @@ bool MatchAuthority::MemberDeparted(Connection connection, const Send& send) {
 	// started. Their departure must not tear down the two fighter sessions.
 	// Preserve the original slot in the frozen roster and tell P1 to remove
 	// only that link so future capabilities cannot be re-used for the peer.
-	if (phase_ == Phase::Started && slot >= 2 && !participants_.empty()) {
-		return send(participants_.front().connection,
+	if (slot >= 2 && (phase_ == Phase::Started || spectatorsOptional_)) {
+		// Before the start this also retires the spectator from the barrier,
+		// which may now be met.
+		acknowledgments_.erase(connection);
+		const bool sent = send(participants_.front().connection,
 			json{{"type", "game_peer_end"}, {"generation", generation_}, {"slot", slot}});
+		return TryAdvance(send) && sent;
 	}
 	return End(send);
 }

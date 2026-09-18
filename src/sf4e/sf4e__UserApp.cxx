@@ -181,9 +181,13 @@ static bool StartRuntimeGgpo() {
         fSystem::StartSpectating(endpoints.localPort, 2, loopback, endpoints.remotePorts[0], netplay->client._matchData.rngSeed);
     } else {
         GGPOPlayer players[sf4e::room::MaxMatchParticipants] = {};
-        const auto count = endpoints.localSlot == 0 ? endpoints.participantCount : 2;
-        for (std::size_t slot = 0; slot < count; ++slot) {
-            auto& player = players[slot]; player.size = sizeof(player); player.player_num = static_cast<int>(slot) + 1;
+        const auto slots = endpoints.localSlot == 0 ? endpoints.participantCount : 2;
+        std::size_t count = 0;
+        for (std::size_t slot = 0; slot < slots; ++slot) {
+            // A spectator whose link did not come up before the start has no
+            // port; it sits this generation out rather than blocking the fight.
+            if (slot >= 2 && !endpoints.remotePorts[slot]) continue;
+            auto& player = players[count++]; player.size = sizeof(player); player.player_num = static_cast<int>(slot) + 1;
             if (slot == endpoints.localSlot) {
                 player.type = GGPO_PLAYERTYPE_LOCAL;
                 if (!sf4e::NetplayFacade::BindRuntimeInput(static_cast<int>(slot))) return false;
@@ -427,6 +431,7 @@ void fUserApp::Steam_PostUpdate() {
     // After the final advance, the peer's inputs for the result frames can
     // still be confirmed by this poll. Publish from here too.
     fSystem::PollNativeMatchResult();
+    fSystem::PollSpectators();
 
     // Distributed time-sync pacing (Phase 4): repay a small, bounded slice
     // of the outstanding correction per rendered frame, outside every GGPO
@@ -472,6 +477,28 @@ void fUserApp::Steam_PostUpdate() {
         const double outerTickMs = now - outerTickStartMs;
         diag::RollbackDiagnostics& d = diag::G();
         d.RecordOp(diag::OP_OUTER_TICK, outerTickMs);
+
+        // Attribute every over-budget frame. The room.* values nest inside
+        // roomRuntime/serverStep. Rate-limited; hitchCounts keep exact totals.
+        static double s_lastFrameOverMs = -1.0;
+        if (
+            fSystem::ggpo &&
+            outerTickMs >= 16.67 &&
+            (s_lastFrameOverMs < 0.0 || now - s_lastFrameOverMs >= 250.0)
+        ) {
+            s_lastFrameOverMs = now;
+            diag::ScopedTimer logTimer(diag::OP_DIAGNOSTIC_ENQUEUE);
+            // Every op that ran this frame, by its TimedOpName.
+            std::string ops;
+            char part[64];
+            for (int op = 0; op < diag::OP_COUNT; ++op) {
+                if (d.frameMs[op] <= 0.0) continue;
+                snprintf(part, sizeof(part), " %s=%.2f", diag::TimedOpName(op), d.frameMs[op]);
+                ops += part;
+            }
+            spdlog::warn("FrameOver outerTickMs={:.2f} rollbackCallbacks={}{}",
+                outerTickMs, d.rollbackCallbacksThisOuterFrame, ops);
+        }
 
         // A 25 ms complete outer tick is a useful rendered-frame hitch
         // candidate at 60 Hz. Rate-limit detailed records: summaries retain

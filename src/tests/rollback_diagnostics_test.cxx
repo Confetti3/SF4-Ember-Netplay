@@ -273,6 +273,20 @@ static void TestFormatSummary() {
 	CHECK(strstr(full, "free.swap") != NULL);
 	CHECK(strstr(full, "restore.vfx") != NULL);
 	CHECK(strstr(full, "record.effect") != NULL);
+	CHECK(strstr(full, "room.checkpoint_build") != NULL);
+
+	// Per-frame attribution accumulates within an outer frame, reads zero for
+	// an op that did not run, and is cleared by the outer-frame boundary.
+	d.OnOuterFrame(3.0);
+	CHECK(d.frameMs[OP_ROOM_BROADCAST] == 0.0);
+	d.RecordOp(OP_ROOM_BROADCAST, 1.0);
+	d.RecordOp(OP_ROOM_BROADCAST, 2.5);
+	CHECK(d.frameMs[OP_ROOM_BROADCAST] == 3.5);
+	CHECK(d.frameMs[OP_ROOM_POLL] == 0.0);
+	CHECK(d.ops[OP_ROOM_BROADCAST].lastMs == 2.5);
+	d.OnOuterFrame(4.0);
+	CHECK(d.frameMs[OP_ROOM_BROADCAST] == 0.0);
+
 	for (int op = 0; op < OP_COUNT; op++) {
 		CHECK(strcmp(TimedOpName(op), "?") != 0);
 	}

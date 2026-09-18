@@ -124,7 +124,20 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
                 const auto transport=peers[i].room->RecoveryState();
                 std::cerr << " candidate=" << peers[i].server->HasRecoveryCandidate()
                     << " proposal=" << bool(peers[i].server->PendingProposal())
-                    << " queued_server=" << transport.serverQueueMessages << " queued_client=" << transport.clientQueueMessages;
+                    << " queued_server=" << transport.serverQueueMessages << " queued_client=" << transport.clientQueueMessages
+                    << " staged=" << transport.stagedCheckpoints << " parked_marker=" << transport.pendingCommittedMarker
+                    << " receiving=" << transport.checkpointActive << '/' << transport.checkpointComplete << ' '
+                    << transport.checkpointOffset << '/' << transport.checkpointLength << " rev=" << transport.checkpointRevision
+                    << " in_flight=" << peers[i].room->ProposalInFlight() << " proposal_status=" << transport.proposalStatus
+                    << " proposal_wire=" << transport.proposalTransfer << '/' << transport.proposalTerm << '/' << transport.proposalBaseRevision
+                    << " sent=" << transport.proposalSent << '/' << transport.proposalBytes << " acked=" << transport.proposalAcknowledged
+                    << " begun=" << transport.proposalBegun << " ended=" << transport.proposalEnded
+                    << " elapsed_ms=" << transport.proposalElapsedMs << " proposal_timeouts=" << transport.proposalTimeouts;
+                if(const auto pending=peers[i].server->PendingProposal())
+                    std::cerr << " pending=" << pending->request << '/' << pending->term << '/' << pending->baseRevision
+                        << " effects=" << pending->effects.size();
+                if(i && matches[i]) std::cerr << " match_phase=" << static_cast<int>(matches[i]->GetPhase())
+                    << " match_generation=" << matches[i]->Generation();
                 if(checkpoint.contains("room") && checkpoint["room"].contains("terminal_receipts"))
                     for(const auto& receipt:checkpoint["room"]["terminal_receipts"]) {
                         std::cerr << " terminal=" << receipt.at("table") << '/' << receipt.at("generation")
@@ -313,6 +326,18 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
         matches[1].reset(new session::IrohMatchSession(*peers[1].client,peers[1].room));
         matches[2].reset(new session::IrohMatchSession(*peers[2].client,peers[2].room));
         const auto ready=[&](std::size_t peer,unsigned delay) {
+            if(matchFault==MatchFault::SameTermPreparation && peer==2) {
+                // The window below steps the owner until it holds a candidate
+                // and then proposes it in one tick. Start from an idle owner,
+                // or that candidate may be an earlier commit still applying
+                // (checkpoints decode off the game thread) and not this Ready.
+                auto& owner=peers[0];
+                wait([&]() {
+                    pump();
+                    return !owner.server->HasRecoveryCandidate() && !owner.server->PendingProposal() &&
+                        owner.recovery.CaughtUp(owner.room->Coordination());
+                });
+            }
             const auto view=peers[peer].client->GetRoomSnapshot();
             room::Action request; request.kind=room::ActionKind::Ready; request.table=0;
             request.roomEpoch=view.roomEpoch; request.revision=view.revision;
@@ -757,7 +782,7 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
         wait([&](){CHECK(peers[0].server->Step()==0);return peers[0].server->HasRecoveryCandidate();});
         CHECK(peers[0].server->ProposeCheckpoint(oldRevision+1,oldTerm,oldRevision,nullptr));
         const auto proposal=peers[0].server->PendingProposal();CHECK(proposal);
-        CHECK(peers[0].room->ProposeCheckpoint(proposal->request,proposal->term,proposal->baseRevision,nlohmann::json(*proposal)));
+        CHECK(peers[0].room->ProposeCheckpointBytes(proposal->request,proposal->term,proposal->baseRevision,proposal->encoded));
         // Poll helper transfers and follower application only. The original
         // native owner never applies its committed candidate or flushes effects.
         wait([&](){for(std::size_t i=1;i<count;++i)

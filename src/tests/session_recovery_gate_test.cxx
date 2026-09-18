@@ -224,6 +224,73 @@ int main() {
 	gate.SetAuthority(10, 0, false);
 	assert(!gate.Writable());
 	assert(!gate.WasPrecommittedStarted(12));
+
+	// The spliced proposal encoding is byte-identical to the JSON library's, and
+	// the effects digest over the pre-encoded array matches EffectsDigest.
+	{
+		auto encodedProposal = proposal;
+		encodedProposal.checkpoint = nlohmann::json{{"schema", "session-recovery-v2"}, {"room", {{"name", "a \"quoted\" room"}}},
+			{"effect_journal", nlohmann::json::array()}, {"members", nlohmann::json::array({1, 2, 3})}};
+		const auto effects = nlohmann::json(encodedProposal.effects).dump();
+		assert(sf4e::session::recovery_detail::Sha256(effects) == sf4e::session::EffectsDigest(encodedProposal.effects));
+		assert(sf4e::session::EncodeSessionProposal(encodedProposal, effects) == nlohmann::json(encodedProposal).dump());
+	}
+
+	// Compacting with tracked sizes gives the same journal as re-encoding it,
+	// and leaves the sizes in step, through diagnostic trimming, projection
+	// supersession, replay-copy shedding and the byte bound.
+	{
+		std::vector<EffectEnvelope> journal;
+		for (std::uint64_t i = 0; i < 300; ++i) {
+			auto entry = effect;
+			entry.sequence = i + 1;
+			entry.recipient = 1 + i % 5;
+			entry.type = i % 7 == 0 ? "battle_hash" : i % 3 == 0 ? "room_result" : "room_snapshot";
+			entry.publicPayload = nlohmann::json{{"type", entry.type}, {"blob", std::string(1500 + i, 'x')}};
+			entry.payloadDigest = sf4e::session::PayloadDigest(entry.publicPayload);
+			journal.push_back(entry);
+		}
+		auto reference = journal;
+		sf4e::session::CompactEffectJournal(reference);
+		std::vector<std::size_t> sizes;
+		for (const auto& entry : journal) sizes.push_back(nlohmann::json(entry).dump().size());
+		sf4e::session::CompactEffectJournal(journal, sizes);
+		assert(journal == reference && journal.size() == sizes.size());
+		for (std::size_t i = 0; i < journal.size(); ++i) {
+			assert(journal[i].publicPayload == reference[i].publicPayload);
+			assert(sizes[i] == nlohmann::json(journal[i]).dump().size());
+		}
+	}
+
+	// The CNG digest is the standard SHA-256, as is the portable reference: the
+	// Rust helper checks the same digests. Includes the empty input, block
+	// boundaries and a large input.
+	assert(sf4e::session::recovery_detail::Sha256("") == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+	assert(sf4e::session::recovery_detail::Sha256("abc") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+	for (const std::size_t size : {std::size_t(55), std::size_t(56), std::size_t(64), std::size_t(1000), std::size_t(600000)}) {
+		std::string input(size, '\0');
+		for (std::size_t i = 0; i < size; ++i) input[i] = static_cast<char>((i * 131 + 7) & 0xff);
+		assert(sf4e::session::recovery_detail::Sha256(input) == sf4e::session::recovery_detail::Sha256Portable(input));
+	}
+
+	// The journal sizes an envelope without encoding its replay copy again, and
+	// the live send splices the token into the already encoded payload. Both
+	// must match what nlohmann would produce.
+	{
+		const nlohmann::json snapshot{{"type", "room_snapshot"}, {"snapshot", {{"revision", 7}, {"name", "Room \"one\""}}}};
+		const auto encoded = snapshot.dump();
+		auto replayable = effect;
+		replayable.type = "room_snapshot"; replayable.privatePayload = false; replayable.publicPayload = snapshot;
+		replayable.payloadDigest = sf4e::session::recovery_detail::Sha256(encoded);
+		assert(sf4e::session::EncodedEnvelopeBytes(replayable, encoded.size()) == nlohmann::json(replayable).dump().size());
+		assert(replayable.publicPayload == snapshot); // restored after sizing
+		auto digestOnly = replayable; digestOnly.publicPayload = nullptr;
+		assert(sf4e::session::EncodedEnvelopeBytes(digestOnly, encoded.size()) == nlohmann::json(digestOnly).dump().size());
+		auto expected = snapshot; expected["_commit"] = sf4e::session::EffectCommitToken(replayable);
+		assert(nlohmann::json::parse(sf4e::session::CommittedEffectWire(replayable, encoded)) == expected);
+		auto empty = nlohmann::json::object(); empty["_commit"] = sf4e::session::EffectCommitToken(replayable);
+		assert(nlohmann::json::parse(sf4e::session::CommittedEffectWire(replayable, "{}")) == empty);
+	}
 	std::cout << "Session recovery gate test passed\n";
 	return 0;
 }

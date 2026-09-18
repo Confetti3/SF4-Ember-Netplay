@@ -150,6 +150,31 @@ int main() {
 	protocol::RoomSnapshotMessage roomMessage; roomMessage.snapshot = roomSnapshot;
 	roomTransport->Push(json(roomMessage)); CHECK(roomClient.Step() == 0);
 	CHECK(roomClient._lobbyData.members.size() == 2 && roomClient._lobbyData.members[1].name == "Guest");
+	{
+		// The client advertises roomChatDelta, and a snapshot marked
+		// chat_unchanged keeps the chat it holds.
+		SessionClient chatClient(callbacks, "build", 30000, roomName);
+		chatClient.RequireCustomRooms();
+		auto* chatTransport = new MockClient();
+		CHECK(chatClient.Connect(std::unique_ptr<session::ClientTransport>(chatTransport), false) == 0);
+		chatTransport->state = session::ConnectionState::Connected;
+		CHECK(chatClient.Step() == 0);
+		CHECK(chatTransport->sent.back().at("admission").value("roomChatDelta", false));
+		chatTransport->Push(json(roomHello)); CHECK(chatClient.Step() == 0);
+		auto withChat = roomSnapshot;
+		room::ChatMessage line; line.sequence = 1; line.sender = withChat.members.front().id; line.text = "hi";
+		withChat.chat = {line};
+		protocol::RoomSnapshotMessage chatMessage; chatMessage.snapshot = withChat;
+		chatTransport->Push(json(chatMessage)); CHECK(chatClient.Step() == 0);
+		CHECK(chatClient.GetRoomSnapshot().chat.size() == 1);
+		auto unchanged = withChat; unchanged.chat.clear(); ++unchanged.revision;
+		chatMessage.snapshot = unchanged;
+		json payload = chatMessage;
+		payload["snapshot"].erase("chat"); payload["snapshot"]["chat_unchanged"] = true;
+		chatTransport->Push(payload); CHECK(chatClient.Step() == 0);
+		CHECK(chatClient.GetRoomSnapshot().revision == unchanged.revision);
+		CHECK(chatClient.GetRoomSnapshot().chat.size() == 1 && chatClient.GetRoomSnapshot().chat.front().text == "hi");
+	}
 	// Result and native-finish reports retain one exact queued action identity.
 	// A later retry cannot change the generation/outcome bytes or allocate a new
 	// action ID, and exact duplicates can be coalesced without dropping either
@@ -351,6 +376,41 @@ int main() {
 		CHECK(roomClient.Step() == 0);
 		CHECK(roomTransport->sent.size() == sentBefore + 1);
 		CHECK(!roomClient.TakeActionReply(actionReply));
+		// The resend answers under the id its caller was given. Callers that
+		// wait for their own id (fixtures, retry owners) must not hang.
+		const auto staleAgainId = staleAgain.actionId;
+		protocol::RoomResultMessage resentAccepted;
+		resentAccepted.actionId = roomTransport->sent.back().at("action").at("action_id").get<std::uint64_t>();
+		CHECK(resentAccepted.actionId != staleAgainId);
+		resentAccepted.result.accepted = true;
+		resentAccepted.result.snapshot = current;
+		roomTransport->Push(json(resentAccepted));
+		CHECK(roomClient.Step() == 0);
+		CHECK(roomClient.TakeActionReply(actionReply) && actionReply.accepted && actionReply.actionId == staleAgainId &&
+			actionReply.kindKnown && actionReply.kind == room::ActionKind::Ready);
+		// It also resends the caller's own request, not the client's default Ready.
+		room::Action explicitReady;
+		explicitReady.kind = room::ActionKind::Ready; explicitReady.table = 0; explicitReady.inputDelay = 7;
+		explicitReady.revision = current.revision; explicitReady.tableRevision = current.tables[0].revision;
+		std::uint64_t callerId = 0;
+		CHECK(roomClient.SendRoomAction(explicitReady, &callerId) == session::SendResult::Queued);
+		protocol::RoomResultMessage staleExplicit;
+		staleExplicit.actionId = callerId;
+		staleExplicit.result.accepted = false;
+		staleExplicit.result.reason = room::RejectReason::StaleTable;
+		++current.revision; ++current.tables[0].revision;
+		staleExplicit.result.snapshot = current;
+		roomTransport->Push(json(staleExplicit));
+		CHECK(roomClient.Step() == 0);
+		CHECK(roomTransport->sent.back().at("action").at("input_delay").get<int>() == 7);
+		CHECK(roomTransport->sent.back().at("action").at("table_revision").get<std::uint64_t>() == current.tables[0].revision);
+		protocol::RoomResultMessage explicitAccepted;
+		explicitAccepted.actionId = roomTransport->sent.back().at("action").at("action_id").get<std::uint64_t>();
+		explicitAccepted.result.accepted = true;
+		explicitAccepted.result.snapshot = current;
+		roomTransport->Push(json(explicitAccepted));
+		CHECK(roomClient.Step() == 0);
+		CHECK(roomClient.TakeActionReply(actionReply) && actionReply.accepted && actionReply.actionId == callerId);
 	}
 	// MatchEnded is an outcome notification, not an automatic receipt release.
 	// The explicit acknowledgement remains in the client queue until the

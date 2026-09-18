@@ -68,9 +68,9 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(wil CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
 
-add_library(sf4e_room_model STATIC "src/session/RoomModel.cxx")
+add_library(sf4e_room_model STATIC "src/session/RoomModel.cxx" "src/session/RoomDigest.cxx")
 target_compile_features(sf4e_room_model PUBLIC cxx_std_14)
-target_link_libraries(sf4e_room_model PUBLIC nlohmann_json::nlohmann_json)
+target_link_libraries(sf4e_room_model PUBLIC nlohmann_json::nlohmann_json "bcrypt")
 if(BUILD_TESTING)
     add_executable(MatchResultOutboxTest "src/tests/match_result_outbox_test.cxx")
     target_link_libraries(MatchResultOutboxTest PRIVATE sf4e_netplay_core sf4e_room_model)
@@ -115,6 +115,13 @@ if(BUILD_TESTING)
         target_compile_options(SessionRecoveryGateTest PRIVATE -UNDEBUG)
     endif()
     add_test(NAME SessionRecoveryGate COMMAND SessionRecoveryGateTest)
+    add_executable(CheckpointDecodeWorkerTest "src/tests/checkpoint_decode_worker_test.cxx")
+    target_compile_features(CheckpointDecodeWorkerTest PRIVATE cxx_std_14)
+    target_link_libraries(CheckpointDecodeWorkerTest PRIVATE sf4e_room_model)
+    add_test(NAME CheckpointDecodeWorker COMMAND CheckpointDecodeWorkerTest)
+    add_executable(SpectatorPolicyTest "src/tests/spectator_policy_test.cxx")
+    add_test(NAME SpectatorPolicy COMMAND SpectatorPolicyTest)
+    set_tests_properties(CheckpointDecodeWorker PROPERTIES TIMEOUT 30)
 endif()
 
 if(BUILD_TESTING)
@@ -344,6 +351,22 @@ if(BUILD_TESTING)
             # Six games after sixteen serialized admissions and table setup.
             # Each individual fixture phase retains its 45-second deadline.
             set_tests_properties(CustomRoomFourTables CustomRoomSpectators CustomRoomFourTablesRelay CustomRoomSpectatorsRelay PROPERTIES TIMEOUT 1800 RUN_SERIAL TRUE)
+            # A spectator that never sets up must not hold the fighters' start.
+            add_test(NAME CustomRoomStalledSpectator COMMAND CustomRoomGameTest "${SF4E_HELPER_EXECUTABLE}"
+                --members 6 --single-table --cycles 2 --stall-spectator)
+            set_tests_properties(CustomRoomStalledSpectator PROPERTIES TIMEOUT 600 RUN_SERIAL TRUE)
+            # Report-only timing runs: <name>;<members>;<members per table>.
+            # The first two members at a table fight and the rest spectate.
+            foreach(perf "SingleMatch;2;2" "TwoMatches;4;2" "FourMatches;8;2" "Spectators1;3;3"
+                    "Spectators4;6;6" "Spectators8;10;10" "SixteenFourTables;16;4")
+                list(GET perf 0 perf_name)
+                list(GET perf 1 perf_members)
+                list(GET perf 2 perf_per_table)
+                add_test(NAME RoomPerf.${perf_name} COMMAND CustomRoomGameTest "${SF4E_HELPER_EXECUTABLE}" --perf
+                    --members ${perf_members} --per-table ${perf_per_table} --cycles 2
+                    --json "${CMAKE_BINARY_DIR}/room-perf-${perf_name}.json")
+                set_tests_properties(RoomPerf.${perf_name} PROPERTIES TIMEOUT 1800 RUN_SERIAL TRUE)
+            endforeach()
             add_test(NAME IrohRoomIntegration COMMAND IrohRoomIntegrationTest "${SF4E_HELPER_EXECUTABLE}")
             add_test(NAME IrohRoomRelayIntegration COMMAND IrohRoomIntegrationTest "${SF4E_HELPER_EXECUTABLE}" --relay-only)
             set_tests_properties(IrohRoomIntegration IrohRoomRelayIntegration PROPERTIES TIMEOUT 240 RUN_SERIAL TRUE)
@@ -372,9 +395,18 @@ if(BUILD_TESTING)
         "src/session/sf4e__SessionServer.cxx"
         "src/session/sf4e__SessionProtocol.cxx")
     target_link_libraries(SessionServerTransportTest PRIVATE
-        nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model "bcrypt")
+        nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
     target_compile_features(SessionServerTransportTest PRIVATE cxx_std_14)
     add_test(NAME SessionServerTransport COMMAND SessionServerTransportTest)
+    # Explicitly invoked host-cost benchmark; not a CTest (see the source).
+    add_executable(RoomHostBench
+        "src/tests/room_host_bench.cxx"
+        "src/session/MatchAuthority.cxx"
+        "src/session/sf4e__SessionServer.cxx"
+        "src/session/sf4e__SessionProtocol.cxx")
+    target_link_libraries(RoomHostBench PRIVATE
+        nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
+    target_compile_features(RoomHostBench PRIVATE cxx_std_17)
     add_executable(GgpoUdpValidationTest "src/tests/ggpo_udp_validation_test.cxx")
     target_link_libraries(GgpoUdpValidationTest PRIVATE ggpo::GGPO "ws2_32")
     add_test(NAME GgpoUdpValidation COMMAND GgpoUdpValidationTest)
@@ -391,6 +423,10 @@ if(BUILD_TESTING)
     target_link_libraries(GgpoPendingOutputTest PRIVATE ggpo::GGPO "ws2_32")
     add_test(NAME GgpoPendingOutput COMMAND GgpoPendingOutputTest)
     set_tests_properties(GgpoPendingOutput PROPERTIES TIMEOUT 15)
+    add_executable(GgpoSpectatorHandleControlTest "src/tests/ggpo_spectator_handle_control_test.cxx")
+    target_link_libraries(GgpoSpectatorHandleControlTest PRIVATE ggpo::GGPO "ws2_32")
+    add_test(NAME GgpoSpectatorHandleControl COMMAND GgpoSpectatorHandleControlTest)
+    set_tests_properties(GgpoSpectatorHandleControl PROPERTIES TIMEOUT 15 PASS_REGULAR_EXPRESSION "GGPO spectator handle control passed")
     add_executable(GgpoDisconnectBeforeInputTest "src/tests/ggpo_disconnect_before_input_test.cxx")
     target_link_libraries(GgpoDisconnectBeforeInputTest PRIVATE ggpo::GGPO "ws2_32")
     add_test(NAME GgpoDisconnectBeforeInput COMMAND GgpoDisconnectBeforeInputTest)
@@ -504,6 +540,12 @@ install(DIRECTORY "assets/selection" DESTINATION "assets" COMPONENT SelectionRef
 add_custom_target(SelectionAssets
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/selection" "$<TARGET_FILE_DIR:Sidecar>/assets/selection"
+    # The menu art and button prompts the install step ships, so a launch from
+    # the build folder does not fall back to text glyphs.
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets/brand" "$<TARGET_FILE_DIR:Sidecar>/assets/brand"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets/input" "$<TARGET_FILE_DIR:Sidecar>/assets/input"
     VERBATIM)
 add_dependencies(Sidecar SelectionAssets)
 add_custom_command(TARGET Sidecar POST_BUILD

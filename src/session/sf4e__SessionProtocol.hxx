@@ -222,6 +222,8 @@ namespace sf4e {
 			bool customRooms = false;
 			std::uint32_t roomProtocol = 0;
 			int mainFighter = -1;
+			// The client keeps its room chat when a snapshot says chat_unchanged.
+			bool roomChatDelta = false;
 		};
 
 		struct LobbyReady {
@@ -352,6 +354,9 @@ namespace sf4e {
 		struct RoomSnapshotMessage {
 			MessageType type = MT_ROOM_SNAPSHOT;
 			room::Snapshot snapshot;
+			// Wire: "chat_unchanged" replaces "chat" inside the snapshot object.
+			// snapshot.chat is then empty and the recipient keeps the chat it holds.
+			bool chatUnchanged = false;
 		};
 
 		struct RoomActionMessage {
@@ -386,7 +391,7 @@ namespace sf4e {
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionHelloResp, type, cid, roomMember, authenticatedEndpoint, incarnation);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionDataUpdate, type, lobbyData, matchData, matchGeneration, authorityTerm, authorityRevision);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SessionJoinReject, type, result);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionJoinRequest, type, sidecarHash, username, port, customRooms, roomProtocol, mainFighter);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionJoinRequest, type, sidecarHash, username, port, customRooms, roomProtocol, mainFighter, roomChatDelta);
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReady, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyAllReady, type);
@@ -409,7 +414,19 @@ namespace sf4e {
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PunchReady, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PunchGo, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ForwardMessage, type, src, dest, msg);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomSnapshotMessage, type, snapshot);
+		inline void to_json(nlohmann::json& value, const RoomSnapshotMessage& message) {
+			value = {{"type", message.type}, {"snapshot", message.snapshot}};
+			if (message.chatUnchanged) { value["snapshot"].erase("chat"); value["snapshot"]["chat_unchanged"] = true; }
+		}
+		inline void from_json(const nlohmann::json& value, RoomSnapshotMessage& message) {
+			value.at("type").get_to(message.type);
+			const auto& snapshot = value.at("snapshot");
+			message.chatUnchanged = snapshot.is_object() && snapshot.value("chat_unchanged", false);
+			if (!message.chatUnchanged) { snapshot.get_to(message.snapshot); return; }
+			auto withoutChat = snapshot;
+			withoutChat["chat"] = nlohmann::json::array();
+			withoutChat.get_to(message.snapshot);
+		}
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomActionMessage, type, action);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(RoomResultMessage, type, result, actionId);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomEventMessage, type, event);

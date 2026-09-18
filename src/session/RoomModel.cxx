@@ -123,7 +123,7 @@ Snapshot RoomAuthority::SnapshotFor(MemberId member) const {
 	result.localTerminalGenerations.fill(0);
 	for (const auto& receipt : terminalReceipts_) {
 		if (receipt.acknowledged || receipt.table >= TableCount) continue;
-		result.terminalPending[receipt.table] = true;
+		if (FightersOutstanding(receipt)) result.terminalPending[receipt.table] = true;
 		if (std::any_of(receipt.recipients.begin(), receipt.recipients.end(),
 			[&](const TerminalRecipient& recipient) { return recipient.member == member && !recipient.acknowledged; })) {
 			result.localTerminalPending = true;
@@ -587,9 +587,28 @@ std::vector<RoomAuthority::TerminalReplay> RoomAuthority::PendingTerminalEvents(
 	return result;
 }
 
+bool RoomAuthority::FightersOutstanding(const TerminalReceipt& receipt) {
+	// Only the fighters hold the table. A spectator that is still retiring its
+	// session keeps its own receipt row (replay, idempotence, its own Queue/
+	// Watch/Ready gate) but cannot delay the next generation; BeginMatch leaves
+	// it out of that generation instead.
+	return !receipt.acknowledged &&
+		std::any_of(receipt.recipients.begin(), receipt.recipients.end(), [&](const TerminalRecipient& recipient) {
+			return !recipient.acknowledged &&
+				(recipient.member == receipt.fighters[0] || recipient.member == receipt.fighters[1]);
+		});
+}
+
 bool RoomAuthority::HasOutstandingTerminalReceipt(std::uint8_t table) const {
 	return std::any_of(terminalReceipts_.begin(), terminalReceipts_.end(),
-		[&](const TerminalReceipt& receipt) { return receipt.table == table && !receipt.acknowledged; });
+		[&](const TerminalReceipt& receipt) { return receipt.table == table && FightersOutstanding(receipt); });
+}
+
+std::vector<MemberId> RoomAuthority::MatchRoster(std::uint8_t table) const {
+	std::vector<MemberId> roster;
+	if (table >= TableCount) return roster;
+	for (const auto& recipient : activeMatchRecipients_[table]) roster.push_back(recipient.member);
+	return roster;
 }
 
 bool RoomAuthority::HasOutstandingTerminalReceiptForMember(MemberId member) const {
@@ -837,6 +856,10 @@ Result RoomAuthority::Leave(MemberId member) {
 	}
 	RemoveFromTable(member);
 	snapshot_.members.erase(std::remove_if(snapshot_.members.begin(), snapshot_.members.end(), [member](const Member& value) { return value.id == member; }), snapshot_.members.end());
+	// A chat line names its sender by member id, which no longer resolves;
+	// snapshot readers reject a sender outside the roster.
+	snapshot_.chat.erase(std::remove_if(snapshot_.chat.begin(), snapshot_.chat.end(),
+		[member](const ChatMessage& chat) { return chat.sender == member; }), snapshot_.chat.end());
 	TouchRoom();
 	if (wasHost && snapshot_.members.empty()) {
 		snapshot_.closed = true;
@@ -884,7 +907,8 @@ Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2)
 			// for the match that just began.
 		}
 	}
-	for (const auto spectator : table->spectators) freezeRecipient(spectator);
+	for (const auto spectator : table->spectators)
+		if (!HasOutstandingTerminalReceiptForMember(spectator)) freezeRecipient(spectator);
 	Touch(*table);
 	NormalizeMemberStatus(p1); NormalizeMemberStatus(p2);
 	return Accept({Event{Event::Kind::MatchStarted, tableId, table->matchGeneration, 0, MatchResult::Abort}});
@@ -1391,7 +1415,10 @@ void from_json(const nlohmann::json& json, Snapshot& value) {
 	}
 	ReadMemberList(json, "chat", value.chat, MaximumChatMessages);
 	if (value.host && !memberIds.count(value.host)) throw std::invalid_argument("room host member"); if (value.localMember && !memberIds.count(value.localMember)) throw std::invalid_argument("room local member");
-	for (const auto& chat : value.chat) if (!memberIds.count(chat.sender)) throw std::invalid_argument("room chat member");
+	// Older owners kept a departed member's chat. Drop those lines rather than
+	// reject the whole room state; the sender cannot be named anyway.
+	value.chat.erase(std::remove_if(value.chat.begin(), value.chat.end(),
+		[&](const ChatMessage& chat) { return !memberIds.count(chat.sender); }), value.chat.end());
 }
 void to_json(nlohmann::json& json, const Action& value) { json = nlohmann::json{{"kind", static_cast<int>(value.kind)}, {"protocol_version", value.protocolVersion}, {"room_epoch", value.roomEpoch}, {"revision", value.revision}, {"table_revision", value.tableRevision}, {"action_id", value.actionId}, {"table", value.table}, {"seat", value.seat}, {"target", value.target}, {"rules", value.rules}, {"capacity", value.capacity}, {"locked", value.locked}, {"result", static_cast<int>(value.result)}, {"match_generation", value.matchGeneration}, {"input_delay", value.inputDelay}, {"text", value.text}}; }
   void from_json(const nlohmann::json& json, Action& value) { value.kind = static_cast<ActionKind>(ReadInt(json, "kind", 0, static_cast<int>(ActionKind::AcknowledgeTerminal))); value.protocolVersion = static_cast<std::uint32_t>(ReadInt(json, "protocol_version", 0, 100)); value.roomEpoch = ReadU64(json, "room_epoch"); value.revision = ReadU64(json, "revision"); value.tableRevision = ReadU64(json, "table_revision"); value.actionId = ReadU64(json, "action_id"); value.table = static_cast<std::uint8_t>(ReadInt(json, "table", 0, static_cast<int>(TableCount - 1))); value.seat = static_cast<std::int8_t>(ReadInt(json, "seat", -1, 1)); value.target = ReadU64(json, "target"); json.at("rules").get_to(value.rules); value.capacity = static_cast<std::uint8_t>(ReadInt(json, "capacity", 0, static_cast<int>(MaximumMembers))); if (!json.at("locked").is_boolean()) throw std::invalid_argument("room lock field"); value.locked = json.at("locked").get<bool>(); value.result = static_cast<MatchResult>(ReadInt(json, "result", 0, static_cast<int>(MatchResult::Abort))); value.matchGeneration = ReadU64(json, "match_generation"); value.inputDelay = static_cast<std::uint8_t>(json.contains("input_delay") ? ReadInt(json, "input_delay", 0, 10) : 2); value.text = ReadText(json, "text", MaximumChatBytes); }

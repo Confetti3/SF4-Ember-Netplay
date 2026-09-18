@@ -76,6 +76,24 @@ enum TimedOp {
 	OP_PACING_WAIT,                // distributed pacing wait in the outer tick
 	OP_RUNTIME_TICK,               // room/control processing inside the outer tick
 
+	// Room work inside the outer tick (host unless noted). These nest inside
+	// OP_RUNTIME_TICK / OP_SESSION_SERVER_STEP; do not sum them with those.
+	OP_ROOM_POLL,                  // IrohRoom::Poll, every member; includes its PumpCheckpoint
+	OP_ROOM_RECOVERY_TICK,         // RoomRecoveryRuntime::Tick
+	// Replicated checkpoint import. Every member of a recovery-enabled room
+	// runs a passive SessionServer, so these run on every member's game
+	// thread for every committed room mutation at any table.
+	OP_ROOM_IMPORT_APPLY,          // ApplyCommit, or journal compaction + RestoreRecoveryCheckpoint
+	OP_ROOM_IMPORT_REBIND,         // RoomRecoveryRuntime::Rebind -> RebindMembers
+	OP_ROOM_CHECKPOINT_BUILD,      // SessionServer::RecoveryCheckpoint
+	OP_ROOM_BROADCAST,             // SessionServer::BroadcastRoomState
+	OP_ROOM_PROPOSE,               // IrohRoom::ProposeCheckpoint + PumpCheckpoint
+	OP_ROOM_ADVANCE,               // SessionServer::AdvanceCustomRoom
+	OP_ROOM_JOURNAL,               // SessionServer::JournalEffect (digest + size of each effect)
+	OP_ROOM_COMMIT_SEND,           // ApplyCommit: encode and send each committed effect
+	OP_ROOM_COMPACT,               // ApplyCommit: CompactEffectJournal over the committed history
+	OP_MATCH_LIFECYCLE,            // match session tick / GGPO start and abort
+
 	OP_COUNT
 };
 
@@ -150,6 +168,10 @@ struct RollbackDiagnostics {
 	bool enabled;
 
 	TimingStat ops[OP_COUNT];
+	// Time spent per op during the current outer frame. Unlike ops[].lastMs
+	// this is zero for an op that did not run this frame, so it can attribute
+	// an over-budget frame. Cleared by OnOuterFrame.
+	double frameMs[OP_COUNT];
 
 	uint64_t skipReasons[SKIP_COUNT];
 	uint32_t ggpoResults[CALL_COUNT][NUM_RESULT_SLOTS];

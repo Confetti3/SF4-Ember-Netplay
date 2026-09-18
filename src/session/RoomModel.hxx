@@ -277,6 +277,11 @@ public:
 	// late replay can regenerate game_end while fighter and spectator links are
 	// still draining.
 	std::vector<MemberId> TerminalMembers(std::uint8_t table, std::uint64_t generation) const;
+	// The native roster frozen when the table's current generation began: both
+	// fighters, then its spectators. A spectator still acknowledging an earlier
+	// generation is left out, because it may still hold that generation's
+	// GGPO session. Empty when no match is active.
+	std::vector<MemberId> MatchRoster(std::uint8_t table) const;
 	struct TerminalReplay {
 		std::uint8_t table = 0;
 		std::uint64_t generation = 0;
@@ -347,6 +352,9 @@ private:
 	bool StoreTerminalReceipt(std::uint8_t table, const Table& value, MatchResult result);
 	void RememberTerminalAck(const TerminalReceipt& receipt, const TerminalRecipient& recipient);
 	void RetireTerminalReceipts(MemberId member);
+	// A table is held only while one of a receipt's fighters has not
+	// acknowledged it. Snapshot::terminalPending reports the same rule.
+	static bool FightersOutstanding(const TerminalReceipt& receipt);
 	bool HasOutstandingTerminalReceipt(std::uint8_t table) const;
 	bool HasOutstandingTerminalReceiptForMember(MemberId member) const;
 	bool ValidRules(const Rules& rules) const;

@@ -50,6 +50,28 @@ Do not change these behaviors without regression testing (SessionInteractiveTest
   abort must not leave offline battles gated.
 - A spectator handle's `DISCONNECTED_FROM_PEER`, and a spectator's v1 snapshot
   or v2 hash mismatch, never end the two fighters' game.
+- Spectators never hold the fighters. The start barrier is the two fighters
+  once P1 accepts the grant's `spectators_optional` offer; P1 waits at most
+  `IrohMatchSession::SpectatorGraceMs` for spectator links and reports the ones
+  that came up in `game_ready.slots`, and the authority sends the rest
+  `game_end` for that generation. An older P1 keeps the all-participant
+  barrier. A terminal receipt holds its table only until both fighters
+  acknowledge; a spectator still acknowledging sits the next generation out.
+  On P1, `SpectatorPolicy` drops a spectator GGPO has not synchronized within
+  3 s, or one 32 or more frames unacknowledged on two consecutive samples.
+- Room checkpoint decoding runs on `CheckpointDecodeWorker`, the only room
+  worker thread. It takes bytes and returns values; it never touches
+  `SessionServer`, `RoomAuthority`, `IrohRoom` or GGPO, and commits are still
+  staged and imported in order on the game thread. `SF4E_ROOM_WORKER=0`
+  decodes inline.
+- A room snapshot to a client that joined with `roomChatDelta` may carry
+  `chat_unchanged` instead of `chat`; the client keeps its chat. Chat versions
+  a client holds are recorded when the candidate commits, never at journal
+  time, so a superseding snapshot in the same candidate still carries chat.
+- A chat line's sender is always a current member: `Leave` prunes the lines.
+- A committed effect already in the activated journal is delivered whatever
+  its term. The term fence applies only to effects not yet activated, which a
+  stale leader may never commit.
 - `fSystem::BattleUpdate` pumps `ggpo_idle(ggpo, 0)` before adding local
   input. Do not remove it: without it a remote input that arrived after the
   post-render poll is used one frame late.

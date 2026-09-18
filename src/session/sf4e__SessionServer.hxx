@@ -98,6 +98,12 @@ namespace sf4e {
 		nlohmann::json RecoveryCheckpoint() const;
 		std::uint64_t RecoveryCheckpointBuilds() const { return _recoveryCheckpointBuilds; }
 		bool RestoreRecoveryCheckpoint(const nlohmann::json& checkpoint);
+		// Replicated import. journal and authority replace the checkpoint's own
+		// "effect_journal" and "authority", which are then neither copied nor
+		// re-encoded. journal must already be compacted (CompactEffectJournal),
+		// which is what bounds its encoded size.
+		bool RestoreRecoveryCheckpoint(const nlohmann::json& checkpoint,
+			std::vector<session::EffectEnvelope> journal, const session::AuthorityStamp& authority);
 
 		// Root/helper authority bridge. A proposal is made only after the owner
 		// has privately applied a poll/timer command and journaled its effects.
@@ -106,7 +112,7 @@ namespace sf4e {
 		bool RecoveryEnabled() const { return _recovery.Enabled(); }
 		bool RecoveryWritable() const { return _recovery.Writable(); }
 		bool HasRecoveryCandidate() const { return _recoveryCandidateReady; }
-		bool RecoveryCandidateOverflowed() const { return _recoveryCandidateOverflow; }
+		bool RecoveryCandidateOverflowed() const { return _candidate.overflow; }
 		bool ProposeCheckpoint(std::uint64_t request, std::uint64_t term, std::uint64_t baseRevision,
 			const nlohmann::json& checkpoint);
 		std::shared_ptr<const session::SessionProposal> PendingProposal() const { return _recovery.PendingProposal(); }
@@ -134,10 +140,23 @@ namespace sf4e {
 
 		size_t ConnectedClientCount() const { return clients.size(); }
 
+		// Identifies the room chat a recipient already holds: its last sequence
+		// and length (a departed sender's lines are pruned without a new one).
+		struct ChatVersion {
+			std::uint64_t last = 0; std::size_t count = 0;
+			bool operator==(const ChatVersion& other) const { return last == other.last && count == other.count; }
+		};
 		typedef struct SessionMember {
 			SessionProtocol::MemberData data;
 			session::Connection conn;
+			// Local to this owner, never checkpointed: a successor starts from
+			// false and sends every member the full chat again.
+			bool chatDelta = false;        // the client accepts snapshots without unchanged chat
+			bool chatSent = false;         // chatVersion was committed to this client
+			ChatVersion chatVersion;
 		} SessionMember;
+		ChatVersion CurrentChatVersion() const;
+		void EnableChatDelta(session::Connection connection, bool enabled);
 
 		std::map<session::Connection, SessionProtocol::ConnectionID> cidMap;
 		std::map<session::Connection, room::MemberId> roomMembers;
@@ -167,13 +186,33 @@ namespace sf4e {
 		mutable std::uint64_t _recoveryCheckpointBuilds = 0;
 		bool _recoveryCandidateReady = false;
 		bool _recoveryFlushing = false;
-		bool _recoveryCandidateOverflow = false;
 		nlohmann::json _recoveryBaseline;
-		std::vector<session::EffectEnvelope> _recoveryEffects;
-		std::size_t _recoveryEffectBytes = 2;
-		struct LocalEffect { session::EffectEnvelope envelope; nlohmann::json payload; session::Connection local = 0; };
-		std::vector<LocalEffect> _recoveryLocalEffects;
+		// What the open recovery candidate has journaled. Reset as a whole.
+		struct RecoveryCandidate {
+			// envelope is the journal entry; encoded is the payload, dumped once
+			// for its digest and reused for the live send; envelopeBytes is
+			// json(envelope).dump().size(), the entry's share of bytes.
+			struct Effect {
+				session::EffectEnvelope envelope; session::Connection local = 0;
+				std::string encoded; std::size_t envelopeBytes = 0;
+			};
+			std::vector<Effect> effects;
+			std::size_t bytes = 2;   // of json(the envelopes).dump()
+			bool overflow = false;
+			// Chat versions sent in this candidate, committed by ApplyCommit.
+			std::map<session::Connection, ChatVersion> chatSent;
+			std::vector<session::EffectEnvelope> Envelopes() const {
+				std::vector<session::EffectEnvelope> envelopes;
+				envelopes.reserve(effects.size());
+				for (const auto& effect : effects) envelopes.push_back(effect.envelope);
+				return envelopes;
+			}
+		};
+		RecoveryCandidate _candidate;
 		std::vector<session::EffectEnvelope> _committedEffectHistory;
+		// Encoded size of each _committedEffectHistory entry, or empty when not
+		// yet known (after a restore); ApplyCommit fills it on first use.
+		std::vector<std::size_t> _committedEffectSizes;
 		// Captured before a private candidate mutates the authenticated maps. A
 		// rejected term transition must rebind the exact prior handles, including
 		// a join/leave permutation, rather than resolving from the candidate.
@@ -196,8 +235,13 @@ namespace sf4e {
 		void CancelPrecommittedGenerations();
 		void RememberInterruptedPreparations();
 		bool IsInterruptedPreparation(std::uint8_t table, std::uint64_t generation) const;
+		// A game_prepared/game_ready its match authority no longer expects.
+		bool IsStaleMatchAck(const session::Message& message) const;
 		void DropRecoveryCandidate();
 		bool RestoreRecoveryBaseline();
+		// authority is null when the checkpoint carried none.
+		bool RestoreRecoveryState(const nlohmann::json& checkpoint,
+			std::vector<session::EffectEnvelope> journal, const session::AuthorityStamp* authority);
 		void CaptureFrozenMember(room::MemberId member, const room::Snapshot& prior);
 		void PruneFrozenMembers();
 		std::vector<SessionMember> clients;
