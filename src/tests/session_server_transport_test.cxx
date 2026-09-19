@@ -600,6 +600,91 @@ static void TestTerminalReceiptReplay() {
 	}
 }
 
+// A spectator still retiring the last generation is left out of the next
+// grant. Every native projection of that generation must leave it out too,
+// or the fighters' AcceptGrant rejects the rematch as invalid_match_roster.
+static void TestRetiringSpectatorProjection() {
+	auto* transport = new MockTransport();
+	SessionServer server("retiring-spectator", "build", true, 3, {0, 99},
+		std::unique_ptr<session::ServerTransport>(transport));
+	std::array<std::uint8_t, 16> authorizationRoom = {};
+	authorizationRoom[0] = 75;
+	server.EnableMatchAuthorization(authorizationRoom, [](session::Connection connection) {
+		std::string identity(64, '0');
+		identity[63] = "0123456789abcdef"[static_cast<std::size_t>(connection) & 15];
+		return identity;
+	});
+	server.EnableCustomRooms("Retiring spectator", 4, 81);
+	CHECK(server.Listen(0) == 0);
+	for (session::Connection connection = 1; connection <= 3; ++connection) {
+		protocol::SessionJoinRequest join;
+		join.username = "Retire-" + std::to_string(connection);
+		join.sidecarHash = "build";
+		join.port = static_cast<std::uint16_t>(35000 + connection);
+		join.customRooms = true;
+		join.roomProtocol = room::ProtocolVersion;
+		protocol::SessionHelloMsg hello;
+		hello.admission = json(join);
+		transport->Push(connection, json(hello));
+		CHECK(server.Step() == 0);
+	}
+	std::uint64_t nextAction = 0;
+	const auto act = [&](session::Connection connection, room::ActionKind kind, std::uint64_t generation = 0) {
+		room::Action action;
+		const auto* snapshot = server.RoomSnapshot();
+		action.kind = kind;
+		action.roomEpoch = snapshot->roomEpoch;
+		action.revision = snapshot->revision;
+		action.table = 0;
+		action.tableRevision = snapshot->tables[0].revision;
+		action.matchGeneration = generation;
+		action.actionId = ++nextAction;
+		protocol::RoomActionMessage message;
+		message.action = action;
+		transport->Push(connection, json(message));
+		CHECK(server.Step() == 0);
+	};
+	const auto begin = [&]() {
+		transport->outgoing.clear();
+		act(1, room::ActionKind::Ready); act(2, room::ActionKind::Ready);
+		CHECK(server.RoomSnapshot()->tables[0].phase == room::TablePhase::Playing);
+		return server.RoomSnapshot()->tables[0].matchGeneration;
+	};
+	// Every projection of this generation lists exactly the grant roster.
+	const auto checkProjections = [&](std::uint64_t generation, std::size_t rosterSize) {
+		std::size_t grants = 0, projections = 0;
+		for (const auto& sent : transport->outgoing) {
+			const auto type = sent.second.value("type", std::string());
+			if (type == "game_prepare") {
+				CHECK(sent.second.at("roster").size() == rosterSize);
+				++grants;
+			} else if (type == "data_update" && sent.second.value("matchGeneration", std::uint64_t(0)) == generation) {
+				CHECK(sent.second.at("lobbyData").at("members").size() == rosterSize);
+				++projections;
+			}
+		}
+		CHECK(grants == rosterSize && projections >= rosterSize);
+	};
+	act(1, room::ActionKind::Queue); act(2, room::ActionKind::Queue); act(3, room::ActionKind::Watch);
+	const auto first = begin();
+	checkProjections(first, 3);
+	act(1, room::ActionKind::AbortMatch, first);
+	CHECK(server.RoomSnapshot()->tables[0].phase != room::TablePhase::Playing);
+	act(1, room::ActionKind::AcknowledgeTerminal, first);
+	act(2, room::ActionKind::AcknowledgeTerminal, first);
+	// Connection 3 has not acknowledged generation one.
+	const auto second = begin();
+	CHECK(second > first);
+	checkProjections(second, 2);
+	// A later broadcast in the same generation keeps the frozen roster.
+	transport->outgoing.clear();
+	act(3, room::ActionKind::AcknowledgeTerminal, first);
+	for (const auto& sent : transport->outgoing)
+		if (sent.second.value("type", std::string()) == "data_update" && sent.first != 3 &&
+			sent.second.value("matchGeneration", std::uint64_t(0)) == second)
+			CHECK(sent.second.at("lobbyData").at("members").size() == 2);
+}
+
 static void TestTerminalAcknowledgmentBatch() {
 	auto* transport = new MockTransport();
 	SessionServer server("terminal-ack-batch", "build", true, 3, {0, 99},
@@ -1745,6 +1830,7 @@ int main() {
 	TestMaximumRoomResultBurst();
 	TestTerminalAcknowledgmentBatch();
 	TestTerminalReceiptReplay();
+	TestRetiringSpectatorProjection();
 	TestCommittedSessionGate();
 	TestCustomRoomDepartures();
 	std::cout << "Session server mock transport tests passed\n";

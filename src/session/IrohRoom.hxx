@@ -86,9 +86,13 @@ public:
         std::string clientHeadType;
     };
 	explicit IrohRoom(platform::HelperClient& helper) : helper_(helper) {}
+	// Several methods below are virtual for the test double in
+	// IrohMatchSessionTest; the destructor follows them so a subclass is never
+	// deleted through this base without running its own.
+	virtual ~IrohRoom() = default;
 	bool Host(const std::string& build);
 	bool Join(const std::string& invitation, const std::string& build);
-	void Leave(bool abandon = false);
+	virtual void Leave(bool abandon = false);
 	// Fatal room control cannot acknowledge a normal Leave/result. Once native
 	// GGPO releases its socket, retire the entire helper epoch and await room_closed.
 	bool CloseFailedRoom(bool ggpoOwnsSocket);
@@ -98,11 +102,11 @@ public:
 	const std::string& DiscordInvitation() const { return discordInvitation_; }
 	const std::string& Error() const { return error_; }
 	std::uint64_t Epoch() const { return epoch_; }
-	std::array<std::uint8_t, 16> RoomId() const { return room_; }
+	virtual std::array<std::uint8_t, 16> RoomId() const { return room_; }
 	std::string PeerIdentity(Connection connection) const;
 	std::uint64_t PeerIncarnation(Connection connection) const;
-	const std::string& LocalIdentity() const { return localIdentity_; }
-    const CoordinationSnapshot& Coordination() const { return coordination_; }
+	virtual const std::string& LocalIdentity() const { return localIdentity_; }
+    virtual const CoordinationSnapshot& Coordination() const { return coordination_; }
     const ProbeSnapshot& Probe() const { return probe_; }
     RecoverySnapshot RecoveryState() const;
     // bytes is the encoded proposal (SessionProposal::encoded). Deliberately not
@@ -114,21 +118,21 @@ public:
     // bridge calls this after the native room import and exact connection
     // rebind both succeed; until then client effects remain withheld.
     bool ActivateCommittedCheckpoint(const coordination::TransferIdentity& identity);
-    bool ReadyForMatch() const;
+    virtual bool ReadyForMatch() const;
     bool ProposalInFlight() const { return !proposalBytes_.empty(); }
     bool RequestProbe(const std::string& peer, std::uint64_t request, std::uint64_t pairRevision, bool benchmark=false);
     Connection ConnectionForIdentity(const std::string& identity) const;
     std::map<Connection,std::string> ControlIdentities() const;
 	// The C++ room authority supplies admission and a fresh pair capability.
 	// These methods do not infer permission from a transport connection.
-	bool PrepareGame(const std::string& peer, std::uint64_t generation,
+	virtual bool PrepareGame(const std::string& peer, std::uint64_t generation,
 		const std::array<std::uint8_t, 32>& capability, std::uint16_t localPort,
 		std::size_t maxPacket, bool dial);
 	// Remove one authorized gameplay edge without ending the generation's other
 	// links. This is used when the room authority retires a spectator.
-	bool EndPeer(const std::string& peer, std::uint64_t generation);
-	bool EndMatch(std::uint64_t generation);
-	GameSnapshot Game(const std::string& peer) const;
+	virtual bool EndPeer(const std::string& peer, std::uint64_t generation);
+	virtual bool EndMatch(std::uint64_t generation);
+	virtual GameSnapshot Game(const std::string& peer) const;
 	std::unique_ptr<ServerTransport> Server();
 	std::unique_ptr<ClientTransport> Client();
 

@@ -194,7 +194,8 @@ bool IrohMatchSession::AcceptGrant(const json& message) {
 	fighterReadyAt_ = 0;
 	fighterClosedAt_ = 0;
 	pendingAcks_.clear();
-	pendingConnect_ = pendingStart_ = false;
+	pendingConnect_ = earlyConnectGeneration_ == generation;
+	pendingStart_ = false;
 	deadlineSuspended_ = false;
 	deadlineRemaining_ = 30000;
 	phase_ = Phase::Preparing; deadline_ = Now() + deadlineRemaining_;
@@ -269,11 +270,18 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 		while (client_.TakeGameplayMessage(message)) {
 		try {
 			const auto type = message.at("type").get<std::string>();
+			// Every gameplay message carries the generation it was issued for.
+			// A grant staged by game_prepare has not been applied yet, so
+			// instructions addressed to that generation arrive before the native
+			// projection does and must be read against the staged value. A grant
+			// generation is never zero, so zero stands for "nothing staged".
+			const auto messageGeneration = message.at("generation").get<std::uint64_t>();
+			const std::uint64_t staged = pendingGrant_.is_null()
+				? 0 : pendingGrant_.at("generation").get<std::uint64_t>();
 			if (replacementRetiring_ &&
 				(type == "game_prepare" || type == "game_connect" || type == "game_start")) continue;
 			if (type == "game_prepare") {
-				const auto grantGeneration=message.at("generation").get<std::uint64_t>();
-				if (grantGeneration <= generation_) continue;
+				if (messageGeneration <= generation_) continue;
 				if (phase_ == Phase::Ending || phase_ == Phase::Idle) {
 					if (!pendingGrant_.is_null() && pendingGrant_.at("generation") != message.at("generation")) return Fail("overlapping_match_permission");
 					if (pendingGrant_.is_null()) {
@@ -289,12 +297,18 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 			// A committed cancellation may arrive for a future grant while the
 			// previous generation is still closing. Consume it before the generic
 			// generation fence so the stale private permission cannot reopen.
-			if (type == "game_end" && !pendingGrant_.is_null() &&
-				message.at("generation").get<std::uint64_t>() == pendingGrant_.at("generation").get<std::uint64_t>()) {
+			if (staged && type == "game_end" && messageGeneration == staged) {
 				pendingGrant_=nullptr; pendingGrantTerm_=0; waitingForProjection_=false; pendingConnect_=pendingStart_=false;
 				continue;
 			}
-			if (message.at("generation").get<std::uint64_t>() != generation_) continue;
+			// The fighters' barrier can release game_connect in the same poll as
+			// this member's grant. Remember it for that exact staged generation;
+			// a cancellation or term fence drops the grant and with it this note.
+			if (staged && type == "game_connect" && messageGeneration == staged) {
+				earlyConnectGeneration_ = messageGeneration;
+				continue;
+			}
+			if (messageGeneration != generation_) continue;
 			if (type == "game_peer_end") {
 				const auto peerSlot = message.at("slot").get<std::size_t>();
 				if (phase_ == Phase::Ending) continue;

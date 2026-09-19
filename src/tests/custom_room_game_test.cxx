@@ -42,7 +42,10 @@ int wmain(int argc, wchar_t** argv) {
 	// session during the first game's setup. The fighters must start without it
 	// after P1's grace, and it must retire that generation cleanly and join the
 	// next one.
-	bool relay = false, perf = false, stallSpectator = false;
+	// --late-spectator: the last member, a spectator, withholds its terminal
+	// acknowledgement of game one while the fighters rematch. Game two must start
+	// without it, and once it acknowledges it must be back in game three.
+	bool relay = false, perf = false, stallSpectator = false, lateSpectator = false;
 	std::size_t count = room::MaxMembers, perTable = 4;
 	int perfFrames = 600, gameCostUs = 1000;
 	std::uint64_t rematchCycles = 6;
@@ -54,6 +57,7 @@ int wmain(int argc, wchar_t** argv) {
 		else if (arg == L"--single-table") perTable = 0;
 		else if (arg == L"--perf") perf = true;
 		else if (arg == L"--stall-spectator") stallSpectator = true;
+		else if (arg == L"--late-spectator") lateSpectator = true;
 		else if (arg == L"--members") count = number();
 		else if (arg == L"--per-table") perTable = number();
 		else if (arg == L"--frames") perfFrames = static_cast<int>(number());
@@ -72,6 +76,9 @@ int wmain(int argc, wchar_t** argv) {
 	const std::size_t Count = count;
 	const std::size_t stalled = stallSpectator ? Count - 1 : Count;
 	CHECK(!stallSpectator || (Count - 1) % perTable >= 2);
+	const std::size_t late = lateSpectator ? Count - 1 : Count;
+	CHECK(!lateSpectator || (!stallSpectator && (Count - 1) % perTable >= 2 && rematchCycles >= 3));
+	std::uint64_t lateGeneration = 0;
 	bool stallActive = false;
 	const auto live = [&](std::size_t i) { return !(stallActive && i == stalled); };
 	std::vector<platform::HelperProcess> processes(Count);
@@ -366,9 +373,13 @@ int wmain(int argc, wchar_t** argv) {
 		phase="match " + std::to_string(cycle);
 		stallActive = stallSpectator && cycle == 1;
 		const bool stalledThisCycle = stallActive;
-		const auto skip = [&](std::size_t i) { return stalledThisCycle && i == stalled; };
+		const bool lateThisCycle = lateSpectator && cycle == 2;
+		// The members this cycle withholds: the stalled spectator while its
+		// pre-start grace runs, and the late spectator that still owes the
+		// previous generation's terminal acknowledgement.
+		const auto skip = [&](std::size_t i) { return (stalledThisCycle && i == stalled) || (lateThisCycle && i == late); };
 		const auto allLive = [&](const std::function<bool(const session::IrohMatchSession&)>& predicate) {
-			for (std::size_t i = 0; i < Count; ++i) if (live(i) && !predicate(*matches[i])) return false;
+			for (std::size_t i = 0; i < Count; ++i) if (!skip(i) && !predicate(*matches[i])) return false;
 			return true;
 		};
 		for (std::size_t readyIndex = 0; readyIndex < clients.size(); ++readyIndex) if (clients[readyIndex]->IsLocalPlayer()) {
@@ -432,22 +443,46 @@ int wmain(int argc, wchar_t** argv) {
 			std::cout << "Started without the stalled spectator after " << (GetTickCount64() - setupStarted) << " ms\n";
 			stallActive = false;
 		}
+		if (lateThisCycle) {
+			// The grant and every projection of this generation left it out, so
+			// the fighters accepted the roster. Now it acknowledges game one.
+			CHECK(matches[late]->GetPhase() == Phase::Idle && matches[late]->Generation() == lateGeneration);
+			CHECK(matches[0]->Roster().size() == perTable - 1);
+			std::cout << "Started without the retiring spectator\n";
+			bool observed = false, queued = false;
+			const std::vector<std::pair<std::uint8_t, std::uint64_t>> owed{{static_cast<std::uint8_t>(late / perTable), lateGeneration}};
+			wait([&]() {
+				pump();
+				test::AcknowledgeIrohFixtureTerminal(*clients[late], owed[0].first, lateGeneration, true, observed, queued);
+				return queued && test::IrohFixtureTerminalsCommitted(server, owed) && allViewsCurrent();
+			});
+		}
+		if (lateSpectator && cycle == 3) CHECK(matches[late]->Generation() == matches[late / perTable * perTable]->Generation());
 		{
 			// A fighter's desync check is forwarded by the leader straight to
 			// the other participants of its table, without a commit token and
 			// without building a room checkpoint. Every spectator and the
 			// opponent must receive it; a member at another table must not.
 			CHECK(matches[0]->LocalSlot() == 0);
+			// Count from a quiet server: a commit still settling from setup, or
+			// from the late spectator's acknowledgement, builds its own checkpoint.
+			wait([&]() { pump(); return !server.HasRecoveryCandidate() && !server.PendingProposal() && allViewsCurrent(); });
 			const auto builds = server.RecoveryCheckpointBuilds();
+			const auto revisionBefore = server.RoomSnapshot()->revision;
 			SessionProtocol::BattleHashV2 hash;
 			hash.frameIdx = static_cast<int>(30 * cycle); hash.fromPlayer = true;
 			nlohmann::json payload = hash;
-			CHECK(clients[0]->Send(payload, nullptr) == session::SendResult::Queued);
+			// Like the game, which offers an unsent hash again every frame: a
+			// relayed room can be briefly non-writable right after setup.
+			wait([&]() { pump(); return clients[0]->Send(payload, nullptr) == session::SendResult::Queued; });
 			const std::size_t participants = perTable;
 			wait([&]() { pump(); return std::all_of(clients.begin() + 1, clients.begin() + participants,
 				[&](const std::unique_ptr<SessionClient>& client) { return client->pendingRemoteHashes.count(hash.frameIdx) == 1; }); });
 			for (std::size_t i = participants; i < Count; ++i) CHECK(clients[i]->pendingRemoteHashes.count(hash.frameIdx) == 0);
-			CHECK(server.RecoveryCheckpointBuilds() == builds);
+			// The late spectator's client may still be retrying the acknowledgement
+			// it just committed; the duplicate's reply is a commit of its own, at
+			// an unchanged room revision, and says nothing about the forward.
+			CHECK(lateThisCycle ? server.RoomSnapshot()->revision == revisionBefore : server.RecoveryCheckpointBuilds() == builds);
 			std::cout << "Cycle " << cycle << " verification frame " << hash.frameIdx << " forwarded to " << (participants - 1)
 				<< " participants without a checkpoint\n";
 		}
@@ -500,6 +535,7 @@ int wmain(int argc, wchar_t** argv) {
 		}
 		std::vector<int> frames(Count, 0);
 		if (stalledThisCycle) frames[stalled] = watchFrames;
+		if (lateThisCycle) frames[late] = watchFrames;
 		std::deque<bool> inputAdded(Count, false);
 		const auto advance = [&](std::size_t i) {
 				if (!ggpo[i]) return;
@@ -612,18 +648,30 @@ int wmain(int argc, wchar_t** argv) {
 		});
 		wait([&]() { pump(); return allViewsCurrent() && std::all_of(matches.begin(), matches.end(), [](const std::unique_ptr<session::IrohMatchSession>& match) { return match->GetPhase() == Phase::Idle; }); });
 		std::deque<bool> observedTerminals(Count, false), queuedTerminalAcks(Count, false);
+		// Game one: the late spectator keeps its receipt open. Game two: it was
+		// never a recipient.
+		const bool lateWithheld = lateSpectator && cycle <= 2;
+		if (lateWithheld) queuedTerminalAcks[late] = true;
+		if (lateSpectator && cycle == 1) lateGeneration = retiredGenerations[late];
 		std::vector<std::pair<std::uint8_t, std::uint64_t>> terminalKeys;
 		for (std::size_t table = 0; table < tableCount; ++table)
 			terminalKeys.emplace_back(static_cast<std::uint8_t>(table), retiredGenerations[table * perTable]);
 		phase = "terminal receipt acknowledgement " + std::to_string(cycle);
 		wait([&]() {
 			pump();
-			for (std::size_t i = 0; i < Count; ++i)
+			for (std::size_t i = 0; i < Count; ++i) if (!(lateWithheld && i == late))
 				test::AcknowledgeIrohFixtureTerminal(*clients[i], static_cast<std::uint8_t>(i / perTable),
 					retiredGenerations[i], ggpo[i] == nullptr && matches[i]->GetPhase() == Phase::Idle,
 					observedTerminals[i], queuedTerminalAcks[i]);
+			// While the late spectator still withholds game one's receipt, its
+			// table must not show as settled: no recovery candidate, no proposal
+			// and no pending terminal. Every other table commits as usual.
+			const bool settled = lateSpectator && cycle == 1
+				? !server.HasRecoveryCandidate() && !server.PendingProposal() &&
+					!clients[late / perTable * perTable]->GetRoomSnapshot().terminalPending[late / perTable]
+				: test::IrohFixtureTerminalsCommitted(server, terminalKeys);
 			return std::all_of(queuedTerminalAcks.begin(), queuedTerminalAcks.end(), [](bool value) { return value; }) &&
-				test::IrohFixtureTerminalsCommitted(server, terminalKeys) && allViewsCurrent();
+				settled && allViewsCurrent();
 		});
 		for (std::size_t table = 0; table < tableCount; ++table) {
 			const auto& current = server.RoomSnapshot()->tables[table];

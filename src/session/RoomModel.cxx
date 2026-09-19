@@ -611,6 +611,13 @@ std::vector<MemberId> RoomAuthority::MatchRoster(std::uint8_t table) const {
 	return roster;
 }
 
+std::vector<MemberId> RoomAuthority::LiveMatchRoster(std::uint8_t table) const {
+	const auto roster = MatchRoster(table);
+	const Table* current = FindTable(table);
+	if (!current || roster.size() < 2 || roster[0] != current->p1 || roster[1] != current->p2) return {};
+	return roster;
+}
+
 bool RoomAuthority::HasOutstandingTerminalReceiptForMember(MemberId member) const {
 	if (!member) return false;
 	return std::any_of(terminalReceipts_.begin(), terminalReceipts_.end(),

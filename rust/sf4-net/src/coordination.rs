@@ -492,9 +492,9 @@ pub fn committed_probe_pair_bound(
         return false;
     };
     let member_present = |member: u64| {
-        room_members.iter().any(|row| {
-            row.get("id").and_then(Value::as_u64) == Some(member)
-        })
+        room_members
+            .iter()
+            .any(|row| row.get("id").and_then(Value::as_u64) == Some(member))
     };
     // Probing measures the authorized seated pair before Ready publishes
     // native fighter selections. Selection is not a network permission.
@@ -1489,7 +1489,12 @@ mod tests {
         before_ready["checkpoint"]["room"]["snapshot"]["members"][0]["fighter"] = json!(-1);
         before_ready["checkpoint"]["room"]["snapshot"]["members"][1]["fighter"] = json!(-1);
         assert!(committed_probe_pair_bound(
-            &before_ready.to_string(), 11, 22, "source", "target", 42
+            &before_ready.to_string(),
+            11,
+            22,
+            "source",
+            "target",
+            42
         ));
         assert!(!committed_probe_pair_bound(
             &encoded, 11, 22, "source", "target", 43
