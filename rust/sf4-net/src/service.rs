@@ -2992,14 +2992,14 @@ impl Actor {
                     return Err(failed("probe authority unavailable"));
                 }
                 if !recovery
-                        .probe_pair_bound(
-                            recovery.incarnation,
-                            target_incarnation,
-                            source,
-                            peer,
-                            pair_revision,
-                        )
-                        .await
+                    .probe_pair_bound(
+                        recovery.incarnation,
+                        target_incarnation,
+                        source,
+                        peer,
+                        pair_revision,
+                    )
+                    .await
                 {
                     return Err(failed("probe pair unavailable"));
                 }
@@ -4237,19 +4237,20 @@ impl Actor {
                     self.pending_probe_invalidations.remove(&probe.peer);
                     // A check initiated by the other player may replace our
                     // measured connection. Retire its recommendation explicitly.
-                    if let Some(previous) = self.probe_reservations.remove(&probe.peer) {
-                        if previous.reported && !probe.report {
-                            self.queue_probe_invalidation(
-                                probe.peer,
-                                previous.request,
-                                previous.pair_revision,
-                                probe
-                                    .connection
-                                    .as_ref()
-                                    .map(selected_probe_route)
-                                    .unwrap_or_default(),
-                            );
-                        }
+                    if let Some(previous) = self.probe_reservations.remove(&probe.peer)
+                        && previous.reported
+                        && !probe.report
+                    {
+                        self.queue_probe_invalidation(
+                            probe.peer,
+                            previous.request,
+                            previous.pair_revision,
+                            probe
+                                .connection
+                                .as_ref()
+                                .map(selected_probe_route)
+                                .unwrap_or_default(),
+                        );
                     }
                     if probe.report {
                         let route = probe
@@ -4258,19 +4259,19 @@ impl Actor {
                             .map(selected_probe_route)
                             .unwrap_or_else(|| "unavailable".into());
                         if probe.route_changed {
-                            if let Some(connection) = probe.connection {
-                                if connection.close_reason().is_none() {
-                                    self.probe_reservations.insert(
-                                        probe.peer,
-                                        ProbeReservation {
-                                            reported: false,
-                                            connection,
-                                            request: probe.request,
-                                            pair_revision: probe.pair_revision,
-                                            route: route.clone(),
-                                        },
-                                    );
-                                }
+                            if let Some(connection) = probe.connection
+                                && connection.close_reason().is_none()
+                            {
+                                self.probe_reservations.insert(
+                                    probe.peer,
+                                    ProbeReservation {
+                                        reported: false,
+                                        connection,
+                                        request: probe.request,
+                                        pair_revision: probe.pair_revision,
+                                        route: route.clone(),
+                                    },
+                                );
                             }
                             self.queue_probe_invalidation(
                                 probe.peer,

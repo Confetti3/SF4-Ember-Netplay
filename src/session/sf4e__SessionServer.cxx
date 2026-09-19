@@ -1162,8 +1162,8 @@ bool SessionServer::BeginAuthorizedTable(std::uint8_t tableId, std::uint64_t gen
 	};
 	// The roster RoomAuthority froze for this generation: the fighters, then
 	// every spectator not still retiring an earlier generation.
-	const auto roster = _roomAuthority->MatchRoster(tableId);
-	if (roster.size() < 2 || roster[0] != table.p1 || roster[1] != table.p2) return false;
+	const auto roster = _roomAuthority->LiveMatchRoster(tableId);
+	if (roster.size() < 2) return false;
 	for (const auto member : roster) if (!add(member)) return false;
 	// Send the immutable native projection before any prepare grant. Clients
 	// freeze their legacy game buffers when that grant arrives.
@@ -1282,7 +1282,13 @@ void SessionServer::ProjectRoomTable(session::Connection connection, std::uint8_
 		data.ip.clear(); data.port = 0; data.flags = 0;
 		update.lobbyData.members.push_back(data);
 	}
-	for (const auto id : table.spectators) {
+	// While a generation is live its native roster is the one BeginMatch froze
+	// and the grant carries. table.spectators can also hold a member still
+	// retiring the previous generation, which AcceptGrant would reject.
+	const auto live = _roomAuthority->LiveMatchRoster(tableId);
+	const std::vector<room::MemberId> spectators = live.empty()
+		? table.spectators : std::vector<room::MemberId>(live.begin() + 2, live.end());
+	for (const auto id : spectators) {
 		const auto* roomMember = dataFor(id);
 		if (!roomMember) continue;
 		SessionProtocol::MemberData data;

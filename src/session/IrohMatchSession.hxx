@@ -69,6 +69,8 @@ private:
 	bool waitingForProjection_ = false;
 	bool pendingConnect_ = false;
 	bool pendingStart_ = false;
+	// Generation of a game_connect consumed while its grant was still staged.
+	std::uint64_t earlyConnectGeneration_ = 0;
 	ULONGLONG deadline_ = 0;
 	ULONGLONG deadlineRemaining_ = 0;
 	bool deadlineSuspended_ = false;

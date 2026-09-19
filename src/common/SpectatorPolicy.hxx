@@ -11,7 +11,9 @@
 //  - backlog: send_queue_len is the spectator's count of unacknowledged
 //    frames. GGPO itself only gives up at 63 (its pending-output ring). A
 //    spectator at SlowQueueFrames or more on SlowSamples consecutive samples,
-//    taken every SampleIntervalMs, is dropped well before that.
+//    taken every SampleIntervalMs, is dropped well before that. One sample at
+//    DropQueueFrames drops at once: a peer that stops acknowledging gains 12
+//    frames per sample, so waiting for a second could reach the ring.
 
 #include <cstdint>
 #include <map>
@@ -22,9 +24,12 @@ namespace sf4e {
 class SpectatorPolicy {
 public:
 	static constexpr std::uint64_t SyncDeadlineMs = 3000;
-	static constexpr std::uint64_t SampleIntervalMs = 1000;
+	static constexpr std::uint64_t SampleIntervalMs = 200;
 	static constexpr int SlowQueueFrames = 32;
-	static constexpr int SlowSamples = 2;
+	static constexpr int DropQueueFrames = 48;
+	// Five samples keep the one second a slow spectator always had to recover;
+	// DropQueueFrames, not this count, is what protects the ring.
+	static constexpr int SlowSamples = 5;
 
 	void Start(std::uint64_t nowMs, const std::vector<int>& spectators) {
 		startedMs_ = nowMs; lastSampleMs_ = nowMs; running_ = false;
@@ -64,7 +69,7 @@ public:
 		if (found == spectators_.end()) return false;
 		auto& state = found->second;
 		state.slowSamples = sendQueueFrames >= SlowQueueFrames ? state.slowSamples + 1 : 0;
-		if (state.slowSamples < SlowSamples) return false;
+		if (state.slowSamples < SlowSamples && sendQueueFrames < DropQueueFrames) return false;
 		spectators_.erase(found);
 		return true;
 	}

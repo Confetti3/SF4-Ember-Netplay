@@ -19,13 +19,14 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     sync::{RwLock, Semaphore},
     task::JoinSet,
-    time::timeout,
+    time::{sleep, timeout},
 };
 
 const ALPN: &[u8] = b"sf4e/coordination/1";
 const MAX_RPC: usize = MAX_CHECKPOINT * 6 + 65536;
 const RPC_TIMEOUT: Duration = Duration::from_secs(10);
 const CONNECTION_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
+const MAX_CONNECTION_STREAMS: usize = 8;
 const RELAY_READY_TIMEOUT: Duration = Duration::from_secs(10);
 const CHUNK: usize = SNAPSHOT_FRAGMENT_BYTES;
 const RETIRED_FILTER_WORDS: usize = 128;
@@ -87,8 +88,7 @@ impl IrohRpc {
         // Same reasoning as the gameplay endpoint in transport.rs: take iroh's
         // default port mapping so coordination can also form a direct path
         // behind NATs that need a gateway mapping.
-        let builder = Endpoint::builder(presets::N0)
-            .alpns(vec![ALPN.to_vec()]);
+        let builder = Endpoint::builder(presets::N0).alpns(vec![ALPN.to_vec()]);
         let builder = if relay_only {
             builder
                 .clear_ip_transports()
@@ -367,15 +367,38 @@ impl IrohRpc {
                         }) {
                             connection.close(1u32.into(), b"room member required"); return;
                         }
+                        // Serve the streams of one connection concurrently. A large
+                        // checkpoint append must not queue the authority reads and
+                        // heartbeats behind it: both sides would then report quorum
+                        // lost while the entry is still replicating.
+                        let mut streams = JoinSet::new();
                         loop {
-                            let Ok(Ok((mut send, mut recv))) = timeout(
-                                CONNECTION_IDLE_TIMEOUT,
-                                connection.accept_bi(),
-                            ).await else {
-                                connection.close(1u32.into(), b"room RPC connection idle");
-                                return;
+                            // The idle window only runs while nothing is in flight:
+                            // a checkpoint append that outlives it must not lose its
+                            // route, and the response stream it is writing to.
+                            let idle = sleep(CONNECTION_IDLE_TIMEOUT);
+                            tokio::pin!(idle);
+                            let (mut send, mut recv) = tokio::select! {
+                                _ = &mut idle, if streams.is_empty() => {
+                                    connection.close(1u32.into(), b"room RPC connection idle");
+                                    return;
+                                },
+                                accepted = connection.accept_bi(),
+                                    if streams.len() < MAX_CONNECTION_STREAMS => {
+                                    let Ok(stream) = accepted else {
+                                        connection.close(1u32.into(), b"room RPC connection idle");
+                                        return;
+                                    };
+                                    stream
+                                },
+                                // A rejected or abandoned stream fails alone; the
+                                // caller sees its reset. Closing here would also
+                                // kill the healthy streams beside it.
+                                _ = streams.join_next(), if !streams.is_empty() => continue,
                             };
-                            let result = timeout(RPC_TIMEOUT, async {
+                            let owner = owner.clone(); let coordinator = coordinator.clone();
+                            let connection = connection.clone();
+                            streams.spawn(timeout(RPC_TIMEOUT, async move {
                                 let mut room = [0; 16]; recv.read_exact(&mut room).await.map_err(|_| failure())?;
                                 let source = recv.read_u64().await?;
                                 let target = recv.read_u64().await?;
@@ -398,8 +421,7 @@ impl IrohRpc {
                                     owner.retire(source).await;
                                 }
                                 Ok::<(), io::Error>(())
-                            }).await;
-                            if !matches!(result, Ok(Ok(()))) { connection.close(1u32.into(), b"room RPC rejected"); return; }
+                            }));
                         }
                     });
                 },
@@ -479,7 +501,15 @@ impl RpcTransport for IrohRpc {
                 // If this future is canceled by OpenRaft before the transport
                 // timeout, Drop still closes the cached route. A retry must
                 // never reuse a connection whose response stream was abandoned.
+                // The authority read is the exception: it is polled every second
+                // under a two-second deadline and shares this connection, so
+                // closing on its cancellation would tear down a checkpoint
+                // append still in flight beside it. Dropping its stream halves
+                // resets that stream alone.
                 let mut connection_guard = ConnectionUseGuard::new(connection.clone());
+                if method == "authority" {
+                    connection_guard.succeeded();
+                }
                 let (mut send, mut recv) = connection.open_bi().await.map_err(|_| failure())?;
                 send.write_all(&self.room).await.map_err(|_| failure())?;
                 send.write_u64(self.incarnation).await?;
@@ -645,15 +675,32 @@ mod tests {
         let stalled = tokio::spawn(async move {
             let incoming = receiver_endpoint.accept().await.unwrap();
             let connection = incoming.await.unwrap();
-            let _stream = connection.accept_bi().await.unwrap();
+            let _read = connection.accept_bi().await.unwrap();
+            let _append = connection.accept_bi().await.unwrap();
             tokio::time::sleep(Duration::from_secs(1)).await;
         });
+
+        // A canceled authority read shares the route with raft traffic and
+        // must leave it open.
+        let read = <IrohRpc as RpcTransport>::call(
+            caller.as_ref(),
+            2,
+            receiver.identity().to_string(),
+            "authority",
+            vec![0],
+        );
+        assert!(timeout(Duration::from_millis(100), read).await.is_err());
+        let cached = caller.connections.read().await.get(&2).cloned().unwrap();
+        assert!(
+            cached.close_reason().is_none(),
+            "canceled authority read closed the shared route"
+        );
 
         let call = <IrohRpc as RpcTransport>::call(
             caller.as_ref(),
             2,
             receiver.identity().to_string(),
-            "authority",
+            "append",
             vec![0],
         );
         assert!(timeout(Duration::from_millis(100), call).await.is_err());

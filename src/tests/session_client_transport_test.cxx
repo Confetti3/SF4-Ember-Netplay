@@ -1,3 +1,4 @@
+#include "session_client_mock.hxx"
 #include "../session/sf4e__SessionClient.hxx"
 #include "../session/IrohRoom.hxx"
 #include <cstdlib>
@@ -7,6 +8,7 @@
 
 using namespace sf4e;
 using nlohmann::json;
+using sf4e::test::MockClient;
 namespace protocol = sf4e::SessionProtocol;
 
 static void TestFailedRoomCanLeaveAfterNativeTeardown() {
@@ -22,30 +24,6 @@ static void TestFailedRoomCanLeaveAfterNativeTeardown() {
 	CHECK(room.GetState() == session::IrohRoom::State::Idle);
 	CHECK(!room.CloseFailedRoom(false));
 }
-
-class MockClient final : public session::ClientTransport {
-public:
-	session::ConnectionState state = session::ConnectionState::Connecting;
-	std::vector<session::Message> incoming;
-	std::vector<json> sent;
-	std::int64_t next = 700;
-	bool writable = true;
-	bool Poll(std::vector<session::Message>& messages, std::size_t maximum) override {
-		CHECK(incoming.size() <= maximum); messages.swap(incoming); return true;
-	}
-	session::ConnectionState State() const override { return state; }
-	std::string PeerAddress() const override { return "127.0.0.1"; }
-	session::SendResult Send(const std::string& payload, bool reliable, std::int64_t* id) override {
-		CHECK(reliable);
-		if (!writable) return session::SendResult::QueueFull;
-		sent.push_back(json::parse(payload));
-		if (id) *id = next;
-		++next;
-		return session::SendResult::Queued;
-	}
-	void Close() override { state = session::ConnectionState::Closed; }
-	void Push(const json& message) { incoming.push_back({1, 2, message.dump(), ""}); }
-};
 
 struct Observer { int ready = 0, synced = 0, error = 0; };
 int main() {

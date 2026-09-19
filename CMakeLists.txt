@@ -4,7 +4,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
 project (
     sf4e
-    VERSION 0.9.0
+    VERSION 0.9.1
     DESCRIPTION "SF4 Ember Netplay: private rollback rooms and an in-game overlay for Ultra Street Fighter IV."
     HOMEPAGE_URL "https://github.com/Confetti3/SF4-Ember-Netplay"
 )
@@ -312,6 +312,10 @@ if(BUILD_TESTING)
     target_compile_features(SessionClientTransportTest PRIVATE cxx_std_17)
     target_link_libraries(SessionClientTransportTest PRIVATE Session sf4e Dimps "d3d9")
     add_test(NAME SessionClientTransport COMMAND SessionClientTransportTest)
+    add_executable(IrohMatchSessionTest "src/tests/iroh_match_session_test.cxx")
+    target_compile_features(IrohMatchSessionTest PRIVATE cxx_std_17)
+    target_link_libraries(IrohMatchSessionTest PRIVATE Session sf4e Dimps "d3d9")
+    add_test(NAME IrohMatchSession COMMAND IrohMatchSessionTest)
     if(SF4E_BUILD_IROH_HELPER)
         # Explicitly invoked comparison tool; network workloads are not CTest
         # unit tests, and the benchmark executable is not installed in packages.

@@ -282,6 +282,12 @@ public:
 	// generation is left out, because it may still hold that generation's
 	// GGPO session. Empty when no match is active.
 	std::vector<MemberId> MatchRoster(std::uint8_t table) const;
+	// The roster the live generation's grant carries: MatchRoster restricted to
+	// a generation this table's fighters still own. Empty when no match is in
+	// play, or when the frozen roster belongs to a pair the table has replaced.
+	// A native projection must then fall back to the table's own spectator list
+	// rather than show a roster that never entered a grant.
+	std::vector<MemberId> LiveMatchRoster(std::uint8_t table) const;
 	struct TerminalReplay {
 		std::uint8_t table = 0;
 		std::uint64_t generation = 0;

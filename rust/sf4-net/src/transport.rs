@@ -58,8 +58,8 @@ pub async fn bind_endpoint_with_policy(relay_only: bool) -> io::Result<Endpoint>
     // cannot reach each other directly are hitting. Take iroh's default
     // (enabled) for gameplay; relay-only keeps it off, where it is moot
     // because that diagnostic clears the IP transports anyway.
-    let builder = Endpoint::builder(presets::N0)
-        .alpns(vec![CONTROL_ALPN.to_vec(), GAME_ALPN.to_vec()]);
+    let builder =
+        Endpoint::builder(presets::N0).alpns(vec![CONTROL_ALPN.to_vec(), GAME_ALPN.to_vec()]);
     let builder = if relay_only {
         builder
             .clear_ip_transports()
