@@ -12,6 +12,7 @@
 #include "../ui/DeveloperOverlay.hxx"
 #include "../ui/TrainingPanel.hxx"
 #include "../training/TrainingRuntime.hxx"
+#include "../common/Localization.hxx"
 #include <imgui.h>
 #include <imgui_impl_dx9.h>
 #include <imgui_impl_win32.h>
@@ -43,11 +44,11 @@ bool Overlay::HasInputFocus() { return focused.load(); }
 void Overlay::RequestMainControls() { if(focused) { capture=true; mainRequested=true; } }
 void Overlay::PushNetplayAlert(const char* message) { if (message) sf4e::NetplayFacade::SetLastError(message); }
 void Overlay::OnClientError(SessionClient::ErrorType type, SessionClient* const, const SessionClient::Callbacks&) {
-    const char* message = "The room request failed. Leave the room and try again.";
+    const char* message = sf4e::loc::T("runtime.room_request_failed");
     switch (type) {
-    case SessionClient::ErrorType::SCE_JOIN_REJECTED_HASH_INVALID: message = "Build mismatch. Both players must use the same SF4 Ember Netplay package."; break;
-    case SessionClient::ErrorType::SCE_JOIN_REJECTED_LOBBY_FULL: message = "This room is full."; break;
-    case SessionClient::ErrorType::SCE_JOIN_REJECTED_NAME_TAKEN: message = "That player name is already in the room. Change it in Settings."; break;
+    case SessionClient::ErrorType::SCE_JOIN_REJECTED_HASH_INVALID: message = sf4e::loc::T("runtime.build_mismatch"); break;
+    case SessionClient::ErrorType::SCE_JOIN_REJECTED_LOBBY_FULL: message = sf4e::loc::T("runtime.room_full"); break;
+    case SessionClient::ErrorType::SCE_JOIN_REJECTED_NAME_TAKEN: message = sf4e::loc::T("runtime.name_taken"); break;
     default: break;
     }
     PushNetplayAlert(message);
@@ -98,7 +99,7 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
 	// The room screens direct the player here when a selection is unusable, so
 	// say what is wrong on this screen too, not only on the table.
 	const std::string selectionError = sf4e::selection::Available(pick, editionSelect, snapshot.fighterAvailability[pick.fighter]) ? std::string() :
-		"This combination is unavailable under the room's rules. Choose another fighter, costume, colour or edition.";
+		sf4e::loc::T("runtime.selection_combination_unavailable");
 	s_fighterSelectors[0].Draw(pick, editionSelect, s_selectionArt.get(), [&](int fighter) { return snapshot.fighterAvailability[fighter]; }, stageId ? &stagedStage : nullptr, snapshot.canEditSelection, selectionError);
 	if (snapshot.canEditSelection && pick.fighter != menuCharaID && pick.fighter >= 0 && pick.fighter < sf4e::selection::FighterCount) {
 		// Customization is per fighter: the selector carried the previous
@@ -149,6 +150,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.invitation = snapshot.invitation;
 	view.error = snapshot.helperError;
 	view.settingsError = snapshot.settingsError;
+	view.languagePreference = snapshot.languagePreference;
 	view.build = sf4e::sidecarHash;
 	view.members = snapshot.members;
     view.network = snapshot.network; view.services = snapshot.services;
@@ -162,12 +164,12 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.canChangeController = snapshot.canChangeController;
     const auto* fighter = sf4e::selection::FindFighter(lobbyMenuCharaID);
     view.selectedFighter=lobbyMenuCharaID;
-    view.selectionSummary = std::string(fighter ? fighter->name : "Choose fighter") + " / Costume " +
-        std::to_string(lobbyConditions.costume + 1) + " / Color " + std::to_string(lobbyConditions.color + 1) +
-        " / " + (lobbyConditions.ultraCombo == 2 ? "Ultra Double" : lobbyConditions.ultraCombo == 1 ? "Ultra II" : "Ultra I");
+    view.selectionSummary = sf4e::loc::Tf("runtime.selection_summary", fighter ? fighter->name : sf4e::loc::T("card.choose_fighter"),
+        lobbyConditions.costume + 1, lobbyConditions.color + 1,
+        lobbyConditions.ultraCombo == 2 ? sf4e::loc::T("selection.ultra_double") : lobbyConditions.ultraCombo == 1 ? "Ultra II" : "Ultra I");
     if (snapshot.atMainMenu && !sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),
         snapshot.lobbySettings.editionSelect, snapshot.fighterAvailability[lobbyMenuCharaID]))
-        view.selectionError = "Selection unavailable under these rules. Open Fighter Select to choose an available option.";
+        view.selectionError = sf4e::loc::T("runtime.selection_unavailable");
     const auto status = sf4e::NetplayFacade::GetStatus();
     // Outside a fight the shell status line carries the notice; transient
     // info ("Connection restored.") belongs to the match HUD only.
@@ -267,7 +269,7 @@ void Overlay::DrawOverlay() {
         ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x * .5f, vp->Pos.y + 12 * sf4e::ui::Scale()), ImGuiCond_Always, ImVec2(.5f, 0));
         ImGui::Begin("Ember shortcut", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
-        ImGui::TextUnformatted("SF4 Ember Netplay  /  F10 or Start"); ImGui::End();
+        ImGui::TextUnformatted(sf4e::loc::T("runtime.open_shortcut")); ImGui::End();
     }
     if(fSystem::ggpo)sf4e::ui::DrawControllerWarning(snapshot.gameplayInputError);
     if (fSystem::ggpo) {

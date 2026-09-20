@@ -16,6 +16,7 @@
 #include "../Dimps/Dimps__UserApp.hxx"
 #include "../common/agent_debug_log.hxx"
 #include "../common/StageCatalog.hxx"
+#include "../common/Localization.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../session/sf4e__SessionClient.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
@@ -114,7 +115,7 @@ static bool StartMatchFromLobby(SessionClient* const client) {
 
     if (!client || client->_lobbyData.members.size() < 2) {
         spdlog::info("Client: deferring match start until opponent joins the lobby");
-        sf4e::NetplayFacade::PushAlert("Waiting for opponent to join the lobby...");
+        sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.waiting_opponent_join"));
         return false;
     }
 
@@ -214,7 +215,7 @@ static bool StartRuntimeGgpo() {
 void fUserApp::_OnVsBattleTasksRegistered() {
     if (!netplay) return;
     if (!sf4e::NetplayFacade::IsRuntimeRoomActive() || !StartRuntimeGgpo())
-        fSystem::AbortGgpoMatch("The authorized match connection is unavailable.");
+        fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.authorized_connection_unavailable"));
 }
 
 
@@ -236,12 +237,12 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
     }
     if (netplay->client._lobbyData.members.size() < 2) {
         spdlog::warn("VsPreBattle: deferring until opponent is in lobby");
-        sf4e::NetplayFacade::PushAlert("Waiting for opponent in the lobby before the match can start.");
+        sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.waiting_opponent_start"));
         return;
     }
     if (!sf4e::selection::FindStage(netplay->client._matchData.stageID)) {
         spdlog::error("VsPreBattle: rejected unsupported stage ID {}", netplay->client._matchData.stageID);
-        sf4e::NetplayFacade::PushAlert("The room supplied an unsupported stage. Reset the lobby before trying again.");
+        sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.unsupported_stage"));
         return;
     }
     size_t charaConditionSize = sizeof(rVsMode::ConfirmedCharaConditions);

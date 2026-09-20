@@ -1,4 +1,5 @@
 #include "GameMenu.hxx"
+#include "../common/Localization.hxx"
 #include "Theme.hxx"
 #include "SelectionArt.hxx"
 #include "MenuGlyphs.hxx"
@@ -38,15 +39,20 @@ void DrawPlayerCard(ImVec2 p,float width,bool compact) {
             shown=std::string(label.c_str(),end)+"...";
         }
         d->AddText(ImGui::GetFont(),font,ImVec2(p.x+x,p.y+y),color,shown.c_str());};
-    text(portrait+24*s,13*s,playerCard.name.empty()?"PLAYER":playerCard.name,18*s,palette::Ivory);
-    text(portrait+24*s,38*s,playerCard.fighterName.empty()?"Choose your fighter":playerCard.fighterName,12*s,palette::Muted);
-    if(!compact)text(12*s,82*s,playerCard.controllerReady?"CONTROLLER READY":"ASSIGN CONTROLLER",11*s,playerCard.controllerReady?palette::Ready:palette::Ember);
+    text(portrait+24*s,13*s,playerCard.name.empty()?loc::T("card.player"):playerCard.name,18*s,palette::Ivory);
+    text(portrait+24*s,38*s,playerCard.fighterName.empty()?loc::T("card.choose_fighter"):playerCard.fighterName,12*s,palette::Muted);
+    if(!compact)text(12*s,82*s,playerCard.controllerReady?loc::T("card.controller_ready"):loc::T("card.assign_controller"),11*s,playerCard.controllerReady?palette::Ready:palette::Ember);
     const float y=(compact?70:116)*s;
-    text(12*s,y,playerCard.recordAvailable?std::to_string(playerCard.wins)+"  WINS":"-- WINS",11*s,palette::Ivory);
-    text(width*.35f,y,playerCard.recordAvailable?std::to_string(playerCard.losses)+"  LOSSES":"-- LOSSES",11*s,palette::Muted);
+    const auto wins=playerCard.recordAvailable?loc::Tf("card.wins",playerCard.wins):loc::T("card.no_wins");
+    const auto losses=playerCard.recordAvailable?loc::Tf("card.losses",playerCard.losses):loc::T("card.no_losses");
     const auto games=playerCard.wins+playerCard.losses;
-    text(width*.7f,y,!playerCard.recordAvailable?std::string("-- WIN %"):
-        games?std::to_string(playerCard.wins*100/games)+"% WIN":std::string("0% WIN"),11*s,palette::Muted);
+    const auto winRate=!playerCard.recordAvailable?std::string(loc::T("card.no_win_rate")):
+        loc::Tf("card.win_rate",games?playerCard.wins*100/games:0);
+    const float statGap=18*s;
+    const auto statWidth=[&](const std::string& value){return ImGui::GetFont()->CalcTextSizeA(11*s,FLT_MAX,0,value.c_str()).x;};
+    float statX=12*s;text(statX,y,wins,11*s,palette::Ivory);statX+=statWidth(wins)+statGap;
+    text(statX,y,losses,11*s,palette::Muted);statX+=statWidth(losses)+statGap;
+    text(statX,y,winRate,11*s,palette::Muted);
 }
 }
 void SetMenuPlayerCard(PlayerCardView view){playerCard=std::move(view);}
@@ -78,8 +84,9 @@ void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max){
     d->AddRectFilled(ImVec2(min.x,max.y-footer),max,IM_COL32(16,15,14,235));
     d->AddText(ImVec2(min.x+4*Scale(),max.y-footer),saved?palette::Ember:palette::Ivory,label.c_str());
     if(saved){const auto p=ImVec2(min.x+4*Scale(),min.y+4*Scale());
-        d->AddRectFilled(p,ImVec2(p.x+ImGui::CalcTextSize("MAIN").x+8*Scale(),p.y+ImGui::GetTextLineHeight()+2*Scale()),IM_COL32(16,15,14,230));
-        d->AddText(ImVec2(p.x+4*Scale(),p.y),palette::Ember,"MAIN");}
+        const char* main=loc::T("profile.main_badge");
+        d->AddRectFilled(p,ImVec2(p.x+ImGui::CalcTextSize(main).x+8*Scale(),p.y+ImGui::GetTextLineHeight()+2*Scale()),IM_COL32(16,15,14,230));
+        d->AddText(ImVec2(p.x+4*Scale(),p.y),palette::Ember,main);}
 }
 void SetMenuGlyphs(int type,unsigned select,unsigned back){
     menuDeviceType=type;
@@ -87,7 +94,7 @@ void SetMenuGlyphs(int type,unsigned select,unsigned back){
     backGlyph=type!=3&&type!=4?"Esc":PhysicalGlyph(type,back,"LK");
 }
 void DrawTrainingOpenPrompt() {
-    ImGui::TextWrapped("F6 Training controls | F5 Hide HUD");
+    ImGui::TextWrapped("%s",loc::T("training.shortcuts"));
 }
 void SetMenuArt(SelectionArt* art) { menuArt=art; }
 void RequestMenuReturn() { returnRequested=true; }
@@ -100,7 +107,7 @@ MenuInput ReadMenuInput() {
     value.acceptText=ImGui::IsKeyPressed(ImGuiKey_Enter,false);
     return value;
 }
-MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entries,const char* status,const Detail& detail,int columns,const Card& card,const Body& body,float flyoutScale,float cardHeight,bool stableStatus,Tone statusTone) {
+MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entries,const char* status,const Detail& detail,int columns,const Card& card,const Body& body,float flyoutScale,float cardHeight,bool stableStatus,Tone statusTone,bool home) {
     const bool flyout=flyoutScale>0;
     const float unit=flyout?flyoutScale:Scale();
     columns=(std::max)(1,columns);
@@ -128,7 +135,6 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     if(statusProbe)statusProbe(status,statusTone);
     if(entriesProbe)entriesProbe(entries);
     const bool changed=lastScreen_!=navigation.Screen();
-    const bool home=std::strcmp(title,"SF4 EMBER")==0;
     // Scaled like every other breakpoint, so a 1.5x interface on a 1024-wide
     // window takes the same layout decision as the header and the galleries.
     const auto windowSize=ImGui::GetWindowSize();const bool roomy=windowSize.x>=1000*Scale()&&windowSize.x/windowSize.y>=1.5f;
@@ -147,7 +153,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     if(flyout) {
         ImGui::TextColored(ToneColor(Tone::Pending),"EMBER / %s",title);
         ImGui::Separator();
-    } else MenuHeader(title);
+    } else MenuHeader(title,home);
     if(home){
         const float cardWidth=roomy?(std::min)(360*Scale(),windowSize.x*.35f):windowSize.x-2*homeMargin;
         const auto origin=ImGui::GetWindowPos();
@@ -156,9 +162,9 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         ImGui::SetCursorPos(ImVec2(homeMargin,start));
     }
     std::string parent=MenuScreenLabel(navigation.Parent());
-    if(flyout&&navigation.Parent()=="home")parent=navigation.Screen()=="home"?"SF4":"Training Lab";
+    if(flyout&&navigation.Parent()=="home")parent=navigation.Screen()=="home"?"SF4":loc::T("training.lab");
     ImGui::BeginDisabled(modalAtStart||navigation.Editing()||navigation.Confirming());
-    if(!home&&ImGui::Button(("< Back / "+parent).c_str())) backRequested=true;
+    if(!home&&ImGui::Button(loc::Tf("menu.back_to",parent).c_str())) backRequested=true;
     ImGui::EndDisabled();
     if(flyout || stableStatus) {
         // Bound long command errors without displacing the list or its legend.
@@ -195,7 +201,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             ImGui::TextWrapped("%s",it->label.c_str());ImGui::PopStyleColor();
             if(!compactGallery)ImGui::TextWrapped("%s",it->detail.c_str());
             if(!it->value.empty())ImGui::TextWrapped("%s",it->value.c_str());
-            if(!visualEnabled) ImGui::TextDisabled(feedback_.Pending(*it)?"Updating room...":"Unavailable");
+            if(!visualEnabled) ImGui::TextDisabled("%s",loc::T(feedback_.Pending(*it)?"room.updating":"common.unavailable"));
             if(detail) detail(it->id);
         }
     };
@@ -240,7 +246,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         const float valueWidth=valueRow?(stackedValue?textWidth:(std::min)(textWidth*.45f,200*unit)):0;
         const float labelWidth=valueRow&&!stackedValue?textWidth-valueWidth-16*unit:textWidth;
         const std::string label=FitLabel(e.label,labelWidth);
-        const std::string value=FitLabel(e.value.empty()?"Not set":e.value,(std::max)(1.f,valueWidth-(e.adjustable?52*unit:0)));
+        const std::string value=FitLabel(e.value.empty()?loc::T("common.not_set"):e.value,(std::max)(1.f,valueWidth-(e.adjustable?52*unit:0)));
         const float valueStart=stackedValue?ImGui::GetStyle().FramePadding.x:rowWidth-ImGui::GetStyle().FramePadding.x-valueWidth;
         if(ImGui::Button("##entry",ImVec2(rowWidth,height))&&!modalAtStart&&!navigation.Editing()&&!navigation.Confirming()) {
             navigation.Focus(e.id,entries); action=navigation.Choose(entries);
@@ -296,7 +302,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         if(current!=entries.end()){
             // Home shows the status in place of the focused row's help text, so
             // it must carry the same severity rather than reading as help.
-            const bool showStatus=*status&&std::strcmp(status,"Saved");
+            const bool showStatus=*status;
             const char* text=showStatus?status:current->detail.c_str();
             const auto color=showStatus&&statusTone!=Tone::Neutral?ImGui::ColorConvertFloat4ToU32(ToneColor(statusTone)):palette::Muted;
             const auto p=ImGui::GetCursorScreenPos();ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),12*Scale(),p,color,text,nullptr,ImGui::GetContentRegionAvail().x);
@@ -321,7 +327,8 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             ImGui::BeginChild("Training confirmation",dialogSize,ImGuiChildFlags_Borders,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
             const auto entry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.DialogId();});
             ImGui::BeginChild("Confirmation explanation",ImVec2(0,ImGui::GetContentRegionAvail().y-60*unit));
-            ImGui::TextWrapped("%s?",entry==entries.end()?"Confirm action":entry->label.c_str());
+            const auto question=loc::Tf("confirm.question",entry==entries.end()?loc::T("confirm.title"):entry->label);
+            ImGui::TextWrapped("%s",question.c_str());
             if(entry!=entries.end())ImGui::TextWrapped("%s",entry->detail.c_str());
             ImGui::EndChild();
             const float width=(ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f;
@@ -329,7 +336,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
                 if(i)ImGui::SameLine();
                 ImGui::PushStyleColor(ImGuiCol_Button,navigation.ConfirmSelected()==bool(i)?ImVec4(.5f,.25f,.1f,1):ImVec4(.2f,.18f,.16f,1));
                 ImGui::BeginDisabled(i!=0&&(entry==entries.end()||!entry->enabled));
-                if(ImGui::Button(i?"Confirm":"Cancel",ImVec2(width,42*unit)))action=navigation.Confirm(i!=0,entries);
+                if(ImGui::Button(i?loc::T("common.confirm"):loc::T("common.cancel"),ImVec2(width,42*unit)))action=navigation.Confirm(i!=0,entries);
                 ImGui::EndDisabled();
                 ImGui::PopStyleColor();
             }
@@ -349,25 +356,27 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         ImGui::SetNextWindowSizeConstraints(ImVec2(0,0),ImVec2(width,height));
         ImGui::SetNextWindowSize(ImVec2((std::min)(600*Scale(),width),0));
     };
-    if(navigation.Confirming()) ImGui::OpenPopup("Confirm action");
+    const std::string confirmationPopup=std::string(loc::T("confirm.title"))+"###ConfirmAction";
+    if(navigation.Confirming()) ImGui::OpenPopup(confirmationPopup.c_str());
     popupSize();
-    if(ImGui::BeginPopupModal("Confirm action",nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
+    if(ImGui::BeginPopupModal(confirmationPopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
         if(!navigation.Confirming()) ImGui::CloseCurrentPopup();
         else {
             const auto entry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.DialogId();});
             const bool canConfirm=entry!=entries.end()&&entry->enabled;
-            ImGui::TextWrapped("%s?",entry==entries.end()?"Confirm action":entry->label.c_str());
+            const auto question=loc::Tf("confirm.question",entry==entries.end()?loc::T("confirm.title"):entry->label);
+            ImGui::TextWrapped("%s",question.c_str());
             if(entry!=entries.end())ImGui::TextWrapped("%s",entry->detail.c_str());
             const bool visualConfirm=entry!=entries.end()&&feedback_.Enabled(*entry);
             ImGui::BeginChild("Confirmation feedback",ImVec2(0,2*ImGui::GetTextLineHeightWithSpacing()));
-            if(!visualConfirm)ImGui::TextWrapped("Updating room. Cancel is still available.");
+            if(!visualConfirm)ImGui::TextWrapped("%s",loc::T("confirm.updating"));
             ImGui::EndChild();
             const float buttonWidth=(ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f;
             ImGui::PushStyleColor(ImGuiCol_Button,!navigation.ConfirmSelected()?ImVec4(.5f,.25f,.1f,1):ImVec4(.15f,.14f,.13f,1));
-            if(ImGui::Button("Cancel",ImVec2(buttonWidth,48*Scale()))) action=navigation.Confirm(false,entries);
+            if(ImGui::Button(loc::T("common.cancel"),ImVec2(buttonWidth,48*Scale()))) action=navigation.Confirm(false,entries);
             ImGui::PopStyleColor(); ImGui::SameLine();
             ImGui::PushStyleColor(ImGuiCol_Button,visualConfirm&&navigation.ConfirmSelected()?ImVec4(.5f,.25f,.1f,1):ImVec4(.15f,.14f,.13f,1));
-            const std::string label=FitLabel(entry==entries.end()?"Confirm":entry->label,buttonWidth-2*ImGui::GetStyle().FramePadding.x);
+            const std::string label=FitLabel(entry==entries.end()?loc::T("common.confirm"):entry->label,buttonWidth-2*ImGui::GetStyle().FramePadding.x);
             ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha,1.f);
             ImGui::BeginDisabled(!canConfirm);
             if(ImGui::Button((label+"###Confirm").c_str(),ImVec2(buttonWidth,48*Scale()))) action=navigation.Confirm(true,entries);
@@ -376,32 +385,34 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         }
         ImGui::EndPopup();
     }
-    if(!notice_.empty()) ImGui::OpenPopup("Notice");
+    const std::string noticePopup=std::string(loc::T("notice.title"))+"###Notice";
+    if(!notice_.empty()) ImGui::OpenPopup(noticePopup.c_str());
     popupSize();
-    if(ImGui::BeginPopupModal("Notice",nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
+    if(ImGui::BeginPopupModal(noticePopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
         if(notice_.empty()) ImGui::CloseCurrentPopup();
         else {
-            ImGui::TextColored(ToneColor(Tone::Error),"Something went wrong");
+            ImGui::TextColored(ToneColor(Tone::Error),"%s",loc::T("notice.error_title"));
             ImGui::TextWrapped("%s",notice_.c_str());
             ImGui::Dummy(ImVec2(0,8*Scale()));
             ImGui::PushStyleColor(ImGuiCol_Button,ImVec4(.5f,.25f,.1f,1));
-            if(ImGui::Button("OK",ImVec2(ImGui::GetContentRegionAvail().x,48*Scale()))) notice_.clear();
+            if(ImGui::Button(loc::T("common.ok"),ImVec2(ImGui::GetContentRegionAvail().x,48*Scale()))) notice_.clear();
             ImGui::PopStyleColor();
             if(notice_.empty()) ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
     }
     if(noticeOpen&&notice_.empty()) navigation.NeutralGate();
-    if(navigation.Editing()) ImGui::OpenPopup("Edit text");
+    const std::string editPopup=std::string(loc::T("edit.title"))+"###EditText";
+    if(navigation.Editing()) ImGui::OpenPopup(editPopup.c_str());
     popupSize();
-    if(ImGui::BeginPopupModal("Edit text",nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
+    if(ImGui::BeginPopupModal(editPopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
         if(!navigation.Editing()) ImGui::CloseCurrentPopup();
         else {
             const auto entry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.EditingId();});
             const std::size_t limit=entry==entries.end()?4096:(std::min)(std::size_t(4096),entry->textLimit);
             const bool canAccept=entry!=entries.end()&&entry->enabled;
-            ImGui::TextWrapped("%s",entry==entries.end()?"Edit text":entry->label.c_str());
-            ImGui::TextWrapped("Type or paste. Enter accepts; Escape or controller Back cancels.");
+            ImGui::TextWrapped("%s",entry==entries.end()?loc::T("edit.title"):entry->label.c_str());
+            ImGui::TextWrapped("%s",loc::T("edit.instructions"));
             char draft[4097]={}; std::strncpy(draft,navigation.Draft().c_str(),sizeof(draft)-1);
             if(lastEdit_!=navigation.EditingId()) ImGui::SetKeyboardFocusHere();
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
@@ -409,15 +420,15 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             ImGui::TextDisabled("%u / %u bytes",static_cast<unsigned>(navigation.Draft().size()),static_cast<unsigned>(limit));
             const bool visualAccept=entry!=entries.end()&&feedback_.Enabled(*entry);
             ImGui::BeginChild("Edit feedback",ImVec2(0,2*ImGui::GetTextLineHeightWithSpacing()));
-            if(!visualAccept)ImGui::TextWrapped("Updating room. Your draft is kept; you can continue typing or cancel.");
+            if(!visualAccept)ImGui::TextWrapped("%s",loc::T("edit.updating"));
             ImGui::EndChild();
             ImGui::PushStyleColor(ImGuiCol_Text,visualAccept?ImVec4(.95f,.92f,.87f,1):ImVec4(.55f,.52f,.48f,1));
             ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha,1.f);
             ImGui::BeginDisabled(!canAccept);
-            const bool acceptClicked=ImGui::Button("Accept");
+            const bool acceptClicked=ImGui::Button(loc::T("common.accept"));
             ImGui::EndDisabled(); ImGui::PopStyleVar(); ImGui::PopStyleColor();
             if(canAccept&&(acceptClicked||acceptEditText)) action=navigation.AcceptText(entries);
-            ImGui::SameLine(); if(ImGui::Button("Cancel edit")) navigation.Cancel();
+            ImGui::SameLine(); if(ImGui::Button(loc::T("edit.cancel"))) navigation.Cancel();
             if(!navigation.Editing()) ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();

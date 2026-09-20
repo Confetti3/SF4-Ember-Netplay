@@ -1,4 +1,5 @@
 #include "../ui/ApplicationShell.hxx"
+#include "../common/Localization.hxx"
 #include "../ui/GameMenu.hxx"
 #include "../ui/MenuRows.hxx"
 #include "../ui/Theme.hxx"
@@ -556,6 +557,31 @@ int main() try {
     ++view.room.tables[0].revision; ++view.room.revision;
     for (int i = 0; i < 5; ++i) frame();
     Check(!hasRow("abandon-result"), "A spectator was offered Abandon unresolved game");
+
+    // Catalog changes rebuild rows, but their stable IDs preserve all local
+    // interaction and room state. A draft remains owned by the same editor.
+    view.session.room = netplay::RoomState::Joined;
+    view.session.control = netplay::Health::Healthy;
+    view.session.coordinated = view.session.authorityWritable = true;
+    view.room.closed = false;
+    shell.Navigation().Home(); shell.Navigation().Push("room-chat"); frame();
+    focus("compose"); shell.Navigation().Choose(rows);
+    Check(shell.Navigation().Editing(), "Chat draft fixture did not enter the editor");
+    shell.Navigation().Draft("draft survives locale switch");
+    const auto localeScreen = shell.Navigation().Screen();
+    const auto localeFocus = shell.Navigation().Focus();
+    const auto localeDraft = shell.Navigation().Draft();
+    const auto localeActions = actions.size();
+    const auto localeEpoch = view.room.roomEpoch;
+    const auto localeMembers = view.room.members.size();
+    sf4e::loc::SetActive(sf4e::loc::Locale::PtBR); frame();
+    Check(shell.Navigation().Screen() == localeScreen && shell.Navigation().Focus() == localeFocus,
+        "Locale switch changed room screen or focus");
+    Check(shell.Navigation().Editing() && shell.Navigation().Draft() == localeDraft,
+        "Locale switch discarded the chat draft");
+    Check(actions.size() == localeActions && view.room.roomEpoch == localeEpoch && view.room.members.size() == localeMembers,
+        "Locale switch mutated room state or submitted a command");
+    sf4e::loc::SetActive(sf4e::loc::Locale::En);
 
     SetMenuStatusProbe({}); SetMenuCardProbe({}); SetMenuEntriesProbe({}); ImGui::DestroyContext();
     std::cout << "Room controls and uninterrupted controller, keyboard, mouse and queue frames passed.\n";

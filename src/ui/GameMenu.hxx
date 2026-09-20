@@ -56,7 +56,7 @@ public:
     // channel is this string, so a failure must not read like ordinary text.
     MenuAction Draw(const char* title,const std::vector<MenuEntry>& entries,
                     const char* status = "",const Detail& detail = {},int columns=1,const Card& card = {},const Body& body = {},float flyoutScale=0,float cardHeight=100,bool stableStatus=false,
-                    Tone statusTone=Tone::Neutral);
+                    Tone statusTone=Tone::Neutral,bool home=false);
     // A modal notice: owns menu input until Select, Back or OK dismisses it.
     void ShowNotice(std::string text) { notice_=std::move(text); }
     bool NoticeOpen() const { return !notice_.empty(); }

@@ -13,6 +13,7 @@
 #include "../Dimps/Dimps__GameEvents.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../common/agent_debug_log.hxx"
+#include "../common/Localization.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../session/sf4e__SessionClient.hxx"
 #include "sf4e__Game__Battle__System.hxx"
@@ -156,7 +157,7 @@ namespace sf4e {
         if (IsRuntimeRecoveryEnabled()) {
             s_controlPlaneLost = true;
             s_verificationLostAtFrame = fSystem::lastGgpoSaveFrame;
-            PushAlert("Room control is recovering. Your match connection is retained.", NoticeSeverity::Warning);
+            PushAlert(loc::T("runtime.room_recovering"), NoticeSeverity::Warning);
             return;
         }
 
@@ -186,7 +187,7 @@ namespace sf4e {
 		// kept alive until the fight ends so nothing dangles, and no
 		// reconnection is attempted — room identity and lobby IDs are
 		// ephemeral, so a new client could not safely resume this lobby.
-		PushAlert("Room connection lost. The fight continues, but rematch and results are disabled.", NoticeSeverity::Warning);
+		PushAlert(loc::T("runtime.room_lost_fight_continues"), NoticeSeverity::Warning);
 	}
 
 	void NetplayFacade::FinalizeControlPlaneLossAfterBattle() {
@@ -199,7 +200,7 @@ namespace sf4e {
 			"was unavailable from frame {} to match end — that interval is UNVERIFIED",
 			s_verificationLostAtFrame
 		);
-		PushAlert("Returned to the menu: the room connection was lost during the match.");
+		PushAlert(loc::T("runtime.returned_room_lost"));
 		// Full teardown to a safe disconnected state (also resets the
 		// degraded flags via ShutdownNetplay).
 		ShutdownNetplay(true);

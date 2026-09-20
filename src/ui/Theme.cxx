@@ -1,6 +1,7 @@
 #include "Theme.hxx"
 #include "EmbeddedFonts.hxx"
 #include "EmbeddedBrand.hxx"
+#include "../common/Localization.hxx"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -16,9 +17,6 @@ ImVec4 Color(unsigned rgb, float alpha = 1.0f) {
 const unsigned Ink = 0x141312, Panel = 0x211E1B, Border = 0x443A31;
 const unsigned Ivory = 0xF3EBDD, Muted = 0xB5A99B, Ember = 0xFF8738;
 const float BodySize = 18.f;
-// ImGui's default Latin range stops before typographic punctuation. Keep the
-// HUD's unavailable marker and UTF-8 player names in the baked atlas.
-const ImWchar HudGlyphRanges[] = {0x0020, 0x00FF, 0x2013, 0x2014, 0};
 }
 
 float Scale() {
@@ -47,7 +45,7 @@ bool ApplyTheme(float dpiScale) {
     for (int i = 0; i < 3; ++i) {
         ImFontConfig config;
         config.FontDataOwnedByAtlas = false;
-        config.GlyphRanges = HudGlyphRanges;
+        config.GlyphRanges = UiGlyphRanges;
         config.OversampleH = 3; config.OversampleV = 2;
         // Keep logical sizes integral: ImGui 1.91 truncates SizePixels. Baking at
         // display density then scaling metrics preserves fractional Windows DPI.
@@ -148,8 +146,8 @@ ImVec4 ToneColor(Tone tone) {
     default: return Color(Muted);
     }
 }
-void Header(const char* title, const char* subtitle) {
-    if (std::string(title) == "SF4 EMBER NETPLAY") {
+void Header(const char* title, const char* subtitle, bool brand) {
+    if (brand) {
         const float unit = Scale();
         auto* atlas = ImGui::GetIO().Fonts;
         ImVec2 topLeft, bottomRight;
@@ -173,11 +171,10 @@ void Header(const char* title, const char* subtitle) {
     ImGui::Dummy(ImVec2(0, 8*s));
 }
 void Section(const char* title) { ImGui::Spacing(); ImGui::SeparatorText(title); }
-void MenuHeader(const char* title) {
+void MenuHeader(const char* title, bool home) {
     const float s=Scale();const auto p=ImGui::GetCursorScreenPos();
     auto* draw=ImGui::GetWindowDrawList();auto* atlas=ImGui::GetIO().Fonts;
     ImVec2 uv0,uv1;atlas->CalcCustomRectUV(atlas->GetCustomRectByIndex(0),&uv0,&uv1);
-    const bool home=std::string(title)=="SF4 EMBER";
     const bool titleScreen=home&&ImGui::GetWindowWidth()>=1000*s;
     const float mark=(titleScreen?88:48)*s;
     draw->AddImage(atlas->TexID,p,ImVec2(p.x+mark,p.y+mark),uv0,uv1);
@@ -185,7 +182,7 @@ void MenuHeader(const char* title) {
     const float width=ImGui::GetContentRegionAvail().x-mark-16*s;
     const float font=(std::max)(18*s,(std::min)(titleScreen?68*s:home?38*s:28*s,width*HeadingFont()->FontSize/(std::max)(1.f,HeadingFont()->CalcTextSizeA(HeadingFont()->FontSize,FLT_MAX,0,label).x)));
     draw->AddText(HeadingFont(),font,ImVec2(p.x+mark+12*s,p.y+4*s),palette::Ivory,label,nullptr,width);
-    const char* subtitle="SF4  /  PRIVATE ROOMS & ROLLBACK NETPLAY";
+    const char* subtitle=loc::T("brand.subtitle");
     if(home)draw->AddText(ImGui::GetFont(),12*s,ImVec2(p.x+mark+14*s,p.y+(titleScreen?76:42)*s),palette::Ember,subtitle,nullptr,width);
     const float textHeight=home?(titleScreen?76:42)*s+ImGui::GetFont()->CalcTextSizeA(12*s,FLT_MAX,width,subtitle).y:
         HeadingFont()->CalcTextSizeA(font,FLT_MAX,width,label).y+8*s;
@@ -262,11 +259,11 @@ std::string MatchStripStateLine(const MatchStripView& view) {
     // The most urgent condition wins: a hard notice, then a stall (the game
     // is visibly frozen and the player needs to know why), then a warning.
     if(view.noticeSeverity>=2&&!view.notice.empty())return view.notice;
-    if(view.predictionStalled)return "Waiting for opponent...";
+    if(view.predictionStalled)return loc::T("match.waiting_opponent");
     if(view.connectionWarning){
         if(view.disconnectCountdownMs>=0)
-            return "Connection unstable. Opponent dropped in "+std::to_string((view.disconnectCountdownMs+999)/1000)+" s";
-        return "Connection unstable";
+            return loc::Tf("match.connection_countdown",(view.disconnectCountdownMs+999)/1000);
+        return loc::T("match.connection_unstable");
     }
     return view.notice;
 }
@@ -326,20 +323,21 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
     // pair lopsided whenever the names differed in length.
     const auto nameWidth=(w-70*s)*.5f,gap=12*s;
     const auto left=fit(view.names[0],nameWidth,20*s),right=fit(view.names[1],nameWidth,20*s);
-    const auto leftWidth=measure(left,20*s),vsWidth=measure("vs",16*s);
+    const auto versus=loc::T("match.versus_short");
+    const auto leftWidth=measure(left,20*s),vsWidth=measure(versus,16*s);
     auto x=p.x+(w-(leftWidth+gap+vsWidth+gap+measure(right,20*s)))*.5f;
     text(x,p.y+4*s,left,20*s,IM_COL32(243,235,221,255));x+=leftWidth+gap;
-    text(x,p.y+6*s,"vs",16*s,IM_COL32(255,135,56,230));x+=vsWidth+gap;
+    text(x,p.y+6*s,versus,16*s,IM_COL32(255,135,56,230));x+=vsWidth+gap;
     text(x,p.y+4*s,right,20*s,IM_COL32(243,235,221,255));
-    const std::string labels[]={"Ping","Rollback",view.spectator?"":"Delay"};
+    const std::string labels[]={loc::T("match.ping"),loc::T("match.rollback"),view.spectator?"":loc::T("match.delay")};
     const std::string values[]={view.pingMs<0?"\xe2\x80\x94":std::to_string(view.pingMs)+" ms",
-        std::to_string(view.rollbackFrames)+"f",view.spectator?"Spectating":view.appliedDelay<0?"\xe2\x80\x94":std::to_string(view.appliedDelay)+"f"};
+        std::to_string(view.rollbackFrames)+"f",view.spectator?loc::T("match.spectating"):view.appliedDelay<0?"\xe2\x80\x94":std::to_string(view.appliedDelay)+"f"};
     const float column=(w-24*s)/3;
     for(int i=0;i<3;++i){
         const float x=p.x+12*s+column*i;
         // Fixed label/value anchors keep the layout stable as values change.
         text(x,p.y+33*s,labels[i],16*s,IM_COL32(181,169,155,255));
-        const float valueX=x+(i==0?39:i==1?72:labels[i].empty()?0:49)*s;
+        const float valueX=x+(labels[i].empty()?0:measure(labels[i],16*s)+8*s);
         const auto value=fit(values[i],x+column-valueX-4*s,22*s);
         text(valueX,p.y+29*s,value,22*s,IM_COL32(243,235,221,255));
     }
@@ -358,7 +356,7 @@ void DrawMatchStripPreview(const MatchStripView& view) {
     const auto p=ImGui::GetCursorScreenPos();
     PaintMatchStrip(view,ImGui::GetWindowDrawList(),p,MatchWidth*s,s);
     ImGui::Dummy(ImVec2(MatchWidth*s,MatchHeight*s));
-    ImGui::TextDisabled("%s spacing / sample values",view.raised?"Raised":"Normal");
+    ImGui::TextDisabled("%s",loc::Tf("match.preview_spacing",view.raised?loc::T("spacing.raised"):loc::T("spacing.normal")).c_str());
 }
 void DrawDiagnosticStrip(const DiagnosticStripView& view) {
     const auto* viewport = ImGui::GetMainViewport();

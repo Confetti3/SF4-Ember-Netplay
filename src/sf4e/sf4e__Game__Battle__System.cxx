@@ -27,6 +27,7 @@
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../common/sf4e__GgpoAbortLatch.hxx"
 #include "../common/RollbackHud.hxx"
+#include "../common/Localization.hxx"
 static sf4e::RollbackHud rollbackHud;
 #include "../common/sf4e__StateHash.hxx"
 #include "../common/NativeMatchResult.hxx"
@@ -844,7 +845,7 @@ void fSystem::BattleUpdate() {
         case sf4e::gate::POLICY_FATAL:
         default:
             spdlog::error("GGPO: add_local_input returned irrecoverable {}", (int)result);
-            AbortGgpoMatch("Netplay input failed. The match has ended.");
+            AbortGgpoMatch(sf4e::loc::T("runtime.netplay_input_failed"));
             return;
         }
 
@@ -866,7 +867,7 @@ void fSystem::BattleUpdate() {
                 break;
             case sf4e::gate::POLICY_FATAL:
                 spdlog::error("GGPO: synchronize_input returned irrecoverable {}", (int)result);
-                AbortGgpoMatch("Netplay sync failed. The match has ended.");
+                AbortGgpoMatch(sf4e::loc::T("runtime.netplay_sync_failed"));
                 return;
             default:
                 // NOT_SYNCHRONIZED during startup/resync, or another
@@ -908,7 +909,7 @@ void fSystem::BattleUpdate() {
             }
             if (!GGPO_SUCCEEDED(err)) {
                 spdlog::error("GGPO: advance_frame returned {}", (int)err);
-                AbortGgpoMatch("Netplay sync failed. The match has ended.");
+                AbortGgpoMatch(sf4e::loc::T("runtime.netplay_sync_failed"));
             }
             else {
                 simGate.OnFrameAccepted();
@@ -1342,7 +1343,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     matchTelemetry.Reset();
     rollbackHud.Reset();
     if (!inPlayers || numPlayers < 2 || numPlayers > static_cast<int>(sf4e::room::MaxMatchParticipants)) {
-        sf4e::NetplayFacade::PushAlert("Invalid match roster. Return to the room and try again.");
+        sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.invalid_roster"));
         return;
     }
     diag::InitFromEnvironment();
@@ -1404,7 +1405,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     if (result != GGPO_OK) {
         spdlog::error("GGPO session could not start: {}", (int)result);
         ggpo = nullptr;
-        AbortGgpoMatch("GGPO could not start — return to lobby and Ready again.");
+        AbortGgpoMatch(sf4e::loc::T("runtime.ggpo_start_failed"));
         return;
     }
     spdlog::info("GGPO: session started localPort={}", port);
@@ -1417,7 +1418,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
         result = ggpo_add_player(ggpo, inPlayers + i, &players[i].handle);
         if (!GGPO_SUCCEEDED(result)) {
             spdlog::error("GGPO session could not add player: {}", (int)result);
-            AbortGgpoMatch("GGPO could not add players — return to lobby and Ready again.");
+            AbortGgpoMatch(sf4e::loc::T("runtime.ggpo_add_players_failed"));
             return;
         }
 
@@ -1557,7 +1558,7 @@ bool fSystem::ggpo_advance_frame_callback(int)
         diag::G().RecordGgpoResult(diag::CALL_SYNC_INPUT, (int)result);
     }
     if (!GGPO_SUCCEEDED(result)) {
-        AbortGgpoMatch("Netplay sync failed. The match has ended.");
+        AbortGgpoMatch(sf4e::loc::T("runtime.netplay_sync_failed"));
         return true;
     }
     NoteDisconnectFlags(disconnect_flags);
@@ -1584,7 +1585,7 @@ bool fSystem::ggpo_advance_frame_callback(int)
         diag::G().RecordGgpoResult(diag::CALL_ADVANCE_FRAME, (int)result);
     }
     if (!GGPO_SUCCEEDED(result)) {
-        AbortGgpoMatch("Netplay sync failed. The match has ended.");
+        AbortGgpoMatch(sf4e::loc::T("runtime.netplay_sync_failed"));
     }
     else {
         rollbackHud.Replayed(GetTickCount64());
@@ -1657,7 +1658,7 @@ bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, in
     // states, or the states aren't being released or tracked correctly.
     *buffer = nullptr;
     spdlog::error("FATAL: Could not store GGPO state!");
-    AbortGgpoMatch("Netplay rollback buffer full. The match has ended.");
+    AbortGgpoMatch(sf4e::loc::T("runtime.rollback_buffer_full"));
     return false;
 }
 
@@ -1763,7 +1764,7 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         // when the prediction threshold is reached. One alert per episode.
         s_disconnectTimeoutMs = info->u.connection_interrupted.disconnect_timeout;
         if (simGate.OnConnectionInterrupted(GetTickCount())) {
-            sf4e::NetplayFacade::PushAlert("Connection unstable. Playing on prediction.", sf4e::NoticeSeverity::Warning);
+            sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.connection_unstable_prediction"), sf4e::NoticeSeverity::Warning);
         }
         break;
     case GGPO_EVENTCODE_CONNECTION_RESUMED:
@@ -1779,7 +1780,7 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         // double-advancing; GGPO resumes progression on its own.
         if (simGate.OnConnectionResumed()) {
             s_disconnectTimeoutMs = 0;
-            sf4e::NetplayFacade::PushAlert("Connection restored.", sf4e::NoticeSeverity::Info);
+            sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.connection_restored"), sf4e::NoticeSeverity::Info);
         }
         break;
     case GGPO_EVENTCODE_DISCONNECTED_FROM_PEER:
@@ -1793,7 +1794,7 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         if (IsSpectatorHandle(info->u.disconnected.player)) {
             s_spectatorPolicy.OnDisconnected(info->u.disconnected.player);
             spdlog::info("GGPO: spectator handle {} disconnected; fight continues", info->u.disconnected.player);
-            sf4e::NetplayFacade::PushAlert("A spectator disconnected.", sf4e::NoticeSeverity::Info);
+            sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.spectator_disconnected"), sf4e::NoticeSeverity::Info);
             break;
         }
         if (system) {
@@ -1803,7 +1804,7 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         simGate.OnBattleClosing();     // the gate must not report RUNNING for a dead peer
         s_disconnectTimeoutMs = 0;
         sf4e::NetplayFacade::PushAlert(
-            localPlayerHandle == GGPO_INVALID_HANDLE ? "The match connection was lost." : "Opponent disconnected. The match is over.",
+            sf4e::loc::T(localPlayerHandle == GGPO_INVALID_HANDLE ? "runtime.match_connection_lost" : "runtime.opponent_disconnected"),
             sf4e::NoticeSeverity::Error
         );
         break;

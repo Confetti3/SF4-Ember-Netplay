@@ -108,6 +108,7 @@ namespace sf4e {
 			netplay::PlayerPreferences preferences;
 			netplay::LobbySettings lobbySettings;
 			std::string settingsError;
+			std::string languagePreference = "auto";
 			int localSlot = -1;
 			bool offlineRequested = false;
 			std::string displayName;

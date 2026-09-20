@@ -2,6 +2,7 @@
 #include "MenuNavigation.hxx"
 #include "../common/RoomRules.hxx"
 #include "../netplay/PlayerPreferences.hxx"
+#include "../common/Localization.hxx"
 namespace sf4e { namespace ui {
 inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::PlayerPreferences& b) {
     return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.showMatchHud==b.showMatchHud&&
@@ -15,7 +16,7 @@ inline MenuEntry Value(std::string id,std::string label,std::string value,std::s
     auto e=Row(std::move(id),std::move(label),std::move(detail),enabled); e.value=std::move(value); e.adjustable=true; return e;
 }
 inline MenuEntry TextRow(std::string id,std::string label,std::string value,std::size_t limit,bool enabled=true) {
-    auto e=Value(std::move(id),std::move(label),value,enabled?"Select to edit. Type or paste, then Enter to accept; Back cancels.":"Editing is unavailable in the current state.",enabled);
+    auto e=Value(std::move(id),std::move(label),value,enabled?loc::T("menu.edit_detail"):loc::T("menu.edit_unavailable"),enabled);
     e.adjustable=false; e.text=true; e.textLimit=limit; return e;
 }
 inline MenuEntry ConfirmRow(std::string id,std::string label,std::string detail,bool enabled=true) {
@@ -28,9 +29,9 @@ template<typename T> inline void Step(T& value,const std::vector<int>& choices,i
     value=static_cast<T>(choices[(std::max)(0,(std::min)(static_cast<int>(choices.size())-1,index+delta))]);
 }
 inline void RuleRows(std::vector<MenuEntry>& rows,const room::Rules& rules,bool enabled,const char* reason) {
-    rows.push_back(Value("edition","Edition Select",rules.editionSelect?"On":"Off",reason,enabled));
-    rows.push_back(Value("rounds","Rounds",std::to_string(rules.roundCount),reason,enabled));
-    rows.push_back(Value("time","Round time",std::to_string(rules.roundTime),reason,enabled));
+    rows.push_back(Value("edition",loc::T("rules.edition_select"),rules.editionSelect?loc::T("common.on"):loc::T("common.off"),reason,enabled));
+    rows.push_back(Value("rounds",loc::T("rules.rounds"),std::to_string(rules.roundCount),reason,enabled));
+    rows.push_back(Value("time",loc::T("rules.round_time"),std::to_string(rules.roundTime),reason,enabled));
 }
 inline bool AdjustRule(room::Rules& rules,const MenuAction& a) {
     if(a.kind!=MenuAction::Adjust) return false;

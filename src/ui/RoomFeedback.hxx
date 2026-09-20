@@ -1,5 +1,6 @@
 #pragma once
 #include "ApplicationShell.hxx"
+#include "../common/Localization.hxx"
 
 namespace sf4e { namespace ui {
 inline bool RoomActionsAvailable(const ShellView& view) {
@@ -20,13 +21,13 @@ inline bool RoomCheckpointPending(const ShellView& view) {
 
 inline const char* RoomWaitReason(const ShellView& view) {
     if (view.session.room == netplay::RoomState::Closing)
-        return "Leaving room. Waiting for the connection to close...";
+        return loc::T("room.wait.leaving");
     if (view.session.room == netplay::RoomState::Opening)
-        return "Joining room. Waiting for the other players...";
-    if (view.room.closed) return "This room has closed. Return to Online Play to join another.";
+        return loc::T("room.wait.joining");
+    if (view.room.closed) return loc::T("room.wait.closed");
     if (view.session.control != netplay::Health::Healthy || view.session.recovery != netplay::Recovery::None)
-        return "Room connection is recovering. You can still leave the room.";
-    return "Updating room. Controls may pause briefly.";
+        return loc::T("room.wait.recovering");
+    return loc::T("room.wait.updating");
 }
 
 struct ConnectionCheckFeedback {
@@ -41,33 +42,28 @@ inline ConnectionCheckFeedback DescribeConnectionCheck(const ShellView& view) {
     result.checking = view.probeStatus == "checking";
     const bool measured = view.recommendedDelay >= 0 && view.recommendedDelay <= 10;
     if (result.checking) {
-        result.value = "Checking...";
-        result.detail = "Measuring gameplay datagrams for five seconds, plus connection setup. You can still choose a delay manually.";
-        result.action = "Checking connection...";
+        result.value = loc::T("connection.checking");
+        result.detail = loc::T("connection.checking_detail");
+        result.action = loc::T("connection.checking_action");
     } else if (measured) {
-        result.value = std::to_string(view.recommendedDelay) + " frames";
-        result.detail = view.probeRoute + " connection. RTT median " + ProbeMilliseconds(view.probeP50Us) +
-            " ms; p95 " + ProbeMilliseconds(view.probeP95Us) + " ms; p99 " + ProbeMilliseconds(view.probeP99Us) +
-            " ms. RTT variation " + ProbeMilliseconds(view.probeJitterUs) + " ms. " +
-            std::to_string(view.probeSent) + " sent, " + std::to_string(view.probeSamples) + " replies, " + std::to_string(view.probeLost) +
-            " missed. Apply this recommendation or choose your own delay.";
-        result.action = "Check connection again";
+        result.value = loc::Tf("connection.frames",view.recommendedDelay);
+        result.detail = loc::Tf("connection.result_detail",view.probeRoute,ProbeMilliseconds(view.probeP50Us),
+            ProbeMilliseconds(view.probeP95Us),ProbeMilliseconds(view.probeP99Us),ProbeMilliseconds(view.probeJitterUs),
+            view.probeSent,view.probeSamples,view.probeLost);
+        result.action = loc::T("connection.check_again");
     } else if (!view.probeStatus.empty()) {
-        result.value = "No recommendation";
+        result.value = loc::T("connection.no_recommendation");
         result.detail = view.probeStatus == "timed_out" ?
-            "The connection check timed out. Retry, or choose a delay and Ready." : view.probeStatus == "invalidated" ?
-            "The connection or opponent changed. Run the check again, or choose a delay and Ready." :
+            loc::T("connection.timed_out") : view.probeStatus == "invalidated" ?
+            loc::T("connection.invalidated") :
             view.probeStatus == "local_overload" ?
-            "This PC could not send the full workload on time. Retry with less background load, or choose a delay manually." :
-            "The check could not collect enough replies. Retry, or choose a delay and Ready; a recommendation is optional.";
-        if(view.probeSent && view.probeStatus!="invalidated") result.detail += " Sent " + std::to_string(view.probeSent) +
-            " of " + std::to_string(view.probeExpected) + " scheduled packets; " + std::to_string(view.probeSamples) +
-            " replies, " + std::to_string(view.probeLost) + " missed.";
-        result.action = "Retry connection check";
+            loc::T("connection.local_overload") : loc::T("connection.insufficient");
+        if(view.probeSent && view.probeStatus!="invalidated") result.detail += loc::Tf("connection.packet_summary",view.probeSent,view.probeExpected,view.probeSamples,view.probeLost);
+        result.action = loc::T("connection.retry");
     } else {
-        result.value = "Not checked";
-        result.detail = "Check your opponent's connection for a suggested delay. This is optional; you can choose a delay and Ready.";
-        result.action = "Check connection";
+        result.value = loc::T("connection.not_checked");
+        result.detail = loc::T("connection.not_checked_detail");
+        result.action = loc::T("connection.check");
     }
     return result;
 }

@@ -1,0 +1,1630 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: en\n"
+
+msgid "app.name"
+msgstr "SF4 Ember Netplay"
+
+msgid "common.back"
+msgstr "Back"
+
+msgid "common.cancel"
+msgstr "Cancel"
+
+msgid "common.close"
+msgstr "Close"
+
+msgid "common.confirm"
+msgstr "Confirm"
+
+msgid "common.on"
+msgstr "On"
+
+msgid "common.off"
+msgstr "Off"
+
+msgid "common.unavailable"
+msgstr "Unavailable"
+
+msgid "common.saving"
+msgstr "Saving..."
+
+msgid "common.saved"
+msgstr "Saved"
+
+msgid "common.save_failed"
+msgstr "Save failed"
+
+msgid "confirm.title"
+msgstr "Confirm action"
+
+msgid "confirm.question"
+msgstr "{0}?"
+
+msgid "confirm.updating"
+msgstr "Updating room. Cancel is still available."
+
+msgid "launcher.update_failed"
+msgstr "The update could not be installed. Close the game and previous launcher before retrying. See %TEMP%\\sf4-netplay-update.log; preserved product copies are in .ember-update-backups."
+
+msgid "launcher.recovery_title"
+msgstr "Launch recovery"
+
+msgid "launcher.path_failed"
+msgstr "The runtime search path could not be configured. Extract the complete package to a writable folder."
+
+msgid "launcher.game_not_found"
+msgstr "Ultra Street Fighter IV could not be found."
+
+msgid "launcher.sidecar_missing"
+msgstr "Sidecar.dll is missing or its path cannot be used by the injector. Extract the full package to a simple local path."
+
+msgid "launcher.start_failed"
+msgstr "Game startup or injection failed. Check the launcher log, then retry."
+
+msgid "launcher.game_error"
+msgstr "The game exited with an error. Inspect the launcher log, then retry."
+
+msgid "recovery.window"
+msgstr "Ember recovery"
+
+msgid "recovery.d3d_failed"
+msgstr "The recovery interface could not initialize Direct3D 9. See %APPDATA%\\sf4e\\logs\\launcher.log."
+
+msgid "recovery.choose_folder_title"
+msgstr "Select the folder containing SSFIV.exe"
+
+msgid "recovery.folder_selected"
+msgstr "Game folder selected. Retry when ready."
+
+msgid "recovery.folder_invalid"
+msgstr "That folder does not contain SSFIV.exe."
+
+msgid "recovery.title"
+msgstr "LAUNCH RECOVERY"
+
+msgid "updates.title"
+msgstr "UPDATES"
+
+msgid "recovery.choose_folder"
+msgstr "Choose game folder"
+
+msgid "recovery.choose_folder_detail"
+msgstr "Select the installed Ultra Street Fighter IV folder containing SSFIV.exe. Game files are not included in this package."
+
+msgid "recovery.retry"
+msgstr "Retry launch"
+
+msgid "recovery.retry_busy"
+msgstr "Cancel or finish the current operation first."
+
+msgid "recovery.retry_detail"
+msgstr "Retry with the selected game folder. A missing networking helper does not prevent offline play."
+
+msgid "updates.check"
+msgstr "Check for updates"
+
+msgid "updates.busy"
+msgstr "An operation is already running."
+
+msgid "updates.check_detail"
+msgstr "Check for a newer Ember package."
+
+msgid "updates.install"
+msgstr "Download and install"
+
+msgid "updates.install_detail"
+msgstr "Close SF4 before installing. The package is verified before installation. Your personal settings are preserved."
+
+msgid "updates.unverified"
+msgstr "This update has no verification checksum and cannot be installed."
+
+msgid "updates.cancel"
+msgstr "Cancel operation"
+
+msgid "updates.cancel_detail"
+msgstr "Cancel the current download or check. Wait for cancellation to finish before retrying."
+
+msgid "recovery.close_detail"
+msgstr "Close recovery without starting SF4. Any running operation is cancelled."
+
+msgid "updates.downloaded_mb"
+msgstr "Downloaded {0:.1f} MB"
+
+msgid "services.checking"
+msgstr "Checking for updates..."
+
+msgid "services.exporting"
+msgstr "Exporting diagnostics..."
+
+msgid "services.downloading"
+msgstr "Downloading and verifying the update..."
+
+msgid "services.opening_updater"
+msgstr "Opening the updater..."
+
+msgid "services.update_available"
+msgstr "An update is available: {0}"
+
+msgid "services.up_to_date"
+msgstr "You are up to date."
+
+msgid "services.diagnostics_saved"
+msgstr "Saved %APPDATA%\\sf4e\\diagnostics\\ember-diagnostics.txt"
+
+msgid "services.diagnostics_failed"
+msgstr "Diagnostics could not be saved. Try again."
+
+msgid "services.updater_start_failed"
+msgstr "The updater could not start. Try again."
+
+msgid "services.game_closing"
+msgstr "Closing the game. The updater will open after it exits."
+
+msgid "services.no_verified_update"
+msgstr "A verified update is not available. Check for updates again."
+
+msgid "services.update_prepared"
+msgstr "Update prepared. Restarting SF4 Ember Netplay..."
+
+msgid "services.operation_failed"
+msgstr "The operation failed. Please retry. Update recovery copies are kept in .ember-update-backups."
+
+msgid "services.operation_cancelled"
+msgstr "Operation cancelled."
+
+msgid "settings.language"
+msgstr "Language"
+
+msgid "settings.language.detail"
+msgstr "Changes Ember's interface language immediately."
+
+msgid "settings.language.system_with"
+msgstr "System language — {0}"
+
+msgid "settings.language_save_failed"
+msgstr "The language choice could not be saved. It remains active for this session."
+
+msgid "menu.edit_detail"
+msgstr "Select to edit. Type or paste, then Enter to accept; Back cancels."
+
+msgid "menu.edit_unavailable"
+msgstr "Editing is unavailable in the current state."
+
+msgid "menu.edit"
+msgstr "Edit"
+
+msgid "menu.review"
+msgstr "Review"
+
+msgid "menu.select"
+msgstr "Select"
+
+msgid "menu.navigate"
+msgstr "Navigate"
+
+msgid "menu.adjust"
+msgstr "Adjust"
+
+msgid "rules.edition_select"
+msgstr "Edition Select"
+
+msgid "rules.rounds"
+msgstr "Rounds"
+
+msgid "rules.round_time"
+msgstr "Round time"
+
+msgid "screen.home"
+msgstr "Home"
+
+msgid "screen.online"
+msgstr "Online Play"
+
+msgid "screen.selection"
+msgstr "Fighter Select"
+
+msgid "screen.player"
+msgstr "Player & Controller"
+
+msgid "screen.defaults"
+msgstr "Gameplay Defaults"
+
+msgid "screen.main_character"
+msgstr "Choose Your Main"
+
+msgid "screen.about"
+msgstr "Help & About"
+
+msgid "screen.room"
+msgstr "Room"
+
+msgid "screen.table"
+msgstr "Table"
+
+msgid "screen.table_rules"
+msgstr "Table Rules"
+
+msgid "screen.members"
+msgstr "Members"
+
+msgid "screen.member"
+msgstr "Member"
+
+msgid "screen.chat"
+msgstr "Chat"
+
+msgid "screen.room_settings"
+msgstr "Room Settings"
+
+msgid "screen.practice_position"
+msgstr "Practice Position"
+
+msgid "screen.dummy_recording"
+msgstr "Dummy Recording"
+
+msgid "screen.input_history"
+msgstr "Input History"
+
+msgid "room.wait.leaving"
+msgstr "Leaving room. Waiting for the connection to close..."
+
+msgid "room.wait.joining"
+msgstr "Joining room. Waiting for the other players..."
+
+msgid "room.wait.closed"
+msgstr "This room has closed. Return to Online Play to join another."
+
+msgid "room.wait.recovering"
+msgstr "Room connection is recovering. You can still leave the room."
+
+msgid "room.wait.updating"
+msgstr "Updating room. Controls may pause briefly."
+
+msgid "connection.checking"
+msgstr "Checking..."
+
+msgid "connection.checking_detail"
+msgstr "Measuring gameplay datagrams for five seconds, plus connection setup. You can still choose a delay manually."
+
+msgid "connection.checking_action"
+msgstr "Checking connection..."
+
+msgid "connection.frames"
+msgstr "{0} frames"
+
+msgid "connection.result_detail"
+msgstr "{0} connection. RTT median {1} ms; p95 {2} ms; p99 {3} ms. RTT variation {4} ms. {5} sent, {6} replies, {7} missed. Apply this recommendation or choose your own delay."
+
+msgid "connection.check_again"
+msgstr "Check connection again"
+
+msgid "connection.no_recommendation"
+msgstr "No recommendation"
+
+msgid "connection.timed_out"
+msgstr "The connection check timed out. Retry, or choose a delay and Ready."
+
+msgid "connection.invalidated"
+msgstr "The connection or opponent changed. Run the check again, or choose a delay and Ready."
+
+msgid "connection.local_overload"
+msgstr "This PC could not send the full workload on time. Retry with less background load, or choose a delay manually."
+
+msgid "connection.insufficient"
+msgstr "The check could not collect enough replies. Retry, or choose a delay and Ready; a recommendation is optional."
+
+msgid "connection.packet_summary"
+msgstr " Sent {0} of {1} scheduled packets; {2} replies, {3} missed."
+
+msgid "connection.retry"
+msgstr "Retry connection check"
+
+msgid "connection.not_checked"
+msgstr "Not checked"
+
+msgid "connection.not_checked_detail"
+msgstr "Check your opponent's connection for a suggested delay. This is optional; you can choose a delay and Ready."
+
+msgid "connection.check"
+msgstr "Check connection"
+
+msgid "error.queue_failed"
+msgstr "The action could not be queued. Please try again."
+
+msgid "notice.left_room"
+msgstr "You left the room."
+
+msgid "notice.profile_saved"
+msgstr "Profile portrait saved: {0}"
+
+msgid "error.settings_not_saved"
+msgstr "Settings were not saved. Retry when the menu is available."
+
+msgid "shell.home_title"
+msgstr "SF4 EMBER"
+
+msgid "settings.auto_save"
+msgstr "Changes save automatically."
+
+msgid "settings.leave_room_to_edit"
+msgstr "Leave the room to change personal settings."
+
+msgid "controller.assign_title"
+msgstr "ASSIGN CONTROLLER"
+
+msgid "controller.cancel_assignment"
+msgstr "Cancel controller assignment"
+
+msgid "controller.press_button"
+msgstr "Press a button on your chosen controller."
+
+msgid "controller.release_buttons"
+msgstr "Release all buttons to continue."
+
+msgid "home.online"
+msgstr "Online Play"
+
+msgid "home.online_detail"
+msgstr "Create a private room or join an invitation."
+
+msgid "home.return_room"
+msgstr "Return to your current room."
+
+msgid "home.fighter_select"
+msgstr "Fighter Select"
+
+msgid "home.selection_locked"
+msgstr "Return to your table for the current selection status."
+
+msgid "home.profile"
+msgstr "Profile"
+
+msgid "home.profile_detail"
+msgstr "Your name, main character and local confirmed online record."
+
+msgid "home.settings"
+msgstr "Settings"
+
+msgid "home.settings_detail"
+msgstr "Player, controller, gameplay defaults, interface and Discord."
+
+msgid "home.about"
+msgstr "Help & About"
+
+msgid "home.about_detail"
+msgstr "Controls, diagnostics, updates and credits."
+
+msgid "home.offline"
+msgstr "Play Offline"
+
+msgid "home.offline_detail"
+msgstr "Open the native offline menus."
+
+msgid "home.choose_controller"
+msgstr "Choose gameplay controller"
+
+msgid "home.choose_controller_detail"
+msgstr "Explicit assignment is required before online play."
+
+msgid "profile.title"
+msgstr "PROFILE"
+
+msgid "profile.player_name"
+msgstr "Player name"
+
+msgid "profile.main_character"
+msgstr "Main character"
+
+msgid "profile.main_character_detail"
+msgstr "{0}. Used for your player card, independently of match selection."
+
+msgid "profile.record"
+msgstr "Win / loss record"
+
+msgid "profile.record_detail"
+msgstr "{0} wins / {1} losses. Local confirmed online games since tracking began; draws, cancellations, offline games and unresolved results are excluded."
+
+msgid "profile.record_unavailable"
+msgstr "Record unavailable. The original settings are preserved."
+
+msgid "profile.record_value"
+msgstr "{0} W / {1} L"
+
+msgid "profile.choose_main_title"
+msgstr "CHOOSE YOUR MAIN"
+
+msgid "profile.choose_main_detail"
+msgstr "Select to save your main and update your player card."
+
+msgid "profile.leave_room_to_edit"
+msgstr "Leave the room to edit your profile."
+
+msgid "online.title"
+msgstr "ONLINE PLAY"
+
+msgid "online.create"
+msgstr "Create Room"
+
+msgid "online.create_detail"
+msgstr "Set up a private room."
+
+msgid "online.join"
+msgstr "Join Room"
+
+msgid "online.join_detail"
+msgstr "Paste an invitation."
+
+msgid "room.create_title"
+msgstr "CREATE ROOM"
+
+msgid "settings.gameplay_defaults_title"
+msgstr "GAMEPLAY DEFAULTS"
+
+msgid "settings.input_delay"
+msgstr "Input delay"
+
+msgid "room.name"
+msgstr "Room name"
+
+msgid "room.capacity"
+msgstr "Capacity"
+
+msgid "room.capacity_detail"
+msgstr "Maximum members, including spectators."
+
+msgid "room.stop_creating"
+msgstr "Stop creating this room."
+
+msgid "room.create_requirements"
+msgstr "Networking and an assigned gameplay controller must be ready."
+
+msgid "room.join_title"
+msgstr "JOIN ROOM"
+
+msgid "room.paste_invitation"
+msgstr "Paste Invitation"
+
+msgid "room.paste_invitation_detail"
+msgstr "Copy an Ember invitation, then select this row."
+
+msgid "room.stop_joining"
+msgstr "Stop joining this room."
+
+msgid "room.join_pasted"
+msgstr "Join using the pasted invitation."
+
+msgid "room.edit_invitation"
+msgstr "Edit invitation"
+
+msgid "settings.title"
+msgstr "SETTINGS"
+
+msgid "settings.player_detail"
+msgstr "Display name and controller assignment."
+
+msgid "settings.defaults_detail"
+msgstr "Input delay and new-room defaults."
+
+msgid "settings.interface"
+msgstr "Interface"
+
+msgid "settings.interface_detail"
+msgstr "Quiet HUD and interface size."
+
+msgid "settings.discord_detail"
+msgstr "Activity and invitations."
+
+msgid "player.title"
+msgstr "PLAYER & CONTROLLER"
+
+msgid "player.display_name"
+msgstr "Display name"
+
+msgid "player.change_controller"
+msgstr "Change controller"
+
+msgid "player.change_controller_detail"
+msgstr "{0}. Release, press, then release to assign."
+
+msgid "player.use_keyboard"
+msgstr "Use keyboard"
+
+msgid "player.use_keyboard_detail"
+msgstr "Explicitly assign the keyboard."
+
+msgid "player.native_menus"
+msgstr "Open native menus"
+
+msgid "player.native_menus_detail"
+msgstr "Ember will close. Choose Options in the game menu to configure fighting buttons."
+
+msgid "settings.interface_title"
+msgstr "INTERFACE"
+
+msgid "size.small"
+msgstr "Small"
+
+msgid "size.standard"
+msgstr "Standard"
+
+msgid "size.large"
+msgstr "Large"
+
+msgid "settings.match_hud"
+msgstr "Match HUD"
+
+msgid "settings.match_hud_size"
+msgstr "Match HUD size"
+
+msgid "settings.match_hud_size_detail"
+msgstr "Changes in-match text and panel size."
+
+msgid "settings.bottom_spacing"
+msgstr "Bottom spacing"
+
+msgid "spacing.raised"
+msgstr "Raised"
+
+msgid "spacing.normal"
+msgstr "Normal"
+
+msgid "settings.bottom_spacing_detail"
+msgstr "Moves the match HUD above the bottom edge."
+
+msgid "settings.interface_size"
+msgstr "Interface size"
+
+msgid "discord.show_activity"
+msgstr "Show activity"
+
+msgid "discord.allow_invitations"
+msgstr "Allow invitations"
+
+msgid "discord.invitation_detail"
+msgstr "Invitations share access to your room."
+
+msgid "discord.enable_first"
+msgstr "Enable Discord activity first."
+
+msgid "discord.invitation_title"
+msgstr "DISCORD INVITATION"
+
+msgid "discord.cancel_invitation"
+msgstr "Cancel invitation"
+
+msgid "discord.cancel_invitation_detail"
+msgstr "Discard the invitation without leaving your current room."
+
+msgid "discord.switch_room"
+msgstr "Switch to invited room"
+
+msgid "discord.switch_room_detail"
+msgstr "Leave this room and join the invitation."
+
+msgid "discord.wait_game"
+msgstr "Wait for the current game to finish."
+
+msgid "discord.invitation_pending"
+msgstr "Invitation pending"
+
+msgid "discord.invitation_pending_detail"
+msgstr "Waiting for the main menu, network, and assigned controller."
+
+msgid "about.title"
+msgstr "HELP & ABOUT"
+
+msgid "about.controls"
+msgstr "Controls"
+
+msgid "about.controls_detail"
+msgstr "Xbox: A selects; B returns, independently of fighting bindings. DirectInput: mapped LP selects; LK returns. D-pad moves; Left/Right adjusts. Training controls use keyboard and mouse: F6 opens/closes, arrows navigate, Enter selects, Escape goes back. Start only opens native pause in training. F10 opens Ember at the main menu; F5-F8 are training shortcuts."
+
+msgid "about.ember"
+msgstr "About Ember"
+
+msgid "about.ember_detail"
+msgstr "Unofficial Ultra Street Fighter IV mod, based on sf4e by Anthony Danducci. Iroh / QUIC, GGPO, Dear ImGui and Inter typography. Build: {0}"
+
+msgid "about.font_license"
+msgstr "Font license"
+
+msgid "about.export_diagnostics"
+msgstr "Export diagnostics"
+
+msgid "about.export_diagnostics_detail"
+msgstr "Exports connection states without invitations or credentials."
+
+msgid "about.updates_detail"
+msgstr "Look for a newer Ember release."
+
+msgid "about.open_updater"
+msgstr "Exit and open updater"
+
+msgid "about.open_updater_detail"
+msgstr "The game will close. Leave your room first."
+
+msgid "about.open_recovery"
+msgstr "Exit to recovery"
+
+msgid "about.open_recovery_detail"
+msgstr "Close the game and open recovery."
+
+msgid "about.leave_room_first"
+msgstr "Leave your room and return to the main menu first."
+
+msgid "settings.retry_save"
+msgstr "Retry saving"
+
+msgid "room.creating_status"
+msgstr "Creating room. Waiting for the network..."
+
+msgid "room.joining_status"
+msgstr "Joining room. Waiting for the network..."
+
+msgid "room.locked_status"
+msgstr "Room locked / invitation only"
+
+msgid "room.private_status"
+msgstr "Private room / invitation only"
+
+msgid "room.reconnecting"
+msgstr "Reconnecting to room..."
+
+msgid "room.table_setup_title"
+msgstr "TABLE {0} / BATTLE SETUP"
+
+msgid "room.waiting_opponent"
+msgstr "Waiting for opponent"
+
+msgid "room.you"
+msgstr "You"
+
+msgid "room.player"
+msgstr "Player"
+
+msgid "room.ready_suffix"
+msgstr " - READY"
+
+msgid "room.readying_suffix"
+msgstr " - Readying up..."
+
+msgid "room.not_ready_suffix"
+msgstr " - Not ready"
+
+msgid "room.result_unresolved_status"
+msgstr "Result unresolved / abandon it, or the host can cancel it"
+
+msgid "room.preparing_status"
+msgstr "Preparing match / fighter choices locked"
+
+msgid "room.waiting_results_status"
+msgstr "Waiting for results / next match is not ready"
+
+msgid "room.match_in_progress"
+msgstr "Match in progress"
+
+msgid "room.table_closed"
+msgstr "Table closed"
+
+msgid "controller.disconnected"
+msgstr "Controller disconnected. Reconnect or assign explicitly."
+
+msgid "room.control_unavailable"
+msgstr "Room control is unavailable. Replace the room when no match is active."
+
+msgid "room.control_recovering"
+msgstr "Room control is recovering. Room actions are paused."
+
+msgid "settings.preview"
+msgstr "Preview"
+
+msgid "settings.player_one"
+msgstr "Player One"
+
+msgid "settings.player_two"
+msgstr "Player Two"
+
+msgid "error.invitation_invalid"
+msgstr "Invitation is empty or too long."
+
+msgid "error.invitation_changed"
+msgstr "Invitation changed. Try again."
+
+msgid "error.invalid_value"
+msgstr "That value is invalid. Your saved setting is unchanged."
+
+msgid "brand.subtitle"
+msgstr "SF4  /  PRIVATE ROOMS & ROLLBACK NETPLAY"
+
+msgid "match.waiting_opponent"
+msgstr "Waiting for opponent..."
+
+msgid "match.connection_countdown"
+msgstr "Connection unstable. Opponent dropped in {0} s"
+
+msgid "match.connection_unstable"
+msgstr "Connection unstable"
+
+msgid "match.versus_short"
+msgstr "vs"
+
+msgid "match.ping"
+msgstr "Ping"
+
+msgid "match.rollback"
+msgstr "Rollback"
+
+msgid "match.delay"
+msgstr "Delay"
+
+msgid "match.spectating"
+msgstr "Spectating"
+
+msgid "match.preview_spacing"
+msgstr "{0} spacing / sample values"
+
+msgid "card.player"
+msgstr "PLAYER"
+
+msgid "card.choose_fighter"
+msgstr "Choose your fighter"
+
+msgid "card.controller_ready"
+msgstr "CONTROLLER READY"
+
+msgid "card.assign_controller"
+msgstr "ASSIGN CONTROLLER"
+
+msgid "card.wins"
+msgstr "{0}  WINS"
+
+msgid "card.no_wins"
+msgstr "-- WINS"
+
+msgid "card.losses"
+msgstr "{0}  LOSSES"
+
+msgid "card.no_losses"
+msgstr "-- LOSSES"
+
+msgid "card.no_win_rate"
+msgstr "-- WIN %"
+
+msgid "card.win_rate"
+msgstr "{0}% WIN"
+
+msgid "training.lab"
+msgstr "Training Lab"
+
+msgid "menu.back_to"
+msgstr "< Back / {0}"
+
+msgid "training.controls"
+msgstr "Training controls"
+
+msgid "training.dummy_recording"
+msgstr "Dummy Recording"
+
+msgid "training.dummy_recording.detail"
+msgstr "Record P1 controls onto P2. Set the native dummy to Player / controller control."
+
+msgid "training.input_history"
+msgstr "Input History"
+
+msgid "training.input_history.detail"
+msgstr "Inspect each player's held inputs."
+
+msgid "training.close_controls"
+msgstr "Close training controls"
+
+msgid "training.close_controls.detail"
+msgstr "Close Ember, then close SF4's pause menu to resume if it is open."
+
+msgid "training.slot"
+msgstr "Slot {0}"
+
+msgid "training.slot_selected"
+msgstr "Slot {0} / SELECTED"
+
+msgid "training.recorded_frames"
+msgstr "{0} recorded frames. Recordings last until this battle ends."
+
+msgid "training.record"
+msgstr "Record"
+
+msgid "training.record.overwrite"
+msgstr "Overwrite this occupied slot and return to practice."
+
+msgid "training.record.detail"
+msgstr "Record P1 controls as P2, then return to practice."
+
+msgid "training.play"
+msgstr "Play"
+
+msgid "training.play.detail"
+msgstr "Play the selected slot and return to practice. Directions are absolute, not mirrored."
+
+msgid "training.slot_empty"
+msgstr "This slot is empty."
+
+msgid "training.stop"
+msgstr "Stop"
+
+msgid "training.stop.detail"
+msgstr "Stop recording or playback."
+
+msgid "training.loop"
+msgstr "Loop playback"
+
+msgid "training.loop.detail"
+msgstr "Repeat the selected recording."
+
+msgid "training.clear_recording"
+msgstr "Clear selected recording"
+
+msgid "training.clear_recording.detail"
+msgstr "Permanently clear this slot for the current battle."
+
+msgid "training.player_one"
+msgstr "Player 1"
+
+msgid "training.player_two"
+msgstr "Player 2"
+
+msgid "training.history.detail"
+msgstr "Newest inputs first. Frame counts measure held inputs, not move startup."
+
+msgid "training.clear_history"
+msgstr "Clear input history"
+
+msgid "training.clear_history.detail"
+msgstr "Clear the meter and both input histories."
+
+msgid "training.practice_ready"
+msgstr "Practice ready"
+
+msgid "training.recording_suspended"
+msgstr "Recording suspended while controls are open"
+
+msgid "training.playback_suspended"
+msgstr "Playback suspended while controls are open"
+
+msgid "training.applying"
+msgstr "Applying command..."
+
+msgid "training.waiting_battle"
+msgstr "Waiting for the battle to be ready..."
+
+msgid "training.title"
+msgstr "TRAINING LAB"
+
+msgid "training.command_rejected"
+msgstr "The practice command was not accepted. Review the state and try again."
+
+msgid "training.start_frames"
+msgstr "Start {0} f"
+
+msgid "training.start_unknown"
+msgstr "Start --"
+
+msgid "training.startup"
+msgstr "Startup"
+
+msgid "training.neutral"
+msgstr "Neutral"
+
+msgid "training.unavailable"
+msgstr "{0}: {1}"
+
+msgid "training.unavailable.waiting_attack"
+msgstr "waiting for attack boundary"
+
+msgid "training.unavailable.no_attack"
+msgstr "no attack boundary"
+
+msgid "training.unavailable.no_contact"
+msgstr "no contact"
+
+msgid "training.unavailable.measuring_recovery"
+msgstr "measuring recovery"
+
+msgid "training.unavailable.interrupted"
+msgstr "interrupted"
+
+msgid "training.unavailable.invalid"
+msgstr "invalid sample"
+
+msgid "training.frame_advantage"
+msgstr "FRAME ADVANTAGE | {0}"
+
+msgid "training.measuring"
+msgstr "measuring"
+
+msgid "training.wakeup"
+msgstr "wakeup"
+
+msgid "training.held"
+msgstr "held"
+
+msgid "training.live"
+msgstr "live"
+
+msgid "training.advantage"
+msgstr "Advantage"
+
+msgid "selection.preview_unavailable"
+msgstr "Preview\nnot available"
+
+msgid "selection.preview_loading"
+msgstr "Loading\npreview..."
+
+msgid "selection.handicap_normal"
+msgstr "Normal (100%)"
+
+msgid "selection.handicap_one_hit"
+msgstr "One hit"
+
+msgid "selection.handicap_25"
+msgstr "25%"
+
+msgid "selection.handicap_50"
+msgstr "50%"
+
+msgid "selection.handicap_75"
+msgstr "75%"
+
+msgid "selection.original"
+msgstr "Original"
+
+msgid "selection.alternate"
+msgstr "Alternate {0}"
+
+msgid "selection.alternate_pack"
+msgstr "Alternate {0} / {1}"
+
+msgid "selection.stage_count"
+msgstr "{0} STAGES / USFIV"
+
+msgid "selection.choose_battlefield"
+msgstr "Choose your battlefield."
+
+msgid "selection.select_saves"
+msgstr "Select saves this choice. Back returns without changing the highlighted preview."
+
+msgid "selection.locked_detail"
+msgstr "Selection is locked. Return to your table for the current status."
+
+msgid "selection.title"
+msgstr "FIGHTER SELECT"
+
+msgid "selection.fighter"
+msgstr "Fighter"
+
+msgid "selection.appearance"
+msgstr "Appearance"
+
+msgid "selection.appearance_value"
+msgstr "{0} / Color {1}"
+
+msgid "selection.ultra_combo"
+msgstr "Ultra Combo"
+
+msgid "selection.ultra_double"
+msgstr "Ultra Double"
+
+msgid "selection.stage"
+msgstr "Stage"
+
+msgid "selection.p1_stage"
+msgstr "P1 chooses the stage."
+
+msgid "selection.additional_options"
+msgstr "Additional options"
+
+msgid "selection.additional_options.detail"
+msgstr "Edition, personal action, win quote and handicap."
+
+msgid "selection.choose_fighter"
+msgstr "CHOOSE FIGHTER"
+
+msgid "selection.appearance_title"
+msgstr "APPEARANCE"
+
+msgid "selection.costume_gallery"
+msgstr "Costume gallery"
+
+msgid "selection.color_gallery"
+msgstr "Color gallery"
+
+msgid "selection.color_preview"
+msgstr "Color {0} / Browse individual previews."
+
+msgid "selection.costume_gallery_title"
+msgstr "COSTUME GALLERY"
+
+msgid "selection.color_gallery_title"
+msgstr "COLOR GALLERY"
+
+msgid "selection.loading_choices"
+msgstr "Loading available choices"
+
+msgid "selection.loading_choices.detail"
+msgstr "Waiting for native costume and color availability."
+
+msgid "selection.no_colors"
+msgstr "No unlocked colors for this costume."
+
+msgid "selection.color"
+msgstr "Color {0}"
+
+msgid "selection.ultra_combo_title"
+msgstr "ULTRA COMBO"
+
+msgid "selection.ultra_double.detail"
+msgstr "Both Ultra Combos with reduced damage or effectiveness."
+
+msgid "selection.saved"
+msgstr "SAVED"
+
+msgid "selection.stage_title"
+msgstr "STAGE"
+
+msgid "selection.only_p1_stage"
+msgstr "Only P1 can change the stage."
+
+msgid "selection.options_title"
+msgstr "FIGHTER OPTIONS"
+
+msgid "selection.edition"
+msgstr "Edition"
+
+msgid "selection.usfiv_rules"
+msgstr "The room uses USFIV rules."
+
+msgid "selection.personal_action"
+msgstr "Personal action"
+
+msgid "common.none"
+msgstr "None"
+
+msgid "selection.win_quote"
+msgstr "Win quote"
+
+msgid "selection.random"
+msgstr "Random"
+
+msgid "selection.handicap"
+msgstr "Handicap"
+
+msgid "selection.saved_value"
+msgstr "Saved: {0}"
+
+msgid "selection.ultra_selected"
+msgstr "This Ultra is selected."
+
+msgid "selection.preview_save"
+msgstr "Preview only - press Select to save."
+
+msgid "selection.preview_locked"
+msgstr "Preview only - selection is locked."
+
+msgid "selection.saved_appearance"
+msgstr "Saved: Costume {0} / Color {1}"
+
+msgid "selection.saved_full"
+msgstr "Saved: {0} / Costume {1} / Color {2}"
+
+msgid "selection.preview_save_short"
+msgstr "Preview only - press Select to save"
+
+msgid "selection.status_editable"
+msgstr "Select saves / Back returns one level."
+
+msgid "selection.status_locked"
+msgstr "Selection locked - return to your table for status."
+
+msgid "runtime.room_recovering"
+msgstr "Room control is recovering. Your match connection is retained."
+msgid "runtime.room_lost_fight_continues"
+msgstr "Room connection lost. The fight continues, but rematch and results are disabled."
+msgid "runtime.returned_room_lost"
+msgstr "Returned to the menu: the room connection was lost during the match."
+msgid "runtime.room_request_failed"
+msgstr "The room request failed. Leave the room and try again."
+msgid "runtime.build_mismatch"
+msgstr "Build mismatch. Both players must use the same SF4 Ember Netplay package."
+msgid "runtime.room_full"
+msgstr "This room is full."
+msgid "runtime.name_taken"
+msgstr "That player name is already in the room. Change it in Settings."
+msgid "runtime.selection_combination_unavailable"
+msgstr "This combination is unavailable under the room's rules. Choose another fighter, costume, colour or edition."
+msgid "runtime.selection_summary"
+msgstr "{0} / Costume {1} / Color {2} / {3}"
+msgid "runtime.selection_unavailable"
+msgstr "Selection unavailable under these rules. Open Fighter Select to choose an available option."
+msgid "runtime.open_shortcut"
+msgstr "SF4 Ember Netplay  /  F10 or Start"
+msgid "runtime.waiting_opponent_join"
+msgstr "Waiting for opponent to join the lobby..."
+msgid "runtime.authorized_connection_unavailable"
+msgstr "The authorized match connection is unavailable."
+msgid "runtime.waiting_opponent_start"
+msgstr "Waiting for opponent in the lobby before the match can start."
+msgid "runtime.unsupported_stage"
+msgstr "The room supplied an unsupported stage. Reset the lobby before trying again."
+msgid "runtime.netplay_input_failed"
+msgstr "Netplay input failed. The match has ended."
+msgid "runtime.netplay_sync_failed"
+msgstr "Netplay sync failed. The match has ended."
+msgid "runtime.invalid_roster"
+msgstr "Invalid match roster. Return to the room and try again."
+msgid "runtime.ggpo_start_failed"
+msgstr "GGPO could not start — return to the lobby and Ready again."
+msgid "runtime.ggpo_add_players_failed"
+msgstr "GGPO could not add players — return to the lobby and Ready again."
+msgid "runtime.rollback_buffer_full"
+msgstr "Netplay rollback buffer full. The match has ended."
+msgid "runtime.connection_unstable_prediction"
+msgstr "Connection unstable. Playing on prediction."
+msgid "runtime.connection_restored"
+msgstr "Connection restored."
+msgid "runtime.spectator_disconnected"
+msgstr "A spectator disconnected."
+msgid "runtime.match_connection_lost"
+msgstr "The match connection was lost."
+msgid "runtime.opponent_disconnected"
+msgstr "Opponent disconnected. The match is over."
+msgid "runtime.leaving_spectator"
+msgstr "Leaving spectator view."
+msgid "runtime.returning_room"
+msgstr "Returning to the room."
+msgid "runtime.table_game_cancelled"
+msgstr "This table's game was cancelled. Return to the room to ready again."
+msgid "runtime.result_not_recorded"
+msgstr "The result could not be recorded: the table changed before it was confirmed."
+msgid "runtime.participant_left"
+msgstr "A match participant left the room. The game will end."
+
+msgid "update.github_unreachable"
+msgstr "Could not reach GitHub. Check your internet connection and try again."
+msgid "update.no_version_tag"
+msgstr "GitHub release has no version tag."
+msgid "update.no_zip_asset"
+msgstr "Latest release has no SF4 Ember Netplay ZIP asset."
+msgid "update.parse_failed"
+msgstr "Could not parse GitHub release response."
+msgid "update.missing_url"
+msgstr "Missing download URL."
+msgid "update.missing_version"
+msgstr "Missing version tag."
+msgid "update.close_sf4"
+msgstr "Close Ultra Street Fighter IV before installing an update."
+msgid "update.install_dir_failed"
+msgstr "Could not determine install directory."
+msgid "update.temp_path_failed"
+msgstr "Could not build update temp path ({0})."
+msgid "update.temp_folder_failed"
+msgstr "Could not create update temp folder ({0})."
+msgid "update.temp_access_failed"
+msgstr "Could not access temp directory."
+msgid "update.zip_path_failed"
+msgstr "Could not build update zip path."
+msgid "update.extract_folder_failed"
+msgstr "Could not create update extract folder ({0})."
+msgid "update.download_failed"
+msgstr "Download failed ({0}). Manual download: {1} — details in %TEMP%\\sf4-netplay-update.log"
+msgid "update.verify_failed"
+msgstr "Could not verify the update download. Try again."
+msgid "update.integrity_failed"
+msgstr "The update download failed its integrity check and was not installed. Try again, or download the release manually from GitHub."
+msgid "update.no_digest"
+msgstr "The release has no published SHA-256 digest. Automatic installation is unavailable."
+msgid "update.extract_failed"
+msgstr "Could not extract update package."
+msgid "update.invalid_paths"
+msgstr "Downloaded package contains invalid paths."
+msgid "update.missing_binaries"
+msgstr "Downloaded package is missing Launcher.exe or Sidecar.dll."
+msgid "update.staging_path_failed"
+msgstr "Could not read staging path."
+msgid "update.validation_failed"
+msgstr "Downloaded package failed validation (missing required files)."
+msgid "update.cancelled"
+msgstr "Update cancelled before installation."
+msgid "update.close_game"
+msgstr "Close the game before installing the update."
+msgid "update.updater_start_failed"
+msgstr "Could not start Updater.exe. Reinstall from a fresh zip."
+
+msgid "room.member_left"
+msgstr "Member left"
+msgid "room.open_seat"
+msgstr "Open seat"
+msgid "room.status.queued"
+msgstr "Queued"
+msgid "room.status.seated"
+msgstr "Seated"
+msgid "room.status.ready"
+msgstr "Ready"
+msgid "room.status.playing"
+msgstr "Playing"
+msgid "room.status.watching"
+msgstr "Watching"
+msgid "room.status.watching_next"
+msgstr "Watching next game"
+msgid "room.status.idle"
+msgstr "Idle"
+msgid "room.phase.waiting"
+msgstr "Waiting for fighters"
+msgid "room.phase.preparing"
+msgstr "Preparing game"
+msgid "room.phase.in_game"
+msgstr "In game"
+msgid "room.phase.unresolved"
+msgstr "Result unresolved"
+msgid "room.phase.closed"
+msgstr "Closed"
+msgid "room.phase.open"
+msgstr "Open"
+msgid "room.terminal_pending"
+msgstr "Waiting for all players and spectators to finish returning from the previous match."
+msgid "room.leave.detail"
+msgstr "Disconnect from this room and return to Home. Hiding Ember keeps you in the room."
+msgid "room.leave.unresolved"
+msgstr " The unresolved game will not be recorded."
+msgid "room.leave.active"
+msgstr " The current game ends with no result, and your seat is released."
+msgid "room.leave.seat"
+msgstr " Your seat is released."
+msgid "room.leave.queue"
+msgstr " You lose your place in the queue."
+msgid "room.leave.host"
+msgstr " Another member becomes host."
+msgid "room.action_queue_failed"
+msgstr "The action could not be queued. Please try again."
+msgid "room.table_detail"
+msgstr "{0} vs {1}\n{2}\nQueue: {3} / Watching: {4}\nYou: {5}"
+msgid "room.connecting"
+msgstr "Connecting"
+msgid "room.table_occupancy"
+msgstr "Table {0}   {1}/2"
+msgid "room.member_you"
+msgstr "{0} / YOU"
+msgid "room.member"
+msgstr "{0}"
+msgid "room.member_status_host"
+msgstr "{0} / HOST"
+msgid "room.member_status"
+msgstr "{0}"
+msgid "room.members"
+msgstr "Members"
+msgid "room.member_count"
+msgstr "{0} / {1} members."
+msgid "room.chat"
+msgstr "Chat"
+msgid "room.chat.detail"
+msgstr "Read messages and explicitly compose text with a keyboard."
+msgid "room.change_fighter"
+msgstr "Change fighter"
+msgid "room.change_fighter.open_table"
+msgstr "Open your table for Ready status and fighter-change requirements."
+msgid "room.settings"
+msgstr "Room settings"
+msgid "room.settings.detail"
+msgstr "Room name, capacity and admission."
+msgid "room.settings.host_only"
+msgstr "Only the host can administer the room."
+msgid "room.connection_status"
+msgstr "Connection status"
+msgid "room.opening"
+msgstr "Opening room..."
+msgid "room.waiting_state"
+msgstr "Waiting for room state."
+msgid "room.ready"
+msgstr "Ready"
+msgid "room.ready.saved_fighter"
+msgstr "Use your saved fighter."
+msgid "room.copy_invitation"
+msgstr "Copy invitation"
+msgid "room.copy_invitation.detail"
+msgstr "Share the private invitation with friends."
+msgid "room.leaving"
+msgstr "Leaving room..."
+msgid "room.leave"
+msgstr "Leave room"
+msgid "room.replace"
+msgstr "Replace room"
+msgid "room.replace.detail"
+msgstr "Close the frozen room and open a replacement. Everyone must rejoin, and the current invitation stops working. Any unresolved room state will be discarded."
+msgid "room.replace.waiting"
+msgstr "The previous match is still closing. Replacement will be available when it finishes."
+msgid "room.updating"
+msgstr "Updating room..."
+msgid "room.battle_slot"
+msgstr "BATTLE SLOT {0}"
+msgid "room.looking_for_fight"
+msgstr "Looking for a fight"
+msgid "room.fighter_not_shared"
+msgstr "Fighter not shared"
+msgid "room.suffix_ready"
+msgstr " / READY"
+msgid "room.suffix_you"
+msgstr " / YOU"
+msgid "room.table_footer"
+msgstr "{0} rounds / {1} sec     Queue {2}     Watching {3}"
+msgid "room.board_status_host_slot"
+msgstr "HOST / {0} / Slot {1}"
+msgid "room.board_status_slot"
+msgstr "{0} / Slot {1}"
+msgid "room.board_status_host"
+msgstr "HOST / {0}"
+msgid "room.board_status"
+msgstr "{0}"
+msgid "room.members_heading"
+msgstr "MEMBERS  {0} / {1}"
+msgid "room.chat_heading"
+msgstr "CHAT"
+msgid "room.no_messages"
+msgstr "No messages yet. Select Chat to compose."
+msgid "room.table_explanation"
+msgstr "{0} / You: {1}\nQueue: {2} / Watching: {3}"
+msgid "room.invitation_copied"
+msgstr "Invitation copied."
+msgid "room.replacement_opening"
+msgstr "Replacement room opening. Choose Copy invitation and send the new link — the old one no longer works."
+msgid "room.action_rejected"
+msgstr "The room changed or rejected this action. Review the current state and try again."
+
+msgid "room.leave_current_table"
+msgstr "Leave your current table first."
+msgid "room.choose_action"
+msgstr "Choose an action for this table."
+msgid "room.result_unresolved.detail"
+msgstr "The previous result is unresolved. Choose Abandon unresolved game, or ask the host to cancel it; no win will be awarded."
+msgid "room.awaiting_result"
+msgstr "Waiting for both fighters to report the result. Ready resets when the result is confirmed; you have not readied for another match."
+msgid "room.match_active"
+msgstr "The current match is preparing or in progress. Wait for it to finish."
+msgid "room.waiting_other_seat"
+msgstr "Waiting for an opponent to take the other seat. You can change your fighter while waiting."
+msgid "room.controller_required"
+msgstr "Assign or reconnect your controller in Settings > Player & Controller."
+msgid "room.waiting_update"
+msgstr "Waiting for the current room update to finish."
+msgid "room.ready.cancel_detail"
+msgstr "You are READY. Select to cancel Ready, then choose Change fighter."
+msgid "room.ready.locking"
+msgstr "Locking in your fighter. The match starts when both players are ready."
+msgid "room.ready.lock_detail"
+msgstr "Select to lock in your fighter. The match starts when both players are ready."
+msgid "room.both_ready"
+msgstr "Both fighters are ready. The match is starting."
+msgid "room.match_in_progress.detail"
+msgstr "The current match is in progress. Wait for it to finish."
+msgid "room.unready"
+msgstr "Unready / unlock fighter"
+msgid "room.readying"
+msgstr "Readying up..."
+msgid "room.result_unresolved"
+msgstr "Result unresolved"
+msgid "room.preparing_match"
+msgstr "Preparing match"
+msgid "room.ready_rematch"
+msgstr "Ready for rematch"
+msgid "room.ready_up"
+msgstr "Ready up"
+msgid "room.recommended_delay"
+msgstr "Recommended delay"
+msgid "room.selected_delay"
+msgstr "Selected delay"
+msgid "room.selected_delay.detail"
+msgstr "Adjust from 0 to 10 frames. Changes apply immediately."
+msgid "room.selected_delay.locked"
+msgstr "The selected delay is locked for this match."
+msgid "room.check_connection.two_players"
+msgstr "Both seats need a player before checking the connection."
+msgid "room.check_connection.unready"
+msgstr "Choose Unready to check the connection before the next match."
+msgid "room.check_connection.finish_match"
+msgstr "Finish the current match before checking the connection."
+msgid "room.apply_recommendation"
+msgstr "Apply recommendation"
+msgid "room.apply_recommendation.detail"
+msgstr "Set your selected delay to {0} frames."
+msgid "room.apply_recommendation.check_first"
+msgstr "Run Check connection before applying a recommendation."
+msgid "room.change_fighter.unready"
+msgstr "Choose Unready above to unlock your fighter and appearance."
+msgid "room.change_fighter.waiting"
+msgstr "Waiting for the current match or selection update to finish."
+msgid "room.change_fighter.detail"
+msgstr "Choose a fighter, then browse Costume and Color galleries. Return here and select Ready up."
+msgid "room.leave_seat"
+msgstr "Leave seat"
+msgid "room.leave_seat.abandon_first"
+msgstr "Abandon the unresolved game first."
+msgid "room.leave_seat.finish_first"
+msgstr "Finish or resolve the current game first."
+msgid "room.leave_seat.release"
+msgstr "Release your seat."
+msgid "room.leave_seat.next_player"
+msgstr "Release your seat. The next player in the queue takes it."
+msgid "room.abandon_result"
+msgstr "Abandon unresolved game"
+msgid "room.abandon_result.detail"
+msgstr "No result will be recorded. Both fighters stay seated and can ready again."
+msgid "room.leave_queue"
+msgstr "Leave queue"
+msgid "room.join_queue"
+msgstr "Join queue"
+msgid "room.stop_watching"
+msgstr "Stop watching"
+msgid "room.watch_next"
+msgstr "Watch next game"
+msgid "room.table_rules"
+msgstr "Table rules"
+msgid "room.table_rules.edit"
+msgstr "Edit this table's rules."
+msgid "room.table_rules.view"
+msgstr "View this table's rules."
+msgid "room.cancel_unresolved"
+msgstr "Cancel unresolved game"
+msgid "room.cancel_unresolved.detail"
+msgstr "Host only. No result will be recorded."
+msgid "room.cancel_stuck"
+msgstr "Cancel stuck game"
+msgid "room.cancel_stuck.detail"
+msgstr "Host only. Use this when a finished game never reported its result. No result will be recorded."
+msgid "room.rules.finish_game"
+msgstr "Finish the active game before changing rules."
+msgid "room.rules.apply_note"
+msgstr "Changes apply only after Apply."
+msgid "room.rules.host_only"
+msgstr "Only the host can change table rules."
+msgid "room.apply_rules"
+msgstr "Apply rules"
+msgid "room.apply_rules.detail"
+msgstr "Submit the complete rules draft for this table."
+msgid "room.member_status_host_muted"
+msgstr "{0} / HOST / Muted locally"
+msgid "room.member_status_muted"
+msgstr "{0} / Muted locally"
+msgid "room.unmute_member"
+msgstr "Unmute member"
+msgid "room.mute_member"
+msgstr "Mute member"
+msgid "room.mute_member.detail"
+msgstr "Hide this member's chat only."
+msgid "room.member_left.detail"
+msgstr "This member left."
+msgid "room.kick_member"
+msgstr "Kick member"
+msgid "room.kick_member.detail"
+msgstr "Remove {0} from the room."
+msgid "room.transfer_host"
+msgstr "Transfer host"
+msgid "room.transfer_host.detail"
+msgstr "Make {0} the room host."
+msgid "room.compose_message"
+msgstr "Compose message"
+msgid "room.send_message"
+msgstr "Send message"
+msgid "room.send_message.detail"
+msgstr "Send the accepted draft. Enter in the editor does not send chat."
+msgid "room.capacity.detail"
+msgstr "Cannot be smaller than current membership."
+msgid "room.admission"
+msgstr "Admission"
+msgid "room.locked"
+msgstr "Locked"
+msgid "room.open"
+msgstr "Open"
+msgid "room.admission.detail"
+msgstr "Lock stops new members joining."
+msgid "room.apply_name"
+msgstr "Apply room name"
+msgid "room.apply_name.detail"
+msgstr "Submit this room name."
+msgid "room.apply_capacity"
+msgstr "Apply capacity"
+msgid "room.apply_capacity.detail"
+msgstr "Submit this capacity."
+msgid "profile.main_badge"
+msgstr "MAIN"
+msgid "training.shortcuts"
+msgstr "F6 Training controls | F5 Hide HUD"
+msgid "common.not_set"
+msgstr "Not set"
+msgid "notice.title"
+msgstr "Notice"
+msgid "notice.error_title"
+msgstr "Something went wrong"
+msgid "common.ok"
+msgstr "OK"
+msgid "edit.title"
+msgstr "Edit text"
+msgid "edit.instructions"
+msgstr "Type or paste. Enter accepts; Escape or controller Back cancels."
+msgid "edit.updating"
+msgstr "Updating room. Your draft is kept; you can continue typing or cancel."
+msgid "common.accept"
+msgstr "Accept"
+msgid "edit.cancel"
+msgstr "Cancel edit"
+msgid "discord.unavailable_build"
+msgstr "Discord integration is unavailable in this build."
+msgid "runtime.record_invalid"
+msgstr "The local match record is invalid and has been preserved. Tracking is unavailable."
+msgid "runtime.interface_preferences_failed"
+msgstr "Interface preferences could not be read; defaults are in use."
+msgid "runtime.room_defaults_invalid"
+msgstr "Saved room defaults are invalid. The original settings have been preserved."
+msgid "runtime.network_start_failed"
+msgstr "Networking could not start. Offline is available."
+msgid "runtime.network_helper_unavailable"
+msgstr "Networking helper is unavailable (error {0}). Offline is available."
+msgid "discord.connecting"
+msgstr "Connecting to Discord..."
+msgid "discord.unavailable_gameplay_ok"
+msgstr "Discord unavailable. Gameplay is unaffected."
+msgid "runtime.gameplay_device_disconnected"
+msgstr "Gameplay device disconnected. Reconnect it before the next match."
+msgid "runtime.controller_assignment_unverified"
+msgstr "Could not verify the controller's match-side assignment. Reassign it before trying again."
+msgid "runtime.recovery_state_failed"
+msgstr "Room recovery state could not be applied. Recovery remains paused."
+msgid "runtime.room_control_recovering"
+msgstr "Room control is recovering."
+msgid "discord.connected"
+msgstr "Discord connected"
+msgid "discord.registration_failed"
+msgstr "Discord connected; launch registration failed."
+msgid "discord.open_desktop"
+msgstr "Discord unavailable. Open the Discord desktop app to share activity."
+msgid "discord.invitation_invalid"
+msgstr "Invalid Discord invitation."
+msgid "discord.invalid_event"
+msgstr "Discord sent an invalid local event."
+msgid "discord.companion_stopped"
+msgstr "Discord companion stopped. Gameplay is unaffected."
+msgid "runtime.room_connection_failed"
+msgstr "Room connection failed. The room is closing; unconfirmed results will not be recorded."
+msgid "runtime.operation_busy"
+msgstr "The operation is busy. Try again."
+msgid "discord.invitation_expired"
+msgstr "The Discord invitation expired. Ask for a new invitation."
+msgid "runtime.spectator_action_retrying"
+msgstr "The spectator action could not be sent; retrying."
+msgid "runtime.return_main_menu"
+msgstr "Return to the game main menu before opening a room."
+msgid "runtime.room_action_failed"
+msgstr "The room action could not be sent. Please try again."
+msgid "runtime.preferences_queue_failed"
+msgstr "Preferences could not be queued for saving. Please try again."
+msgid "runtime.lobby_settings_send_failed"
+msgstr "Lobby settings could not be sent."
+msgid "runtime.room_defaults_save_failed"
+msgstr "Room defaults could not be saved."
+msgid "runtime.connection_check_unavailable"
+msgstr "Connection check is unavailable. You can still choose a delay and Ready."
+msgid "runtime.delay_save_failed"
+msgstr "Input delay could not be saved."
+msgid "runtime.teardown_report_failed"
+msgstr "The match teardown could not be reported; the room was closed."
+msgid "runtime.lobby_defaults_save_failed"
+msgstr "Lobby settings applied, but the defaults could not be saved."
+msgid "runtime.lobby_settings_rejected"
+msgstr "Lobby settings were not accepted. Check readiness and try again."
+msgid "runtime.teardown_timeout"
+msgstr "Match teardown timed out; the room was closed."
+msgid "runtime.room_catchup_timeout"
+msgstr "The room did not catch up in time. Your last action was not applied; try again."
+msgid "runtime.previous_match_close_timeout"
+msgstr "The previous match did not finish closing in time. Apply the table settings again."
+msgid "runtime.room_closed"
+msgstr "The room was closed."
+msgid "runtime.removed_from_room"
+msgstr "You were removed from the room."

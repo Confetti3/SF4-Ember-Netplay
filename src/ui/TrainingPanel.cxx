@@ -2,6 +2,7 @@
 #include "Theme.hxx"
 #include "GameMenu.hxx"
 #include "MenuRows.hxx"
+#include "../common/Localization.hxx"
 #include <algorithm>
 #include <string>
 
@@ -27,26 +28,35 @@ void Advantage(const FrameAdvantage& advantage, int side) {
     if (advantage.valid) ImGui::TextColored(AdvantageColor(advantage.frames[side]), "%+d f", advantage.frames[side]);
     else ImGui::TextDisabled("--");
 }
-const char* Unavailable(const char* label, MeasurementUnavailable reason) {
-    static thread_local std::string text;
-    text = std::string(label) + ": " + MeasurementUnavailableName(reason);
-    return text.c_str();
+std::string Unavailable(const char* label, MeasurementUnavailable reason) {
+    const char* reasonId = "training.unavailable.invalid";
+    switch (reason) {
+    case MeasurementUnavailable::WaitingForAttackBoundary: reasonId = "training.unavailable.waiting_attack"; break;
+    case MeasurementUnavailable::NoAttackBoundary: reasonId = "training.unavailable.no_attack"; break;
+    case MeasurementUnavailable::NoContact: reasonId = "training.unavailable.no_contact"; break;
+    case MeasurementUnavailable::MeasuringRecovery: reasonId = "training.unavailable.measuring_recovery"; break;
+    case MeasurementUnavailable::Interrupted: reasonId = "training.unavailable.interrupted"; break;
+    default: break;
+    }
+    return loc::Tf("training.unavailable", label, loc::T(reasonId));
 }
 void Meter(const MeterView& meter, float hudScale) {
-    const float label = 178 * hudScale;
+    const float gap = 10 * hudScale;
+    const auto measure=[&](const char* value){return ImGui::CalcTextSize(value).x;};
+    const float label = measure("P2") + gap + measure("+999 f") + gap + measure("Start 999 f") + gap;
     const float height = 12 * hudScale;
     const float width = (std::max)(120.f, ImGui::GetContentRegionAvail().x - label);
     const float cell = width / 120;
     for (int side = 0; side < 2; ++side) {
         const float rowStart = ImGui::GetCursorPosX();
         ImGui::Text("P%d", side + 1);
-        ImGui::SameLine(rowStart + 27 * hudScale); Advantage(meter.advantage, side);
-        ImGui::SameLine(rowStart + 85 * hudScale);
-        if (meter.startupFrames[side] >= 0) ImGui::Text("Start %d f", meter.startupFrames[side]);
+        ImGui::SameLine(0,gap); Advantage(meter.advantage, side);
+        ImGui::SameLine(0,gap);
+        if (meter.startupFrames[side] >= 0) ImGui::TextUnformatted(loc::Tf("training.start_frames", meter.startupFrames[side]).c_str());
         else {
-            ImGui::TextDisabled("Start --");
+            ImGui::TextDisabled("%s", loc::T("training.start_unknown"));
             if (ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), false))
-                ImGui::SetTooltip("%s", Unavailable("Startup", meter.startupUnavailable[side]));
+                ImGui::SetTooltip("%s", Unavailable(loc::T("training.startup"), meter.startupUnavailable[side]).c_str());
         }
         ImGui::SameLine(rowStart + label);
         const ImVec2 origin = ImGui::GetCursorScreenPos();
@@ -78,7 +88,7 @@ std::string Buttons(unsigned bits) {
     for (int i = 0; i < 10; ++i) if (bits & masks[i]) {
         if (!text.empty()) text += " + "; text += labels[i];
     }
-    return text.empty() ? "Neutral" : text;
+    return text.empty() ? loc::T("training.neutral") : text;
 }
 }
 
@@ -102,7 +112,8 @@ void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit)
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImVec2(10*unit,6*unit));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,ImVec2(8*unit,6*unit));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,unit);
-    if(ImGui::Begin("Training controls",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoMove|
+    const auto trainingWindow=std::string(loc::T("training.controls"))+"###TrainingControls";
+    if(ImGui::Begin(trainingWindow.c_str(),nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoMove|
         ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs)) {
         ImGui::SetWindowFontScale(unit/Scale());
         // Capture remains global even though presentation is only a flyout.
@@ -132,27 +143,27 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  const auto screen=nav.Screen();std::vector<MenuEntry> rows;
  const bool ready=v.ready&&!pending;
  if(screen=="home"){
-  rows={Row("recording","Dummy Recording","Record P1 controls onto P2. Set the native dummy to Player / controller control."),
-   Row("history","Input History","Inspect each player's held inputs."),
-   Row("return","Close training controls","Close Ember, then close SF4's pause menu to resume if it is open.")};
+  rows={Row("recording",loc::T("training.dummy_recording"),loc::T("training.dummy_recording.detail")),
+   Row("history",loc::T("training.input_history"),loc::T("training.input_history.detail")),
+   Row("return",loc::T("training.close_controls"),loc::T("training.close_controls.detail"))};
  }else if(screen=="recording"){
-  for(int slot=0;slot<SlotCount;++slot)rows.push_back(Row("slot-"+std::to_string(slot),"Slot "+std::to_string(slot+1)+(slot==v.selected?" / SELECTED":""),
-   std::to_string(v.lengths[slot])+" recorded frames. Recordings last until this battle ends.",ready&&v.mode==Mode::Idle));
-  auto record=Row("record","Record",v.lengths[v.selected]?"Overwrite this occupied slot and return to practice.":"Record P1 controls as P2, then return to practice.",ready);
+  for(int slot=0;slot<SlotCount;++slot)rows.push_back(Row("slot-"+std::to_string(slot),loc::Tf(slot==v.selected?"training.slot_selected":"training.slot",slot+1),
+   loc::Tf("training.recorded_frames",v.lengths[slot]),ready&&v.mode==Mode::Idle));
+  auto record=Row("record",loc::T("training.record"),loc::T(v.lengths[v.selected]?"training.record.overwrite":"training.record.detail"),ready);
   record.confirm=v.lengths[v.selected]>0;rows.push_back(record);
-  rows.push_back(Row("play","Play",v.lengths[v.selected]?"Play the selected slot and return to practice. Directions are absolute, not mirrored.":"This slot is empty.",ready&&v.lengths[v.selected]>0));
-  rows.push_back(Row("stop","Stop","Stop recording or playback.",!pending));
-  rows.push_back(Value("loop","Loop playback",v.loop?"On":"Off","Repeat the selected recording.",!pending));
-  rows.push_back(ConfirmRow("clear","Clear selected recording","Permanently clear this slot for the current battle.",ready&&v.mode==Mode::Idle&&v.lengths[v.selected]>0));
+  rows.push_back(Row("play",loc::T("training.play"),loc::T(v.lengths[v.selected]?"training.play.detail":"training.slot_empty"),ready&&v.lengths[v.selected]>0));
+  rows.push_back(Row("stop",loc::T("training.stop"),loc::T("training.stop.detail"),!pending));
+  rows.push_back(Value("loop",loc::T("training.loop"),loc::T(v.loop?"common.on":"common.off"),loc::T("training.loop.detail"),!pending));
+  rows.push_back(ConfirmRow("clear",loc::T("training.clear_recording"),loc::T("training.clear_recording.detail"),ready&&v.mode==Mode::Idle&&v.lengths[v.selected]>0));
  }else{
-  rows={Row("p1","Player 1","Newest inputs first. Frame counts measure held inputs, not move startup."),
-        Row("p2","Player 2","Newest inputs first. Frame counts measure held inputs, not move startup."),
-        ConfirmRow("clear-history","Clear input history","Clear the meter and both input histories.",!pending)};
+  rows={Row("p1",loc::T("training.player_one"),loc::T("training.history.detail")),
+        Row("p2",loc::T("training.player_two"),loc::T("training.history.detail")),
+        ConfirmRow("clear-history",loc::T("training.clear_history"),loc::T("training.clear_history.detail"),!pending)};
  }
- const char* modes[]={"Practice ready","Recording suspended while controls are open","Playback suspended while controls are open"};
- std::string status=pending?"Applying command...":!error.empty()?error:!v.ready?"Waiting for the battle to be ready...":modes[static_cast<int>(v.mode)];
+ const char* modes[]={"training.practice_ready","training.recording_suspended","training.playback_suspended"};
+ std::string status=pending?loc::T("training.applying"):!error.empty()?error:!v.ready?loc::T("training.waiting_battle"):loc::T(modes[static_cast<int>(v.mode)]);
  const Tone statusTone=pending?Tone::Pending:!error.empty()?Tone::Error:!v.ready?Tone::Pending:Tone::Neutral;
- const auto a=trainingMenu.Draw("TRAINING LAB",rows,status.c_str(),[&](const std::string& id){
+ const auto a=trainingMenu.Draw(loc::T("training.title"),rows,status.c_str(),[&](const std::string& id){
   if(screen=="history"&&(id=="p1"||id=="p2")){
    for(const auto& run:v.history[id=="p1"?0:1])ImGui::TextWrapped("%u f  %s",run.frames,Buttons(run.buttons).c_str());
   }
@@ -172,7 +183,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(submit&&submit(command)){
   pending=command.requestId;
   returnAfter=command.action==Action::Record||command.action==Action::Play;
- }else error="The practice command was not accepted. Review the state and try again.";
+ }else error=loc::T("training.command_rejected");
 }
 void DrawTrainingHud(const training::View& view) {
     if (!view.available) return;
@@ -192,13 +203,13 @@ void DrawTrainingHud(const training::View& view) {
         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing)) {
         ImGui::SetWindowFontScale(.8f * hudScale / Scale());
         Meter(view.meter, hudScale);
-        ImGui::TextDisabled("FRAME ADVANTAGE | %s",
-            view.meter.advantage.pending ? "measuring" : view.meter.advantage.knockdown ? "wakeup" : view.meter.frozen ? "held" : "live");
+        ImGui::TextDisabled("%s", loc::Tf("training.frame_advantage",
+            loc::T(view.meter.advantage.pending ? "training.measuring" : view.meter.advantage.knockdown ? "training.wakeup" : view.meter.frozen ? "training.held" : "training.live")).c_str());
         // The HUD is a NoInputs window, so IsItemHovered is always false here;
         // test the pointer against the item rectangle instead. The tooltip is
         // its own window and does not make the HUD capture input.
         if (!view.meter.advantage.valid && ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), false))
-            ImGui::SetTooltip("%s", Unavailable("Advantage", view.meter.advantage.unavailable));
+            ImGui::SetTooltip("%s", Unavailable(loc::T("training.advantage"), view.meter.advantage.unavailable).c_str());
         // Training shortcuts are keyboard-only; this passive HUD never captures input.
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImVec2(0,0));
         DrawTrainingOpenPrompt();

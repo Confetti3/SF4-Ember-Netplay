@@ -35,6 +35,7 @@ struct ShellView {
     unsigned probeSamples=0, probeLost=0, probeSent=0, probeExpected=0;
     int localSlot = -1;
     std::string invitation, error, settingsError, build;
+    std::string languagePreference = "auto";
     std::vector<netplay::MemberView> members;
     netplay::NetworkAvailability network = netplay::NetworkAvailability::Starting;
     platform::ServiceSnapshot services;
@@ -97,9 +98,14 @@ private:
     double roomUpdateUntil_ = 0;
     double roomUpdateStarted_ = -1;
     bool roomUpdateVisible_ = false;
-    std::map<std::string,std::pair<std::string,std::string>> roomDetails_;
+    std::map<std::string,std::string> roomDetails_;
     char invitation_[4097] = {};
     bool preferencesDirty_ = false;
+    // The language is stored in its own file, so it debounces on its own
+    // deadline rather than sharing saveAt_ with the netplay preferences.
+    double languageSaveAt_ = 0;
+    bool languageSeeded_ = false, languageDirty_ = false;
+    std::string languagePreference_ = "auto", languageSaveError_;
     netplay::Generation generation_;
     netplay::RoomState previousRoomState_ = netplay::RoomState::Idle;
     netplay::PlayerPreferences preferences_;

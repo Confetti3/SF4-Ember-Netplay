@@ -1,9 +1,11 @@
 #include "ApplicationServices.hxx"
 #include "../common/install_paths.hxx"
 #include "../netplay/SettingsStore.hxx"
+#include "../common/Localization.hxx"
 #include <windows.h>
 #include <filesystem>
 #include <fstream>
+#include <cstring>
 
 namespace sf4e { namespace platform {
 std::string DescribeDiagnostics(const DiagnosticsView& view) {
@@ -51,9 +53,9 @@ bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& d
     cancelled_ = false;
     state_.downloadedBytes = state_.totalBytes = 0;
     request_ = action; diagnostics_ = diagnostics; state_.pending = true; state_.lastAction = action;
-    state_.message = action == ServiceAction::CheckUpdates ? "Checking for updates..." :
-        action == ServiceAction::ExportDiagnostics ? "Exporting diagnostics..." :
-        action == ServiceAction::InstallUpdate ? "Downloading and verifying the update..." : "Opening the updater...";
+    state_.message = action == ServiceAction::CheckUpdates ? loc::T("services.checking") :
+        action == ServiceAction::ExportDiagnostics ? loc::T("services.exporting") :
+        action == ServiceAction::InstallUpdate ? loc::T("services.downloading") : loc::T("services.opening_updater");
     wake_.notify_one(); return true;
 }
 void ApplicationServices::Run() {
@@ -69,7 +71,7 @@ void ApplicationServices::Run() {
             if (action == ServiceAction::CheckUpdates) {
                 next.update = launcher::CheckForUpdate();
                 next.message = !next.update.ok ? next.update.error : next.update.updateAvailable ?
-                    "An update is available: " + next.update.latestVersion : "You are up to date.";
+                    loc::Tf("services.update_available",next.update.latestVersion) : loc::T("services.up_to_date");
             } else if (action == ServiceAction::ExportDiagnostics) {
                 const auto directory = diagnosticsDirectory_.empty() ? std::filesystem::path(netplay::SettingsStore::DefaultDirectory()) / L"diagnostics" : std::filesystem::path(diagnosticsDirectory_);
                 std::filesystem::create_directories(directory);
@@ -103,23 +105,25 @@ void ApplicationServices::Run() {
                 output << "Recent connection transitions (oldest first):\n";
                 for (const auto& event : next.connectionHistory) output << event << '\n';
                 output.close();
-                next.message = output ? "Saved %APPDATA%\\sf4e\\diagnostics\\ember-diagnostics.txt" : "Diagnostics could not be saved. Try again.";
+                next.message = output ? loc::T("services.diagnostics_saved") : loc::T("services.diagnostics_failed");
             } else if (action == ServiceAction::OpenUpdater || action == ServiceAction::OpenRecovery) {
                 wchar_t root[MAX_PATH] = {};
                 if (!install::GetInstallRoot(root, MAX_PATH)) throw std::runtime_error("install directory");
                 const auto executable = std::filesystem::path(root) / L"Launcher.exe";
+                const char* tag = loc::Tag(loc::Active());  // ASCII, so widening is byte for byte.
                 std::wstring command = L"\"" + executable.wstring() + L"\" " +
-                    (action == ServiceAction::OpenRecovery ? L"--recovery" : L"--updates") + L" --wait-pid " + std::to_wstring(GetCurrentProcessId());
+                    (action == ServiceAction::OpenRecovery ? L"--recovery" : L"--updates") + L" --wait-pid " + std::to_wstring(GetCurrentProcessId()) +
+                    L" --locale " + std::wstring(tag, tag + std::strlen(tag));
                 STARTUPINFOW startup{}; startup.cb = sizeof(startup); PROCESS_INFORMATION process{};
                 if (!CreateProcessW(executable.c_str(), &command[0], nullptr, nullptr, FALSE, 0, nullptr, root, &startup, &process)) {
-                    next.message = "The updater could not start. Try again.";
+                    next.message = loc::T("services.updater_start_failed");
                 } else {
                     CloseHandle(process.hThread); CloseHandle(process.hProcess);
-                    next.closeGame = true; next.message = "Closing the game. The updater will open after it exits.";
+                    next.closeGame = true; next.message = loc::T("services.game_closing");
                 }
             } else if (action == ServiceAction::InstallUpdate) {
                 if (!next.update.ok || !next.update.updateAvailable || next.update.expectedSha256.size() != 64) {
-                    next.message = "A verified update is not available. Check for updates again.";
+                    next.message = loc::T("services.no_verified_update");
                 } else {
                     const auto result = launcher::DownloadAndApplyUpdate(next.update.zipDownloadUrl.c_str(), next.update.zipApiUrl.c_str(),
                         next.update.latestVersion.c_str(), next.update.expectedSha256.c_str(),
@@ -131,11 +135,11 @@ void ApplicationServices::Run() {
                             return true;
                         });
                     next.installed = result.ok;
-                    next.message = result.ok ? "Update prepared. Restarting SF4 Ember Netplay..." : result.error;
+                    next.message = result.ok ? loc::T("services.update_prepared") : result.error;
                 }
             }
-        } catch (...) { next.message = "The operation failed. Please retry. Update recovery copies are kept in .ember-update-backups."; }
-        if (cancelled_ && !next.installed) next.message = "Operation cancelled.";
+        } catch (...) { next.message = loc::T("services.operation_failed"); }
+        if (cancelled_ && !next.installed) next.message = loc::T("services.operation_cancelled");
         next.pending = false;
         { std::lock_guard<std::mutex> lock(mutex_); next.connectionHistory = std::move(state_.connectionHistory); state_ = std::move(next); }
     }

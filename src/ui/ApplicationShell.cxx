@@ -3,6 +3,9 @@
 #include "MenuRows.hxx"
 #include "RoomFeedback.hxx"
 #include "../common/FighterCatalog.hxx"
+#include "../common/Localization.hxx"
+#include "../platform/LocaleWindows.hxx"
+#include "../platform/UiPreferencesStore.hxx"
 #include <imgui.h>
 #include <cstdio>
 #include <cstring>
@@ -10,7 +13,7 @@
 namespace sf4e { namespace ui {
 bool ApplicationShell::Service(platform::ServiceAction kind, const ShellView& view, const Submit& submit) {
     ShellAction action; action.service = kind; action.command.generation = view.session.generation;
-    if (!submit(std::move(action))) { error_ = "The action could not be queued. Please try again."; return false; }
+    if (!submit(std::move(action))) { error_ = loc::T("error.queue_failed"); return false; }
     error_.clear(); return true;
 }
 bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit) {
@@ -29,7 +32,7 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
         action.preferences.lobby.roundTime = action.preferences.tableRules.roundTime;
     }
     if (kind == netplay::CommandKind::JoinInvite) action.command.invitation = invitation_;
-    if (!submit(std::move(action))) { error_ = "The action could not be queued. Please try again."; return false; }
+    if (!submit(std::move(action))) { error_ = loc::T("error.queue_failed"); return false; }
     error_.clear();
     if (kind == netplay::CommandKind::JoinInvite || kind == netplay::CommandKind::LeaveRoom)
         std::fill(std::begin(invitation_), std::end(invitation_), '\0');
@@ -40,20 +43,30 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
 void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer) {
  using namespace netplay; auto& nav=menu_.navigation;
  const double now = ImGui::GetTime();
+ if(!languageSeeded_){languagePreference_=loc::ValidPreference(v.languagePreference)?v.languagePreference:"auto";languageSeeded_=true;}
  if(lastUiTime_ >= 0 && now < lastUiTime_) {
   // DX9 reset recreates ImGui, but these deadlines belong to the surviving shell.
   // Keep raw-clock users in RoomAction in the same epoch, including queued saves.
   saveAt_ = RebaseUiTimestamp(saveAt_, lastUiTime_, now);
+  languageSaveAt_ = RebaseUiTimestamp(languageSaveAt_, lastUiTime_, now);
   noticeUntil_ = RebaseUiTimestamp(noticeUntil_, lastUiTime_, now);
   roomUpdateUntil_ = RebaseUiTimestamp(roomUpdateUntil_, lastUiTime_, now);
   roomUpdateStarted_ = -1;
  }
  lastUiTime_ = now;
+ if(languageDirty_&&now>=languageSaveAt_){
+  // The store's detail is an English diagnostic, so the player sees the
+  // localized message instead. sf4e_ui has no log to carry the detail to.
+  std::string diagnostic;
+  if(platform::SaveLanguagePreference(languagePreference_,diagnostic))languageSaveError_.clear();
+  else languageSaveError_=loc::T("settings.language_save_failed");
+  languageDirty_=false;
+ }
  if(previousRoomState_!=RoomState::Idle && v.session.room==RoomState::Idle) {
   nav.Cancel();
   if(nav.Screen().compare(0,4,"room")==0 || nav.Screen()=="selection")nav.Home();
   error_.clear();
-  notice_=previousRoomState_==RoomState::Opening?"":"You left the room.";
+  notice_=previousRoomState_==RoomState::Opening?"":loc::T("notice.left_room");
   noticeTone_=Tone::Neutral;noticeUntil_=now+3;
  }
  // The room screen opens only once the committed room snapshot has the local
@@ -85,10 +98,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(SamePreferences(v.preferences,savingPreferences_)&&v.settingsError.empty()){
    saveQueued_=false;retrySave_=false;preferencesDirty_=!SamePreferences(preferences_,savingPreferences_);
    if(profileSavePending_&&!preferencesDirty_){
-    profileSavePending_=false;error_.clear();notice_="Profile portrait saved: "+std::string(selection::FindFighter(v.preferences.mainFighter)->name);noticeTone_=Tone::Success;noticeUntil_=ImGui::GetTime()+3;
+    profileSavePending_=false;error_.clear();notice_=loc::Tf("notice.profile_saved",selection::FindFighter(v.preferences.mainFighter)->name);noticeTone_=Tone::Success;noticeUntil_=ImGui::GetTime()+3;
     if(nav.Screen()=="main-character")nav.Return();
    }
-  }else if(ImGui::GetTime()>saveAt_+2){saveQueued_=false;saveFailed_=true;retrySave_=false;error_="Settings were not saved. Retry when the menu is available.";}
+  }else if(ImGui::GetTime()>saveAt_+2){saveQueued_=false;saveFailed_=true;retrySave_=false;error_=loc::T("error.settings_not_saved");}
  }
  if(!preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending)preferences_=v.preferences;
  if(!v.settingsError.empty()&&!retrySave_&&!saveQueued_)saveFailed_=true;
@@ -110,118 +123,121 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   selection();
   if(TakeMenuReturn())nav.Return();ImGui::End();ImGui::PopStyleVar(2);return;
  }
- const std::string screen=nav.Screen();std::vector<MenuEntry> rows;std::string title="SF4 EMBER";
+ const std::string screen=nav.Screen();std::vector<MenuEntry> rows;std::string title=loc::T("shell.home_title");
  const bool idle=v.session.room==RoomState::Idle, opening=v.session.room==RoomState::Opening;
- const char* reason=v.canEditPreferences?"Changes save automatically.":"Leave the room to change personal settings.";
+ const char* reason=v.canEditPreferences?loc::T("settings.auto_save"):loc::T("settings.leave_room_to_edit");
  if(v.inputCapture!=input::Capture::Idle){
-  title="ASSIGN CONTROLLER";rows={Row("capture-cancel","Cancel controller assignment",v.inputCapture==input::Capture::Press?"Press a button on your chosen controller.":"Release all buttons to continue.")};
+  title=loc::T("controller.assign_title");rows={Row("capture-cancel",loc::T("controller.cancel_assignment"),v.inputCapture==input::Capture::Press?loc::T("controller.press_button"):loc::T("controller.release_buttons"))};
  }else if(screen=="home"){
-  rows={Row("online","Online Play",idle?"Create a private room or join an invitation.":"Return to your current room."),
-   Row("selection","Fighter Select",v.canEditSelection?v.selectionSummary:
-    v.selectionLockReason.empty()?"Return to your table for the current selection status.":v.selectionLockReason,bool(selection)),
-   Row("profile","Profile","Your name, main character and local confirmed online record."),
-   Row("settings","Settings","Player, controller, gameplay defaults, interface and Discord."),
-   Row("about","Help & About","Controls, diagnostics, updates and credits."),
-   Row("offline","Play Offline","Open the native offline menus.",idle)};
-  if(!v.controllerReady)rows.insert(rows.begin(),Row("player","Choose gameplay controller","Explicit assignment is required before online play."));
+  rows={Row("online",loc::T("home.online"),idle?loc::T("home.online_detail"):loc::T("home.return_room")),
+   Row("selection",loc::T("home.fighter_select"),v.canEditSelection?v.selectionSummary:
+    v.selectionLockReason.empty()?loc::T("home.selection_locked"):v.selectionLockReason,bool(selection)),
+   Row("profile",loc::T("home.profile"),loc::T("home.profile_detail")),
+   Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
+   Row("about",loc::T("home.about"),loc::T("home.about_detail")),
+   Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle)};
+  if(!v.controllerReady)rows.insert(rows.begin(),Row("player",loc::T("home.choose_controller"),loc::T("home.choose_controller_detail")));
   if(developer)rows.push_back(Row("developer","Developer","Development tools."));
  }else if(screen=="profile"){
-  title="PROFILE";const auto& record=v.preferences.record;
-  rows={TextRow("name","Player name",preferences_.displayName,31,v.canEditPreferences),
-   Row("main-character","Main character",std::string(selection::FindFighter(preferences_.mainFighter)->name)+". Used for your player card, independently of match selection."),
-   Row("record","Win / loss record",record.available?std::to_string(record.wins)+" wins / "+std::to_string(record.losses)+" losses. Local confirmed online games since tracking began; draws, cancellations, offline games and unresolved results are excluded.":"Record unavailable. The original settings are preserved.")};
+  title=loc::T("profile.title");const auto& record=v.preferences.record;
+  rows={TextRow("name",loc::T("profile.player_name"),preferences_.displayName,31,v.canEditPreferences),
+   Row("main-character",loc::T("profile.main_character"),loc::Tf("profile.main_character_detail",selection::FindFighter(preferences_.mainFighter)->name)),
+   Row("record",loc::T("profile.record"),record.available?loc::Tf("profile.record_detail",record.wins,record.losses):loc::T("profile.record_unavailable"))};
   rows[1].value=selection::FindFighter(preferences_.mainFighter)->name;
-  rows[2].value=record.available?std::to_string(record.wins)+" W / "+std::to_string(record.losses)+" L":"Unavailable";
+  rows[2].value=record.available?loc::Tf("profile.record_value",record.wins,record.losses):loc::T("common.unavailable");
  }else if(screen=="main-character"){
-  title="CHOOSE YOUR MAIN";
-  for(int id=0;id<selection::FighterCount;++id)rows.push_back(Row("main-"+std::to_string(id),selection::FindFighter(id)->name,v.canEditPreferences?"Select to save your main and update your player card.":"Leave the room to edit your profile.",v.canEditPreferences));
+  title=loc::T("profile.choose_main_title");
+  for(int id=0;id<selection::FighterCount;++id)rows.push_back(Row("main-"+std::to_string(id),selection::FindFighter(id)->name,v.canEditPreferences?loc::T("profile.choose_main_detail"):loc::T("profile.leave_room_to_edit"),v.canEditPreferences));
  }else if(screen=="online"){
-  title="ONLINE PLAY";rows={Row("create","Create Room","Set up a private room.",v.canOpenRoom),Row("join","Join Room","Paste an invitation.",v.canOpenRoom)};
+  title=loc::T("online.title");rows={Row("create",loc::T("online.create"),loc::T("online.create_detail"),v.canOpenRoom),Row("join",loc::T("online.join"),loc::T("online.join_detail"),v.canOpenRoom)};
  }else if(screen=="create"||screen=="defaults"){
-  title=screen=="create"?"CREATE ROOM":"GAMEPLAY DEFAULTS";const bool can=screen=="create"?v.canOpenRoom:v.canEditPreferences;
-  if(screen=="defaults")rows.push_back(Value("delay","Input delay",std::to_string(preferences_.inputDelay),reason,can));
-  rows.push_back(TextRow("room-name","Room name",preferences_.roomName,64,can));
-  rows.push_back(Value("capacity","Capacity",std::to_string(preferences_.roomCapacity),"Maximum members, including spectators.",can));
+  title=screen=="create"?loc::T("room.create_title"):loc::T("settings.gameplay_defaults_title");const bool can=screen=="create"?v.canOpenRoom:v.canEditPreferences;
+  if(screen=="defaults")rows.push_back(Value("delay",loc::T("settings.input_delay"),std::to_string(preferences_.inputDelay),reason,can));
+  rows.push_back(TextRow("room-name",loc::T("room.name"),preferences_.roomName,64,can));
+  rows.push_back(Value("capacity",loc::T("room.capacity"),std::to_string(preferences_.roomCapacity),loc::T("room.capacity_detail"),can));
   RuleRows(rows,preferences_.tableRules,can,reason);
-  if(screen=="create")rows.push_back(opening?ConfirmRow("cancel-open","Cancel","Stop creating this room.",true):
-   Row("host","Create Room","Networking and an assigned gameplay controller must be ready.",can&&preferences_.Valid()));
+  if(screen=="create")rows.push_back(opening?ConfirmRow("cancel-open",loc::T("common.cancel"),loc::T("room.stop_creating"),true):
+   Row("host",loc::T("online.create"),loc::T("room.create_requirements"),can&&preferences_.Valid()));
  }else if(screen=="join"){
-  title="JOIN ROOM";rows={Row("paste","Paste Invitation","Copy an Ember invitation, then select this row.",v.canOpenRoom),
-   opening?ConfirmRow("cancel-open","Cancel","Stop joining this room.",true):Row("join-now","Join","Join using the pasted invitation.",v.canOpenRoom&&invitation_[0]),
-   TextRow("invite-text","Edit invitation",invitation_,sizeof(invitation_)-1,v.canOpenRoom)};
- }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?"ROOM":v.room.name;rows=RoomEntries(v);
+  title=loc::T("room.join_title");rows={Row("paste",loc::T("room.paste_invitation"),loc::T("room.paste_invitation_detail"),v.canOpenRoom),
+   opening?ConfirmRow("cancel-open",loc::T("common.cancel"),loc::T("room.stop_joining"),true):Row("join-now",loc::T("online.join"),loc::T("room.join_pasted"),v.canOpenRoom&&invitation_[0]),
+   TextRow("invite-text",loc::T("room.edit_invitation"),invitation_,sizeof(invitation_)-1,v.canOpenRoom)};
+ }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;rows=RoomEntries(v);
  }else if(screen=="settings"){
-  title="SETTINGS";rows={Row("player","Player & Controller","Display name and controller assignment."),Row("defaults","Gameplay Defaults","Input delay and new-room defaults."),Row("interface","Interface","Quiet HUD and interface size."),Row("discord","Discord","Activity and invitations.")};
+  title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("discord","Discord",loc::T("settings.discord_detail"))};
  }else if(screen=="player"){
-  title="PLAYER & CONTROLLER";rows={TextRow("name","Display name",preferences_.displayName,31,v.canEditPreferences),
-   Row("capture","Change controller",v.controller+". Release, press, then release to assign.",v.canChangeController),
-   Row("keyboard","Use keyboard","Explicitly assign the keyboard.",v.canChangeController),
-   Row("controls","Open native menus","Ember will close. Choose Options in the game menu to configure fighting buttons.",idle)};
+  title=loc::T("player.title");rows={TextRow("name",loc::T("player.display_name"),preferences_.displayName,31,v.canEditPreferences),
+   Row("capture",loc::T("player.change_controller"),loc::Tf("player.change_controller_detail",v.controller),v.canChangeController),
+   Row("keyboard",loc::T("player.use_keyboard"),loc::T("player.use_keyboard_detail"),v.canChangeController),
+   Row("controls",loc::T("player.native_menus"),loc::T("player.native_menus_detail"),idle)};
  }else if(screen=="interface"){
-  title="INTERFACE";char size[32];std::snprintf(size,sizeof(size),"%.2fx",preferences_.interfaceScale);
-  const char* hudSizes[]={"Small","Standard","Large"};
-  rows={Value("hud","Match HUD",preferences_.showMatchHud?"On":"Off",reason,v.canEditPreferences),
-   Value("hud-size","Match HUD size",hudSizes[(std::max)(0,(std::min)(2,preferences_.matchHudSize))],"Changes in-match text and panel size.",v.canEditPreferences),
-   Value("hud-spacing","Bottom spacing",preferences_.matchHudRaised?"Raised":"Normal","Moves the match HUD above the bottom edge.",v.canEditPreferences),
-   Value("scale","Interface size",size,reason,v.canEditPreferences)};
+  title=loc::T("settings.interface_title");char size[32];std::snprintf(size,sizeof(size),"%.2fx",preferences_.interfaceScale);
+  const char* hudSizes[]={loc::T("size.small"),loc::T("size.standard"),loc::T("size.large")};
+  const auto languageValue=languagePreference_=="auto"?loc::Tf("settings.language.system_with",loc::NativeName(loc::Active())):
+   std::string(loc::NativeName(loc::ResolveLocale(languagePreference_,{})));
+  rows={Value("hud",loc::T("settings.match_hud"),preferences_.showMatchHud?loc::T("common.on"):loc::T("common.off"),reason,v.canEditPreferences),
+   Value("hud-size",loc::T("settings.match_hud_size"),hudSizes[(std::max)(0,(std::min)(2,preferences_.matchHudSize))],loc::T("settings.match_hud_size_detail"),v.canEditPreferences),
+   Value("hud-spacing",loc::T("settings.bottom_spacing"),preferences_.matchHudRaised?loc::T("spacing.raised"):loc::T("spacing.normal"),loc::T("settings.bottom_spacing_detail"),v.canEditPreferences),
+   Value("scale",loc::T("settings.interface_size"),size,reason,v.canEditPreferences),
+   Value("language",loc::T("settings.language"),languageValue,loc::T("settings.language.detail"),true)};
  }else if(screen=="discord"){
-  title="DISCORD";rows={Value("presence","Show activity",preferences_.discordPresence?"On":"Off",v.discordStatus,v.canEditPreferences),
-   Value("invites","Allow invitations",preferences_.discordInvites?"On":"Off",preferences_.discordPresence?"Invitations share access to your room.":"Enable Discord activity first.",v.canEditPreferences&&preferences_.discordPresence)};
+  title="DISCORD";rows={Value("presence",loc::T("discord.show_activity"),preferences_.discordPresence?loc::T("common.on"):loc::T("common.off"),v.discordStatus,v.canEditPreferences),
+   Value("invites",loc::T("discord.allow_invitations"),preferences_.discordInvites?loc::T("common.on"):loc::T("common.off"),preferences_.discordPresence?loc::T("discord.invitation_detail"):loc::T("discord.enable_first"),v.canEditPreferences&&preferences_.discordPresence)};
  }else if(screen=="discord-invitation"){
-  title="DISCORD INVITATION";rows={Row("invite-cancel","Cancel invitation","Discard the invitation without leaving your current room.")};
-  if(v.discordConfirm)rows.push_back(ConfirmRow("invite-switch","Switch to invited room",v.discordCanSwitch?"Leave this room and join the invitation.":"Wait for the current game to finish.",v.discordCanSwitch));
-  else rows.push_back(Row("invite-wait","Invitation pending","Waiting for the main menu, network, and assigned controller.",false));
+  title=loc::T("discord.invitation_title");rows={Row("invite-cancel",loc::T("discord.cancel_invitation"),loc::T("discord.cancel_invitation_detail"))};
+  if(v.discordConfirm)rows.push_back(ConfirmRow("invite-switch",loc::T("discord.switch_room"),v.discordCanSwitch?loc::T("discord.switch_room_detail"):loc::T("discord.wait_game"),v.discordCanSwitch));
+  else rows.push_back(Row("invite-wait",loc::T("discord.invitation_pending"),loc::T("discord.invitation_pending_detail"),false));
  }else if(screen=="developer"&&developer){developer();if(ImGui::Button("Back to Home"))nav.Return();
  }else{
-  title="HELP & ABOUT";rows={Row("help","Controls","Xbox: A selects; B returns, independently of fighting bindings. DirectInput: mapped LP selects; LK returns. D-pad moves; Left/Right adjusts. Training controls use keyboard and mouse: F6 opens/closes, arrows navigate, Enter selects, Escape goes back. Start only opens native pause in training. F10 opens Ember at the main menu; F5-F8 are training shortcuts."),
-   Row("credits","About Ember","Unofficial Ultra Street Fighter IV mod, based on sf4e by Anthony Danducci. Iroh / QUIC, GGPO, Dear ImGui and Inter typography. Build: "+v.build),
-   Row("font","Font license",FontLicense()),Row("diagnostics","Export diagnostics",
+  title=loc::T("about.title");rows={Row("help",loc::T("about.controls"),loc::T("about.controls_detail")),
+   Row("credits",loc::T("about.ember"),loc::Tf("about.ember_detail",v.build)),
+   Row("font",loc::T("about.font_license"),FontLicense()),Row("diagnostics",loc::T("about.export_diagnostics"),
     v.services.lastAction==platform::ServiceAction::ExportDiagnostics&&!v.services.message.empty()?v.services.message:
-    "Exports connection states without invitations or credentials.",!v.services.pending),
-   Row("updates","Check for updates",v.services.lastAction==platform::ServiceAction::ExportDiagnostics||v.services.message.empty()?"Look for a newer Ember release.":v.services.message,!v.services.pending)};
-  if(v.services.update.ok&&v.services.update.updateAvailable)rows.push_back(ConfirmRow("updater","Exit and open updater","The game will close. Leave your room first.",v.canEditPreferences&&!v.services.pending));
-  if(v.network==NetworkAvailability::Unavailable)rows.push_back(ConfirmRow("recovery","Exit to recovery",
-   v.canEditPreferences?"Close the game and open recovery.":"Leave your room and return to the main menu first.",v.canEditPreferences&&!v.services.pending));
+    loc::T("about.export_diagnostics_detail"),!v.services.pending),
+   Row("updates",loc::T("updates.check"),v.services.lastAction==platform::ServiceAction::ExportDiagnostics||v.services.message.empty()?loc::T("about.updates_detail"):v.services.message,!v.services.pending)};
+  if(v.services.update.ok&&v.services.update.updateAvailable)rows.push_back(ConfirmRow("updater",loc::T("about.open_updater"),loc::T("about.open_updater_detail"),v.canEditPreferences&&!v.services.pending));
+  if(v.network==NetworkAvailability::Unavailable)rows.push_back(ConfirmRow("recovery",loc::T("about.open_recovery"),
+   v.canEditPreferences?loc::T("about.open_recovery_detail"):loc::T("about.leave_room_first"),v.canEditPreferences&&!v.services.pending));
  }
- if(saveFailed_)rows.push_back(Row("retry-save","Retry saving",v.settingsError.empty()?error_:v.settingsError,v.canEditPreferences&&!v.settingsPending));
+ if(saveFailed_)rows.push_back(Row("retry-save",loc::T("settings.retry_save"),v.settingsError.empty()?error_:v.settingsError,v.canEditPreferences&&!v.settingsPending));
  const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="defaults"||screen=="interface"||screen=="discord";
- std::string status=saveFailed_?"Save failed":v.settingsPending||preferencesDirty_||saveQueued_?"Saving...":personal?"Saved":"";
+ std::string status=saveFailed_?loc::T("common.save_failed"):v.settingsPending||preferencesDirty_||saveQueued_||languageDirty_?loc::T("common.saving"):personal?loc::T("common.saved"):"";
  // Severity travels with the status string. This line is the shell's only
  // feedback channel, so a failure must not render like ordinary text.
- Tone statusTone=saveFailed_?Tone::Error:v.settingsPending||preferencesDirty_||saveQueued_?Tone::Pending:
+ Tone statusTone=saveFailed_?Tone::Error:v.settingsPending||preferencesDirty_||saveQueued_||languageDirty_?Tone::Pending:
   personal?Tone::Success:Tone::Neutral;
  if((screen=="create"||screen=="join")&&opening&&status.empty()){
-  status=screen=="create"?"Creating room. Waiting for the network...":"Joining room. Waiting for the network...";statusTone=Tone::Pending;
+  status=screen=="create"?loc::T("room.creating_status"):loc::T("room.joining_status");statusTone=Tone::Pending;
  }
  if(screen=="room"&&status.empty()){
   const bool healthy=v.session.control==Health::Healthy;
-  status=healthy?(v.room.locked?"Room locked / invitation only":"Private room / invitation only"):"Reconnecting to room...";
+  status=healthy?(v.room.locked?loc::T("room.locked_status"):loc::T("room.private_status")):loc::T("room.reconnecting");
   if(!healthy)statusTone=Tone::Pending;
  }
  if(screen=="room-table"){
-  title="TABLE "+std::to_string(selectedTable_+1)+" / BATTLE SETUP";
+  title=loc::Tf("room.table_setup_title",selectedTable_+1);
   const auto& table=v.room.tables[selectedTable_];
   const bool seatedLocal=table.p1==v.room.localMember||table.p2==v.room.localMember;
   // A seated fighter's finished game is background bookkeeping: its stale
   // ready flags and pending result are not the next match's readiness.
   const bool finishedGame=seatedLocal&&table.phase==room::TablePhase::Playing&&v.session.match==MatchState::PostMatch;
   const auto state=[&](room::MemberId id,int side){
-   if(!id)return std::string("Waiting for opponent");
+   if(!id)return std::string(loc::T("room.waiting_opponent"));
    const auto member=std::find_if(v.room.members.begin(),v.room.members.end(),[&](const room::Member& m){return m.id==id;});
    const bool local=id==v.room.localMember;
-   return (local?std::string("You"):member==v.room.members.end()?std::string("Player"):member->name)+
-    (table.ready[side]&&!finishedGame?" - READY":local&&v.readyRequested?" - Readying up...":" - Not ready");
+   return (local?std::string(loc::T("room.you")):member==v.room.members.end()?std::string(loc::T("room.player")):member->name)+
+    (table.ready[side]&&!finishedGame?loc::T("room.ready_suffix"):local&&v.readyRequested?loc::T("room.readying_suffix"):loc::T("room.not_ready_suffix"));
   };
   status=state(table.p1,0)+" | "+state(table.p2,1);
   // Table phases carry their own tone: an unresolved result is a problem
   // the player must act on, a pending result or preparation is a wait.
-  if(table.phase==room::TablePhase::Paused){status="Result unresolved / abandon it, or the host can cancel it";statusTone=Tone::Error;}
-  else if(table.phase==room::TablePhase::Ready){status="Preparing match / fighter choices locked";statusTone=Tone::Pending;}
+  if(table.phase==room::TablePhase::Paused){status=loc::T("room.result_unresolved_status");statusTone=Tone::Error;}
+  else if(table.phase==room::TablePhase::Ready){status=loc::T("room.preparing_status");statusTone=Tone::Pending;}
   else if(table.phase==room::TablePhase::Playing&&!finishedGame){
-   status=table.resultPending?"Waiting for results / next match is not ready":"Match in progress";
+   status=table.resultPending?loc::T("room.waiting_results_status"):loc::T("room.match_in_progress");
    statusTone=Tone::Pending;
   }
-  else if(table.phase==room::TablePhase::Closed)status="Table closed";
+  else if(table.phase==room::TablePhase::Closed)status=loc::T("room.table_closed");
  }
  if(ImGui::GetTime()>=noticeUntil_)notice_.clear();
  if(error_!=lastError_){lastError_=error_;errorSince_=ImGui::GetTime();}
@@ -230,15 +246,15 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // vanish because a preference write happens to be in flight. Save failures
  // still win below.
  if(!notice_.empty()&&!saveFailed_){status=notice_;statusTone=noticeTone_;}
- if(v.controllerUnavailable){status="Controller disconnected. Reconnect or assign explicitly.";statusTone=Tone::Error;}
+ if(v.controllerUnavailable){status=loc::T("controller.disconnected");statusTone=Tone::Error;}
  if(!v.session.error.empty()){status=v.session.error;statusTone=Tone::Error;}
  if(!v.error.empty()){status=v.error;statusTone=Tone::Error;}
  if(!error_.empty()){status=error_;statusTone=Tone::Error;}
+ if(!languageSaveError_.empty()){status=languageSaveError_;statusTone=Tone::Error;}
  const bool roomScreen=screen.compare(0,4,"room")==0;
  if(roomScreen&&v.session.recovery!=Recovery::None){
   status=!v.session.error.empty()?v.session.error:
-   v.session.recovery==Recovery::ReplacementOffered?"Room control is unavailable. Replace the room when no match is active.":
-   "Room control is recovering. Room actions are paused.";
+   v.session.recovery==Recovery::ReplacementOffered?loc::T("room.control_unavailable"):loc::T("room.control_recovering");
   statusTone=v.session.error.empty()?Tone::Pending:Tone::Error;
  }
  const auto& selectedTable=v.room.tables[selectedTable_];const auto tablePhase=selectedTable.phase;
@@ -273,8 +289,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  };
  GameMenu::Body board;
  if(screen=="interface")profilePreview=[&](const std::string&){
-  ImGui::TextUnformatted("Preview");
-  MatchStripView preview;preview.names[0]="Player One";preview.names[1]="Player Two";
+  ImGui::TextUnformatted(loc::T("settings.preview"));
+  MatchStripView preview;preview.names[0]=loc::T("settings.player_one");preview.names[1]=loc::T("settings.player_two");
   preview.pingMs=68;preview.rollbackFrames=2;preview.appliedDelay=3;
   preview.size=preferences_.matchHudSize;preview.raised=preferences_.matchHudRaised;
   DrawMatchStripPreview(preview);
@@ -288,7 +304,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // grows can never displace the list under a highlight or a mouse click.
  // Home renders its status in the small-print line below the list instead.
  const bool stableFeedback=screen!="home";
- auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,100,stableFeedback,statusTone);
+ auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,100,stableFeedback,statusTone,screen=="home");
  if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){
   ShellAction r;r.command.generation=v.session.generation;r.inputAction=input::Action::Cancel;submit(std::move(r));
  }else if(a.kind==MenuAction::Close||a.id=="return"){if(open)*open=false;
@@ -300,9 +316,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
   else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
   else if(a.id=="offline"||a.id=="controls")Send(CommandKind::StartOffline,v,submit);
-  else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_="Invitation is empty or too long.";}
+  else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
   else if(a.id=="capture"||a.id=="keyboard"){ShellAction r;r.command.generation=v.session.generation;r.inputAction=a.id=="capture"?input::Action::BeginCapture:input::Action::UseKeyboard;submit(std::move(r));}
-  else if(a.id=="invite-cancel"||a.id=="invite-switch"){ShellAction r;r.command.generation=v.session.generation;r.discordRevision=v.discordRevision;r.discordAction=a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch;if(!submit(std::move(r)))error_="Invitation changed. Try again.";}
+  else if(a.id=="invite-cancel"||a.id=="invite-switch"){ShellAction r;r.command.generation=v.session.generation;r.discordRevision=v.discordRevision;r.discordAction=a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch;if(!submit(std::move(r)))error_=loc::T("error.invitation_changed");}
   else if(a.id=="retry-save"){saveFailed_=false;retrySave_=true;preferencesDirty_=true;saveAt_=0;error_.clear();}
   else if(a.id=="diagnostics")Service(platform::ServiceAction::ExportDiagnostics,v,submit);
   else if(a.id=="updates")Service(platform::ServiceAction::CheckUpdates,v,submit);
@@ -312,6 +328,13 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }else if(a.kind==MenuAction::Adjust||a.kind==MenuAction::TextAccepted){
   if(screen.compare(0,4,"room")==0)RoomAction(a,v,submit);
   else if(a.id=="invite-text")std::snprintf(invitation_,sizeof(invitation_),"%s",a.text.c_str());
+  else if(a.id=="language"){
+   // Not a netplay preference: it lives in the UI preferences file and saves on
+   // its own deadline, so it stays out of the validate-and-save tail below.
+   languagePreference_=std::string(loc::NextPreference(languagePreference_,a.delta));
+   loc::SetActive(loc::ResolveLocale(languagePreference_,platform::WindowsUiLanguages()));
+   languageDirty_=true;languageSaveError_.clear();languageSaveAt_=ImGui::GetTime()+.45;
+  }
   else{
    auto prior=preferences_;
    if(a.id=="name")preferences_.displayName=a.text;else if(a.id=="room-name")preferences_.roomName=a.text;
@@ -322,7 +345,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
    else if(a.id=="hud")preferences_.showMatchHud=a.delta>0;else if(a.id=="presence")preferences_.discordPresence=a.delta>0;
    else if(a.id=="invites")preferences_.discordInvites=a.delta>0;else AdjustRule(preferences_.tableRules,a);
-   if(!preferences_.Valid()){preferences_=prior;error_="That value is invalid. Your saved setting is unchanged.";}
+   if(!preferences_.Valid()){preferences_=prior;error_=loc::T("error.invalid_value");}
    else{preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();}
   }
  }

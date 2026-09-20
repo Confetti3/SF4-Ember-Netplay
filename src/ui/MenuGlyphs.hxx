@@ -1,6 +1,7 @@
 #pragma once
 #include "Theme.hxx"
 #include "SelectionArt.hxx"
+#include "../common/Localization.hxx"
 #include <cstring>
 
 namespace sf4e { namespace ui {
@@ -30,14 +31,20 @@ inline const char* PromptAsset(const char* glyph) {
     if(!std::strcmp(glyph,"horizontal"))return "xbox_dpad_horizontal";
     return "generic_button_circle_fill";
 }
-inline float MenuLegend(float width,const char* select,const char* back,bool draw,bool adjustable,SelectionArt* art,float scale=0,const char* primary="Select") {
+inline float MenuLegend(float width,const char* select,const char* back,bool draw,bool adjustable,SelectionArt* art,float scale=0,const char* primary=loc::T("menu.select")) {
     const bool keyboard=!std::strcmp(select,"Enter");
     const char* glyphs[]={keyboard?"arrows":"dpad",select,back,keyboard?"keys-horizontal":"horizontal"};
     const std::string action=std::string(!std::strcmp(select,"LP")?"LP ":"")+(primary?primary:"");
-    const char* labels[]={"Navigate",action.c_str(),!std::strcmp(back,"LK")?"LK Back":"Back","Adjust"};
-    const float s=scale>0?scale:Scale(),height=38*s,size=32*s,font=16*s;
+    const std::string backLabel=!std::strcmp(back,"LK")?std::string("LK ")+loc::T("common.back"):loc::T("common.back");
+    const char* labels[]={loc::T("menu.navigate"),action.c_str(),backLabel.c_str(),loc::T("menu.adjust")};
+    const float s=scale>0?scale:Scale(),height=38*s,size=32*s;
+    const int count=adjustable?4:3;
+    float measuredLabels=0;int visible=0;
+    for(int i=0;i<count;++i)if(i!=1||primary){measuredLabels+=ImGui::GetFont()->CalcTextSizeA(16*s,FLT_MAX,0,labels[i]).x;++visible;}
+    const float fixed=visible*(size+32*s);
+    const float font=(std::max)(11*s,(std::min)(16*s,16*s*(std::max)(1.f,width-fixed)/(std::max)(1.f,measuredLabels)));
     float x=0,y=0;const auto start=ImGui::GetCursorScreenPos();
-    for(int i=0;i<(adjustable?4:3);++i){
+    for(int i=0;i<count;++i){
         if(i==1&&!primary)continue;
         const float w=size+8*s+ImGui::GetFont()->CalcTextSizeA(font,FLT_MAX,0,labels[i]).x+24*s;
         if(x&&x+w>width){x=0;y+=height;}

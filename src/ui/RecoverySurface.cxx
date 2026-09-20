@@ -2,6 +2,7 @@
 #include "RecoveryMenu.hxx"
 #include "SelectionArt.hxx"
 #include "Theme.hxx"
+#include "../common/Localization.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include <windows.h>
 #include <shobjidl.h>
@@ -13,6 +14,14 @@
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 namespace sf4e { namespace ui {
 namespace {
+std::wstring Utf8ToWide(const char* value) {
+    if (!value) return {};
+    const int length=MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,value,-1,nullptr,0);
+    if(length<=1)return {};
+    std::wstring result(static_cast<std::size_t>(length),L'\0');
+    if(!MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,value,-1,&result[0],length))return {};
+    result.pop_back();return result;
+}
 LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM w, LPARAM l) {
     if (ImGui::GetCurrentContext()) {
         const auto handled = ImGui_ImplWin32_WndProcHandler(window, message, w, l);
@@ -25,7 +34,8 @@ bool ChooseDirectory(HWND owner, std::wstring& path) {
     IFileOpenDialog* dialog = nullptr;
     if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog)))) return false;
     dialog->SetOptions(FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST);
-    dialog->SetTitle(L"Select the folder containing SSFIV.exe");
+    const auto title=Utf8ToWide(loc::T("recovery.choose_folder_title"));
+    dialog->SetTitle(title.c_str());
     bool selected = false;
     if (SUCCEEDED(dialog->Show(owner))) {
         IShellItem* item = nullptr;
@@ -51,7 +61,9 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates)
     params.hDeviceWindow = window; params.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
     if (!window || !d3d || FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window,
         D3DCREATE_SOFTWARE_VERTEXPROCESSING, &params, &device))) {
-        MessageBoxW(window, L"The recovery interface could not initialize Direct3D 9. See %APPDATA%\\sf4e\\logs\\launcher.log.", L"SF4 Ember Netplay", MB_ICONERROR);
+        const auto text=Utf8ToWide(loc::T("recovery.d3d_failed"));
+        const auto title=Utf8ToWide(loc::T("app.name"));
+        MessageBoxW(window, text.c_str(), title.c_str(), MB_ICONERROR);
         if (d3d) d3d->Release(); if (window) DestroyWindow(window); if (SUCCEEDED(com)) CoUninitialize(); return false;
     }
     ImGui::CreateContext(); auto& io = ImGui::GetIO(); io.IniFilename = nullptr;
@@ -93,7 +105,7 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates)
         switch(DrawRecoveryMenu(menu,state,message,updates)) {
         case RecoveryChoice::Folder:
             if(ChooseDirectory(window,gameDirectory))message=std::filesystem::exists(std::filesystem::path(gameDirectory)/L"SSFIV.exe")?
-                "Game folder selected. Retry when ready.":"That folder does not contain SSFIV.exe.";
+                loc::T("recovery.folder_selected"):loc::T("recovery.folder_invalid");
             break;
         case RecoveryChoice::Retry:retry=true;quit=true;break;
         case RecoveryChoice::CheckUpdates:services.Request(platform::ServiceAction::CheckUpdates);break;

@@ -2,6 +2,7 @@
 #include "github_release_client.hxx"
 
 #include "../../common/install_paths.hxx"
+#include "../../common/Localization.hxx"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -921,7 +922,7 @@ static const auto& kAllowedPackagePaths = sf4e::package::Allowed;
 		char body[65536] = { 0 };
 		const char* headers = "Accept: application/vnd.github+json\r\nUser-Agent: sf4e-updater/1.0\r\n";
 		if (!HttpGetUtf8WithHeaders("api.github.com", 443, true, path, 15000, headers, body, sizeof(body))) {
-			result.error = "Could not reach GitHub. Check your internet connection and try again.";
+			result.error = loc::T("update.github_unreachable");
 			return result;
 		}
 
@@ -943,7 +944,7 @@ static const auto& kAllowedPackagePaths = sf4e::package::Allowed;
 			}
 
 			if (result.latestVersion.empty()) {
-				result.error = "GitHub release has no version tag.";
+				result.error = loc::T("update.no_version_tag");
 				return result;
 			}
 
@@ -976,7 +977,7 @@ static const auto& kAllowedPackagePaths = sf4e::package::Allowed;
 			}
 
 			if (result.zipDownloadUrl.empty()) {
-				result.error = "Latest release has no SF4 Ember Netplay ZIP asset.";
+				result.error = loc::T("update.no_zip_asset");
 				return result;
 			}
 
@@ -984,7 +985,7 @@ static const auto& kAllowedPackagePaths = sf4e::package::Allowed;
 			result.ok = true;
 		}
 		catch (...) {
-			result.error = "Could not parse GitHub release response.";
+			result.error = loc::T("update.parse_failed");
 		}
 		return result;
 	}
@@ -998,21 +999,21 @@ static const auto& kAllowedPackagePaths = sf4e::package::Allowed;
 	) {
 		ApplyUpdateResult result;
 		if ((!zipDownloadUrl || !zipDownloadUrl[0]) && (!zipApiUrl || !zipApiUrl[0])) {
-			result.error = "Missing download URL.";
+			result.error = loc::T("update.missing_url");
 			return result;
 		}
 		if (!latestVersionTag || !latestVersionTag[0]) {
-			result.error = "Missing version tag.";
+			result.error = loc::T("update.missing_version");
 			return result;
 		}
 		if (IsGameProcessRunning()) {
-			result.error = "Close Ultra Street Fighter IV before installing an update.";
+			result.error = loc::T("update.close_sf4");
 			return result;
 		}
 
 		wchar_t installDir[MAX_PATH] = { 0 };
 		if (!GetLauncherInstallDir(installDir, MAX_PATH)) {
-			result.error = "Could not determine install directory.";
+			result.error = loc::T("update.install_dir_failed");
 			return result;
 		}
 
@@ -1022,7 +1023,7 @@ static const auto& kAllowedPackagePaths = sf4e::package::Allowed;
 		wchar_t tempRoot[MAX_PATH] = { 0 };
 		std::string tempPathError;
 		if (!BuildUpdateTempRoot(safeTag, tempRoot, MAX_PATH, tempPathError)) {
-			result.error = "Could not build update temp path (" + tempPathError + ").";
+			result.error = loc::Tf("update.temp_path_failed", tempPathError);
 			return result;
 		}
 
@@ -1032,13 +1033,13 @@ static const auto& kAllowedPackagePaths = sf4e::package::Allowed;
 
 		if (!EnsureDirectoryExistsW(tempRoot, tempPathError)) {
 			AppendUpdateLog(("update temp mkdir failed: " + tempPathError).c_str());
-			result.error = "Could not create update temp folder (" + tempPathError + ").";
+			result.error = loc::Tf("update.temp_folder_failed", tempPathError);
 			return result;
 		}
 
 		wchar_t tempBase[MAX_PATH] = { 0 };
 		if (GetTempPathW(MAX_PATH, tempBase) == 0) {
-			result.error = "Could not access temp directory.";
+			result.error = loc::T("update.temp_access_failed");
 			return result;
 		}
 
@@ -1046,7 +1047,7 @@ static const auto& kAllowedPackagePaths = sf4e::package::Allowed;
 		wchar_t zipName[128] = { 0 };
 		swprintf_s(zipName, L"sf4-netplay-update-package-%hs.zip", safeTag);
 		if (FAILED(PathCchCombine(zipPath, MAX_PATH, tempBase, zipName))) {
-			result.error = "Could not build update zip path.";
+			result.error = loc::T("update.zip_path_failed");
 			return result;
 		}
 
@@ -1058,7 +1059,7 @@ static const auto& kAllowedPackagePaths = sf4e::package::Allowed;
 		PathCchCombine(extractDir, MAX_PATH, tempRoot, L"extract");
 		if (!EnsureDirectoryExistsW(extractDir, tempPathError)) {
 			AppendUpdateLog(("update extract mkdir failed: " + tempPathError).c_str());
-			result.error = "Could not create update extract folder (" + tempPathError + ").";
+			result.error = loc::Tf("update.extract_folder_failed", tempPathError);
 			return result;
 		}
 
@@ -1075,9 +1076,7 @@ static const auto& kAllowedPackagePaths = sf4e::package::Allowed;
 				repo,
 				latestVersionTag
 			);
-			result.error =
-				"Download failed (" + downloadError + "). Manual download: " + releasePage +
-				" — details in %TEMP%\\sf4-netplay-update.log";
+			result.error = loc::Tf("update.download_failed", downloadError, releasePage);
 			return result;
 		}
 
@@ -1091,32 +1090,29 @@ static const auto& kAllowedPackagePaths = sf4e::package::Allowed;
 			std::string actualHash;
 			if (!ComputeFileSha256Hex(zipPath, actualHash)) {
 				AppendUpdateLog("hash computation failed");
-				result.error = "Could not verify the update download. Try again.";
+				result.error = loc::T("update.verify_failed");
 				return result;
 			}
 			if (!HexEqualsIgnoreCase(actualHash, expectedHash)) {
 				AppendUpdateLog(("hash mismatch expected=" + expectedHash + " actual=" + actualHash).c_str());
-				result.error =
-					"The update download failed its integrity check and was not installed. "
-					"This can happen if the download was corrupted; try again, or download "
-					"the release manually from GitHub.";
+				result.error = loc::T("update.integrity_failed");
 				return result;
 			}
 			AppendUpdateLog("hash verification ok");
 		} else {
-			result.error = "The release has no published SHA-256 digest. Automatic installation is unavailable."; return result;
+			result.error = loc::T("update.no_digest"); return result;
 		}
 
 		if (!ExpandZipArchive(zipPath, extractDir)) {
 			AppendUpdateLog("extract failed");
-			result.error = "Could not extract update package.";
+			result.error = loc::T("update.extract_failed");
 			return result;
 		}
 		AppendUpdateLog("extract ok");
 
 		if (!ValidateExtractedTree(extractDir)) {
 			AppendUpdateLog("extract path validation failed");
-			result.error = "Downloaded package contains invalid paths.";
+			result.error = loc::T("update.invalid_paths");
 			return result;
 		}
 		AppendUpdateLog("extract path validation ok");
@@ -1124,27 +1120,27 @@ static const auto& kAllowedPackagePaths = sf4e::package::Allowed;
 		wchar_t stagingDir[MAX_PATH] = { 0 };
 		if (!FindPackageRoot(extractDir, stagingDir, MAX_PATH)) {
 			AppendUpdateLog("package root not found after extract");
-			result.error = "Downloaded package is missing Launcher.exe or Sidecar.dll.";
+			result.error = loc::T("update.missing_binaries");
 			return result;
 		}
 
 		char stagingUtf8[MAX_PATH * 2] = { 0 };
 		if (!WideToUtf8(stagingDir, stagingUtf8, sizeof(stagingUtf8))) {
-			result.error = "Could not read staging path.";
+			result.error = loc::T("update.staging_path_failed");
 			return result;
 		}
 		AppendUpdateLog(("staging dir: " + std::string(stagingUtf8)).c_str());
 		if (!ValidateStagedPackage(stagingDir)) {
 			AppendUpdateLog("package validation failed");
-			result.error = "Downloaded package failed validation (missing required files).";
+			result.error = loc::T("update.validation_failed");
 			return result;
 		}
 		AppendUpdateLog("package validation ok");
 
-        if (progress && !progress(0,0)) { result.error = "Update cancelled before installation."; return result; }
-        if (IsGameProcessRunning()) { result.error = "Close the game before installing the update."; return result; }
+        if (progress && !progress(0,0)) { result.error = loc::T("update.cancelled"); return result; }
+        if (IsGameProcessRunning()) { result.error = loc::T("update.close_game"); return result; }
         if (!SpawnUpdater(installDir, stagingDir, GetCurrentProcessId())) {
-			result.error = "Could not start Updater.exe. Reinstall from a fresh zip.";
+			result.error = loc::T("update.updater_start_failed");
 			return result;
 		}
 

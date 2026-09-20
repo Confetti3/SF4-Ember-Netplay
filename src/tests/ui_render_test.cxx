@@ -4,6 +4,7 @@
 #include "../ui/TrainingPanel.hxx"
 #include "../ui/FighterSelector.hxx"
 #include "../ui/RecoveryMenu.hxx"
+#include "../common/Localization.hxx"
 #include "../common/StageCatalog.hxx"
 #include <imgui_internal.h>
 #include <imgui_impl_dx9.h>
@@ -251,6 +252,13 @@ int main(int argc, char** argv) {
             if(width>available+.5f)throw std::runtime_error(std::string("Menu label overflows horizontally: ")+id);
         });
 
+        struct LocalePass { const char* name; int locale; };
+        const LocalePass localePasses[]={{"en",0},{"pt-BR",1},{"es-419",2},{"pseudo",3}};
+        for(const auto localePass:localePasses) {
+          if(localePass.locale==0)sf4e::loc::SetActive(sf4e::loc::Locale::En);
+          else if(localePass.locale==1)sf4e::loc::SetActive(sf4e::loc::Locale::PtBR);
+          else if(localePass.locale==2)sf4e::loc::SetActive(sf4e::loc::Locale::Es419);
+          else sf4e::loc::testing::SetPseudoActive();
         for(const auto size:sizes) {
             using namespace sf4e;using namespace ui;
             std::printf("UI viewport %dx%d at %.0f%% DPI\n",size.w,size.h,size.dpi*100);std::fflush(stdout);
@@ -301,11 +309,11 @@ int main(int argc, char** argv) {
                             vertex.pos.y>=0&&vertex.pos.y<=size.h,"Match HUD escaped safe viewport bounds");
                     }
                     if((mode==0||mode==4)&&i==settle-1&&settle>=3){
-                        const auto* root=FindWindow(mode==0?"EmberShell":"Ember recovery");
+                        const auto* root=FindWindow(mode==0?"EmberShell":"###EmberRecovery");
                         if(root->ScrollMax.y>=1)throw std::runtime_error(std::string("Player menu footer escaped on ")+(mode==0?shell.Navigation().Screen():"recovery")+" by "+std::to_string(root->ScrollMax.y)+" pixels");
                     }
                     if(mode==1){
-                        auto* flyout=FindWindow("Training controls");
+                        auto* flyout=FindWindow("###TrainingControls");
                         Require(flyout->Size.x<=size.w*.8f+1&&flyout->Size.y<=size.h*.8f+1,"Training flyout covers too much game");
                         Require(std::abs(flyout->Pos.x*2+flyout->Size.x-size.w)<=2&&std::abs(flyout->Pos.y*2+flyout->Size.y-size.h)<=2,"Training flyout is not centered");
                         Require(flyout->ScrollMax.y<1,"Training footer displaced by overflowing content");
@@ -335,7 +343,7 @@ int main(int argc, char** argv) {
                             ((std::string(shot)=="table-delay-checking" || std::string(shot)=="table-delay-retry" ||
                               std::string(shot)=="table-recover-updating" || std::string(shot)=="table-recover-leaving") &&
                              ((size.w==1280&&size.dpi==1) || (size.w==1920&&size.dpi==1.5f) || size.w==640))))
-                        renderer.Capture(output+shot+"-"+std::to_string(size.w)+"-"+std::to_string(static_cast<int>(size.dpi*100))+".bmp",size.w,size.h);
+                        renderer.Capture(output+shot+"-"+localePass.name+"-"+std::to_string(size.w)+"-"+std::to_string(static_cast<int>(size.dpi*100))+".bmp",size.w,size.h);
                 }
             };
             const auto page=[&](const char* screen){shell.Navigation().Home();if(std::string(screen)!="home")shell.Navigation().Push(screen);draw(screen);};
@@ -512,7 +520,7 @@ int main(int argc, char** argv) {
             for(int i=0;i<64&&shell.Navigation().Focus()!="leave";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             draw(nullptr,MenuInput::Select,1);draw("leave-confirmation");
             Require(shell.Navigation().Confirming()&&!shell.Navigation().ConfirmSelected(),"Leave confirmation not safe");
-            auto* confirmation=FindWindow("Confirm action");
+            auto* confirmation=FindWindow("###ConfirmAction");
             Require(confirmation&&confirmation->Size.x>(std::min)(300*size.dpi,size.w*.5f)&&confirmation->Size.x<size.w&&confirmation->Size.y<size.h,"Confirmation geometry unusable");
             draw(nullptr,MenuInput::Back,1);draw();
             view.discordPending=view.discordConfirm=view.discordCanSwitch=true;view.discordRevision=3;draw("discord-invitation");
@@ -561,11 +569,11 @@ int main(int argc, char** argv) {
                 strip.notice="Connection restored.";strip.noticeSeverity=0;
                 Require(MatchStripStateLine(strip)=="Connection restored.","Info notice not shown on the match HUD");
                 strip.connectionWarning=true;strip.disconnectCountdownMs=2100;
-                Require(MatchStripStateLine(strip)=="Connection unstable. Opponent dropped in 3 s","Connection warning countdown missing or wrong rounding");
+                Require(MatchStripStateLine(strip)==sf4e::loc::Tf("match.connection_countdown",3),"Connection warning countdown missing or wrong rounding");
                 strip.disconnectCountdownMs=-1;
-                Require(MatchStripStateLine(strip)=="Connection unstable","Connection warning without a countdown");
+                Require(MatchStripStateLine(strip)==sf4e::loc::T("match.connection_unstable"),"Connection warning without a countdown");
                 strip.predictionStalled=true;
-                Require(MatchStripStateLine(strip)=="Waiting for opponent...","A prediction stall must be named on the match HUD");
+                Require(MatchStripStateLine(strip)==sf4e::loc::T("match.waiting_opponent"),"A prediction stall must be named on the match HUD");
                 strip.notice="Opponent disconnected. The match is over.";strip.noticeSeverity=2;
                 Require(MatchStripStateLine(strip)=="Opponent disconnected. The match is over.","An error notice must outrank the stall and warning lines");
                 strip.pingMs=68;strip.rollbackFrames=7;strip.appliedDelay=2;
@@ -604,7 +612,9 @@ int main(int argc, char** argv) {
             ImGui_ImplDX9_InvalidateDeviceObjects();renderer.Resize(size.w,size.h);draw();
             ImGui_ImplDX9_Shutdown();ImGui::DestroyContext();
         }
-        std::printf("Controller-first UI render checks passed: %d DX9 frames across ten viewport/DPI configurations.\n",frames);
+        }
+        sf4e::loc::SetActive(sf4e::loc::Locale::En);
+        std::printf("Localized controller-first UI render checks passed: %d DX9 frames across forty locale/viewport/DPI configurations.\n",frames);
         return 0;
     }catch(const std::exception& error){std::fprintf(stderr,"UI render check failed: %s\n",error.what());return 1;}
 }

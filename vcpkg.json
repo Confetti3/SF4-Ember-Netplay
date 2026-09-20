@@ -14,6 +14,7 @@
       "name": "ggpo",
       "version>=": "1.0.0#5"
     },
+    "fmt",
     {
       "name": "imgui",
       "version>=": "1.91.5",

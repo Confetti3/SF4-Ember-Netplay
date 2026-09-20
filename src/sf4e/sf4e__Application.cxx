@@ -21,6 +21,9 @@
 #include "../common/EnvFlag.hxx"
 #include "../common/SessionTrace.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
+#include "../common/Localization.hxx"
+#include "../platform/LocaleWindows.hxx"
+#include "../platform/UiPreferencesStore.hxx"
 #include <algorithm>
 #include <mutex>
 #include <optional>
@@ -67,7 +70,7 @@ struct Runtime {
     std::optional<TraceFields> lastTraceFields;
     std::unique_ptr<platform::HelperClient> discordClient;
     discord::PendingInvite discordInvite;
-    std::string discordStatus = "Discord integration is unavailable in this build.";
+    std::string discordStatus = loc::T("discord.unavailable_build");
     std::string discordPublished;
     ULONGLONG discordLastPublish = 0;
     std::array<std::uint64_t,8> discordPresenceKey{};
@@ -146,6 +149,7 @@ struct Runtime {
 	// Replaced whole on each publish, never mutated, so readers share it.
 	std::shared_ptr<const RuntimeSnapshot> snapshot = std::make_shared<const RuntimeSnapshot>();
 	std::string displayName;
+	std::string languagePreference = "auto";
 	std::string error;
 	bool ready = false;
 	bool eventSystemReady = false;
@@ -353,6 +357,7 @@ PostPublishState Publish() {
 	snapshot.canReplaceRoom = CanBeginReplacement();
 	snapshot.displayName = runtime->displayName;
 	snapshot.preferences = runtime->preferences;
+	snapshot.languagePreference = runtime->languagePreference;
 	snapshot.lobbySettings = runtime->preferences.lobby;
 	snapshot.canEditPreferences = snapshot.atMainMenu && snapshot.session.room == netplay::RoomState::Idle &&
 		!UserApp::netplay && !UserApp::server && !Game::Battle::System::ggpo;
@@ -657,6 +662,8 @@ void ConfigureDiscord(const platform::HelperBootstrap& bootstrap) { pendingDisco
 void StartHelper() {
 	if (runtime) return;
 	runtime = new Runtime();
+    runtime->languagePreference = platform::LoadLanguagePreference();
+    loc::SetActive(loc::ResolveLocale(runtime->languagePreference, platform::WindowsUiLanguages()));
     runtime->trace.Open(netplay::SettingsStore::DefaultDirectory());
 	runtime->displayName = GetConfig().displayName;
 	if (runtime->displayName.empty()) runtime->displayName = "Player";
@@ -665,7 +672,7 @@ void StartHelper() {
     netplay::SettingsStore store(netplay::SettingsStore::DefaultDirectory());
     if (store.LoadLauncher(saved, settingsError)) {
         if(saved.contains("onlineRecord")&&!netplay::ReadProfileRecord(saved["onlineRecord"],runtime->preferences.record))
-            runtime->error="The local match record is invalid and has been preserved. Tracking is unavailable.";
+            runtime->error=loc::T("runtime.record_invalid");
         try {
             runtime->preferences.showMatchHud = saved.value("showMatchHud", true);
             const int hudSize = saved.value("matchHudSize", 1);
@@ -677,7 +684,7 @@ void StartHelper() {
             runtime->preferences.mainFighter=main>=0&&main<sf4e::selection::FighterCount?main:0;
             const float scale = saved.value("interfaceScale", 1.f);
             runtime->preferences.interfaceScale = scale >= 1.f && scale <= 1.5f ? scale : 1.f;
-        } catch (...) { runtime->error = "Interface preferences could not be read; defaults are in use."; }
+        } catch (...) { runtime->error = loc::T("runtime.interface_preferences_failed"); }
     }
     runtime->offlineRequested = EnvFlag("SF4E_START_OFFLINE");
 	runtime->preferences.inputDelay = GetConfig().inputDelay;
@@ -692,19 +699,19 @@ void StartHelper() {
 		netplay::SettingsStore settings(netplay::SettingsStore::DefaultDirectory());
 		if (!settings.LoadLauncher(saved, error)) runtime->error = error;
 		else if (!netplay::ReadRoomPreferences(saved, runtime->preferences))
-			runtime->error = "Saved room defaults are invalid. The original settings have been preserved.";
+			runtime->error = loc::T("runtime.room_defaults_invalid");
 	}
 	if (pendingBootstrap.helperPid) {
 		runtime->helper.reset(new platform::HelperClient());
 		if (runtime->helper->Start(pendingBootstrap)) {
 			runtime->room = std::make_shared<session::IrohRoom>(*runtime->helper);
-		} else runtime->error = "Networking could not start. Offline is available.";
+		} else runtime->error = loc::T("runtime.network_start_failed");
 	} else {
-		runtime->error = "Networking helper is unavailable (error " + std::to_string(pendingError) + "). Offline is available.";
+		runtime->error = loc::Tf("runtime.network_helper_unavailable",pendingError);
 	}
     if (pendingDiscord.helperPid) {
         runtime->discordClient.reset(new platform::HelperClient());
-        runtime->discordStatus = runtime->discordClient->Start(pendingDiscord) ? "Connecting to Discord..." : "Discord unavailable. Gameplay is unaffected.";
+        runtime->discordStatus = loc::T(runtime->discordClient->Start(pendingDiscord)?"discord.connecting":"discord.unavailable_gameplay_ok");
     }
     SecureZeroMemory(&pendingDiscord, sizeof(pendingDiscord));
 	SecureZeroMemory(pendingBootstrap.nonce, sizeof(pendingBootstrap.nonce));
@@ -781,12 +788,12 @@ bool BindRuntimeInput(int localSlot) {
     if (!runtime || !UserApp::netplay) return false;
     // Refresh connectivity just before native slot binding; never fall back to keyboard.
     runtime->input.Tick(input::ReadDevices());
-    if (!runtime->input.Ready()) { runtime->error = "Gameplay device disconnected. Reconnect it before the next match."; return false; }
+    if (!runtime->input.Ready()) { runtime->error = loc::T("runtime.gameplay_device_disconnected"); return false; }
     const auto& device = runtime->input.Selected();
     UserApp::netplay->deviceIdx = static_cast<uint8_t>(device.index);
     UserApp::netplay->deviceType = static_cast<uint8_t>(device.type);
     if(!input::AssignToSide(device, localSlot, true)) {
-        runtime->error="Could not verify the controller's match-side assignment. Reassign it before trying again.";return false;
+        runtime->error=loc::T("runtime.controller_assignment_unverified");return false;
     }
     runtime->matchInput=device;runtime->matchInputSide=localSlot;runtime->matchInputFault=false;
     return true;
@@ -946,14 +953,14 @@ void TickRuntime() {
             bool recovered=true;
             if (UserApp::server) { diag::ScopedTimer timer(diag::OP_ROOM_RECOVERY_TICK); recovered=runtime->recovery.Tick(*UserApp::server,*runtime->room); }
             if (!recovered)
-                runtime->error="Room recovery state could not be applied. Recovery remains paused.";
+                runtime->error=loc::T("runtime.recovery_state_failed");
             const auto appliedAuthority=runtime->room->Coordination();
             const bool connected=appliedAuthority.writable && appliedAuthority.rebound;
             const bool applied=!UserApp::server || runtime->recovery.CaughtUp(appliedAuthority);
             runtime->controller.ObserveCoordination(appliedAuthority.term,appliedAuthority.revision,
                 connected,GetTickCount64(),applied);
             if(connected) RestoreControlPlane();
-            else if(runtime->attached) HandleControlPlaneLoss("Room control is recovering.");
+            else if(runtime->attached) HandleControlPlaneLoss(loc::T("runtime.room_control_recovering"));
         }
         runtime->controller.AdvanceRecovery(GetTickCount64());
     }
@@ -964,22 +971,22 @@ void TickRuntime() {
                 const auto event=nlohmann::json::parse(message.payload);
                 if (event.at("type")=="status") {
                     runtime->discordStatus=event.value("available",false) ?
-                        (event.value("registered",false) ? "Discord connected" : "Discord connected; launch registration failed.") :
-                        "Discord unavailable. Open the Discord desktop app to share activity.";
+                        loc::T(event.value("registered",false)?"discord.connected":"discord.registration_failed") :
+                        loc::T("discord.open_desktop");
                 } else if (event.at("type")=="join") {
                     const auto state=runtime->controller.GetSnapshot();
                     if (event.at("epoch").get<std::uint64_t>() != state.generation.room) continue;
                     const auto secret=event.at("secret").get<std::string>();
                     std::string party; std::uint64_t expires=0;
-                    if (!discord::TicketMetadata(secret,party,expires)) { runtime->error="Invalid Discord invitation."; continue; }
+                    if (!discord::TicketMetadata(secret,party,expires)) { runtime->error=loc::T("discord.invitation_invalid"); continue; }
                     runtime->discordInvite.Offer(secret,party,expires,event.at("sequence").get<std::uint64_t>(),
                         state.generation.room,state.room!=netplay::RoomState::Idle || runtime->offlineRequested ||
                             (runtime->eventSystemReady && !AtMainMenu()));
                 }
-            } catch (...) { runtime->discordStatus="Discord sent an invalid local event."; }
+            } catch (...) { runtime->discordStatus=loc::T("discord.invalid_event"); }
         }
         if (runtime->discordClient->State()==platform::HelperState::Failed) {
-            runtime->discordStatus="Discord companion stopped. Gameplay is unaffected.";
+            runtime->discordStatus=loc::T("discord.companion_stopped");
         }
     }
 	// Legacy error/teardown hooks can retire the client between owner ticks.
@@ -993,7 +1000,7 @@ void TickRuntime() {
 	// retirement; the helper's room_closed event still fences a subsequent room.
 	if (runtime->attached && runtime->room &&
 		runtime->room->CloseFailedRoom(Game::Battle::System::ggpo != nullptr)) {
-		runtime->error = "Room connection failed. The room is closing; unconfirmed results will not be recorded.";
+		runtime->error = loc::T("runtime.room_connection_failed");
 		runtime->controller.Execute({netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}});
 		CloseRoom();
 	}
@@ -1094,7 +1101,7 @@ void TickRuntime() {
                 diagnostics.predictionStalls=performance.predictionStalls;
                 diagnostics.predictionSkippedFrames=performance.skipReasons[diag::SKIP_PREDICTION_THRESHOLD];
             }
-            if (!runtime->services.Request(command.service, diagnostics)) runtime->error = "The operation is busy. Try again.";
+            if (!runtime->services.Request(command.service, diagnostics)) runtime->error = loc::T("runtime.operation_busy");
             continue;
         }
 		const auto kind = command.command.kind;
@@ -1105,7 +1112,7 @@ void TickRuntime() {
                 !GetRuntimeSnapshotShared()->discordCanSwitch || Game::Battle::System::ggpo) continue;
             if (runtime->discordInvite.Expired(static_cast<std::uint64_t>(std::time(nullptr)))) {
                 runtime->discordInvite.Cancel();
-                runtime->error="The Discord invitation expired. Ask for a new invitation.";
+                runtime->error=loc::T("discord.invitation_expired");
                 continue;
             }
             if (kind == netplay::CommandKind::JoinInvite && (!runtime->input.Ready() || !helperReady)) continue;
@@ -1126,10 +1133,10 @@ void TickRuntime() {
 					// receives game_peer_end while the generation is still current.
 					if (UserApp::netplay->client.SendRoomAction(command.roomAction) != session::SendResult::Queued) {
 						runtime->pendingRoomAction.reset(new RuntimeCommand(command));
-						runtime->error = "The spectator action could not be sent; retrying.";
+						runtime->error = loc::T("runtime.spectator_action_retrying");
 					} else if (action == room::ActionKind::Unwatch) {
 						CancelDeferredGgpoClose();
-						Game::Battle::System::AbortGgpoMatch("Leaving spectator view.");
+						Game::Battle::System::AbortGgpoMatch(loc::T("runtime.leaving_spectator"));
 						runtime->match->Abort(); runtime->recoveringMatch = true;
 					}
 					continue;
@@ -1137,7 +1144,7 @@ void TickRuntime() {
 				if (runtime->controller.GetSnapshot().match == netplay::MatchState::Playing && !localSpectator) continue;
 				runtime->pendingRoomAction.reset(new RuntimeCommand(command));
 				CancelDeferredGgpoClose();
-				Game::Battle::System::AbortGgpoMatch("Returning to the room.");
+				Game::Battle::System::AbortGgpoMatch(loc::T("runtime.returning_room"));
 				runtime->match->Abort(); runtime->recoveringMatch = true;
 				continue;
 			}
@@ -1203,7 +1210,7 @@ void TickRuntime() {
 		}
 		if ((kind == netplay::CommandKind::HostRoom || kind == netplay::CommandKind::JoinInvite) &&
 			(!helperReady || !AtMainMenu() || UserApp::netplay || UserApp::server || Game::Battle::System::ggpo)) {
-			runtime->error = "Return to the game main menu before opening a room."; continue;
+			runtime->error = loc::T("runtime.return_main_menu"); continue;
 		}
 		if (kind == netplay::CommandKind::ReplaceRoom && !CanBeginReplacement()) continue;
 		{
@@ -1238,7 +1245,7 @@ void TickRuntime() {
 		switch (decision.effect) {
 		case netplay::Effect::SendRoomAction:
 			if (UserApp::netplay->client.SendRoomAction(command.roomAction) != session::SendResult::Queued)
-				runtime->error = "The room action could not be sent. Please try again.";
+				runtime->error = loc::T("runtime.room_action_failed");
 			break;
 		case netplay::Effect::SavePreferences:
             // UI drafts cannot replace the game-thread-owned match record.
@@ -1247,7 +1254,7 @@ void TickRuntime() {
 				runtime->preferences = command.preferences;
 				runtime->displayName = command.preferences.displayName;
 				runtime->error.clear();
-			} else runtime->error = "Preferences could not be queued for saving. Please try again.";
+			} else runtime->error = loc::T("runtime.preferences_queue_failed");
 			break;
 		case netplay::Effect::SetLobbySettings: {
 			const auto& settings = command.preferences.lobby;
@@ -1255,7 +1262,7 @@ void TickRuntime() {
 				{0, static_cast<short>(settings.roundTime)}, false) == session::SendResult::Queued) {
 				runtime->pendingLobbySettings.reset(new netplay::LobbySettings(settings));
 				runtime->lobbySettingsDeadline = GetTickCount64() + 15000;
-			} else runtime->error = "Lobby settings could not be sent.";
+			} else runtime->error = loc::T("runtime.lobby_settings_send_failed");
 			break;
 		}
 		case netplay::Effect::HostRoom:
@@ -1264,7 +1271,7 @@ void TickRuntime() {
                 command.preferences.record=runtime->preferences.record;
 				runtime->preferences = command.preferences;
 				if (!OverlayPrefs::SavePlayerPreferences(runtime->preferences))
-					runtime->error = "Room defaults could not be saved.";
+					runtime->error = loc::T("runtime.room_defaults_save_failed");
 			}
 			runtime->displayName = runtime->preferences.displayName;
 			runtime->error.clear(); runtime->offlineRequested = false;
@@ -1293,7 +1300,7 @@ void TickRuntime() {
             if(runtime->room->Probe().status=="checking") break;
             std::uint64_t revision=0; const auto peer=CurrentProbePeer(revision);
             if(peer.empty() || !runtime->room->RequestProbe(peer,runtime->nextProbeRequest++,revision,command.command.benchmark))
-                runtime->error="Connection check is unavailable. You can still choose a delay and Ready.";
+                runtime->error=loc::T("runtime.connection_check_unavailable");
             else if(runtime->error=="Connection check is unavailable. You can still choose a delay and Ready.")
                 runtime->error.clear();
             break;
@@ -1311,7 +1318,7 @@ void TickRuntime() {
             runtime->selectedDelay=selected;
             UserApp::netplay->client.SetSelectedDelay(selected);
             runtime->preferences.inputDelay=selected;
-            if(!OverlayPrefs::SavePlayerPreferences(runtime->preferences)) runtime->error="Input delay could not be saved.";
+            if(!OverlayPrefs::SavePlayerPreferences(runtime->preferences)) runtime->error=loc::T("runtime.delay_save_failed");
             break;
         }
 		case netplay::Effect::SendReady: {
@@ -1381,7 +1388,7 @@ void TickRuntime() {
 				(event.result != room::MatchResult::Abort && event.result != room::MatchResult::Cancel)) continue;
 			runtime->pendingReady.reset(); runtime->pendingLobbyEdit.reset();
 			CancelDeferredGgpoClose();
-			if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch("This table's game was cancelled. Return to the room to ready again.");
+			if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch(loc::T("runtime.table_game_cancelled"));
 			runtime->match->Abort(); runtime->recoveringMatch = true;
 		}
 	}
@@ -1465,7 +1472,7 @@ void TickRuntime() {
 			runtime->pendingAbort.reset();
 			runtime->pendingAbortDeadline = 0;
 		} else if (runtime->pendingAbortDeadline && GetTickCount64() >= runtime->pendingAbortDeadline) {
-			runtime->error = "The match teardown could not be reported; the room was closed.";
+			runtime->error = loc::T("runtime.teardown_report_failed");
 			runtime->pendingAbort.reset();
 			runtime->pendingAbortDeadline = 0;
 			const auto matchState = runtime->controller.GetSnapshot().match;
@@ -1528,7 +1535,7 @@ void TickRuntime() {
 				// discarded with no trace before; say so and log it.
 				spdlog::warn("Match result: captured outcome invalidated table={} generation={} live_generation={} table_generation={}",
 					capture ? capture->table : -1, capture ? capture->generation : 0, roomView.liveGeneration, roomView.matchGeneration);
-				PushAlert("The result could not be recorded: the table changed before it was confirmed.", NoticeSeverity::Warning);
+				PushAlert(loc::T("runtime.result_not_recorded"), NoticeSeverity::Warning);
 			}
 			if (poll == netplay::MatchResultOutbox::PollResult::Ready) {
 			room::Action action; action.kind = room::ActionKind::RecordResult;
@@ -1553,11 +1560,11 @@ void TickRuntime() {
 		current.editionSelect = lobby.editionSelect; current.roundCount = lobby.roundCount; current.roundTime = lobby.roundTime.integral;
 		if (current == *runtime->pendingLobbySettings) {
 			runtime->preferences.lobby = current;
-			if (!OverlayPrefs::SavePlayerPreferences(runtime->preferences)) runtime->error = "Lobby settings applied, but the defaults could not be saved.";
+			if (!OverlayPrefs::SavePlayerPreferences(runtime->preferences)) runtime->error = loc::T("runtime.lobby_defaults_save_failed");
 			runtime->pendingLobbySettings.reset();
 		} else if (GetTickCount64() >= runtime->lobbySettingsDeadline) {
 			runtime->pendingLobbySettings.reset();
-			runtime->error = "Lobby settings were not accepted. Check readiness and try again.";
+			runtime->error = loc::T("runtime.lobby_settings_rejected");
 		}
 	}
 	if (runtime->match) {
@@ -1567,7 +1574,7 @@ void TickRuntime() {
 			Apply(netplay::EventKind::MatchEnded);
 		}
 		if (runtime->match && !runtime->match->Tick(Game::Battle::System::ggpo != nullptr)) {
-			runtime->error = "The match connection was lost.";
+			runtime->error = loc::T("runtime.match_connection_lost");
 			if (UserApp::netplay && UserApp::netplay->client.GetRoomSnapshot().roomEpoch) {
 				const bool teardownTimedOut = runtime->match->Error() == "match_teardown_timeout";
 				if (!runtime->recoveringMatch) ReportMatchAbort();
@@ -1576,7 +1583,7 @@ void TickRuntime() {
 				if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch(runtime->error.c_str());
 				runtime->match->Abort();
 				if (teardownTimedOut) {
-					runtime->error = "Match teardown timed out; the room was closed.";
+					runtime->error = loc::T("runtime.teardown_timeout");
                     runtime->controller.Execute({netplay::CommandKind::LeaveRoom,
                         runtime->controller.GetSnapshot().generation, {}});
                     CloseRoom();
@@ -1611,7 +1618,7 @@ void TickRuntime() {
 					// Abort). The survivor was never told why, only that GGPO
 					// timed out. Say it once per game.
 					runtime->participantLeftGeneration = runtime->match->Generation();
-					PushAlert("A match participant left the room. The game will end.", NoticeSeverity::Warning);
+					PushAlert(loc::T("runtime.participant_left"), NoticeSeverity::Warning);
 				}
 			}
 		}
@@ -1645,7 +1652,7 @@ void TickRuntime() {
 		GetTickCount64() >= runtime->pendingRoomActionDeadline) {
 		// Say so rather than applying a stale intent or failing silently.
 		runtime->pendingRoomAction.reset(); runtime->pendingRoomActionDeadline = 0;
-		runtime->error = "The room did not catch up in time. Your last action was not applied; try again.";
+		runtime->error = loc::T("runtime.room_catchup_timeout");
 	}
 	if (runtime->pendingReady && !(runtime->pendingReady->command.generation == currentGeneration))
 		{ runtime->pendingReady.reset(); runtime->pendingReadyDeadline = 0; }
@@ -1658,7 +1665,7 @@ void TickRuntime() {
 		FailReady("Your Ready did not go through. The room did not finish the previous match in time. Press Ready again.");
 	if (runtime->pendingLobbyEdit && runtime->pendingLobbyEditDeadline && GetTickCount64() >= runtime->pendingLobbyEditDeadline) {
 		runtime->pendingLobbyEdit.reset(); runtime->pendingLobbyEditDeadline = 0;
-		runtime->error = "The previous match did not finish closing in time. Apply the table settings again.";
+		runtime->error = loc::T("runtime.previous_match_close_timeout");
 	}
 	const auto& controlState = runtime->controller.GetSnapshot();
 	const bool healthyRoomControl = controlState.control == netplay::Health::Healthy &&
@@ -1672,7 +1679,7 @@ void TickRuntime() {
 			runtime->pendingRoomAction.reset(); runtime->pendingRoomActionDeadline = 0;
 			if (action == room::ActionKind::Unwatch) {
 				CancelDeferredGgpoClose();
-				Game::Battle::System::AbortGgpoMatch("Leaving spectator view.");
+				Game::Battle::System::AbortGgpoMatch(loc::T("runtime.leaving_spectator"));
 				runtime->match->Abort(); runtime->recoveringMatch = true;
 			}
 		}
@@ -1723,7 +1730,7 @@ void TickRuntime() {
 	state = runtime->controller.GetSnapshot();
 	if (state.room == netplay::RoomState::Joined && runtime->attached && UserApp::netplay &&
 		UserApp::netplay->client.GetRoomSnapshot().closed) {
-        runtime->error="The room was closed.";
+        runtime->error=loc::T("runtime.room_closed");
         runtime->controller.Execute({netplay::CommandKind::LeaveRoom,state.generation,{}});
         CloseRoom();
     }
@@ -1731,7 +1738,7 @@ void TickRuntime() {
 	if (state.room == netplay::RoomState::Joined && runtime->attached && UserApp::netplay &&
 		UserApp::netplay->client.GetRoomSnapshot().roomEpoch &&
 		!UserApp::netplay->client.GetRoomSnapshot().localMember) {
-        runtime->error="You were removed from the room.";
+        runtime->error=loc::T("runtime.removed_from_room");
         runtime->controller.Execute({netplay::CommandKind::LeaveRoom,state.generation,{}});
         CloseRoom();
     }
@@ -1752,7 +1759,7 @@ void TickRuntime() {
     const auto next=runtime->discordInvite.Tick(static_cast<std::uint64_t>(std::time(nullptr)),
         view.session.generation.room,currentParty,view.discordCanSwitch,
         view.session.room==netplay::RoomState::Idle,view.canOpenRoom);
-    if (next==discord::Next::Expired) runtime->error="The Discord invitation expired. Ask for a new invitation.";
+    if (next==discord::Next::Expired) runtime->error=loc::T("discord.invitation_expired");
     else if (next==discord::Next::Leave || next==discord::Next::Join) {
         RuntimeCommand invite;
         invite.command={next==discord::Next::Leave ? netplay::CommandKind::LeaveRoom : netplay::CommandKind::JoinInvite,

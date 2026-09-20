@@ -27,6 +27,9 @@
 #include "../sidecar/sidecar.hxx"
 #include "../common/sf4e__NetplayConfig.hxx"
 #include "../common/install_paths.hxx"
+#include "../common/Localization.hxx"
+#include "../platform/LocaleWindows.hxx"
+#include "../platform/UiPreferencesStore.hxx"
 #include "netplay/netplay_persist.hxx"
 #include "update/github_release_client.hxx"
 
@@ -424,10 +427,13 @@ int UpdatePath(const wchar_t* const szLauncherDirW, wchar_t* const szErrorString
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     sf4e::install::ConfigureDllSearch(); ConfigureLauncherLogging();
+    const auto languagePreference = sf4e::platform::LoadLanguagePreference();
+    sf4e::loc::SetActive(sf4e::loc::ResolveLocale(languagePreference, sf4e::platform::WindowsUiLanguages()));
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     sf4e::Payload payload{};
     bool offline = false, updates = false, recovery = false, updateError = false, discordLaunch = false;
     DWORD waitPid = 0;
+    std::string localeOverride;
     CLI::App app("SF4 Ember Netplay for Ultra Street Fighter IV", "Launcher");
     app.add_flag("--discord-launch", discordLaunch, "Start Ember for an accepted Discord invitation.");
     app.add_flag("--console", payload.args.bShowConsole, "Show diagnostic logging.");
@@ -436,22 +442,25 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     app.add_flag("--recovery", recovery, "Open launch recovery controls.");
     app.add_flag("--update-error", updateError, "Show updater recovery after an installation failure.");
     app.add_option("--wait-pid", waitPid, "Wait for the current game to exit before opening update controls.");
+    app.add_option("--locale", localeOverride, "Use a language for this launcher run only.");
     int argc = 0; auto** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
     try { app.parse(argc, argv); } catch (const CLI::ParseError& e) { LocalFree(argv); return app.exit(e); }
     LocalFree(argv);
+    if (!localeOverride.empty() && sf4e::loc::ValidPreference(localeOverride))
+        sf4e::loc::SetActive(sf4e::loc::ResolveLocale(localeOverride, sf4e::platform::WindowsUiLanguages()));
     sf4e::platform::LauncherInstance instance;
     std::wstring chosenDirectory;
     if (waitPid) {
         HANDLE oldGame = OpenProcess(SYNCHRONIZE, FALSE, waitPid);
         if (oldGame) { WaitForSingleObject(oldGame, 30000); CloseHandle(oldGame); }
     }
-    if (updates) { sf4e::ui::RunRecovery(updateError ? "The update could not be installed. Close the game and previous launcher before retrying. See %TEMP%\\sf4-netplay-update.log; preserved product copies are in .ember-update-backups." : "", chosenDirectory, true); return 0; }
-    if (recovery && !sf4e::ui::RunRecovery("Launch recovery", chosenDirectory)) return 0;
+    if (updates) { sf4e::ui::RunRecovery(updateError ? sf4e::loc::T("launcher.update_failed") : "", chosenDirectory, true); return 0; }
+    if (recovery && !sf4e::ui::RunRecovery(sf4e::loc::T("launcher.recovery_title"), chosenDirectory)) return 0;
     if (!instance.Acquire()) return 0;
     wchar_t installRoot[MAX_PATH] = {}, dllDirectory[MAX_PATH] = {}, pathError[1024] = {};
     if (!sf4e::install::GetInstallRoot(installRoot, MAX_PATH) || !sf4e::install::GetPackageDllDirectory(dllDirectory, MAX_PATH) ||
         !UpdatePath(dllDirectory, pathError, 1024)) {
-        sf4e::ui::RunRecovery("The runtime search path could not be configured. Extract the complete package to a writable folder.", chosenDirectory);
+        sf4e::ui::RunRecovery(sf4e::loc::T("launcher.path_failed"), chosenDirectory);
         return 1;
     }
     sf4e::launcher::PersistedSettings settings;
@@ -474,7 +483,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             PathCchCombine(executable,1024,directory,L"SSFIV.exe"); found = PathFileExistsW(executable) != FALSE;
         } else found = FindSF4(directory,1024,executable,1024) != 0;
         if (!found) {
-            if (!sf4e::ui::RunRecovery("Ultra Street Fighter IV could not be found.",chosenDirectory)) return 0;
+            if (!sf4e::ui::RunRecovery(sf4e::loc::T("launcher.game_not_found"),chosenDirectory)) return 0;
             continue;
         }
         wchar_t sidecar[MAX_PATH] = {};
@@ -482,7 +491,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         BOOL substituted = FALSE;
         if (!sf4e::install::ResolveInstallFile(L"Sidecar.dll",sidecar,MAX_PATH) ||
             !WideCharToMultiByte(CP_ACP,WC_NO_BEST_FIT_CHARS,sidecar,-1,sidecarAnsi,1024,nullptr,&substituted) || substituted) {
-            if (!sf4e::ui::RunRecovery("Sidecar.dll is missing or its path cannot be used by the injector. Extract the full package to a simple local path.",chosenDirectory)) return 0;
+            if (!sf4e::ui::RunRecovery(sf4e::loc::T("launcher.sidecar_missing"),chosenDirectory)) return 0;
             continue;
         }
         const char* dlls[] = {sidecarAnsi};
@@ -491,13 +500,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         const auto helperPath = std::filesystem::path(installRoot)/L"sf4-net.exe";
         HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),directory,executable,1,dlls);
         if (!game) {
-            if (!sf4e::ui::RunRecovery("Game startup or injection failed. Check the launcher log, then retry.",chosenDirectory)) return 0;
+            if (!sf4e::ui::RunRecovery(sf4e::loc::T("launcher.start_failed"),chosenDirectory)) return 0;
             continue;
         }
         WaitForSingleObject(game,INFINITE);
         DWORD exitCode = 0; GetExitCodeProcess(game,&exitCode);
         discord.Stop(); helper.Stop(); CloseHandle(game);
-        if (exitCode != 0 && sf4e::ui::RunRecovery("The game exited with an error. Inspect the launcher log, then retry.",chosenDirectory)) continue;
+        if (exitCode != 0 && sf4e::ui::RunRecovery(sf4e::loc::T("launcher.game_error"),chosenDirectory)) continue;
         return 0;
     }
 }

@@ -4,6 +4,10 @@
 #include <utility>
 
 namespace sf4e { namespace ui {
+// ImGui's default Latin range stops before typographic punctuation. Keep the
+// HUD's unavailable marker and UTF-8 player names in the baked atlas. Header
+// scope so the catalog test can check glyph coverage without linking the UI.
+constexpr ImWchar UiGlyphRanges[] = {0x0020, 0x017F, 0x2013, 0x2014, 0x2018, 0x201D, 0x2026, 0x2026, 0};
 enum class Tone { Neutral, Success, Pending, Error };
 namespace palette {
 constexpr ImU32 Ember = IM_COL32(255, 135, 56, 255);
@@ -21,8 +25,8 @@ ImFont* HeadingFont();
 ImFont* DiagnosticFont();
 const char* FontLicense();
 ImVec4 ToneColor(Tone tone);
-void Header(const char* title, const char* subtitle = nullptr);
-void MenuHeader(const char* title);
+void Header(const char* title, const char* subtitle = nullptr, bool brand = false);
+void MenuHeader(const char* title, bool home = false);
 void Section(const char* title);
 void Status(const char* text, Tone tone = Tone::Neutral);
 void Text(const char* format, ...);
