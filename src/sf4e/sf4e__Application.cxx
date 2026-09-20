@@ -182,6 +182,9 @@ bool AtMainMenu() {
 }
 
 void CloseRoom() {
+	spdlog::info("Room: closing error='{}' match_error='{}' match_phase={} spectator={} ggpo={}", runtime->error,
+		runtime->match ? runtime->match->Error() : std::string(), runtime->match ? static_cast<int>(runtime->match->GetPhase()) : -1,
+		LocalIsSpectator(), Game::Battle::System::ggpo != nullptr);
     const bool abandon=runtime->replacementPending || (runtime->room && runtime->room->Coordination().active &&
         !runtime->room->Coordination().writable);
     runtime->recovery=session::RoomRecoveryRuntime{};
@@ -220,8 +223,12 @@ void CloseRoom() {
 void Apply(netplay::EventKind kind, const std::string& error = {}) {
 	netplay::Event event{kind, runtime->controller.GetSnapshot().generation, error};
 	const auto decision = runtime->controller.Apply(event);
-	if (decision.effect == netplay::Effect::CloseSession || decision.effect == netplay::Effect::AbortMatch ||
-		decision.effect == netplay::Effect::FinishDegradedMatch) CloseRoom();
+	const bool closesRoom = decision.effect == netplay::Effect::CloseSession || decision.effect == netplay::Effect::AbortMatch ||
+		decision.effect == netplay::Effect::FinishDegradedMatch;
+	if (closesRoom) {
+		spdlog::warn("Room: event {} closes the room (effect {}): {}", static_cast<int>(kind), static_cast<int>(decision.effect), error);
+		CloseRoom();
+	}
 	else if (decision.accepted && kind == netplay::EventKind::ControlLost &&
 		runtime->controller.GetSnapshot().room == netplay::RoomState::Lost) {
 		HandleControlPlaneLoss(error.c_str());
@@ -1585,7 +1592,9 @@ void TickRuntime() {
 		}
 		if (runtime->match && !runtime->match->Tick(Game::Battle::System::ggpo != nullptr)) {
 			runtime->error = loc::T("runtime.match_connection_lost");
-			if (UserApp::netplay && UserApp::netplay->client.GetRoomSnapshot().roomEpoch) {
+			// A spectator has no seat to lose: a control reconnect that briefly
+			// empties the projection must not turn its stream failure into a room exit.
+			if (UserApp::netplay && (LocalIsSpectator() || UserApp::netplay->client.GetRoomSnapshot().roomEpoch)) {
 				const bool teardownTimedOut = runtime->match->Error() == "match_teardown_timeout";
 				if (!runtime->recoveringMatch) ReportMatchAbort();
 				runtime->pendingReady.reset(); runtime->pendingLobbyEdit.reset();

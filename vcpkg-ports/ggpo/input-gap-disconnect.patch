@@ -1,0 +1,33 @@
+diff --git a/src/lib/ggpo/network/udp_proto.cpp b/src/lib/ggpo/network/udp_proto.cpp
+index e0f5cca..2a31193 100644
+--- a/src/lib/ggpo/network/udp_proto.cpp
++++ b/src/lib/ggpo/network/udp_proto.cpp
+@@ -636,7 +636,6 @@ UdpProtocol::OnInput(UdpMsg *msg, int len)
+        */
+       UdpMsg::connect_status* remote_status = msg->u.input.peer_connect_status;
+       for (int i = 0; i < ARRAY_SIZE(_peer_connect_status); i++) {
+-         ASSERT(remote_status[i].last_frame >= _peer_connect_status[i].last_frame);
+          _peer_connect_status[i].disconnected = _peer_connect_status[i].disconnected || remote_status[i].disconnected;
+          _peer_connect_status[i].last_frame = MAX(_peer_connect_status[i].last_frame, remote_status[i].last_frame);
+       }
+@@ -661,7 +660,19 @@ UdpProtocol::OnInput(UdpMsg *msg, int len)
+           * Keep walking through the frames (parsing bits) until we reach
+           * the inputs for the frame right after the one we're on.
+           */
+-         ASSERT(currentFrame <= (_last_received_input.frame + 1));
++         if (currentFrame > (_last_received_input.frame + 1)) {
++            /*
++             * The sender skipped frames we never received (it stopped queueing for us
++             * when its pending output filled).  The stream cannot be resumed, so end
++             * it like a receive timeout instead of asserting the process away.
++             */
++            Log("Input gap (got frame %d, expected %d).  Disconnecting endpoint.\n", currentFrame, _last_received_input.frame + 1);
++            if (!_disconnect_event_sent) {
++               QueueEvent(Event(Event::Disconnected));
++               _disconnect_event_sent = true;
++            }
++            return true;
++         }
+          bool useInputs = currentFrame == _last_received_input.frame + 1;
+          int isDelta = BitVector_ReadBit(bits, &offset);
+          if (isDelta) {

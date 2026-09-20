@@ -65,7 +65,8 @@ struct Fixture {
 	SessionClient::Callbacks callbacks{};
 	std::string name = "Spectator";
 	SessionClient client{callbacks, "build", 30000, name};
-	IrohMatchSession session{client, room};
+	ULONGLONG now = 1000;
+	IrohMatchSession session{client, room, [this] { return now; }};
 	MockClient* transport = nullptr;
 	std::string p1 = std::string(64, 'A');
 
@@ -178,12 +179,39 @@ void TestGameEndCancelsEarlyConnect() {
 	std::cout << "TestGameEndCancelsEarlyConnect passed\n";
 }
 
+// (4) The helper never confirms the spectator's close. A fighter fails closed
+// and leaves the room; a spectator gives up the wait and stays a member.
+void TestSpectatorHelperTimeoutStaysInRoom() {
+	Fixture f;
+	f.transport->Push(f.Grant(5));
+	f.transport->Push(Fixture::Connect(5));
+	CHECK(f.client.Step() == 0);
+	CHECK(f.session.Tick());
+	CHECK(f.session.Tick());
+	CHECK(f.session.GetPhase() == Phase::Connecting);
+	f.transport->Push(Fixture::End(5));
+	CHECK(f.client.Step() == 0);
+	CHECK(f.session.Tick());
+	CHECK(f.session.GetPhase() == Phase::Ending);
+	CHECK(f.room->endMatchCalls.size() == 1);
+	f.now += session::MatchTeardownTiming::HelperTimeoutMs - 1;
+	CHECK(f.session.Tick());
+	CHECK(f.session.GetPhase() == Phase::Ending);
+	f.now += 1;
+	CHECK(f.session.Tick());
+	CHECK(f.session.GetPhase() == Phase::Idle);
+	CHECK(f.session.Error().empty());
+	CHECK(f.room->leaveCalls == 0);
+	std::cout << "TestSpectatorHelperTimeoutStaysInRoom passed\n";
+}
+
 }
 
 int main() {
 	TestEarlyConnectSameTick();
 	TestEarlyConnectSeparateTicks();
 	TestGameEndCancelsEarlyConnect();
+	TestSpectatorHelperTimeoutStaysInRoom();
 	std::cout << "Iroh match session tests passed\n";
 	return 0;
 }

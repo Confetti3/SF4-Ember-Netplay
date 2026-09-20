@@ -12,6 +12,7 @@ vcpkg_from_github(
         "pending-output-disconnect.patch"
         "disconnect-before-input.patch"
         "spectator-handle-control.patch"
+        "input-gap-disconnect.patch"
 )
 
 vcpkg_cmake_configure(

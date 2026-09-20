@@ -61,6 +61,12 @@ upstream withheld until every spectator had synchronized. P1 uses this through
 `fSystem::PollSpectators` and `SpectatorPolicy`, from the outer tick and never
 inside a callback.
 
+`input-gap-disconnect.patch` (port-version 9) handles an input packet that starts
+past the next expected frame. Upstream asserted, which exits the process. The
+host stops queueing frames for an endpoint whose pending output is full, so a
+slow spectator can be sent exactly that packet. The endpoint now raises the
+ordinary disconnect event and the spectator returns to the room.
+
 ## Thread affinity
 
 **Everything below runs on the game's main thread.** There are no worker threads in
