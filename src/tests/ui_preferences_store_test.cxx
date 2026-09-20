@@ -33,6 +33,17 @@ int main() {
     CHECK(SaveLanguagePreferenceTo(root.wstring(), "auto", error));
     CHECK(LoadLanguagePreferenceFrom(root.wstring()) == "auto");
     CHECK(!SaveLanguagePreferenceTo(root.wstring(), "fr", error));
+    // The hidden card and the language share the file without overwriting each other.
+    CHECK(!GameSettingsCardHiddenIn(root.wstring()));
+    CHECK(SaveLanguagePreferenceTo(root.wstring(), "es-419", error));
+    CHECK(HideGameSettingsCardIn(root.wstring(), error));
+    CHECK(GameSettingsCardHiddenIn(root.wstring()) && LoadLanguagePreferenceFrom(root.wstring()) == "es-419");
+    CHECK(SaveLanguagePreferenceTo(root.wstring(), "auto", error));
+    CHECK(GameSettingsCardHiddenIn(root.wstring()));
+    // A field of the wrong type is not a reason to hide the card, or to throw.
+    const auto mistyped = root / L"mistyped"; CHECK(std::filesystem::create_directory(mistyped));
+    Write(mistyped / L"ui-preferences.json", "{\"schemaVersion\":1,\"language\":\"en\",\"hideGameSettingsCard\":\"yes\"}");
+    CHECK(!GameSettingsCardHiddenIn(mistyped.wstring()) && LoadLanguagePreferenceFrom(mistyped.wstring()) == "en");
 
     const std::string invalid[] = {"{", "{\"schemaVersion\":2,\"language\":\"en\"}",
         "{\"schemaVersion\":1,\"language\":\"fr\"}", std::string(256 * 1024 + 1, 'x')};

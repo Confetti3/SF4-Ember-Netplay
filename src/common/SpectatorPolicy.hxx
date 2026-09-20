@@ -58,6 +58,8 @@ public:
 		lastSampleMs_ = nowMs;
 		return true;
 	}
+	// Live spectator streams. Zero means there is nothing left to drain.
+	std::size_t Count() const { return spectators_.size(); }
 	std::vector<int> Handles() const {
 		std::vector<int> handles;
 		for (const auto& entry : spectators_) handles.push_back(entry.first);

@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <utility>
 #include <vector>
 
@@ -245,6 +246,9 @@ namespace sf4e {
 				// P1 only: drops a spectator that has not synchronized in time or
 				// has fallen too far behind (SpectatorPolicy). Outside callbacks.
 				static void PollSpectators();
+				// Live spectator streams this client forwards inputs to. Only P1
+				// has any, so this is also the test for owning spectator edges.
+				static std::size_t SpectatorStreamCount();
                 static sf4e::MatchTelemetry matchTelemetry;
                 static void PollMatchTelemetry();
                 static bool ggpo_advance_frame_callback(int);

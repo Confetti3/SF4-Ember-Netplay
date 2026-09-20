@@ -13,6 +13,8 @@
 #include "../ui/TrainingPanel.hxx"
 #include "../training/TrainingRuntime.hxx"
 #include "../common/Localization.hxx"
+#include "../platform/GameDisplaySettings.hxx"
+#include "../platform/UiPreferencesStore.hxx"
 #include <imgui.h>
 #include <imgui_impl_dx9.h>
 #include <imgui_impl_win32.h>
@@ -151,6 +153,10 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.error = snapshot.helperError;
 	view.settingsError = snapshot.settingsError;
 	view.languagePreference = snapshot.languagePreference;
+	// Both read their file once; the card's own outcome decides whether to ask.
+	static const bool showGameSettingsCard = !sf4e::platform::GameSettingsCardHidden();
+	view.gameSettings = sf4e::platform::GameDisplaySettings();
+	view.showGameSettingsCard = showGameSettingsCard;
 	view.build = sf4e::sidecarHash;
 	view.members = snapshot.members;
     view.network = snapshot.network; view.services = snapshot.services;

@@ -329,34 +329,21 @@ namespace sf4e {
 	void NetplayFacade::NotifyMatchEnded() {
 		NotifyRuntimeMatchEnded();
 		ClearBattleState();
-		if (s_controlPlaneLost) {
-			// Without a room there is nothing to coordinate spectators
-			// through; never hold the GGPO session open on stale lobby data.
+		// The hold exists so P1 can drain the spectator streams it owns. Lobby
+		// membership is not that set: a receiving spectator counts the other
+		// members and would hold its own session open for nothing, and without
+		// a room there is nothing to coordinate spectators through at all.
+		const std::size_t spectators = s_controlPlaneLost || !fUserApp::netplay ?
+			0 : fSystem::SpectatorStreamCount();
+		if (!spectators) {
 			s_deferGgpoClose = false;
 			s_deferredGgpoPending = false;
 			return;
 		}
-		if (!fUserApp::netplay) {
-			s_deferGgpoClose = false;
-			s_deferredGgpoPending = false;
-			return;
-		}
-
-		size_t spectators = 0;
-		if (fUserApp::netplay->client._lobbyData.members.size() > 2) {
-			spectators = fUserApp::netplay->client._lobbyData.members.size() - 2;
-		}
-
-		if (spectators > 0) {
-			s_deferGgpoClose = true;
-			s_deferredGgpoPending = true;
-			s_deferGgpoCloseUntil = GetTickCount64() + 120000;
-			spdlog::info("NetplayFacade: deferring GGPO close for {} spectators", spectators);
-		}
-		else {
-			s_deferGgpoClose = false;
-			s_deferredGgpoPending = false;
-		}
+		s_deferGgpoClose = true;
+		s_deferredGgpoPending = true;
+		s_deferGgpoCloseUntil = GetTickCount64() + 120000;
+		spdlog::info("NetplayFacade: deferring GGPO close for {} spectator streams", spectators);
 	}
 
 } // namespace sf4e

@@ -4,7 +4,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
 project (
     sf4e
-    VERSION 0.9.1
+    VERSION 0.9.2
     DESCRIPTION "SF4 Ember Netplay: private rollback rooms and an in-game overlay for Ultra Street Fighter IV."
     HOMEPAGE_URL "https://github.com/Confetti3/SF4-Ember-Netplay"
 )
@@ -122,6 +122,9 @@ if(BUILD_TESTING)
     add_test(NAME CheckpointDecodeWorker COMMAND CheckpointDecodeWorkerTest)
     add_executable(SpectatorPolicyTest "src/tests/spectator_policy_test.cxx")
     add_test(NAME SpectatorPolicy COMMAND SpectatorPolicyTest)
+    add_executable(GameDisplayConfigTest "src/tests/game_display_config_test.cxx")
+    target_compile_features(GameDisplayConfigTest PRIVATE cxx_std_17)
+    add_test(NAME GameDisplayConfig COMMAND GameDisplayConfigTest)
     set_tests_properties(CheckpointDecodeWorker PROPERTIES TIMEOUT 30)
 endif()
 
@@ -150,7 +153,8 @@ endif()
 # value, so it lives with the settings and depends on localization, not both
 # ways around.
 add_library(sf4e_settings STATIC "src/netplay/JsonFileStore.cxx" "src/netplay/SettingsStore.cxx"
-    "src/netplay/SettingsWriter.cxx" "src/platform/UiPreferencesStore.cxx")
+    "src/netplay/SettingsWriter.cxx" "src/platform/UiPreferencesStore.cxx"
+    "src/platform/GameDisplaySettings.cxx")
 target_compile_features(sf4e_settings PUBLIC cxx_std_17)
 target_link_libraries(sf4e_settings PUBLIC nlohmann_json::nlohmann_json sf4e_localization PRIVATE "shell32" "ole32")
 if(BUILD_TESTING)
@@ -381,6 +385,11 @@ if(BUILD_TESTING)
             add_test(NAME CustomRoomStalledSpectator COMMAND CustomRoomGameTest "${SF4E_HELPER_EXECUTABLE}"
                 --members 6 --single-table --cycles 2 --stall-spectator)
             set_tests_properties(CustomRoomStalledSpectator PROPERTIES TIMEOUT 600 RUN_SERIAL TRUE)
+            # A spectator retiring from the previous game must not hold the
+            # rematch, and must finish its own teardown in bounded time.
+            add_test(NAME CustomRoomLateSpectator COMMAND CustomRoomGameTest "${SF4E_HELPER_EXECUTABLE}"
+                --members 3 --single-table --cycles 3 --late-spectator)
+            set_tests_properties(CustomRoomLateSpectator PROPERTIES TIMEOUT 600 RUN_SERIAL TRUE)
             # Report-only timing runs: <name>;<members>;<members per table>.
             # The first two members at a table fight and the rest spectate.
             foreach(perf "SingleMatch;2;2" "TwoMatches;4;2" "FourMatches;8;2" "Spectators1;3;3"

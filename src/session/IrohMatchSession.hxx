@@ -38,6 +38,11 @@ public:
 	// Explicit replacement may begin teardown for a preparation that never
 	// reached native GGPO. A started native session and failed close remain fenced.
 	bool CanBeginReplacement(bool ggpoOwnsSocket) const;
+	// Bounds a spectator's wait for the local GGPO close on the session clock.
+	// The deadline retires with the rest of the teardown state at Idle.
+	void ArmSpectatorExit() { teardown_.ArmSpectatorExit(Now()); }
+	void ClearSpectatorExit() { teardown_.ClearSpectatorExit(); }
+	bool SpectatorExitTimedOut() const { return teardown_.SpectatorExitTimedOut(Now()); }
 private:
 	struct Link {
 		std::size_t slot;

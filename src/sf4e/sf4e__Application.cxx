@@ -164,6 +164,13 @@ struct Runtime {
 // and the launcher's owned job reaps the helper.
 Runtime* runtime = nullptr;
 
+// Slots 0 and 1 are the fighters; every other seat watches. False without a
+// match, so a caller that means "the local fighter" still needs its own null
+// check rather than the negation of this.
+bool LocalIsSpectator() {
+	return runtime && runtime->match && runtime->match->LocalSlot() >= 2;
+}
+
 bool AtMainMenu() {
 	// Platform initialization precedes the native event-system singleton. The
 	// getter dereferences that singleton before it can return a root pointer.
@@ -365,7 +372,7 @@ PostPublishState Publish() {
 	snapshot.settingsPending = OverlayPrefs::PersistencePending() || runtime->pendingLobbySettings != nullptr || runtime->pendingLobbyEdit != nullptr;
 	snapshot.settingsError = OverlayPrefs::PersistenceError();
 	snapshot.helperError = runtime->error;
-    snapshot.gameplayInputError=Game::Battle::System::ggpo&&runtime->matchInputFault&&runtime->match&&runtime->match->LocalSlot()<2?
+    snapshot.gameplayInputError=Game::Battle::System::ggpo&&runtime->matchInputFault&&runtime->match&&!LocalIsSpectator()?
         "Match input blocked: reconnect "+runtime->matchInput.name+". If its slot changed, return to the room to reassign it.":"";
 	snapshot.offlineRequested = runtime->offlineRequested;
 	if (runtime->room) snapshot.invitation = runtime->room->Invitation();
@@ -854,6 +861,15 @@ void NotifyRuntimeMatchEnded() {
 	runtime->matchFinishedTable = table;
 }
 
+// Retire this client from the current game. The room-facing half of leaving a
+// match is ReportMatchAbort; this is the local half, and every caller needs
+// both deferral state and the session torn down in the same order.
+void AbortLocalMatch(const char* reason) {
+	CancelDeferredGgpoClose();
+	if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch(reason);
+	runtime->match->Abort(); runtime->recoveringMatch = true;
+}
+
 void ReportMatchAbort() {
 	if (!runtime->attached || !runtime->match || !UserApp::netplay) return;
 	auto& client = UserApp::netplay->client;
@@ -876,7 +892,7 @@ void ReportMatchAbort() {
 
 void NotifyRuntimeMatchResult(room::MatchResult result) {
 	// Native observer calls on the outer game tick, never while resimulating.
-	if (!runtime || !runtime->match || !UserApp::netplay || runtime->match->LocalSlot() >= 2 ||
+	if (!runtime || !runtime->match || !UserApp::netplay || LocalIsSpectator() ||
 		(result != room::MatchResult::P1Win && result != room::MatchResult::P2Win && result != room::MatchResult::Draw)) return;
 	const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
 	const auto member = std::find_if(snapshot.members.begin(), snapshot.members.end(),
@@ -1124,7 +1140,7 @@ void TickRuntime() {
 			const bool changingTable = action == room::ActionKind::Queue || action == room::ActionKind::Unqueue ||
 				action == room::ActionKind::Watch || action == room::ActionKind::Unwatch;
 			if (changingTable && Game::Battle::System::ggpo) {
-				const bool localSpectator = runtime->match->LocalSlot() >= 2;
+				const bool localSpectator = LocalIsSpectator();
 				const bool immediateSpectatorAction = localSpectator &&
 					(action == room::ActionKind::Unqueue || action == room::ActionKind::Unwatch);
 				if (immediateSpectatorAction) {
@@ -1135,17 +1151,13 @@ void TickRuntime() {
 						runtime->pendingRoomAction.reset(new RuntimeCommand(command));
 						runtime->error = loc::T("runtime.spectator_action_retrying");
 					} else if (action == room::ActionKind::Unwatch) {
-						CancelDeferredGgpoClose();
-						Game::Battle::System::AbortGgpoMatch(loc::T("runtime.leaving_spectator"));
-						runtime->match->Abort(); runtime->recoveringMatch = true;
+						AbortLocalMatch(loc::T("runtime.leaving_spectator"));
 					}
 					continue;
 				}
 				if (runtime->controller.GetSnapshot().match == netplay::MatchState::Playing && !localSpectator) continue;
 				runtime->pendingRoomAction.reset(new RuntimeCommand(command));
-				CancelDeferredGgpoClose();
-				Game::Battle::System::AbortGgpoMatch(loc::T("runtime.returning_room"));
-				runtime->match->Abort(); runtime->recoveringMatch = true;
+				AbortLocalMatch(loc::T("runtime.returning_room"));
 				continue;
 			}
 		}
@@ -1387,9 +1399,7 @@ void TickRuntime() {
 				event.matchGeneration != runtime->match->Generation() ||
 				(event.result != room::MatchResult::Abort && event.result != room::MatchResult::Cancel)) continue;
 			runtime->pendingReady.reset(); runtime->pendingLobbyEdit.reset();
-			CancelDeferredGgpoClose();
-			if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch(loc::T("runtime.table_game_cancelled"));
-			runtime->match->Abort(); runtime->recoveringMatch = true;
+			AbortLocalMatch(loc::T("runtime.table_game_cancelled"));
 		}
 	}
 	// Record the confirmed outcome in the profile and hold the terminal receipt
@@ -1640,7 +1650,19 @@ void TickRuntime() {
 			runtime->terminalAckGeneration) == session::SendResult::Queued) {
 			runtime->terminalAckPending = false;
 		}
-	}
+	} else if (runtime->terminalAckPending && Game::Battle::System::ggpo && LocalIsSpectator()) {
+		// The spectator cannot reach the acknowledgement above on its own, so
+		// bound the wait from the committed match end. Releasing GGPO also
+		// re-arms the helper deadline in IrohMatchSession, which cannot age
+		// while native GGPO still owns the socket.
+		runtime->match->ArmSpectatorExit();
+		if (runtime->match->SpectatorExitTimedOut()) {
+			const std::string reason = loc::T("runtime.spectator_close_timeout");
+			runtime->error = reason;
+			ReportMatchAbort();
+			AbortLocalMatch(reason.c_str());
+		}
+	} else if (runtime->match) runtime->match->ClearSpectatorExit();
 	if (runtime->recoveringMatch && runtime->match && runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle && AtMainMenu()) {
 		runtime->recoveringMatch = false; runtime->matchEntered = false;
 		Apply(netplay::EventKind::MatchRecovered, runtime->error);
@@ -1671,16 +1693,14 @@ void TickRuntime() {
 	const bool healthyRoomControl = controlState.control == netplay::Health::Healthy &&
         (!controlState.coordinated || controlState.authorityWritable);
 	if (runtime->pendingRoomAction && healthyRoomControl && !runtime->recoveringMatch && runtime->attached &&
-		UserApp::netplay && runtime->match && runtime->match->LocalSlot() >= 2 && Game::Battle::System::ggpo &&
+		UserApp::netplay && LocalIsSpectator() && Game::Battle::System::ggpo &&
 		(runtime->pendingRoomAction->roomAction.kind == room::ActionKind::Unqueue ||
 		 runtime->pendingRoomAction->roomAction.kind == room::ActionKind::Unwatch)) {
 		const auto action = runtime->pendingRoomAction->roomAction.kind;
 		if (UserApp::netplay->client.SendRoomAction(runtime->pendingRoomAction->roomAction) == session::SendResult::Queued) {
 			runtime->pendingRoomAction.reset(); runtime->pendingRoomActionDeadline = 0;
 			if (action == room::ActionKind::Unwatch) {
-				CancelDeferredGgpoClose();
-				Game::Battle::System::AbortGgpoMatch(loc::T("runtime.leaving_spectator"));
-				runtime->match->Abort(); runtime->recoveringMatch = true;
+				AbortLocalMatch(loc::T("runtime.leaving_spectator"));
 			}
 		}
 	} else if (runtime->pendingRoomAction && healthyRoomControl && !runtime->recoveringMatch && AtMainMenu() && runtime->match &&

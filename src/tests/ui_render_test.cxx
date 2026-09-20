@@ -348,6 +348,18 @@ int main(int argc, char** argv) {
             };
             const auto page=[&](const char* screen){shell.Navigation().Home();if(std::string(screen)!="home")shell.Navigation().Push(screen);draw(screen);};
             SetMenuGlyphs(3,0x40000,0x20000);
+            // The launch card opens once for mismatched game settings. Right
+            // moves to "Don't show again" and Back declines it, so this covers
+            // the two-button notice without writing the real preference.
+            view.showGameSettingsCard=true;
+            view.gameSettings.frameRate="SMOOTH";view.gameSettings.vsync="ON";view.gameSettings.msaa="4X";
+            draw("game-settings-card");
+            Require(ImGui::GetTopMostPopupModal()!=nullptr,"Game settings card did not open");
+            draw(nullptr,MenuInput::Right,1);draw();
+            Require(ImGui::GetTopMostPopupModal()!=nullptr,"Choosing the alternative closed the card early");
+            draw(nullptr,MenuInput::Back,1);draw();
+            Require(ImGui::GetTopMostPopupModal()==nullptr,"Game settings card did not close");
+            view.gameSettings={};view.showGameSettingsCard=false;
             for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","discord","about"})page(screen);
             page("home");
             for(int i=0;i<8;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}

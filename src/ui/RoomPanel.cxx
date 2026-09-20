@@ -17,6 +17,16 @@ const room::Member* Member(const room::Snapshot& snapshot, room::MemberId id) {
         [id](const room::Member& member) { return member.id == id; });
     return found == snapshot.members.end() ? nullptr : &*found;
 }
+// The durable receipt fence gates admission to a table, never departure from
+// it: the member the room is waiting on can be exactly the one that needs to
+// leave. RoomAuthority accepts Unqueue and Unwatch while a receipt is
+// outstanding, so neither is fenced here.
+bool TerminalFenced(const room::Snapshot& snapshot, room::ActionKind kind, std::size_t table) {
+    if (kind != room::ActionKind::Queue && kind != room::ActionKind::Watch &&
+        kind != room::ActionKind::Ready && kind != room::ActionKind::Unready) return false;
+    return snapshot.localTerminalPending ||
+        (table < snapshot.terminalPending.size() && snapshot.terminalPending[table]);
+}
 const char* Name(const room::Snapshot& snapshot, room::MemberId id) {
     const auto* member = Member(snapshot, id);
     return member ? member->name.c_str() : loc::T(id ? "room.member_left" : "room.open_seat");
@@ -72,9 +82,7 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
     if (action.table >= view.room.tables.size()) return false;
     const auto* local = Member(view.room, view.room.localMember);
     const auto& table = view.room.tables[action.table];
-    const bool terminalBlocked = view.room.localTerminalPending || view.room.terminalPending[action.table];
-    if (terminalBlocked && (action.kind == room::ActionKind::Queue || action.kind == room::ActionKind::Watch ||
-        action.kind == room::ActionKind::Ready || action.kind == room::ActionKind::Unready)) {
+    if (TerminalFenced(view.room, action.kind, action.table)) {
         error_ = TerminalPendingReason();
         return false;
     }
@@ -164,7 +172,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     loc::T(elsewhere?"room.leave_current_table":"room.choose_action");
   if(seated){
    const bool ready=t.phase==TablePhase::Waiting&&t.ready[local->seat];
-   const bool terminalBlocked=s.localTerminalPending || s.terminalPending[selectedTable_];
+   const bool terminalBlocked=TerminalFenced(s,room::ActionKind::Ready,selectedTable_);
    const bool awaitingResult=t.phase==TablePhase::Playing&&(t.resultPending||v.session.match==netplay::MatchState::PostMatch);
    const std::string blocked=!mutableRoom&&!(active&&RoomCheckpointPending(v))?reason:
     terminalBlocked?TerminalPendingReason():
@@ -225,10 +233,16 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     if(t.phase==TablePhase::Paused)rows.push_back(ConfirmRow("abandon-result",loc::T("room.abandon_result"),
      loc::T("room.abandon_result.detail"),mutableRoom));
    }else{
-    const bool terminalBlocked=s.localTerminalPending || s.terminalPending[selectedTable_];
-    const std::string queueReason=terminalBlocked?TerminalPendingReason():reason;
-    rows.push_back(Row(queued?"unqueue":"queue",loc::T(queued?"room.leave_queue":"room.join_queue"),queueReason,mutableRoom&&!elsewhere&&!terminalBlocked));
-    rows.push_back(Row(watching?"unwatch":"watch",loc::T(watching?"room.stop_watching":"room.watch_next"),queueReason,mutableRoom&&!elsewhere&&!terminalBlocked));
+    // Enablement asks the same fence SendRoom dispatches through, so the row
+    // and the dispatch guard cannot drift apart.
+    const auto tableRow=[&](room::ActionKind kind,const char* id,const char* label){
+     const bool fenced=TerminalFenced(s,kind,selectedTable_);
+     rows.push_back(Row(id,loc::T(label),fenced?TerminalPendingReason():reason,mutableRoom&&!elsewhere&&!fenced));
+    };
+    tableRow(queued?room::ActionKind::Unqueue:room::ActionKind::Queue,queued?"unqueue":"queue",
+     queued?"room.leave_queue":"room.join_queue");
+    tableRow(watching?room::ActionKind::Unwatch:room::ActionKind::Watch,watching?"unwatch":"watch",
+     watching?"room.stop_watching":"room.watch_next");
   }
   rows.push_back(Row("room-rules",loc::T("room.table_rules"),loc::T(host?"room.table_rules.edit":"room.table_rules.view")));
   if(t.phase==TablePhase::Paused)rows.push_back(ConfirmRow("cancel-result",loc::T("room.cancel_unresolved"),loc::T("room.cancel_unresolved.detail"),host));

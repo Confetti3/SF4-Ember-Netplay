@@ -24,6 +24,20 @@ int main() {
     CHECK(!teardown.HelperTimedOut(151000, true)); // waiting for room result
     CHECK(teardown.HelperTimedOut(151000, false));
 
+    // The spectator exit bound is armed once and never extended, and an
+    // unarmed one never fires however late the clock is.
+    CHECK(!teardown.SpectatorExitTimedOut((std::numeric_limits<std::uint64_t>::max)()));
+    teardown.ArmSpectatorExit(121000);
+    CHECK(!teardown.SpectatorExitTimedOut(135999));
+    teardown.ArmSpectatorExit(130000);
+    CHECK(teardown.SpectatorExitTimedOut(136000));
+    teardown.ClearSpectatorExit();
+    CHECK(!teardown.SpectatorExitTimedOut(136000));
+    // A clock near the end of its range saturates instead of wrapping early.
+    MatchTeardownTiming late;
+    late.ArmSpectatorExit((std::numeric_limits<std::uint64_t>::max)() - 1);
+    CHECK(late.SpectatorExitTimedOut((std::numeric_limits<std::uint64_t>::max)()));
+
     CHECK(!IsValidCheckpointStateFrame(-1));
     CHECK(!IsCheckpointCadenceFrame(-32768));
     CHECK(IsCheckpointCadenceFrame(32760));

@@ -15,6 +15,7 @@ using netplay::json_file::Handle;
 
 constexpr int SchemaVersion = 1;
 const wchar_t* Filename = L"ui-preferences.json";
+const char* HideGameSettingsCard = "hideGameSettingsCard";
 
 bool ValidDocument(const Json& value, std::string& preference) {
     if (!value.is_object() || !value.contains("schemaVersion") ||
@@ -25,16 +26,23 @@ bool ValidDocument(const Json& value, std::string& preference) {
     return loc::ValidPreference(preference);
 }
 
+// The stored document, or null when the file is absent or not a valid one.
+// Every read goes through here so the fields cannot disagree about validity.
+Json LoadValid(const Path& directory) noexcept {
+    try {
+        std::string bytes, error, preference;
+        bool missing = false;
+        Json value;
+        if (directory.empty() || !netplay::json_file::ReadBytes(directory / Filename, bytes, missing, error) || missing ||
+            !netplay::json_file::Parse(bytes, value, error) || !ValidDocument(value, preference)) return Json();
+        return value;
+    } catch (...) { return Json(); }
+}
+
 std::string LoadFrom(const Path& directory) noexcept {
     try {
-        std::string bytes, error;
-        bool missing = false;
-        if (directory.empty() || !netplay::json_file::ReadBytes(directory / Filename, bytes, missing, error) || missing)
-            return "auto";
-        Json value;
-        std::string preference;
-        if (!netplay::json_file::Parse(bytes, value, error) || !ValidDocument(value, preference)) return "auto";
-        return preference;
+        const Json value = LoadValid(directory);
+        return value.is_null() ? "auto" : value["language"].get<std::string>();
     } catch (...) { return "auto"; }
 }
 
@@ -61,10 +69,21 @@ bool PreserveInvalid(const Path& source, const Path& backup, std::string& error)
     return false;
 }
 
-bool SaveTo(const Path& directory, std::string_view preference, std::string& error) noexcept {
+// Hidden is absent from files written before the card existed.
+bool HiddenFrom(const Path& directory) noexcept {
+    try {
+        const Json value = LoadValid(directory);
+        return value.is_object() && value.value(HideGameSettingsCard, false);
+    } catch (...) { return false; }
+}
+
+// Merges the patch into a valid file and keeps the rest of it, so the language
+// and the hidden card cannot overwrite each other. Field contracts belong to
+// the callers below; this only writes what it is given.
+bool SaveTo(const Path& directory, const Json& patch, std::string& error) noexcept {
     error.clear();
-    if (directory.empty() || !loc::ValidPreference(preference)) {
-        error = "Invalid language preference.";
+    if (directory.empty()) {
+        error = "No settings directory.";
         return false;
     }
     try {
@@ -80,21 +99,35 @@ bool SaveTo(const Path& directory, std::string_view preference, std::string& err
         const Path current = directory / Filename;
         const bool exists = std::filesystem::exists(current, ec) && !ec;
         bool valid = false;
+        Json old;
         if (exists) {
             std::string bytes, readError, existingPreference;
             bool missing = false;
-            Json old;
             valid = netplay::json_file::ReadBytes(current, bytes, missing, readError) && !missing &&
                 netplay::json_file::Parse(bytes, old, readError) && ValidDocument(old, existingPreference);
             if (!valid && !PreserveInvalid(current, directory / L"ui-preferences.json.malformed.bak", error))
                 return false;
         }
-        const Json value = {{"schemaVersion", SchemaVersion}, {"language", std::string(preference)}};
+        Json value = valid ? old : Json{{"schemaVersion", SchemaVersion}, {"language", "auto"}};
+        value.update(patch);
         return netplay::json_file::Publish(directory, Filename, value, error);
     } catch (...) {
         error = "UI preferences could not be saved. The previous file has been preserved.";
         return false;
     }
+}
+
+bool SaveLanguageTo(const Path& directory, std::string_view preference, std::string& error) noexcept {
+    error.clear();
+    if (!loc::ValidPreference(preference)) {
+        error = "Invalid language preference.";
+        return false;
+    }
+    return SaveTo(directory, {{"language", std::string(preference)}}, error);
+}
+
+bool HideCardIn(const Path& directory, std::string& error) noexcept {
+    return SaveTo(directory, {{HideGameSettingsCard, true}}, error);
 }
 }
 
@@ -103,13 +136,23 @@ std::string LoadLanguagePreference() {
 }
 
 bool SaveLanguagePreference(std::string_view preference, std::string& error) {
-    return SaveTo(netplay::SettingsStore::DefaultDirectory(), preference, error);
+    return SaveLanguageTo(netplay::SettingsStore::DefaultDirectory(), preference, error);
+}
+
+bool GameSettingsCardHidden() { return HiddenFrom(netplay::SettingsStore::DefaultDirectory()); }
+
+bool HideGameSettingsCardForever(std::string& error) {
+    return HideCardIn(netplay::SettingsStore::DefaultDirectory(), error);
 }
 
 namespace testing {
 std::string LoadLanguagePreferenceFrom(const std::wstring& directory) { return LoadFrom(directory); }
 bool SaveLanguagePreferenceTo(const std::wstring& directory, std::string_view preference, std::string& error) {
-    return SaveTo(directory, preference, error);
+    return SaveLanguageTo(directory, preference, error);
+}
+bool GameSettingsCardHiddenIn(const std::wstring& directory) { return HiddenFrom(directory); }
+bool HideGameSettingsCardIn(const std::wstring& directory, std::string& error) {
+    return HideCardIn(directory, error);
 }
 }
 

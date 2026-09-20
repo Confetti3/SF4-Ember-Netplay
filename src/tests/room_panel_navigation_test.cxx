@@ -218,6 +218,25 @@ int main() try {
         row("queue").detail.find("finish returning") != std::string::npos,
         "Terminal receipt did not disable Queue/Watch with the committed teardown reason");
 
+    // The fence gates admission to a table, never departure from it. A
+    // spectator whose own teardown is what the room is waiting for must still
+    // be able to leave, or it waits on itself.
+    view.room.members[0].table = 0; view.room.tables[0].spectators = {1};
+    frame();
+    Check(row("unwatch").enabled && row("unwatch").detail.find("finish returning") == std::string::npos,
+        "Terminal receipt disabled Stop watching, stranding the spectator in the finished match");
+    const auto beforeUnwatch = actions.size();
+    focus("unwatch"); press(MenuInput::Select);
+    Check(actions.size() == beforeUnwatch + 1 && actions.back().roomAction.kind == room::ActionKind::Unwatch,
+        "Stop watching did not emit one unwatch action during the terminal wait");
+    view.room.tables[0].spectators.clear(); view.room.tables[0].queue = {1};
+    frame();
+    Check(row("unqueue").enabled && row("unqueue").detail.find("finish returning") == std::string::npos,
+        "Terminal receipt disabled Leave queue");
+    Check(!row("watch").enabled, "Terminal receipt stopped fencing admission to the table");
+    view.room.tables[0].queue.clear(); view.room.members[0].table = -1;
+    frame();
+
     view.room.members[0].table = 0; view.room.members[0].seat = 0;
     view.room.tables[0].p1 = 1; view.room.tables[0].p2 = 2;
     view.room.localTerminalPending = false; view.room.terminalPending[0] = false;

@@ -706,6 +706,21 @@ static void TestSpectatorDoesNotHoldTable() {
 	const auto third = begin();
 	CHECK(third > second);
 	CHECK((authority.MatchRoster(0) == std::vector<MemberId>{p1, p2, spectator}));
+
+	// Leaving is not admission. The member the room is waiting on is exactly
+	// the one that needs to leave, so Unwatch stays open while its receipt is
+	// outstanding, and Unqueue stays open for anyone else at the table.
+	const auto queuer = Join(authority, 4);
+	CHECK(authority.Apply(queuer, TableAction(authority, queuer, 0, ActionKind::Queue)).accepted);
+	CHECK(authority.EndMatch(0, third, MatchResult::P1Win).accepted);
+	CHECK(authority.SnapshotFor(spectator).localTerminalPending);
+	CHECK(authority.SnapshotFor(queuer).terminalPending[0]);
+	CHECK(authority.Apply(spectator, TableAction(authority, spectator, 0, ActionKind::Unwatch)).accepted);
+	CHECK(authority.Apply(queuer, TableAction(authority, queuer, 0, ActionKind::Unqueue)).accepted);
+	// Departure does not release the receipt, and admission is still fenced.
+	CHECK(authority.SnapshotFor(spectator).localTerminalPending);
+	const auto rejoin = authority.Apply(spectator, TableAction(authority, spectator, 0, ActionKind::Watch));
+	CHECK(!rejoin.accepted && rejoin.reason == RejectReason::TerminalLedgerFull);
 }
 
 int main() {

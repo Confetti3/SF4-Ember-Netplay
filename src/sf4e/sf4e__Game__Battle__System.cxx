@@ -169,8 +169,15 @@ void fSystem::PollNativeMatchResult() {
 
 static sf4e::SpectatorPolicy s_spectatorPolicy;
 
+std::size_t fSystem::SpectatorStreamCount() {
+    // players[0] is the local handle only on P1, which is the only client that
+    // adds GGPO_PLAYERTYPE_SPECTATOR peers.
+    if (!ggpo || localPlayerHandle == GGPO_INVALID_HANDLE || players[0].handle != localPlayerHandle) return 0;
+    return s_spectatorPolicy.Count();
+}
+
 void fSystem::PollSpectators() {
-    if (!ggpo || localPlayerHandle == GGPO_INVALID_HANDLE || players[0].handle != localPlayerHandle) return;
+    if (!SpectatorStreamCount()) return;
     const auto now = GetTickCount64();
     const auto drop = [&](int handle, const char* reason) {
         spdlog::info("GGPO: dropping spectator handle {} ({})", handle, reason);

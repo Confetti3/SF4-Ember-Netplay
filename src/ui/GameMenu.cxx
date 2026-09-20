@@ -122,7 +122,13 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const bool noticeOpen=!notice_.empty();
     if(noticeOpen) {
         const unsigned pressed=menuInput.held&~noticePrevious_; noticePrevious_=menuInput.held;
-        if(pressed&(MenuInput::Select|MenuInput::Back)) notice_.clear();
+        if(!noticeAlternative_.empty()) {
+            if(pressed&(MenuInput::Up|MenuInput::Left)) noticeAlternativeSelected_=false;
+            if(pressed&(MenuInput::Down|MenuInput::Right)) noticeAlternativeSelected_=true;
+        }
+        // Back always declines: only Select on the alternative chooses it.
+        if(pressed&(MenuInput::Select|MenuInput::Back))
+            DismissNotice(noticeAlternativeSelected_&&!(pressed&MenuInput::Back));
         menuInput.held=0; menuInput.acceptText=false;
     } else noticePrevious_=~0u;
     // InputText consumes this frame's characters before the requested acceptance.
@@ -391,12 +397,22 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     if(ImGui::BeginPopupModal(noticePopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
         if(notice_.empty()) ImGui::CloseCurrentPopup();
         else {
-            ImGui::TextColored(ToneColor(Tone::Error),"%s",loc::T("notice.error_title"));
+            if(noticeHeading_.empty()) ImGui::TextColored(ToneColor(Tone::Error),"%s",loc::T("notice.error_title"));
+            else ImGui::TextColored(ToneColor(Tone::Pending),"%s",noticeHeading_.c_str());
             ImGui::TextWrapped("%s",notice_.c_str());
             ImGui::Dummy(ImVec2(0,8*Scale()));
-            ImGui::PushStyleColor(ImGuiCol_Button,ImVec4(.5f,.25f,.1f,1));
-            if(ImGui::Button(loc::T("common.ok"),ImVec2(ImGui::GetContentRegionAvail().x,48*Scale()))) notice_.clear();
+            const bool two=!noticeAlternative_.empty();
+            const float buttonWidth=two?(ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f:ImGui::GetContentRegionAvail().x;
+            ImGui::PushStyleColor(ImGuiCol_Button,!noticeAlternativeSelected_?ImVec4(.5f,.25f,.1f,1):ImVec4(.15f,.14f,.13f,1));
+            const std::string label=two?FitLabel(noticeAlternative_,buttonWidth-2*ImGui::GetStyle().FramePadding.x):std::string();
+            if(ImGui::Button(loc::T("common.ok"),ImVec2(buttonWidth,48*Scale()))) DismissNotice(false);
             ImGui::PopStyleColor();
+            if(two) {
+                ImGui::SameLine();
+                ImGui::PushStyleColor(ImGuiCol_Button,noticeAlternativeSelected_?ImVec4(.5f,.25f,.1f,1):ImVec4(.15f,.14f,.13f,1));
+                if(ImGui::Button((label+"###NoticeAlternative").c_str(),ImVec2(buttonWidth,48*Scale()))) DismissNotice(true);
+                ImGui::PopStyleColor();
+            }
             if(notice_.empty()) ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();

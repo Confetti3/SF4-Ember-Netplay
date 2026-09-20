@@ -11,6 +11,24 @@
 #include <cstring>
 #include <utility>
 namespace sf4e { namespace ui {
+namespace {
+// The launch card names only the settings that differ, in the order the game's
+// own Options menu lists them. Empty means nothing to say.
+std::string GameSettingsAdvice(const gameconfig::DisplaySettings& g) {
+    const struct { bool ok; const char* id; const std::string& value; } items[] = {
+        {g.FrameRateOk(), "game_settings.frame_rate", g.frameRate},
+        {g.VSyncOk(), "game_settings.vsync", g.vsync},
+        {g.MsaaOk(), "game_settings.anti_aliasing", g.msaa},
+    };
+    std::string text;
+    for (const auto& item : items) {
+        if (item.ok) continue;
+        if (text.empty()) text = loc::T("game_settings.intro");
+        text += "\n\n" + loc::Tf(item.id, item.value);
+    }
+    return text;
+}
+}
 bool ApplicationShell::Service(platform::ServiceAction kind, const ShellView& view, const Submit& submit) {
     ShellAction action; action.service = kind; action.command.generation = view.session.generation;
     if (!submit(std::move(action))) { error_ = loc::T("error.queue_failed"); return false; }
@@ -54,6 +72,15 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   roomUpdateStarted_ = -1;
  }
  lastUiTime_ = now;
+ if(!gameSettingsChecked_&&v.showGameSettingsCard){
+  // Once per launch. "Don't show again" is the card's own outcome, so it
+  // travels with the notice; a failed save just means the card returns.
+  gameSettingsChecked_=true;
+  std::string advice=GameSettingsAdvice(v.gameSettings);
+  if(!advice.empty())
+   menu_.ShowNotice(std::move(advice),loc::T("game_settings.title"),loc::T("game_settings.hide"),
+    []{std::string diagnostic;platform::HideGameSettingsCardForever(diagnostic);});
+ }
  if(languageDirty_&&now>=languageSaveAt_){
   // The store's detail is an English diagnostic, so the player sees the
   // localized message instead. sf4e_ui has no log to carry the detail to.

@@ -1,4 +1,5 @@
 #pragma once
+#include "../common/GameDisplayConfig.hxx"
 #include "../discord/Presence.hxx"
 #include "../netplay/InputAssignment.hxx"
 #include "../netplay/SessionController.hxx"
@@ -36,6 +37,10 @@ struct ShellView {
     int localSlot = -1;
     std::string invitation, error, settingsError, build;
     std::string languagePreference = "auto";
+    // The game's own config.ini as read at launch, and whether the player has
+    // already dismissed the card for good.
+    gameconfig::DisplaySettings gameSettings;
+    bool showGameSettingsCard = false;
     std::vector<netplay::MemberView> members;
     netplay::NetworkAvailability network = netplay::NetworkAvailability::Starting;
     platform::ServiceSnapshot services;
@@ -104,7 +109,7 @@ private:
     // The language is stored in its own file, so it debounces on its own
     // deadline rather than sharing saveAt_ with the netplay preferences.
     double languageSaveAt_ = 0;
-    bool languageSeeded_ = false, languageDirty_ = false;
+    bool languageSeeded_ = false, languageDirty_ = false, gameSettingsChecked_ = false;
     std::string languagePreference_ = "auto", languageSaveError_;
     netplay::Generation generation_;
     netplay::RoomState previousRoomState_ = netplay::RoomState::Idle;
