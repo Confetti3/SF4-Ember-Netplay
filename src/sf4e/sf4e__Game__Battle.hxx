@@ -31,6 +31,12 @@ namespace sf4e {
 				static bool bAllowHudUpdate;
 			};
 
+			struct JobManager : Dimps::Game::Battle::JobManager {
+				static void Install();
+
+				BOOL Start(int workers, int jobs, int jobSize);
+			};
+
 			namespace Sound {
 				using Dimps::Game::Battle::Sound::SoundFlags;
 				using Dimps::Game::Battle::Sound::SoundType;

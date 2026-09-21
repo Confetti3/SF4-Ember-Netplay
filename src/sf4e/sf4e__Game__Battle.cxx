@@ -20,6 +20,8 @@ namespace fBattle = sf4e::Game::Battle;
 
 using fIUnit = sf4e::Game::Battle::IUnit;
 using rIUnit = Dimps::Game::Battle::IUnit;
+using fJobManager = sf4e::Game::Battle::JobManager;
+using rJobManager = Dimps::Game::Battle::JobManager;
 using SoundHandle = Dimps::Game::Battle::Sound::SoundHandle;
 using SoundReference = Dimps::Game::Battle::Sound::SoundReference;
 using rSoundPlayerManager = Dimps::Game::Battle::Sound::SoundPlayerManager;
@@ -44,10 +46,27 @@ std::map<rSoundPlayerManager*, std::vector<fSoundPlayerManager::DeferredSoundReq
 void fBattle::Install() {
 	Effect::Install();
 	Hud::Install();
+	JobManager::Install();
 	Sound::SoundPlayerManager::Install();
 	Sound::Unit::Install();
 	System::Install();
 	Vfx::Install();
+}
+
+void fJobManager::Install() {
+	BOOL (fJobManager::* _fStart)(int, int, int) = &Start;
+	DetourAttach((PVOID*)&rJobManager::publicMethods.Start, *(PVOID*)&_fStart);
+}
+
+// With workers the per-fighter jobs of both characters run at once, and a
+// thrown character's job reads the thrower's bones while the thrower's job
+// rewrites them (C. Viper's Burst Time). The result then depends on thread
+// timing, so a rollback replay or the other peer lands a few ULPs apart and
+// the screen-edge clamp spreads it to both fighters. Without workers every
+// job list runs in queue order on the game thread.
+BOOL fJobManager::Start(int workers, int jobs, int jobSize) {
+	spdlog::info("Battle jobs: running on the game thread (engine asked for {} workers)", workers);
+	return (this->*rJobManager::publicMethods.Start)(0, jobs, jobSize);
 }
 
 void fIUnit::SharedHudUpdate(Task** task) {

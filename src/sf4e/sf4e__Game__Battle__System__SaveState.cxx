@@ -45,6 +45,64 @@ fSystem::SaveState::SaveState() {
 std::map<int, std::pair<StateSnapshot, fSystem::StateSnapshotMeta>> fSystem::snapshotMap;
 fSystem::HashCheckpoint fSystem::hashCheckpoints[fSystem::NUM_HASH_CHECKPOINTS];
 
+const char* const fSystem::CharaSemantics::kFieldNames[kFields] = {
+    "status", "side", "rootX", "rootY", "rootZ", "rootW",
+    "vitality", "vitalityMax", "revenge", "revengeMax", "recoverable", "recoverableMax",
+    "super", "superMax", "scTime", "scTimeMax", "ucTime", "ucTimeMax", "comboDamage", "damage",
+    // Action timing (v0.8.6): the running move, how far into it the
+    // character is, its posture, and the side's time scale (hitstop and
+    // slowdown). A replay that keeps positions and health but lands a move
+    // on a different frame differs here.
+    "action", "actionFrame", "posture", "timeScale",
+};
+
+// Hashing these words with Hasher::U32 is byte-for-byte what F32, I32 and
+// Fixed emit for the same values, so the v2 hash is unchanged.
+fSystem::CharaSemantics fSystem::CaptureCharaSemantics(rSystem* src, int side) {
+    CharaActor::__publicMethods& m = CharaActor::publicMethods;
+    CharaUnit* unit = (src->*rSystem::publicMethods.GetCharaUnit)();
+    CharaActor* a = (unit->*CharaUnit::publicMethods.GetActorByIndex)(side);
+    CharaSemantics out;
+    uint32_t* v = out.v;
+    const auto raw = [](const void* value) {
+        uint32_t word;
+        memcpy(&word, value, sizeof(word));
+        return word;
+    };
+    FixedPoint fp;
+    const auto fixed = [&](auto getter) {
+        (a->*getter)(&fp);
+        return raw(&fp);
+    };
+    *v++ = (a->*m.GetStatus)();
+    *v++ = (a->*m.GetCurrentSide)();
+    const float* rootPos = (a->*m.GetCurrentRootPosition)();
+    for (int c = 0; c < 4; c++) {
+        *v++ = raw(&rootPos[c]);
+    }
+    *v++ = fixed(m.GetVitalityAmt_FixedPoint);
+    *v++ = fixed(m.GetVitalityMax_FixedPoint);
+    *v++ = fixed(m.GetRevengeAmt_FixedPoint);
+    *v++ = fixed(m.GetRevengeMax_FixedPoint);
+    *v++ = fixed(m.GetRecoverableVitalityAmt_FixedPoint);
+    *v++ = fixed(m.GetRecoverableVitalityMax_FixedPoint);
+    *v++ = fixed(m.GetSuperComboAmt_FixedPoint);
+    *v++ = fixed(m.GetSuperComboMax_FixedPoint);
+    *v++ = fixed(m.GetSCTimeAmt_FixedPoint);
+    *v++ = fixed(m.GetSCTimeMax_FixedPoint);
+    *v++ = fixed(m.GetUCTimeAmt_FixedPoint);
+    *v++ = fixed(m.GetUCTimeMax_FixedPoint);
+    *v++ = fixed(m.GetComboDamage);
+    *v++ = fixed(m.GetDamage);
+    *v++ = (a->*m.GetActionID)();
+    *v++ = fixed(m.GetActionFrame);
+    *v++ = (a->*m.GetActionPosture)();
+    (src->*rSystem::publicMethods.GetUnitTimeScale_Fixed)(&fp, side);
+    *v++ = raw(&fp);
+    assert(v == out.v + CharaSemantics::kFields);
+    return out;
+}
+
 // Computes the v2 semantic hashes for the current frame. Coverage is
 // deliberately conservative: the frame counter, battle-flow numeric state,
 // and per-character semantic values read through engine getters (the same
@@ -85,40 +143,11 @@ fSystem::SemanticHashes fSystem::ComputeSemanticHashes(rSystem* src) {
     );
     out.flow = flow.Value();
 
-    CharaActor::__publicMethods& methods = CharaActor::publicMethods;
-    CharaUnit* lpCharaUnit = (src->*rSystem::publicMethods.GetCharaUnit)();
     for (int i = 0; i < 2; i++) {
-        CharaActor* a = (lpCharaUnit->*CharaUnit::publicMethods.GetActorByIndex)(i);
         Hasher ch;
-        ch.I32((a->*methods.GetStatus)());
-        ch.I32((a->*methods.GetCurrentSide)());
-        float* rootPos = (a->*methods.GetCurrentRootPosition)();
-        for (int c = 0; c < 4; c++) {
-            ch.F32(rootPos[c]);
+        for (uint32_t word : CaptureCharaSemantics(src, i).v) {
+            ch.U32(word);
         }
-        FixedPoint fp;
-        (a->*methods.GetVitalityAmt_FixedPoint)(&fp);          ch.Fixed(fp.fractional, fp.integral);
-        (a->*methods.GetVitalityMax_FixedPoint)(&fp);          ch.Fixed(fp.fractional, fp.integral);
-        (a->*methods.GetRevengeAmt_FixedPoint)(&fp);           ch.Fixed(fp.fractional, fp.integral);
-        (a->*methods.GetRevengeMax_FixedPoint)(&fp);           ch.Fixed(fp.fractional, fp.integral);
-        (a->*methods.GetRecoverableVitalityAmt_FixedPoint)(&fp); ch.Fixed(fp.fractional, fp.integral);
-        (a->*methods.GetRecoverableVitalityMax_FixedPoint)(&fp); ch.Fixed(fp.fractional, fp.integral);
-        (a->*methods.GetSuperComboAmt_FixedPoint)(&fp);        ch.Fixed(fp.fractional, fp.integral);
-        (a->*methods.GetSuperComboMax_FixedPoint)(&fp);        ch.Fixed(fp.fractional, fp.integral);
-        (a->*methods.GetSCTimeAmt_FixedPoint)(&fp);            ch.Fixed(fp.fractional, fp.integral);
-        (a->*methods.GetSCTimeMax_FixedPoint)(&fp);            ch.Fixed(fp.fractional, fp.integral);
-        (a->*methods.GetUCTimeAmt_FixedPoint)(&fp);            ch.Fixed(fp.fractional, fp.integral);
-        (a->*methods.GetUCTimeMax_FixedPoint)(&fp);            ch.Fixed(fp.fractional, fp.integral);
-        (a->*methods.GetComboDamage)(&fp);                     ch.Fixed(fp.fractional, fp.integral);
-        (a->*methods.GetDamage)(&fp);                          ch.Fixed(fp.fractional, fp.integral);
-        // Action timing (v0.8.6): the running move, how far into it the
-        // character is, its posture, and the side's time scale (hitstop and
-        // slowdown). A replay that keeps positions and health but lands a
-        // move on a different frame now differs here.
-        ch.I32((a->*methods.GetActionID)());
-        (a->*methods.GetActionFrame)(&fp);                     ch.Fixed(fp.fractional, fp.integral);
-        ch.I32((a->*methods.GetActionPosture)());
-        (src->*rSystem::publicMethods.GetUnitTimeScale_Fixed)(&fp, i); ch.Fixed(fp.fractional, fp.integral);
         out.chara[i] = ch.Value();
     }
 

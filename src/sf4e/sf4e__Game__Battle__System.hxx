@@ -106,6 +106,16 @@ namespace sf4e {
 					uint64_t chara[2] = { 0, 0 };
 				};
 
+				// One character's hashed values, in hash order, as the raw
+				// 32-bit words the encoder consumes: floats by bit pattern,
+				// fixed-point as integral << 16 | fractional.
+				struct CharaSemantics {
+					static constexpr int kFields = 24;
+					static constexpr int kAction = 20;
+					static const char* const kFieldNames[kFields];
+					uint32_t v[kFields] = {};
+				};
+
 				struct SaveState {
 					bool used = false;
 
@@ -210,6 +220,7 @@ namespace sf4e {
 				static const int HASH_CHECKPOINT_INTERVAL = sf4e::statehash::CheckpointInterval;
 				static HashCheckpoint hashCheckpoints[NUM_HASH_CHECKPOINTS];
 				static SemanticHashes ComputeSemanticHashes(Dimps::Game::Battle::System* src);
+				static CharaSemantics CaptureCharaSemantics(Dimps::Game::Battle::System* src, int side);
 				static void CaptureHashCheckpoint(Dimps::Game::Battle::System* src);
 				static HashCheckpoint* FindHashCheckpoint(int frameIdx);
 				static void ClearHashCheckpoints();

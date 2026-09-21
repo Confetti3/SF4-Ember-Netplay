@@ -18,12 +18,14 @@ namespace Battle = Dimps::Game::Battle;
 using Dimps::Eva::Task;
 using Battle::GameManager;
 using Battle::IUnit;
+using Battle::JobManager;
 using Battle::Sound::SoundPlayerManager;
 using SoundUnit = Battle::Sound::Unit;
 using Dimps::Platform::SoundObjectPool;
 
 GameManager::__publicMethods GameManager::publicMethods;
 IUnit::__publicMethods IUnit::publicMethods;
+JobManager::__publicMethods JobManager::publicMethods;
 SoundPlayerManager::__publicMethods SoundPlayerManager::publicMethods;
 SoundPlayerManager::__staticMethods SoundPlayerManager::staticMethods;
 SoundPlayerManager::CriPlayerAdapter::__publicMethods SoundPlayerManager::CriPlayerAdapter::publicMethods;
@@ -56,6 +58,7 @@ void Battle::Locate(HMODULE peRoot) {
 	Effect::Locate(peRoot);
 	Hud::Locate(peRoot);
 	IUnit::Locate(peRoot);
+	JobManager::Locate(peRoot);
 	SoundPlayerManager::Locate(peRoot);
 	SoundUnit::Locate(peRoot);
 	System::Locate(peRoot);
@@ -67,6 +70,11 @@ void IUnit::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 
 	*(PVOID*)&publicMethods.SharedHudUpdate = (PVOID)(peRootOffset + 0x18ae90);
+}
+
+void JobManager::Locate(HMODULE peRoot) {
+	unsigned int peRootOffset = (unsigned int)peRoot;
+	*(PVOID*)&publicMethods.Start = (PVOID)(peRootOffset + 0x138110);
 }
 
 void GameManager::Locate(HMODULE peRoot) {

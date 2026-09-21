@@ -76,6 +76,19 @@ namespace Dimps {
 				static __publicMethods publicMethods;
 			};
 
+			// Runs the battle's per-frame job lists (per-fighter updates,
+			// collision). Start is called once per battle; with workers > 0
+			// every list runs on that many worker threads, otherwise in
+			// queue order on the calling thread.
+			struct JobManager {
+				typedef struct __publicMethods {
+					BOOL (JobManager::* Start)(int workers, int jobs, int jobSize);
+				} __publicMethods;
+
+				static void Locate(HMODULE peRoot);
+				static __publicMethods publicMethods;
+			};
+
 			namespace Network {
 				struct Unit {
 					char pad[0x64f4];

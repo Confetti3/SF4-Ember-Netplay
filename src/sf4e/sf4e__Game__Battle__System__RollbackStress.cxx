@@ -22,6 +22,30 @@
 // the debugger on a mismatch and writes a log file for every frame.
 // ---------------------------------------------------------------------------
 namespace {
+// Both characters' hashed values, so a divergence names the field that changed.
+struct CharaFields {
+    fSystem::CharaSemantics side[2];
+};
+
+CharaFields CaptureCharaFields(rSystem* system) {
+    return { { fSystem::CaptureCharaSemantics(system, 0), fSystem::CaptureCharaSemantics(system, 1) } };
+}
+
+// " p1.action 000001be=>000001bf p1.rootX ..." for every field that differs.
+std::string DescribeFieldDiff(const CharaFields& original, const CharaFields& replay) {
+    std::string out;
+    for (int i = 0; i < 2; i++) {
+        for (int f = 0; f < fSystem::CharaSemantics::kFields; f++) {
+            const uint32_t before = original.side[i].v[f];
+            const uint32_t after = replay.side[i].v[f];
+            if (before != after) {
+                out += fmt::format(" p{}.{} {:08x}=>{:08x}", i + 1, fSystem::CharaSemantics::kFieldNames[f], before, after);
+            }
+        }
+    }
+    return out;
+}
+
 struct RollbackStress {
     static constexpr int kRing = NUM_SAVE_STATES;
     int distance = 0; // 0 disables
@@ -34,6 +58,7 @@ struct RollbackStress {
     fPadSystem::Inputs inputs[kRing][2] = {};
     // hashes[g % kRing] is the state after simulating stress frame g.
     fSystem::SemanticHashes hashes[kRing];
+    CharaFields fields[kRing];
     uint64_t rollbacks = 0;
     uint64_t divergences = 0;
     uint64_t resets = 0;
@@ -141,6 +166,12 @@ bool StressStep(rSystem* system) {
     if (!stress.distance) {
         return false;
     }
+    // The engine's chara record (0x5633a0) dereferences both actors_0x18
+    // entries, which stay null for the first frames of a battle.
+    CharaUnit* chara = (system->*rSystem::publicMethods.GetCharaUnit)();
+    if (!chara || !chara->actors_0x18[0] || !chara->actors_0x18[1]) {
+        return false;
+    }
     const int16_t before = StressEngineFrame(system);
     if (stress.primed && before != stress.lastEngineFrame) {
         // A training restore or other jump outside this loop: the recorded
@@ -176,6 +207,7 @@ bool StressStep(rSystem* system) {
         return true;
     }
     stress.hashes[index] = fSystem::ComputeSemanticHashes(system);
+    stress.fields[index] = CaptureCharaFields(system);
     stress.frame++;
     if (diag::Enabled()) {
         diag::G().OnFrameAdvanced(diag::NowMs());
@@ -202,8 +234,10 @@ bool StressStep(rSystem* system) {
         const auto& original = stress.hashes[replayIndex];
         if (replay.overall != original.overall) {
             stress.divergences++;
+            const CharaFields replayFields = CaptureCharaFields(system);
+            const CharaFields& originalFields = stress.fields[replayIndex];
             spdlog::error(
-                "RollbackStress: replay diverged stress_frame={} engine_frame={} distance={} free_path={} flow={} p1={} p2={} inputs={:08x}/{:08x} {:08x}/{:08x}",
+                "RollbackStress: replay diverged stress_frame={} engine_frame={} distance={} free_path={} flow={} p1={} p2={} inputs={:08x}/{:08x} {:08x}/{:08x} actions={}/{}{}",
                 replayed,
                 StressEngineFrame(system),
                 stress.distance,
@@ -214,8 +248,12 @@ bool StressStep(rSystem* system) {
                 stress.inputs[replayIndex][0].mappedOn,
                 stress.inputs[replayIndex][0].rawOn,
                 stress.inputs[replayIndex][1].mappedOn,
-                stress.inputs[replayIndex][1].rawOn
+                stress.inputs[replayIndex][1].rawOn,
+                originalFields.side[0].v[fSystem::CharaSemantics::kAction],
+                originalFields.side[1].v[fSystem::CharaSemantics::kAction],
+                DescribeFieldDiff(originalFields, replayFields)
             );
+            stress.fields[replayIndex] = replayFields;
             // Continue from the replayed timeline so one divergence is not
             // reported again on every later rollback.
             stress.hashes[replayIndex] = replay;
