@@ -508,7 +508,7 @@ if(BUILD_TESTING)
     set_tests_properties(SaveStateOwnership PROPERTIES TIMEOUT 15)
 endif()
 
-add_library(sf4e_app_services STATIC src/platform/ApplicationServices.cxx src/launcher/update/github_release_client.cxx)
+add_library(sf4e_app_services STATIC src/platform/ApplicationServices.cxx src/launcher/update/github_release_client.cxx src/launcher/update/github_release_validation.cxx src/launcher/update/github_release_download.cxx)
 target_compile_features(sf4e_app_services PUBLIC cxx_std_17)
 target_compile_definitions(sf4e_app_services PRIVATE SF4E_APP_VERSION="${PROJECT_VERSION}")
 target_link_libraries(sf4e_app_services PUBLIC sf4e_settings sf4e_localization PRIVATE sf4e_common sf4e_selection spdlog::spdlog nlohmann_json::nlohmann_json WIL::WIL pathcch shell32 shlwapi bcrypt)
