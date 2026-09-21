@@ -9,6 +9,7 @@
 #include <cstdlib>
 
 #include "test_support.hxx"
+#include "temp_root.hxx"
 using Json = nlohmann::json;
 using Path = std::filesystem::path;
 using sf4e::netplay::SettingsStore;
@@ -28,8 +29,7 @@ static std::string Read(const Path& path) {
 
 int main() {
     // Each run owns a fresh temporary subtree; never consult real AppData.
-    const auto root = std::filesystem::temp_directory_path() /
-        (L"sf4e-settings-test-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
+    const auto root = MakeTempRoot(L"sf4e-settings-test-");
     CHECK(std::filesystem::create_directory(root));
     const auto path = root / L"migration";
     CHECK(std::filesystem::create_directory(path));
@@ -204,7 +204,6 @@ int main() {
         CHECK(!sf4e::netplay::ReadRoomPreferences({{"roomDefaults", invalid}}, restored));
         CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12);
     }
-    CHECK(std::filesystem::equivalent(root.parent_path(), std::filesystem::temp_directory_path()));
-    std::filesystem::remove_all(root);
+    RemoveTempRoot(root);
     std::cout << "Settings migration, preservation, independent updates and atomic failure checks passed\n";
 }

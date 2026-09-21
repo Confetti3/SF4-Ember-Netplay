@@ -6,6 +6,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <nlohmann/json.hpp>
+#include "temp_root.hxx"
 #define CHECK(c) do { if (!(c)) { std::cerr << "Failure at " << __LINE__ << ": " << error << '\n'; std::exit(1); } } while (false)
 namespace fs = std::filesystem;
 void Write(const fs::path& path, const char* text) { fs::create_directories(path.parent_path()); std::ofstream(path) << text; }
@@ -30,7 +31,7 @@ int wmain(int argc, wchar_t** argv) {
         std::cout << "Actual package accepted by the native updater inventory\n";
         return 0;
     }
-    const auto root = fs::temp_directory_path() / (L"ember-upgrade-test-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
+    const auto root = MakeTempRoot(L"ember-upgrade-test-");
     const auto staging = root/L"staging", install = root/L"install";
     fs::create_directories(staging); fs::create_directories(install);
     for (const auto* path : sf4e::package::Required) Write(staging/path,"new");
@@ -112,6 +113,6 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(!fs::exists(crashInstall/L".ember-update-transaction-v1.json"));
     CHECK(sf4e::launcher::RecoverPackage(crashInstall,error)); // idempotent restart
     // Only this uniquely created temporary fixture is removed.
-    fs::remove_all(root);
+    RemoveTempRoot(root);
     std::cout << "Inventory, upgrade preservation, backup and rollback checks passed\n";
 }

@@ -8,6 +8,7 @@
 #include <cstdlib>
 
 #include "test_support.hxx"
+#include "temp_root.hxx"
 
 using Path = std::filesystem::path;
 
@@ -21,8 +22,7 @@ static std::string Read(const Path& path) {
 
 int main() {
     using namespace sf4e::platform::testing;
-    const auto root = std::filesystem::temp_directory_path() /
-        (L"sf4e-ui-preferences-test-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
+    const auto root = MakeTempRoot(L"sf4e-ui-preferences-test-");
     CHECK(std::filesystem::create_directory(root));
     std::string error;
     CHECK(LoadLanguagePreferenceFrom(root.wstring()) == "auto");
@@ -65,7 +65,6 @@ int main() {
     CHECK(Read(conflict / L"ui-preferences.json") == "{");
     CHECK(Read(conflict / L"ui-preferences.json.malformed.bak") == "different");
 
-    CHECK(std::filesystem::equivalent(root.parent_path(), std::filesystem::temp_directory_path()));
-    std::filesystem::remove_all(root);
+    RemoveTempRoot(root);
     std::cout << "UI preference loading, preservation and atomic saving passed\n";
 }
