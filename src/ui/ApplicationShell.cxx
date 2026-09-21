@@ -58,37 +58,9 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
 }
 
 
-void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer) {
+// Parts of Draw, in the order it runs them.
+void ApplicationShell::UpdateRoomTransitions(const ShellView& v,double now) {
  using namespace netplay; auto& nav=menu_.navigation;
- const double now = ImGui::GetTime();
- if(!languageSeeded_){languagePreference_=loc::ValidPreference(v.languagePreference)?v.languagePreference:"auto";languageSeeded_=true;}
- if(lastUiTime_ >= 0 && now < lastUiTime_) {
-  // DX9 reset recreates ImGui, but these deadlines belong to the surviving shell.
-  // Keep raw-clock users in RoomAction in the same epoch, including queued saves.
-  saveAt_ = RebaseUiTimestamp(saveAt_, lastUiTime_, now);
-  languageSaveAt_ = RebaseUiTimestamp(languageSaveAt_, lastUiTime_, now);
-  noticeUntil_ = RebaseUiTimestamp(noticeUntil_, lastUiTime_, now);
-  roomUpdateUntil_ = RebaseUiTimestamp(roomUpdateUntil_, lastUiTime_, now);
-  roomUpdateStarted_ = -1;
- }
- lastUiTime_ = now;
- if(!gameSettingsChecked_&&v.showGameSettingsCard){
-  // Once per launch. "Don't show again" is the card's own outcome, so it
-  // travels with the notice; a failed save just means the card returns.
-  gameSettingsChecked_=true;
-  std::string advice=GameSettingsAdvice(v.gameSettings);
-  if(!advice.empty())
-   menu_.ShowNotice(std::move(advice),loc::T("game_settings.title"),loc::T("game_settings.hide"),
-    []{std::string diagnostic;platform::HideGameSettingsCardForever(diagnostic);});
- }
- if(languageDirty_&&now>=languageSaveAt_){
-  // The store's detail is an English diagnostic, so the player sees the
-  // localized message instead. sf4e_ui has no log to carry the detail to.
-  std::string diagnostic;
-  if(platform::SaveLanguagePreference(languagePreference_,diagnostic))languageSaveError_.clear();
-  else languageSaveError_=loc::T("settings.language_save_failed");
-  languageDirty_=false;
- }
  if(previousRoomState_!=RoomState::Idle && v.session.room==RoomState::Idle) {
   nav.Cancel();
   if(nav.Screen().compare(0,4,"room")==0 || nav.Screen()=="selection")nav.Home();
@@ -109,6 +81,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(v.session.room==RoomState::Idle&&nav.Screen().compare(0,4,"room")==0)nav.Home();
   if(roomChanged){roomUpdateUntil_=0;roomUpdateStarted_=-1;roomDetails_.clear();}
  }
+}
+bool ApplicationShell::UpdateRoomFeedback(const ShellView& v) {
+ using namespace netplay;
  // Ignore brief checkpoint delays; hold visible feedback through short gaps.
  // Eligibility still uses the current snapshot on every frame.
  if(v.room.roomEpoch!=roomEpoch_){roomUpdateUntil_=0;roomUpdateStarted_=-1;roomDetails_.clear();}
@@ -121,6 +96,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    roomUpdateUntil_=ImGui::GetTime()+.5;
  }else roomUpdateStarted_=-1;
  roomUpdateVisible_=healthyRoom&&ImGui::GetTime()<roomUpdateUntil_;
+ return healthyRoom;
+}
+void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& submit) {
+ using namespace netplay; auto& nav=menu_.navigation;
  if(saveQueued_&&!v.settingsPending){
   if(SamePreferences(v.preferences,savingPreferences_)&&v.settingsError.empty()){
    saveQueued_=false;retrySave_=false;preferencesDirty_=!SamePreferences(preferences_,savingPreferences_);
@@ -135,23 +114,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending&&v.canEditPreferences&&preferences_.Valid()&&ImGui::GetTime()>=saveAt_){
   if(Send(CommandKind::SavePreferences,v,submit)){saveQueued_=true;savingPreferences_=preferences_;saveAt_=ImGui::GetTime();}else saveFailed_=true;
  }
- if(v.readyFailureSequence!=readyFailureSequence_){
-  readyFailureSequence_=v.readyFailureSequence;
-  if(readyFailureSequence_&&!v.readyFailure.empty())menu_.ShowNotice(v.readyFailure);
- }
- if(v.discordPending&&inviteRevision_!=v.discordRevision){inviteRevision_=v.discordRevision;nav.Push("discord-invitation");}
- if(!v.discordPending&&nav.Screen()=="discord-invitation")nav.Return();
- if(v.inputCapture!=input::Capture::Idle&&nav.Screen()!="assignment")nav.Push("assignment");
- if(v.inputCapture==input::Capture::Idle&&nav.Screen()=="assignment")nav.Return();
- const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
- ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
- ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
- if(nav.Screen()=="selection"&&selection){
-  selection();
-  if(TakeMenuReturn())nav.Return();ImGui::End();ImGui::PopStyleVar(2);return;
- }
- const std::string screen=nav.Screen();std::vector<MenuEntry> rows;std::string title=loc::T("shell.home_title");
- const bool idle=v.session.room==RoomState::Idle, opening=v.session.room==RoomState::Opening;
+}
+std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title) {
+ using namespace netplay; auto& nav=menu_.navigation;
+ std::vector<MenuEntry> rows;
  const char* reason=v.canEditPreferences?loc::T("settings.auto_save"):loc::T("settings.leave_room_to_edit");
  if(v.inputCapture!=input::Capture::Idle){
   title=loc::T("controller.assign_title");rows={Row("capture-cancel",loc::T("controller.cancel_assignment"),v.inputCapture==input::Capture::Press?loc::T("controller.press_button"):loc::T("controller.release_buttons"))};
@@ -226,7 +192,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(v.network==NetworkAvailability::Unavailable)rows.push_back(ConfirmRow("recovery",loc::T("about.open_recovery"),
    v.canEditPreferences?loc::T("about.open_recovery_detail"):loc::T("about.leave_room_first"),v.canEditPreferences&&!v.services.pending));
  }
- if(saveFailed_)rows.push_back(Row("retry-save",loc::T("settings.retry_save"),v.settingsError.empty()?error_:v.settingsError,v.canEditPreferences&&!v.settingsPending));
+ return rows;
+}
+std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,const std::string& screen,bool opening,bool healthyRoom,std::string& title) {
+ using namespace netplay;
  const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="defaults"||screen=="interface"||screen=="discord";
  std::string status=saveFailed_?loc::T("common.save_failed"):v.settingsPending||preferencesDirty_||saveQueued_||languageDirty_?loc::T("common.saving"):personal?loc::T("common.saved"):"";
  // Severity travels with the status string. This line is the shell's only
@@ -295,6 +264,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
      ((!RoomActionsAvailable(v)&&!RoomCheckpointPending(v))||(roomUpdateVisible_&&!seatedTableStatus)) && !committedMatchStatus &&
      !v.controllerUnavailable&&v.session.error.empty()&&v.error.empty()&&error_.empty())))
   {status=RoomWaitReason(v);statusTone=Tone::Pending;}
+ return {status,statusTone};
+}
+void ApplicationShell::PublishPlayerCard(const ShellView& v) {
+ using namespace netplay;
  PlayerCardView card;card.name=preferences_.displayName;card.fighter=preferences_.mainFighter;
  card.fighterName=selection::FindFighter(preferences_.mainFighter)->name;card.inputDelay=preferences_.inputDelay;
  card.wins=v.preferences.record.wins;card.losses=v.preferences.record.losses;card.recordAvailable=v.preferences.record.available;
@@ -302,6 +275,109 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  card.members=static_cast<int>(v.room.members.size());
  for(const auto& table:v.room.tables)if(table.phase==room::TablePhase::Playing)++card.activeTables;
  SetMenuPlayerCard(std::move(card));
+}
+void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,const std::string& screen,bool idle,const Submit& submit) {
+ using namespace netplay; auto& nav=menu_.navigation;
+ if(a.id=="online")nav.Push(idle?"online":"room");
+ else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
+ else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
+ else if(a.id=="selection"||a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="developer")nav.Push(a.id);
+ else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
+ else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
+ else if(a.id=="offline"||a.id=="controls")Send(CommandKind::StartOffline,v,submit);
+ else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
+ else if(a.id=="capture"||a.id=="keyboard"){ShellAction r;r.command.generation=v.session.generation;r.inputAction=a.id=="capture"?input::Action::BeginCapture:input::Action::UseKeyboard;submit(std::move(r));}
+ else if(a.id=="invite-cancel"||a.id=="invite-switch"){ShellAction r;r.command.generation=v.session.generation;r.discordRevision=v.discordRevision;r.discordAction=a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch;if(!submit(std::move(r)))error_=loc::T("error.invitation_changed");}
+ else if(a.id=="retry-save"){saveFailed_=false;retrySave_=true;preferencesDirty_=true;saveAt_=0;error_.clear();}
+ else if(a.id=="diagnostics")Service(platform::ServiceAction::ExportDiagnostics,v,submit);
+ else if(a.id=="updates")Service(platform::ServiceAction::CheckUpdates,v,submit);
+ else if(a.id=="updater")Service(platform::ServiceAction::OpenUpdater,v,submit);
+ else if(a.id=="recovery")Service(platform::ServiceAction::OpenRecovery,v,submit);
+ else if(screen.compare(0,4,"room")==0)RoomAction(a,v,submit);
+}
+void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const std::string& screen,const Submit& submit) {
+ using namespace netplay;
+ if(screen.compare(0,4,"room")==0)RoomAction(a,v,submit);
+ else if(a.id=="invite-text")std::snprintf(invitation_,sizeof(invitation_),"%s",a.text.c_str());
+ else if(a.id=="language"){
+  // Not a netplay preference: it lives in the UI preferences file and saves on
+  // its own deadline, so it stays out of the validate-and-save tail below.
+  languagePreference_=std::string(loc::NextPreference(languagePreference_,a.delta));
+  loc::SetActive(loc::ResolveLocale(languagePreference_,platform::WindowsUiLanguages()));
+  languageDirty_=true;languageSaveError_.clear();languageSaveAt_=ImGui::GetTime()+.45;
+ }
+ else{
+  auto prior=preferences_;
+  if(a.id=="name")preferences_.displayName=a.text;else if(a.id=="room-name")preferences_.roomName=a.text;
+  else if(a.id=="capacity")preferences_.roomCapacity=(std::max)(2,(std::min)(16,preferences_.roomCapacity+a.delta));
+  else if(a.id=="delay")preferences_.inputDelay=(std::max)(0,(std::min)(10,preferences_.inputDelay+a.delta));
+  else if(a.id=="hud-size")preferences_.matchHudSize=(std::max)(0,(std::min)(2,preferences_.matchHudSize+a.delta));
+  else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
+  else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
+  else if(a.id=="hud")preferences_.showMatchHud=a.delta>0;else if(a.id=="presence")preferences_.discordPresence=a.delta>0;
+  else if(a.id=="invites")preferences_.discordInvites=a.delta>0;else AdjustRule(preferences_.tableRules,a);
+  if(!preferences_.Valid()){preferences_=prior;error_=loc::T("error.invalid_value");}
+  else{preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();}
+ }
+}
+
+void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer) {
+ using namespace netplay; auto& nav=menu_.navigation;
+ const double now = ImGui::GetTime();
+ if(!languageSeeded_){languagePreference_=loc::ValidPreference(v.languagePreference)?v.languagePreference:"auto";languageSeeded_=true;}
+ if(lastUiTime_ >= 0 && now < lastUiTime_) {
+  // DX9 reset recreates ImGui, but these deadlines belong to the surviving shell.
+  // Keep raw-clock users in RoomAction in the same epoch, including queued saves.
+  saveAt_ = RebaseUiTimestamp(saveAt_, lastUiTime_, now);
+  languageSaveAt_ = RebaseUiTimestamp(languageSaveAt_, lastUiTime_, now);
+  noticeUntil_ = RebaseUiTimestamp(noticeUntil_, lastUiTime_, now);
+  roomUpdateUntil_ = RebaseUiTimestamp(roomUpdateUntil_, lastUiTime_, now);
+  roomUpdateStarted_ = -1;
+ }
+ lastUiTime_ = now;
+ if(!gameSettingsChecked_&&v.showGameSettingsCard){
+  // Once per launch. "Don't show again" is the card's own outcome, so it
+  // travels with the notice; a failed save just means the card returns.
+  gameSettingsChecked_=true;
+  std::string advice=GameSettingsAdvice(v.gameSettings);
+  if(!advice.empty())
+   menu_.ShowNotice(std::move(advice),loc::T("game_settings.title"),loc::T("game_settings.hide"),
+    []{std::string diagnostic;platform::HideGameSettingsCardForever(diagnostic);});
+ }
+ if(languageDirty_&&now>=languageSaveAt_){
+  // The store's detail is an English diagnostic, so the player sees the
+  // localized message instead. sf4e_ui has no log to carry the detail to.
+  std::string diagnostic;
+  if(platform::SaveLanguagePreference(languagePreference_,diagnostic))languageSaveError_.clear();
+  else languageSaveError_=loc::T("settings.language_save_failed");
+  languageDirty_=false;
+ }
+ UpdateRoomTransitions(v,now);
+ const bool healthyRoom=UpdateRoomFeedback(v);
+ UpdatePreferenceSave(v,submit);
+ if(v.readyFailureSequence!=readyFailureSequence_){
+  readyFailureSequence_=v.readyFailureSequence;
+  if(readyFailureSequence_&&!v.readyFailure.empty())menu_.ShowNotice(v.readyFailure);
+ }
+ if(v.discordPending&&inviteRevision_!=v.discordRevision){inviteRevision_=v.discordRevision;nav.Push("discord-invitation");}
+ if(!v.discordPending&&nav.Screen()=="discord-invitation")nav.Return();
+ if(v.inputCapture!=input::Capture::Idle&&nav.Screen()!="assignment")nav.Push("assignment");
+ if(v.inputCapture==input::Capture::Idle&&nav.Screen()=="assignment")nav.Return();
+ const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
+ ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
+ ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
+ if(nav.Screen()=="selection"&&selection){
+  selection();
+  if(TakeMenuReturn())nav.Return();ImGui::End();ImGui::PopStyleVar(2);return;
+ }
+ const std::string screen=nav.Screen();std::string title=loc::T("shell.home_title");
+ const bool idle=v.session.room==RoomState::Idle, opening=v.session.room==RoomState::Opening;
+ std::vector<MenuEntry> rows=BuildRows(v,screen,idle,opening,selection,developer,title);
+ if(saveFailed_)rows.push_back(Row("retry-save",loc::T("settings.retry_save"),v.settingsError.empty()?error_:v.settingsError,v.canEditPreferences&&!v.settingsPending));
+ const auto feedback=UpdateStatus(v,screen,opening,healthyRoom,title);
+ const std::string& status=feedback.first;const Tone statusTone=feedback.second;
+ const bool roomScreen=screen.compare(0,4,"room")==0;
+ PublishPlayerCard(v);
  const int columns=screen=="main-character"?(std::max)(3,(std::min)(8,static_cast<int>(ImGui::GetContentRegionAvail().x/(170*Scale())))):1;
  GameMenu::Card portraits;
  if(screen=="main-character")portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){
@@ -336,45 +412,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   ShellAction r;r.command.generation=v.session.generation;r.inputAction=input::Action::Cancel;submit(std::move(r));
  }else if(a.kind==MenuAction::Close||a.id=="return"){if(open)*open=false;
  }else if(a.kind==MenuAction::Activate){
-  if(a.id=="online")nav.Push(idle?"online":"room");
-  else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
-  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
-  else if(a.id=="selection"||a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="developer")nav.Push(a.id);
-  else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
-  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
-  else if(a.id=="offline"||a.id=="controls")Send(CommandKind::StartOffline,v,submit);
-  else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
-  else if(a.id=="capture"||a.id=="keyboard"){ShellAction r;r.command.generation=v.session.generation;r.inputAction=a.id=="capture"?input::Action::BeginCapture:input::Action::UseKeyboard;submit(std::move(r));}
-  else if(a.id=="invite-cancel"||a.id=="invite-switch"){ShellAction r;r.command.generation=v.session.generation;r.discordRevision=v.discordRevision;r.discordAction=a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch;if(!submit(std::move(r)))error_=loc::T("error.invitation_changed");}
-  else if(a.id=="retry-save"){saveFailed_=false;retrySave_=true;preferencesDirty_=true;saveAt_=0;error_.clear();}
-  else if(a.id=="diagnostics")Service(platform::ServiceAction::ExportDiagnostics,v,submit);
-  else if(a.id=="updates")Service(platform::ServiceAction::CheckUpdates,v,submit);
-  else if(a.id=="updater")Service(platform::ServiceAction::OpenUpdater,v,submit);
-  else if(a.id=="recovery")Service(platform::ServiceAction::OpenRecovery,v,submit);
-  else if(screen.compare(0,4,"room")==0)RoomAction(a,v,submit);
+  HandleActivate(a,v,screen,idle,submit);
  }else if(a.kind==MenuAction::Adjust||a.kind==MenuAction::TextAccepted){
-  if(screen.compare(0,4,"room")==0)RoomAction(a,v,submit);
-  else if(a.id=="invite-text")std::snprintf(invitation_,sizeof(invitation_),"%s",a.text.c_str());
-  else if(a.id=="language"){
-   // Not a netplay preference: it lives in the UI preferences file and saves on
-   // its own deadline, so it stays out of the validate-and-save tail below.
-   languagePreference_=std::string(loc::NextPreference(languagePreference_,a.delta));
-   loc::SetActive(loc::ResolveLocale(languagePreference_,platform::WindowsUiLanguages()));
-   languageDirty_=true;languageSaveError_.clear();languageSaveAt_=ImGui::GetTime()+.45;
-  }
-  else{
-   auto prior=preferences_;
-   if(a.id=="name")preferences_.displayName=a.text;else if(a.id=="room-name")preferences_.roomName=a.text;
-   else if(a.id=="capacity")preferences_.roomCapacity=(std::max)(2,(std::min)(16,preferences_.roomCapacity+a.delta));
-   else if(a.id=="delay")preferences_.inputDelay=(std::max)(0,(std::min)(10,preferences_.inputDelay+a.delta));
-   else if(a.id=="hud-size")preferences_.matchHudSize=(std::max)(0,(std::min)(2,preferences_.matchHudSize+a.delta));
-   else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
-   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
-   else if(a.id=="hud")preferences_.showMatchHud=a.delta>0;else if(a.id=="presence")preferences_.discordPresence=a.delta>0;
-   else if(a.id=="invites")preferences_.discordInvites=a.delta>0;else AdjustRule(preferences_.tableRules,a);
-   if(!preferences_.Valid()){preferences_=prior;error_=loc::T("error.invalid_value");}
-   else{preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();}
-  }
+  HandleAdjust(a,v,screen,submit);
  }
  ImGui::End();ImGui::PopStyleVar(2);
 }

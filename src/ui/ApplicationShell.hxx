@@ -85,6 +85,15 @@ public:
     MenuNavigation& Navigation() { return menu_.navigation; }
 private:
     GameMenu menu_;
+    // Parts of Draw, in the order it runs them.
+    void UpdateRoomTransitions(const ShellView& view,double now);
+    bool UpdateRoomFeedback(const ShellView& view);
+    void UpdatePreferenceSave(const ShellView& view,const Submit& submit);
+    std::vector<MenuEntry> BuildRows(const ShellView& view,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title);
+    std::pair<std::string,Tone> UpdateStatus(const ShellView& view,const std::string& screen,bool opening,bool healthyRoom,std::string& title);
+    void PublishPlayerCard(const ShellView& view);
+    void HandleActivate(const MenuAction& action,const ShellView& view,const std::string& screen,bool idle,const Submit& submit);
+    void HandleAdjust(const MenuAction& action,const ShellView& view,const std::string& screen,const Submit& submit);
     std::vector<MenuEntry> RoomEntries(const ShellView& view);
     void RoomAction(const MenuAction& action, const ShellView& view, const Submit& submit);
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
