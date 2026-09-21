@@ -260,8 +260,12 @@ void SessionClient::LogRejectedRoomAction(std::uint64_t actionId, room::RejectRe
 	_lastRejectedReason = reason;
 	const auto found = std::find_if(_sentRoomActions.begin(), _sentRoomActions.end(),
 		[&](const SentRoomAction& sent) { return sent.actionId == actionId; });
-	// A duplicate result report is the expected reply to a retried report.
-	const auto level = reason == room::RejectReason::DuplicateResult ? spdlog::level::info : spdlog::level::warn;
+	// A duplicate result report is the expected reply to a retried report, and
+	// a stale finish or result is the expected reply once the table ended.
+	const bool staleReport = found != _sentRoomActions.end() &&
+		(found->kind == room::ActionKind::MatchFinished || found->kind == room::ActionKind::RecordResult) &&
+		reason == room::RejectReason::WrongGeneration;
+	const auto level = reason == room::RejectReason::DuplicateResult || staleReport ? spdlog::level::info : spdlog::level::warn;
 	if (found == _sentRoomActions.end()) {
 		spdlog::log(level, "Room action rejected action={} kind=unknown reason={}", actionId, static_cast<int>(reason));
 		return;

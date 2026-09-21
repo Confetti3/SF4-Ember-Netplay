@@ -377,11 +377,10 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 		});
 		// A spectator owns one inbound edge and no seat, so an unconfirmed helper
 		// close is not worth its room membership: stop waiting and return to the
-		// room. Fighters keep the fail-closed branch below.
-		// ponytail: the stale mapping stays Closing in IrohRoom, so PrepareGame
-		// refuses this member's later matches until game_closed arrives; evict
-		// the mapping helper-side if that is ever seen in the field.
+		// room. Fighters keep the fail-closed branch below. The mapping is
+		// released too, or PrepareGame would refuse every later match.
 		const bool spectatorAbandon = slot_ >= 2 && teardown_.HelperTimedOut(now, closed);
+		if (spectatorAbandon) room_->AbandonMatch(generation_);
 		if ((closed && roomEndReceived_) || spectatorAbandon) {
 			phase_ = Phase::Idle; ClearLinks(); teardown_ = MatchTeardownTiming();
 			// The helper mappings and native socket are both retired here. Keep

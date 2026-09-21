@@ -69,9 +69,10 @@ private:
     unsigned* deliveries_;
 };
 
-enum class MatchFault { None, Preparing, PreparingMinority, SameTermPreparation, Started, CommittedResult };
-static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t count,
-    bool graceful=false, MatchFault matchFault=MatchFault::None) {
+// None stops the technical leader's helper. Departure is a graceful leader
+// Leave; FollowerKilled closes a seated follower's pipe without one.
+enum class Fault { None, Departure, FollowerKilled, Preparing, PreparingMinority, SameTermPreparation, Started, CommittedResult };
+static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t count, Fault fault) {
     std::array<platform::HelperProcess,3> processes;
     std::array<platform::HelperClient,3> helpers;
     std::array<test::IrohIntegrationPeer,3> peers;
@@ -79,7 +80,7 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
     std::array<GGPOSession*,3> ggpo = {};
     std::vector<test::IrohIntegrationPeer*> live;
     const char* phase="bootstrap";
-    bool holdSecondPreparation=matchFault==MatchFault::Preparing || matchFault==MatchFault::PreparingMinority;
+    bool holdSecondPreparation=fault==Fault::Preparing || fault==Fault::PreparingMinority;
     std::uint64_t observedQueuedGrant=0;
     std::array<std::uint64_t,3> observedGenerations{};
     std::array<unsigned,3> grantDeliveries{};
@@ -167,14 +168,14 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
             CHECK(peers[i].room->Join(peers[0].room->Invitation(),"recovery-integration"));
             wait([&](){if(!live.empty()) pump();return peers[i].room->GetState()==session::IrohRoom::State::Ready;});
         }
-        if((i==2 && matchFault==MatchFault::PreparingMinority) ||
-            (i>0 && matchFault==MatchFault::SameTermPreparation)) {
+        if((i==2 && fault==Fault::PreparingMinority) ||
+            (i>0 && fault==Fault::SameTermPreparation)) {
             CHECK(test::ConfigureIrohIntegrationServer(peers[i],"recovery-integration"));
             peers[i].client.reset(new SessionClient(callbacks,"recovery-integration",static_cast<std::uint16_t>(31000+i),peers[i].name));
             peers[i].client->RequireCustomRooms();peers[i].client->RequireMatchAuthorization();
-            auto& observedGeneration=matchFault==MatchFault::SameTermPreparation?observedGenerations[i]:observedQueuedGrant;
+            auto& observedGeneration=fault==Fault::SameTermPreparation?observedGenerations[i]:observedQueuedGrant;
             std::unique_ptr<session::ClientTransport> observed(new ObservedGrantTransport(peers[i].room->Client(),
-                observedGeneration,matchFault==MatchFault::SameTermPreparation?&grantDeliveries[i]:nullptr));
+                observedGeneration,fault==Fault::SameTermPreparation?&grantDeliveries[i]:nullptr));
             CHECK(peers[i].client->Connect(std::move(observed),false)==0);peers[i].configured=true;
         } else CHECK(test::ConfigureIrohIntegrationPeer(peers[i],callbacks,"recovery-integration",static_cast<std::uint16_t>(31000+i)));
         live.push_back(&peers[i]);
@@ -251,7 +252,7 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
     const auto oldTerm=peers[0].room->Coordination().term;
     const auto oldRevision=peers[0].recovery.AppliedRevision();
     for(std::size_t i=1;i<count;++i) CHECK(peers[i].room->RoomId()==oldRoom);
-    if(graceful) {
+    if(fault==Fault::Departure) {
         phase="explicit moderator transfer";
         const auto first=peers[0].client->GetRoomSnapshot().localMember;
         const auto oldest=peers[1].client->GetRoomSnapshot().localMember;
@@ -283,8 +284,34 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
         std::cout << "Explicit moderator transfer and normal leader departure preserved usable room authority; relay-only=" << relayOnly << '\n';
         return;
     }
+    if(fault==Fault::FollowerKilled) {
+        // A seated follower's game is killed (Alt+F4): no Leave is ever sent.
+        phase="seat the follower";
+        action(2,room::ActionKind::Queue);
+        const auto ghost=peers[2].client->GetRoomSnapshot().localMember;
+        CHECK(ghost!=0);
+        wait([&](){pump();const auto& table=peers[0].client->GetRoomSnapshot().tables[0];return table.p1==ghost || table.p2==ghost;});
+        // A killed game drops its helper pipe; the helper then closes its
+        // endpoint without a room Leave. Close the pipe the same way.
+        live.pop_back();helpers[2].Stop();
+        wait([&](){return !processes[2].IsRunning();});
+        phase="leader commits the killed follower's departure";
+        wait([&](){pump();for(auto* peer:live) {
+            const auto& authority=peer->room->Coordination();const auto& snapshot=peer->client->GetRoomSnapshot();
+            if(!authority.writable || !peer->recovery.CaughtUp(authority) || snapshot.members.size()!=2 ||
+                snapshot.tables[0].p1==ghost || snapshot.tables[0].p2==ghost || authority.voterCount!=2) return false;
+        }return true;},45000); // 15 s departure grace, then the commit and voter removal.
+        phase="freed seat is usable";
+        action(1,room::ActionKind::Queue);
+        action(1,room::ActionKind::Chat,"After killed follower");
+        for(std::size_t i=0;i<2;++i) CHECK(helpers[i].Send("{\"type\":\"shutdown\"}"));
+        phase="follower-killed fixture shutdown";
+        wait([&](){for(std::size_t i=0;i<2;++i) if(processes[i].IsRunning()) return false;return true;});
+        std::cout << "Killed follower was removed from the room, its seat and the voter set; relay-only=" << relayOnly << '\n';
+        return;
+    }
 
-    if(matchFault!=MatchFault::None) {
+    if(fault!=Fault::None) {
         CHECK(count == 3);
         phase="active started match setup";
         // Keep the original technical leader in the room as an unseated
@@ -326,7 +353,7 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
         matches[1].reset(new session::IrohMatchSession(*peers[1].client,peers[1].room));
         matches[2].reset(new session::IrohMatchSession(*peers[2].client,peers[2].room));
         const auto ready=[&](std::size_t peer,unsigned delay) {
-            if(matchFault==MatchFault::SameTermPreparation && peer==2) {
+            if(fault==Fault::SameTermPreparation && peer==2) {
                 // The window below steps the owner until it holds a candidate
                 // and then proposes it in one tick. Start from an idle owner,
                 // or that candidate may be an earlier commit still applying
@@ -344,7 +371,7 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
             request.tableRevision=view.tables[0].revision; request.inputDelay=static_cast<std::uint8_t>(delay);
             std::uint64_t id=0;
             CHECK(peers[peer].client->SendRoomAction(request,&id)==session::SendResult::Queued);
-            if(matchFault==MatchFault::SameTermPreparation && peer==2) {
+            if(fault==Fault::SameTermPreparation && peer==2) {
                 phase="same-term preparation proposal";
                 auto& owner=peers[0];
                 // Consume the Ready intent without importing its eventual
@@ -407,7 +434,7 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
             CHECK(helpers[1].Send("{\"type\":\"shutdown\"}"));CHECK(helpers[2].Send("{\"type\":\"shutdown\"}"));
             wait([&]() {return !processes[1].IsRunning() && !processes[2].IsRunning();});
         };
-        if(matchFault==MatchFault::SameTermPreparation) {
+        if(fault==Fault::SameTermPreparation) {
             wait([&]() {pump();return matches[1]->GetPhase()==MatchPhase::Started &&
                 matches[2]->GetPhase()==MatchPhase::Started;});
             const auto generation=matches[1]->Generation();
@@ -430,7 +457,7 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
             std::cout << "Same-term native pause retained the private proposal through real helper commitment and emitted each grant once; relay-only=" << relayOnly << '\n';
             return;
         }
-        if(matchFault==MatchFault::Preparing || matchFault==MatchFault::PreparingMinority) {
+        if(fault==Fault::Preparing || fault==Fault::PreparingMinority) {
             phase="real preparation before leader loss";
             wait([&]() {pump();return matches[1]->GetPhase()==MatchPhase::Prepared &&
                 matches[2]->GetPhase()==MatchPhase::Idle;});
@@ -442,7 +469,7 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
             // port is only published by game_ready after authorization.
             CHECK(listener.generation==generation && listener.virtualPort==0 && peers[1].client->_ggpoPort &&
                 listener.state==session::IrohRoom::GameState::Waiting);
-            if(matchFault==MatchFault::PreparingMinority) {
+            if(fault==Fault::PreparingMinority) {
                 wait([&]() {pump();return observedQueuedGrant==generation &&
                     peers[2].room->Coordination().writable && peers[2].recovery.CaughtUp(peers[2].room->Coordination());});
                 CHECK(matches[2]->Generation()==0 && matches[2]->GetPhase()==MatchPhase::Idle);
@@ -639,7 +666,7 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
             peers[1].room->Game(peers[2].room->LocalIdentity()),
             peers[2].room->Game(peers[1].room->LocalIdentity())};
         CHECK(beforeGames[0].state==session::IrohRoom::GameState::Ready && beforeGames[1].state==session::IrohRoom::GameState::Ready);
-        if(matchFault==MatchFault::CommittedResult) {
+        if(fault==Fault::CommittedResult) {
             phase="native results before leader loss";gameStep={};
             const std::array<std::uint64_t,2> heldApplied={peers[1].recovery.AppliedRevision(),peers[2].recovery.AppliedRevision()};
             for(std::size_t i=1;i<=2;++i) {
@@ -866,16 +893,13 @@ int wmain(int argc,wchar_t** argv) {
         else if(option.rfind(L"--scenario=",0)==0) { CHECK(scenario==L"all");scenario=option.substr(11); }
         else CHECK(false);
     }
-    CHECK(scenario==L"all" || scenario==L"majority" || scenario==L"minority" ||
-        scenario==L"departure" || scenario==L"started" || scenario==L"preparing" ||
-        scenario==L"preparing-minority" || scenario==L"same-term-preparing" || scenario==L"committed-result");
-    if(scenario==L"all" || scenario==L"majority") RunRecovery(argv[1],relayOnly,3);
-    if(scenario==L"all" || scenario==L"minority") RunRecovery(argv[1],relayOnly,2);
-    if(scenario==L"all" || scenario==L"departure") RunRecovery(argv[1],relayOnly,3,true);
-    if(scenario==L"all" || scenario==L"started") RunRecovery(argv[1],relayOnly,3,false,MatchFault::Started);
-    if(scenario==L"all" || scenario==L"preparing") RunRecovery(argv[1],relayOnly,3,false,MatchFault::Preparing);
-    if(scenario==L"all" || scenario==L"preparing-minority") RunRecovery(argv[1],relayOnly,3,false,MatchFault::PreparingMinority);
-    if(scenario==L"all" || scenario==L"same-term-preparing") RunRecovery(argv[1],relayOnly,3,false,MatchFault::SameTermPreparation);
-    if(scenario==L"all" || scenario==L"committed-result") RunRecovery(argv[1],relayOnly,3,false,MatchFault::CommittedResult);
+    struct Case { const wchar_t* name; std::size_t count; Fault fault; };
+    const Case cases[]={
+        {L"majority",3,Fault::None},{L"minority",2,Fault::None},{L"departure",3,Fault::Departure},
+        {L"started",3,Fault::Started},{L"preparing",3,Fault::Preparing},
+        {L"preparing-minority",3,Fault::PreparingMinority},{L"same-term-preparing",3,Fault::SameTermPreparation},
+        {L"committed-result",3,Fault::CommittedResult},{L"follower-killed",3,Fault::FollowerKilled}};
+    CHECK(scenario==L"all" || std::any_of(std::begin(cases),std::end(cases),[&](const Case& c){return scenario==c.name;}));
+    for(const auto& c:cases) if(scenario==L"all" || scenario==c.name) RunRecovery(argv[1],relayOnly,c.count,c.fault);
     std::cout << "Helper recovery integration passed. No native SF4 gameplay tested.\n";
 }

@@ -132,6 +132,9 @@ public:
 	// links. This is used when the room authority retires a spectator.
 	virtual bool EndPeer(const std::string& peer, std::uint64_t generation);
 	virtual bool EndMatch(std::uint64_t generation);
+	// Stop waiting for game_closed on this generation's mappings. The helper
+	// clears them when it runs end_match, so only the lost event is skipped.
+	virtual void AbandonMatch(std::uint64_t generation);
 	virtual GameSnapshot Game(const std::string& peer) const;
 	std::unique_ptr<ServerTransport> Server();
 	std::unique_ptr<ClientTransport> Client();
@@ -145,7 +148,17 @@ private:
 		bool admitted = false;
 		std::int64_t nextId = 2;
 		std::int64_t receivedId = 1;
+		// Set when this peer's control closes and cleared when it reconnects.
+		// Once it passes, the committed leader treats the peer as departed.
+		std::uint64_t departureDeadline = 0;
 	};
+	// Long enough for a control reconnect after a network blip; short enough
+	// that a crashed member's seat is freed while the others are still there.
+	static constexpr std::uint64_t DepartureGraceMs = 15000;
+	void ExpireDepartedPeers();
+	std::map<Connection, Peer>::iterator FindPeer(const std::string& identity);
+	// Drops the peer and any of its intents still queued for the server.
+	std::map<Connection, Peer>::iterator ErasePeer(std::map<Connection, Peer>::iterator peer);
 	std::map<std::string, std::uint64_t> memberIncarnations_;
 	std::set<std::string> committedMembers_;
 	bool haveCommittedMembers_ = false;

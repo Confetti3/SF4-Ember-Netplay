@@ -15,6 +15,7 @@ vcpkg_from_github(
         "input-gap-disconnect.patch"
         "fast-quality-report.patch"
         "stalled-input-repair.patch"
+        "init-round-trip-time.patch"
 )
 
 # One canonical policy is compiled by both GGPO and the portable tests.

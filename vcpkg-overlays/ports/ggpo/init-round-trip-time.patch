@@ -1,0 +1,11 @@
+diff --git a/src/lib/ggpo/network/udp_proto.cpp b/src/lib/ggpo/network/udp_proto.cpp
+--- a/src/lib/ggpo/network/udp_proto.cpp
++++ b/src/lib/ggpo/network/udp_proto.cpp
+@@ -75,6 +75,7 @@ IsValidUdpMsg(UdpMsg *msg, int len)
+ UdpProtocol::UdpProtocol() :
+    _local_frame_advantage(0),
+    _remote_frame_advantage(0),
++   _round_trip_time(0),
+    _queue(-1),
+    _magic_number(0),
+    _remote_magic_number(0),

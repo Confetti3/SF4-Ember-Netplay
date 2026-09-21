@@ -50,6 +50,9 @@ public:
 	}
 	bool EndPeer(const std::string& peer, std::uint64_t) override { snapshots_.erase(peer); return true; }
 	bool EndMatch(std::uint64_t generation) override { endMatchCalls.push_back(generation); return true; }
+	void AbandonMatch(std::uint64_t generation) override {
+		for (auto& snapshot : snapshots_) if (snapshot.second.generation == generation) snapshot.second.state = GameState::Closed;
+	}
 	void Leave(bool) override { ++leaveCalls; }
 private:
 	CoordinationSnapshot coordination_;
@@ -202,6 +205,8 @@ void TestSpectatorHelperTimeoutStaysInRoom() {
 	CHECK(f.session.GetPhase() == Phase::Idle);
 	CHECK(f.session.Error().empty());
 	CHECK(f.room->leaveCalls == 0);
+	// The abandoned mapping no longer blocks the next generation.
+	CHECK(f.room->Game(f.p1).state == session::IrohRoom::GameState::Closed);
 	std::cout << "TestSpectatorHelperTimeoutStaysInRoom passed\n";
 }
 

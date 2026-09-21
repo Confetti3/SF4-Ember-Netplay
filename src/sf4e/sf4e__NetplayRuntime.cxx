@@ -1507,9 +1507,13 @@ static void RetryPendingAbort() {
 static void RetryMatchFinished() {
 	if (runtime->matchFinishedPending && runtime->attached && UserApp::netplay) {
 		const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
+		// A table that already left play (the result reports ended it) would
+		// reject the finish with WrongGeneration, so there is nothing to send.
+		const auto* table = runtime->matchFinishedTable < room::TableCount ?
+			&snapshot.tables[runtime->matchFinishedTable] : nullptr;
 		const bool current = runtime->match && runtime->match->Generation() == runtime->matchFinishedGeneration &&
-			runtime->matchFinishedTable < room::TableCount && snapshot.roomEpoch &&
-		snapshot.tables[runtime->matchFinishedTable].matchGeneration == runtime->matchFinishedGeneration;
+			table && snapshot.roomEpoch && table->matchGeneration == runtime->matchFinishedGeneration &&
+			(table->phase == room::TablePhase::Playing || table->phase == room::TablePhase::Paused);
 		if (!current) {
 			runtime->matchFinishedPending = false;
 			runtime->matchFinishedGeneration = 0;

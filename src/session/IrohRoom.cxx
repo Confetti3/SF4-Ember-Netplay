@@ -215,6 +215,11 @@ bool IrohRoom::EndMatch(std::uint64_t generation) {
 	return true;
 }
 
+void IrohRoom::AbandonMatch(std::uint64_t generation) {
+	for (auto& game : games_)
+		if (game.second.generation == generation) { game.second.state = GameState::Closed; game.second.virtualPort = 0; }
+}
+
 void IrohRoom::GameSnapshot::ObserveStatistics(const json& event) {
 	sentPackets = event.at("sent_packets").get<std::uint64_t>();
 	receivedPackets = event.at("received_packets").get<std::uint64_t>();
@@ -322,6 +327,11 @@ std::uint64_t IrohRoom::PeerIncarnation(Connection connection) const {
     return member==memberIncarnations_.end() ? 0 : member->second;
 }
 
+std::map<Connection, IrohRoom::Peer>::iterator IrohRoom::FindPeer(const std::string& identity) {
+    return std::find_if(peers_.begin(), peers_.end(), [&](const std::pair<const Connection, Peer>& item) {
+        return item.second.identity == identity;
+    });
+}
 Connection IrohRoom::ConnectionForIdentity(const std::string& identity) const {
     if (identity == localIdentity_ && !identity.empty()) return 1;
     for (const auto& peer : peers_) if (peer.second.identity == identity) return peer.first;
@@ -384,7 +394,11 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
         for(const auto& member:event.at("members"))
             if(!incarnations.count(member.get<std::string>())) return true;
         memberIncarnations_=incarnations;
-        for(auto& peer:peers_) if(incarnations.count(peer.second.identity)) peer.second.admitted=true;
+        const auto connected=event.at("members").get<std::set<std::string>>();
+        for(auto& peer:peers_) {
+            if(incarnations.count(peer.second.identity)) peer.second.admitted=true;
+            if(connected.count(peer.second.identity)) peer.second.departureDeadline=0;
+        }
         PruneRetiredPeers();
         // control_rebound.members describes currently connected control
         // edges, while member_incarnations is the authenticated room roster.
@@ -639,13 +653,29 @@ void IrohRoom::PruneRetiredPeers() {
         const auto game=games_.find(identity);
         if(memberIncarnations_.count(identity) || committedMembers_.count(identity) ||
             (game!=games_.end() && game->second.state!=GameState::Closed)) {++peer;continue;}
-        const auto connection=peer->first;
-        for(auto message=serverMessages_.begin();message!=serverMessages_.end();) {
-            if(message->connection==connection) {queuedBytes_-=message->payload.size();message=serverMessages_.erase(message);}
-            else ++message;
-        }
-        peer=peers_.erase(peer);
+        peer=ErasePeer(peer);
     }
+}
+
+void IrohRoom::ExpireDepartedPeers() {
+    if(state_!=State::Ready || !coordination_.leaderLocal || !coordination_.writable) return;
+    const auto now=GetTickCount64();
+    for(auto peer=peers_.begin();peer!=peers_.end();) {
+        if(!peer->second.departureDeadline || now<peer->second.departureDeadline) {++peer;continue;}
+        if(closed_.size()>=MaximumQueuedMessages) return; // Retried next poll.
+        // SessionServer::Step turns this into a committed Leave, which also
+        // retires the member's coordination vote.
+        closed_.push_back(peer->first);
+        peer=ErasePeer(peer);
+    }
+}
+
+std::map<Connection, IrohRoom::Peer>::iterator IrohRoom::ErasePeer(std::map<Connection, Peer>::iterator peer) {
+    for(auto message=serverMessages_.begin();message!=serverMessages_.end();) {
+        if(message->connection==peer->first) {queuedBytes_-=message->payload.size();message=serverMessages_.erase(message);}
+        else ++message;
+    }
+    return peers_.erase(peer);
 }
 
 // The three long Poll branches. Each returns false when Poll must stop for
@@ -656,10 +686,12 @@ bool IrohRoom::HandleConnected(const json& event) {
 	const auto room = event.at("room").get<std::array<std::uint8_t, 16>>();
 	if (hosting_ && room != room_) { Fail("wrong_room"); return false; }
 	if (!hosting_ && state_ != State::Joining && !coordination_.active) { Fail("unexpected_peer"); return false; }
-	if (coordination_.active && ConnectionForIdentity(identity)) return true;
-	for (const auto& peer : peers_) if (peer.second.identity == identity) {
-		Fail("duplicate_peer"); return false;
+	const auto known = FindPeer(identity);
+	if (coordination_.active && (known != peers_.end() || (!localIdentity_.empty() && identity == localIdentity_))) {
+		if (known != peers_.end()) known->second.departureDeadline = 0; // Its control is back.
+		return true;
 	}
+	if (known != peers_.end()) { Fail("duplicate_peer"); return false; }
 	PruneRetiredPeers();
 	if (peers_.size() >= MaximumRemotePeers || nextConnection_ == (std::numeric_limits<Connection>::max)()) {
 		Fail("peer_limit"); return false;
@@ -674,9 +706,7 @@ bool IrohRoom::HandleConnected(const json& event) {
 
 bool IrohRoom::HandleControlTraffic(const json& event, const std::string& type) {
 	const auto identity = event.at("peer").get<std::string>();
-	auto peer = std::find_if(peers_.begin(), peers_.end(), [&](const std::pair<const Connection, Peer>& item) {
-		return item.second.identity == identity;
-	});
+	const auto peer = FindPeer(identity);
 	if (peer == peers_.end()) return true; // Late event for a departed peer.
 	if (type == "control_closed") {
 		if (coordination_.active) {
@@ -692,17 +722,15 @@ bool IrohRoom::HandleControlTraffic(const json& event, const std::string& type) 
 				// the same poll that detected loss of its leader control.
 				return false;
 			}
+			// A member whose game was killed never sends Leave. Its control
+			// gets a grace period to reconnect; after that the committed
+			// leader treats it as departed (ExpireDepartedPeers).
+			if (!peer->second.departureDeadline) peer->second.departureDeadline = GetTickCount64() + DepartureGraceMs;
 			return true;
 		}
 		if (closed_.size() >= MaximumQueuedMessages) { Fail("room_close_queue"); return false; }
 		closed_.push_back(peer->first);
-		const auto departed = peer->first;
-		peers_.erase(peer);
-		for (auto message = serverMessages_.begin(); message != serverMessages_.end();) {
-			if (message->connection == departed) {
-				queuedBytes_ -= message->payload.size(); message = serverMessages_.erase(message);
-			} else ++message;
-		}
+		ErasePeer(peer);
 		if (!hosting_) {
 			// Keep the loss visible to the room controller while retaining
 			// independently authorized gameplay mappings. New match
@@ -792,6 +820,7 @@ void IrohRoom::Poll() {
     CompleteCommittedCheckpoints();
     if(probe_.status=="checking" && GetTickCount64()>=probe_.deadlineMs) { probe_.status="timed_out";probe_.recommended=-1; }
     PruneRetiredPeers();
+    ExpireDepartedPeers();
 	if (helper_.State() == platform::HelperState::Failed || helper_.State() == platform::HelperState::Stopped) {
 		for (auto& game : games_) { game.second.state = GameState::Closed; game.second.virtualPort = 0; }
 		Fail("helper_unavailable"); return;
