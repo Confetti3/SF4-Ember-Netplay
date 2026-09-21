@@ -945,15 +945,9 @@ static void FailReady(const char* reason) {
 }
 static constexpr ULONGLONG ReadyIntentTimeoutMs = 20000;
 
-void TickRuntime() {
-	if (!runtime) return;
-	{
-		const auto now = GetTickCount64();
-		if (runtime->error != runtime->errorShown) { runtime->errorShown = runtime->error; runtime->errorShownAtMs = now; }
-		else if (!runtime->error.empty() && !StickyRuntimeError(runtime->error) && now - runtime->errorShownAtMs >= 30000) {
-			runtime->error.clear(); runtime->errorShown.clear();
-		}
-	}
+// TickRuntime runs these phases in order on the game thread. Each one reads and
+// writes `runtime`; the order is part of the behaviour.
+static void ObserveCoordination() {
     // Observe locally applied coordination before accepting any room mutation.
     if (runtime->room) {
         runtime->room->Poll();
@@ -987,6 +981,9 @@ void TickRuntime() {
         }
         runtime->controller.AdvanceRecovery(GetTickCount64());
     }
+}
+
+static void PumpDiscordClient() {
     if (runtime->discordClient) {
         platform::HelperMessage message;
         for (int budget=0; budget<8 && runtime->discordClient->TryReceive(message); ++budget) {
@@ -1012,32 +1009,9 @@ void TickRuntime() {
             runtime->discordStatus=loc::T("discord.companion_stopped");
         }
     }
-	// Legacy error/teardown hooks can retire the client between owner ticks.
-	// Dispose its coordinator before dereferencing that client again.
-	if (runtime->attached && !UserApp::netplay) {
-		runtime->controller.Execute({netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}});
-		CloseRoom();
-	}
-	// A failed router cannot deliver result, game_end, or Leave acknowledgments.
-	// Do not retry match teardown against it forever. Native ownership fences
-	// retirement; the helper's room_closed event still fences a subsequent room.
-	if (runtime->attached && runtime->room &&
-		runtime->room->CloseFailedRoom(Game::Battle::System::ggpo != nullptr)) {
-		runtime->error = loc::T("runtime.room_connection_failed");
-		runtime->controller.Execute({netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}});
-		CloseRoom();
-	}
-	if (runtime->services.Snapshot().closeGame && !runtime->updateClosing) {
-		runtime->updateClosing = true;
-		auto* main = Dimps::Platform::Main::staticMethods.GetSingleton();
-		if (main) PostMessageW((*Dimps::Platform::Main::GetWindowData(main))->hWnd, WM_CLOSE, 0, 0);
-	}
-	// Advance the host authority before the following SessionServer::Step()
-	// consumes room actions. This drives result-dispute and chat-rate deadlines
-	// on the same owner tick as the server, while clients retain their control
-	// stream and existing gameplay links.
-	if (UserApp::server) { diag::ScopedTimer timer(diag::OP_ROOM_ADVANCE); UserApp::server->AdvanceCustomRoom(GetTickCount64()); }
-	const bool helperReady = runtime->helper && runtime->helper->State() == platform::HelperState::Connected;
+}
+
+static void CaptureMenuInput() {
     if (AtMainMenu()) {
         runtime->inputDevices = input::ReadDevices();
         if (!runtime->inputInitialized && runtime->input.State()==input::Capture::Idle &&
@@ -1064,6 +1038,9 @@ void TickRuntime() {
             UserApp::netplay->deviceType = static_cast<uint8_t>(runtime->input.Selected().type);
         }
     } else runtime->input.Cancel();
+}
+
+static void DrainCommands(bool helperReady) {
 	RuntimeCommand command;
 	for (int budget = 0; budget < 8 && runtime->commands.TryPop(command); ++budget) {
 		// Validate ownership before even a deferred GGPO teardown side effect.
@@ -1361,6 +1338,9 @@ void TickRuntime() {
 		default: break;
 		}
 	}
+}
+
+static void DrainRoomEvents() {
 	// The helper was already polled at the top of this tick (and again by
 	// the recovery runtime when coordination is active); a reply to a command
 	// sent above cannot arrive within the same tick, so a third poll here
@@ -1409,6 +1389,9 @@ void TickRuntime() {
 			AbortLocalMatch(loc::T("runtime.table_game_cancelled"));
 		}
 	}
+}
+
+static void PersistTerminalOutcome() {
 	// Record the confirmed outcome in the profile and hold the terminal receipt
 	// until the settings writer reports that exact revision on disk. The writer
 	// retries failed writes itself, so a snapshot is queued once per receipt and
@@ -1442,6 +1425,9 @@ void TickRuntime() {
 			}
 		}
 	}
+}
+
+static void DrainActionReplies() {
 	if (runtime->attached && UserApp::netplay) {
         SessionClient::ActionReply reply;
         while (UserApp::netplay->client.TakeActionReply(reply)) {
@@ -1468,6 +1454,9 @@ void TickRuntime() {
 			}
         }
     }
+}
+
+static void RetryPendingAbort() {
 	if (runtime->pendingAbort && runtime->attached && UserApp::netplay) {
 		const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
 		const auto& action = *runtime->pendingAbort;
@@ -1497,6 +1486,9 @@ void TickRuntime() {
 				netplay::EventKind::GameplayLost : netplay::EventKind::ControlLost, runtime->error);
 		}
 	}
+}
+
+static void RetryMatchFinished() {
 	if (runtime->matchFinishedPending && runtime->attached && UserApp::netplay) {
 		const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
 		const bool current = runtime->match && runtime->match->Generation() == runtime->matchFinishedGeneration &&
@@ -1531,6 +1523,9 @@ void TickRuntime() {
 				runtime->finishRetryAt=now+netplay::MatchResultOutbox::UnsentRetryDelayMs;
 		}
 	}
+}
+
+static void PumpResultOutbox() {
 	if (runtime->resultOutbox.Pending() && runtime->attached && UserApp::netplay) {
 		const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
 		const auto* capture = runtime->resultOutbox.Captured();
@@ -1571,6 +1566,9 @@ void TickRuntime() {
 				runtime->resultOutbox.MarkUnsent(now);
 		}
 	}
+}
+
+static void ConfirmLobbySettings() {
 	if (runtime->pendingLobbySettings && runtime->attached && UserApp::netplay) {
 		const auto& lobby = UserApp::netplay->client._lobbyData;
 		netplay::LobbySettings current;
@@ -1584,6 +1582,9 @@ void TickRuntime() {
 			runtime->error = loc::T("runtime.lobby_settings_rejected");
 		}
 	}
+}
+
+static void TickMatch() {
 	if (runtime->match) {
 		diag::ScopedTimer lifecycleTimer(diag::OP_MATCH_LIFECYCLE);
 		if (runtime->matchEnded) {
@@ -1642,6 +1643,9 @@ void TickRuntime() {
 			}
 		}
 	}
+}
+
+static void ReleaseFinishedMatch() {
 	// IrohMatchSession reaches Idle only after its bounded helper teardown.
 	// Keep the custom-room table projection frozen until native GGPO has also
 	// released ownership of the game socket; this prevents a late room update
@@ -1676,6 +1680,9 @@ void TickRuntime() {
 		runtime->recoveringMatch = false; runtime->matchEntered = false;
 		Apply(netplay::EventKind::MatchRecovered, runtime->error);
 	}
+}
+
+static void ResolvePendingIntents() {
 	const auto currentGeneration = runtime->controller.GetSnapshot().generation;
 	if (runtime->pendingRoomAction && !(runtime->pendingRoomAction->command.generation == currentGeneration))
 		{ runtime->pendingRoomAction.reset(); runtime->pendingRoomActionDeadline = 0; }
@@ -1726,6 +1733,9 @@ void TickRuntime() {
 	}
 	if (runtime->attached && UserApp::netplay && runtime->controller.GetSnapshot().readyPending &&
 		UserApp::netplay->client._outstandingReadyRequestNumber == -1) Apply(netplay::EventKind::ReadyAcknowledged);
+}
+
+static void SettleRoomState(bool helperReady) {
 	const bool helperFailed = !runtime->helper || runtime->helper->State() == platform::HelperState::Failed;
     if(runtime->leaveRequested && runtime->attached && UserApp::netplay && !Game::Battle::System::ggpo &&
         (!runtime->match || runtime->match->GetPhase()==session::IrohMatchSession::Phase::Idle)) {
@@ -1781,6 +1791,9 @@ void TickRuntime() {
         replacement.preferences=runtime->preferences;
         if(SubmitRuntimeCommand(std::move(replacement))) runtime->replacementPending=false;
     }
+}
+
+static void PublishAndTickDiscordInvite() {
 	const auto view=PublishThrottled();
     std::string currentParty; std::uint64_t expiry=0;
     if (view.session.room==netplay::RoomState::Joined && runtime->room)
@@ -1797,6 +1810,59 @@ void TickRuntime() {
         invite.discordRevision=runtime->discordInvite.Revision();
         SubmitRuntimeCommand(std::move(invite));
     }
+}
+
+void TickRuntime() {
+	if (!runtime) return;
+	{
+		const auto now = GetTickCount64();
+		if (runtime->error != runtime->errorShown) { runtime->errorShown = runtime->error; runtime->errorShownAtMs = now; }
+		else if (!runtime->error.empty() && !StickyRuntimeError(runtime->error) && now - runtime->errorShownAtMs >= 30000) {
+			runtime->error.clear(); runtime->errorShown.clear();
+		}
+	}
+	ObserveCoordination();
+	PumpDiscordClient();
+	// Legacy error/teardown hooks can retire the client between owner ticks.
+	// Dispose its coordinator before dereferencing that client again.
+	if (runtime->attached && !UserApp::netplay) {
+		runtime->controller.Execute({netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}});
+		CloseRoom();
+	}
+	// A failed router cannot deliver result, game_end, or Leave acknowledgments.
+	// Do not retry match teardown against it forever. Native ownership fences
+	// retirement; the helper's room_closed event still fences a subsequent room.
+	if (runtime->attached && runtime->room &&
+		runtime->room->CloseFailedRoom(Game::Battle::System::ggpo != nullptr)) {
+		runtime->error = loc::T("runtime.room_connection_failed");
+		runtime->controller.Execute({netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}});
+		CloseRoom();
+	}
+	if (runtime->services.Snapshot().closeGame && !runtime->updateClosing) {
+		runtime->updateClosing = true;
+		auto* main = Dimps::Platform::Main::staticMethods.GetSingleton();
+		if (main) PostMessageW((*Dimps::Platform::Main::GetWindowData(main))->hWnd, WM_CLOSE, 0, 0);
+	}
+	// Advance the host authority before the following SessionServer::Step()
+	// consumes room actions. This drives result-dispute and chat-rate deadlines
+	// on the same owner tick as the server, while clients retain their control
+	// stream and existing gameplay links.
+	if (UserApp::server) { diag::ScopedTimer timer(diag::OP_ROOM_ADVANCE); UserApp::server->AdvanceCustomRoom(GetTickCount64()); }
+	const bool helperReady = runtime->helper && runtime->helper->State() == platform::HelperState::Connected;
+	CaptureMenuInput();
+	DrainCommands(helperReady);
+	DrainRoomEvents();
+	PersistTerminalOutcome();
+	DrainActionReplies();
+	RetryPendingAbort();
+	RetryMatchFinished();
+	PumpResultOutbox();
+	ConfirmLobbySettings();
+	TickMatch();
+	ReleaseFinishedMatch();
+	ResolvePendingIntents();
+	SettleRoomState(helperReady);
+	PublishAndTickDiscordInvite();
 }
 
 } } // namespace sf4e::NetplayFacade
