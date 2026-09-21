@@ -415,7 +415,7 @@ PostPublishState Publish() {
 				[&](const room::Member& member) { return member.id == snapshot.room.localMember; });
 			if (local != snapshot.room.members.end()) localMember = &*local;
 			snapshot.localSlot = localMember ? localMember->seat : -1;
-			if (!client.RoomError().empty()) snapshot.helperError = client.RoomError();
+			if (!client.RoomError().empty()) snapshot.helperError = loc::T(client.RoomError().c_str());
 		}
 		const bool matchCanReady = runtime->match && (runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle ||
 			(runtime->match->GetPhase() == session::IrohMatchSession::Phase::Ending && snapshot.session.match == netplay::MatchState::PostMatch));
@@ -495,25 +495,25 @@ PostPublishState Publish() {
     snapshot.readyFailure = runtime->readyFailure; snapshot.readyFailureSequence = runtime->readyFailureSequence;
     // Report the actual gate; a pending transition is not the same as Ready.
     if (!snapshot.canEditSelection) {
-        snapshot.selectionLockReason = !snapshot.atMainMenu ? "Return to the native main menu to change your fighter." :
-            runtime->pendingAbort ? "Waiting for the previous game to close." :
-			snapshot.room.localTerminalPending ? "Waiting for the previous match's players and spectators to finish teardown." :
-			runtime->recoveringMatch || snapshot.session.control != netplay::Health::Healthy ? "Waiting for the room connection to recover." :
-            snapshot.session.readyPending || runtime->pendingReady ? "Waiting for your Ready request to finish." :
-            "Waiting for the current match or selection update to finish.";
+        snapshot.selectionLockReason = !snapshot.atMainMenu ? loc::T("runtime.lock.return_to_menu_fighter") :
+            runtime->pendingAbort ? loc::T("runtime.lock.previous_game_closing") :
+			snapshot.room.localTerminalPending ? loc::T("runtime.lock.teardown") :
+			runtime->recoveringMatch || snapshot.session.control != netplay::Health::Healthy ? loc::T("runtime.lock.room_recovering") :
+            snapshot.session.readyPending || runtime->pendingReady ? loc::T("runtime.lock.ready_pending") :
+            loc::T("runtime.lock.selection_update");
     }
 	if (!snapshot.canReady) {
-		snapshot.readyLockReason = !snapshot.controllerReady ? "Assign or reconnect your controller in Settings > Player & Controller." :
-			!snapshot.atMainMenu ? "Return to the native main menu before readying up." :
-			runtime->pendingLobbySettings || runtime->pendingLobbyEdit ? "Waiting for table settings to finish applying." :
-			runtime->pendingAbort ? "Waiting for the previous game to close." :
+		snapshot.readyLockReason = !snapshot.controllerReady ? loc::T("room.controller_required") :
+			!snapshot.atMainMenu ? loc::T("runtime.lock.return_to_menu_ready") :
+			runtime->pendingLobbySettings || runtime->pendingLobbyEdit ? loc::T("runtime.lock.table_settings") :
+			runtime->pendingAbort ? loc::T("runtime.lock.previous_game_closing") :
 			snapshot.room.localTerminalPending || (snapshot.room.roomEpoch && snapshot.localSlot >= 0 && snapshot.localSlot < 2 &&
 				snapshot.room.members.size() > 0 && std::any_of(snapshot.room.members.begin(), snapshot.room.members.end(), [&](const room::Member& member) {
 					return member.id == snapshot.room.localMember && member.table >= 0 && member.table < room::TableCount &&
 						snapshot.room.terminalPending[member.table];
-				})) ? "Waiting for the previous match's players and spectators to finish teardown." :
-			(UserApp::netplay && UserApp::netplay->client.RoomError() == "terminal_result_backlog") ? "Waiting for the previous match's players and spectators to finish teardown." :
-			"Waiting for the current room or match update to finish.";
+				})) ? loc::T("runtime.lock.teardown") :
+			(UserApp::netplay && UserApp::netplay->client.RoomError() == "terminal_result_backlog") ? loc::T("runtime.lock.teardown") :
+			loc::T("runtime.lock.room_update");
 	}
     snapshot.discordPending = runtime->discordInvite.Active();
     snapshot.discordConfirm = runtime->discordInvite.NeedsConfirmation();
@@ -969,7 +969,7 @@ void TickRuntime() {
                 // discards it and says so.
                 runtime->pendingLobbyEdit.reset();
                 if (changed && (runtime->pendingReady || runtime->pendingReadyDeadline))
-                    FailReady("Room control changed before your Ready was applied. Press Ready again.");
+                    FailReady(loc::T("runtime.ready.control_changed"));
             }
             if (runtime->controller.GetSnapshot().room==netplay::RoomState::Opening &&
                 runtime->room->GetState()==session::IrohRoom::State::Ready && !runtime->attached) AttachRoom();
@@ -1196,14 +1196,14 @@ void TickRuntime() {
 					(published.localSlot >= 0 && published.localSlot < 2 && client->LocalSelectionLocked(published.localSlot))));
 			if (inFlight) continue;
 			const char* refusal = nullptr;
-			if (!runtime->input.Ready()) refusal = "Assign or reconnect your controller before readying up.";
-			else if (!selection::FindStage(command.stage)) refusal = "The selected stage is unavailable. Choose another stage in Fighter Select.";
-			else if (command.character.charaID >= 44) refusal = "The selected fighter is unavailable. Choose another fighter in Fighter Select.";
+			if (!runtime->input.Ready()) refusal = loc::T("runtime.ready.assign_controller");
+			else if (!selection::FindStage(command.stage)) refusal = loc::T("runtime.ready.stage_unavailable");
+			else if (command.character.charaID >= 44) refusal = loc::T("runtime.ready.fighter_unavailable");
 			else if (!selection::Available(selection::FromNative(command.character), published.lobbySettings.editionSelect,
 				Dimps::Selection::ReadAvailability(command.character.charaID)))
-				refusal = "This fighter selection is unavailable. Choose an available costume, color, edition, and Ultra.";
+				refusal = loc::T("runtime.ready.selection_unavailable");
 			else if (published.session.room != netplay::RoomState::Joined || published.localSlot < 0 || published.localSlot > 1)
-				refusal = "Take a seat at a table before readying up.";
+				refusal = loc::T("runtime.ready.take_seat");
 			if (refusal) { FailReady(refusal); continue; }
 			// A parked Rematch may drain after the session left PostMatch; the
 			// controller accepts Ready in either state.
@@ -1296,7 +1296,7 @@ void TickRuntime() {
 			runtime->error.clear(); runtime->offlineRequested = false;
 			const bool started = decision.effect == netplay::Effect::HostRoom ? runtime->room->Host(sf4e::sidecarHash) :
 				runtime->room->Join(decision.invitation, sf4e::sidecarHash);
-			if (!started) Apply(netplay::EventKind::RoomFailed, "Could not open the room. Try again.");
+			if (!started) Apply(netplay::EventKind::RoomFailed, loc::T("runtime.room_open_failed"));
 			break;
 		}
 		case netplay::Effect::CloseSession:
@@ -1320,7 +1320,7 @@ void TickRuntime() {
             std::uint64_t revision=0; const auto peer=CurrentProbePeer(revision);
             if(peer.empty() || !runtime->room->RequestProbe(peer,runtime->nextProbeRequest++,revision,command.command.benchmark))
                 runtime->error=loc::T("runtime.connection_check_unavailable");
-            else if(runtime->error=="Connection check is unavailable. You can still choose a delay and Ready.")
+            else if(runtime->error==loc::T("runtime.connection_check_unavailable"))
                 runtime->error.clear();
             break;
         }
@@ -1349,8 +1349,8 @@ void TickRuntime() {
 				sent = client.PreBattle_SetStage(command.stage) == session::SendResult::Queued && sent;
 			}
 			if (!sent || client.Lobby_Ready() != session::SendResult::Queued) {
-				FailReady("Could not send match settings.");
-				Apply(netplay::EventKind::ControlLost, "Could not send match settings.");
+				FailReady(loc::T("runtime.match_settings_send_failed"));
+				Apply(netplay::EventKind::ControlLost, loc::T("runtime.match_settings_send_failed"));
 			}
 			break;
 		}
@@ -1419,8 +1419,8 @@ void TickRuntime() {
 		runtime->terminalAckGeneration == capturedResult->generation &&
 		runtime->terminalAckTable == capturedResult->table && capturedResult->slot < 2 &&
 		(capturedResult->result == room::MatchResult::P1Win || capturedResult->result == room::MatchResult::P2Win)) {
-		static const char* const persistenceWaiting =
-			"The match record could not be saved yet; returning to the room is waiting for it.";
+		const char* const persistenceWaiting =
+			loc::T("runtime.match_record_pending");
 		if (!runtime->terminalPersistRevision) {
 			const auto consumption = runtime->resultOutbox.PrepareProfileConsumption(runtime->preferences.record);
 			if (consumption == netplay::MatchResultOutbox::ProfileConsumption::NoPersistenceRequired) {
@@ -1451,7 +1451,7 @@ void TickRuntime() {
 			// previous match.
 			if (!reply.accepted && reply.kindKnown && reply.kind == room::ActionKind::Ready && runtime->pendingReadyDeadline) {
 				const auto& text = UserApp::netplay->client.RoomError();
-				FailReady(text.empty() ? "The room refused your Ready. Press Ready again." : text.c_str());
+				FailReady(text.empty() ? loc::T("runtime.ready.refused") : loc::T(text.c_str()));
 			}
 			if (runtime->resultOutbox.ObserveReply(reply.actionId, reply.accepted,
 				reply.reason == room::RejectReason::DuplicateResult))
@@ -1631,7 +1631,7 @@ void TickRuntime() {
 				const bool missing = std::any_of(roster.begin(), roster.end(), [&](const SessionProtocol::ConnectionID& id) {
 					return std::none_of(members.begin(), members.end(), [&](const SessionProtocol::MemberData& member) { return member.connId == id; });
 				});
-				if (missing && !UserApp::netplay->client.GetRoomSnapshot().roomEpoch) Apply(netplay::EventKind::ControlLost, "A match participant left the room.");
+				if (missing && !UserApp::netplay->client.GetRoomSnapshot().roomEpoch) Apply(netplay::EventKind::ControlLost, loc::T("runtime.participant_left_room"));
 				else if (missing && runtime->participantLeftGeneration != runtime->match->Generation()) {
 					// Custom rooms: the authority ends the game itself (MatchEnded/
 					// Abort). The survivor was never told why, only that GGPO
@@ -1693,7 +1693,7 @@ void TickRuntime() {
 	// A parked Ready or lobby edit that never gets its turn is reported, not
 	// forgotten: the player pressed it and GGPO was already retired for it.
 	if (runtime->pendingReadyDeadline && GetTickCount64() >= runtime->pendingReadyDeadline)
-		FailReady("Your Ready did not go through. The room did not finish the previous match in time. Press Ready again.");
+		FailReady(loc::T("runtime.ready.previous_match_timeout"));
 	if (runtime->pendingLobbyEdit && runtime->pendingLobbyEditDeadline && GetTickCount64() >= runtime->pendingLobbyEditDeadline) {
 		runtime->pendingLobbyEdit.reset(); runtime->pendingLobbyEditDeadline = 0;
 		runtime->error = loc::T("runtime.previous_match_close_timeout");
@@ -1743,18 +1743,18 @@ void TickRuntime() {
 			runtime->match->CanReplace(Game::Battle::System::ggpo != nullptr))) CloseRoom();
 	if (helperFailed && !runtime->helperLossReported) {
 		runtime->helperLossReported = true;
-		Apply(netplay::EventKind::HelperLost, "Networking is unavailable. Offline is available.");
+		Apply(netplay::EventKind::HelperLost, loc::T("runtime.networking_unavailable"));
 	}
 	auto state = runtime->controller.GetSnapshot();
 	if (state.room == netplay::RoomState::Opening && runtime->room) {
 		if (runtime->room->GetState() == session::IrohRoom::State::Ready && !runtime->attached) AttachRoom();
 		if (Joined()) Apply(netplay::EventKind::RoomJoined);
 		else if (runtime->room->GetState() == session::IrohRoom::State::Failed || runtime->room->GetState() == session::IrohRoom::State::Idle)
-			Apply(netplay::EventKind::RoomFailed, "Could not join the room. Check the invitation and try again.");
+			Apply(netplay::EventKind::RoomFailed, loc::T("runtime.room_join_failed"));
 	} else if (state.room == netplay::RoomState::Joined && runtime->room &&
 		(runtime->room->GetState() == session::IrohRoom::State::Failed || runtime->room->GetState() == session::IrohRoom::State::Idle ||
 		 runtime->room->GetState() == session::IrohRoom::State::Degraded)) {
-		Apply(netplay::EventKind::ControlLost, "Room connection lost.");
+		Apply(netplay::EventKind::ControlLost, loc::T("runtime.room_connection_lost"));
 	}
 	state = runtime->controller.GetSnapshot();
 	if (state.room == netplay::RoomState::Joined && runtime->attached && UserApp::netplay &&

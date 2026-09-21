@@ -37,33 +37,34 @@ bool SessionClient::bVerboseLogging = false;
 // Bound for buffered remote v2 hashes (matches the checkpoint ring span).
 static const size_t MAX_PENDING_REMOTE_HASHES = 64;
 
-// Player-facing text for a refused room action. This string reaches the
-// status line unchanged, so it must read as a sentence, not a token. A
-// DuplicateResult is the normal reply to a retried report and is not an error.
+// Catalog id of the player-facing text for a refused room action. The runtime
+// resolves it with loc::T where RoomError() reaches the status line; this
+// library does not link the catalogs. A DuplicateResult is the normal reply to
+// a retried report and is not an error.
 static const char* RoomRejectText(sf4e::room::RejectReason reason) {
 	using sf4e::room::RejectReason;
 	switch (reason) {
-	case RejectReason::Closed: return "The room has closed.";
-	case RejectReason::RoomFull: return "The room is full.";
-	case RejectReason::AdmissionLocked: return "The room is not admitting new members.";
-	case RejectReason::NameTaken: return "That player name is already in the room. Change it in Settings.";
-	case RejectReason::StaleRoom: return "The room changed before your action arrived. Try again.";
-	case RejectReason::StaleTable: return "The table changed before your action arrived. Try again.";
-	case RejectReason::WrongPhase: return "The table is not ready for that action.";
-	case RejectReason::WrongGeneration: return "That game has already ended.";
-	case RejectReason::Unauthorized: return "Only the host can do that.";
-	case RejectReason::NotSeated: return "You are not seated at this table.";
-	case RejectReason::AlreadySeated: return "You are already seated.";
-	case RejectReason::AlreadyQueued: return "You are already in the queue.";
-	case RejectReason::NotQueued: return "You are not in the queue.";
-	case RejectReason::NotWatching: return "You are not watching this table.";
-	case RejectReason::InvalidRules: return "Those table rules are not valid.";
-	case RejectReason::InvalidCapacity: return "That capacity is not valid.";
-	case RejectReason::InvalidChat: return "That message could not be sent.";
-	case RejectReason::MemberKicked: return "You were removed from the room.";
-	case RejectReason::TerminalLedgerFull: return "Waiting for everyone to finish returning from the previous match.";
+	case RejectReason::Closed: return "room.reject.closed";
+	case RejectReason::RoomFull: return "room.reject.full";
+	case RejectReason::AdmissionLocked: return "room.reject.admission_locked";
+	case RejectReason::NameTaken: return "room.reject.name_taken";
+	case RejectReason::StaleRoom: return "room.reject.stale_room";
+	case RejectReason::StaleTable: return "room.reject.stale_table";
+	case RejectReason::WrongPhase: return "room.reject.wrong_phase";
+	case RejectReason::WrongGeneration: return "room.reject.wrong_generation";
+	case RejectReason::Unauthorized: return "room.reject.unauthorized";
+	case RejectReason::NotSeated: return "room.reject.not_seated";
+	case RejectReason::AlreadySeated: return "room.reject.already_seated";
+	case RejectReason::AlreadyQueued: return "room.reject.already_queued";
+	case RejectReason::NotQueued: return "room.reject.not_queued";
+	case RejectReason::NotWatching: return "room.reject.not_watching";
+	case RejectReason::InvalidRules: return "room.reject.invalid_rules";
+	case RejectReason::InvalidCapacity: return "room.reject.invalid_capacity";
+	case RejectReason::InvalidChat: return "room.reject.invalid_chat";
+	case RejectReason::MemberKicked: return "runtime.removed_from_room";
+	case RejectReason::TerminalLedgerFull: return "room.reject.ledger_full";
 	case RejectReason::DuplicateResult: return "";
-	default: return "The room refused that action.";
+	default: return "room.reject.other";
 	}
 }
 
