@@ -1,17 +1,22 @@
 # Embed original font bytes; running the mod never needs loose fonts or downloads.
 set(sf4e_font_source "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts")
 set(sf4e_font_header "#pragma once\nnamespace sf4e { namespace ui { namespace fonts {\n")
+# Also used by sf4e_brand.cmake, which is included after this file.
+function(sf4e_hex_bytes path out_var)
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${path}")
+    file(READ "${path}" hex HEX)
+    # Sixteen bytes per line keeps generated compiler input manageable.
+    string(REGEX REPLACE "(................................)" "\\1\n" rows "${hex}")
+    string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," bytes "${rows}")
+    set(${out_var} "${bytes}" PARENT_SCOPE)
+endfunction()
 function(sf4e_embed_font filename symbol expected_hash)
     set(font_path "${sf4e_font_source}/${filename}")
-    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${font_path}")
     file(SHA256 "${font_path}" font_hash)
     if(NOT font_hash STREQUAL expected_hash)
         message(FATAL_ERROR "Unexpected font content: ${filename}")
     endif()
-    file(READ "${font_path}" font_hex HEX)
-    # Sixteen bytes per line keeps generated compiler input manageable.
-    string(REGEX REPLACE "(................................)" "\\1\n" font_rows "${font_hex}")
-    string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," font_bytes "${font_rows}")
+    sf4e_hex_bytes("${font_path}" font_bytes)
     set(sf4e_font_header "${sf4e_font_header}alignas(4) static const unsigned char ${symbol}[] = {\n${font_bytes}\n};\n" PARENT_SCOPE)
 endfunction()
 sf4e_embed_font("Inter-Regular.ttf" Body "40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82")
