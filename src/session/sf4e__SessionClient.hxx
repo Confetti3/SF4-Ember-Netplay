@@ -212,6 +212,16 @@ namespace sf4e {
 		std::uint64_t _queuedGrantGeneration = 0;
 		std::uint64_t _appliedRoomProjectionGeneration = 0;
 		std::uint8_t _selectedRoomTable = 0;
+		// One handler per message type, called from Step(). False aborts the step.
+		bool HandleRoomSnapshot(nlohmann::json& msg);
+		bool HandleRoomResult(nlohmann::json& msg);
+		bool HandleRoomEvent(nlohmann::json& msg);
+		bool HandleGameplayMessage(nlohmann::json& msg, const session::Message& message, SessionProtocol::MessageType type);
+		bool HandleHelloResponse(nlohmann::json& msg);
+		bool HandleJoinReject(nlohmann::json& msg);
+		bool HandleDataUpdate(nlohmann::json& msg);
+		bool HandleBattleSnapshot(nlohmann::json& msg);
+		bool HandleBattleHash(nlohmann::json& msg);
 		void ProjectSelectedRoomTable();
 		void TrySendPendingJoinRequest();
 		void ReconcileTerminalAcks();

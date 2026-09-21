@@ -54,6 +54,22 @@ namespace sf4e {
 		bool IsRoomTableParticipant(session::Connection connection, std::uint8_t table) const;
 
 		void BroadcastMessage(const nlohmann::json& msg);
+		// One handler per message type, called from Step().
+		void HandleSessionHello(session::Connection conn, const nlohmann::json& msg, const session::Message& incoming);
+		void HandleRoomAction(session::Connection conn, const nlohmann::json& msg, std::vector<room::Event>& deferredRoomEvents);
+		void HandleMatchAcknowledgement(session::Connection conn, const nlohmann::json& msg);
+		void HandleForward(session::Connection conn, const nlohmann::json& msg, const SessionProtocol::ConnectionID& cid);
+		void HandleJoinRequest(session::Connection conn, const nlohmann::json& msg, const session::Message& incoming, SessionProtocol::ConnectionID cid);
+		void HandleSetChara(session::Connection conn, const nlohmann::json& msg);
+		void HandleSetEnv(session::Connection conn, const nlohmann::json& msg);
+		void HandleSetStage(session::Connection conn, const nlohmann::json& msg);
+		void HandleLobbySetSettings(session::Connection conn, const nlohmann::json& msg);
+		void HandleBattleLoaded(session::Connection conn, bool& bSendBattleSynced);
+		void HandleLobbyReady(session::Connection conn, const nlohmann::json& msg, const session::Message& incoming, bool& bSendLobbyAllReady);
+		void HandleLobbyReportResults(session::Connection conn, const nlohmann::json& msg);
+		void HandleLobbyReset(session::Connection conn, const nlohmann::json& msg);
+		void HandlePunchReady(session::Connection conn);
+		void HandleGgpoFrame(session::Connection conn, const nlohmann::json& msg, const SessionProtocol::ConnectionID& cid);
 		void Respond(session::Connection client, const nlohmann::json& msg, bool retainPublicReplay = true);
 
 		// Direct lobby data manipulation utilities

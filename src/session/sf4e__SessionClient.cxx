@@ -557,6 +557,313 @@ void SessionClient::PrepareForCallbacks()
 	// Callback ownership belongs to each transport, never a global client.
 }
 
+bool SessionClient::HandleRoomSnapshot(json& msg) {
+	SessionProtocol::RoomSnapshotMessage snapshot;
+	try { msg.get_to(snapshot); }
+	catch (const std::exception&) { _roomError = "invalid_room_snapshot"; return false; }
+	// The owner leaves out chat this client already holds (it advertised
+	// roomChatDelta). Keep the current room's chat; a different room has
+	// none to keep.
+	if (snapshot.chatUnchanged && _roomSnapshot.roomEpoch && snapshot.snapshot.roomEpoch == _roomSnapshot.roomEpoch)
+		snapshot.snapshot.chat = _roomSnapshot.chat;
+	if (snapshot.snapshot.protocolVersion != room::ProtocolVersion ||
+		(snapshot.snapshot.localMember == 0 && _customRoomsRequired)) { _roomError = "incompatible_room_protocol"; return false; }
+    if(_roomSnapshot.roomEpoch && (snapshot.snapshot.roomEpoch!=_roomSnapshot.roomEpoch ||
+        snapshot.snapshot.revision<_roomSnapshot.revision)) return true;
+	_roomSnapshot = std::move(snapshot.snapshot);
+	_customRoomsSeen = true;
+	if (_roomSnapshot.localMember != 0) _joinRequestPending = false;
+	ReconcileTerminalAcks();
+	_roomError.clear();
+	ProjectSelectedRoomTable();
+	if (_callbacks.OnRoomSnapshot) _callbacks.OnRoomSnapshot(this, _roomSnapshot, _callbacks);
+	return true;
+}
+
+bool SessionClient::HandleRoomResult(json& msg) {
+	SessionProtocol::RoomResultMessage result;
+	try { msg.get_to(result); }
+	catch (const std::exception&) { _roomError = "invalid_room_result"; return true; }
+	const auto sent = std::find_if(_sentRoomActions.begin(), _sentRoomActions.end(),
+		[&](const SentRoomAction& entry) { return entry.actionId == result.actionId; });
+	// A resent Ready/Unready answers under the id its caller was given.
+	const auto replyId = sent != _sentRoomActions.end() ? sent->callerId : result.actionId;
+	const bool readiness = sent != _sentRoomActions.end() &&
+		(sent->kind == room::ActionKind::Ready || sent->kind == room::ActionKind::Unready);
+	if (result.result.snapshot.roomEpoch != 0 && (!_roomSnapshot.roomEpoch ||
+        (result.result.snapshot.roomEpoch==_roomSnapshot.roomEpoch && result.result.snapshot.revision>=_roomSnapshot.revision))) {
+		_roomSnapshot = std::move(result.result.snapshot);
+		_customRoomsSeen = true;
+		if (_roomSnapshot.localMember != 0) _joinRequestPending = false;
+		ReconcileTerminalAcks();
+		ProjectSelectedRoomTable();
+	}
+	// Ready pressed right after the player's own Unready (or vice versa)
+	// carries a table revision the authority has already moved past. The
+	// rejection brings the current snapshot, so resend from it instead of
+	// leaving the press parked until its timeout.
+	if (readiness && result.result.accepted) _staleTableRetries = 0;
+	if (readiness && !result.result.accepted && result.result.reason == room::RejectReason::StaleTable &&
+		_staleTableRetries < 3) {
+		++_staleTableRetries;
+		// Resend the same request (kind, table, input delay) from the
+		// fresher snapshot. Copy first: sending may evict `sent`.
+		const auto kind = sent->kind;
+		const auto callerId = sent->callerId;
+		const auto resent = SendRoomAction(TableAction(kind, sent->table, sent->inputDelay));
+		if (resent == session::SendResult::Queued) {
+			// SendRoomAction just remembered the resend as the newest entry.
+			_sentRoomActions.back().callerId = callerId;
+			spdlog::info("Client: {} raced the table revision; resent (attempt {})",
+				kind == room::ActionKind::Ready ? "Ready" : "Unready", _staleTableRetries);
+			if (_callbacks.OnRoomSnapshot) _callbacks.OnRoomSnapshot(this, _roomSnapshot, _callbacks);
+			return true;
+		}
+	}
+    if (replyId) {
+        if (_actionReplies.size()>=32) _actionReplies.pop_front();
+		ActionReply reply;
+		reply.actionId = replyId; reply.accepted = result.result.accepted; reply.reason = result.result.reason;
+		if (sent != _sentRoomActions.end()) { reply.kind = sent->kind; reply.kindKnown = true; }
+        _actionReplies.push_back(reply);
+        if (!result.result.accepted) LogRejectedRoomAction(replyId, result.result.reason);
+    }
+	if (!result.result.accepted) {
+		// A finish or result report for a game the authority already
+		// closed (the opponent's report landed first) is routine
+		// bookkeeping, not something the player needs to read.
+		const bool staleReport = sent != _sentRoomActions.end() &&
+			(sent->kind == room::ActionKind::MatchFinished || sent->kind == room::ActionKind::RecordResult) &&
+			(result.result.reason == room::RejectReason::WrongGeneration || result.result.reason == room::RejectReason::DuplicateResult);
+		const char* text = RoomRejectText(result.result.reason);
+		if (text[0] && !staleReport) _roomError = text;
+	}
+	else { _roomError.clear(); }
+	if (_callbacks.OnRoomSnapshot) _callbacks.OnRoomSnapshot(this, _roomSnapshot, _callbacks);
+	return true;
+}
+
+bool SessionClient::HandleRoomEvent(json& msg) {
+	SessionProtocol::RoomEventMessage event;
+	try { msg.get_to(event); }
+	catch (const std::exception&) { _roomError = "invalid_room_event"; return true; }
+	const bool lifecycle = event.event.kind == room::Event::Kind::MatchReady ||
+		event.event.kind == room::Event::Kind::MatchStarted ||
+		event.event.kind == room::Event::Kind::MatchEnded ||
+		event.event.kind == room::Event::Kind::RoomClosed ||
+		event.event.kind == room::Event::Kind::ResultDisputed;
+	if (_roomEvents.size() >= 64) {
+		if (!lifecycle) return true; // the accompanying snapshot is authoritative
+		auto discard = std::find_if(_roomEvents.begin(), _roomEvents.end(), [&](const room::Event& queued) {
+			return queued.kind != room::Event::Kind::MatchReady && queued.kind != room::Event::Kind::MatchStarted &&
+				queued.kind != room::Event::Kind::MatchEnded && queued.kind != room::Event::Kind::RoomClosed &&
+				queued.kind != room::Event::Kind::ResultDisputed;
+		});
+		if (discard == _roomEvents.end()) { _roomError = "room_event_overflow"; return false; }
+		_roomEvents.erase(discard);
+	}
+	_roomEvents.push_back(event.event);
+	// MatchEnded is only an outcome notification. The application queues
+	// AcknowledgeTerminal after profile persistence and native/helper
+	// retirement; spectators and fighters therefore cannot release a
+	// durable receipt merely by receiving this event.
+	if (_callbacks.OnRoomEvent) _callbacks.OnRoomEvent(this, event.event, _callbacks);
+	return true;
+}
+
+bool SessionClient::HandleGameplayMessage(json& msg, const session::Message& message, SessionProtocol::MessageType type) {
+	if (!_matchAuthorizationRequired) return false;
+	if (_gameplayMessages.size() >= 32 || message.payload.size() > 16384) return false;
+	if (type == SessionProtocol::MT_GAME_PREPARE) {
+		_projectionFrozen = true;
+		const auto incomingGeneration = msg.value("generation", std::uint64_t(0));
+		if (incomingGeneration != _queuedGrantGeneration) _queuedGrantProjection.reset();
+		_queuedGrantGeneration = incomingGeneration;
+		if (_queuedGrantGeneration && _pendingRoomProjection &&
+			_pendingRoomProjection->matchGeneration == _queuedGrantGeneration) {
+			_queuedGrantProjection = std::move(_pendingRoomProjection);
+			_pendingRoomProjection.reset();
+		} else if (_queuedGrantGeneration &&
+			_appliedRoomProjectionGeneration == _queuedGrantGeneration) {
+			// The normal direct path applied the projection before the
+			// prepare message. Capture that exact state so a later update
+			// cannot replace the grant's native inputs.
+			SessionProtocol::SessionDataUpdate captured;
+			captured.lobbyData = _lobbyData;
+			captured.matchData = _matchData;
+			captured.matchGeneration = _queuedGrantGeneration;
+			_queuedGrantProjection = std::move(captured);
+		}
+	}
+	_gameplayMessages.push_back(std::move(msg));
+	return true;
+}
+
+bool SessionClient::HandleHelloResponse(json& msg) {
+	SessionProtocol::SessionHelloResp cidMsg;
+	try {
+		msg.get_to(cidMsg);
+	}
+	catch (const json::exception&) {
+		spdlog::info("Client: couldn't deserialize CID?");
+		return true;
+	}
+
+	_cid = cidMsg.cid;
+	// A nonzero room member proves the recovery bootstrap hello already
+	// committed this custom-room admission. Starting the legacy join_req
+	// retry loop here can enqueue duplicate full checkpoints while the
+	// accompanying room projection is still crossing a relay.
+	const bool bootstrapAdmitted = _customRoomsRequired && cidMsg.roomMember != 0;
+	_joinRequestPending = !bootstrapAdmitted;
+	if (_joinRequestPending) {
+		_joinRequestNextStep = _stepCounter;
+		TrySendPendingJoinRequest();
+	}
+	return true;
+}
+
+bool SessionClient::HandleJoinReject(json& msg) {
+	_joinRequestPending = false;
+	SessionProtocol::SessionJoinReject reject;
+	try {
+		msg.get_to(reject);
+	}
+	catch (const json::exception&) {
+		spdlog::info("Client: couldn't deserialize join rejection?");
+		return true;
+	}
+
+	spdlog::info("Join rejected, reason: {}", (int)reject.result);
+	ErrorType errType = ErrorType::SCE_UNKNOWN;
+	switch (reject.result) {
+	case SessionProtocol::JoinResult::JR_HASH_INVALID:
+		errType = ErrorType::SCE_JOIN_REJECTED_HASH_INVALID;
+		break;
+	case SessionProtocol::JoinResult::JR_LOBBY_FULL:
+		errType = ErrorType::SCE_JOIN_REJECTED_LOBBY_FULL;
+		break;
+	case SessionProtocol::JoinResult::JR_NAME_TAKEN:
+		errType = ErrorType::SCE_JOIN_REJECTED_NAME_TAKEN;
+		break;
+	case SessionProtocol::JoinResult::JR_REQUEST_INVALID:
+		errType = ErrorType::SCE_JOIN_REJECTED_REQUEST_INVALID;
+		break;
+	default:
+		break;
+	}
+	_callbacks.OnError(errType, this, _callbacks);
+	Disconnect();
+	return false;
+}
+
+bool SessionClient::HandleDataUpdate(json& msg) {
+	SessionProtocol::SessionDataUpdate update;
+	try {
+		msg.get_to(update);
+	}
+	catch (const json::exception&) {
+		spdlog::info("Client: could not deserialize response");
+		return true;
+	}
+	if (_joinRequestPending && !_customRoomsRequired &&
+		std::any_of(update.lobbyData.members.begin(), update.lobbyData.members.end(),
+			[&](const SessionProtocol::MemberData& member) { return member.connId == _cid; }))
+		_joinRequestPending = false;
+	if (!_customRoomsSeen || !_projectionFrozen) {
+		_lobbyData = update.lobbyData;
+		_matchData = update.matchData;
+		_appliedRoomProjectionGeneration = update.matchGeneration;
+	} else if (_queuedGrantGeneration && update.matchGeneration == _queuedGrantGeneration &&
+		!_queuedGrantProjection) {
+		// If transport delivery puts the projection after game_prepare,
+		// capture the first matching update as that grant's immutable input.
+		_queuedGrantProjection = std::move(update);
+	} else if (!_pendingRoomProjection || update.matchGeneration >= _pendingRoomProjection->matchGeneration) {
+		// Keep at most one generation-matched native projection while the
+		// prior GGPO roster is frozen. The next accepted grant selects it.
+		_pendingRoomProjection = std::move(update);
+	}
+
+	if (_outstandingReadyRequestNumber > -1) {
+		for (int i = 0; i < _lobbyData.members.size() && i < 2; i++) {
+			if (_lobbyData.members[i].name == _name) {
+				if (_matchData.readyMessageNum[i] == _outstandingReadyRequestNumber) {
+					// This contains the ready data, so there's no longer an outstanding request.
+					_outstandingReadyRequestNumber = -1;
+				}
+				break;
+			}
+		}
+	}
+	return true;
+}
+
+bool SessionClient::HandleBattleSnapshot(json& msg) {
+	SessionProtocol::BattleSnapshot m;
+	try {
+		msg.get_to(m);
+	}
+	catch (const json::exception&) {
+		spdlog::info("Client: could not deserialize incoming checksum msg");
+		return true;
+	}
+
+	auto localSnapshotIter = fSystem::snapshotMap.find(m.snapshot.frameIdx);
+	if (localSnapshotIter != fSystem::snapshotMap.end()) {
+		// This client is ahead and already has a snapshot for this frame.
+		// Compare it.
+		SessionProtocol::StateSnapshot& localSnapshot = localSnapshotIter->second.first;
+		if (bVerboseLogging) {
+			spdlog::error("Client: snapshot receipt: valid snapshot @ frame {} on receipt, confirm {}, sent {}", localSnapshot.frameIdx, localSnapshotIter->second.second.confirmed, localSnapshotIter->second.second.sent);
+		}
+		if (memcmp(&m.snapshot, &localSnapshot, sizeof(SessionProtocol::StateSnapshot)) != 0) {
+			spdlog::error("Client: snapshot receipt: Desync detected!");
+			ReportSnapshotDivergence("receipt", localSnapshot, m.snapshot);
+			TerminateOnDesync("receipt", localSnapshot.frameIdx);
+		}
+
+		if (bVerboseLogging) {
+			spdlog::error("    - Client: snapshot receipt: valid snapshot @ frame {} on receipt confirmed", localSnapshot.frameIdx);
+		}
+		localSnapshotIter->second.second.confirmed = true;
+		if (localSnapshotIter->second.second.confirmed && localSnapshotIter->second.second.sent) {
+
+			if (bVerboseLogging) {
+				spdlog::error("Client: snapshot receipt: erasing local snapshot @ frame {} on receipt due to confirmation+sent", m.snapshot.frameIdx);
+			}
+			fSystem::snapshotMap.erase(localSnapshotIter);
+		}
+	}
+	else {
+		// Opponent's ahead- can't compare yet.
+		if (bVerboseLogging) {
+			spdlog::error("Client: snapshot receipt: pendingRemoteSnapshots.emplace({})", m.snapshot.frameIdx);
+		}
+		pendingRemoteSnapshots.emplace(m.snapshot.frameIdx, m.snapshot);
+	}
+	return true;
+}
+
+bool SessionClient::HandleBattleHash(json& msg) {
+	SessionProtocol::BattleHashV2 m;
+	try {
+		msg.get_to(m);
+	}
+	catch (json::exception&) {
+		spdlog::info("Client: could not deserialize v2 hash msg");
+		return true;
+	}
+	// Always buffer; the aged reconcile pass below compares only
+	// once the LOCAL checkpoint is also non-speculative (a local
+	// value inside the rollback window could still change).
+	if (pendingRemoteHashes.size() >= MAX_PENDING_REMOTE_HASHES) {
+		pendingRemoteHashes.erase(pendingRemoteHashes.begin());
+	}
+	pendingRemoteHashes[m.frameIdx] = m;
+	return true;
+}
+
 int SessionClient::Step()
 {
 	if (!_transport) return 0;
@@ -650,235 +957,27 @@ int SessionClient::Step()
 		}
 
 		if (type == SessionProtocol::MT_ROOM_SNAPSHOT) {
-			SessionProtocol::RoomSnapshotMessage snapshot;
-			try { msg.get_to(snapshot); }
-			catch (const std::exception&) { _roomError = "invalid_room_snapshot"; return -1; }
-			// The owner leaves out chat this client already holds (it advertised
-			// roomChatDelta). Keep the current room's chat; a different room has
-			// none to keep.
-			if (snapshot.chatUnchanged && _roomSnapshot.roomEpoch && snapshot.snapshot.roomEpoch == _roomSnapshot.roomEpoch)
-				snapshot.snapshot.chat = _roomSnapshot.chat;
-			if (snapshot.snapshot.protocolVersion != room::ProtocolVersion ||
-				(snapshot.snapshot.localMember == 0 && _customRoomsRequired)) { _roomError = "incompatible_room_protocol"; return -1; }
-            if(_roomSnapshot.roomEpoch && (snapshot.snapshot.roomEpoch!=_roomSnapshot.roomEpoch ||
-                snapshot.snapshot.revision<_roomSnapshot.revision)) continue;
-			_roomSnapshot = std::move(snapshot.snapshot);
-			_customRoomsSeen = true;
-			if (_roomSnapshot.localMember != 0) _joinRequestPending = false;
-			ReconcileTerminalAcks();
-			_roomError.clear();
-			ProjectSelectedRoomTable();
-			if (_callbacks.OnRoomSnapshot) _callbacks.OnRoomSnapshot(this, _roomSnapshot, _callbacks);
+			if (!HandleRoomSnapshot(msg)) return -1;
 		}
 		else if (type == SessionProtocol::MT_ROOM_RESULT) {
-			SessionProtocol::RoomResultMessage result;
-			try { msg.get_to(result); }
-			catch (const std::exception&) { _roomError = "invalid_room_result"; continue; }
-			const auto sent = std::find_if(_sentRoomActions.begin(), _sentRoomActions.end(),
-				[&](const SentRoomAction& entry) { return entry.actionId == result.actionId; });
-			// A resent Ready/Unready answers under the id its caller was given.
-			const auto replyId = sent != _sentRoomActions.end() ? sent->callerId : result.actionId;
-			const bool readiness = sent != _sentRoomActions.end() &&
-				(sent->kind == room::ActionKind::Ready || sent->kind == room::ActionKind::Unready);
-			if (result.result.snapshot.roomEpoch != 0 && (!_roomSnapshot.roomEpoch ||
-                (result.result.snapshot.roomEpoch==_roomSnapshot.roomEpoch && result.result.snapshot.revision>=_roomSnapshot.revision))) {
-				_roomSnapshot = std::move(result.result.snapshot);
-				_customRoomsSeen = true;
-				if (_roomSnapshot.localMember != 0) _joinRequestPending = false;
-				ReconcileTerminalAcks();
-				ProjectSelectedRoomTable();
-			}
-			// Ready pressed right after the player's own Unready (or vice versa)
-			// carries a table revision the authority has already moved past. The
-			// rejection brings the current snapshot, so resend from it instead of
-			// leaving the press parked until its timeout.
-			if (readiness && result.result.accepted) _staleTableRetries = 0;
-			if (readiness && !result.result.accepted && result.result.reason == room::RejectReason::StaleTable &&
-				_staleTableRetries < 3) {
-				++_staleTableRetries;
-				// Resend the same request (kind, table, input delay) from the
-				// fresher snapshot. Copy first: sending may evict `sent`.
-				const auto kind = sent->kind;
-				const auto callerId = sent->callerId;
-				const auto resent = SendRoomAction(TableAction(kind, sent->table, sent->inputDelay));
-				if (resent == session::SendResult::Queued) {
-					// SendRoomAction just remembered the resend as the newest entry.
-					_sentRoomActions.back().callerId = callerId;
-					spdlog::info("Client: {} raced the table revision; resent (attempt {})",
-						kind == room::ActionKind::Ready ? "Ready" : "Unready", _staleTableRetries);
-					if (_callbacks.OnRoomSnapshot) _callbacks.OnRoomSnapshot(this, _roomSnapshot, _callbacks);
-					continue;
-				}
-			}
-            if (replyId) {
-                if (_actionReplies.size()>=32) _actionReplies.pop_front();
-				ActionReply reply;
-				reply.actionId = replyId; reply.accepted = result.result.accepted; reply.reason = result.result.reason;
-				if (sent != _sentRoomActions.end()) { reply.kind = sent->kind; reply.kindKnown = true; }
-                _actionReplies.push_back(reply);
-                if (!result.result.accepted) LogRejectedRoomAction(replyId, result.result.reason);
-            }
-			if (!result.result.accepted) {
-				// A finish or result report for a game the authority already
-				// closed (the opponent's report landed first) is routine
-				// bookkeeping, not something the player needs to read.
-				const bool staleReport = sent != _sentRoomActions.end() &&
-					(sent->kind == room::ActionKind::MatchFinished || sent->kind == room::ActionKind::RecordResult) &&
-					(result.result.reason == room::RejectReason::WrongGeneration || result.result.reason == room::RejectReason::DuplicateResult);
-				const char* text = RoomRejectText(result.result.reason);
-				if (text[0] && !staleReport) _roomError = text;
-			}
-			else { _roomError.clear(); }
-			if (_callbacks.OnRoomSnapshot) _callbacks.OnRoomSnapshot(this, _roomSnapshot, _callbacks);
+			if (!HandleRoomResult(msg)) return -1;
 		}
 		else if (type == SessionProtocol::MT_ROOM_EVENT) {
-			SessionProtocol::RoomEventMessage event;
-			try { msg.get_to(event); }
-			catch (const std::exception&) { _roomError = "invalid_room_event"; continue; }
-			const bool lifecycle = event.event.kind == room::Event::Kind::MatchReady ||
-				event.event.kind == room::Event::Kind::MatchStarted ||
-				event.event.kind == room::Event::Kind::MatchEnded ||
-				event.event.kind == room::Event::Kind::RoomClosed ||
-				event.event.kind == room::Event::Kind::ResultDisputed;
-			if (_roomEvents.size() >= 64) {
-				if (!lifecycle) continue; // the accompanying snapshot is authoritative
-				auto discard = std::find_if(_roomEvents.begin(), _roomEvents.end(), [&](const room::Event& queued) {
-					return queued.kind != room::Event::Kind::MatchReady && queued.kind != room::Event::Kind::MatchStarted &&
-						queued.kind != room::Event::Kind::MatchEnded && queued.kind != room::Event::Kind::RoomClosed &&
-						queued.kind != room::Event::Kind::ResultDisputed;
-				});
-				if (discard == _roomEvents.end()) { _roomError = "room_event_overflow"; return -1; }
-				_roomEvents.erase(discard);
-			}
-			_roomEvents.push_back(event.event);
-			// MatchEnded is only an outcome notification. The application queues
-			// AcknowledgeTerminal after profile persistence and native/helper
-			// retirement; spectators and fighters therefore cannot release a
-			// durable receipt merely by receiving this event.
-			if (_callbacks.OnRoomEvent) _callbacks.OnRoomEvent(this, event.event, _callbacks);
+			if (!HandleRoomEvent(msg)) return -1;
 		}
 		else if (type == SessionProtocol::MT_GAME_PREPARE || type == SessionProtocol::MT_GAME_CONNECT ||
 			type == SessionProtocol::MT_GAME_START || type == SessionProtocol::MT_GAME_END ||
 			type == SessionProtocol::MT_GAME_PEER_END) {
-			if (!_matchAuthorizationRequired) return -1;
-			if (_gameplayMessages.size() >= 32 || message.payload.size() > 16384) return -1;
-			if (type == SessionProtocol::MT_GAME_PREPARE) {
-				_projectionFrozen = true;
-				const auto incomingGeneration = msg.value("generation", std::uint64_t(0));
-				if (incomingGeneration != _queuedGrantGeneration) _queuedGrantProjection.reset();
-				_queuedGrantGeneration = incomingGeneration;
-				if (_queuedGrantGeneration && _pendingRoomProjection &&
-					_pendingRoomProjection->matchGeneration == _queuedGrantGeneration) {
-					_queuedGrantProjection = std::move(_pendingRoomProjection);
-					_pendingRoomProjection.reset();
-				} else if (_queuedGrantGeneration &&
-					_appliedRoomProjectionGeneration == _queuedGrantGeneration) {
-					// The normal direct path applied the projection before the
-					// prepare message. Capture that exact state so a later update
-					// cannot replace the grant's native inputs.
-					SessionProtocol::SessionDataUpdate captured;
-					captured.lobbyData = _lobbyData;
-					captured.matchData = _matchData;
-					captured.matchGeneration = _queuedGrantGeneration;
-					_queuedGrantProjection = std::move(captured);
-				}
-			}
-			_gameplayMessages.push_back(std::move(msg));
+			if (!HandleGameplayMessage(msg, message, type)) return -1;
 		}
 		else if (type == SessionProtocol::MT_SESSION_HELLO_RESP) {
-			SessionProtocol::SessionHelloResp cidMsg;
-			try {
-				msg.get_to(cidMsg);
-			}
-			catch (const json::exception&) {
-				spdlog::info("Client: couldn't deserialize CID?");
-				continue;
-			}
-
-			_cid = cidMsg.cid;
-			// A nonzero room member proves the recovery bootstrap hello already
-			// committed this custom-room admission. Starting the legacy join_req
-			// retry loop here can enqueue duplicate full checkpoints while the
-			// accompanying room projection is still crossing a relay.
-			const bool bootstrapAdmitted = _customRoomsRequired && cidMsg.roomMember != 0;
-			_joinRequestPending = !bootstrapAdmitted;
-			if (_joinRequestPending) {
-				_joinRequestNextStep = _stepCounter;
-				TrySendPendingJoinRequest();
-			}
+			if (!HandleHelloResponse(msg)) return -1;
 		}
 		else if (type == SessionProtocol::MT_SESSION_JOINREJ) {
-			_joinRequestPending = false;
-			SessionProtocol::SessionJoinReject reject;
-			try {
-				msg.get_to(reject);
-			}
-			catch (const json::exception&) {
-				spdlog::info("Client: couldn't deserialize join rejection?");
-				continue;
-			}
-
-			spdlog::info("Join rejected, reason: {}", (int)reject.result);
-			ErrorType errType = ErrorType::SCE_UNKNOWN;
-			switch (reject.result) {
-			case SessionProtocol::JoinResult::JR_HASH_INVALID:
-				errType = ErrorType::SCE_JOIN_REJECTED_HASH_INVALID;
-				break;
-			case SessionProtocol::JoinResult::JR_LOBBY_FULL:
-				errType = ErrorType::SCE_JOIN_REJECTED_LOBBY_FULL;
-				break;
-			case SessionProtocol::JoinResult::JR_NAME_TAKEN:
-				errType = ErrorType::SCE_JOIN_REJECTED_NAME_TAKEN;
-				break;
-			case SessionProtocol::JoinResult::JR_REQUEST_INVALID:
-				errType = ErrorType::SCE_JOIN_REJECTED_REQUEST_INVALID;
-				break;
-			default:
-				break;
-			}
-			_callbacks.OnError(errType, this, _callbacks);
-			Disconnect();
-			return -1;
+			if (!HandleJoinReject(msg)) return -1;
 		}
 		else if (type == SessionProtocol::MT_SESSION_DATAUPDATE) {
-			SessionProtocol::SessionDataUpdate update;
-			try {
-				msg.get_to(update);
-			}
-			catch (const json::exception&) {
-				spdlog::info("Client: could not deserialize response");
-				continue;
-			}
-			if (_joinRequestPending && !_customRoomsRequired &&
-				std::any_of(update.lobbyData.members.begin(), update.lobbyData.members.end(),
-					[&](const SessionProtocol::MemberData& member) { return member.connId == _cid; }))
-				_joinRequestPending = false;
-			if (!_customRoomsSeen || !_projectionFrozen) {
-				_lobbyData = update.lobbyData;
-				_matchData = update.matchData;
-				_appliedRoomProjectionGeneration = update.matchGeneration;
-			} else if (_queuedGrantGeneration && update.matchGeneration == _queuedGrantGeneration &&
-				!_queuedGrantProjection) {
-				// If transport delivery puts the projection after game_prepare,
-				// capture the first matching update as that grant's immutable input.
-				_queuedGrantProjection = std::move(update);
-			} else if (!_pendingRoomProjection || update.matchGeneration >= _pendingRoomProjection->matchGeneration) {
-				// Keep at most one generation-matched native projection while the
-				// prior GGPO roster is frozen. The next accepted grant selects it.
-				_pendingRoomProjection = std::move(update);
-			}
-
-			if (_outstandingReadyRequestNumber > -1) {
-				for (int i = 0; i < _lobbyData.members.size() && i < 2; i++) {
-					if (_lobbyData.members[i].name == _name) {
-						if (_matchData.readyMessageNum[i] == _outstandingReadyRequestNumber) {
-							// This contains the ready data, so there's no longer an outstanding request.
-							_outstandingReadyRequestNumber = -1;
-						}
-						break;
-					}
-				}
-			}
+			if (!HandleDataUpdate(msg)) return -1;
 		}
 		else if (type == SessionProtocol::MT_LOBBY_ALLREADY) {
 			if (!_matchAuthorizationRequired && _callbacks.OnReady) _callbacks.OnReady(this, _callbacks);
@@ -887,65 +986,10 @@ int SessionClient::Step()
 			_callbacks.OnBattleSynced(this, _callbacks);
 		}
 		else if (type == SessionProtocol::MT_BATTLE_SNAPSHOT) {
-			SessionProtocol::BattleSnapshot m;
-			try {
-				msg.get_to(m);
-			}
-			catch (const json::exception&) {
-				spdlog::info("Client: could not deserialize incoming checksum msg");
-				continue;
-			}
-
-			auto localSnapshotIter = fSystem::snapshotMap.find(m.snapshot.frameIdx);
-			if (localSnapshotIter != fSystem::snapshotMap.end()) {
-				// This client is ahead and already has a snapshot for this frame.
-				// Compare it.
-				SessionProtocol::StateSnapshot& localSnapshot = localSnapshotIter->second.first;
-				if (bVerboseLogging) {
-					spdlog::error("Client: snapshot receipt: valid snapshot @ frame {} on receipt, confirm {}, sent {}", localSnapshot.frameIdx, localSnapshotIter->second.second.confirmed, localSnapshotIter->second.second.sent);
-				}
-				if (memcmp(&m.snapshot, &localSnapshot, sizeof(SessionProtocol::StateSnapshot)) != 0) {
-					spdlog::error("Client: snapshot receipt: Desync detected!");
-					ReportSnapshotDivergence("receipt", localSnapshot, m.snapshot);
-					TerminateOnDesync("receipt", localSnapshot.frameIdx);
-				}
-
-				if (bVerboseLogging) {
-					spdlog::error("    - Client: snapshot receipt: valid snapshot @ frame {} on receipt confirmed", localSnapshot.frameIdx);
-				}
-				localSnapshotIter->second.second.confirmed = true;
-				if (localSnapshotIter->second.second.confirmed && localSnapshotIter->second.second.sent) {
-
-					if (bVerboseLogging) {
-						spdlog::error("Client: snapshot receipt: erasing local snapshot @ frame {} on receipt due to confirmation+sent", m.snapshot.frameIdx);
-					}
-					fSystem::snapshotMap.erase(localSnapshotIter);
-				}
-			}
-			else {
-				// Opponent's ahead- can't compare yet.
-				if (bVerboseLogging) {
-					spdlog::error("Client: snapshot receipt: pendingRemoteSnapshots.emplace({})", m.snapshot.frameIdx);
-				}
-				pendingRemoteSnapshots.emplace(m.snapshot.frameIdx, m.snapshot);
-			}
+			if (!HandleBattleSnapshot(msg)) return -1;
 		}
 		else if (type == SessionProtocol::MT_BATTLE_HASH) {
-			SessionProtocol::BattleHashV2 m;
-			try {
-				msg.get_to(m);
-			}
-			catch (json::exception&) {
-				spdlog::info("Client: could not deserialize v2 hash msg");
-				continue;
-			}
-			// Always buffer; the aged reconcile pass below compares only
-			// once the LOCAL checkpoint is also non-speculative (a local
-			// value inside the rollback window could still change).
-			if (pendingRemoteHashes.size() >= MAX_PENDING_REMOTE_HASHES) {
-				pendingRemoteHashes.erase(pendingRemoteHashes.begin());
-			}
-			pendingRemoteHashes[m.frameIdx] = m;
+			if (!HandleBattleHash(msg)) return -1;
 		}
 
 
