@@ -232,7 +232,10 @@ impl Actor {
         match bridge {
             Ok((bridge, route, route_connection)) => {
                 let virtual_port = bridge.local_addr()?.port();
-                let slot = self.games.get_mut(&peer).unwrap();
+                // `valid` proved the slot; `&mut self` is held across the bind.
+                let Some(slot) = self.games.get_mut(&peer) else {
+                    return Ok(());
+                };
                 slot.prepare_deadline = None;
                 slot.stats = Some(bridge.stats.clone());
                 slot.route_connection = Some(route_connection);

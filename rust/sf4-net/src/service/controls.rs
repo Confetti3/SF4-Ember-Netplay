@@ -629,11 +629,11 @@ impl Actor {
                         return Ok(());
                     }
                 }
-                self.emit(Event::Connected {
-                    epoch,
-                    peer,
-                    room: self.room.unwrap(),
-                })?;
+                // Checked above; `&mut self` is held across the await between.
+                let Some(room) = self.room else {
+                    return Ok(());
+                };
+                self.emit(Event::Connected { epoch, peer, room })?;
                 if let Some(invite) = joined_invite {
                     self.emit(Event::DiscordInvite {
                         epoch,
