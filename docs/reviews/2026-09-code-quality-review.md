@@ -1,6 +1,6 @@
 # Code quality review, September 2026
 
-Base: `experiment/degraded-connection-recovery` at `c9a9ed5`. Work branch: `review/code-quality`.
+Base: `experiment/degraded-connection-recovery` at `aaf3d5e`. Work branch: `review/code-quality`.
 Scope: `src/`, `rust/sf4-net`, `CMakeLists.txt`, `cmake/`, `scripts/`. Excluded: `src/Dimps`
 (layout follows the game binary), `src/ui/backends/imgui_impl_win32.cpp` (vendor), `vcpkg-overlays`.
 

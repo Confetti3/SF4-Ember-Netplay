@@ -1,6 +1,6 @@
 # v0.8.4 release audit
 
-Reviewed by the primary agent against source commit `2a2fa203158996694f7de09cb77cef2e1f899e32` and the approved telemetry/audit plans. Review includes the previously uncommitted frame-meter, performance, installer and HUD work. Existing historical packages are preserved.
+Reviewed by the primary agent against source commit `757a8e630497dc4a3d483eb9cdad9ebf5354f766` and the approved telemetry/audit plans. Review includes the previously uncommitted frame-meter, performance, installer and HUD work. Existing historical packages are preserved.
 
 ## Corrected before release
 

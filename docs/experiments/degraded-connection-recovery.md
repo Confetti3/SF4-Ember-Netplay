@@ -1,6 +1,6 @@
 # Degraded-connection recovery experiment
 
-Base: v0.9.3 / `13f3268d2f2ccaaa978ae17ff80d0381f14fc16b`.
+Base: v0.9.3 / `805e176993d35e7ccc4c586441edd3c6249c813c`.
 Branch: `experiment/degraded-connection-recovery`.
 
 This is experimental source for pre-release builds. It is measured in the rift

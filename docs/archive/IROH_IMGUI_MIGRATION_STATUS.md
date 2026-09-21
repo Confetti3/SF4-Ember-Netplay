@@ -19,7 +19,7 @@ copied verbatim from the user-supplied September 7 plan. Keep its complete M0–
 scope and all acceptance gates. Do not count a helper connection, a synthetic
 rematch loop, or a unit-test pass as a real-fight acceptance result.
 
-- Baseline: `53750e69069aa1a45dc6da09ad8b7fa8000497cb` (`origin/main` at clone).
+- Baseline: `c6f2f1907f396c40a8542cc056e3bafa2adb3bde` (`origin/main` at clone).
 - Working branch: `feat/iroh-imgui-migration`.
 - Local baseline checkout: `../sf4-baseline`, detached at the baseline commit.
 - Local dependency checkout: `../vcpkg` (developer tooling, not shipped).

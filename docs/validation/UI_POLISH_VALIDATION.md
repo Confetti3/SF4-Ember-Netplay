@@ -1,6 +1,6 @@
 # UI polish: implementation and validation
 
-Base: v0.8.2, commit `fab7d5ee7edce6ac523e7ad0869fa8af514e55b1`.
+Base: v0.8.2, commit `b7f775120726a0dc8a2eb02448e5cacd6f07fea2`.
 Scope: shared menu rendering, modal ownership, navigation input and UI deadlines.
 No release version, game simulation, GGPO, Iroh, or room-authority rules change.
 

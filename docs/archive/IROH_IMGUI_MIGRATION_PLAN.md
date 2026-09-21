@@ -2,7 +2,7 @@
 
 **Planning date:** September 7, 2026
 **Repository reviewed:** `Confetti3/SF4-Netplay-Launcher`
-**Baseline:** `main`, commit `53750e69069aa1a45dc6da09ad8b7fa8000497cb`
+**Baseline:** `main`, commit `c6f2f1907f396c40a8542cc056e3bafa2adb3bde`
 **Status:** Implementation proposal based on source inspection and current Iroh documentation. No repository changes, Windows builds, or live-network tests were performed for this plan.
 
 ## 1. Target outcome
@@ -268,15 +268,15 @@ Start with **M1 plus a game-independent helper/packet-bridge test harness**. Pro
 
 Repository references use the inspected commit where practical; implementation should compare any newer/local changes before applying this plan.
 
-- [R1] Netplay invariants: https://github.com/Confetti3/SF4-Netplay-Launcher/blob/53750e69069aa1a45dc6da09ad8b7fa8000497cb/docs/NETPLAY_INVARIANTS.md
-- [R2] Build targets/dependencies: https://github.com/Confetti3/SF4-Netplay-Launcher/blob/53750e69069aa1a45dc6da09ad8b7fa8000497cb/CMakeLists.txt
-- [R3] x86 presets: https://github.com/Confetti3/SF4-Netplay-Launcher/blob/53750e69069aa1a45dc6da09ad8b7fa8000497cb/CMakePresets.json
-- [R4] Existing loopback bridge: https://github.com/Confetti3/SF4-Netplay-Launcher/blob/53750e69069aa1a45dc6da09ad8b7fa8000497cb/src/session/sf4e__GgpoRelay.cxx
-- [R5] Existing transport interface: https://github.com/Confetti3/SF4-Netplay-Launcher/blob/53750e69069aa1a45dc6da09ad8b7fa8000497cb/src/session/sf4e__GgpoTransport.hxx
-- [R6] Session client interface: https://github.com/Confetti3/SF4-Netplay-Launcher/blob/53750e69069aa1a45dc6da09ad8b7fa8000497cb/src/session/sf4e__SessionClient.hxx
-- [R7] Netplay lifecycle facade: https://github.com/Confetti3/SF4-Netplay-Launcher/blob/53750e69069aa1a45dc6da09ad8b7fa8000497cb/src/sf4e/sf4e__NetplayFacade.cxx
-- [R8] Overlay interface: https://github.com/Confetti3/SF4-Netplay-Launcher/blob/53750e69069aa1a45dc6da09ad8b7fa8000497cb/src/sf4e/sf4e__Overlay.hxx
-- [R9] Current application behavior/settings: https://github.com/Confetti3/SF4-Netplay-Launcher/blob/53750e69069aa1a45dc6da09ad8b7fa8000497cb/README.md
+- [R1] Netplay invariants: https://github.com/Confetti3/SF4-Netplay-Launcher/blob/c6f2f1907f396c40a8542cc056e3bafa2adb3bde/docs/NETPLAY_INVARIANTS.md
+- [R2] Build targets/dependencies: https://github.com/Confetti3/SF4-Netplay-Launcher/blob/c6f2f1907f396c40a8542cc056e3bafa2adb3bde/CMakeLists.txt
+- [R3] x86 presets: https://github.com/Confetti3/SF4-Netplay-Launcher/blob/c6f2f1907f396c40a8542cc056e3bafa2adb3bde/CMakePresets.json
+- [R4] Existing loopback bridge: https://github.com/Confetti3/SF4-Netplay-Launcher/blob/c6f2f1907f396c40a8542cc056e3bafa2adb3bde/src/session/sf4e__GgpoRelay.cxx
+- [R5] Existing transport interface: https://github.com/Confetti3/SF4-Netplay-Launcher/blob/c6f2f1907f396c40a8542cc056e3bafa2adb3bde/src/session/sf4e__GgpoTransport.hxx
+- [R6] Session client interface: https://github.com/Confetti3/SF4-Netplay-Launcher/blob/c6f2f1907f396c40a8542cc056e3bafa2adb3bde/src/session/sf4e__SessionClient.hxx
+- [R7] Netplay lifecycle facade: https://github.com/Confetti3/SF4-Netplay-Launcher/blob/c6f2f1907f396c40a8542cc056e3bafa2adb3bde/src/sf4e/sf4e__NetplayFacade.cxx
+- [R8] Overlay interface: https://github.com/Confetti3/SF4-Netplay-Launcher/blob/c6f2f1907f396c40a8542cc056e3bafa2adb3bde/src/sf4e/sf4e__Overlay.hxx
+- [R9] Current application behavior/settings: https://github.com/Confetti3/SF4-Netplay-Launcher/blob/c6f2f1907f396c40a8542cc056e3bafa2adb3bde/README.md
 - [I1] Public relay policy: https://docs.iroh.computer/iroh-services/relays/public
 - [I2] Relay architecture/deployment: https://docs.iroh.computer/concepts/relays
 - [I3] C bindings/platforms: https://docs.iroh.computer/languages/c
