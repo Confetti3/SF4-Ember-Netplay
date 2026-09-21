@@ -1,7 +1,7 @@
 //! Authenticated, bounded room-consensus transport. This endpoint is separate
 //! from the gameplay endpoint: shutting down consensus cannot retire GGPO links.
 use crate::coordination::{
-    AuthorityClaim, Coordinator, MAX_CHECKPOINT, MAX_MEMBERS, RpcTransport, SNAPSHOT_FRAGMENT_BYTES,
+    AuthorityClaim, Coordinator, MAX_MEMBERS, MAX_SNAPSHOT, RpcTransport, SNAPSHOT_FRAGMENT_BYTES,
 };
 use iroh::{
     Endpoint, EndpointAddr, EndpointId,
@@ -23,7 +23,7 @@ use tokio::{
 };
 
 const ALPN: &[u8] = b"sf4e/coordination/1";
-const MAX_RPC: usize = MAX_CHECKPOINT * 6 + 65536;
+const MAX_RPC: usize = MAX_SNAPSHOT;
 const RPC_TIMEOUT: Duration = Duration::from_secs(10);
 const CONNECTION_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_CONNECTION_STREAMS: usize = 8;

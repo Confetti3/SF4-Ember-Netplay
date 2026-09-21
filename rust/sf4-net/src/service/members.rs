@@ -1,6 +1,11 @@
 //! Admission, retirement and departure of room members.
 use super::*;
 
+/// Each proof a departing helper waits for (removal, promotion, successor
+/// confirmation) gets this long before Leave reports the step as failed.
+const LEAVE_STEP_TIMEOUT: Duration = Duration::from_secs(5);
+const LEAVE_POLL_INTERVAL: Duration = Duration::from_millis(25);
+
 impl Actor {
     pub(super) fn remember_admission(&mut self, admission: Admission) {
         let incarnation = admission.incarnation;
@@ -336,7 +341,7 @@ impl Actor {
                 // committed leader to remove this authenticated voter before
                 // running the normal successor proof below.
                 let (removed_or_promoted, committed_self_removal) =
-                    timeout(Duration::from_secs(5), async {
+                    timeout(LEAVE_STEP_TIMEOUT, async {
                         loop {
                             if recovery.coordinator.current_leader().is_none()
                                 || recovery.coordinator.current_leader()
@@ -352,7 +357,7 @@ impl Actor {
                                 // this response is its durable exclusion proof.
                                 break (true, true);
                             }
-                            tokio::time::sleep(Duration::from_millis(25)).await;
+                            tokio::time::sleep(LEAVE_POLL_INTERVAL).await;
                         }
                     })
                     .await
@@ -370,7 +375,7 @@ impl Actor {
                 // entry has applied locally. Closing earlier leaves its old
                 // authenticated route active on lagging replicas.
                 if coordination_only_learner {
-                    let coordination_member_removed = timeout(Duration::from_secs(5), async {
+                    let coordination_member_removed = timeout(LEAVE_STEP_TIMEOUT, async {
                         loop {
                             if !recovery
                                 .applied_member_ids()
@@ -393,7 +398,7 @@ impl Actor {
                             {
                                 break true;
                             }
-                            tokio::time::sleep(Duration::from_millis(25)).await;
+                            tokio::time::sleep(LEAVE_POLL_INTERVAL).await;
                         }
                     })
                     .await
@@ -412,7 +417,7 @@ impl Actor {
                     // old quorum before the helper retires its route.
                     let successor = successor_voters.iter().next().copied();
                     let promoted = match timeout(
-                        Duration::from_secs(5),
+                        LEAVE_STEP_TIMEOUT,
                         recovery.promote_voters(successor_voters),
                     )
                     .await
@@ -432,7 +437,7 @@ impl Actor {
                                     {
                                         break true;
                                     }
-                                    tokio::time::sleep(Duration::from_millis(25)).await;
+                                    tokio::time::sleep(LEAVE_POLL_INTERVAL).await;
                                 }
                             })
                             .await
@@ -466,7 +471,7 @@ impl Actor {
                 // current leader's authenticated voter claim.
                 let minimum_revision = recovery.committed().await.revision;
                 let mut leader_confirmed_departure = false;
-                let removed = timeout(Duration::from_secs(5), async {
+                let removed = timeout(LEAVE_STEP_TIMEOUT, async {
                     loop {
                         if !recovery
                             .applied_voter_ids()
@@ -504,7 +509,7 @@ impl Actor {
                             leader_confirmed_departure = true;
                             break true;
                         }
-                        tokio::time::sleep(Duration::from_millis(25)).await;
+                        tokio::time::sleep(LEAVE_POLL_INTERVAL).await;
                     }
                 })
                 .await
@@ -516,7 +521,7 @@ impl Actor {
                 let confirmed = if leader_confirmed_departure {
                     true
                 } else {
-                    timeout(Duration::from_secs(5), async {
+                    timeout(LEAVE_STEP_TIMEOUT, async {
                         loop {
                             if recovery
                                 .confirm_available_successor(minimum_term, minimum_revision)

@@ -452,6 +452,7 @@ pub enum GameStream {
 
 /// Consume the purpose marker while leaving the application handshake in the
 /// stream for the caller that owns that mode.
+#[cfg(test)]
 pub async fn accept_game_stream(connection: &Connection) -> io::Result<GameStream> {
     accept_game_stream_until(connection, Instant::now() + HANDSHAKE_TIMEOUT).await
 }
@@ -543,6 +544,7 @@ pub async fn connect_game_on(
     .map_err(|_| failed())?
 }
 
+#[cfg(test)]
 pub async fn accept_game(
     connection: Connection,
     auth: GameAuthorization,

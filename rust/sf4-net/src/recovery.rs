@@ -20,7 +20,7 @@ use crate::{
     coordination_iroh::IrohRpc,
 };
 
-pub const MAX_CHECKPOINT_BYTES: usize = 1024 * 1024;
+pub const MAX_CHECKPOINT_BYTES: usize = crate::coordination::MAX_CHECKPOINT;
 pub const CHECKPOINT_CHUNK_BYTES: usize = 16 * 1024;
 pub const CHECKPOINT_WINDOW: usize = 4;
 pub const MAX_VOTERS: usize = 5;
