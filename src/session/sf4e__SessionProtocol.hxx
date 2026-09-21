@@ -14,7 +14,7 @@
 #include "../common/StageValue.hxx"
 #include "RoomModel.hxx"
 
-#define MAX_SF4E_PROTOCOL_USERS 4
+constexpr int MAX_SF4E_PROTOCOL_USERS = 4;
 
 namespace sf4e {
 	namespace SessionProtocol {

@@ -22,7 +22,7 @@
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__Game__Battle__Hud.hxx"
 
-#define NUM_SAVE_STATES (GGPO_MAX_PREDICTION_FRAMES + 2)
+constexpr int NUM_SAVE_STATES = GGPO_MAX_PREDICTION_FRAMES + 2;
 
 namespace sf4e {
 	namespace Game {

@@ -316,6 +316,7 @@ target_link_libraries(
 add_library(Session STATIC
     "src/session/sf4e__SessionClient.hxx"
     "src/session/sf4e__SessionClient.cxx"
+    "src/session/sf4e__SessionClient__Room.cxx"
     "src/session/sf4e__SessionProtocol.hxx"
     "src/session/sf4e__SessionProtocol.cxx"
     "src/session/sf4e__SessionServer.hxx"
