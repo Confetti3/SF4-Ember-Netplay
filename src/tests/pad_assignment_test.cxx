@@ -3,7 +3,7 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include <cstdlib>
 #include <iostream>
-#define CHECK(c) do { if (!(c)) { std::cerr << "Check failed at " << __LINE__ << ": " #c << '\n'; std::exit(1); } } while (false)
+#include "test_support.hxx"
 using Pad = Dimps::Pad::System;
 using Backend = Dimps::Pad::System_XInput;
 struct FakePad : Pad {

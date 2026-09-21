@@ -9,9 +9,7 @@
 #include <set>
 #include <string>
 
-#define CHECK(condition) do { if (!(condition)) { \
-	std::cerr << "Check failed at " << __LINE__ << ": " #condition << '\n'; \
-	std::exit(1); } } while (false)
+#include "test_support.hxx"
 
 using namespace sf4e;
 namespace protocol = sf4e::SessionProtocol;

@@ -2,7 +2,7 @@
 #include <cstdio>
 #include <cstdlib>
 using namespace sf4e::session;
-#define CHECK(c) do { if (!(c)) { std::printf("FAIL line %d: %s\n", __LINE__, #c); std::exit(1); } } while (false)
+#include "test_support.hxx"
 static Message Diagnostic(int frame) {
     return {2, frame, nlohmann::json{{"type",frame % 2 ? "battle_hash" : "battle_snapshot"},{"frameIdx",frame}}.dump(),{}};
 }

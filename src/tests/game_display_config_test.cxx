@@ -2,7 +2,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-#define CHECK(c) do { if (!(c)) { std::printf("Failed line %d: %s\n", __LINE__, #c); std::exit(1); } } while (false)
+#include "test_support.hxx"
 using sf4e::gameconfig::ParseDisplaySettings;
 
 int main() {

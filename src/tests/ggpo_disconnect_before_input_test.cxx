@@ -11,7 +11,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#define CHECK(c) do { if (!(c)) { std::fprintf(stderr, "Failed line %d: %s\n", __LINE__, #c); std::exit(1); } } while (false)
+#include "test_support.hxx"
 static int running = 0, fighterDisconnects = 0, spectatorDisconnects = 0, loads = 0, loadedFrame = -1, replays = 0;
 // The session whose rollback is being replayed; a real game calls
 // ggpo_advance_frame from its advance callback, and GGPO asserts if not.

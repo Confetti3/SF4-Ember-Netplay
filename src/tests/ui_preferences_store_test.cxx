@@ -7,7 +7,7 @@
 #include <iostream>
 #include <cstdlib>
 
-#define CHECK(c) do { if (!(c)) { std::cerr << "Check failed at " << __LINE__ << ": " #c << '\n'; std::exit(1); } } while (false)
+#include "test_support.hxx"
 
 using Path = std::filesystem::path;
 

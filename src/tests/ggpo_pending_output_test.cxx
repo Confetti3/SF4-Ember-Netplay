@@ -11,7 +11,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#define CHECK(c) do { if (!(c)) { std::fprintf(stderr, "Failed line %d: %s\n", __LINE__, #c); std::exit(1); } } while (false)
+#include "test_support.hxx"
 static int running = 0, spectatorDisconnects = 0, fighterDisconnects = 0;
 static bool __cdecl Begin(const char*) { return true; }
 static bool __cdecl Save(unsigned char** buffer, int* len, int* checksum, int frame) {

@@ -8,7 +8,7 @@
 #include <iostream>
 #include <thread>
 
-#define CHECK(c) do { if (!(c)) { std::cerr << "Check failed at " << __LINE__ << ": " #c << '\n'; std::exit(1); } } while (false)
+#include "test_support.hxx"
 using namespace sf4e;
 
 struct Observer { int ready = 0, synced = 0, errors = 0; SessionClient::ErrorType lastError=SessionClient::ErrorType::SCE_UNKNOWN; };

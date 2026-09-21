@@ -21,7 +21,7 @@
 using namespace sf4e;
 using nlohmann::json;
 namespace protocol = sf4e::SessionProtocol;
-#define CHECK(c) do { if (!(c)) { std::fprintf(stderr, "Check failed at %d: %s\n", __LINE__, #c); std::exit(1); } } while (false)
+#include "test_support.hxx"
 
 namespace {
 // Keeps sizes only; parsing what the server sends is not host work.

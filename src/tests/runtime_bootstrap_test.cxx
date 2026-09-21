@@ -5,7 +5,7 @@
 #include <iostream>
 #include <type_traits>
 
-#define CHECK(c) do { if (!(c)) { std::cerr << "Check failed at " << __LINE__ << ": " #c << '\n'; std::exit(1); } } while (false)
+#include "test_support.hxx"
 using namespace sf4e;
 
 static unsigned rootQueries = 0;

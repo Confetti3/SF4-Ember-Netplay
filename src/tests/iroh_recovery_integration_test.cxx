@@ -7,7 +7,7 @@
 #include <cstring>
 
 using namespace sf4e;
-#define CHECK(c) do { if(!(c)) { std::cerr << "Recovery check failed at " << __LINE__ << ": " #c << '\n'; std::exit(1); } } while(false)
+#include "test_support.hxx"
 
 static GGPOSession* activeSession = nullptr;
 static GGPOSessionCallbacks RecoveryGameCallbacks() {
