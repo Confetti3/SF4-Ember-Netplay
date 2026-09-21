@@ -320,6 +320,9 @@ add_library(Session STATIC
     "src/session/sf4e__SessionProtocol.cxx"
     "src/session/sf4e__SessionServer.hxx"
     "src/session/sf4e__SessionServer.cxx"
+    "src/session/sf4e__SessionServer__Handlers.cxx"
+    "src/session/sf4e__SessionServer__Recovery.cxx"
+    "src/session/sf4e__SessionServer__Rooms.cxx"
     "src/session/IrohRoom.cxx"
     "src/session/MatchAuthority.cxx"
     "src/session/IrohMatchSession.cxx"
@@ -428,6 +431,9 @@ if(BUILD_TESTING)
         "src/tests/session_server_transport_test.cxx"
         "src/session/MatchAuthority.cxx"
         "src/session/sf4e__SessionServer.cxx"
+        "src/session/sf4e__SessionServer__Handlers.cxx"
+        "src/session/sf4e__SessionServer__Recovery.cxx"
+        "src/session/sf4e__SessionServer__Rooms.cxx"
         "src/session/sf4e__SessionProtocol.cxx")
     target_link_libraries(SessionServerTransportTest PRIVATE
         nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
@@ -438,6 +444,9 @@ if(BUILD_TESTING)
         "src/tests/room_host_bench.cxx"
         "src/session/MatchAuthority.cxx"
         "src/session/sf4e__SessionServer.cxx"
+        "src/session/sf4e__SessionServer__Handlers.cxx"
+        "src/session/sf4e__SessionServer__Recovery.cxx"
+        "src/session/sf4e__SessionServer__Rooms.cxx"
         "src/session/sf4e__SessionProtocol.cxx")
     target_link_libraries(RoomHostBench PRIVATE
         nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
