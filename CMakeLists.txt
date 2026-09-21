@@ -315,21 +315,26 @@ target_link_libraries(
     PUBLIC imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog  ggpo::GGPO
 )
 
-add_library(Session STATIC
-    "src/session/sf4e__SessionClient.hxx"
-    "src/session/sf4e__SessionClient.cxx"
-    "src/session/sf4e__SessionClient__Room.cxx"
-    "src/session/sf4e__SessionProtocol.hxx"
-    "src/session/sf4e__SessionProtocol.cxx"
-    "src/session/sf4e__SessionServer.hxx"
+# The session server core has no game or helper dependency, so the transport test and
+# the host benchmark compile it directly instead of linking all of Session.
+set(SF4E_SESSION_SERVER_SOURCES
+    "src/session/MatchAuthority.cxx"
     "src/session/sf4e__SessionServer.cxx"
     "src/session/sf4e__SessionServer__Handlers.cxx"
     "src/session/sf4e__SessionServer__Recovery.cxx"
     "src/session/sf4e__SessionServer__Rooms.cxx"
+    "src/session/sf4e__SessionProtocol.cxx"
+)
+add_library(Session STATIC
+    ${SF4E_SESSION_SERVER_SOURCES}
+    "src/session/sf4e__SessionClient.hxx"
+    "src/session/sf4e__SessionClient.cxx"
+    "src/session/sf4e__SessionClient__Room.cxx"
+    "src/session/sf4e__SessionProtocol.hxx"
+    "src/session/sf4e__SessionServer.hxx"
     "src/session/IrohRoom.cxx"
     "src/session/IrohRoomAdapters.cxx"
     "src/session/IrohRoomCheckpoint.cxx"
-    "src/session/MatchAuthority.cxx"
     "src/session/IrohMatchSession.cxx"
     "src/session/IrohRoom.hxx"
     "src/session/SessionTransport.hxx"
@@ -434,12 +439,7 @@ if(BUILD_TESTING)
     endif()
     add_executable(SessionServerTransportTest
         "src/tests/session_server_transport_test.cxx"
-        "src/session/MatchAuthority.cxx"
-        "src/session/sf4e__SessionServer.cxx"
-        "src/session/sf4e__SessionServer__Handlers.cxx"
-        "src/session/sf4e__SessionServer__Recovery.cxx"
-        "src/session/sf4e__SessionServer__Rooms.cxx"
-        "src/session/sf4e__SessionProtocol.cxx")
+        ${SF4E_SESSION_SERVER_SOURCES})
     target_link_libraries(SessionServerTransportTest PRIVATE
         nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
     target_compile_features(SessionServerTransportTest PRIVATE cxx_std_14)
@@ -447,12 +447,7 @@ if(BUILD_TESTING)
     # Explicitly invoked host-cost benchmark; not a CTest (see the source).
     add_executable(RoomHostBench
         "src/tests/room_host_bench.cxx"
-        "src/session/MatchAuthority.cxx"
-        "src/session/sf4e__SessionServer.cxx"
-        "src/session/sf4e__SessionServer__Handlers.cxx"
-        "src/session/sf4e__SessionServer__Recovery.cxx"
-        "src/session/sf4e__SessionServer__Rooms.cxx"
-        "src/session/sf4e__SessionProtocol.cxx")
+        ${SF4E_SESSION_SERVER_SOURCES})
     target_link_libraries(RoomHostBench PRIVATE
         nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
     target_compile_features(RoomHostBench PRIVATE cxx_std_17)
