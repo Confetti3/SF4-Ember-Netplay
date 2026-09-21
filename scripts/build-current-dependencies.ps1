@@ -1,7 +1,6 @@
 param([string]$VisualStudioPath = '', [string]$VcpkgRoot = '')
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
-$workspace = Split-Path $repo -Parent
 . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
 $target = Get-EmberBuildTarget $repo
 $tools = Get-EmberToolPaths $repo $VisualStudioPath $VcpkgRoot

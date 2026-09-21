@@ -2,7 +2,6 @@ param([switch]$SkipTests, [string]$VisualStudioPath = '', [string]$VcpkgRoot = '
       [string]$DiscordSdkArchive = $env:SF4E_DISCORD_SDK_ARCHIVE)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
-$workspace = Split-Path $repo -Parent
 . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
 $target = Get-EmberBuildTarget $repo
 $tools = Get-EmberToolPaths $repo $VisualStudioPath $VcpkgRoot

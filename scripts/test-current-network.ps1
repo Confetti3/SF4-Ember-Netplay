@@ -8,7 +8,6 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
-$workspace = Split-Path $repo -Parent
 . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
 $target = Get-EmberBuildTarget $repo
 $build = Join-Path $repo $target.buildDirectory

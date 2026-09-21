@@ -1,4 +1,4 @@
-param([string]$PackageDir, [string]$BuildDir = 'msvc-build/display')
+param([string]$PackageDir, [string]$BuildDir = 'build/current')
 $ErrorActionPreference = 'Stop'
 if (!$PackageDir) { throw 'Specify -PackageDir for the candidate to validate.' }
 & (Join-Path $PSScriptRoot 'tester-preflight.ps1') -PackageDir $PackageDir
