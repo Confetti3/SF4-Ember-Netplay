@@ -232,6 +232,245 @@ impl Actor {
         });
         Ok(())
     }
+
+    pub(super) async fn completed_probe_authorization(
+        &mut self,
+        key: ProbeAuthorizationKey,
+        result: io::Result<ProbeAuthorization>,
+    ) -> io::Result<()> {
+        if self.pending_probe_authorizations.get(&key.peer) != Some(&key) {
+            return Ok(());
+        }
+        self.pending_probe_authorizations.remove(&key.peer);
+        let Some(recovery) = self.recovery.clone() else {
+            self.probe_peers.remove(&key.peer);
+            return Ok(());
+        };
+        let wall_now = now().unwrap_or_default();
+        let valid = if let Ok(authorization) = &result {
+            let committed = recovery.committed().await;
+            key.epoch == self.epoch
+                && self.room == Some(key.room)
+                && recovery.room == key.room
+                && recovery.incarnation == key.incarnation
+                && recovery.coordinator.current_term() == authorization.term
+                && recovery.coordinator.current_leader() == authorization.leader
+                && authorization.leader.is_some()
+                && authorization.expires > wall_now
+                && committed.revision == authorization.revision
+                && !self.games.contains_key(&key.peer)
+                && self.admissions.values().any(|admission| {
+                    admission.room == key.room
+                        && admission.primary_endpoint == key.peer
+                        && admission.incarnation == key.target_incarnation
+                })
+                && recovery
+                    .probe_pair_bound(
+                        key.incarnation,
+                        key.target_incarnation,
+                        self.endpoint.id(),
+                        key.peer,
+                        key.pair_revision,
+                    )
+                    .await
+        } else {
+            false
+        };
+        let authorization = match result {
+            Ok(authorization) => authorization,
+            Err(error) => {
+                let reason = match error.to_string().as_str() {
+                    "probe authority unavailable" => 7,
+                    "probe pair unavailable" => 8,
+                    "room proposal busy" => 11,
+                    _ => 9,
+                };
+                self.probe_peers.remove(&key.peer);
+                self.probe_error(reason)?;
+                return Ok(());
+            }
+        };
+        if !valid {
+            self.probe_peers.remove(&key.peer);
+            self.probe_error(10)?;
+            return Ok(());
+        }
+        self.pending_probe_invalidations.remove(&key.peer);
+        let address = self
+            .host_address
+            .as_ref()
+            .filter(|address| address.id == key.peer)
+            .cloned()
+            .unwrap_or_else(|| EndpointAddr::new(key.peer));
+        let remaining = Duration::from_secs(authorization.expires.saturating_sub(wall_now));
+        self.probe_permissions.insert(
+            key.peer,
+            ProbePermission {
+                request: key.request,
+                pair_revision: key.pair_revision,
+                expires: tokio::time::Instant::now() + remaining,
+            },
+        );
+        self.send_probe_reservation(
+            key.peer,
+            key.room,
+            key.request,
+            key.pair_revision,
+            authorization.term,
+            authorization.expires,
+        );
+        let endpoint = self.endpoint.clone();
+        self.tasks.spawn(async move {
+            let result = run_probe(
+                endpoint,
+                address,
+                key.room,
+                key.peer,
+                key.request,
+                key.pair_revision,
+                key.benchmark,
+            )
+            .await
+            .unwrap_or(ProbeCompletion {
+                peer: key.peer,
+                request: key.request,
+                pair_revision: key.pair_revision,
+                samples_us: Vec::new(),
+                connection: None,
+                report: true,
+                route_changed: false,
+                metrics: crate::probe::Metrics::default(),
+            });
+            Completion::Probe(key.epoch, Ok(result))
+        });
+        Ok(())
+    }
+
+    pub(super) async fn completed_probe(
+        &mut self,
+        epoch: u64,
+        result: io::Result<ProbeCompletion>,
+    ) -> io::Result<()> {
+        if epoch != self.epoch {
+            return Ok(());
+        }
+        if let Ok(probe) = result {
+            let current = self
+                .probe_permissions
+                .get(&probe.peer)
+                .is_some_and(|permission| {
+                    permission.request == probe.request
+                        && permission.pair_revision == probe.pair_revision
+                });
+            if !current {
+                if let Some(connection) = probe.connection {
+                    connection.close(1u32.into(), b"obsolete probe completion");
+                }
+                return Ok(());
+            }
+            self.probe_peers.remove(&probe.peer);
+            self.probe_permissions.remove(&probe.peer);
+            self.pending_probe_invalidations.remove(&probe.peer);
+            // A check initiated by the other player may replace our
+            // measured connection. Retire its recommendation explicitly.
+            if let Some(previous) = self.probe_reservations.remove(&probe.peer)
+                && previous.reported
+                && !probe.report
+            {
+                self.queue_probe_invalidation(
+                    probe.peer,
+                    previous.request,
+                    previous.pair_revision,
+                    probe
+                        .connection
+                        .as_ref()
+                        .map(selected_probe_route)
+                        .unwrap_or_default(),
+                );
+            }
+            if probe.report {
+                let route = probe
+                    .connection
+                    .as_ref()
+                    .map(selected_probe_route)
+                    .unwrap_or_else(|| "unavailable".into());
+                if probe.route_changed {
+                    if let Some(connection) = probe.connection
+                        && connection.close_reason().is_none()
+                    {
+                        self.probe_reservations.insert(
+                            probe.peer,
+                            ProbeReservation {
+                                reported: false,
+                                connection,
+                                request: probe.request,
+                                pair_revision: probe.pair_revision,
+                                route: route.clone(),
+                            },
+                        );
+                    }
+                    self.queue_probe_invalidation(
+                        probe.peer,
+                        probe.request,
+                        probe.pair_revision,
+                        route,
+                    );
+                    return Ok(());
+                }
+                let summary = recovery::summarize_datagram_probe(
+                    &probe.samples_us,
+                    probe.metrics.expected,
+                    probe.metrics.sent,
+                );
+                if summary.status == "ready" {
+                    if let Some(connection) = probe.connection {
+                        self.probe_reservations.insert(
+                            probe.peer,
+                            ProbeReservation {
+                                reported: true,
+                                connection,
+                                request: probe.request,
+                                pair_revision: probe.pair_revision,
+                                route: route.clone(),
+                            },
+                        );
+                    }
+                } else if let Some(connection) = probe.connection {
+                    connection.close(1u32.into(), b"probe unavailable");
+                }
+                self.emit(Event::ProbeResult {
+                    epoch,
+                    room: self.room.unwrap_or([0; 16]),
+                    peer: probe.peer,
+                    request: probe.request,
+                    pair_revision: probe.pair_revision,
+                    route,
+                    status: summary.status.clone(),
+                    sample_count: summary.sample_count,
+                    loss_count: summary.loss_count,
+                    p95_rtt_us: summary.p95_rtt_us,
+                    recommended_delay: if summary.status == "ready" {
+                        i16::from(summary.recommended_delay)
+                    } else {
+                        -1
+                    },
+                    metrics: probe.metrics,
+                })?;
+            } else if let Some(connection) = probe.connection {
+                self.probe_reservations.insert(
+                    probe.peer,
+                    ProbeReservation {
+                        reported: false,
+                        route: selected_probe_route(&connection),
+                        connection,
+                        request: probe.request,
+                        pair_revision: probe.pair_revision,
+                    },
+                );
+            }
+        }
+        Ok(())
+    }
 }
 
 pub(super) async fn run_probe(

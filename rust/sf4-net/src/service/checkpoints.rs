@@ -511,4 +511,60 @@ impl Actor {
         }
         self.outgoing_transfer = Some(outgoing);
     }
+
+    pub(super) async fn completed_checkpoint_proposal(
+        &mut self,
+        key: CheckpointProposalKey,
+        transfer: CheckpointTransfer,
+        _waiter_result: io::Result<crate::coordination::Receipt>,
+    ) -> io::Result<()> {
+        if self.pending_checkpoint_proposal.as_ref() != Some(&key) {
+            return Ok(());
+        }
+        self.pending_checkpoint_proposal = None;
+        self.pending_checkpoint_retry = None;
+        let Some(recovery) = self.recovery.clone() else {
+            return Ok(());
+        };
+        if key.epoch != self.epoch
+            || self.room != Some(key.room)
+            || recovery.room != key.room
+            || recovery.incarnation != key.incarnation
+        {
+            return Ok(());
+        }
+        // A waiter error is not proof that a Raft write failed. Only
+        // the locally applied committed record authorizes native
+        // replay and membership effects; the periodic watcher uses
+        // this same durable observation if the waiter never returns.
+        let committed = recovery.committed().await;
+        let committed_exact = committed.revision == key.revision
+            && committed.term == key.term
+            && committed.request == key.transfer.to_string()
+            && committed.checkpoint.as_bytes() == transfer.bytes
+            && transfer.room == key.room
+            && transfer.transfer == key.transfer
+            && transfer.base_revision == key.base_revision
+            && transfer.revision == key.revision
+            && transfer.bytes.len() == key.length
+            && transfer.digest == key.digest;
+        if committed_exact {
+            if let Some(retained) = committed_primary_endpoints(&transfer.bytes) {
+                self.schedule_membership_reconciliation(
+                    retained,
+                    committed.term,
+                    committed.revision,
+                );
+            }
+            if committed.revision > self.last_exported_revision
+                && self.outgoing_transfer.is_none()
+                && self.pending_checkpoint_committed.is_none()
+            {
+                self.start_outgoing_checkpoint(transfer);
+            }
+        }
+        self.last_coordination_state = None;
+        self.emit_coordination_state().await?;
+        Ok(())
+    }
 }

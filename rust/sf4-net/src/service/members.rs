@@ -723,4 +723,88 @@ impl Actor {
             self.clear_room();
         }
     }
+
+    pub(super) async fn completed_membership_reconciliation(
+        &mut self,
+        key: MembershipOperationKey,
+        result: io::Result<MembershipOperationResult>,
+    ) -> io::Result<()> {
+        if self.pending_membership_operation.as_ref() != Some(&key) {
+            return Ok(());
+        }
+        self.pending_membership_operation = None;
+        let Some(recovery) = self.recovery.clone() else {
+            return Ok(());
+        };
+        let committed = recovery.committed().await;
+        let current = key.epoch == self.epoch
+            && self.room == Some(key.room)
+            && recovery.room == key.room
+            && recovery.incarnation == key.incarnation
+            && recovery.coordinator.current_term() == key.term
+            && committed.revision == key.revision;
+        if current && let Ok(result) = result {
+            self.apply_confirmed_retirements(result.confirmed_retirements);
+        }
+        // Stale completions leave the pre-write retirement fences in
+        // place. The next exact committed-roster refresh retries the
+        // operation through the current authority.
+        self.last_coordination_state = None;
+        self.last_control_rebound = None;
+        self.emit_coordination_state().await?;
+        Ok(())
+    }
+
+    pub(super) async fn completed_admission(
+        &mut self,
+        key: AdmissionOperationKey,
+        result: io::Result<AdmissionOperationResult>,
+    ) -> io::Result<()> {
+        if self.pending_admission_operation.as_ref() != Some(&key) {
+            return Ok(());
+        }
+        self.pending_admission_operation = None;
+        let Some(recovery) = self.recovery.clone() else {
+            self.deferred_admissions.clear();
+            return Ok(());
+        };
+        let current_room = key.epoch == self.epoch
+            && self.room == Some(key.room)
+            && recovery.room == key.room
+            && recovery.incarnation == key.incarnation;
+        let mut published_roster_changed = false;
+        if current_room && let Ok(result) = result {
+            let (members, history) = recovery.applied_membership_provenance().await;
+            for admission in result.admissions {
+                if self.retired_incarnations.contains(&admission.incarnation)
+                    || self
+                        .pending_retired_incarnations
+                        .contains(&admission.incarnation)
+                    || (history.contains(&admission.incarnation)
+                        && !members.contains(&admission.incarnation))
+                {
+                    self.pending_retired_incarnations
+                        .insert(admission.incarnation);
+                    continue;
+                }
+                self.remember_admission(admission);
+                published_roster_changed = true;
+            }
+        }
+        if published_roster_changed
+            && recovery.coordinator.current_leader() == Some(recovery.incarnation)
+        {
+            // Admission is asynchronous, so the old receive-site
+            // broadcast observes the pre-admission roster. Publish
+            // only after the authenticated binding is installed, and
+            // retain every destination until its bounded worker queue
+            // accepts the current full snapshot.
+            self.queue_membership_publication();
+        }
+        self.last_coordination_state = None;
+        self.last_control_rebound = None;
+        self.emit_coordination_state().await?;
+        self.start_next_admission_operation();
+        Ok(())
+    }
 }

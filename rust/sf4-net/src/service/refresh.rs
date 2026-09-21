@@ -302,4 +302,80 @@ impl Actor {
         self.last_control_rebound = Some(rebound_marker);
         Ok(())
     }
+
+    pub(super) async fn completed_coordination_refresh(
+        &mut self,
+        key: CoordinationRefreshKey,
+        refresh: CoordinationRefresh,
+    ) -> io::Result<()> {
+        if self.pending_coordination_refresh.as_ref() != Some(&key) {
+            return Ok(());
+        }
+        self.pending_coordination_refresh = None;
+        let Some(recovery) = self.recovery.clone() else {
+            return Ok(());
+        };
+        let committed_now = recovery.committed().await;
+        let current_term = recovery.coordinator.current_term();
+        let current_leader = recovery.coordinator.current_leader();
+        let current = key.epoch == self.epoch
+            && self.room == Some(key.room)
+            && recovery.room == key.room
+            && recovery.incarnation == key.incarnation
+            && key.term == refresh.state.term
+            && key.leader == refresh.leader
+            && current_term == key.term
+            && current_leader == key.leader
+            && refresh.state.incarnation == key.incarnation
+            && refresh.state.revision == refresh.committed.revision
+            && committed_now.revision == refresh.committed.revision
+            && committed_now.term == refresh.committed.term
+            && committed_now.request == refresh.committed.request
+            && committed_now.checkpoint == refresh.committed.checkpoint;
+        let failed_leader = if current && !refresh.state.writable {
+            current_leader
+                .filter(|leader| *leader != recovery.incarnation)
+                .and_then(|leader| {
+                    let now = Instant::now();
+                    match self.unwritable_leader_since {
+                        Some((term, failed, since)) if term == current_term && failed == leader => {
+                            if now.duration_since(since) >= RECOVERY_ELECTION_GRACE {
+                                // Rate-limit repeated triggers while an election is in
+                                // progress. A later committed term or healthy proof
+                                // clears this marker.
+                                self.unwritable_leader_since = Some((current_term, leader, now));
+                                Some(leader)
+                            } else {
+                                None
+                            }
+                        }
+                        _ => {
+                            self.unwritable_leader_since = Some((current_term, leader, now));
+                            None
+                        }
+                    }
+                })
+        } else {
+            if current {
+                self.unwritable_leader_since = None;
+            }
+            None
+        };
+        if current {
+            self.apply_coordination_refresh(refresh)?;
+            if let Some(leader) = failed_leader {
+                self.trigger_recovery_election_for_leader(leader).await;
+            }
+        } else {
+            // A read that crossed a leadership or applied-revision
+            // change can only withdraw writability. A fresh worker
+            // will establish the next positive claim.
+            self.coordination_writable = false;
+            self.last_coordination_state = None;
+            self.last_control_rebound = None;
+            self.unwritable_leader_since = None;
+            self.emit_coordination_state().await?;
+        }
+        Ok(())
+    }
 }

@@ -583,4 +583,75 @@ impl Actor {
         }
         Ok(())
     }
+
+    pub(super) async fn completed_control(
+        &mut self,
+        epoch: u64,
+        result: io::Result<ControlChannel>,
+        joined_invite: Option<Invite>,
+    ) -> io::Result<()> {
+        match result {
+            Ok(channel) => {
+                let peer = channel.connection.remote_id();
+                self.remove_closed_control(peer);
+                let replacing = self.controls.contains_key(&peer);
+                if epoch != self.epoch
+                    || self.room.is_none()
+                    || (!replacing && self.controls.len() >= MAX_CONTROL_PEERS)
+                {
+                    channel.connection.close(1u32.into(), b"room unavailable");
+                    return Ok(());
+                }
+                // The QUIC identity and room proof authenticate this
+                // as a new connection from the same helper endpoint.
+                // Supersede the old worker even if its remote close has
+                // not propagated yet; coordination admission still
+                // fences stale process incarnations independently.
+                if replacing {
+                    self.controls.remove(&peer);
+                }
+                self.opening = false;
+                self.controls.insert(peer, ControlWorker::start(channel));
+                if let Some(invite) = joined_invite.as_ref() {
+                    self.room_invite = Some(invite.clone());
+                    // sf4e2/emd2 intentionally omits the private
+                    // coordination endpoint. The authenticated host
+                    // Admission frame on this primary control stream
+                    // performs the authority lookup before recovery
+                    // starts. sf4e3/full invites can bootstrap
+                    // directly from their committed route.
+                    let setup = invite.coordination_address().is_some();
+                    if setup && self.setup_join_recovery(invite).await.is_err() {
+                        self.controls.remove(&peer);
+                        let _ = self.emit_bulk(Event::ControlClosed { epoch, peer });
+                        self.reconnect_control(peer);
+                        self.error(0, "coordination_unavailable")?;
+                        return Ok(());
+                    }
+                }
+                self.emit(Event::Connected {
+                    epoch,
+                    peer,
+                    room: self.room.unwrap(),
+                })?;
+                if let Some(invite) = joined_invite {
+                    self.emit(Event::DiscordInvite {
+                        epoch,
+                        invitation: invite.encode()?,
+                        secret: invite.encode_discord()?,
+                    })?;
+                }
+                self.send_coordination_control(peer);
+                self.last_coordination_state = None;
+                self.last_control_rebound = None;
+                self.emit_coordination_state().await?;
+            }
+            Err(_) if epoch == self.epoch && self.opening => {
+                self.clear_room();
+                self.error(0, "join_failed")?;
+            }
+            Err(_) => (), // Rejected inbound peer: keep the host's room alive.
+        }
+        Ok(())
+    }
 }

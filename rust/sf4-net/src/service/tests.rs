@@ -1,3 +1,4 @@
+use super::probes::run_probe;
 use super::*;
 
 impl Actor {
