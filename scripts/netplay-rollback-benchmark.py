@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env python3
-"""Internal rollback benchmark — see docs/ROLLBACK_BENCHMARK.md."""
+"""Internal rollback benchmark — see docs/validation/ROLLBACK_BENCHMARK.md."""
 import argparse
 import csv
 import hashlib

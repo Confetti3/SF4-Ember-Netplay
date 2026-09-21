@@ -9,7 +9,7 @@
 //
 // Threading: all recording must happen on the game main thread (the same
 // thread that runs BattleUpdate, Steam_PostUpdate, and every GGPO callback —
-// see docs/GGPO_LIFECYCLE.md). This component is intentionally not
+// see docs/design/GGPO_LIFECYCLE.md). This component is intentionally not
 // synchronized.
 //
 // Enabled via SF4E_ROLLBACK_DIAGNOSTICS=1 (or SetEnabled from the host).

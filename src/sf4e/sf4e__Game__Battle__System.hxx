@@ -169,7 +169,7 @@ namespace sf4e {
 
 					// Releases a state's memento payloads without changing
 					// the live game. Swap-and-clear by default; see
-					// docs/SAVESTATE_FREE.md.
+					// docs/design/SAVESTATE_FREE.md.
 					static void Free(SaveState* dst);
 					// The v0.8.5 release (install victim, clear, restore live),
 					// selected with SF4E_LEGACY_SAVESTATE_FREE=1.

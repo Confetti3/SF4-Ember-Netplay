@@ -27,7 +27,7 @@ Community additions in this unofficial port:
 
 **Scope:** USF4 on Steam, Windows 10+, rollback netplay for a **small friends group**. **Not** a commercial matchmaking service. **Not production-ready software.**
 
-**Limitations:** experimental netplay. Actual SF4 rematch, disconnect, spectator, different-network and clean-machine results remain acceptance gates. See [scope](docs/SCOPE_AND_LIMITATIONS.md).
+**Limitations:** experimental netplay. Actual SF4 rematch, disconnect, spectator, different-network and clean-machine results remain acceptance gates. See [scope](docs/guides/SCOPE_AND_LIMITATIONS.md).
 
 Maintained at: [github.com/Confetti3/SF4-Ember-Netplay](https://github.com/Confetti3/SF4-Ember-Netplay)
 
@@ -85,7 +85,7 @@ The retained Ultra archive also includes Capcom materials published by 4Gamer:
 [Oni (2011)](https://www.4gamer.net/games/111/G011109/20110408015/).
 Ultra selection now uses locally drawn vector inputs, with visual notation
 referenced from [EventHubs' Abel guide](https://www.eventhubs.com/moves/sf4/abel/).
-See `docs/ULTRA_INPUTS.md` for command sources and edition exceptions.
+See `docs/design/ULTRA_INPUTS.md` for command sources and edition exceptions.
 
 ## Controller prompts and menu background
 

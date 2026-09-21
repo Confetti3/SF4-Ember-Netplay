@@ -11,8 +11,8 @@
   <p>
     <strong><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v0.9.3/sf4-ember-netplay-0.9.3.zip">Download v0.9.3 for Windows</a></strong>
     &nbsp; · &nbsp; <a href="#get-started">Get started</a>
-    &nbsp; · &nbsp; <a href="docs/USER_NETPLAY.md">Player guide</a>
-    &nbsp; · &nbsp; <a href="docs/RELEASE_NOTES_v0.9.3.md">Release notes</a>
+    &nbsp; · &nbsp; <a href="docs/guides/USER_NETPLAY.md">Player guide</a>
+    &nbsp; · &nbsp; <a href="docs/release-notes/RELEASE_NOTES_v0.9.3.md">Release notes</a>
   </p>
 </div>
 
@@ -20,7 +20,7 @@
 
 **SF4 Ember Netplay** brings private rooms, four rollback battle tables, spectators and offline training tools into a fixed in-game interface. Create a room, share an invitation and choose where to play or watch. The charcoal, ivory and orange interface supports controllers, arcade sticks and keyboard navigation.
 
-An **experimental unofficial port** of **[sf4e](https://codeberg.org/adanducci/sf4e)** by **Anthony Danducci and contributors**, under the MIT license. Anthony Danducci does not maintain, endorse or support this build. Ember is not affiliated with Capcom or Valve. See [attribution](ATTRIBUTION.md) and [scope and limitations](docs/SCOPE_AND_LIMITATIONS.md).
+An **experimental unofficial port** of **[sf4e](https://codeberg.org/adanducci/sf4e)** by **Anthony Danducci and contributors**, under the MIT license. Anthony Danducci does not maintain, endorse or support this build. Ember is not affiliated with Capcom or Valve. See [attribution](ATTRIBUTION.md) and [scope and limitations](docs/guides/SCOPE_AND_LIMITATIONS.md).
 
 ## Inside Ember
 
@@ -78,7 +78,7 @@ No VPS account or manual port configuration is required. Iroh can use public rel
 | Back | Escape | B | SF4-mapped Light Kick |
 | Open at safe menu states | F10 | Start | SF4-mapped Start |
 
-Back returns through menus and can hide Ember. Leaving a room requires the explicit **Leave room** action. Use **Play Offline** for native game menus. More detail: [controller guide](docs/CONTROLLER_MENUS.md).
+Back returns through menus and can hide Ember. Leaving a room requires the explicit **Leave room** action. Use **Play Offline** for native game menus. More detail: [controller guide](docs/guides/CONTROLLER_MENUS.md).
 
 ## Settings, updates and legacy builds
 
@@ -90,16 +90,17 @@ Browse the [branch archive](docs/archive/README.md) for all retired development 
 
 ## Status and documentation
 
-Ember remains experimental. Local builds, automated UI and transport tests, and package verification do not establish native gameplay acceptance. Results and repeated rematches, spectators, disconnect recovery, different-network play and clean-machine behavior require recorded SF4 testing. Read the [limitations](docs/SCOPE_AND_LIMITATIONS.md) before playing.
+Ember remains experimental. Local builds, automated UI and transport tests, and package verification do not establish native gameplay acceptance. Results and repeated rematches, spectators, disconnect recovery, different-network play and clean-machine behavior require recorded SF4 testing. Read the [limitations](docs/guides/SCOPE_AND_LIMITATIONS.md) before playing.
 
 | Guide | What it covers |
 | --- | --- |
-| [Player guide](docs/USER_NETPLAY.md) | Hosting, joining, controls and day-to-day play |
-| [Custom rooms](docs/CUSTOM_ROOMS.md) | Tables, queues, spectators and room behavior |
-| [Discord](docs/DISCORD.md) | Presence, invitations and privacy |
-| [Troubleshooting](docs/TROUBLESHOOTING.md) | Startup, connections and diagnostics |
-| [Saving logs](docs/SAVING_LOGS.md) | Save logs and diagnostics from both players for a bug report |
-| [Build and package](docs/BUILDING.md) | Reproducible local builds and release provenance |
+| [Player guide](docs/guides/USER_NETPLAY.md) | Hosting, joining, controls and day-to-day play |
+| [Custom rooms](docs/guides/CUSTOM_ROOMS.md) | Tables, queues, spectators and room behavior |
+| [Discord](docs/guides/DISCORD.md) | Presence, invitations and privacy |
+| [Troubleshooting](docs/guides/TROUBLESHOOTING.md) | Startup, connections and diagnostics |
+| [Saving logs](docs/guides/SAVING_LOGS.md) | Save logs and diagnostics from both players for a bug report |
+| [Build and package](docs/development/BUILDING.md) | Reproducible local builds and release provenance |
+| [All documentation](docs/README.md) | Design notes, validation results, reports and release notes |
 
 ## License and credits
 

@@ -12,7 +12,7 @@ This is a **known false positive** on unsigned netplay tools that inject into US
 
 1. Download only from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) (**v0.6.5** or newer).
 2. Verify SHA256 hashes match the release page.
-3. See [`docs/WINDOWS_DEFENDER.md`](WINDOWS_DEFENDER.md) — permanent fix is **Authenticode signing**, not Defender exclusions.
+3. See [`docs/guides/WINDOWS_DEFENDER.md`](WINDOWS_DEFENDER.md) — permanent fix is **Authenticode signing**, not Defender exclusions.
 
 ## Scope and limitations
 
@@ -23,7 +23,7 @@ This is a **known false positive** on unsigned netplay tools that inject into US
 | Same zip on all players | Shared broker (~**50 rooms** ≈ 100 players; **5 min** idle for empty codes, no occupied-room age limit by default) |
 | Advanced Direct IP / UPnP | Host port-forward for Direct IP; Find match / Open rooms **experimental** |
 
-Full list: [`docs/SCOPE_AND_LIMITATIONS.md`](SCOPE_AND_LIMITATIONS.md) in this folder.
+Full list: [`docs/guides/SCOPE_AND_LIMITATIONS.md`](SCOPE_AND_LIMITATIONS.md) in this folder.
 
 ## Quick start (3 steps)
 

@@ -1,6 +1,6 @@
 # Publishing SF4 Netplay Launcher releases
 
-> **Experimental unofficial port** — release notes and zip assets should describe this as **not production-ready** friends-only test software. See [docs/SCOPE_AND_LIMITATIONS.md](SCOPE_AND_LIMITATIONS.md) and [docs/RELEASE_NOTES_TEMPLATE.md](RELEASE_NOTES_TEMPLATE.md).
+> **Experimental unofficial port** — release notes and zip assets should describe this as **not production-ready** friends-only test software. See [docs/guides/SCOPE_AND_LIMITATIONS.md](SCOPE_AND_LIMITATIONS.md) and [docs/release-notes/RELEASE_NOTES_TEMPLATE.md](RELEASE_NOTES_TEMPLATE.md).
 
 ## One-command release (recommended)
 
@@ -28,10 +28,10 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 
 2. **Create GitHub Release**
 
-   Copy `docs/RELEASE_NOTES_TEMPLATE.md` to `docs/RELEASE_NOTES_v{version}.md`, edit for the tag, then publish. Older release notes stay on [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases) only — do not keep every version file on `main` (keep the current major line, e.g. 0.5.0 + 0.6.x).
+   Copy `docs/release-notes/RELEASE_NOTES_TEMPLATE.md` to `docs/RELEASE_NOTES_v{version}.md`, edit for the tag, then publish. Older release notes stay on [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases) only — do not keep every version file on `main` (keep the current major line, e.g. 0.5.0 + 0.6.x).
 
    ```powershell
-   gh release create v0.6.5 dist/sf4-netplay-launcher-*-0.6.5.zip --title "SF4 Netplay Launcher v0.6.5" --notes-file docs/RELEASE_NOTES_v0.6.5.md
+   gh release create v0.6.5 dist/sf4-netplay-launcher-*-0.6.5.zip --title "SF4 Netplay Launcher v0.6.5" --notes-file docs/release-notes/RELEASE_NOTES_v0.6.5.md
    ```
 
 3. **Share with testers**
@@ -40,14 +40,14 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
    - Tell them this is **experimental** test software — not production-ready; sessions may fail
    - Tell them to download the **Assets** zip (not source-only)
    - Same zip on both PCs; run `preflight.cmd` then `Launcher.exe`
-   - Link [docs/TROUBLESHOOTING.md](TROUBLESHOOTING.md) in release notes (see template) so GitHub Releases point players at the troubleshooting guide
+   - Link [docs/guides/TROUBLESHOOTING.md](TROUBLESHOOTING.md) in release notes (see template) so GitHub Releases point players at the troubleshooting guide
 
 ## What ships in the zip
 
 - `Launcher.exe`, `Sidecar.dll`, **`RelayHost.exe`**, `Updater.exe`, Qt runtime DLLs, `plugins/`, `qt.conf`
 - Runtime DLLs (GNS, GGPO, spdlog, etc.)
 - `START_HERE.md` (from `docs/TEAM_QUICKSTART.md`), `preflight.cmd`, `preflight.ps1`, `MANIFEST.txt`, `BUILD_INFO.txt`, `ATTRIBUTION.md`
-- `docs/TROUBLESHOOTING.md` (player troubleshooting — also linked from each release on GitHub)
+- `docs/guides/TROUBLESHOOTING.md` (player troubleshooting — also linked from each release on GitHub)
 
 ## Version tags
 

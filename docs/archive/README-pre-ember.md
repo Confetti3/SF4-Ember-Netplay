@@ -1,6 +1,6 @@
 # SF4 Netplay Launcher
 
-> **Unofficial experimental port** - **not** the official [sf4e](https://codeberg.org/adanducci/sf4e) project by **[Anthony Danducci](https://codeberg.org/adanducci/sf4e)**. Anthony Danducci does not maintain, endorse, or support this build. This is **not production-ready software** - a friends-only experiment built on upstream sf4e (MIT). See [ATTRIBUTION.md](ATTRIBUTION.md) and [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md).
+> **Unofficial experimental port** - **not** the official [sf4e](https://codeberg.org/adanducci/sf4e) project by **[Anthony Danducci](https://codeberg.org/adanducci/sf4e)**. Anthony Danducci does not maintain, endorse, or support this build. This is **not production-ready software** - a friends-only experiment built on upstream sf4e (MIT). See [ATTRIBUTION.md](ATTRIBUTION.md) and [docs/guides/SCOPE_AND_LIMITATIONS.md](docs/guides/SCOPE_AND_LIMITATIONS.md).
 
 **SF4 Netplay Launcher** is a **third-party, experimental unofficial port** for _Ultra Street Fighter IV_ on Steam. It adds a native **Qt Host / Join / Offline** launcher and **VPS relay room codes** (`SF4-XXXX`) on top of sf4e's rollback netplay. Netplay may fail, desync, or break between releases - use only with people who accept that risk.
 
@@ -156,7 +156,7 @@ The launcher defaults to **Simple mode**. This path is **experimental** - it has
 
 ### 4. Advanced mode (Direct IP)
 
-Switch to **Advanced** in the launcher for classic host/join with `IP:port`, local relay, or UPnP. The host must **port-forward TCP+UDP** on the session port (default **23456**). See [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md).
+Switch to **Advanced** in the launcher for classic host/join with `IP:port`, local relay, or UPnP. The host must **port-forward TCP+UDP** on the session port (default **23456**). See [docs/guides/USER_NETPLAY.md](docs/guides/USER_NETPLAY.md).
 
 Use Advanced when you prefer port-forward over VPS room codes.
 
@@ -174,7 +174,7 @@ This is an **experimental unofficial port** for a **small friends group** - not 
 
 **Less tested:** disconnect recovery, spectator mode, Linux/Proton. **Rematch** in the same VPS room is supported (UDP relay re-registration + in-game Ready/Rematch).
 
-Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (also in the release zip).
+Full details: [docs/guides/SCOPE_AND_LIMITATIONS.md](docs/guides/SCOPE_AND_LIMITATIONS.md) (also in the release zip).
 
 ## Documentation
 
@@ -184,23 +184,23 @@ Full details: [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) (al
 | [docs/VPS_CAPACITY_50.md](docs/VPS_CAPACITY_50.md) | Raise default VPS capacity to 50 rooms / migrate live `.env` |
 | [docs/TRANSPORT_REGRESSION.md](docs/TRANSPORT_REGRESSION.md) | Transport ladder test matrix |
 | [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md) | Experimental testers - quick checklist and bug reports |
-| [docs/USER_NETPLAY.md](docs/USER_NETPLAY.md) | Player guide - Simple + Advanced flows |
+| [docs/guides/USER_NETPLAY.md](docs/guides/USER_NETPLAY.md) | Player guide - Simple + Advanced flows |
 | [docs/TEAM_QUICKSTART.md](docs/TEAM_QUICKSTART.md) | Packaged as `START_HERE.md` in the release zip |
 | [docs/SMOKE_TEST.md](docs/SMOKE_TEST.md) | Manual test checklist |
-| [docs/SCOPE_AND_LIMITATIONS.md](docs/SCOPE_AND_LIMITATIONS.md) | What this port is for, and known limits |
+| [docs/guides/SCOPE_AND_LIMITATIONS.md](docs/guides/SCOPE_AND_LIMITATIONS.md) | What this port is for, and known limits |
 | [ATTRIBUTION.md](ATTRIBUTION.md) | Upstream sf4e credit (Anthony Danducci) |
 | [SECURITY.md](SECURITY.md) | Security policy and supported versions |
 | [docs/RELEASE.md](docs/RELEASE.md) | Building and publishing releases |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Player troubleshooting — black launcher, crash on launch, settings, Direct IP |
-| [docs/WINDOWS_DEFENDER.md](docs/WINDOWS_DEFENDER.md) | Defender false positives (`Wacapew.A!ml`) |
-| [docs/RELEASE_NOTES_v0.6.5.md](docs/RELEASE_NOTES_v0.6.5.md) | Latest release notes |
-| [docs/NETPLAY_INVARIANTS.md](docs/NETPLAY_INVARIANTS.md) | Hard GGPO/session rules that must not regress |
-| [docs/GGPO_LIFECYCLE.md](docs/GGPO_LIFECYCLE.md) | GGPO lifecycle / desync internals |
-| [docs/SIGNPATH_APPLY.md](docs/SIGNPATH_APPLY.md) | SignPath Foundation checklist |
+| [docs/guides/TROUBLESHOOTING.md](docs/guides/TROUBLESHOOTING.md) | Player troubleshooting — black launcher, crash on launch, settings, Direct IP |
+| [docs/guides/WINDOWS_DEFENDER.md](docs/guides/WINDOWS_DEFENDER.md) | Defender false positives (`Wacapew.A!ml`) |
+| [docs/release-notes/RELEASE_NOTES_v0.6.5.md](docs/release-notes/RELEASE_NOTES_v0.6.5.md) | Latest release notes |
+| [docs/design/NETPLAY_INVARIANTS.md](docs/design/NETPLAY_INVARIANTS.md) | Hard GGPO/session rules that must not regress |
+| [docs/design/GGPO_LIFECYCLE.md](docs/design/GGPO_LIFECYCLE.md) | GGPO lifecycle / desync internals |
+| [docs/development/SIGNPATH_APPLY.md](docs/development/SIGNPATH_APPLY.md) | SignPath Foundation checklist |
 
 ## Troubleshooting
 
-See **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** for the full guide (black launcher, crash on **Start game**, recommended settings, Direct IP, logs). Release history: [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases).
+See **[docs/guides/TROUBLESHOOTING.md](docs/guides/TROUBLESHOOTING.md)** for the full guide (black launcher, crash on **Start game**, recommended settings, Direct IP, logs). Release history: [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases).
 
 **Report bugs:** Git line from `BUILD_INFO.txt`, both players' `sf4e.log`, steps to reproduce — [docs/BETA_TESTERS.md](docs/BETA_TESTERS.md).
 
@@ -224,7 +224,7 @@ This repository builds **SF4 Netplay Launcher** - an **unofficial port** of upst
 
 ```powershell
 powershell -NoProfile -File scripts/release-team-build.ps1 -VersionLabel 0.6.5
-gh release create v0.6.5 dist/sf4-netplay-launcher-*-0.6.5.zip --title "SF4 Netplay Launcher v0.6.5" --notes-file docs/RELEASE_NOTES_v0.6.5.md
+gh release create v0.6.5 dist/sf4-netplay-launcher-*-0.6.5.zip --title "SF4 Netplay Launcher v0.6.5" --notes-file docs/release-notes/RELEASE_NOTES_v0.6.5.md
 ```
 
 See [docs/RELEASE.md](docs/RELEASE.md).

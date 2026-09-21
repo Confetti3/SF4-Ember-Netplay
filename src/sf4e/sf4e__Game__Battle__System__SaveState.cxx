@@ -4,7 +4,7 @@
 // SaveState operations mutate live engine objects (memento record/restore,
 // key clearing) and are only valid on the game main thread — the thread that
 // runs BattleUpdate, Steam_PostUpdate, and every GGPO callback (see
-// docs/GGPO_LIFECYCLE.md). Debug builds assert this; engine-memento work
+// docs/design/GGPO_LIFECYCLE.md). Debug builds assert this; engine-memento work
 // must never move to a background thread.
 static DWORD s_saveStateThreadId = 0;
 static void AssertSaveStateThreadAffinity() {
@@ -416,7 +416,7 @@ static uint64_t HashLiveStateForFreeCheck(bool includeKeys) {
 
 // Default release. The engine's ClearKey (0x52F3D0) uses the live mementoable
 // object only to find its vtable, and every memento destructor it reaches
-// touches memento-owned memory alone (docs/SAVESTATE_FREE.md). So the victim's
+// touches memento-owned memory alone (docs/design/SAVESTATE_FREE.md). So the victim's
 // key is installed just long enough to release it, and the live key is put
 // back. No temporary save and no memento restore is needed.
 static void FreeBySwap(fSystem::SaveState* victim) {

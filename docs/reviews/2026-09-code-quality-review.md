@@ -122,7 +122,7 @@ move behind a small per-message context struct and `continue` becomes `return`.
 - Stale comments about a `GgpoRelay` class that no longer exists (`Battle__System.cxx:1392`) and a
   VPS relay deployment (`sf4e__SessionProtocol.hxx:248`).
 - `static sf4e::RollbackHud rollbackHud;` declared inside the include block (`Battle__System.cxx:31`).
-- `src/tests/ui-polish/` is built by nothing; only `docs/UI_POLISH_VALIDATION.md` mentions it.
+- `src/tests/ui-polish/` is built by nothing; only `docs/validation/UI_POLISH_VALIDATION.md` mentions it.
 - Two claims from the first pass were wrong and are withdrawn: `scripts/upgrade/Install-Upgrade.ps1`
   is used by `package-upgrade.ps1` and `test-upgrade-recovery.ps1`; `MT_PUNCH_GO` still has a
   message struct.

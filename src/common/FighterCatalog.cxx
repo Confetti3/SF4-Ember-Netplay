@@ -75,7 +75,7 @@ std::vector<int> AllowedUltras(int fighterId, int editionId) {
 std::vector<UltraCommand> UltraCommands(int fighterId, int ultraId, int editionId) {
     if (!EditionAllowed(fighterId, editionId, true) || ultraId < 0 || ultraId > 1 ||
         (editionId == 13 && ultraId != 0)) return {};
-    // Native fighter order. Sources and edition exceptions: docs/ULTRA_INPUTS.md.
+    // Native fighter order. Sources and edition exceptions: docs/design/ULTRA_INPUTS.md.
     static const char* commands[][2] = {
         {"236 236 + PPP", "236 236 + KKK"}, // Ryu
         {"236 236 + PPP", "236 236 + KKK"}, // Ken

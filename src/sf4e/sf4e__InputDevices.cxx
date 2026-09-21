@@ -31,7 +31,7 @@ std::vector<Device> ReadDevices() {
     result.push_back(keyboard);
     const auto& methods = System_XInput::publicMethods;
     // This native backend owns XInput indices 0..3 AND DirectInput indices 4+.
-    // See docs/CONTROLLER_SELECTION_VALIDATION.md for the native call evidence.
+    // See docs/validation/CONTROLLER_SELECTION_VALIDATION.md for the native call evidence.
     const int count = (std::min)(12, (controllers->*methods.GetDeviceCount)());
     for (int index = 0; index < count; ++index) {
         Device device; device.index = index;

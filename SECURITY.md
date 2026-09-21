@@ -49,7 +49,7 @@ This is an **experimental unofficial port** for casual friends-only netplay — 
 - Room codes are short; active rooms may be listed publicly
 - **Sidecar.dll hash** ensures matching builds between players; it is **not** anti-cheat or code signing
 - Updates trust **GitHub releases** without separate code signatures
-- **Windows Defender** may flag `Sidecar.dll` / `Launcher.exe` as `Program:Win32/Wacapew.A!ml` (heuristic **false positive** on unsigned game hooks). See [docs/WINDOWS_DEFENDER.md](docs/WINDOWS_DEFENDER.md).
+- **Windows Defender** may flag `Sidecar.dll` / `Launcher.exe` as `Program:Win32/Wacapew.A!ml` (heuristic **false positive** on unsigned game hooks). See [docs/guides/WINDOWS_DEFENDER.md](docs/guides/WINDOWS_DEFENDER.md).
 
 Use only with people you trust until room auth and signed releases are in place.
 
@@ -60,7 +60,7 @@ A full-stack launcher → VPS security audit was performed against **v0.6.5** (2
 ## Safe usage
 
 - Download only from official GitHub Releases
-- If Defender quarantines files, verify release SHA256 hashes and follow [docs/WINDOWS_DEFENDER.md](docs/WINDOWS_DEFENDER.md) — do not weaken Defender with exclusions; wait for signed releases
+- If Defender quarantines files, verify release SHA256 hashes and follow [docs/guides/WINDOWS_DEFENDER.md](docs/guides/WINDOWS_DEFENDER.md) — do not weaken Defender with exclusions; wait for signed releases
 - Keep `Launcher.exe`, `Sidecar.dll`, and Qt runtime files together from the **same zip**
 - Do not point the broker URL at untrusted servers
 - Close the game before applying in-app updates

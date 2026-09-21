@@ -15,7 +15,7 @@ try {
     if ($LASTEXITCODE -or $tagRevision -ne $revision) { throw 'The release tag must point at the current source commit.' }
     $versionLine = Get-Content CMakeLists.txt | Where-Object { $_ -match '^\s+VERSION ' }
     if ($versionLine.Trim() -ne "VERSION $version") { throw 'Tag and CMake product version differ.' }
-    if (!$NotesFile) { $NotesFile = "docs/RELEASE_NOTES_$Tag.md" }
+    if (!$NotesFile) { $NotesFile = "docs/release-notes/RELEASE_NOTES_$Tag.md" }
     if (!(Test-Path -LiteralPath $NotesFile)) { throw "Missing release notes: $NotesFile" }
     & gh release view $Tag --repo $releaseRepository 2>$null | Out-Null
     if ($LASTEXITCODE -eq 0) { throw 'The release already exists; refusing to replace published assets.' }
