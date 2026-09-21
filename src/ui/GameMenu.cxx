@@ -246,7 +246,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,0);ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,0);
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign,ImVec2(.03f,.5f));
         ImGui::PushStyleColor(ImGuiCol_Button,focused?ImVec4(.47f,.28f,.16f,.6f):ImVec4(.105f,.10f,.095f,home?0.f:.45f));
-        ImGui::PushStyleColor(ImGuiCol_Text,visualEnabled?ImVec4(.95f,.92f,.87f,1):ImVec4(.55f,.52f,.48f,1));
+        ImGui::PushStyleColor(ImGuiCol_Text,EntryTextColor(visualEnabled));
         if(home)ImGui::PushFont(HeadingFont());
         const float textWidth=rowWidth-2*ImGui::GetStyle().FramePadding.x;
         const float valueWidth=valueRow?(stackedValue?textWidth:(std::min)(textWidth*.45f,200*unit)):0;
@@ -378,10 +378,10 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             if(!visualConfirm)ImGui::TextWrapped("%s",loc::T("confirm.updating"));
             ImGui::EndChild();
             const float buttonWidth=(ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f;
-            ImGui::PushStyleColor(ImGuiCol_Button,!navigation.ConfirmSelected()?ImVec4(.5f,.25f,.1f,1):ImVec4(.15f,.14f,.13f,1));
+            ImGui::PushStyleColor(ImGuiCol_Button,DialogButtonColor(!navigation.ConfirmSelected()));
             if(ImGui::Button(loc::T("common.cancel"),ImVec2(buttonWidth,48*Scale()))) action=navigation.Confirm(false,entries);
             ImGui::PopStyleColor(); ImGui::SameLine();
-            ImGui::PushStyleColor(ImGuiCol_Button,visualConfirm&&navigation.ConfirmSelected()?ImVec4(.5f,.25f,.1f,1):ImVec4(.15f,.14f,.13f,1));
+            ImGui::PushStyleColor(ImGuiCol_Button,DialogButtonColor(visualConfirm&&navigation.ConfirmSelected()));
             const std::string label=FitLabel(entry==entries.end()?loc::T("common.confirm"):entry->label,buttonWidth-2*ImGui::GetStyle().FramePadding.x);
             ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha,1.f);
             ImGui::BeginDisabled(!canConfirm);
@@ -403,13 +403,13 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             ImGui::Dummy(ImVec2(0,8*Scale()));
             const bool two=!noticeAlternative_.empty();
             const float buttonWidth=two?(ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f:ImGui::GetContentRegionAvail().x;
-            ImGui::PushStyleColor(ImGuiCol_Button,!noticeAlternativeSelected_?ImVec4(.5f,.25f,.1f,1):ImVec4(.15f,.14f,.13f,1));
+            ImGui::PushStyleColor(ImGuiCol_Button,DialogButtonColor(!noticeAlternativeSelected_));
             const std::string label=two?FitLabel(noticeAlternative_,buttonWidth-2*ImGui::GetStyle().FramePadding.x):std::string();
             if(ImGui::Button(loc::T("common.ok"),ImVec2(buttonWidth,48*Scale()))) DismissNotice(false);
             ImGui::PopStyleColor();
             if(two) {
                 ImGui::SameLine();
-                ImGui::PushStyleColor(ImGuiCol_Button,noticeAlternativeSelected_?ImVec4(.5f,.25f,.1f,1):ImVec4(.15f,.14f,.13f,1));
+                ImGui::PushStyleColor(ImGuiCol_Button,DialogButtonColor(noticeAlternativeSelected_));
                 if(ImGui::Button((label+"###NoticeAlternative").c_str(),ImVec2(buttonWidth,48*Scale()))) DismissNotice(true);
                 ImGui::PopStyleColor();
             }
@@ -438,7 +438,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             ImGui::BeginChild("Edit feedback",ImVec2(0,2*ImGui::GetTextLineHeightWithSpacing()));
             if(!visualAccept)ImGui::TextWrapped("%s",loc::T("edit.updating"));
             ImGui::EndChild();
-            ImGui::PushStyleColor(ImGuiCol_Text,visualAccept?ImVec4(.95f,.92f,.87f,1):ImVec4(.55f,.52f,.48f,1));
+            ImGui::PushStyleColor(ImGuiCol_Text,EntryTextColor(visualAccept));
             ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha,1.f);
             ImGui::BeginDisabled(!canAccept);
             const bool acceptClicked=ImGui::Button(loc::T("common.accept"));

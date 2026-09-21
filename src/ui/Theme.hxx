@@ -17,6 +17,10 @@ constexpr ImU32 Muted = IM_COL32(181, 169, 155, 255);
 // success status are the same green rather than two near-identical ones.
 constexpr ImU32 Ready = IM_COL32(164, 206, 160, 255);
 }
+// The focused button of a modal dialog, and the other one.
+inline ImVec4 DialogButtonColor(bool selected) { return selected ? ImVec4(.5f,.25f,.1f,1) : ImVec4(.15f,.14f,.13f,1); }
+// Row and button text for an entry that can, or cannot, be activated right now.
+inline ImVec4 EntryTextColor(bool enabled) { return enabled ? ImVec4(.95f,.92f,.87f,1) : ImVec4(.55f,.52f,.48f,1); }
 
 // Call between frames. A true result requires backend font texture recreation.
 bool ApplyTheme(float dpiScale);
