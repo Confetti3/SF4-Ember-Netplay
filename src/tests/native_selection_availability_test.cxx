@@ -1,6 +1,7 @@
 #include "../Dimps/Dimps__Selection.hxx"
 #include "../ui/FighterSelector.hxx"
 #include "../ui/Theme.hxx"
+#include "imgui_test_support.hxx"
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
@@ -38,9 +39,7 @@ int main() try {
         "Reserved native slots became selectable costumes");
     Check(AllowedCostumes(0, NativeAvailability(0)).empty(), "Empty native ownership invented costumes");
 
-    ImGui::CreateContext();
-    auto& io = ImGui::GetIO(); io.IniFilename = nullptr; io.DisplaySize = ImVec2(1280, 960);
-    ApplyTheme(1); io.Fonts->Build();
+    HeadlessImGui imgui; auto& io = imgui.io;
     std::vector<MenuEntry> rows;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries) { rows = entries; });
     for (const int fighter : {0, 43}) {
@@ -68,7 +67,7 @@ int main() try {
                 "Locking or refreshing selection reset an owned DLC costume");
         }
     }
-    SetMenuEntriesProbe({}); ImGui::DestroyContext();
+    SetMenuEntriesProbe({});
     std::cout << "Native ownership, DLC gallery, missing art and saved costume regressions passed.\n";
     return 0;
 } catch (const std::exception& error) {

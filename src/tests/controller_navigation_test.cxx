@@ -11,6 +11,7 @@
 #include "../common/MenuInputCapture.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
+#include "imgui_test_support.hxx"
 #include <imgui.h>
 #include <array>
 #include <cstdint>
@@ -134,11 +135,10 @@ void NativeCapture() {
 }
 struct Harness {
  ApplicationShell shell;ShellView view;std::vector<ShellAction> actions;bool open=true,accept=true;
+ HeadlessImGui imgui; // last: created after the shell and destroyed before it
  Harness(){
-  ImGui::CreateContext();auto& io=ImGui::GetIO();io.IniFilename=nullptr;io.DisplaySize=ImVec2(1280,960);
-  ApplyTheme(1);io.Fonts->Build();view.canEditPreferences=view.canOpenRoom=view.helperReady=view.controllerReady=view.canChangeController=true;
+  view.canEditPreferences=view.canOpenRoom=view.helperReady=view.controllerReady=view.canChangeController=true;
  }
- ~Harness(){ImGui::DestroyContext();}
  void Frame(unsigned buttons=0,int count=1){
   for(int i=0;i<count;++i){auto& io=ImGui::GetIO();io.DeltaTime=1.f/60;SetMenuInput({buttons,0});ImGui::NewFrame();
    shell.Draw(view,&open,[&](ShellAction a){actions.push_back(a);return accept;},[]{});
@@ -380,7 +380,7 @@ void AppearanceGalleries(){
 }
 void TrainingJourneys() {
  using namespace sf4e;
- ImGui::CreateContext();auto& io=ImGui::GetIO();io.IniFilename=nullptr;io.DisplaySize=ImVec2(1280,960);ApplyTheme(1);io.Fonts->Build();
+ HeadlessImGui imgui;auto& io=imgui.io;
  training::View v;v.available=v.ready=v.checkpoint=true;v.generation=77;v.lengths[0]=20;
  std::vector<training::Command> commands;
  auto frame=[&](unsigned held=0){io.DeltaTime=1.f/60;SetMenuInput({MenuInput::Select,0});
@@ -407,7 +407,6 @@ void TrainingJourneys() {
  v.commandId=commands.back().requestId;v.commandAccepted=true;frame();Check(TakeMenuReturn(),"Accepted playback did not return to practice");
  press(MenuInput::Back);Check(TrainingNavigation().Screen()=="home"&&!TakeMenuReturn(),"Back skipped the training root");
  press(MenuInput::Back);Check(TakeMenuReturn(),"Root Back did not return to practice");
- ImGui::DestroyContext();
 }
 }
 int main(){try{NativeReader();NavigationModel();NativeCapture();Journeys();TrainingJourneys();PresentationJourneys();ProfileRecords();AppearanceGalleries();std::cout<<"Controller menu model, native reader/capture, profile record, and renderer journeys passed.\n";return 0;}

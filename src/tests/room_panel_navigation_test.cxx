@@ -3,6 +3,7 @@
 #include "../ui/GameMenu.hxx"
 #include "../ui/MenuRows.hxx"
 #include "../ui/Theme.hxx"
+#include "imgui_test_support.hxx"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <algorithm>
@@ -22,9 +23,7 @@ void Check(bool value, const char* message) {
 int main() try {
     using namespace sf4e;
     using namespace sf4e::ui;
-    ImGui::CreateContext();
-    auto& io = ImGui::GetIO(); io.IniFilename = nullptr; io.DisplaySize = ImVec2(1280, 960);
-    ApplyTheme(1); io.Fonts->Build();
+    HeadlessImGui imgui; auto& io = imgui.io;
 
     ShellView view;
     view.controllerReady = true;
@@ -602,7 +601,7 @@ int main() try {
         "Locale switch mutated room state or submitted a command");
     sf4e::loc::SetActive(sf4e::loc::Locale::En);
 
-    SetMenuStatusProbe({}); SetMenuCardProbe({}); SetMenuEntriesProbe({}); ImGui::DestroyContext();
+    SetMenuStatusProbe({}); SetMenuCardProbe({}); SetMenuEntriesProbe({});
     std::cout << "Room controls and uninterrupted controller, keyboard, mouse and queue frames passed.\n";
     return 0;
 } catch (const std::exception& error) {
