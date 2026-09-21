@@ -1,7 +1,7 @@
 #include "../discord/Presence.hxx"
 #include "../discord/Ticket.hxx"
 #include <iostream>
-#define CHECK(x) do { if (!(x)) { std::cerr << __LINE__ << ": " #x "\n"; return 1; } } while(0)
+#include "test_support.hxx"
 int main() {
     using namespace sf4e;
     discord::PresenceInput in;

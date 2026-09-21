@@ -4,11 +4,12 @@
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
-#define CHECK(c) do { if (!(c)) { std::cerr << "Failure at " << __LINE__ << '\n'; std::exit(1); } } while (false)
+#include "test_support.hxx"
+#include "temp_root.hxx"
 int main() {
     namespace fs = std::filesystem;
     using namespace sf4e::platform;
-    const auto root = fs::temp_directory_path()/(L"ember-services-test-"+std::to_wstring(GetCurrentProcessId())+L"-"+std::to_wstring(GetTickCount64()));
+    const auto root = MakeTempRoot(L"ember-services-test-");
     {
         ApplicationServices service(root.wstring()); DiagnosticsView view;
         CHECK(!service.Request(ServiceAction::None));
@@ -80,6 +81,6 @@ int main() {
             CHECK(performance.find(forbidden)==std::string::npos);
         }
     }
-    fs::remove_all(root);
+    RemoveTempRoot(root);
     std::cout<<"Bounded readable diagnostics, unavailable state and worker export passed\n";
 }

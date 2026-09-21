@@ -1,7 +1,7 @@
 #include "../ui/OverlayPresentation.hxx"
 #include <cstdlib>
 #include <iostream>
-#define CHECK(c) do { if (!(c)) { std::cerr << "Failure at " << __LINE__ << '\n'; return 1; } } while (false)
+#include "test_support.hxx"
 int main() {
     using sf4e::netplay::MatchState;
     using sf4e::ui::OverlayPresentation;

@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#define CHECK(c) do { if(!(c)) { std::cerr<<"GGPO capacity failure at "<<__LINE__<<'\n';return 1;} } while(false)
+#include "test_support.hxx"
 int main() {
     WSADATA winsock{};CHECK(WSAStartup(MAKEWORD(2,2),&winsock)==0);
     const SOCKET sink=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);CHECK(sink!=INVALID_SOCKET);

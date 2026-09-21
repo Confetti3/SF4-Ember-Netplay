@@ -1,7 +1,7 @@
 #include "../platform/HelperClient.hxx"
 #include "../platform/LauncherInstance.hxx"
 #include <iostream>
-#define CHECK(x) do { if (!(x)) { std::cerr << __LINE__ << ": " #x "\n"; return 1; } } while(0)
+#include "test_support.hxx"
 int wmain(int argc,wchar_t** argv) {
     using namespace sf4e::platform;
     CHECK(argc==2);

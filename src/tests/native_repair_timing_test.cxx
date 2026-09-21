@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <limits>
 
-#define CHECK(value) do { if (!(value)) { std::fprintf(stderr, "Failed line %d: %s\n", __LINE__, #value); return 1; } } while (false)
+#include "test_support.hxx"
 
 int main() {
     using sf4e::session::MatchTeardownTiming;

@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <iostream>
 
-#define CHECK(c) do { if (!(c)) { std::cerr << "Failure at " << __LINE__ << '\n'; std::exit(1); } } while (false)
+#include "test_support.hxx"
 
 int main(int argc, char** argv) {
     using namespace sf4e::launcher;

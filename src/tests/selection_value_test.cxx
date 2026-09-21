@@ -3,7 +3,7 @@
 #include <cstring>
 #include <iostream>
 
-#define CHECK(c) do { if (!(c)) { std::cerr << "Selection check failed at " << __LINE__ << '\n'; std::exit(1); } } while (false)
+#include "test_support.hxx"
 
 int main() {
     using Pick = Dimps::GameEvents::VsMode::ConfirmedCharaConditions;

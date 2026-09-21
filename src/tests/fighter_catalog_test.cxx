@@ -6,7 +6,7 @@
 #include <set>
 #include <string>
 
-#define CHECK(c) do { if (!(c)) { std::cerr << "Catalog check failed at " << __LINE__ << '\n'; std::exit(1); } } while (false)
+#include "test_support.hxx"
 
 int main() {
     using namespace sf4e::selection;

@@ -2,7 +2,7 @@
 #include "../common/MatchTelemetry.hxx"
 #include <cstdlib>
 #include <iostream>
-#define CHECK(c) do { if (!(c)) { std::cerr << "Check failed: " #c << '\n'; std::exit(1); } } while (false)
+#include "test_support.hxx"
 int main() {
     sf4e::MatchTelemetry telemetry;
     CHECK(telemetry.Ping(0)==-1 && telemetry.appliedDelay==-1);
