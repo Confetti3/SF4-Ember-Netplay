@@ -309,6 +309,24 @@ public:
 	void SetMemberIncarnation(MemberId member, std::uint64_t incarnation);
 
 private:
+	// One rule per action kind, called from Apply() after its shared checks.
+	Result ApplyClose(MemberId member);
+	Result ApplySetCapacity(MemberId member, const Action& action);
+	Result ApplyLock(MemberId member, const Action& action);
+	Result ApplyKick(MemberId member, const Action& action);
+	Result ApplyChat(MemberId member, const Action& action);
+	Result ApplyRename(MemberId member, const Action& action);
+	Result ApplyAcknowledgeTerminal(MemberId member, const Action& action);
+	Result ApplySetRules(MemberId member, const Action& action, Table* table);
+	Result ApplyQueue(MemberId member, Table* table);
+	Result ApplyUnqueue(MemberId member, Table* table);
+	Result ApplyWatch(MemberId member, Table* table);
+	Result ApplyUnwatch(MemberId member, Table* table);
+	Result ApplyReadiness(MemberId member, const Action& action, Table* table, Member* item);
+	Result ApplyRecordResult(MemberId member, const Action& action, Table* table);
+	Result ApplyMatchFinished(MemberId member, const Action& action, Table* table);
+	Result ApplyCancelResult(MemberId member, const Action& action, Table* table);
+	Result ApplyAbortMatch(MemberId member, const Action& action, Table* table);
 	Member* Find(MemberId member);
 	const Member* Find(MemberId member) const;
 	Table* FindTable(std::uint8_t table);

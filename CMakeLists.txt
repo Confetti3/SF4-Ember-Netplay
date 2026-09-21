@@ -69,7 +69,7 @@ find_package(fmt CONFIG REQUIRED)
 find_package(wil CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
 
-add_library(sf4e_room_model STATIC "src/session/RoomModel.cxx" "src/session/RoomDigest.cxx")
+add_library(sf4e_room_model STATIC "src/session/RoomModel.cxx" "src/session/RoomModelActions.cxx" "src/session/RoomModelJson.cxx" "src/session/RoomDigest.cxx")
 target_compile_features(sf4e_room_model PUBLIC cxx_std_14)
 target_link_libraries(sf4e_room_model PUBLIC nlohmann_json::nlohmann_json "bcrypt")
 if(BUILD_TESTING)
