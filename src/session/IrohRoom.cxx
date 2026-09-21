@@ -648,6 +648,143 @@ void IrohRoom::PruneRetiredPeers() {
     }
 }
 
+// The three long Poll branches. Each returns false when Poll must stop for
+// this tick (a failure, or the leader-loss freeze) and true to take the next
+// helper event. They run inside Poll's json::exception guard.
+bool IrohRoom::HandleConnected(const json& event) {
+	const auto identity = event.at("peer").get<std::string>();
+	const auto room = event.at("room").get<std::array<std::uint8_t, 16>>();
+	if (hosting_ && room != room_) { Fail("wrong_room"); return false; }
+	if (!hosting_ && state_ != State::Joining && !coordination_.active) { Fail("unexpected_peer"); return false; }
+	if (coordination_.active && ConnectionForIdentity(identity)) return true;
+	for (const auto& peer : peers_) if (peer.second.identity == identity) {
+		Fail("duplicate_peer"); return false;
+	}
+	PruneRetiredPeers();
+	if (peers_.size() >= MaximumRemotePeers || nextConnection_ == (std::numeric_limits<Connection>::max)()) {
+		Fail("peer_limit"); return false;
+	}
+	Peer peer; peer.identity = identity;
+	peer.admitted=memberIncarnations_.count(identity) || committedMembers_.count(identity);
+	peers_.emplace(nextConnection_++, std::move(peer));
+	room_ = room;
+	if(coordination_.writable && coordination_.rebound) state_=State::Ready;
+	return true;
+}
+
+bool IrohRoom::HandleControlTraffic(const json& event, const std::string& type) {
+	const auto identity = event.at("peer").get<std::string>();
+	auto peer = std::find_if(peers_.begin(), peers_.end(), [&](const std::pair<const Connection, Peer>& item) {
+		return item.second.identity == identity;
+	});
+	if (peer == peers_.end()) return true; // Late event for a departed peer.
+	if (type == "control_closed") {
+		if (coordination_.active) {
+			// A control socket is not a membership decision. Retain its
+			// stable mapping while committed coordination reconnects it.
+			if (identity==coordination_.leader) {
+				coordination_.writable=false; coordination_.rebound=false;
+				state_=State::Degraded; invitation_.clear(); discordInvitation_.clear();
+                probe_={};
+				// Make the freeze observable for one owner tick even if a
+				// queued authority watch and rebound follow immediately. This
+				// prevents the UI or SessionServer from issuing a mutation in
+				// the same poll that detected loss of its leader control.
+				return false;
+			}
+			return true;
+		}
+		if (closed_.size() >= MaximumQueuedMessages) { Fail("room_close_queue"); return false; }
+		closed_.push_back(peer->first);
+		const auto departed = peer->first;
+		peers_.erase(peer);
+		for (auto message = serverMessages_.begin(); message != serverMessages_.end();) {
+			if (message->connection == departed) {
+				queuedBytes_ -= message->payload.size(); message = serverMessages_.erase(message);
+			} else ++message;
+		}
+		if (!hosting_) {
+			// Keep the loss visible to the room controller while retaining
+			// independently authorized gameplay mappings. New match
+			// preparation is blocked by the degraded state.
+			state_ = State::Degraded;
+            invitation_.clear(); discordInvitation_.clear();
+			error_ = "room_control_closed";
+		}
+	} else {
+		const auto id = event.at("message_id").get<std::int64_t>();
+		const auto payload = event.at("payload").get<std::string>();
+		if (id <= peer->second.receivedId || payload.empty() || payload.size() > MaximumPayload) {
+			Fail("invalid_control_message"); return false;
+		}
+		peer->second.receivedId = id;
+		// Authority watches and control streams can arrive in either
+		// order during takeover. Committed effects always go through
+		// recipient validation; client intents wait behind the server's
+		// local committed-leader gate regardless of the current UI role.
+        const auto decoded=json::parse(payload);
+        const bool effect=decoded.is_object() && decoded.contains("_commit");
+        // Only a bare admission response from the committed
+        // leader enters the local client queue.  Other untagged
+        // peer payloads remain server intents.
+        const auto messageType=decoded.value("type",std::string());
+        const bool fromLeader=!effect && coordination_.active && coordination_.writable &&
+            peer->second.identity==coordination_.leader;
+        const bool leaderHandshake=fromLeader && pendingAdmission_ &&
+            (messageType=="hello_resp" || messageType=="join_rej");
+        // Verification is forwarded by the leader without a commit
+        // token; it carries no room mutation, so it is delivered
+        // directly rather than through a checkpoint.
+        const bool leaderVerification=fromLeader && IsVerificationType(messageType);
+        if (!Queue((effect || leaderHandshake || leaderVerification) ? clientMessages_ : serverMessages_, {peer->first, id, payload, ""})) return false;
+	}
+	return true;
+}
+
+bool IrohRoom::HandleHelperError(const json& event) {
+	const auto code = event.at("code").get<std::string>();
+    if(code=="probe_unavailable") {
+        probe_.failureReason=event.value("probe_failure",0U);
+        probe_.status="unavailable"; probe_.recommended=-1; return true;
+    }
+	if(code=="gameplay_prepare_failed") {
+		error_="Gameplay connection failed; room control remains available.";
+		return true;
+	}
+    if(coordination_.active && (code.compare(0,11,"checkpoint_")==0 ||
+        code.compare(0,19,"invalid_checkpoint_")==0 ||
+        code=="stale_checkpoint_ack" || code=="unexpected_checkpoint_ack")) {
+        ++checkpointTransferErrors_;
+        if(!proposalBytes_.empty()) { ++proposalTransferErrors_; proposalStatus_=code; }
+        proposalBytes_.clear(); proposalBegun_=proposalEnded_=false;
+        error_="Room checkpoint transfer will retry."; return true;
+    }
+    if(coordination_.active && (code=="control_send_failed" || code=="coordination_unavailable")) {
+        // Rust reports the control peer which failed.  A transient
+        // send failure to a non-leader is peer-scoped: the current
+        // committed leader still owns the room journal and can
+        // replay the queued effect after that peer reconnects.
+        // Only a failure addressed to the committed leader (or an
+        // older helper that cannot identify its peer) revokes this
+        // room's writable/rebound state.
+        const auto failedPeer = event.value("peer", std::string());
+        if (!failedPeer.empty() && IsEndpointIdentity(failedPeer) &&
+            failedPeer != coordination_.leader) {
+            error_ = "A room peer is reconnecting; committed room control remains available.";
+            return true;
+        }
+        coordination_.writable=false; coordination_.rebound=false; state_=State::Degraded;
+        invitation_.clear(); discordInvitation_.clear();
+        error_="Room control is reconnecting."; return true;
+    }
+	// Only protocol-defined labels may enter UI diagnostics.
+	if (code == "invalid_or_incompatible_invitation" || code == "join_failed" ||
+		code == "host_unavailable" || code == "invalid_room_state" ||
+		code == "control_send_failed" || code == "invalid_control_size") Fail(code.c_str());
+	else Fail("helper_room_error");
+	return false;
+}
+
 void IrohRoom::Poll() {
     diag::ScopedTimer timer(diag::OP_ROOM_POLL);
     // Stage whatever finished decoding since the last poll, before anything
@@ -728,131 +865,11 @@ void IrohRoom::Poll() {
 				invitation_ = event.at("invitation").get<std::string>();
 				if(coordination_.writable && coordination_.rebound) state_=State::Ready;
 			} else if (type == "connected") {
-				const auto identity = event.at("peer").get<std::string>();
-				const auto room = event.at("room").get<std::array<std::uint8_t, 16>>();
-				if (hosting_ && room != room_) { Fail("wrong_room"); return; }
-				if (!hosting_ && state_ != State::Joining && !coordination_.active) { Fail("unexpected_peer"); return; }
-				if (coordination_.active && ConnectionForIdentity(identity)) continue;
-				for (const auto& peer : peers_) if (peer.second.identity == identity) {
-					Fail("duplicate_peer"); return;
-				}
-				PruneRetiredPeers();
-				if (peers_.size() >= MaximumRemotePeers || nextConnection_ == (std::numeric_limits<Connection>::max)()) {
-					Fail("peer_limit"); return;
-				}
-				Peer peer; peer.identity = identity;
-				peer.admitted=memberIncarnations_.count(identity) || committedMembers_.count(identity);
-				peers_.emplace(nextConnection_++, std::move(peer));
-				room_ = room;
-				if(coordination_.writable && coordination_.rebound) state_=State::Ready;
+				if (!HandleConnected(event)) return;
 			} else if (type == "message" || type == "control_closed") {
-				const auto identity = event.at("peer").get<std::string>();
-				auto peer = std::find_if(peers_.begin(), peers_.end(), [&](const std::pair<const Connection, Peer>& item) {
-					return item.second.identity == identity;
-				});
-				if (peer == peers_.end()) continue; // Late event for a departed peer.
-				if (type == "control_closed") {
-					if (coordination_.active) {
-						// A control socket is not a membership decision. Retain its
-						// stable mapping while committed coordination reconnects it.
-						if (identity==coordination_.leader) {
-							coordination_.writable=false; coordination_.rebound=false;
-							state_=State::Degraded; invitation_.clear(); discordInvitation_.clear();
-                            probe_={};
-							// Make the freeze observable for one owner tick even if a
-							// queued authority watch and rebound follow immediately. This
-							// prevents the UI or SessionServer from issuing a mutation in
-							// the same poll that detected loss of its leader control.
-							return;
-						}
-						continue;
-					}
-					if (closed_.size() >= MaximumQueuedMessages) { Fail("room_close_queue"); return; }
-					closed_.push_back(peer->first);
-					const auto departed = peer->first;
-					peers_.erase(peer);
-					for (auto message = serverMessages_.begin(); message != serverMessages_.end();) {
-						if (message->connection == departed) {
-							queuedBytes_ -= message->payload.size(); message = serverMessages_.erase(message);
-						} else ++message;
-					}
-					if (!hosting_) {
-						// Keep the loss visible to the room controller while retaining
-						// independently authorized gameplay mappings. New match
-						// preparation is blocked by the degraded state.
-						state_ = State::Degraded;
-                        invitation_.clear(); discordInvitation_.clear();
-						error_ = "room_control_closed";
-					}
-				} else {
-					const auto id = event.at("message_id").get<std::int64_t>();
-					const auto payload = event.at("payload").get<std::string>();
-					if (id <= peer->second.receivedId || payload.empty() || payload.size() > MaximumPayload) {
-						Fail("invalid_control_message"); return;
-					}
-					peer->second.receivedId = id;
-					// Authority watches and control streams can arrive in either
-					// order during takeover. Committed effects always go through
-					// recipient validation; client intents wait behind the server's
-					// local committed-leader gate regardless of the current UI role.
-                    const auto decoded=json::parse(payload);
-                    const bool effect=decoded.is_object() && decoded.contains("_commit");
-                    // Only a bare admission response from the committed
-                    // leader enters the local client queue.  Other untagged
-                    // peer payloads remain server intents.
-                    const auto messageType=decoded.value("type",std::string());
-                    const bool fromLeader=!effect && coordination_.active && coordination_.writable &&
-                        peer->second.identity==coordination_.leader;
-                    const bool leaderHandshake=fromLeader && pendingAdmission_ &&
-                        (messageType=="hello_resp" || messageType=="join_rej");
-                    // Verification is forwarded by the leader without a commit
-                    // token; it carries no room mutation, so it is delivered
-                    // directly rather than through a checkpoint.
-                    const bool leaderVerification=fromLeader && IsVerificationType(messageType);
-                    if (!Queue((effect || leaderHandshake || leaderVerification) ? clientMessages_ : serverMessages_, {peer->first, id, payload, ""})) return;
-				}
+				if (!HandleControlTraffic(event, type)) return;
 			} else if (type == "error") {
-				const auto code = event.at("code").get<std::string>();
-                if(code=="probe_unavailable") {
-                    probe_.failureReason=event.value("probe_failure",0U);
-                    probe_.status="unavailable"; probe_.recommended=-1; continue;
-                }
-				if(code=="gameplay_prepare_failed") {
-					error_="Gameplay connection failed; room control remains available.";
-					continue;
-				}
-                if(coordination_.active && (code.compare(0,11,"checkpoint_")==0 ||
-                    code.compare(0,19,"invalid_checkpoint_")==0 ||
-                    code=="stale_checkpoint_ack" || code=="unexpected_checkpoint_ack")) {
-                    ++checkpointTransferErrors_;
-                    if(!proposalBytes_.empty()) { ++proposalTransferErrors_; proposalStatus_=code; }
-                    proposalBytes_.clear(); proposalBegun_=proposalEnded_=false;
-                    error_="Room checkpoint transfer will retry."; continue;
-                }
-                if(coordination_.active && (code=="control_send_failed" || code=="coordination_unavailable")) {
-                    // Rust reports the control peer which failed.  A transient
-                    // send failure to a non-leader is peer-scoped: the current
-                    // committed leader still owns the room journal and can
-                    // replay the queued effect after that peer reconnects.
-                    // Only a failure addressed to the committed leader (or an
-                    // older helper that cannot identify its peer) revokes this
-                    // room's writable/rebound state.
-                    const auto failedPeer = event.value("peer", std::string());
-                    if (!failedPeer.empty() && IsEndpointIdentity(failedPeer) &&
-                        failedPeer != coordination_.leader) {
-                        error_ = "A room peer is reconnecting; committed room control remains available.";
-                        continue;
-                    }
-                    coordination_.writable=false; coordination_.rebound=false; state_=State::Degraded;
-                    invitation_.clear(); discordInvitation_.clear();
-                    error_="Room control is reconnecting."; continue;
-                }
-				// Only protocol-defined labels may enter UI diagnostics.
-				if (code == "invalid_or_incompatible_invitation" || code == "join_failed" ||
-					code == "host_unavailable" || code == "invalid_room_state" ||
-					code == "control_send_failed" || code == "invalid_control_size") Fail(code.c_str());
-				else Fail("helper_room_error");
-				return;
+				if (!HandleHelperError(event)) return;
 			}
 		} catch (const json::exception&) { Fail("invalid_helper_event"); return; }
 	}

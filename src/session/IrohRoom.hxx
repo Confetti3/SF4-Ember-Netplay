@@ -157,6 +157,10 @@ private:
 	void Fail(const char* code);
 	bool ConsumeGameEvent(const nlohmann::json& event, const std::string& type);
     bool ConsumeCoordinationEvent(const nlohmann::json& event, const std::string& type);
+    // Poll branches; false stops Poll for this tick.
+    bool HandleConnected(const nlohmann::json& event);
+    bool HandleControlTraffic(const nlohmann::json& event, const std::string& type);
+    bool HandleHelperError(const nlohmann::json& event);
     void PumpCheckpoint();
     int AuthorizedEffect(Message& message);
     void PumpCommittedEffects();
