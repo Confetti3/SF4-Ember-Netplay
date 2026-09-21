@@ -211,7 +211,7 @@ unchanged and are only ever shown for malformed server data.
   so they were not merged.
 - `src/tests/ui-polish`: not dead. It is a passing 357-check fixture for `MenuNavigation` and
   `MenuFeedback` that is simply not registered in the main build. It was not deleted; registering
-  it in the core-tests block is a three-line change that needs a decision.
+  it in the core-tests block is a three-line change that needs a decision. (Registered in the second pass.)
 
 ### Considered and rejected
 
@@ -226,6 +226,8 @@ unchanged and are only ever shown for malformed server data.
   it without a library.
 
 ### Not done, and why
+
+All of these except `DrawRoomBoard` were done later; see "Second pass" below.
 
 - `sf4e__DeveloperOverlay.cxx` (1682 lines): it only compiles with `-DSF4E_DEVELOPER_UI=ON`, so a
   split needs a second full build tree to verify.
@@ -249,3 +251,75 @@ unchanged and are only ever shown for malformed server data.
   runtime and save-state moves are covered by compilation, `RuntimeBootstrapTest` and
   `SaveStateOwnershipTest` only. A two-PC match, direct and relay, is still owed before this branch
   or the experiment under it is promoted.
+
+## Second pass (added after the first outcome)
+
+The items left open above were picked up on the same branch, again one commit per step and nothing
+pushed. Bodies were moved by script and each move was checked with
+`git diff --color-moved --color-moved-ws=ignore-all-space`, so the only lines git did not classify
+as moved are the ones listed here as deliberate.
+
+### Done
+
+| Area | Before | After |
+|---|---|---|
+| `IrohRoom::Poll` | 209 lines | 89 lines. `HandleConnected`, `HandleControlTraffic` and `HandleHelperError` return false where the branch used `return` and true where it used `continue`. Branches of ten lines or fewer stay inline |
+| `sf4e__Game__Battle__System.cxx` | 1512 lines | 774, plus `__Ggpo` 740: session start and retire, abort latch, the seven callbacks, spectator policy, disconnect countdown and pacing. Four functions lost `static` and are declared in the internal header. No new extern variables |
+| `github_release_client.cxx` | 1154 lines | 625, plus `github_release_validation` 274 and `github_release_download` 231 behind `github_release_client_internal.hxx`. Eleven helpers cross the files, the rest stay `static`. No logic edits |
+| `GameMenu::Draw` | 347 lines | 217. The three modals, the flyout confirmation and the Home status line are private members that write `action` by reference |
+| `ApplicationShell::Draw` | 320 lines | 98. `UpdateRoomTransitions`, `UpdateRoomFeedback`, `UpdatePreferenceSave`, `BuildRows`, `UpdateStatus`, `PublishPlayerCard`, `HandleActivate`, `HandleAdjust`, called in the original order |
+| `sf4e__DeveloperOverlay.cxx` | 1681 lines | main 306 (menu inspectors and the page selector), `__Battle` 575, `__System` 537, shared `__Internal.hxx`. Three files rather than fifteen: the main menu inspector shares statics with a game callback and with the selector, so it stays with them |
+| Dead code | | `PathExistsUtf8` and `kAllowedPackagePaths` in the release client; `DrawHelpWindow`, `DrawGGPOStatsOverlay`, `DrawHashOverlay`, `DrawCharaEditionDropdown`, `GetEditionLabel`, `compareTasks`, `lobbyConditions`, `clientAlerts` and an unused `WndProc` declaration in the developer overlay. Each had no reference outside its own definition |
+| Tests | | `src/tests/ui-polish` is registered as `UiPolish` (50 ctest cases now). `imgui_test_support.hxx` replaces four identical headless setups, `temp_root.hxx` replaces four temp directory recipes and gives all four the delete guard only two had, and ten more tests use the shared `CHECK` |
+| Build and scripts | | one `sf4e_hex_bytes` CMake function for the font and brand embeds (generated headers byte-identical); `Enter-EmberVcEnvironment` replaces three copies of the `vcvarsall` import; `recovery-benchmark.ps1` and `run-package-tests.ps1` take the build directory from `build-target.json` |
+| Rust | | the two guarded `unwrap` calls are `let ... else` |
+
+### Found to need no work
+
+- `#[cfg(test)]` items inside `impl Actor`: already confined to `service/tests.rs` after the first pass.
+- `rollbackHud` inside the include block: the file has one include now, and the static moved with
+  the GGPO section, its only user.
+
+### Considered and rejected
+
+- `DrawRoomBoard` (165 lines): its parts are already eight named lambdas that share one mutable
+  tooltip accumulator. Making them members needs a context struct and buys nothing.
+- An options struct for the twelve `GameMenu::Draw` parameters: it changes every call site and is
+  not a verbatim move.
+- One modal scaffold for the three `GameMenu` dialogs: they differ in button count and sizing, in
+  the feedback child and in the disabled handling, so a shared scaffold would be mostly parameters.
+- One text elision helper: `FitLabel` measures with `CalcTextSize`, which rounds, and the other
+  copies use `CalcTextSizeA`, so merging them changes pixels.
+- The list and detail body of `GameMenu::Draw`: about fifteen shared locals. Parts were extracted
+  only where they needed about six parameters or fewer.
+- The remaining private checks in tests: five throw with a message, five count failures and keep
+  going, one prints a caller variable. They differ from `CHECK` on purpose. The one-frame drivers
+  share three calls around a different draw call each.
+- The five-line build target preamble in the scripts: each script derives different paths from it.
+
+### Verification of the second pass
+
+- 50 of 50 ctest cases after every step. `UiRender` once took 92 s against its 90 s limit while
+  other work ran on the machine; that binary had not been rebuilt, and it passed on every later run.
+- Rust: `cargo fmt --check`, `cargo clippy -D warnings`, 77 tests.
+- `IrohRoom::Poll`: `IrohRoomIntegrationTest`, `IrohRecoveryIntegrationTest --scenario=preparing` and
+  `CustomRoomGameTest --late-spectator`, run one at a time from an isolated folder, all exit 0.
+- Release client: `EmberUpdateTest` and `EmberUpdateTest --live` (a real `CheckForUpdate`).
+- UI: a temporary patch hashed every draw list (vertices, indices, clip rectangles) after each
+  `ImGui::Render()` in `ControllerNavigationTest`, `RoomPanelNavigationTest` and
+  `NativeSelectionAvailabilityTest`. 8870 frames, stable across two baseline runs, and identical
+  after the `GameMenu` commit and after the `ApplicationShell` commit. The patch was not committed.
+- Developer overlay: a second tree, `build/devui`, configured with `-DSF4E_DEVELOPER_UI=ON`, built
+  and linked `Sidecar.dll` before the change, after the dead code removal and after the split.
+  `dumpbin /symbols` shows no reference to `ImGui::Begin` or `ImGui::End` in any of the three
+  objects, so every moved body still binds to the local `Begin` and `End`.
+- Still not verified: the GGPO split is covered by compile, link and `RuntimeBootstrapTest` only,
+  `DownloadAndApplyUpdate` still has no test, and nobody has looked at the developer page in a
+  running game. The two-PC match, direct and relay, is still owed before promotion.
+
+### Still open
+
+- Layering: `sf4e__NetplayFacade.hxx` includes a UI header, `platform/ApplicationServices.hxx`
+  includes a launcher header, and `SessionClient` exposes four fields that three sources and six
+  tests read. Recorded, not fixed.
+- Everything under "Future work" above.
