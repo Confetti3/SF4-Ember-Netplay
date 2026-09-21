@@ -1,0 +1,176 @@
+# Code quality review, September 2026
+
+Base: `experiment/degraded-connection-recovery` at `c9a9ed5`. Work branch: `review/code-quality`.
+Scope: `src/`, `rust/sf4-net`, `CMakeLists.txt`, `cmake/`, `scripts/`. Excluded: `src/Dimps`
+(layout follows the game binary), `src/ui/backends/imgui_impl_win32.cpp` (vendor), `vcpkg-ports`.
+
+The rule for the cleanup that follows: bodies move verbatim, wire formats and user-visible strings
+do not change, and anything that changes behaviour is listed under "Actual issues" and fixed in its
+own commit.
+
+## Baseline (before any edit)
+
+| Check | Result |
+|---|---|
+| `ctest --test-dir build/current` | 49 of 49 pass, 64 s |
+| `RoomHostBench` | step p50 6.25 ms, propose p50 5.36 ms, apply_commit p50 1.47 ms, decode p50 10.88 ms, import p50 1.13 ms |
+| `RecoveryBenchmark --rift --continuous` | 3 runs, exit 0, outputs kept for comparison |
+| `cargo fmt --check` | clean |
+
+## What is good and should stay that way
+
+- `src/common` and `src/netplay` are true leaves with no upward includes and no logging.
+- `MenuNavigation` is a renderer-free model and nearly every screen goes through
+  `MenuEntry` rows plus `GameMenu::Draw`. Controller input has one path.
+- `SessionServer` and `SessionClient` share almost no code (one 15-line parse preamble).
+  `IrohRoom` and `RoomModel` share none. The problem there is size, not copy-paste.
+- No TODO debt, no commented-out code. Long "why" comments are the strongest convention in the
+  repo and must travel with the code they explain.
+- Rust: one `Arc<Mutex>` in the whole crate, 8 non-test `unwrap`/`expect`/`unreachable!`, no FFI
+  (the helper is a separate x64 process behind a length-prefixed JSON pipe).
+
+## Findings, ranked
+
+### 1. Structural: giant dispatch functions
+
+These functions are each a message or event dispatcher whose branches were written inline. Every
+branch is independent (no fallthrough), so each one can become a named handler with its body moved
+unchanged. This is the largest single improvement available and it needs no redesign.
+
+| Function | Lines | Shape | Remedy | Stage |
+|---|---|---|---|---|
+| `Actor::completed` `service.rs:3466` | 874 | `match` over 16 `Completion` variants | one method per variant, in the module that owns that state | 3 |
+| `TickRuntime` `sf4e__Application.cxx:948` | 853 | 8 sequential phases | one static function per phase, same order | 5 |
+| `SessionServer::Step` `sf4e__SessionServer.cxx:1397` | 814 | poll, departures, then a 15-branch `else if` on message type | `Handle<Type>` methods; `Step` keeps poll, parse, guards | 4 |
+| `SessionClient::Step` `sf4e__SessionClient.cxx:565` | 505 | 11-branch chain | same | 4 |
+| `GameMenu::Draw` `GameMenu.cxx:110` | 347 | list, detail, legend, 3 modals, flyout; 12 parameters | split by part; options struct | 6 |
+| `ApplicationShell::Draw` `ApplicationShell.cxx:61` | 320 | 13-screen string chain plus 20-id action chain | per-screen row builders, one dispatcher | 6 |
+| `RoomAuthority::Apply` `RoomModel.cxx:964` | 308 | 20-branch `if` chain on `ActionKind`, no exhaustiveness check | `switch` plus `Apply<Action>` methods | 4 |
+| `Actor::command` `service.rs:3172` | 293 | `match` over 17 `Command` variants | method per variant where the arm is long | 3 |
+| `Publish` `sf4e__Application.cxx:331` | 285 | fills `RuntimeSnapshot` section by section | per-section fillers | 5 |
+| `Actor::graceful_leave` `service.rs:2467` | 260 | 4 copies of a poll-until loop | `poll_until` helper | 3 |
+| `IrohRoom::Poll` `IrohRoom.cxx:960` | 209 | chain on event `type` string | per-event methods | 4 |
+| `fSystem::BattleUpdate` `Battle__System.cxx:775` | 201 | hot path | leave the body alone; only the file is split | 5 |
+
+`SessionServer::Step` handlers share a few locals (`conn`, `msg`, `incoming`, `cid`,
+`bSendLobbyAllReady`, `bSendBattleSynced`, `deferredRoomEvents`) and leave with `continue`. They
+move behind a small per-message context struct and `continue` becomes `return`.
+
+### 2. Structural: files that hold several subsystems
+
+| File | Lines | Split along | Stage |
+|---|---|---|---|
+| `service.rs` | 7788 | `protocol`, `checkpoint`, `probe`, `membership`, `control`, `entry`, `tests` modules; all `impl Actor` blocks so visibility does not change | 3 |
+| `sf4e__Game__Battle__System.cxx` | 2545 | `SaveState` (670 lines), GGPO lifecycle and callbacks, state hashing, `RollbackStress` harness (225 lines, env-gated) | 5 |
+| `sf4e__SessionServer.cxx` | 2373 | recovery checkpoint and quorum; custom-room tables | 4 |
+| `sf4e__Application.cxx` | 1803 | the name matches nothing inside; it is the second half of `NetplayFacade`. Rename to `sf4e__NetplayRuntime.cxx` | 5 |
+| `sf4e__DeveloperOverlay.cxx` | 1682 | one file per inspector window; off by default, so verify with `-DSF4E_DEVELOPER_UI=ON` | 5 |
+| `RoomModel.cxx` | 1446 | bounded JSON readers and `to_json`/`from_json` (230 lines) out of the room rules | 4 |
+| `IrohRoom.cxx` | 1314 | `ServerAdapter`/`ClientAdapter`; checkpoint pipeline | 4 |
+| `github_release_client.cxx` | 1154 | validation, hashing, download | 6 |
+| `SessionRecovery.hxx` | 456 | nearly all inline bodies, including a portable SHA-256; move to a `.cxx` | 4 |
+
+### 3. Duplication worth removing
+
+- Rust checkpoint header `{epoch, room, transfer, term, base_revision, revision}` spelled out 11
+  times in `service.rs`. It is why three functions need `#[allow(clippy::too_many_arguments)]`. An
+  internal struct fixes the signatures. The wire variants stay flat because `serde(flatten)` does
+  not work with `deny_unknown_fields`.
+- `timeout(.., loop { ..; sleep(25ms) })` copied 4 times (`service.rs:1682, 2501, 2535, 2631`); the
+  `25 ms` literal 8 times and `5 s` 6 times without a name.
+- Constants defined twice with the same value: `MAX_CHECKPOINT` (`coordination.rs:35`) and
+  `MAX_CHECKPOINT_BYTES` (`recovery.rs:23`); `MAX_CHECKPOINT * 6 + 65536` (`coordination.rs:41`,
+  `coordination_iroh.rs:26`); credit window 4 (`recovery.rs:25`, `coordination.rs:43`).
+- `GameMenu.cxx`: three near-identical modal scaffolds (`:366`, `:395`, `:422`) plus a fourth as a
+  flyout; text elision written four times (`GameMenu.cxx:20`, `:34`, `RoomPanel.cxx:314`,
+  `MenuGlyphs.hxx:43`).
+- 45 test files each define their own `CHECK` in 8 variants; headless ImGui setup 5 times; one-frame
+  driver 5 times; unique temp dir 4 times. `session_client_mock.hxx:6` has a comment working around it.
+- CMake compiles `MatchAuthority.cxx`, `sf4e__SessionServer.cxx`, `sf4e__SessionProtocol.cxx` three
+  times (`Session`, `SessionServerTransportTest`, `RoomHostBench`). `sf4e_fonts.cmake` and
+  `sf4e_brand.cmake` share a copy-pasted hex embed.
+- Scripts: the target preamble is repeated in 5 scripts, the `vcvarsall` import in 2, and
+  `$workspace` is assigned and unused in 3.
+
+### 4. Boundary and layering problems
+
+- `src/common/MenuInputCapture.hxx:9-21` reads and writes live game memory with raw offsets from
+  the leaf value-type library. Belongs in `src/sf4e`.
+- `sf4e__NetUtil` (WinHTTP client, 433 lines) is compiled into `sf4e_common` and so links
+  `winhttp` into the injected DLL. Its only caller is the launcher's update client.
+- `sf4e__NetplayFacade.hxx:2` includes `ui/ControllerNavigation.hxx`, so the session layer sees UI
+  types. `platform/ApplicationServices.hxx:2` includes a launcher header.
+- `session` and `sf4e` include each other; `training` is compiled into the `sf4e` target to hide a
+  second cycle. Recorded, not fixed here (needs an interface, which is redesign).
+- `SessionClient` exposes `_lobbyData`, `_matchData`, `_cid`, `_ggpoPort` as public fields that
+  `sf4e__Application.cxx` reads directly.
+- Unnamespaced macros in public headers: `NUM_SAVE_STATES`, `MAX_SF4E_PROTOCOL_USERS`.
+- Two readers for env switches: `sf4e::EnvFlag` and raw `getenv`.
+
+### 5. Dead code and leftovers (each re-verified by grep before removal)
+
+- `src/common/agent_debug_log.hxx`: a debugging logger with a hardcoded session id `592d59` that
+  writes `debug-592d59.log` to `%APPDATA%\sf4e` and the working directory when `SF4E_AGENT_DEBUG`
+  is set. Three calls in `sf4e__UserApp.cxx`; `sf4e__NetplayFacade.cxx:15` includes it and never
+  calls it.
+- `transport::bind_endpoint` (`transport.rs:48`): no references. `accept_game` and
+  `accept_game_stream` are only used by tests. Two `#[cfg(test)]` methods sit in the middle of
+  `impl Actor` (`service.rs:815`, `:864`).
+- Zero-caller candidates: `SessionServer::AddConnection`, `SessionServer::RebindMember`,
+  `SessionClient::Forward`, `SessionClient::SelectRoomTable`, `RoomAuthority::SetLocalMember`,
+  `RoomAuthority::SetRoomEpoch`.
+- Stale comments about a `GgpoRelay` class that no longer exists (`Battle__System.cxx:1392`) and a
+  VPS relay deployment (`sf4e__SessionProtocol.hxx:248`).
+- `static sf4e::RollbackHud rollbackHud;` declared inside the include block (`Battle__System.cxx:31`).
+- `src/tests/ui-polish/` is built by nothing; only `docs/UI_POLISH_VALIDATION.md` mentions it.
+- Two claims from the first pass were wrong and are withdrawn: `scripts/upgrade/Install-Upgrade.ps1`
+  is used by `package-upgrade.ps1` and `test-upgrade-recovery.ps1`; `MT_PUNCH_GO` still has a
+  message struct.
+
+### 6. Legibility
+
+- Forty colour literals outside `Theme`, several repeated byte for byte (`ImVec4(.5f,.25f,.1f,1)`
+  four times). Only identical values get a name; near-duplicates would change pixels and are left.
+- Mixed tabs and spaces inside single files (`sf4e__Application.cxx`, `IrohRoom.cxx`,
+  `RoomModel.cxx`). Not reformatted: a mass reformat would bury the moves and conflict with the
+  unmerged experiment.
+- `run-package-tests.ps1` defaults to `msvc-build/display` and `recovery-benchmark.ps1` hardcodes
+  build paths, both disagreeing with `build-target.json`.
+
+## Actual issues (behaviour changes, fixed separately)
+
+| # | Issue | Evidence | Fix |
+|---|---|---|---|
+| A1 | The "connection check unavailable" error never clears for pt-BR and es-419 users | `sf4e__Application.cxx:1322` sets `loc::T("runtime.connection_check_unavailable")`; `:1323` clears it only if the text equals the English sentence | compare against the same `loc::T(...)` value |
+| A2 | Room rejection messages are English only | 21 sentences in `RoomRejectText`, `sf4e__SessionClient.cxx:43-68`, reach the status line unchanged; every other UI string uses `loc::T` | add `room.reject.*` keys to the three catalogs. Needs translations, so this waits for a decision |
+| A3 | Same for `"Could not open the room. Try again."` | `sf4e__Application.cxx:1299` | new key, same decision as A2 |
+| A4 | `sf4e__Game__Battle__Vfx.hxx` has no `#pragma once` | every other header has one | add it |
+| A5 | Internal tokens can reach the status line | `_roomError = "invalid_room_snapshot"` and two siblings, `sf4e__SessionClient.cxx:660, 681, 742` | confirm where `_roomError` is shown, then decide |
+
+Checked and dismissed:
+- `RoomModel` readers throw `std::invalid_argument`, but every room parse site in `SessionServer`
+  (`:1532, :1557, :1588`) and `SessionClient` (`:660, :681, :742`) catches `std::exception`.
+- `service.rs:4136` `get_mut(&peer).unwrap()` follows a validity check with an `.await` between, but
+  the actor holds `&mut self` across it, so nothing else can remove the slot. `:4093`
+  `self.room.unwrap()` is guarded at `:4057`. Both can become `let Some(..) else` for clarity.
+- Raw string matches for `game_prepared`/`game_ready` next to unused enum values is drift, not a
+  bug. Wire names are frozen, so it stays.
+
+## Future work (not part of this cleanup)
+
+- `struct Runtime` (`sf4e__Application.cxx:68`) carries about 25 bools, 12 deadlines and 5 pending
+  slots next to `netplay::SessionController`, which was meant to own that state.
+  `IrohMatchSession` has 11 flags beside its `Phase` enum. Both are implicit state machines.
+- Screen ids are strings compared by prefix in about 20 places.
+- Four error idioms coexist (exceptions, bool, `int` -1, enum results, string codes).
+- `sf4e::Game::Battle::System` is a class of 17 static members with no instances.
+- The `MT_LOBBY_*`/`MT_PUNCH_*` protocol is partly vestigial; `Lobby_ReportResults` is only called
+  by tests. Removing it changes the wire vocabulary, so it needs a version plan.
+- No CI builds the product; `CMakePresets.json` is unused by every script.
+- `transport.rs` has 16 connect/accept entry points that differ by one injected argument.
+
+## Order of work
+
+Stage 2 dead code, 3 Rust `service.rs`, 4 session layer, 5 `src/sf4e`, 6 UI and launcher, 7 tests,
+CMake and scripts. Each stage ends with the full build, ctest, the Rust gate where relevant, and
+the network fixtures for stages 3 to 5. A real two-PC match is still owed after stages 4 and 5.
