@@ -35,8 +35,11 @@ $entries = foreach ($line in Get-Content -LiteralPath $inventory) {
 $generated = @('PackageInventory.inc','preflight.ps1','preflight.cmd','START_HERE.md','MANIFEST.txt','BUILD_INFO.txt','build-provenance.json','notices\THIRD_PARTY_LICENSES.txt')
 foreach ($entry in $entries) {
     if ($generated -contains $entry.Path) { continue }
-    $source = @((Join-Path $InstallDir $entry.Path), (Join-Path $BuildDir "candidate/$($entry.Path)"),
-        (Join-Path $BuildDir $entry.Path), (Join-Path $repo $entry.Path)) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+    $candidates = @((Join-Path $InstallDir $entry.Path), (Join-Path $BuildDir "candidate/$($entry.Path)"),
+        (Join-Path $BuildDir $entry.Path), (Join-Path $repo $entry.Path), (Join-Path $repo ".github/$($entry.Path)"))
+    # Package docs stay flat under docs\; the repository keeps them in topic folders.
+    if ($entry.Path -like 'docs\*') { $candidates += @(Get-ChildItem -LiteralPath (Join-Path $repo 'docs') -Directory | ForEach-Object { Join-Path $_.FullName (Split-Path $entry.Path -Leaf) }) }
+    $source = $candidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
     if (!$source) { if ($entry.Required) { throw "Required package file missing: $($entry.Path)" }; continue }
     $target = Join-Path $destination $entry.Path
     New-Item -ItemType Directory -Path (Split-Path $target -Parent) -Force | Out-Null

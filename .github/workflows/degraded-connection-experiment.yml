@@ -22,7 +22,7 @@ jobs:
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           git sparse-checkout init --cone
-          git sparse-checkout set src/common src/tests vcpkg-ports/ggpo scripts
+          git sparse-checkout set src/common src/tests vcpkg-overlays/ports/ggpo scripts
           git -c protocol.version=2 fetch --depth=1 --filter=blob:none origin "$GITHUB_SHA"
           git checkout --detach FETCH_HEAD
       - name: Configure portable tests

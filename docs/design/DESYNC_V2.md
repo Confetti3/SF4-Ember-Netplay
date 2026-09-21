@@ -55,7 +55,7 @@ GGPO frame (`ggpoFrame == -1`) and does not rewind the native-result timeline.
 - A checkpoint is exchanged only once GGPO has confirmed every input that
   contributed to it. The pinned fork exposes the last confirmed input frame
   through `ggpo_get_last_confirmed_frame`
-  (`vcpkg-ports/ggpo/confirmed-frame-accessor.patch`); `IsConfirmedCheckpoint`
+  (`vcpkg-overlays/ports/ggpo/confirmed-frame-accessor.patch`); `IsConfirmedCheckpoint`
   in `ConfirmedCheckpoint.hxx` is the gate. Spectators have no save callback
   and use the confirmed boundary plus one as their state frame.
 - Received hashes are buffered (bounded, 64 entries) and compared only when

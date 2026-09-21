@@ -1,5 +1,5 @@
 #include "../../common/sf4e__PacingController.hxx"
-#include "../../../vcpkg-ports/ggpo/input-repair.h"
+#include "../../../vcpkg-overlays/ports/ggpo/input-repair.h"
 #include <cstdio>
 #include <cstdlib>
 #include <vector>

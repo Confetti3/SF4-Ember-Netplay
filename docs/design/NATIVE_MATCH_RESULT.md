@@ -100,6 +100,6 @@ The confirmation bound follows the pinned GGPO source at
   confirmed frame and feeds it to `SetLastConfirmedFrame` during polling.
 
 The confirmed-frame accessor itself is added by
-`vcpkg-ports/ggpo/confirmed-frame-accessor.patch`. Because publication waits
+`vcpkg-overlays/ports/ggpo/confirmed-frame-accessor.patch`. Because publication waits
 for GGPO's own confirmation boundary rather than an age heuristic, a terminal
 native state from a discarded timeline cannot become a score.

@@ -2,7 +2,7 @@
 
 Base: `experiment/degraded-connection-recovery` at `c9a9ed5`. Work branch: `review/code-quality`.
 Scope: `src/`, `rust/sf4-net`, `CMakeLists.txt`, `cmake/`, `scripts/`. Excluded: `src/Dimps`
-(layout follows the game binary), `src/ui/backends/imgui_impl_win32.cpp` (vendor), `vcpkg-ports`.
+(layout follows the game binary), `src/ui/backends/imgui_impl_win32.cpp` (vendor), `vcpkg-overlays`.
 
 The rule for the cleanup that follows: bodies move verbatim, wire formats and user-visible strings
 do not change, and anything that changes behaviour is listed under "Actual issues" and fixed in its

@@ -21,7 +21,7 @@ def main() -> None:
     parser.add_argument("--build", action="store_true", help="compile patched GGPO (Windows SDK required)")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
-    port = root / "vcpkg-ports" / "ggpo"
+    port = root / "vcpkg-overlays" / "ports" / "ggpo"
     text = (port / "portfile.cmake").read_text(encoding="utf-8")
     ref_match = re.search(r"\bREF\s+([0-9a-f]+)\b", text)
     stack_match = re.search(r"\bPATCHES\s+(.*?)\n\)", text, re.DOTALL)

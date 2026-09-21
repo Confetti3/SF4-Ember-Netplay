@@ -24,7 +24,7 @@ function Get-DependencyReceipt([string]$SourceRoot, [string]$BuildRoot) {
     $root = Join-Path $BuildRoot 'dependencies/x86-windows-wchar-filenames'
     $abiPath = Join-Path $root 'share/ggpo/vcpkg_abi_info.txt'
     $abi = Get-Content -LiteralPath $abiPath
-    foreach ($file in Get-ChildItem -LiteralPath (Join-Path $SourceRoot 'vcpkg-ports/ggpo') -File) {
+    foreach ($file in Get-ChildItem -LiteralPath (Join-Path $SourceRoot 'vcpkg-overlays/ports/ggpo') -File) {
         $expected = "$($file.Name) $((Get-FileHash -LiteralPath $file.FullName).Hash.ToLowerInvariant())"
         if ($abi -cnotcontains $expected) { throw "GGPO artifact was not built from current port input: $($file.Name)" }
     }
@@ -42,7 +42,7 @@ function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$S
     foreach ($binary in $receipt.binaries) {
         if ((Get-FileHash -LiteralPath (Join-Path $StageRoot $binary.path)).Hash -ne $binary.sha256) { throw "Staged binary changed: $($binary.path)" }
     }
-    if (Test-Path -LiteralPath (Join-Path $SourceRoot 'vcpkg-ports/ggpo')) {
+    if (Test-Path -LiteralPath (Join-Path $SourceRoot 'vcpkg-overlays/ports/ggpo')) {
         if (!$receipt.dependencies) { throw 'Dependency provenance missing; rebuild current target' }
         $current = Get-DependencyReceipt $SourceRoot $BuildRoot
         if ($current.root -ne $receipt.dependencies.root -or $current.rustLockSha256 -ne $receipt.dependencies.rustLockSha256) { throw 'Dependency provenance changed' }

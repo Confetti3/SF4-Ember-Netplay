@@ -46,7 +46,7 @@ expiring"), clean working tree (untracked `crash-logs-20260718/` only). Build pr
 `GgpoUdpValidation` **PASSED** (the only automated test). `SessionInteractiveTest`
 and the two-machine matrix in `docs/TRANSPORT_REGRESSION.md` are live-test-only.
 
-Pinned GGPO: `adanducci/ggpo@c88b667` via `vcpkg-ports/ggpo` with the patches
+Pinned GGPO: `adanducci/ggpo@c88b667` via `vcpkg-overlays/ports/ggpo` with the patches
 listed in its `portfile.cmake`. All fork claims below were verified against the
 extracted patched source in the local vcpkg buildtree
 (`buildtrees/ggpo/src/c88b667-*.clean`).
