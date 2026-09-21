@@ -151,8 +151,6 @@ using ImGui::TableSetupColumn;
 using sf4e::ui::Text;
 using ImGui::TextWrapped;
 
-IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
 static int nExtraFramesToSimulate = 1;
 
 static bool mainMenuShouldJump = false;
@@ -167,21 +165,7 @@ static bool mainMenuEditionSelect = true;
 static int mainMenuRoundCountIdx = 1;
 static int mainMenuRoundTimeIdx = 2;
 
-// Lobby ready state (shared by Network panel + toolbar Rematch)
-static rVsMode::ConfirmedCharaConditions lobbyConditions = {
-	0, 0, 0, 0, 0, 0, 0, 0, (BYTE)rBattle::ED_USF4
-};
-
-// Match settings the host edits in the lobby panel. Indices into
-// roundCountList / roundTimeList below. The guest mirrors these from
-// _lobbyData every frame; only P1's edits are ever sent.
-
-// Dev host / join panel fields
-
-
 static bool soundShowDetails = false;
-
-static std::deque<std::string> clientAlerts;
 
 // Yes, this is correct- SF4's menu uses the fractional section of the fixed
 // point values
@@ -221,49 +205,6 @@ const char* GetRoundCountLabel(void* options, int idx) {
 
 const char* GetRoundTimeLabel(void* options, int idx) {
 	return ((std::pair<FixedPoint, const char* const>*)options)[idx].second;
-}
-
-char* GetEditionLabel(BYTE edition) {
-	switch (edition) {
-	case rBattle::ED_SF4:
-		return "SF4";
-	case rBattle::ED_SSF4:
-		return "SSF4";
-	case rBattle::ED_AE2011:
-		return "AE2011";
-	case rBattle::ED_AE2012:
-		return "AE2012";
-	case rBattle::ED_USF4:
-		return "USF4";
-	case rBattle::ED_OMEGA:
-		return "OMEGA";
-	default:
-		return "UNKNOWN EDITION";
-	}
-}
-
-void DrawCharaEditionDropdown(const char* label, int charaID, BYTE* selectedEdition) {
-	int numItems = 0;
-	// Note that selectedItem is initialized to zero even if the selectedEdition
-	// is not valid for this character- in that condition, it effectively sets
-	// the output edition to the oldest possible version for this character.
-	int selectedItem = 0;
-	int editions[7] = { -1 };
-	char* items[7] = { 0 };
-	for (int i = 0; i < NUM_VALID_EDITIONS; i++) {
-		int edition = rBattle::orderedEditions[i];
-		if (rBattle::validEditionsPerChara[charaID].valid[i]) {
-			editions[numItems] = edition;
-			items[numItems] = GetEditionLabel(edition);
-			if (edition == *selectedEdition) {
-				selectedItem = numItems;
-			}
-			numItems++;
-		}
-	}
-
-	sf4e::ui::Combo(label, &selectedItem, items, numItems);
-	*selectedEdition = editions[selectedItem];
 }
 
 void DrawCharaWindow(bool* pOpen) {
@@ -654,50 +595,6 @@ void DrawGFxAppWindow(bool* pOpen) {
 	End();
 }
 
-void DrawGGPOStatsOverlay(GGPOSession* ggpo, fSystem::PlayerConnectionInfo* players) {
-    sf4e::ui::DiagnosticStripView view;
-    GGPONetworkStats stats{};
-    int remote = 0;
-    while (remote < MAX_SF4E_PROTOCOL_USERS && players[remote].type != GGPO_PLAYERTYPE_REMOTE) ++remote;
-    view.hasRemote = remote < MAX_SF4E_PROTOCOL_USERS;
-    view.networkAvailable = view.hasRemote && GGPO_SUCCEEDED(ggpo_get_network_stats(ggpo, players[remote].handle, &stats));
-    view.network[0] = stats.network.ping;
-    view.network[1] = stats.network.kbps_sent;
-    view.network[2] = stats.network.recv_queue_len;
-    view.network[3] = stats.network.send_queue_len;
-    view.network[4] = stats.timesync.local_frames_behind;
-    view.network[5] = stats.timesync.remote_frames_behind;
-    if (fUserApp::netplay) view.pendingSnapshots = static_cast<int>(fUserApp::netplay->client.pendingRemoteSnapshots.size());
-    view.snapshotCount = static_cast<int>(fSystem::snapshotMap.size());
-    sf4e::ui::DrawDiagnosticStrip(view);
-}
-
-void DrawHashOverlay() {
-	ImGuiIO& io = ImGui::GetIO();
-	ImGuiStyle& style = ImGui::GetStyle();
-	ImVec2 textWidth = ImGui::CalcTextSize(sf4e::sidecarHash.c_str());
-	ImVec2 window_pos(
-		(io.DisplaySize.x - textWidth.x) / 2 - style.WindowPadding.x,
-		io.DisplaySize.y - (textWidth.y + style.WindowPadding.y * 2)
-	);
-	ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always);
-	ImGui::SetNextWindowBgAlpha(0.88f);
-	Begin(
-		"Sidecar Hash",
-		nullptr,
-		ImGuiWindowFlags_NoDecoration |
-		ImGuiWindowFlags_NoMove |
-		ImGuiWindowFlags_NoScrollWithMouse |
-		ImGuiWindowFlags_NoSavedSettings |
-		ImGuiWindowFlags_NoFocusOnAppearing |
-		ImGuiWindowFlags_NoBringToFrontOnFocus |
-		ImGuiWindowFlags_NoInputs |
-		ImGuiWindowFlags_AlwaysAutoResize
-	);
-	Text("%s", sf4e::sidecarHash.c_str());
-	End();
-}
-
 void DrawMainMenuWindow(bool* pOpen) {
 	Begin(
 		"MainMenu",
@@ -912,10 +809,6 @@ void DrawPadWindow(bool* pOpen) {
 	}
 
 	End();
-}
-
-bool compareTasks(Task* a, Task* b) {
-	return *Task::GetPriority(a) < *Task::GetPriority(b);
 }
 
 void DrawSystemTaskPanel(System* s, TaskCore* core) {
@@ -1509,19 +1402,6 @@ void DrawVsStageSelectWindow(bool* pOpen) {
 	Text("Phase: %x", (control->*rStageSelect::Control::publicMethods.GetPhase)());
 	Text("Stage code 1: %s", &state->stageCode1);
 	Text("Stage code 2: %s", &state->stageCode2);
-	End();
-}
-
-void DrawHelpWindow(bool* pOpen) {
-	Begin(
-		"ImGui Help",
-		pOpen,
-		ImGuiWindowFlags_None
-	);
-	sf4e::ui::Section("KEYBOARD AND MOUSE");
-
-	ImGui::ShowUserGuide();
-
 	End();
 }
 
