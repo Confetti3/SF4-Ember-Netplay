@@ -85,6 +85,12 @@ using rSystem = Dimps::Game::Battle::System;
 extern sf4e::native_result::Timeline s_nativeResultTimeline;
 extern rKey::MementoID GGPO_MEMENTO_ID;
 void EmitRollbackDiagSummary(const char* label);
+void ResetNativeResultMatch();
+void CaptureNativeMatchResult(rSystem* system, int stateFrame);
+
+// Defined in sf4e__Game__Battle__System__Ggpo.cxx.
+void NoteDisconnectFlags(int flags);
+void LogPacerSummary(const char* label);
 
 // Defined in sf4e__Game__Battle__System__SaveState.cxx, with SaveState::Free.
 void LogSaveStateFreePolicy();

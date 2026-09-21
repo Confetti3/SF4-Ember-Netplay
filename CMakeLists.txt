@@ -284,6 +284,7 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__Game__Battle__Hud.cxx"
     "src/sf4e/sf4e__Game__Battle__System.hxx"
     "src/sf4e/sf4e__Game__Battle__System.cxx"
+    "src/sf4e/sf4e__Game__Battle__System__Ggpo.cxx"
     "src/sf4e/sf4e__Game__Battle__System__RollbackStress.cxx"
     "src/sf4e/sf4e__Game__Battle__System__SaveState.cxx"
     "src/sf4e/sf4e__Game__Battle__Vfx.hxx"
