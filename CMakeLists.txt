@@ -310,7 +310,7 @@ add_library(sf4e STATIC
 target_include_directories(sf4e PUBLIC "src/common")
 option(SF4E_DEVELOPER_UI "Build the fixed developer inspector page" OFF)
 if(SF4E_DEVELOPER_UI)
-    target_sources(sf4e PRIVATE "src/sf4e/sf4e__DeveloperOverlay.cxx")
+    target_sources(sf4e PRIVATE "src/sf4e/sf4e__DeveloperOverlay.cxx" "src/sf4e/sf4e__DeveloperOverlay__Battle.cxx" "src/sf4e/sf4e__DeveloperOverlay__System.cxx")
     target_compile_definitions(sf4e PRIVATE SF4E_DEVELOPER_UI=1)
 endif()
 target_link_libraries(sf4e PRIVATE sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
