@@ -1,5 +1,8 @@
-param([string]$PackageDir, [string]$BuildDir = 'build/current')
+param([string]$PackageDir, [string]$BuildDir = '')
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
+$repo = Split-Path $PSScriptRoot -Parent
+if (!$BuildDir) { $BuildDir = Join-Path $repo (Get-EmberBuildTarget $repo).buildDirectory }
 if (!$PackageDir) { throw 'Specify -PackageDir for the candidate to validate.' }
 & (Join-Path $PSScriptRoot 'tester-preflight.ps1') -PackageDir $PackageDir
 $ctest = Get-Command ctest -ErrorAction SilentlyContinue

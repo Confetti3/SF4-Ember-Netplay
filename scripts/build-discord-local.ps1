@@ -1,8 +1,8 @@
 param([switch]$RustChecks)
 $ErrorActionPreference = 'Stop'
 $vsRoot = 'C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools'
-$vcEnvironment = & cmd.exe /d /s /c "`"$vsRoot\VC\Auxiliary\Build\vcvarsall.bat`" x86 >nul && set"
-foreach ($entry in $vcEnvironment) { if ($entry -match '^([^=]+)=(.*)$') { [Environment]::SetEnvironmentVariable($Matches[1],$Matches[2],'Process') } }
+. (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
+Enter-EmberVcEnvironment $vsRoot
 $cmake = Join-Path $vsRoot 'Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
 if ($RustChecks) {
     $env:CARGO_TARGET_DIR = Join-Path (Get-Location) 'build/discord/rust-target'

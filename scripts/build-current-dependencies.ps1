@@ -5,10 +5,7 @@ $repo = Split-Path $PSScriptRoot -Parent
 $target = Get-EmberBuildTarget $repo
 $tools = Get-EmberToolPaths $repo $VisualStudioPath $VcpkgRoot
 $dependencyRoot = Join-Path (Join-Path $repo $target.buildDirectory) 'dependencies'
-$vs = $tools.VisualStudioPath
-$environment = & cmd.exe /d /s /c "`"$vs\VC\Auxiliary\Build\vcvarsall.bat`" x86 >nul && set"
-if ($LASTEXITCODE) { throw 'Dependency compiler environment failed' }
-foreach ($entry in $environment) { if ($entry -match '^([^=]+)=(.*)$') { [Environment]::SetEnvironmentVariable($Matches[1],$Matches[2],'Process') } }
+Enter-EmberVcEnvironment $tools.VisualStudioPath
 # vcpkg computes an ABI from the manifest, triplet, port patches, and toolchain.
 # Never use another checkout's installed tree when a local fork changes.
 $env:VCPKG_ROOT = $tools.VcpkgRoot

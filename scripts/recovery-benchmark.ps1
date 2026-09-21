@@ -1,8 +1,8 @@
 [CmdletBinding()]
 param(
-    [string]$Harness = (Join-Path $PSScriptRoot '..\build\current\RecoveryBenchmark.exe'),
+    [string]$Harness = '',
     [string]$BaselineHelper = (Join-Path $PSScriptRoot '..\build\recovery-baseline-observable-target-static\x86_64-pc-windows-msvc\release\sf4-net.exe'),
-    [string]$CandidateHelper = (Join-Path $PSScriptRoot '..\build\current\sf4-net.exe'),
+    [string]$CandidateHelper = '',
     [string]$OutputDirectory = (Join-Path $PSScriptRoot '..\build\recovery-benchmark-results'),
     [UInt32]$Seed = 0x5f4e2026,
     [int]$Frames = 240,
@@ -18,6 +18,10 @@ param(
 
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
+$designatedBuild = Join-Path $repoRoot (Get-EmberBuildTarget $repoRoot).buildDirectory
+if (!$Harness) { $Harness = Join-Path $designatedBuild 'RecoveryBenchmark.exe' }
+if (!$CandidateHelper) { $CandidateHelper = Join-Path $designatedBuild 'sf4-net.exe' }
 if (-not $SkipNative -and $Frames -lt 240) {
     throw 'A comparative workload requires at least 240 frames. Run the harness directly for short diagnostic checks.'
 }
@@ -50,8 +54,8 @@ function Get-HelperArtifacts([string]$path, [string]$label, [string]$explicitDll
         Resolve-BenchmarkPath $explicitDll
     } else {
         $adjacent = Join-Path ([IO.Path]::GetDirectoryName($helper.path)) 'GGPO.dll'
-        $current = Join-Path $repoRoot 'build\current\GGPO.dll'
-        $vcpkg = Join-Path $repoRoot 'build\current\dependencies\x86-windows-wchar-filenames\bin\GGPO.dll'
+        $current = Join-Path $designatedBuild 'GGPO.dll'
+        $vcpkg = Join-Path $designatedBuild 'dependencies\x86-windows-wchar-filenames\bin\GGPO.dll'
         @($adjacent, $current, $vcpkg) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
     }
     if (-not (Test-Path -LiteralPath $dllPath -PathType Leaf)) {

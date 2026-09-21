@@ -38,3 +38,9 @@ function Get-EmberToolPaths([string]$SourceRoot, [string]$VisualStudioPath, [str
     }
     [pscustomobject]@{VisualStudioPath=[IO.Path]::GetFullPath($VisualStudioPath);VcpkgRoot=[IO.Path]::GetFullPath($VcpkgRoot)}
 }
+
+function Enter-EmberVcEnvironment([string]$VisualStudioPath, [string]$Architecture = 'x86') {
+    $environment = & cmd.exe /d /s /c "`"$VisualStudioPath\VC\Auxiliary\Build\vcvarsall.bat`" $Architecture >nul && set"
+    if ($LASTEXITCODE) { throw 'Compiler environment failed' }
+    foreach ($entry in $environment) { if ($entry -match '^([^=]+)=(.*)$') { [Environment]::SetEnvironmentVariable($Matches[1],$Matches[2],'Process') } }
+}
