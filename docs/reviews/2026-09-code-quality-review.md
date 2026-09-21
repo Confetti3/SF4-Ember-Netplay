@@ -174,3 +174,78 @@ Checked and dismissed:
 Stage 2 dead code, 3 Rust `service.rs`, 4 session layer, 5 `src/sf4e`, 6 UI and launcher, 7 tests,
 CMake and scripts. Each stage ends with the full build, ctest, the Rust gate where relevant, and
 the network fixtures for stages 3 to 5. A real two-PC match is still owed after stages 4 and 5.
+
+## Outcome (added after the cleanup)
+
+All work is on `review/code-quality`, one commit per step, nothing pushed.
+
+### Done
+
+| Area | Before | After |
+|---|---|---|
+| `rust/sf4-net/src/service.rs` | 7788 lines, `impl Actor` 3783, `completed` 874 | `service/` with `mod.rs` 1070, `checkpoints` 559, `controls` 645, `members` 803, `probes` 573, `refresh` 376, `games` 321, `protocol` 342, `entry` 140, `tests` 2894. `completed` is a flat dispatcher over 12 `completed_*` methods |
+| `transport.rs`, `coordination.rs` | 1183 and 1965 lines with inline tests | 636 and 1314 lines; tests in `transport/tests.rs`, `coordination/tests.rs` |
+| `sf4e__SessionServer.cxx` | 2373 lines, `Step` 814 | main 544, `__Recovery` 958, `__Handlers` 661, `__Rooms` 330. `Step` dispatches to 15 `Handle*` methods |
+| `sf4e__SessionClient.cxx` | 1229 lines, `Step` 505 | main 815, `__Room` 467. `Step` dispatches to 9 `Handle*` methods |
+| `RoomModel.cxx` | 1446 lines, `Apply` 308 | `RoomModel` 667, `RoomModelActions` 352, `RoomModelJson` 377, shared `RoomModelDetail.hxx`. `Apply` keeps the shared checks and calls 17 `Apply<Action>` rules in the original order |
+| `IrohRoom.cxx` | 1314 lines | 862, plus `IrohRoomCheckpoint` 327 and `IrohRoomAdapters` 159 |
+| `sf4e__Game__Battle__System.cxx` | 2545 lines | 1512, plus `__SaveState` 704, `__RollbackStress` 250 and one internal header for what they share |
+| `sf4e__Application.cxx` | 1803 lines, `TickRuntime` 853, `Publish` 285 | renamed `sf4e__NetplayRuntime.cxx`. `TickRuntime` is 52 lines calling 16 phase functions in the original order. `Publish` is 81 lines plus four section helpers |
+| Dead code | | agent debug logger, six zero-caller methods, `bind_endpoint`, two stale comments removed; test-only transport entry points are `#[cfg(test)]` |
+| Tests | 45 private `CHECK` macros | 23 equivalent ones replaced by `src/tests/test_support.hxx` |
+| Build | session server sources listed three times | one CMake list; `run-package-tests.ps1` points at `build/current` |
+
+Actual issues fixed (each its own commit): A1 the connection check error that never cleared outside
+English; A2 and A3 room rejections and 24 runtime status sentences now go through the catalogs with
+pt-BR and es-419 text (43 new keys, drafts for native review like the rest of those catalogs); A4
+the missing include guard. A5 turned out to be harmless: those tokens pass through `loc::T`
+unchanged and are only ever shown for malformed server data.
+
+### Findings withdrawn after checking the code
+
+- `sf4e__NetUtil` and `winhttp` in the game DLL: the update client is compiled into
+  `sf4e_app_services`, which the game uses for in-app updates. The dependency is real.
+- `MenuInputCapture.hxx` in `src/common`: it is header-only there so `controller_navigation_test`
+  can check the cache offsets against a fake buffer without game headers.
+- `getenv` versus `sf4e::EnvFlag`: not the same semantics (CRT snapshot versus live environment),
+  so they were not merged.
+- `src/tests/ui-polish`: not dead. It is a passing 357-check fixture for `MenuNavigation` and
+  `MenuFeedback` that is simply not registered in the main build. It was not deleted; registering
+  it in the core-tests block is a three-line change that needs a decision.
+
+### Considered and rejected
+
+- A shared `poll_until` helper for the leave path: the four loops break with different values and
+  mutate captured state, so the helper read worse than the loops. The 5 s and 25 ms literals are
+  named instead.
+- A `CheckpointHeader` struct in Rust: the wire variants must stay flat, so the struct only moved
+  the verbosity to every call site.
+- Deduplicating the legacy lobby side lookup (seven copies): that path is only reachable from
+  tests and is a candidate for removal, not polish.
+- `SessionRecovery.hxx` to a `.cxx`: it is header-only so the dependency-free core tests can build
+  it without a library.
+
+### Not done, and why
+
+- `sf4e__DeveloperOverlay.cxx` (1682 lines): it only compiles with `-DSF4E_DEVELOPER_UI=ON`, so a
+  split needs a second full build tree to verify.
+- `GameMenu::Draw`, `ApplicationShell::Draw`, `DrawRoomBoard`: dense code with many shared locals
+  and no cheap pixel oracle (a full `UiRenderTest` capture is about 45 GB). Only the byte-identical
+  dialog colours were named.
+- `github_release_client.cxx`: the update path is security sensitive and has no end-to-end test.
+- `IrohRoom::Poll` (about 200 lines) and the GGPO lifecycle section of the battle system (about
+  600 lines, coupled through 15 file-scope items) are left in place.
+
+### Verification
+
+- Rust: `cargo fmt --check`, `cargo clippy -D warnings`, 77 tests, same count as the baseline.
+- C++: 49 of 49 ctest cases after every step, and the full `scripts/build-current.ps1` pipeline at
+  the end.
+- Network fixtures after stages 3 and 4 and at the end: `CustomRoomGameTest --late-spectator` and
+  `IrohRecoveryIntegrationTest --scenario=preparing`, both exit 0.
+- `RoomHostBench` after stage 4: step p50 6.39 to 6.53 ms against 6.25 ms before. The decode
+  worker, which was not touched, moved by the same 2 to 4 percent, so this is machine noise.
+- Not verified: a real match. The fixtures never call `TickRuntime` or the battle system, so the
+  runtime and save-state moves are covered by compilation, `RuntimeBootstrapTest` and
+  `SaveStateOwnershipTest` only. A two-PC match, direct and relay, is still owed before this branch
+  or the experiment under it is promoted.
