@@ -139,6 +139,7 @@ public:
 private:
 	class ServerAdapter;
 	class ClientAdapter;
+	static constexpr std::size_t MaximumPayload = 65536;
 	struct Peer {
 		std::string identity;
 		bool admitted = false;

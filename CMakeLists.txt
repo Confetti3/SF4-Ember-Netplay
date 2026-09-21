@@ -324,6 +324,8 @@ add_library(Session STATIC
     "src/session/sf4e__SessionServer__Recovery.cxx"
     "src/session/sf4e__SessionServer__Rooms.cxx"
     "src/session/IrohRoom.cxx"
+    "src/session/IrohRoomAdapters.cxx"
+    "src/session/IrohRoomCheckpoint.cxx"
     "src/session/MatchAuthority.cxx"
     "src/session/IrohMatchSession.cxx"
     "src/session/IrohRoom.hxx"
