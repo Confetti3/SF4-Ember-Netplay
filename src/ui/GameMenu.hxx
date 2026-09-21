@@ -69,6 +69,12 @@ public:
     }
     bool NoticeOpen() const { return !notice_.empty(); }
 private:
+    // Parts of Draw, in the order it calls them.
+    void DrawHomeStatusLine(const std::vector<MenuEntry>& entries,const char* status,Tone statusTone,float homeMargin);
+    void DrawFlyoutConfirmation(const std::vector<MenuEntry>& entries,float unit,MenuAction& action);
+    void DrawConfirmationModal(const std::vector<MenuEntry>& entries,MenuAction& action);
+    void DrawNoticeModal(bool noticeOpen);
+    void DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEditText,MenuAction& action);
     // Clears the notice and runs its action exactly once, whichever of the
     // controller and pointer paths dismissed it.
     void DismissNotice(bool alternative) {

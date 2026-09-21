@@ -107,6 +107,154 @@ MenuInput ReadMenuInput() {
     value.acceptText=ImGui::IsKeyPressed(ImGuiKey_Enter,false);
     return value;
 }
+// Parts of Draw. Each one that can produce a result writes it to `action`.
+namespace {
+void NextPopupSize() {
+        const auto viewport=ImGui::GetMainViewport()->Size;
+        const float width=(std::max)(1.f,viewport.x-40*Scale());
+        const float height=(std::max)(1.f,viewport.y-40*Scale());
+        ImGui::SetNextWindowSizeConstraints(ImVec2(0,0),ImVec2(width,height));
+        ImGui::SetNextWindowSize(ImVec2((std::min)(600*Scale(),width),0));
+}
+}
+void GameMenu::DrawHomeStatusLine(const std::vector<MenuEntry>& entries,const char* status,Tone statusTone,float homeMargin) {
+    ImGui::SetCursorPosX(homeMargin);
+    const auto current=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.Focus();});
+    if(current!=entries.end()){
+        // Home shows the status in place of the focused row's help text, so
+        // it must carry the same severity rather than reading as help.
+        const bool showStatus=*status;
+        const char* text=showStatus?status:current->detail.c_str();
+        const auto color=showStatus&&statusTone!=Tone::Neutral?ImGui::ColorConvertFloat4ToU32(ToneColor(statusTone)):palette::Muted;
+        const auto p=ImGui::GetCursorScreenPos();ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),12*Scale(),p,color,text,nullptr,ImGui::GetContentRegionAvail().x);
+    }
+    ImGui::Dummy(ImVec2(0,36*Scale()));ImGui::SetCursorPosX(homeMargin);
+}
+void GameMenu::DrawFlyoutConfirmation(const std::vector<MenuEntry>& entries,float unit,MenuAction& action) {
+    // A local child deliberately replaces the viewport-dimming modal. The
+    // navigation model owns confirmation input; outside clicks do nothing.
+    if(navigation.Confirming()) {
+        const auto pos=ImGui::GetWindowPos(),size=ImGui::GetWindowSize();
+        const auto padding=ImGui::GetStyle().WindowPadding;
+        ImGui::SetCursorScreenPos(ImVec2(pos.x+padding.x,pos.y+padding.y));
+        ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(0,0,0,.8f));
+        ImGui::BeginChild("Training veil",ImVec2(size.x-2*padding.x,size.y-2*padding.y),0,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
+        const ImVec2 dialogSize(size.x-32*unit,(std::min)(270*unit,size.y-32*unit));
+        ImGui::SetCursorScreenPos(ImVec2(pos.x+(size.x-dialogSize.x)*.5f,pos.y+(size.y-dialogSize.y)*.5f));
+        ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(.13f,.115f,.1f,1));
+        ImGui::BeginChild("Training confirmation",dialogSize,ImGuiChildFlags_Borders,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
+        const auto entry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.DialogId();});
+        ImGui::BeginChild("Confirmation explanation",ImVec2(0,ImGui::GetContentRegionAvail().y-60*unit));
+        const auto question=loc::Tf("confirm.question",entry==entries.end()?loc::T("confirm.title"):entry->label);
+        ImGui::TextWrapped("%s",question.c_str());
+        if(entry!=entries.end())ImGui::TextWrapped("%s",entry->detail.c_str());
+        ImGui::EndChild();
+        const float width=(ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f;
+        for(int i=0;i<2;++i) {
+            if(i)ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Button,navigation.ConfirmSelected()==bool(i)?ImVec4(.5f,.25f,.1f,1):ImVec4(.2f,.18f,.16f,1));
+            ImGui::BeginDisabled(i!=0&&(entry==entries.end()||!entry->enabled));
+            if(ImGui::Button(i?loc::T("common.confirm"):loc::T("common.cancel"),ImVec2(width,42*unit)))action=navigation.Confirm(i!=0,entries);
+            ImGui::EndDisabled();
+            ImGui::PopStyleColor();
+        }
+        ImGui::EndChild();ImGui::PopStyleColor();
+        ImGui::EndChild();ImGui::PopStyleColor();
+    }
+}
+void GameMenu::DrawConfirmationModal(const std::vector<MenuEntry>& entries,MenuAction& action) {
+    const std::string confirmationPopup=std::string(loc::T("confirm.title"))+"###ConfirmAction";
+    if(navigation.Confirming()) ImGui::OpenPopup(confirmationPopup.c_str());
+    NextPopupSize();
+    if(ImGui::BeginPopupModal(confirmationPopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
+        if(!navigation.Confirming()) ImGui::CloseCurrentPopup();
+        else {
+            const auto entry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.DialogId();});
+            const bool canConfirm=entry!=entries.end()&&entry->enabled;
+            const auto question=loc::Tf("confirm.question",entry==entries.end()?loc::T("confirm.title"):entry->label);
+            ImGui::TextWrapped("%s",question.c_str());
+            if(entry!=entries.end())ImGui::TextWrapped("%s",entry->detail.c_str());
+            const bool visualConfirm=entry!=entries.end()&&feedback_.Enabled(*entry);
+            ImGui::BeginChild("Confirmation feedback",ImVec2(0,2*ImGui::GetTextLineHeightWithSpacing()));
+            if(!visualConfirm)ImGui::TextWrapped("%s",loc::T("confirm.updating"));
+            ImGui::EndChild();
+            const float buttonWidth=(ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f;
+            ImGui::PushStyleColor(ImGuiCol_Button,DialogButtonColor(!navigation.ConfirmSelected()));
+            if(ImGui::Button(loc::T("common.cancel"),ImVec2(buttonWidth,48*Scale()))) action=navigation.Confirm(false,entries);
+            ImGui::PopStyleColor(); ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Button,DialogButtonColor(visualConfirm&&navigation.ConfirmSelected()));
+            const std::string label=FitLabel(entry==entries.end()?loc::T("common.confirm"):entry->label,buttonWidth-2*ImGui::GetStyle().FramePadding.x);
+            ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha,1.f);
+            ImGui::BeginDisabled(!canConfirm);
+            if(ImGui::Button((label+"###Confirm").c_str(),ImVec2(buttonWidth,48*Scale()))) action=navigation.Confirm(true,entries);
+            ImGui::EndDisabled(); ImGui::PopStyleVar(); ImGui::PopStyleColor();
+            if(!navigation.Confirming()) ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+}
+void GameMenu::DrawNoticeModal(bool noticeOpen) {
+    const std::string noticePopup=std::string(loc::T("notice.title"))+"###Notice";
+    if(!notice_.empty()) ImGui::OpenPopup(noticePopup.c_str());
+    NextPopupSize();
+    if(ImGui::BeginPopupModal(noticePopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
+        if(notice_.empty()) ImGui::CloseCurrentPopup();
+        else {
+            if(noticeHeading_.empty()) ImGui::TextColored(ToneColor(Tone::Error),"%s",loc::T("notice.error_title"));
+            else ImGui::TextColored(ToneColor(Tone::Pending),"%s",noticeHeading_.c_str());
+            ImGui::TextWrapped("%s",notice_.c_str());
+            ImGui::Dummy(ImVec2(0,8*Scale()));
+            const bool two=!noticeAlternative_.empty();
+            const float buttonWidth=two?(ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f:ImGui::GetContentRegionAvail().x;
+            ImGui::PushStyleColor(ImGuiCol_Button,DialogButtonColor(!noticeAlternativeSelected_));
+            const std::string label=two?FitLabel(noticeAlternative_,buttonWidth-2*ImGui::GetStyle().FramePadding.x):std::string();
+            if(ImGui::Button(loc::T("common.ok"),ImVec2(buttonWidth,48*Scale()))) DismissNotice(false);
+            ImGui::PopStyleColor();
+            if(two) {
+                ImGui::SameLine();
+                ImGui::PushStyleColor(ImGuiCol_Button,DialogButtonColor(noticeAlternativeSelected_));
+                if(ImGui::Button((label+"###NoticeAlternative").c_str(),ImVec2(buttonWidth,48*Scale()))) DismissNotice(true);
+                ImGui::PopStyleColor();
+            }
+            if(notice_.empty()) ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+    if(noticeOpen&&notice_.empty()) navigation.NeutralGate();
+}
+void GameMenu::DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEditText,MenuAction& action) {
+    const std::string editPopup=std::string(loc::T("edit.title"))+"###EditText";
+    if(navigation.Editing()) ImGui::OpenPopup(editPopup.c_str());
+    NextPopupSize();
+    if(ImGui::BeginPopupModal(editPopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
+        if(!navigation.Editing()) ImGui::CloseCurrentPopup();
+        else {
+            const auto entry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.EditingId();});
+            const std::size_t limit=entry==entries.end()?4096:(std::min)(std::size_t(4096),entry->textLimit);
+            const bool canAccept=entry!=entries.end()&&entry->enabled;
+            ImGui::TextWrapped("%s",entry==entries.end()?loc::T("edit.title"):entry->label.c_str());
+            ImGui::TextWrapped("%s",loc::T("edit.instructions"));
+            char draft[4097]={}; std::strncpy(draft,navigation.Draft().c_str(),sizeof(draft)-1);
+            if(lastEdit_!=navigation.EditingId()) ImGui::SetKeyboardFocusHere();
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            if(ImGui::InputText("##Draft",draft,limit+1)) navigation.Draft(draft);
+            ImGui::TextDisabled("%u / %u bytes",static_cast<unsigned>(navigation.Draft().size()),static_cast<unsigned>(limit));
+            const bool visualAccept=entry!=entries.end()&&feedback_.Enabled(*entry);
+            ImGui::BeginChild("Edit feedback",ImVec2(0,2*ImGui::GetTextLineHeightWithSpacing()));
+            if(!visualAccept)ImGui::TextWrapped("%s",loc::T("edit.updating"));
+            ImGui::EndChild();
+            ImGui::PushStyleColor(ImGuiCol_Text,EntryTextColor(visualAccept));
+            ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha,1.f);
+            ImGui::BeginDisabled(!canAccept);
+            const bool acceptClicked=ImGui::Button(loc::T("common.accept"));
+            ImGui::EndDisabled(); ImGui::PopStyleVar(); ImGui::PopStyleColor();
+            if(canAccept&&(acceptClicked||acceptEditText)) action=navigation.AcceptText(entries);
+            ImGui::SameLine(); if(ImGui::Button(loc::T("edit.cancel"))) navigation.Cancel();
+            if(!navigation.Editing()) ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+}
 MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entries,const char* status,const Detail& detail,int columns,const Card& card,const Body& body,float flyoutScale,float cardHeight,bool stableStatus,Tone statusTone,bool home) {
     const bool flyout=flyoutScale>0;
     const float unit=flyout?flyoutScale:Scale();
@@ -303,152 +451,22 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(origin.x,p.y),ImVec2(origin.x+windowSize.x,origin.y+windowSize.y),IM_COL32(16,15,14,225));
     }
     if(home){
-        ImGui::SetCursorPosX(homeMargin);
-        const auto current=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.Focus();});
-        if(current!=entries.end()){
-            // Home shows the status in place of the focused row's help text, so
-            // it must carry the same severity rather than reading as help.
-            const bool showStatus=*status;
-            const char* text=showStatus?status:current->detail.c_str();
-            const auto color=showStatus&&statusTone!=Tone::Neutral?ImGui::ColorConvertFloat4ToU32(ToneColor(statusTone)):palette::Muted;
-            const auto p=ImGui::GetCursorScreenPos();ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),12*Scale(),p,color,text,nullptr,ImGui::GetContentRegionAvail().x);
-        }
-        ImGui::Dummy(ImVec2(0,36*Scale()));ImGui::SetCursorPosX(homeMargin);
+        DrawHomeStatusLine(entries,status,statusTone,homeMargin);
     }
     ImGui::Dummy(ImVec2(0,8*unit));if(home)ImGui::SetCursorPosX(homeMargin);
     const float legendHeight=MenuLegend(ImGui::GetContentRegionAvail().x,selectGlyph,backGlyph,true,adjustable,menuArt,unit,primary);
     ImGui::Dummy(ImVec2(0,legendHeight));
     if(flyout) {
-        // A local child deliberately replaces the viewport-dimming modal. The
-        // navigation model owns confirmation input; outside clicks do nothing.
-        if(navigation.Confirming()) {
-            const auto pos=ImGui::GetWindowPos(),size=ImGui::GetWindowSize();
-            const auto padding=ImGui::GetStyle().WindowPadding;
-            ImGui::SetCursorScreenPos(ImVec2(pos.x+padding.x,pos.y+padding.y));
-            ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(0,0,0,.8f));
-            ImGui::BeginChild("Training veil",ImVec2(size.x-2*padding.x,size.y-2*padding.y),0,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
-            const ImVec2 dialogSize(size.x-32*unit,(std::min)(270*unit,size.y-32*unit));
-            ImGui::SetCursorScreenPos(ImVec2(pos.x+(size.x-dialogSize.x)*.5f,pos.y+(size.y-dialogSize.y)*.5f));
-            ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(.13f,.115f,.1f,1));
-            ImGui::BeginChild("Training confirmation",dialogSize,ImGuiChildFlags_Borders,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
-            const auto entry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.DialogId();});
-            ImGui::BeginChild("Confirmation explanation",ImVec2(0,ImGui::GetContentRegionAvail().y-60*unit));
-            const auto question=loc::Tf("confirm.question",entry==entries.end()?loc::T("confirm.title"):entry->label);
-            ImGui::TextWrapped("%s",question.c_str());
-            if(entry!=entries.end())ImGui::TextWrapped("%s",entry->detail.c_str());
-            ImGui::EndChild();
-            const float width=(ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f;
-            for(int i=0;i<2;++i) {
-                if(i)ImGui::SameLine();
-                ImGui::PushStyleColor(ImGuiCol_Button,navigation.ConfirmSelected()==bool(i)?ImVec4(.5f,.25f,.1f,1):ImVec4(.2f,.18f,.16f,1));
-                ImGui::BeginDisabled(i!=0&&(entry==entries.end()||!entry->enabled));
-                if(ImGui::Button(i?loc::T("common.confirm"):loc::T("common.cancel"),ImVec2(width,42*unit)))action=navigation.Confirm(i!=0,entries);
-                ImGui::EndDisabled();
-                ImGui::PopStyleColor();
-            }
-            ImGui::EndChild();ImGui::PopStyleColor();
-            ImGui::EndChild();ImGui::PopStyleColor();
-        }
+        DrawFlyoutConfirmation(entries,unit,action);
         lastFocus_=navigation.Focus();lastScreen_=navigation.Screen();
         if(backRequested) return navigation.Return();
         return action;
     }
     // A renderer popup may survive a model cancellation by one frame. Close it
     // without rendering stale controls or reading a draft that was already cleared.
-    const auto popupSize=[&] {
-        const auto viewport=ImGui::GetMainViewport()->Size;
-        const float width=(std::max)(1.f,viewport.x-40*Scale());
-        const float height=(std::max)(1.f,viewport.y-40*Scale());
-        ImGui::SetNextWindowSizeConstraints(ImVec2(0,0),ImVec2(width,height));
-        ImGui::SetNextWindowSize(ImVec2((std::min)(600*Scale(),width),0));
-    };
-    const std::string confirmationPopup=std::string(loc::T("confirm.title"))+"###ConfirmAction";
-    if(navigation.Confirming()) ImGui::OpenPopup(confirmationPopup.c_str());
-    popupSize();
-    if(ImGui::BeginPopupModal(confirmationPopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
-        if(!navigation.Confirming()) ImGui::CloseCurrentPopup();
-        else {
-            const auto entry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.DialogId();});
-            const bool canConfirm=entry!=entries.end()&&entry->enabled;
-            const auto question=loc::Tf("confirm.question",entry==entries.end()?loc::T("confirm.title"):entry->label);
-            ImGui::TextWrapped("%s",question.c_str());
-            if(entry!=entries.end())ImGui::TextWrapped("%s",entry->detail.c_str());
-            const bool visualConfirm=entry!=entries.end()&&feedback_.Enabled(*entry);
-            ImGui::BeginChild("Confirmation feedback",ImVec2(0,2*ImGui::GetTextLineHeightWithSpacing()));
-            if(!visualConfirm)ImGui::TextWrapped("%s",loc::T("confirm.updating"));
-            ImGui::EndChild();
-            const float buttonWidth=(ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f;
-            ImGui::PushStyleColor(ImGuiCol_Button,DialogButtonColor(!navigation.ConfirmSelected()));
-            if(ImGui::Button(loc::T("common.cancel"),ImVec2(buttonWidth,48*Scale()))) action=navigation.Confirm(false,entries);
-            ImGui::PopStyleColor(); ImGui::SameLine();
-            ImGui::PushStyleColor(ImGuiCol_Button,DialogButtonColor(visualConfirm&&navigation.ConfirmSelected()));
-            const std::string label=FitLabel(entry==entries.end()?loc::T("common.confirm"):entry->label,buttonWidth-2*ImGui::GetStyle().FramePadding.x);
-            ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha,1.f);
-            ImGui::BeginDisabled(!canConfirm);
-            if(ImGui::Button((label+"###Confirm").c_str(),ImVec2(buttonWidth,48*Scale()))) action=navigation.Confirm(true,entries);
-            ImGui::EndDisabled(); ImGui::PopStyleVar(); ImGui::PopStyleColor();
-            if(!navigation.Confirming()) ImGui::CloseCurrentPopup();
-        }
-        ImGui::EndPopup();
-    }
-    const std::string noticePopup=std::string(loc::T("notice.title"))+"###Notice";
-    if(!notice_.empty()) ImGui::OpenPopup(noticePopup.c_str());
-    popupSize();
-    if(ImGui::BeginPopupModal(noticePopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
-        if(notice_.empty()) ImGui::CloseCurrentPopup();
-        else {
-            if(noticeHeading_.empty()) ImGui::TextColored(ToneColor(Tone::Error),"%s",loc::T("notice.error_title"));
-            else ImGui::TextColored(ToneColor(Tone::Pending),"%s",noticeHeading_.c_str());
-            ImGui::TextWrapped("%s",notice_.c_str());
-            ImGui::Dummy(ImVec2(0,8*Scale()));
-            const bool two=!noticeAlternative_.empty();
-            const float buttonWidth=two?(ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x)*.5f:ImGui::GetContentRegionAvail().x;
-            ImGui::PushStyleColor(ImGuiCol_Button,DialogButtonColor(!noticeAlternativeSelected_));
-            const std::string label=two?FitLabel(noticeAlternative_,buttonWidth-2*ImGui::GetStyle().FramePadding.x):std::string();
-            if(ImGui::Button(loc::T("common.ok"),ImVec2(buttonWidth,48*Scale()))) DismissNotice(false);
-            ImGui::PopStyleColor();
-            if(two) {
-                ImGui::SameLine();
-                ImGui::PushStyleColor(ImGuiCol_Button,DialogButtonColor(noticeAlternativeSelected_));
-                if(ImGui::Button((label+"###NoticeAlternative").c_str(),ImVec2(buttonWidth,48*Scale()))) DismissNotice(true);
-                ImGui::PopStyleColor();
-            }
-            if(notice_.empty()) ImGui::CloseCurrentPopup();
-        }
-        ImGui::EndPopup();
-    }
-    if(noticeOpen&&notice_.empty()) navigation.NeutralGate();
-    const std::string editPopup=std::string(loc::T("edit.title"))+"###EditText";
-    if(navigation.Editing()) ImGui::OpenPopup(editPopup.c_str());
-    popupSize();
-    if(ImGui::BeginPopupModal(editPopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
-        if(!navigation.Editing()) ImGui::CloseCurrentPopup();
-        else {
-            const auto entry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.EditingId();});
-            const std::size_t limit=entry==entries.end()?4096:(std::min)(std::size_t(4096),entry->textLimit);
-            const bool canAccept=entry!=entries.end()&&entry->enabled;
-            ImGui::TextWrapped("%s",entry==entries.end()?loc::T("edit.title"):entry->label.c_str());
-            ImGui::TextWrapped("%s",loc::T("edit.instructions"));
-            char draft[4097]={}; std::strncpy(draft,navigation.Draft().c_str(),sizeof(draft)-1);
-            if(lastEdit_!=navigation.EditingId()) ImGui::SetKeyboardFocusHere();
-            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-            if(ImGui::InputText("##Draft",draft,limit+1)) navigation.Draft(draft);
-            ImGui::TextDisabled("%u / %u bytes",static_cast<unsigned>(navigation.Draft().size()),static_cast<unsigned>(limit));
-            const bool visualAccept=entry!=entries.end()&&feedback_.Enabled(*entry);
-            ImGui::BeginChild("Edit feedback",ImVec2(0,2*ImGui::GetTextLineHeightWithSpacing()));
-            if(!visualAccept)ImGui::TextWrapped("%s",loc::T("edit.updating"));
-            ImGui::EndChild();
-            ImGui::PushStyleColor(ImGuiCol_Text,EntryTextColor(visualAccept));
-            ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha,1.f);
-            ImGui::BeginDisabled(!canAccept);
-            const bool acceptClicked=ImGui::Button(loc::T("common.accept"));
-            ImGui::EndDisabled(); ImGui::PopStyleVar(); ImGui::PopStyleColor();
-            if(canAccept&&(acceptClicked||acceptEditText)) action=navigation.AcceptText(entries);
-            ImGui::SameLine(); if(ImGui::Button(loc::T("edit.cancel"))) navigation.Cancel();
-            if(!navigation.Editing()) ImGui::CloseCurrentPopup();
-        }
-        ImGui::EndPopup();
-    }
+    DrawConfirmationModal(entries,action);
+    DrawNoticeModal(noticeOpen);
+    DrawEditModal(entries,acceptEditText,action);
     lastEdit_=navigation.EditingId();
     lastFocus_=navigation.Focus(); lastScreen_=navigation.Screen();
     if(backRequested) return navigation.Return();
