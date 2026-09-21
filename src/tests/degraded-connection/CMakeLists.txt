@@ -1,0 +1,17 @@
+cmake_minimum_required(VERSION 3.20)
+project(EmberDegradedConnectionTests LANGUAGES CXX)
+include(CTest)
+
+# Standalone on purpose: no Windows, game, Rust, or vcpkg dependencies.
+add_executable(DegradedConnectionPolicies policies_test.cxx)
+add_executable(LegacyPacingController ../pacing_controller_test.cxx)
+foreach(target DegradedConnectionPolicies LegacyPacingController)
+    target_compile_features(${target} PRIVATE cxx_std_11)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4 /WX)
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra -Werror)
+    endif()
+    add_test(NAME ${target} COMMAND ${target})
+    set_tests_properties(${target} PROPERTIES TIMEOUT 15)
+endforeach()

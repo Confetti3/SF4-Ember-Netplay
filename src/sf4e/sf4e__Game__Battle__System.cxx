@@ -280,12 +280,14 @@ GGPOPlayerHandle fSystem::localPlayerHandle = GGPO_INVALID_HANDLE;
 int fSystem::lastGgpoSaveFrame = -1;
 GGPOSession* fSystem::ggpo = nullptr;
 sf4e::gate::GgpoGateModel fSystem::simGate = { sf4e::gate::PHASE_NO_SESSION };
-// maxRecommendationFrames, maxStepMs, minWaitMs, enabled; state/stats zeroed.
-sf4e::pacing::PacingController fSystem::pacer = { 9.0, 3.0, 1.0, true };
+// Zeroed (so disabled) until ResetPacerForSession initializes it.
+sf4e::pacing::PacingController fSystem::pacer;
+bool fSystem::continuousTimesync = true;
 
 // Applies development overrides for the pacing caps and resets the
 // controller for a new session. Called from StartGGPO/StartSpectating.
 static void ResetPacerForSession() {
+    fSystem::pacer.InitDefaults();
     const char* enabledEnv = getenv("SF4E_GGPO_DISTRIBUTED_TIMESYNC");
     fSystem::pacer.enabled = !(enabledEnv && enabledEnv[0] == '0');
     const char* stepEnv = getenv("SF4E_PACING_MAX_STEP_MS");
@@ -302,13 +304,17 @@ static void ResetPacerForSession() {
             fSystem::pacer.maxRecommendationFrames = v;
         }
     }
-    fSystem::pacer.Reset();
-    fSystem::pacer.ResetStats();
+    // Both experiments are on unless set to 0. GGPO reads the repair switch
+    // itself with the EnvFlag rule. The line lets a log confirm which side ran
+    // what.
+    fSystem::continuousTimesync = sf4e::EnvFlag("SF4E_CONTINUOUS_TIMESYNC", true);
+    spdlog::info("Netplay experiments: continuousTimesync={} inputRepair={}",
+        fSystem::continuousTimesync, sf4e::EnvFlag("SF4E_GGPO_INPUT_REPAIR", true));
 }
 
 static void LogPacerSummary(const char* label) {
     const sf4e::pacing::PacingController& p = fSystem::pacer;
-    if (p.recommendationsReceived == 0 && p.msAppliedTotal == 0.0) {
+    if (p.recommendationsReceived == 0 && p.msAppliedTotal == 0.0 && p.riftSamples == 0) {
         return;
     }
     spdlog::info(
@@ -316,7 +322,8 @@ static void LogPacerSummary(const char* label) {
         "replacedMs={:.1f} disabledDiscardMs={:.1f} resetDiscardMs={:.1f} "
         "waits={} requestedMs={:.1f} actualMs={:.1f} maxRequestedMs={:.2f} "
         "maxActualMs={:.2f} failures={} timeouts={} fallbacks={} "
-        "maxOutstandingMs={:.1f} outstandingMs={:.1f}",
+        "maxOutstandingMs={:.1f} outstandingMs={:.1f} continuous={} riftSamples={} "
+        "riftAcceptedMs={:.1f} riftFrames={:.2f} maxAbsRiftFrames={:.2f}",
         label,
         p.enabled,
         p.recommendationsReceived,
@@ -334,7 +341,12 @@ static void LogPacerSummary(const char* label) {
         p.waitTimeouts,
         p.fallbackSleeps,
         p.maxOutstandingMs,
-        p.outstandingMs
+        p.outstandingMs,
+        fSystem::continuousTimesync,
+        p.riftSamples,
+        p.msRiftAcceptedTotal,
+        p.riftFramesEma,
+        p.maxAbsRiftFrames
     );
 }
 
@@ -1532,13 +1544,33 @@ void fSystem::PollMatchTelemetry() {
     // A spectator has no local fighter handle; do not label its host link as fighter RTT.
     matchTelemetry.spectator = localPlayerHandle == GGPO_INVALID_HANDLE;
     if (!matchTelemetry.PollDue(now)) return;
-    int ping = -1;
-    for (int side = 0; side < 2; ++side) if (players[side].type == GGPO_PLAYERTYPE_REMOTE) {
-        GGPONetworkStats stats{};
-        if (GGPO_SUCCEEDED(ggpo_get_network_stats(ggpo, players[side].handle, &stats))) ping = stats.network.ping;
-        break;
+    GGPONetworkStats stats{};
+    matchTelemetry.Sample(now, GetRemoteNetworkStats(stats) ? stats.network.ping : -1);
+}
+
+bool fSystem::GetRemoteNetworkStats(GGPONetworkStats& stats) {
+    if (!ggpo) return false;
+    for (int i = 0; i < MAX_SF4E_PROTOCOL_USERS; i++) {
+        if (players[i].type != GGPO_PLAYERTYPE_REMOTE) continue;
+        const GGPOErrorCode result = ggpo_get_network_stats(ggpo, players[i].handle, &stats);
+        if (diag::Enabled()) diag::G().RecordGgpoResult(diag::CALL_GET_NETWORK_STATS, (int)result);
+        return GGPO_SUCCEEDED(result);
     }
-    matchTelemetry.Sample(now, ping);
+    return false;
+}
+
+// A stalled tick already repays time, and the advantage pair is unreliable
+// during and after it, so the pacer holds its estimate (OnPredictionStall).
+void fSystem::PollTimesync() {
+    if (!ggpo || !continuousTimesync || !pacer.enabled) return;
+    if (simGate.predictionStalled) {
+        pacer.OnPredictionStall();
+        return;
+    }
+    GGPONetworkStats stats{};
+    if (MayAdvanceDeterministicFrame() && GetRemoteNetworkStats(stats)) {
+        pacer.OnRiftSample(stats.timesync.local_frames_behind, stats.timesync.remote_frames_behind);
+    }
 }
 
 bool fSystem::ggpo_advance_frame_callback(int)
@@ -1822,7 +1854,11 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         // Phase 4: no blocking here. The recommendation (a fresh clamped
         // estimate of frames ahead — see PacingController) is recorded and
         // repaid in small slices in the outer tick, outside this callback.
-        pacer.OnRecommendation(info->u.timesync.frames_ahead);
+        // The continuous path samples the same rift every tick; applying the
+        // coarse lump too would correct it twice.
+        if (!continuousTimesync) {
+            pacer.OnRecommendation(info->u.timesync.frames_ahead);
+        }
         spdlog::info(
             "GGPO: timesync recommends {} frames; outstanding pacing {:.1f} ms",
             info->u.timesync.frames_ahead,

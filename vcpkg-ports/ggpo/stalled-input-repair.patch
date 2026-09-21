@@ -1,0 +1,69 @@
+diff --git a/src/lib/ggpo/network/udp_proto.h b/src/lib/ggpo/network/udp_proto.h
+--- a/src/lib/ggpo/network/udp_proto.h
++++ b/src/lib/ggpo/network/udp_proto.h
+@@ -16,6 +16,7 @@
+ #include "timesync.h"
+ #include "ggponet.h"
+ #include "ring_buffer.h"
++#include "input-repair.h"
+ 
+ class UdpProtocol : public IPollSink
+ {
+@@ -214,6 +215,7 @@
+     * Rift synchronization.
+     */
+    TimeSync                   _timesync;
++   sf4e::netplay::InputRepair  _input_repair;
+ 
+    /*
+     * Event queue
+diff --git a/src/lib/ggpo/network/udp_proto.cpp b/src/lib/ggpo/network/udp_proto.cpp
+--- a/src/lib/ggpo/network/udp_proto.cpp
++++ b/src/lib/ggpo/network/udp_proto.cpp
+@@ -53,6 +53,10 @@
+ 
+    _send_latency = Platform::GetConfigInt("ggpo.network.delay");
+    _oop_percent = Platform::GetConfigInt("ggpo.oop.percent");
++   // On unless SF4E_GGPO_INPUT_REPAIR starts with '0' (the mod's EnvFlag rule).
++   char repair[8] = {};
++   const DWORD repair_length = GetEnvironmentVariableA("SF4E_GGPO_INPUT_REPAIR", repair, sizeof repair);
++   _input_repair.SetEnabled(!(repair_length > 0 && repair_length < sizeof repair && repair[0] == '0'));
+ }
+ 
+ UdpProtocol::~UdpProtocol()
+@@ -200,6 +204,7 @@
+    ASSERT(offset < MAX_COMPRESSED_BITS);
+ 
+    SendMsg(msg);
++   _input_repair.OnInputSent(Platform::GetCurrentTimeMS(), _last_sent_input.frame);
+ }
+ 
+ void
+@@ -255,6 +260,11 @@
+          Log("Haven't exchanged packets in a while (last received:%d  last sent:%d).  Resending.\n", _last_received_input.frame, _last_sent_input.frame);
+          SendPendingOutput();
+          _state.running.last_input_packet_recv_time = now;
++      } else if (_queue >= 0 && _queue < UDP_MSG_MAX_PLAYERS && !_disconnect_event_sent &&
++                 _input_repair.TryRepair(now, _send_queue.size() == 0 && !_oo_packet.msg)) {
++         // Fighter inputs only. Regenerate current history with a new packet
++         // sequence and ACK; never replay an old bridge datagram or queue work.
++         SendPendingOutput();
+       }
+ 
+       if (!_state.running.last_quality_report_time || _state.running.last_quality_report_time + QUALITY_REPORT_INTERVAL < now) {
+@@ -680,6 +690,7 @@
+    /*
+     * Get rid of our buffered input
+     */
++   _input_repair.OnAck(msg->u.input.ack_frame);
+    while (_pending_output.size() && _pending_output.front().frame < msg->u.input.ack_frame) {
+       Log("Throwing away pending output frame %d\n", _pending_output.front().frame);
+       _last_acked_input = _pending_output.front();
+@@ -697,6 +708,7 @@
+    /*
+     * Get rid of our buffered input
+     */
++   _input_repair.OnAck(msg->u.input_ack.ack_frame);
+    while (_pending_output.size() && _pending_output.front().frame < msg->u.input_ack.ack_frame) {
+       Log("Throwing away pending output frame %d\n", _pending_output.front().frame);
+       _last_acked_input = _pending_output.front();

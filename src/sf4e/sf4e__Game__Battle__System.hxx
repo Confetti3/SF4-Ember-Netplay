@@ -70,6 +70,8 @@ namespace sf4e {
 				// records a bounded correction here; the outer tick
 				// repays it in small slices (see fUserApp).
 				static sf4e::pacing::PacingController pacer;
+				// Per-tick rift correction instead of the coarse GGPO timesync event.
+				static bool continuousTimesync;
 				static int nExtraFramesToSimulate;
 				static int nNextBattleStartFlowTarget;
 				static int nRandomizeLocalInputsEveryXFramesInGGPO;
@@ -249,6 +251,10 @@ namespace sf4e {
 				// Live spectator streams this client forwards inputs to. Only P1
 				// has any, so this is also the test for owning spectator edges.
 				static std::size_t SpectatorStreamCount();
+				// Network stats of the remote fighter; false without one.
+				static bool GetRemoteNetworkStats(GGPONetworkStats& stats);
+				// Feeds the pacer one rift sample per tick. Outside callbacks.
+				static void PollTimesync();
                 static sf4e::MatchTelemetry matchTelemetry;
                 static void PollMatchTelemetry();
                 static bool ggpo_advance_frame_callback(int);

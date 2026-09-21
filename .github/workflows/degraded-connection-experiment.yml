@@ -1,0 +1,39 @@
+name: Degraded connection experiment
+on:
+  push:
+    branches: [experiment/degraded-connection-recovery]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  policies-and-patches:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out exact public branch commit
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git sparse-checkout init --cone
+          git sparse-checkout set src/common src/tests vcpkg-ports/ggpo scripts
+          git -c protocol.version=2 fetch --depth=1 --filter=blob:none origin "$GITHUB_SHA"
+          git checkout --detach FETCH_HEAD
+      - name: Configure portable tests
+        run: cmake -S src/tests/degraded-connection -B build/policies -DCMAKE_BUILD_TYPE=Release
+      - name: Build portable tests
+        run: cmake --build build/policies --config Release
+      - name: Run new and existing pacing tests
+        run: ctest --test-dir build/policies -C Release --output-on-failure
+      - name: Check complete GGPO patch stack
+        if: runner.os != 'Windows'
+        run: python scripts/verify_ggpo_experiment.py
+      - name: Check patches and compile real GGPO on Windows
+        if: runner.os == 'Windows'
+        run: python scripts/verify_ggpo_experiment.py --build

@@ -57,6 +57,21 @@ struct PacingController {
 	uint32_t waitTimeouts;
 	uint32_t fallbackSleeps;
 
+	// Continuous rift correction. The coarse GGPO event fires at most once per
+	// 240 frames and ignores a rift under 3 frames; OnRiftSample instead takes
+	// the frame-advantage pair every outer tick and repays a fraction of a
+	// frame continuously. The host feeds one source or the other, never both.
+	double riftSmoothing;     // EMA weight per sample (default 1/15)
+	double riftDeadZoneFrames; // no correction below this (default 0.75)
+	double riftGain;          // fraction of the excess rift repaid per tick (1/60)
+	int riftHoldTicks;        // samples ignored after a prediction stall (default 45)
+	int riftHoldRemaining;    // state
+	double riftFramesEma;     // state: smoothed frames we are ahead (+) or behind (-)
+	bool hasRift;
+	uint64_t riftSamples;
+	double msRiftAcceptedTotal;
+	double maxAbsRiftFrames;
+
 	void ResetStats() {
 		recommendationsReceived = 0;
 		framesRecommendedTotal = 0;
@@ -73,6 +88,9 @@ struct PacingController {
 		waitFailures = 0;
 		waitTimeouts = 0;
 		fallbackSleeps = 0;
+		riftSamples = 0;
+		msRiftAcceptedTotal = 0.0;
+		maxAbsRiftFrames = 0.0;
 	}
 
 	void InitDefaults() {
@@ -81,6 +99,13 @@ struct PacingController {
 		minWaitMs = 1.0;
 		enabled = true;
 		outstandingMs = 0.0;
+		riftSmoothing = 1.0 / 15.0;
+		riftDeadZoneFrames = 0.75;
+		riftGain = 1.0 / 60.0;
+		riftHoldTicks = 45;
+		riftHoldRemaining = 0;
+		riftFramesEma = 0.0;
+		hasRift = false;
 		ResetStats();
 	}
 
@@ -89,6 +114,9 @@ struct PacingController {
 	void Reset() {
 		msDiscardedOnReset += outstandingMs;
 		outstandingMs = 0.0;
+		riftFramesEma = 0.0;
+		hasRift = false;
+		riftHoldRemaining = 0;
 	}
 
 	// A GGPO timesync recommendation. Negative and zero are ignored.
@@ -112,6 +140,51 @@ struct PacingController {
 		msReplacedTotal += outstandingMs;
 		outstandingMs = ms;
 		msAcceptedTotal += ms;
+		if (outstandingMs > maxOutstandingMs) {
+			maxOutstandingMs = outstandingMs;
+		}
+	}
+
+	// Call on every tick GGPO refuses input at the prediction barrier. While
+	// stalled and for a while after, the last received frame is stale and the
+	// advantage pair is off by several frames (measured: up to 7, against
+	// under 1 when calm), so those samples are dropped and the average holds.
+	void OnPredictionStall() {
+		riftHoldRemaining = riftHoldTicks;
+	}
+
+	// One sample per eligible outer tick from ggpo_get_network_stats. Both
+	// values are "frames behind the peer" as seen by each side, so half the
+	// difference is how far ahead we run. Only the side that is ahead waits.
+	// The gain repays the excess over about a second, slower than the EMA, so
+	// delayed feedback cannot overshoot; the cap keeps a stale lump from
+	// building while waits are blocked.
+	void OnRiftSample(double localFramesBehind, double remoteFramesBehind) {
+		if (riftHoldRemaining > 0) {
+			--riftHoldRemaining;
+			return;
+		}
+		const double rift = (remoteFramesBehind - localFramesBehind) * 0.5;
+		riftFramesEma = hasRift ? riftFramesEma + (rift - riftFramesEma) * riftSmoothing : rift;
+		hasRift = true;
+		riftSamples++;
+		const double absRift = riftFramesEma < 0.0 ? -riftFramesEma : riftFramesEma;
+		if (absRift > maxAbsRiftFrames) {
+			maxAbsRiftFrames = absRift;
+		}
+		if (!enabled || riftFramesEma <= riftDeadZoneFrames) {
+			return;
+		}
+		double ms = (riftFramesEma - riftDeadZoneFrames) * (1000.0 / 60.0) * riftGain;
+		const double room = 2.0 * maxStepMs - outstandingMs;
+		if (ms > room) {
+			ms = room;
+		}
+		if (ms <= 0.0) {
+			return;
+		}
+		outstandingMs += ms;
+		msRiftAcceptedTotal += ms;
 		if (outstandingMs > maxOutstandingMs) {
 			maxOutstandingMs = outstandingMs;
 		}

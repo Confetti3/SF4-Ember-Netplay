@@ -13,7 +13,13 @@ vcpkg_from_github(
         "disconnect-before-input.patch"
         "spectator-handle-control.patch"
         "input-gap-disconnect.patch"
+        "fast-quality-report.patch"
+        "stalled-input-repair.patch"
 )
+
+# One canonical policy is compiled by both GGPO and the portable tests.
+configure_file("${CMAKE_CURRENT_LIST_DIR}/input-repair.h"
+    "${SOURCE_PATH}/src/lib/ggpo/network/input-repair.h" COPYONLY)
 
 vcpkg_cmake_configure(
     SOURCE_PATH ${SOURCE_PATH}

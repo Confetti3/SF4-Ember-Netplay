@@ -348,7 +348,7 @@ if(BUILD_TESTING)
         add_executable(RecoveryBenchmark "src/tests/recovery_benchmark.cxx")
         target_compile_features(RecoveryBenchmark PRIVATE cxx_std_17)
         target_link_libraries(RecoveryBenchmark PRIVATE sf4e_helper_platform ggpo::GGPO
-            nlohmann_json::nlohmann_json ws2_32 psapi advapi32)
+            nlohmann_json::nlohmann_json ws2_32 psapi advapi32 winmm)
         add_executable(RuntimeBootstrapTest "src/tests/runtime_bootstrap_test.cxx")
         add_executable(PadAssignmentTest "src/tests/pad_assignment_test.cxx")
         target_link_libraries(PadAssignmentTest PRIVATE Session sf4e Dimps sf4e_helper_platform "d3d9")

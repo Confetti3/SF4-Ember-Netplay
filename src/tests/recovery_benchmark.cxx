@@ -3,6 +3,7 @@
 #endif
 #include <winsock2.h>
 #include <windows.h>
+#include <timeapi.h>
 #include <psapi.h>
 #include <bcrypt.h>
 
@@ -11,6 +12,7 @@
 
 #include "../platform/HelperClient.hxx"
 #include "../platform/HelperProcess.hxx"
+#include "../common/sf4e__PacingController.hxx"
 
 #include <algorithm>
 #include <array>
@@ -46,6 +48,11 @@ struct Options {
     bool skipNative = false;
     bool skipGgpo = false;
     bool relayOnly = false;
+    // --rift: two independently clocked peers; see RunRift.
+    bool rift = false;
+    bool continuous = true; // --coarse selects the GGPO timesync event
+    int jitterMs = 0, burstMs = 0, burstEveryMs = 0, inputDelay = 2;
+    double fastHz = 60.5;
     std::wstring output;
 };
 
@@ -740,9 +747,11 @@ struct GgpoContext {
     int finalChecksum = 0;
     bool hasChecksum = false;
     bool running = false;
+    sf4e::pacing::PacingController* pacer = nullptr;
 };
 
-GgpoContext* activeGgpo = nullptr;
+// Per thread: the rift mode runs one session on each of two threads.
+thread_local GgpoContext* activeGgpo = nullptr;
 void RecordGgpoError(GgpoContext& context, GGPOErrorCode code) {
     if (code == GGPO_OK) return;
     if (code == GGPO_ERRORCODE_PREDICTION_THRESHOLD) ++context.predictionStalls;
@@ -789,6 +798,9 @@ bool __cdecl GgpoAdvance(int) {
 }
 bool __cdecl GgpoEvent(GGPOEvent* event) {
     if (activeGgpo && event && event->code == GGPO_EVENTCODE_RUNNING) activeGgpo->running = true;
+    // Set only in the coarse rift mode; the continuous path ignores the event.
+    if (activeGgpo && event && event->code == GGPO_EVENTCODE_TIMESYNC && activeGgpo->pacer)
+        activeGgpo->pacer->OnRecommendation(event->u.timesync.frames_ahead);
     return true;
 }
 
@@ -804,7 +816,11 @@ unsigned short ReservePort() {
 class UdpImpairmentProxy {
 public:
     ~UdpImpairmentProxy() { Stop(); }
-    bool Start(std::uint16_t firstPort, std::uint16_t secondPort, std::uint32_t seed, int delayMs, int dropEvery) {
+    bool Start(std::uint16_t firstPort, std::uint16_t secondPort, std::uint32_t seed, int delayMs, int dropEvery,
+        int jitterMs = 0, int burstMs = 0, int burstEveryMs = 0) {
+        jitterMs_ = std::max(0, jitterMs); burstMs_ = std::max(0, burstMs); burstEveryMs_ = std::max(0, burstEveryMs);
+        if (burstMs_ > 0 && burstEveryMs_ <= burstMs_) return false; // a burst needs a longer period
+        started_ = std::chrono::steady_clock::now();
         firstPort_ = firstPort; secondPort_ = secondPort; seed_ = seed;
         delayMs_ = std::max(0, delayMs); dropEvery_ = dropEvery;
         socket_ = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -854,13 +870,21 @@ private:
                         const auto sequence = ++directionSequence_[direction];
                         const auto key = static_cast<std::uint64_t>(seed_) ^
                             (direction ? 0x9e3779b97f4a7c15ULL : 0x243f6a8885a308d3ULL);
-                        const bool drop = dropEvery_ > 0 && sequence > warmupPackets_ &&
-                            ((key + sequence * 0x9e3779b9ULL) % static_cast<std::uint64_t>(dropEvery_) == 0);
+                        // A burst drops both directions for burstMs out of every burstEveryMs.
+                        const auto sinceStartMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::steady_clock::now() - started_).count();
+                        const bool burst = burstMs_ > 0 && sequence > warmupPackets_ &&
+                            sinceStartMs % burstEveryMs_ >= burstEveryMs_ - burstMs_;
+                        const bool drop = burst || (dropEvery_ > 0 && sequence > warmupPackets_ &&
+                            ((key + sequence * 0x9e3779b9ULL) % static_cast<std::uint64_t>(dropEvery_) == 0));
                         scheduleDigest_ = (scheduleDigest_ * 1099511628211ULL) ^ (key + sequence + (drop ? 1 : 0));
                         if (drop) ++dropped_;
                         else {
                             Pending pending;
-                            pending.due = std::chrono::steady_clock::now() + std::chrono::milliseconds(delayMs_);
+                            // Deterministic per-packet jitter in [0, jitterMs]; it may reorder.
+                            const int jitter = jitterMs_ > 0 ? static_cast<int>(
+                                ((key ^ (sequence * 0xd6e8feb86659fd93ULL)) >> 17) % static_cast<std::uint64_t>(jitterMs_ + 1)) : 0;
+                            pending.due = std::chrono::steady_clock::now() + std::chrono::milliseconds(delayMs_ + jitter);
                             pending.target.sin_family = AF_INET;
                             pending.target.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
                             pending.target.sin_port = htons(direction == 0 ? secondPort_ : firstPort_);
@@ -870,10 +894,12 @@ private:
                 }
             }
             const auto now = std::chrono::steady_clock::now();
-            while (!pending_.empty() && pending_.front().due <= now) {
-                auto pending = std::move(pending_.front()); pending_.pop_front();
-                if (sendto(socket_, pending.bytes.data(), static_cast<int>(pending.bytes.size()), 0,
-                    reinterpret_cast<sockaddr*>(&pending.target), sizeof(pending.target)) >= 0) ++forwarded_;
+            // With jitter the queue is not ordered by due time, so scan all of it.
+            for (auto it = pending_.begin(); it != pending_.end();) {
+                if (it->due > now) { ++it; continue; }
+                if (sendto(socket_, it->bytes.data(), static_cast<int>(it->bytes.size()), 0,
+                    reinterpret_cast<sockaddr*>(&it->target), sizeof(it->target)) >= 0) ++forwarded_;
+                it = pending_.erase(it);
             }
             Sleep(1);
         }
@@ -885,7 +911,8 @@ private:
     std::deque<Pending> pending_;
     std::uint16_t firstPort_ = 0, secondPort_ = 0, port_ = 0;
     std::uint32_t seed_ = 0;
-    int delayMs_ = 0, dropEvery_ = 0;
+    int delayMs_ = 0, dropEvery_ = 0, jitterMs_ = 0, burstMs_ = 0, burstEveryMs_ = 0;
+    std::chrono::steady_clock::time_point started_{};
     static constexpr std::uint64_t warmupPackets_ = 16;
     std::uint64_t directionSequence_[2]{};
     std::uint64_t scheduleDigest_ = 1469598103934665603ULL;
@@ -1005,6 +1032,140 @@ cleanup:
     if (first.session) { activeGgpo = &first; ggpo_close_session(first.session); }
     if (second.session) { activeGgpo = &second; ggpo_close_session(second.session); }
     WSACleanup();
+    return result;
+}
+
+// Sleeps coarsely, then spins: Sleep alone is too coarse to hold a 60 Hz
+// cadence or a 1-3 ms pacing wait.
+void PreciseWaitUntil(std::chrono::steady_clock::time_point due) {
+    for (;;) {
+        const auto left = due - std::chrono::steady_clock::now();
+        if (left <= std::chrono::steady_clock::duration::zero()) return;
+        if (left > std::chrono::milliseconds(2)) Sleep(1); else YieldProcessor();
+    }
+}
+
+// Two peers on their own threads and clocks, one running fast, through the
+// impairment proxy. Measures how far apart the peers drift and how unevenly the
+// rollbacks fall, with the coarse GGPO time sync or the continuous controller.
+// Input repair is selected by SF4E_GGPO_INPUT_REPAIR in the environment, as in
+// the game.
+json RunRift(const Options& options) {
+    json result{{"measured", false}, {"mode", options.continuous ? "continuous" : "coarse"}};
+    GGPOSessionCallbacks callbacks{};
+    callbacks.begin_game = GgpoBegin; callbacks.save_game_state = GgpoSave; callbacks.load_game_state = GgpoLoad;
+    callbacks.log_game_state = GgpoLog; callbacks.free_buffer = GgpoFree; callbacks.advance_frame = GgpoAdvance; callbacks.on_event = GgpoEvent;
+    const auto firstPort = ReservePort(); auto secondPort = ReservePort();
+    while (secondPort && firstPort == secondPort) secondPort = ReservePort();
+    UdpImpairmentProxy proxy;
+    if (!firstPort || !secondPort || !proxy.Start(firstPort, secondPort, options.seed, options.delayMs,
+        options.dropEvery, options.jitterMs, options.burstMs, options.burstEveryMs)) {
+        result["error"] = "rift_proxy"; return result;
+    }
+    struct Peer {
+        GgpoContext context;
+        sf4e::pacing::PacingController pacer;
+        GGPOPlayerHandle remote = GGPO_INVALID_HANDLE;
+        std::atomic<int> frame{0};
+        std::atomic<bool> ready{false}, failed{false};
+        std::uint64_t stallTicks = 0;
+        std::vector<double> riftSamples; // own frame minus peer frame, per tick
+    } peers[2];
+    std::atomic<bool> go{false}, stop{false};
+    const auto run = [&](int index) {
+        Peer& self = peers[index]; Peer& other = peers[1 - index];
+        GgpoContext& context = self.context;
+        self.pacer.InitDefaults(); context.pacer = options.continuous ? nullptr : &self.pacer;
+        activeGgpo = &context;
+        GGPOPlayer player{}; player.size = sizeof(player); player.type = GGPO_PLAYERTYPE_LOCAL; player.player_num = index + 1;
+        bool ok = ggpo_start_session(&context.session, &callbacks, "rift-benchmark", 2, 1, index ? secondPort : firstPort) == GGPO_OK &&
+            ggpo_add_player(context.session, &player, &context.local) == GGPO_OK &&
+            ggpo_set_frame_delay(context.session, context.local, options.inputDelay) == GGPO_OK;
+        player.type = GGPO_PLAYERTYPE_REMOTE; player.player_num = 2 - index;
+        strcpy_s(player.u.remote.ip_address, "127.0.0.1"); player.u.remote.port = proxy.Port();
+        ok = ok && ggpo_add_player(context.session, &player, &self.remote) == GGPO_OK;
+        for (int spin = 0; ok && spin < 5000 && !context.running; ++spin) { ggpo_idle(context.session, 0); Sleep(1); }
+        if (!ok || !context.running) { self.failed = true; self.ready = true; return; }
+        self.ready = true;
+        while (!go && !stop) { ggpo_idle(context.session, 0); Sleep(1); }
+        const auto period = std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+            std::chrono::duration<double>(1.0 / (index ? options.fastHz : 60.0)));
+        auto nextTick = std::chrono::steady_clock::now();
+        while (!stop) {
+            RecordGgpoError(context, ggpo_idle(context.session, 0));
+            // Inputs change every 8 frames so only some predictions miss.
+            unsigned char input = static_cast<unsigned char>((options.seed + static_cast<std::uint32_t>(
+                context.currentFrame / 8) * (index ? 31u : 17u) + static_cast<std::uint32_t>(index)) & 255u);
+            const auto added = ggpo_add_local_input(context.session, context.local, &input, 1);
+            RecordGgpoError(context, added);
+            if (added == GGPO_ERRORCODE_PREDICTION_THRESHOLD) { ++self.stallTicks; self.pacer.OnPredictionStall(); }
+            if (added == GGPO_OK) {
+                unsigned char inputs[2]{}; int disconnected = 0;
+                if (ggpo_synchronize_input(context.session, inputs, sizeof(inputs), &disconnected) == GGPO_OK &&
+                    ggpo_advance_frame(context.session) == GGPO_OK) {
+                    ++context.acceptedFrames; ++context.currentFrame; self.frame = context.currentFrame;
+                }
+                // The pacing block of Steam_PostUpdate; like the game it is
+                // skipped on a stalled tick.
+                if (options.continuous) {
+                    GGPONetworkStats stats{};
+                    if (ggpo_get_network_stats(context.session, self.remote, &stats) == GGPO_OK)
+                        self.pacer.OnRiftSample(stats.timesync.local_frames_behind, stats.timesync.remote_frames_behind);
+                }
+                const double want = self.pacer.NextWaitMs();
+                if (want > 0.0) {
+                    self.pacer.OnWaitRequested(want);
+                    const auto before = std::chrono::steady_clock::now();
+                    PreciseWaitUntil(before + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                        std::chrono::duration<double, std::milli>(want)));
+                    const auto waited = std::chrono::steady_clock::now() - before;
+                    self.pacer.OnWaited(std::chrono::duration<double, std::milli>(waited).count());
+                    nextTick += waited; // a pacing wait stretches this frame
+                }
+            }
+            self.riftSamples.push_back(static_cast<double>(context.currentFrame - other.frame.load()));
+            nextTick += period;
+            if (nextTick < std::chrono::steady_clock::now()) nextTick = std::chrono::steady_clock::now();
+            PreciseWaitUntil(nextTick);
+        }
+    };
+    timeBeginPeriod(1);
+    std::thread threads[2]{std::thread(run, 0), std::thread(run, 1)};
+    const auto setupDeadline = GetTickCount64() + 10000;
+    while ((!peers[0].ready || !peers[1].ready) && GetTickCount64() < setupDeadline) Sleep(5);
+    const bool started = peers[0].ready && peers[1].ready && !peers[0].failed && !peers[1].failed;
+    if (started) { go = true; Sleep(static_cast<DWORD>(options.frames * 1000.0 / 60.0)); }
+    stop = true;
+    for (auto& thread : threads) thread.join();
+    timeEndPeriod(1);
+    proxy.Stop();
+    const auto peerJson = [&](Peer& peer) {
+        // Skip the first two seconds: both peers start in step by construction.
+        std::vector<double> magnitudes;
+        for (std::size_t i = std::min<std::size_t>(peer.riftSamples.size(), 120); i < peer.riftSamples.size(); ++i)
+            magnitudes.push_back(std::abs(peer.riftSamples[i]));
+        std::sort(magnitudes.begin(), magnitudes.end());
+        const double mean = magnitudes.empty() ? 0.0 :
+            std::accumulate(magnitudes.begin(), magnitudes.end(), 0.0) / static_cast<double>(magnitudes.size());
+        return json{{"frames", peer.context.acceptedFrames}, {"rollback_frames", peer.context.advances},
+            {"rollback_loads", peer.context.loads}, {"max_rollback_depth", peer.context.maxReplayDepth},
+            {"prediction_stall_ticks", peer.stallTicks}, {"fatal_errors", peer.context.fatalErrors},
+            {"mean_abs_rift_frames", mean},
+            {"p95_abs_rift_frames", magnitudes.empty() ? 0.0 : magnitudes[magnitudes.size() * 95 / 100]},
+            {"pacing_wait_ms", peer.pacer.msAppliedTotal}, {"timesync_recommendations", peer.pacer.recommendationsReceived},
+            {"rift_ema_frames", peer.pacer.riftFramesEma}};
+    };
+    for (auto& peer : peers) if (peer.context.session) { activeGgpo = &peer.context; ggpo_close_session(peer.context.session); }
+    result["measured"] = started && !peers[0].context.fatalErrors && !peers[1].context.fatalErrors;
+    if (!started) result["error"] = "rift_start";
+    result["slow_peer_60hz"] = peerJson(peers[0]);
+    result["fast_peer"] = peerJson(peers[1]);
+    const auto a = peers[0].context.advances, b = peers[1].context.advances;
+    result["rollback_imbalance"] = a + b ? static_cast<double>(a > b ? a - b : b - a) / static_cast<double>(a + b) : 0.0;
+    result["schedule"] = json{{"delay_ms", options.delayMs}, {"jitter_ms", options.jitterMs}, {"drop_every", options.dropEvery},
+        {"burst_ms", options.burstMs}, {"burst_every_ms", options.burstEveryMs}, {"fast_hz", options.fastHz},
+        {"input_delay", options.inputDelay}, {"frames", options.frames}};
+    result["wire_proxy"] = json{{"received", proxy.Received()}, {"forwarded", proxy.Forwarded()}, {"dropped", proxy.Dropped()}};
     return result;
 }
 
@@ -1408,6 +1569,13 @@ Options ParseOptions(int argc, wchar_t** argv) {
         else if (arg == L"--skip-native") options.skipNative = true;
         else if (arg == L"--skip-ggpo") options.skipGgpo = true;
         else if (arg == L"--relay-only") options.relayOnly = true;
+        else if (arg == L"--rift") options.rift = true;
+        else if (arg == L"--coarse") options.continuous = false;
+        else if (auto v = value(L"--jitter-ms")) options.jitterMs = std::max(0, std::stoi(*v));
+        else if (auto v = value(L"--burst-ms")) options.burstMs = std::max(0, std::stoi(*v));
+        else if (auto v = value(L"--burst-every-ms")) options.burstEveryMs = std::max(0, std::stoi(*v));
+        else if (auto v = value(L"--input-delay")) options.inputDelay = std::clamp(std::stoi(*v), 0, 10);
+        else if (auto v = value(L"--fast-hz")) options.fastHz = std::clamp(std::stod(*v), 30.0, 120.0);
     }
     return options;
 }
@@ -1416,6 +1584,15 @@ Options ParseOptions(int argc, wchar_t** argv) {
 
 int wmain(int argc, wchar_t** argv) {
     const auto options = ParseOptions(argc, argv);
+    if (options.rift) {
+        WSADATA riftWinsock{};
+        if (WSAStartup(MAKEWORD(2, 2), &riftWinsock) != 0) return 3;
+        const auto rift = RunRift(options).dump(2);
+        WSACleanup();
+        if (!options.output.empty()) std::ofstream(NarrowPath(options.output), std::ios::binary) << rift << "\n";
+        std::cout << rift << "\n";
+        return 0;
+    }
     if (options.helper.empty() && !options.skipNative) {
         std::wcerr << L"usage: recovery_benchmark --helper=<sf4-net.exe> [--seed=N --frames=N --drop-every=N --delay-ms=N]\n";
         return 2;

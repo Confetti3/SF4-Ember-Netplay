@@ -433,18 +433,16 @@ void fUserApp::Steam_PostUpdate() {
     // still be confirmed by this poll. Publish from here too.
     fSystem::PollNativeMatchResult();
     fSystem::PollSpectators();
+    fSystem::PollTimesync();
 
+    const bool mayPace = fSystem::ggpo && fSystem::MayAdvanceDeterministicFrame() &&
+        !fSystem::simGate.predictionStalled;
     // Distributed time-sync pacing (Phase 4): repay a small, bounded slice
     // of the outstanding correction per rendered frame, outside every GGPO
     // callback. Deterministic simulation is never skipped or doubled;
     // this only delays presentation. Skipped while GGPO already stalls us
     // (prediction threshold) and while the gate is closed.
-    if (
-        fSystem::pacer.enabled &&
-        fSystem::ggpo &&
-        fSystem::MayAdvanceDeterministicFrame() &&
-        !fSystem::simGate.predictionStalled
-    ) {
+    if (fSystem::pacer.enabled && mayPace) {
         double wantMs = fSystem::pacer.NextWaitMs();
         if (wantMs > 0.0) {
             pacingRequestedThisTickMs = wantMs;
@@ -518,21 +516,11 @@ void fUserApp::Steam_PostUpdate() {
             int pingMs = -1;
             int localBehind = 0;
             int remoteBehind = 0;
-            for (int i = 0; i < MAX_SF4E_PROTOCOL_USERS; i++) {
-                if (fSystem::players[i].type != GGPO_PLAYERTYPE_REMOTE) {
-                    continue;
-                }
-                GGPONetworkStats stats = { 0 };
-                GGPOErrorCode result = ggpo_get_network_stats(
-                    fSystem::ggpo, fSystem::players[i].handle, &stats
-                );
-                d.RecordGgpoResult(diag::CALL_GET_NETWORK_STATS, (int)result);
-                if (GGPO_SUCCEEDED(result)) {
-                    pingMs = stats.network.ping;
-                    localBehind = stats.timesync.local_frames_behind;
-                    remoteBehind = stats.timesync.remote_frames_behind;
-                }
-                break;
+            GGPONetworkStats stats = { 0 };
+            if (fSystem::GetRemoteNetworkStats(stats)) {
+                pingMs = stats.network.ping;
+                localBehind = stats.timesync.local_frames_behind;
+                remoteBehind = stats.timesync.remote_frames_behind;
             }
             const sf4e::GgpoTransportStatus transport =
                 sf4e::NetplayFacade::GetGgpoTransportStatus();
@@ -542,7 +530,7 @@ void fUserApp::Steam_PostUpdate() {
             diag::ScopedTimer logTimer(diag::OP_DIAGNOSTIC_ENQUEUE);
             spdlog::warn(
                 "FreezeCandidate wallMs={} outerTickMs={:.2f} simFrame={} ggpoSaveFrame={} "
-                "gate={} predictionStalled={} connectionWarning={} pacingDebtMs={:.2f} "
+                "gate={} predictionStalled={} connectionWarning={} pacingDebtMs={:.2f} riftFrames={:.2f} "
                 "pacingRequestedMs={:.2f} pacingActualMs={:.2f} rollbackCallbacks={} "
                 "lastSaveMs={:.2f} lastLoadMs={:.2f} lastFreeMs={:.2f} saveSlots={} "
                 "transport={} pingMs={} localBehind={} remoteBehind={}",
@@ -554,6 +542,7 @@ void fUserApp::Steam_PostUpdate() {
                 fSystem::simGate.predictionStalled,
                 fSystem::simGate.connectionWarningActive,
                 fSystem::pacer.outstandingMs,
+                fSystem::pacer.riftFramesEma,
                 pacingRequestedThisTickMs,
                 pacingActualThisTickMs,
                 d.rollbackCallbacksThisOuterFrame,
