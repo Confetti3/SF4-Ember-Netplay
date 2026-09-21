@@ -74,7 +74,6 @@ namespace sf4e {
 			std::unique_ptr<session::ServerTransport> transport);
 		~SessionServer();
 
-		void AddConnection(session::Connection newConn);
 		int Listen(uint16_t nPort);
 		int Step();
 		int Close();
@@ -130,8 +129,6 @@ namespace sf4e {
 		// may be a permutation of the prior process; all native authorities and
 		// readiness sets are updated only after every endpoint validates.
 		bool RebindMembers(const std::vector<StableRebind>& bindings);
-		bool RebindMember(room::MemberId member, session::Connection local, const SessionProtocol::ConnectionID& cid,
-			std::uint64_t incarnation);
 		// Re-delivers every MatchEnded receipt this member has not yet
 		// acknowledged (lost while disconnected or compacted). Returns the
 		// number of events sent. Without this a recipient that missed its

@@ -412,12 +412,6 @@ void SessionClient::ProjectSelectedRoomTable() {
 	_matchData.readyMessageNum[1] = table.ready[1] ? 0 : -1;
 }
 
-void SessionClient::SelectRoomTable(std::uint8_t table) {
-	if (table >= room::TableCount) return;
-	_selectedRoomTable = table;
-	ProjectSelectedRoomTable();
-}
-
 session::SendResult SessionClient::SendRoomAction(room::Action action, std::uint64_t* actionId) {
 	if (!_transport || !_customRoomsSeen || _nextRoomActionId == (std::numeric_limits<std::uint64_t>::max)()) return session::SendResult::NotConnected;
 	action.protocolVersion = room::ProtocolVersion;
@@ -1202,27 +1196,6 @@ session::SendResult SessionClient::Battle_Loaded()
 	session::SendResult result = Send(j, nullptr);
 	if (result != session::SendResult::Queued) {
 		spdlog::warn("Client: could not set battle loaded! Result: {}", (int)result);
-	}
-	return result;
-}
-
-
-
-
-
-
-
-
-
-session::SendResult SessionClient::Forward(const SessionProtocol::ConnectionID& dest, const json& fwd) {
-	SessionProtocol::ForwardMessage msg;
-	msg.dest = dest;
-	msg.src = _cid;
-	msg.msg = fwd;
-	json j = msg;
-	session::SendResult result = Send(j, nullptr);
-	if (result != session::SendResult::Queued) {
-		spdlog::warn("Client: could not forward! Result: {}", (int)result);
 	}
 	return result;
 }

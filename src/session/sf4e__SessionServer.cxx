@@ -1030,34 +1030,6 @@ bool SessionServer::RebindMembers(const std::vector<StableRebind>& bindings) {
 	return true;
 }
 
-bool SessionServer::RebindMember(room::MemberId member, session::Connection local,
-	const SessionProtocol::ConnectionID& cid, std::uint64_t incarnation) {
-	if (!member || !local || !incarnation || !_roomAuthority) return false;
-	const auto iter = std::find_if(_roomAuthority->SnapshotView().members.begin(), _roomAuthority->SnapshotView().members.end(),
-		[&](const room::Member& value) { return value.id == member; });
-	if (iter == _roomAuthority->SnapshotView().members.end() || iter->connection.host != cid.host || iter->connection.user != cid.user) return false;
-	if (roomMembers.count(local) || cidMap.count(local)) return false;
-	roomMembers[local] = member; cidMap[local] = cid;
-	const auto selected = _recoveryPendingSelected.find(member);
-	roomSelectedTables[local] = selected == _recoveryPendingSelected.end() ? 0 : selected->second;
-	roomIncarnations[member] = incarnation;
-	_roomAuthority->SetMemberIncarnation(member, incarnation);
-	SessionMember row{}; row.conn = local; row.data.connId = cid; row.data.name = iter->name; row.data.roomMember = member;
-	row.data.authenticatedEndpoint = roomPeerIdentities.count(member) ? roomPeerIdentities.at(member) : cid.user; row.data.incarnation = incarnation;
-	clients.push_back(row);
-	for (std::size_t table = 0; table < room::TableCount; ++table) {
-		if (_recoveryPendingBattleLoaded[table].erase(member)) _roomBattleLoaded[table].insert(local);
-		if (_recoveryPendingPunchReady[table].erase(member)) _roomPunchReady[table].insert(local);
-	}
-	_recoveryPendingSelected.erase(member);
-	for (auto& authority : _roomMatchAuthorities) if (authority) authority->RebindConnection(cid, local);
-	if (_matchAuthority) _matchAuthority->RebindConnection(cid, local);
-	// The rebound member may have missed the MatchEnded that ended its last
-	// game. Replay it now so the acknowledgement can be produced.
-	ReplayPendingTerminalEvents(local, member);
-	return true;
-}
-
 std::size_t SessionServer::ReplayPendingTerminalEvents(session::Connection connection, room::MemberId member) {
 	if (!_roomAuthority || !connection || !member) return 0;
 	const auto pending = _roomAuthority->PendingTerminalEvents(member);
@@ -1371,10 +1343,6 @@ void SessionServer::BroadcastRoomState(const std::vector<room::Event>& events) {
 		}
 		SendRoomProjection(client.conn);
 	}
-}
-
-void SessionServer::AddConnection(session::Connection connection) {
-	if (!_transport || !_transport->Attach(connection)) _transportFailed = true;
 }
 
 int SessionServer::Listen(uint16_t port) {

@@ -28,7 +28,6 @@
 #include "../common/sf4e__GgpoAbortLatch.hxx"
 #include "../common/RollbackHud.hxx"
 #include "../common/Localization.hxx"
-static sf4e::RollbackHud rollbackHud;
 #include "../common/sf4e__StateHash.hxx"
 #include "../common/NativeMatchResult.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
@@ -76,6 +75,8 @@ using fSoundPlayerManager = sf4e::Game::Battle::Sound::SoundPlayerManager;
 using fSystem = sf4e::Game::Battle::System;
 using fVsBattle = sf4e::GameEvents::VsBattle;
 using rSystem = Dimps::Game::Battle::System;
+
+static sf4e::RollbackHud rollbackHud;
 
 // Last disconnect_flags observed from ggpo_synchronize_input; logged on
 // change for diagnostics only (no gameplay semantics attached).
@@ -1389,10 +1390,6 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     bUpdateAllowed = !simGate.manualPause;
     ResetPacerForSession();
     s_lastDisconnectFlags = 0;
-    // Do not reset GgpoRelay here. The legacy Direct-IP/session-tunnel path
-    // creates its virtual peer immediately before calling StartGGPO; resetting
-    // it here destroys the transport before GGPO can exchange its handshake.
-    // GgpoRelay::Start handles stale state, and battle close/abort own teardown.
     s_disconnectTimeoutMs = 0;
     s_abortLatch.Reset();
     localPlayerHandle = GGPO_INVALID_HANDLE;

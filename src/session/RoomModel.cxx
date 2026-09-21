@@ -673,8 +673,6 @@ void RoomAuthority::Touch(Table& table) {
 	TouchRoom();
 }
 
-void RoomAuthority::SetLocalMember(MemberId member) { snapshot_.localMember = Find(member) ? member : 0; }
-
 void RoomAuthority::SetMemberIncarnation(MemberId member, std::uint64_t incarnation) {
 	if (!incarnation) return;
 	if (auto* value = Find(member)) {
@@ -683,12 +681,6 @@ void RoomAuthority::SetMemberIncarnation(MemberId member, std::uint64_t incarnat
 			TouchRoom();
 		}
 	}
-}
-
-void RoomAuthority::SetRoomEpoch(std::uint64_t epoch) {
-	if (epoch == 0 || epoch == snapshot_.roomEpoch) return;
-	snapshot_.roomEpoch = epoch;
-	TouchRoom();
 }
 
 Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connection, bool host, int mainFighter) {

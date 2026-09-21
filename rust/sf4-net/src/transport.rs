@@ -45,10 +45,6 @@ fn now() -> io::Result<u64> {
         .map_err(|_| failed())
 }
 
-pub async fn bind_endpoint() -> io::Result<Endpoint> {
-    bind_endpoint_with_policy(false).await
-}
-
 /// Relay-only is a diagnostic/test policy, never an alternate gameplay protocol.
 pub async fn bind_endpoint_with_policy(relay_only: bool) -> io::Result<Endpoint> {
     // Port mapping was switched off to demonstrate the transport did not

@@ -245,8 +245,7 @@ namespace sf4e {
 
 		// Sent by the host (member 0) after joining its lobby, so that the
 		// lobby's battle settings reflect the host's launcher configuration
-		// even when the SessionServer runs remotely (VPS relay) with
-		// defaulted settings.
+		// rather than the server defaults.
 		struct LobbySetSettings {
 			MessageType type = MT_LOBBY_SETSETTINGS;
 			bool editionSelect = true;

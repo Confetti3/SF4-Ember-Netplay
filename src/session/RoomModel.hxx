@@ -306,9 +306,7 @@ public:
 	// result deadlines remain suspended until quorum and control return.
 	void AdvancePausedTimers(std::uint64_t elapsedMs);
 	void ResumeRecovery(std::uint64_t nowMs);
-	void SetLocalMember(MemberId member);
 	void SetMemberIncarnation(MemberId member, std::uint64_t incarnation);
-	void SetRoomEpoch(std::uint64_t epoch);
 
 private:
 	Member* Find(MemberId member);

@@ -84,7 +84,6 @@ namespace sf4e {
 		void SetProfileMain(int fighter) { _mainFighter = fighter >= 0 && fighter < 44 ? fighter : -1; }
 		bool IsCustomRoom() const { return _customRoomsSeen; }
 		const std::string& RoomError() const { return _roomError; }
-		void SelectRoomTable(std::uint8_t table);
 		bool TakeRoomEvent(room::Event& event);
 		// Release the room-table projection after the native match owner has
 		// retired GGPO and the match coordinator has reached Idle. This is
@@ -121,8 +120,6 @@ namespace sf4e {
 		session::SendResult PreBattle_SetStage(int32_t stageID);
 
 		session::SendResult Battle_Loaded();
-
-		session::SendResult Forward(const SessionProtocol::ConnectionID& dest, const nlohmann::json& msg);
 
 		// Public for testing
 		session::SendResult Send(nlohmann::json& msg, int64_t* outMessageNum);

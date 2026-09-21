@@ -14,7 +14,6 @@
 #include "../Dimps/Dimps__Math.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__UserApp.hxx"
-#include "../common/agent_debug_log.hxx"
 #include "../common/StageCatalog.hxx"
 #include "../common/Localization.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
@@ -102,16 +101,6 @@ static bool StartMatchFromLobby(SessionClient* const client) {
     sf4e::NetplayFacade::ClearBattleState();
     fVsBattle::bSessionSynced = false;
     fVsBattle::bSessionSentLoaded = false;
-
-    sf4e::agent_debug::Log(
-        "H3",
-        "UserApp.cxx:StartMatchFromLobby",
-        "entry",
-        {
-            { "hasClient", client != nullptr },
-            { "memberCount", client ? (int)client->_lobbyData.members.size() : -1 }
-        }
-    );
 
     if (!client || client->_lobbyData.members.size() < 2) {
         spdlog::info("Client: deferring match start until opponent joins the lobby");
@@ -222,15 +211,6 @@ void fUserApp::_OnVsBattleTasksRegistered() {
 
 void fUserApp::_OnVsPreBattleTasksRegistered()
 {
-    sf4e::agent_debug::Log(
-        "H3",
-        "UserApp.cxx:_OnVsPreBattleTasksRegistered",
-        "entry",
-        {
-            { "hasNetplay", netplay != nullptr },
-            { "memberCount", netplay ? (int)netplay->client._lobbyData.members.size() : -1 }
-        }
-    );
     if (!netplay) {
         spdlog::error("VsPreBattle tasks registered but netplay is null");
         return;
@@ -272,15 +252,6 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
 }
 
 void OnReady(sf4e::SessionClient* const client, const sf4e::SessionClient::Callbacks& c) {
-    sf4e::agent_debug::Log(
-        "H4",
-        "UserApp.cxx:OnReady",
-        "lobby_ready_callback",
-        {
-            { "memberCount", client ? (int)client->_lobbyData.members.size() : -1 },
-            { "allReady", client && client->_matchData.IsAllReady() }
-        }
-    );
     if (!StartMatchFromLobby(client)) {
         s_pendingMatchStart = true;
         spdlog::info("Client: deferring match start until main menu");
