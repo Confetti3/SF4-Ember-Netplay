@@ -328,61 +328,7 @@ struct PostPublishState {
     netplay::Snapshot session;
     bool discordCanSwitch=false, canOpenRoom=false;
 };
-PostPublishState Publish() {
-	RuntimeSnapshot snapshot;
-	snapshot.session = runtime->controller.GetSnapshot();
-	snapshot.helperReady = runtime->helper && runtime->helper->State() == platform::HelperState::Connected;
-    snapshot.network = snapshot.helperReady ? netplay::NetworkAvailability::Ready :
-        runtime->helper && runtime->helper->State() == platform::HelperState::Connecting ? netplay::NetworkAvailability::Starting : netplay::NetworkAvailability::Unavailable;
-    platform::DiagnosticsView diagnostic;
-    diagnostic.room = static_cast<int>(snapshot.session.room); diagnostic.match = static_cast<int>(snapshot.session.match);
-    diagnostic.control = static_cast<int>(snapshot.session.control); diagnostic.gameplay = static_cast<int>(snapshot.session.gameplay);
-    diagnostic.helperReady = snapshot.helperReady;
-    FillNetworkDiagnostics(diagnostic);
-    runtime->services.Observe(diagnostic);
-    snapshot.services = runtime->services.Snapshot();
-    snapshot.inputDevice = runtime->input.Selected();
-    snapshot.controller = snapshot.inputDevice.name;
-    snapshot.inputCapture = runtime->input.State();
-    snapshot.controllerReady = runtime->input.Ready();
-    if (snapshot.controller.empty()) snapshot.controller = "Choose a gameplay device";
-    else if (!snapshot.inputDevice.connected) snapshot.controller += " (disconnected)";
-
-	snapshot.atMainMenu = AtMainMenu();
-    snapshot.menuContext = snapshot.atMainMenu ? input::MenuContext::MainMenu :
-        training::ControlsAvailable() ? input::MenuContext::OfflineTraining : input::MenuContext::Unavailable;
-    if(snapshot.atMainMenu) for(int fighter=0;fighter<selection::FighterCount;++fighter)
-        snapshot.fighterAvailability[fighter]=Dimps::Selection::ReadAvailability(fighter);
-    // The explicit gameplay-device assignment stays authoritative, including
-    // keyboard selection, capture, disconnects and local P1/P2 handoff.
-    if (snapshot.menuContext != input::MenuContext::Unavailable && snapshot.inputCapture == input::Capture::Idle &&
-        snapshot.session.match != netplay::MatchState::Preparing && snapshot.session.match != netplay::MatchState::Playing) {
-        auto& sample = snapshot.menuController;
-        sample.deviceType = snapshot.inputDevice.type;
-        sample.deviceIndex = snapshot.inputDevice.index;
-        unsigned held = 0, physical = 0;
-        sample.connected = snapshot.inputDevice.connected &&
-            Dimps::Pad::ReadController(sample.deviceType, sample.deviceIndex, held,&physical,&sample.selectPhysical,&sample.backPhysical);
-        if(sample.deviceType==3){sample.selectPhysical=0x40000;sample.backPhysical=0x20000;}
-        sample.buttons = sample.connected ? ui::ControllerButtons(held,sample.deviceType,physical) : 0;
-    }
-    snapshot.canEditSelection = snapshot.atMainMenu && snapshot.session.room == netplay::RoomState::Idle;
-	snapshot.canOpenRoom = snapshot.controllerReady && snapshot.helperReady && snapshot.atMainMenu && !UserApp::netplay && !UserApp::server && !Game::Battle::System::ggpo;
-	snapshot.canReplaceRoom = CanBeginReplacement();
-	snapshot.displayName = runtime->displayName;
-	snapshot.preferences = runtime->preferences;
-	snapshot.languagePreference = runtime->languagePreference;
-	snapshot.lobbySettings = runtime->preferences.lobby;
-	snapshot.canEditPreferences = snapshot.atMainMenu && snapshot.session.room == netplay::RoomState::Idle &&
-		!UserApp::netplay && !UserApp::server && !Game::Battle::System::ggpo;
-	snapshot.canEditLobby = CanEditLobby();
-	snapshot.settingsPending = OverlayPrefs::PersistencePending() || runtime->pendingLobbySettings != nullptr || runtime->pendingLobbyEdit != nullptr;
-	snapshot.settingsError = OverlayPrefs::PersistenceError();
-	snapshot.helperError = runtime->error;
-    snapshot.gameplayInputError=Game::Battle::System::ggpo&&runtime->matchInputFault&&runtime->match&&!LocalIsSpectator()?
-        "Match input blocked: reconnect "+runtime->matchInput.name+". If its slot changed, return to the room to reassign it.":"";
-	snapshot.offlineRequested = runtime->offlineRequested;
-	if (runtime->room) snapshot.invitation = runtime->room->Invitation();
+static void FillRoomView(RuntimeSnapshot& snapshot) {
 	if (runtime->attached && UserApp::netplay) {
 		snapshot.room = UserApp::netplay->client.GetRoomSnapshot();
 		if (snapshot.room.roomEpoch) {
@@ -487,12 +433,9 @@ PostPublishState Publish() {
 		if (!snapshot.room.roomEpoch && runtime->pendingReadyDeadline && !runtime->pendingReady && !snapshot.session.readyPending &&
 			client._outstandingReadyRequestNumber == -1) runtime->pendingReadyDeadline = 0;
 	}
-    snapshot.canChangeController = snapshot.canEditSelection && !runtime->pendingReady &&
-        !snapshot.session.readyPending && !runtime->pendingLobbyEdit && !runtime->pendingAbort;
-    snapshot.readyGate = snapshot.readyGate && snapshot.controllerReady;
-    snapshot.canReady = snapshot.canReady && snapshot.readyGate;
-    snapshot.readyRequested = runtime->pendingReadyDeadline != 0;
-    snapshot.readyFailure = runtime->readyFailure; snapshot.readyFailureSequence = runtime->readyFailureSequence;
+}
+
+static void FillLockReasons(RuntimeSnapshot& snapshot) {
     // Report the actual gate; a pending transition is not the same as Ready.
     if (!snapshot.canEditSelection) {
         snapshot.selectionLockReason = !snapshot.atMainMenu ? loc::T("runtime.lock.return_to_menu_fighter") :
@@ -515,12 +458,9 @@ PostPublishState Publish() {
 			(UserApp::netplay && UserApp::netplay->client.RoomError() == "terminal_result_backlog") ? loc::T("runtime.lock.teardown") :
 			loc::T("runtime.lock.room_update");
 	}
-    snapshot.discordPending = runtime->discordInvite.Active();
-    snapshot.discordConfirm = runtime->discordInvite.NeedsConfirmation();
-    snapshot.discordRevision = runtime->discordInvite.Revision();
-    snapshot.discordCanSwitch = snapshot.atMainMenu && !Game::Battle::System::ggpo &&
-        (snapshot.session.match == netplay::MatchState::None || snapshot.session.match == netplay::MatchState::PostMatch);
-    snapshot.discordStatus = runtime->discordStatus;
+}
+
+static void PublishDiscordPresence(const RuntimeSnapshot& snapshot) {
     if (runtime->discordClient && runtime->discordClient->State() == platform::HelperState::Connected) {
         const auto nowTick=GetTickCount64();
         const std::array<std::uint64_t,8> key{{runtime->eventSystemReady,
@@ -555,6 +495,9 @@ PostPublishState Publish() {
         }
         }
     }
+}
+
+static void TraceSnapshot(const RuntimeSnapshot& snapshot) {
     {
         diag::ScopedTimer traceTimer(diag::OP_TRACE_ENQUEUE);
         TraceFields fields;
@@ -602,6 +545,79 @@ PostPublishState Publish() {
             if (recorded) runtime->lastTraceFields = std::move(fields);
         }
     }
+}
+
+PostPublishState Publish() {
+	RuntimeSnapshot snapshot;
+	snapshot.session = runtime->controller.GetSnapshot();
+	snapshot.helperReady = runtime->helper && runtime->helper->State() == platform::HelperState::Connected;
+    snapshot.network = snapshot.helperReady ? netplay::NetworkAvailability::Ready :
+        runtime->helper && runtime->helper->State() == platform::HelperState::Connecting ? netplay::NetworkAvailability::Starting : netplay::NetworkAvailability::Unavailable;
+    platform::DiagnosticsView diagnostic;
+    diagnostic.room = static_cast<int>(snapshot.session.room); diagnostic.match = static_cast<int>(snapshot.session.match);
+    diagnostic.control = static_cast<int>(snapshot.session.control); diagnostic.gameplay = static_cast<int>(snapshot.session.gameplay);
+    diagnostic.helperReady = snapshot.helperReady;
+    FillNetworkDiagnostics(diagnostic);
+    runtime->services.Observe(diagnostic);
+    snapshot.services = runtime->services.Snapshot();
+    snapshot.inputDevice = runtime->input.Selected();
+    snapshot.controller = snapshot.inputDevice.name;
+    snapshot.inputCapture = runtime->input.State();
+    snapshot.controllerReady = runtime->input.Ready();
+    if (snapshot.controller.empty()) snapshot.controller = "Choose a gameplay device";
+    else if (!snapshot.inputDevice.connected) snapshot.controller += " (disconnected)";
+
+	snapshot.atMainMenu = AtMainMenu();
+    snapshot.menuContext = snapshot.atMainMenu ? input::MenuContext::MainMenu :
+        training::ControlsAvailable() ? input::MenuContext::OfflineTraining : input::MenuContext::Unavailable;
+    if(snapshot.atMainMenu) for(int fighter=0;fighter<selection::FighterCount;++fighter)
+        snapshot.fighterAvailability[fighter]=Dimps::Selection::ReadAvailability(fighter);
+    // The explicit gameplay-device assignment stays authoritative, including
+    // keyboard selection, capture, disconnects and local P1/P2 handoff.
+    if (snapshot.menuContext != input::MenuContext::Unavailable && snapshot.inputCapture == input::Capture::Idle &&
+        snapshot.session.match != netplay::MatchState::Preparing && snapshot.session.match != netplay::MatchState::Playing) {
+        auto& sample = snapshot.menuController;
+        sample.deviceType = snapshot.inputDevice.type;
+        sample.deviceIndex = snapshot.inputDevice.index;
+        unsigned held = 0, physical = 0;
+        sample.connected = snapshot.inputDevice.connected &&
+            Dimps::Pad::ReadController(sample.deviceType, sample.deviceIndex, held,&physical,&sample.selectPhysical,&sample.backPhysical);
+        if(sample.deviceType==3){sample.selectPhysical=0x40000;sample.backPhysical=0x20000;}
+        sample.buttons = sample.connected ? ui::ControllerButtons(held,sample.deviceType,physical) : 0;
+    }
+    snapshot.canEditSelection = snapshot.atMainMenu && snapshot.session.room == netplay::RoomState::Idle;
+	snapshot.canOpenRoom = snapshot.controllerReady && snapshot.helperReady && snapshot.atMainMenu && !UserApp::netplay && !UserApp::server && !Game::Battle::System::ggpo;
+	snapshot.canReplaceRoom = CanBeginReplacement();
+	snapshot.displayName = runtime->displayName;
+	snapshot.preferences = runtime->preferences;
+	snapshot.languagePreference = runtime->languagePreference;
+	snapshot.lobbySettings = runtime->preferences.lobby;
+	snapshot.canEditPreferences = snapshot.atMainMenu && snapshot.session.room == netplay::RoomState::Idle &&
+		!UserApp::netplay && !UserApp::server && !Game::Battle::System::ggpo;
+	snapshot.canEditLobby = CanEditLobby();
+	snapshot.settingsPending = OverlayPrefs::PersistencePending() || runtime->pendingLobbySettings != nullptr || runtime->pendingLobbyEdit != nullptr;
+	snapshot.settingsError = OverlayPrefs::PersistenceError();
+	snapshot.helperError = runtime->error;
+    snapshot.gameplayInputError=Game::Battle::System::ggpo&&runtime->matchInputFault&&runtime->match&&!LocalIsSpectator()?
+        "Match input blocked: reconnect "+runtime->matchInput.name+". If its slot changed, return to the room to reassign it.":"";
+	snapshot.offlineRequested = runtime->offlineRequested;
+	if (runtime->room) snapshot.invitation = runtime->room->Invitation();
+	FillRoomView(snapshot);
+    snapshot.canChangeController = snapshot.canEditSelection && !runtime->pendingReady &&
+        !snapshot.session.readyPending && !runtime->pendingLobbyEdit && !runtime->pendingAbort;
+    snapshot.readyGate = snapshot.readyGate && snapshot.controllerReady;
+    snapshot.canReady = snapshot.canReady && snapshot.readyGate;
+    snapshot.readyRequested = runtime->pendingReadyDeadline != 0;
+    snapshot.readyFailure = runtime->readyFailure; snapshot.readyFailureSequence = runtime->readyFailureSequence;
+	FillLockReasons(snapshot);
+    snapshot.discordPending = runtime->discordInvite.Active();
+    snapshot.discordConfirm = runtime->discordInvite.NeedsConfirmation();
+    snapshot.discordRevision = runtime->discordInvite.Revision();
+    snapshot.discordCanSwitch = snapshot.atMainMenu && !Game::Battle::System::ggpo &&
+        (snapshot.session.match == netplay::MatchState::None || snapshot.session.match == netplay::MatchState::PostMatch);
+    snapshot.discordStatus = runtime->discordStatus;
+	PublishDiscordPresence(snapshot);
+	TraceSnapshot(snapshot);
     PostPublishState result{snapshot.session,snapshot.discordCanSwitch,snapshot.canOpenRoom};
     auto published = std::make_shared<const RuntimeSnapshot>(std::move(snapshot));
     std::shared_ptr<const RuntimeSnapshot> previous;

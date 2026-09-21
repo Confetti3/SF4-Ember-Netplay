@@ -300,7 +300,7 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__UserApp.cxx"
     "src/sf4e/sf4e__NetplayFacade.hxx"
     "src/sf4e/sf4e__NetplayFacade.cxx"
-    "src/sf4e/sf4e__Application.cxx"
+    "src/sf4e/sf4e__NetplayRuntime.cxx"
 )
 target_include_directories(sf4e PUBLIC "src/common")
 option(SF4E_DEVELOPER_UI "Build the fixed developer inspector page" OFF)
