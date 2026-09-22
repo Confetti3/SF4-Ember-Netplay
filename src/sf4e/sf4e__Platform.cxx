@@ -73,6 +73,10 @@ void fD3D::Install() {
 namespace {
 std::atomic<int> s_shiftRequestUs{0};
 std::atomic<int> s_shiftAppliedUs{0};
+// CancelFrameShift cannot fence a limiter call already in its spin, so reset
+// relies on the limiter running on the same thread as the pacing tick. The
+// thread that last requested a shift is kept so a tester log shows it if not.
+std::atomic<DWORD> s_pacingThread{0};
 
 // Present interval the game asked for when it was last forced; 0 when never.
 // The first device is created before logging starts, so Main::Initialize
@@ -123,6 +127,7 @@ LimiterTest& Test() {
 
 void fD3D::RequestFrameShift(double ms) {
     s_shiftRequestUs.store((int)(ms * 1000.0));
+    s_pacingThread.store(GetCurrentThreadId());
 }
 
 double fD3D::TakeAppliedShift() {
@@ -139,6 +144,12 @@ void fD3D::CancelFrameShift() {
 // changes. Rift pacing therefore moves the limiter's period for one frame.
 int fD3D::LimitFrame(float frameDelta) {
     LimiterTest& test = Test();
+    static bool s_threadWarned = false;
+    const DWORD pacingThread = s_pacingThread.load();
+    if (!s_threadWarned && pacingThread != 0 && pacingThread != GetCurrentThreadId()) {
+        s_threadWarned = true;
+        spdlog::warn("Pacing: limiter runs on thread {} but pacing ticks on thread {}", GetCurrentThreadId(), pacingThread);
+    }
     const double shiftMs = test.enabled ? test.shiftMs : s_shiftRequestUs.exchange(0) / 1000.0;
     float* period = rD3D::GetFramePeriodSeconds(this);
     const float savedPeriod = *period;

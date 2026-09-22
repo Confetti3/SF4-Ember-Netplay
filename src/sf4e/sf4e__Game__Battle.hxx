@@ -92,15 +92,6 @@ namespace sf4e {
 					void StopAll(BOOL criParam);
 					static void SyncState();
 				};
-
-				struct Unit : Dimps::Game::Battle::Sound::Unit {
-					BOOL IsStillPlaying(
-						uint32_t managerIdx,
-						uint32_t adapterHandle
-					);
-
-					static void Install();
-				};
 			}
 		}
 	}

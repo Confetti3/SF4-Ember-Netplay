@@ -10,7 +10,6 @@ project (
 )
 
 include(CTest)
-include("${CMAKE_SOURCE_DIR}/cmake/sf4e_helper.cmake")
 
 option(SF4E_CORE_TESTS_ONLY "Build game-independent migration tests without Windows/game dependencies" OFF)
 add_library(sf4e_netplay_core STATIC "src/netplay/SessionController.cxx" "src/netplay/MatchResultOutbox.cxx")
@@ -18,9 +17,6 @@ add_library(sf4e_selection STATIC "src/common/FighterCatalog.cxx" "src/common/St
 target_compile_features(sf4e_selection PUBLIC cxx_std_11)
 target_compile_features(sf4e_netplay_core PUBLIC cxx_std_11)
 if(BUILD_TESTING)
-    add_executable(RoomMessageQueueTest "src/tests/room_message_queue_test.cxx")
-    target_link_libraries(RoomMessageQueueTest PRIVATE sf4e_room_model)
-    add_test(NAME RoomMessageQueue COMMAND RoomMessageQueueTest)
     add_executable(NativeRepairTimingTest "src/tests/native_repair_timing_test.cxx")
     target_compile_features(NativeRepairTimingTest PRIVATE cxx_std_17)
     add_test(NAME NativeRepairTiming COMMAND NativeRepairTimingTest)
@@ -50,6 +46,8 @@ endif()
 if(SF4E_CORE_TESTS_ONLY)
     return()
 endif()
+# After the core-only return: on Windows the helper needs Cargo.
+include("${CMAKE_SOURCE_DIR}/cmake/sf4e_helper.cmake")
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
 set(CMAKE_CXX_STANDARD 11)
@@ -77,6 +75,9 @@ add_library(sf4e_room_model STATIC "src/session/RoomModel.cxx" "src/session/Room
 target_compile_features(sf4e_room_model PUBLIC cxx_std_14)
 target_link_libraries(sf4e_room_model PUBLIC nlohmann_json::nlohmann_json "bcrypt")
 if(BUILD_TESTING)
+    add_executable(RoomMessageQueueTest "src/tests/room_message_queue_test.cxx")
+    target_link_libraries(RoomMessageQueueTest PRIVATE sf4e_room_model)
+    add_test(NAME RoomMessageQueue COMMAND RoomMessageQueueTest)
     add_executable(MatchResultOutboxTest "src/tests/match_result_outbox_test.cxx")
     target_link_libraries(MatchResultOutboxTest PRIVATE sf4e_netplay_core sf4e_room_model)
     add_test(NAME MatchResultOutbox COMMAND MatchResultOutboxTest)

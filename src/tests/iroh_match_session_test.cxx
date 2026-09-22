@@ -210,6 +210,35 @@ void TestSpectatorHelperTimeoutStaysInRoom() {
 	std::cout << "TestSpectatorHelperTimeoutStaysInRoom passed\n";
 }
 
+// (5) The native battle ends and the helper closes, but the room's game_end
+// never arrives. The wait is bounded and fails through the recoverable abort,
+// which stays in the room and returns to Idle.
+void TestMissingRoomEndIsBounded() {
+	Fixture f;
+	f.transport->Push(f.Grant(5));
+	f.transport->Push(Fixture::Connect(5));
+	CHECK(f.client.Step() == 0);
+	CHECK(f.session.Tick());
+	CHECK(f.session.Tick());
+	CHECK(f.session.GetPhase() == Phase::Connecting);
+	f.session.End();
+	f.room->AbandonMatch(5);
+	CHECK(f.session.Tick());
+	CHECK(f.session.GetPhase() == Phase::Ending);
+	f.now += session::MatchTeardownTiming::RoomEndTimeoutMs - 1;
+	CHECK(f.session.Tick());
+	CHECK(f.session.GetPhase() == Phase::Ending);
+	f.now += 1;
+	CHECK(!f.session.Tick());
+	CHECK(f.session.GetPhase() == Phase::Failed);
+	CHECK(f.session.Error() == "match_room_end_timeout");
+	CHECK(f.session.Abort());
+	CHECK(f.session.Tick());
+	CHECK(f.session.GetPhase() == Phase::Idle);
+	CHECK(f.room->leaveCalls == 0);
+	std::cout << "TestMissingRoomEndIsBounded passed\n";
+}
+
 }
 
 int main() {
@@ -217,6 +246,7 @@ int main() {
 	TestEarlyConnectSeparateTicks();
 	TestGameEndCancelsEarlyConnect();
 	TestSpectatorHelperTimeoutStaysInRoom();
+	TestMissingRoomEndIsBounded();
 	std::cout << "Iroh match session tests passed\n";
 	return 0;
 }

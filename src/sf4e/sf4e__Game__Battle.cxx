@@ -25,8 +25,6 @@ using rJobManager = Dimps::Game::Battle::JobManager;
 using SoundHandle = Dimps::Game::Battle::Sound::SoundHandle;
 using SoundReference = Dimps::Game::Battle::Sound::SoundReference;
 using rSoundPlayerManager = Dimps::Game::Battle::Sound::SoundPlayerManager;
-using rSoundUnit = Dimps::Game::Battle::Sound::Unit;
-using fSoundUnit = sf4e::Game::Battle::Sound::Unit;
 using fSoundPlayerManager = sf4e::Game::Battle::Sound::SoundPlayerManager;
 
 bool fIUnit::bAllowHudUpdate = true;
@@ -47,8 +45,9 @@ void fBattle::Install() {
 	Effect::Install();
 	Hud::Install();
 	JobManager::Install();
+	// Sound::Unit::IsStillPlaying (0x591dd0) stays unhooked: it reaches the
+	// hooked CriPlayerAdapter::IsStillPlaying through manager vtable +0x1C.
 	Sound::SoundPlayerManager::Install();
-	Sound::Unit::Install();
 	System::Install();
 	Vfx::Install();
 }
@@ -293,16 +292,6 @@ void fSoundPlayerManager::StopAll(BOOL criParam) {
 
 	rSoundPlayerManager* _this = this;
 	(this->*rSoundPlayerManager::publicMethods.StopAll)(criParam);
-}
-
-void fSoundUnit::Install() {
-	BOOL(fSoundUnit:: * _fIsStillPlaying)(uint32_t, uint32_t) = &IsStillPlaying;
-	DetourAttach((PVOID*)&rSoundUnit::publicMethods.IsStillPlaying, *(PVOID*)&_fIsStillPlaying);
-}
-
-BOOL fSoundUnit::IsStillPlaying(uint32_t managerIdx, uint32_t adapterHandle) {
-	MessageBoxA(NULL, "fSoundUnit::IsStillPlaying- method was suspected dead, but must be implemented", NULL, MB_OK);
-	return FALSE;
 }
 
 bool fSoundPlayerManager::DeferredSoundRequest::IsEqual(DeferredSoundRequest* lhs, DeferredSoundRequest* rhs) {

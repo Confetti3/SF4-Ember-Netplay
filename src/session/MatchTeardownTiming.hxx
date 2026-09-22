@@ -55,12 +55,31 @@ public:
 		return spectatorExitArmed_ && now >= spectatorExitDeadline_;
 	}
 
+	// The fourth boundary: every helper edge is closed but the room's game_end
+	// has not arrived. The room sends it on the result report or a fighter's
+	// disconnect, so a long wait means the room link itself is stuck. Arming
+	// is idempotent like the spectator exit.
+	static constexpr std::uint64_t RoomEndTimeoutMs = 60000;
+
+	void ArmRoomEnd(std::uint64_t now) {
+		if (roomEndArmed_) return;
+		roomEndArmed_ = true;
+		const auto max = (std::numeric_limits<std::uint64_t>::max)();
+		roomEndDeadline_ = now > (max - RoomEndTimeoutMs) ? max : now + RoomEndTimeoutMs;
+	}
+
+	bool RoomEndTimedOut(std::uint64_t now) const {
+		return roomEndArmed_ && now >= roomEndDeadline_;
+	}
+
 private:
 	bool requested_ = false;
 	bool helperCloseDispatched_ = false;
 	std::uint64_t helperDeadline_ = 0;
 	bool spectatorExitArmed_ = false;
 	std::uint64_t spectatorExitDeadline_ = 0;
+	bool roomEndArmed_ = false;
+	std::uint64_t roomEndDeadline_ = 0;
 };
 
 } }

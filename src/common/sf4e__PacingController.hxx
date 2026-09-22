@@ -133,8 +133,14 @@ struct PacingController {
 	// stalled and for a while after, the last received frame is stale and the
 	// advantage pair is off by several frames (measured: up to 7, against
 	// under 1 when calm), so those samples are dropped and the average holds.
+	// Continuous debt built before the stall no longer matches the frame gap
+	// after it, so it is dropped too rather than repaid during the hold.
 	void OnPredictionStall() {
 		riftHoldRemaining = riftHoldTicks;
+		if (continuous) {
+			msDiscardedOnReset += Abs(outstandingMs);
+			outstandingMs = 0.0;
+		}
 	}
 
 	// One sample per eligible outer tick from ggpo_get_network_stats. Both

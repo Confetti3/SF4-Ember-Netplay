@@ -7,17 +7,17 @@ Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by A
 ## Changes
 
 - **Timing correction now actually works.** Since v0.9.4 the game has tried to keep both players in step by waiting a little when it is ahead. Those waits never reached the frame rate: the game's own frame limiter simply waited less to make up for them. The correction now adjusts the frame limiter itself, by up to 3 ms per frame. In an offline check a 2 ms request turned 16.667 ms frames into 18.667 ms frames, exactly as asked.
-- **Both players correct.** The player who is ahead slows down slightly and the player who is behind speeds up slightly, so each closes half the gap. This also means you get the correction when your opponent is still on v0.9.5.
+- **Both players correct.** The player who is ahead slows down slightly and the player who is behind speeds up slightly, so each closes half the gap.
 - **VSync is always off.** With VSync on, a frame can only end on a screen refresh, which turns small timing corrections into stutter and adds input delay. The game now ignores the VSync setting. Your config file is not changed, and the launch card no longer asks you to turn VSync off.
 - **Better logs for feedback.** Every 15 seconds of a match, `sf4e.log` gets a `Netplay [` line with ping, how far apart the two games are, rollbacks, stalls and how much timing correction was applied.
 
-Nothing changes the network format. You can play someone on v0.9.5.
+Both players must use this same package. A room checks that both games run the same build, so a player on v0.9.5 cannot join an rc1 room, and an rc1 player cannot join a v0.9.5 room.
 
 To compare against the old behavior, set `SF4E_CONTINUOUS_TIMESYNC=0` in the shell that starts `Launcher.exe`.
 
 ## What to report
 
-The About screen still shows 0.9.5, so that the updater moves you to the real 0.9.6 when it ships. To confirm you are on this build, look in `sf4e.log` for lines starting `Netplay [` during a match.
+The launcher and updater still report 0.9.5, so that the updater moves you to the real 0.9.6 when it ships. To confirm you are on this build, look in `sf4e.log` for lines starting `Netplay [` during a match.
 
 After a session, send `sf4e.log` (see [saving logs](../guides/SAVING_LOGS.md)) with a note on how the match felt, your input delay, your opponent's version, and whether the route was direct or relayed. If both players are on this build, send both logs. The lines starting `Netplay [` and `Pacing [` carry the numbers we need. We are especially interested in the `timesyncEvents` count, which we expect to stay near zero now.
 

@@ -142,8 +142,8 @@ static void ResetPacerForSession() {
     // itself with the EnvFlag rule. The line lets a log confirm which side ran
     // what.
     fSystem::pacer.continuous = sf4e::EnvFlag("SF4E_CONTINUOUS_TIMESYNC", true);
-    spdlog::info("Netplay experiments: continuousTimesync={} inputRepair={}",
-        fSystem::pacer.continuous, sf4e::EnvFlag("SF4E_GGPO_INPUT_REPAIR", true));
+    spdlog::info("Netplay experiments: continuousTimesync={} inputRepair={} build={}",
+        fSystem::pacer.continuous, sf4e::EnvFlag("SF4E_GGPO_INPUT_REPAIR", true), sf4e::sidecarHash);
     s_window.Start(GetTickCount64());
 }
 
@@ -602,7 +602,14 @@ bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, in
             continue;
         }
 
+        sf4e::Eva::TaskCore::recordFailed = false;
         SaveState::Save(&saveStates[i]);
+        if (sf4e::Eva::TaskCore::recordFailed) {
+            // The slot is filled but incomplete; GGPO may never load it.
+            *buffer = nullptr;
+            AbortGgpoMatch(sf4e::loc::T("runtime.rollback_unsupported_state"));
+            return false;
+        }
         CaptureNativeMatchResult(rSystem::staticMethods.GetSingleton(), frame);
         *buffer = (unsigned char*)&saveStates[i];
         *checksum = 0;

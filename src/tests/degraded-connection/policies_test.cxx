@@ -86,6 +86,24 @@ static void RiftHoldsAfterStall() {
     p.OnPredictionStall();
     p.Reset();
     CHECK(p.riftHoldRemaining == 0);
+    // Debt built before a stall is not repaid during the hold, whichever way
+    // the fresh samples point.
+    for (int sign = -1; sign <= 1; sign += 2) {
+        auto q = Pacer();
+        for (int i = 0; i < 600; ++i) q.OnRiftSample(-9.0 * sign, 9.0 * sign);
+        CHECK(q.NextShiftMs() != 0);
+        q.OnPredictionStall();
+        for (int i = 0; i < q.riftHoldTicks; ++i) {
+            q.OnRiftSample(9.0 * sign, -9.0 * sign);
+            CHECK(q.NextShiftMs() == 0);
+        }
+    }
+    // Coarse mode keeps GGPO's recommendation through a stall.
+    auto coarse = Pacer();
+    coarse.continuous = false;
+    coarse.OnRecommendation(3);
+    coarse.OnPredictionStall();
+    CHECK(coarse.NextShiftMs() > 0);
 }
 
 // Closed loop with integer stats and feedback delayed by a fifth of a second,

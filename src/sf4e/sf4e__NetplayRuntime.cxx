@@ -1409,7 +1409,8 @@ static void DrainRoomEvents() {
 
 static void PersistTerminalOutcome() {
 	// Record the confirmed outcome in the profile and hold the terminal receipt
-	// until the settings writer reports that exact revision on disk. The writer
+	// until the settings writer reports that exact revision on disk, or reports
+	// a write error. The writer
 	// retries failed writes itself, so a snapshot is queued once per receipt and
 	// only queued again if the writer refused it. PrepareProfileConsumption is
 	// idempotent for a key already in the recent list.
@@ -1435,9 +1436,15 @@ static void PersistTerminalOutcome() {
 				runtime->terminalOutcomeConsumed = true;
 				runtime->terminalPersistRevision = 0;
 				if (runtime->error == persistenceWaiting) runtime->error.clear();
-			} else if (!OverlayPrefs::PersistenceError().empty() && runtime->error != persistenceWaiting) {
-				spdlog::warn("Match result: profile record write failed: {}", OverlayPrefs::PersistenceError());
-				runtime->error = persistenceWaiting;
+			} else if (!OverlayPrefs::PersistenceError().empty()) {
+				// A write that fails may keep failing (disk full, permissions), and
+				// the receipt gates the whole table's next match. Release it; the
+				// record stays in memory and the writer keeps retrying it.
+				spdlog::warn("Match result: profile record write failed, releasing the match: {}",
+					OverlayPrefs::PersistenceError());
+				runtime->terminalOutcomeConsumed = true;
+				runtime->terminalPersistRevision = 0;
+				runtime->error = loc::T("runtime.match_record_not_saved");
 			}
 		}
 	}

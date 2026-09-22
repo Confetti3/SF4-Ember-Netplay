@@ -23,6 +23,12 @@ int main() {
     CHECK(teardown.HelperDeadline() == 151000);
     CHECK(!teardown.HelperTimedOut(151000, true)); // waiting for room result
     CHECK(teardown.HelperTimedOut(151000, false));
+    // The room result wait has its own bound, armed once.
+    CHECK(!teardown.RoomEndTimedOut((std::numeric_limits<std::uint64_t>::max)()));
+    teardown.ArmRoomEnd(121000);
+    teardown.ArmRoomEnd(150000);
+    CHECK(!teardown.RoomEndTimedOut(180999));
+    CHECK(teardown.RoomEndTimedOut(181000));
 
     // The spectator exit bound is armed once and never extended, and an
     // unarmed one never fires however late the clock is.

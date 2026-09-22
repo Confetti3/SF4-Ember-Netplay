@@ -2,6 +2,7 @@
 #include <time.h>
 #include <windows.h>
 #include <bcrypt.h>
+#include <spdlog/spdlog.h>
 
 #include "../Dimps/Dimps__Eva.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
@@ -244,7 +245,22 @@ void fIEmSpriteAction::RestoreFromAdditionalMemento(rIEmSpriteAction* a, const A
 	*a = m.action;
 }
 
-void fTask::RecordToAdditionalMemento(rTask* t, AdditionalMemento& m) {
+// Copies a functor only when its vtable has a known size that fits the
+// buffer. Release builds compile asserts out, so this is the real check.
+static bool RecordFunctor(rIEmTaskFunctor* functor, fTask::TaskFunctorBuf& buf, bool& has) {
+	has = false;
+	const DWORD vtable = *(DWORD*)functor;
+	const size_t size = rIEmTaskFunctor::GetDescendantFunctorSizeByVtable(vtable);
+	if (size == 0 || size > sizeof(buf)) {
+		spdlog::error("Rollback: task functor vtable {:#x} has unsupported size {}", vtable, size);
+		return false;
+	}
+	memcpy_s(&buf, sizeof(buf), functor, size);
+	has = true;
+	return true;
+}
+
+bool fTask::RecordToAdditionalMemento(rTask* t, AdditionalMemento& m) {
 	// Copy _almost_ all the raw task state by copying all of it then
 	// zeroing any pointers. While we don't strictly need to zero the
 	// pointers, it'll turn incorrect accesses into null pointer
@@ -257,31 +273,16 @@ void fTask::RecordToAdditionalMemento(rTask* t, AdditionalMemento& m) {
 	*rTask::GetPrevious(&m.rawTask) = nullptr;
 	*rTask::GetTaskData(&m.rawTask) = nullptr;
 
+	// There are literally thousands of functors, and only a handful of them
+	// have sizes captured. An unknown one is left out and reported.
+	bool ok = true;
 	rIEmTaskFunctor* cancelFunctor = *rTask::GetCancelFunctor(t);
-	m.hasCancelFunctor = cancelFunctor != nullptr;
-	if (m.hasCancelFunctor) {
-		size_t cancelFunctorSize = rIEmTaskFunctor::GetDescendantFunctorSizeByVtable(*(DWORD*)cancelFunctor);
-		// There are literally thousands of functors, and only a handful of them
-		// have sizes captured. TaskFunctorBuf should be large enough to capture
-		// all of them, but asserting that with static analysis is borderline
-		// impossible.
-		assert(cancelFunctorSize > 0);
-		assert(cancelFunctorSize <= sizeof(TaskFunctorBuf));
-		memcpy_s(&m.cancelFunctor, cancelFunctorSize, cancelFunctor, cancelFunctorSize);
-	}
-
+	m.hasCancelFunctor = false;
+	if (cancelFunctor) ok = RecordFunctor(cancelFunctor, m.cancelFunctor, m.hasCancelFunctor) && ok;
 	rIEmTaskFunctor* workFunctor = *rTask::GetWorkFunctor(t);
-	m.hasWorkFunctor = workFunctor != nullptr;
-	if (m.hasWorkFunctor) {
-		size_t workFunctorSize = rIEmTaskFunctor::GetDescendantFunctorSizeByVtable(*(DWORD*)workFunctor);
-		// There are literally thousands of functors, and only a handful of them
-		// have sizes captured. TaskFunctorBuf should be large enough to capture
-		// all of them, but asserting that with static analysis is borderline
-		// impossible.
-		assert(workFunctorSize > 0);
-		assert(workFunctorSize <= sizeof(TaskFunctorBuf));
-		memcpy_s(&m.workFunctor, workFunctorSize, workFunctor, workFunctorSize);
-	}
+	m.hasWorkFunctor = false;
+	if (workFunctor) ok = RecordFunctor(workFunctor, m.workFunctor, m.hasWorkFunctor) && ok;
+	return ok;
 }
 
 void fTask::RestoreFromAdditionalMemento(rTask* t, const AdditionalMemento& m) {
@@ -345,16 +346,33 @@ void fTask::RestoreFromAdditionalMemento(rTask* t, const AdditionalMemento& m) {
 	}
 }
 
+bool fTaskCore::recordFailed = false;
+
 void fTaskCore::RecordToAdditionalMemento(rTaskCore* c, AdditionalMemento& m) {
-	m.numUsed = (c->*rTaskCore::publicMethods.GetNumUsed)();
 	size_t taskDataSize = *rTaskCore::GetTaskDataSize(c);
-	assert(taskDataSize <= sizeof(fTaskCore::TaskDataBuf));
+	if (taskDataSize > sizeof(fTaskCore::TaskDataBuf)) {
+		spdlog::error("Rollback: task data size {} exceeds {}", taskDataSize, sizeof(fTaskCore::TaskDataBuf));
+		recordFailed = true;
+		taskDataSize = sizeof(fTaskCore::TaskDataBuf);
+	}
 
 	int i;
 	rTask* cursor;
 	for (cursor = rTaskCore::GetTaskHead(c), i = 0; cursor != nullptr; cursor = *rTask::GetNext(cursor), i++) {
-		fTask::RecordToAdditionalMemento(cursor, m.tasks[i]);
-		memcpy_s(&m.taskdata[i], taskDataSize, *rTask::GetTaskData(cursor), taskDataSize);
+		if (i >= MAX_TASKS_PER_CORE) {
+			spdlog::error("Rollback: task core holds more than {} tasks", MAX_TASKS_PER_CORE);
+			recordFailed = true;
+			break;
+		}
+		if (!fTask::RecordToAdditionalMemento(cursor, m.tasks[i])) recordFailed = true;
+		memcpy_s(&m.taskdata[i], sizeof(m.taskdata[i]), *rTask::GetTaskData(cursor), taskDataSize);
+	}
+	// Restore allocates numUsed tasks from the entries recorded here.
+	m.numUsed = (c->*rTaskCore::publicMethods.GetNumUsed)();
+	if (m.numUsed > i) {
+		spdlog::error("Rollback: task core reports {} used tasks but lists {}", m.numUsed, i);
+		recordFailed = true;
+		m.numUsed = i;
 	}
 }
 

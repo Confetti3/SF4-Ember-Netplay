@@ -1,7 +1,9 @@
 name: Degraded connection experiment
 on:
   push:
-    branches: [experiment/degraded-connection-recovery]
+    branches: [release, 'experiment/**']
+    tags: ['v*']
+  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
@@ -37,3 +39,26 @@ jobs:
       - name: Check patches and compile real GGPO on Windows
         if: runner.os == 'Windows'
         run: python scripts/verify_ggpo_experiment.py --build
+  core-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out exact public commit
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "$GITHUB_SHA"
+          git checkout --detach FETCH_HEAD
+      - name: Configure game-independent tests
+        run: cmake -S . -B build/core -DSF4E_CORE_TESTS_ONLY=ON -DCMAKE_BUILD_TYPE=Release ${{ runner.os == 'Windows' && '-A Win32' || '' }}
+      - name: Build game-independent tests
+        run: cmake --build build/core --config Release
+      - name: Run game-independent tests
+        run: ctest --test-dir build/core -C Release --output-on-failure

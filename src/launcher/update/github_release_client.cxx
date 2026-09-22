@@ -14,16 +14,29 @@ namespace launcher {
 			strncpy_s(outRepo, outRepoLen, kDefaultGithubRepo, _TRUNCATE);
 		}
 
-		static bool RunProcessAndWaitHidden(const wchar_t* cmdLine, DWORD* outExitCode) {
+		// Waits in short slices so a cancel (launcher closing) or a hung process
+		// cannot hold the update worker, and with it shutdown, forever.
+		static bool RunProcessAndWaitHidden(const wchar_t* application, const wchar_t* cmdLine, DWORD* outExitCode,
+			const std::function<bool(std::uint64_t, std::uint64_t)>& progress) {
+			constexpr ULONGLONG kTimeoutMs = 5 * 60 * 1000;
 			STARTUPINFOW si = { 0 };
 			PROCESS_INFORMATION pi = { 0 };
 			si.cb = sizeof(si);
 			wchar_t mutableCmd[4096] = { 0 };
 			wcsncpy_s(mutableCmd, cmdLine, _TRUNCATE);
-			if (!CreateProcessW(NULL, mutableCmd, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+			if (!CreateProcessW(application, mutableCmd, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
 				return false;
 			}
-			WaitForSingleObject(pi.hProcess, INFINITE);
+			const ULONGLONG started = GetTickCount64();
+			while (WaitForSingleObject(pi.hProcess, 250) == WAIT_TIMEOUT) {
+				const bool cancelled = progress && !progress(0, 0);
+				if (cancelled || GetTickCount64() - started > kTimeoutMs) {
+					AppendUpdateLog(cancelled ? "process cancelled" : "process timed out");
+					TerminateProcess(pi.hProcess, 1);
+					WaitForSingleObject(pi.hProcess, 5000);
+					break;
+				}
+			}
 			DWORD exitCode = 1;
 			GetExitCodeProcess(pi.hProcess, &exitCode);
 			CloseHandle(pi.hProcess);
@@ -34,16 +47,25 @@ namespace launcher {
 			return true;
 		}
 
-		static bool ExpandZipArchive(const wchar_t* zipPath, const wchar_t* destDir) {
+		static bool ExpandZipArchive(const wchar_t* zipPath, const wchar_t* destDir,
+			const std::function<bool(std::uint64_t, std::uint64_t)>& progress) {
+			// The system tar by full path: a bare name would be searched for in the
+			// application and current directories first.
+			wchar_t tarPath[MAX_PATH] = { 0 };
+			const UINT systemLength = GetSystemDirectoryW(tarPath, MAX_PATH);
+			if (systemLength == 0 || systemLength >= MAX_PATH || FAILED(PathCchAppend(tarPath, MAX_PATH, L"tar.exe"))) {
+				AppendUpdateLog("tar path failed");
+				return false;
+			}
 			wchar_t cmdLine[4096] = { 0 };
-			swprintf_s(cmdLine, L"tar.exe -xf \"%s\" -C \"%s\"", zipPath, destDir);
+			swprintf_s(cmdLine, L"\"%s\" -xf \"%s\" -C \"%s\"", tarPath, zipPath, destDir);
 
 			char cmdUtf8[4096] = { 0 };
 			WidePathToUtf8(cmdLine, cmdUtf8, sizeof(cmdUtf8));
 			AppendUpdateLog(cmdUtf8);
 
 			DWORD exitCode = 1;
-			if (!RunProcessAndWaitHidden(cmdLine, &exitCode)) {
+			if (!RunProcessAndWaitHidden(tarPath, cmdLine, &exitCode, progress)) {
 				AppendUpdateLog("tar spawn failed");
 				return false;
 			}
@@ -554,8 +576,7 @@ namespace launcher {
 		// Verify the download's SHA-256 against the digest GitHub published for the
 		// asset before we extract or run anything from it. A mismatch means the zip
 		// was tampered with or corrupted in transit, so refuse it. Releases that
-		// predate GitHub asset digests provide no expected hash; those can only be
-		// verified by filename allowlist downstream, so we log and continue.
+		// predate GitHub asset digests provide no expected hash and are refused.
 		std::string expectedHash = (expectedSha256 && expectedSha256[0]) ? expectedSha256 : "";
 		if (!expectedHash.empty()) {
 			std::string actualHash;
@@ -574,7 +595,7 @@ namespace launcher {
 			result.error = loc::T("update.no_digest"); return result;
 		}
 
-		if (!ExpandZipArchive(zipPath, extractDir)) {
+		if (!ExpandZipArchive(zipPath, extractDir, progress)) {
 			AppendUpdateLog("extract failed");
 			result.error = loc::T("update.extract_failed");
 			return result;

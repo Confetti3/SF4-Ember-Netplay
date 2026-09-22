@@ -59,7 +59,9 @@ namespace sf4e {
 				bool hasWorkFunctor;
 			};
 
-			static void RecordToAdditionalMemento(Dimps::Eva::Task* t, AdditionalMemento& m);
+			// False when a functor has an unknown or oversized vtable; that
+			// functor is left out and the state must not be used.
+			static bool RecordToAdditionalMemento(Dimps::Eva::Task* t, AdditionalMemento& m);
 			static void RestoreFromAdditionalMemento(Dimps::Eva::Task* t, const AdditionalMemento& m);
 		};
 
@@ -79,8 +81,12 @@ namespace sf4e {
 				TaskDataBuf taskdata[MAX_TASKS_PER_CORE];
 			};
 
+			// Records what fits and sets recordFailed when the core holds state
+			// the memento cannot represent. The game's memento chain has no
+			// error path, so the GGPO save callback checks the flag.
 			static void RecordToAdditionalMemento(Dimps::Eva::TaskCore* c, AdditionalMemento& m);
 			static void RestoreFromAdditionalMemento(Dimps::Eva::TaskCore* c, const AdditionalMemento& m);
+			static bool recordFailed;
 		};
 	}
 }

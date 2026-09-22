@@ -82,7 +82,9 @@ overshoot; the policy test closes the loop with a 200-ms delay. Samples are
 dropped during a prediction stall and for 45 ticks after it: measured in the
 rift harness, the estimate is within about one frame when calm but off by up to
 seven frames right after a stall, because the last received frame is stale.
-Gain, dead zone, smoothing and hold-off are controller fields, not yet
+Since rc2 a stall also drops any correction still owed from before it (up to
+6 ms), so nothing is repaid during the hold. Coarse mode keeps GGPO's
+recommendation through a stall. Gain, dead zone, smoothing and hold-off are controller fields, not yet
 environment variables. The per-side gain is 1/120: at 1/60 per side the two
 corrections add up and overshoot under the 200-ms delay (policy test
 `rift both sides converge`).
@@ -198,7 +200,10 @@ peers; stalls, rollback frames and imbalance were the same in every case):
 | 50 ms delay, 20 ms jitter, 3 runs | 1.19 | 1.14 |
 | Plus 150 ms bursts every 2 s at 60.2 Hz, 6 runs | 0.97 | 1.13 |
 
-Bursts recover slightly slower at half gain per side. Against a v0.9.5 peer,
+Bursts recover slightly slower at half gain per side. Dropping pre-stall debt
+(rc2) brought the burst case from 1.13 to 1.05 over 6 paired runs, with the
+same stalls and rollback frames; clean and jitter runs have no stalls and did
+not change. Against a v0.9.5 peer,
 whose waits do nothing in the game, two-sided correction is what lets the
 new side close a rift in either direction.
 
