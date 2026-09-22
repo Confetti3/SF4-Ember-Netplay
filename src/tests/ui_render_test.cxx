@@ -352,7 +352,7 @@ int main(int argc, char** argv) {
             // moves to "Don't show again" and Back declines it, so this covers
             // the two-button notice without writing the real preference.
             view.showGameSettingsCard=true;
-            view.gameSettings.frameRate="SMOOTH";view.gameSettings.vsync="ON";view.gameSettings.msaa="4X";
+            view.gameSettings.frameRate="SMOOTH";view.gameSettings.msaa="4X";
             draw("game-settings-card");
             Require(ImGui::GetTopMostPopupModal()!=nullptr,"Game settings card did not open");
             draw(nullptr,MenuInput::Right,1);draw();

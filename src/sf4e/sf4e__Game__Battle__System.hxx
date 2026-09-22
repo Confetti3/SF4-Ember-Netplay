@@ -66,12 +66,10 @@ namespace sf4e {
 				// stalls intentionally do not gate here.
 				static bool MayAdvanceDeterministicFrame();
 
-				// Time-sync pacing (Phase 4): the timesync event only
-				// records a bounded correction here; the outer tick
-				// repays it in small slices (see fUserApp).
+				// Time-sync pacing: rift samples (or, in coarse mode, the
+				// timesync event) set a bounded correction; StepPacing repays
+				// it in small slices through the frame limiter.
 				static sf4e::pacing::PacingController pacer;
-				// Per-tick rift correction instead of the coarse GGPO timesync event.
-				static bool continuousTimesync;
 				static int nExtraFramesToSimulate;
 				static int nNextBattleStartFlowTarget;
 				static int nRandomizeLocalInputsEveryXFramesInGGPO;
@@ -264,8 +262,13 @@ namespace sf4e {
 				static std::size_t SpectatorStreamCount();
 				// Network stats of the remote fighter; false without one.
 				static bool GetRemoteNetworkStats(GGPONetworkStats& stats);
-				// Feeds the pacer one rift sample per tick. Outside callbacks.
-				static void PollTimesync();
+				// Once per outer tick, outside callbacks: accounts for the
+				// shift the frame limiter applied, samples the rift and
+				// requests the next shift. Returns both for diagnostics.
+				struct PacingTick { double requestedMs, appliedMs; };
+				static PacingTick StepPacing();
+				// Lifecycle reset of the pacer; drops any shift in flight.
+				static void ResetPacing();
                 static sf4e::MatchTelemetry matchTelemetry;
                 static void PollMatchTelemetry();
                 static bool ggpo_advance_frame_callback(int);

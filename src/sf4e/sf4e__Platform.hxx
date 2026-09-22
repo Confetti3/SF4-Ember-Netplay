@@ -17,6 +17,17 @@ namespace sf4e {
 			void Destroy();
 			DWORD Reset();
 			void RunScene_Render(void* sceneCommandList);
+			int LimitFrame(float frameDelta);
+			void BuildPresentParameters();
+
+			// Rift pacing hand-off with the game tick; the limiter may run on
+			// the rendering thread. A request applies to the next limiter call
+			// (positive: longer frame). Take returns what the limiter really
+			// changed since the last take. Cancel drops anything in flight so
+			// it cannot reach a reset controller.
+			static void RequestFrameShift(double ms);
+			static double TakeAppliedShift();
+			static void CancelFrameShift();
 		};
 
 		struct GFxApp : Dimps::Platform::GFxApp

@@ -1,5 +1,7 @@
 #include "../../common/sf4e__PacingController.hxx"
 #include "../../../vcpkg-overlays/ports/ggpo/input-repair.h"
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
@@ -15,6 +17,7 @@ using sf4e::netplay::InputRepair;
 static PacingController Pacer() {
     PacingController p;
     p.InitDefaults();
+    p.continuous = true;
     return p;
 }
 static InputRepair Repair() {
@@ -27,14 +30,20 @@ static void RiftDirection() {
     auto ahead = Pacer();
     for (int i = 0; i < 600; ++i) ahead.OnRiftSample(-4, 4);
     CHECK(ahead.outstandingMs > 0 && ahead.riftFramesEma == 4);
-    // Behind the peer: the other side waits, this side never does.
+    // Behind the peer: this side speeds up and never waits.
     auto behind = Pacer();
     for (int i = 0; i < 600; ++i) behind.OnRiftSample(4, -4);
-    CHECK(behind.outstandingMs == 0 && behind.riftFramesEma == -4);
+    CHECK(behind.outstandingMs < 0 && behind.riftFramesEma == -4);
+    CHECK(behind.NextShiftMs() < 0);
     auto disabled = Pacer();
     disabled.enabled = false;
     for (int i = 0; i < 600; ++i) disabled.OnRiftSample(-4, 4);
     CHECK(disabled.outstandingMs == 0);
+    // Coarse mode measures the rift for the logs but never corrects from it.
+    auto coarse = Pacer();
+    coarse.continuous = false;
+    for (int i = 0; i < 600; ++i) coarse.OnRiftSample(-4, 4);
+    CHECK(coarse.outstandingMs == 0 && coarse.riftFramesEma == 4);
 }
 
 static void RiftDeadZoneAndCap() {
@@ -46,6 +55,12 @@ static void RiftDeadZoneAndCap() {
     for (int i = 0; i < 6000; ++i) p.OnRiftSample(-9, 9);
     CHECK(p.outstandingMs > 0 && p.outstandingMs <= 2 * p.maxStepMs);
     CHECK(p.maxOutstandingMs <= 2 * p.maxStepMs);
+    auto q = Pacer();
+    for (int i = 0; i < 600; ++i) q.OnRiftSample(1, 0);
+    CHECK(q.outstandingMs == 0);
+    for (int i = 0; i < 6000; ++i) q.OnRiftSample(9, -9);
+    CHECK(q.outstandingMs < 0 && q.outstandingMs >= -2 * q.maxStepMs);
+    CHECK(q.maxOutstandingMs <= 2 * q.maxStepMs);
 }
 
 static void RiftReset() {
@@ -84,14 +99,57 @@ static void RiftConvergesWithoutOvershoot() {
         const int seen = delayed[tick % delayed.size()];
         delayed[tick % delayed.size()] = int(rift + (rift < 0 ? -0.5 : 0.5));
         p.OnRiftSample(-seen, seen);
-        const double wait = p.NextWaitMs();
-        CHECK(wait <= p.maxStepMs);
-        p.OnWaited(wait);
+        const double wait = p.NextShiftMs();
+        CHECK(wait >= 0 && wait <= p.maxStepMs);
+        p.OnShiftApplied(wait);
         rift -= wait / (1000.0 / 60.0);
         if (rift < lowest) lowest = rift;
     }
     CHECK(rift < 1.5);
     CHECK(lowest > 0.0);
+}
+
+// Both sides correct at once, each seeing the delayed rift from its own side:
+// the one ahead waits, the one behind shortens frames. They must meet from
+// either starting side without crossing over, and neither may take both roles.
+static void RiftBothSidesConverge() {
+    for (const double start : {5.0, -5.0}) {
+        auto a = Pacer(), b = Pacer();
+        double rift = start, closest = std::abs(start); // a's frame minus b's
+        std::vector<int> delayed(12, int(start));
+        for (int tick = 0; tick < 1800; ++tick) {
+            const int seen = delayed[tick % delayed.size()];
+            delayed[tick % delayed.size()] = int(rift + (rift < 0 ? -0.5 : 0.5));
+            a.OnRiftSample(-seen, seen);
+            b.OnRiftSample(seen, -seen);
+            const double aShift = a.NextShiftMs(), bShift = b.NextShiftMs();
+            CHECK(std::abs(aShift) <= a.maxStepMs && std::abs(bShift) <= b.maxStepMs);
+            a.OnShiftApplied(aShift);
+            b.OnShiftApplied(bShift);
+            rift -= (aShift - bShift) / (1000.0 / 60.0);
+            closest = std::min(closest, start > 0 ? rift : -rift);
+        }
+        CHECK(std::abs(rift) < 1.0);
+        CHECK(closest > 0.0);
+        CHECK((a.msSlowedTotal > 0 && b.msSpedUpTotal > 0) || (a.msSpedUpTotal > 0 && b.msSlowedTotal > 0));
+    }
+}
+
+static void LimiterShift() {
+    using sf4e::pacing::ShiftedPeriodMs;
+    using sf4e::pacing::AppliedShiftMs;
+    const double period = 1000.0 / 60.0;
+    CHECK(ShiftedPeriodMs(period, 5.0, 2.0) == period + 2.0);
+    // Speeding up takes only the slack left before the deadline.
+    CHECK(ShiftedPeriodMs(period, 5.0, -2.0) == period - 2.0);
+    CHECK(std::abs(ShiftedPeriodMs(period, period - 1.0, -3.0) - (period - 0.75)) < 1e-9);
+    CHECK(ShiftedPeriodMs(period, period + 4.0, -3.0) == period);
+    // Applied amounts come from the measured frame, bounded by the request.
+    CHECK(AppliedShiftMs(period, period + 2.0, 2.0) == 2.0);
+    CHECK(AppliedShiftMs(period, period + 9.0, 2.0) == 2.0);
+    CHECK(AppliedShiftMs(period, period - 1.0, 2.0) == 0.0);
+    CHECK(AppliedShiftMs(period, period - 1.5, -2.0) == -1.5);
+    CHECK(AppliedShiftMs(period, period + 1.0, -2.0) == 0.0);
 }
 
 static void RepairOptInAndHealthyTraffic() {
@@ -206,6 +264,8 @@ int main() {
         {"rift reset", RiftReset},
         {"rift hold after stall", RiftHoldsAfterStall},
         {"rift convergence", RiftConvergesWithoutOvershoot},
+        {"rift both sides converge", RiftBothSidesConverge},
+        {"limiter shift", LimiterShift},
         {"repair opt-in/healthy", RepairOptInAndHealthyTraffic},
         {"repair backoff/budget", RepairBackoffAndBudget},
         {"repair acknowledgments", RepairAcknowledgments},

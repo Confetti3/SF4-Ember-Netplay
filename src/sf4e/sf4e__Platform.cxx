@@ -1,3 +1,4 @@
+#include <atomic>
 #include <memory>
 #include <vector>
 
@@ -22,6 +23,7 @@
 #include "sf4e__Overlay.hxx"
 #include "sf4e__OverlayPrefs.hxx"
 #include "sf4e__NetplayFacade.hxx"
+#include "../common/sf4e__PacingController.hxx"
 
 namespace rPlatform = Dimps::Platform;
 using rD3D = rPlatform::D3D;
@@ -59,9 +61,128 @@ void fD3D::Install() {
     void (fD3D:: * _fDestroy)() = &Destroy;
     DWORD(fD3D:: * _fReset)() = &Reset;
     void(fD3D:: * _fRunScene_Render)(void*) = &RunScene_Render;
+    int(fD3D:: * _fLimitFrame)(float) = &LimitFrame;
+    void(fD3D:: * _fBuildPresentParameters)() = &BuildPresentParameters;
     DetourAttach((PVOID*)&rD3D::privateMethods.Destroy, *(PVOID*)&_fDestroy);
     DetourAttach((PVOID*)&rD3D::privateMethods.Reset, *(PVOID*)&_fReset);
     DetourAttach((PVOID*)&rD3D::privateMethods.RunScene_Render, *(PVOID*)&_fRunScene_Render);
+    DetourAttach((PVOID*)&rD3D::privateMethods.LimitFrame, *(PVOID*)&_fLimitFrame);
+    DetourAttach((PVOID*)&rD3D::privateMethods.BuildPresentParameters, *(PVOID*)&_fBuildPresentParameters);
+}
+
+namespace {
+std::atomic<int> s_shiftRequestUs{0};
+std::atomic<int> s_shiftAppliedUs{0};
+
+// Present interval the game asked for when it was last forced; 0 when never.
+// The first device is created before logging starts, so Main::Initialize
+// reports it once the log is up.
+DWORD s_vsyncForcedFrom = 0;
+
+void LogVSyncForced() {
+    if (s_vsyncForcedFrom) {
+        spdlog::info("Display: VSync forced off (game setting asked for interval {:#x})", s_vsyncForcedFrom);
+    }
+}
+
+// Dev check for the limiter hook: SF4E_PACING_TEST_SHIFT_MS (2, -2, or 0 for a
+// baseline) replaces every pacing request with that shift and logs the
+// measured frame every 600 frames. Nothing reaches the pacing controller.
+struct LimiterTest {
+    bool enabled = false;
+    double shiftMs = 0.0;
+    int frames = 0;
+    double frameMs = 0.0, appliedMs = 0.0;
+
+    void Record(double measuredFrameMs, double measuredAppliedMs) {
+        frameMs += measuredFrameMs;
+        appliedMs += measuredAppliedMs;
+        if (++frames < 600) return;
+        spdlog::info("PacingTest: shift={:.2f}ms frames={} meanFrameMs={:.3f} fps={:.2f} appliedMs={:.1f}",
+            shiftMs, frames, frameMs / frames, 1000.0 * frames / frameMs, appliedMs);
+        frames = 0;
+        frameMs = appliedMs = 0.0;
+    }
+};
+
+LimiterTest& Test() {
+    static LimiterTest test = [] {
+        LimiterTest t;
+        char value[16] = {};
+        const DWORD length = GetEnvironmentVariableA("SF4E_PACING_TEST_SHIFT_MS", value, sizeof(value));
+        if (length > 0 && length < sizeof(value)) {
+            t.enabled = true;
+            t.shiftMs = atof(value);
+            spdlog::warn("PacingTest: shifting every frame by {:.2f} ms; netplay pacing is off", t.shiftMs);
+        }
+        return t;
+    }();
+    return test;
+}
+}
+
+void fD3D::RequestFrameShift(double ms) {
+    s_shiftRequestUs.store((int)(ms * 1000.0));
+}
+
+double fD3D::TakeAppliedShift() {
+    return s_shiftAppliedUs.exchange(0) / 1000.0;
+}
+
+void fD3D::CancelFrameShift() {
+    s_shiftRequestUs.store(0);
+    s_shiftAppliedUs.store(0);
+}
+
+// The limiter waits until one period after its own previous exit, so a wait
+// anywhere else in the frame only eats into that spin and the frame rate never
+// changes. Rift pacing therefore moves the limiter's period for one frame.
+int fD3D::LimitFrame(float frameDelta) {
+    LimiterTest& test = Test();
+    const double shiftMs = test.enabled ? test.shiftMs : s_shiftRequestUs.exchange(0) / 1000.0;
+    float* period = rD3D::GetFramePeriodSeconds(this);
+    const float savedPeriod = *period;
+    // The first call has no previous exit to measure from.
+    const unsigned long long previousExit = *rD3D::GetLastLimiterExit(this);
+    if ((shiftMs == 0.0 && !test.enabled) || savedPeriod <= 0.0f || previousExit == 0) {
+        return (this->*rD3D::privateMethods.LimitFrame)(frameDelta);
+    }
+    LARGE_INTEGER now, frequency;
+    QueryPerformanceCounter(&now);
+    QueryPerformanceFrequency(&frequency);
+    const double tickMs = 1000.0 / (double)frequency.QuadPart;
+    const double periodMs = savedPeriod * 1000.0;
+    const double elapsedMs = (double)(long long)(now.QuadPart - previousExit) * tickMs;
+    const float shiftedPeriod = (float)(sf4e::pacing::ShiftedPeriodMs(periodMs, elapsedMs, shiftMs) / 1000.0);
+    *period = shiftedPeriod;
+    const int result = (this->*rD3D::privateMethods.LimitFrame)(frameDelta);
+    // A display-settings change made meanwhile wins over the restore.
+    if (*period == shiftedPeriod) {
+        *period = savedPeriod;
+    }
+    const double frameMs = (double)(long long)(*rD3D::GetLastLimiterExit(this) - previousExit) * tickMs;
+    const double appliedMs = sf4e::pacing::AppliedShiftMs(periodMs, frameMs, shiftMs);
+    if (test.enabled) {
+        test.Record(frameMs, appliedMs);
+    }
+    else {
+        s_shiftAppliedUs.fetch_add((int)(appliedMs * 1000.0));
+    }
+    return result;
+}
+
+// Builds the present parameters for device creation and every Reset, so this
+// is the one place VSync takes effect. It is forced off: with VSync on, Present
+// waits for a vblank, so a pacing shift of a few milliseconds costs a whole
+// refresh and the controller overcorrects. It also adds input latency.
+void fD3D::BuildPresentParameters() {
+    (this->*rD3D::privateMethods.BuildPresentParameters)();
+    D3DPRESENT_PARAMETERS* parameters = rD3D::GetPresentParameters(this);
+    if (parameters->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE) {
+        s_vsyncForcedFrom = parameters->PresentationInterval;
+        parameters->PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+        LogVSyncForced();
+    }
 }
 
 void fD3D::RunScene_Render(void* sceneCommandList) {
@@ -161,6 +282,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
             spdlog::set_default_logger(logger);
             spdlog::flush_on(spdlog::level::info);
             spdlog::info("Welcome to sf4e");
+            LogVSyncForced();
             spdlog::info("Sidecar logging initialized; install hooks are active");
         }
         catch (const spdlog::spdlog_ex& ex)

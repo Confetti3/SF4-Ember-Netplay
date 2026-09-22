@@ -70,30 +70,32 @@ static void TestEnabledDisabledABGate() {
 	CHECK(Near(p.outstandingMs, 0.0));
 	CHECK(Near(p.msAcceptedTotal, 0.0));
 	CHECK(Near(p.msDiscardedDisabled, 50.0));
-	CHECK(Near(p.NextWaitMs(), 0.0));
+	CHECK(Near(p.NextShiftMs(), 0.0));
 
 	p.enabled = true;
 	p.OnRecommendation(3);
 	CHECK(Near(p.outstandingMs, 50.0));
-	CHECK(Near(p.NextWaitMs(), 3.0));
+	CHECK(Near(p.NextShiftMs(), 3.0));
 }
 
-static void TestWaitResultAccounting() {
+static void TestContinuousIgnoresRecommendations() {
+	PacingController p = Fresh();
+	p.continuous = true;
+	p.OnRecommendation(3);
+	CHECK(p.recommendationsReceived == 1);
+	CHECK(Near(p.outstandingMs, 0.0));
+}
+
+static void TestShiftAccounting() {
 	PacingController p = Fresh();
 	p.OnRecommendation(3);
-	p.OnWaitRequested(3.0);
-	p.OnWaited(3.25);
-	p.OnFallbackSleep();
-	CHECK(p.waitRequests == 1);
-	CHECK(Near(p.msRequestedTotal, 3.0));
-	CHECK(Near(p.maxRequestedWaitMs, 3.0));
-	CHECK(Near(p.msAppliedTotal, 3.25));
-	CHECK(p.fallbackSleeps == 1);
-
-	p.OnWaitFailure(false);
-	p.OnWaitFailure(true);
-	CHECK(p.waitFailures == 2);
-	CHECK(p.waitTimeouts == 1);
+	p.OnShiftApplied(3.25);
+	CHECK(Near(p.msSlowedTotal, 3.25));
+	CHECK(Near(p.outstandingMs, 50.0 - 3.25));
+	p.OnShiftApplied(-1.0);
+	CHECK(Near(p.msSpedUpTotal, 1.0));
+	CHECK(Near(p.outstandingMs, 50.0 - 2.25));
+	CHECK(Near(p.maxSingleShiftMs, 3.25));
 }
 
 static void TestPerFrameBudgetAndRepayment() {
@@ -101,57 +103,54 @@ static void TestPerFrameBudgetAndRepayment() {
 	p.OnRecommendation(3); // 50 ms
 
 	// Each outer frame repays at most maxStepMs.
-	CHECK(Near(p.NextWaitMs(), 3.0));
+	CHECK(Near(p.NextShiftMs(), 3.0));
 
 	// Full repayment loop terminates and total-applied ≈ debt.
 	int iterations = 0;
-	while (p.NextWaitMs() > 0.0 && iterations < 1000) {
-		p.OnWaited(p.NextWaitMs());
+	while (p.NextShiftMs() > 0.0 && iterations < 1000) {
+		p.OnShiftApplied(p.NextShiftMs());
 		iterations++;
 	}
 	CHECK(iterations >= 16 && iterations <= 17); // 50/3
-	CHECK(p.outstandingMs < p.minWaitMs);
-	CHECK(p.msAppliedTotal > 49.0 && p.msAppliedTotal < 51.0);
-	CHECK(Near(p.maxSingleWaitMs, 3.0));
+	CHECK(p.outstandingMs < p.minShiftMs);
+	CHECK(p.msSlowedTotal > 49.0 && p.msSlowedTotal < 51.0);
+	CHECK(Near(p.maxSingleShiftMs, 3.0));
 }
 
-static void TestOverWaitClampsToZero() {
+static void TestAppliedMovesDebtExactly() {
 	PacingController p = Fresh();
 	p.OnRecommendation(3); // 50 ms
 
-	// Coarse timers can over-wait; debt must not go negative.
-	p.OnWaited(80.0);
-	CHECK(Near(p.outstandingMs, 0.0));
-	CHECK(Near(p.NextWaitMs(), 0.0));
-
-	// Bogus non-positive waits are ignored.
-	p.OnRecommendation(3);
-	p.OnWaited(0.0);
-	p.OnWaited(-5.0);
-	CHECK(Near(p.outstandingMs, 50.0));
+	// A shift that lands after the target moved still counts in full, even
+	// across zero, so the next shift pays it back.
+	p.OnShiftApplied(80.0);
+	CHECK(Near(p.outstandingMs, -30.0));
+	CHECK(Near(p.NextShiftMs(), -3.0));
+	p.OnShiftApplied(0.0);
+	CHECK(Near(p.outstandingMs, -30.0));
 }
 
 static void TestMinGranularity() {
 	PacingController p = Fresh();
 	p.OnRecommendation(3);
 	// Wait everything down to below minWaitMs.
-	p.OnWaited(49.5);
+	p.OnShiftApplied(49.5);
 	CHECK(p.outstandingMs > 0.0 && p.outstandingMs < 1.0);
-	// Residual debt below the minimum wait is not worth a kernel wait.
-	CHECK(Near(p.NextWaitMs(), 0.0));
+	// Residual debt below the minimum is not worth a shift.
+	CHECK(Near(p.NextShiftMs(), 0.0));
 }
 
 static void TestReset() {
 	PacingController p = Fresh();
 	p.OnRecommendation(9); // 150 ms
-	p.OnWaited(3.0);
+	p.OnShiftApplied(3.0);
 	CHECK(p.outstandingMs > 0.0);
 
 	// No correction survives the match lifecycle; discard is recorded.
 	p.Reset();
 	CHECK(Near(p.outstandingMs, 0.0));
 	CHECK(Near(p.msDiscardedOnReset, 147.0));
-	CHECK(Near(p.NextWaitMs(), 0.0));
+	CHECK(Near(p.NextShiftMs(), 0.0));
 
 	// Stats reset separately (per-match).
 	p.ResetStats();
@@ -165,16 +164,17 @@ static void TestConfigurableCaps() {
 	p.maxStepMs = 1.5;
 	p.OnRecommendation(9);
 	CHECK(Near(p.outstandingMs, 4.0 * 1000.0 / 60.0));
-	CHECK(Near(p.NextWaitMs(), 1.5));
+	CHECK(Near(p.NextShiftMs(), 1.5));
 }
 
 int main() {
 	TestClamping();
 	TestRepeatedRecommendationsDoNotAccumulate();
 	TestEnabledDisabledABGate();
-	TestWaitResultAccounting();
+	TestContinuousIgnoresRecommendations();
+	TestShiftAccounting();
 	TestPerFrameBudgetAndRepayment();
-	TestOverWaitClampsToZero();
+	TestAppliedMovesDebtExactly();
 	TestMinGranularity();
 	TestReset();
 	TestConfigurableCaps();

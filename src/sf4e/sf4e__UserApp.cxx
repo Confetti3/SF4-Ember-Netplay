@@ -55,48 +55,6 @@ std::unique_ptr<fUserApp::Netplay> fUserApp::netplay;
 std::unique_ptr<SessionServer> fUserApp::server;
 static bool s_pendingMatchStart = false;
 
-#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
-#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
-#endif
-
-// Waits approximately `ms` without touching the global timer resolution
-// (no timeBeginPeriod). Prefers a high-resolution waitable timer
-// (Win10 1803+); falls back to a plain waitable timer, then Sleep. The
-// caller measures the actual elapsed time — coarse waits self-correct
-// through PacingController::OnWaited.
-enum PacedWaitResult {
-    PACED_WAIT_TIMER = 0,
-    PACED_WAIT_FALLBACK_SLEEP,
-    PACED_WAIT_TIMEOUT,
-    PACED_WAIT_FAILED
-};
-
-static PacedWaitResult PacedWaitMs(double ms) {
-    static HANDLE s_timer = INVALID_HANDLE_VALUE;
-    if (s_timer == INVALID_HANDLE_VALUE) {
-        s_timer = CreateWaitableTimerExW(
-            NULL, NULL, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS
-        );
-        if (!s_timer) {
-            s_timer = CreateWaitableTimerExW(NULL, NULL, 0, TIMER_ALL_ACCESS);
-        }
-    }
-    if (s_timer) {
-        LARGE_INTEGER due;
-        due.QuadPart = -(LONGLONG)(ms * 10000.0); // relative, 100 ns units
-        if (SetWaitableTimer(s_timer, &due, 0, NULL, NULL, FALSE)) {
-            // Bounded backstop so a timer failure can never hang the tick.
-            DWORD result = WaitForSingleObject(s_timer, (DWORD)(ms + 50.0));
-            if (result == WAIT_OBJECT_0) {
-                return PACED_WAIT_TIMER;
-            }
-            return result == WAIT_TIMEOUT ? PACED_WAIT_TIMEOUT : PACED_WAIT_FAILED;
-        }
-    }
-    Sleep((DWORD)(ms + 0.5));
-    return PACED_WAIT_FALLBACK_SLEEP;
-}
-
 static bool StartMatchFromLobby(SessionClient* const client) {
     sf4e::NetplayFacade::ClearBattleState();
     fVsBattle::bSessionSynced = false;
@@ -333,8 +291,6 @@ void fUserApp::Steam_PostUpdate() {
     diag::ScopedTimer completeOuterCall(diag::OP_COMPLETE_OUTER_CALL);
     const bool diagnosticsEnabled = diag::Enabled();
     const double outerTickStartMs = diagnosticsEnabled ? diag::NowMs() : 0.0;
-    double pacingRequestedThisTickMs = 0.0;
-    double pacingActualThisTickMs = 0.0;
     {
         diag::ScopedTimer runtimeTimer(diag::OP_RUNTIME_TICK);
         sf4e::NetplayFacade::TickRuntime();
@@ -404,36 +360,9 @@ void fUserApp::Steam_PostUpdate() {
     // still be confirmed by this poll. Publish from here too.
     fSystem::PollNativeMatchResult();
     fSystem::PollSpectators();
-    fSystem::PollTimesync();
-
-    const bool mayPace = fSystem::ggpo && fSystem::MayAdvanceDeterministicFrame() &&
-        !fSystem::simGate.predictionStalled;
-    // Distributed time-sync pacing (Phase 4): repay a small, bounded slice
-    // of the outstanding correction per rendered frame, outside every GGPO
-    // callback. Deterministic simulation is never skipped or doubled;
-    // this only delays presentation. Skipped while GGPO already stalls us
-    // (prediction threshold) and while the gate is closed.
-    if (fSystem::pacer.enabled && mayPace) {
-        double wantMs = fSystem::pacer.NextWaitMs();
-        if (wantMs > 0.0) {
-            pacingRequestedThisTickMs = wantMs;
-            fSystem::pacer.OnWaitRequested(wantMs);
-            double t0 = diag::NowMs();
-            PacedWaitResult waitResult = PacedWaitMs(wantMs);
-            double actual = diag::NowMs() - t0;
-            pacingActualThisTickMs = actual;
-            fSystem::pacer.OnWaited(actual);
-            if (waitResult == PACED_WAIT_FALLBACK_SLEEP) {
-                fSystem::pacer.OnFallbackSleep();
-            }
-            else if (waitResult == PACED_WAIT_TIMEOUT || waitResult == PACED_WAIT_FAILED) {
-                fSystem::pacer.OnWaitFailure(waitResult == PACED_WAIT_TIMEOUT);
-            }
-            if (diag::Enabled()) {
-                diag::G().RecordOp(diag::OP_PACING_WAIT, actual);
-            }
-        }
-    }
+    // Rift pacing: accounts for the last frame's shift and asks the frame
+    // limiter for the next one.
+    const fSystem::PacingTick pacing = fSystem::StepPacing();
 
     {
         // This timer is deliberately only the original engine method. The
@@ -514,8 +443,8 @@ void fUserApp::Steam_PostUpdate() {
                 fSystem::simGate.connectionWarningActive,
                 fSystem::pacer.outstandingMs,
                 fSystem::pacer.riftFramesEma,
-                pacingRequestedThisTickMs,
-                pacingActualThisTickMs,
+                pacing.requestedMs,
+                pacing.appliedMs,
                 d.rollbackCallbacksThisOuterFrame,
                 d.ops[diag::OP_SAVE_TOTAL].lastMs,
                 d.ops[diag::OP_LOAD_TOTAL].lastMs,

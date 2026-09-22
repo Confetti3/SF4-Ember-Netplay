@@ -279,7 +279,7 @@ namespace sf4e {
 		if (closeGgpo && fSystem::ggpo) {
 			fSystem::RetireGgpoSession("shutdown");
 		}
-		fSystem::pacer.Reset();
+		fSystem::ResetPacing();
 		s_ggpoTransportStatus = { 0 };
 		s_ggpoSyncPhase = GgpoSyncPhase::None;
 		if (fUserApp::netplay) {

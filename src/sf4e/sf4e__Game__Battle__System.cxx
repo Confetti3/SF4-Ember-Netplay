@@ -101,7 +101,6 @@ GGPOSession* fSystem::ggpo = nullptr;
 sf4e::gate::GgpoGateModel fSystem::simGate = { sf4e::gate::PHASE_NO_SESSION };
 // Zeroed (so disabled) until ResetPacerForSession initializes it.
 sf4e::pacing::PacingController fSystem::pacer;
-bool fSystem::continuousTimesync = true;
 
 bool fSystem::MayAdvanceDeterministicFrame() {
     // Preserve the legacy Boolean for offline/development controls, but make
@@ -537,7 +536,7 @@ void fSystem::CloseBattle() {
                 diag::G().OnSessionEnded(diag::NowMs());
             }
             LogPacerSummary("battle_close_deferred");
-            pacer.Reset();
+            ResetPacing();
         }
     }
     for (int i = 0; i < NUM_SAVE_STATES; i++) {

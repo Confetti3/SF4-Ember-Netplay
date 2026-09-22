@@ -4,6 +4,52 @@
 
 static sf4e::RollbackHud rollbackHud;
 
+// Always-on netplay time series: one log line per 15 s window and one at the
+// end of a session, so tester logs show rift, ping, rollbacks and stalls
+// without the diagnostics switch. Pacer totals are logged as window deltas.
+struct NetplayWindow {
+    uint64_t startMs = 0; // 0 until the first session starts
+    uint32_t rollbacks = 0, resimFrames = 0, depth = 0, maxDepth = 0, stallTicks = 0;
+    int pingMin = -1, pingMax = -1, localBehind = 0, remoteBehind = 0;
+    double maxAbsRift = 0.0;
+    uint32_t recsAtStart = 0;
+    double slowedAtStart = 0.0, spedUpAtStart = 0.0;
+
+    void Start(uint64_t now) {
+        *this = {};
+        startMs = now;
+        recsAtStart = fSystem::pacer.recommendationsReceived;
+        slowedAtStart = fSystem::pacer.msSlowedTotal;
+        spedUpAtStart = fSystem::pacer.msSpedUpTotal;
+    }
+
+    void Sample(const GGPONetworkStats& stats) {
+        const double ema = fSystem::pacer.riftFramesEma;
+        maxAbsRift = (std::max)(maxAbsRift, ema < 0.0 ? -ema : ema);
+        localBehind = stats.timesync.local_frames_behind;
+        remoteBehind = stats.timesync.remote_frames_behind;
+        const int ping = stats.network.ping;
+        pingMin = pingMin < 0 ? ping : (std::min)(pingMin, ping);
+        pingMax = (std::max)(pingMax, ping);
+    }
+
+    // Logs the window so far and starts the next one.
+    void Flush(uint64_t now) {
+        const sf4e::pacing::PacingController& p = fSystem::pacer;
+        if (startMs != 0 && now > startMs) {
+            spdlog::info(
+                "Netplay [{:.0f}s]: ping={}..{} riftFrames={:.2f} maxAbsRift={:.2f} behind={}/{} rollbacks={} "
+                "resimFrames={} maxDepth={} stallTicks={} slowedMs={:.1f} spedUpMs={:.1f} timesyncEvents={}",
+                (now - startMs) / 1000.0, pingMin, pingMax, p.riftFramesEma, maxAbsRift, localBehind, remoteBehind,
+                rollbacks, resimFrames, maxDepth, stallTicks, p.msSlowedTotal - slowedAtStart,
+                p.msSpedUpTotal - spedUpAtStart, p.recommendationsReceived - recsAtStart);
+        }
+        Start(now);
+    }
+};
+static NetplayWindow s_window;
+static constexpr uint64_t kNetplayWindowMs = 15000;
+
 // Last disconnect_flags observed from ggpo_synchronize_input; logged on
 // change for diagnostics only (no gameplay semantics attached).
 static int s_lastDisconnectFlags = 0;
@@ -75,6 +121,7 @@ int fSystem::DisconnectCountdownMs() {
 // controller for a new session. Called from StartGGPO/StartSpectating.
 static void ResetPacerForSession() {
     fSystem::pacer.InitDefaults();
+    sf4e::Platform::D3D::CancelFrameShift();
     const char* enabledEnv = getenv("SF4E_GGPO_DISTRIBUTED_TIMESYNC");
     fSystem::pacer.enabled = !(enabledEnv && enabledEnv[0] == '0');
     const char* stepEnv = getenv("SF4E_PACING_MAX_STEP_MS");
@@ -94,21 +141,27 @@ static void ResetPacerForSession() {
     // Both experiments are on unless set to 0. GGPO reads the repair switch
     // itself with the EnvFlag rule. The line lets a log confirm which side ran
     // what.
-    fSystem::continuousTimesync = sf4e::EnvFlag("SF4E_CONTINUOUS_TIMESYNC", true);
+    fSystem::pacer.continuous = sf4e::EnvFlag("SF4E_CONTINUOUS_TIMESYNC", true);
     spdlog::info("Netplay experiments: continuousTimesync={} inputRepair={}",
-        fSystem::continuousTimesync, sf4e::EnvFlag("SF4E_GGPO_INPUT_REPAIR", true));
+        fSystem::pacer.continuous, sf4e::EnvFlag("SF4E_GGPO_INPUT_REPAIR", true));
+    s_window.Start(GetTickCount64());
+}
+
+void fSystem::ResetPacing() {
+    pacer.Reset();
+    sf4e::Platform::D3D::CancelFrameShift();
 }
 
 void LogPacerSummary(const char* label) {
+    s_window.Flush(GetTickCount64());
     const sf4e::pacing::PacingController& p = fSystem::pacer;
-    if (p.recommendationsReceived == 0 && p.msAppliedTotal == 0.0 && p.riftSamples == 0) {
+    if (p.recommendationsReceived == 0 && p.msSlowedTotal == 0.0 && p.msSpedUpTotal == 0.0 && p.riftSamples == 0) {
         return;
     }
     spdlog::info(
         "Pacing [{}]: enabled={} recs={} framesRec={} acceptedMs={:.1f} "
         "replacedMs={:.1f} disabledDiscardMs={:.1f} resetDiscardMs={:.1f} "
-        "waits={} requestedMs={:.1f} actualMs={:.1f} maxRequestedMs={:.2f} "
-        "maxActualMs={:.2f} failures={} timeouts={} fallbacks={} "
+        "slowedMs={:.1f} spedUpMs={:.1f} maxShiftMs={:.2f} "
         "maxOutstandingMs={:.1f} outstandingMs={:.1f} continuous={} riftSamples={} "
         "riftAcceptedMs={:.1f} riftFrames={:.2f} maxAbsRiftFrames={:.2f}",
         label,
@@ -119,17 +172,12 @@ void LogPacerSummary(const char* label) {
         p.msReplacedTotal,
         p.msDiscardedDisabled,
         p.msDiscardedOnReset,
-        p.waitRequests,
-        p.msRequestedTotal,
-        p.msAppliedTotal,
-        p.maxRequestedWaitMs,
-        p.maxSingleWaitMs,
-        p.waitFailures,
-        p.waitTimeouts,
-        p.fallbackSleeps,
+        p.msSlowedTotal,
+        p.msSpedUpTotal,
+        p.maxSingleShiftMs,
         p.maxOutstandingMs,
         p.outstandingMs,
-        fSystem::continuousTimesync,
+        p.continuous,
         p.riftSamples,
         p.msRiftAcceptedTotal,
         p.riftFramesEma,
@@ -192,7 +240,7 @@ void fSystem::RetireGgpoSession(const char* diagnosticsLabel) {
     bUpdateAllowed = !simGate.manualPause;
     sf4e::NetplayFacade::ClearMatchNotice();
     EmitRollbackDiagSummary(diagnosticsLabel);
-    pacer.Reset();
+    ResetPacing();
 }
 
 void fSystem::AbortGgpoMatch(const char* reason) {
@@ -426,18 +474,36 @@ bool fSystem::GetRemoteNetworkStats(GGPONetworkStats& stats) {
     return false;
 }
 
-// A stalled tick already repays time, and the advantage pair is unreliable
-// during and after it, so the pacer holds its estimate (OnPredictionStall).
-void fSystem::PollTimesync() {
-    if (!ggpo || !continuousTimesync || !pacer.enabled) return;
+// Rift pacing, once per outer tick and never inside a GGPO callback. Collects
+// what the frame limiter applied, samples the rift (in every mode, so baseline
+// logs report it too), and requests the next frame's shift from the limiter
+// (fD3D::LimitFrame). Deterministic simulation is never skipped or doubled;
+// only frame length changes. A stalled tick already repays time and its
+// advantage pair is unreliable, so it holds the estimate and does not shift.
+fSystem::PacingTick fSystem::StepPacing() {
+    PacingTick tick{ 0.0, 0.0 };
+    if (!ggpo) return tick;
+    tick.appliedMs = sf4e::Platform::D3D::TakeAppliedShift();
+    pacer.OnShiftApplied(tick.appliedMs);
+    if (tick.appliedMs != 0.0 && diag::Enabled()) {
+        diag::G().RecordOp(diag::OP_PACING_WAIT, tick.appliedMs < 0.0 ? -tick.appliedMs : tick.appliedMs);
+    }
+    const uint64_t now = GetTickCount64();
+    if (now - s_window.startMs >= kNetplayWindowMs) s_window.Flush(now);
     if (simGate.predictionStalled) {
+        ++s_window.stallTicks;
         pacer.OnPredictionStall();
-        return;
     }
-    GGPONetworkStats stats{};
-    if (MayAdvanceDeterministicFrame() && GetRemoteNetworkStats(stats)) {
-        pacer.OnRiftSample(stats.timesync.local_frames_behind, stats.timesync.remote_frames_behind);
+    else if (MayAdvanceDeterministicFrame()) {
+        GGPONetworkStats stats{};
+        if (GetRemoteNetworkStats(stats)) {
+            pacer.OnRiftSample(stats.timesync.local_frames_behind, stats.timesync.remote_frames_behind);
+            s_window.Sample(stats);
+        }
+        tick.requestedMs = pacer.NextShiftMs();
     }
+    sf4e::Platform::D3D::RequestFrameShift(tick.requestedMs);
+    return tick;
 }
 
 bool fSystem::ggpo_advance_frame_callback(int)
@@ -495,6 +561,8 @@ bool fSystem::ggpo_advance_frame_callback(int)
     }
     else {
         rollbackHud.Replayed(GetTickCount64());
+        ++s_window.resimFrames;
+        s_window.maxDepth = (std::max)(s_window.maxDepth, ++s_window.depth);
         CaptureSnapshot(system);
         CaptureHashCheckpoint(system);
     }
@@ -509,6 +577,8 @@ bool fSystem::ggpo_load_game_state_callback(unsigned char* buffer, int len)
         return true;
     }
     rollbackHud.Begin(GetTickCount64());
+    ++s_window.rollbacks;
+    s_window.depth = 0;
     SaveState* state = (SaveState*)buffer;
     SaveState::Load(state);
     return true;
@@ -718,14 +788,10 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         if (diag::Enabled()) {
             diag::G().OnTimesyncEvent(info->u.timesync.frames_ahead);
         }
-        // Phase 4: no blocking here. The recommendation (a fresh clamped
-        // estimate of frames ahead — see PacingController) is recorded and
-        // repaid in small slices in the outer tick, outside this callback.
-        // The continuous path samples the same rift every tick; applying the
-        // coarse lump too would correct it twice.
-        if (!continuousTimesync) {
-            pacer.OnRecommendation(info->u.timesync.frames_ahead);
-        }
+        // No blocking here: the pacer records the recommendation and
+        // StepPacing repays it outside this callback. In continuous mode the
+        // pacer only counts it, since the rift samples already cover it.
+        pacer.OnRecommendation(info->u.timesync.frames_ahead);
         spdlog::info(
             "GGPO: timesync recommends {} frames; outstanding pacing {:.1f} ms",
             info->u.timesync.frames_ahead,

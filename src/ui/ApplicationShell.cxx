@@ -17,7 +17,6 @@ namespace {
 std::string GameSettingsAdvice(const gameconfig::DisplaySettings& g) {
     const struct { bool ok; const char* id; const std::string& value; } items[] = {
         {g.FrameRateOk(), "game_settings.frame_rate", g.frameRate},
-        {g.VSyncOk(), "game_settings.vsync", g.vsync},
         {g.MsaaOk(), "game_settings.anti_aliasing", g.msaa},
     };
     std::string text;

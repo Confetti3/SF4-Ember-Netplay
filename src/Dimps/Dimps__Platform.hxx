@@ -83,6 +83,11 @@ namespace Dimps {
 				void(D3D::* Destroy)();
 				DWORD (D3D::* Reset)();
 				void (D3D::* RunScene_Render)(void* pList);
+				// The FIXED frame-rate limiter, run after Present: spins until
+				// periodSeconds after lastLimiterExit, then records the exit.
+				int (D3D::* LimitFrame)(float frameDelta);
+				// Fills the present parameters for device creation and Reset.
+				void (D3D::* BuildPresentParameters)();
 			} __privateMethods;
 
 			typedef struct __publicMethods {
@@ -106,6 +111,16 @@ namespace Dimps {
 			DWORD behaviorFlags;
 			IDirect3D9* lpD3D;
 			IDirect3DDevice9* lpD3DDevice;
+
+			static unsigned long long* GetLastLimiterExit(D3D* d) {
+				return (unsigned long long*)((unsigned int)d + 0x1f0); // QPC ticks
+			}
+			static float* GetFramePeriodSeconds(D3D* d) {
+				return (float*)((unsigned int)d + 0x1f8); // 1/60 under FIXED
+			}
+			static D3DPRESENT_PARAMETERS* GetPresentParameters(D3D* d) {
+				return (D3DPRESENT_PARAMETERS*)((unsigned int)d + 0x1c);
+			}
 		};
 
 		struct Main

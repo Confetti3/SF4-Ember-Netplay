@@ -798,7 +798,7 @@ bool __cdecl GgpoAdvance(int) {
 }
 bool __cdecl GgpoEvent(GGPOEvent* event) {
     if (activeGgpo && event && event->code == GGPO_EVENTCODE_RUNNING) activeGgpo->running = true;
-    // Set only in the coarse rift mode; the continuous path ignores the event.
+    // Set in rift runs; the controller ignores the event in continuous mode.
     if (activeGgpo && event && event->code == GGPO_EVENTCODE_TIMESYNC && activeGgpo->pacer)
         activeGgpo->pacer->OnRecommendation(event->u.timesync.frames_ahead);
     return true;
@@ -1075,7 +1075,7 @@ json RunRift(const Options& options) {
     const auto run = [&](int index) {
         Peer& self = peers[index]; Peer& other = peers[1 - index];
         GgpoContext& context = self.context;
-        self.pacer.InitDefaults(); context.pacer = options.continuous ? nullptr : &self.pacer;
+        self.pacer.InitDefaults(); self.pacer.continuous = options.continuous; context.pacer = &self.pacer;
         activeGgpo = &context;
         GGPOPlayer player{}; player.size = sizeof(player); player.type = GGPO_PLAYERTYPE_LOCAL; player.player_num = index + 1;
         bool ok = ggpo_start_session(&context.session, &callbacks, "rift-benchmark", 2, 1, index ? secondPort : firstPort) == GGPO_OK &&
@@ -1090,8 +1090,10 @@ json RunRift(const Options& options) {
         while (!go && !stop) { ggpo_idle(context.session, 0); Sleep(1); }
         const auto period = std::chrono::duration_cast<std::chrono::steady_clock::duration>(
             std::chrono::duration<double>(1.0 / (index ? options.fastHz : 60.0)));
+        const double periodMs = 1000.0 / (index ? options.fastHz : 60.0);
         auto nextTick = std::chrono::steady_clock::now();
         while (!stop) {
+            double shiftMs = 0.0;
             RecordGgpoError(context, ggpo_idle(context.session, 0));
             // Inputs change every 8 frames so only some predictions miss.
             unsigned char input = static_cast<unsigned char>((options.seed + static_cast<std::uint32_t>(
@@ -1105,28 +1107,25 @@ json RunRift(const Options& options) {
                     ggpo_advance_frame(context.session) == GGPO_OK) {
                     ++context.acceptedFrames; ++context.currentFrame; self.frame = context.currentFrame;
                 }
-                // The pacing block of Steam_PostUpdate; like the game it is
-                // skipped on a stalled tick.
-                if (options.continuous) {
-                    GGPONetworkStats stats{};
-                    if (ggpo_get_network_stats(context.session, self.remote, &stats) == GGPO_OK)
-                        self.pacer.OnRiftSample(stats.timesync.local_frames_behind, stats.timesync.remote_frames_behind);
-                }
-                const double want = self.pacer.NextWaitMs();
-                if (want > 0.0) {
-                    self.pacer.OnWaitRequested(want);
-                    const auto before = std::chrono::steady_clock::now();
-                    PreciseWaitUntil(before + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-                        std::chrono::duration<double, std::milli>(want)));
-                    const auto waited = std::chrono::steady_clock::now() - before;
-                    self.pacer.OnWaited(std::chrono::duration<double, std::milli>(waited).count());
-                    nextTick += waited; // a pacing wait stretches this frame
-                }
+                // The game's pacing step; like the game it is skipped on a
+                // stalled tick.
+                GGPONetworkStats stats{};
+                if (ggpo_get_network_stats(context.session, self.remote, &stats) == GGPO_OK)
+                    self.pacer.OnRiftSample(stats.timesync.local_frames_behind, stats.timesync.remote_frames_behind);
+                shiftMs = self.pacer.NextShiftMs();
             }
             self.riftSamples.push_back(static_cast<double>(context.currentFrame - other.frame.load()));
-            nextTick += period;
-            if (nextTick < std::chrono::steady_clock::now()) nextTick = std::chrono::steady_clock::now();
+            // The frame deadline plays the game's limiter: a pacing shift moves
+            // it for one frame, as fD3D::LimitFrame does.
+            const auto frameStart = nextTick, now = std::chrono::steady_clock::now();
+            const double shiftedMs = sf4e::pacing::ShiftedPeriodMs(
+                periodMs, std::chrono::duration<double, std::milli>(now - frameStart).count(), shiftMs);
+            nextTick += shiftMs == 0.0 ? period : std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                std::chrono::duration<double, std::milli>(shiftedMs));
+            if (nextTick < now) nextTick = now;
             PreciseWaitUntil(nextTick);
+            self.pacer.OnShiftApplied(sf4e::pacing::AppliedShiftMs(
+                periodMs, std::chrono::duration<double, std::milli>(nextTick - frameStart).count(), shiftMs));
         }
     };
     timeBeginPeriod(1);
@@ -1152,7 +1151,8 @@ json RunRift(const Options& options) {
             {"prediction_stall_ticks", peer.stallTicks}, {"fatal_errors", peer.context.fatalErrors},
             {"mean_abs_rift_frames", mean},
             {"p95_abs_rift_frames", magnitudes.empty() ? 0.0 : magnitudes[magnitudes.size() * 95 / 100]},
-            {"pacing_wait_ms", peer.pacer.msAppliedTotal}, {"timesync_recommendations", peer.pacer.recommendationsReceived},
+            {"pacing_wait_ms", peer.pacer.msSlowedTotal}, {"pacing_speedup_ms", peer.pacer.msSpedUpTotal},
+            {"timesync_recommendations", peer.pacer.recommendationsReceived},
             {"rift_ema_frames", peer.pacer.riftFramesEma}};
     };
     for (auto& peer : peers) if (peer.context.session) { activeGgpo = &peer.context; ggpo_close_session(peer.context.session); }

@@ -60,6 +60,8 @@ void D3D::Locate(HMODULE peRoot) {
     *(PVOID*)&privateMethods.Destroy = (PVOID)(peRootOffset + 0x372820);
     *(PVOID*)&privateMethods.Reset = (PVOID)(peRootOffset + 0x3725b0);
     *(PVOID*)&privateMethods.RunScene_Render = (PVOID)(peRootOffset + 0x370cc0);
+    *(PVOID*)&privateMethods.LimitFrame = (PVOID)(peRootOffset + 0x370de0);
+    *(PVOID*)&privateMethods.BuildPresentParameters = (PVOID)(peRootOffset + 0x3719d0);
     staticMethods.GetSingleton = (D3D * (WINAPI*)())(peRootOffset + 0x371180);
 }
 

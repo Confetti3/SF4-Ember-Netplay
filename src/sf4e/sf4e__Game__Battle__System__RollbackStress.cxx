@@ -4,7 +4,8 @@
 // ---------------------------------------------------------------------------
 // Local rollback stress (development only).
 //
-// SF4E_ROLLBACK_STRESS=<1..8> makes an offline battle (Versus or Training)
+// SF4E_ROLLBACK_STRESS=<1..8> makes an offline battle (Versus or Training;
+// never Arcade or the title demo, where the CPU drives a side)
 // drive save states the way a GGPO session with that rollback distance does:
 //
 //   * every frame frees the oldest ring slot and saves before simulating;
@@ -62,6 +63,7 @@ struct RollbackStress {
     uint64_t rollbacks = 0;
     uint64_t divergences = 0;
     uint64_t resets = 0;
+    int gameMode = -1; // of the last stressed battle
 };
 
 RollbackStress& Stress() {
@@ -166,6 +168,15 @@ bool StressStep(rSystem* system) {
     if (!stress.distance) {
         return false;
     }
+    // The CPU opponent's decisions (Battle::Com) are not in the save state,
+    // so a CPU-driven side diverges on every replay. Online play has no CPU.
+    // Versus against the CPU and a CPU training dummy are not filtered here;
+    // the battle-closed line names the mode.
+    const int mode = (system->*rSystem::publicMethods.GetGameMode)();
+    if (mode == Dimps::Game::Battle::GAMEMODE_ARCADE || mode == Dimps::Game::Battle::GAMEMODE_BENCHMARK_DEMO) {
+        return false;
+    }
+    stress.gameMode = mode;
     // The engine's chara record (0x5633a0) dereferences both actors_0x18
     // entries, which stay null for the first frames of a battle.
     CharaUnit* chara = (system->*rSystem::publicMethods.GetCharaUnit)();
@@ -274,13 +285,14 @@ bool StressStep(rSystem* system) {
 
 void StressCloseBattle() {
     auto& stress = Stress();
-    if (!stress.distance) {
-        return;
+    if (!stress.distance || stress.gameMode < 0) {
+        return; // disabled, or a CPU-driven battle that was never stressed
     }
     spdlog::info(
-        "RollbackStress: battle closed distance={} free_path={} rollbacks={} divergences={} resets={}",
-        stress.distance, SaveStateFreePathName(), stress.rollbacks, stress.divergences, stress.resets
+        "RollbackStress: battle closed mode={} distance={} free_path={} rollbacks={} divergences={} resets={}",
+        stress.gameMode, stress.distance, SaveStateFreePathName(), stress.rollbacks, stress.divergences, stress.resets
     );
+    stress.gameMode = -1;
     EmitRollbackDiagSummary("rollback_stress_close");
     StressReset();
     stress.rollbacks = stress.divergences = stress.resets = 0;
