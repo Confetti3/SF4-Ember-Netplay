@@ -4,15 +4,16 @@
   <p><strong>Your room. Your rivals. One more game.</strong></p>
   <p>Private rollback rooms and a controller-first overlay for Ultra Street Fighter IV.</p>
   <p>
-    <a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/tag/v0.9.6"><img alt="Release 0.9.6" src="https://img.shields.io/badge/release-0.9.6-e97835?style=flat-square&labelColor=242321"></a>
+    <a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/tag/v0.9.7"><img alt="Release 0.9.7" src="https://img.shields.io/badge/release-0.9.7-e97835?style=flat-square&labelColor=242321"></a>
     <img alt="Windows x64" src="https://img.shields.io/badge/platform-Windows_x64-e97835?style=flat-square&labelColor=242321">
     <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-e97835?style=flat-square&labelColor=242321"></a>
   </p>
   <p>
-    <strong><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v0.9.6/sf4-ember-netplay-0.9.6.zip">Download v0.9.6 for Windows</a></strong>
+    <strong><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v0.9.7/sf4-ember-netplay-0.9.7.zip">Download v0.9.7 for Windows</a></strong>
     &nbsp; · &nbsp; <a href="#get-started">Get started</a>
     &nbsp; · &nbsp; <a href="docs/guides/USER_NETPLAY.md">Player guide</a>
-    &nbsp; · &nbsp; <a href="docs/release-notes/RELEASE_NOTES_v0.9.6.md">Release notes</a>
+    &nbsp; · &nbsp; <a href="docs/release-notes/RELEASE_NOTES_v0.9.7.md">Release notes</a>
+    &nbsp; · &nbsp; <a href="https://discord.gg/uPNqF5A5uq">Discord</a>
   </p>
 </div>
 
@@ -61,7 +62,7 @@ An in-game capture supplied by the project owner, showing Ember's frame meter, p
 
 You need **Windows 10 or later (x64)**, an owned **Steam copy of Ultra Street Fighter IV**, and the **Microsoft Visual C++ x86 runtime**. The game is not included.
 
-1. For a fresh installation, [download the complete v0.9.6 ZIP](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v0.9.6/sf4-ember-netplay-0.9.6.zip) and its [SHA-256 checksum](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v0.9.6/sf4-ember-netplay-0.9.6.zip.sha256). Choose a release package, not GitHub's source-code download.
+1. For a fresh installation, [download the complete v0.9.7 ZIP](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v0.9.7/sf4-ember-netplay-0.9.7.zip) and its [SHA-256 checksum](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v0.9.7/sf4-ember-netplay-0.9.7.zip.sha256). Choose a release package, not GitHub's source-code download.
 2. Extract everything into a **new writable folder**. Keep your old launcher installation separate; moving from the legacy launcher to Ember is a fresh install.
 3. Run `preflight.cmd`, then `Launcher.exe`. Successful startup goes directly to the game. If needed, select the folder containing `SSFIV.exe` in launch recovery.
 4. At the main menu, choose your controller and player name. Use **Online Play → Create Room**, then copy the invitation. Guests choose **Join Room** and paste it.
@@ -96,7 +97,7 @@ Ember remains experimental. Local builds, automated UI and transport tests, and 
 | --- | --- |
 | [Player guide](docs/guides/USER_NETPLAY.md) | Hosting, joining, controls and day-to-day play |
 | [Custom rooms](docs/guides/CUSTOM_ROOMS.md) | Tables, queues, spectators and room behavior |
-| [Discord](docs/guides/DISCORD.md) | Presence, invitations and privacy |
+| [Discord integration](docs/guides/DISCORD.md) | Presence, invitations and privacy |
 | [Troubleshooting](docs/guides/TROUBLESHOOTING.md) | Startup, connections and diagnostics |
 | [Saving logs](docs/guides/SAVING_LOGS.md) | Save logs and diagnostics from both players for a bug report |
 | [Build and package](docs/development/BUILDING.md) | Reproducible local builds and release provenance |

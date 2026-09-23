@@ -174,6 +174,15 @@ msgstr "A operação falhou. Tente novamente. As cópias de recuperação ficam 
 msgid "services.operation_cancelled"
 msgstr "Operação cancelada."
 
+msgid "services.opening_community"
+msgstr "Abrindo o Discord do Ember no navegador..."
+
+msgid "services.community_opened"
+msgstr "Aberto no navegador. Mude para ele para entrar no servidor."
+
+msgid "services.community_failed"
+msgstr "Não foi possível abrir o navegador. Acesse {0} para entrar."
+
 msgid "settings.language"
 msgstr "Idioma"
 
@@ -654,6 +663,12 @@ msgstr "Feche o jogo e abra a recuperação."
 msgid "about.leave_room_first"
 msgstr "Saia da sala e volte ao menu principal primeiro."
 
+msgid "about.discord"
+msgstr "Entrar no Discord do Ember"
+
+msgid "about.discord_detail"
+msgstr "Jogadores, partidas e suporte em {0}. Abre no navegador por trás do jogo."
+
 msgid "settings.retry_save"
 msgstr "Tentar salvar novamente"
 
@@ -751,7 +766,7 @@ msgid "match.versus_short"
 msgstr "vs"
 
 msgid "match.ping"
-msgstr "Latência"
+msgstr "Ping"
 
 msgid "match.rollback"
 msgstr "Rollback"

@@ -4,6 +4,9 @@
 
 ## Testers and players: Submitting bugs
 
+For questions, match-ups and testing sessions, join the
+[Ember Discord](https://discord.gg/uPNqF5A5uq). Bugs still belong in Issues.
+
 **Please do**:
 * Submit issues when you find a bug! The issue template
   has a good checklist of things to include when submitting an issue. Issue

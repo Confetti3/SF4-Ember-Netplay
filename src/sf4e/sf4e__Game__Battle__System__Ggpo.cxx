@@ -28,7 +28,9 @@ struct NetplayWindow {
         maxAbsRift = (std::max)(maxAbsRift, ema < 0.0 ? -ema : ema);
         localBehind = stats.timesync.local_frames_behind;
         remoteBehind = stats.timesync.remote_frames_behind;
+        // GGPO reports 0 until the first round-trip reply arrives.
         const int ping = stats.network.ping;
+        if (ping <= 0) return;
         pingMin = pingMin < 0 ? ping : (std::min)(pingMin, ping);
         pingMax = (std::max)(pingMax, ping);
     }

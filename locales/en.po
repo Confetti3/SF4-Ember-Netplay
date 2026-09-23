@@ -174,6 +174,15 @@ msgstr "The operation failed. Please retry. Update recovery copies are kept in .
 msgid "services.operation_cancelled"
 msgstr "Operation cancelled."
 
+msgid "services.opening_community"
+msgstr "Opening the Ember Discord in your browser..."
+
+msgid "services.community_opened"
+msgstr "Opened in your browser. Switch to it to join the server."
+
+msgid "services.community_failed"
+msgstr "Could not open a browser. Visit {0} to join."
+
 msgid "settings.language"
 msgstr "Language"
 
@@ -653,6 +662,12 @@ msgstr "Close the game and open recovery."
 
 msgid "about.leave_room_first"
 msgstr "Leave your room and return to the main menu first."
+
+msgid "about.discord"
+msgstr "Join the Ember Discord"
+
+msgid "about.discord_detail"
+msgstr "Players, matches and support at {0}. Opens in your browser behind the game."
 
 msgid "settings.retry_save"
 msgstr "Retry saving"

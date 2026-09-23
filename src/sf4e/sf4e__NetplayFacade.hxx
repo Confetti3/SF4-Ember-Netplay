@@ -37,6 +37,9 @@ namespace sf4e {
 		char lastError[256] = { 0 };
 		NoticeSeverity lastErrorSeverity = NoticeSeverity::Info;
         std::string matchNames[2];
+        // The pair's running win count from its room table; unset outside a room.
+        bool hasMatchScore = false;
+        std::uint32_t matchScore[2] = { 0, 0 };
         unsigned rollbackFrames = 0;
         int appliedDelay = -1;
         bool spectator = false;

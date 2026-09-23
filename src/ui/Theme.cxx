@@ -255,6 +255,9 @@ void DrawControllerWarning(const std::string& message) {
         ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoFocusOnAppearing);
     ImGui::TextWrapped("%s",message.c_str());ImGui::End();
 }
+std::string SetScoreText(const std::uint32_t (&score)[2]) {
+    return std::to_string(score[0])+" - "+std::to_string(score[1]);
+}
 std::string MatchStripStateLine(const MatchStripView& view) {
     // The most urgent condition wins: a hard notice, then a stall (the game
     // is visibly frozen and the player needs to know why), then a warning.
@@ -321,10 +324,11 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
     }
     // One centred "A vs B" line. Anchoring each name to a fixed "vs" made the
     // pair lopsided whenever the names differed in length.
-    const auto nameWidth=(w-70*s)*.5f,gap=12*s;
+    // The names share whatever the middle label (a running score can be wide) leaves.
+    const auto versus=view.score.empty()?std::string(loc::T("match.versus_short")):view.score;
+    const auto gap=12*s,vsWidth=measure(versus,16*s),nameWidth=(w-30*s-2*gap-vsWidth)*.5f;
     const auto left=fit(view.names[0],nameWidth,20*s),right=fit(view.names[1],nameWidth,20*s);
-    const auto versus=loc::T("match.versus_short");
-    const auto leftWidth=measure(left,20*s),vsWidth=measure(versus,16*s);
+    const auto leftWidth=measure(left,20*s);
     auto x=p.x+(w-(leftWidth+gap+vsWidth+gap+measure(right,20*s)))*.5f;
     text(x,p.y+4*s,left,20*s,IM_COL32(243,235,221,255));x+=leftWidth+gap;
     text(x,p.y+6*s,versus,16*s,IM_COL32(255,135,56,230));x+=vsWidth+gap;

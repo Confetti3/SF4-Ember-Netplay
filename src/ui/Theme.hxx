@@ -1,5 +1,6 @@
 #pragma once
 #include <imgui.h>
+#include <cstdint>
 #include <string>
 #include <utility>
 
@@ -57,6 +58,8 @@ void EndToolWindow();
 // Presentation-only input. Neither this view nor its renderer accesses the game.
 struct MatchStripView {
     std::string names[2];
+    // Running win count (SetScoreText) shown in place of "vs"; empty when there is none.
+    std::string score;
     unsigned rollbackFrames = 0;
     int pingMs = -1, appliedDelay = -1, size = 1;
     bool spectator = false, raised = false;
@@ -68,6 +71,8 @@ struct MatchStripView {
     int disconnectCountdownMs = -1;
 };
 void DrawMatchStrip(const MatchStripView& view);
+// "2 - 1": a room pair's running win count, as the table card and HUD show it.
+std::string SetScoreText(const std::uint32_t (&score)[2]);
 // The single line the strip shows for the link state, or empty. Exposed so
 // the render harness and tests can check the wording without a draw list.
 std::string MatchStripStateLine(const MatchStripView& view);

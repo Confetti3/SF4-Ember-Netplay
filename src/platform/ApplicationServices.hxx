@@ -10,7 +10,9 @@
 #include <atomic>
 
 namespace sf4e { namespace platform {
-enum class ServiceAction { None, CheckUpdates, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery };
+enum class ServiceAction { None, CheckUpdates, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery, OpenCommunity };
+// Community Discord server, shown in Help & About and opened as https://<invite>.
+constexpr const char* CommunityInvite = "discord.gg/uPNqF5A5uq";
 enum class DiagnosticTiming : std::size_t {
     CompleteOuterCall,
     OuterTick,

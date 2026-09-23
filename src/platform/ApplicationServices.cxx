@@ -3,6 +3,8 @@
 #include "../netplay/SettingsStore.hxx"
 #include "../common/Localization.hxx"
 #include <windows.h>
+#include <objbase.h>
+#include <shellapi.h>
 #include <filesystem>
 #include <fstream>
 #include <cstring>
@@ -53,7 +55,8 @@ bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& d
     cancelled_ = false;
     state_.downloadedBytes = state_.totalBytes = 0;
     request_ = action; diagnostics_ = diagnostics; state_.pending = true; state_.lastAction = action;
-    state_.message = action == ServiceAction::CheckUpdates ? loc::T("services.checking") :
+    state_.message = action == ServiceAction::OpenCommunity ? loc::T("services.opening_community") :
+        action == ServiceAction::CheckUpdates ? loc::T("services.checking") :
         action == ServiceAction::ExportDiagnostics ? loc::T("services.exporting") :
         action == ServiceAction::InstallUpdate ? loc::T("services.downloading") : loc::T("services.opening_updater");
     wake_.notify_one(); return true;
@@ -121,6 +124,13 @@ void ApplicationServices::Run() {
                     CloseHandle(process.hThread); CloseHandle(process.hProcess);
                     next.closeGame = true; next.message = loc::T("services.game_closing");
                 }
+            } else if (action == ServiceAction::OpenCommunity) {
+                // ShellExecute may hand the URL to a COM-based handler; give it an apartment.
+                const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+                const std::wstring url = L"https://" + std::wstring(CommunityInvite, CommunityInvite + std::strlen(CommunityInvite));  // ASCII
+                const auto opened = reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr, L"open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL)) > 32;
+                if (SUCCEEDED(com)) CoUninitialize();
+                next.message = opened ? loc::T("services.community_opened") : loc::Tf("services.community_failed", CommunityInvite);
             } else if (action == ServiceAction::InstallUpdate) {
                 if (!next.update.ok || !next.update.updateAvailable || next.update.expectedSha256.size() != 64) {
                     next.message = loc::T("services.no_verified_update");

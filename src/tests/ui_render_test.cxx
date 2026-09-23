@@ -418,7 +418,7 @@ int main(int argc, char** argv) {
             view.room.roomEpoch=42;view.room.name="Friday Night Fights";view.room.capacity=16;view.room.host=view.room.localMember=1;
             view.canEditPreferences=false;view.canReady=true;view.localSlot=0;view.invitation="sf4://test-only";
             for(int i=0;i<4;++i){auto& t=view.room.tables[i];t.id=i;t.revision=1;t.phase=i==0?room::TablePhase::Waiting:i==1?room::TablePhase::Playing:room::TablePhase::Idle;
-                if(i<2){t.p1=i*2+1;t.p2=i*2+2;}}
+                if(i<2){t.p1=i*2+1;t.p2=i*2+2;t.score[0]=i*120;t.score[1]=i*99;}}
             const char* sampleNames[]={"Ember Player","Akira","Jamie","Alex","Morgan","Riley","Sam","Jordan","Casey","Taylor","Robin","Ash","Sky","Reese","Avery","Drew"};
             for(int i=1;i<=16;++i){room::Member m;m.id=i;m.name=readmeShots?sampleNames[i-1]:(i==2?"Long player name for layout test":"Member "+std::to_string(i));m.host=i==1;m.fighter=(i-1)*2;m.mainFighter=(i+7)%44;
                 if(i<=4){m.table=(i-1)/2;m.seat=(i-1)%2;m.status=i<3?room::MemberStatus::Seated:room::MemberStatus::Playing;}
@@ -604,6 +604,7 @@ int main(int argc, char** argv) {
             matchStrip.pingMs=9999;matchStrip.rollbackFrames=999;matchStrip.appliedDelay=10;draw("match-hud-long");
             matchStrip.pingMs=-1;matchStrip.appliedDelay=-1;draw("match-hud-unavailable");
             matchStrip.spectator=true;draw("match-hud-spectator");
+            matchStrip.score="12 - 10";draw("match-hud-score");
             ImGui_ImplDX9_InvalidateDeviceObjects();draw("match-hud-reset");
             mode=5;draw("controller-warning");
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Controller warning captured input");

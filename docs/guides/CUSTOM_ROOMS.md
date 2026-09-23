@@ -37,7 +37,8 @@ percentile round-trip time and allows two frames of prediction. These are
 tuning assumptions, not a guarantee about frame timing or network quality.
 
 Rematches are unlimited. Results count wins for the current fighter pair; they
-never force a seat rotation. Both fighters must ready again after returning to
+never force a seat rotation. The running count, such as 2 - 1, replaces "VS" on
+the table card and "vs" on the match HUD. Both fighters must ready again after returning to
 the room. When a fighter leaves their seat, the next queued member takes that
 seat and the new pair starts with fresh win counts. An unresolved game does not
 award a win or erase earlier wins for the same pair.

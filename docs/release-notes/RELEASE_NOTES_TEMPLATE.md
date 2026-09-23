@@ -14,4 +14,4 @@ Requires Windows 10 or later (x64), Ultra Street Fighter IV on Steam, and the Mi
 
 The fixed in-game menu provides private Iroh rooms, fighter selection, spectators and offline play. Host copies a private invitation; Join pastes it. Both players select Ready. Graphics and button mappings are configured in the native game Options menu.
 
-See [the player guide](../guides/USER_NETPLAY.md) and [troubleshooting](../guides/TROUBLESHOOTING.md). Keep invitations private. This local implementation does not authorize publication or any remote infrastructure change.
+See [the player guide](../guides/USER_NETPLAY.md) and [troubleshooting](../guides/TROUBLESHOOTING.md), or ask in the [Ember Discord](https://discord.gg/uPNqF5A5uq). Keep invitations private. This local implementation does not authorize publication or any remote infrastructure change.

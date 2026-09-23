@@ -181,12 +181,20 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   else rows.push_back(Row("invite-wait",loc::T("discord.invitation_pending"),loc::T("discord.invitation_pending_detail"),false));
  }else if(screen=="developer"&&developer){developer();if(ImGui::Button("Back to Home"))nav.Return();
  }else{
+  using platform::ServiceAction;
+  // Each row shows the service message only for the actions it requests.
+  const auto outcome=[&](std::initializer_list<ServiceAction> own,std::string idle){
+   for(const auto action:own)if(v.services.lastAction==action&&!v.services.message.empty())return v.services.message;
+   return idle;
+  };
   title=loc::T("about.title");rows={Row("help",loc::T("about.controls"),loc::T("about.controls_detail")),
    Row("credits",loc::T("about.ember"),loc::Tf("about.ember_detail",v.build)),
    Row("font",loc::T("about.font_license"),FontLicense()),Row("diagnostics",loc::T("about.export_diagnostics"),
-    v.services.lastAction==platform::ServiceAction::ExportDiagnostics&&!v.services.message.empty()?v.services.message:
-    loc::T("about.export_diagnostics_detail"),!v.services.pending),
-   Row("updates",loc::T("updates.check"),v.services.lastAction==platform::ServiceAction::ExportDiagnostics||v.services.message.empty()?loc::T("about.updates_detail"):v.services.message,!v.services.pending)};
+    outcome({ServiceAction::ExportDiagnostics},loc::T("about.export_diagnostics_detail")),!v.services.pending),
+   ConfirmRow("community",loc::T("about.discord"),
+    outcome({ServiceAction::OpenCommunity},loc::Tf("about.discord_detail",platform::CommunityInvite)),!v.services.pending),
+   Row("updates",loc::T("updates.check"),outcome({ServiceAction::CheckUpdates,ServiceAction::InstallUpdate,ServiceAction::OpenUpdater,ServiceAction::OpenRecovery},
+    loc::T("about.updates_detail")),!v.services.pending)};
   if(v.services.update.ok&&v.services.update.updateAvailable)rows.push_back(ConfirmRow("updater",loc::T("about.open_updater"),loc::T("about.open_updater_detail"),v.canEditPreferences&&!v.services.pending));
   if(v.network==NetworkAvailability::Unavailable)rows.push_back(ConfirmRow("recovery",loc::T("about.open_recovery"),
    v.canEditPreferences?loc::T("about.open_recovery_detail"):loc::T("about.leave_room_first"),v.canEditPreferences&&!v.services.pending));
@@ -292,6 +300,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="updates")Service(platform::ServiceAction::CheckUpdates,v,submit);
  else if(a.id=="updater")Service(platform::ServiceAction::OpenUpdater,v,submit);
  else if(a.id=="recovery")Service(platform::ServiceAction::OpenRecovery,v,submit);
+ else if(a.id=="community")Service(platform::ServiceAction::OpenCommunity,v,submit);
  else if(screen.compare(0,4,"room")==0)RoomAction(a,v,submit);
 }
 void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const std::string& screen,const Submit& submit) {

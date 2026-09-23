@@ -261,6 +261,13 @@ namespace sf4e {
 			st.inMatch = fSystem::ggpo != nullptr;
 			st.inputDelay = fUserApp::netplay->delay;
             for (int side = 0; side < 2; ++side) st.matchNames[side] = fUserApp::netplay->matchNames[side];
+            // Spectators carry their table too, so everyone watching sees the same count.
+            const auto& room = fUserApp::netplay->client.GetRoomSnapshot();
+            for (const auto& m : room.members)
+                if (m.id == room.localMember && m.table >= 0) {
+                    st.hasMatchScore = true;
+                    for (int side = 0; side < 2; ++side) st.matchScore[side] = room.tables[m.table].score[side];
+                }
             st.rollbackFrames = fSystem::RecentRollbackFrames();
 
 			for (const auto& m : fUserApp::netplay->client._lobbyData.members) {

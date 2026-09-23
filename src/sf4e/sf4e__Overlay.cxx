@@ -282,6 +282,7 @@ void Overlay::DrawOverlay() {
         const auto status = sf4e::NetplayFacade::GetStatus();
         sf4e::ui::MatchStripView strip;
         for (int side = 0; side < 2; ++side) strip.names[side] = status.matchNames[side];
+        if (status.hasMatchScore) strip.score = sf4e::ui::SetScoreText(status.matchScore);
         strip.rollbackFrames = status.rollbackFrames;
         strip.pingMs = status.pingMs; strip.appliedDelay = status.appliedDelay;
         strip.spectator = status.spectator;

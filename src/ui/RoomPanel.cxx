@@ -347,10 +347,14 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   const float width=ImGui::GetContentRegionAvail().x;press(e,ImVec2(width,h));
   text(ImVec2(p.x+12*s,p.y+8*s),width*.57f,loc::Tf("room.battle_slot",t.id+1),14*s,palette::Ivory);
   text(ImVec2(p.x+width*.60f,p.y+8*s),width*.40f-12*s,PhaseName(t.phase),12*s,palette::Ember);
-  const float top=p.y+28*s,portrait=(std::min)(56*s,h-52*s),half=(width-58*s)*.5f;
+  // A full pair shows its running win count where "VS" would sit; the gap
+  // between the two sides grows to fit however long the rematch run gets.
+  const std::string middle=t.p1&&t.p2?SetScoreText(t.score):"VS";
+  const float gap=(std::max)(34*s,ImGui::GetFont()->CalcTextSizeA(16*s,FLT_MAX,0,middle.c_str()).x+12*s);
+  const float top=p.y+28*s,portrait=(std::min)(56*s,h-52*s),half=(width-24*s-gap)*.5f;
   const room::MemberId ids[]={t.p1,t.p2};
   for(int side=0;side<2;++side){
-   const float x=p.x+12*s+side*(half+34*s);const auto* m=Member(v.room,ids[side]);const int id=fighter(m);
+   const float x=p.x+12*s+side*(half+gap);const auto* m=Member(v.room,ids[side]);const int id=fighter(m);
    if(m)DrawCharacterPortrait(id,ImVec2(x,top),ImVec2(x+portrait,top+portrait));
    const float tx=x+(m?portrait+8*s:0),tw=half-(m?portrait+8*s:0);
    // Names of different lengths read ragged when flush left; centre each
@@ -364,7 +368,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    if(m)caption+=ready?loc::T("room.suffix_ready"):m->id==v.room.localMember?loc::T("room.suffix_you"):"";
    if(!caption.empty())text(ImVec2(tx,top+21*s),tw,caption,12*s,ready?palette::Ready:palette::Muted,true);
   }
-  text(ImVec2(p.x+width*.5f-15*s,top+18*s),30*s,"VS",16*s,palette::Ember);
+  text(ImVec2(p.x+12*s+half,top+18*s),gap,middle,16*s,palette::Ember,true);
   text(ImVec2(p.x+12*s,p.y+h-21*s),width-24*s,loc::Tf("room.table_footer",t.rules.roundCount,t.rules.roundTime,t.queue.size(),t.spectators.size()+t.watchingNext.size()),12*s,palette::Muted);
   tip();
  };
