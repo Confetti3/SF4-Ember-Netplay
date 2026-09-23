@@ -18,6 +18,7 @@ bool MatchResultOutbox::Capture(const MatchResultCapture& capture) {
     capture_ = capture;
     captured_ = true;
     pending_ = true;
+    persistRevision_ = 0;
     actionId_ = 0;
     retryAt_ = 0;
     preparedRevision_ = preparedTableRevision_ = 0;
@@ -29,6 +30,7 @@ void MatchResultOutbox::Reset() {
     capture_ = MatchResultCapture{};
     captured_ = false;
     pending_ = false;
+    persistRevision_ = 0;
     actionId_ = 0;
     retryAt_ = 0;
     preparedRevision_ = preparedTableRevision_ = 0;
@@ -98,7 +100,34 @@ MatchResultOutbox::TerminalResult MatchResultOutbox::ObserveTerminal(const Rando
     retryAt_ = 0;
     preparedRevision_ = preparedTableRevision_ = 0;
     queuedRevision_ = queuedTableRevision_ = 0;
+    persistRevision_ = 0;
     return result == capture_.result ? TerminalResult::Confirmed : TerminalResult::Ended;
+}
+
+MatchResultOutbox::ProfilePersistence MatchResultOutbox::PersistProfile(ProfileRecord& profile,
+    const ProfileStore& store) {
+    if (!persistRevision_) {
+        switch (PrepareProfileConsumption(profile)) {
+        case ProfileConsumption::NoPersistenceRequired: return ProfilePersistence::NotRequired;
+        case ProfileConsumption::Invalid: return ProfilePersistence::Released;
+        case ProfileConsumption::PersistenceRequired: break;
+        }
+        // Every refusal (no writer, invalid or oversized snapshot, writer
+        // stopping) repeats on retry, so a refused queue releases too.
+        persistRevision_ = store.queue();
+        if (!persistRevision_) return ProfilePersistence::Released;
+    }
+    if (store.saved(persistRevision_)) {
+        persistRevision_ = 0;
+        return ProfilePersistence::Saved;
+    }
+    if (store.failed()) {
+        // A write that fails may keep failing (disk full, permissions). The
+        // record stays in memory and the writer keeps retrying it.
+        persistRevision_ = 0;
+        return ProfilePersistence::Released;
+    }
+    return ProfilePersistence::Waiting;
 }
 
 MatchResultOutbox::ProfileConsumption MatchResultOutbox::PrepareProfileConsumption(ProfileRecord& profile) const {

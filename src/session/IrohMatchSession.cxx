@@ -2,6 +2,7 @@
 #include "../common/RoomLimits.hxx"
 #include <algorithm>
 #include <set>
+#include <spdlog/spdlog.h>
 
 namespace sf4e { namespace session {
 using nlohmann::json;
@@ -25,7 +26,14 @@ ULONGLONG IrohMatchSession::Now() const {
 void IrohMatchSession::ReleasePortToGgpo() {
 	if (reservedPort_ != INVALID_SOCKET) { closesocket(reservedPort_); reservedPort_ = INVALID_SOCKET; }
 }
-bool IrohMatchSession::Fail(const char* error) { error_ = error; phase_ = Phase::Failed; return false; }
+bool IrohMatchSession::Fail(const char* error) {
+	// Logged here because the runtime reports a generic, translated reason
+	// and Abort() clears this one; without the line a field log cannot tell
+	// a helper, route, IPC or peer failure apart (ledger N-005).
+	if (phase_ != Phase::Failed)
+		spdlog::warn("Match session failed: {} generation={} phase={}", error, generation_, static_cast<int>(phase_));
+	error_ = error; phase_ = Phase::Failed; return false;
+}
 bool IrohMatchSession::Acknowledge(const char* type, json extra) {
 	if (!type || generation_ == 0) return Fail("match_control_send_failed");
 	const std::string name(type);

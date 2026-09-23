@@ -87,12 +87,16 @@ void SessionController::AdvanceRecovery(std::uint64_t nowMs) {
         nowMs - state_.recoveryStartedMs >= 15000) state_.recovery = Recovery::ReplacementOffered;
 }
 
-Decision SessionController::Execute(const Command& command) {
-    if (!(command.generation == state_.generation)) { return Decision(); }
-    if (state_.coordinated && !state_.authorityWritable &&
+bool SessionController::FencedOut(const Command& command) const {
+    return command.generation == state_.generation && state_.coordinated && !state_.authorityWritable &&
         (command.kind == CommandKind::Ready || command.kind == CommandKind::Rematch ||
          command.kind == CommandKind::RoomAction || command.kind == CommandKind::SetLobbySettings ||
-         command.kind == CommandKind::CheckConnection || command.kind == CommandKind::ApplyDelay)) return Decision();
+         command.kind == CommandKind::CheckConnection || command.kind == CommandKind::ApplyDelay);
+}
+
+Decision SessionController::Execute(const Command& command) {
+    if (!(command.generation == state_.generation)) { return Decision(); }
+    if (FencedOut(command)) return Decision();
     switch (command.kind) {
     case CommandKind::HostRoom:
     case CommandKind::JoinInvite: {

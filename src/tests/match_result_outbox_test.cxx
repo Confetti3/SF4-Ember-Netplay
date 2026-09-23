@@ -225,8 +225,80 @@ static void TestDegradedCaptureAndLostReplyRetry() {
     CHECK(authority.SnapshotView().tables[0].matchGeneration > generation);
 }
 
+// Ledger A-005: only a write that is still in flight may hold the terminal
+// receipt. A refused queue, an invalid record and a writer error all release.
+static void TestProfilePersistenceNeverHoldsForever() {
+    using Persistence = netplay::MatchResultOutbox::ProfilePersistence;
+    netplay::MatchResultCapture capture;
+    capture.roomId[0] = 0x51;
+    capture.roomEpoch = 3;
+    capture.generation = 7;
+    capture.table = 0;
+    capture.slot = 0;
+    capture.result = room::MatchResult::P1Win;
+
+    int queued = 0;
+    std::uint64_t onDisk = 0;
+    bool failed = false;
+    std::uint64_t nextRevision = 1;
+    netplay::ProfileStore store;
+    store.queue = [&] { ++queued; return nextRevision; };
+    store.saved = [&](std::uint64_t revision) { return onDisk >= revision; };
+    store.failed = [&] { return failed; };
+
+    {
+        // Queued once, waits for its revision, then is saved.
+        netplay::MatchResultOutbox outbox;
+        netplay::ProfileRecord profile;
+        CHECK(outbox.Capture(capture));
+        CHECK(outbox.PersistProfile(profile, store) == Persistence::Waiting);
+        CHECK(outbox.PersistProfile(profile, store) == Persistence::Waiting);
+        CHECK(queued == 1);
+        CHECK(profile.wins == 1);
+        onDisk = 1;
+        CHECK(outbox.PersistProfile(profile, store) == Persistence::Saved);
+    }
+    {
+        // The writer refuses the snapshot: release at once rather than retry.
+        netplay::MatchResultOutbox outbox;
+        netplay::ProfileRecord profile;
+        CHECK(outbox.Capture(capture));
+        nextRevision = 0;
+        CHECK(outbox.PersistProfile(profile, store) == Persistence::Released);
+        nextRevision = 5;
+    }
+    {
+        // A write error after queueing releases too.
+        netplay::MatchResultOutbox outbox;
+        netplay::ProfileRecord profile;
+        CHECK(outbox.Capture(capture));
+        CHECK(outbox.PersistProfile(profile, store) == Persistence::Waiting);
+        failed = true;
+        CHECK(outbox.PersistProfile(profile, store) == Persistence::Released);
+        failed = false;
+    }
+    {
+        // No usable profile: nothing to write.
+        netplay::MatchResultOutbox outbox;
+        netplay::ProfileRecord profile;
+        profile.available = false;
+        CHECK(outbox.Capture(capture));
+        CHECK(outbox.PersistProfile(profile, store) == Persistence::NotRequired);
+    }
+    {
+        // A draw is not a counted result, so the record is invalid: release.
+        netplay::MatchResultOutbox outbox;
+        netplay::ProfileRecord profile;
+        auto draw = capture;
+        draw.result = room::MatchResult::Draw;
+        CHECK(outbox.Capture(draw));
+        CHECK(outbox.PersistProfile(profile, store) == Persistence::Released);
+    }
+}
+
 int main() {
     TestDegradedCaptureAndLostReplyRetry();
+    TestProfilePersistenceNeverHoldsForever();
     if (failures) return 1;
     std::printf("Match result outbox tests passed.\n");
     return 0;

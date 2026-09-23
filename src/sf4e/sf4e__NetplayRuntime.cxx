@@ -96,7 +96,7 @@ struct Runtime {
 	std::optional<room::Action> matchFinishedAction;
     bool replacementPending=false;
     bool leaveRequested=false, leaveAcknowledged=false;
-    std::uint64_t leaveActionId=0, leaveRetryAt=0;
+    std::uint64_t leaveActionId=0, leaveRetryAt=0, leaveDeadline=0;
     int selectedDelay=2;
     std::uint64_t nextProbeRequest=1;
     session::RoomRecoveryRuntime recovery;
@@ -107,9 +107,6 @@ struct Runtime {
 	// fighter may still own GGPO's socket when the event is delivered.
 	bool terminalAckPending = false;
 	bool terminalOutcomeConsumed = false;
-	// Settings revision carrying the recorded outcome. The ACK waits until the
-	// writer reports this revision on disk, not merely accepted into its queue.
-	std::uint64_t terminalPersistRevision = 0;
 	std::uint8_t terminalAckTable = 0;
 	std::uint64_t terminalAckGeneration = 0;
 	std::uint64_t matchFinishedGeneration = 0;
@@ -190,7 +187,7 @@ void CloseRoom() {
     runtime->recovery=session::RoomRecoveryRuntime{};
     runtime->observedAuthorityTerm=0;
     runtime->leaveRequested=runtime->leaveAcknowledged=false;
-    runtime->leaveActionId=runtime->leaveRetryAt=0;
+    runtime->leaveActionId=runtime->leaveRetryAt=runtime->leaveDeadline=0;
     runtime->matchInput={};runtime->matchInputSide=-1;runtime->matchInputFault=false;
 	runtime->match.reset();
 	runtime->pendingReady.reset();
@@ -210,7 +207,6 @@ void CloseRoom() {
 	runtime->matchEntered = runtime->matchEnded = false;
 	runtime->terminalAckPending = false;
 	runtime->terminalOutcomeConsumed = false;
-	runtime->terminalPersistRevision = 0;
 	runtime->terminalAckTable = 0;
 	runtime->terminalAckGeneration = 0;
 	if (runtime->attached) {
@@ -1229,27 +1225,28 @@ static void DrainCommands(bool helperReady) {
 			runtime->error = loc::T("runtime.return_main_menu"); continue;
 		}
 		if (kind == netplay::CommandKind::ReplaceRoom && !CanBeginReplacement()) continue;
-		{
-			// The authority checkpoint fence is transient. Dropping the command here
-			// silently discarded a press the interface had already accepted, which is
-			// what produced repeated pressing until one attempt landed between
-			// updates. Park the newest intent instead; the drain below revalidates
-			// the generation and resubmits it through this same pump once writable.
-			const auto& fence = runtime->controller.GetSnapshot();
-			if (kind == netplay::CommandKind::RoomAction && fence.coordinated && !fence.authorityWritable &&
-				!runtime->recoveringMatch) {
-				runtime->pendingRoomAction.reset(new RuntimeCommand(command));
-				runtime->pendingRoomActionDeadline = GetTickCount64() + 3000;
-				continue;
-			}
+		// The authority checkpoint fence is transient. Dropping a fenced command
+		// silently discarded a press the interface had already accepted, which
+		// produced repeated pressing until one attempt landed between updates.
+		// Room actions and Ready park the newest intent; the drain below
+		// revalidates the generation and resubmits it through this same pump
+		// once writable. Every other fenced command is reported (ledger H-006).
+		if (kind == netplay::CommandKind::RoomAction && !runtime->recoveringMatch &&
+			runtime->controller.FencedOut(command.command)) {
+			runtime->pendingRoomAction.reset(new RuntimeCommand(command));
+			runtime->pendingRoomActionDeadline = GetTickCount64() + 3000;
+			continue;
 		}
 		const auto decision = runtime->controller.Execute(command.command);
 		if (!decision.accepted) {
-			// The fence closed between publish and execute: park the press
-			// under its existing budget rather than losing it.
-			if ((kind == netplay::CommandKind::Ready || kind == netplay::CommandKind::Rematch) &&
-				command.command.generation == runtime->controller.GetSnapshot().generation && !runtime->pendingReady)
-				runtime->pendingReady.reset(new RuntimeCommand(command));
+			if (kind == netplay::CommandKind::Ready || kind == netplay::CommandKind::Rematch) {
+				// The gate closed between publish and execute: park the press
+				// under its existing budget rather than losing it.
+				if (command.command.generation == runtime->controller.GetSnapshot().generation && !runtime->pendingReady)
+					runtime->pendingReady.reset(new RuntimeCommand(command));
+			} else if (runtime->controller.FencedOut(command.command)) {
+				runtime->error = loc::T("runtime.room_catchup_timeout");
+			}
 			continue;
 		}
 		if (kind == netplay::CommandKind::RoomAction && command.roomAction.kind == room::ActionKind::Unready)
@@ -1300,6 +1297,7 @@ static void DrainCommands(bool helperReady) {
             if(IsRuntimeRecoveryEnabled() && runtime->attached && UserApp::netplay &&
                 UserApp::netplay->client.GetRoomSnapshot().localMember) {
                 runtime->leaveRequested=true;
+                runtime->leaveDeadline=GetTickCount64()+session::IrohRoom::LeaveTimeoutMs;
                 CancelDeferredGgpoClose();
                 Game::Battle::System::RetireGgpoSession("leave_room");
                 if(runtime->match) runtime->match->Abort();
@@ -1384,7 +1382,6 @@ static void DrainRoomEvents() {
 				if (event.terminalReplay && event.matchGeneration && runtime->room) {
 					runtime->terminalAckPending = true;
 					runtime->terminalOutcomeConsumed = true; // spectators and aborts need no profile write
-					runtime->terminalPersistRevision = 0;
 					runtime->terminalAckTable = event.table;
 					runtime->terminalAckGeneration = event.matchGeneration;
 					const auto* capture = runtime->resultOutbox.Captured();
@@ -1413,44 +1410,30 @@ static void DrainRoomEvents() {
 
 static void PersistTerminalOutcome() {
 	// Record the confirmed outcome in the profile and hold the terminal receipt
-	// until the settings writer reports that exact revision on disk, or reports
-	// a write error. The writer
-	// retries failed writes itself, so a snapshot is queued once per receipt and
-	// only queued again if the writer refused it. PrepareProfileConsumption is
-	// idempotent for a key already in the recent list.
+	// until the settings writer reports that revision on disk. Anything that
+	// stops the write from landing releases the receipt instead, since it
+	// gates the whole table's next match (MatchResultOutbox::PersistProfile).
 	const auto* capturedResult = runtime->resultOutbox.Captured();
 	if (runtime->terminalAckPending && !runtime->terminalOutcomeConsumed && runtime->room && capturedResult &&
 		runtime->terminalAckGeneration == capturedResult->generation &&
 		runtime->terminalAckTable == capturedResult->table && capturedResult->slot < 2 &&
 		(capturedResult->result == room::MatchResult::P1Win || capturedResult->result == room::MatchResult::P2Win)) {
-		const char* const persistenceWaiting =
-			loc::T("runtime.match_record_pending");
-		if (!runtime->terminalPersistRevision) {
-			const auto consumption = runtime->resultOutbox.PrepareProfileConsumption(runtime->preferences.record);
-			if (consumption == netplay::MatchResultOutbox::ProfileConsumption::NoPersistenceRequired) {
-				runtime->terminalOutcomeConsumed = true;
-			} else if (consumption == netplay::MatchResultOutbox::ProfileConsumption::PersistenceRequired) {
-				runtime->terminalPersistRevision = OverlayPrefs::QueuePlayerPreferences(runtime->preferences);
-				if (!runtime->terminalPersistRevision && runtime->error != persistenceWaiting) runtime->error = persistenceWaiting;
-			}
+		netplay::ProfileStore store;
+		store.queue = [] { return OverlayPrefs::QueuePlayerPreferences(runtime->preferences); };
+		store.saved = [](std::uint64_t revision) { return OverlayPrefs::PlayerPreferencesSaved(revision); };
+		store.failed = [] { return !OverlayPrefs::PersistenceError().empty(); };
+		using Persistence = netplay::MatchResultOutbox::ProfilePersistence;
+		switch (runtime->resultOutbox.PersistProfile(runtime->preferences.record, store)) {
+		case Persistence::Waiting: return;
+		case Persistence::Saved: spdlog::info("Match result: profile record saved"); break;
+		case Persistence::NotRequired: break;
+		case Persistence::Released:
+			spdlog::warn("Match result: profile record not saved, releasing the match: {}",
+				OverlayPrefs::PersistenceError().empty() ? std::string("write refused") : OverlayPrefs::PersistenceError());
+			runtime->error = loc::T("runtime.match_record_not_saved");
+			break;
 		}
-		if (runtime->terminalPersistRevision) {
-			if (OverlayPrefs::PlayerPreferencesSaved(runtime->terminalPersistRevision)) {
-				spdlog::info("Match result: profile record saved revision={}", runtime->terminalPersistRevision);
-				runtime->terminalOutcomeConsumed = true;
-				runtime->terminalPersistRevision = 0;
-				if (runtime->error == persistenceWaiting) runtime->error.clear();
-			} else if (!OverlayPrefs::PersistenceError().empty()) {
-				// A write that fails may keep failing (disk full, permissions), and
-				// the receipt gates the whole table's next match. Release it; the
-				// record stays in memory and the writer keeps retrying it.
-				spdlog::warn("Match result: profile record write failed, releasing the match: {}",
-					OverlayPrefs::PersistenceError());
-				runtime->terminalOutcomeConsumed = true;
-				runtime->terminalPersistRevision = 0;
-				runtime->error = loc::T("runtime.match_record_not_saved");
-			}
-		}
+		runtime->terminalOutcomeConsumed = true;
 	}
 }
 
@@ -1772,7 +1755,14 @@ static void SettleRoomState(bool helperReady) {
     if(runtime->leaveRequested && runtime->attached && UserApp::netplay && !Game::Battle::System::ggpo &&
         (!runtime->match || runtime->match->GetPhase()==session::IrohMatchSession::Phase::Idle)) {
         const auto& snapshot=UserApp::netplay->client.GetRoomSnapshot();
-        if(runtime->leaveAcknowledged || !snapshot.localMember || !runtime->room->Coordination().writable) CloseRoom();
+        // An authority that keeps rejecting the Leave must not hold this
+        // client in Closing: after the same bound IrohRoom uses, leave
+        // locally and let the committed room time the seat out (ledger H-005).
+        const bool leaveTimedOut=GetTickCount64()>=runtime->leaveDeadline;
+        if(leaveTimedOut && !runtime->leaveAcknowledged && snapshot.localMember)
+            spdlog::warn("Room: leave not confirmed after {} ms; leaving locally", session::IrohRoom::LeaveTimeoutMs);
+        if(runtime->leaveAcknowledged || !snapshot.localMember || !runtime->room->Coordination().writable ||
+            leaveTimedOut) CloseRoom();
         else if(GetTickCount64()>=runtime->leaveRetryAt) {
             room::Action leave; leave.kind=room::ActionKind::Leave;
             leave.roomEpoch=snapshot.roomEpoch; leave.revision=snapshot.revision;

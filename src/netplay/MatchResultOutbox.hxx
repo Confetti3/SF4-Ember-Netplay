@@ -3,6 +3,7 @@
 #include "ProfileRecord.hxx"
 
 #include <cstdint>
+#include <functional>
 
 namespace sf4e { namespace netplay {
 
@@ -40,6 +41,15 @@ struct MatchResultSubmission {
     std::uint64_t actionId = 0;
 };
 
+// The settings writer seen from the terminal receipt: queue a profile
+// snapshot (0 means refused), then ask whether that revision reached disk or
+// the writer reported an error.
+struct ProfileStore {
+    std::function<std::uint64_t()> queue;
+    std::function<bool(std::uint64_t)> saved;
+    std::function<bool()> failed;
+};
+
 class MatchResultOutbox {
 public:
     static constexpr std::uint64_t RetryDelayMs = 500;
@@ -47,6 +57,11 @@ public:
     enum class PollResult { None, Ready, Invalidated };
     enum class TerminalResult { Unrelated, Ended, Confirmed };
     enum class ProfileConsumption { Invalid, PersistenceRequired, NoPersistenceRequired };
+    // Waiting holds the terminal receipt; every other value releases it.
+    // Released means the record could not be written; the receipt gates the
+    // whole table's next match, so it must not wait on a local write that
+    // will never land (ledger A-005).
+    enum class ProfilePersistence { Waiting, Saved, NotRequired, Released };
 
     bool Capture(const MatchResultCapture& capture);
     void Reset();
@@ -61,8 +76,12 @@ public:
     TerminalResult ObserveTerminal(const RandomRoomId& roomId, std::uint64_t roomEpoch,
         std::uint8_t table, std::uint64_t generation, room::MatchResult result);
     ProfileConsumption PrepareProfileConsumption(ProfileRecord& profile) const;
+    // One tick of recording the confirmed result in the profile. Queues the
+    // snapshot once, then waits for that revision or a writer error.
+    ProfilePersistence PersistProfile(ProfileRecord& profile, const ProfileStore& store);
 
 private:
+    std::uint64_t persistRevision_ = 0;
     MatchResultCapture capture_;
     bool captured_ = false;
     bool pending_ = false;

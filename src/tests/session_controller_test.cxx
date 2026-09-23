@@ -260,11 +260,33 @@ int main() {
         CHECK(stalled.GetSnapshot().recovery == Recovery::None);
         CHECK(stalled.GetSnapshot().error.empty());
         CHECK(!CommandNow(stalled, CommandKind::RoomAction).accepted);
+        // H-006: the runtime can tell a fenced refusal from any other, so it
+        // parks or reports it instead of dropping it silently.
+        {
+            Command fenced;
+            fenced.generation = stalled.GetSnapshot().generation;
+            for (CommandKind kind : {CommandKind::RoomAction, CommandKind::SetLobbySettings, CommandKind::ApplyDelay,
+                     CommandKind::CheckConnection, CommandKind::Ready, CommandKind::Rematch}) {
+                fenced.kind = kind;
+                CHECK(stalled.FencedOut(fenced));
+            }
+            fenced.kind = CommandKind::LeaveRoom;
+            CHECK(!stalled.FencedOut(fenced));
+            fenced.kind = CommandKind::SetLobbySettings;
+            fenced.generation.match++;
+            CHECK(!stalled.FencedOut(fenced));
+        }
 
         // Catching up clears the stall without leaving residue.
         CHECK(stalled.ObserveCoordination(1, 3, true, 2000));
         CHECK(stalled.GetSnapshot().authorityWritable);
         CHECK(stalled.GetSnapshot().authorityStalledMs == 0);
+        {
+            Command writable;
+            writable.kind = CommandKind::SetLobbySettings;
+            writable.generation = stalled.GetSnapshot().generation;
+            CHECK(!stalled.FencedOut(writable));
+        }
 
         // A stall that persists is named at ten seconds...
         CHECK(stalled.ObserveCoordination(1, 4, true, 3000, false));

@@ -9,10 +9,6 @@
 #include <limits>
 
 namespace sf4e { namespace session {
-// Bound on waiting for the helper to confirm a departure before the room is
-// released locally. Generous for a normal confirm, short enough not to read
-// as a hang behind the "Leaving room..." status.
-static const std::uint64_t kLeaveTimeoutMs = 8000;
 using nlohmann::json;
 namespace {
 constexpr std::size_t MaximumQueuedMessages = 64;
@@ -125,7 +121,7 @@ void IrohRoom::Leave(bool abandon) {
     }
     leaveAbandon_=abandon;
 	state_ = State::Closing;
-    leaveDeadline_ = GetTickCount64() + kLeaveTimeoutMs;
+    leaveDeadline_ = GetTickCount64() + LeaveTimeoutMs;
 
 	localOpen_ = false;
 	invitation_.clear(); discordInvitation_.clear();
@@ -413,6 +409,16 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
             if (ConnectionForIdentity(identity)) continue;
             if (peers_.size()>=MaximumRemotePeers || nextConnection_==UINT64_MAX) return true;
             Peer peer; peer.identity=identity; peer.admitted=true; peers_.emplace(nextConnection_++,std::move(peer));
+        }
+        // A new leader only ever saw its own edge to the old leader, so a
+        // member whose game died before the handoff never sends it a
+        // control_closed. Start the same departure grace for every roster
+        // member without a control edge; a reconnect clears it (ledger H-008).
+        if (coordination_.leaderLocal) {
+            const auto deadline=GetTickCount64()+DepartureGraceMs;
+            for (auto& peer:peers_)
+                if (incarnations.count(peer.second.identity) && !connected.count(peer.second.identity) &&
+                    !peer.second.departureDeadline) peer.second.departureDeadline=deadline;
         }
         hosting_=coordination_.leaderLocal; coordination_.rebound=true;
         if (coordination_.writable) { state_=State::Ready; error_.clear(); }

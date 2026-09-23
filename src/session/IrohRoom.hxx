@@ -25,6 +25,10 @@ public:
 	// their own generation, but no new match coordination is admitted.
 	enum class State { Idle, Hosting, Joining, Ready, Degraded, Closing, Failed };
 	enum class GameState { Preparing, Waiting, Ready, Closing, Closed };
+	// Bound on waiting for a departure to be confirmed before the room is
+	// released locally. Generous for a normal confirm, short enough not to
+	// read as a hang behind the "Leaving room..." status.
+	static constexpr std::uint64_t LeaveTimeoutMs = 8000;
 	struct GameSnapshot {
 		GameState state = GameState::Closed;
 		std::uint64_t generation = 0;

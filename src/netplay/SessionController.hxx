@@ -77,6 +77,10 @@ public:
     Snapshot GetSnapshot() const { return state_; }
     Decision Execute(const Command& command);
     Decision Apply(const Event& event);
+    // A room mutation for the current generation that Execute refuses only
+    // because the authority checkpoint fence is closed. The caller parks or
+    // reports it; it is never dropped silently (ledger H-006).
+    bool FencedOut(const Command& command) const;
     // Called only from locally applied helper coordination state. A remote
     // message claiming a newer term is not evidence of room authority.
     bool ObserveCoordination(std::uint64_t term, std::uint64_t revision,
