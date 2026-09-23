@@ -238,5 +238,14 @@ inline double AppliedShiftMs(double periodMs, double frameMs, double shiftMs) {
 	return shiftMs >= 0.0 ? applied : -applied;
 }
 
+// How long the limiter hook may sleep before the game's limiter spins to its
+// deadline: all but a margin that absorbs timer wake-up jitter. The deadline is
+// unchanged, so frame timing is too; only the spin, which burned a core for the
+// whole slack of every frame, gets shorter (ledger A-007).
+inline double LimiterSleepMs(double periodMs, double elapsedMs, double marginMs = 1.5) {
+	const double sleepMs = periodMs - elapsedMs - marginMs;
+	return sleepMs >= 1.0 ? sleepMs : 0.0;
+}
+
 } // namespace pacing
 } // namespace sf4e

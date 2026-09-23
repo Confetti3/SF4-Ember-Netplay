@@ -1,4 +1,3 @@
-#include <atomic>
 #include <memory>
 #include <vector>
 
@@ -24,6 +23,8 @@
 #include "sf4e__OverlayPrefs.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "../common/sf4e__PacingController.hxx"
+#include "../common/FrameShiftMailbox.hxx"
+#include "../common/EnvFlag.hxx"
 
 namespace rPlatform = Dimps::Platform;
 using rD3D = rPlatform::D3D;
@@ -71,12 +72,9 @@ void fD3D::Install() {
 }
 
 namespace {
-std::atomic<int> s_shiftRequestUs{0};
-std::atomic<int> s_shiftAppliedUs{0};
-// CancelFrameShift cannot fence a limiter call already in its spin, so reset
-// relies on the limiter running on the same thread as the pacing tick. The
-// thread that last requested a shift is kept so a tester log shows it if not.
-std::atomic<DWORD> s_pacingThread{0};
+// The pacing tick's request and the limiter's applied shift. Reset fences a
+// limiter call already in its spin (FrameShiftMailbox).
+sf4e::pacing::FrameShiftMailbox s_frameShift;
 
 // Present interval the game asked for when it was last forced; 0 when never.
 // The first device is created before logging starts, so Main::Initialize
@@ -109,6 +107,25 @@ struct LimiterTest {
     }
 };
 
+#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
+#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
+#endif
+
+// Sleeps on a high-resolution waitable timer. Where that timer is missing
+// (older Windows, some Wine builds) or SF4E_LIMITER_SPIN=1 is set, it returns
+// at once and the game's limiter spins the whole slack as before.
+void SleepBeforeLimiter(double ms) {
+    static const bool spinOnly = sf4e::EnvFlag("SF4E_LIMITER_SPIN");
+    if (ms <= 0.0 || spinOnly) return;
+    thread_local HANDLE timer = CreateWaitableTimerExW(nullptr, nullptr,
+        CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+    if (!timer) return;
+    LARGE_INTEGER due;
+    due.QuadPart = -(LONGLONG)(ms * 10000.0); // relative, in 100 ns units
+    if (SetWaitableTimer(timer, &due, 0, nullptr, nullptr, FALSE))
+        WaitForSingleObject(timer, (DWORD)ms + 5);
+}
+
 LimiterTest& Test() {
     static LimiterTest test = [] {
         LimiterTest t;
@@ -126,17 +143,15 @@ LimiterTest& Test() {
 }
 
 void fD3D::RequestFrameShift(double ms) {
-    s_shiftRequestUs.store((int)(ms * 1000.0));
-    s_pacingThread.store(GetCurrentThreadId());
+    s_frameShift.Request((int)(ms * 1000.0));
 }
 
 double fD3D::TakeAppliedShift() {
-    return s_shiftAppliedUs.exchange(0) / 1000.0;
+    return s_frameShift.TakeApplied() / 1000.0;
 }
 
 void fD3D::CancelFrameShift() {
-    s_shiftRequestUs.store(0);
-    s_shiftAppliedUs.store(0);
+    s_frameShift.Reset();
 }
 
 // The limiter waits until one period after its own previous exit, so a wait
@@ -144,18 +159,13 @@ void fD3D::CancelFrameShift() {
 // changes. Rift pacing therefore moves the limiter's period for one frame.
 int fD3D::LimitFrame(float frameDelta) {
     LimiterTest& test = Test();
-    static bool s_threadWarned = false;
-    const DWORD pacingThread = s_pacingThread.load();
-    if (!s_threadWarned && pacingThread != 0 && pacingThread != GetCurrentThreadId()) {
-        s_threadWarned = true;
-        spdlog::warn("Pacing: limiter runs on thread {} but pacing ticks on thread {}", GetCurrentThreadId(), pacingThread);
-    }
-    const double shiftMs = test.enabled ? test.shiftMs : s_shiftRequestUs.exchange(0) / 1000.0;
+    const auto taken = s_frameShift.Take();
+    const double shiftMs = test.enabled ? test.shiftMs : taken.requestUs / 1000.0;
     float* period = rD3D::GetFramePeriodSeconds(this);
     const float savedPeriod = *period;
     // The first call has no previous exit to measure from.
     const unsigned long long previousExit = *rD3D::GetLastLimiterExit(this);
-    if ((shiftMs == 0.0 && !test.enabled) || savedPeriod <= 0.0f || previousExit == 0) {
+    if (savedPeriod <= 0.0f || previousExit == 0) {
         return (this->*rD3D::privateMethods.LimitFrame)(frameDelta);
     }
     LARGE_INTEGER now, frequency;
@@ -164,8 +174,14 @@ int fD3D::LimitFrame(float frameDelta) {
     const double tickMs = 1000.0 / (double)frequency.QuadPart;
     const double periodMs = savedPeriod * 1000.0;
     const double elapsedMs = (double)(long long)(now.QuadPart - previousExit) * tickMs;
-    const float shiftedPeriod = (float)(sf4e::pacing::ShiftedPeriodMs(periodMs, elapsedMs, shiftMs) / 1000.0);
+    if (shiftMs == 0.0 && !test.enabled) {
+        SleepBeforeLimiter(sf4e::pacing::LimiterSleepMs(periodMs, elapsedMs));
+        return (this->*rD3D::privateMethods.LimitFrame)(frameDelta);
+    }
+    const double shiftedPeriodMs = sf4e::pacing::ShiftedPeriodMs(periodMs, elapsedMs, shiftMs);
+    const float shiftedPeriod = (float)(shiftedPeriodMs / 1000.0);
     *period = shiftedPeriod;
+    SleepBeforeLimiter(sf4e::pacing::LimiterSleepMs(shiftedPeriodMs, elapsedMs));
     const int result = (this->*rD3D::privateMethods.LimitFrame)(frameDelta);
     // A display-settings change made meanwhile wins over the restore.
     if (*period == shiftedPeriod) {
@@ -177,7 +193,7 @@ int fD3D::LimitFrame(float frameDelta) {
         test.Record(frameMs, appliedMs);
     }
     else {
-        s_shiftAppliedUs.fetch_add((int)(appliedMs * 1000.0));
+        s_frameShift.Complete(taken.generation, (int)(appliedMs * 1000.0));
     }
     return result;
 }

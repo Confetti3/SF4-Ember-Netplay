@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "../common/sf4e__PacingController.hxx"
+#include "../common/FrameShiftMailbox.hxx"
 
 using namespace sf4e::pacing;
 
@@ -167,7 +168,36 @@ static void TestConfigurableCaps() {
 	CHECK(Near(p.NextShiftMs(), 1.5));
 }
 
+// Ledger A-012: a limiter call that took its request before a session reset
+// must not report its applied shift into the new session.
+static void TestFrameShiftIsFencedByReset() {
+	FrameShiftMailbox mailbox;
+	mailbox.Request(2000);
+	const auto taken = mailbox.Take();
+	CHECK(taken.requestUs == 2000);
+	CHECK(mailbox.Take().requestUs == 0); // one request, one frame
+	mailbox.Reset();                      // session reset while the limiter spins
+	mailbox.Complete(taken.generation, 1800);
+	CHECK(mailbox.TakeApplied() == 0);
+	mailbox.Request(-1000);
+	const auto next = mailbox.Take();
+	mailbox.Complete(next.generation, -900);
+	CHECK(mailbox.TakeApplied() == -900);
+	CHECK(mailbox.TakeApplied() == 0);
+}
+
+// Ledger A-007: the hook sleeps only while the deadline is comfortably
+// ahead, and always leaves the last stretch for the game's own spin.
+static void TestLimiterSleepLeavesSpinMargin() {
+	CHECK(Near(LimiterSleepMs(16.667, 5.0), 16.667 - 5.0 - 1.5));
+	CHECK(LimiterSleepMs(16.667, 15.0) == 0.0);  // under 1 ms to sleep: spin
+	CHECK(LimiterSleepMs(16.667, 20.0) == 0.0);  // already late
+	CHECK(Near(LimiterSleepMs(19.667, 5.0, 1.5), 13.167)); // a lengthened frame
+}
+
 int main() {
+	TestLimiterSleepLeavesSpinMargin();
+	TestFrameShiftIsFencedByReset();
 	TestClamping();
 	TestRepeatedRecommendationsDoNotAccumulate();
 	TestEnabledDisabledABGate();
