@@ -12,6 +12,8 @@ void ResetNativeResultMatch() {
     s_nativeResultEmitted = false;
 }
 
+bool NativeResultEmitted() { return s_nativeResultEmitted; }
+
 void CaptureNativeMatchResult(rSystem* system, int stateFrame) {
     if (!system || !rSystem::staticVars.CurrentBattleFlow) {
         s_nativeResultTimeline.Capture(stateFrame, sf4e::native_result::Flow::Other, -1);

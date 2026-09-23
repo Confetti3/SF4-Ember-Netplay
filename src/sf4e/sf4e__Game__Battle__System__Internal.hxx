@@ -87,6 +87,7 @@ extern rKey::MementoID GGPO_MEMENTO_ID;
 void EmitRollbackDiagSummary(const char* label);
 void ResetNativeResultMatch();
 void CaptureNativeMatchResult(rSystem* system, int stateFrame);
+bool NativeResultEmitted();
 
 // Defined in sf4e__Game__Battle__System__Ggpo.cxx.
 void NoteDisconnectFlags(int flags);

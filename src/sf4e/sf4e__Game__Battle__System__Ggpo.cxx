@@ -757,8 +757,11 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         }
         // A spectator's link is not the fight's link: note it, keep playing.
         // After the battle closed, P1 only drains spectators; the opponent
-        // has already left the session, which is not a warning.
-        if (IsSpectatorHandle(info->u.connection_interrupted.player) || sf4e::NetplayFacade::DrainingSpectators()) {
+        // has already left the session, which is not a warning. The same
+        // holds once the result is confirmed: the opponent may leave the
+        // win screen first.
+        if (IsSpectatorHandle(info->u.connection_interrupted.player) || sf4e::NetplayFacade::DrainingSpectators() ||
+            NativeResultEmitted()) {
             break;
         }
         // Phase 2 behavior change: a connection warning marks quality
@@ -811,10 +814,12 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         simGate.OnConnectionResumed(); // close any open warning episode
         simGate.OnBattleClosing();     // the gate must not report RUNNING for a dead peer
         s_disconnectTimeoutMs = 0;
-        sf4e::NetplayFacade::PushAlert(
-            sf4e::loc::T(localPlayerHandle == GGPO_INVALID_HANDLE ? "runtime.match_connection_lost" : "runtime.opponent_disconnected"),
-            sf4e::NoticeSeverity::Error
-        );
+        if (!NativeResultEmitted()) {
+            sf4e::NetplayFacade::PushAlert(
+                sf4e::loc::T(localPlayerHandle == GGPO_INVALID_HANDLE ? "runtime.match_connection_lost" : "runtime.opponent_disconnected"),
+                sf4e::NoticeSeverity::Error
+            );
+        }
         break;
     case GGPO_EVENTCODE_TIMESYNC:
         if (diag::Enabled()) {

@@ -265,7 +265,9 @@ void SessionClient::LogRejectedRoomAction(std::uint64_t actionId, room::RejectRe
 	const bool staleReport = found != _sentRoomActions.end() &&
 		(found->kind == room::ActionKind::MatchFinished || found->kind == room::ActionKind::RecordResult) &&
 		reason == room::RejectReason::WrongGeneration;
-	const auto level = reason == room::RejectReason::DuplicateResult || staleReport ? spdlog::level::info : spdlog::level::warn;
+	// AlreadyQueued is the idempotent reply to a Queue press that already landed.
+	const auto level = reason == room::RejectReason::DuplicateResult || reason == room::RejectReason::AlreadyQueued ||
+		staleReport ? spdlog::level::info : spdlog::level::warn;
 	if (found == _sentRoomActions.end()) {
 		spdlog::log(level, "Room action rejected action={} kind=unknown reason={}", actionId, static_cast<int>(reason));
 		return;
