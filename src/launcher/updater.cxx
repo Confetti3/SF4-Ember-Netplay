@@ -162,26 +162,6 @@ static bool WaitForProcessExit(DWORD pid, DWORD timeoutMs) {
 	return waitResult == WAIT_OBJECT_0;
 }
 
-static bool RunProcessAndWait(const wchar_t* cmdLine, DWORD* outExitCode) {
-	STARTUPINFOW si = { 0 };
-	PROCESS_INFORMATION pi = { 0 };
-	si.cb = sizeof(si);
-	wchar_t mutableCmd[4096] = { 0 };
-	wcsncpy_s(mutableCmd, cmdLine, _TRUNCATE);
-	if (!CreateProcessW(NULL, mutableCmd, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
-		return false;
-	}
-	WaitForSingleObject(pi.hProcess, INFINITE);
-	DWORD exitCode = 1;
-	GetExitCodeProcess(pi.hProcess, &exitCode);
-	CloseHandle(pi.hProcess);
-	CloseHandle(pi.hThread);
-	if (outExitCode) {
-		*outExitCode = exitCode;
-	}
-	return true;
-}
-
 static bool InstallFiles(const wchar_t* staging, const wchar_t* install) {
     std::string error;
     if (sf4e::launcher::InstallPackage(staging, install, error)) return true;
@@ -249,9 +229,21 @@ int wmain(int argc, wchar_t** argv) {
 		return 1;
 	}
 	if (recoverOnly) {
+		// With -WaitPid the Launcher asked for this at startup: wait for it to
+		// exit, then start it again, showing update recovery on failure.
+		if (waitPid && !WaitForProcessExit(waitPid, 30000)) {
+			AppendLog("ERROR: launcher is still running; recovery cancelled");
+			return 1;
+		}
 		std::string recoveryError;
-		if (!sf4e::launcher::RecoverPackage(installDir,recoveryError,false)) { AppendLog(recoveryError.c_str()); return 1; }
-		AppendLog("Update recovery complete"); return 0;
+		if (!sf4e::launcher::RecoverPackage(installDir,recoveryError,false)) {
+			AppendLog(recoveryError.c_str());
+			if (waitPid) StartLauncher(installDir, L"--updates --update-error");
+			return 1;
+		}
+		AppendLog("Update recovery complete");
+		if (waitPid) StartLauncher(installDir);
+		return 0;
 	}
 
 	char startLine[1024] = { 0 };

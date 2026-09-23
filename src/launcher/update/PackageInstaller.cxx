@@ -19,7 +19,7 @@ namespace sf4e { namespace launcher {
 namespace {
 namespace fs = std::filesystem;
 using json = nlohmann::json;
-constexpr wchar_t TransactionName[] = L".ember-update-transaction-v1.json";
+constexpr const wchar_t* TransactionName = UpdateTransactionName;
 constexpr wchar_t LockName[] = L".ember-update.lock";
 void CheckPath(const fs::path& root, const fs::path& relative) {
     if (relative.empty() || relative.is_absolute() || relative.has_root_name()) throw std::runtime_error("Invalid update path");
@@ -179,6 +179,10 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         CheckPath(install.root_path(),install.relative_path()); CheckPath(staging.root_path(),staging.relative_path());
         installLock=std::make_unique<InstallLock>(Lock(install));
         if(!RecoverLocked(install,error,false)) throw std::runtime_error(error);
+        // No transaction is pending, so earlier backup sets are no longer
+        // recovery evidence. Keep only the one this install creates, instead
+        // of one more set per update forever (ledger H-013).
+        { std::error_code ignored; fs::remove_all(install/L".ember-update-backups",ignored); }
         for (const auto* required : package::Required) if (!fs::is_regular_file(staging/required)) throw std::runtime_error("Incomplete package");
         std::vector<fs::path> files;
         for (const auto& entry : fs::recursive_directory_iterator(staging)) {

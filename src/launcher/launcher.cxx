@@ -457,6 +457,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     if (updates) { sf4e::ui::RunRecovery(updateError ? sf4e::loc::T("launcher.update_failed") : "", chosenDirectory, true); return 0; }
     if (recovery && !sf4e::ui::RunRecovery(sf4e::loc::T("launcher.recovery_title"), chosenDirectory)) return 0;
     if (!instance.Acquire()) return 0;
+    // An update interrupted mid-install must be restored before the game runs
+    // on a half-replaced install. The Updater restarts the Launcher after.
+    if (sf4e::launcher::StartPendingUpdateRecovery(GetCurrentProcessId())) return 0;
     wchar_t installRoot[MAX_PATH] = {}, dllDirectory[MAX_PATH] = {}, pathError[1024] = {};
     if (!sf4e::install::GetInstallRoot(installRoot, MAX_PATH) || !sf4e::install::GetPackageDllDirectory(dllDirectory, MAX_PATH) ||
         !UpdatePath(dllDirectory, pathError, 1024)) {

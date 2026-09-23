@@ -29,6 +29,12 @@ namespace launcher {
 	};
 
 	bool GetLauncherInstallDir(wchar_t* outDir, int outDirChars);
+	// When an update was interrupted (the install still holds its transaction
+	// journal), starts the Updater to restore it once process waitPid exits;
+	// the Updater then starts the Launcher again. True means the caller must
+	// exit now. False means nothing is pending or recovery could not start
+	// (ledger H-013).
+	bool StartPendingUpdateRecovery(std::uint32_t waitPid);
 	bool ReadInstalledVersion(char* outVersion, int outVersionLen);
 	bool IsGameProcessRunning();
 
