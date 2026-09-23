@@ -7,6 +7,7 @@
     <a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/tag/v0.9.7"><img alt="Release 0.9.7" src="https://img.shields.io/badge/release-0.9.7-e97835?style=flat-square&labelColor=242321"></a>
     <img alt="Windows x64" src="https://img.shields.io/badge/platform-Windows_x64-e97835?style=flat-square&labelColor=242321">
     <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-e97835?style=flat-square&labelColor=242321"></a>
+    <a href="https://discord.gg/uPNqF5A5uq"><img alt="Join the Discord" src="https://img.shields.io/badge/discord-join-e97835?style=flat-square&labelColor=242321&logo=discord&logoColor=white"></a>
   </p>
   <p>
     <strong><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v0.9.7/sf4-ember-netplay-0.9.7.zip">Download v0.9.7 for Windows</a></strong>
@@ -102,6 +103,10 @@ Ember remains experimental. Local builds, automated UI and transport tests, and 
 | [Saving logs](docs/guides/SAVING_LOGS.md) | Save logs and diagnostics from both players for a bug report |
 | [Build and package](docs/development/BUILDING.md) | Reproducible local builds and release provenance |
 | [All documentation](docs/README.md) | Design notes, validation results, reports and release notes |
+
+## Community
+
+Find opponents, organise sets and get help in the [Ember Discord](https://discord.gg/uPNqF5A5uq). You can also open it from the in-game menu under Help & About. Report bugs in [Issues](https://github.com/Confetti3/SF4-Ember-Netplay/issues) so they are not lost.
 
 ## License and credits
 
