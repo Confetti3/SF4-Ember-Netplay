@@ -1,4 +1,5 @@
 #include "IrohRoom.hxx"
+#include <spdlog/spdlog.h>
 #include "RoomMessageQueue.hxx"
 #include "sf4e__SessionProtocol.hxx"
 #include "../common/RoomLimits.hxx"
@@ -10,6 +11,8 @@
 
 namespace sf4e { namespace session {
 using nlohmann::json;
+// Short, log-safe form of an endpoint identity.
+static std::string PeerTag(const std::string& peer) { return peer.substr(0, 8); }
 namespace {
 constexpr std::size_t MaximumQueuedMessages = 64;
 constexpr std::size_t MaximumQueuedBytes = 4 * 1024 * 1024;
@@ -203,6 +206,9 @@ bool IrohRoom::EndMatch(std::uint64_t generation) {
 	}
 	for (const auto& game : games_) if (game.second.generation != generation) return false;
 	if (!Command(json{{"type", "end_match"}, {"epoch", epoch_}, {"generation", generation}}.dump())) return false;
+	for (const auto& game : games_)
+		spdlog::info("Room: end_match sent generation={} peer={} state={}", generation, PeerTag(game.first),
+			static_cast<int>(game.second.state));
 	closedGeneration_ = generation;
 	for (auto& game : games_) {
 		if (game.second.state != GameState::Closed) game.second.state = GameState::Closing;
@@ -231,8 +237,15 @@ void IrohRoom::GameSnapshot::ObserveStatistics(const json& event) {
 
 bool IrohRoom::ConsumeGameEvent(const json& event, const std::string& type) {
 	if (type != "game_waiting" && type != "game_ready" && type != "game_closed" && type != "statistics" && type != "game_failed") return false;
-	const auto game = games_.find(event.at("peer").get<std::string>());
-	if (game == games_.end() || event.at("generation").get<std::uint64_t>() != game->second.generation) return true;
+	const auto peer = event.at("peer").get<std::string>();
+	const auto generation = event.at("generation").get<std::uint64_t>();
+	const auto game = games_.find(peer);
+	// Lifecycle ends are logged, including ignored ones: a match teardown
+	// that never sees its game_closed must show whether it arrived (F-008).
+	if (type == "game_closed" || type == "game_failed")
+		spdlog::info("Room: {} peer={} generation={} local_generation={} reason={}", type, PeerTag(peer), generation,
+			game == games_.end() ? 0 : game->second.generation, event.value("reason", std::string()));
+	if (game == games_.end() || generation != game->second.generation) return true;
 	auto& snapshot = game->second;
 	if (type == "game_closed") { snapshot.state = GameState::Closed; snapshot.virtualPort = 0; return true; }
 	if (snapshot.state == GameState::Closing || snapshot.state == GameState::Closed) return true;

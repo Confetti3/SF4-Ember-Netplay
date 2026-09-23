@@ -29,6 +29,15 @@ try {
     $refused=$false
     try { & $script -CsvPath $squeezed -DurationSeconds 60 | Out-Null } catch { $refused=$_.Exception.Message -match 'span' }
     if(!$refused){throw 'A capture whose timestamps span a tenth of its intervals was accepted.'}
+
+    # Raw QPC ticks alone cannot be span-checked, so such a capture is refused.
+    $raw=Join-Path $root 'raw.csv'
+    $lines=@('Application,ProcessID,SwapChainAddress,CPUStartQPC,MsBetweenDisplayChange')
+    for($i=0;$i -lt 3600;$i++){ $lines+=('SSFIV.exe,42,0x1,{0},16.667' -f (10000000+$i*16667)) }
+    Set-Content -LiteralPath $raw -Encoding ASCII -Value $lines
+    $refused=$false
+    try { & $script -CsvPath $raw -DurationSeconds 60 | Out-Null } catch { $refused=$_.Exception.Message -match 'CPUStartQPCTime' }
+    if(!$refused){throw 'A capture with only raw QPC timestamps was accepted.'}
     Write-Host 'Frame capture coverage validation passed.'
 } finally {
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue

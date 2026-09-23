@@ -413,6 +413,19 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 			pendingGrant_ = nullptr;
 			waitingForProjection_ = false;
 			roomEndReceived_ = true;
+			// Name every link's last known state and the helper's load, so a
+			// field log shows which close never arrived (F-008).
+			for (const auto& link : links_) {
+				const auto game = room_->Game(link.peer);
+				spdlog::warn("Match teardown: link peer={} slot={} state={} generation={} route={} sent={} received={}",
+					link.peer.substr(0, 8), link.slot, static_cast<int>(game.state), game.generation, game.route,
+					game.sentPackets, game.receivedPackets);
+			}
+			if (room_) {
+				const auto& load = room_->HelperLoad();
+				spdlog::warn("Match teardown: helper load samples={} actor_lag_max_us={} actor_body_max_us={} event_queue_free_min={}",
+					load.samples, load.actorTickLagMaxUs, load.actorTickBodyMaxUs, load.eventQueueFreeMin);
+			}
 			if (room_) room_->Leave();
 			return Fail("match_teardown_timeout");
 		}

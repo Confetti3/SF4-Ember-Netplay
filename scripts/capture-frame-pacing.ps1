@@ -26,16 +26,17 @@ if($CsvPath){
 $rows=@(Import-Csv -LiteralPath $csv)
 if($rows.Count -lt 30){throw "Capture has only $($rows.Count) presentation samples."}
 $columns=@($rows[0].PSObject.Properties.Name)
-# Prefer millisecond timestamps: only they let the span check below run.
-$qpcName=@('CPUStartQPCTime','CPUStartQPC')|Where-Object{$columns -contains $_}|Select-Object -First 1
-if(!$qpcName){throw "Capture is missing absolute QPC timestamps. Columns: $($columns -join ', ')"}
+# Millisecond timestamps (PresentMon --qpc_time_ms, as captured above) are
+# required: the span check below cannot be done on raw QPC ticks.
+$qpcName='CPUStartQPCTime'
+if($columns -notcontains $qpcName){throw "Capture is missing millisecond QPC timestamps (CPUStartQPCTime). Columns: $($columns -join ', ')"}
 if($columns -contains 'Application'){$rows=@($rows|Where-Object{$_.Application -ieq $ProcessName})}
 if($columns -contains 'ProcessID' -and $columns -contains 'SwapChainAddress') {
     # Multiple instances/swap chains must never be blended into one percentile.
     $stream=$rows|Group-Object ProcessID,SwapChainAddress|Sort-Object Count -Descending|Select-Object -First 1
     $rows=@($stream.Group)
 }
-$intervals=@();$intervalName='';$displayAvailable=$false;$coveredSeconds=0.0;$spanSeconds=$null;$coverageFailures=@();$MinimumCoverage=0.9
+$intervals=@();$intervalName='';$displayAvailable=$false;$coveredSeconds=0.0;$spanSeconds=0.0;$coverageFailures=@();$MinimumCoverage=0.9
 foreach($candidate in @('DisplayedTime','MsBetweenDisplayChange','MsBetweenPresents')) {
     if($columns -notcontains $candidate){continue}
     $samples=@($rows|ForEach-Object{ $value=0.0;$qpc=0.0
@@ -50,19 +51,17 @@ foreach($candidate in @('DisplayedTime','MsBetweenDisplayChange','MsBetweenPrese
     # taken over must cover it.
     $covered=($usable|Measure-Object -Sum).Sum/1000.0
     if($covered-lt $MinimumCoverage*$DurationSeconds){$coverageFailures+="$candidate covers $([Math]::Round($covered,1)) of $DurationSeconds s";continue}
-    if($qpcName-eq'CPUStartQPCTime'){
-        $qpcs=$samples|ForEach-Object{$_.qpc}|Measure-Object -Minimum -Maximum
-        $span=($qpcs.Maximum-$qpcs.Minimum)/1000.0
-        if($span-lt $MinimumCoverage*$DurationSeconds){$coverageFailures+="$candidate timestamps span $([Math]::Round($span,1)) of $DurationSeconds s";continue}
-        $spanSeconds=$span
-    }
+    $qpcs=$samples|ForEach-Object{$_.qpc}|Measure-Object -Minimum -Maximum
+    $span=($qpcs.Maximum-$qpcs.Minimum)/1000.0
+    if($span-lt $MinimumCoverage*$DurationSeconds){$coverageFailures+="$candidate timestamps span $([Math]::Round($span,1)) of $DurationSeconds s";continue}
+    $spanSeconds=$span
     $intervals=$usable;$intervalName=$candidate;$displayAvailable=$candidate-ne'MsBetweenPresents';$coveredSeconds=$covered;break
 }
 if($intervals.Count -lt 30){throw ("Capture does not contain enough usable display or presentation intervals. "+($coverageFailures -join '; '))}
 function Percentile([double[]]$Values,[double]$P){$Values[[Math]::Min($Values.Count-1,[Math]::Floor(($Values.Count-1)*$P))]}
 $receipt=[ordered]@{
  schema=1;capture=$csv;process=$ProcessName;label=$Label;capturedUtc=[DateTime]::UtcNow.ToString('o');samples=$intervals.Count
- intervalColumn=$intervalName;qpcColumn=$qpcName;durationSeconds=$DurationSeconds;coveredSeconds=[Math]::Round($coveredSeconds,1);timestampSpanSeconds=if($null-ne$spanSeconds){[Math]::Round($spanSeconds,1)}else{'unchecked (raw QPC column)'};rowsWithoutInterval=$rows.Count-$intervals.Count;p50Ms=Percentile $intervals .50;p95Ms=Percentile $intervals .95
+ intervalColumn=$intervalName;qpcColumn=$qpcName;durationSeconds=$DurationSeconds;coveredSeconds=[Math]::Round($coveredSeconds,1);timestampSpanSeconds=[Math]::Round($spanSeconds,1);rowsWithoutInterval=$rows.Count-$intervals.Count;p50Ms=Percentile $intervals .50;p95Ms=Percentile $intervals .95
  displayMetricsAvailable=$displayAvailable;displayMetricsStatus=if($displayAvailable){'available'}else{'unavailable; presentation intervals only'}
  processId=if($rows.Count-and$columns-contains'ProcessID'){$rows[0].ProcessID}else{$null}
  swapChain=if($rows.Count-and$columns-contains'SwapChainAddress'){$rows[0].SwapChainAddress}else{$null}

@@ -18,6 +18,14 @@ static sf4e::sound::SoundPairing Pair(const std::vector<int>& stubs, const std::
 
 int main() {
 	{
+		// A-006 as reported: two identical stub sounds start with no real
+		// copy. The old reconciliation started a sound for the first stub,
+		// then matched the second stub to that same new adapter. Pairing now
+		// happens before anything starts, so each stub starts its own sound.
+		const auto pairing = Pair({7, 7}, {0, 0, 0});
+		CHECK((pairing.realForStub == std::vector<int>{-1, -1}));
+	}
+	{
 		// A-006: two identical live stub sounds and one real copy. The first
 		// stub takes the real copy; the second must start its own sound
 		// rather than share the adapter.
