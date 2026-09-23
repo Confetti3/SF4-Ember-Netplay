@@ -519,6 +519,13 @@ bool fSystem::ggpo_advance_frame_callback(int)
     if (!ggpo || simGate.fatalError) {
         return true;
     }
+    // The battle is closed and its slots freed; a session kept open for
+    // spectators may still resimulate on a late input. Keep GGPO's frame
+    // count moving without touching the engine.
+    if (sf4e::NetplayFacade::DrainingSpectators()) {
+        ggpo_advance_frame(ggpo);
+        return true;
+    }
 
     fPadSystem::Inputs inputs[2] = { {0, 0}, {0, 0} };
     int disconnect_flags = 0;
@@ -573,7 +580,7 @@ bool fSystem::ggpo_advance_frame_callback(int)
 bool fSystem::ggpo_load_game_state_callback(unsigned char* buffer, int len)
 {
     GgpoCallbackScope _callbackScope;
-    if (simGate.fatalError) {
+    if (simGate.fatalError || sf4e::NetplayFacade::DrainingSpectators()) {
         return true;
     }
     rollbackHud.Begin(GetTickCount64());
@@ -594,6 +601,14 @@ bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, in
     // utilization of _GGPO_ is technically zero- but GGPO
     // errors with an assertion if the length is zero.
     *len = 1;
+
+    // After battle close GGPO still wants a buffer per resimulated frame.
+    // Hand it an unused slot without saving; its later free is ignored.
+    if (sf4e::NetplayFacade::DrainingSpectators()) {
+        *buffer = (unsigned char*)&saveStates[0];
+        *checksum = 0;
+        return true;
+    }
 
     // Find an empty position in our array, and store if we can
     // find one.
@@ -676,6 +691,9 @@ void fSystem::ggpo_free_buffer(void* buffer)
 
     SaveState* victim = &saveStates[offset / sizeof(SaveState)];
     if (!victim->used) {
+        // Battle close frees every slot while the engine is still alive. A
+        // session kept open to drain spectators then hands them back on close.
+        if (simGate.phase == sf4e::gate::PHASE_BATTLE_CLOSING) return;
         spdlog::error(
             "GGPO: free_buffer on slot {} which is already free; ignoring",
             offset / sizeof(SaveState)
@@ -738,7 +756,9 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
             diag::G().OnConnectionInterrupted(diag::NowMs());
         }
         // A spectator's link is not the fight's link: note it, keep playing.
-        if (IsSpectatorHandle(info->u.connection_interrupted.player)) {
+        // After the battle closed, P1 only drains spectators; the opponent
+        // has already left the session, which is not a warning.
+        if (IsSpectatorHandle(info->u.connection_interrupted.player) || sf4e::NetplayFacade::DrainingSpectators()) {
             break;
         }
         // Phase 2 behavior change: a connection warning marks quality
@@ -777,7 +797,12 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         if (IsSpectatorHandle(info->u.disconnected.player)) {
             s_spectatorPolicy.OnDisconnected(info->u.disconnected.player);
             spdlog::info("GGPO: spectator handle {} disconnected; fight continues", info->u.disconnected.player);
-            sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.spectator_disconnected"), sf4e::NoticeSeverity::Info);
+            if (!sf4e::NetplayFacade::DrainingSpectators())
+                sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.spectator_disconnected"), sf4e::NoticeSeverity::Info);
+            break;
+        }
+        // The fight already ended; the opponent closing its own session is expected.
+        if (sf4e::NetplayFacade::DrainingSpectators()) {
             break;
         }
         if (system) {

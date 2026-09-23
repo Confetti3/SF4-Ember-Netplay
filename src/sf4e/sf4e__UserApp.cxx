@@ -250,10 +250,12 @@ void fUserApp::ResetLobbyForRematch() {
         spdlog::info("Netplay: skipping rematch reset — control plane lost");
         return;
     }
-    if (netplay && netplay->client.GetRoomSnapshot().roomEpoch) {
-        netplay->client.Lobby_ResetRematch();
+    // A room clears both fighters' Ready itself when it ends the match, and a
+    // spectator has no seat to unready; an Unready from here only races that.
+    if (netplay && netplay->client.IsCustomRoom()) {
+        return;
     }
-    else if (server) {
+    if (server) {
         server->ResetLobbyForRematch();
     }
     else if (netplay) {

@@ -214,9 +214,10 @@ void SessionClient::Disconnect() {
 	_roomError.clear();
 	_customRoomsSeen = false;
 	_nextRoomActionId = 1;
-	_resultRetry = {}; _finishRetry = {}; _staleTableRetries = 0;
+	_resultRetry = {}; _finishRetry = {};
     _actionReplies.clear();
 	_projectionFrozen = false;
+	_snapshotSendFailing = false;
 	_pendingRoomProjection.reset();
 	_queuedGrantProjection.reset();
 	_queuedGrantGeneration = 0;
@@ -599,9 +600,12 @@ int SessionClient::Step()
 					SessionProtocol::BattleSnapshot m;
 					m.snapshot = localSnapshotIter->second.first;
 					json msg = m;
-					if (Send(msg, nullptr) != session::SendResult::Queued) {
-						spdlog::error("Client: Could not send snapshot update");
-					}
+					const bool failed = Send(msg, nullptr) != session::SendResult::Queued;
+					if (failed != _snapshotSendFailing)
+						spdlog::log(failed ? spdlog::level::err : spdlog::level::info, failed ?
+							"Client: Could not send snapshot update; further failures are not logged until one succeeds" :
+							"Client: Snapshot updates are sending again");
+					_snapshotSendFailing = failed;
 				}
 			}
 
@@ -718,9 +722,6 @@ session::SendResult SessionClient::Lobby_ReportResults(int loserSide)
 
 session::SendResult SessionClient::Lobby_ResetRematch()
 {
-	if (_customRoomsSeen) {
-		return SendRoomAction(TableAction(room::ActionKind::Unready, _selectedRoomTable, room::Action{}.inputDelay));
-	}
 	SessionProtocol::LobbyReset msg;
 	json j = msg;
 	if (_matchAuthorizationRequired) j["generation"] = _gameplayGeneration;

@@ -270,8 +270,13 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
                 if(!authority.writable || !peer->recovery.CaughtUp(authority) || snapshot.host!=oldest ||
                     snapshot.closed || snapshot.members.size()!=2 || peer->room->RoomId()!=oldRoom) return false;
                 leaders+=authority.leaderLocal?1:0;
-            }return leaders==1;});
+            }return leaders==1;},6000); // Well inside OpenRaft's 12 s leader lease: the handoff must not wait it out.
         CHECK(processes[0].IsRunning());
+        phase="successor restores the stable voter count";
+        // The handoff goes to one voter; the successor promotes the other
+        // survivor so a later departure still has somewhere to hand off to.
+        wait([&](){pump();for(auto* peer:live) if(peer->room->Coordination().voterCount!=2 ||
+            peer->room->Coordination().learnerCount!=0) return false;return true;});
         phase="new native command after graceful transfer";
         // Recovery rebases the existing one-second chat cooldown. A fast
         // transfer must not turn this authority check into a rate-limit test.

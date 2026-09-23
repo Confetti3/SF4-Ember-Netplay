@@ -139,7 +139,7 @@ bool SessionClient::LocalSelectionLocked(int slot) const {
 			slot < 0 || slot >= 2 || member->table < 0 || member->table >= room::TableCount) return true;
 		const auto& table = _roomSnapshot.tables[member->table];
 		if ((slot == 0 ? table.p1 : table.p2) != member->id) return true;
-		return table.phase != room::TablePhase::Waiting || table.ready[slot];
+		return !room::SeatEditable(table, slot);
 	}
 	return slot < 0 || slot >= 2 || _matchData.readyMessageNum[slot] != -1;
 }
@@ -384,10 +384,22 @@ bool SessionClient::HandleRoomResult(json& msg) {
 	catch (const std::exception&) { _roomError = "invalid_room_result"; return true; }
 	const auto sent = std::find_if(_sentRoomActions.begin(), _sentRoomActions.end(),
 		[&](const SentRoomAction& entry) { return entry.actionId == result.actionId; });
-	// A resent Ready/Unready answers under the id its caller was given.
+	// A resent table action answers under the id its caller was given.
 	const auto replyId = sent != _sentRoomActions.end() ? sent->callerId : result.actionId;
-	const bool readiness = sent != _sentRoomActions.end() &&
-		(sent->kind == room::ActionKind::Ready || sent->kind == room::ActionKind::Unready);
+	// Seat and watch changes only name the table, so they resend as safely.
+	const auto tableIntent = [](room::ActionKind kind) {
+		return kind == room::ActionKind::Ready || kind == room::ActionKind::Unready ||
+			kind == room::ActionKind::Queue || kind == room::ActionKind::Unqueue ||
+			kind == room::ActionKind::Watch || kind == room::ActionKind::Unwatch;
+	};
+	// A newer press for the same table replaces this one; never revive it.
+	const bool superseded = sent != _sentRoomActions.end() && tableIntent(sent->kind) &&
+		std::any_of(std::next(sent), _sentRoomActions.end(), [&](const SentRoomAction& later) {
+			return later.table == sent->table && tableIntent(later.kind);
+		});
+	// A generation-scoped Unwatch leaves one game and keeps its own path.
+	const bool resendable = sent != _sentRoomActions.end() && tableIntent(sent->kind) &&
+		!(sent->kind == room::ActionKind::Unwatch && sent->generation) && !superseded;
 	if (result.result.snapshot.roomEpoch != 0 && (!_roomSnapshot.roomEpoch ||
         (result.result.snapshot.roomEpoch==_roomSnapshot.roomEpoch && result.result.snapshot.revision>=_roomSnapshot.revision))) {
 		_roomSnapshot = std::move(result.result.snapshot);
@@ -400,20 +412,20 @@ bool SessionClient::HandleRoomResult(json& msg) {
 	// carries a table revision the authority has already moved past. The
 	// rejection brings the current snapshot, so resend from it instead of
 	// leaving the press parked until its timeout.
-	if (readiness && result.result.accepted) _staleTableRetries = 0;
-	if (readiness && !result.result.accepted && result.result.reason == room::RejectReason::StaleTable &&
-		_staleTableRetries < 3) {
-		++_staleTableRetries;
+	if (resendable && !result.result.accepted && result.result.reason == room::RejectReason::StaleTable &&
+		sent->staleRetries < 3) {
 		// Resend the same request (kind, table, input delay) from the
 		// fresher snapshot. Copy first: sending may evict `sent`.
 		const auto kind = sent->kind;
 		const auto callerId = sent->callerId;
+		const std::uint8_t attempt = sent->staleRetries + 1;
 		const auto resent = SendRoomAction(TableAction(kind, sent->table, sent->inputDelay));
 		if (resent == session::SendResult::Queued) {
 			// SendRoomAction just remembered the resend as the newest entry.
 			_sentRoomActions.back().callerId = callerId;
-			spdlog::info("Client: {} raced the table revision; resent (attempt {})",
-				kind == room::ActionKind::Ready ? "Ready" : "Unready", _staleTableRetries);
+			_sentRoomActions.back().staleRetries = attempt;
+			spdlog::info("Client: action kind={} raced the table revision; resent (attempt {})",
+				static_cast<int>(kind), attempt);
 			if (_callbacks.OnRoomSnapshot) _callbacks.OnRoomSnapshot(this, _roomSnapshot, _callbacks);
 			return true;
 		}
@@ -423,6 +435,7 @@ bool SessionClient::HandleRoomResult(json& msg) {
 		ActionReply reply;
 		reply.actionId = replyId; reply.accepted = result.result.accepted; reply.reason = result.result.reason;
 		if (sent != _sentRoomActions.end()) { reply.kind = sent->kind; reply.kindKnown = true; }
+		reply.superseded = superseded;
         _actionReplies.push_back(reply);
         if (!result.result.accepted) LogRejectedRoomAction(replyId, result.result.reason);
     }
@@ -434,7 +447,7 @@ bool SessionClient::HandleRoomResult(json& msg) {
 			(sent->kind == room::ActionKind::MatchFinished || sent->kind == room::ActionKind::RecordResult) &&
 			(result.result.reason == room::RejectReason::WrongGeneration || result.result.reason == room::RejectReason::DuplicateResult);
 		const char* text = RoomRejectText(result.result.reason);
-		if (text[0] && !staleReport) _roomError = text;
+		if (text[0] && !staleReport && !superseded) _roomError = text;
 	}
 	else { _roomError.clear(); }
 	if (_callbacks.OnRoomSnapshot) _callbacks.OnRoomSnapshot(this, _roomSnapshot, _callbacks);

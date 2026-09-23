@@ -59,13 +59,20 @@ int main() {
     CHECK(syncing.ObserveCoordination(1, 1, true, 100));
     CHECK(EventNow(syncing, EventKind::RoomJoined).accepted);
     CHECK(CommandNow(syncing, CommandKind::Ready).accepted);
+    // The few ticks between a commit and its checkpoint stay writable, so
+    // room controls do not flicker with every commit.
     CHECK(syncing.ObserveCoordination(1, 2, true, 200, false));
+    CHECK(syncing.GetSnapshot().authorityWritable);
+    CHECK(syncing.ObserveCoordination(1, 2, true, 449, false));
+    CHECK(syncing.GetSnapshot().authorityWritable);
+    CHECK(syncing.ObserveCoordination(1, 2, true, 450, false));
     CHECK(syncing.GetSnapshot().control == Health::Healthy);
     CHECK(syncing.GetSnapshot().recovery == Recovery::None);
     CHECK(syncing.GetSnapshot().readyPending);
     CHECK(!syncing.GetSnapshot().authorityWritable);
     CHECK(!CommandNow(syncing, CommandKind::RoomAction).accepted);
-    CHECK(syncing.ObserveCoordination(1, 2, true, 300, true));
+    CHECK(syncing.ObserveCoordination(1, 2, true, 460, true));
+    CHECK(syncing.GetSnapshot().authorityWritable && syncing.GetSnapshot().authorityStalledMs == 0);
     CHECK(syncing.GetSnapshot().readyPending);
 
     // A completed local abort must return to the room even if the remote
@@ -246,6 +253,8 @@ int main() {
 
         // Ordinary lag: fenced, but no alarm and nothing to recover from.
         CHECK(stalled.ObserveCoordination(1, 2, true, 1500, false));
+        CHECK(stalled.GetSnapshot().authorityWritable);
+        CHECK(stalled.ObserveCoordination(1, 2, true, 1750, false));
         CHECK(!stalled.GetSnapshot().authorityWritable);
         CHECK(stalled.GetSnapshot().control == Health::Healthy);
         CHECK(stalled.GetSnapshot().recovery == Recovery::None);

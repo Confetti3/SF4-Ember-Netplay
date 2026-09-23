@@ -271,6 +271,10 @@ int SessionServer::Step()
 			if (type == SessionProtocol::MT_SESSION_HELLO) {
 				HandleSessionHello(conn, msg, incoming);
 			}
+			else if (type == SessionProtocol::MT_ROOM_ACTION) {
+				// A retried Leave that arrives after the first one removed its sender.
+				spdlog::info("Server: ignoring a room action from a connection that already left");
+			}
 			else {
 				spdlog::warn("Server: got unrecognized message type: {}", (int)type);
 			}

@@ -45,6 +45,7 @@ impl Actor {
         retained: BTreeSet<EndpointId>,
         term: u64,
         revision: u64,
+        restore_voters: bool,
     ) {
         if retained.is_empty() || !retained.contains(&self.endpoint.id()) {
             return;
@@ -66,7 +67,7 @@ impl Actor {
             self.pending_retired_incarnations.extend(removed);
             self.committed_native_members = Some(retained.clone());
         }
-        if !roster_changed && self.pending_retired_incarnations.is_empty() {
+        if !roster_changed && self.pending_retired_incarnations.is_empty() && !restore_voters {
             return;
         }
         self.spawn_membership_operation(retained, term, revision);
@@ -149,6 +150,8 @@ impl Actor {
                         .copied()
                         .collect::<BTreeSet<_>>();
                     recovery.remove_nodes(learner_removals).await?;
+                    restore_stable_voters(&recovery, &retained, &admissions, &pending, revision)
+                        .await?;
                 }
                 let members = recovery.applied_member_ids().await;
                 let confirmed_retirements = pending
@@ -411,11 +414,16 @@ impl Actor {
             }
             if voters.contains(&recovery.incarnation) && voters.len() > 1 {
                 if state.leader_local {
-                    let mut successor_voters = voters.clone();
-                    successor_voters.remove(&recovery.incarnation);
+                    // Hand authority to one successor. OpenRaft 0.9 voters
+                    // refuse votes for the leader lease (election_timeout_max,
+                    // 12 s) after the last append, so a multi-voter successor
+                    // set leaves the room without control that long. A lone
+                    // voter elects itself at once; the new leader restores
+                    // the stable voter count (spawn_membership_operation).
                     // OpenRaft commits joint old/new membership through the
                     // old quorum before the helper retires its route.
-                    let successor = successor_voters.iter().next().copied();
+                    let successor = voters.iter().copied().find(|id| *id != recovery.incarnation);
+                    let successor_voters = successor.into_iter().collect::<BTreeSet<_>>();
                     let promoted = match timeout(
                         LEAVE_STEP_TIMEOUT,
                         recovery.promote_voters(successor_voters),
@@ -812,4 +820,40 @@ impl Actor {
         self.start_next_admission_operation();
         Ok(())
     }
+}
+
+/// A departing leader hands authority to a single voter so it can elect itself
+/// at once. The new leader brings the retained members back up to the stable
+/// voter count. `retained` is the committed roster at `revision`; a newer
+/// commit may have removed a candidate, so promotion is skipped then and the
+/// next refresh retries from the newer roster.
+async fn restore_stable_voters(
+    recovery: &crate::recovery::RecoverySession,
+    retained: &BTreeSet<EndpointId>,
+    admissions: &[Admission],
+    pending: &BTreeSet<u64>,
+    revision: u64,
+) -> io::Result<()> {
+    let desired = crate::recovery::stable_voter_count(retained.len());
+    let current = recovery.applied_voter_ids().await;
+    if current.len() >= desired {
+        return Ok(());
+    }
+    let members = recovery.applied_member_ids().await;
+    let candidates = admissions.iter().filter(|admission| {
+        retained.contains(&admission.primary_endpoint)
+            && members.contains(&admission.incarnation)
+            && !pending.contains(&admission.incarnation)
+            && !current.contains(&admission.incarnation)
+    });
+    let voters = current
+        .iter()
+        .copied()
+        .chain(candidates.map(|admission| admission.incarnation))
+        .take(desired)
+        .collect::<BTreeSet<_>>();
+    if voters.len() > current.len() {
+        recovery.promote_voters_at_revision(revision, voters).await?;
+    }
+    Ok(())
 }

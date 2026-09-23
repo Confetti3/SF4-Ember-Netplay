@@ -38,9 +38,9 @@ namespace sf4e {
 	static NetplayConfig s_config = { 0 };
 	static GgpoTransportStatus s_ggpoTransportStatus = { 0 };
 	static GgpoSyncPhase s_ggpoSyncPhase = GgpoSyncPhase::None;
-	static bool s_deferGgpoClose = false;
-	static bool s_deferredGgpoPending = false;
-	static ULONGLONG s_deferGgpoCloseUntil = 0;
+	// Nonzero while P1 holds a finished battle's GGPO session open so its
+	// spectators can finish: the tick after which it closes regardless.
+	static ULONGLONG s_spectatorDrainUntil = 0;
 
 	// The single current notice. Earlier builds queued alerts here but
 	// nothing read the queue and GetStatus never filled lastError, so every
@@ -231,9 +231,13 @@ namespace sf4e {
 
 	void NetplayFacade::TickFrame() {
         fSystem::PollMatchTelemetry();
-        if (s_deferredGgpoPending && fSystem::ggpo && !ShouldDeferGgpoClose()) {
+        // The hold ends once every spectator has left. Until the session is
+        // retired the room's terminal receipt stays open, which also locks
+        // the fighter's selection.
+        if (DrainingSpectators() && (GetTickCount64() >= s_spectatorDrainUntil || !fSystem::SpectatorStreamCount())) {
+            spdlog::info("NetplayFacade: closing deferred GGPO session spectators={}", fSystem::SpectatorStreamCount());
             fSystem::RetireGgpoSession("deferred_close");
-            s_deferredGgpoPending = s_deferGgpoClose = false;
+            s_spectatorDrainUntil = 0;
         }
     }
 
@@ -290,8 +294,7 @@ namespace sf4e {
 			fUserApp::server->Close();
 			fUserApp::server.reset();
 		}
-		s_deferGgpoClose = false;
-		s_deferredGgpoPending = false;
+		s_spectatorDrainUntil = 0;
 		s_controlPlaneLost = false;
 		s_verificationLostAtFrame = -1;
 		// Keep an Error visible across the shutdown (it explains why the
@@ -309,20 +312,11 @@ namespace sf4e {
 	}
 
 	void NetplayFacade::CancelDeferredGgpoClose() {
-		s_deferGgpoClose = false;
-		s_deferredGgpoPending = false;
-		s_deferGgpoCloseUntil = 0;
+		s_spectatorDrainUntil = 0;
 	}
 
-	bool NetplayFacade::ShouldDeferGgpoClose() {
-		if (!s_deferGgpoClose) {
-			return false;
-		}
-		if (GetTickCount64() < s_deferGgpoCloseUntil) {
-			return true;
-		}
-		s_deferGgpoClose = false;
-		return false;
+	bool NetplayFacade::DrainingSpectators() {
+		return s_spectatorDrainUntil && fSystem::ggpo;
 	}
 
 	void NetplayFacade::NotifyMatchEnded() {
@@ -335,13 +329,12 @@ namespace sf4e {
 		const std::size_t spectators = s_controlPlaneLost || !fUserApp::netplay ?
 			0 : fSystem::SpectatorStreamCount();
 		if (!spectators) {
-			s_deferGgpoClose = false;
-			s_deferredGgpoPending = false;
+			s_spectatorDrainUntil = 0;
 			return;
 		}
-		s_deferGgpoClose = true;
-		s_deferredGgpoPending = true;
-		s_deferGgpoCloseUntil = GetTickCount64() + 120000;
+		// SpectatorPolicy drops a spectator more than DropQueueFrames behind,
+		// so a live one finishes well inside this bound.
+		s_spectatorDrainUntil = GetTickCount64() + 10000;
 		spdlog::info("NetplayFacade: deferring GGPO close for {} spectator streams", spectators);
 	}
 

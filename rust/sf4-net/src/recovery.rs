@@ -256,6 +256,30 @@ impl RecoverySession {
         Ok(())
     }
 
+    /// Promote only while the committed checkpoint is still `revision`, whose
+    /// roster the caller chose `voters` from. The linearizable read applies
+    /// every entry committed so far, including a previous leader's, and the
+    /// proposal lock keeps this leader from committing a new roster before
+    /// the membership change. Returns false when the roster moved on; the
+    /// caller retries from the newer one.
+    pub async fn promote_voters_at_revision(
+        &self,
+        revision: u64,
+        voters: BTreeSet<u64>,
+    ) -> io::Result<bool> {
+        let _proposals = self.coordinator.proposals.lock().await;
+        self.coordinator
+            .raft()
+            .ensure_linearizable()
+            .await
+            .map_err(|_| io::Error::other("room quorum unavailable"))?;
+        if self.committed().await.revision != revision {
+            return Ok(false);
+        }
+        self.promote_voters(voters).await?;
+        Ok(true)
+    }
+
     /// Remove departed process incarnations only after the native authority
     /// has committed a checkpoint whose authenticated member set excludes
     /// them. `retain=false` removes departed voters from the active quorum;

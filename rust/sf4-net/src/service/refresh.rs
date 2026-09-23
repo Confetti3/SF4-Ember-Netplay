@@ -140,7 +140,16 @@ impl Actor {
             .extend(applied_history.iter().copied());
         let retired_for_broadcast = self.pending_retired_incarnations.clone();
         if let Some(retained) = committed_primary_endpoints(committed.checkpoint.as_bytes()) {
-            self.schedule_membership_reconciliation(retained, state.term, committed.revision);
+            // A leave hands authority to a single voter; the leader restores
+            // the stable voter count from here until it has.
+            let restore_voters = state.leader_local
+                && state.voter_count < crate::recovery::stable_voter_count(retained.len());
+            self.schedule_membership_reconciliation(
+                retained,
+                state.term,
+                committed.revision,
+                restore_voters,
+            );
         } else {
             self.schedule_pending_membership_reconciliation(state.term, committed.revision);
         }

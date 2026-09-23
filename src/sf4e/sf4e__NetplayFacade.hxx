@@ -196,7 +196,9 @@ namespace sf4e {
 		void ShutdownNetplay(bool closeGgpo);
 		void ClearBattleState();
 		void CancelDeferredGgpoClose();
-		bool ShouldDeferGgpoClose();
+		// True while P1 keeps a finished battle's GGPO session open only to
+		// drain spectator streams. The fight is over; its peers' events are not.
+		bool DrainingSpectators();
 		void NotifyMatchEnded();
 	}
 

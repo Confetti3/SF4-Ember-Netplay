@@ -869,7 +869,7 @@ pub struct Coordinator {
     raft: RoomRaft,
     store: Store,
     network: Network,
-    proposals: Mutex<()>,
+    pub(crate) proposals: Mutex<()>,
     /// A room-wide refresh makes every follower ask the same leader for a
     /// linearizable authority claim at nearly the same time.  Serialize those
     /// requests and share one just-completed barrier while its exact term,

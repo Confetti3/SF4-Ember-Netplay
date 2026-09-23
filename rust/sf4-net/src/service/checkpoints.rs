@@ -290,7 +290,12 @@ impl Actor {
             committed.checkpoint.into_bytes(),
         )?;
         if let Some(retained) = committed_primary_endpoints(&transfer.bytes) {
-            self.schedule_membership_reconciliation(retained, committed.term, committed.revision);
+            self.schedule_membership_reconciliation(
+                retained,
+                committed.term,
+                committed.revision,
+                false,
+            );
         }
         if self
             .pending_checkpoint_proposal
@@ -554,6 +559,7 @@ impl Actor {
                     retained,
                     committed.term,
                     committed.revision,
+                    false,
                 );
             }
             if committed.revision > self.last_exported_revision

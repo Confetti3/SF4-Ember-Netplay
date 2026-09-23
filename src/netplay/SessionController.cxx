@@ -7,6 +7,8 @@ namespace sf4e { namespace netplay {
 namespace {
 const size_t MaxInviteLength = 4096;
 const size_t MaxErrorLength = 255;
+// A commit is announced a few game ticks before its checkpoint applies here.
+const std::uint64_t CatchUpGraceMs = 250;
 }
 
 Decision SessionController::Accept(Effect effect) const {
@@ -34,11 +36,14 @@ bool SessionController::ObserveCoordination(std::uint64_t term, std::uint64_t re
     // Bulk checkpoint delivery can lag a healthy same-term control stream.
     // Keep mutations fenced until application catches up without treating
     // every ordinary room revision as a disconnect or clearing pending Ready.
+    // That ordinary gap stays writable, so controls do not flicker with every
+    // commit; the authority still rejects a command made on a stale revision.
     const bool connected = writable && term != 0;
-    state_.authorityWritable = connected && locallyApplied;
+    if (!connected || locallyApplied) state_.authorityStalledMs = 0;
+    else if (state_.authorityStalledMs == 0) state_.authorityStalledMs = nowMs ? nowMs : 1;
+    state_.authorityWritable = connected && (locallyApplied ||
+        (nowMs >= state_.authorityStalledMs && nowMs - state_.authorityStalledMs < CatchUpGraceMs));
     if (connected) {
-        if (state_.authorityWritable) state_.authorityStalledMs = 0;
-        else if (state_.authorityStalledMs == 0) state_.authorityStalledMs = nowMs ? nowMs : 1;
         state_.recovery = Recovery::None;
         state_.recoveryStartedMs = 0;
         if (state_.room != RoomState::Opening) {
@@ -48,7 +53,6 @@ bool SessionController::ObserveCoordination(std::uint64_t term, std::uint64_t re
         state_.error.clear();
         AdvanceCatchUp(nowMs);
     } else {
-        state_.authorityStalledMs = 0;
         if (state_.recovery == Recovery::None) {
             state_.recovery = Recovery::Recovering;
             state_.recoveryStartedMs = nowMs;

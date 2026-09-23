@@ -227,6 +227,12 @@ int main() {
 	CHECK(!roomClient.LocalSelectionLocked(0));
 	CHECK(roomClient.LocalSelectionLocked(1));
 	CHECK(roomClient.LocalSelectionLocked(-1));
+	// Seated alone, waiting for an opponent, the table is Idle: still editable.
+	roomSnapshot.tables[0].phase = room::TablePhase::Idle; roomSnapshot.tables[0].p2 = 0;
+	++roomSnapshot.revision; roomMessage.snapshot = roomSnapshot;
+	roomTransport->Push(json(roomMessage)); CHECK(roomClient.Step() == 0);
+	CHECK(!roomClient.LocalSelectionLocked(0));
+	roomSnapshot.tables[0].phase = room::TablePhase::Waiting; roomSnapshot.tables[0].p2 = 2;
 	for (unsigned rematch = 0; rematch < 20; ++rematch) {
 		for (auto phase : {room::TablePhase::Waiting, room::TablePhase::Ready, room::TablePhase::Playing, room::TablePhase::Paused}) {
 			roomSnapshot.tables[0].phase = phase;
@@ -333,6 +339,31 @@ int main() {
 				CHECK(!roomClient.TakeActionReply(actionReply));
 			}
 		}
+		// The budget belongs to that press: an unrelated one still resends.
+		{
+			room::Action seat;
+			seat.kind = room::ActionKind::Queue; seat.table = 1;
+			seat.revision = current.revision; seat.tableRevision = current.tables[1].revision;
+			std::uint64_t seatId = 0;
+			CHECK(roomClient.SendRoomAction(seat, &seatId) == session::SendResult::Queued);
+			protocol::RoomResultMessage staleSeat;
+			staleSeat.actionId = seatId;
+			staleSeat.result.accepted = false;
+			staleSeat.result.reason = room::RejectReason::StaleTable;
+			++current.revision; ++current.tables[1].revision;
+			staleSeat.result.snapshot = current;
+			const auto sentBeforeSeat = roomTransport->sent.size();
+			roomTransport->Push(json(staleSeat));
+			CHECK(roomClient.Step() == 0);
+			CHECK(roomTransport->sent.size() == sentBeforeSeat + 1);
+			protocol::RoomResultMessage seatAccepted;
+			seatAccepted.actionId = roomTransport->sent.back().at("action").at("action_id").get<std::uint64_t>();
+			seatAccepted.result.accepted = true;
+			seatAccepted.result.snapshot = current;
+			roomTransport->Push(json(seatAccepted));
+			CHECK(roomClient.Step() == 0);
+			CHECK(roomClient.TakeActionReply(actionReply) && actionReply.accepted && actionReply.actionId == seatId);
+		}
 		// An accepted readiness reply re-arms the budget.
 		CHECK(roomClient.Lobby_Ready() == session::SendResult::Queued);
 		protocol::RoomResultMessage accepted;
@@ -389,6 +420,76 @@ int main() {
 		roomTransport->Push(json(explicitAccepted));
 		CHECK(roomClient.Step() == 0);
 		CHECK(roomClient.TakeActionReply(actionReply) && actionReply.accepted && actionReply.actionId == callerId);
+		// Taking a seat races a table update the same way, e.g. right after
+		// room control recovers, and resends from the fresher snapshot.
+		room::Action queue;
+		queue.kind = room::ActionKind::Queue; queue.table = 0;
+		queue.revision = current.revision; queue.tableRevision = current.tables[0].revision;
+		std::uint64_t queueId = 0;
+		CHECK(roomClient.SendRoomAction(queue, &queueId) == session::SendResult::Queued);
+		protocol::RoomResultMessage staleQueue;
+		staleQueue.actionId = queueId;
+		staleQueue.result.accepted = false;
+		staleQueue.result.reason = room::RejectReason::StaleTable;
+		++current.revision; ++current.tables[0].revision;
+		staleQueue.result.snapshot = current;
+		roomTransport->Push(json(staleQueue));
+		CHECK(roomClient.Step() == 0);
+		CHECK(!roomClient.TakeActionReply(actionReply));
+		CHECK(roomTransport->sent.back().at("action").at("kind").get<int>() == static_cast<int>(room::ActionKind::Queue));
+		CHECK(roomTransport->sent.back().at("action").at("table_revision").get<std::uint64_t>() == current.tables[0].revision);
+		protocol::RoomResultMessage queueAccepted;
+		queueAccepted.actionId = roomTransport->sent.back().at("action").at("action_id").get<std::uint64_t>();
+		queueAccepted.result.accepted = true;
+		queueAccepted.result.snapshot = current;
+		roomTransport->Push(json(queueAccepted));
+		CHECK(roomClient.Step() == 0);
+		CHECK(roomClient.TakeActionReply(actionReply) && actionReply.accepted && actionReply.actionId == queueId &&
+			actionReply.kind == room::ActionKind::Queue);
+		// A late stale reply to a press the player has since replaced for the
+		// same table must not revive it: leave the seat, sit again, then the
+		// first press comes back stale.
+		room::Action leaveSeat = queue; leaveSeat.kind = room::ActionKind::Unqueue;
+		std::uint64_t leaveSeatId = 0;
+		CHECK(roomClient.SendRoomAction(leaveSeat, &leaveSeatId) == session::SendResult::Queued);
+		CHECK(roomClient.SendRoomAction(queue) == session::SendResult::Queued);
+		protocol::RoomResultMessage staleLeave;
+		staleLeave.actionId = leaveSeatId;
+		staleLeave.result.accepted = false;
+		staleLeave.result.reason = room::RejectReason::StaleTable;
+		++current.revision; ++current.tables[0].revision;
+		staleLeave.result.snapshot = current;
+		const auto sentBeforeStaleLeave = roomTransport->sent.size();
+		roomTransport->Push(json(staleLeave));
+		CHECK(roomClient.Step() == 0);
+		CHECK(roomTransport->sent.size() == sentBeforeStaleLeave);
+		CHECK(roomClient.TakeActionReply(actionReply) && !actionReply.accepted && actionReply.actionId == leaveSeatId &&
+			actionReply.superseded);
+		CHECK(roomClient.RoomError().empty());
+		// A plain Unwatch resends too; a generation-scoped one keeps its own path.
+		room::Action unwatch = queue; unwatch.kind = room::ActionKind::Unwatch;
+		std::uint64_t unwatchId = 0;
+		CHECK(roomClient.SendRoomAction(unwatch, &unwatchId) == session::SendResult::Queued);
+		protocol::RoomResultMessage staleUnwatch;
+		staleUnwatch.actionId = unwatchId;
+		staleUnwatch.result.accepted = false;
+		staleUnwatch.result.reason = room::RejectReason::StaleTable;
+		++current.revision; ++current.tables[0].revision;
+		staleUnwatch.result.snapshot = current;
+		roomTransport->Push(json(staleUnwatch));
+		CHECK(roomClient.Step() == 0);
+		CHECK(!roomClient.TakeActionReply(actionReply));
+		CHECK(roomTransport->sent.back().at("action").at("kind").get<int>() == static_cast<int>(room::ActionKind::Unwatch));
+		room::Action scopedUnwatch = unwatch; scopedUnwatch.matchGeneration = 5;
+		std::uint64_t scopedId = 0;
+		CHECK(roomClient.SendRoomAction(scopedUnwatch, &scopedId) == session::SendResult::Queued);
+		protocol::RoomResultMessage staleScoped = staleUnwatch;
+		staleScoped.actionId = scopedId;
+		const auto sentBeforeScoped = roomTransport->sent.size();
+		roomTransport->Push(json(staleScoped));
+		CHECK(roomClient.Step() == 0);
+		CHECK(roomTransport->sent.size() == sentBeforeScoped);
+		CHECK(roomClient.TakeActionReply(actionReply) && actionReply.actionId == scopedId && !actionReply.accepted);
 	}
 	// MatchEnded is an outcome notification, not an automatic receipt release.
 	// The explicit acknowledgement remains in the client queue until the

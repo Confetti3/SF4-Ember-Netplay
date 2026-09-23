@@ -76,7 +76,9 @@ namespace sf4e {
 		// the exact room/table/generation action.
 		session::SendResult AcknowledgeTerminal(std::uint8_t table, std::uint64_t generation);
 		struct ActionReply { std::uint64_t actionId=0; bool accepted=false; room::RejectReason reason=room::RejectReason::None;
-			room::ActionKind kind=room::ActionKind::Queue; bool kindKnown=false; };
+			room::ActionKind kind=room::ActionKind::Queue; bool kindKnown=false;
+			// A later press for the same table replaced this one; its outcome is stale.
+			bool superseded=false; };
         bool TakeActionReply(ActionReply& reply);
         void SetSelectedDelay(unsigned delay) { if (delay<=10) _selectedDelay=static_cast<std::uint8_t>(delay); }
 		void RequireCustomRooms() { _customRoomsRequired = true; }
@@ -189,15 +191,17 @@ namespace sf4e {
 			// The id the caller was given. A stale-table resend goes out under a
 			// new id; its reply is reported under the original one.
 			std::uint64_t callerId = 0;
+			// Stale-table resends of this one press, bounded so a real conflict
+			// still surfaces.
+			std::uint8_t staleRetries = 0;
 		};
 		std::deque<SentRoomAction> _sentRoomActions;
-		// A Ready/Unready that raced the player's own previous table action is
-		// resent from the reply's fresher snapshot; bounded so a real conflict
-		// still surfaces.
-		unsigned _staleTableRetries = 0;
 		// Retried actions keep their id; log each id/reason pair once.
 		std::uint64_t _lastRejectedActionId = 0;
 		room::RejectReason _lastRejectedReason = room::RejectReason::None;
+		// Snapshot sends fail every check while the room is unreachable;
+		// log the change, not each failure.
+		bool _snapshotSendFailing = false;
 		void RememberSentRoomAction(const room::Action& action);
 		// A table action stamped with the current snapshot's revisions.
 		room::Action TableAction(room::ActionKind kind, std::uint8_t table, std::uint8_t inputDelay) const;

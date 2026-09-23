@@ -154,6 +154,13 @@ struct Table {
 	bool resultPending = false;
 };
 
+// A seated fighter may still change fighter and delay: no game is being
+// prepared, played or resolved at the table, and they have not readied. An
+// empty opposite seat (Idle) locks nothing.
+inline bool SeatEditable(const Table& table, int seat) {
+	return (table.phase == TablePhase::Idle || table.phase == TablePhase::Waiting) && !table.ready[seat];
+}
+
 struct ChatMessage {
 	std::uint64_t sequence = 0;
 	MemberId sender = 0;

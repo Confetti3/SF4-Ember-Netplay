@@ -394,7 +394,8 @@ static void FillRoomView(RuntimeSnapshot& snapshot) {
                 snapshot.lobbySettings.roundCount = table->rules.roundCount;
                 snapshot.lobbySettings.roundTime = table->rules.roundTime;
                 snapshot.selectedDelay=localMember->delayLocked ? localMember->frozenDelay : runtime->selectedDelay;
-                snapshot.delayLocked=localMember->delayLocked || !tableWaiting || !healthyControl || snapshot.session.readyPending;
+                snapshot.delayLocked=localMember->delayLocked || !room::SeatEditable(*table, localMember->seat) ||
+                    !healthyControl || snapshot.session.readyPending;
                 snapshot.canProbe=!snapshot.delayLocked && table->p1 && table->p2;
                 if (runtime->room && UserApp::server) {
                     const auto opponent=localMember->seat ? table->p1 : table->p2;
@@ -423,7 +424,8 @@ static void FillRoomView(RuntimeSnapshot& snapshot) {
 			// the table has already moved on to preparing the match.
 			if (runtime->pendingReadyDeadline && !runtime->pendingReady && !snapshot.session.readyPending && table &&
 				(table->ready[localMember->seat] || table->phase != room::TablePhase::Waiting)) runtime->pendingReadyDeadline = 0;
-			snapshot.canEditSelection = snapshot.canEditSelection && healthyControl && (!seated || (tableWaiting && !table->ready[localMember->seat])) &&
+			// A seated fighter's table state is already in LocalSelectionLocked.
+			snapshot.canEditSelection = snapshot.canEditSelection && healthyControl &&
 				!runtime->recoveringMatch && !snapshot.room.localTerminalPending;
 		}
 		snapshot.readyGate = snapshot.readyGate && !runtime->pendingAbort;
@@ -893,6 +895,14 @@ void AbortLocalMatch(const char* reason) {
 	runtime->match->Abort(); runtime->recoveringMatch = true;
 }
 
+// The counterpart for a game that is already over: end it, and any spectator
+// drain, so a parked intent is sent once the helper mappings have closed.
+static void RetireFinishedMatch(const char* label) {
+	CancelDeferredGgpoClose();
+	Game::Battle::System::RetireGgpoSession(label);
+	runtime->match->End();
+}
+
 void ReportMatchAbort() {
 	if (!runtime->attached || !runtime->match || !UserApp::netplay) return;
 	auto& client = UserApp::netplay->client;
@@ -1157,6 +1167,7 @@ static void DrainCommands(bool helperReady) {
 				}
 				if (runtime->controller.GetSnapshot().match == netplay::MatchState::Playing && !localSpectator) continue;
 				runtime->pendingRoomAction.reset(new RuntimeCommand(command));
+				if (DrainingSpectators()) { RetireFinishedMatch("iroh_room_action"); continue; }
 				AbortLocalMatch(loc::T("runtime.returning_room"));
 				continue;
 			}
@@ -1171,9 +1182,7 @@ static void DrainCommands(bool helperReady) {
 			// explicit post-match drain/retirement boundary as rematch readiness.
 			runtime->pendingLobbyEdit.reset(new RuntimeCommand(command));
 			runtime->pendingLobbyEditDeadline = GetTickCount64() + 15000;
-			CancelDeferredGgpoClose();
-			Game::Battle::System::RetireGgpoSession("iroh_lobby_settings");
-			runtime->match->End();
+			RetireFinishedMatch("iroh_lobby_settings");
 			continue;
 		}
 		if (kind == netplay::CommandKind::Ready || kind == netplay::CommandKind::Rematch) {
@@ -1210,13 +1219,8 @@ static void DrainCommands(bool helperReady) {
 				(runtime->match->GetPhase() != session::IrohMatchSession::Phase::Idle || Game::Battle::System::ggpo);
 			if (draining || !published.readyGate) {
 				runtime->pendingReady.reset(new RuntimeCommand(command));
-				if (draining) {
-					// Ready is the explicit handoff from post-match spectator draining.
-					// Retire GGPO first and await helper mapping closure before sending it.
-					CancelDeferredGgpoClose();
-					Game::Battle::System::RetireGgpoSession("iroh_rematch");
-					runtime->match->End();
-				}
+				// Ready is the explicit handoff from post-match spectator draining.
+				if (draining) RetireFinishedMatch("iroh_rematch");
 				continue;
 			}
 		}
@@ -1458,7 +1462,8 @@ static void DrainActionReplies() {
 			// A refused Ready fails now, with the room's reason, instead of
 			// sitting as "Readying up..." until the intent timeout blames the
 			// previous match.
-			if (!reply.accepted && reply.kindKnown && reply.kind == room::ActionKind::Ready && runtime->pendingReadyDeadline) {
+			if (!reply.accepted && !reply.superseded && reply.kindKnown && reply.kind == room::ActionKind::Ready &&
+				runtime->pendingReadyDeadline) {
 				const auto& text = UserApp::netplay->client.RoomError();
 				FailReady(text.empty() ? loc::T("runtime.ready.refused") : loc::T(text.c_str()));
 			}

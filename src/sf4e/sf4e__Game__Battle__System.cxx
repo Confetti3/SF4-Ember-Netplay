@@ -527,7 +527,7 @@ void fSystem::CloseBattle() {
         // Decide defer *before* close so a prior spectator defer flag cannot
         // leave this session open across rematch.
         sf4e::NetplayFacade::NotifyMatchEnded();
-        if (!sf4e::NetplayFacade::ShouldDeferGgpoClose()) {
+        if (!sf4e::NetplayFacade::DrainingSpectators()) {
             RetireGgpoSession("battle_close");
             summaryEmitted = true;
         }
