@@ -1,6 +1,6 @@
 # SF4 Ember Netplay — player guide
 
-Own and install Ultra Street Fighter IV on Steam. Use the complete package on both machines and install the Microsoft Visual C++ x86 runtime if Windows reports a missing runtime DLL.
+Own and install Ultra Street Fighter IV on Steam. Use the complete package on both machines and install the latest Microsoft Visual C++ x86 runtime from https://aka.ms/vc14/vc_redist.x86.exe. An older runtime crashes the game at startup, and the launcher tells you when yours is out of date.
 
 1. Extract the complete Ember package into a **new writable folder**, then run `preflight.cmd`. Keep your old launcher installation separate; upgrading from the legacy launcher is a fresh install. Existing Ember preferences remain under `%APPDATA%\sf4e`.
 2. Run `Launcher.exe`. Successful startup goes directly to the game. If the game cannot be found, choose the folder containing `SSFIV.exe` in launch recovery.

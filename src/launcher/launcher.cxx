@@ -425,10 +425,43 @@ int UpdatePath(const wchar_t* const szLauncherDirW, wchar_t* const szErrorString
 }
 
 
+// Sidecar's dependencies resolve from System32 before the package folder, so the
+// installed VC++ runtime must be at least the toolset that built us. Older
+// runtimes (below 14.40) crash on the first std::mutex lock inside the game.
+bool RuntimeIsCurrent() {
+	wchar_t path[MAX_PATH] = {};
+	const UINT length = GetSystemDirectoryW(path, MAX_PATH);
+	// An unreadable version is not evidence of an old runtime; do not block on it.
+	if (!length || length >= MAX_PATH || FAILED(PathCchAppend(path, MAX_PATH, L"msvcp140.dll"))) return true;
+	if (GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) return false;
+	DWORD handle = 0;
+	const DWORD size = GetFileVersionInfoSizeW(path, &handle);
+	if (!size) return true;
+	std::vector<BYTE> data(size);
+	VS_FIXEDFILEINFO* info = nullptr;
+	UINT infoSize = 0;
+	if (!GetFileVersionInfoW(path, 0, size, data.data()) ||
+		!VerQueryValueW(data.data(), L"\\", reinterpret_cast<void**>(&info), &infoSize) || !info) return true;
+	const DWORD major = HIWORD(info->dwFileVersionMS), minor = LOWORD(info->dwFileVersionMS);
+	const DWORD required = _MSC_VER - 1900;
+	return major > 14 || (major == 14 && minor >= required);
+}
+
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
-    sf4e::install::ConfigureDllSearch(); ConfigureLauncherLogging();
+    sf4e::install::ConfigureDllSearch();
     const auto languagePreference = sf4e::platform::LoadLanguagePreference();
     sf4e::loc::SetActive(sf4e::loc::ResolveLocale(languagePreference, sf4e::platform::WindowsUiLanguages()));
+    // Before logging: spdlog, updates and recovery all lock a std::mutex, which
+    // an old runtime crashes on, so nothing else can run until this passes.
+    if (!RuntimeIsCurrent()) {
+        const char* text = sf4e::loc::T("launcher.runtime_outdated");
+        std::wstring wide(MultiByteToWideChar(CP_UTF8, 0, text, -1, nullptr, 0), L'\0');
+        MultiByteToWideChar(CP_UTF8, 0, text, -1, wide.data(), static_cast<int>(wide.size()));
+        if (MessageBoxW(nullptr, wide.c_str(), L"SF4 Ember Netplay", MB_YESNO | MB_ICONERROR) == IDYES)
+            ShellExecuteW(nullptr, L"open", L"https://aka.ms/vc14/vc_redist.x86.exe", nullptr, nullptr, SW_SHOWNORMAL);
+        return 1;
+    }
+    ConfigureLauncherLogging();
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     sf4e::Payload payload{};
     bool offline = false, updates = false, recovery = false, updateError = false, discordLaunch = false;

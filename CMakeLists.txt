@@ -542,6 +542,7 @@ target_include_directories(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE ${VALVEFILEVDF_I
     WIL::WIL
     "shlwapi"
     "pathcch"
+    "version"
     "bcrypt"
     "shell32"
     "ole32"

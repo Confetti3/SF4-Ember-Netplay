@@ -60,6 +60,9 @@ msgstr "Ultra Street Fighter IV não foi encontrado."
 msgid "launcher.sidecar_missing"
 msgstr "Sidecar.dll está ausente ou seu caminho não pode ser usado pelo injetor. Extraia o pacote completo em um caminho local simples."
 
+msgid "launcher.runtime_outdated"
+msgstr "Seu runtime do Microsoft Visual C++ está desatualizado e o jogo travaria ao iniciar. Instale a versão mais recente do Visual C++ Redistributable (x86) e inicie o Ember novamente.\n\nAbrir a página de download agora?"
+
 msgid "launcher.start_failed"
 msgstr "Falha ao iniciar ou injetar no jogo. Verifique o log do inicializador e tente novamente."
 
