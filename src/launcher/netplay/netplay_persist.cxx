@@ -2,6 +2,8 @@
 #include "../../netplay/SettingsStore.hxx"
 
 #include <fstream>
+#include <random>
+#include <string>
 #include <shlobj.h>
 #include <pathcch.h>
 
@@ -49,6 +51,20 @@ namespace launcher {
 			spdlog::warn("Could not parse launcher preferences in settings.json");
 			return false;
 		}
+	}
+
+	void EnsureUniqueDisplayName(PersistedSettings& settings) {
+		// Rooms reject duplicate names, and every install used to default to
+		// "Player", so two new players could never share a room. A saved
+		// "Player" cannot be told apart from that default, so it is replaced too.
+		if (settings.displayName[0] && strcmp(settings.displayName, "Player") != 0) return;
+		std::random_device random;
+		const std::string name = "Player " + std::to_string(std::uniform_int_distribution<int>(1000, 9999)(random));
+		strncpy_s(settings.displayName, name.c_str(), _TRUNCATE);
+		// Unsaved, the name still differs from other players for this launch.
+		std::string error;
+		if (!netplay::SettingsStore(netplay::SettingsStore::DefaultDirectory()).SaveLauncher({{"displayName", name}}, error))
+			spdlog::warn("{}", error);
 	}
 
 	bool SavePersistedSettings(const PersistedSettings& in) {

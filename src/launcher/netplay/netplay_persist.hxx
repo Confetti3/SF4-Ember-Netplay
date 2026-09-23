@@ -15,6 +15,8 @@ namespace launcher {
 
 	bool LoadPersistedSettings(PersistedSettings& out);
 	bool SavePersistedSettings(const PersistedSettings& in);
+	// Replaces an empty or default "Player" name with a unique one and saves it.
+	void EnsureUniqueDisplayName(PersistedSettings& settings);
 	bool GetConfigFilePath(wchar_t* outPath, int outPathChars);
 
 } // namespace launcher

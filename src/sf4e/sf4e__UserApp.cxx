@@ -311,7 +311,8 @@ void fUserApp::Steam_PostUpdate() {
     if (netplay) {
         diag::ScopedTimer _t(diag::OP_SESSION_CLIENT_STEP);
         int stepResult = netplay->client.Step();
-        if (stepResult < 0) {
+        // A refused join is reported when the room fails, not as a lost room.
+        if (stepResult < 0 && !netplay->client.JoinRejection()) {
             netplayStepFailed = true;
         }
     }

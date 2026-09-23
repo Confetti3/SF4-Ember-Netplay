@@ -507,6 +507,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     }
     sf4e::launcher::PersistedSettings settings;
     sf4e::launcher::LoadPersistedSettings(settings);
+    sf4e::launcher::EnsureUniqueDisplayName(settings);
     payload.netplay.mode = static_cast<int>(sf4e::NetplayMode::Idle);
     payload.netplay.version = sf4e::SF4E_NETPLAY_CONFIG_VERSION;
     strncpy_s(payload.netplay.displayName, settings.displayName, _TRUNCATE);

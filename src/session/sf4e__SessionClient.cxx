@@ -187,6 +187,7 @@ SessionClient::SessionClient(
 int SessionClient::Connect(std::unique_ptr<session::ClientTransport> transport,
 	bool snapshotsEnabled, bool sendHello) {
 	Disconnect();
+	_joinRejection.reset();
 	_transport = std::move(transport);
 	_snapshotsEnabled = snapshotsEnabled;
 	_helloPending = sendHello;
@@ -321,6 +322,7 @@ bool SessionClient::HandleJoinReject(json& msg) {
 	default:
 		break;
 	}
+	_joinRejection = errType;
 	_callbacks.OnError(errType, this, _callbacks);
 	Disconnect();
 	return false;

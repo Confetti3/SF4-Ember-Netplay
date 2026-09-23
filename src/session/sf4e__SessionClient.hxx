@@ -53,6 +53,9 @@ namespace sf4e {
 		int Step();
 		void PrepareForCallbacks();
 		bool IsConnected() const { return _connected; }
+		// Why the host refused this connection's join, if it did. A refusal is
+		// an answer, not a lost connection.
+		std::optional<ErrorType> JoinRejection() const { return _joinRejection; }
 		void RequireMatchAuthorization() { _matchAuthorizationRequired = true; }
 		bool TakeGameplayMessage(nlohmann::json& message);
 		void SetGameplayGeneration(std::uint64_t generation) { _gameplayGeneration = generation; }
@@ -150,6 +153,7 @@ namespace sf4e {
 		std::unique_ptr<session::ClientTransport> _transport;
 		bool _helloPending = false;
 		bool _joinRequestPending = false;
+		std::optional<ErrorType> _joinRejection;
 		std::uint64_t _joinRequestNextStep = 0;
 		bool _matchAuthorizationRequired = false;
 		std::uint64_t _gameplayGeneration = 0;
