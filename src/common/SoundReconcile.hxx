@@ -19,9 +19,10 @@ struct SoundPairing {
 	std::vector<bool> realPaired;  // Real adapters claimed by a stub; live unpaired ones get stopped.
 };
 
+// Fills `pairing`, reusing its storage: SyncState runs around every accepted
+// frame, so it must not allocate once warmed up.
 template <class StubLive, class RealLive, class Same>
-SoundPairing PairLiveSounds(int stubCount, int realCount, StubLive stubLive, RealLive realLive, Same same) {
-	SoundPairing pairing;
+void PairLiveSounds(SoundPairing& pairing, int stubCount, int realCount, StubLive stubLive, RealLive realLive, Same same) {
 	pairing.realForStub.assign(stubCount < 0 ? 0 : stubCount, -1);
 	pairing.realPaired.assign(realCount < 0 ? 0 : realCount, false);
 	for (int stub = 0; stub < stubCount; stub++) {
@@ -33,7 +34,6 @@ SoundPairing PairLiveSounds(int stubCount, int realCount, StubLive stubLive, Rea
 			break;
 		}
 	}
-	return pairing;
 }
 
 } // namespace sound

@@ -967,6 +967,8 @@ static void FailReady(const char* reason) {
 	spdlog::warn("Ready failed: {}", reason);
 }
 static constexpr ULONGLONG ReadyIntentTimeoutMs = 20000;
+// A parked room action (Queue, Watch, chat and the like) gets this long.
+static constexpr ULONGLONG RoomActionIntentTimeoutMs = 3000;
 
 // TickRuntime runs these phases in order on the game thread. Each one reads and
 // writes `runtime`; the order is part of the behaviour.
@@ -1156,6 +1158,7 @@ static void DrainCommands(bool helperReady) {
 					// receives game_peer_end while the generation is still current.
 					if (UserApp::netplay->client.SendRoomAction(command.roomAction) != session::SendResult::Queued) {
 						runtime->pendingRoomAction.reset(new RuntimeCommand(command));
+						runtime->pendingRoomActionDeadline = GetTickCount64() + RoomActionIntentTimeoutMs;
 						runtime->error = loc::T("runtime.spectator_action_retrying");
 					} else if (action == room::ActionKind::Unwatch) {
 						AbortLocalMatch(loc::T("runtime.leaving_spectator"));
@@ -1235,7 +1238,7 @@ static void DrainCommands(bool helperReady) {
 		// budget. Every other fenced command is reported (ledger H-006).
 		if (kind == netplay::CommandKind::RoomAction && runtime->controller.FencedOut(command.command)) {
 			runtime->pendingRoomAction.reset(new RuntimeCommand(command));
-			runtime->pendingRoomActionDeadline = GetTickCount64() + 3000;
+			runtime->pendingRoomActionDeadline = GetTickCount64() + RoomActionIntentTimeoutMs;
 			continue;
 		}
 		const auto decision = runtime->controller.Execute(command.command);
@@ -1298,7 +1301,6 @@ static void DrainCommands(bool helperReady) {
             if(IsRuntimeRecoveryEnabled() && runtime->attached && UserApp::netplay &&
                 UserApp::netplay->client.GetRoomSnapshot().localMember) {
                 runtime->leaveRequested=true;
-                runtime->leaveDeadline=GetTickCount64()+session::IrohRoom::LeaveTimeoutMs;
                 CancelDeferredGgpoClose();
                 Game::Battle::System::RetireGgpoSession("leave_room");
                 if(runtime->match) runtime->match->Abort();
@@ -1424,13 +1426,13 @@ static void PersistTerminalOutcome() {
 		store.saved = [](std::uint64_t revision) { return OverlayPrefs::PlayerPreferencesSaved(revision); };
 		store.failed = [] { return !OverlayPrefs::PersistenceError().empty(); };
 		using Persistence = netplay::MatchResultOutbox::ProfilePersistence;
-		switch (runtime->resultOutbox.PersistProfile(runtime->preferences.record, store)) {
+		switch (runtime->resultOutbox.PersistProfile(runtime->preferences.record, store, GetTickCount64())) {
 		case Persistence::Waiting: return;
 		case Persistence::Saved: spdlog::info("Match result: profile record saved"); break;
 		case Persistence::NotRequired: break;
 		case Persistence::Released:
 			spdlog::warn("Match result: profile record not saved, releasing the match: {}",
-				OverlayPrefs::PersistenceError().empty() ? std::string("write refused") : OverlayPrefs::PersistenceError());
+				OverlayPrefs::PersistenceError().empty() ? std::string("write refused or timed out") : OverlayPrefs::PersistenceError());
 			runtime->error = loc::T("runtime.match_record_not_saved");
 			break;
 		}
@@ -1705,7 +1707,7 @@ static void ResolvePendingIntents() {
 	// A match recovery holds a parked room action's budget; it starts once the
 	// recovery resolves, which is when the action can be submitted (H-006).
 	if (runtime->pendingRoomAction && runtime->recoveringMatch)
-		runtime->pendingRoomActionDeadline = GetTickCount64() + 3000;
+		runtime->pendingRoomActionDeadline = GetTickCount64() + RoomActionIntentTimeoutMs;
 	if (runtime->pendingRoomAction && runtime->pendingRoomActionDeadline &&
 		GetTickCount64() >= runtime->pendingRoomActionDeadline) {
 		// Say so rather than applying a stale intent or failing silently.
@@ -1763,6 +1765,9 @@ static void SettleRoomState(bool helperReady) {
         // An authority that keeps rejecting the Leave must not hold this
         // client in Closing: after the same bound IrohRoom uses, leave
         // locally and let the committed room time the seat out (ledger H-005).
+        // The bound starts once the Leave can be sent, after GGPO and the
+        // match session retired, whose own teardown deadlines cover them.
+        if(!runtime->leaveDeadline) runtime->leaveDeadline=GetTickCount64()+session::IrohRoom::LeaveTimeoutMs;
         const bool leaveTimedOut=GetTickCount64()>=runtime->leaveDeadline;
         if(leaveTimedOut && !runtime->leaveAcknowledged && snapshot.localMember)
             spdlog::warn("Room: leave not confirmed after {} ms; leaving locally", session::IrohRoom::LeaveTimeoutMs);

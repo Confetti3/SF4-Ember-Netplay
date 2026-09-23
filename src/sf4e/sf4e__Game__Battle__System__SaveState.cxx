@@ -560,9 +560,17 @@ void fSystem::SaveState::FreeByRoundTrip(SaveState* victim) {
     // claim here is freed again by the next iteration's Clear().
     {
         diag::ScopedTimer _t(diag::OP_FREE_LIVE_RESTORE);
+        sf4e::Eva::TaskCore::restoreFailed = false;
         CopyIntoPlace(&tmp);
         tmp.ownsKeys = false;
         tmp.keys.clear();
+    }
+    if (sf4e::Eva::TaskCore::restoreFailed) {
+        // The live battle did not come back whole; it cannot be played on
+        // (ledger A-001). Only this legacy A/B release restores live state.
+        spdlog::error("SaveState: round-trip release could not restore the live battle; leaving it");
+        if (rSystem* system = rSystem::staticMethods.GetSingleton())
+            *rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
     }
 }
 

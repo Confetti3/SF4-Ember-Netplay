@@ -77,11 +77,14 @@ public:
         std::uint8_t table, std::uint64_t generation, room::MatchResult result);
     ProfileConsumption PrepareProfileConsumption(ProfileRecord& profile) const;
     // One tick of recording the confirmed result in the profile. Queues the
-    // snapshot once, then waits for that revision or a writer error.
-    ProfilePersistence PersistProfile(ProfileRecord& profile, const ProfileStore& store);
+    // snapshot once, then waits for that revision or a writer error, at most
+    // ProfileWriteTimeoutMs: a write that stalls without failing must not hold
+    // the table either.
+    static constexpr std::uint64_t ProfileWriteTimeoutMs = 10000;
+    ProfilePersistence PersistProfile(ProfileRecord& profile, const ProfileStore& store, std::uint64_t nowMs);
 
 private:
-    std::uint64_t persistRevision_ = 0;
+    std::uint64_t persistRevision_ = 0, persistQueuedAt_ = 0;
     MatchResultCapture capture_;
     bool captured_ = false;
     bool pending_ = false;

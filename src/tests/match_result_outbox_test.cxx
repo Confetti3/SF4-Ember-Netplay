@@ -241,6 +241,7 @@ static void TestProfilePersistenceNeverHoldsForever() {
     std::uint64_t onDisk = 0;
     bool failed = false;
     std::uint64_t nextRevision = 1;
+    std::uint64_t now = 1000;
     netplay::ProfileStore store;
     store.queue = [&] { ++queued; return nextRevision; };
     store.saved = [&](std::uint64_t revision) { return onDisk >= revision; };
@@ -251,12 +252,12 @@ static void TestProfilePersistenceNeverHoldsForever() {
         netplay::MatchResultOutbox outbox;
         netplay::ProfileRecord profile;
         CHECK(outbox.Capture(capture));
-        CHECK(outbox.PersistProfile(profile, store) == Persistence::Waiting);
-        CHECK(outbox.PersistProfile(profile, store) == Persistence::Waiting);
+        CHECK(outbox.PersistProfile(profile, store, now) == Persistence::Waiting);
+        CHECK(outbox.PersistProfile(profile, store, now) == Persistence::Waiting);
         CHECK(queued == 1);
         CHECK(profile.wins == 1);
         onDisk = 1;
-        CHECK(outbox.PersistProfile(profile, store) == Persistence::Saved);
+        CHECK(outbox.PersistProfile(profile, store, now) == Persistence::Saved);
     }
     {
         // The writer refuses the snapshot: release at once rather than retry.
@@ -264,7 +265,7 @@ static void TestProfilePersistenceNeverHoldsForever() {
         netplay::ProfileRecord profile;
         CHECK(outbox.Capture(capture));
         nextRevision = 0;
-        CHECK(outbox.PersistProfile(profile, store) == Persistence::Released);
+        CHECK(outbox.PersistProfile(profile, store, now) == Persistence::Released);
         nextRevision = 5;
     }
     {
@@ -272,10 +273,23 @@ static void TestProfilePersistenceNeverHoldsForever() {
         netplay::MatchResultOutbox outbox;
         netplay::ProfileRecord profile;
         CHECK(outbox.Capture(capture));
-        CHECK(outbox.PersistProfile(profile, store) == Persistence::Waiting);
+        CHECK(outbox.PersistProfile(profile, store, now) == Persistence::Waiting);
         failed = true;
-        CHECK(outbox.PersistProfile(profile, store) == Persistence::Released);
+        CHECK(outbox.PersistProfile(profile, store, now) == Persistence::Released);
         failed = false;
+    }
+    {
+        // A write the writer accepted but never finishes releases after the
+        // timeout, not never.
+        netplay::MatchResultOutbox outbox;
+        netplay::ProfileRecord profile;
+        CHECK(outbox.Capture(capture));
+        onDisk = 0; nextRevision = 9;
+        CHECK(outbox.PersistProfile(profile, store, now) == Persistence::Waiting);
+        now += netplay::MatchResultOutbox::ProfileWriteTimeoutMs - 1;
+        CHECK(outbox.PersistProfile(profile, store, now) == Persistence::Waiting);
+        now += 1;
+        CHECK(outbox.PersistProfile(profile, store, now) == Persistence::Released);
     }
     {
         // No usable profile: nothing to write.
@@ -283,7 +297,7 @@ static void TestProfilePersistenceNeverHoldsForever() {
         netplay::ProfileRecord profile;
         profile.available = false;
         CHECK(outbox.Capture(capture));
-        CHECK(outbox.PersistProfile(profile, store) == Persistence::NotRequired);
+        CHECK(outbox.PersistProfile(profile, store, now) == Persistence::NotRequired);
     }
     {
         // A draw is not a counted result, so the record is invalid: release.
@@ -292,7 +306,7 @@ static void TestProfilePersistenceNeverHoldsForever() {
         auto draw = capture;
         draw.result = room::MatchResult::Draw;
         CHECK(outbox.Capture(draw));
-        CHECK(outbox.PersistProfile(profile, store) == Persistence::Released);
+        CHECK(outbox.PersistProfile(profile, store, now) == Persistence::Released);
     }
 }
 

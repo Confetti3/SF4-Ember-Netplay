@@ -8,10 +8,12 @@ using sf4e::sound::PairLiveSounds;
 
 // Requests are plain ints here; 0 means the adapter is idle.
 static sf4e::sound::SoundPairing Pair(const std::vector<int>& stubs, const std::vector<int>& reals) {
-	return PairLiveSounds(static_cast<int>(stubs.size()), static_cast<int>(reals.size()),
+	sf4e::sound::SoundPairing pairing;
+	PairLiveSounds(pairing, static_cast<int>(stubs.size()), static_cast<int>(reals.size()),
 		[&](int stub) { return stubs[stub] != 0; },
 		[&](int real) { return reals[real] != 0; },
 		[&](int stub, int real) { return stubs[stub] == reals[real]; });
+	return pairing;
 }
 
 int main() {
@@ -38,6 +40,19 @@ int main() {
 		// Real adapters beyond the stub count are still considered.
 		const auto pairing = Pair({5}, {0, 0, 0, 5});
 		CHECK((pairing.realForStub == std::vector<int>{3}));
+	}
+	{
+		// Reused storage: a second, smaller pairing does not reallocate and
+		// leaves no stale entries from the first.
+		sf4e::sound::SoundPairing pairing;
+		const auto live = [](int) { return true; };
+		const auto same = [](int, int) { return true; };
+		PairLiveSounds(pairing, 4, 4, live, live, same);
+		const int* storage = pairing.realForStub.data();
+		PairLiveSounds(pairing, 2, 3, live, live, same);
+		CHECK(pairing.realForStub.data() == storage);
+		CHECK((pairing.realForStub == std::vector<int>{0, 1}));
+		CHECK((pairing.realPaired == std::vector<bool>{true, true, false}));
 	}
 	return 0;
 }

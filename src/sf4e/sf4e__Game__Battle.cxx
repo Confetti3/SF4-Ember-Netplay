@@ -351,7 +351,8 @@ void fSoundPlayerManager::SyncState() {
 		// instead of the same one.
 		const int stubCount = *rSoundPlayerManager::GetNumAdapters(stubManager);
 		const int realCount = *rSoundPlayerManager::GetNumAdapters(realManager);
-		const auto pairing = sf4e::sound::PairLiveSounds(stubCount, realCount,
+		static sf4e::sound::SoundPairing pairing; // Game thread only; reused storage.
+		sf4e::sound::PairLiveSounds(pairing, stubCount, realCount,
 			[&](int stub) { return adapterToCurrentSound[&stubPlayers[stub]].bLive; },
 			[&](int real) { return adapterToCurrentSound[&realPlayers[real]].bLive; },
 			[&](int stub, int real) {

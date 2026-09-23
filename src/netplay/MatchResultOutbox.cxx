@@ -105,7 +105,7 @@ MatchResultOutbox::TerminalResult MatchResultOutbox::ObserveTerminal(const Rando
 }
 
 MatchResultOutbox::ProfilePersistence MatchResultOutbox::PersistProfile(ProfileRecord& profile,
-    const ProfileStore& store) {
+    const ProfileStore& store, std::uint64_t nowMs) {
     if (!persistRevision_) {
         switch (PrepareProfileConsumption(profile)) {
         case ProfileConsumption::NoPersistenceRequired: return ProfilePersistence::NotRequired;
@@ -116,12 +116,13 @@ MatchResultOutbox::ProfilePersistence MatchResultOutbox::PersistProfile(ProfileR
         // stopping) repeats on retry, so a refused queue releases too.
         persistRevision_ = store.queue();
         if (!persistRevision_) return ProfilePersistence::Released;
+        persistQueuedAt_ = nowMs;
     }
     if (store.saved(persistRevision_)) {
         persistRevision_ = 0;
         return ProfilePersistence::Saved;
     }
-    if (store.failed()) {
+    if (store.failed() || nowMs - persistQueuedAt_ >= ProfileWriteTimeoutMs) {
         // A write that fails may keep failing (disk full, permissions). The
         // record stays in memory and the writer keeps retrying it.
         persistRevision_ = 0;
