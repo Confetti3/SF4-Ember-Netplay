@@ -124,7 +124,11 @@ namespace sf4e {
 				}
 			}
 
+			// Overwrites dst. Its vectors are cleared, not freed, so a reused
+			// record keeps its capacity.
 			static void Save(Dimps::Platform::SoundObjectPool<N>* pool, SaveState* dst) {
+				dst->inactive.clear();
+				dst->active.clear();
 				Dimps::Platform::SoundObjectPoolEntry<N>* cursor;
 				for (cursor = pool->inactiveHead; cursor != NULL; cursor = cursor->next) {
 					SoundObjectPoolEntry<N>::SaveState entryState;

@@ -201,9 +201,43 @@ static void MirrorReclaim(MirrorSaveState* victim) {
 	MirrorClear(victim);
 }
 
+// Mirror of SaveState::Save's A-001 contract: when recording reports state
+// the memento cannot represent, Save releases the slot by swap and returns
+// false, so no caller can keep or load a partial snapshot.
+static bool MirrorSaveChecked(MirrorSaveState* dst, bool recordFailed) {
+	MirrorSave(dst);
+	if (recordFailed) {
+		MirrorFreeBySwap(dst);
+		return false;
+	}
+	return true;
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+// Ledger A-001: a failed save leaves an unused, empty slot and releases every
+// payload it took from the engine exactly once.
+static void TestFailedSaveReleasesTheSlot() {
+	ResetWorld(4);
+	MirrorSaveState slot;
+	CHECK(!MirrorSaveChecked(&slot, true));
+	CHECK(!slot.used);
+	CHECK(slot.keys.empty());
+	CHECK(g_heap.Leaked() == 0);
+	CHECK(g_heap.doubleFrees == 0);
+	CHECK(g_heap.freesOfUnowned == 0);
+
+	// The engine refills its keys and the next save works normally.
+	AdvanceEngineFrame();
+	CHECK(MirrorSaveChecked(&slot, false));
+	CHECK(slot.used);
+	CHECK(slot.keys.size() == 4);
+	MirrorFreeBySwap(&slot);
+	CHECK(g_heap.Leaked() == 0);
+	CHECK(g_heap.doubleFrees == 0);
+}
 
 // Save then Free a stale slot: the slot's own payloads must be released
 // exactly once, and the CURRENT live payloads must survive untouched.
@@ -492,6 +526,7 @@ int main() {
 	TestSaveIntoDirtySlotRecovers();
 	TestReclaimMakesNoEngineCalls();
 	TestMirrorDetectsTheOriginalBug();
+	TestFailedSaveReleasesTheSlot();
 
 	if (g_failures == 0) {
 		printf("savestate ownership: all checks passed\n");

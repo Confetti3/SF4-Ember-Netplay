@@ -36,10 +36,11 @@ fSystem::SaveState::SaveState() {
     // is unclear, but we can minimize memory allocation delays by
     // reserving the lower bound.
     keys.reserve(88);
-    // Sound records: clear() keeps this capacity, so after the first save of
-    // a battle these never allocate again.
+    // Sound records: clear() keeps criPlayerState's capacity and Reset()
+    // keeps every manager record with its pool vectors, so after the first
+    // save of a battle these never allocate again.
     criPlayerState.reserve(64);
-    managerState.reserve(8);
+    managerState.Reserve(8);
 }
 
 std::map<int, std::pair<StateSnapshot, fSystem::StateSnapshotMeta>> fSystem::snapshotMap;
@@ -266,8 +267,8 @@ void fSystem::CaptureSnapshot(rSystem* src) {
 // Looks up `key` in a flat save record. Records are appended in
 // shadowManagerMap order, so the cursor makes the common case O(1); the
 // scan covers a changed adapter set. Returns null when the key was not saved.
-template <class Key, class Value>
-static Value* FindSavedEntry(std::vector<std::pair<Key, Value>>& entries, Key key, size_t& cursor) {
+template <class Entries, class Key>
+static auto FindSavedEntry(Entries& entries, Key key, size_t& cursor) -> decltype(&entries[0].second) {
     const size_t count = entries.size();
     for (size_t probe = 0; probe < count; probe++) {
         const size_t index = (cursor + probe) % count;
@@ -361,7 +362,7 @@ void Clear(fSystem::SaveState* victim) {
     victim->d.BattleFlowSubstateCallable_aa9258 = nullptr;
     victim->d.BattleFlowCallback_CallEveryFrame_aa9254 = nullptr;
     victim->criPlayerState.clear();
-    victim->managerState.clear();
+    victim->managerState.Reset();
 }
 
 void fSystem::SaveState::Reclaim(SaveState* victim, const char* reason, int slotIndex) {
@@ -510,7 +511,13 @@ void fSystem::SaveState::FreeByRoundTrip(SaveState* victim) {
 
     {
         diag::ScopedTimer _t(diag::OP_FREE_TMP_SAVE);
-        SaveState::Save(&tmp, true);
+        if (!SaveState::Save(&tmp, true)) {
+            // Without a complete copy of the live state there is nothing
+            // safe to round-trip back into place; release by swap instead.
+            spdlog::warn("SaveState: round-trip release could not save the live state; releasing by swap");
+            FreeBySwap(victim);
+            return;
+        }
     }
 
     // Calls to clear SF4's mementos delegate those calls to the mementoable
@@ -550,7 +557,7 @@ void fSystem::SaveState::FreeByRoundTrip(SaveState* victim) {
     }
 }
 
-void fSystem::SaveState::Load(SaveState* src) {
+bool fSystem::SaveState::Load(SaveState* src) {
     diag::ScopedTimer _loadTimer(diag::OP_LOAD_TOTAL);
     AssertSaveStateThreadAffinity();
     // Main-thread scratch (asserted above). Kept across loads so a rollback
@@ -586,6 +593,7 @@ void fSystem::SaveState::Load(SaveState* src) {
         }
     }
 
+    sf4e::Eva::TaskCore::restoreFailed = false;
     {
         diag::ScopedTimer _t(diag::OP_LOAD_COPY_INTO_PLACE);
         CopyIntoPlace(src);
@@ -619,9 +627,10 @@ void fSystem::SaveState::Load(SaveState* src) {
     for (auto iter = tmpVec.begin(); iter != tmpVec.end(); iter++) {
         *iter->first = iter->second;
     }
+    return !sf4e::Eva::TaskCore::restoreFailed;
 }
 
-void fSystem::SaveState::Save(SaveState* dst, bool temporary) {
+bool fSystem::SaveState::Save(SaveState* dst, bool temporary) {
     diag::ScopedTimer _saveTimer(temporary ? -1 : diag::OP_SAVE_TOTAL);
     AssertSaveStateThreadAffinity();
     rSystem* system = rSystem::staticMethods.GetSingleton();
@@ -646,6 +655,7 @@ void fSystem::SaveState::Save(SaveState* dst, bool temporary) {
     dst->used = true;
     dst->ownsKeys = true;
 
+    sf4e::Eva::TaskCore::recordFailed = false;
     {
         diag::ScopedTimer _t(temporary ? -1 : diag::OP_SAVE_RECORD_MEMENTOS);
         RecordAllToInternalMementos(system, &GGPO_MEMENTO_ID);
@@ -663,6 +673,13 @@ void fSystem::SaveState::Save(SaveState* dst, bool temporary) {
             // be tracked until after that call.
             memset(*iter, 0, sizeof(rKey));
         }
+    }
+    if (sf4e::Eva::TaskCore::recordFailed) {
+        // Release the incomplete snapshot now (the default swap release,
+        // never the round trip, which would save again). An unused slot is
+        // what every caller already treats as "nothing to load".
+        FreeBySwap(dst);
+        return false;
     }
 
     {
@@ -685,8 +702,9 @@ void fSystem::SaveState::Save(SaveState* dst, bool temporary) {
                         : Sound::SoundPlayerManager::DeferredSoundRequest()
                 );
             }
-            dst->managerState.emplace_back(stubManager, Platform::SoundObjectPool<4>::SaveState());
-            Platform::SoundObjectPool<4>::Save(rSoundPlayerManager::GetAdapterPool(stubManager), &dst->managerState.back().second);
+            auto& managerRecord = dst->managerState.Next();
+            managerRecord.first = stubManager;
+            Platform::SoundObjectPool<4>::Save(rSoundPlayerManager::GetAdapterPool(stubManager), &managerRecord.second);
         }
     }
 
@@ -729,4 +747,5 @@ void fSystem::SaveState::Save(SaveState* dst, bool temporary) {
     dst->d.BattleFlowCallback_CallEveryFrame_aa9254 = *rSystem::staticVars.BattleFlowCallback_CallEveryFrame_aa9254;
 
     memcpy_s(&dst->d.gameManager, sizeof(GameManager), (system->*rSystem::publicMethods.GetGameManager)(), sizeof(GameManager));
+    return true;
 }

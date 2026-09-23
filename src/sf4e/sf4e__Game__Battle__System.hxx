@@ -14,6 +14,7 @@
 #include "../common/sf4e__GgpoGate.hxx"
 #include "../common/ConfirmedCheckpoint.hxx"
 #include "../common/MatchTelemetry.hxx"
+#include "../common/ReusableRecords.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../common/sf4e__PacingController.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
@@ -140,12 +141,14 @@ namespace sf4e {
 					// frame, so these must not allocate per save. Entries are
 					// appended in shadowManagerMap order and looked up by a
 					// linear scan on restore; an adapter or manager that was
-					// not recorded is left untouched (never zeroed).
+					// not recorded is left untouched (never zeroed). Each
+					// manager record holds two vectors of its own, so those
+					// records are reused rather than cleared (ledger A-003).
 					std::vector<std::pair<
 						Dimps::Game::Battle::Sound::SoundPlayerManager::CriPlayerAdapter*,
 						Sound::SoundPlayerManager::DeferredSoundRequest
 					>> criPlayerState;
-					std::vector<std::pair<
+					ReusableRecords<std::pair<
 						Dimps::Game::Battle::Sound::SoundPlayerManager*,
 						Platform::SoundObjectPool<4>::SaveState
 					>> managerState;
@@ -182,8 +185,13 @@ namespace sf4e {
 					// The v0.8.5 release (install victim, clear, restore live),
 					// selected with SF4E_LEGACY_SAVESTATE_FREE=1.
 					static void FreeByRoundTrip(SaveState* dst);
-					static void Save(SaveState* dst, bool temporary = false);
-					static void Load(SaveState* src);
+					// False when the engine held state the memento cannot
+					// represent (ledger A-001). A failed Save has already
+					// released dst, so no caller can publish or load a
+					// partial snapshot. A failed Load has restored what it
+					// could; the caller must abandon the timeline.
+					[[nodiscard]] static bool Save(SaveState* dst, bool temporary = false);
+					[[nodiscard]] static bool Load(SaveState* src);
 
 					// Returns a slot to the clean, unowned, unused state
 					// without touching engine memento data. Only safe when

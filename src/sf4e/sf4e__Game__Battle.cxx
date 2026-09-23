@@ -7,6 +7,7 @@
 #include "../Dimps/Dimps__Eva.hxx"
 #include "../Dimps/Dimps__Game__Battle.hxx"
 #include "../Dimps/Dimps__Math.hxx"
+#include "../common/SoundReconcile.hxx"
 
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__Game__Battle__Effect.hxx"
@@ -344,77 +345,40 @@ void fSoundPlayerManager::SyncState() {
 			}
 		}
 
-		// If a sound is playing but it's not supposed to be, stop it. This
-		// step has to happen first in order to free up players for playing
-		// sounds later.
-		for (int i = 0; i < *rSoundPlayerManager::GetNumAdapters(realManager); i++) {
-			rSoundPlayerManager::CriPlayerAdapter* realPlayer = &realPlayers[i];
-			DeferredSoundRequest* realSound = &adapterToCurrentSound[realPlayer];
-			if (!realSound->bLive) {
-				continue;
-			}
+		// Pair every live stub sound with its own live real adapter before
+		// anything is stopped or started (see SoundReconcile.hxx). Identical
+		// sounds playing in parallel then update two different adapters,
+		// instead of the same one.
+		const int stubCount = *rSoundPlayerManager::GetNumAdapters(stubManager);
+		const int realCount = *rSoundPlayerManager::GetNumAdapters(realManager);
+		const auto pairing = sf4e::sound::PairLiveSounds(stubCount, realCount,
+			[&](int stub) { return adapterToCurrentSound[&stubPlayers[stub]].bLive; },
+			[&](int real) { return adapterToCurrentSound[&realPlayers[real]].bLive; },
+			[&](int stub, int real) {
+				return DeferredSoundRequest::IsEqual(&adapterToCurrentSound[&stubPlayers[stub]],
+					&adapterToCurrentSound[&realPlayers[real]]);
+			});
 
-			bool shouldStop = true;
-			for (int j = 0; j < *rSoundPlayerManager::GetNumAdapters(stubManager); j++) {
-				rSoundPlayerManager::CriPlayerAdapter* stubPlayer = &stubPlayers[j];
-				DeferredSoundRequest* stubSound = &adapterToCurrentSound[stubPlayer];
-				if (!stubSound->bLive) {
-					continue;
-				}
-				if (DeferredSoundRequest::IsEqual(stubSound, realSound)) {
-					shouldStop = false;
-					break;
-				}
-			}
-			if (shouldStop) {
+		// Stop every live real sound no stub claimed. This has to happen
+		// first in order to free up players for playing sounds later.
+		for (int i = 0; i < realCount; i++) {
+			DeferredSoundRequest* realSound = &adapterToCurrentSound[&realPlayers[i]];
+			if (realSound->bLive && !pairing.realPaired[i]) {
 				((fSoundPlayerManager*)realManager)->StopSound(realSound->currentAdapterHandle, 1);
 			}
 		}
 
-		// Finally, reconcile playing sounds. Playing sounds fall into two groups-
-		// sounds that should be playing but aren't yet playing, and sounds that
-		// should be playing and are already playing.
-		// 
-		// * If a sound should be playing and is already playing, update
-		//   the parameters of the real player from the stub player containing the
-		//   sound- this ensures that things like fades are handled appropriately.
-		// * If a sound isn't yet playing but should be, play it. This has to
-		//   happen after stopping sounds, or there won't be enough players for
-		//   all sounds to play.
-		//
-		// Because the reconciliation is completely decoupled from the original
-		// sounds, be sure to ensure all the logic here is consistent and that
-		// identical sounds playing in parallel results in updating two different
-		// adapters, instead of the same one.
-		std::set<int> claimedAdapters; // This is inefficient, but handles arbitrary numbers of
-		                               // adapters perfectly. If efficiency becomes a problem,
-		                               // consider just bitmasking this.
-		for (int i = 0; i < *rSoundPlayerManager::GetNumAdapters(stubManager); i++) {
+		// Finally, reconcile playing sounds. A paired stub updates the
+		// parameters of its real player, so things like fades carry over. An
+		// unpaired live stub starts a new real sound.
+		for (int i = 0; i < stubCount; i++) {
 			rSoundPlayerManager::CriPlayerAdapter* stubPlayer = &stubPlayers[i];
 			DeferredSoundRequest* stubSound = &adapterToCurrentSound[stubPlayer];
 			if (!stubSound->bLive) {
 				continue;
 			}
 
-			int targetAdapter = -1;
-			for (int j = 0; j < *rSoundPlayerManager::GetNumAdapters(stubManager); j++) {
-				rSoundPlayerManager::CriPlayerAdapter* realPlayer = &realPlayers[j];
-				DeferredSoundRequest* realSound = &adapterToCurrentSound[realPlayer];
-				if (!realSound->bLive) {
-					continue;
-				}
-				if (!DeferredSoundRequest::IsEqual(stubSound, realSound)) {
-					continue;
-				}
-
-				if (claimedAdapters.count(j) > 0) {
-					continue;
-				}
-
-				claimedAdapters.insert(j);
-				targetAdapter = j;
-				break;
-			}
+			int targetAdapter = pairing.realForStub[i];
 			if (targetAdapter == -1) {
 				SoundHandle playerHandle = ((fSoundPlayerManager*)realManager)->PlaySound(
 					stubSound->cueSheetHandle,
@@ -440,6 +404,11 @@ void fSoundPlayerManager::SyncState() {
 				}
 				SoundReference playerRef = SoundReference::FromHandle(playerHandle);
 				targetAdapter = playerRef.index;
+				if (targetAdapter < 0 || targetAdapter >= realCount) {
+					spdlog::warn("SyncState: real PlaySound returned adapter {} of {}; skipping reconcile",
+						targetAdapter, realCount);
+					continue;
+				}
 			}
 			rSoundPlayerManager::CriPlayerAdapter* realPlayer = &realPlayers[targetAdapter];
 			// Mirror the stub instance's start frame onto the real-side

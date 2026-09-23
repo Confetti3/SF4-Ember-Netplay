@@ -347,6 +347,7 @@ void fTask::RestoreFromAdditionalMemento(rTask* t, const AdditionalMemento& m) {
 }
 
 bool fTaskCore::recordFailed = false;
+bool fTaskCore::restoreFailed = false;
 
 void fTaskCore::RecordToAdditionalMemento(rTaskCore* c, AdditionalMemento& m) {
 	size_t taskDataSize = *rTaskCore::GetTaskDataSize(c);
@@ -389,16 +390,27 @@ void fTaskCore::RestoreFromAdditionalMemento(rTaskCore* c, const AdditionalMemen
 	(c->*rTaskCore::publicMethods.ReclaimCancelledTasks)();
 
 	size_t taskDataSize = *rTaskCore::GetTaskDataSize(c);
-	assert(taskDataSize <= sizeof(fTaskCore::TaskDataBuf));
+	if (taskDataSize > sizeof(fTaskCore::TaskDataBuf)) {
+		// Recording rejects such a core, so this is a different core layout
+		// than the one saved. Never read past the recorded buffer.
+		spdlog::error("Rollback: restoring task data size {} exceeds {}", taskDataSize, sizeof(fTaskCore::TaskDataBuf));
+		restoreFailed = true;
+		taskDataSize = sizeof(fTaskCore::TaskDataBuf);
+	}
 	int i;
 	for (i = 0; i < m.numUsed; i++) {
-		rTask* newTask;
+		rTask* newTask = nullptr;
 		(c->*rTaskCore::publicMethods.AllocateNewTask)(
 			&newTask,
 			*rTask::GetPriority((rTask*)&m.tasks[i].rawTask),
 			0,
 			0
 		);
+		if (!newTask) {
+			spdlog::error("Rollback: task core could not allocate task {} of {}", i + 1, m.numUsed);
+			restoreFailed = true;
+			return;
+		}
 		fTask::RestoreFromAdditionalMemento(newTask, m.tasks[i]);
 		memcpy_s(*rTask::GetTaskData(newTask), taskDataSize, &m.taskdata[i], taskDataSize);
 	}

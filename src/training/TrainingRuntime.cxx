@@ -69,11 +69,12 @@ void BeforeUpdate(Native* system, bool networkOwned) {
         commandAccepted=true;
         if (command.action == Action::Save) {
             if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
-            Battle::SaveState::Save(&checkpoint);
+            // A state the memento cannot represent is refused, not kept
+            // without its task functors (ledger A-001).
+            commandAccepted = Battle::SaveState::Save(&checkpoint);
             session.SetCheckpoint(checkpoint.used);
-            commandAccepted=checkpoint.used;
         } else if (command.action == Action::Restore) {
-            Battle::SaveState::Load(&checkpoint);
+            commandAccepted = Battle::SaveState::Load(&checkpoint);
             meter.Reset();
         } else if (command.action == Action::ClearHistory) {
             meter.Reset();
