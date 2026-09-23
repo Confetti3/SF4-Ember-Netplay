@@ -692,7 +692,8 @@ void StartHelper() {
 	runtime = new Runtime();
     runtime->languagePreference = platform::LoadLanguagePreference();
     loc::SetActive(loc::ResolveLocale(runtime->languagePreference, platform::WindowsUiLanguages()));
-    runtime->trace.Open(netplay::SettingsStore::DefaultDirectory());
+    if (!runtime->trace.Open(netplay::SettingsStore::DefaultDirectory()))
+        spdlog::warn("Session trace could not be opened (error {}); lifecycle states will count as dropped", GetLastError());
 	runtime->displayName = GetConfig().displayName;
 	if (runtime->displayName.empty()) runtime->displayName = "Player";
 	runtime->preferences.displayName = runtime->displayName;

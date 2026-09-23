@@ -23,7 +23,8 @@ private:
         FrameAdvantage advantage;
     };
     void Run();
-    bool enabled_ = false, stopping_ = false;
+    void Fail(const char* what);
+    bool enabled_ = false, stopping_ = false, failed_ = false;
     std::atomic<std::uint64_t> dropped_{0};
     std::mutex mutex_;
     std::condition_variable wake_;

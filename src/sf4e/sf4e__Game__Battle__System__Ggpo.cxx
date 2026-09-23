@@ -462,7 +462,7 @@ void fSystem::PollMatchTelemetry() {
     matchTelemetry.spectator = localPlayerHandle == GGPO_INVALID_HANDLE;
     if (!matchTelemetry.PollDue(now)) return;
     GGPONetworkStats stats{};
-    matchTelemetry.Sample(now, GetRemoteNetworkStats(stats) ? stats.network.ping : -1);
+    matchTelemetry.Sample(now, !simGate.connectionWarningActive && GetRemoteNetworkStats(stats) ? stats.network.ping : -1);
 }
 
 bool fSystem::GetRemoteNetworkStats(GGPONetworkStats& stats) {

@@ -369,14 +369,23 @@ void fSystem::SaveState::Reclaim(SaveState* victim, const char* reason, int slot
     if (!victim->used && victim->keys.empty()) {
         return;
     }
+    // Process totals, so a field log can set abandoned payloads against the
+    // process memory slope. Payload sizes are engine-owned and not known here
+    // (ledger A-010).
+    static uint64_t s_reclaimedSlots = 0, s_reclaimedKeys = 0;
+    ++s_reclaimedSlots;
+    if (victim->ownsKeys) s_reclaimedKeys += victim->keys.size();
     spdlog::warn(
-        "SaveState: reclaiming leaked slot {} ({}) used={} keys={} simFrame={} ggpoFrame={}",
+        "SaveState: reclaiming leaked slot {} ({}) used={} keys={} owned={} simFrame={} ggpoFrame={} process_total_slots={} process_total_owned_keys={}",
         slotIndex,
         reason ? reason : "?",
         victim->used,
         victim->keys.size(),
+        victim->ownsKeys,
         victim->simulationFrame,
-        victim->ggpoFrame
+        victim->ggpoFrame,
+        s_reclaimedSlots,
+        s_reclaimedKeys
     );
     // Drop the records without engine calls. At the points that call this
     // (session start, post-teardown sweep) the battle objects the keys point

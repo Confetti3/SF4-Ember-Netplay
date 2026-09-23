@@ -9,6 +9,9 @@ int main() {
     CHECK(telemetry.PollDue(0));CHECK(!telemetry.PollDue(249));CHECK(telemetry.PollDue(250));
     telemetry.Sample(250,68);CHECK(telemetry.Ping(2250)==68);CHECK(telemetry.Ping(2251)==-1);
     telemetry.Sample(2300,-1);CHECK(telemetry.Ping(2300)==-1);
+    // H-010: GGPO's 0 before the first round trip is not a ping.
+    telemetry.Sample(2400,0);CHECK(telemetry.Ping(2400)==-1);
+    telemetry.Sample(2500,55);CHECK(telemetry.Ping(2500)==55);
     telemetry.AppliedDelay(3,true);CHECK(telemetry.appliedDelay==3);
     telemetry.AppliedDelay(5,false);CHECK(telemetry.appliedDelay==-1);
     telemetry.Reset(true);CHECK(telemetry.spectator&&!telemetry.PollDue(5000));
