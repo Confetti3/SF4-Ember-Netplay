@@ -1702,6 +1702,10 @@ static void ResolvePendingIntents() {
 	const auto currentGeneration = runtime->controller.GetSnapshot().generation;
 	if (runtime->pendingRoomAction && !(runtime->pendingRoomAction->command.generation == currentGeneration))
 		{ runtime->pendingRoomAction.reset(); runtime->pendingRoomActionDeadline = 0; }
+	// A match recovery holds a parked room action's budget; it starts once the
+	// recovery resolves, which is when the action can be submitted (H-006).
+	if (runtime->pendingRoomAction && runtime->recoveringMatch)
+		runtime->pendingRoomActionDeadline = GetTickCount64() + 3000;
 	if (runtime->pendingRoomAction && runtime->pendingRoomActionDeadline &&
 		GetTickCount64() >= runtime->pendingRoomActionDeadline) {
 		// Say so rather than applying a stale intent or failing silently.

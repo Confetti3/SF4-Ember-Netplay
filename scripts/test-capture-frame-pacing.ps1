@@ -5,9 +5,10 @@ $script=Join-Path $PSScriptRoot 'capture-frame-pacing.ps1'
 $root=Join-Path ([IO.Path]::GetTempPath()) ('ember-frame-capture-test-'+[Guid]::NewGuid().ToString('N'))
 $null=New-Item -ItemType Directory -Path $root -Force
 function WriteCapture([string]$Path,[int]$Frames,[double]$IntervalMs,[double]$StepMs=$IntervalMs){
-    # CPUStartQPCTime is in milliseconds, as PresentMon writes it with --qpc_time_ms.
-    $lines=@('Application,ProcessID,SwapChainAddress,CPUStartQPCTime,MsBetweenDisplayChange')
-    for($i=0;$i -lt $Frames;$i++){ $lines+=('SSFIV.exe,42,0x1,{0},{1}' -f (1000+$i*$StepMs),$IntervalMs) }
+    # CPUStartQPCTime is in milliseconds, as PresentMon writes it with --qpc_time_ms;
+    # the raw CPUStartQPC column is present too, and must not be preferred.
+    $lines=@('Application,ProcessID,SwapChainAddress,CPUStartQPC,CPUStartQPCTime,MsBetweenDisplayChange')
+    for($i=0;$i -lt $Frames;$i++){ $ms=1000+$i*$StepMs; $lines+=('SSFIV.exe,42,0x1,{0},{1},{2}' -f [long]($ms*10000),$ms,$IntervalMs) }
     Set-Content -LiteralPath $Path -Encoding ASCII -Value $lines
 }
 try {

@@ -26,7 +26,8 @@ if($CsvPath){
 $rows=@(Import-Csv -LiteralPath $csv)
 if($rows.Count -lt 30){throw "Capture has only $($rows.Count) presentation samples."}
 $columns=@($rows[0].PSObject.Properties.Name)
-$qpcName=@('CPUStartQPC','CPUStartQPCTime')|Where-Object{$columns -contains $_}|Select-Object -First 1
+# Prefer millisecond timestamps: only they let the span check below run.
+$qpcName=@('CPUStartQPCTime','CPUStartQPC')|Where-Object{$columns -contains $_}|Select-Object -First 1
 if(!$qpcName){throw "Capture is missing absolute QPC timestamps. Columns: $($columns -join ', ')"}
 if($columns -contains 'Application'){$rows=@($rows|Where-Object{$_.Application -ieq $ProcessName})}
 if($columns -contains 'ProcessID' -and $columns -contains 'SwapChainAddress') {
