@@ -417,8 +417,10 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 			// field log shows which close never arrived (F-008).
 			for (const auto& link : links_) {
 				const auto game = room_->Game(link.peer);
+				// Route kind only ("ip" or "relay"); the full route holds the peer's address.
 				spdlog::warn("Match teardown: link peer={} slot={} state={} generation={} route={} sent={} received={}",
-					link.peer.substr(0, 8), link.slot, static_cast<int>(game.state), game.generation, game.route,
+					link.peer.substr(0, 8), link.slot, static_cast<int>(game.state), game.generation,
+					game.route.substr(0, game.route.find(':')),
 					game.sentPackets, game.receivedPackets);
 			}
 			if (room_) {
