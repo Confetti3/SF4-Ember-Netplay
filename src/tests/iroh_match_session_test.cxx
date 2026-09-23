@@ -233,6 +233,9 @@ void TestMissingRoomEndIsBounded() {
 	CHECK(f.session.GetPhase() == Phase::Failed);
 	CHECK(f.session.Error() == "match_room_end_timeout");
 	CHECK(f.session.Abort());
+	// N-005: the runtime traces the session after Abort; the reason stays.
+	CHECK(f.session.Error().empty());
+	CHECK(f.session.LastFailure() == "match_room_end_timeout");
 	CHECK(f.session.Tick());
 	CHECK(f.session.GetPhase() == Phase::Idle);
 	CHECK(f.room->leaveCalls == 0);

@@ -179,10 +179,6 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         CheckPath(install.root_path(),install.relative_path()); CheckPath(staging.root_path(),staging.relative_path());
         installLock=std::make_unique<InstallLock>(Lock(install));
         if(!RecoverLocked(install,error,false)) throw std::runtime_error(error);
-        // No transaction is pending, so earlier backup sets are no longer
-        // recovery evidence. Keep only the one this install creates, instead
-        // of one more set per update forever (ledger H-013).
-        { std::error_code ignored; fs::remove_all(install/L".ember-update-backups",ignored); }
         for (const auto* required : package::Required) if (!fs::is_regular_file(staging/required)) throw std::runtime_error("Incomplete package");
         std::vector<fs::path> files;
         for (const auto& entry : fs::recursive_directory_iterator(staging)) {
@@ -233,6 +229,12 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         }
         for(const auto& item:target.items()) if(HashFile(install/fs::u8path(item.key()))!=item.value().get<std::string>()) throw std::runtime_error("Installed update verification failed");
         transaction["state"]="committed"; DurableJson(install/TransactionName,transaction); fs::remove(install/TransactionName);
+        // Committed: older backup sets are no longer recovery evidence. Keep
+        // only this install's set rather than one more per update (ledger
+        // H-013). A failed or invalid update never reaches this point.
+        std::error_code ignored;
+        for (const auto& entry : fs::directory_iterator(install/L".ember-update-backups",ignored))
+            if (PathKey(entry.path()) != PathKey(backup)) fs::remove_all(entry.path(),ignored);
         error.clear(); return true;
     } catch (const std::exception& failure) {
         bool restored = true;

@@ -506,7 +506,7 @@ static void TraceSnapshot(const RuntimeSnapshot& snapshot) {
         fields.router = runtime->room ? static_cast<int>(runtime->room->GetState()) : -1;
         if (runtime->room) fields.routerError = runtime->room->Error();
         fields.matchPhase = runtime->match ? static_cast<int>(runtime->match->GetPhase()) : -1;
-        if (runtime->match) fields.matchError = runtime->match->Error();
+        if (runtime->match) fields.matchError = runtime->match->LastFailure();
         fields.nativeSocket = Game::Battle::System::ggpo != nullptr;
         fields.resultPending = runtime->resultOutbox.Pending();
         fields.finishPending = runtime->matchFinishedPending;
@@ -1231,9 +1231,9 @@ static void DrainCommands(bool helperReady) {
 		// produced repeated pressing until one attempt landed between updates.
 		// Room actions and Ready park the newest intent; the drain below
 		// revalidates the generation and resubmits it through this same pump
-		// once writable. Every other fenced command is reported (ledger H-006).
-		if (kind == netplay::CommandKind::RoomAction && !runtime->recoveringMatch &&
-			runtime->controller.FencedOut(command.command)) {
+		// once writable, including after a match recovery that ends within the
+		// budget. Every other fenced command is reported (ledger H-006).
+		if (kind == netplay::CommandKind::RoomAction && runtime->controller.FencedOut(command.command)) {
 			runtime->pendingRoomAction.reset(new RuntimeCommand(command));
 			runtime->pendingRoomActionDeadline = GetTickCount64() + 3000;
 			continue;

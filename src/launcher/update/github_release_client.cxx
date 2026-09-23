@@ -348,17 +348,18 @@ namespace launcher {
 		return sf4e::install::GetInstallRoot(outDir, outDirChars);
 	}
 
-	bool StartPendingUpdateRecovery(std::uint32_t waitPid) {
+	PendingRecovery StartPendingUpdateRecovery(std::uint32_t waitPid) {
 		wchar_t installDir[MAX_PATH] = { 0 };
-		if (!GetLauncherInstallDir(installDir, MAX_PATH)) return false;
+		if (!GetLauncherInstallDir(installDir, MAX_PATH)) return PendingRecovery::None;
 		std::error_code error;
-		if (!std::filesystem::exists(std::filesystem::path(installDir) / UpdateTransactionName, error)) return false;
+		if (!std::filesystem::exists(std::filesystem::path(installDir) / UpdateTransactionName, error))
+			return error ? PendingRecovery::Failed : PendingRecovery::None;
 		AppendUpdateLog("pending update transaction found at launch; starting recovery");
 		wchar_t params[4096] = { 0 };
 		swprintf_s(params, L"-InstallDir \"%s\" -RecoverOnly -WaitPid %lu", installDir, static_cast<unsigned long>(waitPid));
 		// The installed Updater may itself be part of the unfinished
 		// transaction, so it runs from a copy outside the install as usual.
-		return SpawnUpdater(installDir, installDir, params);
+		return SpawnUpdater(installDir, installDir, params) ? PendingRecovery::Started : PendingRecovery::Failed;
 	}
 
 	bool ReadInstalledVersion(char* outVersion, int outVersionLen) {

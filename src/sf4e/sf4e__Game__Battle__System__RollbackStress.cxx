@@ -236,7 +236,11 @@ bool StressStep(rSystem* system) {
         return true;
     }
     if (!fSystem::SaveState::Load(&stress.states[targetIndex])) {
-        spdlog::error("RollbackStress: frame {} did not fully restore; the replay below will diverge", target);
+        // Replaying from a partly restored engine proves nothing; count it
+        // as a divergence and skip the replay.
+        stress.divergences++;
+        spdlog::error("RollbackStress: frame {} did not fully restore; replay skipped", target);
+        return true;
     }
     for (int replayed = target; replayed < stress.frame; replayed++) {
         diag::ScopedTimer _cb(diag::OP_ROLLBACK_CALLBACK);

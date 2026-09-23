@@ -111,12 +111,13 @@ struct LimiterTest {
 #define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
 #endif
 
-// Sleeps on a high-resolution waitable timer. Where that timer is missing
-// (older Windows, some Wine builds) or SF4E_LIMITER_SPIN=1 is set, it returns
+// Sleeps on a high-resolution waitable timer, only with SF4E_LIMITER_SLEEP=1
+// until frame-time captures show a late wake never costs a frame. Otherwise,
+// or where that timer is missing (older Windows, some Wine builds), it returns
 // at once and the game's limiter spins the whole slack as before.
 void SleepBeforeLimiter(double ms) {
-    static const bool spinOnly = sf4e::EnvFlag("SF4E_LIMITER_SPIN");
-    if (ms <= 0.0 || spinOnly) return;
+    static const bool enabled = sf4e::EnvFlag("SF4E_LIMITER_SLEEP");
+    if (ms <= 0.0 || !enabled) return;
     thread_local HANDLE timer = CreateWaitableTimerExW(nullptr, nullptr,
         CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
     if (!timer) return;

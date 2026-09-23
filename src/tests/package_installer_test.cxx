@@ -63,12 +63,15 @@ int wmain(int argc, wchar_t** argv) {
     // H-013: another update replaces the backup set instead of adding one.
     CHECK(sf4e::launcher::InstallPackage(staging,install,error));
     CHECK(std::distance(fs::directory_iterator(install/L".ember-update-backups"), fs::directory_iterator()) == 1);
+    const auto keptBackup = fs::directory_iterator(install/L".ember-update-backups")->path();
     // A late obsolete-file failure must roll back earlier replacements.
     Write(staging/L"Launcher.exe","third"); fs::create_directory(install/L"Qt6Core.dll");
     CHECK(!sf4e::launcher::InstallPackage(staging,install,error));
     CHECK(Read(install/L"Launcher.exe") == "new"); fs::remove(install/L"Qt6Core.dll");
     fs::remove(staging/L"sf4-net.exe");
     CHECK(!sf4e::launcher::InstallPackage(staging,install,error)); CHECK(Read(install/L"Launcher.exe") == "new");
+    // Failed or invalid updates never discard the last good backup set.
+    CHECK(fs::exists(keptBackup));
     CHECK(!sf4e::package::IsAllowed(L"../outside.exe"));
     CHECK(!sf4e::package::IsAllowed(L"plugins/platforms/arbitrary.dll"));
 

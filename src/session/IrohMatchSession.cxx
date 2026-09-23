@@ -32,7 +32,7 @@ bool IrohMatchSession::Fail(const char* error) {
 	// a helper, route, IPC or peer failure apart (ledger N-005).
 	if (phase_ != Phase::Failed)
 		spdlog::warn("Match session failed: {} generation={} phase={}", error, generation_, static_cast<int>(phase_));
-	error_ = error; phase_ = Phase::Failed; return false;
+	error_ = lastFailure_ = error; phase_ = Phase::Failed; return false;
 }
 bool IrohMatchSession::Acknowledge(const char* type, json extra) {
 	if (!type || generation_ == 0) return Fail("match_control_send_failed");
@@ -144,6 +144,7 @@ bool IrohMatchSession::StartQueuedSetup() {
 bool IrohMatchSession::AcceptGrant(const json& message) {
 	const auto generation = message.at("generation").get<std::uint64_t>();
 	if (generation <= generation_) return true; // A stale room message cannot reopen a match.
+	lastFailure_.clear();
 	if (phase_ != Phase::Idle || !winsock_ || message.at("version") != 1 ||
 		message.at("room").get<std::array<std::uint8_t, 16>>() != room_->RoomId() ||
 		message.at("local_identity").get<std::string>() != room_->LocalIdentity() ||
@@ -413,9 +414,7 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 			waitingForProjection_ = false;
 			roomEndReceived_ = true;
 			if (room_) room_->Leave();
-			error_ = "match_teardown_timeout";
-			phase_ = Phase::Failed;
-			return false;
+			return Fail("match_teardown_timeout");
 		}
 		return true;
 	}
