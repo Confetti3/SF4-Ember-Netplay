@@ -34,25 +34,34 @@ if($columns -contains 'ProcessID' -and $columns -contains 'SwapChainAddress') {
     $stream=$rows|Group-Object ProcessID,SwapChainAddress|Sort-Object Count -Descending|Select-Object -First 1
     $rows=@($stream.Group)
 }
-$intervals=@();$intervalName='';$displayAvailable=$false;$coveredSeconds=0.0;$coverageFailures=@();$MinimumCoverage=0.9
+$intervals=@();$intervalName='';$displayAvailable=$false;$coveredSeconds=0.0;$spanSeconds=$null;$coverageFailures=@();$MinimumCoverage=0.9
 foreach($candidate in @('DisplayedTime','MsBetweenDisplayChange','MsBetweenPresents')) {
     if($columns -notcontains $candidate){continue}
-    $usable=@($rows|ForEach-Object{ $value=0.0;$qpc=0.0
+    $samples=@($rows|ForEach-Object{ $value=0.0;$qpc=0.0
         if([double]::TryParse([string]$_.$qpcName,[Globalization.NumberStyles]::Float,[Globalization.CultureInfo]::InvariantCulture,[ref]$qpc)-and$qpc-gt 0-and
-           [double]::TryParse([string]$_.$candidate,[Globalization.NumberStyles]::Float,[Globalization.CultureInfo]::InvariantCulture,[ref]$value)-and$value-gt 0-and ![double]::IsInfinity($value)){$value}
-    }|Sort-Object)
-    if($usable.Count-lt 30){continue}
+           [double]::TryParse([string]$_.$candidate,[Globalization.NumberStyles]::Float,[Globalization.CultureInfo]::InvariantCulture,[ref]$value)-and$value-gt 0-and ![double]::IsInfinity($value)){[pscustomobject]@{qpc=$qpc;value=$value}}
+    })
+    if($samples.Count-lt 30){continue}
+    $usable=@($samples|ForEach-Object{$_.value}|Sort-Object)
     # The usable intervals must span the capture, or a long capture with a few
     # displayed frames would sign off pacing it never measured (ledger H-012).
+    # Both their sum and, with millisecond timestamps, the clock span they were
+    # taken over must cover it.
     $covered=($usable|Measure-Object -Sum).Sum/1000.0
     if($covered-lt $MinimumCoverage*$DurationSeconds){$coverageFailures+="$candidate covers $([Math]::Round($covered,1)) of $DurationSeconds s";continue}
+    if($qpcName-eq'CPUStartQPCTime'){
+        $qpcs=$samples|ForEach-Object{$_.qpc}|Measure-Object -Minimum -Maximum
+        $span=($qpcs.Maximum-$qpcs.Minimum)/1000.0
+        if($span-lt $MinimumCoverage*$DurationSeconds){$coverageFailures+="$candidate timestamps span $([Math]::Round($span,1)) of $DurationSeconds s";continue}
+        $spanSeconds=$span
+    }
     $intervals=$usable;$intervalName=$candidate;$displayAvailable=$candidate-ne'MsBetweenPresents';$coveredSeconds=$covered;break
 }
 if($intervals.Count -lt 30){throw ("Capture does not contain enough usable display or presentation intervals. "+($coverageFailures -join '; '))}
 function Percentile([double[]]$Values,[double]$P){$Values[[Math]::Min($Values.Count-1,[Math]::Floor(($Values.Count-1)*$P))]}
 $receipt=[ordered]@{
  schema=1;capture=$csv;process=$ProcessName;label=$Label;capturedUtc=[DateTime]::UtcNow.ToString('o');samples=$intervals.Count
- intervalColumn=$intervalName;qpcColumn=$qpcName;durationSeconds=$DurationSeconds;coveredSeconds=[Math]::Round($coveredSeconds,1);rowsWithoutInterval=$rows.Count-$intervals.Count;p50Ms=Percentile $intervals .50;p95Ms=Percentile $intervals .95
+ intervalColumn=$intervalName;qpcColumn=$qpcName;durationSeconds=$DurationSeconds;coveredSeconds=[Math]::Round($coveredSeconds,1);timestampSpanSeconds=if($null-ne$spanSeconds){[Math]::Round($spanSeconds,1)}else{'unchecked (raw QPC column)'};rowsWithoutInterval=$rows.Count-$intervals.Count;p50Ms=Percentile $intervals .50;p95Ms=Percentile $intervals .95
  displayMetricsAvailable=$displayAvailable;displayMetricsStatus=if($displayAvailable){'available'}else{'unavailable; presentation intervals only'}
  processId=if($rows.Count-and$columns-contains'ProcessID'){$rows[0].ProcessID}else{$null}
  swapChain=if($rows.Count-and$columns-contains'SwapChainAddress'){$rows[0].SwapChainAddress}else{$null}

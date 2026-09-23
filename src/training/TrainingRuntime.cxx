@@ -81,6 +81,11 @@ void BeforeUpdate(Native* system, bool networkOwned) {
         } else if (command.action == Action::Restore) {
             commandAccepted = Battle::SaveState::Load(&checkpoint);
             meter.Reset();
+            if (!commandAccepted) {
+                // A partly restored engine cannot be played on; leave the battle.
+                spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
+                *Native::GetReadyState(system) = Native::RS_ISLEAVING;
+            }
         } else if (command.action == Action::ClearHistory) {
             meter.Reset();
         }

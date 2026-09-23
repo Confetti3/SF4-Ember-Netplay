@@ -73,11 +73,15 @@ namespace launcher {
 		}
 
 		// Removes staging left by earlier updates: other tags' extract folders,
-		// downloaded zips and the updater copies run from %TEMP%. Best effort;
-		// a folder still in use stays until the next update.
+		// downloaded zips and the updater copies run from %TEMP%. Only items a
+		// day old are touched, so an update another Ember install is running
+		// right now keeps its files. Best effort; anything in use stays.
 		static void SweepStaleUpdateFiles(const wchar_t* tempBase, const wchar_t* currentRoot) {
 			std::error_code error;
+			const auto cutoff = std::filesystem::file_time_type::clock::now() - std::chrono::hours(24);
 			for (const auto& entry : std::filesystem::directory_iterator(tempBase, error)) {
+				const auto written = entry.last_write_time(error);
+				if (error || written > cutoff) { error.clear(); continue; }
 				const auto name = entry.path().filename().wstring();
 				const bool updateRoot = name.rfind(L"sf4-netplay-update-", 0) == 0 && entry.is_directory(error);
 				const bool updaterCopy = name.rfind(L"sf4e-updater-", 0) == 0 && entry.is_directory(error);

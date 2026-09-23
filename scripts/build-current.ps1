@@ -25,9 +25,11 @@ if (Get-Content -LiteralPath (Join-Path $build 'CMakeCache.txt') | Where-Object 
 }
 & $cmake --build $build --parallel 4
 if ($LASTEXITCODE) { throw 'Build failed' }
+# Public-network and live Discord checks require a separate explicit run. The
+# receipt names them, so testsPassed never implies they ran (ledger A-015).
+$excludedTests = 'Iroh(Room|Game|Authorized|Recovery)|CustomRoom(FourTables|Spectators)|DiscordSmoke'
 if (!$SkipTests) {
-    # Public-network and live Discord checks require a separate explicit run.
-    & $ctest --test-dir $build --output-on-failure -E 'Iroh(Room|Game|Authorized|Recovery)|CustomRoom(FourTables|Spectators)|DiscordSmoke'
+    & $ctest --test-dir $build --output-on-failure -E $excludedTests
     if ($LASTEXITCODE) { throw 'Tests failed' }
 }
 & $cmake --install $build *> (Join-Path $build 'stage.log')
@@ -39,4 +41,4 @@ if ((Get-FileHash -LiteralPath (Join-Path $stage 'GGPO.dll')).Hash -ne $dependen
 $binaries = foreach ($file in Get-ChildItem -LiteralPath $stage -Recurse -File | Where-Object { $_.Extension -in '.exe','.dll' }) {
     [pscustomobject]@{path=$file.FullName.Substring($stage.Length+1);sha256=(Get-FileHash -LiteralPath $file.FullName).Hash}
 }
-[ordered]@{sourceRoot=$repo;buildRoot=$build;stageRoot=$stage;baseRevision=(& git -C $repo rev-parse HEAD);sourceFingerprint=$after;features=$target.features;testsPassed=(!$SkipTests);builtUtc=[DateTime]::UtcNow.ToString('o');binaries=@($binaries);dependencies=$dependencyReceipt} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $build 'build-provenance.json')
+[ordered]@{sourceRoot=$repo;buildRoot=$build;stageRoot=$stage;baseRevision=(& git -C $repo rev-parse HEAD);sourceFingerprint=$after;features=$target.features;testsPassed=(!$SkipTests);testsExcluded=$excludedTests;builtUtc=[DateTime]::UtcNow.ToString('o');binaries=@($binaries);dependencies=$dependencyReceipt} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $build 'build-provenance.json')

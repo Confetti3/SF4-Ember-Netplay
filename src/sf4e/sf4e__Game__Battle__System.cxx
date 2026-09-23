@@ -597,7 +597,8 @@ void fSystem::SysMain_HandleTrainingModeFeatures() {
     // dropped rather than stealing the slot out from under the ring.
     if (extendedLoadRequest) {
         if (!ggpo && saveStates[0].used && !fSystem::SaveState::Load(&saveStates[0])) {
-            spdlog::error("Developer extended load: the state did not fully restore");
+            spdlog::error("Developer extended load: the state did not fully restore; leaving the battle");
+            *rSystem::GetReadyState(_this) = rSystem::RS_ISLEAVING;
         }
         extendedLoadRequest = false;
     }
