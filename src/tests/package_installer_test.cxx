@@ -60,6 +60,9 @@ int wmain(int argc, wchar_t** argv) {
         if (item.path().filename() == L"dxwrapper.dll") displayBacked = Read(item.path()) == "previous-display-wrapper";
     }
     CHECK(backed && displayBacked);
+    // H-013: another update replaces the backup set instead of adding one.
+    CHECK(sf4e::launcher::InstallPackage(staging,install,error));
+    CHECK(std::distance(fs::directory_iterator(install/L".ember-update-backups"), fs::directory_iterator()) == 1);
     // A late obsolete-file failure must roll back earlier replacements.
     Write(staging/L"Launcher.exe","third"); fs::create_directory(install/L"Qt6Core.dll");
     CHECK(!sf4e::launcher::InstallPackage(staging,install,error));
