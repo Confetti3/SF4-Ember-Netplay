@@ -116,7 +116,6 @@ struct Runtime {
 	std::unique_ptr<RuntimeCommand> pendingRoomAction;
 	// Set only when a room action is parked behind the authority catch-up fence.
 	// Zero means the existing GGPO teardown deferrals, which must not expire.
-	std::uint64_t pendingRoomActionDeadline = 0;
 	std::unique_ptr<RuntimeCommand> pendingReady;
 	std::unique_ptr<RuntimeCommand> pendingLobbyEdit;
 	// A Ready/Rematch press is one intent with one budget: it may be parked
@@ -195,7 +194,6 @@ void CloseRoom() {
 	runtime->pendingLobbyEdit.reset();
 	runtime->pendingLobbySettings.reset();
 	runtime->pendingRoomAction.reset();
-	runtime->pendingRoomActionDeadline = 0;
 	runtime->resultOutbox.Reset();
 	runtime->recoveringMatch = false;
 	runtime->matchFinishedPending = false;
@@ -969,6 +967,13 @@ static void FailReady(const char* reason) {
 static constexpr ULONGLONG ReadyIntentTimeoutMs = 20000;
 // A parked room action (Queue, Watch, chat and the like) gets this long.
 static constexpr ULONGLONG RoomActionIntentTimeoutMs = 3000;
+// Parks a room action until the room can take it. A budgeted intent keeps
+// the budget it started with, however often it is resubmitted and parked again.
+static void ParkRoomAction(const RuntimeCommand& command, bool budgeted = true) {
+	runtime->pendingRoomAction.reset(new RuntimeCommand(command));
+	if (budgeted && !runtime->pendingRoomAction->parkedUntil)
+		runtime->pendingRoomAction->parkedUntil = GetTickCount64() + RoomActionIntentTimeoutMs;
+}
 
 // TickRuntime runs these phases in order on the game thread. Each one reads and
 // writes `runtime`; the order is part of the behaviour.
@@ -1157,8 +1162,7 @@ static void DrainCommands(bool helperReady) {
 					// stream. Unwatch is sent before local GGPO retirement so P1
 					// receives game_peer_end while the generation is still current.
 					if (UserApp::netplay->client.SendRoomAction(command.roomAction) != session::SendResult::Queued) {
-						runtime->pendingRoomAction.reset(new RuntimeCommand(command));
-						runtime->pendingRoomActionDeadline = GetTickCount64() + RoomActionIntentTimeoutMs;
+						ParkRoomAction(command);
 						runtime->error = loc::T("runtime.spectator_action_retrying");
 					} else if (action == room::ActionKind::Unwatch) {
 						AbortLocalMatch(loc::T("runtime.leaving_spectator"));
@@ -1166,7 +1170,7 @@ static void DrainCommands(bool helperReady) {
 					continue;
 				}
 				if (runtime->controller.GetSnapshot().match == netplay::MatchState::Playing && !localSpectator) continue;
-				runtime->pendingRoomAction.reset(new RuntimeCommand(command));
+				ParkRoomAction(command, false);
 				if (DrainingSpectators()) { RetireFinishedMatch("iroh_room_action"); continue; }
 				AbortLocalMatch(loc::T("runtime.returning_room"));
 				continue;
@@ -1237,8 +1241,7 @@ static void DrainCommands(bool helperReady) {
 		// once writable, including after a match recovery that ends within the
 		// budget. Every other fenced command is reported (ledger H-006).
 		if (kind == netplay::CommandKind::RoomAction && runtime->controller.FencedOut(command.command)) {
-			runtime->pendingRoomAction.reset(new RuntimeCommand(command));
-			runtime->pendingRoomActionDeadline = GetTickCount64() + RoomActionIntentTimeoutMs;
+			ParkRoomAction(command);
 			continue;
 		}
 		const auto decision = runtime->controller.Execute(command.command);
@@ -1260,10 +1263,14 @@ static void DrainCommands(bool helperReady) {
             else if (kind == netplay::CommandKind::LeaveRoom) runtime->discordInvite.LeaveQueued();
         }
 		switch (decision.effect) {
-		case netplay::Effect::SendRoomAction:
-			if (UserApp::netplay->client.SendRoomAction(command.roomAction) != session::SendResult::Queued)
-				runtime->error = loc::T("runtime.room_action_failed");
+		case netplay::Effect::SendRoomAction: {
+			const auto sent = UserApp::netplay->client.SendRoomAction(command.roomAction);
+			// A full queue or a control reconnect is transient: keep the intent
+			// under its budget rather than making the player press again.
+			if (sent == session::SendResult::NotConnected || sent == session::SendResult::QueueFull) ParkRoomAction(command);
+			else if (sent != session::SendResult::Queued) runtime->error = loc::T("runtime.room_action_failed");
 			break;
+		}
 		case netplay::Effect::SavePreferences:
             // UI drafts cannot replace the game-thread-owned match record.
             command.preferences.record=runtime->preferences.record;
@@ -1703,15 +1710,15 @@ static void ReleaseFinishedMatch() {
 static void ResolvePendingIntents() {
 	const auto currentGeneration = runtime->controller.GetSnapshot().generation;
 	if (runtime->pendingRoomAction && !(runtime->pendingRoomAction->command.generation == currentGeneration))
-		{ runtime->pendingRoomAction.reset(); runtime->pendingRoomActionDeadline = 0; }
+		runtime->pendingRoomAction.reset();
 	// A match recovery holds a parked room action's budget; it starts once the
 	// recovery resolves, which is when the action can be submitted (H-006).
-	if (runtime->pendingRoomAction && runtime->recoveringMatch)
-		runtime->pendingRoomActionDeadline = GetTickCount64() + RoomActionIntentTimeoutMs;
-	if (runtime->pendingRoomAction && runtime->pendingRoomActionDeadline &&
-		GetTickCount64() >= runtime->pendingRoomActionDeadline) {
+	if (runtime->pendingRoomAction && runtime->pendingRoomAction->parkedUntil && runtime->recoveringMatch)
+		runtime->pendingRoomAction->parkedUntil = GetTickCount64() + RoomActionIntentTimeoutMs;
+	if (runtime->pendingRoomAction && runtime->pendingRoomAction->parkedUntil &&
+		GetTickCount64() >= runtime->pendingRoomAction->parkedUntil) {
 		// Say so rather than applying a stale intent or failing silently.
-		runtime->pendingRoomAction.reset(); runtime->pendingRoomActionDeadline = 0;
+		runtime->pendingRoomAction.reset();
 		runtime->error = loc::T("runtime.room_catchup_timeout");
 	}
 	if (runtime->pendingReady && !(runtime->pendingReady->command.generation == currentGeneration))
@@ -1736,14 +1743,16 @@ static void ResolvePendingIntents() {
 		 runtime->pendingRoomAction->roomAction.kind == room::ActionKind::Unwatch)) {
 		const auto action = runtime->pendingRoomAction->roomAction.kind;
 		if (UserApp::netplay->client.SendRoomAction(runtime->pendingRoomAction->roomAction) == session::SendResult::Queued) {
-			runtime->pendingRoomAction.reset(); runtime->pendingRoomActionDeadline = 0;
+			runtime->pendingRoomAction.reset();
 			if (action == room::ActionKind::Unwatch) {
 				AbortLocalMatch(loc::T("runtime.leaving_spectator"));
 			}
 		}
 	} else if (runtime->pendingRoomAction && healthyRoomControl && !runtime->recoveringMatch && AtMainMenu() && runtime->match &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle) {
-		if (SubmitRuntimeCommand(*runtime->pendingRoomAction)) { runtime->pendingRoomAction.reset(); runtime->pendingRoomActionDeadline = 0; }
+		// The resubmitted copy carries parkedUntil, so a send that fails again
+		// re-parks it under the same budget.
+		if (SubmitRuntimeCommand(*runtime->pendingRoomAction)) runtime->pendingRoomAction.reset();
 	}
 	if (runtime->pendingReady && healthyRoomControl && GetRuntimeSnapshotShared()->readyGate && !Game::Battle::System::ggpo &&
 		runtime->match && runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle) {
