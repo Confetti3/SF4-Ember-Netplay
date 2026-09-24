@@ -250,6 +250,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  // still win below.
  if(!notice_.empty()&&!saveFailed_){status=notice_;statusTone=noticeTone_;}
  if(v.controllerUnavailable){status=loc::T("controller.disconnected");statusTone=Tone::Error;}
+ if(v.session.room==RoomState::Opening&&v.session.openingStalled){status=loc::T("room.opening_stalled");statusTone=Tone::Error;}
  if(!v.session.error.empty()){status=v.session.error;statusTone=Tone::Error;}
  if(!v.error.empty()){status=v.error;statusTone=Tone::Error;}
  if(!error_.empty()){status=error_;statusTone=Tone::Error;}

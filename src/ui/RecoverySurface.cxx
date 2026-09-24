@@ -4,6 +4,7 @@
 #include "Theme.hxx"
 #include "../common/Localization.hxx"
 #include "../platform/ApplicationServices.hxx"
+#include "../platform/Utf8.hxx"
 #include <windows.h>
 #include <shobjidl.h>
 #include <d3d9.h>
@@ -14,14 +15,7 @@
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 namespace sf4e { namespace ui {
 namespace {
-std::wstring Utf8ToWide(const char* value) {
-    if (!value) return {};
-    const int length=MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,value,-1,nullptr,0);
-    if(length<=1)return {};
-    std::wstring result(static_cast<std::size_t>(length),L'\0');
-    if(!MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,value,-1,&result[0],length))return {};
-    result.pop_back();return result;
-}
+using platform::Utf8ToWide;
 LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM w, LPARAM l) {
     if (ImGui::GetCurrentContext()) {
         const auto handled = ImGui_ImplWin32_WndProcHandler(window, message, w, l);
@@ -48,7 +42,7 @@ bool ChooseDirectory(HWND owner, std::wstring& path) {
     dialog->Release(); return selected;
 }
 }
-bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates) {
+bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates, std::function<void(const std::string&)> artLog) {
     const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     WNDCLASSW wc{}; wc.lpfnWndProc = WindowProc; wc.hInstance = GetModuleHandleW(nullptr);
     wc.lpszClassName = L"SF4EmberRecovery"; wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
@@ -71,7 +65,7 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates)
     ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(window));
     ImGui_ImplWin32_Init(window); ImGui_ImplDX9_Init(device);
     wchar_t executable[32768]={};GetModuleFileNameW(nullptr,executable,32768);
-    auto art=std::make_unique<SelectionArt>(device,gameDirectory,(std::filesystem::path(executable).parent_path()/L"assets"/L"selection").wstring());
+    auto art=std::make_unique<SelectionArt>(device,gameDirectory,(std::filesystem::path(executable).parent_path()/L"assets"/L"selection").wstring(),std::move(artLog));
     SetMenuArt(art.get());
     ShowWindow(window, SW_SHOW); UpdateWindow(window);
     platform::ApplicationServices services;

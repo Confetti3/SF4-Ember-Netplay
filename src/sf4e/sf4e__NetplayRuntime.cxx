@@ -716,7 +716,7 @@ void StartHelper() {
 	runtime->preferences.lobby.roundCount = GetConfig().roundCount;
 	runtime->preferences.lobby.roundTime = GetConfig().roundTimeIntegral;
 	if (!runtime->preferences.lobby.Valid()) runtime->preferences.lobby = {};
-	if (runtime->preferences.inputDelay < 0 || runtime->preferences.inputDelay > 10) runtime->preferences.inputDelay = 2;
+	if (runtime->preferences.inputDelay < 0 || runtime->preferences.inputDelay > MaximumInputDelay) runtime->preferences.inputDelay = 2;
 	{
 		nlohmann::json saved;
 		std::string error;
@@ -1007,7 +1007,8 @@ static void ObserveCoordination() {
             runtime->controller.ObserveCoordination(appliedAuthority.term,appliedAuthority.revision,
                 connected,GetTickCount64(),applied);
             if(connected) RestoreControlPlane();
-            else if(runtime->attached) HandleControlPlaneLoss(loc::T("runtime.room_control_recovering"));
+            else if(runtime->attached && runtime->controller.ControlPlaneEstablished())
+                HandleControlPlaneLoss(loc::T("runtime.room_control_recovering"));
         }
         runtime->controller.AdvanceRecovery(GetTickCount64());
     }
@@ -1334,7 +1335,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
             if(peer.empty() || probe.peer!=peer || probe.pairRevision!=revision) break;
             selected=probe.recommended;
         }
-        if(selected<0 || selected>10) break;
+        if(selected<0 || selected>MaximumInputDelay) break;
         runtime->selectedDelay=selected;
         UserApp::netplay->client.SetSelectedDelay(selected);
         runtime->preferences.inputDelay=selected;

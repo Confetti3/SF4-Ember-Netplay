@@ -254,6 +254,9 @@ void SessionServer::ProjectRoomTable(session::Connection connection, std::uint8_
 		update.lobbyData.members.push_back(data);
 	}
 	update.matchData = _roomMatchData[tableId];
+	// The native protocol keeps one delay per seat, and each client applies
+	// the entry for its own slot. Custom rooms fill both with the shared match
+	// delay, so every client plays at it without a protocol change.
 	update.matchData.inputDelay[0] = update.matchData.inputDelay[1] = room::MatchDelay(table);
 	update.authorityTerm = _recovery.Authority().term;
 	update.authorityRevision = _recovery.Authority().revision;

@@ -426,6 +426,44 @@ async fn wrong_match_capability_and_peer_identity_are_rejected() {
     .unwrap();
 }
 
+/// Both sides of one match: a loopback socket standing in for each GGPO,
+/// bridged over the game connection until `stop` is sent.
+struct BridgedPair {
+    local_a: UdpSocket,
+    local_b: UdpSocket,
+    virtual_a: std::net::SocketAddr,
+    virtual_b: std::net::SocketAddr,
+    stats_b: std::sync::Arc<crate::bridge::BridgeStats>,
+    stop: watch::Sender<bool>,
+    a_task: tokio::task::JoinHandle<Result<(), crate::bridge::Failure>>,
+    b_task: tokio::task::JoinHandle<Result<(), crate::bridge::Failure>>,
+}
+
+async fn bridged_pair(game_a: GameConnection, game_b: GameConnection) -> BridgedPair {
+    let local_a = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
+    let local_b = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
+    let bridge_a = Bridge::bind(game_a, local_a.local_addr().unwrap())
+        .await
+        .unwrap();
+    let bridge_b = Bridge::bind(game_b, local_b.local_addr().unwrap())
+        .await
+        .unwrap();
+    let virtual_a = bridge_a.local_addr().unwrap();
+    let virtual_b = bridge_b.local_addr().unwrap();
+    let stats_b = bridge_b.stats.clone();
+    let (stop, stop_rx) = watch::channel(false);
+    BridgedPair {
+        local_a,
+        local_b,
+        virtual_a,
+        virtual_b,
+        stats_b,
+        stop,
+        a_task: tokio::spawn(bridge_a.run(stop_rx.clone())),
+        b_task: tokio::spawn(bridge_b.run(stop_rx)),
+    }
+}
+
 #[tokio::test]
 async fn raw_udp_survives_control_close_and_filters_stale_remote_and_local_packets() {
     timeout(Duration::from_secs(20), async {
@@ -434,20 +472,16 @@ async fn raw_udp_survives_control_close_and_filters_stale_remote_and_local_packe
         let (control_a, control_b) = control_pair(&a, &b).await;
         let (game_a, game_b) = game_pair(&a, &b, 1).await;
         let raw_sender = game_a.connection.clone();
-        let local_a = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
-        let local_b = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
-        let bridge_a = Bridge::bind(game_a, local_a.local_addr().unwrap())
-            .await
-            .unwrap();
-        let bridge_b = Bridge::bind(game_b, local_b.local_addr().unwrap())
-            .await
-            .unwrap();
-        let virtual_a = bridge_a.local_addr().unwrap();
-        let virtual_b = bridge_b.local_addr().unwrap();
-        let stats_b = bridge_b.stats.clone();
-        let (stop, stop_rx) = watch::channel(false);
-        let a_task = tokio::spawn(bridge_a.run(stop_rx.clone()));
-        let b_task = tokio::spawn(bridge_b.run(stop_rx));
+        let BridgedPair {
+            local_a,
+            local_b,
+            virtual_a,
+            virtual_b,
+            stats_b,
+            stop,
+            a_task,
+            b_task,
+        } = bridged_pair(game_a, game_b).await;
         control_a
             .connection
             .close(0u32.into(), b"room channel test");
@@ -502,18 +536,15 @@ async fn fifty_match_generations_reuse_endpoints_and_close_each_mapping() {
         let (mut control_a, mut control_b) = control_pair(&a, &b).await;
         for generation in 1..=50 {
             let (game_a, game_b) = game_pair(&a, &b, generation).await;
-            let local_a = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
-            let local_b = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
-            let bridge_a = Bridge::bind(game_a, local_a.local_addr().unwrap())
-                .await
-                .unwrap();
-            let bridge_b = Bridge::bind(game_b, local_b.local_addr().unwrap())
-                .await
-                .unwrap();
-            let virtual_a = bridge_a.local_addr().unwrap();
-            let (stop, rx) = watch::channel(false);
-            let a_task = tokio::spawn(bridge_a.run(rx.clone()));
-            let b_task = tokio::spawn(bridge_b.run(rx));
+            let BridgedPair {
+                local_a,
+                local_b,
+                virtual_a,
+                stop,
+                a_task,
+                b_task,
+                ..
+            } = bridged_pair(game_a, game_b).await;
             local_a
                 .send_to(&generation.to_be_bytes(), virtual_a)
                 .await
@@ -545,8 +576,16 @@ async fn closed_ggpo_socket_with_peer_traffic_keeps_the_runtime_responsive() {
     // other fighter is still sending. Under Wine a connected bridge socket then
     // stalled every worker, so no timer below could fire. A plain thread
     // bounds the test.
-    let finished = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let watchdog = finished.clone();
+    // Set on every exit, including a panic, so the watchdog never ends the
+    // whole test binary for a failure the harness already reported.
+    struct Finished(std::sync::Arc<std::sync::atomic::AtomicBool>);
+    impl Drop for Finished {
+        fn drop(&mut self) {
+            self.0.store(true, Ordering::Relaxed);
+        }
+    }
+    let finished = Finished(std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)));
+    let watchdog = finished.0.clone();
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_secs(30));
         if !watchdog.load(Ordering::Relaxed) {
@@ -557,19 +596,16 @@ async fn closed_ggpo_socket_with_peer_traffic_keeps_the_runtime_responsive() {
     let a = local_endpoint().await;
     let b = local_endpoint().await;
     let (game_a, game_b) = game_pair(&a, &b, 1).await;
-    let local_a = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
-    let local_b = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
-    let bridge_a = Bridge::bind(game_a, local_a.local_addr().unwrap())
-        .await
-        .unwrap();
-    let bridge_b = Bridge::bind(game_b, local_b.local_addr().unwrap())
-        .await
-        .unwrap();
-    let virtual_a = bridge_a.local_addr().unwrap();
-    let virtual_b = bridge_b.local_addr().unwrap();
-    let (stop, stop_rx) = watch::channel(false);
-    let a_task = tokio::spawn(bridge_a.run(stop_rx.clone()));
-    let b_task = tokio::spawn(bridge_b.run(stop_rx));
+    let BridgedPair {
+        local_a,
+        local_b,
+        virtual_a,
+        virtual_b,
+        stop,
+        a_task,
+        b_task,
+        ..
+    } = bridged_pair(game_a, game_b).await;
     let (peer_stop, peer_stop_rx) = watch::channel(false);
     let peer = tokio::spawn(async move {
         let mut buffer = [0; 2048];
@@ -587,20 +623,24 @@ async fn closed_ggpo_socket_with_peer_traffic_keeps_the_runtime_responsive() {
             .unwrap();
     }
     drop(local_a);
+    // Timers keep firing while the peer's traffic meets the closed socket.
+    // 20 wakes of 50 ms take about 1 s even where each sleep rounds up to the
+    // 15.6 ms Windows timer tick; a stalled runtime misses the bound.
     let started = Instant::now();
-    for _ in 0..500 {
-        tokio::time::sleep(Duration::from_millis(2)).await;
+    for _ in 0..20 {
+        tokio::time::sleep(Duration::from_millis(50)).await;
     }
     assert!(started.elapsed() < Duration::from_secs(5));
+    // The peer stops first, so it never sends to a bridge that has closed.
+    peer_stop.send(true).unwrap();
+    timeout(Duration::from_secs(5), peer)
+        .await
+        .unwrap()
+        .unwrap();
     stop.send(true).unwrap();
     timeout(Duration::from_secs(5), a_task)
         .await
         .unwrap()
-        .unwrap()
-        .unwrap();
-    peer_stop.send(true).unwrap();
-    timeout(Duration::from_secs(5), peer)
-        .await
         .unwrap()
         .unwrap();
     timeout(Duration::from_secs(5), b_task)
@@ -608,7 +648,7 @@ async fn closed_ggpo_socket_with_peer_traffic_keeps_the_runtime_responsive() {
         .unwrap()
         .unwrap()
         .unwrap();
-    finished.store(true, Ordering::Relaxed);
+    drop(finished);
     a.close().await;
     b.close().await;
 }

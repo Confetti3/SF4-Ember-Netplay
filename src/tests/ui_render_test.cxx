@@ -47,7 +47,15 @@ struct Renderer {
         params.Windowed = TRUE; params.SwapEffect = D3DSWAPEFFECT_DISCARD;
         params.BackBufferFormat = D3DFMT_A8R8G8B8;
         params.BackBufferWidth = width; params.BackBufferHeight = height; params.hDeviceWindow = window;
-        Require(SUCCEEDED(device->Reset(&params)), "DX9 device reset failed");
+        // Another window, a display change or a lock can take the device
+        // away. Wait until it can be reset, as RecoverySurface does.
+        for (int wait = 0; wait < 200 && device->TestCooperativeLevel() == D3DERR_DEVICELOST; ++wait) Sleep(50);
+        const HRESULT hr = device->Reset(&params);
+        if (FAILED(hr)) {
+            char message[64];
+            std::snprintf(message, sizeof(message), "DX9 device reset failed (0x%08lx)", static_cast<unsigned long>(hr));
+            throw std::runtime_error(message);
+        }
     }
     void Draw() {
         device->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_XRGB(45, 47, 49), 1.f, 0);

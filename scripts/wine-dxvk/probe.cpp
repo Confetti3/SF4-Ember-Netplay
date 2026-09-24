@@ -151,10 +151,11 @@ static void SockTests() {
 		sockaddr_in a = {}; a.sin_family = AF_INET; a.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 		bind(r, (sockaddr*)&a, sizeof(a)); int len = sizeof(a); getsockname(r, (sockaddr*)&a, &len);
 		const u_short port = ntohs(a.sin_port);
-		// Helper bridge binds its own loopback ephemeral socket and connects to the reserved port.
+		// Helper bridge binds its own loopback ephemeral socket and sends to the
+		// reserved port. It stays unconnected (F-008, rust/sf4-net/src/bridge.rs).
 		SOCKET bridge = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 		sockaddr_in b = {}; b.sin_family = AF_INET; b.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-		bind(bridge, (sockaddr*)&b, sizeof(b)); connect(bridge, (sockaddr*)&a, sizeof(a));
+		bind(bridge, (sockaddr*)&b, sizeof(b));
 		closesocket(r); // ReleasePortToGgpo
 		SOCKET g = socket(AF_INET, SOCK_DGRAM, 0);
 		BOOL on = TRUE; setsockopt(g, SOL_SOCKET, SO_REUSEADDR, (const char*)&on, sizeof(on));
@@ -163,7 +164,7 @@ static void SockTests() {
 		if (bind(g, (sockaddr*)&any, sizeof(any)) != 0) { if (!failures++) firstErr = WSAGetLastError(); }
 		else {
 			// Packet from bridge must reach GGPO socket.
-			send(bridge, "x", 1, 0); Sleep(0);
+			sendto(bridge, "x", 1, 0, (sockaddr*)&a, sizeof(a)); Sleep(0);
 			char buf[8]; sockaddr_in from; int fl = sizeof(from); int got = -1;
 			for (int k = 0; k < 200 && got < 0; ++k) { got = recvfrom(g, buf, 8, 0, (sockaddr*)&from, &fl); if (got < 0) Sleep(1); }
 			if (got != 1) { if (!failures++) firstErr = -1; }
@@ -172,7 +173,9 @@ static void SockTests() {
 	}
 	printf("  reserve->release->GGPO SO_REUSEADDR rebind + bridge delivery x500: %d failures (first error %d)\n", failures, firstErr);
 
-	// 2. Bridge side: connected UDP socket whose GGPO peer socket has closed (between games).
+	// 2. The bridge as it was before F-008: a connected UDP socket whose GGPO
+	// peer socket has closed (between games). The bridge no longer connects;
+	// this reproduces the Wine behaviour that made that change necessary.
 	{
 		SOCKET peer = socket(AF_INET, SOCK_DGRAM, 0);
 		sockaddr_in a = {}; a.sin_family = AF_INET; a.sin_addr.s_addr = htonl(INADDR_LOOPBACK);

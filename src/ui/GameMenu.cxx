@@ -28,7 +28,7 @@ void DrawPlayerCard(ImVec2 p,float width,bool compact) {
     d->AddRectFilled(p,ImVec2(p.x+width,p.y+height),IM_COL32(17,16,15,215),3*s);
     d->AddLine(p,ImVec2(p.x+width,p.y),palette::Ember,2*s);
     const float portrait=(compact?48:66)*s;
-    if(menuArt){const auto art=menuArt->Portrait(playerCard.fighter,true);if(art.texture){const float ratio=float(art.width)/art.height;
+    if(menuArt){const auto art=menuArt->PortraitFor(playerCard.fighter,portrait);if(art.texture){const float ratio=float(art.width)/art.height;
         const float w=(std::min)(portrait,portrait*ratio),h=w/ratio;
         d->AddImage(art.texture,ImVec2(p.x+12*s,p.y+12*s),ImVec2(p.x+12*s+w,p.y+12*s+h),art.uvMin,art.uvMax);}}
     const auto text=[&](float x,float y,const std::string& label,float font,ImU32 color){
@@ -68,7 +68,7 @@ void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max){
     if(portraitProbe)portraitProbe(fighter,min,max);
     auto* d=ImGui::GetWindowDrawList();
     d->AddRectFilled(min,max,IM_COL32(38,34,30,255));
-    if(menuArt){const auto art=menuArt->Portrait(fighter,true);if(art.texture){
+    if(menuArt){const auto art=menuArt->PortraitFor(fighter,max.y-min.y);if(art.texture){
         const float factor=(std::min)((max.x-min.x)/art.width,(max.y-min.y)/art.height);
         const float w=art.width*factor,h=art.height*factor;
         d->AddImage(art.texture,ImVec2(min.x+(max.x-min.x-w)*.5f,min.y),ImVec2(min.x+(max.x-min.x+w)*.5f,min.y+h),art.uvMin,art.uvMax);return;

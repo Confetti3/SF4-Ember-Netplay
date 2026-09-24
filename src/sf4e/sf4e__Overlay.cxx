@@ -74,9 +74,9 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	const std::wstring gameFile(gamePath), moduleFile(modulePath);
 	s_selectionArt.reset(new sf4e::ui::SelectionArt(lpDevice,
 		gameFile.substr(0, gameFile.find_last_of(L"\\/")),
-		moduleFile.substr(0, moduleFile.find_last_of(L"\\/")) + L"/assets/selection"));
+		moduleFile.substr(0, moduleFile.find_last_of(L"\\/")) + L"/assets/selection",
+		[](const std::string& line) { spdlog::warn("{}", line); }));
     sf4e::ui::SetMenuArt(s_selectionArt.get());
-    sf4e::ui::SelectionArt::SetLogger([](const std::string& line) { spdlog::warn("{}", line); });
 	fMainMenu::OnModeSelectedOverride = OnMainMenuModeSelected;
 
 	sf4e::OverlayPrefs::Data prefs{};
@@ -228,7 +228,8 @@ void Overlay::DrawOverlay() {
     sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.selectPhysical,snapshot.menuController.backPhysical);
     if (presentation.Reopened()) shell.ShowPlay();
     if (ImGui::IsKeyPressed(ImGuiKey_F10, false)) presentation.Toggle();
-    // Every overlay frame: the training panel draws art with the menu closed.
+    // Every overlay frame, since the training panel draws art with the menu
+    // closed. Pump returns at once when nothing drew art since the last pump.
     if (s_selectionArt) s_selectionArt->Pump();
     if (presentation.Visible()) DrawApplicationHome(snapshot);
     if (!presentation.Visible() && assigning) {

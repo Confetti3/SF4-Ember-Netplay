@@ -1,5 +1,6 @@
 #pragma once
 #include "ApplicationShell.hxx"
+#include "../common/InputDelay.hxx"
 #include "../common/Localization.hxx"
 
 namespace sf4e { namespace ui {
@@ -40,7 +41,7 @@ inline std::string ProbeMilliseconds(std::uint64_t us) {
 inline ConnectionCheckFeedback DescribeConnectionCheck(const ShellView& view) {
     ConnectionCheckFeedback result;
     result.checking = view.probeStatus == "checking";
-    const bool measured = view.recommendedDelay >= 0 && view.recommendedDelay <= 10;
+    const bool measured = view.recommendedDelay >= 0 && view.recommendedDelay <= MaximumInputDelay;
     if (result.checking) {
         result.value = loc::T("connection.checking");
         result.detail = loc::T("connection.checking_detail");

@@ -204,22 +204,20 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     t.phase==TablePhase::Playing&&!finishedGame?"room.match_in_progress":
     v.session.match==netplay::MatchState::PostMatch?"room.ready_rematch":"room.ready_up"),readyDetail,canUnready||readyable));
     const bool delayEditable=mutableRoom&&!active&&!v.delayLocked;
-    const int selectedDelay=(std::max)(0,(std::min)(10,v.selectedDelay));
-    const bool recommended=v.recommendedDelay>=0&&v.recommendedDelay<=10;
+    const int selectedDelay=(std::max)(0,(std::min)(MaximumInputDelay,v.selectedDelay));
+    const bool recommended=v.recommendedDelay>=0&&v.recommendedDelay<=MaximumInputDelay;
     const auto check=DescribeConnectionCheck(v);
-    auto recommendedRow=Value("recommended-delay",loc::T("room.recommended_delay"),check.value,check.detail,false);
-    recommendedRow.adjustable=false;rows.push_back(std::move(recommendedRow));
+    rows.push_back(ReadOnlyValue("recommended-delay",loc::T("room.recommended_delay"),check.value,check.detail));
     rows.push_back(Value("selected-delay",loc::T("room.selected_delay"),std::to_string(selectedDelay),
      delayEditable?loc::T("room.selected_delay.detail"):
       (v.delayLocked?loc::T("room.selected_delay.locked"):reason),delayEditable));
     if(t.p1&&t.p2) {
-     const bool opponentReady=v.opponentDelay>=0&&v.opponentDelay<=10;
-     auto matchRow=opponentReady?
-      Value("match-delay",loc::T("room.match_delay"),loc::Tf("connection.frames",(std::max)(selectedDelay,v.opponentDelay)),
-       loc::Tf("room.match_delay.detail",selectedDelay,v.opponentDelay),false):
-      Value("match-delay",loc::T("room.match_delay"),loc::Tf("room.match_delay.at_least",selectedDelay),
-       loc::T("room.match_delay.pending"),false);
-     matchRow.adjustable=false;rows.push_back(std::move(matchRow));
+     const bool opponentReady=v.opponentDelay>=0&&v.opponentDelay<=MaximumInputDelay;
+     rows.push_back(ReadOnlyValue("match-delay",loc::T("room.match_delay"),
+      opponentReady?loc::Tf("connection.frames",room::MatchDelay(selectedDelay,v.opponentDelay)):
+       loc::Tf("room.match_delay.at_least",selectedDelay),
+      opponentReady?loc::Tf("room.match_delay.detail",selectedDelay,v.opponentDelay):
+       std::string(loc::T("room.match_delay.pending"))));
     }
     rows.push_back(Row("check-connection",check.action,check.checking?check.detail:
      !mutableRoom?reason:!t.p1||!t.p2?loc::T("room.check_connection.two_players"):

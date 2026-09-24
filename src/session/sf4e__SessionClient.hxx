@@ -85,7 +85,7 @@ namespace sf4e {
 			// A later press for the same table replaced this one; its outcome is stale.
 			bool superseded=false; };
         bool TakeActionReply(ActionReply& reply);
-        void SetSelectedDelay(unsigned delay) { if (delay<=10) _selectedDelay=static_cast<std::uint8_t>(delay); }
+        void SetSelectedDelay(unsigned delay) { if (delay<=static_cast<unsigned>(MaximumInputDelay)) _selectedDelay=static_cast<std::uint8_t>(delay); }
 		void RequireCustomRooms() { _customRoomsRequired = true; }
 		// Set before the hello/join exchange; profile editing is offline-only.
 		void SetProfileMain(int fighter) { _mainFighter = fighter >= 0 && fighter < 44 ? fighter : -1; }

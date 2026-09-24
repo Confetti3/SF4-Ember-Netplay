@@ -62,15 +62,19 @@ int main() {
     const std::string png((std::istreambuf_iterator<char>(sourceFile)), std::istreambuf_iterator<char>());
     CHECK(png.size() > 8);
     std::vector<std::string> logged;
-    SelectionArt::SetLogger([&](const std::string& line) { logged.push_back(line); });
     {
-        SelectionArt art(device, game.wstring(), assets.wstring());
+        SelectionArt art(device, game.wstring(), assets.wstring(), [&](const std::string& line) { logged.push_back(line); });
 
         // No game portrait: the packaged original-outfit cutout stands in.
         Write(assets / L"RYU" / L"costume-0" / L"color-0-cutout.png", png);
         const int ryu = FighterId("RYU");
         const auto portrait = Settle(art, [&] { return art.Portrait(ryu, true); }, 2000);
         CHECK(portrait.texture && !portrait.missing && portrait.width > 0);
+        // A small drawn portrait uses the thumbnail, a large one the full image.
+        const auto thumbnail = Settle(art, [&] { return art.PortraitFor(ryu, 48.f); }, 2000);
+        CHECK(thumbnail.texture && thumbnail.texture != portrait.texture &&
+            thumbnail.width <= SelectionArt::ThumbnailSide && thumbnail.height <= SelectionArt::ThumbnailSide);
+        CHECK(art.PortraitFor(ryu, 200.f).texture == portrait.texture);
 
         // Nothing anywhere: final at once, and a missing portrait is logged.
         const int ken = FighterId("KEN");
@@ -103,8 +107,16 @@ int main() {
         CHECK(image.missing && !image.texture);
         CHECK(logged.size() == 2 && logged[1].find("KEN/ultra-1") != std::string::npos &&
             logged[1].find("3 attempts") != std::string::npos && logged[1].find("decode") != std::string::npos);
+
+        // A game portrait that exists but fails still shows the packaged
+        // cutout, and the game file's failure is reported once.
+        Write(game / L"resource" / L"ui" / L"chara_select" / L"chara" / L"sel_KEN.tex.emz", "not an archive");
+        Write(assets / L"KEN" / L"costume-0" / L"color-0-cutout.png", png);
+        const auto fallback = Settle(art, [&] { return art.Portrait(ken, false); }, 2000);
+        CHECK(fallback.texture && !fallback.missing);
+        CHECK(logged.size() == 3 && logged[2].find("KEN/portrait-thumb uses a fallback") != std::string::npos &&
+            logged[2].find("sel_KEN.tex.emz") != std::string::npos);
     }
-    SelectionArt::SetLogger(nullptr);
     device->Release(); d3d->Release(); DestroyWindow(window);
     RemoveTempRoot(root);
     std::puts("SelectionArt fallback, retry and failure reporting passed");

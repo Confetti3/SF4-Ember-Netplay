@@ -185,8 +185,8 @@ int fD3D::LimitFrame(float frameDelta) {
     sf4e::diag::ScopedTimer wait(sf4e::diag::OP_LIMITER_WAIT);
     // With no shift to apply and no sleep, the frame is the game's own: skip
     // the clock read, as before the mailbox.
-    const bool unshifted = shiftMs == 0.0 && !test.enabled;
-    if (savedPeriod <= 0.0f || previousExit == 0 || (unshifted && !LimiterSleepEnabled())) {
+    const bool shifted = shiftMs != 0.0 || test.enabled;
+    if (savedPeriod <= 0.0f || previousExit == 0 || (!shifted && !LimiterSleepEnabled())) {
         return (this->*rD3D::privateMethods.LimitFrame)(frameDelta);
     }
     LARGE_INTEGER now;
@@ -194,15 +194,12 @@ int fD3D::LimitFrame(float frameDelta) {
     const double tickMs = QpcTickMs();
     const double periodMs = savedPeriod * 1000.0;
     const double elapsedMs = (double)(long long)(now.QuadPart - previousExit) * tickMs;
-    if (unshifted) {
-        SleepBeforeLimiter(sf4e::pacing::LimiterSleepMs(periodMs, elapsedMs));
-        return (this->*rD3D::privateMethods.LimitFrame)(frameDelta);
-    }
-    const double shiftedPeriodMs = sf4e::pacing::ShiftedPeriodMs(periodMs, elapsedMs, shiftMs);
-    const float shiftedPeriod = (float)(shiftedPeriodMs / 1000.0);
-    *period = shiftedPeriod;
-    SleepBeforeLimiter(sf4e::pacing::LimiterSleepMs(shiftedPeriodMs, elapsedMs));
+    const double targetPeriodMs = shifted ? sf4e::pacing::ShiftedPeriodMs(periodMs, elapsedMs, shiftMs) : periodMs;
+    const float shiftedPeriod = (float)(targetPeriodMs / 1000.0);
+    if (shifted) *period = shiftedPeriod;
+    SleepBeforeLimiter(sf4e::pacing::LimiterSleepMs(targetPeriodMs, elapsedMs));
     const int result = (this->*rD3D::privateMethods.LimitFrame)(frameDelta);
+    if (!shifted) return result;
     // A display-settings change made meanwhile wins over the restore.
     if (*period == shiftedPeriod) {
         *period = savedPeriod;

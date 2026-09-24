@@ -65,6 +65,13 @@ static void TestOpeningIsNotRecovery() {
     joining.AdvanceRecovery(20000);
     CHECK(joining.GetSnapshot().recovery == Recovery::None);
     CHECK(!CommandNow(joining, CommandKind::ReplaceRoom).accepted);
+    // A long wait is named, not ended: a slow relay can still finish.
+    CHECK(joining.ObserveCoordination(1, 1, false, 100 + SessionController::OpeningStallMs - 1));
+    CHECK(!joining.GetSnapshot().openingStalled);
+    CHECK(joining.ObserveCoordination(1, 1, false, 100 + SessionController::OpeningStallMs));
+    CHECK(joining.GetSnapshot().openingStalled && joining.GetSnapshot().room == RoomState::Opening);
+    CHECK(joining.GetSnapshot().recovery == Recovery::None && joining.GetSnapshot().error.empty());
+    CHECK(!joining.ControlPlaneEstablished());
     // Stopping the join still works while the stream forms.
     CHECK(CommandNow(joining, CommandKind::LeaveRoom).accepted);
 
@@ -74,6 +81,7 @@ static void TestOpeningIsNotRecovery() {
     CHECK(joined.ObserveCoordination(1, 1, true, 100));
     CHECK(EventNow(joined, EventKind::RoomJoined).accepted);
     CHECK(joined.ObserveCoordination(1, 1, false, 1000));
+    CHECK(joined.ControlPlaneEstablished() && !joined.GetSnapshot().openingStalled);
     CHECK(joined.GetSnapshot().recovery == Recovery::Recovering);
     CHECK(joined.GetSnapshot().control == Health::Lost);
     CHECK(!joined.GetSnapshot().error.empty());

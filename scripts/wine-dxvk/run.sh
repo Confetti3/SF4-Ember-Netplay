@@ -63,3 +63,9 @@ ps -eo args | grep -E 'sf4-net\.exe|ember-discord\.exe|SSFIV\.exe' | grep -v gre
 wait || true
 cat "$LOGS/sidecar_bootstrap.log"
 grep -E 'CreateSF4Process|Sidecar|helper' "$LOGS/launcher.log" | tail -4
+# A hook past the end of sled.s cannot attach, so the commit fails. That
+# means the sled must grow to cover the new highest hook offset.
+if ! grep -q 'Sidecar install committed' "$LOGS/sidecar_bootstrap.log"; then
+	echo "Sidecar hooks did not install on the stand-in; check that sled.s covers every hook offset" >&2
+	exit 1
+fi

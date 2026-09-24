@@ -59,6 +59,10 @@ struct Snapshot {
     // never clears must become visible and recoverable instead of silently
     // refusing Ready, Queue and Watch for the rest of the session.
     std::uint64_t authorityStalledMs = 0;
+    // While creating or joining, when the forming control stream was first
+    // seen unwritable. It is not a lost room, but a long wait is shown.
+    std::uint64_t openingStalledMs = 0;
+    bool openingStalled = false;
     std::string error;
 };
 
@@ -92,6 +96,12 @@ public:
         bool writable, std::uint64_t nowMs, bool locallyApplied = true);
     void AdvanceRecovery(std::uint64_t nowMs);
     void AdvanceCatchUp(std::uint64_t nowMs);
+    // A create or join whose control stream stays unwritable this long sets
+    // Snapshot::openingStalled, so the screen can say so.
+    static constexpr std::uint64_t OpeningStallMs = 30000;
+    // Whether an unwritable control stream means a lost control plane. A room
+    // still being created or joined has none yet, so there is nothing to recover.
+    bool ControlPlaneEstablished() const { return state_.room != RoomState::Opening; }
     void ShowPage(Page page) { state_.page = page; }
 
 private:

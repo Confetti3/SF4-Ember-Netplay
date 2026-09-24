@@ -215,7 +215,11 @@ if(BUILD_TESTING)
     add_test(NAME Win32Cursor COMMAND Win32CursorTest)
     target_link_libraries(UiRenderTest PRIVATE sf4e_ui "d3d9")
     add_test(NAME UiRender COMMAND UiRenderTest)
-    set_tests_properties(UiRender PROPERTIES TIMEOUT 90)
+    # Every fighter now has a portrait (the packaged cutout stands in for the
+    # game's), and sweeping forty configurations cycles more art than the
+    # 32 MB selection cache holds, so the run decodes it repeatedly: about
+    # 165 s here against 46 s before portraits loaded in this test.
+    set_tests_properties(UiRender PROPERTIES TIMEOUT 240)
     add_executable(SelectionArtTest src/tests/selection_art_test.cxx)
     target_compile_definitions(SelectionArtTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
     target_link_libraries(SelectionArtTest PRIVATE sf4e_ui "d3d9")

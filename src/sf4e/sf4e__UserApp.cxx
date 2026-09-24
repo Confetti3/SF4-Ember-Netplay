@@ -149,7 +149,7 @@ static bool StartRuntimeGgpo() {
         sf4e::NetplayFacade::ReleaseRuntimePortToGgpo();
         if (netplay->client.IsCustomRoom()) {
             const auto committedDelay=netplay->client._matchData.inputDelay[endpoints.localSlot];
-            if (committedDelay>10) return false;
+            if (committedDelay>sf4e::MaximumInputDelay) return false;
             netplay->delay=committedDelay;
         }
         fSystem::StartGGPO(players, static_cast<int>(count), endpoints.localPort, netplay->delay, netplay->client._matchData.rngSeed);

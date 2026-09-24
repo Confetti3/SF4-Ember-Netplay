@@ -11,6 +11,7 @@
 
 #include <nlohmann/json_fwd.hpp>
 
+#include "../common/InputDelay.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../common/MatchResult.hxx"
 #include "../common/RoomRules.hxx"
@@ -164,8 +165,9 @@ inline bool SeatEditable(const Table& table, int seat) {
 // Both fighters play at the higher of their Ready delays. A fighter's delay
 // decides how much rollback the other side sees, so separate values gave the
 // lower-delay fighter an advantage. inputDelay keeps each fighter's own choice.
+inline int MatchDelay(int first, int second) { return first > second ? first : second; }
 inline std::uint8_t MatchDelay(const Table& table) {
-	return table.inputDelay[0] > table.inputDelay[1] ? table.inputDelay[0] : table.inputDelay[1];
+	return static_cast<std::uint8_t>(MatchDelay(table.inputDelay[0], table.inputDelay[1]));
 }
 
 struct ChatMessage {
