@@ -312,6 +312,18 @@ msgstr "{0} cuadros"
 msgid "connection.result_detail"
 msgstr "Conexión {0}. RTT mediano {1} ms; p95 {2} ms; p99 {3} ms. Variación de RTT {4} ms. {5} enviados, {6} respuestas, {7} perdidos. Aplica la recomendación o elige tu retraso."
 
+msgid "connection.route_direct"
+msgstr "directa"
+
+msgid "connection.route_relayed"
+msgstr "retransmitida"
+
+msgid "connection.route_unknown"
+msgstr "desconocida"
+
+msgid "connection.relayed_advice"
+msgstr "Retransmitida significa que sus dos redes no pudieron conectarse directamente, así que el tráfico de la partida pasa por un servidor de retransmisión. Las partidas funcionan igual; usa el retraso recomendado. Para una conexión directa, cualquiera de los dos puede activar UPnP en su router o desactivar una VPN."
+
 msgid "connection.check_again"
 msgstr "Verificar conexión otra vez"
 

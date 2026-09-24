@@ -47,10 +47,17 @@ inline ConnectionCheckFeedback DescribeConnectionCheck(const ShellView& view) {
         result.detail = loc::T("connection.checking_detail");
         result.action = loc::T("connection.checking_action");
     } else if (measured) {
+        // probeRoute is the runtime's untranslated token: Direct, Relayed or Unknown.
+        const bool relayed = view.probeRoute == "Relayed";
         result.value = loc::Tf("connection.frames",view.recommendedDelay);
-        result.detail = loc::Tf("connection.result_detail",view.probeRoute,ProbeMilliseconds(view.probeP50Us),
+        result.detail = loc::Tf("connection.result_detail",
+            loc::T(relayed ? "connection.route_relayed" :
+                view.probeRoute == "Direct" ? "connection.route_direct" : "connection.route_unknown"),
+            ProbeMilliseconds(view.probeP50Us),
             ProbeMilliseconds(view.probeP95Us),ProbeMilliseconds(view.probeP99Us),ProbeMilliseconds(view.probeJitterUs),
             view.probeSent,view.probeSamples,view.probeLost);
+        // Players read Relayed as a fault. Say what it means and what can help.
+        if (relayed) result.detail += std::string("\n") + loc::T("connection.relayed_advice");
         result.action = loc::T("connection.check_again");
     } else if (!view.probeStatus.empty()) {
         result.value = loc::T("connection.no_recommendation");

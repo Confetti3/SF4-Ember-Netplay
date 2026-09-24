@@ -312,6 +312,18 @@ msgstr "{0} frames"
 msgid "connection.result_detail"
 msgstr "{0} connection. RTT median {1} ms; p95 {2} ms; p99 {3} ms. RTT variation {4} ms. {5} sent, {6} replies, {7} missed. Apply this recommendation or choose your own delay."
 
+msgid "connection.route_direct"
+msgstr "Direct"
+
+msgid "connection.route_relayed"
+msgstr "Relayed"
+
+msgid "connection.route_unknown"
+msgstr "Unknown"
+
+msgid "connection.relayed_advice"
+msgstr "Relayed means your two networks could not connect directly, so match traffic goes through a relay server. Matches still work; use the recommended delay. For a direct connection, either player can try turning on UPnP in their router or turning off a VPN."
+
 msgid "connection.check_again"
 msgstr "Check connection again"
 
