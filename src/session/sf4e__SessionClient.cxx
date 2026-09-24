@@ -34,6 +34,15 @@ using sf4e::SessionProtocol::LobbyReady;
 const int sf4e::SESSION_CLIENT_MAX_MESSAGES_PER_POLL = 20;
 bool SessionClient::bVerboseLogging = false;
 
+const char* SessionClient::JoinRejectionKey(ErrorType type) {
+	switch (type) {
+	case SCE_JOIN_REJECTED_HASH_INVALID: return "runtime.build_mismatch";
+	case SCE_JOIN_REJECTED_LOBBY_FULL: return "runtime.room_full";
+	case SCE_JOIN_REJECTED_NAME_TAKEN: return "runtime.name_taken";
+	default: return "runtime.room_request_failed";
+	}
+}
+
 // Bound for buffered remote v2 hashes (matches the checkpoint ring span).
 static const size_t MAX_PENDING_REMOTE_HASHES = 64;
 

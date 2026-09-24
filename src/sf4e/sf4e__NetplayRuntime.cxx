@@ -3,7 +3,6 @@
 #include "../Dimps/Dimps__Selection.hxx"
 #include "sf4e.hxx"
 #include "sf4e__UserApp.hxx"
-#include "sf4e__Overlay.hxx"
 #include "sf4e__OverlayPrefs.hxx"
 #include "sf4e__Game__Battle__System.hxx"
 #include "../Dimps/Dimps__GameEvents.hxx"
@@ -1797,7 +1796,7 @@ static void SettleRoomState(bool helperReady) {
 		{
 			// The host's refusal (name taken, room full) says what to fix; the generic text does not.
 			const auto rejection = UserApp::netplay ? UserApp::netplay->client.JoinRejection() : std::nullopt;
-			Apply(netplay::EventKind::RoomFailed, rejection ? Overlay::JoinRejectionText(*rejection) : loc::T("runtime.room_join_failed"));
+			Apply(netplay::EventKind::RoomFailed, loc::T(rejection ? SessionClient::JoinRejectionKey(*rejection) : "runtime.room_join_failed"));
 		}
 	} else if (state.room == netplay::RoomState::Joined && runtime->room &&
 		(runtime->room->GetState() == session::IrohRoom::State::Failed || runtime->room->GetState() == session::IrohRoom::State::Idle ||

@@ -45,16 +45,8 @@ bool Overlay::CapturesMenuInput() { return capture.load(); }
 bool Overlay::HasInputFocus() { return focused.load(); }
 void Overlay::RequestMainControls() { if(focused) { capture=true; mainRequested=true; } }
 void Overlay::PushNetplayAlert(const char* message) { if (message) sf4e::NetplayFacade::SetLastError(message); }
-const char* Overlay::JoinRejectionText(SessionClient::ErrorType type) {
-    switch (type) {
-    case SessionClient::ErrorType::SCE_JOIN_REJECTED_HASH_INVALID: return sf4e::loc::T("runtime.build_mismatch");
-    case SessionClient::ErrorType::SCE_JOIN_REJECTED_LOBBY_FULL: return sf4e::loc::T("runtime.room_full");
-    case SessionClient::ErrorType::SCE_JOIN_REJECTED_NAME_TAKEN: return sf4e::loc::T("runtime.name_taken");
-    default: return sf4e::loc::T("runtime.room_request_failed");
-    }
-}
 void Overlay::OnClientError(SessionClient::ErrorType type, SessionClient* const, const SessionClient::Callbacks&) {
-    PushNetplayAlert(JoinRejectionText(type));
+    PushNetplayAlert(sf4e::loc::T(SessionClient::JoinRejectionKey(type)));
 }
 static int OnMainMenuModeSelected(int mode) {
     if (mode != rMainMenu::MainMenuItemID::MMI_NETWORK) return 0;

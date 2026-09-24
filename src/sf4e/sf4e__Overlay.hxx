@@ -13,8 +13,6 @@ namespace sf4e {
 		void InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice);
 		void DrawOverlay();
 		void FreeOverlay();
-		// Player-facing text for the host's reason to refuse a join.
-		const char* JoinRejectionText(SessionClient::ErrorType type);
 		void OnClientError(SessionClient::ErrorType errType, SessionClient* const client, const SessionClient::Callbacks& callbacks);
 		void PushNetplayAlert(const char* msg);
 
