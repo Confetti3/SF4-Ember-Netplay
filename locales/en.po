@@ -63,6 +63,9 @@ msgstr "Sidecar.dll is missing or its path cannot be used by the injector. Extra
 msgid "launcher.runtime_outdated"
 msgstr "Your Microsoft Visual C++ runtime is out of date, and the game would crash on start. Install the latest Visual C++ Redistributable (x86), then start Ember again.\n\nOpen the download page now?"
 
+msgid "launcher.already_running"
+msgstr "SF4 Ember Netplay is already running. If you cannot see it, end Launcher.exe and SSFIV.exe in Task Manager, then start Ember again."
+
 msgid "launcher.start_failed"
 msgstr "Game startup or injection failed. Check the launcher log, then retry."
 

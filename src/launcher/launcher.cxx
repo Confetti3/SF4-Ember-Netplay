@@ -16,6 +16,7 @@
 #include <filesystem>
 #include "../ui/RecoverySurface.hxx"
 #include "../platform/LauncherInstance.hxx"
+#include "../platform/WineBuiltin.hxx"
 
 #include <CLI/CLI.hpp>
 #include <detours/detours.h>
@@ -434,6 +435,10 @@ bool RuntimeIsCurrent() {
 	// An unreadable version is not evidence of an old runtime; do not block on it.
 	if (!length || length >= MAX_PATH || FAILED(PathCchAppend(path, MAX_PATH, L"msvcp140.dll"))) return true;
 	if (GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) return false;
+	// Wine's own msvcp140 reports an older Microsoft number (14.42 in Wine 11)
+	// but is a separate implementation: v0.9.7, built with 14.51, ran on it.
+	// A Microsoft runtime installed into a Wine prefix is still checked.
+	if (sf4e::platform::IsWineBuiltinDll(path)) return true;
 	DWORD handle = 0;
 	const DWORD size = GetFileVersionInfoSizeW(path, &handle);
 	if (!size) return true;
@@ -489,7 +494,19 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     }
     if (updates) { sf4e::ui::RunRecovery(updateError ? sf4e::loc::T("launcher.update_failed") : "", chosenDirectory, true); return 0; }
     if (recovery && !sf4e::ui::RunRecovery(sf4e::loc::T("launcher.recovery_title"), chosenDirectory)) return 0;
-    if (!instance.Acquire()) return 0;
+    if (!instance.Acquire()) {
+        // A Discord invite reaches the running copy, so a second start for it
+        // stays quiet. Otherwise a leftover launcher (or one still waiting on
+        // a game that never closed) made every start do nothing at all.
+        spdlog::warn("Another Ember launcher is already running; this start was not continued");
+        if (!discordLaunch) {
+            const char* text = sf4e::loc::T("launcher.already_running");
+            std::wstring wide(MultiByteToWideChar(CP_UTF8, 0, text, -1, nullptr, 0), L'\0');
+            MultiByteToWideChar(CP_UTF8, 0, text, -1, wide.data(), static_cast<int>(wide.size()));
+            MessageBoxW(nullptr, wide.c_str(), L"SF4 Ember Netplay", MB_OK | MB_ICONINFORMATION);
+        }
+        return 0;
+    }
     // An update interrupted mid-install must be restored before the game runs
     // on a half-replaced install. The Updater restarts the Launcher after.
     switch (sf4e::launcher::StartPendingUpdateRecovery(GetCurrentProcessId())) {
