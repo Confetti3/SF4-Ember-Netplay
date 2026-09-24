@@ -6,12 +6,14 @@ Save your SF4 Ember Netplay logs immediately after a problem, before launching a
 
 1. Note the approximate time the problem happened and what you were doing, such as joining a table, finishing a match or starting a rematch.
 2. If Ember is still responsive, use **Help & About → Export diagnostics** before leaving the session. Wait for the saved-file message. If the game crashed or the menu is unavailable, continue with the logs below.
-3. Close the game and launcher. Avoid starting another session until you have saved this one.
+3. Close the game and launcher. If `Launcher.exe` or `SSFIV.exe` is still listed in Task Manager, end it. Avoid starting another session until you have saved this one.
 4. Press **Windows + R**, paste the following path, and press **Enter**:
 
    ```text
    %APPDATA%\sf4e
    ```
+
+   On Linux (Proton or Wine), the folder is inside the game's prefix: `steamapps/compatdata/45760/pfx/drive_c/users/steamuser/AppData/Roaming/sf4e`.
 
 5. Right-click the **logs** folder and choose **Compress to ZIP file**. On Windows 10, or under **Show more options**, choose **Send to → Compressed (zipped) folder**.
 6. Give the ZIP a descriptive name, such as `P1-rematch-stuck-2026-09-14.zip`. The other player can use `P2-rematch-stuck-2026-09-14.zip`.
@@ -22,8 +24,8 @@ Save your SF4 Ember Netplay logs immediately after a problem, before launching a
 | File | What it helps investigate |
 | --- | --- |
 | `session-*.log` | Session events from individual processes |
-| `sf4e.log` and numbered copies | Game-side logging and previous log files |
-| `launcher.log` and numbered copies | Launcher startup and launch failures |
+| `sf4e.log` and numbered copies | Game-side logging and previous log files, including `Selection art ... unavailable` lines when character pictures fail to load |
+| `launcher.log` and numbered copies | Launcher startup and launch failures, and picture failures on the launcher's recovery screen |
 | `sidecar_bootstrap.log` | Sidecar startup and loading |
 | Other `.log` files | Additional startup or diagnostic information |
 
@@ -41,7 +43,9 @@ Copy `ember-diagnostics.txt` alongside your log ZIP and include both in your rep
 
 The export contains Ember's version and connection-state information. It omits invitations, credentials, player names, raw log text and settings backups. **It is an additional report; it does not include the logs folder.**
 
-When rollback diagnostics are enabled, the export includes twelve fixed CPU-work timing groups: complete outer call, outer tick, room runtime, session-client step, session-server step, GGPO idle, rollback callback, save state, load state, pacing wait, diagnostic enqueue and lifecycle-trace enqueue. Their sample counts, mean and maximum durations, and over-25-ms counts describe where Ember spent CPU time. The export also reports dropped asynchronous game-log/lifecycle records and the latest lifecycle writer duration. These are CPU and queue indicators, not displayed-frame measurements; use the repository's PresentMon capture runner for presentation pacing.
+When rollback diagnostics are enabled (see below), the export includes fifteen fixed CPU-work timing groups: complete outer call, outer tick, room runtime, session-client step, session-server step, GGPO idle, rollback callback, save state, load state, pacing wait, diagnostic enqueue, trace enqueue, free state, effect restore and VFX restore. It also counts rollback callbacks, prediction stalls and prediction-skipped frames. Their sample counts, mean and maximum durations, and over-25-ms counts describe where Ember spent CPU time. The export also reports dropped asynchronous game-log/lifecycle records and the latest lifecycle writer duration. These are CPU and queue indicators, not displayed-frame measurements; use the repository's PresentMon capture runner for presentation pacing.
+
+To turn on rollback diagnostics, open Command Prompt in the Ember folder, run `set SF4E_ROLLBACK_DIAGNOSTICS=1`, then run `Launcher.exe` from the same window. During a match, `sf4e.log` then gets a `RollbackDiag` summary about every 10 seconds and at match end. It includes `sound_sync` and `limiter_wait`; a `limiter_wait` near zero means the PC cannot keep 60 fps.
 
 `Recovery checkpoint builds` counts checkpoint serialization attempts during the lifetime of the current hosted room. A value of zero means that the available room counter observed no builds; `Unavailable` means there was no hosted-room counter to read, so it must not be interpreted as zero. Starting a different hosted room starts a different counter lifetime.
 
@@ -51,7 +55,7 @@ Include:
 
 - The log ZIP from each affected PC, labelled so the players can be distinguished.
 - Each player's `ember-diagnostics.txt`, if available.
-- The Ember version shown in **Help & About**, or `BUILD_INFO.txt` from the folder containing `Launcher.exe`.
+- Which package you use: the name of the ZIP you extracted, such as `sf4-ember-netplay-v0.9.8-rc3`, or `BUILD_INFO.txt` from the folder containing `Launcher.exe`. Test builds can still report the previous release's version number, so the ZIP name matters.
 - The approximate time and time zone of the problem on each PC.
 - What you expected, what actually happened, and the steps that led to it.
 - Whether one or both players saw the issue, and whether it repeats.
@@ -66,6 +70,6 @@ Use the repository's [Issues page](https://github.com/Confetti3/SF4-Ember-Netpla
 - **The logs look old:** sort the folder by **Date modified**, check the `session-*.log` files too, and include the whole folder with the incident time. Do not assume an old `sf4e.log` describes the latest match.
 - **Windows cannot zip a file because it is in use:** make sure the game and launcher have closed, then try again.
 - **The problem is an update failure:** also copy `%TEMP%\sf4-netplay-update.log`, if present. Keep `.ember-update-backups` in the install folder for recovery.
-- **An update says recovery is required:** extract the matching upgrade package outside the installation and run `Install-Upgrade.ps1 -InstallDir <Ember folder> -RecoverOnly`. `-CheckOnly` only reports the pending transaction and never changes installed files. Preserve the transaction and backups if recovery reports damaged evidence.
+- **An update says recovery is required:** start `Launcher.exe` again; it restores an interrupted update before the game starts. If that fails, extract the matching upgrade package outside the installation and run `Install-Upgrade.ps1 -InstallDir <Ember folder> -RecoverOnly`. If the install folder contains `.ember-update-transaction-v1.json.failed`, include it in your report. `-CheckOnly` only reports the pending transaction and never changes installed files. Preserve the transaction and backups if recovery reports damaged evidence.
 
 For fixes to common problems, see [Troubleshooting](TROUBLESHOOTING.md).

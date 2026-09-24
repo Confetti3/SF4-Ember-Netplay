@@ -2,14 +2,14 @@
 
 Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by Anthony Danducci and contributors](https://codeberg.org/adanducci/sf4e). Preserve upstream attribution and bundled licenses.
 
-**This is a pre-release for testers.** It fixes the two problems players reported on v0.9.7 and a set of room, rollback and updater issues found in a code review. If you want the stable build, use v0.9.7.
+**This is a pre-release for testers.** It fixes the two problems players reported on v0.9.7 and a set of room, rollback and updater issues found in a code review. If you would rather not test, stay on v0.9.7, the current full release.
 
 ## Changes since v0.9.7
 
 ### Fixes for the reported problems
 
 - **Players with the same name can now join each other.** Every install was named "Player" until you changed it, and a room turns away a second player with a name it already has. New and unchanged installs now get a name like "Player 4821". If your name is still exactly "Player", it changes the next time you start the game. You can rename yourself in Settings as before.
-- **A refused join now says why.** A join the host turned down used to show "Could not join the room. Check the invitation and that both players use the same package", followed by "Room control is recovering". You now see the actual reason, for example "That player name is already in the room. Change it in Settings." or "This room is full."
+- **A refused join now says why.** A join the host turned down used to show "Could not join the room. Check the invitation and that both players use the same SF4 Ember Netplay package.", followed by "Room control is recovering". You now see the actual reason, for example "That player name is already in the room. Change it in Settings." or "This room is full."
 - **The launcher checks your Visual C++ runtime before it starts the game.** A runtime older than the one Ember was built with made the game crash at every start. The launcher now says so and offers to open the download page. Install the x86 version, then start Ember again.
 
 ### Rooms
@@ -33,7 +33,7 @@ Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by A
 
 ## Compatibility
 
-Both players must use this same package. A room checks that both games run the same build, so rc2 cannot play v0.9.7.
+Everyone in the room, including spectators, must use this same package. A room checks that every game runs the same build, so rc2 cannot play v0.9.7.
 
 ## What to report
 

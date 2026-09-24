@@ -51,7 +51,7 @@ Save your fighter and appearance before joining a room or while waiting. Select 
 
 Browse costume previews, choose an available outfit and fine-tune its color before returning to your room.
 
-The screenshots above are fresh captures from the **actual 0.8.0 UI renderer**, using sample session data. They are not photographs of a live multiplayer test.
+The screenshots above were captured from the 0.8.0 UI renderer using sample session data, so some screens have changed since. They are not photographs of a live multiplayer test.
 
 ### Frame meter
 
@@ -61,7 +61,7 @@ An in-game capture supplied by the project owner, showing Ember's frame meter, p
 
 ## Get started
 
-You need **Windows 10 or later (x64)**, an owned **Steam copy of Ultra Street Fighter IV**, and the **Microsoft Visual C++ x86 runtime**. The game is not included.
+You need **Windows 10 or later (x64)**, an owned **Steam copy of Ultra Street Fighter IV**, and the **latest Microsoft Visual C++ x86 runtime** (the launcher will not start with an older one and offers the download). The game is not included.
 
 1. For a fresh installation, [download the complete v0.9.7 ZIP](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v0.9.7/sf4-ember-netplay-0.9.7.zip) and its [SHA-256 checksum](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v0.9.7/sf4-ember-netplay-0.9.7.zip.sha256). Choose a release package, not GitHub's source-code download.
 2. Extract everything into a **new writable folder**. Keep your old launcher installation separate; moving from the legacy launcher to Ember is a fresh install.

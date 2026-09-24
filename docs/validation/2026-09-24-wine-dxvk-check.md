@@ -77,6 +77,5 @@ Real SF4 play under Wine has not been rerun with the fix. The paths that differ 
 The next useful evidence is logs from a Linux rematch on a build with the fix, which should no longer show `match_teardown_timeout`. For other problems, collect the complete `sf4e\logs` folder right after the problem and search it for:
 
 - `Display: VSync forced off`
-- `Pacing: limiter runs on thread`
 - `match_teardown_timeout`, `match_room_end_timeout`, `gameplay_connection_lost` and `local_socket` (from `IrohMatchSession.cxx` and `IrohRoom.cxx`)
-- `HelperLoad` `tick_lag_max`
+- `Match teardown: helper load` (its `actor_lag_max_us`)

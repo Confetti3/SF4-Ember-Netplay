@@ -1,10 +1,10 @@
 # Attribution
 
-## Important â€” unofficial port
+## Important: unofficial port
 
 **SF4 Ember Netplay is an experimental unofficial port.** It is **not** the official [sf4e](https://codeberg.org/adanducci/sf4e) project, and it is **not** affiliated with or endorsed by **Anthony Danducci**, Capcom, or Valve. It is **not production-ready software** and should not be presented as stable or "working" netplay.
 
-For the official upstream project and updates, use Anthony Danducci's sf4e on Codeberg â€” not this repository.
+For the official upstream project and updates, use Anthony Danducci's sf4e on Codeberg, not this repository.
 
 ## Upstream project (sf4e)
 
@@ -43,7 +43,7 @@ under the [SIL Open Font License 1.1](src/ui/fonts/OFL.txt). Font provenance and
 hashes are recorded in [src/ui/fonts/SOURCE.txt](src/ui/fonts/SOURCE.txt). The full
 license is also available in the interface's About page and packaged notices.
 
-See [README.md](README.md#external-licenses-and-copyright-information) for dependency and trademark notices (Capcom, Valve, Microsoft, etc.).
+See [README.md](README.md#external-licenses-and-copyright-information) for dependency and trademark notices (Capcom, Valve, Microsoft, etc.). Packages include `notices/THIRD_PARTY_LICENSES.txt` and the Discord Social SDK notice in `notices/Discord-SDK.txt`.
 
 You must own *Ultra Street Fighter IV* on Steam to play.
 
@@ -59,7 +59,7 @@ is separate from the MIT license covering the launcher code.
 
 Stage screenshots are credited to
 [SuperSoluce / Pierre Durden, June 16, 2014](https://www.supersoluce.com/soluce/ultra-street-fighter-iv/stages).
-They are resized to 640Ã—360 with the HUD and watermark preserved. Their source
+They are resized to 640x360 with the HUD and watermark preserved. Their source
 URLs and original/output hashes are in
 [assets/selection/stage-sources.json](assets/selection/stage-sources.json).
 These screenshots contain Capcom game imagery and are not covered by the
@@ -68,7 +68,7 @@ launcher's MIT license.
 Ultra Combo photographs are from [iPlayWinner's 2010 SSFIV character guides](https://iplaywinner.squarespace.com/ryu-ssf4/),
 [Capcom / ComboFiend's November 2013 Ultra showcase](https://news.capcomusa.com/lets/browse/ultras-and-supers-for-the-new-usfiv-characters),
 and [GamesRadar's 2014 Decapre preview](https://www.gamesradar.com/ultra-street-fighter-4s-decapre-plays-nothing-cammy/).
-The photographs are cropped/resized to 256Ã—144, with source headings, native
+The photographs are cropped/resized to 256x144, with source headings, native
 move mappings, URLs, and hashes in `assets/selection/ultra-sources.json`.
 
 Numbered color photographs are from EventHubs' SFIV/SSFIV costume guides,
