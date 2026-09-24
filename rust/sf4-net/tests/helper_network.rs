@@ -166,7 +166,7 @@ async fn exercise_helpers(relay_only: bool) {
         for helper in [&mut host, &mut guest] {
             helper.send(Command::Status).await.unwrap();
             match helper.next("status").await.unwrap() {
-                Event::Status { ip_transports, .. } => { if relay_only { assert_eq!(ip_transports, 0); } else { assert!(ip_transports > 0); } },
+                Event::Status { ip_transports, fixed_port, .. } => { if relay_only { assert_eq!((ip_transports, fixed_port), (0, 0)); } else { assert!(ip_transports > 0); } },
                 _ => unreachable!(),
             }
         }

@@ -222,15 +222,17 @@ impl Actor {
         let bridge = match result {
             Ok(game) => {
                 let route = selected_probe_route(&game.connection);
+                let fixed_port =
+                    transport::fixed_port::selected_path_uses_fixed_port(&game.connection);
                 let route_connection = game.connection.clone();
                 Bridge::bind(game, SocketAddr::from((Ipv4Addr::LOCALHOST, local_port)))
                     .await
-                    .map(|bridge| (bridge, route, route_connection))
+                    .map(|bridge| (bridge, route, fixed_port, route_connection))
             }
             Err(error) => Err(error),
         };
         match bridge {
-            Ok((bridge, route, route_connection)) => {
+            Ok((bridge, route, fixed_port, route_connection)) => {
                 let virtual_port = bridge.local_addr()?.port();
                 // `valid` proved the slot; `&mut self` is held across the bind.
                 let Some(slot) = self.games.get_mut(&peer) else {
@@ -252,6 +254,7 @@ impl Actor {
                     virtual_port,
                     max_packet,
                     route,
+                    fixed_port,
                 })?;
             }
             Err(_) => {

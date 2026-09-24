@@ -325,6 +325,20 @@ fn now() -> io::Result<u64> {
         .map_err(|_| failed("clock"))
 }
 
+/// The helper's answer to `Command::Status`, from the running actor or while
+/// a departure is draining.
+fn status(request_id: u64, endpoint: &Endpoint, epoch: u64, peers: usize, games: usize) -> Event {
+    Event::Status {
+        request_id,
+        endpoint: endpoint.id(),
+        ip_transports: endpoint.bound_sockets().len(),
+        fixed_port: transport::fixed_port::bound(endpoint),
+        epoch,
+        peers,
+        games,
+    }
+}
+
 /// Extract the primary Iroh identities from the committed native
 /// `SessionProposal` envelope. The C++ side binds these values from its
 /// authenticated room-member map; Rust only uses a complete, validated list
@@ -587,14 +601,13 @@ impl Actor {
     fn command(&mut self, request: Request) -> io::Result<bool> {
         let id = request.id;
         match request.command {
-            Command::Status => self.emit(Event::Status {
-                request_id: id,
-                endpoint: self.endpoint.id(),
-                ip_transports: self.endpoint.bound_sockets().len(),
-                epoch: self.epoch,
-                peers: self.controls.len(),
-                games: self.games.len(),
-            })?,
+            Command::Status => self.emit(status(
+                id,
+                &self.endpoint,
+                self.epoch,
+                self.controls.len(),
+                self.games.len(),
+            ))?,
             Command::Shutdown => return Ok(false),
             Command::Host { epoch, build } => {
                 if !self.begin(epoch, &build) {

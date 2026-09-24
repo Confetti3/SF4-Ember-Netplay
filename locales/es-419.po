@@ -322,7 +322,7 @@ msgid "connection.route_unknown"
 msgstr "desconocida"
 
 msgid "connection.relayed_advice"
-msgstr "Retransmitida significa que sus dos redes no pudieron conectarse directamente, así que el tráfico de la partida pasa por un servidor de retransmisión. Las partidas funcionan igual; usa el retraso recomendado. Para una conexión directa, cualquiera de los dos puede activar UPnP en su router o desactivar una VPN."
+msgstr "Retransmitida significa que sus dos redes no pudieron conectarse directamente, así que el tráfico de la partida pasa por un servidor de retransmisión. Las partidas funcionan igual; usa el retraso recomendado. Para una conexión directa, cualquiera de los dos puede activar UPnP en su router, redirigir el puerto UDP 45760 a su PC o desactivar una VPN."
 
 msgid "connection.check_again"
 msgstr "Verificar conexión otra vez"

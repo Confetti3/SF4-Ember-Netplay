@@ -192,6 +192,8 @@ pub enum Event {
         request_id: u64,
         endpoint: EndpointId,
         ip_transports: usize,
+        /// The fixed UDP port the endpoint holds, or 0 when the OS chose it.
+        fixed_port: u16,
         epoch: u64,
         peers: usize,
         games: usize,
@@ -236,6 +238,8 @@ pub enum Event {
         /// authorized. This is observational metadata; the committed probe
         /// connection is upgraded in place before GGPO owns its datagrams.
         route: String,
+        /// Whether that path reaches the peer on a fixed port.
+        fixed_port: bool,
     },
     GameFailed {
         epoch: u64,

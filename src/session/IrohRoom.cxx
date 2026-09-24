@@ -267,6 +267,8 @@ bool IrohRoom::ConsumeGameEvent(const json& event, const std::string& type) {
 		snapshot.virtualPort = static_cast<std::uint16_t>(port);
 		snapshot.route = event.value("route",std::string());
 		snapshot.state = GameState::Ready;
+		spdlog::info("Room: game_ready peer={} generation={} route={} fixed_port={}", PeerTag(peer), generation,
+			RouteLabel(ClassifyRoute(snapshot.route)), event.at("fixed_port").get<bool>() ? "yes" : "no");
 	} else if (type == "statistics") {
         snapshot.ObserveStatistics(event);
 	}
@@ -880,6 +882,8 @@ void IrohRoom::Poll() {
 				const auto identity = event.at("endpoint").get<std::string>();
 				if (!IsEndpointIdentity(identity)) { Fail("invalid_helper_identity"); return; }
 				localIdentity_ = identity;
+				localUdpPort_ = event.at("fixed_port").get<std::uint16_t>();
+				spdlog::info("Room: helper UDP port {}", *localUdpPort_ ? std::to_string(*localUdpPort_) : "random");
 				continue;
 			}
 			if (event.value("epoch", std::uint64_t(0)) != epoch_) continue;

@@ -16,7 +16,6 @@ std::string DescribeDiagnostics(const DiagnosticsView& view) {
     const char* health[] = {"Offline", "Connecting", "Healthy", "Lost"};
     const auto label = [](int value, const char* const* names, int count) { return value >= 0 && value < count ? names[value] : "Unavailable"; };
     const char* probes[] = {"Not checked","Checking","Complete","Invalidated","Unavailable","Timed out","Local overload"};
-    const char* routes[] = {"Unknown","Direct","Relayed"};
     const char* probeFailures[] = {"Unspecified", "Room or request changed", "Helper busy", "Peer control unavailable",
         "Check already active", "Room authority missing", "Peer admission missing", "Authority not ready",
         "Seat or table revision changed", "Reservation not committed", "Authorization changed or expired", "Room proposal busy"};
@@ -26,7 +25,7 @@ std::string DescribeDiagnostics(const DiagnosticsView& view) {
         " | Verification: " + (view.verificationAvailable ? "Available" : "Unavailable") +
         " | Network check: " + label(view.probeState,probes,7) + (view.benchmark ? " (30s benchmark)" : " (5s check)") +
         (view.probeState==4 ? std::string(" | Check rejection: ") + label(view.probeFailure,probeFailures,12) : std::string()) +
-        " | Measured route: " + label(view.probeRoute,routes,3) +
+        " | Measured route: " + RouteLabel(view.probeRoute) +
         " | Sent/scheduled: " + std::to_string(view.sent) + "/" + std::to_string(view.expected) +
         " | Replies/missed: " + std::to_string(view.replies) + "/" + std::to_string(view.missed) +
         " | RTT p50/p95/p99 us: " + std::to_string(view.p50Us) + "/" + std::to_string(view.p95Us) + "/" + std::to_string(view.p99Us) +
@@ -81,7 +80,9 @@ void ApplicationServices::Run() {
                 const auto path = directory / L"ember-diagnostics.txt";
                 std::ofstream output(path, std::ios::trunc);
                 output << "SF4 Ember Netplay\nVersion: " << SF4E_APP_VERSION
-                    << "\nTransport: Iroh / GGPO\n" << DescribeDiagnostics(diagnostics)
+                    << "\nTransport: Iroh / GGPO\nUDP port: " << (!diagnostics.udpPort ? std::string("Unavailable") :
+                        *diagnostics.udpPort ? std::to_string(*diagnostics.udpPort) : std::string("random"))
+                    << '\n' << DescribeDiagnostics(diagnostics)
                     << "\nPing: " << (diagnostics.pingMs < 0 ? "Unavailable" : std::to_string(diagnostics.pingMs) + " ms")
                     << "\nSelected input delay: " << (diagnostics.selectedDelay<0?"Unavailable":
                         std::to_string(diagnostics.selectedDelay)+" frames") << '\n';

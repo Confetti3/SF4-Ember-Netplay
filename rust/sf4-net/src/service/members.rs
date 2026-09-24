@@ -628,14 +628,13 @@ impl Actor {
                     };
                     match request.command {
                         Command::Status => {
-                            let _ = events.try_send(Event::Status {
-                                request_id: request.id,
-                                endpoint: endpoint.id(),
-                                ip_transports: endpoint.bound_sockets().len(),
-                                epoch: status_epoch,
-                                peers: status_peers,
-                                games: status_games,
-                            });
+                            let _ = events.try_send(status(
+                                request.id,
+                                &endpoint,
+                                status_epoch,
+                                status_peers,
+                                status_games,
+                            ));
                         }
                         Command::Shutdown => {
                             drop(leave);

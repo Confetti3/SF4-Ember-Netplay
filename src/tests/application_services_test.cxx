@@ -11,6 +11,10 @@ int main() {
     using namespace sf4e::platform;
     const auto root = MakeTempRoot(L"ember-services-test-");
     {
+        // Routes reduce to a category before they reach logs or exports.
+        CHECK(sf4e::ClassifyRoute("ip:203.0.113.7:45760")==sf4e::RouteKind::Direct);
+        CHECK(sf4e::ClassifyRoute("relay:https://use1-1.relay.n0.iroh.link./")==sf4e::RouteKind::Relayed);
+        CHECK(sf4e::ClassifyRoute("unavailable")==sf4e::RouteKind::Unknown && sf4e::ClassifyRoute("")==sf4e::RouteKind::Unknown);
         ApplicationServices service(root.wstring()); DiagnosticsView view;
         CHECK(!service.Request(ServiceAction::None));
         view.probeState=4; view.probeFailure=8;
@@ -20,8 +24,9 @@ int main() {
         view.probeState=0; view.probeFailure=0;
         for (int i=0;i<40;++i) { view.room=i%5; service.Observe(view); }
         CHECK(service.Snapshot().connectionHistory.size()==16);
-        view.probeState=2;view.probeRoute=1;view.p95Us=45000;view.replies=96;view.missed=4;view.directLinks=3;
+        view.probeState=2;view.probeRoute=sf4e::RouteKind::Direct;view.p95Us=45000;view.replies=96;view.missed=4;view.directLinks=3;
         view.room=999; CHECK(DescribeDiagnostics(view).find("Room: Unavailable")!=std::string::npos);
+        view.udpPort=45760;
         CHECK(service.Request(ServiceAction::ExportDiagnostics,view));
         const auto deadline=GetTickCount64()+5000;
         while(service.Snapshot().pending && GetTickCount64()<deadline) Sleep(1);
@@ -33,6 +38,7 @@ int main() {
         CHECK(contents.find("Measured route: Direct")!=std::string::npos);
         CHECK(contents.find("Replies/missed: 96/4")!=std::string::npos);
         CHECK(contents.find("Gameplay direct/relay links: 3/0")!=std::string::npos);
+        CHECK(contents.find("\nUDP port: 45760\n")!=std::string::npos);
         CHECK(contents.find("CPU timing: unavailable")!=std::string::npos);
         CHECK(contents.find("Recovery checkpoint builds (current room lifetime): Unavailable")!=std::string::npos);
         service.Observe(view);
@@ -51,6 +57,7 @@ int main() {
         view.TimingAt(DiagnosticTiming::VfxRestore)={24,0,1.2,7.0};
         view.recoveryCheckpointBuildsAvailable=true; view.recoveryCheckpointBuilds=42;
         view.rollbackCallbacks=12; view.predictionStalls=3; view.predictionSkippedFrames=5;
+        view.udpPort.reset();
         service.Observe(view);
         CHECK(service.Snapshot().connectionHistory==history);
         CHECK(service.Request(ServiceAction::ExportDiagnostics,view));
@@ -74,6 +81,7 @@ int main() {
         CHECK(performance.find("Recovery checkpoint builds (current room lifetime): 42")!=std::string::npos);
         CHECK(performance.find("Prediction stalls: 3 | Prediction-skipped frames: 5")!=std::string::npos);
         CHECK(performance.find("Selected input delay: 2 frames")!=std::string::npos);
+        CHECK(performance.find("\nUDP port: Unavailable\n")!=std::string::npos);
         CHECK(performance.size()<8192);
         // Export is constructed from this typed allowlist, never arbitrary logs/settings.
         for(const auto* forbidden:{"invitation","capability","identity","arbitrary log"}) {

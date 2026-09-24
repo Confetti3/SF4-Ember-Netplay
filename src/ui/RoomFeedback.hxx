@@ -47,12 +47,11 @@ inline ConnectionCheckFeedback DescribeConnectionCheck(const ShellView& view) {
         result.detail = loc::T("connection.checking_detail");
         result.action = loc::T("connection.checking_action");
     } else if (measured) {
-        // probeRoute is the runtime's untranslated token: Direct, Relayed or Unknown.
-        const bool relayed = view.probeRoute == "Relayed";
+        const bool relayed = view.probeRoute == RouteKind::Relayed;
         result.value = loc::Tf("connection.frames",view.recommendedDelay);
         result.detail = loc::Tf("connection.result_detail",
             loc::T(relayed ? "connection.route_relayed" :
-                view.probeRoute == "Direct" ? "connection.route_direct" : "connection.route_unknown"),
+                view.probeRoute == RouteKind::Direct ? "connection.route_direct" : "connection.route_unknown"),
             ProbeMilliseconds(view.probeP50Us),
             ProbeMilliseconds(view.probeP95Us),ProbeMilliseconds(view.probeP99Us),ProbeMilliseconds(view.probeJitterUs),
             view.probeSent,view.probeSamples,view.probeLost);

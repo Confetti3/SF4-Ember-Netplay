@@ -322,7 +322,7 @@ msgid "connection.route_unknown"
 msgstr "Unknown"
 
 msgid "connection.relayed_advice"
-msgstr "Relayed means your two networks could not connect directly, so match traffic goes through a relay server. Matches still work; use the recommended delay. For a direct connection, either player can try turning on UPnP in their router or turning off a VPN."
+msgstr "Relayed means your two networks could not connect directly, so match traffic goes through a relay server. Matches still work; use the recommended delay. For a direct connection, either player can try turning on UPnP in their router, forwarding UDP port 45760 to their PC, or turning off a VPN."
 
 msgid "connection.check_again"
 msgstr "Check connection again"

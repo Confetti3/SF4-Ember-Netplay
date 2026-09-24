@@ -610,18 +610,18 @@ int main() try {
 
     // A relayed check explains itself; a direct one does not carry the advice.
     ShellView measured = view;
-    measured.probeStatus = "ready"; measured.recommendedDelay = 3; measured.probeRoute = "Relayed";
+    measured.probeStatus = "ready"; measured.recommendedDelay = 3; measured.probeRoute = sf4e::RouteKind::Relayed;
     const auto relayed = DescribeConnectionCheck(measured);
     Check(relayed.detail.rfind("Relayed connection.", 0) == 0, "Relayed check result lost its route label");
     Check(relayed.detail.find(sf4e::loc::T("connection.relayed_advice")) != std::string::npos,
         "Relayed check result did not explain the relay");
-    measured.probeRoute = "Direct";
+    measured.probeRoute = sf4e::RouteKind::Direct;
     const auto direct = DescribeConnectionCheck(measured);
     Check(direct.detail.rfind("Direct connection.", 0) == 0 &&
         direct.detail.find(sf4e::loc::T("connection.relayed_advice")) == std::string::npos,
         "Direct check result carried relay advice");
     sf4e::loc::SetActive(sf4e::loc::Locale::Es419);
-    measured.probeRoute = "Relayed";
+    measured.probeRoute = sf4e::RouteKind::Relayed;
     const auto translated = DescribeConnectionCheck(measured).detail;
     Check(translated.find(" retransmitida.") != std::string::npos && translated.find("Relayed") == std::string::npos,
         "Relayed route label was not translated");

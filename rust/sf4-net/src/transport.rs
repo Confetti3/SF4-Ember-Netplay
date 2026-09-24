@@ -22,6 +22,8 @@ use crate::{
     wire::{self, CONTROL_ALPN, ControlFrame, GAME_ALPN, GAME_HEADER, MatchKey, VERSION},
 };
 
+pub mod fixed_port;
+
 pub const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 /// A prepared listener precedes the separately committed game-connect phase.
 /// Keep that authorization bounded, while allowing the room journal enough
@@ -55,15 +57,17 @@ pub async fn bind_endpoint_with_policy(relay_only: bool) -> io::Result<Endpoint>
     // (enabled) for gameplay; relay-only keeps it off, where it is moot
     // because that diagnostic clears the IP transports anyway.
     let builder =
-        Endpoint::builder(presets::N0).alpns(vec![CONTROL_ALPN.to_vec(), GAME_ALPN.to_vec()]);
-    let builder = if relay_only {
-        builder
+        || Endpoint::builder(presets::N0).alpns(vec![CONTROL_ALPN.to_vec(), GAME_ALPN.to_vec()]);
+    let bound = if relay_only {
+        builder()
             .clear_ip_transports()
             .portmapper_config(PortmapperConfig::Disabled)
+            .bind()
+            .await
     } else {
-        builder
+        fixed_port::bind(builder, &fixed_port::PORTS).await
     };
-    builder.bind().await.map_err(|_| failed())
+    bound.map_err(|_| failed())
 }
 
 pub struct ControlChannel {

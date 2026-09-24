@@ -1,10 +1,12 @@
 #pragma once
 #include "../launcher/update/github_release_client.hxx"
+#include "../common/NetworkRoute.hxx"
 #include <condition_variable>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
+#include <optional>
 #include <thread>
 #include <vector>
 #include <atomic>
@@ -48,7 +50,11 @@ struct DiagnosticsView {
     int room = 0, match = 0, control = 0, gameplay = 0, pingMs = -1;
     bool helperReady = false, verificationAvailable = false;
     // Typed allowlist: no endpoint addresses, identities, credentials or names.
-    int probeState=0, probeRoute=0;
+    int probeState=0;
+    RouteKind probeRoute=RouteKind::Unknown;
+    // The helper's fixed UDP port, 0 when the OS chose it, or empty when no
+    // helper has reported one.
+    std::optional<std::uint16_t> udpPort;
     unsigned probeFailure=0;
     unsigned sent=0, expected=0;
     bool benchmark=false;

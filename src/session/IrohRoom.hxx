@@ -5,9 +5,11 @@
 #include "CheckpointTransfer.hxx"
 #include "SessionRecovery.hxx"
 #include "CheckpointDecodeWorker.hxx"
+#include "../common/NetworkRoute.hxx"
 #include <array>
 #include <deque>
 #include <map>
+#include <optional>
 #include <nlohmann/json_fwd.hpp>
 
 namespace sf4e { namespace session {
@@ -114,6 +116,9 @@ public:
 	std::string PeerIdentity(Connection connection) const;
 	std::uint64_t PeerIncarnation(Connection connection) const;
 	virtual const std::string& LocalIdentity() const { return localIdentity_; }
+	// The helper's fixed UDP port, 0 when the OS chose it, or empty until the
+	// helper first reports its status.
+	std::optional<std::uint16_t> LocalUdpPort() const { return localUdpPort_; }
     virtual const CoordinationSnapshot& Coordination() const { return coordination_; }
     const ProbeSnapshot& Probe() const { return probe_; }
     RecoverySnapshot RecoveryState() const;
@@ -257,6 +262,7 @@ private:
 	std::string invitation_, discordInvitation_;
 	std::string error_;
 	std::string localIdentity_;
+	std::optional<std::uint16_t> localUdpPort_;
 	std::uint64_t closedGeneration_ = 0;
 	std::map<std::string, GameSnapshot> games_;
 	std::map<Connection, Peer> peers_;

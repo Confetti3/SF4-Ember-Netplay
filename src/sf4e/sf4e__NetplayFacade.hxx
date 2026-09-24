@@ -6,6 +6,7 @@
 #include "../netplay/InputAssignment.hxx"
 
 #include "../common/sf4e__NetplayConfig.hxx"
+#include "../common/NetworkRoute.hxx"
 #include "../platform/HelperProcess.hxx"
 #include "../netplay/SessionController.hxx"
 #include "../netplay/PlayerPreferences.hxx"
@@ -106,7 +107,8 @@ namespace sf4e {
             // The opponent's Ready delay, or -1 until they Ready.
             int opponentDelay=-1;
             bool delayLocked=false, canProbe=false, canApplyDelay=false;
-            std::string probeStatus, probeRoute;
+            std::string probeStatus;
+            RouteKind probeRoute=RouteKind::Unknown;
             std::uint64_t probeP50Us=0, probeP95Us=0, probeP99Us=0, probeJitterUs=0;
             bool probeBenchmark=false;
             unsigned probeSamples=0, probeLost=0, probeSent=0, probeExpected=0;

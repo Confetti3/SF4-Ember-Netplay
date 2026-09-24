@@ -43,7 +43,8 @@ uint32_t pendingError = 0;
 // built only when one of them moved.
 struct TraceFields {
     int room = -1, match = -1, control = -1, recovery = -1, router = -1, matchPhase = -1;
-    std::string routerError, matchError, probe, probeRoute;
+    std::string routerError, matchError, probe;
+    RouteKind probeRoute = RouteKind::Unknown;
     bool nativeSocket = false, resultPending = false, finishPending = false;
     bool leavePending = false, terminalPending = false, probeBenchmark = false;
     bool authorityWritable = false, readyRequested = false, readyGate = false;
@@ -306,7 +307,8 @@ void FillNetworkDiagnostics(platform::DiagnosticsView& view) {
     const auto& probe=runtime->room->Probe();
     view.probeState=probe.status.empty()?0:probe.status=="checking"?1:
         probe.status=="ready"||probe.status=="complete"?2:probe.status=="invalidated"?3:probe.status=="timed_out"?5:probe.status=="local_overload"?6:4;
-    view.probeRoute=probe.route.rfind("ip:",0)==0?1:probe.route.rfind("relay:",0)==0?2:0;
+    view.probeRoute=ClassifyRoute(probe.route);
+    view.udpPort=runtime->room->LocalUdpPort();
     view.probeFailure=probe.failureReason;
     view.sent=probe.sent;view.expected=probe.expected;
     view.benchmark=probe.benchmark;view.replies=probe.samples;view.missed=probe.lost;
@@ -314,8 +316,9 @@ void FillNetworkDiagnostics(platform::DiagnosticsView& view) {
     if(runtime->match) for(const auto& entry:runtime->room->Games()) {
         const auto& game=entry.second;
         if(game.generation!=runtime->match->Generation()) continue;
-        if(game.route.rfind("ip:",0)==0) ++view.directLinks;
-        if(game.route.rfind("relay:",0)==0) ++view.relayedLinks;
+        const auto route=ClassifyRoute(game.route);
+        if(route==RouteKind::Direct) ++view.directLinks;
+        if(route==RouteKind::Relayed) ++view.relayedLinks;
         view.routeChanges+=game.routeChanges;view.localDrops+=game.localDrops;view.sendPressure+=game.congestionEvents;
     }
 }
@@ -401,7 +404,7 @@ static void FillRoomView(RuntimeSnapshot& snapshot) {
                     const auto& probe=runtime->room->Probe();
                     if (peer!=UserApp::server->roomPeerIdentities.end() && probe.peer==peer->second &&
                         probe.pairRevision==table->revision) {
-                        snapshot.probeRoute=probe.route.rfind("ip:",0)==0?"Direct":probe.route.rfind("relay:",0)==0?"Relayed":"Unknown";
+                        snapshot.probeRoute=ClassifyRoute(probe.route);
                         snapshot.probeP50Us=probe.p50RttUs; snapshot.probeP95Us=probe.p95RttUs; snapshot.probeP99Us=probe.p99RttUs;
                         snapshot.probeJitterUs=probe.jitterUs; snapshot.probeBenchmark=probe.benchmark;
                         snapshot.probeStatus=probe.status; snapshot.probeSamples=probe.samples; snapshot.probeLost=probe.lost;
@@ -530,7 +533,7 @@ static void TraceSnapshot(const RuntimeSnapshot& snapshot) {
                 {"leave_pending", fields.leavePending}, {"terminal_pending", fields.terminalPending},
                 {"authority_writable", fields.authorityWritable}, {"ready_requested", fields.readyRequested}, {"ready_gate", fields.readyGate},
                 {"probe", fields.probe}, {"probe_failure", fields.probeFailure},
-                {"probe_route", fields.probeRoute}, {"probe_benchmark", fields.probeBenchmark},
+                {"probe_route", RouteLabel(fields.probeRoute)}, {"probe_benchmark", fields.probeBenchmark},
                 {"probe_replies", fields.probeReplies}, {"probe_missed", fields.probeMissed},
                 {"probe_p50_us", fields.probeP50Us}, {"probe_p95_us", fields.probeP95Us},
                 {"probe_p99_us", fields.probeP99Us}, {"probe_jitter_us", fields.probeJitterUs}
