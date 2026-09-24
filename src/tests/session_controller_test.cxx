@@ -50,8 +50,38 @@ static void StartMatch(SessionController& controller) {
     CHECK(EventNow(controller, EventKind::MatchStarted).accepted);
 }
 
+// A room that is still being created or joined has no control to recover.
+// Its forming coordination stream must not show the recovery banner or,
+// 15 seconds later, offer to replace a room that was never joined.
+static void TestOpeningIsNotRecovery() {
+    SessionController joining;
+    CHECK(CommandNow(joining, CommandKind::JoinInvite, "sf4e3:invite").accepted);
+    CHECK(joining.ObserveCoordination(1, 1, false, 100));
+    CHECK(joining.GetSnapshot().recovery == Recovery::None);
+    CHECK(joining.GetSnapshot().control == Health::Connecting);
+    CHECK(joining.GetSnapshot().error.empty());
+    CHECK(!joining.GetSnapshot().authorityWritable);
+    CHECK(joining.ObserveCoordination(1, 1, false, 20000));
+    joining.AdvanceRecovery(20000);
+    CHECK(joining.GetSnapshot().recovery == Recovery::None);
+    CHECK(!CommandNow(joining, CommandKind::ReplaceRoom).accepted);
+    // Stopping the join still works while the stream forms.
+    CHECK(CommandNow(joining, CommandKind::LeaveRoom).accepted);
+
+    // Once joined, the same loss is a real outage and recovers as before.
+    SessionController joined;
+    CHECK(CommandNow(joined, CommandKind::JoinInvite, "sf4e3:invite").accepted);
+    CHECK(joined.ObserveCoordination(1, 1, true, 100));
+    CHECK(EventNow(joined, EventKind::RoomJoined).accepted);
+    CHECK(joined.ObserveCoordination(1, 1, false, 1000));
+    CHECK(joined.GetSnapshot().recovery == Recovery::Recovering);
+    CHECK(joined.GetSnapshot().control == Health::Lost);
+    CHECK(!joined.GetSnapshot().error.empty());
+}
+
 int main() {
     TestMatchEndedFromPreparing();
+    TestOpeningIsNotRecovery();
     // Ordinary checkpoint delivery can trail the healthy coordination watch.
     // It pauses mutation, but must not announce a lost connection or erase Ready.
     SessionController syncing;

@@ -489,6 +489,9 @@ msgstr "Maximum members, including spectators."
 msgid "room.stop_creating"
 msgstr "Stop creating this room."
 
+msgid "room.stop_creating_action"
+msgstr "Stop creating"
+
 msgid "room.create_requirements"
 msgstr "Networking and an assigned gameplay controller must be ready."
 
@@ -503,6 +506,9 @@ msgstr "Copy an Ember invitation, then select this row."
 
 msgid "room.stop_joining"
 msgstr "Stop joining this room."
+
+msgid "room.stop_joining_action"
+msgstr "Stop joining"
 
 msgid "room.join_pasted"
 msgstr "Join using the pasted invitation."

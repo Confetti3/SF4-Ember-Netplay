@@ -52,6 +52,12 @@ bool SessionController::ObserveCoordination(std::uint64_t term, std::uint64_t re
         }
         state_.error.clear();
         AdvanceCatchUp(nowMs);
+    } else if (state_.room == RoomState::Opening) {
+        // Creating or joining: the coordination stream is still forming, so
+        // this is not a lost room. Show no recovery and start no replacement
+        // clock; a join that fails reports through its own error.
+        state_.verificationAvailable = false;
+        state_.readyPending = false;
     } else {
         if (state_.recovery == Recovery::None) {
             state_.recovery = Recovery::Recovering;

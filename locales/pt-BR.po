@@ -489,6 +489,9 @@ msgstr "Máximo de membros, incluindo espectadores."
 msgid "room.stop_creating"
 msgstr "Pare de criar esta sala."
 
+msgid "room.stop_creating_action"
+msgstr "Parar de criar"
+
 msgid "room.create_requirements"
 msgstr "A rede e um controle de jogo atribuído precisam estar prontos."
 
@@ -503,6 +506,9 @@ msgstr "Copie um convite do Ember e selecione esta linha."
 
 msgid "room.stop_joining"
 msgstr "Pare de entrar nesta sala."
+
+msgid "room.stop_joining_action"
+msgstr "Parar de entrar"
 
 msgid "room.join_pasted"
 msgstr "Entre usando o convite colado."
