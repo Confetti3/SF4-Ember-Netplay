@@ -212,6 +212,15 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     rows.push_back(Value("selected-delay",loc::T("room.selected_delay"),std::to_string(selectedDelay),
      delayEditable?loc::T("room.selected_delay.detail"):
       (v.delayLocked?loc::T("room.selected_delay.locked"):reason),delayEditable));
+    if(t.p1&&t.p2) {
+     const bool opponentReady=v.opponentDelay>=0&&v.opponentDelay<=10;
+     auto matchRow=opponentReady?
+      Value("match-delay",loc::T("room.match_delay"),loc::Tf("connection.frames",(std::max)(selectedDelay,v.opponentDelay)),
+       loc::Tf("room.match_delay.detail",selectedDelay,v.opponentDelay),false):
+      Value("match-delay",loc::T("room.match_delay"),loc::Tf("room.match_delay.at_least",selectedDelay),
+       loc::T("room.match_delay.pending"),false);
+     matchRow.adjustable=false;rows.push_back(std::move(matchRow));
+    }
     rows.push_back(Row("check-connection",check.action,check.checking?check.detail:
      !mutableRoom?reason:!t.p1||!t.p2?loc::T("room.check_connection.two_players"):
      ready?loc::T("room.check_connection.unready"):

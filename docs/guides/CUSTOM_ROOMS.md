@@ -31,6 +31,12 @@ also adjust Selected delay from zero to ten and Ready without a usable probe.
 Ready locks your own delay for that game; Unready unlocks it. A route change or
 a new recommendation never changes delay during a fight.
 
+Both fighters play each game at the higher of their two Ready delays. A
+fighter's delay decides how much rollback the other fighter sees, so separate
+values favored the fighter who chose less. **Match delay** shows the value in
+use; before your opponent readies it shows "At least" your own choice. Each
+fighter's own Selected delay is kept for the next game.
+
 Advice requires at least 80 valid replies out of 100 probes from the current
 connection and path. It estimates one-way latency as half of the measured 95th
 percentile round-trip time and allows two frames of prediction. These are

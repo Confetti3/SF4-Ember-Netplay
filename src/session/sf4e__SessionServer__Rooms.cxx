@@ -254,8 +254,7 @@ void SessionServer::ProjectRoomTable(session::Connection connection, std::uint8_
 		update.lobbyData.members.push_back(data);
 	}
 	update.matchData = _roomMatchData[tableId];
-	update.matchData.inputDelay[0] = table.inputDelay[0];
-	update.matchData.inputDelay[1] = table.inputDelay[1];
+	update.matchData.inputDelay[0] = update.matchData.inputDelay[1] = room::MatchDelay(table);
 	update.authorityTerm = _recovery.Authority().term;
 	update.authorityRevision = _recovery.Authority().revision;
 	Respond(connection, json(update));

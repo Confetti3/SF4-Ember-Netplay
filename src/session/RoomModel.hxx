@@ -161,6 +161,13 @@ inline bool SeatEditable(const Table& table, int seat) {
 	return (table.phase == TablePhase::Idle || table.phase == TablePhase::Waiting) && !table.ready[seat];
 }
 
+// Both fighters play at the higher of their Ready delays. A fighter's delay
+// decides how much rollback the other side sees, so separate values gave the
+// lower-delay fighter an advantage. inputDelay keeps each fighter's own choice.
+inline std::uint8_t MatchDelay(const Table& table) {
+	return table.inputDelay[0] > table.inputDelay[1] ? table.inputDelay[0] : table.inputDelay[1];
+}
+
 struct ChatMessage {
 	std::uint64_t sequence = 0;
 	MemberId sender = 0;

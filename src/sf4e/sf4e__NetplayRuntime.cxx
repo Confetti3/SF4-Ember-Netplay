@@ -393,6 +393,8 @@ static void FillRoomView(RuntimeSnapshot& snapshot) {
                 snapshot.delayLocked=localMember->delayLocked || !room::SeatEditable(*table, localMember->seat) ||
                     !healthyControl || snapshot.session.readyPending;
                 snapshot.canProbe=!snapshot.delayLocked && table->p1 && table->p2;
+                const int otherSeat=localMember->seat ? 0 : 1;
+                snapshot.opponentDelay=table->ready[otherSeat] ? table->inputDelay[otherSeat] : -1;
                 if (runtime->room && UserApp::server) {
                     const auto opponent=localMember->seat ? table->p1 : table->p2;
                     const auto peer=UserApp::server->roomPeerIdentities.find(opponent);

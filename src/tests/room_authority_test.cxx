@@ -723,8 +723,38 @@ static void TestSpectatorDoesNotHoldTable() {
 	CHECK(!rejoin.accepted && rejoin.reason == RejectReason::TerminalLedgerFull);
 }
 
+static void TestReadyDelaysShareTheHigherValue() {
+	RoomAuthority authority("Delay", 4, 1);
+	Join(authority, 0, true);
+	const MemberId p1 = Join(authority, 1);
+	const MemberId p2 = Join(authority, 2);
+	for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	const auto ready = [&](MemberId member, std::uint8_t delay) {
+		Action action = TableAction(authority, member, 0, ActionKind::Ready);
+		action.inputDelay = delay;
+		CHECK(authority.Apply(member, action).accepted);
+	};
+	// Each fighter keeps their own choice; the match uses the higher one.
+	ready(p1, 1); ready(p2, 5);
+	const auto& first = authority.SnapshotView().tables[0];
+	CHECK(first.inputDelay[0] == 1 && first.inputDelay[1] == 5);
+	CHECK(MatchDelay(first) == 5);
+	CHECK(authority.BeginMatch(0, p1, p2).accepted);
+	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
+	CHECK(authority.EndMatch(0, generation, MatchResult::P1Win).accepted);
+	for (const auto member : authority.TerminalMembers(0, generation)) {
+		Action acknowledgment = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
+		acknowledgment.matchGeneration = generation;
+		CHECK(authority.Apply(member, acknowledgment).accepted);
+	}
+	// A rematch takes both fresh choices; the earlier higher value does not stick.
+	ready(p1, 4); ready(p2, 2);
+	CHECK(MatchDelay(authority.SnapshotView().tables[0]) == 4);
+}
+
 int main() {
     TestProfileMain();
+    TestReadyDelaysShareTheHigherValue();
 	RoomAuthority authority("Test room", 16, 77);
 	const MemberId host = Join(authority, 0, true);
 	const MemberId guest = Join(authority, 1);
