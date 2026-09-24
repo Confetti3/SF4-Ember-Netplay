@@ -23,6 +23,7 @@
 #include "sf4e__OverlayPrefs.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "../common/sf4e__PacingController.hxx"
+#include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../common/FrameShiftMailbox.hxx"
 #include "../common/EnvFlag.hxx"
 
@@ -115,9 +116,13 @@ struct LimiterTest {
 // until frame-time captures show a late wake never costs a frame. Otherwise,
 // or where that timer is missing (older Windows, some Wine builds), it returns
 // at once and the game's limiter spins the whole slack as before.
-void SleepBeforeLimiter(double ms) {
+bool LimiterSleepEnabled() {
     static const bool enabled = sf4e::EnvFlag("SF4E_LIMITER_SLEEP");
-    if (ms <= 0.0 || !enabled) return;
+    return enabled;
+}
+
+void SleepBeforeLimiter(double ms) {
+    if (ms <= 0.0 || !LimiterSleepEnabled()) return;
     thread_local HANDLE timer = CreateWaitableTimerExW(nullptr, nullptr,
         CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
     if (!timer) return;
@@ -125,6 +130,16 @@ void SleepBeforeLimiter(double ms) {
     due.QuadPart = -(LONGLONG)(ms * 10000.0); // relative, in 100 ns units
     if (SetWaitableTimer(timer, &due, 0, nullptr, nullptr, FALSE))
         WaitForSingleObject(timer, (DWORD)ms + 5);
+}
+
+// The counter frequency is fixed at boot, so it is read once.
+double QpcTickMs() {
+    static const double tickMs = [] {
+        LARGE_INTEGER frequency;
+        QueryPerformanceFrequency(&frequency);
+        return 1000.0 / (double)frequency.QuadPart;
+    }();
+    return tickMs;
 }
 
 LimiterTest& Test() {
@@ -166,16 +181,20 @@ int fD3D::LimitFrame(float frameDelta) {
     const float savedPeriod = *period;
     // The first call has no previous exit to measure from.
     const unsigned long long previousExit = *rD3D::GetLastLimiterExit(this);
-    if (savedPeriod <= 0.0f || previousExit == 0) {
+    // From here to the end of the game's spin is the frame's spare time.
+    sf4e::diag::ScopedTimer wait(sf4e::diag::OP_LIMITER_WAIT);
+    // With no shift to apply and no sleep, the frame is the game's own: skip
+    // the clock read, as before the mailbox.
+    const bool unshifted = shiftMs == 0.0 && !test.enabled;
+    if (savedPeriod <= 0.0f || previousExit == 0 || (unshifted && !LimiterSleepEnabled())) {
         return (this->*rD3D::privateMethods.LimitFrame)(frameDelta);
     }
-    LARGE_INTEGER now, frequency;
+    LARGE_INTEGER now;
     QueryPerformanceCounter(&now);
-    QueryPerformanceFrequency(&frequency);
-    const double tickMs = 1000.0 / (double)frequency.QuadPart;
+    const double tickMs = QpcTickMs();
     const double periodMs = savedPeriod * 1000.0;
     const double elapsedMs = (double)(long long)(now.QuadPart - previousExit) * tickMs;
-    if (shiftMs == 0.0 && !test.enabled) {
+    if (unshifted) {
         SleepBeforeLimiter(sf4e::pacing::LimiterSleepMs(periodMs, elapsedMs));
         return (this->*rD3D::privateMethods.LimitFrame)(frameDelta);
     }

@@ -78,6 +78,8 @@ const char* TimedOpName(int op) {
 	case OP_ROOM_COMMIT_SEND:       return "room.commit_send";
 	case OP_ROOM_COMPACT:           return "room.compact";
 	case OP_MATCH_LIFECYCLE:        return "match_lifecycle";
+	case OP_SOUND_SYNC:             return "sound_sync";
+	case OP_LIMITER_WAIT:           return "limiter_wait";
 	default:                        return "?";
 	}
 }
@@ -409,6 +411,8 @@ size_t RollbackDiagnostics::FormatSummary(char* buf, size_t cap, const char* lab
 		timesyncEvents, (unsigned long long)timesyncFramesTotal, timesyncMaxFrames);
 	AppendStatLine(buf, cap, &used, "timesync_sleep", ops[OP_TIMESYNC_SLEEP]);
 	AppendStatLine(buf, cap, &used, "pacing_wait", ops[OP_PACING_WAIT]);
+	// Near zero means the frame had no spare time before the limiter.
+	AppendStatLine(buf, cap, &used, "limiter_wait", ops[OP_LIMITER_WAIT]);
 
 	// -- Simulation hitches: cost of work inside an outer frame.
 	Append(buf, cap, &used, " simulation hitches:\n");
@@ -420,7 +424,7 @@ size_t RollbackDiagnostics::FormatSummary(char* buf, size_t cap, const char* lab
 		OP_RUNTIME_TICK, OP_ROOM_POLL, OP_ROOM_RECOVERY_TICK,
 		OP_ROOM_IMPORT_APPLY, OP_ROOM_IMPORT_REBIND, OP_ROOM_CHECKPOINT_BUILD,
 		OP_ROOM_BROADCAST, OP_ROOM_PROPOSE, OP_ROOM_ADVANCE, OP_ROOM_JOURNAL,
-		OP_ROOM_COMMIT_SEND, OP_ROOM_COMPACT, OP_MATCH_LIFECYCLE,
+		OP_ROOM_COMMIT_SEND, OP_ROOM_COMPACT, OP_MATCH_LIFECYCLE, OP_SOUND_SYNC,
 		OP_SAVE_TOTAL, OP_SAVE_RECORD_MEMENTOS, OP_SAVE_COPY_KEYS,
 		OP_SAVE_SOUND, OP_SAVE_GLOBALS, OP_SEMANTIC_HASH,
 		OP_LOAD_TOTAL, OP_LOAD_KEY_BACKUP, OP_LOAD_COPY_INTO_PLACE,

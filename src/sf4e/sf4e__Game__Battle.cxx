@@ -8,6 +8,7 @@
 #include "../Dimps/Dimps__Game__Battle.hxx"
 #include "../Dimps/Dimps__Math.hxx"
 #include "../common/SoundReconcile.hxx"
+#include "../common/sf4e__RollbackDiagnostics.hxx"
 
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__Game__Battle__Effect.hxx"
@@ -306,6 +307,7 @@ bool fSoundPlayerManager::DeferredSoundRequest::IsEqual(DeferredSoundRequest* lh
 }
 
 void fSoundPlayerManager::SyncState() {
+	sf4e::diag::ScopedTimer _syncTimer(sf4e::diag::OP_SOUND_SYNC);
 	for (auto managerIter = shadowManagerMap.begin(); managerIter != shadowManagerMap.end(); managerIter++) {
 		rSoundPlayerManager* stubManager = managerIter->first;
 		rSoundPlayerManager* realManager = managerIter->second;
