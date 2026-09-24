@@ -99,6 +99,19 @@ InstallLock Lock(const fs::path& install) {
     InstallLock lock; lock.path=install/LockName; lock.handle=CreateFileW(lock.path.c_str(),GENERIC_READ|GENERIC_WRITE,0,nullptr,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(lock.handle==INVALID_HANDLE_VALUE) throw std::runtime_error("Another Ember update or recovery is using this installation"); return lock;
 }
+// Once an install commits, older backup sets are no longer recovery evidence.
+// Keep only the current set rather than one more per update (ledger H-013).
+// Best effort: a cleanup failure must never turn a committed install into a
+// reported rollback.
+void PruneBackupSets(const fs::path& root, const fs::path& keep) noexcept {
+    try {
+        std::error_code error;
+        for (fs::directory_iterator entry(root, error), end; !error && entry != end; entry.increment(error)) {
+            std::error_code ignored;
+            if (PathKey(entry->path()) != PathKey(keep)) fs::remove_all(entry->path(), ignored);
+        }
+    } catch (...) {}
+}
 bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly) {
     const auto transactionPath=install/TransactionName;
     CheckPath(install,TransactionName);
@@ -229,13 +242,6 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         }
         for(const auto& item:target.items()) if(HashFile(install/fs::u8path(item.key()))!=item.value().get<std::string>()) throw std::runtime_error("Installed update verification failed");
         transaction["state"]="committed"; DurableJson(install/TransactionName,transaction); fs::remove(install/TransactionName);
-        // Committed: older backup sets are no longer recovery evidence. Keep
-        // only this install's set rather than one more per update (ledger
-        // H-013). A failed or invalid update never reaches this point.
-        std::error_code ignored;
-        for (const auto& entry : fs::directory_iterator(install/L".ember-update-backups",ignored))
-            if (PathKey(entry.path()) != PathKey(backup)) fs::remove_all(entry.path(),ignored);
-        error.clear(); return true;
     } catch (const std::exception& failure) {
         bool restored = true;
         std::string recoveryError;
@@ -243,5 +249,7 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         error = std::string(failure.what()) + (!prepared ? ". No new update was applied; preserve any pending recovery evidence." : restored ? ". Previous files restored." : ". Automatic restore incomplete; preserve the transaction and backup. " + recoveryError);
         return false;
     }
+    PruneBackupSets(install/L".ember-update-backups", backup);
+    error.clear(); return true;
 }
 } }
