@@ -4,6 +4,8 @@ Players on Linux (Proton or Wine) report jerky matches and rooms that break afte
 
 It is not SF4 gameplay evidence. The container had no Ultra Street Fighter IV, no GPU, no display with a real vblank and no direct route to the public Iroh relays. Everything below ran without the game.
 
+Two sets of Linux player logs then arrived, one including a v0.9.8-rc3 session and one from an earlier build. They show why rooms close, and the cause reproduces here without the game. See [Linux logs: rooms closing after a match (F-008)](#linux-logs-rooms-closing-after-a-match-f-008).
+
 ## Environment
 
 - Ubuntu 24.04 (4 vCPU VM), WineHQ `wine-stable` 11.0 in a 64-bit prefix. The 32-bit game side runs in WoW64.
@@ -24,7 +26,7 @@ It is not SF4 gameplay evidence. The container had no Ultra Street Fighter IV, n
 | Helper unit tests | 77 of 77 pass under Wine in 31 s. They include real QUIC and UDP on loopback: `fifty_match_generations_reuse_endpoints_and_close_each_mapping`, `raw_udp_survives_control_close_and_filters_stale_remote_and_local_packets`, `closing_room_does_not_poison_new_room_on_same_endpoint`, `actor_admits_full_sixteen_member_room_and_fifteen_game_links`, the Raft coordination suite and the named-pipe authentication tests. |
 | Helper process test | Two real helpers start, authenticate over their named pipes (server-PID check included) and report status. `Host` then fails with `host_unavailable`, because this sandbox returns 503 for direct HTTPS to `use1-1.relay.n0.iroh.link`. That is a sandbox network limit, not a Wine result. |
 | Port hand-off to GGPO | Reserve `127.0.0.1:0`, connect the bridge, release the port, then GGPO's `SO_REUSEADDR` bind to `INADDR_ANY` and deliver a packet: 500 of 500 succeed. |
-| Closed GGPO socket | A connected bridge socket reports `WSAECONNREFUSED` (10061) under Wine where Windows reports `WSAECONNRESET`. `bridge.rs` `local_unreachable` accepts both, so this does not end a game. An unconnected GGPO socket gets no ICMP error under Wine. |
+| Closed GGPO socket | A connected bridge socket reports `WSAECONNREFUSED` (10061) under Wine where Windows reports `WSAECONNRESET`. `bridge.rs` `local_unreachable` accepts both. An unconnected GGPO socket gets no ICMP error under Wine. The error code is harmless, but the async helper stalls on the connected socket; see F-008 below. |
 | Timers | QPC runs at 10 MHz. `Sleep(1)` takes 1.09 ms and `WaitForSingleObject(event, 2)` takes 2.17 ms (p99 below 2.5 ms), with or without `timeBeginPeriod(1)`. That is finer than the Windows default. |
 | Frame limiter | An emulation of the game's FIXED limiter (spin until one period after the previous exit) holds 16.667 ms at p50 and p95 over 600 frames. This holds idle, with a HelperClient-style 2 ms `PeekNamedPipe` poller, and with a D3D9 `Present` each frame. The worst frame was 19.6 ms, and no case had more than one frame over +2 ms. |
 | VSync override | With `D3DPRESENT_INTERVAL_IMMEDIATE` (what `fD3D::BuildPresentParameters` forces), DXVK selects `VK_PRESENT_MODE_IMMEDIATE_KHR`, and `Present` returns in about 0.03 ms. |
@@ -35,15 +37,44 @@ It is not SF4 gameplay evidence. The container had no Ultra Street Fighter IV, n
 2. **In-app updates cannot extract under Wine.** `github_release_client.cxx` runs `%SystemRoot%\System32\tar.exe`, which Wine 11 does not ship. The update was not run end to end here: the file's absence was confirmed, and the rest comes from reading the code. Linux players need to update by extracting a fresh package.
 3. **Each helper pipe poll is a wineserver round trip.** `PeekNamedPipe` costs about 120 µs per call under Wine. The HelperClient loop runs about 450 times per second while idle, and the Discord client runs a second loop. That is roughly 5% of a core spent in the wineserver shared by the game's threads. It caused no measurable limiter jitter here, but that was on an idle machine. The real game makes many more wineserver calls, so this remains a plausible contributor to jerkiness.
 
+## Linux logs: rooms closing after a match (F-008)
+
+Both log sets show the same failure. Of 11 online matches, 9 ended with `match_teardown_timeout` and the room closed. The two exceptions were followed by a rematch that then failed. The rc3 diagnostics pin down the moment:
+
+```
+23:10:51.654 Match result: native teardown outcome_emitted=true ...
+23:10:51.732 Room: end_match sent generation=1 peer=2caa12ec state=2
+23:11:19.710 Ready failed: ... The room did not finish the previous match in time.
+23:11:21.748 Match teardown: helper load samples=166 ... last_event=sent last_event_age_ms=30126
+23:11:21.748 Match teardown: link peer=2caa12ec slot=1 state=3 ...
+```
+
+The helper normally answers `end_match` at once with `game_closed`, without any network wait. Here the room received nothing from the helper at all after native GGPO released its socket: no `game_closed`, no error, and none of the once-a-second `helper_load` reports. In an older session the same moment instead ends 15 s later with `router_error: helper_unavailable`, which is `HelperClient`'s write timeout. The helper process was alive but no longer reading its pipe.
+
+**Cause.** At match end, native GGPO closes its loopback socket while the other fighter's GGPO is still sending. The helper keeps forwarding those packets to the closed port through its bridge socket, which was `connect()`ed to the GGPO port. Under Wine, a tokio `UdpSocket` connected to a closed loopback port stalls the whole runtime: one worker spins in wineserver calls, and timers, the IPC tasks and the stall watchdog all stop. Natively the same code only returns `ConnectionRefused`. A 30-line program using only tokio reproduces it under Wine 11 without Ember or iroh. The unconnected form, using `send_to`, `recv_from` and a source check, does not stall.
+
+**Fix.** `Bridge` now leaves its socket unconnected. It sends with `try_send_to` and rejects any datagram whose source is not the registered GGPO address, which the kernel did before. On Windows an unconnected socket still reports `WSAECONNRESET` after an ICMP error. That is already counted as a local drop.
+
+**Regression test.** `closed_ggpo_socket_with_peer_traffic_keeps_the_runtime_responsive` in `transport/tests.rs` runs two bridges over real QUIC on a two-worker runtime, the helper's configuration. It closes one GGPO socket while the peer keeps sending at 60 Hz, then requires timers and bridge shutdown to keep working. A plain-thread watchdog fails the test if the runtime stalls.
+
+| Build | Native Linux | Wine 11 |
+| --- | --- | --- |
+| Before the fix | passes | fails 3 of 3 (watchdog) |
+| After the fix | passes; full suite 75 of 75, clippy clean | passes 5 of 5 in 1.8 s; full suite 78 of 78 |
+
+The same `bridge.rs` change applied to the `v0.9.8-rc3` tree also passes 3 of 3 under Wine.
+
+**Jerky matches.** In these logs the jerkiness matches network distance, not a Wine timing fault. The matches in the second set ran at 95–360 ms round-trip ping with 2–3 frames of input delay. That gives 30–150 rollbacks per 15 s, up to 2–7 frames deep. Rift stayed mostly within ±1 frame and stalls were rare, so frame pacing kept up. A delay closer to the connection check's recommendation would reduce the visible corrections.
+
 ## Not established
 
-This check did not reproduce either reported symptom. The paths that differ in a real Linux session were not exercised:
+Real SF4 play under Wine has not been rerun with the fix. The paths that differ in a real Linux session were not exercised here:
 
 - The game's own frame loop, and DXVK shader compilation during a match. A stall of 3 s or more trips GGPO's disconnect timeout (the limit grows with input delay, see `sf4e__NetplayConfig.hxx`).
 - VSync on a real display. Xvfb has no vblank: VSync-on `Present` never blocked here apart from one 30 ms outlier. Under gamescope, Steam Deck or Wayland, or with `DXVK_FRAME_RATE` or `d3d9.presentInterval` set, `Present` can still wait for vblank. The limiter runs after `Present`, so a +3 ms pacing shift would then cost a whole refresh.
 - Public relays, two machines and Proton's Steam runtime.
 
-The next useful evidence is the complete `sf4e\logs` folder from a Linux player, taken right after a jerky match or a broken room. Search it for:
+The next useful evidence is logs from a Linux rematch on a build with the fix, which should no longer show `match_teardown_timeout`. For other problems, collect the complete `sf4e\logs` folder right after the problem and search it for:
 
 - `Display: VSync forced off`
 - `Pacing: limiter runs on thread`

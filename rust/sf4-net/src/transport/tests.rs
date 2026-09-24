@@ -538,3 +538,77 @@ async fn fifty_match_generations_reuse_endpoints_and_close_each_mapping() {
     .await
     .unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn closed_ggpo_socket_with_peer_traffic_keeps_the_runtime_responsive() {
+    // F-008. Native GGPO closes its loopback socket at match end while the
+    // other fighter is still sending. Under Wine a connected bridge socket then
+    // stalled every worker, so no timer below could fire. A plain thread
+    // bounds the test.
+    let finished = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let watchdog = finished.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(30));
+        if !watchdog.load(Ordering::Relaxed) {
+            eprintln!("helper runtime stalled after the GGPO socket closed");
+            std::process::exit(101);
+        }
+    });
+    let a = local_endpoint().await;
+    let b = local_endpoint().await;
+    let (game_a, game_b) = game_pair(&a, &b, 1).await;
+    let local_a = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
+    let local_b = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
+    let bridge_a = Bridge::bind(game_a, local_a.local_addr().unwrap())
+        .await
+        .unwrap();
+    let bridge_b = Bridge::bind(game_b, local_b.local_addr().unwrap())
+        .await
+        .unwrap();
+    let virtual_a = bridge_a.local_addr().unwrap();
+    let virtual_b = bridge_b.local_addr().unwrap();
+    let (stop, stop_rx) = watch::channel(false);
+    let a_task = tokio::spawn(bridge_a.run(stop_rx.clone()));
+    let b_task = tokio::spawn(bridge_b.run(stop_rx));
+    let (peer_stop, peer_stop_rx) = watch::channel(false);
+    let peer = tokio::spawn(async move {
+        let mut buffer = [0; 2048];
+        while !*peer_stop_rx.borrow() {
+            local_b.send_to(&[0x42; 200], virtual_b).await.unwrap();
+            let _ = timeout(Duration::from_millis(16), local_b.recv_from(&mut buffer)).await;
+        }
+    });
+    let mut buffer = [0; 2048];
+    for _ in 0..30 {
+        local_a.send_to(&[0x41; 200], virtual_a).await.unwrap();
+        timeout(Duration::from_secs(5), local_a.recv_from(&mut buffer))
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    drop(local_a);
+    let started = Instant::now();
+    for _ in 0..500 {
+        tokio::time::sleep(Duration::from_millis(2)).await;
+    }
+    assert!(started.elapsed() < Duration::from_secs(5));
+    stop.send(true).unwrap();
+    timeout(Duration::from_secs(5), a_task)
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    peer_stop.send(true).unwrap();
+    timeout(Duration::from_secs(5), peer)
+        .await
+        .unwrap()
+        .unwrap();
+    timeout(Duration::from_secs(5), b_task)
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    finished.store(true, Ordering::Relaxed);
+    a.close().await;
+    b.close().await;
+}
