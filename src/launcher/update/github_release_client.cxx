@@ -15,25 +15,48 @@ namespace launcher {
 		}
 
 		// Waits in short slices so a cancel (launcher closing) or a hung process
-		// cannot hold the update worker, and with it shutdown, forever.
+		// cannot hold the update worker, and with it shutdown, forever. The
+		// process runs in a kill-on-close job, so a cancel or timeout ends
+		// anything it started too (ledger A-013).
 		static bool RunProcessAndWaitHidden(const wchar_t* application, const wchar_t* cmdLine, DWORD* outExitCode,
 			const std::function<bool(std::uint64_t, std::uint64_t)>& progress) {
 			constexpr ULONGLONG kTimeoutMs = 5 * 60 * 1000;
+			HANDLE job = CreateJobObjectW(NULL, NULL);
+			JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits = {};
+			limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+			if (!job || !SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, sizeof(limits))) {
+				if (job) CloseHandle(job);
+				AppendUpdateLog("process job setup failed");
+				return false;
+			}
 			STARTUPINFOW si = { 0 };
 			PROCESS_INFORMATION pi = { 0 };
 			si.cb = sizeof(si);
 			wchar_t mutableCmd[4096] = { 0 };
 			wcsncpy_s(mutableCmd, cmdLine, _TRUNCATE);
-			if (!CreateProcessW(application, mutableCmd, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+			if (!CreateProcessW(application, mutableCmd, NULL, NULL, FALSE, CREATE_NO_WINDOW | CREATE_SUSPENDED,
+				NULL, NULL, &si, &pi)) {
+				CloseHandle(job);
 				return false;
 			}
+			if (!AssignProcessToJobObject(job, pi.hProcess)) {
+				AppendUpdateLog("process job assignment failed");
+				TerminateProcess(pi.hProcess, 1);
+				CloseHandle(pi.hProcess);
+				CloseHandle(pi.hThread);
+				CloseHandle(job);
+				return false;
+			}
+			ResumeThread(pi.hThread);
 			const ULONGLONG started = GetTickCount64();
+			bool stopped = false;
 			while (WaitForSingleObject(pi.hProcess, 250) == WAIT_TIMEOUT) {
 				const bool cancelled = progress && !progress(0, 0);
 				if (cancelled || GetTickCount64() - started > kTimeoutMs) {
 					AppendUpdateLog(cancelled ? "process cancelled" : "process timed out");
-					TerminateProcess(pi.hProcess, 1);
+					TerminateJobObject(job, 1);
 					WaitForSingleObject(pi.hProcess, 5000);
+					stopped = true;
 					break;
 				}
 			}
@@ -41,10 +64,32 @@ namespace launcher {
 			GetExitCodeProcess(pi.hProcess, &exitCode);
 			CloseHandle(pi.hProcess);
 			CloseHandle(pi.hThread);
+			CloseHandle(job);
 			if (outExitCode) {
-				*outExitCode = exitCode;
+				// A stopped process never counts as success, whatever it reported.
+				*outExitCode = stopped && exitCode == 0 ? 1 : exitCode;
 			}
 			return true;
+		}
+
+		// Removes staging left by earlier updates: other tags' extract folders,
+		// downloaded zips and the updater copies run from %TEMP%. Only items a
+		// day old are touched, so an update another Ember install is running
+		// right now keeps its files. Best effort; anything in use stays.
+		static void SweepStaleUpdateFiles(const wchar_t* tempBase, const wchar_t* currentRoot) {
+			std::error_code error;
+			const auto cutoff = std::filesystem::file_time_type::clock::now() - std::chrono::hours(24);
+			for (const auto& entry : std::filesystem::directory_iterator(tempBase, error)) {
+				const auto written = entry.last_write_time(error);
+				if (error || written > cutoff) { error.clear(); continue; }
+				const auto name = entry.path().filename().wstring();
+				const bool updateRoot = name.rfind(L"sf4-netplay-update-", 0) == 0 && entry.is_directory(error);
+				const bool updaterCopy = name.rfind(L"sf4e-updater-", 0) == 0 && entry.is_directory(error);
+				const bool packageZip = name.rfind(L"sf4-netplay-update-package-", 0) == 0 &&
+					entry.path().extension() == L".zip";
+				if (updateRoot && _wcsicmp(entry.path().c_str(), currentRoot) == 0) continue;
+				if (updateRoot || updaterCopy || packageZip) std::filesystem::remove_all(entry.path(), error);
+			}
 		}
 
 		static bool ExpandZipArchive(const wchar_t* zipPath, const wchar_t* destDir,
@@ -120,20 +165,11 @@ namespace launcher {
 			return true;
 		}
 
-		static bool SpawnUpdater(const wchar_t* installDir, const wchar_t* stagingDir, DWORD waitPid) {
+		static bool SpawnUpdater(const wchar_t* installDir, const wchar_t* stagingDir, const wchar_t* params) {
 			wchar_t updaterPath[MAX_PATH] = { 0 };
 			if (!StageUpdaterOutsideInstall(installDir, stagingDir, updaterPath, MAX_PATH)) {
 				return false;
 			}
-
-			wchar_t params[4096] = { 0 };
-			swprintf_s(
-				params,
-				L"-InstallDir \"%s\" -StagingDir \"%s\" -WaitPid %lu",
-				installDir,
-				stagingDir,
-				waitPid
-			);
 
 			char paramsUtf8[4096] = { 0 };
 			WidePathToUtf8(params, paramsUtf8, sizeof(paramsUtf8));
@@ -314,6 +350,20 @@ namespace launcher {
 			return false;
 		}
 		return sf4e::install::GetInstallRoot(outDir, outDirChars);
+	}
+
+	PendingRecovery StartPendingUpdateRecovery(std::uint32_t waitPid) {
+		wchar_t installDir[MAX_PATH] = { 0 };
+		if (!GetLauncherInstallDir(installDir, MAX_PATH)) return PendingRecovery::None;
+		std::error_code error;
+		if (!std::filesystem::exists(std::filesystem::path(installDir) / UpdateTransactionName, error))
+			return error ? PendingRecovery::Failed : PendingRecovery::None;
+		AppendUpdateLog("pending update transaction found at launch; starting recovery");
+		wchar_t params[4096] = { 0 };
+		swprintf_s(params, L"-InstallDir \"%s\" -RecoverOnly -WaitPid %lu", installDir, static_cast<unsigned long>(waitPid));
+		// The installed Updater may itself be part of the unfinished
+		// transaction, so it runs from a copy outside the install as usual.
+		return SpawnUpdater(installDir, installDir, params) ? PendingRecovery::Started : PendingRecovery::Failed;
 	}
 
 	bool ReadInstalledVersion(char* outVersion, int outVersionLen) {
@@ -548,8 +598,20 @@ namespace launcher {
 		WidePathToUtf8(zipPath, zipPathUtf8, sizeof(zipPathUtf8));
 		AppendUpdateLog(("update zip path: " + std::string(zipPathUtf8)).c_str());
 
+		SweepStaleUpdateFiles(tempBase, tempRoot);
 		wchar_t extractDir[MAX_PATH] = { 0 };
 		PathCchCombine(extractDir, MAX_PATH, tempRoot, L"extract");
+		// Start from an empty folder: a half-finished earlier extraction of the
+		// same tag must not leave files in the staged package.
+		{
+			std::error_code error;
+			std::filesystem::remove_all(extractDir, error);
+			if (error) {
+				AppendUpdateLog(("update extract cleanup failed: " + error.message()).c_str());
+				result.error = loc::Tf("update.extract_folder_failed", error.message());
+				return result;
+			}
+		}
 		if (!EnsureDirectoryExistsW(extractDir, tempPathError)) {
 			AppendUpdateLog(("update extract mkdir failed: " + tempPathError).c_str());
 			result.error = loc::Tf("update.extract_folder_failed", tempPathError);
@@ -595,8 +657,12 @@ namespace launcher {
 			result.error = loc::T("update.no_digest"); return result;
 		}
 
-		if (!ExpandZipArchive(zipPath, extractDir, progress)) {
+		const bool extracted = ExpandZipArchive(zipPath, extractDir, progress);
+		DeleteFileW(zipPath);
+		if (!extracted) {
 			AppendUpdateLog("extract failed");
+			std::error_code ignored;
+			std::filesystem::remove_all(extractDir, ignored);
 			result.error = loc::T("update.extract_failed");
 			return result;
 		}
@@ -631,7 +697,10 @@ namespace launcher {
 
         if (progress && !progress(0,0)) { result.error = loc::T("update.cancelled"); return result; }
         if (IsGameProcessRunning()) { result.error = loc::T("update.close_game"); return result; }
-        if (!SpawnUpdater(installDir, stagingDir, GetCurrentProcessId())) {
+		wchar_t updaterParams[4096] = { 0 };
+		swprintf_s(updaterParams, L"-InstallDir \"%s\" -StagingDir \"%s\" -WaitPid %lu",
+			installDir, stagingDir, GetCurrentProcessId());
+        if (!SpawnUpdater(installDir, stagingDir, updaterParams)) {
 			result.error = loc::T("update.updater_start_failed");
 			return result;
 		}

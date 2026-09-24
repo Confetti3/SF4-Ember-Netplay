@@ -135,6 +135,12 @@ int main() try {
         "Recommended delay was not read-only");
     Check(row("selected-delay").enabled && row("selected-delay").value == "2",
         "Selected delay was not adjustable");
+    Check(row("match-delay").value == "At least 2 frames" && !row("match-delay").adjustable,
+        "Match delay did not wait for the opponent's Ready choice");
+    view.opponentDelay = 5; frame();
+    Check(row("match-delay").value == "5 frames" && row("match-delay").detail.find("opponent chose 5") != std::string::npos,
+        "Match delay did not show the higher of both choices");
+    view.opponentDelay = -1; frame();
     Check(row("check-connection").enabled && row("apply-recommendation").enabled,
         "Delay actions were not available");
     focus("check-connection"); press(MenuInput::Select);

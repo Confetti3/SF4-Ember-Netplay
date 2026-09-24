@@ -266,10 +266,10 @@ void from_json(const nlohmann::json& json, Member& value) {
     if (!value.incarnation) throw std::invalid_argument("room member incarnation");
     value.fighter=json.contains("fighter")?ReadInt(json,"fighter",-1,43):-1;
     value.mainFighter=json.contains("main_fighter")?ReadInt(json,"main_fighter",-1,43):-1;
-    value.selectedDelay=json.contains("selected_delay")?static_cast<std::uint8_t>(ReadInt(json,"selected_delay",0,10)):2;
-    value.frozenDelay=json.contains("frozen_delay")?static_cast<std::uint8_t>(ReadInt(json,"frozen_delay",0,10)):value.selectedDelay;
+    value.selectedDelay=json.contains("selected_delay")?static_cast<std::uint8_t>(ReadInt(json,"selected_delay",0,MaximumInputDelay)):2;
+    value.frozenDelay=json.contains("frozen_delay")?static_cast<std::uint8_t>(ReadInt(json,"frozen_delay",0,MaximumInputDelay)):value.selectedDelay;
     value.delayLocked=json.contains("delay_locked")?json.at("delay_locked").get<bool>():false;
-    if (value.delayLocked && value.frozenDelay > 10) throw std::invalid_argument("room delay bounds");
+    if (value.delayLocked && value.frozenDelay > MaximumInputDelay) throw std::invalid_argument("room delay bounds");
 }
 void to_json(nlohmann::json& json, const Table& value) { json = nlohmann::json{{"id", value.id}, {"rules", value.rules}, {"phase", static_cast<int>(value.phase)}, {"revision", value.revision}, {"match_generation", value.matchGeneration}, {"p1", value.p1}, {"p2", value.p2}, {"queue", value.queue}, {"spectators", value.spectators}, {"watching_next", value.watchingNext}, {"ready", {value.ready[0], value.ready[1]}}, {"input_delay", {value.inputDelay[0], value.inputDelay[1]}}, {"score", {value.score[0], value.score[1]}}, {"result_pending", value.resultPending}}; }
 void from_json(const nlohmann::json& json, Table& value) {
@@ -288,9 +288,9 @@ void from_json(const nlohmann::json& json, Table& value) {
 		const auto delay = json.at("input_delay");
 		if (!delay.is_array() || delay.size() != 2 || !delay.at(0).is_number_integer() || !delay.at(1).is_number_integer()) throw std::invalid_argument("room input delay");
 		const auto first = delay.at(0).get<long long>();
-		if (first < 0 || first > 10) throw std::out_of_range("room input delay");
+		if (first < 0 || first > MaximumInputDelay) throw std::out_of_range("room input delay");
 		value.inputDelay[0] = static_cast<std::uint8_t>(first);
-		const auto second = delay.at(1).get<long long>(); if (second < 0 || second > 10) throw std::out_of_range("room input delay");
+		const auto second = delay.at(1).get<long long>(); if (second < 0 || second > MaximumInputDelay) throw std::out_of_range("room input delay");
 		value.inputDelay[1] = static_cast<std::uint8_t>(second);
 	}
 	const auto score = json.at("score"); if (!score.is_array() || score.size() != 2) throw std::invalid_argument("room score");

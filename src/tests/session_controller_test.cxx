@@ -50,8 +50,46 @@ static void StartMatch(SessionController& controller) {
     CHECK(EventNow(controller, EventKind::MatchStarted).accepted);
 }
 
+// A room that is still being created or joined has no control to recover.
+// Its forming coordination stream must not show the recovery banner or,
+// 15 seconds later, offer to replace a room that was never joined.
+static void TestOpeningIsNotRecovery() {
+    SessionController joining;
+    CHECK(CommandNow(joining, CommandKind::JoinInvite, "sf4e3:invite").accepted);
+    CHECK(joining.ObserveCoordination(1, 1, false, 100));
+    CHECK(joining.GetSnapshot().recovery == Recovery::None);
+    CHECK(joining.GetSnapshot().control == Health::Connecting);
+    CHECK(joining.GetSnapshot().error.empty());
+    CHECK(!joining.GetSnapshot().authorityWritable);
+    CHECK(joining.ObserveCoordination(1, 1, false, 20000));
+    joining.AdvanceRecovery(20000);
+    CHECK(joining.GetSnapshot().recovery == Recovery::None);
+    CHECK(!CommandNow(joining, CommandKind::ReplaceRoom).accepted);
+    // A long wait is named, not ended: a slow relay can still finish.
+    CHECK(joining.ObserveCoordination(1, 1, false, 100 + SessionController::OpeningStallMs - 1));
+    CHECK(!joining.GetSnapshot().openingStalled);
+    CHECK(joining.ObserveCoordination(1, 1, false, 100 + SessionController::OpeningStallMs));
+    CHECK(joining.GetSnapshot().openingStalled && joining.GetSnapshot().room == RoomState::Opening);
+    CHECK(joining.GetSnapshot().recovery == Recovery::None && joining.GetSnapshot().error.empty());
+    CHECK(!joining.ControlPlaneEstablished());
+    // Stopping the join still works while the stream forms.
+    CHECK(CommandNow(joining, CommandKind::LeaveRoom).accepted);
+
+    // Once joined, the same loss is a real outage and recovers as before.
+    SessionController joined;
+    CHECK(CommandNow(joined, CommandKind::JoinInvite, "sf4e3:invite").accepted);
+    CHECK(joined.ObserveCoordination(1, 1, true, 100));
+    CHECK(EventNow(joined, EventKind::RoomJoined).accepted);
+    CHECK(joined.ObserveCoordination(1, 1, false, 1000));
+    CHECK(joined.ControlPlaneEstablished() && !joined.GetSnapshot().openingStalled);
+    CHECK(joined.GetSnapshot().recovery == Recovery::Recovering);
+    CHECK(joined.GetSnapshot().control == Health::Lost);
+    CHECK(!joined.GetSnapshot().error.empty());
+}
+
 int main() {
     TestMatchEndedFromPreparing();
+    TestOpeningIsNotRecovery();
     // Ordinary checkpoint delivery can trail the healthy coordination watch.
     // It pauses mutation, but must not announce a lost connection or erase Ready.
     SessionController syncing;
@@ -260,11 +298,36 @@ int main() {
         CHECK(stalled.GetSnapshot().recovery == Recovery::None);
         CHECK(stalled.GetSnapshot().error.empty());
         CHECK(!CommandNow(stalled, CommandKind::RoomAction).accepted);
+        // H-006: the runtime can tell a fenced refusal from any other, so it
+        // parks or reports it instead of dropping it silently.
+        {
+            Command fenced;
+            fenced.generation = stalled.GetSnapshot().generation;
+            for (CommandKind kind : {CommandKind::RoomAction, CommandKind::SetLobbySettings, CommandKind::ApplyDelay,
+                     CommandKind::CheckConnection, CommandKind::Ready, CommandKind::Rematch}) {
+                fenced.kind = kind;
+                CHECK(stalled.FencedOut(fenced));
+                const auto decision = stalled.Execute(fenced);
+                CHECK(!decision.accepted && decision.refusal == Refusal::Fenced);
+            }
+            fenced.kind = CommandKind::LeaveRoom;
+            CHECK(!stalled.FencedOut(fenced));
+            fenced.kind = CommandKind::SetLobbySettings;
+            fenced.generation.match++;
+            CHECK(!stalled.FencedOut(fenced));
+            CHECK(stalled.Execute(fenced).refusal == Refusal::Rejected);
+        }
 
         // Catching up clears the stall without leaving residue.
         CHECK(stalled.ObserveCoordination(1, 3, true, 2000));
         CHECK(stalled.GetSnapshot().authorityWritable);
         CHECK(stalled.GetSnapshot().authorityStalledMs == 0);
+        {
+            Command writable;
+            writable.kind = CommandKind::SetLobbySettings;
+            writable.generation = stalled.GetSnapshot().generation;
+            CHECK(!stalled.FencedOut(writable));
+        }
 
         // A stall that persists is named at ten seconds...
         CHECK(stalled.ObserveCoordination(1, 4, true, 3000, false));

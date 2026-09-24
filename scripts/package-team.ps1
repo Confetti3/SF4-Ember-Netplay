@@ -69,7 +69,7 @@ $manifest = Get-ChildItem -LiteralPath $destination -File -Recurse | Sort-Object
     '{0}  {1}' -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.FullName.Substring($destination.Length + 1)
 }
 Set-Content -LiteralPath (Join-Path $destination 'MANIFEST.txt') -Encoding UTF8 -Value $manifest
-& (Join-Path $PSScriptRoot 'tester-preflight.ps1') -PackageDir $destination
+& (Join-Path $PSScriptRoot 'tester-preflight.ps1') -PackageDir $destination -Strict
 if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "Package preflight failed" }
 $validator = @((Join-Path $BuildDir 'PackageInstallerTest.exe'), (Join-Path $BuildDir 'candidate/PackageInstallerTest.exe')) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 if (!$validator) { throw 'Build PackageInstallerTest before packaging so the native update inventory can validate the output.' }

@@ -1,18 +1,25 @@
 # Private custom rooms
 
-A room supports 16 members and four independent versus tables. A member can
+A room supports up to 16 members and four independent versus tables. A member can
 play or watch one table at a time, or remain idle after joining. Each table can
-hold two fighters and up to 14 spectators. Everyone must use a compatible
-launcher and sidecar build.
+hold two fighters and up to 14 spectators. Everyone must use the same Ember
+release.
 
 ## Open a room
 
-1. Start the game through the launcher and wait for networking to become ready.
-2. At the main menu, open **Host room**, choose the room name, capacity, and
-   default battle rules, then create the room.
+1. Start the game through the launcher, wait for networking to become ready,
+   and assign your gameplay controller.
+2. At the main menu, open **Online Play > Create Room**, choose the room name,
+   capacity, and default battle rules, then select **Create Room** again.
 3. Use **Copy invitation** to share the private invitation with your players.
-4. Guests open **Join room** and paste the invitation. Joining a room leaves
-   them idle until they explicitly choose a table and queue or watch.
+4. Guests open **Online Play > Join Room**, select **Paste Invitation**, then
+   **Join Room**. Joining a room leaves them idle until they explicitly choose a
+   table and queue or watch.
+
+While the room opens, the row reads **Stop creating** or **Stop joining**. If
+it has not opened after about 30 seconds, Ember says so; check your connection,
+or stop and try again. A room that is still opening is not in recovery and
+offers no Replace room.
 
 The host manages the room independently of the P1 seat. The host may stay idle,
 play at any table, or watch.
@@ -30,6 +37,12 @@ recommendation** copies a valid recommendation into your selection. You can
 also adjust Selected delay from zero to ten and Ready without a usable probe.
 Ready locks your own delay for that game; Unready unlocks it. A route change or
 a new recommendation never changes delay during a fight.
+
+Both fighters play each game at the higher of their two Ready delays. A
+fighter's delay decides how much rollback the other fighter sees, so separate
+values favored the fighter who chose less. **Match delay** shows the value in
+use; before your opponent readies it shows "At least" your own choice. Each
+fighter's own Selected delay is kept for the next game.
 
 Advice requires at least 80 valid replies out of 100 probes from the current
 connection and path. It estimates one-way latency as half of the measured 95th
@@ -66,7 +79,7 @@ table's battle rules, and kick members. Capacity cannot be reduced below current
 membership. A kicked peer cannot rejoin the same room under another name.
 
 Room chat retains the latest 100 messages, with a limit of 256 UTF-8 bytes per
-message. A member's messages are removed when they leave the room. **Mute chat** hides a member's messages locally.
+message. A member's messages are removed when they leave the room. **Mute member** hides that member's messages on your screen only.
 
 Both fighters report the game's native outcome. A win is counted only when the
 reports agree. Conflicting reports, or missing reports after the result deadline,
@@ -104,7 +117,6 @@ references and expired invitations are rejected.
 ## Validation status
 
 See [CUSTOM_ROOMS_STATUS.md](../validation/CUSTOM_ROOMS_STATUS.md) for the exact build and test
-evidence. Recovery is being validated in the designated integration candidate;
-the preserved September 8 package does not contain these changes. Local
+evidence. Local
 component and synthetic helper tests do not establish native gameplay,
 multi-machine acceptance, or installation acceptance.

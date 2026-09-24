@@ -462,7 +462,7 @@ void fSystem::PollMatchTelemetry() {
     matchTelemetry.spectator = localPlayerHandle == GGPO_INVALID_HANDLE;
     if (!matchTelemetry.PollDue(now)) return;
     GGPONetworkStats stats{};
-    matchTelemetry.Sample(now, GetRemoteNetworkStats(stats) ? stats.network.ping : -1);
+    matchTelemetry.Sample(now, !simGate.connectionWarningActive && GetRemoteNetworkStats(stats) ? stats.network.ping : -1);
 }
 
 bool fSystem::GetRemoteNetworkStats(GGPONetworkStats& stats) {
@@ -589,7 +589,12 @@ bool fSystem::ggpo_load_game_state_callback(unsigned char* buffer, int len)
     ++s_window.rollbacks;
     s_window.depth = 0;
     SaveState* state = (SaveState*)buffer;
-    SaveState::Load(state);
+    if (!SaveState::Load(state)) {
+        // The engine now holds a partly restored timeline; re-simulating
+        // from it would desync, so end the match instead (ledger A-001).
+        AbortGgpoMatch(sf4e::loc::T("runtime.rollback_unsupported_state"));
+        return false;
+    }
     return true;
 }
 
@@ -619,10 +624,8 @@ bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, in
             continue;
         }
 
-        sf4e::Eva::TaskCore::recordFailed = false;
-        SaveState::Save(&saveStates[i]);
-        if (sf4e::Eva::TaskCore::recordFailed) {
-            // The slot is filled but incomplete; GGPO may never load it.
+        if (!SaveState::Save(&saveStates[i])) {
+            // Save released the incomplete slot; GGPO must never load it.
             *buffer = nullptr;
             AbortGgpoMatch(sf4e::loc::T("runtime.rollback_unsupported_state"));
             return false;

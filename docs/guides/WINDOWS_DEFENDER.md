@@ -10,8 +10,8 @@ We do **not** recommend weakening Windows Defender (folder exclusions, disabling
 
 ## What to do if Defender blocks install (unsigned build)
 
-1. Download only from [GitHub Releases](https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest) (currently **v0.8.0**).
-2. Compare SHA256 hashes with the release page (see below).
+1. Download only from [GitHub Releases](https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest).
+2. Compare the ZIP's SHA-256 with the `.sha256` file published beside it, then run `preflight.cmd`, which checks every extracted file against `MANIFEST.txt`.
 3. If you believe the detection is wrong, report it to Microsoft at [file submission](https://www.microsoft.com/en-us/wdsi/filesubmission) (**Incorrectly detected as malware** → `Program:Win32/Wacapew.A!ml`).
 4. Wait for a **signed** release (see [`docs/development/CODE_SIGNING.md`](../development/CODE_SIGNING.md)) — that is what we ship as the permanent fix.
 
@@ -35,7 +35,7 @@ Signed releases show a verified publisher and build SmartScreen/Defender trust o
 | **Networking** | Online play | Extra scrutiny |
 | **No signature (yet)** | Indie OSS | Low reputation score |
 
-The injection code in [`src/sidecar/sidecar.cxx`](../../src/sidecar/sidecar.cxx) is unchanged since **v0.3.1**; newer versions added netplay transport and PE version metadata, not a different hook mechanism. Different release builds can have different `Sidecar.dll` SHA256 hashes from rebuilds and VERSIONINFO — that does not mean the hook behavior changed.
+The injection code in [`src/sidecar/sidecar.cxx`](../../src/sidecar/sidecar.cxx) has kept the same hook mechanism since **v0.3.1**; later versions added netplay transport, PE version metadata and validation of the launcher's payload, not a different hook mechanism. Different release builds can have different `Sidecar.dll` SHA256 hashes from rebuilds and VERSIONINFO — that does not mean the hook behavior changed.
 
 Source: [github.com/Confetti3/SF4-Ember-Netplay](https://github.com/Confetti3/SF4-Ember-Netplay)
 
@@ -45,11 +45,11 @@ Source: [github.com/Confetti3/SF4-Ember-Netplay](https://github.com/Confetti3/SF
 Get-FileHash Launcher.exe, Sidecar.dll, sf4-net.exe -Algorithm SHA256 | Format-Table
 ```
 
-Compare with hashes on the GitHub release page.
+Compare with the matching lines in the package's `MANIFEST.txt`, or run `preflight.cmd` to check them all.
 
 ## Maintainer checklist each release
 
 1. Run `scripts/prepare-defender-submission.ps1` and submit `Launcher.exe`, `Sidecar.dll`, and `sf4-net.exe` at [Microsoft file submission](https://www.microsoft.com/en-us/wdsi/filesubmission) (**Incorrectly detected** → `Wacapew.A!ml`).
 2. Ship **signed** binaries when SignPath/Azure is configured (`docs/development/CODE_SIGNING.md`).
-3. Post SHA256 hashes in release notes.
-4. Promote a release to **Latest** only after Authenticode signatures validate.
+3. Publish the ZIP's `.sha256` beside it.
+4. Once signing is configured, promote a release to **Latest** only after Authenticode signatures validate.

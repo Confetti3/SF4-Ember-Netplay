@@ -31,6 +31,9 @@ public:
 	std::size_t LocalSlot() const { return slot_; }
 	const std::vector<SessionProtocol::ConnectionID>& Roster() const { return roster_; }
 	const std::string& Error() const { return error_; }
+	// The last failure of the current generation. Unlike Error() it survives
+	// Abort(), so the lifecycle trace can still name it (ledger N-005).
+	const std::string& LastFailure() const { return lastFailure_; }
 	// True only after native socket ownership and every locally prepared helper
 	// mapping for this accepted generation have retired. Room authority state is
 	// deliberately excluded because replacement is offered when it is unavailable.
@@ -68,7 +71,7 @@ private:
 	std::size_t slot_ = 0;
 	std::vector<SessionProtocol::ConnectionID> roster_;
 	std::vector<Link> links_;
-	std::string error_;
+	std::string error_, lastFailure_;
 	nlohmann::json pendingGrant_;
 	std::uint64_t pendingGrantTerm_ = 0;
 	bool waitingForProjection_ = false;

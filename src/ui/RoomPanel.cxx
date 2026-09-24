@@ -204,14 +204,21 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     t.phase==TablePhase::Playing&&!finishedGame?"room.match_in_progress":
     v.session.match==netplay::MatchState::PostMatch?"room.ready_rematch":"room.ready_up"),readyDetail,canUnready||readyable));
     const bool delayEditable=mutableRoom&&!active&&!v.delayLocked;
-    const int selectedDelay=(std::max)(0,(std::min)(10,v.selectedDelay));
-    const bool recommended=v.recommendedDelay>=0&&v.recommendedDelay<=10;
+    const int selectedDelay=(std::max)(0,(std::min)(MaximumInputDelay,v.selectedDelay));
+    const bool recommended=v.recommendedDelay>=0&&v.recommendedDelay<=MaximumInputDelay;
     const auto check=DescribeConnectionCheck(v);
-    auto recommendedRow=Value("recommended-delay",loc::T("room.recommended_delay"),check.value,check.detail,false);
-    recommendedRow.adjustable=false;rows.push_back(std::move(recommendedRow));
+    rows.push_back(ReadOnlyValue("recommended-delay",loc::T("room.recommended_delay"),check.value,check.detail));
     rows.push_back(Value("selected-delay",loc::T("room.selected_delay"),std::to_string(selectedDelay),
      delayEditable?loc::T("room.selected_delay.detail"):
       (v.delayLocked?loc::T("room.selected_delay.locked"):reason),delayEditable));
+    if(t.p1&&t.p2) {
+     const bool opponentReady=v.opponentDelay>=0&&v.opponentDelay<=MaximumInputDelay;
+     rows.push_back(ReadOnlyValue("match-delay",loc::T("room.match_delay"),
+      opponentReady?loc::Tf("connection.frames",room::MatchDelay(selectedDelay,v.opponentDelay)):
+       loc::Tf("room.match_delay.at_least",selectedDelay),
+      opponentReady?loc::Tf("room.match_delay.detail",selectedDelay,v.opponentDelay):
+       std::string(loc::T("room.match_delay.pending"))));
+    }
     rows.push_back(Row("check-connection",check.action,check.checking?check.detail:
      !mutableRoom?reason:!t.p1||!t.p2?loc::T("room.check_connection.two_players"):
      ready?loc::T("room.check_connection.unready"):
@@ -351,12 +358,16 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   // between the two sides grows to fit however long the rematch run gets.
   const std::string middle=t.p1&&t.p2?SetScoreText(t.score):"VS";
   const float gap=(std::max)(34*s,ImGui::GetFont()->CalcTextSizeA(16*s,FLT_MAX,0,middle.c_str()).x+12*s);
-  const float top=p.y+28*s,portrait=(std::min)(56*s,h-52*s),half=(width-24*s-gap)*.5f;
+  // Portraits sit on the card's outer edges, mirrored, so neither crowds the
+  // score. The row fills and centres in the band between header and footer.
+  const float band=h-54*s,portrait=(std::min)(96*s,band),half=(width-24*s-gap)*.5f;
+  const float top=p.y+28*s+(band-portrait)*.5f+portrait*.5f-20*s;
   const room::MemberId ids[]={t.p1,t.p2};
   for(int side=0;side<2;++side){
    const float x=p.x+12*s+side*(half+gap);const auto* m=Member(v.room,ids[side]);const int id=fighter(m);
-   if(m)DrawCharacterPortrait(id,ImVec2(x,top),ImVec2(x+portrait,top+portrait));
-   const float tx=x+(m?portrait+8*s:0),tw=half-(m?portrait+8*s:0);
+   const float px=side?x+half-portrait:x,py=p.y+28*s+(band-portrait)*.5f;
+   if(m)DrawCharacterPortrait(id,ImVec2(px,py),ImVec2(px+portrait,py+portrait));
+   const float tx=x+(m&&!side?portrait+8*s:0),tw=half-(m?portrait+8*s:0);
    // Names of different lengths read ragged when flush left; centre each
    // in its own slot so the pair stays symmetric about VS.
    text(ImVec2(tx,top+2*s),tw,m?m->name:loc::T("room.looking_for_fight"),16*s,m?palette::Ivory:palette::Muted,true);

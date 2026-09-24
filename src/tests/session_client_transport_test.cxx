@@ -25,9 +25,29 @@ static void TestFailedRoomCanLeaveAfterNativeTeardown() {
 	CHECK(!room.CloseFailedRoom(false));
 }
 
+// A refused join is kept as this connection's answer and cleared by the next
+// connection, so a later transport failure is not mistaken for a refusal.
+static void TestJoinRejectionBelongsToOneConnection() {
+	SessionClient::Callbacks callbacks = {};
+	callbacks.OnError = [](SessionClient::ErrorType, SessionClient*, const SessionClient::Callbacks&) {};
+	std::string name = "Player";
+	SessionClient client(callbacks, "build", 30000, name);
+	auto* transport = new MockClient();
+	CHECK(client.Connect(std::unique_ptr<session::ClientTransport>(transport), false) == 0);
+	transport->state = session::ConnectionState::Connected;
+	CHECK(client.Step() == 0 && !client.JoinRejection());
+	protocol::SessionJoinReject reject; reject.result = protocol::JR_NAME_TAKEN;
+	transport->Push(json(reject));
+	CHECK(client.Step() < 0);
+	CHECK(client.JoinRejection() == SessionClient::ErrorType::SCE_JOIN_REJECTED_NAME_TAKEN);
+	CHECK(client.Connect(std::unique_ptr<session::ClientTransport>(new MockClient()), false) == 0);
+	CHECK(!client.JoinRejection());
+}
+
 struct Observer { int ready = 0, synced = 0, error = 0; };
 int main() {
 	TestFailedRoomCanLeaveAfterNativeTeardown();
+	TestJoinRejectionBelongsToOneConnection();
 	Observer observer;
 	SessionClient::Callbacks callbacks = {};
 	callbacks.data = &observer;

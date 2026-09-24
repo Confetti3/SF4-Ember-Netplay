@@ -94,6 +94,10 @@ enum TimedOp {
 	OP_ROOM_COMPACT,               // ApplyCommit: CompactEffectJournal over the committed history
 	OP_MATCH_LIFECYCLE,            // match session tick / GGPO start and abort
 
+	// Per-frame work outside the rollback callback.
+	OP_SOUND_SYNC,                 // fSoundPlayerManager::SyncState
+	OP_LIMITER_WAIT,               // the game's frame limiter: spare frame time, plus any pacing shift
+
 	OP_COUNT
 };
 

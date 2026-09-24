@@ -1,4 +1,6 @@
 #include "IrohRoom.hxx"
+#include <spdlog/spdlog.h>
+#include "../common/InputDelay.hxx"
 #include "RoomMessageQueue.hxx"
 #include "sf4e__SessionProtocol.hxx"
 #include "../common/RoomLimits.hxx"
@@ -9,11 +11,9 @@
 #include <limits>
 
 namespace sf4e { namespace session {
-// Bound on waiting for the helper to confirm a departure before the room is
-// released locally. Generous for a normal confirm, short enough not to read
-// as a hang behind the "Leaving room..." status.
-static const std::uint64_t kLeaveTimeoutMs = 8000;
 using nlohmann::json;
+// Short, log-safe form of an endpoint identity.
+static std::string PeerTag(const std::string& peer) { return peer.substr(0, 8); }
 namespace {
 constexpr std::size_t MaximumQueuedMessages = 64;
 constexpr std::size_t MaximumQueuedBytes = 4 * 1024 * 1024;
@@ -125,7 +125,7 @@ void IrohRoom::Leave(bool abandon) {
     }
     leaveAbandon_=abandon;
 	state_ = State::Closing;
-    leaveDeadline_ = GetTickCount64() + kLeaveTimeoutMs;
+    leaveDeadline_ = GetTickCount64() + LeaveTimeoutMs;
 
 	localOpen_ = false;
 	invitation_.clear(); discordInvitation_.clear();
@@ -207,6 +207,9 @@ bool IrohRoom::EndMatch(std::uint64_t generation) {
 	}
 	for (const auto& game : games_) if (game.second.generation != generation) return false;
 	if (!Command(json{{"type", "end_match"}, {"epoch", epoch_}, {"generation", generation}}.dump())) return false;
+	for (const auto& game : games_)
+		spdlog::info("Room: end_match sent generation={} peer={} state={}", generation, PeerTag(game.first),
+			static_cast<int>(game.second.state));
 	closedGeneration_ = generation;
 	for (auto& game : games_) {
 		if (game.second.state != GameState::Closed) game.second.state = GameState::Closing;
@@ -235,8 +238,15 @@ void IrohRoom::GameSnapshot::ObserveStatistics(const json& event) {
 
 bool IrohRoom::ConsumeGameEvent(const json& event, const std::string& type) {
 	if (type != "game_waiting" && type != "game_ready" && type != "game_closed" && type != "statistics" && type != "game_failed") return false;
-	const auto game = games_.find(event.at("peer").get<std::string>());
-	if (game == games_.end() || event.at("generation").get<std::uint64_t>() != game->second.generation) return true;
+	const auto peer = event.at("peer").get<std::string>();
+	const auto generation = event.at("generation").get<std::uint64_t>();
+	const auto game = games_.find(peer);
+	// Lifecycle ends are logged, including ignored ones: a match teardown
+	// that never sees its game_closed must show whether it arrived (F-008).
+	if (type == "game_closed" || type == "game_failed")
+		spdlog::info("Room: {} peer={} generation={} local_generation={} reason={}", type, PeerTag(peer), generation,
+			game == games_.end() ? 0 : game->second.generation, event.value("reason", std::string()));
+	if (game == games_.end() || generation != game->second.generation) return true;
 	auto& snapshot = game->second;
 	if (type == "game_closed") { snapshot.state = GameState::Closed; snapshot.virtualPort = 0; return true; }
 	if (snapshot.state == GameState::Closing || snapshot.state == GameState::Closed) return true;
@@ -414,6 +424,16 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
             if (peers_.size()>=MaximumRemotePeers || nextConnection_==UINT64_MAX) return true;
             Peer peer; peer.identity=identity; peer.admitted=true; peers_.emplace(nextConnection_++,std::move(peer));
         }
+        // A new leader only ever saw its own edge to the old leader, so a
+        // member whose game died before the handoff never sends it a
+        // control_closed. Start the same departure grace for every roster
+        // member without a control edge; a reconnect clears it (ledger H-008).
+        if (coordination_.leaderLocal) {
+            const auto deadline=GetTickCount64()+DepartureGraceMs;
+            for (auto& peer:peers_)
+                if (incarnations.count(peer.second.identity) && !connected.count(peer.second.identity) &&
+                    !peer.second.departureDeadline) peer.second.departureDeadline=deadline;
+        }
         hosting_=coordination_.leaderLocal; coordination_.rebound=true;
         if (coordination_.writable) { state_=State::Ready; error_.clear(); }
         return true;
@@ -497,7 +517,7 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
         const unsigned expected=probe_.benchmark?600:100;
         const int recommendation=event.at("recommended_delay");
         probe_.recommended=(probe_.status=="complete" || probe_.status=="ready") && probe_.samples>=expected*4/5 &&
-            probe_.samples<=expected && probe_.samples+probe_.lost==expected && recommendation>=0 && recommendation<=10 ? recommendation : -1;
+            probe_.samples<=expected && probe_.samples+probe_.lost==expected && recommendation>=0 && recommendation<=MaximumInputDelay ? recommendation : -1;
         return true;
     }
     return true;
@@ -846,6 +866,12 @@ void IrohRoom::Poll() {
 		try {
 			const auto event = json::parse(frame.payload);
 			const auto type = event.at("type").get<std::string>();
+			helperLoad_.lastEventMs = GetTickCount64(); helperLoad_.lastEventType = type;
+			if (type == "helper_stall") {
+				spdlog::warn("Helper: actor {} {} after {} ms", event.at("ended").get<bool>() ? "resumed from" : "stuck in",
+					event.at("stage").get<std::string>(), event.at("stalled_ms").get<std::uint64_t>());
+				continue;
+			}
 			if (type == "stopped") {
 				for (auto& game : games_) { game.second.state = GameState::Closed; game.second.virtualPort = 0; }
 				Fail("helper_stopped"); return;

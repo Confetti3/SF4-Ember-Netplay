@@ -6,6 +6,7 @@
 #include "../sf4e/sf4e__Overlay.hxx"
 #include "../sf4e/sf4e__Pad.hxx"
 #include <mutex>
+#include <spdlog/spdlog.h>
 
 namespace sf4e { namespace training {
 namespace {
@@ -29,6 +30,10 @@ bool commitInput = false;
 int beforeFrame = 0;
 std::uint64_t commandId=0;
 bool commandAccepted=false;
+// Updates that advanced more than one frame, each of which resets the frame
+// meter. Logged per battle: a large count explains a missing frame-advantage
+// readout (ledger F-006).
+std::uint64_t gapResets = 0;
 }
 View ReadView() { std::lock_guard<std::mutex> lock(mutex); return published; }
 bool ControlsAvailable() {
@@ -69,12 +74,18 @@ void BeforeUpdate(Native* system, bool networkOwned) {
         commandAccepted=true;
         if (command.action == Action::Save) {
             if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
-            Battle::SaveState::Save(&checkpoint);
+            // A state the memento cannot represent is refused, not kept
+            // without its task functors (ledger A-001).
+            commandAccepted = Battle::SaveState::Save(&checkpoint);
             session.SetCheckpoint(checkpoint.used);
-            commandAccepted=checkpoint.used;
         } else if (command.action == Action::Restore) {
-            Battle::SaveState::Load(&checkpoint);
+            commandAccepted = Battle::SaveState::Load(&checkpoint);
             meter.Reset();
+            if (!commandAccepted) {
+                // A partly restored engine cannot be played on; leave the battle.
+                spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
+                *Native::GetReadyState(system) = Native::RS_ISLEAVING;
+            }
         } else if (command.action == Action::ClearHistory) {
             meter.Reset();
         }
@@ -144,6 +155,7 @@ void AfterUpdate(Native* system) {
         capture->Record(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters, meter.View());
     } else if (sampling && delta != 0) {
         meter.Reset();
+        ++gapResets;
     }
     sampling = false;
     std::lock_guard<std::mutex> lock(mutex); published = session.GetView(); published.meter = meter.View();
@@ -152,6 +164,9 @@ void AfterUpdate(Native* system) {
 }
 void StopCapture() { delete capture; capture = nullptr; }
 void CloseBattle() {
+    if (session.GetView().available)
+        spdlog::info("Training: frame meter reset {} times on multi-frame updates this battle", gapResets);
+    gapResets = 0;
     overriding = false; sampling = false;
     if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
     session.Reset(); meter.Reset();

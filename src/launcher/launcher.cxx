@@ -16,6 +16,8 @@
 #include <filesystem>
 #include "../ui/RecoverySurface.hxx"
 #include "../platform/LauncherInstance.hxx"
+#include "../platform/Utf8.hxx"
+#include "../platform/WineBuiltin.hxx"
 
 #include <CLI/CLI.hpp>
 #include <detours/detours.h>
@@ -425,10 +427,55 @@ int UpdatePath(const wchar_t* const szLauncherDirW, wchar_t* const szErrorString
 }
 
 
+// Sidecar's dependencies resolve from System32 before the package folder, so the
+// installed VC++ runtime must be at least the toolset that built us. Older
+// runtimes (below 14.40) crash on the first std::mutex lock inside the game.
+bool RuntimeIsCurrent() {
+	wchar_t path[MAX_PATH] = {};
+	const UINT length = GetSystemDirectoryW(path, MAX_PATH);
+	// An unreadable version is not evidence of an old runtime; do not block on it.
+	if (!length || length >= MAX_PATH || FAILED(PathCchAppend(path, MAX_PATH, L"msvcp140.dll"))) return true;
+	if (GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) return false;
+	// Wine's own msvcp140 reports an older Microsoft number (14.42 in Wine 11)
+	// but is a separate implementation: v0.9.7, built with 14.51, ran on it.
+	// A Microsoft runtime installed into a Wine prefix is still checked.
+	if (sf4e::platform::IsWineBuiltinDll(path)) return true;
+	DWORD handle = 0;
+	const DWORD size = GetFileVersionInfoSizeW(path, &handle);
+	if (!size) return true;
+	std::vector<BYTE> data(size);
+	VS_FIXEDFILEINFO* info = nullptr;
+	UINT infoSize = 0;
+	if (!GetFileVersionInfoW(path, 0, size, data.data()) ||
+		!VerQueryValueW(data.data(), L"\\", reinterpret_cast<void**>(&info), &infoSize) || !info) return true;
+	const DWORD major = HIWORD(info->dwFileVersionMS), minor = LOWORD(info->dwFileVersionMS);
+	const DWORD required = _MSC_VER - 1900;
+	return major > 14 || (major == 14 && minor >= required);
+}
+
+// Shows a localized launcher message and returns the button pressed.
+int ShowLauncherMessage(const char* key, UINT flags) {
+	return MessageBoxW(nullptr, sf4e::platform::Utf8ToWide(sf4e::loc::T(key)).c_str(), L"SF4 Ember Netplay", flags);
+}
+
+// The recovery screen, with its selection art reporting to launcher.log.
+bool ShowRecovery(std::string message, std::wstring& gameDirectory, bool updates = false) {
+	return sf4e::ui::RunRecovery(std::move(message), gameDirectory, updates,
+		[](const std::string& line) { spdlog::warn("{}", line); });
+}
+
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
-    sf4e::install::ConfigureDllSearch(); ConfigureLauncherLogging();
+    sf4e::install::ConfigureDllSearch();
     const auto languagePreference = sf4e::platform::LoadLanguagePreference();
     sf4e::loc::SetActive(sf4e::loc::ResolveLocale(languagePreference, sf4e::platform::WindowsUiLanguages()));
+    // Before logging: spdlog, updates and recovery all lock a std::mutex, which
+    // an old runtime crashes on, so nothing else can run until this passes.
+    if (!RuntimeIsCurrent()) {
+        if (ShowLauncherMessage("launcher.runtime_outdated", MB_YESNO | MB_ICONERROR) == IDYES)
+            ShellExecuteW(nullptr, L"open", L"https://aka.ms/vc14/vc_redist.x86.exe", nullptr, nullptr, SW_SHOWNORMAL);
+        return 1;
+    }
+    ConfigureLauncherLogging();
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     sf4e::Payload payload{};
     bool offline = false, updates = false, recovery = false, updateError = false, discordLaunch = false;
@@ -454,17 +501,34 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         HANDLE oldGame = OpenProcess(SYNCHRONIZE, FALSE, waitPid);
         if (oldGame) { WaitForSingleObject(oldGame, 30000); CloseHandle(oldGame); }
     }
-    if (updates) { sf4e::ui::RunRecovery(updateError ? sf4e::loc::T("launcher.update_failed") : "", chosenDirectory, true); return 0; }
-    if (recovery && !sf4e::ui::RunRecovery(sf4e::loc::T("launcher.recovery_title"), chosenDirectory)) return 0;
-    if (!instance.Acquire()) return 0;
+    if (updates) { ShowRecovery(updateError ? sf4e::loc::T("launcher.update_failed") : "", chosenDirectory, true); return 0; }
+    if (recovery && !ShowRecovery(sf4e::loc::T("launcher.recovery_title"), chosenDirectory)) return 0;
+    if (!instance.Acquire()) {
+        // A Discord invite reaches the running copy, so a second start for it
+        // stays quiet. Otherwise a leftover launcher (or one still waiting on
+        // a game that never closed) made every start do nothing at all.
+        spdlog::warn("Another Ember launcher is already running; this start was not continued");
+        if (!discordLaunch) ShowLauncherMessage("launcher.already_running", MB_OK | MB_ICONINFORMATION);
+        return 0;
+    }
+    // An update interrupted mid-install must be restored before the game runs
+    // on a half-replaced install. The Updater restarts the Launcher after.
+    switch (sf4e::launcher::StartPendingUpdateRecovery(GetCurrentProcessId())) {
+    case sf4e::launcher::PendingRecovery::Started: return 0;
+    case sf4e::launcher::PendingRecovery::Failed:
+        ShowRecovery(sf4e::loc::T("launcher.update_failed"), chosenDirectory, true);
+        return 1;
+    case sf4e::launcher::PendingRecovery::None: break;
+    }
     wchar_t installRoot[MAX_PATH] = {}, dllDirectory[MAX_PATH] = {}, pathError[1024] = {};
     if (!sf4e::install::GetInstallRoot(installRoot, MAX_PATH) || !sf4e::install::GetPackageDllDirectory(dllDirectory, MAX_PATH) ||
         !UpdatePath(dllDirectory, pathError, 1024)) {
-        sf4e::ui::RunRecovery(sf4e::loc::T("launcher.path_failed"), chosenDirectory);
+        ShowRecovery(sf4e::loc::T("launcher.path_failed"), chosenDirectory);
         return 1;
     }
     sf4e::launcher::PersistedSettings settings;
     sf4e::launcher::LoadPersistedSettings(settings);
+    sf4e::launcher::EnsureUniqueDisplayName(settings);
     payload.netplay.mode = static_cast<int>(sf4e::NetplayMode::Idle);
     payload.netplay.version = sf4e::SF4E_NETPLAY_CONFIG_VERSION;
     strncpy_s(payload.netplay.displayName, settings.displayName, _TRUNCATE);
@@ -483,7 +547,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             PathCchCombine(executable,1024,directory,L"SSFIV.exe"); found = PathFileExistsW(executable) != FALSE;
         } else found = FindSF4(directory,1024,executable,1024) != 0;
         if (!found) {
-            if (!sf4e::ui::RunRecovery(sf4e::loc::T("launcher.game_not_found"),chosenDirectory)) return 0;
+            if (!ShowRecovery(sf4e::loc::T("launcher.game_not_found"),chosenDirectory)) return 0;
             continue;
         }
         wchar_t sidecar[MAX_PATH] = {};
@@ -491,7 +555,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         BOOL substituted = FALSE;
         if (!sf4e::install::ResolveInstallFile(L"Sidecar.dll",sidecar,MAX_PATH) ||
             !WideCharToMultiByte(CP_ACP,WC_NO_BEST_FIT_CHARS,sidecar,-1,sidecarAnsi,1024,nullptr,&substituted) || substituted) {
-            if (!sf4e::ui::RunRecovery(sf4e::loc::T("launcher.sidecar_missing"),chosenDirectory)) return 0;
+            if (!ShowRecovery(sf4e::loc::T("launcher.sidecar_missing"),chosenDirectory)) return 0;
             continue;
         }
         const char* dlls[] = {sidecarAnsi};
@@ -500,13 +564,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         const auto helperPath = std::filesystem::path(installRoot)/L"sf4-net.exe";
         HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),directory,executable,1,dlls);
         if (!game) {
-            if (!sf4e::ui::RunRecovery(sf4e::loc::T("launcher.start_failed"),chosenDirectory)) return 0;
+            if (!ShowRecovery(sf4e::loc::T("launcher.start_failed"),chosenDirectory)) return 0;
             continue;
         }
         WaitForSingleObject(game,INFINITE);
         DWORD exitCode = 0; GetExitCodeProcess(game,&exitCode);
         discord.Stop(); helper.Stop(); CloseHandle(game);
-        if (exitCode != 0 && sf4e::ui::RunRecovery(sf4e::loc::T("launcher.game_error"),chosenDirectory)) continue;
+        if (exitCode != 0 && ShowRecovery(sf4e::loc::T("launcher.game_error"),chosenDirectory)) continue;
         return 0;
     }
 }

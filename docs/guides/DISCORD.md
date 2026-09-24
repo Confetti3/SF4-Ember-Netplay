@@ -1,6 +1,6 @@
 # Discord activity and invitations
 
-This local candidate integrates the official Discord Social SDK with Ember. Real two-account, two-PC invite acceptance remains required before release; automated checks do not establish game or Discord invitation acceptance.
+Ember shows your activity in Discord and lets friends join your room through Discord invitations, using the official Discord Social SDK. In Settings > Discord, **Show activity** shares your status and **Allow invitations** lets friends join through Discord. Invitations need Show activity on, and the Discord desktop app must be running.
 
 ## Application setup
 
@@ -10,19 +10,19 @@ The supplied SDK is **1.10.19337**, archive `DiscordSocialSdk-1.10.19337.zip`, S
 
 ## Build and package
 
-Use the existing x86 game build configuration and add `SF4E_BUILD_DISCORD=ON` and `SF4E_DISCORD_SDK_ARCHIVE` pointing to the original downloaded archive. The companion is an isolated MSVC x64/C++20 external project; game architecture and compiler standard are unchanged. This checkout's `scripts/build-discord-local.ps1` records the working local Build Tools and dependency paths. Pass `-RustChecks` to run formatting, Rust tests and Clippy. The script expects the repository as its working directory.
+Build with `scripts/build-current.ps1 -DiscordSdkArchive <original archive>`, or set `SF4E_DISCORD_SDK_ARCHIVE`. It enables `SF4E_BUILD_DISCORD=ON`, and CMake verifies the archive against the pin. The companion is an isolated MSVC x64/C++20 external project; game architecture and compiler standard are unchanged. `scripts/build-discord-local.ps1 -RustChecks` still runs formatting, Rust tests and Clippy.
 
-Install the complete build, then run `scripts/package-team.ps1` with matching `-BuildDir` and `-InstallDir`. The shared inventory requires `ember-discord.exe`, `discord_partner_sdk.dll`, `discord-build.json`, and `notices/Discord-SDK.txt`. Packaging rejects an unset application ID or missing Discord runtime. Updater and installer validation use the same inventory. The SDK is statically linked only through its import library; its supplied x64 runtime DLL must ship beside the companion. No SDK voice features are used.
+Then run `scripts/package-team.ps1`. It uses `build/current` and `build/current/stage` from `build-target.json` and rejects other folders. The shared inventory requires `ember-discord.exe`, `discord_partner_sdk.dll`, `discord-build.json`, and `notices/Discord-SDK.txt`. Packaging rejects an unset application ID or missing Discord runtime. Updater and installer validation use the same inventory. The SDK is statically linked only through its import library; its supplied x64 runtime DLL must ship beside the companion. No SDK voice features are used.
 
 ## Lifecycle and privacy
 
 Launcher owns the companion for the game's lifetime, including offline sessions. Both sides reuse Ember's helper bootstrap and framing: current-user pipe permissions, local-only pipe, process identity checks, inherited random nonce, bounded messages, and worker-thread IO. Presence is a copied snapshot; SDK callbacks enqueue one accepted invite. The game thread validates commands against the current room generation and invitation revision. Companion failure cannot call game teardown.
 
-The companion uses desktop RPC without a Discord login flow. It registers the absolute adjacent `Launcher.exe --discord-launch` command. Launch registration is refreshed when a new package starts; a per-user launcher guard prevents a second game. The secret is delivered by the SDK callback, never launch arguments. Rich Presence updates are coalesced, retried with backoff, refreshed after Discord restart, and cleared when disabled or shutting down.
+The companion uses desktop RPC without a Discord login flow. It registers the absolute adjacent `Launcher.exe --discord-launch` command. Launch registration is refreshed when a new package starts; a per-user launcher guard prevents a second game. A second start from a Discord invite stays silent, because the running copy's companion receives the invite; any other second start says Ember is already running and how to end it in Task Manager. The secret is delivered by the SDK callback, never launch arguments. Rich Presence updates are coalesced, retried with backoff, refreshed after Discord restart, and cleared when disabled or shutting down.
 
 Activity is limited to Starting Ember, In menus, Playing offline, In a room, Queued, Ready, Fighting, and Spectating. It includes elapsed session time and current/configured occupancy. It excludes user-authored room and player names, characters, stages, scores and networking metrics.
 
-The `emd1:` Discord ticket is exactly 127 characters: a five-character prefix and unpadded base64url of the existing 91-byte invitation header. Clipboard formats remain supported. The joining client supplies its actual build to the existing authenticated handshake. The host retains enforcement of its build, capability and expiry. Confirmed guests retain the validated invitation in memory and may advertise the same room. Departure, failure, unhealthy coordination, expiry, admission lock, capacity and publication settings suppress invitation advertisement as applicable. Secrets are not persisted in settings or diagnostics.
+A Discord ticket is exactly 127 characters: a five-character prefix (`emd1:`, or `emd2:` for a recovery invitation) and unpadded base64url of the existing 91-byte invitation header. Clipboard formats remain supported. The joining client supplies its actual build to the existing authenticated handshake. The host retains enforcement of its build, capability and expiry. Confirmed guests retain the validated invitation in memory and may advertise the same room. Departure, failure, unhealthy coordination, expiry, admission lock, capacity and publication settings suppress invitation advertisement as applicable. Secrets are not persisted in settings or diagnostics.
 
 An accepted invitation waits for the native main-menu gate, network availability and controller assignment. Loading and fights cannot be interrupted. Switching from an existing room or offline play requires an explicit action. A newer invitation invalidates queued actions for its predecessor. Joining the current room is a no-op. New room members remain idle until they choose a table action.
 

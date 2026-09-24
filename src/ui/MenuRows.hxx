@@ -15,6 +15,10 @@ inline MenuEntry Row(std::string id,std::string label,std::string detail,bool en
 inline MenuEntry Value(std::string id,std::string label,std::string value,std::string detail,bool enabled=true) {
     auto e=Row(std::move(id),std::move(label),std::move(detail),enabled); e.value=std::move(value); e.adjustable=true; return e;
 }
+// A value shown for information: it cannot be focused for adjustment.
+inline MenuEntry ReadOnlyValue(std::string id,std::string label,std::string value,std::string detail) {
+    auto e=Value(std::move(id),std::move(label),std::move(value),std::move(detail),false); e.adjustable=false; return e;
+}
 inline MenuEntry TextRow(std::string id,std::string label,std::string value,std::size_t limit,bool enabled=true) {
     auto e=Value(std::move(id),std::move(label),value,enabled?loc::T("menu.edit_detail"):loc::T("menu.edit_unavailable"),enabled);
     e.adjustable=false; e.text=true; e.textLimit=limit; return e;

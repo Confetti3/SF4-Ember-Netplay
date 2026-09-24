@@ -285,6 +285,24 @@ bool fTask::RecordToAdditionalMemento(rTask* t, AdditionalMemento& m) {
 	return ok;
 }
 
+// Copies a recorded functor into a fresh engine allocation, since task
+// cancellation frees it. Returns null and marks the restore failed when the
+// size is not one RecordFunctor accepts or the engine allocation fails, so
+// SaveState::Load reports it instead of copying into a null pointer.
+static rIEmTaskFunctor* RestoreFunctor(rAllocator* allocator, const fTask::TaskFunctorBuf& buf) {
+	const DWORD vtable = *(const DWORD*)&buf;
+	const size_t size = rIEmTaskFunctor::GetDescendantFunctorSizeByVtable(vtable);
+	void* functor = allocator && size != 0 && size <= sizeof(buf) ?
+		(allocator->*rAllocator::publicMethods.Allocate)(size, 0, -1) : nullptr;
+	if (!functor) {
+		spdlog::error("Rollback: could not restore task functor vtable {:#x} size {}", vtable, size);
+		fTaskCore::restoreFailed = true;
+		return nullptr;
+	}
+	memcpy_s(functor, size, &buf, size);
+	return (rIEmTaskFunctor*)functor;
+}
+
 void fTask::RestoreFromAdditionalMemento(rTask* t, const AdditionalMemento& m) {
 	rAllocator* allocator = rAllocator::staticMethods.GetSingleton();
 
@@ -331,22 +349,12 @@ void fTask::RestoreFromAdditionalMemento(rTask* t, const AdditionalMemento& m) {
 	// will attempt to free the memory that the IEmTaskFunctor* pointers are pointing
 	// at. If the tasks just pointed at the memory in the AdditionalMemento, the
 	// attempt to free would fail.
-	if (m.hasCancelFunctor) {
-		size_t cancelFunctorSize = rIEmTaskFunctor::GetDescendantFunctorSizeByVtable(*(DWORD*)&m.cancelFunctor);
-		void* newCancelFunctor = (allocator->*rAllocator::publicMethods.Allocate)(cancelFunctorSize, 0, -1);
-		memcpy_s(newCancelFunctor, cancelFunctorSize, &m.cancelFunctor, cancelFunctorSize);
-		*rTask::GetCancelFunctor(t) = (rIEmTaskFunctor*)newCancelFunctor;
-	}
-
-	if (m.hasWorkFunctor) {
-		size_t workFunctorSize = rIEmTaskFunctor::GetDescendantFunctorSizeByVtable(*(DWORD*)&m.workFunctor);
-		void* newWorkFunctor = (allocator->*rAllocator::publicMethods.Allocate)(workFunctorSize, 0, -1);
-		memcpy_s(newWorkFunctor, workFunctorSize, &m.workFunctor, workFunctorSize);
-		*rTask::GetWorkFunctor(t) = (rIEmTaskFunctor*)newWorkFunctor;
-	}
+	if (m.hasCancelFunctor) *rTask::GetCancelFunctor(t) = RestoreFunctor(allocator, m.cancelFunctor);
+	if (m.hasWorkFunctor) *rTask::GetWorkFunctor(t) = RestoreFunctor(allocator, m.workFunctor);
 }
 
 bool fTaskCore::recordFailed = false;
+bool fTaskCore::restoreFailed = false;
 
 void fTaskCore::RecordToAdditionalMemento(rTaskCore* c, AdditionalMemento& m) {
 	size_t taskDataSize = *rTaskCore::GetTaskDataSize(c);
@@ -389,16 +397,27 @@ void fTaskCore::RestoreFromAdditionalMemento(rTaskCore* c, const AdditionalMemen
 	(c->*rTaskCore::publicMethods.ReclaimCancelledTasks)();
 
 	size_t taskDataSize = *rTaskCore::GetTaskDataSize(c);
-	assert(taskDataSize <= sizeof(fTaskCore::TaskDataBuf));
+	if (taskDataSize > sizeof(fTaskCore::TaskDataBuf)) {
+		// Recording rejects such a core, so this is a different core layout
+		// than the one saved. Never read past the recorded buffer.
+		spdlog::error("Rollback: restoring task data size {} exceeds {}", taskDataSize, sizeof(fTaskCore::TaskDataBuf));
+		restoreFailed = true;
+		taskDataSize = sizeof(fTaskCore::TaskDataBuf);
+	}
 	int i;
 	for (i = 0; i < m.numUsed; i++) {
-		rTask* newTask;
+		rTask* newTask = nullptr;
 		(c->*rTaskCore::publicMethods.AllocateNewTask)(
 			&newTask,
 			*rTask::GetPriority((rTask*)&m.tasks[i].rawTask),
 			0,
 			0
 		);
+		if (!newTask) {
+			spdlog::error("Rollback: task core could not allocate task {} of {}", i + 1, m.numUsed);
+			restoreFailed = true;
+			return;
+		}
 		fTask::RestoreFromAdditionalMemento(newTask, m.tasks[i]);
 		memcpy_s(*rTask::GetTaskData(newTask), taskDataSize, &m.taskdata[i], taskDataSize);
 	}

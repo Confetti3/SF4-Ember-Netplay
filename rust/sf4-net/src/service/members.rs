@@ -111,6 +111,7 @@ impl Actor {
         };
         let pending = self.pending_retired_incarnations.clone();
         let admissions = self.admissions.values().cloned().collect::<Vec<_>>();
+        let reachable = self.controls.keys().copied().collect::<BTreeSet<_>>();
         self.pending_membership_operation = Some(key.clone());
         self.tasks.spawn(async move {
             let result = async {
@@ -150,8 +151,15 @@ impl Actor {
                         .copied()
                         .collect::<BTreeSet<_>>();
                     recovery.remove_nodes(learner_removals).await?;
-                    restore_stable_voters(&recovery, &retained, &admissions, &pending, revision)
-                        .await?;
+                    restore_stable_voters(
+                        &recovery,
+                        &retained,
+                        &reachable,
+                        &admissions,
+                        &pending,
+                        revision,
+                    )
+                    .await?;
                 }
                 let members = recovery.applied_member_ids().await;
                 let confirmed_retirements = pending
@@ -422,7 +430,11 @@ impl Actor {
                     // the stable voter count (spawn_membership_operation).
                     // OpenRaft commits joint old/new membership through the
                     // old quorum before the helper retires its route.
-                    let successor = voters.iter().copied().find(|id| *id != recovery.incarnation);
+                    let successor = handoff_successor(&voters, recovery.incarnation, |id| {
+                        self.admissions.get(&id).is_some_and(|admission| {
+                            self.controls.contains_key(&admission.primary_endpoint)
+                        })
+                    });
                     let successor_voters = successor.into_iter().collect::<BTreeSet<_>>();
                     let promoted = match timeout(
                         LEAVE_STEP_TIMEOUT,
@@ -827,9 +839,25 @@ impl Actor {
 /// voter count. `retained` is the committed roster at `revision`; a newer
 /// commit may have removed a candidate, so promotion is skipped then and the
 /// next refresh retries from the newer roster.
+/// The voter a leaving leader hands authority to. A voter whose game is gone
+/// can never acknowledge the singleton membership, so the handoff would never
+/// commit and the survivors would be left without a quorum. Prefer a voter
+/// with a live control link, then fall back to voter order.
+pub(super) fn handoff_successor(
+    voters: &BTreeSet<u64>,
+    own: u64,
+    reachable: impl Fn(u64) -> bool,
+) -> Option<u64> {
+    let others = || voters.iter().copied().filter(|id| *id != own);
+    others()
+        .find(|id| reachable(*id))
+        .or_else(|| others().next())
+}
+
 async fn restore_stable_voters(
     recovery: &crate::recovery::RecoverySession,
     retained: &BTreeSet<EndpointId>,
+    reachable: &BTreeSet<EndpointId>,
     admissions: &[Admission],
     pending: &BTreeSet<u64>,
     revision: u64,
@@ -840,8 +868,12 @@ async fn restore_stable_voters(
         return Ok(());
     }
     let members = recovery.applied_member_ids().await;
+    // Only promote members with a live control link. A voter that cannot
+    // acknowledge the joint membership freezes every later commit; the next
+    // refresh retries once the member reconnects or leaves the roster.
     let candidates = admissions.iter().filter(|admission| {
         retained.contains(&admission.primary_endpoint)
+            && reachable.contains(&admission.primary_endpoint)
             && members.contains(&admission.incarnation)
             && !pending.contains(&admission.incarnation)
             && !current.contains(&admission.incarnation)
@@ -853,7 +885,9 @@ async fn restore_stable_voters(
         .take(desired)
         .collect::<BTreeSet<_>>();
     if voters.len() > current.len() {
-        recovery.promote_voters_at_revision(revision, voters).await?;
+        recovery
+            .promote_voters_at_revision(revision, voters)
+            .await?;
     }
     Ok(())
 }

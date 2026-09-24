@@ -3,6 +3,7 @@
 // Shared by the translation units that implement the release client. Not a
 // public interface; include github_release_client.hxx instead.
 #include "github_release_client.hxx"
+#include "PackageInstaller.hxx"
 #include "../../common/PackageInventory.hxx"
 
 #include "../../common/install_paths.hxx"
@@ -12,6 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <chrono>
+#include <filesystem>
 #include <string>
 #include <vector>
 

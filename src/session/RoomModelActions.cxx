@@ -169,7 +169,7 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 	if (action.kind == ActionKind::Ready && HasOutstandingTerminalReceiptForMember(member)) return Reject(RejectReason::TerminalLedgerFull);
 	if (table->phase != TablePhase::Waiting && table->phase != TablePhase::Ready) return Reject(RejectReason::WrongPhase);
 	const int seat = table->p1 == member ? 0 : 1;
-	if (action.inputDelay > 10) return Reject(RejectReason::Unauthorized);
+	if (action.inputDelay > MaximumInputDelay) return Reject(RejectReason::Unauthorized);
 	// Once Ready has captured a value, a second Ready cannot replace it.
 	// Unready is the explicit unlock operation.
 	if (action.kind == ActionKind::Ready && table->ready[seat]) return Reject(RejectReason::WrongPhase);

@@ -36,12 +36,19 @@ pub struct BridgeStats {
 pub struct Bridge {
     game: GameConnection,
     socket: UdpSocket,
+    ggpo: SocketAddr,
     pub stats: Arc<BridgeStats>,
 }
 
 impl Bridge {
     /// `ggpo` must come from authenticated local registration, never a remote
-    /// packet. UDP connect also filters inbound sources to this exact port.
+    /// packet. Inbound datagrams from any other source are rejected.
+    ///
+    /// The socket is deliberately left unconnected (F-008). When GGPO closes
+    /// its socket at match end while the peer is still sending, a connected
+    /// socket receives ICMP port-unreachable errors. Under Wine that stalled
+    /// every runtime worker, so the helper stopped answering and the room
+    /// closed on match_teardown_timeout.
     pub async fn bind(game: GameConnection, ggpo: SocketAddr) -> io::Result<Self> {
         if !ggpo.ip().is_loopback() || !ggpo.is_ipv4() || ggpo.port() == 0 {
             return Err(io::Error::new(
@@ -50,10 +57,10 @@ impl Bridge {
             ));
         }
         let socket = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        socket.connect(ggpo).await?;
         Ok(Self {
             game,
             socket,
+            ggpo,
             stats: Arc::default(),
         })
     }
@@ -74,9 +81,13 @@ impl Bridge {
                 changed = stop.changed() => {
                     if changed.is_err() || *stop.borrow() { return Ok(()); }
                 }
-                incoming = self.socket.recv(&mut buffer) => {
+                incoming = self.socket.recv_from(&mut buffer) => {
                     let size = match incoming {
-                        Ok(size) => size,
+                        Ok((size, source)) if source == self.ggpo => size,
+                        Ok(_) => {
+                            self.stats.rejected_packets.fetch_add(1, Ordering::Relaxed);
+                            continue;
+                        }
                         // UDP ICMP errors describe a previous local delivery,
                         // not failure of the independently authenticated QUIC
                         // connection. GGPO can retire its socket before the
@@ -109,7 +120,7 @@ impl Bridge {
                         Ok(payload) if payload.len() <= self.game.authorization.max_packet => payload,
                         _ => { self.stats.rejected_packets.fetch_add(1, Ordering::Relaxed); continue; }
                     };
-                    match self.socket.try_send(payload) {
+                    match self.socket.try_send_to(payload, self.ggpo) {
                         Ok(size) if size == payload.len() => {
                             self.stats.received_packets.fetch_add(1, Ordering::Relaxed);
                             self.stats.received_bytes.fetch_add(size as u64, Ordering::Relaxed);

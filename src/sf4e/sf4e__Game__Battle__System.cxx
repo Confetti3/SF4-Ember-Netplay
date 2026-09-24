@@ -596,8 +596,9 @@ void fSystem::SysMain_HandleTrainingModeFeatures() {
     // session owns the pool that slot may be GGPO's, so the request is
     // dropped rather than stealing the slot out from under the ring.
     if (extendedLoadRequest) {
-        if (!ggpo && saveStates[0].used) {
-            fSystem::SaveState::Load(&saveStates[0]);
+        if (!ggpo && saveStates[0].used && !fSystem::SaveState::Load(&saveStates[0])) {
+            spdlog::error("Developer extended load: the state did not fully restore; leaving the battle");
+            *rSystem::GetReadyState(_this) = rSystem::RS_ISLEAVING;
         }
         extendedLoadRequest = false;
     }
@@ -607,7 +608,9 @@ void fSystem::SysMain_HandleTrainingModeFeatures() {
             if (saveStates[0].used) {
                 fSystem::SaveState::Free(&saveStates[0]);
             }
-            fSystem::SaveState::Save(&saveStates[0]);
+            if (!fSystem::SaveState::Save(&saveStates[0])) {
+                spdlog::error("Developer extended save: this state cannot be saved");
+            }
         }
         extendedSaveRequest = false;
     }

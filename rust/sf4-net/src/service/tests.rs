@@ -52,6 +52,20 @@ impl Actor {
 }
 
 #[test]
+fn leaving_leader_hands_off_to_a_reachable_voter() {
+    use super::members::handoff_successor;
+    let voters = BTreeSet::from([10, 20, 30]);
+    // Voter 20 comes first by ID but its game is gone; handing it authority
+    // could never commit and would strand the room without a quorum.
+    assert_eq!(handoff_successor(&voters, 10, |id| id == 30), Some(30));
+    // With every other voter reachable, voter order decides as before.
+    assert_eq!(handoff_successor(&voters, 10, |_| true), Some(20));
+    // With none reachable, still name one so the leave can try and report.
+    assert_eq!(handoff_successor(&voters, 10, |_| false), Some(20));
+    assert_eq!(handoff_successor(&BTreeSet::from([10]), 10, |_| true), None);
+}
+
+#[test]
 fn native_wrapper_keeps_quote_heavy_json_below_frame_bound() {
     let payload = serde_json::json!({ "text": "\"".repeat(32_000) }).to_string();
     let wire = serde_json::to_string(&NativeControlMessage {

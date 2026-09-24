@@ -150,7 +150,10 @@ void StressSaveBefore(int stressFrame) {
     if (stress.states[index].used) {
         fSystem::SaveState::Free(&stress.states[index]);
     }
-    fSystem::SaveState::Save(&stress.states[index]);
+    // A failed save leaves the slot unused, and the rollback below skips it.
+    if (!fSystem::SaveState::Save(&stress.states[index])) {
+        spdlog::error("RollbackStress: frame {} cannot be saved; its rollback is skipped", stressFrame);
+    }
     stress.stateFrame[index] = stressFrame;
 }
 
@@ -232,7 +235,13 @@ bool StressStep(rSystem* system) {
     if (!stress.states[targetIndex].used || stress.stateFrame[targetIndex] != target) {
         return true;
     }
-    fSystem::SaveState::Load(&stress.states[targetIndex]);
+    if (!fSystem::SaveState::Load(&stress.states[targetIndex])) {
+        // Replaying from a partly restored engine proves nothing; count it
+        // as a divergence and skip the replay.
+        stress.divergences++;
+        spdlog::error("RollbackStress: frame {} did not fully restore; replay skipped", target);
+        return true;
+    }
     for (int replayed = target; replayed < stress.frame; replayed++) {
         diag::ScopedTimer _cb(diag::OP_ROLLBACK_CALLBACK);
         if (diag::Enabled()) {

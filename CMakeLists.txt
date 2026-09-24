@@ -34,6 +34,10 @@ if(BUILD_TESTING)
     set_tests_properties(SessionController PROPERTIES TIMEOUT 15)
     add_executable(RollbackHudTest "src/tests/rollback_hud_test.cxx")
     add_test(NAME RollbackHud COMMAND RollbackHudTest)
+    add_executable(SoundReconcileTest "src/tests/sound_reconcile_test.cxx")
+    add_test(NAME SoundReconcile COMMAND SoundReconcileTest)
+    add_executable(ReusableRecordsTest "src/tests/reusable_records_test.cxx")
+    add_test(NAME ReusableRecords COMMAND ReusableRecordsTest)
     add_executable(NativeMatchResultTest "src/tests/native_match_result_test.cxx")
     target_compile_features(NativeMatchResultTest PRIVATE cxx_std_11)
     add_test(NAME NativeMatchResult COMMAND NativeMatchResultTest)
@@ -82,6 +86,9 @@ if(BUILD_TESTING)
     target_link_libraries(MatchResultOutboxTest PRIVATE sf4e_netplay_core sf4e_room_model)
     add_test(NAME MatchResultOutbox COMMAND MatchResultOutboxTest)
     set_tests_properties(MatchResultOutbox PROPERTIES TIMEOUT 15)
+    add_executable(ParkedIntentTest "src/tests/parked_intent_test.cxx")
+    add_test(NAME ParkedIntent COMMAND ParkedIntentTest)
+    set_tests_properties(ParkedIntent PROPERTIES TIMEOUT 15)
 endif()
 if(BUILD_TESTING)
     add_executable(DiscordPresenceTest src/tests/discord_presence_test.cxx)
@@ -200,12 +207,24 @@ if(BUILD_TESTING)
     target_link_libraries(NativeSelectionAvailabilityTest PRIVATE sf4e_ui Dimps)
     add_test(NAME NativeSelectionAvailability COMMAND NativeSelectionAvailabilityTest)
     set_tests_properties(NativeSelectionAvailability PROPERTIES TIMEOUT 30)
+    add_executable(WineBuiltinTest src/tests/wine_builtin_test.cxx)
+    target_compile_features(WineBuiltinTest PRIVATE cxx_std_17)
+    add_test(NAME WineBuiltin COMMAND WineBuiltinTest)
     add_executable(Win32CursorTest src/tests/win32_cursor_test.cxx)
     target_link_libraries(Win32CursorTest PRIVATE sf4e_ui)
     add_test(NAME Win32Cursor COMMAND Win32CursorTest)
     target_link_libraries(UiRenderTest PRIVATE sf4e_ui "d3d9")
     add_test(NAME UiRender COMMAND UiRenderTest)
-    set_tests_properties(UiRender PROPERTIES TIMEOUT 90)
+    # Every fighter now has a portrait (the packaged cutout stands in for the
+    # game's), and sweeping forty configurations cycles more art than the
+    # 32 MB selection cache holds, so the run decodes it repeatedly: about
+    # 165 s here against 46 s before portraits loaded in this test.
+    set_tests_properties(UiRender PROPERTIES TIMEOUT 240)
+    add_executable(SelectionArtTest src/tests/selection_art_test.cxx)
+    target_compile_definitions(SelectionArtTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
+    target_link_libraries(SelectionArtTest PRIVATE sf4e_ui "d3d9")
+    add_test(NAME SelectionArt COMMAND SelectionArtTest)
+    set_tests_properties(SelectionArt PROPERTIES TIMEOUT 60)
 endif()
 
 find_path(VALVEFILEVDF_INCLUDE_DIRS "vdf_parser.hpp")
@@ -538,6 +557,7 @@ target_include_directories(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE ${VALVEFILEVDF_I
     WIL::WIL
     "shlwapi"
     "pathcch"
+    "version"
     "bcrypt"
     "shell32"
     "ole32"
@@ -576,6 +596,8 @@ if(BUILD_TESTING)
     add_test(NAME PackageInstaller COMMAND PackageInstallerTest)
     add_test(NAME UpgradeRecoveryPowerShell COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-upgrade-recovery.ps1 -NativeFixture $<TARGET_FILE:PackageInstallerTest>)
     set_tests_properties(UpgradeRecoveryPowerShell PROPERTIES TIMEOUT 120)
+    add_test(NAME FramePacingCaptureValidation COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-capture-frame-pacing.ps1)
+    set_tests_properties(FramePacingCaptureValidation PROPERTIES TIMEOUT 60)
 endif()
 target_link_libraries(Updater PRIVATE sf4e_package_installer sf4e_selection "pathcch" "shell32")
 set_target_properties(Updater PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)

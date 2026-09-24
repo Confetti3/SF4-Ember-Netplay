@@ -59,11 +59,20 @@ struct Snapshot {
     // never clears must become visible and recoverable instead of silently
     // refusing Ready, Queue and Watch for the rest of the session.
     std::uint64_t authorityStalledMs = 0;
+    // While creating or joining, when the forming control stream was first
+    // seen unwritable. It is not a lost room, but a long wait is shown.
+    std::uint64_t openingStalledMs = 0;
+    bool openingStalled = false;
     std::string error;
 };
 
+// Why a command was not accepted. A fenced command is valid but arrived while
+// the room authority is catching up, so the caller may hold it and retry.
+enum class Refusal { Rejected, Fenced };
+
 struct Decision {
     bool accepted = false;
+    Refusal refusal = Refusal::Rejected;
     Effect effect = Effect::None;
     Generation generation;
     // Only returned to the backend for JoinInvite. Never part of Snapshot.
@@ -77,12 +86,22 @@ public:
     Snapshot GetSnapshot() const { return state_; }
     Decision Execute(const Command& command);
     Decision Apply(const Event& event);
+    // A room mutation for the current generation that Execute refuses only
+    // because the authority checkpoint fence is closed. The caller parks or
+    // reports it; it is never dropped silently (ledger H-006).
+    bool FencedOut(const Command& command) const;
     // Called only from locally applied helper coordination state. A remote
     // message claiming a newer term is not evidence of room authority.
     bool ObserveCoordination(std::uint64_t term, std::uint64_t revision,
         bool writable, std::uint64_t nowMs, bool locallyApplied = true);
     void AdvanceRecovery(std::uint64_t nowMs);
     void AdvanceCatchUp(std::uint64_t nowMs);
+    // A create or join whose control stream stays unwritable this long sets
+    // Snapshot::openingStalled, so the screen can say so.
+    static constexpr std::uint64_t OpeningStallMs = 30000;
+    // Whether an unwritable control stream means a lost control plane. A room
+    // still being created or joined has none yet, so there is nothing to recover.
+    bool ControlPlaneEstablished() const { return state_.room != RoomState::Opening; }
     void ShowPage(Page page) { state_.page = page; }
 
 private:

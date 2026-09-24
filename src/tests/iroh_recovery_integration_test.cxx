@@ -71,7 +71,7 @@ private:
 
 // None stops the technical leader's helper. Departure is a graceful leader
 // Leave; FollowerKilled closes a seated follower's pipe without one.
-enum class Fault { None, Departure, FollowerKilled, Preparing, PreparingMinority, SameTermPreparation, Started, CommittedResult };
+enum class Fault { None, Departure, FollowerKilled, KilledThenLeaderLeaves, Preparing, PreparingMinority, SameTermPreparation, Started, CommittedResult };
 static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t count, Fault fault) {
     std::array<platform::HelperProcess,3> processes;
     std::array<platform::HelperClient,3> helpers;
@@ -313,6 +313,35 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
         phase="follower-killed fixture shutdown";
         wait([&](){for(std::size_t i=0;i<2;++i) if(processes[i].IsRunning()) return false;return true;});
         std::cout << "Killed follower was removed from the room, its seat and the voter set; relay-only=" << relayOnly << '\n';
+        return;
+    }
+    if(fault==Fault::KilledThenLeaderLeaves) {
+        // Ledger H-008: a follower's game is killed, and the leader leaves
+        // inside the 15 s departure grace it armed. The successor never had a
+        // control edge to the dead follower, so it must arm the grace itself.
+        phase="seat the doomed follower";
+        action(2,room::ActionKind::Queue);
+        const auto ghost=peers[2].client->GetRoomSnapshot().localMember;
+        CHECK(ghost!=0);
+        wait([&](){pump();const auto& table=peers[0].client->GetRoomSnapshot().tables[0];return table.p1==ghost || table.p2==ghost;});
+        live.pop_back();helpers[2].Stop();
+        wait([&](){return !processes[2].IsRunning();});
+        phase="leader leaves before the grace expires";
+        action(0,room::ActionKind::Leave);
+        live.erase(live.begin());
+        peers[0].client.reset();peers[0].server.reset();peers[0].room->Leave(false);
+        wait([&](){pump();return peers[0].room->GetState()==session::IrohRoom::State::Idle;});
+        phase="successor commits the killed follower's departure";
+        wait([&](){pump();
+            const auto& authority=peers[1].room->Coordination();const auto& snapshot=peers[1].client->GetRoomSnapshot();
+            return authority.writable && authority.leaderLocal && peers[1].recovery.CaughtUp(authority) &&
+                snapshot.members.size()==1 && snapshot.tables[0].p1!=ghost && snapshot.tables[0].p2!=ghost;
+        },60000); // Handoff, 15 s departure grace on the successor, then the commit.
+        action(1,room::ActionKind::Chat,"After killed follower and leader departure");
+        for(std::size_t i=0;i<2;++i) CHECK(helpers[i].Send("{\"type\":\"shutdown\"}"));
+        phase="killed-then-leader-leaves fixture shutdown";
+        wait([&](){for(std::size_t i=0;i<2;++i) if(processes[i].IsRunning()) return false;return true;});
+        std::cout << "Successor removed a follower killed before the leader left; relay-only=" << relayOnly << '\n';
         return;
     }
 
@@ -903,7 +932,8 @@ int wmain(int argc,wchar_t** argv) {
         {L"majority",3,Fault::None},{L"minority",2,Fault::None},{L"departure",3,Fault::Departure},
         {L"started",3,Fault::Started},{L"preparing",3,Fault::Preparing},
         {L"preparing-minority",3,Fault::PreparingMinority},{L"same-term-preparing",3,Fault::SameTermPreparation},
-        {L"committed-result",3,Fault::CommittedResult},{L"follower-killed",3,Fault::FollowerKilled}};
+        {L"committed-result",3,Fault::CommittedResult},{L"follower-killed",3,Fault::FollowerKilled},
+        {L"killed-then-leader-leaves",3,Fault::KilledThenLeaderLeaves}};
     CHECK(scenario==L"all" || std::any_of(std::begin(cases),std::end(cases),[&](const Case& c){return scenario==c.name;}));
     for(const auto& c:cases) if(scenario==L"all" || scenario==c.name) RunRecovery(argv[1],relayOnly,c.count,c.fault);
     std::cout << "Helper recovery integration passed. No native SF4 gameplay tested.\n";

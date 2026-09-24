@@ -82,11 +82,14 @@ namespace sf4e {
 			};
 
 			// Records what fits and sets recordFailed when the core holds state
-			// the memento cannot represent. The game's memento chain has no
-			// error path, so the GGPO save callback checks the flag.
+			// the memento cannot represent; restore sets restoreFailed when it
+			// cannot rebuild a task. The game's memento chain has no error
+			// path, so only SaveState::Save and SaveState::Load reset and read
+			// these flags, and report them through their return values.
 			static void RecordToAdditionalMemento(Dimps::Eva::TaskCore* c, AdditionalMemento& m);
 			static void RestoreFromAdditionalMemento(Dimps::Eva::TaskCore* c, const AdditionalMemento& m);
 			static bool recordFailed;
+			static bool restoreFailed;
 		};
 	}
 }

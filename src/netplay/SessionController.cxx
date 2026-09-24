@@ -43,26 +43,37 @@ bool SessionController::ObserveCoordination(std::uint64_t term, std::uint64_t re
     else if (state_.authorityStalledMs == 0) state_.authorityStalledMs = nowMs ? nowMs : 1;
     state_.authorityWritable = connected && (locallyApplied ||
         (nowMs >= state_.authorityStalledMs && nowMs - state_.authorityStalledMs < CatchUpGraceMs));
+    const bool opening = !ControlPlaneEstablished();
+    if (connected || !opening) { state_.openingStalledMs = 0; state_.openingStalled = false; }
     if (connected) {
         state_.recovery = Recovery::None;
         state_.recoveryStartedMs = 0;
-        if (state_.room != RoomState::Opening) {
+        if (!opening) {
             state_.room = RoomState::Joined;
             state_.control = Health::Healthy;
         }
         state_.error.clear();
         AdvanceCatchUp(nowMs);
-    } else {
-        if (state_.recovery == Recovery::None) {
-            state_.recovery = Recovery::Recovering;
-            state_.recoveryStartedMs = nowMs;
-        }
-        state_.control = Health::Lost;
-        state_.verificationAvailable = false;
-        state_.readyPending = false;
-        state_.error = "Room control is recovering. Active matches may finish; room actions are paused.";
-        AdvanceRecovery(nowMs);
+        return true;
     }
+    state_.verificationAvailable = false;
+    state_.readyPending = false;
+    if (opening) {
+        // Creating or joining: the coordination stream is still forming, so
+        // this is not a lost room and has no control to recover. A slow relay
+        // can still finish, so a long wait is named rather than ended; the
+        // player can stop it.
+        if (state_.openingStalledMs == 0) state_.openingStalledMs = nowMs ? nowMs : 1;
+        state_.openingStalled = nowMs >= state_.openingStalledMs && nowMs - state_.openingStalledMs >= OpeningStallMs;
+        return true;
+    }
+    if (state_.recovery == Recovery::None) {
+        state_.recovery = Recovery::Recovering;
+        state_.recoveryStartedMs = nowMs;
+    }
+    state_.control = Health::Lost;
+    state_.error = "Room control is recovering. Active matches may finish; room actions are paused.";
+    AdvanceRecovery(nowMs);
     return true;
 }
 
@@ -87,12 +98,16 @@ void SessionController::AdvanceRecovery(std::uint64_t nowMs) {
         nowMs - state_.recoveryStartedMs >= 15000) state_.recovery = Recovery::ReplacementOffered;
 }
 
-Decision SessionController::Execute(const Command& command) {
-    if (!(command.generation == state_.generation)) { return Decision(); }
-    if (state_.coordinated && !state_.authorityWritable &&
+bool SessionController::FencedOut(const Command& command) const {
+    return command.generation == state_.generation && state_.coordinated && !state_.authorityWritable &&
         (command.kind == CommandKind::Ready || command.kind == CommandKind::Rematch ||
          command.kind == CommandKind::RoomAction || command.kind == CommandKind::SetLobbySettings ||
-         command.kind == CommandKind::CheckConnection || command.kind == CommandKind::ApplyDelay)) return Decision();
+         command.kind == CommandKind::CheckConnection || command.kind == CommandKind::ApplyDelay);
+}
+
+Decision SessionController::Execute(const Command& command) {
+    if (!(command.generation == state_.generation)) { return Decision(); }
+    if (FencedOut(command)) { Decision fenced; fenced.refusal = Refusal::Fenced; return fenced; }
     switch (command.kind) {
     case CommandKind::HostRoom:
     case CommandKind::JoinInvite: {

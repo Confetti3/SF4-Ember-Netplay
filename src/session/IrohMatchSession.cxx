@@ -2,6 +2,7 @@
 #include "../common/RoomLimits.hxx"
 #include <algorithm>
 #include <set>
+#include <spdlog/spdlog.h>
 
 namespace sf4e { namespace session {
 using nlohmann::json;
@@ -25,7 +26,14 @@ ULONGLONG IrohMatchSession::Now() const {
 void IrohMatchSession::ReleasePortToGgpo() {
 	if (reservedPort_ != INVALID_SOCKET) { closesocket(reservedPort_); reservedPort_ = INVALID_SOCKET; }
 }
-bool IrohMatchSession::Fail(const char* error) { error_ = error; phase_ = Phase::Failed; return false; }
+bool IrohMatchSession::Fail(const char* error) {
+	// Logged here because the runtime reports a generic, translated reason
+	// and Abort() clears this one; without the line a field log cannot tell
+	// a helper, route, IPC or peer failure apart (ledger N-005).
+	if (phase_ != Phase::Failed)
+		spdlog::warn("Match session failed: {} generation={} phase={}", error, generation_, static_cast<int>(phase_));
+	error_ = lastFailure_ = error; phase_ = Phase::Failed; return false;
+}
 bool IrohMatchSession::Acknowledge(const char* type, json extra) {
 	if (!type || generation_ == 0) return Fail("match_control_send_failed");
 	const std::string name(type);
@@ -136,6 +144,7 @@ bool IrohMatchSession::StartQueuedSetup() {
 bool IrohMatchSession::AcceptGrant(const json& message) {
 	const auto generation = message.at("generation").get<std::uint64_t>();
 	if (generation <= generation_) return true; // A stale room message cannot reopen a match.
+	lastFailure_.clear();
 	if (phase_ != Phase::Idle || !winsock_ || message.at("version") != 1 ||
 		message.at("room").get<std::array<std::uint8_t, 16>>() != room_->RoomId() ||
 		message.at("local_identity").get<std::string>() != room_->LocalIdentity() ||
@@ -404,10 +413,25 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 			pendingGrant_ = nullptr;
 			waitingForProjection_ = false;
 			roomEndReceived_ = true;
+			// Name every link's last known state and the helper's load, so a
+			// field log shows which close never arrived (F-008).
+			for (const auto& link : links_) {
+				const auto game = room_->Game(link.peer);
+				// Route kind only; the route itself names the peer's address.
+				spdlog::warn("Match teardown: link peer={} slot={} state={} generation={} route={} sent={} received={}",
+					link.peer.substr(0, 8), link.slot, static_cast<int>(game.state), game.generation,
+					game.route.empty() || game.route == "unavailable" ? "unavailable" :
+					game.route.compare(0, 5, "relay") == 0 ? "relay" : "direct",
+					game.sentPackets, game.receivedPackets);
+			}
+			if (room_) {
+				const auto& load = room_->HelperLoad();
+				spdlog::warn("Match teardown: helper load samples={} actor_lag_max_us={} actor_body_max_us={} event_queue_free_min={} last_event={} last_event_age_ms={}",
+					load.samples, load.actorTickLagMaxUs, load.actorTickBodyMaxUs, load.eventQueueFreeMin,
+					load.lastEventType, load.lastEventMs ? GetTickCount64() - load.lastEventMs : 0);
+			}
 			if (room_) room_->Leave();
-			error_ = "match_teardown_timeout";
-			phase_ = Phase::Failed;
-			return false;
+			return Fail("match_teardown_timeout");
 		}
 		return true;
 	}

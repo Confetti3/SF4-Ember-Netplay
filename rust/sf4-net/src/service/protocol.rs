@@ -274,6 +274,13 @@ pub enum Event {
         // Fewest free slots seen in the IPC event queue (capacity 128).
         event_queue_free_min: u64,
     },
+    // An actor step ran past stall::STALL_REPORT. Sent while it is still
+    // stuck and again when it ends; not tied to a room epoch.
+    HelperStall {
+        stage: String,
+        stalled_ms: u64,
+        ended: bool,
+    },
     RoomClosed {
         epoch: u64,
     },

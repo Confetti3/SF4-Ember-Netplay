@@ -18,6 +18,7 @@
 #include <imgui.h>
 #include <imgui_impl_dx9.h>
 #include <imgui_impl_win32.h>
+#include <spdlog/spdlog.h>
 #include <memory>
 #include <atomic>
 
@@ -46,14 +47,7 @@ bool Overlay::HasInputFocus() { return focused.load(); }
 void Overlay::RequestMainControls() { if(focused) { capture=true; mainRequested=true; } }
 void Overlay::PushNetplayAlert(const char* message) { if (message) sf4e::NetplayFacade::SetLastError(message); }
 void Overlay::OnClientError(SessionClient::ErrorType type, SessionClient* const, const SessionClient::Callbacks&) {
-    const char* message = sf4e::loc::T("runtime.room_request_failed");
-    switch (type) {
-    case SessionClient::ErrorType::SCE_JOIN_REJECTED_HASH_INVALID: message = sf4e::loc::T("runtime.build_mismatch"); break;
-    case SessionClient::ErrorType::SCE_JOIN_REJECTED_LOBBY_FULL: message = sf4e::loc::T("runtime.room_full"); break;
-    case SessionClient::ErrorType::SCE_JOIN_REJECTED_NAME_TAKEN: message = sf4e::loc::T("runtime.name_taken"); break;
-    default: break;
-    }
-    PushNetplayAlert(message);
+    PushNetplayAlert(sf4e::loc::T(SessionClient::JoinRejectionKey(type)));
 }
 static int OnMainMenuModeSelected(int mode) {
     if (mode != rMainMenu::MainMenuItemID::MMI_NETWORK) return 0;
@@ -80,7 +74,8 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	const std::wstring gameFile(gamePath), moduleFile(modulePath);
 	s_selectionArt.reset(new sf4e::ui::SelectionArt(lpDevice,
 		gameFile.substr(0, gameFile.find_last_of(L"\\/")),
-		moduleFile.substr(0, moduleFile.find_last_of(L"\\/")) + L"/assets/selection"));
+		moduleFile.substr(0, moduleFile.find_last_of(L"\\/")) + L"/assets/selection",
+		[](const std::string& line) { spdlog::warn("{}", line); }));
     sf4e::ui::SetMenuArt(s_selectionArt.get());
 	fMainMenu::OnModeSelectedOverride = OnMainMenuModeSelected;
 
@@ -143,6 +138,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.canEditLobby = snapshot.canEditLobby;
 	view.settingsPending = snapshot.settingsPending;
     view.selectedDelay=snapshot.selectedDelay; view.recommendedDelay=snapshot.recommendedDelay;
+    view.opponentDelay=snapshot.opponentDelay;
     view.delayLocked=snapshot.delayLocked; view.canProbe=snapshot.canProbe; view.canApplyDelay=snapshot.canApplyDelay;
     view.probeRoute=snapshot.probeRoute; view.probeP50Us=snapshot.probeP50Us; view.probeP95Us=snapshot.probeP95Us;
     view.probeP99Us=snapshot.probeP99Us; view.probeJitterUs=snapshot.probeJitterUs; view.probeBenchmark=snapshot.probeBenchmark;
@@ -232,10 +228,10 @@ void Overlay::DrawOverlay() {
     sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.selectPhysical,snapshot.menuController.backPhysical);
     if (presentation.Reopened()) shell.ShowPlay();
     if (ImGui::IsKeyPressed(ImGuiKey_F10, false)) presentation.Toggle();
-    if (presentation.Visible()) {
-        if (s_selectionArt) s_selectionArt->Pump();
-        DrawApplicationHome(snapshot);
-    }
+    // Every overlay frame, since the training panel draws art with the menu
+    // closed. Pump returns at once when nothing drew art since the last pump.
+    if (s_selectionArt) s_selectionArt->Pump();
+    if (presentation.Visible()) DrawApplicationHome(snapshot);
     if (!presentation.Visible() && assigning) {
         sf4e::NetplayFacade::RuntimeCommand cancel;
         cancel.command = {sf4e::netplay::CommandKind::HostRoom, snapshot.session.generation, {}};
