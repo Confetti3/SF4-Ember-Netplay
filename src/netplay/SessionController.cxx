@@ -96,7 +96,7 @@ bool SessionController::FencedOut(const Command& command) const {
 
 Decision SessionController::Execute(const Command& command) {
     if (!(command.generation == state_.generation)) { return Decision(); }
-    if (FencedOut(command)) return Decision();
+    if (FencedOut(command)) { Decision fenced; fenced.refusal = Refusal::Fenced; return fenced; }
     switch (command.kind) {
     case CommandKind::HostRoom:
     case CommandKind::JoinInvite: {

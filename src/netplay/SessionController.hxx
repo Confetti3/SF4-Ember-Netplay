@@ -62,8 +62,13 @@ struct Snapshot {
     std::string error;
 };
 
+// Why a command was not accepted. A fenced command is valid but arrived while
+// the room authority is catching up, so the caller may hold it and retry.
+enum class Refusal { Rejected, Fenced };
+
 struct Decision {
     bool accepted = false;
+    Refusal refusal = Refusal::Rejected;
     Effect effect = Effect::None;
     Generation generation;
     // Only returned to the backend for JoinInvite. Never part of Snapshot.

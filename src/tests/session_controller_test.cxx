@@ -269,12 +269,15 @@ int main() {
                      CommandKind::CheckConnection, CommandKind::Ready, CommandKind::Rematch}) {
                 fenced.kind = kind;
                 CHECK(stalled.FencedOut(fenced));
+                const auto decision = stalled.Execute(fenced);
+                CHECK(!decision.accepted && decision.refusal == Refusal::Fenced);
             }
             fenced.kind = CommandKind::LeaveRoom;
             CHECK(!stalled.FencedOut(fenced));
             fenced.kind = CommandKind::SetLobbySettings;
             fenced.generation.match++;
             CHECK(!stalled.FencedOut(fenced));
+            CHECK(stalled.Execute(fenced).refusal == Refusal::Rejected);
         }
 
         // Catching up clears the stall without leaving residue.

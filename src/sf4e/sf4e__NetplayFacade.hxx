@@ -76,10 +76,6 @@ namespace sf4e {
 			netplay::PlayerPreferences preferences;
 			room::Action roomAction;
             int selectedDelay=-1;
-            // Runtime only: when a parked room action gives up (0 = held
-            // until its match ends). It travels with the intent through
-            // resubmission, so a retry never restarts the budget (H-006).
-            std::uint64_t parkedUntil = 0;
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
