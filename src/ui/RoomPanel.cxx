@@ -351,12 +351,16 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   // between the two sides grows to fit however long the rematch run gets.
   const std::string middle=t.p1&&t.p2?SetScoreText(t.score):"VS";
   const float gap=(std::max)(34*s,ImGui::GetFont()->CalcTextSizeA(16*s,FLT_MAX,0,middle.c_str()).x+12*s);
-  const float top=p.y+28*s,portrait=(std::min)(56*s,h-52*s),half=(width-24*s-gap)*.5f;
+  // Portraits sit on the card's outer edges, mirrored, so neither crowds the
+  // score. The row fills and centres in the band between header and footer.
+  const float band=h-54*s,portrait=(std::min)(96*s,band),half=(width-24*s-gap)*.5f;
+  const float top=p.y+28*s+(band-portrait)*.5f+portrait*.5f-20*s;
   const room::MemberId ids[]={t.p1,t.p2};
   for(int side=0;side<2;++side){
    const float x=p.x+12*s+side*(half+gap);const auto* m=Member(v.room,ids[side]);const int id=fighter(m);
-   if(m)DrawCharacterPortrait(id,ImVec2(x,top),ImVec2(x+portrait,top+portrait));
-   const float tx=x+(m?portrait+8*s:0),tw=half-(m?portrait+8*s:0);
+   const float px=side?x+half-portrait:x,py=p.y+28*s+(band-portrait)*.5f;
+   if(m)DrawCharacterPortrait(id,ImVec2(px,py),ImVec2(px+portrait,py+portrait));
+   const float tx=x+(m&&!side?portrait+8*s:0),tw=half-(m?portrait+8*s:0);
    // Names of different lengths read ragged when flush left; centre each
    // in its own slot so the pair stays symmetric about VS.
    text(ImVec2(tx,top+2*s),tw,m?m->name:loc::T("room.looking_for_fight"),16*s,m?palette::Ivory:palette::Muted,true);
