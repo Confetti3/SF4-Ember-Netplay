@@ -53,8 +53,8 @@ replace current recovery validation.
 One private Iroh room admits up to 16 members and owns four independent versus
 tables. Members can play, watch, queue, or remain idle. A game uses one local
 instance at a time; queued members watch from the next game. The same two
-fighters keep their seats through unlimited rematches until one leaves, with no
-first-to limit or automatic set rotation. The next queued member fills a freed
+fighters keep their seats, game after game, until one leaves. There is no
+first-to limit and no automatic rotation. The next queued member fills a freed
 seat, and both fighters ready before each game. Reconciled native results count
 wins for the current pair without ending the room session.
 

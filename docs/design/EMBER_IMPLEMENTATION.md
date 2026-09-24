@@ -92,7 +92,7 @@ package inventory while adding the private room authority. A room admits up to
 explicitly queues for a fighter seat or watches a table. Each table has two
 fighters and can carry up to 14 spectators.
 
-The same fighter pair keeps its seats through unlimited rematches. Both
+The same fighter pair keeps its seats until one of them leaves. Both
 fighters must ready for each game, and valid native results accumulate wins for
 that pair. A seat departure promotes the next queued member and starts a fresh
 pair score. Conflicting or missing native result reports remain unresolved;
