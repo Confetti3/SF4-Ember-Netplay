@@ -124,6 +124,8 @@ struct Runtime {
 	// instead of the press vanishing. A lobby edit waits on the previous
 	// match's drain.
 	Intent roomActionIntent{3000, Intent::Completion::OnDispatch};
+	// Chat parks on its own, so a message never displaces a table action.
+	Intent chatIntent{3000, Intent::Completion::OnDispatch};
 	Intent readyIntent{20000, Intent::Completion::OnCommit};
 	Intent lobbyEditIntent{15000, Intent::Completion::OnDispatch};
 	std::string readyFailure;
@@ -193,6 +195,7 @@ void CloseRoom() {
 	runtime->lobbyEditIntent.Clear();
 	runtime->pendingLobbySettings.reset();
 	runtime->roomActionIntent.Clear();
+	runtime->chatIntent.Clear();
 	runtime->resultOutbox.Reset();
 	runtime->recoveringMatch = false;
 	runtime->matchFinishedPending = false;
@@ -960,6 +963,10 @@ static void FailReady(const char* reason) {
 // parked intent.
 enum class Attempt { Fresh, Retry };
 using netplay::DispatchOutcome;
+// Chat and table actions (Queue, Watch, Unready and the like) park apart.
+static Intent& RoomActionIntent(const RuntimeCommand& command) {
+	return command.roomAction.kind == room::ActionKind::Chat ? runtime->chatIntent : runtime->roomActionIntent;
+}
 // Holds a command the room cannot take yet under its intent's budget.
 static DispatchOutcome Defer(Intent& intent, const RuntimeCommand& command, Intent::Budget budget = Intent::Budget::Timed) {
 	intent.Defer(command, command.command.generation, GetTickCount64(), budget);
@@ -1141,9 +1148,9 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	if (kind == netplay::CommandKind::HostRoom && !command.preferences.Valid()) return DispatchOutcome::Dropped;
 	if (kind == netplay::CommandKind::RoomAction) {
 		if (!runtime->attached || !UserApp::netplay || !runtime->match) return DispatchOutcome::Dropped;
-		// One parked room action at a time, and the newest press wins: an older
+		// One parked action of each kind, and the newest press wins: an older
 		// one retried after this press would undo it (Queue, then Unqueue).
-		if (attempt == Attempt::Fresh) runtime->roomActionIntent.Clear();
+		if (attempt == Attempt::Fresh) RoomActionIntent(command).Clear();
 		const auto action = command.roomAction.kind;
 		const bool changingTable = action == room::ActionKind::Queue || action == room::ActionKind::Unqueue ||
 			action == room::ActionKind::Watch || action == room::ActionKind::Unwatch;
@@ -1236,7 +1243,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 			// under its existing budget rather than losing it.
 			if (!runtime->readyIntent.Parked()) return Defer(runtime->readyIntent, command);
 		} else if (decision.refusal == netplay::Refusal::Fenced) {
-			if (kind == netplay::CommandKind::RoomAction) return Defer(runtime->roomActionIntent, command);
+			if (kind == netplay::CommandKind::RoomAction) return Defer(RoomActionIntent(command), command);
 			runtime->error = loc::T("runtime.room_catchup_timeout");
 		}
 		return DispatchOutcome::Dropped;
@@ -1254,7 +1261,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		// A full queue or a control reconnect is transient: keep the intent
 		// under its budget rather than making the player press again.
 		if (sent == session::SendResult::NotConnected || sent == session::SendResult::QueueFull)
-			outcome = Defer(runtime->roomActionIntent, command);
+			outcome = Defer(RoomActionIntent(command), command);
 		else if (sent != session::SendResult::Queued) runtime->error = loc::T("runtime.room_action_failed");
 		break;
 	}
@@ -1731,15 +1738,17 @@ static void ResolvePendingIntents(bool helperReady) {
 	const auto currentGeneration = runtime->controller.GetSnapshot().generation;
 	const auto now = GetTickCount64();
 	runtime->roomActionIntent.DropStale(currentGeneration);
+	runtime->chatIntent.DropStale(currentGeneration);
 	runtime->readyIntent.DropStale(currentGeneration);
 	runtime->lobbyEditIntent.DropStale(currentGeneration);
 	// A match recovery pauses a room action's budget; it restarts once the
 	// recovery resolves, which is when the action can be submitted (H-006).
 	// Say so when it gives up rather than applying a stale intent.
-	if (runtime->roomActionIntent.Expired(now, runtime->recoveringMatch)) {
-		runtime->roomActionIntent.Clear();
-		runtime->error = loc::T("runtime.room_catchup_timeout");
-	}
+	for (auto* intent : {&runtime->roomActionIntent, &runtime->chatIntent})
+		if (intent->Expired(now, runtime->recoveringMatch)) {
+			intent->Clear();
+			runtime->error = loc::T("runtime.room_catchup_timeout");
+		}
 	// A parked Ready or lobby edit that never gets its turn is reported, not
 	// forgotten: the player pressed it and GGPO was already retired for it.
 	if (runtime->readyIntent.Expired(now)) FailReady(loc::T("runtime.ready.previous_match_timeout"));
@@ -1759,6 +1768,8 @@ static void ResolvePendingIntents(bool helperReady) {
 		if (healthyRoomControl && !runtime->recoveringMatch && (spectatorExit || (AtMainMenu() && matchIdle)))
 			Retry(runtime->roomActionIntent, helperReady);
 	}
+	if (runtime->chatIntent.Parked() && healthyRoomControl && !runtime->recoveringMatch && AtMainMenu() && matchIdle)
+		Retry(runtime->chatIntent, helperReady);
 	// A sent Ready keeps its budget; the pump clears it on commit or failure.
 	if (runtime->readyIntent.Parked() && healthyRoomControl && GetRuntimeSnapshotShared()->readyGate &&
 		!Game::Battle::System::ggpo && matchIdle)
