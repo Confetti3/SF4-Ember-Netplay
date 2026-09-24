@@ -426,8 +426,9 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 			}
 			if (room_) {
 				const auto& load = room_->HelperLoad();
-				spdlog::warn("Match teardown: helper load samples={} actor_lag_max_us={} actor_body_max_us={} event_queue_free_min={}",
-					load.samples, load.actorTickLagMaxUs, load.actorTickBodyMaxUs, load.eventQueueFreeMin);
+				spdlog::warn("Match teardown: helper load samples={} actor_lag_max_us={} actor_body_max_us={} event_queue_free_min={} last_event={} last_event_age_ms={}",
+					load.samples, load.actorTickLagMaxUs, load.actorTickBodyMaxUs, load.eventQueueFreeMin,
+					load.lastEventType, load.lastEventMs ? GetTickCount64() - load.lastEventMs : 0);
 			}
 			if (room_) room_->Leave();
 			return Fail("match_teardown_timeout");

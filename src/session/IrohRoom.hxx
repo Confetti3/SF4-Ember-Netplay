@@ -47,6 +47,10 @@ public:
     // the first report arrives.
     struct HelperLoadSnapshot {
         std::uint64_t samples=0, actorTickLagMaxUs=0, actorTickBodyMaxUs=0, eventQueueFreeMin=0;
+        // The last helper event of any kind, to tell a silent helper from a
+        // lost reply (F-008).
+        std::uint64_t lastEventMs=0;
+        std::string lastEventType;
     };
     const HelperLoadSnapshot& HelperLoad() const { return helperLoad_; }
     struct CoordinationSnapshot {

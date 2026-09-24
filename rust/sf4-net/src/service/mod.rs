@@ -77,10 +77,10 @@ mod members;
 mod probes;
 mod protocol;
 mod refresh;
+mod stall;
 #[cfg(test)]
 mod tests;
 
-#[cfg(test)]
 use entry::TaskScope;
 pub use entry::run;
 use probes::{selected_probe_route, serve_probe};
@@ -1005,11 +1005,14 @@ impl Actor {
         // Load over the current statistics second; see Event::HelperLoad.
         let (mut tick_lag_max, mut tick_body_max) = (Duration::ZERO, Duration::ZERO);
         let mut event_free_min = usize::MAX;
+        let busy = stall::Busy::new(self.events.clone());
+        let _watchdog = TaskScope(vec![busy.watch()]);
         loop {
             tokio::select! {
                 _ = failed_ipc.changed() => return Err(failed("IPC disconnected")),
                 request = commands.recv() => match request {
                     Some(request) => {
+                        let _step = busy.enter(stall::command_stage(&request.command));
                         let id = request.id;
                         match request.command {
                             Command::CheckpointBegin { epoch, room, transfer, term, base_revision, revision, length, digest } =>
@@ -1042,6 +1045,7 @@ impl Actor {
                     None => return Err(failed("IPC disconnected")),
                 },
                 incoming = self.endpoint.accept() => {
+                    let _step = busy.enter("accept");
                     let Some(incoming) = incoming else { return Err(failed("endpoint closed")); };
                     if self.tasks.len() >= MAX_TASKS
                         || (self.hosted.is_none()
@@ -1060,33 +1064,41 @@ impl Actor {
                     });
                 }
                 result = self.tasks.join_next(), if !self.tasks.is_empty() => {
+                    let _step = busy.enter(match &result { Some(Ok(completion)) => stall::completion_stage(completion), _ => "task" });
                     match result { Some(Ok(completion)) => self.completed(completion).await?,
                         Some(Err(error)) if error.is_cancelled() => (), _ => return Err(failed("helper worker failed")) }
                 }
                 scheduled = tick.tick() => {
+                    let _step = busy.enter("tick");
                     let started = Instant::now();
                     tick_lag_max = tick_lag_max.max(started.saturating_duration_since(scheduled));
                     event_free_min = event_free_min.min(self.events.capacity());
                     self.expire_departure_grace();
                     self.start_next_admission_operation();
                     self.pump_membership_publications();
+                    busy.stage("tick:poll_controls");
                     self.poll_controls().await?;
+                    busy.stage("tick");
                     self.pump_pending_checkpoint_ack();
                     self.pump_pending_checkpoint_committed();
                     self.expire_checkpoint_transfers();
                     self.expire_probe_permissions();
                     self.invalidate_changed_probe_routes();
                     self.pump_outgoing_checkpoint();
+                    busy.stage("tick:pump_committed_checkpoint");
                     self.pump_committed_checkpoint().await?;
                     tick_body_max = tick_body_max.max(started.elapsed());
                 },
                 _ = statistics.tick() => {
+                    let _step = busy.enter("statistics");
                     self.emit_coordination_state().await?;
                     let micros = |value: Duration| u64::try_from(value.as_micros()).unwrap_or(u64::MAX);
                     let (lag, body) = (micros(tick_lag_max), micros(tick_body_max));
                     let free = if event_free_min == usize::MAX { self.events.capacity() } else { event_free_min } as u64;
                     (tick_lag_max, tick_body_max, event_free_min) = (Duration::ZERO, Duration::ZERO, usize::MAX);
-                    if !self.games.is_empty() && self.events.capacity() > LIFECYCLE_EVENT_RESERVE {
+                    // While a room is open, not only during a match: a report that
+                    // stops at match end must mean the actor stopped (F-008).
+                    if (self.room.is_some() || !self.games.is_empty()) && self.events.capacity() > LIFECYCLE_EVENT_RESERVE {
                         self.emit(Event::HelperLoad { epoch: self.epoch, actor_tick_lag_max_us: lag,
                             actor_tick_body_max_us: body, event_queue_free_min: free })?;
                     }

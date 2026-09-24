@@ -865,6 +865,12 @@ void IrohRoom::Poll() {
 		try {
 			const auto event = json::parse(frame.payload);
 			const auto type = event.at("type").get<std::string>();
+			helperLoad_.lastEventMs = GetTickCount64(); helperLoad_.lastEventType = type;
+			if (type == "helper_stall") {
+				spdlog::warn("Helper: actor {} {} after {} ms", event.at("ended").get<bool>() ? "resumed from" : "stuck in",
+					event.at("stage").get<std::string>(), event.at("stalled_ms").get<std::uint64_t>());
+				continue;
+			}
 			if (type == "stopped") {
 				for (auto& game : games_) { game.second.state = GameState::Closed; game.second.virtualPort = 0; }
 				Fail("helper_stopped"); return;
