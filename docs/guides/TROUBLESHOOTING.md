@@ -3,6 +3,7 @@
 - **Game not found:** choose the directory containing SSFIV.exe in recovery, then Retry launch. Steam must be installed and the game owned.
 - **Missing networking helper:** extract the complete package, including sf4-net.exe. Offline remains available. Restart Launcher after restoring files.
 - **Launch or injection failed:** close recovery, run preflight.cmd and review `%APPDATA%\sf4e\logs\launcher.log`. Retry through recovery. No unrelated processes are terminated.
+- **Character art missing:** portraits come from the installed game, with the packaged original outfit as a fallback. Most alternate colors have no preview picture; those show "Preview not available" by design. A picture that fails to load is retried, then named in `%APPDATA%\sf4e\logs\sf4e.log` as `Selection art ... unavailable` with the file and error. Include that line in a report.
 - **Display problems:** use the native game Options menu. Ember does not override fullscreen or window behavior.
 - **Invalid invitation:** paste the entire private invitation. Old broker room codes and direct-IP addresses are no longer supported.
 - **Room rejected:** use the same build as the host, a distinct player name, and a room with free capacity. Cancel or Leave, fix the cause, then retry Host/Join.

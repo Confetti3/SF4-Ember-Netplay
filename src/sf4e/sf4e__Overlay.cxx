@@ -18,6 +18,7 @@
 #include <imgui.h>
 #include <imgui_impl_dx9.h>
 #include <imgui_impl_win32.h>
+#include <spdlog/spdlog.h>
 #include <memory>
 #include <atomic>
 
@@ -75,6 +76,7 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 		gameFile.substr(0, gameFile.find_last_of(L"\\/")),
 		moduleFile.substr(0, moduleFile.find_last_of(L"\\/")) + L"/assets/selection"));
     sf4e::ui::SetMenuArt(s_selectionArt.get());
+    sf4e::ui::SelectionArt::SetLogger([](const std::string& line) { spdlog::warn("{}", line); });
 	fMainMenu::OnModeSelectedOverride = OnMainMenuModeSelected;
 
 	sf4e::OverlayPrefs::Data prefs{};
@@ -226,10 +228,9 @@ void Overlay::DrawOverlay() {
     sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.selectPhysical,snapshot.menuController.backPhysical);
     if (presentation.Reopened()) shell.ShowPlay();
     if (ImGui::IsKeyPressed(ImGuiKey_F10, false)) presentation.Toggle();
-    if (presentation.Visible()) {
-        if (s_selectionArt) s_selectionArt->Pump();
-        DrawApplicationHome(snapshot);
-    }
+    // Every overlay frame: the training panel draws art with the menu closed.
+    if (s_selectionArt) s_selectionArt->Pump();
+    if (presentation.Visible()) DrawApplicationHome(snapshot);
     if (!presentation.Visible() && assigning) {
         sf4e::NetplayFacade::RuntimeCommand cancel;
         cancel.command = {sf4e::netplay::CommandKind::HostRoom, snapshot.session.generation, {}};

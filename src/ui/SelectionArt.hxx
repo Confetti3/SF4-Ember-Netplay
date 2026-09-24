@@ -1,5 +1,6 @@
 #pragma once
 #include <imgui.h>
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -28,6 +29,9 @@ public:
     SelectionImage Stage(int nativeId);
     SelectionImage MenuBackdrop();
     SelectionImage InputPrompt(const std::string& name);
+    // Receives one line per image that could not be loaded, from Pump's
+    // thread. Art never logs by itself: the host decides where lines go.
+    static void SetLogger(std::function<void(const std::string&)> logger);
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
