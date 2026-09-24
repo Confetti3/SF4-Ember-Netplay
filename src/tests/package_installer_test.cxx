@@ -118,6 +118,56 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(Read(crashInstall/L"sf4-net.exe")=="user-collision");
     CHECK(!fs::exists(crashInstall/L".ember-update-transaction-v1.json"));
     CHECK(sf4e::launcher::RecoverPackage(crashInstall,error)); // idempotent restart
+
+    // Recovery never locks a player out or downgrades a folder it does not own.
+    const auto failedJournal=crashInstall/L".ember-update-transaction-v1.json.failed";
+    // The damaged journals above were each reported, then set aside.
+    CHECK(fs::exists(failedJournal)); fs::remove(failedJournal);
+    // An update that in fact finished is left in place.
+    for(const auto& op:originalJournal["operations"]) {
+        const auto path=crashInstall/fs::u8path(op["path"].get<std::string>());
+        if(originalJournal["target"].contains(op["path"].get<std::string>())) Write(path,"target"); else fs::remove(path);
+    }
+    Write(journalPath,originalJournal.dump().c_str());
+    CHECK(sf4e::launcher::RecoverPackage(crashInstall,error));
+    CHECK(Read(crashInstall/L"Launcher.exe")=="target" && !fs::exists(journalPath) && !fs::exists(failedJournal));
+    // A package extracted over the folder since is not rolled back.
+    Write(crashInstall/L"Launcher.exe","extracted-later");
+    Write(journalPath,originalJournal.dump().c_str());
+    CHECK(sf4e::launcher::RecoverPackage(crashInstall,error));
+    CHECK(Read(crashInstall/L"Launcher.exe")=="extracted-later" && !fs::exists(journalPath) && fs::exists(failedJournal));
+    // A file that went missing (antivirus, say) is not a replaced folder: the
+    // half-applied update is restored.
+    for(const auto& op:originalJournal["operations"]) {
+        const auto path=crashInstall/fs::u8path(op["path"].get<std::string>());
+        if(originalJournal["target"].contains(op["path"].get<std::string>())) Write(path,"target"); else fs::remove(path);
+    }
+    fs::remove(crashInstall/L"sf4-net.exe");
+    Write(journalPath,originalJournal.dump().c_str());
+    CHECK(sf4e::launcher::RecoverPackage(crashInstall,error));
+    CHECK(Read(crashInstall/L"Launcher.exe")=="prior-launcher" && Read(crashInstall/L"sf4-net.exe")=="user-collision" && !fs::exists(journalPath));
+    // A journal that cannot be cleared is a failure, never a reported success,
+    // or the Launcher and Updater would restart each other forever.
+    Write(crashInstall/L"Launcher.exe","extracted-later");
+    Write(journalPath,originalJournal.dump().c_str());
+    HANDLE held=CreateFileW(journalPath.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
+    CHECK(held!=INVALID_HANDLE_VALUE);
+    CHECK(!sf4e::launcher::RecoverPackage(crashInstall,error) && error.find("Cannot clear")!=std::string::npos);
+    CloseHandle(held);
+    CHECK(fs::exists(journalPath) && Read(crashInstall/L"Launcher.exe")=="extracted-later");
+    CHECK(sf4e::launcher::RecoverPackage(crashInstall,error));
+    CHECK(!fs::exists(journalPath) && Read(crashInstall/L"Launcher.exe")=="extracted-later");
+    // A committed journal whose files changed afterwards is only cleared.
+    auto committedJournal=originalJournal; committedJournal["state"]="committed";
+    Write(journalPath,committedJournal.dump().c_str());
+    CHECK(sf4e::launcher::RecoverPackage(crashInstall,error));
+    CHECK(Read(crashInstall/L"Launcher.exe")=="extracted-later" && !fs::exists(journalPath));
+    // A journal that can never be recovered is reported once, then set aside.
+    fs::remove(failedJournal);
+    Write(journalPath,"{ damaged");
+    CHECK(!sf4e::launcher::RecoverPackage(crashInstall,error));
+    CHECK(!fs::exists(journalPath) && fs::exists(failedJournal));
+    CHECK(sf4e::launcher::RecoverPackage(crashInstall,error));
     // Only this uniquely created temporary fixture is removed.
     RemoveTempRoot(root);
     std::cout << "Inventory, upgrade preservation, backup and rollback checks passed\n";
