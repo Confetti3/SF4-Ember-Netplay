@@ -273,6 +273,7 @@ int wmain(int argc, wchar_t** argv) {
 		bool changed = tableZeroTrace.roomPhase != static_cast<int>(table.phase) ||
 			tableZeroTrace.roomRevision != table.revision || tableZeroTrace.generation != table.matchGeneration;
 		for (std::size_t i = 0; i < (std::min<std::size_t>)(4, Count); ++i) {
+			if (!matches[i]) continue; // the late joiner has no match session until it is admitted
 			const int matchPhase = static_cast<int>(matches[i]->GetPhase());
 			const auto matchGeneration = matches[i]->Generation();
 			changed = changed || tableZeroTrace.clientPhases[i] != matchPhase ||
@@ -352,7 +353,7 @@ int wmain(int argc, wchar_t** argv) {
 	};
 	auto allViewsCurrent = [&]() {
 		const auto revision = server.RoomSnapshot()->revision;
-		return std::all_of(clients.begin(), clients.end(), [&](const std::unique_ptr<SessionClient>& client) {
+		return std::all_of(clientViews.begin(), clientViews.end(), [&](const SessionClient* client) {
 			return client->GetRoomSnapshot().revision == revision;
 		});
 	};
@@ -493,7 +494,8 @@ int wmain(int argc, wchar_t** argv) {
 			// Like the game, which offers an unsent hash again every frame: a
 			// relayed room can be briefly non-writable right after setup.
 			wait([&]() { pump(); return clients[0]->Send(payload, nullptr) == session::SendResult::Queued; });
-			const std::size_t participants = perTable;
+			// A late joiner at table 0 is not connected yet and cannot receive it.
+			const std::size_t participants = (std::min)(perTable, admitted);
 			wait([&]() { pump(); return std::all_of(clients.begin() + 1, clients.begin() + participants,
 				[&](const std::unique_ptr<SessionClient>& client) { return client->pendingRemoteHashes.count(hash.frameIdx) == 1; }); });
 			for (std::size_t i = participants; i < Count; ++i) CHECK(clients[i]->pendingRemoteHashes.count(hash.frameIdx) == 0);
