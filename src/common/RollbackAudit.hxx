@@ -77,6 +77,8 @@ constexpr size_t kBoxNodeSerializedBytes = kBoxNodeFieldBytes + 4 + 4 + kBoxNode
 // The engine's pools are far smaller; the cap only stops a corrupt chain.
 constexpr int kMaxBoxNodes = 256;
 
+// A node without data serializes zeros in its place; the list then reports
+// itself incomplete, so the audit never counts it as checked.
 inline void AppendBoxNode(std::vector<uint8_t>& out, const uint8_t* node, const uint8_t* data) {
 	out.insert(out.end(), node, node + kBoxNodeFieldBytes);
 	out.insert(out.end(), node + kBoxNodeCountOffset, node + kBoxNodeCountOffset + 4);
@@ -88,20 +90,30 @@ inline void AppendBoxNode(std::vector<uint8_t>& out, const uint8_t* node, const 
 	}
 }
 
+struct BoxListResult {
+	int nodes;
+	bool complete; // false when the cap cut the chain or a node had no data
+};
+
 // Serializes one list as [uint32 node count][node fields...]. `next(node)`
 // and `data(node)` read the engine's pointers, so the walk works on 32-bit
-// game memory and on test structures alike. Returns the node count.
+// game memory and on test structures alike.
 template <class Next, class Data>
-int SerializeBoxList(std::vector<uint8_t>& out, const uint8_t* first, Next next, Data data) {
+BoxListResult SerializeBoxList(std::vector<uint8_t>& out, const uint8_t* first, Next next, Data data) {
 	const size_t countAt = out.size();
 	out.insert(out.end(), 4, uint8_t(0));
 	uint32_t count = 0;
-	for (const uint8_t* node = first; node && count < kMaxBoxNodes; node = next(node)) {
-		AppendBoxNode(out, node, data(node));
+	bool complete = true;
+	const uint8_t* node = first;
+	for (; node && count < kMaxBoxNodes; node = next(node)) {
+		const uint8_t* nodeData = data(node);
+		if (!nodeData) complete = false;
+		AppendBoxNode(out, node, nodeData);
 		count++;
 	}
+	if (node) complete = false; // more nodes than the cap
 	std::memcpy(&out[countAt], &count, sizeof(count));
-	return int(count);
+	return { int(count), complete };
 }
 
 // Per-battle accounting for one category.

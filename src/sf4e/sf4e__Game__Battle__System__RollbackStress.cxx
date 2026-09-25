@@ -128,11 +128,8 @@ void StressConfigure() {
     spdlog::warn("RollbackStress: enabled for offline battles, distance={} frames predict={} audit={}", distance, stress.predictMask, stress.auditMode);
 }
 
-void AuditResetBattle(); // defined with the audit below
-
 void StressReset() {
     auto& stress = Stress();
-    AuditResetBattle();
     for (int i = 0; i < RollbackStress::kRing; i++) {
         if (stress.states[i].used) {
             fSystem::SaveState::Free(&stress.states[i]);
@@ -221,11 +218,24 @@ struct AuditFighter {
     std::vector<uint8_t> engine[2];
     std::vector<uint8_t> boxes[2];
 };
-AuditFighter s_auditSnapshots[RollbackStress::kRing][2];
-// Last reported diff per object, so a persistent difference is logged once
-// per battle. Index: 0 actor, 1+k afterimage k, 3+k engine k, 5+k boxes k.
-std::string s_auditLast[2][7];
-audit::Tally s_auditTally;
+// All audit state for one battle, reset together when a battle's stress
+// history starts (StressStep's first prime) and when it closes.
+struct AuditSession {
+    AuditFighter snapshots[RollbackStress::kRing][2];
+    // Last reported diff per object, so a persistent difference is logged
+    // once per battle. Index: 0 actor, 1+k afterimage k, 3+k engine k, 5+k boxes k.
+    std::string last[2][7];
+    audit::Tally tally;
+};
+
+AuditSession& Audit() {
+    static AuditSession session;
+    return session;
+}
+
+void AuditStartBattle() {
+    Audit() = AuditSession();
+}
 
 const uint8_t* ReadPointer(const uint8_t* base, size_t offset) {
     return *reinterpret_cast<const uint8_t* const*>(base + offset);
@@ -240,7 +250,8 @@ const uint8_t* AuditActor(int side) {
     return unit ? reinterpret_cast<const uint8_t*>((unit->*CharaUnit::publicMethods.GetActorByIndex)(side)) : nullptr;
 }
 
-// Serializes the five lists; false when a list object is missing.
+// Serializes the five lists; false when a list object is missing or a list
+// was not fully serialized.
 bool SerializeBoxes(const uint8_t* afterimage, std::vector<uint8_t>& out, int& nodes) {
     out.clear();
     nodes = 0;
@@ -251,14 +262,16 @@ bool SerializeBoxes(const uint8_t* afterimage, std::vector<uint8_t>& out, int& n
             complete = false;
             continue;
         }
-        nodes += audit::SerializeBoxList(out, ReadPointer(list, kBoxListHead), BoxNext, BoxData);
+        const audit::BoxListResult result = audit::SerializeBoxList(out, ReadPointer(list, kBoxListHead), BoxNext, BoxData);
+        nodes += result.nodes;
+        complete = complete && result.complete;
     }
     return complete;
 }
 
 void AuditCapture(int index) {
     for (int side = 0; side < 2; side++) {
-        AuditFighter& snapshot = s_auditSnapshots[index][side];
+        AuditFighter& snapshot = Audit().snapshots[index][side];
         const uint8_t* actor = AuditActor(side);
         snapshot.actor.clear();
         for (int k = 0; k < 2; k++) {
@@ -286,8 +299,9 @@ void AuditRecord(audit::Counts& counts, int side, int slot, const char* name, co
     counts.checked++;
     if (!diff.empty()) counts.failed++;
     std::string described = audit::Describe(diff);
-    if (described == s_auditLast[side][slot]) return;
-    s_auditLast[side][slot] = described;
+    std::string& last = Audit().last[side][slot];
+    if (described == last) return;
+    last = described;
     if (diff.empty()) {
         spdlog::info("RollbackStress: audit p{} {} restores fully again (frame {})", side + 1, name, frame);
     } else {
@@ -309,17 +323,19 @@ audit::Probe ProbeByte(uint8_t* live, size_t position, Compare compare) {
 }
 
 void AuditProbeEngine(const std::vector<uint8_t>& snapshot, uint8_t* engine) {
-    for (size_t offset = kProbeEngineOffset; offset < kEngineBytes && s_auditTally.probeEngine == audit::Probe::Pending; offset++) {
-        s_auditTally.probeEngine = ProbeByte(engine + offset, offset, [&]() {
+    audit::Tally& tally = Audit().tally;
+    for (size_t offset = kProbeEngineOffset; offset < kEngineBytes && tally.probeEngine == audit::Probe::Pending; offset++) {
+        tally.probeEngine = ProbeByte(engine + offset, offset, [&]() {
             return audit::Diff(snapshot, std::vector<uint8_t>(engine, engine + kEngineBytes), kEngineRanges);
         });
     }
-    if (s_auditTally.probeEngine != audit::Probe::Pending) {
-        spdlog::info("RollbackStress: audit probe engine={}", audit::ProbeName(s_auditTally.probeEngine));
+    if (tally.probeEngine != audit::Probe::Pending) {
+        spdlog::info("RollbackStress: audit probe engine={}", audit::ProbeName(tally.probeEngine));
     }
 }
 
 void AuditProbeBoxes(const std::vector<uint8_t>& snapshot, const uint8_t* afterimage) {
+    audit::Tally& tally = Audit().tally;
     for (int i = 0; i < kBoxLists; i++) {
         const uint8_t* list = ReadPointer(afterimage, kAfterimageBoxLists + 4 * i);
         uint8_t* node = list ? const_cast<uint8_t*>(ReadPointer(list, kBoxListHead)) : nullptr;
@@ -335,49 +351,62 @@ void AuditProbeBoxes(const std::vector<uint8_t>& snapshot, const uint8_t* afteri
             position += part.size();
         }
         position += 4; // this list's count
-        for (size_t byte = 0; byte < audit::kBoxNodeFieldBytes && s_auditTally.probeBoxes == audit::Probe::Pending; byte++) {
-            s_auditTally.probeBoxes = ProbeByte(node + byte, position + byte, [&]() {
+        for (size_t byte = 0; byte < audit::kBoxNodeFieldBytes && tally.probeBoxes == audit::Probe::Pending; byte++) {
+            tally.probeBoxes = ProbeByte(node + byte, position + byte, [&]() {
                 SerializeBoxes(afterimage, live, nodes);
                 return audit::Diff(snapshot, live, kWholeRange);
             });
         }
         break;
     }
-    if (s_auditTally.probeBoxes != audit::Probe::Pending) {
-        spdlog::info("RollbackStress: audit probe boxes={}", audit::ProbeName(s_auditTally.probeBoxes));
+    if (tally.probeBoxes != audit::Probe::Pending) {
+        spdlog::info("RollbackStress: audit probe boxes={}", audit::ProbeName(tally.probeBoxes));
     }
 }
 
 void AuditCompare(int index, int frame, int mode) {
+    audit::Tally& tally = Audit().tally;
     for (int side = 0; side < 2; side++) {
-        const AuditFighter& snapshot = s_auditSnapshots[index][side];
+        const AuditFighter& snapshot = Audit().snapshots[index][side];
         const uint8_t* actor = AuditActor(side);
-        if (!actor) continue;
+        if (!actor) {
+            // A fighter the save captured but the load did not bring back.
+            if (!snapshot.actor.empty()) {
+                tally.actor.missing++;
+                for (int k = 0; k < 2; k++) {
+                    if (snapshot.afterimage[k].empty()) continue;
+                    tally.afterimage.missing++;
+                    tally.engine.missing++;
+                    tally.boxes.missing++;
+                }
+            }
+            continue;
+        }
         if (snapshot.actor.empty()) {
-            s_auditTally.actor.missing++;
+            tally.actor.missing++;
         } else {
-            AuditRecord(s_auditTally.actor, side, 0, "actor", audit::Diff(snapshot.actor,
+            AuditRecord(tally.actor, side, 0, "actor", audit::Diff(snapshot.actor,
                 std::vector<uint8_t>(actor, actor + kActorBytes), kActorRanges), frame);
         }
         for (int k = 0; k < 2; k++) {
             const char* afterimageName = k ? "afterimage1" : "afterimage0";
             const uint8_t* afterimage = ReadPointer(actor, kAfterimageOffsets[k]);
             if (!afterimage || snapshot.afterimage[k].empty()) {
-                s_auditTally.afterimage.missing++;
-                s_auditTally.engine.missing++;
-                s_auditTally.boxes.missing++;
+                tally.afterimage.missing++;
+                tally.engine.missing++;
+                tally.boxes.missing++;
                 continue;
             }
-            AuditRecord(s_auditTally.afterimage, side, 1 + k, afterimageName, audit::Diff(snapshot.afterimage[k],
+            AuditRecord(tally.afterimage, side, 1 + k, afterimageName, audit::Diff(snapshot.afterimage[k],
                 std::vector<uint8_t>(afterimage, afterimage + kAfterimageBytes), kAfterimageRanges), frame);
 
             uint8_t* engine = const_cast<uint8_t*>(ReadPointer(afterimage, kAfterimageEngine));
             if (!engine || snapshot.engine[k].empty()) {
-                s_auditTally.engine.missing++;
+                tally.engine.missing++;
             } else {
-                AuditRecord(s_auditTally.engine, side, 3 + k, k ? "afterimage1 engine" : "afterimage0 engine",
+                AuditRecord(tally.engine, side, 3 + k, k ? "afterimage1 engine" : "afterimage0 engine",
                     audit::Diff(snapshot.engine[k], std::vector<uint8_t>(engine, engine + kEngineBytes), kEngineRanges), frame);
-                if (mode == AUDIT_PROBE && s_auditTally.probeEngine == audit::Probe::Pending) {
+                if (mode == AUDIT_PROBE && tally.probeEngine == audit::Probe::Pending) {
                     AuditProbeEngine(snapshot.engine[k], engine);
                 }
             }
@@ -385,22 +414,16 @@ void AuditCompare(int index, int frame, int mode) {
             std::vector<uint8_t> boxes;
             int nodes = 0;
             if (!SerializeBoxes(afterimage, boxes, nodes) || snapshot.boxes[k].empty()) {
-                s_auditTally.boxes.missing++;
+                tally.boxes.missing++;
             } else {
-                s_auditTally.boxNodesChecked += nodes;
-                AuditRecord(s_auditTally.boxes, side, 5 + k, k ? "afterimage1 boxes" : "afterimage0 boxes",
+                tally.boxNodesChecked += nodes;
+                AuditRecord(tally.boxes, side, 5 + k, k ? "afterimage1 boxes" : "afterimage0 boxes",
                     audit::Diff(snapshot.boxes[k], boxes, kWholeRange), frame);
-                if (mode == AUDIT_PROBE && nodes > 0 && s_auditTally.probeBoxes == audit::Probe::Pending) {
+                if (mode == AUDIT_PROBE && nodes > 0 && tally.probeBoxes == audit::Probe::Pending) {
                     AuditProbeBoxes(snapshot.boxes[k], afterimage);
                 }
             }
         }
-    }
-}
-
-void AuditResetBattle() {
-    for (auto& side : s_auditLast) {
-        for (auto& last : side) last.clear();
     }
 }
 
@@ -463,8 +486,14 @@ bool StressStep(rSystem* system) {
         // save of this battle.
         StressReclaimAll("stress_prime");
         diag::InitFromEnvironment();
-        if (diag::Enabled() && stress.rollbacks == 0) {
-            diag::G().ResetForMatch(diag::NowMs());
+        if (stress.rollbacks == 0) {
+            // No rollback has run in this battle yet: a new battle, or a
+            // history restart before its first rollback. Either way nothing
+            // has been compared, so the battle's audit starts clean.
+            AuditStartBattle();
+            if (diag::Enabled()) {
+                diag::G().ResetForMatch(diag::NowMs());
+            }
         }
         stress.primed = true;
     }
@@ -611,9 +640,9 @@ void StressCloseBattle() {
         stress.gameMode, stress.distance, SaveStateFreePathName(), stress.rollbacks, stress.divergences, stress.resets
     );
     if (stress.auditMode) {
-        spdlog::info("RollbackStress: {}", s_auditTally.Summary());
-        s_auditTally = sf4e::audit::Tally();
+        spdlog::info("RollbackStress: {}", Audit().tally.Summary());
     }
+    AuditStartBattle();
     stress.gameMode = -1;
     EmitRollbackDiagSummary("rollback_stress_close");
     StressReset();

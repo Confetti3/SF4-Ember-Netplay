@@ -78,11 +78,15 @@ struct Boxes {
             dataOf[nodes[i].data()] = data[i].data();
         }
     }
+    audit::BoxListResult Serialize(std::vector<uint8_t>& out) {
+        out.clear();
+        return audit::SerializeBoxList(out, nodes.empty() ? nullptr : nodes[0].data(),
+            [&](const uint8_t* n) { return next[n]; }, [&](const uint8_t* n) { return dataOf[n]; });
+    }
     std::vector<uint8_t> Serialize() {
         std::vector<uint8_t> out;
-        const int count = audit::SerializeBoxList(out, nodes.empty() ? nullptr : nodes[0].data(),
-            [&](const uint8_t* n) { return next[n]; }, [&](const uint8_t* n) { return dataOf[n]; });
-        CHECK(count == int(nodes.size()));
+        const audit::BoxListResult result = Serialize(out);
+        CHECK(result.complete && result.nodes == int(nodes.size()));
         return out;
     }
 };
@@ -128,6 +132,24 @@ static void TestBoxes() {
     CHECK(empty.size() == 4 && empty[0] == 0);
 }
 
+// A list the walk could not fully capture reports itself incomplete, so the
+// audit counts it missing rather than checked.
+static void TestBoxLimits() {
+    std::vector<uint8_t> out;
+    Boxes noData(3);
+    noData.dataOf[noData.nodes[1].data()] = nullptr;
+    audit::BoxListResult result = noData.Serialize(out);
+    CHECK(!result.complete && result.nodes == 3);
+
+    Boxes atCap(audit::kMaxBoxNodes);
+    result = atCap.Serialize(out);
+    CHECK(result.complete && result.nodes == audit::kMaxBoxNodes);
+
+    Boxes overCap(audit::kMaxBoxNodes + 1);
+    result = overCap.Serialize(out);
+    CHECK(!result.complete && result.nodes == audit::kMaxBoxNodes);
+}
+
 static void TestTally() {
     audit::Counts counts;
     CHECK(!counts.Passed()); // nothing checked is not a pass
@@ -146,6 +168,7 @@ int main() {
     TestEngineRange();
     TestMergeAndSizes();
     TestBoxes();
+    TestBoxLimits();
     TestTally();
     std::printf("Rollback audit comparators passed\n");
 }
