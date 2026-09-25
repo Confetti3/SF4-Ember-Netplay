@@ -385,6 +385,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
 
         if (players[i].type == GGPO_PLAYERTYPE_LOCAL) {
             const auto delayResult = ggpo_set_frame_delay(ggpo, players[i].handle, frameDelay);
+            if (!GGPO_SUCCEEDED(delayResult)) spdlog::warn("GGPO: set_frame_delay({}) returned {}", frameDelay, (int)delayResult);
             matchTelemetry.AppliedDelay(frameDelay, GGPO_SUCCEEDED(delayResult));
             localPlayerHandle = players[i].handle;
             localPlayerIdx = i;

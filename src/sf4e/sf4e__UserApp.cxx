@@ -152,6 +152,11 @@ static bool StartRuntimeGgpo() {
             if (committedDelay>sf4e::MaximumInputDelay) return false;
             netplay->delay=committedDelay;
         }
+        // Both seats carry the shared match delay; the two players' logs
+        // must show the same values here (F-018).
+        spdlog::info("Netplay: match delay seats={}/{} local_slot={} applied={}",
+            netplay->client._matchData.inputDelay[0], netplay->client._matchData.inputDelay[1],
+            endpoints.localSlot, netplay->delay);
         fSystem::StartGGPO(players, static_cast<int>(count), endpoints.localPort, netplay->delay, netplay->client._matchData.rngSeed);
     }
     sf4e::NetplayFacade::ReportGgpoTransport( "127.0.0.1", endpoints.remotePorts[endpoints.localSlot == 0 ? 1 : 0]);
