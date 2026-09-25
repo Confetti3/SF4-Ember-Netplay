@@ -12,6 +12,7 @@
 //
 // Pure component: no GGPO or game dependencies, unit tested.
 
+#include <stdio.h>
 #include <string.h>
 
 namespace sf4e {
@@ -41,7 +42,7 @@ struct AbortLatch {
 		}
 		if (!pending) {
 			pending = true;
-			strncpy_s(reason, why ? why : "", _TRUNCATE);
+			snprintf(reason, sizeof(reason), "%s", why ? why : "");
 		}
 		return true;
 	}
@@ -55,7 +56,7 @@ struct AbortLatch {
 		}
 		pending = false;
 		if (out && outSize) {
-			strncpy_s(out, outSize, reason, _TRUNCATE);
+			snprintf(out, outSize, "%s", reason);
 		}
 		reason[0] = '\0';
 		return true;
