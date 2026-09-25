@@ -48,6 +48,19 @@ enum AdvancePolicy {
 
 AdvancePolicy ClassifyGgpoResult(int ggpoErrorCode);
 
+// Who the native battle belongs to. An online match is a native offline
+// Versus whose pad reads are replaced only while a session exists, so a
+// netplay battle is claimed before its session starts and stays claimed
+// until the engine closes it. A claimed battle that loses its session is
+// orphaned: the host must drive it out with neutral input, otherwise the
+// local controller plays both slots (F-016). Zero is offline so that
+// aggregate initialisation of the model means "offline".
+enum NativeBattleOwner {
+	NATIVE_BATTLE_OFFLINE = 0,
+	NATIVE_BATTLE_NETPLAY,
+	NATIVE_BATTLE_ORPHANED
+};
+
 struct GgpoGateModel {
 	int phase;                        // SimulationPhase
 	bool manualPause;                 // debug/manual stepping
@@ -55,6 +68,8 @@ struct GgpoGateModel {
 	bool predictionStalled;           // GGPO refused local input last attempt
 	bool connectionWarningActive;     // degraded quality; informational only
 	uint32_t connectionWarningStartedAtMs;
+	int nativeBattle;                 // NativeBattleOwner
+	uint32_t orphanFrames;            // engine updates driven since orphaning
 
 	void Reset() {
 		phase = PHASE_NO_SESSION;
@@ -63,9 +78,18 @@ struct GgpoGateModel {
 		predictionStalled = false;
 		connectionWarningActive = false;
 		connectionWarningStartedAtMs = 0;
+		nativeBattle = NATIVE_BATTLE_OFFLINE;
+		orphanFrames = 0;
 	}
 
 	// --- lifecycle ---
+	// The host claims the battle where every netplay battle is registered,
+	// before any session exists, so a failure before the session starts
+	// still ends in an orphan rather than an offline battle.
+	void OnNetplayBattleClaimed() {
+		nativeBattle = NATIVE_BATTLE_NETPLAY;
+		orphanFrames = 0;
+	}
 	void OnSessionStarted() {
 		// A new session clears per-session states but honors an existing
 		// manual pause (the user asked for it; a rematch must not undo it).
@@ -74,6 +98,7 @@ struct GgpoGateModel {
 		predictionStalled = false;
 		connectionWarningActive = false;
 		connectionWarningStartedAtMs = 0;
+		OnNetplayBattleClaimed(); // a session only ever serves a netplay battle
 	}
 	void OnRunning() {
 		if (phase == PHASE_WAITING_FOR_RUNNING) {
@@ -89,7 +114,34 @@ struct GgpoGateModel {
 		phase = PHASE_NO_SESSION;
 		predictionStalled = false;
 		connectionWarningActive = false;
+		if (nativeBattle == NATIVE_BATTLE_NETPLAY) {
+			nativeBattle = NATIVE_BATTLE_ORPHANED;
+			orphanFrames = 0;
+		}
 	}
+	// The engine is closing the battle: there is nothing left to leave, and
+	// a session retired after this (the spectator drain) orphans nothing.
+	void OnNativeBattleClosed() {
+		nativeBattle = NATIVE_BATTLE_OFFLINE;
+		orphanFrames = 0;
+	}
+
+	// --- the native battle without its session ---
+	bool NativeExitRequired() const { return nativeBattle == NATIVE_BATTLE_ORPHANED; }
+	// Offline play, training and the developer pause read the pad directly;
+	// an orphaned netplay battle never does.
+	bool LocalControllerOwnsBattle(bool sessionLive) const {
+		return !sessionLive && nativeBattle != NATIVE_BATTLE_ORPHANED;
+	}
+	// One engine update driven for an orphaned battle. True on the first,
+	// so the host reports the orphan exactly once.
+	bool OnOrphanFrame() {
+		++orphanFrames;
+		return orphanFrames == 1;
+	}
+	// True on exactly one update, once the battle has been driven for
+	// limitFrames without closing: the engine did not honour the exit.
+	bool OrphanOverdue(uint32_t limitFrames) const { return orphanFrames == limitFrames; }
 
 	// --- overlapping gate reasons ---
 	void SetManualPause(bool paused) { manualPause = paused; }
@@ -124,6 +176,13 @@ struct GgpoGateModel {
 	// connection warning intentionally does not block.
 	bool CanAdvanceDeterministicFrame() const {
 		return phase == PHASE_RUNNING && !manualPause && !fatalError;
+	}
+	// The host's whole question: may this engine update run? Without a
+	// session only the manual gate applies, so no abort, fatal state or
+	// closed session can ever leave an offline battle (or an orphan that
+	// has to leave) frozen.
+	bool MayAdvance(bool sessionLive, bool manualAllows) const {
+		return manualAllows && (!sessionLive || CanAdvanceDeterministicFrame());
 	}
 };
 
