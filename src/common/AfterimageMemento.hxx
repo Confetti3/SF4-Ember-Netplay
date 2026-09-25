@@ -35,6 +35,21 @@ constexpr uint64_t kMetadataBytes = 12;
 // The engine only ever uses one slot per key; this bounds a corrupt count.
 constexpr int64_t kMaxMementos = 64;
 
+// Afterimage's own restore (0x562100) copies its state, 0x6870 bytes from
+// memento +16 into object +676, then restores its pose ring from memento
+// +26752: a 144-byte header, then the captured poses. The pose ring holds
+// snapshots of the owner's skeleton taken while drawing (0x562820), read
+// only by the draw (0x562A80) and cleared by activation and Update, so Ember
+// restores the state and leaves the ring as the screen last drew it.
+constexpr uint64_t kMementoableOffset = 0x60;
+constexpr uint64_t kStateMementoOffset = 16;
+constexpr uint64_t kStateObjectOffset = 676;
+constexpr uint64_t kStateBytes = 0x6870;
+constexpr uint64_t kPoseRingMementoOffset = 26752;
+constexpr uint64_t kPoseRingHeaderBytes = 144;
+static_assert(kStateMementoOffset + kStateBytes == kPoseRingMementoOffset, "the state ends where the pose ring starts");
+static_assert(kPoseRingMementoOffset + kPoseRingHeaderBytes == kNativeFixedBytes, "the fixed part ends with the ring header");
+
 enum class Kind : uint32_t { NativeOnly = 1, NativeAndActor = 2 };
 
 struct Trailer {

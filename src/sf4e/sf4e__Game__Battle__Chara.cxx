@@ -21,10 +21,17 @@
 // chains) calls GameMementoKey::Initialize 0x52FD40, which clears the key,
 // asks the size function, then allocates, immediately before the record.
 //
-// Afterimage's own record and restore always run, exactly as before; only
-// the added Actor part depends on validation. When it cannot be written or
-// found the Actor state stays as the engine leaves it today, and
-// Game::MementoFailure makes Ember's own save or load report incomplete.
+// Afterimage's own record always runs, exactly as before; only the added
+// Actor part depends on validation. When it cannot be written or found the
+// Actor state stays as the engine leaves it today, and Game::MementoFailure
+// makes Ember's own save or load report incomplete.
+//
+// Restore copies Afterimage's own state as the engine does but leaves out its
+// pose ring. The ring holds the poses the draw captured from the owner, one
+// per drawn frame. Frames a rollback re-simulates are never drawn, so
+// restoring the ring discarded the poses of every drawn frame after the load
+// point: the shadows fell behind the fighter and, under the stress harness's
+// load every 4 frames, stood still. Nothing in the simulation reads the ring.
 #include <windows.h>
 #include <detours/detours.h>
 
@@ -59,6 +66,15 @@ am::SlotView Slot(fAfterimage* self, void* memento) {
 	}
 	return am::SlotView::Make((uint8_t*)memento, (const uint8_t*)key->mementos, key->sizeAllocated,
 		key->numMementos, listedCount ? listed : nullptr, listedCount);
+}
+
+// Afterimage's own restore (0x562100) without its last step, the pose ring
+// restore (0x561D50).
+int RestoreState(fAfterimage* self, void* memento) {
+	if (!memento) return 0;
+	uint8_t* object = reinterpret_cast<uint8_t*>(self) - am::kMementoableOffset;
+	std::memcpy(object + am::kStateObjectOffset, static_cast<const uint8_t*>(memento) + am::kStateMementoOffset, am::kStateBytes);
+	return 1;
 }
 
 // Each distinct reason is logged once per process; the reasons are literals.
@@ -123,5 +139,5 @@ int fAfterimage::RestoreFromMemento(void* memento, rKey::MementoID* id) {
 		sf4e::Game::MementoFailure::restore = true;
 		ReportOnce("restore", plan.reason);
 	}
-	return (Native(this)->*rAfterimage::mementoableMethods.RestoreFromMemento)(memento, id);
+	return RestoreState(this, memento);
 }
