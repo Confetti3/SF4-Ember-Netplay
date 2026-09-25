@@ -62,35 +62,27 @@ void fSystem::UpdateInputs() {
     if(blocked)sf4e::input::ClearNativeMenuInputs(this);
 }
 
-unsigned int fSystem::GetButtons_MappedOn(int pindex) {
+unsigned int fSystem::ReadButtons(int pindex, bool raw) {
     if (playbackFrame > -1 && pindex >= 0 && pindex < 2) {
-        return playbackData[playbackFrame][pindex].mappedOn;
+        const Inputs& played = playbackData[playbackFrame][pindex];
+        return raw ? played.rawOn : played.mappedOn;
     }
     sf4e::training::Input trainingInput;
-    if (sf4e::training::ReadOverride(pindex, trainingInput)) return trainingInput.mapped;
+    if (sf4e::training::ReadOverride(pindex, trainingInput)) return raw ? trainingInput.raw : trainingInput.mapped;
 
-    rSystem* _this = (rSystem*)this;
-    const auto buttons = (this->*rSystem::publicMethods.GetButtons_MappedOn)(pindex);
-    static unsigned int held[2]{};
+    const auto buttons = raw
+        ? (this->*rSystem::publicMethods.GetButtons_RawOn)(pindex)
+        : (this->*rSystem::publicMethods.GetButtons_MappedOn)(pindex);
+    // Buttons captured by the menu, per channel and player.
+    static unsigned int held[2][2]{};
     if (pindex < 0 || pindex >= 2) return buttons;
-    if (sf4e::Overlay::CapturesMenuInput()) { held[pindex] = buttons; return 0; }
+    unsigned int& captured = held[raw ? 1 : 0][pindex];
+    if (sf4e::Overlay::CapturesMenuInput()) { captured = buttons; return 0; }
     // Release each captured button before returning it to the native menu.
-    held[pindex] &= buttons;
-    return buttons & ~held[pindex];
+    captured &= buttons;
+    return buttons & ~captured;
 }
 
-unsigned int fSystem::GetButtons_RawOn(int pindex) {
-    if (playbackFrame > -1 && pindex >= 0 && pindex < 2) {
-        return playbackData[playbackFrame][pindex].rawOn;
-    }
-    sf4e::training::Input trainingInput;
-    if (sf4e::training::ReadOverride(pindex, trainingInput)) return trainingInput.raw;
+unsigned int fSystem::GetButtons_MappedOn(int pindex) { return ReadButtons(pindex, false); }
 
-    rSystem* _this = (rSystem*)this;
-    const auto buttons = (this->*rSystem::publicMethods.GetButtons_RawOn)(pindex);
-    static unsigned int held[2]{};
-    if (pindex < 0 || pindex >= 2) return buttons;
-    if (sf4e::Overlay::CapturesMenuInput()) { held[pindex] = buttons; return 0; }
-    held[pindex] &= buttons;
-    return buttons & ~held[pindex];
-}
+unsigned int fSystem::GetButtons_RawOn(int pindex) { return ReadButtons(pindex, true); }

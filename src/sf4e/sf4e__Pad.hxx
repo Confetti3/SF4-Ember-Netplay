@@ -22,6 +22,9 @@ namespace sf4e {
 
 			unsigned int GetButtons_RawOn(int pindex);
 			unsigned int GetButtons_MappedOn(int pindex);
+			// Both hooks above read through this: GGPO playback, then the
+			// training override, then the native pad behind the menu capture.
+			unsigned int ReadButtons(int pindex, bool raw);
 		};
 	}
 }
