@@ -40,6 +40,9 @@ bool SameQueuedRoomRetry(const Message& queued, const Message& incoming) {
 }
 
 void IrohRoom::Fail(const char* code) {
+	// Every room failure names itself once, whether or not the runtime
+	// later prints the error it closes the room with.
+	if (state_ != State::Failed) spdlog::warn("Room: failed {} state={}", code, static_cast<int>(state_));
 	state_ = State::Failed;
 	coordination_.writable = false;
 	coordination_.rebound = false;
@@ -765,6 +768,8 @@ bool IrohRoom::HandleControlTraffic(const json& event, const std::string& type) 
 		const auto id = event.at("message_id").get<std::int64_t>();
 		const auto payload = event.at("payload").get<std::string>();
 		if (id <= peer->second.receivedId || payload.empty() || payload.size() > MaximumPayload) {
+			spdlog::warn("Room: control message rejected peer={} id={} last={} bytes={}", PeerTag(identity), id,
+				peer->second.receivedId, payload.size());
 			Fail("invalid_control_message"); return false;
 		}
 		peer->second.receivedId = id;
