@@ -1,5 +1,6 @@
 // Development-only rollback stress harness for sf4e::Game::Battle::System.
 #include "sf4e__Game__Battle__System__Internal.hxx"
+#include "../common/RollbackAudit.hxx"
 
 // ---------------------------------------------------------------------------
 // Local rollback stress (development only).
@@ -61,6 +62,7 @@ struct RollbackStress {
     static constexpr int kRing = NUM_SAVE_STATES;
     int distance = 0; // 0 disables
     int predictMask = 0; // bit 0 = P1, bit 1 = P2
+    int auditMode = 0; // AuditMode
     bool configured = false;
     bool primed = false;
     int frame = 0;
@@ -113,11 +115,24 @@ void StressConfigure() {
             predictLength < sizeof(predict) ? predict : "(too long)"
         );
     }
-    spdlog::warn("RollbackStress: enabled for offline battles, distance={} frames predict={}", distance, stress.predictMask);
+    char audit[8] = {};
+    const DWORD auditLength = GetEnvironmentVariableA("SF4E_ROLLBACK_STRESS_AUDIT", audit, sizeof(audit));
+    if (auditLength == 1 && audit[0] >= '0' && audit[0] <= '2') {
+        stress.auditMode = audit[0] - '0';
+    } else if (auditLength != 0) {
+        spdlog::warn(
+            "RollbackStress: SF4E_ROLLBACK_STRESS_AUDIT={} ignored; use 0, 1 (audit) or 2 (audit and probes)",
+            auditLength < sizeof(audit) ? audit : "(too long)"
+        );
+    }
+    spdlog::warn("RollbackStress: enabled for offline battles, distance={} frames predict={} audit={}", distance, stress.predictMask, stress.auditMode);
 }
+
+void AuditResetBattle(); // defined with the audit below
 
 void StressReset() {
     auto& stress = Stress();
+    AuditResetBattle();
     for (int i = 0; i < RollbackStress::kRing; i++) {
         if (stress.states[i].used) {
             fSystem::SaveState::Free(&stress.states[i]);
@@ -164,6 +179,231 @@ void StressSimulate(rSystem* system, const fPadSystem::Inputs* inputs) {
     (system->*rSystem::publicMethods.BattleUpdate)();
 }
 
+// SF4E_ROLLBACK_STRESS_AUDIT=1|2 (diagnostic). Each stress save also snapshots,
+// per fighter: the actor (raw, diagnostic only), both Chara::Afterimage objects
+// (actor +0x6EEC and +0x6EF0, built by the actor setup at 0x53ED50), each
+// afterimage's Action::Engine (*(afterimage+0xB0)) and its five collision-box
+// lists (list objects at afterimage +0x130). After each load the live state is
+// compared with the loaded slot's snapshot, only over the fields the native
+// mementos restore, and counted per category; `battle closed` prints the
+// tally. Mode 2 also flips one engine byte and one box-node byte through the
+// same capture and compare, and requires the comparator to report that byte.
+namespace audit = sf4e::audit;
+
+enum AuditMode { AUDIT_OFF = 0, AUDIT_ON = 1, AUDIT_PROBE = 2 };
+
+constexpr size_t kActorBytes = 0x703C;
+constexpr size_t kAfterimageOffsets[2] = { 0x6EEC, 0x6EF0 };
+constexpr size_t kAfterimageBytes = 0x6B10; // up to its GameMementoKey
+constexpr size_t kAfterimageEngine = 0xB0;
+constexpr size_t kAfterimageBoxLists = 0x130;
+constexpr int kBoxLists = 5;
+constexpr size_t kBoxListHead = 32; // list[8]
+constexpr size_t kBoxNodeNext = 168;
+constexpr size_t kBoxNodeData = 160;
+constexpr size_t kEngineBytes = 0xFC; // up to its GameMementoKey
+constexpr size_t kProbeEngineOffset = 0xE8;
+
+const std::vector<audit::Range> kActorRanges = { { 0, kActorBytes } };
+// Action::Actor's memento fields (0x52B7C0, relative to its IMementoable at
+// +0x60), without the engine pointer (+0xB0) and list heads (+0x130..+0x144),
+// then Afterimage's own memcpy (0x5620A0) up to its key.
+const std::vector<audit::Range> kAfterimageRanges = {
+    { 0x70, 0xB0 }, { 0xB4, 0xDC }, { 0xE0, 0x130 }, { 0x148, 0x298 }, { 676, kAfterimageBytes },
+};
+// Action::Engine's record (0x52F2F0) copies 0xF4 bytes from its IMementoable at +4.
+const std::vector<audit::Range> kEngineRanges = { { 8, kEngineBytes } };
+const std::vector<audit::Range> kWholeRange = { { 0, SIZE_MAX } };
+
+struct AuditFighter {
+    std::vector<uint8_t> actor;
+    std::vector<uint8_t> afterimage[2];
+    std::vector<uint8_t> engine[2];
+    std::vector<uint8_t> boxes[2];
+};
+AuditFighter s_auditSnapshots[RollbackStress::kRing][2];
+// Last reported diff per object, so a persistent difference is logged once
+// per battle. Index: 0 actor, 1+k afterimage k, 3+k engine k, 5+k boxes k.
+std::string s_auditLast[2][7];
+audit::Tally s_auditTally;
+
+const uint8_t* ReadPointer(const uint8_t* base, size_t offset) {
+    return *reinterpret_cast<const uint8_t* const*>(base + offset);
+}
+
+const uint8_t* BoxNext(const uint8_t* node) { return ReadPointer(node, kBoxNodeNext); }
+const uint8_t* BoxData(const uint8_t* node) { return ReadPointer(node, kBoxNodeData); }
+
+const uint8_t* AuditActor(int side) {
+    rSystem* system = rSystem::staticMethods.GetSingleton();
+    CharaUnit* unit = system ? (system->*rSystem::publicMethods.GetCharaUnit)() : nullptr;
+    return unit ? reinterpret_cast<const uint8_t*>((unit->*CharaUnit::publicMethods.GetActorByIndex)(side)) : nullptr;
+}
+
+// Serializes the five lists; false when a list object is missing.
+bool SerializeBoxes(const uint8_t* afterimage, std::vector<uint8_t>& out, int& nodes) {
+    out.clear();
+    nodes = 0;
+    bool complete = true;
+    for (int i = 0; i < kBoxLists; i++) {
+        const uint8_t* list = ReadPointer(afterimage, kAfterimageBoxLists + 4 * i);
+        if (!list) {
+            complete = false;
+            continue;
+        }
+        nodes += audit::SerializeBoxList(out, ReadPointer(list, kBoxListHead), BoxNext, BoxData);
+    }
+    return complete;
+}
+
+void AuditCapture(int index) {
+    for (int side = 0; side < 2; side++) {
+        AuditFighter& snapshot = s_auditSnapshots[index][side];
+        const uint8_t* actor = AuditActor(side);
+        snapshot.actor.clear();
+        for (int k = 0; k < 2; k++) {
+            snapshot.afterimage[k].clear();
+            snapshot.engine[k].clear();
+            snapshot.boxes[k].clear();
+        }
+        if (!actor) continue;
+        snapshot.actor.assign(actor, actor + kActorBytes);
+        for (int k = 0; k < 2; k++) {
+            const uint8_t* afterimage = ReadPointer(actor, kAfterimageOffsets[k]);
+            if (!afterimage) continue;
+            snapshot.afterimage[k].assign(afterimage, afterimage + kAfterimageBytes);
+            if (const uint8_t* engine = ReadPointer(afterimage, kAfterimageEngine)) {
+                snapshot.engine[k].assign(engine, engine + kEngineBytes);
+            }
+            int nodes = 0;
+            if (!SerializeBoxes(afterimage, snapshot.boxes[k], nodes)) snapshot.boxes[k].clear();
+        }
+    }
+}
+
+// Counts one comparison and logs its diff when it changed since the last.
+void AuditRecord(audit::Counts& counts, int side, int slot, const char* name, const std::vector<audit::Range>& diff, int frame) {
+    counts.checked++;
+    if (!diff.empty()) counts.failed++;
+    std::string described = audit::Describe(diff);
+    if (described == s_auditLast[side][slot]) return;
+    s_auditLast[side][slot] = described;
+    if (diff.empty()) {
+        spdlog::info("RollbackStress: audit p{} {} restores fully again (frame {})", side + 1, name, frame);
+    } else {
+        spdlog::warn("RollbackStress: audit p{} {} not restored after load of frame {}: {} ranges{}",
+            side + 1, name, frame, diff.size(), described);
+    }
+}
+
+// Flips one live byte, compares, restores it. Detected only when the byte
+// was clean before and the comparator reports exactly it afterwards.
+template <class Compare>
+audit::Probe ProbeByte(uint8_t* live, size_t position, Compare compare) {
+    const std::vector<audit::Range> before = compare();
+    if (audit::Contains(before, position)) return audit::Probe::Pending;
+    live[0] ^= 0xFF;
+    const std::vector<audit::Range> after = compare();
+    live[0] ^= 0xFF;
+    return audit::Contains(after, position) ? audit::Probe::Detected : audit::Probe::Missed;
+}
+
+void AuditProbeEngine(const std::vector<uint8_t>& snapshot, uint8_t* engine) {
+    for (size_t offset = kProbeEngineOffset; offset < kEngineBytes && s_auditTally.probeEngine == audit::Probe::Pending; offset++) {
+        s_auditTally.probeEngine = ProbeByte(engine + offset, offset, [&]() {
+            return audit::Diff(snapshot, std::vector<uint8_t>(engine, engine + kEngineBytes), kEngineRanges);
+        });
+    }
+    if (s_auditTally.probeEngine != audit::Probe::Pending) {
+        spdlog::info("RollbackStress: audit probe engine={}", audit::ProbeName(s_auditTally.probeEngine));
+    }
+}
+
+void AuditProbeBoxes(const std::vector<uint8_t>& snapshot, const uint8_t* afterimage) {
+    for (int i = 0; i < kBoxLists; i++) {
+        const uint8_t* list = ReadPointer(afterimage, kAfterimageBoxLists + 4 * i);
+        uint8_t* node = list ? const_cast<uint8_t*>(ReadPointer(list, kBoxListHead)) : nullptr;
+        if (!node) continue;
+        // The node's first byte is at this list's first node in the stream.
+        std::vector<uint8_t> live;
+        int nodes = 0;
+        size_t position = 0;
+        for (int j = 0; j < i; j++) {
+            const uint8_t* earlier = ReadPointer(afterimage, kAfterimageBoxLists + 4 * j);
+            std::vector<uint8_t> part;
+            if (earlier) audit::SerializeBoxList(part, ReadPointer(earlier, kBoxListHead), BoxNext, BoxData);
+            position += part.size();
+        }
+        position += 4; // this list's count
+        for (size_t byte = 0; byte < audit::kBoxNodeFieldBytes && s_auditTally.probeBoxes == audit::Probe::Pending; byte++) {
+            s_auditTally.probeBoxes = ProbeByte(node + byte, position + byte, [&]() {
+                SerializeBoxes(afterimage, live, nodes);
+                return audit::Diff(snapshot, live, kWholeRange);
+            });
+        }
+        break;
+    }
+    if (s_auditTally.probeBoxes != audit::Probe::Pending) {
+        spdlog::info("RollbackStress: audit probe boxes={}", audit::ProbeName(s_auditTally.probeBoxes));
+    }
+}
+
+void AuditCompare(int index, int frame, int mode) {
+    for (int side = 0; side < 2; side++) {
+        const AuditFighter& snapshot = s_auditSnapshots[index][side];
+        const uint8_t* actor = AuditActor(side);
+        if (!actor) continue;
+        if (snapshot.actor.empty()) {
+            s_auditTally.actor.missing++;
+        } else {
+            AuditRecord(s_auditTally.actor, side, 0, "actor", audit::Diff(snapshot.actor,
+                std::vector<uint8_t>(actor, actor + kActorBytes), kActorRanges), frame);
+        }
+        for (int k = 0; k < 2; k++) {
+            const char* afterimageName = k ? "afterimage1" : "afterimage0";
+            const uint8_t* afterimage = ReadPointer(actor, kAfterimageOffsets[k]);
+            if (!afterimage || snapshot.afterimage[k].empty()) {
+                s_auditTally.afterimage.missing++;
+                s_auditTally.engine.missing++;
+                s_auditTally.boxes.missing++;
+                continue;
+            }
+            AuditRecord(s_auditTally.afterimage, side, 1 + k, afterimageName, audit::Diff(snapshot.afterimage[k],
+                std::vector<uint8_t>(afterimage, afterimage + kAfterimageBytes), kAfterimageRanges), frame);
+
+            uint8_t* engine = const_cast<uint8_t*>(ReadPointer(afterimage, kAfterimageEngine));
+            if (!engine || snapshot.engine[k].empty()) {
+                s_auditTally.engine.missing++;
+            } else {
+                AuditRecord(s_auditTally.engine, side, 3 + k, k ? "afterimage1 engine" : "afterimage0 engine",
+                    audit::Diff(snapshot.engine[k], std::vector<uint8_t>(engine, engine + kEngineBytes), kEngineRanges), frame);
+                if (mode == AUDIT_PROBE && s_auditTally.probeEngine == audit::Probe::Pending) {
+                    AuditProbeEngine(snapshot.engine[k], engine);
+                }
+            }
+
+            std::vector<uint8_t> boxes;
+            int nodes = 0;
+            if (!SerializeBoxes(afterimage, boxes, nodes) || snapshot.boxes[k].empty()) {
+                s_auditTally.boxes.missing++;
+            } else {
+                s_auditTally.boxNodesChecked += nodes;
+                AuditRecord(s_auditTally.boxes, side, 5 + k, k ? "afterimage1 boxes" : "afterimage0 boxes",
+                    audit::Diff(snapshot.boxes[k], boxes, kWholeRange), frame);
+                if (mode == AUDIT_PROBE && nodes > 0 && s_auditTally.probeBoxes == audit::Probe::Pending) {
+                    AuditProbeBoxes(snapshot.boxes[k], afterimage);
+                }
+            }
+        }
+    }
+}
+
+void AuditResetBattle() {
+    for (auto& side : s_auditLast) {
+        for (auto& last : side) last.clear();
+    }
+}
+
 // GGPO frees the ring slot, then saves, before every simulated frame.
 void StressSaveBefore(int stressFrame) {
     auto& stress = Stress();
@@ -176,6 +416,9 @@ void StressSaveBefore(int stressFrame) {
         spdlog::error("RollbackStress: frame {} cannot be saved; its rollback is skipped", stressFrame);
     }
     stress.stateFrame[index] = stressFrame;
+    if (stress.auditMode) {
+        AuditCapture(index);
+    }
 }
 
 const char* SubsystemState(uint64_t replay, uint64_t original) {
@@ -289,6 +532,9 @@ bool StressStep(rSystem* system) {
             spdlog::error("RollbackStress: frame {} did not fully restore; replay skipped", target);
             return false;
         }
+        if (stress.auditMode) {
+            AuditCompare(targetIndex, target, stress.auditMode);
+        }
         for (int replayed = target; replayed < stress.frame; replayed++) {
             diag::ScopedTimer _cb(diag::OP_ROLLBACK_CALLBACK);
             if (diag::Enabled()) {
@@ -364,6 +610,10 @@ void StressCloseBattle() {
         "RollbackStress: battle closed mode={} distance={} free_path={} rollbacks={} divergences={} resets={}",
         stress.gameMode, stress.distance, SaveStateFreePathName(), stress.rollbacks, stress.divergences, stress.resets
     );
+    if (stress.auditMode) {
+        spdlog::info("RollbackStress: {}", s_auditTally.Summary());
+        s_auditTally = sf4e::audit::Tally();
+    }
     stress.gameMode = -1;
     EmitRollbackDiagSummary("rollback_stress_close");
     StressReset();
