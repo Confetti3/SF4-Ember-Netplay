@@ -79,12 +79,14 @@ public:
     // One tick of recording the confirmed result in the profile. Queues the
     // snapshot once, then waits for that revision or a writer error, at most
     // ProfileWriteTimeoutMs: a write that stalls without failing must not hold
-    // the table either.
+    // the table either. Once saved, the room's replayed receipts for the same
+    // capture need nothing more; a released write is retried by a replay.
     static constexpr std::uint64_t ProfileWriteTimeoutMs = 10000;
     ProfilePersistence PersistProfile(ProfileRecord& profile, const ProfileStore& store, std::uint64_t nowMs);
 
 private:
     std::uint64_t persistRevision_ = 0, persistQueuedAt_ = 0;
+    bool persisted_ = false;
     MatchResultCapture capture_;
     bool captured_ = false;
     bool pending_ = false;

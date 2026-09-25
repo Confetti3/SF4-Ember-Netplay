@@ -19,6 +19,7 @@ bool MatchResultOutbox::Capture(const MatchResultCapture& capture) {
     captured_ = true;
     pending_ = true;
     persistRevision_ = 0;
+    persisted_ = false;
     actionId_ = 0;
     retryAt_ = 0;
     preparedRevision_ = preparedTableRevision_ = 0;
@@ -31,6 +32,7 @@ void MatchResultOutbox::Reset() {
     captured_ = false;
     pending_ = false;
     persistRevision_ = 0;
+    persisted_ = false;
     actionId_ = 0;
     retryAt_ = 0;
     preparedRevision_ = preparedTableRevision_ = 0;
@@ -106,6 +108,7 @@ MatchResultOutbox::TerminalResult MatchResultOutbox::ObserveTerminal(const Rando
 
 MatchResultOutbox::ProfilePersistence MatchResultOutbox::PersistProfile(ProfileRecord& profile,
     const ProfileStore& store, std::uint64_t nowMs) {
+    if (persisted_) return ProfilePersistence::NotRequired;
     if (!persistRevision_) {
         switch (PrepareProfileConsumption(profile)) {
         case ProfileConsumption::NoPersistenceRequired: return ProfilePersistence::NotRequired;
@@ -120,6 +123,7 @@ MatchResultOutbox::ProfilePersistence MatchResultOutbox::PersistProfile(ProfileR
     }
     if (store.saved(persistRevision_)) {
         persistRevision_ = 0;
+        persisted_ = true;
         return ProfilePersistence::Saved;
     }
     if (store.failed() || nowMs - persistQueuedAt_ >= ProfileWriteTimeoutMs) {

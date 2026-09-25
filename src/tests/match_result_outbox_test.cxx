@@ -258,6 +258,16 @@ static void TestProfilePersistenceNeverHoldsForever() {
         CHECK(profile.wins == 1);
         onDisk = 1;
         CHECK(outbox.PersistProfile(profile, store, now) == Persistence::Saved);
+        // The room replays the same receipt two or three times per match;
+        // a saved record is not written again (R1).
+        CHECK(outbox.PersistProfile(profile, store, now) == Persistence::NotRequired);
+        CHECK(queued == 1);
+        // A new capture is a new match; its revision is already on disk here.
+        capture.generation = 8;
+        CHECK(outbox.Capture(capture));
+        CHECK(outbox.PersistProfile(profile, store, now) == Persistence::Saved);
+        CHECK(queued == 2);
+        capture.generation = 7;
     }
     {
         // The writer refuses the snapshot: release at once rather than retry.
