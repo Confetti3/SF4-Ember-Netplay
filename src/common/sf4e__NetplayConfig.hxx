@@ -44,9 +44,10 @@ namespace sf4e {
 		char ggpoRemoteHost[NETPLAY_SESSION_HOST_LEN] = { 0 };
 		char matchId[33] = { 0 };
 		char ggpoRoomToken[33] = { 0 };
-		// GGPO peer disconnect tolerance (ms). Zero uses derived defaults from inputDelay.
-		uint16_t ggpoDisconnectTimeoutMs = 3000;
-		uint16_t ggpoDisconnectNotifyMs = 1500;
+		// Reserved: formerly the GGPO disconnect tolerance, which the sidecar now
+		// owns (common/GgpoDisconnectTolerance.hxx). The launcher never set them.
+		uint16_t reservedGgpoDisconnectTimeoutMs = 0;
+		uint16_t reservedGgpoDisconnectNotifyMs = 0;
 		// Vestigial: formerly requested a "training room" with endless
 		// sparring settings. Round count and timer are now set directly in
 		// the overlay's lobby panel, which offers long values outright, so
@@ -57,15 +58,6 @@ namespace sf4e {
 
 	inline bool NetplayConfigIsActive(const NetplayConfig& cfg) {
 		return cfg.mode == (int)NetplayMode::Host || cfg.mode == (int)NetplayMode::Join;
-	}
-
-	inline void NetplayConfigApplyGgpoDisconnectDefaults(NetplayConfig& cfg) {
-		uint16_t timeoutMs = (uint16_t)(1000 + cfg.inputDelay * 500);
-		if (timeoutMs < 3000) {
-			timeoutMs = 3000;
-		}
-		cfg.ggpoDisconnectTimeoutMs = timeoutMs;
-		cfg.ggpoDisconnectNotifyMs = (uint16_t)(timeoutMs / 2);
 	}
 
 } // namespace sf4e

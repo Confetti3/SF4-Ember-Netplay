@@ -21,11 +21,12 @@ namespace sf4e {
 		platform::HelperBootstrap helper;
         platform::HelperBootstrap discord;
 		uint32_t helperError = 0;
-		NetplayConfig netplay = { 0 };
+		NetplayConfig netplay = {};
 	} Payload;
 
 	inline bool IsCompatiblePayload(const Payload* payload, size_t length) {
-		return payload && length == sizeof(Payload) && payload->magic == 0x53463442 && payload->version == 1;
+		return payload && length == sizeof(Payload) && payload->magic == 0x53463442 && payload->version == 1 &&
+			payload->netplay.version == SF4E_NETPLAY_CONFIG_VERSION;
 	}
 
 	extern std::string sidecarHash;

@@ -241,7 +241,6 @@ namespace sf4e {
 				// a crash dump.
 				static void LogSaveSlotOccupancy(const char* label);
 
-				static void ApplyGgpoDisconnectSettings(GGPOSession* session);
 				static void RetireGgpoSession(const char* diagnosticsLabel);
 				// Safe to call from anywhere, including GGPO callbacks: inside a
 				// callback the abort is latched and completed by

@@ -1,6 +1,7 @@
 // GGPO session lifecycle, callbacks, spectator policy and pacing for
 // sf4e::Game::Battle::System. Split from sf4e__Game__Battle__System.cxx.
 #include "sf4e__Game__Battle__System__Internal.hxx"
+#include "../common/GgpoDisconnectTolerance.hxx"
 
 static sf4e::RollbackHud rollbackHud;
 
@@ -191,32 +192,6 @@ void LogPacerSummary(const char* label) {
     );
 }
 
-void fSystem::ApplyGgpoDisconnectSettings(GGPOSession* session) {
-    if (!session) {
-        return;
-    }
-
-    const sf4e::NetplayConfig& cfg = sf4e::NetplayFacade::GetConfig();
-    uint16_t timeoutMs = 3000;
-    uint16_t notifyMs = 1500;
-    if (cfg.version >= 8 && cfg.ggpoDisconnectTimeoutMs > 0) {
-        timeoutMs = cfg.ggpoDisconnectTimeoutMs;
-        notifyMs = cfg.ggpoDisconnectNotifyMs > 0
-            ? cfg.ggpoDisconnectNotifyMs
-            : (uint16_t)(timeoutMs / 2);
-    }
-    else {
-        timeoutMs = (uint16_t)(1000 + cfg.inputDelay * 500);
-        if (timeoutMs < 3000) {
-            timeoutMs = 3000;
-        }
-        notifyMs = (uint16_t)(timeoutMs / 2);
-    }
-
-    ggpo_set_disconnect_timeout(session, timeoutMs);
-    ggpo_set_disconnect_notify_start(session, notifyMs);
-}
-
 void fSystem::RetireGgpoSession(const char* diagnosticsLabel) {
     matchTelemetry.Reset();
     rollbackHud.Reset();
@@ -371,7 +346,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     spdlog::info("GGPO: session started localPort={}", port);
     spdlog::info("GGPO: fp {}", sf4e::statehash::FpEnvironment());
     sf4e::crash::NoteMatchBoundary("start_ggpo");
-    ApplyGgpoDisconnectSettings(ggpo);
+    sf4e::GgpoDisconnectTolerance::Apply(ggpo);
 
     int localPlayerIdx = -1;
     for (int i = 0; i < 2; i++) {
@@ -466,7 +441,8 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
         }
     }
     sf4e::crash::NoteMatchBoundary("start_spectating");
-    ApplyGgpoDisconnectSettings(ggpo);
+    // No disconnect tolerance: GGPO's spectator backend has no silence timeout, so
+    // this link ends through the match session and the teardown timers.
 
     nNextBattleStartFlowTarget = BF__MATCH_START;
     fVsBattle::bTerminateOnNextLeftBattle = true;
