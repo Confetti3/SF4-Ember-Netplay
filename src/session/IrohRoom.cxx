@@ -831,6 +831,10 @@ bool IrohRoom::HandleHelperError(const json& event) {
 		invitation_.clear(); discordInvitation_.clear();
 		error_="Room control is reconnecting."; return true;
 	case HelperErrorScope::Match:
+		// The helper no longer holds that match. Its own deadlines (setup,
+		// teardown) end it; the room and its other tables carry on.
+		error_ = "The helper dropped a match; the room stays open.";
+		return true;
 	case HelperErrorScope::RoomFatal:
 		break;
 	}
