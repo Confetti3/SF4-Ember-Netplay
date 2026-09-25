@@ -460,7 +460,7 @@ impl Actor {
                 // Leave space for terminal/control lifecycle events. A remote
                 // flood backpressures this peer's bounded worker instead of
                 // exhausting the global queue and killing healthy gameplay.
-                if self.events.capacity() <= LIFECYCLE_EVENT_RESERVE {
+                if !self.events.has_headroom() {
                     break;
                 }
                 let frame = self

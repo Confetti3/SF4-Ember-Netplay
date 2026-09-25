@@ -602,7 +602,7 @@ impl Actor {
         commands: &mut mpsc::Receiver<Request>,
         failed_ipc: &mut watch::Receiver<bool>,
     ) -> io::Result<bool> {
-        let events = self.events.clone();
+        let events = self.events.sender();
         let endpoint = self.endpoint.clone();
         let status_epoch = self.epoch;
         let status_peers = self.controls.len();

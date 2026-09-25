@@ -79,7 +79,7 @@ pub async fn run<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         games: BTreeMap::new(),
         closed_generation: 0,
         tasks: JoinSet::new(),
-        events,
+        events: EventOutbox::new(events),
         recovery: None,
         admissions: BTreeMap::new(),
         admission_order: Vec::new(),
@@ -119,6 +119,7 @@ pub async fn run<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     actor.tasks.shutdown().await;
     endpoint.close().await;
     if result.is_ok() {
+        let _ = actor.events.flush();
         let _ = actor.emit(Event::Stopped);
     }
     drop(actor);
