@@ -21,6 +21,16 @@
 // 600 frames, which makes per-character save/free/restore cost comparable
 // without a network. GGPO's own synctest backend is not used: it breaks into
 // the debugger on a mismatch and writes a log file for every frame.
+//
+// SF4E_ROLLBACK_STRESS_PREDICT=<1|2|3> (P1, P2 or both) makes the first pass
+// mispredict those sides the way GGPO predicts a remote player: each frame of
+// a window runs with the side's last input before the window, and the
+// rollback then replays the real inputs. A move the player starts inside a
+// window, such as an install super, exists only in the corrected timeline, so
+// every rollback restores across a timeline that did not have it. Each window
+// is replayed twice from the same save, and the two replays are compared:
+// state the load does not restore carries over from the discarded timeline
+// and makes them differ.
 // ---------------------------------------------------------------------------
 namespace {
 // Both characters' hashed values, so a divergence names the field that changed.
@@ -50,6 +60,7 @@ std::string DescribeFieldDiff(const CharaFields& original, const CharaFields& re
 struct RollbackStress {
     static constexpr int kRing = NUM_SAVE_STATES;
     int distance = 0; // 0 disables
+    int predictMask = 0; // bit 0 = P1, bit 1 = P2
     bool configured = false;
     bool primed = false;
     int frame = 0;
@@ -92,7 +103,17 @@ void StressConfigure() {
         return;
     }
     stress.distance = distance;
-    spdlog::warn("RollbackStress: enabled for offline battles, distance={} frames", distance);
+    char predict[8] = {};
+    const DWORD predictLength = GetEnvironmentVariableA("SF4E_ROLLBACK_STRESS_PREDICT", predict, sizeof(predict));
+    if (predictLength == 1 && predict[0] >= '1' && predict[0] <= '3') {
+        stress.predictMask = predict[0] - '0';
+    } else if (predictLength != 0) {
+        spdlog::warn(
+            "RollbackStress: SF4E_ROLLBACK_STRESS_PREDICT={} ignored; use 1 (P1), 2 (P2) or 3 (both)",
+            predictLength < sizeof(predict) ? predict : "(too long)"
+        );
+    }
+    spdlog::warn("RollbackStress: enabled for offline battles, distance={} frames predict={}", distance, stress.predictMask);
 }
 
 void StressReset() {
@@ -210,8 +231,21 @@ bool StressStep(rSystem* system) {
     const int index = current % RollbackStress::kRing;
     stress.inputs[index][0] = StressReadInput(pad, 0);
     stress.inputs[index][1] = StressReadInput(pad, 1);
+    fPadSystem::Inputs simulated[2] = { stress.inputs[index][0], stress.inputs[index][1] };
+    if (stress.predictMask) {
+        // GGPO repeats the last input it has for a remote side until the
+        // real one arrives; here that is the input just before this window.
+        const int windowStart = current - current % stress.distance;
+        for (int side = 0; side < 2; side++) {
+            if (stress.predictMask & (1 << side)) {
+                simulated[side] = windowStart > 0
+                    ? stress.inputs[(windowStart - 1) % RollbackStress::kRing][side]
+                    : fPadSystem::Inputs{ 0, 0 };
+            }
+        }
+    }
     StressSaveBefore(current);
-    StressSimulate(system, stress.inputs[index]);
+    StressSimulate(system, simulated);
     stress.lastEngineFrame = StressEngineFrame(system);
     if (static_cast<int16_t>(stress.lastEngineFrame - before) != 1) {
         // Paused, or the native flow held the simulation: not a replayable
@@ -232,35 +266,56 @@ bool StressStep(rSystem* system) {
     }
     const int target = stress.frame - stress.distance;
     const int targetIndex = target % RollbackStress::kRing;
-    if (!stress.states[targetIndex].used || stress.stateFrame[targetIndex] != target) {
+    const auto targetSaved = [&]() {
+        return stress.states[targetIndex].used && stress.stateFrame[targetIndex] == target;
+    };
+    if (!targetSaved()) {
         return true;
     }
-    if (!fSystem::SaveState::Load(&stress.states[targetIndex])) {
-        // Replaying from a partly restored engine proves nothing; count it
-        // as a divergence and skip the replay.
-        stress.divergences++;
-        spdlog::error("RollbackStress: frame {} did not fully restore; replay skipped", target);
-        return true;
-    }
-    for (int replayed = target; replayed < stress.frame; replayed++) {
-        diag::ScopedTimer _cb(diag::OP_ROLLBACK_CALLBACK);
-        if (diag::Enabled()) {
-            diag::G().OnRollbackCallback(diag::NowMs());
+    // Loads the window's first state and re-simulates it with the real inputs.
+    // With `compare`, each frame is checked against the stored hashes; without
+    // it (the first replay after a mispredicted pass), the replay becomes the
+    // reference. Returns false when there was nothing sound to replay from.
+    const auto replayWindow = [&](bool compare) {
+        if (!targetSaved()) {
+            // The previous replay re-saved this slot and the save failed.
+            spdlog::error("RollbackStress: frame {} lost its save during the first replay; second replay skipped", target);
+            return false;
         }
-        const int replayIndex = replayed % RollbackStress::kRing;
-        StressSaveBefore(replayed);
-        StressSimulate(system, stress.inputs[replayIndex]);
-        const auto replay = fSystem::ComputeSemanticHashes(system);
-        const auto& original = stress.hashes[replayIndex];
-        if (replay.overall != original.overall) {
+        if (!fSystem::SaveState::Load(&stress.states[targetIndex])) {
+            // Replaying from a partly restored engine proves nothing; count it
+            // as a divergence and skip the replay.
+            stress.divergences++;
+            spdlog::error("RollbackStress: frame {} did not fully restore; replay skipped", target);
+            return false;
+        }
+        for (int replayed = target; replayed < stress.frame; replayed++) {
+            diag::ScopedTimer _cb(diag::OP_ROLLBACK_CALLBACK);
+            if (diag::Enabled()) {
+                diag::G().OnRollbackCallback(diag::NowMs());
+            }
+            const int replayIndex = replayed % RollbackStress::kRing;
+            StressSaveBefore(replayed);
+            StressSimulate(system, stress.inputs[replayIndex]);
+            const auto replay = fSystem::ComputeSemanticHashes(system);
+            if (!compare) {
+                stress.hashes[replayIndex] = replay;
+                stress.fields[replayIndex] = CaptureCharaFields(system);
+                continue;
+            }
+            const auto& original = stress.hashes[replayIndex];
+            if (replay.overall == original.overall) {
+                continue;
+            }
             stress.divergences++;
             const CharaFields replayFields = CaptureCharaFields(system);
             const CharaFields& originalFields = stress.fields[replayIndex];
             spdlog::error(
-                "RollbackStress: replay diverged stress_frame={} engine_frame={} distance={} free_path={} flow={} p1={} p2={} inputs={:08x}/{:08x} {:08x}/{:08x} actions={}/{}{}",
+                "RollbackStress: replay diverged stress_frame={} engine_frame={} distance={} predict={} free_path={} flow={} p1={} p2={} inputs={:08x}/{:08x} {:08x}/{:08x} actions={}/{}{}",
                 replayed,
                 StressEngineFrame(system),
                 stress.distance,
+                stress.predictMask,
                 SaveStateFreePathName(),
                 SubsystemState(replay.flow, original.flow),
                 SubsystemState(replay.chara[0], original.chara[0]),
@@ -278,6 +333,14 @@ bool StressStep(rSystem* system) {
             // reported again on every later rollback.
             stress.hashes[replayIndex] = replay;
         }
+        return true;
+    };
+    // A mispredicted pass has nothing to compare with: its first replay is
+    // the corrected timeline, and a second replay from the same save must
+    // reproduce it exactly. A rollback counts only once its checked replay ran.
+    const bool replayed = (!stress.predictMask || replayWindow(false)) && replayWindow(true);
+    if (!replayed) {
+        return true;
     }
     stress.rollbacks++;
     stress.lastEngineFrame = StressEngineFrame(system);
