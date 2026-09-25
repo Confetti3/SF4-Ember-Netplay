@@ -127,7 +127,9 @@ struct Runtime {
 	Intent roomActionIntent{3000, Intent::Completion::OnDispatch};
 	// Chat parks on its own, so a message never displaces a table action.
 	Intent chatIntent{3000, Intent::Completion::OnDispatch};
-	Intent readyIntent{20000, Intent::Completion::OnCommit};
+	// Outlives the helper's teardown bound: a match that fails to close ends the
+	// room with its own message before a parked Ready can blame it (F-008).
+	Intent readyIntent{session::MatchTeardownTiming::HelperTimeoutMs + 5000, Intent::Completion::OnCommit};
 	Intent lobbyEditIntent{15000, Intent::Completion::OnDispatch};
 	std::string readyFailure;
 	std::uint64_t readyFailureSequence = 0;
