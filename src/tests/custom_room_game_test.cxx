@@ -45,7 +45,10 @@ int wmain(int argc, wchar_t** argv) {
 	// --late-spectator: the last member, a spectator, withholds its terminal
 	// acknowledgement of game one while the fighters rematch. Game two must start
 	// without it, and once it acknowledges it must be back in game three.
-	bool relay = false, perf = false, stallSpectator = false, lateSpectator = false;
+	// --late-join: the last member is admitted while game one is being played
+	// (F-017). No room may fail and no match may end early; after the game it
+	// queues for its table and spectates game two.
+	bool relay = false, perf = false, stallSpectator = false, lateSpectator = false, lateJoin = false;
 	std::size_t count = room::MaxMembers, perTable = 4;
 	int perfFrames = 600, gameCostUs = 1000;
 	std::uint64_t rematchCycles = 6;
@@ -58,6 +61,7 @@ int wmain(int argc, wchar_t** argv) {
 		else if (arg == L"--perf") perf = true;
 		else if (arg == L"--stall-spectator") stallSpectator = true;
 		else if (arg == L"--late-spectator") lateSpectator = true;
+		else if (arg == L"--late-join") lateJoin = true;
 		else if (arg == L"--members") count = number();
 		else if (arg == L"--per-table") perTable = number();
 		else if (arg == L"--frames") perfFrames = static_cast<int>(number());
@@ -79,8 +83,13 @@ int wmain(int argc, wchar_t** argv) {
 	const std::size_t late = lateSpectator ? Count - 1 : Count;
 	CHECK(!lateSpectator || (!stallSpectator && (Count - 1) % perTable >= 2 && rematchCycles >= 3));
 	std::uint64_t lateGeneration = 0;
+	// The late joiner is admitted inside game one; until then it has no server,
+	// client connection or match session and nothing may tick it.
+	CHECK(!lateJoin || (!stallSpectator && !lateSpectator && !perf && (Count - 1) % perTable >= 2 && rematchCycles >= 2));
+	const std::size_t joiner = lateJoin ? Count - 1 : Count;
+	std::size_t admitted = lateJoin ? Count - 1 : Count;
 	bool stallActive = false;
-	const auto live = [&](std::size_t i) { return !(stallActive && i == stalled); };
+	const auto live = [&](std::size_t i) { return !(stallActive && i == stalled) && i < admitted; };
 	std::vector<platform::HelperProcess> processes(Count);
 	std::vector<platform::HelperClient> helpers(Count);
 	std::vector<std::shared_ptr<session::IrohRoom>> rooms(Count);
@@ -169,17 +178,22 @@ int wmain(int argc, wchar_t** argv) {
 		CHECK(test::PumpIrohRecoveryPeers(joiningPeers));
 		CHECK(test::PumpIrohIntegrationClients(joiningClients));
 	};
-	for (std::size_t i = 0; i < Count; ++i) {
-		phase="admission " + std::to_string(i+1);
-		if (i) {
-			CHECK(rooms[i]->Join(rooms[0]->Invitation(), "authorized-match-test"));
-			wait([&]() { return rooms[i]->GetState() == session::IrohRoom::State::Ready; });
-		}
+	// A member whose room is Ready gets its server, client connection and
+	// match session; the late joiner does the same in the middle of game one.
+	const auto attach = [&](std::size_t i) {
 		CHECK(test::ConfigureIrohIntegrationServer(recoveryPeers[i], "authorized-match-test", static_cast<std::uint8_t>(Count)));
 		clients[i]->RequireCustomRooms();
 		clients[i]->RequireMatchAuthorization();
 		CHECK(clients[i]->Connect(rooms[i]->Client(), false) == 0);
 		matches[i].reset(new session::IrohMatchSession(*clients[i], rooms[i]));
+	};
+	for (std::size_t i = 0; i < admitted; ++i) {
+		phase="admission " + std::to_string(i+1);
+		if (i) {
+			CHECK(rooms[i]->Join(rooms[0]->Invitation(), "authorized-match-test"));
+			wait([&]() { return rooms[i]->GetState() == session::IrohRoom::State::Ready; });
+		}
+		attach(i);
 		joiningPeers.push_back(&recoveryPeers[i]); joiningClients.push_back(clients[i].get());
 		wait([&]() {return std::all_of(joiningClients.begin(),joiningClients.end(),[&](const SessionClient* client) {
 			return client->GetRoomSnapshot().members.size()==joiningClients.size();
@@ -190,9 +204,9 @@ int wmain(int argc, wchar_t** argv) {
 	phase="table setup";
 	auto& server = *recoveryPeers[0].server;
 	std::vector<test::IrohServerPeer*> recovery;
-	for (auto& peer : recoveryPeers) recovery.push_back(&peer);
+	for (std::size_t i = 0; i < admitted; ++i) recovery.push_back(&recoveryPeers[i]);
 	std::vector<SessionClient*> clientViews;
-	for (auto& client : clients) clientViews.push_back(client.get());
+	for (std::size_t i = 0; i < admitted; ++i) clientViews.push_back(clients[i].get());
 	struct TableZeroTrace {
 		int roomPhase = -1;
 		std::uint64_t roomRevision = 0;
@@ -259,6 +273,7 @@ int wmain(int argc, wchar_t** argv) {
 		bool changed = tableZeroTrace.roomPhase != static_cast<int>(table.phase) ||
 			tableZeroTrace.roomRevision != table.revision || tableZeroTrace.generation != table.matchGeneration;
 		for (std::size_t i = 0; i < (std::min<std::size_t>)(4, Count); ++i) {
+			if (!matches[i]) continue; // the late joiner has no match session until it is admitted
 			const int matchPhase = static_cast<int>(matches[i]->GetPhase());
 			const auto matchGeneration = matches[i]->Generation();
 			changed = changed || tableZeroTrace.clientPhases[i] != matchPhase ||
@@ -338,13 +353,13 @@ int wmain(int argc, wchar_t** argv) {
 	};
 	auto allViewsCurrent = [&]() {
 		const auto revision = server.RoomSnapshot()->revision;
-		return std::all_of(clients.begin(), clients.end(), [&](const std::unique_ptr<SessionClient>& client) {
+		return std::all_of(clientViews.begin(), clientViews.end(), [&](const SessionClient* client) {
 			return client->GetRoomSnapshot().revision == revision;
 		});
 	};
-	wait([&]() { pump(); return std::all_of(clients.begin(), clients.end(), [&](const std::unique_ptr<SessionClient>& client) { return client->GetRoomSnapshot().members.size() == Count; }); });
+	wait([&]() { pump(); return std::all_of(clientViews.begin(), clientViews.end(), [&](const SessionClient* client) { return client->GetRoomSnapshot().members.size() == admitted; }); });
 	sliced = perf;
-	for (std::size_t i = 0; i < Count; ++i) {
+	const auto queueMember = [&](std::size_t i) {
 		const auto table = static_cast<std::uint8_t>(i / perTable);
 		bool queueSent = false;
 		wait([&]() {
@@ -366,23 +381,27 @@ int wmain(int argc, wchar_t** argv) {
 				return member.id == view.localMember && member.table == table;
 			});
 		});
-	}
+	};
+	for (std::size_t i = 0; i < admitted; ++i) queueMember(i);
 	using Phase = session::IrohMatchSession::Phase;
-	const auto initialTables = server.RoomSnapshot()->tables;
+	auto initialTables = server.RoomSnapshot()->tables;
 	for (std::uint64_t cycle = 1; cycle <= rematchCycles; ++cycle) {
 		phase="match " + std::to_string(cycle);
 		stallActive = stallSpectator && cycle == 1;
 		const bool stalledThisCycle = stallActive;
 		const bool lateThisCycle = lateSpectator && cycle == 2;
+		const bool joinsThisCycle = lateJoin && cycle == 1;
 		// The members this cycle withholds: the stalled spectator while its
-		// pre-start grace runs, and the late spectator that still owes the
-		// previous generation's terminal acknowledgement.
-		const auto skip = [&](std::size_t i) { return (stalledThisCycle && i == stalled) || (lateThisCycle && i == late); };
+		// pre-start grace runs, the late spectator that still owes the previous
+		// generation's terminal acknowledgement, and the member not yet admitted.
+		const auto skip = [&](std::size_t i) {
+			return (stalledThisCycle && i == stalled) || (lateThisCycle && i == late) || (joinsThisCycle && i == joiner);
+		};
 		const auto allLive = [&](const std::function<bool(const session::IrohMatchSession&)>& predicate) {
 			for (std::size_t i = 0; i < Count; ++i) if (!skip(i) && !predicate(*matches[i])) return false;
 			return true;
 		};
-		for (std::size_t readyIndex = 0; readyIndex < clients.size(); ++readyIndex) if (clients[readyIndex]->IsLocalPlayer()) {
+		for (std::size_t readyIndex = 0; readyIndex < admitted; ++readyIndex) if (clients[readyIndex]->IsLocalPlayer()) {
 			auto& client = clients[readyIndex];
 			const auto previousRevision = server.RoomSnapshot()->revision;
 			std::uint64_t readyActionId = 0;
@@ -475,7 +494,8 @@ int wmain(int argc, wchar_t** argv) {
 			// Like the game, which offers an unsent hash again every frame: a
 			// relayed room can be briefly non-writable right after setup.
 			wait([&]() { pump(); return clients[0]->Send(payload, nullptr) == session::SendResult::Queued; });
-			const std::size_t participants = perTable;
+			// A late joiner at table 0 is not connected yet and cannot receive it.
+			const std::size_t participants = (std::min)(perTable, admitted);
 			wait([&]() { pump(); return std::all_of(clients.begin() + 1, clients.begin() + participants,
 				[&](const std::unique_ptr<SessionClient>& client) { return client->pendingRemoteHashes.count(hash.frameIdx) == 1; }); });
 			for (std::size_t i = participants; i < Count; ++i) CHECK(clients[i]->pendingRemoteHashes.count(hash.frameIdx) == 0);
@@ -536,6 +556,27 @@ int wmain(int argc, wchar_t** argv) {
 		std::vector<int> frames(Count, 0);
 		if (stalledThisCycle) frames[stalled] = watchFrames;
 		if (lateThisCycle) frames[late] = watchFrames;
+		if (joinsThisCycle) frames[joiner] = watchFrames;
+		// The late join runs in stages between game ticks, so the fighters keep
+		// exchanging inputs throughout: join the room, attach once the room is
+		// Ready, then wait until every member sees the full roster.
+		int joinStage = joinsThisCycle ? 0 : 3;
+		const auto joinDuringFight = [&]() {
+			if (joinStage == 0 && frames[0] >= 10) {
+				phase = "late join " + std::to_string(cycle);
+				CHECK(rooms[joiner]->Join(rooms[0]->Invitation(), "authorized-match-test"));
+				joinStage = 1;
+			} else if (joinStage == 1 && rooms[joiner]->GetState() == session::IrohRoom::State::Ready) {
+				attach(joiner);
+				recovery.push_back(&recoveryPeers[joiner]); clientViews.push_back(clients[joiner].get());
+				admitted = Count;
+				joinStage = 2;
+			} else if (joinStage == 2 && std::all_of(clientViews.begin(), clientViews.end(), [&](const SessionClient* client) {
+				return client->GetRoomSnapshot().members.size() == Count; })) {
+				std::cout << "Member " << joiner + 1 << " joined during the fight at frame " << frames[0] << '\n';
+				joinStage = 3;
+			}
+		};
 		std::deque<bool> inputAdded(Count, false);
 		const auto advance = [&](std::size_t i) {
 				if (!ggpo[i]) return;
@@ -567,7 +608,7 @@ int wmain(int argc, wchar_t** argv) {
 		// The 45 s allowance covers 60 frames; scale it for a long timed run.
 		wait([&]() {
 			const double tickStart = diag::NowMs();
-			if (!sliced) { pump(); for (std::size_t i = 0; i < Count; ++i) advance(i); Sleep(14); } // approximate a game tick
+			if (!sliced) { pump(); joinDuringFight(); for (std::size_t i = 0; i < Count; ++i) advance(i); Sleep(14); } // approximate a game tick
 			else {
 				for (std::size_t i = 0; i < Count; ++i) slice(i, "match", [&]() {
 					advance(i);
@@ -586,8 +627,13 @@ int wmain(int argc, wchar_t** argv) {
 				const double spent = diag::NowMs() - tickStart;
 				if (spent < 16.0) Sleep(static_cast<DWORD>(16.0 - spent));
 			}
-			return std::all_of(frames.begin(), frames.end(), [&](int frame) { return frame >= watchFrames; });
+			return joinStage == 3 && std::all_of(frames.begin(), frames.end(), [&](int frame) { return frame >= watchFrames; });
 		}, 45000 + static_cast<std::uint64_t>(watchFrames) * (20 + Count * (2 + gameCostUs / 1000)));
+		if (joinsThisCycle) {
+			// The fight ran to its end with the room whole: every room is still
+			// Ready and no match session failed (both are checked every tick).
+			for (const auto& room : rooms) CHECK(room->GetState() == session::IrohRoom::State::Ready);
+		}
 		std::cout << "Generation " << cycle << " input streams completed; retiring GGPO\n";
 		std::vector<std::uint64_t> retiredGenerations(Count, 0);
 		for (std::size_t i = 0; i < Count; ++i) retiredGenerations[i] = matches[(skip(i) ? i / perTable * perTable : i)]->Generation();
@@ -652,6 +698,8 @@ int wmain(int argc, wchar_t** argv) {
 		// never a recipient.
 		const bool lateWithheld = lateSpectator && cycle <= 2;
 		if (lateWithheld) queuedTerminalAcks[late] = true;
+		// The late joiner was never a recipient of game one's receipt.
+		if (joinsThisCycle) queuedTerminalAcks[joiner] = true;
 		if (lateSpectator && cycle == 1) lateGeneration = retiredGenerations[late];
 		std::vector<std::pair<std::uint8_t, std::uint64_t>> terminalKeys;
 		for (std::size_t table = 0; table < tableCount; ++table)
@@ -659,7 +707,7 @@ int wmain(int argc, wchar_t** argv) {
 		phase = "terminal receipt acknowledgement " + std::to_string(cycle);
 		wait([&]() {
 			pump();
-			for (std::size_t i = 0; i < Count; ++i) if (!(lateWithheld && i == late))
+			for (std::size_t i = 0; i < Count; ++i) if (!(lateWithheld && i == late) && !(joinsThisCycle && i == joiner))
 				test::AcknowledgeIrohFixtureTerminal(*clients[i], static_cast<std::uint8_t>(i / perTable),
 					retiredGenerations[i], ggpo[i] == nullptr && matches[i]->GetPhase() == Phase::Idle,
 					observedTerminals[i], queuedTerminalAcks[i]);
@@ -678,6 +726,11 @@ int wmain(int argc, wchar_t** argv) {
 			CHECK(current.p1 == initialTables[table].p1 && current.p2 == initialTables[table].p2);
 			CHECK(current.queue == initialTables[table].queue);
 			CHECK(current.score[0] == cycle && current.score[1] == 0);
+		}
+		if (joinsThisCycle) {
+			// Now a spectator at its table, in every game from here on.
+			queueMember(joiner);
+			initialTables = server.RoomSnapshot()->tables;
 		}
 		std::cout << "Custom room cycle " << cycle << ": independently authorized input streams passed\n";
 	}

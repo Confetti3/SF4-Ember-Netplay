@@ -17,6 +17,7 @@
 #include "../Dimps/Dimps__Eva.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
 #include "sf4e.hxx"
+#include "sf4e__CrashDiagnostics.hxx"
 #include "sf4e__Platform.hxx"
 #include "sf4e__UserApp.hxx"
 #include "sf4e__Overlay.hxx"
@@ -320,12 +321,16 @@ int fMain::Initialize(void* a, void* b, void* c) {
                     new spdlog::sinks::wincolor_stdout_sink_mt()
                 ));
             }
-            spdlog::init_thread_pool(8192, 1);
+            sinks.push_back(sf4e::crash::RingSink());
+            spdlog::init_thread_pool(8192, 1); // one worker: the ring sink relies on it
             std::shared_ptr<spdlog::logger> logger(new spdlog::async_logger("sf4e", sinks.begin(), sinks.end(),
                 spdlog::thread_pool(), spdlog::async_overflow_policy::overrun_oldest));
             spdlog::set_default_logger(logger);
             spdlog::flush_on(spdlog::level::info);
             spdlog::info("Welcome to sf4e");
+            wchar_t logsDirectory[MAX_PATH];
+            PathCombineW(logsDirectory, path, L"sf4e/logs");
+            sf4e::crash::Install(logsDirectory);
             LogVSyncForced();
             spdlog::info("Sidecar logging initialized; install hooks are active");
         }

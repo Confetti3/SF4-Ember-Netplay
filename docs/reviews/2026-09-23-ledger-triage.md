@@ -38,6 +38,8 @@ Nine read-only Codex (gpt-6-sol) audit passes reviewed the branch. Every accepte
 
 F-008 (Linux) has new logs. On Proton the room closes 30 s after a normal match end on `match_teardown_timeout`, because the helper's `game_closed` never reaches the match session. The room now logs each `end_match`, each `game_closed` and `game_failed` it receives, and at the timeout the per-link state and the helper's load. The root cause is still open until a log from this build arrives.
 
+2026-09-25: v0.9.8 player logs close F-008 and open F-015 (silent process death after 12 to 15 matches), F-016 (a netplay battle played locally after its session is gone, fixed), F-017 (a room closing when a member joins during a fight) and F-018 (a delay report that is not a delay mismatch). Evidence and next measurements are in [2026-09-25-v0.9.8-residual-logs](../validation/2026-09-25-v0.9.8-residual-logs.md); the code review is [2026-09-25-residual-logs-and-code-quality](2026-09-25-residual-logs-and-code-quality.md).
+
 Still open, with the reason:
 
 - A-008 (engine memento payload sizes need IDA, which was unavailable).
@@ -57,7 +59,7 @@ Still open, with the reason:
 | F-005 | FIELD | Needs a crash dump; A-002 stub is gone, so it is not the cause |
 | F-006 | FIELD | No change to the meter or panel since v0.9.4; suspect 62dcc00 |
 | F-007 | FIELD | Ember has no replay hooks; three plausible indirect causes |
-| F-008 | FIELD | Blocked on Linux logs; N-005 makes those logs less useful than they should be |
+| F-008 | FIXED | 7b549ad (v0.9.8); closed with the residual logs in [2026-09-25-v0.9.8-residual-logs](../validation/2026-09-25-v0.9.8-residual-logs.md) |
 | F-009 | FIELD | Reset path is mostly fixed (H-009); no spectator-to-Reset link found |
 | F-010 | FIELD | Abrupt-exit paths exist; H-008 gap is the best code lead |
 | F-011 | FIELD | Needs per-phase owner-thread timing in 4 and 6 member rooms |

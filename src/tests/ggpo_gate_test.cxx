@@ -157,6 +157,114 @@ static void TestRunningOnlyFromWaiting() {
 	CHECK(g.phase == PHASE_BATTLE_CLOSING);
 }
 
+// --- who owns the native battle (F-016) ---
+
+// fSystem::simGate is aggregate-initialised with the phase alone, so every
+// other field is zero: that must read as an offline battle.
+static void TestAggregateInitialisationIsOffline() {
+	GgpoGateModel g = { PHASE_NO_SESSION };
+	CHECK(g.nativeBattle == NATIVE_BATTLE_OFFLINE);
+	CHECK(!g.NativeExitRequired());
+	CHECK(g.LocalControllerOwnsBattle(false));
+	CHECK(g.MayAdvance(false, true));
+}
+
+static void TestOfflineBattleIsNeverOrphaned() {
+	GgpoGateModel g = Fresh();
+	g.OnSessionClosed(); // a shutdown at the menu, no battle claimed
+	CHECK(!g.NativeExitRequired());
+	CHECK(g.LocalControllerOwnsBattle(false));
+	g.OnNativeBattleClosed();
+	CHECK(!g.NativeExitRequired());
+}
+
+static void TestLosingTheSessionOrphansTheBattle() {
+	GgpoGateModel g = Fresh();
+	g.OnNetplayBattleClaimed();
+	g.OnSessionStarted();
+	g.OnRunning();
+	CHECK(!g.LocalControllerOwnsBattle(true)); // GGPO owns the pad while live
+	CHECK(!g.NativeExitRequired());
+
+	g.OnSessionClosed(); // room closed, helper died, leave mid-fight
+	CHECK(g.NativeExitRequired());
+	CHECK(!g.LocalControllerOwnsBattle(false)); // never the local pad on both slots
+	CHECK(g.MayAdvance(false, true));            // the engine must run to leave
+	CHECK(g.OnOrphanFrame());                    // reported once
+	CHECK(!g.OnOrphanFrame());
+
+	g.OnNativeBattleClosed(); // CloseBattle
+	CHECK(!g.NativeExitRequired());
+	CHECK(g.LocalControllerOwnsBattle(false));
+}
+
+// A failure before the session starts (no endpoints, no controller, a
+// refused start) aborts with no session. The claim alone must orphan.
+static void TestClaimWithoutSessionOrphansOnClose() {
+	GgpoGateModel g = Fresh();
+	g.OnNetplayBattleClaimed();
+	g.OnFatal();
+	g.OnSessionClosed();
+	CHECK(g.NativeExitRequired());
+	// An abort never gates the battle it has to leave, nor later offline play.
+	CHECK(g.MayAdvance(false, true));
+	g.OnNativeBattleClosed();
+	CHECK(g.MayAdvance(false, true));
+	CHECK(!g.MayAdvance(false, false)); // only the manual gate remains
+}
+
+// StartGGPO retires a leftover session before starting the next one. The
+// new session re-claims the battle in the same call.
+static void TestLeftoverRetireThenStartReclaims() {
+	GgpoGateModel g = Fresh();
+	g.OnNetplayBattleClaimed();
+	g.OnSessionClosed(); // leftover_before_start
+	CHECK(g.NativeExitRequired());
+	g.OnSessionStarted();
+	CHECK(!g.NativeExitRequired());
+	CHECK(g.nativeBattle == NATIVE_BATTLE_NETPLAY);
+	CHECK(g.orphanFrames == 0);
+}
+
+// CloseBattle runs before the session is retired, and the spectator drain
+// retires it later still. Neither may orphan the battle that just ended.
+static void TestBattleClosedBeforeRetireIsNotAnOrphan() {
+	GgpoGateModel g = Fresh();
+	g.OnSessionStarted();
+	g.OnRunning();
+	g.OnBattleClosing();
+	g.OnNativeBattleClosed();
+	g.OnSessionClosed();
+	CHECK(!g.NativeExitRequired());
+	CHECK(g.LocalControllerOwnsBattle(false));
+}
+
+static void TestMayAdvanceFollowsTheSessionWhileLive() {
+	GgpoGateModel g = Fresh();
+	g.OnSessionStarted();
+	CHECK(!g.MayAdvance(true, true)); // waiting for RUNNING
+	g.OnRunning();
+	CHECK(g.MayAdvance(true, true));
+	CHECK(!g.MayAdvance(true, false)); // manual pause
+	g.OnFatal();
+	CHECK(!g.MayAdvance(true, true));
+	g.OnSessionClosed();
+	CHECK(g.MayAdvance(false, true)); // the fatal state dies with the session
+}
+
+static void TestOrphanOverdueFiresOnce() {
+	GgpoGateModel g = Fresh();
+	g.OnSessionStarted();
+	g.OnSessionClosed();
+	int overdue = 0;
+	for (uint32_t frame = 0; frame < 10; frame++) {
+		g.OnOrphanFrame();
+		if (g.OrphanOverdue(5)) overdue++;
+	}
+	CHECK(overdue == 1);
+	CHECK(g.orphanFrames == 10);
+}
+
 static void TestClassifier() {
 	CHECK(ClassifyGgpoResult(0) == POLICY_CONTINUE);
 	CHECK(ClassifyGgpoResult(4) == POLICY_STALL_PREDICTION);
@@ -255,6 +363,14 @@ int main() {
 	TestFatalImmuneToResume();
 	TestNewSessionClearsPerSessionStateButKeepsPause();
 	TestRunningOnlyFromWaiting();
+	TestAggregateInitialisationIsOffline();
+	TestOfflineBattleIsNeverOrphaned();
+	TestLosingTheSessionOrphansTheBattle();
+	TestClaimWithoutSessionOrphansOnClose();
+	TestLeftoverRetireThenStartReclaims();
+	TestBattleClosedBeforeRetireIsNotAnOrphan();
+	TestMayAdvanceFollowsTheSessionWhileLive();
+	TestOrphanOverdueFiresOnce();
 	TestClassifier();
 
 	if (g_failures) {

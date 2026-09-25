@@ -72,6 +72,7 @@ const TRANSPORT_MESSAGE_ID_BASE: u64 = 2;
 mod checkpoints;
 mod controls;
 mod entry;
+mod events;
 mod games;
 mod members;
 mod probes;
@@ -83,6 +84,7 @@ mod tests;
 
 use entry::TaskScope;
 pub use entry::run;
+use events::EventOutbox;
 use probes::{selected_probe_route, serve_probe};
 use protocol::NativeControlMessage;
 pub use protocol::{Command, Event};
@@ -419,7 +421,7 @@ struct Actor {
     games: BTreeMap<EndpointId, GameSlot>,
     closed_generation: u64,
     tasks: JoinSet<Completion>,
-    events: mpsc::Sender<Event>,
+    events: EventOutbox,
     recovery: Option<crate::recovery::RecoverySession>,
     admissions: BTreeMap<u64, Admission>,
     admission_order: Vec<u64>,
@@ -488,9 +490,7 @@ struct Actor {
 
 impl Actor {
     fn emit(&self, event: Event) -> io::Result<()> {
-        self.events
-            .try_send(event)
-            .map_err(|_| failed("IPC event queue full or closed"))
+        self.events.emit(event)
     }
     fn error(&self, request_id: u64, code: &str) -> io::Result<()> {
         self.emit(Event::Error {
@@ -525,10 +525,7 @@ impl Actor {
     }
 
     fn emit_bulk(&self, event: Event) -> bool {
-        if self.events.capacity() <= LIFECYCLE_EVENT_RESERVE {
-            return false;
-        }
-        self.events.try_send(event).is_ok()
+        self.events.emit_bulk(event)
     }
 
     fn clear_room(&mut self) {
@@ -1018,7 +1015,7 @@ impl Actor {
         // Load over the current statistics second; see Event::HelperLoad.
         let (mut tick_lag_max, mut tick_body_max) = (Duration::ZERO, Duration::ZERO);
         let mut event_free_min = usize::MAX;
-        let busy = stall::Busy::new(self.events.clone());
+        let busy = stall::Busy::new(self.events.sender());
         let _watchdog = TaskScope(vec![busy.watch()]);
         loop {
             tokio::select! {
@@ -1086,6 +1083,7 @@ impl Actor {
                     let started = Instant::now();
                     tick_lag_max = tick_lag_max.max(started.saturating_duration_since(scheduled));
                     event_free_min = event_free_min.min(self.events.capacity());
+                    self.events.flush()?;
                     self.expire_departure_grace();
                     self.start_next_admission_operation();
                     self.pump_membership_publications();
@@ -1111,12 +1109,12 @@ impl Actor {
                     (tick_lag_max, tick_body_max, event_free_min) = (Duration::ZERO, Duration::ZERO, usize::MAX);
                     // While a room is open, not only during a match: a report that
                     // stops at match end must mean the actor stopped (F-008).
-                    if (self.room.is_some() || !self.games.is_empty()) && self.events.capacity() > LIFECYCLE_EVENT_RESERVE {
+                    if (self.room.is_some() || !self.games.is_empty()) && self.events.has_headroom() {
                         self.emit(Event::HelperLoad { epoch: self.epoch, actor_tick_lag_max_us: lag,
                             actor_tick_body_max_us: body, event_queue_free_min: free })?;
                     }
                     for (peer, slot) in &self.games {
-                        if self.events.capacity() <= LIFECYCLE_EVENT_RESERVE { break; }
+                        if !self.events.has_headroom() { break; }
                         if let Some(stats) = &slot.stats {
                             self.emit(Event::Statistics { epoch: self.epoch, peer: *peer, generation: slot.auth.key.generation,
                                 sent_packets: stats.sent_packets.load(Ordering::Relaxed), received_packets: stats.received_packets.load(Ordering::Relaxed),

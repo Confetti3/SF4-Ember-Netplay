@@ -38,6 +38,7 @@
 #include "../session/sf4e__SessionProtocol.hxx"
 
 #include "sf4e.hxx"
+#include "sf4e__CrashDiagnostics.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__Game.hxx"
 #include "sf4e__GameEvents.hxx"
@@ -92,6 +93,7 @@ bool NativeResultEmitted();
 // Defined in sf4e__Game__Battle__System__Ggpo.cxx.
 void NoteDisconnectFlags(int flags);
 void LogPacerSummary(const char* label);
+void LeaveOrphanedNetplayBattle(rSystem* system);
 
 // Defined in sf4e__Game__Battle__System__SaveState.cxx, with SaveState::Free.
 void LogSaveStateFreePolicy();

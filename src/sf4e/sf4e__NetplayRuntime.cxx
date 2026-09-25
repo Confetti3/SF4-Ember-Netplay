@@ -127,7 +127,9 @@ struct Runtime {
 	Intent roomActionIntent{3000, Intent::Completion::OnDispatch};
 	// Chat parks on its own, so a message never displaces a table action.
 	Intent chatIntent{3000, Intent::Completion::OnDispatch};
-	Intent readyIntent{20000, Intent::Completion::OnCommit};
+	// Outlives the helper's teardown bound: a match that fails to close ends the
+	// room with its own message before a parked Ready can blame it (F-008).
+	Intent readyIntent{session::MatchTeardownTiming::HelperTimeoutMs + 5000, Intent::Completion::OnCommit};
 	Intent lobbyEditIntent{15000, Intent::Completion::OnDispatch};
 	std::string readyFailure;
 	std::uint64_t readyFailureSequence = 0;
@@ -954,8 +956,13 @@ void ReleaseRuntimePortToGgpo() {
 	if (runtime && runtime->match) runtime->match->ReleasePortToGgpo();
 }
 
+// The helper-unavailable errors stay until networking is back; the others
+// expire. Compared against the catalog, like every other runtime sentence.
 static bool StickyRuntimeError(const std::string& error) {
-	return error.compare(0, 10, "Networking") == 0;
+	const std::string helperUnavailable = loc::T("runtime.network_helper_unavailable");
+	const auto prefix = helperUnavailable.substr(0, helperUnavailable.find("{0}"));
+	return error == loc::T("runtime.networking_unavailable") || error == loc::T("runtime.network_start_failed") ||
+		(!prefix.empty() && error.compare(0, prefix.size(), prefix) == 0);
 }
 
 // A Ready press that cannot be honoured ends its intent and is announced once.

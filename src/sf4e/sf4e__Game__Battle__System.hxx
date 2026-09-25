@@ -57,9 +57,9 @@ namespace sf4e {
 				static bool bUpdateAllowed;
 
 				// Explicit gate model (Phase 2). Tracks session phase,
-				// connection warnings, and prediction stalls separately from
-				// bUpdateAllowed, which now carries only lifecycle gating,
-				// manual/debug pause, and terminal failure.
+				// connection warnings, prediction stalls and who owns the
+				// native battle. bUpdateAllowed carries only the manual or
+				// developer pause; nothing in the session lifecycle writes it.
 				static sf4e::gate::GgpoGateModel simGate;
 
 				// The one central answer to "may the next deterministic

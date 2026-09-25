@@ -105,12 +105,10 @@ sf4e::gate::GgpoGateModel fSystem::simGate = { sf4e::gate::PHASE_NO_SESSION };
 sf4e::pacing::PacingController fSystem::pacer;
 
 bool fSystem::MayAdvanceDeterministicFrame() {
-    // Preserve the legacy Boolean for offline/development controls, but make
-    // the explicit model authoritative for GGPO lifecycle and terminal state.
-    // Connection warnings and prediction stalls intentionally remain absent.
-    return !ggpo
-        ? bUpdateAllowed
-        : bUpdateAllowed && simGate.CanAdvanceDeterministicFrame();
+    // bUpdateAllowed is the developer's manual gate; the model owns the
+    // session lifecycle and terminal state. Connection warnings and
+    // prediction stalls intentionally remain absent.
+    return simGate.MayAdvance(ggpo != nullptr, bUpdateAllowed);
 }
 fSystem::PlayerConnectionInfo fSystem::players[sf4e::room::MaxMatchParticipants];
 fSystem::SaveState fSystem::saveStates[NUM_SAVE_STATES];
@@ -453,6 +451,9 @@ void fSystem::BattleUpdate() {
             }
         }
     }
+    else if (simGate.NativeExitRequired()) {
+        LeaveOrphanedNetplayBattle(_this);
+    }
     else {
         if (fSoundPlayerManager::bUsePureSounds) {
             fSoundPlayerManager::SyncState();
@@ -509,9 +510,13 @@ void fSystem::LogSaveSlotOccupancy(const char* label) {
 
 void fSystem::CloseBattle() {
     rSystem* _this = (rSystem*)this;
+    // The engine is closing this battle, so a session retired from here on
+    // (now, or later by the spectator drain) leaves no orphan behind.
+    simGate.OnNativeBattleClosed();
     sf4e::training::CloseBattle();
     bool summaryEmitted = false;
     LogSaveSlotOccupancy("battle_close_entry");
+    sf4e::crash::NoteMatchBoundary("battle_close");
     if (ggpo) {
         PublishConfirmedNativeMatchResult();
         int confirmedInput = -1;
@@ -619,7 +624,7 @@ void fSystem::SysMain_HandleTrainingModeFeatures() {
 }
 
 void fSystem::SysMain_UpdatePauseState() {
-    if (!ggpo) {
+    if (simGate.LocalControllerOwnsBattle(ggpo != nullptr)) {
         (this->*rSystem::publicMethods.SysMain_UpdatePauseState)();
     }
 }

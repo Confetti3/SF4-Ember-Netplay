@@ -27,6 +27,7 @@
 
 #include "../sf4e/sf4e.hxx"
 #include "../sidecar/sidecar.hxx"
+#include "../common/CrashReport.hxx"
 #include "../common/sf4e__NetplayConfig.hxx"
 #include "../common/install_paths.hxx"
 #include "../common/Localization.hxx"
@@ -569,6 +570,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
         WaitForSingleObject(game,INFINITE);
         DWORD exitCode = 0; GetExitCodeProcess(game,&exitCode);
+        spdlog::info("Game exited with code {:#010x} ({})", exitCode, sf4e::crash::ExitCodeName(exitCode));
         discord.Stop(); helper.Stop(); CloseHandle(game);
         if (exitCode != 0 && ShowRecovery(sf4e::loc::T("launcher.game_error"),chosenDirectory)) continue;
         return 0;

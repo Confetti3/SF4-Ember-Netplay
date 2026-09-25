@@ -46,6 +46,18 @@ if(BUILD_TESTING)
     target_compile_features(UiPolishTest PRIVATE cxx_std_14)
     add_test(NAME UiPolish COMMAND UiPolishTest)
     set_tests_properties(UiPolish PROPERTIES TIMEOUT 10)
+    add_executable(GgpoGateTest "src/tests/ggpo_gate_test.cxx" "src/common/sf4e__GgpoGate.cxx")
+    target_compile_features(GgpoGateTest PRIVATE cxx_std_11)
+    add_test(NAME GgpoGate COMMAND GgpoGateTest)
+    set_tests_properties(GgpoGate PROPERTIES TIMEOUT 15)
+    add_executable(CrashReportTest "src/tests/crash_report_test.cxx")
+    target_compile_features(CrashReportTest PRIVATE cxx_std_11)
+    add_test(NAME CrashReport COMMAND CrashReportTest)
+    set_tests_properties(CrashReport PROPERTIES TIMEOUT 15)
+    add_executable(HelperErrorScopeTest "src/tests/helper_error_scope_test.cxx")
+    target_compile_features(HelperErrorScopeTest PRIVATE cxx_std_11)
+    add_test(NAME HelperErrorScope COMMAND HelperErrorScopeTest)
+    set_tests_properties(HelperErrorScope PROPERTIES TIMEOUT 15)
 endif()
 if(SF4E_CORE_TESTS_ONLY)
     return()
@@ -321,6 +333,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__Pad.cxx"
     "src/sf4e/sf4e__Platform.hxx"
     "src/sf4e/sf4e__Platform.cxx"
+    "src/sf4e/sf4e__CrashDiagnostics.hxx"
+    "src/sf4e/sf4e__CrashDiagnostics.cxx"
     "src/sf4e/sf4e__UserApp.hxx"
     "src/sf4e/sf4e__UserApp.cxx"
     "src/sf4e/sf4e__NetplayFacade.hxx"
@@ -336,7 +350,7 @@ endif()
 target_link_libraries(sf4e PRIVATE sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
 target_link_libraries(
     sf4e
-    PRIVATE ${LIB_DETOURS} Session sf4e_common "Kernel32" "ws2_32" "Mswsock" "AdvApi32" "Shlwapi" "pathcch" "shell32" "Bcrypt" "Xinput9_1_0" "iphlpapi"
+    PRIVATE ${LIB_DETOURS} Session sf4e_common "Kernel32" "ws2_32" "Mswsock" "AdvApi32" "Shlwapi" "pathcch" "shell32" "Bcrypt" "Xinput9_1_0" "iphlpapi" "Dbghelp"
     PUBLIC imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog  ggpo::GGPO
 )
 
@@ -509,11 +523,6 @@ if(BUILD_TESTING)
     target_link_libraries(RollbackDiagnosticsTest PRIVATE sf4e_common)
     add_test(NAME RollbackDiagnostics COMMAND RollbackDiagnosticsTest)
     set_tests_properties(RollbackDiagnostics PROPERTIES TIMEOUT 15)
-
-    add_executable(GgpoGateTest "src/tests/ggpo_gate_test.cxx")
-    target_link_libraries(GgpoGateTest PRIVATE sf4e_common)
-    add_test(NAME GgpoGate COMMAND GgpoGateTest)
-    set_tests_properties(GgpoGate PROPERTIES TIMEOUT 15)
 
     add_executable(PacingControllerTest "src/tests/pacing_controller_test.cxx")
     add_test(NAME PacingController COMMAND PacingControllerTest)

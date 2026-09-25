@@ -212,19 +212,11 @@ namespace sf4e {
 
 	void NetplayFacade::HandleNetplayFailure(const char* reason, bool closeGgpo) {
 		if (reason && reason[0]) {
-			PushAlert(reason);
 			SetLastError(reason);
 		}
-
-		if (fSystem::ggpo) {
-			rSystem* system = rSystem::staticMethods.GetSingleton();
-			if (system && *rSystem::staticVars.CurrentBattleFlow != rSystem::BF__IDLE) {
-				*rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
-			}
-			fSystem::simGate.OnFatal();
-			fSystem::bUpdateAllowed = false;
-		}
-
+		// Retiring the session is what ends the fight: a netplay battle
+		// without its session is orphaned and leaves on its own.
+		if (fSystem::ggpo) fSystem::simGate.OnFatal();
 		ShutdownNetplay(closeGgpo);
 	}
 

@@ -20,10 +20,21 @@ Do not change these behaviors without regression testing (SessionInteractiveTest
 
 ## Rollback remediation (2026-07, feat/rollback-diagnostics-and-pacing)
 
-- `bUpdateAllowed` carries only lifecycle gating, manual/debug pause, terminal
-  failure, and room failure — read via `fSystem::MayAdvanceDeterministicFrame()`.
+- `bUpdateAllowed` carries only the manual or developer pause. Session
+  lifecycle, terminal failure and room failure live in `GgpoGateModel`, and
+  nothing in the session lifecycle writes `bUpdateAllowed`; the host asks
+  `fSystem::MayAdvanceDeterministicFrame()`, which is `simGate.MayAdvance`.
   Connection warnings must NOT freeze simulation; prediction stalls are enforced
   by GGPO refusing local input (`GgpoGateModel`, `ClassifyGgpoResult`).
+- An online match is a native offline Versus whose pad reads are replaced only
+  while a session exists. Every netplay battle is claimed in
+  `fUserApp::_OnVsBattleTasksRegistered`, before its session starts, and stays
+  claimed until `CloseBattle`. A claimed battle whose session is retired for
+  any reason is orphaned (`NativeExitRequired`): `BattleUpdate` drives it with
+  neutral playback input for both slots and re-asserts `RS_ISLEAVING` on every
+  update until the engine closes it. Never let a netplay battle run the native
+  pad path (F-016), and never write `RS_ISLEAVING` from a retirement path: the
+  orphan handling is the one place that leaves a battle.
 - A `CONNECTION_RESUMED` event clears only the warning; it can never undo a
   manual pause, a fatal abort, or the startup gate.
 - Routine in-match polling is `ggpo_idle(session, 0)` (nonblocking; the fork's
@@ -46,8 +57,9 @@ Do not change these behaviors without regression testing (SessionInteractiveTest
   callback body is wrapped in `GgpoCallbackScope`; an abort raised inside one
   latches and `fSystem::DrainPendingAbort()` completes it after the top-level
   GGPO call returns (see `sf4e__GgpoAbortLatch.hxx`).
-- `RetireGgpoSession` reopens `bUpdateAllowed` (unless manually paused). An
-  abort must not leave offline battles gated.
+- No abort, failure or retirement writes `bUpdateAllowed`. Without a session
+  only the manual gate applies (`GgpoGateModel::MayAdvance`), so an abort can
+  never leave an offline battle, or an orphan that has to leave, frozen.
 - A spectator handle's `DISCONNECTED_FROM_PEER`, and a spectator's v1 snapshot
   or v2 hash mismatch, never end the two fighters' game.
 - Spectators never hold the fighters. The start barrier is the two fighters
