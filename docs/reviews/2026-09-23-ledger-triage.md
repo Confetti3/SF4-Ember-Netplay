@@ -139,6 +139,8 @@ Still open, with the reason:
 
 On restore, the task-data size check is assert-only (`sf4e.cxx:392`) and `AllocateNewTask`'s result is not checked (`:396-402`). A training checkpoint with an unknown functor restores that task without its functor and shows no error. No tests.
 
+2026-09-25 follow-up: the flags are now `sf4e::Game::MementoFailure::record` / `restore` (memento layer), shared with the Afterimage Actor-state hooks (`sf4e__Game__Battle__Chara.cxx`), which report through them when the added Actor part cannot be written or found. Still open: a failed load is not a terminal battle state everywhere. A future fix would retire a live session, override manual pause, discard queued training and developer commands, and clear the state at the teardown boundary. It applies to task-core and afterimage failures alike.
+
 **A-002: FIXED** in 6ad4e98. The `Sound::Unit::IsStillPlaying` stub is unhooked (`sf4e/sf4e__Game__Battle.cxx:48-49`). The remaining `CriPlayerAdapter::IsStillPlaying` hook (`:466-478`) reads `bLive` through `operator[]`, which inserts a map entry on a miss. That is harmless but untidy.
 
 **A-003: LIVE.** `SaveState::Clear` calls `managerState.clear()` (`SaveState.cxx:364`), which destroys each `SoundObjectPool::SaveState` and its two vectors (`sf4e/sf4e__Platform.hxx:71-74`). The next save `emplace_back`s fresh ones (`SaveState.cxx:688`) and `push_back`s into them. The constructor comment at `SaveState.cxx:39-42` ("these never allocate again") is only true of the outer vectors.

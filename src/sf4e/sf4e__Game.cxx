@@ -20,6 +20,8 @@ using fKey = fGame::GameMementoKey;
 using fSingleNodeControl = fGame::Sprite::SingleNodeControl;
 
 std::set<rKey*> fKey::trackedKeys;
+bool fGame::MementoFailure::record = false;
+bool fGame::MementoFailure::restore = false;
 
 void fGame::Install() {
     Battle::Install();

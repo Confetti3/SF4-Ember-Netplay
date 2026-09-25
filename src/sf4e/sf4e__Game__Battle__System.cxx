@@ -570,6 +570,7 @@ void fSystem::CloseBattle() {
 }
 
 void fSystem::OnBattleFlow_BattleStart(System* s) {
+    StressOpenBattle();
     if (nNextBattleStartFlowTarget > -1) {
         rSystem::staticMethods.SetBattleFlow(s, nNextBattleStartFlowTarget);
         nNextBattleStartFlowTarget = -1;

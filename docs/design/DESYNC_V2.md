@@ -108,6 +108,22 @@ frames, and with `SF4E_LEGACY_SAVESTATE_FREE=1` to compare the two free paths
 because it breaks into the debugger on a mismatch and writes a log file per
 frame.
 
+`SF4E_ROLLBACK_STRESS_PREDICT=<1|2|3>` makes the first pass mispredict P1, P2
+or both the way GGPO predicts a remote player (the last input before the
+window), then replays the window twice from the same save with the real
+inputs and compares the two replays, so a move that starts only in the
+corrected timeline is restored across a timeline that lacked it.
+
+`SF4E_ROLLBACK_STRESS_AUDIT=1` compares, after every load, what each save
+recorded with what the load put back: each fighter's actor (raw,
+diagnostic), both `Chara::Afterimage` objects, their action engines and their
+collision-box lists, over the fields the native mementos restore. Differences
+log as `RollbackStress: audit ... not restored`, and `battle closed` prints
+`checked/missing/failed` per category. `=2` also flips one engine byte and one
+box-node byte through the same capture and compare and reports whether each
+was detected (`probe_engine`, `probe_boxes`). A category passes with
+`checked>0 missing=0 failed=0`.
+
 This checks that one machine replays its own frames identically. It does not
 replace two-PC validation: peers can still diverge through state that the
 hash does not cover.

@@ -296,7 +296,7 @@ static rIEmTaskFunctor* RestoreFunctor(rAllocator* allocator, const fTask::TaskF
 		(allocator->*rAllocator::publicMethods.Allocate)(size, 0, -1) : nullptr;
 	if (!functor) {
 		spdlog::error("Rollback: could not restore task functor vtable {:#x} size {}", vtable, size);
-		fTaskCore::restoreFailed = true;
+		sf4e::Game::MementoFailure::restore = true;
 		return nullptr;
 	}
 	memcpy_s(functor, size, &buf, size);
@@ -353,14 +353,12 @@ void fTask::RestoreFromAdditionalMemento(rTask* t, const AdditionalMemento& m) {
 	if (m.hasWorkFunctor) *rTask::GetWorkFunctor(t) = RestoreFunctor(allocator, m.workFunctor);
 }
 
-bool fTaskCore::recordFailed = false;
-bool fTaskCore::restoreFailed = false;
 
 void fTaskCore::RecordToAdditionalMemento(rTaskCore* c, AdditionalMemento& m) {
 	size_t taskDataSize = *rTaskCore::GetTaskDataSize(c);
 	if (taskDataSize > sizeof(fTaskCore::TaskDataBuf)) {
 		spdlog::error("Rollback: task data size {} exceeds {}", taskDataSize, sizeof(fTaskCore::TaskDataBuf));
-		recordFailed = true;
+		sf4e::Game::MementoFailure::record = true;
 		taskDataSize = sizeof(fTaskCore::TaskDataBuf);
 	}
 
@@ -369,17 +367,17 @@ void fTaskCore::RecordToAdditionalMemento(rTaskCore* c, AdditionalMemento& m) {
 	for (cursor = rTaskCore::GetTaskHead(c), i = 0; cursor != nullptr; cursor = *rTask::GetNext(cursor), i++) {
 		if (i >= MAX_TASKS_PER_CORE) {
 			spdlog::error("Rollback: task core holds more than {} tasks", MAX_TASKS_PER_CORE);
-			recordFailed = true;
+			sf4e::Game::MementoFailure::record = true;
 			break;
 		}
-		if (!fTask::RecordToAdditionalMemento(cursor, m.tasks[i])) recordFailed = true;
+		if (!fTask::RecordToAdditionalMemento(cursor, m.tasks[i])) sf4e::Game::MementoFailure::record = true;
 		memcpy_s(&m.taskdata[i], sizeof(m.taskdata[i]), *rTask::GetTaskData(cursor), taskDataSize);
 	}
 	// Restore allocates numUsed tasks from the entries recorded here.
 	m.numUsed = (c->*rTaskCore::publicMethods.GetNumUsed)();
 	if (m.numUsed > i) {
 		spdlog::error("Rollback: task core reports {} used tasks but lists {}", m.numUsed, i);
-		recordFailed = true;
+		sf4e::Game::MementoFailure::record = true;
 		m.numUsed = i;
 	}
 }
@@ -401,7 +399,7 @@ void fTaskCore::RestoreFromAdditionalMemento(rTaskCore* c, const AdditionalMemen
 		// Recording rejects such a core, so this is a different core layout
 		// than the one saved. Never read past the recorded buffer.
 		spdlog::error("Rollback: restoring task data size {} exceeds {}", taskDataSize, sizeof(fTaskCore::TaskDataBuf));
-		restoreFailed = true;
+		sf4e::Game::MementoFailure::restore = true;
 		taskDataSize = sizeof(fTaskCore::TaskDataBuf);
 	}
 	int i;
@@ -415,7 +413,7 @@ void fTaskCore::RestoreFromAdditionalMemento(rTaskCore* c, const AdditionalMemen
 		);
 		if (!newTask) {
 			spdlog::error("Rollback: task core could not allocate task {} of {}", i + 1, m.numUsed);
-			restoreFailed = true;
+			sf4e::Game::MementoFailure::restore = true;
 			return;
 		}
 		fTask::RestoreFromAdditionalMemento(newTask, m.tasks[i]);

@@ -58,6 +58,14 @@ if(BUILD_TESTING)
     target_compile_features(HelperErrorScopeTest PRIVATE cxx_std_11)
     add_test(NAME HelperErrorScope COMMAND HelperErrorScopeTest)
     set_tests_properties(HelperErrorScope PROPERTIES TIMEOUT 15)
+    add_executable(RollbackAuditTest "src/tests/rollback_audit_test.cxx")
+    target_compile_features(RollbackAuditTest PRIVATE cxx_std_14)
+    add_test(NAME RollbackAudit COMMAND RollbackAuditTest)
+    set_tests_properties(RollbackAudit PROPERTIES TIMEOUT 15)
+    add_executable(AfterimageMementoTest "src/tests/afterimage_memento_test.cxx")
+    target_compile_features(AfterimageMementoTest PRIVATE cxx_std_14)
+    add_test(NAME AfterimageMemento COMMAND AfterimageMementoTest)
+    set_tests_properties(AfterimageMemento PROPERTIES TIMEOUT 15)
 endif()
 if(SF4E_CORE_TESTS_ONLY)
     return()
@@ -310,6 +318,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__Game.cxx"
     "src/sf4e/sf4e__Game__Battle.hxx"
     "src/sf4e/sf4e__Game__Battle.cxx"
+    "src/sf4e/sf4e__Game__Battle__Chara.hxx"
+    "src/sf4e/sf4e__Game__Battle__Chara.cxx"
     "src/sf4e/sf4e__Game__Battle__Effect.hxx"
     "src/sf4e/sf4e__Game__Battle__Effect.cxx"
     "src/sf4e/sf4e__Game__Battle__Hud.hxx"
@@ -518,6 +528,10 @@ if(BUILD_TESTING)
     target_link_libraries(GgpoDisconnectBeforeInputTest PRIVATE ggpo::GGPO "ws2_32")
     add_test(NAME GgpoDisconnectBeforeInput COMMAND GgpoDisconnectBeforeInputTest)
     set_tests_properties(GgpoDisconnectBeforeInput PROPERTIES TIMEOUT 15)
+    add_executable(GgpoOutageToleranceTest "src/tests/ggpo_outage_tolerance_test.cxx")
+    target_link_libraries(GgpoOutageToleranceTest PRIVATE ggpo::GGPO "ws2_32")
+    add_test(NAME GgpoOutageTolerance COMMAND GgpoOutageToleranceTest)
+    set_tests_properties(GgpoOutageTolerance PROPERTIES TIMEOUT 45)
 
     add_executable(RollbackDiagnosticsTest "src/tests/rollback_diagnostics_test.cxx")
     target_link_libraries(RollbackDiagnosticsTest PRIVATE sf4e_common)

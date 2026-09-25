@@ -10,7 +10,7 @@ Do not change these behaviors without regression testing (SessionInteractiveTest
 - Local input: `ggpo_add_local_input` in `fSystem::BattleUpdate`; rollback uses `ggpo_synchronize_input` and `fPadSystem::playbackData`.
 - When `bUsePureSounds` is enabled, call `fSoundPlayerManager::SyncState()` around simulation steps.
 - Create the GGPO session in `fUserApp::_OnVsBattleTasksRegistered` (after VsBattle load), not earlier.
-- Default disconnect timeouts: **3000 ms / notify 1500 ms** (`NetplayConfig` v8+). Older launchers derive timeout from host input delay (`max(3000, 1000 + delay*500)`).
+- Fighter-link disconnect tolerance: **8000 ms / notify 1500 ms**, owned by `common/GgpoDisconnectTolerance.hxx` and applied in `StartGGPO` only (the spectator client backend rejects it). It must stay under iroh's 15 s direct-path idle and openraft's 10-12 s election. The launcher payload no longer carries it. Regression gate: `GgpoOutageTolerance` (a 6.5 s silence resumes; a longer one disconnects at about 8 s).
 
 ## Session protocol (`sf4e__SessionProtocol.hxx`)
 
