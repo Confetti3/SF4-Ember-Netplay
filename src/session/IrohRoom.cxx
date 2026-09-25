@@ -1,5 +1,6 @@
 #include "IrohRoom.hxx"
 #include <spdlog/spdlog.h>
+#include "HelperErrorScope.hxx"
 #include "../common/InputDelay.hxx"
 #include "RoomMessageQueue.hxx"
 #include "sf4e__SessionProtocol.hxx"
@@ -798,45 +799,43 @@ bool IrohRoom::HandleControlTraffic(const json& event, const std::string& type) 
 
 bool IrohRoom::HandleHelperError(const json& event) {
 	const auto code = event.at("code").get<std::string>();
-    if(code=="probe_unavailable") {
-        probe_.failureReason=event.value("probe_failure",0U);
-        probe_.status="unavailable"; probe_.recommended=-1; return true;
-    }
-	if(code=="gameplay_prepare_failed") {
+	// Rust reports the control peer which failed. A transient send failure
+	// to a non-leader is peer-scoped: the current committed leader still
+	// owns the room journal and can replay the queued effect after that peer
+	// reconnects. Only a failure addressed to the committed leader (or an
+	// older helper that cannot identify its peer) revokes this room's
+	// writable/rebound state.
+	const auto failedPeer = event.value("peer", std::string());
+	const bool failedPeerIsNotLeader = !failedPeer.empty() && IsEndpointIdentity(failedPeer) &&
+		failedPeer != coordination_.leader;
+	const auto verdict = ClassifyHelperError(code, coordination_.active, failedPeerIsNotLeader);
+	spdlog::warn("Room: helper error {} scope={} peer={}", code, HelperErrorScopeName(verdict.scope),
+		failedPeer.empty() ? std::string("-") : PeerTag(failedPeer));
+	switch (verdict.scope) {
+	case HelperErrorScope::Probe:
+		probe_.failureReason=event.value("probe_failure",0U);
+		probe_.status="unavailable"; probe_.recommended=-1; return true;
+	case HelperErrorScope::Gameplay:
 		error_="Gameplay connection failed; room control remains available.";
 		return true;
+	case HelperErrorScope::Checkpoint:
+		++checkpointTransferErrors_;
+		if(!proposalBytes_.empty()) { ++proposalTransferErrors_; proposalStatus_=code; }
+		proposalBytes_.clear(); proposalBegun_=proposalEnded_=false;
+		error_="Room checkpoint transfer will retry."; return true;
+	case HelperErrorScope::ControlPeer:
+		error_ = "A room peer is reconnecting; committed room control remains available.";
+		return true;
+	case HelperErrorScope::ControlLeader:
+		coordination_.writable=false; coordination_.rebound=false; state_=State::Degraded;
+		invitation_.clear(); discordInvitation_.clear();
+		error_="Room control is reconnecting."; return true;
+	case HelperErrorScope::Match:
+	case HelperErrorScope::RoomFatal:
+		break;
 	}
-    if(coordination_.active && (code.compare(0,11,"checkpoint_")==0 ||
-        code.compare(0,19,"invalid_checkpoint_")==0 ||
-        code=="stale_checkpoint_ack" || code=="unexpected_checkpoint_ack")) {
-        ++checkpointTransferErrors_;
-        if(!proposalBytes_.empty()) { ++proposalTransferErrors_; proposalStatus_=code; }
-        proposalBytes_.clear(); proposalBegun_=proposalEnded_=false;
-        error_="Room checkpoint transfer will retry."; return true;
-    }
-    if(coordination_.active && (code=="control_send_failed" || code=="coordination_unavailable")) {
-        // Rust reports the control peer which failed.  A transient
-        // send failure to a non-leader is peer-scoped: the current
-        // committed leader still owns the room journal and can
-        // replay the queued effect after that peer reconnects.
-        // Only a failure addressed to the committed leader (or an
-        // older helper that cannot identify its peer) revokes this
-        // room's writable/rebound state.
-        const auto failedPeer = event.value("peer", std::string());
-        if (!failedPeer.empty() && IsEndpointIdentity(failedPeer) &&
-            failedPeer != coordination_.leader) {
-            error_ = "A room peer is reconnecting; committed room control remains available.";
-            return true;
-        }
-        coordination_.writable=false; coordination_.rebound=false; state_=State::Degraded;
-        invitation_.clear(); discordInvitation_.clear();
-        error_="Room control is reconnecting."; return true;
-    }
 	// Only protocol-defined labels may enter UI diagnostics.
-	if (code == "invalid_or_incompatible_invitation" || code == "join_failed" ||
-		code == "host_unavailable" || code == "invalid_room_state" ||
-		code == "control_send_failed" || code == "invalid_control_size") Fail(code.c_str());
-	else Fail("helper_room_error");
+	Fail(verdict.codeIsProtocolLabel ? code.c_str() : "helper_room_error");
 	return false;
 }
 
