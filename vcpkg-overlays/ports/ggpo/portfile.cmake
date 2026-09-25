@@ -16,6 +16,7 @@ vcpkg_from_github(
         "fast-quality-report.patch"
         "stalled-input-repair.patch"
         "init-round-trip-time.patch"
+        "assert-handler.patch"
 )
 
 # One canonical policy is compiled by both GGPO and the portable tests.

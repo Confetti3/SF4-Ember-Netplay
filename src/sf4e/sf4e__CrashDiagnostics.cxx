@@ -12,6 +12,7 @@
 #include <psapi.h>
 #include <tlhelp32.h>
 
+#include <ggponet.h>
 #include <spdlog/details/null_mutex.h>
 #include <spdlog/sinks/base_sink.h>
 
@@ -177,6 +178,8 @@ void Install(const wchar_t* logsDirectory) {
 	std::set_terminate(OnTerminate);
 	_set_purecall_handler(OnPureCall);
 	_set_invalid_parameter_handler(OnInvalidParameter);
+	// A GGPO assertion exits the process; it used to show only a message box.
+	ggpo_set_assert_handler(OnGgpoAssertion);
 	spdlog::info("Crash record: sf4e-crash.log and sf4e-crash.dmp beside sf4e.log");
 }
 

@@ -1,0 +1,113 @@
+diff --git a/src/include/ggponet.h b/src/include/ggponet.h
+index a96f427..f01afaa 100644
+--- a/src/include/ggponet.h
++++ b/src/include/ggponet.h
+@@ -569,6 +569,17 @@ GGPO_API void __cdecl ggpo_logv(GGPOSession *,
+                                 const char *fmt,
+                                 va_list args);
+ 
++/*
++ * ggpo_set_assert_handler --
++ *
++ * Called with the assertion text when a GGPO assertion fails, before the
++ * process exits. Without a handler the Windows build shows a message box.
++ * The host uses it to write its own crash record.
++ */
++typedef void (__cdecl *GGPOAssertHandler)(const char *message);
++
++GGPO_API void __cdecl ggpo_set_assert_handler(GGPOAssertHandler handler);
++
+ #ifdef __cplusplus
+ };
+ #endif
+diff --git a/src/lib/ggpo/main.cpp b/src/lib/ggpo/main.cpp
+index b3bf7dd..6317f78 100644
+--- a/src/lib/ggpo/main.cpp
++++ b/src/lib/ggpo/main.cpp
+@@ -215,3 +215,8 @@ GGPOErrorCode ggpo_start_spectating(GGPOSession **session,
+    return GGPO_OK;
+ }
+ 
++void
++ggpo_set_assert_handler(GGPOAssertHandler handler)
++{
++   Platform::SetAssertHandler(handler);
++}
+diff --git a/src/lib/ggpo/platform_linux.cpp b/src/lib/ggpo/platform_linux.cpp
+index 84f88c7..a709e2a 100644
+--- a/src/lib/ggpo/platform_linux.cpp
++++ b/src/lib/ggpo/platform_linux.cpp
+@@ -7,6 +7,8 @@
+ 
+ #include "platform_linux.h"
+ 
++Platform::AssertHandler Platform::assertHandler = NULL;
++
+ struct timespec start = { 0 }
+ 
+ uint32 Platform::GetCurrentTimeMS() {
+diff --git a/src/lib/ggpo/platform_linux.h b/src/lib/ggpo/platform_linux.h
+index b36e051..63ce2f4 100644
+--- a/src/lib/ggpo/platform_linux.h
++++ b/src/lib/ggpo/platform_linux.h
+@@ -17,11 +17,16 @@
+ class Platform {
+ public:  // types
+    typedef pid_t ProcessID;
++   typedef void (*AssertHandler)(const char *msg);
+ 
+ public:  // functions
+    static ProcessID GetProcessID() { return getpid(); }
+-   static void AssertFailed(char *msg) { }
++   static void SetAssertHandler(AssertHandler handler) { assertHandler = handler; }
++   static void AssertFailed(char *msg) { if (assertHandler) { assertHandler(msg); } }
+    static uint32 GetCurrentTimeMS();
++
++private:
++   static AssertHandler assertHandler;
+ };
+ 
+ #endif
+diff --git a/src/lib/ggpo/platform_windows.cpp b/src/lib/ggpo/platform_windows.cpp
+index 31a25d3..d1cf376 100644
+--- a/src/lib/ggpo/platform_windows.cpp
++++ b/src/lib/ggpo/platform_windows.cpp
+@@ -7,6 +7,8 @@
+ 
+ #include "platform_windows.h"
+ 
++Platform::AssertHandler Platform::assertHandler = NULL;
++
+ int
+ Platform::GetConfigInt(const char* name)
+ {
+diff --git a/src/lib/ggpo/platform_windows.h b/src/lib/ggpo/platform_windows.h
+index 1d308ce..3682f03 100644
+--- a/src/lib/ggpo/platform_windows.h
++++ b/src/lib/ggpo/platform_windows.h
+@@ -17,13 +17,24 @@
+ class Platform {
+ public:  // types
+    typedef DWORD ProcessID;
++   typedef void (*AssertHandler)(const char *msg);
+ 
+ public:  // functions
+    static ProcessID GetProcessID() { return GetCurrentProcessId(); }
+-   static void AssertFailed(char *msg) { MessageBoxA(NULL, msg, "GGPO Assertion Failed", MB_OK | MB_ICONEXCLAMATION); }
++   static void SetAssertHandler(AssertHandler handler) { assertHandler = handler; }
++   static void AssertFailed(char *msg) {
++      if (assertHandler) {
++         assertHandler(msg);
++      } else {
++         MessageBoxA(NULL, msg, "GGPO Assertion Failed", MB_OK | MB_ICONEXCLAMATION);
++      }
++   }
+    static uint32 GetCurrentTimeMS() { return timeGetTime(); }
+    static int GetConfigInt(const char* name);
+    static bool GetConfigBool(const char* name);
++
++private:
++   static AssertHandler assertHandler;
+ };
+ 
+ #endif
