@@ -516,6 +516,7 @@ void fSystem::CloseBattle() {
     sf4e::training::CloseBattle();
     bool summaryEmitted = false;
     LogSaveSlotOccupancy("battle_close_entry");
+    sf4e::crash::NoteMatchBoundary("battle_close");
     if (ggpo) {
         PublishConfirmedNativeMatchResult();
         int confirmedInput = -1;

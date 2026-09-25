@@ -370,6 +370,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     }
     spdlog::info("GGPO: session started localPort={}", port);
     spdlog::info("GGPO: fp {}", sf4e::statehash::FpEnvironment());
+    sf4e::crash::NoteMatchBoundary("start_ggpo");
     ApplyGgpoDisconnectSettings(ggpo);
 
     int localPlayerIdx = -1;
@@ -463,6 +464,7 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
             MessageBoxA(NULL, "GGPO could not start, check logs", NULL, MB_OK);
         }
     }
+    sf4e::crash::NoteMatchBoundary("start_spectating");
     ApplyGgpoDisconnectSettings(ggpo);
 
     nNextBattleStartFlowTarget = BF__MATCH_START;

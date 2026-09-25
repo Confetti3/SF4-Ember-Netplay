@@ -38,6 +38,7 @@
 #include "../session/sf4e__SessionProtocol.hxx"
 
 #include "sf4e.hxx"
+#include "sf4e__CrashDiagnostics.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__Game.hxx"
 #include "sf4e__GameEvents.hxx"
