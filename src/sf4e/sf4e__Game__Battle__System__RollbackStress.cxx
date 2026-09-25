@@ -233,7 +233,7 @@ AuditSession& Audit() {
     return session;
 }
 
-void AuditStartBattle() {
+void AuditReset() {
     Audit() = AuditSession();
 }
 
@@ -370,15 +370,14 @@ void AuditCompare(int index, int frame, int mode) {
         const AuditFighter& snapshot = Audit().snapshots[index][side];
         const uint8_t* actor = AuditActor(side);
         if (!actor) {
-            // A fighter the save captured but the load did not bring back.
+            // A fighter the save captured but the load did not bring back:
+            // its actor and both expected afterimages, with their engines
+            // and boxes, are missing.
             if (!snapshot.actor.empty()) {
                 tally.actor.missing++;
-                for (int k = 0; k < 2; k++) {
-                    if (snapshot.afterimage[k].empty()) continue;
-                    tally.afterimage.missing++;
-                    tally.engine.missing++;
-                    tally.boxes.missing++;
-                }
+                tally.afterimage.missing += 2;
+                tally.engine.missing += 2;
+                tally.boxes.missing += 2;
             }
             continue;
         }
@@ -486,14 +485,8 @@ bool StressStep(rSystem* system) {
         // save of this battle.
         StressReclaimAll("stress_prime");
         diag::InitFromEnvironment();
-        if (stress.rollbacks == 0) {
-            // No rollback has run in this battle yet: a new battle, or a
-            // history restart before its first rollback. Either way nothing
-            // has been compared, so the battle's audit starts clean.
-            AuditStartBattle();
-            if (diag::Enabled()) {
-                diag::G().ResetForMatch(diag::NowMs());
-            }
+        if (diag::Enabled() && stress.rollbacks == 0) {
+            diag::G().ResetForMatch(diag::NowMs());
         }
         stress.primed = true;
     }
@@ -630,21 +623,24 @@ bool StressStep(rSystem* system) {
     return true;
 }
 
+// Every battle, in every mode, ends in the engine's System::CloseBattle,
+// which calls this: it is the harness's one battle boundary, so the
+// per-battle counters and the audit session reset here unconditionally.
 void StressCloseBattle() {
     auto& stress = Stress();
-    if (!stress.distance || stress.gameMode < 0) {
-        return; // disabled, or a CPU-driven battle that was never stressed
+    // Disabled, or a CPU-driven battle that was never stressed: nothing to report.
+    if (stress.distance && stress.gameMode >= 0) {
+        spdlog::info(
+            "RollbackStress: battle closed mode={} distance={} free_path={} rollbacks={} divergences={} resets={}",
+            stress.gameMode, stress.distance, SaveStateFreePathName(), stress.rollbacks, stress.divergences, stress.resets
+        );
+        if (stress.auditMode) {
+            spdlog::info("RollbackStress: {}", Audit().tally.Summary());
+        }
+        EmitRollbackDiagSummary("rollback_stress_close");
+        StressReset();
     }
-    spdlog::info(
-        "RollbackStress: battle closed mode={} distance={} free_path={} rollbacks={} divergences={} resets={}",
-        stress.gameMode, stress.distance, SaveStateFreePathName(), stress.rollbacks, stress.divergences, stress.resets
-    );
-    if (stress.auditMode) {
-        spdlog::info("RollbackStress: {}", Audit().tally.Summary());
-    }
-    AuditStartBattle();
     stress.gameMode = -1;
-    EmitRollbackDiagSummary("rollback_stress_close");
-    StressReset();
     stress.rollbacks = stress.divergences = stress.resets = 0;
+    AuditReset();
 }
