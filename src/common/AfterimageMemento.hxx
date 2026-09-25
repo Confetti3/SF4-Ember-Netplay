@@ -54,7 +54,7 @@ constexpr uint64_t AlignUp16(uint64_t size) { return (size + 15) & ~uint64_t(15)
 struct SlotView {
 	uint8_t* m = nullptr;
 	uint64_t size = 0;
-	const char* reject = nullptr; // null when valid
+	const char* reject = "slot not built"; // null only once Make verified it
 
 	bool Valid() const { return reject == nullptr; }
 
@@ -73,6 +73,7 @@ struct SlotView {
 			if (m != mementos + i * size) return Reject(slot, "memento is not at its slot");
 			slot.m = m;
 			slot.size = size;
+			slot.reject = nullptr;
 			return slot;
 		}
 		return Reject(slot, "memento is not in its key");

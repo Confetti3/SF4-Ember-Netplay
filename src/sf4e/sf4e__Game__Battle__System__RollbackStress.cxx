@@ -480,10 +480,6 @@ bool StressStep(rSystem* system) {
         stress.resets++;
     }
     if (!stress.primed) {
-        // A previous battle that never reached StressCloseBattle leaves
-        // slots pointing into freed engine objects. Sweep before the first
-        // save of this battle.
-        StressReclaimAll("stress_prime");
         diag::InitFromEnvironment();
         if (diag::Enabled() && stress.rollbacks == 0) {
             diag::G().ResetForMatch(diag::NowMs());
@@ -623,9 +619,21 @@ bool StressStep(rSystem* system) {
     return true;
 }
 
-// Every battle, in every mode, ends in the engine's System::CloseBattle,
-// which calls this: it is the harness's one battle boundary, so the
-// per-battle counters and the audit session reset here unconditionally.
+// The battle-start flow's entry (System::OnBattleFlow_BattleStart, 0x5DD350)
+// runs once as each battle begins, including one whose predecessor never
+// reached StressCloseBattle. Records such a battle left point into freed
+// engine objects, so they are dropped without engine calls, and the
+// per-battle counters and audit session start clean.
+void StressOpenBattle() {
+    auto& stress = Stress();
+    StressReclaimAll("battle_start");
+    stress.gameMode = -1;
+    stress.rollbacks = stress.divergences = stress.resets = 0;
+    AuditReset();
+}
+
+// Every battle the engine closes passes System::CloseBattle, which calls
+// this to report the battle and release its history.
 void StressCloseBattle() {
     auto& stress = Stress();
     // Disabled, or a CPU-driven battle that was never stressed: nothing to report.

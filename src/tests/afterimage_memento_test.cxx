@@ -36,6 +36,12 @@ constexpr uint64_t kActor = am::kActorFixedBytes + 3 * am::kActorBoxBytes;
 constexpr uint64_t kSlot = am::AlignUp16(kAfterimage) + kActor + am::kTrailerBytes;
 
 static void TestSlotContract() {
+	// A slot nobody built is invalid, and plans never read through it.
+	const am::SlotView unbuilt;
+	CHECK(!unbuilt.Valid() && unbuilt.reject != nullptr);
+	CHECK(am::PlanRecord(unbuilt, kAfterimage, kActor).decision == am::RecordDecision::NoSlot);
+	CHECK(!am::PlanRestore(unbuilt).restoreActor && am::PlanRestore(unbuilt).report);
+
 	Key key(kSlot, 1);
 	CHECK(key.View(0).Valid());
 	Key two(kSlot, 2);

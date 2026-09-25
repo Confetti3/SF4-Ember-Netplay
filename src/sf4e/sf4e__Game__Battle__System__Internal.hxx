@@ -101,6 +101,7 @@ const char* SaveStateFreePathName();
 
 // Defined in sf4e__Game__Battle__System__RollbackStress.cxx.
 bool StressStep(rSystem* system);
+void StressOpenBattle();
 void StressCloseBattle();
 
 // Restores pad playback mode on every exit path. GGPO input playback must
