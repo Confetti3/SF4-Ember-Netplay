@@ -128,8 +128,14 @@ void StressConfigure() {
     spdlog::warn("RollbackStress: enabled for offline battles, distance={} frames predict={} audit={}", distance, stress.predictMask, stress.auditMode);
 }
 
+void AuditClearDiffLog(); // defined with the audit below
+
+// Restarts the recorded history (pause, training restore, battle close).
+// Inside a battle the audit keeps its tally, but its diff lines are logged
+// afresh, since a difference after a discontinuity is new evidence.
 void StressReset() {
     auto& stress = Stress();
+    AuditClearDiffLog();
     for (int i = 0; i < RollbackStress::kRing; i++) {
         if (stress.states[i].used) {
             fSystem::SaveState::Free(&stress.states[i]);
@@ -235,6 +241,12 @@ AuditSession& Audit() {
 
 void AuditReset() {
     Audit() = AuditSession();
+}
+
+void AuditClearDiffLog() {
+    for (auto& side : Audit().last) {
+        for (auto& last : side) last.clear();
+    }
 }
 
 const uint8_t* ReadPointer(const uint8_t* base, size_t offset) {
