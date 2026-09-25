@@ -187,6 +187,8 @@ bool IrohMatchSession::AcceptGrant(const json& message) {
 			std::all_of(link.capability.begin(), link.capability.end(), [](std::uint8_t b) { return b == 0; })) return Fail("invalid_match_link");
 		links_.push_back(std::move(link));
 	}
+	// A reservation from a generation that never reached GGPO is still open.
+	ReleasePortToGgpo();
 	reservedPort_ = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (reservedPort_ == INVALID_SOCKET) return Fail("local_port_unavailable");
 	sockaddr_in address = {}; address.sin_family = AF_INET; address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
