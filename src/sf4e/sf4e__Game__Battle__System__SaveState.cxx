@@ -560,12 +560,12 @@ void fSystem::SaveState::FreeByRoundTrip(SaveState* victim) {
     // claim here is freed again by the next iteration's Clear().
     {
         diag::ScopedTimer _t(diag::OP_FREE_LIVE_RESTORE);
-        sf4e::Eva::TaskCore::restoreFailed = false;
+        sf4e::Game::MementoFailure::restore = false;
         CopyIntoPlace(&tmp);
         tmp.ownsKeys = false;
         tmp.keys.clear();
     }
-    if (sf4e::Eva::TaskCore::restoreFailed) {
+    if (sf4e::Game::MementoFailure::restore) {
         // The live battle did not come back whole; it cannot be played on
         // (ledger A-001). Only this legacy A/B release restores live state.
         spdlog::error("SaveState: round-trip release could not restore the live battle; leaving it");
@@ -610,7 +610,7 @@ bool fSystem::SaveState::Load(SaveState* src) {
         }
     }
 
-    sf4e::Eva::TaskCore::restoreFailed = false;
+    sf4e::Game::MementoFailure::restore = false;
     {
         diag::ScopedTimer _t(diag::OP_LOAD_COPY_INTO_PLACE);
         CopyIntoPlace(src);
@@ -644,7 +644,7 @@ bool fSystem::SaveState::Load(SaveState* src) {
     for (auto iter = tmpVec.begin(); iter != tmpVec.end(); iter++) {
         *iter->first = iter->second;
     }
-    return !sf4e::Eva::TaskCore::restoreFailed;
+    return !sf4e::Game::MementoFailure::restore;
 }
 
 bool fSystem::SaveState::Save(SaveState* dst, bool temporary) {
@@ -672,7 +672,7 @@ bool fSystem::SaveState::Save(SaveState* dst, bool temporary) {
     dst->used = true;
     dst->ownsKeys = true;
 
-    sf4e::Eva::TaskCore::recordFailed = false;
+    sf4e::Game::MementoFailure::record = false;
     {
         diag::ScopedTimer _t(temporary ? -1 : diag::OP_SAVE_RECORD_MEMENTOS);
         RecordAllToInternalMementos(system, &GGPO_MEMENTO_ID);
@@ -691,7 +691,7 @@ bool fSystem::SaveState::Save(SaveState* dst, bool temporary) {
             memset(*iter, 0, sizeof(rKey));
         }
     }
-    if (sf4e::Eva::TaskCore::recordFailed) {
+    if (sf4e::Game::MementoFailure::record) {
         // Release the incomplete snapshot now (the default swap release,
         // never the round trip, which would save again). An unused slot is
         // what every caller already treats as "nothing to load".

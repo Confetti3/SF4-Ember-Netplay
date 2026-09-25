@@ -10,6 +10,18 @@ namespace sf4e {
 	namespace Game {
 		void Install();
 
+		// Set when a record or restore could not capture, or put back,
+		// everything it owns: a task core it cannot represent (sf4e.cxx) or an
+		// afterimage whose Actor state could not be appended or found
+		// (sf4e__Game__Battle__Chara.cxx). The engine's memento chain has no
+		// error path, so only SaveState::Save and SaveState::Load reset and
+		// read these, and report them through their return values; every
+		// other caller keeps the engine's own behaviour.
+		struct MementoFailure {
+			static bool record;
+			static bool restore;
+		};
+
 		struct GameMementoKey : Dimps::Game::GameMementoKey
 		{
 			void Initialize(void* mementoable, int numMementos);

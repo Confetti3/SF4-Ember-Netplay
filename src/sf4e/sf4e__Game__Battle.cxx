@@ -11,6 +11,7 @@
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 
 #include "sf4e__Game__Battle.hxx"
+#include "sf4e__Game__Battle__Chara.hxx"
 #include "sf4e__Game__Battle__Effect.hxx"
 #include "sf4e__Game__Battle__Hud.hxx"
 #include "sf4e__Game__Battle__System.hxx"
@@ -44,6 +45,7 @@ std::map<
 std::map<rSoundPlayerManager*, std::vector<fSoundPlayerManager::DeferredSoundRequest>> fSoundPlayerManager::queuedStops;
 
 void fBattle::Install() {
+	Chara::Install();
 	Effect::Install();
 	Hud::Install();
 	JobManager::Install();

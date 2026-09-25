@@ -82,15 +82,11 @@ namespace sf4e {
 				TaskDataBuf taskdata[MAX_TASKS_PER_CORE];
 			};
 
-			// Records what fits and sets recordFailed when the core holds state
-			// the memento cannot represent; restore sets restoreFailed when it
-			// cannot rebuild a task. The game's memento chain has no error
-			// path, so only SaveState::Save and SaveState::Load reset and read
-			// these flags, and report them through their return values.
+			// Records what fits and sets Game::MementoFailure::record when the
+			// core holds state the memento cannot represent; restore sets
+			// Game::MementoFailure::restore when it cannot rebuild a task.
 			static void RecordToAdditionalMemento(Dimps::Eva::TaskCore* c, AdditionalMemento& m);
 			static void RestoreFromAdditionalMemento(Dimps::Eva::TaskCore* c, const AdditionalMemento& m);
-			static bool recordFailed;
-			static bool restoreFailed;
 		};
 	}
 }

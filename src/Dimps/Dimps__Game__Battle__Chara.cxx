@@ -5,15 +5,30 @@
 namespace Chara = Dimps::Game::Battle::Chara;
 using Chara::Unit;
 using Chara::Actor;
+using Chara::Afterimage;
 
 Actor::__publicMethods Actor::publicMethods;
 Actor::__staticMethods Actor::staticMethods;
 
 Unit::__publicMethods Unit::publicMethods;
+Afterimage::__mementoableMethods Afterimage::mementoableMethods;
 
 void Chara::Locate(HMODULE peRoot) {
 	Actor::Locate(peRoot);
+	Afterimage::Locate(peRoot);
 	Unit::Locate(peRoot);
+}
+
+void Afterimage::Locate(HMODULE peRoot) {
+	unsigned int peRootOffset = (unsigned int)peRoot;
+	*(PVOID*)&mementoableMethods.GetMementoSize = (PVOID)(peRootOffset + 0x162040);
+	*(PVOID*)&mementoableMethods.RecordToMemento = (PVOID)(peRootOffset + 0x1620a0);
+	*(PVOID*)&mementoableMethods.RestoreFromMemento = (PVOID)(peRootOffset + 0x162100);
+}
+
+// The IMementoable subobject is at object +0x60 and the key at +0x6B10.
+Chara::GameMementoKey* Afterimage::GetKey(Afterimage* mementoable) {
+	return (GameMementoKey*)((unsigned int)mementoable - 0x60 + 0x6b10);
 }
 
 void Unit::Locate(HMODULE peRoot) {

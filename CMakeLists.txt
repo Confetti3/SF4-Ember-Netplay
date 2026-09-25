@@ -62,6 +62,10 @@ if(BUILD_TESTING)
     target_compile_features(RollbackAuditTest PRIVATE cxx_std_14)
     add_test(NAME RollbackAudit COMMAND RollbackAuditTest)
     set_tests_properties(RollbackAudit PROPERTIES TIMEOUT 15)
+    add_executable(AfterimageMementoTest "src/tests/afterimage_memento_test.cxx")
+    target_compile_features(AfterimageMementoTest PRIVATE cxx_std_14)
+    add_test(NAME AfterimageMemento COMMAND AfterimageMementoTest)
+    set_tests_properties(AfterimageMemento PROPERTIES TIMEOUT 15)
 endif()
 if(SF4E_CORE_TESTS_ONLY)
     return()
@@ -314,6 +318,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__Game.cxx"
     "src/sf4e/sf4e__Game__Battle.hxx"
     "src/sf4e/sf4e__Game__Battle.cxx"
+    "src/sf4e/sf4e__Game__Battle__Chara.hxx"
+    "src/sf4e/sf4e__Game__Battle__Chara.cxx"
     "src/sf4e/sf4e__Game__Battle__Effect.hxx"
     "src/sf4e/sf4e__Game__Battle__Effect.cxx"
     "src/sf4e/sf4e__Game__Battle__Hud.hxx"

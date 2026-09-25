@@ -193,6 +193,23 @@ namespace Dimps {
 					// Instance values here
 				};
 
+				// Each actor owns two (actor +0x6EEC and +0x6EF0). Derives from
+				// Action::Actor and overrides its whole memento interface
+				// (vtable 0x94fafc), called through the IMementoable subobject
+				// at +0x60. Its GameMementoKey sits at object +0x6B10.
+				struct Afterimage
+				{
+					typedef struct __mementoableMethods {
+						size_t (Afterimage::* GetMementoSize)();
+						int (Afterimage::* RecordToMemento)(void* memento, GameMementoKey::MementoID* id);
+						int (Afterimage::* RestoreFromMemento)(void* memento, GameMementoKey::MementoID* id);
+					} __mementoableMethods;
+
+					static void Locate(HMODULE peRoot);
+					static GameMementoKey* GetKey(Afterimage* mementoable);
+					static __mementoableMethods mementoableMethods;
+				};
+
 				struct Unit
 				{
 					typedef struct __publicMethods {
