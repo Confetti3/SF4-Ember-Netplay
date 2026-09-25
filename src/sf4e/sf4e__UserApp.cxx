@@ -161,6 +161,9 @@ static bool StartRuntimeGgpo() {
 
 void fUserApp::_OnVsBattleTasksRegistered() {
     if (!netplay) return;
+    // Every netplay battle passes here once, before any session exists, so a
+    // start that fails below still ends in a battle that leaves (F-016).
+    fSystem::simGate.OnNetplayBattleClaimed();
     if (!sf4e::NetplayFacade::IsRuntimeRoomActive() || !StartRuntimeGgpo())
         fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.authorized_connection_unavailable"));
 }

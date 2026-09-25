@@ -92,6 +92,7 @@ bool NativeResultEmitted();
 // Defined in sf4e__Game__Battle__System__Ggpo.cxx.
 void NoteDisconnectFlags(int flags);
 void LogPacerSummary(const char* label);
+void LeaveOrphanedNetplayBattle(rSystem* system);
 
 // Defined in sf4e__Game__Battle__System__SaveState.cxx, with SaveState::Free.
 void LogSaveStateFreePolicy();

@@ -56,6 +56,10 @@ static constexpr uint64_t kNetplayWindowMs = 15000;
 // change for diagnostics only (no gameplay semantics attached).
 static int s_lastDisconnectFlags = 0;
 
+// An orphaned netplay battle normally leaves within a few updates. One
+// error line after this many says the engine did not honour the exit.
+static const uint32_t kOrphanOverdueFrames = 300;
+
 // GGPO callback re-entrancy. ggpo_close_session deletes the backend, and the
 // fork keeps calling the advance-frame callback from Sync::AdjustSimulation
 // after the callback returns, so the session must never be closed from inside
@@ -216,33 +220,60 @@ void fSystem::ApplyGgpoDisconnectSettings(GGPOSession* session) {
 void fSystem::RetireGgpoSession(const char* diagnosticsLabel) {
     matchTelemetry.Reset();
     rollbackHud.Reset();
-    if (!ggpo) {
-        return;
+    if (ggpo) {
+        if (diag::Enabled()) {
+            diag::G().OnSessionEnded(diag::NowMs());
+        }
+        LogPacerSummary(diagnosticsLabel);
+        if (s_abortLatch.InCallback()) {
+            // Closing here would delete the backend under GGPO's own stack frame.
+            // The pending-abort latch closes it from the outer tick instead.
+            spdlog::error("GGPO: RetireGgpoSession({}) called from inside a GGPO callback; deferring", diagnosticsLabel);
+            simGate.OnFatal();
+            s_abortLatch.Request("");
+            return;
+        }
+        ggpo_close_session(ggpo);
+        ggpo = nullptr;
+        s_abortLatch.Reset();
+        s_disconnectTimeoutMs = 0;
+        sf4e::NetplayFacade::ClearMatchNotice();
+        EmitRollbackDiagSummary(diagnosticsLabel);
+        ResetPacing();
     }
-    if (diag::Enabled()) {
-        diag::G().OnSessionEnded(diag::NowMs());
-    }
-    LogPacerSummary(diagnosticsLabel);
-    if (s_abortLatch.InCallback()) {
-        // Closing here would delete the backend under GGPO's own stack frame.
-        // The pending-abort latch closes it from the outer tick instead.
-        spdlog::error("GGPO: RetireGgpoSession({}) called from inside a GGPO callback; deferring", diagnosticsLabel);
-        simGate.OnFatal();
-        s_abortLatch.Request("");
-        return;
-    }
-    ggpo_close_session(ggpo);
-    ggpo = nullptr;
+    // With or without a session to close: a netplay battle that is still
+    // alive here has lost its session and is orphaned. BattleUpdate drives
+    // it out (LeaveOrphanedNetplayBattle); nothing here touches the gate,
+    // so an offline battle that follows is never left frozen.
     simGate.OnSessionClosed();
-    s_abortLatch.Reset();
-    s_disconnectTimeoutMs = 0;
-    // Offline play reads bUpdateAllowed directly. A netplay abort or failure
-    // closes the gate; without a session that gate must reopen, otherwise the
-    // next offline Versus or Training battle never advances a frame.
-    bUpdateAllowed = !simGate.manualPause;
-    sf4e::NetplayFacade::ClearMatchNotice();
-    EmitRollbackDiagSummary(diagnosticsLabel);
-    ResetPacing();
+}
+
+// The engine update for a netplay battle whose session is gone. Nobody may
+// play it meanwhile: both slots read neutral playback input, through the
+// same path GGPO's inputs take, and the exit is re-asserted every update
+// because the native flow can overwrite it while a round is starting. The
+// ready state is only ever raised, so RS_HALTED is never pulled back.
+void LeaveOrphanedNetplayBattle(rSystem* system) {
+    int& readyState = *rSystem::GetReadyState(system);
+    if (fSystem::simGate.OnOrphanFrame()) {
+        spdlog::warn("Netplay battle lost its session; leaving it ready={} flow={}",
+            readyState, *rSystem::staticVars.CurrentBattleFlow);
+    }
+    if (readyState < rSystem::RS_ISLEAVING) {
+        readyState = rSystem::RS_ISLEAVING;
+    }
+    if (fSystem::simGate.OrphanOverdue(kOrphanOverdueFrames)) {
+        spdlog::error("Netplay battle still alive {} updates after losing its session ready={} flow={}",
+            kOrphanOverdueFrames, readyState, *rSystem::staticVars.CurrentBattleFlow);
+    }
+    PlaybackFrameScopeGuard _playbackGuard;
+    fPadSystem::playbackFrame = 0;
+    fPadSystem::playbackData[0][0] = { 0, 0 };
+    fPadSystem::playbackData[0][1] = { 0, 0 };
+    if (fSoundPlayerManager::bUsePureSounds) {
+        fSoundPlayerManager::SyncState();
+    }
+    (system->*rSystem::publicMethods.BattleUpdate)();
 }
 
 void fSystem::AbortGgpoMatch(const char* reason) {
@@ -251,7 +282,6 @@ void fSystem::AbortGgpoMatch(const char* reason) {
         // callbacks of this burst do no engine work, remember the reason, and
         // let the outer tick close the session once GGPO has unwound.
         simGate.OnFatal();
-        bUpdateAllowed = false;
         spdlog::error("GGPO match abort deferred from callback (depth {}): {}", s_abortLatch.depth, reason ? reason : "");
         return;
     }
@@ -261,13 +291,8 @@ void fSystem::AbortGgpoMatch(const char* reason) {
     }
     LogSaveSlotOccupancy("abort_entry");
     simGate.OnFatal();
-    bUpdateAllowed = false;
     RetireGgpoSession("abort");
     sf4e::NetplayFacade::ClearBattleState();
-    rSystem* system = rSystem::staticMethods.GetSingleton();
-    if (system) {
-        *rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
-    }
 }
 
 bool fSystem::DrainPendingAbort() {
@@ -307,7 +332,6 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
         SaveState::Reclaim(&saveStates[i], "start_ggpo", i);
     }
     simGate.OnSessionStarted();
-    bUpdateAllowed = !simGate.manualPause;
     ResetPacerForSession();
     s_lastDisconnectFlags = 0;
     s_disconnectTimeoutMs = 0;
@@ -405,7 +429,6 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
         SaveState::Reclaim(&saveStates[i], "start_spectating", i);
     }
     simGate.OnSessionStarted();
-    bUpdateAllowed = !simGate.manualPause;
     ResetPacerForSession();
     s_lastDisconnectFlags = 0;
     s_disconnectTimeoutMs = 0;
