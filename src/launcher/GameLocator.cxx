@@ -173,7 +173,8 @@ std::vector<std::wstring> ShadowingRuntimeLibraries(const std::wstring& packageD
     std::vector<std::wstring> found;
     if (!exists) return found;
     for (const auto& folder : folders) {
-        if (folder.empty() || SameFolder(folder, packageDirectory)) continue;
+        if (folder.empty()) continue;
+        if (SameFolder(folder, packageDirectory)) break;
         std::wstring prefix = folder;
         if (prefix.back() != L'\\' && prefix.back() != L'/') prefix += L'\\';
         for (const wchar_t* library : kSidecarRuntimeLibraries) {

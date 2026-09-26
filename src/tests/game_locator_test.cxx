@@ -219,10 +219,13 @@ int main() {
     CHECK((ShadowingRuntimeLibraries(package, {L"D:\\Games\\Ultra\\"}, stale) ==
         Paths{L"D:\\Games\\Ultra\\GGPO.dll", L"D:\\Games\\Ultra\\fmt.dll"}));
     CHECK(ShadowingRuntimeLibraries(package, {L"D:\\Games\\Ultra"}, absent).empty());
-    // The package extracted into the game folder is not shadowing itself,
-    // in any spelling of that folder, and empty folders are skipped.
-    CHECK(ShadowingRuntimeLibraries(package, {L"c:/ember/", L""}, stale).empty());
-    CHECK(ShadowingRuntimeLibraries(L"C:\\Ember\\", {L"C:\\Ember"}, stale).empty());
+    // The package extracted into the game folder is found first by the game,
+    // so it is not shadowing itself, in any spelling of that folder, and a
+    // system copy after it is never reached. Empty folders are skipped.
+    CHECK(ShadowingRuntimeLibraries(package, {L"c:/ember/", L"C:\\Windows\\SysWOW64"}, stale).empty());
+    CHECK(ShadowingRuntimeLibraries(L"C:\\Ember\\", {L"", L"C:\\Ember", L"C:\\Windows\\SysWOW64"}, stale).empty());
+    CHECK((ShadowingRuntimeLibraries(L"C:\\Windows\\SysWOW64", {L"D:\\Games\\Ultra", L"C:\\Windows\\SysWOW64", L"C:\\Windows"}, stale) ==
+        Paths{L"D:\\Games\\Ultra\\GGPO.dll", L"D:\\Games\\Ultra\\fmt.dll"}));
     CHECK(ShadowingRuntimeLibraries(package, {}, stale).empty());
     // Every library Sidecar imports by name is checked.
     Paths probed;

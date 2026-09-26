@@ -569,18 +569,22 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (!ShowRecovery(sf4e::loc::T("launcher.sidecar_missing"),chosenDirectory)) return 0;
             continue;
         }
-        // A GGPO.dll (or another runtime library) beside SSFIV.exe or in the
-        // Windows system folder is what the game loads for Sidecar, not the
-        // package copy. An old one lacks our exports, so Windows stops the game
-        // with "entry point ggpo_get_last_confirmed_frame not found" before
-        // Sidecar can log anything. Name the file rather than let that happen.
-        // The 32-bit game reads System32 as SysWOW64, so report that folder by
-        // its real name or the player looks in the wrong one.
-        wchar_t systemDirectory[MAX_PATH] = {}, windowsDirectory[MAX_PATH] = {};
+        // Sidecar's own imports resolve inside the game process, which looks in
+        // its own folder, the system folder, the 16-bit system folder and the
+        // Windows folder before the PATH entry UpdatePath added for the package
+        // (SetDllDirectory above applies to this process only). A GGPO.dll left
+        // in one of those by another mod or an older install loads instead of
+        // ours, lacks our exports, and Windows stops the game with "entry point
+        // ggpo_get_last_confirmed_frame not found" before Sidecar can log
+        // anything. Name the file rather than let that happen. The 32-bit game
+        // reads System32 as SysWOW64, so report that folder by its real name
+        // or the player looks in the wrong one.
+        wchar_t systemDirectory[MAX_PATH] = {}, windowsDirectory[MAX_PATH] = {}, legacySystemDirectory[MAX_PATH] = {};
         if (!GetSystemWow64DirectoryW(systemDirectory, MAX_PATH) && !GetSystemDirectoryW(systemDirectory, MAX_PATH)) systemDirectory[0] = L'\0';
         if (!GetWindowsDirectoryW(windowsDirectory, MAX_PATH)) windowsDirectory[0] = L'\0';
+        else if (FAILED(PathCchCombine(legacySystemDirectory, MAX_PATH, windowsDirectory, L"System"))) legacySystemDirectory[0] = L'\0';
         const auto shadowing = sf4e::launcher::ShadowingRuntimeLibraries(installRoot,
-            {location.directory, systemDirectory, windowsDirectory}, exists);
+            {location.directory, systemDirectory, legacySystemDirectory, windowsDirectory}, exists);
         if (!shadowing.empty()) {
             std::wstring listed;
             for (const auto& path : shadowing) {
@@ -604,8 +608,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         spdlog::info("Game exited with code {:#010x} ({})", exitCode, sf4e::crash::ExitCodeName(exitCode));
         discord.Stop(); helper.Stop(); CloseHandle(game);
         // A loader failure never reaches Sidecar's crash record, so the exit
-        // code is the only thing that tells it from a crash.
-        const char* exitMessage = exitCode == 0xC0000139u || exitCode == 0xC0000135u ? "launcher.game_wrong_dll" : "launcher.game_error";
+        // code is the only thing that tells a missing export from a crash.
+        const char* exitMessage = exitCode == 0xC0000139u ? "launcher.game_wrong_dll" : "launcher.game_error";
         if (exitCode != 0 && ShowRecovery(sf4e::loc::T(exitMessage),chosenDirectory)) continue;
         return 0;
     }
