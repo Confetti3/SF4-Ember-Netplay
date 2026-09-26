@@ -65,6 +65,10 @@ URLs and original/output hashes are in
 These screenshots contain Capcom game imagery and are not covered by the
 launcher's MIT license.
 
+The Random stage card is not packaged: like the native fighter portraits, it
+reads the game's character-select random tile from the installed game at
+runtime and shows the preview-unavailable placeholder when that tile cannot be read.
+
 Ultra Combo photographs are from [iPlayWinner's 2010 SSFIV character guides](https://iplaywinner.squarespace.com/ryu-ssf4/),
 [Capcom / ComboFiend's November 2013 Ultra showcase](https://news.capcomusa.com/lets/browse/ultras-and-supers-for-the-new-usfiv-characters),
 and [GamesRadar's 2014 Decapre preview](https://www.gamesradar.com/ultra-street-fighter-4s-decapre-plays-nothing-cammy/).

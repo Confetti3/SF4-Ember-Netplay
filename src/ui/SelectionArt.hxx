@@ -35,6 +35,7 @@ public:
     SelectionImage PortraitFor(int fighter, float drawnHeight) { return Portrait(fighter, drawnHeight > ThumbnailSide); }
     SelectionImage Appearance(int fighter, int costume, int color);
     SelectionImage Ultra(int fighter, int ultra);
+    // RandomStageId is served from the game's character-select random tile.
     SelectionImage Stage(int nativeId);
     SelectionImage MenuBackdrop();
     SelectionImage InputPrompt(const std::string& name);
