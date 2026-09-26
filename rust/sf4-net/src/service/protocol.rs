@@ -28,6 +28,14 @@ pub enum Command {
         peer: EndpointId,
         message_id: u64,
         payload: String,
+        /// The control connection the native side numbered this message
+        /// for, from its connected event. A newer connection from the same
+        /// endpoint belongs to a session the native side has not seen yet,
+        /// so a message for the old one is refused rather than delivered.
+        /// Zero, from a native side that does not track it, delivers to the
+        /// current connection.
+        #[serde(default)]
+        control: u64,
     },
     CloseControl {
         epoch: u64,
@@ -207,6 +215,8 @@ pub enum Event {
         epoch: u64,
         peer: EndpointId,
         room: [u8; 16],
+        /// The control connection this event is about, echoed by its close.
+        control: u64,
     },
     Message {
         epoch: u64,
@@ -217,6 +227,22 @@ pub enum Event {
     ControlClosed {
         epoch: u64,
         peer: EndpointId,
+        control: u64,
+    },
+    /// The peer announced its departure over its still-open control. The
+    /// native room removes that member now rather than after the departure
+    /// grace that follows a silent control close.
+    PeerDeparted {
+        epoch: u64,
+        peer: EndpointId,
+    },
+    /// The peer's Admission for a process incarnation this actor had not
+    /// admitted before was accepted: a new room session on that endpoint,
+    /// not a control reconnect. Its native message numbering starts over.
+    PeerSession {
+        epoch: u64,
+        peer: EndpointId,
+        incarnation: u64,
     },
     Sent {
         request_id: u64,
@@ -296,6 +322,10 @@ pub enum Event {
         #[serde(skip_serializing_if = "Option::is_none")]
         peer: Option<EndpointId>,
         code: String,
+        /// Why a `control_send_failed` happened: `replaced`, `missing`,
+        /// `queue_full`, `queue_closed` or `invalid`. Diagnostic only.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reason: Option<String>,
     },
     Stopped,
 }

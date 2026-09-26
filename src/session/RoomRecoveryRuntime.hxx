@@ -15,12 +15,25 @@ public:
         if(!authority.active) return true;
         bool deferredLocalCommit=false;
         IrohRoom::CommittedCheckpoint committed;
-        while(room.TakeCommittedCheckpoint(committed)) {
+        // Whether a commit predates this session is decided against the
+        // helper's own incarnation, so commits wait at the head until the
+        // helper has reported it.
+        while(authority.incarnation && room.TakeCommittedCheckpoint(committed)) {
             try {
                 // IrohRoom decoded this commit, verified it against its transfer
                 // identity and compacted it when it arrived; repeating that here
                 // doubled every member's import.
                 const auto& proposal=*committed.proposal;
+                // A returning member's helper can replay a commit from before
+                // its own departure, which still lists this endpoint under its
+                // previous process incarnation. That member has left; the
+                // commit removing it follows. It can never be rebound to this
+                // session, so it is skipped rather than left blocking the head.
+                if(CheckpointPredatesSession(proposal.checkpoint,room.LocalIdentity(),authority.incarnation)) {
+                    if(!room.DiscardCommittedCheckpoint(committed.identity))
+                        throw std::runtime_error("committed checkpoint activation pending");
+                    continue;
+                }
                 const auto pending=server.PendingProposal();
                 bool applied=false;
                 const bool matchingLocalCandidate=pending && pending->request==proposal.request &&

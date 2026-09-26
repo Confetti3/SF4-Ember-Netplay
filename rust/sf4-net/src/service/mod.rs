@@ -23,7 +23,7 @@ use tokio::{
 
 use crate::{
     bridge::{Bridge, BridgeStats},
-    control::ControlWorker,
+    control::{ControlWorker, QueueError, Session},
     invite::Invite,
     recovery::{
         self, Admission, AuthorityState, CHECKPOINT_CHUNK_BYTES, CHECKPOINT_WINDOW,
@@ -71,6 +71,7 @@ const TRANSPORT_MESSAGE_ID_BASE: u64 = 2;
 
 mod checkpoints;
 mod controls;
+mod departure;
 mod entry;
 mod events;
 mod games;
@@ -195,6 +196,17 @@ struct DeferredAdmission {
     admissions: Vec<Admission>,
     add_member_if_leader: bool,
     fingerprint: Vec<u8>,
+    /// Controls whose session this operation's outcome settles: those that
+    /// presented one of its admissions. Roster work carries none.
+    bindings: Vec<ControlBinding>,
+}
+
+/// A control waiting for the admission operation it presented.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+struct ControlBinding {
+    peer: EndpointId,
+    control: u64,
+    incarnation: u64,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -296,6 +308,17 @@ enum CoordinationControl {
         pair_revision: u64,
         term: u64,
         expires: u64,
+    },
+    /// A non-leader member is leaving. Its native Leave may never have been
+    /// committed (the room was unwritable, or the seat was not yet admitted),
+    /// and its control stays open until the committed leader has excluded
+    /// its vote. Without this the leader would only learn of the departure
+    /// from a control close after that exclusion, which in a two-voter room
+    /// it can no longer commit. The receiver hands the departure to its
+    /// native room at once, as it does for an expired departure grace.
+    Departure {
+        room: [u8; 16],
+        incarnation: u64,
     },
 }
 
@@ -460,6 +483,8 @@ struct Actor {
     pending_coordination_refresh: Option<CoordinationRefreshKey>,
     pending_membership_operation: Option<MembershipOperationKey>,
     pending_admission_operation: Option<AdmissionOperationKey>,
+    /// The controls the running admission operation settles on completion.
+    pending_admission_bindings: Vec<ControlBinding>,
     deferred_admissions: VecDeque<DeferredAdmission>,
     pending_membership_publications: BTreeSet<EndpointId>,
     last_coordination_state: Option<(u64, u64, bool, bool)>,
@@ -486,6 +511,12 @@ struct Actor {
     /// emitting room_closed. A simultaneous follower Leave can then obtain
     /// the committed voter-set proof before the leader's process shuts down.
     retirement_started: Option<Instant>,
+    /// A graceful Leave ended without releasing the room: no successor or
+    /// membership proof arrived within its bounded steps. The native client
+    /// leaves locally after its own bound and sends an abandon; should it
+    /// instead open a newer epoch, that epoch releases this stale room rather
+    /// than being refused for it until the process restarts.
+    departure_failed: bool,
 }
 
 impl Actor {
@@ -493,12 +524,20 @@ impl Actor {
         self.events.emit(event)
     }
     fn error(&self, request_id: u64, code: &str) -> io::Result<()> {
+        self.error_at(request_id, self.epoch, code)
+    }
+
+    /// A refused Host or Join names the epoch it was asked for. The native
+    /// client filters events by its current epoch, so an error tagged with the
+    /// helper's previous epoch would leave that attempt joining forever.
+    fn error_at(&self, request_id: u64, epoch: u64, code: &str) -> io::Result<()> {
         self.emit(Event::Error {
             probe_failure: None,
             request_id,
-            epoch: self.epoch,
+            epoch,
             peer: None,
             code: code.into(),
+            reason: None,
         })
     }
 
@@ -511,16 +550,25 @@ impl Actor {
             peer: None,
             code: "probe_unavailable".into(),
             probe_failure: Some(reason),
+            reason: None,
         })
     }
 
-    fn peer_error(&self, request_id: u64, peer: EndpointId, code: &str) -> io::Result<()> {
+    /// A native send to `peer` was not queued. The native side treats it as
+    /// advisory; `reason` says which of the send's checks refused it.
+    fn control_send_failed(
+        &self,
+        request_id: u64,
+        peer: EndpointId,
+        reason: &str,
+    ) -> io::Result<()> {
         self.emit(Event::Error {
             probe_failure: None,
             request_id,
             epoch: self.epoch,
             peer: Some(peer),
-            code: code.into(),
+            code: "control_send_failed".into(),
+            reason: Some(reason.into()),
         })
     }
 
@@ -559,6 +607,7 @@ impl Actor {
         self.pending_coordination_refresh = None;
         self.pending_membership_operation = None;
         self.pending_admission_operation = None;
+        self.pending_admission_bindings.clear();
         self.deferred_admissions.clear();
         self.pending_membership_publications.clear();
         self.last_coordination_state = None;
@@ -572,19 +621,25 @@ impl Actor {
         self.probe_permissions.clear();
         self.pending_probe_authorizations.clear();
         self.retirement_started = None;
+        self.departure_failed = false;
     }
     fn begin(&mut self, epoch: u64, build: &str) -> bool {
+        if epoch <= self.epoch || epoch > i64::MAX as u64 || build.is_empty() || build.len() > 128 {
+            return false;
+        }
+        // A room whose departure the room never confirmed is released by the
+        // next valid epoch rather than refusing it until the process restarts,
+        // the same way an explicit abandon releases it: its coordination vote
+        // lingers for the departure grace so the leader can still commit the
+        // removal. A room already in that grace hands its route over likewise.
+        if self.departure_failed {
+            self.abandon_room();
+        }
         if self.retirement_started.is_some() {
+            self.detach_departure_grace();
             self.clear_room();
         }
-        if epoch <= self.epoch
-            || epoch > i64::MAX as u64
-            || self.room.is_some()
-            || self.opening
-            || !self.games.is_empty()
-            || build.is_empty()
-            || build.len() > 128
-        {
+        if self.room.is_some() || self.opening || !self.games.is_empty() {
             return false;
         }
         self.epoch = epoch;
@@ -608,7 +663,7 @@ impl Actor {
             Command::Shutdown => return Ok(false),
             Command::Host { epoch, build } => {
                 if !self.begin(epoch, &build) {
-                    self.error(id, "invalid_room_state")?;
+                    self.error_at(id, epoch, "invalid_room_state")?;
                     return Ok(true);
                 }
                 let endpoint = self.endpoint.clone();
@@ -637,7 +692,7 @@ impl Actor {
                 // Rejection then belongs to the caller's attempt and Leave can
                 // acknowledge cancellation even though no connection was made.
                 if !self.begin(epoch, &build) {
-                    self.error(id, "invalid_room_state")?;
+                    self.error_at(id, epoch, "invalid_room_state")?;
                     return Ok(true);
                 }
                 let invite =
@@ -672,9 +727,20 @@ impl Actor {
                 peer,
                 message_id,
                 payload,
+                control,
             } => {
                 if !self.matches(epoch) {
                     self.error(id, "stale_epoch")?;
+                    return Ok(true);
+                }
+                let current = self.controls.get(&peer).map(ControlWorker::id);
+                if control != 0 && current != Some(control) {
+                    let reason = if current.is_some() {
+                        "replaced"
+                    } else {
+                        "missing"
+                    };
+                    self.control_send_failed(id, peer, reason)?;
                     return Ok(true);
                 }
                 if payload.is_empty() || payload.len() > MAX_CONTROL_PAYLOAD {
@@ -695,16 +761,20 @@ impl Actor {
                 }
                 let transport_id = self.next_transport_message;
                 self.next_transport_message = self.next_transport_message.saturating_add(1);
-                let result = self.controls.get(&peer).ok_or(()).and_then(|control| {
-                    control
-                        .try_send(ControlFrame {
-                            message_id: transport_id,
-                            payload: wire_payload.into_bytes(),
-                        })
-                        .map_err(|_| ())
-                });
-                if result.is_err() {
-                    self.peer_error(id, peer, "control_send_failed")?;
+                let result = self
+                    .controls
+                    .get(&peer)
+                    .ok_or("missing")
+                    .and_then(|control| {
+                        control
+                            .try_send(ControlFrame {
+                                message_id: transport_id,
+                                payload: wire_payload.into_bytes(),
+                            })
+                            .map_err(QueueError::label)
+                    });
+                if let Err(reason) = result {
+                    self.control_send_failed(id, peer, reason)?;
                 } else {
                     self.emit(Event::Sent {
                         request_id: id,
@@ -718,8 +788,13 @@ impl Actor {
                     self.error(id, "stale_epoch")?;
                     return Ok(true);
                 }
-                if self.controls.remove(&peer).is_some() {
-                    self.emit(Event::ControlClosed { epoch, peer })?;
+                if self.controls.contains_key(&peer) {
+                    let control = self.remove_control(peer);
+                    self.emit(Event::ControlClosed {
+                        epoch,
+                        peer,
+                        control,
+                    })?;
                 }
                 // Never closes separately authorized gameplay connections.
             }

@@ -126,16 +126,25 @@ impl Actor {
         // Derive retirement provenance from the locally applied membership as
         // well as the explicit native/membership tombstone path. This closes
         // the leader-loss window without waiting in the IPC actor.
-        let departed = self
+        // A departed incarnation stays in the applied history for good, so a
+        // retirement already confirmed is not fenced again: every fence starts
+        // a reconciliation whose completion refreshes, and the leader
+        // publishes Membership to every member on each such refresh.
+        // `retired` can name one too when this read began before the
+        // confirmation landed.
+        let confirmed = &self.retired_incarnations;
+        let unconfirmed = self
             .applied_admission_members
             .iter()
             .chain(applied_history.iter())
             .copied()
             .filter(|incarnation| {
                 *incarnation != recovery.incarnation && !applied_members.contains(incarnation)
-            });
-        self.pending_retired_incarnations.extend(departed);
-        self.pending_retired_incarnations.extend(retired);
+            })
+            .chain(retired)
+            .filter(|incarnation| !confirmed.contains(incarnation))
+            .collect::<Vec<_>>();
+        self.pending_retired_incarnations.extend(unconfirmed);
         self.applied_admission_members
             .extend(applied_history.iter().copied());
         let retired_for_broadcast = self.pending_retired_incarnations.clone();
@@ -181,7 +190,12 @@ impl Actor {
                 .collect::<Vec<_>>();
             for admission in unapplied {
                 if self
-                    .queue_admission_operation(admission.primary_endpoint, vec![admission], true)
+                    .queue_admission_operation(
+                        admission.primary_endpoint,
+                        vec![admission],
+                        true,
+                        None,
+                    )
                     .is_err()
                 {
                     break;

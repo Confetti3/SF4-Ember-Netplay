@@ -1,7 +1,7 @@
 # Explicit public-network acceptance for the helper/transport, never SF4.
 param(
     [switch]$IncludeLargeRooms,
-    [ValidateSet('room','game','authorized','recovery','queue-acks','terminal-recovery','four-tables','spectators')]
+    [ValidateSet('room','rejoin','game','authorized','recovery','queue-acks','terminal-recovery','four-tables','spectators')]
     [string[]]$Cases = @(),
     [ValidateSet('default','relay')][ValidateCount(1,2)][string[]]$Routes = @('default','relay'),
     [string]$OutputDirectory = ''
@@ -19,6 +19,7 @@ if (Test-Path -LiteralPath $OutputDirectory) { throw "Run directory already exis
 $OutputDirectory = (New-Item -ItemType Directory -Path $OutputDirectory).FullName
 $plan = @(
     @{name='room';executable='IrohRoomIntegrationTest';arguments=@()},
+    @{name='rejoin';executable='IrohRoomIntegrationTest';arguments=@('--rejoin')},
     @{name='game';executable='IrohGameIntegrationTest';arguments=@()},
     @{name='authorized';executable='IrohAuthorizedMatchTest';arguments=@()},
     @{name='recovery';executable='IrohRecoveryIntegrationTest';arguments=@()},
@@ -38,6 +39,7 @@ $hashes = foreach ($artifact in $artifacts) {
 $hashes | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'artifacts.json')
 $completionMarkers=@{
     'room'='C++ SessionClient/SessionServer over two Iroh helpers passed:'
+    'rejoin'='Rejoined the same room through the same Discord ticket after four departures'
     'queue-acks'='192 identical terminal retries retained one queued action'
     'game'='C++ raw UDP bridge:'
     'authorized'='Four participants, three fresh authorized GGPO matches'

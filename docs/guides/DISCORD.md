@@ -34,6 +34,7 @@ Use the identical packaged build on two PCs and two Discord accounts. Record the
 2. Have the guest invite another account or reverse host/guest roles. Verify guest invitation advertisement and the same room occupancy.
 3. Close Ember on the joining PC. Accept a fresh invite; verify Launcher starts the game once, injection succeeds, controller readiness is respected, and the room is joined at the main menu.
 4. Accept duplicate invitations, replace one pending invite, cancel it, and accept an invite to the current room. Verify no duplicate game or unintended room switch.
+   Then leave the room and accept the same host's invite again without restarting Ember, once from the room and once right after a match. Verify the room is rejoined within a few seconds, the host stays writable, and the guest can queue. `IrohRoomIntegrationTest --rejoin` (the `rejoin` case of `scripts/test-current-network.ps1`) covers the helper side of this, including a departure the room never confirmed.
 5. While in another room, offline play, loading and a fight, accept an invite. Verify the pending notice and explicit safe-menu switch. Finish the fight normally before switching.
 6. Choose a table, queue and watch. Verify Queued, Ready, Fighting and Spectating states and ordinary gameplay, rematches and spectators.
 7. Lock admission and fill capacity. Verify outgoing invitation advertisement disappears and already-shared tickets receive the normal room rejection. Verify expired tickets and a different-build guest are rejected.

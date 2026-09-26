@@ -25,7 +25,7 @@ static SessionClient::Callbacks Callbacks(Observer& observer) {
 int wmain(int argc, wchar_t** argv) {
 	std::cout << std::unitbuf;
 	CHECK(argc >= 2 && argc <= 4);
-	bool relayOnly=false, quick=false, queueAcks=false, probeCheck=false, benchmark=false;
+	bool relayOnly=false, quick=false, queueAcks=false, probeCheck=false, benchmark=false, rejoin=false;
 	for(int i=2;i<argc;++i) {
 		const std::wstring option=argv[i];
 		if(option==L"--relay-only") relayOnly=true;
@@ -33,6 +33,7 @@ int wmain(int argc, wchar_t** argv) {
 		else if(option==L"--queue-acks") { queueAcks=true; quick=true; }
 		else if(option==L"--probe") { probeCheck=true; quick=true; }
 		else if(option==L"--benchmark") { probeCheck=true; benchmark=true; quick=true; }
+		else if(option==L"--rejoin") { rejoin=true; quick=true; }
 		else CHECK(false);
 	}
 	platform::HelperProcess hostProcess, guestProcess;
@@ -51,7 +52,9 @@ int wmain(int argc, wchar_t** argv) {
 			if (progress()) return;
 			std::this_thread::sleep_for(std::chrono::milliseconds(2));
 		} while (std::chrono::steady_clock::now() < deadline);
-        std::cerr << "Wait " << attempt << " timed out: host=" << static_cast<int>(host->GetState())
+        std::cerr << "Wait " << attempt << " timed out: host_invitation=" << host->Invitation().substr(0,12) << "/" << host->DiscordInvitation().substr(0,12)
+            << " guest_invitation=" << guest->Invitation().substr(0,12) << "/" << guest->DiscordInvitation().substr(0,12)
+            << " host=" << static_cast<int>(host->GetState())
             << " error=" << host->Error() << " term=" << host->Coordination().term
             << " revision=" << host->Coordination().revision << " writable=" << host->Coordination().writable
             << " leader_local=" << host->Coordination().leaderLocal << " rebound=" << host->Coordination().rebound
@@ -261,6 +264,101 @@ int wmain(int argc, wchar_t** argv) {
 			if(completed!=expected) std::cerr << "Unexpected action response: " << client.RoomError() << '\n';
 			CHECK(completed == expected);
 		};
+		if(rejoin) {
+			// A guest who leaves must be able to join the same room again through
+			// the very ticket it was invited with, from the same helper process.
+			// Committed: the runtime's normal Leave. Uncommitted: the client and
+			// server are torn down first, as when the room is not writable, so the
+			// helper must announce the departure itself. Unconfirmed: the host's
+			// native room is not stepped while the guest leaves, so nothing can
+			// confirm the departure and the runtime's bound abandons it.
+			enum class Departure { Committed, Uncommitted, Unconfirmed };
+			const Departure departures[]={Departure::Committed, Departure::Uncommitted, Departure::Unconfirmed, Departure::Committed};
+			const auto ticket=host->DiscordInvitation();
+			CHECK(ticket.size()==127);
+			std::cout << "Rejoin identities: host=" << host->LocalIdentity().substr(0,13) << " guest=" << guest->LocalIdentity().substr(0,13) << std::endl;
+			int attempt=0;
+			for(const auto departure:departures) {
+				++attempt;
+				// Leave as a promoted voter every time: a learner's departure
+				// needs no quorum proof, which is what the unconfirmed case
+				// withholds.
+				wait([&]() { pump(); return host->Coordination().voterCount==2; });
+				if(departure==Departure::Committed) {
+					waitAction(guestClient(), makeAction(guestClient(), room::ActionKind::Leave));
+					wait([&]() { pump(); return guestClient().GetRoomSnapshot().localMember == 0; });
+				}
+				guestClient().Disconnect();
+				guestPeer.client.reset();
+				guestPeer.server.reset();
+				guestPeer.configured=false;
+				guestPeer.recovery=session::RoomRecoveryRuntime{};
+				guest->Leave();
+				const auto leaveStarted=GetTickCount64();
+				const bool hostStepped=departure!=Departure::Unconfirmed;
+				waitFor(std::chrono::seconds(20), [&]() { guest->Poll();
+					if(hostStepped) CHECK(test::PumpIrohIntegrationPeers(hostOnly)); else hostPeer.recovery.Tick(*hostPeer.server, *host); // Import continues; only the native server step is withheld.
+					return guest->GetState()==session::IrohRoom::State::Idle; });
+				const auto departureMs=GetTickCount64()-leaveStarted;
+				std::cout << "Rejoin " << attempt << ": guest idle after " << departureMs
+					<< " ms (departure=" << static_cast<int>(departure) << ") guest_error='" << guest->Error() << "'"
+					<< " host_connected=" << hostPeer.server->ConnectedClientCount()
+					<< " host_members=" << hostClient().GetRoomSnapshot().members.size()
+					<< " host_state=" << static_cast<int>(host->GetState()) << " host_error=" << host->Error()
+					<< " host_writable=" << host->Coordination().writable << " voters=" << host->Coordination().voterCount
+					<< " learners=" << host->Coordination().learnerCount << " ticket_length=" << host->DiscordInvitation().size() << std::endl;
+				if(departure==Departure::Unconfirmed) {
+					// The room's bound starts inside Leave(), a poll or two before this clock.
+					CHECK(departureMs+250>=session::IrohRoom::LeaveTimeoutMs);
+					CHECK(guest->Error()=="The room did not confirm your departure. You have left locally.");
+					// The host resumes: the departure notice and the abandoned control
+					// retire the seat before the guest is admitted again.
+					wait([&]() { CHECK(test::PumpIrohIntegrationPeers(hostOnly)); return hostClient().GetRoomSnapshot().members.size()==1; });
+				} else {
+					CHECK(guest->Error().empty());
+					CHECK(departureMs<session::IrohRoom::LeaveTimeoutMs/2);
+				}
+				CHECK(host->GetState()==session::IrohRoom::State::Ready && host->Coordination().writable);
+				CHECK(guest->Join(ticket, "cpp-room-test"));
+				const auto rejoinStarted=GetTickCount64();
+				wait([&]() { guest->Poll(); CHECK(test::PumpIrohIntegrationPeers(hostOnly));
+					if(guest->GetState()==session::IrohRoom::State::Failed) {
+						std::cerr << "Rejoin " << attempt << " failed after " << GetTickCount64()-rejoinStarted << " ms: " << guest->Error()
+							<< " host_connected=" << hostPeer.server->ConnectedClientCount()
+							<< " host_members=" << hostClient().GetRoomSnapshot().members.size() << '\n';
+						CHECK(false);
+					}
+					return guest->GetState()==session::IrohRoom::State::Ready; });
+				std::cout << "Rejoin " << attempt << ": helper ready after " << GetTickCount64()-rejoinStarted << " ms" << std::endl;
+				CHECK(test::ConfigureIrohIntegrationPeer(guestPeer, Callbacks(guestObserver), "cpp-room-test", 30001));
+				bool rejoinDiagnostic=false;
+				waitFor(std::chrono::seconds(40), [&]() { pump();
+					const bool complete=hostClient().GetRoomSnapshot().members.size()==2 && guestClient().GetRoomSnapshot().members.size()==2;
+					if(!complete && !rejoinDiagnostic && GetTickCount64()-rejoinStarted>15000) {
+						rejoinDiagnostic=true;
+						std::cerr << "Rejoin " << attempt << " native admission: host room=" << hostClient().GetRoomSnapshot().members.size()
+							<< " server=" << hostPeer.server->RoomSnapshot()->members.size()
+							<< " guest room=" << guestClient().GetRoomSnapshot().members.size()
+							<< " host_client_error=" << hostClient().RoomError() << " guest_client_error=" << guestClient().RoomError()
+							<< " guest_room_error=" << guest->Error() << " guest_state=" << static_cast<int>(guest->GetState())
+							<< " host_recovery='" << hostPeer.recovery.Error() << "' guest_recovery='" << guestPeer.recovery.Error() << "'"
+							<< " host_applied=" << hostPeer.recovery.AppliedRevision() << " guest_applied=" << guestPeer.recovery.AppliedRevision()
+							<< " host_helper_revision=" << host->Coordination().revision << " guest_helper_revision=" << guest->Coordination().revision << '\n';
+						for(const auto& [connection, identity] : host->ControlIdentities())
+							std::cerr << "  host view: connection=" << connection << " identity=" << identity.substr(0,8) << " incarnation=" << host->PeerIncarnation(connection) << '\n';
+						for(const auto& [connection, identity] : guest->ControlIdentities())
+							std::cerr << "  guest view: connection=" << connection << " identity=" << identity.substr(0,8) << " incarnation=" << guest->PeerIncarnation(connection) << '\n';
+						for(const auto& member : hostPeer.server->RoomSnapshot()->members)
+							std::cerr << "  host room member=" << member.id << " incarnation=" << (hostPeer.server->roomIncarnations.count(member.id) ? hostPeer.server->roomIncarnations.at(member.id) : 0) << '\n';
+					}
+					return complete; });
+				std::cout << "Rejoin " << attempt << ": native admission after " << GetTickCount64()-rejoinStarted << " ms" << std::endl;
+				wait([&]() { pump(); return guest->DiscordInvitation()==host->DiscordInvitation(); });
+				waitAction(guestClient(), makeAction(guestClient(), room::ActionKind::Queue));
+				waitAction(guestClient(), makeAction(guestClient(), room::ActionKind::Unqueue));
+			}
+			std::cout << "Rejoined the same room through the same Discord ticket after four departures" << std::endl;
+		}
 		// Custom-room actions are the only admission/readiness path once the
 		// client requires room authority. Legacy LobbyReady callbacks are not a
 		// substitute for a committed room action.

@@ -1035,13 +1035,20 @@ static void PumpDiscordClient() {
                         loc::T("discord.open_desktop");
                 } else if (event.at("type")=="join") {
                     const auto state=runtime->controller.GetSnapshot();
-                    if (event.at("epoch").get<std::uint64_t>() != state.generation.room) continue;
+                    const auto epoch=event.at("epoch").get<std::uint64_t>();
+                    if (epoch != state.generation.room) {
+                        spdlog::info("Discord: join ignored; companion epoch {} != room generation {}", epoch, state.generation.room);
+                        continue;
+                    }
                     const auto secret=event.at("secret").get<std::string>();
                     std::string party; std::uint64_t expires=0;
                     if (!discord::TicketMetadata(secret,party,expires)) { runtime->error=loc::T("discord.invitation_invalid"); continue; }
-                    runtime->discordInvite.Offer(secret,party,expires,event.at("sequence").get<std::uint64_t>(),
-                        state.generation.room,state.room!=netplay::RoomState::Idle || runtime->offlineRequested ||
-                            (runtime->eventSystemReady && !AtMainMenu()));
+                    const bool busy=state.room!=netplay::RoomState::Idle || runtime->offlineRequested ||
+                        (runtime->eventSystemReady && !AtMainMenu());
+                    const bool offered=runtime->discordInvite.Offer(secret,party,expires,event.at("sequence").get<std::uint64_t>(),
+                        state.generation.room,busy);
+                    spdlog::info("Discord: invitation {} sequence={} room_state={} busy={}", offered ? "pending" : "ignored",
+                        event.at("sequence").get<std::uint64_t>(), static_cast<int>(state.room), busy);
                 }
             } catch (...) { runtime->discordStatus=loc::T("discord.invalid_event"); }
         }
@@ -1873,8 +1880,9 @@ static void PublishAndTickDiscordInvite() {
     const auto next=runtime->discordInvite.Tick(static_cast<std::uint64_t>(std::time(nullptr)),
         view.session.generation.room,currentParty,view.discordCanSwitch,
         view.session.room==netplay::RoomState::Idle,view.canOpenRoom);
-    if (next==discord::Next::Expired) runtime->error=loc::T("discord.invitation_expired");
+    if (next==discord::Next::Expired) { runtime->error=loc::T("discord.invitation_expired"); spdlog::info("Discord: invitation expired before it could be used"); }
     else if (next==discord::Next::Leave || next==discord::Next::Join) {
+        spdlog::info("Discord: submitting {} for the pending invitation", next==discord::Next::Leave ? "leave" : "join");
         RuntimeCommand invite;
         invite.command={next==discord::Next::Leave ? netplay::CommandKind::LeaveRoom : netplay::CommandKind::JoinInvite,
             view.session.generation,next==discord::Next::Join ? runtime->discordInvite.Secret() : std::string()};

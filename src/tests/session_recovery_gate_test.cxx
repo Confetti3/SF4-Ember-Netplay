@@ -1,5 +1,6 @@
 #include <cassert>
 #include <iostream>
+#include <vector>
 
 #include "../session/SessionRecovery.hxx"
 
@@ -290,6 +291,33 @@ int main() {
 		assert(nlohmann::json::parse(sf4e::session::CommittedEffectWire(replayable, encoded)) == expected);
 		auto empty = nlohmann::json::object(); empty["_commit"] = sf4e::session::EffectCommitToken(replayable);
 		assert(nlohmann::json::parse(sf4e::session::CommittedEffectWire(replayable, "{}")) == empty);
+	}
+	{
+		// A replayed commit from before this session's departure names the
+		// endpoint under its old incarnation in the active roster: skipped. A
+		// frozen row is a started match's history for a departed spectator and
+		// never makes a commit predate the session, even beside the new active
+		// membership.
+		const std::string self = "self-endpoint";
+		const auto row = [&](const char* endpoint, std::uint64_t incarnation, bool frozen) {
+			nlohmann::json value{{"member", 1}, {"endpoint", ConnectionRef{"h", "u"}},
+				{"data", {{"authenticatedEndpoint", endpoint}, {"incarnation", incarnation}}}, {"incarnation", incarnation}};
+			if (frozen) value["frozen"] = true;
+			return value;
+		};
+		const auto checkpoint = [](std::vector<nlohmann::json> rows) {
+			nlohmann::json value = nlohmann::json::object();
+			value["members"] = nlohmann::json(rows);
+			return value;
+		};
+		using sf4e::session::CheckpointPredatesSession;
+		assert(CheckpointPredatesSession(checkpoint({row("host", 7, false), row(self.c_str(), 5, false)}), self, 9));
+		assert(!CheckpointPredatesSession(checkpoint({row("host", 7, false), row(self.c_str(), 5, true)}), self, 9));
+		assert(!CheckpointPredatesSession(checkpoint({row("host", 7, false), row(self.c_str(), 5, true), row(self.c_str(), 9, false)}), self, 9));
+		assert(!CheckpointPredatesSession(checkpoint({row("host", 7, false), row(self.c_str(), 9, false)}), self, 9));
+		assert(!CheckpointPredatesSession(checkpoint({row("host", 7, false), row(self.c_str(), 5, false)}), self, 0));
+		assert(!CheckpointPredatesSession(checkpoint({row("host", 7, false)}), self, 9));
+		assert(!CheckpointPredatesSession(nlohmann::json::object(), self, 9));
 	}
 	std::cout << "Session recovery gate test passed\n";
 	return 0;

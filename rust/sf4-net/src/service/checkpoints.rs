@@ -259,14 +259,14 @@ impl Actor {
         let Some(recovery) = self.recovery.clone() else {
             return Ok(());
         };
+        let committed = recovery.committed().await;
+        if committed.revision == 0 || committed.revision <= self.last_exported_revision {
+            return Ok(());
+        }
         if self.incoming_transfer.is_some()
             || self.outgoing_transfer.is_some()
             || self.pending_checkpoint_committed.is_some()
         {
-            return Ok(());
-        }
-        let committed = recovery.committed().await;
-        if committed.revision == 0 || committed.revision <= self.last_exported_revision {
             return Ok(());
         }
         let Ok(transfer_id) = committed.request.parse::<u64>() else {
@@ -368,6 +368,7 @@ impl Actor {
                 epoch: self.epoch,
                 peer: None,
                 code: "checkpoint_receive_timeout".into(),
+                reason: None,
             });
         }
         if self.outgoing_transfer.as_ref().is_some_and(|transfer| {
@@ -390,6 +391,7 @@ impl Actor {
                 epoch: self.epoch,
                 peer: None,
                 code: "checkpoint_send_timeout".into(),
+                reason: None,
             });
         }
     }

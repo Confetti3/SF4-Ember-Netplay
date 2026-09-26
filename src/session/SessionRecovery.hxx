@@ -453,4 +453,26 @@ private:
 	std::set<std::uint64_t> started_;
 };
 
+// A returning member's helper can replay a commit from before its own
+// departure, whose active roster still lists this endpoint under a previous
+// process incarnation. That member has left, and the commit removing it
+// follows; such a commit can never be rebound to the current session. Frozen
+// rows are history a started match retains for a departed spectator, not
+// membership, so an old incarnation there says nothing about the commit.
+// `currentIncarnation` is 0 until the helper has reported it, when nothing
+// can be decided.
+inline bool CheckpointPredatesSession(const nlohmann::json& checkpoint, const std::string& localIdentity,
+	std::uint64_t currentIncarnation) {
+	if (!currentIncarnation || localIdentity.empty() || !checkpoint.is_object() ||
+		!checkpoint.contains("members") || !checkpoint.at("members").is_array()) return false;
+	for (const auto& row : checkpoint.at("members")) {
+		if (!row.is_object() || !row.contains("data") || row.value("frozen", false)) continue;
+		const auto& data = row.at("data");
+		if (data.value("authenticatedEndpoint", std::string()) != localIdentity) continue;
+		const auto incarnation = row.value("incarnation", data.value("incarnation", std::uint64_t(0)));
+		if (incarnation && incarnation != currentIncarnation) return true;
+	}
+	return false;
+}
+
 } }

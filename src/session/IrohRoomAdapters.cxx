@@ -62,7 +62,15 @@ public:
 	}
 	bool Send(Connection connection, const std::string& payload) override {
 		if (room->epoch_ != epoch || room->state_ != State::Ready) return false;
-		if (connection != 1) return room->SendRemote(connection, payload, nullptr) == SendResult::Queued;
+		if (connection != 1) {
+			// A member whose control has closed, or who announced its departure,
+			// gets nothing more from this session: the helper may already hold
+			// that endpoint's next session, which would reject the numbering.
+			// Committed effects reach a returning member through the journal,
+			// and the server treats a refused send as transport loss.
+			if (room->PeerControlClosed(connection)) return true;
+			return room->SendRemote(connection, payload, nullptr) == SendResult::Queued;
+		}
 		if (!room->localOpen_ || payload.empty() || payload.size() > MaximumPayload ||
 			room->serverLocalNextId_ == (std::numeric_limits<std::int64_t>::max)()) return false;
 		return room->Queue(room->clientMessages_, {1, room->serverLocalNextId_++, payload, ""});

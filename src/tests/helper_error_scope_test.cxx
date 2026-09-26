@@ -62,7 +62,7 @@ static void TestMatchErrorsEndOnlyTheMatch() {
 
 static void TestRoomFatalCodesAndTheirLabels() {
 	const char* shown[] = {
-		"invalid_or_incompatible_invitation", "join_failed", "host_unavailable", "invalid_room_state",
+		"invalid_or_incompatible_invitation", "join_failed", "host_unavailable", "invalid_room_state", "leave_in_progress",
 		"invalid_control_size",
 	};
 	for (const char* code : shown) {

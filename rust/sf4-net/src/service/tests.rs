@@ -53,7 +53,7 @@ impl Actor {
 
 #[test]
 fn leaving_leader_hands_off_to_a_reachable_voter() {
-    use super::members::handoff_successor;
+    use super::departure::handoff_successor;
     let voters = BTreeSet::from([10, 20, 30]);
     // Voter 20 comes first by ID but its game is gone; handing it authority
     // could never commit and would strand the room without a quorum.
@@ -145,6 +145,7 @@ fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Actor {
         pending_coordination_refresh: None,
         pending_membership_operation: None,
         pending_admission_operation: None,
+        pending_admission_bindings: Vec::new(),
         deferred_admissions: VecDeque::new(),
         pending_membership_publications: BTreeSet::new(),
         last_coordination_state: None,
@@ -159,6 +160,7 @@ fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Actor {
         probe_permissions: BTreeMap::new(),
         pending_probe_authorizations: BTreeMap::new(),
         retirement_started: None,
+        departure_failed: false,
     }
 }
 
@@ -679,6 +681,781 @@ async fn actor_replaces_authenticated_control_from_same_endpoint() {
             next(&mut events, "message").await,
             Event::Message { payload, .. } if payload == "replacement control"
         ));
+        host.close().await;
+        remote.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn a_refused_join_names_the_epoch_it_asked_for() {
+    let host = endpoint().await;
+    let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let (_commands, mut command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let (_fault, mut failure) = watch::channel(false);
+    let mut actor = test_actor(host.clone(), events_tx);
+    actor.epoch = 1;
+    actor.room = Some([7; 16]);
+    // The native client filters events by its current epoch, so a refusal
+    // tagged with the helper's epoch would leave that attempt joining forever.
+    let join = |epoch| Command::Join {
+        epoch,
+        invitation: "not-an-invitation".into(),
+        build: "test-build".into(),
+    };
+    assert!(
+        actor
+            .command(Request {
+                id: 5,
+                command: join(2),
+            })
+            .unwrap()
+    );
+    assert!(matches!(
+        next(&mut events, "error").await,
+        Event::Error { epoch: 2, request_id: 5, ref code, .. } if code == "invalid_room_state"
+    ));
+    assert_eq!(actor.room, Some([7; 16]));
+    // A stale Leave is a rejection, not a failed departure: it must not let
+    // a later epoch release a healthy room.
+    assert!(
+        actor
+            .leave_command(9, false, &mut command_rx, &mut failure)
+            .await
+            .unwrap()
+    );
+    assert!(matches!(
+        next(&mut events, "error").await,
+        Event::Error { epoch: 1, ref code, .. } if code == "stale_epoch"
+    ));
+    assert!(!actor.departure_failed);
+    assert!(!actor.begin(3, "test-build"));
+    assert_eq!(actor.room, Some([7; 16]));
+    // An invalid request never releases retained state either.
+    actor.departure_failed = true;
+    assert!(!actor.begin(1, "test-build"));
+    assert_eq!(actor.room, Some([7; 16]));
+    host.close().await;
+}
+
+#[tokio::test]
+async fn an_unconfirmed_departure_is_released_by_the_next_epoch() {
+    timeout(Duration::from_secs(60), async {
+        let host_primary = endpoint().await;
+        let follower_primary = endpoint().await;
+        let relay = iroh::defaults::prod::default_relay_map()
+            .urls::<Vec<_>>()
+            .remove(0);
+        let seed = Invite::create(
+            host_primary.id(),
+            relay,
+            "test-build".into(),
+            now().unwrap(),
+            3600,
+        )
+        .unwrap();
+        let room = seed.room();
+        let (host_events, _host_events_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let mut host = test_actor(host_primary.clone(), host_events);
+        let invite = host.setup_host_recovery(seed).await.unwrap();
+        let host_recovery = host.recovery.clone().unwrap();
+        while host_recovery.coordinator.current_leader() != Some(host_recovery.incarnation) {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        let voter = crate::recovery::RecoverySession::join(
+            room,
+            follower_primary.id(),
+            host_recovery.incarnation,
+            host_recovery.coordination_address.clone(),
+            false,
+        )
+        .await
+        .unwrap();
+        let voter_admission = voter.advertise().await;
+        host_recovery.add_learner(&voter_admission).await.unwrap();
+        host_recovery
+            .promote_voters(BTreeSet::from([
+                host_recovery.incarnation,
+                voter.incarnation,
+            ]))
+            .await
+            .unwrap();
+        host.remember_admission(voter_admission.clone());
+
+        // The follower is a committed native member and voter, but its host
+        // never applies the departure: no native Leave commits and no
+        // membership proof arrives, exactly the case the native client gives
+        // up on after its own bound.
+        let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let (_commands, mut command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let (_fault, mut failure) = watch::channel(false);
+        let mut follower = test_actor(follower_primary.clone(), events_tx);
+        follower.epoch = 1;
+        follower.room = Some(room);
+        follower.room_invite = Some(invite.clone());
+        follower.remember_admission(voter_admission);
+        follower.remember_admission(host_recovery.advertise().await);
+        follower.committed_native_members =
+            Some(BTreeSet::from([host_primary.id(), follower_primary.id()]));
+        follower.recovery = Some(voter.clone());
+        while voter.coordinator.current_leader() != Some(host_recovery.incarnation) {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        assert!(
+            follower
+                .leave_command(1, false, &mut command_rx, &mut failure)
+                .await
+                .unwrap()
+        );
+        assert!(matches!(
+            next(&mut events, "error").await,
+            Event::Error { epoch: 1, ref code, .. } if code == "leave_successor_unconfirmed"
+        ));
+        assert!(follower.departure_failed);
+        assert_eq!(follower.room, Some(room));
+        // The native client has left locally; its next room releases this one,
+        // but the departed vote lingers for the grace: the host can still
+        // commit the removal that the departure never got.
+        assert!(follower.begin(2, "test-build"));
+        assert_eq!(follower.room, None);
+        assert!(!follower.departure_failed);
+        assert!(follower.recovery.is_none());
+        host_recovery
+            .remove_members(BTreeSet::from([host_recovery.incarnation]))
+            .await
+            .unwrap();
+        assert_eq!(
+            host_recovery.applied_voter_ids().await,
+            BTreeSet::from([host_recovery.incarnation])
+        );
+        host_recovery.stop().await;
+        host_primary.close().await;
+        follower_primary.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn an_abandoned_coordinated_room_keeps_its_vote_for_the_grace() {
+    timeout(Duration::from_secs(30), async {
+        let host = endpoint().await;
+        let relay = iroh::defaults::prod::default_relay_map()
+            .urls::<Vec<_>>()
+            .remove(0);
+        let seed =
+            Invite::create(host.id(), relay, "test-build".into(), now().unwrap(), 3600).unwrap();
+        let room = seed.room();
+        let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let (_commands, mut command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let (_fault, mut failure) = watch::channel(false);
+        let mut actor = test_actor(host.clone(), events_tx);
+        let invite = actor.setup_host_recovery(seed).await.unwrap();
+        let recovery = actor.recovery.clone().unwrap();
+        actor.epoch = 1;
+        actor.room = Some(room);
+        actor.hosted = Some(invite.clone());
+        actor.room_invite = Some(invite);
+        // An abandon releases the native room at once but keeps answering
+        // the old room's authority RPCs, so the leader can still commit the
+        // departure with this vote.
+        assert!(
+            actor
+                .leave_command(1, true, &mut command_rx, &mut failure)
+                .await
+                .unwrap()
+        );
+        assert!(matches!(
+            next(&mut events, "room_closed").await,
+            Event::RoomClosed { epoch: 1 }
+        ));
+        assert!(actor.retirement_started.is_some());
+        assert!(actor.recovery.is_some());
+        assert!(actor.controls.is_empty() && actor.hosted.is_none());
+        // The next room begins at once; the old route lingers on its own.
+        assert!(actor.begin(2, "test-build"));
+        assert!(actor.recovery.is_none() && actor.room.is_none());
+        assert!(actor.retirement_started.is_none());
+        assert!(recovery.coordinator.current_leader().is_some());
+        recovery.stop().await;
+        host.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+/// One host actor running its loop, one remote endpoint with a control to it.
+struct BoundHost {
+    host: Endpoint,
+    remote: Endpoint,
+    room: [u8; 16],
+    invite: Invite,
+    recovery: crate::recovery::RecoverySession,
+    events: mpsc::Receiver<Event>,
+    // Dropping either sender ends the actor's loop as an IPC loss.
+    _commands: mpsc::Sender<Request>,
+    _fault: watch::Sender<bool>,
+    _scope: TaskScope,
+}
+
+async fn bound_host(prepare: impl FnOnce(&mut Actor)) -> BoundHost {
+    let host = endpoint().await;
+    let remote = endpoint().await;
+    let relay = iroh::defaults::prod::default_relay_map()
+        .urls::<Vec<_>>()
+        .remove(0);
+    let seed = Invite::create(host.id(), relay, "test-build".into(), now().unwrap(), 3600).unwrap();
+    let room = seed.room();
+    let (events_tx, events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let (commands, command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let (fault, failure) = watch::channel(false);
+    let mut actor = test_actor(host.clone(), events_tx);
+    let invite = actor.setup_host_recovery(seed).await.unwrap();
+    let recovery = actor.recovery.clone().unwrap();
+    while recovery.coordinator.current_leader() != Some(recovery.incarnation) {
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    actor.epoch = 1;
+    actor.room = Some(room);
+    actor.hosted = Some(invite.clone());
+    actor.room_invite = Some(invite.clone());
+    prepare(&mut actor);
+    let service = tokio::spawn(async move {
+        let result = actor.run(command_rx, failure).await;
+        actor.clear_room();
+        actor.tasks.shutdown().await;
+        result
+    });
+    BoundHost {
+        host,
+        remote,
+        room,
+        invite,
+        recovery,
+        events,
+        _commands: commands,
+        _fault: fault,
+        _scope: TaskScope(vec![service.abort_handle()]),
+    }
+}
+
+/// Drain events until the control closes; neither a session nor a native
+/// message may have been published for it.
+async fn expect_closed_without_session(events: &mut mpsc::Receiver<Event>) {
+    loop {
+        match events.recv().await.unwrap() {
+            Event::PeerSession { .. } => panic!("session published for a rejected binding"),
+            Event::Message { .. } => panic!("native message delivered before its session"),
+            Event::Error { code, .. } => panic!("unexpected helper error: {code}"),
+            Event::ControlClosed { .. } => break,
+            _ => (),
+        }
+    }
+}
+
+async fn send_admission(control: &mut transport::ControlChannel, id: u64, admission: Admission) {
+    let payload = serde_json::to_vec(&CoordinationControl::Admission { admission }).unwrap();
+    control
+        .sender
+        .send(&ControlFrame {
+            message_id: id,
+            payload,
+        })
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_refused_admission_queue_closes_the_control_without_a_session() {
+    timeout(Duration::from_secs(30), async {
+        let mut fixture = bound_host(|actor| {
+            // An operation that never completes keeps the queue from draining.
+            actor.pending_admission_operation = Some(AdmissionOperationKey {
+                sequence: 0,
+                epoch: 1,
+                room: actor.room.unwrap(),
+                incarnation: 0,
+                term: 0,
+                leader: None,
+                peer: actor.endpoint.id(),
+                fingerprint: Vec::new(),
+                add_member_if_leader: false,
+            });
+            for index in 0..MAX_CONTROL_PEERS {
+                actor.deferred_admissions.push_back(DeferredAdmission {
+                    peer: actor.endpoint.id(),
+                    admissions: Vec::new(),
+                    add_member_if_leader: false,
+                    fingerprint: vec![index as u8],
+                    bindings: Vec::new(),
+                });
+            }
+        })
+        .await;
+        let connection = fixture
+            .remote
+            .connect(address(&fixture.host), CONTROL_ALPN)
+            .await
+            .unwrap();
+        let mut control = transport::connect_control_on(connection, &fixture.invite)
+            .await
+            .unwrap();
+        let _ = next(&mut fixture.events, "connected").await;
+        let admission = Admission {
+            room: fixture.room,
+            incarnation: 0x4242,
+            authority_term: 1,
+            coordination_endpoint: fixture.remote.id(),
+            coordination_address: address(&fixture.remote),
+            primary_endpoint: fixture.remote.id(),
+        };
+        send_admission(&mut control, 2, admission).await;
+        expect_closed_without_session(&mut fixture.events).await;
+        fixture.recovery.stop().await;
+        fixture.host.close().await;
+        fixture.remote.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn a_binding_the_operation_rejects_closes_the_control_without_a_session() {
+    timeout(Duration::from_secs(60), async {
+        let mut fixture = bound_host(|_| {}).await;
+        let connection = fixture
+            .remote
+            .connect(address(&fixture.host), CONTROL_ALPN)
+            .await
+            .unwrap();
+        let mut control = transport::connect_control_on(connection, &fixture.invite)
+            .await
+            .unwrap();
+        let _ = next(&mut fixture.events, "connected").await;
+        // No coordination session answers at this address, so the learner
+        // can never be added; the bounded operation fails and the control
+        // closes with nothing native read from it.
+        let nobody = endpoint().await;
+        let admission = Admission {
+            room: fixture.room,
+            incarnation: 0x4343,
+            authority_term: 1,
+            coordination_endpoint: nobody.id(),
+            coordination_address: address(&nobody),
+            primary_endpoint: fixture.remote.id(),
+        };
+        nobody.close().await;
+        send_admission(&mut control, 2, admission).await;
+        control
+            .sender
+            .send(&ControlFrame {
+                message_id: 3,
+                payload: b"native message before any session".to_vec(),
+            })
+            .await
+            .unwrap();
+        expect_closed_without_session(&mut fixture.events).await;
+        fixture.recovery.stop().await;
+        fixture.host.close().await;
+        fixture.remote.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn an_accepted_admission_publishes_its_session_even_when_roster_known() {
+    timeout(Duration::from_secs(60), async {
+        let mut fixture = bound_host(|_| {}).await;
+        let member = crate::recovery::RecoverySession::join(
+            fixture.room,
+            fixture.remote.id(),
+            fixture.recovery.incarnation,
+            fixture.recovery.coordination_address.clone(),
+            false,
+        )
+        .await
+        .unwrap();
+        let admission = member.advertise().await;
+        let connection = fixture
+            .remote
+            .connect(address(&fixture.host), CONTROL_ALPN)
+            .await
+            .unwrap();
+        let mut control = transport::connect_control_on(connection, &fixture.invite)
+            .await
+            .unwrap();
+        let _ = next(&mut fixture.events, "connected").await;
+        // The session is published when the binding completes, and the
+        // message sent right behind the Admission is delivered only after it.
+        send_admission(&mut control, 2, admission.clone()).await;
+        control
+            .sender
+            .send(&ControlFrame {
+                message_id: 3,
+                payload: b"first native message".to_vec(),
+            })
+            .await
+            .unwrap();
+        let mut session_seen = false;
+        loop {
+            let event = fixture.events.recv().await.unwrap();
+            match event {
+                Event::PeerSession { incarnation, .. } => {
+                    assert_eq!(incarnation, member.incarnation);
+                    session_seen = true;
+                }
+                Event::Message { payload, .. } => {
+                    assert_eq!(payload, "first native message");
+                    assert!(session_seen, "native message delivered before its session");
+                    break;
+                }
+                Event::Error { code, .. } => panic!("unexpected helper error: {code}"),
+                _ => (),
+            }
+        }
+        // A reconnect re-presenting the same, now roster-known, incarnation
+        // is published again; the native record treats the repeat as a no-op.
+        let again = fixture
+            .remote
+            .connect(address(&fixture.host), CONTROL_ALPN)
+            .await
+            .unwrap();
+        let mut control = transport::connect_control_on(again, &fixture.invite)
+            .await
+            .unwrap();
+        let _ = next(&mut fixture.events, "connected").await;
+        send_admission(&mut control, 2, admission).await;
+        assert!(matches!(
+            next(&mut fixture.events, "peer_session").await,
+            Event::PeerSession { incarnation, .. } if incarnation == member.incarnation
+        ));
+        member.stop().await;
+        fixture.recovery.stop().await;
+        fixture.host.close().await;
+        fixture.remote.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn a_completion_settles_only_the_control_pending_for_its_incarnation() {
+    timeout(Duration::from_secs(30), async {
+        let host = endpoint().await;
+        let remote = endpoint().await;
+        let relay = iroh::defaults::prod::default_relay_map()
+            .urls::<Vec<_>>()
+            .remove(0);
+        let seed =
+            Invite::create(host.id(), relay, "test-build".into(), now().unwrap(), 3600).unwrap();
+        let room = seed.room();
+        let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let mut actor = test_actor(host.clone(), events_tx);
+        let invite = actor.setup_host_recovery(seed).await.unwrap();
+        let recovery = actor.recovery.clone().unwrap();
+        while recovery.coordinator.current_leader() != Some(recovery.incarnation) {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        actor.epoch = 1;
+        actor.room = Some(room);
+        actor.hosted = Some(invite.clone());
+        actor.room_invite = Some(invite.clone());
+        // The remote's current control; its predecessor's operation is still
+        // in flight when it presents its own Admission.
+        let accept = |invite: Invite| {
+            let host = host.clone();
+            async move {
+                let connection = host.accept().await.unwrap().await.unwrap();
+                transport::accept_control(connection, &invite)
+                    .await
+                    .unwrap()
+            }
+        };
+        let connect = |invite: Invite| {
+            let remote = remote.clone();
+            let host = host.clone();
+            async move {
+                let connection = remote.connect(address(&host), CONTROL_ALPN).await.unwrap();
+                transport::connect_control_on(connection, &invite)
+                    .await
+                    .unwrap()
+            }
+        };
+        let (_old_side, old_control) =
+            tokio::join!(connect(invite.clone()), accept(invite.clone()));
+        let old_control = ControlWorker::start(old_control);
+        let old_id = old_control.id();
+        drop(old_control); // replaced before its operation completes
+        let (_remote_side, current) = tokio::join!(connect(invite.clone()), accept(invite.clone()));
+        let mut current = ControlWorker::start(current);
+        let admission = |incarnation| Admission {
+            room,
+            incarnation,
+            authority_term: 1,
+            coordination_endpoint: remote.id(),
+            coordination_address: address(&remote),
+            primary_endpoint: remote.id(),
+        };
+        let (old, new) = (0x1111, 0x2222);
+        current.set_session(Session::Pending(new));
+        let control_id = current.id();
+        actor.controls.insert(remote.id(), current);
+        let key = |sequence| AdmissionOperationKey {
+            sequence,
+            epoch: 1,
+            room,
+            incarnation: recovery.incarnation,
+            term: recovery.coordinator.current_term(),
+            leader: recovery.coordinator.current_leader(),
+            peer: remote.id(),
+            fingerprint: vec![sequence as u8],
+            add_member_if_leader: false,
+        };
+        let binding = |control, incarnation| ControlBinding {
+            peer: remote.id(),
+            control,
+            incarnation,
+        };
+        let untouched = |actor: &Actor, events: &mut mpsc::Receiver<Event>| {
+            assert_eq!(
+                actor
+                    .controls
+                    .get(&remote.id())
+                    .map(|control| control.session()),
+                Some(Session::Pending(new))
+            );
+            while let Ok(event) = events.try_recv() {
+                assert!(
+                    !matches!(
+                        event,
+                        Event::PeerSession { .. } | Event::ControlClosed { .. }
+                    ),
+                    "a replaced control's completion touched its replacement"
+                );
+            }
+        };
+        // The old control's operation succeeds, then one fails: neither
+        // binds, closes or releases the replacement, even though it is the
+        // same endpoint and the replacement is pending.
+        actor.pending_admission_operation = Some(key(1));
+        actor.pending_admission_bindings = vec![binding(old_id, old)];
+        actor
+            .completed_admission(
+                key(1),
+                Ok(AdmissionOperationResult {
+                    admissions: vec![admission(old)],
+                }),
+            )
+            .await
+            .unwrap();
+        untouched(&actor, &mut events);
+        actor.pending_admission_operation = Some(key(2));
+        actor.pending_admission_bindings = vec![binding(old_id, old)];
+        actor
+            .completed_admission(key(2), Err(failed("binding rejected")))
+            .await
+            .unwrap();
+        untouched(&actor, &mut events);
+        // Roster work for the replacement's own incarnation owns no control.
+        actor.pending_admission_operation = Some(key(3));
+        actor.pending_admission_bindings = Vec::new();
+        actor
+            .completed_admission(key(3), Err(failed("roster write lost")))
+            .await
+            .unwrap();
+        untouched(&actor, &mut events);
+        // Its own operation binds it and publishes exactly its incarnation.
+        actor.pending_admission_operation = Some(key(4));
+        actor.pending_admission_bindings = vec![binding(control_id, new)];
+        actor
+            .completed_admission(
+                key(4),
+                Ok(AdmissionOperationResult {
+                    admissions: vec![admission(new)],
+                }),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            actor
+                .controls
+                .get(&remote.id())
+                .map(|control| control.session()),
+            Some(Session::Bound(new))
+        );
+        assert!(matches!(
+            next(&mut events, "peer_session").await,
+            Event::PeerSession { incarnation, .. } if incarnation == new
+        ));
+        // A later control whose own operation fails is closed, by its id.
+        let (_remote_side_again, later) =
+            tokio::join!(connect(invite.clone()), accept(invite.clone()));
+        let mut later = ControlWorker::start(later);
+        later.set_session(Session::Pending(0x3333));
+        let later_id = later.id();
+        assert_ne!(later_id, control_id);
+        actor.controls.insert(remote.id(), later);
+        actor.pending_admission_operation = Some(key(5));
+        actor.pending_admission_bindings = vec![binding(later_id, 0x3333)];
+        actor
+            .completed_admission(key(5), Err(failed("binding rejected")))
+            .await
+            .unwrap();
+        assert!(!actor.controls.contains_key(&remote.id()));
+        assert!(matches!(
+            next(&mut events, "control_closed").await,
+            Event::ControlClosed { control, .. } if control == later_id
+        ));
+        actor.tasks.abort_all();
+        recovery.stop().await;
+        host.close().await;
+        remote.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn a_rejected_admission_publishes_no_session() {
+    timeout(Duration::from_secs(30), async {
+        let host = endpoint().await;
+        let remote = endpoint().await;
+        let relay = iroh::defaults::prod::default_relay_map()
+            .urls::<Vec<_>>()
+            .remove(0);
+        let seed =
+            Invite::create(host.id(), relay, "test-build".into(), now().unwrap(), 3600).unwrap();
+        let room = seed.room();
+        let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let (_commands, command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let (_fault, failure) = watch::channel(false);
+        let mut actor = test_actor(host.clone(), events_tx);
+        let invite = actor.setup_host_recovery(seed).await.unwrap();
+        let recovery = actor.recovery.clone().unwrap();
+        while recovery.coordinator.current_leader() != Some(recovery.incarnation) {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        actor.epoch = 1;
+        actor.room = Some(room);
+        actor.hosted = Some(invite.clone());
+        actor.room_invite = Some(invite.clone());
+        let retired = 0x7777;
+        actor.retired_incarnations.insert(retired);
+        let service = tokio::spawn(async move {
+            let result = actor.run(command_rx, failure).await;
+            actor.clear_room();
+            actor.tasks.shutdown().await;
+            result
+        });
+        let _service_scope = TaskScope(vec![service.abort_handle()]);
+
+        let connection = remote.connect(address(&host), CONTROL_ALPN).await.unwrap();
+        let mut control = transport::connect_control_on(connection, &invite)
+            .await
+            .unwrap();
+        let _ = next(&mut events, "connected").await;
+        // A replayed Admission for a retired incarnation is rejected and its
+        // control closed. The native room must not have been told about a
+        // new session first: that instruction could not be retracted.
+        let payload = serde_json::to_vec(&CoordinationControl::Admission {
+            admission: Admission {
+                room,
+                incarnation: retired,
+                authority_term: 1,
+                coordination_endpoint: remote.id(),
+                coordination_address: address(&remote),
+                primary_endpoint: remote.id(),
+            },
+        })
+        .unwrap();
+        control
+            .sender
+            .send(&ControlFrame {
+                message_id: 2,
+                payload,
+            })
+            .await
+            .unwrap();
+        expect_closed_without_session(&mut events).await;
+        recovery.stop().await;
+        host.close().await;
+        remote.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn departure_notice_retires_the_seat_at_the_leader() {
+    timeout(Duration::from_secs(30), async {
+        let host = endpoint().await;
+        let remote = endpoint().await;
+        let relay = iroh::defaults::prod::default_relay_map()
+            .urls::<Vec<_>>()
+            .remove(0);
+        let seed =
+            Invite::create(host.id(), relay, "test-build".into(), now().unwrap(), 3600).unwrap();
+        let room = seed.room();
+        let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let (_commands, command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let (_fault, failure) = watch::channel(false);
+        let mut actor = test_actor(host.clone(), events_tx);
+        let invite = actor.setup_host_recovery(seed).await.unwrap();
+        let recovery = actor.recovery.clone().unwrap();
+        while recovery.coordinator.current_leader() != Some(recovery.incarnation) {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        actor.epoch = 1;
+        actor.room = Some(room);
+        actor.hosted = Some(invite.clone());
+        actor.room_invite = Some(invite.clone());
+        let incarnation = 0x5151;
+        actor.remember_admission(Admission {
+            room,
+            incarnation,
+            authority_term: 1,
+            coordination_endpoint: remote.id(),
+            coordination_address: address(&remote),
+            primary_endpoint: remote.id(),
+        });
+        let service = tokio::spawn(async move {
+            let result = actor.run(command_rx, failure).await;
+            actor.clear_room();
+            actor.tasks.shutdown().await;
+            result
+        });
+        let _service_scope = TaskScope(vec![service.abort_handle()]);
+
+        let connection = remote.connect(address(&host), CONTROL_ALPN).await.unwrap();
+        let mut control = transport::connect_control_on(connection, &invite)
+            .await
+            .unwrap();
+        let _ = next(&mut events, "connected").await;
+        // A notice for an incarnation this leader never admitted is ignored;
+        // the admitted member's notice hands its seat to the native room
+        // while its control, and its vote, stay open.
+        for (id, notice) in [(2, 0x9999), (3, incarnation)] {
+            let payload = serde_json::to_vec(&CoordinationControl::Departure {
+                room,
+                incarnation: notice,
+            })
+            .unwrap();
+            control
+                .sender
+                .send(&ControlFrame {
+                    message_id: id,
+                    payload,
+                })
+                .await
+                .unwrap();
+        }
+        assert!(matches!(
+            next(&mut events, "peer_departed").await,
+            Event::PeerDeparted { epoch: 1, peer } if peer == remote.id()
+        ));
+        recovery.stop().await;
         host.close().await;
         remote.close().await;
     })
@@ -1377,6 +2154,91 @@ async fn successor_rejects_replayed_admission_from_applied_membership_history() 
     .unwrap();
 }
 
+/// Runs the actor's next finished worker through its completion handler.
+async fn complete_next(actor: &mut Actor) {
+    let completion = timeout(Duration::from_secs(10), actor.tasks.join_next())
+        .await
+        .expect("worker completion")
+        .expect("worker exists")
+        .unwrap();
+    actor.completed(completion).await.unwrap();
+}
+
+#[tokio::test]
+async fn a_confirmed_departure_is_not_reconciled_on_every_refresh() {
+    timeout(Duration::from_secs(20), async {
+        let host = endpoint().await;
+        let departed_primary = endpoint().await;
+        let relay = iroh::defaults::prod::default_relay_map()
+            .urls::<Vec<_>>()
+            .remove(0);
+        let seed =
+            Invite::create(host.id(), relay, "test-build".into(), now().unwrap(), 3600).unwrap();
+        let room = seed.room();
+        let (events, _events_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let mut actor = test_actor(host.clone(), events);
+        let invite = actor.setup_host_recovery(seed).await.unwrap();
+        actor.epoch = 1;
+        actor.room = Some(room);
+        actor.hosted = Some(invite.clone());
+        actor.room_invite = Some(invite);
+        // The committed native roster no longer lists the member that left.
+        actor.committed_native_members = Some(BTreeSet::from([host.id()]));
+        let recovery = actor.recovery.clone().unwrap();
+        let departed = crate::recovery::RecoverySession::join(
+            room,
+            departed_primary.id(),
+            recovery.incarnation,
+            recovery.coordination_address.clone(),
+            false,
+        )
+        .await
+        .unwrap();
+        let admission = departed.advertise().await;
+        let incarnation = admission.incarnation;
+        recovery.add_learner(&admission).await.unwrap();
+        actor.remember_admission(admission);
+        recovery
+            .remove_nodes(BTreeSet::from([incarnation]))
+            .await
+            .unwrap();
+
+        // The first refresh sees the departure in applied history and fences
+        // it; the reconciliation it starts confirms the retirement.
+        actor.emit_coordination_state().await.unwrap();
+        complete_next(&mut actor).await;
+        assert!(actor.pending_retired_incarnations.contains(&incarnation));
+        assert!(actor.pending_membership_operation.is_some());
+        complete_next(&mut actor).await;
+        assert!(actor.retired_incarnations.contains(&incarnation));
+        assert!(actor.pending_retired_incarnations.is_empty());
+        assert!(!actor.admissions.contains_key(&incarnation));
+
+        // That completion refreshes once more. The departure stays in the
+        // Raft history for good, but a confirmed retirement must not be
+        // fenced and reconciled again: each round refreshes, which used to
+        // start the next round, and every leader round published a
+        // Membership frame to every member.
+        complete_next(&mut actor).await;
+        assert!(
+            actor.pending_retired_incarnations.is_empty(),
+            "a refresh fenced a confirmed retirement again"
+        );
+        assert!(
+            actor.pending_membership_operation.is_none(),
+            "a confirmed retirement started another reconciliation"
+        );
+        assert!(actor.tasks.is_empty());
+
+        departed.stop().await;
+        recovery.stop().await;
+        host.close().await;
+        departed_primary.close().await;
+    })
+    .await
+    .unwrap();
+}
+
 #[tokio::test]
 async fn retirement_cap_fences_rpc_and_admission_before_exact_history_saturates() {
     let host = endpoint().await;
@@ -1642,12 +2504,16 @@ async fn held_checkpoint_and_admission_writes_do_not_block_actor_or_import_stale
             .await
             .unwrap();
 
+        // The actor keeps serving checkpoint credit, status and the quorum
+        // watch behind the held write. The native message behind the held
+        // Admission is not delivered: its session is bound only when the
+        // admission completes, and the native side must hear of the session
+        // before any message from it.
         let deadline = tokio::time::Instant::now() + Duration::from_secs(6);
         let mut acknowledgements = 0;
-        let mut saw_message = false;
         let mut saw_status = false;
         let mut saw_quorum_lost = false;
-        while acknowledgements < 2 || !saw_message || !saw_status || !saw_quorum_lost {
+        while acknowledgements < 2 || !saw_status || !saw_quorum_lost {
             let event = tokio::select! {
                 event = events.recv() => event.unwrap(),
                 _ = tokio::time::sleep_until(deadline) => panic!("actor stalled behind coordination write"),
@@ -1657,9 +2523,8 @@ async fn held_checkpoint_and_admission_writes_do_not_block_actor_or_import_stale
                     assert_eq!(offset as usize, body.len());
                     acknowledgements += 1;
                 }
-                Event::Message { message_id: 77, payload, .. } => {
-                    assert_eq!(payload, "lifecycle-after-held-admission");
-                    saw_message = true;
+                Event::Message { message_id: 77, .. } => {
+                    panic!("native message delivered before its session was bound");
                 }
                 Event::Status { request_id: 7, .. } => saw_status = true,
                 Event::CoordinationState { writable: false, .. } => {
@@ -1767,14 +2632,24 @@ async fn overlapping_admissions_are_serialized_and_reach_current_voter_default()
         let second_admission = second.advertise().await;
 
         actor
-            .queue_admission_operation(first_primary.id(), vec![first_admission.clone()], true)
+            .queue_admission_operation(
+                first_primary.id(),
+                vec![first_admission.clone()],
+                true,
+                None,
+            )
             .unwrap();
         actor
-            .queue_admission_operation(first_primary.id(), vec![first_admission], true)
+            .queue_admission_operation(first_primary.id(), vec![first_admission], true, None)
             .unwrap();
         assert!(actor.deferred_admissions.is_empty());
         actor
-            .queue_admission_operation(second_primary.id(), vec![second_admission.clone()], true)
+            .queue_admission_operation(
+                second_primary.id(),
+                vec![second_admission.clone()],
+                true,
+                None,
+            )
             .unwrap();
         assert_eq!(actor.deferred_admissions.len(), 1);
 
@@ -1887,6 +2762,7 @@ async fn async_admission_completion_publishes_third_member_to_existing_follower(
                 newcomer_primary.id(),
                 vec![newcomer_admission.clone()],
                 true,
+                None,
             )
             .unwrap();
 
@@ -2097,6 +2973,7 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
             pending_coordination_refresh: None,
             pending_membership_operation: None,
             pending_admission_operation: None,
+            pending_admission_bindings: Vec::new(),
         deferred_admissions: VecDeque::new(),
         pending_membership_publications: BTreeSet::new(),
             last_coordination_state: None,
@@ -2111,6 +2988,7 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
             probe_permissions: BTreeMap::new(),
             pending_probe_authorizations: BTreeMap::new(),
             retirement_started: None,
+            departure_failed: false,
         };
         let mut host_actor = make_actor(host.clone(), host_events_tx);
         let invite = host_actor.setup_host_recovery(seed).await.unwrap();
@@ -2180,6 +3058,7 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
                     peer: host.id(),
                     message_id: 71,
                     payload: "cpp hello alongside admission".into(),
+                    control: 0,
                 },
             })
             .await
@@ -2376,6 +3255,7 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
         pending_coordination_refresh: None,
         pending_membership_operation: None,
         pending_admission_operation: None,
+        pending_admission_bindings: Vec::new(),
         deferred_admissions: VecDeque::new(),
         pending_membership_publications: BTreeSet::new(),
         last_coordination_state: None,
@@ -2390,6 +3270,7 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
         probe_permissions: BTreeMap::new(),
         pending_probe_authorizations: BTreeMap::new(),
         retirement_started: None,
+        departure_failed: false,
     };
     actor
         .command(Request {
@@ -2493,6 +3374,7 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
             pending_coordination_refresh: None,
             pending_membership_operation: None,
             pending_admission_operation: None,
+            pending_admission_bindings: Vec::new(),
             deferred_admissions: VecDeque::new(),
             pending_membership_publications: BTreeSet::new(),
             last_coordination_state: None,
@@ -2507,6 +3389,7 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
             probe_permissions: BTreeMap::new(),
             pending_probe_authorizations: BTreeMap::new(),
             retirement_started: None,
+            departure_failed: false,
         };
         let service = tokio::spawn(async move {
             let result = actor.run(command_rx, failure).await;
@@ -2519,7 +3402,13 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
         let mut control = transport::connect_control_on(connection, &invite)
             .await
             .unwrap();
-        let _ = next(&mut events, "connected").await;
+        let Event::Connected {
+            control: control_id,
+            ..
+        } = next(&mut events, "connected").await
+        else {
+            unreachable!()
+        };
         control
             .sender
             .send(&ControlFrame {
@@ -2550,6 +3439,7 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
                     peer: remote.id(),
                     message_id: 51,
                     payload: "cpp authoritative reply".into(),
+                    control: 0,
                 },
             })
             .await
@@ -2559,6 +3449,39 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
         assert_eq!(native.kind, "native_control");
         assert_eq!(native.message_id, 51);
         assert_eq!(native.payload, "cpp authoritative reply");
+        let _ = next(&mut events, "sent").await;
+
+        // A send named for a control this endpoint no longer holds is
+        // refused and says why; one named for the current control is sent.
+        for (id, named, message_id) in [(90, control_id.wrapping_add(1), 52), (91, control_id, 53)]
+        {
+            commands
+                .send(Request {
+                    id,
+                    command: Command::Send {
+                        epoch: 1,
+                        peer: remote.id(),
+                        message_id,
+                        payload: "named reply".into(),
+                        control: named,
+                    },
+                })
+                .await
+                .unwrap();
+        }
+        match next(&mut events, "error").await {
+            Event::Error {
+                code, peer, reason, ..
+            } => {
+                assert_eq!(code, "control_send_failed");
+                assert_eq!(peer, Some(remote.id()));
+                assert_eq!(reason.as_deref(), Some("replaced"));
+            }
+            _ => unreachable!(),
+        }
+        let named_frame = control.receiver.receive().await.unwrap();
+        let named: NativeControlMessage = serde_json::from_slice(&named_frame.payload).unwrap();
+        assert_eq!(named.message_id, 53);
         let _ = next(&mut events, "sent").await;
 
         let local_host = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
@@ -2793,6 +3716,7 @@ async fn actor_admits_full_sixteen_member_room_and_fifteen_game_links() {
             pending_coordination_refresh: None,
             pending_membership_operation: None,
             pending_admission_operation: None,
+            pending_admission_bindings: Vec::new(),
             deferred_admissions: VecDeque::new(),
             pending_membership_publications: BTreeSet::new(),
             last_coordination_state: None,
@@ -2807,6 +3731,7 @@ async fn actor_admits_full_sixteen_member_room_and_fifteen_game_links() {
             probe_permissions: BTreeMap::new(),
             pending_probe_authorizations: BTreeMap::new(),
             retirement_started: None,
+            departure_failed: false,
         };
         let service = tokio::spawn(async move {
             let result = actor.run(command_rx, failure).await;

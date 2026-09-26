@@ -279,6 +279,16 @@ bool IrohRoom::ActivateCommittedCheckpoint(const coordination::TransferIdentity&
     }
     return true;
 }
+bool IrohRoom::DiscardCommittedCheckpoint(const coordination::TransferIdentity& identity) {
+    if (committedCheckpoints_.empty() || !SameTransfer(committedCheckpoints_.front().identity,identity)) return false;
+    committedCheckpoints_.pop_front();
+    receivedRevision_=(std::max)(receivedRevision_,identity.revision);
+    if(!pendingCommittedMarker_.is_null()) {
+        auto marker=std::move(pendingCommittedMarker_); pendingCommittedMarker_=nullptr;
+        ConsumeCoordinationEvent(marker,"checkpoint_committed");
+    }
+    return true;
+}
 bool IrohRoom::ReadyForMatch() const {
     if(state_ != State::Ready) return false;
     if(!coordination_.active) return true;

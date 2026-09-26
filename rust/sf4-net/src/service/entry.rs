@@ -99,6 +99,7 @@ pub async fn run<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         pending_coordination_refresh: None,
         pending_membership_operation: None,
         pending_admission_operation: None,
+        pending_admission_bindings: Vec::new(),
         deferred_admissions: VecDeque::new(),
         pending_membership_publications: BTreeSet::new(),
         last_coordination_state: None,
@@ -113,6 +114,7 @@ pub async fn run<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         probe_permissions: BTreeMap::new(),
         pending_probe_authorizations: BTreeMap::new(),
         retirement_started: None,
+        departure_failed: false,
     };
     let result = actor.run(receiver, failure).await;
     actor.clear_room();

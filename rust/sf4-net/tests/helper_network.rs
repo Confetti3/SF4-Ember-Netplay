@@ -193,7 +193,7 @@ async fn exercise_helpers(relay_only: bool) {
                 }
             }
         }
-        host.send(Command::Send { epoch: 1, peer: guest_id, message_id: 2, payload: "cpp lobby control".into() }).await.unwrap();
+        host.send(Command::Send { epoch: 1, peer: guest_id, message_id: 2, payload: "cpp lobby control".into(), control: 0 }).await.unwrap();
         host.next("sent").await.unwrap();
         match guest.next("message").await.unwrap() {
             Event::Message { message_id, payload, .. } => { assert_eq!(message_id, 2); assert_eq!(payload, "cpp lobby control"); }, _ => unreachable!(),

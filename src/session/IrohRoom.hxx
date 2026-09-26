@@ -6,6 +6,7 @@
 #include "SessionRecovery.hxx"
 #include "CheckpointDecodeWorker.hxx"
 #include "../common/NetworkRoute.hxx"
+#include "../common/RoomLimits.hxx"
 #include <array>
 #include <deque>
 #include <map>
@@ -131,6 +132,9 @@ public:
     // bridge calls this after the native room import and exact connection
     // rebind both succeed; until then client effects remain withheld.
     bool ActivateCommittedCheckpoint(const coordination::TransferIdentity& identity);
+    // Drops the staged head without activating it: a commit that predates
+    // this session, which the following commit supersedes.
+    bool DiscardCommittedCheckpoint(const coordination::TransferIdentity& identity);
     virtual bool ReadyForMatch() const;
     bool ProposalInFlight() const { return !proposalBytes_.empty(); }
     bool RequestProbe(const std::string& peer, std::uint64_t request, std::uint64_t pairRevision, bool benchmark=false);
@@ -156,26 +160,55 @@ private:
 	class ServerAdapter;
 	class ClientAdapter;
 	static constexpr std::size_t MaximumPayload = 65536;
+	static constexpr std::size_t MaximumQueuedMessages = 64;
+	static constexpr std::size_t MaximumQueuedBytes = 4 * 1024 * 1024;
+	static constexpr std::size_t MaximumUdpPayload = 65507;
+	// Active controls remain bounded by the helper's room capacity. Native
+	// Started participants may retain stable handles after leaving the room.
+	static constexpr std::size_t MaximumRemotePeers = room::MaxMembers - 1 + room::TableCount * room::MaxMatchParticipants;
+	static bool IsEndpointIdentity(const std::string& identity);
+	// Short, log-safe form of an endpoint identity.
+	static std::string PeerTag(const std::string& peer);
+	// One session of a remote endpoint. Its transitions live in
+	// IrohRoomPeers.cxx so that a departure, a control reconnect and a new
+	// session from the same endpoint agree on which handle owns queued work.
 	struct Peer {
 		std::string identity;
+		// The helper's process incarnation this session belongs to; 0 until
+		// its Admission was accepted.
+		std::uint64_t incarnation = 0;
+		// The helper's id for the open control connection, absent while it is
+		// closed. A close reported for a superseded connection is ignored.
+		std::optional<std::uint64_t> control;
 		bool admitted = false;
 		std::int64_t nextId = 2;
 		std::int64_t receivedId = 1;
-		// Set when this peer's control closes and cleared when it reconnects.
-		// Once it passes, the committed leader treats the peer as departed.
+		// Set when the control closes or the peer announces its departure,
+		// cleared when a control connects. Once it passes, the committed
+		// leader retires the seat.
 		std::uint64_t departureDeadline = 0;
 	};
 	// Long enough for a control reconnect after a network blip; short enough
 	// that a crashed member's seat is freed while the others are still there.
 	static constexpr std::uint64_t DepartureGraceMs = 15000;
-	void ExpireDepartedPeers();
+	Peer* AllocatePeer(const std::string& identity);
+	void ControlOpened(Peer& peer, std::uint64_t control);
+	void ControlClosed(Peer& peer, std::uint64_t graceMs);
 	std::map<Connection, Peer>::iterator FindPeer(const std::string& identity);
+	std::map<Connection, Peer>::iterator RetirePeer(std::map<Connection, Peer>::iterator peer);
 	// Drops the peer and any of its intents still queued for the server.
 	std::map<Connection, Peer>::iterator ErasePeer(std::map<Connection, Peer>::iterator peer);
+	bool PeerControlClosed(Connection connection) const;
+	void PruneRetiredPeers();
+	void ExpireDepartedPeers();
+	bool ApplyControlRebound(const std::map<std::string, std::uint64_t>& incarnations,
+		const std::set<std::string>& connected);
+	bool BeginPeerSession(std::map<Connection, Peer>::iterator peer, std::uint64_t incarnation);
+	bool PeerDeparted(std::map<Connection, Peer>::iterator peer);
+	bool ReceiveControlMessage(std::map<Connection, Peer>::iterator peer, const nlohmann::json& event);
 	std::map<std::string, std::uint64_t> memberIncarnations_;
 	std::set<std::string> committedMembers_;
 	bool haveCommittedMembers_ = false;
-	void PruneRetiredPeers();
 	bool Begin(bool host);
 	bool Command(const std::string& payload);
 	SendResult SendRemote(Connection connection, const std::string& payload, std::int64_t* id);
@@ -251,6 +284,12 @@ private:
     // leave failure re-arms the send, but only until this deadline; after that
     // the room is released locally so the player is never stuck in Closing.
     std::uint64_t leaveDeadline_=0;
+    // A departure the helper never confirmed is abandoned at that deadline on
+    // its own epoch. The abandon is kept until the helper accepts it whatever
+    // the room does next; the helper rejects it as stale once a newer epoch
+    // has begun, by which point that epoch released the room instead.
+    bool abandonPending_=false;
+    std::uint64_t abandonEpoch_=0, abandonRetryAt_=0;
 	bool localOpen_ = false;
 	bool pendingAdmission_ = false;
 	bool serverOpen_ = false;

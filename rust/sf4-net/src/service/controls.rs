@@ -2,6 +2,95 @@
 use super::*;
 
 impl Actor {
+    /// Announce this member's departure on the controls still named in
+    /// `pending`. The committed leader retires the native seat immediately;
+    /// the departing helper keeps its control and vote alive until that
+    /// exclusion is committed. Returns true once every open control has
+    /// accepted the frame; a refused queue leaves its peer pending for the
+    /// caller's next attempt.
+    pub(super) fn send_departure_control(&mut self, pending: &mut BTreeSet<EndpointId>) -> bool {
+        let Some(recovery) = self.recovery.as_ref() else {
+            return true;
+        };
+        let message = CoordinationControl::Departure {
+            room: recovery.room,
+            incarnation: recovery.incarnation,
+        };
+        let Ok(payload) = serde_json::to_string(&message) else {
+            return true;
+        };
+        for (peer, control) in &self.controls {
+            if !pending.contains(peer) {
+                continue;
+            }
+            let id = self.next_transport_message;
+            self.next_transport_message = self.next_transport_message.saturating_add(1);
+            let frame = ControlFrame {
+                message_id: id,
+                payload: payload.clone().into_bytes(),
+            };
+            if control.try_send(frame).is_ok() {
+                pending.remove(peer);
+            }
+        }
+        pending.retain(|peer| self.controls.contains_key(peer));
+        pending.is_empty()
+    }
+
+    /// Remove a control and name it, for the close event that follows.
+    pub(super) fn remove_control(&mut self, peer: EndpointId) -> u64 {
+        self.controls
+            .remove(&peer)
+            .map(|control| control.id())
+            .unwrap_or(0)
+    }
+
+    /// Bind a control to its accepted incarnation and tell the native side.
+    /// Every accepted Admission is published; the native record ignores a
+    /// repeat for the incarnation it already holds.
+    fn bind_control_session(&mut self, peer: EndpointId, incarnation: u64) -> io::Result<()> {
+        let Some(control) = self.controls.get_mut(&peer) else {
+            return Ok(());
+        };
+        control.set_session(Session::Bound(incarnation));
+        self.emit(Event::PeerSession {
+            epoch: self.epoch,
+            peer,
+            incarnation,
+        })
+    }
+
+    /// The admission operation a control presented has completed. Only that
+    /// exact control, still pending for that incarnation, is settled:
+    /// accepted binds it, anything else closes it, with nothing native
+    /// delivered meanwhile. A control that replaced it waits for its own
+    /// operation; roster work never owns a control.
+    pub(super) fn settle_control_session(
+        &mut self,
+        binding: ControlBinding,
+        accepted: bool,
+    ) -> io::Result<()> {
+        let ControlBinding {
+            peer,
+            control,
+            incarnation,
+        } = binding;
+        if self.controls.get(&peer).is_none_or(|current| {
+            current.id() != control || current.session() != Session::Pending(incarnation)
+        }) {
+            return Ok(());
+        }
+        if accepted {
+            return self.bind_control_session(peer, incarnation);
+        }
+        let control = self.remove_control(peer);
+        self.emit(Event::ControlClosed {
+            epoch: self.epoch,
+            peer,
+            control,
+        })
+    }
+
     pub(super) fn send_coordination_control(&mut self, peer: EndpointId) {
         let Some(recovery) = self.recovery.clone() else {
             return;
@@ -219,6 +308,32 @@ impl Actor {
             return Ok(false);
         };
         match message {
+            CoordinationControl::Departure { room, incarnation } => {
+                // Only an authenticated control for this room may retire its
+                // own seat, and never the committed leader's: a leader hands
+                // off through the successor proof instead.
+                let Some(recovery) = self.recovery.as_ref() else {
+                    return Ok(false);
+                };
+                if room != recovery.room
+                    || incarnation == 0
+                    || !self.controls.contains_key(&peer)
+                    || recovery.coordinator.current_leader() != Some(recovery.incarnation)
+                {
+                    return Ok(true);
+                }
+                let admitted = self.admissions.values().any(|admission| {
+                    admission.primary_endpoint == peer && admission.incarnation == incarnation
+                });
+                if !admitted {
+                    return Ok(true);
+                }
+                self.emit(Event::PeerDeparted {
+                    epoch: self.epoch,
+                    peer,
+                })?;
+                Ok(true)
+            }
             CoordinationControl::Admission { admission } => {
                 let Some(recovery) = self.recovery.clone() else {
                     // sf4e2/emd2 carries only the authenticated primary room
@@ -249,6 +364,8 @@ impl Actor {
                     self.remember_admission(admission.clone());
                     self.remember_admission(session.advertise().await);
                     self.recovery = Some(session);
+                    // Accepted here and now: the authority's own binding.
+                    self.bind_control_session(peer, admission.incarnation)?;
                     self.last_coordination_state = None;
                     self.last_control_rebound = None;
                     // Complete the reciprocal authenticated binding now that
@@ -295,7 +412,24 @@ impl Actor {
                 let add_and_promote =
                     recovery.coordinator.current_leader() == Some(recovery.incarnation);
                 self.remember_admission(admission.clone());
-                self.queue_admission_operation(peer, vec![admission], add_and_promote)?;
+                let incarnation = admission.incarnation;
+                // The binding is accepted by the asynchronous operation this
+                // control presents. Until then nothing native is read from it,
+                // so the native side learns of the session before any message
+                // from it. A reconnect re-presenting the bound incarnation
+                // stays bound and presents nothing to settle.
+                let binding = self.controls.get_mut(&peer).and_then(|control| {
+                    if control.session() == Session::Bound(incarnation) {
+                        return None;
+                    }
+                    control.set_session(Session::Pending(incarnation));
+                    Some(ControlBinding {
+                        peer,
+                        control: control.id(),
+                        incarnation,
+                    })
+                });
+                self.queue_admission_operation(peer, vec![admission], add_and_promote, binding)?;
                 Ok(true)
             }
             CoordinationControl::Membership {
@@ -370,7 +504,7 @@ impl Actor {
                 self.last_coordination_state = None;
                 self.last_control_rebound = None;
                 self.emit_coordination_state().await?;
-                self.queue_admission_operation(peer, accepted, false)?;
+                self.queue_admission_operation(peer, accepted, false, None)?;
                 Ok(true)
             }
             CoordinationControl::ProbeReservation {
@@ -463,9 +597,14 @@ impl Actor {
                 if !self.events.has_headroom() {
                     break;
                 }
+                // A control whose session binding is still being applied
+                // keeps its frames queued: the native side must hear of the
+                // session before any message from it, and a failed binding
+                // closes the control with nothing delivered.
                 let frame = self
                     .controls
                     .get_mut(&peer)
+                    .filter(|control| !matches!(control.session(), Session::Pending(_)))
                     .and_then(|control| control.try_receive());
                 if let Some(frame) = frame {
                     match String::from_utf8(frame.payload) {
@@ -482,13 +621,14 @@ impl Actor {
                                         .room_invite
                                         .as_ref()
                                         .is_some_and(|invite| invite.endpoint() == peer);
-                                self.controls.remove(&peer);
+                                let control = self.remove_control(peer);
                                 if retry_join {
                                     self.reconnect_control(peer);
                                 }
                                 let _ = self.emit_bulk(Event::ControlClosed {
                                     epoch: self.epoch,
                                     peer,
+                                    control,
                                 });
                                 break;
                             }
@@ -517,11 +657,12 @@ impl Actor {
                             }
                         }
                         Err(_) => {
-                            self.controls.remove(&peer);
+                            let control = self.remove_control(peer);
                             self.reconnect_control(peer);
                             self.emit(Event::ControlClosed {
                                 epoch: self.epoch,
                                 peer,
+                                control,
                             })?;
                             break;
                         }
@@ -535,11 +676,12 @@ impl Actor {
                 .get(&peer)
                 .is_some_and(|control| control.is_closed())
             {
-                self.controls.remove(&peer);
+                let control = self.remove_control(peer);
                 self.reconnect_control(peer);
                 self.emit(Event::ControlClosed {
                     epoch: self.epoch,
                     peer,
+                    control,
                 })?;
             }
         }
@@ -622,8 +764,12 @@ impl Actor {
                     // directly from their committed route.
                     let setup = invite.coordination_address().is_some();
                     if setup && self.setup_join_recovery(invite).await.is_err() {
-                        self.controls.remove(&peer);
-                        let _ = self.emit_bulk(Event::ControlClosed { epoch, peer });
+                        let control = self.remove_control(peer);
+                        let _ = self.emit_bulk(Event::ControlClosed {
+                            epoch,
+                            peer,
+                            control,
+                        });
                         self.reconnect_control(peer);
                         self.error(0, "coordination_unavailable")?;
                         return Ok(());
@@ -633,7 +779,13 @@ impl Actor {
                 let Some(room) = self.room else {
                     return Ok(());
                 };
-                self.emit(Event::Connected { epoch, peer, room })?;
+                let control = self.controls.get(&peer).map(ControlWorker::id).unwrap_or(0);
+                self.emit(Event::Connected {
+                    epoch,
+                    peer,
+                    room,
+                    control,
+                })?;
                 if let Some(invite) = joined_invite {
                     self.emit(Event::DiscordInvite {
                         epoch,

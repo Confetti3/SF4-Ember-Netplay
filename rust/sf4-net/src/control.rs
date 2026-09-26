@@ -22,12 +22,39 @@ pub enum QueueError {
     Closed,
 }
 
+impl QueueError {
+    /// The reason a refused native send reports to the native side.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Invalid => "invalid",
+            Self::Full => "queue_full",
+            Self::Closed => "queue_closed",
+        }
+    }
+}
+
+/// Whether the endpoint behind a control has an accepted room session on it.
+/// Native messages are read from a control only while it is not `Pending`:
+/// the native side must learn of a session before any message from it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Session {
+    /// No Admission received yet.
+    Unbound,
+    /// An Admission for this incarnation is being applied; that operation's
+    /// outcome binds or closes the control. A completion for any other
+    /// incarnation, such as a replaced control's, leaves it untouched.
+    Pending(u64),
+    /// Accepted for this process incarnation.
+    Bound(u64),
+}
+
 pub struct ControlWorker {
     connection: Connection,
     outgoing: mpsc::Sender<ControlFrame>,
     incoming: mpsc::Receiver<ControlFrame>,
     tasks: [JoinHandle<()>; 2],
     rejected: Arc<AtomicU64>,
+    session: Session,
 }
 
 impl ControlWorker {
@@ -68,7 +95,22 @@ impl ControlWorker {
             incoming,
             tasks,
             rejected,
+            session: Session::Unbound,
         }
+    }
+
+    pub fn session(&self) -> Session {
+        self.session
+    }
+
+    pub fn set_session(&mut self, session: Session) {
+        self.session = session;
+    }
+
+    /// Stable for the life of this QUIC connection. A close reported for a
+    /// superseded connection can then be told from one for the current one.
+    pub fn id(&self) -> u64 {
+        self.connection.stable_id() as u64
     }
 
     pub fn try_send(&self, frame: ControlFrame) -> Result<(), QueueError> {
