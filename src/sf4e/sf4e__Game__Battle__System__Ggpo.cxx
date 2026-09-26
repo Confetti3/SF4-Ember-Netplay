@@ -745,7 +745,12 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         break;
     case GGPO_EVENTCODE_SYNCHRONIZED_WITH_PEER:
         spdlog::info("GGPO: Synchronized with peer");
-        s_spectatorPolicy.OnSynchronized(info->u.synchronized.player);
+        // The spectator sync deadline only starts once a fighter is synchronized.
+        if (IsSpectatorHandle(info->u.synchronized.player)) {
+            s_spectatorPolicy.OnSynchronized(info->u.synchronized.player);
+        } else {
+            s_spectatorPolicy.OnFighterSynchronized(GetTickCount64());
+        }
         break;
     case GGPO_EVENTCODE_RUNNING:
         s_spectatorPolicy.OnRunning();
@@ -823,7 +828,7 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         s_disconnectTimeoutMs = 0;
         if (!NativeResultEmitted()) {
             sf4e::NetplayFacade::PushAlert(
-                sf4e::loc::T(localPlayerHandle == GGPO_INVALID_HANDLE ? "runtime.match_connection_lost" : "runtime.opponent_disconnected"),
+                sf4e::loc::T(localPlayerHandle == GGPO_INVALID_HANDLE ? "runtime.spectator_stream_lost" : "runtime.opponent_disconnected"),
                 sf4e::NoticeSeverity::Error
             );
         }

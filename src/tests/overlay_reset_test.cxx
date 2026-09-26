@@ -1,6 +1,7 @@
 // Exercise the production overlay lifecycle without starting SF4 or networking.
 #include "../sf4e/sf4e__Overlay.hxx"
 #include "../sf4e/sf4e__OverlayPrefs.hxx"
+#include "../common/StageCatalog.hxx"
 #include "../ui/OverlayPresentation.hxx"
 #include <imgui.h>
 #include <imgui_impl_dx9.h>
@@ -33,6 +34,27 @@ static int CheckPerFighterPicks() {
     check(loaded.fighters[12].costume == 2 && loaded.fighters[12].color == 5, "current fighter's pick did not round-trip");
     check(loaded.fighters[3].costume == 1 && loaded.fighters[3].color == 7, "a second fighter's pick did not stay separate");
     check(loaded.fighters[5].costume < sf4e::selection::CostumeCount(5), "an out-of-range remembered costume was not clamped");
+
+    // Random is a saved local choice. It survives the preferences, while bonus
+    // rounds and unknown ids keep the previous choice or fall back to 0.
+    data.stageID = sf4e::selection::RandomStageId;
+    Prefs::Clamp(data);
+    check(data.stageID == sf4e::selection::RandomStageId, "clamping dropped a Random stage choice");
+    Prefs::Data random;
+    Prefs::FromJson(Prefs::ToJson(data), random);
+    Prefs::Clamp(random);
+    check(random.stageID == sf4e::selection::RandomStageId, "a Random stage choice did not round-trip");
+    for (int invalid : {-1, 22, 23, 30, 254, 256}) {
+        Prefs::Data kept;
+        kept.stageID = 11;
+        Prefs::FromJson({{"stageID", invalid}}, kept);
+        Prefs::Clamp(kept);
+        check(kept.stageID == 11, "an unsupported saved stage replaced the previous choice");
+        Prefs::Data clamped;
+        clamped.stageID = invalid;
+        Prefs::Clamp(clamped);
+        check(clamped.stageID == 0, "clamping kept an unsupported stage");
+    }
     return failures;
 }
 

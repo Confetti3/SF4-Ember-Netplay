@@ -7,7 +7,12 @@
 // Two rules, both bounded so a spectator can never hold the fighters:
 //  - initial sync: GGPO withholds RUNNING until every spectator has
 //    synchronized. A spectator not synchronized SyncDeadlineMs after the
-//    session started is dropped, which releases RUNNING.
+//    first fighter synchronized is dropped, which releases RUNNING. The
+//    deadline is measured from the moment the fighters are synchronized,
+//    because before that the fight cannot start anyway and a spectator's
+//    late load costs the fighters nothing. If no fighter ever synchronizes,
+//    the fighters' own GGPO disconnect tolerance ends the session, so no
+//    spectator drop is needed.
 //  - backlog: send_queue_len is the spectator's count of unacknowledged
 //    frames. GGPO itself only gives up at 63 (its pending-output ring). A
 //    spectator at SlowQueueFrames or more on SlowSamples consecutive samples,
@@ -23,7 +28,7 @@ namespace sf4e {
 
 class SpectatorPolicy {
 public:
-	static constexpr std::uint64_t SyncDeadlineMs = 3000;
+	static constexpr std::uint64_t SyncDeadlineMs = 5000;
 	static constexpr std::uint64_t SampleIntervalMs = 200;
 	static constexpr int SlowQueueFrames = 32;
 	static constexpr int DropQueueFrames = 48;
@@ -32,7 +37,7 @@ public:
 	static constexpr int SlowSamples = 5;
 
 	void Start(std::uint64_t nowMs, const std::vector<int>& spectators) {
-		startedMs_ = nowMs; lastSampleMs_ = nowMs; running_ = false;
+		lastSampleMs_ = nowMs; fightersSyncedMs_ = 0; running_ = false;
 		spectators_.clear();
 		for (const auto handle : spectators) spectators_[handle] = State{};
 	}
@@ -40,13 +45,17 @@ public:
 		const auto found = spectators_.find(handle);
 		if (found != spectators_.end()) found->second.synchronized = true;
 	}
+	// The first fighter handle to synchronize starts the spectator deadline.
+	void OnFighterSynchronized(std::uint64_t nowMs) {
+		if (fightersSyncedMs_ == 0) fightersSyncedMs_ = nowMs;
+	}
 	void OnRunning() { running_ = true; }
 	void OnDisconnected(int handle) { spectators_.erase(handle); }
 
 	// Spectators to drop now because initial sync overran its deadline.
 	std::vector<int> SyncOverdue(std::uint64_t nowMs) {
 		std::vector<int> drop;
-		if (running_ || nowMs < startedMs_ + SyncDeadlineMs) return drop;
+		if (running_ || fightersSyncedMs_ == 0 || nowMs < fightersSyncedMs_ + SyncDeadlineMs) return drop;
 		for (const auto& entry : spectators_) if (!entry.second.synchronized) drop.push_back(entry.first);
 		for (const auto handle : drop) spectators_.erase(handle);
 		return drop;
@@ -79,7 +88,8 @@ public:
 private:
 	struct State { bool synchronized = false; int slowSamples = 0; };
 	std::map<int, State> spectators_;
-	std::uint64_t startedMs_ = 0, lastSampleMs_ = 0;
+	// Zero until a fighter synchronizes in this session.
+	std::uint64_t fightersSyncedMs_ = 0, lastSampleMs_ = 0;
 	bool running_ = false;
 };
 

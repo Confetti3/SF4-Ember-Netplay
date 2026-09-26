@@ -60,9 +60,12 @@ private:
 };
 
 // A spectator (roster slot 2 of 3) with its own grant/connect/end builders.
-// AcceptGrant only needs a plain (non-custom-room) lobby projection, so the
-// fixture skips the room-snapshot machinery entirely.
+// Constructed with slot 1 it is instead P2 of a two-member roster, a fighter
+// with the same single dialed link to P1. AcceptGrant only needs a plain
+// (non-custom-room) lobby projection, so the fixture skips the room-snapshot
+// machinery entirely.
 struct Fixture {
+	std::size_t localSlot = 2;
 	platform::HelperClient helper;
 	std::shared_ptr<FakeIrohRoom> room = std::make_shared<FakeIrohRoom>(helper);
 	SessionClient::Callbacks callbacks{};
@@ -73,7 +76,8 @@ struct Fixture {
 	MockClient* transport = nullptr;
 	std::string p1 = std::string(64, 'A');
 
-	Fixture() {
+	explicit Fixture(std::size_t slot = 2) : localSlot(slot) {
+		CHECK(localSlot == 1 || localSlot == 2);
 		transport = new MockClient();
 		CHECK(client.Connect(std::unique_ptr<session::ClientTransport>(transport), false) == 0);
 		// Connect() disconnects first, which clears match authorization; the
@@ -89,20 +93,20 @@ struct Fixture {
 		std::array<std::uint8_t, 16> id{}; id[15] = 1;
 		room->roomId = id;
 		room->localIdentity = std::string(64, 'L');
-		client._lobbyData.members.resize(3);
+		client._lobbyData.members.resize(localSlot + 1);
 		client._lobbyData.members[0].connId = {"room", "p1"};
-		client._lobbyData.members[1].connId = {"room", "p2"};
-		client._lobbyData.members[2].connId = client._cid;
+		if (localSlot == 2) client._lobbyData.members[1].connId = {"room", "p2"};
+		client._lobbyData.members[localSlot].connId = client._cid;
 	}
 
 	json Grant(std::uint64_t generation) const {
-		std::vector<protocol::ConnectionID> roster{
-			client._lobbyData.members[0].connId, client._lobbyData.members[1].connId, client._lobbyData.members[2].connId};
+		std::vector<protocol::ConnectionID> roster;
+		for (const auto& member : client._lobbyData.members) roster.push_back(member.connId);
 		std::array<std::uint8_t, 32> capability{}; capability[0] = 7;
 		const json link = {{"slot", 0}, {"peer", p1}, {"capability", capability}, {"dial", true}};
 		return json{{"type", "game_prepare"}, {"generation", generation}, {"version", 1}, {"room", room->roomId},
 			{"local_identity", room->localIdentity}, {"max_packet", session::GgpoMaximumPacket},
-			{"roster", roster}, {"slot", std::size_t(2)}, {"links", json::array({link})}};
+			{"roster", roster}, {"slot", localSlot}, {"links", json::array({link})}};
 	}
 	static json Connect(std::uint64_t generation) { return json{{"type", "game_connect"}, {"generation", generation}}; }
 	static json End(std::uint64_t generation) { return json{{"type", "game_end"}, {"generation", generation}}; }
@@ -211,9 +215,10 @@ void TestSpectatorHelperTimeoutStaysInRoom() {
 }
 
 // (5) The native battle ends and the helper closes, but the room's game_end
-// never arrives. The wait is bounded and fails through the recoverable abort,
-// which stays in the room and returns to Idle.
-void TestMissingRoomEndIsBounded() {
+// has not arrived. A spectator has lost its stream and has no result to
+// report, so it abandons the generation and returns to the room on the same
+// Tick, without waiting even one millisecond.
+void TestSpectatorMissingRoomEndReturnsAtOnce() {
 	Fixture f;
 	f.transport->Push(f.Grant(5));
 	f.transport->Push(Fixture::Connect(5));
@@ -221,6 +226,31 @@ void TestMissingRoomEndIsBounded() {
 	CHECK(f.session.Tick());
 	CHECK(f.session.Tick());
 	CHECK(f.session.GetPhase() == Phase::Connecting);
+	CHECK(f.session.LocalSlot() == 2);
+	f.session.End();
+	f.room->AbandonMatch(5);
+	CHECK(f.session.Tick());
+	CHECK(f.session.GetPhase() == Phase::Idle);
+	CHECK(f.session.Error().empty());
+	CHECK(f.session.LastFailure().empty());
+	CHECK(f.room->endMatchCalls.size() == 1);
+	CHECK(f.room->leaveCalls == 0);
+	CHECK(f.room->Game(f.p1).state == session::IrohRoom::GameState::Closed);
+	std::cout << "TestSpectatorMissingRoomEndReturnsAtOnce passed\n";
+}
+
+// (6) The same close for a fighter. Its result report depends on the room's
+// game_end, so the wait is bounded and fails through the recoverable abort,
+// which stays in the room and returns to Idle.
+void TestFighterMissingRoomEndIsBounded() {
+	Fixture f(1);
+	f.transport->Push(f.Grant(5));
+	f.transport->Push(Fixture::Connect(5));
+	CHECK(f.client.Step() == 0);
+	CHECK(f.session.Tick());
+	CHECK(f.session.Tick());
+	CHECK(f.session.GetPhase() == Phase::Connecting);
+	CHECK(f.session.LocalSlot() == 1);
 	f.session.End();
 	f.room->AbandonMatch(5);
 	CHECK(f.session.Tick());
@@ -239,7 +269,7 @@ void TestMissingRoomEndIsBounded() {
 	CHECK(f.session.Tick());
 	CHECK(f.session.GetPhase() == Phase::Idle);
 	CHECK(f.room->leaveCalls == 0);
-	std::cout << "TestMissingRoomEndIsBounded passed\n";
+	std::cout << "TestFighterMissingRoomEndIsBounded passed\n";
 }
 
 }
@@ -249,7 +279,8 @@ int main() {
 	TestEarlyConnectSeparateTicks();
 	TestGameEndCancelsEarlyConnect();
 	TestSpectatorHelperTimeoutStaysInRoom();
-	TestMissingRoomEndIsBounded();
+	TestSpectatorMissingRoomEndReturnsAtOnce();
+	TestFighterMissingRoomEndIsBounded();
 	std::cout << "Iroh match session tests passed\n";
 	return 0;
 }

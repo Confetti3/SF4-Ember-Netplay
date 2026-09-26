@@ -43,4 +43,12 @@ int NormalizeStage(std::int64_t nativeId) {
     const auto* stage = FindStage(nativeId);
     return stage ? stage->id : 0;
 }
+bool IsRandomStage(std::int64_t id) { return id == RandomStageId; }
+int NormalizeStageChoice(std::int64_t id) {
+    return IsRandomStage(id) ? RandomStageId : NormalizeStage(id);
+}
+int ResolveStage(int choice, std::uint32_t roll) {
+    if (IsRandomStage(choice)) return StageList()[roll % VersusStageCount].id;
+    return NormalizeStage(choice);
+}
 } }

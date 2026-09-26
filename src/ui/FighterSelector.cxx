@@ -154,6 +154,10 @@ std::string CostumeLabel(const selection::Pick& pick) {
     if (pick.costume == 0) return loc::T("selection.original");
     return loc::Tf("selection.alternate_pack", pick.costume, selection::CostumePack(pick.fighter, pick.costume));
 }
+const char* StageLabel(int stageId) {
+    if (selection::IsRandomStage(stageId)) return loc::T("selection.random_stage");
+    return selection::FindStage(selection::NormalizeStage(stageId))->name;
+}
 }
 
 
@@ -204,7 +208,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  if(screen=="home"){
   rows={Row("roster",loc::T("selection.fighter"),FindFighter(pick.fighter)->name),Row("appearance",loc::T("selection.appearance"),loc::Tf("selection.appearance_value",CostumeLabel(pick),pick.color+1)),
    Row("ultra",loc::T("selection.ultra_combo"),pick.ultra==2?loc::T("selection.ultra_double"):FindFighter(pick.fighter)->ultras[pick.ultra]),
-   Row("stage",loc::T("selection.stage"),stageId?FindStage(NormalizeStage(*stageId))->name:loc::T("selection.p1_stage"),stageId!=nullptr),
+   Row("stage",loc::T("selection.stage"),stageId?StageLabel(*stageId):loc::T("selection.p1_stage"),stageId!=nullptr),
    Row("options",loc::T("selection.additional_options"),loc::T("selection.additional_options.detail"))};
  }else if(screen=="roster"){
   page_=Page::Fighter;title=loc::T("selection.choose_fighter");
@@ -235,6 +239,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   }
  }else if(screen=="stage"){
   page_=Page::Stage;title=loc::T("selection.stage_title");
+  rows.push_back(Row("stage-"+std::to_string(RandomStageId),loc::T("selection.random_stage"),stageId?loc::T("selection.random_stage.detail"):loc::T("selection.only_p1_stage"),editable&&stageId));
   for(const auto& stage:StageList())rows.push_back(Row("stage-"+std::to_string(stage.id),stage.name,stageId?locked:loc::T("selection.only_p1_stage"),editable&&stageId));
   // Derive columns like the roster and the galleries do. A fixed three columns
   // left 16:9 stage cards far below the width the sibling grids guarantee.
@@ -246,6 +251,8 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    Value("quote",loc::T("selection.win_quote"),pick.winQuote==255?loc::T("selection.random"):std::to_string(pick.winQuote+1),locked,editable),
    Value("handicap",loc::T("selection.handicap"),HandicapLabel(pick.handicap),locked,editable)};
  }
+ // Random has no art of its own. Callers have already checked art.
+ const auto stageImage=[&](int id){return IsRandomStage(id)?Missing():art->Stage(id);};
  const bool compactAppearance=(screen=="costumes"||screen=="colors")&&ImGui::GetContentRegionAvail().x<820*Scale();
  const auto preview=[&](const std::string& id){
   if(screen=="ultra"){
@@ -272,7 +279,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   const float height=(std::min)(ImGui::GetContentRegionAvail().y-10*Scale(),250*Scale());
   if(height>35*Scale()){
    const auto p=ImGui::GetCursorScreenPos();ImGui::Dummy(ImVec2(width,height));
-   const auto img=!art?Missing():screen=="stage"?art->Stage(focusStage):(screen=="appearance"||screen=="costumes"||screen=="colors")?art->Appearance(pick.fighter,focusCostume,focusColor):art->Portrait(focusFighter,true);
+   const auto img=!art?Missing():screen=="stage"?stageImage(focusStage):(screen=="appearance"||screen=="costumes"||screen=="colors")?art->Appearance(pick.fighter,focusCostume,focusColor):art->Portrait(focusFighter,true);
    ImageInRect(img,p,ImVec2(p.x+width,p.y+height));
   }
  };
@@ -281,7 +288,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   if(e.id=="waiting")return false;
   const int id=std::stoi(e.id.substr(screen=="roster"||screen=="costumes"?8:6));
   const float labelHeight=ImGui::GetTextLineHeight()+4*Scale();
-  const auto image=!art?Missing():screen=="roster"?art->Portrait(id):screen=="stage"?art->Stage(id):
+  const auto image=!art?Missing():screen=="roster"?art->Portrait(id):screen=="stage"?stageImage(id):
    art->Appearance(pick.fighter,screen=="costumes"?id:pick.costume,screen=="costumes"?PreviewColor(pick.fighter,id,availability):id);
   ImageInRect(image,ImVec2(min.x+3,min.y+3),ImVec2(max.x-3,max.y-labelHeight));
   const bool saved=screen=="roster"?id==pick.fighter:screen=="costumes"?id==pick.costume:screen=="colors"?id==pick.color:stageId&&id==*stageId;

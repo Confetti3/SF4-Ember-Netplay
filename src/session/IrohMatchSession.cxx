@@ -390,13 +390,19 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 		// close is not worth its room membership: stop waiting and return to the
 		// room. Fighters keep the fail-closed branch below. The mapping is
 		// released too, or PrepareGame would refuse every later match.
-		// With every helper edge closed the port is safe, so a missing game_end
-		// fails through the ordinary recoverable abort, which stays in the room.
-		if (closed && !roomEndReceived_) {
+		// A spectator whose helper links all closed before the room's game_end
+		// has lost its stream: the host dropped it, or the fight went on without
+		// it. It has no result to report, so it goes back to the room at once.
+		// Only fighters wait for game_end, because their result report depends
+		// on it. With every helper edge closed the port is safe, so a fighter's
+		// missing game_end fails after a bounded wait through the ordinary
+		// recoverable abort, which stays in the room.
+		const bool spectator = slot_ >= 2;
+		if (!spectator && closed && !roomEndReceived_) {
 			teardown_.ArmRoomEnd(now);
 			if (teardown_.RoomEndTimedOut(now)) return Fail("match_room_end_timeout");
 		}
-		const bool spectatorAbandon = slot_ >= 2 && teardown_.HelperTimedOut(now, closed);
+		const bool spectatorAbandon = spectator && (closed ? !roomEndReceived_ : teardown_.HelperTimedOut(now, closed));
 		if (spectatorAbandon) room_->AbandonMatch(generation_);
 		if ((closed && roomEndReceived_) || spectatorAbandon) {
 			phase_ = Phase::Idle; ClearLinks(); teardown_ = MatchTeardownTiming();

@@ -230,7 +230,7 @@ void Apply(netplay::EventKind kind, const std::string& error = {}) {
 	}
 	else if (decision.accepted && kind == netplay::EventKind::ControlLost &&
 		runtime->controller.GetSnapshot().room == netplay::RoomState::Lost) {
-		HandleControlPlaneLoss(error.c_str());
+		ObserveControlPlane(ControlPlaneCause::Coordination, false, error.c_str());
 		if (!UserApp::netplay) {
 			runtime->controller.Execute({netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}});
 			CloseRoom();
@@ -1016,9 +1016,8 @@ static void ObserveCoordination() {
             const bool applied=!UserApp::server || runtime->recovery.CaughtUp(appliedAuthority);
             runtime->controller.ObserveCoordination(appliedAuthority.term,appliedAuthority.revision,
                 connected,GetTickCount64(),applied);
-            if(connected) RestoreControlPlane();
-            else if(runtime->attached && runtime->controller.ControlPlaneEstablished())
-                HandleControlPlaneLoss(loc::T("runtime.room_control_recovering"));
+            if(connected || (runtime->attached && runtime->controller.ControlPlaneEstablished()))
+                ObserveControlPlane(ControlPlaneCause::Coordination,connected,loc::T("runtime.room_control_recovering"));
         }
         runtime->controller.AdvanceRecovery(GetTickCount64());
     }
@@ -1216,7 +1215,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		if (inFlight) return DispatchOutcome::Dropped;
 		const char* refusal = nullptr;
 		if (!runtime->input.Ready()) refusal = loc::T("runtime.ready.assign_controller");
-		else if (!selection::FindStage(command.stage)) refusal = loc::T("runtime.ready.stage_unavailable");
+		else if (!selection::IsRandomStage(command.stage) && !selection::FindStage(command.stage)) refusal = loc::T("runtime.ready.stage_unavailable");
 		else if (command.character.charaID >= 44) refusal = loc::T("runtime.ready.fighter_unavailable");
 		else if (!selection::Available(selection::FromNative(command.character), published.lobbySettings.editionSelect,
 			Dimps::Selection::ReadAvailability(command.character.charaID)))
@@ -1358,7 +1357,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		bool sent = client.PreBattle_SetChara(command.character) == session::SendResult::Queued;
 		if (!client._lobbyData.members.empty() && client._lobbyData.members[0].connId == client._cid) {
 			sent = client.PreBattle_SetEnv(sf4e::localRand()) == session::SendResult::Queued && sent;
-			sent = client.PreBattle_SetStage(command.stage) == session::SendResult::Queued && sent;
+			sent = client.PreBattle_SetStage(selection::ResolveStage(command.stage, sf4e::localRand())) == session::SendResult::Queued && sent;
 		}
 		if (!sent || client.Lobby_Ready() != session::SendResult::Queued) {
 			FailReady(loc::T("runtime.match_settings_send_failed"));

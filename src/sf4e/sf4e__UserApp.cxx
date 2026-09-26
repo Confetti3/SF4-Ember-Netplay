@@ -333,18 +333,16 @@ void fUserApp::Steam_PostUpdate() {
         }
     }
 
-    if (netplayStepFailed) {
-        // Degrades instead of killing an active healthy GGPO fight; falls
-        // back to full failure outside that case (Phase 7).
-        sf4e::NetplayFacade::HandleControlPlaneLoss(
-            "Lost connection to the game room. Check your internet and try again."
-        );
-    }
-    else if (serverStepFailed) {
-        sf4e::NetplayFacade::HandleControlPlaneLoss(
+    // Reported every tick. On the loss edge an active healthy GGPO fight
+    // degrades instead of being killed; outside that case the loss falls
+    // back to full failure (Phase 7).
+    sf4e::NetplayFacade::ObserveControlPlane(
+        sf4e::NetplayFacade::ControlPlaneCause::SessionClient,
+        !netplayStepFailed && !serverStepFailed,
+        netplayStepFailed ?
+            "Lost connection to the game room. Check your internet and try again." :
             "Session server error. Check your internet and try again."
-        );
-    }
+    );
 
     {
         diag::ScopedTimer _t(diag::OP_FACADE_TICK_FRAME);

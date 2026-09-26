@@ -12,9 +12,11 @@ inline int ReadStage(const nlohmann::json& value) {
 inline int PreferenceStage(const nlohmann::json& object, const char* key, int fallback) {
     const auto found = object.find(key);
     if (found != object.end()) {
+        // Random is a saved local choice, never a wire value, so ReadStage stays strict.
+        if (found->is_number_integer() && *found == RandomStageId) return RandomStageId;
         try { return ReadStage(*found); }
         catch (const nlohmann::json::exception&) {}
     }
-    return NormalizeStage(fallback);
+    return NormalizeStageChoice(fallback);
 }
 } }
