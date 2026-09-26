@@ -194,11 +194,11 @@ namespace sf4e {
 		// unavailable, and rematch, results and spectator coordination are
 		// disabled. In every other situation it falls back to full
 		// HandleNetplayFailure.
+		// Callers report a cause's health whenever they observe it. The loss
+		// handling runs once on the edge into loss; the edge out of it only
+		// clears the state.
 		enum class ControlPlaneCause { Coordination, SessionClient };
-		// Level-triggered: callers report each cause's health every tick. The plane is
-		// lost while any cause is unhealthy; the loss handling runs once on that edge
-		// and recovery clears it once on the opposite edge.
-		void ObserveControlPlane(ControlPlaneCause cause, bool healthy, const char* reason = nullptr);
+		void ObserveControlPlane(ControlPlaneCause cause, bool healthy, const char* reason);
 		bool IsControlPlaneLost();
 		// Frame at which snapshot/hash verification became unavailable
 		// (-1 when the control plane is healthy).

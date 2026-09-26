@@ -136,15 +136,14 @@ namespace sf4e {
 		}
 	}
 
-	static bool s_controlPlaneLost = false;
-	static int s_verificationLostAtFrame = -1;
-	// Last health reported by each cause. The plane is lost while either is
-	// false; s_controlPlaneLost follows that only on the edges.
+	// Last health reported by each cause. The control plane is lost while
+	// either is false.
 	static bool s_coordinationHealthy = true;
 	static bool s_sessionClientHealthy = true;
+	static int s_verificationLostAtFrame = -1;
 
 	bool NetplayFacade::IsControlPlaneLost() {
-		return s_controlPlaneLost;
+		return !(s_coordinationHealthy && s_sessionClientHealthy);
 	}
 
 	int NetplayFacade::GetVerificationLostFrame() {
@@ -152,31 +151,18 @@ namespace sf4e {
 	}
 
 	void NetplayFacade::ObserveControlPlane(ControlPlaneCause cause, bool healthy, const char* reason) {
-		if (cause == ControlPlaneCause::Coordination) {
-			s_coordinationHealthy = healthy;
-		}
-		else {
-			s_sessionClientHealthy = healthy;
-		}
-		const bool lost = !(s_coordinationHealthy && s_sessionClientHealthy);
-
-		if (!lost) {
-			if (s_controlPlaneLost) {
-				// Recovery cannot retroactively verify frames from the lost interval.
-				s_controlPlaneLost = false;
-			}
-			return;
-		}
-		if (s_controlPlaneLost) {
-			// Already handled on the loss edge; nothing further to do.
-			return;
-		}
+		const bool wasLost = IsControlPlaneLost();
+		(cause == ControlPlaneCause::Coordination ? s_coordinationHealthy : s_sessionClientHealthy) = healthy;
+		// Only the edge into loss is handled. Recovery just clears the state,
+		// because it cannot retroactively verify frames from the lost interval.
+		// A loss outside a running fight ends in HandleNetplayFailure, whose
+		// shutdown resets both causes to healthy.
+		if (wasLost || !IsControlPlaneLost()) return;
 		if (!reason || !reason[0]) {
 			reason = loc::T("runtime.room_control_recovering");
 		}
 
         if (IsRuntimeRecoveryEnabled()) {
-            s_controlPlaneLost = true;
             s_verificationLostAtFrame = fSystem::lastGgpoSaveFrame;
             PushAlert(loc::T("runtime.room_recovering"), NoticeSeverity::Warning);
             return;
@@ -195,7 +181,6 @@ namespace sf4e {
 			return;
 		}
 
-		s_controlPlaneLost = true;
 		s_verificationLostAtFrame =
 			rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
 		spdlog::warn(
@@ -213,7 +198,7 @@ namespace sf4e {
 
 	void NetplayFacade::FinalizeControlPlaneLossAfterBattle() {
 		if (IsRuntimeRecoveryEnabled()) return;
-		if (!s_controlPlaneLost) {
+		if (!IsControlPlaneLost()) {
 			return;
 		}
 		spdlog::warn(
@@ -311,10 +296,8 @@ namespace sf4e {
 			fUserApp::server.reset();
 		}
 		s_spectatorDrainUntil = 0;
-		s_controlPlaneLost = false;
+		s_coordinationHealthy = s_sessionClientHealthy = true;
 		s_verificationLostAtFrame = -1;
-		s_coordinationHealthy = true;
-		s_sessionClientHealthy = true;
 		// Keep an Error visible across the shutdown (it explains why the
 		// player is back in the menu); drop transient notices.
 		if (s_notice.severity != NoticeSeverity::Error) ClearMatchNotice();
@@ -344,7 +327,7 @@ namespace sf4e {
 		// membership is not that set: a receiving spectator counts the other
 		// members and would hold its own session open for nothing, and without
 		// a room there is nothing to coordinate spectators through at all.
-		const std::size_t spectators = s_controlPlaneLost || !fUserApp::netplay ?
+		const std::size_t spectators = IsControlPlaneLost() || !fUserApp::netplay ?
 			0 : fSystem::SpectatorStreamCount();
 		if (!spectators) {
 			s_spectatorDrainUntil = 0;

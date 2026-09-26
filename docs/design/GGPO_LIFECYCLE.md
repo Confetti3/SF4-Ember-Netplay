@@ -34,7 +34,7 @@ The audit below is kept as written. What it flagged has since changed:
   callback latches (`sf4e__GgpoAbortLatch.hxx`), marks the gate fatal, and
   `DrainPendingAbort` closes the session after the GGPO API call returns.
 - **Phase 7:** control-plane loss during a healthy fight degrades instead of
-  closing GGPO (`NetplayFacade::HandleControlPlaneLoss`).
+  closing GGPO (`NetplayFacade::ObserveControlPlane`).
 - **Spectator mismatch policy (Phase 6):** both the v1 snapshot path and the v2
   hash path send only from players and never let a local spectator end the
   players' fight. A spectator's own disconnect event is also ignored by the

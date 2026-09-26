@@ -1016,9 +1016,8 @@ static void ObserveCoordination() {
             const bool applied=!UserApp::server || runtime->recovery.CaughtUp(appliedAuthority);
             runtime->controller.ObserveCoordination(appliedAuthority.term,appliedAuthority.revision,
                 connected,GetTickCount64(),applied);
-            ObserveControlPlane(ControlPlaneCause::Coordination,
-                connected || !(runtime->attached && runtime->controller.ControlPlaneEstablished()),
-                loc::T("runtime.room_control_recovering"));
+            if(connected || (runtime->attached && runtime->controller.ControlPlaneEstablished()))
+                ObserveControlPlane(ControlPlaneCause::Coordination,connected,loc::T("runtime.room_control_recovering"));
         }
         runtime->controller.AdvanceRecovery(GetTickCount64());
     }
