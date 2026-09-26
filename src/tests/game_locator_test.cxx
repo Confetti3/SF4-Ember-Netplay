@@ -227,6 +227,13 @@ int main() {
     CHECK((ShadowingRuntimeLibraries(L"C:\\Windows\\SysWOW64", {L"D:\\Games\\Ultra", L"C:\\Windows\\SysWOW64", L"C:\\Windows"}, stale) ==
         Paths{L"D:\\Games\\Ultra\\GGPO.dll", L"D:\\Games\\Ultra\\fmt.dll"}));
     CHECK(ShadowingRuntimeLibraries(package, {}, stale).empty());
+    // The launcher's DLL directory is handed to the game and searched right
+    // after the game folder, so a copy that exists only in a system folder
+    // does not block a package elsewhere, while a game-folder copy still does.
+    const auto systemOnly = [](const std::wstring& path) { return path == L"C:\\Windows\\SysWOW64\\GGPO.dll"; };
+    const Paths gameOrder{L"D:\\Games\\Ultra", package, L"C:\\Windows\\SysWOW64", L"C:\\Windows\\System", L"C:\\Windows"};
+    CHECK(ShadowingRuntimeLibraries(package, gameOrder, systemOnly).empty());
+    CHECK((ShadowingRuntimeLibraries(package, gameOrder, stale) == Paths{L"D:\\Games\\Ultra\\GGPO.dll", L"D:\\Games\\Ultra\\fmt.dll"}));
     // Every library Sidecar imports by name is checked.
     Paths probed;
     const auto record = [&probed](const std::wstring& path) { probed.push_back(path); return false; };

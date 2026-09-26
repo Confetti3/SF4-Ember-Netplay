@@ -63,8 +63,9 @@ GameLocation LocateGame(const std::wstring& chosenDirectory, const std::wstring&
 inline constexpr const wchar_t* kSidecarRuntimeLibraries[] = {L"GGPO.dll", L"spdlog.dll", L"fmt.dll", L"zlib1.dll"};
 
 // Full paths of runtime library copies that the game would load ahead of the
-// package's. folders is the game's search order, the folders it looks in
-// before PATH puts the package last: the game folder, then the system folders.
+// package's. folders is the game's search order with the package folder at
+// its own position: the game folder, the package folder Windows hands the
+// game from this launcher's SetDllDirectory call, then the system folders.
 // The scan stops at the package folder, in any spelling, because a copy found
 // there is ours and nothing after it is reached. Empty folders are skipped.
 std::vector<std::wstring> ShadowingRuntimeLibraries(const std::wstring& packageDirectory,

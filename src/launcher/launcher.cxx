@@ -569,22 +569,25 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (!ShowRecovery(sf4e::loc::T("launcher.sidecar_missing"),chosenDirectory)) return 0;
             continue;
         }
-        // Sidecar's own imports resolve inside the game process, which looks in
-        // its own folder, the system folder, the 16-bit system folder and the
-        // Windows folder before the PATH entry UpdatePath added for the package
-        // (SetDllDirectory above applies to this process only). A GGPO.dll left
-        // in one of those by another mod or an older install loads instead of
-        // ours, lacks our exports, and Windows stops the game with "entry point
-        // ggpo_get_last_confirmed_frame not found" before Sidecar can log
-        // anything. Name the file rather than let that happen. The 32-bit game
-        // reads System32 as SysWOW64, so report that folder by its real name
-        // or the player looks in the wrong one.
+        // Sidecar's own imports resolve inside the game process at its start.
+        // Windows searches the game folder first, then the folder this
+        // launcher gave SetDllDirectory in ConfigureDllSearch (a parent's DLL
+        // directory is handed to the process it starts), then the system
+        // folder, the 16-bit system folder, the Windows folder and PATH. So a
+        // GGPO.dll left beside SSFIV.exe by another mod or an older install
+        // loads instead of ours, lacks our exports, and Windows stops the game
+        // with "entry point ggpo_get_last_confirmed_frame not found" before
+        // Sidecar can log anything, while a copy in a system folder is never
+        // reached. Name the file rather than let that happen. The list keeps
+        // the game's order so the scan stops at the package. The 32-bit game
+        // reads System32 as SysWOW64, so that folder is named as the player
+        // sees it.
         wchar_t systemDirectory[MAX_PATH] = {}, windowsDirectory[MAX_PATH] = {}, legacySystemDirectory[MAX_PATH] = {};
         if (!GetSystemWow64DirectoryW(systemDirectory, MAX_PATH) && !GetSystemDirectoryW(systemDirectory, MAX_PATH)) systemDirectory[0] = L'\0';
         if (!GetWindowsDirectoryW(windowsDirectory, MAX_PATH)) windowsDirectory[0] = L'\0';
         else if (FAILED(PathCchCombine(legacySystemDirectory, MAX_PATH, windowsDirectory, L"System"))) legacySystemDirectory[0] = L'\0';
-        const auto shadowing = sf4e::launcher::ShadowingRuntimeLibraries(installRoot,
-            {location.directory, systemDirectory, legacySystemDirectory, windowsDirectory}, exists);
+        const auto shadowing = sf4e::launcher::ShadowingRuntimeLibraries(dllDirectory,
+            {location.directory, dllDirectory, systemDirectory, legacySystemDirectory, windowsDirectory}, exists);
         if (!shadowing.empty()) {
             std::wstring listed;
             for (const auto& path : shadowing) {

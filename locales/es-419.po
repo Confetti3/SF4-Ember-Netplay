@@ -76,7 +76,7 @@ msgid "launcher.runtime_shadowed"
 msgstr "El juego cargaría estos archivos en lugar de los de la carpeta de Ember, y una copia vieja detiene el juego antes de iniciar (\"No se encuentra el punto de entrada ggpo_get_last_confirmed_frame\"). Los dejó otro mod de netplay o una instalación anterior. Muévelos o cámbiales el nombre y vuelve a iniciar Ember:\n\n{0}"
 
 msgid "launcher.game_wrong_dll"
-msgstr "El juego se detuvo antes de que Ember pudiera iniciar porque a una DLL que cargó le falta una función. Eso suele significar que hay un GGPO.dll, spdlog.dll, fmt.dll o zlib1.dll de otro mod o de una instalación anterior junto a SSFIV.exe o en la carpeta de Windows. Quita de ahí los que encuentres y vuelve a intentarlo. Si no hay ninguno, envía el registro del iniciador."
+msgstr "El juego se detuvo antes de que Ember pudiera iniciar porque a una DLL que cargó le falta una función. Eso suele significar que hay un GGPO.dll, spdlog.dll, fmt.dll o zlib1.dll de otro mod o de una instalación anterior junto a SSFIV.exe. Quita de ahí los que encuentres y vuelve a intentarlo. Si no hay ninguno, envía el registro del iniciador."
 
 msgid "recovery.window"
 msgstr "Recuperación de Ember"
