@@ -230,7 +230,7 @@ void Apply(netplay::EventKind kind, const std::string& error = {}) {
 	}
 	else if (decision.accepted && kind == netplay::EventKind::ControlLost &&
 		runtime->controller.GetSnapshot().room == netplay::RoomState::Lost) {
-		HandleControlPlaneLoss(error.c_str());
+		ObserveControlPlane(ControlPlaneCause::Coordination, false, error.c_str());
 		if (!UserApp::netplay) {
 			runtime->controller.Execute({netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}});
 			CloseRoom();
@@ -1016,9 +1016,9 @@ static void ObserveCoordination() {
             const bool applied=!UserApp::server || runtime->recovery.CaughtUp(appliedAuthority);
             runtime->controller.ObserveCoordination(appliedAuthority.term,appliedAuthority.revision,
                 connected,GetTickCount64(),applied);
-            if(connected) RestoreControlPlane();
-            else if(runtime->attached && runtime->controller.ControlPlaneEstablished())
-                HandleControlPlaneLoss(loc::T("runtime.room_control_recovering"));
+            ObserveControlPlane(ControlPlaneCause::Coordination,
+                connected || !(runtime->attached && runtime->controller.ControlPlaneEstablished()),
+                loc::T("runtime.room_control_recovering"));
         }
         runtime->controller.AdvanceRecovery(GetTickCount64());
     }

@@ -184,14 +184,21 @@ namespace sf4e {
 		void ClearMatchNotice();
 		void HandleNetplayFailure(const char* reason, bool closeGgpo);
 
-		// Phase 7: room/control-plane failure handling. During an active,
-		// healthy, non-tunneled GGPO fight this degrades instead of
-		// killing the match: the fight continues on GGPO UDP, room sends
-		// stop, verification is marked unavailable, and rematch/results/
-		// spectator coordination are disabled. In every other situation it
-		// falls back to full HandleNetplayFailure.
-		void HandleControlPlaneLoss(const char* reason);
-        void RestoreControlPlane();
+		// Phase 7: room and control-plane failure handling. The room
+		// coordination and the session client each report their health, and
+		// the control plane counts as lost while either one is unhealthy.
+		// With runtime recovery enabled the loss raises the recovering
+		// notice. Otherwise, during an active, healthy, non-tunneled GGPO
+		// fight it degrades instead of killing the match: the fight
+		// continues on GGPO UDP, room sends stop, verification is marked
+		// unavailable, and rematch, results and spectator coordination are
+		// disabled. In every other situation it falls back to full
+		// HandleNetplayFailure.
+		enum class ControlPlaneCause { Coordination, SessionClient };
+		// Level-triggered: callers report each cause's health every tick. The plane is
+		// lost while any cause is unhealthy; the loss handling runs once on that edge
+		// and recovery clears it once on the opposite edge.
+		void ObserveControlPlane(ControlPlaneCause cause, bool healthy, const char* reason = nullptr);
 		bool IsControlPlaneLost();
 		// Frame at which snapshot/hash verification became unavailable
 		// (-1 when the control plane is healthy).

@@ -138,6 +138,10 @@ namespace sf4e {
 
 	static bool s_controlPlaneLost = false;
 	static int s_verificationLostAtFrame = -1;
+	// Last health reported by each cause. The plane is lost while either is
+	// false; s_controlPlaneLost follows that only on the edges.
+	static bool s_coordinationHealthy = true;
+	static bool s_sessionClientHealthy = true;
 
 	bool NetplayFacade::IsControlPlaneLost() {
 		return s_controlPlaneLost;
@@ -147,10 +151,28 @@ namespace sf4e {
 		return s_verificationLostAtFrame;
 	}
 
-	void NetplayFacade::HandleControlPlaneLoss(const char* reason) {
-		if (s_controlPlaneLost) {
-			// Already degraded; nothing further to do (and no alert spam).
+	void NetplayFacade::ObserveControlPlane(ControlPlaneCause cause, bool healthy, const char* reason) {
+		if (cause == ControlPlaneCause::Coordination) {
+			s_coordinationHealthy = healthy;
+		}
+		else {
+			s_sessionClientHealthy = healthy;
+		}
+		const bool lost = !(s_coordinationHealthy && s_sessionClientHealthy);
+
+		if (!lost) {
+			if (s_controlPlaneLost) {
+				// Recovery cannot retroactively verify frames from the lost interval.
+				s_controlPlaneLost = false;
+			}
 			return;
+		}
+		if (s_controlPlaneLost) {
+			// Already handled on the loss edge; nothing further to do.
+			return;
+		}
+		if (!reason || !reason[0]) {
+			reason = loc::T("runtime.room_control_recovering");
 		}
 
         if (IsRuntimeRecoveryEnabled()) {
@@ -184,8 +206,8 @@ namespace sf4e {
 		// One clear warning. The SessionClient connection is already closed
 		// (Step() no-ops, snapshot/hash sends stop); the netplay objects are
 		// kept alive until the fight ends so nothing dangles, and no
-		// reconnection is attempted — room identity and lobby IDs are
-		// ephemeral, so a new client could not safely resume this lobby.
+		// reconnection is attempted, because room identity and lobby IDs are
+		// ephemeral and a new client could not safely resume this lobby.
 		PushAlert(loc::T("runtime.room_lost_fight_continues"), NoticeSeverity::Warning);
 	}
 
@@ -204,11 +226,6 @@ namespace sf4e {
 		// degraded flags via ShutdownNetplay).
 		ShutdownNetplay(true);
 	}
-
-    void NetplayFacade::RestoreControlPlane() {
-        // Recovery cannot retroactively verify frames from the lost interval.
-        s_controlPlaneLost = false;
-    }
 
 	void NetplayFacade::HandleNetplayFailure(const char* reason, bool closeGgpo) {
 		if (reason && reason[0]) {
@@ -296,6 +313,8 @@ namespace sf4e {
 		s_spectatorDrainUntil = 0;
 		s_controlPlaneLost = false;
 		s_verificationLostAtFrame = -1;
+		s_coordinationHealthy = true;
+		s_sessionClientHealthy = true;
 		// Keep an Error visible across the shutdown (it explains why the
 		// player is back in the menu); drop transient notices.
 		if (s_notice.severity != NoticeSeverity::Error) ClearMatchNotice();
