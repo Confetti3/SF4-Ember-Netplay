@@ -31,11 +31,15 @@ static void AssertSaveStateThreadAffinity() {
     }
 }
 
+// Keys reserved per save state. Sizes the constructor's reservation and the
+// growth warning in Save.
+static constexpr std::size_t kSaveStateKeyReservation = 96;
+
 fSystem::SaveState::SaveState() {
-    // There are at least 88 keys in every save state. The upper bound
-    // is unclear, but we can minimize memory allocation delays by
-    // reserving the lower bound.
-    keys.reserve(88);
+    // Field logs from v0.9.8 and v0.9.9 show 89 to 91 keys in every save
+    // state. Reserving 96 covers them with headroom, so the first save of a
+    // battle does not reallocate.
+    keys.reserve(kSaveStateKeyReservation);
     // Sound records: clear() keeps criPlayerState's capacity and Reset()
     // keeps every manager record with its pool vectors, so after the first
     // save of a battle these never allocate again.
@@ -725,16 +729,17 @@ bool fSystem::SaveState::Save(SaveState* dst, bool temporary) {
         }
     }
 
-    // The constructor reserves 88 keys (the observed lower bound). Record
-    // growth past that once per process so live telemetry can establish
-    // the real stable count before any capacity change is made.
-    if (dst->keys.size() > 88) {
+    // The constructor reserves kSaveStateKeyReservation keys, which covers
+    // the 89 to 91 observed in v0.9.8 and v0.9.9. Growth past it is logged
+    // once per process as telemetry in case the count keeps rising.
+    if (dst->keys.size() > kSaveStateKeyReservation) {
         static bool s_warnedKeyGrowth = false;
         if (!s_warnedKeyGrowth) {
             s_warnedKeyGrowth = true;
             spdlog::warn(
-                "SaveState: key count {} exceeds the 88-key reservation (capacity {})",
+                "SaveState: key count {} exceeds the {}-key reservation (capacity {})",
                 dst->keys.size(),
+                kSaveStateKeyReservation,
                 dst->keys.capacity()
             );
         }
