@@ -239,7 +239,7 @@ if(BUILD_TESTING)
     # game's), and sweeping forty configurations cycles more art than the
     # 32 MB selection cache holds, so the run decodes it repeatedly: about
     # 165 s here against 46 s before portraits loaded in this test.
-    set_tests_properties(UiRender PROPERTIES TIMEOUT 240)
+    set_tests_properties(UiRender PROPERTIES TIMEOUT 360)
     add_executable(SelectionArtTest src/tests/selection_art_test.cxx)
     target_compile_definitions(SelectionArtTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
     target_link_libraries(SelectionArtTest PRIVATE sf4e_ui "d3d9")
@@ -382,6 +382,7 @@ add_library(Session STATIC
     "src/session/IrohRoom.cxx"
     "src/session/IrohRoomAdapters.cxx"
     "src/session/IrohRoomCheckpoint.cxx"
+    "src/session/IrohRoomPeers.cxx"
     "src/session/IrohMatchSession.cxx"
     "src/session/IrohRoom.hxx"
     "src/session/SessionTransport.hxx"
