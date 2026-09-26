@@ -72,6 +72,12 @@ msgstr "Falha ao iniciar ou injetar no jogo. Verifique o log do inicializador e 
 msgid "launcher.game_error"
 msgstr "O jogo foi encerrado com erro. Consulte o log do inicializador e tente novamente."
 
+msgid "launcher.runtime_shadowed"
+msgstr "O jogo carregaria estes arquivos em vez dos da pasta do Ember, e uma cópia antiga encerra o jogo antes de iniciar (\"ponto de entrada ggpo_get_last_confirmed_frame não encontrado\"). Eles ficaram de outro mod de netplay ou de uma instalação anterior. Mova ou renomeie os arquivos e inicie o Ember novamente:\n\n{0}"
+
+msgid "launcher.game_wrong_dll"
+msgstr "O jogo parou antes de o Ember iniciar porque falta uma função em uma DLL que ele carregou. Isso costuma significar que há um GGPO.dll, spdlog.dll, fmt.dll ou zlib1.dll de outro mod ou de uma instalação anterior ao lado de SSFIV.exe. Tire de lá os que encontrar e tente novamente. Se não houver nenhum, envie o log do inicializador."
+
 msgid "recovery.window"
 msgstr "Recuperação do Ember"
 

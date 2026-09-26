@@ -569,6 +569,34 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (!ShowRecovery(sf4e::loc::T("launcher.sidecar_missing"),chosenDirectory)) return 0;
             continue;
         }
+        // Sidecar's own imports resolve inside the game process at its start.
+        // Windows searches the game folder first, then the folder this
+        // launcher gave SetDllDirectory in ConfigureDllSearch (a parent's DLL
+        // directory is handed to the process it starts), then the system
+        // folder, the 16-bit system folder, the Windows folder and PATH. So a
+        // GGPO.dll left beside SSFIV.exe by another mod or an older install
+        // loads instead of ours, lacks our exports, and Windows stops the game
+        // with "entry point ggpo_get_last_confirmed_frame not found" before
+        // Sidecar can log anything, while a copy in a system folder is never
+        // reached. Name the file rather than let that happen. The list keeps
+        // the game's order so the scan stops at the package. The 32-bit game
+        // reads System32 as SysWOW64, so that folder is named as the player
+        // sees it.
+        wchar_t systemDirectory[MAX_PATH] = {}, windowsDirectory[MAX_PATH] = {}, legacySystemDirectory[MAX_PATH] = {};
+        if (!GetSystemWow64DirectoryW(systemDirectory, MAX_PATH) && !GetSystemDirectoryW(systemDirectory, MAX_PATH)) systemDirectory[0] = L'\0';
+        if (!GetWindowsDirectoryW(windowsDirectory, MAX_PATH)) windowsDirectory[0] = L'\0';
+        else if (FAILED(PathCchCombine(legacySystemDirectory, MAX_PATH, windowsDirectory, L"System"))) legacySystemDirectory[0] = L'\0';
+        const auto shadowing = sf4e::launcher::ShadowingRuntimeLibraries(dllDirectory,
+            {location.directory, dllDirectory, systemDirectory, legacySystemDirectory, windowsDirectory}, exists);
+        if (!shadowing.empty()) {
+            std::wstring listed;
+            for (const auto& path : shadowing) {
+                spdlog::error(L"Runtime library outside the package would load instead of ours: {}", path.c_str());
+                listed += (listed.empty() ? L"" : L"\n") + path;
+            }
+            if (!ShowRecovery(sf4e::loc::Tf("launcher.runtime_shadowed", sf4e::platform::WideToUtf8(listed)), chosenDirectory)) return 0;
+            continue;
+        }
         const char* dlls[] = {sidecarAnsi};
         CreateAppIDFile(location.directory.data());
         sf4e::platform::HelperProcess helper, discord;
@@ -582,7 +610,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         DWORD exitCode = 0; GetExitCodeProcess(game,&exitCode);
         spdlog::info("Game exited with code {:#010x} ({})", exitCode, sf4e::crash::ExitCodeName(exitCode));
         discord.Stop(); helper.Stop(); CloseHandle(game);
-        if (exitCode != 0 && ShowRecovery(sf4e::loc::T("launcher.game_error"),chosenDirectory)) continue;
+        // A loader failure never reaches Sidecar's crash record, so the exit
+        // code is the only thing that tells a missing export from a crash.
+        const char* exitMessage = exitCode == 0xC0000139u ? "launcher.game_wrong_dll" : "launcher.game_error";
+        if (exitCode != 0 && ShowRecovery(sf4e::loc::T(exitMessage),chosenDirectory)) continue;
         return 0;
     }
 }
