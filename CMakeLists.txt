@@ -247,8 +247,6 @@ if(BUILD_TESTING)
     set_tests_properties(SelectionArt PROPERTIES TIMEOUT 60)
 endif()
 
-find_path(VALVEFILEVDF_INCLUDE_DIRS "vdf_parser.hpp")
-
 add_library(Dimps STATIC
     "src/Dimps/Dimps__Selection.cxx"
     "src/Dimps/Dimps.hxx"
@@ -591,7 +589,6 @@ target_include_directories(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE "src/common" "sr
 )
 
 add_library(Sidecar SHARED src/sidecar/sidecar.cxx)
-target_include_directories(Sidecar PRIVATE ${VALVEFILEVDF_INCLUDE_DIRS})
 target_link_libraries(Sidecar PRIVATE ${LIB_DETOURS} Dimps sf4e)
 sf4e_configure_windows_version(Sidecar "SF4 Ember Netplay Sidecar" "Sidecar.dll" "VFT_DLL")
 sf4e_embed_manifest(Sidecar "Sidecar.dll.manifest")

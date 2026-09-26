@@ -34,10 +34,6 @@
         "wchar"
       ]
     },
-    {
-      "name": "valvefilevdf",
-      "version>=": "1.0.0#1"
-    },
     "wil",
     "zlib"
   ],
