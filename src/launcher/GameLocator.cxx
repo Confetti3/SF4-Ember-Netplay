@@ -142,8 +142,30 @@ std::wstring GameExecutable(const std::wstring& directory, const std::function<b
     return exists(path) ? path : std::wstring();
 }
 
-bool RememberedFolder::NeedsSave(const std::wstring& folder) const {
-    return !folder.empty() && !SameFolder(folder, persisted);
+RememberedFolder::RememberedFolder(std::wstring persisted) : persisted_(std::move(persisted)) {}
+
+const std::wstring& RememberedFolder::Persisted() const { return persisted_; }
+
+bool RememberedFolder::Remember(const std::wstring& folder, const std::function<bool(const std::wstring&)>& save) {
+    if (folder.empty() || SameFolder(folder, persisted_)) return true;
+    if (!save || !save(folder)) return false;
+    persisted_ = folder;
+    return true;
+}
+
+GameLocation LocateGame(const std::wstring& chosenDirectory, const std::wstring& savedDirectory,
+    const std::function<bool(const std::wstring&)>& exists,
+    const std::function<std::wstring()>& search) {
+    GameLocation location;
+    location.fromRecovery = !chosenDirectory.empty();
+    std::wstring directory = location.fromRecovery ? chosenDirectory : savedDirectory;
+    location.executable = GameExecutable(directory, exists);
+    if (location.executable.empty() && !location.fromRecovery && search) {
+        directory = search();
+        location.executable = GameExecutable(directory, exists);
+    }
+    if (!location.executable.empty()) location.directory = std::move(directory);
+    return location;
 }
 
 } } // namespace sf4e::launcher

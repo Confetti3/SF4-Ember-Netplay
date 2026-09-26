@@ -541,26 +541,23 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     sf4e::launcher::RememberedFolder remembered{sf4e::platform::Utf8ToWide(settings.gameDirectory.c_str())};
     const auto exists = [](const std::wstring& path) { return PathFileExistsW(path.c_str()) != FALSE; };
     for (;;) {
-        // The recovery choice, else the saved folder while it holds the game, else the search.
         const bool chosen = !chosenDirectory.empty();
-        std::wstring directory = chosen ? chosenDirectory : remembered.persisted;
-        std::wstring executable = sf4e::launcher::GameExecutable(directory, exists);
-        bool found = !executable.empty();
-        if (!chosen && !directory.empty()) {
-            if (found) spdlog::info(L"Game directory from settings: {}", directory.c_str());
-            else spdlog::warn(L"Game directory from settings has no SSFIV.exe, searching instead: {}", directory.c_str());
+        const std::wstring saved = remembered.Persisted();
+        auto location = sf4e::launcher::LocateGame(chosenDirectory, saved, exists, [] {
+            wchar_t directory[1024] = {}, executable[1024] = {};
+            return FindSF4(directory,1024,executable,1024) != 0 ? std::wstring(directory) : std::wstring();
+        });
+        if (!chosen && !saved.empty()) {
+            if (location.directory == saved) spdlog::info(L"Game directory from settings: {}", saved.c_str());
+            else spdlog::warn(L"Game directory from settings has no SSFIV.exe, searching instead: {}", saved.c_str());
         }
-        if (!chosen && !found) {
-            wchar_t searchedDirectory[1024] = {}, searchedExecutable[1024] = {};
-            found = FindSF4(searchedDirectory,1024,searchedExecutable,1024) != 0;
-            if (found) { directory = searchedDirectory; executable = searchedExecutable; }
-        } else if (chosen && found && remembered.NeedsSave(directory)) {
+        if (location.fromRecovery && !location.executable.empty()) {
             // Remember the picked folder so later launches do not ask again.
-            const std::string utf8 = sf4e::platform::WideToUtf8(directory);
-            if (!utf8.empty() && sf4e::launcher::SaveGameDirectory(utf8)) { remembered.persisted = directory; spdlog::info(L"Saved game directory to settings: {}", directory.c_str()); }
-            else spdlog::warn(L"Could not save game directory to settings: {}", directory.c_str());
+            const auto save = [](const std::wstring& folder) { const auto utf8 = sf4e::platform::WideToUtf8(folder); return !utf8.empty() && sf4e::launcher::SaveGameDirectory(utf8); };
+            if (!remembered.Remember(location.directory, save)) spdlog::warn(L"Could not save game directory to settings: {}", location.directory.c_str());
+            else if (remembered.Persisted() != saved) spdlog::info(L"Saved game directory to settings: {}", location.directory.c_str());
         }
-        if (!found) {
+        if (location.executable.empty()) {
             if (!ShowRecovery(sf4e::loc::T("launcher.game_not_found"),chosenDirectory)) return 0;
             continue;
         }
@@ -573,10 +570,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             continue;
         }
         const char* dlls[] = {sidecarAnsi};
-        CreateAppIDFile(directory.data());
+        CreateAppIDFile(location.directory.data());
         sf4e::platform::HelperProcess helper, discord;
         const auto helperPath = std::filesystem::path(installRoot)/L"sf4-net.exe";
-        HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),directory.data(),executable.data(),1,dlls);
+        HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),location.directory.data(),location.executable.data(),1,dlls);
         if (!game) {
             if (!ShowRecovery(sf4e::loc::T("launcher.start_failed"),chosenDirectory)) return 0;
             continue;

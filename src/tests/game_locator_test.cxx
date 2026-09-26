@@ -7,6 +7,7 @@
 
 using sf4e::launcher::GameExecutable;
 using sf4e::launcher::LibraryCandidates;
+using sf4e::launcher::LocateGame;
 using sf4e::launcher::ParseLibraryFolders;
 using sf4e::launcher::RememberedFolder;
 using Paths = std::vector<std::wstring>;
@@ -131,25 +132,77 @@ int main() {
     CHECK(GameExecutable(L"D:\\Games\\Ultra", absent).empty());
     CHECK(GameExecutable(L"", present).empty());
 
-    // A folder counts as saved only after the settings write succeeds.
-    RememberedFolder remembered;
-    CHECK(remembered.NeedsSave(L"D:\\Games\\Ultra"));
-    CHECK(!remembered.NeedsSave(L""));
-    // A failed write leaves persisted as it was, so the next round tries again.
-    CHECK(remembered.NeedsSave(L"D:\\Games\\Ultra"));
-    remembered.persisted = L"D:\\Games\\Ultra";
-    CHECK(!remembered.NeedsSave(L"D:\\Games\\Ultra"));
-    CHECK(!remembered.NeedsSave(L"d:\\games\\ultra\\"));
-    CHECK(!remembered.NeedsSave(L"D:/Games/Ultra/"));
-    CHECK(remembered.NeedsSave(L"E:\\Ultra"));
+    // A folder counts as saved only after the write succeeds, so a failed
+    // write is attempted again on the next round.
+    Paths written;
+    bool failNext = true;
+    const auto writer = [&](const std::wstring& folder) {
+        written.push_back(folder);
+        const bool ok = !failNext;
+        failNext = false;
+        return ok;
+    };
+    const std::wstring f = L"D:\\Games\\Ultra", g = L"E:\\Ultra";
+    RememberedFolder remembered{L""};
+    CHECK(!remembered.Remember(f, writer));
+    CHECK(remembered.Persisted().empty());
+    CHECK((written == Paths{f}));
+    CHECK(remembered.Remember(f, writer));
+    CHECK(remembered.Persisted() == f);
+    CHECK((written == Paths{f, f}));
+    CHECK(remembered.Remember(f, writer));
+    CHECK((written == Paths{f, f}));
+    // Other spellings of the saved folder are not written again.
+    CHECK(remembered.Remember(L"d:\\games\\ultra\\", writer));
+    CHECK(remembered.Remember(L"D:/Games/Ultra/", writer));
+    CHECK(remembered.Remember(L"", writer));
+    CHECK((written == Paths{f, f}));
+    CHECK(remembered.Persisted() == f);
+    CHECK(remembered.Remember(g, writer));
+    CHECK(remembered.Persisted() == g);
+    CHECK((written == Paths{f, f, g}));
+    RememberedFolder fresh{L""};
+    CHECK(fresh.Remember(L"", writer));
+    CHECK((written == Paths{f, f, g}));
 
-    // A saved folder whose game is gone does not resolve, so the launcher
-    // falls through to the automatic search, and a later recovery choice
-    // that does resolve still needs saving.
-    const auto onlyOther = [](const std::wstring& path) { return path == L"E:\\Ultra\\SSFIV.exe"; };
-    const RememberedFolder saved{L"D:\\Games\\Ultra"};
-    CHECK(GameExecutable(saved.persisted, onlyOther).empty());
-    CHECK(GameExecutable(L"E:\\Ultra", onlyOther) == L"E:\\Ultra\\SSFIV.exe");
-    CHECK(saved.NeedsSave(L"E:\\Ultra"));
+    // The search is a fallback for a saved folder that no longer holds the
+    // game, and never replaces a folder picked in recovery.
+    int searches = 0;
+    std::wstring searchResult = L"F:\\Found";
+    const auto search = [&]() { ++searches; return searchResult; };
+    const auto onlyFound = [](const std::wstring& path) { return path == L"F:\\Found\\SSFIV.exe"; };
+    const auto onlySaved = [](const std::wstring& path) { return path == L"D:\\Games\\Ultra\\SSFIV.exe"; };
+
+    auto location = LocateGame(L"", f, onlyFound, search);
+    CHECK(searches == 1);
+    CHECK(location.directory == L"F:\\Found");
+    CHECK(location.executable == L"F:\\Found\\SSFIV.exe");
+    CHECK(!location.fromRecovery);
+
+    searches = 0;
+    location = LocateGame(L"", f, onlySaved, search);
+    CHECK(searches == 0);
+    CHECK(location.directory == f);
+    CHECK(location.executable == L"D:\\Games\\Ultra\\SSFIV.exe");
+    CHECK(!location.fromRecovery);
+
+    location = LocateGame(g, f, onlySaved, search);
+    CHECK(searches == 0);
+    CHECK(location.directory.empty());
+    CHECK(location.executable.empty());
+    CHECK(location.fromRecovery);
+
+    location = LocateGame(L"F:\\Found", f, onlyFound, search);
+    CHECK(searches == 0);
+    CHECK(location.directory == L"F:\\Found");
+    CHECK(location.executable == L"F:\\Found\\SSFIV.exe");
+    CHECK(location.fromRecovery);
+
+    searchResult.clear();
+    location = LocateGame(L"", L"", absent, search);
+    CHECK(searches == 1);
+    CHECK(location.directory.empty());
+    CHECK(location.executable.empty());
+    CHECK(!location.fromRecovery);
     return 0;
 }

@@ -25,12 +25,34 @@ std::vector<std::wstring> LibraryCandidates(const std::wstring& steamPath, const
 // there, otherwise empty. An empty directory never resolves.
 std::wstring GameExecutable(const std::wstring& directory, const std::function<bool(const std::wstring&)>& exists);
 
-// The game folder last written to settings. A folder needs saving when it is
-// not empty and is not the persisted one under the same comparison the
-// library candidates use. Update persisted only after a save succeeds.
-struct RememberedFolder {
-    std::wstring persisted;
-    bool NeedsSave(const std::wstring& folder) const;
+// The game folder last written to settings, and the one operation that
+// changes it: a write attempt whose success is the only thing that moves
+// persisted forward, so a failed write is retried next time.
+class RememberedFolder {
+public:
+    explicit RememberedFolder(std::wstring persisted);
+    const std::wstring& Persisted() const;
+    // Writes folder through save when it differs from the persisted one, under
+    // the same comparison the library candidates use. An empty folder is never
+    // written. Returns false only when a write was attempted and failed.
+    bool Remember(const std::wstring& folder, const std::function<bool(const std::wstring&)>& save);
+private:
+    std::wstring persisted_;
 };
+
+// Where the launcher found the game. executable and directory are empty when
+// nothing resolved, and fromRecovery marks a folder picked in recovery.
+struct GameLocation {
+    std::wstring directory, executable;
+    bool fromRecovery = false;
+};
+
+// The folder picked in recovery this run, else the saved folder while it
+// still holds the game, else whatever search finds. search returns the
+// found directory or empty. A recovery choice is never replaced by the
+// search, and search runs at most once.
+GameLocation LocateGame(const std::wstring& chosenDirectory, const std::wstring& savedDirectory,
+    const std::function<bool(const std::wstring&)>& exists,
+    const std::function<std::wstring()>& search);
 
 } } // namespace sf4e::launcher
