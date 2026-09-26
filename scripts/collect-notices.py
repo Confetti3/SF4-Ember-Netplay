@@ -15,7 +15,7 @@ cache = (args.build_dir / 'CMakeCache.txt').read_text()
 installed = Path(re.search(r'^VCPKG_INSTALLED_DIR:[^=]+=(.+)$', cache, re.M)[1])
 triplet = re.search(r'^VCPKG_TARGET_TRIPLET:[^=]+=(.+)$', cache, re.M)[1]
 sections = ['SF4 Ember Netplay — dependency notices\nGenerated from the resolved Windows build.\n']
-native = ['cli11', 'detours', 'fmt', 'ggpo', 'imgui', 'nlohmann-json', 'spdlog', 'valvefilevdf', 'wil', 'zlib']
+native = ['cli11', 'detours', 'fmt', 'ggpo', 'imgui', 'nlohmann-json', 'spdlog', 'wil', 'zlib']
 for name in native:
     license_path = installed / triplet / 'share' / name / 'copyright'
     sections.append(f'\n=== {name} (vcpkg) ===\n' + license_path.read_text(encoding='utf-8'))

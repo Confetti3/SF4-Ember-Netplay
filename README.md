@@ -126,9 +126,6 @@ Copyright (c) Microsoft Corporation.
 CMake - Cross Platform Makefile Generator
 Copyright (c) Kitware, Inc. and Contributors.
 
-ValveFileVDF
-Copyright (c) Matthias Moeller.
-
 Dear Imgui
 Copyright (c) Omar Cornut
 
