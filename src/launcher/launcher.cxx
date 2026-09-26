@@ -10,6 +10,8 @@
 #include <strsafe.h>
 #include <winuser.h>
 
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <vector>
@@ -23,7 +25,6 @@
 #include <detours/detours.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/spdlog.h>
-#include <vdf_parser.hpp>
 
 #include "../sf4e/sf4e.hxx"
 #include "../sidecar/sidecar.hxx"
@@ -33,6 +34,7 @@
 #include "../common/Localization.hxx"
 #include "../platform/LocaleWindows.hxx"
 #include "../platform/UiPreferencesStore.hxx"
+#include "GameLocator.hxx"
 #include "netplay/netplay_persist.hxx"
 #include "update/github_release_client.hxx"
 
@@ -100,7 +102,7 @@ int FindSF4ByEnvironmentVariable(
 	}
 
 	if ((res = PathCchCombine(szExePath, nExeSize, szGameDirectory, szGameFilename)) != S_OK) {
-		spdlog::warn(L"FindSF4ByCurrentDirectory: PathCchCombine failed: {}", res);
+		spdlog::warn(L"FindSF4ByEnvironmentVariable: PathCchCombine failed: {}", res);
 		return 0;
 	}
 
@@ -116,21 +118,19 @@ int FindSF4ByEstimatedSteamPath(
 	_Out_ LPWSTR szGameDirectory, _In_ int nGameDirSize,
 	_Out_ LPWSTR szExePath, _In_ int nExeSize
 ) {
-	DWORD dwDataRead = 1024;
-	LSTATUS lQueryStatus;
-	wchar_t szLibraries[8][1024];
-	int nLibrariesUsed = 1;
+	wchar_t szSteamPath[1024] = { 0 };
+	DWORD dwDataRead = sizeof(szSteamPath);
 	wchar_t szLibraryFolderVDFPath[1024];
 	HRESULT res = S_OK;
 
 	// Capture SteamPath, which always acts as the first library
-	lQueryStatus = RegGetValueW(
+	LSTATUS lQueryStatus = RegGetValueW(
 		HKEY_CURRENT_USER,
 		L"Software\\Valve\\Steam",
 		L"SteamPath",
 		RRF_RT_REG_SZ,
 		NULL,
-		szLibraries[0],
+		szSteamPath,
 		&dwDataRead
 	);
 	if (lQueryStatus != ERROR_SUCCESS) {
@@ -138,35 +138,33 @@ int FindSF4ByEstimatedSteamPath(
 		return 0;
 	}
 
-	// Read the libary paths from `libraryfolders.vdf` file inside SteamPath
-	if ((res = PathCchCombine(szLibraryFolderVDFPath, 1024, szLibraries[0], L"steamapps\\libraryfolders.vdf")) != S_OK) {
+	// Read the library paths from `libraryfolders.vdf` inside SteamPath. A
+	// missing or unreadable file only costs the extra libraries.
+	std::string libraryFolders;
+	if ((res = PathCchCombine(szLibraryFolderVDFPath, 1024, szSteamPath, L"steamapps\\libraryfolders.vdf")) != S_OK) {
 		spdlog::warn(L"FindSF4ByEstimatedSteamPath: szLibraryFolderVDFPath PathCchCombine failed: {}", res);
-		return 0;
 	}
-	std::ifstream libraryFoldersFile(szLibraryFolderVDFPath);
-	tyti::vdf::object libraryFoldersRoot = tyti::vdf::read(libraryFoldersFile);
-	for (auto it = libraryFoldersRoot.childs.begin(); it != libraryFoldersRoot.childs.end(); ++it) {
-		if (nLibrariesUsed >= 8) break;
-		MultiByteToWideChar(
-			CP_ACP,
-			0,
-			it->second->attribs["path"].c_str(),
-			-1,
-			szLibraries[nLibrariesUsed],
-			1024
-		);
-		nLibrariesUsed++;
+	else {
+		std::ifstream libraryFoldersFile(szLibraryFolderVDFPath, std::ios::binary);
+		if (libraryFoldersFile.is_open()) {
+			libraryFolders.assign(std::istreambuf_iterator<char>(libraryFoldersFile), std::istreambuf_iterator<char>());
+		}
+		else {
+			spdlog::warn(L"FindSF4ByEstimatedSteamPath: could not open {}, searching SteamPath only", szLibraryFolderVDFPath);
+		}
 	}
+	const std::vector<std::wstring> libraries = sf4e::launcher::LibraryCandidates(szSteamPath, libraryFolders);
+	spdlog::info(L"FindSF4ByEstimatedSteamPath: searching {} Steam libraries", libraries.size());
 
 	// Search the discovered libraries
-	for (int i = 0; i < nLibrariesUsed; i++) {
-		if (!PathIsDirectoryW(szLibraries[i])) {
-			spdlog::warn(L"FindSF4ByEstimatedSteamPath: detected library {} does not exist", szLibraries[i]);
+	for (const std::wstring& library : libraries) {
+		if (!PathIsDirectoryW(library.c_str())) {
+			spdlog::warn(L"FindSF4ByEstimatedSteamPath: detected library {} does not exist", library.c_str());
 			continue;
 		}
 
-		if ((res = PathCchCombine(szGameDirectory, nGameDirSize, szLibraries[i], szLibrarySuffix)) != S_OK) {
-			spdlog::warn(L"FindSF4ByEstimatedSteamPath: szGameDirectory PathCchCombine for {} failed: {}", szLibraries[i], res);
+		if ((res = PathCchCombine(szGameDirectory, nGameDirSize, library.c_str(), szLibrarySuffix)) != S_OK) {
+			spdlog::warn(L"FindSF4ByEstimatedSteamPath: szGameDirectory PathCchCombine for {} failed: {}", library.c_str(), res);
 			continue;
 		}
 
@@ -540,12 +538,28 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     payload.netplay.deviceIdx = payload.netplay.deviceType = 0xff;
     payload.netplay.useRelay = 0;
     SetEnvironmentVariableW(L"SF4E_START_OFFLINE", offline ? L"1" : nullptr);
+    // A folder picked in recovery on an earlier launch comes before the search.
+    std::wstring savedDirectory = sf4e::platform::Utf8ToWide(settings.gameDirectory.c_str());
+    if (chosenDirectory.empty() && !savedDirectory.empty()) {
+        wchar_t savedExecutable[1024] = {};
+        if (SUCCEEDED(PathCchCombine(savedExecutable,1024,savedDirectory.c_str(),L"SSFIV.exe")) && PathFileExistsW(savedExecutable)) {
+            spdlog::info(L"Game directory from settings: {}", savedDirectory.c_str());
+            chosenDirectory = savedDirectory;
+        } else spdlog::warn(L"Game directory from settings has no SSFIV.exe, searching instead: {}", savedDirectory.c_str());
+    }
     for (;;) {
         wchar_t directory[1024] = {}, executable[1024] = {};
         bool found = false;
         if (!chosenDirectory.empty()) {
             StringCchCopyW(directory,1024,chosenDirectory.c_str());
             PathCchCombine(executable,1024,directory,L"SSFIV.exe"); found = PathFileExistsW(executable) != FALSE;
+            if (found && chosenDirectory != savedDirectory) {
+                // Remember the picked folder so later launches do not ask again.
+                savedDirectory = chosenDirectory;
+                const std::string utf8 = sf4e::platform::WideToUtf8(chosenDirectory);
+                if (!utf8.empty() && sf4e::launcher::SaveGameDirectory(utf8)) spdlog::info(L"Saved game directory to settings: {}", chosenDirectory.c_str());
+                else spdlog::warn(L"Could not save game directory to settings: {}", chosenDirectory.c_str());
+            }
         } else found = FindSF4(directory,1024,executable,1024) != 0;
         if (!found) {
             if (!ShowRecovery(sf4e::loc::T("launcher.game_not_found"),chosenDirectory)) return 0;

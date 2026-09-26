@@ -93,6 +93,10 @@ int main() {
     CHECK(store.LoadLauncher(result,error)&&result["mainFighter"]==1&&result["onlineRecord"]["wins"]==4);
     CHECK(store.SaveLauncher({{"displayName","Changed"}},error));
     CHECK(store.LoadLauncher(result,error)&&result["onlineRecord"]["losses"]==2&&result["mainFighter"]==1);
+    // The launcher keeps the game folder picked in recovery as UTF-8 text.
+    const std::string gameDirectory = "E:\\Jogos Instala\xc3\xa7\xc3\xa3o\\Ultra";
+    CHECK(store.SaveLauncher({{"gameDirectory", gameDirectory}}, error));
+    CHECK(store.LoadLauncher(result, error) && result["gameDirectory"] == gameDirectory && result["displayName"] == "Changed");
     CHECK(second.LoadOverlay(result, error));
     CHECK(result["stageID"] == 29 && result["lobby"] == overlay["lobby"]);
     CHECK(Read(path / L"config.json.pre-v1.bak") == launcher.dump(4));

@@ -46,6 +46,8 @@ namespace launcher {
 			out.editionSelect = (uint8_t)j.value("editionSelect", 1);
 			out.roundCount = j.value("roundCount", 3);
 			out.roundTimeIntegral = j.value("roundTimeIntegral", 99);
+			const auto gameDirectory = j.find("gameDirectory");
+			if (gameDirectory != j.end() && gameDirectory->is_string()) out.gameDirectory = gameDirectory->get<std::string>();
 			return true;
 		}
 		catch (...) {
@@ -75,10 +77,19 @@ namespace launcher {
 		j["editionSelect"] = in.editionSelect;
 		j["roundCount"] = in.roundCount;
 		j["roundTimeIntegral"] = in.roundTimeIntegral;
+		j["gameDirectory"] = in.gameDirectory;
 
 		std::string error;
 		netplay::SettingsStore store(netplay::SettingsStore::DefaultDirectory());
 		const bool saved = store.SaveLauncher(j, error);
+		if (!saved) spdlog::warn("{}", error);
+		return saved;
+	}
+
+	bool SaveGameDirectory(const std::string& gameDirectory) {
+		std::string error;
+		netplay::SettingsStore store(netplay::SettingsStore::DefaultDirectory());
+		const bool saved = store.SaveLauncher({{"gameDirectory", gameDirectory}}, error);
 		if (!saved) spdlog::warn("{}", error);
 		return saved;
 	}
