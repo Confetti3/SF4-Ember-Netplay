@@ -5,8 +5,10 @@
 
 #include "test_support.hxx"
 
+using sf4e::launcher::GameExecutable;
 using sf4e::launcher::LibraryCandidates;
 using sf4e::launcher::ParseLibraryFolders;
+using sf4e::launcher::RememberedFolder;
 using Paths = std::vector<std::wstring>;
 
 // The current format, as Steam writes it, with the Steam folder as "0".
@@ -80,6 +82,28 @@ int main() {
     CHECK(ParseLibraryFolders("\"libraryfolders\"\n{\n\t\"0\"\n\t{\n\t\t\"path\"").empty());
     for (std::size_t length = 0; length < Nested.rfind('}'); ++length)
         CHECK(ParseLibraryFolders(Nested.substr(0, length)).empty());
+    CHECK(ParseLibraryFolders(R"vdf("libraryfolders" { "1" "D:\\Lib)vdf").empty());
+    CHECK(ParseLibraryFolders(R"vdf("libraryfolders" { "1" "D:\\Lib\)vdf").empty());
+    CHECK(ParseLibraryFolders(R"vdf("libraryfolders" { "1" "D:\\Lib\")vdf").empty());
+    CHECK(ParseLibraryFolders(R"vdf("libraryfolders" { "1" "D:\\Lib" } })vdf").empty());
+    CHECK(ParseLibraryFolders(R"vdf("libraryfolders" { "1" "D:\\Lib" } "extra" { })vdf").empty());
+    CHECK(ParseLibraryFolders(R"vdf("libraryfolders" { "1" "D:\\Lib" } / not a comment)vdf").empty());
+    CHECK(ParseLibraryFolders(R"vdf("libraryfolders" { "1" D:\\Lib })vdf").empty());
+
+    // Comments are skipped before the root block and inside a block.
+    const std::size_t second = Nested.find("\t\"1\"");
+    const std::string commented = "// Written by Steam\n" + Nested.substr(0, second) +
+        "\t// A second drive\n" + Nested.substr(second) + "// trailing note";
+    CHECK((ParseLibraryFolders(commented) == Paths{L"C:\\Program Files (x86)\\Steam", L"D:\\SteamLibrary", L"E:\\Games\\Steam"}));
+    CHECK((ParseLibraryFolders(R"vdf("libraryfolders" { // no newline after this comment)vdf").empty()));
+
+    // Escaped quotes and backslashes are decoded.
+    const std::string escaped = R"vdf("libraryfolders" { "1" { "path" "D:\\Games\\\"Quoted\"\\Lib" } })vdf";
+    CHECK((ParseLibraryFolders(escaped) == Paths{L"D:\\Games\\\"Quoted\"\\Lib"}));
+
+    // Includes are not followed, so a file that uses one is refused.
+    CHECK(ParseLibraryFolders("#base \"other.vdf\"\n" + Nested).empty());
+    CHECK(ParseLibraryFolders("#include \"other.vdf\"\n" + Flat).empty());
 
     // The Steam folder comes first, and repeats of it in any spelling are dropped.
     const std::string repeats = R"vdf("libraryfolders"
@@ -96,5 +120,36 @@ int main() {
         Paths{L"C:\\Program Files (x86)\\Steam\\", L"D:\\SteamLibrary", L"E:\\Games"}));
     CHECK((LibraryCandidates(L"c:/program files (x86)/steam", "") == Paths{L"c:\\program files (x86)\\steam"}));
     CHECK((LibraryCandidates(L"", Flat) == Paths{L"D:\\SteamLibrary", L"F:\\More Games"}));
+
+    // The executable is joined to the folder with exactly one separator.
+    Paths asked;
+    const auto present = [&asked](const std::wstring& path) { asked.push_back(path); return true; };
+    const auto absent = [](const std::wstring&) { return false; };
+    CHECK(GameExecutable(L"D:\\Games\\Ultra", present) == L"D:\\Games\\Ultra\\SSFIV.exe");
+    CHECK(GameExecutable(L"D:\\Games\\Ultra\\", present) == L"D:\\Games\\Ultra\\SSFIV.exe");
+    CHECK((asked == Paths{L"D:\\Games\\Ultra\\SSFIV.exe", L"D:\\Games\\Ultra\\SSFIV.exe"}));
+    CHECK(GameExecutable(L"D:\\Games\\Ultra", absent).empty());
+    CHECK(GameExecutable(L"", present).empty());
+
+    // A folder counts as saved only after the settings write succeeds.
+    RememberedFolder remembered;
+    CHECK(remembered.NeedsSave(L"D:\\Games\\Ultra"));
+    CHECK(!remembered.NeedsSave(L""));
+    // A failed write leaves persisted as it was, so the next round tries again.
+    CHECK(remembered.NeedsSave(L"D:\\Games\\Ultra"));
+    remembered.persisted = L"D:\\Games\\Ultra";
+    CHECK(!remembered.NeedsSave(L"D:\\Games\\Ultra"));
+    CHECK(!remembered.NeedsSave(L"d:\\games\\ultra\\"));
+    CHECK(!remembered.NeedsSave(L"D:/Games/Ultra/"));
+    CHECK(remembered.NeedsSave(L"E:\\Ultra"));
+
+    // A saved folder whose game is gone does not resolve, so the launcher
+    // falls through to the automatic search, and a later recovery choice
+    // that does resolve still needs saving.
+    const auto onlyOther = [](const std::wstring& path) { return path == L"E:\\Ultra\\SSFIV.exe"; };
+    const RememberedFolder saved{L"D:\\Games\\Ultra"};
+    CHECK(GameExecutable(saved.persisted, onlyOther).empty());
+    CHECK(GameExecutable(L"E:\\Ultra", onlyOther) == L"E:\\Ultra\\SSFIV.exe");
+    CHECK(saved.NeedsSave(L"E:\\Ultra"));
     return 0;
 }

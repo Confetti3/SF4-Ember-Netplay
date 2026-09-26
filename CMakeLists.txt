@@ -570,7 +570,7 @@ target_link_libraries(sf4e_recovery PUBLIC sf4e_ui sf4e_app_services sf4e_locali
 add_executable(Launcher WIN32 src/launcher/launcher.cxx src/launcher/netplay/netplay_persist.cxx src/launcher/GameLocator.cxx)
 target_link_libraries(Launcher PRIVATE sf4e_helper_platform sf4e_settings sf4e_recovery sf4e_localization)
 set(_SF4E_LAUNCHER_EXE_TARGET Launcher)
-target_include_directories(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE ${VALVEFILEVDF_INCLUDE_DIRS} "src/common" "src/launcher")
+target_include_directories(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE "src/common" "src/launcher")
 		target_link_libraries(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE
     ${LIB_DETOURS}
     CLI11::CLI11
@@ -603,7 +603,6 @@ sf4e_embed_manifest(Launcher "Launcher.exe.manifest")
 if(BUILD_TESTING)
     add_executable(GameLocatorTest src/tests/game_locator_test.cxx src/launcher/GameLocator.cxx)
     target_compile_features(GameLocatorTest PRIVATE cxx_std_17)
-    target_include_directories(GameLocatorTest PRIVATE ${VALVEFILEVDF_INCLUDE_DIRS})
     add_test(NAME GameLocator COMMAND GameLocatorTest)
     set_tests_properties(GameLocator PROPERTIES TIMEOUT 15)
 endif()

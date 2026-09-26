@@ -38,7 +38,6 @@
 #include "netplay/netplay_persist.hxx"
 #include "update/github_release_client.hxx"
 
-LPCWCH szGameFilename = L"SSFIV.exe";
 LPCWCH szLibrarySuffix = L"steamapps\\common\\Super Street Fighter IV - Arcade Edition";
 
 void ConfigureLauncherLogging() {
@@ -101,7 +100,7 @@ int FindSF4ByEnvironmentVariable(
 		return 0;
 	}
 
-	if ((res = PathCchCombine(szExePath, nExeSize, szGameDirectory, szGameFilename)) != S_OK) {
+	if ((res = PathCchCombine(szExePath, nExeSize, szGameDirectory, sf4e::launcher::kGameExecutableName)) != S_OK) {
 		spdlog::warn(L"FindSF4ByEnvironmentVariable: PathCchCombine failed: {}", res);
 		return 0;
 	}
@@ -174,7 +173,7 @@ int FindSF4ByEstimatedSteamPath(
 			continue;
 		}
 
-		if ((res = PathCchCombine(szExePath, nExeSize, szGameDirectory, szGameFilename)) != S_OK) {
+		if ((res = PathCchCombine(szExePath, nExeSize, szGameDirectory, sf4e::launcher::kGameExecutableName)) != S_OK) {
 			spdlog::warn(L"FindSF4ByEstimatedSteamPath: szExePath PathCchCombine failed: {}", res);
 			continue;
 		}
@@ -539,28 +538,28 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     payload.netplay.useRelay = 0;
     SetEnvironmentVariableW(L"SF4E_START_OFFLINE", offline ? L"1" : nullptr);
     // A folder picked in recovery on an earlier launch comes before the search.
-    std::wstring savedDirectory = sf4e::platform::Utf8ToWide(settings.gameDirectory.c_str());
-    if (chosenDirectory.empty() && !savedDirectory.empty()) {
-        wchar_t savedExecutable[1024] = {};
-        if (SUCCEEDED(PathCchCombine(savedExecutable,1024,savedDirectory.c_str(),L"SSFIV.exe")) && PathFileExistsW(savedExecutable)) {
-            spdlog::info(L"Game directory from settings: {}", savedDirectory.c_str());
-            chosenDirectory = savedDirectory;
-        } else spdlog::warn(L"Game directory from settings has no SSFIV.exe, searching instead: {}", savedDirectory.c_str());
-    }
+    sf4e::launcher::RememberedFolder remembered{sf4e::platform::Utf8ToWide(settings.gameDirectory.c_str())};
+    const auto exists = [](const std::wstring& path) { return PathFileExistsW(path.c_str()) != FALSE; };
     for (;;) {
-        wchar_t directory[1024] = {}, executable[1024] = {};
-        bool found = false;
-        if (!chosenDirectory.empty()) {
-            StringCchCopyW(directory,1024,chosenDirectory.c_str());
-            PathCchCombine(executable,1024,directory,L"SSFIV.exe"); found = PathFileExistsW(executable) != FALSE;
-            if (found && chosenDirectory != savedDirectory) {
-                // Remember the picked folder so later launches do not ask again.
-                savedDirectory = chosenDirectory;
-                const std::string utf8 = sf4e::platform::WideToUtf8(chosenDirectory);
-                if (!utf8.empty() && sf4e::launcher::SaveGameDirectory(utf8)) spdlog::info(L"Saved game directory to settings: {}", chosenDirectory.c_str());
-                else spdlog::warn(L"Could not save game directory to settings: {}", chosenDirectory.c_str());
-            }
-        } else found = FindSF4(directory,1024,executable,1024) != 0;
+        // The recovery choice, else the saved folder while it holds the game, else the search.
+        const bool chosen = !chosenDirectory.empty();
+        std::wstring directory = chosen ? chosenDirectory : remembered.persisted;
+        std::wstring executable = sf4e::launcher::GameExecutable(directory, exists);
+        bool found = !executable.empty();
+        if (!chosen && !directory.empty()) {
+            if (found) spdlog::info(L"Game directory from settings: {}", directory.c_str());
+            else spdlog::warn(L"Game directory from settings has no SSFIV.exe, searching instead: {}", directory.c_str());
+        }
+        if (!chosen && !found) {
+            wchar_t searchedDirectory[1024] = {}, searchedExecutable[1024] = {};
+            found = FindSF4(searchedDirectory,1024,searchedExecutable,1024) != 0;
+            if (found) { directory = searchedDirectory; executable = searchedExecutable; }
+        } else if (chosen && found && remembered.NeedsSave(directory)) {
+            // Remember the picked folder so later launches do not ask again.
+            const std::string utf8 = sf4e::platform::WideToUtf8(directory);
+            if (!utf8.empty() && sf4e::launcher::SaveGameDirectory(utf8)) { remembered.persisted = directory; spdlog::info(L"Saved game directory to settings: {}", directory.c_str()); }
+            else spdlog::warn(L"Could not save game directory to settings: {}", directory.c_str());
+        }
         if (!found) {
             if (!ShowRecovery(sf4e::loc::T("launcher.game_not_found"),chosenDirectory)) return 0;
             continue;
@@ -574,10 +573,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             continue;
         }
         const char* dlls[] = {sidecarAnsi};
-        CreateAppIDFile(directory);
+        CreateAppIDFile(directory.data());
         sf4e::platform::HelperProcess helper, discord;
         const auto helperPath = std::filesystem::path(installRoot)/L"sf4-net.exe";
-        HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),directory,executable,1,dlls);
+        HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),directory.data(),executable.data(),1,dlls);
         if (!game) {
             if (!ShowRecovery(sf4e::loc::T("launcher.start_failed"),chosenDirectory)) return 0;
             continue;
