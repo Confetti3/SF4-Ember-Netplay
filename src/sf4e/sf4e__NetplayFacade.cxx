@@ -158,9 +158,6 @@ namespace sf4e {
 		// A loss outside a running fight ends in HandleNetplayFailure, whose
 		// shutdown resets both causes to healthy.
 		if (wasLost || !IsControlPlaneLost()) return;
-		if (!reason || !reason[0]) {
-			reason = loc::T("runtime.room_control_recovering");
-		}
 
         if (IsRuntimeRecoveryEnabled()) {
             s_verificationLostAtFrame = fSystem::lastGgpoSaveFrame;
