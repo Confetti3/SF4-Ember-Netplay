@@ -172,6 +172,19 @@ int main(int argc, char** argv) {
             } while (std::chrono::steady_clock::now() < stageDeadline);
             Require(loaded == sf4e::selection::VersusStageCount, "Stage photo loading timed out");
             std::printf("All 28 stage photos decoded and uploaded to DX9.\n");
+            // The Random card is the game's character-select random tile, cropped
+            // to its content, so it is not held to the 16:9 stage framing.
+            const auto randomDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+            sf4e::ui::SelectionImage randomTile;
+            do {
+                art->Pump();
+                randomTile = art->Stage(sf4e::selection::RandomStageId);
+                Require(!randomTile.missing, "Random stage tile decode failed");
+                if (randomTile.texture) break;
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            } while (std::chrono::steady_clock::now() < randomDeadline);
+            Require(randomTile.texture && randomTile.width > 0 && randomTile.height > 0, "Random stage tile loading timed out");
+            std::printf("Random stage tile decoded and uploaded to DX9 (%dx%d).\n", randomTile.width, randomTile.height);
             std::vector<std::pair<int, int>> ultraPhotos;
             for (int id = 0; id < sf4e::selection::FighterCount; ++id) for (int ultra = 0; ultra < 2; ++ultra) {
                 const std::string path = assets + "/" + sf4e::selection::FindFighter(id)->code + "/ultra-" + std::to_string(ultra) + ".png";

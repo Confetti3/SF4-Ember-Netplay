@@ -251,8 +251,6 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    Value("quote",loc::T("selection.win_quote"),pick.winQuote==255?loc::T("selection.random"):std::to_string(pick.winQuote+1),locked,editable),
    Value("handicap",loc::T("selection.handicap"),HandicapLabel(pick.handicap),locked,editable)};
  }
- // Random has no art of its own. Callers have already checked art.
- const auto stageImage=[&](int id){return IsRandomStage(id)?Missing():art->Stage(id);};
  const bool compactAppearance=(screen=="costumes"||screen=="colors")&&ImGui::GetContentRegionAvail().x<820*Scale();
  const auto preview=[&](const std::string& id){
   if(screen=="ultra"){
@@ -279,7 +277,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   const float height=(std::min)(ImGui::GetContentRegionAvail().y-10*Scale(),250*Scale());
   if(height>35*Scale()){
    const auto p=ImGui::GetCursorScreenPos();ImGui::Dummy(ImVec2(width,height));
-   const auto img=!art?Missing():screen=="stage"?stageImage(focusStage):(screen=="appearance"||screen=="costumes"||screen=="colors")?art->Appearance(pick.fighter,focusCostume,focusColor):art->Portrait(focusFighter,true);
+   const auto img=!art?Missing():screen=="stage"?art->Stage(focusStage):(screen=="appearance"||screen=="costumes"||screen=="colors")?art->Appearance(pick.fighter,focusCostume,focusColor):art->Portrait(focusFighter,true);
    ImageInRect(img,p,ImVec2(p.x+width,p.y+height));
   }
  };
@@ -288,7 +286,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   if(e.id=="waiting")return false;
   const int id=std::stoi(e.id.substr(screen=="roster"||screen=="costumes"?8:6));
   const float labelHeight=ImGui::GetTextLineHeight()+4*Scale();
-  const auto image=!art?Missing():screen=="roster"?art->Portrait(id):screen=="stage"?stageImage(id):
+  const auto image=!art?Missing():screen=="roster"?art->Portrait(id):screen=="stage"?art->Stage(id):
    art->Appearance(pick.fighter,screen=="costumes"?id:pick.costume,screen=="costumes"?PreviewColor(pick.fighter,id,availability):id);
   ImageInRect(image,ImVec2(min.x+3,min.y+3),ImVec2(max.x-3,max.y-labelHeight));
   const bool saved=screen=="roster"?id==pick.fighter:screen=="costumes"?id==pick.costume:screen=="colors"?id==pick.color:stageId&&id==*stageId;

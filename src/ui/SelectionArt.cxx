@@ -355,6 +355,14 @@ SelectionImage SelectionArt::Ultra(int fighterId, int ultra) {
     return impl_->Request(key, [&] { return impl_->ImagePaths(key); });
 }
 SelectionImage SelectionArt::Stage(int nativeId) {
+    // The Random card borrows the game's character-select random tile, read at
+    // runtime like the portraits and never repackaged.
+    if (selection::IsRandomStage(nativeId)) {
+        Impl::Policy tile; tile.cropToContent = tile.reportAbsence = true;
+        return impl_->Request("stages/random", [&] {
+            return std::vector<std::wstring>{impl_->gameRoot + L"/resource/ui/chara_select/chara/sel_RND.tex.emz"};
+        }, MaximumImageSide, tile);
+    }
     const auto* stage = selection::FindStage(nativeId);
     if (!stage) return {};
     const std::string key = std::string("stages/") + stage->code;

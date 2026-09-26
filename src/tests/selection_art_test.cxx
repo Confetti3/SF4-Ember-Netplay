@@ -2,6 +2,7 @@
 // of a file that fails to decode, and which failures are final and logged.
 #include "../ui/SelectionArt.hxx"
 #include "../common/FighterCatalog.hxx"
+#include "../common/StageCatalog.hxx"
 #include "temp_root.hxx"
 #include "test_support.hxx"
 
@@ -116,6 +117,14 @@ int main() {
         CHECK(fallback.texture && !fallback.missing);
         CHECK(logged.size() == 3 && logged[2].find("KEN/portrait-thumb uses a fallback") != std::string::npos &&
             logged[2].find("sel_KEN.tex.emz") != std::string::npos);
+
+        // The Random stage card reads only the game's random tile; without it
+        // the card is final at once and reported once, like a missing portrait.
+        const auto random = Settle(art, [&] { return art.Stage(sf4e::selection::RandomStageId); }, 2000);
+        CHECK(random.missing && !random.texture);
+        CHECK(logged.size() == 4 && logged[3].find("stages/random") != std::string::npos &&
+            logged[3].find("no game or package file") != std::string::npos);
+        CHECK(art.Stage(sf4e::selection::RandomStageId).missing && logged.size() == 4);
     }
     device->Release(); d3d->Release(); DestroyWindow(window);
     RemoveTempRoot(root);
