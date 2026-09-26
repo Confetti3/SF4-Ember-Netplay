@@ -1134,6 +1134,9 @@ msgstr "Win quote"
 msgid "selection.random"
 msgstr "Random"
 
+msgid "selection.random_stage"
+msgstr "Random"
+
 msgid "selection.random_stage.detail"
 msgstr "A different stage every match."
 
