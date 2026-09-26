@@ -72,6 +72,12 @@ msgstr "Game startup or injection failed. Check the launcher log, then retry."
 msgid "launcher.game_error"
 msgstr "The game exited with an error. Inspect the launcher log, then retry."
 
+msgid "launcher.runtime_shadowed"
+msgstr "The game would load these files instead of the ones in the Ember folder, and an old copy stops the game before it starts (\"entry point ggpo_get_last_confirmed_frame not found\"). They were left by another netplay mod or an older install. Move or rename them, then start Ember again:\n\n{0}"
+
+msgid "launcher.game_wrong_dll"
+msgstr "The game loaded a DLL other than the ones in the Ember folder and stopped before Ember could start. Look for GGPO.dll, spdlog.dll, fmt.dll or zlib1.dll next to SSFIV.exe or in the Windows folder, move them away, then retry. The launcher log names the file."
+
 msgid "recovery.window"
 msgstr "Ember recovery"
 

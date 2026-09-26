@@ -168,4 +168,20 @@ GameLocation LocateGame(const std::wstring& chosenDirectory, const std::wstring&
     return location;
 }
 
+std::vector<std::wstring> ShadowingRuntimeLibraries(const std::wstring& packageDirectory,
+    const std::vector<std::wstring>& folders, const std::function<bool(const std::wstring&)>& exists) {
+    std::vector<std::wstring> found;
+    if (!exists) return found;
+    for (const auto& folder : folders) {
+        if (folder.empty() || SameFolder(folder, packageDirectory)) continue;
+        std::wstring prefix = folder;
+        if (prefix.back() != L'\\' && prefix.back() != L'/') prefix += L'\\';
+        for (const wchar_t* library : kSidecarRuntimeLibraries) {
+            std::wstring path = prefix + library;
+            if (exists(path)) found.push_back(std::move(path));
+        }
+    }
+    return found;
+}
+
 } } // namespace sf4e::launcher

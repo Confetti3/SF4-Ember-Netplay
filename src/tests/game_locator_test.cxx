@@ -10,6 +10,7 @@ using sf4e::launcher::LibraryCandidates;
 using sf4e::launcher::LocateGame;
 using sf4e::launcher::ParseLibraryFolders;
 using sf4e::launcher::RememberedFolder;
+using sf4e::launcher::ShadowingRuntimeLibraries;
 using Paths = std::vector<std::wstring>;
 
 // The current format, as Steam writes it, with the Steam folder as "0".
@@ -204,5 +205,29 @@ int main() {
     CHECK(location.directory.empty());
     CHECK(location.executable.empty());
     CHECK(!location.fromRecovery);
+
+    // A runtime library beside the game or in a system folder is reported
+    // with its full path, in folder then library order, because the game
+    // loads it ahead of the package copy.
+    const std::wstring package = L"C:\\Ember";
+    const auto stale = [](const std::wstring& path) {
+        return path == L"D:\\Games\\Ultra\\GGPO.dll" || path == L"C:\\Windows\\SysWOW64\\zlib1.dll" ||
+            path == L"D:\\Games\\Ultra\\fmt.dll" || path == L"C:\\Ember\\GGPO.dll";
+    };
+    CHECK((ShadowingRuntimeLibraries(package, {L"D:\\Games\\Ultra", L"C:\\Windows\\SysWOW64", L"C:\\Windows"}, stale) ==
+        Paths{L"D:\\Games\\Ultra\\GGPO.dll", L"D:\\Games\\Ultra\\fmt.dll", L"C:\\Windows\\SysWOW64\\zlib1.dll"}));
+    CHECK((ShadowingRuntimeLibraries(package, {L"D:\\Games\\Ultra\\"}, stale) ==
+        Paths{L"D:\\Games\\Ultra\\GGPO.dll", L"D:\\Games\\Ultra\\fmt.dll"}));
+    CHECK(ShadowingRuntimeLibraries(package, {L"D:\\Games\\Ultra"}, absent).empty());
+    // The package extracted into the game folder is not shadowing itself,
+    // in any spelling of that folder, and empty folders are skipped.
+    CHECK(ShadowingRuntimeLibraries(package, {L"c:/ember/", L""}, stale).empty());
+    CHECK(ShadowingRuntimeLibraries(L"C:\\Ember\\", {L"C:\\Ember"}, stale).empty());
+    CHECK(ShadowingRuntimeLibraries(package, {}, stale).empty());
+    // Every library Sidecar imports by name is checked.
+    Paths probed;
+    const auto record = [&probed](const std::wstring& path) { probed.push_back(path); return false; };
+    CHECK(ShadowingRuntimeLibraries(package, {L"D:\\Games\\Ultra"}, record).empty());
+    CHECK((probed == Paths{L"D:\\Games\\Ultra\\GGPO.dll", L"D:\\Games\\Ultra\\spdlog.dll", L"D:\\Games\\Ultra\\fmt.dll", L"D:\\Games\\Ultra\\zlib1.dll"}));
     return 0;
 }

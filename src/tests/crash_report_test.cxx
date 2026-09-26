@@ -51,6 +51,9 @@ static void TestExitCodeNames() {
 	CHECK(std::string(ExitCodeName(0xC0000409u)).find("fail-fast") == 0);
 	CHECK(std::string(ExitCodeName(0xC00000FDu)) == "stack overflow");
 	CHECK(std::string(ExitCodeName(0xE06D7363u)) == "unhandled C++ exception");
+	CHECK(std::string(ExitCodeName(0xC0000135u)).find("not found") != std::string::npos);
+	CHECK(std::string(ExitCodeName(0xC0000139u)).find("entry point not found") == 0);
+	CHECK(std::string(ExitCodeName(0xC0000139u)).find("GGPO.dll") != std::string::npos);
 	CHECK(std::string(ExitCodeName(0x12345678u)) == "unknown");
 }
 

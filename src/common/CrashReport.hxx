@@ -68,6 +68,8 @@ inline const char* ExitCodeName(uint32_t code) {
 	case 0xC0000409u: return "fail-fast (stack buffer overrun or __fastfail)";
 	case 0xC00000FDu: return "stack overflow";
 	case 0xE06D7363u: return "unhandled C++ exception";
+	case 0xC0000135u: return "a DLL Sidecar needs was not found";
+	case 0xC0000139u: return "entry point not found: a DLL other than the package's, such as an old GGPO.dll beside SSFIV.exe, was loaded";
 	default: return "unknown";
 	}
 }

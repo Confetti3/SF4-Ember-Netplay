@@ -569,6 +569,27 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (!ShowRecovery(sf4e::loc::T("launcher.sidecar_missing"),chosenDirectory)) return 0;
             continue;
         }
+        // A GGPO.dll (or another runtime library) beside SSFIV.exe or in the
+        // Windows system folder is what the game loads for Sidecar, not the
+        // package copy. An old one lacks our exports, so Windows stops the game
+        // with "entry point ggpo_get_last_confirmed_frame not found" before
+        // Sidecar can log anything. Name the file rather than let that happen.
+        // The 32-bit game reads System32 as SysWOW64, so report that folder by
+        // its real name or the player looks in the wrong one.
+        wchar_t systemDirectory[MAX_PATH] = {}, windowsDirectory[MAX_PATH] = {};
+        if (!GetSystemWow64DirectoryW(systemDirectory, MAX_PATH) && !GetSystemDirectoryW(systemDirectory, MAX_PATH)) systemDirectory[0] = L'\0';
+        if (!GetWindowsDirectoryW(windowsDirectory, MAX_PATH)) windowsDirectory[0] = L'\0';
+        const auto shadowing = sf4e::launcher::ShadowingRuntimeLibraries(installRoot,
+            {location.directory, systemDirectory, windowsDirectory}, exists);
+        if (!shadowing.empty()) {
+            std::wstring listed;
+            for (const auto& path : shadowing) {
+                spdlog::error(L"Runtime library outside the package would load instead of ours: {}", path.c_str());
+                listed += (listed.empty() ? L"" : L"\n") + path;
+            }
+            if (!ShowRecovery(sf4e::loc::Tf("launcher.runtime_shadowed", sf4e::platform::WideToUtf8(listed)), chosenDirectory)) return 0;
+            continue;
+        }
         const char* dlls[] = {sidecarAnsi};
         CreateAppIDFile(location.directory.data());
         sf4e::platform::HelperProcess helper, discord;
@@ -582,7 +603,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         DWORD exitCode = 0; GetExitCodeProcess(game,&exitCode);
         spdlog::info("Game exited with code {:#010x} ({})", exitCode, sf4e::crash::ExitCodeName(exitCode));
         discord.Stop(); helper.Stop(); CloseHandle(game);
-        if (exitCode != 0 && ShowRecovery(sf4e::loc::T("launcher.game_error"),chosenDirectory)) continue;
+        // A loader failure never reaches Sidecar's crash record, so the exit
+        // code is the only thing that tells it from a crash.
+        const char* exitMessage = exitCode == 0xC0000139u || exitCode == 0xC0000135u ? "launcher.game_wrong_dll" : "launcher.game_error";
+        if (exitCode != 0 && ShowRecovery(sf4e::loc::T(exitMessage),chosenDirectory)) continue;
         return 0;
     }
 }

@@ -55,4 +55,18 @@ GameLocation LocateGame(const std::wstring& chosenDirectory, const std::wstring&
     const std::function<bool(const std::wstring&)>& exists,
     const std::function<std::wstring()>& search);
 
+// The libraries Sidecar.dll imports by name once it is inside the game. The
+// game process resolves them from the game folder and the Windows system
+// folders before the package folder, so a copy left there by another netplay
+// mod or an older install is loaded instead of ours and the game stops with
+// a missing entry point before Ember runs a line.
+inline constexpr const wchar_t* kSidecarRuntimeLibraries[] = {L"GGPO.dll", L"spdlog.dll", L"fmt.dll", L"zlib1.dll"};
+
+// Full paths of runtime library copies in folders that would be loaded ahead
+// of the package's, in folder then library order. A folder that is the
+// package folder itself, in any spelling, is not a shadow; empty folders are
+// skipped.
+std::vector<std::wstring> ShadowingRuntimeLibraries(const std::wstring& packageDirectory,
+    const std::vector<std::wstring>& folders, const std::function<bool(const std::wstring&)>& exists);
+
 } } // namespace sf4e::launcher
