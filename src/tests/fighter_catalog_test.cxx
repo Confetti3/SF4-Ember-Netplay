@@ -21,8 +21,24 @@ int main() {
         CHECK(IsSelectionAssetPath(stem + L".jpg") && IsSelectionAssetPath(stem + L".png"));
         CHECK(!IsSelectionAssetPath(stem + L".jpg.exe") && !IsSelectionAssetPath(stem + L".jpg:stream"));
     }
-    for (auto invalid : {INT64_MIN, std::int64_t(-1), std::int64_t(22), std::int64_t(23), std::int64_t(30), INT64_MAX})
+    for (auto invalid : {INT64_MIN, std::int64_t(-1), std::int64_t(22), std::int64_t(23), std::int64_t(30), std::int64_t(255), INT64_MAX})
         CHECK(!FindStage(invalid) && NormalizeStage(invalid) == 0);
+    // Random is a local choice: it survives NormalizeStageChoice but never
+    // FindStage or NormalizeStage, and ResolveStage turns it into a catalog stage.
+    CHECK(IsRandomStage(RandomStageId) && IsRandomStage(255) && !IsRandomStage(0) && !IsRandomStage(24));
+    for (const auto& stage : StageList()) CHECK(NormalizeStageChoice(stage.id) == stage.id);
+    CHECK(NormalizeStageChoice(RandomStageId) == RandomStageId);
+    for (auto invalid : {INT64_MIN, std::int64_t(-1), std::int64_t(22), std::int64_t(23), std::int64_t(30), std::int64_t(254), INT64_MAX})
+        CHECK(NormalizeStageChoice(invalid) == 0);
+    std::set<int> resolved;
+    for (std::uint32_t roll = 0; roll <= 1000; ++roll) {
+        const int stage = ResolveStage(RandomStageId, roll);
+        CHECK(FindStage(stage) != nullptr);
+        resolved.insert(stage);
+        CHECK(ResolveStage(11, roll) == 11 && ResolveStage(22, roll) == 0);
+    }
+    CHECK(resolved == stageIds);
+    CHECK(FindStage(ResolveStage(RandomStageId, UINT32_MAX)) != nullptr);
     CHECK(std::string(FindStage(24)->code) == "DET" && std::string(FindStage(29)->code) == "JUR");
     CHECK(IsSelectionAssetPath(L"assets\\selection\\stage-sources.json"));
     CHECK(IsSelectionAssetPath(L"assets\\selection\\ultra-sources.json"));

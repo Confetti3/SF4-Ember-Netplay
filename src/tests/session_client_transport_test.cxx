@@ -58,7 +58,7 @@ int main() {
 	SessionClient client(callbacks, "build", 30000, name);
 	CHECK(client.Step() == 0);
 	CHECK(client.Lobby_Ready() == session::SendResult::NotConnected);
-	for (int invalid : {-1, 22, 23, 30, INT32_MAX})
+	for (int invalid : {-1, 22, 23, 30, 255, INT32_MAX})
 		CHECK(client.PreBattle_SetStage(invalid) == session::SendResult::InvalidPayload);
 	for (int cycle = 0; cycle < 20; ++cycle) {
 		auto* transport = new MockClient();
@@ -107,7 +107,7 @@ int main() {
 			CHECK(transport->sent.back()["stageID"] == stage.id);
 		}
 		const auto sentCount = transport->sent.size();
-		for (int invalid : {-1, 22, 23, 30, INT32_MAX})
+		for (int invalid : {-1, 22, 23, 30, 255, INT32_MAX})
 			CHECK(client.PreBattle_SetStage(invalid) == session::SendResult::InvalidPayload);
 		CHECK(transport->sent.size() == sentCount);
 		transport->state = session::ConnectionState::Failed;

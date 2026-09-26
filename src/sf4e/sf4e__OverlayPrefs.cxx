@@ -100,7 +100,7 @@ namespace OverlayPrefs {
             ClampChara(data.fighters[id], true);
         }
         if (data.lobby.charaID < data.fighters.size()) data.fighters[data.lobby.charaID] = data.lobby;
-        data.stageID = selection::NormalizeStage(data.stageID);
+        data.stageID = selection::NormalizeStageChoice(data.stageID);
         if (data.lobbyRoundCountIdx < 0 || data.lobbyRoundCountIdx >= ROUND_COUNT_OPTIONS) data.lobbyRoundCountIdx = 1;
         if (data.lobbyRoundTimeIdx < 0 || data.lobbyRoundTimeIdx >= ROUND_TIME_OPTIONS) data.lobbyRoundTimeIdx = 2;
         if ((data.deviceType != 1 && data.deviceType != 3) || (data.deviceType == 3 && data.deviceIdx > 3)) data.deviceIdx = data.deviceType = 0xff;

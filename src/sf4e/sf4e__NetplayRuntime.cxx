@@ -1216,7 +1216,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		if (inFlight) return DispatchOutcome::Dropped;
 		const char* refusal = nullptr;
 		if (!runtime->input.Ready()) refusal = loc::T("runtime.ready.assign_controller");
-		else if (!selection::FindStage(command.stage)) refusal = loc::T("runtime.ready.stage_unavailable");
+		else if (!selection::IsRandomStage(command.stage) && !selection::FindStage(command.stage)) refusal = loc::T("runtime.ready.stage_unavailable");
 		else if (command.character.charaID >= 44) refusal = loc::T("runtime.ready.fighter_unavailable");
 		else if (!selection::Available(selection::FromNative(command.character), published.lobbySettings.editionSelect,
 			Dimps::Selection::ReadAvailability(command.character.charaID)))
@@ -1358,7 +1358,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		bool sent = client.PreBattle_SetChara(command.character) == session::SendResult::Queued;
 		if (!client._lobbyData.members.empty() && client._lobbyData.members[0].connId == client._cid) {
 			sent = client.PreBattle_SetEnv(sf4e::localRand()) == session::SendResult::Queued && sent;
-			sent = client.PreBattle_SetStage(command.stage) == session::SendResult::Queued && sent;
+			sent = client.PreBattle_SetStage(selection::ResolveStage(command.stage, sf4e::localRand())) == session::SendResult::Queued && sent;
 		}
 		if (!sent || client.Lobby_Ready() != session::SendResult::Queued) {
 			FailReady(loc::T("runtime.match_settings_send_failed"));
