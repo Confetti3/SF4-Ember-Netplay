@@ -31,14 +31,12 @@ static void AssertSaveStateThreadAffinity() {
     }
 }
 
-// Keys reserved per save state. Sizes the constructor's reservation and the
-// growth warning in Save.
+// Keys reserved per save state. Field logs from v0.9.8 and v0.9.9 show 89 to
+// 91 keys in every save state, so 96 leaves headroom and the first save of a
+// battle does not reallocate. Save warns once if the count outgrows it.
 static constexpr std::size_t kSaveStateKeyReservation = 96;
 
 fSystem::SaveState::SaveState() {
-    // Field logs from v0.9.8 and v0.9.9 show 89 to 91 keys in every save
-    // state. Reserving 96 covers them with headroom, so the first save of a
-    // battle does not reallocate.
     keys.reserve(kSaveStateKeyReservation);
     // Sound records: clear() keeps criPlayerState's capacity and Reset()
     // keeps every manager record with its pool vectors, so after the first
@@ -729,9 +727,7 @@ bool fSystem::SaveState::Save(SaveState* dst, bool temporary) {
         }
     }
 
-    // The constructor reserves kSaveStateKeyReservation keys, which covers
-    // the 89 to 91 observed in v0.9.8 and v0.9.9. Growth past it is logged
-    // once per process as telemetry in case the count keeps rising.
+    // Telemetry in case the key count keeps rising past the reservation.
     if (dst->keys.size() > kSaveStateKeyReservation) {
         static bool s_warnedKeyGrowth = false;
         if (!s_warnedKeyGrowth) {
