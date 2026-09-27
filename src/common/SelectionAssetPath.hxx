@@ -13,7 +13,8 @@ inline bool IsSelectionAssetPath(const std::wstring& path) {
     const auto relative = path.substr(root.size());
     if (relative == L"sources.json" || relative == L"cutouts.json" ||
         relative == L"horror-sources.json" || relative == L"stage-sources.json" ||
-        relative == L"ultra-sources.json" || relative == L"color-sources.json" || relative == L"README.md") return true;
+        relative == L"ultra-sources.json" || relative == L"color-sources.json" ||
+        relative == L"alt-color-sources.json" || relative == L"README.md") return true;
     for (const auto& stage : StageList()) {
         const std::wstring stem = L"stages\\" + std::wstring(stage.code, stage.code + 3);
         if (relative == stem + L".jpg" || relative == stem + L".png") return true;

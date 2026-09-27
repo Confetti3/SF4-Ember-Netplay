@@ -649,8 +649,10 @@ install(
 install(FILES "src/ui/fonts/OFL.txt" DESTINATION "notices" RENAME "Inter-OFL.txt")
 install(FILES "src/ui/fonts/NotoSansCJK-OFL.txt" DESTINATION "notices")
 install(FILES "src/ui/backends/LICENSE.txt" DESTINATION "notices" RENAME "Dear-ImGui-MIT.txt")
+# Preserved photographs are masking inputs; the runtime draws their cutouts.
 install(DIRECTORY "assets/selection" DESTINATION "assets" COMPONENT SelectionReferences OPTIONAL
-    FILES_MATCHING PATTERN "*.png" PATTERN "*.jpg" PATTERN "*.json" PATTERN "*.md")
+    FILES_MATCHING PATTERN "*.png" PATTERN "*.jpg" PATTERN "*.json" PATTERN "*.md"
+    REGEX "/color-[0-9]+\\.(png|jpg)$" EXCLUDE)
 # Keep local builds self-contained when references have been fetched. Copy on
 # each build because image-only changes do not cause Sidecar to relink.
 add_custom_target(SelectionAssets

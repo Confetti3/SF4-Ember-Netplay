@@ -220,10 +220,12 @@ int main(int argc, char** argv) {
                     for (int color = 0; color < sf4e::selection::ColorCount(id, costume); ++color) {
                         const std::string stem = assets + "/" + sf4e::selection::FindFighter(id)->code +
                             "/costume-" + std::to_string(costume) + "/color-" + std::to_string(color);
-                        if (GetFileAttributesA((stem + ".png").c_str()) == INVALID_FILE_ATTRIBUTES) continue;
-                        Require(GetFileAttributesA((stem + "-cutout.png").c_str()) != INVALID_FILE_ATTRIBUTES,
-                                "Numbered color photograph has not been masked");
-                        colorPhotos.push_back({id, costume, color});
+                        // Sheet-cropped palettes ship as a cutout alone; a
+                        // preserved photograph must always have its cutout.
+                        const bool photo = GetFileAttributesA((stem + ".png").c_str()) != INVALID_FILE_ATTRIBUTES;
+                        const bool cutout = GetFileAttributesA((stem + "-cutout.png").c_str()) != INVALID_FILE_ATTRIBUTES;
+                        Require(!photo || cutout, "Numbered color photograph has not been masked");
+                        if (cutout) colorPhotos.push_back({id, costume, color});
                     }
             for (std::size_t first = 0; first < colorPhotos.size(); first += 32) {
                 const std::size_t end = (std::min)(first + 32, colorPhotos.size());

@@ -43,6 +43,7 @@ int main() {
     CHECK(IsSelectionAssetPath(L"assets\\selection\\stage-sources.json"));
     CHECK(IsSelectionAssetPath(L"assets\\selection\\ultra-sources.json"));
     CHECK(IsSelectionAssetPath(L"assets\\selection\\color-sources.json"));
+    CHECK(IsSelectionAssetPath(L"assets\\selection\\alt-color-sources.json"));
     CHECK(!IsSelectionAssetPath(L"assets\\selection\\stages\\GAS.jpg"));
     CHECK(!IsSelectionAssetPath(L"assets\\selection\\stages\\SCX.png"));
     CHECK(!IsSelectionAssetPath(L"assets\\selection\\stages\\..\\TRN.jpg"));
