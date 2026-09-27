@@ -20,9 +20,20 @@ MARGIN = 32
 PIPELINE = "costume-cutout-v1"
 
 
+def canvas_size(text):
+    width, height = (int(part) for part in text.lower().split("x"))
+    return width, height
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("assets", type=Path)
+    parser.add_argument("--source-root", type=Path, default=None,
+                        help="folder holding the manifest's photographs when they are not package assets")
+    parser.add_argument("--canvas", type=canvas_size, default=CANVAS, help="cutout canvas, WIDTHxHEIGHT")
+    parser.add_argument("--margin", type=int, default=MARGIN)
+    parser.add_argument("--colors", type=int, default=0,
+                        help="store cutouts as palette PNGs with this many colors; 0 keeps RGBA")
     parser.add_argument("--work", type=Path, default=Path("build/fighter-selection/masking"))
     parser.add_argument("--model", default="birefnet-general-lite")
     parser.add_argument("--fighters", default="", help="Comma-separated native codes; omit for all")
@@ -51,7 +62,7 @@ def main():
     start = time.monotonic()
     for index, record in enumerate(records, 1):
         relative = Path(record["file"])
-        source_path = args.assets / relative
+        source_path = (args.source_root or args.assets) / relative
         source_hash = hashlib.sha256(source_path.read_bytes()).hexdigest()
         if source_hash != record["sha256"]:
             raise RuntimeError(f"Source hash changed: {source_path}")
@@ -63,6 +74,8 @@ def main():
         if override and override["source_sha256"] != source_hash:
             raise RuntimeError(f"Manual mask no longer matches source: {source_path}")
         if (cached.get("pipeline") == PIPELINE and cached.get("model") == args.model and
+                cached.get("canvas") == list(args.canvas) and cached.get("margin") == args.margin and
+                cached.get("colors", 0) == args.colors and
                 cached.get("override_sha256", "") == override_hash and
                 cached.get("source_sha256") == source_hash and target.exists() and
                 hashlib.sha256(target.read_bytes()).hexdigest() == cached.get("sha256")):
@@ -124,19 +137,27 @@ def main():
             raise RuntimeError(f"Empty cutout: {source_path}")
         photo = photo.convert("RGBA"); photo.putalpha(mask)
         cutout = photo.crop(bounds)
-        factor = min((CANVAS[0] - 2 * MARGIN) / cutout.width, (CANVAS[1] - 2 * MARGIN) / cutout.height)
+        # The same fit at any canvas size, so a smaller canvas frames the
+        # fighter exactly as the 512x768 cutouts do once the UI scales it.
+        width, height = args.canvas
+        factor = min((width - 2 * args.margin) / cutout.width, (height - 2 * args.margin) / cutout.height)
         size = (max(1, round(cutout.width * factor)), max(1, round(cutout.height * factor)))
         cutout = cutout.resize(size, Image.Resampling.LANCZOS)
-        canvas = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
-        offset = ((CANVAS[0] - size[0]) // 2, CANVAS[1] - MARGIN - size[1])
+        canvas = Image.new("RGBA", args.canvas, (0, 0, 0, 0))
+        offset = ((width - size[0]) // 2, height - args.margin - size[1])
         canvas.alpha_composite(cutout, offset)
         target.parent.mkdir(parents=True, exist_ok=True)
+        if args.colors:
+            # A palette PNG with per-entry alpha, which WIC decodes like RGBA.
+            canvas = canvas.quantize(colors=args.colors, method=Image.Quantize.FASTOCTREE,
+                                     dither=Image.Dither.FLOYDSTEINBERG)
         canvas.save(target, optimize=True)
         prior[record["file"]] = {
             "fighter": record["fighter"], "costume": record["costume"], "color": record["color"],
             "source_file": record["file"], "source_sha256": source_hash,
             "file": target_relative.as_posix(), "sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
-            "pipeline": PIPELINE, "model": args.model, "canvas": list(CANVAS), "margin": MARGIN,
+            "pipeline": PIPELINE, "model": args.model, "canvas": list(args.canvas), "margin": args.margin,
+            "colors": args.colors,
             "provider": args.provider,
             "override_sha256": override_hash, "correction_note": override.get("reason", ""),
             "source_bounds": list(bounds), "scaled_size": list(size), "offset": list(offset),

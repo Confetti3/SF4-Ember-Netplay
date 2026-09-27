@@ -57,9 +57,19 @@ $quickStart = (Resolve-Path -LiteralPath $QuickStartPath).Path
 # links; maintainer references are carried separately through the optional docs
 # in PackageInventory.inc.
 Copy-Item -LiteralPath $quickStart -Destination (Join-Path $destination 'START_HERE.md')
-$art = Join-Path $repo 'assets/selection'
-New-Item -ItemType Directory -Path (Join-Path $destination 'assets') -Force | Out-Null
-Copy-Item -LiteralPath $art -Destination (Join-Path $destination 'assets') -Recurse
+# Preserved photographs (color-N.jpg/.png) are masking inputs kept in the
+# repository for provenance. The runtime draws the cutout beside each one, so
+# only the cutouts ship; a photograph without its cutout stops packaging.
+$art = (Resolve-Path -LiteralPath (Join-Path $repo 'assets/selection')).Path
+foreach ($file in Get-ChildItem -LiteralPath $art -File -Recurse) {
+    if ($file.Name -match '^color-\d+\.(jpg|png)$') {
+        if (!(Test-Path -LiteralPath (Join-Path $file.DirectoryName ($file.BaseName + '-cutout.png')))) { throw "Selection photograph has no cutout: $($file.FullName)" }
+        continue
+    }
+    $target = Join-Path (Join-Path $destination 'assets/selection') $file.FullName.Substring($art.Length + 1)
+    New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
+    Copy-Item -LiteralPath $file.FullName -Destination $target
+}
 & python (Join-Path $PSScriptRoot 'collect-notices.py') --build-dir $BuildDir --output (Join-Path $destination 'notices/THIRD_PARTY_LICENSES.txt')
 if ($LASTEXITCODE -ne 0) { throw 'Dependency notice collection failed' }
 $revision = git -C $repo rev-parse HEAD

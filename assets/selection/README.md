@@ -9,7 +9,11 @@ Street Fighter Galleries / slateman, with the Horror pack from Capcom's official
 `CODE/costume-N/color-N.jpg` or `.png` is the preserved photograph. Indices in
 paths are native zero-based values. A sibling `color-N-cutout.png` contains the
 same photograph locally masked, cropped, and proportionally resized onto a
-512×768 transparent canvas. `cutouts.json` records processing details and hashes.
+256×384 transparent canvas, stored as a 256-color palette PNG. `cutouts.json`
+records processing details and hashes; cutouts first made at 512×768 were
+halved (premultiplied, then quantized) and keep the original hash in
+`resampled_from_sha256`. Only cutouts ship in packages; the preserved
+photographs stay in the repository as masking inputs.
 No character details or palette colors are generated or recolored.
 
 The runtime prefers cutouts, then PNGs, then JPEGs. It reads installed-game
@@ -47,3 +51,19 @@ The EventHubs SFIV/SSFIV color sheets supply 713 additional numbered photographs
 crops. Apply the same local mask pipeline using `--source-manifest color-sources.json`.
 These are authentic photographed palettes, including the stylized colors 11 and
 12 where the source contains them. Coverage varies by fighter and costume.
+
+The remaining alternate-costume palettes come from the Street Fighter Wiki's
+[Alternate Costumes/Street Fighter IV series](https://streetfighter.fandom.com/wiki/Alternate_Costumes/Street_Fighter_IV_series)
+page, which shows every Alternate 1 through Horror costume as one sheet of
+in-game screenshots: the two stylized colors, then the numbered colors in order.
+`python scripts/fetch-alt-color-sheets.py` downloads the original sheets
+(verifying each against the SHA-1 the wiki reports), cuts each into one image
+per palette under `build/fighter-selection/alt-crops`, and records the sheet,
+crop box and credit for every palette in `alt-color-sources.json`. Palettes
+that already have a photograph keep it. These crops are masking inputs only;
+the package ships just their cutouts, made with the same pipeline at the
+same 256×384 canvas as 256-color palette PNGs (about 20 KB each):
+`mask-selection-photos.py assets/selection --source-manifest alt-color-sources.json
+--source-root build/fighter-selection/alt-crops --canvas 256x384 --margin 16 --colors 256`.
+The fit and margin scale with the canvas, so the framing matches the
+original 512×768 cutouts.
