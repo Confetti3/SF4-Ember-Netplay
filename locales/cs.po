@@ -1,0 +1,2095 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: cs\n"
+
+msgid "app.name"
+msgstr "SF4 Ember Netplay"
+
+msgid "common.back"
+msgstr "Zpět"
+
+msgid "common.cancel"
+msgstr "Zrušit"
+
+msgid "common.close"
+msgstr "Zavřít"
+
+msgid "common.confirm"
+msgstr "Potvrdit"
+
+msgid "common.on"
+msgstr "ZAP"
+
+msgid "common.off"
+msgstr "VYP"
+
+msgid "common.unavailable"
+msgstr "Nedostupné"
+
+msgid "common.saving"
+msgstr "Ukládání..."
+
+msgid "common.saved"
+msgstr "Uloženo"
+
+msgid "common.save_failed"
+msgstr "Uložení selhalo"
+
+msgid "confirm.title"
+msgstr "Potvrdit akci"
+
+msgid "confirm.question"
+msgstr "{0}?"
+
+msgid "confirm.updating"
+msgstr "Místnost se aktualizuje. Akci lze stále zrušit."
+
+msgid "launcher.update_failed"
+msgstr "Aktualizaci se nepodařilo nainstalovat. Zavřete hru a předchozí spouštěč a zkuste to znovu. Viz %TEMP%\\sf4-netplay-update.log; záložní kopie jsou v .ember-update-backups."
+
+msgid "launcher.recovery_title"
+msgstr "Obnovení spuštění"
+
+msgid "launcher.path_failed"
+msgstr "Nepodařilo se nastavit cestu k běhovým souborům. Rozbalte celý balíček do složky s právem zápisu."
+
+msgid "launcher.game_not_found"
+msgstr "Ultra Street Fighter IV se nepodařilo najít."
+
+msgid "launcher.sidecar_missing"
+msgstr "Soubor Sidecar.dll chybí nebo jeho cestu nemůže injektor použít. Rozbalte celý balíček do jednoduché místní cesty."
+
+msgid "launcher.runtime_outdated"
+msgstr "Vaše knihovny Microsoft Visual C++ jsou zastaralé a hra by při spuštění spadla. Nainstalujte nejnovější Visual C++ Redistributable (x86) a znovu spusťte Ember.\n\nOtevřít stránku ke stažení?"
+
+msgid "launcher.already_running"
+msgstr "SF4 Ember Netplay už běží. Pokud jej nevidíte, ukončete Launcher.exe a SSFIV.exe ve Správci úloh a znovu spusťte Ember."
+
+msgid "launcher.start_failed"
+msgstr "Spuštění hry nebo injekce selhala. Zkontrolujte protokol spouštěče a zkuste to znovu."
+
+msgid "launcher.game_error"
+msgstr "Hra skončila s chybou. Zkontrolujte protokol spouštěče a zkuste to znovu."
+
+msgid "launcher.runtime_shadowed"
+msgstr "Hra by místo souborů ze složky Ember načetla tyto soubory. Stará kopie ji zastaví ještě před spuštěním (\"entry point ggpo_get_last_confirmed_frame not found\"). Pocházejí z jiného netplay modu nebo starší instalace. Přesuňte je nebo přejmenujte a znovu spusťte Ember:\n\n{0}"
+
+msgid "launcher.game_wrong_dll"
+msgstr "Hra se zastavila před spuštěním Ember, protože načtené DLL chybí funkce. Obvykle je vedle SSFIV.exe soubor GGPO.dll, spdlog.dll, fmt.dll nebo zlib1.dll z jiného modu či starší instalace. Přesuňte nalezené soubory jinam a zkuste to znovu. Pokud tam žádný není, pošlete protokol spouštěče."
+
+msgid "recovery.window"
+msgstr "Obnovení Ember"
+
+msgid "recovery.d3d_failed"
+msgstr "Rozhraní pro obnovení nedokázalo inicializovat Direct3D 9. Viz %APPDATA%\\sf4e\\logs\\launcher.log."
+
+msgid "recovery.choose_folder_title"
+msgstr "Vyberte složku se souborem SSFIV.exe"
+
+msgid "recovery.folder_selected"
+msgstr "Složka hry vybrána. Zkuste to znovu."
+
+msgid "recovery.folder_invalid"
+msgstr "V této složce není SSFIV.exe."
+
+msgid "recovery.title"
+msgstr "OBNOVENÍ SPUŠTĚNÍ"
+
+msgid "updates.title"
+msgstr "AKTUALIZACE"
+
+msgid "recovery.choose_folder"
+msgstr "Vybrat složku hry"
+
+msgid "recovery.choose_folder_detail"
+msgstr "Vyberte složku nainstalované hry Ultra Street Fighter IV se souborem SSFIV.exe. Soubory hry nejsou součástí balíčku."
+
+msgid "recovery.retry"
+msgstr "Spustit znovu"
+
+msgid "recovery.retry_busy"
+msgstr "Nejprve zrušte nebo dokončete probíhající operaci."
+
+msgid "recovery.retry_detail"
+msgstr "Zkuste hru spustit z vybrané složky. Chybějící síťový pomocník nebrání hraní offline."
+
+msgid "updates.check"
+msgstr "Hledat aktualizace"
+
+msgid "updates.busy"
+msgstr "Operace již probíhá."
+
+msgid "updates.check_detail"
+msgstr "Vyhledat novější balíček Ember."
+
+msgid "updates.install"
+msgstr "Stáhnout a nainstalovat"
+
+msgid "updates.install_detail"
+msgstr "Před instalací zavřete SF4. Balíček se před instalací ověří. Vaše osobní nastavení zůstanou zachována."
+
+msgid "updates.unverified"
+msgstr "Tato aktualizace nemá kontrolní součet a nelze ji nainstalovat."
+
+msgid "updates.cancel"
+msgstr "Zrušit operaci"
+
+msgid "updates.cancel_detail"
+msgstr "Zrušit stahování nebo kontrolu. Před dalším pokusem počkejte na dokončení rušení."
+
+msgid "recovery.close_detail"
+msgstr "Zavřít obnovení bez spuštění SF4. Probíhající operace se zruší."
+
+msgid "updates.downloaded_mb"
+msgstr "Staženo {0:.1f} MB"
+
+msgid "services.checking"
+msgstr "Kontrola aktualizací..."
+
+msgid "services.exporting"
+msgstr "Export diagnostiky..."
+
+msgid "services.downloading"
+msgstr "Stahování a ověřování aktualizace..."
+
+msgid "services.opening_updater"
+msgstr "Otevírání aktualizátoru..."
+
+msgid "services.update_available"
+msgstr "K dispozici je aktualizace: {0}"
+
+msgid "services.up_to_date"
+msgstr "Máte aktuální verzi."
+
+msgid "services.diagnostics_saved"
+msgstr "Uloženo do %APPDATA%\\sf4e\\diagnostics\\ember-diagnostics.txt"
+
+msgid "services.diagnostics_failed"
+msgstr "Diagnostiku se nepodařilo uložit. Zkuste to znovu."
+
+msgid "services.updater_start_failed"
+msgstr "Aktualizátor se nespustil. Zkuste to znovu."
+
+msgid "services.game_closing"
+msgstr "Hra se zavírá. Po jejím ukončení se otevře aktualizátor."
+
+msgid "services.no_verified_update"
+msgstr "Ověřená aktualizace není dostupná. Zkontrolujte aktualizace znovu."
+
+msgid "services.update_prepared"
+msgstr "Aktualizace připravena. Restartuje se SF4 Ember Netplay..."
+
+msgid "services.operation_failed"
+msgstr "Operace selhala. Zkuste to znovu. Záložní kopie aktualizace jsou v .ember-update-backups."
+
+msgid "services.operation_cancelled"
+msgstr "Operace zrušena."
+
+msgid "services.opening_community"
+msgstr "Ve vašem prohlížeči se otevírá Discord Ember..."
+
+msgid "services.community_opened"
+msgstr "Otevřeno v prohlížeči. Přepněte na něj a připojte se k serveru."
+
+msgid "services.community_failed"
+msgstr "Prohlížeč se nepodařilo otevřít. Připojte se na {0}."
+
+msgid "settings.language"
+msgstr "Jazyk"
+
+msgid "settings.language.detail"
+msgstr "Okamžitě změní jazyk rozhraní Ember. Automatický výběr se řídí jazykem hry a poté Windows."
+
+msgid "settings.language.system_with"
+msgstr "Automaticky — {0}"
+
+msgid "settings.language_save_failed"
+msgstr "Volbu jazyka se nepodařilo uložit. Pro tuto relaci zůstává aktivní."
+
+msgid "menu.edit_detail"
+msgstr "Vyberte pro úpravu. Pište nebo vložte text; Enter potvrdí, Zpět zruší."
+
+msgid "menu.edit_unavailable"
+msgstr "Úprava teď není dostupná."
+
+msgid "menu.edit"
+msgstr "Upravit"
+
+msgid "menu.review"
+msgstr "Zkontrolovat"
+
+msgid "menu.select"
+msgstr "Vybrat"
+
+msgid "menu.navigate"
+msgstr "Pohyb"
+
+msgid "menu.adjust"
+msgstr "Upravit"
+
+msgid "rules.edition_select"
+msgstr "Výběr edice"
+
+msgid "rules.rounds"
+msgstr "Kola"
+
+msgid "rules.round_time"
+msgstr "Čas kola"
+
+msgid "screen.home"
+msgstr "Domů"
+
+msgid "screen.online"
+msgstr "Hra online"
+
+msgid "screen.selection"
+msgstr "Výběr postavy"
+
+msgid "screen.player"
+msgstr "Hráč a ovladač"
+
+msgid "screen.defaults"
+msgstr "Výchozí nastavení hry"
+
+msgid "screen.main_character"
+msgstr "Vybrat hlavní postavu"
+
+msgid "screen.about"
+msgstr "Nápověda"
+
+msgid "screen.room"
+msgstr "Místnost"
+
+msgid "screen.table"
+msgstr "Stůl"
+
+msgid "screen.table_rules"
+msgstr "Pravidla stolu"
+
+msgid "screen.members"
+msgstr "Členové"
+
+msgid "screen.member"
+msgstr "Člen"
+
+msgid "screen.chat"
+msgstr "Chat"
+
+msgid "screen.room_settings"
+msgstr "Nastavení místnosti"
+
+msgid "screen.practice_position"
+msgstr "Pozice v tréninku"
+
+msgid "screen.dummy_recording"
+msgstr "Nahrávání soupeře"
+
+msgid "screen.input_history"
+msgstr "Historie vstupů"
+
+msgid "room.wait.leaving"
+msgstr "Opouštění místnosti. Čeká se na ukončení spojení..."
+
+msgid "room.wait.joining"
+msgstr "Připojování k místnosti. Čeká se na ostatní hráče..."
+
+msgid "room.wait.closed"
+msgstr "Místnost se zavřela. Pro vstup do jiné se vraťte do Hry online."
+
+msgid "room.wait.recovering"
+msgstr "Spojení s místností se obnovuje. Stále ji můžete opustit."
+
+msgid "room.wait.updating"
+msgstr "Místnost se mění. Ovládání se může krátce pozastavit."
+
+msgid "connection.checking"
+msgstr "Kontrola..."
+
+msgid "connection.checking_detail"
+msgstr "Pět sekund se měří herní datagramy, navíc se navazuje spojení. Zpoždění můžete zvolit i ručně."
+
+msgid "connection.checking_action"
+msgstr "Kontrola spojení..."
+
+msgid "connection.frames"
+msgstr "{0} sn."
+
+msgid "connection.result_detail"
+msgstr "Spojení: {0}. Medián RTT {1} ms; p95 {2} ms; p99 {3} ms. Kolísání RTT {4} ms. Odesláno {5}, odpovědí {6}, ztraceno {7}. Použijte doporučení nebo zvolte vlastní zpoždění."
+
+msgid "connection.route_direct"
+msgstr "Přímé"
+
+msgid "connection.route_relayed"
+msgstr "Přes server"
+
+msgid "connection.route_unknown"
+msgstr "Neznámé"
+
+msgid "connection.relayed_advice"
+msgstr "Spojení přes server znamená, že se vaše sítě nedokázaly spojit přímo, a data zápasu proto přenáší zprostředkující server. Zápasy fungují dál; použijte doporučené zpoždění. O přímé spojení se může pokusit kterýkoli hráč zapnutím UPnP na routeru, přesměrováním portu UDP 45760 na svůj počítač nebo vypnutím VPN."
+
+msgid "connection.check_again"
+msgstr "Zkontrolovat spojení znovu"
+
+msgid "connection.no_recommendation"
+msgstr "Bez doporučení"
+
+msgid "connection.timed_out"
+msgstr "Kontrola spojení vypršela. Zkuste to znovu, nebo zvolte zpoždění a potvrďte Připraven."
+
+msgid "connection.invalidated"
+msgstr "Spojení nebo soupeř se změnili. Zopakujte kontrolu, nebo zvolte zpoždění a potvrďte Připraven."
+
+msgid "connection.local_overload"
+msgstr "Tento počítač nestihl včas odeslat všechna data. Zkuste to znovu s menší zátěží na pozadí, nebo zvolte zpoždění ručně."
+
+msgid "connection.insufficient"
+msgstr "Nepřišlo dost odpovědí. Zkuste to znovu, nebo zvolte zpoždění a potvrďte Připraven; doporučení není nutné."
+
+msgid "connection.packet_summary"
+msgstr " Pakety: plán {1}, odesláno {0}, odpovědi {2}, ztraceno {3}."
+
+msgid "connection.retry"
+msgstr "Zopakovat kontrolu spojení"
+
+msgid "connection.not_checked"
+msgstr "Nezkontrolováno"
+
+msgid "connection.not_checked_detail"
+msgstr "Zkontrolujte spojení se soupeřem pro návrh zpoždění. Není to nutné; můžete zvolit zpoždění a potvrdit Připraven."
+
+msgid "connection.check"
+msgstr "Zkontrolovat spojení"
+
+msgid "error.queue_failed"
+msgstr "Akci se nepodařilo zařadit do fronty. Zkuste to znovu."
+
+msgid "notice.left_room"
+msgstr "Opustili jste místnost."
+
+msgid "notice.profile_saved"
+msgstr "Portrét profilu uložen: {0}"
+
+msgid "error.settings_not_saved"
+msgstr "Nastavení se neuložila. Zkuste to znovu, až bude nabídka dostupná."
+
+msgid "shell.home_title"
+msgstr "SF4 EMBER"
+
+msgid "settings.auto_save"
+msgstr "Změny se ukládají automaticky."
+
+msgid "settings.leave_room_to_edit"
+msgstr "Pro změnu osobních nastavení opusťte místnost."
+
+msgid "controller.assign_title"
+msgstr "PŘIŘADIT OVLADAČ"
+
+msgid "controller.cancel_assignment"
+msgstr "Zrušit přiřazení ovladače"
+
+msgid "controller.press_button"
+msgstr "Stiskněte tlačítko na vybraném ovladači."
+
+msgid "controller.release_buttons"
+msgstr "Uvolněte všechna tlačítka."
+
+msgid "home.online"
+msgstr "Hra online"
+
+msgid "home.online_detail"
+msgstr "Vytvořte soukromou místnost nebo přijměte pozvánku."
+
+msgid "home.return_room"
+msgstr "Vrátit se do aktuální místnosti."
+
+msgid "home.fighter_select"
+msgstr "Výběr postavy"
+
+msgid "home.selection_locked"
+msgstr "Aktuální stav výběru najdete u svého stolu."
+
+msgid "home.profile"
+msgstr "Profil"
+
+msgid "home.profile_detail"
+msgstr "Vaše jméno, hlavní postava a místní potvrzená bilance online."
+
+msgid "home.settings"
+msgstr "Nastavení"
+
+msgid "home.settings_detail"
+msgstr "Hráč, ovladač, výchozí nastavení hry, rozhraní a Discord."
+
+msgid "home.about"
+msgstr "Nápověda"
+
+msgid "home.about_detail"
+msgstr "Ovládání, diagnostika, aktualizace a tvůrci."
+
+msgid "home.offline"
+msgstr "Hrát offline"
+
+msgid "home.offline_detail"
+msgstr "Otevřít nabídky hry offline."
+
+msgid "home.choose_controller"
+msgstr "Vybrat herní ovladač"
+
+msgid "home.choose_controller_detail"
+msgstr "Před hrou online je nutné ovladač výslovně přiřadit."
+
+msgid "profile.title"
+msgstr "PROFIL"
+
+msgid "profile.player_name"
+msgstr "Jméno hráče"
+
+msgid "profile.main_character"
+msgstr "Hlavní postava"
+
+msgid "profile.main_character_detail"
+msgstr "{0}. Zobrazuje se na kartě hráče bez ohledu na výběr pro zápas."
+
+msgid "profile.record"
+msgstr "Bilance výher a proher"
+
+msgid "profile.record_detail"
+msgstr "Výhry: {0} / prohry: {1}. Místní potvrzené online zápasy od začátku sledování; bez remíz, zrušených a offline zápasů a nevyřešených výsledků."
+
+msgid "profile.record_unavailable"
+msgstr "Bilance není dostupná. Původní nastavení zůstala zachována."
+
+msgid "profile.record_value"
+msgstr "{0} V / {1} P"
+
+msgid "profile.choose_main_title"
+msgstr "VYBRAT HLAVNÍ POSTAVU"
+
+msgid "profile.choose_main_detail"
+msgstr "Vybráním uložíte hlavní postavu a upravíte kartu hráče."
+
+msgid "profile.leave_room_to_edit"
+msgstr "Pro úpravu profilu opusťte místnost."
+
+msgid "online.title"
+msgstr "HRA ONLINE"
+
+msgid "online.create"
+msgstr "Vytvořit místnost"
+
+msgid "online.create_detail"
+msgstr "Nastavit soukromou místnost."
+
+msgid "online.join"
+msgstr "Připojit se"
+
+msgid "online.join_detail"
+msgstr "Vložit pozvánku."
+
+msgid "room.create_title"
+msgstr "VYTVOŘIT MÍSTNOST"
+
+msgid "settings.gameplay_defaults_title"
+msgstr "VÝCHOZÍ NASTAVENÍ HRY"
+
+msgid "settings.input_delay"
+msgstr "Zpoždění vstupu"
+
+msgid "room.name"
+msgstr "Název místnosti"
+
+msgid "room.capacity"
+msgstr "Kapacita"
+
+msgid "room.capacity_detail"
+msgstr "Nejvyšší počet členů včetně diváků."
+
+msgid "room.stop_creating"
+msgstr "Zrušit tvorbu místnosti."
+
+msgid "room.stop_creating_action"
+msgstr "Zastavit vytváření"
+
+msgid "room.create_requirements"
+msgstr "Síťové připojení a přiřazený herní ovladač musí být připraveny."
+
+msgid "room.join_title"
+msgstr "PŘIPOJIT SE"
+
+msgid "room.paste_invitation"
+msgstr "Vložit pozvánku"
+
+msgid "room.paste_invitation_detail"
+msgstr "Zkopírujte pozvánku Ember a vyberte tento řádek."
+
+msgid "room.stop_joining"
+msgstr "Zrušit připojování."
+
+msgid "room.stop_joining_action"
+msgstr "Zastavit připojení"
+
+msgid "room.join_pasted"
+msgstr "Připojit se pomocí vložené pozvánky."
+
+msgid "room.edit_invitation"
+msgstr "Upravit pozvánku"
+
+msgid "settings.title"
+msgstr "NASTAVENÍ"
+
+msgid "settings.player_detail"
+msgstr "Zobrazované jméno a přiřazení ovladače."
+
+msgid "settings.defaults_detail"
+msgstr "Zpoždění a výchozí nastavení místností."
+
+msgid "settings.interface"
+msgstr "Rozhraní"
+
+msgid "settings.interface_detail"
+msgstr "Nenápadný HUD a velikost rozhraní."
+
+msgid "settings.discord_detail"
+msgstr "Aktivita a pozvánky."
+
+msgid "player.title"
+msgstr "HRÁČ A OVLADAČ"
+
+msgid "player.display_name"
+msgstr "Zobrazované jméno"
+
+msgid "player.change_controller"
+msgstr "Změnit ovladač"
+
+msgid "player.change_controller_detail"
+msgstr "{0}. Pro přiřazení uvolněte, stiskněte a znovu uvolněte."
+
+msgid "player.use_keyboard"
+msgstr "Použít klávesnici"
+
+msgid "player.use_keyboard_detail"
+msgstr "Výslovně přiřadit klávesnici."
+
+msgid "player.native_menus"
+msgstr "Otevřít nabídky hry"
+
+msgid "player.native_menus_detail"
+msgstr "Ember se zavře. Bojová tlačítka nastavíte ve hře v nabídce Možnosti."
+
+msgid "settings.interface_title"
+msgstr "ROZHRANÍ"
+
+msgid "size.small"
+msgstr "Malé"
+
+msgid "size.standard"
+msgstr "Standardní"
+
+msgid "size.large"
+msgstr "Velké"
+
+msgid "settings.match_hud"
+msgstr "HUD zápasu"
+
+msgid "settings.match_hud_size"
+msgstr "Velikost HUD"
+
+msgid "settings.match_hud_size_detail"
+msgstr "Mění velikost textu a panelu během zápasu."
+
+msgid "settings.bottom_spacing"
+msgstr "Odstup od spodku"
+
+msgid "spacing.raised"
+msgstr "Výše"
+
+msgid "spacing.normal"
+msgstr "Běžně"
+
+msgid "settings.bottom_spacing_detail"
+msgstr "Posune HUD zápasu výš od spodního okraje."
+
+msgid "settings.interface_size"
+msgstr "Velikost rozhraní"
+
+msgid "discord.show_activity"
+msgstr "Zobrazit aktivitu"
+
+msgid "discord.allow_invitations"
+msgstr "Povolit pozvánky"
+
+msgid "discord.invitation_detail"
+msgstr "Pozvánky zpřístupní vaši místnost dalším lidem."
+
+msgid "discord.enable_first"
+msgstr "Nejprve zapněte aktivitu na Discord."
+
+msgid "discord.invitation_title"
+msgstr "POZVÁNKA DISCORD"
+
+msgid "discord.cancel_invitation"
+msgstr "Zrušit pozvánku"
+
+msgid "discord.cancel_invitation_detail"
+msgstr "Zahodit pozvánku bez opuštění aktuální místnosti."
+
+msgid "discord.switch_room"
+msgstr "Přejít do pozvané místnosti"
+
+msgid "discord.switch_room_detail"
+msgstr "Opustit tuto místnost a připojit se podle pozvánky."
+
+msgid "discord.wait_game"
+msgstr "Počkejte na konec aktuálního zápasu."
+
+msgid "discord.invitation_pending"
+msgstr "Čekající pozvánka"
+
+msgid "discord.invitation_pending_detail"
+msgstr "Čeká se na hlavní nabídku, síť a přiřazený ovladač."
+
+msgid "about.title"
+msgstr "NÁPOVĚDA"
+
+msgid "about.controls"
+msgstr "Ovládání"
+
+msgid "about.controls_detail"
+msgstr "Xbox: A vybírá, B se vrací, nezávisle na přiřazení bojových tlačítek. DirectInput: přiřazené LP vybírá, LK se vrací. D-pad slouží k pohybu; vlevo/vpravo upravuje hodnoty. Trénink se ovládá klávesnicí a myší: F6 otevírá/zavírá, šipky slouží k pohybu, Enter vybírá, Escape se vrací. Start v tréninku otevírá jen původní nabídku pauzy. F10 otevírá Ember v hlavní nabídce; F5–F8 jsou zkratky pro trénink."
+
+msgid "about.ember"
+msgstr "O Ember"
+
+msgid "about.ember_detail"
+msgstr "Neoficiální mod pro Ultra Street Fighter IV, založený na sf4e od Anthonyho Danducciho. Iroh / QUIC, GGPO, Dear ImGui a písmo Inter. Sestavení: {0}"
+
+msgid "about.font_license"
+msgstr "Licence písma"
+
+msgid "about.export_diagnostics"
+msgstr "Exportovat diagnostiku"
+
+msgid "about.export_diagnostics_detail"
+msgstr "Exportuje stavy spojení bez pozvánek a přihlašovacích údajů."
+
+msgid "about.updates_detail"
+msgstr "Vyhledat novější verzi Ember."
+
+msgid "about.open_updater"
+msgstr "Ukončit a aktualizovat"
+
+msgid "about.open_updater_detail"
+msgstr "Hra se zavře. Nejprve opusťte místnost."
+
+msgid "about.open_recovery"
+msgstr "Ukončit a obnovit"
+
+msgid "about.open_recovery_detail"
+msgstr "Zavřít hru a otevřít obnovení."
+
+msgid "about.leave_room_first"
+msgstr "Nejprve opusťte místnost a vraťte se do hlavní nabídky."
+
+msgid "about.discord"
+msgstr "Připojit se k Discord Ember"
+
+msgid "about.discord_detail"
+msgstr "Hráči, zápasy a podpora na {0}. Otevře se v prohlížeči za hrou."
+
+msgid "settings.retry_save"
+msgstr "Uložit znovu"
+
+msgid "room.creating_status"
+msgstr "Vytváření místnosti. Čeká se na síť..."
+
+msgid "room.joining_status"
+msgstr "Připojování k místnosti. Čeká se na síť..."
+
+msgid "room.locked_status"
+msgstr "Uzamčená místnost / jen s pozvánkou"
+
+msgid "room.private_status"
+msgstr "Soukromá místnost / jen s pozvánkou"
+
+msgid "room.reconnecting"
+msgstr "Obnovování spojení..."
+
+msgid "room.table_setup_title"
+msgstr "STŮL {0} / PŘÍPRAVA ZÁPASU"
+
+msgid "room.waiting_opponent"
+msgstr "Čekání na soupeře"
+
+msgid "room.you"
+msgstr "Vy"
+
+msgid "room.player"
+msgstr "Hráč"
+
+msgid "room.ready_suffix"
+msgstr " - PŘIPRAVEN"
+
+msgid "room.readying_suffix"
+msgstr " - Připravuje se..."
+
+msgid "room.not_ready_suffix"
+msgstr " - Nepřipraven"
+
+msgid "room.result_unresolved_status"
+msgstr "Výsledek nevyřešen / vzdejte jej, nebo jej může zrušit hostitel"
+
+msgid "room.preparing_status"
+msgstr "Příprava zápasu / výběr postav uzamčen"
+
+msgid "room.waiting_results_status"
+msgstr "Čekání na výsledky / další zápas zatím není připraven"
+
+msgid "room.match_in_progress"
+msgstr "Zápas probíhá"
+
+msgid "room.table_closed"
+msgstr "Stůl zavřen"
+
+msgid "controller.disconnected"
+msgstr "Ovladač odpojen. Znovu jej připojte nebo přiřaďte."
+
+msgid "room.control_unavailable"
+msgstr "Správa místnosti není dostupná. Až nebude probíhat zápas, nahraďte místnost."
+
+msgid "room.control_recovering"
+msgstr "Správa místnosti se obnovuje. Akce v místnosti jsou pozastaveny."
+
+msgid "settings.preview"
+msgstr "Náhled"
+
+msgid "settings.player_one"
+msgstr "Hráč 1"
+
+msgid "settings.player_two"
+msgstr "Hráč 2"
+
+msgid "error.invitation_invalid"
+msgstr "Pozvánka je prázdná nebo příliš dlouhá."
+
+msgid "error.invitation_changed"
+msgstr "Pozvánka se změnila. Zkuste to znovu."
+
+msgid "error.invalid_value"
+msgstr "Neplatná hodnota. Uložené nastavení se nezměnilo."
+
+msgid "brand.subtitle"
+msgstr "SF4  /  SOUKROMÉ MÍSTNOSTI A ROLLBACK NETPLAY"
+
+msgid "match.waiting_opponent"
+msgstr "Čekání na soupeře..."
+
+msgid "match.connection_countdown"
+msgstr "Nestabilní spojení. Soupeř odpadne za {0} s"
+
+msgid "match.connection_unstable"
+msgstr "Nestabilní spojení"
+
+msgid "match.versus_short"
+msgstr "vs"
+
+msgid "match.ping"
+msgstr "Ping"
+
+msgid "match.rollback"
+msgstr "Rollback"
+
+msgid "match.delay"
+msgstr "Zpoždění"
+
+msgid "match.spectating"
+msgstr "Sledování"
+
+msgid "match.preview_spacing"
+msgstr "Odstup {0} / vzorové hodnoty"
+
+msgid "card.player"
+msgstr "HRÁČ"
+
+msgid "card.choose_fighter"
+msgstr "Vyberte postavu"
+
+msgid "card.controller_ready"
+msgstr "OVLADAČ PŘIPRAVEN"
+
+msgid "card.assign_controller"
+msgstr "PŘIŘADIT OVLADAČ"
+
+msgid "card.wins"
+msgstr "VÝHRY: {0}"
+
+msgid "card.no_wins"
+msgstr "VÝHRY: --"
+
+msgid "card.losses"
+msgstr "PROHRY: {0}"
+
+msgid "card.no_losses"
+msgstr "PROHRY: --"
+
+msgid "card.no_win_rate"
+msgstr "VÝHRY: -- %"
+
+msgid "card.win_rate"
+msgstr "VÝHRY: {0} %"
+
+msgid "training.lab"
+msgstr "Trénink"
+
+msgid "menu.back_to"
+msgstr "< Zpět / {0}"
+
+msgid "training.controls"
+msgstr "Ovládání tréninku"
+
+msgid "training.dummy_recording"
+msgstr "Nahrávání soupeře"
+
+msgid "training.dummy_recording.detail"
+msgstr "Nahrajte ovládání 1H pro 2H. Ve hře nastavte tréninkového soupeře na ovládání hráčem."
+
+msgid "training.input_history"
+msgstr "Historie vstupů"
+
+msgid "training.input_history.detail"
+msgstr "Prohlédněte si držené vstupy obou hráčů."
+
+msgid "training.close_controls"
+msgstr "Zavřít ovládání tréninku"
+
+msgid "training.close_controls.detail"
+msgstr "Zavřete Ember a pak případně i nabídku pauzy SF4, aby hra pokračovala."
+
+msgid "training.slot"
+msgstr "Pozice {0}"
+
+msgid "training.slot_selected"
+msgstr "Pozice {0} / VYBRÁNA"
+
+msgid "training.recorded_frames"
+msgstr "Nahrané snímky: {0}. Nahrávky vydrží do konce tohoto souboje."
+
+msgid "training.record"
+msgstr "Nahrát"
+
+msgid "training.record.overwrite"
+msgstr "Přepsat obsazenou pozici a vrátit se k tréninku."
+
+msgid "training.record.detail"
+msgstr "Nahrát ovládání 1H jako 2H a vrátit se k tréninku."
+
+msgid "training.play"
+msgstr "Přehrát"
+
+msgid "training.play.detail"
+msgstr "Přehrát vybranou pozici a vrátit se k tréninku. Směry jsou absolutní, ne zrcadlené."
+
+msgid "training.slot_empty"
+msgstr "Tato pozice je prázdná."
+
+msgid "training.stop"
+msgstr "Zastavit"
+
+msgid "training.stop.detail"
+msgstr "Zastavit nahrávání nebo přehrávání."
+
+msgid "training.loop"
+msgstr "Opakovat přehrávání"
+
+msgid "training.loop.detail"
+msgstr "Opakovat vybranou nahrávku."
+
+msgid "training.clear_recording"
+msgstr "Smazat vybranou nahrávku"
+
+msgid "training.clear_recording.detail"
+msgstr "Trvale smazat tuto pozici pro aktuální souboj."
+
+msgid "training.player_one"
+msgstr "Hráč 1"
+
+msgid "training.player_two"
+msgstr "Hráč 2"
+
+msgid "training.history.detail"
+msgstr "Nejnovější vstupy jsou nahoře. Počty snímků označují délku držení vstupu, ne začátek útoku."
+
+msgid "training.clear_history"
+msgstr "Smazat historii vstupů"
+
+msgid "training.clear_history.detail"
+msgstr "Vymazat ukazatel a historii vstupů obou hráčů."
+
+msgid "training.practice_ready"
+msgstr "Trénink připraven"
+
+msgid "training.recording_suspended"
+msgstr "Nahrávání je pozastaveno, dokud je otevřené ovládání"
+
+msgid "training.playback_suspended"
+msgstr "Přehrávání je pozastaveno, dokud je otevřené ovládání"
+
+msgid "training.applying"
+msgstr "Provádění příkazu..."
+
+msgid "training.waiting_battle"
+msgstr "Čeká se na připravenost souboje..."
+
+msgid "training.title"
+msgstr "TRÉNINK"
+
+msgid "training.command_rejected"
+msgstr "Příkaz pro trénink nebyl přijat. Zkontrolujte stav a zkuste to znovu."
+
+msgid "training.start_frames"
+msgstr "Náběh {0} sn."
+
+msgid "training.start_unknown"
+msgstr "Náběh --"
+
+msgid "training.startup"
+msgstr "Náběh"
+
+msgid "training.neutral"
+msgstr "Neutrál"
+
+msgid "training.unavailable"
+msgstr "{0}: {1}"
+
+msgid "training.unavailable.waiting_attack"
+msgstr "čeká se na začátek útoku"
+
+msgid "training.unavailable.no_attack"
+msgstr "bez začátku útoku"
+
+msgid "training.unavailable.no_contact"
+msgstr "bez zásahu"
+
+msgid "training.unavailable.measuring_recovery"
+msgstr "měří se zotavení"
+
+msgid "training.unavailable.interrupted"
+msgstr "přerušeno"
+
+msgid "training.unavailable.invalid"
+msgstr "neplatný vzorek"
+
+msgid "training.frame_advantage"
+msgstr "VÝHODA VE SNÍMCÍCH | {0}"
+
+msgid "training.measuring"
+msgstr "měření"
+
+msgid "training.wakeup"
+msgstr "vstávání"
+
+msgid "training.held"
+msgstr "drženo"
+
+msgid "training.live"
+msgstr "živě"
+
+msgid "training.advantage"
+msgstr "Výhoda"
+
+msgid "selection.preview_unavailable"
+msgstr "Náhled\nnení dostupný"
+
+msgid "selection.preview_loading"
+msgstr "Načítání\nnáhledu..."
+
+msgid "selection.handicap_normal"
+msgstr "Normální (100 %)"
+
+msgid "selection.handicap_one_hit"
+msgstr "Jeden zásah"
+
+msgid "selection.handicap_25"
+msgstr "25 %"
+
+msgid "selection.handicap_50"
+msgstr "50 %"
+
+msgid "selection.handicap_75"
+msgstr "75 %"
+
+msgid "selection.original"
+msgstr "Původní"
+
+msgid "selection.alternate"
+msgstr "Alternativní {0}"
+
+msgid "selection.alternate_pack"
+msgstr "Alternativní {0} / {1}"
+
+msgid "selection.stage_count"
+msgstr "SCÉNY: {0} / USFIV"
+
+msgid "selection.choose_battlefield"
+msgstr "Vyberte scénu."
+
+msgid "selection.select_saves"
+msgstr "Vybrat uloží volbu. Zpět vrátí bez změny zobrazeného náhledu."
+
+msgid "selection.locked_detail"
+msgstr "Výběr je uzamčen. Aktuální stav najdete u svého stolu."
+
+msgid "selection.title"
+msgstr "VÝBĚR POSTAVY"
+
+msgid "selection.fighter"
+msgstr "Postava"
+
+msgid "selection.appearance"
+msgstr "Vzhled"
+
+msgid "selection.appearance_value"
+msgstr "{0} / Barva {1}"
+
+msgid "selection.ultra_combo"
+msgstr "Ultra Combo"
+
+msgid "selection.ultra_double"
+msgstr "Ultra Double"
+
+msgid "selection.stage"
+msgstr "Scéna"
+
+msgid "selection.p1_stage"
+msgstr "Scénu vybírá 1H."
+
+msgid "selection.additional_options"
+msgstr "Další možnosti"
+
+msgid "selection.additional_options.detail"
+msgstr "Edice, provokace, vítězná fráze a handicap."
+
+msgid "selection.choose_fighter"
+msgstr "VYBRAT POSTAVU"
+
+msgid "selection.appearance_title"
+msgstr "VZHLED"
+
+msgid "selection.costume_gallery"
+msgstr "Galerie kostýmů"
+
+msgid "selection.color_gallery"
+msgstr "Galerie barev"
+
+msgid "selection.color_preview"
+msgstr "Barva {0} / Procházet náhledy."
+
+msgid "selection.costume_gallery_title"
+msgstr "GALERIE KOSTÝMŮ"
+
+msgid "selection.color_gallery_title"
+msgstr "GALERIE BAREV"
+
+msgid "selection.loading_choices"
+msgstr "Načítání možností"
+
+msgid "selection.loading_choices.detail"
+msgstr "Čeká se na dostupné kostýmy a barvy ze hry."
+
+msgid "selection.no_colors"
+msgstr "Pro tento kostým nejsou odemčené barvy."
+
+msgid "selection.color"
+msgstr "Barva {0}"
+
+msgid "selection.ultra_combo_title"
+msgstr "ULTRA COMBO"
+
+msgid "selection.ultra_double.detail"
+msgstr "Obě Ultra Combo se sníženým poškozením či účinkem."
+
+msgid "selection.saved"
+msgstr "ULOŽENO"
+
+msgid "selection.stage_title"
+msgstr "SCÉNA"
+
+msgid "selection.only_p1_stage"
+msgstr "Scénu může změnit jen 1H."
+
+msgid "selection.options_title"
+msgstr "MOŽNOSTI POSTAVY"
+
+msgid "selection.edition"
+msgstr "Edice"
+
+msgid "selection.usfiv_rules"
+msgstr "Místnost používá pravidla USFIV."
+
+msgid "selection.personal_action"
+msgstr "Provokace"
+
+msgid "common.none"
+msgstr "Nic"
+
+msgid "selection.win_quote"
+msgstr "Vítězná fráze"
+
+msgid "selection.random"
+msgstr "Náhodně"
+
+msgid "selection.random_stage"
+msgstr "Náhodně"
+
+msgid "selection.random_stage.detail"
+msgstr "Při každém zápase jiná scéna."
+
+msgid "selection.handicap"
+msgstr "Handicap"
+
+msgid "selection.saved_value"
+msgstr "Uloženo: {0}"
+
+msgid "selection.ultra_selected"
+msgstr "Toto Ultra je vybrané."
+
+msgid "selection.preview_save"
+msgstr "Jen náhled – uložte tlačítkem Vybrat."
+
+msgid "selection.preview_locked"
+msgstr "Jen náhled – výběr je uzamčen."
+
+msgid "selection.saved_appearance"
+msgstr "Uloženo: Kostým {0} / Barva {1}"
+
+msgid "selection.saved_full"
+msgstr "Uloženo: {0} / Kostým {1} / Barva {2}"
+
+msgid "selection.preview_save_short"
+msgstr "Jen náhled – uložte tlačítkem Vybrat"
+
+msgid "selection.status_editable"
+msgstr "Vybrat uloží / Zpět o úroveň výš."
+
+msgid "selection.status_locked"
+msgstr "Výběr uzamčen – stav najdete u svého stolu."
+
+msgid "runtime.room_recovering"
+msgstr "Správa místnosti se obnovuje. Spojení pro zápas zůstává zachováno."
+
+msgid "runtime.room_lost_fight_continues"
+msgstr "Spojení s místností se ztratilo. Souboj pokračuje, ale odveta a výsledky nejsou dostupné."
+
+msgid "runtime.returned_room_lost"
+msgstr "Návrat do nabídky: spojení s místností se během zápasu ztratilo."
+
+msgid "runtime.room_request_failed"
+msgstr "Požadavek místnosti selhal. Opusťte místnost a zkuste to znovu."
+
+msgid "runtime.build_mismatch"
+msgstr "Neshodují se verze. Oba hráči musí mít stejný balíček SF4 Ember Netplay."
+
+msgid "runtime.room_full"
+msgstr "Místnost je plná."
+
+msgid "runtime.name_taken"
+msgstr "Toto jméno hráče už je v místnosti. Změňte ho v Nastavení."
+
+msgid "runtime.selection_combination_unavailable"
+msgstr "Tato kombinace není podle pravidel místnosti dostupná. Vyberte jinou postavu, kostým, barvu nebo edici."
+
+msgid "runtime.selection_summary"
+msgstr "{0} / Kostým {1} / Barva {2} / {3}"
+
+msgid "runtime.selection_unavailable"
+msgstr "Výběr podle těchto pravidel není dostupný. Ve Výběru postavy zvolte dostupnou možnost."
+
+msgid "runtime.open_shortcut"
+msgstr "SF4 Ember Netplay  /  F10 nebo Start"
+
+msgid "runtime.waiting_opponent_join"
+msgstr "Čeká se na připojení soupeře do lobby..."
+
+msgid "runtime.authorized_connection_unavailable"
+msgstr "Schválené spojení pro zápas není dostupné."
+
+msgid "runtime.waiting_opponent_start"
+msgstr "Před začátkem zápasu se čeká na soupeře v lobby."
+
+msgid "runtime.unsupported_stage"
+msgstr "Místnost zadala nepodporovanou scénu. Před dalším pokusem obnovte lobby."
+
+msgid "runtime.netplay_input_failed"
+msgstr "Síťový vstup selhal. Zápas skončil."
+
+msgid "runtime.netplay_sync_failed"
+msgstr "Síťová synchronizace selhala. Zápas skončil."
+
+msgid "runtime.invalid_roster"
+msgstr "Neplatné obsazení zápasu. Vraťte se do místnosti a zkuste to znovu."
+
+msgid "runtime.ggpo_start_failed"
+msgstr "GGPO se nepodařilo spustit – vraťte se do lobby a znovu potvrďte Připraven."
+
+msgid "runtime.ggpo_add_players_failed"
+msgstr "GGPO nedokázalo přidat hráče – vraťte se do lobby a znovu potvrďte Připraven."
+
+msgid "runtime.rollback_buffer_full"
+msgstr "Vyrovnávací paměť rollbacku je plná. Zápas skončil."
+
+msgid "runtime.connection_unstable_prediction"
+msgstr "Nestabilní spojení. Hra běží podle předpovědi vstupů."
+
+msgid "runtime.connection_restored"
+msgstr "Spojení obnoveno."
+
+msgid "runtime.spectator_disconnected"
+msgstr "Divák se odpojil."
+
+msgid "runtime.spectator_stream_lost"
+msgstr "Přenos pro diváky se přerušil. Stiskněte Sledovat a připojte se k dalšímu zápasu."
+
+msgid "runtime.match_connection_lost"
+msgstr "Spojení pro zápas se ztratilo."
+
+msgid "runtime.opponent_disconnected"
+msgstr "Soupeř se odpojil. Zápas skončil."
+
+msgid "runtime.leaving_spectator"
+msgstr "Ukončuje se sledování."
+
+msgid "runtime.returning_room"
+msgstr "Návrat do místnosti."
+
+msgid "runtime.table_game_cancelled"
+msgstr "Zápas u tohoto stolu byl zrušen. Vraťte se do místnosti a znovu potvrďte Připraven."
+
+msgid "runtime.result_not_recorded"
+msgstr "Výsledek nešlo zaznamenat: stůl se změnil před potvrzením."
+
+msgid "runtime.participant_left"
+msgstr "Účastník zápasu opustil místnost. Hra skončí."
+
+msgid "update.github_unreachable"
+msgstr "GitHub není dostupný. Zkontrolujte internetové připojení a zkuste to znovu."
+
+msgid "update.no_version_tag"
+msgstr "Vydání na GitHub nemá značku verze."
+
+msgid "update.no_zip_asset"
+msgstr "Nejnovější vydání nemá ZIP balíček SF4 Ember Netplay."
+
+msgid "update.parse_failed"
+msgstr "Odpověď GitHub o vydání se nepodařilo zpracovat."
+
+msgid "update.missing_url"
+msgstr "Chybí URL ke stažení."
+
+msgid "update.missing_version"
+msgstr "Chybí značka verze."
+
+msgid "update.close_sf4"
+msgstr "Před instalací aktualizace zavřete Ultra Street Fighter IV."
+
+msgid "update.install_dir_failed"
+msgstr "Nepodařilo se zjistit instalační složku."
+
+msgid "update.temp_path_failed"
+msgstr "Dočasná cesta aktualizace selhala ({0})."
+
+msgid "update.temp_folder_failed"
+msgstr "Dočasnou složku nelze vytvořit ({0})."
+
+msgid "update.temp_access_failed"
+msgstr "Do dočasné složky nelze přistupovat."
+
+msgid "update.zip_path_failed"
+msgstr "Cestu k ZIP souboru nelze vytvořit."
+
+msgid "update.extract_folder_failed"
+msgstr "Složku pro rozbalení nelze vytvořit ({0})."
+
+msgid "update.download_failed"
+msgstr "Stažení selhalo ({0}). Ruční stažení: {1} – podrobnosti v %TEMP%\\sf4-netplay-update.log"
+
+msgid "update.verify_failed"
+msgstr "Staženou aktualizaci se nepodařilo ověřit. Zkuste to znovu."
+
+msgid "update.integrity_failed"
+msgstr "Stažená aktualizace neprošla kontrolou integrity a nebyla nainstalována. Zkuste to znovu nebo stáhněte vydání ručně z GitHub."
+
+msgid "update.no_digest"
+msgstr "Vydání nemá zveřejněný otisk SHA-256. Automatická instalace není dostupná."
+
+msgid "update.extract_failed"
+msgstr "Aktualizaci nelze rozbalit."
+
+msgid "update.invalid_paths"
+msgstr "Stažený balíček obsahuje neplatné cesty."
+
+msgid "update.missing_binaries"
+msgstr "Ve staženém balíčku chybí Launcher.exe nebo Sidecar.dll."
+
+msgid "update.staging_path_failed"
+msgstr "Přípravnou cestu nelze přečíst."
+
+msgid "update.validation_failed"
+msgstr "Stažený balíček neprošel ověřením (chybí potřebné soubory)."
+
+msgid "update.cancelled"
+msgstr "Aktualizace byla před instalací zrušena."
+
+msgid "update.close_game"
+msgstr "Před instalací aktualizace zavřete hru."
+
+msgid "update.updater_start_failed"
+msgstr "Updater.exe se nespustil. Použijte nový ZIP soubor."
+
+msgid "room.member_left"
+msgstr "Člen odešel"
+
+msgid "room.open_seat"
+msgstr "Volné místo"
+
+msgid "room.status.queued"
+msgstr "Ve frontě"
+
+msgid "room.status.seated"
+msgstr "U stolu"
+
+msgid "room.status.ready"
+msgstr "Připraven"
+
+msgid "room.status.playing"
+msgstr "Hraje"
+
+msgid "room.status.watching"
+msgstr "Sleduje"
+
+msgid "room.status.watching_next"
+msgstr "Sleduje další zápas"
+
+msgid "room.status.idle"
+msgstr "Nečinný"
+
+msgid "room.phase.waiting"
+msgstr "Čekání na hráče"
+
+msgid "room.phase.preparing"
+msgstr "Příprava hry"
+
+msgid "room.phase.in_game"
+msgstr "Ve hře"
+
+msgid "room.phase.unresolved"
+msgstr "Výsledek nevyřešen"
+
+msgid "room.phase.closed"
+msgstr "Zavřeno"
+
+msgid "room.phase.open"
+msgstr "Otevřeno"
+
+msgid "room.terminal_pending"
+msgstr "Čeká se na návrat všech hráčů a diváků z předchozího zápasu."
+
+msgid "room.leave.detail"
+msgstr "Odpojit se od této místnosti a vrátit se Domů. Skrytím Ember v místnosti zůstanete."
+
+msgid "room.leave.unresolved"
+msgstr " Nevyřešený zápas se nezaznamená."
+
+msgid "room.leave.active"
+msgstr " Aktuální zápas skončí bez výsledku a uvolní se vaše místo."
+
+msgid "room.leave.seat"
+msgstr " Vaše místo se uvolní."
+
+msgid "room.leave.queue"
+msgstr " Přijdete o místo ve frontě."
+
+msgid "room.leave.host"
+msgstr " Hostitelem se stane jiný člen."
+
+msgid "room.action_queue_failed"
+msgstr "Akci se nepodařilo zařadit do fronty. Zkuste to znovu."
+
+msgid "room.table_detail"
+msgstr "{0} vs {1}\n{2}\nFronta: {3} / Sleduje: {4}\nVy: {5}"
+
+msgid "room.connecting"
+msgstr "Připojování"
+
+msgid "room.table_occupancy"
+msgstr "Stůl {0}   {1}/2"
+
+msgid "room.member_you"
+msgstr "{0} / VY"
+
+msgid "room.member"
+msgstr "{0}"
+
+msgid "room.member_status_host"
+msgstr "{0} / HOSTITEL"
+
+msgid "room.member_status"
+msgstr "{0}"
+
+msgid "room.members"
+msgstr "Členové"
+
+msgid "room.member_count"
+msgstr "Členové: {0} / {1}."
+
+msgid "room.chat"
+msgstr "Chat"
+
+msgid "room.chat.detail"
+msgstr "Číst zprávy a psát text na klávesnici."
+
+msgid "room.change_fighter"
+msgstr "Změnit postavu"
+
+msgid "room.change_fighter.open_table"
+msgstr "U svého stolu najdete stav připravenosti a podmínky změny postavy."
+
+msgid "room.settings"
+msgstr "Nastavení místnosti"
+
+msgid "room.settings.detail"
+msgstr "Název, kapacita a vstup do místnosti."
+
+msgid "room.settings.host_only"
+msgstr "Místnost může spravovat jen hostitel."
+
+msgid "room.connection_status"
+msgstr "Stav spojení"
+
+msgid "room.opening"
+msgstr "Otevírání..."
+
+msgid "room.opening_stalled"
+msgstr "Otevírání místnosti se nedokončilo. Zkontrolujte spojení, nebo akci zastavte a zkuste to znovu."
+
+msgid "room.waiting_state"
+msgstr "Čekání na stav místnosti."
+
+msgid "room.ready"
+msgstr "Připraven"
+
+msgid "room.ready.saved_fighter"
+msgstr "Použít uloženou postavu."
+
+msgid "room.copy_invitation"
+msgstr "Kopírovat pozvánku"
+
+msgid "room.copy_invitation.detail"
+msgstr "Sdílet soukromou pozvánku s přáteli."
+
+msgid "room.leaving"
+msgstr "Odcházení..."
+
+msgid "room.leave"
+msgstr "Opustit místnost"
+
+msgid "room.replace"
+msgstr "Nahradit místnost"
+
+msgid "room.replace.detail"
+msgstr "Zavřít zamrzlou místnost a otevřít náhradní. Všichni se musí připojit znovu a současná pozvánka přestane fungovat. Nevyřešený stav místnosti se zahodí."
+
+msgid "room.replace.waiting"
+msgstr "Předchozí zápas se stále uzavírá. Místnost bude možné nahradit po jeho dokončení."
+
+msgid "room.updating"
+msgstr "Úprava místnosti..."
+
+msgid "room.battle_slot"
+msgstr "BOJOVÝ STŮL {0}"
+
+msgid "room.looking_for_fight"
+msgstr "Hledá se souboj"
+
+msgid "room.fighter_not_shared"
+msgstr "Postava zatím neznámá"
+
+msgid "room.suffix_ready"
+msgstr " / PŘIPRAVEN"
+
+msgid "room.suffix_you"
+msgstr " / VY"
+
+msgid "room.table_footer"
+msgstr "Kola: {0} / čas: {1} s     Fronta: {2}     Sleduje: {3}"
+
+msgid "room.board_status_host_slot"
+msgstr "HOSTITEL / {0} / Místo {1}"
+
+msgid "room.board_status_slot"
+msgstr "{0} / Místo {1}"
+
+msgid "room.board_status_host"
+msgstr "HOSTITEL / {0}"
+
+msgid "room.board_status"
+msgstr "{0}"
+
+msgid "room.members_heading"
+msgstr "ČLENOVÉ  {0} / {1}"
+
+msgid "room.chat_heading"
+msgstr "CHAT"
+
+msgid "room.no_messages"
+msgstr "Zatím žádné zprávy. Vyberte Chat a napište zprávu."
+
+msgid "room.table_explanation"
+msgstr "{0} / Vy: {1}\nFronta: {2} / Sleduje: {3}"
+
+msgid "room.invitation_copied"
+msgstr "Pozvánka zkopírována."
+
+msgid "room.replacement_opening"
+msgstr "Otevírá se náhradní místnost. Zvolte Kopírovat pozvánku a pošlete nový odkaz – starý už nefunguje."
+
+msgid "room.action_rejected"
+msgstr "Místnost se změnila nebo akci odmítla. Zkontrolujte aktuální stav a zkuste to znovu."
+
+msgid "room.leave_current_table"
+msgstr "Nejprve opusťte svůj stůl."
+
+msgid "room.choose_action"
+msgstr "Vyberte akci pro tento stůl."
+
+msgid "room.result_unresolved.detail"
+msgstr "Předchozí výsledek není vyřešen. Zvolte Vzdát nevyřešený zápas, nebo požádejte hostitele o zrušení; výhra se nikomu nepřipíše."
+
+msgid "room.awaiting_result"
+msgstr "Čeká se, až oba hráči nahlásí výsledek. Po potvrzení výsledku se stav Připraven vynuluje; na další zápas ještě připraveni nejste."
+
+msgid "room.match_active"
+msgstr "Aktuální zápas se připravuje nebo probíhá. Počkejte na jeho konec."
+
+msgid "room.waiting_other_seat"
+msgstr "Čeká se, až si soupeř sedne na druhé místo. Mezitím můžete změnit postavu."
+
+msgid "room.controller_required"
+msgstr "Přiřaďte nebo znovu připojte ovladač v Nastavení > Hráč a ovladač."
+
+msgid "room.waiting_update"
+msgstr "Čeká se na dokončení aktualizace místnosti."
+
+msgid "room.ready.cancel_detail"
+msgstr "Jste PŘIPRAVENI. Výběrem zrušíte připravenost a pak můžete změnit postavu."
+
+msgid "room.ready.locking"
+msgstr "Zamyká se výběr postavy. Zápas začne, až budou oba hráči připraveni."
+
+msgid "room.ready.lock_detail"
+msgstr "Výběrem zamknete postavu. Zápas začne, až budou oba hráči připraveni."
+
+msgid "room.both_ready"
+msgstr "Oba hráči jsou připraveni. Zápas začíná."
+
+msgid "room.match_in_progress.detail"
+msgstr "Aktuální zápas probíhá. Počkejte na jeho konec."
+
+msgid "room.unready"
+msgstr "Zrušit připravenost"
+
+msgid "room.readying"
+msgstr "Příprava..."
+
+msgid "room.result_unresolved"
+msgstr "Výsledek nevyřešen"
+
+msgid "room.preparing_match"
+msgstr "Příprava zápasu"
+
+msgid "room.ready_rematch"
+msgstr "Připraven k odvetě"
+
+msgid "room.ready_up"
+msgstr "Připraven"
+
+msgid "room.recommended_delay"
+msgstr "Doporučené zpoždění"
+
+msgid "room.selected_delay"
+msgstr "Zvolené zpoždění"
+
+msgid "room.selected_delay.detail"
+msgstr "Nastavte 0 až 10 snímků. Změny se projeví ihned."
+
+msgid "room.selected_delay.locked"
+msgstr "Zvolené zpoždění je pro tento zápas uzamčeno."
+
+msgid "room.match_delay"
+msgstr "Zpoždění zápasu"
+
+msgid "room.match_delay.at_least"
+msgstr "Min. zpoždění: {0} sn."
+
+msgid "room.match_delay.detail"
+msgstr "Oba hráči hrají s vyšším zvoleným zpožděním. Vy jste zvolili {0}, soupeř {1}."
+
+msgid "room.match_delay.pending"
+msgstr "Oba hráči hrají s vyšším zvoleným zpožděním. Soupeřova volba se ukáže, až potvrdí Připraven."
+
+msgid "room.check_connection.two_players"
+msgstr "Před kontrolou spojení musí být obsazena obě místa."
+
+msgid "room.check_connection.unready"
+msgstr "Před kontrolou spojení pro další zápas zrušte připravenost."
+
+msgid "room.check_connection.finish_match"
+msgstr "Před kontrolou spojení dokončete aktuální zápas."
+
+msgid "room.apply_recommendation"
+msgstr "Použít doporučení"
+
+msgid "room.apply_recommendation.detail"
+msgstr "Nastavit zvolené zpoždění: {0} sn."
+
+msgid "room.apply_recommendation.check_first"
+msgstr "Před použitím doporučení spusťte kontrolu spojení."
+
+msgid "room.change_fighter.unready"
+msgstr "Zrušte připravenost výše a odemkněte postavu i vzhled."
+
+msgid "room.change_fighter.waiting"
+msgstr "Čeká se na dokončení aktuálního zápasu nebo změny výběru."
+
+msgid "room.change_fighter.detail"
+msgstr "Vyberte postavu, pak projděte galerie kostýmů a barev. Vraťte se sem a potvrďte Připraven."
+
+msgid "room.leave_seat"
+msgstr "Uvolnit místo"
+
+msgid "room.leave_seat.abandon_first"
+msgstr "Nejprve vzdejte nevyřešený zápas."
+
+msgid "room.leave_seat.finish_first"
+msgstr "Nejprve dokončete nebo vyřešte aktuální zápas."
+
+msgid "room.leave_seat.release"
+msgstr "Uvolnit své místo."
+
+msgid "room.leave_seat.next_player"
+msgstr "Uvolnit své místo. Obsazí ho další hráč ve frontě."
+
+msgid "room.abandon_result"
+msgstr "Vzdát nevyřešený zápas"
+
+msgid "room.abandon_result.detail"
+msgstr "Výsledek se nezaznamená. Oba hráči zůstanou u stolu a mohou se znovu připravit."
+
+msgid "room.leave_queue"
+msgstr "Opustit frontu"
+
+msgid "room.join_queue"
+msgstr "Do fronty"
+
+msgid "room.stop_watching"
+msgstr "Přestat sledovat"
+
+msgid "room.watch_next"
+msgstr "Sledovat další zápas"
+
+msgid "room.table_rules"
+msgstr "Pravidla stolu"
+
+msgid "room.table_rules.edit"
+msgstr "Upravit pravidla tohoto stolu."
+
+msgid "room.table_rules.view"
+msgstr "Zobrazit pravidla tohoto stolu."
+
+msgid "room.cancel_unresolved"
+msgstr "Zrušit nevyřešený zápas"
+
+msgid "room.cancel_unresolved.detail"
+msgstr "Jen hostitel. Výsledek se nezaznamená."
+
+msgid "room.cancel_stuck"
+msgstr "Zrušit zaseknutý zápas"
+
+msgid "room.cancel_stuck.detail"
+msgstr "Jen hostitel. Použijte, pokud skončený zápas nikdy nenahlásil výsledek. Výsledek se nezaznamená."
+
+msgid "room.rules.finish_game"
+msgstr "Před změnou pravidel dokončete probíhající zápas."
+
+msgid "room.rules.apply_note"
+msgstr "Změny se projeví až po potvrzení."
+
+msgid "room.rules.host_only"
+msgstr "Pravidla stolu může měnit jen hostitel."
+
+msgid "room.apply_rules"
+msgstr "Použít pravidla"
+
+msgid "room.apply_rules.detail"
+msgstr "Odeslat celý návrh pravidel pro tento stůl."
+
+msgid "room.member_status_host_muted"
+msgstr "{0} / HOSTITEL / Ztlumen místně"
+
+msgid "room.member_status_muted"
+msgstr "{0} / Ztlumen místně"
+
+msgid "room.unmute_member"
+msgstr "Zrušit ztlumení"
+
+msgid "room.mute_member"
+msgstr "Ztlumit člena"
+
+msgid "room.mute_member.detail"
+msgstr "Skrýt jen zprávy tohoto člena."
+
+msgid "room.member_left.detail"
+msgstr "Tento člen odešel."
+
+msgid "room.kick_member"
+msgstr "Vyloučit člena"
+
+msgid "room.kick_member.detail"
+msgstr "Odebrat {0} z místnosti."
+
+msgid "room.transfer_host"
+msgstr "Předat vedení"
+
+msgid "room.transfer_host.detail"
+msgstr "Předat vedení místnosti: {0}."
+
+msgid "room.compose_message"
+msgstr "Napsat zprávu"
+
+msgid "room.send_message"
+msgstr "Odeslat zprávu"
+
+msgid "room.send_message.detail"
+msgstr "Odeslat přijatý koncept. Enter v editoru zprávu neodešle."
+
+msgid "room.capacity.detail"
+msgstr "Nesmí být nižší než současný počet členů."
+
+msgid "room.admission"
+msgstr "Vstup"
+
+msgid "room.locked"
+msgstr "Uzamčeno"
+
+msgid "room.open"
+msgstr "Otevřeno"
+
+msgid "room.admission.detail"
+msgstr "Uzamčení zabrání připojení nových členů."
+
+msgid "room.apply_name"
+msgstr "Použít název"
+
+msgid "room.apply_name.detail"
+msgstr "Uložit název místnosti."
+
+msgid "room.apply_capacity"
+msgstr "Použít kapacitu"
+
+msgid "room.apply_capacity.detail"
+msgstr "Odeslat tuto kapacitu."
+
+msgid "profile.main_badge"
+msgstr "HLAVNÍ"
+
+msgid "training.shortcuts"
+msgstr "F6 Ovládání tréninku | F5 Skrýt HUD"
+
+msgid "common.not_set"
+msgstr "Nenastaveno"
+
+msgid "notice.title"
+msgstr "Oznámení"
+
+msgid "notice.error_title"
+msgstr "Něco se pokazilo"
+
+msgid "game_settings.title"
+msgstr "Doporučená nastavení hry"
+
+msgid "game_settings.intro"
+msgstr "Hra online funguje nejlépe s níže uvedenými nastaveními. Vyberte Hrát offline a změňte je ve hře v nabídce Možnosti."
+
+msgid "game_settings.frame_rate"
+msgstr "Snímková frekvence: nastavte STABILNÍ (nyní {0}). Povinné. Jiné režimy narušují rollback."
+
+msgid "game_settings.anti_aliasing"
+msgstr "Vyhlazování: vypněte (nyní {0}). Sníží se zátěž GPU a latence."
+
+msgid "game_settings.hide"
+msgstr "Znovu nezobrazovat"
+
+msgid "common.ok"
+msgstr "OK"
+
+msgid "edit.title"
+msgstr "Upravit text"
+
+msgid "edit.instructions"
+msgstr "Pište nebo vložte text. Enter potvrdí; Escape nebo Zpět na ovladači zruší."
+
+msgid "edit.updating"
+msgstr "Místnost se aktualizuje. Koncept zůstane zachován; můžete dál psát nebo úpravu zrušit."
+
+msgid "common.accept"
+msgstr "Přijmout"
+
+msgid "edit.cancel"
+msgstr "Zrušit úpravu"
+
+msgid "discord.unavailable_build"
+msgstr "Integrace s Discord není v tomto sestavení dostupná."
+
+msgid "runtime.record_invalid"
+msgstr "Místní záznam zápasů je neplatný a zůstal zachován. Sledování bilance není dostupné."
+
+msgid "runtime.interface_preferences_failed"
+msgstr "Předvolby rozhraní se nepodařilo načíst; používají se výchozí hodnoty."
+
+msgid "runtime.room_defaults_invalid"
+msgstr "Uložená výchozí nastavení místnosti jsou neplatná. Původní nastavení zůstala zachována."
+
+msgid "runtime.network_start_failed"
+msgstr "Síť se nepodařilo spustit. Hraní offline je dostupné."
+
+msgid "runtime.network_helper_unavailable"
+msgstr "Síťový pomocník není dostupný (chyba {0}). Hraní offline je dostupné."
+
+msgid "discord.connecting"
+msgstr "Připojování k Discord..."
+
+msgid "discord.unavailable_gameplay_ok"
+msgstr "Discord není dostupný. Hraní tím není ovlivněno."
+
+msgid "runtime.gameplay_device_disconnected"
+msgstr "Herní ovladač se odpojil. Před dalším zápasem jej připojte."
+
+msgid "runtime.controller_assignment_unverified"
+msgstr "Nepodařilo se ověřit přiřazení ovladače pro zápas. Před dalším pokusem jej přiřaďte znovu."
+
+msgid "runtime.recovery_state_failed"
+msgstr "Stav obnovení místnosti se nepodařilo použít. Obnovení zůstává pozastaveno."
+
+msgid "runtime.room_control_recovering"
+msgstr "Správa místnosti se obnovuje."
+
+msgid "discord.connected"
+msgstr "Discord připojen"
+
+msgid "discord.registration_failed"
+msgstr "Discord připojen; registrace spuštění selhala."
+
+msgid "discord.open_desktop"
+msgstr "Discord není dostupný. Pro sdílení aktivity otevřete aplikaci Discord pro počítač."
+
+msgid "discord.invitation_invalid"
+msgstr "Neplatná pozvánka Discord."
+
+msgid "discord.invalid_event"
+msgstr "Discord odeslal neplatnou místní událost."
+
+msgid "discord.companion_stopped"
+msgstr "Pomocná aplikace Discord se zastavila. Hraní tím není ovlivněno."
+
+msgid "runtime.room_connection_failed"
+msgstr "Spojení s místností selhalo. Místnost se zavírá; nepotvrzené výsledky se nezaznamenají."
+
+msgid "runtime.operation_busy"
+msgstr "Operace právě probíhá. Zkuste to znovu."
+
+msgid "discord.invitation_expired"
+msgstr "Pozvánka Discord vypršela. Požádejte o novou."
+
+msgid "runtime.spectator_action_retrying"
+msgstr "Akci diváka se nepodařilo odeslat; zkouší se znovu."
+
+msgid "runtime.return_main_menu"
+msgstr "Před otevřením místnosti se vraťte do hlavní nabídky hry."
+
+msgid "runtime.room_action_failed"
+msgstr "Akci v místnosti se nepodařilo odeslat. Zkuste to znovu."
+
+msgid "runtime.preferences_queue_failed"
+msgstr "Předvolby se nepodařilo zařadit k uložení. Zkuste to znovu."
+
+msgid "runtime.lobby_settings_send_failed"
+msgstr "Nastavení lobby se nepodařilo odeslat."
+
+msgid "runtime.room_defaults_save_failed"
+msgstr "Výchozí nastavení místnosti nelze uložit."
+
+msgid "runtime.connection_check_unavailable"
+msgstr "Kontrola spojení není dostupná. Stále můžete zvolit zpoždění a potvrdit Připraven."
+
+msgid "runtime.delay_save_failed"
+msgstr "Zpoždění vstupu se nepodařilo uložit."
+
+msgid "runtime.teardown_report_failed"
+msgstr "Ukončení zápasu se nepodařilo nahlásit; místnost byla zavřena."
+
+msgid "runtime.lobby_defaults_save_failed"
+msgstr "Nastavení lobby se použila, ale výchozí hodnoty se nepodařilo uložit."
+
+msgid "runtime.lobby_settings_rejected"
+msgstr "Nastavení lobby nebyla přijata. Zkontrolujte připravenost a zkuste to znovu."
+
+msgid "runtime.teardown_timeout"
+msgstr "Vypršel čas na ukončení zápasu; místnost byla zavřena."
+
+msgid "runtime.room_catchup_timeout"
+msgstr "Místnost se nestihla synchronizovat. Poslední akce se neprovedla; zkuste to znovu."
+
+msgid "runtime.previous_match_close_timeout"
+msgstr "Předchozí zápas se nestihl uzavřít. Použijte nastavení stolu znovu."
+
+msgid "runtime.spectator_close_timeout"
+msgstr "Zápas se nestihl uzavřít. Sledování bylo zastaveno."
+
+msgid "runtime.room_closed"
+msgstr "Místnost byla zavřena."
+
+msgid "runtime.removed_from_room"
+msgstr "Byli jste odebráni z místnosti."
+
+msgid "room.reject.closed"
+msgstr "Místnost se zavřela."
+
+msgid "room.reject.full"
+msgstr "Místnost je plná."
+
+msgid "room.reject.admission_locked"
+msgstr "Místnost nepřijímá nové členy."
+
+msgid "room.reject.name_taken"
+msgstr "Toto jméno hráče už je v místnosti. Změňte ho v Nastavení."
+
+msgid "room.reject.stale_room"
+msgstr "Místnost se změnila před doručením vaší akce. Zkuste to znovu."
+
+msgid "room.reject.stale_table"
+msgstr "Stůl se změnil před doručením vaší akce. Zkuste to znovu."
+
+msgid "room.reject.wrong_phase"
+msgstr "Stůl není na tuto akci připraven."
+
+msgid "room.reject.wrong_generation"
+msgstr "Tento zápas už skončil."
+
+msgid "room.reject.unauthorized"
+msgstr "To může udělat jen hostitel."
+
+msgid "room.reject.not_seated"
+msgstr "U tohoto stolu nemáte místo."
+
+msgid "room.reject.already_seated"
+msgstr "Už máte místo u stolu."
+
+msgid "room.reject.already_queued"
+msgstr "Už jste ve frontě."
+
+msgid "room.reject.not_queued"
+msgstr "Nejste ve frontě."
+
+msgid "room.reject.not_watching"
+msgstr "Tento stůl nesledujete."
+
+msgid "room.reject.invalid_rules"
+msgstr "Pravidla stolu jsou neplatná."
+
+msgid "room.reject.invalid_capacity"
+msgstr "Kapacita je neplatná."
+
+msgid "room.reject.invalid_chat"
+msgstr "Tuto zprávu se nepodařilo odeslat."
+
+msgid "room.reject.ledger_full"
+msgstr "Čeká se, až se všichni vrátí z předchozího zápasu."
+
+msgid "room.reject.other"
+msgstr "Místnost tuto akci odmítla."
+
+msgid "runtime.lock.return_to_menu_fighter"
+msgstr "Pro změnu postavy se vraťte do původní hlavní nabídky hry."
+
+msgid "runtime.lock.previous_game_closing"
+msgstr "Čeká se na uzavření předchozího zápasu."
+
+msgid "runtime.lock.teardown"
+msgstr "Čeká se, až hráči a diváci dokončí návrat z předchozího zápasu."
+
+msgid "runtime.lock.room_recovering"
+msgstr "Čeká se na obnovení spojení s místností."
+
+msgid "runtime.lock.ready_pending"
+msgstr "Čeká se na dokončení vaší žádosti Připraven."
+
+msgid "runtime.lock.selection_update"
+msgstr "Čeká se na dokončení aktuálního zápasu nebo změny výběru."
+
+msgid "runtime.lock.return_to_menu_ready"
+msgstr "Před volbou Připraven se vraťte do hlavní nabídky hry."
+
+msgid "runtime.lock.table_settings"
+msgstr "Čeká se na použití nastavení stolu."
+
+msgid "runtime.lock.room_update"
+msgstr "Čeká se na dokončení aktualizace místnosti nebo zápasu."
+
+msgid "runtime.ready.control_changed"
+msgstr "Správa místnosti se změnila před potvrzením Připraven. Potvrďte Připraven znovu."
+
+msgid "runtime.ready.assign_controller"
+msgstr "Před potvrzením Připraven přiřaďte nebo znovu připojte ovladač."
+
+msgid "runtime.ready.stage_unavailable"
+msgstr "Vybraná scéna není dostupná. Ve Výběru postavy zvolte jinou."
+
+msgid "runtime.ready.fighter_unavailable"
+msgstr "Vybraná postava není dostupná. Ve Výběru postavy zvolte jinou."
+
+msgid "runtime.ready.selection_unavailable"
+msgstr "Tento výběr postavy není dostupný. Zvolte dostupný kostým, barvu, edici a Ultra."
+
+msgid "runtime.ready.take_seat"
+msgstr "Před potvrzením Připraven zaujměte místo u stolu."
+
+msgid "runtime.ready.refused"
+msgstr "Místnost odmítla vaše potvrzení Připraven. Zkuste to znovu."
+
+msgid "runtime.ready.previous_match_timeout"
+msgstr "Potvrzení Připraven neprošlo. Místnost nestihla dokončit předchozí zápas. Zkuste to znovu."
+
+msgid "runtime.room_open_failed"
+msgstr "Místnost se neotevřela. Zkuste to znovu."
+
+msgid "runtime.match_settings_send_failed"
+msgstr "Nastavení zápasu se nepodařilo odeslat."
+
+msgid "runtime.match_record_not_saved"
+msgstr "Záznam zápasu se nepodařilo uložit. Další zápas může začít; ukládání se bude zkoušet dál."
+
+msgid "runtime.rollback_unsupported_state"
+msgstr "Netplay nedokázal uložit nepodporovaný stav hry. Zápas skončil."
+
+msgid "runtime.participant_left_room"
+msgstr "Účastník zápasu opustil místnost."
+
+msgid "runtime.networking_unavailable"
+msgstr "Síť není dostupná. Hraní offline je dostupné."
+
+msgid "runtime.room_join_failed"
+msgstr "K místnosti se nepodařilo připojit. Zkontrolujte pozvánku a zda mají oba hráči stejný balíček SF4 Ember Netplay."
+
+msgid "runtime.room_connection_lost"
+msgstr "Odpojeno od místnosti."

@@ -13,7 +13,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -266,23 +268,37 @@ int main(int argc, char** argv) {
             Require(art->InputPrompt(prompt).texture!=0,"Packaged Kenney prompt failed to load");
         }
         struct Size { int w, h; float dpi; };
-        const Size sizes[] = {{1280,720,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1}, {3840,2160,1}, {3840,2160,1.5f}, {1280,720,2}};
+        // English and the padded pseudo locale sweep every size. The
+        // UiRenderLocales run sweeps each translation at the tightest, the
+        // commonest and a scaled size, which keeps both runs inside their timeouts.
+        const char* localeRun = std::getenv("SF4E_UI_RENDER_LOCALES");
+        const bool translations = localeRun && std::string(localeRun) == "translations";
+        const std::vector<Size> sizes = translations ?
+            std::vector<Size>{{640,720,1.5f}, {1280,720,1}, {1920,1080,1.5f}} :
+            std::vector<Size>{{1280,720,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1}, {3840,2160,1}, {3840,2160,1.5f}, {1280,720,2}};
         int frames = 0;
-        sf4e::ui::SetMenuTextProbe([](const char* id,float text,float interior,float width,float available){
-            if(text>interior+.5f)throw std::runtime_error(std::string("Menu text exceeds padded row: ")+id+" text="+std::to_string(text)+" interior="+std::to_string(interior));
-            if(width>available+.5f)throw std::runtime_error(std::string("Menu label overflows horizontally: ")+id);
+        // Overflows are collected rather than thrown, so one run lists every
+        // row a translation needs shortened, with the locale and size it hit.
+        std::string probeContext;
+        std::set<std::string> overflows;
+        sf4e::ui::SetMenuTextProbe([&](const char* id,float text,float interior,float width,float available){
+            if(text>interior+.5f)overflows.insert(probeContext+" row "+id+": text height "+std::to_string(static_cast<int>(text))+" exceeds padded row "+std::to_string(static_cast<int>(interior)));
+            if(width>available+.5f)overflows.insert(probeContext+" row "+id+": label width "+std::to_string(static_cast<int>(width))+" exceeds "+std::to_string(static_cast<int>(available)));
         });
 
-        struct LocalePass { const char* name; int locale; };
-        const LocalePass localePasses[]={{"en",0},{"pt-BR",1},{"es-419",2},{"pseudo",3}};
-        for(const auto localePass:localePasses) {
-          if(localePass.locale==0)sf4e::loc::SetActive(sf4e::loc::Locale::En);
-          else if(localePass.locale==1)sf4e::loc::SetActive(sf4e::loc::Locale::PtBR);
-          else if(localePass.locale==2)sf4e::loc::SetActive(sf4e::loc::Locale::Es419);
-          else sf4e::loc::testing::SetPseudoActive();
+        // A negative locale is the pseudo catalog.
+        struct LocalePass { std::string name; int locale; };
+        std::vector<LocalePass> localePasses;
+        if(!translations)localePasses={{"en",0},{"pseudo",-1}};
+        else for(int i=1;i<static_cast<int>(sf4e::loc::Locale::Count);++i)
+            localePasses.push_back({sf4e::loc::Tag(static_cast<sf4e::loc::Locale>(i)),i});
+        for(const auto& localePass:localePasses) {
+          if(localePass.locale<0)sf4e::loc::testing::SetPseudoActive();
+          else sf4e::loc::SetActive(static_cast<sf4e::loc::Locale>(localePass.locale));
         for(const auto size:sizes) {
             using namespace sf4e;using namespace ui;
             std::printf("UI viewport %dx%d at %.0f%% DPI\n",size.w,size.h,size.dpi*100);std::fflush(stdout);
+            probeContext=localePass.name+" "+std::to_string(size.w)+"x"+std::to_string(size.h)+"@"+std::to_string(static_cast<int>(size.dpi*100))+"%";
             renderer.Resize(size.w,size.h);ImGui::CreateContext();
             auto& io=ImGui::GetIO();io.IniFilename=nullptr;io.DisplaySize=ImVec2(static_cast<float>(size.w),static_cast<float>(size.h));io.DeltaTime=1.f/60;
             ApplyTheme(size.dpi);ImGui_ImplDX9_Init(renderer.device);
@@ -648,7 +664,14 @@ int main(int argc, char** argv) {
         }
         }
         sf4e::loc::SetActive(sf4e::loc::Locale::En);
-        std::printf("Localized controller-first UI render checks passed: %d DX9 frames across forty locale/viewport/DPI configurations.\n",frames);
+        sf4e::ui::SetMenuTextProbe({});
+        if(!overflows.empty()){
+            for(const auto& overflow:overflows)std::fprintf(stderr,"Menu overflow: %s\n",overflow.c_str());
+            std::fprintf(stderr,"UI render check failed: %d menu rows overflow\n",static_cast<int>(overflows.size()));
+            return 1;
+        }
+        std::printf("Localized controller-first UI render checks passed: %d DX9 frames across %d locale/viewport/DPI configurations.\n",
+            frames,static_cast<int>(localePasses.size()*sizes.size()));
         return 0;
     }catch(const std::exception& error){std::fprintf(stderr,"UI render check failed: %s\n",error.what());return 1;}
 }

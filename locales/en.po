@@ -199,10 +199,10 @@ msgid "settings.language"
 msgstr "Language"
 
 msgid "settings.language.detail"
-msgstr "Changes Ember's interface language immediately."
+msgstr "Changes Ember's interface language immediately. Automatic follows the game's language, then Windows."
 
 msgid "settings.language.system_with"
-msgstr "System language — {0}"
+msgstr "Automatic — {0}"
 
 msgid "settings.language_save_failed"
 msgstr "The language choice could not be saved. It remains active for this session."

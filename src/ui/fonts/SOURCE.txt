@@ -18,3 +18,20 @@ SHA256:
 
 Licensed under SIL Open Font License 1.1; see OFL.txt.
 CMake embeds the original font bytes and license into the UI library.
+
+Noto Sans CJK subsets
+
+Designer: Adobe and Google (Noto Sans CJK / Source Han Sans)
+Upstream: https://github.com/notofonts/noto-cjk
+Release: Sans2.004
+Source paths at that tag:
+  Sans/OTF/Japanese/NotoSansCJKjp-Regular.otf
+  Sans/OTF/Korean/NotoSansCJKkr-Regular.otf
+  Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf
+  LICENSE (stored as NotoSansCJK-OFL.txt, after the font's copyright line)
+
+scripts/subset-cjk-fonts.py writes NotoSansCJK{jp,kr,sc}-Subset.otf with only
+the characters the catalogs use, and records the source and output hashes in
+NotoSansCJK-Subset.json. Subsetting drops layout tables and hinting and keeps
+the original names, none of which is a Reserved Font Name.
+Licensed under SIL Open Font License 1.1; see NotoSansCJK-OFL.txt.

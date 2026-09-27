@@ -1,5 +1,9 @@
 #pragma once
 
+// Locale and Script, generated from locales/locales.json. Locale indexes the
+// locale table, whose rows are generated from the same file.
+#include "LocaleIds.hxx"
+
 #include <fmt/format.h>
 #include <string>
 #include <string_view>
@@ -8,13 +12,12 @@
 
 namespace sf4e { namespace loc {
 
-// Indexes the locale table in Localization.cxx, which is the only place a
-// locale is declared. En must lead: it is the fallback catalog.
-enum class Locale { En, PtBR, Es419, Count };
-
 using Catalog = std::unordered_map<std::string, std::string>;
 
-Locale ResolveLocale(std::string_view preference,
+// An explicit tag wins. Otherwise USF4's language (a game code from
+// GameLanguage.hxx, empty when unknown) unless it is ENG, which the game also
+// uses for every language it lacks, then the Windows UI languages, then English.
+Locale ResolveLocale(std::string_view preference, std::string_view gameLanguage,
     const std::vector<std::string>& windowsLanguages);
 bool ValidPreference(std::string_view preference);
 // Steps through "auto" and the locale tags. A valid preference in gives a
@@ -25,6 +28,10 @@ Locale Active();
 const char* T(const char* id);
 const char* NativeName(Locale locale);
 const char* Tag(Locale locale);
+Script ScriptOf(Locale locale);
+// Every translated string of a catalog run together, which is the text the UI
+// fonts must be able to draw.
+std::string DisplayText(Locale locale);
 
 namespace detail {
 std::string Format(const char* translated, const char* id, fmt::format_args arguments);

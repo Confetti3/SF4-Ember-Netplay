@@ -1,0 +1,2095 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: ko\n"
+
+msgid "app.name"
+msgstr "SF4 Ember Netplay"
+
+msgid "common.back"
+msgstr "뒤로"
+
+msgid "common.cancel"
+msgstr "취소"
+
+msgid "common.close"
+msgstr "닫기"
+
+msgid "common.confirm"
+msgstr "확인"
+
+msgid "common.on"
+msgstr "켜기"
+
+msgid "common.off"
+msgstr "끄기"
+
+msgid "common.unavailable"
+msgstr "이용 불가"
+
+msgid "common.saving"
+msgstr "저장 중..."
+
+msgid "common.saved"
+msgstr "저장됨"
+
+msgid "common.save_failed"
+msgstr "저장 실패"
+
+msgid "confirm.title"
+msgstr "작업 확인"
+
+msgid "confirm.question"
+msgstr "{0}?"
+
+msgid "confirm.updating"
+msgstr "방을 업데이트하고 있습니다. 취소할 수 있습니다."
+
+msgid "launcher.update_failed"
+msgstr "업데이트를 설치하지 못했습니다. 게임과 이전 런처를 닫고 다시 시도하세요. %TEMP%\\sf4-netplay-update.log를 확인하세요. 보존된 제품 사본은 .ember-update-backups에 있습니다."
+
+msgid "launcher.recovery_title"
+msgstr "실행 복구"
+
+msgid "launcher.path_failed"
+msgstr "실행 파일 검색 경로를 설정하지 못했습니다. 전체 패키지를 쓰기 가능한 폴더에 압축 해제하세요."
+
+msgid "launcher.game_not_found"
+msgstr "Ultra Street Fighter IV를 찾을 수 없습니다."
+
+msgid "launcher.sidecar_missing"
+msgstr "Sidecar.dll이 없거나 인젝터에서 해당 경로를 사용할 수 없습니다. 전체 패키지를 간단한 로컬 경로에 압축 해제하세요."
+
+msgid "launcher.runtime_outdated"
+msgstr "Microsoft Visual C++ 런타임이 오래되어 게임 실행 시 종료됩니다. 최신 Visual C++ Redistributable (x86)을 설치한 뒤 Ember를 다시 시작하세요.\n\n지금 다운로드 페이지를 여시겠습니까?"
+
+msgid "launcher.already_running"
+msgstr "SF4 Ember Netplay가 이미 실행 중입니다. 창이 보이지 않으면 작업 관리자에서 Launcher.exe와 SSFIV.exe를 종료한 뒤 Ember를 다시 시작하세요."
+
+msgid "launcher.start_failed"
+msgstr "게임 실행 또는 인젝션에 실패했습니다. 런처 로그를 확인하고 다시 시도하세요."
+
+msgid "launcher.game_error"
+msgstr "게임이 오류로 종료되었습니다. 런처 로그를 확인하고 다시 시도하세요."
+
+msgid "launcher.runtime_shadowed"
+msgstr "게임이 Ember 폴더의 파일 대신 아래 파일을 불러오며, 오래된 사본 때문에 실행 전에 종료됩니다(\"entry point ggpo_get_last_confirmed_frame not found\"). 다른 넷플레이 모드나 이전 설치의 잔여 파일입니다. 해당 파일을 이동하거나 이름을 바꾼 뒤 Ember를 다시 시작하세요:\n\n{0}"
+
+msgid "launcher.game_wrong_dll"
+msgstr "불러온 DLL에 필요한 함수가 없어 Ember 시작 전에 게임이 종료되었습니다. 대개 SSFIV.exe 옆에 다른 모드나 이전 설치의 GGPO.dll, spdlog.dll, fmt.dll 또는 zlib1.dll이 있을 때 발생합니다. 발견한 파일을 다른 곳으로 옮긴 뒤 다시 시도하세요. 파일이 없다면 런처 로그를 보내주세요."
+
+msgid "recovery.window"
+msgstr "Ember 복구"
+
+msgid "recovery.d3d_failed"
+msgstr "복구 화면에서 Direct3D 9를 초기화하지 못했습니다. %APPDATA%\\sf4e\\logs\\launcher.log를 확인하세요."
+
+msgid "recovery.choose_folder_title"
+msgstr "SSFIV.exe가 있는 폴더 선택"
+
+msgid "recovery.folder_selected"
+msgstr "게임 폴더를 선택했습니다. 준비되면 다시 시도하세요."
+
+msgid "recovery.folder_invalid"
+msgstr "이 폴더에는 SSFIV.exe가 없습니다."
+
+msgid "recovery.title"
+msgstr "실행 복구"
+
+msgid "updates.title"
+msgstr "업데이트"
+
+msgid "recovery.choose_folder"
+msgstr "게임 폴더 선택"
+
+msgid "recovery.choose_folder_detail"
+msgstr "SSFIV.exe가 있는 Ultra Street Fighter IV 설치 폴더를 선택하세요. 이 패키지에는 게임 파일이 포함되지 않습니다."
+
+msgid "recovery.retry"
+msgstr "실행 재시도"
+
+msgid "recovery.retry_busy"
+msgstr "먼저 현재 작업을 취소하거나 완료하세요."
+
+msgid "recovery.retry_detail"
+msgstr "선택한 게임 폴더로 다시 시도합니다. 네트워크 보조 프로그램이 없어도 오프라인 플레이는 가능합니다."
+
+msgid "updates.check"
+msgstr "업데이트 확인"
+
+msgid "updates.busy"
+msgstr "이미 다른 작업이 진행 중입니다."
+
+msgid "updates.check_detail"
+msgstr "새 Ember 패키지가 있는지 확인합니다."
+
+msgid "updates.install"
+msgstr "다운로드 및 설치"
+
+msgid "updates.install_detail"
+msgstr "설치 전에 SF4를 닫으세요. 설치 전에 패키지를 검증하며 개인 설정은 유지됩니다."
+
+msgid "updates.unverified"
+msgstr "이 업데이트에는 검증용 체크섬이 없어 설치할 수 없습니다."
+
+msgid "updates.cancel"
+msgstr "작업 취소"
+
+msgid "updates.cancel_detail"
+msgstr "현재 다운로드 또는 확인을 취소합니다. 취소가 끝난 뒤 다시 시도하세요."
+
+msgid "recovery.close_detail"
+msgstr "SF4를 시작하지 않고 복구 화면을 닫습니다. 진행 중인 작업은 취소됩니다."
+
+msgid "updates.downloaded_mb"
+msgstr "{0:.1f} MB 다운로드됨"
+
+msgid "services.checking"
+msgstr "업데이트 확인 중..."
+
+msgid "services.exporting"
+msgstr "진단 정보 내보내는 중..."
+
+msgid "services.downloading"
+msgstr "업데이트 다운로드 및 검증 중..."
+
+msgid "services.opening_updater"
+msgstr "업데이터 여는 중..."
+
+msgid "services.update_available"
+msgstr "업데이트가 있습니다: {0}"
+
+msgid "services.up_to_date"
+msgstr "최신 버전입니다."
+
+msgid "services.diagnostics_saved"
+msgstr "%APPDATA%\\sf4e\\diagnostics\\ember-diagnostics.txt에 저장했습니다"
+
+msgid "services.diagnostics_failed"
+msgstr "진단 정보를 저장하지 못했습니다. 다시 시도하세요."
+
+msgid "services.updater_start_failed"
+msgstr "업데이터를 시작하지 못했습니다. 다시 시도하세요."
+
+msgid "services.game_closing"
+msgstr "게임을 닫는 중입니다. 종료되면 업데이터가 열립니다."
+
+msgid "services.no_verified_update"
+msgstr "검증된 업데이트가 없습니다. 다시 확인하세요."
+
+msgid "services.update_prepared"
+msgstr "업데이트 준비 완료. SF4 Ember Netplay를 다시 시작합니다..."
+
+msgid "services.operation_failed"
+msgstr "작업에 실패했습니다. 다시 시도하세요. 업데이트 복구 사본은 .ember-update-backups에 보관됩니다."
+
+msgid "services.operation_cancelled"
+msgstr "작업을 취소했습니다."
+
+msgid "services.opening_community"
+msgstr "브라우저에서 Ember Discord를 여는 중..."
+
+msgid "services.community_opened"
+msgstr "브라우저에서 열었습니다. 브라우저로 전환해 서버에 참가하세요."
+
+msgid "services.community_failed"
+msgstr "브라우저를 열지 못했습니다. {0}에서 참가하세요."
+
+msgid "settings.language"
+msgstr "언어"
+
+msgid "settings.language.detail"
+msgstr "Ember의 화면 언어를 즉시 변경합니다. 자동 선택 시 게임 언어를 따르고, 없으면 Windows 언어를 사용합니다."
+
+msgid "settings.language.system_with"
+msgstr "자동 — {0}"
+
+msgid "settings.language_save_failed"
+msgstr "언어 선택을 저장하지 못했습니다. 이번 실행 중에는 계속 적용됩니다."
+
+msgid "menu.edit_detail"
+msgstr "선택해 편집하세요. 입력하거나 붙여넣고 Enter로 확정하세요. 뒤로 가면 취소됩니다."
+
+msgid "menu.edit_unavailable"
+msgstr "현재 상태에서는 편집할 수 없습니다."
+
+msgid "menu.edit"
+msgstr "편집"
+
+msgid "menu.review"
+msgstr "검토"
+
+msgid "menu.select"
+msgstr "선택"
+
+msgid "menu.navigate"
+msgstr "이동"
+
+msgid "menu.adjust"
+msgstr "조정"
+
+msgid "rules.edition_select"
+msgstr "에디션 선택"
+
+msgid "rules.rounds"
+msgstr "라운드"
+
+msgid "rules.round_time"
+msgstr "라운드 시간"
+
+msgid "screen.home"
+msgstr "홈"
+
+msgid "screen.online"
+msgstr "온라인 플레이"
+
+msgid "screen.selection"
+msgstr "캐릭터 선택"
+
+msgid "screen.player"
+msgstr "플레이어 및 컨트롤러"
+
+msgid "screen.defaults"
+msgstr "게임플레이 기본 설정"
+
+msgid "screen.main_character"
+msgstr "주 캐릭터 선택"
+
+msgid "screen.about"
+msgstr "도움말 및 정보"
+
+msgid "screen.room"
+msgstr "방"
+
+msgid "screen.table"
+msgstr "테이블"
+
+msgid "screen.table_rules"
+msgstr "테이블 규칙"
+
+msgid "screen.members"
+msgstr "참가자"
+
+msgid "screen.member"
+msgstr "참가자"
+
+msgid "screen.chat"
+msgstr "채팅"
+
+msgid "screen.room_settings"
+msgstr "방 설정"
+
+msgid "screen.practice_position"
+msgstr "연습 위치"
+
+msgid "screen.dummy_recording"
+msgstr "더미 녹화"
+
+msgid "screen.input_history"
+msgstr "입력 기록"
+
+msgid "room.wait.leaving"
+msgstr "방을 나가는 중입니다. 연결이 닫히기를 기다립니다..."
+
+msgid "room.wait.joining"
+msgstr "방에 참가하는 중입니다. 다른 플레이어를 기다립니다..."
+
+msgid "room.wait.closed"
+msgstr "방이 닫혔습니다. 온라인 플레이로 돌아가 다른 방에 참가하세요."
+
+msgid "room.wait.recovering"
+msgstr "방 연결을 복구 중입니다. 방을 나갈 수는 있습니다."
+
+msgid "room.wait.updating"
+msgstr "방을 업데이트 중입니다. 조작이 잠시 멈출 수 있습니다."
+
+msgid "connection.checking"
+msgstr "확인 중..."
+
+msgid "connection.checking_detail"
+msgstr "연결 설정 후 5초간 게임 데이터그램을 측정합니다. 지연 시간을 직접 선택할 수도 있습니다."
+
+msgid "connection.checking_action"
+msgstr "연결 확인 중..."
+
+msgid "connection.frames"
+msgstr "{0}프레임"
+
+msgid "connection.result_detail"
+msgstr "{0} 연결. RTT 중앙값 {1} ms, p95 {2} ms, p99 {3} ms. RTT 변동 {4} ms. 전송 {5}, 응답 {6}, 누락 {7}. 권장값을 적용하거나 지연 시간을 직접 선택하세요."
+
+msgid "connection.route_direct"
+msgstr "직접 연결"
+
+msgid "connection.route_relayed"
+msgstr "중계 연결"
+
+msgid "connection.route_unknown"
+msgstr "알 수 없음"
+
+msgid "connection.relayed_advice"
+msgstr "중계 연결은 두 네트워크가 직접 연결되지 않아 대전 데이터가 중계 서버를 거친다는 뜻입니다. 대전은 가능하니 권장 지연 시간을 사용하세요. 직접 연결하려면 두 플레이어 중 한 명이 공유기의 UPnP를 켜거나, UDP 포트 45760을 PC로 전달하거나, VPN을 꺼보세요."
+
+msgid "connection.check_again"
+msgstr "연결 다시 확인"
+
+msgid "connection.no_recommendation"
+msgstr "권장값 없음"
+
+msgid "connection.timed_out"
+msgstr "연결 확인 시간이 초과되었습니다. 다시 시도하거나 지연 시간을 선택한 뒤 준비하세요."
+
+msgid "connection.invalidated"
+msgstr "연결 또는 상대가 바뀌었습니다. 다시 확인하거나 지연 시간을 선택한 뒤 준비하세요."
+
+msgid "connection.local_overload"
+msgstr "이 PC에서 예정된 데이터를 제때 모두 보내지 못했습니다. 백그라운드 작업을 줄여 다시 시도하거나 지연 시간을 직접 선택하세요."
+
+msgid "connection.insufficient"
+msgstr "충분한 응답을 수집하지 못했습니다. 다시 시도하거나 지연 시간을 선택한 뒤 준비하세요. 권장값은 필수가 아닙니다."
+
+msgid "connection.packet_summary"
+msgstr " 예정된 패킷 {1}개 중 {0}개 전송, 응답 {2}개, 누락 {3}개."
+
+msgid "connection.retry"
+msgstr "연결 확인 재시도"
+
+msgid "connection.not_checked"
+msgstr "확인 안 됨"
+
+msgid "connection.not_checked_detail"
+msgstr "상대와의 연결을 확인해 권장 지연 시간을 받으세요. 선택 사항이며 직접 지연 시간을 정하고 준비할 수도 있습니다."
+
+msgid "connection.check"
+msgstr "연결 확인"
+
+msgid "error.queue_failed"
+msgstr "작업을 대기열에 넣지 못했습니다. 다시 시도하세요."
+
+msgid "notice.left_room"
+msgstr "방을 나왔습니다."
+
+msgid "notice.profile_saved"
+msgstr "프로필 초상화를 저장했습니다: {0}"
+
+msgid "error.settings_not_saved"
+msgstr "설정을 저장하지 못했습니다. 메뉴를 사용할 수 있을 때 다시 시도하세요."
+
+msgid "shell.home_title"
+msgstr "SF4 EMBER"
+
+msgid "settings.auto_save"
+msgstr "변경 사항은 자동으로 저장됩니다."
+
+msgid "settings.leave_room_to_edit"
+msgstr "개인 설정을 변경하려면 방을 나가세요."
+
+msgid "controller.assign_title"
+msgstr "컨트롤러 지정"
+
+msgid "controller.cancel_assignment"
+msgstr "컨트롤러 지정 취소"
+
+msgid "controller.press_button"
+msgstr "사용할 컨트롤러의 버튼을 누르세요."
+
+msgid "controller.release_buttons"
+msgstr "계속하려면 모든 버튼에서 손을 떼세요."
+
+msgid "home.online"
+msgstr "온라인 플레이"
+
+msgid "home.online_detail"
+msgstr "비공개 방을 만들거나 초대로 참가하세요."
+
+msgid "home.return_room"
+msgstr "현재 방으로 돌아갑니다."
+
+msgid "home.fighter_select"
+msgstr "캐릭터 선택"
+
+msgid "home.selection_locked"
+msgstr "현재 선택 상태를 보려면 테이블로 돌아가세요."
+
+msgid "home.profile"
+msgstr "프로필"
+
+msgid "home.profile_detail"
+msgstr "이름, 주 캐릭터, 로컬에 확정된 온라인 전적입니다."
+
+msgid "home.settings"
+msgstr "설정"
+
+msgid "home.settings_detail"
+msgstr "플레이어, 컨트롤러, 게임플레이 기본 설정, 화면 및 Discord."
+
+msgid "home.about"
+msgstr "도움말 및 정보"
+
+msgid "home.about_detail"
+msgstr "조작법, 진단, 업데이트 및 제작진 정보입니다."
+
+msgid "home.offline"
+msgstr "오프라인 플레이"
+
+msgid "home.offline_detail"
+msgstr "게임의 오프라인 메뉴를 엽니다."
+
+msgid "home.choose_controller"
+msgstr "게임플레이 컨트롤러 선택"
+
+msgid "home.choose_controller_detail"
+msgstr "온라인 플레이 전에 컨트롤러를 직접 지정해야 합니다."
+
+msgid "profile.title"
+msgstr "프로필"
+
+msgid "profile.player_name"
+msgstr "플레이어 이름"
+
+msgid "profile.main_character"
+msgstr "주 캐릭터"
+
+msgid "profile.main_character_detail"
+msgstr "{0}. 대전 선택과 별도로 플레이어 카드에 표시됩니다."
+
+msgid "profile.record"
+msgstr "승패 전적"
+
+msgid "profile.record_detail"
+msgstr "{0}승 / {1}패. 기록 시작 후 로컬에서 확정된 온라인 대전만 포함하며 무승부, 취소, 오프라인 대전 및 미확정 결과는 제외됩니다."
+
+msgid "profile.record_unavailable"
+msgstr "전적을 확인할 수 없습니다. 원래 설정은 보존됩니다."
+
+msgid "profile.record_value"
+msgstr "{0}승 / {1}패"
+
+msgid "profile.choose_main_title"
+msgstr "주 캐릭터 선택"
+
+msgid "profile.choose_main_detail"
+msgstr "선택하면 주 캐릭터를 저장하고 플레이어 카드를 업데이트합니다."
+
+msgid "profile.leave_room_to_edit"
+msgstr "프로필을 편집하려면 방을 나가세요."
+
+msgid "online.title"
+msgstr "온라인 플레이"
+
+msgid "online.create"
+msgstr "방 만들기"
+
+msgid "online.create_detail"
+msgstr "비공개 방을 설정합니다."
+
+msgid "online.join"
+msgstr "방 참가"
+
+msgid "online.join_detail"
+msgstr "초대를 붙여넣으세요."
+
+msgid "room.create_title"
+msgstr "방 만들기"
+
+msgid "settings.gameplay_defaults_title"
+msgstr "게임플레이 기본 설정"
+
+msgid "settings.input_delay"
+msgstr "입력 지연"
+
+msgid "room.name"
+msgstr "방 이름"
+
+msgid "room.capacity"
+msgstr "정원"
+
+msgid "room.capacity_detail"
+msgstr "관전자를 포함한 최대 참가 인원입니다."
+
+msgid "room.stop_creating"
+msgstr "방 만들기를 중단합니다."
+
+msgid "room.stop_creating_action"
+msgstr "만들기 중단"
+
+msgid "room.create_requirements"
+msgstr "네트워크와 지정된 게임플레이 컨트롤러가 준비되어야 합니다."
+
+msgid "room.join_title"
+msgstr "방 참가"
+
+msgid "room.paste_invitation"
+msgstr "초대 붙여넣기"
+
+msgid "room.paste_invitation_detail"
+msgstr "Ember 초대를 복사한 뒤 이 항목을 선택하세요."
+
+msgid "room.stop_joining"
+msgstr "이 방 참가를 중단합니다."
+
+msgid "room.stop_joining_action"
+msgstr "참가 중단"
+
+msgid "room.join_pasted"
+msgstr "붙여넣은 초대로 참가합니다."
+
+msgid "room.edit_invitation"
+msgstr "초대 편집"
+
+msgid "settings.title"
+msgstr "설정"
+
+msgid "settings.player_detail"
+msgstr "표시 이름과 컨트롤러 지정입니다."
+
+msgid "settings.defaults_detail"
+msgstr "입력 지연 및 새 방의 기본 설정입니다."
+
+msgid "settings.interface"
+msgstr "화면"
+
+msgid "settings.interface_detail"
+msgstr "간결한 HUD와 화면 크기입니다."
+
+msgid "settings.discord_detail"
+msgstr "활동 표시와 초대입니다."
+
+msgid "player.title"
+msgstr "플레이어 및 컨트롤러"
+
+msgid "player.display_name"
+msgstr "표시 이름"
+
+msgid "player.change_controller"
+msgstr "컨트롤러 변경"
+
+msgid "player.change_controller_detail"
+msgstr "{0}. 지정하려면 버튼을 놓고 누른 뒤 다시 놓으세요."
+
+msgid "player.use_keyboard"
+msgstr "키보드 사용"
+
+msgid "player.use_keyboard_detail"
+msgstr "키보드를 직접 지정합니다."
+
+msgid "player.native_menus"
+msgstr "게임 메뉴 열기"
+
+msgid "player.native_menus_detail"
+msgstr "Ember가 닫힙니다. 게임 메뉴의 옵션에서 대전 버튼을 설정하세요."
+
+msgid "settings.interface_title"
+msgstr "화면"
+
+msgid "size.small"
+msgstr "작게"
+
+msgid "size.standard"
+msgstr "보통"
+
+msgid "size.large"
+msgstr "크게"
+
+msgid "settings.match_hud"
+msgstr "대전 HUD"
+
+msgid "settings.match_hud_size"
+msgstr "대전 HUD 크기"
+
+msgid "settings.match_hud_size_detail"
+msgstr "대전 중 글자와 패널 크기를 변경합니다."
+
+msgid "settings.bottom_spacing"
+msgstr "하단 여백"
+
+msgid "spacing.raised"
+msgstr "올림"
+
+msgid "spacing.normal"
+msgstr "보통"
+
+msgid "settings.bottom_spacing_detail"
+msgstr "대전 HUD를 화면 아래쪽에서 위로 올립니다."
+
+msgid "settings.interface_size"
+msgstr "화면 크기"
+
+msgid "discord.show_activity"
+msgstr "활동 표시"
+
+msgid "discord.allow_invitations"
+msgstr "초대 허용"
+
+msgid "discord.invitation_detail"
+msgstr "초대를 받으면 상대가 내 방에 들어올 수 있습니다."
+
+msgid "discord.enable_first"
+msgstr "먼저 Discord 활동 표시를 켜세요."
+
+msgid "discord.invitation_title"
+msgstr "DISCORD 초대"
+
+msgid "discord.cancel_invitation"
+msgstr "초대 취소"
+
+msgid "discord.cancel_invitation_detail"
+msgstr "현재 방을 나가지 않고 초대를 버립니다."
+
+msgid "discord.switch_room"
+msgstr "초대받은 방으로 이동"
+
+msgid "discord.switch_room_detail"
+msgstr "이 방을 나가 초대받은 방에 참가합니다."
+
+msgid "discord.wait_game"
+msgstr "현재 대전이 끝날 때까지 기다리세요."
+
+msgid "discord.invitation_pending"
+msgstr "초대 대기 중"
+
+msgid "discord.invitation_pending_detail"
+msgstr "메인 메뉴, 네트워크 및 지정된 컨트롤러를 기다립니다."
+
+msgid "about.title"
+msgstr "도움말 및 정보"
+
+msgid "about.controls"
+msgstr "조작법"
+
+msgid "about.controls_detail"
+msgstr "Xbox: A로 선택, B로 뒤로 갑니다. 대전 버튼 설정과는 별개입니다. DirectInput: 지정된 LP로 선택, LK로 뒤로 갑니다. D-pad로 이동하고 좌/우로 조정합니다. 트레이닝 조작에는 키보드와 마우스를 사용합니다. F6으로 열고 닫고, 방향키로 이동하고, Enter로 선택하고, Esc로 뒤로 갑니다. Start는 트레이닝 중 게임 일시정지 메뉴만 엽니다. F10은 메인 메뉴에서 Ember를 열고 F5-F8은 트레이닝 단축키입니다."
+
+msgid "about.ember"
+msgstr "Ember 정보"
+
+msgid "about.ember_detail"
+msgstr "Anthony Danducci의 sf4e를 바탕으로 만든 비공식 Ultra Street Fighter IV 모드입니다. Iroh / QUIC, GGPO, Dear ImGui 및 Inter 서체를 사용합니다. 빌드: {0}"
+
+msgid "about.font_license"
+msgstr "글꼴 라이선스"
+
+msgid "about.export_diagnostics"
+msgstr "진단 정보 내보내기"
+
+msgid "about.export_diagnostics_detail"
+msgstr "초대와 자격 증명은 제외하고 연결 상태를 내보냅니다."
+
+msgid "about.updates_detail"
+msgstr "새 Ember 버전을 확인합니다."
+
+msgid "about.open_updater"
+msgstr "종료 후 업데이터 열기"
+
+msgid "about.open_updater_detail"
+msgstr "게임이 종료됩니다. 먼저 방을 나가세요."
+
+msgid "about.open_recovery"
+msgstr "종료 후 복구 열기"
+
+msgid "about.open_recovery_detail"
+msgstr "게임을 닫고 복구 화면을 엽니다."
+
+msgid "about.leave_room_first"
+msgstr "먼저 방을 나가 메인 메뉴로 돌아가세요."
+
+msgid "about.discord"
+msgstr "Ember Discord 참가"
+
+msgid "about.discord_detail"
+msgstr "플레이어, 대전 및 지원: {0}. 게임 뒤에서 브라우저로 엽니다."
+
+msgid "settings.retry_save"
+msgstr "저장 재시도"
+
+msgid "room.creating_status"
+msgstr "방을 만드는 중입니다. 네트워크를 기다립니다..."
+
+msgid "room.joining_status"
+msgstr "방에 참가하는 중입니다. 네트워크를 기다립니다..."
+
+msgid "room.locked_status"
+msgstr "잠긴 방 / 초대 전용"
+
+msgid "room.private_status"
+msgstr "비공개 방 / 초대 전용"
+
+msgid "room.reconnecting"
+msgstr "방에 다시 연결 중..."
+
+msgid "room.table_setup_title"
+msgstr "테이블 {0} / 대전 설정"
+
+msgid "room.waiting_opponent"
+msgstr "상대 기다리는 중"
+
+msgid "room.you"
+msgstr "나"
+
+msgid "room.player"
+msgstr "플레이어"
+
+msgid "room.ready_suffix"
+msgstr " - 준비 완료"
+
+msgid "room.readying_suffix"
+msgstr " - 준비 중..."
+
+msgid "room.not_ready_suffix"
+msgstr " - 준비 안 됨"
+
+msgid "room.result_unresolved_status"
+msgstr "결과 미확정 / 대전을 포기하거나 방장이 취소할 수 있습니다"
+
+msgid "room.preparing_status"
+msgstr "대전 준비 중 / 캐릭터 선택 잠김"
+
+msgid "room.waiting_results_status"
+msgstr "결과 대기 중 / 다음 대전 준비 불가"
+
+msgid "room.match_in_progress"
+msgstr "대전 진행 중"
+
+msgid "room.table_closed"
+msgstr "테이블 닫힘"
+
+msgid "controller.disconnected"
+msgstr "컨트롤러 연결이 끊겼습니다. 다시 연결하거나 직접 지정하세요."
+
+msgid "room.control_unavailable"
+msgstr "방 제어를 사용할 수 없습니다. 대전이 진행 중이지 않을 때 방을 새로 만드세요."
+
+msgid "room.control_recovering"
+msgstr "방 제어를 복구 중입니다. 방 작업이 일시 중지됩니다."
+
+msgid "settings.preview"
+msgstr "미리 보기"
+
+msgid "settings.player_one"
+msgstr "플레이어 1"
+
+msgid "settings.player_two"
+msgstr "플레이어 2"
+
+msgid "error.invitation_invalid"
+msgstr "초대가 비어 있거나 너무 깁니다."
+
+msgid "error.invitation_changed"
+msgstr "초대가 변경되었습니다. 다시 시도하세요."
+
+msgid "error.invalid_value"
+msgstr "잘못된 값입니다. 저장된 설정은 그대로입니다."
+
+msgid "brand.subtitle"
+msgstr "SF4  /  비공개 방 및 롤백 넷플레이"
+
+msgid "match.waiting_opponent"
+msgstr "상대 대기 중..."
+
+msgid "match.connection_countdown"
+msgstr "연결 불안정. {0}초 후 상대 연결 끊김"
+
+msgid "match.connection_unstable"
+msgstr "연결 불안정"
+
+msgid "match.versus_short"
+msgstr "vs"
+
+msgid "match.ping"
+msgstr "핑"
+
+msgid "match.rollback"
+msgstr "롤백"
+
+msgid "match.delay"
+msgstr "지연"
+
+msgid "match.spectating"
+msgstr "관전 중"
+
+msgid "match.preview_spacing"
+msgstr "{0} 여백 / 예시 값"
+
+msgid "card.player"
+msgstr "플레이어"
+
+msgid "card.choose_fighter"
+msgstr "캐릭터 선택"
+
+msgid "card.controller_ready"
+msgstr "컨트롤러 준비 완료"
+
+msgid "card.assign_controller"
+msgstr "컨트롤러 지정"
+
+msgid "card.wins"
+msgstr "{0}승"
+
+msgid "card.no_wins"
+msgstr "--승"
+
+msgid "card.losses"
+msgstr "{0}패"
+
+msgid "card.no_losses"
+msgstr "--패"
+
+msgid "card.no_win_rate"
+msgstr "-- 승률"
+
+msgid "card.win_rate"
+msgstr "승률 {0}%"
+
+msgid "training.lab"
+msgstr "트레이닝"
+
+msgid "menu.back_to"
+msgstr "< 뒤로 / {0}"
+
+msgid "training.controls"
+msgstr "트레이닝 조작"
+
+msgid "training.dummy_recording"
+msgstr "더미 녹화"
+
+msgid "training.dummy_recording.detail"
+msgstr "P1의 조작을 P2에 녹화합니다. 게임에서 더미를 플레이어 / 컨트롤러 조작으로 설정하세요."
+
+msgid "training.input_history"
+msgstr "입력 기록"
+
+msgid "training.input_history.detail"
+msgstr "각 플레이어가 누르고 있는 입력을 확인합니다."
+
+msgid "training.close_controls"
+msgstr "트레이닝 조작 닫기"
+
+msgid "training.close_controls.detail"
+msgstr "Ember를 닫고, SF4 일시정지 메뉴가 열려 있다면 닫아 재개하세요."
+
+msgid "training.slot"
+msgstr "슬롯 {0}"
+
+msgid "training.slot_selected"
+msgstr "슬롯 {0} / 선택됨"
+
+msgid "training.recorded_frames"
+msgstr "{0}프레임 녹화됨. 녹화는 현재 대전이 끝날 때까지 유지됩니다."
+
+msgid "training.record"
+msgstr "녹화"
+
+msgid "training.record.overwrite"
+msgstr "이 슬롯의 녹화를 덮어쓰고 연습으로 돌아갑니다."
+
+msgid "training.record.detail"
+msgstr "P1의 조작을 P2로 녹화하고 연습으로 돌아갑니다."
+
+msgid "training.play"
+msgstr "재생"
+
+msgid "training.play.detail"
+msgstr "선택한 슬롯을 재생하고 연습으로 돌아갑니다. 방향은 좌우 반전 없이 절대 방향으로 적용됩니다."
+
+msgid "training.slot_empty"
+msgstr "빈 슬롯입니다."
+
+msgid "training.stop"
+msgstr "중지"
+
+msgid "training.stop.detail"
+msgstr "녹화 또는 재생을 중지합니다."
+
+msgid "training.loop"
+msgstr "반복 재생"
+
+msgid "training.loop.detail"
+msgstr "선택한 녹화를 반복합니다."
+
+msgid "training.clear_recording"
+msgstr "선택한 녹화 삭제"
+
+msgid "training.clear_recording.detail"
+msgstr "현재 대전에서 이 슬롯의 녹화를 완전히 삭제합니다."
+
+msgid "training.player_one"
+msgstr "플레이어 1"
+
+msgid "training.player_two"
+msgstr "플레이어 2"
+
+msgid "training.history.detail"
+msgstr "최근 입력부터 표시합니다. 프레임 수는 누르고 있던 시간이며 기술의 발생 시간은 아닙니다."
+
+msgid "training.clear_history"
+msgstr "입력 기록 지우기"
+
+msgid "training.clear_history.detail"
+msgstr "미터와 두 플레이어의 입력 기록을 지웁니다."
+
+msgid "training.practice_ready"
+msgstr "연습 준비 완료"
+
+msgid "training.recording_suspended"
+msgstr "조작 창이 열려 녹화 일시 중지"
+
+msgid "training.playback_suspended"
+msgstr "조작 창이 열려 재생 일시 중지"
+
+msgid "training.applying"
+msgstr "명령 적용 중..."
+
+msgid "training.waiting_battle"
+msgstr "대전 준비 대기 중..."
+
+msgid "training.title"
+msgstr "트레이닝"
+
+msgid "training.command_rejected"
+msgstr "연습 명령이 수락되지 않았습니다. 상태를 확인하고 다시 시도하세요."
+
+msgid "training.start_frames"
+msgstr "발생 {0} f"
+
+msgid "training.start_unknown"
+msgstr "발생 --"
+
+msgid "training.startup"
+msgstr "발생"
+
+msgid "training.neutral"
+msgstr "중립"
+
+msgid "training.unavailable"
+msgstr "{0}: {1}"
+
+msgid "training.unavailable.waiting_attack"
+msgstr "공격 시작 대기 중"
+
+msgid "training.unavailable.no_attack"
+msgstr "공격 시작 없음"
+
+msgid "training.unavailable.no_contact"
+msgstr "접촉 없음"
+
+msgid "training.unavailable.measuring_recovery"
+msgstr "회복 측정 중"
+
+msgid "training.unavailable.interrupted"
+msgstr "중단됨"
+
+msgid "training.unavailable.invalid"
+msgstr "유효하지 않은 측정"
+
+msgid "training.frame_advantage"
+msgstr "프레임 유불리 | {0}"
+
+msgid "training.measuring"
+msgstr "측정 중"
+
+msgid "training.wakeup"
+msgstr "기상"
+
+msgid "training.held"
+msgstr "누름"
+
+msgid "training.live"
+msgstr "실시간"
+
+msgid "training.advantage"
+msgstr "유리"
+
+msgid "selection.preview_unavailable"
+msgstr "미리 보기\n불가"
+
+msgid "selection.preview_loading"
+msgstr "미리 보기\n로딩 중..."
+
+msgid "selection.handicap_normal"
+msgstr "보통 (100%)"
+
+msgid "selection.handicap_one_hit"
+msgstr "한 방"
+
+msgid "selection.handicap_25"
+msgstr "25%"
+
+msgid "selection.handicap_50"
+msgstr "50%"
+
+msgid "selection.handicap_75"
+msgstr "75%"
+
+msgid "selection.original"
+msgstr "기본"
+
+msgid "selection.alternate"
+msgstr "추가 {0}"
+
+msgid "selection.alternate_pack"
+msgstr "추가 {0} / {1}"
+
+msgid "selection.stage_count"
+msgstr "스테이지 {0}개 / USFIV"
+
+msgid "selection.choose_battlefield"
+msgstr "스테이지를 선택하세요."
+
+msgid "selection.select_saves"
+msgstr "선택하면 저장됩니다. 뒤로 가면 강조된 미리 보기를 변경하지 않고 돌아갑니다."
+
+msgid "selection.locked_detail"
+msgstr "선택이 잠겼습니다. 현재 상태를 보려면 테이블로 돌아가세요."
+
+msgid "selection.title"
+msgstr "캐릭터 선택"
+
+msgid "selection.fighter"
+msgstr "캐릭터"
+
+msgid "selection.appearance"
+msgstr "외형"
+
+msgid "selection.appearance_value"
+msgstr "{0} / 색상 {1}"
+
+msgid "selection.ultra_combo"
+msgstr "울트라 콤보"
+
+msgid "selection.ultra_double"
+msgstr "울트라 더블"
+
+msgid "selection.stage"
+msgstr "스테이지"
+
+msgid "selection.p1_stage"
+msgstr "P1이 스테이지를 선택합니다."
+
+msgid "selection.additional_options"
+msgstr "추가 옵션"
+
+msgid "selection.additional_options.detail"
+msgstr "에디션, 퍼스널 액션, 승리 대사 및 핸디캡입니다."
+
+msgid "selection.choose_fighter"
+msgstr "캐릭터 선택"
+
+msgid "selection.appearance_title"
+msgstr "외형"
+
+msgid "selection.costume_gallery"
+msgstr "코스튬 목록"
+
+msgid "selection.color_gallery"
+msgstr "색상 목록"
+
+msgid "selection.color_preview"
+msgstr "색상 {0} / 개별 미리 보기 탐색"
+
+msgid "selection.costume_gallery_title"
+msgstr "코스튬 목록"
+
+msgid "selection.color_gallery_title"
+msgstr "색상 목록"
+
+msgid "selection.loading_choices"
+msgstr "선택 항목 로딩 중"
+
+msgid "selection.loading_choices.detail"
+msgstr "게임의 코스튬과 색상 사용 가능 여부를 기다립니다."
+
+msgid "selection.no_colors"
+msgstr "이 코스튬에 해제된 색상이 없습니다."
+
+msgid "selection.color"
+msgstr "색상 {0}"
+
+msgid "selection.ultra_combo_title"
+msgstr "울트라 콤보"
+
+msgid "selection.ultra_double.detail"
+msgstr "두 울트라 콤보를 모두 사용할 수 있지만 위력이나 효과가 감소합니다."
+
+msgid "selection.saved"
+msgstr "저장됨"
+
+msgid "selection.stage_title"
+msgstr "스테이지"
+
+msgid "selection.only_p1_stage"
+msgstr "P1만 스테이지를 변경할 수 있습니다."
+
+msgid "selection.options_title"
+msgstr "캐릭터 옵션"
+
+msgid "selection.edition"
+msgstr "에디션"
+
+msgid "selection.usfiv_rules"
+msgstr "이 방은 USFIV 규칙을 사용합니다."
+
+msgid "selection.personal_action"
+msgstr "퍼스널 액션"
+
+msgid "common.none"
+msgstr "없음"
+
+msgid "selection.win_quote"
+msgstr "승리 대사"
+
+msgid "selection.random"
+msgstr "랜덤"
+
+msgid "selection.random_stage"
+msgstr "랜덤"
+
+msgid "selection.random_stage.detail"
+msgstr "대전마다 다른 스테이지를 선택합니다."
+
+msgid "selection.handicap"
+msgstr "핸디캡"
+
+msgid "selection.saved_value"
+msgstr "저장: {0}"
+
+msgid "selection.ultra_selected"
+msgstr "이 울트라를 선택했습니다."
+
+msgid "selection.preview_save"
+msgstr "미리 보기만 표시 중 - 선택을 눌러 저장"
+
+msgid "selection.preview_locked"
+msgstr "미리 보기만 표시 중 - 선택 잠김"
+
+msgid "selection.saved_appearance"
+msgstr "저장: 코스튬 {0} / 색상 {1}"
+
+msgid "selection.saved_full"
+msgstr "저장: {0} / 코스튬 {1} / 색상 {2}"
+
+msgid "selection.preview_save_short"
+msgstr "미리 보기 - 선택을 눌러 저장"
+
+msgid "selection.status_editable"
+msgstr "선택으로 저장 / 뒤로 한 단계 이동"
+
+msgid "selection.status_locked"
+msgstr "선택 잠김 - 상태를 보려면 테이블로 이동"
+
+msgid "runtime.room_recovering"
+msgstr "방 제어를 복구 중입니다. 대전 연결은 유지됩니다."
+
+msgid "runtime.room_lost_fight_continues"
+msgstr "방 연결이 끊겼습니다. 대전은 계속되지만 재대전과 결과 기록은 사용할 수 없습니다."
+
+msgid "runtime.returned_room_lost"
+msgstr "메뉴로 돌아왔습니다. 대전 중 방 연결이 끊겼습니다."
+
+msgid "runtime.room_request_failed"
+msgstr "방 요청에 실패했습니다. 방을 나가 다시 시도하세요."
+
+msgid "runtime.build_mismatch"
+msgstr "빌드가 다릅니다. 두 플레이어가 같은 SF4 Ember Netplay 패키지를 사용해야 합니다."
+
+msgid "runtime.room_full"
+msgstr "방이 가득 찼습니다."
+
+msgid "runtime.name_taken"
+msgstr "방에서 이미 사용 중인 플레이어 이름입니다. 설정에서 변경하세요."
+
+msgid "runtime.selection_combination_unavailable"
+msgstr "이 조합은 방 규칙에서 사용할 수 없습니다. 다른 캐릭터, 코스튬, 색상 또는 에디션을 선택하세요."
+
+msgid "runtime.selection_summary"
+msgstr "{0} / 코스튬 {1} / 색상 {2} / {3}"
+
+msgid "runtime.selection_unavailable"
+msgstr "이 규칙에서는 해당 선택을 사용할 수 없습니다. 캐릭터 선택을 열어 다른 항목을 고르세요."
+
+msgid "runtime.open_shortcut"
+msgstr "SF4 Ember Netplay  /  F10 또는 Start"
+
+msgid "runtime.waiting_opponent_join"
+msgstr "상대가 로비에 참가하기를 기다리는 중..."
+
+msgid "runtime.authorized_connection_unavailable"
+msgstr "승인된 대전 연결을 사용할 수 없습니다."
+
+msgid "runtime.waiting_opponent_start"
+msgstr "대전을 시작하려면 상대가 로비에 들어오기를 기다려야 합니다."
+
+msgid "runtime.unsupported_stage"
+msgstr "방에서 지원하지 않는 스테이지를 지정했습니다. 다시 시도하기 전에 로비를 초기화하세요."
+
+msgid "runtime.netplay_input_failed"
+msgstr "넷플레이 입력에 실패했습니다. 대전이 종료되었습니다."
+
+msgid "runtime.netplay_sync_failed"
+msgstr "넷플레이 동기화에 실패했습니다. 대전이 종료되었습니다."
+
+msgid "runtime.invalid_roster"
+msgstr "대전 참가자 목록이 잘못되었습니다. 방으로 돌아가 다시 시도하세요."
+
+msgid "runtime.ggpo_start_failed"
+msgstr "GGPO를 시작하지 못했습니다. 로비로 돌아가 다시 준비하세요."
+
+msgid "runtime.ggpo_add_players_failed"
+msgstr "GGPO에 플레이어를 추가하지 못했습니다. 로비로 돌아가 다시 준비하세요."
+
+msgid "runtime.rollback_buffer_full"
+msgstr "넷플레이 롤백 버퍼가 가득 찼습니다. 대전이 종료되었습니다."
+
+msgid "runtime.connection_unstable_prediction"
+msgstr "연결이 불안정합니다. 입력 예측으로 진행 중입니다."
+
+msgid "runtime.connection_restored"
+msgstr "연결이 복구되었습니다."
+
+msgid "runtime.spectator_disconnected"
+msgstr "관전자 한 명의 연결이 끊겼습니다."
+
+msgid "runtime.spectator_stream_lost"
+msgstr "관전 스트림이 끊겼습니다. 다음 대전에 참가하려면 관전을 누르세요."
+
+msgid "runtime.match_connection_lost"
+msgstr "대전 연결이 끊겼습니다."
+
+msgid "runtime.opponent_disconnected"
+msgstr "상대의 연결이 끊겼습니다. 대전이 종료되었습니다."
+
+msgid "runtime.leaving_spectator"
+msgstr "관전을 종료하는 중입니다."
+
+msgid "runtime.returning_room"
+msgstr "방으로 돌아가는 중입니다."
+
+msgid "runtime.table_game_cancelled"
+msgstr "이 테이블의 대전이 취소되었습니다. 방으로 돌아가 다시 준비하세요."
+
+msgid "runtime.result_not_recorded"
+msgstr "확정 전에 테이블이 변경되어 결과를 기록하지 못했습니다."
+
+msgid "runtime.participant_left"
+msgstr "대전 참가자가 방을 나갔습니다. 대전이 종료됩니다."
+
+msgid "update.github_unreachable"
+msgstr "GitHub에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 시도하세요."
+
+msgid "update.no_version_tag"
+msgstr "GitHub 릴리스에 버전 태그가 없습니다."
+
+msgid "update.no_zip_asset"
+msgstr "최신 릴리스에 SF4 Ember Netplay ZIP 파일이 없습니다."
+
+msgid "update.parse_failed"
+msgstr "GitHub 릴리스 응답을 해석하지 못했습니다."
+
+msgid "update.missing_url"
+msgstr "다운로드 URL이 없습니다."
+
+msgid "update.missing_version"
+msgstr "버전 태그가 없습니다."
+
+msgid "update.close_sf4"
+msgstr "업데이트를 설치하기 전에 Ultra Street Fighter IV를 닫으세요."
+
+msgid "update.install_dir_failed"
+msgstr "설치 폴더를 확인하지 못했습니다."
+
+msgid "update.temp_path_failed"
+msgstr "업데이트 임시 경로를 만들지 못했습니다({0})."
+
+msgid "update.temp_folder_failed"
+msgstr "업데이트 임시 폴더를 만들지 못했습니다({0})."
+
+msgid "update.temp_access_failed"
+msgstr "임시 폴더에 접근하지 못했습니다."
+
+msgid "update.zip_path_failed"
+msgstr "업데이트 ZIP 경로를 만들지 못했습니다."
+
+msgid "update.extract_folder_failed"
+msgstr "업데이트 압축 해제 폴더를 만들지 못했습니다({0})."
+
+msgid "update.download_failed"
+msgstr "다운로드에 실패했습니다({0}). 수동 다운로드: {1} — 자세한 내용은 %TEMP%\\sf4-netplay-update.log를 확인하세요"
+
+msgid "update.verify_failed"
+msgstr "업데이트 다운로드를 검증하지 못했습니다. 다시 시도하세요."
+
+msgid "update.integrity_failed"
+msgstr "다운로드한 업데이트가 무결성 검사에 실패하여 설치되지 않았습니다. 다시 시도하거나 GitHub에서 릴리스를 직접 다운로드하세요."
+
+msgid "update.no_digest"
+msgstr "릴리스에 공개된 SHA-256 해시가 없습니다. 자동 설치를 사용할 수 없습니다."
+
+msgid "update.extract_failed"
+msgstr "업데이트 패키지의 압축을 풀지 못했습니다."
+
+msgid "update.invalid_paths"
+msgstr "다운로드한 패키지에 잘못된 경로가 있습니다."
+
+msgid "update.missing_binaries"
+msgstr "다운로드한 패키지에 Launcher.exe 또는 Sidecar.dll이 없습니다."
+
+msgid "update.staging_path_failed"
+msgstr "설치 준비 경로를 읽지 못했습니다."
+
+msgid "update.validation_failed"
+msgstr "다운로드한 패키지 검증에 실패했습니다(필수 파일 누락)."
+
+msgid "update.cancelled"
+msgstr "설치 전에 업데이트를 취소했습니다."
+
+msgid "update.close_game"
+msgstr "업데이트 설치 전에 게임을 닫으세요."
+
+msgid "update.updater_start_failed"
+msgstr "Updater.exe를 시작하지 못했습니다. 새 ZIP 파일로 다시 설치하세요."
+
+msgid "room.member_left"
+msgstr "참가자 퇴장"
+
+msgid "room.open_seat"
+msgstr "빈자리"
+
+msgid "room.status.queued"
+msgstr "대기열에 있음"
+
+msgid "room.status.seated"
+msgstr "착석"
+
+msgid "room.status.ready"
+msgstr "준비 완료"
+
+msgid "room.status.playing"
+msgstr "대전 중"
+
+msgid "room.status.watching"
+msgstr "관전 중"
+
+msgid "room.status.watching_next"
+msgstr "다음 대전 관전"
+
+msgid "room.status.idle"
+msgstr "대기 중"
+
+msgid "room.phase.waiting"
+msgstr "대전 상대 대기 중"
+
+msgid "room.phase.preparing"
+msgstr "대전 준비 중"
+
+msgid "room.phase.in_game"
+msgstr "대전 중"
+
+msgid "room.phase.unresolved"
+msgstr "결과 미확정"
+
+msgid "room.phase.closed"
+msgstr "닫힘"
+
+msgid "room.phase.open"
+msgstr "열림"
+
+msgid "room.terminal_pending"
+msgstr "모든 플레이어와 관전자가 이전 대전에서 돌아오기를 기다립니다."
+
+msgid "room.leave.detail"
+msgstr "이 방의 연결을 끊고 홈으로 돌아갑니다. Ember를 숨겨도 방에는 남아 있습니다."
+
+msgid "room.leave.unresolved"
+msgstr " 미확정 대전은 기록되지 않습니다."
+
+msgid "room.leave.active"
+msgstr " 현재 대전은 결과 없이 종료되고 자리가 비워집니다."
+
+msgid "room.leave.seat"
+msgstr " 자리가 비워집니다."
+
+msgid "room.leave.queue"
+msgstr " 대기열의 자리를 잃습니다."
+
+msgid "room.leave.host"
+msgstr " 다른 참가자가 방장이 됩니다."
+
+msgid "room.action_queue_failed"
+msgstr "작업을 대기열에 넣지 못했습니다. 다시 시도하세요."
+
+msgid "room.table_detail"
+msgstr "{0} vs {1}\n{2}\n대기열: {3} / 관전: {4}\n나: {5}"
+
+msgid "room.connecting"
+msgstr "연결 중"
+
+msgid "room.table_occupancy"
+msgstr "테이블 {0}   {1}/2"
+
+msgid "room.member_you"
+msgstr "{0} / 나"
+
+msgid "room.member"
+msgstr "{0}"
+
+msgid "room.member_status_host"
+msgstr "{0} / 방장"
+
+msgid "room.member_status"
+msgstr "{0}"
+
+msgid "room.members"
+msgstr "참가자"
+
+msgid "room.member_count"
+msgstr "참가자 {0} / {1}명"
+
+msgid "room.chat"
+msgstr "채팅"
+
+msgid "room.chat.detail"
+msgstr "메시지를 읽고 키보드로 직접 작성합니다."
+
+msgid "room.change_fighter"
+msgstr "캐릭터 변경"
+
+msgid "room.change_fighter.open_table"
+msgstr "준비 상태와 캐릭터 변경 조건을 보려면 테이블을 여세요."
+
+msgid "room.settings"
+msgstr "방 설정"
+
+msgid "room.settings.detail"
+msgstr "방 이름, 정원 및 참가 허용 설정입니다."
+
+msgid "room.settings.host_only"
+msgstr "방장만 방을 관리할 수 있습니다."
+
+msgid "room.connection_status"
+msgstr "연결 상태"
+
+msgid "room.opening"
+msgstr "방 여는 중..."
+
+msgid "room.opening_stalled"
+msgstr "방이 아직 열리지 않았습니다. 연결을 확인하거나 중단한 뒤 다시 시도하세요."
+
+msgid "room.waiting_state"
+msgstr "방 상태를 기다리는 중입니다."
+
+msgid "room.ready"
+msgstr "준비"
+
+msgid "room.ready.saved_fighter"
+msgstr "저장된 캐릭터를 사용합니다."
+
+msgid "room.copy_invitation"
+msgstr "초대 복사"
+
+msgid "room.copy_invitation.detail"
+msgstr "친구에게 비공개 초대를 공유하세요."
+
+msgid "room.leaving"
+msgstr "방 나가는 중..."
+
+msgid "room.leave"
+msgstr "방 나가기"
+
+msgid "room.replace"
+msgstr "방 새로 만들기"
+
+msgid "room.replace.detail"
+msgstr "응답하지 않는 방을 닫고 새 방을 엽니다. 모두 다시 참가해야 하며 기존 초대는 사용할 수 없습니다. 미확정 방 상태는 버려집니다."
+
+msgid "room.replace.waiting"
+msgstr "이전 대전이 아직 종료 중입니다. 완료되면 방을 새로 만들 수 있습니다."
+
+msgid "room.updating"
+msgstr "방 업데이트 중..."
+
+msgid "room.battle_slot"
+msgstr "대전 슬롯 {0}"
+
+msgid "room.looking_for_fight"
+msgstr "대전 상대 찾는 중"
+
+msgid "room.fighter_not_shared"
+msgstr "캐릭터 미공유"
+
+msgid "room.suffix_ready"
+msgstr " / 준비"
+
+msgid "room.suffix_you"
+msgstr " / 나"
+
+msgid "room.table_footer"
+msgstr "{0}라운드 / {1}초     대기 {2}     관전 {3}"
+
+msgid "room.board_status_host_slot"
+msgstr "방장 / {0} / 슬롯 {1}"
+
+msgid "room.board_status_slot"
+msgstr "{0} / 슬롯 {1}"
+
+msgid "room.board_status_host"
+msgstr "방장 / {0}"
+
+msgid "room.board_status"
+msgstr "{0}"
+
+msgid "room.members_heading"
+msgstr "참가자  {0} / {1}"
+
+msgid "room.chat_heading"
+msgstr "채팅"
+
+msgid "room.no_messages"
+msgstr "아직 메시지가 없습니다. 채팅을 선택해 작성하세요."
+
+msgid "room.table_explanation"
+msgstr "{0} / 나: {1}\n대기: {2} / 관전: {3}"
+
+msgid "room.invitation_copied"
+msgstr "초대를 복사했습니다."
+
+msgid "room.replacement_opening"
+msgstr "새 방을 여는 중입니다. 초대 복사를 선택해 새 링크를 보내세요. 이전 링크는 더 이상 사용할 수 없습니다."
+
+msgid "room.action_rejected"
+msgstr "방이 변경되었거나 작업을 거부했습니다. 현재 상태를 확인하고 다시 시도하세요."
+
+msgid "room.leave_current_table"
+msgstr "먼저 현재 테이블에서 나가세요."
+
+msgid "room.choose_action"
+msgstr "이 테이블에서 할 작업을 선택하세요."
+
+msgid "room.result_unresolved.detail"
+msgstr "이전 대전 결과가 확정되지 않았습니다. 미확정 대전 포기를 선택하거나 방장에게 취소를 요청하세요. 승리는 기록되지 않습니다."
+
+msgid "room.awaiting_result"
+msgstr "두 플레이어의 결과 보고를 기다립니다. 결과가 확정되면 준비 상태가 초기화됩니다. 다음 대전은 아직 준비되지 않았습니다."
+
+msgid "room.match_active"
+msgstr "현재 대전을 준비 중이거나 진행 중입니다. 끝날 때까지 기다리세요."
+
+msgid "room.waiting_other_seat"
+msgstr "상대가 반대편 자리에 앉기를 기다립니다. 기다리는 동안 캐릭터를 변경할 수 있습니다."
+
+msgid "room.controller_required"
+msgstr "설정 > 플레이어 및 컨트롤러에서 컨트롤러를 지정하거나 다시 연결하세요."
+
+msgid "room.waiting_update"
+msgstr "현재 방 업데이트가 끝나기를 기다립니다."
+
+msgid "room.ready.cancel_detail"
+msgstr "준비 완료 상태입니다. 선택해 준비를 취소한 뒤 캐릭터 변경을 선택하세요."
+
+msgid "room.ready.locking"
+msgstr "캐릭터를 확정하는 중입니다. 두 플레이어가 준비되면 대전이 시작됩니다."
+
+msgid "room.ready.lock_detail"
+msgstr "선택해 캐릭터를 확정하세요. 두 플레이어가 준비되면 대전이 시작됩니다."
+
+msgid "room.both_ready"
+msgstr "두 플레이어 모두 준비됐습니다. 대전을 시작합니다."
+
+msgid "room.match_in_progress.detail"
+msgstr "현재 대전이 진행 중입니다. 끝날 때까지 기다리세요."
+
+msgid "room.unready"
+msgstr "준비 취소 / 캐릭터 잠금 해제"
+
+msgid "room.readying"
+msgstr "준비 중..."
+
+msgid "room.result_unresolved"
+msgstr "결과 미확정"
+
+msgid "room.preparing_match"
+msgstr "대전 준비 중"
+
+msgid "room.ready_rematch"
+msgstr "재대전 준비"
+
+msgid "room.ready_up"
+msgstr "준비"
+
+msgid "room.recommended_delay"
+msgstr "권장 지연"
+
+msgid "room.selected_delay"
+msgstr "선택한 지연"
+
+msgid "room.selected_delay.detail"
+msgstr "0~10프레임으로 조정하세요. 변경 사항은 즉시 적용됩니다."
+
+msgid "room.selected_delay.locked"
+msgstr "이번 대전의 지연 시간이 고정되었습니다."
+
+msgid "room.match_delay"
+msgstr "대전 지연"
+
+msgid "room.match_delay.at_least"
+msgstr "최소 {0}프레임"
+
+msgid "room.match_delay.detail"
+msgstr "두 플레이어 모두 더 높은 선택 지연 시간을 사용합니다. 나: {0}, 상대: {1}."
+
+msgid "room.match_delay.pending"
+msgstr "두 플레이어 모두 더 높은 선택 지연 시간을 사용합니다. 상대가 준비하면 선택값이 표시됩니다."
+
+msgid "room.check_connection.two_players"
+msgstr "연결을 확인하려면 두 자리에 모두 플레이어가 있어야 합니다."
+
+msgid "room.check_connection.unready"
+msgstr "다음 대전 전에 연결을 확인하려면 준비 취소를 선택하세요."
+
+msgid "room.check_connection.finish_match"
+msgstr "연결을 확인하려면 현재 대전을 먼저 끝내세요."
+
+msgid "room.apply_recommendation"
+msgstr "권장값 적용"
+
+msgid "room.apply_recommendation.detail"
+msgstr "선택한 지연 시간을 {0}프레임으로 설정합니다."
+
+msgid "room.apply_recommendation.check_first"
+msgstr "권장값을 적용하기 전에 연결 확인을 실행하세요."
+
+msgid "room.change_fighter.unready"
+msgstr "위에서 준비 취소를 선택해 캐릭터와 외형의 잠금을 해제하세요."
+
+msgid "room.change_fighter.waiting"
+msgstr "현재 대전 또는 선택 업데이트가 끝나기를 기다립니다."
+
+msgid "room.change_fighter.detail"
+msgstr "캐릭터를 선택한 뒤 코스튬과 색상 목록을 살펴보세요. 여기로 돌아와 준비를 선택하세요."
+
+msgid "room.leave_seat"
+msgstr "자리 비우기"
+
+msgid "room.leave_seat.abandon_first"
+msgstr "먼저 미확정 대전을 포기하세요."
+
+msgid "room.leave_seat.finish_first"
+msgstr "먼저 현재 대전을 끝내거나 결과를 확정하세요."
+
+msgid "room.leave_seat.release"
+msgstr "자리를 비웁니다."
+
+msgid "room.leave_seat.next_player"
+msgstr "자리를 비웁니다. 대기열의 다음 플레이어가 앉습니다."
+
+msgid "room.abandon_result"
+msgstr "미확정 대전 포기"
+
+msgid "room.abandon_result.detail"
+msgstr "결과는 기록되지 않습니다. 두 플레이어는 자리에 남아 다시 준비할 수 있습니다."
+
+msgid "room.leave_queue"
+msgstr "대기열 나가기"
+
+msgid "room.join_queue"
+msgstr "대기열 참가"
+
+msgid "room.stop_watching"
+msgstr "관전 중지"
+
+msgid "room.watch_next"
+msgstr "다음 대전 관전"
+
+msgid "room.table_rules"
+msgstr "테이블 규칙"
+
+msgid "room.table_rules.edit"
+msgstr "이 테이블의 규칙을 편집합니다."
+
+msgid "room.table_rules.view"
+msgstr "이 테이블의 규칙을 확인합니다."
+
+msgid "room.cancel_unresolved"
+msgstr "미확정 대전 취소"
+
+msgid "room.cancel_unresolved.detail"
+msgstr "방장 전용입니다. 결과는 기록되지 않습니다."
+
+msgid "room.cancel_stuck"
+msgstr "멈춘 대전 취소"
+
+msgid "room.cancel_stuck.detail"
+msgstr "방장 전용입니다. 끝난 대전의 결과가 보고되지 않을 때 사용하세요. 결과는 기록되지 않습니다."
+
+msgid "room.rules.finish_game"
+msgstr "규칙을 바꾸기 전에 진행 중인 대전을 끝내세요."
+
+msgid "room.rules.apply_note"
+msgstr "변경 사항은 적용을 누른 뒤 반영됩니다."
+
+msgid "room.rules.host_only"
+msgstr "방장만 테이블 규칙을 바꿀 수 있습니다."
+
+msgid "room.apply_rules"
+msgstr "규칙 적용"
+
+msgid "room.apply_rules.detail"
+msgstr "이 테이블의 규칙 초안 전체를 제출합니다."
+
+msgid "room.member_status_host_muted"
+msgstr "{0} / 방장 / 내 채팅에서 음소거"
+
+msgid "room.member_status_muted"
+msgstr "{0} / 내 채팅에서 음소거"
+
+msgid "room.unmute_member"
+msgstr "음소거 해제"
+
+msgid "room.mute_member"
+msgstr "음소거"
+
+msgid "room.mute_member.detail"
+msgstr "이 참가자의 채팅만 숨깁니다."
+
+msgid "room.member_left.detail"
+msgstr "이 참가자가 나갔습니다."
+
+msgid "room.kick_member"
+msgstr "참가자 내보내기"
+
+msgid "room.kick_member.detail"
+msgstr "{0} 님을 방에서 내보냅니다."
+
+msgid "room.transfer_host"
+msgstr "방장 넘기기"
+
+msgid "room.transfer_host.detail"
+msgstr "{0} 님을 방장으로 지정합니다."
+
+msgid "room.compose_message"
+msgstr "메시지 작성"
+
+msgid "room.send_message"
+msgstr "메시지 보내기"
+
+msgid "room.send_message.detail"
+msgstr "확정된 초안을 보냅니다. 편집기에서 Enter를 눌러도 채팅은 전송되지 않습니다."
+
+msgid "room.capacity.detail"
+msgstr "현재 참가 인원보다 적게 설정할 수 없습니다."
+
+msgid "room.admission"
+msgstr "참가 허용"
+
+msgid "room.locked"
+msgstr "잠김"
+
+msgid "room.open"
+msgstr "열림"
+
+msgid "room.admission.detail"
+msgstr "잠그면 새 참가자가 들어올 수 없습니다."
+
+msgid "room.apply_name"
+msgstr "방 이름 적용"
+
+msgid "room.apply_name.detail"
+msgstr "이 방 이름을 제출합니다."
+
+msgid "room.apply_capacity"
+msgstr "정원 적용"
+
+msgid "room.apply_capacity.detail"
+msgstr "이 정원을 제출합니다."
+
+msgid "profile.main_badge"
+msgstr "주 캐릭터"
+
+msgid "training.shortcuts"
+msgstr "F6 트레이닝 조작 | F5 HUD 숨기기"
+
+msgid "common.not_set"
+msgstr "설정 안 됨"
+
+msgid "notice.title"
+msgstr "알림"
+
+msgid "notice.error_title"
+msgstr "문제가 발생했습니다"
+
+msgid "game_settings.title"
+msgstr "권장 게임 설정"
+
+msgid "game_settings.intro"
+msgstr "아래 게임 설정에서 온라인 플레이가 가장 원활합니다. 오프라인 플레이를 선택한 뒤 게임의 옵션 메뉴에서 변경하세요."
+
+msgid "game_settings.frame_rate"
+msgstr "프레임 수: 고정으로 설정하세요(현재 {0}). 필수입니다. 다른 모드는 롤백을 방해합니다."
+
+msgid "game_settings.anti_aliasing"
+msgstr "앤티앨리어싱: 없음으로 설정하세요(현재 {0}). GPU 부하와 지연을 줄입니다."
+
+msgid "game_settings.hide"
+msgstr "다시 표시 안 함"
+
+msgid "common.ok"
+msgstr "확인"
+
+msgid "edit.title"
+msgstr "텍스트 편집"
+
+msgid "edit.instructions"
+msgstr "입력하거나 붙여넣으세요. Enter로 확정하고 Esc 또는 컨트롤러의 뒤로 버튼으로 취소합니다."
+
+msgid "edit.updating"
+msgstr "방을 업데이트 중입니다. 초안은 유지되며 계속 입력하거나 취소할 수 있습니다."
+
+msgid "common.accept"
+msgstr "수락"
+
+msgid "edit.cancel"
+msgstr "편집 취소"
+
+msgid "discord.unavailable_build"
+msgstr "이 빌드에서는 Discord 연동을 사용할 수 없습니다."
+
+msgid "runtime.record_invalid"
+msgstr "로컬 대전 전적이 잘못되어 원본을 보존했습니다. 전적 기록을 사용할 수 없습니다."
+
+msgid "runtime.interface_preferences_failed"
+msgstr "화면 설정을 읽지 못해 기본값을 사용합니다."
+
+msgid "runtime.room_defaults_invalid"
+msgstr "저장된 방 기본 설정이 잘못되었습니다. 원래 설정은 보존됩니다."
+
+msgid "runtime.network_start_failed"
+msgstr "네트워크를 시작하지 못했습니다. 오프라인 플레이는 가능합니다."
+
+msgid "runtime.network_helper_unavailable"
+msgstr "네트워크 보조 프로그램을 사용할 수 없습니다(오류 {0}). 오프라인 플레이는 가능합니다."
+
+msgid "discord.connecting"
+msgstr "Discord에 연결 중..."
+
+msgid "discord.unavailable_gameplay_ok"
+msgstr "Discord를 사용할 수 없습니다. 게임플레이에는 영향이 없습니다."
+
+msgid "runtime.gameplay_device_disconnected"
+msgstr "게임플레이 장치의 연결이 끊겼습니다. 다음 대전 전에 다시 연결하세요."
+
+msgid "runtime.controller_assignment_unverified"
+msgstr "대전에서 사용할 컨트롤러 지정을 확인하지 못했습니다. 다시 지정한 뒤 시도하세요."
+
+msgid "runtime.recovery_state_failed"
+msgstr "방 복구 상태를 적용하지 못했습니다. 복구가 일시 중지된 상태입니다."
+
+msgid "runtime.room_control_recovering"
+msgstr "방 제어를 복구 중입니다."
+
+msgid "discord.connected"
+msgstr "Discord 연결됨"
+
+msgid "discord.registration_failed"
+msgstr "Discord에 연결했지만 실행 등록에 실패했습니다."
+
+msgid "discord.open_desktop"
+msgstr "Discord를 사용할 수 없습니다. 활동을 공유하려면 Discord 데스크톱 앱을 여세요."
+
+msgid "discord.invitation_invalid"
+msgstr "잘못된 Discord 초대입니다."
+
+msgid "discord.invalid_event"
+msgstr "Discord에서 잘못된 로컬 이벤트를 보냈습니다."
+
+msgid "discord.companion_stopped"
+msgstr "Discord 보조 프로그램이 중지되었습니다. 게임플레이에는 영향이 없습니다."
+
+msgid "runtime.room_connection_failed"
+msgstr "방 연결에 실패했습니다. 방을 닫는 중이며 미확정 결과는 기록되지 않습니다."
+
+msgid "runtime.operation_busy"
+msgstr "작업이 진행 중입니다. 다시 시도하세요."
+
+msgid "discord.invitation_expired"
+msgstr "Discord 초대가 만료되었습니다. 새 초대를 요청하세요."
+
+msgid "runtime.spectator_action_retrying"
+msgstr "관전 작업을 보내지 못해 다시 시도합니다."
+
+msgid "runtime.return_main_menu"
+msgstr "방을 열기 전에 게임의 메인 메뉴로 돌아가세요."
+
+msgid "runtime.room_action_failed"
+msgstr "방 작업을 보내지 못했습니다. 다시 시도하세요."
+
+msgid "runtime.preferences_queue_failed"
+msgstr "설정 저장 작업을 대기열에 넣지 못했습니다. 다시 시도하세요."
+
+msgid "runtime.lobby_settings_send_failed"
+msgstr "로비 설정을 보내지 못했습니다."
+
+msgid "runtime.room_defaults_save_failed"
+msgstr "방 기본 설정을 저장하지 못했습니다."
+
+msgid "runtime.connection_check_unavailable"
+msgstr "연결 확인을 사용할 수 없습니다. 지연 시간을 직접 선택하고 준비할 수 있습니다."
+
+msgid "runtime.delay_save_failed"
+msgstr "입력 지연을 저장하지 못했습니다."
+
+msgid "runtime.teardown_report_failed"
+msgstr "대전 종료 처리를 보고하지 못해 방이 닫혔습니다."
+
+msgid "runtime.lobby_defaults_save_failed"
+msgstr "로비 설정을 적용했지만 기본값은 저장하지 못했습니다."
+
+msgid "runtime.lobby_settings_rejected"
+msgstr "로비 설정이 수락되지 않았습니다. 준비 상태를 확인하고 다시 시도하세요."
+
+msgid "runtime.teardown_timeout"
+msgstr "대전 종료 처리 시간이 초과되어 방이 닫혔습니다."
+
+msgid "runtime.room_catchup_timeout"
+msgstr "방 상태가 제때 동기화되지 않았습니다. 마지막 작업이 적용되지 않았으니 다시 시도하세요."
+
+msgid "runtime.previous_match_close_timeout"
+msgstr "이전 대전이 제때 종료되지 않았습니다. 테이블 설정을 다시 적용하세요."
+
+msgid "runtime.spectator_close_timeout"
+msgstr "대전이 제때 종료되지 않아 관전을 중지했습니다."
+
+msgid "runtime.room_closed"
+msgstr "방이 닫혔습니다."
+
+msgid "runtime.removed_from_room"
+msgstr "방에서 내보내졌습니다."
+
+msgid "room.reject.closed"
+msgstr "방이 닫혔습니다."
+
+msgid "room.reject.full"
+msgstr "방이 가득 찼습니다."
+
+msgid "room.reject.admission_locked"
+msgstr "이 방은 새 참가자를 받지 않습니다."
+
+msgid "room.reject.name_taken"
+msgstr "방에서 이미 사용 중인 플레이어 이름입니다. 설정에서 변경하세요."
+
+msgid "room.reject.stale_room"
+msgstr "작업이 도착하기 전에 방이 변경되었습니다. 다시 시도하세요."
+
+msgid "room.reject.stale_table"
+msgstr "작업이 도착하기 전에 테이블이 변경되었습니다. 다시 시도하세요."
+
+msgid "room.reject.wrong_phase"
+msgstr "테이블에서 아직 이 작업을 할 수 없습니다."
+
+msgid "room.reject.wrong_generation"
+msgstr "해당 대전은 이미 종료되었습니다."
+
+msgid "room.reject.unauthorized"
+msgstr "방장만 할 수 있습니다."
+
+msgid "room.reject.not_seated"
+msgstr "이 테이블에 앉아 있지 않습니다."
+
+msgid "room.reject.already_seated"
+msgstr "이미 자리에 앉아 있습니다."
+
+msgid "room.reject.already_queued"
+msgstr "이미 대기열에 있습니다."
+
+msgid "room.reject.not_queued"
+msgstr "대기열에 없습니다."
+
+msgid "room.reject.not_watching"
+msgstr "이 테이블을 관전 중이지 않습니다."
+
+msgid "room.reject.invalid_rules"
+msgstr "테이블 규칙이 잘못되었습니다."
+
+msgid "room.reject.invalid_capacity"
+msgstr "정원이 잘못되었습니다."
+
+msgid "room.reject.invalid_chat"
+msgstr "메시지를 보내지 못했습니다."
+
+msgid "room.reject.ledger_full"
+msgstr "모두가 이전 대전에서 돌아오기를 기다립니다."
+
+msgid "room.reject.other"
+msgstr "방에서 이 작업을 거부했습니다."
+
+msgid "runtime.lock.return_to_menu_fighter"
+msgstr "캐릭터를 변경하려면 게임의 메인 메뉴로 돌아가세요."
+
+msgid "runtime.lock.previous_game_closing"
+msgstr "이전 대전이 종료되기를 기다립니다."
+
+msgid "runtime.lock.teardown"
+msgstr "이전 대전의 플레이어와 관전자가 종료 처리를 마치기를 기다립니다."
+
+msgid "runtime.lock.room_recovering"
+msgstr "방 연결이 복구되기를 기다립니다."
+
+msgid "runtime.lock.ready_pending"
+msgstr "준비 요청이 완료되기를 기다립니다."
+
+msgid "runtime.lock.selection_update"
+msgstr "현재 대전 또는 선택 업데이트가 끝나기를 기다립니다."
+
+msgid "runtime.lock.return_to_menu_ready"
+msgstr "준비하기 전에 게임의 메인 메뉴로 돌아가세요."
+
+msgid "runtime.lock.table_settings"
+msgstr "테이블 설정이 적용되기를 기다립니다."
+
+msgid "runtime.lock.room_update"
+msgstr "현재 방 또는 대전 업데이트가 끝나기를 기다립니다."
+
+msgid "runtime.ready.control_changed"
+msgstr "준비가 적용되기 전에 방 제어가 변경되었습니다. 준비를 다시 누르세요."
+
+msgid "runtime.ready.assign_controller"
+msgstr "준비하기 전에 컨트롤러를 지정하거나 다시 연결하세요."
+
+msgid "runtime.ready.stage_unavailable"
+msgstr "선택한 스테이지를 사용할 수 없습니다. 캐릭터 선택에서 다른 스테이지를 고르세요."
+
+msgid "runtime.ready.fighter_unavailable"
+msgstr "선택한 캐릭터를 사용할 수 없습니다. 캐릭터 선택에서 다른 캐릭터를 고르세요."
+
+msgid "runtime.ready.selection_unavailable"
+msgstr "이 캐릭터 선택을 사용할 수 없습니다. 사용 가능한 코스튬, 색상, 에디션 및 울트라를 고르세요."
+
+msgid "runtime.ready.take_seat"
+msgstr "준비하기 전에 테이블에 앉으세요."
+
+msgid "runtime.ready.refused"
+msgstr "방에서 준비 요청을 거부했습니다. 준비를 다시 누르세요."
+
+msgid "runtime.ready.previous_match_timeout"
+msgstr "준비 요청이 처리되지 않았습니다. 이전 대전이 제때 종료되지 않았습니다. 준비를 다시 누르세요."
+
+msgid "runtime.room_open_failed"
+msgstr "방을 열지 못했습니다. 다시 시도하세요."
+
+msgid "runtime.match_settings_send_failed"
+msgstr "대전 설정을 보내지 못했습니다."
+
+msgid "runtime.match_record_not_saved"
+msgstr "대전 전적을 저장하지 못했습니다. 다음 대전은 시작할 수 있으며 저장은 계속 재시도됩니다."
+
+msgid "runtime.rollback_unsupported_state"
+msgstr "넷플레이에서 지원하지 않는 게임 상태를 저장하지 못했습니다. 대전이 종료되었습니다."
+
+msgid "runtime.participant_left_room"
+msgstr "대전 참가자가 방을 나갔습니다."
+
+msgid "runtime.networking_unavailable"
+msgstr "네트워크를 사용할 수 없습니다. 오프라인 플레이는 가능합니다."
+
+msgid "runtime.room_join_failed"
+msgstr "방에 참가하지 못했습니다. 초대와 두 플레이어의 SF4 Ember Netplay 패키지가 같은지 확인하세요."
+
+msgid "runtime.room_connection_lost"
+msgstr "방 연결이 끊겼습니다."

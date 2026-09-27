@@ -170,15 +170,24 @@ endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_locales.cmake")
 add_library(sf4e_localization STATIC
     "src/common/Localization.cxx"
+    "src/common/GameLanguage.cxx"
+    "src/common/SteamKeyValues.cxx"
     "src/platform/LocaleWindows.cxx")
 target_compile_features(sf4e_localization PUBLIC cxx_std_17)
-target_include_directories(sf4e_localization PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
-target_link_libraries(sf4e_localization PUBLIC fmt::fmt)
+target_include_directories(sf4e_localization PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated"
+    PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/generated/public")
+target_link_libraries(sf4e_localization PUBLIC fmt::fmt PRIVATE "advapi32")
 if(BUILD_TESTING)
     # imgui for the glyph ranges the catalog coverage check reads, headers only.
     add_executable(LocalizationTest "src/tests/localization_test.cxx")
     target_link_libraries(LocalizationTest PRIVATE sf4e_localization imgui::imgui)
+    # EmbeddedFonts.hxx: coverage is checked against the font bytes that ship.
+    target_include_directories(LocalizationTest PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
     add_test(NAME Localization COMMAND LocalizationTest "${CMAKE_SOURCE_DIR}")
+    add_executable(GameLanguageTest "src/tests/game_language_test.cxx")
+    target_link_libraries(GameLanguageTest PRIVATE sf4e_localization)
+    add_test(NAME GameLanguage COMMAND GameLanguageTest)
+    set_tests_properties(GameLanguage PROPERTIES TIMEOUT 15)
 endif()
 
 # The UI preference store is a settings store that validates one localization
@@ -236,10 +245,13 @@ if(BUILD_TESTING)
     target_link_libraries(UiRenderTest PRIVATE sf4e_ui "d3d9")
     add_test(NAME UiRender COMMAND UiRenderTest)
     # Every fighter now has a portrait (the packaged cutout stands in for the
-    # game's), and sweeping forty configurations cycles more art than the
-    # 32 MB selection cache holds, so the run decodes it repeatedly: about
-    # 165 s here against 46 s before portraits loaded in this test.
+    # game's), and sweeping twenty configurations cycles more art than the
+    # 32 MB selection cache holds, so the run decodes it repeatedly.
     set_tests_properties(UiRender PROPERTIES TIMEOUT 360)
+    # Each translation at three sizes, in its own run so neither sweep nears
+    # its timeout as languages are added.
+    add_test(NAME UiRenderLocales COMMAND UiRenderTest)
+    set_tests_properties(UiRenderLocales PROPERTIES TIMEOUT 600 ENVIRONMENT "SF4E_UI_RENDER_LOCALES=translations")
     add_executable(SelectionArtTest src/tests/selection_art_test.cxx)
     target_compile_definitions(SelectionArtTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
     target_link_libraries(SelectionArtTest PRIVATE sf4e_ui "d3d9")
@@ -599,7 +611,7 @@ set_target_properties(Launcher PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED 
 sf4e_configure_windows_version(Launcher "SF4 Ember Netplay" "Launcher.exe" "VFT_APP")
 sf4e_embed_manifest(Launcher "Launcher.exe.manifest")
 if(BUILD_TESTING)
-    add_executable(GameLocatorTest src/tests/game_locator_test.cxx src/launcher/GameLocator.cxx)
+    add_executable(GameLocatorTest src/tests/game_locator_test.cxx src/launcher/GameLocator.cxx src/common/SteamKeyValues.cxx)
     target_compile_features(GameLocatorTest PRIVATE cxx_std_17)
     add_test(NAME GameLocator COMMAND GameLocatorTest)
     set_tests_properties(GameLocator PROPERTIES TIMEOUT 15)
@@ -635,6 +647,7 @@ install(
   RUNTIME DESTINATION "."
 )
 install(FILES "src/ui/fonts/OFL.txt" DESTINATION "notices" RENAME "Inter-OFL.txt")
+install(FILES "src/ui/fonts/NotoSansCJK-OFL.txt" DESTINATION "notices")
 install(FILES "src/ui/backends/LICENSE.txt" DESTINATION "notices" RENAME "Dear-ImGui-MIT.txt")
 install(DIRECTORY "assets/selection" DESTINATION "assets" COMPONENT SelectionReferences OPTIONAL
     FILES_MATCHING PATTERN "*.png" PATTERN "*.jpg" PATTERN "*.json" PATTERN "*.md")
@@ -655,6 +668,8 @@ add_custom_command(TARGET Sidecar POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:Sidecar>/notices"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts/OFL.txt"
         "$<TARGET_FILE_DIR:Sidecar>/notices/Inter-OFL.txt"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts/NotoSansCJK-OFL.txt"
+        "$<TARGET_FILE_DIR:Sidecar>/notices/NotoSansCJK-OFL.txt"
     VERBATIM)
 
 set(SF4E_RUNTIME_DLLS

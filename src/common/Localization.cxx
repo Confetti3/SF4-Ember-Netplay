@@ -10,14 +10,18 @@
 
 namespace sf4e { namespace loc {
 namespace {
-struct Entry { const char* tag; const char* nativeName; const char* po; };
+// gameCode is the USF4 language that selects the row, or null when the game
+// has no such language.
+struct Entry {
+    const char* tag; const char* nativeName; const unsigned char* po; Script script; const char* gameCode;
+    // The embedded catalog is a NUL-terminated UTF-8 byte array.
+    const char* Source() const { return reinterpret_cast<const char*>(po); }
+};
 
-// The only declaration of a locale. Locale is an index into this table, so
-// adding a language is this row plus its sf4e_embed_locale line.
+// Locale is an index into this table. Its rows and the enum are generated
+// from locales/locales.json, the only declaration of a language.
 constexpr Entry Table[] = {
-    {"en",     "English",                embedded::En},
-    {"pt-BR",  "Português (Brasil)",      embedded::PtBR},
-    {"es-419", "Español (Latinoamérica)", embedded::Es419},
+#include "LocaleTable.inc"
 };
 constexpr std::size_t Count = std::size(Table);
 static_assert(Count == static_cast<std::size_t>(Locale::Count),
@@ -38,6 +42,46 @@ std::size_t IndexOf(Locale locale) {
 
 const Entry* FindTag(std::string_view tag) {
     for (const auto& entry : Table) if (tag == entry.tag) return &entry;
+    return nullptr;
+}
+
+Locale LocaleOf(const Entry* entry) { return static_cast<Locale>(entry - Table); }
+
+std::string Normalize(std::string language) {
+    std::transform(language.begin(), language.end(), language.begin(), [](unsigned char c) {
+        return c == '_' ? '-' : static_cast<char>(std::tolower(c));
+    });
+    return language;
+}
+
+std::string_view Primary(std::string_view language) { return language.substr(0, language.find('-')); }
+
+const Entry* FindNormalized(std::string_view language) {
+    for (const auto& entry : Table) if (Normalize(entry.tag) == language) return &entry;
+    return nullptr;
+}
+
+// Spanish as spoken in Latin America and the US, which es-419 serves; every
+// other Spanish region is served by the Spain catalog.
+bool LatinAmericanSpanish(std::string_view language) {
+    const auto dash = language.rfind('-');
+    if (Primary(language) != "es" || dash == std::string_view::npos) return false;
+    const auto region = language.substr(dash + 1);
+    constexpr std::string_view regions[] = {"419", "ar", "bo", "cl", "co", "cr", "cu", "do", "ec", "gt",
+        "hn", "mx", "ni", "pa", "pe", "pr", "py", "sv", "us", "uy", "ve"};
+    return std::find(std::begin(regions), std::end(regions), region) != std::end(regions);
+}
+
+// The row serving one normalized Windows language tag, or null.
+const Entry* MatchWindowsLanguage(std::string_view language) {
+    if (const auto* exact = FindNormalized(language)) return exact;
+    if (Primary(language) == "es") {
+        if (const auto* spanish = FindNormalized(LatinAmericanSpanish(language) ? "es-419" : "es-es")) return spanish;
+    }
+    // First row with the same language subtag, so table order decides which
+    // regional catalog serves a neighbouring region.
+    for (const auto& entry : Table)
+        if (Primary(Normalize(entry.tag)) == Primary(language)) return &entry;
     return nullptr;
 }
 
@@ -130,7 +174,7 @@ void EnsureCatalogs() {
     std::call_once(catalogOnce, [] {
         std::string error;
         for (std::size_t i = 0; i < Count; ++i)
-            if (!ParsePoImpl(Table[i].po, catalogs[i], error)) catalogs[i].clear();
+            if (!ParsePoImpl(Table[i].Source(), catalogs[i], error)) catalogs[i].clear();
     });
 }
 
@@ -150,18 +194,22 @@ bool ValidPreference(std::string_view preference) {
     return preference == "auto" || FindTag(preference) != nullptr;
 }
 
-Locale ResolveLocale(std::string_view preference, const std::vector<std::string>& windowsLanguages) {
-    if (const auto* entry = FindTag(preference)) return static_cast<Locale>(entry - Table);
-    for (auto language : windowsLanguages) {
-        std::transform(language.begin(), language.end(), language.begin(), [](unsigned char c) {
-            return c == '_' ? '-' : static_cast<char>(std::tolower(c));
-        });
-        // First table row whose language subtag matches wins, so table order
-        // decides which regional catalog serves a neighbouring region.
+Locale ResolveLocale(std::string_view preference, std::string_view gameLanguage,
+    const std::vector<std::string>& windowsLanguages) {
+    if (const auto* entry = FindTag(preference)) return LocaleOf(entry);
+    std::vector<std::string> languages;
+    for (const auto& language : windowsLanguages) languages.push_back(Normalize(language));
+    if (!gameLanguage.empty() && gameLanguage != "ENG") {
+        // The game has one Spanish; a Latin American Windows keeps es-419.
+        const auto* latin = FindTag("es-419");
+        if (gameLanguage == "SPA" && latin &&
+            std::any_of(languages.begin(), languages.end(), [](const std::string& language) { return LatinAmericanSpanish(language); }))
+            return LocaleOf(latin);
         for (const auto& entry : Table)
-            if (language.rfind(std::string_view(entry.tag).substr(0, 2), 0) == 0)
-                return static_cast<Locale>(&entry - Table);
+            if (entry.gameCode && gameLanguage == entry.gameCode) return LocaleOf(&entry);
     }
+    for (const auto& language : languages)
+        if (const auto* entry = MatchWindowsLanguage(language)) return LocaleOf(entry);
     return Locale::En;
 }
 
@@ -194,6 +242,13 @@ const char* T(const char* id) {
 
 const char* NativeName(Locale locale) { return Table[IndexOf(locale)].nativeName; }
 const char* Tag(Locale locale) { return Table[IndexOf(locale)].tag; }
+Script ScriptOf(Locale locale) { return Table[IndexOf(locale)].script; }
+std::string DisplayText(Locale locale) {
+    EnsureCatalogs();
+    std::string text;
+    for (const auto& entry : catalogs[IndexOf(locale)]) text += entry.second;
+    return text;
+}
 
 namespace detail {
 // The catalog test proves every translation keeps the English placeholder

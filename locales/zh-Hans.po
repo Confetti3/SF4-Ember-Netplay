@@ -1,0 +1,2095 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh_Hans\n"
+
+msgid "app.name"
+msgstr "SF4 Ember Netplay"
+
+msgid "common.back"
+msgstr "返回"
+
+msgid "common.cancel"
+msgstr "取消"
+
+msgid "common.close"
+msgstr "关闭"
+
+msgid "common.confirm"
+msgstr "确认"
+
+msgid "common.on"
+msgstr "开"
+
+msgid "common.off"
+msgstr "关"
+
+msgid "common.unavailable"
+msgstr "不可用"
+
+msgid "common.saving"
+msgstr "保存中..."
+
+msgid "common.saved"
+msgstr "已保存"
+
+msgid "common.save_failed"
+msgstr "保存失败"
+
+msgid "confirm.title"
+msgstr "确认操作"
+
+msgid "confirm.question"
+msgstr "{0}？"
+
+msgid "confirm.updating"
+msgstr "正在更新房间，仍可取消。"
+
+msgid "launcher.update_failed"
+msgstr "无法安装更新。请关闭游戏和之前的启动器后重试。详见 %TEMP%\\sf4-netplay-update.log；原文件备份位于 .ember-update-backups。"
+
+msgid "launcher.recovery_title"
+msgstr "启动恢复"
+
+msgid "launcher.path_failed"
+msgstr "无法设置运行时搜索路径。请将完整压缩包解压到可写文件夹。"
+
+msgid "launcher.game_not_found"
+msgstr "未找到《终极街头霸王IV》。"
+
+msgid "launcher.sidecar_missing"
+msgstr "缺少 Sidecar.dll，或注入器无法使用其路径。请将完整压缩包解压到简单的本地路径。"
+
+msgid "launcher.runtime_outdated"
+msgstr "Microsoft Visual C++ 运行库版本过旧，游戏启动时会崩溃。请安装最新版 Visual C++ Redistributable (x86)，然后重启 Ember。\n\n现在打开下载页面？"
+
+msgid "launcher.already_running"
+msgstr "SF4 Ember Netplay 已在运行。如找不到窗口，请在任务管理器中结束 Launcher.exe 和 SSFIV.exe，再启动 Ember。"
+
+msgid "launcher.start_failed"
+msgstr "游戏启动或注入失败。请查看启动器日志后重试。"
+
+msgid "launcher.game_error"
+msgstr "游戏异常退出。请查看启动器日志后重试。"
+
+msgid "launcher.runtime_shadowed"
+msgstr "游戏将加载以下文件，而非 Ember 文件夹中的版本。旧版文件会使游戏无法启动（\"entry point ggpo_get_last_confirmed_frame not found\"）。这些文件来自其他联机模组或旧版安装。请移动或重命名后重启 Ember：\n\n{0}"
+
+msgid "launcher.game_wrong_dll"
+msgstr "游戏在 Ember 启动前停止，因为加载的某个 DLL 缺少函数。通常是 SSFIV.exe 旁边有其他模组或旧版的 GGPO.dll、spdlog.dll、fmt.dll 或 zlib1.dll。请移走后重试。如没有这些文件，请发送启动器日志。"
+
+msgid "recovery.window"
+msgstr "Ember 恢复"
+
+msgid "recovery.d3d_failed"
+msgstr "恢复界面无法初始化 Direct3D 9。详见 %APPDATA%\\sf4e\\logs\\launcher.log。"
+
+msgid "recovery.choose_folder_title"
+msgstr "选择包含 SSFIV.exe 的文件夹"
+
+msgid "recovery.folder_selected"
+msgstr "已选择游戏文件夹。准备好后重试。"
+
+msgid "recovery.folder_invalid"
+msgstr "该文件夹不含 SSFIV.exe。"
+
+msgid "recovery.title"
+msgstr "启动恢复"
+
+msgid "updates.title"
+msgstr "更新"
+
+msgid "recovery.choose_folder"
+msgstr "选择游戏文件夹"
+
+msgid "recovery.choose_folder_detail"
+msgstr "请选择包含 SSFIV.exe 的《终极街头霸王IV》安装文件夹。本压缩包不含游戏文件。"
+
+msgid "recovery.retry"
+msgstr "重试启动"
+
+msgid "recovery.retry_busy"
+msgstr "请先取消或完成当前操作。"
+
+msgid "recovery.retry_detail"
+msgstr "使用所选游戏文件夹重试。缺少网络辅助程序不影响离线游玩。"
+
+msgid "updates.check"
+msgstr "检查更新"
+
+msgid "updates.busy"
+msgstr "已有操作正在进行。"
+
+msgid "updates.check_detail"
+msgstr "检查是否有新版 Ember 安装包。"
+
+msgid "updates.install"
+msgstr "下载并安装"
+
+msgid "updates.install_detail"
+msgstr "安装前请关闭 SF4。安装包会先经过验证，个人设置将保留。"
+
+msgid "updates.unverified"
+msgstr "此更新没有校验值，无法安装。"
+
+msgid "updates.cancel"
+msgstr "取消操作"
+
+msgid "updates.cancel_detail"
+msgstr "取消当前下载或检查。请等待取消完成后再重试。"
+
+msgid "recovery.close_detail"
+msgstr "关闭恢复界面，不启动 SF4。正在进行的操作将取消。"
+
+msgid "updates.downloaded_mb"
+msgstr "已下载 {0:.1f} MB"
+
+msgid "services.checking"
+msgstr "正在检查更新..."
+
+msgid "services.exporting"
+msgstr "正在导出诊断信息..."
+
+msgid "services.downloading"
+msgstr "正在下载并验证更新..."
+
+msgid "services.opening_updater"
+msgstr "正在打开更新程序..."
+
+msgid "services.update_available"
+msgstr "有可用更新：{0}"
+
+msgid "services.up_to_date"
+msgstr "已是最新版本。"
+
+msgid "services.diagnostics_saved"
+msgstr "已保存 %APPDATA%\\sf4e\\diagnostics\\ember-diagnostics.txt"
+
+msgid "services.diagnostics_failed"
+msgstr "无法保存诊断信息，请重试。"
+
+msgid "services.updater_start_failed"
+msgstr "无法启动更新程序，请重试。"
+
+msgid "services.game_closing"
+msgstr "正在关闭游戏。退出后将打开更新程序。"
+
+msgid "services.no_verified_update"
+msgstr "没有可用的已验证更新，请重新检查。"
+
+msgid "services.update_prepared"
+msgstr "更新已准备就绪，正在重启 SF4 Ember Netplay..."
+
+msgid "services.operation_failed"
+msgstr "操作失败，请重试。更新恢复备份保存在 .ember-update-backups。"
+
+msgid "services.operation_cancelled"
+msgstr "操作已取消。"
+
+msgid "services.opening_community"
+msgstr "正在浏览器中打开 Ember Discord..."
+
+msgid "services.community_opened"
+msgstr "已在浏览器中打开。请切换到浏览器加入服务器。"
+
+msgid "services.community_failed"
+msgstr "无法打开浏览器。请访问 {0} 加入。"
+
+msgid "settings.language"
+msgstr "语言"
+
+msgid "settings.language.detail"
+msgstr "立即切换 Ember 界面语言。自动模式优先使用游戏语言，其次使用 Windows 语言。"
+
+msgid "settings.language.system_with"
+msgstr "自动－{0}"
+
+msgid "settings.language_save_failed"
+msgstr "无法保存语言选择，本次使用期间仍会生效。"
+
+msgid "menu.edit_detail"
+msgstr "选择后编辑。输入或粘贴，按 Enter 确认；按返回取消。"
+
+msgid "menu.edit_unavailable"
+msgstr "当前状态下无法编辑。"
+
+msgid "menu.edit"
+msgstr "编辑"
+
+msgid "menu.review"
+msgstr "查看"
+
+msgid "menu.select"
+msgstr "选择"
+
+msgid "menu.navigate"
+msgstr "导航"
+
+msgid "menu.adjust"
+msgstr "调整"
+
+msgid "rules.edition_select"
+msgstr "版本选择"
+
+msgid "rules.rounds"
+msgstr "回合数"
+
+msgid "rules.round_time"
+msgstr "回合时间"
+
+msgid "screen.home"
+msgstr "主页"
+
+msgid "screen.online"
+msgstr "在线对战"
+
+msgid "screen.selection"
+msgstr "角色选择"
+
+msgid "screen.player"
+msgstr "玩家与控制器"
+
+msgid "screen.defaults"
+msgstr "对战默认设置"
+
+msgid "screen.main_character"
+msgstr "选择主角"
+
+msgid "screen.about"
+msgstr "帮助与关于"
+
+msgid "screen.room"
+msgstr "房间"
+
+msgid "screen.table"
+msgstr "对战席"
+
+msgid "screen.table_rules"
+msgstr "对战席规则"
+
+msgid "screen.members"
+msgstr "成员"
+
+msgid "screen.member"
+msgstr "成员"
+
+msgid "screen.chat"
+msgstr "聊天"
+
+msgid "screen.room_settings"
+msgstr "房间设置"
+
+msgid "screen.practice_position"
+msgstr "练习位置"
+
+msgid "screen.dummy_recording"
+msgstr "假想对手录制"
+
+msgid "screen.input_history"
+msgstr "输入记录"
+
+msgid "room.wait.leaving"
+msgstr "正在离开房间，等待连接关闭..."
+
+msgid "room.wait.joining"
+msgstr "正在加入房间，等待其他玩家..."
+
+msgid "room.wait.closed"
+msgstr "房间已关闭。请返回在线对战加入其他房间。"
+
+msgid "room.wait.recovering"
+msgstr "正在恢复房间连接，您仍可离开。"
+
+msgid "room.wait.updating"
+msgstr "正在更新房间，操作可能短暂停顿。"
+
+msgid "connection.checking"
+msgstr "检查中..."
+
+msgid "connection.checking_detail"
+msgstr "检测游戏数据包，持续 5 秒，另加建立连接所需时间。您仍可手动选择延迟。"
+
+msgid "connection.checking_action"
+msgstr "正在检查连接..."
+
+msgid "connection.frames"
+msgstr "{0} 帧"
+
+msgid "connection.result_detail"
+msgstr "{0}连接。RTT 中位数 {1} ms；p95 {2} ms；p99 {3} ms。RTT 波动 {4} ms。发送 {5}，收到 {6}，丢失 {7}。可采用建议值，也可自行选择延迟。"
+
+msgid "connection.route_direct"
+msgstr "直连"
+
+msgid "connection.route_relayed"
+msgstr "中继"
+
+msgid "connection.route_unknown"
+msgstr "未知"
+
+msgid "connection.relayed_advice"
+msgstr "中继表示双方网络无法直连，对战流量会经过中继服务器。仍可正常对战，建议使用推荐延迟。如需直连，任一玩家可尝试在路由器开启 UPnP、将 UDP 端口 45760 转发至电脑，或关闭 VPN。"
+
+msgid "connection.check_again"
+msgstr "重新检查连接"
+
+msgid "connection.no_recommendation"
+msgstr "无建议"
+
+msgid "connection.timed_out"
+msgstr "连接检查超时。请重试，或选择延迟后准备。"
+
+msgid "connection.invalidated"
+msgstr "连接或对手已变化。请重新检查，或选择延迟后准备。"
+
+msgid "connection.local_overload"
+msgstr "本机未能按时发送全部数据包。请减少后台负载后重试，或手动选择延迟。"
+
+msgid "connection.insufficient"
+msgstr "检查未收到足够的回复。请重试，或选择延迟后准备；建议值并非必需。"
+
+msgid "connection.packet_summary"
+msgstr " 已发送计划中的 {0}/{1} 个数据包；收到 {2}，丢失 {3}。"
+
+msgid "connection.retry"
+msgstr "重试连接检查"
+
+msgid "connection.not_checked"
+msgstr "未检查"
+
+msgid "connection.not_checked_detail"
+msgstr "检查与对手的连接以获取延迟建议。此步骤可跳过，也可自行选择延迟后准备。"
+
+msgid "connection.check"
+msgstr "检查连接"
+
+msgid "error.queue_failed"
+msgstr "操作无法排队，请重试。"
+
+msgid "notice.left_room"
+msgstr "您已离开房间。"
+
+msgid "notice.profile_saved"
+msgstr "已保存个人资料头像：{0}"
+
+msgid "error.settings_not_saved"
+msgstr "设置未保存。请在菜单可用时重试。"
+
+msgid "shell.home_title"
+msgstr "SF4 EMBER"
+
+msgid "settings.auto_save"
+msgstr "更改将自动保存。"
+
+msgid "settings.leave_room_to_edit"
+msgstr "请离开房间后再修改个人设置。"
+
+msgid "controller.assign_title"
+msgstr "分配控制器"
+
+msgid "controller.cancel_assignment"
+msgstr "取消控制器分配"
+
+msgid "controller.press_button"
+msgstr "请按下所选控制器上的任意按钮。"
+
+msgid "controller.release_buttons"
+msgstr "请松开所有按钮以继续。"
+
+msgid "home.online"
+msgstr "在线对战"
+
+msgid "home.online_detail"
+msgstr "创建私人房间或通过邀请加入。"
+
+msgid "home.return_room"
+msgstr "返回当前房间。"
+
+msgid "home.fighter_select"
+msgstr "角色选择"
+
+msgid "home.selection_locked"
+msgstr "请返回对战席查看当前选择状态。"
+
+msgid "home.profile"
+msgstr "个人资料"
+
+msgid "home.profile_detail"
+msgstr "您的名称、主角和本地已确认的在线战绩。"
+
+msgid "home.settings"
+msgstr "设置"
+
+msgid "home.settings_detail"
+msgstr "玩家、控制器、对战默认设置、界面和 Discord。"
+
+msgid "home.about"
+msgstr "帮助与关于"
+
+msgid "home.about_detail"
+msgstr "操作、诊断、更新和制作人员。"
+
+msgid "home.offline"
+msgstr "离线游玩"
+
+msgid "home.offline_detail"
+msgstr "打开游戏原有的离线菜单。"
+
+msgid "home.choose_controller"
+msgstr "选择对战控制器"
+
+msgid "home.choose_controller_detail"
+msgstr "在线对战前必须明确分配控制器。"
+
+msgid "profile.title"
+msgstr "个人资料"
+
+msgid "profile.player_name"
+msgstr "玩家名称"
+
+msgid "profile.main_character"
+msgstr "主角"
+
+msgid "profile.main_character_detail"
+msgstr "{0}。用于玩家名片，不受对战角色选择影响。"
+
+msgid "profile.record"
+msgstr "胜负记录"
+
+msgid "profile.record_detail"
+msgstr "{0} 胜／{1} 负。仅统计开始记录以来本地已确认的在线对战；平局、取消、离线对战及结果未定的对战不计入。"
+
+msgid "profile.record_unavailable"
+msgstr "战绩不可用。原设置已保留。"
+
+msgid "profile.record_value"
+msgstr "{0} 胜／{1} 负"
+
+msgid "profile.choose_main_title"
+msgstr "选择主角"
+
+msgid "profile.choose_main_detail"
+msgstr "选择以保存主角并更新玩家名片。"
+
+msgid "profile.leave_room_to_edit"
+msgstr "请离开房间后再编辑个人资料。"
+
+msgid "online.title"
+msgstr "在线对战"
+
+msgid "online.create"
+msgstr "创建房间"
+
+msgid "online.create_detail"
+msgstr "建立私人房间。"
+
+msgid "online.join"
+msgstr "加入房间"
+
+msgid "online.join_detail"
+msgstr "粘贴邀请。"
+
+msgid "room.create_title"
+msgstr "创建房间"
+
+msgid "settings.gameplay_defaults_title"
+msgstr "对战默认设置"
+
+msgid "settings.input_delay"
+msgstr "输入延迟"
+
+msgid "room.name"
+msgstr "房间名称"
+
+msgid "room.capacity"
+msgstr "人数上限"
+
+msgid "room.capacity_detail"
+msgstr "包括观战者在内的最多成员数。"
+
+msgid "room.stop_creating"
+msgstr "停止创建此房间。"
+
+msgid "room.stop_creating_action"
+msgstr "停止创建"
+
+msgid "room.create_requirements"
+msgstr "网络和已分配的对战控制器必须就绪。"
+
+msgid "room.join_title"
+msgstr "加入房间"
+
+msgid "room.paste_invitation"
+msgstr "粘贴邀请"
+
+msgid "room.paste_invitation_detail"
+msgstr "复制 Ember 邀请后选择此项。"
+
+msgid "room.stop_joining"
+msgstr "停止加入此房间。"
+
+msgid "room.stop_joining_action"
+msgstr "停止加入"
+
+msgid "room.join_pasted"
+msgstr "通过粘贴的邀请加入。"
+
+msgid "room.edit_invitation"
+msgstr "编辑邀请"
+
+msgid "settings.title"
+msgstr "设置"
+
+msgid "settings.player_detail"
+msgstr "显示名称和控制器分配。"
+
+msgid "settings.defaults_detail"
+msgstr "输入延迟和新房间默认设置。"
+
+msgid "settings.interface"
+msgstr "界面"
+
+msgid "settings.interface_detail"
+msgstr "简洁的对战 HUD 和界面大小。"
+
+msgid "settings.discord_detail"
+msgstr "动态和邀请。"
+
+msgid "player.title"
+msgstr "玩家与控制器"
+
+msgid "player.display_name"
+msgstr "显示名称"
+
+msgid "player.change_controller"
+msgstr "更换控制器"
+
+msgid "player.change_controller_detail"
+msgstr "{0}。请松开、按下，再松开按钮以分配。"
+
+msgid "player.use_keyboard"
+msgstr "使用键盘"
+
+msgid "player.use_keyboard_detail"
+msgstr "明确分配键盘。"
+
+msgid "player.native_menus"
+msgstr "打开游戏菜单"
+
+msgid "player.native_menus_detail"
+msgstr "Ember 将关闭。请在游戏菜单的选项中设置格斗按钮。"
+
+msgid "settings.interface_title"
+msgstr "界面"
+
+msgid "size.small"
+msgstr "小"
+
+msgid "size.standard"
+msgstr "标准"
+
+msgid "size.large"
+msgstr "大"
+
+msgid "settings.match_hud"
+msgstr "对战 HUD"
+
+msgid "settings.match_hud_size"
+msgstr "对战 HUD 大小"
+
+msgid "settings.match_hud_size_detail"
+msgstr "调整对战中的文字和面板大小。"
+
+msgid "settings.bottom_spacing"
+msgstr "底部间距"
+
+msgid "spacing.raised"
+msgstr "上移"
+
+msgid "spacing.normal"
+msgstr "正常"
+
+msgid "settings.bottom_spacing_detail"
+msgstr "将对战 HUD 移离屏幕底边。"
+
+msgid "settings.interface_size"
+msgstr "界面大小"
+
+msgid "discord.show_activity"
+msgstr "显示动态"
+
+msgid "discord.allow_invitations"
+msgstr "允许邀请"
+
+msgid "discord.invitation_detail"
+msgstr "邀请会分享您房间的访问权限。"
+
+msgid "discord.enable_first"
+msgstr "请先启用 Discord 动态。"
+
+msgid "discord.invitation_title"
+msgstr "DISCORD 邀请"
+
+msgid "discord.cancel_invitation"
+msgstr "取消邀请"
+
+msgid "discord.cancel_invitation_detail"
+msgstr "放弃邀请，不离开当前房间。"
+
+msgid "discord.switch_room"
+msgstr "切换至受邀房间"
+
+msgid "discord.switch_room_detail"
+msgstr "离开当前房间并通过邀请加入。"
+
+msgid "discord.wait_game"
+msgstr "请等待当前对战结束。"
+
+msgid "discord.invitation_pending"
+msgstr "邀请待处理"
+
+msgid "discord.invitation_pending_detail"
+msgstr "等待主菜单、网络和已分配的控制器就绪。"
+
+msgid "about.title"
+msgstr "帮助与关于"
+
+msgid "about.controls"
+msgstr "操作说明"
+
+msgid "about.controls_detail"
+msgstr "Xbox：按 A 选择，按 B 返回，不受格斗按键设置影响。DirectInput：按已映射的 LP 选择，LK 返回。D-pad 移动，左／右调整。训练操作使用键盘和鼠标：F6 开关，方向键导航，Enter 选择，Escape 返回。Start 仅在训练时打开游戏暂停菜单。F10 在主菜单打开 Ember；F5-F8 是训练快捷键。"
+
+msgid "about.ember"
+msgstr "关于 Ember"
+
+msgid "about.ember_detail"
+msgstr "基于 Anthony Danducci 的 sf4e 开发的非官方《终极街头霸王IV》模组。使用 Iroh / QUIC、GGPO、Dear ImGui 和 Inter 字体。构建版本：{0}"
+
+msgid "about.font_license"
+msgstr "字体许可"
+
+msgid "about.export_diagnostics"
+msgstr "导出诊断信息"
+
+msgid "about.export_diagnostics_detail"
+msgstr "导出连接状态，不含邀请或凭据。"
+
+msgid "about.updates_detail"
+msgstr "检查是否有新版 Ember。"
+
+msgid "about.open_updater"
+msgstr "退出并打开更新程序"
+
+msgid "about.open_updater_detail"
+msgstr "游戏将关闭。请先离开房间。"
+
+msgid "about.open_recovery"
+msgstr "退出并打开恢复界面"
+
+msgid "about.open_recovery_detail"
+msgstr "关闭游戏并打开恢复界面。"
+
+msgid "about.leave_room_first"
+msgstr "请先离开房间并返回主菜单。"
+
+msgid "about.discord"
+msgstr "加入 Ember Discord"
+
+msgid "about.discord_detail"
+msgstr "在 {0} 查找玩家、对战和支持。浏览器将在游戏后方打开。"
+
+msgid "settings.retry_save"
+msgstr "重试保存"
+
+msgid "room.creating_status"
+msgstr "正在创建房间，等待网络..."
+
+msgid "room.joining_status"
+msgstr "正在加入房间，等待网络..."
+
+msgid "room.locked_status"
+msgstr "房间已锁定／仅限邀请"
+
+msgid "room.private_status"
+msgstr "私人房间／仅限邀请"
+
+msgid "room.reconnecting"
+msgstr "正在重连房间..."
+
+msgid "room.table_setup_title"
+msgstr "对战席 {0}／对战设置"
+
+msgid "room.waiting_opponent"
+msgstr "等待对手"
+
+msgid "room.you"
+msgstr "您"
+
+msgid "room.player"
+msgstr "玩家"
+
+msgid "room.ready_suffix"
+msgstr "－已准备"
+
+msgid "room.readying_suffix"
+msgstr "－准备中..."
+
+msgid "room.not_ready_suffix"
+msgstr "－未准备"
+
+msgid "room.result_unresolved_status"
+msgstr "结果未定／可放弃，或由房主取消"
+
+msgid "room.preparing_status"
+msgstr "正在准备对战／角色选择已锁定"
+
+msgid "room.waiting_results_status"
+msgstr "等待结果／尚不能开始下场对战"
+
+msgid "room.match_in_progress"
+msgstr "对战进行中"
+
+msgid "room.table_closed"
+msgstr "对战席已关闭"
+
+msgid "controller.disconnected"
+msgstr "控制器已断开。请重新连接或明确分配。"
+
+msgid "room.control_unavailable"
+msgstr "房间控制不可用。没有正在进行的对战时可重建房间。"
+
+msgid "room.control_recovering"
+msgstr "正在恢复房间控制，房间操作已暂停。"
+
+msgid "settings.preview"
+msgstr "预览"
+
+msgid "settings.player_one"
+msgstr "玩家1"
+
+msgid "settings.player_two"
+msgstr "玩家2"
+
+msgid "error.invitation_invalid"
+msgstr "邀请为空或过长。"
+
+msgid "error.invitation_changed"
+msgstr "邀请已变化，请重试。"
+
+msgid "error.invalid_value"
+msgstr "该值无效，已保存的设置未改变。"
+
+msgid "brand.subtitle"
+msgstr "SF4／私人房间与回滚联机"
+
+msgid "match.waiting_opponent"
+msgstr "等待对手..."
+
+msgid "match.connection_countdown"
+msgstr "连接不稳定。{0} 秒后对手将掉线"
+
+msgid "match.connection_unstable"
+msgstr "连接不稳定"
+
+msgid "match.versus_short"
+msgstr "vs"
+
+msgid "match.ping"
+msgstr "网络延迟"
+
+msgid "match.rollback"
+msgstr "回滚"
+
+msgid "match.delay"
+msgstr "输入延迟"
+
+msgid "match.spectating"
+msgstr "观战中"
+
+msgid "match.preview_spacing"
+msgstr "{0} 间距／示例数值"
+
+msgid "card.player"
+msgstr "玩家"
+
+msgid "card.choose_fighter"
+msgstr "选择角色"
+
+msgid "card.controller_ready"
+msgstr "控制器就绪"
+
+msgid "card.assign_controller"
+msgstr "分配控制器"
+
+msgid "card.wins"
+msgstr "{0} 胜"
+
+msgid "card.no_wins"
+msgstr "-- 胜"
+
+msgid "card.losses"
+msgstr "{0} 负"
+
+msgid "card.no_losses"
+msgstr "-- 负"
+
+msgid "card.no_win_rate"
+msgstr "-- 胜率"
+
+msgid "card.win_rate"
+msgstr "胜率 {0}%"
+
+msgid "training.lab"
+msgstr "训练室"
+
+msgid "menu.back_to"
+msgstr "< 返回／{0}"
+
+msgid "training.controls"
+msgstr "训练操作"
+
+msgid "training.dummy_recording"
+msgstr "假想对手录制"
+
+msgid "training.dummy_recording.detail"
+msgstr "将 P1 的操作录制到 P2。请在游戏设置中将假想对手设为玩家／控制器控制。"
+
+msgid "training.input_history"
+msgstr "输入记录"
+
+msgid "training.input_history.detail"
+msgstr "查看各玩家持续按住的输入。"
+
+msgid "training.close_controls"
+msgstr "关闭训练操作"
+
+msgid "training.close_controls.detail"
+msgstr "关闭 Ember。如 SF4 暂停菜单仍打开，请将其关闭以继续。"
+
+msgid "training.slot"
+msgstr "槽位 {0}"
+
+msgid "training.slot_selected"
+msgstr "槽位 {0}／已选"
+
+msgid "training.recorded_frames"
+msgstr "已录制 {0} 帧。本场对战结束前录制会保留。"
+
+msgid "training.record"
+msgstr "录制"
+
+msgid "training.record.overwrite"
+msgstr "覆盖此槽位并返回练习。"
+
+msgid "training.record.detail"
+msgstr "将 P1 操作录制为 P2 操作，然后返回练习。"
+
+msgid "training.play"
+msgstr "播放"
+
+msgid "training.play.detail"
+msgstr "播放所选槽位并返回练习。方向为绝对方向，不会镜像。"
+
+msgid "training.slot_empty"
+msgstr "此槽位为空。"
+
+msgid "training.stop"
+msgstr "停止"
+
+msgid "training.stop.detail"
+msgstr "停止录制或播放。"
+
+msgid "training.loop"
+msgstr "循环播放"
+
+msgid "training.loop.detail"
+msgstr "重复播放所选录制。"
+
+msgid "training.clear_recording"
+msgstr "清除所选录制"
+
+msgid "training.clear_recording.detail"
+msgstr "在本场对战中永久清除此槽位。"
+
+msgid "training.player_one"
+msgstr "玩家1"
+
+msgid "training.player_two"
+msgstr "玩家2"
+
+msgid "training.history.detail"
+msgstr "最新输入在前。帧数表示按住输入的时长，不是招式起手时间。"
+
+msgid "training.clear_history"
+msgstr "清除输入记录"
+
+msgid "training.clear_history.detail"
+msgstr "清除计量器和双方输入记录。"
+
+msgid "training.practice_ready"
+msgstr "练习就绪"
+
+msgid "training.recording_suspended"
+msgstr "打开操作界面时暂停录制"
+
+msgid "training.playback_suspended"
+msgstr "打开操作界面时暂停播放"
+
+msgid "training.applying"
+msgstr "正在执行指令..."
+
+msgid "training.waiting_battle"
+msgstr "等待对战就绪..."
+
+msgid "training.title"
+msgstr "训练室"
+
+msgid "training.command_rejected"
+msgstr "练习指令未被接受。请检查状态后重试。"
+
+msgid "training.start_frames"
+msgstr "起手 {0} 帧"
+
+msgid "training.start_unknown"
+msgstr "起手 --"
+
+msgid "training.startup"
+msgstr "起手"
+
+msgid "training.neutral"
+msgstr "待机"
+
+msgid "training.unavailable"
+msgstr "{0}：{1}"
+
+msgid "training.unavailable.waiting_attack"
+msgstr "等待攻击开始"
+
+msgid "training.unavailable.no_attack"
+msgstr "没有攻击开始"
+
+msgid "training.unavailable.no_contact"
+msgstr "未接触"
+
+msgid "training.unavailable.measuring_recovery"
+msgstr "正在测量恢复"
+
+msgid "training.unavailable.interrupted"
+msgstr "已中断"
+
+msgid "training.unavailable.invalid"
+msgstr "样本无效"
+
+msgid "training.frame_advantage"
+msgstr "帧数优势｜{0}"
+
+msgid "training.measuring"
+msgstr "测量中"
+
+msgid "training.wakeup"
+msgstr "起身"
+
+msgid "training.held"
+msgstr "按住"
+
+msgid "training.live"
+msgstr "实时"
+
+msgid "training.advantage"
+msgstr "优势"
+
+msgid "selection.preview_unavailable"
+msgstr "预览\n不可用"
+
+msgid "selection.preview_loading"
+msgstr "正在加载\n预览..."
+
+msgid "selection.handicap_normal"
+msgstr "正常（100%）"
+
+msgid "selection.handicap_one_hit"
+msgstr "一击"
+
+msgid "selection.handicap_25"
+msgstr "25%"
+
+msgid "selection.handicap_50"
+msgstr "50%"
+
+msgid "selection.handicap_75"
+msgstr "75%"
+
+msgid "selection.original"
+msgstr "原版"
+
+msgid "selection.alternate"
+msgstr "替换版 {0}"
+
+msgid "selection.alternate_pack"
+msgstr "替换版 {0}／{1}"
+
+msgid "selection.stage_count"
+msgstr "{0} 个场地／USFIV"
+
+msgid "selection.choose_battlefield"
+msgstr "选择对战场地。"
+
+msgid "selection.select_saves"
+msgstr "选择以保存。返回不会更改高亮预览。"
+
+msgid "selection.locked_detail"
+msgstr "选择已锁定。请返回对战席查看当前状态。"
+
+msgid "selection.title"
+msgstr "角色选择"
+
+msgid "selection.fighter"
+msgstr "角色"
+
+msgid "selection.appearance"
+msgstr "外观"
+
+msgid "selection.appearance_value"
+msgstr "{0}／颜色 {1}"
+
+msgid "selection.ultra_combo"
+msgstr "终极组合"
+
+msgid "selection.ultra_double"
+msgstr "双重终极组合"
+
+msgid "selection.stage"
+msgstr "场地"
+
+msgid "selection.p1_stage"
+msgstr "由 P1 选择场地。"
+
+msgid "selection.additional_options"
+msgstr "其他选项"
+
+msgid "selection.additional_options.detail"
+msgstr "版本、个人行动、胜利台词和生命值调整。"
+
+msgid "selection.choose_fighter"
+msgstr "选择角色"
+
+msgid "selection.appearance_title"
+msgstr "外观"
+
+msgid "selection.costume_gallery"
+msgstr "服装图库"
+
+msgid "selection.color_gallery"
+msgstr "颜色图库"
+
+msgid "selection.color_preview"
+msgstr "颜色 {0}／浏览各项预览。"
+
+msgid "selection.costume_gallery_title"
+msgstr "服装图库"
+
+msgid "selection.color_gallery_title"
+msgstr "颜色图库"
+
+msgid "selection.loading_choices"
+msgstr "正在加载可选项"
+
+msgid "selection.loading_choices.detail"
+msgstr "等待游戏读取可用服装和颜色。"
+
+msgid "selection.no_colors"
+msgstr "此服装没有已解锁的颜色。"
+
+msgid "selection.color"
+msgstr "颜色 {0}"
+
+msgid "selection.ultra_combo_title"
+msgstr "终极组合"
+
+msgid "selection.ultra_double.detail"
+msgstr "可使用两种终极组合，但伤害或效果降低。"
+
+msgid "selection.saved"
+msgstr "已保存"
+
+msgid "selection.stage_title"
+msgstr "场地"
+
+msgid "selection.only_p1_stage"
+msgstr "只有 P1 可以更换场地。"
+
+msgid "selection.options_title"
+msgstr "角色选项"
+
+msgid "selection.edition"
+msgstr "版本"
+
+msgid "selection.usfiv_rules"
+msgstr "房间使用 USFIV 规则。"
+
+msgid "selection.personal_action"
+msgstr "个人行动"
+
+msgid "common.none"
+msgstr "无"
+
+msgid "selection.win_quote"
+msgstr "胜利台词"
+
+msgid "selection.random"
+msgstr "随机"
+
+msgid "selection.random_stage"
+msgstr "随机"
+
+msgid "selection.random_stage.detail"
+msgstr "每场对战随机更换场地。"
+
+msgid "selection.handicap"
+msgstr "生命值调整"
+
+msgid "selection.saved_value"
+msgstr "已保存：{0}"
+
+msgid "selection.ultra_selected"
+msgstr "已选择此终极组合。"
+
+msgid "selection.preview_save"
+msgstr "仅预览－按选择保存。"
+
+msgid "selection.preview_locked"
+msgstr "仅预览－选择已锁定。"
+
+msgid "selection.saved_appearance"
+msgstr "已保存：服装 {0}／颜色 {1}"
+
+msgid "selection.saved_full"
+msgstr "已保存：{0}／服装 {1}／颜色 {2}"
+
+msgid "selection.preview_save_short"
+msgstr "仅预览－按选择保存"
+
+msgid "selection.status_editable"
+msgstr "选择保存／返回上一级。"
+
+msgid "selection.status_locked"
+msgstr "选择已锁定－返回对战席查看状态。"
+
+msgid "runtime.room_recovering"
+msgstr "正在恢复房间控制，对战连接仍保持。"
+
+msgid "runtime.room_lost_fight_continues"
+msgstr "房间连接已断开。对战继续，但无法再战或记录结果。"
+
+msgid "runtime.returned_room_lost"
+msgstr "已返回菜单：对战期间房间连接断开。"
+
+msgid "runtime.room_request_failed"
+msgstr "房间请求失败。请离开房间后重试。"
+
+msgid "runtime.build_mismatch"
+msgstr "构建版本不匹配。双方必须使用同一 SF4 Ember Netplay 安装包。"
+
+msgid "runtime.room_full"
+msgstr "房间已满。"
+
+msgid "runtime.name_taken"
+msgstr "该玩家名称已被房间内其他成员使用。请在设置中更改。"
+
+msgid "runtime.selection_combination_unavailable"
+msgstr "此组合不符合房间规则。请选择其他角色、服装、颜色或版本。"
+
+msgid "runtime.selection_summary"
+msgstr "{0}／服装 {1}／颜色 {2}／{3}"
+
+msgid "runtime.selection_unavailable"
+msgstr "此选择不符合规则。请打开角色选择并改选可用选项。"
+
+msgid "runtime.open_shortcut"
+msgstr "SF4 Ember Netplay／F10 或 Start"
+
+msgid "runtime.waiting_opponent_join"
+msgstr "等待对手加入大厅..."
+
+msgid "runtime.authorized_connection_unavailable"
+msgstr "授权的对战连接不可用。"
+
+msgid "runtime.waiting_opponent_start"
+msgstr "等待对手进入大厅，对战才能开始。"
+
+msgid "runtime.unsupported_stage"
+msgstr "房间提供的场地不受支持。请重置大厅后重试。"
+
+msgid "runtime.netplay_input_failed"
+msgstr "联机输入失败，对战已结束。"
+
+msgid "runtime.netplay_sync_failed"
+msgstr "联机同步失败，对战已结束。"
+
+msgid "runtime.invalid_roster"
+msgstr "对战名单无效。请返回房间重试。"
+
+msgid "runtime.ggpo_start_failed"
+msgstr "GGPO 无法启动－请返回大厅重新准备。"
+
+msgid "runtime.ggpo_add_players_failed"
+msgstr "GGPO 无法添加玩家－请返回大厅重新准备。"
+
+msgid "runtime.rollback_buffer_full"
+msgstr "联机回滚缓冲区已满，对战已结束。"
+
+msgid "runtime.connection_unstable_prediction"
+msgstr "连接不稳定，正在使用预测输入。"
+
+msgid "runtime.connection_restored"
+msgstr "连接已恢复。"
+
+msgid "runtime.spectator_disconnected"
+msgstr "一名观战者已断开连接。"
+
+msgid "runtime.spectator_stream_lost"
+msgstr "观战流已中断。按观战加入下一场对战。"
+
+msgid "runtime.match_connection_lost"
+msgstr "对战连接已断开。"
+
+msgid "runtime.opponent_disconnected"
+msgstr "对手已断开连接，对战结束。"
+
+msgid "runtime.leaving_spectator"
+msgstr "正在退出观战画面。"
+
+msgid "runtime.returning_room"
+msgstr "正在返回房间。"
+
+msgid "runtime.table_game_cancelled"
+msgstr "此对战席的对战已取消。请返回房间重新准备。"
+
+msgid "runtime.result_not_recorded"
+msgstr "无法记录结果：确认前对战席已变化。"
+
+msgid "runtime.participant_left"
+msgstr "一名参赛玩家离开房间，对战即将结束。"
+
+msgid "update.github_unreachable"
+msgstr "无法连接 GitHub。请检查网络后重试。"
+
+msgid "update.no_version_tag"
+msgstr "GitHub 发行版没有版本标签。"
+
+msgid "update.no_zip_asset"
+msgstr "最新发行版没有 SF4 Ember Netplay ZIP 文件。"
+
+msgid "update.parse_failed"
+msgstr "无法解析 GitHub 发行版响应。"
+
+msgid "update.missing_url"
+msgstr "缺少下载 URL。"
+
+msgid "update.missing_version"
+msgstr "缺少版本标签。"
+
+msgid "update.close_sf4"
+msgstr "安装更新前请关闭《终极街头霸王IV》。"
+
+msgid "update.install_dir_failed"
+msgstr "无法确定安装目录。"
+
+msgid "update.temp_path_failed"
+msgstr "无法生成更新临时路径（{0}）。"
+
+msgid "update.temp_folder_failed"
+msgstr "无法创建更新临时文件夹（{0}）。"
+
+msgid "update.temp_access_failed"
+msgstr "无法访问临时目录。"
+
+msgid "update.zip_path_failed"
+msgstr "无法生成更新 ZIP 路径。"
+
+msgid "update.extract_folder_failed"
+msgstr "无法创建更新解压文件夹（{0}）。"
+
+msgid "update.download_failed"
+msgstr "下载失败（{0}）。手动下载：{1}－详情见 %TEMP%\\sf4-netplay-update.log"
+
+msgid "update.verify_failed"
+msgstr "无法验证更新下载，请重试。"
+
+msgid "update.integrity_failed"
+msgstr "更新下载未通过完整性检查，因此未安装。请重试，或从 GitHub 手动下载。"
+
+msgid "update.no_digest"
+msgstr "发行版未公布 SHA-256 摘要，无法自动安装。"
+
+msgid "update.extract_failed"
+msgstr "无法解压更新包。"
+
+msgid "update.invalid_paths"
+msgstr "下载包包含无效路径。"
+
+msgid "update.missing_binaries"
+msgstr "下载包缺少 Launcher.exe 或 Sidecar.dll。"
+
+msgid "update.staging_path_failed"
+msgstr "无法读取暂存路径。"
+
+msgid "update.validation_failed"
+msgstr "下载包验证失败（缺少必需文件）。"
+
+msgid "update.cancelled"
+msgstr "更新在安装前取消。"
+
+msgid "update.close_game"
+msgstr "安装更新前请关闭游戏。"
+
+msgid "update.updater_start_failed"
+msgstr "无法启动 Updater.exe。请从全新 ZIP 包重新安装。"
+
+msgid "room.member_left"
+msgstr "成员已离开"
+
+msgid "room.open_seat"
+msgstr "空位"
+
+msgid "room.status.queued"
+msgstr "排队中"
+
+msgid "room.status.seated"
+msgstr "已入座"
+
+msgid "room.status.ready"
+msgstr "已准备"
+
+msgid "room.status.playing"
+msgstr "对战中"
+
+msgid "room.status.watching"
+msgstr "观战中"
+
+msgid "room.status.watching_next"
+msgstr "观看下场对战"
+
+msgid "room.status.idle"
+msgstr "空闲"
+
+msgid "room.phase.waiting"
+msgstr "等待对战玩家"
+
+msgid "room.phase.preparing"
+msgstr "正在准备对战"
+
+msgid "room.phase.in_game"
+msgstr "对战中"
+
+msgid "room.phase.unresolved"
+msgstr "结果未定"
+
+msgid "room.phase.closed"
+msgstr "已关闭"
+
+msgid "room.phase.open"
+msgstr "开放"
+
+msgid "room.terminal_pending"
+msgstr "等待所有玩家和观战者从上一场对战返回。"
+
+msgid "room.leave.detail"
+msgstr "断开此房间连接并返回主页。隐藏 Ember 不会离开房间。"
+
+msgid "room.leave.unresolved"
+msgstr " 结果未定的对战不会计入记录。"
+
+msgid "room.leave.active"
+msgstr " 当前对战将无结果结束，您的席位将释放。"
+
+msgid "room.leave.seat"
+msgstr " 您的席位将释放。"
+
+msgid "room.leave.queue"
+msgstr " 您将失去队列中的位置。"
+
+msgid "room.leave.host"
+msgstr " 另一名成员将成为房主。"
+
+msgid "room.action_queue_failed"
+msgstr "操作无法排队，请重试。"
+
+msgid "room.table_detail"
+msgstr "{0} vs {1}\n{2}\n队列：{3}／观战：{4}\n您：{5}"
+
+msgid "room.connecting"
+msgstr "连接中"
+
+msgid "room.table_occupancy"
+msgstr "对战席 {0}   {1}/2"
+
+msgid "room.member_you"
+msgstr "{0}／您"
+
+msgid "room.member"
+msgstr "{0}"
+
+msgid "room.member_status_host"
+msgstr "{0}／房主"
+
+msgid "room.member_status"
+msgstr "{0}"
+
+msgid "room.members"
+msgstr "成员"
+
+msgid "room.member_count"
+msgstr "成员：{0}／{1}。"
+
+msgid "room.chat"
+msgstr "聊天"
+
+msgid "room.chat.detail"
+msgstr "阅读消息，并使用键盘主动编写文字。"
+
+msgid "room.change_fighter"
+msgstr "更换角色"
+
+msgid "room.change_fighter.open_table"
+msgstr "打开您的对战席，查看准备状态和更换角色的条件。"
+
+msgid "room.settings"
+msgstr "房间设置"
+
+msgid "room.settings.detail"
+msgstr "房间名称、人数上限和加入权限。"
+
+msgid "room.settings.host_only"
+msgstr "只有房主可以管理房间。"
+
+msgid "room.connection_status"
+msgstr "连接状态"
+
+msgid "room.opening"
+msgstr "正在打开房间..."
+
+msgid "room.opening_stalled"
+msgstr "房间尚未打开。请检查连接，或停止后重试。"
+
+msgid "room.waiting_state"
+msgstr "等待房间状态。"
+
+msgid "room.ready"
+msgstr "准备"
+
+msgid "room.ready.saved_fighter"
+msgstr "使用已保存的角色。"
+
+msgid "room.copy_invitation"
+msgstr "复制邀请"
+
+msgid "room.copy_invitation.detail"
+msgstr "将私人邀请分享给朋友。"
+
+msgid "room.leaving"
+msgstr "正在离开房间..."
+
+msgid "room.leave"
+msgstr "离开房间"
+
+msgid "room.replace"
+msgstr "重建房间"
+
+msgid "room.replace.detail"
+msgstr "关闭卡住的房间并新建。所有人都需重新加入，当前邀请将失效。结果未定的房间状态会被丢弃。"
+
+msgid "room.replace.waiting"
+msgstr "上一场对战仍在关闭，完成后即可重建。"
+
+msgid "room.updating"
+msgstr "正在更新房间..."
+
+msgid "room.battle_slot"
+msgstr "对战位 {0}"
+
+msgid "room.looking_for_fight"
+msgstr "寻找对手"
+
+msgid "room.fighter_not_shared"
+msgstr "角色未共享"
+
+msgid "room.suffix_ready"
+msgstr "／已准备"
+
+msgid "room.suffix_you"
+msgstr "／您"
+
+msgid "room.table_footer"
+msgstr "{0} 回合／{1} 秒     排队 {2}     观战 {3}"
+
+msgid "room.board_status_host_slot"
+msgstr "房主／{0}／席位 {1}"
+
+msgid "room.board_status_slot"
+msgstr "{0}／席位 {1}"
+
+msgid "room.board_status_host"
+msgstr "房主／{0}"
+
+msgid "room.board_status"
+msgstr "{0}"
+
+msgid "room.members_heading"
+msgstr "成员  {0}／{1}"
+
+msgid "room.chat_heading"
+msgstr "聊天"
+
+msgid "room.no_messages"
+msgstr "暂无消息。选择聊天以编写。"
+
+msgid "room.table_explanation"
+msgstr "{0}／您：{1}\n排队：{2}／观战：{3}"
+
+msgid "room.invitation_copied"
+msgstr "邀请已复制。"
+
+msgid "room.replacement_opening"
+msgstr "新房间正在打开。请选择复制邀请并发送新链接，旧链接已失效。"
+
+msgid "room.action_rejected"
+msgstr "房间已变化或拒绝了此操作。请查看当前状态后重试。"
+
+msgid "room.leave_current_table"
+msgstr "请先离开当前对战席。"
+
+msgid "room.choose_action"
+msgstr "请选择此对战席的操作。"
+
+msgid "room.result_unresolved.detail"
+msgstr "上一场结果未定。请选择放弃结果未定的对战，或请房主取消；不会计入胜场。"
+
+msgid "room.awaiting_result"
+msgstr "等待双方报告结果。确认结果后准备状态会重置；您尚未准备下一场对战。"
+
+msgid "room.match_active"
+msgstr "当前对战正在准备或进行中。请等待结束。"
+
+msgid "room.waiting_other_seat"
+msgstr "等待对手入座。等待期间可以更换角色。"
+
+msgid "room.controller_required"
+msgstr "请在设置 > 玩家与控制器中分配或重新连接控制器。"
+
+msgid "room.waiting_update"
+msgstr "等待当前房间更新完成。"
+
+msgid "room.ready.cancel_detail"
+msgstr "您已准备。选择可取消准备，然后更换角色。"
+
+msgid "room.ready.locking"
+msgstr "正在锁定角色。双方准备好后开始对战。"
+
+msgid "room.ready.lock_detail"
+msgstr "选择以锁定角色。双方准备好后开始对战。"
+
+msgid "room.both_ready"
+msgstr "双方均已准备，对战即将开始。"
+
+msgid "room.match_in_progress.detail"
+msgstr "当前对战进行中，请等待结束。"
+
+msgid "room.unready"
+msgstr "取消准备／解锁角色"
+
+msgid "room.readying"
+msgstr "准备中..."
+
+msgid "room.result_unresolved"
+msgstr "结果未定"
+
+msgid "room.preparing_match"
+msgstr "正在准备对战"
+
+msgid "room.ready_rematch"
+msgstr "准备再战"
+
+msgid "room.ready_up"
+msgstr "准备"
+
+msgid "room.recommended_delay"
+msgstr "建议延迟"
+
+msgid "room.selected_delay"
+msgstr "所选延迟"
+
+msgid "room.selected_delay.detail"
+msgstr "可在 0 至 10 帧间调整，立即生效。"
+
+msgid "room.selected_delay.locked"
+msgstr "本场对战的所选延迟已锁定。"
+
+msgid "room.match_delay"
+msgstr "对战延迟"
+
+msgid "room.match_delay.at_least"
+msgstr "至少 {0} 帧"
+
+msgid "room.match_delay.detail"
+msgstr "双方按较高的所选延迟对战。您选了 {0}，对手选了 {1}。"
+
+msgid "room.match_delay.pending"
+msgstr "双方按较高的所选延迟对战。对手准备后会显示其选择。"
+
+msgid "room.check_connection.two_players"
+msgstr "检查连接前，两个席位都需要有玩家。"
+
+msgid "room.check_connection.unready"
+msgstr "请选择取消准备，以便在下一场对战前检查连接。"
+
+msgid "room.check_connection.finish_match"
+msgstr "请先结束当前对战，再检查连接。"
+
+msgid "room.apply_recommendation"
+msgstr "应用建议"
+
+msgid "room.apply_recommendation.detail"
+msgstr "将所选延迟设为 {0} 帧。"
+
+msgid "room.apply_recommendation.check_first"
+msgstr "请先检查连接，再应用建议。"
+
+msgid "room.change_fighter.unready"
+msgstr "请先选择上方的取消准备，解锁角色和外观。"
+
+msgid "room.change_fighter.waiting"
+msgstr "等待当前对战或选择更新完成。"
+
+msgid "room.change_fighter.detail"
+msgstr "选择角色，然后浏览服装和颜色图库。返回此处并选择准备。"
+
+msgid "room.leave_seat"
+msgstr "离开席位"
+
+msgid "room.leave_seat.abandon_first"
+msgstr "请先放弃结果未定的对战。"
+
+msgid "room.leave_seat.finish_first"
+msgstr "请先结束或解决当前对战。"
+
+msgid "room.leave_seat.release"
+msgstr "释放您的席位。"
+
+msgid "room.leave_seat.next_player"
+msgstr "释放您的席位，由队列中下一名玩家入座。"
+
+msgid "room.abandon_result"
+msgstr "放弃结果未定的对战"
+
+msgid "room.abandon_result.detail"
+msgstr "不记录结果。双方仍留在席位，可重新准备。"
+
+msgid "room.leave_queue"
+msgstr "退出队列"
+
+msgid "room.join_queue"
+msgstr "加入队列"
+
+msgid "room.stop_watching"
+msgstr "停止观战"
+
+msgid "room.watch_next"
+msgstr "观看下场对战"
+
+msgid "room.table_rules"
+msgstr "对战席规则"
+
+msgid "room.table_rules.edit"
+msgstr "编辑此对战席的规则。"
+
+msgid "room.table_rules.view"
+msgstr "查看此对战席的规则。"
+
+msgid "room.cancel_unresolved"
+msgstr "取消结果未定的对战"
+
+msgid "room.cancel_unresolved.detail"
+msgstr "仅房主可用。不记录结果。"
+
+msgid "room.cancel_stuck"
+msgstr "取消卡住的对战"
+
+msgid "room.cancel_stuck.detail"
+msgstr "仅房主可用。当已结束的对战始终未报告结果时使用。不记录结果。"
+
+msgid "room.rules.finish_game"
+msgstr "请先结束当前对战，再修改规则。"
+
+msgid "room.rules.apply_note"
+msgstr "更改仅在点击应用后生效。"
+
+msgid "room.rules.host_only"
+msgstr "只有房主可以更改对战席规则。"
+
+msgid "room.apply_rules"
+msgstr "应用规则"
+
+msgid "room.apply_rules.detail"
+msgstr "提交此对战席的完整规则草案。"
+
+msgid "room.member_status_host_muted"
+msgstr "{0}／房主／已在本地静音"
+
+msgid "room.member_status_muted"
+msgstr "{0}／已在本地静音"
+
+msgid "room.unmute_member"
+msgstr "取消静音"
+
+msgid "room.mute_member"
+msgstr "静音成员"
+
+msgid "room.mute_member.detail"
+msgstr "仅隐藏此成员的聊天消息。"
+
+msgid "room.member_left.detail"
+msgstr "此成员已离开。"
+
+msgid "room.kick_member"
+msgstr "移出成员"
+
+msgid "room.kick_member.detail"
+msgstr "将 {0} 移出房间。"
+
+msgid "room.transfer_host"
+msgstr "转让房主"
+
+msgid "room.transfer_host.detail"
+msgstr "让 {0} 成为房主。"
+
+msgid "room.compose_message"
+msgstr "编写消息"
+
+msgid "room.send_message"
+msgstr "发送消息"
+
+msgid "room.send_message.detail"
+msgstr "发送已确认的草稿。在编辑框中按 Enter 不会发送聊天消息。"
+
+msgid "room.capacity.detail"
+msgstr "不能小于当前成员数。"
+
+msgid "room.admission"
+msgstr "加入权限"
+
+msgid "room.locked"
+msgstr "已锁定"
+
+msgid "room.open"
+msgstr "开放"
+
+msgid "room.admission.detail"
+msgstr "锁定后，新成员无法加入。"
+
+msgid "room.apply_name"
+msgstr "应用房间名称"
+
+msgid "room.apply_name.detail"
+msgstr "提交此房间名称。"
+
+msgid "room.apply_capacity"
+msgstr "应用人数上限"
+
+msgid "room.apply_capacity.detail"
+msgstr "提交此人数上限。"
+
+msgid "profile.main_badge"
+msgstr "主角"
+
+msgid "training.shortcuts"
+msgstr "F6 训练操作 | F5 隐藏 HUD"
+
+msgid "common.not_set"
+msgstr "未设置"
+
+msgid "notice.title"
+msgstr "提示"
+
+msgid "notice.error_title"
+msgstr "出了点问题"
+
+msgid "game_settings.title"
+msgstr "推荐的游戏设置"
+
+msgid "game_settings.intro"
+msgstr "使用以下游戏设置可改善在线对战体验。请选择离线游玩，然后在游戏的选项菜单中修改。"
+
+msgid "game_settings.frame_rate"
+msgstr "画面更新率：设为“稳定的”（当前 {0}）。此项必需；其他模式会破坏回滚联机。"
+
+msgid "game_settings.anti_aliasing"
+msgstr "抗锯齿：设为无（当前 {0}）。可降低 GPU 负载和延迟。"
+
+msgid "game_settings.hide"
+msgstr "不再显示"
+
+msgid "common.ok"
+msgstr "确定"
+
+msgid "edit.title"
+msgstr "编辑文字"
+
+msgid "edit.instructions"
+msgstr "输入或粘贴。按 Enter 确认；按 Escape 或控制器上的返回取消。"
+
+msgid "edit.updating"
+msgstr "正在更新房间。草稿已保留；您可以继续输入或取消。"
+
+msgid "common.accept"
+msgstr "接受"
+
+msgid "edit.cancel"
+msgstr "取消编辑"
+
+msgid "discord.unavailable_build"
+msgstr "此版本不支持 Discord 集成。"
+
+msgid "runtime.record_invalid"
+msgstr "本地对战记录无效，原数据已保留。暂时无法记录战绩。"
+
+msgid "runtime.interface_preferences_failed"
+msgstr "无法读取界面偏好，正在使用默认设置。"
+
+msgid "runtime.room_defaults_invalid"
+msgstr "已保存的房间默认设置无效，原设置已保留。"
+
+msgid "runtime.network_start_failed"
+msgstr "网络无法启动，仍可离线游玩。"
+
+msgid "runtime.network_helper_unavailable"
+msgstr "网络辅助程序不可用（错误 {0}），仍可离线游玩。"
+
+msgid "discord.connecting"
+msgstr "正在连接 Discord..."
+
+msgid "discord.unavailable_gameplay_ok"
+msgstr "Discord 不可用，不影响对战。"
+
+msgid "runtime.gameplay_device_disconnected"
+msgstr "对战设备已断开连接。请在下一场对战前重新连接。"
+
+msgid "runtime.controller_assignment_unverified"
+msgstr "无法验证控制器在对战中的分配。请重新分配后再试。"
+
+msgid "runtime.recovery_state_failed"
+msgstr "无法应用房间恢复状态，恢复仍处于暂停。"
+
+msgid "runtime.room_control_recovering"
+msgstr "正在恢复房间控制。"
+
+msgid "discord.connected"
+msgstr "Discord 已连接"
+
+msgid "discord.registration_failed"
+msgstr "Discord 已连接，但启动注册失败。"
+
+msgid "discord.open_desktop"
+msgstr "Discord 不可用。请打开 Discord 桌面应用以分享动态。"
+
+msgid "discord.invitation_invalid"
+msgstr "Discord 邀请无效。"
+
+msgid "discord.invalid_event"
+msgstr "Discord 发送了无效的本地事件。"
+
+msgid "discord.companion_stopped"
+msgstr "Discord 辅助程序已停止，不影响对战。"
+
+msgid "runtime.room_connection_failed"
+msgstr "房间连接失败。房间即将关闭；未确认的结果不会计入记录。"
+
+msgid "runtime.operation_busy"
+msgstr "操作繁忙，请重试。"
+
+msgid "discord.invitation_expired"
+msgstr "Discord 邀请已过期。请索取新邀请。"
+
+msgid "runtime.spectator_action_retrying"
+msgstr "观战操作发送失败，正在重试。"
+
+msgid "runtime.return_main_menu"
+msgstr "请返回游戏主菜单，再打开房间。"
+
+msgid "runtime.room_action_failed"
+msgstr "无法发送房间操作，请重试。"
+
+msgid "runtime.preferences_queue_failed"
+msgstr "无法将偏好设置加入保存队列，请重试。"
+
+msgid "runtime.lobby_settings_send_failed"
+msgstr "无法发送大厅设置。"
+
+msgid "runtime.room_defaults_save_failed"
+msgstr "无法保存房间默认设置。"
+
+msgid "runtime.connection_check_unavailable"
+msgstr "连接检查不可用。仍可选择延迟后准备。"
+
+msgid "runtime.delay_save_failed"
+msgstr "无法保存输入延迟。"
+
+msgid "runtime.teardown_report_failed"
+msgstr "无法报告对战结束状态；房间已关闭。"
+
+msgid "runtime.lobby_defaults_save_failed"
+msgstr "大厅设置已应用，但无法保存默认设置。"
+
+msgid "runtime.lobby_settings_rejected"
+msgstr "大厅设置未被接受。请检查准备状态后重试。"
+
+msgid "runtime.teardown_timeout"
+msgstr "对战结束流程超时；房间已关闭。"
+
+msgid "runtime.room_catchup_timeout"
+msgstr "房间未能及时同步。上次操作未生效，请重试。"
+
+msgid "runtime.previous_match_close_timeout"
+msgstr "上一场对战未能及时关闭。请重新应用对战席设置。"
+
+msgid "runtime.spectator_close_timeout"
+msgstr "对战未能及时关闭，观战已停止。"
+
+msgid "runtime.room_closed"
+msgstr "房间已关闭。"
+
+msgid "runtime.removed_from_room"
+msgstr "您已被移出房间。"
+
+msgid "room.reject.closed"
+msgstr "房间已关闭。"
+
+msgid "room.reject.full"
+msgstr "房间已满。"
+
+msgid "room.reject.admission_locked"
+msgstr "房间暂不接纳新成员。"
+
+msgid "room.reject.name_taken"
+msgstr "该玩家名称已被房间内其他成员使用。请在设置中更改。"
+
+msgid "room.reject.stale_room"
+msgstr "操作到达前房间已变化，请重试。"
+
+msgid "room.reject.stale_table"
+msgstr "操作到达前对战席已变化，请重试。"
+
+msgid "room.reject.wrong_phase"
+msgstr "对战席当前无法执行此操作。"
+
+msgid "room.reject.wrong_generation"
+msgstr "该场对战已结束。"
+
+msgid "room.reject.unauthorized"
+msgstr "只有房主可以执行此操作。"
+
+msgid "room.reject.not_seated"
+msgstr "您未在此对战席入座。"
+
+msgid "room.reject.already_seated"
+msgstr "您已入座。"
+
+msgid "room.reject.already_queued"
+msgstr "您已在队列中。"
+
+msgid "room.reject.not_queued"
+msgstr "您不在队列中。"
+
+msgid "room.reject.not_watching"
+msgstr "您未观看此对战席。"
+
+msgid "room.reject.invalid_rules"
+msgstr "对战席规则无效。"
+
+msgid "room.reject.invalid_capacity"
+msgstr "人数上限无效。"
+
+msgid "room.reject.invalid_chat"
+msgstr "无法发送该消息。"
+
+msgid "room.reject.ledger_full"
+msgstr "等待所有人从上一场对战返回。"
+
+msgid "room.reject.other"
+msgstr "房间拒绝了此操作。"
+
+msgid "runtime.lock.return_to_menu_fighter"
+msgstr "请返回游戏原有的主菜单，再更换角色。"
+
+msgid "runtime.lock.previous_game_closing"
+msgstr "等待上一场对战关闭。"
+
+msgid "runtime.lock.teardown"
+msgstr "等待上一场对战的玩家和观战者完成退出流程。"
+
+msgid "runtime.lock.room_recovering"
+msgstr "等待房间连接恢复。"
+
+msgid "runtime.lock.ready_pending"
+msgstr "等待您的准备请求完成。"
+
+msgid "runtime.lock.selection_update"
+msgstr "等待当前对战或选择更新完成。"
+
+msgid "runtime.lock.return_to_menu_ready"
+msgstr "请先返回游戏原有的主菜单，再准备。"
+
+msgid "runtime.lock.table_settings"
+msgstr "等待对战席设置应用完成。"
+
+msgid "runtime.lock.room_update"
+msgstr "等待当前房间或对战更新完成。"
+
+msgid "runtime.ready.control_changed"
+msgstr "您的准备生效前，房间控制已变化。请再次准备。"
+
+msgid "runtime.ready.assign_controller"
+msgstr "准备前请分配或重新连接控制器。"
+
+msgid "runtime.ready.stage_unavailable"
+msgstr "所选场地不可用。请在角色选择中更换场地。"
+
+msgid "runtime.ready.fighter_unavailable"
+msgstr "所选角色不可用。请在角色选择中更换角色。"
+
+msgid "runtime.ready.selection_unavailable"
+msgstr "此角色选择不可用。请选择可用的服装、颜色、版本和终极组合。"
+
+msgid "runtime.ready.take_seat"
+msgstr "准备前请在对战席入座。"
+
+msgid "runtime.ready.refused"
+msgstr "房间拒绝了您的准备请求。请再次准备。"
+
+msgid "runtime.ready.previous_match_timeout"
+msgstr "准备请求未生效。房间未能及时结束上一场对战。请再次准备。"
+
+msgid "runtime.room_open_failed"
+msgstr "无法打开房间，请重试。"
+
+msgid "runtime.match_settings_send_failed"
+msgstr "无法发送对战设置。"
+
+msgid "runtime.match_record_not_saved"
+msgstr "无法保存对战记录。下一场对战仍可开始；系统会继续重试保存。"
+
+msgid "runtime.rollback_unsupported_state"
+msgstr "联机系统无法保存不受支持的游戏状态。对战已结束。"
+
+msgid "runtime.participant_left_room"
+msgstr "一名参赛玩家离开了房间。"
+
+msgid "runtime.networking_unavailable"
+msgstr "网络不可用，仍可离线游玩。"
+
+msgid "runtime.room_join_failed"
+msgstr "无法加入房间。请检查邀请，并确认双方使用同一 SF4 Ember Netplay 安装包。"
+
+msgid "runtime.room_connection_lost"
+msgstr "房间连接已断开。"

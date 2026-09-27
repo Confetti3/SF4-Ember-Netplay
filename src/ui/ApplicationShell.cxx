@@ -166,7 +166,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   title=loc::T("settings.interface_title");char size[32];std::snprintf(size,sizeof(size),"%.2fx",preferences_.interfaceScale);
   const char* hudSizes[]={loc::T("size.small"),loc::T("size.standard"),loc::T("size.large")};
   const auto languageValue=languagePreference_=="auto"?loc::Tf("settings.language.system_with",loc::NativeName(loc::Active())):
-   std::string(loc::NativeName(loc::ResolveLocale(languagePreference_,{})));
+   std::string(loc::NativeName(loc::ResolveLocale(languagePreference_,{},{})));
   rows={Value("hud",loc::T("settings.match_hud"),preferences_.showMatchHud?loc::T("common.on"):loc::T("common.off"),reason,v.canEditPreferences),
    Value("hud-size",loc::T("settings.match_hud_size"),hudSizes[(std::max)(0,(std::min)(2,preferences_.matchHudSize))],loc::T("settings.match_hud_size_detail"),v.canEditPreferences),
    Value("hud-spacing",loc::T("settings.bottom_spacing"),preferences_.matchHudRaised?loc::T("spacing.raised"):loc::T("spacing.normal"),loc::T("settings.bottom_spacing_detail"),v.canEditPreferences),
@@ -312,7 +312,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   // Not a netplay preference: it lives in the UI preferences file and saves on
   // its own deadline, so it stays out of the validate-and-save tail below.
   languagePreference_=std::string(loc::NextPreference(languagePreference_,a.delta));
-  loc::SetActive(loc::ResolveLocale(languagePreference_,platform::WindowsUiLanguages()));
+  loc::SetActive(platform::ResolveUiLocale(languagePreference_));
   languageDirty_=true;languageSaveError_.clear();languageSaveAt_=ImGui::GetTime()+.45;
  }
  else{

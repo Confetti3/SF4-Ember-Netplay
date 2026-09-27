@@ -1,0 +1,2095 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: ru\n"
+
+msgid "app.name"
+msgstr "SF4 Ember Netplay"
+
+msgid "common.back"
+msgstr "Назад"
+
+msgid "common.cancel"
+msgstr "Отмена"
+
+msgid "common.close"
+msgstr "Закрыть"
+
+msgid "common.confirm"
+msgstr "Подтвердить"
+
+msgid "common.on"
+msgstr "Вкл."
+
+msgid "common.off"
+msgstr "Выкл."
+
+msgid "common.unavailable"
+msgstr "Недоступно"
+
+msgid "common.saving"
+msgstr "Сохранение..."
+
+msgid "common.saved"
+msgstr "Сохранено"
+
+msgid "common.save_failed"
+msgstr "Не сохранено"
+
+msgid "confirm.title"
+msgstr "Подтверждение"
+
+msgid "confirm.question"
+msgstr "{0}?"
+
+msgid "confirm.updating"
+msgstr "Зал обновляется. Вы ещё можете отменить действие."
+
+msgid "launcher.update_failed"
+msgstr "Не удалось установить обновление. Закройте игру и прежний лаунчер, затем повторите попытку. См. %TEMP%\\sf4-netplay-update.log; резервные копии находятся в .ember-update-backups."
+
+msgid "launcher.recovery_title"
+msgstr "Восстановление"
+
+msgid "launcher.path_failed"
+msgstr "Не удалось настроить путь поиска библиотек. Распакуйте полный пакет в папку с правом записи."
+
+msgid "launcher.game_not_found"
+msgstr "Не удалось найти Ultra Street Fighter IV."
+
+msgid "launcher.sidecar_missing"
+msgstr "Файл Sidecar.dll отсутствует, либо инжектор не может использовать его путь. Распакуйте полный пакет в папку с простым локальным путём."
+
+msgid "launcher.runtime_outdated"
+msgstr "Установлена устаревшая среда Microsoft Visual C++; игра аварийно завершится при запуске. Установите последнюю версию Visual C++ Redistributable (x86), затем запустите Ember снова.\n\nОткрыть страницу загрузки?"
+
+msgid "launcher.already_running"
+msgstr "SF4 Ember Netplay уже запущен. Если окно не видно, завершите Launcher.exe и SSFIV.exe в диспетчере задач, затем запустите Ember снова."
+
+msgid "launcher.start_failed"
+msgstr "Сбой запуска игры или мода. Проверьте журнал лаунчера и попробуйте снова."
+
+msgid "launcher.game_error"
+msgstr "Игра завершилась с ошибкой. Проверьте журнал лаунчера и повторите попытку."
+
+msgid "launcher.runtime_shadowed"
+msgstr "Игра загрузит эти файлы вместо файлов из папки Ember. Старая копия остановит её ещё до запуска (\"entry point ggpo_get_last_confirmed_frame not found\"). Файлы оставлены другим сетевым модом или прежней установкой. Переместите или переименуйте их и снова запустите Ember:\n\n{0}"
+
+msgid "launcher.game_wrong_dll"
+msgstr "Игра остановилась до запуска Ember: в загруженной DLL нет нужной функции. Обычно рядом с SSFIV.exe находится GGPO.dll, spdlog.dll, fmt.dll или zlib1.dll от другого мода либо старой установки. Переместите найденные файлы и повторите попытку. Если их нет, отправьте журнал лаунчера."
+
+msgid "recovery.window"
+msgstr "Восстановление Ember"
+
+msgid "recovery.d3d_failed"
+msgstr "Не удалось инициализировать Direct3D 9 для восстановления. См. %APPDATA%\\sf4e\\logs\\launcher.log."
+
+msgid "recovery.choose_folder_title"
+msgstr "Выберите папку с SSFIV.exe"
+
+msgid "recovery.folder_selected"
+msgstr "Папка игры выбрана. Можно повторить запуск."
+
+msgid "recovery.folder_invalid"
+msgstr "В этой папке нет SSFIV.exe."
+
+msgid "recovery.title"
+msgstr "ВОССТАНОВЛЕНИЕ"
+
+msgid "updates.title"
+msgstr "ОБНОВЛЕНИЯ"
+
+msgid "recovery.choose_folder"
+msgstr "Выбрать папку игры"
+
+msgid "recovery.choose_folder_detail"
+msgstr "Выберите папку установленной Ultra Street Fighter IV с файлом SSFIV.exe. Файлы игры не входят в этот пакет."
+
+msgid "recovery.retry"
+msgstr "Повторить запуск"
+
+msgid "recovery.retry_busy"
+msgstr "Сначала отмените или завершите текущую операцию."
+
+msgid "recovery.retry_detail"
+msgstr "Повторить запуск с выбранной папкой игры. Отсутствие сетевого компонента не мешает игре без сети."
+
+msgid "updates.check"
+msgstr "Проверить обновления"
+
+msgid "updates.busy"
+msgstr "Операция уже выполняется."
+
+msgid "updates.check_detail"
+msgstr "Проверить, вышел ли новый пакет Ember."
+
+msgid "updates.install"
+msgstr "Скачать и установить"
+
+msgid "updates.install_detail"
+msgstr "Закройте SF4 перед установкой. Пакет будет проверен. Ваши личные настройки сохранятся."
+
+msgid "updates.unverified"
+msgstr "У обновления нет контрольной суммы; установить его нельзя."
+
+msgid "updates.cancel"
+msgstr "Отменить операцию"
+
+msgid "updates.cancel_detail"
+msgstr "Отменить загрузку или проверку. Дождитесь отмены, прежде чем повторять попытку."
+
+msgid "recovery.close_detail"
+msgstr "Закрыть восстановление без запуска SF4. Текущая операция будет отменена."
+
+msgid "updates.downloaded_mb"
+msgstr "Загружено: {0:.1f} МБ"
+
+msgid "services.checking"
+msgstr "Проверка обновлений..."
+
+msgid "services.exporting"
+msgstr "Экспорт диагностики..."
+
+msgid "services.downloading"
+msgstr "Загрузка и проверка обновления..."
+
+msgid "services.opening_updater"
+msgstr "Запуск обновления..."
+
+msgid "services.update_available"
+msgstr "Доступно обновление: {0}"
+
+msgid "services.up_to_date"
+msgstr "У вас последняя версия."
+
+msgid "services.diagnostics_saved"
+msgstr "Сохранено: %APPDATA%\\sf4e\\diagnostics\\ember-diagnostics.txt"
+
+msgid "services.diagnostics_failed"
+msgstr "Не удалось сохранить диагностику. Повторите попытку."
+
+msgid "services.updater_start_failed"
+msgstr "Сбой запуска обновления. Попробуйте снова."
+
+msgid "services.game_closing"
+msgstr "Игра закрывается. После её завершения откроется программа обновления."
+
+msgid "services.no_verified_update"
+msgstr "Нет проверенного обновления. Проверьте обновления ещё раз."
+
+msgid "services.update_prepared"
+msgstr "Обновление подготовлено. Перезапуск SF4 Ember Netplay..."
+
+msgid "services.operation_failed"
+msgstr "Операция не удалась. Повторите попытку. Резервные копии обновления находятся в .ember-update-backups."
+
+msgid "services.operation_cancelled"
+msgstr "Операция отменена."
+
+msgid "services.opening_community"
+msgstr "Открытие Ember Discord в браузере..."
+
+msgid "services.community_opened"
+msgstr "Страница открыта в браузере. Перейдите туда, чтобы вступить на сервер."
+
+msgid "services.community_failed"
+msgstr "Не удалось открыть браузер. Перейдите по адресу {0}."
+
+msgid "settings.language"
+msgstr "Язык"
+
+msgid "settings.language.detail"
+msgstr "Язык интерфейса Ember меняется сразу. Автовыбор учитывает язык игры, затем Windows."
+
+msgid "settings.language.system_with"
+msgstr "Автоматически — {0}"
+
+msgid "settings.language_save_failed"
+msgstr "Не удалось сохранить выбор языка. Он останется активным до конца сеанса."
+
+msgid "menu.edit_detail"
+msgstr "Выберите для правки. Введите или вставьте текст; Enter — принять, «Назад» — отменить."
+
+msgid "menu.edit_unavailable"
+msgstr "Сейчас редактирование недоступно."
+
+msgid "menu.edit"
+msgstr "Правка"
+
+msgid "menu.review"
+msgstr "Просмотр"
+
+msgid "menu.select"
+msgstr "Выбрать"
+
+msgid "menu.navigate"
+msgstr "Перейти"
+
+msgid "menu.adjust"
+msgstr "Настроить"
+
+msgid "rules.edition_select"
+msgstr "Выбор издания"
+
+msgid "rules.rounds"
+msgstr "Раундов"
+
+msgid "rules.round_time"
+msgstr "Время раунда"
+
+msgid "screen.home"
+msgstr "Главная"
+
+msgid "screen.online"
+msgstr "Игра по сети"
+
+msgid "screen.selection"
+msgstr "Выбор персонажа"
+
+msgid "screen.player"
+msgstr "Игрок и контроллер"
+
+msgid "screen.defaults"
+msgstr "Настройки игры"
+
+msgid "screen.main_character"
+msgstr "Основной персонаж"
+
+msgid "screen.about"
+msgstr "Справка и сведения"
+
+msgid "screen.room"
+msgstr "Зал"
+
+msgid "screen.table"
+msgstr "Стол"
+
+msgid "screen.table_rules"
+msgstr "Правила стола"
+
+msgid "screen.members"
+msgstr "Участники"
+
+msgid "screen.member"
+msgstr "Участник"
+
+msgid "screen.chat"
+msgstr "Чат"
+
+msgid "screen.room_settings"
+msgstr "Настройки зала"
+
+msgid "screen.practice_position"
+msgstr "Позиция на тренировке"
+
+msgid "screen.dummy_recording"
+msgstr "Запись манекена"
+
+msgid "screen.input_history"
+msgstr "История нажатий"
+
+msgid "room.wait.leaving"
+msgstr "Выход из зала. Ожидание закрытия соединения..."
+
+msgid "room.wait.joining"
+msgstr "Вход в зал. Ожидание других игроков..."
+
+msgid "room.wait.closed"
+msgstr "Этот зал закрыт. Вернитесь в «Игру по сети», чтобы войти в другой."
+
+msgid "room.wait.recovering"
+msgstr "Соединение с залом восстанавливается. Вы по-прежнему можете выйти."
+
+msgid "room.wait.updating"
+msgstr "Зал обновляется. Управление может ненадолго замереть."
+
+msgid "connection.checking"
+msgstr "Проверка..."
+
+msgid "connection.checking_detail"
+msgstr "Пять секунд замеряются игровые пакеты, затем — установление соединения. Задержку можно выбрать вручную."
+
+msgid "connection.checking_action"
+msgstr "Проверка соединения..."
+
+msgid "connection.frames"
+msgstr "{0} к."
+
+msgid "connection.result_detail"
+msgstr "Соединение: {0}. Медиана RTT: {1} ms; p95: {2} ms; p99: {3} ms. Разброс RTT: {4} ms. Отправлено: {5}, ответов: {6}, пропущено: {7}. Примите рекомендацию или выберите свою задержку."
+
+msgid "connection.route_direct"
+msgstr "Прямое"
+
+msgid "connection.route_relayed"
+msgstr "Через сервер"
+
+msgid "connection.route_unknown"
+msgstr "Неизвестно"
+
+msgid "connection.relayed_advice"
+msgstr "Соединение через ретранслятор означает, что ваши сети не смогли связаться напрямую. Матчи всё равно работают; используйте рекомендуемую задержку. Для прямого соединения любой из игроков может включить UPnP на роутере, перенаправить порт UDP 45760 на свой ПК или отключить VPN."
+
+msgid "connection.check_again"
+msgstr "Проверить соединение ещё раз"
+
+msgid "connection.no_recommendation"
+msgstr "Нет рекомендации"
+
+msgid "connection.timed_out"
+msgstr "Время проверки истекло. Повторите её либо выберите задержку и нажмите «Готов»."
+
+msgid "connection.invalidated"
+msgstr "Соединение или соперник изменились. Проверьте снова либо выберите задержку и нажмите «Готов»."
+
+msgid "connection.local_overload"
+msgstr "Этот ПК не успел отправить все пакеты. Снизьте фоновую нагрузку и повторите проверку либо задайте задержку вручную."
+
+msgid "connection.insufficient"
+msgstr "Получено слишком мало ответов. Повторите проверку либо выберите задержку и нажмите «Готов»; рекомендация необязательна."
+
+msgid "connection.packet_summary"
+msgstr " Отправлено {0} из {1} запланированных пакетов; ответов: {2}, пропущено: {3}."
+
+msgid "connection.retry"
+msgstr "Проверить ещё раз"
+
+msgid "connection.not_checked"
+msgstr "Не проверено"
+
+msgid "connection.not_checked_detail"
+msgstr "Проверьте соединение с соперником, чтобы получить рекомендацию по задержке. Это необязательно: можно выбрать задержку и нажать «Готов»."
+
+msgid "connection.check"
+msgstr "Проверить соединение"
+
+msgid "error.queue_failed"
+msgstr "Не удалось поставить действие в очередь. Повторите попытку."
+
+msgid "notice.left_room"
+msgstr "Вы вышли из зала."
+
+msgid "notice.profile_saved"
+msgstr "Портрет профиля сохранён: {0}"
+
+msgid "error.settings_not_saved"
+msgstr "Настройки не сохранены. Повторите попытку, когда меню станет доступно."
+
+msgid "shell.home_title"
+msgstr "SF4 EMBER"
+
+msgid "settings.auto_save"
+msgstr "Изменения сохраняются сами."
+
+msgid "settings.leave_room_to_edit"
+msgstr "Выйдите из зала, чтобы изменить личные настройки."
+
+msgid "controller.assign_title"
+msgstr "НАЗНАЧИТЬ КОНТРОЛЛЕР"
+
+msgid "controller.cancel_assignment"
+msgstr "Отменить назначение контроллера"
+
+msgid "controller.press_button"
+msgstr "Нажмите кнопку на выбранном контроллере."
+
+msgid "controller.release_buttons"
+msgstr "Отпустите все кнопки для продолжения."
+
+msgid "home.online"
+msgstr "Игра по сети"
+
+msgid "home.online_detail"
+msgstr "Создайте закрытый зал или войдите по приглашению."
+
+msgid "home.return_room"
+msgstr "Вернуться в текущий зал"
+
+msgid "home.fighter_select"
+msgstr "Выбор персонажа"
+
+msgid "home.selection_locked"
+msgstr "Вернитесь к своему столу, чтобы узнать состояние выбора."
+
+msgid "home.profile"
+msgstr "Профиль"
+
+msgid "home.profile_detail"
+msgstr "Ваше имя, основной персонаж и локальная статистика подтверждённых сетевых игр."
+
+msgid "home.settings"
+msgstr "Настройки"
+
+msgid "home.settings_detail"
+msgstr "Игрок, контроллер, настройки игры, интерфейс и Discord."
+
+msgid "home.about"
+msgstr "Справка и сведения"
+
+msgid "home.about_detail"
+msgstr "Управление, диагностика, обновления и авторы."
+
+msgid "home.offline"
+msgstr "Игра без сети"
+
+msgid "home.offline_detail"
+msgstr "Открыть меню игры для игры без сети."
+
+msgid "home.choose_controller"
+msgstr "Выбрать контроллер для боя"
+
+msgid "home.choose_controller_detail"
+msgstr "Перед игрой по сети нужно явно назначить контроллер."
+
+msgid "profile.title"
+msgstr "ПРОФИЛЬ"
+
+msgid "profile.player_name"
+msgstr "Имя игрока"
+
+msgid "profile.main_character"
+msgstr "Основной персонаж"
+
+msgid "profile.main_character_detail"
+msgstr "{0}. Показывается в карточке игрока независимо от выбора для матча."
+
+msgid "profile.record"
+msgstr "Победы / поражения"
+
+msgid "profile.record_detail"
+msgstr "Побед: {0} / поражений: {1}. Учтены локально подтверждённые сетевые матчи с начала отслеживания. Ничьи, отменённые и внесетевые матчи, а также неустановленные результаты исключены."
+
+msgid "profile.record_unavailable"
+msgstr "Статистика недоступна. Исходные настройки сохранены."
+
+msgid "profile.record_value"
+msgstr "{0} П / {1} Пр"
+
+msgid "profile.choose_main_title"
+msgstr "ОСНОВНОЙ ПЕРСОНАЖ"
+
+msgid "profile.choose_main_detail"
+msgstr "Выберите основного персонажа для карточки игрока."
+
+msgid "profile.leave_room_to_edit"
+msgstr "Выйдите из зала, чтобы изменить профиль."
+
+msgid "online.title"
+msgstr "ИГРА ПО СЕТИ"
+
+msgid "online.create"
+msgstr "Создать зал"
+
+msgid "online.create_detail"
+msgstr "Создать закрытый зал."
+
+msgid "online.join"
+msgstr "Войти в зал"
+
+msgid "online.join_detail"
+msgstr "Вставьте приглашение."
+
+msgid "room.create_title"
+msgstr "СОЗДАТЬ ЗАЛ"
+
+msgid "settings.gameplay_defaults_title"
+msgstr "НАСТРОЙКИ ИГРЫ"
+
+msgid "settings.input_delay"
+msgstr "Задержка ввода"
+
+msgid "room.name"
+msgstr "Название зала"
+
+msgid "room.capacity"
+msgstr "Вместимость"
+
+msgid "room.capacity_detail"
+msgstr "Максимум участников, включая зрителей."
+
+msgid "room.stop_creating"
+msgstr "Прекратить создание этого зала."
+
+msgid "room.stop_creating_action"
+msgstr "Прекратить создание"
+
+msgid "room.create_requirements"
+msgstr "Сеть и назначенный контроллер должны быть готовы."
+
+msgid "room.join_title"
+msgstr "ВОЙТИ В ЗАЛ"
+
+msgid "room.paste_invitation"
+msgstr "Вставить приглашение"
+
+msgid "room.paste_invitation_detail"
+msgstr "Скопируйте приглашение Ember и выберите эту строку."
+
+msgid "room.stop_joining"
+msgstr "Прекратить вход в этот зал."
+
+msgid "room.stop_joining_action"
+msgstr "Прекратить вход"
+
+msgid "room.join_pasted"
+msgstr "Войти по вставленному приглашению."
+
+msgid "room.edit_invitation"
+msgstr "Изменить приглашение"
+
+msgid "settings.title"
+msgstr "НАСТРОЙКИ"
+
+msgid "settings.player_detail"
+msgstr "Отображаемое имя и назначение контроллера."
+
+msgid "settings.defaults_detail"
+msgstr "Задержка ввода и параметры новых залов."
+
+msgid "settings.interface"
+msgstr "Интерфейс"
+
+msgid "settings.interface_detail"
+msgstr "Ненавязчивый HUD и размер интерфейса."
+
+msgid "settings.discord_detail"
+msgstr "Статус и приглашения."
+
+msgid "player.title"
+msgstr "ИГРОК И КОНТРОЛЛЕР"
+
+msgid "player.display_name"
+msgstr "Отображаемое имя"
+
+msgid "player.change_controller"
+msgstr "Сменить контроллер"
+
+msgid "player.change_controller_detail"
+msgstr "{0}. Отпустите, нажмите и отпустите для назначения."
+
+msgid "player.use_keyboard"
+msgstr "Клавиатура"
+
+msgid "player.use_keyboard_detail"
+msgstr "Явно назначить клавиатуру."
+
+msgid "player.native_menus"
+msgstr "Открыть меню игры"
+
+msgid "player.native_menus_detail"
+msgstr "Ember закроется. Чтобы настроить кнопки боя, выберите «Настройки» в меню игры."
+
+msgid "settings.interface_title"
+msgstr "ИНТЕРФЕЙС"
+
+msgid "size.small"
+msgstr "Малый"
+
+msgid "size.standard"
+msgstr "Стандартный"
+
+msgid "size.large"
+msgstr "Большой"
+
+msgid "settings.match_hud"
+msgstr "HUD матча"
+
+msgid "settings.match_hud_size"
+msgstr "Размер HUD матча"
+
+msgid "settings.match_hud_size_detail"
+msgstr "Меняет размер текста и панелей во время матча."
+
+msgid "settings.bottom_spacing"
+msgstr "Отступ снизу"
+
+msgid "spacing.raised"
+msgstr "Приподнят"
+
+msgid "spacing.normal"
+msgstr "Обычный"
+
+msgid "settings.bottom_spacing_detail"
+msgstr "Приподнимает HUD матча над нижним краем."
+
+msgid "settings.interface_size"
+msgstr "Размер интерфейса"
+
+msgid "discord.show_activity"
+msgstr "Показывать статус"
+
+msgid "discord.allow_invitations"
+msgstr "Разрешить приглашения"
+
+msgid "discord.invitation_detail"
+msgstr "Приглашения открывают доступ к вашему залу."
+
+msgid "discord.enable_first"
+msgstr "Сначала включите статус Discord."
+
+msgid "discord.invitation_title"
+msgstr "ПРИГЛАШЕНИЕ DISCORD"
+
+msgid "discord.cancel_invitation"
+msgstr "Отменить приглашение"
+
+msgid "discord.cancel_invitation_detail"
+msgstr "Отклонить приглашение, не выходя из текущего зала."
+
+msgid "discord.switch_room"
+msgstr "Перейти в другой зал"
+
+msgid "discord.switch_room_detail"
+msgstr "Выйти из этого зала и войти по приглашению."
+
+msgid "discord.wait_game"
+msgstr "Дождитесь завершения текущего боя."
+
+msgid "discord.invitation_pending"
+msgstr "Приглашение ожидает"
+
+msgid "discord.invitation_pending_detail"
+msgstr "Ожидание главного меню, сети и назначенного контроллера."
+
+msgid "about.title"
+msgstr "СПРАВКА И СВЕДЕНИЯ"
+
+msgid "about.controls"
+msgstr "Управление"
+
+msgid "about.controls_detail"
+msgstr "Xbox: A — выбор, B — назад, независимо от кнопок боя. DirectInput: назначенная LP — выбор, LK — назад. D-pad — перемещение, влево/вправо — настройка. Тренировка: F6 — открыть/закрыть меню, стрелки — навигация, Enter — выбор, Escape — назад. Start открывает только меню паузы игры в тренировке. F10 открывает Ember в главном меню; F5–F8 — быстрые команды тренировки."
+
+msgid "about.ember"
+msgstr "Об Ember"
+
+msgid "about.ember_detail"
+msgstr "Неофициальный мод для Ultra Street Fighter IV на основе sf4e Энтони Дандуччи. Iroh / QUIC, GGPO, Dear ImGui и шрифт Inter. Сборка: {0}"
+
+msgid "about.font_license"
+msgstr "Лицензия шрифта"
+
+msgid "about.export_diagnostics"
+msgstr "Экспорт диагностики"
+
+msgid "about.export_diagnostics_detail"
+msgstr "Экспортирует состояние соединений без приглашений и учётных данных."
+
+msgid "about.updates_detail"
+msgstr "Проверить наличие новой версии Ember."
+
+msgid "about.open_updater"
+msgstr "Выйти и открыть обновление"
+
+msgid "about.open_updater_detail"
+msgstr "Игра закроется. Сначала выйдите из зала."
+
+msgid "about.open_recovery"
+msgstr "Выйти к восстановлению"
+
+msgid "about.open_recovery_detail"
+msgstr "Закрыть игру и открыть восстановление."
+
+msgid "about.leave_room_first"
+msgstr "Сначала выйдите из зала и вернитесь в главное меню."
+
+msgid "about.discord"
+msgstr "Вступить в Ember Discord"
+
+msgid "about.discord_detail"
+msgstr "Игроки, матчи и поддержка: {0}. Страница откроется в браузере за окном игры."
+
+msgid "settings.retry_save"
+msgstr "Сохранить снова"
+
+msgid "room.creating_status"
+msgstr "Создание зала. Ожидание сети..."
+
+msgid "room.joining_status"
+msgstr "Вход в зал. Ожидание сети..."
+
+msgid "room.locked_status"
+msgstr "Зал закрыт / вход по приглашению"
+
+msgid "room.private_status"
+msgstr "Закрытый зал / вход по приглашению"
+
+msgid "room.reconnecting"
+msgstr "Переподключение..."
+
+msgid "room.table_setup_title"
+msgstr "СТОЛ {0} / НАСТРОЙКА БОЯ"
+
+msgid "room.waiting_opponent"
+msgstr "Ожидание соперника"
+
+msgid "room.you"
+msgstr "Вы"
+
+msgid "room.player"
+msgstr "Игрок"
+
+msgid "room.ready_suffix"
+msgstr " — ГОТОВ"
+
+msgid "room.readying_suffix"
+msgstr " — Подготовка..."
+
+msgid "room.not_ready_suffix"
+msgstr " — Не готов"
+
+msgid "room.result_unresolved_status"
+msgstr "Нет результата / откажитесь или попросите ведущего отменить бой"
+
+msgid "room.preparing_status"
+msgstr "Подготовка матча / выбор персонажей заблокирован"
+
+msgid "room.waiting_results_status"
+msgstr "Ожидание результатов / следующий матч ещё не готов"
+
+msgid "room.match_in_progress"
+msgstr "Матч идёт"
+
+msgid "room.table_closed"
+msgstr "Стол закрыт"
+
+msgid "controller.disconnected"
+msgstr "Контроллер отключён. Подключите его или назначьте вручную."
+
+msgid "room.control_unavailable"
+msgstr "Управление залом недоступно. Замените зал, когда матч завершится."
+
+msgid "room.control_recovering"
+msgstr "Управление залом восстанавливается. Действия в зале приостановлены."
+
+msgid "settings.preview"
+msgstr "Пример"
+
+msgid "settings.player_one"
+msgstr "Игрок 1"
+
+msgid "settings.player_two"
+msgstr "Игрок 2"
+
+msgid "error.invitation_invalid"
+msgstr "Приглашение пустое или слишком длинное."
+
+msgid "error.invitation_changed"
+msgstr "Приглашение изменилось. Повторите."
+
+msgid "error.invalid_value"
+msgstr "Недопустимое значение. Сохранённая настройка не изменилась."
+
+msgid "brand.subtitle"
+msgstr "SF4 / ЗАКРЫТЫЕ ЗАЛЫ И СЕТЕВАЯ ИГРА С ОТКАТОМ"
+
+msgid "match.waiting_opponent"
+msgstr "Ожидание соперника..."
+
+msgid "match.connection_countdown"
+msgstr "Связь нестабильна. Соперник отключится через {0} с"
+
+msgid "match.connection_unstable"
+msgstr "Нестабильная связь"
+
+msgid "match.versus_short"
+msgstr "vs"
+
+msgid "match.ping"
+msgstr "Пинг"
+
+msgid "match.rollback"
+msgstr "Откат"
+
+msgid "match.delay"
+msgstr "Задержка"
+
+msgid "match.spectating"
+msgstr "Просмотр"
+
+msgid "match.preview_spacing"
+msgstr "Отступ: {0} / пример значений"
+
+msgid "card.player"
+msgstr "ИГРОК"
+
+msgid "card.choose_fighter"
+msgstr "Выберите персонажа"
+
+msgid "card.controller_ready"
+msgstr "КОНТРОЛЛЕР ГОТОВ"
+
+msgid "card.assign_controller"
+msgstr "НАЗНАЧИТЬ КОНТРОЛЛЕР"
+
+msgid "card.wins"
+msgstr "ПОБЕД: {0}"
+
+msgid "card.no_wins"
+msgstr "ПОБЕД: --"
+
+msgid "card.losses"
+msgstr "ПОРАЖЕНИЙ: {0}"
+
+msgid "card.no_losses"
+msgstr "ПОРАЖЕНИЙ: --"
+
+msgid "card.no_win_rate"
+msgstr "ПОБЕД: --%"
+
+msgid "card.win_rate"
+msgstr "ПОБЕД: {0}%"
+
+msgid "training.lab"
+msgstr "Тренировка"
+
+msgid "menu.back_to"
+msgstr "< Назад / {0}"
+
+msgid "training.controls"
+msgstr "Управление тренировкой"
+
+msgid "training.dummy_recording"
+msgstr "Запись манекена"
+
+msgid "training.dummy_recording.detail"
+msgstr "Запишите управление P1 для P2. В игре задайте манекену управление «Игрок / контроллер»."
+
+msgid "training.input_history"
+msgstr "История нажатий"
+
+msgid "training.input_history.detail"
+msgstr "Просмотр удерживаемых кнопок каждого игрока."
+
+msgid "training.close_controls"
+msgstr "Закрыть меню тренировки"
+
+msgid "training.close_controls.detail"
+msgstr "Закройте Ember, затем меню паузы SF4, если оно открыто."
+
+msgid "training.slot"
+msgstr "Ячейка {0}"
+
+msgid "training.slot_selected"
+msgstr "Ячейка {0} / ВЫБРАНА"
+
+msgid "training.recorded_frames"
+msgstr "Записано кадров: {0}. Запись хранится до конца этого боя."
+
+msgid "training.record"
+msgstr "Запись"
+
+msgid "training.record.overwrite"
+msgstr "Перезаписать занятую ячейку и вернуться к тренировке."
+
+msgid "training.record.detail"
+msgstr "Записать управление P1 как P2 и вернуться к тренировке."
+
+msgid "training.play"
+msgstr "Пуск"
+
+msgid "training.play.detail"
+msgstr "Воспроизвести выбранную ячейку и вернуться к тренировке. Направления абсолютные, без отражения."
+
+msgid "training.slot_empty"
+msgstr "Ячейка пуста."
+
+msgid "training.stop"
+msgstr "Стоп"
+
+msgid "training.stop.detail"
+msgstr "Остановить запись/воспроизведение."
+
+msgid "training.loop"
+msgstr "Повтор"
+
+msgid "training.loop.detail"
+msgstr "Повторять выбранную запись."
+
+msgid "training.clear_recording"
+msgstr "Очистить выбранную запись"
+
+msgid "training.clear_recording.detail"
+msgstr "Удалить запись из этой ячейки до конца текущего боя."
+
+msgid "training.player_one"
+msgstr "Игрок 1"
+
+msgid "training.player_two"
+msgstr "Игрок 2"
+
+msgid "training.history.detail"
+msgstr "Сначала новые нажатия. Число кадров показывает длительность удержания, а не начало приёма."
+
+msgid "training.clear_history"
+msgstr "Очистить историю нажатий"
+
+msgid "training.clear_history.detail"
+msgstr "Очистить индикатор и историю нажатий обоих игроков."
+
+msgid "training.practice_ready"
+msgstr "Тренировка готова"
+
+msgid "training.recording_suspended"
+msgstr "Запись приостановлена, пока открыто меню"
+
+msgid "training.playback_suspended"
+msgstr "Воспроизведение приостановлено, пока открыто меню"
+
+msgid "training.applying"
+msgstr "Выполнение команды..."
+
+msgid "training.waiting_battle"
+msgstr "Ожидание готовности боя..."
+
+msgid "training.title"
+msgstr "ТРЕНИРОВКА"
+
+msgid "training.command_rejected"
+msgstr "Команда тренировки отклонена. Проверьте состояние и повторите попытку."
+
+msgid "training.start_frames"
+msgstr "Начало: {0} к."
+
+msgid "training.start_unknown"
+msgstr "Начало: --"
+
+msgid "training.startup"
+msgstr "Стартап"
+
+msgid "training.neutral"
+msgstr "Нейтраль"
+
+msgid "training.unavailable"
+msgstr "{0}: {1}"
+
+msgid "training.unavailable.waiting_attack"
+msgstr "ожидание начала атаки"
+
+msgid "training.unavailable.no_attack"
+msgstr "нет начала атаки"
+
+msgid "training.unavailable.no_contact"
+msgstr "нет контакта"
+
+msgid "training.unavailable.measuring_recovery"
+msgstr "измерение восстановления"
+
+msgid "training.unavailable.interrupted"
+msgstr "прервано"
+
+msgid "training.unavailable.invalid"
+msgstr "неверный замер"
+
+msgid "training.frame_advantage"
+msgstr "ПРЕИМУЩЕСТВО В КАДРАХ | {0}"
+
+msgid "training.measuring"
+msgstr "замер"
+
+msgid "training.wakeup"
+msgstr "подъём"
+
+msgid "training.held"
+msgstr "удерж."
+
+msgid "training.live"
+msgstr "сейчас"
+
+msgid "training.advantage"
+msgstr "Преимущество"
+
+msgid "selection.preview_unavailable"
+msgstr "Превью\nнедоступно"
+
+msgid "selection.preview_loading"
+msgstr "Загрузка\nпревью..."
+
+msgid "selection.handicap_normal"
+msgstr "Обычный (100%)"
+
+msgid "selection.handicap_one_hit"
+msgstr "Один удар"
+
+msgid "selection.handicap_25"
+msgstr "25%"
+
+msgid "selection.handicap_50"
+msgstr "50%"
+
+msgid "selection.handicap_75"
+msgstr "75%"
+
+msgid "selection.original"
+msgstr "Оригинал"
+
+msgid "selection.alternate"
+msgstr "Альт. {0}"
+
+msgid "selection.alternate_pack"
+msgstr "Альт. {0} / {1}"
+
+msgid "selection.stage_count"
+msgstr "МЕСТ БИТВЫ: {0} / USFIV"
+
+msgid "selection.choose_battlefield"
+msgstr "Выберите место битвы."
+
+msgid "selection.select_saves"
+msgstr "«Выбрать» сохраняет выбор. «Назад» возвращает без изменения просматриваемого варианта."
+
+msgid "selection.locked_detail"
+msgstr "Выбор заблокирован. Вернитесь к столу, чтобы узнать состояние."
+
+msgid "selection.title"
+msgstr "ВЫБОР ПЕРСОНАЖА"
+
+msgid "selection.fighter"
+msgstr "Персонаж"
+
+msgid "selection.appearance"
+msgstr "Внешний вид"
+
+msgid "selection.appearance_value"
+msgstr "{0} / цвет {1}"
+
+msgid "selection.ultra_combo"
+msgstr "Ultra Combo"
+
+msgid "selection.ultra_double"
+msgstr "Ultra Double"
+
+msgid "selection.stage"
+msgstr "Место битвы"
+
+msgid "selection.p1_stage"
+msgstr "Место битвы выбирает P1."
+
+msgid "selection.additional_options"
+msgstr "Дополнительные настройки"
+
+msgid "selection.additional_options.detail"
+msgstr "Издание, провокация, победный клич и гандикап."
+
+msgid "selection.choose_fighter"
+msgstr "ВЫБРАТЬ ПЕРСОНАЖА"
+
+msgid "selection.appearance_title"
+msgstr "ВНЕШНИЙ ВИД"
+
+msgid "selection.costume_gallery"
+msgstr "Галерея костюмов"
+
+msgid "selection.color_gallery"
+msgstr "Галерея цветов"
+
+msgid "selection.color_preview"
+msgstr "Цвет {0} / Просмотр отдельных вариантов."
+
+msgid "selection.costume_gallery_title"
+msgstr "ГАЛЕРЕЯ КОСТЮМОВ"
+
+msgid "selection.color_gallery_title"
+msgstr "ГАЛЕРЕЯ ЦВЕТОВ"
+
+msgid "selection.loading_choices"
+msgstr "Загрузка доступных вариантов"
+
+msgid "selection.loading_choices.detail"
+msgstr "Ожидание данных игры о доступных костюмах и цветах."
+
+msgid "selection.no_colors"
+msgstr "Для этого костюма нет открытых цветов."
+
+msgid "selection.color"
+msgstr "Цвет {0}"
+
+msgid "selection.ultra_combo_title"
+msgstr "ULTRA COMBO"
+
+msgid "selection.ultra_double.detail"
+msgstr "Оба Ultra Combo с пониженным уроном или эффектом."
+
+msgid "selection.saved"
+msgstr "СОХРАНЕНО"
+
+msgid "selection.stage_title"
+msgstr "МЕСТО БИТВЫ"
+
+msgid "selection.only_p1_stage"
+msgstr "Только P1 может сменить место битвы."
+
+msgid "selection.options_title"
+msgstr "НАСТРОЙКИ ПЕРСОНАЖА"
+
+msgid "selection.edition"
+msgstr "Издание"
+
+msgid "selection.usfiv_rules"
+msgstr "В зале действуют правила USFIV."
+
+msgid "selection.personal_action"
+msgstr "Провокация"
+
+msgid "common.none"
+msgstr "Нет"
+
+msgid "selection.win_quote"
+msgstr "Победный клич"
+
+msgid "selection.random"
+msgstr "Случайно"
+
+msgid "selection.random_stage"
+msgstr "Случайно"
+
+msgid "selection.random_stage.detail"
+msgstr "Новое место битвы в каждом матче."
+
+msgid "selection.handicap"
+msgstr "Гандикап"
+
+msgid "selection.saved_value"
+msgstr "Сохранено: {0}"
+
+msgid "selection.ultra_selected"
+msgstr "Это Ultra выбрано."
+
+msgid "selection.preview_save"
+msgstr "Просмотр — «Выбрать» сохранит."
+
+msgid "selection.preview_locked"
+msgstr "Только просмотр — выбор заблокирован."
+
+msgid "selection.saved_appearance"
+msgstr "Сохранено: костюм {0} / цвет {1}"
+
+msgid "selection.saved_full"
+msgstr "Сохранено: {0} / костюм {1} / цвет {2}"
+
+msgid "selection.preview_save_short"
+msgstr "Только просмотр — «Выбрать» для сохранения"
+
+msgid "selection.status_editable"
+msgstr "«Выбрать» — сохранить / «Назад» — вернуться."
+
+msgid "selection.status_locked"
+msgstr "Выбор заблокирован — вернитесь к столу."
+
+msgid "runtime.room_recovering"
+msgstr "Управление залом восстанавливается. Соединение матча сохранено."
+
+msgid "runtime.room_lost_fight_continues"
+msgstr "Связь с залом потеряна. Бой продолжается, но реванш и запись результата недоступны."
+
+msgid "runtime.returned_room_lost"
+msgstr "Вы вернулись в меню: во время матча связь с залом пропала."
+
+msgid "runtime.room_request_failed"
+msgstr "Не удалось отправить запрос залу. Выйдите из зала и попробуйте снова."
+
+msgid "runtime.build_mismatch"
+msgstr "Версии сборок различаются. У обоих игроков должен быть один и тот же пакет SF4 Ember Netplay."
+
+msgid "runtime.room_full"
+msgstr "Зал заполнен."
+
+msgid "runtime.name_taken"
+msgstr "Игрок с таким именем уже в зале. Смените имя в настройках."
+
+msgid "runtime.selection_combination_unavailable"
+msgstr "Эта комбинация не допускается правилами зала. Выберите другого персонажа, костюм, цвет или издание."
+
+msgid "runtime.selection_summary"
+msgstr "{0} / костюм {1} / цвет {2} / {3}"
+
+msgid "runtime.selection_unavailable"
+msgstr "Выбор не допускается этими правилами. Откройте «Выбор персонажа» и выберите доступный вариант."
+
+msgid "runtime.open_shortcut"
+msgstr "SF4 Ember Netplay / F10 или Start"
+
+msgid "runtime.waiting_opponent_join"
+msgstr "Ожидание входа соперника в зал..."
+
+msgid "runtime.authorized_connection_unavailable"
+msgstr "Авторизованное соединение для матча недоступно."
+
+msgid "runtime.waiting_opponent_start"
+msgstr "Ожидание соперника в зале перед началом матча."
+
+msgid "runtime.unsupported_stage"
+msgstr "Зал передал неподдерживаемое место битвы. Сбросьте зал и повторите попытку."
+
+msgid "runtime.netplay_input_failed"
+msgstr "Сбой сетевого ввода. Матч завершён."
+
+msgid "runtime.netplay_sync_failed"
+msgstr "Сбой сетевой синхронизации. Матч завершён."
+
+msgid "runtime.invalid_roster"
+msgstr "Некорректный состав матча. Вернитесь в зал и попробуйте снова."
+
+msgid "runtime.ggpo_start_failed"
+msgstr "Не удалось запустить GGPO — вернитесь в зал и снова нажмите «Готов»."
+
+msgid "runtime.ggpo_add_players_failed"
+msgstr "GGPO не смог добавить игроков — вернитесь в зал и снова нажмите «Готов»."
+
+msgid "runtime.rollback_buffer_full"
+msgstr "Буфер отката заполнен. Матч завершён."
+
+msgid "runtime.connection_unstable_prediction"
+msgstr "Связь нестабильна. Игра идёт с предсказанием ввода."
+
+msgid "runtime.connection_restored"
+msgstr "Связь восстановлена."
+
+msgid "runtime.spectator_disconnected"
+msgstr "Зритель отключился."
+
+msgid "runtime.spectator_stream_lost"
+msgstr "Трансляция для зрителя прервалась. Нажмите «Смотреть», чтобы войти в следующий матч."
+
+msgid "runtime.match_connection_lost"
+msgstr "Связь в матче потеряна."
+
+msgid "runtime.opponent_disconnected"
+msgstr "Соперник отключился. Матч окончен."
+
+msgid "runtime.leaving_spectator"
+msgstr "Выход из режима зрителя."
+
+msgid "runtime.returning_room"
+msgstr "Возвращение в зал."
+
+msgid "runtime.table_game_cancelled"
+msgstr "Бой за этим столом отменён. Вернитесь в зал, чтобы снова нажать «Готов»."
+
+msgid "runtime.result_not_recorded"
+msgstr "Не удалось записать результат: стол изменился до подтверждения."
+
+msgid "runtime.participant_left"
+msgstr "Участник матча покинул зал. Бой завершится."
+
+msgid "update.github_unreachable"
+msgstr "Не удалось связаться с GitHub. Проверьте интернет и повторите попытку."
+
+msgid "update.no_version_tag"
+msgstr "У выпуска на GitHub нет метки версии."
+
+msgid "update.no_zip_asset"
+msgstr "В последнем выпуске нет ZIP-пакета SF4 Ember Netplay."
+
+msgid "update.parse_failed"
+msgstr "Не удалось обработать ответ GitHub о выпуске."
+
+msgid "update.missing_url"
+msgstr "Нет адреса загрузки."
+
+msgid "update.missing_version"
+msgstr "Нет метки версии."
+
+msgid "update.close_sf4"
+msgstr "Закройте Ultra Street Fighter IV перед установкой обновления."
+
+msgid "update.install_dir_failed"
+msgstr "Не удалось определить папку установки."
+
+msgid "update.temp_path_failed"
+msgstr "Не удалось задать временный путь обновления ({0})."
+
+msgid "update.temp_folder_failed"
+msgstr "Не удалось создать временную папку обновления ({0})."
+
+msgid "update.temp_access_failed"
+msgstr "Нет доступа к временной папке."
+
+msgid "update.zip_path_failed"
+msgstr "Не удалось задать путь к ZIP обновления."
+
+msgid "update.extract_folder_failed"
+msgstr "Не удалось создать папку распаковки обновления ({0})."
+
+msgid "update.download_failed"
+msgstr "Сбой загрузки ({0}). Скачать вручную: {1} — подробности в %TEMP%\\sf4-netplay-update.log"
+
+msgid "update.verify_failed"
+msgstr "Проверка загрузки не удалась. Попробуйте снова."
+
+msgid "update.integrity_failed"
+msgstr "Обновление не прошло проверку целостности и не установлено. Попробуйте снова или скачайте выпуск вручную с GitHub."
+
+msgid "update.no_digest"
+msgstr "У выпуска нет опубликованной контрольной суммы SHA-256. Автоустановка недоступна."
+
+msgid "update.extract_failed"
+msgstr "Не удалось распаковать обновление."
+
+msgid "update.invalid_paths"
+msgstr "Загруженный пакет содержит недопустимые пути."
+
+msgid "update.missing_binaries"
+msgstr "В загруженном пакете нет Launcher.exe или Sidecar.dll."
+
+msgid "update.staging_path_failed"
+msgstr "Не удалось прочитать временный путь."
+
+msgid "update.validation_failed"
+msgstr "Загруженный пакет не прошёл проверку: отсутствуют нужные файлы."
+
+msgid "update.cancelled"
+msgstr "Обновление отменено до установки."
+
+msgid "update.close_game"
+msgstr "Закройте игру перед установкой обновления."
+
+msgid "update.updater_start_failed"
+msgstr "Не удалось запустить Updater.exe. Переустановите из нового ZIP."
+
+msgid "room.member_left"
+msgstr "Участник вышел"
+
+msgid "room.open_seat"
+msgstr "Свободное место"
+
+msgid "room.status.queued"
+msgstr "В очереди"
+
+msgid "room.status.seated"
+msgstr "За столом"
+
+msgid "room.status.ready"
+msgstr "Готов"
+
+msgid "room.status.playing"
+msgstr "Играет"
+
+msgid "room.status.watching"
+msgstr "Смотрит"
+
+msgid "room.status.watching_next"
+msgstr "Смотрит следующий бой"
+
+msgid "room.status.idle"
+msgstr "Ожидает"
+
+msgid "room.phase.waiting"
+msgstr "Ожидание бойцов"
+
+msgid "room.phase.preparing"
+msgstr "Подготовка боя"
+
+msgid "room.phase.in_game"
+msgstr "Идёт бой"
+
+msgid "room.phase.unresolved"
+msgstr "Результат не установлен"
+
+msgid "room.phase.closed"
+msgstr "Закрыт"
+
+msgid "room.phase.open"
+msgstr "Открыт"
+
+msgid "room.terminal_pending"
+msgstr "Ожидание возвращения всех игроков и зрителей из прошлого матча."
+
+msgid "room.leave.detail"
+msgstr "Отключиться от зала и вернуться на главную. Если скрыть Ember, вы останетесь в зале."
+
+msgid "room.leave.unresolved"
+msgstr " Неустановленный результат не будет записан."
+
+msgid "room.leave.active"
+msgstr " Текущий бой завершится без результата, а ваше место освободится."
+
+msgid "room.leave.seat"
+msgstr " Ваше место освободится."
+
+msgid "room.leave.queue"
+msgstr " Вы потеряете место в очереди."
+
+msgid "room.leave.host"
+msgstr " Другой участник станет ведущим."
+
+msgid "room.action_queue_failed"
+msgstr "Не удалось поставить действие в очередь. Повторите попытку."
+
+msgid "room.table_detail"
+msgstr "{0} против {1}\n{2}\nОчередь: {3} / Зрители: {4}\nВы: {5}"
+
+msgid "room.connecting"
+msgstr "Подключение"
+
+msgid "room.table_occupancy"
+msgstr "Стол {0}   {1}/2"
+
+msgid "room.member_you"
+msgstr "{0} / ВЫ"
+
+msgid "room.member"
+msgstr "{0}"
+
+msgid "room.member_status_host"
+msgstr "{0} / ВЕДУЩИЙ"
+
+msgid "room.member_status"
+msgstr "{0}"
+
+msgid "room.members"
+msgstr "Участники"
+
+msgid "room.member_count"
+msgstr "Участников: {0} / {1}."
+
+msgid "room.chat"
+msgstr "Чат"
+
+msgid "room.chat.detail"
+msgstr "Читайте сообщения и вводите текст с клавиатуры."
+
+msgid "room.change_fighter"
+msgstr "Сменить персонажа"
+
+msgid "room.change_fighter.open_table"
+msgstr "Откройте свой стол, чтобы узнать статус готовности и условия смены персонажа."
+
+msgid "room.settings"
+msgstr "Настройки зала"
+
+msgid "room.settings.detail"
+msgstr "Название, вместимость и доступ в зал."
+
+msgid "room.settings.host_only"
+msgstr "Залом может управлять только ведущий."
+
+msgid "room.connection_status"
+msgstr "Состояние соединения"
+
+msgid "room.opening"
+msgstr "Открытие зала..."
+
+msgid "room.opening_stalled"
+msgstr "Зал не открылся. Проверьте соединение либо остановите операцию и попробуйте снова."
+
+msgid "room.waiting_state"
+msgstr "Ожидание состояния зала."
+
+msgid "room.ready"
+msgstr "Готов"
+
+msgid "room.ready.saved_fighter"
+msgstr "Взять сохранённого персонажа."
+
+msgid "room.copy_invitation"
+msgstr "Копировать приглашение"
+
+msgid "room.copy_invitation.detail"
+msgstr "Поделитесь личным приглашением с друзьями."
+
+msgid "room.leaving"
+msgstr "Выход из зала..."
+
+msgid "room.leave"
+msgstr "Покинуть зал"
+
+msgid "room.replace"
+msgstr "Заменить зал"
+
+msgid "room.replace.detail"
+msgstr "Закрыть зависший зал и открыть новый. Всем придётся войти снова; прежнее приглашение перестанет работать. Неустановленное состояние зала будет сброшено."
+
+msgid "room.replace.waiting"
+msgstr "Прошлый матч ещё закрывается. Замена станет доступна после его завершения."
+
+msgid "room.updating"
+msgstr "Обновление зала..."
+
+msgid "room.battle_slot"
+msgstr "СТОЛ БОЯ {0}"
+
+msgid "room.looking_for_fight"
+msgstr "Ищет бой"
+
+msgid "room.fighter_not_shared"
+msgstr "Персонаж не показан"
+
+msgid "room.suffix_ready"
+msgstr " / ГОТОВ"
+
+msgid "room.suffix_you"
+msgstr " / ВЫ"
+
+msgid "room.table_footer"
+msgstr "Раундов: {0} / {1} с     Очередь: {2}     Зрители: {3}"
+
+msgid "room.board_status_host_slot"
+msgstr "ВЕДУЩИЙ / {0} / Место {1}"
+
+msgid "room.board_status_slot"
+msgstr "{0} / Место {1}"
+
+msgid "room.board_status_host"
+msgstr "ВЕДУЩИЙ / {0}"
+
+msgid "room.board_status"
+msgstr "{0}"
+
+msgid "room.members_heading"
+msgstr "УЧАСТНИКИ  {0} / {1}"
+
+msgid "room.chat_heading"
+msgstr "ЧАТ"
+
+msgid "room.no_messages"
+msgstr "Сообщений пока нет. Выберите «Чат», чтобы написать."
+
+msgid "room.table_explanation"
+msgstr "{0} / Вы: {1}\nОчередь: {2} / Зрители: {3}"
+
+msgid "room.invitation_copied"
+msgstr "Приглашение скопировано."
+
+msgid "room.replacement_opening"
+msgstr "Открывается новый зал. Выберите «Копировать приглашение» и отправьте новую ссылку — старая больше не работает."
+
+msgid "room.action_rejected"
+msgstr "Зал изменился или отклонил действие. Проверьте текущее состояние и попробуйте снова."
+
+msgid "room.leave_current_table"
+msgstr "Сначала покиньте текущий стол."
+
+msgid "room.choose_action"
+msgstr "Выберите действие для этого стола."
+
+msgid "room.result_unresolved.detail"
+msgstr "Прошлый результат не установлен. Выберите «Отказаться от результата» или попросите ведущего отменить бой; победа не будет засчитана."
+
+msgid "room.awaiting_result"
+msgstr "Ожидание отчётов обоих бойцов о результате. После подтверждения готовность сбросится; к следующему матчу вы ещё не готовы."
+
+msgid "room.match_active"
+msgstr "Текущий матч готовится или уже идёт. Дождитесь завершения."
+
+msgid "room.waiting_other_seat"
+msgstr "Ожидание соперника на втором месте. Пока ждёте, можно сменить персонажа."
+
+msgid "room.controller_required"
+msgstr "Назначьте или подключите контроллер в «Настройки > Игрок и контроллер»."
+
+msgid "room.waiting_update"
+msgstr "Ожидание завершения обновления зала."
+
+msgid "room.ready.cancel_detail"
+msgstr "Вы готовы. Отмените готовность, затем выберите «Сменить персонажа»."
+
+msgid "room.ready.locking"
+msgstr "Ваш персонаж закрепляется. Матч начнётся, когда оба игрока будут готовы."
+
+msgid "room.ready.lock_detail"
+msgstr "Закрепите персонажа. Матч начнётся, когда оба игрока будут готовы."
+
+msgid "room.both_ready"
+msgstr "Оба бойца готовы. Матч начинается."
+
+msgid "room.match_in_progress.detail"
+msgstr "Текущий матч идёт. Дождитесь завершения."
+
+msgid "room.unready"
+msgstr "Отменить готовность / выбор"
+
+msgid "room.readying"
+msgstr "Подготовка..."
+
+msgid "room.result_unresolved"
+msgstr "Результат не установлен"
+
+msgid "room.preparing_match"
+msgstr "Подготовка матча"
+
+msgid "room.ready_rematch"
+msgstr "Готов к реваншу"
+
+msgid "room.ready_up"
+msgstr "Готов"
+
+msgid "room.recommended_delay"
+msgstr "Рекомендуемая задержка"
+
+msgid "room.selected_delay"
+msgstr "Выбранная задержка"
+
+msgid "room.selected_delay.detail"
+msgstr "Настройка от 0 до 10 кадров. Изменения применяются сразу."
+
+msgid "room.selected_delay.locked"
+msgstr "Выбранная задержка закреплена на этот матч."
+
+msgid "room.match_delay"
+msgstr "Задержка матча"
+
+msgid "room.match_delay.at_least"
+msgstr "Не менее {0} к."
+
+msgid "room.match_delay.detail"
+msgstr "Оба бойца играют с большей из выбранных задержек. Ваш выбор: {0}; выбор соперника: {1}."
+
+msgid "room.match_delay.pending"
+msgstr "Оба бойца играют с большей из выбранных задержек. Выбор соперника появится, когда он нажмёт «Готов»."
+
+msgid "room.check_connection.two_players"
+msgstr "Для проверки соединения оба места должны быть заняты."
+
+msgid "room.check_connection.unready"
+msgstr "Отмените готовность, чтобы проверить соединение перед следующим матчем."
+
+msgid "room.check_connection.finish_match"
+msgstr "Дождитесь конца текущего матча перед проверкой соединения."
+
+msgid "room.apply_recommendation"
+msgstr "Применить рекомендацию"
+
+msgid "room.apply_recommendation.detail"
+msgstr "Установить выбранную задержку на {0} к."
+
+msgid "room.apply_recommendation.check_first"
+msgstr "Сначала проверьте соединение, чтобы получить рекомендацию."
+
+msgid "room.change_fighter.unready"
+msgstr "Отмените готовность выше, чтобы разблокировать персонажа и внешний вид."
+
+msgid "room.change_fighter.waiting"
+msgstr "Ожидание завершения текущего матча или обновления выбора."
+
+msgid "room.change_fighter.detail"
+msgstr "Выберите персонажа, затем просмотрите галереи костюмов и цветов. Вернитесь сюда и нажмите «Готов»."
+
+msgid "room.leave_seat"
+msgstr "Встать"
+
+msgid "room.leave_seat.abandon_first"
+msgstr "Сначала откажитесь от результата."
+
+msgid "room.leave_seat.finish_first"
+msgstr "Сначала завершите бой или определите результат."
+
+msgid "room.leave_seat.release"
+msgstr "Освободить своё место."
+
+msgid "room.leave_seat.next_player"
+msgstr "Освободить место. Его займёт следующий игрок в очереди."
+
+msgid "room.abandon_result"
+msgstr "Отказаться от результата"
+
+msgid "room.abandon_result.detail"
+msgstr "Результат не будет записан. Оба бойца останутся за столом и смогут снова подтвердить готовность."
+
+msgid "room.leave_queue"
+msgstr "Выйти из очереди"
+
+msgid "room.join_queue"
+msgstr "В очередь"
+
+msgid "room.stop_watching"
+msgstr "Не смотреть"
+
+msgid "room.watch_next"
+msgstr "Смотреть новый бой"
+
+msgid "room.table_rules"
+msgstr "Правила стола"
+
+msgid "room.table_rules.edit"
+msgstr "Изменить правила этого стола."
+
+msgid "room.table_rules.view"
+msgstr "Посмотреть правила этого стола."
+
+msgid "room.cancel_unresolved"
+msgstr "Отменить бой без результата"
+
+msgid "room.cancel_unresolved.detail"
+msgstr "Только для ведущего. Результат не будет записан."
+
+msgid "room.cancel_stuck"
+msgstr "Отменить зависший бой"
+
+msgid "room.cancel_stuck.detail"
+msgstr "Только для ведущего. Используйте, если завершённый бой так и не сообщил результат. Результат не будет записан."
+
+msgid "room.rules.finish_game"
+msgstr "Завершите текущий бой перед изменением правил."
+
+msgid "room.rules.apply_note"
+msgstr "Изменения ещё не применены."
+
+msgid "room.rules.host_only"
+msgstr "Правила стола может менять только ведущий."
+
+msgid "room.apply_rules"
+msgstr "Применить"
+
+msgid "room.apply_rules.detail"
+msgstr "Отправить полный набор новых правил для этого стола."
+
+msgid "room.member_status_host_muted"
+msgstr "{0} / ВЕДУЩИЙ / Чат скрыт"
+
+msgid "room.member_status_muted"
+msgstr "{0} / Чат скрыт"
+
+msgid "room.unmute_member"
+msgstr "Показать чат"
+
+msgid "room.mute_member"
+msgstr "Скрыть чат"
+
+msgid "room.mute_member.detail"
+msgstr "Скрыть чат участника только у вас."
+
+msgid "room.member_left.detail"
+msgstr "Этот участник вышел."
+
+msgid "room.kick_member"
+msgstr "Исключить"
+
+msgid "room.kick_member.detail"
+msgstr "Исключить {0} из зала."
+
+msgid "room.transfer_host"
+msgstr "Сменить ведущего"
+
+msgid "room.transfer_host.detail"
+msgstr "Назначить {0} ведущим зала."
+
+msgid "room.compose_message"
+msgstr "Написать сообщение"
+
+msgid "room.send_message"
+msgstr "Отправить"
+
+msgid "room.send_message.detail"
+msgstr "Отправить подтверждённый текст. Enter в редакторе не отправляет сообщение."
+
+msgid "room.capacity.detail"
+msgstr "Не может быть меньше текущего числа участников."
+
+msgid "room.admission"
+msgstr "Доступ"
+
+msgid "room.locked"
+msgstr "Закрыт"
+
+msgid "room.open"
+msgstr "Открыт"
+
+msgid "room.admission.detail"
+msgstr "Закрытый зал не принимает новых."
+
+msgid "room.apply_name"
+msgstr "Сохранить название"
+
+msgid "room.apply_name.detail"
+msgstr "Сохранить название зала."
+
+msgid "room.apply_capacity"
+msgstr "Применить лимит"
+
+msgid "room.apply_capacity.detail"
+msgstr "Задать лимит зала."
+
+msgid "profile.main_badge"
+msgstr "ОСНОВНОЙ"
+
+msgid "training.shortcuts"
+msgstr "F6 Меню тренировки | F5 Скрыть HUD"
+
+msgid "common.not_set"
+msgstr "Не задано"
+
+msgid "notice.title"
+msgstr "Уведомление"
+
+msgid "notice.error_title"
+msgstr "Произошла ошибка"
+
+msgid "game_settings.title"
+msgstr "Рекомендуемые настройки игры"
+
+msgid "game_settings.intro"
+msgstr "Для игры по сети рекомендуются настройки ниже. Выберите «Игра без сети», затем измените их в меню настроек игры."
+
+msgid "game_settings.frame_rate"
+msgstr "Частота кадров: ПОСТОЯННАЯ (сейчас {0}). Обязательно: другие режимы нарушают откат."
+
+msgid "game_settings.anti_aliasing"
+msgstr "Сглаживание: НЕТ (сейчас {0}). Это снижает нагрузку на видеокарту и задержку."
+
+msgid "game_settings.hide"
+msgstr "Больше не показывать"
+
+msgid "common.ok"
+msgstr "ОК"
+
+msgid "edit.title"
+msgstr "Изменить текст"
+
+msgid "edit.instructions"
+msgstr "Введите или вставьте текст. Enter — принять; Escape или «Назад» — отменить."
+
+msgid "edit.updating"
+msgstr "Зал обновляется. Ваш текст сохранён; можно продолжить ввод или отменить."
+
+msgid "common.accept"
+msgstr "Принять"
+
+msgid "edit.cancel"
+msgstr "Отменить правку"
+
+msgid "discord.unavailable_build"
+msgstr "Интеграция с Discord недоступна в этой сборке."
+
+msgid "runtime.record_invalid"
+msgstr "Локальная статистика матчей повреждена и сохранена без изменений. Отслеживание недоступно."
+
+msgid "runtime.interface_preferences_failed"
+msgstr "Не удалось прочитать настройки интерфейса; используются значения по умолчанию."
+
+msgid "runtime.room_defaults_invalid"
+msgstr "Сохранённые параметры залов недопустимы. Исходные настройки сохранены."
+
+msgid "runtime.network_start_failed"
+msgstr "Не удалось запустить сеть. Игра без сети доступна."
+
+msgid "runtime.network_helper_unavailable"
+msgstr "Сетевой компонент недоступен (ошибка {0}). Игра без сети доступна."
+
+msgid "discord.connecting"
+msgstr "Подключение к Discord..."
+
+msgid "discord.unavailable_gameplay_ok"
+msgstr "Discord недоступен. На игру это не влияет."
+
+msgid "runtime.gameplay_device_disconnected"
+msgstr "Игровое устройство отключилось. Подключите его до следующего матча."
+
+msgid "runtime.controller_assignment_unverified"
+msgstr "Не удалось проверить назначение контроллера для матча. Назначьте его снова."
+
+msgid "runtime.recovery_state_failed"
+msgstr "Не удалось применить состояние восстановления зала. Восстановление приостановлено."
+
+msgid "runtime.room_control_recovering"
+msgstr "Управление залом восстанавливается."
+
+msgid "discord.connected"
+msgstr "Discord подключён"
+
+msgid "discord.registration_failed"
+msgstr "Discord подключён, но зарегистрировать запуск не удалось."
+
+msgid "discord.open_desktop"
+msgstr "Discord недоступен. Откройте приложение Discord, чтобы показывать статус."
+
+msgid "discord.invitation_invalid"
+msgstr "Неверное приглашение Discord."
+
+msgid "discord.invalid_event"
+msgstr "Discord прислал неверное локальное событие."
+
+msgid "discord.companion_stopped"
+msgstr "Модуль Discord остановлен. На игру это не влияет."
+
+msgid "runtime.room_connection_failed"
+msgstr "Сбой соединения с залом. Зал закрывается; неподтверждённые результаты не будут записаны."
+
+msgid "runtime.operation_busy"
+msgstr "Операция занята. Повторите попытку."
+
+msgid "discord.invitation_expired"
+msgstr "Срок приглашения Discord истёк. Попросите новое."
+
+msgid "runtime.spectator_action_retrying"
+msgstr "Не удалось отправить действие зрителя; повторная попытка."
+
+msgid "runtime.return_main_menu"
+msgstr "Вернитесь в главное меню игры, прежде чем открывать зал."
+
+msgid "runtime.room_action_failed"
+msgstr "Не удалось отправить действие в зал. Повторите попытку."
+
+msgid "runtime.preferences_queue_failed"
+msgstr "Не удалось поставить сохранение настроек в очередь. Повторите попытку."
+
+msgid "runtime.lobby_settings_send_failed"
+msgstr "Не удалось отправить настройки зала."
+
+msgid "runtime.room_defaults_save_failed"
+msgstr "Не удалось сохранить параметры залов."
+
+msgid "runtime.connection_check_unavailable"
+msgstr "Проверка соединения недоступна. Можно выбрать задержку и нажать «Готов»."
+
+msgid "runtime.delay_save_failed"
+msgstr "Не удалось сохранить задержку ввода."
+
+msgid "runtime.teardown_report_failed"
+msgstr "Не удалось сообщить о завершении матча; зал закрыт."
+
+msgid "runtime.lobby_defaults_save_failed"
+msgstr "Настройки зала применены, но значения по умолчанию сохранить не удалось."
+
+msgid "runtime.lobby_settings_rejected"
+msgstr "Настройки зала отклонены. Проверьте готовность и повторите попытку."
+
+msgid "runtime.teardown_timeout"
+msgstr "Время завершения матча истекло; зал закрыт."
+
+msgid "runtime.room_catchup_timeout"
+msgstr "Зал не успел синхронизироваться. Последнее действие не применено; попробуйте снова."
+
+msgid "runtime.previous_match_close_timeout"
+msgstr "Прошлый матч не успел завершиться. Примените настройки стола ещё раз."
+
+msgid "runtime.spectator_close_timeout"
+msgstr "Матч не успел завершиться. Просмотр зрителя остановлен."
+
+msgid "runtime.room_closed"
+msgstr "Зал закрыт."
+
+msgid "runtime.removed_from_room"
+msgstr "Вас исключили из зала."
+
+msgid "room.reject.closed"
+msgstr "Зал закрыт."
+
+msgid "room.reject.full"
+msgstr "Зал заполнен."
+
+msgid "room.reject.admission_locked"
+msgstr "Вход новых участников в зал закрыт."
+
+msgid "room.reject.name_taken"
+msgstr "Игрок с таким именем уже в зале. Смените имя в настройках."
+
+msgid "room.reject.stale_room"
+msgstr "Зал изменился до получения вашего действия. Повторите попытку."
+
+msgid "room.reject.stale_table"
+msgstr "Стол изменился до получения вашего действия. Повторите попытку."
+
+msgid "room.reject.wrong_phase"
+msgstr "Стол не готов к этому действию."
+
+msgid "room.reject.wrong_generation"
+msgstr "Этот бой уже закончился."
+
+msgid "room.reject.unauthorized"
+msgstr "Это может сделать только ведущий."
+
+msgid "room.reject.not_seated"
+msgstr "Вы не заняли место за этим столом."
+
+msgid "room.reject.already_seated"
+msgstr "Вы уже сидите за столом."
+
+msgid "room.reject.already_queued"
+msgstr "Вы уже в очереди."
+
+msgid "room.reject.not_queued"
+msgstr "Вас нет в очереди."
+
+msgid "room.reject.not_watching"
+msgstr "Вы не смотрите этот стол."
+
+msgid "room.reject.invalid_rules"
+msgstr "Правила этого стола недопустимы."
+
+msgid "room.reject.invalid_capacity"
+msgstr "Недопустимая вместимость."
+
+msgid "room.reject.invalid_chat"
+msgstr "Не удалось отправить сообщение."
+
+msgid "room.reject.ledger_full"
+msgstr "Ожидание возвращения всех участников из прошлого матча."
+
+msgid "room.reject.other"
+msgstr "Зал отклонил это действие."
+
+msgid "runtime.lock.return_to_menu_fighter"
+msgstr "Вернитесь в главное меню игры, чтобы сменить персонажа."
+
+msgid "runtime.lock.previous_game_closing"
+msgstr "Ожидание завершения прошлого боя."
+
+msgid "runtime.lock.teardown"
+msgstr "Ожидание выхода игроков и зрителей из прошлого матча."
+
+msgid "runtime.lock.room_recovering"
+msgstr "Ожидание восстановления связи с залом."
+
+msgid "runtime.lock.ready_pending"
+msgstr "Ожидание обработки вашей готовности."
+
+msgid "runtime.lock.selection_update"
+msgstr "Ожидание завершения текущего матча или обновления выбора."
+
+msgid "runtime.lock.return_to_menu_ready"
+msgstr "Вернитесь в главное меню игры перед подтверждением готовности."
+
+msgid "runtime.lock.table_settings"
+msgstr "Ожидание применения настроек стола."
+
+msgid "runtime.lock.room_update"
+msgstr "Ожидание завершения обновления зала или матча."
+
+msgid "runtime.ready.control_changed"
+msgstr "Управление залом изменилось до принятия вашей готовности. Нажмите «Готов» снова."
+
+msgid "runtime.ready.assign_controller"
+msgstr "Назначьте или подключите контроллер перед подтверждением готовности."
+
+msgid "runtime.ready.stage_unavailable"
+msgstr "Выбранное место битвы недоступно. Выберите другое на экране выбора персонажа."
+
+msgid "runtime.ready.fighter_unavailable"
+msgstr "Выбранный персонаж недоступен. Выберите другого на экране выбора персонажа."
+
+msgid "runtime.ready.selection_unavailable"
+msgstr "Этот выбор персонажа недоступен. Выберите доступные костюм, цвет, издание и Ultra."
+
+msgid "runtime.ready.take_seat"
+msgstr "Займите место за столом, прежде чем нажать «Готов»."
+
+msgid "runtime.ready.refused"
+msgstr "Зал отклонил вашу готовность. Нажмите «Готов» снова."
+
+msgid "runtime.ready.previous_match_timeout"
+msgstr "Не удалось подтвердить готовность: зал не успел завершить прошлый матч. Нажмите «Готов» снова."
+
+msgid "runtime.room_open_failed"
+msgstr "Не удалось открыть зал. Повторите попытку."
+
+msgid "runtime.match_settings_send_failed"
+msgstr "Не удалось отправить настройки матча."
+
+msgid "runtime.match_record_not_saved"
+msgstr "Не удалось сохранить результат матча. Следующий матч может начаться; попытки сохранения продолжатся."
+
+msgid "runtime.rollback_unsupported_state"
+msgstr "Сетевая игра не смогла сохранить неподдерживаемое состояние игры. Матч завершён."
+
+msgid "runtime.participant_left_room"
+msgstr "Участник матча покинул зал."
+
+msgid "runtime.networking_unavailable"
+msgstr "Сеть недоступна. Игра без сети доступна."
+
+msgid "runtime.room_join_failed"
+msgstr "Не удалось войти в зал. Проверьте приглашение и убедитесь, что у обоих игроков одинаковый пакет SF4 Ember Netplay."
+
+msgid "runtime.room_connection_lost"
+msgstr "Связь с залом потеряна."

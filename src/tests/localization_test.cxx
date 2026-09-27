@@ -1,5 +1,6 @@
 #include "../common/Localization.hxx"
 #include "../ui/Theme.hxx"
+#include "EmbeddedFonts.hxx"
 
 #include <filesystem>
 #include <fstream>
@@ -7,6 +8,11 @@
 #include <set>
 #include <cstdlib>
 #include <regex>
+
+// ImGui's own copy, private to this test, to read the embedded fonts' cmaps.
+#define STB_TRUETYPE_IMPLEMENTATION
+#define STBTT_STATIC
+#include <imstb_truetype.h>
 
 #include "test_support.hxx"
 
@@ -50,35 +56,85 @@ static std::vector<unsigned> Codepoints(const std::string& text) {
     return result;
 }
 
-static bool Covered(unsigned codepoint) {
+static bool HasGlyph(const unsigned char* font, unsigned codepoint) {
+    stbtt_fontinfo info;
+    CHECK(stbtt_InitFont(&info, font, stbtt_GetFontOffsetForIndex(font, 0)));
+    return stbtt_FindGlyphIndex(&info, static_cast<int>(codepoint)) != 0;
+}
+
+// Whether the atlas a locale builds can draw a codepoint, judged by the font
+// bytes that ship: a codepoint in Inter's baked ranges that both Inter weights
+// have, or one the embedded font for the locale's script has.
+static bool Covered(Locale locale, unsigned codepoint) {
+    namespace fonts = sf4e::ui::fonts;
     for (const ImWchar* range = sf4e::ui::UiGlyphRanges; range[0] && range[1]; range += 2)
-        if (codepoint >= range[0] && codepoint <= range[1]) return true;
+        if (codepoint >= range[0] && codepoint <= range[1] &&
+            HasGlyph(fonts::Body, codepoint) && HasGlyph(fonts::Heading, codepoint)) return true;
+    for (const auto& font : fonts::ScriptFonts)
+        if (font.script == sf4e::loc::ScriptOf(locale)) return HasGlyph(font.data, codepoint);
     return false;
 }
 
 int main(int argc, char** argv) {
     using namespace sf4e::loc;
-    CHECK(ResolveLocale("en", {"pt-BR"}) == Locale::En);
-    CHECK(ResolveLocale("pt-BR", {"en-US"}) == Locale::PtBR);
-    CHECK(ResolveLocale("es-419", {}) == Locale::Es419);
-    CHECK(ResolveLocale("auto", {"fr-FR", "es-MX", "en-US"}) == Locale::Es419);
-    CHECK(ResolveLocale("auto", {"PT_br"}) == Locale::PtBR);
-    CHECK(ResolveLocale("auto", {"EN-us"}) == Locale::En);
-    CHECK(ResolveLocale("invalid", {"fr-FR", "pt-PT"}) == Locale::PtBR);
-    CHECK(ResolveLocale("auto", {}) == Locale::En);
+    CHECK(ResolveLocale("en", "", {"pt-BR"}) == Locale::En);
+    CHECK(ResolveLocale("pt-BR", "JPN", {"en-US"}) == Locale::PtBR);
+    CHECK(ResolveLocale("es-419", "", {}) == Locale::Es419);
+    CHECK(ResolveLocale("auto", "", {"xx-XX", "es-MX", "en-US"}) == Locale::Es419);
+    CHECK(ResolveLocale("auto", "", {"PT_br"}) == Locale::PtBR);
+    CHECK(ResolveLocale("auto", "", {"EN-us"}) == Locale::En);
+    CHECK(ResolveLocale("invalid", "", {"xx-XX", "pt-PT"}) == Locale::PtBR);
+    CHECK(ResolveLocale("auto", "", {}) == Locale::En);
+    // The game's language leads, except ENG, which the game also uses for
+    // every language it lacks.
+    CHECK(ResolveLocale("auto", "BRA", {"en-US"}) == Locale::PtBR);
+    CHECK(ResolveLocale("auto", "ENG", {"pt-BR"}) == Locale::PtBR);
+    CHECK(ResolveLocale("auto", "XYZ", {"pt-BR"}) == Locale::PtBR);
+    // One Spanish in the game: Latin American Windows keeps es-419.
+    CHECK(ResolveLocale("auto", "SPA", {"es-MX"}) == Locale::Es419);
+    CHECK(ResolveLocale("auto", "SPA", {"en-US", "es-419"}) == Locale::Es419);
+    // Spanish regions: the primary subtag alone is not enough.
+    CHECK(ResolveLocale("auto", "", {"es-US"}) == Locale::Es419);
+    CHECK(ResolveLocale("auto", "", {"esx-MX"}) == Locale::En);
+    CHECK(ResolveLocale("auto", "", {"e"}) == Locale::En);
+    CHECK(ResolveLocale("auto", "", {"es-ES"}) == Locale::EsES);
+    CHECK(ResolveLocale("auto", "", {"es"}) == Locale::EsES);
+    CHECK(ResolveLocale("auto", "", {"es-GQ"}) == Locale::EsES);
+    CHECK(ResolveLocale("auto", "SPA", {"en-US"}) == Locale::EsES);
+    CHECK(ResolveLocale("auto", "SPA", {}) == Locale::EsES);
+    // Every USF4 language but English selects its catalog.
+    const std::pair<const char*, Locale> games[] = {{"JPN", Locale::Ja}, {"FRA", Locale::Fr}, {"ITA", Locale::It},
+        {"GER", Locale::De}, {"SPA", Locale::EsES}, {"KOR", Locale::Ko}, {"RUS", Locale::Ru}, {"POL", Locale::Pl},
+        {"DUT", Locale::Nl}, {"CHI", Locale::ZhHans}, {"CZE", Locale::Cs}, {"BRA", Locale::PtBR}};
+    for (const auto& game : games) CHECK(ResolveLocale("auto", game.first, {"en-US"}) == game.second);
+    // The game's single Chinese is Simplified; it serves every Chinese Windows.
+    CHECK(ResolveLocale("auto", "", {"zh-TW"}) == Locale::ZhHans);
+    CHECK(ResolveLocale("auto", "", {"zh-Hant-HK"}) == Locale::ZhHans);
+    CHECK(ResolveLocale("auto", "", {"zh-CN"}) == Locale::ZhHans);
+    CHECK(ResolveLocale("auto", "", {"ja-JP"}) == Locale::Ja);
+    CHECK(ResolveLocale("auto", "", {"fr-CA"}) == Locale::Fr);
+    CHECK(ResolveLocale("auto", "", {"nl-BE"}) == Locale::Nl);
+    CHECK(ResolveLocale("auto", "", {"xx-XX", "de-AT", "ru-RU"}) == Locale::De);
+    CHECK(ScriptOf(Locale::Ru) == sf4e::loc::Script::Cyrillic && ScriptOf(Locale::Ko) == sf4e::loc::Script::Korean);
+    for (int i = 0; i < static_cast<int>(Locale::Count); ++i) {
+        const auto locale = static_cast<Locale>(i);
+        CHECK(ResolveLocale(Tag(locale), "", {}) == locale);
+        CHECK(ResolveLocale("auto", "", {Tag(locale)}) == locale);
+    }
     CHECK(ValidPreference("auto") && ValidPreference("en") && ValidPreference("pt-BR") && ValidPreference("es-419"));
-    CHECK(!ValidPreference("PT-br") && !ValidPreference("") && !ValidPreference("fr"));
+    CHECK(!ValidPreference("PT-br") && !ValidPreference("") && !ValidPreference("xx") && !ValidPreference("zh"));
     CHECK(Active() == Locale::En);
 
-    // Cycling stays inside the table in both directions and wraps at "auto".
+    // Cycling visits every tag in table order in both directions and wraps at "auto".
     std::string_view preference = "auto";
-    for (const char* expected : {"en", "pt-BR", "es-419", "auto", "en"}) {
+    for (int i = 0; i < static_cast<int>(Locale::Count); ++i) {
         preference = NextPreference(preference, 1);
-        CHECK(preference == expected);
+        CHECK(preference == Tag(static_cast<Locale>(i)));
     }
+    CHECK(NextPreference(preference, 1) == "auto");
     CHECK(NextPreference("en", -1) == "auto");
-    CHECK(NextPreference("auto", -1) == "es-419");
-    CHECK(NextPreference("fr", 1) == "en");
+    CHECK(NextPreference("auto", -1) == Tag(static_cast<Locale>(static_cast<int>(Locale::Count) - 1)));
+    CHECK(NextPreference("xx", 1) == "en");
 
     Catalog parsed;
     std::string error;
@@ -92,21 +148,35 @@ int main(int argc, char** argv) {
 
     CHECK(argc >= 2);
     const auto root = std::filesystem::path(argv[1]);
-    Catalog catalogs[3];
-    const char* files[] = {"en.po", "pt-BR.po", "es-419.po"};
-    for (int i = 0; i < 3; ++i) {
-        CHECK(testing::ParsePo(Read(root / "locales" / files[i]), catalogs[i], error));
+    constexpr std::size_t count = static_cast<std::size_t>(Locale::Count);
+    Catalog catalogs[count];
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto locale = static_cast<Locale>(i);
+        const auto source = Read(root / "locales" / (std::string(Tag(locale)) + ".po"));
+        CHECK(testing::ParsePo(source, catalogs[i], error));
         CHECK(!catalogs[i].empty());
         for (const auto& entry : catalogs[i]) CHECK(!entry.first.empty() && !entry.second.empty());
     }
-    CHECK(catalogs[0].size() == catalogs[1].size() && catalogs[0].size() == catalogs[2].size());
-    for (const auto& entry : catalogs[0]) {
-        CHECK(catalogs[1].count(entry.first) && catalogs[2].count(entry.first));
-        CHECK(Placeholders(entry.second) == Placeholders(catalogs[1][entry.first]));
-        CHECK(Placeholders(entry.second) == Placeholders(catalogs[2][entry.first]));
+    for (std::size_t i = 1; i < count; ++i) {
+        CHECK(catalogs[i].size() == catalogs[0].size());
+        for (const auto& entry : catalogs[0]) {
+            if (!catalogs[i].count(entry.first)) {
+                std::cerr << Tag(static_cast<Locale>(i)) << " lacks " << entry.first << '\n'; std::exit(1);
+            }
+            CHECK(Placeholders(entry.second) == Placeholders(catalogs[i][entry.first]));
+        }
     }
-    for (const auto& catalog : catalogs) for (const auto& entry : catalog)
-        for (const auto codepoint : Codepoints(entry.second)) CHECK(codepoint < 0x20 || Covered(codepoint));
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto locale = static_cast<Locale>(i);
+        std::vector<unsigned> text = Codepoints(NativeName(locale));
+        for (const auto& entry : catalogs[i]) for (const auto codepoint : Codepoints(entry.second)) text.push_back(codepoint);
+        for (const auto codepoint : text) {
+            if (codepoint < 0x20 || Covered(locale, codepoint)) continue;
+            std::cerr << Tag(locale) << " uses U+" << std::hex << codepoint << " that its fonts lack; "
+                "run scripts/subset-cjk-fonts.py for CJK catalogs\n";
+            std::exit(1);
+        }
+    }
 
     std::string sources;
     for (const auto& item : std::filesystem::recursive_directory_iterator(root / "src")) {
@@ -128,6 +198,8 @@ int main(int argc, char** argv) {
     const auto args = fmt::make_format_args(value);
     CHECK(detail::Format("{0} frames", "connection.frames", args) == "7 frames");
     CHECK(detail::Format("broken {", "connection.frames", args) == "7 frames");
+    CHECK(DisplayText(Locale::PtBR).find("Idioma") != std::string::npos);
+    CHECK(DisplayText(Locale::Ja).find("settings.language") == std::string::npos);
     SetActive(Locale::PtBR); CHECK(std::string(T("settings.language")) == "Idioma");
     SetActive(Locale::Es419); CHECK(std::string(T("settings.language")) == "Idioma");
     SetActive(Locale::En); CHECK(std::string(T("missing.test.id")) == "missing.test.id");

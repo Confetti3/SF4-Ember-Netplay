@@ -1,0 +1,2095 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: fr\n"
+
+msgid "app.name"
+msgstr "SF4 Ember Netplay"
+
+msgid "common.back"
+msgstr "Retour"
+
+msgid "common.cancel"
+msgstr "Annuler"
+
+msgid "common.close"
+msgstr "Fermer"
+
+msgid "common.confirm"
+msgstr "Confirmer"
+
+msgid "common.on"
+msgstr "Oui"
+
+msgid "common.off"
+msgstr "Non"
+
+msgid "common.unavailable"
+msgstr "Indisponible"
+
+msgid "common.saving"
+msgstr "Sauvegarde..."
+
+msgid "common.saved"
+msgstr "Enregistré"
+
+msgid "common.save_failed"
+msgstr "Non sauvegardé"
+
+msgid "confirm.title"
+msgstr "Confirmer"
+
+msgid "confirm.question"
+msgstr "{0} ?"
+
+msgid "confirm.updating"
+msgstr "Mise à jour du salon. Vous pouvez encore annuler."
+
+msgid "launcher.update_failed"
+msgstr "Impossible d'installer la mise à jour. Fermez le jeu et l'ancien lanceur avant de réessayer. Voir %TEMP%\\sf4-netplay-update.log ; les copies conservées sont dans .ember-update-backups."
+
+msgid "launcher.recovery_title"
+msgstr "Récupération"
+
+msgid "launcher.path_failed"
+msgstr "Impossible de configurer le chemin de recherche. Extrayez le paquet complet dans un dossier accessible en écriture."
+
+msgid "launcher.game_not_found"
+msgstr "Ultra Street Fighter IV est introuvable."
+
+msgid "launcher.sidecar_missing"
+msgstr "Sidecar.dll est absent ou son chemin est inutilisable par l'injecteur. Extrayez le paquet complet dans un chemin local simple."
+
+msgid "launcher.runtime_outdated"
+msgstr "Votre environnement Microsoft Visual C++ est obsolète et le jeu planterait au démarrage. Installez la dernière version de Visual C++ Redistributable (x86), puis relancez Ember.\n\nOuvrir la page de téléchargement ?"
+
+msgid "launcher.already_running"
+msgstr "SF4 Ember Netplay est déjà lancé. S'il est invisible, arrêtez Launcher.exe et SSFIV.exe dans le Gestionnaire des tâches, puis relancez Ember."
+
+msgid "launcher.start_failed"
+msgstr "Échec du lancement ou de l'injection. Consultez le journal du lanceur et réessayez."
+
+msgid "launcher.game_error"
+msgstr "Le jeu s'est fermé avec une erreur. Consultez le journal du lanceur et réessayez."
+
+msgid "launcher.runtime_shadowed"
+msgstr "Le jeu chargerait ces fichiers à la place de ceux du dossier Ember. Une ancienne copie bloque son démarrage (\"entry point ggpo_get_last_confirmed_frame not found\"). Ils proviennent d'un autre mod netplay ou d'une ancienne installation. Déplacez-les ou renommez-les, puis relancez Ember :\n\n{0}"
+
+msgid "launcher.game_wrong_dll"
+msgstr "Le jeu s'est arrêté avant le lancement d'Ember : une DLL chargée ne fournit pas une fonction. Une ancienne GGPO.dll, spdlog.dll, fmt.dll ou zlib1.dll d'un autre mod se trouve probablement près de SSFIV.exe. Déplacez ces fichiers, puis réessayez. Sinon, envoyez le journal du lanceur."
+
+msgid "recovery.window"
+msgstr "Récupération Ember"
+
+msgid "recovery.d3d_failed"
+msgstr "Impossible d'initialiser Direct3D 9 pour la récupération. Voir %APPDATA%\\sf4e\\logs\\launcher.log."
+
+msgid "recovery.choose_folder_title"
+msgstr "Choisissez le dossier contenant SSFIV.exe"
+
+msgid "recovery.folder_selected"
+msgstr "Dossier choisi. Vous pouvez réessayer."
+
+msgid "recovery.folder_invalid"
+msgstr "Ce dossier ne contient pas SSFIV.exe."
+
+msgid "recovery.title"
+msgstr "RÉCUPÉRATION"
+
+msgid "updates.title"
+msgstr "MISES À JOUR"
+
+msgid "recovery.choose_folder"
+msgstr "Dossier du jeu"
+
+msgid "recovery.choose_folder_detail"
+msgstr "Choisissez le dossier d'installation d'Ultra Street Fighter IV contenant SSFIV.exe. Le jeu n'est pas inclus dans ce paquet."
+
+msgid "recovery.retry"
+msgstr "Relancer le jeu"
+
+msgid "recovery.retry_busy"
+msgstr "Annulez ou terminez d'abord l'opération en cours."
+
+msgid "recovery.retry_detail"
+msgstr "Réessayez avec le dossier choisi. L'absence de l'assistant réseau n'empêche pas de jouer hors ligne."
+
+msgid "updates.check"
+msgstr "Chercher des mises à jour"
+
+msgid "updates.busy"
+msgstr "Une opération est déjà en cours."
+
+msgid "updates.check_detail"
+msgstr "Chercher une nouvelle version d'Ember."
+
+msgid "updates.install"
+msgstr "Télécharger et installer"
+
+msgid "updates.install_detail"
+msgstr "Fermez SF4 avant l'installation. Le paquet est vérifié avant d'être installé. Vos paramètres personnels sont conservés."
+
+msgid "updates.unverified"
+msgstr "Cette mise à jour n'a pas de somme de contrôle et ne peut pas être installée."
+
+msgid "updates.cancel"
+msgstr "Annuler l'opération"
+
+msgid "updates.cancel_detail"
+msgstr "Annulez le téléchargement ou la recherche en cours. Attendez la fin de l'annulation avant de réessayer."
+
+msgid "recovery.close_detail"
+msgstr "Fermer la récupération sans lancer SF4. Toute opération en cours est annulée."
+
+msgid "updates.downloaded_mb"
+msgstr "{0:.1f} Mo téléchargés"
+
+msgid "services.checking"
+msgstr "Recherche de mises à jour..."
+
+msgid "services.exporting"
+msgstr "Export du diagnostic..."
+
+msgid "services.downloading"
+msgstr "Téléchargement et vérification..."
+
+msgid "services.opening_updater"
+msgstr "Lancement de la mise à jour..."
+
+msgid "services.update_available"
+msgstr "Mise à jour disponible : {0}"
+
+msgid "services.up_to_date"
+msgstr "Vous êtes à jour."
+
+msgid "services.diagnostics_saved"
+msgstr "Enregistré dans %APPDATA%\\sf4e\\diagnostics\\ember-diagnostics.txt"
+
+msgid "services.diagnostics_failed"
+msgstr "Impossible d'enregistrer le diagnostic. Réessayez."
+
+msgid "services.updater_start_failed"
+msgstr "L'outil de mise à jour ne démarre pas. Réessayez."
+
+msgid "services.game_closing"
+msgstr "Fermeture du jeu. L'outil de mise à jour s'ouvrira ensuite."
+
+msgid "services.no_verified_update"
+msgstr "Aucune mise à jour vérifiée disponible. Relancez la recherche."
+
+msgid "services.update_prepared"
+msgstr "Mise à jour prête. Redémarrage de SF4 Ember Netplay..."
+
+msgid "services.operation_failed"
+msgstr "Échec de l'opération. Réessayez. Les copies de récupération sont dans .ember-update-backups."
+
+msgid "services.operation_cancelled"
+msgstr "Opération annulée."
+
+msgid "services.opening_community"
+msgstr "Ouverture du Discord Ember dans votre navigateur..."
+
+msgid "services.community_opened"
+msgstr "Page ouverte dans votre navigateur. Rejoignez-y le serveur."
+
+msgid "services.community_failed"
+msgstr "Impossible d'ouvrir un navigateur. Rendez-vous sur {0}."
+
+msgid "settings.language"
+msgstr "Langue"
+
+msgid "settings.language.detail"
+msgstr "Change aussitôt la langue d'Ember. Le mode automatique suit celle du jeu, puis celle de Windows."
+
+msgid "settings.language.system_with"
+msgstr "Automatique — {0}"
+
+msgid "settings.language_save_failed"
+msgstr "Impossible d'enregistrer la langue choisie. Elle reste active pour cette session."
+
+msgid "menu.edit_detail"
+msgstr "Sélectionnez, saisissez ou collez. Enter valide ; Retour annule."
+
+msgid "menu.edit_unavailable"
+msgstr "Modification indisponible actuellement."
+
+msgid "menu.edit"
+msgstr "Modifier"
+
+msgid "menu.review"
+msgstr "Vérifier"
+
+msgid "menu.select"
+msgstr "Sélectionner"
+
+msgid "menu.navigate"
+msgstr "Naviguer"
+
+msgid "menu.adjust"
+msgstr "Régler"
+
+msgid "rules.edition_select"
+msgstr "Édition spéciale"
+
+msgid "rules.rounds"
+msgstr "Rounds"
+
+msgid "rules.round_time"
+msgstr "Temps du round"
+
+msgid "screen.home"
+msgstr "Accueil"
+
+msgid "screen.online"
+msgstr "Jeu en ligne"
+
+msgid "screen.selection"
+msgstr "Sélection personnage"
+
+msgid "screen.player"
+msgstr "Joueur et manette"
+
+msgid "screen.defaults"
+msgstr "Réglages par défaut"
+
+msgid "screen.main_character"
+msgstr "Perso principal"
+
+msgid "screen.about"
+msgstr "Aide et infos"
+
+msgid "screen.room"
+msgstr "Salon"
+
+msgid "screen.table"
+msgstr "Table"
+
+msgid "screen.table_rules"
+msgstr "Règles"
+
+msgid "screen.members"
+msgstr "Membres"
+
+msgid "screen.member"
+msgstr "Membre"
+
+msgid "screen.chat"
+msgstr "Chat"
+
+msgid "screen.room_settings"
+msgstr "Paramètres du salon"
+
+msgid "screen.practice_position"
+msgstr "Position d'entraînement"
+
+msgid "screen.dummy_recording"
+msgstr "Enreg. mannequin"
+
+msgid "screen.input_history"
+msgstr "Historique"
+
+msgid "room.wait.leaving"
+msgstr "Sortie du salon. Attente de la fermeture de la connexion..."
+
+msgid "room.wait.joining"
+msgstr "Entrée dans le salon. Attente des autres joueurs..."
+
+msgid "room.wait.closed"
+msgstr "Ce salon a fermé. Retournez au Jeu en ligne pour en rejoindre un autre."
+
+msgid "room.wait.recovering"
+msgstr "La connexion au salon se rétablit. Vous pouvez toujours le quitter."
+
+msgid "room.wait.updating"
+msgstr "Mise à jour du salon. Brève pause possible."
+
+msgid "connection.checking"
+msgstr "Vérification..."
+
+msgid "connection.checking_detail"
+msgstr "Mesure des paquets de jeu pendant cinq secondes, plus l'établissement de la connexion. Vous pouvez régler le délai manuellement."
+
+msgid "connection.checking_action"
+msgstr "Test de connexion..."
+
+msgid "connection.frames"
+msgstr "{0} trames"
+
+msgid "connection.result_detail"
+msgstr "Connexion {0}. RTT médian {1} ms ; p95 {2} ms ; p99 {3} ms. Variation RTT {4} ms. {5} envois, {6} réponses, {7} pertes. Appliquez cette recommandation ou choisissez votre délai."
+
+msgid "connection.route_direct"
+msgstr "Directe"
+
+msgid "connection.route_relayed"
+msgstr "Via relais"
+
+msgid "connection.route_unknown"
+msgstr "Inconnue"
+
+msgid "connection.relayed_advice"
+msgstr "Une connexion relayée signifie que vos réseaux ne peuvent pas se joindre directement : le trafic passe par un serveur relais. Les combats restent possibles ; utilisez le délai conseillé. Pour une connexion directe, chaque joueur peut activer UPnP sur son routeur, rediriger le port UDP 45760 vers son PC ou désactiver son VPN."
+
+msgid "connection.check_again"
+msgstr "Revérifier la connexion"
+
+msgid "connection.no_recommendation"
+msgstr "Aucune recommandation"
+
+msgid "connection.timed_out"
+msgstr "La vérification a expiré. Réessayez ou choisissez un délai et passez à Prêt."
+
+msgid "connection.invalidated"
+msgstr "La connexion ou l'adversaire a changé. Revérifiez ou choisissez un délai et passez à Prêt."
+
+msgid "connection.local_overload"
+msgstr "Ce PC n'a pas pu envoyer tous les paquets à temps. Réessayez en réduisant la charge ou réglez le délai vous-même."
+
+msgid "connection.insufficient"
+msgstr "La vérification n'a pas reçu assez de réponses. Réessayez ou choisissez un délai et passez à Prêt ; la recommandation est facultative."
+
+msgid "connection.packet_summary"
+msgstr " {0} paquets envoyés sur {1} prévus ; {2} réponses, {3} pertes."
+
+msgid "connection.retry"
+msgstr "Revérifier la connexion"
+
+msgid "connection.not_checked"
+msgstr "Non vérifiée"
+
+msgid "connection.not_checked_detail"
+msgstr "Vérifiez la connexion avec l'adversaire pour obtenir un délai conseillé. C'est facultatif : vous pouvez choisir un délai et passer à Prêt."
+
+msgid "connection.check"
+msgstr "Vérifier la connexion"
+
+msgid "error.queue_failed"
+msgstr "Impossible de mettre l'action en attente. Réessayez."
+
+msgid "notice.left_room"
+msgstr "Salon quitté."
+
+msgid "notice.profile_saved"
+msgstr "Portrait du profil enregistré : {0}"
+
+msgid "error.settings_not_saved"
+msgstr "Paramètres non enregistrés. Réessayez quand le menu sera disponible."
+
+msgid "shell.home_title"
+msgstr "SF4 EMBER"
+
+msgid "settings.auto_save"
+msgstr "Sauvegarde automatique."
+
+msgid "settings.leave_room_to_edit"
+msgstr "Quittez le salon pour changer vos réglages."
+
+msgid "controller.assign_title"
+msgstr "ATTRIBUER UNE MANETTE"
+
+msgid "controller.cancel_assignment"
+msgstr "Annuler l'attribution de la manette"
+
+msgid "controller.press_button"
+msgstr "Appuyez sur un bouton de la manette choisie."
+
+msgid "controller.release_buttons"
+msgstr "Relâchez tous les boutons pour continuer."
+
+msgid "home.online"
+msgstr "Jeu en ligne"
+
+msgid "home.online_detail"
+msgstr "Créez un salon privé ou rejoignez-en un par invitation."
+
+msgid "home.return_room"
+msgstr "Retourner à votre salon actuel."
+
+msgid "home.fighter_select"
+msgstr "Sélection personnage"
+
+msgid "home.selection_locked"
+msgstr "Retournez à votre table pour voir l'état de la sélection."
+
+msgid "home.profile"
+msgstr "Profil"
+
+msgid "home.profile_detail"
+msgstr "Votre nom, personnage principal et bilan en ligne confirmé localement."
+
+msgid "home.settings"
+msgstr "Paramètres"
+
+msgid "home.settings_detail"
+msgstr "Joueur, manette, réglages de jeu, interface et Discord."
+
+msgid "home.about"
+msgstr "Aide et infos"
+
+msgid "home.about_detail"
+msgstr "Commandes, diagnostic, mises à jour et crédits."
+
+msgid "home.offline"
+msgstr "Jouer hors ligne"
+
+msgid "home.offline_detail"
+msgstr "Ouvrir les menus hors ligne du jeu."
+
+msgid "home.choose_controller"
+msgstr "Choisir la manette de jeu"
+
+msgid "home.choose_controller_detail"
+msgstr "Une attribution explicite est nécessaire avant de jouer en ligne."
+
+msgid "profile.title"
+msgstr "PROFIL"
+
+msgid "profile.player_name"
+msgstr "Nom du joueur"
+
+msgid "profile.main_character"
+msgstr "Perso principal"
+
+msgid "profile.main_character_detail"
+msgstr "{0}. Affiché sur votre carte de joueur, indépendamment du choix en combat."
+
+msgid "profile.record"
+msgstr "Victoires / défaites"
+
+msgid "profile.record_detail"
+msgstr "{0} victoires / {1} défaites. Matchs en ligne confirmés localement depuis le début du suivi ; égalités, annulations, matchs hors ligne et résultats non résolus exclus."
+
+msgid "profile.record_unavailable"
+msgstr "Bilan indisponible. Les paramètres d'origine sont conservés."
+
+msgid "profile.record_value"
+msgstr "{0} V / {1} D"
+
+msgid "profile.choose_main_title"
+msgstr "CHOISIR VOTRE PERSO"
+
+msgid "profile.choose_main_detail"
+msgstr "Enregistrez votre perso principal sur votre carte de joueur."
+
+msgid "profile.leave_room_to_edit"
+msgstr "Quittez le salon pour modifier votre profil."
+
+msgid "online.title"
+msgstr "JEU EN LIGNE"
+
+msgid "online.create"
+msgstr "Créer un salon"
+
+msgid "online.create_detail"
+msgstr "Créer un salon privé."
+
+msgid "online.join"
+msgstr "Rejoindre"
+
+msgid "online.join_detail"
+msgstr "Collez une invitation."
+
+msgid "room.create_title"
+msgstr "CRÉER UN SALON"
+
+msgid "settings.gameplay_defaults_title"
+msgstr "RÉGLAGES PAR DÉFAUT"
+
+msgid "settings.input_delay"
+msgstr "Latence d'entrée"
+
+msgid "room.name"
+msgstr "Nom du salon"
+
+msgid "room.capacity"
+msgstr "Capacité"
+
+msgid "room.capacity_detail"
+msgstr "Nombre maximal de membres, spectateurs compris."
+
+msgid "room.stop_creating"
+msgstr "Annuler la création du salon."
+
+msgid "room.stop_creating_action"
+msgstr "Arrêter la création"
+
+msgid "room.create_requirements"
+msgstr "Le réseau et une manette de jeu attribuée doivent être prêts."
+
+msgid "room.join_title"
+msgstr "REJOINDRE"
+
+msgid "room.paste_invitation"
+msgstr "Coller l'invitation"
+
+msgid "room.paste_invitation_detail"
+msgstr "Copiez une invitation Ember, puis sélectionnez cette ligne."
+
+msgid "room.stop_joining"
+msgstr "Cesser de rejoindre ce salon."
+
+msgid "room.stop_joining_action"
+msgstr "Annuler l'entrée"
+
+msgid "room.join_pasted"
+msgstr "Rejoindre avec l'invitation collée."
+
+msgid "room.edit_invitation"
+msgstr "Modifier l'invitation"
+
+msgid "settings.title"
+msgstr "PARAMÈTRES"
+
+msgid "settings.player_detail"
+msgstr "Nom affiché et attribution de la manette."
+
+msgid "settings.defaults_detail"
+msgstr "Latence et réglages des nouveaux salons."
+
+msgid "settings.interface"
+msgstr "Interface"
+
+msgid "settings.interface_detail"
+msgstr "HUD de combat et taille d'interface."
+
+msgid "settings.discord_detail"
+msgstr "Activité et invitations."
+
+msgid "player.title"
+msgstr "JOUEUR ET MANETTE"
+
+msgid "player.display_name"
+msgstr "Nom affiché"
+
+msgid "player.change_controller"
+msgstr "Changer de manette"
+
+msgid "player.change_controller_detail"
+msgstr "{0}. Relâchez, appuyez, puis relâchez pour attribuer."
+
+msgid "player.use_keyboard"
+msgstr "Clavier"
+
+msgid "player.use_keyboard_detail"
+msgstr "Attribuer explicitement le clavier."
+
+msgid "player.native_menus"
+msgstr "Ouvrir les menus du jeu"
+
+msgid "player.native_menus_detail"
+msgstr "Ember se fermera. Choisissez Options dans le menu du jeu pour configurer les boutons de combat."
+
+msgid "settings.interface_title"
+msgstr "INTERFACE"
+
+msgid "size.small"
+msgstr "Petit"
+
+msgid "size.standard"
+msgstr "Standard"
+
+msgid "size.large"
+msgstr "Grand"
+
+msgid "settings.match_hud"
+msgstr "HUD du combat"
+
+msgid "settings.match_hud_size"
+msgstr "Taille en combat"
+
+msgid "settings.match_hud_size_detail"
+msgstr "Taille du texte et du panneau en combat."
+
+msgid "settings.bottom_spacing"
+msgstr "Marge inférieure"
+
+msgid "spacing.raised"
+msgstr "Relevé"
+
+msgid "spacing.normal"
+msgstr "Normal"
+
+msgid "settings.bottom_spacing_detail"
+msgstr "Éloigne l'affichage du combat du bord inférieur."
+
+msgid "settings.interface_size"
+msgstr "Taille interface"
+
+msgid "discord.show_activity"
+msgstr "Afficher l'activité"
+
+msgid "discord.allow_invitations"
+msgstr "Invitations"
+
+msgid "discord.invitation_detail"
+msgstr "Les invitations donnent accès à votre salon."
+
+msgid "discord.enable_first"
+msgstr "Activez d'abord l'activité Discord."
+
+msgid "discord.invitation_title"
+msgstr "INVITATION DISCORD"
+
+msgid "discord.cancel_invitation"
+msgstr "Refuser l'invitation"
+
+msgid "discord.cancel_invitation_detail"
+msgstr "Écarter l'invitation sans quitter votre salon actuel."
+
+msgid "discord.switch_room"
+msgstr "Rejoindre le salon invité"
+
+msgid "discord.switch_room_detail"
+msgstr "Quitter ce salon et rejoindre celui de l'invitation."
+
+msgid "discord.wait_game"
+msgstr "Attendez la fin du match en cours."
+
+msgid "discord.invitation_pending"
+msgstr "Invitation en attente"
+
+msgid "discord.invitation_pending_detail"
+msgstr "Attente du menu principal, du réseau et d'une manette attribuée."
+
+msgid "about.title"
+msgstr "AIDE ET INFOS"
+
+msgid "about.controls"
+msgstr "Commandes"
+
+msgid "about.controls_detail"
+msgstr "Xbox : A sélectionne ; B revient, quels que soient les boutons de combat. DirectInput : LP associé sélectionne ; LK revient. D-pad navigue ; gauche/droite règle. À l'entraînement, clavier et souris : F6 ouvre/ferme, les flèches naviguent, Enter sélectionne, Esc revient. Start ouvre seulement la pause du jeu. F10 ouvre Ember au menu principal ; F5-F8 sont des raccourcis d'entraînement."
+
+msgid "about.ember"
+msgstr "À propos d'Ember"
+
+msgid "about.ember_detail"
+msgstr "Mod non officiel d'Ultra Street Fighter IV, basé sur sf4e d'Anthony Danducci. Iroh / QUIC, GGPO, Dear ImGui et police Inter. Version : {0}"
+
+msgid "about.font_license"
+msgstr "Licence police"
+
+msgid "about.export_diagnostics"
+msgstr "Exporter le diagnostic"
+
+msgid "about.export_diagnostics_detail"
+msgstr "Exporte l'état des connexions sans invitations ni identifiants."
+
+msgid "about.updates_detail"
+msgstr "Chercher une nouvelle version d'Ember."
+
+msgid "about.open_updater"
+msgstr "Ouvrir la mise à jour"
+
+msgid "about.open_updater_detail"
+msgstr "Le jeu se fermera. Quittez d'abord votre salon."
+
+msgid "about.open_recovery"
+msgstr "Ouvrir la récupération"
+
+msgid "about.open_recovery_detail"
+msgstr "Fermer le jeu et ouvrir la récupération."
+
+msgid "about.leave_room_first"
+msgstr "Quittez d'abord le salon et revenez au menu principal."
+
+msgid "about.discord"
+msgstr "Rejoindre le Discord Ember"
+
+msgid "about.discord_detail"
+msgstr "Joueurs, matchs et aide sur {0}. S'ouvre dans votre navigateur derrière le jeu."
+
+msgid "settings.retry_save"
+msgstr "Ressauvegarder"
+
+msgid "room.creating_status"
+msgstr "Création du salon. Attente du réseau..."
+
+msgid "room.joining_status"
+msgstr "Entrée dans le salon. Attente du réseau..."
+
+msgid "room.locked_status"
+msgstr "Salon verrouillé / sur invitation"
+
+msgid "room.private_status"
+msgstr "Salon privé / sur invitation"
+
+msgid "room.reconnecting"
+msgstr "Reconnexion au salon..."
+
+msgid "room.table_setup_title"
+msgstr "TABLE {0} / AVANT-COMBAT"
+
+msgid "room.waiting_opponent"
+msgstr "En attente d'un adversaire"
+
+msgid "room.you"
+msgstr "Vous"
+
+msgid "room.player"
+msgstr "Joueur"
+
+msgid "room.ready_suffix"
+msgstr " - PRÊT"
+
+msgid "room.readying_suffix"
+msgstr " - Préparation..."
+
+msgid "room.not_ready_suffix"
+msgstr " - Pas prêt"
+
+msgid "room.result_unresolved_status"
+msgstr "Résultat non résolu / abandonnez ou demandez l'annulation à l'hôte"
+
+msgid "room.preparing_status"
+msgstr "Préparation du combat / personnages verrouillés"
+
+msgid "room.waiting_results_status"
+msgstr "Attente des résultats / prochain combat indisponible"
+
+msgid "room.match_in_progress"
+msgstr "Combat en cours"
+
+msgid "room.table_closed"
+msgstr "Table fermée"
+
+msgid "controller.disconnected"
+msgstr "Manette déconnectée. Reconnectez-la ou réattribuez-la."
+
+msgid "room.control_unavailable"
+msgstr "Contrôle du salon indisponible. Remplacez le salon hors combat."
+
+msgid "room.control_recovering"
+msgstr "Le contrôle du salon se rétablit. Les actions sont suspendues."
+
+msgid "settings.preview"
+msgstr "Aperçu"
+
+msgid "settings.player_one"
+msgstr "Joueur 1"
+
+msgid "settings.player_two"
+msgstr "Joueur 2"
+
+msgid "error.invitation_invalid"
+msgstr "Invitation vide ou trop longue."
+
+msgid "error.invitation_changed"
+msgstr "L'invitation a changé. Réessayez."
+
+msgid "error.invalid_value"
+msgstr "Valeur invalide. Votre réglage enregistré reste inchangé."
+
+msgid "brand.subtitle"
+msgstr "SF4  /  SALONS PRIVÉS ET NETPLAY À ROLLBACK"
+
+msgid "match.waiting_opponent"
+msgstr "En attente de l'adversaire..."
+
+msgid "match.connection_countdown"
+msgstr "Connexion instable. Déconnexion dans {0} s"
+
+msgid "match.connection_unstable"
+msgstr "Connexion instable"
+
+msgid "match.versus_short"
+msgstr "vs"
+
+msgid "match.ping"
+msgstr "Ping"
+
+msgid "match.rollback"
+msgstr "Rollback"
+
+msgid "match.delay"
+msgstr "Délai"
+
+msgid "match.spectating"
+msgstr "Spectateur"
+
+msgid "match.preview_spacing"
+msgstr "Espacement {0} / valeurs d'exemple"
+
+msgid "card.player"
+msgstr "JOUEUR"
+
+msgid "card.choose_fighter"
+msgstr "Choisissez votre perso"
+
+msgid "card.controller_ready"
+msgstr "MANETTE PRÊTE"
+
+msgid "card.assign_controller"
+msgstr "ATTRIBUER MANETTE"
+
+msgid "card.wins"
+msgstr "{0}  VICTOIRES"
+
+msgid "card.no_wins"
+msgstr "-- VICTOIRES"
+
+msgid "card.losses"
+msgstr "{0}  DÉFAITES"
+
+msgid "card.no_losses"
+msgstr "-- DÉFAITES"
+
+msgid "card.no_win_rate"
+msgstr "-- % VICT."
+
+msgid "card.win_rate"
+msgstr "{0} % VICT."
+
+msgid "training.lab"
+msgstr "Entraînement"
+
+msgid "menu.back_to"
+msgstr "< Retour / {0}"
+
+msgid "training.controls"
+msgstr "Commandes entraînement"
+
+msgid "training.dummy_recording"
+msgstr "Enreg. mannequin"
+
+msgid "training.dummy_recording.detail"
+msgstr "Enregistrez les commandes de P1 sur P2. Réglez le mannequin du jeu sur Joueur / manette."
+
+msgid "training.input_history"
+msgstr "Historique"
+
+msgid "training.input_history.detail"
+msgstr "Voir les commandes maintenues par joueur."
+
+msgid "training.close_controls"
+msgstr "Fermer les commandes"
+
+msgid "training.close_controls.detail"
+msgstr "Fermez Ember, puis le menu pause de SF4 s'il est ouvert pour reprendre."
+
+msgid "training.slot"
+msgstr "Empl. {0}"
+
+msgid "training.slot_selected"
+msgstr "Empl. {0} / SÉLECTIONNÉ"
+
+msgid "training.recorded_frames"
+msgstr "{0} trames enregistrées. L'enregistrement dure jusqu'à la fin de ce combat."
+
+msgid "training.record"
+msgstr "Enregistrer"
+
+msgid "training.record.overwrite"
+msgstr "Écraser cet emplacement occupé et reprendre l'entraînement."
+
+msgid "training.record.detail"
+msgstr "Enregistrer P1 pour P2, puis reprendre l'entraînement."
+
+msgid "training.play"
+msgstr "Rejouer"
+
+msgid "training.play.detail"
+msgstr "Rejouer l'emplacement choisi et reprendre l'entraînement. Les directions sont absolues, sans inversion."
+
+msgid "training.slot_empty"
+msgstr "Cet emplacement est vide."
+
+msgid "training.stop"
+msgstr "Arrêter"
+
+msgid "training.stop.detail"
+msgstr "Arrêter l'enregistrement ou la lecture."
+
+msgid "training.loop"
+msgstr "Lecture en boucle"
+
+msgid "training.loop.detail"
+msgstr "Répéter l'enregistrement sélectionné."
+
+msgid "training.clear_recording"
+msgstr "Effacer l'enregistrement choisi"
+
+msgid "training.clear_recording.detail"
+msgstr "Effacer définitivement cet emplacement pour ce combat."
+
+msgid "training.player_one"
+msgstr "Joueur 1"
+
+msgid "training.player_two"
+msgstr "Joueur 2"
+
+msgid "training.history.detail"
+msgstr "Dernières commandes en premier. Les trames mesurent le maintien, pas le démarrage des coups."
+
+msgid "training.clear_history"
+msgstr "Effacer l'historique"
+
+msgid "training.clear_history.detail"
+msgstr "Effacer la jauge et les historiques des deux joueurs."
+
+msgid "training.practice_ready"
+msgstr "Entraînement prêt"
+
+msgid "training.recording_suspended"
+msgstr "Enregistrement suspendu si commandes ouvertes"
+
+msgid "training.playback_suspended"
+msgstr "Lecture suspendue pendant l'ouverture des commandes"
+
+msgid "training.applying"
+msgstr "Commande en cours..."
+
+msgid "training.waiting_battle"
+msgstr "Attente du début du combat..."
+
+msgid "training.title"
+msgstr "ENTRAÎNEMENT"
+
+msgid "training.command_rejected"
+msgstr "Commande d'entraînement refusée. Vérifiez l'état et réessayez."
+
+msgid "training.start_frames"
+msgstr "Début {0} tr."
+
+msgid "training.start_unknown"
+msgstr "Début --"
+
+msgid "training.startup"
+msgstr "Démarrage"
+
+msgid "training.neutral"
+msgstr "Neutre"
+
+msgid "training.unavailable"
+msgstr "{0} : {1}"
+
+msgid "training.unavailable.waiting_attack"
+msgstr "attente du début de l'attaque"
+
+msgid "training.unavailable.no_attack"
+msgstr "aucun début d'attaque"
+
+msgid "training.unavailable.no_contact"
+msgstr "aucun contact"
+
+msgid "training.unavailable.measuring_recovery"
+msgstr "mesure de récup."
+
+msgid "training.unavailable.interrupted"
+msgstr "interrompu"
+
+msgid "training.unavailable.invalid"
+msgstr "mesure invalide"
+
+msgid "training.frame_advantage"
+msgstr "AVANTAGE EN TRAMES | {0}"
+
+msgid "training.measuring"
+msgstr "mesure en cours"
+
+msgid "training.wakeup"
+msgstr "relevée"
+
+msgid "training.held"
+msgstr "maintenu"
+
+msgid "training.live"
+msgstr "en direct"
+
+msgid "training.advantage"
+msgstr "Avantage"
+
+msgid "selection.preview_unavailable"
+msgstr "Aperçu\nindisponible"
+
+msgid "selection.preview_loading"
+msgstr "Chargement\nde l'aperçu..."
+
+msgid "selection.handicap_normal"
+msgstr "Normal (100 %)"
+
+msgid "selection.handicap_one_hit"
+msgstr "Un coup"
+
+msgid "selection.handicap_25"
+msgstr "25 %"
+
+msgid "selection.handicap_50"
+msgstr "50 %"
+
+msgid "selection.handicap_75"
+msgstr "75 %"
+
+msgid "selection.original"
+msgstr "Original"
+
+msgid "selection.alternate"
+msgstr "Alternatif {0}"
+
+msgid "selection.alternate_pack"
+msgstr "Alternatif {0} / {1}"
+
+msgid "selection.stage_count"
+msgstr "{0} NIVEAUX / USFIV"
+
+msgid "selection.choose_battlefield"
+msgstr "Choisissez votre arène."
+
+msgid "selection.select_saves"
+msgstr "Sélectionner enregistre ce choix. Retour revient sans changer l'aperçu affiché."
+
+msgid "selection.locked_detail"
+msgstr "Sélection verrouillée. Retournez à votre table pour voir son état."
+
+msgid "selection.title"
+msgstr "SÉLECTION PERSONNAGE"
+
+msgid "selection.fighter"
+msgstr "Personnage"
+
+msgid "selection.appearance"
+msgstr "Apparence"
+
+msgid "selection.appearance_value"
+msgstr "{0} / Couleur {1}"
+
+msgid "selection.ultra_combo"
+msgstr "Ultra Combo"
+
+msgid "selection.ultra_double"
+msgstr "Ultra Combo Double"
+
+msgid "selection.stage"
+msgstr "Niveau"
+
+msgid "selection.p1_stage"
+msgstr "P1 choisit le niveau."
+
+msgid "selection.additional_options"
+msgstr "Options supplémentaires"
+
+msgid "selection.additional_options.detail"
+msgstr "Édition, provocation, réplique et handicap."
+
+msgid "selection.choose_fighter"
+msgstr "CHOISIR PERSO"
+
+msgid "selection.appearance_title"
+msgstr "APPARENCE"
+
+msgid "selection.costume_gallery"
+msgstr "Costumes"
+
+msgid "selection.color_gallery"
+msgstr "Couleurs"
+
+msgid "selection.color_preview"
+msgstr "Couleur {0} / Parcourir les aperçus."
+
+msgid "selection.costume_gallery_title"
+msgstr "COSTUMES"
+
+msgid "selection.color_gallery_title"
+msgstr "COULEURS"
+
+msgid "selection.loading_choices"
+msgstr "Chargement des choix disponibles"
+
+msgid "selection.loading_choices.detail"
+msgstr "Attente des costumes et couleurs disponibles dans le jeu."
+
+msgid "selection.no_colors"
+msgstr "Aucune couleur débloquée pour ce costume."
+
+msgid "selection.color"
+msgstr "Couleur {0}"
+
+msgid "selection.ultra_combo_title"
+msgstr "ULTRA COMBO"
+
+msgid "selection.ultra_double.detail"
+msgstr "Les deux Ultra Combos, avec des dégâts ou une efficacité réduits."
+
+msgid "selection.saved"
+msgstr "ENREGISTRÉ"
+
+msgid "selection.stage_title"
+msgstr "NIVEAU"
+
+msgid "selection.only_p1_stage"
+msgstr "Seul P1 peut changer le niveau."
+
+msgid "selection.options_title"
+msgstr "OPTIONS DU PERSONNAGE"
+
+msgid "selection.edition"
+msgstr "Édition"
+
+msgid "selection.usfiv_rules"
+msgstr "Règles USFIV appliquées."
+
+msgid "selection.personal_action"
+msgstr "Provocation"
+
+msgid "common.none"
+msgstr "Aucun"
+
+msgid "selection.win_quote"
+msgstr "Réplique"
+
+msgid "selection.random"
+msgstr "Aléatoire"
+
+msgid "selection.random_stage"
+msgstr "Aléatoire"
+
+msgid "selection.random_stage.detail"
+msgstr "Un niveau différent à chaque combat."
+
+msgid "selection.handicap"
+msgstr "Handicap"
+
+msgid "selection.saved_value"
+msgstr "Enregistré : {0}"
+
+msgid "selection.ultra_selected"
+msgstr "Cet Ultra est sélectionné."
+
+msgid "selection.preview_save"
+msgstr "Aperçu : Sélectionner pour enregistrer."
+
+msgid "selection.preview_locked"
+msgstr "Aperçu seul : sélection verrouillée."
+
+msgid "selection.saved_appearance"
+msgstr "Enregistré : Costume {0} / Couleur {1}"
+
+msgid "selection.saved_full"
+msgstr "Enregistré : {0} / Costume {1} / Couleur {2}"
+
+msgid "selection.preview_save_short"
+msgstr "Aperçu seul : Sélectionner pour enregistrer"
+
+msgid "selection.status_editable"
+msgstr "Sélectionner valide / Retour revient en arrière."
+
+msgid "selection.status_locked"
+msgstr "Sélection verrouillée : retournez à votre table."
+
+msgid "runtime.room_recovering"
+msgstr "Le contrôle du salon se rétablit. Votre connexion au combat est maintenue."
+
+msgid "runtime.room_lost_fight_continues"
+msgstr "Connexion au salon perdue. Le combat continue, mais revanche et résultats sont désactivés."
+
+msgid "runtime.returned_room_lost"
+msgstr "Retour au menu : connexion au salon perdue pendant le combat."
+
+msgid "runtime.room_request_failed"
+msgstr "Échec de la requête au salon. Quittez-le et réessayez."
+
+msgid "runtime.build_mismatch"
+msgstr "Versions incompatibles. Les deux joueurs doivent utiliser le même paquet SF4 Ember Netplay."
+
+msgid "runtime.room_full"
+msgstr "Ce salon est complet."
+
+msgid "runtime.name_taken"
+msgstr "Ce nom de joueur est déjà pris dans le salon. Changez-le dans Paramètres."
+
+msgid "runtime.selection_combination_unavailable"
+msgstr "Cette combinaison est interdite par les règles du salon. Choisissez un autre personnage, costume, couleur ou édition."
+
+msgid "runtime.selection_summary"
+msgstr "{0} / Costume {1} / Couleur {2} / {3}"
+
+msgid "runtime.selection_unavailable"
+msgstr "Sélection interdite par ces règles. Ouvrez Sélection personnage pour choisir une option disponible."
+
+msgid "runtime.open_shortcut"
+msgstr "SF4 Ember Netplay  /  F10 ou Start"
+
+msgid "runtime.waiting_opponent_join"
+msgstr "Attente de l'adversaire dans le salon..."
+
+msgid "runtime.authorized_connection_unavailable"
+msgstr "La connexion autorisée pour ce combat est indisponible."
+
+msgid "runtime.waiting_opponent_start"
+msgstr "Attente de l'adversaire dans le salon avant le début du combat."
+
+msgid "runtime.unsupported_stage"
+msgstr "Le salon a fourni un niveau non pris en charge. Réinitialisez le salon et réessayez."
+
+msgid "runtime.netplay_input_failed"
+msgstr "Échec des commandes netplay. Le combat est terminé."
+
+msgid "runtime.netplay_sync_failed"
+msgstr "Échec de synchro netplay. Combat terminé."
+
+msgid "runtime.invalid_roster"
+msgstr "Participants invalides. Retournez au salon et réessayez."
+
+msgid "runtime.ggpo_start_failed"
+msgstr "GGPO n'a pas démarré. Retournez au salon et repassez à Prêt."
+
+msgid "runtime.ggpo_add_players_failed"
+msgstr "GGPO n'a pas pu ajouter les joueurs. Retournez au salon et repassez à Prêt."
+
+msgid "runtime.rollback_buffer_full"
+msgstr "Tampon de rollback netplay plein. Le combat est terminé."
+
+msgid "runtime.connection_unstable_prediction"
+msgstr "Connexion instable. Jeu sur prédiction."
+
+msgid "runtime.connection_restored"
+msgstr "Connexion rétablie."
+
+msgid "runtime.spectator_disconnected"
+msgstr "Un spectateur s'est déconnecté."
+
+msgid "runtime.spectator_stream_lost"
+msgstr "Flux spectateur perdu. Choisissez Regarder pour suivre le prochain combat."
+
+msgid "runtime.match_connection_lost"
+msgstr "Connexion du combat perdue."
+
+msgid "runtime.opponent_disconnected"
+msgstr "Adversaire déconnecté. Le combat est terminé."
+
+msgid "runtime.leaving_spectator"
+msgstr "Sortie du mode spectateur."
+
+msgid "runtime.returning_room"
+msgstr "Retour au salon."
+
+msgid "runtime.table_game_cancelled"
+msgstr "Combat de cette table annulé. Retournez au salon pour repasser à Prêt."
+
+msgid "runtime.result_not_recorded"
+msgstr "Résultat non enregistré : la table a changé avant sa confirmation."
+
+msgid "runtime.participant_left"
+msgstr "Un combattant a quitté le salon. Le combat va se terminer."
+
+msgid "update.github_unreachable"
+msgstr "Impossible de joindre GitHub. Vérifiez votre connexion Internet et réessayez."
+
+msgid "update.no_version_tag"
+msgstr "Version GitHub sans étiquette."
+
+msgid "update.no_zip_asset"
+msgstr "La dernière version n'a pas d'archive ZIP SF4 Ember Netplay."
+
+msgid "update.parse_failed"
+msgstr "Impossible de lire la réponse de GitHub."
+
+msgid "update.missing_url"
+msgstr "URL de téléchargement manquante."
+
+msgid "update.missing_version"
+msgstr "Version manquante."
+
+msgid "update.close_sf4"
+msgstr "Fermez Ultra Street Fighter IV avant d'installer une mise à jour."
+
+msgid "update.install_dir_failed"
+msgstr "Impossible de trouver le dossier d'installation."
+
+msgid "update.temp_path_failed"
+msgstr "Chemin temporaire indisponible ({0})."
+
+msgid "update.temp_folder_failed"
+msgstr "Création du dossier temporaire impossible ({0})."
+
+msgid "update.temp_access_failed"
+msgstr "Dossier temporaire inaccessible."
+
+msgid "update.zip_path_failed"
+msgstr "Chemin du ZIP impossible à créer."
+
+msgid "update.extract_folder_failed"
+msgstr "Impossible de créer le dossier d'extraction ({0})."
+
+msgid "update.download_failed"
+msgstr "Échec du téléchargement ({0}). Téléchargement manuel : {1} — détails dans %TEMP%\\sf4-netplay-update.log"
+
+msgid "update.verify_failed"
+msgstr "Impossible de vérifier la mise à jour téléchargée. Réessayez."
+
+msgid "update.integrity_failed"
+msgstr "Le téléchargement n'a pas passé le contrôle d'intégrité et n'a pas été installé. Réessayez ou téléchargez la version sur GitHub."
+
+msgid "update.no_digest"
+msgstr "Aucune empreinte SHA-256 publiée pour cette version. Installation automatique indisponible."
+
+msgid "update.extract_failed"
+msgstr "Impossible d'extraire la mise à jour."
+
+msgid "update.invalid_paths"
+msgstr "Le paquet téléchargé contient des chemins invalides."
+
+msgid "update.missing_binaries"
+msgstr "Il manque Launcher.exe ou Sidecar.dll dans le paquet téléchargé."
+
+msgid "update.staging_path_failed"
+msgstr "Chemin de préparation illisible."
+
+msgid "update.validation_failed"
+msgstr "Validation du paquet téléchargé échouée : fichiers requis absents."
+
+msgid "update.cancelled"
+msgstr "Mise à jour annulée avant l'installation."
+
+msgid "update.close_game"
+msgstr "Fermez le jeu avant d'installer la mise à jour."
+
+msgid "update.updater_start_failed"
+msgstr "Updater.exe ne démarre pas. Réinstallez depuis un nouveau ZIP."
+
+msgid "room.member_left"
+msgstr "Membre parti"
+
+msgid "room.open_seat"
+msgstr "Place libre"
+
+msgid "room.status.queued"
+msgstr "Dans la file"
+
+msgid "room.status.seated"
+msgstr "Assis"
+
+msgid "room.status.ready"
+msgstr "Prêt"
+
+msgid "room.status.playing"
+msgstr "En combat"
+
+msgid "room.status.watching"
+msgstr "Spectateur"
+
+msgid "room.status.watching_next"
+msgstr "Suit le prochain combat"
+
+msgid "room.status.idle"
+msgstr "Inactif"
+
+msgid "room.phase.waiting"
+msgstr "Attente des combattants"
+
+msgid "room.phase.preparing"
+msgstr "Préparation"
+
+msgid "room.phase.in_game"
+msgstr "En combat"
+
+msgid "room.phase.unresolved"
+msgstr "Résultat non résolu"
+
+msgid "room.phase.closed"
+msgstr "Fermée"
+
+msgid "room.phase.open"
+msgstr "Ouverte"
+
+msgid "room.terminal_pending"
+msgstr "Attente du retour de tous les joueurs et spectateurs du combat précédent."
+
+msgid "room.leave.detail"
+msgstr "Quitter ce salon et revenir à l'accueil. Masquer Ember vous laisse dans le salon."
+
+msgid "room.leave.unresolved"
+msgstr " Le combat non résolu ne sera pas enregistré."
+
+msgid "room.leave.active"
+msgstr " Le combat actuel se termine sans résultat et votre place est libérée."
+
+msgid "room.leave.seat"
+msgstr " Votre place est libérée."
+
+msgid "room.leave.queue"
+msgstr " Vous perdez votre place dans la file."
+
+msgid "room.leave.host"
+msgstr " Un autre membre devient hôte."
+
+msgid "room.action_queue_failed"
+msgstr "Impossible de mettre l'action en attente. Réessayez."
+
+msgid "room.table_detail"
+msgstr "{0} vs {1}\n{2}\nFile : {3} / Spectateurs : {4}\nVous : {5}"
+
+msgid "room.connecting"
+msgstr "Connexion..."
+
+msgid "room.table_occupancy"
+msgstr "Table {0}   {1}/2"
+
+msgid "room.member_you"
+msgstr "{0} / VOUS"
+
+msgid "room.member"
+msgstr "{0}"
+
+msgid "room.member_status_host"
+msgstr "{0} / HÔTE"
+
+msgid "room.member_status"
+msgstr "{0}"
+
+msgid "room.members"
+msgstr "Membres"
+
+msgid "room.member_count"
+msgstr "{0} / {1} membres."
+
+msgid "room.chat"
+msgstr "Chat"
+
+msgid "room.chat.detail"
+msgstr "Lire les messages et écrire au clavier."
+
+msgid "room.change_fighter"
+msgstr "Changer perso"
+
+msgid "room.change_fighter.open_table"
+msgstr "Ouvrez votre table pour voir Prêt et les conditions de changement de perso."
+
+msgid "room.settings"
+msgstr "Paramètres du salon"
+
+msgid "room.settings.detail"
+msgstr "Nom du salon, capacité et accès."
+
+msgid "room.settings.host_only"
+msgstr "Seul l'hôte peut gérer le salon."
+
+msgid "room.connection_status"
+msgstr "État de la connexion"
+
+msgid "room.opening"
+msgstr "Ouverture du salon..."
+
+msgid "room.opening_stalled"
+msgstr "Le salon ne s'est pas ouvert. Vérifiez la connexion ou arrêtez et réessayez."
+
+msgid "room.waiting_state"
+msgstr "Attente de l'état du salon."
+
+msgid "room.ready"
+msgstr "Prêt"
+
+msgid "room.ready.saved_fighter"
+msgstr "Utiliser le perso enregistré."
+
+msgid "room.copy_invitation"
+msgstr "Copier l'invitation"
+
+msgid "room.copy_invitation.detail"
+msgstr "Partagez l'invitation privée avec vos amis."
+
+msgid "room.leaving"
+msgstr "Sortie du salon..."
+
+msgid "room.leave"
+msgstr "Quitter le salon"
+
+msgid "room.replace"
+msgstr "Remplacer le salon"
+
+msgid "room.replace.detail"
+msgstr "Fermer le salon bloqué et en ouvrir un autre. Tous doivent le rejoindre à nouveau et l'invitation actuelle ne fonctionnera plus. Tout état non résolu sera perdu."
+
+msgid "room.replace.waiting"
+msgstr "Le combat précédent se ferme encore. Le remplacement sera possible ensuite."
+
+msgid "room.updating"
+msgstr "Mise à jour..."
+
+msgid "room.battle_slot"
+msgstr "TABLE DE COMBAT {0}"
+
+msgid "room.looking_for_fight"
+msgstr "En quête d'un combat"
+
+msgid "room.fighter_not_shared"
+msgstr "Perso pas encore révélé"
+
+msgid "room.suffix_ready"
+msgstr " / PRÊT"
+
+msgid "room.suffix_you"
+msgstr " / VOUS"
+
+msgid "room.table_footer"
+msgstr "{0} rounds / {1} s     File {2}     Spect. {3}"
+
+msgid "room.board_status_host_slot"
+msgstr "HÔTE / {0} / Place {1}"
+
+msgid "room.board_status_slot"
+msgstr "{0} / Place {1}"
+
+msgid "room.board_status_host"
+msgstr "HÔTE / {0}"
+
+msgid "room.board_status"
+msgstr "{0}"
+
+msgid "room.members_heading"
+msgstr "MEMBRES  {0} / {1}"
+
+msgid "room.chat_heading"
+msgstr "CHAT"
+
+msgid "room.no_messages"
+msgstr "Aucun message. Sélectionnez Chat pour écrire."
+
+msgid "room.table_explanation"
+msgstr "{0} / Vous : {1}\nFile : {2} / Spectateurs : {3}"
+
+msgid "room.invitation_copied"
+msgstr "Invitation copiée."
+
+msgid "room.replacement_opening"
+msgstr "Ouverture du nouveau salon. Copiez l'invitation et envoyez le nouveau lien : l'ancien ne fonctionne plus."
+
+msgid "room.action_rejected"
+msgstr "Le salon a changé ou refusé cette action. Vérifiez son état et réessayez."
+
+msgid "room.leave_current_table"
+msgstr "Quittez d'abord votre table actuelle."
+
+msgid "room.choose_action"
+msgstr "Choisissez une action pour cette table."
+
+msgid "room.result_unresolved.detail"
+msgstr "Résultat précédent non résolu. Choisissez Abandonner le combat non résolu ou demandez à l'hôte de l'annuler ; aucune victoire ne sera accordée."
+
+msgid "room.awaiting_result"
+msgstr "Attente du résultat des deux combattants. Prêt se réinitialise après confirmation ; vous n'êtes pas prêt pour un autre combat."
+
+msgid "room.match_active"
+msgstr "Le combat se prépare ou est en cours. Attendez sa fin."
+
+msgid "room.waiting_other_seat"
+msgstr "Attente d'un adversaire sur l'autre place. Vous pouvez changer de personnage."
+
+msgid "room.controller_required"
+msgstr "Attribuez ou reconnectez votre manette dans Paramètres > Joueur et manette."
+
+msgid "room.waiting_update"
+msgstr "Attente de la fin de la mise à jour du salon."
+
+msgid "room.ready.cancel_detail"
+msgstr "Vous êtes PRÊT. Annulez Prêt, puis choisissez Changer de personnage."
+
+msgid "room.ready.locking"
+msgstr "Verrouillage de votre personnage. Le combat démarre quand les deux joueurs sont prêts."
+
+msgid "room.ready.lock_detail"
+msgstr "Sélectionnez pour verrouiller votre personnage. Le combat démarre quand les deux joueurs sont prêts."
+
+msgid "room.both_ready"
+msgstr "Les deux combattants sont prêts. Le combat commence."
+
+msgid "room.match_in_progress.detail"
+msgstr "Le combat est en cours. Attendez sa fin."
+
+msgid "room.unready"
+msgstr "Annuler Prêt / déverrouiller"
+
+msgid "room.readying"
+msgstr "Préparation..."
+
+msgid "room.result_unresolved"
+msgstr "Résultat non résolu"
+
+msgid "room.preparing_match"
+msgstr "Préparation du combat"
+
+msgid "room.ready_rematch"
+msgstr "Prêt pour la revanche"
+
+msgid "room.ready_up"
+msgstr "Passer à Prêt"
+
+msgid "room.recommended_delay"
+msgstr "Délai conseillé"
+
+msgid "room.selected_delay"
+msgstr "Délai choisi"
+
+msgid "room.selected_delay.detail"
+msgstr "Réglez de 0 à 10 trames. Application immédiate."
+
+msgid "room.selected_delay.locked"
+msgstr "Le délai choisi est verrouillé pour ce combat."
+
+msgid "room.match_delay"
+msgstr "Délai du combat"
+
+msgid "room.match_delay.at_least"
+msgstr "Au moins {0} trames"
+
+msgid "room.match_delay.detail"
+msgstr "Les deux combattants jouent avec le délai choisi le plus élevé. Votre choix : {0} ; celui de l'adversaire : {1}."
+
+msgid "room.match_delay.pending"
+msgstr "Les deux combattants jouent avec le délai choisi le plus élevé. Le choix adverse s'affiche quand il passe à Prêt."
+
+msgid "room.check_connection.two_players"
+msgstr "Il faut un joueur sur chaque place pour vérifier la connexion."
+
+msgid "room.check_connection.unready"
+msgstr "Annulez Prêt pour vérifier la connexion avant le prochain combat."
+
+msgid "room.check_connection.finish_match"
+msgstr "Terminez le combat actuel avant de vérifier la connexion."
+
+msgid "room.apply_recommendation"
+msgstr "Appliquer le conseil"
+
+msgid "room.apply_recommendation.detail"
+msgstr "Régler le délai choisi sur {0} trames."
+
+msgid "room.apply_recommendation.check_first"
+msgstr "Vérifiez la connexion avant d'appliquer un conseil."
+
+msgid "room.change_fighter.unready"
+msgstr "Annulez Prêt ci-dessus pour déverrouiller votre personnage et son apparence."
+
+msgid "room.change_fighter.waiting"
+msgstr "Attente de la fin du combat ou de la mise à jour de sélection."
+
+msgid "room.change_fighter.detail"
+msgstr "Choisissez un personnage, puis parcourez les galeries Costume et Couleur. Revenez ici et passez à Prêt."
+
+msgid "room.leave_seat"
+msgstr "Quitter la place"
+
+msgid "room.leave_seat.abandon_first"
+msgstr "Abandonnez d'abord le combat non résolu."
+
+msgid "room.leave_seat.finish_first"
+msgstr "Terminez ou résolvez d'abord le combat actuel."
+
+msgid "room.leave_seat.release"
+msgstr "Libérer votre place."
+
+msgid "room.leave_seat.next_player"
+msgstr "Libérer votre place. Le joueur suivant dans la file la prendra."
+
+msgid "room.abandon_result"
+msgstr "Abandonner sans résultat"
+
+msgid "room.abandon_result.detail"
+msgstr "Aucun résultat enregistré. Les deux combattants restent à leur place et peuvent repasser à Prêt."
+
+msgid "room.leave_queue"
+msgstr "Quitter la file"
+
+msgid "room.join_queue"
+msgstr "Entrer en file"
+
+msgid "room.stop_watching"
+msgstr "Arrêter de regarder"
+
+msgid "room.watch_next"
+msgstr "Voir le prochain"
+
+msgid "room.table_rules"
+msgstr "Règles"
+
+msgid "room.table_rules.edit"
+msgstr "Modifier ces règles."
+
+msgid "room.table_rules.view"
+msgstr "Voir les règles de cette table."
+
+msgid "room.cancel_unresolved"
+msgstr "Annuler le combat non résolu"
+
+msgid "room.cancel_unresolved.detail"
+msgstr "Hôte uniquement. Aucun résultat enregistré."
+
+msgid "room.cancel_stuck"
+msgstr "Annuler combat bloqué"
+
+msgid "room.cancel_stuck.detail"
+msgstr "Hôte uniquement. À utiliser si un combat terminé n'a jamais fourni son résultat. Aucun résultat enregistré."
+
+msgid "room.rules.finish_game"
+msgstr "Terminez le combat actif avant de modifier les règles."
+
+msgid "room.rules.apply_note"
+msgstr "Modifications actives après Appliquer."
+
+msgid "room.rules.host_only"
+msgstr "Seul l'hôte modifie ces règles."
+
+msgid "room.apply_rules"
+msgstr "Appliquer"
+
+msgid "room.apply_rules.detail"
+msgstr "Envoyer l'ensemble des règles prévues pour cette table."
+
+msgid "room.member_status_host_muted"
+msgstr "{0} / HÔTE / Masqué localement"
+
+msgid "room.member_status_muted"
+msgstr "{0} / Masqué localement"
+
+msgid "room.unmute_member"
+msgstr "Rétablir le membre"
+
+msgid "room.mute_member"
+msgstr "Masquer le membre"
+
+msgid "room.mute_member.detail"
+msgstr "Masquer son chat uniquement."
+
+msgid "room.member_left.detail"
+msgstr "Ce membre est parti."
+
+msgid "room.kick_member"
+msgstr "Exclure le membre"
+
+msgid "room.kick_member.detail"
+msgstr "Exclure {0} du salon."
+
+msgid "room.transfer_host"
+msgstr "Changer d'hôte"
+
+msgid "room.transfer_host.detail"
+msgstr "Faire de {0} l'hôte du salon."
+
+msgid "room.compose_message"
+msgstr "Écrire un message"
+
+msgid "room.send_message"
+msgstr "Envoyer le message"
+
+msgid "room.send_message.detail"
+msgstr "Envoyer le brouillon validé. Enter dans l'éditeur n'envoie pas le message."
+
+msgid "room.capacity.detail"
+msgstr "Minimum : nombre actuel de membres."
+
+msgid "room.admission"
+msgstr "Accès"
+
+msgid "room.locked"
+msgstr "Verrouillé"
+
+msgid "room.open"
+msgstr "Ouvert"
+
+msgid "room.admission.detail"
+msgstr "Verrouiller empêche toute entrée."
+
+msgid "room.apply_name"
+msgstr "Valider le nom"
+
+msgid "room.apply_name.detail"
+msgstr "Envoyer ce nom de salon."
+
+msgid "room.apply_capacity"
+msgstr "Valider la capacité"
+
+msgid "room.apply_capacity.detail"
+msgstr "Envoyer cette capacité."
+
+msgid "profile.main_badge"
+msgstr "PERSO"
+
+msgid "training.shortcuts"
+msgstr "F6 Entraînement | F5 Masquer HUD"
+
+msgid "common.not_set"
+msgstr "Non défini"
+
+msgid "notice.title"
+msgstr "Avis"
+
+msgid "notice.error_title"
+msgstr "Une erreur est survenue"
+
+msgid "game_settings.title"
+msgstr "Réglages de jeu conseillés"
+
+msgid "game_settings.intro"
+msgstr "Le jeu en ligne fonctionne mieux avec ces réglages. Choisissez Jouer hors ligne, puis modifiez-les dans le menu Options du jeu."
+
+msgid "game_settings.frame_rate"
+msgstr "Images par seconde : choisissez FIXE (actuel : {0}). Sinon, le rollback est perturbé."
+
+msgid "game_settings.anti_aliasing"
+msgstr "Anticrénelage : choisissez AUCUN (actuel : {0}). Réduit la charge GPU et la latence."
+
+msgid "game_settings.hide"
+msgstr "Ne plus afficher"
+
+msgid "common.ok"
+msgstr "OK"
+
+msgid "edit.title"
+msgstr "Saisie"
+
+msgid "edit.instructions"
+msgstr "Saisissez ou collez. Enter valide ; Esc ou Retour sur manette annule."
+
+msgid "edit.updating"
+msgstr "Mise à jour du salon. Votre brouillon est conservé ; continuez à écrire ou annulez."
+
+msgid "common.accept"
+msgstr "Valider"
+
+msgid "edit.cancel"
+msgstr "Annuler la saisie"
+
+msgid "discord.unavailable_build"
+msgstr "Intégration Discord indisponible dans cette version."
+
+msgid "runtime.record_invalid"
+msgstr "Le bilan local des matchs est invalide et a été conservé. Suivi indisponible."
+
+msgid "runtime.interface_preferences_failed"
+msgstr "Impossible de lire les préférences d'interface ; réglages par défaut utilisés."
+
+msgid "runtime.room_defaults_invalid"
+msgstr "Les réglages par défaut du salon sont invalides. Les paramètres d'origine ont été conservés."
+
+msgid "runtime.network_start_failed"
+msgstr "Réseau indisponible. Jeu hors ligne possible."
+
+msgid "runtime.network_helper_unavailable"
+msgstr "Assistant réseau indisponible (erreur {0}). Le jeu hors ligne reste disponible."
+
+msgid "discord.connecting"
+msgstr "Connexion à Discord..."
+
+msgid "discord.unavailable_gameplay_ok"
+msgstr "Discord indisponible. Le jeu n'est pas affecté."
+
+msgid "runtime.gameplay_device_disconnected"
+msgstr "Manette de jeu déconnectée. Reconnectez-la avant le prochain combat."
+
+msgid "runtime.controller_assignment_unverified"
+msgstr "Impossible de vérifier l'attribution de la manette au combat. Réattribuez-la et réessayez."
+
+msgid "runtime.recovery_state_failed"
+msgstr "État de récupération du salon non appliqué. Récupération en pause."
+
+msgid "runtime.room_control_recovering"
+msgstr "Le contrôle du salon se rétablit."
+
+msgid "discord.connected"
+msgstr "Discord connecté"
+
+msgid "discord.registration_failed"
+msgstr "Discord connecté ; échec de l'enregistrement du lancement."
+
+msgid "discord.open_desktop"
+msgstr "Discord indisponible. Ouvrez l'application Discord pour partager votre activité."
+
+msgid "discord.invitation_invalid"
+msgstr "Invitation Discord invalide."
+
+msgid "discord.invalid_event"
+msgstr "Discord a envoyé un événement local invalide."
+
+msgid "discord.companion_stopped"
+msgstr "Le compagnon Discord s'est arrêté. Le jeu n'est pas affecté."
+
+msgid "runtime.room_connection_failed"
+msgstr "Échec de la connexion au salon. Il va fermer ; les résultats non confirmés ne seront pas enregistrés."
+
+msgid "runtime.operation_busy"
+msgstr "Opération occupée. Réessayez."
+
+msgid "discord.invitation_expired"
+msgstr "L'invitation Discord a expiré. Demandez-en une nouvelle."
+
+msgid "runtime.spectator_action_retrying"
+msgstr "Impossible d'envoyer l'action spectateur ; nouvelle tentative."
+
+msgid "runtime.return_main_menu"
+msgstr "Revenez au menu principal du jeu avant d'ouvrir un salon."
+
+msgid "runtime.room_action_failed"
+msgstr "Impossible d'envoyer l'action au salon. Réessayez."
+
+msgid "runtime.preferences_queue_failed"
+msgstr "Impossible de mettre les préférences en attente d'enregistrement. Réessayez."
+
+msgid "runtime.lobby_settings_send_failed"
+msgstr "Paramètres du salon non envoyés."
+
+msgid "runtime.room_defaults_save_failed"
+msgstr "Réglages par défaut du salon non enregistrés."
+
+msgid "runtime.connection_check_unavailable"
+msgstr "Test de connexion indisponible. Choisissez un délai et passez à Prêt."
+
+msgid "runtime.delay_save_failed"
+msgstr "Latence d'entrée non enregistrée."
+
+msgid "runtime.teardown_report_failed"
+msgstr "Impossible de signaler la fin du combat ; le salon a fermé."
+
+msgid "runtime.lobby_defaults_save_failed"
+msgstr "Paramètres du salon appliqués, mais réglages par défaut non enregistrés."
+
+msgid "runtime.lobby_settings_rejected"
+msgstr "Paramètres du salon refusés. Vérifiez que tout est prêt et réessayez."
+
+msgid "runtime.teardown_timeout"
+msgstr "La fin du combat a expiré ; le salon a fermé."
+
+msgid "runtime.room_catchup_timeout"
+msgstr "Le salon n'a pas rattrapé son retard à temps. Votre dernière action n'a pas été appliquée ; réessayez."
+
+msgid "runtime.previous_match_close_timeout"
+msgstr "Le combat précédent ne s'est pas fermé à temps. Réappliquez les paramètres de la table."
+
+msgid "runtime.spectator_close_timeout"
+msgstr "Le combat ne s'est pas fermé à temps. Le mode spectateur a été arrêté."
+
+msgid "runtime.room_closed"
+msgstr "Le salon a fermé."
+
+msgid "runtime.removed_from_room"
+msgstr "Vous avez été exclu du salon."
+
+msgid "room.reject.closed"
+msgstr "Le salon a fermé."
+
+msgid "room.reject.full"
+msgstr "Le salon est complet."
+
+msgid "room.reject.admission_locked"
+msgstr "Le salon n'accepte pas de nouveaux membres."
+
+msgid "room.reject.name_taken"
+msgstr "Ce nom de joueur est déjà pris dans le salon. Changez-le dans Paramètres."
+
+msgid "room.reject.stale_room"
+msgstr "Le salon a changé avant l'arrivée de votre action. Réessayez."
+
+msgid "room.reject.stale_table"
+msgstr "La table a changé avant l'arrivée de votre action. Réessayez."
+
+msgid "room.reject.wrong_phase"
+msgstr "La table n'est pas prête pour cette action."
+
+msgid "room.reject.wrong_generation"
+msgstr "Ce combat est déjà terminé."
+
+msgid "room.reject.unauthorized"
+msgstr "Seul l'hôte peut faire cela."
+
+msgid "room.reject.not_seated"
+msgstr "Vous n'avez pas de place à cette table."
+
+msgid "room.reject.already_seated"
+msgstr "Vous avez déjà une place."
+
+msgid "room.reject.already_queued"
+msgstr "Vous êtes déjà dans la file."
+
+msgid "room.reject.not_queued"
+msgstr "Vous n'êtes pas dans la file."
+
+msgid "room.reject.not_watching"
+msgstr "Vous ne regardez pas cette table."
+
+msgid "room.reject.invalid_rules"
+msgstr "Les règles de cette table sont invalides."
+
+msgid "room.reject.invalid_capacity"
+msgstr "Cette capacité est invalide."
+
+msgid "room.reject.invalid_chat"
+msgstr "Impossible d'envoyer ce message."
+
+msgid "room.reject.ledger_full"
+msgstr "Attente du retour de tous les participants du combat précédent."
+
+msgid "room.reject.other"
+msgstr "Le salon a refusé cette action."
+
+msgid "runtime.lock.return_to_menu_fighter"
+msgstr "Revenez au menu principal du jeu pour changer de personnage."
+
+msgid "runtime.lock.previous_game_closing"
+msgstr "Attente de la fermeture du combat précédent."
+
+msgid "runtime.lock.teardown"
+msgstr "Attente de la fin de sortie des joueurs et spectateurs du combat précédent."
+
+msgid "runtime.lock.room_recovering"
+msgstr "Attente du rétablissement de la connexion au salon."
+
+msgid "runtime.lock.ready_pending"
+msgstr "Attente de la fin de votre demande Prêt."
+
+msgid "runtime.lock.selection_update"
+msgstr "Attente de la fin du combat ou de la mise à jour de sélection."
+
+msgid "runtime.lock.return_to_menu_ready"
+msgstr "Revenez au menu principal du jeu avant de passer à Prêt."
+
+msgid "runtime.lock.table_settings"
+msgstr "Attente de l'application des paramètres de la table."
+
+msgid "runtime.lock.room_update"
+msgstr "Attente de la fin de la mise à jour du salon ou du combat."
+
+msgid "runtime.ready.control_changed"
+msgstr "Le contrôle du salon a changé avant l'application de Prêt. Appuyez de nouveau sur Prêt."
+
+msgid "runtime.ready.assign_controller"
+msgstr "Attribuez ou reconnectez votre manette avant de passer à Prêt."
+
+msgid "runtime.ready.stage_unavailable"
+msgstr "Le niveau choisi est indisponible. Choisissez-en un autre dans Sélection personnage."
+
+msgid "runtime.ready.fighter_unavailable"
+msgstr "Le personnage choisi est indisponible. Choisissez-en un autre dans Sélection personnage."
+
+msgid "runtime.ready.selection_unavailable"
+msgstr "Ce choix de personnage est indisponible. Choisissez un costume, une couleur, une édition et un Ultra disponibles."
+
+msgid "runtime.ready.take_seat"
+msgstr "Prenez une place à une table avant de passer à Prêt."
+
+msgid "runtime.ready.refused"
+msgstr "Demande Prêt refusée par le salon. Réessayez."
+
+msgid "runtime.ready.previous_match_timeout"
+msgstr "Votre demande Prêt n'a pas abouti. Le salon n'a pas terminé le combat précédent à temps. Réessayez."
+
+msgid "runtime.room_open_failed"
+msgstr "Impossible d'ouvrir le salon. Réessayez."
+
+msgid "runtime.match_settings_send_failed"
+msgstr "Paramètres du combat non envoyés."
+
+msgid "runtime.match_record_not_saved"
+msgstr "Bilan du combat non enregistré. Le prochain combat peut commencer ; l'enregistrement sera retenté."
+
+msgid "runtime.rollback_unsupported_state"
+msgstr "Le netplay n'a pas pu enregistrer un état du jeu non pris en charge. Le combat est terminé."
+
+msgid "runtime.participant_left_room"
+msgstr "Un combattant a quitté le salon."
+
+msgid "runtime.networking_unavailable"
+msgstr "Réseau indisponible. Le jeu hors ligne reste accessible."
+
+msgid "runtime.room_join_failed"
+msgstr "Impossible de rejoindre le salon. Vérifiez l'invitation et que les deux joueurs utilisent le même paquet SF4 Ember Netplay."
+
+msgid "runtime.room_connection_lost"
+msgstr "Connexion au salon perdue."

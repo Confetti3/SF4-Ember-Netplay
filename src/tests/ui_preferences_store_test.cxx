@@ -32,7 +32,10 @@ int main() {
     CHECK(Read(root / L"ui-preferences.json").find("\"pt-BR\"") != std::string::npos);
     CHECK(SaveLanguagePreferenceTo(root.wstring(), "auto", error));
     CHECK(LoadLanguagePreferenceFrom(root.wstring()) == "auto");
-    CHECK(!SaveLanguagePreferenceTo(root.wstring(), "fr", error));
+    CHECK(SaveLanguagePreferenceTo(root.wstring(), "zh-Hans", error));
+    CHECK(LoadLanguagePreferenceFrom(root.wstring()) == "zh-Hans");
+    CHECK(!SaveLanguagePreferenceTo(root.wstring(), "xx", error));
+    CHECK(!SaveLanguagePreferenceTo(root.wstring(), "zh", error));
     // The hidden card and the language share the file without overwriting each other.
     CHECK(!GameSettingsCardHiddenIn(root.wstring()));
     CHECK(SaveLanguagePreferenceTo(root.wstring(), "es-419", error));
@@ -46,7 +49,7 @@ int main() {
     CHECK(!GameSettingsCardHiddenIn(mistyped.wstring()) && LoadLanguagePreferenceFrom(mistyped.wstring()) == "en");
 
     const std::string invalid[] = {"{", "{\"schemaVersion\":2,\"language\":\"en\"}",
-        "{\"schemaVersion\":1,\"language\":\"fr\"}", std::string(256 * 1024 + 1, 'x')};
+        "{\"schemaVersion\":1,\"language\":\"xx\"}", std::string(256 * 1024 + 1, 'x')};
     for (int i = 0; i < 4; ++i) {
         const auto directory = root / std::to_wstring(i);
         CHECK(std::filesystem::create_directory(directory));

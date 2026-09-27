@@ -6,9 +6,10 @@
 
 namespace sf4e { namespace ui {
 // ImGui's default Latin range stops before typographic punctuation. Keep the
-// HUD's unavailable marker and UTF-8 player names in the baked atlas. Header
+// HUD's unavailable marker and UTF-8 player names in the baked atlas, with
+// Cyrillic and the low quotes German, Polish and Czech open with. Header
 // scope so the catalog test can check glyph coverage without linking the UI.
-constexpr ImWchar UiGlyphRanges[] = {0x0020, 0x017F, 0x2013, 0x2014, 0x2018, 0x201D, 0x2026, 0x2026, 0};
+constexpr ImWchar UiGlyphRanges[] = {0x0020, 0x017F, 0x0400, 0x04FF, 0x2013, 0x2014, 0x2018, 0x201E, 0x2026, 0x2026, 0};
 enum class Tone { Neutral, Success, Pending, Error };
 namespace palette {
 constexpr ImU32 Ember = IM_COL32(255, 135, 56, 255);

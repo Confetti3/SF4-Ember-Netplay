@@ -7,6 +7,9 @@
 #include <cstdio>
 #include <cstdarg>
 #include <cstring>
+#include <iterator>
+#include <optional>
+#include <vector>
 
 namespace sf4e { namespace ui {
 namespace {
@@ -17,6 +20,37 @@ ImVec4 Color(unsigned rgb, float alpha = 1.0f) {
 const unsigned Ink = 0x141312, Panel = 0x211E1B, Border = 0x443A31;
 const unsigned Ivory = 0xF3EBDD, Muted = 0xB5A99B, Ember = 0xFF8738;
 const float BodySize = 18.f;
+
+constexpr std::size_t ScriptFontCount = std::size(fonts::ScriptFonts);
+
+// An atlas holds Inter's ranges and each script font's native language names,
+// which never change, plus the whole catalog of the active locale when a script
+// font draws it. That locale, or none, is all that tells two atlases apart.
+std::optional<loc::Locale> CatalogInAtlas(loc::Locale active) {
+    for (const auto& font : fonts::ScriptFonts)
+        if (font.script == loc::ScriptOf(active)) return active;
+    return std::nullopt;
+}
+
+// What the current atlas holds, and the script-font ranges it was built from,
+// which ImGui reads by pointer and so must outlive the build.
+std::optional<loc::Locale> atlasCatalog;
+ImVector<ImWchar> scriptRanges[ScriptFontCount];
+
+// Every CJK glyph costs atlas space, so a script font gets its languages'
+// native names, for the language picker, and the catalog only if it draws it.
+void BuildScriptRanges(std::optional<loc::Locale> catalog) {
+    for (std::size_t i = 0; i < ScriptFontCount; ++i) {
+        ImFontGlyphRangesBuilder builder;
+        for (int locale = 0; locale < static_cast<int>(loc::Locale::Count); ++locale)
+            if (loc::ScriptOf(static_cast<loc::Locale>(locale)) == fonts::ScriptFonts[i].script)
+                builder.AddText(loc::NativeName(static_cast<loc::Locale>(locale)));
+        if (catalog && loc::ScriptOf(*catalog) == fonts::ScriptFonts[i].script)
+            builder.AddText(loc::DisplayText(*catalog).c_str());
+        scriptRanges[i].clear();
+        builder.BuildRanges(&scriptRanges[i]);
+    }
+}
 }
 
 float Scale() {
@@ -34,13 +68,26 @@ const char* FontLicense() { return fonts::License; }
 bool ApplyTheme(float dpiScale) {
     dpiScale = (std::max)(1.f, (std::min)(dpiScale, 3.f));
     auto& io = ImGui::GetIO();
+    const auto catalog = CatalogInAtlas(loc::Active());
     // Font configuration survives device resets; texture ownership stays with DX9.
+    // A language change that needs other glyphs rebuilds the atlas.
     if (io.Fonts->Fonts.Size == 3 &&
         std::fabs(io.Fonts->Fonts[0]->FontSize - BodySize) < .01f &&
-        std::fabs(io.FontGlobalScale - dpiScale) < .001f)
+        std::fabs(io.FontGlobalScale - dpiScale) < .001f && atlasCatalog == catalog)
         return false;
     io.FontDefault = nullptr;
     io.Fonts->Clear();
+    BuildScriptRanges(catalog);
+    atlasCatalog = catalog;
+    // The catalog's font merges first so it draws the Han characters Japanese
+    // and Chinese share.
+    const auto drawsCatalog = [&](std::size_t font) { return catalog && fonts::ScriptFonts[font].script == loc::ScriptOf(*catalog); };
+    std::vector<std::size_t> mergeOrder;
+    for (std::size_t font = 0; font < ScriptFontCount; ++font)
+        if (drawsCatalog(font)) mergeOrder.push_back(font);
+    for (std::size_t font = 0; font < ScriptFontCount; ++font)
+        // BuildRanges always writes the terminator; one entry means no glyphs.
+        if (!drawsCatalog(font) && scriptRanges[font].Size > 1) mergeOrder.push_back(font);
     const float sizes[] = {BodySize, 28.f, 16.f};
     for (int i = 0; i < 3; ++i) {
         ImFontConfig config;
@@ -55,6 +102,20 @@ bool ApplyTheme(float dpiScale) {
         std::snprintf(config.Name, sizeof(config.Name), "%s %.0fpx",
             i == 1 ? "Inter SemiBold" : "Inter Regular", sizes[i]*dpiScale);
         io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(data), bytes, sizes[i], &config);
+        for (const auto font : mergeOrder) {
+            ImFontConfig merged;
+            merged.MergeMode = true;
+            merged.FontDataOwnedByAtlas = false;
+            merged.GlyphRanges = scriptRanges[font].Data;
+            // Dense CJK outlines need no oversampling. The diagnostic font's
+            // extra density is for the scaled match strip; CJK glyphs take it
+            // only up to 2x so a Japanese atlas stays a fraction of the size.
+            merged.OversampleH = merged.OversampleV = 1;
+            merged.RasterizerDensity = (std::min)(config.RasterizerDensity, (std::max)(2.f, dpiScale));
+            std::snprintf(merged.Name, sizeof(merged.Name), "Noto Sans CJK %.0fpx", sizes[i]*dpiScale);
+            const auto& source = fonts::ScriptFonts[font];
+            io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(source.data), static_cast<int>(source.bytes), sizes[i], &merged);
+        }
     }
     io.FontGlobalScale = dpiScale;
     io.FontDefault = io.Fonts->Fonts[0];

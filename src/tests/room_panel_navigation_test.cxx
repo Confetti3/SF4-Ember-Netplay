@@ -606,6 +606,29 @@ int main() try {
         "Locale switch discarded the chat draft");
     Check(actions.size() == localeActions && view.room.roomEpoch == localeEpoch && view.room.members.size() == localeMembers,
         "Locale switch mutated room state or submitted a command");
+    // Scripts Inter lacks rebuild the atlas mid-screen; the room keeps its place.
+    for (const auto locale : {sf4e::loc::Locale::Ja, sf4e::loc::Locale::Ru, sf4e::loc::Locale::ZhHans}) {
+        sf4e::loc::SetActive(locale);
+        Check(ApplyTheme(1.f), "A language needing other glyphs kept the old atlas");
+        io.Fonts->Build(); frame();
+        Check(shell.Navigation().Screen() == localeScreen && shell.Navigation().Focus() == localeFocus &&
+            shell.Navigation().Editing() && shell.Navigation().Draft() == localeDraft,
+            "Atlas rebuild for a language switch lost the screen, focus or draft");
+        Check(!ApplyTheme(1.f), "An unchanged language rebuilt the atlas again");
+    }
+    // The atlas was rebuilt between frames, so ImGui::GetFont() still names the
+    // freed font until the next NewFrame; the rebuilt default font is current.
+    // Japanese text is drawable while Japanese is active, and every native
+    // language name stays drawable in any language for the picker.
+    sf4e::loc::SetActive(sf4e::loc::Locale::Ja); ApplyTheme(1.f); io.Fonts->Build();
+    Check(io.FontDefault->FindGlyphNoFallback(0x8A2D) != nullptr, "Japanese catalog glyph missing from the atlas");
+    sf4e::loc::SetActive(sf4e::loc::Locale::En); ApplyTheme(1.f); io.Fonts->Build();
+    // Inter draws Latin and Cyrillic alike, so moving between them keeps the atlas.
+    sf4e::loc::SetActive(sf4e::loc::Locale::Ru);
+    Check(!ApplyTheme(1.f), "A language Inter already draws rebuilt the atlas");
+    sf4e::loc::SetActive(sf4e::loc::Locale::En);
+    for (const ImWchar glyph : {ImWchar(0x8A9E), ImWchar(0xD55C), ImWchar(0x7B80), ImWchar(0x0420)})
+        Check(io.FontDefault->FindGlyphNoFallback(glyph) != nullptr, "A language's native name is not drawable in English");
     sf4e::loc::SetActive(sf4e::loc::Locale::En);
 
     // A relayed check explains itself; a direct one does not carry the advice.
@@ -623,7 +646,8 @@ int main() try {
     sf4e::loc::SetActive(sf4e::loc::Locale::Es419);
     measured.probeRoute = sf4e::RouteKind::Relayed;
     const auto translated = DescribeConnectionCheck(measured).detail;
-    Check(translated.find(" retransmitida.") != std::string::npos && translated.find("Relayed") == std::string::npos,
+    Check(translated.find(std::string(" ") + sf4e::loc::T("connection.route_relayed") + ".") != std::string::npos &&
+        translated.find("Relayed") == std::string::npos,
         "Relayed route label was not translated");
     sf4e::loc::SetActive(sf4e::loc::Locale::En);
 

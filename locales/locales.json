@@ -1,0 +1,25 @@
+{
+  "locales": [
+    {"id": "En", "tag": "en", "name": "English", "script": "Latin", "game": "ENG"},
+    {"id": "PtBR", "tag": "pt-BR", "name": "Português (Brasil)", "script": "Latin", "game": "BRA"},
+    {"id": "Es419", "tag": "es-419", "name": "Español (Latinoamérica)", "script": "Latin", "game": null},
+    {"id": "EsES", "tag": "es-ES", "name": "Español (España)", "script": "Latin", "game": "SPA"},
+    {"id": "Fr", "tag": "fr", "name": "Français", "script": "Latin", "game": "FRA"},
+    {"id": "It", "tag": "it", "name": "Italiano", "script": "Latin", "game": "ITA"},
+    {"id": "De", "tag": "de", "name": "Deutsch", "script": "Latin", "game": "GER"},
+    {"id": "Nl", "tag": "nl", "name": "Nederlands", "script": "Latin", "game": "DUT"},
+    {"id": "Pl", "tag": "pl", "name": "Polski", "script": "Latin", "game": "POL"},
+    {"id": "Cs", "tag": "cs", "name": "Čeština", "script": "Latin", "game": "CZE"},
+    {"id": "Ru", "tag": "ru", "name": "Русский", "script": "Cyrillic", "game": "RUS"},
+    {"id": "Ja", "tag": "ja", "name": "日本語", "script": "Japanese", "game": "JPN"},
+    {"id": "Ko", "tag": "ko", "name": "한국어", "script": "Korean", "game": "KOR"},
+    {"id": "ZhHans", "tag": "zh-Hans", "name": "简体中文", "script": "SimplifiedChinese", "game": "CHI"}
+  ],
+  "scripts": [
+    {"id": "Latin", "font": null},
+    {"id": "Cyrillic", "font": null},
+    {"id": "Japanese", "font": "NotoSansCJKjp-Subset.otf", "source": "NotoSansCJKjp-Regular.otf"},
+    {"id": "Korean", "font": "NotoSansCJKkr-Subset.otf", "source": "NotoSansCJKkr-Regular.otf"},
+    {"id": "SimplifiedChinese", "font": "NotoSansCJKsc-Subset.otf", "source": "NotoSansCJKsc-Regular.otf"}
+  ]
+}

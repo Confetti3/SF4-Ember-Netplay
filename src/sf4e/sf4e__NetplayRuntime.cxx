@@ -691,7 +691,11 @@ void StartHelper() {
 	if (runtime) return;
 	runtime = new Runtime();
     runtime->languagePreference = platform::LoadLanguagePreference();
-    loc::SetActive(loc::ResolveLocale(runtime->languagePreference, platform::WindowsUiLanguages()));
+    wchar_t gamePath[MAX_PATH] = {};
+    if (GetModuleFileNameW(nullptr, gamePath, MAX_PATH)) platform::SetGameDirectory(std::filesystem::path(gamePath).parent_path());
+    loc::SetActive(platform::ResolveUiLocale(runtime->languagePreference));
+    spdlog::info("Interface language {} (preference {}, game {})", loc::Tag(loc::Active()), runtime->languagePreference,
+        platform::GameLanguage().empty() ? "unknown" : platform::GameLanguage());
     if (!runtime->trace.Open(netplay::SettingsStore::DefaultDirectory()))
         spdlog::warn("Session trace could not be opened (error {}); lifecycle states will count as dropped", GetLastError());
 	runtime->displayName = GetConfig().displayName;
