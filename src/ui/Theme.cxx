@@ -355,6 +355,7 @@ float MatchScale(const MatchStripView& view) {
     return viewport*sizes[(std::max)(0,(std::min)(2,view.size))];
 }
 void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, float w, float s) {
+    const float glyph=16*s,glyphGap=6*s,glyphSpace=glyph+glyphGap;
     auto* font=DiagnosticFont();
     const auto measure=[&](const std::string& t,float size){return font->CalcTextSizeA(size,FLT_MAX,0,t.c_str()).x;};
     const auto fit=[&](std::string t,float maxWidth,float size){
@@ -387,13 +388,16 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
     // pair lopsided whenever the names differed in length.
     // The names share whatever the middle label (a running score can be wide) leaves.
     const auto versus=view.score.empty()?std::string(loc::T("match.versus_short")):view.score;
-    const auto gap=12*s,vsWidth=measure(versus,16*s),nameWidth=(w-30*s-2*gap-vsWidth)*.5f;
+    // Each side's link mark sits on the outer side of its name.
+    const auto gap=12*s,vsWidth=measure(versus,16*s),nameWidth=(w-30*s-2*gap-vsWidth-2*glyphSpace)*.5f;
     const auto left=fit(view.names[0],nameWidth,20*s),right=fit(view.names[1],nameWidth,20*s);
-    const auto leftWidth=measure(left,20*s);
-    auto x=p.x+(w-(leftWidth+gap+vsWidth+gap+measure(right,20*s)))*.5f;
+    const auto leftWidth=measure(left,20*s),rightWidth=measure(right,20*s);
+    auto x=p.x+(w-(glyphSpace+leftWidth+gap+vsWidth+gap+rightWidth+glyphSpace))*.5f;
+    DrawNetworkLinkGlyph(draw,ImVec2(x,p.y+7*s),glyph,view.links[0]);x+=glyphSpace;
     text(x,p.y+4*s,left,20*s,IM_COL32(243,235,221,255));x+=leftWidth+gap;
     text(x,p.y+6*s,versus,16*s,IM_COL32(255,135,56,230));x+=vsWidth+gap;
     text(x,p.y+4*s,right,20*s,IM_COL32(243,235,221,255));
+    DrawNetworkLinkGlyph(draw,ImVec2(x+rightWidth+glyphGap,p.y+7*s),glyph,view.links[1]);
     const std::string labels[]={loc::T("match.ping"),loc::T("match.rollback"),view.spectator?"":loc::T("match.delay")};
     const std::string values[]={view.pingMs<0?"\xe2\x80\x94":std::to_string(view.pingMs)+" ms",
         std::to_string(view.rollbackFrames)+"f",view.spectator?loc::T("match.spectating"):view.appliedDelay<0?"\xe2\x80\x94":std::to_string(view.appliedDelay)+"f"};
@@ -407,6 +411,33 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
         text(valueX,p.y+29*s,value,22*s,IM_COL32(243,235,221,255));
     }
 }
+}
+void DrawNetworkLinkGlyph(ImDrawList* draw, ImVec2 min, float size, NetworkLink link) {
+    const float t=(std::max)(1.f,size*.11f);
+    const auto at=[&](float x,float y){return ImVec2(min.x+size*x,min.y+size*y);};
+    if(link==NetworkLink::Wireless){
+        // A quarter turn either side of straight up.
+        const float up=-1.5707963f,spread=.7853982f;
+        const ImVec2 origin=at(.5f,.86f);
+        for(const float radius:{.26f,.48f,.7f}){
+            draw->PathArcTo(origin,size*radius,up-spread,up+spread,12);
+            draw->PathStroke(palette::Ember,0,t);
+        }
+        draw->AddCircleFilled(origin,t*1.2f,palette::Ember);
+    }else if(link==NetworkLink::Wired){
+        const ImVec2 port[]={at(.14f,.18f),at(.86f,.18f),at(.86f,.66f),at(.66f,.66f),
+            at(.66f,.84f),at(.34f,.84f),at(.34f,.66f),at(.14f,.66f)};
+        draw->AddPolyline(port,8,palette::Ready,ImDrawFlags_Closed,t);
+        for(const float x:{.36f,.5f,.64f})draw->AddLine(at(x,.18f),at(x,.36f),palette::Ready,t);
+    }else{
+        draw->AddCircle(at(.5f,.5f),size*.42f,palette::Muted,0,t);
+        const float textSize=size*.66f;
+        const auto extent=ImGui::GetFont()->CalcTextSizeA(textSize,FLT_MAX,0,"?");
+        draw->AddText(ImGui::GetFont(),textSize,ImVec2(min.x+(size-extent.x)*.5f,min.y+(size-extent.y)*.5f),palette::Muted,"?");
+    }
+}
+const char* NetworkLinkName(NetworkLink link) {
+    return loc::T(link==NetworkLink::Wired?"room.link_wired":link==NetworkLink::Wireless?"room.link_wireless":"room.link_unknown");
 }
 float MatchStripScale(const MatchStripView& view) { return MatchScale(view); }
 void DrawMatchStrip(const MatchStripView& view) {

@@ -279,6 +279,9 @@ void AttachRoom() {
 		deviceType, deviceIndex, static_cast<uint8_t>(runtime->preferences.inputDelay));
 	UserApp::netplay->client.RequireCustomRooms();
 	UserApp::netplay->client.SetProfileMain(runtime->preferences.mainFighter);
+	const auto link = DetectNetworkLink();
+	spdlog::info("Runtime: network link {}", NetworkLinkLabel(link));
+	UserApp::netplay->client.SetProfileLink(link);
     runtime->selectedDelay=runtime->preferences.inputDelay;
     UserApp::netplay->client.SetSelectedDelay(runtime->selectedDelay);
     runtime->inputInitialized=true;
@@ -1664,10 +1667,15 @@ static void TickMatch() {
 		} else if (runtime->match) {
 			const auto phase = runtime->match->GetPhase();
 			const auto state = runtime->controller.GetSnapshot();
-			if (phase != session::IrohMatchSession::Phase::Idle && phase != session::IrohMatchSession::Phase::Ending &&
-				(state.match == netplay::MatchState::None || state.match == netplay::MatchState::PostMatch)) {
+			const bool sessionLive = phase != session::IrohMatchSession::Phase::Idle && phase != session::IrohMatchSession::Phase::Ending;
+			if (sessionLive && (state.match == netplay::MatchState::None || state.match == netplay::MatchState::PostMatch)) {
 				Apply(netplay::EventKind::MatchPreparing); runtime->matchEntered = false;
 			}
+			// A grant withdrawn before the battle was entered (a spectator whose
+			// link came up after the start) has no battle to close. Without this
+			// the shell stayed in Preparing, shut, until another grant.
+			if (!sessionLive && !runtime->matchEntered && state.match == netplay::MatchState::Preparing)
+				Apply(netplay::EventKind::MatchEnded);
 			if (phase == session::IrohMatchSession::Phase::Started && !runtime->matchEntered) {
 				Apply(netplay::EventKind::GameplayReady);
 				runtime->matchEntered = UserApp::EnterAuthorizedMatch();

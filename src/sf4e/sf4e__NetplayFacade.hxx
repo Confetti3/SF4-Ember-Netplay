@@ -7,6 +7,7 @@
 
 #include "../common/sf4e__NetplayConfig.hxx"
 #include "../common/NetworkRoute.hxx"
+#include "../common/MatchSide.hxx"
 #include "../platform/HelperProcess.hxx"
 #include "../netplay/SessionController.hxx"
 #include "../netplay/PlayerPreferences.hxx"
@@ -37,7 +38,7 @@ namespace sf4e {
 		// loss, join rejections), or empty. Filled by GetStatus.
 		char lastError[256] = { 0 };
 		NoticeSeverity lastErrorSeverity = NoticeSeverity::Info;
-        std::string matchNames[2];
+        MatchSide matchSides[2];
         // The pair's running win count from its room table; unset outside a room.
         bool hasMatchScore = false;
         std::uint32_t matchScore[2] = { 0, 0 };

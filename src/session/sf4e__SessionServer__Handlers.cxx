@@ -54,7 +54,7 @@ void SessionServer::HandleSessionHello(session::Connection conn, const json& msg
 			if ((_roomAuthority && (!admission.customRooms || admission.roomProtocol != room::ProtocolVersion)) ||
 				(!_roomAuthority && admission.customRooms)) admissionResult = SessionProtocol::JR_REQUEST_INVALID;
 			else admissionResult = RegisterToWait(conn, admission.port, admission.sidecarHash, admission.username,
-				incoming.peerAddress, cidMsg.cid, admission.mainFighter);
+				incoming.peerAddress, cidMsg.cid, admission.Profile());
 			admitted = admissionResult == SessionProtocol::JOIN_OK;
 			if (admitted) EnableChatDelta(conn, admission.roomChatDelta);
 		} catch (const std::exception&) { admissionResult = SessionProtocol::JR_REQUEST_INVALID; }
@@ -132,21 +132,10 @@ void SessionServer::HandleRoomAction(session::Connection conn, const json& msg, 
 			}
 		}
 	}
+	const auto started = StartReadyTables(result.events);
+	events.insert(events.end(), started.begin(), started.end());
 	for (const auto& event : result.events) {
-		if (event.kind == room::Event::Kind::MatchReady) {
-			const auto& table = _roomAuthority->SnapshotView().tables[event.table];
-			auto started = _roomAuthority->BeginMatch(event.table, table.p1, table.p2);
-			if (started.accepted) {
-				events.insert(events.end(), started.events.begin(), started.events.end());
-				for (const auto& startedEvent : started.events) {
-					if (startedEvent.kind == room::Event::Kind::MatchStarted &&
-						!BeginAuthorizedTable(startedEvent.table, startedEvent.matchGeneration)) {
-						_transportFailed = true;
-					}
-				}
-			}
-		}
-		else if (event.kind == room::Event::Kind::MatchEnded) {
+		if (event.kind == room::Event::Kind::MatchEnded) {
 			auto* authority = RoomMatchAuthority(event.table);
 			bool nativeEndSent = false;
 			if (authority && authority->Generation() == event.matchGeneration &&
@@ -343,7 +332,7 @@ void SessionServer::HandleJoinRequest(session::Connection conn, const json& msg,
 		return;
 	}
 
-	SessionProtocol::JoinResult joinResult = RegisterToWait(conn, request.port, request.sidecarHash, request.username, incoming.peerAddress, cid, request.mainFighter);
+	SessionProtocol::JoinResult joinResult = RegisterToWait(conn, request.port, request.sidecarHash, request.username, incoming.peerAddress, cid, request.Profile());
 	if (joinResult != SessionProtocol::JOIN_OK) {
 		spdlog::info("Server: rejecting registration for reason {}", (int)joinResult);
 		SessionProtocol::SessionJoinReject reject;

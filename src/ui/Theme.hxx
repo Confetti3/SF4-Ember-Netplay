@@ -1,5 +1,6 @@
 #pragma once
 #include <imgui.h>
+#include "../common/NetworkLink.hxx"
 #include <cstdint>
 #include <string>
 #include <utility>
@@ -56,9 +57,17 @@ void KeepWindowVisible();
 bool BeginToolWindow(const char* name, bool* open = nullptr, ImGuiWindowFlags flags = 0);
 void EndToolWindow();
 
+// Ember's link marks in a size-by-size square at `min`: an Ethernet port in
+// the ready green, Wi-Fi arcs in the accent colour since it is the link to keep
+// an eye on, and a muted question ring when the link is unknown.
+void DrawNetworkLinkGlyph(ImDrawList* draw, ImVec2 min, float size, NetworkLink link);
+// The same, in words ("Wired connection").
+const char* NetworkLinkName(NetworkLink link);
+
 // Presentation-only input. Neither this view nor its renderer accesses the game.
 struct MatchStripView {
     std::string names[2];
+    NetworkLink links[2] = {};
     // Running win count (SetScoreText) shown in place of "vs"; empty when there is none.
     std::string score;
     unsigned rollbackFrames = 0;

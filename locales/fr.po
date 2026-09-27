@@ -1521,6 +1521,18 @@ msgstr " / PRÊT"
 msgid "room.suffix_you"
 msgstr " / VOUS"
 
+msgid "room.suffix_locked_in"
+msgstr " / VERROUILLÉ"
+
+msgid "room.link_wired"
+msgstr "Connexion filaire"
+
+msgid "room.link_wireless"
+msgstr "Connexion Wi-Fi"
+
+msgid "room.link_unknown"
+msgstr "Connexion inconnue"
+
 msgid "room.table_footer"
 msgstr "{0} rounds / {1} s     File {2}     Spect. {3}"
 
@@ -1592,6 +1604,9 @@ msgstr "Sélectionnez pour verrouiller votre personnage. Le combat démarre quan
 
 msgid "room.both_ready"
 msgstr "Les deux combattants sont prêts. Le combat commence."
+
+msgid "room.waiting_spectators"
+msgstr "Les deux combattants sont prêts. Le combat commence dès le retour des spectateurs verrouillés, ou dans 10 secondes."
 
 msgid "room.match_in_progress.detail"
 msgstr "Le combat est en cours. Attendez sa fin."
@@ -1697,6 +1712,18 @@ msgstr "Arrêter de regarder"
 
 msgid "room.watch_next"
 msgstr "Voir le prochain"
+
+msgid "room.lock_spectating"
+msgstr "Verrouiller le visionnage"
+
+msgid "room.lock_spectating.detail"
+msgstr "Le prochain combat vous attend jusqu'à 10 secondes, le temps de revenir dans le salon."
+
+msgid "room.unlock_spectating"
+msgstr "Déverrouiller"
+
+msgid "room.unlock_spectating.detail"
+msgstr "Vous êtes verrouillé. Le prochain combat vous attend jusqu'à 10 secondes."
 
 msgid "room.table_rules"
 msgstr "Règles"

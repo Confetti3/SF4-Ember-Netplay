@@ -1521,6 +1521,18 @@ msgstr " / BEREIT"
 msgid "room.suffix_you"
 msgstr " / SIE"
 
+msgid "room.suffix_locked_in"
+msgstr " / FESTGELEGT"
+
+msgid "room.link_wired"
+msgstr "Kabelverbindung"
+
+msgid "room.link_wireless"
+msgstr "WLAN-Verbindung"
+
+msgid "room.link_unknown"
+msgstr "Verbindung unbekannt"
+
 msgid "room.table_footer"
 msgstr "{0} Runden / {1} Sek.     Warteschlange {2}     Zuschauer {3}"
 
@@ -1592,6 +1604,9 @@ msgstr "Wählen, um den Charakter festzulegen. Kampf beginnt, sobald beide Spiel
 
 msgid "room.both_ready"
 msgstr "Beide Charaktere sind bereit. Der Kampf beginnt."
+
+msgid "room.waiting_spectators"
+msgstr "Beide Charaktere sind bereit. Der Kampf beginnt, sobald festgelegte Zuschauer zurück sind, spätestens in 10 Sekunden."
 
 msgid "room.match_in_progress.detail"
 msgstr "Der aktuelle Kampf läuft. Warten Sie auf das Ende."
@@ -1697,6 +1712,18 @@ msgstr "Zuschauen beenden"
 
 msgid "room.watch_next"
 msgstr "Nächstes Spiel sehen"
+
+msgid "room.lock_spectating"
+msgstr "Zuschauen festlegen"
+
+msgid "room.lock_spectating.detail"
+msgstr "Das nächste Spiel wartet bis zu 10 Sekunden, bis Sie wieder im Raum sind."
+
+msgid "room.unlock_spectating"
+msgstr "Festlegung aufheben"
+
+msgid "room.unlock_spectating.detail"
+msgstr "Sie sind festgelegt. Das nächste Spiel wartet bis zu 10 Sekunden auf Sie."
 
 msgid "room.table_rules"
 msgstr "Tischregeln"

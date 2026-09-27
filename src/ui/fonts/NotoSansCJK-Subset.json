@@ -4,9 +4,9 @@
   "fonts": {
     "NotoSansCJKjp-Subset.otf": {
       "sourceSha256": "68a3fc98800b2a27b371f2fb79991daf3633bd89309d4ffaa6946fd587f375b5",
-      "sha256": "dcdd0f98d37660087ce59261ea5ff81e26591d3c5f965353d2372637f1309b5b",
-      "codepoints": 631,
-      "bytes": 89140
+      "sha256": "cc06f5fb6bec8dfd0738bdec4fac79421b452e8c501a722476cefcaaff33359f",
+      "codepoints": 632,
+      "bytes": 89468
     },
     "NotoSansCJKkr-Subset.otf": {
       "sourceSha256": "6bcb2a0703aa137e874fc2dffa85f6c21ba9a67fa329e81b8c801663af7e992a",
@@ -16,9 +16,9 @@
     },
     "NotoSansCJKsc-Subset.otf": {
       "sourceSha256": "2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b",
-      "sha256": "385d8206ec4f2d99851fc7e3a291ef53430bb1b0ba77b1d742ee4cba409b06c3",
-      "codepoints": 740,
-      "bytes": 113988
+      "sha256": "14856406279907e1b1a5e2d22d7efd909a0e2f915f5ab66ea5bbc58eee324170",
+      "codepoints": 742,
+      "bytes": 114360
     }
   }
 }

@@ -251,7 +251,7 @@ namespace sf4e {
 			st.inLobby = st.connected && fSystem::ggpo == nullptr;
 			st.inMatch = fSystem::ggpo != nullptr;
 			st.inputDelay = fUserApp::netplay->delay;
-            for (int side = 0; side < 2; ++side) st.matchNames[side] = fUserApp::netplay->matchNames[side];
+            for (int side = 0; side < 2; ++side) st.matchSides[side] = fUserApp::netplay->matchSides[side];
             // Spectators carry their table too, so everyone watching sees the same count.
             const auto& room = fUserApp::netplay->client.GetRoomSnapshot();
             for (const auto& m : room.members)

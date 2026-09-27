@@ -1521,6 +1521,18 @@ msgstr " / KLAAR"
 msgid "room.suffix_you"
 msgstr " / JIJ"
 
+msgid "room.suffix_locked_in"
+msgstr " / VASTGELEGD"
+
+msgid "room.link_wired"
+msgstr "Bekabelde verbinding"
+
+msgid "room.link_wireless"
+msgstr "Wifi-verbinding"
+
+msgid "room.link_unknown"
+msgstr "Verbinding onbekend"
+
 msgid "room.table_footer"
 msgstr "{0} rondes / {1} sec     Wachtrij {2}     Kijken {3}"
 
@@ -1592,6 +1604,9 @@ msgstr "Selecteer om je personage vast te leggen. De match begint zodra beide sp
 
 msgid "room.both_ready"
 msgstr "Beide spelers zijn klaar. De match begint."
+
+msgid "room.waiting_spectators"
+msgstr "Beide spelers zijn klaar. De match begint zodra vastgelegde kijkers terug zijn, of over 10 seconden."
 
 msgid "room.match_in_progress.detail"
 msgstr "De huidige match is bezig. Wacht tot deze voorbij is."
@@ -1697,6 +1712,18 @@ msgstr "Stoppen met kijken"
 
 msgid "room.watch_next"
 msgstr "Volgende kijken"
+
+msgid "room.lock_spectating"
+msgstr "Kijken vastleggen"
+
+msgid "room.lock_spectating.detail"
+msgstr "De volgende match wacht tot 10 seconden terwijl je terugkeert naar de kamer."
+
+msgid "room.unlock_spectating"
+msgstr "Vastlegging opheffen"
+
+msgid "room.unlock_spectating.detail"
+msgstr "Je bent vastgelegd. De volgende match wacht tot 10 seconden op je."
 
 msgid "room.table_rules"
 msgstr "Tafelregels"

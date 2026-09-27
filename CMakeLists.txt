@@ -139,6 +139,10 @@ if(BUILD_TESTING)
     target_link_libraries(RoomAuthorityTest PRIVATE sf4e_room_model)
     add_test(NAME RoomAuthority COMMAND RoomAuthorityTest)
     set_tests_properties(RoomAuthority PROPERTIES TIMEOUT 30)
+    add_executable(RoomSpectatorLockTest "src/tests/room_spectator_lock_test.cxx")
+    target_link_libraries(RoomSpectatorLockTest PRIVATE sf4e_room_model)
+    add_test(NAME RoomSpectatorLock COMMAND RoomSpectatorLockTest)
+    set_tests_properties(RoomSpectatorLock PROPERTIES TIMEOUT 30)
     add_executable(SessionRecoveryGateTest "src/tests/session_recovery_gate_test.cxx")
     target_compile_features(SessionRecoveryGateTest PRIVATE cxx_std_14)
     target_link_libraries(SessionRecoveryGateTest PRIVATE sf4e_room_model)
@@ -306,6 +310,8 @@ target_link_libraries(
 )
 
 add_library(sf4e_common STATIC
+    "src/common/NetworkLink.cxx"
+    "src/common/NetworkLink.hxx"
     "src/common/sf4e__NetUtil.cxx"
     "src/common/sf4e__NetUtil.hxx"
     "src/common/sf4e__RollbackDiagnostics.cxx"
@@ -317,6 +323,12 @@ add_library(sf4e_common STATIC
     "src/common/install_paths.hxx"
 )
 target_link_libraries(sf4e_common PUBLIC "iphlpapi" "ws2_32" "winhttp")
+if(BUILD_TESTING)
+    add_executable(NetworkLinkTest "src/tests/network_link_test.cxx")
+    target_link_libraries(NetworkLinkTest PRIVATE sf4e_common)
+    add_test(NAME NetworkLink COMMAND NetworkLinkTest)
+    set_tests_properties(NetworkLink PROPERTIES TIMEOUT 30)
+endif()
 
 add_library(sf4e STATIC
     "src/sf4e/sf4e__InputDevices.cxx"

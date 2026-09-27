@@ -1521,6 +1521,18 @@ msgstr " / PŘIPRAVEN"
 msgid "room.suffix_you"
 msgstr " / VY"
 
+msgid "room.suffix_locked_in"
+msgstr " / ZAMČENO"
+
+msgid "room.link_wired"
+msgstr "Kabelové připojení"
+
+msgid "room.link_wireless"
+msgstr "Připojení Wi-Fi"
+
+msgid "room.link_unknown"
+msgstr "Připojení neznámé"
+
 msgid "room.table_footer"
 msgstr "Kola: {0} / čas: {1} s     Fronta: {2}     Sleduje: {3}"
 
@@ -1592,6 +1604,9 @@ msgstr "Výběrem zamknete postavu. Zápas začne, až budou oba hráči připra
 
 msgid "room.both_ready"
 msgstr "Oba hráči jsou připraveni. Zápas začíná."
+
+msgid "room.waiting_spectators"
+msgstr "Oba hráči jsou připraveni. Zápas začne, až se vrátí zamčení diváci, nejpozději za 10 sekund."
 
 msgid "room.match_in_progress.detail"
 msgstr "Aktuální zápas probíhá. Počkejte na jeho konec."
@@ -1697,6 +1712,18 @@ msgstr "Přestat sledovat"
 
 msgid "room.watch_next"
 msgstr "Sledovat další zápas"
+
+msgid "room.lock_spectating"
+msgstr "Zamknout sledování"
+
+msgid "room.lock_spectating.detail"
+msgstr "Další zápas na vás počká až 10 sekund, než se vrátíte do místnosti."
+
+msgid "room.unlock_spectating"
+msgstr "Zrušit zamčení"
+
+msgid "room.unlock_spectating.detail"
+msgstr "Sledování je zamčené. Další zápas na vás počká až 10 sekund."
 
 msgid "room.table_rules"
 msgstr "Pravidla stolu"

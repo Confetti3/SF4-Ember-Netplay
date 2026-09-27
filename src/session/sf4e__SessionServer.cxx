@@ -227,6 +227,9 @@ int SessionServer::Step()
 				roomSelectedTables.erase(connection);
 				if (leave.accepted) {
 					departureEvents.insert(departureEvents.end(), leave.events.begin(), leave.events.end());
+					// A departed locked-in spectator can release a held start.
+					const auto started = StartReadyTables(leave.events);
+					departureEvents.insert(departureEvents.end(), started.begin(), started.end());
 					BroadcastRoomState(departureEvents);
 				}
 			}
@@ -474,7 +477,7 @@ SessionProtocol::JoinResult SessionServer::RegisterToWait(
 	const std::string& name,
 	const std::string& peerAddr,
 	SessionProtocol::ConnectionID& cid,
-	int mainFighter
+	const room::MemberProfile& profile
 ) {
 	if (sidecarHash != _sidecarHash) {
 		return SessionProtocol::JR_HASH_INVALID;
@@ -504,7 +507,7 @@ SessionProtocol::JoinResult SessionServer::RegisterToWait(
 		// Member.connection remains the protocol CID. The stable peer identity
 		// above is only an admission/kick ban key.
 		const room::ConnectionRef connectionRef{cid.host, cid.user};
-		auto joined = _roomAuthority->Join(name, connectionRef, isHost, mainFighter);
+		auto joined = _roomAuthority->Join(name, connectionRef, isHost, profile);
 		if (!joined.accepted) {
 			switch (joined.reason) {
 			case room::RejectReason::RoomFull: return SessionProtocol::JR_LOBBY_FULL;

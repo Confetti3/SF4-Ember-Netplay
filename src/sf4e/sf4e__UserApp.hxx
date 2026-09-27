@@ -5,6 +5,7 @@
 
 #include <windows.h>
 
+#include "../common/MatchSide.hxx"
 #include "../Dimps/Dimps__Math.hxx"
 #include "../Dimps/Dimps__UserApp.hxx"
 #include "../session/sf4e__SessionClient.hxx"
@@ -28,7 +29,7 @@ namespace sf4e {
             uint8_t deviceType;
             uint8_t deviceIdx;
             uint8_t delay;
-            std::string matchNames[2];
+            MatchSide matchSides[2];
         };
 
         static std::unique_ptr<Netplay> netplay;

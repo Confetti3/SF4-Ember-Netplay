@@ -1521,6 +1521,18 @@ msgstr " / PRONTO"
 msgid "room.suffix_you"
 msgstr " / TU"
 
+msgid "room.suffix_locked_in"
+msgstr " / BLOCCATO"
+
+msgid "room.link_wired"
+msgstr "Connessione via cavo"
+
+msgid "room.link_wireless"
+msgstr "Connessione Wi-Fi"
+
+msgid "room.link_unknown"
+msgstr "Connessione sconosciuta"
+
 msgid "room.table_footer"
 msgstr "{0} round / {1} sec     Coda {2}     Spettatori {3}"
 
@@ -1592,6 +1604,9 @@ msgstr "Seleziona per bloccare il personaggio. La partita inizia quando entrambi
 
 msgid "room.both_ready"
 msgstr "Entrambi pronti. La partita sta per iniziare."
+
+msgid "room.waiting_spectators"
+msgstr "Entrambi pronti. La partita inizia al ritorno degli spettatori bloccati, o tra 10 secondi."
 
 msgid "room.match_in_progress.detail"
 msgstr "Partita in corso. Attendi la fine."
@@ -1697,6 +1712,18 @@ msgstr "Smetti di guardare"
 
 msgid "room.watch_next"
 msgstr "Guarda la prossima"
+
+msgid "room.lock_spectating"
+msgstr "Blocca per guardare"
+
+msgid "room.lock_spectating.detail"
+msgstr "La prossima partita ti aspetta fino a 10 secondi mentre torni nella stanza."
+
+msgid "room.unlock_spectating"
+msgstr "Sblocca"
+
+msgid "room.unlock_spectating.detail"
+msgstr "Sei bloccato. La prossima partita ti aspetta fino a 10 secondi."
 
 msgid "room.table_rules"
 msgstr "Regole del tavolo"

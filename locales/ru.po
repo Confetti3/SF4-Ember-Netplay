@@ -1521,6 +1521,18 @@ msgstr " / ГОТОВ"
 msgid "room.suffix_you"
 msgstr " / ВЫ"
 
+msgid "room.suffix_locked_in"
+msgstr " / ЗАКРЕПЛЁН"
+
+msgid "room.link_wired"
+msgstr "Проводное подключение"
+
+msgid "room.link_wireless"
+msgstr "Подключение по Wi-Fi"
+
+msgid "room.link_unknown"
+msgstr "Подключение неизвестно"
+
 msgid "room.table_footer"
 msgstr "Раундов: {0} / {1} с     Очередь: {2}     Зрители: {3}"
 
@@ -1592,6 +1604,9 @@ msgstr "Закрепите персонажа. Матч начнётся, ког
 
 msgid "room.both_ready"
 msgstr "Оба бойца готовы. Матч начинается."
+
+msgid "room.waiting_spectators"
+msgstr "Оба бойца готовы. Матч начнётся, когда закреплённые зрители вернутся, но не позже чем через 10 секунд."
 
 msgid "room.match_in_progress.detail"
 msgstr "Текущий матч идёт. Дождитесь завершения."
@@ -1697,6 +1712,18 @@ msgstr "Не смотреть"
 
 msgid "room.watch_next"
 msgstr "Смотреть новый бой"
+
+msgid "room.lock_spectating"
+msgstr "Закрепиться зрителем"
+
+msgid "room.lock_spectating.detail"
+msgstr "Следующий матч подождёт вас до 10 секунд, пока вы возвращаетесь в комнату."
+
+msgid "room.unlock_spectating"
+msgstr "Снять закрепление"
+
+msgid "room.unlock_spectating.detail"
+msgstr "Вы закреплены. Следующий матч подождёт вас до 10 секунд."
 
 msgid "room.table_rules"
 msgstr "Правила стола"

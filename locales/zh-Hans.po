@@ -1521,6 +1521,18 @@ msgstr "／已准备"
 msgid "room.suffix_you"
 msgstr "／您"
 
+msgid "room.suffix_locked_in"
+msgstr " / 已锁定观战"
+
+msgid "room.link_wired"
+msgstr "有线连接"
+
+msgid "room.link_wireless"
+msgstr "Wi-Fi 连接"
+
+msgid "room.link_unknown"
+msgstr "连接方式未知"
+
 msgid "room.table_footer"
 msgstr "{0} 回合／{1} 秒     排队 {2}     观战 {3}"
 
@@ -1592,6 +1604,9 @@ msgstr "选择以锁定角色。双方准备好后开始对战。"
 
 msgid "room.both_ready"
 msgstr "双方均已准备，对战即将开始。"
+
+msgid "room.waiting_spectators"
+msgstr "双方已准备就绪。锁定观战的观众返回后，或10秒后，对战开始。"
 
 msgid "room.match_in_progress.detail"
 msgstr "当前对战进行中，请等待结束。"
@@ -1697,6 +1712,18 @@ msgstr "停止观战"
 
 msgid "room.watch_next"
 msgstr "观看下场对战"
+
+msgid "room.lock_spectating"
+msgstr "锁定观战"
+
+msgid "room.lock_spectating.detail"
+msgstr "你返回房间时，下一场对战最多等待你10秒。"
+
+msgid "room.unlock_spectating"
+msgstr "取消锁定"
+
+msgid "room.unlock_spectating.detail"
+msgstr "已锁定观战。下一场对战最多等待你10秒。"
 
 msgid "room.table_rules"
 msgstr "对战席规则"

@@ -148,6 +148,8 @@ Result RoomAuthority::ApplyWatch(MemberId member, Table* table) {
 		other.watchingNext.erase(std::remove(other.watchingNext.begin(), other.watchingNext.end(), member), other.watchingNext.end());
 		if (oldSpectatorSize != other.spectators.size() || oldNextSize != other.watchingNext.size()) Touch(other);
 	}
+	// A lock-in holds the table it was made at; watching another starts unlocked.
+	Find(member)->spectatorLocked = false;
 	if (table->phase == TablePhase::Playing) table->watchingNext.push_back(member);
 	else table->spectators.push_back(member);
 	Touch(*table); NormalizeMemberStatus(member); return Accept();
@@ -161,6 +163,7 @@ Result RoomAuthority::ApplyUnwatch(MemberId member, Table* table) {
 		if (next == table->watchingNext.end()) return Reject(RejectReason::NotWatching);
 		table->watchingNext.erase(next);
 	}
+	Find(member)->spectatorLocked = false;
 	Touch(*table); NormalizeMemberStatus(member); return Accept();
 }
 
@@ -193,8 +196,22 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 		table->inputDelay[seat] = item->selectedDelay;
 	}
 	table->phase = table->ready[0] && table->ready[1] ? TablePhase::Ready : TablePhase::Waiting;
+	// A locked-in spectator still retiring the last game gets a bounded wait
+	// before the start; ReleaseHeldStarts ends it.
+	table->spectatorHold = table->phase == TablePhase::Ready && LockedSpectatorReturning(*table);
+	startHeldSince_[table->id] = table->spectatorHold ? nowMs_ : 0;
 	Touch(*table); NormalizeMemberStatus(member);
-	if (table->phase == TablePhase::Ready) return Accept({Event{Event::Kind::MatchReady, table->id, table->matchGeneration, 0, MatchResult::Abort}});
+	if (table->phase == TablePhase::Ready && !table->spectatorHold)
+		return Accept({Event{Event::Kind::MatchReady, table->id, table->matchGeneration, 0, MatchResult::Abort}});
+	return Accept();
+}
+
+// The action carries the wanted value rather than a toggle, and the member's
+// action watermark already refuses an older copy, so it skips the table
+// revision check a seat change needs.
+Result RoomAuthority::ApplyLockSpectating(MemberId member, const Action& action, Table* table, Member* item) {
+	if (!WatchesByChoice(*table, member)) return Reject(RejectReason::NotWatching);
+	if (item->spectatorLocked != action.locked) { item->spectatorLocked = action.locked; Touch(*table); }
 	return Accept();
 }
 
@@ -255,6 +272,14 @@ Result RoomAuthority::ApplyAbortMatch(MemberId member, const Action& action, Tab
 }
 
 Result RoomAuthority::Apply(MemberId member, const Action& action) {
+	Result result = ApplyAction(member, action);
+	// Any accepted action can be the one a start hold waits for: the
+	// spectator's receipt acknowledgement, its Unwatch or unlock, an Unready.
+	if (result.accepted && ReleaseHeldStarts(result.events)) result.snapshot = snapshot_;
+	return result;
+}
+
+Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (!Find(member)) return Reject(RejectReason::UnknownMember);
 	const auto prior = lastAcceptedActions_.find(member);
 	const bool receiptScopedAction = action.kind == ActionKind::AcknowledgeTerminal ||
@@ -345,6 +370,7 @@ Result RoomAuthority::Apply(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::MatchFinished) return ApplyMatchFinished(member, action, table);
 	if (action.kind == ActionKind::CancelResult) return ApplyCancelResult(member, action, table);
 	if (action.kind == ActionKind::AbortMatch) return ApplyAbortMatch(member, action, table);
+	if (action.kind == ActionKind::LockSpectating) return ApplyLockSpectating(member, action, table, item);
 	return Reject(RejectReason::Unauthorized);
 }
 

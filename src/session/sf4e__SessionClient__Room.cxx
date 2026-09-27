@@ -72,7 +72,7 @@ void SessionClient::TrySendPendingJoinRequest() {
 	request.port = _ggpoPort;
 	request.customRooms = _customRoomsRequired;
 	request.roomProtocol = _customRoomsRequired ? room::ProtocolVersion : 0;
-	request.mainFighter = _mainFighter;
+	request.SetProfile(_profile);
 	request.roomChatDelta = _customRoomsRequired;
 	json payload = request;
 	const auto sent = Send(payload, nullptr);

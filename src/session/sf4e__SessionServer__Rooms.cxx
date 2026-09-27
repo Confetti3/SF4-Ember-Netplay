@@ -127,6 +127,21 @@ bool SessionServer::BeginAuthorizedTable(std::uint8_t tableId, std::uint64_t gen
 	return authority->BeginAtGeneration(participants, generation, MatchSender());
 }
 
+std::vector<room::Event> SessionServer::StartReadyTables(const std::vector<room::Event>& events) {
+	std::vector<room::Event> started;
+	for (const auto& event : events) {
+		if (event.kind != room::Event::Kind::MatchReady) continue;
+		const auto& table = _roomAuthority->SnapshotView().tables[event.table];
+		const auto begun = _roomAuthority->BeginMatch(event.table, table.p1, table.p2);
+		if (!begun.accepted) continue;
+		for (const auto& value : begun.events)
+			if (value.kind == room::Event::Kind::MatchStarted && !BeginAuthorizedTable(value.table, value.matchGeneration))
+				_transportFailed = true;
+		started.insert(started.end(), begun.events.begin(), begun.events.end());
+	}
+	return started;
+}
+
 void SessionServer::AdvanceCustomRoom(std::uint64_t nowMs) {
 	if (!_roomAuthority) return;
 	if (_recovery.Enabled() && !_recovery.Writable()) {
@@ -159,7 +174,10 @@ void SessionServer::AdvanceCustomRoom(std::uint64_t nowMs) {
 		BeginRecoveryCandidate();
 		if (!_recoveryCandidateReady) return;
 	}
-	const auto events = _roomAuthority->AdvanceTime(nowMs);
+	auto events = _roomAuthority->AdvanceTime(nowMs);
+	// An expired spectator hold reports its table ready here.
+	const auto started = StartReadyTables(events);
+	events.insert(events.end(), started.begin(), started.end());
 	if (!events.empty()) BroadcastRoomState(events);
 	// Timer-driven table transitions can end an authority without a control
 	// action.  Drop frozen spectator records only after every authority has

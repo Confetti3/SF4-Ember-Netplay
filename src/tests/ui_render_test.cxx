@@ -321,6 +321,7 @@ int main(int argc, char** argv) {
             training.meter=meter.View();training.history[0]={{0x14,5},{1,3},{0,16}};training.history[1]={{0x40,2},{0,10}};
             int mode=0;
             MatchStripView matchStrip;matchStrip.names[0]="Player One";matchStrip.names[1]="Player Two";
+            matchStrip.links[0]=NetworkLink::Wired;matchStrip.links[1]=NetworkLink::Wireless;
             matchStrip.pingMs=68;matchStrip.rollbackFrames=2;matchStrip.appliedDelay=3;
             training::Command trainingCommand;
             bool acceptTraining=false;
@@ -367,6 +368,7 @@ int main(int argc, char** argv) {
                     const bool recoveryShot=shot && (std::string(shot).find("table-delay-")==0 ||
                         std::string(shot).find("room-transfer-host")==0 ||
                         std::string(shot).find("table-terminal-pending")==0 ||
+                        std::string(shot).find("table-spectator-locked")==0 ||
                         std::string(shot).find("table-recover")==0 || std::string(shot).find("table-replacement")==0);
                     const bool matchShot=shot&&mode==3&&(
                         (std::string(shot)=="match-hud"&&((size.w==1280&&size.h==720&&size.dpi==1)||
@@ -461,6 +463,7 @@ int main(int argc, char** argv) {
             const char* sampleNames[]={"Ember Player","Akira","Jamie","Alex","Morgan","Riley","Sam","Jordan","Casey","Taylor","Robin","Ash","Sky","Reese","Avery","Drew"};
             for(int i=1;i<=16;++i){room::Member m;m.id=i;m.name=readmeShots?sampleNames[i-1]:(i==2?"Long player name for layout test":"Member "+std::to_string(i));m.host=i==1;m.fighter=(i-1)*2;m.mainFighter=(i+7)%44;
                 if(i<=4){m.table=(i-1)/2;m.seat=(i-1)%2;m.status=i<3?room::MemberStatus::Seated:room::MemberStatus::Playing;}
+                m.link=static_cast<NetworkLink>(i%3);
                 view.room.members.push_back(m);}
             const char* sampleChat[]={"Welcome! Grab a table or join a queue.","Good games. I'll watch the next one.","Ready for another set?","Let's run it back!"};
             for(int i=0;i<20;++i)view.room.chat.push_back({static_cast<std::uint64_t>(i+1),static_cast<room::MemberId>(i%16+1),readmeShots?sampleChat[i%4]:"Ready for the next set? This is a longer chat message for narrow-layout inspection."});
@@ -513,6 +516,15 @@ int main(int argc, char** argv) {
             Require(shell.Navigation().Focus()=="selection","Terminal waiting reason is unreachable at this viewport/DPI");
             draw("table-terminal-pending");
             view.room.localTerminalPending=false;view.room.terminalPending[0]=false;
+            // A locked-in watcher: the lock-in row and its detail.
+            view.room.tables[0].p1=5;view.room.tables[0].spectators={1};
+            view.room.members[0].seat=-1;view.room.members[0].spectatorLocked=true;
+            draw("table-spectator-locked");
+            view.room.tables[0].p1=1;view.room.tables[0].spectators.clear();
+            view.room.members[0].seat=0;view.room.members[0].spectatorLocked=false;
+            // The watcher's rows have no fighter change, so focus moved; put it back.
+            for(int i=0;i<24&&shell.Navigation().Focus()!="selection";++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
+            Require(shell.Navigation().Focus()=="selection","Fighter change is unreachable after the watcher view");
             view.session.coordinated=true;view.session.authorityWritable=false;
             draw("table-recover-updating");
             view.session.authorityWritable=true;view.session.room=netplay::RoomState::Closing;

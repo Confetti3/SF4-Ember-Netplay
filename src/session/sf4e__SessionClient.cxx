@@ -463,7 +463,7 @@ int SessionClient::Step()
         if(_customRoomsRequired) {
             SessionProtocol::SessionJoinRequest admission;
             admission.sidecarHash=_sidecarHash; admission.username=_name; admission.port=_ggpoPort;
-            admission.customRooms=true; admission.roomProtocol=room::ProtocolVersion; admission.mainFighter=_mainFighter;
+            admission.customRooms=true; admission.roomProtocol=room::ProtocolVersion; admission.SetProfile(_profile);
             admission.roomChatDelta=true;
             hello["admission"]=admission;
         }

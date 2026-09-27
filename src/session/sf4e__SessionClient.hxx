@@ -88,7 +88,8 @@ namespace sf4e {
         void SetSelectedDelay(unsigned delay) { if (delay<=static_cast<unsigned>(MaximumInputDelay)) _selectedDelay=static_cast<std::uint8_t>(delay); }
 		void RequireCustomRooms() { _customRoomsRequired = true; }
 		// Set before the hello/join exchange; profile editing is offline-only.
-		void SetProfileMain(int fighter) { _mainFighter = fighter >= 0 && fighter < 44 ? fighter : -1; }
+		void SetProfileMain(int fighter) { _profile.mainFighter = fighter >= 0 && fighter < 44 ? fighter : -1; }
+		void SetProfileLink(NetworkLink link) { _profile.link = link; }
 		bool IsCustomRoom() const { return _customRoomsSeen; }
 		const std::string& RoomError() const { return _roomError; }
 		bool TakeRoomEvent(room::Event& event);
@@ -214,7 +215,7 @@ namespace sf4e {
 		void LogRejectedRoomAction(std::uint64_t actionId, room::RejectReason reason);
         std::uint8_t _selectedDelay=2;
 		bool _customRoomsRequired = false;
-		int _mainFighter = -1;
+		room::MemberProfile _profile;
 		bool _customRoomsSeen = false;
 		bool _projectionFrozen = false;
 		std::optional<SessionProtocol::SessionDataUpdate> _pendingRoomProjection;

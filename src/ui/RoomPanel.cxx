@@ -171,7 +171,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    const std::string reason=!mutableRoom?RoomWaitReason(v):
     loc::T(elsewhere?"room.leave_current_table":"room.choose_action");
   if(seated){
-   const bool ready=t.phase==TablePhase::Waiting&&t.ready[local->seat];
+   const bool ready=room::ReadyCancellable(t,local->seat);
    const bool terminalBlocked=TerminalFenced(s,room::ActionKind::Ready,selectedTable_);
    const bool awaitingResult=t.phase==TablePhase::Playing&&(t.resultPending||v.session.match==netplay::MatchState::PostMatch);
    const std::string blocked=!mutableRoom&&!(active&&RoomCheckpointPending(v))?reason:
@@ -182,7 +182,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     !t.p1||!t.p2?loc::T("room.waiting_other_seat"):
     !v.controllerReady?loc::T("room.controller_required"):
     !v.selectionError.empty()?v.selectionError:!v.readyLockReason.empty()?v.readyLockReason:loc::T("room.waiting_update");
-    const bool canUnready=mutableRoom&&ready&&t.phase==TablePhase::Waiting;
+    const bool canUnready=mutableRoom&&ready;
     // Ready is the player's one job here. Everything the room is still
     // finishing (draining, checkpoint, receipt, result) stays behind the
     // runtime, which parks the press and reports only a real failure.
@@ -190,7 +190,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     const bool finishedGame=t.phase==TablePhase::Playing&&v.session.match==netplay::MatchState::PostMatch;
     const bool readyable=roomReachable&&!ready&&!v.readyRequested&&(t.phase==TablePhase::Waiting||finishedGame)&&
      t.p1&&t.p2&&v.controllerReady&&v.selectionError.empty();
-    const std::string readyDetail=ready?loc::T("room.ready.cancel_detail"):
+    const std::string readyDetail=ready?loc::T(t.spectatorHold?"room.waiting_spectators":"room.ready.cancel_detail"):
      v.readyRequested?loc::T("room.ready.locking"):
      readyable?std::string(loc::T("room.ready.lock_detail"))+"\n"+v.selectionSummary:
      !roomReachable?reason:
@@ -250,6 +250,13 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      queued?"room.leave_queue":"room.join_queue");
     tableRow(watching?room::ActionKind::Unwatch:room::ActionKind::Watch,watching?"unwatch":"watch",
      watching?"room.stop_watching":"room.watch_next");
+    // A watcher's lock-in is never fenced: the one still leaving the last
+    // game is exactly who it is for.
+    if(room::WatchesByChoice(t,s.localMember)){
+     const bool lockedIn=local&&local->spectatorLocked;
+     rows.push_back(Row("lock-spectating",loc::T(lockedIn?"room.unlock_spectating":"room.lock_spectating"),
+      mutableRoom?loc::T(lockedIn?"room.unlock_spectating.detail":"room.lock_spectating.detail"):reason,mutableRoom));
+    }
   }
   rows.push_back(Row("room-rules",loc::T("room.table_rules"),loc::T(host?"room.table_rules.edit":"room.table_rules.view")));
   if(t.phase==TablePhase::Paused)rows.push_back(ConfirmRow("cancel-result",loc::T("room.cancel_unresolved"),loc::T("room.cancel_unresolved.detail"),host));
@@ -269,8 +276,11 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   RuleRows(rows,tableRules_,host&&!active,loc::T(host?(active?"room.rules.finish_game":"room.rules.apply_note"):"room.rules.host_only"));
   rows.push_back(Row("apply-rules",loc::T("room.apply_rules"),loc::T("room.apply_rules.detail"),host&&!active&&rulesDirty_));
  }else if(screen=="room-members"){
-  for(const auto& m:s.members)rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),
-   loc::Tf(m.host?(muted_.count(m.id)?"room.member_status_host_muted":"room.member_status_host"):(muted_.count(m.id)?"room.member_status_muted":"room.member_status"),StatusName(m.status))));
+  for(const auto& m:s.members){
+   rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),
+    loc::Tf(m.host?(muted_.count(m.id)?"room.member_status_host_muted":"room.member_status_host"):(muted_.count(m.id)?"room.member_status_muted":"room.member_status"),StatusName(m.status))));
+   rows.back().value=NetworkLinkName(m.link);
+  }
   }else if(screen=="room-member"){
    const auto* m=Member(s,selectedMember_);const bool other=m&&m->id!=s.localMember;
    rows.push_back(Row("mute",loc::T(muted_.count(selectedMember_)?"room.unmute_member":"room.mute_member"),loc::T(m?"room.mute_member.detail":"room.member_left.detail"),other));
@@ -367,6 +377,12 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    const float x=p.x+12*s+side*(half+gap);const auto* m=Member(v.room,ids[side]);const int id=fighter(m);
    const float px=side?x+half-portrait:x,py=p.y+28*s+(band-portrait)*.5f;
    if(m)DrawCharacterPortrait(id,ImVec2(px,py),ImVec2(px+portrait,py+portrait));
+   // The link mark rides the portrait's inner lower corner on a dark disc.
+   if(m){
+    const float mark=14*s;const ImVec2 centre(side?px+10*s:px+portrait-10*s,py+portrait-10*s);
+    ImGui::GetWindowDrawList()->AddCircleFilled(centre,11*s,IM_COL32(20,19,18,225));
+    DrawNetworkLinkGlyph(ImGui::GetWindowDrawList(),ImVec2(centre.x-mark*.5f,centre.y-mark*.5f),mark,m->link);
+   }
    const float tx=x+(m&&!side?portrait+8*s:0),tw=half-(m?portrait+8*s:0);
    // Names of different lengths read ragged when flush left; centre each
    // in its own slot so the pair stays symmetric about VS.
@@ -375,7 +391,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    // An empty seat already reads "Looking for a fight" above; a second
    // "Open seat" underneath said nothing new.
    std::string caption=m?(f?f->name:loc::T("room.fighter_not_shared")):std::string();
-   const bool ready=t.phase==room::TablePhase::Waiting&&t.ready[side];
+   const bool ready=room::ReadyCancellable(t,side);
    if(m)caption+=ready?loc::T("room.suffix_ready"):m->id==v.room.localMember?loc::T("room.suffix_you"):"";
    if(!caption.empty())text(ImVec2(tx,top+21*s),tw,caption,12*s,ready?palette::Ready:palette::Muted,true);
   }
@@ -388,8 +404,13 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   const auto p=ImGui::GetCursorScreenPos();const float width=ImGui::GetContentRegionAvail().x;
   const int main=m->id==v.room.localMember?v.preferences.mainFighter:m->mainFighter;
   press(e,ImVec2(width,58*s));DrawCharacterPortrait(main,ImVec2(p.x+6*s,p.y+5*s),ImVec2(p.x+54*s,p.y+53*s));
-  text(ImVec2(p.x+64*s,p.y+7*s),width-76*s,e.label,16*s,palette::Ivory);
-  const auto status=loc::Tf(m->table>=0?(m->host?"room.board_status_host_slot":"room.board_status_slot"):(m->host?"room.board_status_host":"room.board_status"),StatusName(m->status),m->table+1);
+  text(ImVec2(p.x+64*s,p.y+7*s),width-98*s,e.label,16*s,palette::Ivory);
+  DrawNetworkLinkGlyph(ImGui::GetWindowDrawList(),ImVec2(p.x+width-28*s,p.y+8*s),16*s,m->link);
+  // A controller player reads the mark (or the Members list); a mouse can
+  // also have it in words.
+  elided+=(elided.empty()?"":"\n")+std::string(NetworkLinkName(m->link));
+  const auto status=loc::Tf(m->table>=0?(m->host?"room.board_status_host_slot":"room.board_status_slot"):(m->host?"room.board_status_host":"room.board_status"),StatusName(m->status),m->table+1)+
+   (m->spectatorLocked?loc::T("room.suffix_locked_in"):"");
   text(ImVec2(p.x+64*s,p.y+32*s),width-76*s,status,12*s,palette::Muted);
   tip();
  };
@@ -521,6 +542,10 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  else if(a.id=="unqueue")request.kind=ActionKind::Unqueue;
  else if(a.id=="watch")request.kind=ActionKind::Watch;
   else if(a.id=="unwatch")request.kind=ActionKind::Unwatch;
+  else if(a.id=="lock-spectating"){
+   const auto* local=Member(v.room,v.room.localMember);
+   request.kind=ActionKind::LockSpectating;request.locked=!(local&&local->spectatorLocked);
+  }
   else if(a.id=="kick"){request.kind=ActionKind::Kick;request.target=selectedMember_;}
   else if(a.id=="transfer-host"){request.kind=ActionKind::TransferHost;request.target=selectedMember_;}
  else if(a.id=="cancel-result")request.kind=ActionKind::CancelResult;
@@ -532,7 +557,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  else if(a.id=="send-chat"){request.kind=ActionKind::Chat;request.text=chat_;}
  else if(a.id=="ready"){
   const auto* local=Member(v.room,v.room.localMember);const auto& table=v.room.tables[selectedTable_];
-  if(local&&local->seat>=0&&local->seat<2&&table.ready[local->seat]&&table.phase==TablePhase::Waiting){
+  if(local&&local->seat>=0&&local->seat<2&&room::ReadyCancellable(table,local->seat)){
    if(!RoomActionsAvailable(v)) { error_=RoomWaitReason(v);return; }
    request.kind=ActionKind::Unready;request.seat=local->seat;
   }else{

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <deque>
@@ -12,6 +13,7 @@
 #include <nlohmann/json_fwd.hpp>
 
 #include "../common/InputDelay.hxx"
+#include "../common/NetworkLink.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../common/MatchResult.hxx"
 #include "../common/RoomRules.hxx"
@@ -30,6 +32,7 @@ constexpr std::size_t MaximumMembers = MaxMembers;
 constexpr std::size_t MaximumRoomNameBytes = 64;
 constexpr std::size_t MaximumChatMessages = 100;
 constexpr std::size_t MaximumChatBytes = 256;
+constexpr std::uint64_t SpectatorStartHoldMs = 10000;
 
 enum class MemberStatus : std::uint8_t {
 	Idle = 0,
@@ -72,6 +75,9 @@ enum class ActionKind : std::uint8_t {
 	CancelResult,
 	AbortMatch,
 	AcknowledgeTerminal,
+	// A spectator's lock-in, on (Action::locked) or off. Appended so older
+	// authorities reject it as an unknown kind.
+	LockSpectating,
 };
 
 enum class RejectReason : std::uint8_t {
@@ -103,6 +109,12 @@ enum class RejectReason : std::uint8_t {
 	TerminalLedgerFull,
 };
 
+// What a member brings to the room when it joins.
+struct MemberProfile {
+	int mainFighter = -1;
+	NetworkLink link = NetworkLink::Unknown;
+};
+
 struct ConnectionRef {
 	std::string host;
 	std::string user;
@@ -130,11 +142,16 @@ struct Member {
     int fighter = -1;
     // Profile identity, independent from the fighter chosen for this table.
     int mainFighter = -1;
+    NetworkLink link = NetworkLink::Unknown;
     // The selected delay belongs to this fighter until Ready captures it.
     // Values are deliberately bounded by Action deserialization (0..10).
     std::uint8_t selectedDelay = 2;
     std::uint8_t frozenDelay = 2;
     bool delayLocked = false;
+    // A spectator who locked in: the next start at its table waits a bounded
+    // time for it to finish retiring the previous game. Cleared when it stops
+    // watching that table.
+    bool spectatorLocked = false;
 };
 
 struct Table {
@@ -153,6 +170,10 @@ struct Table {
 	std::uint8_t inputDelay[2] = { 2, 2 };
 	std::uint32_t score[2] = { 0, 0 };
 	bool resultPending = false;
+	// Both fighters are ready and the start is waiting, for at most
+	// SpectatorStartHoldMs, on a locked-in spectator still retiring the
+	// previous game.
+	bool spectatorHold = false;
 };
 
 // A seated fighter may still change fighter and delay: no game is being
@@ -160,6 +181,22 @@ struct Table {
 // empty opposite seat (Idle) locks nothing.
 inline bool SeatEditable(const Table& table, int seat) {
 	return (table.phase == TablePhase::Idle || table.phase == TablePhase::Waiting) && !table.ready[seat];
+}
+
+// A fighter who readied can still take it back: while the other seat is not
+// ready, or while the start is held for a locked-in spectator.
+inline bool ReadyCancellable(const Table& table, int seat) {
+	return table.ready[seat] && (table.phase == TablePhase::Waiting ||
+		(table.phase == TablePhase::Ready && table.spectatorHold));
+}
+
+// Watching this table by choice. A queued member is also listed as a
+// spectator of the game it waits out, but it did not choose to watch.
+inline bool WatchesByChoice(const Table& table, MemberId member) {
+	const auto listed = [member](const std::vector<MemberId>& list) {
+		return std::find(list.begin(), list.end(), member) != list.end();
+	};
+	return (listed(table.spectators) || listed(table.watchingNext)) && !listed(table.queue);
 }
 
 // Both fighters play at the higher of their Ready delays. A fighter's delay
@@ -260,7 +297,7 @@ public:
 	Snapshot SnapshotFor(MemberId member) const;
 	std::uint64_t NextMemberId() const { return nextMemberId_; }
 
-	Result Join(const std::string& name, const ConnectionRef& connection, bool host = false, int mainFighter = -1);
+	Result Join(const std::string& name, const ConnectionRef& connection, bool host = false, MemberProfile profile = {});
 	Result Leave(MemberId member);
 	Result Apply(MemberId member, const Action& action);
     bool SetMemberFighter(MemberId member,int fighter);
@@ -343,6 +380,18 @@ private:
 	Result ApplyMatchFinished(MemberId member, const Action& action, Table* table);
 	Result ApplyCancelResult(MemberId member, const Action& action, Table* table);
 	Result ApplyAbortMatch(MemberId member, const Action& action, Table* table);
+	Result ApplyLockSpectating(MemberId member, const Action& action, Table* table, Member* item);
+	Result ApplyAction(MemberId member, const Action& action);
+	// A locked-in spectator of this table has not yet acknowledged an earlier
+	// generation, so a start now would leave it out.
+	bool LockedSpectatorReturning(const Table& table) const;
+	// A table deadline (ResultDisputeTimeoutMs, SpectatorStartHoldMs) that
+	// started at `since` has passed.
+	bool TimerDue(std::uint64_t since, std::uint64_t timeout, std::uint64_t nowMs) const;
+	// Ends every start hold whose spectators are back or whose deadline has
+	// passed, appending the MatchReady the hold deferred. Returns true when a
+	// table changed.
+	bool ReleaseHeldStarts(std::vector<Event>& events);
 	Member* Find(MemberId member);
 	const Member* Find(MemberId member) const;
 	Table* FindTable(std::uint8_t table);
@@ -352,6 +401,7 @@ private:
 	void Touch(Table& table);
 	void TouchRoom();
 	void NormalizeMemberStatus(MemberId member);
+	void NormalizeTableMembers(const Table& table);
 	void SeatQueued(Table& table);
 	void FillVacancy(Table& table, int seat);
 	void RemoveFromTable(MemberId member, bool preserveSpectator = false);
@@ -406,6 +456,10 @@ private:
 	std::array<MemberId, TableCount> resultReporter_ = {};
 	std::array<MatchResult, TableCount> pendingResult_ = {};
 	std::array<std::uint64_t, TableCount> resultPendingSince_ = {};
+	std::array<std::uint64_t, TableCount> startHeldSince_ = {};
+	// Every running table deadline with its timeout, on the owner's monotonic
+	// clock. Recovery turns them into ages and back through this one list.
+	template <typename Visit> void ForEachTableTimer(Visit&& visit);
 	std::array<std::vector<TerminalRecipient>, TableCount> activeMatchRecipients_;
 	static constexpr std::size_t MaximumTerminalReceipts = 64;
 	static constexpr std::size_t MaximumTerminalAckTombstones = 256;

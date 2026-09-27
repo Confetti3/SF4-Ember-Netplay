@@ -360,9 +360,9 @@ static void TestDepartureRecoveryAndSnapshotValidation() {
 
 static void TestProfileMain() {
     RoomAuthority authority("Profiles",16,70);
-    CHECK(!authority.Join("Invalid",Peer(0),true,44).accepted);
-    CHECK(!authority.Join("Invalid",Peer(0),true,-2).accepted);
-    CHECK(authority.Join("Main",Peer(0),true,11).accepted);
+    CHECK(!authority.Join("Invalid",Peer(0),true,{44}).accepted);
+    CHECK(!authority.Join("Invalid",Peer(0),true,{-2}).accepted);
+    CHECK(authority.Join("Main",Peer(0),true,{11,sf4e::NetworkLink::Wireless}).accepted);
     const auto host=authority.SnapshotView().host;
     CHECK(authority.SetMemberFighter(host,2));
     const auto encoded=nlohmann::json(authority.SnapshotView()).dump();
@@ -370,8 +370,14 @@ static void TestProfileMain() {
     CHECK(decoded.members[0].mainFighter==11&&decoded.members[0].fighter==2);
     RoomAuthority restored("Restore");CHECK(restored.RestoreCheckpoint(authority.Checkpoint()));
     CHECK(restored.SnapshotView().members[0].mainFighter==11);
-    auto member=nlohmann::json(decoded.members[0]);member.erase("main_fighter");
-    CHECK(member.get<Member>().mainFighter==-1);
+    CHECK(decoded.members[0].link==sf4e::NetworkLink::Wireless&&restored.SnapshotView().members[0].link==sf4e::NetworkLink::Wireless);
+    // An older peer omits the link, and a newer one may name a kind this build
+    // does not know: both read as Unknown rather than refusing the member.
+    auto member=nlohmann::json(decoded.members[0]);member.erase("main_fighter");member.erase("link");
+    CHECK(member.get<Member>().mainFighter==-1&&member.get<Member>().link==sf4e::NetworkLink::Unknown);
+    member["link"]=7;CHECK(member.get<Member>().link==sf4e::NetworkLink::Unknown);
+    CHECK(authority.Join("Future",Peer(1),false,{-1,static_cast<sf4e::NetworkLink>(7)}).accepted);
+    CHECK(authority.SnapshotView().members.back().link==sf4e::NetworkLink::Unknown);
     for(const nlohmann::json invalid:{nlohmann::json(-2),nlohmann::json(44),nlohmann::json(1.5),nlohmann::json(UINT64_MAX)}){
         member["main_fighter"]=invalid;bool rejected=false;
         try{member.get<Member>();}catch(...){rejected=true;}CHECK(rejected);

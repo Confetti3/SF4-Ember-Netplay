@@ -32,5 +32,10 @@ int main() {
     for (unsigned i = 0; i < OverlayPresentation::AwayFrames; ++i) menu.Update(false, MatchState::None, true, true);
     CHECK(!menu.Visible());
     menu.Update(true, MatchState::None, true, true); CHECK(menu.Visible());
+    // A grant withdrawn before the fight (a late spectator link) goes straight
+    // from Preparing to PostMatch, and the shell must come back all the same.
+    OverlayPresentation late;
+    late.Update(true, MatchState::Preparing, false, true); CHECK(!late.Visible() && !late.Available());
+    late.Update(true, MatchState::PostMatch, false, true); CHECK(late.Visible() && late.Reopened());
     std::cout << "Safe-menu, focus, offline, loading, fight and rematch visibility passed\n";
 }

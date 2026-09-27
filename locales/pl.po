@@ -1521,6 +1521,18 @@ msgstr " / GOTÓW"
 msgid "room.suffix_you"
 msgstr " / TY"
 
+msgid "room.suffix_locked_in"
+msgstr " / POTWIERDZONO"
+
+msgid "room.link_wired"
+msgstr "Połączenie przewodowe"
+
+msgid "room.link_wireless"
+msgstr "Połączenie Wi-Fi"
+
+msgid "room.link_unknown"
+msgstr "Nieznane połączenie"
+
 msgid "room.table_footer"
 msgstr "Rundy: {0} / Czas: {1} s     Kolejka: {2}     Widzowie: {3}"
 
@@ -1592,6 +1604,9 @@ msgstr "Wybierz, aby zablokować postać. Walka rozpocznie się, gdy obaj gracze
 
 msgid "room.both_ready"
 msgstr "Obaj gracze są gotowi. Walka się rozpoczyna."
+
+msgid "room.waiting_spectators"
+msgstr "Obaj gracze są gotowi. Mecz zacznie się po powrocie widzów z potwierdzeniem, najpóźniej za 10 sekund."
 
 msgid "room.match_in_progress.detail"
 msgstr "Bieżąca walka trwa. Poczekaj na jej koniec."
@@ -1697,6 +1712,18 @@ msgstr "Przestań oglądać"
 
 msgid "room.watch_next"
 msgstr "Oglądaj kolejną"
+
+msgid "room.lock_spectating"
+msgstr "Potwierdź oglądanie"
+
+msgid "room.lock_spectating.detail"
+msgstr "Następny mecz poczeka na Ciebie do 10 sekund, aż wrócisz do pokoju."
+
+msgid "room.unlock_spectating"
+msgstr "Cofnij potwierdzenie"
+
+msgid "room.unlock_spectating.detail"
+msgstr "Oglądanie potwierdzone. Następny mecz poczeka na Ciebie do 10 sekund."
 
 msgid "room.table_rules"
 msgstr "Zasady stołu"

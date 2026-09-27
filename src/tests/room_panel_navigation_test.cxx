@@ -235,6 +235,24 @@ int main() try {
     focus("unwatch"); press(MenuInput::Select);
     Check(actions.size() == beforeUnwatch + 1 && actions.back().roomAction.kind == room::ActionKind::Unwatch,
         "Stop watching did not emit one unwatch action during the terminal wait");
+    // Lock-in is not admission either: the spectator still returning is who
+    // it is for. It sends the wanted value, not a toggle.
+    Check(row("lock-spectating").enabled && row("lock-spectating").label == "Lock in to watch",
+        "Terminal receipt disabled a spectator's lock-in");
+    focus("lock-spectating"); press(MenuInput::Select);
+    Check(actions.size() == beforeUnwatch + 2 && actions.back().roomAction.kind == room::ActionKind::LockSpectating &&
+        actions.back().roomAction.locked, "Lock in did not emit one locking action");
+    view.room.members[0].spectatorLocked = true; ++view.room.revision; frame();
+    Check(row("lock-spectating").label == "Release lock-in", "A locked-in spectator was offered Lock in again");
+    press(MenuInput::Select);
+    Check(actions.size() == beforeUnwatch + 3 && !actions.back().roomAction.locked, "Release lock-in did not unlock");
+    view.room.members[0].spectatorLocked = false;
+    // A queued member is listed as a spectator of the game it waits out, but
+    // the authority refuses it a lock-in, so the panel must not offer one.
+    view.room.tables[0].queue = {1}; ++view.room.revision; frame();
+    Check(std::none_of(rows.begin(), rows.end(), [](const MenuEntry& entry) { return entry.id == "lock-spectating"; }),
+        "A queued member was offered a spectator lock-in");
+    view.room.tables[0].queue.clear();
     view.room.tables[0].spectators.clear(); view.room.tables[0].queue = {1};
     frame();
     Check(row("unqueue").enabled && row("unqueue").detail.find("finish returning") == std::string::npos,
@@ -275,6 +293,29 @@ int main() try {
     focus("selection"); press(MenuInput::Select);
     Check(shell.Navigation().Screen() == "selection" && selectionDraws > beforeBlockedSelection,
         "Selection failed to open after terminal completion");
+
+    // Both fighters are ready and a locked-in spectator holds the start.
+    shell.Navigation().Home(); shell.Navigation().Push("room-table");
+    view.room.tables[0].phase = room::TablePhase::Ready; view.room.tables[0].spectatorHold = true;
+    view.room.tables[0].ready[0] = view.room.tables[0].ready[1] = true;
+    ++view.room.revision; frame();
+    Check(row("ready").detail.find("locked-in spectators") != std::string::npos,
+        "A held start did not say it waits for a locked-in spectator");
+    // The hold can last ten seconds, so the fighter can still take Ready back.
+    Check(row("ready").enabled, "A held start could not be cancelled");
+    const auto beforeHeldUnready = actions.size();
+    focus("ready"); press(MenuInput::Select);
+    Check(actions.size() == beforeHeldUnready + 1 && actions.back().roomAction.kind == room::ActionKind::Unready,
+        "Cancelling a held start did not send Unready");
+    view.room.tables[0].phase = room::TablePhase::Waiting; view.room.tables[0].spectatorHold = false;
+    view.room.tables[0].ready[0] = view.room.tables[0].ready[1] = false;
+
+    // The Members list names every member's connection in words, unknown too.
+    shell.Navigation().Home(); shell.Navigation().Push("room-members");
+    view.room.members[1].link = NetworkLink::Wired; ++view.room.revision; frame();
+    Check(row("member-2").value == "Wired connection" && row("member-1").value == "Connection unknown",
+        "The Members list did not name each connection");
+    view.room.members[1].link = NetworkLink::Unknown;
 
     // Recovery snapshots may reorder members but must keep the focused
     // identity, so Select still opens the intended member's actions.

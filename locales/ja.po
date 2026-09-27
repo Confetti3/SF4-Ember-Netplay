@@ -1521,6 +1521,18 @@ msgstr " / 準備完了"
 msgid "room.suffix_you"
 msgstr " / あなた"
 
+msgid "room.suffix_locked_in"
+msgstr " / 観戦確定"
+
+msgid "room.link_wired"
+msgstr "有線接続"
+
+msgid "room.link_wireless"
+msgstr "Wi-Fi接続"
+
+msgid "room.link_unknown"
+msgstr "接続方式不明"
+
 msgid "room.table_footer"
 msgstr "{0}ラウンド / {1}秒     順番待ち{2}     観戦{3}"
 
@@ -1592,6 +1604,9 @@ msgstr "選択するとキャラが確定します。両プレイヤーが準備
 
 msgid "room.both_ready"
 msgstr "両プレイヤーの準備が完了しました。対戦を開始します。"
+
+msgid "room.waiting_spectators"
+msgstr "両プレイヤーの準備が完了しました。観戦確定中の観戦者が戻るか、10秒後に対戦を開始します。"
 
 msgid "room.match_in_progress.detail"
 msgstr "対戦中です。終了を待ってください。"
@@ -1697,6 +1712,18 @@ msgstr "観戦をやめる"
 
 msgid "room.watch_next"
 msgstr "次の対戦を観戦"
+
+msgid "room.lock_spectating"
+msgstr "観戦を確定"
+
+msgid "room.lock_spectating.detail"
+msgstr "ルームに戻るまで、次の対戦の開始を最大10秒待ちます。"
+
+msgid "room.unlock_spectating"
+msgstr "観戦確定を解除"
+
+msgid "room.unlock_spectating.detail"
+msgstr "観戦を確定中です。次の対戦は最大10秒あなたを待ちます。"
 
 msgid "room.table_rules"
 msgstr "対戦席のルール"

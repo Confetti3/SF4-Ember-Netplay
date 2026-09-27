@@ -119,9 +119,15 @@ static bool StartRuntimeGgpo() {
     if (!sf4e::NetplayFacade::GetRuntimeMatchEndpoints(endpoints)) return false;
     auto& netplay = fUserApp::netplay;
     if (!netplay || endpoints.participantCount < 2 || endpoints.participantCount > sf4e::room::MaxMatchParticipants) return false;
-    for (std::size_t side = 0; side < 2; ++side)
-        netplay->matchNames[side] = side < netplay->client._lobbyData.members.size() ?
-            netplay->client._lobbyData.members[side].name : std::string{};
+    // Room names are unique, so the name finds the member's link.
+    const auto& room = netplay->client.GetRoomSnapshot();
+    for (std::size_t side = 0; side < 2; ++side) {
+        auto& captured = netplay->matchSides[side];
+        captured = {};
+        if (side < netplay->client._lobbyData.members.size()) captured.name = netplay->client._lobbyData.members[side].name;
+        for (const auto& member : room.members)
+            if (!captured.name.empty() && member.name == captured.name) captured.link = member.link;
+    }
     if (endpoints.localSlot >= 2) {
         if (!endpoints.remotePorts[0]) return false;
         sf4e::NetplayFacade::ReleaseRuntimePortToGgpo();

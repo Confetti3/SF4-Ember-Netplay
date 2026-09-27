@@ -45,12 +45,16 @@ bool RoomAuthority::SetMemberFighter(MemberId member,int fighter) {
     value->fighter=fighter;TouchRoom();return true;
 }
 
+template <typename Visit> void RoomAuthority::ForEachTableTimer(Visit&& visit) {
+	for (std::size_t i = 0; i < TableCount; ++i) {
+		if (snapshot_.tables[i].resultPending) visit(resultPendingSince_[i], ResultDisputeTimeoutMs);
+		if (snapshot_.tables[i].spectatorHold) visit(startHeldSince_[i], SpectatorStartHoldMs);
+	}
+}
+
 void RoomAuthority::PauseForRecovery() {
     if (recoveryPaused_) return;
-    for (std::size_t i = 0; i < TableCount; ++i) {
-        if (snapshot_.tables[i].resultPending)
-            resultPendingSince_[i] = nowMs_ >= resultPendingSince_[i] ? nowMs_ - resultPendingSince_[i] : 0;
-    }
+    ForEachTableTimer([&](std::uint64_t& since, std::uint64_t) { since = nowMs_ >= since ? nowMs_ - since : 0; });
     for (auto& entry : lastChatMs_)
         entry.second = nowMs_ >= entry.second ? nowMs_ - entry.second : 0;
     recoveryPaused_ = true;
@@ -61,8 +65,7 @@ void RoomAuthority::AdvancePausedTimers(std::uint64_t elapsedMs) {
 	const auto add = [elapsedMs](std::uint64_t value, std::uint64_t maximum) {
 		return value >= maximum || elapsedMs >= maximum - value ? maximum : value + elapsedMs;
 	};
-	for (std::size_t i = 0; i < TableCount; ++i)
-		if (snapshot_.tables[i].resultPending) resultPendingSince_[i] = add(resultPendingSince_[i], ResultDisputeTimeoutMs);
+	ForEachTableTimer([&](std::uint64_t& age, std::uint64_t timeout) { age = add(age, timeout); });
 	for (auto& entry : lastChatMs_) entry.second = add(entry.second, 1000);
 }
 
@@ -72,18 +75,12 @@ void RoomAuthority::ResumeRecovery(std::uint64_t nowMs) {
         return;
     }
 	std::uint64_t rebasedNow = nowMs;
-	for (std::size_t i = 0; i < TableCount; ++i) {
-		if (snapshot_.tables[i].resultPending) {
-			const auto age = resultPendingSince_[i];
-			rebasedNow = (std::max)(rebasedNow, age);
-		}
-	}
+	ForEachTableTimer([&](std::uint64_t& age, std::uint64_t) { rebasedNow = (std::max)(rebasedNow, age); });
 	for (auto& entry : lastChatMs_) {
 		const auto age = entry.second;
 		rebasedNow = (std::max)(rebasedNow, age);
 	}
-	for (std::size_t i = 0; i < TableCount; ++i)
-		if (snapshot_.tables[i].resultPending) resultPendingSince_[i] = rebasedNow - resultPendingSince_[i];
+	ForEachTableTimer([&](std::uint64_t& age, std::uint64_t) { age = rebasedNow - age; });
 	for (auto& entry : lastChatMs_) entry.second = rebasedNow - entry.second;
 	nowMs_ = rebasedNow;
     recoveryPaused_ = false;
@@ -357,8 +354,8 @@ void RoomAuthority::SetMemberIncarnation(MemberId member, std::uint64_t incarnat
 	}
 }
 
-Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connection, bool host, int mainFighter) {
-	if(mainFighter < -1 || mainFighter >= 44) return Reject(RejectReason::Unauthorized);
+Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connection, bool host, MemberProfile profile) {
+	if(profile.mainFighter < -1 || profile.mainFighter >= 44) return Reject(RejectReason::Unauthorized);
 	if (snapshot_.closed) return Reject(RejectReason::Closed);
 	if (snapshot_.members.size() >= snapshot_.capacity) return Reject(RejectReason::RoomFull);
 	if (snapshot_.locked && !host) return Reject(RejectReason::AdmissionLocked);
@@ -374,7 +371,8 @@ Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connect
 	Member member;
 	member.id = nextMemberId_++;
 	member.name = name;
-	member.mainFighter = mainFighter;
+	member.mainFighter = profile.mainFighter;
+	member.link = NetworkLinkFromWire(static_cast<long long>(profile.link));
 	member.connection = connection;
 	member.host = snapshot_.host == 0 || host;
 	member.joinOrder = nextJoinOrder_++;
@@ -410,11 +408,24 @@ void RoomAuthority::NormalizeMemberStatus(MemberId member) {
 			return;
 		}
 		if (std::find(table.spectators.begin(), table.spectators.end(), member) != table.spectators.end()) {
+			// Only the roster frozen at the start watches the game; a spectator
+			// left out of it (still retiring the last one) waits for the next.
+			const auto roster = MatchRoster(static_cast<std::uint8_t>(i));
+			const bool inGame = table.phase == TablePhase::Playing &&
+				std::find(roster.begin(), roster.end(), member) != roster.end();
 			item->table = static_cast<std::int8_t>(i);
-			item->status = table.phase == TablePhase::Playing ? MemberStatus::Watching : MemberStatus::WatchingNext;
+			item->status = inGame ? MemberStatus::Watching : MemberStatus::WatchingNext;
 			return;
 		}
 	}
+}
+
+// A phase change moves every watcher between Watching and Watching next, not
+// only the fighters.
+void RoomAuthority::NormalizeTableMembers(const Table& table) {
+	NormalizeMemberStatus(table.p1); NormalizeMemberStatus(table.p2);
+	for (const auto spectator : table.spectators) NormalizeMemberStatus(spectator);
+	for (const auto watcher : table.watchingNext) NormalizeMemberStatus(watcher);
 }
 
 void RoomAuthority::FillVacancy(Table& table, int seat) {
@@ -543,13 +554,14 @@ Result RoomAuthority::Leave(MemberId member) {
 	}
 	departureEvents.push_back(Event{Event::Kind::MemberRemoved, 0, 0, member, MatchResult::Abort});
 	departureEvents.push_back(Event{Event::Kind::SnapshotChanged, 0, 0, member, MatchResult::Abort});
+	ReleaseHeldStarts(departureEvents);
 	return Accept(std::move(departureEvents));
 }
 
 Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2) {
 	Table* table = FindTable(tableId);
 	if (!table || table->p1 != p1 || table->p2 != p2 || p1 == 0 || p2 == 0 ||
-		table->phase != TablePhase::Ready || table->resultPending || HasOutstandingTerminalReceipt(tableId) ||
+		table->phase != TablePhase::Ready || table->spectatorHold || table->resultPending || HasOutstandingTerminalReceipt(tableId) ||
 		nextMatchGeneration_ == (std::numeric_limits<std::uint64_t>::max)()) return Reject(table ? RejectReason::WrongPhase : RejectReason::UnknownTable);
 	table->matchGeneration = nextMatchGeneration_++;
 	table->phase = TablePhase::Playing;
@@ -583,7 +595,7 @@ Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2)
 	for (const auto spectator : table->spectators)
 		if (!HasOutstandingTerminalReceiptForMember(spectator)) freezeRecipient(spectator);
 	Touch(*table);
-	NormalizeMemberStatus(p1); NormalizeMemberStatus(p2);
+	NormalizeTableMembers(*table);
 	return Accept({Event{Event::Kind::MatchStarted, tableId, table->matchGeneration, 0, MatchResult::Abort}});
 }
 
@@ -623,22 +635,24 @@ Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, M
 	resultPendingSince_[tableId] = 0;
 	if (table->phase == TablePhase::Waiting || table->phase == TablePhase::Idle) SeatQueued(*table);
 	Touch(*table);
-	NormalizeMemberStatus(table->p1); NormalizeMemberStatus(table->p2);
+	NormalizeTableMembers(*table);
 	return Accept({Event{Event::Kind::MatchEnded, tableId, generationValue, 0, result, true}, Event{Event::Kind::SnapshotChanged, tableId, generationValue, 0, result, true}});
 }
 
 bool RoomAuthority::HasDueTimerTransition(std::uint64_t nowMs) const {
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		const auto& table = snapshot_.tables[i];
-		if (!table.resultPending || table.phase != TablePhase::Playing) continue;
-		if (recoveryPaused_) {
-			if (resultPendingSince_[i] >= ResultDisputeTimeoutMs) return true;
-			continue;
-		}
-		const auto effectiveNow = (std::max)(nowMs, nowMs_);
-		if (effectiveNow - resultPendingSince_[i] >= ResultDisputeTimeoutMs) return true;
+		if (table.spectatorHold && TimerDue(startHeldSince_[i], SpectatorStartHoldMs, nowMs)) return true;
+		if (table.resultPending && table.phase == TablePhase::Playing &&
+			TimerDue(resultPendingSince_[i], ResultDisputeTimeoutMs, nowMs)) return true;
 	}
 	return false;
+}
+
+bool RoomAuthority::TimerDue(std::uint64_t since, std::uint64_t timeout, std::uint64_t nowMs) const {
+	// A paused authority holds ages rather than start times.
+	if (recoveryPaused_) return since >= timeout;
+	return (std::max)(nowMs, nowMs_) - since >= timeout;
 }
 
 std::vector<Event> RoomAuthority::AdvanceTime(std::uint64_t nowMs) {
@@ -656,7 +670,32 @@ std::vector<Event> RoomAuthority::AdvanceTime(std::uint64_t nowMs) {
 		Touch(table);
 		events.push_back(Event{Event::Kind::ResultDisputed, static_cast<std::uint8_t>(i), table.matchGeneration, resultReporter_[i], pendingResult_[i]});
 	}
+	ReleaseHeldStarts(events);
 	return events;
+}
+
+bool RoomAuthority::LockedSpectatorReturning(const Table& table) const {
+	return std::any_of(table.spectators.begin(), table.spectators.end(), [&](MemberId spectator) {
+		const auto* member = Find(spectator);
+		return member && member->spectatorLocked && HasOutstandingTerminalReceiptForMember(spectator);
+	});
+}
+
+bool RoomAuthority::ReleaseHeldStarts(std::vector<Event>& events) {
+	bool changed = false;
+	for (auto& table : snapshot_.tables) {
+		if (!table.spectatorHold) continue;
+		// Any other way out of Ready (Unready, a departed fighter, a closed
+		// room) ends the hold without a start.
+		const bool starting = table.phase == TablePhase::Ready;
+		if (starting && LockedSpectatorReturning(table) && !TimerDue(startHeldSince_[table.id], SpectatorStartHoldMs, nowMs_)) continue;
+		table.spectatorHold = false;
+		startHeldSince_[table.id] = 0;
+		Touch(table);
+		changed = true;
+		if (starting) events.push_back(Event{Event::Kind::MatchReady, table.id, table.matchGeneration, 0, MatchResult::Abort});
+	}
+	return changed;
 }
 
 // nlohmann serialization uses numeric enum values. The wire protocol wraps

@@ -1521,6 +1521,18 @@ msgstr " / LISTO"
 msgid "room.suffix_you"
 msgstr " / TÚ"
 
+msgid "room.suffix_locked_in"
+msgstr " / FIJADO"
+
+msgid "room.link_wired"
+msgstr "Conexión por cable"
+
+msgid "room.link_wireless"
+msgstr "Conexión Wi-Fi"
+
+msgid "room.link_unknown"
+msgstr "Conexión desconocida"
+
 msgid "room.table_footer"
 msgstr "{0} rondas / {1} s     Cola {2}     Viendo {3}"
 
@@ -1592,6 +1604,9 @@ msgstr "Selecciona para confirmar tu personaje. La partida comenzará cuando amb
 
 msgid "room.both_ready"
 msgstr "Ambos jugadores están listos. La partida va a comenzar."
+
+msgid "room.waiting_spectators"
+msgstr "Ambos jugadores están listos. La partida empieza cuando vuelvan los espectadores fijados, o en 10 segundos."
 
 msgid "room.match_in_progress.detail"
 msgstr "La partida actual está en curso. Espera a que termine."
@@ -1697,6 +1712,18 @@ msgstr "Dejar de ver"
 
 msgid "room.watch_next"
 msgstr "Ver próxima partida"
+
+msgid "room.lock_spectating"
+msgstr "Fijar para ver"
+
+msgid "room.lock_spectating.detail"
+msgstr "La próxima partida te espera hasta 10 segundos mientras vuelves a la sala."
+
+msgid "room.unlock_spectating"
+msgstr "Quitar fijación"
+
+msgid "room.unlock_spectating.detail"
+msgstr "Estás fijado. La próxima partida te espera hasta 10 segundos."
 
 msgid "room.table_rules"
 msgstr "Reglas"

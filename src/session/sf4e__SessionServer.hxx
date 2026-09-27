@@ -47,6 +47,9 @@ namespace sf4e {
 		std::vector<std::pair<session::Connection, nlohmann::json>> _afterDataMessages;
 		session::MatchAuthority::Send MatchSender();
 		bool BeginAuthorizedTable(std::uint8_t table, std::uint64_t generation);
+		// Begins the match on every table a MatchReady event names and returns
+		// the resulting room events.
+		std::vector<room::Event> StartReadyTables(const std::vector<room::Event>& events);
 		session::MatchAuthority* RoomMatchAuthority(std::uint8_t table);
 		const session::MatchAuthority* RoomMatchAuthority(std::uint8_t table) const;
 		std::uint8_t RoomTableForGeneration(std::uint64_t generation) const;
@@ -80,7 +83,7 @@ namespace sf4e {
 			const std::string& name,
 			const std::string& peerAddr,
 			SessionProtocol::ConnectionID& cid,
-			int mainFighter = -1
+			const room::MemberProfile& profile = {}
 		);
 		void HandleResults(int loserSide);
 
