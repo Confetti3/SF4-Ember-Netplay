@@ -1,0 +1,2095 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: nl\n"
+
+msgid "app.name"
+msgstr "SF4 Ember Netplay"
+
+msgid "common.back"
+msgstr "Terug"
+
+msgid "common.cancel"
+msgstr "Annuleren"
+
+msgid "common.close"
+msgstr "Sluiten"
+
+msgid "common.confirm"
+msgstr "Bevestigen"
+
+msgid "common.on"
+msgstr "Aan"
+
+msgid "common.off"
+msgstr "Uit"
+
+msgid "common.unavailable"
+msgstr "Niet beschikbaar"
+
+msgid "common.saving"
+msgstr "Opslaan..."
+
+msgid "common.saved"
+msgstr "Opgeslagen"
+
+msgid "common.save_failed"
+msgstr "Opslaan mislukt"
+
+msgid "confirm.title"
+msgstr "Actie bevestigen"
+
+msgid "confirm.question"
+msgstr "{0}?"
+
+msgid "confirm.updating"
+msgstr "Kamer bijwerken. Je kunt nog annuleren."
+
+msgid "launcher.update_failed"
+msgstr "De update kon niet worden geïnstalleerd. Sluit het spel en de vorige launcher en probeer het opnieuw. Zie %TEMP%\\sf4-netplay-update.log; bewaarde productkopieën staan in .ember-update-backups."
+
+msgid "launcher.recovery_title"
+msgstr "Opstart herstellen"
+
+msgid "launcher.path_failed"
+msgstr "Het zoekpad voor de runtime kon niet worden ingesteld. Pak het volledige pakket uit in een map waarin je kunt schrijven."
+
+msgid "launcher.game_not_found"
+msgstr "Ultra Street Fighter IV is niet gevonden."
+
+msgid "launcher.sidecar_missing"
+msgstr "Sidecar.dll ontbreekt of het pad is niet bruikbaar voor de injector. Pak het hele pakket uit naar een eenvoudig lokaal pad."
+
+msgid "launcher.runtime_outdated"
+msgstr "Je Microsoft Visual C++ runtime is verouderd; het spel zou vastlopen bij het starten. Installeer de nieuwste Visual C++ Redistributable (x86) en start Ember opnieuw.\n\nDe downloadpagina nu openen?"
+
+msgid "launcher.already_running"
+msgstr "SF4 Ember Netplay draait al. Zie je het niet? Sluit Launcher.exe en SSFIV.exe via Taakbeheer en start Ember opnieuw."
+
+msgid "launcher.start_failed"
+msgstr "Starten of injectie mislukt. Bekijk het launcherlogboek en probeer opnieuw."
+
+msgid "launcher.game_error"
+msgstr "Spel afgesloten met een fout. Bekijk het launcherlogboek en probeer opnieuw."
+
+msgid "launcher.runtime_shadowed"
+msgstr "Het spel zou deze bestanden laden in plaats van die in de Ember-map. Een oude kopie stopt het spel al voor de start (\"entry point ggpo_get_last_confirmed_frame not found\"). Ze zijn achtergelaten door een andere netplaymod of een oudere installatie. Verplaats of hernoem ze en start Ember opnieuw:\n\n{0}"
+
+msgid "launcher.game_wrong_dll"
+msgstr "Het spel stopte voordat Ember kon starten: een geladen DLL mist een functie. Meestal staat er dan een GGPO.dll, spdlog.dll, fmt.dll of zlib1.dll van een andere mod of oude installatie naast SSFIV.exe. Verplaats zulke bestanden en probeer het opnieuw. Staan ze er niet, stuur dan het launcherlogboek."
+
+msgid "recovery.window"
+msgstr "Ember-herstel"
+
+msgid "recovery.d3d_failed"
+msgstr "De herstelinterface kon Direct3D 9 niet starten. Zie %APPDATA%\\sf4e\\logs\\launcher.log."
+
+msgid "recovery.choose_folder_title"
+msgstr "Kies de map met SSFIV.exe"
+
+msgid "recovery.folder_selected"
+msgstr "Spelmap gekozen. Probeer opnieuw."
+
+msgid "recovery.folder_invalid"
+msgstr "Die map bevat geen SSFIV.exe."
+
+msgid "recovery.title"
+msgstr "OPSTART HERSTELLEN"
+
+msgid "updates.title"
+msgstr "UPDATES"
+
+msgid "recovery.choose_folder"
+msgstr "Kies spelmap"
+
+msgid "recovery.choose_folder_detail"
+msgstr "Kies de geïnstalleerde map van Ultra Street Fighter IV met SSFIV.exe. Spelbestanden zitten niet in dit pakket."
+
+msgid "recovery.retry"
+msgstr "Opnieuw starten"
+
+msgid "recovery.retry_busy"
+msgstr "Annuleer of voltooi eerst de huidige bewerking."
+
+msgid "recovery.retry_detail"
+msgstr "Probeer het opnieuw met de gekozen spelmap. Zonder netwerkhelper kun je nog offline spelen."
+
+msgid "updates.check"
+msgstr "Zoek naar updates"
+
+msgid "updates.busy"
+msgstr "Er loopt al een bewerking."
+
+msgid "updates.check_detail"
+msgstr "Zoek naar een nieuwer Ember-pakket."
+
+msgid "updates.install"
+msgstr "Downloaden en installeren"
+
+msgid "updates.install_detail"
+msgstr "Sluit SF4 voor de installatie. Het pakket wordt eerst gecontroleerd. Je persoonlijke instellingen blijven bewaard."
+
+msgid "updates.unverified"
+msgstr "Deze update heeft geen controlesom en kan niet worden geïnstalleerd."
+
+msgid "updates.cancel"
+msgstr "Bewerking annuleren"
+
+msgid "updates.cancel_detail"
+msgstr "Annuleer de huidige download of controle. Wacht tot dit klaar is voordat je het opnieuw probeert."
+
+msgid "recovery.close_detail"
+msgstr "Sluit herstel zonder SF4 te starten. Lopende bewerkingen worden geannuleerd."
+
+msgid "updates.downloaded_mb"
+msgstr "{0:.1f} MB gedownload"
+
+msgid "services.checking"
+msgstr "Zoeken naar updates..."
+
+msgid "services.exporting"
+msgstr "Diagnostiek exporteren..."
+
+msgid "services.downloading"
+msgstr "Update downloaden en controleren..."
+
+msgid "services.opening_updater"
+msgstr "Updater openen..."
+
+msgid "services.update_available"
+msgstr "Update beschikbaar: {0}"
+
+msgid "services.up_to_date"
+msgstr "Je bent up-to-date."
+
+msgid "services.diagnostics_saved"
+msgstr "%APPDATA%\\sf4e\\diagnostics\\ember-diagnostics.txt opgeslagen"
+
+msgid "services.diagnostics_failed"
+msgstr "Diagnostiek opslaan mislukt. Probeer opnieuw."
+
+msgid "services.updater_start_failed"
+msgstr "De updater kon niet starten. Probeer het opnieuw."
+
+msgid "services.game_closing"
+msgstr "Spel wordt gesloten. De updater opent zodra het spel is afgesloten."
+
+msgid "services.no_verified_update"
+msgstr "Er is geen gecontroleerde update beschikbaar. Zoek opnieuw naar updates."
+
+msgid "services.update_prepared"
+msgstr "Update voorbereid. SF4 Ember Netplay wordt opnieuw gestart..."
+
+msgid "services.operation_failed"
+msgstr "De bewerking is mislukt. Probeer het opnieuw. Herstelkopieën van updates staan in .ember-update-backups."
+
+msgid "services.operation_cancelled"
+msgstr "Bewerking geannuleerd."
+
+msgid "services.opening_community"
+msgstr "Ember Discord openen in je browser..."
+
+msgid "services.community_opened"
+msgstr "Geopend in je browser. Ga erheen om lid te worden van de server."
+
+msgid "services.community_failed"
+msgstr "Kon geen browser openen. Ga naar {0} om lid te worden."
+
+msgid "settings.language"
+msgstr "Taal"
+
+msgid "settings.language.detail"
+msgstr "Wijzigt de interfacetaal van Ember meteen. Automatisch volgt de speltaal en daarna Windows."
+
+msgid "settings.language.system_with"
+msgstr "Automatisch — {0}"
+
+msgid "settings.language_save_failed"
+msgstr "Je taalkeuze kon niet worden opgeslagen. Deze blijft tijdens deze sessie actief."
+
+msgid "menu.edit_detail"
+msgstr "Selecteer om te bewerken. Typ of plak, Enter bevestigt; Terug annuleert."
+
+msgid "menu.edit_unavailable"
+msgstr "Bewerken is nu niet beschikbaar."
+
+msgid "menu.edit"
+msgstr "Bewerken"
+
+msgid "menu.review"
+msgstr "Bekijken"
+
+msgid "menu.select"
+msgstr "Kiezen"
+
+msgid "menu.navigate"
+msgstr "Navigeren"
+
+msgid "menu.adjust"
+msgstr "Aanpassen"
+
+msgid "rules.edition_select"
+msgstr "Editie kiezen"
+
+msgid "rules.rounds"
+msgstr "Rondes"
+
+msgid "rules.round_time"
+msgstr "Rondetijd"
+
+msgid "screen.home"
+msgstr "Start"
+
+msgid "screen.online"
+msgstr "Online spelen"
+
+msgid "screen.selection"
+msgstr "Personage kiezen"
+
+msgid "screen.player"
+msgstr "Speler en controller"
+
+msgid "screen.defaults"
+msgstr "Standaard spel"
+
+msgid "screen.main_character"
+msgstr "Kies je hoofdpersonage"
+
+msgid "screen.about"
+msgstr "Hulp en info"
+
+msgid "screen.room"
+msgstr "Kamer"
+
+msgid "screen.table"
+msgstr "Tafel"
+
+msgid "screen.table_rules"
+msgstr "Tafelregels"
+
+msgid "screen.members"
+msgstr "Leden"
+
+msgid "screen.member"
+msgstr "Lid"
+
+msgid "screen.chat"
+msgstr "Chat"
+
+msgid "screen.room_settings"
+msgstr "Kamerinstellingen"
+
+msgid "screen.practice_position"
+msgstr "Trainingspositie"
+
+msgid "screen.dummy_recording"
+msgstr "Dummyopname"
+
+msgid "screen.input_history"
+msgstr "Invoergeschiedenis"
+
+msgid "room.wait.leaving"
+msgstr "Je verlaat de kamer. Wachten tot de verbinding is gesloten..."
+
+msgid "room.wait.joining"
+msgstr "Je betreedt de kamer. Wachten op de andere spelers..."
+
+msgid "room.wait.closed"
+msgstr "Deze kamer is gesloten. Ga terug naar Online spelen om een andere te betreden."
+
+msgid "room.wait.recovering"
+msgstr "De kamerverbinding wordt hersteld. Je kunt de kamer nog verlaten."
+
+msgid "room.wait.updating"
+msgstr "Kamer bijwerken. De besturing kan even haperen."
+
+msgid "connection.checking"
+msgstr "Controleren..."
+
+msgid "connection.checking_detail"
+msgstr "Speldatagrammen vijf seconden meten, plus het opzetten van de verbinding. Je kunt zelf nog een vertraging kiezen."
+
+msgid "connection.checking_action"
+msgstr "Verbinding controleren..."
+
+msgid "connection.frames"
+msgstr "{0} frames"
+
+msgid "connection.result_detail"
+msgstr "{0} verbinding. RTT mediaan {1} ms; p95 {2} ms; p99 {3} ms. RTT-variatie {4} ms. {5} verzonden, {6} antwoorden, {7} gemist. Pas dit advies toe of kies zelf een vertraging."
+
+msgid "connection.route_direct"
+msgstr "Direct"
+
+msgid "connection.route_relayed"
+msgstr "Via relais"
+
+msgid "connection.route_unknown"
+msgstr "Onbekend"
+
+msgid "connection.relayed_advice"
+msgstr "Via relais betekent dat jullie netwerken niet direct konden verbinden; matchverkeer loopt via een relaisserver. Matches werken nog steeds. Gebruik de aanbevolen vertraging. Voor een directe verbinding kan een van jullie UPnP op de router inschakelen, UDP-poort 45760 naar de pc doorsturen of een VPN uitschakelen."
+
+msgid "connection.check_again"
+msgstr "Verbinding hercontroleren"
+
+msgid "connection.no_recommendation"
+msgstr "Geen advies"
+
+msgid "connection.timed_out"
+msgstr "Verbindingscontrole verlopen. Probeer opnieuw of kies vertraging en druk op Klaar."
+
+msgid "connection.invalidated"
+msgstr "De verbinding of tegenstander is veranderd. Controleer opnieuw of kies een vertraging en druk op Klaar."
+
+msgid "connection.local_overload"
+msgstr "Deze pc kon de volledige belasting niet op tijd verzenden. Probeer het opnieuw met minder achtergrondprocessen of kies zelf een vertraging."
+
+msgid "connection.insufficient"
+msgstr "De controle kreeg te weinig antwoorden. Probeer opnieuw of kies een vertraging en druk op Klaar; advies is optioneel."
+
+msgid "connection.packet_summary"
+msgstr " {0} van {1} geplande pakketten verzonden; {2} antwoorden, {3} gemist."
+
+msgid "connection.retry"
+msgstr "Verbindingscontrole opnieuw"
+
+msgid "connection.not_checked"
+msgstr "Niet getest"
+
+msgid "connection.not_checked_detail"
+msgstr "Controleer de verbinding voor een vertragingstip. Optioneel: kies zelf vertraging en druk op Klaar."
+
+msgid "connection.check"
+msgstr "Verbinding controleren"
+
+msgid "error.queue_failed"
+msgstr "De actie kon niet in de wachtrij worden gezet. Probeer opnieuw."
+
+msgid "notice.left_room"
+msgstr "Kamer verlaten."
+
+msgid "notice.profile_saved"
+msgstr "Profielportret opgeslagen: {0}"
+
+msgid "error.settings_not_saved"
+msgstr "Instellingen niet opgeslagen. Probeer opnieuw als het menu beschikbaar is."
+
+msgid "shell.home_title"
+msgstr "SF4 EMBER"
+
+msgid "settings.auto_save"
+msgstr "Wijzigingen slaan vanzelf op."
+
+msgid "settings.leave_room_to_edit"
+msgstr "Verlaat de kamer om eigen instellingen te wijzigen."
+
+msgid "controller.assign_title"
+msgstr "CONTROLLER TOEWIJZEN"
+
+msgid "controller.cancel_assignment"
+msgstr "Toewijzing annuleren"
+
+msgid "controller.press_button"
+msgstr "Druk op een knop van de gewenste controller."
+
+msgid "controller.release_buttons"
+msgstr "Laat alle knoppen los om verder te gaan."
+
+msgid "home.online"
+msgstr "Online spelen"
+
+msgid "home.online_detail"
+msgstr "Maak een privékamer of gebruik een uitnodiging."
+
+msgid "home.return_room"
+msgstr "Keer terug naar je huidige kamer."
+
+msgid "home.fighter_select"
+msgstr "Personage kiezen"
+
+msgid "home.selection_locked"
+msgstr "Ga terug naar je tafel voor de huidige keuzestatus."
+
+msgid "home.profile"
+msgstr "Profiel"
+
+msgid "home.profile_detail"
+msgstr "Je naam, hoofdpersonage en lokaal bevestigde online resultaten."
+
+msgid "home.settings"
+msgstr "Instellingen"
+
+msgid "home.settings_detail"
+msgstr "Speler, controller, standaard spelinstellingen, interface en Discord."
+
+msgid "home.about"
+msgstr "Hulp en info"
+
+msgid "home.about_detail"
+msgstr "Besturing, diagnostiek, updates en credits."
+
+msgid "home.offline"
+msgstr "Offline spelen"
+
+msgid "home.offline_detail"
+msgstr "Open de offline spelmenu’s."
+
+msgid "home.choose_controller"
+msgstr "Kies spelcontroller"
+
+msgid "home.choose_controller_detail"
+msgstr "Voor online spelen moet je een controller zelf toewijzen."
+
+msgid "profile.title"
+msgstr "PROFIEL"
+
+msgid "profile.player_name"
+msgstr "Spelersnaam"
+
+msgid "profile.main_character"
+msgstr "Hoofdpersonage"
+
+msgid "profile.main_character_detail"
+msgstr "{0}. Wordt gebruikt voor je spelerskaart, los van je keuze voor de match."
+
+msgid "profile.record"
+msgstr "Winst- en verliesstand"
+
+msgid "profile.record_detail"
+msgstr "{0} gewonnen / {1} verloren. Lokaal bevestigde online partijen sinds het bijhouden begon; gelijke spelen, annuleringen, offline partijen en onbesliste uitslagen tellen niet mee."
+
+msgid "profile.record_unavailable"
+msgstr "Stand niet beschikbaar. Je oorspronkelijke instellingen zijn bewaard."
+
+msgid "profile.record_value"
+msgstr "{0} W / {1} V"
+
+msgid "profile.choose_main_title"
+msgstr "KIES JE HOOFDPERSONAGE"
+
+msgid "profile.choose_main_detail"
+msgstr "Kies om je hoofdpersonage en spelerskaart bij te werken."
+
+msgid "profile.leave_room_to_edit"
+msgstr "Verlaat de kamer om je profiel te bewerken."
+
+msgid "online.title"
+msgstr "ONLINE SPELEN"
+
+msgid "online.create"
+msgstr "Kamer maken"
+
+msgid "online.create_detail"
+msgstr "Maak een privékamer."
+
+msgid "online.join"
+msgstr "Kamer betreden"
+
+msgid "online.join_detail"
+msgstr "Plak een uitnodiging."
+
+msgid "room.create_title"
+msgstr "KAMER MAKEN"
+
+msgid "settings.gameplay_defaults_title"
+msgstr "STANDAARD SPEL"
+
+msgid "settings.input_delay"
+msgstr "Invoervertraging"
+
+msgid "room.name"
+msgstr "Kamernaam"
+
+msgid "room.capacity"
+msgstr "Capaciteit"
+
+msgid "room.capacity_detail"
+msgstr "Maximaal aantal leden, inclusief toeschouwers."
+
+msgid "room.stop_creating"
+msgstr "Stop met deze kamer maken."
+
+msgid "room.stop_creating_action"
+msgstr "Aanmaken stoppen"
+
+msgid "room.create_requirements"
+msgstr "Netwerk en een toegewezen spelcontroller moeten klaar zijn."
+
+msgid "room.join_title"
+msgstr "KAMER BETREDEN"
+
+msgid "room.paste_invitation"
+msgstr "Uitnodiging plakken"
+
+msgid "room.paste_invitation_detail"
+msgstr "Kopieer een Ember-uitnodiging en selecteer dan deze rij."
+
+msgid "room.stop_joining"
+msgstr "Stop met deze kamer betreden."
+
+msgid "room.stop_joining_action"
+msgstr "Betreden stoppen"
+
+msgid "room.join_pasted"
+msgstr "Betreed met de geplakte uitnodiging."
+
+msgid "room.edit_invitation"
+msgstr "Uitnodiging bewerken"
+
+msgid "settings.title"
+msgstr "INSTELLINGEN"
+
+msgid "settings.player_detail"
+msgstr "Schermnaam en controllertoewijzing."
+
+msgid "settings.defaults_detail"
+msgstr "Invoervertraging en kamerstandaard."
+
+msgid "settings.interface"
+msgstr "Interface"
+
+msgid "settings.interface_detail"
+msgstr "Rustige HUD en interfacegrootte."
+
+msgid "settings.discord_detail"
+msgstr "Activiteit en uitnodigingen."
+
+msgid "player.title"
+msgstr "SPELER EN CONTROLLER"
+
+msgid "player.display_name"
+msgstr "Schermnaam"
+
+msgid "player.change_controller"
+msgstr "Controller wijzigen"
+
+msgid "player.change_controller_detail"
+msgstr "{0}. Laat los, druk in en laat weer los om toe te wijzen."
+
+msgid "player.use_keyboard"
+msgstr "Toetsenbord"
+
+msgid "player.use_keyboard_detail"
+msgstr "Wijs het toetsenbord zelf toe."
+
+msgid "player.native_menus"
+msgstr "Spelmenu's openen"
+
+msgid "player.native_menus_detail"
+msgstr "Ember wordt gesloten. Kies Opties in het spelmenu om de vechtknoppen in te stellen."
+
+msgid "settings.interface_title"
+msgstr "INTERFACE"
+
+msgid "size.small"
+msgstr "Klein"
+
+msgid "size.standard"
+msgstr "Standaard"
+
+msgid "size.large"
+msgstr "Groot"
+
+msgid "settings.match_hud"
+msgstr "Match-HUD"
+
+msgid "settings.match_hud_size"
+msgstr "Grootte match-HUD"
+
+msgid "settings.match_hud_size_detail"
+msgstr "Past tekst en panelen in matches aan."
+
+msgid "settings.bottom_spacing"
+msgstr "Ruimte onderaan"
+
+msgid "spacing.raised"
+msgstr "Hoger"
+
+msgid "spacing.normal"
+msgstr "Normaal"
+
+msgid "settings.bottom_spacing_detail"
+msgstr "Zet de match-HUD verder van de onderrand."
+
+msgid "settings.interface_size"
+msgstr "Interfacegrootte"
+
+msgid "discord.show_activity"
+msgstr "Activiteit tonen"
+
+msgid "discord.allow_invitations"
+msgstr "Uitnodigingen toestaan"
+
+msgid "discord.invitation_detail"
+msgstr "Uitnodigingen geven toegang tot je kamer."
+
+msgid "discord.enable_first"
+msgstr "Schakel eerst Discord-activiteit in."
+
+msgid "discord.invitation_title"
+msgstr "DISCORD-UITNODIGING"
+
+msgid "discord.cancel_invitation"
+msgstr "Uitnodiging annuleren"
+
+msgid "discord.cancel_invitation_detail"
+msgstr "Verwerp de uitnodiging zonder je huidige kamer te verlaten."
+
+msgid "discord.switch_room"
+msgstr "Naar uitgenodigde kamer"
+
+msgid "discord.switch_room_detail"
+msgstr "Verlaat deze kamer en gebruik de uitnodiging."
+
+msgid "discord.wait_game"
+msgstr "Wacht tot de huidige partij is afgelopen."
+
+msgid "discord.invitation_pending"
+msgstr "Uitnodiging wacht"
+
+msgid "discord.invitation_pending_detail"
+msgstr "Wachten op het hoofdmenu, het netwerk en een toegewezen controller."
+
+msgid "about.title"
+msgstr "HULP EN INFO"
+
+msgid "about.controls"
+msgstr "Besturing"
+
+msgid "about.controls_detail"
+msgstr "Xbox: A kiest; B gaat terug, los van de vechtknoppen. DirectInput: toegewezen LP kiest; LK gaat terug. D-pad navigeert; links/rechts past aan. Voor trainingsbesturing gebruik je toetsenbord en muis: F6 opent/sluit, pijltjes navigeren, Enter kiest, Escape gaat terug. Start opent alleen het spelpauzemenu in training. F10 opent Ember in het hoofdmenu; F5-F8 zijn trainingssneltoetsen."
+
+msgid "about.ember"
+msgstr "Over Ember"
+
+msgid "about.ember_detail"
+msgstr "Onofficiële Ultra Street Fighter IV-mod, gebaseerd op sf4e van Anthony Danducci. Iroh / QUIC, GGPO, Dear ImGui en Inter-lettertype. Build: {0}"
+
+msgid "about.font_license"
+msgstr "Lettertypelicentie"
+
+msgid "about.export_diagnostics"
+msgstr "Diagnostiek exporteren"
+
+msgid "about.export_diagnostics_detail"
+msgstr "Exporteert verbindingsstatus zonder uitnodigingen of inloggegevens."
+
+msgid "about.updates_detail"
+msgstr "Zoek naar een nieuwere Ember-versie."
+
+msgid "about.open_updater"
+msgstr "Afsluiten en updater openen"
+
+msgid "about.open_updater_detail"
+msgstr "Het spel wordt gesloten. Verlaat eerst je kamer."
+
+msgid "about.open_recovery"
+msgstr "Afsluiten naar herstel"
+
+msgid "about.open_recovery_detail"
+msgstr "Sluit het spel en open herstel."
+
+msgid "about.leave_room_first"
+msgstr "Verlaat eerst je kamer en ga terug naar het hoofdmenu."
+
+msgid "about.discord"
+msgstr "Lid worden van Ember Discord"
+
+msgid "about.discord_detail"
+msgstr "Spelers, matches en hulp op {0}. Opent in je browser achter het spel."
+
+msgid "settings.retry_save"
+msgstr "Opnieuw opslaan"
+
+msgid "room.creating_status"
+msgstr "Kamer aanmaken. Wachten op het netwerk..."
+
+msgid "room.joining_status"
+msgstr "Kamer betreden. Wachten op het netwerk..."
+
+msgid "room.locked_status"
+msgstr "Kamer op slot / op uitnodiging"
+
+msgid "room.private_status"
+msgstr "Privékamer / alleen op uitnodiging"
+
+msgid "room.reconnecting"
+msgstr "Kamer opnieuw verbinden..."
+
+msgid "room.table_setup_title"
+msgstr "TAFEL {0} / MATCH INSTELLEN"
+
+msgid "room.waiting_opponent"
+msgstr "Wachten op tegenstander"
+
+msgid "room.you"
+msgstr "Jij"
+
+msgid "room.player"
+msgstr "Speler"
+
+msgid "room.ready_suffix"
+msgstr " - KLAAR"
+
+msgid "room.readying_suffix"
+msgstr " - Klaarmaken..."
+
+msgid "room.not_ready_suffix"
+msgstr " - Niet klaar"
+
+msgid "room.result_unresolved_status"
+msgstr "Uitslag onbeslist / geef op of laat de host annuleren"
+
+msgid "room.preparing_status"
+msgstr "Match voorbereiden / personagekeuze vergrendeld"
+
+msgid "room.waiting_results_status"
+msgstr "Wachten op uitslagen / volgende match nog niet klaar"
+
+msgid "room.match_in_progress"
+msgstr "Match bezig"
+
+msgid "room.table_closed"
+msgstr "Tafel gesloten"
+
+msgid "controller.disconnected"
+msgstr "Controller niet verbonden. Sluit hem opnieuw aan of wijs hem zelf toe."
+
+msgid "room.control_unavailable"
+msgstr "Kamerbeheer niet beschikbaar. Vervang de kamer wanneer er geen match bezig is."
+
+msgid "room.control_recovering"
+msgstr "Kamerbeheer wordt hersteld. Kameracties zijn gepauzeerd."
+
+msgid "settings.preview"
+msgstr "Voorbeeld"
+
+msgid "settings.player_one"
+msgstr "Speler één"
+
+msgid "settings.player_two"
+msgstr "Speler twee"
+
+msgid "error.invitation_invalid"
+msgstr "Uitnodiging is leeg of te lang."
+
+msgid "error.invitation_changed"
+msgstr "Uitnodiging gewijzigd. Probeer opnieuw."
+
+msgid "error.invalid_value"
+msgstr "Deze waarde is ongeldig. Je opgeslagen instelling blijft behouden."
+
+msgid "brand.subtitle"
+msgstr "SF4  /  PRIVÉKAMERS EN ROLLBACK-NETPLAY"
+
+msgid "match.waiting_opponent"
+msgstr "Wachten op tegenstander..."
+
+msgid "match.connection_countdown"
+msgstr "Verbinding instabiel. Tegenstander valt weg over {0} s"
+
+msgid "match.connection_unstable"
+msgstr "Verbinding instabiel"
+
+msgid "match.versus_short"
+msgstr "vs"
+
+msgid "match.ping"
+msgstr "Ping"
+
+msgid "match.rollback"
+msgstr "Rollback"
+
+msgid "match.delay"
+msgstr "Vertraging"
+
+msgid "match.spectating"
+msgstr "Toeschouwen"
+
+msgid "match.preview_spacing"
+msgstr "{0} afstand / voorbeeldwaarden"
+
+msgid "card.player"
+msgstr "SPELER"
+
+msgid "card.choose_fighter"
+msgstr "Kies je personage"
+
+msgid "card.controller_ready"
+msgstr "CONTROLLER KLAAR"
+
+msgid "card.assign_controller"
+msgstr "CONTROLLER TOEWIJZEN"
+
+msgid "card.wins"
+msgstr "{0}  GEWONNEN"
+
+msgid "card.no_wins"
+msgstr "-- GEWONNEN"
+
+msgid "card.losses"
+msgstr "{0}  VERLOREN"
+
+msgid "card.no_losses"
+msgstr "-- VERLOREN"
+
+msgid "card.no_win_rate"
+msgstr "-- WIN %"
+
+msgid "card.win_rate"
+msgstr "{0}% WINST"
+
+msgid "training.lab"
+msgstr "Trainingslab"
+
+msgid "menu.back_to"
+msgstr "< Terug / {0}"
+
+msgid "training.controls"
+msgstr "Trainingsbesturing"
+
+msgid "training.dummy_recording"
+msgstr "Dummyopname"
+
+msgid "training.dummy_recording.detail"
+msgstr "Neem P1-besturing op voor P2. Stel de dummy in het spel in op bediening door speler/controller."
+
+msgid "training.input_history"
+msgstr "Invoergeschiedenis"
+
+msgid "training.input_history.detail"
+msgstr "Bekijk de invoer van beide spelers."
+
+msgid "training.close_controls"
+msgstr "Trainingsbesturing sluiten"
+
+msgid "training.close_controls.detail"
+msgstr "Sluit Ember en daarna eventueel het SF4-pauzemenu om verder te spelen."
+
+msgid "training.slot"
+msgstr "Slot {0}"
+
+msgid "training.slot_selected"
+msgstr "Slot {0} / GEKOZEN"
+
+msgid "training.recorded_frames"
+msgstr "{0} frames opgenomen. Opnamen blijven tot het einde van dit gevecht."
+
+msgid "training.record"
+msgstr "Opnemen"
+
+msgid "training.record.overwrite"
+msgstr "Overschrijf dit bezette slot en ga terug naar training."
+
+msgid "training.record.detail"
+msgstr "Neem P1-besturing op als P2 en ga terug naar training."
+
+msgid "training.play"
+msgstr "Afspelen"
+
+msgid "training.play.detail"
+msgstr "Speel het gekozen slot af en ga terug naar training. Richtingen zijn absoluut, niet gespiegeld."
+
+msgid "training.slot_empty"
+msgstr "Dit slot is leeg."
+
+msgid "training.stop"
+msgstr "Stoppen"
+
+msgid "training.stop.detail"
+msgstr "Stop opname of afspelen."
+
+msgid "training.loop"
+msgstr "Herhalen"
+
+msgid "training.loop.detail"
+msgstr "Herhaal de gekozen opname."
+
+msgid "training.clear_recording"
+msgstr "Gekozen opname wissen"
+
+msgid "training.clear_recording.detail"
+msgstr "Wis dit slot definitief voor dit gevecht."
+
+msgid "training.player_one"
+msgstr "Speler 1"
+
+msgid "training.player_two"
+msgstr "Speler 2"
+
+msgid "training.history.detail"
+msgstr "Nieuwste invoer eerst. Aantal frames meet ingedrukte knoppen, niet de aanloop van een aanval."
+
+msgid "training.clear_history"
+msgstr "Invoergeschiedenis wissen"
+
+msgid "training.clear_history.detail"
+msgstr "Wis de meter en beide invoergeschiedenissen."
+
+msgid "training.practice_ready"
+msgstr "Training klaar"
+
+msgid "training.recording_suspended"
+msgstr "Opname gepauzeerd zolang de besturing open is"
+
+msgid "training.playback_suspended"
+msgstr "Afspelen gepauzeerd zolang de besturing open is"
+
+msgid "training.applying"
+msgstr "Opdracht uitvoeren..."
+
+msgid "training.waiting_battle"
+msgstr "Wachten tot het gevecht klaar is..."
+
+msgid "training.title"
+msgstr "TRAININGSLAB"
+
+msgid "training.command_rejected"
+msgstr "De trainingsopdracht is geweigerd. Controleer de status en probeer opnieuw."
+
+msgid "training.start_frames"
+msgstr "Start {0} f"
+
+msgid "training.start_unknown"
+msgstr "Start --"
+
+msgid "training.startup"
+msgstr "Aanloop"
+
+msgid "training.neutral"
+msgstr "Neutraal"
+
+msgid "training.unavailable"
+msgstr "{0}: {1}"
+
+msgid "training.unavailable.waiting_attack"
+msgstr "wachten tot een aanval begint"
+
+msgid "training.unavailable.no_attack"
+msgstr "geen aanval gestart"
+
+msgid "training.unavailable.no_contact"
+msgstr "geen contact"
+
+msgid "training.unavailable.measuring_recovery"
+msgstr "herstel meten"
+
+msgid "training.unavailable.interrupted"
+msgstr "onderbroken"
+
+msgid "training.unavailable.invalid"
+msgstr "ongeldige meting"
+
+msgid "training.frame_advantage"
+msgstr "FRAMEVOORDEEL | {0}"
+
+msgid "training.measuring"
+msgstr "meten"
+
+msgid "training.wakeup"
+msgstr "opstaan"
+
+msgid "training.held"
+msgstr "ingedrukt"
+
+msgid "training.live"
+msgstr "live"
+
+msgid "training.advantage"
+msgstr "Voordeel"
+
+msgid "selection.preview_unavailable"
+msgstr "Voorbeeld\nniet beschikbaar"
+
+msgid "selection.preview_loading"
+msgstr "Voorbeeld\nladen..."
+
+msgid "selection.handicap_normal"
+msgstr "Normaal (100%)"
+
+msgid "selection.handicap_one_hit"
+msgstr "Eén treffer"
+
+msgid "selection.handicap_25"
+msgstr "25%"
+
+msgid "selection.handicap_50"
+msgstr "50%"
+
+msgid "selection.handicap_75"
+msgstr "75%"
+
+msgid "selection.original"
+msgstr "Origineel"
+
+msgid "selection.alternate"
+msgstr "Alternatief {0}"
+
+msgid "selection.alternate_pack"
+msgstr "Alternatief {0} / {1}"
+
+msgid "selection.stage_count"
+msgstr "{0} LEVELS / USFIV"
+
+msgid "selection.choose_battlefield"
+msgstr "Kies je gevechtslocatie."
+
+msgid "selection.select_saves"
+msgstr "Kiezen slaat dit op. Terug verlaat zonder de gemarkeerde voorvertoning te wijzigen."
+
+msgid "selection.locked_detail"
+msgstr "Keuze vergrendeld. Ga terug naar je tafel voor de huidige status."
+
+msgid "selection.title"
+msgstr "PERSONAGE KIEZEN"
+
+msgid "selection.fighter"
+msgstr "Personage"
+
+msgid "selection.appearance"
+msgstr "Uiterlijk"
+
+msgid "selection.appearance_value"
+msgstr "{0} / Kleur {1}"
+
+msgid "selection.ultra_combo"
+msgstr "Ultra Combo"
+
+msgid "selection.ultra_double"
+msgstr "Ultra Double"
+
+msgid "selection.stage"
+msgstr "Level"
+
+msgid "selection.p1_stage"
+msgstr "P1 kiest het level."
+
+msgid "selection.additional_options"
+msgstr "Extra opties"
+
+msgid "selection.additional_options.detail"
+msgstr "Editie, persoonlijke actie, winquote en handicap."
+
+msgid "selection.choose_fighter"
+msgstr "KIES PERSONAGE"
+
+msgid "selection.appearance_title"
+msgstr "UITERLIJK"
+
+msgid "selection.costume_gallery"
+msgstr "Outfitgalerij"
+
+msgid "selection.color_gallery"
+msgstr "Kleurengalerij"
+
+msgid "selection.color_preview"
+msgstr "Kleur {0} / Bekijk afzonderlijke voorbeelden."
+
+msgid "selection.costume_gallery_title"
+msgstr "OUTFITGALERIJ"
+
+msgid "selection.color_gallery_title"
+msgstr "KLEURENGALERIJ"
+
+msgid "selection.loading_choices"
+msgstr "Beschikbare keuzes laden"
+
+msgid "selection.loading_choices.detail"
+msgstr "Wachten op beschikbare outfits en kleuren uit het spel."
+
+msgid "selection.no_colors"
+msgstr "Geen kleuren vrij voor deze outfit."
+
+msgid "selection.color"
+msgstr "Kleur {0}"
+
+msgid "selection.ultra_combo_title"
+msgstr "ULTRA COMBO"
+
+msgid "selection.ultra_double.detail"
+msgstr "Beide Ultra Combo's, met minder schade of effect."
+
+msgid "selection.saved"
+msgstr "OPGESLAGEN"
+
+msgid "selection.stage_title"
+msgstr "LEVEL"
+
+msgid "selection.only_p1_stage"
+msgstr "Alleen P1 kan het level wijzigen."
+
+msgid "selection.options_title"
+msgstr "PERSONAGEOPTIES"
+
+msgid "selection.edition"
+msgstr "Editie"
+
+msgid "selection.usfiv_rules"
+msgstr "De kamer gebruikt USFIV-regels."
+
+msgid "selection.personal_action"
+msgstr "Persoonlijke actie"
+
+msgid "common.none"
+msgstr "Geen"
+
+msgid "selection.win_quote"
+msgstr "Winquote"
+
+msgid "selection.random"
+msgstr "Willekeurig"
+
+msgid "selection.random_stage"
+msgstr "Willekeurig"
+
+msgid "selection.random_stage.detail"
+msgstr "Elke match een ander level."
+
+msgid "selection.handicap"
+msgstr "Handicap"
+
+msgid "selection.saved_value"
+msgstr "Opgeslagen: {0}"
+
+msgid "selection.ultra_selected"
+msgstr "Deze Ultra is gekozen."
+
+msgid "selection.preview_save"
+msgstr "Voorbeeld - druk op Kiezen om op te slaan."
+
+msgid "selection.preview_locked"
+msgstr "Alleen voorbeeld - keuze vergrendeld."
+
+msgid "selection.saved_appearance"
+msgstr "Opgeslagen: Outfit {0} / Kleur {1}"
+
+msgid "selection.saved_full"
+msgstr "Opgeslagen: {0} / Outfit {1} / Kleur {2}"
+
+msgid "selection.preview_save_short"
+msgstr "Alleen voorbeeld - Kiezen slaat op"
+
+msgid "selection.status_editable"
+msgstr "Kiezen slaat op / Terug gaat één niveau terug."
+
+msgid "selection.status_locked"
+msgstr "Keuze vergrendeld - ga terug naar je tafel."
+
+msgid "runtime.room_recovering"
+msgstr "Kamerbeheer wordt hersteld. Je matchverbinding blijft bestaan."
+
+msgid "runtime.room_lost_fight_continues"
+msgstr "Kamerverbinding verbroken. Het gevecht gaat door, maar rematches en uitslagen zijn uitgeschakeld."
+
+msgid "runtime.returned_room_lost"
+msgstr "Terug in het menu: de kamerverbinding viel weg tijdens de match."
+
+msgid "runtime.room_request_failed"
+msgstr "Het kamerverzoek is mislukt. Verlaat de kamer en probeer opnieuw."
+
+msgid "runtime.build_mismatch"
+msgstr "Verschillende builds. Beide spelers moeten hetzelfde SF4 Ember Netplay-pakket gebruiken."
+
+msgid "runtime.room_full"
+msgstr "Deze kamer is vol."
+
+msgid "runtime.name_taken"
+msgstr "Die spelersnaam is al in de kamer. Wijzig hem bij Instellingen."
+
+msgid "runtime.selection_combination_unavailable"
+msgstr "Deze combinatie is niet beschikbaar met de kamerregels. Kies een ander personage, een andere outfit, kleur of editie."
+
+msgid "runtime.selection_summary"
+msgstr "{0} / Outfit {1} / Kleur {2} / {3}"
+
+msgid "runtime.selection_unavailable"
+msgstr "Keuze niet beschikbaar met deze regels. Open Personage kiezen voor een beschikbare optie."
+
+msgid "runtime.open_shortcut"
+msgstr "SF4 Ember Netplay  /  F10 of Start"
+
+msgid "runtime.waiting_opponent_join"
+msgstr "Wachten tot tegenstander de lobby betreedt..."
+
+msgid "runtime.authorized_connection_unavailable"
+msgstr "De toegestane matchverbinding is niet beschikbaar."
+
+msgid "runtime.waiting_opponent_start"
+msgstr "Wachten op tegenstander in de lobby voordat de match kan beginnen."
+
+msgid "runtime.unsupported_stage"
+msgstr "De kamer gaf een niet-ondersteund level door. Stel de lobby opnieuw in en probeer het opnieuw."
+
+msgid "runtime.netplay_input_failed"
+msgstr "Netplay-invoer mislukt. De match is afgelopen."
+
+msgid "runtime.netplay_sync_failed"
+msgstr "Netplay-synchronisatie mislukt. Match voorbij."
+
+msgid "runtime.invalid_roster"
+msgstr "Ongeldige matchbezetting. Ga terug naar de kamer en probeer opnieuw."
+
+msgid "runtime.ggpo_start_failed"
+msgstr "GGPO kon niet starten — ga terug naar de lobby en druk opnieuw op Klaar."
+
+msgid "runtime.ggpo_add_players_failed"
+msgstr "GGPO kon geen spelers toevoegen — ga terug naar de lobby en druk opnieuw op Klaar."
+
+msgid "runtime.rollback_buffer_full"
+msgstr "Rollbackbuffer voor netplay is vol. De match is afgelopen."
+
+msgid "runtime.connection_unstable_prediction"
+msgstr "Verbinding instabiel. Spel draait op voorspelling."
+
+msgid "runtime.connection_restored"
+msgstr "Verbinding hersteld."
+
+msgid "runtime.spectator_disconnected"
+msgstr "Toeschouwer offline."
+
+msgid "runtime.spectator_stream_lost"
+msgstr "De toeschouwersstream is verbroken. Druk op Kijken voor de volgende match."
+
+msgid "runtime.match_connection_lost"
+msgstr "De matchverbinding is verbroken."
+
+msgid "runtime.opponent_disconnected"
+msgstr "Tegenstander is offline gegaan. De match is voorbij."
+
+msgid "runtime.leaving_spectator"
+msgstr "Toeschouwersbeeld verlaten."
+
+msgid "runtime.returning_room"
+msgstr "Terug naar de kamer."
+
+msgid "runtime.table_game_cancelled"
+msgstr "Partij geannuleerd. Ga terug naar de kamer en meld je weer klaar."
+
+msgid "runtime.result_not_recorded"
+msgstr "De uitslag kon niet worden vastgelegd: de tafel veranderde voor bevestiging."
+
+msgid "runtime.participant_left"
+msgstr "Matchdeelnemer verliet de kamer. De partij eindigt."
+
+msgid "update.github_unreachable"
+msgstr "GitHub is niet bereikbaar. Controleer je internetverbinding en probeer opnieuw."
+
+msgid "update.no_version_tag"
+msgstr "De GitHub-release heeft geen versietag."
+
+msgid "update.no_zip_asset"
+msgstr "Nieuwste release mist een SF4 Ember Netplay-ZIP."
+
+msgid "update.parse_failed"
+msgstr "Kon GitHub-releaseantwoord niet lezen."
+
+msgid "update.missing_url"
+msgstr "Download-URL ontbreekt."
+
+msgid "update.missing_version"
+msgstr "Versietag ontbreekt."
+
+msgid "update.close_sf4"
+msgstr "Sluit Ultra Street Fighter IV voor je een update installeert."
+
+msgid "update.install_dir_failed"
+msgstr "Kon de installatiemap niet bepalen."
+
+msgid "update.temp_path_failed"
+msgstr "Kon het tijdelijke updatepad niet maken ({0})."
+
+msgid "update.temp_folder_failed"
+msgstr "Kon de tijdelijke updatemap niet maken ({0})."
+
+msgid "update.temp_access_failed"
+msgstr "Geen toegang tot de tijdelijke map."
+
+msgid "update.zip_path_failed"
+msgstr "Kon update-ZIP-pad niet maken."
+
+msgid "update.extract_folder_failed"
+msgstr "Kon de uitpakmap voor de update niet maken ({0})."
+
+msgid "update.download_failed"
+msgstr "Download mislukt ({0}). Handmatig downloaden: {1} — details in %TEMP%\\sf4-netplay-update.log"
+
+msgid "update.verify_failed"
+msgstr "Kon de gedownloade update niet controleren. Probeer opnieuw."
+
+msgid "update.integrity_failed"
+msgstr "De integriteitscontrole van de update is mislukt; deze is niet geïnstalleerd. Probeer opnieuw of download de release handmatig van GitHub."
+
+msgid "update.no_digest"
+msgstr "Er is geen SHA-256-controlesom gepubliceerd voor deze release. Automatisch installeren is niet beschikbaar."
+
+msgid "update.extract_failed"
+msgstr "Kon het updatepakket niet uitpakken."
+
+msgid "update.invalid_paths"
+msgstr "Het gedownloade pakket bevat ongeldige paden."
+
+msgid "update.missing_binaries"
+msgstr "Launcher.exe of Sidecar.dll ontbreekt in het gedownloade pakket."
+
+msgid "update.staging_path_failed"
+msgstr "Kon het stagingpad niet lezen."
+
+msgid "update.validation_failed"
+msgstr "Het gedownloade pakket is afgekeurd (vereiste bestanden ontbreken)."
+
+msgid "update.cancelled"
+msgstr "Update geannuleerd vóór installatie."
+
+msgid "update.close_game"
+msgstr "Sluit het spel voordat je de update installeert."
+
+msgid "update.updater_start_failed"
+msgstr "Kon Updater.exe niet starten. Installeer opnieuw vanaf een verse ZIP."
+
+msgid "room.member_left"
+msgstr "Lid vertrokken"
+
+msgid "room.open_seat"
+msgstr "Vrije plek"
+
+msgid "room.status.queued"
+msgstr "In wachtrij"
+
+msgid "room.status.seated"
+msgstr "Aan tafel"
+
+msgid "room.status.ready"
+msgstr "Klaar"
+
+msgid "room.status.playing"
+msgstr "Speelt"
+
+msgid "room.status.watching"
+msgstr "Kijkt mee"
+
+msgid "room.status.watching_next"
+msgstr "Kijkt straks mee"
+
+msgid "room.status.idle"
+msgstr "Inactief"
+
+msgid "room.phase.waiting"
+msgstr "Wachten op spelers"
+
+msgid "room.phase.preparing"
+msgstr "Partij voorbereiden"
+
+msgid "room.phase.in_game"
+msgstr "In de partij"
+
+msgid "room.phase.unresolved"
+msgstr "Uitslag onbeslist"
+
+msgid "room.phase.closed"
+msgstr "Gesloten"
+
+msgid "room.phase.open"
+msgstr "Open"
+
+msgid "room.terminal_pending"
+msgstr "Wachten tot alle spelers en toeschouwers terug zijn van de vorige match."
+
+msgid "room.leave.detail"
+msgstr "Verlaat deze kamer en ga naar Start. Als je Ember verbergt, blijf je hier."
+
+msgid "room.leave.unresolved"
+msgstr " De onbesliste partij wordt niet vastgelegd."
+
+msgid "room.leave.active"
+msgstr " De huidige partij eindigt zonder uitslag en je plek komt vrij."
+
+msgid "room.leave.seat"
+msgstr " Je plek komt vrij."
+
+msgid "room.leave.queue"
+msgstr " Je verliest je plek in de wachtrij."
+
+msgid "room.leave.host"
+msgstr " Een ander lid wordt host."
+
+msgid "room.action_queue_failed"
+msgstr "De actie kon niet in de wachtrij worden gezet. Probeer opnieuw."
+
+msgid "room.table_detail"
+msgstr "{0} vs {1}\n{2}\nWachtrij: {3} / Kijken: {4}\nJij: {5}"
+
+msgid "room.connecting"
+msgstr "Verbinden"
+
+msgid "room.table_occupancy"
+msgstr "Tafel {0}   {1}/2"
+
+msgid "room.member_you"
+msgstr "{0} / JIJ"
+
+msgid "room.member"
+msgstr "{0}"
+
+msgid "room.member_status_host"
+msgstr "{0} / HOST"
+
+msgid "room.member_status"
+msgstr "{0}"
+
+msgid "room.members"
+msgstr "Leden"
+
+msgid "room.member_count"
+msgstr "{0} / {1} leden."
+
+msgid "room.chat"
+msgstr "Chat"
+
+msgid "room.chat.detail"
+msgstr "Lees berichten en schrijf zelf tekst met een toetsenbord."
+
+msgid "room.change_fighter"
+msgstr "Personage wijzigen"
+
+msgid "room.change_fighter.open_table"
+msgstr "Open je tafel voor de Klaar-status en voorwaarden voor personagewissel."
+
+msgid "room.settings"
+msgstr "Kamerinstellingen"
+
+msgid "room.settings.detail"
+msgstr "Kamernaam, capaciteit en toegang."
+
+msgid "room.settings.host_only"
+msgstr "Alleen de host kan de kamer beheren."
+
+msgid "room.connection_status"
+msgstr "Verbindingsstatus"
+
+msgid "room.opening"
+msgstr "Kamer openen..."
+
+msgid "room.opening_stalled"
+msgstr "De kamer is nog niet open. Controleer je verbinding of stop en probeer opnieuw."
+
+msgid "room.waiting_state"
+msgstr "Wachten op kamerstatus."
+
+msgid "room.ready"
+msgstr "Klaar"
+
+msgid "room.ready.saved_fighter"
+msgstr "Gebruik opgeslagen personage."
+
+msgid "room.copy_invitation"
+msgstr "Uitnodiging kopiëren"
+
+msgid "room.copy_invitation.detail"
+msgstr "Deel de privéuitnodiging met vrienden."
+
+msgid "room.leaving"
+msgstr "Kamer verlaten..."
+
+msgid "room.leave"
+msgstr "Kamer verlaten"
+
+msgid "room.replace"
+msgstr "Kamer vervangen"
+
+msgid "room.replace.detail"
+msgstr "Sluit de vastgelopen kamer en open een nieuwe. Iedereen moet opnieuw deelnemen en de huidige uitnodiging werkt niet meer. Onbesliste kamerstatus wordt gewist."
+
+msgid "room.replace.waiting"
+msgstr "De vorige match wordt nog afgesloten. Daarna kun je de kamer vervangen."
+
+msgid "room.updating"
+msgstr "Kamer bijwerken..."
+
+msgid "room.battle_slot"
+msgstr "MATCHTAFEL {0}"
+
+msgid "room.looking_for_fight"
+msgstr "Tegenstander zoeken"
+
+msgid "room.fighter_not_shared"
+msgstr "Personage nog onbekend"
+
+msgid "room.suffix_ready"
+msgstr " / KLAAR"
+
+msgid "room.suffix_you"
+msgstr " / JIJ"
+
+msgid "room.table_footer"
+msgstr "{0} rondes / {1} sec     Wachtrij {2}     Kijken {3}"
+
+msgid "room.board_status_host_slot"
+msgstr "HOST / {0} / Plek {1}"
+
+msgid "room.board_status_slot"
+msgstr "{0} / Plek {1}"
+
+msgid "room.board_status_host"
+msgstr "HOST / {0}"
+
+msgid "room.board_status"
+msgstr "{0}"
+
+msgid "room.members_heading"
+msgstr "LEDEN  {0} / {1}"
+
+msgid "room.chat_heading"
+msgstr "CHAT"
+
+msgid "room.no_messages"
+msgstr "Nog geen berichten. Kies Chat om iets te schrijven."
+
+msgid "room.table_explanation"
+msgstr "{0} / Jij: {1}\nWachtrij: {2} / Kijken: {3}"
+
+msgid "room.invitation_copied"
+msgstr "Uitnodiging gekopieerd."
+
+msgid "room.replacement_opening"
+msgstr "Nieuwe kamer wordt geopend. Kopieer de uitnodiging en stuur de nieuwe link — de oude werkt niet meer."
+
+msgid "room.action_rejected"
+msgstr "De kamer is veranderd of heeft deze actie geweigerd. Bekijk de huidige status en probeer opnieuw."
+
+msgid "room.leave_current_table"
+msgstr "Verlaat eerst je huidige tafel."
+
+msgid "room.choose_action"
+msgstr "Kies een actie voor deze tafel."
+
+msgid "room.result_unresolved.detail"
+msgstr "De vorige uitslag is onbeslist. Kies Onbesliste partij opgeven of vraag de host om annulering; niemand krijgt een overwinning."
+
+msgid "room.awaiting_result"
+msgstr "Wachten tot beide spelers de uitslag melden. Klaar wordt gewist na bevestiging; je bent nog niet klaar voor een nieuwe match."
+
+msgid "room.match_active"
+msgstr "De huidige match wordt voorbereid of is bezig. Wacht tot deze voorbij is."
+
+msgid "room.waiting_other_seat"
+msgstr "Wachten tot een tegenstander de andere plek inneemt. Je kunt intussen je personage wijzigen."
+
+msgid "room.controller_required"
+msgstr "Wijs je controller toe of sluit hem opnieuw aan via Instellingen > Speler en controller."
+
+msgid "room.waiting_update"
+msgstr "Wachten tot de huidige kamerupdate klaar is."
+
+msgid "room.ready.cancel_detail"
+msgstr "Je bent KLAAR. Selecteer om Klaar te annuleren en kies daarna Personage wijzigen."
+
+msgid "room.ready.locking"
+msgstr "Je personage wordt vastgelegd. De match begint zodra beide spelers klaar zijn."
+
+msgid "room.ready.lock_detail"
+msgstr "Selecteer om je personage vast te leggen. De match begint zodra beide spelers klaar zijn."
+
+msgid "room.both_ready"
+msgstr "Beide spelers zijn klaar. De match begint."
+
+msgid "room.match_in_progress.detail"
+msgstr "De huidige match is bezig. Wacht tot deze voorbij is."
+
+msgid "room.unready"
+msgstr "Niet klaar / ontgrendel"
+
+msgid "room.readying"
+msgstr "Klaarmaken..."
+
+msgid "room.result_unresolved"
+msgstr "Uitslag onbeslist"
+
+msgid "room.preparing_match"
+msgstr "Match voorbereiden"
+
+msgid "room.ready_rematch"
+msgstr "Klaar voor rematch"
+
+msgid "room.ready_up"
+msgstr "Klaar melden"
+
+msgid "room.recommended_delay"
+msgstr "Aanbevolen vertraging"
+
+msgid "room.selected_delay"
+msgstr "Gekozen vertraging"
+
+msgid "room.selected_delay.detail"
+msgstr "Stel in van 0 tot 10 frames. Wijzigingen gelden meteen."
+
+msgid "room.selected_delay.locked"
+msgstr "De gekozen vertraging staat vast voor deze match."
+
+msgid "room.match_delay"
+msgstr "Matchvertraging"
+
+msgid "room.match_delay.at_least"
+msgstr "Minstens {0} frames"
+
+msgid "room.match_delay.detail"
+msgstr "Beide spelers gebruiken de hoogste gekozen vertraging. Jij koos {0}; je tegenstander koos {1}."
+
+msgid "room.match_delay.pending"
+msgstr "Beide spelers gebruiken de hoogste gekozen vertraging. De keuze van je tegenstander verschijnt zodra die op Klaar drukt."
+
+msgid "room.check_connection.two_players"
+msgstr "Beide plekken moeten bezet zijn om de verbinding te controleren."
+
+msgid "room.check_connection.unready"
+msgstr "Kies Niet klaar om de verbinding voor de volgende match te controleren."
+
+msgid "room.check_connection.finish_match"
+msgstr "Rond de huidige match af voordat je de verbinding controleert."
+
+msgid "room.apply_recommendation"
+msgstr "Advies toepassen"
+
+msgid "room.apply_recommendation.detail"
+msgstr "Stel je gekozen vertraging in op {0} frames."
+
+msgid "room.apply_recommendation.check_first"
+msgstr "Voer eerst Verbinding controleren uit voordat je advies toepast."
+
+msgid "room.change_fighter.unready"
+msgstr "Kies hierboven Niet klaar om je personage en uiterlijk te ontgrendelen."
+
+msgid "room.change_fighter.waiting"
+msgstr "Wachten tot de huidige match of keuze-update klaar is."
+
+msgid "room.change_fighter.detail"
+msgstr "Kies een personage en bekijk de outfit- en kleurengalerij. Kom hier terug en kies Klaar melden."
+
+msgid "room.leave_seat"
+msgstr "Plek verlaten"
+
+msgid "room.leave_seat.abandon_first"
+msgstr "Geef eerst de onbesliste partij op."
+
+msgid "room.leave_seat.finish_first"
+msgstr "Rond de huidige partij eerst af of los de uitslag op."
+
+msgid "room.leave_seat.release"
+msgstr "Maak je plek vrij."
+
+msgid "room.leave_seat.next_player"
+msgstr "Maak je plek vrij. De volgende speler in de wachtrij neemt hem in."
+
+msgid "room.abandon_result"
+msgstr "Onbesliste partij opgeven"
+
+msgid "room.abandon_result.detail"
+msgstr "Geen uitslag. Beide spelers blijven zitten en kunnen zich weer klaar melden."
+
+msgid "room.leave_queue"
+msgstr "Wachtrij verlaten"
+
+msgid "room.join_queue"
+msgstr "In wachtrij"
+
+msgid "room.stop_watching"
+msgstr "Stoppen met kijken"
+
+msgid "room.watch_next"
+msgstr "Volgende kijken"
+
+msgid "room.table_rules"
+msgstr "Tafelregels"
+
+msgid "room.table_rules.edit"
+msgstr "Wijzig de tafelregels."
+
+msgid "room.table_rules.view"
+msgstr "Bekijk de tafelregels."
+
+msgid "room.cancel_unresolved"
+msgstr "Onbesliste partij annuleren"
+
+msgid "room.cancel_unresolved.detail"
+msgstr "Alleen host. Er wordt geen uitslag vastgelegd."
+
+msgid "room.cancel_stuck"
+msgstr "Partij annuleren"
+
+msgid "room.cancel_stuck.detail"
+msgstr "Alleen host. Gebruik dit als een afgelopen partij geen uitslag meldde. Er wordt geen uitslag vastgelegd."
+
+msgid "room.rules.finish_game"
+msgstr "Rond de lopende partij af voordat je regels wijzigt."
+
+msgid "room.rules.apply_note"
+msgstr "Wijzigingen gelden pas na Toepassen."
+
+msgid "room.rules.host_only"
+msgstr "Alleen de host kan tafelregels wijzigen."
+
+msgid "room.apply_rules"
+msgstr "Regels toepassen"
+
+msgid "room.apply_rules.detail"
+msgstr "Verstuur alle aangepaste regels voor deze tafel."
+
+msgid "room.member_status_host_muted"
+msgstr "{0} / HOST / Lokaal gedempt"
+
+msgid "room.member_status_muted"
+msgstr "{0} / Lokaal gedempt"
+
+msgid "room.unmute_member"
+msgstr "Dempen opheffen"
+
+msgid "room.mute_member"
+msgstr "Lid dempen"
+
+msgid "room.mute_member.detail"
+msgstr "Verberg alleen de chat van dit lid."
+
+msgid "room.member_left.detail"
+msgstr "Dit lid is vertrokken."
+
+msgid "room.kick_member"
+msgstr "Lid verwijderen"
+
+msgid "room.kick_member.detail"
+msgstr "Verwijder {0} uit de kamer."
+
+msgid "room.transfer_host"
+msgstr "Host overdragen"
+
+msgid "room.transfer_host.detail"
+msgstr "Maak {0} de host."
+
+msgid "room.compose_message"
+msgstr "Bericht schrijven"
+
+msgid "room.send_message"
+msgstr "Bericht verzenden"
+
+msgid "room.send_message.detail"
+msgstr "Verzend het bevestigde concept. Enter in de editor verstuurt geen chatbericht."
+
+msgid "room.capacity.detail"
+msgstr "Kan niet lager zijn dan het huidige aantal leden."
+
+msgid "room.admission"
+msgstr "Toegang"
+
+msgid "room.locked"
+msgstr "Vergrendeld"
+
+msgid "room.open"
+msgstr "Open"
+
+msgid "room.admission.detail"
+msgstr "Vergrendelen houdt nieuwe leden buiten."
+
+msgid "room.apply_name"
+msgstr "Kamernaam toepassen"
+
+msgid "room.apply_name.detail"
+msgstr "Verstuur deze kamernaam."
+
+msgid "room.apply_capacity"
+msgstr "Capaciteit toepassen"
+
+msgid "room.apply_capacity.detail"
+msgstr "Verstuur deze capaciteit."
+
+msgid "profile.main_badge"
+msgstr "HOOFD"
+
+msgid "training.shortcuts"
+msgstr "F6 Trainingsbesturing | F5 HUD verbergen"
+
+msgid "common.not_set"
+msgstr "Niet gezet"
+
+msgid "notice.title"
+msgstr "Melding"
+
+msgid "notice.error_title"
+msgstr "Er is iets misgegaan"
+
+msgid "game_settings.title"
+msgstr "Aanbevolen spelinstellingen"
+
+msgid "game_settings.intro"
+msgstr "Online spelen werkt het best met de onderstaande spelinstellingen. Kies Offline spelen en wijzig ze in het spelmenu Opties."
+
+msgid "game_settings.frame_rate"
+msgstr "FRAMERATE: zet op CONSTANT (nu {0}). Vereist; andere standen verstoren rollback."
+
+msgid "game_settings.anti_aliasing"
+msgstr "Anti-Aliasing: zet op GEEN (nu {0}). Dit verlaagt GPU-belasting en vertraging."
+
+msgid "game_settings.hide"
+msgstr "Niet meer tonen"
+
+msgid "common.ok"
+msgstr "OK"
+
+msgid "edit.title"
+msgstr "Tekst bewerken"
+
+msgid "edit.instructions"
+msgstr "Typ of plak. Enter bevestigt; Escape of controllerknop Terug annuleert."
+
+msgid "edit.updating"
+msgstr "Kamer wordt bijgewerkt. Je concept blijft bewaard; je kunt verder typen of annuleren."
+
+msgid "common.accept"
+msgstr "Accepteren"
+
+msgid "edit.cancel"
+msgstr "Annuleer"
+
+msgid "discord.unavailable_build"
+msgstr "Discord-integratie is niet beschikbaar in deze build."
+
+msgid "runtime.record_invalid"
+msgstr "De lokale matchstand is ongeldig en is bewaard. Bijhouden is niet beschikbaar."
+
+msgid "runtime.interface_preferences_failed"
+msgstr "Interfacevoorkeuren onleesbaar; standaardwaarden gebruikt."
+
+msgid "runtime.room_defaults_invalid"
+msgstr "Opgeslagen kamerstandaard ongeldig. Oorspronkelijke instellingen bewaard."
+
+msgid "runtime.network_start_failed"
+msgstr "Netwerk kon niet starten. Offline spelen kan nog wel."
+
+msgid "runtime.network_helper_unavailable"
+msgstr "Netwerkhelper niet beschikbaar (fout {0}). Offline spelen kan nog wel."
+
+msgid "discord.connecting"
+msgstr "Verbinden met Discord..."
+
+msgid "discord.unavailable_gameplay_ok"
+msgstr "Discord niet beschikbaar. Spel blijft werken."
+
+msgid "runtime.gameplay_device_disconnected"
+msgstr "Spelcontroller niet verbonden. Sluit hem opnieuw aan vóór de volgende match."
+
+msgid "runtime.controller_assignment_unverified"
+msgstr "Kon de controllertoewijzing voor de match niet controleren. Wijs hem opnieuw toe en probeer het weer."
+
+msgid "runtime.recovery_state_failed"
+msgstr "De kamerherstelstatus kon niet worden toegepast. Het herstel blijft gepauzeerd."
+
+msgid "runtime.room_control_recovering"
+msgstr "Kamerbeheer wordt hersteld."
+
+msgid "discord.connected"
+msgstr "Discord verbonden"
+
+msgid "discord.registration_failed"
+msgstr "Discord verbonden; opstartregistratie mislukt."
+
+msgid "discord.open_desktop"
+msgstr "Discord niet beschikbaar. Open de Discord-desktopapp om activiteit te delen."
+
+msgid "discord.invitation_invalid"
+msgstr "Ongeldige Discord-uitnodiging."
+
+msgid "discord.invalid_event"
+msgstr "Discord stuurde een ongeldige gebeurtenis."
+
+msgid "discord.companion_stopped"
+msgstr "Discord-hulp gestopt. Spel blijft werken."
+
+msgid "runtime.room_connection_failed"
+msgstr "Kamerverbinding mislukt. De kamer wordt gesloten; onbevestigde uitslagen worden niet vastgelegd."
+
+msgid "runtime.operation_busy"
+msgstr "De bewerking is bezig. Probeer opnieuw."
+
+msgid "discord.invitation_expired"
+msgstr "De Discord-uitnodiging is verlopen. Vraag om een nieuwe."
+
+msgid "runtime.spectator_action_retrying"
+msgstr "Toeschouwersactie niet verzonden; nieuwe poging."
+
+msgid "runtime.return_main_menu"
+msgstr "Ga naar het spelhoofdmenu voordat je een kamer opent."
+
+msgid "runtime.room_action_failed"
+msgstr "De kameractie kon niet worden verzonden. Probeer opnieuw."
+
+msgid "runtime.preferences_queue_failed"
+msgstr "Voorkeuren konden niet worden klaargezet om op te slaan. Probeer opnieuw."
+
+msgid "runtime.lobby_settings_send_failed"
+msgstr "Lobbyinstellingen niet verzonden."
+
+msgid "runtime.room_defaults_save_failed"
+msgstr "Kamerstandaard niet opgeslagen."
+
+msgid "runtime.connection_check_unavailable"
+msgstr "Verbindingscontrole niet beschikbaar. Je kunt nog een vertraging kiezen en op Klaar drukken."
+
+msgid "runtime.delay_save_failed"
+msgstr "Invoervertraging niet opgeslagen."
+
+msgid "runtime.teardown_report_failed"
+msgstr "Het afsluiten van de match kon niet worden gemeld; de kamer is gesloten."
+
+msgid "runtime.lobby_defaults_save_failed"
+msgstr "Lobbyinstellingen toegepast; standaardwaarden niet opgeslagen."
+
+msgid "runtime.lobby_settings_rejected"
+msgstr "Lobbyinstellingen geweigerd. Controleer of alles klaar is en probeer opnieuw."
+
+msgid "runtime.teardown_timeout"
+msgstr "Match niet tijdig afgesloten; kamer gesloten."
+
+msgid "runtime.room_catchup_timeout"
+msgstr "De kamer was niet op tijd bijgewerkt. Je laatste actie is niet toegepast; probeer opnieuw."
+
+msgid "runtime.previous_match_close_timeout"
+msgstr "De vorige match werd niet op tijd afgesloten. Pas de tafelinstellingen opnieuw toe."
+
+msgid "runtime.spectator_close_timeout"
+msgstr "De match werd niet op tijd afgesloten. De toeschouwersweergave is gestopt."
+
+msgid "runtime.room_closed"
+msgstr "De kamer is gesloten."
+
+msgid "runtime.removed_from_room"
+msgstr "Je bent uit de kamer verwijderd."
+
+msgid "room.reject.closed"
+msgstr "De kamer is gesloten."
+
+msgid "room.reject.full"
+msgstr "De kamer is vol."
+
+msgid "room.reject.admission_locked"
+msgstr "De kamer laat geen nieuwe leden toe."
+
+msgid "room.reject.name_taken"
+msgstr "Die spelersnaam is al in de kamer. Wijzig hem bij Instellingen."
+
+msgid "room.reject.stale_room"
+msgstr "De kamer veranderde voordat je actie aankwam. Probeer opnieuw."
+
+msgid "room.reject.stale_table"
+msgstr "De tafel veranderde voordat je actie aankwam. Probeer opnieuw."
+
+msgid "room.reject.wrong_phase"
+msgstr "De tafel is niet klaar voor die actie."
+
+msgid "room.reject.wrong_generation"
+msgstr "Die partij is al afgelopen."
+
+msgid "room.reject.unauthorized"
+msgstr "Alleen de host kan dat doen."
+
+msgid "room.reject.not_seated"
+msgstr "Je zit niet aan deze tafel."
+
+msgid "room.reject.already_seated"
+msgstr "Je hebt al een plek."
+
+msgid "room.reject.already_queued"
+msgstr "Je staat al in de wachtrij."
+
+msgid "room.reject.not_queued"
+msgstr "Je staat niet in de wachtrij."
+
+msgid "room.reject.not_watching"
+msgstr "Je kijkt niet mee aan deze tafel."
+
+msgid "room.reject.invalid_rules"
+msgstr "Deze tafelregels zijn ongeldig."
+
+msgid "room.reject.invalid_capacity"
+msgstr "Deze capaciteit is ongeldig."
+
+msgid "room.reject.invalid_chat"
+msgstr "Dat bericht kon niet worden verzonden."
+
+msgid "room.reject.ledger_full"
+msgstr "Wachten tot iedereen terug is van de vorige match."
+
+msgid "room.reject.other"
+msgstr "De kamer heeft die actie geweigerd."
+
+msgid "runtime.lock.return_to_menu_fighter"
+msgstr "Ga terug naar het spelhoofdmenu om je personage te wijzigen."
+
+msgid "runtime.lock.previous_game_closing"
+msgstr "Wachten tot de vorige partij is afgesloten."
+
+msgid "runtime.lock.teardown"
+msgstr "Wachten tot spelers en toeschouwers de vorige match hebben afgesloten."
+
+msgid "runtime.lock.room_recovering"
+msgstr "Wachten op herstel van de kamerverbinding."
+
+msgid "runtime.lock.ready_pending"
+msgstr "Wachten tot je Klaar-verzoek is verwerkt."
+
+msgid "runtime.lock.selection_update"
+msgstr "Wachten tot de huidige match of keuze-update klaar is."
+
+msgid "runtime.lock.return_to_menu_ready"
+msgstr "Ga terug naar het spelhoofdmenu voordat je je klaar meldt."
+
+msgid "runtime.lock.table_settings"
+msgstr "Wachten tot de tafelinstellingen zijn toegepast."
+
+msgid "runtime.lock.room_update"
+msgstr "Wachten tot de huidige kamer- of matchupdate klaar is."
+
+msgid "runtime.ready.control_changed"
+msgstr "Kamerbeheer veranderde voordat je Klaar-verzoek werd toegepast. Druk opnieuw op Klaar."
+
+msgid "runtime.ready.assign_controller"
+msgstr "Wijs je controller toe of sluit hem opnieuw aan vóór Klaar."
+
+msgid "runtime.ready.stage_unavailable"
+msgstr "Het gekozen level is niet beschikbaar. Kies een ander level bij Personage kiezen."
+
+msgid "runtime.ready.fighter_unavailable"
+msgstr "Het gekozen personage is niet beschikbaar. Kies een ander bij Personage kiezen."
+
+msgid "runtime.ready.selection_unavailable"
+msgstr "Deze personagekeuze is niet beschikbaar. Kies een beschikbare outfit, kleur, editie en Ultra."
+
+msgid "runtime.ready.take_seat"
+msgstr "Neem een plek aan een tafel voordat je je klaar meldt."
+
+msgid "runtime.ready.refused"
+msgstr "De kamer weigerde je Klaar-verzoek. Druk opnieuw op Klaar."
+
+msgid "runtime.ready.previous_match_timeout"
+msgstr "Je Klaar-verzoek kwam niet door. De kamer rondde de vorige match niet op tijd af. Druk opnieuw op Klaar."
+
+msgid "runtime.room_open_failed"
+msgstr "Kon de kamer niet openen. Probeer opnieuw."
+
+msgid "runtime.match_settings_send_failed"
+msgstr "Matchinstellingen niet verzonden."
+
+msgid "runtime.match_record_not_saved"
+msgstr "De matchstand kon niet worden opgeslagen. De volgende match kan beginnen; het opslaan wordt opnieuw geprobeerd."
+
+msgid "runtime.rollback_unsupported_state"
+msgstr "Netplay kon een niet-ondersteunde spelstatus niet opslaan. De match is afgelopen."
+
+msgid "runtime.participant_left_room"
+msgstr "Een matchdeelnemer verliet de kamer."
+
+msgid "runtime.networking_unavailable"
+msgstr "Netwerk niet beschikbaar. Offline spelen kan nog wel."
+
+msgid "runtime.room_join_failed"
+msgstr "Kon de kamer niet betreden. Controleer de uitnodiging en of beide spelers hetzelfde SF4 Ember Netplay-pakket gebruiken."
+
+msgid "runtime.room_connection_lost"
+msgstr "Kamerverbinding verbroken."

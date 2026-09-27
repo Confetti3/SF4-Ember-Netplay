@@ -464,8 +464,9 @@ bool ShowRecovery(std::string message, std::wstring& gameDirectory, bool updates
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     sf4e::install::ConfigureDllSearch();
-    const auto languagePreference = sf4e::platform::LoadLanguagePreference();
-    sf4e::loc::SetActive(sf4e::loc::ResolveLocale(languagePreference, sf4e::platform::WindowsUiLanguages()));
+    auto languagePreference = sf4e::platform::LoadLanguagePreference();
+    // Until the game folder is found, "auto" can only follow Windows.
+    sf4e::loc::SetActive(sf4e::platform::ResolveUiLocale(languagePreference));
     // Before logging: spdlog, updates and recovery all lock a std::mutex, which
     // an old runtime crashes on, so nothing else can run until this passes.
     if (!RuntimeIsCurrent()) {
@@ -491,8 +492,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     int argc = 0; auto** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
     try { app.parse(argc, argv); } catch (const CLI::ParseError& e) { LocalFree(argv); return app.exit(e); }
     LocalFree(argv);
-    if (!localeOverride.empty() && sf4e::loc::ValidPreference(localeOverride))
-        sf4e::loc::SetActive(sf4e::loc::ResolveLocale(localeOverride, sf4e::platform::WindowsUiLanguages()));
+    if (!localeOverride.empty() && sf4e::loc::ValidPreference(localeOverride)) {
+        languagePreference = localeOverride;
+        sf4e::loc::SetActive(sf4e::platform::ResolveUiLocale(languagePreference));
+    }
     sf4e::platform::LauncherInstance instance;
     std::wstring chosenDirectory;
     if (waitPid) {
@@ -561,6 +564,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (!ShowRecovery(sf4e::loc::T("launcher.game_not_found"),chosenDirectory)) return 0;
             continue;
         }
+        // "auto" follows USF4's own language from here on.
+        sf4e::platform::SetGameDirectory(location.directory);
+        sf4e::loc::SetActive(sf4e::platform::ResolveUiLocale(languagePreference));
+        spdlog::info("Interface language {} (preference {}, game {})", sf4e::loc::Tag(sf4e::loc::Active()),
+            languagePreference, sf4e::platform::GameLanguage().empty() ? "unknown" : sf4e::platform::GameLanguage());
         wchar_t sidecar[MAX_PATH] = {};
         char sidecarAnsi[1024] = {};
         BOOL substituted = FALSE;

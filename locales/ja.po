@@ -1,0 +1,2095 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: ja\n"
+
+msgid "app.name"
+msgstr "SF4 Ember Netplay"
+
+msgid "common.back"
+msgstr "戻る"
+
+msgid "common.cancel"
+msgstr "キャンセル"
+
+msgid "common.close"
+msgstr "閉じる"
+
+msgid "common.confirm"
+msgstr "決定"
+
+msgid "common.on"
+msgstr "オン"
+
+msgid "common.off"
+msgstr "オフ"
+
+msgid "common.unavailable"
+msgstr "利用不可"
+
+msgid "common.saving"
+msgstr "保存中..."
+
+msgid "common.saved"
+msgstr "保存済み"
+
+msgid "common.save_failed"
+msgstr "保存失敗"
+
+msgid "confirm.title"
+msgstr "操作の確認"
+
+msgid "confirm.question"
+msgstr "{0}？"
+
+msgid "confirm.updating"
+msgstr "ルームを更新中です。キャンセルできます。"
+
+msgid "launcher.update_failed"
+msgstr "アップデートをインストールできませんでした。ゲームと前のランチャーを閉じて再試行してください。%TEMP%\\sf4-netplay-update.logを確認してください。製品のバックアップは.ember-update-backupsにあります。"
+
+msgid "launcher.recovery_title"
+msgstr "起動の復旧"
+
+msgid "launcher.path_failed"
+msgstr "実行時の検索パスを設定できませんでした。パッケージ全体を書き込み可能なフォルダーに展開してください。"
+
+msgid "launcher.game_not_found"
+msgstr "Ultra Street Fighter IVが見つかりません。"
+
+msgid "launcher.sidecar_missing"
+msgstr "Sidecar.dllが見つからないか、インジェクターがそのパスを使用できません。パッケージ全体を単純なローカルパスに展開してください。"
+
+msgid "launcher.runtime_outdated"
+msgstr "Microsoft Visual C++ランタイムが古いため、ゲームが起動時にクラッシュします。最新版のVisual C++ Redistributable (x86)をインストールしてから、Emberを再起動してください。\n\nダウンロードページを開きますか？"
+
+msgid "launcher.already_running"
+msgstr "SF4 Ember Netplayはすでに起動しています。画面に見えない場合は、タスクマネージャーでLauncher.exeとSSFIV.exeを終了してからEmberを再起動してください。"
+
+msgid "launcher.start_failed"
+msgstr "ゲームの起動または組み込みに失敗しました。ランチャーのログを確認して再試行してください。"
+
+msgid "launcher.game_error"
+msgstr "ゲームがエラーで終了しました。ランチャーのログを確認して再試行してください。"
+
+msgid "launcher.runtime_shadowed"
+msgstr "ゲームがEmberフォルダーの代わりに次のファイルを読み込もうとしています。古いファイルがあると起動前に停止します（\"entry point ggpo_get_last_confirmed_frame not found\"）。別のネット対戦MODまたは古いインストールの残りです。移動または名前を変更してからEmberを再起動してください：\n\n{0}"
+
+msgid "launcher.game_wrong_dll"
+msgstr "読み込んだDLLに必要な関数がないため、Emberの起動前にゲームが停止しました。通常、別のMODや古いインストールのGGPO.dll、spdlog.dll、fmt.dll、zlib1.dllがSSFIV.exeの隣にあります。見つかったファイルを移動して再試行してください。ない場合はランチャーのログを送ってください。"
+
+msgid "recovery.window"
+msgstr "Emberの復旧"
+
+msgid "recovery.d3d_failed"
+msgstr "復旧画面でDirect3D 9を初期化できませんでした。%APPDATA%\\sf4e\\logs\\launcher.logを確認してください。"
+
+msgid "recovery.choose_folder_title"
+msgstr "SSFIV.exeがあるフォルダーを選択"
+
+msgid "recovery.folder_selected"
+msgstr "ゲームフォルダーを選択しました。準備ができたら再試行してください。"
+
+msgid "recovery.folder_invalid"
+msgstr "このフォルダーにSSFIV.exeはありません。"
+
+msgid "recovery.title"
+msgstr "起動の復旧"
+
+msgid "updates.title"
+msgstr "アップデート"
+
+msgid "recovery.choose_folder"
+msgstr "ゲームフォルダーを選択"
+
+msgid "recovery.choose_folder_detail"
+msgstr "SSFIV.exeがあるUltra Street Fighter IVのインストール先を選択してください。このパッケージにゲーム本体は含まれません。"
+
+msgid "recovery.retry"
+msgstr "起動を再試行"
+
+msgid "recovery.retry_busy"
+msgstr "実行中の操作を先に完了またはキャンセルしてください。"
+
+msgid "recovery.retry_detail"
+msgstr "選択したゲームフォルダーで再試行します。通信補助プログラムがなくてもオフラインで遊べます。"
+
+msgid "updates.check"
+msgstr "更新を確認"
+
+msgid "updates.busy"
+msgstr "別の操作を実行中です。"
+
+msgid "updates.check_detail"
+msgstr "新しいEmberパッケージを確認します。"
+
+msgid "updates.install"
+msgstr "ダウンロードしてインストール"
+
+msgid "updates.install_detail"
+msgstr "インストール前にSF4を閉じてください。パッケージはインストール前に検証され、個人設定は保持されます。"
+
+msgid "updates.unverified"
+msgstr "このアップデートには検証用チェックサムがないため、インストールできません。"
+
+msgid "updates.cancel"
+msgstr "操作をキャンセル"
+
+msgid "updates.cancel_detail"
+msgstr "現在のダウンロードまたは確認をキャンセルします。完了してから再試行してください。"
+
+msgid "recovery.close_detail"
+msgstr "SF4を起動せずに復旧画面を閉じます。実行中の操作はキャンセルされます。"
+
+msgid "updates.downloaded_mb"
+msgstr "{0:.1f} MBダウンロード済み"
+
+msgid "services.checking"
+msgstr "更新を確認中..."
+
+msgid "services.exporting"
+msgstr "診断情報を出力中..."
+
+msgid "services.downloading"
+msgstr "更新をダウンロードして検証中..."
+
+msgid "services.opening_updater"
+msgstr "アップデーターを起動中..."
+
+msgid "services.update_available"
+msgstr "アップデートがあります：{0}"
+
+msgid "services.up_to_date"
+msgstr "最新版です。"
+
+msgid "services.diagnostics_saved"
+msgstr "%APPDATA%\\sf4e\\diagnostics\\ember-diagnostics.txtに保存しました"
+
+msgid "services.diagnostics_failed"
+msgstr "診断情報を保存できませんでした。再試行してください。"
+
+msgid "services.updater_start_failed"
+msgstr "アップデーターを起動できませんでした。再試行してください。"
+
+msgid "services.game_closing"
+msgstr "ゲームを終了中です。終了後にアップデーターを開きます。"
+
+msgid "services.no_verified_update"
+msgstr "検証済みのアップデートはありません。再度確認してください。"
+
+msgid "services.update_prepared"
+msgstr "アップデートの準備ができました。SF4 Ember Netplayを再起動中..."
+
+msgid "services.operation_failed"
+msgstr "操作に失敗しました。再試行してください。復旧用のコピーは.ember-update-backupsにあります。"
+
+msgid "services.operation_cancelled"
+msgstr "操作をキャンセルしました。"
+
+msgid "services.opening_community"
+msgstr "ブラウザーでEmberのDiscordを開いています..."
+
+msgid "services.community_opened"
+msgstr "ブラウザーで開きました。切り替えてサーバーに参加してください。"
+
+msgid "services.community_failed"
+msgstr "ブラウザーを開けませんでした。{0}にアクセスして参加してください。"
+
+msgid "settings.language"
+msgstr "言語"
+
+msgid "settings.language.detail"
+msgstr "Emberの表示言語をすぐに変更します。自動ではゲームの言語、次にWindowsの言語を使います。"
+
+msgid "settings.language.system_with"
+msgstr "自動：{0}"
+
+msgid "settings.language_save_failed"
+msgstr "言語設定を保存できませんでした。このセッション中は選択した言語を使います。"
+
+msgid "menu.edit_detail"
+msgstr "選択して編集します。入力または貼り付け後、Enterで決定。戻るでキャンセルします。"
+
+msgid "menu.edit_unavailable"
+msgstr "現在は編集できません。"
+
+msgid "menu.edit"
+msgstr "編集"
+
+msgid "menu.review"
+msgstr "確認"
+
+msgid "menu.select"
+msgstr "選択"
+
+msgid "menu.navigate"
+msgstr "移動"
+
+msgid "menu.adjust"
+msgstr "調整"
+
+msgid "rules.edition_select"
+msgstr "エディションセレクト"
+
+msgid "rules.rounds"
+msgstr "ラウンド"
+
+msgid "rules.round_time"
+msgstr "タイム"
+
+msgid "screen.home"
+msgstr "ホーム"
+
+msgid "screen.online"
+msgstr "オンライン対戦"
+
+msgid "screen.selection"
+msgstr "キャラクター選択"
+
+msgid "screen.player"
+msgstr "プレイヤーとコントローラー"
+
+msgid "screen.defaults"
+msgstr "対戦の初期設定"
+
+msgid "screen.main_character"
+msgstr "メインキャラを選択"
+
+msgid "screen.about"
+msgstr "ヘルプ・情報"
+
+msgid "screen.room"
+msgstr "ルーム"
+
+msgid "screen.table"
+msgstr "対戦席"
+
+msgid "screen.table_rules"
+msgstr "対戦席のルール"
+
+msgid "screen.members"
+msgstr "メンバー"
+
+msgid "screen.member"
+msgstr "メンバー"
+
+msgid "screen.chat"
+msgstr "チャット"
+
+msgid "screen.room_settings"
+msgstr "ルーム設定"
+
+msgid "screen.practice_position"
+msgstr "練習位置"
+
+msgid "screen.dummy_recording"
+msgstr "ダミーレコーディング"
+
+msgid "screen.input_history"
+msgstr "入力履歴"
+
+msgid "room.wait.leaving"
+msgstr "ルームから退出中。接続の終了を待っています..."
+
+msgid "room.wait.joining"
+msgstr "ルームに参加中。他のプレイヤーを待っています..."
+
+msgid "room.wait.closed"
+msgstr "このルームは閉じられました。オンライン対戦に戻って別のルームに参加してください。"
+
+msgid "room.wait.recovering"
+msgstr "ルーム接続を復旧中です。退出はできます。"
+
+msgid "room.wait.updating"
+msgstr "ルームを更新中です。操作が一時停止する場合があります。"
+
+msgid "connection.checking"
+msgstr "確認中..."
+
+msgid "connection.checking_detail"
+msgstr "接続確立後、対戦用の通信を5秒間測定します。遅延は手動でも選べます。"
+
+msgid "connection.checking_action"
+msgstr "接続を確認中..."
+
+msgid "connection.frames"
+msgstr "{0}F"
+
+msgid "connection.result_detail"
+msgstr "{0}接続。RTT中央値{1} ms、p95 {2} ms、p99 {3} ms。RTT変動{4} ms。送信{5}、応答{6}、未応答{7}。推奨値を適用するか、遅延を手動で選んでください。"
+
+msgid "connection.route_direct"
+msgstr "直接"
+
+msgid "connection.route_relayed"
+msgstr "中継"
+
+msgid "connection.route_unknown"
+msgstr "不明"
+
+msgid "connection.relayed_advice"
+msgstr "中継接続では、2つのネットワーク間で直接接続できず、対戦通信が中継サーバーを経由します。対戦は可能です。推奨遅延を使ってください。直接接続には、どちらかのプレイヤーがルーターのUPnPを有効にする、UDPポート45760をPCに転送する、VPNをオフにする方法があります。"
+
+msgid "connection.check_again"
+msgstr "接続を再確認"
+
+msgid "connection.no_recommendation"
+msgstr "推奨値なし"
+
+msgid "connection.timed_out"
+msgstr "接続確認がタイムアウトしました。再試行するか、遅延を選んで準備完了にしてください。"
+
+msgid "connection.invalidated"
+msgstr "接続または対戦相手が変わりました。再確認するか、遅延を選んで準備完了にしてください。"
+
+msgid "connection.local_overload"
+msgstr "このPCでは通信を時間内に送信できませんでした。バックグラウンドの負荷を減らして再試行するか、遅延を手動で選んでください。"
+
+msgid "connection.insufficient"
+msgstr "十分な応答を収集できませんでした。再試行するか、遅延を選んで準備完了にしてください。推奨値は任意です。"
+
+msgid "connection.packet_summary"
+msgstr " 予定{1}パケット中{0}送信、応答{2}、未応答{3}。"
+
+msgid "connection.retry"
+msgstr "接続確認を再試行"
+
+msgid "connection.not_checked"
+msgstr "未確認"
+
+msgid "connection.not_checked_detail"
+msgstr "対戦相手との接続を確認すると推奨遅延が表示されます。任意なので、遅延を選んで準備完了にもできます。"
+
+msgid "connection.check"
+msgstr "接続を確認"
+
+msgid "error.queue_failed"
+msgstr "操作を登録できませんでした。再試行してください。"
+
+msgid "notice.left_room"
+msgstr "ルームから退出しました。"
+
+msgid "notice.profile_saved"
+msgstr "プロフィール画像を保存しました：{0}"
+
+msgid "error.settings_not_saved"
+msgstr "設定を保存できませんでした。メニューが使える状態で再試行してください。"
+
+msgid "shell.home_title"
+msgstr "SF4 EMBER"
+
+msgid "settings.auto_save"
+msgstr "変更は自動保存されます。"
+
+msgid "settings.leave_room_to_edit"
+msgstr "個人設定を変更するにはルームから退出してください。"
+
+msgid "controller.assign_title"
+msgstr "コントローラーの割り当て"
+
+msgid "controller.cancel_assignment"
+msgstr "割り当てをキャンセル"
+
+msgid "controller.press_button"
+msgstr "使うコントローラーのボタンを押してください。"
+
+msgid "controller.release_buttons"
+msgstr "続けるにはすべてのボタンを離してください。"
+
+msgid "home.online"
+msgstr "オンライン対戦"
+
+msgid "home.online_detail"
+msgstr "プライベートルームを作成するか、招待から参加します。"
+
+msgid "home.return_room"
+msgstr "現在のルームに戻る"
+
+msgid "home.fighter_select"
+msgstr "キャラクター選択"
+
+msgid "home.selection_locked"
+msgstr "現在の選択状態は対戦席に戻って確認してください。"
+
+msgid "home.profile"
+msgstr "プロフィール"
+
+msgid "home.profile_detail"
+msgstr "名前、メインキャラ、ローカルで確定したオンライン対戦記録。"
+
+msgid "home.settings"
+msgstr "設定"
+
+msgid "home.settings_detail"
+msgstr "プレイヤー、コントローラー、対戦の初期設定、表示、Discord。"
+
+msgid "home.about"
+msgstr "ヘルプ・情報"
+
+msgid "home.about_detail"
+msgstr "操作方法、診断情報、アップデート、クレジット。"
+
+msgid "home.offline"
+msgstr "オフラインで遊ぶ"
+
+msgid "home.offline_detail"
+msgstr "ゲーム本体のオフラインメニューを開きます。"
+
+msgid "home.choose_controller"
+msgstr "対戦用コントローラーを選択"
+
+msgid "home.choose_controller_detail"
+msgstr "オンライン対戦の前に割り当てが必要です。"
+
+msgid "profile.title"
+msgstr "プロフィール"
+
+msgid "profile.player_name"
+msgstr "プレイヤー名"
+
+msgid "profile.main_character"
+msgstr "メインキャラ"
+
+msgid "profile.main_character_detail"
+msgstr "{0}。対戦時の選択とは別に、プレイヤーカードに表示されます。"
+
+msgid "profile.record"
+msgstr "勝敗記録"
+
+msgid "profile.record_detail"
+msgstr "{0}勝{1}敗。記録開始後にローカルで確定したオンライン対戦のみ。引き分け、キャンセル、オフライン対戦、結果未確定の対戦は含みません。"
+
+msgid "profile.record_unavailable"
+msgstr "戦績を表示できません。元の設定は保持されます。"
+
+msgid "profile.record_value"
+msgstr "{0}勝 / {1}敗"
+
+msgid "profile.choose_main_title"
+msgstr "メインキャラを選択"
+
+msgid "profile.choose_main_detail"
+msgstr "選択するとメインキャラを保存し、プレイヤーカードを更新します。"
+
+msgid "profile.leave_room_to_edit"
+msgstr "プロフィールを編集するにはルームから退出してください。"
+
+msgid "online.title"
+msgstr "オンライン対戦"
+
+msgid "online.create"
+msgstr "ルームを作成"
+
+msgid "online.create_detail"
+msgstr "プライベートルームを設定します。"
+
+msgid "online.join"
+msgstr "ルームに参加"
+
+msgid "online.join_detail"
+msgstr "招待を貼り付けます。"
+
+msgid "room.create_title"
+msgstr "ルームを作成"
+
+msgid "settings.gameplay_defaults_title"
+msgstr "対戦の初期設定"
+
+msgid "settings.input_delay"
+msgstr "入力遅延"
+
+msgid "room.name"
+msgstr "ルーム名"
+
+msgid "room.capacity"
+msgstr "定員"
+
+msgid "room.capacity_detail"
+msgstr "観戦者を含む最大人数。"
+
+msgid "room.stop_creating"
+msgstr "ルームの作成を中止します。"
+
+msgid "room.stop_creating_action"
+msgstr "作成を中止"
+
+msgid "room.create_requirements"
+msgstr "通信と対戦用コントローラーの割り当てが必要です。"
+
+msgid "room.join_title"
+msgstr "ルームに参加"
+
+msgid "room.paste_invitation"
+msgstr "招待を貼り付け"
+
+msgid "room.paste_invitation_detail"
+msgstr "Emberの招待をコピーしてから、この項目を選択してください。"
+
+msgid "room.stop_joining"
+msgstr "ルームへの参加を中止します。"
+
+msgid "room.stop_joining_action"
+msgstr "参加を中止"
+
+msgid "room.join_pasted"
+msgstr "貼り付けた招待で参加します。"
+
+msgid "room.edit_invitation"
+msgstr "招待を編集"
+
+msgid "settings.title"
+msgstr "設定"
+
+msgid "settings.player_detail"
+msgstr "表示名とコントローラーの割り当て。"
+
+msgid "settings.defaults_detail"
+msgstr "入力遅延と新規ルームの初期設定。"
+
+msgid "settings.interface"
+msgstr "表示"
+
+msgid "settings.interface_detail"
+msgstr "控えめなHUDと画面サイズ。"
+
+msgid "settings.discord_detail"
+msgstr "アクティビティと招待。"
+
+msgid "player.title"
+msgstr "プレイヤーとコントローラー"
+
+msgid "player.display_name"
+msgstr "表示名"
+
+msgid "player.change_controller"
+msgstr "コントローラーを変更"
+
+msgid "player.change_controller_detail"
+msgstr "{0}。ボタンを離し、押して、再び離すと割り当てられます。"
+
+msgid "player.use_keyboard"
+msgstr "キーボードを使う"
+
+msgid "player.use_keyboard_detail"
+msgstr "キーボードを明示的に割り当てます。"
+
+msgid "player.native_menus"
+msgstr "ゲーム本体のメニューを開く"
+
+msgid "player.native_menus_detail"
+msgstr "Emberを閉じます。ゲームメニューのオプションで対戦ボタンを設定してください。"
+
+msgid "settings.interface_title"
+msgstr "表示"
+
+msgid "size.small"
+msgstr "小"
+
+msgid "size.standard"
+msgstr "標準"
+
+msgid "size.large"
+msgstr "大"
+
+msgid "settings.match_hud"
+msgstr "対戦HUD"
+
+msgid "settings.match_hud_size"
+msgstr "対戦HUDのサイズ"
+
+msgid "settings.match_hud_size_detail"
+msgstr "対戦中の文字とパネルのサイズを変更します。"
+
+msgid "settings.bottom_spacing"
+msgstr "下端からの距離"
+
+msgid "spacing.raised"
+msgstr "高め"
+
+msgid "spacing.normal"
+msgstr "通常"
+
+msgid "settings.bottom_spacing_detail"
+msgstr "対戦HUDを画面の下端から上に移動します。"
+
+msgid "settings.interface_size"
+msgstr "画面サイズ"
+
+msgid "discord.show_activity"
+msgstr "アクティビティを表示"
+
+msgid "discord.allow_invitations"
+msgstr "招待を許可"
+
+msgid "discord.invitation_detail"
+msgstr "招待を送ると、あなたのルームへの参加手段が共有されます。"
+
+msgid "discord.enable_first"
+msgstr "先にDiscordのアクティビティを有効にしてください。"
+
+msgid "discord.invitation_title"
+msgstr "Discordの招待"
+
+msgid "discord.cancel_invitation"
+msgstr "招待をキャンセル"
+
+msgid "discord.cancel_invitation_detail"
+msgstr "現在のルームから退出せずに招待を破棄します。"
+
+msgid "discord.switch_room"
+msgstr "招待されたルームへ移動"
+
+msgid "discord.switch_room_detail"
+msgstr "このルームから退出し、招待先に参加します。"
+
+msgid "discord.wait_game"
+msgstr "現在の対戦が終わるまでお待ちください。"
+
+msgid "discord.invitation_pending"
+msgstr "招待を保留中"
+
+msgid "discord.invitation_pending_detail"
+msgstr "メインメニュー、通信、割り当て済みコントローラーを待っています。"
+
+msgid "about.title"
+msgstr "ヘルプ・情報"
+
+msgid "about.controls"
+msgstr "操作方法"
+
+msgid "about.controls_detail"
+msgstr "Xbox：Aで選択、Bで戻る。対戦用のボタン設定とは別です。DirectInput：割り当てたLPで選択、LKで戻る。D-padで移動、左右で調整。トレーニング操作はキーボードとマウスを使用します。F6で開閉、方向キーで移動、Enterで選択、Escapeで戻ります。トレーニング中のStartはゲーム本体のポーズのみ開きます。メインメニューではF10でEmberを開き、F5～F8はトレーニングのショートカットです。"
+
+msgid "about.ember"
+msgstr "Emberについて"
+
+msgid "about.ember_detail"
+msgstr "Anthony Danducciのsf4eを基にした非公式のUltra Street Fighter IV用MOD。Iroh / QUIC、GGPO、Dear ImGui、Interフォントを使用。ビルド：{0}"
+
+msgid "about.font_license"
+msgstr "フォントのライセンス"
+
+msgid "about.export_diagnostics"
+msgstr "診断情報を出力"
+
+msgid "about.export_diagnostics_detail"
+msgstr "招待や認証情報を含めずに接続状態を出力します。"
+
+msgid "about.updates_detail"
+msgstr "Emberの新しいリリースを確認します。"
+
+msgid "about.open_updater"
+msgstr "終了してアップデーターを開く"
+
+msgid "about.open_updater_detail"
+msgstr "ゲームを終了します。先にルームから退出してください。"
+
+msgid "about.open_recovery"
+msgstr "終了して復旧画面を開く"
+
+msgid "about.open_recovery_detail"
+msgstr "ゲームを終了し、復旧画面を開きます。"
+
+msgid "about.leave_room_first"
+msgstr "先にルームから退出してメインメニューに戻ってください。"
+
+msgid "about.discord"
+msgstr "EmberのDiscordに参加"
+
+msgid "about.discord_detail"
+msgstr "プレイヤー、対戦、サポート：{0}。ゲームの背後でブラウザーを開きます。"
+
+msgid "settings.retry_save"
+msgstr "保存を再試行"
+
+msgid "room.creating_status"
+msgstr "ルームを作成中。通信を待っています..."
+
+msgid "room.joining_status"
+msgstr "ルームに参加中。通信を待っています..."
+
+msgid "room.locked_status"
+msgstr "ルームはロック中 / 招待者のみ"
+
+msgid "room.private_status"
+msgstr "プライベートルーム / 招待者のみ"
+
+msgid "room.reconnecting"
+msgstr "ルームに再接続中..."
+
+msgid "room.table_setup_title"
+msgstr "対戦席{0} / 対戦準備"
+
+msgid "room.waiting_opponent"
+msgstr "対戦相手を待機中"
+
+msgid "room.you"
+msgstr "あなた"
+
+msgid "room.player"
+msgstr "プレイヤー"
+
+msgid "room.ready_suffix"
+msgstr " - 準備完了"
+
+msgid "room.readying_suffix"
+msgstr " - 準備中..."
+
+msgid "room.not_ready_suffix"
+msgstr " - 未準備"
+
+msgid "room.result_unresolved_status"
+msgstr "結果未確定 / 破棄するか、ホストがキャンセルできます"
+
+msgid "room.preparing_status"
+msgstr "対戦を準備中 / キャラ選択はロック中"
+
+msgid "room.waiting_results_status"
+msgstr "結果を待機中 / 次の対戦はまだ開始できません"
+
+msgid "room.match_in_progress"
+msgstr "対戦中"
+
+msgid "room.table_closed"
+msgstr "対戦席は閉鎖されました"
+
+msgid "controller.disconnected"
+msgstr "コントローラーの接続が切れました。再接続するか、明示的に割り当ててください。"
+
+msgid "room.control_unavailable"
+msgstr "ルーム操作を利用できません。対戦していないときにルームを作り直してください。"
+
+msgid "room.control_recovering"
+msgstr "ルーム操作を復旧中です。操作は一時停止しています。"
+
+msgid "settings.preview"
+msgstr "プレビュー"
+
+msgid "settings.player_one"
+msgstr "プレイヤー1"
+
+msgid "settings.player_two"
+msgstr "プレイヤー2"
+
+msgid "error.invitation_invalid"
+msgstr "招待が空か、長すぎます。"
+
+msgid "error.invitation_changed"
+msgstr "招待が変更されました。再試行してください。"
+
+msgid "error.invalid_value"
+msgstr "無効な値です。保存済みの設定は変わりません。"
+
+msgid "brand.subtitle"
+msgstr "SF4 / プライベートルームとロールバック対戦"
+
+msgid "match.waiting_opponent"
+msgstr "対戦相手を待機中..."
+
+msgid "match.connection_countdown"
+msgstr "接続が不安定。{0}秒後に相手との接続が切れます"
+
+msgid "match.connection_unstable"
+msgstr "接続が不安定"
+
+msgid "match.versus_short"
+msgstr "vs"
+
+msgid "match.ping"
+msgstr "Ping"
+
+msgid "match.rollback"
+msgstr "ロールバック"
+
+msgid "match.delay"
+msgstr "遅延"
+
+msgid "match.spectating"
+msgstr "観戦中"
+
+msgid "match.preview_spacing"
+msgstr "余白{0} / サンプル値"
+
+msgid "card.player"
+msgstr "プレイヤー"
+
+msgid "card.choose_fighter"
+msgstr "キャラを選択"
+
+msgid "card.controller_ready"
+msgstr "コントローラー準備完了"
+
+msgid "card.assign_controller"
+msgstr "コントローラーを割り当て"
+
+msgid "card.wins"
+msgstr "{0}勝"
+
+msgid "card.no_wins"
+msgstr "--勝"
+
+msgid "card.losses"
+msgstr "{0}敗"
+
+msgid "card.no_losses"
+msgstr "--敗"
+
+msgid "card.no_win_rate"
+msgstr "勝率--%"
+
+msgid "card.win_rate"
+msgstr "勝率{0}%"
+
+msgid "training.lab"
+msgstr "トレーニングラボ"
+
+msgid "menu.back_to"
+msgstr "< 戻る / {0}"
+
+msgid "training.controls"
+msgstr "トレーニング操作"
+
+msgid "training.dummy_recording"
+msgstr "ダミーレコーディング"
+
+msgid "training.dummy_recording.detail"
+msgstr "P1の操作をP2として記録します。ゲーム本体のダミーを「プレイヤー/コントローラー操作」に設定してください。"
+
+msgid "training.input_history"
+msgstr "入力履歴"
+
+msgid "training.input_history.detail"
+msgstr "各プレイヤーが押しているボタンを確認します。"
+
+msgid "training.close_controls"
+msgstr "トレーニング操作を閉じる"
+
+msgid "training.close_controls.detail"
+msgstr "Emberを閉じ、SF4のポーズメニューが開いていたら閉じて再開してください。"
+
+msgid "training.slot"
+msgstr "スロット{0}"
+
+msgid "training.slot_selected"
+msgstr "スロット{0} / 選択中"
+
+msgid "training.recorded_frames"
+msgstr "{0}F記録済み。記録はこの対戦が終わるまで残ります。"
+
+msgid "training.record"
+msgstr "レコーディング"
+
+msgid "training.record.overwrite"
+msgstr "使用中のスロットを上書きして練習に戻ります。"
+
+msgid "training.record.detail"
+msgstr "P1の操作をP2として記録し、練習に戻ります。"
+
+msgid "training.play"
+msgstr "再生"
+
+msgid "training.play.detail"
+msgstr "選択中のスロットを再生して練習に戻ります。方向は左右反転されません。"
+
+msgid "training.slot_empty"
+msgstr "このスロットは空です。"
+
+msgid "training.stop"
+msgstr "停止"
+
+msgid "training.stop.detail"
+msgstr "記録または再生を停止します。"
+
+msgid "training.loop"
+msgstr "ループ再生"
+
+msgid "training.loop.detail"
+msgstr "選択中の記録を繰り返し再生します。"
+
+msgid "training.clear_recording"
+msgstr "選択中の記録を消去"
+
+msgid "training.clear_recording.detail"
+msgstr "この対戦中、スロットの記録を完全に消去します。"
+
+msgid "training.player_one"
+msgstr "プレイヤー1"
+
+msgid "training.player_two"
+msgstr "プレイヤー2"
+
+msgid "training.history.detail"
+msgstr "新しい入力から表示します。F数は入力の保持時間で、技の発生時間ではありません。"
+
+msgid "training.clear_history"
+msgstr "入力履歴を消去"
+
+msgid "training.clear_history.detail"
+msgstr "計測表示と両プレイヤーの入力履歴を消去します。"
+
+msgid "training.practice_ready"
+msgstr "練習の準備完了"
+
+msgid "training.recording_suspended"
+msgstr "操作画面を開いている間、記録は一時停止します"
+
+msgid "training.playback_suspended"
+msgstr "操作画面を開いている間、再生は一時停止します"
+
+msgid "training.applying"
+msgstr "操作を適用中..."
+
+msgid "training.waiting_battle"
+msgstr "対戦の準備を待っています..."
+
+msgid "training.title"
+msgstr "トレーニングラボ"
+
+msgid "training.command_rejected"
+msgstr "練習操作が受け付けられませんでした。状態を確認して再試行してください。"
+
+msgid "training.start_frames"
+msgstr "発生{0}F"
+
+msgid "training.start_unknown"
+msgstr "発生--"
+
+msgid "training.startup"
+msgstr "発生"
+
+msgid "training.neutral"
+msgstr "入力なし"
+
+msgid "training.unavailable"
+msgstr "{0}：{1}"
+
+msgid "training.unavailable.waiting_attack"
+msgstr "攻撃開始待ち"
+
+msgid "training.unavailable.no_attack"
+msgstr "攻撃開始を検出できません"
+
+msgid "training.unavailable.no_contact"
+msgstr "接触なし"
+
+msgid "training.unavailable.measuring_recovery"
+msgstr "硬直を計測中"
+
+msgid "training.unavailable.interrupted"
+msgstr "中断"
+
+msgid "training.unavailable.invalid"
+msgstr "無効な測定値"
+
+msgid "training.frame_advantage"
+msgstr "硬直差 | {0}"
+
+msgid "training.measuring"
+msgstr "計測中"
+
+msgid "training.wakeup"
+msgstr "起き上がり"
+
+msgid "training.held"
+msgstr "保持中"
+
+msgid "training.live"
+msgstr "リアルタイム"
+
+msgid "training.advantage"
+msgstr "硬直差"
+
+msgid "selection.preview_unavailable"
+msgstr "プレビューを\n表示できません"
+
+msgid "selection.preview_loading"
+msgstr "プレビューを\n読み込み中..."
+
+msgid "selection.handicap_normal"
+msgstr "通常（100%）"
+
+msgid "selection.handicap_one_hit"
+msgstr "一撃"
+
+msgid "selection.handicap_25"
+msgstr "25%"
+
+msgid "selection.handicap_50"
+msgstr "50%"
+
+msgid "selection.handicap_75"
+msgstr "75%"
+
+msgid "selection.original"
+msgstr "オリジナル"
+
+msgid "selection.alternate"
+msgstr "アレンジ{0}"
+
+msgid "selection.alternate_pack"
+msgstr "アレンジ{0} / {1}"
+
+msgid "selection.stage_count"
+msgstr "{0}ステージ / USFIV"
+
+msgid "selection.choose_battlefield"
+msgstr "対戦ステージを選んでください。"
+
+msgid "selection.select_saves"
+msgstr "選択すると保存します。戻るとプレビューの選択は保存されません。"
+
+msgid "selection.locked_detail"
+msgstr "選択はロック中です。現在の状態は対戦席に戻って確認してください。"
+
+msgid "selection.title"
+msgstr "キャラクター選択"
+
+msgid "selection.fighter"
+msgstr "キャラ"
+
+msgid "selection.appearance"
+msgstr "外見"
+
+msgid "selection.appearance_value"
+msgstr "{0} / カラー{1}"
+
+msgid "selection.ultra_combo"
+msgstr "ウルトラコンボ"
+
+msgid "selection.ultra_double"
+msgstr "ウルトラコンボダブル"
+
+msgid "selection.stage"
+msgstr "ステージ"
+
+msgid "selection.p1_stage"
+msgstr "P1がステージを選びます。"
+
+msgid "selection.additional_options"
+msgstr "追加オプション"
+
+msgid "selection.additional_options.detail"
+msgstr "エディション、アピール、勝利コメント、ハンディキャップ。"
+
+msgid "selection.choose_fighter"
+msgstr "キャラを選択"
+
+msgid "selection.appearance_title"
+msgstr "外見"
+
+msgid "selection.costume_gallery"
+msgstr "コスチューム一覧"
+
+msgid "selection.color_gallery"
+msgstr "カラー一覧"
+
+msgid "selection.color_preview"
+msgstr "カラー{0} / 各プレビューを確認。"
+
+msgid "selection.costume_gallery_title"
+msgstr "コスチューム一覧"
+
+msgid "selection.color_gallery_title"
+msgstr "カラー一覧"
+
+msgid "selection.loading_choices"
+msgstr "選択肢を読み込み中"
+
+msgid "selection.loading_choices.detail"
+msgstr "ゲーム本体のコスチュームとカラーの使用可否を確認中です。"
+
+msgid "selection.no_colors"
+msgstr "このコスチュームには使用可能なカラーがありません。"
+
+msgid "selection.color"
+msgstr "カラー{0}"
+
+msgid "selection.ultra_combo_title"
+msgstr "ウルトラコンボ"
+
+msgid "selection.ultra_double.detail"
+msgstr "両方のウルトラコンボを使えますが、ダメージや効果が下がります。"
+
+msgid "selection.saved"
+msgstr "保存済み"
+
+msgid "selection.stage_title"
+msgstr "ステージ"
+
+msgid "selection.only_p1_stage"
+msgstr "ステージを変更できるのはP1だけです。"
+
+msgid "selection.options_title"
+msgstr "キャラのオプション"
+
+msgid "selection.edition"
+msgstr "エディション"
+
+msgid "selection.usfiv_rules"
+msgstr "このルームはUSFIVルールを使用します。"
+
+msgid "selection.personal_action"
+msgstr "アピール"
+
+msgid "common.none"
+msgstr "なし"
+
+msgid "selection.win_quote"
+msgstr "勝利コメント"
+
+msgid "selection.random"
+msgstr "ランダム"
+
+msgid "selection.random_stage"
+msgstr "ランダム"
+
+msgid "selection.random_stage.detail"
+msgstr "対戦ごとに別のステージを選びます。"
+
+msgid "selection.handicap"
+msgstr "ハンディキャップ"
+
+msgid "selection.saved_value"
+msgstr "保存済み：{0}"
+
+msgid "selection.ultra_selected"
+msgstr "このウルトラコンボを選択中です。"
+
+msgid "selection.preview_save"
+msgstr "プレビューのみ。Selectで保存。"
+
+msgid "selection.preview_locked"
+msgstr "プレビューのみ。選択はロック中です。"
+
+msgid "selection.saved_appearance"
+msgstr "保存済み：コスチューム{0} / カラー{1}"
+
+msgid "selection.saved_full"
+msgstr "保存済み：{0} / コスチューム{1} / カラー{2}"
+
+msgid "selection.preview_save_short"
+msgstr "プレビューのみ。Selectで保存"
+
+msgid "selection.status_editable"
+msgstr "Selectで保存 / 戻ると1つ前へ。"
+
+msgid "selection.status_locked"
+msgstr "選択はロック中。状態を確認するには対戦席へ戻ってください。"
+
+msgid "runtime.room_recovering"
+msgstr "ルーム操作を復旧中です。対戦の接続は維持されます。"
+
+msgid "runtime.room_lost_fight_continues"
+msgstr "ルームとの接続が切れました。対戦は続きますが、再戦と結果の記録はできません。"
+
+msgid "runtime.returned_room_lost"
+msgstr "メニューに戻りました。対戦中にルーム接続が切れました。"
+
+msgid "runtime.room_request_failed"
+msgstr "ルームへの要求に失敗しました。退出して再試行してください。"
+
+msgid "runtime.build_mismatch"
+msgstr "ビルドが一致しません。両プレイヤーは同じSF4 Ember Netplayパッケージを使用してください。"
+
+msgid "runtime.room_full"
+msgstr "このルームは満員です。"
+
+msgid "runtime.name_taken"
+msgstr "そのプレイヤー名はルーム内で使用されています。設定で変更してください。"
+
+msgid "runtime.selection_combination_unavailable"
+msgstr "この組み合わせはルームのルールで使用できません。別のキャラ、コスチューム、カラー、エディションを選んでください。"
+
+msgid "runtime.selection_summary"
+msgstr "{0} / コスチューム{1} / カラー{2} / {3}"
+
+msgid "runtime.selection_unavailable"
+msgstr "このルールでは選択できません。キャラクター選択で使用可能な項目を選んでください。"
+
+msgid "runtime.open_shortcut"
+msgstr "SF4 Ember Netplay / F10またはStart"
+
+msgid "runtime.waiting_opponent_join"
+msgstr "対戦相手のロビー参加を待っています..."
+
+msgid "runtime.authorized_connection_unavailable"
+msgstr "許可された対戦接続を利用できません。"
+
+msgid "runtime.waiting_opponent_start"
+msgstr "対戦開始前に相手がロビーに来るのを待っています。"
+
+msgid "runtime.unsupported_stage"
+msgstr "ルームから非対応のステージが指定されました。ロビーをリセットして再試行してください。"
+
+msgid "runtime.netplay_input_failed"
+msgstr "ネット対戦の入力処理に失敗しました。対戦を終了しました。"
+
+msgid "runtime.netplay_sync_failed"
+msgstr "ネット対戦の同期に失敗しました。対戦を終了しました。"
+
+msgid "runtime.invalid_roster"
+msgstr "対戦メンバーが無効です。ルームに戻って再試行してください。"
+
+msgid "runtime.ggpo_start_failed"
+msgstr "GGPOを起動できませんでした。ロビーに戻って再度準備完了にしてください。"
+
+msgid "runtime.ggpo_add_players_failed"
+msgstr "GGPOにプレイヤーを追加できませんでした。ロビーに戻って再度準備完了にしてください。"
+
+msgid "runtime.rollback_buffer_full"
+msgstr "ロールバック用バッファーがいっぱいです。対戦を終了しました。"
+
+msgid "runtime.connection_unstable_prediction"
+msgstr "接続が不安定です。予測入力で対戦を続けています。"
+
+msgid "runtime.connection_restored"
+msgstr "接続が復旧しました。"
+
+msgid "runtime.spectator_disconnected"
+msgstr "観戦者の接続が切れました。"
+
+msgid "runtime.spectator_stream_lost"
+msgstr "観戦映像の通信が切れました。「観戦」で次の対戦に参加してください。"
+
+msgid "runtime.match_connection_lost"
+msgstr "対戦の接続が切れました。"
+
+msgid "runtime.opponent_disconnected"
+msgstr "対戦相手の接続が切れました。対戦は終了です。"
+
+msgid "runtime.leaving_spectator"
+msgstr "観戦を終了しています。"
+
+msgid "runtime.returning_room"
+msgstr "ルームに戻っています。"
+
+msgid "runtime.table_game_cancelled"
+msgstr "この対戦席のゲームはキャンセルされました。ルームに戻って再度準備完了にしてください。"
+
+msgid "runtime.result_not_recorded"
+msgstr "確定前に対戦席が変更されたため、結果を記録できませんでした。"
+
+msgid "runtime.participant_left"
+msgstr "対戦参加者がルームから退出しました。ゲームを終了します。"
+
+msgid "update.github_unreachable"
+msgstr "GitHubに接続できませんでした。インターネット接続を確認して再試行してください。"
+
+msgid "update.no_version_tag"
+msgstr "GitHubのリリースにバージョンタグがありません。"
+
+msgid "update.no_zip_asset"
+msgstr "最新リリースにSF4 Ember NetplayのZIPファイルがありません。"
+
+msgid "update.parse_failed"
+msgstr "GitHubのリリース応答を解析できませんでした。"
+
+msgid "update.missing_url"
+msgstr "ダウンロードURLがありません。"
+
+msgid "update.missing_version"
+msgstr "バージョンタグがありません。"
+
+msgid "update.close_sf4"
+msgstr "更新をインストールする前にUltra Street Fighter IVを閉じてください。"
+
+msgid "update.install_dir_failed"
+msgstr "インストール先を特定できませんでした。"
+
+msgid "update.temp_path_failed"
+msgstr "更新用の一時パスを作成できませんでした（{0}）。"
+
+msgid "update.temp_folder_failed"
+msgstr "更新用の一時フォルダーを作成できませんでした（{0}）。"
+
+msgid "update.temp_access_failed"
+msgstr "一時フォルダーにアクセスできませんでした。"
+
+msgid "update.zip_path_failed"
+msgstr "更新用ZIPのパスを作成できませんでした。"
+
+msgid "update.extract_folder_failed"
+msgstr "展開先フォルダーを作成できませんでした（{0}）。"
+
+msgid "update.download_failed"
+msgstr "ダウンロードに失敗しました（{0}）。手動ダウンロード：{1}。詳細は%TEMP%\\sf4-netplay-update.logを確認してください。"
+
+msgid "update.verify_failed"
+msgstr "ダウンロードした更新を検証できませんでした。再試行してください。"
+
+msgid "update.integrity_failed"
+msgstr "ダウンロードした更新は整合性チェックに失敗したため、インストールされませんでした。再試行するか、GitHubから手動でダウンロードしてください。"
+
+msgid "update.no_digest"
+msgstr "リリースにSHA-256ダイジェストが公開されていません。自動インストールはできません。"
+
+msgid "update.extract_failed"
+msgstr "更新パッケージを展開できませんでした。"
+
+msgid "update.invalid_paths"
+msgstr "ダウンロードしたパッケージに無効なパスが含まれています。"
+
+msgid "update.missing_binaries"
+msgstr "ダウンロードしたパッケージにLauncher.exeまたはSidecar.dllがありません。"
+
+msgid "update.staging_path_failed"
+msgstr "仮配置先のパスを読み取れませんでした。"
+
+msgid "update.validation_failed"
+msgstr "ダウンロードしたパッケージの検証に失敗しました（必須ファイルがありません）。"
+
+msgid "update.cancelled"
+msgstr "インストール前に更新をキャンセルしました。"
+
+msgid "update.close_game"
+msgstr "更新をインストールする前にゲームを閉じてください。"
+
+msgid "update.updater_start_failed"
+msgstr "Updater.exeを起動できませんでした。新しいZIPから再インストールしてください。"
+
+msgid "room.member_left"
+msgstr "メンバーが退出しました"
+
+msgid "room.open_seat"
+msgstr "空席"
+
+msgid "room.status.queued"
+msgstr "順番待ち"
+
+msgid "room.status.seated"
+msgstr "着席中"
+
+msgid "room.status.ready"
+msgstr "準備完了"
+
+msgid "room.status.playing"
+msgstr "対戦中"
+
+msgid "room.status.watching"
+msgstr "観戦中"
+
+msgid "room.status.watching_next"
+msgstr "次の対戦を観戦"
+
+msgid "room.status.idle"
+msgstr "待機中"
+
+msgid "room.phase.waiting"
+msgstr "対戦者を待機中"
+
+msgid "room.phase.preparing"
+msgstr "ゲームを準備中"
+
+msgid "room.phase.in_game"
+msgstr "ゲーム中"
+
+msgid "room.phase.unresolved"
+msgstr "結果未確定"
+
+msgid "room.phase.closed"
+msgstr "閉鎖中"
+
+msgid "room.phase.open"
+msgstr "公開中"
+
+msgid "room.terminal_pending"
+msgstr "全プレイヤーと観戦者が前の対戦から戻るのを待っています。"
+
+msgid "room.leave.detail"
+msgstr "このルームから切断してホームに戻ります。Emberを隠すだけでは退出しません。"
+
+msgid "room.leave.unresolved"
+msgstr " 未確定の対戦結果は記録されません。"
+
+msgid "room.leave.active"
+msgstr " 現在の対戦は結果なしで終了し、席が空きます。"
+
+msgid "room.leave.seat"
+msgstr " 席が空きます。"
+
+msgid "room.leave.queue"
+msgstr " 順番待ちから外れます。"
+
+msgid "room.leave.host"
+msgstr " 別のメンバーがホストになります。"
+
+msgid "room.action_queue_failed"
+msgstr "操作を登録できませんでした。再試行してください。"
+
+msgid "room.table_detail"
+msgstr "{0} vs {1}\n{2}\n順番待ち：{3} / 観戦：{4}\nあなた：{5}"
+
+msgid "room.connecting"
+msgstr "接続中"
+
+msgid "room.table_occupancy"
+msgstr "対戦席{0}   {1}/2"
+
+msgid "room.member_you"
+msgstr "{0} / あなた"
+
+msgid "room.member"
+msgstr "{0}"
+
+msgid "room.member_status_host"
+msgstr "{0} / ホスト"
+
+msgid "room.member_status"
+msgstr "{0}"
+
+msgid "room.members"
+msgstr "メンバー"
+
+msgid "room.member_count"
+msgstr "メンバー{0}/{1}人。"
+
+msgid "room.chat"
+msgstr "チャット"
+
+msgid "room.chat.detail"
+msgstr "メッセージを読み、キーボードで入力します。"
+
+msgid "room.change_fighter"
+msgstr "キャラを変更"
+
+msgid "room.change_fighter.open_table"
+msgstr "対戦席で準備状態とキャラ変更の条件を確認してください。"
+
+msgid "room.settings"
+msgstr "ルーム設定"
+
+msgid "room.settings.detail"
+msgstr "ルーム名、定員、参加制限。"
+
+msgid "room.settings.host_only"
+msgstr "ルームを管理できるのはホストだけです。"
+
+msgid "room.connection_status"
+msgstr "接続状態"
+
+msgid "room.opening"
+msgstr "ルームを開設中..."
+
+msgid "room.opening_stalled"
+msgstr "ルームの開設が完了しません。接続を確認するか、中止して再試行してください。"
+
+msgid "room.waiting_state"
+msgstr "ルームの状態を待っています。"
+
+msgid "room.ready"
+msgstr "準備完了"
+
+msgid "room.ready.saved_fighter"
+msgstr "保存済みのキャラを使います。"
+
+msgid "room.copy_invitation"
+msgstr "招待をコピー"
+
+msgid "room.copy_invitation.detail"
+msgstr "プライベートな招待をフレンドと共有します。"
+
+msgid "room.leaving"
+msgstr "ルームから退出中..."
+
+msgid "room.leave"
+msgstr "ルームから退出"
+
+msgid "room.replace"
+msgstr "ルームを作り直す"
+
+msgid "room.replace.detail"
+msgstr "応答しないルームを閉じ、新しく開設します。全員の再参加が必要になり、現在の招待は使えなくなります。未確定のルーム状態は破棄されます。"
+
+msgid "room.replace.waiting"
+msgstr "前の対戦を終了中です。完了するとルームを作り直せます。"
+
+msgid "room.updating"
+msgstr "ルームを更新中..."
+
+msgid "room.battle_slot"
+msgstr "対戦席{0}"
+
+msgid "room.looking_for_fight"
+msgstr "対戦相手を募集中"
+
+msgid "room.fighter_not_shared"
+msgstr "キャラは非公開"
+
+msgid "room.suffix_ready"
+msgstr " / 準備完了"
+
+msgid "room.suffix_you"
+msgstr " / あなた"
+
+msgid "room.table_footer"
+msgstr "{0}ラウンド / {1}秒     順番待ち{2}     観戦{3}"
+
+msgid "room.board_status_host_slot"
+msgstr "ホスト / {0} / 席{1}"
+
+msgid "room.board_status_slot"
+msgstr "{0} / 席{1}"
+
+msgid "room.board_status_host"
+msgstr "ホスト / {0}"
+
+msgid "room.board_status"
+msgstr "{0}"
+
+msgid "room.members_heading"
+msgstr "メンバー  {0}/{1}"
+
+msgid "room.chat_heading"
+msgstr "チャット"
+
+msgid "room.no_messages"
+msgstr "メッセージはまだありません。チャットを選んで入力してください。"
+
+msgid "room.table_explanation"
+msgstr "{0} / あなた：{1}\n順番待ち：{2} / 観戦：{3}"
+
+msgid "room.invitation_copied"
+msgstr "招待をコピーしました。"
+
+msgid "room.replacement_opening"
+msgstr "代わりのルームを開設中です。「招待をコピー」で新しいリンクを送ってください。古いリンクは使えません。"
+
+msgid "room.action_rejected"
+msgstr "ルームの状態が変わったか、操作が拒否されました。現在の状態を確認して再試行してください。"
+
+msgid "room.leave_current_table"
+msgstr "先に現在の対戦席から離れてください。"
+
+msgid "room.choose_action"
+msgstr "この対戦席での操作を選んでください。"
+
+msgid "room.result_unresolved.detail"
+msgstr "前の結果が未確定です。「未確定の対戦を破棄」を選ぶか、ホストにキャンセルを依頼してください。勝利は記録されません。"
+
+msgid "room.awaiting_result"
+msgstr "両対戦者からの結果報告を待っています。結果確定後に準備状態は解除されます。次の対戦の準備完了にはなっていません。"
+
+msgid "room.match_active"
+msgstr "対戦を準備中か進行中です。終了を待ってください。"
+
+msgid "room.waiting_other_seat"
+msgstr "相手がもう一方の席に着くのを待っています。待機中はキャラを変更できます。"
+
+msgid "room.controller_required"
+msgstr "設定 > プレイヤーとコントローラーで割り当てるか、再接続してください。"
+
+msgid "room.waiting_update"
+msgstr "ルームの更新が終わるのを待っています。"
+
+msgid "room.ready.cancel_detail"
+msgstr "準備完了中です。選択して解除してから、キャラを変更してください。"
+
+msgid "room.ready.locking"
+msgstr "キャラを確定中です。両プレイヤーが準備完了になると対戦が始まります。"
+
+msgid "room.ready.lock_detail"
+msgstr "選択するとキャラが確定します。両プレイヤーが準備完了になると対戦が始まります。"
+
+msgid "room.both_ready"
+msgstr "両プレイヤーの準備が完了しました。対戦を開始します。"
+
+msgid "room.match_in_progress.detail"
+msgstr "対戦中です。終了を待ってください。"
+
+msgid "room.unready"
+msgstr "準備解除 / キャラ変更可能"
+
+msgid "room.readying"
+msgstr "準備中..."
+
+msgid "room.result_unresolved"
+msgstr "結果未確定"
+
+msgid "room.preparing_match"
+msgstr "対戦を準備中"
+
+msgid "room.ready_rematch"
+msgstr "再戦の準備完了"
+
+msgid "room.ready_up"
+msgstr "準備完了にする"
+
+msgid "room.recommended_delay"
+msgstr "推奨遅延"
+
+msgid "room.selected_delay"
+msgstr "選択した遅延"
+
+msgid "room.selected_delay.detail"
+msgstr "0～10Fの範囲で調整します。変更はすぐに反映されます。"
+
+msgid "room.selected_delay.locked"
+msgstr "この対戦中、選択した遅延は固定されます。"
+
+msgid "room.match_delay"
+msgstr "対戦の遅延"
+
+msgid "room.match_delay.at_least"
+msgstr "{0}F以上"
+
+msgid "room.match_delay.detail"
+msgstr "両者とも選択した遅延の大きい方で対戦します。あなたは{0}、相手は{1}を選択しました。"
+
+msgid "room.match_delay.pending"
+msgstr "両者とも選択した遅延の大きい方で対戦します。相手の設定は準備完了後に表示されます。"
+
+msgid "room.check_connection.two_players"
+msgstr "接続確認には両方の席にプレイヤーが必要です。"
+
+msgid "room.check_connection.unready"
+msgstr "次の対戦前に接続を確認するには、準備を解除してください。"
+
+msgid "room.check_connection.finish_match"
+msgstr "接続を確認する前に現在の対戦を終えてください。"
+
+msgid "room.apply_recommendation"
+msgstr "推奨値を適用"
+
+msgid "room.apply_recommendation.detail"
+msgstr "選択した遅延を{0}Fに設定します。"
+
+msgid "room.apply_recommendation.check_first"
+msgstr "推奨値を適用する前に接続を確認してください。"
+
+msgid "room.change_fighter.unready"
+msgstr "上の「準備解除」でキャラと外見の変更ができます。"
+
+msgid "room.change_fighter.waiting"
+msgstr "現在の対戦または選択の更新が終わるのを待っています。"
+
+msgid "room.change_fighter.detail"
+msgstr "キャラを選び、コスチュームとカラーを確認します。戻って準備完了にしてください。"
+
+msgid "room.leave_seat"
+msgstr "席を離れる"
+
+msgid "room.leave_seat.abandon_first"
+msgstr "先に未確定の対戦を破棄してください。"
+
+msgid "room.leave_seat.finish_first"
+msgstr "先に現在の対戦を終了または解決してください。"
+
+msgid "room.leave_seat.release"
+msgstr "席を空けます。"
+
+msgid "room.leave_seat.next_player"
+msgstr "席を空けます。順番待ちの次のプレイヤーが座ります。"
+
+msgid "room.abandon_result"
+msgstr "未確定の対戦を破棄"
+
+msgid "room.abandon_result.detail"
+msgstr "結果は記録されません。両者は着席したままで、再び準備完了にできます。"
+
+msgid "room.leave_queue"
+msgstr "順番待ちをやめる"
+
+msgid "room.join_queue"
+msgstr "順番待ちに入る"
+
+msgid "room.stop_watching"
+msgstr "観戦をやめる"
+
+msgid "room.watch_next"
+msgstr "次の対戦を観戦"
+
+msgid "room.table_rules"
+msgstr "対戦席のルール"
+
+msgid "room.table_rules.edit"
+msgstr "この対戦席のルールを編集します。"
+
+msgid "room.table_rules.view"
+msgstr "この対戦席のルールを表示します。"
+
+msgid "room.cancel_unresolved"
+msgstr "未確定の対戦をキャンセル"
+
+msgid "room.cancel_unresolved.detail"
+msgstr "ホスト専用。結果は記録されません。"
+
+msgid "room.cancel_stuck"
+msgstr "停止した対戦をキャンセル"
+
+msgid "room.cancel_stuck.detail"
+msgstr "ホスト専用。終了済みの対戦結果が届かない場合に使用します。結果は記録されません。"
+
+msgid "room.rules.finish_game"
+msgstr "ルールを変更する前に進行中の対戦を終えてください。"
+
+msgid "room.rules.apply_note"
+msgstr "変更は「適用」後に反映されます。"
+
+msgid "room.rules.host_only"
+msgstr "対戦席のルールを変更できるのはホストだけです。"
+
+msgid "room.apply_rules"
+msgstr "ルールを適用"
+
+msgid "room.apply_rules.detail"
+msgstr "この対戦席のルール案をまとめて送信します。"
+
+msgid "room.member_status_host_muted"
+msgstr "{0} / ホスト / ローカルでミュート"
+
+msgid "room.member_status_muted"
+msgstr "{0} / ローカルでミュート"
+
+msgid "room.unmute_member"
+msgstr "ミュートを解除"
+
+msgid "room.mute_member"
+msgstr "メンバーをミュート"
+
+msgid "room.mute_member.detail"
+msgstr "このメンバーのチャットだけを非表示にします。"
+
+msgid "room.member_left.detail"
+msgstr "このメンバーは退出しました。"
+
+msgid "room.kick_member"
+msgstr "メンバーを退出させる"
+
+msgid "room.kick_member.detail"
+msgstr "{0}をルームから退出させます。"
+
+msgid "room.transfer_host"
+msgstr "ホストを移譲"
+
+msgid "room.transfer_host.detail"
+msgstr "{0}をルームのホストにします。"
+
+msgid "room.compose_message"
+msgstr "メッセージを作成"
+
+msgid "room.send_message"
+msgstr "メッセージを送信"
+
+msgid "room.send_message.detail"
+msgstr "確定した下書きを送信します。編集欄でEnterを押しても送信されません。"
+
+msgid "room.capacity.detail"
+msgstr "現在のメンバー数より小さくできません。"
+
+msgid "room.admission"
+msgstr "参加制限"
+
+msgid "room.locked"
+msgstr "ロック中"
+
+msgid "room.open"
+msgstr "公開"
+
+msgid "room.admission.detail"
+msgstr "ロックすると新しいメンバーは参加できません。"
+
+msgid "room.apply_name"
+msgstr "ルーム名を適用"
+
+msgid "room.apply_name.detail"
+msgstr "このルーム名を送信します。"
+
+msgid "room.apply_capacity"
+msgstr "定員を適用"
+
+msgid "room.apply_capacity.detail"
+msgstr "この定員を送信します。"
+
+msgid "profile.main_badge"
+msgstr "メイン"
+
+msgid "training.shortcuts"
+msgstr "F6 トレーニング操作 | F5 HUDを隠す"
+
+msgid "common.not_set"
+msgstr "未設定"
+
+msgid "notice.title"
+msgstr "お知らせ"
+
+msgid "notice.error_title"
+msgstr "エラーが発生しました"
+
+msgid "game_settings.title"
+msgstr "推奨ゲーム設定"
+
+msgid "game_settings.intro"
+msgstr "次の設定でオンライン対戦が安定します。「オフラインで遊ぶ」を選び、ゲーム本体のオプションで変更してください。"
+
+msgid "game_settings.frame_rate"
+msgstr "フレームレート：固定に設定（現在{0}）。必須です。他の設定ではロールバックが正常に動作しません。"
+
+msgid "game_settings.anti_aliasing"
+msgstr "アンチ・エイリアシング：NONEに設定（現在{0}）。GPUの負荷と遅延を減らします。"
+
+msgid "game_settings.hide"
+msgstr "今後表示しない"
+
+msgid "common.ok"
+msgstr "OK"
+
+msgid "edit.title"
+msgstr "テキストを編集"
+
+msgid "edit.instructions"
+msgstr "入力または貼り付け。Enterで決定、Escまたはコントローラーの戻るでキャンセルします。"
+
+msgid "edit.updating"
+msgstr "ルームを更新中です。下書きは保持され、入力の続行やキャンセルができます。"
+
+msgid "common.accept"
+msgstr "承認"
+
+msgid "edit.cancel"
+msgstr "編集をキャンセル"
+
+msgid "discord.unavailable_build"
+msgstr "このビルドではDiscord連携を利用できません。"
+
+msgid "runtime.record_invalid"
+msgstr "ローカルの対戦記録が無効です。元の記録は保持されますが、追跡は利用できません。"
+
+msgid "runtime.interface_preferences_failed"
+msgstr "表示設定を読み取れません。初期設定を使用します。"
+
+msgid "runtime.room_defaults_invalid"
+msgstr "保存済みのルーム初期設定が無効です。元の設定は保持されます。"
+
+msgid "runtime.network_start_failed"
+msgstr "通信を開始できませんでした。オフラインでは遊べます。"
+
+msgid "runtime.network_helper_unavailable"
+msgstr "通信補助プログラムを利用できません（エラー{0}）。オフラインでは遊べます。"
+
+msgid "discord.connecting"
+msgstr "Discordに接続中..."
+
+msgid "discord.unavailable_gameplay_ok"
+msgstr "Discordを利用できません。対戦には影響しません。"
+
+msgid "runtime.gameplay_device_disconnected"
+msgstr "対戦用デバイスの接続が切れました。次の対戦前に再接続してください。"
+
+msgid "runtime.controller_assignment_unverified"
+msgstr "対戦側のコントローラー割り当てを確認できませんでした。再度割り当ててください。"
+
+msgid "runtime.recovery_state_failed"
+msgstr "ルームの復旧状態を適用できませんでした。復旧は一時停止中です。"
+
+msgid "runtime.room_control_recovering"
+msgstr "ルーム操作を復旧中です。"
+
+msgid "discord.connected"
+msgstr "Discordに接続しました"
+
+msgid "discord.registration_failed"
+msgstr "Discordに接続しましたが、起動登録に失敗しました。"
+
+msgid "discord.open_desktop"
+msgstr "Discordを利用できません。アクティビティを共有するには、デスクトップアプリを開いてください。"
+
+msgid "discord.invitation_invalid"
+msgstr "無効なDiscordの招待です。"
+
+msgid "discord.invalid_event"
+msgstr "Discordから無効なローカルイベントを受信しました。"
+
+msgid "discord.companion_stopped"
+msgstr "Discordの連携プログラムが停止しました。対戦には影響しません。"
+
+msgid "runtime.room_connection_failed"
+msgstr "ルームへの接続に失敗しました。ルームを閉じます。未確定の結果は記録されません。"
+
+msgid "runtime.operation_busy"
+msgstr "操作を実行中です。再試行してください。"
+
+msgid "discord.invitation_expired"
+msgstr "Discordの招待は期限切れです。新しい招待を依頼してください。"
+
+msgid "runtime.spectator_action_retrying"
+msgstr "観戦の操作を送信できませんでした。再試行中です。"
+
+msgid "runtime.return_main_menu"
+msgstr "ルームを開く前にゲーム本体のメインメニューに戻ってください。"
+
+msgid "runtime.room_action_failed"
+msgstr "ルームの操作を送信できませんでした。再試行してください。"
+
+msgid "runtime.preferences_queue_failed"
+msgstr "設定の保存を登録できませんでした。再試行してください。"
+
+msgid "runtime.lobby_settings_send_failed"
+msgstr "ロビー設定を送信できませんでした。"
+
+msgid "runtime.room_defaults_save_failed"
+msgstr "ルームの初期設定を保存できませんでした。"
+
+msgid "runtime.connection_check_unavailable"
+msgstr "接続確認を利用できません。遅延を選んで準備完了にはできます。"
+
+msgid "runtime.delay_save_failed"
+msgstr "入力遅延を保存できませんでした。"
+
+msgid "runtime.teardown_report_failed"
+msgstr "対戦の終了処理を報告できませんでした。ルームを閉じました。"
+
+msgid "runtime.lobby_defaults_save_failed"
+msgstr "ロビー設定は適用されましたが、初期設定を保存できませんでした。"
+
+msgid "runtime.lobby_settings_rejected"
+msgstr "ロビー設定が受け付けられませんでした。準備状態を確認して再試行してください。"
+
+msgid "runtime.teardown_timeout"
+msgstr "対戦の終了処理がタイムアウトしました。ルームを閉じました。"
+
+msgid "runtime.room_catchup_timeout"
+msgstr "ルームの同期が間に合いませんでした。最後の操作は適用されていません。再試行してください。"
+
+msgid "runtime.previous_match_close_timeout"
+msgstr "前の対戦が時間内に終了しませんでした。対戦席の設定を再度適用してください。"
+
+msgid "runtime.spectator_close_timeout"
+msgstr "対戦が時間内に終了しませんでした。観戦を停止しました。"
+
+msgid "runtime.room_closed"
+msgstr "ルームが閉じられました。"
+
+msgid "runtime.removed_from_room"
+msgstr "ルームから退出させられました。"
+
+msgid "room.reject.closed"
+msgstr "ルームは閉じられました。"
+
+msgid "room.reject.full"
+msgstr "ルームは満員です。"
+
+msgid "room.reject.admission_locked"
+msgstr "ルームは新しいメンバーを受け付けていません。"
+
+msgid "room.reject.name_taken"
+msgstr "そのプレイヤー名はルーム内で使用されています。設定で変更してください。"
+
+msgid "room.reject.stale_room"
+msgstr "操作が届く前にルームが変わりました。再試行してください。"
+
+msgid "room.reject.stale_table"
+msgstr "操作が届く前に対戦席が変わりました。再試行してください。"
+
+msgid "room.reject.wrong_phase"
+msgstr "現在の対戦席ではその操作を行えません。"
+
+msgid "room.reject.wrong_generation"
+msgstr "その対戦はすでに終了しています。"
+
+msgid "room.reject.unauthorized"
+msgstr "この操作はホスト専用です。"
+
+msgid "room.reject.not_seated"
+msgstr "この対戦席に座っていません。"
+
+msgid "room.reject.already_seated"
+msgstr "すでに着席しています。"
+
+msgid "room.reject.already_queued"
+msgstr "すでに順番待ちに入っています。"
+
+msgid "room.reject.not_queued"
+msgstr "順番待ちに入っていません。"
+
+msgid "room.reject.not_watching"
+msgstr "この対戦席を観戦していません。"
+
+msgid "room.reject.invalid_rules"
+msgstr "対戦席のルールが無効です。"
+
+msgid "room.reject.invalid_capacity"
+msgstr "定員が無効です。"
+
+msgid "room.reject.invalid_chat"
+msgstr "メッセージを送信できませんでした。"
+
+msgid "room.reject.ledger_full"
+msgstr "全員が前の対戦から戻るのを待っています。"
+
+msgid "room.reject.other"
+msgstr "ルームが操作を拒否しました。"
+
+msgid "runtime.lock.return_to_menu_fighter"
+msgstr "キャラを変更するにはゲーム本体のメインメニューに戻ってください。"
+
+msgid "runtime.lock.previous_game_closing"
+msgstr "前のゲームの終了を待っています。"
+
+msgid "runtime.lock.teardown"
+msgstr "前の対戦のプレイヤーと観戦者の終了処理を待っています。"
+
+msgid "runtime.lock.room_recovering"
+msgstr "ルーム接続の復旧を待っています。"
+
+msgid "runtime.lock.ready_pending"
+msgstr "準備完了の要求が終わるのを待っています。"
+
+msgid "runtime.lock.selection_update"
+msgstr "現在の対戦または選択の更新を待っています。"
+
+msgid "runtime.lock.return_to_menu_ready"
+msgstr "準備完了にする前にゲーム本体のメインメニューに戻ってください。"
+
+msgid "runtime.lock.table_settings"
+msgstr "対戦席の設定を適用中です。"
+
+msgid "runtime.lock.room_update"
+msgstr "現在のルームまたは対戦の更新を待っています。"
+
+msgid "runtime.ready.control_changed"
+msgstr "準備完了が適用される前にルーム操作が変わりました。もう一度準備完了を押してください。"
+
+msgid "runtime.ready.assign_controller"
+msgstr "準備完了にする前にコントローラーを割り当てるか、再接続してください。"
+
+msgid "runtime.ready.stage_unavailable"
+msgstr "選択したステージを使用できません。キャラクター選択で別のステージを選んでください。"
+
+msgid "runtime.ready.fighter_unavailable"
+msgstr "選択したキャラを使用できません。キャラクター選択で別のキャラを選んでください。"
+
+msgid "runtime.ready.selection_unavailable"
+msgstr "このキャラ選択は使用できません。使用可能なコスチューム、カラー、エディション、ウルトラコンボを選んでください。"
+
+msgid "runtime.ready.take_seat"
+msgstr "準備完了にする前に対戦席に座ってください。"
+
+msgid "runtime.ready.refused"
+msgstr "ルームが準備完了を拒否しました。もう一度押してください。"
+
+msgid "runtime.ready.previous_match_timeout"
+msgstr "準備完了になりませんでした。前の対戦が時間内に終了していません。もう一度押してください。"
+
+msgid "runtime.room_open_failed"
+msgstr "ルームを開設できませんでした。再試行してください。"
+
+msgid "runtime.match_settings_send_failed"
+msgstr "対戦設定を送信できませんでした。"
+
+msgid "runtime.match_record_not_saved"
+msgstr "対戦記録を保存できませんでした。次の対戦は開始できます。保存は再試行を続けます。"
+
+msgid "runtime.rollback_unsupported_state"
+msgstr "非対応のゲーム状態をネット対戦で保存できませんでした。対戦を終了しました。"
+
+msgid "runtime.participant_left_room"
+msgstr "対戦参加者がルームから退出しました。"
+
+msgid "runtime.networking_unavailable"
+msgstr "通信を利用できません。オフラインでは遊べます。"
+
+msgid "runtime.room_join_failed"
+msgstr "ルームに参加できませんでした。招待と、両者が同じSF4 Ember Netplayパッケージを使用しているか確認してください。"
+
+msgid "runtime.room_connection_lost"
+msgstr "ルームへの接続が切れました。"

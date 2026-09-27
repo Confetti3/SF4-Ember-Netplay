@@ -4,6 +4,7 @@
 #include <windows.h>
 
 #include "GameLocator.hxx"
+#include "../common/SteamKeyValues.hxx"
 #include "../platform/Utf8.hxx"
 
 #include <algorithm>
@@ -13,45 +14,7 @@
 namespace sf4e { namespace launcher {
 namespace {
 
-struct Token {
-    enum Kind { Text, Open, Close } kind;
-    std::string text;
-};
-
-// Splits VDF text into quoted strings and braces. Whitespace and // comments
-// are skipped, and \\ and \" inside a string become \ and ". Anything else,
-// such as an unquoted word, a #include or #base line, or a string cut off
-// before its closing quote, fails.
-bool Tokenize(const std::string& text, std::vector<Token>& tokens) {
-    std::size_t i = text.compare(0, 3, "\xEF\xBB\xBF") == 0 ? 3 : 0;
-    while (i < text.size()) {
-        const char c = text[i];
-        if (c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\v' || c == '\f') {
-            ++i;
-        } else if (c == '{' || c == '}') {
-            tokens.push_back(Token{c == '{' ? Token::Open : Token::Close, std::string()});
-            ++i;
-        } else if (c == '/' && i + 1 < text.size() && text[i + 1] == '/') {
-            i = text.find('\n', i);
-            if (i == std::string::npos) i = text.size();
-        } else if (c == '"') {
-            std::string value;
-            for (++i; i < text.size() && text[i] != '"'; ++i) {
-                if (text[i] == '\\') {
-                    if (i + 1 >= text.size()) return false;
-                    if (text[i + 1] == '\\' || text[i + 1] == '"') ++i;
-                }
-                value += text[i];
-            }
-            if (i >= text.size()) return false;
-            ++i;
-            tokens.push_back(Token{Token::Text, std::move(value)});
-        } else {
-            return false;
-        }
-    }
-    return true;
-}
+using steam::Token;
 
 bool IsIndex(const std::string& key) {
     return !key.empty() && key.size() < 10 &&
@@ -87,7 +50,7 @@ std::vector<std::wstring> ParseLibraryFolders(const std::string& vdfUtf8) {
     // the nested format, where its "path" lives. Deeper blocks such as "apps"
     // are only counted through.
     std::vector<Token> t;
-    if (!Tokenize(vdfUtf8, t) || t.size() < 2 || t[0].kind != Token::Text || t[1].kind != Token::Open) return {};
+    if (!steam::Tokenize(vdfUtf8, t) || t.size() < 2 || t[0].kind != Token::Text || t[1].kind != Token::Open) return {};
     using Entry = std::pair<std::string, std::string>;
     std::vector<Entry> entries;
     std::string library;
