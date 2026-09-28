@@ -272,6 +272,48 @@ void TestFighterMissingRoomEndIsBounded() {
 	std::cout << "TestFighterMissingRoomEndIsBounded passed\n";
 }
 
+// (7) A spectator's stream source is P1's link. After the room's game_end the
+// spectator keeps its GGPO session while it plays the buffered tail; once
+// P1's link closes (P1 left at once in sf4e.1.log 23:04:36) nothing more can
+// arrive, which lets the runtime close the view instead of waiting 15 s. A
+// fighter never reports a closed source.
+void TestSpectatorStreamSourceClosed() {
+	Fixture f;
+	CHECK(!f.session.StreamSourceClosed()); // no grant yet
+	f.transport->Push(f.Grant(5));
+	f.transport->Push(Fixture::Connect(5));
+	CHECK(f.client.Step() == 0);
+	CHECK(f.session.Tick());
+	CHECK(f.session.Tick());
+	CHECK(f.session.GetPhase() == Phase::Connecting);
+	CHECK(!f.session.StreamSourceClosed());
+	f.transport->Push(Fixture::End(5));
+	CHECK(f.client.Step() == 0);
+	CHECK(f.session.Tick(true)); // native GGPO still owns the socket
+	CHECK(f.session.GetPhase() == Phase::Ending);
+	CHECK(!f.session.StreamSourceClosed());
+	using Exit = session::MatchTeardownTiming::SpectatorExit;
+	f.session.ArmSpectatorExit();
+	CHECK(f.session.SpectatorExitStep(true) == Exit::Wait); // P1 still streaming
+	f.room->AbandonMatch(5); // P1's link reports closed
+	CHECK(f.session.StreamSourceClosed());
+	CHECK(f.session.SpectatorExitStep(false) == Exit::Wait); // frames left to play
+	CHECK(f.session.SpectatorExitStep(true) == Exit::Retire);
+	CHECK(f.session.Tick(true));
+	CHECK(f.session.GetPhase() == Phase::Ending); // still waits for GGPO's release
+	CHECK(f.session.StreamSourceClosed());
+
+	Fixture fighter(1);
+	fighter.transport->Push(fighter.Grant(5));
+	fighter.transport->Push(Fixture::Connect(5));
+	CHECK(fighter.client.Step() == 0);
+	CHECK(fighter.session.Tick());
+	CHECK(fighter.session.Tick());
+	fighter.room->AbandonMatch(5);
+	CHECK(!fighter.session.StreamSourceClosed());
+	std::cout << "TestSpectatorStreamSourceClosed passed\n";
+}
+
 }
 
 int main() {
@@ -281,6 +323,7 @@ int main() {
 	TestSpectatorHelperTimeoutStaysInRoom();
 	TestSpectatorMissingRoomEndReturnsAtOnce();
 	TestFighterMissingRoomEndIsBounded();
+	TestSpectatorStreamSourceClosed();
 	std::cout << "Iroh match session tests passed\n";
 	return 0;
 }

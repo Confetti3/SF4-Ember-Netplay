@@ -12,6 +12,7 @@
 #include "../Dimps/Dimps__Math.hxx"
 
 #include "../common/sf4e__GgpoGate.hxx"
+#include "../common/NoticeSeverity.hxx"
 #include "../common/ConfirmedCheckpoint.hxx"
 #include "../common/MatchTelemetry.hxx"
 #include "../common/ReusableRecords.hxx"
@@ -244,8 +245,11 @@ namespace sf4e {
 				static void RetireGgpoSession(const char* diagnosticsLabel);
 				// Safe to call from anywhere, including GGPO callbacks: inside a
 				// callback the abort is latched and completed by
-				// DrainPendingAbort() once the top-level GGPO call returns.
-				static void AbortGgpoMatch(const char* reason);
+				// DrainPendingAbort() once the top-level GGPO call returns (as an
+				// Error; only callbacks defer). A non-empty reason is logged and
+				// shown to the player after the session is retired, and stays
+				// until the next session starts. An empty reason ends quietly.
+				static void AbortGgpoMatch(const char* reason, NoticeSeverity severity = NoticeSeverity::Error);
 				// Completes an abort latched inside a callback. Returns true
 				// when a session was closed. Must be called after every
 				// top-level GGPO API call that can run callbacks.

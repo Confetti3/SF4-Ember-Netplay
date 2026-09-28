@@ -238,9 +238,19 @@ bool IrohRoom::ConsumeGameEvent(const json& event, const std::string& type) {
 	const auto game = games_.find(peer);
 	// Lifecycle ends are logged, including ignored ones: a match teardown
 	// that never sees its game_closed must show whether it arrived (F-008).
-	if (type == "game_closed" || type == "game_failed")
-		spdlog::info("Room: {} peer={} generation={} local_generation={} reason={}", type, PeerTag(peer), generation,
-			game == games_.end() ? 0 : game->second.generation, event.value("reason", std::string()));
+	// The helper reports a peer that closed its end as game_failed
+	// (peer_closed) just before game_closed. Every link ends that way after a
+	// match, so it is debug here and named on the game_closed line; a loss
+	// during play is reported by the match session. Other failures warn.
+	if (type == "game_closed" || type == "game_failed") {
+		const auto reason = event.value("reason", std::string());
+		const bool known = game != games_.end() && game->second.generation == generation;
+		const auto failure = type == "game_closed" && known ? game->second.error : std::string();
+		const auto level = type == "game_closed" ? spdlog::level::info :
+			reason == "peer_closed" ? spdlog::level::debug : spdlog::level::warn;
+		spdlog::log(level, "Room: {} peer={} generation={} local_generation={} reason={}{}{}", type, PeerTag(peer), generation,
+			game == games_.end() ? 0 : game->second.generation, reason, failure.empty() ? "" : " failure=", failure);
+	}
 	if (game == games_.end() || generation != game->second.generation) return true;
 	auto& snapshot = game->second;
 	if (type == "game_closed") { snapshot.state = GameState::Closed; snapshot.virtualPort = 0; return true; }

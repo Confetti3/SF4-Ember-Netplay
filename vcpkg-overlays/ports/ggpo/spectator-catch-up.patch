@@ -1,0 +1,126 @@
+diff --git a/src/include/ggponet.h b/src/include/ggponet.h
+--- a/src/include/ggponet.h
++++ b/src/include/ggponet.h
+@@ -509,6 +509,16 @@
+                                                            int *frame);
+ 
+ /*
++ * Spectator sessions only: the number of confirmed frames received from the
++ * host that ggpo_synchronize_input has not returned yet. The host never waits
++ * for a spectator, so a spectator that runs slower than the fighters builds
++ * this backlog and can play extra frames to catch up. Other backends return
++ * UNSUPPORTED. This call does not poll or advance.
++ */
++GGPO_API GGPOErrorCode __cdecl ggpo_get_spectator_backlog(GGPOSession *,
++                                                        int *frames);
++
++/*
+  * ggpo_get_network_stats --
+  *
+  * Used to fetch some statistics about the quality of the network connection.
+diff --git a/src/lib/ggpo/backends/backend.h b/src/lib/ggpo/backends/backend.h
+--- a/src/lib/ggpo/backends/backend.h
++++ b/src/lib/ggpo/backends/backend.h
+@@ -24,6 +24,7 @@
+    virtual GGPOErrorCode Logv(const char *fmt, va_list list) { ::Logv(fmt, list); return GGPO_OK; }
+ 
+    virtual GGPOErrorCode GetLastConfirmedFrame(int *frame) { return GGPO_ERRORCODE_UNSUPPORTED; }
++   virtual GGPOErrorCode GetSpectatorBacklog(int *frames) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode SetFrameDelay(GGPOPlayerHandle player, int delay) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode SetDisconnectTimeout(int timeout) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode SetDisconnectNotifyStart(int timeout) { return GGPO_ERRORCODE_UNSUPPORTED; }
+diff --git a/src/lib/ggpo/backends/spectator.cpp b/src/lib/ggpo/backends/spectator.cpp
+--- a/src/lib/ggpo/backends/spectator.cpp
++++ b/src/lib/ggpo/backends/spectator.cpp
+@@ -16,7 +16,8 @@
+                                    u_short hostport) :
+    _num_players(num_players),
+    _input_size(input_size),
+-   _next_input_to_send(0)
++   _next_input_to_send(0),
++   _last_received_frame(-1)
+ {
+    _callbacks = *cb;
+    _synchronizing = true;
+@@ -87,6 +88,14 @@
+ }
+ 
+ GGPOErrorCode
++SpectatorBackend::GetSpectatorBacklog(int *frames)
++{
++   const int backlog = _last_received_frame - _next_input_to_send + 1;
++   *frames = backlog > 0 ? backlog : 0;
++   return GGPO_OK;
++}
++
++GGPOErrorCode
+ SpectatorBackend::IncrementFrame(void)
+ {  
+    Log("End of frame (%d)...\n", _next_input_to_send - 1);
+@@ -159,7 +168,13 @@
+ 
+       _host.SetLocalFrameNumber(input.frame);
+       _host.SendInputAck();
++      if (input.frame >= _next_input_to_send + SPECTATOR_FRAME_BUFFER_SIZE) {
++         // This slot still holds an unplayed frame; SyncInput reports the loss.
++         Log("Spectator backlog overflow: frame %d arrived while frame %d is unplayed.\n",
++             input.frame, _next_input_to_send);
++      }
+       _inputs[input.frame % SPECTATOR_FRAME_BUFFER_SIZE] = input;
++      _last_received_frame = MAX(_last_received_frame, input.frame);
+       break;
+    }
+ }
+diff --git a/src/lib/ggpo/backends/spectator.h b/src/lib/ggpo/backends/spectator.h
+--- a/src/lib/ggpo/backends/spectator.h
++++ b/src/lib/ggpo/backends/spectator.h
+@@ -15,7 +15,13 @@
+ #include "timesync.h"
+ #include "network/udp_proto.h"
+ 
+-#define SPECTATOR_FRAME_BUFFER_SIZE    64
++/*
++ * The host streams confirmed frames as fast as the fighters confirm them and
++ * never waits for a spectator, so this ring is the spectator's whole backlog.
++ * At 64 frames (about one second) any accumulated slowdown overwrote a frame
++ * before it was played, which is unrecoverable. 1024 frames is about 17 s.
++ */
++#define SPECTATOR_FRAME_BUFFER_SIZE    1024
+ 
+ class SpectatorBackend : public IQuarkBackend, IPollSink, Udp::Callbacks {
+ public:
+@@ -33,6 +39,7 @@
+    virtual GGPOErrorCode GetNetworkStats(GGPONetworkStats *stats, GGPOPlayerHandle handle) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    // Spectators consume only the source fighter's confirmed input stream.
+    virtual GGPOErrorCode GetLastConfirmedFrame(int *frame) { *frame = _next_input_to_send - 1; return GGPO_OK; }
++   virtual GGPOErrorCode GetSpectatorBacklog(int *frames);
+    virtual GGPOErrorCode SetFrameDelay(GGPOPlayerHandle player, int delay) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode SetDisconnectTimeout(int timeout) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode SetDisconnectNotifyStart(int timeout) { return GGPO_ERRORCODE_UNSUPPORTED; }
+@@ -55,6 +62,7 @@
+    int                   _input_size;
+    int                   _num_players;
+    int                   _next_input_to_send;
++   int                   _last_received_frame;
+    GameInput             _inputs[SPECTATOR_FRAME_BUFFER_SIZE];
+ };
+ 
+diff --git a/src/lib/ggpo/main.cpp b/src/lib/ggpo/main.cpp
+--- a/src/lib/ggpo/main.cpp
++++ b/src/lib/ggpo/main.cpp
+@@ -167,6 +167,15 @@
+    return ggpo->GetLastConfirmedFrame(frame);
+ }
+ 
++GGPOErrorCode
++ggpo_get_spectator_backlog(GGPOSession *ggpo, int *frames)
++{
++   if (!ggpo) { return GGPO_ERRORCODE_INVALID_SESSION; }
++   if (!frames) { return GGPO_ERRORCODE_INVALID_REQUEST; }
++   *frames = 0;
++   return ggpo->GetSpectatorBacklog(frames);
++}
++
+ 
+ GGPOErrorCode
+ ggpo_close_session(GGPOSession *ggpo)

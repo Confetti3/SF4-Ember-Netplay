@@ -1,4 +1,5 @@
 #include "sf4e__Game__Battle__System__Internal.hxx"
+#include "../common/SpectatorCatchUp.hxx"
 
 // Native result state is captured in GGPO saves, including resimulation. The
 // history is rewound to each restored state; the emitted latch is deliberately
@@ -12,7 +13,10 @@ void ResetNativeResultMatch() {
     s_nativeResultEmitted = false;
 }
 
-bool NativeResultEmitted() { return s_nativeResultEmitted; }
+// The outcome is settled: this fighter confirmed it natively, or the room
+// committed the match end (the only way a spectator learns it). Losing the
+// stream or the peer after that ends nothing the player needs to hear about.
+bool MatchResultKnown() { return s_nativeResultEmitted || sf4e::NetplayFacade::IsRuntimeMatchEndCommitted(); }
 
 void CaptureNativeMatchResult(rSystem* system, int stateFrame) {
     if (!system || !rSystem::staticVars.CurrentBattleFlow) {
@@ -279,6 +283,105 @@ int fSystem::RestoreFromMemento(Memento* m, GameMementoKey::MementoID* id) {
 }
 
 
+// One deterministic frame from GGPO's inputs: synchronize, run the engine
+// update, advance. False when no frame was played: a transient refusal, or an
+// abort that retired the session.
+static bool PlayGgpoFrame(rSystem* system) {
+    fPadSystem::Inputs ggpoInputs[2] = { {0, 0}, {0, 0} };
+    int disconnect_flags = 0;
+    GGPOErrorCode result;
+    {
+        diag::ScopedTimer _t(diag::OP_SYNC_INPUT);
+        result = ggpo_synchronize_input(fSystem::ggpo, (void*)ggpoInputs, sizeof(fPadSystem::Inputs) * 2, &disconnect_flags);
+    }
+    if (diag::Enabled()) {
+        diag::G().RecordGgpoResult(diag::CALL_SYNC_INPUT, (int)result);
+    }
+    if (fSystem::DrainPendingAbort()) {
+        return false;
+    }
+    switch (sf4e::gate::ClassifyGgpoResult((int)result)) {
+    case sf4e::gate::POLICY_CONTINUE:
+        break;
+    case sf4e::gate::POLICY_FATAL:
+        if (fSystem::localPlayerHandle == GGPO_INVALID_HANDLE) {
+            EndSpectatorStream((int)result);
+            return false;
+        }
+        spdlog::error("GGPO: synchronize_input returned irrecoverable {}", (int)result);
+        fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.netplay_sync_failed"));
+        return false;
+    default:
+        // NOT_SYNCHRONIZED during startup/resync, or another
+        // transient refusal: skip this frame without simulating.
+        if (diag::Enabled()) {
+            diag::G().RecordSkip(diag::SKIP_SYNC_INPUT_ERROR, diag::NowMs());
+        }
+        return false;
+    }
+    NoteDisconnectFlags(disconnect_flags);
+    {
+        PlaybackFrameScopeGuard _playbackGuard;
+        fPadSystem::playbackFrame = 0;
+        fPadSystem::playbackData[0][0] = ggpoInputs[0];
+        fPadSystem::playbackData[0][1] = ggpoInputs[1];
+        if (fSoundPlayerManager::bUsePureSounds) {
+            fSoundPlayerManager::SyncState();
+        }
+        {
+            diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
+            (system->*rSystem::publicMethods.BattleUpdate)();
+        }
+        // Playback mode must be off before ggpo_advance_frame: the
+        // save callback and any nested GGPO work must not read the
+        // stale playback inputs. The guard also restores on every
+        // early exit above.
+        fPadSystem::playbackFrame = -1;
+    }
+    GGPOErrorCode err;
+    {
+        diag::ScopedTimer _t(diag::OP_ADVANCE_FRAME_API);
+        err = ggpo_advance_frame(fSystem::ggpo);
+    }
+    if (diag::Enabled()) {
+        diag::G().RecordGgpoResult(diag::CALL_ADVANCE_FRAME, (int)err);
+    }
+    if (fSystem::DrainPendingAbort()) {
+        return false;
+    }
+    if (!GGPO_SUCCEEDED(err)) {
+        spdlog::error("GGPO: advance_frame returned {}", (int)err);
+        fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.netplay_sync_failed"));
+        return false;
+    }
+    fSystem::simGate.OnFrameAccepted();
+    if (diag::Enabled()) {
+        diag::G().OnFrameAdvanced(diag::NowMs());
+    }
+    if (fSoundPlayerManager::bUsePureSounds) {
+        fSoundPlayerManager::SyncState();
+    }
+    fSystem::CaptureSnapshot(system);
+    fSystem::CaptureHashCheckpoint(system);
+    PublishConfirmedNativeMatchResult();
+    return true;
+}
+
+// The host never waits for a spectator, so a spectator that fell behind its
+// stream plays a few extra frames per update until it is back within its
+// reserve (SpectatorCatchUp). Called after the update's own frame.
+static void CatchUpSpectator(rSystem* system) {
+    int backlog = 0;
+    if (!GGPO_SUCCEEDED(ggpo_get_spectator_backlog(fSystem::ggpo, &backlog))) return;
+    const int extra = sf4e::SpectatorCatchUp::ExtraFrames(backlog);
+    int played = 0;
+    while (played < extra && fSystem::ggpo && fSystem::MayAdvanceDeterministicFrame() &&
+        *rSystem::staticVars.CurrentBattleFlow != rSystem::BF__IDLE && PlayGgpoFrame(system)) {
+        ++played;
+    }
+    NoteSpectatorBacklog(backlog, played);
+}
+
 void fSystem::BattleUpdate() {
     rSystem* _this = (rSystem*)this;
     rSystem::__publicMethods& sysMethods = rSystem::publicMethods;
@@ -375,80 +478,11 @@ void fSystem::BattleUpdate() {
             return;
         }
 
-        {
-            fPadSystem::Inputs ggpoInputs[2] = { {0, 0}, {0, 0} };
-            int disconnect_flags = 0;
-            {
-                diag::ScopedTimer _t(diag::OP_SYNC_INPUT);
-                result = ggpo_synchronize_input(ggpo, (void*)ggpoInputs, sizeof(fPadSystem::Inputs) * 2, &disconnect_flags);
-            }
-            if (diag::Enabled()) {
-                diag::G().RecordGgpoResult(diag::CALL_SYNC_INPUT, (int)result);
-            }
-            if (DrainPendingAbort()) {
-                return;
-            }
-            switch (sf4e::gate::ClassifyGgpoResult((int)result)) {
-            case sf4e::gate::POLICY_CONTINUE:
-                break;
-            case sf4e::gate::POLICY_FATAL:
-                spdlog::error("GGPO: synchronize_input returned irrecoverable {}", (int)result);
-                AbortGgpoMatch(sf4e::loc::T("runtime.netplay_sync_failed"));
-                return;
-            default:
-                // NOT_SYNCHRONIZED during startup/resync, or another
-                // transient refusal: skip this frame without simulating.
-                if (diag::Enabled()) {
-                    diag::G().RecordSkip(diag::SKIP_SYNC_INPUT_ERROR, diag::NowMs());
-                }
-                return;
-            }
-            NoteDisconnectFlags(disconnect_flags);
-            {
-                PlaybackFrameScopeGuard _playbackGuard;
-                fPadSystem::playbackFrame = 0;
-                fPadSystem::playbackData[0][0] = ggpoInputs[0];
-                fPadSystem::playbackData[0][1] = ggpoInputs[1];
-                if (fSoundPlayerManager::bUsePureSounds) {
-                    fSoundPlayerManager::SyncState();
-                }
-                {
-                    diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
-                    (_this->*sysMethods.BattleUpdate)();
-                }
-                // Playback mode must be off before ggpo_advance_frame: the
-                // save callback and any nested GGPO work must not read the
-                // stale playback inputs. The guard also restores on every
-                // early exit above.
-                fPadSystem::playbackFrame = -1;
-            }
-            GGPOErrorCode err;
-            {
-                diag::ScopedTimer _t(diag::OP_ADVANCE_FRAME_API);
-                err = ggpo_advance_frame(ggpo);
-            }
-            if (diag::Enabled()) {
-                diag::G().RecordGgpoResult(diag::CALL_ADVANCE_FRAME, (int)err);
-            }
-            if (DrainPendingAbort()) {
-                return;
-            }
-            if (!GGPO_SUCCEEDED(err)) {
-                spdlog::error("GGPO: advance_frame returned {}", (int)err);
-                AbortGgpoMatch(sf4e::loc::T("runtime.netplay_sync_failed"));
-            }
-            else {
-                simGate.OnFrameAccepted();
-                if (diag::Enabled()) {
-                    diag::G().OnFrameAdvanced(diag::NowMs());
-                }
-                if (fSoundPlayerManager::bUsePureSounds) {
-                    fSoundPlayerManager::SyncState();
-                }
-                CaptureSnapshot(_this);
-                CaptureHashCheckpoint(_this);
-                PublishConfirmedNativeMatchResult();
-            }
+        if (!PlayGgpoFrame(_this)) {
+            return;
+        }
+        if (localPlayerHandle == GGPO_INVALID_HANDLE) {
+            CatchUpSpectator(_this);
         }
     }
     else if (simGate.NativeExitRequired()) {
