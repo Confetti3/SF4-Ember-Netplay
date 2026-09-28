@@ -88,12 +88,16 @@ extern rKey::MementoID GGPO_MEMENTO_ID;
 void EmitRollbackDiagSummary(const char* label);
 void ResetNativeResultMatch();
 void CaptureNativeMatchResult(rSystem* system, int stateFrame);
-bool NativeResultEmitted();
+bool MatchResultKnown();
 
 // Defined in sf4e__Game__Battle__System__Ggpo.cxx.
 void NoteDisconnectFlags(int flags);
 void LogPacerSummary(const char* label);
 void LeaveOrphanedNetplayBattle(rSystem* system);
+// A spectator's backlog before its catch-up and the extra frames it played.
+void NoteSpectatorBacklog(int backlogFrames, int catchUpFrames);
+// A spectator's synchronize_input failed irrecoverably: retire its session.
+void EndSpectatorStream(int ggpoResult);
 
 // Defined in sf4e__Game__Battle__System__SaveState.cxx, with SaveState::Free.
 void LogSaveStateFreePolicy();

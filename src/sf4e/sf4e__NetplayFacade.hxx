@@ -15,16 +15,13 @@
 #include "../platform/ApplicationServices.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../session/RoomModel.hxx"
+#include "../common/NoticeSeverity.hxx"
 #include <vector>
 #include <array>
 #include <memory>
 #include "../Dimps/Dimps__GameEvents.hxx"
 
 namespace sf4e {
-
-	// Severity of a netplay notice. Info expires on its own; Warning and
-	// Error stay until the session ends or a newer notice replaces them.
-	enum class NoticeSeverity : uint8_t { Info = 0, Warning = 1, Error = 2 };
 
 	struct NetplayStatus {
 		bool active = false;
@@ -154,6 +151,15 @@ namespace sf4e {
         bool IsRuntimeRecoveryEnabled();
 		void NotifyRuntimeMatchEnded();
 		void NotifyRuntimeMatchResult(room::MatchResult result);
+		// The room has committed the end of the current match (any result).
+		// Notices about losing that match's stream or peer are moot then.
+		bool IsRuntimeMatchEndCommitted();
+		// A match is being prepared or played, or its GGPO session is live.
+		bool IsRuntimeMatchLive();
+		// Retires a spectator's view of a match whose end the room committed,
+		// once its stream is played out or its exit bound passed. Called after
+		// the outer tick's GGPO poll.
+		void PollSpectatorExit();
 		struct RuntimeMatchEndpoints {
 			std::uint16_t localPort = 0;
 			std::size_t localSlot = 0, participantCount = 0;

@@ -46,6 +46,16 @@ public:
 	void ArmSpectatorExit() { teardown_.ArmSpectatorExit(Now()); }
 	void ClearSpectatorExit() { teardown_.ClearSpectatorExit(); }
 	bool SpectatorExitTimedOut() const { return teardown_.SpectatorExitTimedOut(Now()); }
+	// A spectator's stream comes only from P1. True once P1's link for this
+	// generation has closed, after which nothing more can arrive for it.
+	// Always false for a fighter.
+	bool StreamSourceClosed() const;
+	// The armed spectator exit's next step (MatchTeardownTiming). streamDrained:
+	// GGPO, polled after the room last updated its link states, has no frame
+	// left to play.
+	MatchTeardownTiming::SpectatorExit SpectatorExitStep(bool streamDrained) const {
+		return MatchTeardownTiming::SpectatorExitStep(StreamSourceClosed(), streamDrained, SpectatorExitTimedOut());
+	}
 private:
 	struct Link {
 		std::size_t slot;

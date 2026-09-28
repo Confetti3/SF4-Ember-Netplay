@@ -375,6 +375,7 @@ void fUserApp::Steam_PostUpdate() {
     // still be confirmed by this poll. Publish from here too.
     fSystem::PollNativeMatchResult();
     fSystem::PollSpectators();
+    sf4e::NetplayFacade::PollSpectatorExit();
     // Rift pacing: accounts for the last frame's shift and asks the frame
     // limiter for the next one.
     const fSystem::PacingTick pacing = fSystem::StepPacing();

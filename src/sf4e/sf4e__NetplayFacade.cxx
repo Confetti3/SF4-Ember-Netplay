@@ -161,7 +161,9 @@ namespace sf4e {
 
         if (IsRuntimeRecoveryEnabled()) {
             s_verificationLostAtFrame = fSystem::lastGgpoSaveFrame;
-            PushAlert(loc::T("runtime.room_recovering"), NoticeSeverity::Warning);
+            // Only a live match has a connection to keep.
+            PushAlert(loc::T(IsRuntimeMatchLive() ? "runtime.room_recovering" : "runtime.room_control_recovering"),
+                NoticeSeverity::Warning);
             return;
         }
 

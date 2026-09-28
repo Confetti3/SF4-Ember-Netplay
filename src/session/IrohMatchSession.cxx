@@ -517,6 +517,16 @@ bool IrohMatchSession::DropSpectatorLink(std::vector<Link>::iterator& link) {
 	return true;
 }
 
+bool IrohMatchSession::StreamSourceClosed() const {
+	if (slot_ < 2 || !room_) return false;
+	return std::any_of(links_.begin(), links_.end(), [&](const Link& link) {
+		if (link.slot != 0) return false;
+		const auto game = room_->Game(link.peer);
+		return game.generation != generation_ || game.state == IrohRoom::GameState::Closing ||
+			game.state == IrohRoom::GameState::Closed;
+	});
+}
+
 std::uint16_t IrohMatchSession::RemotePort(const SessionProtocol::ConnectionID& member) const {
 	if (phase_ != Phase::Started && phase_ != Phase::Ending) return 0;
 	for (const auto& link : links_) if (roster_[link.slot] == member) {

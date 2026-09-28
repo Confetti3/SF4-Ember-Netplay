@@ -2,6 +2,7 @@
 // sf4e::Game::Battle::System. Split from sf4e__Game__Battle__System.cxx.
 #include "sf4e__Game__Battle__System__Internal.hxx"
 #include "../common/GgpoDisconnectTolerance.hxx"
+#include "../common/SpectatorCatchUp.hxx"
 
 static sf4e::RollbackHud rollbackHud;
 
@@ -15,6 +16,8 @@ struct NetplayWindow {
     double maxAbsRift = 0.0;
     uint32_t recsAtStart = 0;
     double slowedAtStart = 0.0, spedUpAtStart = 0.0;
+    // A spectator's lag behind the host stream; see SpectatorCatchUp.
+    sf4e::SpectatorBacklogWindow spectator;
 
     void Start(uint64_t now) {
         *this = {};
@@ -46,12 +49,21 @@ struct NetplayWindow {
                 (now - startMs) / 1000.0, pingMin, pingMax, p.riftFramesEma, maxAbsRift, localBehind, remoteBehind,
                 rollbacks, resimFrames, maxDepth, stallTicks, p.msSlowedTotal - slowedAtStart,
                 p.msSpedUpTotal - spedUpAtStart, p.recommendationsReceived - recsAtStart);
+            if (fSystem::ggpo && fSystem::localPlayerHandle == GGPO_INVALID_HANDLE) {
+                spdlog::info("Spectator [{:.0f}s]: maxBacklog={} catchUpFrames={}",
+                    (now - startMs) / 1000.0, spectator.maxBacklog, spectator.catchUpFrames);
+            }
         }
         Start(now);
     }
 };
 static NetplayWindow s_window;
 static constexpr uint64_t kNetplayWindowMs = 15000;
+
+void NoteSpectatorBacklog(int backlogFrames, int catchUpFrames) {
+    s_window.spectator.Sample(backlogFrames);
+    s_window.spectator.CaughtUp(catchUpFrames);
+}
 
 // Last disconnect_flags observed from ggpo_synchronize_input; logged on
 // change for diagnostics only (no gameplay semantics attached).
@@ -231,7 +243,10 @@ void fSystem::RetireGgpoSession(const char* diagnosticsLabel) {
 void LeaveOrphanedNetplayBattle(rSystem* system) {
     int& readyState = *rSystem::GetReadyState(system);
     if (fSystem::simGate.OnOrphanFrame()) {
-        spdlog::warn("Netplay battle lost its session; leaving it ready={} flow={}",
+        // Once the result is known this is the ordinary way a spectator
+        // leaves the tail of a match whose stream has ended.
+        spdlog::log(MatchResultKnown() ? spdlog::level::info : spdlog::level::warn,
+            "Netplay battle lost its session; leaving it ready={} flow={}",
             readyState, *rSystem::staticVars.CurrentBattleFlow);
     }
     if (readyState < rSystem::RS_ISLEAVING) {
@@ -251,7 +266,7 @@ void LeaveOrphanedNetplayBattle(rSystem* system) {
     (system->*rSystem::publicMethods.BattleUpdate)();
 }
 
-void fSystem::AbortGgpoMatch(const char* reason) {
+void fSystem::AbortGgpoMatch(const char* reason, sf4e::NoticeSeverity severity) {
     if (s_abortLatch.Request(reason)) {
         // Inside a GGPO callback: mark the session fatal so the remaining
         // callbacks of this burst do no engine work, remember the reason, and
@@ -260,14 +275,35 @@ void fSystem::AbortGgpoMatch(const char* reason) {
         spdlog::error("GGPO match abort deferred from callback (depth {}): {}", s_abortLatch.depth, reason ? reason : "");
         return;
     }
-    if (reason && reason[0]) {
-        spdlog::error("GGPO match abort: {}", reason);
-        sf4e::NetplayFacade::PushAlert(reason, sf4e::NoticeSeverity::Error);
+    const bool explained = reason && reason[0];
+    if (explained) {
+        spdlog::log(severity == sf4e::NoticeSeverity::Error ? spdlog::level::err : spdlog::level::info,
+            "GGPO match abort: {}", reason);
     }
     LogSaveSlotOccupancy("abort_entry");
     simGate.OnFatal();
     RetireGgpoSession("abort");
     sf4e::NetplayFacade::ClearBattleState();
+    // Retiring the session clears its notices, so the reason is published
+    // after it. Published first, it was wiped before the player could see it.
+    if (explained) {
+        sf4e::NetplayFacade::PushAlert(reason, severity);
+    }
+}
+
+void EndSpectatorStream(int ggpoResult) {
+    int backlog = -1;
+    if (fSystem::ggpo) ggpo_get_spectator_backlog(fSystem::ggpo, &backlog);
+    // The room already recorded this match's end, so the spectator only
+    // loses the tail of a finished match. Nothing needs the player's attention.
+    if (MatchResultKnown()) {
+        spdlog::info("GGPO: spectator stream ended after the match result was recorded (synchronize_input {}, backlog {})",
+            ggpoResult, backlog);
+        fSystem::AbortGgpoMatch("");
+        return;
+    }
+    spdlog::error("GGPO: spectator stream lost: synchronize_input returned {} (backlog {})", ggpoResult, backlog);
+    fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.spectator_stream_lost"));
 }
 
 bool fSystem::DrainPendingAbort() {
@@ -294,6 +330,8 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     }
     diag::G().ResetForMatch(diag::NowMs());
     ResetNativeResultMatch();
+    // A new session starts clean: the last match's abort reason is moot.
+    sf4e::NetplayFacade::ClearMatchNotice();
     for (auto& player : players) { player = {}; player.handle = GGPO_INVALID_HANDLE; }
     // The savestate pool must start empty. A slot still holding records here
     // is leaked from the previous match — most often via the deferred-close
@@ -400,6 +438,7 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
     matchTelemetry.Reset(true);
     diag::G().ResetForMatch(diag::NowMs());
     ResetNativeResultMatch();
+    sf4e::NetplayFacade::ClearMatchNotice();
     // Same rationale as StartGGPO: the pool must start empty.
     LogSaveSlotOccupancy("start_spectating_entry");
     for (int i = 0; i < NUM_SAVE_STATES; i++) {
@@ -773,7 +812,7 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         // holds once the result is confirmed: the opponent may leave the
         // win screen first.
         if (IsSpectatorHandle(info->u.connection_interrupted.player) || sf4e::NetplayFacade::DrainingSpectators() ||
-            NativeResultEmitted()) {
+            MatchResultKnown()) {
             break;
         }
         // Phase 2 behavior change: a connection warning marks quality
@@ -826,7 +865,7 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         simGate.OnConnectionResumed(); // close any open warning episode
         simGate.OnBattleClosing();     // the gate must not report RUNNING for a dead peer
         s_disconnectTimeoutMs = 0;
-        if (!NativeResultEmitted()) {
+        if (!MatchResultKnown()) {
             sf4e::NetplayFacade::PushAlert(
                 sf4e::loc::T(localPlayerHandle == GGPO_INVALID_HANDLE ? "runtime.spectator_stream_lost" : "runtime.opponent_disconnected"),
                 sf4e::NoticeSeverity::Error

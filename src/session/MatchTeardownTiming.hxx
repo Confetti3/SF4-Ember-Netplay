@@ -55,6 +55,18 @@ public:
 		return spectatorExitArmed_ && now >= spectatorExitDeadline_;
 	}
 
+	// What the spectator does meanwhile. P1 is its only stream source: once
+	// P1's link has closed and GGPO, polled after that, holds nothing left to
+	// play, the view has shown everything and retires quietly. At the deadline
+	// it retires anyway; only a view cut short while P1 was still streaming
+	// is worth telling the player about.
+	enum class SpectatorExit { Wait, Retire, RetireCutShort };
+	static SpectatorExit SpectatorExitStep(bool sourceClosed, bool streamDrained, bool timedOut) {
+		if (sourceClosed && streamDrained) return SpectatorExit::Retire;
+		if (!timedOut) return SpectatorExit::Wait;
+		return sourceClosed ? SpectatorExit::Retire : SpectatorExit::RetireCutShort;
+	}
+
 	// The fourth boundary: every helper edge is closed but the room's game_end
 	// has not arrived. The room sends it on the result report or a fighter's
 	// disconnect, so a long wait means the room link itself is stuck. Arming

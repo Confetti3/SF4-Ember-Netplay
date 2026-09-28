@@ -14,6 +14,7 @@
 #include "../session/RoomRecoveryRuntime.hxx"
 #include "../netplay/BoundedMailbox.hxx"
 #include "../netplay/MatchResultOutbox.hxx"
+#include "../netplay/MatchEndRules.hxx"
 #include "../netplay/ParkedIntent.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
@@ -135,6 +136,10 @@ struct Runtime {
 	std::uint64_t readyFailureSequence = 0;
 	// Generation for which "a participant left" was already announced.
 	std::uint64_t participantLeftGeneration = 0;
+	// The current match's generation once the room has committed its end
+	// (any result). Nothing about that match needs the player afterwards.
+	std::uint64_t committedEndGeneration = 0;
+	netplay::MatchEndLog matchEndLog;
 	// `error` is cleared by only a handful of successful actions, so every
 	// transient message otherwise stayed pinned for the session and hid save
 	// feedback. Transient errors expire; the helper-unavailable startup
@@ -212,6 +217,9 @@ void CloseRoom() {
 	runtime->terminalOutcomeConsumed = false;
 	runtime->terminalAckTable = 0;
 	runtime->terminalAckGeneration = 0;
+	// A new room numbers its generations from the start again.
+	runtime->committedEndGeneration = 0;
+	runtime->matchEndLog = netplay::MatchEndLog();
 	if (runtime->attached) {
 		ShutdownNetplay(true);
 		runtime->attached = false;
@@ -845,6 +853,21 @@ bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw) {
 bool IsRuntimeRoomActive() { return runtime && runtime->attached; }
 bool IsRuntimeRecoveryEnabled() { return runtime && runtime->room && runtime->room->Coordination().active; }
 
+// The room has committed the end of the current match (any result).
+bool IsRuntimeMatchEndCommitted() {
+	return runtime && runtime->match && runtime->match->Generation() &&
+		runtime->committedEndGeneration == runtime->match->Generation();
+}
+
+// A match is being prepared or played, or its GGPO session is still live.
+bool IsRuntimeMatchLive() {
+	if (Game::Battle::System::ggpo && !DrainingSpectators()) return true;
+	if (!runtime || !runtime->match) return false;
+	const auto phase = runtime->match->GetPhase();
+	return phase == session::IrohMatchSession::Phase::Preparing || phase == session::IrohMatchSession::Phase::Prepared ||
+		phase == session::IrohMatchSession::Phase::Connecting || phase == session::IrohMatchSession::Phase::Started;
+}
+
 std::string CurrentProbePeer(std::uint64_t& revision) {
     revision=0;
     if (!runtime || !runtime->attached || !UserApp::netplay || !UserApp::server) return {};
@@ -893,9 +916,9 @@ void NotifyRuntimeMatchEnded() {
 // Retire this client from the current game. The room-facing half of leaving a
 // match is ReportMatchAbort; this is the local half, and every caller needs
 // both deferral state and the session torn down in the same order.
-void AbortLocalMatch(const char* reason) {
+void AbortLocalMatch(const char* reason, NoticeSeverity severity = NoticeSeverity::Error) {
 	CancelDeferredGgpoClose();
-	if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch(reason);
+	if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch(reason, severity);
 	runtime->match->Abort(); runtime->recoveringMatch = true;
 }
 
@@ -905,6 +928,35 @@ static void RetireFinishedMatch(const char* label) {
 	CancelDeferredGgpoClose();
 	Game::Battle::System::RetireGgpoSession(label);
 	runtime->match->End();
+}
+
+// The spectator cannot reach its terminal acknowledgement (ReleaseFinishedMatch)
+// while it still owns GGPO, so once the room committed the end of the match it
+// watches, the exit is bounded from that point. Releasing GGPO also re-arms the
+// helper deadline in IrohMatchSession, which cannot age while native GGPO owns
+// the socket. Called after the outer tick's GGPO poll, so every datagram P1
+// sent before its link closed has reached GGPO when the backlog is read. The
+// match is over either way, so the exit sends nothing to the room: the table
+// already left this generation.
+void PollSpectatorExit() {
+	if (!runtime || !runtime->match) return;
+	if (!runtime->terminalAckPending || !Game::Battle::System::ggpo || !LocalIsSpectator() ||
+		runtime->terminalAckGeneration != runtime->match->Generation()) {
+		runtime->match->ClearSpectatorExit();
+		return;
+	}
+	runtime->match->ArmSpectatorExit();
+	int backlog = 0;
+	const bool drained = GGPO_SUCCEEDED(ggpo_get_spectator_backlog(Game::Battle::System::ggpo, &backlog)) && backlog == 0;
+	const auto step = runtime->match->SpectatorExitStep(drained);
+	if (step == session::MatchTeardownTiming::SpectatorExit::Wait) return;
+	spdlog::info("Room: closing the spectator view of finished generation {} source_closed={} backlog={} cut_short={}",
+		runtime->match->Generation(), runtime->match->StreamSourceClosed(), backlog,
+		step == session::MatchTeardownTiming::SpectatorExit::RetireCutShort);
+	RetireFinishedMatch("spectator_finished");
+	// Retiring the session clears the match notice, so this comes after it.
+	if (step == session::MatchTeardownTiming::SpectatorExit::RetireCutShort)
+		PushAlert(loc::T("runtime.spectator_close_timeout"), NoticeSeverity::Warning);
 }
 
 void ReportMatchAbort() {
@@ -920,6 +972,12 @@ void ReportMatchAbort() {
 	action.table = static_cast<std::uint8_t>(member->table);
 	action.tableRevision = snapshot.tables[action.table].revision;
 	action.matchGeneration = runtime->match->Generation();
+	// A game whose end is known needs no abort; the authority would only
+	// answer WrongGeneration.
+	if (IsRuntimeMatchEndCommitted() || netplay::GenerationEnded(snapshot.tables[action.table], action.matchGeneration)) {
+		spdlog::info("Room: not reporting the abort of finished generation {} table={}", action.matchGeneration, action.table);
+		return;
+	}
 	if (client.SendRoomAction(action) != session::SendResult::Queued) {
 		if (!runtime->pendingAbort || runtime->pendingAbort->matchGeneration == action.matchGeneration)
 			runtime->pendingAbort.reset(new room::Action(action));
@@ -1192,14 +1250,15 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 					runtime->error = loc::T("runtime.spectator_action_retrying");
 					return Defer(runtime->roomActionIntent, command);
 				}
-				if (action == room::ActionKind::Unwatch) AbortLocalMatch(loc::T("runtime.leaving_spectator"));
+				// The player chose to leave: a passing note, not an error.
+				if (action == room::ActionKind::Unwatch) AbortLocalMatch(loc::T("runtime.leaving_spectator"), NoticeSeverity::Info);
 				return DispatchOutcome::Dispatched;
 			}
 			if (runtime->controller.GetSnapshot().match == netplay::MatchState::Playing && !localSpectator) return DispatchOutcome::Dropped;
 			// The match teardown this starts ends by itself, so the wait has no budget.
 			Defer(runtime->roomActionIntent, command, Intent::Budget::Untimed);
 			if (DrainingSpectators()) RetireFinishedMatch("iroh_room_action");
-			else AbortLocalMatch(loc::T("runtime.returning_room"));
+			else AbortLocalMatch(loc::T("runtime.returning_room"), NoticeSeverity::Info);
 			return DispatchOutcome::Deferred;
 		}
 	}
@@ -1429,7 +1488,10 @@ static void DrainRoomEvents() {
 					// waits for the writer to report the revision on disk.
 					if (profileMatch) runtime->terminalOutcomeConsumed = false;
 				}
-				spdlog::info("Room: match ended table={} generation={} result={} replay={}",
+				if (runtime->match && event.matchGeneration && event.matchGeneration == runtime->match->Generation())
+					runtime->committedEndGeneration = event.matchGeneration;
+				spdlog::log(runtime->matchEndLog.First(event.table, event.matchGeneration) ? spdlog::level::info : spdlog::level::debug,
+					"Room: match ended table={} generation={} result={} replay={}",
 					event.table, event.matchGeneration, static_cast<int>(event.result), event.terminalReplay);
             }
 			if (event.kind == room::Event::Kind::ResultDisputed)
@@ -1507,9 +1569,10 @@ static void RetryPendingAbort() {
 	if (runtime->pendingAbort && runtime->attached && UserApp::netplay) {
 		const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
 		const auto& action = *runtime->pendingAbort;
+		// Kept while the projection lags the generation; its deadline bounds that.
 		const bool current = runtime->match && runtime->match->Generation() == action.matchGeneration &&
 			action.table < room::TableCount && snapshot.roomEpoch == action.roomEpoch &&
-			snapshot.tables[action.table].matchGeneration == action.matchGeneration;
+			!IsRuntimeMatchEndCommitted() && !netplay::GenerationEnded(snapshot.tables[action.table], action.matchGeneration);
 		if (!current) {
 			runtime->pendingAbort.reset();
 			runtime->pendingAbortDeadline = 0;
@@ -1689,7 +1752,8 @@ static void TickMatch() {
 					return std::none_of(members.begin(), members.end(), [&](const SessionProtocol::MemberData& member) { return member.connId == id; });
 				});
 				if (missing && !UserApp::netplay->client.GetRoomSnapshot().roomEpoch) Apply(netplay::EventKind::ControlLost, loc::T("runtime.participant_left_room"));
-				else if (missing && runtime->participantLeftGeneration != runtime->match->Generation()) {
+				else if (missing && runtime->participantLeftGeneration != runtime->match->Generation() &&
+					runtime->committedEndGeneration != runtime->match->Generation()) {
 					// Custom rooms: the authority ends the game itself (MatchEnded/
 					// Abort). The survivor was never told why, only that GGPO
 					// timed out. Say it once per game.
@@ -1719,19 +1783,7 @@ static void ReleaseFinishedMatch() {
 			runtime->terminalAckGeneration) == session::SendResult::Queued) {
 			runtime->terminalAckPending = false;
 		}
-	} else if (runtime->terminalAckPending && Game::Battle::System::ggpo && LocalIsSpectator()) {
-		// The spectator cannot reach the acknowledgement above on its own, so
-		// bound the wait from the committed match end. Releasing GGPO also
-		// re-arms the helper deadline in IrohMatchSession, which cannot age
-		// while native GGPO still owns the socket.
-		runtime->match->ArmSpectatorExit();
-		if (runtime->match->SpectatorExitTimedOut()) {
-			const std::string reason = loc::T("runtime.spectator_close_timeout");
-			runtime->error = reason;
-			ReportMatchAbort();
-			AbortLocalMatch(reason.c_str());
-		}
-	} else if (runtime->match) runtime->match->ClearSpectatorExit();
+	}
 	if (runtime->recoveringMatch && runtime->match && runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle && AtMainMenu()) {
 		runtime->recoveringMatch = false; runtime->matchEntered = false;
 		Apply(netplay::EventKind::MatchRecovered, runtime->error);
