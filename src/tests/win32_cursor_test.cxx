@@ -51,6 +51,16 @@ int main() {
             MAKELPARAM(HTLEFT, WM_MOUSEMOVE), true, true) == 0, "overlay swallowed window-border cursor");
         check(GetCursor() == resize, "overlay replaced window-border cursor");
     }
+    // Over the training chip the mouse is Ember's, and the keys stay the game's.
+    sf4e::ui::SetOverlayCursorOwnership(false);ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);ImGui_ImplWin32_NewFrame();
+    check(sf4e::ui::HandleOverlayMessage(window, WM_MOUSEMOVE, 0, MAKELPARAM(10, 10), false, true, true) != 0, "chip hover leaked the mouse to the game");
+    check(sf4e::ui::HandleOverlayMessage(window, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(10, 10), false, true, true) != 0, "chip click leaked to the game");
+    check(sf4e::ui::HandleOverlayMessage(window, WM_LBUTTONUP, 0, MAKELPARAM(10, 10), false, true, true) != 0, "chip release leaked to the game");
+    check(sf4e::ui::HandleOverlayMessage(window, WM_KEYDOWN, 'A', 0, false, false, true) == 0, "chip hover took the game's keys");
+    SetCursor(resize);
+    check(sf4e::ui::HandleOverlayMessage(window, WM_SETCURSOR, reinterpret_cast<WPARAM>(window),
+        MAKELPARAM(HTCLIENT, WM_MOUSEMOVE), false, true, true) != 0 && GetCursor() == arrow, "chip hover did not own the cursor");
+    check(sf4e::ui::HandleOverlayMessage(window, WM_MOUSEMOVE, 0, MAKELPARAM(10, 10), false, true, false) == 0, "leaving the chip kept the mouse");
     check(sf4e::ui::HandleOverlayMessage(window, WM_KEYDOWN, 'A', 0, true, true) != 0, "menu typing leaked");
     check(sf4e::ui::HandleOverlayMessage(window, WM_KEYUP, 'A', 0, false, false) == 0, "native key was swallowed");
     check(sf4e::ui::HandleOverlayMessage(window, WM_SYSKEYDOWN, VK_F10, 0, false, true) != 0, "F10 was not consumed at menu");

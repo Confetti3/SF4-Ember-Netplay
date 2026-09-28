@@ -38,7 +38,7 @@ const char* SessionClient::JoinRejectionKey(ErrorType type) {
 	switch (type) {
 	case SCE_JOIN_REJECTED_HASH_INVALID: return "runtime.build_mismatch";
 	case SCE_JOIN_REJECTED_LOBBY_FULL: return "runtime.room_full";
-	case SCE_JOIN_REJECTED_NAME_TAKEN: return "runtime.name_taken";
+	case SCE_JOIN_REJECTED_NAME_TAKEN: return "room.reject.name_taken";
 	default: return "runtime.room_request_failed";
 	}
 }

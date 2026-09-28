@@ -1,5 +1,6 @@
 #include "RecoverySurface.hxx"
 #include "RecoveryMenu.hxx"
+#include "RecoveryController.hxx"
 #include "SelectionArt.hxx"
 #include "Theme.hxx"
 #include "../common/Localization.hxx"
@@ -11,12 +12,23 @@
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx9.h>
 #include <filesystem>
+#include <memory>
+#include <utility>
 
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 namespace sf4e { namespace ui {
 namespace {
 using platform::Utf8ToWide;
+// Set by WM_DEVICECHANGE, which top-level windows receive without registering;
+// the message loop hands it to the controller poller.
+bool devicesChanged = false;
+// Losing activation or being minimized disarms the pads (RecoveryController::
+// Deactivate), including while a frame is skipped and nothing is polled.
+bool deactivated = false;
 LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM w, LPARAM l) {
+    if (message == WM_DEVICECHANGE) devicesChanged = true;
+    if ((message == WM_ACTIVATE && LOWORD(w) == WA_INACTIVE) || (message == WM_ACTIVATEAPP && !w) ||
+        (message == WM_SIZE && w == SIZE_MINIMIZED)) deactivated = true;
     if (ImGui::GetCurrentContext()) {
         const auto handled = ImGui_ImplWin32_WndProcHandler(window, message, w, l);
         if (handled) return handled;
@@ -61,7 +73,9 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
         if (d3d) d3d->Release(); if (window) DestroyWindow(window); if (SUCCEEDED(com)) CoUninitialize(); return false;
     }
     ImGui::CreateContext(); auto& io = ImGui::GetIO(); io.IniFilename = nullptr;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
+    // Pads reach the menu only through RecoveryController; the backend is
+    // built without gamepad support, so ImGui gamepad navigation stays off.
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(window));
     ImGui_ImplWin32_Init(window); ImGui_ImplDX9_Init(device);
     wchar_t executable[32768]={};GetModuleFileNameW(nullptr,executable,32768);
@@ -71,13 +85,18 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
     platform::ApplicationServices services;
     if (updates) services.Request(platform::ServiceAction::CheckUpdates);
     bool quit = false, retry = false;
-    GameMenu menu;menu.navigation=MenuNavigation("close");
+    Tone messageTone = Tone::Error;  // the launch failure that opened recovery
+    GameMenu menu;menu.navigation=RecoveryNavigation(updates);
+    // Released before the window it is bound to is destroyed.
+    auto controller=std::make_unique<RecoveryController>(window);
     while (!quit) {
         MSG event;
         while (PeekMessageW(&event, nullptr, 0, 0, PM_REMOVE)) {
             if (event.message == WM_QUIT) quit = true;
             TranslateMessage(&event); DispatchMessageW(&event);
         }
+        // Before any frame is skipped below, so a minimized or lost window disarms too.
+        if (std::exchange(deactivated, false)) controller->Deactivate();
         if (quit) { services.Cancel(); break; }
         RECT client{}; GetClientRect(window, &client);
         if (IsIconic(window) || client.right == 0 || client.bottom == 0) { MsgWaitForMultipleObjects(0,nullptr,FALSE,50,QS_ALLINPUT); continue; }
@@ -91,15 +110,32 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
         if (ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(window))) ImGui_ImplDX9_InvalidateDeviceObjects();
         art->Pump();
         ImGui_ImplDX9_NewFrame(); ImGui_ImplWin32_NewFrame(); ImGui::NewFrame();
-        MenuInput input;
-        const ImGuiKey buttons[]={ImGuiKey_GamepadDpadUp,ImGuiKey_GamepadDpadDown,ImGuiKey_GamepadDpadLeft,ImGuiKey_GamepadDpadRight,ImGuiKey_GamepadFaceDown,ImGuiKey_GamepadFaceRight};
-        for(unsigned i=0;i<6;++i)if(ImGui::IsKeyDown(buttons[i]))input.held|=1u<<i;
-        SetMenuInput(input);SetMenuGlyphs(io.BackendFlags&ImGuiBackendFlags_HasGamepad?3:0,0x40000,0x20000);
+        // ReadMenuInput adds these keys to the pad bits itself; here they only
+        // tell the legend that the keyboard was used last.
+        unsigned keyboard=0;
+        const ImGuiKey keys[]={ImGuiKey_UpArrow,ImGuiKey_DownArrow,ImGuiKey_LeftArrow,ImGuiKey_RightArrow,ImGuiKey_Enter,ImGuiKey_Escape};
+        for(unsigned i=0;i<6;++i)if(ImGui::IsKeyDown(keys[i]))keyboard|=1u<<i;
+        if(std::exchange(devicesChanged,false))controller->DevicesChanged();
+        // Pads are read whatever window has focus, so they drive the menu only
+        // while it is in front.
+        MenuInput input;input.held=controller->Poll(keyboard,GetForegroundWindow()==window);
+        SetMenuInput(input);
+        switch(controller->Family()){
+        case PadFamily::Xbox:SetMenuGlyphs(3,0x40000,0x20000);break;
+        case PadFamily::DirectInput:SetMenuGlyphs(4,0,0,"1","2");break;
+        default:SetMenuGlyphs(0,0,0);break;
+        }
         const auto state = services.Snapshot();
-        switch(DrawRecoveryMenu(menu,state,message,updates)) {
+        switch(DrawRecoveryMenu(menu,state,message,updates,messageTone)) {
         case RecoveryChoice::Folder:
-            if(ChooseDirectory(window,gameDirectory))message=std::filesystem::exists(std::filesystem::path(gameDirectory)/L"SSFIV.exe")?
-                loc::T("recovery.folder_selected"):loc::T("recovery.folder_invalid");
+            // The picker blocks this loop, so the pads are disarmed before it
+            // opens: a button held while it was up cannot press on return.
+            controller->Deactivate();
+            if(ChooseDirectory(window,gameDirectory)){
+                const bool valid=std::filesystem::exists(std::filesystem::path(gameDirectory)/L"SSFIV.exe");
+                message=valid?loc::T("recovery.folder_selected"):loc::T("recovery.folder_invalid");
+                messageTone=valid?Tone::Success:Tone::Error;
+            }
             break;
         case RecoveryChoice::Retry:retry=true;quit=true;break;
         case RecoveryChoice::CheckUpdates:services.Request(platform::ServiceAction::CheckUpdates);break;
@@ -114,7 +150,7 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
         if (SUCCEEDED(device->BeginScene())) { ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData()); device->EndScene(); }
         device->Present(nullptr,nullptr,nullptr,nullptr);
     }
-    SetMenuArt(nullptr);art.reset();
+    controller.reset();SetMenuArt(nullptr);art.reset();
     ImGui_ImplDX9_Shutdown(); ImGui_ImplWin32_Shutdown(); ImGui::DestroyContext();
     device->Release(); d3d->Release(); DestroyWindow(window); if (SUCCEEDED(com)) CoUninitialize();
     return retry;

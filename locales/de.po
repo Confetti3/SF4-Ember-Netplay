@@ -141,6 +141,21 @@ msgstr "Laufenden Download oder Prüfung abbrechen. Warten Sie bis zum Abschluss
 msgid "recovery.close_detail"
 msgstr "Wiederherstellung ohne SF4-Start schließen. Laufende Vorgänge werden abgebrochen."
 
+msgid "recovery.close_cancels_detail"
+msgstr "Schließen bricht den laufenden Vorgang ab."
+
+msgid "recovery.back_close"
+msgstr "Starthilfe schließen"
+
+msgid "updates.back_close"
+msgstr "Updater schließen"
+
+msgid "screen.recovery"
+msgstr "Starthilfe"
+
+msgid "screen.updates"
+msgstr "Updates"
+
 msgid "updates.downloaded_mb"
 msgstr "{0:.1f} MB heruntergeladen"
 
@@ -199,7 +214,7 @@ msgid "settings.language"
 msgstr "Sprache"
 
 msgid "settings.language.detail"
-msgstr "Ändert die Ember-Oberflächensprache sofort. Automatisch folgt erst der Spielsprache, dann der Windows-Sprache."
+msgstr "Zum Wählen aus der Liste auswählen oder mit Links/Rechts wechseln. Automatisch folgt erst der Spielsprache, dann der Windows-Sprache."
 
 msgid "settings.language.system_with"
 msgstr "Automatisch — {0}"
@@ -222,6 +237,33 @@ msgstr "Prüfen"
 msgid "menu.select"
 msgstr "Auswählen"
 
+msgid "menu.read"
+msgstr "Lesen"
+
+msgid "menu.choose"
+msgstr "Wählen"
+
+msgid "menu.hint.save_main"
+msgstr "Als Hauptcharakter"
+
+msgid "menu.hint.save_fighter"
+msgstr "Charakter speichern"
+
+msgid "menu.hint.save_costume"
+msgstr "Kleidung speichern"
+
+msgid "menu.hint.save_color"
+msgstr "Farbe speichern"
+
+msgid "menu.hint.save_ultra"
+msgstr "Ultra speichern"
+
+msgid "menu.hint.save_stage"
+msgstr "Stage speichern"
+
+msgid "menu.hint.paste"
+msgstr "Einfügen"
+
 msgid "menu.navigate"
 msgstr "Navigieren"
 
@@ -240,6 +282,9 @@ msgstr "Rundenzeit"
 msgid "screen.home"
 msgstr "Startseite"
 
+msgid "screen.game"
+msgstr "SF4"
+
 msgid "screen.online"
 msgstr "Online-Spiel"
 
@@ -257,6 +302,15 @@ msgstr "Hauptcharakter wählen"
 
 msgid "screen.about"
 msgstr "Hilfe & Info"
+
+msgid "screen.discord"
+msgstr "Discord"
+
+msgid "screen.discord_invitation"
+msgstr "Discord-Einladung"
+
+msgid "screen.assignment"
+msgstr "Controller zuweisen"
 
 msgid "screen.room"
 msgstr "Raum"
@@ -278,9 +332,6 @@ msgstr "Chat"
 
 msgid "screen.room_settings"
 msgstr "Raumeinstellungen"
-
-msgid "screen.practice_position"
-msgstr "Trainingsposition"
 
 msgid "screen.dummy_recording"
 msgstr "Dummy-Aufnahme"
@@ -395,6 +446,9 @@ msgstr "Drücken Sie eine Taste am gewünschten Controller."
 
 msgid "controller.release_buttons"
 msgstr "Zum Fortfahren alle Tasten loslassen."
+
+msgid "controller.keep_current"
+msgstr "Eine Taste am aktuellen Controller behält ihn bei. Escape oder ein Klick bricht ab."
 
 msgid "home.online"
 msgstr "Online-Spiel"
@@ -558,9 +612,6 @@ msgstr "Aktivität und Einladungen."
 msgid "player.title"
 msgstr "SPIELER & CONTROLLER"
 
-msgid "player.display_name"
-msgstr "Anzeigename"
-
 msgid "player.change_controller"
 msgstr "Controller wechseln"
 
@@ -629,6 +680,9 @@ msgstr "Erst Discord-Aktivität aktivieren."
 
 msgid "discord.invitation_title"
 msgstr "DISCORD-EINLADUNG"
+
+msgid "discord.title"
+msgstr "DISCORD"
 
 msgid "discord.cancel_invitation"
 msgstr "Einladung ablehnen"
@@ -846,8 +900,20 @@ msgstr "Trainingslabor"
 msgid "menu.back_to"
 msgstr "< Zurück / {0}"
 
+msgid "menu.return_to"
+msgstr "Zurück zu {0}"
+
+msgid "menu.flyout_title"
+msgstr "EMBER / {0}"
+
 msgid "training.controls"
 msgstr "Trainingssteuerung"
+
+msgid "training.open_chip"
+msgstr "F6 Trainingssteuerung"
+
+msgid "training.hide_hint"
+msgstr "F5 HUD ausblenden"
 
 msgid "training.dummy_recording"
 msgstr "Dummy-Aufnahme"
@@ -1059,6 +1125,15 @@ msgstr "Ultra Combo"
 msgid "selection.ultra_double"
 msgstr "Ultra Double"
 
+msgid "selection.ultra_one"
+msgstr "Ultra I"
+
+msgid "selection.ultra_two"
+msgstr "Ultra II"
+
+msgid "selection.hold"
+msgstr "HALTEN"
+
 msgid "selection.stage"
 msgstr "Stage"
 
@@ -1162,10 +1237,10 @@ msgid "selection.preview_locked"
 msgstr "Nur Vorschau – Auswahl gesperrt."
 
 msgid "selection.saved_appearance"
-msgstr "Gespeichert: Kleidung {0} / Farbe {1}"
+msgstr "Gespeichert: {0} / Farbe {1}"
 
 msgid "selection.saved_full"
-msgstr "Gespeichert: {0} / Kleidung {1} / Farbe {2}"
+msgstr "Gespeichert: {0} / {1} / Farbe {2}"
 
 msgid "selection.preview_save_short"
 msgstr "Nur Vorschau – mit Auswählen speichern"
@@ -1194,14 +1269,11 @@ msgstr "Builds stimmen nicht überein. Beide Spieler brauchen dasselbe SF4 Ember
 msgid "runtime.room_full"
 msgstr "Dieser Raum ist voll."
 
-msgid "runtime.name_taken"
-msgstr "Dieser Spielername ist schon im Raum. Ändern Sie ihn unter Einstellungen."
-
 msgid "runtime.selection_combination_unavailable"
 msgstr "Diese Kombination ist nach den Raumregeln nicht verfügbar. Wählen Sie einen anderen Charakter, eine andere Kleidung, Farbe oder Edition."
 
 msgid "runtime.selection_summary"
-msgstr "{0} / Kleidung {1} / Farbe {2} / {3}"
+msgstr "{0} / {1} / Farbe {2} / {3}"
 
 msgid "runtime.selection_unavailable"
 msgstr "Auswahl nach diesen Regeln nicht verfügbar. Wählen Sie unter Charakterauswahl eine verfügbare Option."
@@ -1413,9 +1485,6 @@ msgstr " Platz in der Warteschlange geht verloren."
 msgid "room.leave.host"
 msgstr " Ein anderes Mitglied wird Host."
 
-msgid "room.action_queue_failed"
-msgstr "Aktion konnte nicht eingereiht werden. Erneut versuchen."
-
 msgid "room.table_detail"
 msgstr "{0} vs {1}\n{2}\nWarteschlange: {3} / Zuschauer: {4}\nSie: {5}"
 
@@ -1610,9 +1679,6 @@ msgstr "Bereit aus / Charakter frei"
 
 msgid "room.readying"
 msgstr "Wird bereit..."
-
-msgid "room.result_unresolved"
-msgstr "Ergebnis ungeklärt"
 
 msgid "room.preparing_match"
 msgstr "Vorbereitung"
@@ -1848,9 +1914,6 @@ msgstr "Diese Kapazität übernehmen."
 msgid "profile.main_badge"
 msgstr "HAUPT"
 
-msgid "training.shortcuts"
-msgstr "F6 Trainingssteuerung | F5 HUD ausblenden"
-
 msgid "common.not_set"
 msgstr "Nicht festgelegt"
 
@@ -1882,7 +1945,7 @@ msgid "edit.title"
 msgstr "Text bearbeiten"
 
 msgid "edit.instructions"
-msgstr "Tippen oder einfügen. Enter bestätigt; Escape oder Controller-Back bricht ab."
+msgstr "Mit der Tastatur tippen oder einfügen. Enter oder Controller-Auswahl bestätigt; Escape oder Controller-Back bricht ab."
 
 msgid "edit.updating"
 msgstr "Raum wird aktualisiert. Ihr Entwurf bleibt; Sie können weitertippen oder abbrechen."
@@ -1891,7 +1954,10 @@ msgid "common.accept"
 msgstr "Annehmen"
 
 msgid "edit.cancel"
-msgstr "Abbrechen"
+msgstr "Bearbeiten abbrechen"
+
+msgid "edit.bytes"
+msgstr "{0} / {1} Byte"
 
 msgid "discord.unavailable_build"
 msgstr "Discord-Integration ist in diesem Build nicht verfügbar."

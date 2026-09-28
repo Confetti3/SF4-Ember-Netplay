@@ -7,6 +7,10 @@
 
 namespace sf4e { namespace ui {
 bool DrawStageSelector(int& nativeId, SelectionArt* art);
+// The names every screen uses for a costume ("Original", "Alternate 1 / pack")
+// and an Ultra, so a saved choice reads the same as the card that made it.
+std::string CostumeLabel(const selection::Pick& pick);
+const char* UltraLabel(int ultra);
 class FighterSelector {
 public:
     enum class Page { Fighter, Appearance, Ultra, Stage };

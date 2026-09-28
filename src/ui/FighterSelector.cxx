@@ -78,8 +78,10 @@ void CommandSymbols(const char* notation) {
             draw->AddCircleFilled(points[0], 2 * scale, Ember);
         }
         if (charge) {
-            const float fontSize = 9 * scale;
-            draw->AddText(ImGui::GetFont(), fontSize, ImVec2(p.x, p.y + unit), Ember, "HOLD");
+            // A charge mark over the glyph; a longer translation shrinks to fit it.
+            const char* hold = loc::T("selection.hold");
+            const float fontSize = (std::min)(9 * scale, 9 * scale * width / (std::max)(1.f, ImGui::GetFont()->CalcTextSizeA(9 * scale, FLT_MAX, 0, hold).x));
+            draw->AddText(ImGui::GetFont(), fontSize, ImVec2(p.x, p.y + unit), Ember, hold);
         }
         x += width + gap;
     }
@@ -150,14 +152,22 @@ const char* HandicapLabel(int handicap) {
     static const char* const ids[]={"selection.handicap_normal","selection.handicap_one_hit","selection.handicap_25","selection.handicap_50","selection.handicap_75"};
     return loc::T(ids[(std::max)(0,(std::min)(4,handicap))]);
 }
-std::string CostumeLabel(const selection::Pick& pick) {
-    if (pick.costume == 0) return loc::T("selection.original");
-    return loc::Tf("selection.alternate_pack", pick.costume, selection::CostumePack(pick.fighter, pick.costume));
+// Where Select saves the focused card, the legend says what it saves.
+MenuEntry Saving(MenuEntry row,const char* hint,bool editable) {
+    if(editable)row.hint=loc::T(hint);
+    return row;
 }
 const char* StageLabel(int stageId) {
     if (selection::IsRandomStage(stageId)) return loc::T("selection.random_stage");
     return selection::FindStage(selection::NormalizeStage(stageId))->name;
 }
+}
+std::string CostumeLabel(const selection::Pick& pick) {
+    if (pick.costume == 0) return loc::T("selection.original");
+    return loc::Tf("selection.alternate_pack", pick.costume, selection::CostumePack(pick.fighter, pick.costume));
+}
+const char* UltraLabel(int ultra) {
+    return loc::T(ultra==2?"selection.ultra_double":ultra==1?"selection.ultra_two":"selection.ultra_one");
 }
 
 
@@ -200,6 +210,10 @@ bool DrawStageSelector(int& nativeId, SelectionArt* art) {
 bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt* art,const AvailabilityReader& readAvailability,int* stageId,bool editable,const std::string& selectionError) {
  using namespace selection;
  bool changed=false;auto& nav=menu_.navigation;const auto screen=nav.Screen();
+ // The parent says where Back from here goes and which of its shortcuts
+ // this screen hands back to it.
+ const auto& embedded=EmbeddedReturnContext();
+ menu_.rootName=loc::T("screen.selection");menu_.exitName=embedded.exitName;menu_.shortcutHints=embedded.shortcutHints;
  const auto availability=readAvailability?readAvailability(pick.fighter):Availability{};
  if(editable)changed=Normalize(pick,editionSelect,&availability);
  const char* locked=loc::T(editable?"selection.select_saves":"selection.locked_detail");
@@ -212,7 +226,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    Row("options",loc::T("selection.additional_options"),loc::T("selection.additional_options.detail"))};
  }else if(screen=="roster"){
   page_=Page::Fighter;title=loc::T("selection.choose_fighter");
-  for(int id=0;id<FighterCount;++id)rows.push_back(Row("fighter-"+std::to_string(id),FindFighter(id)->name,locked,editable));
+  for(int id=0;id<FighterCount;++id)rows.push_back(Saving(Row("fighter-"+std::to_string(id),FindFighter(id)->name,locked,editable),"menu.hint.save_fighter",editable));
   columns=(std::max)(3,(std::min)(8,static_cast<int>(ImGui::GetContentRegionAvail().x/(170*Scale()))));
  }else if(screen=="appearance"){
   page_=Page::Appearance;title=loc::T("selection.appearance_title");
@@ -224,23 +238,25 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   else if(screen=="costumes")for(int costume:AllowedCostumes(pick.fighter,availability)){
    auto option=pick;option.costume=costume;
    const bool usable=!AllowedColors(pick.fighter,costume,availability).empty();
-   rows.push_back(Row("costume-"+std::to_string(costume),costume==0?loc::T("selection.original"):loc::Tf("selection.alternate",costume),
-    usable?CostumeLabel(option)+"\n"+locked:loc::T("selection.no_colors"),editable&&usable));
+   // The legend says Select saves, so an editable card's detail is just its
+   // pack, which fits the compact gallery's two lines with the saved choice.
+   rows.push_back(Saving(Row("costume-"+std::to_string(costume),costume==0?loc::T("selection.original"):loc::Tf("selection.alternate",costume),
+    !usable?std::string(loc::T("selection.no_colors")):editable?CostumeLabel(option):CostumeLabel(option)+"\n"+locked,editable&&usable),"menu.hint.save_costume",editable));
   }else for(int color:AllowedColors(pick.fighter,pick.costume,availability))
-   rows.push_back(Row("color-"+std::to_string(color),loc::Tf("selection.color",color+1),locked,editable));
+   rows.push_back(Saving(Row("color-"+std::to_string(color),loc::Tf("selection.color",color+1),editable?"":locked,editable),"menu.hint.save_color",editable));
   columns=(std::max)(2,(std::min)(4,static_cast<int>(ImGui::GetContentRegionAvail().x/(300*Scale()))));
  }else if(screen=="ultra"){
   page_=Page::Ultra;title=loc::T("selection.ultra_combo_title");
   for(int ultra:AllowedUltras(pick.fighter,pick.edition)){
-    auto row=Row("ultra-"+std::to_string(ultra),ultra==2?loc::T("selection.ultra_double"):ultra==0?"Ultra I":"Ultra II",
-    ultra==2?loc::T("selection.ultra_double.detail"):FindFighter(pick.fighter)->ultras[ultra],editable);
+    auto row=Saving(Row("ultra-"+std::to_string(ultra),UltraLabel(ultra),
+    ultra==2?loc::T("selection.ultra_double.detail"):FindFighter(pick.fighter)->ultras[ultra],editable),"menu.hint.save_ultra",editable);
    if(ultra==pick.ultra)row.value=loc::T("selection.saved");
    rows.push_back(std::move(row));
   }
  }else if(screen=="stage"){
   page_=Page::Stage;title=loc::T("selection.stage_title");
-  rows.push_back(Row("stage-"+std::to_string(RandomStageId),loc::T("selection.random_stage"),stageId?loc::T("selection.random_stage.detail"):loc::T("selection.only_p1_stage"),editable&&stageId));
-  for(const auto& stage:StageList())rows.push_back(Row("stage-"+std::to_string(stage.id),stage.name,stageId?locked:loc::T("selection.only_p1_stage"),editable&&stageId));
+  rows.push_back(Saving(Row("stage-"+std::to_string(RandomStageId),loc::T("selection.random_stage"),stageId?loc::T("selection.random_stage.detail"):loc::T("selection.only_p1_stage"),editable&&stageId),"menu.hint.save_stage",editable&&stageId));
+  for(const auto& stage:StageList())rows.push_back(Saving(Row("stage-"+std::to_string(stage.id),stage.name,stageId?locked:loc::T("selection.only_p1_stage"),editable&&stageId),"menu.hint.save_stage",editable&&stageId));
   // Derive columns like the roster and the galleries do. A fixed three columns
   // left 16:9 stage cards far below the width the sibling grids guarantee.
   columns=(std::max)(2,(std::min)(4,static_cast<int>(ImGui::GetContentRegionAvail().x/(220*Scale()))));
@@ -254,7 +270,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  const bool compactAppearance=(screen=="costumes"||screen=="colors")&&ImGui::GetContentRegionAvail().x<820*Scale();
  const auto preview=[&](const std::string& id){
   if(screen=="ultra"){
-   ImGui::TextWrapped("%s",loc::Tf("selection.saved_value",pick.ultra==2?loc::T("selection.ultra_double"):pick.ultra==0?"Ultra I":"Ultra II").c_str());
+   ImGui::TextWrapped("%s",loc::Tf("selection.saved_value",UltraLabel(pick.ultra)).c_str());
    if(id.compare(0,6,"ultra-")==0){
     const int ultra=std::stoi(id.substr(6));
     ImGui::TextWrapped("%s",loc::T(ultra==pick.ultra?"selection.ultra_selected":editable?"selection.preview_save":"selection.preview_locked"));
@@ -264,14 +280,14 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    return;
   }
   if(compactAppearance){
-   ImGui::TextWrapped("%s",loc::Tf("selection.saved_appearance",pick.costume+1,pick.color+1).c_str());return;
+   ImGui::TextWrapped("%s",loc::Tf("selection.saved_appearance",CostumeLabel(pick),pick.color+1).c_str());return;
   }
   int focusFighter=pick.fighter,focusStage=stageId?*stageId:0,focusCostume=pick.costume,focusColor=pick.color;
   if(id.compare(0,8,"fighter-")==0)focusFighter=std::stoi(id.substr(8));
   if(id.compare(0,6,"stage-")==0)focusStage=std::stoi(id.substr(6));
   if(id.compare(0,8,"costume-")==0){focusCostume=std::stoi(id.substr(8));focusColor=PreviewColor(pick.fighter,focusCostume,availability);}
   if(id.compare(0,6,"color-")==0)focusColor=std::stoi(id.substr(6));
-  ImGui::TextWrapped("%s",loc::Tf("selection.saved_full",FindFighter(pick.fighter)->name,pick.costume+1,pick.color+1).c_str());
+  ImGui::TextWrapped("%s",loc::Tf("selection.saved_full",FindFighter(pick.fighter)->name,CostumeLabel(pick),pick.color+1).c_str());
   if(focusFighter!=pick.fighter||focusCostume!=pick.costume||focusColor!=pick.color)ImGui::TextWrapped("%s",loc::T("selection.preview_save_short"));
   const float width=(std::min)(ImGui::GetContentRegionAvail().x,300*Scale());
   const float height=(std::min)(ImGui::GetContentRegionAvail().y-10*Scale(),250*Scale());
@@ -293,10 +309,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(min.x,max.y-labelHeight),max,IM_COL32(16,15,14,230));
   const float font=(std::min)(ImGui::GetFontSize(),(max.x-min.x-6)*ImGui::GetFontSize()/(std::max)(1.f,ImGui::CalcTextSize(e.label.c_str()).x));
   ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),font,ImVec2(min.x+3,max.y-labelHeight),saved?palette::Ember:palette::Ivory,e.label.c_str());
-  if(saved){const auto p=ImVec2(min.x+3,min.y+2);
-   const char* saved=loc::T("selection.saved");
-   ImGui::GetWindowDrawList()->AddRectFilled(p,ImVec2(p.x+ImGui::CalcTextSize(saved).x+8*Scale(),p.y+ImGui::GetTextLineHeight()+2*Scale()),IM_COL32(16,15,14,230));
-   ImGui::GetWindowDrawList()->AddText(ImVec2(p.x+4*Scale(),p.y),palette::Ember,saved);}
+  if(saved)DrawCardBadge(ImVec2(min.x+3,min.y+2),max.x-min.x-6,loc::T("selection.saved"),"saved-badge");
   return true;
  };
  const std::string status=!selectionError.empty()?selectionError:

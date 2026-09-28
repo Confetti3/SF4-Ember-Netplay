@@ -35,12 +35,19 @@ inline const char* PromptAsset(const char* glyph) {
 }
 // A screen's own button, shown after the standard ones.
 struct LegendHint { const char* glyph; std::string label; };
+// GameMenu.hxx; declared here so the legend reports its labels too.
+void ReportMenuText(const char* id,float textHeight,float interiorHeight,float textWidth,float availableWidth);
 inline float MenuLegend(float width,const char* select,const char* back,bool draw,bool adjustable,SelectionArt* art,float scale=0,
                         const char* primary=loc::T("menu.select"),const std::vector<LegendHint>& extras={},const char* backText=nullptr) {
     const bool keyboard=!std::strcmp(select,"Enter");
-    const std::string action=std::string(!std::strcmp(select,"LP")?"LP ":"")+(primary?primary:"");
+    // A button without its own prompt art (LP, a stick's "1") is drawn as a
+    // plain circle, so its label names it.
+    const auto prefix=[](const char* glyph){
+        return !std::strcmp(PromptAsset(glyph),"generic_button_circle_fill")?std::string(glyph)+" ":std::string();
+    };
+    const std::string action=prefix(select)+(primary?primary:"");
     const char* backWord=backText&&*backText?backText:loc::T("common.back");
-    const std::string backLabel=!std::strcmp(back,"LK")?std::string("LK ")+backWord:backWord;
+    const std::string backLabel=prefix(back)+backWord;
     std::vector<LegendHint> hints{{keyboard?"arrows":"dpad",loc::T("menu.navigate")}};
     if(primary)hints.push_back({select,action});
     hints.push_back({back,backLabel});
@@ -56,6 +63,9 @@ inline float MenuLegend(float width,const char* select,const char* back,bool dra
         const float w=size+8*s+ImGui::GetFont()->CalcTextSizeA(font,FLT_MAX,0,hint.label.c_str()).x+24*s;
         if(x&&x+w>width){x=0;y+=height;}
         if(draw){
+            // The font shrinks and rows wrap, so only a hint wider than the
+            // whole legend can be cut off.
+            ReportMenuText(("legend/"+hint.label).c_str(),font,height,w,width);
             auto* d=ImGui::GetWindowDrawList();
             const auto icon=art?art->InputPrompt(PromptAsset(hint.glyph)):SelectionImage{};
             if(icon.texture)d->AddImage(icon.texture,ImVec2(start.x+x,start.y+y),ImVec2(start.x+x+size,start.y+y+size),icon.uvMin,icon.uvMax);

@@ -35,6 +35,8 @@ static sf4e::ui::ApplicationShell shell;
 static sf4e::ui::OverlayPresentation presentation;
 static sf4e::OverlayPrefs::Data s_prefs;
 static std::atomic<bool> capture{false};
+// The pointer is over the training HUD's chip: the mouse (only) is Ember's.
+static std::atomic<bool> pointerCapture{false};
 static std::atomic<bool> focused{true};
 static std::atomic<bool> mainRequested{false};
 static bool trainingOpen = false, trainingHud = true;
@@ -166,9 +168,9 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.canChangeController = snapshot.canChangeController;
     const auto* fighter = sf4e::selection::FindFighter(lobbyMenuCharaID);
     view.selectedFighter=lobbyMenuCharaID;
+    auto summaryPick = sf4e::selection::FromNative(lobbyConditions); summaryPick.fighter = lobbyMenuCharaID;
     view.selectionSummary = sf4e::loc::Tf("runtime.selection_summary", fighter ? fighter->name : sf4e::loc::T("card.choose_fighter"),
-        lobbyConditions.costume + 1, lobbyConditions.color + 1,
-        lobbyConditions.ultraCombo == 2 ? sf4e::loc::T("selection.ultra_double") : lobbyConditions.ultraCombo == 1 ? "Ultra II" : "Ultra I");
+        sf4e::ui::CostumeLabel(summaryPick), lobbyConditions.color + 1, sf4e::ui::UltraLabel(lobbyConditions.ultraCombo));
     if (snapshot.atMainMenu && !sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),
         snapshot.lobbySettings.editionSelect, snapshot.fighterAvailability[lobbyMenuCharaID]))
         view.selectionError = sf4e::loc::T("runtime.selection_unavailable");
@@ -240,6 +242,7 @@ void Overlay::DrawOverlay() {
     }
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
+    bool pointer = false;
     if (!training.available || !focused) trainingOpen = false;
     if (focused && training.available && !presentation.Visible()) {
         sf4e::ui::SetMenuInput({0, ImGui::GetTime()});
@@ -260,12 +263,17 @@ void Overlay::DrawOverlay() {
         if (trainingOpen) {
             sf4e::ui::DrawTrainingFlyout(training, sf4e::training::Submit);
             if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) trainingOpen=false;
-        } else if (trainingHud) sf4e::ui::DrawTrainingHud(training);
+        } else if (trainingHud) {
+            const auto hud = sf4e::ui::DrawTrainingHud(training);
+            if (hud.open) trainingOpen = true;
+            pointer = hud.pointer;
+        }
     }
     // Shown survives alt-tab; taking the cursor and keys needs focus.
     const bool shown = presentation.Visible() || trainingOpen;
     const bool visible = focused && shown;
-    sf4e::ui::SetOverlayCursorOwnership(visible);
+    pointerCapture = focused && !visible && pointer;
+    sf4e::ui::SetOverlayCursorOwnership(visible || pointerCapture);
     if (capture.exchange(visible) && !visible) { ImGui::GetIO().ClearInputKeys(); ImGui::GetIO().ClearInputMouse(); }
     // The native menu stays parked under a shown shell, focused or not, so a
     // pad press while alt-tabbed cannot drive it.
@@ -307,7 +315,7 @@ void Overlay::DrawOverlay() {
 
 }
 void Overlay::FreeOverlay() {
-    capture = false;
+    capture = false; pointerCapture = false;
     trainingAvailable = false;
     fMainMenu::bOverrideItemObserverState = -1;
     if (!ImGui::GetCurrentContext()) return;
@@ -325,7 +333,7 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
         if (!focused) {
             const auto training = sf4e::training::ReadView();
             sf4e::training::Submit({sf4e::training::Action::Stop, 0, training.generation});
-            capture = false;
+            capture = false; pointerCapture = false;
             if (ImGui::GetCurrentContext()) {
                 sf4e::ui::SetOverlayCursorOwnership(false);
                 ImGui::GetIO().ClearInputKeys(); ImGui::GetIO().ClearInputMouse();
@@ -333,7 +341,7 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
         }
     }
     if (!ImGui::GetCurrentContext()) return 0;
-    const auto handled = sf4e::ui::HandleOverlayMessage(window, message, w, l, capture, presentation.Available());
+    const auto handled = sf4e::ui::HandleOverlayMessage(window, message, w, l, capture, presentation.Available(), pointerCapture);
     if (trainingAvailable && w >= VK_F5 && w <= VK_F8 &&
         (message == WM_KEYDOWN || message == WM_KEYUP || message == WM_SYSKEYDOWN || message == WM_SYSKEYUP)) return 1;
     return handled;

@@ -141,6 +141,21 @@ msgstr "현재 다운로드 또는 확인을 취소합니다. 취소가 끝난 �
 msgid "recovery.close_detail"
 msgstr "SF4를 시작하지 않고 복구 화면을 닫습니다. 진행 중인 작업은 취소됩니다."
 
+msgid "recovery.close_cancels_detail"
+msgstr "지금 닫으면 진행 중인 작업이 취소됩니다."
+
+msgid "recovery.back_close"
+msgstr "복구 닫기"
+
+msgid "updates.back_close"
+msgstr "업데이터 닫기"
+
+msgid "screen.recovery"
+msgstr "복구"
+
+msgid "screen.updates"
+msgstr "업데이트"
+
 msgid "updates.downloaded_mb"
 msgstr "{0:.1f} MB 다운로드됨"
 
@@ -199,7 +214,7 @@ msgid "settings.language"
 msgstr "언어"
 
 msgid "settings.language.detail"
-msgstr "Ember의 화면 언어를 즉시 변경합니다. 자동 선택 시 게임 언어를 따르고, 없으면 Windows 언어를 사용합니다."
+msgstr "선택하면 목록에서 고를 수 있고, 좌우로도 바꿀 수 있습니다. 자동 선택 시 게임 언어를 따르고, 없으면 Windows 언어를 사용합니다."
 
 msgid "settings.language.system_with"
 msgstr "자동 — {0}"
@@ -222,6 +237,33 @@ msgstr "검토"
 msgid "menu.select"
 msgstr "선택"
 
+msgid "menu.read"
+msgstr "읽기"
+
+msgid "menu.choose"
+msgstr "고르기"
+
+msgid "menu.hint.save_main"
+msgstr "주 캐릭터로 저장"
+
+msgid "menu.hint.save_fighter"
+msgstr "캐릭터 저장"
+
+msgid "menu.hint.save_costume"
+msgstr "코스튬 저장"
+
+msgid "menu.hint.save_color"
+msgstr "색상 저장"
+
+msgid "menu.hint.save_ultra"
+msgstr "울트라 저장"
+
+msgid "menu.hint.save_stage"
+msgstr "스테이지 저장"
+
+msgid "menu.hint.paste"
+msgstr "붙여넣기"
+
 msgid "menu.navigate"
 msgstr "이동"
 
@@ -240,6 +282,9 @@ msgstr "라운드 시간"
 msgid "screen.home"
 msgstr "홈"
 
+msgid "screen.game"
+msgstr "SF4"
+
 msgid "screen.online"
 msgstr "온라인 플레이"
 
@@ -257,6 +302,15 @@ msgstr "주 캐릭터 선택"
 
 msgid "screen.about"
 msgstr "도움말 및 정보"
+
+msgid "screen.discord"
+msgstr "Discord"
+
+msgid "screen.discord_invitation"
+msgstr "Discord 초대"
+
+msgid "screen.assignment"
+msgstr "컨트롤러 지정"
 
 msgid "screen.room"
 msgstr "방"
@@ -278,9 +332,6 @@ msgstr "채팅"
 
 msgid "screen.room_settings"
 msgstr "방 설정"
-
-msgid "screen.practice_position"
-msgstr "연습 위치"
 
 msgid "screen.dummy_recording"
 msgstr "더미 녹화"
@@ -395,6 +446,9 @@ msgstr "사용할 컨트롤러의 버튼을 누르세요."
 
 msgid "controller.release_buttons"
 msgstr "계속하려면 모든 버튼에서 손을 떼세요."
+
+msgid "controller.keep_current"
+msgstr "현재 컨트롤러의 버튼을 누르면 그대로 유지합니다. Esc 또는 클릭으로 취소합니다."
 
 msgid "home.online"
 msgstr "온라인 플레이"
@@ -558,9 +612,6 @@ msgstr "활동 표시와 초대입니다."
 msgid "player.title"
 msgstr "플레이어 및 컨트롤러"
 
-msgid "player.display_name"
-msgstr "표시 이름"
-
 msgid "player.change_controller"
 msgstr "컨트롤러 변경"
 
@@ -629,6 +680,9 @@ msgstr "먼저 Discord 활동 표시를 켜세요."
 
 msgid "discord.invitation_title"
 msgstr "DISCORD 초대"
+
+msgid "discord.title"
+msgstr "DISCORD"
 
 msgid "discord.cancel_invitation"
 msgstr "초대 취소"
@@ -846,8 +900,20 @@ msgstr "트레이닝"
 msgid "menu.back_to"
 msgstr "< 뒤로 / {0}"
 
+msgid "menu.return_to"
+msgstr "{0}(으)로 돌아가기"
+
+msgid "menu.flyout_title"
+msgstr "EMBER / {0}"
+
 msgid "training.controls"
 msgstr "트레이닝 조작"
+
+msgid "training.open_chip"
+msgstr "F6 트레이닝 조작"
+
+msgid "training.hide_hint"
+msgstr "F5 HUD 숨기기"
 
 msgid "training.dummy_recording"
 msgstr "더미 녹화"
@@ -1059,6 +1125,15 @@ msgstr "울트라 콤보"
 msgid "selection.ultra_double"
 msgstr "울트라 더블"
 
+msgid "selection.ultra_one"
+msgstr "Ultra I"
+
+msgid "selection.ultra_two"
+msgstr "Ultra II"
+
+msgid "selection.hold"
+msgstr "모으기"
+
 msgid "selection.stage"
 msgstr "스테이지"
 
@@ -1162,10 +1237,10 @@ msgid "selection.preview_locked"
 msgstr "미리 보기만 표시 중 - 선택 잠김"
 
 msgid "selection.saved_appearance"
-msgstr "저장: 코스튬 {0} / 색상 {1}"
+msgstr "저장: {0} / 색상 {1}"
 
 msgid "selection.saved_full"
-msgstr "저장: {0} / 코스튬 {1} / 색상 {2}"
+msgstr "저장: {0} / {1} / 색상 {2}"
 
 msgid "selection.preview_save_short"
 msgstr "미리 보기 - 선택을 눌러 저장"
@@ -1194,14 +1269,11 @@ msgstr "빌드가 다릅니다. 두 플레이어가 같은 SF4 Ember Netplay 패
 msgid "runtime.room_full"
 msgstr "방이 가득 찼습니다."
 
-msgid "runtime.name_taken"
-msgstr "방에서 이미 사용 중인 플레이어 이름입니다. 설정에서 변경하세요."
-
 msgid "runtime.selection_combination_unavailable"
 msgstr "이 조합은 방 규칙에서 사용할 수 없습니다. 다른 캐릭터, 코스튬, 색상 또는 에디션을 선택하세요."
 
 msgid "runtime.selection_summary"
-msgstr "{0} / 코스튬 {1} / 색상 {2} / {3}"
+msgstr "{0} / {1} / 색상 {2} / {3}"
 
 msgid "runtime.selection_unavailable"
 msgstr "이 규칙에서는 해당 선택을 사용할 수 없습니다. 캐릭터 선택을 열어 다른 항목을 고르세요."
@@ -1413,9 +1485,6 @@ msgstr " 대기열의 자리를 잃습니다."
 msgid "room.leave.host"
 msgstr " 다른 참가자가 방장이 됩니다."
 
-msgid "room.action_queue_failed"
-msgstr "작업을 대기열에 넣지 못했습니다. 다시 시도하세요."
-
 msgid "room.table_detail"
 msgstr "{0} vs {1}\n{2}\n대기열: {3} / 관전: {4}\n나: {5}"
 
@@ -1610,9 +1679,6 @@ msgstr "준비 취소 / 캐릭터 잠금 해제"
 
 msgid "room.readying"
 msgstr "준비 중..."
-
-msgid "room.result_unresolved"
-msgstr "결과 미확정"
 
 msgid "room.preparing_match"
 msgstr "대전 준비 중"
@@ -1848,9 +1914,6 @@ msgstr "이 정원을 제출합니다."
 msgid "profile.main_badge"
 msgstr "주 캐릭터"
 
-msgid "training.shortcuts"
-msgstr "F6 트레이닝 조작 | F5 HUD 숨기기"
-
 msgid "common.not_set"
 msgstr "설정 안 됨"
 
@@ -1882,7 +1945,7 @@ msgid "edit.title"
 msgstr "텍스트 편집"
 
 msgid "edit.instructions"
-msgstr "입력하거나 붙여넣으세요. Enter로 확정하고 Esc 또는 컨트롤러의 뒤로 버튼으로 취소합니다."
+msgstr "키보드로 입력하거나 붙여넣으세요. Enter 또는 컨트롤러의 선택으로 확정하고 Esc 또는 컨트롤러의 뒤로 버튼으로 취소합니다."
 
 msgid "edit.updating"
 msgstr "방을 업데이트 중입니다. 초안은 유지되며 계속 입력하거나 취소할 수 있습니다."
@@ -1892,6 +1955,9 @@ msgstr "수락"
 
 msgid "edit.cancel"
 msgstr "편집 취소"
+
+msgid "edit.bytes"
+msgstr "{0} / {1}바이트"
 
 msgid "discord.unavailable_build"
 msgstr "이 빌드에서는 Discord 연동을 사용할 수 없습니다."

@@ -53,7 +53,7 @@ bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& d
     if (stop_ || state_.pending || action == ServiceAction::None) return false;
     cancelled_ = false;
     state_.downloadedBytes = state_.totalBytes = 0;
-    request_ = action; diagnostics_ = diagnostics; state_.pending = true; state_.lastAction = action;
+    request_ = action; diagnostics_ = diagnostics; state_.pending = true; state_.succeeded = false; state_.lastAction = action;
     state_.message = action == ServiceAction::OpenCommunity ? loc::T("services.opening_community") :
         action == ServiceAction::CheckUpdates ? loc::T("services.checking") :
         action == ServiceAction::ExportDiagnostics ? loc::T("services.exporting") :
@@ -71,7 +71,7 @@ void ApplicationServices::Run() {
         }
         try {
             if (action == ServiceAction::CheckUpdates) {
-                next.update = launcher::CheckForUpdate();
+                next.update = launcher::CheckForUpdate(); next.succeeded = next.update.ok;
                 next.message = !next.update.ok ? next.update.error : next.update.updateAvailable ?
                     loc::Tf("services.update_available",next.update.latestVersion) : loc::T("services.up_to_date");
             } else if (action == ServiceAction::ExportDiagnostics) {
@@ -108,7 +108,7 @@ void ApplicationServices::Run() {
                     << (diagnostics.recoveryCheckpointBuildsAvailable ? std::to_string(diagnostics.recoveryCheckpointBuilds) : "Unavailable") << '\n';
                 output << "Recent connection transitions (oldest first):\n";
                 for (const auto& event : next.connectionHistory) output << event << '\n';
-                output.close();
+                output.close(); next.succeeded = static_cast<bool>(output);
                 next.message = output ? loc::T("services.diagnostics_saved") : loc::T("services.diagnostics_failed");
             } else if (action == ServiceAction::OpenUpdater || action == ServiceAction::OpenRecovery) {
                 wchar_t root[MAX_PATH] = {};
@@ -123,7 +123,7 @@ void ApplicationServices::Run() {
                     next.message = loc::T("services.updater_start_failed");
                 } else {
                     CloseHandle(process.hThread); CloseHandle(process.hProcess);
-                    next.closeGame = true; next.message = loc::T("services.game_closing");
+                    next.closeGame = next.succeeded = true; next.message = loc::T("services.game_closing");
                 }
             } else if (action == ServiceAction::OpenCommunity) {
                 // ShellExecute may hand the URL to a COM-based handler; give it an apartment.
@@ -131,6 +131,7 @@ void ApplicationServices::Run() {
                 const std::wstring url = L"https://" + std::wstring(CommunityInvite, CommunityInvite + std::strlen(CommunityInvite));  // ASCII
                 const auto opened = reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr, L"open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL)) > 32;
                 if (SUCCEEDED(com)) CoUninitialize();
+                next.succeeded = opened;
                 next.message = opened ? loc::T("services.community_opened") : loc::Tf("services.community_failed", CommunityInvite);
             } else if (action == ServiceAction::InstallUpdate) {
                 if (!next.update.ok || !next.update.updateAvailable || next.update.expectedSha256.size() != 64) {
@@ -145,12 +146,12 @@ void ApplicationServices::Run() {
                             state_.downloadedBytes = received; state_.totalBytes = total;
                             return true;
                         });
-                    next.installed = result.ok;
+                    next.installed = next.succeeded = result.ok;
                     next.message = result.ok ? loc::T("services.update_prepared") : result.error;
                 }
             }
-        } catch (...) { next.message = loc::T("services.operation_failed"); }
-        if (cancelled_ && !next.installed) next.message = loc::T("services.operation_cancelled");
+        } catch (...) { next.succeeded = false; next.message = loc::T("services.operation_failed"); }
+        if (cancelled_ && !next.installed) { next.succeeded = false; next.message = loc::T("services.operation_cancelled"); }
         next.pending = false;
         { std::lock_guard<std::mutex> lock(mutex_); next.connectionHistory = std::move(state_.connectionHistory); state_ = std::move(next); }
     }

@@ -19,6 +19,7 @@
 #include <functional>
 #include <iostream>
 #include <map>
+#include <set>
 #include <stdexcept>
 using namespace sf4e::ui;
 using Button=ControllerSample;
@@ -105,6 +106,17 @@ void NavigationModel() {
  nav.Update({0,time+.2},rows,3);nav.Update({MenuInput::Right,time+.3},rows,3);Check(nav.Focus()=="2","Grid right");
  nav.Update({0,time+.4},rows,3);nav.Update({MenuInput::Right,time+.5},rows,3);Check(nav.Focus()=="2","Grid wrapped");
  nav.Update({MenuInput::Down,time+.6},rows,3);Check(nav.Focus()=="4","Incomplete grid row");
+ // A wide entry and those after it are the grid's footer, one row each, under
+ // the cards: Down reaches it from every card of an incomplete last row, and
+ // Up returns to the cards.
+ {auto grid=rows;grid.push_back(Row("retry","Retry",""));grid.back().wide=true;grid.push_back(Row("after","After",""));
+  const auto step=[&](const char* from,unsigned held){nav.Focus(from,grid);nav.Update({0,time},grid,3);nav.Update({held,time+.01},grid,3);nav.Update({0,time+.02},grid,3);return nav.Focus();};
+  Check(MenuGridCells(grid)==5,"The grid footer does not start at the first wide entry");
+  Check(step("3",MenuInput::Down)=="retry"&&step("4",MenuInput::Down)=="retry","Down from the last cards did not reach the footer");
+  Check(step("1",MenuInput::Down)=="4","Down above an incomplete row no longer reaches its last card");
+  Check(step("4",MenuInput::Right)=="4","Right from the last card reached the footer");
+  Check(step("retry",MenuInput::Up)=="4"&&step("retry",MenuInput::Down)=="after"&&step("after",MenuInput::Up)=="retry","The footer rows do not step by one");
+  Check(step("retry",MenuInput::Right)=="retry","Right in the footer moved");}
  nav.Update({0,time+1},rows);nav.Focus("0",rows);
  nav.Update({MenuInput::Down,time+1.1},rows);Check(nav.Focus()=="1","Immediate direction press");
  nav.Update({MenuInput::Down,time+1.2},rows);Check(nav.Focus()=="1","Repeat too early");
@@ -176,15 +188,38 @@ struct Harness {
 };
 void Journeys() {
  using namespace sf4e;
- Harness h;h.Frame();h.Screen("player");h.view.inputCapture=input::Capture::ReleaseAll;h.Frame();h.Press(MenuInput::Back);
+ Harness h;h.Frame();
+ // Back names where it goes: out of Ember from an idle Home, and while a
+ // controller is being captured, the cancel it is.
+ std::set<std::string> legend;
+ SetMenuTextProbe([&](const char* id,float,float,float,float){if(!std::strncmp(id,"legend/",7))legend.insert(id+7);});
+ SetMenuGlyphs(3,0x40000,0x20000);legend.clear();h.Frame();Check(legend.count("Return to SF4"),"Idle Home's Back does not say it returns to SF4");
+ h.Screen("player");h.view.inputCapture=input::Capture::ReleaseAll;legend.clear();h.Frame();
+ Check(legend.count("Cancel")&&!legend.count("Back"),"Controller assignment's Back does not say it cancels");
+ SetMenuTextProbe({});h.Press(MenuInput::Back);
  Check(h.shell.Navigation().Screen()=="assignment"&&h.actions.back().inputAction==input::Action::Cancel,"Assignment Back did not only cancel capture");
  h.view.inputCapture=input::Capture::Idle;h.Frame();Check(h.shell.Navigation().Screen()=="player","Assignment lost return destination");
  h.Screen("home");h.Choose("online");Check(h.shell.Navigation().Screen()=="online","Online route");
  h.Choose("create");h.Choose("host");Check(h.actions.back().command.kind==Kind::HostRoom,"Create journey");
  // Opening a room keeps the player on Create with a Cancel; the room screen
  // appears only once the committed snapshot says the room is joined.
- h.view.session.generation.room=1;h.view.session.room=netplay::RoomState::Opening;h.Frame();
+ // The command is queued, so a few Idle frames can pass before Opening; the
+ // origin survives them, and Back from Home returns to Create, not Join.
+ h.Frame(0,5);h.view.session.generation.room=1;h.view.session.room=netplay::RoomState::Opening;h.Frame();
  Check(h.shell.Navigation().Screen()=="create","Opening room showed the placeholder room screen");
+ h.Screen("home");h.Press(MenuInput::Back);
+ Check(h.shell.Navigation().Screen()=="create","Back from Home while creating did not return to Create");
+ // Create's opening says Creating, on its own screen and on Home's status and
+ // Online row; Join's says Joining (below).
+ std::string openingStatus;std::vector<MenuEntry> openingRows;
+ SetMenuStatusProbe([&](const char* status,Tone){openingStatus=status;});
+ SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){openingRows=rows;});
+ const auto onlineDetail=[&]{const auto it=std::find_if(openingRows.begin(),openingRows.end(),[](const MenuEntry& e){return e.id=="online";});
+  return it==openingRows.end()?std::string():it->detail;};
+ h.Frame();Check(openingStatus==loc::T("room.creating_status"),"Creating a room is not reported as creating");
+ h.Screen("home");Check(openingStatus==loc::T("room.creating_status")&&onlineDetail()==loc::T("room.creating_status"),
+  "Home does not say the room is being created");
+ h.Press(MenuInput::Back);
  h.Choose("cancel-open");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
  Check(h.actions.back().command.kind==Kind::LeaveRoom,"Cancel while opening did not leave the room");
  h.view.session.room=netplay::RoomState::Joined;h.view.session.control=netplay::Health::Healthy;h.view.room.roomEpoch=9;h.view.room.localMember=1;h.Frame();
@@ -193,6 +228,11 @@ void Journeys() {
  h.Screen("join");h.Choose("invite-text");ImGui::GetIO().AddInputCharactersUTF8("sf4://invitation");h.Frame();
  ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,true);h.Frame();ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,false);h.Frame();
  h.Choose("join-now");Check(h.actions.back().command.kind==Kind::JoinInvite&&h.actions.back().command.invitation=="sf4://invitation","Join draft journey");
+ h.Frame(0,5);h.view.session.room=netplay::RoomState::Opening;h.Frame();
+ Check(h.shell.Navigation().Screen()=="join"&&openingStatus==loc::T("room.joining_status"),"Joining a room is not reported as joining");
+ h.Screen("home");Check(openingStatus==loc::T("room.joining_status")&&onlineDetail()==loc::T("room.joining_status"),
+  "Home does not say the room is being joined");
+ SetMenuStatusProbe({});SetMenuEntriesProbe({});
  h.view.session.generation.room=1;h.view.session.room=netplay::RoomState::Joined;h.view.session.control=netplay::Health::Healthy;
  h.view.room.roomEpoch=10;h.view.room.localMember=1;h.view.room.host=1;h.view.room.name="Test room";h.view.room.revision=3;
  for(int i=0;i<4;++i){h.view.room.tables[i].id=i;h.view.room.tables[i].revision=7;}
@@ -269,6 +309,9 @@ void Journeys() {
  FighterSelector selector;selection::Pick pick;
  h.selection=[&]{selector.Draw(pick,false,nullptr,{},nullptr,true);};h.view.canEditSelection=true;
  h.Press(MenuInput::Fighter);Check(h.shell.Navigation().Screen()=="selection","X did not open fighter selection");
+ // The selector names the board as its way back and shows the room's shortcuts.
+ Check(EmbeddedReturnContext().exitName=="Room"&&EmbeddedReturnContext().shortcutHints.size()==3,
+  "The fighter selector does not know it returns to the room or which shortcuts it forwards");
  h.Press(MenuInput::Fighter);Check(h.shell.Navigation().Screen()=="room","X in fighter selection did not return to the board");
  h.Press(MenuInput::Fighter);h.Press(MenuInput::Chat);Check(h.shell.Navigation().Screen()=="room-chat","View in fighter selection did not open chat");
  h.Press(MenuInput::Chat);h.selection=[]{};h.view.canEditSelection=false;
@@ -437,7 +480,7 @@ void Journeys() {
  Check(h.shell.Navigation().Screen()=="profile","Retried portrait save did not return to Profile");
 }
 void PresentationJourneys(){
- Check(MenuScreenLabel("room-members")=="Members"&&MenuScreenLabel("player")=="Player & Controller","Internal screen keys leaked into Back labels");
+ Check(MenuScreenLabel("room-members")=="Members"&&MenuScreenLabel("player")=="Player & controller","Internal screen keys leaked into Back labels");
  auto text=TextRow("name","Name","Player",31);auto value=Value("delay","Delay","2","Frames");
  auto confirm=ConfirmRow("leave","Leave room","Disconnect");
  Check(std::strcmp(MenuPrimaryHint(&text),"Edit")==0&&MenuPrimaryHint(&value)==nullptr&&std::strcmp(MenuPrimaryHint(&confirm),"Review")==0,"Contextual legend does not match action");
@@ -460,7 +503,7 @@ void PresentationJourneys(){
  h.Screen("profile");h.Choose("main-character");h.Press(MenuInput::Right);h.Press(MenuInput::Select);h.Frame(0,40);
  h.view.preferences=h.actions.back().preferences;h.Frame(0,3);Check(status.find("Profile portrait saved:")==0,"Profile success notice missing");
  h.Frame(0,200);Check(status=="Saved","Success notice did not expire");SetMenuStatusProbe({});
- GameMenu recovery;recovery.navigation=MenuNavigation("close");sf4e::platform::ServiceSnapshot state;
+ GameMenu recovery;recovery.navigation=RecoveryNavigation(true);sf4e::platform::ServiceSnapshot state;
  state.update.ok=state.update.updateAvailable=true;state.update.expectedSha256=std::string(64,'a');
  const auto frame=[&](unsigned held=0){SetMenuInput({held,0});ImGui::NewFrame();const auto choice=DrawRecoveryMenu(recovery,state,"",true);ImGui::Render();return choice;};
  frame();frame();frame(MenuInput::Down);frame();frame(MenuInput::Select);frame();
@@ -468,6 +511,132 @@ void PresentationJourneys(){
  Check(frame(MenuInput::Select)==RecoveryChoice::None,"Recovery default confirmation installed an update");frame();
  state.pending=true;state.downloadedBytes=100;state.totalBytes=200;frame();
  frame(MenuInput::Down);frame();Check(frame(MenuInput::Select)==RecoveryChoice::Cancel,"Recovery cancellation not reachable");
+}
+// The rules every GameMenu screen shares with the room: an open dialog owns
+// the legend (Select names its highlighted button, Back cancels, shortcuts
+// go), pad Select accepts a draft, information rows offer no Select, a reader
+// scrolls and closes, a list choice opens on the saved option, and only a
+// moving pointer takes the selection.
+void DialogContract(){
+ HeadlessImGui imgui;GameMenu menu;SetMenuGlyphs(3,0x40000,0x20000);
+ menu.shortcutHints={{"X","Fighter"}};
+ auto language=Value("language","Language","B","Pick one");language.choices={{"a","A"},{"b","B"},{"c","C"}};language.chosen="b";
+ auto info=Row("record","Record","12 wins");info.info=true;
+ auto reader=Row("licence","Licence","Long text");reader.reading=true;
+ std::vector<MenuEntry> rows={ConfirmRow("leave","Leave room","Disconnect"),TextRow("name","Name","Kate",31),info,reader,language};
+ std::set<std::string> legend;std::map<std::string,ImVec2> centres;std::map<std::string,std::pair<ImVec2,ImVec2>> boxes;
+ SetMenuTextProbe([&](const char* id,float,float,float,float){if(!std::strncmp(id,"legend/",7))legend.insert(id+7);});
+ SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){centres[id]=ImVec2((min.x+max.x)*.5f,(min.y+max.y)*.5f);boxes[id]={min,max};});
+ auto frame=[&](unsigned held=0){legend.clear();imgui.io.DeltaTime=1.f/60;SetMenuInput({held,0});ImGui::NewFrame();
+  ImGui::SetNextWindowPos(ImVec2(0,0));ImGui::SetNextWindowSize(imgui.io.DisplaySize);ImGui::Begin("Dialog test",nullptr,ImGuiWindowFlags_NoDecoration);
+  const auto a=menu.Draw("TEST",rows);ImGui::End();ImGui::Render();return a;};
+ auto press=[&](unsigned held){frame();const auto a=frame(held);frame();return a;};
+ auto has=[&](const char* label){return legend.count(label)!=0;};
+ frame();frame();
+ Check(has("Review")&&has("Back")&&has("Fighter"),"Plain legend lost its Select, Back or shortcut");
+ press(MenuInput::Select);frame();
+ Check(menu.navigation.Confirming()&&has("Cancel")&&!has("Fighter")&&!has("Review"),"A confirmation did not take over the legend");
+ press(MenuInput::Right);frame();Check(has("Leave room"),"The legend did not name the highlighted confirmation button");
+ press(MenuInput::Back);Check(!menu.navigation.Confirming(),"Back did not cancel the confirmation");
+ menu.navigation.Focus("name",rows);press(MenuInput::Select);frame();
+ Check(menu.navigation.Editing()&&has("Accept")&&has("Cancel"),"The editor legend does not say Accept and Cancel");
+ const auto accepted=press(MenuInput::Select);
+ Check(accepted.kind==MenuAction::TextAccepted&&accepted.text=="Kate","Controller Select did not accept the draft");
+ // A pointer moved onto Cancel keeps that highlight; the legend says so, and
+ // the controller's Select then cancels rather than accepting.
+ press(MenuInput::Select);imgui.io.AddMousePosEvent(1,1);frame();
+ {const auto at=centres.at("edit/0");imgui.io.AddMousePosEvent(at.x,at.y);frame();frame();}
+ Check(menu.navigation.Editing()&&!menu.navigation.EditAccepts()&&has("Cancel edit"),"The pointer's Cancel highlight was not kept or shown");
+ Check(press(MenuInput::Select).kind==MenuAction::None&&!menu.navigation.Editing(),"Select after the pointer chose Cancel accepted the draft");
+ imgui.io.AddMousePosEvent(1,1);frame();
+ bool hidden=false;menu.ShowNotice("Advice","Heading","Don't show again",[&]{hidden=true;});frame();frame();
+ Check(has("OK")&&has("Close")&&!has("Fighter"),"A notice kept the screen's legend");
+ press(MenuInput::Right);frame();Check(has("Don't show again"),"The notice legend did not follow its highlighted button");
+ press(MenuInput::Select);Check(hidden&&!menu.NoticeOpen(),"The notice's alternative was not taken");
+ menu.navigation.Focus("record",rows);frame();frame();
+ Check(!has("Review")&&!has("Select")&&press(MenuInput::Select).kind==MenuAction::None,"An information row offers Select");
+ menu.navigation.Focus("licence",rows);frame();frame();Check(has("Read"),"A reader row does not say Read");
+ press(MenuInput::Select);frame();Check(menu.navigation.Reading()&&has("Close"),"Select did not open the reader");
+ frame(MenuInput::Down);frame(MenuInput::Down);
+ Check(press(MenuInput::Back).kind==MenuAction::None&&!menu.navigation.Reading()&&menu.navigation.Screen()=="home","Back did more than close the reader");
+ menu.navigation.Focus("language",rows);frame();frame();Check(has("Choose"),"A choice row does not say Choose");
+ press(MenuInput::Select);Check(menu.navigation.Choosing()&&menu.navigation.ChoiceIndex()==1,"The choice did not open on the saved option");
+ press(MenuInput::Down);const auto chosen=press(MenuInput::Select);
+ Check(chosen.kind==MenuAction::Chosen&&chosen.id=="language"&&chosen.text=="c","Down and Select did not choose the next option");
+ // A click is one intent: the value's middle opens the list without changing
+ // it, its arrow adjusts without opening, and the list's own Cancel closes it.
+ const auto click=[&](ImVec2 at){imgui.io.AddMousePosEvent(at.x,at.y);frame();imgui.io.AddMouseButtonEvent(0,true);const auto a=frame();
+  imgui.io.AddMouseButtonEvent(0,false);const auto b=frame();frame();return a.kind!=MenuAction::None?a:b;};
+ const auto row=boxes.at("language");const float y=(row.first.y+row.second.y)*.5f;
+ auto a=click(ImVec2(row.second.x-110,y));
+ Check(a.kind!=MenuAction::Adjust&&menu.navigation.Choosing(),"Clicking the language value changed it or did not open the list");
+ a=click(centres.at("choice-cancel/0"));
+ Check(a.kind==MenuAction::None&&!menu.navigation.Choosing(),"The list's Cancel chose something or left it open");
+ a=click(ImVec2(row.second.x-12,y));
+ Check(a.kind==MenuAction::Adjust&&a.delta==1&&!menu.navigation.Choosing(),"The language arrow did not only step the value");
+ // Narrow, the value stacks under the label: a click on the label opens the
+ // list, and only the value's own line holds the arrows.
+ imgui.io.DisplaySize=ImVec2(400,900);frame();frame();
+ const auto narrow=boxes.at("language");
+ a=click(ImVec2(narrow.first.x+10,narrow.first.y+10));
+ Check(a.kind!=MenuAction::Adjust&&menu.navigation.Choosing(),"A click on a stacked row's label adjusted it");
+ press(MenuInput::Back);
+ a=click(ImVec2(narrow.first.x+12,narrow.second.y-12));
+ Check(a.kind==MenuAction::Adjust&&a.delta==-1&&!menu.navigation.Choosing(),"A stacked row's left arrow did not step down");
+ imgui.io.DisplaySize=ImVec2(1280,960);frame();frame();
+ // The pointer: resting it on a row changes nothing; moving it there selects.
+ menu.navigation.Focus("leave",rows);imgui.io.AddMousePosEvent(1,1);frame();frame();
+ const auto target=centres.at("record");imgui.io.AddMousePosEvent(target.x,target.y);frame();
+ Check(menu.navigation.Focus()=="record","A moving pointer did not select the row under it");
+ press(MenuInput::Up);frame();frame();
+ Check(menu.navigation.Focus()=="name","A resting pointer took the selection back from the pad");
+ // Readers keep their own scroll: scroll one long document, close it, and
+ // the next opens at its heading; so does the first, read again.
+ {std::string text;for(int i=0;i<200;++i)text+="Line "+std::to_string(i)+"\n";
+  auto first=Row("first","First",text);first.reading=true;auto second=Row("second","Second",text);second.reading=true;
+  rows={first,second};
+  const auto top=[&]{const auto reader=boxes.at("reader"),heading=boxes.at("reader-heading");return heading.first.y>=reader.first.y-.5f;};
+  menu.navigation.Focus("first",rows);press(MenuInput::Select);frame();
+  Check(menu.navigation.Reading()&&top(),"A reader did not open at its heading");
+  for(int i=0;i<60;++i)frame(MenuInput::Down);frame();
+  Check(!top(),"Holding Down did not scroll the reader");
+  press(MenuInput::Back);menu.navigation.Focus("second",rows);press(MenuInput::Select);frame();
+  Check(menu.navigation.ReadingId()=="second"&&top(),"A second reader inherited the first one's scroll");
+  press(MenuInput::Back);menu.navigation.Focus("first",rows);press(MenuInput::Select);frame();
+  Check(top(),"A reread document did not open at its heading");
+  press(MenuInput::Back);}
+ // A long list opens on the saved option in view, however it was scrolled
+ // when it last closed, by Back or by the mouse's Cancel.
+ {auto many=Row("many","Many","Pick one");
+  for(int i=0;i<30;++i)many.choices.push_back({"o"+std::to_string(i),"Option "+std::to_string(i)});
+  many.chosen="o1";rows={many};menu.navigation.Focus("many",rows);frame();frame();
+  const auto visible=[&]{const auto list=boxes.at("choice-list");const auto option=boxes.at("choice/o1");
+   return option.first.y>=list.first.y-.5f&&option.second.y<=list.second.y+.5f;};
+  for(const bool mouse:{false,true}){
+   press(MenuInput::Select);frame();Check(menu.navigation.Choosing()&&visible(),"A long list did not open on its saved option");
+   // The pointer comes to rest where the list opens, so the wheel scrolls it
+   // without the pointer moving the highlight off the saved option.
+   const auto list=boxes.at("choice-list");press(MenuInput::Back);
+   imgui.io.AddMousePosEvent((list.first.x+list.second.x)*.5f,(list.first.y+list.second.y)*.5f);frame();frame();
+   press(MenuInput::Select);frame();Check(menu.navigation.ChoiceIndex()==1,"A resting pointer moved the list's highlight");
+   for(int i=0;i<6;++i){imgui.io.AddMouseWheelEvent(0,-5);frame();}
+   Check(!visible(),"The wheel did not scroll the saved option away");
+   if(mouse){const auto at=centres.at("choice-cancel/0");imgui.io.AddMousePosEvent(at.x,at.y);frame();
+    imgui.io.AddMouseButtonEvent(0,true);frame();imgui.io.AddMouseButtonEvent(0,false);frame();}
+   else press(MenuInput::Back);
+   Check(!menu.navigation.Choosing(),"The long list did not close");
+  }
+  press(MenuInput::Select);frame();
+  Check(menu.navigation.Choosing()&&menu.navigation.ChoiceIndex()==1&&visible(),"A reopened list selected its saved option out of view");
+  press(MenuInput::Back);}
+ SetMenuTextProbe({});SetMenuCardProbe({});
+}
+// Every screen a Back button can name has a name of its own, not its id.
+void ScreenNames(){
+ for(const char* screen:{"home","online","create","join","profile","main-character","selection","settings","player","defaults","interface",
+   "discord","discord-invitation","assignment","about","room","room-table","room-rules","room-members","room-member","room-chat","room-admin",
+   "roster","appearance","costumes","colors","ultra","stage","options","recording","history","recovery","updates"})
+  if(!MenuScreenName(screen))throw std::runtime_error(std::string("Screen without a display name: ")+screen);
 }
 void ProfileRecords(){
  using namespace sf4e;netplay::ProfileRecord record;netplay::RandomRoomId roomA{};netplay::RandomRoomId roomB{};roomA[0]=1;roomB[0]=2;
@@ -553,5 +722,5 @@ void TrainingJourneys() {
  press(MenuInput::Back);Check((TakeForwardedMenuAction().kind==MenuAction::Close),"Root Back did not return to practice");
 }
 }
-int main(){try{NativeReader();NavigationModel();NativeCapture();Journeys();TrainingJourneys();PresentationJourneys();ProfileRecords();AppearanceGalleries();std::cout<<"Controller menu model, native reader/capture, profile record, and renderer journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();Journeys();TrainingJourneys();PresentationJourneys();DialogContract();ScreenNames();ProfileRecords();AppearanceGalleries();std::cout<<"Controller menu model, native reader/capture, profile record, and renderer journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

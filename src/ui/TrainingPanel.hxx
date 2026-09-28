@@ -10,5 +10,8 @@ void DrawTrainingPanel(const training::View& view, const TrainingSubmit& submit)
 void DrawTrainingFlyout(const training::View& view, const TrainingSubmit& submit);
 void ShowTrainingRecordings();
 MenuNavigation& TrainingNavigation();
-void DrawTrainingHud(const training::View& view);
+// Passive, except for its "Training controls" chip. pointer: the pointer is
+// over the chip, so the overlay takes the mouse (only) from the game.
+struct TrainingHudInput { bool open = false, pointer = false; };
+TrainingHudInput DrawTrainingHud(const training::View& view);
 } }

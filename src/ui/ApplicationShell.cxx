@@ -2,6 +2,7 @@
 #include "Theme.hxx"
 #include "MenuRows.hxx"
 #include "RoomFeedback.hxx"
+#include "MenuPresentation.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include "../platform/LocaleWindows.hxx"
@@ -26,6 +27,16 @@ std::string GameSettingsAdvice(const gameconfig::DisplaySettings& g) {
         text += "\n\n" + loc::Tf(item.id, item.value);
     }
     return text;
+}
+// "Automatic" first, then every locale by its own name.
+std::vector<MenuChoice> LanguageChoices() {
+    std::vector<MenuChoice> choices;std::string preference="auto";
+    do {
+        choices.push_back({preference,preference=="auto"?loc::Tf("settings.language.system_with",loc::NativeName(platform::ResolveUiLocale("auto"))):
+            std::string(loc::NativeName(loc::ResolveLocale(preference,{},{})))});
+        preference=std::string(loc::NextPreference(preference,1));
+    } while(preference!="auto"&&choices.size()<64);
+    return choices;
 }
 }
 bool ApplicationShell::Service(platform::ServiceAction kind, const ShellView& view, const Submit& submit) {
@@ -66,12 +77,17 @@ void ApplicationShell::UpdateRoomTransitions(const ShellView& v,double now) {
   error_.clear();
   notice_=previousRoomState_==RoomState::Opening?"":loc::T("notice.left_room");
   noticeTone_=Tone::Neutral;noticeUntil_=now+3;
+  openingScreen_.clear();
  }
  // The room screen opens only once the committed room snapshot has the local
  // member in it. Before that the player stays where they pressed Create or
  // Join, with a pending status, instead of seeing a bare placeholder list.
  if(v.session.room==RoomState::Joined&&previousRoomState_!=RoomState::Joined&&nav.Screen().compare(0,4,"room")!=0){nav.Home();nav.Push("room");}
  previousRoomState_=v.session.room;
+ // The screen a room was started from lasts until the room ends (above), or
+ // until the start is refused: a new session error while still idle. A queued
+ // command can take a few Idle frames to become Opening.
+ if(v.session.room==RoomState::Idle&&!v.session.error.empty()&&v.session.error!=openingError_)openingScreen_.clear();
  if(!(generation_==v.session.generation)) {
   const bool roomChanged=generation_.room!=v.session.generation.room;
   generation_=v.session.generation; nav.Cancel(); error_.clear();notice_.clear();
@@ -119,7 +135,9 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  std::vector<MenuEntry> rows;
  const char* reason=v.canEditPreferences?loc::T("settings.auto_save"):loc::T("settings.leave_room_to_edit");
  if(v.inputCapture!=input::Capture::Idle){
-  title=loc::T("controller.assign_title");rows={Row("capture-cancel",loc::T("controller.cancel_assignment"),v.inputCapture==input::Capture::Press?loc::T("controller.press_button"):loc::T("controller.release_buttons"))};
+  title=loc::T("controller.assign_title");
+  rows={Row("capture-cancel",loc::T("controller.cancel_assignment"),std::string(v.inputCapture==input::Capture::Press?loc::T("controller.press_button"):loc::T("controller.release_buttons"))+"\n"+loc::T("controller.keep_current"))};
+  rows[0].hint=loc::T("common.cancel");
  }else if(screen=="home"){
   rows={Row("online",loc::T("home.online"),idle?loc::T("home.online_detail"):loc::T("home.return_room")),
    Row("selection",loc::T("home.fighter_select"),v.canEditSelection?v.selectionSummary:
@@ -128,18 +146,24 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
    Row("about",loc::T("home.about"),loc::T("home.about_detail")),
    Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle)};
+  if(opening)rows[0].detail=OpeningScreen()=="create"?loc::T("room.creating_status"):loc::T("room.joining_status");
   if(!v.controllerReady)rows.insert(rows.begin(),Row("player",loc::T("home.choose_controller"),loc::T("home.choose_controller_detail")));
+  // Back leaves a pending invitation's screen without answering it, so Home
+  // keeps a way back to it until it is answered or expires.
+  if(v.discordPending)rows.insert(rows.begin(),Row("discord-invitation",loc::T("discord.invitation_pending"),loc::T("discord.invitation_pending_detail")));
   if(developer)rows.push_back(Row("developer","Developer","Development tools."));
  }else if(screen=="profile"){
   title=loc::T("profile.title");const auto& record=v.preferences.record;
   rows={TextRow("name",loc::T("profile.player_name"),preferences_.displayName,31,v.canEditPreferences),
    Row("main-character",loc::T("profile.main_character"),loc::Tf("profile.main_character_detail",selection::FindFighter(preferences_.mainFighter)->name)),
    Row("record",loc::T("profile.record"),record.available?loc::Tf("profile.record_detail",record.wins,record.losses):loc::T("profile.record_unavailable"))};
+  rows[2].info=true;
   rows[1].value=selection::FindFighter(preferences_.mainFighter)->name;
   rows[2].value=record.available?loc::Tf("profile.record_value",record.wins,record.losses):loc::T("common.unavailable");
  }else if(screen=="main-character"){
   title=loc::T("profile.choose_main_title");
-  for(int id=0;id<selection::FighterCount;++id)rows.push_back(Row("main-"+std::to_string(id),selection::FindFighter(id)->name,v.canEditPreferences?loc::T("profile.choose_main_detail"):loc::T("profile.leave_room_to_edit"),v.canEditPreferences));
+  for(int id=0;id<selection::FighterCount;++id){rows.push_back(Row("main-"+std::to_string(id),selection::FindFighter(id)->name,v.canEditPreferences?loc::T("profile.choose_main_detail"):loc::T("profile.leave_room_to_edit"),v.canEditPreferences));
+   rows.back().hint=loc::T("menu.hint.save_main");}
  }else if(screen=="online"){
   title=loc::T("online.title");rows={Row("create",loc::T("online.create"),loc::T("online.create_detail"),v.canOpenRoom),Row("join",loc::T("online.join"),loc::T("online.join_detail"),v.canOpenRoom)};
  }else if(screen=="create"||screen=="defaults"){
@@ -148,17 +172,19 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows.push_back(TextRow("room-name",loc::T("room.name"),preferences_.roomName,64,can));
   rows.push_back(Value("capacity",loc::T("room.capacity"),std::to_string(preferences_.roomCapacity),loc::T("room.capacity_detail"),can));
   RuleRows(rows,preferences_.tableRules,can,reason);
-  if(screen=="create")rows.push_back(opening?ConfirmRow("cancel-open",loc::T("room.stop_creating_action"),loc::T("room.stop_creating"),true):
+  if(screen=="create"){rows.push_back(opening?ConfirmRow("cancel-open",loc::T("room.stop_creating_action"),loc::T("room.stop_creating"),true):
    Row("host",loc::T("online.create"),loc::T("room.create_requirements"),can&&preferences_.Valid()));
+   if(!opening)rows.back().hint=loc::T("online.create");}
  }else if(screen=="join"){
   title=loc::T("room.join_title");rows={Row("paste",loc::T("room.paste_invitation"),loc::T("room.paste_invitation_detail"),v.canOpenRoom),
    opening?ConfirmRow("cancel-open",loc::T("room.stop_joining_action"),loc::T("room.stop_joining"),true):Row("join-now",loc::T("online.join"),loc::T("room.join_pasted"),v.canOpenRoom&&invitation_[0]),
    TextRow("invite-text",loc::T("room.edit_invitation"),invitation_,sizeof(invitation_)-1,v.canOpenRoom)};
+  rows[0].hint=loc::T("menu.hint.paste");if(!opening)rows[1].hint=loc::T("online.join");
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;rows=RoomEntries(v);
  }else if(screen=="settings"){
-  title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("discord","Discord",loc::T("settings.discord_detail"))};
+  title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail"))};
  }else if(screen=="player"){
-  title=loc::T("player.title");rows={TextRow("name",loc::T("player.display_name"),preferences_.displayName,31,v.canEditPreferences),
+  title=loc::T("player.title");rows={TextRow("name",loc::T("profile.player_name"),preferences_.displayName,31,v.canEditPreferences),
    Row("capture",loc::T("player.change_controller"),loc::Tf("player.change_controller_detail",v.controller),v.canChangeController),
    Row("keyboard",loc::T("player.use_keyboard"),loc::T("player.use_keyboard_detail"),v.canChangeController),
    Row("controls",loc::T("player.native_menus"),loc::T("player.native_menus_detail"),idle)};
@@ -172,8 +198,10 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Value("hud-spacing",loc::T("settings.bottom_spacing"),preferences_.matchHudRaised?loc::T("spacing.raised"):loc::T("spacing.normal"),loc::T("settings.bottom_spacing_detail"),v.canEditPreferences),
    Value("scale",loc::T("settings.interface_size"),size,reason,v.canEditPreferences),
    Value("language",loc::T("settings.language"),languageValue,loc::T("settings.language.detail"),true)};
+  // Select lists the languages by their own names; browsing them changes nothing.
+  rows.back().choices=LanguageChoices();rows.back().chosen=languagePreference_;
  }else if(screen=="discord"){
-  title="DISCORD";rows={Value("presence",loc::T("discord.show_activity"),preferences_.discordPresence?loc::T("common.on"):loc::T("common.off"),v.discordStatus,v.canEditPreferences),
+  title=loc::T("discord.title");rows={Value("presence",loc::T("discord.show_activity"),preferences_.discordPresence?loc::T("common.on"):loc::T("common.off"),v.discordStatus,v.canEditPreferences),
    Value("invites",loc::T("discord.allow_invitations"),preferences_.discordInvites?loc::T("common.on"):loc::T("common.off"),preferences_.discordPresence?loc::T("discord.invitation_detail"):loc::T("discord.enable_first"),v.canEditPreferences&&preferences_.discordPresence)};
  }else if(screen=="discord-invitation"){
   title=loc::T("discord.invitation_title");rows={Row("invite-cancel",loc::T("discord.cancel_invitation"),loc::T("discord.cancel_invitation_detail"))};
@@ -187,9 +215,12 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    for(const auto action:own)if(v.services.lastAction==action&&!v.services.message.empty())return v.services.message;
    return idle;
   };
-  title=loc::T("about.title");rows={Row("help",loc::T("about.controls"),loc::T("about.controls_detail")),
-   Row("credits",loc::T("about.ember"),loc::Tf("about.ember_detail",v.build)),
-   Row("font",loc::T("about.font_license"),FontLicense()),Row("diagnostics",loc::T("about.export_diagnostics"),
+  // The controls, credits and licence are longer than the detail pane, so
+  // Select opens them in a reader a pad or keyboard can scroll.
+  auto reading=[](MenuEntry e){e.reading=true;return e;};
+  title=loc::T("about.title");rows={reading(Row("help",loc::T("about.controls"),loc::T("about.controls_detail"))),
+   reading(Row("credits",loc::T("about.ember"),loc::Tf("about.ember_detail",v.build))),
+   reading(Row("font",loc::T("about.font_license"),FontLicense())),Row("diagnostics",loc::T("about.export_diagnostics"),
     outcome({ServiceAction::ExportDiagnostics},loc::T("about.export_diagnostics_detail")),!v.services.pending),
    ConfirmRow("community",loc::T("about.discord"),
     outcome({ServiceAction::OpenCommunity},loc::Tf("about.discord_detail",platform::CommunityInvite)),!v.services.pending),
@@ -209,8 +240,8 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  // feedback channel, so a failure must not render like ordinary text.
  Tone statusTone=saveFailed_?Tone::Error:v.settingsPending||preferencesDirty_||saveQueued_||languageDirty_?Tone::Pending:
   personal?Tone::Success:Tone::Neutral;
- if((screen=="create"||screen=="join")&&opening&&status.empty()){
-  status=screen=="create"?loc::T("room.creating_status"):loc::T("room.joining_status");statusTone=Tone::Pending;
+ if((screen=="create"||screen=="join"||screen=="home"||screen=="online")&&opening&&status.empty()){
+  status=OpeningScreen()=="create"?loc::T("room.creating_status"):loc::T("room.joining_status");statusTone=Tone::Pending;
  }
  if(screen=="room"&&status.empty()){
   const bool healthy=v.session.control==Health::Healthy;
@@ -286,11 +317,13 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
 }
 void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,const std::string& screen,bool idle,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
- if(a.id=="online")nav.Push(idle?"online":"room");
+ // An opening room keeps its own screen, with its Stop row, until it joins.
+ if(a.id=="online")nav.Push(idle?"online":opening_?OpeningScreen():"room");
+ else if(a.id=="discord-invitation")nav.Push(a.id);
  else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="selection"||a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="developer")nav.Push(a.id);
- else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
+ else if(a.id=="host"||a.id=="join-now"){if(Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit)){openingScreen_=a.id=="host"?"create":"join";openingError_=v.session.error;}}
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
  else if(a.id=="offline"||a.id=="controls")Send(CommandKind::StartOffline,v,submit);
  else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
@@ -308,13 +341,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
  using namespace netplay;
  if(screen.compare(0,4,"room")==0)RoomAction(a,v,submit);
  else if(a.id=="invite-text")std::snprintf(invitation_,sizeof(invitation_),"%s",a.text.c_str());
- else if(a.id=="language"){
-  // Not a netplay preference: it lives in the UI preferences file and saves on
-  // its own deadline, so it stays out of the validate-and-save tail below.
-  languagePreference_=std::string(loc::NextPreference(languagePreference_,a.delta));
-  loc::SetActive(platform::ResolveUiLocale(languagePreference_));
-  languageDirty_=true;languageSaveError_.clear();languageSaveAt_=ImGui::GetTime()+.45;
- }
+ else if(a.id=="language")SetLanguage(std::string(loc::NextPreference(languagePreference_,a.delta)));
  else{
   auto prior=preferences_;
   if(a.id=="name")preferences_.displayName=a.text;else if(a.id=="room-name")preferences_.roomName=a.text;
@@ -330,6 +357,14 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
  }
 }
 
+void ApplicationShell::SetLanguage(std::string preference) {
+ // Not a netplay preference: it lives in the UI preferences file and saves on
+ // its own deadline, so it stays out of the validate-and-save tail of HandleAdjust.
+ if(!loc::ValidPreference(preference))return;
+ languagePreference_=std::move(preference);
+ loc::SetActive(platform::ResolveUiLocale(languagePreference_));
+ languageDirty_=true;languageSaveError_.clear();languageSaveAt_=ImGui::GetTime()+.45;
+}
 void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer) {
  using namespace netplay; auto& nav=menu_.navigation;
  const double now = ImGui::GetTime();
@@ -378,7 +413,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Room shortcuts work from every screen of a joined room, including the
  // embedded fighter selector, which forwards what it does not handle.
  const bool inRoom=v.session.room!=RoomState::Idle&&v.room.roomEpoch;
+ opening_=v.session.room==RoomState::Opening;
+ const std::vector<LegendHint> roomHints={{"X",loc::T("room.legend_fighter")},{"Y",loc::T("room.legend_options")},{"Back/Select",loc::T("room.chat")}};
  if(nav.Screen()=="selection"&&selection){
+  // The selector names where its Back goes and shows the room's shortcuts it hands back.
+  SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),inRoom?roomHints:std::vector<LegendHint>{}});
   selection();
   const auto forwarded=TakeForwardedMenuAction();
   if(forwarded.kind==MenuAction::Close)nav.Return();
@@ -388,7 +427,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const std::string screen=nav.Screen();std::string title=loc::T("shell.home_title");
  const bool idle=v.session.room==RoomState::Idle, opening=v.session.room==RoomState::Opening;
  std::vector<MenuEntry> rows=BuildRows(v,screen,idle,opening,selection,developer,title);
- if(saveFailed_)rows.push_back(Row("retry-save",loc::T("settings.retry_save"),v.settingsError.empty()?error_:v.settingsError,v.canEditPreferences&&!v.settingsPending));
+ if(saveFailed_){rows.push_back(Row("retry-save",loc::T("settings.retry_save"),v.settingsError.empty()?error_:v.settingsError,v.canEditPreferences&&!v.settingsPending));rows.back().wide=true;}
  const auto feedback=UpdateStatus(v,screen,opening,healthyRoom,title);
  const std::string& status=feedback.first;const Tone statusTone=feedback.second;
  const bool roomScreen=screen.compare(0,4,"room")==0;
@@ -422,21 +461,31 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // grows can never displace the list under a highlight or a mouse click.
  // Home renders its status in the small-print line below the list instead.
  const bool stableFeedback=screen!="home";
- if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints={{"X",loc::T("room.legend_fighter")},{"Y",loc::T("room.legend_options")},{"Back/Select",loc::T("room.chat")}};
+ if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=roomHints;
  else menu_.shortcutHints.clear();
- menu_.backHint=screen=="room"&&v.room.roomEpoch?PlaceExitLabel(v):"";
+ // Back names where it goes when that is not simply the previous screen:
+ // from Home, out of Ember or back to the room; on the board, out of your seat.
+ menu_.exitName.clear();menu_.backHint.clear();
+ if(screen=="home"){
+  menu_.exitName=idle?loc::T("screen.game"):opening?MenuScreenLabel(OpeningScreen()):loc::T("screen.room");
+  menu_.backHint=loc::Tf("menu.return_to",menu_.exitName);
+ }else if(screen=="room"&&v.room.roomEpoch)menu_.backHint=PlaceExitLabel(v);
+ // While a controller is being captured it cannot drive the menu, so the
+ // legend shows the keyboard and names the cancel.
+ if(v.inputCapture!=input::Capture::Idle){SetMenuGlyphs(1,0,0);menu_.backHint=loc::T("common.cancel");}
  auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,100,stableFeedback,statusTone,screen=="home");
  if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){
   ShellAction r;r.command.generation=v.session.generation;r.inputAction=input::Action::Cancel;submit(std::move(r));
  }else if(a.kind==MenuAction::Close&&v.session.room!=RoomState::Idle){
   // Back never drops a player out of a room to the game's own menu, where
   // only the Ember shortcut would bring the room back.
-  nav.Push("room");
+  nav.Push(opening?OpeningScreen():"room");
  }else if(a.kind==MenuAction::Close||a.id=="return"){if(open)*open=false;
  }else if(a.kind==MenuAction::Shortcut){
   if(inRoom)RoomShortcut(a,v);
  }else if(a.kind==MenuAction::Chosen){
   if(roomScreen)RoomAction(a,v,submit);
+  else if(a.id=="language")SetLanguage(a.text);
  }else if(a.kind==MenuAction::Activate){
   HandleActivate(a,v,screen,idle,submit);
  }else if(a.kind==MenuAction::Adjust||a.kind==MenuAction::TextAccepted){

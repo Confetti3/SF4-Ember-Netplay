@@ -95,6 +95,12 @@ private:
     void PublishPlayerCard(const ShellView& view);
     void HandleActivate(const MenuAction& action,const ShellView& view,const std::string& screen,bool idle,const Submit& submit);
     void HandleAdjust(const MenuAction& action,const ShellView& view,const std::string& screen,const Submit& submit);
+    void SetLanguage(std::string preference);
+    // The screen an opening room was started from; a Discord join has none,
+    // so it is shown as joining.
+    std::string OpeningScreen() const { return openingScreen_.empty()?"join":openingScreen_; }
+    std::string openingScreen_, openingError_;
+    bool opening_ = false;
     std::vector<MenuEntry> RoomEntries(const ShellView& view);
     void RoomAction(const MenuAction& action, const ShellView& view, const Submit& submit);
     void RoomShortcut(const MenuAction& action, const ShellView& view);

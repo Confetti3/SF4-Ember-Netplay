@@ -3,14 +3,15 @@
 #include "MenuFeedback.hxx"
 #include "Theme.hxx"
 #include "MenuGlyphs.hxx"
+#include "MenuDialogs.hxx"
 #include <functional>
 #include <imgui.h>
 namespace sf4e { namespace ui {
 class SelectionArt;
 void SetMenuArt(SelectionArt* art);
-void SetMenuGlyphs(int deviceType,unsigned selectPhysical,unsigned backPhysical);
-// The caller scales the window font, so this takes no scale of its own.
-void DrawTrainingOpenPrompt();
+// The fallbacks name a button with no known glyph: the game's LP/LK binding,
+// or the recovery window's stick buttons "1"/"2". They must outlive the call.
+void SetMenuGlyphs(int deviceType,unsigned selectPhysical,unsigned backPhysical,const char* selectFallback="LP",const char* backFallback="LK");
 struct PlayerCardView {
     std::string name, fighterName;
     int fighter=0, inputDelay=0, members=0, activeTables=0;
@@ -20,6 +21,8 @@ struct PlayerCardView {
 };
 void SetMenuPlayerCard(PlayerCardView view);
 void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max);
+// A card's corner marker (SAVED, MAIN), fitted to the card's width.
+void DrawCardBadge(ImVec2 at,float width,const char* text,const char* probe);
 void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max);
 // Optional geometry observer used by the renderer regression harness.
 using MenuTextProbe = std::function<void(const char*,float,float,float,float)>;
@@ -44,6 +47,11 @@ MenuInput ReadMenuInput();
 // what it does not handle itself: Close, or a shortcut the parent owns.
 void ForwardMenuAction(MenuAction action);
 MenuAction TakeForwardedMenuAction();
+// What the parent tells an embedded screen before drawing it: where its Back
+// from the root goes, and the parent's shortcuts it forwards and so advertises.
+struct EmbeddedReturn { std::string exitName; std::vector<LegendHint> shortcutHints; };
+void SetEmbeddedReturn(EmbeddedReturn context);
+const EmbeddedReturn& EmbeddedReturnContext();
 class GameMenu {
 public:
     MenuNavigation navigation;
@@ -53,6 +61,14 @@ public:
     // What Back does on this screen when it is not the usual return; empty
     // for Back.
     std::string backHint;
+    // The display name of the navigation's root screen, used by its children's
+    // Back button; empty uses MenuScreenLabel. An embedded menu names itself
+    // ("Fighter select"), not the shell's "Home".
+    std::string rootName;
+    // Where Back from the root screen goes ("Room", "SF4"). The root's header
+    // button reads "< Back / exitName", or backHint when there is no exitName;
+    // Home shows its header button only with one.
+    std::string exitName;
     using Detail = std::function<void(const std::string&)>;
     // Return false for ordinary actions embedded in an artwork grid, so their
     // labels still render (for example, Retry saving after a portrait failure).
@@ -80,10 +96,21 @@ public:
     }
     bool NoticeOpen() const { return !notice_.empty(); }
 private:
-    // Parts of Draw, in the order it calls them.
+    // Home's help line and status line, reserved whether or not they are empty.
+    static constexpr float HomeStatusHeight=36;
+    // Parts of Draw, in the order it calls them. The dialogs live in MenuDialogs.cxx.
+    // An open dialog owns the legend and the header: Select names its
+    // highlighted button and Back what dismissing it does. False when none is open.
+    bool DialogLegend(const std::vector<MenuEntry>& entries,std::string& select,std::string& back) const;
+    std::vector<DialogButton> ConfirmationButtons(const std::vector<MenuEntry>& entries) const;
+    void AnswerConfirmation(const std::vector<MenuEntry>& entries,int clicked,int selected,MenuAction& action);
     void DrawHomeStatusLine(const std::vector<MenuEntry>& entries,const char* status,Tone statusTone,float homeMargin);
-    void DrawFlyoutConfirmation(const std::vector<MenuEntry>& entries,float unit,MenuAction& action);
+    // Veils the body between top and bottom (screen y), not the header or legend.
+    void DrawFlyoutConfirmation(const std::vector<MenuEntry>& entries,float unit,float top,float bottom,MenuAction& action);
     void DrawConfirmationModal(const std::vector<MenuEntry>& entries,MenuAction& action);
+    // A reader in place of the list; held Up/Down scroll it.
+    void DrawReader(const std::vector<MenuEntry>& entries,const Detail& detail,float height,unsigned held);
+    void DrawChoiceModal(const std::vector<MenuEntry>& entries,MenuAction& action);
     void DrawNoticeModal(bool noticeOpen);
     void DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEditText,MenuAction& action);
     // Clears the notice and runs its action exactly once, whichever of the
@@ -98,6 +125,7 @@ private:
     bool noticeAlternativeSelected_=false;
     unsigned noticePrevious_=~0u;
     int lastFrame_ = -2;
+    std::size_t lastChoice_ = ~std::size_t(0);
     UiClock clock_;
     MenuVisualFeedback feedback_;
 };

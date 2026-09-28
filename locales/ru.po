@@ -141,6 +141,21 @@ msgstr "Отменить загрузку или проверку. Дождит�
 msgid "recovery.close_detail"
 msgstr "Закрыть восстановление без запуска SF4. Текущая операция будет отменена."
 
+msgid "recovery.close_cancels_detail"
+msgstr "Закрытие сейчас отменит текущую операцию."
+
+msgid "recovery.back_close"
+msgstr "Закрыть восстановление"
+
+msgid "updates.back_close"
+msgstr "Закрыть обновление"
+
+msgid "screen.recovery"
+msgstr "Восстановление"
+
+msgid "screen.updates"
+msgstr "Обновления"
+
 msgid "updates.downloaded_mb"
 msgstr "Загружено: {0:.1f} МБ"
 
@@ -199,7 +214,7 @@ msgid "settings.language"
 msgstr "Язык"
 
 msgid "settings.language.detail"
-msgstr "Язык интерфейса Ember меняется сразу. Автовыбор учитывает язык игры, затем Windows."
+msgstr "Выберите, чтобы открыть список, или переключайте влево/вправо. Автовыбор учитывает язык игры, затем Windows."
 
 msgid "settings.language.system_with"
 msgstr "Автоматически — {0}"
@@ -222,6 +237,33 @@ msgstr "Просмотр"
 msgid "menu.select"
 msgstr "Выбрать"
 
+msgid "menu.read"
+msgstr "Читать"
+
+msgid "menu.choose"
+msgstr "Выбрать из списка"
+
+msgid "menu.hint.save_main"
+msgstr "Сделать основным"
+
+msgid "menu.hint.save_fighter"
+msgstr "Сохранить персонажа"
+
+msgid "menu.hint.save_costume"
+msgstr "Сохранить костюм"
+
+msgid "menu.hint.save_color"
+msgstr "Сохранить цвет"
+
+msgid "menu.hint.save_ultra"
+msgstr "Сохранить Ultra"
+
+msgid "menu.hint.save_stage"
+msgstr "Сохранить место"
+
+msgid "menu.hint.paste"
+msgstr "Вставить"
+
 msgid "menu.navigate"
 msgstr "Перейти"
 
@@ -240,6 +282,9 @@ msgstr "Время раунда"
 msgid "screen.home"
 msgstr "Главная"
 
+msgid "screen.game"
+msgstr "SF4"
+
 msgid "screen.online"
 msgstr "Игра по сети"
 
@@ -257,6 +302,15 @@ msgstr "Основной персонаж"
 
 msgid "screen.about"
 msgstr "Справка и сведения"
+
+msgid "screen.discord"
+msgstr "Discord"
+
+msgid "screen.discord_invitation"
+msgstr "Приглашение Discord"
+
+msgid "screen.assignment"
+msgstr "Назначить контроллер"
 
 msgid "screen.room"
 msgstr "Зал"
@@ -278,9 +332,6 @@ msgstr "Чат"
 
 msgid "screen.room_settings"
 msgstr "Настройки зала"
-
-msgid "screen.practice_position"
-msgstr "Позиция на тренировке"
 
 msgid "screen.dummy_recording"
 msgstr "Запись манекена"
@@ -395,6 +446,9 @@ msgstr "Нажмите кнопку на выбранном контроллер
 
 msgid "controller.release_buttons"
 msgstr "Отпустите все кнопки для продолжения."
+
+msgid "controller.keep_current"
+msgstr "Кнопка на текущем контроллере оставляет его. Escape или щелчок отменяет."
 
 msgid "home.online"
 msgstr "Игра по сети"
@@ -558,9 +612,6 @@ msgstr "Статус и приглашения."
 msgid "player.title"
 msgstr "ИГРОК И КОНТРОЛЛЕР"
 
-msgid "player.display_name"
-msgstr "Отображаемое имя"
-
 msgid "player.change_controller"
 msgstr "Сменить контроллер"
 
@@ -629,6 +680,9 @@ msgstr "Сначала включите статус Discord."
 
 msgid "discord.invitation_title"
 msgstr "ПРИГЛАШЕНИЕ DISCORD"
+
+msgid "discord.title"
+msgstr "DISCORD"
 
 msgid "discord.cancel_invitation"
 msgstr "Отменить приглашение"
@@ -846,8 +900,20 @@ msgstr "Тренировка"
 msgid "menu.back_to"
 msgstr "< Назад / {0}"
 
+msgid "menu.return_to"
+msgstr "Вернуться: {0}"
+
+msgid "menu.flyout_title"
+msgstr "EMBER / {0}"
+
 msgid "training.controls"
 msgstr "Управление тренировкой"
+
+msgid "training.open_chip"
+msgstr "F6 Меню тренировки"
+
+msgid "training.hide_hint"
+msgstr "F5 Скрыть HUD"
 
 msgid "training.dummy_recording"
 msgstr "Запись манекена"
@@ -1059,6 +1125,15 @@ msgstr "Ultra Combo"
 msgid "selection.ultra_double"
 msgstr "Ultra Double"
 
+msgid "selection.ultra_one"
+msgstr "Ultra I"
+
+msgid "selection.ultra_two"
+msgstr "Ultra II"
+
+msgid "selection.hold"
+msgstr "ДЕРЖАТЬ"
+
 msgid "selection.stage"
 msgstr "Место битвы"
 
@@ -1162,10 +1237,10 @@ msgid "selection.preview_locked"
 msgstr "Только просмотр — выбор заблокирован."
 
 msgid "selection.saved_appearance"
-msgstr "Сохранено: костюм {0} / цвет {1}"
+msgstr "Сохранено: {0} / цвет {1}"
 
 msgid "selection.saved_full"
-msgstr "Сохранено: {0} / костюм {1} / цвет {2}"
+msgstr "Сохранено: {0} / {1} / цвет {2}"
 
 msgid "selection.preview_save_short"
 msgstr "Только просмотр — «Выбрать» для сохранения"
@@ -1194,14 +1269,11 @@ msgstr "Версии сборок различаются. У обоих игро
 msgid "runtime.room_full"
 msgstr "Зал заполнен."
 
-msgid "runtime.name_taken"
-msgstr "Игрок с таким именем уже в зале. Смените имя в настройках."
-
 msgid "runtime.selection_combination_unavailable"
 msgstr "Эта комбинация не допускается правилами зала. Выберите другого персонажа, костюм, цвет или издание."
 
 msgid "runtime.selection_summary"
-msgstr "{0} / костюм {1} / цвет {2} / {3}"
+msgstr "{0} / {1} / цвет {2} / {3}"
 
 msgid "runtime.selection_unavailable"
 msgstr "Выбор не допускается этими правилами. Откройте «Выбор персонажа» и выберите доступный вариант."
@@ -1413,9 +1485,6 @@ msgstr " Вы потеряете место в очереди."
 msgid "room.leave.host"
 msgstr " Другой участник станет ведущим."
 
-msgid "room.action_queue_failed"
-msgstr "Не удалось поставить действие в очередь. Повторите попытку."
-
 msgid "room.table_detail"
 msgstr "{0} против {1}\n{2}\nОчередь: {3} / Зрители: {4}\nВы: {5}"
 
@@ -1610,9 +1679,6 @@ msgstr "Отменить готовность / выбор"
 
 msgid "room.readying"
 msgstr "Подготовка..."
-
-msgid "room.result_unresolved"
-msgstr "Результат не установлен"
 
 msgid "room.preparing_match"
 msgstr "Подготовка матча"
@@ -1848,9 +1914,6 @@ msgstr "Задать лимит зала."
 msgid "profile.main_badge"
 msgstr "ОСНОВНОЙ"
 
-msgid "training.shortcuts"
-msgstr "F6 Меню тренировки | F5 Скрыть HUD"
-
 msgid "common.not_set"
 msgstr "Не задано"
 
@@ -1882,7 +1945,7 @@ msgid "edit.title"
 msgstr "Изменить текст"
 
 msgid "edit.instructions"
-msgstr "Введите или вставьте текст. Enter — принять; Escape или «Назад» — отменить."
+msgstr "Введите или вставьте текст с клавиатуры. Enter или «Выбрать» на контроллере — принять; Escape или «Назад» — отменить."
 
 msgid "edit.updating"
 msgstr "Зал обновляется. Ваш текст сохранён; можно продолжить ввод или отменить."
@@ -1892,6 +1955,9 @@ msgstr "Принять"
 
 msgid "edit.cancel"
 msgstr "Отменить правку"
+
+msgid "edit.bytes"
+msgstr "{0} / {1} байт"
 
 msgid "discord.unavailable_build"
 msgstr "Интеграция с Discord недоступна в этой сборке."

@@ -7,8 +7,13 @@
 
 namespace sf4e { namespace ui {
 enum class RecoveryChoice { None, Folder, Retry, CheckUpdates, Install, Cancel, Close };
+// The root screen names the header's "< Back / ..." breadcrumb (MenuScreenLabel).
+inline MenuNavigation RecoveryNavigation(bool updates) { return MenuNavigation(updates?"updates":"recovery"); }
 // Rendering returns intent only. The launcher owns dialogs, services and exit.
-inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSnapshot& state,const std::string& message,bool updates) {
+// messageTone is the launcher message's own severity: a selected folder is
+// good news, a launch failure is not. A service message outranks it and
+// carries the service's verdict instead.
+inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSnapshot& state,const std::string& message,bool updates,Tone messageTone=Tone::Error) {
     std::vector<MenuEntry> rows;
     if(!updates){
         rows.push_back(Row("folder",loc::T("recovery.choose_folder"),loc::T("recovery.choose_folder_detail"),!state.pending));
@@ -19,12 +24,16 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
         rows.push_back(ConfirmRow("install",loc::T("updates.install"),state.update.expectedSha256.size()==64?
             loc::T("updates.install_detail"):loc::T("updates.unverified"),!state.pending&&state.update.expectedSha256.size()==64));
     if(state.pending)rows.push_back(Row("cancel",loc::T("updates.cancel"),loc::T("updates.cancel_detail")));
-    rows.push_back(Row("close",loc::T("common.close"),loc::T("recovery.close_detail")));
+    rows.push_back(Row("close",loc::T("common.close"),state.pending?loc::T("recovery.close_cancels_detail"):loc::T("recovery.close_detail")));
+    // Back on the root closes the window, so the legend says so.
+    menu.backHint=updates?loc::T("updates.back_close"):loc::T("recovery.back_close");
     const auto* vp=ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
     const std::string windowName=std::string(loc::T("recovery.window"))+"###EmberRecovery";
     ImGui::Begin(windowName.c_str(),nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
-    const std::string status=state.message.empty()?message:state.message;
+    const bool service=!state.message.empty();
+    const std::string status=service?state.message:message;
+    const Tone tone=state.pending?Tone::Pending:service?(state.succeeded?Tone::Success:Tone::Error):message.empty()?Tone::Neutral:messageTone;
     // stableStatus: GameMenu only draws the status line for a flyout or a
     // stable-status screen. Recovery is neither, so its launch and update
     // messages were never rendered.
@@ -33,7 +42,7 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
         if(state.totalBytes)ImGui::ProgressBar((std::min)(1.f,float(state.downloadedBytes)/state.totalBytes),ImVec2(-1,0));
         const auto progress=loc::Tf("updates.downloaded_mb",state.downloadedBytes/1048576.0);
         ImGui::TextWrapped("%s",progress.c_str());
-    },1,{},{},0,100,true,state.pending?Tone::Pending:message.empty()&&state.message.empty()?Tone::Neutral:Tone::Error);
+    },1,{},{},0,100,true,tone);
     ImGui::End();
     if(action.kind==MenuAction::Close)return RecoveryChoice::Close;
     if(action.kind!=MenuAction::Activate)return RecoveryChoice::None;

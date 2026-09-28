@@ -141,6 +141,21 @@ msgstr "Cancel the current download or check. Wait for cancellation to finish be
 msgid "recovery.close_detail"
 msgstr "Close recovery without starting SF4. Any running operation is cancelled."
 
+msgid "recovery.close_cancels_detail"
+msgstr "Closing now cancels the running operation."
+
+msgid "recovery.back_close"
+msgstr "Close recovery"
+
+msgid "updates.back_close"
+msgstr "Close updater"
+
+msgid "screen.recovery"
+msgstr "Recovery"
+
+msgid "screen.updates"
+msgstr "Updates"
+
 msgid "updates.downloaded_mb"
 msgstr "Downloaded {0:.1f} MB"
 
@@ -181,7 +196,7 @@ msgid "services.update_prepared"
 msgstr "Update prepared. Restarting SF4 Ember Netplay..."
 
 msgid "services.operation_failed"
-msgstr "The operation failed. Please retry. Update recovery copies are kept in .ember-update-backups."
+msgstr "The operation failed. Try again. Update recovery copies are kept in .ember-update-backups."
 
 msgid "services.operation_cancelled"
 msgstr "Operation cancelled."
@@ -199,7 +214,7 @@ msgid "settings.language"
 msgstr "Language"
 
 msgid "settings.language.detail"
-msgstr "Changes Ember's interface language immediately. Automatic follows the game's language, then Windows."
+msgstr "Select to choose from the list, or step with Left/Right. Automatic follows the game's language, then Windows."
 
 msgid "settings.language.system_with"
 msgstr "Automatic — {0}"
@@ -222,6 +237,33 @@ msgstr "Review"
 msgid "menu.select"
 msgstr "Select"
 
+msgid "menu.read"
+msgstr "Read"
+
+msgid "menu.choose"
+msgstr "Choose"
+
+msgid "menu.hint.save_main"
+msgstr "Save main"
+
+msgid "menu.hint.save_fighter"
+msgstr "Save fighter"
+
+msgid "menu.hint.save_costume"
+msgstr "Save costume"
+
+msgid "menu.hint.save_color"
+msgstr "Save color"
+
+msgid "menu.hint.save_ultra"
+msgstr "Save Ultra"
+
+msgid "menu.hint.save_stage"
+msgstr "Save stage"
+
+msgid "menu.hint.paste"
+msgstr "Paste"
+
 msgid "menu.navigate"
 msgstr "Navigate"
 
@@ -240,23 +282,35 @@ msgstr "Round time"
 msgid "screen.home"
 msgstr "Home"
 
+msgid "screen.game"
+msgstr "SF4"
+
 msgid "screen.online"
-msgstr "Online Play"
+msgstr "Online play"
 
 msgid "screen.selection"
-msgstr "Fighter Select"
+msgstr "Fighter select"
 
 msgid "screen.player"
-msgstr "Player & Controller"
+msgstr "Player & controller"
 
 msgid "screen.defaults"
-msgstr "Gameplay Defaults"
+msgstr "Gameplay defaults"
 
 msgid "screen.main_character"
-msgstr "Choose Your Main"
+msgstr "Choose your main"
 
 msgid "screen.about"
-msgstr "Help & About"
+msgstr "Help & about"
+
+msgid "screen.discord"
+msgstr "Discord"
+
+msgid "screen.discord_invitation"
+msgstr "Discord invitation"
+
+msgid "screen.assignment"
+msgstr "Assign controller"
 
 msgid "screen.room"
 msgstr "Room"
@@ -265,7 +319,7 @@ msgid "screen.table"
 msgstr "Table"
 
 msgid "screen.table_rules"
-msgstr "Table Rules"
+msgstr "Table rules"
 
 msgid "screen.members"
 msgstr "Members"
@@ -277,16 +331,13 @@ msgid "screen.chat"
 msgstr "Chat"
 
 msgid "screen.room_settings"
-msgstr "Room Settings"
-
-msgid "screen.practice_position"
-msgstr "Practice Position"
+msgstr "Room settings"
 
 msgid "screen.dummy_recording"
-msgstr "Dummy Recording"
+msgstr "Dummy recording"
 
 msgid "screen.input_history"
-msgstr "Input History"
+msgstr "Input history"
 
 msgid "room.wait.leaving"
 msgstr "Leaving room. Waiting for the connection to close..."
@@ -295,7 +346,7 @@ msgid "room.wait.joining"
 msgstr "Joining room. Waiting for the other players..."
 
 msgid "room.wait.closed"
-msgstr "This room has closed. Return to Online Play to join another."
+msgstr "This room has closed. Return to Online play to join another."
 
 msgid "room.wait.recovering"
 msgstr "Room connection is recovering. You can still leave the room."
@@ -364,7 +415,7 @@ msgid "connection.check"
 msgstr "Check connection"
 
 msgid "error.queue_failed"
-msgstr "The action could not be queued. Please try again."
+msgstr "The action could not be queued. Try again."
 
 msgid "notice.left_room"
 msgstr "You left the room."
@@ -396,8 +447,11 @@ msgstr "Press a button on your chosen controller."
 msgid "controller.release_buttons"
 msgstr "Release all buttons to continue."
 
+msgid "controller.keep_current"
+msgstr "Pressing a button on your current controller keeps it. Escape or a click cancels."
+
 msgid "home.online"
-msgstr "Online Play"
+msgstr "Online play"
 
 msgid "home.online_detail"
 msgstr "Create a private room or join an invitation."
@@ -406,7 +460,7 @@ msgid "home.return_room"
 msgstr "Return to your current room."
 
 msgid "home.fighter_select"
-msgstr "Fighter Select"
+msgstr "Fighter select"
 
 msgid "home.selection_locked"
 msgstr "Return to your table for the current selection status."
@@ -424,13 +478,13 @@ msgid "home.settings_detail"
 msgstr "Player, controller, gameplay defaults, interface and Discord."
 
 msgid "home.about"
-msgstr "Help & About"
+msgstr "Help & about"
 
 msgid "home.about_detail"
 msgstr "Controls, diagnostics, updates and credits."
 
 msgid "home.offline"
-msgstr "Play Offline"
+msgstr "Play offline"
 
 msgid "home.offline_detail"
 msgstr "Open the native offline menus."
@@ -478,13 +532,13 @@ msgid "online.title"
 msgstr "ONLINE PLAY"
 
 msgid "online.create"
-msgstr "Create Room"
+msgstr "Create room"
 
 msgid "online.create_detail"
 msgstr "Set up a private room."
 
 msgid "online.join"
-msgstr "Join Room"
+msgstr "Join room"
 
 msgid "online.join_detail"
 msgstr "Paste an invitation."
@@ -520,10 +574,10 @@ msgid "room.join_title"
 msgstr "JOIN ROOM"
 
 msgid "room.paste_invitation"
-msgstr "Paste Invitation"
+msgstr "Paste invitation"
 
 msgid "room.paste_invitation_detail"
-msgstr "Copy an Ember invitation, then select this row."
+msgstr "Copy an Ember invitation, then Select this row."
 
 msgid "room.stop_joining"
 msgstr "Stop joining this room."
@@ -557,9 +611,6 @@ msgstr "Activity and invitations."
 
 msgid "player.title"
 msgstr "PLAYER & CONTROLLER"
-
-msgid "player.display_name"
-msgstr "Display name"
 
 msgid "player.change_controller"
 msgstr "Change controller"
@@ -629,6 +680,9 @@ msgstr "Enable Discord activity first."
 
 msgid "discord.invitation_title"
 msgstr "DISCORD INVITATION"
+
+msgid "discord.title"
+msgstr "DISCORD"
 
 msgid "discord.cancel_invitation"
 msgstr "Cancel invitation"
@@ -766,10 +820,10 @@ msgid "settings.preview"
 msgstr "Preview"
 
 msgid "settings.player_one"
-msgstr "Player One"
+msgstr "Player 1"
 
 msgid "settings.player_two"
-msgstr "Player Two"
+msgstr "Player 2"
 
 msgid "error.invitation_invalid"
 msgstr "Invitation is empty or too long."
@@ -841,22 +895,34 @@ msgid "card.win_rate"
 msgstr "{0}% WIN"
 
 msgid "training.lab"
-msgstr "Training Lab"
+msgstr "Training lab"
 
 msgid "menu.back_to"
 msgstr "< Back / {0}"
 
+msgid "menu.return_to"
+msgstr "Return to {0}"
+
+msgid "menu.flyout_title"
+msgstr "EMBER / {0}"
+
 msgid "training.controls"
 msgstr "Training controls"
 
+msgid "training.open_chip"
+msgstr "F6 Training controls"
+
+msgid "training.hide_hint"
+msgstr "F5 Hide HUD"
+
 msgid "training.dummy_recording"
-msgstr "Dummy Recording"
+msgstr "Dummy recording"
 
 msgid "training.dummy_recording.detail"
 msgstr "Record P1 controls onto P2. Set the native dummy to Player / controller control."
 
 msgid "training.input_history"
-msgstr "Input History"
+msgstr "Input history"
 
 msgid "training.input_history.detail"
 msgstr "Inspect each player's held inputs."
@@ -1059,6 +1125,15 @@ msgstr "Ultra Combo"
 msgid "selection.ultra_double"
 msgstr "Ultra Double"
 
+msgid "selection.ultra_one"
+msgstr "Ultra I"
+
+msgid "selection.ultra_two"
+msgstr "Ultra II"
+
+msgid "selection.hold"
+msgstr "HOLD"
+
 msgid "selection.stage"
 msgstr "Stage"
 
@@ -1162,10 +1237,10 @@ msgid "selection.preview_locked"
 msgstr "Preview only - selection is locked."
 
 msgid "selection.saved_appearance"
-msgstr "Saved: Costume {0} / Color {1}"
+msgstr "Saved: {0} / Color {1}"
 
 msgid "selection.saved_full"
-msgstr "Saved: {0} / Costume {1} / Color {2}"
+msgstr "Saved: {0} / {1} / Color {2}"
 
 msgid "selection.preview_save_short"
 msgstr "Preview only - press Select to save"
@@ -1188,14 +1263,12 @@ msgid "runtime.build_mismatch"
 msgstr "Build mismatch. Both players must use the same SF4 Ember Netplay package."
 msgid "runtime.room_full"
 msgstr "This room is full."
-msgid "runtime.name_taken"
-msgstr "That player name is already in the room. Change it in Settings."
 msgid "runtime.selection_combination_unavailable"
-msgstr "This combination is unavailable under the room's rules. Choose another fighter, costume, colour or edition."
+msgstr "This combination is unavailable under the room's rules. Choose another fighter, costume, color or edition."
 msgid "runtime.selection_summary"
-msgstr "{0} / Costume {1} / Color {2} / {3}"
+msgstr "{0} / {1} / Color {2} / {3}"
 msgid "runtime.selection_unavailable"
-msgstr "Selection unavailable under these rules. Open Fighter Select to choose an available option."
+msgstr "Selection unavailable under these rules. Open Fighter select to choose an available option."
 msgid "runtime.open_shortcut"
 msgstr "SF4 Ember Netplay  /  F10 or Start"
 msgid "runtime.waiting_opponent_join"
@@ -1336,8 +1409,6 @@ msgid "room.leave.queue"
 msgstr " You lose your place in the queue."
 msgid "room.leave.host"
 msgstr " Another member becomes host."
-msgid "room.action_queue_failed"
-msgstr "The action could not be queued. Please try again."
 msgid "room.table_detail"
 msgstr "{0} vs {1}\n{2}\nQueue: {3} / Watching: {4}\nYou: {5}"
 msgid "room.connecting"
@@ -1469,8 +1540,6 @@ msgid "room.unready"
 msgstr "Unready / unlock fighter"
 msgid "room.readying"
 msgstr "Readying up..."
-msgid "room.result_unresolved"
-msgstr "Result unresolved"
 msgid "room.preparing_match"
 msgstr "Preparing match"
 msgid "room.ready_rematch"
@@ -1627,8 +1696,6 @@ msgid "room.apply_capacity.detail"
 msgstr "Submit this capacity."
 msgid "profile.main_badge"
 msgstr "MAIN"
-msgid "training.shortcuts"
-msgstr "F6 Training controls | F5 Hide HUD"
 msgid "common.not_set"
 msgstr "Not set"
 msgid "notice.title"
@@ -1638,7 +1705,7 @@ msgstr "Something went wrong"
 msgid "game_settings.title"
 msgstr "Recommended game settings"
 msgid "game_settings.intro"
-msgstr "Online play works best with the game settings below. Choose Play Offline, then change them in the game's Options menu."
+msgstr "Online play works best with the game settings below. Choose Play offline, then change them in the game's Options menu."
 msgid "game_settings.frame_rate"
 msgstr "Frame Rate: set to FIXED (now {0}). Required. Other modes break rollback."
 msgid "game_settings.anti_aliasing"
@@ -1650,13 +1717,15 @@ msgstr "OK"
 msgid "edit.title"
 msgstr "Edit text"
 msgid "edit.instructions"
-msgstr "Type or paste. Enter accepts; Escape or controller Back cancels."
+msgstr "Type or paste with the keyboard. Enter or controller Select accepts; Escape or controller Back cancels."
 msgid "edit.updating"
 msgstr "Updating room. Your draft is kept; you can continue typing or cancel."
 msgid "common.accept"
 msgstr "Accept"
 msgid "edit.cancel"
 msgstr "Cancel edit"
+msgid "edit.bytes"
+msgstr "{0} / {1} bytes"
 msgid "discord.unavailable_build"
 msgstr "Discord integration is unavailable in this build."
 msgid "runtime.record_invalid"
@@ -1796,9 +1865,9 @@ msgstr "Room control changed before your Ready was applied. Press Ready again."
 msgid "runtime.ready.assign_controller"
 msgstr "Assign or reconnect your controller before readying up."
 msgid "runtime.ready.stage_unavailable"
-msgstr "The selected stage is unavailable. Choose another stage in Fighter Select."
+msgstr "The selected stage is unavailable. Choose another stage in Fighter select."
 msgid "runtime.ready.fighter_unavailable"
-msgstr "The selected fighter is unavailable. Choose another fighter in Fighter Select."
+msgstr "The selected fighter is unavailable. Choose another fighter in Fighter select."
 msgid "runtime.ready.selection_unavailable"
 msgstr "This fighter selection is unavailable. Choose an available costume, color, edition, and Ultra."
 msgid "runtime.ready.take_seat"

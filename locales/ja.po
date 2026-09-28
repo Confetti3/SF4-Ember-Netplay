@@ -141,6 +141,21 @@ msgstr "現在のダウンロードまたは確認をキャンセルします。
 msgid "recovery.close_detail"
 msgstr "SF4を起動せずに復旧画面を閉じます。実行中の操作はキャンセルされます。"
 
+msgid "recovery.close_cancels_detail"
+msgstr "今閉じると実行中の操作はキャンセルされます。"
+
+msgid "recovery.back_close"
+msgstr "復旧を閉じる"
+
+msgid "updates.back_close"
+msgstr "アップデーターを閉じる"
+
+msgid "screen.recovery"
+msgstr "復旧"
+
+msgid "screen.updates"
+msgstr "アップデート"
+
 msgid "updates.downloaded_mb"
 msgstr "{0:.1f} MBダウンロード済み"
 
@@ -199,7 +214,7 @@ msgid "settings.language"
 msgstr "言語"
 
 msgid "settings.language.detail"
-msgstr "Emberの表示言語をすぐに変更します。自動ではゲームの言語、次にWindowsの言語を使います。"
+msgstr "選択でリストから選べます。左右でも切り替えられます。自動ではゲームの言語、次にWindowsの言語を使います。"
 
 msgid "settings.language.system_with"
 msgstr "自動：{0}"
@@ -222,6 +237,33 @@ msgstr "確認"
 msgid "menu.select"
 msgstr "選択"
 
+msgid "menu.read"
+msgstr "読む"
+
+msgid "menu.choose"
+msgstr "選ぶ"
+
+msgid "menu.hint.save_main"
+msgstr "メインに設定"
+
+msgid "menu.hint.save_fighter"
+msgstr "キャラを保存"
+
+msgid "menu.hint.save_costume"
+msgstr "コスチュームを保存"
+
+msgid "menu.hint.save_color"
+msgstr "カラーを保存"
+
+msgid "menu.hint.save_ultra"
+msgstr "ウルトラを保存"
+
+msgid "menu.hint.save_stage"
+msgstr "ステージを保存"
+
+msgid "menu.hint.paste"
+msgstr "貼り付け"
+
 msgid "menu.navigate"
 msgstr "移動"
 
@@ -240,6 +282,9 @@ msgstr "タイム"
 msgid "screen.home"
 msgstr "ホーム"
 
+msgid "screen.game"
+msgstr "SF4"
+
 msgid "screen.online"
 msgstr "オンライン対戦"
 
@@ -257,6 +302,15 @@ msgstr "メインキャラを選択"
 
 msgid "screen.about"
 msgstr "ヘルプ・情報"
+
+msgid "screen.discord"
+msgstr "Discord"
+
+msgid "screen.discord_invitation"
+msgstr "Discordの招待"
+
+msgid "screen.assignment"
+msgstr "コントローラーの割り当て"
 
 msgid "screen.room"
 msgstr "ルーム"
@@ -278,9 +332,6 @@ msgstr "チャット"
 
 msgid "screen.room_settings"
 msgstr "ルーム設定"
-
-msgid "screen.practice_position"
-msgstr "練習位置"
 
 msgid "screen.dummy_recording"
 msgstr "ダミーレコーディング"
@@ -395,6 +446,9 @@ msgstr "使うコントローラーのボタンを押してください。"
 
 msgid "controller.release_buttons"
 msgstr "続けるにはすべてのボタンを離してください。"
+
+msgid "controller.keep_current"
+msgstr "今のコントローラーのボタンを押すとそのまま使います。Escかクリックでキャンセルします。"
 
 msgid "home.online"
 msgstr "オンライン対戦"
@@ -558,9 +612,6 @@ msgstr "アクティビティと招待。"
 msgid "player.title"
 msgstr "プレイヤーとコントローラー"
 
-msgid "player.display_name"
-msgstr "表示名"
-
 msgid "player.change_controller"
 msgstr "コントローラーを変更"
 
@@ -629,6 +680,9 @@ msgstr "先にDiscordのアクティビティを有効にしてください。"
 
 msgid "discord.invitation_title"
 msgstr "Discordの招待"
+
+msgid "discord.title"
+msgstr "Discord"
 
 msgid "discord.cancel_invitation"
 msgstr "招待をキャンセル"
@@ -846,8 +900,20 @@ msgstr "トレーニングラボ"
 msgid "menu.back_to"
 msgstr "< 戻る / {0}"
 
+msgid "menu.return_to"
+msgstr "{0}に戻る"
+
+msgid "menu.flyout_title"
+msgstr "EMBER / {0}"
+
 msgid "training.controls"
 msgstr "トレーニング操作"
+
+msgid "training.open_chip"
+msgstr "F6 トレーニング操作"
+
+msgid "training.hide_hint"
+msgstr "F5 HUDを隠す"
 
 msgid "training.dummy_recording"
 msgstr "ダミーレコーディング"
@@ -1059,6 +1125,15 @@ msgstr "ウルトラコンボ"
 msgid "selection.ultra_double"
 msgstr "ウルトラコンボダブル"
 
+msgid "selection.ultra_one"
+msgstr "Ultra I"
+
+msgid "selection.ultra_two"
+msgstr "Ultra II"
+
+msgid "selection.hold"
+msgstr "タメ"
+
 msgid "selection.stage"
 msgstr "ステージ"
 
@@ -1162,10 +1237,10 @@ msgid "selection.preview_locked"
 msgstr "プレビューのみ。選択はロック中です。"
 
 msgid "selection.saved_appearance"
-msgstr "保存済み：コスチューム{0} / カラー{1}"
+msgstr "保存済み：{0} / カラー{1}"
 
 msgid "selection.saved_full"
-msgstr "保存済み：{0} / コスチューム{1} / カラー{2}"
+msgstr "保存済み：{0} / {1} / カラー{2}"
 
 msgid "selection.preview_save_short"
 msgstr "プレビューのみ。Selectで保存"
@@ -1194,14 +1269,11 @@ msgstr "ビルドが一致しません。両プレイヤーは同じSF4 Ember Ne
 msgid "runtime.room_full"
 msgstr "このルームは満員です。"
 
-msgid "runtime.name_taken"
-msgstr "そのプレイヤー名はルーム内で使用されています。設定で変更してください。"
-
 msgid "runtime.selection_combination_unavailable"
 msgstr "この組み合わせはルームのルールで使用できません。別のキャラ、コスチューム、カラー、エディションを選んでください。"
 
 msgid "runtime.selection_summary"
-msgstr "{0} / コスチューム{1} / カラー{2} / {3}"
+msgstr "{0} / {1} / カラー{2} / {3}"
 
 msgid "runtime.selection_unavailable"
 msgstr "このルールでは選択できません。キャラクター選択で使用可能な項目を選んでください。"
@@ -1413,9 +1485,6 @@ msgstr " 順番待ちから外れます。"
 msgid "room.leave.host"
 msgstr " 別のメンバーがホストになります。"
 
-msgid "room.action_queue_failed"
-msgstr "操作を登録できませんでした。再試行してください。"
-
 msgid "room.table_detail"
 msgstr "{0} vs {1}\n{2}\n順番待ち：{3} / 観戦：{4}\nあなた：{5}"
 
@@ -1610,9 +1679,6 @@ msgstr "準備解除 / キャラ変更可能"
 
 msgid "room.readying"
 msgstr "準備中..."
-
-msgid "room.result_unresolved"
-msgstr "結果未確定"
 
 msgid "room.preparing_match"
 msgstr "対戦を準備中"
@@ -1848,9 +1914,6 @@ msgstr "この定員を送信します。"
 msgid "profile.main_badge"
 msgstr "メイン"
 
-msgid "training.shortcuts"
-msgstr "F6 トレーニング操作 | F5 HUDを隠す"
-
 msgid "common.not_set"
 msgstr "未設定"
 
@@ -1882,7 +1945,7 @@ msgid "edit.title"
 msgstr "テキストを編集"
 
 msgid "edit.instructions"
-msgstr "入力または貼り付け。Enterで決定、Escまたはコントローラーの戻るでキャンセルします。"
+msgstr "キーボードで入力または貼り付け。Enterかコントローラーの決定で確定、Escかコントローラーの戻るでキャンセルします。"
 
 msgid "edit.updating"
 msgstr "ルームを更新中です。下書きは保持され、入力の続行やキャンセルができます。"
@@ -1892,6 +1955,9 @@ msgstr "承認"
 
 msgid "edit.cancel"
 msgstr "編集をキャンセル"
+
+msgid "edit.bytes"
+msgstr "{0} / {1} バイト"
 
 msgid "discord.unavailable_build"
 msgstr "このビルドではDiscord連携を利用できません。"

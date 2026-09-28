@@ -325,7 +325,7 @@ int main(int argc, char** argv) {
             matchStrip.pingMs=68;matchStrip.rollbackFrames=2;matchStrip.appliedDelay=3;
             training::Command trainingCommand;
             bool acceptTraining=false;
-            GameMenu recoveryMenu;recoveryMenu.navigation=MenuNavigation("close");
+            GameMenu recoveryMenu;recoveryMenu.navigation=RecoveryNavigation(false);
             platform::ServiceSnapshot recoveryState;bool recoveryUpdates=false;
             const auto draw=[&](const char* shot=nullptr,unsigned buttons=0,int settle=3){
                 for(int i=0;i<settle;++i){
@@ -337,7 +337,7 @@ int main(int argc, char** argv) {
                         if(a.command.kind==netplay::CommandKind::SavePreferences&&view.settingsError.empty())view.preferences=a.preferences;
                         return true;},[&]{selector.Draw(pick,true,art.get(),availability,&stage,view.canEditSelection);});
                     else if(mode==1)DrawTrainingFlyout(training,[&](training::Command c){trainingCommand=c;return acceptTraining;});
-                    else if(mode==2)DrawTrainingHud(training);
+                    else if(mode==2)(void)DrawTrainingHud(training);
                     else if(mode==5)DrawControllerWarning("Match input blocked: reconnect your controller. If its slot changed, return to the room to reassign it.");
                     else if(mode==4)DrawRecoveryMenu(recoveryMenu,recoveryState,"The selected folder does not contain SSFIV.exe. Choose the installed game folder or close recovery without starting SF4.",recoveryUpdates);
                     else DrawMatchStrip(matchStrip);
@@ -408,6 +408,17 @@ int main(int argc, char** argv) {
             // Real editor activation and cancellation through the same input snapshot.
             page("player");draw(nullptr,MenuInput::Select,1);draw("text-edit");draw(nullptr,MenuInput::Back,1);draw();
             Require(!shell.Navigation().Editing()&&shell.Navigation().Screen()=="player","Text Back escaped the screen");
+            // Long text opens in a reader; a language opens as a list; Home
+            // keeps its help line under a status.
+            page("about");draw(nullptr,MenuInput::Select,1);draw("about-reader");
+            Require(shell.Navigation().Reading(),"About's controls did not open in the reader");
+            draw(nullptr,MenuInput::Back,1);draw();Require(!shell.Navigation().Reading(),"Back did not close the reader");
+            page("interface");
+            for(int i=0;i<10&&shell.Navigation().Focus()!="language";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+            draw(nullptr,MenuInput::Select,1);draw("language-choice");
+            Require(shell.Navigation().Choosing(),"Select on Language did not open the list");
+            draw(nullptr,MenuInput::Back,1);draw();
+            view.error="The helper stopped responding. Ember is restarting it.";page("home");draw("home-status");view.error.clear();
             view.inputCapture=input::Capture::ReleaseAll;draw("controller-assignment");view.inputCapture=input::Capture::Idle;
             view.settingsError="The settings directory is temporarily unavailable.";page("settings");draw("save-error");
             page("main-character");
@@ -683,7 +694,7 @@ int main(int argc, char** argv) {
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Controller warning captured input");
             auto* warning=FindWindow("Controller warning");
             Require(warning->ScrollMax.y<1&&warning->Pos.y+warning->Size.y<size.h,"Controller warning escaped viewport");
-            mode=4;draw("launch-recovery");recoveryUpdates=true;recoveryState.update.ok=recoveryState.update.updateAvailable=true;
+            mode=4;draw("launch-recovery");recoveryUpdates=true;recoveryMenu.navigation=RecoveryNavigation(true);recoveryState.update.ok=recoveryState.update.updateAvailable=true;
             recoveryState.update.expectedSha256=std::string(64,'a');draw("update-available");
             draw(nullptr,MenuInput::Down,1);draw();draw(nullptr,MenuInput::Select,1);draw("update-confirmation");
             Require(recoveryMenu.navigation.Confirming()&&!recoveryMenu.navigation.ConfirmSelected(),"Recovery update confirmation is unsafe");

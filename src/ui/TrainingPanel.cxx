@@ -43,7 +43,9 @@ std::string Unavailable(const char* label, MeasurementUnavailable reason) {
 void Meter(const MeterView& meter, float hudScale) {
     const float gap = 10 * hudScale;
     const auto measure=[&](const char* value){return ImGui::CalcTextSize(value).x;};
-    const float label = measure("P2") + gap + measure("+999 f") + gap + measure("Start 999 f") + gap;
+    // The startup column is sized from the translated text it will show.
+    const float startup=(std::max)(measure(loc::Tf("training.start_frames",999).c_str()),measure(loc::T("training.start_unknown")));
+    const float label = measure("P2") + gap + measure("+999 f") + gap + startup + gap;
     const float height = 12 * hudScale;
     const float width = (std::max)(120.f, ImGui::GetContentRegionAvail().x - label);
     const float cell = width / 120;
@@ -80,6 +82,14 @@ void Meter(const MeterView& meter, float hudScale) {
         }
         ImGui::Dummy(ImVec2(width, height));
     }
+}
+// The first measurement that is unavailable, and why, for the HUD's reason
+// line: the pad and keys cannot hover the tooltips that say the same.
+std::string MeasurementReason(const MeterView& meter) {
+    if(!meter.advantage.valid)return Unavailable(loc::T("training.advantage"),meter.advantage.unavailable);
+    for(int side=0;side<2;++side)if(meter.startupFrames[side]<0)
+        return "P"+std::to_string(side+1)+" "+Unavailable(loc::T("training.startup"),meter.startupUnavailable[side]);
+    return {};
 }
 std::string Buttons(unsigned bits) {
     std::string text;
@@ -140,6 +150,10 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   if(v.commandAccepted){error.clear();if(returnAfter){ForwardMenuAction({MenuAction::Close});return;}}
   else error=v.commandError;
  }
+ // Its root is the training lab; Back from there closes the controls and
+ // returns to the game.
+ trainingMenu.rootName=loc::T("training.lab");trainingMenu.exitName=loc::T("screen.game");
+ trainingMenu.backHint=nav.Screen()==nav.Root()?loc::T("training.close_controls"):"";
  const auto screen=nav.Screen();std::vector<MenuEntry> rows;
  const bool ready=v.ready&&!pending;
  if(screen=="home"){
@@ -156,9 +170,11 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   rows.push_back(Value("loop",loc::T("training.loop"),loc::T(v.loop?"common.on":"common.off"),loc::T("training.loop.detail"),!pending));
   rows.push_back(ConfirmRow("clear",loc::T("training.clear_recording"),loc::T("training.clear_recording.detail"),ready&&v.mode==Mode::Idle&&v.lengths[v.selected]>0));
  }else{
+  // The history is longer than the detail pane, so Select opens it in a reader.
   rows={Row("p1",loc::T("training.player_one"),loc::T("training.history.detail")),
         Row("p2",loc::T("training.player_two"),loc::T("training.history.detail")),
         ConfirmRow("clear-history",loc::T("training.clear_history"),loc::T("training.clear_history.detail"),!pending)};
+  rows[0].reading=rows[1].reading=true;
  }
  const char* modes[]={"training.practice_ready","training.recording_suspended","training.playback_suspended"};
  std::string status=pending?loc::T("training.applying"):!error.empty()?error:!v.ready?loc::T("training.waiting_battle"):loc::T(modes[static_cast<int>(v.mode)]);
@@ -185,13 +201,14 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   returnAfter=command.action==Action::Record||command.action==Action::Play;
  }else error=loc::T("training.command_rejected");
 }
-void DrawTrainingHud(const training::View& view) {
-    if (!view.available) return;
+TrainingHudInput DrawTrainingHud(const training::View& view) {
+    if (!view.available) return {};
     const auto* vp = ImGui::GetMainViewport();
     // Size the passive HUD to the game viewport; menu/DPI scaling should not
     // turn it into a large panel over the fight.
     const float hudScale = (std::max)(1.f, (std::min)(1.5f, vp->Size.y / 900.f));
     const float width = (std::min)(620 * hudScale, vp->Size.x * .75f);
+    ImVec2 hudTop(vp->Pos.x + (vp->Size.x - width) / 2, vp->Pos.y + vp->Size.y);
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x / 2, vp->Pos.y + vp->Size.y - 8 * hudScale),
         ImGuiCond_Always, ImVec2(.5f, 1));
     ImGui::SetNextWindowSize(ImVec2(width, 0));
@@ -210,13 +227,33 @@ void DrawTrainingHud(const training::View& view) {
         // its own window and does not make the HUD capture input.
         if (!view.meter.advantage.valid && ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), false))
             ImGui::SetTooltip("%s", Unavailable(loc::T("training.advantage"), view.meter.advantage.unavailable).c_str());
-        // Training shortcuts are keyboard-only; this passive HUD never captures input.
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImVec2(0,0));
-        DrawTrainingOpenPrompt();
-        ImGui::PopStyleVar();
+        // Always one line, so the HUD does not jump as measurements come and go.
+        const auto reason=MeasurementReason(view.meter);
+        ImGui::TextDisabled("%s", FitLabel(reason.empty()?" ":reason,ImGui::GetContentRegionAvail().x).c_str());
+        hudTop = ImGui::GetWindowPos();
         ImGui::SetWindowFontScale(1.f);
     }
     ImGui::End();
     ImGui::PopStyleVar(3);
+    // The one input this HUD takes: a chip that opens the controls for a
+    // mouse, as F6 does from the keyboard. It captures the mouse only while
+    // the pointer is over it, so the passive meter below never does.
+    TrainingHudInput input;
+    ImGui::SetNextWindowPos(ImVec2(hudTop.x, hudTop.y - 4 * hudScale), ImGuiCond_Always, ImVec2(0, 1));
+    ImGui::SetNextWindowBgAlpha(.42f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4 * hudScale, 3 * hudScale));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+    if (ImGui::Begin("Training shortcuts", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav)) {
+        ImGui::SetWindowFontScale(.8f * hudScale / Scale());
+        input.open = ImGui::SmallButton(loc::T("training.open_chip"));
+        ReportMenuCard("training-open", ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+        ImGui::SameLine(); ImGui::TextDisabled("%s", loc::T("training.hide_hint"));
+        ImGui::SetWindowFontScale(1.f);
+        input.pointer = ImGui::IsWindowHovered();
+    }
+    ImGui::End();
+    ImGui::PopStyleVar(2);
+    return input;
 }
 } }

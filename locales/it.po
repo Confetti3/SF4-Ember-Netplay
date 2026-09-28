@@ -141,6 +141,21 @@ msgstr "Annulla il download o la ricerca in corso. Attendi la fine dell'annullam
 msgid "recovery.close_detail"
 msgstr "Chiudi il ripristino senza avviare SF4. Le operazioni in corso vengono annullate."
 
+msgid "recovery.close_cancels_detail"
+msgstr "Chiudere ora annulla l'operazione in corso."
+
+msgid "recovery.back_close"
+msgstr "Chiudi ripristino"
+
+msgid "updates.back_close"
+msgstr "Chiudi aggiornamenti"
+
+msgid "screen.recovery"
+msgstr "Ripristino"
+
+msgid "screen.updates"
+msgstr "Aggiornamenti"
+
 msgid "updates.downloaded_mb"
 msgstr "Scaricati {0:.1f} MB"
 
@@ -199,7 +214,7 @@ msgid "settings.language"
 msgstr "Lingua"
 
 msgid "settings.language.detail"
-msgstr "Cambia subito la lingua dell'interfaccia di Ember. Automatico segue la lingua del gioco, poi quella di Windows."
+msgstr "Seleziona per scegliere dall'elenco, o cambia con Sinistra/Destra. Automatico segue la lingua del gioco, poi quella di Windows."
 
 msgid "settings.language.system_with"
 msgstr "Automatico — {0}"
@@ -222,6 +237,33 @@ msgstr "Controlla"
 msgid "menu.select"
 msgstr "Seleziona"
 
+msgid "menu.read"
+msgstr "Leggi"
+
+msgid "menu.choose"
+msgstr "Scegli"
+
+msgid "menu.hint.save_main"
+msgstr "Salva main"
+
+msgid "menu.hint.save_fighter"
+msgstr "Salva personaggio"
+
+msgid "menu.hint.save_costume"
+msgstr "Salva costume"
+
+msgid "menu.hint.save_color"
+msgstr "Salva colore"
+
+msgid "menu.hint.save_ultra"
+msgstr "Salva Ultra"
+
+msgid "menu.hint.save_stage"
+msgstr "Salva livello"
+
+msgid "menu.hint.paste"
+msgstr "Incolla"
+
 msgid "menu.navigate"
 msgstr "Naviga"
 
@@ -240,6 +282,9 @@ msgstr "Durata round"
 msgid "screen.home"
 msgstr "Home"
 
+msgid "screen.game"
+msgstr "SF4"
+
 msgid "screen.online"
 msgstr "Gioco online"
 
@@ -257,6 +302,15 @@ msgstr "Scegli il main"
 
 msgid "screen.about"
 msgstr "Guida e info"
+
+msgid "screen.discord"
+msgstr "Discord"
+
+msgid "screen.discord_invitation"
+msgstr "Invito Discord"
+
+msgid "screen.assignment"
+msgstr "Assegna controller"
 
 msgid "screen.room"
 msgstr "Sala"
@@ -278,9 +332,6 @@ msgstr "Chat"
 
 msgid "screen.room_settings"
 msgstr "Impostazioni sala"
-
-msgid "screen.practice_position"
-msgstr "Posizione allenamento"
 
 msgid "screen.dummy_recording"
 msgstr "Registra manichino"
@@ -395,6 +446,9 @@ msgstr "Premi un pulsante sul controller scelto."
 
 msgid "controller.release_buttons"
 msgstr "Rilascia tutti i pulsanti per continuare."
+
+msgid "controller.keep_current"
+msgstr "Premere un pulsante del controller attuale lo mantiene. Escape o un clic annulla."
 
 msgid "home.online"
 msgstr "Gioco online"
@@ -558,9 +612,6 @@ msgstr "Attività e inviti."
 msgid "player.title"
 msgstr "GIOCATORE E CONTROLLER"
 
-msgid "player.display_name"
-msgstr "Nome visualizzato"
-
 msgid "player.change_controller"
 msgstr "Cambia controller"
 
@@ -629,6 +680,9 @@ msgstr "Attiva prima l'attività Discord."
 
 msgid "discord.invitation_title"
 msgstr "INVITO DISCORD"
+
+msgid "discord.title"
+msgstr "DISCORD"
 
 msgid "discord.cancel_invitation"
 msgstr "Annulla invito"
@@ -846,8 +900,20 @@ msgstr "Allenamento"
 msgid "menu.back_to"
 msgstr "< Indietro / {0}"
 
+msgid "menu.return_to"
+msgstr "Torna a {0}"
+
+msgid "menu.flyout_title"
+msgstr "EMBER / {0}"
+
 msgid "training.controls"
 msgstr "Comandi allenamento"
+
+msgid "training.open_chip"
+msgstr "F6 Comandi allenamento"
+
+msgid "training.hide_hint"
+msgstr "F5 Nascondi HUD"
 
 msgid "training.dummy_recording"
 msgstr "Registra manichino"
@@ -1059,6 +1125,15 @@ msgstr "Ultra Combo"
 msgid "selection.ultra_double"
 msgstr "Ultra Double"
 
+msgid "selection.ultra_one"
+msgstr "Ultra I"
+
+msgid "selection.ultra_two"
+msgstr "Ultra II"
+
+msgid "selection.hold"
+msgstr "TIENI"
+
 msgid "selection.stage"
 msgstr "Livello"
 
@@ -1162,10 +1237,10 @@ msgid "selection.preview_locked"
 msgstr "Solo anteprima: selezione bloccata."
 
 msgid "selection.saved_appearance"
-msgstr "Salvato: Costume {0} / Colore {1}"
+msgstr "Salvato: {0} / Colore {1}"
 
 msgid "selection.saved_full"
-msgstr "Salvato: {0} / Costume {1} / Colore {2}"
+msgstr "Salvato: {0} / {1} / Colore {2}"
 
 msgid "selection.preview_save_short"
 msgstr "Solo anteprima: premi Seleziona per salvare"
@@ -1194,14 +1269,11 @@ msgstr "Versioni non corrispondenti. Entrambi devono usare lo stesso pacchetto S
 msgid "runtime.room_full"
 msgstr "La sala è piena."
 
-msgid "runtime.name_taken"
-msgstr "Il nome giocatore è già in uso nella sala. Cambialo nelle Impostazioni."
-
 msgid "runtime.selection_combination_unavailable"
 msgstr "Combinazione non disponibile con le regole della sala. Scegli un altro personaggio, costume, colore o versione."
 
 msgid "runtime.selection_summary"
-msgstr "{0} / Costume {1} / Colore {2} / {3}"
+msgstr "{0} / {1} / Colore {2} / {3}"
 
 msgid "runtime.selection_unavailable"
 msgstr "Selezione non disponibile con queste regole. Apri Seleziona personaggio e scegli un'opzione disponibile."
@@ -1413,9 +1485,6 @@ msgstr " Perdi il posto in coda."
 msgid "room.leave.host"
 msgstr " Un altro membro diventa host."
 
-msgid "room.action_queue_failed"
-msgstr "Impossibile accodare l'azione. Riprova."
-
 msgid "room.table_detail"
 msgstr "{0} vs {1}\n{2}\nCoda: {3} / Spettatori: {4}\nTu: {5}"
 
@@ -1610,9 +1679,6 @@ msgstr "Non pronto / sblocca"
 
 msgid "room.readying"
 msgstr "Preparazione..."
-
-msgid "room.result_unresolved"
-msgstr "Risultato irrisolto"
 
 msgid "room.preparing_match"
 msgstr "Preparazione partita"
@@ -1848,9 +1914,6 @@ msgstr "Invia questa capienza."
 msgid "profile.main_badge"
 msgstr "PRINCIPALE"
 
-msgid "training.shortcuts"
-msgstr "F6 Comandi allenamento | F5 Nascondi HUD"
-
 msgid "common.not_set"
 msgstr "Non impostato"
 
@@ -1882,7 +1945,7 @@ msgid "edit.title"
 msgstr "Modifica testo"
 
 msgid "edit.instructions"
-msgstr "Digita o incolla. Enter conferma; Escape o Back sul controller annulla."
+msgstr "Digita o incolla con la tastiera. Enter o Seleziona sul controller conferma; Escape o Back sul controller annulla."
 
 msgid "edit.updating"
 msgstr "Aggiornamento sala. La bozza resta disponibile; puoi continuare a scrivere o annullare."
@@ -1892,6 +1955,9 @@ msgstr "Accetta"
 
 msgid "edit.cancel"
 msgstr "Annulla modifica"
+
+msgid "edit.bytes"
+msgstr "{0} / {1} byte"
 
 msgid "discord.unavailable_build"
 msgstr "Discord non è disponibile in questa build."

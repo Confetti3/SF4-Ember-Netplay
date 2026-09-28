@@ -141,6 +141,21 @@ msgstr "Zrušit stahování nebo kontrolu. Před dalším pokusem počkejte na d
 msgid "recovery.close_detail"
 msgstr "Zavřít obnovení bez spuštění SF4. Probíhající operace se zruší."
 
+msgid "recovery.close_cancels_detail"
+msgstr "Zavřením se probíhající operace zruší."
+
+msgid "recovery.back_close"
+msgstr "Zavřít obnovení"
+
+msgid "updates.back_close"
+msgstr "Zavřít aktualizace"
+
+msgid "screen.recovery"
+msgstr "Obnovení"
+
+msgid "screen.updates"
+msgstr "Aktualizace"
+
 msgid "updates.downloaded_mb"
 msgstr "Staženo {0:.1f} MB"
 
@@ -199,7 +214,7 @@ msgid "settings.language"
 msgstr "Jazyk"
 
 msgid "settings.language.detail"
-msgstr "Okamžitě změní jazyk rozhraní Ember. Automatický výběr se řídí jazykem hry a poté Windows."
+msgstr "Vyberte ze seznamu, nebo přepínejte vlevo/vpravo. Automatický výběr se řídí jazykem hry a poté Windows."
 
 msgid "settings.language.system_with"
 msgstr "Automaticky — {0}"
@@ -222,6 +237,33 @@ msgstr "Zkontrolovat"
 msgid "menu.select"
 msgstr "Vybrat"
 
+msgid "menu.read"
+msgstr "Číst"
+
+msgid "menu.choose"
+msgstr "Zvolit"
+
+msgid "menu.hint.save_main"
+msgstr "Uložit hlavní postavu"
+
+msgid "menu.hint.save_fighter"
+msgstr "Uložit postavu"
+
+msgid "menu.hint.save_costume"
+msgstr "Uložit kostým"
+
+msgid "menu.hint.save_color"
+msgstr "Uložit barvu"
+
+msgid "menu.hint.save_ultra"
+msgstr "Uložit Ultra"
+
+msgid "menu.hint.save_stage"
+msgstr "Uložit scénu"
+
+msgid "menu.hint.paste"
+msgstr "Vložit"
+
 msgid "menu.navigate"
 msgstr "Pohyb"
 
@@ -240,6 +282,9 @@ msgstr "Čas kola"
 msgid "screen.home"
 msgstr "Domů"
 
+msgid "screen.game"
+msgstr "SF4"
+
 msgid "screen.online"
 msgstr "Hra online"
 
@@ -257,6 +302,15 @@ msgstr "Vybrat hlavní postavu"
 
 msgid "screen.about"
 msgstr "Nápověda"
+
+msgid "screen.discord"
+msgstr "Discord"
+
+msgid "screen.discord_invitation"
+msgstr "Pozvánka Discord"
+
+msgid "screen.assignment"
+msgstr "Přiřadit ovladač"
 
 msgid "screen.room"
 msgstr "Místnost"
@@ -278,9 +332,6 @@ msgstr "Chat"
 
 msgid "screen.room_settings"
 msgstr "Nastavení místnosti"
-
-msgid "screen.practice_position"
-msgstr "Pozice v tréninku"
 
 msgid "screen.dummy_recording"
 msgstr "Nahrávání soupeře"
@@ -395,6 +446,9 @@ msgstr "Stiskněte tlačítko na vybraném ovladači."
 
 msgid "controller.release_buttons"
 msgstr "Uvolněte všechna tlačítka."
+
+msgid "controller.keep_current"
+msgstr "Stisk tlačítka na současném ovladači ho ponechá. Escape nebo kliknutí zruší."
 
 msgid "home.online"
 msgstr "Hra online"
@@ -558,9 +612,6 @@ msgstr "Aktivita a pozvánky."
 msgid "player.title"
 msgstr "HRÁČ A OVLADAČ"
 
-msgid "player.display_name"
-msgstr "Zobrazované jméno"
-
 msgid "player.change_controller"
 msgstr "Změnit ovladač"
 
@@ -629,6 +680,9 @@ msgstr "Nejprve zapněte aktivitu na Discord."
 
 msgid "discord.invitation_title"
 msgstr "POZVÁNKA DISCORD"
+
+msgid "discord.title"
+msgstr "DISCORD"
 
 msgid "discord.cancel_invitation"
 msgstr "Zrušit pozvánku"
@@ -846,8 +900,20 @@ msgstr "Trénink"
 msgid "menu.back_to"
 msgstr "< Zpět / {0}"
 
+msgid "menu.return_to"
+msgstr "Zpět do: {0}"
+
+msgid "menu.flyout_title"
+msgstr "EMBER / {0}"
+
 msgid "training.controls"
 msgstr "Ovládání tréninku"
+
+msgid "training.open_chip"
+msgstr "F6 Ovládání tréninku"
+
+msgid "training.hide_hint"
+msgstr "F5 Skrýt HUD"
 
 msgid "training.dummy_recording"
 msgstr "Nahrávání soupeře"
@@ -1059,6 +1125,15 @@ msgstr "Ultra Combo"
 msgid "selection.ultra_double"
 msgstr "Ultra Double"
 
+msgid "selection.ultra_one"
+msgstr "Ultra I"
+
+msgid "selection.ultra_two"
+msgstr "Ultra II"
+
+msgid "selection.hold"
+msgstr "DRŽET"
+
 msgid "selection.stage"
 msgstr "Scéna"
 
@@ -1162,10 +1237,10 @@ msgid "selection.preview_locked"
 msgstr "Jen náhled – výběr je uzamčen."
 
 msgid "selection.saved_appearance"
-msgstr "Uloženo: Kostým {0} / Barva {1}"
+msgstr "Uloženo: {0} / Barva {1}"
 
 msgid "selection.saved_full"
-msgstr "Uloženo: {0} / Kostým {1} / Barva {2}"
+msgstr "Uloženo: {0} / {1} / Barva {2}"
 
 msgid "selection.preview_save_short"
 msgstr "Jen náhled – uložte tlačítkem Vybrat"
@@ -1194,14 +1269,11 @@ msgstr "Neshodují se verze. Oba hráči musí mít stejný balíček SF4 Ember 
 msgid "runtime.room_full"
 msgstr "Místnost je plná."
 
-msgid "runtime.name_taken"
-msgstr "Toto jméno hráče už je v místnosti. Změňte ho v Nastavení."
-
 msgid "runtime.selection_combination_unavailable"
 msgstr "Tato kombinace není podle pravidel místnosti dostupná. Vyberte jinou postavu, kostým, barvu nebo edici."
 
 msgid "runtime.selection_summary"
-msgstr "{0} / Kostým {1} / Barva {2} / {3}"
+msgstr "{0} / {1} / Barva {2} / {3}"
 
 msgid "runtime.selection_unavailable"
 msgstr "Výběr podle těchto pravidel není dostupný. Ve Výběru postavy zvolte dostupnou možnost."
@@ -1413,9 +1485,6 @@ msgstr " Přijdete o místo ve frontě."
 msgid "room.leave.host"
 msgstr " Hostitelem se stane jiný člen."
 
-msgid "room.action_queue_failed"
-msgstr "Akci se nepodařilo zařadit do fronty. Zkuste to znovu."
-
 msgid "room.table_detail"
 msgstr "{0} vs {1}\n{2}\nFronta: {3} / Sleduje: {4}\nVy: {5}"
 
@@ -1610,9 +1679,6 @@ msgstr "Zrušit připravenost"
 
 msgid "room.readying"
 msgstr "Příprava..."
-
-msgid "room.result_unresolved"
-msgstr "Výsledek nevyřešen"
 
 msgid "room.preparing_match"
 msgstr "Příprava zápasu"
@@ -1848,9 +1914,6 @@ msgstr "Odeslat tuto kapacitu."
 msgid "profile.main_badge"
 msgstr "HLAVNÍ"
 
-msgid "training.shortcuts"
-msgstr "F6 Ovládání tréninku | F5 Skrýt HUD"
-
 msgid "common.not_set"
 msgstr "Nenastaveno"
 
@@ -1882,7 +1945,7 @@ msgid "edit.title"
 msgstr "Upravit text"
 
 msgid "edit.instructions"
-msgstr "Pište nebo vložte text. Enter potvrdí; Escape nebo Zpět na ovladači zruší."
+msgstr "Pište nebo vložte text z klávesnice. Enter nebo Vybrat na ovladači potvrdí; Escape nebo Zpět na ovladači zruší."
 
 msgid "edit.updating"
 msgstr "Místnost se aktualizuje. Koncept zůstane zachován; můžete dál psát nebo úpravu zrušit."
@@ -1892,6 +1955,9 @@ msgstr "Přijmout"
 
 msgid "edit.cancel"
 msgstr "Zrušit úpravu"
+
+msgid "edit.bytes"
+msgstr "{0} / {1} bajtů"
 
 msgid "discord.unavailable_build"
 msgstr "Integrace s Discord není v tomto sestavení dostupná."

@@ -354,6 +354,10 @@ float MatchScale(const MatchStripView& view) {
     const float viewport=(std::max)(.8f,ImGui::GetMainViewport()->Size.y/1080.f);
     return viewport*sizes[(std::max)(0,(std::min)(2,view.size))];
 }
+}
+// GameMenu.cxx: the render harness's text probe.
+void ReportMenuText(const char* id,float textHeight,float interiorHeight,float textWidth,float availableWidth);
+namespace {
 void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, float w, float s) {
     const float glyph=16*s,glyphGap=6*s,glyphSpace=glyph+glyphGap;
     auto* font=DiagnosticFont();
@@ -407,6 +411,8 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
         // Fixed label/value anchors keep the layout stable as values change.
         text(x,p.y+33*s,labels[i],16*s,IM_COL32(181,169,155,255));
         const float valueX=x+(labels[i].empty()?0:measure(labels[i],16*s)+8*s);
+        // A translated label must leave room for its whole value.
+        ReportMenuText(("hud-telemetry/"+std::to_string(i)).c_str(),22*s,MatchHeight*s,valueX-x+measure(values[i],22*s),column-4*s);
         const auto value=fit(values[i],x+column-valueX-4*s,22*s);
         text(valueX,p.y+29*s,value,22*s,IM_COL32(243,235,221,255));
     }

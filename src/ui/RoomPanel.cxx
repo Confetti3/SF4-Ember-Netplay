@@ -177,7 +177,7 @@ ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat) {
     if (v.readyRequested) { control.label = loc::T("room.readying"); control.detail = loc::T("room.ready.locking"); return control; }
     const bool postMatch = v.session.match == netplay::MatchState::PostMatch;
     const bool finishedGame = t.phase == TablePhase::Playing && postMatch;
-    control.label = loc::T(t.phase == TablePhase::Paused ? "room.result_unresolved" : t.phase == TablePhase::Ready ? "room.preparing_match" :
+    control.label = loc::T(t.phase == TablePhase::Paused ? "room.phase.unresolved" : t.phase == TablePhase::Ready ? "room.preparing_match" :
         t.phase == TablePhase::Playing && !finishedGame ? "room.match_in_progress" : postMatch ? "room.ready_rematch" : "room.ready_up");
     control.detail = control.refusal = ReadyBlocker(v, t);
     if (control.detail.empty()) {
@@ -242,7 +242,7 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
     request.command.kind = netplay::CommandKind::RoomAction;
     request.command.generation = view.session.generation;
     request.roomAction = std::move(action);
-    if (!submit(std::move(request))) { error_ = loc::T("room.action_queue_failed"); return false; }
+    if (!submit(std::move(request))) { error_ = loc::T("error.queue_failed"); return false; }
     error_.clear(); return true;
 }
 
@@ -283,7 +283,8 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     else if(local&&local->table==static_cast<int>(table.id)&&local->seat>=0&&local->seat<2)rows.back().hint=DescribeReady(v,table,local->seat).label;
     else if(std::find(table.queue.begin(),table.queue.end(),s.localMember)!=table.queue.end())rows.back().hint=loc::T("room.table_options");
    }
-   for(const auto& m:s.members)rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),loc::Tf(m.host?"room.member_status_host":"room.member_status",StatusName(m.status))));
+   for(const auto& m:s.members){rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),loc::Tf(m.host?"room.member_status_host":"room.member_status",StatusName(m.status))));
+    rows.back().userText=true;}
    rows.push_back(Row("room-members",loc::T("room.members"),loc::Tf("room.member_count",s.members.size(),s.capacity)));
    rows.push_back(Row("room-chat",loc::T("room.chat"),loc::T("room.chat.detail")));
    // Changing fighter needs a seat, so it lives in the table options (and X).
@@ -396,7 +397,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   for(const auto& m:s.members){
    rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),
     loc::Tf(m.host?(muted_.count(m.id)?"room.member_status_host_muted":"room.member_status_host"):(muted_.count(m.id)?"room.member_status_muted":"room.member_status"),StatusName(m.status))));
-   rows.back().value=NetworkLinkName(m.link);
+   rows.back().value=NetworkLinkName(m.link);rows.back().userText=true;
   }
   }else if(screen=="room-member"){
    const auto* m=Member(s,selectedMember_);const bool other=m&&m->id!=s.localMember;
@@ -406,8 +407,8 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  }else if(screen=="room-chat"){
    rows.push_back(TextRow("compose",loc::T("room.compose_message"),chat_,MaximumChatBytes,mutableRoom));
    rows.push_back(Row("send-chat",loc::T("room.send_message"),loc::T("room.send_message.detail"),mutableRoom&&chat_[0]));
-  for(auto it=s.chat.rbegin();it!=s.chat.rend();++it)if(!muted_.count(it->sender))
-   rows.push_back(Row("message-"+std::to_string(it->sequence),Name(s,it->sender),it->text));
+  for(auto it=s.chat.rbegin();it!=s.chat.rend();++it)if(!muted_.count(it->sender)){
+   rows.push_back(Row("message-"+std::to_string(it->sequence),Name(s,it->sender),it->text));rows.back().userText=true;}
  }else if(screen=="room-admin"){
   rows.push_back(TextRow("rename",loc::T("room.name"),roomName_,64,host));
   rows.push_back(Value("room-capacity",loc::T("room.capacity"),std::to_string(roomCapacity_),loc::T("room.capacity.detail"),host));
@@ -758,7 +759,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    error_=RoomWaitReason(v);return false;
   }
   ShellAction request;request.command.kind=kind;request.command.generation=v.session.generation;request.selectedDelay=selected;
-  if(!submit(std::move(request))){error_=loc::T("room.action_queue_failed");return false;}
+  if(!submit(std::move(request))){error_=loc::T("error.queue_failed");return false;}
   error_.clear();return true;
  };
  // A seat chooser's option, exactly as the player saw it.
@@ -796,7 +797,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(a.id=="room-members"||a.id=="room-chat"||a.id=="room-admin"||a.id=="room-rules"){nav.Push(a.id);return;}
   if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();notice_=loc::T("room.invitation_copied");noticeTone_=Tone::Success;noticeUntil_=ImGui::GetTime()+3;return;}
   if(a.id=="replace-room"){ShellAction request;request.command.kind=netplay::CommandKind::ReplaceRoom;request.command.generation=v.session.generation;
-   if(!submit(std::move(request)))error_=loc::T("room.action_queue_failed");
+   if(!submit(std::move(request)))error_=loc::T("error.queue_failed");
    else{error_.clear();
     // The old invitation dies with the old room epoch. Say so while the row is
     // still on screen, rather than letting friends fail to rejoin silently.

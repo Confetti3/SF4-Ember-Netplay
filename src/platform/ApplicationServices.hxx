@@ -63,6 +63,10 @@ struct DiagnosticsView {
 };
 struct ServiceSnapshot {
     bool pending = false, closeGame = false, installed = false;
+    // The finished action did what it was asked, so `message` is good news
+    // (up to date, update found, saved). False while pending, on failure and
+    // on cancellation.
+    bool succeeded = false;
     // The action `message` describes, so the interface can show it on the
     // row that requested it rather than on whichever row happens to bind it.
     ServiceAction lastAction = ServiceAction::None;
