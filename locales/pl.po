@@ -1452,9 +1452,6 @@ msgstr "Czytaj wiadomości i pisz je ręcznie na klawiaturze."
 msgid "room.change_fighter"
 msgstr "Zmień postać"
 
-msgid "room.change_fighter.open_table"
-msgstr "Otwórz swój stół, aby sprawdzić gotowość i warunki zmiany postaci."
-
 msgid "room.settings"
 msgstr "Ustawienia pokoju"
 
@@ -1514,9 +1511,6 @@ msgstr "Szukam walki"
 
 msgid "room.fighter_not_shared"
 msgstr "Postać nieujawniona"
-
-msgid "room.suffix_ready"
-msgstr " / GOTÓW"
 
 msgid "room.suffix_you"
 msgstr " / TY"
@@ -1713,6 +1707,12 @@ msgstr "Przestań oglądać"
 msgid "room.watch_next"
 msgstr "Oglądaj kolejną"
 
+msgid "room.take_p1_seat"
+msgstr "Graj jako P1"
+
+msgid "room.take_p2_seat"
+msgstr "Graj jako P2"
+
 msgid "room.lock_spectating"
 msgstr "Potwierdź oglądanie"
 
@@ -1727,6 +1727,24 @@ msgstr "Oglądanie potwierdzone. Następny mecz poczeka na Ciebie do 10 sekund."
 
 msgid "room.table_rules"
 msgstr "Zasady stołu"
+
+msgid "room.table_options"
+msgstr "Opcje stołu"
+
+msgid "room.table_options.detail"
+msgstr "Stół {0}: Opóźnienie, test połączenia, zasady, kolejka i oglądanie dla tego stołu."
+
+msgid "room.legend_fighter"
+msgstr "Postać"
+
+msgid "room.legend_options"
+msgstr "Opcje"
+
+msgid "room.choice.watch"
+msgstr "Oglądaj"
+
+msgid "room.choice.unwatch"
+msgstr "Nie oglądaj"
 
 msgid "room.table_rules.edit"
 msgstr "Edytuj zasady tego stołu."
@@ -2030,6 +2048,9 @@ msgstr "Nie ma cię w kolejce."
 
 msgid "room.reject.not_watching"
 msgstr "Nie oglądasz tego stołu."
+
+msgid "room.reject.seat_taken"
+msgstr "To miejsce zostało właśnie zajęte. Wybierz ponownie."
 
 msgid "room.reject.invalid_rules"
 msgstr "Zasady tego stołu są nieprawidłowe."

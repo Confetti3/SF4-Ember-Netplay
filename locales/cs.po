@@ -1452,9 +1452,6 @@ msgstr "Číst zprávy a psát text na klávesnici."
 msgid "room.change_fighter"
 msgstr "Změnit postavu"
 
-msgid "room.change_fighter.open_table"
-msgstr "U svého stolu najdete stav připravenosti a podmínky změny postavy."
-
 msgid "room.settings"
 msgstr "Nastavení místnosti"
 
@@ -1514,9 +1511,6 @@ msgstr "Hledá se souboj"
 
 msgid "room.fighter_not_shared"
 msgstr "Postava zatím neznámá"
-
-msgid "room.suffix_ready"
-msgstr " / PŘIPRAVEN"
 
 msgid "room.suffix_you"
 msgstr " / VY"
@@ -1713,6 +1707,12 @@ msgstr "Přestat sledovat"
 msgid "room.watch_next"
 msgstr "Sledovat další zápas"
 
+msgid "room.take_p1_seat"
+msgstr "Hrát jako P1"
+
+msgid "room.take_p2_seat"
+msgstr "Hrát jako P2"
+
 msgid "room.lock_spectating"
 msgstr "Zamknout sledování"
 
@@ -1727,6 +1727,24 @@ msgstr "Sledování je zamčené. Další zápas na vás počká až 10 sekund."
 
 msgid "room.table_rules"
 msgstr "Pravidla stolu"
+
+msgid "room.table_options"
+msgstr "Možnosti stolu"
+
+msgid "room.table_options.detail"
+msgstr "Stůl {0}: Zpoždění, test připojení, pravidla stolu, fronta a sledování pro tento stůl."
+
+msgid "room.legend_fighter"
+msgstr "Bojovník"
+
+msgid "room.legend_options"
+msgstr "Možnosti"
+
+msgid "room.choice.watch"
+msgstr "Sledovat"
+
+msgid "room.choice.unwatch"
+msgstr "Nesledovat"
 
 msgid "room.table_rules.edit"
 msgstr "Upravit pravidla tohoto stolu."
@@ -2030,6 +2048,9 @@ msgstr "Nejste ve frontě."
 
 msgid "room.reject.not_watching"
 msgstr "Tento stůl nesledujete."
+
+msgid "room.reject.seat_taken"
+msgstr "Toto místo bylo právě obsazeno. Vyberte znovu."
 
 msgid "room.reject.invalid_rules"
 msgstr "Pravidla stolu jsou neplatná."

@@ -97,6 +97,11 @@ private:
     void HandleAdjust(const MenuAction& action,const ShellView& view,const std::string& screen,const Submit& submit);
     std::vector<MenuEntry> RoomEntries(const ShellView& view);
     void RoomAction(const MenuAction& action, const ShellView& view, const Submit& submit);
+    void RoomShortcut(const MenuAction& action, const ShellView& view);
+    // What B does on the board: leave your seat or queue place, or Back.
+    const char* PlaceExitLabel(const ShellView& view) const;
+    void OpenTableOptions(const ShellView& view, int table);
+    void ToggleReady(const ShellView& view, const Submit& submit);
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
     std::string roomBoardFocus_;
@@ -110,6 +115,7 @@ private:
     room::MemberId selectedMember_ = 0;
     std::uint64_t inviteRevision_ = 0;
     std::uint64_t tableGeneration_ = 0;
+    int generationTable_ = -1;
     double roomUpdateUntil_ = 0;
     double roomUpdateStarted_ = -1;
     bool roomUpdateVisible_ = false;

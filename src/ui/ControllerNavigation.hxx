@@ -5,7 +5,9 @@ namespace sf4e { namespace ui {
 
 // Copied on the game thread. Device identity is independent of lobby position.
 struct ControllerSample {
-    enum Button : std::uint32_t { Up = 1, Down = 2, Left = 4, Right = 8, Confirm = 16, Back = 32, Menu = 64 };
+    // Fighter, Options and Chat share MenuInput's values; Menu stays here.
+    enum Button : std::uint32_t { Up = 1, Down = 2, Left = 4, Right = 8, Confirm = 16, Back = 32, Menu = 64,
+        Fighter = 128, Options = 256, Chat = 512 };
     int deviceType = -1, deviceIndex = -1;
     bool connected = false;
     std::uint32_t buttons = 0;
@@ -13,7 +15,8 @@ struct ControllerSample {
 };
 
 // Directions use native fight-map bits, not the battle command buffer. Xbox
-// menu actions use copied physical A/B; unidentified DirectInput retains LP/LK.
+// menu actions use copied physical A/B, and X, Y and View are shortcuts;
+// unidentified DirectInput retains LP/LK and has none.
 inline std::uint32_t ControllerButtons(std::uint32_t held,int deviceType=-1,std::uint32_t physical=0) {
     std::uint32_t result = 0;
     if (held & 0x1) result |= ControllerSample::Up;
@@ -25,6 +28,9 @@ inline std::uint32_t ControllerButtons(std::uint32_t held,int deviceType=-1,std:
         if(physical&0x40000)result|=ControllerSample::Confirm;
         if(physical&0x20000)result|=ControllerSample::Back;
         if(physical&0x200)result|=ControllerSample::Menu;
+        if(physical&0x80000)result|=ControllerSample::Fighter;
+        if(physical&0x10000)result|=ControllerSample::Options;
+        if(physical&0x100)result|=ControllerSample::Chat;
     }else{
         if (held & (0x10 | 0x1000)) result |= ControllerSample::Confirm;
         if (held & (0x40 | 0x2000)) result |= ControllerSample::Back;

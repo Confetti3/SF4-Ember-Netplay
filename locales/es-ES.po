@@ -1452,9 +1452,6 @@ msgstr "Lee mensajes y escribe texto explícitamente con un teclado."
 msgid "room.change_fighter"
 msgstr "Cambiar personaje"
 
-msgid "room.change_fighter.open_table"
-msgstr "Abre tu mesa para ver el estado de Listo y los requisitos para cambiar de personaje."
-
 msgid "room.settings"
 msgstr "Ajustes de sala"
 
@@ -1514,9 +1511,6 @@ msgstr "Buscando rival"
 
 msgid "room.fighter_not_shared"
 msgstr "Personaje no revelado"
-
-msgid "room.suffix_ready"
-msgstr " / LISTO"
 
 msgid "room.suffix_you"
 msgstr " / TÚ"
@@ -1713,6 +1707,12 @@ msgstr "Dejar de ver"
 msgid "room.watch_next"
 msgstr "Ver próxima partida"
 
+msgid "room.take_p1_seat"
+msgstr "Jugar como P1"
+
+msgid "room.take_p2_seat"
+msgstr "Jugar como P2"
+
 msgid "room.lock_spectating"
 msgstr "Fijar para ver"
 
@@ -1727,6 +1727,24 @@ msgstr "Estás fijado. La próxima partida te espera hasta 10 segundos."
 
 msgid "room.table_rules"
 msgstr "Reglas"
+
+msgid "room.table_options"
+msgstr "Opciones de la mesa"
+
+msgid "room.table_options.detail"
+msgstr "Mesa {0}: Retardo, prueba de conexión, reglas, cola y espectadores de esta mesa."
+
+msgid "room.legend_fighter"
+msgstr "Luchador"
+
+msgid "room.legend_options"
+msgstr "Opciones"
+
+msgid "room.choice.watch"
+msgstr "Ver"
+
+msgid "room.choice.unwatch"
+msgstr "No ver"
 
 msgid "room.table_rules.edit"
 msgstr "Edita las reglas de esta mesa."
@@ -2030,6 +2048,9 @@ msgstr "No estás en la cola."
 
 msgid "room.reject.not_watching"
 msgstr "No estás viendo esta mesa."
+
+msgid "room.reject.seat_taken"
+msgstr "Ese puesto se acaba de ocupar. Elige de nuevo."
 
 msgid "room.reject.invalid_rules"
 msgstr "Esas reglas de mesa no son válidas."

@@ -3,6 +3,8 @@
 #include "SelectionArt.hxx"
 #include "../common/Localization.hxx"
 #include <cstring>
+#include <string>
+#include <vector>
 
 namespace sf4e { namespace ui {
 // Native XInput normalization at 006D8415..006D8466. DirectInput device shape
@@ -31,29 +33,34 @@ inline const char* PromptAsset(const char* glyph) {
     if(!std::strcmp(glyph,"horizontal"))return "xbox_dpad_horizontal";
     return "generic_button_circle_fill";
 }
-inline float MenuLegend(float width,const char* select,const char* back,bool draw,bool adjustable,SelectionArt* art,float scale=0,const char* primary=loc::T("menu.select")) {
+// A screen's own button, shown after the standard ones.
+struct LegendHint { const char* glyph; std::string label; };
+inline float MenuLegend(float width,const char* select,const char* back,bool draw,bool adjustable,SelectionArt* art,float scale=0,
+                        const char* primary=loc::T("menu.select"),const std::vector<LegendHint>& extras={},const char* backText=nullptr) {
     const bool keyboard=!std::strcmp(select,"Enter");
-    const char* glyphs[]={keyboard?"arrows":"dpad",select,back,keyboard?"keys-horizontal":"horizontal"};
     const std::string action=std::string(!std::strcmp(select,"LP")?"LP ":"")+(primary?primary:"");
-    const std::string backLabel=!std::strcmp(back,"LK")?std::string("LK ")+loc::T("common.back"):loc::T("common.back");
-    const char* labels[]={loc::T("menu.navigate"),action.c_str(),backLabel.c_str(),loc::T("menu.adjust")};
+    const char* backWord=backText&&*backText?backText:loc::T("common.back");
+    const std::string backLabel=!std::strcmp(back,"LK")?std::string("LK ")+backWord:backWord;
+    std::vector<LegendHint> hints{{keyboard?"arrows":"dpad",loc::T("menu.navigate")}};
+    if(primary)hints.push_back({select,action});
+    hints.push_back({back,backLabel});
+    if(adjustable)hints.push_back({keyboard?"keys-horizontal":"horizontal",loc::T("menu.adjust")});
+    hints.insert(hints.end(),extras.begin(),extras.end());
     const float s=scale>0?scale:Scale(),height=38*s,size=32*s;
-    const int count=adjustable?4:3;
-    float measuredLabels=0;int visible=0;
-    for(int i=0;i<count;++i)if(i!=1||primary){measuredLabels+=ImGui::GetFont()->CalcTextSizeA(16*s,FLT_MAX,0,labels[i]).x;++visible;}
-    const float fixed=visible*(size+32*s);
+    float measuredLabels=0;
+    for(const auto& hint:hints)measuredLabels+=ImGui::GetFont()->CalcTextSizeA(16*s,FLT_MAX,0,hint.label.c_str()).x;
+    const float fixed=hints.size()*(size+32*s);
     const float font=(std::max)(11*s,(std::min)(16*s,16*s*(std::max)(1.f,width-fixed)/(std::max)(1.f,measuredLabels)));
     float x=0,y=0;const auto start=ImGui::GetCursorScreenPos();
-    for(int i=0;i<count;++i){
-        if(i==1&&!primary)continue;
-        const float w=size+8*s+ImGui::GetFont()->CalcTextSizeA(font,FLT_MAX,0,labels[i]).x+24*s;
+    for(const auto& hint:hints){
+        const float w=size+8*s+ImGui::GetFont()->CalcTextSizeA(font,FLT_MAX,0,hint.label.c_str()).x+24*s;
         if(x&&x+w>width){x=0;y+=height;}
         if(draw){
             auto* d=ImGui::GetWindowDrawList();
-            const auto icon=art?art->InputPrompt(PromptAsset(glyphs[i])):SelectionImage{};
+            const auto icon=art?art->InputPrompt(PromptAsset(hint.glyph)):SelectionImage{};
             if(icon.texture)d->AddImage(icon.texture,ImVec2(start.x+x,start.y+y),ImVec2(start.x+x+size,start.y+y+size),icon.uvMin,icon.uvMax);
-            else d->AddText(ImGui::GetFont(),12*s,ImVec2(start.x+x,start.y+y+8*s),palette::Ivory,glyphs[i]);
-            d->AddText(ImGui::GetFont(),font,ImVec2(start.x+x+size+8*s,start.y+y+(size-font)*.5f),palette::Ivory,labels[i]);
+            else d->AddText(ImGui::GetFont(),12*s,ImVec2(start.x+x,start.y+y+8*s),palette::Ivory,hint.glyph);
+            d->AddText(ImGui::GetFont(),font,ImVec2(start.x+x+size+8*s,start.y+y+(size-font)*.5f),palette::Ivory,hint.label.c_str());
         }
         x+=w;
     }

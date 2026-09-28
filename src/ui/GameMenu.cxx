@@ -7,9 +7,10 @@
 #include "../common/FighterCatalog.hxx"
 #include <imgui.h>
 #include <cstring>
+#include <utility>
 
 namespace sf4e { namespace ui {
-namespace { MenuInput input; bool returnRequested=false; SelectionArt* menuArt=nullptr;
+namespace { MenuInput input; MenuAction forwarded; SelectionArt* menuArt=nullptr;
 const char* selectGlyph="LP";const char* backGlyph="LK";PlayerCardView playerCard;
 int menuDeviceType=0;
 MenuTextProbe textProbe;
@@ -61,6 +62,7 @@ void ReportMenuText(const char* id,float textHeight,float interiorHeight,float t
     if(textProbe)textProbe(id,textHeight,interiorHeight,textWidth,availableWidth);
 }
 void SetMenuCardProbe(MenuCardProbe probe){cardProbe=std::move(probe);}
+void ReportMenuCard(const char* id,ImVec2 min,ImVec2 max){if(cardProbe)cardProbe(id,min,max);}
 void SetMenuStatusProbe(MenuStatusProbe probe){statusProbe=std::move(probe);}
 void SetMenuEntriesProbe(MenuEntriesProbe probe){entriesProbe=std::move(probe);}
 void SetPortraitProbe(PortraitProbe probe){portraitProbe=std::move(probe);}
@@ -97,8 +99,8 @@ void DrawTrainingOpenPrompt() {
     ImGui::TextWrapped("%s",loc::T("training.shortcuts"));
 }
 void SetMenuArt(SelectionArt* art) { menuArt=art; }
-void RequestMenuReturn() { returnRequested=true; }
-bool TakeMenuReturn() { const bool value=returnRequested; returnRequested=false; return value; }
+void ForwardMenuAction(MenuAction action) { forwarded=std::move(action); }
+MenuAction TakeForwardedMenuAction() { return std::exchange(forwarded,MenuAction{}); }
 void SetMenuInput(MenuInput value) { input=value; }
 MenuInput ReadMenuInput() {
     auto value=input; value.time=ImGui::GetTime();
@@ -164,7 +166,8 @@ void GameMenu::DrawFlyoutConfirmation(const std::vector<MenuEntry>& entries,floa
 }
 void GameMenu::DrawConfirmationModal(const std::vector<MenuEntry>& entries,MenuAction& action) {
     const std::string confirmationPopup=std::string(loc::T("confirm.title"))+"###ConfirmAction";
-    if(navigation.Confirming()) ImGui::OpenPopup(confirmationPopup.c_str());
+    // A choice is drawn by the body that owns the entry, in place.
+    if(navigation.Confirming()&&!navigation.Choosing()) ImGui::OpenPopup(confirmationPopup.c_str());
     NextPopupSize();
     if(ImGui::BeginPopupModal(confirmationPopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
         if(!navigation.Confirming()) ImGui::CloseCurrentPopup();
@@ -264,6 +267,8 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     if(lastFrame_!=ImGui::GetFrameCount()-1) { navigation.NeutralGate(); lastEdit_.clear(); }
     lastFrame_=ImGui::GetFrameCount();
     const bool modalAtStart=navigation.Editing()||navigation.Confirming();
+    // A choice belongs to the body that draws it, so the body stays live for it.
+    const bool choosingAtStart=navigation.Choosing();
     auto menuInput=ReadMenuInput(); menuInput.time=now;
     // A notice owns the input until dismissed, so the dismissing press can
     // neither activate the focused row nor leak into the list behind it.
@@ -285,7 +290,8 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const bool acceptEditText=action.kind==MenuAction::SubmitText;
     if(acceptEditText)action={};
     feedback_.Update(navigation.Screen(),entries,now);
-    bool backRequested=action.kind==MenuAction::Back;
+    // Settled after the body: a board may take Back for itself.
+    bool backRequested=false;
     if(statusProbe)statusProbe(status,statusTone);
     if(entriesProbe)entriesProbe(entries);
     const bool changed=lastScreen_!=navigation.Screen();
@@ -317,8 +323,15 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     }
     std::string parent=MenuScreenLabel(navigation.Parent());
     if(flyout&&navigation.Parent()=="home")parent=navigation.Screen()=="home"?"SF4":loc::T("training.lab");
-    ImGui::BeginDisabled(modalAtStart||navigation.Editing()||navigation.Confirming());
-    if(!home&&ImGui::Button(loc::Tf("menu.back_to",parent).c_str())) backRequested=true;
+    // While a choice is open this button cancels it, so a mouse is never
+    // held in a choice it did not want.
+    ImGui::BeginDisabled((modalAtStart&&!choosingAtStart)||navigation.Editing()||(navigation.Confirming()&&!navigation.Choosing()));
+    const std::string backLabel=navigation.Choosing()?std::string(loc::T("common.cancel")):loc::Tf("menu.back_to",parent);
+    if(!home&&ImGui::Button((backLabel+"###MenuBack").c_str())) {
+        if(navigation.Choosing()) navigation.Cancel();
+        else backRequested=true;
+    }
+    if(!home) ReportMenuCard("menu-back",ImGui::GetItemRectMin(),ImGui::GetItemRectMax());
     ImGui::EndDisabled();
     if(flyout || stableStatus) {
         // Bound long command errors without displacing the list or its legend.
@@ -343,7 +356,18 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     // Reserve the actual footer items and their spacing, not a guessed margin.
     const float footerSpacing=8*unit+2*ImGui::GetStyle().ItemSpacing.y+
         (home?36*unit+ImGui::GetStyle().ItemSpacing.y:0);
-    const float footer=MenuLegend(ImGui::GetContentRegionAvail().x,selectGlyph,backGlyph,false,adjustable,menuArt,unit,primary)+footerSpacing;
+    // Shortcut hints ride along only on an Xbox pad and only when they fit
+    // without another legend row; a narrow window keeps the standard legend.
+    static const std::vector<LegendHint> noHints;
+    const float legendWidth=ImGui::GetContentRegionAvail().x;
+    // An open dialog takes the screen's shortcuts away, and Back cancels it.
+    const bool dialog=navigation.Confirming()||navigation.Editing();
+    const char* back=dialog?loc::T("common.cancel"):backHint.c_str();
+    const float standardLegend=MenuLegend(legendWidth,selectGlyph,backGlyph,false,adjustable,menuArt,unit,primary,noHints,back);
+    const bool hintsFit=!dialog&&!std::strcmp(selectGlyph,"A")&&!shortcutHints.empty()&&
+        MenuLegend(legendWidth,selectGlyph,backGlyph,false,adjustable,menuArt,unit,primary,shortcutHints,back)<=standardLegend;
+    const auto& extras=hintsFit?shortcutHints:noHints;
+    const float footer=standardLegend+footerSpacing;
     const auto available=ImGui::GetContentRegionAvail();
     const bool wide=available.x>=(flyout?640:820)*unit;
     const bool compactGallery=cardHeight>100&&!wide;
@@ -360,7 +384,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         }
     };
     if(body){
-        ImGui::BeginDisabled(modalAtStart||navigation.Editing()||navigation.Confirming());
+        ImGui::BeginDisabled((modalAtStart&&!choosingAtStart)||navigation.Editing()||(navigation.Confirming()&&!navigation.Choosing()));
         body(entries,navigation,action,(std::max)(60.f,available.y-footer),feedback_);
         ImGui::EndDisabled();
     }
@@ -446,6 +470,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     if(wide&&!home) { ImGui::SameLine(0,20*unit); ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(.1f,.09f,.08f,.52f));
         ImGui::BeginChild("Menu detail",ImVec2(0,(std::max)(60.f,available.y-footer))); preview(); ImGui::EndChild(); ImGui::PopStyleColor(); }
     }
+    if(action.kind==MenuAction::Back){backRequested=true;action={};}
     if(!flyout){
         const auto p=ImGui::GetCursorScreenPos();const auto origin=ImGui::GetWindowPos();
         ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(origin.x,p.y),ImVec2(origin.x+windowSize.x,origin.y+windowSize.y),IM_COL32(16,15,14,225));
@@ -454,7 +479,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         DrawHomeStatusLine(entries,status,statusTone,homeMargin);
     }
     ImGui::Dummy(ImVec2(0,8*unit));if(home)ImGui::SetCursorPosX(homeMargin);
-    const float legendHeight=MenuLegend(ImGui::GetContentRegionAvail().x,selectGlyph,backGlyph,true,adjustable,menuArt,unit,primary);
+    const float legendHeight=MenuLegend(ImGui::GetContentRegionAvail().x,selectGlyph,backGlyph,true,adjustable,menuArt,unit,primary,extras,back);
     ImGui::Dummy(ImVec2(0,legendHeight));
     if(flyout) {
         DrawFlyoutConfirmation(entries,unit,action);

@@ -729,6 +729,29 @@ static void TestSpectatorDoesNotHoldTable() {
 	CHECK(!rejoin.accepted && rejoin.reason == RejectReason::TerminalLedgerFull);
 }
 
+static void TestQueueTakesAskedSeatAndEndsWatching() {
+	RoomAuthority authority("Seats", 8, 5);
+	Join(authority, 0, true);
+	const auto first = Join(authority, 1), second = Join(authority, 2), watcher = Join(authority, 3);
+	const auto queue = [&](MemberId member, std::uint8_t table, int seat) {
+		auto action = TableAction(authority, member, table, ActionKind::Queue);
+		action.seat = static_cast<std::int8_t>(seat);
+		return authority.Apply(member, action).accepted;
+	};
+	CHECK(queue(first, 0, 1));
+	CHECK(authority.SnapshotView().tables[0].p2 == first && authority.SnapshotView().tables[0].p1 == 0);
+	// The asked-for seat is taken: refused, never swapped for the other one.
+	CHECK(!queue(second, 0, 1));
+	CHECK(authority.SnapshotView().tables[0].p1 == 0 && authority.SnapshotView().tables[0].queue.empty());
+	CHECK(queue(second, 0, 0));
+	CHECK(authority.SnapshotView().tables[0].p1 == second);
+	// A watcher sits down straight from watching, and stops watching.
+	CHECK(authority.Apply(watcher, TableAction(authority, watcher, 0, ActionKind::Watch)).accepted);
+	CHECK(queue(watcher, 1, 0));
+	const auto& tables = authority.SnapshotView().tables;
+	CHECK(tables[1].p1 == watcher && tables[0].spectators.empty() && tables[0].watchingNext.empty());
+}
+
 static void TestReadyDelaysShareTheHigherValue() {
 	RoomAuthority authority("Delay", 4, 1);
 	Join(authority, 0, true);
@@ -842,6 +865,7 @@ int main() {
 	TestMatchFinishedAndSeatLifecycle();
 	TestTerminalLifecycleGate();
 	TestSpectatorDoesNotHoldTable();
+	TestQueueTakesAskedSeatAndEndsWatching();
 	TestChatAfterSenderLeaves();
 	TestFighterAbandonsDisputedResult();
 	TestQueueWatchAndReplay();

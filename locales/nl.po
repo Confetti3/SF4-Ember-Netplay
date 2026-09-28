@@ -1452,9 +1452,6 @@ msgstr "Lees berichten en schrijf zelf tekst met een toetsenbord."
 msgid "room.change_fighter"
 msgstr "Personage wijzigen"
 
-msgid "room.change_fighter.open_table"
-msgstr "Open je tafel voor de Klaar-status en voorwaarden voor personagewissel."
-
 msgid "room.settings"
 msgstr "Kamerinstellingen"
 
@@ -1514,9 +1511,6 @@ msgstr "Tegenstander zoeken"
 
 msgid "room.fighter_not_shared"
 msgstr "Personage nog onbekend"
-
-msgid "room.suffix_ready"
-msgstr " / KLAAR"
 
 msgid "room.suffix_you"
 msgstr " / JIJ"
@@ -1713,6 +1707,12 @@ msgstr "Stoppen met kijken"
 msgid "room.watch_next"
 msgstr "Volgende kijken"
 
+msgid "room.take_p1_seat"
+msgstr "Spelen als P1"
+
+msgid "room.take_p2_seat"
+msgstr "Spelen als P2"
+
 msgid "room.lock_spectating"
 msgstr "Kijken vastleggen"
 
@@ -1727,6 +1727,24 @@ msgstr "Je bent vastgelegd. De volgende match wacht tot 10 seconden op je."
 
 msgid "room.table_rules"
 msgstr "Tafelregels"
+
+msgid "room.table_options"
+msgstr "Tafelopties"
+
+msgid "room.table_options.detail"
+msgstr "Tafel {0}: Vertraging, verbindingstest, tafelregels, wachtrij en kijken voor deze tafel."
+
+msgid "room.legend_fighter"
+msgstr "Vechter"
+
+msgid "room.legend_options"
+msgstr "Opties"
+
+msgid "room.choice.watch"
+msgstr "Kijken"
+
+msgid "room.choice.unwatch"
+msgstr "Niet kijken"
 
 msgid "room.table_rules.edit"
 msgstr "Wijzig de tafelregels."
@@ -2030,6 +2048,9 @@ msgstr "Je staat niet in de wachtrij."
 
 msgid "room.reject.not_watching"
 msgstr "Je kijkt niet mee aan deze tafel."
+
+msgid "room.reject.seat_taken"
+msgstr "Die plek is net bezet. Kies opnieuw."
 
 msgid "room.reject.invalid_rules"
 msgstr "Deze tafelregels zijn ongeldig."

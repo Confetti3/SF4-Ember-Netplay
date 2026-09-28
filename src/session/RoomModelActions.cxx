@@ -96,14 +96,24 @@ Result RoomAuthority::ApplySetRules(MemberId member, const Action& action, Table
 	table->rules = normalized; ResetTable(*table, false); return Accept();
 }
 
-Result RoomAuthority::ApplyQueue(MemberId member, Table* table) {
+Result RoomAuthority::ApplyQueue(MemberId member, const Action& action, Table* table) {
 	if (HasOutstandingTerminalReceiptForMember(member)) return Reject(RejectReason::TerminalLedgerFull);
-	if (IsTableMember(*table, member)) return table->p1 == member || table->p2 == member ? Reject(RejectReason::AlreadySeated) : Reject(RejectReason::AlreadyQueued);
 	for (const auto& other : snapshot_.tables) {
-		if (IsTableMember(other, member)) return Reject(RejectReason::AlreadySeated);
+		if (other.p1 == member || other.p2 == member) return Reject(RejectReason::AlreadySeated);
 		if (std::find(other.queue.begin(), other.queue.end(), member) != other.queue.end()) return Reject(RejectReason::AlreadyQueued);
 	}
-	table->queue.push_back(member); SeatQueued(*table); Touch(*table);
+	// A named seat is that seat or nothing: it must be open, with nobody
+	// queued first. A Queue with no seat takes the first open one, or waits.
+	const bool asked = action.seat == 0 || action.seat == 1;
+	if (asked) {
+		const bool seatable = table->phase != TablePhase::Playing && table->phase != TablePhase::Paused;
+		if (!seatable || !table->queue.empty() || (action.seat == 0 ? table->p1 : table->p2)) return Reject(RejectReason::InvalidSeat);
+	}
+	// Watching is not a seat: a watcher who sits down stops watching.
+	StopWatching(member);
+	table->queue.push_back(member);
+	if (asked) FillVacancy(*table, action.seat);
+	SeatQueued(*table); Touch(*table);
 	NormalizeMemberStatus(member); NormalizeMemberStatus(table->p1); NormalizeMemberStatus(table->p2);
 	return Accept();
 }
@@ -141,18 +151,22 @@ Result RoomAuthority::ApplyWatch(MemberId member, Table* table) {
 		if (other.p1 == member || other.p2 == member) return Reject(RejectReason::AlreadySeated);
 	}
 	if (table->spectators.size() + table->watchingNext.size() >= MaxSpectators) return Reject(RejectReason::WrongPhase);
-	for (auto& other : snapshot_.tables) {
-		const auto oldSpectatorSize = other.spectators.size();
-		const auto oldNextSize = other.watchingNext.size();
-		other.spectators.erase(std::remove(other.spectators.begin(), other.spectators.end(), member), other.spectators.end());
-		other.watchingNext.erase(std::remove(other.watchingNext.begin(), other.watchingNext.end(), member), other.watchingNext.end());
-		if (oldSpectatorSize != other.spectators.size() || oldNextSize != other.watchingNext.size()) Touch(other);
-	}
-	// A lock-in holds the table it was made at; watching another starts unlocked.
-	Find(member)->spectatorLocked = false;
+	StopWatching(member);
 	if (table->phase == TablePhase::Playing) table->watchingNext.push_back(member);
 	else table->spectators.push_back(member);
 	Touch(*table); NormalizeMemberStatus(member); return Accept();
+}
+
+void RoomAuthority::StopWatching(MemberId member) {
+	for (auto& table : snapshot_.tables) {
+		const auto oldSpectatorSize = table.spectators.size();
+		const auto oldNextSize = table.watchingNext.size();
+		table.spectators.erase(std::remove(table.spectators.begin(), table.spectators.end(), member), table.spectators.end());
+		table.watchingNext.erase(std::remove(table.watchingNext.begin(), table.watchingNext.end(), member), table.watchingNext.end());
+		if (oldSpectatorSize != table.spectators.size() || oldNextSize != table.watchingNext.size()) Touch(table);
+	}
+	// A lock-in holds the table it was made at.
+	if (auto* item = Find(member)) item->spectatorLocked = false;
 }
 
 Result RoomAuthority::ApplyUnwatch(MemberId member, Table* table) {
@@ -361,7 +375,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (generationScopedUnwatch && (table->phase != TablePhase::Playing && table->phase != TablePhase::Paused ||
 		action.matchGeneration != table->matchGeneration)) return Reject(RejectReason::WrongGeneration);
 	if (action.kind == ActionKind::SetRules) return ApplySetRules(member, action, table);
-	if (action.kind == ActionKind::Queue) return ApplyQueue(member, table);
+	if (action.kind == ActionKind::Queue) return ApplyQueue(member, action, table);
 	if (action.kind == ActionKind::Unqueue) return ApplyUnqueue(member, table);
 	if (action.kind == ActionKind::Watch) return ApplyWatch(member, table);
 	if (action.kind == ActionKind::Unwatch) return ApplyUnwatch(member, table);

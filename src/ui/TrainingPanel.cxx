@@ -137,7 +137,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(showRecordings){showRecordings=false;nav.Home();nav.Push("recording");}
  if(pending&&v.commandId==pending){
   pending=0;
-  if(v.commandAccepted){error.clear();if(returnAfter){RequestMenuReturn();return;}}
+  if(v.commandAccepted){error.clear();if(returnAfter){ForwardMenuAction({MenuAction::Close});return;}}
   else error=v.commandError;
  }
  const auto screen=nav.Screen();std::vector<MenuEntry> rows;
@@ -168,7 +168,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
    for(const auto& run:v.history[id=="p1"?0:1])ImGui::TextWrapped("%u f  %s",run.frames,Buttons(run.buttons).c_str());
   }
  },1,{},{},ImGui::GetFontSize()/ImGui::GetFont()->FontSize,100,false,statusTone);
- if(a.kind==MenuAction::Close||a.id=="return"){RequestMenuReturn();return;}
+ if(a.kind==MenuAction::Close||a.id=="return"){ForwardMenuAction({MenuAction::Close});return;}
  if(a.kind==MenuAction::Activate&&screen=="home"){nav.Push(a.id);return;}
  if(a.kind!=MenuAction::Activate&&a.kind!=MenuAction::Adjust)return;
  Command command;command.generation=v.generation;command.requestId=nextRequest++;

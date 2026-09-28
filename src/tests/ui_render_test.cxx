@@ -436,7 +436,8 @@ int main(int argc, char** argv) {
                     Require(loaded,"Gallery preview loading timed out");
                 }
                 const bool gallery=std::string(screen)=="costumes"||std::string(screen)=="colors";
-                if(gallery)SetMenuCardProbe([](const char*,ImVec2 min,ImVec2 max){
+                if(gallery)SetMenuCardProbe([](const char* id,ImVec2 min,ImVec2 max){
+                    if(!std::strcmp(id,"menu-back"))return;
                     Require(max.y-min.y<=ImGui::GetWindowHeight()+.5f,"Gallery card taller than the scrolling pane");
                     Require(max.y-min.y>=100,"Gallery artwork collapsed to an unreadable thumbnail");});
                 draw(screen);SetMenuCardProbe({});
@@ -468,6 +469,27 @@ int main(int argc, char** argv) {
             const char* sampleChat[]={"Welcome! Grab a table or join a queue.","Good games. I'll watch the next one.","Ready for another set?","Let's run it back!"};
             for(int i=0;i<20;++i)view.room.chat.push_back({static_cast<std::uint64_t>(i+1),static_cast<room::MemberId>(i%16+1),readmeShots?sampleChat[i%4]:"Ready for the next set? This is a longer chat message for narrow-layout inspection."});
             draw();for(const char* screen:{"room","room-table","room-rules","room-members","room-chat","room-admin"})page(screen);
+            // The seat chooser on an empty table, for a member with no seat.
+            view.room.tables[0].p1=5;view.room.members[0].table=-1;view.room.members[0].seat=-1;
+            page("room");
+            for(int i=0;i<8&&shell.Navigation().Focus()!="table-2";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+            Require(shell.Navigation().Focus()=="table-2","An empty table is unreachable at this viewport/DPI");
+            draw(nullptr,MenuInput::Select,1);draw("room-seat-chooser");
+            Require(shell.Navigation().Confirming(),"A on an empty table did not open the seat chooser");
+            draw(nullptr,MenuInput::Right,1);draw("room-seat-chooser-p2");
+            draw(nullptr,MenuInput::Back,1);draw();
+            // A full table offers the queue, watching and the table's options;
+            // a watcher sees Stop watching instead.
+            draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);
+            Require(shell.Navigation().Focus()=="table-1","A full table is unreachable at this viewport/DPI");
+            draw(nullptr,MenuInput::Select,1);draw("room-seat-chooser-full");
+            Require(shell.Navigation().Choosing(),"A on a full table did not open the chooser");
+            draw(nullptr,MenuInput::Back,1);draw();
+            view.room.tables[1].spectators={1};
+            draw(nullptr,MenuInput::Select,1);draw("room-seat-chooser-watching");
+            draw(nullptr,MenuInput::Back,1);draw();view.room.tables[1].spectators.clear();
+            for(int i=0;i<8&&shell.Navigation().Focus()!="table-0";++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
+            view.room.tables[0].p1=1;view.room.members[0].table=0;view.room.members[0].seat=0;
             page("room-members");
             for(int i=0;i<24&&shell.Navigation().Focus()!="member-2";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             Require(shell.Navigation().Focus()=="member-2","Host-transfer recipient is unreachable at this viewport/DPI");
@@ -605,7 +627,7 @@ int main(int argc, char** argv) {
             acceptTraining=true;draw(nullptr,MenuInput::Down,1);draw();draw(nullptr,MenuInput::Select,1);draw("training-pending");
             training.commandId=trainingCommand.requestId;training.commandAccepted=false;
             training.commandError="Practice command rejected: the battle state changed while the command was pending. Wait until both fighters are ready and try again. This deliberately long explanation must not displace the controls or button legend.";
-            draw("training-command-error");Require(!TakeMenuReturn(),"Failed training command closed flyout");
+            draw("training-command-error");Require((TakeForwardedMenuAction().kind!=MenuAction::Close),"Failed training command closed flyout");
             training.ready=false;TrainingNavigation().Home();TrainingNavigation().Push("recording");draw("training-unavailable");
             training.ready=true;training.mode=training::Mode::Recording;draw("training-recording-suspended");training.mode=training::Mode::Idle;
             mode=2;draw("training-hud");

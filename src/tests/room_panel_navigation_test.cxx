@@ -343,8 +343,13 @@ int main() try {
     view.room.members[0].table = -1; view.room.members[0].seat = -1;
     view.room.tables[0].p1 = 2; view.room.tables[0].p2 = 3;
     shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); frame();
+    // A full table's card offers the queue or watching in place; Y opens its
+    // options list.
     focus("table-0"); press(MenuInput::Select);
-    Check(shell.Navigation().Screen() == "room-table", "Select did not enter the table");
+    Check(shell.Navigation().Screen() == "room" && shell.Navigation().Confirming(), "Select did not open the seat chooser");
+    press(MenuInput::Back);
+    press(MenuInput::Options);
+    Check(shell.Navigation().Screen() == "room-table", "Y did not enter the table");
     focus("queue"); const auto beforeQueue = actions.size(); press(MenuInput::Select);
     Check(actions.size() == beforeQueue + 1 && actions.back().roomAction.kind == room::ActionKind::Queue,
         "Queue entry submitted zero or duplicate actions");

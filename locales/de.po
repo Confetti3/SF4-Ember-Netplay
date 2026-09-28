@@ -1452,9 +1452,6 @@ msgstr "Nachrichten lesen und Text gezielt per Tastatur verfassen."
 msgid "room.change_fighter"
 msgstr "Charakter wechseln"
 
-msgid "room.change_fighter.open_table"
-msgstr "Tisch öffnen, um Bereitschaft und Bedingungen für den Charakterwechsel zu prüfen."
-
 msgid "room.settings"
 msgstr "Raumeinstellungen"
 
@@ -1514,9 +1511,6 @@ msgstr "Suche nach Kampf"
 
 msgid "room.fighter_not_shared"
 msgstr "Figur noch nicht gezeigt"
-
-msgid "room.suffix_ready"
-msgstr " / BEREIT"
 
 msgid "room.suffix_you"
 msgstr " / SIE"
@@ -1713,6 +1707,12 @@ msgstr "Zuschauen beenden"
 msgid "room.watch_next"
 msgstr "Nächstes Spiel sehen"
 
+msgid "room.take_p1_seat"
+msgstr "Als P1 spielen"
+
+msgid "room.take_p2_seat"
+msgstr "Als P2 spielen"
+
 msgid "room.lock_spectating"
 msgstr "Zuschauen festlegen"
 
@@ -1727,6 +1727,24 @@ msgstr "Sie sind festgelegt. Das nächste Spiel wartet bis zu 10 Sekunden auf Si
 
 msgid "room.table_rules"
 msgstr "Tischregeln"
+
+msgid "room.table_options"
+msgstr "Tischoptionen"
+
+msgid "room.table_options.detail"
+msgstr "Tisch {0}: Verzögerung, Verbindungstest, Tischregeln, Warteschlange und Zuschauen für diesen Tisch."
+
+msgid "room.legend_fighter"
+msgstr "Kämpfer"
+
+msgid "room.legend_options"
+msgstr "Optionen"
+
+msgid "room.choice.watch"
+msgstr "Zuschauen"
+
+msgid "room.choice.unwatch"
+msgstr "Nicht zusehen"
 
 msgid "room.table_rules.edit"
 msgstr "Tischregeln ändern."
@@ -2030,6 +2048,9 @@ msgstr "Nicht in der Warteliste."
 
 msgid "room.reject.not_watching"
 msgstr "Sie sehen diesem Tisch nicht zu."
+
+msgid "room.reject.seat_taken"
+msgstr "Dieser Platz wurde gerade besetzt. Bitte neu wählen."
 
 msgid "room.reject.invalid_rules"
 msgstr "Diese Tischregeln sind ungültig."

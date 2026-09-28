@@ -16,7 +16,7 @@ void ControllerNavigation::Update(const ControllerSample& sample,bool available,
     }
     if(!visible||!focused||!sample.connected||changed){armed_=false;previous_=0;return;}
     if(!armed_){armed_=sample.buttons==0;previous_=0;return;}
-    output_=sample.buttons&63;
+    output_=sample.buttons&~ControllerSample::Menu;
     const auto pressed=output_&~previous_;previous_=output_;
     backRequested_=(pressed&ControllerSample::Back)!=0;
     focusRequested_=pressed!=0;

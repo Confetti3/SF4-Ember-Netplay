@@ -54,6 +54,7 @@ static const char* RoomRejectText(sf4e::room::RejectReason reason) {
 	case RejectReason::AlreadyQueued: return "room.reject.already_queued";
 	case RejectReason::NotQueued: return "room.reject.not_queued";
 	case RejectReason::NotWatching: return "room.reject.not_watching";
+	case RejectReason::InvalidSeat: return "room.reject.seat_taken";
 	case RejectReason::InvalidRules: return "room.reject.invalid_rules";
 	case RejectReason::InvalidCapacity: return "room.reject.invalid_capacity";
 	case RejectReason::InvalidChat: return "room.reject.invalid_chat";
@@ -242,12 +243,12 @@ void SessionClient::RememberSentRoomAction(const room::Action& action) {
 		if (sent.actionId == action.actionId) return;
 	if (_sentRoomActions.size() >= 32) _sentRoomActions.pop_front();
 	_sentRoomActions.push_back({action.actionId, action.kind, action.table, action.matchGeneration,
-		action.inputDelay, action.actionId});
+		action.inputDelay, action.seat, action.actionId});
 }
 
-sf4e::room::Action SessionClient::TableAction(room::ActionKind kind, std::uint8_t table, std::uint8_t inputDelay) const {
+sf4e::room::Action SessionClient::TableAction(room::ActionKind kind, std::uint8_t table, std::uint8_t inputDelay, std::int8_t seat) const {
 	room::Action action;
-	action.kind = kind; action.table = table; action.inputDelay = inputDelay;
+	action.kind = kind; action.table = table; action.inputDelay = inputDelay; action.seat = seat;
 	action.roomEpoch = _roomSnapshot.roomEpoch;
 	action.revision = _roomSnapshot.revision;
 	action.tableRevision = _roomSnapshot.tables[table].revision;
@@ -416,12 +417,12 @@ bool SessionClient::HandleRoomResult(json& msg) {
 	// leaving the press parked until its timeout.
 	if (resendable && !result.result.accepted && result.result.reason == room::RejectReason::StaleTable &&
 		sent->staleRetries < 3) {
-		// Resend the same request (kind, table, input delay) from the
+		// Resend the same request (kind, table, input delay, seat) from the
 		// fresher snapshot. Copy first: sending may evict `sent`.
 		const auto kind = sent->kind;
 		const auto callerId = sent->callerId;
 		const std::uint8_t attempt = sent->staleRetries + 1;
-		const auto resent = SendRoomAction(TableAction(kind, sent->table, sent->inputDelay));
+		const auto resent = SendRoomAction(TableAction(kind, sent->table, sent->inputDelay, sent->seat));
 		if (resent == session::SendResult::Queued) {
 			// SendRoomAction just remembered the resend as the newest entry.
 			_sentRoomActions.back().callerId = callerId;

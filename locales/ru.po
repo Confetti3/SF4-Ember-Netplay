@@ -1452,9 +1452,6 @@ msgstr "Читайте сообщения и вводите текст с кла
 msgid "room.change_fighter"
 msgstr "Сменить персонажа"
 
-msgid "room.change_fighter.open_table"
-msgstr "Откройте свой стол, чтобы узнать статус готовности и условия смены персонажа."
-
 msgid "room.settings"
 msgstr "Настройки зала"
 
@@ -1514,9 +1511,6 @@ msgstr "Ищет бой"
 
 msgid "room.fighter_not_shared"
 msgstr "Персонаж не показан"
-
-msgid "room.suffix_ready"
-msgstr " / ГОТОВ"
 
 msgid "room.suffix_you"
 msgstr " / ВЫ"
@@ -1713,6 +1707,12 @@ msgstr "Не смотреть"
 msgid "room.watch_next"
 msgstr "Смотреть новый бой"
 
+msgid "room.take_p1_seat"
+msgstr "Играть за P1"
+
+msgid "room.take_p2_seat"
+msgstr "Играть за P2"
+
 msgid "room.lock_spectating"
 msgstr "Закрепиться зрителем"
 
@@ -1727,6 +1727,24 @@ msgstr "Вы закреплены. Следующий матч подождёт 
 
 msgid "room.table_rules"
 msgstr "Правила стола"
+
+msgid "room.table_options"
+msgstr "Настройки стола"
+
+msgid "room.table_options.detail"
+msgstr "Стол {0}: Задержка, проверка связи, правила, очередь и просмотр для этого стола."
+
+msgid "room.legend_fighter"
+msgstr "Боец"
+
+msgid "room.legend_options"
+msgstr "Опции"
+
+msgid "room.choice.watch"
+msgstr "Смотреть"
+
+msgid "room.choice.unwatch"
+msgstr "Не смотреть"
 
 msgid "room.table_rules.edit"
 msgstr "Изменить правила этого стола."
@@ -2030,6 +2048,9 @@ msgstr "Вас нет в очереди."
 
 msgid "room.reject.not_watching"
 msgstr "Вы не смотрите этот стол."
+
+msgid "room.reject.seat_taken"
+msgstr "Это место только что заняли. Выберите снова."
 
 msgid "room.reject.invalid_rules"
 msgstr "Правила этого стола недопустимы."

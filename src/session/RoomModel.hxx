@@ -371,7 +371,7 @@ private:
 	Result ApplyRename(MemberId member, const Action& action);
 	Result ApplyAcknowledgeTerminal(MemberId member, const Action& action);
 	Result ApplySetRules(MemberId member, const Action& action, Table* table);
-	Result ApplyQueue(MemberId member, Table* table);
+	Result ApplyQueue(MemberId member, const Action& action, Table* table);
 	Result ApplyUnqueue(MemberId member, Table* table);
 	Result ApplyWatch(MemberId member, Table* table);
 	Result ApplyUnwatch(MemberId member, Table* table);
@@ -402,6 +402,8 @@ private:
 	void TouchRoom();
 	void NormalizeMemberStatus(MemberId member);
 	void NormalizeTableMembers(const Table& table);
+	// Takes the member off every table's watch lists and clears its lock-in.
+	void StopWatching(MemberId member);
 	void SeatQueued(Table& table);
 	void FillVacancy(Table& table, int seat);
 	void RemoveFromTable(MemberId member, bool preserveSpectator = false);

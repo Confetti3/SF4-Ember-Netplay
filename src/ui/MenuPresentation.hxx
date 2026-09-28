@@ -21,6 +21,7 @@ inline std::string MenuScreenLabel(const std::string& screen) {
 }
 inline const char* MenuPrimaryHint(const MenuEntry* entry) {
     if(!entry||!entry->enabled||entry->adjustable)return nullptr;
+    if(!entry->hint.empty())return entry->hint.c_str();
     return entry->text?loc::T("menu.edit"):entry->confirm?loc::T("menu.review"):loc::T("menu.select");
 }
 } }

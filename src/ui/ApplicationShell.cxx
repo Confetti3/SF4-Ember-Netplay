@@ -375,9 +375,15 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
+ // Room shortcuts work from every screen of a joined room, including the
+ // embedded fighter selector, which forwards what it does not handle.
+ const bool inRoom=v.session.room!=RoomState::Idle&&v.room.roomEpoch;
  if(nav.Screen()=="selection"&&selection){
   selection();
-  if(TakeMenuReturn())nav.Return();ImGui::End();ImGui::PopStyleVar(2);return;
+  const auto forwarded=TakeForwardedMenuAction();
+  if(forwarded.kind==MenuAction::Close)nav.Return();
+  else if(forwarded.kind==MenuAction::Shortcut&&inRoom)RoomShortcut(forwarded,v);
+  ImGui::End();ImGui::PopStyleVar(2);return;
  }
  const std::string screen=nav.Screen();std::string title=loc::T("shell.home_title");
  const bool idle=v.session.room==RoomState::Idle, opening=v.session.room==RoomState::Opening;
@@ -416,10 +422,21 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // grows can never displace the list under a highlight or a mouse click.
  // Home renders its status in the small-print line below the list instead.
  const bool stableFeedback=screen!="home";
+ if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints={{"X",loc::T("room.legend_fighter")},{"Y",loc::T("room.legend_options")},{"Back/Select",loc::T("room.chat")}};
+ else menu_.shortcutHints.clear();
+ menu_.backHint=screen=="room"&&v.room.roomEpoch?PlaceExitLabel(v):"";
  auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,100,stableFeedback,statusTone,screen=="home");
  if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){
   ShellAction r;r.command.generation=v.session.generation;r.inputAction=input::Action::Cancel;submit(std::move(r));
+ }else if(a.kind==MenuAction::Close&&v.session.room!=RoomState::Idle){
+  // Back never drops a player out of a room to the game's own menu, where
+  // only the Ember shortcut would bring the room back.
+  nav.Push("room");
  }else if(a.kind==MenuAction::Close||a.id=="return"){if(open)*open=false;
+ }else if(a.kind==MenuAction::Shortcut){
+  if(inRoom)RoomShortcut(a,v);
+ }else if(a.kind==MenuAction::Chosen){
+  if(roomScreen)RoomAction(a,v,submit);
  }else if(a.kind==MenuAction::Activate){
   HandleActivate(a,v,screen,idle,submit);
  }else if(a.kind==MenuAction::Adjust||a.kind==MenuAction::TextAccepted){

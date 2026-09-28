@@ -445,7 +445,7 @@ int main() {
 		// Taking a seat races a table update the same way, e.g. right after
 		// room control recovers, and resends from the fresher snapshot.
 		room::Action queue;
-		queue.kind = room::ActionKind::Queue; queue.table = 0;
+		queue.kind = room::ActionKind::Queue; queue.table = 0; queue.seat = 1;
 		queue.revision = current.revision; queue.tableRevision = current.tables[0].revision;
 		std::uint64_t queueId = 0;
 		CHECK(roomClient.SendRoomAction(queue, &queueId) == session::SendResult::Queued);
@@ -460,6 +460,7 @@ int main() {
 		CHECK(!roomClient.TakeActionReply(actionReply));
 		CHECK(roomTransport->sent.back().at("action").at("kind").get<int>() == static_cast<int>(room::ActionKind::Queue));
 		CHECK(roomTransport->sent.back().at("action").at("table_revision").get<std::uint64_t>() == current.tables[0].revision);
+		CHECK(roomTransport->sent.back().at("action").at("seat").get<int>() == 1);
 		protocol::RoomResultMessage queueAccepted;
 		queueAccepted.actionId = roomTransport->sent.back().at("action").at("action_id").get<std::uint64_t>();
 		queueAccepted.result.accepted = true;

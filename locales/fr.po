@@ -1452,9 +1452,6 @@ msgstr "Lire les messages et écrire au clavier."
 msgid "room.change_fighter"
 msgstr "Changer perso"
 
-msgid "room.change_fighter.open_table"
-msgstr "Ouvrez votre table pour voir Prêt et les conditions de changement de perso."
-
 msgid "room.settings"
 msgstr "Paramètres du salon"
 
@@ -1514,9 +1511,6 @@ msgstr "En quête d'un combat"
 
 msgid "room.fighter_not_shared"
 msgstr "Perso pas encore révélé"
-
-msgid "room.suffix_ready"
-msgstr " / PRÊT"
 
 msgid "room.suffix_you"
 msgstr " / VOUS"
@@ -1713,6 +1707,12 @@ msgstr "Arrêter de regarder"
 msgid "room.watch_next"
 msgstr "Voir le prochain"
 
+msgid "room.take_p1_seat"
+msgstr "Jouer en P1"
+
+msgid "room.take_p2_seat"
+msgstr "Jouer en P2"
+
 msgid "room.lock_spectating"
 msgstr "Verrouiller le visionnage"
 
@@ -1727,6 +1727,24 @@ msgstr "Vous êtes verrouillé. Le prochain combat vous attend jusqu'à 10 secon
 
 msgid "room.table_rules"
 msgstr "Règles"
+
+msgid "room.table_options"
+msgstr "Options de la table"
+
+msgid "room.table_options.detail"
+msgstr "Table {0} : Délai, test de connexion, règles, file et spectateurs de cette table."
+
+msgid "room.legend_fighter"
+msgstr "Combattant"
+
+msgid "room.legend_options"
+msgstr "Options"
+
+msgid "room.choice.watch"
+msgstr "Regarder"
+
+msgid "room.choice.unwatch"
+msgstr "Ne plus voir"
 
 msgid "room.table_rules.edit"
 msgstr "Modifier ces règles."
@@ -2030,6 +2048,9 @@ msgstr "Vous n'êtes pas dans la file."
 
 msgid "room.reject.not_watching"
 msgstr "Vous ne regardez pas cette table."
+
+msgid "room.reject.seat_taken"
+msgstr "Cette place vient d'être prise. Choisissez à nouveau."
 
 msgid "room.reject.invalid_rules"
 msgstr "Les règles de cette table sont invalides."

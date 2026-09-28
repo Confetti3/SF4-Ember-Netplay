@@ -305,7 +305,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  // status grows from one line to two.
  const auto a=menu_.Draw(title.c_str(),rows,status.c_str(),preview,columns,card,{},0,
   screen=="costumes"||screen=="colors"?180.f:100.f,true,selectionError.empty()?Tone::Neutral:Tone::Error);
- if(a.kind==MenuAction::Close)RequestMenuReturn();
+ if(a.kind==MenuAction::Close||a.kind==MenuAction::Shortcut)ForwardMenuAction(a);
  if(a.kind==MenuAction::Activate){
   if(screen=="home"||screen=="appearance")nav.Push(a.id);
   else if(editable&&a.id.compare(0,8,"fighter-")==0){

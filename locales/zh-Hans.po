@@ -1452,9 +1452,6 @@ msgstr "阅读消息，并使用键盘主动编写文字。"
 msgid "room.change_fighter"
 msgstr "更换角色"
 
-msgid "room.change_fighter.open_table"
-msgstr "打开您的对战席，查看准备状态和更换角色的条件。"
-
 msgid "room.settings"
 msgstr "房间设置"
 
@@ -1514,9 +1511,6 @@ msgstr "寻找对手"
 
 msgid "room.fighter_not_shared"
 msgstr "角色未共享"
-
-msgid "room.suffix_ready"
-msgstr "／已准备"
 
 msgid "room.suffix_you"
 msgstr "／您"
@@ -1713,6 +1707,12 @@ msgstr "停止观战"
 msgid "room.watch_next"
 msgstr "观看下场对战"
 
+msgid "room.take_p1_seat"
+msgstr "作为P1对战"
+
+msgid "room.take_p2_seat"
+msgstr "作为P2对战"
+
 msgid "room.lock_spectating"
 msgstr "锁定观战"
 
@@ -1727,6 +1727,24 @@ msgstr "已锁定观战。下一场对战最多等待你10秒。"
 
 msgid "room.table_rules"
 msgstr "对战席规则"
+
+msgid "room.table_options"
+msgstr "对战席选项"
+
+msgid "room.table_options.detail"
+msgstr "对战席 {0}：此对战席的延迟、连接检测、规则、队列与观战。"
+
+msgid "room.legend_fighter"
+msgstr "角色"
+
+msgid "room.legend_options"
+msgstr "选项"
+
+msgid "room.choice.watch"
+msgstr "观战"
+
+msgid "room.choice.unwatch"
+msgstr "停止观战"
 
 msgid "room.table_rules.edit"
 msgstr "编辑此对战席的规则。"
@@ -2030,6 +2048,9 @@ msgstr "您不在队列中。"
 
 msgid "room.reject.not_watching"
 msgstr "您未观看此对战席。"
+
+msgid "room.reject.seat_taken"
+msgstr "该席位刚被占用。请重新选择。"
 
 msgid "room.reject.invalid_rules"
 msgstr "对战席规则无效。"

@@ -195,6 +195,8 @@ namespace sf4e {
 			std::uint8_t table = 0;
 			std::uint64_t generation = 0;
 			std::uint8_t inputDelay = 0;
+			// The seat a Queue asked for (-1: any); a resend asks for it again.
+			std::int8_t seat = -1;
 			// The id the caller was given. A stale-table resend goes out under a
 			// new id; its reply is reported under the original one.
 			std::uint64_t callerId = 0;
@@ -211,7 +213,7 @@ namespace sf4e {
 		bool _snapshotSendFailing = false;
 		void RememberSentRoomAction(const room::Action& action);
 		// A table action stamped with the current snapshot's revisions.
-		room::Action TableAction(room::ActionKind kind, std::uint8_t table, std::uint8_t inputDelay) const;
+		room::Action TableAction(room::ActionKind kind, std::uint8_t table, std::uint8_t inputDelay, std::int8_t seat = -1) const;
 		void LogRejectedRoomAction(std::uint64_t actionId, room::RejectReason reason);
         std::uint8_t _selectedDelay=2;
 		bool _customRoomsRequired = false;

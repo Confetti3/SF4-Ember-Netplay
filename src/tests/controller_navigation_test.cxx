@@ -16,7 +16,9 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <iostream>
+#include <map>
 #include <stdexcept>
 using namespace sf4e::ui;
 using Button=ControllerSample;
@@ -65,7 +67,9 @@ void NativeReader() {
     Check(ControllerButtons(0x20 | 0x80 | 0x400 | 0x800) == 0, "Unrelated attack became UI action");
     Check(ControllerButtons(0x40,3,0x40000)==Button::Confirm,"Physical A must select even when bound to LK");
     Check(ControllerButtons(0x20,3,0x20000)==Button::Back,"Physical B must return even when bound to MP");
-    Check(ControllerButtons(0x10,3,0x80000)==0,"Physical X must not select when bound to LP");
+    Check(ControllerButtons(0x10,3,0x80000)==Button::Fighter,"Physical X must be the fighter shortcut, not select, when bound to LP");
+    Check(ControllerButtons(0,3,0x10000)==Button::Options&&ControllerButtons(0,3,0x100)==Button::Chat,"Physical Y and View must be the options and chat shortcuts");
+    Check(ControllerButtons(0x80|0x400,-1,0)==0,"DirectInput attack buttons must not become shortcuts");
     Check(ControllerButtons(0x1000,3,0x200)==Button::Menu,"Start must not activate a visible menu row");
     Check(ControllerButtons(0x9,3,0)==(Button::Up|Button::Right),"Menu directions changed");
 }
@@ -106,6 +110,22 @@ void NavigationModel() {
  nav.Update({MenuInput::Down,time+1.2},rows);Check(nav.Focus()=="1","Repeat too early");
  nav.Update({MenuInput::Down,time+1.5},rows);Check(nav.Focus()=="2","Direction did not repeat");
  nav.NeutralGate();nav.Update({MenuInput::Select,time+2},rows);Check(nav.Update({0,time+3},rows).kind==MenuAction::None,"Neutral gate");
+ // A choice returns the option the player saw, by id. One whose options
+ // change meaning closes rather than send something never picked, and Back
+ // cancels without choosing either side.
+ nav.Home();MenuEntry seat=Row("seat","Seat","");seat.choices={{"sit-p1","P1"},{"sit-p2","P2"}};rows={seat};
+ nav.Reconcile(rows);frame(0);press(MenuInput::Select);Check(nav.Choosing()&&nav.ChoiceIndex()==0,"Choice did not open on its left option");
+ press(MenuInput::Right);a=press(MenuInput::Select);
+ Check(a.kind==MenuAction::Chosen&&a.id=="seat"&&a.text=="sit-p2"&&!nav.Choosing(),"Choice did not return the picked option");
+ press(MenuInput::Select);a=press(MenuInput::Back);Check(a.kind==MenuAction::None&&!nav.Choosing(),"Back did more than cancel the choice");
+ press(MenuInput::Select);Check(nav.Confirm(true,rows).kind==MenuAction::None&&nav.Choosing(),"Confirm answered a choice");
+ press(MenuInput::Right);rows[0].choices={{"sit-p2","P2"},{"watch","Watch"}};
+ a=press(MenuInput::Select);Check(a.kind==MenuAction::None&&nav.Choosing()&&nav.ChoiceIndex()==0,"Changed choice sent an option the player never saw");
+ // Right stops at the last option; Left at the first.
+ rows[0].choices.push_back({"options","Options"});frame(0);nav.Cancel();press(MenuInput::Select);
+ for(int i=0;i<4;++i)press(MenuInput::Right);Check(nav.ChoiceIndex()==2,"Right ran past the last option");
+ a=press(MenuInput::Select);Check(a.kind==MenuAction::Chosen&&a.text=="options","The third option was not chosen");
+ nav.Cancel();
 }
 void NativeCapture() {
  Check(std::strcmp(PhysicalGlyph(3,0x80000,"LP"),"X")==0&&std::strcmp(PhysicalGlyph(3,0x40000,"LK"),"A")==0,"Physical glyphs ignore native mapping");
@@ -135,21 +155,23 @@ void NativeCapture() {
 }
 struct Harness {
  ApplicationShell shell;ShellView view;std::vector<ShellAction> actions;bool open=true,accept=true;
+ std::function<void()> selection=[]{};
  HeadlessImGui imgui; // last: created after the shell and destroyed before it
  Harness(){
   view.canEditPreferences=view.canOpenRoom=view.helperReady=view.controllerReady=view.canChangeController=true;
  }
  void Frame(unsigned buttons=0,int count=1){
   for(int i=0;i<count;++i){auto& io=ImGui::GetIO();io.DeltaTime=1.f/60;SetMenuInput({buttons,0});ImGui::NewFrame();
-   shell.Draw(view,&open,[&](ShellAction a){actions.push_back(a);return accept;},[]{});
+   shell.Draw(view,&open,[&](ShellAction a){actions.push_back(a);return accept;},selection);
    ImGui::Render();}
  }
  void Press(unsigned b){Frame();Frame(b);Frame();}
- void Choose(const char* id){
+ void FocusOn(const char* id){
   Frame();for(int i=0;i<100&&shell.Navigation().Focus()!=id;++i)Press(MenuInput::Up);
   for(int i=0;i<100&&shell.Navigation().Focus()!=id;++i)Press(MenuInput::Down);
-  if(shell.Navigation().Focus()!=id)throw std::runtime_error(std::string("Journey item not reachable: ")+id+" on "+shell.Navigation().Screen()+" focused "+shell.Navigation().Focus());Press(MenuInput::Select);
+  if(shell.Navigation().Focus()!=id)throw std::runtime_error(std::string("Journey item not reachable: ")+id+" on "+shell.Navigation().Screen()+" focused "+shell.Navigation().Focus());
  }
+ void Choose(const char* id){FocusOn(id);Press(MenuInput::Select);}
  void Screen(const char* id){shell.Navigation().Home();if(std::string(id)!="home")shell.Navigation().Push(id);Frame();}
 };
 void Journeys() {
@@ -187,8 +209,74 @@ void Journeys() {
  h.Frame();SetPortraitProbe({});
  Check(portraits==std::vector<int>({0,2,8,9}),"Member portraits must use saved mains, not battle fighters");
  h.view.room.tables[0].p1=h.view.room.tables[0].p2=0;
- h.Choose("table-2");h.Choose("queue");Check(h.actions.back().roomAction.kind==room::ActionKind::Queue&&h.actions.back().roomAction.table==2,"Table queue journey");
+ // A on an empty table opens the seat chooser: P1 left, P2 right, B cancels.
+ h.Choose("table-2");Check(h.shell.Navigation().Confirming(),"A on an empty table did not open the seat chooser");
+ auto before=h.actions.size();h.Press(MenuInput::Back);
+ Check(!h.shell.Navigation().Confirming()&&h.actions.size()==before&&h.shell.Navigation().Screen()=="room","B did not cancel the seat chooser");
+ h.Choose("table-2");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+ Check(h.actions.back().roomAction.kind==room::ActionKind::Queue&&h.actions.back().roomAction.table==2&&
+  h.actions.back().roomAction.seat==1,"Seat chooser did not take the P2 seat");
+ // P1 taken under a chooser highlighting P2: the chooser closes, the A pressed
+ // on that same frame does nothing, and the next A offers the new options.
+ h.Choose("table-1");h.Press(MenuInput::Right);h.view.room.tables[1].p1=2;
+ auto raced=h.actions.size();h.Frame(MenuInput::Select);h.Frame();
+ Check(h.actions.size()==raced&&!h.shell.Navigation().Confirming(),"A changed chooser sent an option the player never saw");
+ h.Press(MenuInput::Select);h.Press(MenuInput::Select);
+ Check(h.actions.size()==raced+1&&h.actions.back().roomAction.kind==room::ActionKind::Queue&&h.actions.back().roomAction.seat==1,
+  "The reopened chooser did not offer the open P2 seat first");
+ h.view.room.tables[1].p1=0;
+ // The mouse picks from the chooser with real buttons: a notice over it
+ // blocks them, and a click on another table's card opens that table's
+ // chooser even though its game count differs.
+ std::map<std::string,ImVec2> centres;
+ SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){centres[id]=ImVec2((min.x+max.x)*.5f,(min.y+max.y)*.5f);});
+ const auto click=[&](const std::string& id){
+  h.Frame();const auto at=centres.at(id);auto& io=ImGui::GetIO();io.AddMousePosEvent(at.x,at.y);h.Frame();
+  io.AddMouseButtonEvent(0,true);h.Frame();io.AddMouseButtonEvent(0,false);h.Frame();h.Frame();
+ };
+ h.view.room.tables[3].matchGeneration=5;h.Choose("table-2");h.Press(MenuInput::Back);
+ click("table-3");Check(h.shell.Navigation().Choosing()&&h.shell.Navigation().DialogId()=="table-3","Clicking another table did not keep its chooser open");
+ h.view.readyFailure="Notice over the chooser.";h.view.readyFailureSequence=7;raced=h.actions.size();
+ click("table-3/1");Check(h.actions.size()==raced&&h.shell.Navigation().Choosing(),"A click reached the chooser under a notice");
+ h.Press(MenuInput::Select);
+ // A cursor resting on P1 does not undo P2 picked on the pad.
+ {const auto at=centres.at("table-3/0");ImGui::GetIO().AddMousePosEvent(at.x,at.y);h.Frame();h.Frame();}
+ h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+ Check(h.actions.size()==raced+1&&h.actions.back().roomAction.seat==1,"A resting cursor overrode the pad's choice");
+ // The header button cancels a choice for a mouse, sending nothing.
+ click("table-3");Check(h.shell.Navigation().Choosing(),"Clicking a table did not open its chooser");
+ raced=h.actions.size();click("menu-back");
+ Check(!h.shell.Navigation().Confirming()&&h.actions.size()==raced&&h.shell.Navigation().Screen()=="room","The header did not cancel the chooser");
+ click("table-3");click("table-3/1");
+ Check(h.actions.size()==raced+1&&h.actions.back().roomAction.table==3&&h.actions.back().roomAction.seat==1,"Clicking P2 in the chooser did not take it");
+ ImGui::GetIO().AddMousePosEvent(-1,-1);
+ SetMenuCardProbe({});h.view.room.tables[3].matchGeneration=0;
+ // A full table offers the queue or watching instead.
+ h.view.room.tables[3].p1=3;h.view.room.tables[3].p2=4;h.view.room.tables[3].phase=room::TablePhase::Playing;
+ h.Choose("table-3");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+ Check(h.actions.back().roomAction.kind==room::ActionKind::Watch&&h.actions.back().roomAction.table==3,"Full-table chooser did not watch");
+ h.view.room.tables[3].p1=h.view.room.tables[3].p2=0;h.view.room.tables[3].phase=room::TablePhase::Idle;
+ // Y opens the table's options; the list still queues and watches.
+ h.Screen("room");h.Choose("table-2");h.Press(MenuInput::Back);h.Press(MenuInput::Options);
+ Check(h.shell.Navigation().Screen()=="room-table","Y did not open the table options");
+ h.Choose("queue");Check(h.actions.back().roomAction.kind==room::ActionKind::Queue&&h.actions.back().roomAction.table==2,"Table queue journey");
  h.Choose("watch");Check(h.actions.back().roomAction.kind==room::ActionKind::Watch,"Watch journey");
+ h.Press(MenuInput::Options);Check(h.shell.Navigation().Screen()=="room","Y again did not return to the board");
+ h.Press(MenuInput::Chat);Check(h.shell.Navigation().Screen()=="room-chat","View did not open chat");
+ h.Press(MenuInput::Chat);Check(h.shell.Navigation().Screen()=="room","View again did not return to the board");
+ // X opens the real fighter selector, which hands its shortcuts back: X
+ // there returns to the board and View goes on to chat.
+ FighterSelector selector;selection::Pick pick;
+ h.selection=[&]{selector.Draw(pick,false,nullptr,{},nullptr,true);};h.view.canEditSelection=true;
+ h.Press(MenuInput::Fighter);Check(h.shell.Navigation().Screen()=="selection","X did not open fighter selection");
+ h.Press(MenuInput::Fighter);Check(h.shell.Navigation().Screen()=="room","X in fighter selection did not return to the board");
+ h.Press(MenuInput::Fighter);h.Press(MenuInput::Chat);Check(h.shell.Navigation().Screen()=="room-chat","View in fighter selection did not open chat");
+ h.Press(MenuInput::Chat);h.selection=[]{};h.view.canEditSelection=false;
+ // B on the board with no seat goes to Home, and B there returns to the room
+ // rather than dropping to the game's own menu.
+ h.Press(MenuInput::Back);Check(h.shell.Navigation().Screen()=="home","B on the board did not reach Home");
+ h.Press(MenuInput::Back);Check(h.open&&h.shell.Navigation().Screen()=="room","B at Home left the room for the game menu");
+ h.Choose("table-2");h.Press(MenuInput::Back);h.Press(MenuInput::Options);
  h.view.room.members[0].table=2;h.view.room.members[0].seat=0;h.view.room.tables[2].p1=1;h.view.room.tables[2].p2=2;
   h.view.room.tables[2].phase=room::TablePhase::Waiting;h.view.canReady=true;
  std::vector<MenuEntry> tableRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){tableRows=rows;});
@@ -228,6 +316,62 @@ void Journeys() {
  SetMenuEntriesProbe({});h.view.room.tables[2].p2=2;h.view.canReady=true;
  h.Choose("ready");Check(h.actions.back().command.kind==Kind::Ready,"Ready journey");
  h.view.room.tables[2].ready[0]=true;h.Choose("ready");Check(h.actions.back().roomAction.kind==room::ActionKind::Unready,"Unready journey");
+ // On the board, A on your own seat readies and unreadies, and one B leaves
+ // the seat, ready or not. While the game is starting B takes Ready back
+ // instead, and the legend says which.
+ h.Screen("room");h.view.room.tables[2].ready[0]=false;h.Choose("table-2");
+ Check(h.actions.back().command.kind==Kind::Ready,"A on your seat did not ready");
+ h.view.room.tables[2].ready[0]=true;h.Press(MenuInput::Select);
+ Check(h.actions.back().roomAction.kind==room::ActionKind::Unready,"A again did not unready");
+ h.Press(MenuInput::Back);Check(h.actions.back().roomAction.kind==room::ActionKind::Unqueue&&h.actions.back().roomAction.table==2&&
+  h.shell.Navigation().Screen()=="room","One B did not leave a readied seat");
+ h.view.room.tables[2].ready[1]=true;h.view.room.tables[2].phase=room::TablePhase::Ready;h.view.room.tables[2].spectatorHold=true;
+ h.Press(MenuInput::Back);Check(h.actions.back().roomAction.kind==room::ActionKind::Unready,"B while the start is held did not unready");
+ h.view.room.tables[2].spectatorHold=false;raced=h.actions.size();h.Press(MenuInput::Back);
+ Check(h.actions.size()==raced&&h.shell.Navigation().Screen()=="room","B during a starting game left the seat or the board");
+ h.view.room.tables[2].phase=room::TablePhase::Waiting;h.view.room.tables[2].ready[0]=h.view.room.tables[2].ready[1]=false;
+ // B away from your own card is the ordinary Back: Home, keeping the seat.
+ h.Press(MenuInput::Right);raced=h.actions.size();h.Press(MenuInput::Back);
+ Check(h.actions.size()==raced&&h.shell.Navigation().Screen()=="home","B off your own card gave up the seat instead of going Home");
+ h.Press(MenuInput::Back);Check(h.shell.Navigation().Screen()=="room","B at Home did not return to the room");
+ // Walking down past other tables to the toolbar still opens your own table.
+ h.FocusOn("table-2");h.Choose("options");
+ std::vector<MenuEntry> optionRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){optionRows=rows;});h.Frame();SetMenuEntriesProbe({});
+ Check(h.shell.Navigation().Screen()=="room-table"&&std::any_of(optionRows.begin(),optionRows.end(),[](const MenuEntry& e){return e.id=="ready";}),
+  "Table options opened a table the player only passed");
+ // A on another table's card opens its options while you keep your seat: its
+ // rules, and a host's recovery for its unresolved result, by pad or mouse.
+ h.Screen("room");h.view.room.tables[0].phase=room::TablePhase::Paused;raced=h.actions.size();
+ h.Choose("table-0");SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){optionRows=rows;});h.Frame();SetMenuEntriesProbe({});
+ const auto hasRow=[&](const char* id){return std::any_of(optionRows.begin(),optionRows.end(),[&](const MenuEntry& e){return e.id==id;});};
+ Check(h.shell.Navigation().Screen()=="room-table"&&hasRow("room-rules")&&hasRow("cancel-result")&&!hasRow("ready"),
+  "A on another table did not open its options");
+ h.Choose("room-rules");Check(h.shell.Navigation().Screen()=="room-rules","Another table's rules were unreachable");
+ h.Press(MenuInput::Back);h.Press(MenuInput::Back);
+ Check(h.shell.Navigation().Screen()=="room"&&h.actions.size()==raced,"Looking at another table sent a room action");
+ SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){centres[id]=ImVec2((min.x+max.x)*.5f,(min.y+max.y)*.5f);});
+ click("table-0");SetMenuCardProbe({});ImGui::GetIO().AddMousePosEvent(-1,-1);
+ Check(h.shell.Navigation().Screen()=="room-table"&&h.actions.size()==raced,"Clicking another table did not open its options");
+ h.view.room.tables[0].phase=room::TablePhase::Idle;
+ // A watcher reaches another table's options through the chooser's last
+ // option, keeping the watch.
+ h.view.room.members[0].seat=-1;h.view.room.tables[2].p1=0;h.view.room.tables[2].spectators={1};
+ h.view.room.tables[0].phase=room::TablePhase::Paused;h.Screen("room");raced=h.actions.size();
+ h.Choose("table-0");Check(h.shell.Navigation().Choosing(),"A watcher's A on another table did not open its chooser");
+ h.Press(MenuInput::Right);h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+ SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){optionRows=rows;});h.Frame();SetMenuEntriesProbe({});
+ Check(h.shell.Navigation().Screen()=="room-table"&&hasRow("room-rules")&&hasRow("cancel-result")&&h.actions.size()==raced,
+  "A watcher could not look at another table's options");
+ h.Choose("room-rules");h.Press(MenuInput::Back);h.Press(MenuInput::Back);
+ Check(h.shell.Navigation().Screen()=="room"&&h.actions.size()==raced&&h.view.room.tables[2].spectators.size()==1,"Looking at another table changed the watch");
+ h.view.room.tables[0].phase=room::TablePhase::Idle;h.view.room.tables[2].spectators.clear();
+ h.view.room.members[0].seat=0;h.view.room.tables[2].p1=1;
+ h.Screen("room");h.FocusOn("table-2");
+ // A queued member's B leaves the queue.
+ h.view.room.members[0].seat=-1;h.view.room.tables[2].p1=3;h.view.room.tables[2].queue={1};h.Press(MenuInput::Back);
+ Check(h.actions.back().roomAction.kind==room::ActionKind::Unqueue&&h.shell.Navigation().Screen()=="room","B did not leave the queue");
+ h.view.room.members[0].seat=0;h.view.room.tables[2].p1=1;h.view.room.tables[2].queue.clear();
+ h.Screen("room-table");
  h.view.room.tables[2].ready[0]=false;h.view.session.match=netplay::MatchState::PostMatch;
  h.Choose("ready");Check(h.actions.back().command.kind==Kind::Rematch,"Rematch journey");
  h.view.room.tables[2].phase=room::TablePhase::Paused;h.Choose("cancel-result");
@@ -241,7 +385,7 @@ void Journeys() {
  ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,true);h.Frame();ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,false);h.Frame();
  count=h.actions.size();h.Press(MenuInput::Down);Check(h.actions.size()==count,"Text acceptance sent chat");
  h.Choose("send-chat");Check(h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text=="Hello","Explicit chat send");
-  h.view.session.control=netplay::Health::Lost;h.Screen("room");h.Choose("table-2");count=h.actions.size();h.Choose("ready");Check(h.actions.size()==count,"Lost connection submitted Ready");
+  h.view.session.control=netplay::Health::Lost;h.Screen("room");count=h.actions.size();h.Choose("table-2");Check(h.actions.size()==count,"Lost connection submitted Ready");
  h.view={};h.view.controllerReady=h.view.canEditPreferences=h.view.canOpenRoom=true;h.Frame();h.Screen("interface");h.Choose("hud");h.Press(MenuInput::Left);
  count=h.actions.size();h.Frame(0,20);Check(h.actions.size()==count,"Autosave not coalesced");
  h.Frame(0,20);Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.showMatchHud,"Autosave did not queue");
@@ -399,14 +543,14 @@ void TrainingJourneys() {
  choose("recording");choose("record");press(MenuInput::Select);Check(commands.empty(),"Overwrite default not Cancel");
  choose("record");
  io.AddMousePosEvent(5,5);frame();io.AddMouseButtonEvent(0,true);frame();io.AddMouseButtonEvent(0,false);frame();
- Check(TrainingNavigation().Confirming()&&commands.empty()&&!TakeMenuReturn(),"Outside click dismissed or submitted training confirmation");
+ Check(TrainingNavigation().Confirming()&&commands.empty()&&(TakeForwardedMenuAction().kind!=MenuAction::Close),"Outside click dismissed or submitted training confirmation");
  Check(io.WantCaptureKeyboard&&io.WantCaptureMouse,"Flyout lost input capture outside its bounds");
- press(MenuInput::Right);press(MenuInput::Select);Check(commands.size()==1&&!TakeMenuReturn(),"Record returned before command acceptance");
- v.commandId=commands.back().requestId;v.commandAccepted=false;v.commandError="Fight not ready";frame();Check(!TakeMenuReturn(),"Failed command closed training");
- choose("play");Check(commands.back().action==training::Action::Play&&!TakeMenuReturn(),"Play command dispatch");
- v.commandId=commands.back().requestId;v.commandAccepted=true;frame();Check(TakeMenuReturn(),"Accepted playback did not return to practice");
- press(MenuInput::Back);Check(TrainingNavigation().Screen()=="home"&&!TakeMenuReturn(),"Back skipped the training root");
- press(MenuInput::Back);Check(TakeMenuReturn(),"Root Back did not return to practice");
+ press(MenuInput::Right);press(MenuInput::Select);Check(commands.size()==1&&(TakeForwardedMenuAction().kind!=MenuAction::Close),"Record returned before command acceptance");
+ v.commandId=commands.back().requestId;v.commandAccepted=false;v.commandError="Fight not ready";frame();Check((TakeForwardedMenuAction().kind!=MenuAction::Close),"Failed command closed training");
+ choose("play");Check(commands.back().action==training::Action::Play&&(TakeForwardedMenuAction().kind!=MenuAction::Close),"Play command dispatch");
+ v.commandId=commands.back().requestId;v.commandAccepted=true;frame();Check((TakeForwardedMenuAction().kind==MenuAction::Close),"Accepted playback did not return to practice");
+ press(MenuInput::Back);Check(TrainingNavigation().Screen()=="home"&&(TakeForwardedMenuAction().kind!=MenuAction::Close),"Back skipped the training root");
+ press(MenuInput::Back);Check((TakeForwardedMenuAction().kind==MenuAction::Close),"Root Back did not return to practice");
 }
 }
 int main(){try{NativeReader();NavigationModel();NativeCapture();Journeys();TrainingJourneys();PresentationJourneys();ProfileRecords();AppearanceGalleries();std::cout<<"Controller menu model, native reader/capture, profile record, and renderer journeys passed.\n";return 0;}

@@ -2,6 +2,7 @@
 #include "MenuNavigation.hxx"
 #include "MenuFeedback.hxx"
 #include "Theme.hxx"
+#include "MenuGlyphs.hxx"
 #include <functional>
 #include <imgui.h>
 namespace sf4e { namespace ui {
@@ -28,6 +29,8 @@ void SetMenuTextProbe(MenuTextProbe probe);
 void ReportMenuText(const char* id,float textHeight,float interiorHeight,float textWidth,float availableWidth);
 using MenuCardProbe = std::function<void(const char*,ImVec2,ImVec2)>;
 void SetMenuCardProbe(MenuCardProbe probe);
+// The room board reports its cards and their option strips the same way.
+void ReportMenuCard(const char* id,ImVec2 min,ImVec2 max);
 using MenuStatusProbe = std::function<void(const char*,Tone)>;
 void SetMenuStatusProbe(MenuStatusProbe probe);
 using MenuEntriesProbe = std::function<void(const std::vector<MenuEntry>&)>;
@@ -37,11 +40,19 @@ void SetPortraitProbe(PortraitProbe probe);
 // Set once per overlay frame. Only the visible player screen consumes it.
 void SetMenuInput(MenuInput input);
 MenuInput ReadMenuInput();
-void RequestMenuReturn();
-bool TakeMenuReturn();
+// An embedded screen (fighter select, the training flyout) hands its parent
+// what it does not handle itself: Close, or a shortcut the parent owns.
+void ForwardMenuAction(MenuAction action);
+MenuAction TakeForwardedMenuAction();
 class GameMenu {
 public:
     MenuNavigation navigation;
+    // The Xbox X/Y/View hints for the screen being drawn; other devices have
+    // no such buttons, so they are shown only with the A/B glyphs.
+    std::vector<LegendHint> shortcutHints;
+    // What Back does on this screen when it is not the usual return; empty
+    // for Back.
+    std::string backHint;
     using Detail = std::function<void(const std::string&)>;
     // Return false for ordinary actions embedded in an artwork grid, so their
     // labels still render (for example, Retry saving after a portrait failure).

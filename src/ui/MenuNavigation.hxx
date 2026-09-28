@@ -9,14 +9,25 @@
 namespace sf4e { namespace ui {
 // Copied input and semantic actions: no renderer, platform, or game dependency.
 struct MenuInput {
-    enum Button : unsigned { Up=1, Down=2, Left=4, Right=8, Select=16, Back=32 };
+    // Fighter, Options and Chat are the Xbox X, Y and View shortcuts
+    // (ControllerSample uses the same values; 64 is its Menu button).
+    enum Button : unsigned { Up=1, Down=2, Left=4, Right=8, Select=16, Back=32, Fighter=128, Options=256, Chat=512 };
     unsigned held = 0;
     double time = 0;
     bool acceptText = false;
 };
+// One option of a choice. The id is what the option means, so a choice whose
+// options change meaning under the player closes instead of quietly sending
+// something else. label is short enough for a button; detail says it in full.
+struct MenuChoice { std::string id, label, detail; };
 struct MenuEntry {
     std::string id, label, detail, value;
     bool enabled = true, adjustable = false, text = false, confirm = false;
+    // Options make Select open a choice: Left/Right move along them, Select
+    // returns Chosen with that option's id in text, Back cancels.
+    std::vector<MenuChoice> choices;
+    // What Select does, when the generic word says too little ("Ready up").
+    std::string hint;
     std::size_t textLimit = 256;
     // Explicit pane transitions; empty preserves ordinary list/grid movement.
     std::string left, right;
@@ -24,7 +35,9 @@ struct MenuEntry {
     bool pending = false;
 };
 struct MenuAction {
-    enum Kind { None, Activate, Adjust, TextAccepted, Returned, Close, Back, SubmitText } kind = None;
+    // Shortcut: a Fighter/Options/Chat press, its button in delta.
+    // Chosen: a choice entry's option, its id in text.
+    enum Kind { None, Activate, Adjust, TextAccepted, Returned, Close, Back, SubmitText, Shortcut, Chosen } kind = None;
     std::string id, text;
     int delta = 0;
 };
@@ -40,14 +53,19 @@ public:
     void Home() { Cancel(); stack_.resize(1); NeutralGate(); }
     void Cancel() {
         const bool modal = Editing() || Confirming();
-        dialog_.clear(); editing_.clear(); draft_.clear();
+        dialog_.clear(); editing_.clear(); draft_.clear(); choiceIds_.clear();
         if (modal) NeutralGate();
     }
     void NeutralGate() { previous_=~0u; armed_=false; direction_=0; nextRepeat_=0; }
     const std::string& Focus() const { return states_.at(Screen()).id; }
     bool Editing() const { return !editing_.empty(); }
     bool Confirming() const { return !dialog_.empty(); }
+    // A choice is a dialog its owning body draws in place.
+    bool Choosing() const { return !choiceIds_.empty(); }
     bool ConfirmSelected() const { return confirmSelected_; }
+    // The highlighted option of an open choice.
+    std::size_t ChoiceIndex() const { return choiceIndex_; }
+    void ChoiceIndex(std::size_t index) { if (index < choiceIds_.size()) choiceIndex_ = index; }
     const std::string& EditingId() const { return editing_; }
     const std::string& DialogId() const { return dialog_; }
     const std::string& Draft() const { return draft_; }
@@ -61,7 +79,8 @@ public:
         else { state.id.clear(); state.index=0; }
         const auto valid = [&](const std::string& id, bool text) {
             return std::any_of(entries.begin(), entries.end(), [&](const MenuEntry& e) {
-                return e.id == id && (text ? e.text : e.confirm) && (e.enabled || e.pending);
+                return e.id == id && (text ? e.text : (e.confirm || !e.choices.empty()) && SameChoices(e)) &&
+                    (e.enabled || e.pending);
             });
         };
         // A transient checkpoint must not discard a draft. Removed entries,
@@ -92,17 +111,31 @@ public:
         if(!e.enabled) return {};
         if(e.adjustable) return {};
         if(e.text) { editing_=e.id; draft_=e.value; return {}; }
-        if(e.confirm) { dialog_=e.id; confirmSelected_=false; return {}; }
+        if(e.confirm||!e.choices.empty()) {
+            dialog_=e.id; confirmSelected_=false; choiceIndex_=0;
+            for (const auto& c : e.choices) choiceIds_.push_back(c.id);
+            return {};
+        }
         return {MenuAction::Activate,e.id};
     }
     MenuAction Confirm(bool accept,const std::vector<MenuEntry>& entries) {
         Reconcile(entries);
-        if (!Confirming()) return {};
-        if (accept && !std::any_of(entries.begin(), entries.end(), [&](const MenuEntry& e) {
+        if (!Confirming() || Choosing()) return {};
+        const auto entry = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) {
             return e.id == dialog_ && e.enabled && e.confirm;
-        })) return {};
+        });
+        if (accept && entry == entries.end()) return {};
         const auto id=dialog_; Cancel();
         return accept ? MenuAction{MenuAction::Activate,id} : MenuAction{};
+    }
+    // Option `index` of the open choice, as it was when the choice opened;
+    // Reconcile has already closed a changed one.
+    MenuAction Pick(std::size_t index,const std::vector<MenuEntry>& entries) {
+        Reconcile(entries);
+        if (!Choosing() || index >= choiceIds_.size()) return {};
+        const auto entry = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == dialog_; });
+        if (entry == entries.end() || !entry->enabled) return {};
+        MenuAction a{MenuAction::Chosen, dialog_, choiceIds_[index]}; Cancel(); return a;
     }
     MenuAction AcceptText(const std::vector<MenuEntry>& entries) {
         Reconcile(entries); if(!Editing()) return {};
@@ -124,6 +157,13 @@ public:
         if(Editing()) {
             if(!in.acceptText) return {};
             return deferText ? MenuAction{MenuAction::SubmitText} : AcceptText(entries);
+        }
+        const unsigned shortcut=pressed&(MenuInput::Fighter|MenuInput::Options|MenuInput::Chat);
+        if(shortcut&&!Confirming()) return {MenuAction::Shortcut,{},{},static_cast<int>(shortcut&(~shortcut+1))};
+        if(Choosing()) {
+            if((pressed&MenuInput::Left)&&choiceIndex_>0) --choiceIndex_;
+            if((pressed&MenuInput::Right)&&choiceIndex_+1<choiceIds_.size()) ++choiceIndex_;
+            return pressed&MenuInput::Select ? Pick(choiceIndex_,entries) : MenuAction{};
         }
         if(Confirming()) {
             if(pressed&(MenuInput::Up|MenuInput::Left)) confirmSelected_=false;
@@ -152,12 +192,19 @@ public:
         return {};
     }
 private:
+    bool SameChoices(const MenuEntry& e) const {
+        return e.choices.size() == choiceIds_.size() &&
+            std::equal(choiceIds_.begin(), choiceIds_.end(), e.choices.begin(),
+                [](const std::string& id, const MenuChoice& c) { return id == c.id; });
+    }
     static constexpr double RepeatDelay=.35, RepeatInterval=.085;
     struct State { std::string id; std::size_t index=0; float scroll=0; };
     std::vector<std::string> stack_;
     std::map<std::string,State> states_;
     std::string dialog_,editing_,draft_;
+    std::vector<std::string> choiceIds_;
     bool confirmSelected_=false, armed_=true;
+    std::size_t choiceIndex_=0;
     unsigned previous_=0,direction_=0;
     double nextRepeat_=0;
 };

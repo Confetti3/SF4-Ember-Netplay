@@ -1452,9 +1452,6 @@ msgstr "메시지를 읽고 키보드로 직접 작성합니다."
 msgid "room.change_fighter"
 msgstr "캐릭터 변경"
 
-msgid "room.change_fighter.open_table"
-msgstr "준비 상태와 캐릭터 변경 조건을 보려면 테이블을 여세요."
-
 msgid "room.settings"
 msgstr "방 설정"
 
@@ -1514,9 +1511,6 @@ msgstr "대전 상대 찾는 중"
 
 msgid "room.fighter_not_shared"
 msgstr "캐릭터 미공유"
-
-msgid "room.suffix_ready"
-msgstr " / 준비"
 
 msgid "room.suffix_you"
 msgstr " / 나"
@@ -1713,6 +1707,12 @@ msgstr "관전 중지"
 msgid "room.watch_next"
 msgstr "다음 대전 관전"
 
+msgid "room.take_p1_seat"
+msgstr "P1로 대전"
+
+msgid "room.take_p2_seat"
+msgstr "P2로 대전"
+
 msgid "room.lock_spectating"
 msgstr "관전 확정"
 
@@ -1727,6 +1727,24 @@ msgstr "관전 확정 중입니다. 다음 대전은 최대 10초 동안 기다�
 
 msgid "room.table_rules"
 msgstr "테이블 규칙"
+
+msgid "room.table_options"
+msgstr "테이블 옵션"
+
+msgid "room.table_options.detail"
+msgstr "테이블 {0}: 이 테이블의 지연, 연결 확인, 규칙, 대기열, 관전."
+
+msgid "room.legend_fighter"
+msgstr "캐릭터"
+
+msgid "room.legend_options"
+msgstr "옵션"
+
+msgid "room.choice.watch"
+msgstr "관전"
+
+msgid "room.choice.unwatch"
+msgstr "관전 중지"
 
 msgid "room.table_rules.edit"
 msgstr "이 테이블의 규칙을 편집합니다."
@@ -2030,6 +2048,9 @@ msgstr "대기열에 없습니다."
 
 msgid "room.reject.not_watching"
 msgstr "이 테이블을 관전 중이지 않습니다."
+
+msgid "room.reject.seat_taken"
+msgstr "그 자리는 방금 찼습니다. 다시 선택하세요."
 
 msgid "room.reject.invalid_rules"
 msgstr "테이블 규칙이 잘못되었습니다."

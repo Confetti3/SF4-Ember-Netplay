@@ -101,7 +101,8 @@ void SessionServer::HandleRoomAction(session::Connection conn, const json& msg, 
 		result.snapshot.revision == priorSnapshot.revision && events.empty();
 	if (result.accepted && (actionMessage.action.kind == room::ActionKind::Leave ||
 		actionMessage.action.kind == room::ActionKind::Unwatch ||
-		actionMessage.action.kind == room::ActionKind::Watch || actionMessage.action.kind == room::ActionKind::Kick)) {
+		actionMessage.action.kind == room::ActionKind::Watch || actionMessage.action.kind == room::ActionKind::Kick ||
+		actionMessage.action.kind == room::ActionKind::Queue)) {
 		const room::MemberId departedMember = actionMessage.action.kind == room::ActionKind::Kick
 			? actionMessage.action.target : roomMember->second;
 		const auto connectionFor = [&](room::MemberId id) -> session::Connection {

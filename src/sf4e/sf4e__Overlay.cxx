@@ -214,7 +214,7 @@ void Overlay::DrawOverlay() {
     static bool inviteShown=false;
     if (snapshot.discordPending && !inviteShown && snapshot.atMainMenu) { presentation.Open(); inviteShown=true; }
     if (!snapshot.discordPending) inviteShown=false;
-    sf4e::ui::SetOverlayCursorOwnership(presentation.Visible());
+    sf4e::ui::SetOverlayCursorOwnership(focused && presentation.Visible());
     const bool assigning = snapshot.inputCapture != sf4e::input::Capture::Idle;
     // Player navigation is semantic, not ImGui spatial scoring. Text input is
     // still provided by the Win32 backend after explicit field activation.
@@ -259,14 +259,18 @@ void Overlay::DrawOverlay() {
         }
         if (trainingOpen) {
             sf4e::ui::DrawTrainingFlyout(training, sf4e::training::Submit);
-            if(sf4e::ui::TakeMenuReturn()) trainingOpen=false;
+            if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) trainingOpen=false;
         } else if (trainingHud) sf4e::ui::DrawTrainingHud(training);
     }
-    const bool visible = focused && (presentation.Visible() || trainingOpen);
+    // Shown survives alt-tab; taking the cursor and keys needs focus.
+    const bool shown = presentation.Visible() || trainingOpen;
+    const bool visible = focused && shown;
     sf4e::ui::SetOverlayCursorOwnership(visible);
     if (capture.exchange(visible) && !visible) { ImGui::GetIO().ClearInputKeys(); ImGui::GetIO().ClearInputMouse(); }
-    fMainMenu::bOverrideItemObserverState = (visible || controllerNavigation.MenuGuard()) ? rMainMenu::MMIOS_TRANSITION : -1;
-    if (!visible && presentation.Available()) {
+    // The native menu stays parked under a shown shell, focused or not, so a
+    // pad press while alt-tabbed cannot drive it.
+    fMainMenu::bOverrideItemObserverState = (shown || controllerNavigation.MenuGuard()) ? rMainMenu::MMIOS_TRANSITION : -1;
+    if (!shown && presentation.Available()) {
         const auto* vp = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x * .5f, vp->Pos.y + 12 * sf4e::ui::Scale()), ImGuiCond_Always, ImVec2(.5f, 0));
         ImGui::Begin("Ember shortcut", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |

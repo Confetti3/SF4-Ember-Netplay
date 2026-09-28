@@ -10,8 +10,10 @@ int main() {
     menu.Open(); CHECK(!menu.Visible());
     menu.Update(true, MatchState::None, false, true); CHECK(menu.Visible());
     menu.Toggle(); CHECK(!menu.Visible()); menu.Open(); CHECK(menu.Visible());
-    menu.Update(true, MatchState::None, false, false); CHECK(!menu.Visible());
-    menu.Toggle(); menu.Update(true, MatchState::None, false, true); CHECK(menu.Visible());
+    // Alt-tab keeps the shell on screen, and an unfocused window cannot toggle it.
+    menu.Update(true, MatchState::None, false, false); CHECK(menu.Visible());
+    menu.Toggle(); CHECK(menu.Visible());
+    menu.Update(true, MatchState::None, false, true); CHECK(menu.Visible());
     menu.Update(true, MatchState::Preparing, false, true);
     menu.Open(); menu.Toggle(); CHECK(!menu.Visible() && !menu.Available());
     menu.Update(false, MatchState::Playing, false, true); CHECK(!menu.Visible());

@@ -1452,9 +1452,6 @@ msgstr "メッセージを読み、キーボードで入力します。"
 msgid "room.change_fighter"
 msgstr "キャラを変更"
 
-msgid "room.change_fighter.open_table"
-msgstr "対戦席で準備状態とキャラ変更の条件を確認してください。"
-
 msgid "room.settings"
 msgstr "ルーム設定"
 
@@ -1514,9 +1511,6 @@ msgstr "対戦相手を募集中"
 
 msgid "room.fighter_not_shared"
 msgstr "キャラは非公開"
-
-msgid "room.suffix_ready"
-msgstr " / 準備完了"
 
 msgid "room.suffix_you"
 msgstr " / あなた"
@@ -1713,6 +1707,12 @@ msgstr "観戦をやめる"
 msgid "room.watch_next"
 msgstr "次の対戦を観戦"
 
+msgid "room.take_p1_seat"
+msgstr "P1で対戦"
+
+msgid "room.take_p2_seat"
+msgstr "P2で対戦"
+
 msgid "room.lock_spectating"
 msgstr "観戦を確定"
 
@@ -1727,6 +1727,24 @@ msgstr "観戦を確定中です。次の対戦は最大10秒あなたを待ち�
 
 msgid "room.table_rules"
 msgstr "対戦席のルール"
+
+msgid "room.table_options"
+msgstr "対戦席の設定"
+
+msgid "room.table_options.detail"
+msgstr "対戦席{0}：この対戦席の遅延、接続テスト、ルール、順番待ち、観戦。"
+
+msgid "room.legend_fighter"
+msgstr "キャラ"
+
+msgid "room.legend_options"
+msgstr "設定"
+
+msgid "room.choice.watch"
+msgstr "観戦"
+
+msgid "room.choice.unwatch"
+msgstr "観戦終了"
 
 msgid "room.table_rules.edit"
 msgstr "この対戦席のルールを編集します。"
@@ -2030,6 +2048,9 @@ msgstr "順番待ちに入っていません。"
 
 msgid "room.reject.not_watching"
 msgstr "この対戦席を観戦していません。"
+
+msgid "room.reject.seat_taken"
+msgstr "その席は先に埋まりました。もう一度選んでください。"
 
 msgid "room.reject.invalid_rules"
 msgstr "対戦席のルールが無効です。"

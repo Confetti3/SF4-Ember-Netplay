@@ -26,7 +26,9 @@ public:
     }
     bool Reopened() const { return reopened_; }
     bool Available() const { return available_; }
-    bool Visible() const { return available_ && focused_ && requested_; }
+    // Drawn while the game has lost focus (alt-tab), so the room stays on
+    // screen; only input needs focus, and the caller gates that.
+    bool Visible() const { return available_ && requested_; }
     void Toggle() { if (available_ && focused_) requested_ = !requested_; }
     void Open() { if (available_) requested_ = true; }
     void Close() { requested_ = false; }

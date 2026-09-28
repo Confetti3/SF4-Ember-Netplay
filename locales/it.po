@@ -1452,9 +1452,6 @@ msgstr "Leggi i messaggi e scrivi con la tastiera quando scegli di farlo."
 msgid "room.change_fighter"
 msgstr "Cambia personaggio"
 
-msgid "room.change_fighter.open_table"
-msgstr "Apri il tuo tavolo per lo stato Pronto e le condizioni per cambiare personaggio."
-
 msgid "room.settings"
 msgstr "Impostazioni sala"
 
@@ -1514,9 +1511,6 @@ msgstr "Cerca una partita"
 
 msgid "room.fighter_not_shared"
 msgstr "Scelta non condivisa"
-
-msgid "room.suffix_ready"
-msgstr " / PRONTO"
 
 msgid "room.suffix_you"
 msgstr " / TU"
@@ -1713,6 +1707,12 @@ msgstr "Smetti di guardare"
 msgid "room.watch_next"
 msgstr "Guarda la prossima"
 
+msgid "room.take_p1_seat"
+msgstr "Gioca come P1"
+
+msgid "room.take_p2_seat"
+msgstr "Gioca come P2"
+
 msgid "room.lock_spectating"
 msgstr "Blocca per guardare"
 
@@ -1727,6 +1727,24 @@ msgstr "Sei bloccato. La prossima partita ti aspetta fino a 10 secondi."
 
 msgid "room.table_rules"
 msgstr "Regole del tavolo"
+
+msgid "room.table_options"
+msgstr "Opzioni del tavolo"
+
+msgid "room.table_options.detail"
+msgstr "Tavolo {0}: Ritardo, test di connessione, regole, coda e spettatori di questo tavolo."
+
+msgid "room.legend_fighter"
+msgstr "Lottatore"
+
+msgid "room.legend_options"
+msgstr "Opzioni"
+
+msgid "room.choice.watch"
+msgstr "Guarda"
+
+msgid "room.choice.unwatch"
+msgstr "Non guardare"
 
 msgid "room.table_rules.edit"
 msgstr "Modifica le regole del tavolo."
@@ -2030,6 +2048,9 @@ msgstr "Non sei in coda."
 
 msgid "room.reject.not_watching"
 msgstr "Non stai guardando questo tavolo."
+
+msgid "room.reject.seat_taken"
+msgstr "Quel posto è appena stato occupato. Scegli di nuovo."
 
 msgid "room.reject.invalid_rules"
 msgstr "Regole del tavolo non valide."
