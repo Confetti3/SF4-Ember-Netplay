@@ -36,20 +36,25 @@ Seated fighters choose their characters and both select **Ready up** (A on your
 own card) before each game. Before preparation begins, a fighter can withdraw
 readiness with **Unready / unlock fighter**.
 
-Battle setup, opened from **Table options** (Y on an Xbox pad), shows
-**Recommended delay** and **Selected delay**. Your saved
-selection is retained; a new profile starts at two frames. **Check connection**
-measures the connection to the other fighter for five seconds. **Apply
-recommendation** copies a valid recommendation into your selection. You can
-also adjust Selected delay from zero to ten and Ready without a usable probe.
-Ready locks your own delay for that game; Unready unlocks it. A route change or
-a new recommendation never changes delay during a fight.
+Battle setup, opened from **Table options** (Y on an Xbox pad, T on the
+keyboard), starts with Ready, then your **Change fighter** and **Ultra Combo**
+(Left and Right step the Ultra in place), then **Input delay**. Its value is
+your own delay, and its detail names the recommended delay and the match delay.
+Your saved delay is retained; a new profile starts at two frames. **Check
+connection** measures the connection to the other fighter for five seconds.
+Select on Input delay applies a valid recommendation, and Left and Right adjust
+it from zero to ten, so you can Ready without a usable probe. Ready locks your
+own delay for that game; Unready unlocks it. A route change or a new
+recommendation never changes delay during a fight. The table's rules follow on
+the same page: the host changes Rounds, Round time and Edition Select in place
+and presses **Apply rules**, which appears once something changed; everyone
+else sees them on one line.
 
 Both fighters play each game at the higher of their two Ready delays. A
 fighter's delay decides how much rollback the other fighter sees, so separate
-values favored the fighter who chose less. **Match delay** shows the value in
-use; before your opponent readies it shows "At least" your own choice. Each
-fighter's own Selected delay is kept for the next game.
+values favored the fighter who chose less. Input delay's detail shows the
+match delay in use; before your opponent readies it shows "At least" your own
+choice. Each fighter's own delay is kept for the next game.
 
 Advice requires at least 80 valid replies out of 100 probes from the current
 connection and path. It estimates one-way latency as half of the measured 95th

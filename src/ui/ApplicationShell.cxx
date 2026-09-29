@@ -352,7 +352,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="discord-invitation")nav.Push(a.id);
  else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
- else if(a.id=="selection"){selectionFresh_=true;changeFighter_=screen.compare(0,4,"room")==0;nav.Push(a.id);}
+ else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
  else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="developer")nav.Push(a.id);
  else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
@@ -460,8 +460,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   std::vector<LegendHint>{{"X",loc::T("room.legend_fighter")},{"Y",loc::T("room.legend_options")},{"Back/Select",loc::T("room.chat")}};
  if(nav.Screen()=="selection"&&selection){
   // The selector names where its Back goes and shows the room's shortcuts it hands back.
-  SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),inRoom?roomHints:std::vector<LegendHint>{},selectionFresh_,changeFighter_});
-  selectionFresh_=changeFighter_=false;
+  SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),inRoom?roomHints:std::vector<LegendHint>{},selectionFresh_,selectionOpenOn_});
+  selectionFresh_=false;selectionOpenOn_.clear();
   // Only what this frame's selector forwards is read below.
   TakeForwardedMenuAction();
   selection();

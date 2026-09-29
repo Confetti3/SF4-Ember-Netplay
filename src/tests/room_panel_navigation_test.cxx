@@ -71,7 +71,7 @@ int main() try {
         if (requireMenuFrame) {
             Check(menuDraws == beforeDraws + 1, "Room navigation skipped its menu body for a frame");
             Check(ImGui::GetDrawData()->TotalVtxCount > 500, "Room navigation emitted an empty menu frame");
-            if (screen == "room-table" || screen == "room-rules")
+            if (screen == "room-table")
                 Check(cardDraws > beforeCards, "Room transition drew a header without its menu controls");
             Check(open, "Queue navigation unexpectedly closed the overlay");
         }
@@ -90,18 +90,23 @@ int main() try {
     view.probeStatus = "checking"; frame();
     Check(!row("check-connection").enabled && row("check-connection").label == "Checking connection...",
         "A running connection check still accepts another request");
-    Check(row("recommended-delay").value == "Checking...", "Connection check progress is not visible");
-    Check(!row("apply-recommendation").enabled, "Running check allowed a stale recommendation");
+    Check(row("input-delay").detail.find("Checking...") != std::string::npos, "Connection check progress is not visible");
+    Check(!row("input-delay").opens, "Running check allowed a stale recommendation");
     view.probeStatus = "unavailable"; view.recommendedDelay = -1; frame();
     Check(row("check-connection").label == "Retry connection check" &&
-        row("recommended-delay").detail.find("Ready") != std::string::npos,
+        row("check-connection").detail.find("Ready") != std::string::npos,
         "Failed connection check does not explain retry or manual Ready");
+    Check(!row("input-delay").opens && row("input-delay").detail.find("Check connection") != std::string::npos,
+        "A failed check still offers a recommendation");
     view.probeStatus.clear(); view.recommendedDelay = 4; frame();
-    Check(row("leave").enabled, "Leave room is missing from the table screen");
+    // Leave room and Replace room stay on the board; the table page is only the table.
+    Check(std::none_of(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "leave" || e.id == "replace-room" ||
+        e.id == "room-rules" || e.id == "selected-delay" || e.id == "recommended-delay" || e.id == "apply-recommendation"; }),
+        "The table page still carries rows that moved or merged");
     view.session.coordinated = true; view.session.authorityWritable = false; frame();
     // A checkpoint is the runtime's business: Ready stays pressable and the
     // seated table keeps its seat line instead of room-update chatter.
-    Check(row("ready").enabled && !row("check-connection").enabled && row("leave").enabled,
+    Check(row("ready").enabled && !row("check-connection").enabled,
         "Room update hid Ready, which the runtime parks and resubmits");
     Check(menuStatus.find("Updating room")==std::string::npos,
         "A one-frame checkpoint delay flashed the room-update message");
@@ -113,7 +118,7 @@ int main() try {
     Check(row("check-connection").detail.find("Updating room") != std::string::npos,
         "Room update has no player-facing explanation");
     view.session.authorityWritable = true; view.session.room = netplay::RoomState::Closing; frame();
-    Check(!row("ready").enabled && !row("leave").enabled && menuStatus.find("Leaving room") != std::string::npos,
+    Check(!row("ready").enabled && menuStatus.find("Leaving room") != std::string::npos,
         "Closing room still advertises playable actions");
     Check(row("ready").detail.find("Leaving room") != std::string::npos,
         "Disabled Ready does not explain that the room is closing");
@@ -201,32 +206,70 @@ int main() try {
         shell.Navigation().Home(); frame();
     }
     shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
-    Check(row("recommended-delay").value == "4 frames" && !row("recommended-delay").adjustable,
-        "Recommended delay was not read-only");
-    Check(row("selected-delay").enabled && row("selected-delay").value == "2",
-        "Selected delay was not adjustable");
-    Check(row("match-delay").value == "At least 2 frames" && !row("match-delay").adjustable,
-        "Match delay did not wait for the opponent's Ready choice");
+    // One delay row: its value is yours, its detail names the recommendation
+    // and the match delay, Left and Right choose, Select applies the recommendation.
+    Check(row("input-delay").enabled && row("input-delay").adjustable && row("input-delay").value == "2 frames",
+        "Input delay was not adjustable");
+    Check(row("input-delay").detail.find("Recommended: 4 frames") != std::string::npos &&
+        row("input-delay").detail.find("Match: At least 2 frames") != std::string::npos,
+        "Input delay did not name the recommendation, or waited on the opponent's choice wrongly");
     view.opponentDelay = 5; frame();
-    Check(row("match-delay").value == "5 frames" && row("match-delay").detail.find("opponent chose 5") != std::string::npos,
-        "Match delay did not show the higher of both choices");
+    Check(row("input-delay").detail.find("Match: 5 frames") != std::string::npos,
+        "Input delay did not show the higher of both choices as the match delay");
     view.opponentDelay = -1; frame();
-    Check(row("check-connection").enabled && row("apply-recommendation").enabled,
+    Check(row("check-connection").enabled && row("input-delay").opens && row("input-delay").hint == "Apply recommendation",
         "Delay actions were not available");
     focus("check-connection"); press(MenuInput::Select);
     Check(actions.back().command.kind == netplay::CommandKind::CheckConnection && actions.back().selectedDelay == -1,
         "Check connection did not use its command seam");
-    focus("apply-recommendation"); press(MenuInput::Select);
+    focus("input-delay"); press(MenuInput::Select);
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == -1,
-        "Apply recommendation did not request the measured value");
-    focus("selected-delay"); press(MenuInput::Right);
+        "Select on Input delay did not request the measured value");
+    press(MenuInput::Right);
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 3,
         "Manual delay did not submit the bounded value");
+    // Fighter and Ultra sit under Ready. Left and Right step the Ultra without
+    // leaving the page; Select opens its cards in fighter select.
+    view.fighterName = "Ryu"; view.ultraName = "Ultra I: Metsu Hadoken"; view.ultraSteps = true; frame();
+    Check(row("selection").value == "Ryu" && row("ultra").value == "Ultra I: Metsu Hadoken" && row("ultra").adjustable,
+        "The table page does not show the fighter and a steppable Ultra");
+    Check(rows[1].id == "selection" && rows[2].id == "ultra" && rows[3].id == "input-delay",
+        "Fighter, Ultra and Input delay are not right under Ready");
+    focus("ultra"); press(MenuInput::Right);
+    Check(actions.back().ultraStep == 1, "Right on Ultra did not step it");
+    view.ultraSteps = false; frame();
+    Check(!row("ultra").adjustable, "A fighter with one Ultra still offers to step it");
+    view.ultraSteps = true; frame();
+    // The host changes the rules in place; nothing is sent until Apply rules,
+    // which only appears once something changed.
+    Check(row("rounds").enabled && row("time").enabled && row("edition").enabled &&
+        std::none_of(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "apply-rules"; }),
+        "The host's rules are not on the table page, or Apply shows with nothing to apply");
+    {
+        const auto beforeRules = actions.size();
+        focus("rounds"); press(MenuInput::Right); focus("time"); press(MenuInput::Left);
+        Check(actions.size() == beforeRules, "Changing a rule sent it before Apply");
+        focus("apply-rules"); press(MenuInput::Select);
+        Check(actions.size() == beforeRules + 1 && actions.back().roomAction.kind == room::ActionKind::SetRules &&
+            actions.back().roomAction.rules.roundCount == 5 && actions.back().roomAction.rules.roundTime == 60,
+            "Apply rules did not send the edited rounds and time");
+        view.room.tables[0].rules = actions.back().roomAction.rules; ++view.room.tables[0].revision; frame();
+        Check(std::none_of(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "apply-rules"; }),
+            "Apply rules stayed after the rules were applied");
+        // Everyone else reads the rules on one line.
+        view.room.host = 2; frame();
+        Check(row("rules").value == "5 rounds, 60 s, Edition Select On" && !row("rules").enabled &&
+            std::none_of(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "rounds"; }),
+            "A guest does not see the table's rules as one line");
+        view.room.host = 1; frame();
+    }
 
     view.session.recovery = netplay::Recovery::Recovering;
     view.session.error = "Room control is recovering. Room actions are paused."; frame();
     Check(!row("ready").enabled && menuStatus.find("recovering") != std::string::npos,
         "Recovery did not freeze room actions with an immediate reason");
+    // Replace room is offered on the board, not on the table page.
+    shell.Navigation().Home(); shell.Navigation().Push("room");
     view.session.recovery = netplay::Recovery::ReplacementOffered; frame();
     Check(!row("replace-room").enabled, "Replacement ignored the owner's default retirement fence");
     view.canReplaceRoom = true; frame();
@@ -519,10 +562,7 @@ int main() try {
         "Queue entry submitted zero or duplicate actions");
     view.room.tables[0].queue = {1}; ++view.room.revision; frame();
     for (int i = 0; i < 20; ++i) frame();
-    focus("room-rules"); press(MenuInput::Select);
-    Check(shell.Navigation().Screen() == "room-rules", "Queue submenu did not open");
-    press(MenuInput::Back);
-    Check(shell.Navigation().Screen() == "room-table", "Queue submenu did not return");
+    Check(row("rounds").enabled, "The host lost the table's rules when not seated");
 
     // Keyboard Escape goes through the same input adapter as the real shell.
     io.AddKeyEvent(ImGuiKey_Escape, true); frame();
@@ -546,16 +586,14 @@ int main() try {
     view.room.members[0].table = 0; view.room.members[0].seat = 1;
     ++view.room.revision; frame();
     Check(row("ready").enabled, "Promotion to a seat lost the Ready control");
-    click(targets.at("room-rules")); frame();
-    Check(shell.Navigation().Screen() == "room-rules", "Mouse did not open table rules");
     // Locate Back from the shell padding and the fixed non-home header height.
     const auto* window = ImGui::FindWindowByName("SF4 Ember Netplay###EmberShell");
     const ImVec2 back(window->Pos.x + window->WindowPadding.x + 20,
         window->Pos.y + window->WindowPadding.y + 64 * Scale() +
         ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeight() * .5f);
     click(back);
-    Check(shell.Navigation().Screen() == "room-table", "Mouse Back did not return to the table");
-    frame(); requireMenuFrame = false;
+    Check(shell.Navigation().Screen() == "room", "Mouse Back did not return to the board");
+    shell.Navigation().Push("room-table"); frame(); requireMenuFrame = false;
 
     // Room-control refreshes must not move controls under a held pointer or
     // controller focus. Same room, same table, different control health.
@@ -581,11 +619,11 @@ int main() try {
 
     view.session.control = netplay::Health::Healthy;
     view.session.recovery = netplay::Recovery::None; view.session.error.clear();
-    frame(); focus("room-rules"); press(MenuInput::Select);
+    frame(); focus("rounds"); frame();
     const auto rulesFocus = shell.Navigation().Focus();
     ++view.session.authorityRevision; ++view.room.revision; frame();
-    Check(shell.Navigation().Screen() == "room-rules" && shell.Navigation().Focus() == rulesFocus,
-        "Same-room control refresh reset submenu navigation to the room overview");
+    Check(shell.Navigation().Screen() == "room-table" && shell.Navigation().Focus() == rulesFocus,
+        "Same-room control refresh reset table navigation to the room overview");
 
     for (const float scale : {1.f, 1.5f}) {
       ApplyTheme(scale); io.Fonts->Build();

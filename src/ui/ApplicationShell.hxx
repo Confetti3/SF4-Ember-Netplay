@@ -60,6 +60,10 @@ struct ShellView {
             input::Device inputDevice;
             bool canChangeController = false, controllerReady = false;
     std::string selectionSummary, selectionError;
+    // The chosen fighter and Ultra, for the table page's rows; ultraSteps
+    // when the fighter has more than one Ultra to step through.
+    std::string fighterName, ultraName;
+    bool ultraSteps = false;
     std::string selectionLockReason;
     // A Ready press in flight (parked, sent or awaiting commit), and the
     // last failure with a sequence that changes per occurrence.
@@ -80,6 +84,9 @@ struct ShellAction {
     int selectedDelay=-1;
     // Plays the challenger call-out once at this volume (percent); -1 plays nothing.
     int previewSoundVolume=-1;
+    // Steps the chosen Ultra by this much (the table page's Ultra row); the
+    // overlay applies it to the pick, and nothing is sent.
+    int ultraStep=0;
 };
 
 class ApplicationShell {
@@ -113,8 +120,8 @@ private:
     // Whether the selector the shell is about to show was opened just now, not
     // reshown after a match or an overlay, so it starts on its first page.
     bool selectionFresh_=false;
-    // Fighter select was opened from a room to change the fighter.
-    bool changeFighter_=false;
+    // The page fighter select opens on (EmbeddedReturn::openOn).
+    std::string selectionOpenOn_;
     // The screen an opening room was started from, as the controller recorded
     // it when it accepted the command: hosting, or joining (an invitation
     // or a Discord join). Read only while the room is opening.

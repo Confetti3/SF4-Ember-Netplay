@@ -655,7 +655,7 @@ int main(int argc, char** argv) {
                 view.room.members.push_back(m);}
             const char* sampleChat[]={"Welcome! Grab a table or join a queue.","Good games. I'll watch the next one.","Ready for another set?","Let's run it back!"};
             for(int i=0;i<20;++i)view.room.chat.push_back({static_cast<std::uint64_t>(i+1),static_cast<room::MemberId>(i%16+1),readmeShots?sampleChat[i%4]:"Ready for the next set? This is a longer chat message for narrow-layout inspection."});
-            draw();for(const char* screen:{"room","room-table","room-rules","room-members","room-chat","room-admin"})page(screen);
+            draw();for(const char* screen:{"room","room-table","room-members","room-chat","room-admin"})page(screen);
             // The seat chooser on an empty table, for a member with no seat.
             view.room.tables[0].p1=5;view.room.members[0].table=-1;view.room.members[0].seat=-1;
             page("room");
@@ -698,7 +698,7 @@ int main(int argc, char** argv) {
             view.probeStatus="checking";draw("table-delay-checking");
             view.probeStatus="unavailable";view.recommendedDelay=-1;draw("table-delay-retry");
             view.probeStatus="complete";view.recommendedDelay=4;
-            for(const char* control:{"selected-delay","check-connection","apply-recommendation"}) {
+            for(const char* control:{"ultra","input-delay","check-connection"}) {
                 for(int i=0;i<24&&shell.Navigation().Focus()!=control;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
                 Require(shell.Navigation().Focus()==control,"Delay control is unreachable at this viewport/DPI");
                 draw((std::string("table-delay-focus-")+control).c_str());
@@ -721,6 +721,8 @@ int main(int argc, char** argv) {
             view.canReady=true;view.canEditSelection=true;
             // Ready itself stays pressable (the runtime parks it); the fighter
             // change control carries the committed waiting reason.
+            // Fighter sits under Ready, above the rows focused so far.
+            for(int i=0;i<24&&shell.Navigation().Focus()!="selection";++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
             for(int i=0;i<24&&shell.Navigation().Focus()!="selection";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             Require(shell.Navigation().Focus()=="selection","Terminal waiting reason is unreachable at this viewport/DPI");
             draw("table-terminal-pending");
@@ -733,6 +735,7 @@ int main(int argc, char** argv) {
             view.room.members[0].seat=0;view.room.members[0].spectatorLocked=false;
             // The watcher's rows have no fighter change, so focus moved; put it back.
             for(int i=0;i<24&&shell.Navigation().Focus()!="selection";++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
+            for(int i=0;i<24&&shell.Navigation().Focus()!="selection";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             Require(shell.Navigation().Focus()=="selection","Fighter change is unreachable after the watcher view");
             view.session.coordinated=true;view.session.authorityWritable=false;
             draw("table-recover-updating");
@@ -757,8 +760,9 @@ int main(int argc, char** argv) {
             view.session.recovery=netplay::Recovery::ReplacementOffered;
             view.session.error="Room control unavailable. Replace the room when no match is active.";
             view.canReplaceRoom=true;
-            draw();
-            for(int i=0;i<24&&shell.Navigation().Focus()!="replace-room";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+            // Replace room is on the board; the table page is only the table.
+            page("room");draw();
+            for(int i=0;i<64&&shell.Navigation().Focus()!="replace-room";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             Require(shell.Navigation().Focus()=="replace-room","Replacement action is unreachable at this viewport/DPI");
             draw("table-replacement");
             view.room.tables[0].phase=room::TablePhase::Playing;view.session.match=netplay::MatchState::Preparing;
@@ -774,7 +778,7 @@ int main(int argc, char** argv) {
             view.room.tables[0].phase=room::TablePhase::Waiting;view.session.match=netplay::MatchState::None;
             view.canReplaceRoom=false;view.session.recovery=netplay::Recovery::None;view.session.error.clear();
             view.session.match=netplay::MatchState::None;view.canReady=false;
-            view.room.tables[0].ready[0]=false;view.canEditSelection=true;view.controllerReady=false;draw("table-controller-needed");
+            view.room.tables[0].ready[0]=false;view.canEditSelection=true;view.controllerReady=false;page("room-table");draw("table-controller-needed");
             view.controllerReady=view.canReady=true;
             const auto roomTitle=view.room.name;view.room.name=std::string(64,'W');page("room");draw("room-long-title");view.room.name=roomTitle;
             page("room");

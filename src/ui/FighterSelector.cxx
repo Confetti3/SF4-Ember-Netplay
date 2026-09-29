@@ -223,9 +223,13 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  // this screen hands back to it.
  const auto& embedded=EmbeddedReturnContext();
  if(TakeEmbeddedFresh()){
-  nav.Home();changeFighter_=embedded.changeFighter;
-  if(changeFighter_){nav.Push("roster");nav.Prefer("fighter-"+std::to_string(pick.fighter));}
+  nav.Home();openOn_=embedded.openOn;
+  if(openOn_=="roster"){nav.Push("roster");nav.Prefer("fighter-"+std::to_string(pick.fighter));}
+  else if(openOn_=="ultra"){nav.Push("ultra");nav.Prefer("ultra-"+std::to_string(pick.ultra));}
+  else openOn_.clear();
  }
+ if(focusSavedUltra_&&nav.Screen()=="ultra")nav.Prefer("ultra-"+std::to_string(pick.ultra));
+ focusSavedUltra_=false;
  const auto screen=nav.Screen();
  menu_.rootName=loc::T("screen.selection");menu_.exitName=embedded.exitName;menu_.shortcutHints=embedded.shortcutHints;
  const auto availability=readAvailability?readAvailability(pick.fighter):Availability{};
@@ -384,10 +388,10 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  const auto a=menu_.Draw(title.c_str(),rows,status.c_str(),preview,columns,card,{},0,
   screen=="costumes"||screen=="colors"?180.f:100.f,true,selectionError.empty()?Tone::Neutral:Tone::Error);
  if(a.kind==MenuAction::Close||a.kind==MenuAction::Shortcut)ForwardMenuAction(a);
- // Opened to change the fighter, Back from the roster goes back to the room.
- if(changeFighter_&&a.kind==MenuAction::Returned&&screen=="roster")ForwardMenuAction({MenuAction::Close});
+ // Opened for one change, Back from its page goes back to where it came from.
+ if(!openOn_.empty()&&a.kind==MenuAction::Returned&&screen==openOn_)ForwardMenuAction({MenuAction::Close});
  // A pick is done: back to where fighter select was opened from.
- const auto finish=[&]{if(changeFighter_)ForwardMenuAction({MenuAction::Close});else nav.Home();};
+ const auto finish=[&]{if(!openOn_.empty())ForwardMenuAction({MenuAction::Close});else nav.Home();};
  if(a.kind==MenuAction::Activate){
   if(screen=="home"||screen=="appearance"||a.id=="random-pool")nav.Push(a.id);
   else if(editable&&randomStageExcluded&&a.id.compare(0,5,"pool-")==0){
@@ -400,7 +404,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    pick.fighter=std::stoi(a.id.substr(8));const auto next=readAvailability?readAvailability(pick.fighter):Availability{};
    Normalize(pick,editionSelect,&next);changed=true;
    // The Ultra comes next, when the fighter has more than one.
-   if(AllowedUltras(pick.fighter,pick.edition).size()>1){nav.Push("ultra");nav.Prefer("ultra-"+std::to_string(pick.ultra));}
+   if(AllowedUltras(pick.fighter,pick.edition).size()>1){nav.Push("ultra");nav.Prefer("ultra-"+std::to_string(pick.ultra));focusSavedUltra_=true;}
    else finish();
   }else if(editable&&a.id.compare(0,6,"ultra-")==0){pick.ultra=std::stoi(a.id.substr(6));changed=true;finish();}
   else if(editable&&a.id.compare(0,8,"costume-")==0){pick.costume=std::stoi(a.id.substr(8));Normalize(pick,editionSelect,&availability);changed=true;}

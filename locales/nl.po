@@ -336,9 +336,6 @@ msgstr "Kamer"
 msgid "screen.table"
 msgstr "Tafel"
 
-msgid "screen.table_rules"
-msgstr "Tafelregels"
-
 msgid "screen.members"
 msgstr "Leden"
 
@@ -1850,29 +1847,14 @@ msgstr "Klaar voor rematch"
 msgid "room.ready_up"
 msgstr "Klaar melden"
 
-msgid "room.recommended_delay"
-msgstr "Aanbevolen vertraging"
-
-msgid "room.selected_delay"
-msgstr "Gekozen vertraging"
-
 msgid "room.selected_delay.detail"
 msgstr "Stel in van 0 tot 10 frames. Wijzigingen gelden meteen."
 
 msgid "room.selected_delay.locked"
 msgstr "De gekozen vertraging staat vast voor deze match."
 
-msgid "room.match_delay"
-msgstr "Matchvertraging"
-
 msgid "room.match_delay.at_least"
 msgstr "Minstens {0} frames"
-
-msgid "room.match_delay.detail"
-msgstr "Beide spelers gebruiken de hoogste gekozen vertraging. Jij koos {0}; je tegenstander koos {1}."
-
-msgid "room.match_delay.pending"
-msgstr "Beide spelers gebruiken de hoogste gekozen vertraging. De keuze van je tegenstander verschijnt zodra die op Klaar drukt."
 
 msgid "room.check_connection.two_players"
 msgstr "Beide plekken moeten bezet zijn om de verbinding te controleren."
@@ -1886,8 +1868,14 @@ msgstr "Rond de huidige match af voordat je de verbinding controleert."
 msgid "room.apply_recommendation"
 msgstr "Advies toepassen"
 
-msgid "room.apply_recommendation.detail"
-msgstr "Stel je gekozen vertraging in op {0} frames."
+msgid "room.input_delay"
+msgstr "Invoervertraging"
+
+msgid "room.input_delay.recommended"
+msgstr "Aanbevolen: {0}"
+
+msgid "room.input_delay.match"
+msgstr "Match: {0}"
 
 msgid "room.apply_recommendation.check_first"
 msgstr "Voer eerst Verbinding controleren uit voordat je advies toepast."
@@ -1970,6 +1958,9 @@ msgstr "Je bent vastgelegd. De volgende match wacht tot {0} seconden op je."
 msgid "room.table_rules"
 msgstr "Tafelregels"
 
+msgid "room.rules_summary"
+msgstr "{0} rondes, {1} s, editie kiezen {2}"
+
 msgid "room.table_options"
 msgstr "Tafelopties"
 
@@ -1987,12 +1978,6 @@ msgstr "Kijken"
 
 msgid "room.choice.unwatch"
 msgstr "Niet kijken"
-
-msgid "room.table_rules.edit"
-msgstr "Wijzig de tafelregels."
-
-msgid "room.table_rules.view"
-msgstr "Bekijk de tafelregels."
 
 msgid "room.cancel_unresolved"
 msgstr "Onbesliste partij annuleren"

@@ -360,10 +360,10 @@ void Journeys() {
  h.Screen("room");h.view.room.tables[0].phase=room::TablePhase::Paused;raced=h.actions.size();
  h.Choose("table-0");SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){optionRows=rows;});h.Frame();SetMenuEntriesProbe({});
  const auto hasRow=[&](const char* id){return std::any_of(optionRows.begin(),optionRows.end(),[&](const MenuEntry& e){return e.id==id;});};
- Check(h.shell.Navigation().Screen()=="room-table"&&hasRow("room-rules")&&hasRow("cancel-result")&&!hasRow("ready"),
+ // The host sees that table's rules on the same page.
+ Check(h.shell.Navigation().Screen()=="room-table"&&hasRow("rounds")&&hasRow("cancel-result")&&!hasRow("ready"),
   "A on another table did not open its options");
- h.Choose("room-rules");Check(h.shell.Navigation().Screen()=="room-rules","Another table's rules were unreachable");
- h.Press(MenuInput::Back);h.Press(MenuInput::Back);
+ h.Press(MenuInput::Back);
  Check(h.shell.Navigation().Screen()=="room"&&h.actions.size()==raced,"Looking at another table sent a room action");
  SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){centres[id]=ImVec2((min.x+max.x)*.5f,(min.y+max.y)*.5f);});
  click("table-0");SetMenuCardProbe({});ImGui::GetIO().AddMousePosEvent(-1,-1);
@@ -376,9 +376,9 @@ void Journeys() {
  h.Choose("table-0");Check(h.shell.Navigation().Choosing(),"A watcher's A on another table did not open its chooser");
  h.Press(MenuInput::Right);h.Press(MenuInput::Right);h.Press(MenuInput::Select);
  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){optionRows=rows;});h.Frame();SetMenuEntriesProbe({});
- Check(h.shell.Navigation().Screen()=="room-table"&&hasRow("room-rules")&&hasRow("cancel-result")&&h.actions.size()==raced,
+ Check(h.shell.Navigation().Screen()=="room-table"&&hasRow("rounds")&&hasRow("cancel-result")&&h.actions.size()==raced,
   "A watcher could not look at another table's options");
- h.Choose("room-rules");h.Press(MenuInput::Back);h.Press(MenuInput::Back);
+ h.Press(MenuInput::Back);
  Check(h.shell.Navigation().Screen()=="room"&&h.actions.size()==raced&&h.view.room.tables[2].spectators.size()==1,"Looking at another table changed the watch");
  h.view.room.tables[0].phase=room::TablePhase::Idle;h.view.room.tables[2].spectators.clear();
  h.view.room.members[0].seat=0;h.view.room.tables[2].p1=1;
@@ -511,6 +511,14 @@ void KeyboardJourneys(){
  // Back from the roster returns to the room as well.
  key(ImGuiKey_F);key(ImGuiKey_Backspace);
  Check(h.shell.Navigation().Screen()=="room","Back from the roster did not return to the room");
+ // Select on the table page's Ultra opens the Ultra cards, and picking one
+ // returns to the table page.
+ h.view.ultraSteps=true;h.view.ultraName="Ultra II";key(ImGuiKey_T);h.FocusOn("ultra");key(ImGuiKey_Enter);
+ Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="ultra"&&selector.Navigation().Focus()=="ultra-1",
+  "Select on the table's Ultra did not open the Ultra cards at the saved one");
+ key(ImGuiKey_LeftArrow);key(ImGuiKey_Enter);
+ Check(pick.ultra==0&&h.shell.Navigation().Screen()=="room-table","Picking an Ultra did not return to the table page");
+ key(ImGuiKey_Escape);
  // A pad press puts the pad's prompts back; a key brings the keys again.
  SetMenuGlyphs(input::PadXInput,input::xinput::A,input::xinput::B);
  h.Press(MenuInput::Down);Check(!KeyboardPrompts(),"A pad press left keyboard prompts up");

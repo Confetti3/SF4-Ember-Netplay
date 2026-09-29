@@ -336,9 +336,6 @@ msgstr "Pokój"
 msgid "screen.table"
 msgstr "Stół"
 
-msgid "screen.table_rules"
-msgstr "Zasady stołu"
-
 msgid "screen.members"
 msgstr "Uczestnicy"
 
@@ -1850,29 +1847,14 @@ msgstr "Gotów do rewanżu"
 msgid "room.ready_up"
 msgstr "Gotowe"
 
-msgid "room.recommended_delay"
-msgstr "Zalecane opóźnienie"
-
-msgid "room.selected_delay"
-msgstr "Wybrane opóźnienie"
-
 msgid "room.selected_delay.detail"
 msgstr "Ustaw od 0 do 10 klatek. Zmiany działają od razu."
 
 msgid "room.selected_delay.locked"
 msgstr "Wybrane opóźnienie jest zablokowane na tę walkę."
 
-msgid "room.match_delay"
-msgstr "Opóźnienie walki"
-
 msgid "room.match_delay.at_least"
 msgstr "Co najmniej {0} kl."
-
-msgid "room.match_delay.detail"
-msgstr "Obaj gracze używają wyższego Wybranego opóźnienia. Twój wybór: {0}; przeciwnika: {1}."
-
-msgid "room.match_delay.pending"
-msgstr "Obaj gracze używają wyższego Wybranego opóźnienia. Wybór przeciwnika pojawi się, gdy zgłosi gotowość."
 
 msgid "room.check_connection.two_players"
 msgstr "Aby sprawdzić połączenie, oba miejsca muszą być zajęte."
@@ -1886,8 +1868,14 @@ msgstr "Zakończ bieżącą walkę przed sprawdzeniem połączenia."
 msgid "room.apply_recommendation"
 msgstr "Zastosuj zalecenie"
 
-msgid "room.apply_recommendation.detail"
-msgstr "Ustaw wybrane opóźnienie na {0} kl."
+msgid "room.input_delay"
+msgstr "Opóźnienie wejścia"
+
+msgid "room.input_delay.recommended"
+msgstr "Zalecane: {0}"
+
+msgid "room.input_delay.match"
+msgstr "Walka: {0}"
 
 msgid "room.apply_recommendation.check_first"
 msgstr "Najpierw sprawdź połączenie, aby zastosować zalecenie."
@@ -1970,6 +1958,9 @@ msgstr "Oglądanie potwierdzone. Następny mecz poczeka na Ciebie do {0} sekund.
 msgid "room.table_rules"
 msgstr "Zasady stołu"
 
+msgid "room.rules_summary"
+msgstr "Rundy: {0}, {1} s, wybór edycji: {2}"
+
 msgid "room.table_options"
 msgstr "Opcje stołu"
 
@@ -1987,12 +1978,6 @@ msgstr "Oglądaj"
 
 msgid "room.choice.unwatch"
 msgstr "Nie oglądaj"
-
-msgid "room.table_rules.edit"
-msgstr "Edytuj zasady tego stołu."
-
-msgid "room.table_rules.view"
-msgstr "Zobacz zasady tego stołu."
 
 msgid "room.cancel_unresolved"
 msgstr "Anuluj bez wyniku"

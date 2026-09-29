@@ -336,9 +336,6 @@ msgstr "Raum"
 msgid "screen.table"
 msgstr "Tisch"
 
-msgid "screen.table_rules"
-msgstr "Tischregeln"
-
 msgid "screen.members"
 msgstr "Mitglieder"
 
@@ -1850,29 +1847,14 @@ msgstr "Bereit zur Revanche"
 msgid "room.ready_up"
 msgstr "Bereit"
 
-msgid "room.recommended_delay"
-msgstr "Empfohlene Verzögerung"
-
-msgid "room.selected_delay"
-msgstr "Gewählte Verzögerung"
-
 msgid "room.selected_delay.detail"
 msgstr "0 bis 10 Frames wählen. Änderungen gelten sofort."
 
 msgid "room.selected_delay.locked"
 msgstr "Die gewählte Verzögerung ist für diesen Kampf gesperrt."
 
-msgid "room.match_delay"
-msgstr "Kampfverzögerung"
-
 msgid "room.match_delay.at_least"
 msgstr "Mindestens {0} Frames"
-
-msgid "room.match_delay.detail"
-msgstr "Beide spielen mit der höheren gewählten Verzögerung. Ihre Wahl: {0}; Gegner: {1}."
-
-msgid "room.match_delay.pending"
-msgstr "Beide spielen mit der höheren gewählten Verzögerung. Die Wahl des Gegners erscheint, sobald er bereit ist."
 
 msgid "room.check_connection.two_players"
 msgstr "Vor der Verbindungsprüfung müssen beide Plätze besetzt sein."
@@ -1886,8 +1868,14 @@ msgstr "Beenden Sie den aktuellen Kampf vor der Verbindungsprüfung."
 msgid "room.apply_recommendation"
 msgstr "Empfehlung übernehmen"
 
-msgid "room.apply_recommendation.detail"
-msgstr "Gewählte Verzögerung auf {0} Frames setzen."
+msgid "room.input_delay"
+msgstr "Eingabeverzögerung"
+
+msgid "room.input_delay.recommended"
+msgstr "Empfohlen: {0}"
+
+msgid "room.input_delay.match"
+msgstr "Kampf: {0}"
 
 msgid "room.apply_recommendation.check_first"
 msgstr "Prüfen Sie erst die Verbindung, bevor Sie eine Empfehlung übernehmen."
@@ -1970,6 +1958,9 @@ msgstr "Sie sind festgelegt. Das nächste Spiel wartet bis zu {0} Sekunden auf S
 msgid "room.table_rules"
 msgstr "Tischregeln"
 
+msgid "room.rules_summary"
+msgstr "{0} Runden, {1} s, Editionsauswahl {2}"
+
 msgid "room.table_options"
 msgstr "Tischoptionen"
 
@@ -1987,12 +1978,6 @@ msgstr "Zuschauen"
 
 msgid "room.choice.unwatch"
 msgstr "Nicht zusehen"
-
-msgid "room.table_rules.edit"
-msgstr "Tischregeln ändern."
-
-msgid "room.table_rules.view"
-msgstr "Regeln dieses Tisches ansehen."
 
 msgid "room.cancel_unresolved"
 msgstr "Ungeklärtes Spiel abbrechen"

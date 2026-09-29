@@ -28,8 +28,11 @@ public:
 private:
     GameMenu menu_;
     Page page_ = Page::Fighter;
-    // Opened to change the fighter (EmbeddedReturn::changeFighter).
-    bool changeFighter_ = false;
+    // The page opened for one change (EmbeddedReturn::openOn), or empty.
+    std::string openOn_;
+    // The Ultra step was just pushed: focus the Ultra the new fighter has,
+    // which the caller restores after this frame.
+    bool focusSavedUltra_ = false;
     std::string notice_;
 };
 } }

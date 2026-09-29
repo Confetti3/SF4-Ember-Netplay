@@ -336,9 +336,6 @@ msgstr "Зал"
 msgid "screen.table"
 msgstr "Стол"
 
-msgid "screen.table_rules"
-msgstr "Правила стола"
-
 msgid "screen.members"
 msgstr "Участники"
 
@@ -1850,29 +1847,14 @@ msgstr "Готов к реваншу"
 msgid "room.ready_up"
 msgstr "Готов"
 
-msgid "room.recommended_delay"
-msgstr "Рекомендуемая задержка"
-
-msgid "room.selected_delay"
-msgstr "Выбранная задержка"
-
 msgid "room.selected_delay.detail"
 msgstr "Настройка от 0 до 10 кадров. Изменения применяются сразу."
 
 msgid "room.selected_delay.locked"
 msgstr "Выбранная задержка закреплена на этот матч."
 
-msgid "room.match_delay"
-msgstr "Задержка матча"
-
 msgid "room.match_delay.at_least"
 msgstr "Не менее {0} к."
-
-msgid "room.match_delay.detail"
-msgstr "Оба бойца играют с большей из выбранных задержек. Ваш выбор: {0}; выбор соперника: {1}."
-
-msgid "room.match_delay.pending"
-msgstr "Оба бойца играют с большей из выбранных задержек. Выбор соперника появится, когда он нажмёт «Готов»."
 
 msgid "room.check_connection.two_players"
 msgstr "Для проверки соединения оба места должны быть заняты."
@@ -1886,8 +1868,14 @@ msgstr "Дождитесь конца текущего матча перед п�
 msgid "room.apply_recommendation"
 msgstr "Применить рекомендацию"
 
-msgid "room.apply_recommendation.detail"
-msgstr "Установить выбранную задержку на {0} к."
+msgid "room.input_delay"
+msgstr "Задержка ввода"
+
+msgid "room.input_delay.recommended"
+msgstr "Рекомендуется: {0}"
+
+msgid "room.input_delay.match"
+msgstr "Матч: {0}"
 
 msgid "room.apply_recommendation.check_first"
 msgstr "Сначала проверьте соединение, чтобы получить рекомендацию."
@@ -1970,6 +1958,9 @@ msgstr "Вы закреплены. Следующий матч подождёт 
 msgid "room.table_rules"
 msgstr "Правила стола"
 
+msgid "room.rules_summary"
+msgstr "Раундов: {0}, {1} с, выбор издания: {2}"
+
 msgid "room.table_options"
 msgstr "Настройки стола"
 
@@ -1987,12 +1978,6 @@ msgstr "Смотреть"
 
 msgid "room.choice.unwatch"
 msgstr "Не смотреть"
-
-msgid "room.table_rules.edit"
-msgstr "Изменить правила этого стола."
-
-msgid "room.table_rules.view"
-msgstr "Посмотреть правила этого стола."
 
 msgid "room.cancel_unresolved"
 msgstr "Отменить бой без результата"

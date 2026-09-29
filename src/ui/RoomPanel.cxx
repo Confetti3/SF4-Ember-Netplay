@@ -393,39 +393,54 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   }else if(screen=="room-table"){
    const std::string reason=!mutableRoom?RoomWaitReason(v):
     loc::T(elsewhere?"room.leave_current_table":"room.choose_action");
+  // The table's rules: the host edits them in place and applies them in one
+  // press (applying clears Ready), everyone else reads them on one line.
+  const auto rulesRows=[&]{
+   if(!rulesDirty_&&rulesRevision_!=t.revision){tableRules_=t.rules;rulesRevision_=t.revision;}
+   if(!host){
+    rows.push_back(ReadOnlyValue("rules",loc::T("room.table_rules"),loc::Tf("room.rules_summary",static_cast<int>(t.rules.roundCount),static_cast<int>(t.rules.roundTime),
+     loc::T(t.rules.editionSelect?"common.on":"common.off")),loc::T("room.rules.host_only")));
+    return;
+   }
+   RuleRows(rows,tableRules_,!active,loc::T(active?"room.rules.finish_game":"room.rules.apply_note"));
+   if(rulesDirty_)rows.push_back(Row("apply-rules",loc::T("room.apply_rules"),loc::T("room.apply_rules.detail"),!active));
+  };
   if(seated){
    const bool ready=room::ReadyCancellable(t,place.seat);
     const auto readyControl=DescribeReady(v,t,place.seat);
     rows.push_back(Row("ready",readyControl.label,readyControl.detail,readyControl.kind!=ReadyControl::None));
+   // Fighter and Ultra sit right under Ready: A on Fighter opens the roster,
+   // then the Ultra; Left and Right step the Ultra in place.
+   const bool canChange=mutableRoom&&v.canEditSelection&&!s.localTerminalPending;
+   rows.push_back(Row("selection",loc::T("room.change_fighter"),canChange?
+    std::string(loc::T("room.change_fighter.detail"))+"\n"+v.selectionSummary:SelectionBlocker(v),canChange));
+   rows.back().value=v.fighterName;
+   rows.push_back(Value("ultra",loc::T("selection.ultra_combo"),v.ultraName,canChange?loc::T("selection.ultra_row.detail"):SelectionBlocker(v),canChange));
+   rows.back().adjustable=canChange&&v.ultraSteps;rows.back().opens=true;
+    // One delay row: Left and Right choose it, Select takes the recommendation.
     const bool delayEditable=mutableRoom&&!active&&!v.delayLocked;
     const int selectedDelay=(std::max)(0,(std::min)(MaximumInputDelay,v.selectedDelay));
     const bool recommended=v.recommendedDelay>=0&&v.recommendedDelay<=MaximumInputDelay;
     const auto check=DescribeConnectionCheck(v);
-    rows.push_back(ReadOnlyValue("recommended-delay",loc::T("room.recommended_delay"),check.value,check.detail));
-    if(check.namesPlayer)rows.back().detailText=DetailText::Name;
-    rows.push_back(Value("selected-delay",loc::T("room.selected_delay"),std::to_string(selectedDelay),
-     delayEditable?loc::T("room.selected_delay.detail"):
-      (v.delayLocked?loc::T("room.selected_delay.locked"):reason),delayEditable));
-    if(t.p1&&t.p2) {
-     const bool opponentReady=v.opponentDelay>=0&&v.opponentDelay<=MaximumInputDelay;
-     rows.push_back(ReadOnlyValue("match-delay",loc::T("room.match_delay"),
-      opponentReady?loc::Tf("connection.frames",room::MatchDelay(selectedDelay,v.opponentDelay)):
-       loc::Tf("room.match_delay.at_least",selectedDelay),
-      opponentReady?loc::Tf("room.match_delay.detail",selectedDelay,v.opponentDelay):
-       std::string(loc::T("room.match_delay.pending"))));
+    const bool opponentReady=v.opponentDelay>=0&&v.opponentDelay<=MaximumInputDelay;
+    std::string delayDetail=loc::Tf("room.input_delay.recommended",check.value);
+    if(t.p1&&t.p2)delayDetail+="\n"+loc::Tf("room.input_delay.match",opponentReady?
+     loc::Tf("connection.frames",room::MatchDelay(selectedDelay,v.opponentDelay)):loc::Tf("room.match_delay.at_least",selectedDelay));
+    if(!delayEditable)delayDetail+="\n"+(v.delayLocked?std::string(loc::T("room.selected_delay.locked")):reason);
+    else{
+     delayDetail+="\n"+std::string(loc::T("room.selected_delay.detail"));
+     if(!recommended)delayDetail+="\n"+std::string(loc::T("room.apply_recommendation.check_first"));
     }
+    rows.push_back(Value("input-delay",loc::T("room.input_delay"),loc::Tf("connection.frames",selectedDelay),delayDetail,delayEditable));
+    rows.back().opens=v.canApplyDelay&&recommended&&!check.checking;
+    if(rows.back().opens)rows.back().hint=loc::T("room.apply_recommendation");
     rows.push_back(Row("check-connection",check.action,check.checking?check.detail:
      !mutableRoom?reason:!t.p1||!t.p2?loc::T("room.check_connection.two_players"):
      ready?loc::T("room.check_connection.unready"):
      !delayEditable?loc::T("room.check_connection.finish_match"):check.detail,
      v.canProbe&&delayEditable&&!check.checking));
     if(check.namesPlayer)rows.back().detailText=DetailText::Name;
-    rows.push_back(Row("apply-recommendation",loc::T("room.apply_recommendation"),recommended?
-     loc::Tf("room.apply_recommendation.detail",v.recommendedDelay):loc::T("room.apply_recommendation.check_first"),
-     v.canApplyDelay&&recommended&&delayEditable&&!check.checking));
-   const bool canChange=mutableRoom&&v.canEditSelection&&!s.localTerminalPending;
-   rows.push_back(Row("selection",loc::T("room.change_fighter"),canChange?
-    std::string(loc::T("room.change_fighter.detail"))+"\n"+v.selectionSummary:SelectionBlocker(v),canChange));
+    rulesRows();
     // The same departure rule as B on the board. Leaving that gives up a score
     // asks first, and says what it gives up.
     // During a held start B takes Ready back; this row only ever leaves, so it
@@ -461,8 +476,8 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      rows.push_back(Row("lock-spectating",loc::T(lockedIn?"room.unlock_spectating":"room.lock_spectating"),
       mutableRoom?loc::Tf(lockedIn?"room.unlock_spectating.detail":"room.lock_spectating.detail",room::SpectatorStartHoldMs/1000):reason,mutableRoom));
     }
+    rulesRows();
   }
-  rows.push_back(Row("room-rules",loc::T("room.table_rules"),loc::T(host?"room.table_rules.edit":"room.table_rules.view")));
   if(t.phase==TablePhase::Paused)rows.push_back(ConfirmRow("cancel-result",loc::T("room.cancel_unresolved"),loc::T("room.cancel_unresolved.detail"),host));
   // A table can be left in Playing when neither fighter's finish report
   // reached the room (both clients lost control at battle close). The
@@ -475,14 +490,6 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    rows.push_back(ConfirmRow("cancel-result",loc::T("room.cancel_stuck"),stale?std::string(loc::T("room.cancel_stuck.detail")):
     loc::Tf("room.cancel_stuck.in_progress",room::StaleGameSeconds/60),stale));
   }
-  if(v.session.recovery==netplay::Recovery::ReplacementOffered)
-   rows.push_back(ConfirmRow("replace-room",loc::T("room.replace"),loc::T(v.canReplaceRoom?"room.replace.detail":"room.replace.waiting"),v.canReplaceRoom));
-  rows.push_back(ConfirmRow("leave",loc::T(v.session.room==netplay::RoomState::Closing?"room.leaving":"room.leave"),
-   LeaveRoomDetail(v),v.session.room!=netplay::RoomState::Closing));
- }else if(screen=="room-rules"){
-  if(!rulesDirty_&&rulesRevision_!=t.revision){tableRules_=t.rules;rulesRevision_=t.revision;}
-  RuleRows(rows,tableRules_,host&&!active,loc::T(host?(active?"room.rules.finish_game":"room.rules.apply_note"):"room.rules.host_only"));
-  rows.push_back(Row("apply-rules",loc::T("room.apply_rules"),loc::T("room.apply_rules.detail"),host&&!active&&rulesDirty_));
  }else if(screen=="room-members"){
   for(const auto& m:s.members){
    rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),
@@ -509,8 +516,8 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   rows.push_back(Row("apply-capacity",loc::T("room.apply_capacity"),loc::T("room.apply_capacity.detail"),host&&roomCapacity_>=static_cast<int>(s.members.size())));
  }
  if(!active) {
-  for(auto& row:rows)if(row.id=="selection"||row.id=="check-connection"||
-   row.id=="selected-delay"||row.id=="queue"||row.id=="watch") {
+  for(auto& row:rows)if(row.id=="selection"||row.id=="ultra"||row.id=="check-connection"||
+   row.id=="input-delay"||row.id=="queue"||row.id=="watch") {
     const auto key=screen+"/"+row.id;
     if(roomUpdateVisible_)row.detail=RoomWaitReason(v);
     else if(RoomCheckpointPending(v)) {
@@ -879,7 +886,7 @@ void ApplicationShell::RoomShortcut(const MenuAction& a,const ShellView& v) {
   OpenTableOptions(v,onTable?selectedTable_:OptionsTable(v,selectedTable_));
   return;
  }
- if(a.delta==MenuInput::Fighter)selectionFresh_=changeFighter_=true;
+ if(a.delta==MenuInput::Fighter){selectionFresh_=true;selectionOpenOn_="roster";}
  nav.Home();nav.Push("room");nav.Push(target);
 }
 void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const Submit& submit) {
@@ -926,7 +933,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   return;
  }
  if(a.id.compare(0,7,"member-")==0){selectedMember_=std::stoull(a.id.substr(7));nav.Push("room-member");return;}
- if(a.id=="room-members"||a.id=="room-chat"||a.id=="room-admin"||a.id=="room-rules"){nav.Push(a.id);return;}
+ if(a.id=="room-members"||a.id=="room-chat"||a.id=="room-admin"){nav.Push(a.id);return;}
   if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();notice_=loc::T("room.invitation_copied");noticeTone_=Tone::Success;noticeUntil_=ImGui::GetTime()+3;return;}
   if(a.id=="replace-room"){ShellAction request;request.command.kind=netplay::CommandKind::ReplaceRoom;request.command.generation=v.session.generation;
    if(!submit(std::move(request)))error_=loc::T("error.queue_failed");
@@ -938,10 +945,20 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
     noticeTone_=Tone::Pending;noticeUntil_=ImGui::GetTime()+8;}
    return;}
   if(a.id=="check-connection"){sendDelay(netplay::CommandKind::CheckConnection,-1);return;}
-  if(a.id=="apply-recommendation"){sendDelay(netplay::CommandKind::ApplyDelay,-1);return;}
-  if(a.id=="selected-delay"&&a.kind==MenuAction::Adjust){
-   const int selected=(std::max)(0,(std::min)(10,v.selectedDelay+a.delta));
+  if(a.id=="input-delay"){
+   // Select takes the recommendation; Left and Right choose a delay.
+   const int selected=a.kind==MenuAction::Adjust?(std::max)(0,(std::min)(10,v.selectedDelay+a.delta)):-1;
    sendDelay(netplay::CommandKind::ApplyDelay,selected);return;
+  }
+  if(a.id=="ultra"){
+   if(a.kind==MenuAction::Adjust){
+    if(!v.canEditSelection||!RoomActionsAvailable(v))return;
+    ShellAction step;step.command.generation=v.session.generation;step.ultraStep=a.delta;submit(std::move(step));
+   }else if(SelectionBlocker(v).empty()){
+    // Select shows the Ultra cards, and picking one comes back here.
+    selectionFresh_=true;selectionOpenOn_="ultra";nav.Push("selection");
+   }
+   return;
   }
  if(a.id=="leave"){Send(netplay::CommandKind::LeaveRoom,v,submit);return;}
  if(a.id=="mute"){if(muted_.count(selectedMember_))muted_.erase(selectedMember_);else muted_.insert(selectedMember_);return;}

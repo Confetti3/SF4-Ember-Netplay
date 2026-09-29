@@ -336,9 +336,6 @@ msgstr "Sala"
 msgid "screen.table"
 msgstr "Mesa"
 
-msgid "screen.table_rules"
-msgstr "Reglas de mesa"
-
 msgid "screen.members"
 msgstr "Miembros"
 
@@ -1850,29 +1847,14 @@ msgstr "Listo para la revancha"
 msgid "room.ready_up"
 msgstr "Marcar Listo"
 
-msgid "room.recommended_delay"
-msgstr "Retraso recomendado"
-
-msgid "room.selected_delay"
-msgstr "Retraso seleccionado"
-
 msgid "room.selected_delay.detail"
 msgstr "Ajusta entre 0 y 10 fotogramas. Los cambios se aplican al instante."
 
 msgid "room.selected_delay.locked"
 msgstr "El retraso seleccionado está bloqueado para esta partida."
 
-msgid "room.match_delay"
-msgstr "Retraso"
-
 msgid "room.match_delay.at_least"
 msgstr "Mín. {0} fotogramas"
-
-msgid "room.match_delay.detail"
-msgstr "Ambos jugadores usan el mayor retraso seleccionado. Tú elegiste {0}; tu rival, {1}."
-
-msgid "room.match_delay.pending"
-msgstr "Ambos jugadores usan el mayor retraso seleccionado. La elección de tu rival aparecerá cuando marque Listo."
 
 msgid "room.check_connection.two_players"
 msgstr "Debe haber un jugador en cada asiento para comprobar la conexión."
@@ -1886,8 +1868,14 @@ msgstr "Termina la partida actual antes de comprobar la conexión."
 msgid "room.apply_recommendation"
 msgstr "Aplicar recomendación"
 
-msgid "room.apply_recommendation.detail"
-msgstr "Fija el retraso en {0} fotogramas."
+msgid "room.input_delay"
+msgstr "Retraso de entrada"
+
+msgid "room.input_delay.recommended"
+msgstr "Recomendado: {0}"
+
+msgid "room.input_delay.match"
+msgstr "Partida: {0}"
 
 msgid "room.apply_recommendation.check_first"
 msgstr "Usa Comprobar conexión antes de aplicar una recomendación."
@@ -1970,6 +1958,9 @@ msgstr "Estás fijado. La próxima partida te espera hasta {0} segundos."
 msgid "room.table_rules"
 msgstr "Reglas"
 
+msgid "room.rules_summary"
+msgstr "{0} rondas, {1} s, selección de edición {2}"
+
 msgid "room.table_options"
 msgstr "Opciones de la mesa"
 
@@ -1987,12 +1978,6 @@ msgstr "Ver"
 
 msgid "room.choice.unwatch"
 msgstr "No ver"
-
-msgid "room.table_rules.edit"
-msgstr "Edita las reglas de esta mesa."
-
-msgid "room.table_rules.view"
-msgstr "Consulta las reglas de la mesa."
 
 msgid "room.cancel_unresolved"
 msgstr "Cancelar partida pendiente"

@@ -336,9 +336,6 @@ msgstr "방"
 msgid "screen.table"
 msgstr "테이블"
 
-msgid "screen.table_rules"
-msgstr "테이블 규칙"
-
 msgid "screen.members"
 msgstr "참가자"
 
@@ -1850,29 +1847,14 @@ msgstr "재대전 준비"
 msgid "room.ready_up"
 msgstr "준비"
 
-msgid "room.recommended_delay"
-msgstr "권장 지연"
-
-msgid "room.selected_delay"
-msgstr "선택한 지연"
-
 msgid "room.selected_delay.detail"
 msgstr "0~10프레임으로 조정하세요. 변경 사항은 즉시 적용됩니다."
 
 msgid "room.selected_delay.locked"
 msgstr "이번 대전의 지연 시간이 고정되었습니다."
 
-msgid "room.match_delay"
-msgstr "대전 지연"
-
 msgid "room.match_delay.at_least"
 msgstr "최소 {0}프레임"
-
-msgid "room.match_delay.detail"
-msgstr "두 플레이어 모두 더 높은 선택 지연 시간을 사용합니다. 나: {0}, 상대: {1}."
-
-msgid "room.match_delay.pending"
-msgstr "두 플레이어 모두 더 높은 선택 지연 시간을 사용합니다. 상대가 준비하면 선택값이 표시됩니다."
 
 msgid "room.check_connection.two_players"
 msgstr "연결을 확인하려면 두 자리에 모두 플레이어가 있어야 합니다."
@@ -1886,8 +1868,14 @@ msgstr "연결을 확인하려면 현재 대전을 먼저 끝내세요."
 msgid "room.apply_recommendation"
 msgstr "권장값 적용"
 
-msgid "room.apply_recommendation.detail"
-msgstr "선택한 지연 시간을 {0}프레임으로 설정합니다."
+msgid "room.input_delay"
+msgstr "입력 지연"
+
+msgid "room.input_delay.recommended"
+msgstr "권장: {0}"
+
+msgid "room.input_delay.match"
+msgstr "대전: {0}"
 
 msgid "room.apply_recommendation.check_first"
 msgstr "권장값을 적용하기 전에 연결 확인을 실행하세요."
@@ -1970,6 +1958,9 @@ msgstr "관전 확정 중입니다. 다음 대전은 최대 {0}초 동안 기다
 msgid "room.table_rules"
 msgstr "테이블 규칙"
 
+msgid "room.rules_summary"
+msgstr "{0}라운드, {1}초, 에디션 선택 {2}"
+
 msgid "room.table_options"
 msgstr "테이블 옵션"
 
@@ -1987,12 +1978,6 @@ msgstr "관전"
 
 msgid "room.choice.unwatch"
 msgstr "관전 중지"
-
-msgid "room.table_rules.edit"
-msgstr "이 테이블의 규칙을 편집합니다."
-
-msgid "room.table_rules.view"
-msgstr "이 테이블의 규칙을 확인합니다."
 
 msgid "room.cancel_unresolved"
 msgstr "미확정 대전 취소"

@@ -336,9 +336,6 @@ msgstr "ルーム"
 msgid "screen.table"
 msgstr "対戦席"
 
-msgid "screen.table_rules"
-msgstr "対戦席のルール"
-
 msgid "screen.members"
 msgstr "メンバー"
 
@@ -1850,29 +1847,14 @@ msgstr "再戦の準備完了"
 msgid "room.ready_up"
 msgstr "準備完了にする"
 
-msgid "room.recommended_delay"
-msgstr "推奨遅延"
-
-msgid "room.selected_delay"
-msgstr "選択した遅延"
-
 msgid "room.selected_delay.detail"
 msgstr "0～10Fの範囲で調整します。変更はすぐに反映されます。"
 
 msgid "room.selected_delay.locked"
 msgstr "この対戦中、選択した遅延は固定されます。"
 
-msgid "room.match_delay"
-msgstr "対戦の遅延"
-
 msgid "room.match_delay.at_least"
 msgstr "{0}F以上"
-
-msgid "room.match_delay.detail"
-msgstr "両者とも選択した遅延の大きい方で対戦します。あなたは{0}、相手は{1}を選択しました。"
-
-msgid "room.match_delay.pending"
-msgstr "両者とも選択した遅延の大きい方で対戦します。相手の設定は準備完了後に表示されます。"
 
 msgid "room.check_connection.two_players"
 msgstr "接続確認には両方の席にプレイヤーが必要です。"
@@ -1886,8 +1868,14 @@ msgstr "接続を確認する前に現在の対戦を終えてください。"
 msgid "room.apply_recommendation"
 msgstr "推奨値を適用"
 
-msgid "room.apply_recommendation.detail"
-msgstr "選択した遅延を{0}Fに設定します。"
+msgid "room.input_delay"
+msgstr "入力遅延"
+
+msgid "room.input_delay.recommended"
+msgstr "推奨：{0}"
+
+msgid "room.input_delay.match"
+msgstr "対戦：{0}"
 
 msgid "room.apply_recommendation.check_first"
 msgstr "推奨値を適用する前に接続を確認してください。"
@@ -1970,6 +1958,9 @@ msgstr "観戦を確定中です。次の対戦は最大{0}秒あなたを待ち
 msgid "room.table_rules"
 msgstr "対戦席のルール"
 
+msgid "room.rules_summary"
+msgstr "{0}ラウンド、{1}秒、エディションセレクト{2}"
+
 msgid "room.table_options"
 msgstr "対戦席の設定"
 
@@ -1987,12 +1978,6 @@ msgstr "観戦"
 
 msgid "room.choice.unwatch"
 msgstr "観戦終了"
-
-msgid "room.table_rules.edit"
-msgstr "この対戦席のルールを編集します。"
-
-msgid "room.table_rules.view"
-msgstr "この対戦席のルールを表示します。"
 
 msgid "room.cancel_unresolved"
 msgstr "未確定の対戦をキャンセル"

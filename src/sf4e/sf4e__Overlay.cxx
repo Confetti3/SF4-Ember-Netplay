@@ -6,6 +6,7 @@
 #include "../Dimps/Dimps__Selection.hxx"
 #include "../ui/ApplicationShell.hxx"
 #include "../ui/FighterSelector.hxx"
+#include "../ui/MenuRows.hxx"
 #include "../ui/OverlayPresentation.hxx"
 #include "../ui/Theme.hxx"
 #include "../ui/Win32Input.hxx"
@@ -176,6 +177,10 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     auto summaryPick = sf4e::selection::FromNative(lobbyConditions); summaryPick.fighter = lobbyMenuCharaID;
     view.selectionSummary = sf4e::loc::Tf("runtime.selection_summary", fighter ? fighter->name : sf4e::loc::T("card.choose_fighter"),
         sf4e::ui::CostumeLabel(summaryPick), lobbyConditions.color + 1, sf4e::ui::UltraLabel(lobbyConditions.ultraCombo));
+    view.fighterName = fighter ? fighter->name : sf4e::loc::T("card.choose_fighter");
+    view.ultraName = !fighter ? std::string() : summaryPick.ultra == 2 ? std::string(sf4e::loc::T("selection.ultra_double")) :
+        std::string(sf4e::ui::UltraLabel(summaryPick.ultra)) + ": " + fighter->ultras[summaryPick.ultra < 0 || summaryPick.ultra > 1 ? 0 : summaryPick.ultra];
+    view.ultraSteps = sf4e::selection::AllowedUltras(summaryPick.fighter, summaryPick.edition).size() > 1;
     if (snapshot.atMainMenu && !sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),
         snapshot.lobbySettings.editionSelect, snapshot.fighterAvailability[lobbyMenuCharaID]))
         view.selectionError = sf4e::loc::T("runtime.selection_unavailable");
@@ -185,6 +190,14 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     if (view.error.empty() && status.lastError[0] && status.lastErrorSeverity != sf4e::NoticeSeverity::Info) view.error = status.lastError;
 	bool open = true;
     shell.Draw(view, &open, [&](sf4e::ui::ShellAction action) {
+		// The table page's Ultra row edits the pick here; nothing is sent.
+		if (action.ultraStep) {
+			if (!snapshot.canEditSelection) return false;
+			auto pick = sf4e::selection::FromNative(lobbyConditions); pick.fighter = lobbyMenuCharaID;
+			sf4e::ui::Step(pick.ultra, sf4e::selection::AllowedUltras(pick.fighter, pick.edition), action.ultraStep);
+			sf4e::selection::ToNative(pick, lobbyConditions);
+			return true;
+		}
 		sf4e::NetplayFacade::RuntimeCommand request;
 		request.command = std::move(action.command);
         request.service = action.service;

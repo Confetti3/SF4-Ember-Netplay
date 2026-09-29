@@ -336,9 +336,6 @@ msgstr "房间"
 msgid "screen.table"
 msgstr "对战席"
 
-msgid "screen.table_rules"
-msgstr "对战席规则"
-
 msgid "screen.members"
 msgstr "成员"
 
@@ -1850,29 +1847,14 @@ msgstr "准备再战"
 msgid "room.ready_up"
 msgstr "准备"
 
-msgid "room.recommended_delay"
-msgstr "建议延迟"
-
-msgid "room.selected_delay"
-msgstr "所选延迟"
-
 msgid "room.selected_delay.detail"
 msgstr "可在 0 至 10 帧间调整，立即生效。"
 
 msgid "room.selected_delay.locked"
 msgstr "本场对战的所选延迟已锁定。"
 
-msgid "room.match_delay"
-msgstr "对战延迟"
-
 msgid "room.match_delay.at_least"
 msgstr "至少 {0} 帧"
-
-msgid "room.match_delay.detail"
-msgstr "双方按较高的所选延迟对战。您选了 {0}，对手选了 {1}。"
-
-msgid "room.match_delay.pending"
-msgstr "双方按较高的所选延迟对战。对手准备后会显示其选择。"
 
 msgid "room.check_connection.two_players"
 msgstr "检查连接前，两个席位都需要有玩家。"
@@ -1886,8 +1868,14 @@ msgstr "请先结束当前对战，再检查连接。"
 msgid "room.apply_recommendation"
 msgstr "应用建议"
 
-msgid "room.apply_recommendation.detail"
-msgstr "将所选延迟设为 {0} 帧。"
+msgid "room.input_delay"
+msgstr "输入延迟"
+
+msgid "room.input_delay.recommended"
+msgstr "建议：{0}"
+
+msgid "room.input_delay.match"
+msgstr "对战：{0}"
 
 msgid "room.apply_recommendation.check_first"
 msgstr "请先检查连接，再应用建议。"
@@ -1970,6 +1958,9 @@ msgstr "已锁定观战。下一场对战最多等待你{0}秒。"
 msgid "room.table_rules"
 msgstr "对战席规则"
 
+msgid "room.rules_summary"
+msgstr "{0} 回合，{1} 秒，版本选择{2}"
+
 msgid "room.table_options"
 msgstr "对战席选项"
 
@@ -1987,12 +1978,6 @@ msgstr "观战"
 
 msgid "room.choice.unwatch"
 msgstr "停止观战"
-
-msgid "room.table_rules.edit"
-msgstr "编辑此对战席的规则。"
-
-msgid "room.table_rules.view"
-msgstr "查看此对战席的规则。"
 
 msgid "room.cancel_unresolved"
 msgstr "取消结果未定的对战"

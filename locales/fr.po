@@ -336,9 +336,6 @@ msgstr "Salon"
 msgid "screen.table"
 msgstr "Table"
 
-msgid "screen.table_rules"
-msgstr "Règles"
-
 msgid "screen.members"
 msgstr "Membres"
 
@@ -1850,29 +1847,14 @@ msgstr "Prêt pour la revanche"
 msgid "room.ready_up"
 msgstr "Passer à Prêt"
 
-msgid "room.recommended_delay"
-msgstr "Délai conseillé"
-
-msgid "room.selected_delay"
-msgstr "Délai choisi"
-
 msgid "room.selected_delay.detail"
 msgstr "Réglez de 0 à 10 trames. Application immédiate."
 
 msgid "room.selected_delay.locked"
 msgstr "Le délai choisi est verrouillé pour ce combat."
 
-msgid "room.match_delay"
-msgstr "Délai du combat"
-
 msgid "room.match_delay.at_least"
 msgstr "Au moins {0} trames"
-
-msgid "room.match_delay.detail"
-msgstr "Les deux combattants jouent avec le délai choisi le plus élevé. Votre choix : {0} ; celui de l'adversaire : {1}."
-
-msgid "room.match_delay.pending"
-msgstr "Les deux combattants jouent avec le délai choisi le plus élevé. Le choix adverse s'affiche quand il passe à Prêt."
 
 msgid "room.check_connection.two_players"
 msgstr "Il faut un joueur sur chaque place pour vérifier la connexion."
@@ -1886,8 +1868,14 @@ msgstr "Terminez le combat actuel avant de vérifier la connexion."
 msgid "room.apply_recommendation"
 msgstr "Appliquer le conseil"
 
-msgid "room.apply_recommendation.detail"
-msgstr "Régler le délai choisi sur {0} trames."
+msgid "room.input_delay"
+msgstr "Délai d'entrée"
+
+msgid "room.input_delay.recommended"
+msgstr "Conseillé : {0}"
+
+msgid "room.input_delay.match"
+msgstr "Combat : {0}"
 
 msgid "room.apply_recommendation.check_first"
 msgstr "Vérifiez la connexion avant d'appliquer un conseil."
@@ -1970,6 +1958,9 @@ msgstr "Vous êtes verrouillé. Le prochain combat vous attend jusqu'à {0} seco
 msgid "room.table_rules"
 msgstr "Règles"
 
+msgid "room.rules_summary"
+msgstr "{0} rounds, {1} s, édition spéciale {2}"
+
 msgid "room.table_options"
 msgstr "Options de la table"
 
@@ -1987,12 +1978,6 @@ msgstr "Regarder"
 
 msgid "room.choice.unwatch"
 msgstr "Ne plus voir"
-
-msgid "room.table_rules.edit"
-msgstr "Modifier ces règles."
-
-msgid "room.table_rules.view"
-msgstr "Voir les règles de cette table."
 
 msgid "room.cancel_unresolved"
 msgstr "Annuler le combat non résolu"
