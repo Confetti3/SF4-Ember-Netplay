@@ -965,7 +965,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(a.id=="compose"){std::snprintf(chat_,sizeof(chat_),"%s",a.text.c_str());return;}
  if(a.id=="rename"){std::snprintf(roomName_,sizeof(roomName_),"%s",a.text.c_str());return;}
  if(a.id=="room-capacity"){roomCapacity_=(std::max)(2,(std::min)(16,roomCapacity_+a.delta));return;}
- if(AdjustRule(tableRules_,a)){rulesDirty_=true;return;}
+ if(AdjustRule(tableRules_,a)){rulesDirty_=!(tableRules_==v.room.tables[selectedTable_].rules);return;}
  Action request;request.table=static_cast<std::uint8_t>(selectedTable_);
  if(a.id=="queue")request.kind=ActionKind::Queue;
  else if(a.id=="unqueue")request.kind=ActionKind::Unqueue;
@@ -979,7 +979,11 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   else if(a.id=="transfer-host"){request.kind=ActionKind::TransferHost;request.target=selectedMember_;}
  else if(a.id=="cancel-result")request.kind=ActionKind::CancelResult;
  else if(a.id=="abandon-result")request.kind=ActionKind::AbortMatch;
- else if(a.id=="apply-rules"){request.kind=ActionKind::SetRules;request.rules=tableRules_;}
+ else if(a.id=="apply-rules"){
+  // Applying clears Ready, so rules equal to the table's are never sent.
+  if(tableRules_==v.room.tables[selectedTable_].rules){rulesDirty_=false;return;}
+  request.kind=ActionKind::SetRules;request.rules=tableRules_;
+ }
  else if(a.id=="apply-name"){request.kind=ActionKind::Rename;request.text=roomName_;}
  else if(a.id=="apply-capacity"){request.kind=ActionKind::SetCapacity;request.capacity=static_cast<std::uint8_t>(roomCapacity_);}
  else if(a.id=="lock"){request.kind=ActionKind::Lock;request.locked=a.delta<0;}

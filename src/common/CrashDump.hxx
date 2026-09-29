@@ -40,16 +40,32 @@ struct DumpRequest {
 constexpr MINIDUMP_TYPE DumpType = MINIDUMP_TYPE(MiniDumpWithIndirectlyReferencedMemory | MiniDumpWithDataSegs |
 	MiniDumpWithHandleData | MiniDumpWithThreadInfo | MiniDumpWithUnloadedModules);
 
-// `clientPointers` is true when `pointers` belongs to `process` rather than
-// to the caller.
+// `path` ending in ".dmp" with ".dmp" replaced by `suffix`, into `out`.
+inline bool DumpSibling(const wchar_t* path, const wchar_t* suffix, wchar_t* out, size_t size) {
+	const size_t length = wcslen(path);
+	if (length < 4 || _wcsicmp(path + length - 4, L".dmp") != 0) return false;
+	if (wcsncpy_s(out, size, path, length - 4) != 0) return false;
+	return wcscat_s(out, size, suffix) == 0;
+}
+
+// Writes `path` (ending in ".dmp") in full or not at all: the dump goes to a
+// ".partial.dmp" first and replaces `path` only once written, and the dump it
+// replaces is kept as ".previous.dmp", so a failed or later crash never costs
+// the one already there. `clientPointers` is true when `pointers` belongs to
+// `process` rather than to the caller. Allocates nothing itself.
 inline bool WriteDump(HANDLE process, DWORD processId, const wchar_t* path, DWORD threadId,
 	EXCEPTION_POINTERS* pointers, bool clientPointers) {
-	HANDLE file = CreateFileW(path, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+	wchar_t partial[MAX_PATH + 32] = {}, previous[MAX_PATH + 32] = {};
+	if (!DumpSibling(path, L".partial.dmp", partial, MAX_PATH + 32) ||
+		!DumpSibling(path, L".previous.dmp", previous, MAX_PATH + 32)) return false;
+	HANDLE file = CreateFileW(partial, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (file == INVALID_HANDLE_VALUE) return false;
 	MINIDUMP_EXCEPTION_INFORMATION exception = { threadId, pointers, clientPointers ? TRUE : FALSE };
 	const BOOL written = MiniDumpWriteDump(process, processId, file, DumpType, pointers ? &exception : nullptr, nullptr, nullptr);
 	CloseHandle(file);
-	return written != FALSE;
+	if (!written) { DeleteFileW(partial); return false; }
+	if (GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES) MoveFileExW(path, previous, MOVEFILE_REPLACE_EXISTING);
+	return MoveFileExW(partial, path, MOVEFILE_REPLACE_EXISTING) != FALSE;
 }
 
 // The launcher's end: two events and the page that carries the request.
@@ -89,6 +105,16 @@ struct DumpChannel {
 		view->written = written ? 1 : 0;
 		SetEvent(done);
 		return written;
+	}
+	// Waits for `process` to exit, writing each dump it asks for on the way;
+	// `served(written)` hears of each request. Without a channel it only waits.
+	template <typename Served> void ServeUntilExit(HANDLE process, const wchar_t* path, Served served) {
+		for (;;) {
+			const HANDLE waits[] = { process, request };
+			const DWORD woke = WaitForMultipleObjects(view ? 2 : 1, waits, FALSE, INFINITE);
+			if (woke != WAIT_OBJECT_0 + 1) return;
+			served(Serve(process, path));
+		}
 	}
 };
 

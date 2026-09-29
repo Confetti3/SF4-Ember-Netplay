@@ -247,6 +247,10 @@ int main() try {
         "The host's rules are not on the table page, or Apply shows with nothing to apply");
     {
         const auto beforeRules = actions.size();
+        // Stepping a rule and back leaves nothing to apply, since applying clears Ready.
+        focus("rounds"); press(MenuInput::Right); press(MenuInput::Left);
+        Check(std::none_of(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "apply-rules"; }),
+            "Rules stepped back to the table's still offer Apply");
         focus("rounds"); press(MenuInput::Right); focus("time"); press(MenuInput::Left);
         Check(actions.size() == beforeRules, "Changing a rule sent it before Apply");
         focus("apply-rules"); press(MenuInput::Select);

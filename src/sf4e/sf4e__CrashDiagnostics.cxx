@@ -19,7 +19,10 @@
 #include "../common/CrashDump.hxx"
 #include "../common/CrashReport.hxx"
 #include "../common/EnvFlag.hxx"
-#include "sf4e__Platform.hxx"
+
+// sf4e__Platform.hxx, declared here so the crash record builds without the
+// game's headers (HeapCorruptionCaptureTest links it on its own).
+namespace sf4e { namespace Platform { unsigned long long AsyncLogDropped(); } }
 
 namespace {
 
