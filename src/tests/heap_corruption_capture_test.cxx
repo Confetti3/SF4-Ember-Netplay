@@ -94,13 +94,11 @@ DWORD DumpedExceptionCode(const std::wstring& path, ULONGLONG& size) {
 	return code;
 }
 
+// Finished dumps only: names that end in ".dmp".
 size_t CountDumps(const std::wstring& directory) {
 	size_t count = 0;
-	WIN32_FIND_DATAW found;
-	HANDLE search = FindFirstFileW((directory + L"\\*.dmp").c_str(), &found);
-	if (search == INVALID_HANDLE_VALUE) return 0;
-	do ++count; while (FindNextFileW(search, &found));
-	FindClose(search);
+	for (const auto& name : DumpFiles(directory.c_str(), L"*"))
+		if (name.size() > 4 && _wcsicmp(name.c_str() + name.size() - 4, L".dmp") == 0) ++count;
 	return count;
 }
 
@@ -178,6 +176,19 @@ void TestEveryDumpIsKeptAndBadRequestsRefused() {
 	// No such process: the dump fails after its file exists.
 	CHECK(!WriteDump(nullptr, 0xFFFFFFF0u, logs.c_str(), 0, nullptr, false, failed));
 	CHECK(CountDumps(logs) == 2);
+	// A write cut off by a dying launcher leaves only a ".partial", which is
+	// never counted as a dump, even one newer than every finished dump, and
+	// is cleared with the old dumps.
+	{
+		const std::wstring cut = logs + L"\\sf4e-crash-99991231-235959-1.dmp.partial";
+		HANDLE file = CreateFileW(cut.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, 0, nullptr);
+		CHECK(file != INVALID_HANDLE_VALUE);
+		CloseHandle(file);
+		PruneDumps(logs.c_str(), 2);
+		CHECK(CountDumps(logs) == 2 && GetFileAttributesW(paths[2]) != INVALID_FILE_ATTRIBUTES);
+		CHECK(GetFileAttributesW(cut.c_str()) == INVALID_FILE_ATTRIBUTES);
+	}
+	CHECK(DumpFiles(logs.c_str(), L"*.partial").empty());
 
 	DumpChannel channel;
 	CHECK(channel.Create());

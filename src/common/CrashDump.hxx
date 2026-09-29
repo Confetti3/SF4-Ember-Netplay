@@ -47,14 +47,18 @@ constexpr MINIDUMP_TYPE DumpType = MINIDUMP_TYPE(MiniDumpWithIndirectlyReference
 // the logs folder, so a later or failed crash never costs an earlier one.
 constexpr size_t DumpPathSize = MAX_PATH + 64;
 
-// Writes the dump to a new file in `directory`, named into `path`; a dump
-// that cannot be written in full is deleted, and an existing file is never
-// opened. `clientPointers` is true when `pointers` belongs to `process`
-// rather than to the caller. Allocates nothing itself.
+// Writes the dump into `directory` and names the finished file in `path`.
+// The dump is written as "<name>.dmp.partial" and renamed to "<name>.dmp"
+// only once complete, so a ".dmp" is always a whole dump: an interrupted or
+// failed write leaves at most a ".partial", which PruneDumps clears and never
+// counts. No existing file is ever opened or replaced. `clientPointers` is
+// true when `pointers` belongs to `process` rather than to the caller.
+// Allocates nothing itself.
 inline bool WriteDump(HANDLE process, DWORD processId, const wchar_t* directory, DWORD threadId,
 	EXCEPTION_POINTERS* pointers, bool clientPointers, wchar_t (&path)[DumpPathSize]) {
 	SYSTEMTIME now;
 	GetLocalTime(&now);
+	wchar_t partial[DumpPathSize + 8] = {};
 	HANDLE file = INVALID_HANDLE_VALUE;
 	// Two dumps of one process in one second take the next free number.
 	for (int attempt = 0; attempt < 10 && file == INVALID_HANDLE_VALUE; ++attempt) {
@@ -63,31 +67,48 @@ inline bool WriteDump(HANDLE process, DWORD processId, const wchar_t* directory,
 				now.wDay, now.wHour, now.wMinute, now.wSecond, processId) :
 			swprintf_s(path, L"%s\\sf4e-crash-%04u%02u%02u-%02u%02u%02u-%lu-%d.dmp", directory, now.wYear, now.wMonth,
 				now.wDay, now.wHour, now.wMinute, now.wSecond, processId, attempt);
-		if (printed < 0) return false;
-		file = CreateFileW(path, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+		if (printed < 0 || swprintf_s(partial, L"%s.partial", path) < 0) return false;
+		if (GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES) continue;
+		file = CreateFileW(partial, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
 		if (file == INVALID_HANDLE_VALUE && GetLastError() != ERROR_FILE_EXISTS) return false;
 	}
 	if (file == INVALID_HANDLE_VALUE) return false;
 	MINIDUMP_EXCEPTION_INFORMATION exception = { threadId, pointers, clientPointers ? TRUE : FALSE };
 	const BOOL written = MiniDumpWriteDump(process, processId, file, DumpType, pointers ? &exception : nullptr, nullptr, nullptr);
 	CloseHandle(file);
-	if (!written) DeleteFileW(path);
-	return written != FALSE;
+	// No flag: the rename fails rather than replace a file of the same name.
+	if (written && MoveFileExW(partial, path, MOVEFILE_WRITE_THROUGH)) return true;
+	DeleteFileW(partial);
+	path[0] = L'\0';
+	return false;
 }
 
-// Keeps the newest `keep` dumps in `directory`; each is about 5 MB. The
-// names sort by time. Launcher side only: it allocates.
-inline void PruneDumps(const wchar_t* directory, size_t keep) {
+// The files in `directory` matching `pattern`, sorted by name.
+inline std::vector<std::wstring> DumpFiles(const wchar_t* directory, const wchar_t* pattern) {
 	std::vector<std::wstring> names;
 	WIN32_FIND_DATAW found;
-	const std::wstring pattern = std::wstring(directory) + L"\\sf4e-crash-*.dmp";
-	HANDLE search = FindFirstFileW(pattern.c_str(), &found);
-	if (search == INVALID_HANDLE_VALUE) return;
-	do names.push_back(found.cFileName); while (FindNextFileW(search, &found));
+	HANDLE search = FindFirstFileW((std::wstring(directory) + L"\\" + pattern).c_str(), &found);
+	if (search == INVALID_HANDLE_VALUE) return names;
+	do if (!(found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) names.push_back(found.cFileName);
+	while (FindNextFileW(search, &found));
 	FindClose(search);
-	if (names.size() <= keep) return;
 	std::sort(names.begin(), names.end());
-	for (size_t i = 0; i + keep < names.size(); ++i) DeleteFileW((std::wstring(directory) + L"\\" + names[i]).c_str());
+	return names;
+}
+
+// Keeps the newest `keep` finished dumps in `directory` (about 5 MB each;
+// the names sort by time) and clears any unfinished ".partial" left by an
+// interrupted write. Call it once the game has exited. Launcher side only:
+// it allocates.
+inline void PruneDumps(const wchar_t* directory, size_t keep) {
+	for (const auto& name : DumpFiles(directory, L"sf4e-crash-*.dmp.partial"))
+		DeleteFileW((std::wstring(directory) + L"\\" + name).c_str());
+	auto finished = DumpFiles(directory, L"sf4e-crash-*.dmp");
+	// "*.dmp" also matches "*.dmp.partial" under 8.3 names; count only whole dumps.
+	finished.erase(std::remove_if(finished.begin(), finished.end(), [](const std::wstring& name) {
+		return name.size() < 4 || _wcsicmp(name.c_str() + name.size() - 4, L".dmp") != 0;
+	}), finished.end());
+	for (size_t i = 0; i + keep < finished.size(); ++i) DeleteFileW((std::wstring(directory) + L"\\" + finished[i]).c_str());
 }
 
 // The launcher's end: two events and the page that carries the request.

@@ -82,9 +82,10 @@ inline std::string DescribeOpeningFailure(bool hosting, session::FailureStage st
     }
     case session::FailureStage::HostUnreachable: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.host_unreachable");
     case session::FailureStage::ControlLost: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.join_control_lost");
-    case session::FailureStage::InviteExpired: return loc::T("runtime.invite_expired");
-    case session::FailureStage::InviteOtherBuild: return loc::T("runtime.invite_other_build");
-    case session::FailureStage::InviteMalformed: return loc::T("runtime.invite_malformed");
+    // Only a join reads an invitation; a host never hears about one.
+    case session::FailureStage::InviteExpired: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_expired");
+    case session::FailureStage::InviteOtherBuild: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_other_build");
+    case session::FailureStage::InviteMalformed: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_malformed");
     default: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.room_join_failed");
     }
 }

@@ -468,6 +468,12 @@ static uint64_t HashLiveStateForFreeCheck(bool includeKeys) {
 // so a field log shows whether that assumption ever breaks.
 static void NoteUntrackedKeys(const fSystem::SaveState* state, const char* operation) {
     static bool s_noted = false;
+    // It is on in every build, for field logs, so it samples: every load (a
+    // rollback) and one release in 30, each about 90 set lookups.
+    static unsigned s_releases = 0;
+    if (operation[0] == 'r' && ++s_releases % 30 != 0) {
+        return;
+    }
     // Battle close frees every slot while the engine tears its objects down;
     // keys gone then are expected and must not spend the one note.
     if (s_noted || fSystem::simGate.phase == sf4e::gate::PHASE_BATTLE_CLOSING) {
@@ -554,7 +560,7 @@ void fSystem::SaveState::Free(SaveState* victim) {
         }
         diag::G().occupiedSaveSlots.Update(occupied);
     }
-    sf4e::crash::HeapCheckpoint("free", SimulatedFrame());
+    if (sf4e::crash::HeapCheckEnabled()) sf4e::crash::HeapCheckpoint("free", SimulatedFrame());
 }
 
 // v0.8.5 release, kept for SF4E_LEGACY_SAVESTATE_FREE A/B comparison.
@@ -688,7 +694,7 @@ bool fSystem::SaveState::Load(SaveState* src) {
     for (auto iter = tmpVec.begin(); iter != tmpVec.end(); iter++) {
         *iter->first = iter->second;
     }
-    sf4e::crash::HeapCheckpoint("load", src->simulationFrame);
+    if (sf4e::crash::HeapCheckEnabled()) sf4e::crash::HeapCheckpoint("load", src->simulationFrame);
     return !sf4e::Game::MementoFailure::restore;
 }
 
@@ -808,6 +814,6 @@ bool fSystem::SaveState::Save(SaveState* dst, bool temporary) {
     dst->d.BattleFlowCallback_CallEveryFrame_aa9254 = *rSystem::staticVars.BattleFlowCallback_CallEveryFrame_aa9254;
 
     memcpy_s(&dst->d.gameManager, sizeof(GameManager), (system->*rSystem::publicMethods.GetGameManager)(), sizeof(GameManager));
-    if (!temporary) sf4e::crash::HeapCheckpoint("save", SimulatedFrame());
+    if (!temporary && sf4e::crash::HeapCheckEnabled()) sf4e::crash::HeapCheckpoint("save", SimulatedFrame());
     return true;
 }

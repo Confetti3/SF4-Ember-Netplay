@@ -30,6 +30,9 @@ void ConfigureDumpChannel(HANDLE request, HANDLE done, HANDLE mailbox);
 // after which a heap no longer validates. A pass can take milliseconds, so
 // it is for reproducing a corruption, not for play. Game thread only.
 void HeapCheckpoint(const char* operation, int frame);
+// True when SF4E_HEAP_CHECK is set, so a caller can skip gathering what
+// HeapCheckpoint would log.
+bool HeapCheckEnabled();
 
 // GGPO's assertion handler: records the message, then GGPO exits.
 void OnGgpoAssertion(const char* message);

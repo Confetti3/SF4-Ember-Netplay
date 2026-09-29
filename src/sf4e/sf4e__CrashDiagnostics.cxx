@@ -256,6 +256,10 @@ void OnGgpoAssertion(const char* message) {
 	WriteRecord("ggpo_assertion", nullptr, message);
 }
 
+bool HeapCheckEnabled() {
+	return HeapCheckState().interval != 0;
+}
+
 void HeapCheckpoint(const char* operation, int frame) {
 	CheckHeaps(operation, frame, false);
 }
