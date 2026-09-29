@@ -91,6 +91,11 @@ sf4e::crash::CrashFacts FactsFor(const char* kind, EXCEPTION_POINTERS* pointers,
 
 void WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* message) {
 	if (s_recording.exchange(true)) return;
+	// With the heap corrupt, anything that allocates may fault again and end
+	// the process before the dump, so ask the launcher for it first; the
+	// request allocates nothing.
+	const bool heapCorrupt = sf4e::crash::IsHeapCorruption(pointers);
+	const bool dumped = heapCorrupt && s_dumpClient.Request(pointers);
 	const sf4e::crash::CrashFacts facts = FactsFor(kind, pointers, message);
 	const size_t headerLength = sf4e::crash::FormatCrashHeader(s_header, sizeof(s_header), facts);
 	HANDLE file = CreateFileW(s_recordPath, FILE_APPEND_DATA, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -99,7 +104,7 @@ void WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 	// a moment, then take the ring, which now also carries this line. After
 	// heap corruption the worker may be stuck on the heap, and a flush could
 	// wait for it forever, so the ring is taken as it stands.
-	if (!sf4e::crash::IsHeapCorruption(pointers)) {
+	if (!heapCorrupt) {
 		spdlog::critical("Crash: {:.{}}", s_header, headerLength ? headerLength - 1 : 0); // without the newline
 		spdlog::default_logger()->flush();
 		Sleep(250);
@@ -112,8 +117,8 @@ void WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 		});
 		CloseHandle(file);
 	}
-	if (!pointers) return;
-	if (s_dumpClient.Request(pointers)) return;
+	if (!pointers || dumped) return;
+	if (!heapCorrupt && s_dumpClient.Request(pointers)) return;
 	sf4e::crash::WriteDump(GetCurrentProcess(), GetCurrentProcessId(), s_dumpPath, GetCurrentThreadId(), pointers, false);
 }
 

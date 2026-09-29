@@ -27,11 +27,14 @@ HANDLE HandleArgument(const char* text) {
 	return reinterpret_cast<HANDLE>(static_cast<uintptr_t>(strtoull(text, nullptr, 16)));
 }
 
+// "private" corrupts a heap of its own; "process" corrupts the process heap,
+// the CRT heap the game shares, where anything that allocates after the
+// corruption may fault again.
 int RunChild(char** argv) {
-	if (!s_client.Configure(HandleArgument(argv[2]), HandleArgument(argv[3]), HandleArgument(argv[4]))) return 70;
+	if (!s_client.Configure(HandleArgument(argv[3]), HandleArgument(argv[4]), HandleArgument(argv[5]))) return 70;
 	AddVectoredExceptionHandler(1, OnVectoredException);
 	HeapSetInformation(nullptr, HeapEnableTerminationOnCorruption, nullptr, 0);
-	HANDLE heap = HeapCreate(0, 0, 0);
+	HANDLE heap = std::string(argv[2]) == "process" ? GetProcessHeap() : HeapCreate(0, 0, 0);
 	if (!heap) return 71;
 	// A double free is the usual shape of the game's crash. If this heap
 	// tolerates it, smash the next block's header as well.
@@ -73,13 +76,13 @@ DWORD DumpedExceptionCode(const std::wstring& path, ULONGLONG& size) {
 	return code;
 }
 
-void TestLauncherWritesTheDumpOfAHeapCorruption() {
+void TestLauncherWritesTheDumpOfAHeapCorruption(const wchar_t* heap) {
 	DumpChannel channel;
 	CHECK(channel.Create(true));
 	wchar_t self[MAX_PATH] = {};
 	GetModuleFileNameW(nullptr, self, MAX_PATH);
 	wchar_t command[1024] = {};
-	swprintf_s(command, L"\"%s\" child %p %p %p", self, channel.request, channel.done, channel.mailbox);
+	swprintf_s(command, L"\"%s\" child %s %p %p %p", self, heap, channel.request, channel.done, channel.mailbox);
 	STARTUPINFOW startup = { sizeof(startup) };
 	PROCESS_INFORMATION process = {};
 	// No Windows Error Reporting dialog for the child's deliberate crash.
@@ -107,7 +110,7 @@ void TestLauncherWritesTheDumpOfAHeapCorruption() {
 	CHECK(served == 1);
 	ULONGLONG size = 0;
 	CHECK(DumpedExceptionCode(path, size) == HeapCorruptionCode);
-	std::printf("heap_corruption_capture_test: dump is %llu KB\n", size / 1024);
+	std::printf("heap_corruption_capture_test: %ls heap dump is %llu KB\n", heap, size / 1024);
 	// MiniDumpNormal gave about 64 KB, too little to follow a corruption.
 	CHECK(size > 64 * 1024);
 	DeleteFileW(path.c_str());
@@ -124,9 +127,10 @@ void TestClientWithoutChannelDeclines() {
 } // namespace
 
 int main(int argc, char** argv) {
-	if (argc == 5 && std::string(argv[1]) == "child") return RunChild(argv);
+	if (argc == 6 && std::string(argv[1]) == "child") return RunChild(argv);
 	TestClientWithoutChannelDeclines();
-	TestLauncherWritesTheDumpOfAHeapCorruption();
+	TestLauncherWritesTheDumpOfAHeapCorruption(L"private");
+	TestLauncherWritesTheDumpOfAHeapCorruption(L"process");
 	std::printf("heap_corruption_capture_test: all tests passed\n");
 	return 0;
 }

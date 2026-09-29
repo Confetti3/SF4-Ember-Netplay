@@ -468,7 +468,9 @@ static uint64_t HashLiveStateForFreeCheck(bool includeKeys) {
 // so a field log shows whether that assumption ever breaks.
 static void NoteUntrackedKeys(const fSystem::SaveState* state, const char* operation) {
     static bool s_noted = false;
-    if (s_noted) {
+    // Battle close frees every slot while the engine tears its objects down;
+    // keys gone then are expected and must not spend the one note.
+    if (s_noted || fSystem::simGate.phase == sf4e::gate::PHASE_BATTLE_CLOSING) {
         return;
     }
     size_t untracked = 0;
