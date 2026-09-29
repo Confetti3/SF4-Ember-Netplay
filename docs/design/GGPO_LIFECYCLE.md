@@ -141,7 +141,7 @@ Notes:
   restore would leak playback mode (Phase 2 hardens this).
 - The advance-frame callback ignores its frame argument; the save callback ignores
   its frame argument (Phase 6 will store it). Exact rollback origin/destination is
-  **not observable** through the callback interface — only the consecutive
+  **not observable** through the callback interface; only the consecutive
   rollback-callback burst length is (a proxy).
 
 ## Save/load/free state ownership
@@ -155,14 +155,14 @@ Notes:
   copied into `dst->keys` and the live key zeroed (otherwise engine
   reinitialization would free the saved payload). Sound adapter metadata and
   pool state are copied into pointer-keyed maps; battle-flow globals and the
-  `GameManager` block are memcpy'd (shallow — contains pointers).
+  `GameManager` block are memcpy'd (shallow, contains pointers).
 - `SaveState::Load`: backs up all currently-tracked live keys into a temporary
   vector (fresh allocation per load), installs the source state's keys
   (`CopyIntoPlace` → `RestoreAllFromInternalMementos`), zeroes injected keys,
   restores the live keys. Also clears `queuedStops` (abandoned timeline).
 - `SaveState::Free`: saves the *live* timeline into a fresh temporary `SaveState`,
   installs the victim so each `GameMementoKey`'s mementoable pointer is valid,
-  `ClearKey`s the victim's keys (delegates to the engine object — this is why the
+  `ClearKey`s the victim's keys (delegates to the engine object, which is why the
   victim must be installed), then restores the live timeline. Two full
   `CopyIntoPlace` round-trips + one full `Save` per freed state, all on the main
   thread, inside GGPO's `free_buffer` callback (which fires during
@@ -171,13 +171,13 @@ Notes:
 ## `ggpo_idle` (fork evidence, Phase 3 input)
 
 `ggpo_idle(session, timeout)` → `Peer2PeerBackend::DoPoll(timeout)`:
-- `_poll.Pump(0)` — nonblocking (`WaitForMultipleObjects` timeout 0; the UDP
+- `_poll.Pump(0)`: nonblocking (`WaitForMultipleObjects` timeout 0; the UDP
   socket is nonblocking (`FIONBIO`) and registered as a *loop* sink, so reads
   happen in `OnLoopPoll` regardless of the wait).
 - After the pump, when not synchronizing and not in rollback:
-  `if (timeout) { Sleep(1); }` — annotated `// XXX: this is obviously a farce...`
+  `if (timeout) { Sleep(1); }`, annotated `// XXX: this is obviously a farce...`
   in the fork. So the current `ggpo_idle(ggpo, 1)` in `Steam_PostUpdate` is an
-  **unconditional Sleep(1) every outer tick during a match** — 1–15.6 ms
+  **unconditional Sleep(1) every outer tick during a match**: 1-15.6 ms
   depending on timer resolution. `ggpo_idle(ggpo, 0)` performs the identical
   pump work without the sleep.
 
@@ -191,7 +191,7 @@ Notes:
   never sum).
 - Events fire at most once per `RECOMMENDATION_INTERVAL` = 240 frames (~4 s).
 - Current handler: `Sleep(1000 * frames_ahead / 60)` inside the `on_event`
-  callback — a 50–150 ms hard stall in the middle of `DoPoll`, i.e. inside the
+  callback, a 50-150 ms hard stall in the middle of `DoPoll`, i.e. inside the
   outer frame.
 
 ## GGPO error codes reachable from our call sites (Phase 2 input)
@@ -211,11 +211,11 @@ From the fork: `AddLocalInput` → `NOT_SYNCHRONIZED` (during sync/rollback... v
 | `AbortGgpoMatch` | false | terminal failure |
 | `StartGGPO` / `StartSpectating` | false | gate until RUNNING |
 | `ggpo_on_event_callback` RUNNING | true | sync complete |
-| `ggpo_on_event_callback` CONNECTION_INTERRUPTED | false (saves prior into `s_updateAllowedBeforeGgpoInterrupt`) | temp warning — freezes sim |
+| `ggpo_on_event_callback` CONNECTION_INTERRUPTED | false (saves prior into `s_updateAllowedBeforeGgpoInterrupt`) | temp warning that freezes sim |
 | `ggpo_on_event_callback` CONNECTION_RESUMED | restores saved bool | unsafe if another gate reason changed it meanwhile |
 | `NetplayFacade::HandleNetplayFailure` | false | room failure |
 | `fUserApp::TryRestartGgpoLegacyTunnel` | false | legacy tunnel restart |
-| Overlay dev panel (`Overlay.cxx:1940–1950`) | true/false | manual pause / step |
+| Overlay dev panel (`Overlay.cxx:1940-1950`) | true/false | manual pause / step |
 
 This single boolean currently conflates: startup gating, debug pause, connection
 warning, terminal failure, and room failure. Phase 2 replaces it with an explicit
@@ -229,7 +229,7 @@ gate model.
 - `fUserApp::_OnVsBattleTasksRegistered` (before UDP registration rebind)
 - `fUserApp::TryRestartGgpoLegacyTunnel`
 - `NetplayFacade::TickFrame` (deferred spectator close)
-- `NetplayFacade::ShutdownNetplay(closeGgpo=true)` — reached from
+- `NetplayFacade::ShutdownNetplay(closeGgpo=true)`: reached from
   `HandleNetplayFailure`, i.e. **room/control-plane loss closes a healthy GGPO
   session today** (Phase 7 target). Also `SessionClient` connection-state change
   while in-match triggers the same path.
@@ -247,21 +247,21 @@ gate model.
 ## Snapshot (“desync detection v1”) semantics
 
 `CaptureSnapshot` records selected character state every 60 simulated frames
-(also from rollback resim — re-captures overwrite by frame index). Snapshots are
+(also from rollback resim; re-captures overwrite by frame index). Snapshots are
 sent by `SessionClient::Step` only once they are 60+ frames old (proxy for
 "non-speculative"; **not** GGPO-confirmed). Comparison is raw `memcmp` of the
 reconstructed struct; mismatch sets `RS_ISLEAVING` (ends the match) on whichever
 peer detects it. `StateSnapshotMeta.confirmed` means "peer compared", not GGPO
 frame confirmation. The room server forwards snapshots to **all** other clients,
 including spectators; a spectator currently cannot send snapshots
-(`_snapshotsEnabled` is only set on the joining path — both players and
+(`_snapshotsEnabled` is only set on the joining path; both players and
 spectators connect the same way, so spectator mismatch policy must be addressed
 in Phase 6).
 
 ## Match close / rematch / spectator defer
 
 `CloseBattle` → `NotifyMatchEnded` (decides spectator defer *before* close) →
-close session unless deferred (120 s window) → free all used save states →
+close session unless deferred (10 s window) → free all used save states →
 original `CloseBattle`. Rematch: lobby `LobbyReset` → new ready cycle → new
 `StartGGPO` (closes any leftover session first, `CancelDeferredGgpoClose`).
 Training rooms are ordinary VS battles with rounds=99 / huge time limit.

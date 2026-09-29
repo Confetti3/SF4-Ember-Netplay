@@ -11,4 +11,21 @@ void SetOverlayCursorOwnership(bool capture);
 // the pads to the game.
 LRESULT HandleOverlayMessage(HWND window, UINT message, WPARAM w, LPARAM l,
                              bool capture, bool menuAvailable, bool pointer = false);
+
+// The click that brings an inactive window forward is only a request to
+// focus it. The shell stays drawn while the game is behind another window, so
+// that click would land on whatever row lies under the pointer. Windows sends
+// WM_MOUSEACTIVATE, naming the button message that follows, only for a click
+// that activates; this swallows that press and its release and nothing else, so
+// returning by keyboard costs the player no click.
+class ActivationClickFilter {
+public:
+    // True for the press or release the caller must not deliver to the overlay.
+    bool Swallow(UINT message, LPARAM l);
+    // Forget a pending activation, when the window loses activation again.
+    void Reset() { down_ = up_ = 0; }
+private:
+    UINT down_ = 0;  // the button-down message awaited after WM_MOUSEACTIVATE
+    UINT up_ = 0;    // the matching button-up, once the press was swallowed
+};
 } }

@@ -495,7 +495,7 @@ case as passed.
 | Fresh helper admission and rejection of retired incarnations | `IrohRoomIntegrationTest`, `RoomAuthorityTest`, and Rust admission/history regressions |
 | Result deadline suspension/rebasing and native ownership beyond 30/120 seconds | `SessionServerTransportTest`, `NativeRepairTimingTest`, and `IrohAuthorizedMatchTest` |
 | Chunk credit, retained completed transfers, and duplicate terminal backpressure | `CheckpointTransferTest`, Rust transfer regressions, and `IrohRoomIntegrationTest --queue-acks` |
-| Measured probe connection upgraded for gameplay; explicit Apply and manual Ready | `IrohAuthorizedMatchTest`, `RoomPanelNavigationTest`, and `UiRenderTest` |
+| Gameplay dials its own connection after a connection check; explicit Apply and manual Ready | `IrohAuthorizedMatchTest`, `RoomPanelNavigationTest`, and `UiRenderTest` |
 | Four tables, spectators, and repeated rematches | `CustomRoomGameTest` and `CustomRoomGameTest --single-table` |
 
 The current focused renderer passed 5,904 DX9 frames across all ten existing

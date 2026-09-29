@@ -34,9 +34,13 @@ use tokio::sync::Mutex;
 
 pub const MAX_CHECKPOINT: usize = 1024 * 1024;
 pub const MAX_MEMBERS: usize = 16;
-/// Exact applied-membership provenance: 128 retired process incarnations plus
-/// the maximum 16 live room members. Admission fails closed once saturated.
+/// Applied-membership provenance: at most 128 retired process incarnations
+/// plus the maximum 16 live room members. The state machine keeps the most
+/// recent `RETAINED_RETIRED_MEMBER_HISTORY` departures and drops older ones as
+/// new ones apply, so a long-lived room never saturates; the admission checks
+/// against the full bound remain as a fail-closed backstop.
 pub const MAX_RETIRED_MEMBER_HISTORY: usize = 128;
+pub const RETAINED_RETIRED_MEMBER_HISTORY: usize = MAX_RETIRED_MEMBER_HISTORY - 1;
 pub const MAX_MEMBER_HISTORY: usize = MAX_RETIRED_MEMBER_HISTORY + MAX_MEMBERS;
 pub const MAX_SNAPSHOT: usize = MAX_CHECKPOINT * 6 + 65536;
 pub const SNAPSHOT_FRAGMENT_BYTES: usize = 16 * 1024;
@@ -249,10 +253,49 @@ struct Machine {
     /// remove entry even if no actor tick observed the intermediate state.
     #[serde(default)]
     member_history: BTreeSet<u64>,
+    /// The departed members of `member_history`, oldest departure first: the
+    /// order they left the applied membership. Eviction drops from the front,
+    /// so the newest departures are the ones kept, and a member that is still
+    /// live, or that just left, is never dropped for an older departure.
+    /// Members of `member_history` missing from this list were live in the
+    /// last applied membership. A snapshot without the field lists none as
+    /// departed, so `remember_members` treats all of them as leaving at the
+    /// next membership, in ascending incarnation order.
+    #[serde(default)]
+    departed_order: Vec<u64>,
     committed: Committed,
     recent: Vec<(String, [u8; 32], Receipt)>,
     #[serde(default)]
     probes: Vec<ProbeReservation>,
+}
+impl Machine {
+    /// Apply a new membership to the history. Incarnations of the previous
+    /// membership that it no longer contains join the departed order, then the
+    /// oldest departures beyond the retained window are dropped. The current
+    /// members are never dropped. This runs on every replica in log order, so
+    /// all of them keep the same window.
+    fn remember_members(&mut self, live: &BTreeSet<u64>) {
+        // Keep only listed departures that are still remembered, once each,
+        // and forget one that is live again.
+        let mut listed = BTreeSet::new();
+        let history = &self.member_history;
+        self.departed_order
+            .retain(|id| history.contains(id) && !live.contains(id) && listed.insert(*id));
+        // Whatever is not listed as departed was live until now.
+        for id in &self.member_history {
+            if !live.contains(id) && listed.insert(*id) {
+                self.departed_order.push(*id);
+            }
+        }
+        self.member_history.extend(live.iter().copied());
+        let excess = self
+            .departed_order
+            .len()
+            .saturating_sub(RETAINED_RETIRED_MEMBER_HISTORY);
+        for id in self.departed_order.drain(..excess) {
+            self.member_history.remove(&id);
+        }
+    }
 }
 #[derive(Default)]
 struct Memory {
@@ -613,9 +656,8 @@ impl RaftStorage<RoomTypes> for Store {
             match &entry.payload {
                 EntryPayload::Blank => {}
                 EntryPayload::Membership(membership) => {
-                    machine
-                        .member_history
-                        .extend(membership.nodes().map(|(id, _)| *id));
+                    let live: BTreeSet<u64> = membership.nodes().map(|(id, _)| *id).collect();
+                    machine.remember_members(&live);
                     machine.membership =
                         StoredMembership::new(Some(entry.log_id), membership.clone());
                 }
@@ -730,6 +772,11 @@ impl RaftStorage<RoomTypes> for Store {
             || machine.probes.len() > MAX_MEMBERS
             || machine.membership.nodes().count() > MAX_MEMBERS
             || machine.member_history.len() > MAX_MEMBER_HISTORY
+            || machine.departed_order.len() > MAX_RETIRED_MEMBER_HISTORY
+            || machine
+                .departed_order
+                .iter()
+                .any(|id| !machine.member_history.contains(id))
             || machine.member_history.contains(&0)
             || machine.recent.iter().any(|(id, _, receipt)| {
                 id.is_empty()

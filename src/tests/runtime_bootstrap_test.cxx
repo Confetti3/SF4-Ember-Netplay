@@ -1,6 +1,7 @@
 #include "../sf4e/sf4e.hxx"
 #include "../sf4e/sf4e__NetplayFacade.hxx"
 #include "../Dimps/Dimps.hxx"
+#include "../common/Localization.hxx"
 #include <cstdlib>
 #include <iostream>
 #include <type_traits>
@@ -45,6 +46,20 @@ int wmain(int argc, wchar_t** argv) {
 	CHECK(!NetplayFacade::GetRuntimeSnapshot().atMainMenu);
 	auto snapshot = NetplayFacade::GetRuntimeSnapshot();
 	CHECK(!snapshot.helperReady && !snapshot.helperError.empty());
+	// What the runtime says is worded when it is published: an unassigned device,
+	// the helper failure and the Discord status follow the active language, also
+	// when the language is chosen after they were raised.
+	CHECK(snapshot.controller == loc::T("controller.none"));
+	CHECK(snapshot.helperError == loc::Tf("runtime.network_helper_unavailable", ERROR_FILE_NOT_FOUND));
+	CHECK(snapshot.discordStatus == loc::T("discord.unavailable_gameplay_ok"));
+	loc::SetActive(loc::Locale::Fr);
+	NetplayFacade::TickRuntime();
+	auto french = NetplayFacade::GetRuntimeSnapshot();
+	CHECK(french.controller == loc::T("controller.none") && french.controller != snapshot.controller);
+	CHECK(french.helperError == loc::Tf("runtime.network_helper_unavailable", ERROR_FILE_NOT_FOUND) && french.helperError != snapshot.helperError);
+	CHECK(french.discordStatus == loc::T("discord.unavailable_gameplay_ok") && french.discordStatus != snapshot.discordStatus);
+	loc::SetActive(loc::Locale::En);
+	NetplayFacade::TickRuntime();
 	CHECK(!snapshot.canEditPreferences && !snapshot.canEditLobby);
 	// Exercise the real UI-to-runtime admission seam: these commands have
 	// handlers, even though the session controller rejects them outside a room.

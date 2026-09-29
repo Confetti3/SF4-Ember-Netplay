@@ -48,8 +48,8 @@ msgstr "Actualizando sala. Aún puedes cancelar."
 msgid "launcher.update_failed"
 msgstr "No se pudo instalar la actualización. Cierra el juego y el iniciador anterior antes de volver a intentarlo. Consulta %TEMP%\\sf4-netplay-update.log; las copias conservadas están en .ember-update-backups."
 
-msgid "launcher.recovery_title"
-msgstr "Recuperar inicio"
+msgid "launcher.recovery_opened"
+msgstr "La red no estaba disponible, así que SF4 se cerró para la recuperación. Reintentar lo abre de nuevo; el juego sin conexión funciona sin red."
 
 msgid "launcher.path_failed"
 msgstr "No se pudo configurar la ruta de búsqueda de bibliotecas. Extrae el paquete completo en una carpeta con permisos de escritura."
@@ -67,16 +67,16 @@ msgid "launcher.already_running"
 msgstr "SF4 Ember Netplay ya se está ejecutando. Si no lo ves, cierra Launcher.exe y SSFIV.exe en el Administrador de tareas y vuelve a iniciar Ember."
 
 msgid "launcher.start_failed"
-msgstr "Falló el inicio o la inyección. Consulta el registro del lanzador y reintenta."
+msgstr "Falló el inicio o la inyección. Consulta el registro del lanzador en %APPDATA%\\sf4e\\logs\\launcher.log y reintenta."
 
 msgid "launcher.game_error"
-msgstr "El juego se cerró con un error. Consulta el registro del lanzador y vuelve a intentarlo."
+msgstr "El juego se cerró con un error. Consulta el registro del lanzador en %APPDATA%\\sf4e\\logs\\launcher.log y vuelve a intentarlo."
 
 msgid "launcher.runtime_shadowed"
 msgstr "El juego cargaría estos archivos en vez de los de la carpeta de Ember, y una copia antigua impediría que arrancase (\"entry point ggpo_get_last_confirmed_frame not found\"). Proceden de otro mod de netplay o de una instalación anterior. Muévelos o cámbiales el nombre y vuelve a iniciar Ember:\n\n{0}"
 
 msgid "launcher.game_wrong_dll"
-msgstr "El juego se cerró antes de iniciar Ember porque falta una función en una DLL cargada. Suele ocurrir si hay un GGPO.dll, spdlog.dll, fmt.dll o zlib1.dll de otro mod o de una instalación anterior junto a SSFIV.exe. Retira los que encuentres y vuelve a intentarlo. Si no hay ninguno, envía el registro del lanzador."
+msgstr "El juego se cerró antes de iniciar Ember porque falta una función en una DLL cargada. Suele ocurrir si hay un GGPO.dll, spdlog.dll, fmt.dll o zlib1.dll de otro mod o de una instalación anterior junto a SSFIV.exe. Retira los que encuentres y vuelve a intentarlo. Si no hay ninguno, envía el registro del lanzador (%APPDATA%\\sf4e\\logs\\launcher.log)."
 
 msgid "recovery.window"
 msgstr "Recuperación Ember"
@@ -140,6 +140,15 @@ msgstr "Cancela la descarga o búsqueda actual. Espera a que termine antes de vo
 
 msgid "recovery.close_detail"
 msgstr "Cierra la recuperación sin iniciar SF4. Se cancelarán las operaciones en curso."
+
+msgid "updates.close_detail"
+msgstr "Cierra el actualizador sin iniciar SF4. Se cancelarán las operaciones en curso."
+
+msgid "updates.start_game"
+msgstr "Iniciar SF4"
+
+msgid "updates.start_game_detail"
+msgstr "Cierra el actualizador e inicia SF4 con Ember."
 
 msgid "recovery.close_cancels_detail"
 msgstr "Cerrar ahora cancela la operación en curso."
@@ -217,7 +226,7 @@ msgid "settings.language.detail"
 msgstr "Elige para ver la lista, o cambia con Izquierda/Derecha. Automático sigue el idioma del juego y después el de Windows."
 
 msgid "settings.language.system_with"
-msgstr "Automático — {0}"
+msgstr "Automático: {0}"
 
 msgid "settings.language_save_failed"
 msgstr "No se pudo guardar el idioma. Seguirá activo durante esta sesión."
@@ -460,7 +469,7 @@ msgid "home.return_room"
 msgstr "Vuelve a tu sala actual."
 
 msgid "home.fighter_select"
-msgstr "Elegir personaje"
+msgstr "Selección de personaje"
 
 msgid "home.selection_locked"
 msgstr "Vuelve a tu mesa para ver el estado actual de la selección."
@@ -475,7 +484,7 @@ msgid "home.settings"
 msgstr "Ajustes"
 
 msgid "home.settings_detail"
-msgstr "Jugador, mando, ajustes de juego, interfaz y Discord."
+msgstr "Jugador, mando, ajustes de juego, interfaz, idioma y Discord."
 
 msgid "home.about"
 msgstr "Ayuda / info"
@@ -604,7 +613,7 @@ msgid "settings.interface"
 msgstr "Interfaz"
 
 msgid "settings.interface_detail"
-msgstr "HUD discreto y tamaño de la interfaz."
+msgstr "Idioma, HUD partida y tamaño de la interfaz."
 
 msgid "settings.discord_detail"
 msgstr "Actividad e invitaciones."
@@ -622,7 +631,7 @@ msgid "player.use_keyboard"
 msgstr "Usar teclado"
 
 msgid "player.use_keyboard_detail"
-msgstr "Asigna el teclado de forma explícita."
+msgstr "Asigna el teclado como dispositivo de juego. Tu mando dejará de mover los menús de Ember hasta que lo asignes de nuevo."
 
 msgid "player.native_menus"
 msgstr "Abrir menús nativos"
@@ -712,7 +721,7 @@ msgid "about.controls"
 msgstr "Controles"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A selecciona y B vuelve, con independencia de los botones de combate. DirectInput: LP asignado selecciona y LK vuelve. D-pad desplaza; Izquierda/Derecha ajusta. En entrenamiento se usan teclado y ratón: F6 abre o cierra, las flechas navegan, Enter selecciona y Escape vuelve. Start solo abre la pausa original en entrenamiento. F10 abre Ember en el menú principal; F5-F8 son atajos de entrenamiento."
+msgstr "Mando Xbox: A selecciona y B vuelve, con independencia de los botones de combate. Otros mandos: el LP asignado selecciona y el LK vuelve. Teclado: flechas, Enter y Escape. El D-pad desplaza; Izquierda y Derecha cambian un valor. Atrás en Inicio oculta Ember. F10, o Start en el mando, lo abre de nuevo en el menú principal del juego.\n\nEn una sala, A en una mesa permite elegir asiento, A en tu propio asiento marca Listo y B deja tu asiento o tu puesto en la cola. En un mando Xbox, X abre Luchador, Y abre Opciones y View abre Chat; púlsalo otra vez para volver a la sala.\n\nEn entrenamiento, F6 abre los controles, F5 oculta el HUD, F7 graba y F8 reproduce."
 
 msgid "about.ember"
 msgstr "Acerca de Ember"
@@ -810,11 +819,26 @@ msgstr "Mesa cerrada"
 msgid "controller.disconnected"
 msgstr "Mando desconectado. Reconéctalo o asigna otro."
 
+msgid "controller.none"
+msgstr "Elige un dispositivo de juego"
+
+msgid "controller.keyboard"
+msgstr "Teclado"
+
+msgid "controller.numbered"
+msgstr "Mando {0}"
+
+msgid "controller.disconnected_name"
+msgstr "{0} (desconectado)"
+
 msgid "room.control_unavailable"
 msgstr "Control de sala no disponible. Sustituye la sala cuando acabe la partida."
 
 msgid "room.control_recovering"
 msgstr "Recuperando el control de sala. Acciones en pausa."
+
+msgid "room.catching_up"
+msgstr "La sala aún se está poniendo al día en este PC. Acciones en pausa."
 
 msgid "settings.preview"
 msgstr "Previa"
@@ -1104,6 +1128,9 @@ msgstr "Elige la fase."
 msgid "selection.select_saves"
 msgstr "Seleccionar guarda la elección. Atrás vuelve sin cambiar la vista previa resaltada."
 
+msgid "selection.adjust_saves"
+msgstr "Izquierda y Derecha lo cambian y se guarda al instante."
+
 msgid "selection.locked_detail"
 msgstr "Selección bloqueada. Vuelve a tu mesa para ver el estado."
 
@@ -1248,6 +1275,12 @@ msgstr "Vista previa: pulsa Seleccionar para guardar"
 msgid "selection.status_editable"
 msgstr "Seleccionar guarda / Atrás vuelve un nivel."
 
+msgid "selection.status_browse"
+msgstr "Seleccionar abre / Atrás vuelve un nivel."
+
+msgid "selection.status_adjust"
+msgstr "Izquierda/Derecha guarda / Atrás vuelve un nivel."
+
 msgid "selection.status_locked"
 msgstr "Selección bloqueada: vuelve a tu mesa."
 
@@ -1280,6 +1313,8 @@ msgstr "La selección no está disponible con estas reglas. Abre Selección de p
 
 msgid "runtime.open_shortcut"
 msgstr "SF4 Ember Netplay  /  F10 o Start"
+msgid "runtime.return_menu_to_join"
+msgstr "Vuelve al menú principal para unirte a la partida."
 
 msgid "runtime.waiting_opponent_join"
 msgstr "Esperando al rival en el punto de encuentro..."
@@ -1384,7 +1419,7 @@ msgid "update.extract_folder_failed"
 msgstr "No se pudo crear la carpeta de extracción ({0})."
 
 msgid "update.download_failed"
-msgstr "Falló la descarga ({0}). Descarga manual: {1} — detalles en %TEMP%\\sf4-netplay-update.log"
+msgstr "Falló la descarga ({0}). Descarga manual: {1} (detalles en %TEMP%\\sf4-netplay-update.log)"
 
 msgid "update.verify_failed"
 msgstr "No se pudo verificar la descarga. Inténtalo de nuevo."
@@ -1522,7 +1557,7 @@ msgid "room.change_fighter"
 msgstr "Cambiar personaje"
 
 msgid "room.settings"
-msgstr "Ajustes de sala"
+msgstr "Ajustes de la sala"
 
 msgid "room.settings.detail"
 msgstr "Nombre, capacidad y admisión de la sala."
@@ -1541,12 +1576,6 @@ msgstr "La sala aún no se ha abierto. Comprueba tu conexión o cancela y vuelve
 
 msgid "room.waiting_state"
 msgstr "Esperando el estado de sala."
-
-msgid "room.ready"
-msgstr "Listo"
-
-msgid "room.ready.saved_fighter"
-msgstr "Usa tu personaje guardado."
 
 msgid "room.copy_invitation"
 msgstr "Copiar invitación"
@@ -1653,9 +1682,6 @@ msgstr "Esperando a que otro jugador ocupe el asiento libre. Mientras tanto, pue
 msgid "room.controller_required"
 msgstr "Asigna o reconecta el mando en Ajustes > Jugador y mando."
 
-msgid "room.waiting_update"
-msgstr "Esperando que termine la actualización actual de la sala."
-
 msgid "room.ready.cancel_detail"
 msgstr "Estás LISTO. Selecciona para cancelar Listo y luego elige Cambiar personaje."
 
@@ -1669,13 +1695,16 @@ msgid "room.both_ready"
 msgstr "Ambos jugadores están listos. La partida va a comenzar."
 
 msgid "room.waiting_spectators"
-msgstr "Ambos jugadores están listos. La partida empieza cuando vuelvan los espectadores fijados, o en 10 segundos."
+msgstr "Ambos jugadores están listos. La partida empieza cuando vuelvan los espectadores fijados, o en {0} segundos."
 
 msgid "room.match_in_progress.detail"
 msgstr "La partida actual está en curso. Espera a que termine."
 
 msgid "room.unready"
 msgstr "Cancelar Listo / liberar"
+
+msgid "room.cancel_start"
+msgstr "Cancelar el inicio"
 
 msgid "room.readying"
 msgstr "Preparándose..."
@@ -1755,6 +1784,21 @@ msgstr "Libera tu asiento."
 msgid "room.leave_seat.next_player"
 msgstr "Libera tu asiento. El siguiente jugador de la cola lo ocupará."
 
+msgid "room.leave_seat.unready_first"
+msgstr "Cancela Listo primero y luego deja el asiento."
+
+msgid "room.leave_seat.keep"
+msgstr "Mantener el asiento."
+
+msgid "room.leave_seat.costs_score"
+msgstr "Al irte termina tu serie y el marcador se reinicia ({0})."
+
+msgid "room.leave_seat.hands_over"
+msgstr "El siguiente jugador de la cola ocupará tu asiento."
+
+msgid "room.cancel_stuck.in_progress"
+msgstr "Hay una partida en curso. Se habilita tras {0} minutos sin resultado."
+
 msgid "room.abandon_result"
 msgstr "Abandonar partida pendiente"
 
@@ -1783,13 +1827,13 @@ msgid "room.lock_spectating"
 msgstr "Fijar para ver"
 
 msgid "room.lock_spectating.detail"
-msgstr "La próxima partida te espera hasta 10 segundos mientras vuelves a la sala."
+msgstr "La próxima partida te espera hasta {0} segundos mientras vuelves a la sala."
 
 msgid "room.unlock_spectating"
 msgstr "Quitar fijación"
 
 msgid "room.unlock_spectating.detail"
-msgstr "Estás fijado. La próxima partida te espera hasta 10 segundos."
+msgstr "Estás fijado. La próxima partida te espera hasta {0} segundos."
 
 msgid "room.table_rules"
 msgstr "Reglas"
@@ -1959,9 +2003,6 @@ msgstr "Cancelar edición"
 msgid "edit.bytes"
 msgstr "{0} / {1} bytes"
 
-msgid "discord.unavailable_build"
-msgstr "La integración con Discord no está disponible en esta versión."
-
 msgid "runtime.record_invalid"
 msgstr "El registro local de partidas no es válido y se ha conservado. El seguimiento no está disponible."
 
@@ -1985,6 +2026,9 @@ msgstr "Discord no está disponible. El juego no se ve afectado."
 
 msgid "runtime.gameplay_device_disconnected"
 msgstr "El mando de juego se ha desconectado. Reconéctalo antes de la próxima partida."
+
+msgid "runtime.match_input_blocked"
+msgstr "Entrada de la partida bloqueada: reconecta {0}. Si ha cambiado de posición, vuelve a la sala para reasignarlo."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "No se pudo verificar la asignación del mando para la partida. Vuelve a asignarlo antes de intentarlo de nuevo."
@@ -2151,15 +2195,6 @@ msgstr "Esperando a que termine tu solicitud de Listo."
 msgid "runtime.lock.selection_update"
 msgstr "Esperando a que termine la actualización de partida o selección."
 
-msgid "runtime.lock.return_to_menu_ready"
-msgstr "Vuelve al menú principal original antes de marcar Listo."
-
-msgid "runtime.lock.table_settings"
-msgstr "Esperando a que se apliquen las reglas de mesa."
-
-msgid "runtime.lock.room_update"
-msgstr "Esperando la actualización de sala o partida."
-
 msgid "runtime.ready.control_changed"
 msgstr "El control de la sala cambió antes de aplicar tu estado Listo. Pulsa Listo otra vez."
 
@@ -2207,3 +2242,18 @@ msgstr "No se pudo entrar a la sala. Revisa la invitación y que ambos jugadores
 
 msgid "runtime.room_connection_lost"
 msgstr "Conexión de sala perdida."
+
+msgid "runtime.desync_match_ended"
+msgstr "Partida terminada: los dos juegos se desincronizaron. Usa Exportar diagnóstico en ambos jugadores."
+
+msgid "runtime.desync_spectator"
+msgstr "Tu vista de espectador se ha desincronizado del combate. Sal y vuelve a mirar."
+
+msgid "runtime.room_link_lost"
+msgstr "Se ha perdido la conexión con la sala de juego. Comprueba tu conexión a internet e inténtalo de nuevo."
+
+msgid "runtime.session_server_error"
+msgstr "Error del servidor de sesión. Comprueba tu conexión a internet e inténtalo de nuevo."
+
+msgid "runtime.settings_unreadable"
+msgstr "No se pudieron leer los ajustes guardados; se usan los predeterminados."

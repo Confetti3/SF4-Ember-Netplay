@@ -6,7 +6,11 @@ use std::sync::{
 };
 
 use iroh::endpoint::Connection;
-use tokio::{sync::mpsc, task::JoinHandle};
+use tokio::{
+    sync::mpsc,
+    task::JoinHandle,
+    time::{Instant, timeout_at},
+};
 
 use crate::{
     transport::ControlChannel,
@@ -50,7 +54,8 @@ pub enum Session {
 
 pub struct ControlWorker {
     connection: Connection,
-    outgoing: mpsc::Sender<ControlFrame>,
+    /// Dropped by `finish`, which ends the writer's queue.
+    outgoing: Option<mpsc::Sender<ControlFrame>>,
     incoming: mpsc::Receiver<ControlFrame>,
     tasks: [JoinHandle<()>; 2],
     rejected: Arc<AtomicU64>,
@@ -69,10 +74,18 @@ impl ControlWorker {
         let recv_connection = connection.clone();
         let tasks = [
             tokio::spawn(async move {
+                let mut delivered = true;
                 while let Some(frame) = send_queue.recv().await {
                     if sender.send(&frame).await.is_err() {
+                        delivered = false;
                         break;
                     }
+                }
+                // The queue ends only when `finish` drops its sender. The
+                // stream is then finished and acknowledged before the
+                // connection closes, so the last frames are not lost with it.
+                if delivered {
+                    sender.finish().await;
                 }
                 send_connection.close(1u32.into(), b"control writer ended");
             }),
@@ -91,7 +104,7 @@ impl ControlWorker {
         ];
         Self {
             connection,
-            outgoing,
+            outgoing: Some(outgoing),
             incoming,
             tasks,
             rejected,
@@ -125,7 +138,10 @@ impl ControlWorker {
         if self.is_closed() {
             return Err(QueueError::Closed);
         }
-        self.outgoing.try_send(frame).map_err(|error| {
+        let Some(outgoing) = self.outgoing.as_ref() else {
+            return Err(QueueError::Closed);
+        };
+        outgoing.try_send(frame).map_err(|error| {
             self.rejected.fetch_add(1, Ordering::Relaxed);
             match error {
                 mpsc::error::TrySendError::Full(_) => QueueError::Full,
@@ -134,11 +150,42 @@ impl ControlWorker {
         })
     }
 
+    /// Stop accepting frames. The writer delivers what is already queued and
+    /// then finishes the stream; `finished` waits for that.
+    pub fn finish(&mut self) {
+        self.outgoing = None;
+    }
+
+    /// Wait until the writer has delivered everything queued before `finish`
+    /// and the peer has acknowledged it, or until `deadline`. Dropping the
+    /// worker afterwards closes the connection either way.
+    pub async fn finished(&mut self, deadline: Instant) {
+        let _ = timeout_at(deadline, &mut self.tasks[0]).await;
+    }
+
     pub fn try_receive(&mut self) -> Option<ControlFrame> {
         self.incoming.try_recv().ok()
     }
+    /// Close the connection now. Frames the reader already queued stay
+    /// receivable, so a worker being replaced is closed and then drained.
+    pub fn close(&self) {
+        self.connection.close(1u32.into(), b"control replaced");
+    }
+
+    /// The transport is gone. Frames it delivered before closing may still be
+    /// queued for the actor; `is_drained` says when none remain.
     pub fn is_closed(&self) -> bool {
         self.connection.close_reason().is_some()
+    }
+
+    /// The reader has ended, so nothing more will be queued, and the actor has
+    /// taken every frame it queued. A finished and acknowledged stream only
+    /// means the frames reached the reader, so a closed worker is removed
+    /// once this holds, not when the transport closes.
+    pub fn is_drained(&self) -> bool {
+        // The reader is checked first: after it has ended the queue can only
+        // shrink, so an empty queue then is final.
+        self.tasks[1].is_finished() && self.incoming.is_empty()
     }
     pub fn rejected(&self) -> u64 {
         self.rejected.load(Ordering::Relaxed)

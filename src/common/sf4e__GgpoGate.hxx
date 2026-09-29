@@ -121,9 +121,13 @@ struct GgpoGateModel {
 	}
 	// The engine is closing the battle: there is nothing left to leave, and
 	// a session retired after this (the spectator drain) orphans nothing.
-	void OnNativeBattleClosed() {
+	// Returns whether it was a netplay battle, whether or not its session was
+	// still live, so the host can tell the runtime about every one that closes.
+	bool OnNativeBattleClosed() {
+		const bool netplay = nativeBattle != NATIVE_BATTLE_OFFLINE;
 		nativeBattle = NATIVE_BATTLE_OFFLINE;
 		orphanFrames = 0;
+		return netplay;
 	}
 
 	// --- the native battle without its session ---

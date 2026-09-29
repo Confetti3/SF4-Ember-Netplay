@@ -13,7 +13,7 @@ Use the game's main menu to enter **Training** and select both fighters and a st
 | Start | SF4's native pause only; no Ember binding |
 | Arrow keys / Enter | Navigate / select within training controls |
 | Escape | Cancel confirmation, return one menu level, or close at the root |
-| F7 | Start/stop recording P1's controls onto P2. If the selected slot already holds a recording, F7 opens Dummy Recording so you can confirm the overwrite |
+| F7 | Start/stop recording P1's controls onto P2. If the selected slot already holds a recording, F7 opens Dummy Recording with the overwrite question on Record, answered Cancel until you choose Record |
 | F8 | Start/stop playback of the selected P2 slot |
 
 The passive meter does not capture gameplay input. Training controls use keyboard and mouse only: F6 opens/closes, arrows navigate, Enter selects, and Escape goes back. There is no controller opening shortcut or controller navigation in the flyout. Start retains native pause behavior while Ember is closed. While the flyout is open, all gameplay input is captured, including controllers; closing inputs must release before returning to gameplay. F6 does not request native pause. Recording and playback suspend while the controls are open, and stop if the game loses focus. F5 through F8 are reserved while in training.

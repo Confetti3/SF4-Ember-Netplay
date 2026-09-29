@@ -65,5 +65,5 @@ the package ships just their cutouts, made with the same pipeline at the
 same 256×384 canvas as 256-color palette PNGs (about 20 KB each):
 `mask-selection-photos.py assets/selection --source-manifest alt-color-sources.json
 --source-root build/fighter-selection/alt-crops --canvas 256x384 --margin 16 --colors 256`.
-The fit and margin scale with the canvas, so the framing matches the
-original 512×768 cutouts.
+The margin defaults to 32 px scaled to the canvas width (16 at 256×384), so
+the framing matches the original 512×768 cutouts.

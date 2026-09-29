@@ -186,6 +186,44 @@ static void TestOptionalSpectatorBarrier() {
 		CHECK(authority.Acknowledge(1, ack(1, "game_ready", {{"slots", json::array({2})}}), send));
 		CHECK(authority.GetPhase() == Phase::Started);
 		CHECK(count("game_start", 4) == 0);
+		// The live roster is the fighters and the spectator that started.
+		CHECK((authority.LiveParticipants() == std::vector<session::Connection>{1, 2, 3}));
+		CHECK(authority.IsLiveParticipant(3) && !authority.IsLiveParticipant(4) && !authority.IsLiveParticipant(9));
+		CHECK(authority.Fighter(0) == 1 && authority.Fighter(1) == 2 && authority.Fighter(2) == 0);
+		CHECK(authority.End(send));
+		CHECK(authority.LiveParticipants().empty() && !authority.IsLiveParticipant(1) && authority.Fighter(0) == 0);
+	}
+	sent.clear();
+	{
+		// A spectator that leaves before P1 has taken up the generation cannot be
+		// told to P1 yet (P1 drops a peer end for a generation it has not adopted),
+		// and ends nothing. P1 hears of it with its game_prepared.
+		session::MatchAuthority authority(room, identity);
+		CHECK(authority.BeginAtGeneration(participants, 12, send));
+		CHECK(authority.MemberDeparted(4, send));
+		CHECK(authority.GetPhase() == Phase::Preparing);
+		for (session::Connection connection = 1; connection <= 4; ++connection) CHECK(count("game_end", connection) == 0);
+		CHECK(count("game_peer_end", 1) == 0);
+		CHECK(!authority.IsLiveParticipant(4));
+		CHECK(authority.Acknowledge(1, ack(1, "game_prepared", {{"spectators_optional", true}}), send));
+		CHECK(std::any_of(sent.begin(), sent.end(), [](const std::pair<session::Connection, json>& item) {
+			return item.first == 1 && item.second.at("type") == "game_peer_end" && item.second.at("slot") == 3;
+		}));
+		CHECK(authority.Acknowledge(2, ack(2, "game_prepared"), send));
+		CHECK(authority.GetPhase() == Phase::Connecting);
+		for (session::Connection connection = 1; connection <= 3; ++connection) CHECK(count("game_connect", connection) == 1);
+		CHECK(count("game_connect", 4) == 0);
+	}
+	sent.clear();
+	{
+		// A P1 that does not take up optional spectators still needs every one of
+		// them, so the departure ends the setup when it acknowledges.
+		session::MatchAuthority authority(room, identity);
+		CHECK(authority.BeginAtGeneration(participants, 12, send));
+		CHECK(authority.MemberDeparted(4, send));
+		CHECK(authority.GetPhase() == Phase::Preparing);
+		CHECK(authority.Acknowledge(1, ack(1, "game_prepared"), send));
+		CHECK(authority.GetPhase() == Phase::Idle);
 	}
 }
 
@@ -681,6 +719,182 @@ static void TestRetiringSpectatorProjection() {
 		if (sent.second.value("type", std::string()) == "data_update" && sent.first != 3 &&
 			sent.second.value("matchGeneration", std::uint64_t(0)) == second)
 			CHECK(sent.second.at("lobbyData").at("members").size() == 2);
+}
+
+// The native load barrier (battle_loaded / battle_synced) and punch barrier
+// belong to one generation: they are built from its roster, the fighters gate
+// them, nothing carries over from the last game, and a spectator that loads
+// after the fighters is released at once.
+namespace {
+struct BarrierRoom {
+	MockTransport* transport = new MockTransport();
+	SessionServer server;
+	std::uint64_t nextAction = 0;
+
+	BarrierRoom(const char* name, std::uint8_t seed, int members)
+		: server(name, "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport)) {
+		std::array<std::uint8_t, 16> authorizationRoom = {};
+		authorizationRoom[0] = seed;
+		server.EnableMatchAuthorization(authorizationRoom, [](session::Connection connection) {
+			std::string identity(64, '0');
+			identity[63] = "0123456789abcdef"[static_cast<std::size_t>(connection) & 15];
+			return identity;
+		});
+		server.EnableCustomRooms(name, 4, 90 + seed);
+		CHECK(server.Listen(0) == 0);
+		for (session::Connection connection = 1; connection <= static_cast<session::Connection>(members); ++connection) {
+			protocol::SessionJoinRequest join;
+			join.username = std::string(name) + "-" + std::to_string(connection);
+			join.sidecarHash = "build";
+			join.port = static_cast<std::uint16_t>(36000 + connection);
+			join.customRooms = true;
+			join.roomProtocol = room::ProtocolVersion;
+			protocol::SessionHelloMsg hello;
+			hello.admission = json(join);
+			transport->Push(connection, json(hello));
+			CHECK(server.Step() == 0);
+		}
+	}
+	void Act(session::Connection connection, room::ActionKind kind, std::uint64_t generation = 0) {
+		room::Action action;
+		const auto* snapshot = server.RoomSnapshot();
+		action.kind = kind;
+		action.roomEpoch = snapshot->roomEpoch;
+		action.revision = snapshot->revision;
+		action.table = 0;
+		action.tableRevision = snapshot->tables[0].revision;
+		action.matchGeneration = generation;
+		action.actionId = ++nextAction;
+		protocol::RoomActionMessage message;
+		message.action = action;
+		transport->Push(connection, json(message));
+		CHECK(server.Step() == 0);
+	}
+	void Send(session::Connection connection, const char* type, std::uint64_t generation = 0, json extra = json::object()) {
+		extra["type"] = type;
+		if (generation) extra["generation"] = generation;
+		transport->Push(connection, extra);
+		CHECK(server.Step() == 0);
+	}
+	bool Got(const char* type, session::Connection connection) const {
+		return std::any_of(transport->outgoing.begin(), transport->outgoing.end(), [&](const auto& sent) {
+			return sent.first == connection && sent.second.value("type", std::string()) == type;
+		});
+	}
+	// Starts a game for the queued fighters (connections 1 and 2) and takes it to
+	// Started. `startSlots` is the spectator slots P1 reports up.
+	std::uint64_t Start(std::uint64_t spectators, const json& startSlots) {
+		transport->outgoing.clear();
+		Act(1, room::ActionKind::Ready); Act(2, room::ActionKind::Ready);
+		CHECK(server.RoomSnapshot()->tables[0].phase == room::TablePhase::Playing);
+		const auto generation = server.RoomSnapshot()->tables[0].matchGeneration;
+		Send(1, "game_prepared", generation, {{"spectators_optional", true}});
+		Send(2, "game_prepared", generation);
+		for (session::Connection spectator = 3; spectator < 3 + spectators; ++spectator) Send(spectator, "game_prepared", generation);
+		Send(1, "game_ready", generation, {{"slots", startSlots}});
+		Send(2, "game_ready", generation);
+		for (session::Connection spectator = 3; spectator < 3 + spectators; ++spectator) Send(spectator, "game_ready", generation);
+		return generation;
+	}
+	void Loaded(session::Connection connection) { transport->outgoing.clear(); Send(connection, "battle_loaded"); }
+};
+}
+
+static void TestRoomBattleBarrier() {
+	{
+		// Two games at one table with a spectator live in both.
+		BarrierRoom fixture("barrier-rematch", 1, 3);
+		fixture.Act(1, room::ActionKind::Queue); fixture.Act(2, room::ActionKind::Queue); fixture.Act(3, room::ActionKind::Watch);
+		const auto first = fixture.Start(1, json::array({2}));
+		fixture.Loaded(1);
+		CHECK(!fixture.Got("battle_synced", 1) && !fixture.Got("battle_synced", 3));
+		fixture.Loaded(2);
+		CHECK(fixture.Got("battle_synced", 1) && fixture.Got("battle_synced", 2));
+		// The spectator loads after the fighters and is released at once.
+		fixture.Loaded(3);
+		CHECK(fixture.Got("battle_synced", 3) && !fixture.Got("battle_synced", 1));
+		fixture.Act(1, room::ActionKind::AbortMatch, first);
+		for (session::Connection connection = 1; connection <= 3; ++connection) fixture.Act(connection, room::ActionKind::AcknowledgeTerminal, first);
+		const auto second = fixture.Start(1, json::array({2}));
+		CHECK(second > first);
+		// Nothing loaded last game counts for this one: the first fighter waits.
+		fixture.Loaded(1);
+		CHECK(!fixture.Got("battle_synced", 1) && !fixture.Got("battle_synced", 2) && !fixture.Got("battle_synced", 3));
+		fixture.Loaded(2);
+		CHECK(fixture.Got("battle_synced", 1) && fixture.Got("battle_synced", 2) && !fixture.Got("battle_synced", 3));
+		fixture.Loaded(3);
+		CHECK(fixture.Got("battle_synced", 3));
+		// The punch barrier is scoped the same way: the fighters gate it.
+		fixture.Loaded(1);
+		fixture.transport->outgoing.clear(); fixture.Send(1, "punch_ready");
+		CHECK(!fixture.Got("punch_go", 1));
+		fixture.Send(2, "punch_ready");
+		CHECK(fixture.Got("punch_go", 1) && fixture.Got("punch_go", 2));
+	}
+	{
+		// A spectator whose link was not up at the start is dropped from the
+		// generation. It never loads, and it never holds the fighters.
+		BarrierRoom fixture("barrier-late", 2, 3);
+		fixture.Act(1, room::ActionKind::Queue); fixture.Act(2, room::ActionKind::Queue); fixture.Act(3, room::ActionKind::Watch);
+		fixture.transport->outgoing.clear();
+		fixture.Act(1, room::ActionKind::Ready); fixture.Act(2, room::ActionKind::Ready);
+		const auto generation = fixture.server.RoomSnapshot()->tables[0].matchGeneration;
+		fixture.Send(1, "game_prepared", generation, {{"spectators_optional", true}});
+		fixture.Send(2, "game_prepared", generation);
+		fixture.Send(1, "game_ready", generation, {{"slots", json::array()}});
+		fixture.Send(2, "game_ready", generation);
+		CHECK(fixture.Got("game_end", 3) && fixture.Got("game_start", 1) && fixture.Got("game_start", 2));
+		// The dropped spectator is still listed at the table.
+		CHECK(fixture.server.RoomSnapshot()->tables[0].spectators.size() == 1);
+		fixture.Loaded(1);
+		CHECK(!fixture.Got("battle_synced", 1));
+		fixture.Loaded(2);
+		CHECK(fixture.Got("battle_synced", 1) && fixture.Got("battle_synced", 2) && !fixture.Got("battle_synced", 3));
+		// It cannot join a barrier of a generation that left it out.
+		fixture.Loaded(3);
+		CHECK(!fixture.Got("battle_synced", 3));
+	}
+	{
+		// A spectator still retiring the last game stays in the table's list but
+		// out of the next generation, and so out of its barrier.
+		BarrierRoom fixture("barrier-retiring", 3, 3);
+		fixture.Act(1, room::ActionKind::Queue); fixture.Act(2, room::ActionKind::Queue); fixture.Act(3, room::ActionKind::Watch);
+		const auto first = fixture.Start(1, json::array({2}));
+		fixture.Act(1, room::ActionKind::AbortMatch, first);
+		fixture.Act(1, room::ActionKind::AcknowledgeTerminal, first);
+		fixture.Act(2, room::ActionKind::AcknowledgeTerminal, first);
+		const auto second = fixture.Start(0, json::array());
+		CHECK(second > first);
+		CHECK(fixture.server.RoomSnapshot()->tables[0].spectators.size() == 1);
+		fixture.Loaded(1);
+		fixture.Loaded(2);
+		CHECK(fixture.Got("battle_synced", 1) && fixture.Got("battle_synced", 2));
+	}
+}
+
+// A spectator that leaves before P1 has taken up the generation waits for P1's
+// game_prepared to be told. It ends no game.
+static void TestSpectatorLeavesBeforeP1Prepared() {
+	BarrierRoom fixture("early-leave", 4, 3);
+	fixture.Act(1, room::ActionKind::Queue); fixture.Act(2, room::ActionKind::Queue); fixture.Act(3, room::ActionKind::Watch);
+	fixture.transport->outgoing.clear();
+	fixture.Act(1, room::ActionKind::Ready); fixture.Act(2, room::ActionKind::Ready);
+	const auto generation = fixture.server.RoomSnapshot()->tables[0].matchGeneration;
+	fixture.transport->outgoing.clear();
+	fixture.Act(3, room::ActionKind::Unwatch);
+	CHECK(fixture.server.RoomSnapshot()->tables[0].phase == room::TablePhase::Playing);
+	CHECK(!fixture.Got("game_end", 1) && !fixture.Got("game_end", 2) && !fixture.Got("game_peer_end", 1));
+	// P1 takes up the generation and only now hears the spectator is gone.
+	fixture.transport->outgoing.clear();
+	fixture.Send(1, "game_prepared", generation, {{"spectators_optional", true}});
+	CHECK(fixture.Got("game_peer_end", 1));
+	fixture.transport->outgoing.clear();
+	fixture.Send(2, "game_prepared", generation);
+	CHECK(fixture.Got("game_connect", 1) && fixture.Got("game_connect", 2) && !fixture.Got("game_connect", 3));
+	fixture.Send(1, "game_ready", generation, {{"slots", json::array()}});
+	fixture.Send(2, "game_ready", generation);
+	CHECK(fixture.server.RoomSnapshot()->tables[0].phase == room::TablePhase::Playing);
+	CHECK(fixture.Got("game_start", 1) && fixture.Got("game_start", 2) && !fixture.Got("game_start", 3));
 }
 
 static void TestTerminalAcknowledgmentBatch() {
@@ -1380,7 +1594,10 @@ static void TestCustomRoomDepartures() {
     json older=profile;older.erase("mainFighter");older.erase("link");transport->Push(7,older);step();
     CHECK(server.roomMembers.count(7)==1&&server.RoomSnapshot()->members.back().mainFighter==-1&&
         server.RoomSnapshot()->members.back().link==NetworkLink::Unknown);
+    const auto profileMember=server.roomMembers.at(7);
+    CHECK(server.roomIncarnations.count(profileMember)==1);
     transport->disconnected.push_back(7);step();CHECK(server.roomMembers.count(7)==0);
+    CHECK(server.roomIncarnations.count(profileMember)==0);
 	std::map<session::Connection, std::uint64_t> actionIds;
 	auto action = [&](session::Connection connection, room::ActionKind kind, std::uint8_t table, room::MemberId target = 0) {
 		room::Action value;
@@ -1499,6 +1716,9 @@ static void TestCustomRoomDepartures() {
 	CHECK(leaveProposal != nullptr);
 	CHECK(portable.ApplyCommit(1, 1, 1, leaveProposal->checkpoint, leaveProposal->effectsDigest));
 	CHECK(portable.roomFrozenMembers.size() == 1);
+	// The departed member's incarnation lives on only in its frozen row.
+	CHECK(portable.roomIncarnations.count(spectatorMember) == 0);
+	CHECK(portable.roomFrozenMembers.at(spectatorMember).incarnation != 0);
 	const auto retained = portable.RecoveryCheckpoint();
 	CHECK(std::count_if(retained.at("members").begin(), retained.at("members").end(),
 		[](const json& member) { return member.value("frozen", false); }) == 1);
@@ -1531,8 +1751,7 @@ static void TestCustomRoomDepartures() {
 	CHECK(recovery.Step() == 0);
 	CHECK(!recoveryTransport->Contains("game_start") && !recoveryTransport->Contains("game_prepare"));
 
-	// A pre-start spectator disconnect ends only that table generation and
-	// leaves the two fighters available for a fresh grant.
+	// A pre-start spectator disconnect ends nothing for the fighters.
 	action(5, room::ActionKind::Queue, 1);
 	action(6, room::ActionKind::Queue, 1);
 	action(4, room::ActionKind::Watch, 1);
@@ -1544,10 +1763,17 @@ static void TestCustomRoomDepartures() {
 	transport->outgoing.clear();
 	transport->disconnected.push_back(4);
 	step();
-	CHECK(hasMessage("game_end", 5) && hasMessage("game_end", 6));
+	// P1 has not taken up the generation yet, so the spectator's departure ends
+	// nothing and is passed on with P1's game_prepared.
+	CHECK(!hasMessage("game_end"));
 	CHECK(server.RoomSnapshot()->tables[1].matchGeneration == generation1);
-	CHECK(server.RoomSnapshot()->tables[1].phase == room::TablePhase::Waiting);
+	CHECK(server.RoomSnapshot()->tables[1].phase == room::TablePhase::Playing);
 	CHECK(server.roomMembers.count(4) == 0 && server.ConnectedClientCount() == 5);
+	CHECK(server.roomIncarnations.count(spectatorMember) == 0);
+	acknowledge(5, "game_prepared", generation1, {{"spectators_optional", true}});
+	CHECK(hasMessage("game_peer_end", 5));
+	acknowledge(6, "game_prepared", generation1);
+	CHECK(hasMessage("game_connect", 5) && hasMessage("game_connect", 6) && !hasMessage("game_connect", 4));
 
 	// Kicking sends an observable rejection to the target, removes all of its
 	// authenticated state, and blocks the same endpoint from rejoining.
@@ -1563,6 +1789,7 @@ static void TestCustomRoomDepartures() {
 	CHECK(!kickedResult->second.at("result").at("accepted").get<bool>());
 	CHECK(kickedResult->second.at("result").at("reason").get<int>() == static_cast<int>(room::RejectReason::MemberKicked));
 	CHECK(server.roomMembers.count(7) == 0 && server.cidMap.count(7) == 0);
+	CHECK(server.roomIncarnations.count(kickedMember) == 0);
 	hello(7);
 	protocol::SessionJoinRequest banned;
 	banned.username = "Rejoined"; banned.sidecarHash = "build"; banned.port = 30000;
@@ -1586,7 +1813,18 @@ static void TestCustomRoomDepartures() {
 	const auto& recovered = server.RoomSnapshot()->tables[2];
 	CHECK(recovered.p1 == server.roomMembers.at(10) && recovered.p2 == server.roomMembers.at(9));
 	CHECK(!recovered.ready[0] && !recovered.ready[1] && recovered.phase == room::TablePhase::Waiting);
+
+	// Members that come and go leave nothing behind in the incarnation map.
+	for (int cycle = 0; cycle < 12; ++cycle) {
+		const session::Connection connection = 27; // an identity no live member or ban uses
+		hello(connection);
+		join(connection, (std::string("Cycle") + std::to_string(cycle)).c_str());
+		transport->disconnected.push_back(connection);
+		step();
+	}
+	CHECK(server.roomIncarnations.size() == server.RoomSnapshot()->members.size());
 	server.Close();
+	CHECK(server.roomIncarnations.empty());
 }
 
 int main() {
@@ -1832,6 +2070,8 @@ int main() {
 	TestTerminalAcknowledgmentBatch();
 	TestTerminalReceiptReplay();
 	TestRetiringSpectatorProjection();
+	TestRoomBattleBarrier();
+	TestSpectatorLeavesBeforeP1Prepared();
 	TestCommittedSessionGate();
 	TestCustomRoomDepartures();
 	std::cout << "Session server mock transport tests passed\n";

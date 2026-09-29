@@ -133,7 +133,6 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		snapshot.lobbySettings.editionSelect, snapshot.fighterAvailability[lobbyConditions.charaID]);
 	view.canEditSelection = snapshot.canEditSelection;
     view.selectionLockReason = snapshot.selectionLockReason;
-    view.readyLockReason = snapshot.readyLockReason;
     view.readyRequested = snapshot.readyRequested; view.readyFailure = snapshot.readyFailure;
     view.readyFailureSequence = snapshot.readyFailureSequence;
 	view.canEditPreferences = snapshot.canEditPreferences;
@@ -246,7 +245,7 @@ void Overlay::DrawOverlay() {
     if (!training.available || !focused) trainingOpen = false;
     if (focused && training.available && !presentation.Visible()) {
         sf4e::ui::SetMenuInput({0, ImGui::GetTime()});
-        sf4e::ui::SetMenuGlyphs(1,0,0);
+        sf4e::ui::SetMenuGlyphs(sf4e::input::PadKeyboard,0,0);
         if (ImGui::IsKeyPressed(ImGuiKey_F6, false)) trainingOpen = !trainingOpen;
         if (ImGui::IsKeyPressed(ImGuiKey_F5, false)) trainingHud = !trainingHud;
         auto practice = [&](sf4e::training::Action action) {
@@ -261,6 +260,8 @@ void Overlay::DrawOverlay() {
             if (ImGui::IsKeyPressed(ImGuiKey_F8, false)) practice(training.mode == sf4e::training::Mode::Playback ? sf4e::training::Action::Stop : sf4e::training::Action::Play);
         }
         if (trainingOpen) {
+            // Only what this frame's flyout forwards is read below.
+            sf4e::ui::TakeForwardedMenuAction();
             sf4e::ui::DrawTrainingFlyout(training, sf4e::training::Submit);
             if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) trainingOpen=false;
         } else if (trainingHud) {
@@ -284,6 +285,14 @@ void Overlay::DrawOverlay() {
         ImGui::Begin("Ember shortcut", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
         ImGui::TextUnformatted(sf4e::loc::T("runtime.open_shortcut")); ImGui::End();
+    }
+    // A started match cannot be entered from Training or Options: say what it is waiting for.
+    if (snapshot.matchWaitsForMenu) {
+        const auto* vp = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x * .5f, vp->Pos.y + 44 * sf4e::ui::Scale()), ImGuiCond_Always, ImVec2(.5f, 0));
+        ImGui::Begin("Ember match waiting", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
+            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
+        ImGui::TextUnformatted(sf4e::loc::T("runtime.return_menu_to_join")); ImGui::End();
     }
     if(fSystem::ggpo)sf4e::ui::DrawControllerWarning(snapshot.gameplayInputError);
     if (fSystem::ggpo) {
@@ -325,6 +334,9 @@ void Overlay::FreeOverlay() {
     ImGui_ImplDX9_Shutdown(); ImGui_ImplWin32_Shutdown(); ImGui::DestroyContext();
 }
 LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, LPARAM l) {
+    // The click that brings the game forward again must not press an Ember
+    // row that is drawn under the pointer while the game is behind another window.
+    static sf4e::ui::ActivationClickFilter activationClick;
     // Native display resets can pump activation messages after FreeOverlay and
     // before InitializeOverlay. Focus belongs to the window, not its ImGui
     // context: dropping reactivation here leaves F10/Start permanently gated.
@@ -334,6 +346,7 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
             const auto training = sf4e::training::ReadView();
             sf4e::training::Submit({sf4e::training::Action::Stop, 0, training.generation});
             capture = false; pointerCapture = false;
+            activationClick.Reset();
             if (ImGui::GetCurrentContext()) {
                 sf4e::ui::SetOverlayCursorOwnership(false);
                 ImGui::GetIO().ClearInputKeys(); ImGui::GetIO().ClearInputMouse();
@@ -341,6 +354,7 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
         }
     }
     if (!ImGui::GetCurrentContext()) return 0;
+    if (activationClick.Swallow(message, l)) return 0;
     const auto handled = sf4e::ui::HandleOverlayMessage(window, message, w, l, capture, presentation.Available(), pointerCapture);
     if (trainingAvailable && w >= VK_F5 && w <= VK_F8 &&
         (message == WM_KEYDOWN || message == WM_KEYUP || message == WM_SYSKEYDOWN || message == WM_SYSKEYUP)) return 1;

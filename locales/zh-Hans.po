@@ -48,8 +48,8 @@ msgstr "正在更新房间，仍可取消。"
 msgid "launcher.update_failed"
 msgstr "无法安装更新。请关闭游戏和之前的启动器后重试。详见 %TEMP%\\sf4-netplay-update.log；原文件备份位于 .ember-update-backups。"
 
-msgid "launcher.recovery_title"
-msgstr "启动恢复"
+msgid "launcher.recovery_opened"
+msgstr "网络不可用，因此 SF4 已关闭以进行恢复。点击“重试启动”可再次启动；离线游玩不需要网络。"
 
 msgid "launcher.path_failed"
 msgstr "无法设置运行时搜索路径。请将完整压缩包解压到可写文件夹。"
@@ -67,16 +67,16 @@ msgid "launcher.already_running"
 msgstr "SF4 Ember Netplay 已在运行。如找不到窗口，请在任务管理器中结束 Launcher.exe 和 SSFIV.exe，再启动 Ember。"
 
 msgid "launcher.start_failed"
-msgstr "游戏启动或注入失败。请查看启动器日志后重试。"
+msgstr "游戏启动或注入失败。请查看启动器日志（%APPDATA%\\sf4e\\logs\\launcher.log）后重试。"
 
 msgid "launcher.game_error"
-msgstr "游戏异常退出。请查看启动器日志后重试。"
+msgstr "游戏异常退出。请查看启动器日志（%APPDATA%\\sf4e\\logs\\launcher.log）后重试。"
 
 msgid "launcher.runtime_shadowed"
 msgstr "游戏将加载以下文件，而非 Ember 文件夹中的版本。旧版文件会使游戏无法启动（\"entry point ggpo_get_last_confirmed_frame not found\"）。这些文件来自其他联机模组或旧版安装。请移动或重命名后重启 Ember：\n\n{0}"
 
 msgid "launcher.game_wrong_dll"
-msgstr "游戏在 Ember 启动前停止，因为加载的某个 DLL 缺少函数。通常是 SSFIV.exe 旁边有其他模组或旧版的 GGPO.dll、spdlog.dll、fmt.dll 或 zlib1.dll。请移走后重试。如没有这些文件，请发送启动器日志。"
+msgstr "游戏在 Ember 启动前停止，因为加载的某个 DLL 缺少函数。通常是 SSFIV.exe 旁边有其他模组或旧版的 GGPO.dll、spdlog.dll、fmt.dll 或 zlib1.dll。请移走后重试。如没有这些文件，请发送启动器日志（%APPDATA%\\sf4e\\logs\\launcher.log）。"
 
 msgid "recovery.window"
 msgstr "Ember 恢复"
@@ -140,6 +140,15 @@ msgstr "取消当前下载或检查。请等待取消完成后再重试。"
 
 msgid "recovery.close_detail"
 msgstr "关闭恢复界面，不启动 SF4。正在进行的操作将取消。"
+
+msgid "updates.close_detail"
+msgstr "关闭更新程序，不启动 SF4。正在进行的操作将取消。"
+
+msgid "updates.start_game"
+msgstr "启动 SF4"
+
+msgid "updates.start_game_detail"
+msgstr "关闭更新程序，并通过 Ember 启动 SF4。"
 
 msgid "recovery.close_cancels_detail"
 msgstr "现在关闭将取消正在进行的操作。"
@@ -475,7 +484,7 @@ msgid "home.settings"
 msgstr "设置"
 
 msgid "home.settings_detail"
-msgstr "玩家、控制器、对战默认设置、界面和 Discord。"
+msgstr "玩家、控制器、对战默认设置、界面、语言和 Discord。"
 
 msgid "home.about"
 msgstr "帮助与关于"
@@ -604,7 +613,7 @@ msgid "settings.interface"
 msgstr "界面"
 
 msgid "settings.interface_detail"
-msgstr "简洁的对战 HUD 和界面大小。"
+msgstr "语言、对战 HUD 和界面大小。"
 
 msgid "settings.discord_detail"
 msgstr "动态和邀请。"
@@ -622,7 +631,7 @@ msgid "player.use_keyboard"
 msgstr "使用键盘"
 
 msgid "player.use_keyboard_detail"
-msgstr "明确分配键盘。"
+msgstr "将键盘设为对战设备。在重新指定之前，控制器将无法操作 Ember 菜单。"
 
 msgid "player.native_menus"
 msgstr "打开游戏菜单"
@@ -712,7 +721,7 @@ msgid "about.controls"
 msgstr "操作说明"
 
 msgid "about.controls_detail"
-msgstr "Xbox：按 A 选择，按 B 返回，不受格斗按键设置影响。DirectInput：按已映射的 LP 选择，LK 返回。D-pad 移动，左／右调整。训练操作使用键盘和鼠标：F6 开关，方向键导航，Enter 选择，Escape 返回。Start 仅在训练时打开游戏暂停菜单。F10 在主菜单打开 Ember；F5-F8 是训练快捷键。"
+msgstr "Xbox 手柄：按 A 选择，按 B 返回，不受格斗按键设置影响。其他手柄：按已映射的 LP 选择，LK 返回。键盘：方向键、Enter 和 Escape。D-pad 移动，左／右调整数值。在主页按返回会隐藏 Ember；在游戏主菜单按 F10（手柄按 Start）可再次打开。\n\n在房间里，在牌桌上按 A 可选择席位，在自己的席位上按 A 表示准备，按 B 离开席位或队列。Xbox 手柄上，X 打开角色，Y 打开选项，View 打开聊天，再按一次返回房间。\n\n训练中，F6 打开控制面板，F5 隐藏 HUD，F7 录制，F8 回放。"
 
 msgid "about.ember"
 msgstr "关于 Ember"
@@ -810,11 +819,26 @@ msgstr "对战席已关闭"
 msgid "controller.disconnected"
 msgstr "控制器已断开。请重新连接或明确分配。"
 
+msgid "controller.none"
+msgstr "请选择对战设备"
+
+msgid "controller.keyboard"
+msgstr "键盘"
+
+msgid "controller.numbered"
+msgstr "控制器 {0}"
+
+msgid "controller.disconnected_name"
+msgstr "{0}（已断开）"
+
 msgid "room.control_unavailable"
 msgstr "房间控制不可用。没有正在进行的对战时可重建房间。"
 
 msgid "room.control_recovering"
 msgstr "正在恢复房间控制，房间操作已暂停。"
+
+msgid "room.catching_up"
+msgstr "此电脑上的房间仍在同步。房间操作已暂停。"
 
 msgid "settings.preview"
 msgstr "预览"
@@ -1104,6 +1128,9 @@ msgstr "选择对战场地。"
 msgid "selection.select_saves"
 msgstr "选择以保存。返回不会更改高亮预览。"
 
+msgid "selection.adjust_saves"
+msgstr "按左／右更改，会立即保存。"
+
 msgid "selection.locked_detail"
 msgstr "选择已锁定。请返回对战席查看当前状态。"
 
@@ -1248,6 +1275,12 @@ msgstr "仅预览－按选择保存"
 msgid "selection.status_editable"
 msgstr "选择保存／返回上一级。"
 
+msgid "selection.status_browse"
+msgstr "选择打开／返回上一级。"
+
+msgid "selection.status_adjust"
+msgstr "左／右保存，返回上一级。"
+
 msgid "selection.status_locked"
 msgstr "选择已锁定－返回对战席查看状态。"
 
@@ -1280,6 +1313,8 @@ msgstr "此选择不符合规则。请打开角色选择并改选可用选项。
 
 msgid "runtime.open_shortcut"
 msgstr "SF4 Ember Netplay／F10 或 Start"
+msgid "runtime.return_menu_to_join"
+msgstr "请返回主菜单以加入对战。"
 
 msgid "runtime.waiting_opponent_join"
 msgstr "等待对手加入大厅..."
@@ -1542,12 +1577,6 @@ msgstr "房间尚未打开。请检查连接，或停止后重试。"
 msgid "room.waiting_state"
 msgstr "等待房间状态。"
 
-msgid "room.ready"
-msgstr "准备"
-
-msgid "room.ready.saved_fighter"
-msgstr "使用已保存的角色。"
-
 msgid "room.copy_invitation"
 msgstr "复制邀请"
 
@@ -1653,9 +1682,6 @@ msgstr "等待对手入座。等待期间可以更换角色。"
 msgid "room.controller_required"
 msgstr "请在设置 > 玩家与控制器中分配或重新连接控制器。"
 
-msgid "room.waiting_update"
-msgstr "等待当前房间更新完成。"
-
 msgid "room.ready.cancel_detail"
 msgstr "您已准备。选择可取消准备，然后更换角色。"
 
@@ -1669,13 +1695,16 @@ msgid "room.both_ready"
 msgstr "双方均已准备，对战即将开始。"
 
 msgid "room.waiting_spectators"
-msgstr "双方已准备就绪。锁定观战的观众返回后，或10秒后，对战开始。"
+msgstr "双方已准备就绪。锁定观战的观众返回后，或{0}秒后，对战开始。"
 
 msgid "room.match_in_progress.detail"
 msgstr "当前对战进行中，请等待结束。"
 
 msgid "room.unready"
 msgstr "取消准备／解锁角色"
+
+msgid "room.cancel_start"
+msgstr "取消开始"
 
 msgid "room.readying"
 msgstr "准备中..."
@@ -1755,6 +1784,21 @@ msgstr "释放您的席位。"
 msgid "room.leave_seat.next_player"
 msgstr "释放您的席位，由队列中下一名玩家入座。"
 
+msgid "room.leave_seat.unready_first"
+msgstr "请先取消准备，再离开席位。"
+
+msgid "room.leave_seat.keep"
+msgstr "保留席位"
+
+msgid "room.leave_seat.costs_score"
+msgstr "离开将结束本组对战并重置比分（{0}）。"
+
+msgid "room.leave_seat.hands_over"
+msgstr "队列中的下一名玩家将入座。"
+
+msgid "room.cancel_stuck.in_progress"
+msgstr "对战正在进行。超过 {0} 分钟仍无结果后才可使用。"
+
 msgid "room.abandon_result"
 msgstr "放弃结果未定的对战"
 
@@ -1783,13 +1827,13 @@ msgid "room.lock_spectating"
 msgstr "锁定观战"
 
 msgid "room.lock_spectating.detail"
-msgstr "你返回房间时，下一场对战最多等待你10秒。"
+msgstr "你返回房间时，下一场对战最多等待你{0}秒。"
 
 msgid "room.unlock_spectating"
 msgstr "取消锁定"
 
 msgid "room.unlock_spectating.detail"
-msgstr "已锁定观战。下一场对战最多等待你10秒。"
+msgstr "已锁定观战。下一场对战最多等待你{0}秒。"
 
 msgid "room.table_rules"
 msgstr "对战席规则"
@@ -1959,9 +2003,6 @@ msgstr "取消编辑"
 msgid "edit.bytes"
 msgstr "{0} / {1} 字节"
 
-msgid "discord.unavailable_build"
-msgstr "此版本不支持 Discord 集成。"
-
 msgid "runtime.record_invalid"
 msgstr "本地对战记录无效，原数据已保留。暂时无法记录战绩。"
 
@@ -1985,6 +2026,9 @@ msgstr "Discord 不可用，不影响对战。"
 
 msgid "runtime.gameplay_device_disconnected"
 msgstr "对战设备已断开连接。请在下一场对战前重新连接。"
+
+msgid "runtime.match_input_blocked"
+msgstr "对战输入已被阻止：请重新连接 {0}。如果其槽位已变更，请返回房间重新分配。"
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "无法验证控制器在对战中的分配。请重新分配后再试。"
@@ -2151,15 +2195,6 @@ msgstr "等待您的准备请求完成。"
 msgid "runtime.lock.selection_update"
 msgstr "等待当前对战或选择更新完成。"
 
-msgid "runtime.lock.return_to_menu_ready"
-msgstr "请先返回游戏原有的主菜单，再准备。"
-
-msgid "runtime.lock.table_settings"
-msgstr "等待对战席设置应用完成。"
-
-msgid "runtime.lock.room_update"
-msgstr "等待当前房间或对战更新完成。"
-
 msgid "runtime.ready.control_changed"
 msgstr "您的准备生效前，房间控制已变化。请再次准备。"
 
@@ -2207,3 +2242,18 @@ msgstr "无法加入房间。请检查邀请，并确认双方使用同一 SF4 E
 
 msgid "runtime.room_connection_lost"
 msgstr "房间连接已断开。"
+
+msgid "runtime.desync_match_ended"
+msgstr "对战已结束：双方游戏状态不一致（不同步）。请双方都使用“导出诊断信息”。"
+
+msgid "runtime.desync_spectator"
+msgstr "你的观战画面与对战不一致。请退出后重新观战。"
+
+msgid "runtime.room_link_lost"
+msgstr "与游戏房间的连接已断开。请检查网络后重试。"
+
+msgid "runtime.session_server_error"
+msgstr "会话服务器出错。请检查网络后重试。"
+
+msgid "runtime.settings_unreadable"
+msgstr "无法读取已保存的设置，正在使用默认设置。"

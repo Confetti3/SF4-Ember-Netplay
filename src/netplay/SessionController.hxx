@@ -39,6 +39,10 @@ struct Event {
     std::string error;
 };
 
+// A condition the controller itself observes, kept as a kind so the interface
+// says it in the player's language; `error` carries only text a caller supplied.
+enum class Fault { None, ControlRecovering, CatchingUp };
+
 struct Snapshot {
     Generation generation;
     Page page = Page::Home;
@@ -63,6 +67,7 @@ struct Snapshot {
     // seen unwritable. It is not a lost room, but a long wait is shown.
     std::uint64_t openingStalledMs = 0;
     bool openingStalled = false;
+    Fault fault = Fault::None;
     std::string error;
 };
 

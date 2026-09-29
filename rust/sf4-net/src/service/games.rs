@@ -14,7 +14,6 @@ impl Actor {
             }
             let peer = connection.remote_id();
             if connection.alpn() == CONTROL_ALPN {
-                self.remove_closed_control(peer);
                 if let Some(invite) = self
                     .room_invite
                     .clone()
@@ -50,7 +49,7 @@ impl Actor {
                 let generation = self
                     .games
                     .get(&peer)
-                    .filter(|slot| slot.waiting)
+                    .filter(|slot| slot.waiting && slot.candidate.is_none())
                     .map(|slot| slot.auth.key.generation);
                 let probe = self
                     .probe_permissions
@@ -60,6 +59,10 @@ impl Actor {
                 if (generation.is_none() && probe.is_none())
                     || self.pending_game_admissions.contains_key(&peer)
                 {
+                    if let Some(slot) = self.games.get_mut(&peer) {
+                        slot.diagnostics.refused_incoming =
+                            slot.diagnostics.refused_incoming.saturating_add(1);
+                    }
                     connection.close(1u32.into(), b"gameplay not authorized");
                     return Ok(());
                 }
@@ -122,7 +125,9 @@ impl Actor {
             && match &mode {
                 transport::GameStream::Gameplay(_, _) => {
                     self.games.get(&peer).is_some_and(|slot| {
-                        slot.waiting && Some(slot.auth.key.generation) == generation
+                        slot.waiting
+                            && slot.candidate.is_none()
+                            && Some(slot.auth.key.generation) == generation
                     })
                 }
                 transport::GameStream::Probe(_, _) => {
@@ -158,6 +163,7 @@ impl Actor {
                                 connection: Some(connection),
                                 report: false,
                                 route_changed: false,
+                                route: None,
                                 metrics: crate::probe::Metrics::default(),
                             }),
                             Err(_) => Ok(ProbeCompletion {
@@ -168,6 +174,7 @@ impl Actor {
                                 connection: None,
                                 report: false,
                                 route_changed: false,
+                                route: None,
                                 metrics: crate::probe::Metrics::default(),
                             }),
                         };
@@ -175,15 +182,25 @@ impl Actor {
                 });
             }
             transport::GameStream::Gameplay(send, recv) => {
-                if let Some(slot) = self.games.get_mut(&peer).filter(|slot| slot.waiting) {
-                    slot.waiting = false;
+                if let Some(slot) = self
+                    .games
+                    .get_mut(&peer)
+                    .filter(|slot| slot.waiting && slot.candidate.is_none())
+                {
+                    // Only a marker has arrived. The proof, generation,
+                    // capability and confirmation are validated by this
+                    // handshake, so the slot keeps waiting until the candidate
+                    // finishes; a rejected candidate never ends it.
+                    let candidate = connection.stable_id();
+                    slot.candidate = Some(candidate);
                     let auth = slot.auth.clone();
                     let generation = auth.key.generation;
                     slot.task = Some(self.tasks.spawn(async move {
-                        Completion::Game(
+                        Completion::GameCandidate(
                             epoch,
                             peer,
                             generation,
+                            candidate,
                             transport::accept_game_stream_with_until(
                                 connection, auth, send, recv, deadline,
                             )
@@ -238,7 +255,6 @@ impl Actor {
                 let Some(slot) = self.games.get_mut(&peer) else {
                     return Ok(());
                 };
-                slot.prepare_deadline = None;
                 slot.stats = Some(bridge.stats.clone());
                 slot.route_connection = Some(route_connection);
                 let max_packet = slot.auth.max_packet;
@@ -257,13 +273,27 @@ impl Actor {
                     fixed_port,
                 })?;
             }
-            Err(_) => {
-                self.games.remove(&peer);
-                self.error(0, "gameplay_prepare_failed")?;
+            Err(error) => {
+                let detail = self.games.remove(&peer).map(|slot| {
+                    format!(
+                        "link failed: {error}; {}",
+                        slot.diagnostics.describe(slot.waiting)
+                    )
+                });
+                let reason = detail.unwrap_or_else(|| error.to_string());
+                self.emit(Event::Error {
+                    request_id: 0,
+                    epoch: self.epoch,
+                    probe_failure: None,
+                    peer: Some(peer),
+                    code: "gameplay_prepare_failed".into(),
+                    reason: Some(reason.clone()),
+                })?;
                 self.emit(Event::GameClosed {
                     epoch,
                     peer,
                     generation,
+                    reason: Some(reason),
                 })?;
             }
         }
@@ -324,8 +354,44 @@ impl Actor {
                 epoch,
                 peer,
                 generation,
+                reason: None,
             })?;
         }
         Ok(())
+    }
+
+    /// An accepted connection's handshake ended. Only the candidate the slot is
+    /// running counts. A win becomes the generation's link. A rejection ends only
+    /// that candidate: the slot keeps waiting until its own deadline, so an
+    /// invalid or obsolete attempt cannot close a valid pending link.
+    pub(super) async fn completed_game_candidate(
+        &mut self,
+        epoch: u64,
+        peer: EndpointId,
+        generation: u64,
+        candidate: usize,
+        result: io::Result<GameConnection>,
+    ) -> io::Result<()> {
+        let Some(slot) = self.games.get_mut(&peer).filter(|slot| {
+            epoch == self.epoch
+                && slot.auth.key.generation == generation
+                && slot.stats.is_none()
+                && slot.candidate == Some(candidate)
+        }) else {
+            return Ok(()); // GameConnection drop closes stale results.
+        };
+        slot.candidate = None;
+        slot.task = None;
+        match result {
+            Ok(game) => {
+                slot.waiting = false;
+                self.completed_game(epoch, peer, generation, Ok(game)).await
+            }
+            Err(_) => {
+                slot.diagnostics.rejected_candidates =
+                    slot.diagnostics.rejected_candidates.saturating_add(1);
+                Ok(())
+            }
+        }
     }
 }

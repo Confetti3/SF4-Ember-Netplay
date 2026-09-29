@@ -90,8 +90,10 @@ void SessionClient::TrySendPendingJoinRequest() {
 	// reliable messages. A temporary degraded/rebinding transport must not
 	// consume the one-shot projection admission request.
 	_joinRequestNextStep = _stepCounter + ((sent == session::SendResult::NotConnected || sent == session::SendResult::QueueFull) ? 1 : 4);
-	if (sent != session::SendResult::NotConnected && sent != session::SendResult::QueueFull)
-		_roomError = "join_request_send_failed";
+	if (sent != session::SendResult::NotConnected && sent != session::SendResult::QueueFull) {
+		spdlog::warn("Client: join request send failed (result {})", static_cast<int>(sent));
+		_roomError = "runtime.room_request_failed";
+	}
 }
 
 void SessionClient::ReconcileTerminalAcks() {
@@ -361,14 +363,25 @@ SessionClient::~SessionClient()
 bool SessionClient::HandleRoomSnapshot(json& msg) {
 	SessionProtocol::RoomSnapshotMessage snapshot;
 	try { msg.get_to(snapshot); }
-	catch (const std::exception&) { _roomError = "invalid_room_snapshot"; return false; }
+	catch (const std::exception& e) {
+		spdlog::warn("Client: unreadable room snapshot: {}", e.what());
+		// A snapshot of another protocol version fails to parse; the advice that helps is the build.
+		const auto snapshotField = msg.find("snapshot");
+		const bool otherProtocol = snapshotField != msg.end() && snapshotField->is_object() &&
+			snapshotField->contains("protocol_version") && (*snapshotField)["protocol_version"].is_number_integer() &&
+			(*snapshotField)["protocol_version"].get<long long>() != static_cast<long long>(room::ProtocolVersion);
+		_roomError = otherProtocol ? "runtime.build_mismatch" : "runtime.room_request_failed"; return false;
+	}
 	// The owner leaves out chat this client already holds (it advertised
 	// roomChatDelta). Keep the current room's chat; a different room has
 	// none to keep.
 	if (snapshot.chatUnchanged && _roomSnapshot.roomEpoch && snapshot.snapshot.roomEpoch == _roomSnapshot.roomEpoch)
 		snapshot.snapshot.chat = _roomSnapshot.chat;
 	if (snapshot.snapshot.protocolVersion != room::ProtocolVersion ||
-		(snapshot.snapshot.localMember == 0 && _customRoomsRequired)) { _roomError = "incompatible_room_protocol"; return false; }
+		(snapshot.snapshot.localMember == 0 && _customRoomsRequired)) {
+		spdlog::warn("Client: incompatible room protocol {} (this build speaks {})", snapshot.snapshot.protocolVersion, room::ProtocolVersion);
+		_roomError = "runtime.build_mismatch"; return false;
+	}
     if(_roomSnapshot.roomEpoch && (snapshot.snapshot.roomEpoch!=_roomSnapshot.roomEpoch ||
         snapshot.snapshot.revision<_roomSnapshot.revision)) return true;
 	_roomSnapshot = std::move(snapshot.snapshot);
@@ -384,7 +397,10 @@ bool SessionClient::HandleRoomSnapshot(json& msg) {
 bool SessionClient::HandleRoomResult(json& msg) {
 	SessionProtocol::RoomResultMessage result;
 	try { msg.get_to(result); }
-	catch (const std::exception&) { _roomError = "invalid_room_result"; return true; }
+	catch (const std::exception& e) {
+		spdlog::warn("Client: unreadable room result: {}", e.what());
+		_roomError = "runtime.room_request_failed"; return true;
+	}
 	const auto sent = std::find_if(_sentRoomActions.begin(), _sentRoomActions.end(),
 		[&](const SentRoomAction& entry) { return entry.actionId == result.actionId; });
 	// A resent table action answers under the id its caller was given.
@@ -460,7 +476,10 @@ bool SessionClient::HandleRoomResult(json& msg) {
 bool SessionClient::HandleRoomEvent(json& msg) {
 	SessionProtocol::RoomEventMessage event;
 	try { msg.get_to(event); }
-	catch (const std::exception&) { _roomError = "invalid_room_event"; return true; }
+	catch (const std::exception& e) {
+		spdlog::warn("Client: unreadable room event: {}", e.what());
+		_roomError = "runtime.room_request_failed"; return true;
+	}
 	const bool lifecycle = event.event.kind == room::Event::Kind::MatchReady ||
 		event.event.kind == room::Event::Kind::MatchStarted ||
 		event.event.kind == room::Event::Kind::MatchEnded ||
@@ -473,7 +492,10 @@ bool SessionClient::HandleRoomEvent(json& msg) {
 				queued.kind != room::Event::Kind::MatchEnded && queued.kind != room::Event::Kind::RoomClosed &&
 				queued.kind != room::Event::Kind::ResultDisputed;
 		});
-		if (discard == _roomEvents.end()) { _roomError = "room_event_overflow"; return false; }
+		if (discard == _roomEvents.end()) {
+			spdlog::warn("Client: room event queue overflow");
+			_roomError = "runtime.room_request_failed"; return false;
+		}
 		_roomEvents.erase(discard);
 	}
 	_roomEvents.push_back(event.event);

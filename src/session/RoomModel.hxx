@@ -32,6 +32,10 @@ constexpr std::size_t MaximumMembers = MaxMembers;
 constexpr std::size_t MaximumRoomNameBytes = 64;
 constexpr std::size_t MaximumChatMessages = 100;
 constexpr std::size_t MaximumChatBytes = 256;
+// How long two ready fighters wait for a locked-in spectator who is still
+// leaving the previous game. The catalogs quote it as {0} seconds in
+// room.waiting_spectators, room.lock_spectating.detail and
+// room.unlock_spectating.detail; the UI passes SpectatorStartHoldMs / 1000.
 constexpr std::uint64_t SpectatorStartHoldMs = 10000;
 
 enum class MemberStatus : std::uint8_t {
@@ -165,6 +169,10 @@ struct Table {
 	std::vector<MemberId> queue;
 	std::vector<MemberId> spectators;
 	std::vector<MemberId> watchingNext;
+	// Queued members who left the queue during the live game. They watch it only
+	// because the queue listed them as spectators, so their place ends with it
+	// unless they choose to watch. Always a subset of spectators.
+	std::vector<MemberId> endingWatchers;
 	bool ready[2] = { false, false };
 	// Immutable per-fighter values captured at the Ready quorum boundary.
 	std::uint8_t inputDelay[2] = { 2, 2 };
@@ -191,13 +199,70 @@ inline bool ReadyCancellable(const Table& table, int seat) {
 }
 
 // Watching this table by choice. A queued member is also listed as a
-// spectator of the game it waits out, but it did not choose to watch.
+// spectator of the game it waits out, and stays listed until that game ends
+// after it leaves the queue, but it did not choose to watch.
 inline bool WatchesByChoice(const Table& table, MemberId member) {
 	const auto listed = [member](const std::vector<MemberId>& list) {
 		return std::find(list.begin(), list.end(), member) != list.end();
 	};
-	return (listed(table.spectators) || listed(table.watchingNext)) && !listed(table.queue);
+	return (listed(table.spectators) || listed(table.watchingNext)) && !listed(table.queue) &&
+		!listed(table.endingWatchers);
 }
+
+// A named seat (0 or 1) that a Queue for exactly that seat would take now: the
+// table is between games, nobody is queued ahead and the seat is empty.
+inline bool SeatOpenNow(const Table& table, int seat) {
+	return (seat == 0 || seat == 1) && table.phase != TablePhase::Playing && table.phase != TablePhase::Paused &&
+		table.queue.empty() && !(seat == 0 ? table.p1 : table.p2);
+}
+
+// What holds a fighter to the table while a game is live or being resolved.
+// UnreadyFirst: the fighter's own Ready is the only thing in the way, and taking
+// it back frees them.
+enum class SeatHold : std::uint8_t { None, UnreadyFirst, Unresolved, AwaitingResult, InProgress };
+
+// The hold a live table puts on its seats: an unresolved result, a finished
+// game waiting for its result, or a game under way.
+inline SeatHold LiveGameHold(const Table& table, bool localPostMatch) {
+	if (table.phase == TablePhase::Paused) return SeatHold::Unresolved;
+	if (table.phase == TablePhase::Playing && (table.resultPending || localPostMatch)) return SeatHold::AwaitingResult;
+	return SeatHold::InProgress;
+}
+
+// Why a fighter may not change fighter or appearance now. The table is
+// active while it is Ready, Playing or Paused; a readied fighter has to take
+// Ready back whatever the phase.
+inline SeatHold ChangingFighterHold(const Table& table, int seat, bool localPostMatch) {
+	if (ReadyCancellable(table, seat)) return SeatHold::UnreadyFirst;
+	const bool active = table.phase == TablePhase::Ready || table.phase == TablePhase::Playing || table.phase == TablePhase::Paused;
+	return active ? LiveGameHold(table, localPostMatch) : SeatHold::None;
+}
+
+// Why a fighter may not leave the seat now. A seat is held while the table is
+// active, or while this client's own game (localGameLive: preparing or playing)
+// is still under way after the table went back to Waiting.
+inline SeatHold LeavingSeatHold(const Table& table, int seat, bool localGameLive, bool localPostMatch) {
+	const bool active = table.phase == TablePhase::Ready || table.phase == TablePhase::Playing || table.phase == TablePhase::Paused;
+	if (!active && !localGameLive) return SeatHold::None;
+	if (ReadyCancellable(table, seat)) return SeatHold::UnreadyFirst;
+	return LiveGameHold(table, localPostMatch);
+}
+
+// What a fighter gives up by leaving the seat: the set score, and the seat
+// itself to the next player queued.
+struct LeavingCost {
+	bool score = false;
+	bool handsOver = false;
+	explicit operator bool() const { return score || handsOver; }
+};
+inline LeavingCost CostOfLeavingSeat(const Table& table) {
+	return {table.score[0] != 0 || table.score[1] != 0, !table.queue.empty()};
+}
+
+// A live game with no result for this long is offered to the host as stuck. The
+// room has no clock the clients share, so each client times it from when it
+// first saw that game.
+constexpr unsigned StaleGameSeconds = 600;
 
 // Both fighters play at the higher of their Ready delays. A fighter's delay
 // decides how much rollback the other side sees, so separate values gave the
@@ -238,6 +303,36 @@ struct Snapshot {
 	std::vector<ChatMessage> chat;
 };
 
+inline const Member* FindMember(const Snapshot& snapshot, MemberId id) {
+	const auto found = std::find_if(snapshot.members.begin(), snapshot.members.end(),
+		[id](const Member& member) { return member.id == id; });
+	return found == snapshot.members.end() ? nullptr : &*found;
+}
+
+// Where a member holds a place in the room: a seat at one table, a place in one
+// table's queue, or neither. Watching is not a place, because Queue and Watch
+// both end it.
+struct Place {
+	enum class Kind : std::uint8_t { None, Seat, Queue } kind = Kind::None;
+	int table = -1;
+	int seat = -1;
+};
+inline Place PlaceOf(const Snapshot& snapshot, MemberId id) {
+	Place place;
+	const auto* member = FindMember(snapshot, id);
+	if (!member) return place;
+	if (member->seat >= 0 && member->seat < 2 && member->table >= 0 && member->table < static_cast<int>(snapshot.tables.size())) {
+		place.kind = Place::Kind::Seat; place.table = member->table; place.seat = member->seat;
+		return place;
+	}
+	for (const auto& table : snapshot.tables)
+		if (std::find(table.queue.begin(), table.queue.end(), id) != table.queue.end()) {
+			place.kind = Place::Kind::Queue; place.table = table.id;
+			return place;
+		}
+	return place;
+}
+
 struct Action {
 	ActionKind kind = ActionKind::Queue;
 	std::uint32_t protocolVersion = ProtocolVersion;
@@ -255,6 +350,10 @@ struct Action {
 	std::uint64_t matchGeneration = 0;
 	std::uint8_t inputDelay = 2;
 	std::string text;
+	// Set on the generation-scoped Unwatch a spectator's runtime sends when its
+	// own stream or setup failed: leave this game only. The watch stays, the
+	// lock-in does not. A player's own Stop watching never sets it.
+	bool keepWatching = false;
 };
 
 struct Event {
@@ -375,6 +474,7 @@ private:
 	Result ApplyUnqueue(MemberId member, Table* table);
 	Result ApplyWatch(MemberId member, Table* table);
 	Result ApplyUnwatch(MemberId member, Table* table);
+	Result ApplyLeaveGame(MemberId member, Table* table);
 	Result ApplyReadiness(MemberId member, const Action& action, Table* table, Member* item);
 	Result ApplyRecordResult(MemberId member, const Action& action, Table* table);
 	Result ApplyMatchFinished(MemberId member, const Action& action, Table* table);
@@ -407,6 +507,12 @@ private:
 	void SeatQueued(Table& table);
 	void FillVacancy(Table& table, int seat);
 	void RemoveFromTable(MemberId member, bool preserveSpectator = false);
+	// Ready flags and the delay locks that go with them.
+	void ClearReadiness(Table& table);
+	// The bookkeeping that ends a live generation: watchers who asked for the next
+	// game join the spectators, members whose place ended with this game leave
+	// them, the frozen roster is dropped and the fighters' delays unlock.
+	void CloseLiveGeneration(Table& table);
 	void ResetTable(Table& table, bool clearScore);
 	bool IsHost(MemberId member) const;
 	bool CanEditRules(MemberId member) const;

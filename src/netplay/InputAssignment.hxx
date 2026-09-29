@@ -1,4 +1,5 @@
 #pragma once
+#include "../common/PadKind.hxx"
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -36,7 +37,7 @@ public:
         if (capture_ == Capture::Press) {
             // Keyboard has an explicit action; controller capture never silently chooses it.
             const Device* pressed=nullptr;
-            for (const auto& device : devices) if (device.type != 1 && device.connected && device.buttons) {
+            for (const auto& device : devices) if (device.type != PadKeyboard && device.connected && device.buttons) {
                 if(pressed){capture_=Capture::ReleaseAll;candidate_={};return false;}
                 pressed=&device;
             }

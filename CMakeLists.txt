@@ -139,6 +139,10 @@ if(BUILD_TESTING)
     target_link_libraries(RoomAuthorityTest PRIVATE sf4e_room_model)
     add_test(NAME RoomAuthority COMMAND RoomAuthorityTest)
     set_tests_properties(RoomAuthority PROPERTIES TIMEOUT 30)
+    add_executable(RoomLifecycleTest "src/tests/room_lifecycle_test.cxx")
+    target_link_libraries(RoomLifecycleTest PRIVATE sf4e_room_model)
+    add_test(NAME RoomLifecycle COMMAND RoomLifecycleTest)
+    set_tests_properties(RoomLifecycle PROPERTIES TIMEOUT 30)
     add_executable(RoomSpectatorLockTest "src/tests/room_spectator_lock_test.cxx")
     target_link_libraries(RoomSpectatorLockTest PRIVATE sf4e_room_model)
     add_test(NAME RoomSpectatorLock COMMAND RoomSpectatorLockTest)
@@ -237,6 +241,10 @@ if(BUILD_TESTING)
     target_link_libraries(ControllerNavigationTest PRIVATE sf4e_ui Dimps)
     add_test(NAME ControllerNavigation COMMAND ControllerNavigationTest)
     set_tests_properties(ControllerNavigation PROPERTIES TIMEOUT 30)
+    add_executable(ShellJourneyTest src/tests/shell_journey_test.cxx)
+    target_link_libraries(ShellJourneyTest PRIVATE sf4e_ui Dimps)
+    add_test(NAME ShellJourney COMMAND ShellJourneyTest)
+    set_tests_properties(ShellJourney PROPERTIES TIMEOUT 30)
     add_executable(RoomPanelNavigationTest src/tests/room_panel_navigation_test.cxx)
     target_link_libraries(RoomPanelNavigationTest PRIVATE sf4e_ui Dimps)
     add_test(NAME RoomPanelNavigation COMMAND RoomPanelNavigationTest)
@@ -251,7 +259,7 @@ if(BUILD_TESTING)
     add_executable(Win32CursorTest src/tests/win32_cursor_test.cxx)
     target_link_libraries(Win32CursorTest PRIVATE sf4e_ui)
     add_test(NAME Win32Cursor COMMAND Win32CursorTest)
-    target_link_libraries(UiRenderTest PRIVATE sf4e_ui "d3d9")
+    target_link_libraries(UiRenderTest PRIVATE sf4e_ui "d3d9" "dbghelp" "psapi")
     add_test(NAME UiRender COMMAND UiRenderTest)
     # Every fighter now has a portrait (the packaged cutout stands in for the
     # game's), and sweeping twenty configurations cycles more art than the
@@ -261,6 +269,10 @@ if(BUILD_TESTING)
     # its timeout as languages are added.
     add_test(NAME UiRenderLocales COMMAND UiRenderTest)
     set_tests_properties(UiRenderLocales PROPERTIES TIMEOUT 600 ENVIRONMENT "SF4E_UI_RENDER_LOCALES=translations")
+    # The atlas rebuild on its own: every language and scale within the atlas
+    # budget, then random player text through many rebuilds.
+    add_test(NAME UiRenderAtlas COMMAND UiRenderTest)
+    set_tests_properties(UiRenderAtlas PROPERTIES TIMEOUT 300 ENVIRONMENT "SF4E_UI_RENDER_ATLAS_STRESS=150")
     add_executable(SelectionArtTest src/tests/selection_art_test.cxx)
     target_compile_definitions(SelectionArtTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
     target_link_libraries(SelectionArtTest PRIVATE sf4e_ui "d3d9")
@@ -376,7 +388,12 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__UserApp.cxx"
     "src/sf4e/sf4e__NetplayFacade.hxx"
     "src/sf4e/sf4e__NetplayFacade.cxx"
+    "src/sf4e/sf4e__NetplayRuntime.hxx"
     "src/sf4e/sf4e__NetplayRuntime.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__Input.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__Match.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__Room.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__Status.cxx"
 )
 target_include_directories(sf4e PUBLIC "src/common")
 option(SF4E_DEVELOPER_UI "Build the fixed developer inspector page" OFF)
@@ -434,7 +451,7 @@ if(BUILD_TESTING)
     add_test(NAME IrohMatchSession COMMAND IrohMatchSessionTest)
     add_executable(AbortNoticeTest "src/tests/abort_notice_test.cxx")
     target_compile_features(AbortNoticeTest PRIVATE cxx_std_17)
-    target_link_libraries(AbortNoticeTest PRIVATE Session sf4e Dimps "d3d9")
+    target_link_libraries(AbortNoticeTest PRIVATE Session sf4e sf4e_localization Dimps "d3d9")
     add_test(NAME AbortNotice COMMAND AbortNoticeTest)
     set_tests_properties(AbortNotice PROPERTIES TIMEOUT 15 PASS_REGULAR_EXPRESSION "Abort notice passed")
     if(SF4E_BUILD_IROH_HELPER)
@@ -448,7 +465,7 @@ if(BUILD_TESTING)
         add_executable(PadAssignmentTest "src/tests/pad_assignment_test.cxx")
         target_link_libraries(PadAssignmentTest PRIVATE Session sf4e Dimps sf4e_helper_platform "d3d9")
         add_test(NAME PadAssignment COMMAND PadAssignmentTest)
-        target_link_libraries(RuntimeBootstrapTest PRIVATE Session sf4e Dimps sf4e_helper_platform "d3d9")
+        target_link_libraries(RuntimeBootstrapTest PRIVATE Session sf4e sf4e_localization Dimps sf4e_helper_platform "d3d9")
         add_dependencies(RuntimeBootstrapTest IrohHelper)
         add_test(NAME RuntimeBootstrap COMMAND RuntimeBootstrapTest "${SF4E_HELPER_EXECUTABLE}")
         set_tests_properties(RuntimeBootstrap PROPERTIES TIMEOUT 30)

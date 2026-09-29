@@ -13,6 +13,7 @@
 #include <utility>
 namespace sf4e { namespace ui {
 namespace {
+constexpr double ErrorSeconds = 5;
 // The launch card names only the settings that differ, in the order the game's
 // own Options menu lists them. Empty means nothing to say.
 std::string GameSettingsAdvice(const gameconfig::DisplaySettings& g) {
@@ -27,6 +28,18 @@ std::string GameSettingsAdvice(const gameconfig::DisplaySettings& g) {
         text += "\n\n" + loc::Tf(item.id, item.value);
     }
     return text;
+}
+// What the session is reporting, in words: the text a caller supplied, else the
+// sentence for the condition the controller observed. A recovery that has
+// offered a replacement says so instead of the condition that led to it.
+std::string SessionProblem(const netplay::Snapshot& session) {
+    if(session.recovery==netplay::Recovery::ReplacementOffered&&session.fault!=netplay::Fault::None)return loc::T("room.control_unavailable");
+    if(!session.error.empty())return session.error;
+    switch(session.fault){
+    case netplay::Fault::ControlRecovering:return loc::T("room.control_recovering");
+    case netplay::Fault::CatchingUp:return loc::T("room.catching_up");
+    default:return {};
+    }
 }
 // "Automatic" first, then every locale by its own name.
 std::vector<MenuChoice> LanguageChoices() {
@@ -43,6 +56,9 @@ bool ApplicationShell::Service(platform::ServiceAction kind, const ShellView& vi
     ShellAction action; action.service = kind; action.command.generation = view.session.generation;
     if (!submit(std::move(action))) { error_ = loc::T("error.queue_failed"); return false; }
     error_.clear(); return true;
+}
+void ApplicationShell::Refuse(std::string text, std::function<bool(const ShellView&)> stillBlocked) {
+    error_ = std::move(text); errorBlockedText_ = error_; errorBlocked_ = std::move(stillBlocked);
 }
 bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit) {
     ShellAction action;
@@ -77,18 +93,13 @@ void ApplicationShell::UpdateRoomTransitions(const ShellView& v,double now) {
   error_.clear();
   notice_=previousRoomState_==RoomState::Opening?"":loc::T("notice.left_room");
   noticeTone_=Tone::Neutral;noticeUntil_=now+3;
-  openingScreen_.clear();
  }
  // The room screen opens only once the committed room snapshot has the local
  // member in it. Before that the player stays where they pressed Create or
  // Join, with a pending status, instead of seeing a bare placeholder list.
  if(v.session.room==RoomState::Joined&&previousRoomState_!=RoomState::Joined&&nav.Screen().compare(0,4,"room")!=0){nav.Home();nav.Push("room");}
  previousRoomState_=v.session.room;
- // The screen a room was started from lasts until the room ends (above), or
- // until the start is refused: a new session error while still idle. A queued
- // command can take a few Idle frames to become Opening.
- if(v.session.room==RoomState::Idle&&!v.session.error.empty()&&v.session.error!=openingError_)openingScreen_.clear();
- if(!(generation_==v.session.generation)) {
+  if(!(generation_==v.session.generation)) {
   const bool roomChanged=generation_.room!=v.session.generation.room;
   generation_=v.session.generation; nav.Cancel(); error_.clear();notice_.clear();
   // A replacement room that is already joined lands on its own room screen.
@@ -146,7 +157,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
    Row("about",loc::T("home.about"),loc::T("home.about_detail")),
    Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle)};
-  if(opening)rows[0].detail=OpeningScreen()=="create"?loc::T("room.creating_status"):loc::T("room.joining_status");
+  if(opening)rows[0].detail=v.session.isHost?loc::T("room.creating_status"):loc::T("room.joining_status");
   if(!v.controllerReady)rows.insert(rows.begin(),Row("player",loc::T("home.choose_controller"),loc::T("home.choose_controller_detail")));
   // Back leaves a pending invitation's screen without answering it, so Home
   // keeps a way back to it until it is answered or expires.
@@ -180,13 +191,13 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    opening?ConfirmRow("cancel-open",loc::T("room.stop_joining_action"),loc::T("room.stop_joining"),true):Row("join-now",loc::T("online.join"),loc::T("room.join_pasted"),v.canOpenRoom&&invitation_[0]),
    TextRow("invite-text",loc::T("room.edit_invitation"),invitation_,sizeof(invitation_)-1,v.canOpenRoom)};
   rows[0].hint=loc::T("menu.hint.paste");if(!opening)rows[1].hint=loc::T("online.join");
- }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;rows=RoomEntries(v);
+ }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
  }else if(screen=="settings"){
   title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail"))};
  }else if(screen=="player"){
   title=loc::T("player.title");rows={TextRow("name",loc::T("profile.player_name"),preferences_.displayName,31,v.canEditPreferences),
    Row("capture",loc::T("player.change_controller"),loc::Tf("player.change_controller_detail",v.controller),v.canChangeController),
-   Row("keyboard",loc::T("player.use_keyboard"),loc::T("player.use_keyboard_detail"),v.canChangeController),
+   ConfirmRow("keyboard",loc::T("player.use_keyboard"),loc::T("player.use_keyboard_detail"),v.canChangeController),
    Row("controls",loc::T("player.native_menus"),loc::T("player.native_menus_detail"),idle)};
  }else if(screen=="interface"){
   title=loc::T("settings.interface_title");char size[32];std::snprintf(size,sizeof(size),"%.2fx",preferences_.interfaceScale);
@@ -197,7 +208,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Value("hud-size",loc::T("settings.match_hud_size"),hudSizes[(std::max)(0,(std::min)(2,preferences_.matchHudSize))],loc::T("settings.match_hud_size_detail"),v.canEditPreferences),
    Value("hud-spacing",loc::T("settings.bottom_spacing"),preferences_.matchHudRaised?loc::T("spacing.raised"):loc::T("spacing.normal"),loc::T("settings.bottom_spacing_detail"),v.canEditPreferences),
    Value("scale",loc::T("settings.interface_size"),size,reason,v.canEditPreferences),
-   Value("language",loc::T("settings.language"),languageValue,loc::T("settings.language.detail"),true)};
+   Value("language",loc::T("settings.language"),languageValue,languageSaveError_.empty()?std::string(loc::T("settings.language.detail")):languageSaveError_,true)};
   // Select lists the languages by their own names; browsing them changes nothing.
   rows.back().choices=LanguageChoices();rows.back().chosen=languagePreference_;
  }else if(screen=="discord"){
@@ -207,7 +218,12 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   title=loc::T("discord.invitation_title");rows={Row("invite-cancel",loc::T("discord.cancel_invitation"),loc::T("discord.cancel_invitation_detail"))};
   if(v.discordConfirm)rows.push_back(ConfirmRow("invite-switch",loc::T("discord.switch_room"),v.discordCanSwitch?loc::T("discord.switch_room_detail"):loc::T("discord.wait_game"),v.discordCanSwitch));
   else rows.push_back(Row("invite-wait",loc::T("discord.invitation_pending"),loc::T("discord.invitation_pending_detail"),false));
- }else if(screen=="developer"&&developer){developer();if(ImGui::Button("Back to Home"))nav.Return();
+ }else if(screen=="developer"&&developer){
+  // The inspector's selectors are not the shell's own: they inherit no room
+  // hints or Back label, and whatever they forward has no reader here.
+  SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),{},false});
+  developer();TakeForwardedMenuAction();
+  if(ImGui::Button("Back to Home"))nav.Return();
  }else{
   using platform::ServiceAction;
   // Each row shows the service message only for the actions it requests.
@@ -241,7 +257,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  Tone statusTone=saveFailed_?Tone::Error:v.settingsPending||preferencesDirty_||saveQueued_||languageDirty_?Tone::Pending:
   personal?Tone::Success:Tone::Neutral;
  if((screen=="create"||screen=="join"||screen=="home"||screen=="online")&&opening&&status.empty()){
-  status=OpeningScreen()=="create"?loc::T("room.creating_status"):loc::T("room.joining_status");statusTone=Tone::Pending;
+  status=v.session.isHost?loc::T("room.creating_status"):loc::T("room.joining_status");statusTone=Tone::Pending;
  }
  if(screen=="room"&&status.empty()){
   const bool healthy=v.session.control==Health::Healthy;
@@ -259,6 +275,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
    if(!id)return std::string(loc::T("room.waiting_opponent"));
    const auto member=std::find_if(v.room.members.begin(),v.room.members.end(),[&](const room::Member& m){return m.id==id;});
    const bool local=id==v.room.localMember;
+   if(member!=v.room.members.end())NoteUserText(member->name);
    return (local?std::string(loc::T("room.you")):member==v.room.members.end()?std::string(loc::T("room.player")):member->name)+
     (table.ready[side]&&!finishedGame?loc::T("room.ready_suffix"):local&&v.readyRequested?loc::T("room.readying_suffix"):loc::T("room.not_ready_suffix"));
   };
@@ -274,23 +291,29 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
   else if(table.phase==room::TablePhase::Closed)status=loc::T("room.table_closed");
  }
  if(ImGui::GetTime()>=noticeUntil_)notice_.clear();
- if(error_!=lastError_){lastError_=error_;errorSince_=ImGui::GetTime();}
- if(!error_.empty()&&ImGui::GetTime()-errorSince_>=20){error_.clear();lastError_.clear();}
+ if(error_!=lastError_){lastError_=error_;errorSince_=ImGui::GetTime();errorScreen_=screen;}
+ // A refusal belongs to the screen it was raised on and to the condition it
+ // named; otherwise it lapses on its own.
+ if(!error_.empty()&&(screen!=errorScreen_||ImGui::GetTime()-errorSince_>=ErrorSeconds||
+   (errorBlocked_&&error_==errorBlockedText_&&!errorBlocked_(v)))){error_.clear();lastError_.clear();}
  // A notice outranks routine save feedback: "Invitation copied." must not
  // vanish because a preference write happens to be in flight. Save failures
  // still win below.
  if(!notice_.empty()&&!saveFailed_){status=notice_;statusTone=noticeTone_;}
+ // The failed language save is about the row on the Interface screen, so it
+ // speaks there only, and every other report below outranks it.
+ if(!languageSaveError_.empty()&&screen=="interface"){status=languageSaveError_;statusTone=Tone::Error;}
  if(v.controllerUnavailable){status=loc::T("controller.disconnected");statusTone=Tone::Error;}
  if(v.session.room==RoomState::Opening&&v.session.openingStalled){status=loc::T("room.opening_stalled");statusTone=Tone::Error;}
- if(!v.session.error.empty()){status=v.session.error;statusTone=Tone::Error;}
+ const std::string sessionProblem=SessionProblem(v.session);
+ if(!sessionProblem.empty()){status=sessionProblem;statusTone=Tone::Error;}
  if(!v.error.empty()){status=v.error;statusTone=Tone::Error;}
  if(!error_.empty()){status=error_;statusTone=Tone::Error;}
- if(!languageSaveError_.empty()){status=languageSaveError_;statusTone=Tone::Error;}
  const bool roomScreen=screen.compare(0,4,"room")==0;
  if(roomScreen&&v.session.recovery!=Recovery::None){
-  status=!v.session.error.empty()?v.session.error:
+  status=!sessionProblem.empty()?sessionProblem:
    v.session.recovery==Recovery::ReplacementOffered?loc::T("room.control_unavailable"):loc::T("room.control_recovering");
-  statusTone=v.session.error.empty()?Tone::Pending:Tone::Error;
+  statusTone=sessionProblem.empty()?Tone::Pending:Tone::Error;
  }
  const auto& selectedTable=v.room.tables[selectedTable_];const auto tablePhase=selectedTable.phase;
  const bool committedMatchStatus=screen=="room-table" && healthyRoom &&
@@ -301,7 +324,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  if(roomScreen && (v.session.room==RoomState::Closing ||
     (v.session.control==Health::Healthy && v.session.recovery==Recovery::None &&
      ((!RoomActionsAvailable(v)&&!RoomCheckpointPending(v))||(roomUpdateVisible_&&!seatedTableStatus)) && !committedMatchStatus &&
-     !v.controllerUnavailable&&v.session.error.empty()&&v.error.empty()&&error_.empty())))
+     !v.controllerUnavailable&&sessionProblem.empty()&&v.error.empty()&&error_.empty())))
   {status=RoomWaitReason(v);statusTone=Tone::Pending;}
  return {status,statusTone};
 }
@@ -318,12 +341,13 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
 void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,const std::string& screen,bool idle,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
  // An opening room keeps its own screen, with its Stop row, until it joins.
- if(a.id=="online")nav.Push(idle?"online":opening_?OpeningScreen():"room");
+ if(a.id=="online")nav.Push(idle?"online":v.session.room==RoomState::Opening?OpeningScreen(v):"room");
  else if(a.id=="discord-invitation")nav.Push(a.id);
  else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
- else if(a.id=="selection"||a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="developer")nav.Push(a.id);
- else if(a.id=="host"||a.id=="join-now"){if(Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit)){openingScreen_=a.id=="host"?"create":"join";openingError_=v.session.error;}}
+ else if(a.id=="selection"){selectionFresh_=true;nav.Push(a.id);}
+ else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="developer")nav.Push(a.id);
+ else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
  else if(a.id=="offline"||a.id=="controls")Send(CommandKind::StartOffline,v,submit);
  else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
@@ -379,6 +403,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   roomUpdateStarted_ = -1;
  }
  lastUiTime_ = now;
+ // Player-written text can need glyphs the atlas has not baked yet. The
+ // renderer tells the theme about each string it draws, where it draws it, so
+ // text that is scrolled out of view, muted or on another screen holds none.
  if(!gameSettingsChecked_&&v.showGameSettingsCard){
   // Once per launch. "Don't show again" is the card's own outcome, so it
   // travels with the notice; a failed save just means the card returns.
@@ -392,11 +419,12 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   // The store's detail is an English diagnostic, so the player sees the
   // localized message instead. sf4e_ui has no log to carry the detail to.
   std::string diagnostic;
-  if(platform::SaveLanguagePreference(languagePreference_,diagnostic))languageSaveError_.clear();
+  if(languageSaver_?languageSaver_(languagePreference_,diagnostic):platform::SaveLanguagePreference(languagePreference_,diagnostic))languageSaveError_.clear();
   else languageSaveError_=loc::T("settings.language_save_failed");
   languageDirty_=false;
  }
  UpdateRoomTransitions(v,now);
+ TrackLiveGames(v,now);
  const bool healthyRoom=UpdateRoomFeedback(v);
  UpdatePreferenceSave(v,submit);
  if(v.readyFailureSequence!=readyFailureSequence_){
@@ -413,11 +441,13 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Room shortcuts work from every screen of a joined room, including the
  // embedded fighter selector, which forwards what it does not handle.
  const bool inRoom=v.session.room!=RoomState::Idle&&v.room.roomEpoch;
- opening_=v.session.room==RoomState::Opening;
  const std::vector<LegendHint> roomHints={{"X",loc::T("room.legend_fighter")},{"Y",loc::T("room.legend_options")},{"Back/Select",loc::T("room.chat")}};
  if(nav.Screen()=="selection"&&selection){
   // The selector names where its Back goes and shows the room's shortcuts it hands back.
-  SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),inRoom?roomHints:std::vector<LegendHint>{}});
+  SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),inRoom?roomHints:std::vector<LegendHint>{},selectionFresh_});
+  selectionFresh_=false;
+  // Only what this frame's selector forwards is read below.
+  TakeForwardedMenuAction();
   selection();
   const auto forwarded=TakeForwardedMenuAction();
   if(forwarded.kind==MenuAction::Close)nav.Return();
@@ -427,7 +457,12 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const std::string screen=nav.Screen();std::string title=loc::T("shell.home_title");
  const bool idle=v.session.room==RoomState::Idle, opening=v.session.room==RoomState::Opening;
  std::vector<MenuEntry> rows=BuildRows(v,screen,idle,opening,selection,developer,title);
- if(saveFailed_){rows.push_back(Row("retry-save",loc::T("settings.retry_save"),v.settingsError.empty()?error_:v.settingsError,v.canEditPreferences&&!v.settingsPending));rows.back().wide=true;}
+ if(saveFailed_){
+  // The store's own diagnostic is English and goes to the log (the runtime
+  // writes it there); the row says it in the player's language.
+  const std::string reason=v.settingsError.empty()&&!error_.empty()?error_:std::string(loc::T("error.settings_not_saved"));
+  rows.push_back(Row("retry-save",loc::T("settings.retry_save"),reason,v.canEditPreferences&&!v.settingsPending));rows.back().wide=true;
+ }
  const auto feedback=UpdateStatus(v,screen,opening,healthyRoom,title);
  const std::string& status=feedback.first;const Tone statusTone=feedback.second;
  const bool roomScreen=screen.compare(0,4,"room")==0;
@@ -455,7 +490,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(screen=="room"&&v.room.roomEpoch)board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawRoomBoard(v,entries,navigation,action,height,feedback);};
  // Visual grace cannot grant permission: enabled and all dispatch checks stay live.
  const bool checkpointPending=roomScreen && RoomCheckpointPending(v) && !v.controllerUnavailable &&
-  v.session.error.empty() && v.error.empty() && error_.empty();
+  SessionProblem(v.session).empty() && v.error.empty() && error_.empty();
  for(auto& row:rows)row.pending=checkpointPending;
  // Every shell screen except Home reserves the status area, so a status that
  // grows can never displace the list under a highlight or a mouse click.
@@ -467,20 +502,21 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // from Home, out of Ember or back to the room; on the board, out of your seat.
  menu_.exitName.clear();menu_.backHint.clear();
  if(screen=="home"){
-  menu_.exitName=idle?loc::T("screen.game"):opening?MenuScreenLabel(OpeningScreen()):loc::T("screen.room");
+  menu_.exitName=opening?MenuScreenLabel(OpeningScreen(v)):loc::T("screen.game");
   menu_.backHint=loc::Tf("menu.return_to",menu_.exitName);
  }else if(screen=="room"&&v.room.roomEpoch)menu_.backHint=PlaceExitLabel(v);
  // While a controller is being captured it cannot drive the menu, so the
  // legend shows the keyboard and names the cancel.
- if(v.inputCapture!=input::Capture::Idle){SetMenuGlyphs(1,0,0);menu_.backHint=loc::T("common.cancel");}
+ if(v.inputCapture!=input::Capture::Idle){SetMenuGlyphs(input::PadKeyboard,0,0);menu_.backHint=loc::T("common.cancel");}
  auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,100,stableFeedback,statusTone,screen=="home");
  if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){
   ShellAction r;r.command.generation=v.session.generation;r.inputAction=input::Action::Cancel;submit(std::move(r));
- }else if(a.kind==MenuAction::Close&&v.session.room!=RoomState::Idle){
-  // Back never drops a player out of a room to the game's own menu, where
-  // only the Ember shortcut would bring the room back.
-  nav.Push(opening?OpeningScreen():"room");
- }else if(a.kind==MenuAction::Close||a.id=="return"){if(open)*open=false;
+ }else if(a.kind==MenuAction::Close&&opening){
+  // A room being opened keeps its Stop row in reach.
+  nav.Push(OpeningScreen(v));
+ }else if(a.kind==MenuAction::Close||a.id=="return"){
+  // Back at the root hides Ember; a joined room is kept, and the Ember shortcut returns to it.
+  if(open)*open=false;
  }else if(a.kind==MenuAction::Shortcut){
   if(inRoom)RoomShortcut(a,v);
  }else if(a.kind==MenuAction::Chosen){

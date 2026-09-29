@@ -30,8 +30,9 @@ Source paths at that tag:
   Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf
   LICENSE (stored as NotoSansCJK-OFL.txt, after the font's copyright line)
 
-scripts/subset-cjk-fonts.py writes NotoSansCJK{jp,kr,sc}-Subset.otf with only
-the characters the catalogs use, and records the source and output hashes in
-NotoSansCJK-Subset.json. Subsetting drops layout tables and hinting and keeps
+scripts/subset-cjk-fonts.py writes NotoSansCJK{jp,kr,sc}-Subset.otf with the
+characters the catalogs use plus the ones people type into names and chat
+(JIS X 0208 level 1, KS X 1001 Hangul, GB2312 level 1), and records the source
+and output hashes in NotoSansCJK-Subset.json. Subsetting drops layout tables and hinting and keeps
 the original names, none of which is a Reserved Font Name.
 Licensed under SIL Open Font License 1.1; see NotoSansCJK-OFL.txt.

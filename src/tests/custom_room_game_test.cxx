@@ -494,16 +494,24 @@ int wmain(int argc, wchar_t** argv) {
 			// Like the game, which offers an unsent hash again every frame: a
 			// relayed room can be briefly non-writable right after setup.
 			wait([&]() { pump(); return clients[0]->Send(payload, nullptr) == session::SendResult::Queued; });
-			// A late joiner at table 0 is not connected yet and cannot receive it.
+			// The forward reaches the live roster of the game only. A late joiner at
+			// table 0 is not connected yet, and a table member this generation left
+			// out (the stalled spectator, the late spectator still retiring the last
+			// game) is not in it: it never joined this game and cannot compare a
+			// frame of it, so the leader does not send it one.
 			const std::size_t participants = (std::min)(perTable, admitted);
-			wait([&]() { pump(); return std::all_of(clients.begin() + 1, clients.begin() + participants,
-				[&](const std::unique_ptr<SessionClient>& client) { return client->pendingRemoteHashes.count(hash.frameIdx) == 1; }); });
-			for (std::size_t i = participants; i < Count; ++i) CHECK(clients[i]->pendingRemoteHashes.count(hash.frameIdx) == 0);
+			const auto receives = [&](std::size_t i) { return i >= 1 && i < participants && !skip(i); };
+			std::size_t receivers = 0;
+			for (std::size_t i = 0; i < Count; ++i) if (receives(i)) ++receivers;
+			wait([&]() { pump(); for (std::size_t i = 0; i < Count; ++i)
+				if (receives(i) && clients[i]->pendingRemoteHashes.count(hash.frameIdx) != 1) return false;
+				return true; });
+			for (std::size_t i = 0; i < Count; ++i) if (!receives(i)) CHECK(clients[i]->pendingRemoteHashes.count(hash.frameIdx) == 0);
 			// The late spectator's client may still be retrying the acknowledgement
 			// it just committed; the duplicate's reply is a commit of its own, at
 			// an unchanged room revision, and says nothing about the forward.
 			CHECK(lateThisCycle ? server.RoomSnapshot()->revision == revisionBefore : server.RecoveryCheckpointBuilds() == builds);
-			std::cout << "Cycle " << cycle << " verification frame " << hash.frameIdx << " forwarded to " << (participants - 1)
+			std::cout << "Cycle " << cycle << " verification frame " << hash.frameIdx << " forwarded to " << receivers
 				<< " participants without a checkpoint\n";
 		}
 		for(std::size_t i=0;i<Count;++i) if(!skip(i) && matches[i]->LocalSlot()==1) {

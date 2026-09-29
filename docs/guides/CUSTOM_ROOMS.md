@@ -9,12 +9,12 @@ release.
 
 1. Start the game through the launcher, wait for networking to become ready,
    and assign your gameplay controller.
-2. At the main menu, open **Online Play > Create Room**, choose the room name,
-   capacity, and default battle rules, then select **Create Room** again.
+2. At the main menu, open **Online play > Create room**, choose the room name,
+   capacity, and default battle rules, then select **Create room** again.
 3. Use **Copy invitation** to share the private invitation with your players.
-4. Guests open **Online Play > Join Room**, select **Paste Invitation**, then
-   **Join Room**. Joining a room leaves them idle until they explicitly choose a
-   table and queue or watch.
+4. Guests open **Online play > Join room**, select **Paste invitation**, then
+   **Join room**. Joining a room leaves them idle until they explicitly choose a
+   table and take a seat, queue or watch.
 
 While the room opens, the row reads **Stop creating** or **Stop joining**. If
 it has not opened after about 30 seconds, Ember says so; check your connection,
@@ -26,11 +26,18 @@ play at any table, or watch.
 
 ## Play and rematch
 
-Choose a table and select **Join queue**. Open seats fill in queue order. Seated
-fighters choose their characters and both select **Ready** before each game.
-Before preparation begins, a fighter can withdraw readiness with **Unready**.
+Select a table's card. With no seat or queue place yet, it opens a seat chooser:
+**Play as P1** or **Play as P2** while that seat is open and nobody is queued
+ahead (an empty table offers both seats), otherwise **Join queue**; then
+**Watch**; and **Table options**. Open seats fill in queue order. If you already
+hold a seat or queue place at another table, the card opens that table's Table
+options instead, and joining there waits until you leave your current place.
+Seated fighters choose their characters and both select **Ready up** (A on your
+own card) before each game. Before preparation begins, a fighter can withdraw
+readiness with **Unready / unlock fighter**.
 
-Battle setup shows **Recommended delay** and **Selected delay**. Your saved
+Battle setup, opened from **Table options** (Y on an Xbox pad), shows
+**Recommended delay** and **Selected delay**. Your saved
 selection is retained; a new profile starts at two frames. **Check connection**
 measures the connection to the other fighter for five seconds. **Apply
 recommendation** copies a valid recommendation into your selection. You can
@@ -53,24 +60,44 @@ There is no set length. The same two fighters keep playing until one of them
 leaves, and results count their wins against each other. The running count,
 such as 2 - 1, replaces "VS" on the table card and "vs" on the match HUD. Both fighters must ready again after returning to
 the room. When a fighter leaves their seat, the next queued member takes that
-seat and the new pair starts with fresh win counts. An unresolved game does not
-award a win or erase earlier wins for the same pair.
+seat and the new pair starts with fresh win counts. B on your own table card, or
+**Leave seat** in the table options, leaves your seat at once. It asks first
+only when the pair has wins on the board or a queued member would take the seat;
+the question starts on staying. A game in progress or an unresolved result holds
+the seat, and B says why. While a start is held for a locked-in spectator, B
+cancels the start by taking Ready back. An unresolved game does not award a win or erase earlier
+wins for the same pair.
 
-Queued members automatically watch from the next game while retaining their
-queue positions. Leaving the queue and stopping spectating are separate actions.
+Queued members automatically watch each game while retaining their queue
+positions. B on your queue card, or **Leave queue**, leaves the queue at once.
+Leaving the queue during a game lets you finish watching it; the place ends with
+that game unless you press **Watch next game**. Between games, leaving the queue
+returns you to the room. A queued member has no Watch or Stop watching action of
+its own.
 
 ## Watch
 
-**Watch next game** reserves a spectator place without joining the queue. A
-game already in progress cannot be joined halfway through. **Stop watching**
-returns the spectator to the room; the fighters continue playing.
+**Watch next game** (**Watch** in the seat chooser) reserves a spectator place
+without joining the queue. A game already in progress cannot be joined halfway
+through. **Stop watching** returns the spectator to the room; the fighters
+continue playing.
 
-The fighters never wait for a spectator. A spectator whose connection is still
-being set up when the fighters are ready (after a short grace period) misses
-that game and watches the next one. A spectator that falls about half a second
-behind the live game is dropped from it. A spectator still closing out the
-previous game does not stop the fighters starting the next one; it joins the
-game after that.
+A spectator by choice can also use **Lock in to watch** in Table options
+(**Release lock-in** undoes it). If both fighters ready while a locked-in
+spectator is still leaving the last game, the start waits for them for up to 10
+seconds, then goes ahead regardless. The table says so ("The match starts once
+locked-in spectators are back, or in 10 seconds"), and either fighter can take
+Ready back during the wait. Without lock-in the fighters do not wait: a spectator
+still closing out the previous game joins the game after that. Lock-in ends when
+you stop watching or your view of a game fails, so it cannot hold up the fighters
+again.
+
+A spectator whose connection is still being set up when the fighters are ready
+(after a short grace period) misses that game and watches the next one. A
+spectator whose connection leaves about half a second of network frames
+unacknowledged, sustained for about a second, is dropped from that game and can
+watch the next. Slow playback alone does not drop anyone: the spectator plays
+extra frames to catch up and can trail by up to 1024 frames (about 17 seconds).
 
 ## Manage the room
 

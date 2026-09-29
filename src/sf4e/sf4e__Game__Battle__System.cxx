@@ -546,7 +546,7 @@ void fSystem::CloseBattle() {
     rSystem* _this = (rSystem*)this;
     // The engine is closing this battle, so a session retired from here on
     // (now, or later by the spectator drain) leaves no orphan behind.
-    simGate.OnNativeBattleClosed();
+    const bool netplayBattle = simGate.OnNativeBattleClosed();
     sf4e::training::CloseBattle();
     bool summaryEmitted = false;
     LogSaveSlotOccupancy("battle_close_entry");
@@ -579,6 +579,12 @@ void fSystem::CloseBattle() {
             LogPacerSummary("battle_close_deferred");
             ResetPacing();
         }
+    } else if (netplayBattle) {
+        // The session was retired while the battle was alive (a lost spectator
+        // stream, a failed start, a played-out view), so no match-ended notice
+        // comes from above. The runtime still has to learn the battle is gone.
+        spdlog::info("Match: netplay battle closed after its session was retired");
+        sf4e::NetplayFacade::NotifyRuntimeBattleClosedWithoutSession();
     }
     for (int i = 0; i < NUM_SAVE_STATES; i++) {
         if (saveStates[i].used) {

@@ -1,4 +1,4 @@
-# SF4 Ember Netplay — troubleshooting
+# SF4 Ember Netplay: troubleshooting
 
 - **Launcher says the Visual C++ runtime is out of date:** Ember will not start with an older runtime because the game would crash. Choose Yes to open the Microsoft download, install the x86 Redistributable, then start Ember again. Under Wine or Proton, Wine's own runtime is accepted.
 - **Ember is already running:** a second start shows this message instead of opening another copy. If you cannot see Ember, end Launcher.exe and SSFIV.exe in Task Manager, then start it again.

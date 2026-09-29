@@ -271,6 +271,49 @@ int main() {
 		CHECK(roomClient._matchData.readyMessageNum[0] != -1);
 	}
 	CHECK(roomClient.ReleaseRoomProjection());
+	{
+		// A message the client cannot use reports a catalog id the shell can word,
+		// never an internal code, and the cause goes to the log.
+		const auto connected = [&](SessionClient& client, MockClient*& transport) {
+			client.RequireCustomRooms();
+			transport = new MockClient();
+			CHECK(client.Connect(std::unique_ptr<session::ClientTransport>(transport), false) == 0);
+			transport->state = session::ConnectionState::Connected;
+			CHECK(client.Step() == 0);
+			transport->Push(json(roomHello)); CHECK(client.Step() == 0);
+		};
+		{
+			SessionClient skewed(callbacks, "build", 30000, roomName); MockClient* transport = nullptr;
+			connected(skewed, transport);
+			auto other = roomMessage; other.snapshot.protocolVersion = room::ProtocolVersion + 1;
+			transport->Push(json(other)); CHECK(skewed.Step() < 0);
+			CHECK(skewed.RoomError() == "runtime.build_mismatch");
+		}
+		{
+			// A room this client did not join, offered by a peer that has no custom rooms.
+			SessionClient foreign(callbacks, "build", 30000, roomName); MockClient* transport = nullptr;
+			connected(foreign, transport);
+			auto other = roomMessage; other.snapshot.localMember = 0;
+			transport->Push(json(other)); CHECK(foreign.Step() < 0);
+			CHECK(foreign.RoomError() == "runtime.build_mismatch");
+		}
+		{
+			SessionClient unreadable(callbacks, "build", 30000, roomName); MockClient* transport = nullptr;
+			connected(unreadable, transport);
+			auto broken = json(roomMessage); broken["snapshot"] = "broken";
+			transport->Push(broken); CHECK(unreadable.Step() < 0);
+			CHECK(unreadable.RoomError() == "runtime.room_request_failed");
+		}
+		for (const bool result : {false, true}) {
+			SessionClient garbled(callbacks, "build", 30000, roomName); MockClient* transport = nullptr;
+			connected(garbled, transport);
+			transport->Push(json(roomMessage)); CHECK(garbled.Step() == 0);
+			auto broken = result ? json(protocol::RoomResultMessage{}) : json(protocol::RoomEventMessage{});
+			broken[result ? "result" : "event"] = "broken";
+			transport->Push(broken); CHECK(garbled.Step() == 0);
+			CHECK(garbled.RoomError() == "runtime.room_request_failed");
+		}
+	}
 	// A native projection must be captured for the exact grant generation. A
 	// later update for that generation may describe a subsequent room change,
 	// but cannot rewrite the inputs already selected for the queued match.

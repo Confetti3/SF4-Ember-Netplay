@@ -28,7 +28,59 @@ pub struct Metrics {
 pub struct Measurement {
     pub samples: Vec<u64>,
     pub route_changed: bool,
+    /// The selected route when the wait for late replies ended: the route this
+    /// measurement observed on its probe connection.
+    pub route: String,
     pub metrics: Metrics,
+}
+
+/// The transport a route string names, such as `ip` or `relay`.
+fn route_kind(route: &str) -> &str {
+    route.split(':').next().unwrap_or(route)
+}
+
+/// Whether the route stayed usable for one measurement. Latency differs by
+/// transport, so a move between transports, such as relay to direct, mixes two
+/// distributions into one recommendation. iroh also moves a healthy direct
+/// connection between addresses of the same peer, for example from its IPv4
+/// LAN address to an IPv6 one, while a check runs. Those paths measure alike
+/// and the move discards nothing, so it does not count. A moment with no
+/// selected path, which a move passes through, says nothing either way.
+struct RouteWatch {
+    initial: String,
+    last: String,
+    changed: bool,
+}
+
+impl RouteWatch {
+    fn new(initial: String) -> Self {
+        Self {
+            changed: initial == "unavailable",
+            last: initial.clone(),
+            initial,
+        }
+    }
+
+    /// Records the route seen at one packet of the measurement.
+    fn packet(&mut self, current: String) {
+        if current == "unavailable" {
+            return;
+        }
+        if route_kind(&current) != route_kind(&self.initial) {
+            self.changed = true;
+        }
+        self.last = current;
+    }
+
+    /// The route to report when the measurement ends: the current one, or the
+    /// last one seen if none is selected at this instant.
+    fn reported(&self, current: String) -> String {
+        if current == "unavailable" {
+            self.last.clone()
+        } else {
+            current
+        }
+    }
 }
 
 fn failed() -> io::Error {
@@ -87,8 +139,10 @@ pub async fn measure(
     }
     let started = Instant::now();
     let deadline = started + duration(benchmark) + Duration::from_secs(1);
-    let initial_route = route(connection);
-    let mut route_changed = false;
+    // Only the datagram exchange is measured, so only a route seen at one of its
+    // packets can taint a sample. The connection is not consulted again after
+    // the last packet except to report where it ended up.
+    let mut watch = RouteWatch::new(route(connection));
     let mut ticker = tokio::time::interval(INTERVAL);
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     let mut timestamps = vec![None; expected as usize];
@@ -114,7 +168,7 @@ pub async fn measure(
                 connection.send_datagram(packet.into()).map_err(|_|failed())?;
                 timestamps[(sequence-1) as usize]=Some(timestamp);
                 metrics.sent+=1;
-                route_changed |= route(connection)!=initial_route;
+                watch.packet(route(connection));
             },
             incoming=connection.read_datagram()=> {
                 let packet=incoming.map_err(|_|failed())?;
@@ -124,11 +178,14 @@ pub async fn measure(
                 let timestamp=number(&packet,40);
                 if timestamps[(sequence-1) as usize]!=Some(timestamp) || !received.insert(sequence) { continue; }
                 samples.push((started.elapsed().as_micros() as u64).saturating_sub(timestamp));
-                route_changed |= route(connection)!=initial_route;
+                watch.packet(route(connection));
                 // Keep the same duration for loss-free and impaired runs.
             }
         }
     }
+    // Read before the stream ends: the peer closes a finished probe connection
+    // as soon as it has answered, and a closed connection has no selected path.
+    let final_route = watch.reported(route(connection));
     // FIN is independent of datagram loss, so even 100% loss terminates cleanly.
     send.finish().map_err(|_| failed())?;
     let mut end = [0; 1];
@@ -138,9 +195,6 @@ pub async fn measure(
     ) {
         return Err(failed());
     }
-    route_changed |= route(connection) != initial_route
-        || initial_route == "unavailable"
-        || connection.close_reason().is_some();
     metrics.replies = samples.len() as u32;
     metrics.jitter_us = if samples.len() > 1 {
         samples.windows(2).map(|v| v[0].abs_diff(v[1])).sum::<u64>() / (samples.len() - 1) as u64
@@ -155,7 +209,8 @@ pub async fn measure(
     }
     Ok(Measurement {
         samples,
-        route_changed,
+        route_changed: watch.changed,
+        route: final_route,
         metrics,
     })
 }
@@ -194,6 +249,9 @@ pub async fn respond(
             result=recv.read(&mut end)=> {
                 if !matches!(result,Ok(None)) { return Err(failed()); }
                 send.finish().map_err(|_|failed())?;
+                // The caller closes the connection next; let the peer receive the
+                // end of the stream before that close can discard it.
+                let _ = timeout(Duration::from_secs(2), send.stopped()).await;
                 return Ok(());
             },
             packet=connection.read_datagram()=> {
@@ -221,6 +279,39 @@ mod tests {
     use super::*;
     use iroh::{Endpoint, EndpointAddr, endpoint::presets};
     use std::net::Ipv4Addr;
+
+    #[test]
+    fn a_move_between_direct_addresses_of_the_peer_is_not_a_route_change() {
+        // The failing run: a complete measurement that began on the IPv4 LAN
+        // address and was moved to an IPv6 one by iroh after the 17th packet.
+        let mut watch = RouteWatch::new("ip:10.1.42.192:45761".into());
+        for _ in 0..17 {
+            watch.packet("ip:10.1.42.192:45761".into());
+        }
+        watch.packet("ip:[2600:1700:17c9:18f:a1d1:88f4:ef25:c490]:57845".into());
+        // A move passes through a moment with no selected path.
+        watch.packet("unavailable".into());
+        watch.packet("ip:[2600:1700:17c9:18f:a1d1:88f4:ef25:c490]:57845".into());
+        assert!(!watch.changed);
+        assert_eq!(
+            watch.reported("ip:[2600:1700:17c9:18f:a1d1:88f4:ef25:c490]:57845".into()),
+            "ip:[2600:1700:17c9:18f:a1d1:88f4:ef25:c490]:57845"
+        );
+        assert_eq!(
+            watch.reported("unavailable".into()),
+            "ip:[2600:1700:17c9:18f:a1d1:88f4:ef25:c490]:57845"
+        );
+    }
+
+    #[test]
+    fn a_move_between_transports_or_no_route_at_all_is_a_route_change() {
+        let mut upgraded = RouteWatch::new("relay:https://relay.example./".into());
+        upgraded.packet("relay:https://relay.example./".into());
+        assert!(!upgraded.changed);
+        upgraded.packet("ip:10.0.0.2:4000".into());
+        assert!(upgraded.changed);
+        assert!(RouteWatch::new("unavailable".into()).changed);
+    }
 
     async fn loss_case(drop_all: bool) {
         let a = Endpoint::builder(presets::Minimal)

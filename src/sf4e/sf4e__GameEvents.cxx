@@ -8,6 +8,7 @@
 #include "../Dimps/Dimps__Platform.hxx"
 #include "sf4e__Event.hxx"
 #include "sf4e__GameEvents.hxx"
+#include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__UserApp.hxx"
 
@@ -229,7 +230,10 @@ int fVsBattle::HasInitialized() {
 			bSessionSentLoaded = true;
 			fUserApp::netplay->client.Battle_Loaded();
 		}
-		if (!bSessionSynced) {
+		// A battle whose session ended before the room released it (the opponent
+		// left during the load) must still initialize, or nothing could drive it
+		// out.
+		if (!bSessionSynced && !sf4e::Game::Battle::System::simGate.NativeExitRequired()) {
 			return 0;
 		}
 	}

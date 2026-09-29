@@ -15,23 +15,72 @@ impl Actor {
         }
     }
 
-    pub(super) fn apply_confirmed_retirements(&mut self, confirmed: BTreeSet<u64>) {
+    pub(super) fn apply_confirmed_retirements(
+        &mut self,
+        confirmed: BTreeSet<u64>,
+        history: &BTreeSet<u64>,
+    ) {
         for incarnation in confirmed {
-            // Keep the exact retirement fence bounded. Once the room has
-            // accumulated the configured number of historical incarnations,
-            // leave this departure pending and fail closed: the RPC binding
-            // is already read-only, and evicting the ID from the pending set
-            // would let a lagging peer replay the old Admission after a later
-            // control reconnect.
             self.admissions.remove(&incarnation);
             self.admission_order.retain(|id| *id != incarnation);
-            if !self.retired_incarnations.contains(&incarnation)
-                && self.retired_incarnations.len() >= MAX_RETIRED_INCARNATIONS
-            {
-                continue;
+            // A departure that cannot be recorded stays pending: the RPC
+            // binding is already read-only, and forgetting the ID would let a
+            // lagging peer replay the old Admission after a control reconnect.
+            if self.record_retirement(incarnation, history) {
+                self.pending_retired_incarnations.remove(&incarnation);
             }
-            self.retired_incarnations.insert(incarnation);
-            self.pending_retired_incarnations.remove(&incarnation);
+        }
+    }
+
+    /// Add a tombstone to the bounded retirement set. When the set is full, the
+    /// tombstone of an incarnation that is no longer in the replicated
+    /// membership history has aged out of the window every replica keeps, so it
+    /// makes room. A set that the history still holds in full fails closed.
+    pub(super) fn record_retirement(&mut self, incarnation: u64, history: &BTreeSet<u64>) -> bool {
+        if self.retired_incarnations.contains(&incarnation) {
+            return true;
+        }
+        if self.retired_incarnations.len() >= MAX_RETIRED_INCARNATIONS {
+            let Some(aged) = self
+                .retired_incarnations
+                .iter()
+                .copied()
+                .find(|id| !history.contains(id))
+            else {
+                return false;
+            };
+            self.retired_incarnations.remove(&aged);
+        }
+        self.retired_incarnations.insert(incarnation);
+        true
+    }
+
+    /// A helper that presents a new incarnation for a primary endpoint which
+    /// still holds an older one has replaced that process, for example by
+    /// rejoining right after an abandoned exit. The older incarnation's route
+    /// binding would refuse the new one for as long as it stayed live, so the
+    /// leader retires it: the tombstone frees the binding and the pending
+    /// retirement removes the process from the coordination membership at the
+    /// next reconciliation.
+    pub(super) async fn supersede_endpoint_incarnations(
+        &mut self,
+        recovery: &crate::recovery::RecoverySession,
+        admission: &Admission,
+    ) {
+        let stale = self
+            .admissions
+            .values()
+            .filter(|known| {
+                known.primary_endpoint == admission.primary_endpoint
+                    && known.incarnation != admission.incarnation
+            })
+            .map(|known| known.incarnation)
+            .collect::<Vec<_>>();
+        for incarnation in stale {
+            self.admissions.remove(&incarnation);
+            self.admission_order.retain(|id| *id != incarnation);
+            self.pending_retired_incarnations.insert(incarnation);
+            recovery.rpc.retire(incarnation).await;
         }
     }
 
@@ -109,7 +158,7 @@ impl Actor {
         let reachable = self.controls.keys().copied().collect::<BTreeSet<_>>();
         self.pending_membership_operation = Some(key.clone());
         self.tasks.spawn(async move {
-            let result = async {
+            let operation = async {
                 if recovery.coordinator.current_term() != term {
                     return Err(failed("obsolete membership operation"));
                 }
@@ -120,22 +169,53 @@ impl Actor {
                         .copied()
                         .collect::<BTreeSet<_>>();
                     if !voter_removals.is_empty() {
-                        let replacement = applied_voters
+                        let remaining = applied_voters
                             .difference(&voter_removals)
                             .copied()
+                            .collect::<BTreeSet<_>>();
+                        // A voter with no control link cannot acknowledge the
+                        // joint configuration, and the change would never
+                        // commit.
+                        let replacement = remaining
+                            .iter()
+                            .copied()
+                            .filter(|id| {
+                                *id == recovery.incarnation
+                                    || admissions
+                                        .iter()
+                                        .find(|admission| admission.incarnation == *id)
+                                        .is_none_or(|admission| {
+                                            reachable.contains(&admission.primary_endpoint)
+                                        })
+                            })
                             .collect::<BTreeSet<_>>();
                         if replacement.is_empty() {
                             return Err(failed("empty replacement membership"));
                         }
-                        recovery.remove_members(replacement).await?;
+                        if replacement.len() == remaining.len() {
+                            recovery.remove_members(replacement).await?;
+                        } else {
+                            // Dropping the unreachable voters as well would
+                            // remove their incarnations for good. They stay
+                            // learners instead, and the leaving ones are
+                            // removed below; the stable count is restored
+                            // once they answer again.
+                            recovery.promote_voters(replacement).await?;
+                        }
                     }
                     if recovery.coordinator.current_term() != term {
                         return Err(failed("obsolete membership operation"));
                     }
                     let voters_after = recovery.applied_voter_ids().await;
+                    // Only members the coordination group does not hold yet are
+                    // added. Adding a learner waits for it to catch up, so
+                    // repeating it for one that has gone away would hold this
+                    // operation until its timeout.
+                    let members_before = recovery.applied_member_ids().await;
                     for admission in admissions.iter().filter(|admission| {
                         retained.contains(&admission.primary_endpoint)
                             && !voters_after.contains(&admission.incarnation)
+                            && !members_before.contains(&admission.incarnation)
                     }) {
                         recovery.add_learner(admission).await?;
                     }
@@ -167,8 +247,10 @@ impl Actor {
                 Ok(MembershipOperationResult {
                     confirmed_retirements,
                 })
-            }
-            .await;
+            };
+            let result = timeout(MEMBERSHIP_OPERATION_TIMEOUT, operation)
+                .await
+                .unwrap_or_else(|_| Err(failed("membership operation timeout")));
             Completion::MembershipReconciliation(key, result)
         });
     }
@@ -345,7 +427,8 @@ impl Actor {
             && recovery.coordinator.current_term() == key.term
             && committed.revision == key.revision;
         if current && let Ok(result) = result {
-            self.apply_confirmed_retirements(result.confirmed_retirements);
+            let (_, history) = recovery.applied_membership_provenance().await;
+            self.apply_confirmed_retirements(result.confirmed_retirements, &history);
         }
         // Stale completions leave the pre-write retirement fences in
         // place. The next exact committed-roster refresh retries the

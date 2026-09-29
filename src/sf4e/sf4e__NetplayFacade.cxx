@@ -119,12 +119,21 @@ namespace sf4e {
 		spdlog::info("Netplay notice ({}): {}", (int)severity, s_notice.text);
 	}
 
+	void NetplayFacade::PushDesyncNotice(bool spectatorOnly) {
+		PushAlert(loc::T(spectatorOnly ? "runtime.desync_spectator" : "runtime.desync_match_ended"),
+			spectatorOnly ? NoticeSeverity::Warning : NoticeSeverity::Error);
+	}
+
 	void NetplayFacade::SetLastError(const char* msg) { PushAlert(msg, NoticeSeverity::Error); }
 
 	void NetplayFacade::PushAlert(const char* msg) { PushAlert(msg, NoticeSeverity::Error); }
 
 	void NetplayFacade::ClearMatchNotice() {
 		s_notice = MatchNotice();
+	}
+
+	void NetplayFacade::ClearTransientMatchNotice() {
+		if (s_notice.severity != NoticeSeverity::Error) s_notice = MatchNotice();
 	}
 
 	static void ExpireNotice(ULONGLONG now) {
@@ -183,7 +192,7 @@ namespace sf4e {
 		s_verificationLostAtFrame =
 			rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
 		spdlog::warn(
-			"Netplay: control plane lost at frame {} — continuing fight on GGPO UDP; "
+			"Netplay: control plane lost at frame {}, continuing fight on GGPO UDP; "
 			"verification, results, rematch, and spectator coordination disabled",
 			s_verificationLostAtFrame
 		);
@@ -202,7 +211,7 @@ namespace sf4e {
 		}
 		spdlog::warn(
 			"Netplay: match ended after control-plane loss; snapshot/hash verification "
-			"was unavailable from frame {} to match end — that interval is UNVERIFIED",
+			"was unavailable from frame {} to match end; that interval is UNVERIFIED",
 			s_verificationLostAtFrame
 		);
 		PushAlert(loc::T("runtime.returned_room_lost"));
@@ -256,11 +265,15 @@ namespace sf4e {
             for (int side = 0; side < 2; ++side) st.matchSides[side] = fUserApp::netplay->matchSides[side];
             // Spectators carry their table too, so everyone watching sees the same count.
             const auto& room = fUserApp::netplay->client.GetRoomSnapshot();
+            std::uint32_t liveScore[2] = { 0, 0 };
+            bool liveScoreKnown = false;
             for (const auto& m : room.members)
                 if (m.id == room.localMember && m.table >= 0) {
-                    st.hasMatchScore = true;
-                    for (int side = 0; side < 2; ++side) st.matchScore[side] = room.tables[m.table].score[side];
+                    liveScoreKnown = true;
+                    for (int side = 0; side < 2; ++side) liveScore[side] = room.tables[m.table].score[side];
                 }
+            st.hasMatchScore = HudScore(fSystem::ggpo && fUserApp::netplay->spectating, fUserApp::netplay->startScoreKnown,
+                fUserApp::netplay->startScore, liveScoreKnown, liveScore, st.matchScore);
             st.rollbackFrames = fSystem::RecentRollbackFrames();
 
 			for (const auto& m : fUserApp::netplay->client._lobbyData.members) {
@@ -299,7 +312,7 @@ namespace sf4e {
 		s_verificationLostAtFrame = -1;
 		// Keep an Error visible across the shutdown (it explains why the
 		// player is back in the menu); drop transient notices.
-		if (s_notice.severity != NoticeSeverity::Error) ClearMatchNotice();
+		ClearTransientMatchNotice();
 	}
 
 	void NetplayFacade::ClearBattleState() {
@@ -332,8 +345,10 @@ namespace sf4e {
 			s_spectatorDrainUntil = 0;
 			return;
 		}
-		// SpectatorPolicy drops a spectator more than DropQueueFrames behind,
-		// so a live one finishes well inside this bound.
+		// The hold only has to deliver P1's last frames: a spectator plays out its
+		// backlog after P1's link closes (PollSpectatorExit). SpectatorPolicy drops
+		// any spectator with DropQueueFrames or more frames unacknowledged, so a
+		// live one has received everything well inside this bound.
 		s_spectatorDrainUntil = GetTickCount64() + 10000;
 		spdlog::info("NetplayFacade: deferring GGPO close for {} spectator streams", spectators);
 	}

@@ -665,6 +665,21 @@ mod tests {
         second.close().await;
     }
 
+    /// Drops `call` once the receiver reports that the RPC's stream reached it,
+    /// so the cancellation lands on a call that is waiting for its response
+    /// whatever the connection setup cost.
+    async fn cancel_once_received<F: Future>(
+        call: F,
+        received: &mut tokio::sync::mpsc::UnboundedReceiver<()>,
+    ) {
+        tokio::select! {
+            _ = call => panic!("the stalled receiver answered the RPC"),
+            arrived = timeout(Duration::from_secs(30), received.recv()) => {
+                assert!(matches!(arrived, Ok(Some(()))), "the RPC never reached the receiver");
+            }
+        }
+    }
+
     #[tokio::test]
     async fn canceled_rpc_closes_the_cached_connection_before_retry() {
         let room = [11; 16];
@@ -672,12 +687,17 @@ mod tests {
         let receiver = IrohRpc::bind(room, 2, false).await.unwrap();
         caller.admit(2, receiver.address()).await.unwrap();
         let receiver_endpoint = receiver.endpoint.clone();
+        let (received_tx, mut received) = tokio::sync::mpsc::unbounded_channel();
         let stalled = tokio::spawn(async move {
             let incoming = receiver_endpoint.accept().await.unwrap();
             let connection = incoming.await.unwrap();
             let _read = connection.accept_bi().await.unwrap();
+            received_tx.send(()).unwrap();
             let _append = connection.accept_bi().await.unwrap();
-            tokio::time::sleep(Duration::from_secs(1)).await;
+            received_tx.send(()).unwrap();
+            // Hold the connection and both streams open, never answering,
+            // until the test aborts this task.
+            std::future::pending::<()>().await;
         });
 
         // A canceled authority read shares the route with raft traffic and
@@ -689,7 +709,7 @@ mod tests {
             "authority",
             vec![0],
         );
-        assert!(timeout(Duration::from_millis(100), read).await.is_err());
+        cancel_once_received(read, &mut received).await;
         let cached = caller.connections.read().await.get(&2).cloned().unwrap();
         assert!(
             cached.close_reason().is_none(),
@@ -703,7 +723,7 @@ mod tests {
             "append",
             vec![0],
         );
-        assert!(timeout(Duration::from_millis(100), call).await.is_err());
+        cancel_once_received(call, &mut received).await;
         let cached = caller.connections.read().await.get(&2).cloned().unwrap();
         assert!(
             cached.close_reason().is_some(),

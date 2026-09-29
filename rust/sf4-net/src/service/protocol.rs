@@ -261,8 +261,7 @@ pub enum Event {
         virtual_port: u16,
         max_packet: usize,
         /// The selected Iroh path at the moment the gameplay bridge is
-        /// authorized. This is observational metadata; the committed probe
-        /// connection is upgraded in place before GGPO owns its datagrams.
+        /// authorized. This is observational metadata.
         route: String,
         /// Whether that path reaches the peer on a fixed port.
         fixed_port: bool,
@@ -280,6 +279,9 @@ pub enum Event {
         epoch: u64,
         peer: EndpointId,
         generation: u64,
+        /// Set when the link never formed: what this helper saw instead.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reason: Option<String>,
     },
     Statistics {
         epoch: u64,

@@ -48,8 +48,8 @@ msgstr "ルームを更新中です。キャンセルできます。"
 msgid "launcher.update_failed"
 msgstr "アップデートをインストールできませんでした。ゲームと前のランチャーを閉じて再試行してください。%TEMP%\\sf4-netplay-update.logを確認してください。製品のバックアップは.ember-update-backupsにあります。"
 
-msgid "launcher.recovery_title"
-msgstr "起動の復旧"
+msgid "launcher.recovery_opened"
+msgstr "ネットワークが使えなかったため、SF4を復旧のために閉じました。「起動を再試行」でもう一度起動できます。オフラインで遊ぶだけならネットワークは不要です。"
 
 msgid "launcher.path_failed"
 msgstr "実行時の検索パスを設定できませんでした。パッケージ全体を書き込み可能なフォルダーに展開してください。"
@@ -67,16 +67,16 @@ msgid "launcher.already_running"
 msgstr "SF4 Ember Netplayはすでに起動しています。画面に見えない場合は、タスクマネージャーでLauncher.exeとSSFIV.exeを終了してからEmberを再起動してください。"
 
 msgid "launcher.start_failed"
-msgstr "ゲームの起動または組み込みに失敗しました。ランチャーのログを確認して再試行してください。"
+msgstr "ゲームの起動または組み込みに失敗しました。ランチャーのログ（%APPDATA%\\sf4e\\logs\\launcher.log）を確認して再試行してください。"
 
 msgid "launcher.game_error"
-msgstr "ゲームがエラーで終了しました。ランチャーのログを確認して再試行してください。"
+msgstr "ゲームがエラーで終了しました。ランチャーのログ（%APPDATA%\\sf4e\\logs\\launcher.log）を確認して再試行してください。"
 
 msgid "launcher.runtime_shadowed"
 msgstr "ゲームがEmberフォルダーの代わりに次のファイルを読み込もうとしています。古いファイルがあると起動前に停止します（\"entry point ggpo_get_last_confirmed_frame not found\"）。別のネット対戦MODまたは古いインストールの残りです。移動または名前を変更してからEmberを再起動してください：\n\n{0}"
 
 msgid "launcher.game_wrong_dll"
-msgstr "読み込んだDLLに必要な関数がないため、Emberの起動前にゲームが停止しました。通常、別のMODや古いインストールのGGPO.dll、spdlog.dll、fmt.dll、zlib1.dllがSSFIV.exeの隣にあります。見つかったファイルを移動して再試行してください。ない場合はランチャーのログを送ってください。"
+msgstr "読み込んだDLLに必要な関数がないため、Emberの起動前にゲームが停止しました。通常、別のMODや古いインストールのGGPO.dll、spdlog.dll、fmt.dll、zlib1.dllがSSFIV.exeの隣にあります。見つかったファイルを移動して再試行してください。ない場合はランチャーのログ（%APPDATA%\\sf4e\\logs\\launcher.log）を送ってください。"
 
 msgid "recovery.window"
 msgstr "Emberの復旧"
@@ -140,6 +140,15 @@ msgstr "現在のダウンロードまたは確認をキャンセルします。
 
 msgid "recovery.close_detail"
 msgstr "SF4を起動せずに復旧画面を閉じます。実行中の操作はキャンセルされます。"
+
+msgid "updates.close_detail"
+msgstr "SF4を起動せずにアップデーターを閉じます。実行中の操作はキャンセルされます。"
+
+msgid "updates.start_game"
+msgstr "SF4を起動"
+
+msgid "updates.start_game_detail"
+msgstr "アップデーターを閉じて、EmberでSF4を起動します。"
 
 msgid "recovery.close_cancels_detail"
 msgstr "今閉じると実行中の操作はキャンセルされます。"
@@ -475,7 +484,7 @@ msgid "home.settings"
 msgstr "設定"
 
 msgid "home.settings_detail"
-msgstr "プレイヤー、コントローラー、対戦の初期設定、表示、Discord。"
+msgstr "プレイヤー、コントローラー、対戦の初期設定、表示、言語、Discord。"
 
 msgid "home.about"
 msgstr "ヘルプ・情報"
@@ -604,7 +613,7 @@ msgid "settings.interface"
 msgstr "表示"
 
 msgid "settings.interface_detail"
-msgstr "控えめなHUDと画面サイズ。"
+msgstr "言語、対戦HUD、画面サイズ。"
 
 msgid "settings.discord_detail"
 msgstr "アクティビティと招待。"
@@ -622,7 +631,7 @@ msgid "player.use_keyboard"
 msgstr "キーボードを使う"
 
 msgid "player.use_keyboard_detail"
-msgstr "キーボードを明示的に割り当てます。"
+msgstr "キーボードを対戦用のデバイスに割り当てます。割り当て直すまで、コントローラーではEmberのメニューを操作できなくなります。"
 
 msgid "player.native_menus"
 msgstr "ゲーム本体のメニューを開く"
@@ -712,7 +721,7 @@ msgid "about.controls"
 msgstr "操作方法"
 
 msgid "about.controls_detail"
-msgstr "Xbox：Aで選択、Bで戻る。対戦用のボタン設定とは別です。DirectInput：割り当てたLPで選択、LKで戻る。D-padで移動、左右で調整。トレーニング操作はキーボードとマウスを使用します。F6で開閉、方向キーで移動、Enterで選択、Escapeで戻ります。トレーニング中のStartはゲーム本体のポーズのみ開きます。メインメニューではF10でEmberを開き、F5～F8はトレーニングのショートカットです。"
+msgstr "Xboxパッド：Aで選択、Bで戻ります。対戦用のボタン設定は関係ありません。ほかのパッド：割り当てたLPで選択、LKで戻ります。キーボード：方向キー、Enter、Escape。D-padで移動、左右で値を変更します。ホームで戻るとEmberを隠します。ゲームのメインメニューでは、F10（パッドではStart）でもう一度開けます。\n\nルームでは、テーブルでAを押すと席を選べ、自分の席でAを押すと準備完了になり、Bで席または順番待ちを離れます。XboxパッドではXでキャラ、Yで設定、Viewでチャットを開き、もう一度押すとルームに戻ります。\n\nトレーニングではF6で操作パネルを開き、F5でHUDを隠し、F7でレコーディング、F8で再生します。"
 
 msgid "about.ember"
 msgstr "Emberについて"
@@ -810,11 +819,26 @@ msgstr "対戦席は閉鎖されました"
 msgid "controller.disconnected"
 msgstr "コントローラーの接続が切れました。再接続するか、明示的に割り当ててください。"
 
+msgid "controller.none"
+msgstr "対戦用デバイスを選んでください"
+
+msgid "controller.keyboard"
+msgstr "キーボード"
+
+msgid "controller.numbered"
+msgstr "コントローラー {0}"
+
+msgid "controller.disconnected_name"
+msgstr "{0}（未接続）"
+
 msgid "room.control_unavailable"
 msgstr "ルーム操作を利用できません。対戦していないときにルームを作り直してください。"
 
 msgid "room.control_recovering"
 msgstr "ルーム操作を復旧中です。操作は一時停止しています。"
+
+msgid "room.catching_up"
+msgstr "このPCでルームの同期がまだ完了していません。操作は一時停止しています。"
 
 msgid "settings.preview"
 msgstr "プレビュー"
@@ -1104,6 +1128,9 @@ msgstr "対戦ステージを選んでください。"
 msgid "selection.select_saves"
 msgstr "選択すると保存します。戻るとプレビューの選択は保存されません。"
 
+msgid "selection.adjust_saves"
+msgstr "左右で変更すると、すぐに保存されます。"
+
 msgid "selection.locked_detail"
 msgstr "選択はロック中です。現在の状態は対戦席に戻って確認してください。"
 
@@ -1248,6 +1275,12 @@ msgstr "プレビューのみ。Selectで保存"
 msgid "selection.status_editable"
 msgstr "Selectで保存 / 戻ると1つ前へ。"
 
+msgid "selection.status_browse"
+msgstr "Selectで開く / 戻ると1つ前へ。"
+
+msgid "selection.status_adjust"
+msgstr "左右で保存 / 戻ると1つ前へ。"
+
 msgid "selection.status_locked"
 msgstr "選択はロック中。状態を確認するには対戦席へ戻ってください。"
 
@@ -1280,6 +1313,8 @@ msgstr "このルールでは選択できません。キャラクター選択で
 
 msgid "runtime.open_shortcut"
 msgstr "SF4 Ember Netplay / F10またはStart"
+msgid "runtime.return_menu_to_join"
+msgstr "メインメニューに戻って試合に参加してください。"
 
 msgid "runtime.waiting_opponent_join"
 msgstr "対戦相手のロビー参加を待っています..."
@@ -1542,12 +1577,6 @@ msgstr "ルームの開設が完了しません。接続を確認するか、中
 msgid "room.waiting_state"
 msgstr "ルームの状態を待っています。"
 
-msgid "room.ready"
-msgstr "準備完了"
-
-msgid "room.ready.saved_fighter"
-msgstr "保存済みのキャラを使います。"
-
 msgid "room.copy_invitation"
 msgstr "招待をコピー"
 
@@ -1653,9 +1682,6 @@ msgstr "相手がもう一方の席に着くのを待っています。待機中
 msgid "room.controller_required"
 msgstr "設定 > プレイヤーとコントローラーで割り当てるか、再接続してください。"
 
-msgid "room.waiting_update"
-msgstr "ルームの更新が終わるのを待っています。"
-
 msgid "room.ready.cancel_detail"
 msgstr "準備完了中です。選択して解除してから、キャラを変更してください。"
 
@@ -1669,13 +1695,16 @@ msgid "room.both_ready"
 msgstr "両プレイヤーの準備が完了しました。対戦を開始します。"
 
 msgid "room.waiting_spectators"
-msgstr "両プレイヤーの準備が完了しました。観戦確定中の観戦者が戻るか、10秒後に対戦を開始します。"
+msgstr "両プレイヤーの準備が完了しました。観戦確定中の観戦者が戻るか、{0}秒後に対戦を開始します。"
 
 msgid "room.match_in_progress.detail"
 msgstr "対戦中です。終了を待ってください。"
 
 msgid "room.unready"
 msgstr "準備解除 / キャラ変更可能"
+
+msgid "room.cancel_start"
+msgstr "開始を取り消す"
 
 msgid "room.readying"
 msgstr "準備中..."
@@ -1755,6 +1784,21 @@ msgstr "席を空けます。"
 msgid "room.leave_seat.next_player"
 msgstr "席を空けます。順番待ちの次のプレイヤーが座ります。"
 
+msgid "room.leave_seat.unready_first"
+msgstr "先に準備解除をしてから席を離れてください。"
+
+msgid "room.leave_seat.keep"
+msgstr "席に残る。"
+
+msgid "room.leave_seat.costs_score"
+msgstr "席を離れるとセットが終了し、スコアがリセットされます（{0}）。"
+
+msgid "room.leave_seat.hands_over"
+msgstr "順番待ちの次のプレイヤーが席に座ります。"
+
+msgid "room.cancel_stuck.in_progress"
+msgstr "対戦中です。結果なしで{0}分経つと使用できます。"
+
 msgid "room.abandon_result"
 msgstr "未確定の対戦を破棄"
 
@@ -1783,13 +1827,13 @@ msgid "room.lock_spectating"
 msgstr "観戦を確定"
 
 msgid "room.lock_spectating.detail"
-msgstr "ルームに戻るまで、次の対戦の開始を最大10秒待ちます。"
+msgstr "ルームに戻るまで、次の対戦の開始を最大{0}秒待ちます。"
 
 msgid "room.unlock_spectating"
 msgstr "観戦確定を解除"
 
 msgid "room.unlock_spectating.detail"
-msgstr "観戦を確定中です。次の対戦は最大10秒あなたを待ちます。"
+msgstr "観戦を確定中です。次の対戦は最大{0}秒あなたを待ちます。"
 
 msgid "room.table_rules"
 msgstr "対戦席のルール"
@@ -1959,9 +2003,6 @@ msgstr "編集をキャンセル"
 msgid "edit.bytes"
 msgstr "{0} / {1} バイト"
 
-msgid "discord.unavailable_build"
-msgstr "このビルドではDiscord連携を利用できません。"
-
 msgid "runtime.record_invalid"
 msgstr "ローカルの対戦記録が無効です。元の記録は保持されますが、追跡は利用できません。"
 
@@ -1985,6 +2026,9 @@ msgstr "Discordを利用できません。対戦には影響しません。"
 
 msgid "runtime.gameplay_device_disconnected"
 msgstr "対戦用デバイスの接続が切れました。次の対戦前に再接続してください。"
+
+msgid "runtime.match_input_blocked"
+msgstr "対戦入力がブロックされています。{0}を再接続してください。スロットが変わった場合は、ルームに戻って割り当て直してください。"
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "対戦側のコントローラー割り当てを確認できませんでした。再度割り当ててください。"
@@ -2151,15 +2195,6 @@ msgstr "準備完了の要求が終わるのを待っています。"
 msgid "runtime.lock.selection_update"
 msgstr "現在の対戦または選択の更新を待っています。"
 
-msgid "runtime.lock.return_to_menu_ready"
-msgstr "準備完了にする前にゲーム本体のメインメニューに戻ってください。"
-
-msgid "runtime.lock.table_settings"
-msgstr "対戦席の設定を適用中です。"
-
-msgid "runtime.lock.room_update"
-msgstr "現在のルームまたは対戦の更新を待っています。"
-
 msgid "runtime.ready.control_changed"
 msgstr "準備完了が適用される前にルーム操作が変わりました。もう一度準備完了を押してください。"
 
@@ -2207,3 +2242,18 @@ msgstr "ルームに参加できませんでした。招待と、両者が同じ
 
 msgid "runtime.room_connection_lost"
 msgstr "ルームへの接続が切れました。"
+
+msgid "runtime.desync_match_ended"
+msgstr "対戦を終了しました。2台のゲームの状態が食い違いました（非同期）。両方のプレイヤーで「診断情報を出力」を実行してください。"
+
+msgid "runtime.desync_spectator"
+msgstr "観戦画面が試合と食い違いました。いったん退出して、もう一度観戦してください。"
+
+msgid "runtime.room_link_lost"
+msgstr "ゲームルームへの接続が切れました。インターネット接続を確認して、もう一度お試しください。"
+
+msgid "runtime.session_server_error"
+msgstr "セッションサーバーでエラーが発生しました。インターネット接続を確認して、もう一度お試しください。"
+
+msgid "runtime.settings_unreadable"
+msgstr "保存された設定を読み取れません。初期設定を使用します。"

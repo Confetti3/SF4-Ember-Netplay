@@ -65,6 +65,36 @@ int main() {
     check(sf4e::ui::HandleOverlayMessage(window, WM_KEYUP, 'A', 0, false, false) == 0, "native key was swallowed");
     check(sf4e::ui::HandleOverlayMessage(window, WM_SYSKEYDOWN, VK_F10, 0, false, true) != 0, "F10 was not consumed at menu");
     check(sf4e::ui::HandleOverlayMessage(window, WM_SYSKEYDOWN, VK_F10, 0, false, false) == 0, "F10 was consumed during gameplay");
+    // The click that brings the game forward is a request to focus it, not a press on the row under the pointer.
+    {
+        using sf4e::ui::ActivationClickFilter;
+        ActivationClickFilter filter;
+        check(!filter.Swallow(WM_LBUTTONDOWN, 0) && !filter.Swallow(WM_LBUTTONUP, 0), "a click with no activation was swallowed");
+        check(!filter.Swallow(WM_MOUSEACTIVATE, MAKELPARAM(HTCLIENT, WM_LBUTTONDOWN)), "WM_MOUSEACTIVATE itself was swallowed");
+        check(!filter.Swallow(WM_MOUSEMOVE, MAKELPARAM(10, 10)) && !filter.Swallow(WM_ACTIVATEAPP, TRUE),
+            "messages between the activation and its press were swallowed");
+        check(filter.Swallow(WM_LBUTTONDOWN, MAKELPARAM(10, 10)) && filter.Swallow(WM_LBUTTONUP, MAKELPARAM(10, 10)),
+            "the activating press or its release reached the overlay");
+        check(!filter.Swallow(WM_LBUTTONDOWN, 0) && !filter.Swallow(WM_LBUTTONUP, 0), "the next click was swallowed as well");
+        // Another button is not the one that activated, and a double click is the press.
+        filter.Swallow(WM_MOUSEACTIVATE, MAKELPARAM(HTCLIENT, WM_LBUTTONDOWN));
+        check(!filter.Swallow(WM_RBUTTONDOWN, 0), "a different button was taken for the activating click");
+        check(!filter.Swallow(WM_LBUTTONDOWN, 0) && !filter.Swallow(WM_LBUTTONUP, 0), "the activation stayed pending after another button");
+        filter.Swallow(WM_MOUSEACTIVATE, MAKELPARAM(HTCLIENT, WM_RBUTTONDOWN));
+        check(filter.Swallow(WM_RBUTTONDBLCLK, 0) && filter.Swallow(WM_RBUTTONUP, 0) && !filter.Swallow(WM_RBUTTONUP, 0),
+            "a double click did not count as the activating press");
+        // A title-bar activation or a keyboard return leaves nothing to swallow.
+        filter.Swallow(WM_MOUSEACTIVATE, MAKELPARAM(HTCAPTION, WM_LBUTTONDOWN));
+        check(!filter.Swallow(WM_LBUTTONDOWN, 0) && !filter.Swallow(WM_LBUTTONUP, 0), "a title-bar activation ate the next client click");
+        filter.Swallow(WM_MOUSEACTIVATE, MAKELPARAM(HTCLIENT, WM_LBUTTONDOWN));
+        filter.Reset();
+        check(!filter.Swallow(WM_LBUTTONDOWN, 0), "Reset kept an activation pending");
+        // A pending release is dropped by Reset too.
+        filter.Swallow(WM_MOUSEACTIVATE, MAKELPARAM(HTCLIENT, WM_LBUTTONDOWN));
+        check(filter.Swallow(WM_LBUTTONDOWN, 0), "a second activation did not swallow its press");
+        filter.Reset();
+        check(!filter.Swallow(WM_LBUTTONUP, 0), "Reset kept a release pending");
+    }
     SetCursor(previous);
     ImGui_ImplWin32_Shutdown(); ImGui::DestroyContext(); DestroyWindow(window);
     std::printf("Cursor disappeared after %d / 100 overlay mouse events\n", disappeared);

@@ -29,7 +29,8 @@ Ember offers the languages USF4 itself supports, plus Latin American Spanish:
 - Use positional `{0}`, `{1}`, and later placeholders. Every translation must preserve the English placeholder set. Do not use printf placeholders.
 - Keep stable ImGui identity after translated visible text with `###StableIdentity`.
 - Do not add plurals or `msgctxt` until the parser and validation tests deliberately support them. Russian, Polish and Czech phrase counts neutrally, such as `Игроков: {0}`.
-- After changing `ja.po`, `ko.po` or `zh-Hans.po`, run `python scripts/subset-cjk-fonts.py`. Those languages draw from Noto Sans CJK subsets that hold only the characters the catalogs use, and the Localization test names any character a subset lacks.
+- After changing `ja.po`, `ko.po` or `zh-Hans.po`, run `python scripts/subset-cjk-fonts.py`. Those languages draw from Noto Sans CJK subsets that hold the characters the catalogs use plus the characters people type into names and chat (see "Player-written text"), and the Localization test names any character a subset lacks.
+- Name a control in a sentence with the words of its own label (`home.settings` in `room.controller_required`). The Localization test checks the pairs it lists; Polish, Czech and Russian inflect the label and are exempt.
 
 ## Adding a language
 
@@ -38,6 +39,10 @@ Drop the catalog here and add its entry to `locales.json`: the `Locale` enumerat
 ## Choosing a language
 
 The Language setting is either a tag above or `auto`. `auto` follows USF4's own language when it is not English: `language.cfg` in the game folder, then Steam's language for the game, read the way `SSFIV.exe` reads them. The game uses English for every language it lacks, so English falls through to the Windows display languages, then to English. The game's one Spanish is Castilian, so a Latin American Windows keeps `es-419`.
+
+## Player-written text
+
+Display names, room names and chat can hold any character. Inter draws Latin, Latin Extended-A and Cyrillic. The three Noto Sans CJK subsets also hold the level-1 kanji and kana of JIS X 0208, the 2,350 Hangul syllables of KS X 1001 and the level-1 hanzi of GB2312, so those characters draw whatever language the interface uses. They reach the glyph atlas only once some text on screen uses them (`NoteUserText` in `Theme.cxx`), which rebuilds the atlas at most four times a second. A character in none of these sets (rare kanji, Traditional-only hanzi that Japanese kanji do not share, emoji) draws as the fallback glyph. The subsets add about 1.65 MB to each binary that embeds the fonts (Launcher.exe and Sidecar.dll).
 
 ## Text that remains English
 

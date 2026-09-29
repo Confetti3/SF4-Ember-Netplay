@@ -212,20 +212,22 @@ int SessionServer::Step()
 					const bool fighter = oldTable.p1 == roomMember->second || oldTable.p2 == roomMember->second;
 					const bool matchEnded = authority == nullptr || authority->GetPhase() == session::MatchAuthority::Phase::Idle;
 					if (matchEnded && (fighter || oldTable.spectators.end() != std::find(oldTable.spectators.begin(), oldTable.spectators.end(), roomMember->second)) &&
-						(oldTable.phase == room::TablePhase::Playing || oldTable.phase == room::TablePhase::Paused ||
-						oldTable.phase == room::TablePhase::Ready)) {
+						(oldTable.phase == room::TablePhase::Playing || oldTable.phase == room::TablePhase::Paused)) {
 						auto ended = _roomAuthority->EndMatch(table, oldTable.matchGeneration, room::MatchResult::Abort);
 						if (ended.accepted) departureEvents.insert(departureEvents.end(), ended.events.begin(), ended.events.end());
 					}
 				}
 			}
 			if (roomMember != roomMembers.end()) {
-				CaptureFrozenMember(roomMember->second, priorSnapshot);
-				auto leave = _roomAuthority->Leave(roomMember->second);
-				roomPeerIdentities.erase(roomMember->second);
+				const auto departedMember = roomMember->second;
+				CaptureFrozenMember(departedMember, priorSnapshot);
+				auto leave = _roomAuthority->Leave(departedMember);
+				roomPeerIdentities.erase(departedMember);
 				roomMembers.erase(roomMember);
 				roomSelectedTables.erase(connection);
 				if (leave.accepted) {
+					// A rejected Leave keeps the member on the roster, which still reads its incarnation.
+					roomIncarnations.erase(departedMember);
 					departureEvents.insert(departureEvents.end(), leave.events.begin(), leave.events.end());
 					// A departed locked-in spectator can release a held start.
 					const auto started = StartReadyTables(leave.events);
@@ -439,6 +441,7 @@ int SessionServer::Close()
 	roomMembers.clear();
 	roomSelectedTables.clear();
 	roomPeerIdentities.clear();
+	roomIncarnations.clear();
 	roomFrozenMembers.clear();
 	roomBannedIdentities.clear();
 	_departingConnections.clear();

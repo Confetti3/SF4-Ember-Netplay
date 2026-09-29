@@ -4,6 +4,7 @@
 #include "Theme.hxx"
 #include "MenuGlyphs.hxx"
 #include "MenuDialogs.hxx"
+#include "MenuProbes.hxx"
 #include <functional>
 #include <imgui.h>
 namespace sf4e { namespace ui {
@@ -24,34 +25,25 @@ void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max);
 // A card's corner marker (SAVED, MAIN), fitted to the card's width.
 void DrawCardBadge(ImVec2 at,float width,const char* text,const char* probe);
 void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max);
-// Optional geometry observer used by the renderer regression harness.
-using MenuTextProbe = std::function<void(const char*,float,float,float,float)>;
-void SetMenuTextProbe(MenuTextProbe probe);
-// Surfaces that draw their own text (the room board) report through the same
-// probe, so the harness can check them for overflow too.
-void ReportMenuText(const char* id,float textHeight,float interiorHeight,float textWidth,float availableWidth);
-using MenuCardProbe = std::function<void(const char*,ImVec2,ImVec2)>;
-void SetMenuCardProbe(MenuCardProbe probe);
-// The room board reports its cards and their option strips the same way.
-void ReportMenuCard(const char* id,ImVec2 min,ImVec2 max);
-using MenuStatusProbe = std::function<void(const char*,Tone)>;
-void SetMenuStatusProbe(MenuStatusProbe probe);
-using MenuEntriesProbe = std::function<void(const std::vector<MenuEntry>&)>;
-void SetMenuEntriesProbe(MenuEntriesProbe probe);
-using PortraitProbe = std::function<void(int,ImVec2,ImVec2)>;
-void SetPortraitProbe(PortraitProbe probe);
 // Set once per overlay frame. Only the visible player screen consumes it.
 void SetMenuInput(MenuInput input);
 MenuInput ReadMenuInput();
+// The MenuInput bits of the arrow, Enter and Escape keys held now; ReadMenuInput
+// adds them to the pad's, and surfaces that only need to know whether the
+// keyboard was used read them alone.
+unsigned KeyboardMenuBits();
 // An embedded screen (fighter select, the training flyout) hands its parent
 // what it does not handle itself: Close, or a shortcut the parent owns.
 void ForwardMenuAction(MenuAction action);
 MenuAction TakeForwardedMenuAction();
 // What the parent tells an embedded screen before drawing it: where its Back
 // from the root goes, and the parent's shortcuts it forwards and so advertises.
-struct EmbeddedReturn { std::string exitName; std::vector<LegendHint> shortcutHints; };
+// fresh: the parent has just opened this screen, so it starts at its first
+// page; TakeEmbeddedFresh reads it once.
+struct EmbeddedReturn { std::string exitName; std::vector<LegendHint> shortcutHints; bool fresh=false; };
 void SetEmbeddedReturn(EmbeddedReturn context);
 const EmbeddedReturn& EmbeddedReturnContext();
+bool TakeEmbeddedFresh();
 class GameMenu {
 public:
     MenuNavigation navigation;
@@ -69,6 +61,11 @@ public:
     // button reads "< Back / exitName", or backHint when there is no exitName;
     // Home shows its header button only with one.
     std::string exitName;
+    // A stable status is normally one or two lines beside or under the header.
+    // With this set it is drawn whole, wrapped, in a block that grows to its
+    // text (up to most of the window, then it scrolls), so a long launcher
+    // message keeps the paths and steps it names.
+    bool fitStatus=false;
     using Detail = std::function<void(const std::string&)>;
     // Return false for ordinary actions embedded in an artwork grid, so their
     // labels still render (for example, Retry saving after a portrait failure).
@@ -98,7 +95,8 @@ public:
 private:
     // Home's help line and status line, reserved whether or not they are empty.
     static constexpr float HomeStatusHeight=36;
-    // Parts of Draw, in the order it calls them. The dialogs live in MenuDialogs.cxx.
+    // Parts of Draw. The dialogs and their helpers (ConfirmationButtons,
+    // AnswerConfirmation) live in MenuDialogs.cxx.
     // An open dialog owns the legend and the header: Select names its
     // highlighted button and Back what dismissing it does. False when none is open.
     bool DialogLegend(const std::vector<MenuEntry>& entries,std::string& select,std::string& back) const;

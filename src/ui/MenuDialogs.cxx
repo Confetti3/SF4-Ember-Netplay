@@ -72,7 +72,9 @@ bool GameMenu::DialogLegend(const std::vector<MenuEntry>& entries,std::string& s
     else if(navigation.Reading()) { select.clear(); back=loc::T("common.close"); }
     else if(navigation.Choosing()) {
         const auto* entry=FindEntry(entries,navigation.DialogId());
-        select=entry&&navigation.ChoiceIndex()<entry->choices.size()?entry->choices[navigation.ChoiceIndex()].label:std::string();
+        // An option that cannot be picked names no Select.
+        select=entry&&navigation.ChoiceIndex()<entry->choices.size()&&entry->choices[navigation.ChoiceIndex()].enabled?
+            entry->choices[navigation.ChoiceIndex()].label:std::string();
     } else if(navigation.Confirming()) {
         const auto* entry=FindEntry(entries,navigation.DialogId());
         select=navigation.ConfirmSelected()&&entry?entry->label:std::string(loc::T("common.cancel"));
@@ -119,8 +121,10 @@ void GameMenu::DrawFlyoutConfirmation(const std::vector<MenuEntry>& entries,floa
 }
 void GameMenu::DrawConfirmationModal(const std::vector<MenuEntry>& entries,MenuAction& action) {
     const std::string confirmationPopup=std::string(loc::T("confirm.title"))+"###ConfirmAction";
-    // A choice is drawn by the body that owns the entry, in place.
-    if(navigation.Confirming()&&!navigation.Choosing()) ImGui::OpenPopup(confirmationPopup.c_str());
+    // A choice is drawn by the body that owns the entry, in place. A notice
+    // takes the popup level while it is open (see DrawNoticeModal), so this
+    // dialog is opened again, unchanged, once the notice is answered.
+    if(navigation.Confirming()&&notice_.empty()) ImGui::OpenPopup(confirmationPopup.c_str());
     NextPopupSize();
     if(ImGui::BeginPopupModal(confirmationPopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
         if(!navigation.Confirming()) ImGui::CloseCurrentPopup();
@@ -150,10 +154,11 @@ void GameMenu::DrawReader(const std::vector<MenuEntry>& entries,const Detail& de
     if(ImGui::IsWindowAppearing())ImGui::SetScrollY(0);
     const auto window=ImGui::GetWindowPos(),size=ImGui::GetWindowSize();
     ReportMenuCard("reader",window,ImVec2(window.x+size.x,window.y+size.y));
+    if(entry->userText)NoteUserText(entry->label);
     ImGui::PushFont(HeadingFont());ImGui::TextWrapped("%s",entry->label.c_str());ImGui::PopFont();
     ReportMenuCard("reader-heading",ImGui::GetItemRectMin(),ImGui::GetItemRectMax());
-    if(!entry->detail.empty())ImGui::TextWrapped("%s",entry->detail.c_str());
-    if(!entry->value.empty())ImGui::TextWrapped("%s",entry->value.c_str());
+    if(!entry->detail.empty()){NoteDetailText(entry->detail,entry->detailText);ImGui::TextWrapped("%s",entry->detail.c_str());}
+    if(!entry->value.empty()){if(entry->userText||entry->text)NoteUserText(entry->value);ImGui::TextWrapped("%s",entry->value.c_str());}
     if(detail)detail(entry->id);
     // Held Up/Down scroll smoothly; the mouse wheel and scrollbar still work.
     const float step=ImGui::GetTextLineHeightWithSpacing()*14*ImGui::GetIO().DeltaTime;
@@ -165,7 +170,7 @@ void GameMenu::DrawChoiceModal(const std::vector<MenuEntry>& entries,MenuAction&
     // A list's choice (the language) is drawn here; a body draws its own in place.
     const auto* entry=navigation.Choosing()?FindEntry(entries,navigation.DialogId()):nullptr;
     const std::string choicePopup=(entry?entry->label:std::string(loc::T("menu.choose")))+"###Choice";
-    if(entry) ImGui::OpenPopup(choicePopup.c_str());
+    if(entry&&notice_.empty()) ImGui::OpenPopup(choicePopup.c_str());
     NextPopupSize();
     if(ImGui::BeginPopupModal(choicePopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
         // Each opening shows the selected option, wherever the list was
@@ -206,6 +211,10 @@ void GameMenu::DrawChoiceModal(const std::vector<MenuEntry>& entries,MenuAction&
 }
 void GameMenu::DrawNoticeModal(bool noticeOpen) {
     const std::string noticePopup=std::string(loc::T("notice.title"))+"###Notice";
+    // The dialogs open their popups at the same stack level, where opening one
+    // closes another, so each stands aside while a notice is open instead of
+    // trading places with it every frame. The navigation state they answer to
+    // (a draft, a question) is untouched and their popup returns afterwards.
     if(!notice_.empty()) ImGui::OpenPopup(noticePopup.c_str());
     NextPopupSize();
     if(ImGui::BeginPopupModal(noticePopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
@@ -229,7 +238,7 @@ void GameMenu::DrawNoticeModal(bool noticeOpen) {
 }
 void GameMenu::DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEditText,MenuAction& action) {
     const std::string editPopup=std::string(loc::T("edit.title"))+"###EditText";
-    if(navigation.Editing()) ImGui::OpenPopup(editPopup.c_str());
+    if(navigation.Editing()&&notice_.empty()) ImGui::OpenPopup(editPopup.c_str());
     NextPopupSize();
     if(ImGui::BeginPopupModal(editPopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
         if(!navigation.Editing()) ImGui::CloseCurrentPopup();
@@ -240,6 +249,7 @@ void GameMenu::DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEd
             ImGui::TextWrapped("%s",entry?entry->label.c_str():loc::T("edit.title"));
             ImGui::TextWrapped("%s",loc::T("edit.instructions"));
             char draft[4097]={}; std::strncpy(draft,navigation.Draft().c_str(),sizeof(draft)-1);
+            NoteUserText(navigation.Draft(),UserTextRole::Draft);
             if(lastEdit_!=navigation.EditingId()) ImGui::SetKeyboardFocusHere();
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
             if(ImGui::InputText("##Draft",draft,limit+1)) navigation.Draft(draft);

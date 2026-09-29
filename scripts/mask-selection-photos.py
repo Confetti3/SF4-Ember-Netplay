@@ -31,7 +31,8 @@ def main():
     parser.add_argument("--source-root", type=Path, default=None,
                         help="folder holding the manifest's photographs when they are not package assets")
     parser.add_argument("--canvas", type=canvas_size, default=CANVAS, help="cutout canvas, WIDTHxHEIGHT")
-    parser.add_argument("--margin", type=int, default=MARGIN)
+    parser.add_argument("--margin", type=int, default=None,
+                        help="margin in px; by default MARGIN scaled from the 512-wide canvas to the canvas width")
     parser.add_argument("--colors", type=int, default=0,
                         help="store cutouts as palette PNGs with this many colors; 0 keeps RGBA")
     parser.add_argument("--work", type=Path, default=Path("build/fighter-selection/masking"))
@@ -42,6 +43,8 @@ def main():
     parser.add_argument("--provider", default="CPUExecutionProvider",
                         choices=["CPUExecutionProvider", "DmlExecutionProvider", "CUDAExecutionProvider"])
     args = parser.parse_args()
+    if args.margin is None:
+        args.margin = round(MARGIN * args.canvas[0] / CANVAS[0])
     args.work.mkdir(parents=True, exist_ok=True)
     os.environ.setdefault("REMBG_HOME", str((args.work / "models").resolve()))
     os.environ.setdefault("OMP_NUM_THREADS", "4")
@@ -137,8 +140,9 @@ def main():
             raise RuntimeError(f"Empty cutout: {source_path}")
         photo = photo.convert("RGBA"); photo.putalpha(mask)
         cutout = photo.crop(bounds)
-        # The same fit at any canvas size, so a smaller canvas frames the
-        # fighter exactly as the 512x768 cutouts do once the UI scales it.
+        # With the margin scaled to the canvas (the default), a smaller canvas
+        # frames the fighter exactly as the 512x768 cutouts do once the UI
+        # scales it.
         width, height = args.canvas
         factor = min((width - 2 * args.margin) / cutout.width, (height - 2 * args.margin) / cutout.height)
         size = (max(1, round(cutout.width * factor)), max(1, round(cutout.height * factor)))

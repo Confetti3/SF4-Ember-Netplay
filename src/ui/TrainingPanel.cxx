@@ -102,13 +102,14 @@ std::string Buttons(unsigned bits) {
 }
 }
 
-namespace { GameMenu trainingMenu; bool showRecordings=false; }
+// offerOverwrite: F7 on a recorded slot opened the recordings to ask about overwriting.
+namespace { GameMenu trainingMenu; bool showRecordings=false, offerOverwrite=false; }
 MenuNavigation& TrainingNavigation() { return trainingMenu.navigation; }
 void ShowTrainingRecordings() {showRecordings=true;}
 void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit) {
     if(!view.available)return;
     SetMenuInput({0,ImGui::GetTime()});
-    SetMenuGlyphs(1,0,0);
+    SetMenuGlyphs(input::PadKeyboard,0,0);
     const auto* vp=ImGui::GetMainViewport();
     const ImVec2 size((std::min)(820*Scale(),vp->Size.x*.8f),(std::min)(600*Scale(),vp->Size.y*.8f));
     // Compact typography independently of global DPI when the viewport cannot
@@ -144,7 +145,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(lastFrame!=ImGui::GetFrameCount()-1){pending=0;returnAfter=false;nav.Cancel();}
  lastFrame=ImGui::GetFrameCount();
  if(generation!=v.generation){generation=v.generation;nav.Home();nav.Cancel();pending=0;error.clear();}
- if(showRecordings){showRecordings=false;nav.Home();nav.Push("recording");}
+ if(showRecordings){showRecordings=false;nav.Home();nav.Push("recording");offerOverwrite=true;}
  if(pending&&v.commandId==pending){
   pending=0;
   if(v.commandAccepted){error.clear();if(returnAfter){ForwardMenuAction({MenuAction::Close});return;}}
@@ -175,6 +176,12 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
         Row("p2",loc::T("training.player_two"),loc::T("training.history.detail")),
         ConfirmRow("clear-history",loc::T("training.clear_history"),loc::T("training.clear_history.detail"),!pending)};
   rows[0].reading=rows[1].reading=true;
+ }
+ // F7 on a recorded slot lands on Record with its overwrite question open,
+ // answered Cancel until the player chooses otherwise.
+ if(offerOverwrite){
+  offerOverwrite=false;
+  if(screen=="recording"){nav.Focus("record",rows);nav.Choose(rows);}
  }
  const char* modes[]={"training.practice_ready","training.recording_suspended","training.playback_suspended"};
  std::string status=pending?loc::T("training.applying"):!error.empty()?error:!v.ready?loc::T("training.waiting_battle"):loc::T(modes[static_cast<int>(v.mode)]);

@@ -62,6 +62,7 @@ void DrawPlayerCard(ImVec2 p,float width,bool compact) {
             shown=std::string(label.c_str(),end)+"...";
         }
         d->AddText(ImGui::GetFont(),font,ImVec2(p.x+x,p.y+y),color,shown.c_str());};
+    NoteUserText(playerCard.name);
     text(portrait+24*s,13*s,playerCard.name.empty()?loc::T("card.player"):playerCard.name,18*s,palette::Ivory);
     text(portrait+24*s,38*s,playerCard.fighterName.empty()?loc::T("card.choose_fighter"):playerCard.fighterName,12*s,palette::Muted,"card-fighter");
     if(!compact)text(12*s,82*s,playerCard.controllerReady?loc::T("card.controller_ready"):loc::T("card.assign_controller"),11*s,playerCard.controllerReady?palette::Ready:palette::Ember,"card-controller");
@@ -122,20 +123,29 @@ void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max){
 }
 void SetMenuGlyphs(int type,unsigned select,unsigned back,const char* selectFallback,const char* backFallback){
     menuDeviceType=type;
-    selectGlyph=type!=3&&type!=4?"Enter":PhysicalGlyph(type,select,selectFallback);
-    backGlyph=type!=3&&type!=4?"Esc":PhysicalGlyph(type,back,backFallback);
+    const bool pad=type==input::PadXInput||type==input::PadDirectInput;
+    selectGlyph=!pad?"Enter":PhysicalGlyph(type,select,selectFallback);
+    backGlyph=!pad?"Esc":PhysicalGlyph(type,back,backFallback);
 }
 void SetMenuArt(SelectionArt* art) { menuArt=art; }
 void ForwardMenuAction(MenuAction action) { forwarded=std::move(action); }
 namespace { EmbeddedReturn embeddedReturn; }
 void SetEmbeddedReturn(EmbeddedReturn context) { embeddedReturn=std::move(context); }
 const EmbeddedReturn& EmbeddedReturnContext() { return embeddedReturn; }
+bool TakeEmbeddedFresh() { return std::exchange(embeddedReturn.fresh,false); }
 MenuAction TakeForwardedMenuAction() { return std::exchange(forwarded,MenuAction{}); }
 void SetMenuInput(MenuInput value) { input=value; }
+unsigned KeyboardMenuBits() {
+    static const struct { ImGuiKey key; unsigned bit; } keys[]={
+        {ImGuiKey_UpArrow,MenuInput::Up},{ImGuiKey_DownArrow,MenuInput::Down},{ImGuiKey_LeftArrow,MenuInput::Left},
+        {ImGuiKey_RightArrow,MenuInput::Right},{ImGuiKey_Enter,MenuInput::Select},{ImGuiKey_Escape,MenuInput::Back}};
+    unsigned bits=0;
+    for(const auto& mapping:keys) if(ImGui::IsKeyDown(mapping.key)) bits|=mapping.bit;
+    return bits;
+}
 MenuInput ReadMenuInput() {
     auto value=input; value.time=ImGui::GetTime();
-    const ImGuiKey keys[]={ImGuiKey_UpArrow,ImGuiKey_DownArrow,ImGuiKey_LeftArrow,ImGuiKey_RightArrow,ImGuiKey_Enter,ImGuiKey_Escape};
-    for(unsigned i=0;i<6;++i) if(ImGui::IsKeyDown(keys[i])) value.held|=1u<<i;
+    value.held|=KeyboardMenuBits();
     value.acceptText=ImGui::IsKeyPressed(ImGuiKey_Enter,false);
     return value;
 }
@@ -165,7 +175,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     // A newly visible component cannot reuse its parent's opening press.
     if(lastFrame_!=ImGui::GetFrameCount()-1) { navigation.NeutralGate(); lastEdit_.clear(); }
     lastFrame_=ImGui::GetFrameCount();
-    const bool modalAtStart=navigation.Editing()||navigation.Confirming();
+    const bool modalAtStart=navigation.Editing()||navigation.Asking();
     // A choice belongs to the body that draws it, so the body stays live for it.
     const bool choosingAtStart=navigation.Choosing();
     auto menuInput=ReadMenuInput(); menuInput.time=now;
@@ -251,28 +261,15 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         const float start=roomy?(std::max)(ImGui::GetCursorPosY()+36*Scale(),windowSize.y*.39f):ImGui::GetCursorPosY()+110*Scale();
         ImGui::SetCursorPos(ImVec2(homeMargin,start));
     }
-    if(flyout || stableStatus) {
-        // Bound long command errors without displacing the list or its legend.
-        // The room header shares its Back row on wide windows; this decision
-        // depends only on width, so changing feedback cannot move the controls.
-        const bool inlineFeedback=stableStatus && !flyout && ImGui::GetContentRegionAvail().x>=820*unit;
-        if(inlineFeedback) ImGui::SameLine();
-        // Two reserved lines cost more than a short viewport can spare, and the
-        // appearance galleries collapse their artwork to pay for it. Both the
-        // width and the height tests read geometry only, never the status text,
-        // so the reserved area still cannot move under a highlight or a click.
-        const float feedbackLines=ImGui::GetContentRegionAvail().y>=520*unit?2.f:1.f;
-        ImGui::BeginChild("Command feedback",ImVec2(0,inlineFeedback?ImGui::GetFrameHeight():ImGui::GetTextLineHeightWithSpacing()*feedbackLines));
-        ImGui::PushStyleColor(ImGuiCol_Text,ToneColor(statusTone));
-        ImGui::TextWrapped("%s",status);ImGui::PopStyleColor();ImGui::EndChild();
-    }
-    const float bodyTop=ImGui::GetCursorScreenPos().y;
+    // The legend and the list are measured before the status, so a long status
+    // can be given exactly what they leave.
     const auto mouseDelta=ImGui::GetIO().MouseDelta;const bool pointerMoved=mouseDelta.x!=0||mouseDelta.y!=0;
     const auto focusedEntry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.Focus();});
     MenuEntry presentationEntry;
     if(focusedEntry!=entries.end()) { presentationEntry=*focusedEntry; presentationEntry.enabled=feedback_.Enabled(*focusedEntry); }
     const bool adjustable=!dialog&&focusedEntry!=entries.end()&&presentationEntry.adjustable&&presentationEntry.enabled;
     const char* primary=dialog?(dialogSelect.empty()?nullptr:dialogSelect.c_str()):MenuPrimaryHint(focusedEntry==entries.end()?nullptr:&presentationEntry);
+    const bool wide=ImGui::GetContentRegionAvail().x>=(flyout?640:820)*unit;
     // Reserve the actual footer items and their spacing, not a guessed margin.
     const float footerSpacing=8*unit+2*ImGui::GetStyle().ItemSpacing.y+
         (home?HomeStatusHeight*unit+ImGui::GetStyle().ItemSpacing.y:0);
@@ -287,8 +284,41 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         MenuLegend(legendWidth,selectGlyph,backGlyph,false,adjustable,menuArt,unit,primary,shortcutHints,back)<=standardLegend;
     const auto& extras=hintsFit?shortcutHints:noHints;
     const float footer=standardLegend+footerSpacing;
+    if(flyout || stableStatus) {
+        // Bound long command errors without displacing the list or its legend.
+        // The room header shares its Back row on wide windows; this decision
+        // depends only on width, so changing feedback cannot move the controls.
+        const bool fitFeedback=fitStatus && stableStatus && !flyout;
+        const bool inlineFeedback=stableStatus && !flyout && !fitFeedback && ImGui::GetContentRegionAvail().x>=820*unit;
+        if(inlineFeedback) ImGui::SameLine();
+        // Two reserved lines cost more than a short viewport can spare, and the
+        // appearance galleries collapse their artwork to pay for it. Both the
+        // width and the height tests read geometry only, never the status text,
+        // so the reserved area still cannot move under a highlight or a click.
+        const float feedbackLines=ImGui::GetContentRegionAvail().y>=520*unit?2.f:1.f;
+        float feedbackHeight=inlineFeedback?ImGui::GetFrameHeight():ImGui::GetTextLineHeightWithSpacing()*feedbackLines;
+        // The wrap width leaves room for the scrollbar, so a message that fits
+        // never grows one and the measured height is the drawn height.
+        const float wrapWidth=ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ScrollbarSize;
+        if(fitFeedback){
+            const float text=ImGui::CalcTextSize(status,nullptr,false,wrapWidth).y;
+            // The message may take what the legend and a short list leave (the
+            // list is at least 60 tall, and beside a detail pane less than half
+            // the height it shares with it); past that it scrolls, and the
+            // footer stays on screen.
+            const float listMinimum=wide?60.f:(60.f+ImGui::GetStyle().ItemSpacing.y)/.52f;
+            const float cap=(std::max)(2*ImGui::GetTextLineHeightWithSpacing(),ImGui::GetContentRegionAvail().y-footer-listMinimum);
+            feedbackHeight=(std::min)(cap,(std::max)(ImGui::GetTextLineHeightWithSpacing(),text+ImGui::GetStyle().ItemSpacing.y));
+            ReportMenuText("command-feedback",text,feedbackHeight,0,0);
+        }
+        ImGui::BeginChild("Command feedback",ImVec2(0,feedbackHeight));
+        ImGui::PushStyleColor(ImGuiCol_Text,ToneColor(statusTone));
+        if(fitFeedback){ImGui::PushTextWrapPos(wrapWidth);ImGui::TextUnformatted(status);ImGui::PopTextWrapPos();}
+        else ImGui::TextWrapped("%s",status);
+        ImGui::PopStyleColor();ImGui::EndChild();
+    }
+    const float bodyTop=ImGui::GetCursorScreenPos().y;
     const auto available=ImGui::GetContentRegionAvail();
-    const bool wide=available.x>=(flyout?640:820)*unit;
     const bool compactGallery=cardHeight>100&&!wide;
     auto preview=[&] {
         auto it=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.Focus();});
@@ -298,16 +328,16 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             // A compact gallery's card already carries its label, so its two
             // lines go to what the label does not say: the explanation, then
             // what is saved.
-            if(!compactGallery)ImGui::TextWrapped("%s",it->label.c_str());
+            if(!compactGallery){if(it->userText)NoteUserText(it->label);ImGui::TextWrapped("%s",it->label.c_str());}
             ImGui::PopStyleColor();
-            if(!it->detail.empty())ImGui::TextWrapped("%s",it->detail.c_str());
-            if(!it->value.empty())ImGui::TextWrapped("%s",it->value.c_str());
+            if(!it->detail.empty()){NoteDetailText(it->detail,it->detailText);ImGui::TextWrapped("%s",it->detail.c_str());}
+            if(!it->value.empty()){if(it->userText||it->text)NoteUserText(it->value);ImGui::TextWrapped("%s",it->value.c_str());}
             if(!visualEnabled) ImGui::TextDisabled("%s",loc::T(feedback_.Pending(*it)?"room.updating":"common.unavailable"));
             if(detail) detail(it->id);
         }
     };
     if(body){
-        ImGui::BeginDisabled((modalAtStart&&!choosingAtStart)||navigation.Editing()||(navigation.Confirming()&&!navigation.Choosing()));
+        ImGui::BeginDisabled((modalAtStart&&!choosingAtStart)||navigation.Editing()||navigation.Confirming());
         body(entries,navigation,action,(std::max)(60.f,available.y-footer),feedback_);
         ImGui::EndDisabled();
     }
@@ -354,7 +384,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         const std::string label=FitLabel(e.label,labelWidth);
         const std::string value=FitLabel(e.value.empty()?loc::T("common.not_set"):e.value,(std::max)(1.f,valueWidth-(e.adjustable?52*unit:0)));
         const auto geometry=LayOutRow(start,rowWidth,height,stackedValue,valueWidth,unit);
-        if(ImGui::Button("##entry",ImVec2(rowWidth,height))&&!modalAtStart&&!navigation.Editing()&&!navigation.Confirming()) {
+        if(ImGui::Button("##entry",ImVec2(rowWidth,height))&&!modalAtStart&&!navigation.Editing()&&!navigation.Asking()) {
             // One intent per click, settled before anything changes: a value's
             // arrow adjusts it; anything else on the row is Select.
             navigation.Focus(e.id,entries);
@@ -365,8 +395,12 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         // resting one never takes the selection back from the pad or keys.
         // It does not scroll either: lastFocus_ takes the new focus below.
         else if(pointerMoved&&!dialog&&ImGui::IsItemHovered()) navigation.Focus(e.id,entries);
+        // Player text draws glyphs only while its row is inside the list's clip,
+        // so a long roster or chat that has scrolled away stops holding them.
+        const bool rowVisible=ImGui::IsItemVisible();
         const bool drawnCard=card&&card(e,start,ImVec2(start.x+rowWidth,start.y+height));
         if(!drawnCard){
+            if(rowVisible&&(e.userText||e.text)){if(e.userText)NoteUserText(e.label);NoteUserText(e.value);}
             ImGui::GetWindowDrawList()->AddText(geometry.label,ImGui::GetColorU32(ImGuiCol_Text),label.c_str());
             if(valueRow){
                 const float y=geometry.valueText.y,textWidth=ImGui::CalcTextSize(value.c_str()).x;
@@ -418,6 +452,8 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const float legendHeight=MenuLegend(ImGui::GetContentRegionAvail().x,selectGlyph,backGlyph,true,adjustable,menuArt,unit,primary,extras,back);
     ImGui::Dummy(ImVec2(0,legendHeight));
     if(flyout) {
+        // The flyout has no choice dialog, so a row that opens one does nothing.
+        if(navigation.Choosing()) navigation.Cancel();
         DrawFlyoutConfirmation(entries,unit,bodyTop,legendTop,action);
         lastFocus_=navigation.Focus();lastScreen_=navigation.Screen();
         if(backRequested) return navigation.Return();
@@ -429,7 +465,9 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     if(!body)DrawChoiceModal(entries,action);
     DrawNoticeModal(noticeOpen);
     DrawEditModal(entries,acceptEditText,action);
-    lastEdit_=navigation.EditingId();
+    // The editor takes the keyboard focus when it opens, so a notice that hid it
+    // hands the focus back the same way when it returns.
+    lastEdit_=notice_.empty()?navigation.EditingId():std::string();
     lastFocus_=navigation.Focus(); lastScreen_=navigation.Screen();
     if(backRequested) return navigation.Return();
     return action;

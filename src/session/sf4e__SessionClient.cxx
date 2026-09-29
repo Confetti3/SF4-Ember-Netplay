@@ -95,7 +95,7 @@ static void ReportSnapshotDivergence(
 }
 
 // Strict debug mode: terminate the match on an authoritative v2 mismatch.
-// Default (unset) logs and reports only — v2 must not end release matches
+// Default (unset) logs and reports only; v2 must not end release matches
 // while it is being validated; the legacy snapshot system retains its
 // existing termination behavior.
 static bool StrictDesyncEnabled() {
@@ -158,14 +158,11 @@ static void ReportHashMismatch(
 void SessionClient::TerminateOnDesync(const char* stage, int frameIdx) {
 	if (!IsLocalPlayer()) {
 		spdlog::error("Desync ({}): local spectator diverged at frame {}; the players' fight continues", stage, frameIdx);
-		sf4e::NetplayFacade::PushAlert("Your spectator view diverged from the fight. Leave and watch again.", sf4e::NoticeSeverity::Warning);
+		sf4e::NetplayFacade::PushDesyncNotice(true);
 		return;
 	}
 	spdlog::error("Desync ({}): terminating match at frame {}", stage, frameIdx);
-	sf4e::NetplayFacade::PushAlert(
-		"Match ended: the two games diverged (desync). Export diagnostics from both players.",
-		sf4e::NoticeSeverity::Error
-	);
+	sf4e::NetplayFacade::PushDesyncNotice(false);
 	*rSystem::GetReadyState(rSystem::staticMethods.GetSingleton()) = rSystem::RS_ISLEAVING;
 }
 

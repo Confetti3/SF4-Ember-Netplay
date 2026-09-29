@@ -88,7 +88,7 @@ static void TestThresholdPlusResume() {
 	g.OnPredictionThreshold();
 	CHECK(g.predictionStalled);
 
-	// A resume event clears the warning but NOT the prediction stall — the
+	// A resume event clears the warning but NOT the prediction stall; the
 	// stall ends only when GGPO accepts progression again.
 	g.OnConnectionResumed();
 	CHECK(g.predictionStalled);
@@ -174,7 +174,7 @@ static void TestOfflineBattleIsNeverOrphaned() {
 	g.OnSessionClosed(); // a shutdown at the menu, no battle claimed
 	CHECK(!g.NativeExitRequired());
 	CHECK(g.LocalControllerOwnsBattle(false));
-	g.OnNativeBattleClosed();
+	CHECK(!g.OnNativeBattleClosed()); // nothing for the runtime to hear about
 	CHECK(!g.NativeExitRequired());
 }
 
@@ -193,9 +193,32 @@ static void TestLosingTheSessionOrphansTheBattle() {
 	CHECK(g.OnOrphanFrame());                    // reported once
 	CHECK(!g.OnOrphanFrame());
 
-	g.OnNativeBattleClosed(); // CloseBattle
+	CHECK(g.OnNativeBattleClosed()); // CloseBattle: an orphan, but a netplay battle
 	CHECK(!g.NativeExitRequired());
 	CHECK(g.LocalControllerOwnsBattle(false));
+}
+
+// CloseBattle reports whether the battle it closes was a netplay battle, live
+// session or not, once: the runtime learns of every one, and nothing twice.
+static void TestClosingReportsANetplayBattleOnce() {
+	GgpoGateModel live = Fresh();
+	live.OnNetplayBattleClaimed();
+	live.OnSessionStarted();
+	live.OnRunning();
+	CHECK(live.OnNativeBattleClosed());
+	CHECK(!live.OnNativeBattleClosed());
+	// A session retired after the close (the spectator drain) orphans nothing.
+	live.OnSessionClosed();
+	CHECK(!live.NativeExitRequired());
+	CHECK(!live.OnNativeBattleClosed());
+
+	// A spectator whose stream ended: the session went first, the battle after.
+	GgpoGateModel spectator = Fresh();
+	spectator.OnNetplayBattleClaimed();
+	spectator.OnSessionStarted();
+	spectator.OnSessionClosed();
+	CHECK(spectator.NativeExitRequired());
+	CHECK(spectator.OnNativeBattleClosed());
 }
 
 // A failure before the session starts (no endpoints, no controller, a
@@ -208,7 +231,7 @@ static void TestClaimWithoutSessionOrphansOnClose() {
 	CHECK(g.NativeExitRequired());
 	// An abort never gates the battle it has to leave, nor later offline play.
 	CHECK(g.MayAdvance(false, true));
-	g.OnNativeBattleClosed();
+	CHECK(g.OnNativeBattleClosed());
 	CHECK(g.MayAdvance(false, true));
 	CHECK(!g.MayAdvance(false, false)); // only the manual gate remains
 }
@@ -369,6 +392,7 @@ int main() {
 	TestClaimWithoutSessionOrphansOnClose();
 	TestLeftoverRetireThenStartReclaims();
 	TestBattleClosedBeforeRetireIsNotAnOrphan();
+	TestClosingReportsANetplayBattleOnce();
 	TestMayAdvanceFollowsTheSessionWhileLive();
 	TestOrphanOverdueFiresOnce();
 	TestClassifier();

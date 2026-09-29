@@ -1,5 +1,6 @@
 #pragma once
 
+#include "PadKind.hxx"
 #include <cstdint>
 
 namespace sf4e { namespace input {
@@ -7,7 +8,7 @@ namespace sf4e { namespace input {
 struct ControllerDevice {
     int type = -1;
     int index = -1;
-    bool Valid() const { return (type == 3 || type == 4) && index >= 0 && index < 12; }
+    bool Valid() const { return (type == PadXInput || type == PadDirectInput) && index >= 0 && index < 12; }
 };
 
 inline std::uint32_t MapButtons(std::uint32_t physical, const std::uint32_t* bindings) {

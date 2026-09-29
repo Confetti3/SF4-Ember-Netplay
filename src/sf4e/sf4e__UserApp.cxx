@@ -128,6 +128,14 @@ static bool StartRuntimeGgpo() {
         for (const auto& member : room.members)
             if (!captured.name.empty() && member.name == captured.name) captured.link = member.link;
     }
+    netplay->spectating = endpoints.localSlot >= 2;
+    netplay->startScoreKnown = false;
+    netplay->startScore[0] = netplay->startScore[1] = 0;
+    for (const auto& member : room.members)
+        if (member.id == room.localMember && member.table >= 0 && member.table < static_cast<std::int8_t>(sf4e::room::TableCount)) {
+            netplay->startScoreKnown = true;
+            for (int side = 0; side < 2; ++side) netplay->startScore[side] = room.tables[member.table].score[side];
+        }
     if (endpoints.localSlot >= 2) {
         if (!endpoints.remotePorts[0]) return false;
         sf4e::NetplayFacade::ReleaseRuntimePortToGgpo();
@@ -261,7 +269,7 @@ void fUserApp::ResetLobbyForRematch() {
     if (sf4e::NetplayFacade::IsControlPlaneLost()) {
         // Degraded mode: the room is gone; no rematch coordination and no
         // stale messages toward a dead connection.
-        spdlog::info("Netplay: skipping rematch reset — control plane lost");
+        spdlog::info("Netplay: skipping rematch reset: control plane lost");
         return;
     }
     // A room clears both fighters' Ready itself when it ends the match, and a
@@ -345,9 +353,7 @@ void fUserApp::Steam_PostUpdate() {
     sf4e::NetplayFacade::ObserveControlPlane(
         sf4e::NetplayFacade::ControlPlaneCause::SessionClient,
         !netplayStepFailed && !serverStepFailed,
-        netplayStepFailed ?
-            "Lost connection to the game room. Check your internet and try again." :
-            "Session server error. Check your internet and try again."
+        sf4e::loc::T(netplayStepFailed ? "runtime.room_link_lost" : "runtime.session_server_error")
     );
 
     {
@@ -474,7 +480,7 @@ void fUserApp::Steam_PostUpdate() {
         }
 
         d.OnOuterFrame(now);
-        // Periodic development summary — only while a GGPO session exists,
+        // Periodic development summary, only while a GGPO session exists,
         // and never per frame.
         if (fSystem::ggpo && d.PeriodicSummaryDue(now, 10.0)) {
             diag::ScopedTimer logTimer(diag::OP_DIAGNOSTIC_ENQUEUE);

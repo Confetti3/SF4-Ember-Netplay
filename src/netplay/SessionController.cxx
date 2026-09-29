@@ -53,6 +53,7 @@ bool SessionController::ObserveCoordination(std::uint64_t term, std::uint64_t re
             state_.control = Health::Healthy;
         }
         state_.error.clear();
+        state_.fault = Fault::None;
         AdvanceCatchUp(nowMs);
         return true;
     }
@@ -72,7 +73,7 @@ bool SessionController::ObserveCoordination(std::uint64_t term, std::uint64_t re
         state_.recoveryStartedMs = nowMs;
     }
     state_.control = Health::Lost;
-    state_.error = "Room control is recovering. Active matches may finish; room actions are paused.";
+    state_.fault = Fault::ControlRecovering;
     AdvanceRecovery(nowMs);
     return true;
 }
@@ -85,8 +86,7 @@ void SessionController::AdvanceCatchUp(std::uint64_t nowMs) {
     if (!state_.authorityStalledMs || state_.authorityWritable) return;
     if (nowMs < state_.authorityStalledMs) { state_.authorityStalledMs = nowMs ? nowMs : 1; return; }
     const auto stalled = nowMs - state_.authorityStalledMs;
-    if (stalled >= 10000)
-        state_.error = "The room is still catching up on this PC. Room actions are paused.";
+    if (stalled >= 10000) state_.fault = Fault::CatchingUp;
     if (stalled >= 30000 && state_.recovery == Recovery::None) {
         state_.recovery = Recovery::ReplacementOffered;
         state_.recoveryStartedMs = state_.authorityStalledMs;
@@ -129,6 +129,10 @@ Decision SessionController::Execute(const Command& command) {
         if (state_.room == RoomState::Idle || state_.room == RoomState::Closing) { return Decision(); }
         state_.room = RoomState::Closing;
         state_.readyPending = false;
+        // A player who leaves has answered whatever the room was reporting, so
+        // it does not follow them to the menu once the room is closed.
+        state_.error.clear();
+        state_.fault = Fault::None;
         // Resource teardown must be acknowledged at a safe game boundary
         // before a new room, Offline, or any update installation may begin.
         return Accept(Effect::CloseSession);

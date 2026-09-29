@@ -13,7 +13,7 @@ We do **not** recommend weakening Windows Defender (folder exclusions, disabling
 1. Download only from [GitHub Releases](https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest).
 2. Compare the ZIP's SHA-256 with the `.sha256` file published beside it, then run `preflight.cmd`, which checks every extracted file against `MANIFEST.txt`.
 3. If you believe the detection is wrong, report it to Microsoft at [file submission](https://www.microsoft.com/en-us/wdsi/filesubmission) (**Incorrectly detected as malware** → `Program:Win32/Wacapew.A!ml`).
-4. Wait for a **signed** release (see [`docs/development/CODE_SIGNING.md`](../development/CODE_SIGNING.md)) — that is what we ship as the permanent fix.
+4. Wait for a **signed** release (see [`docs/development/CODE_SIGNING.md`](../development/CODE_SIGNING.md)): that is what we ship as the permanent fix.
 
 If Defender offers **Allow on device** for a file you downloaded from our official release page and verified by hash, that is your local decision. We do not ship scripts or instructions to add Defender exclusions.
 
@@ -21,7 +21,7 @@ If Defender offers **Allow on device** for a file you downloaded from our offici
 
 Unsigned builds may trigger `Wacapew.A!ml` on some PCs. **Authenticode signing** is the reliable fix:
 
-- [SignPath Foundation](https://signpath.org/apply) (free for OSS) — see [`docs/development/CODE_SIGNING.md`](../development/CODE_SIGNING.md)
+- [SignPath Foundation](https://signpath.org/apply) (free for OSS): see [`docs/development/CODE_SIGNING.md`](../development/CODE_SIGNING.md)
 - Or [Azure Artifact Signing](https://learn.microsoft.com/en-us/azure/artifact-signing/overview) in GitHub Actions
 
 Signed releases show a verified publisher and build SmartScreen/Defender trust over time.
@@ -35,7 +35,7 @@ Signed releases show a verified publisher and build SmartScreen/Defender trust o
 | **Networking** | Online play | Extra scrutiny |
 | **No signature (yet)** | Indie OSS | Low reputation score |
 
-The injection code in [`src/sidecar/sidecar.cxx`](../../src/sidecar/sidecar.cxx) has kept the same hook mechanism since **v0.3.1**; later versions added netplay transport, PE version metadata and validation of the launcher's payload, not a different hook mechanism. Different release builds can have different `Sidecar.dll` SHA256 hashes from rebuilds and VERSIONINFO — that does not mean the hook behavior changed.
+The injection code in [`src/sidecar/sidecar.cxx`](../../src/sidecar/sidecar.cxx) has kept the same hook mechanism since **v0.3.1**; later versions added netplay transport, PE version metadata and validation of the launcher's payload, not a different hook mechanism. Different release builds can have different `Sidecar.dll` SHA256 hashes from rebuilds and VERSIONINFO. That does not mean the hook behavior changed.
 
 Source: [github.com/Confetti3/SF4-Ember-Netplay](https://github.com/Confetti3/SF4-Ember-Netplay)
 

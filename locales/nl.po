@@ -48,8 +48,8 @@ msgstr "Kamer bijwerken. Je kunt nog annuleren."
 msgid "launcher.update_failed"
 msgstr "De update kon niet worden geïnstalleerd. Sluit het spel en de vorige launcher en probeer het opnieuw. Zie %TEMP%\\sf4-netplay-update.log; bewaarde productkopieën staan in .ember-update-backups."
 
-msgid "launcher.recovery_title"
-msgstr "Opstart herstellen"
+msgid "launcher.recovery_opened"
+msgstr "Het netwerk was niet beschikbaar, dus SF4 is gesloten voor herstel. Opnieuw starten start het weer; offline spelen werkt zonder netwerk."
 
 msgid "launcher.path_failed"
 msgstr "Het zoekpad voor de runtime kon niet worden ingesteld. Pak het volledige pakket uit in een map waarin je kunt schrijven."
@@ -67,16 +67,16 @@ msgid "launcher.already_running"
 msgstr "SF4 Ember Netplay draait al. Zie je het niet? Sluit Launcher.exe en SSFIV.exe via Taakbeheer en start Ember opnieuw."
 
 msgid "launcher.start_failed"
-msgstr "Starten of injectie mislukt. Bekijk het launcherlogboek en probeer opnieuw."
+msgstr "Starten of injectie mislukt. Bekijk het launcherlogboek in %APPDATA%\\sf4e\\logs\\launcher.log en probeer opnieuw."
 
 msgid "launcher.game_error"
-msgstr "Spel afgesloten met een fout. Bekijk het launcherlogboek en probeer opnieuw."
+msgstr "Spel afgesloten met een fout. Bekijk het launcherlogboek in %APPDATA%\\sf4e\\logs\\launcher.log en probeer opnieuw."
 
 msgid "launcher.runtime_shadowed"
 msgstr "Het spel zou deze bestanden laden in plaats van die in de Ember-map. Een oude kopie stopt het spel al voor de start (\"entry point ggpo_get_last_confirmed_frame not found\"). Ze zijn achtergelaten door een andere netplaymod of een oudere installatie. Verplaats of hernoem ze en start Ember opnieuw:\n\n{0}"
 
 msgid "launcher.game_wrong_dll"
-msgstr "Het spel stopte voordat Ember kon starten: een geladen DLL mist een functie. Meestal staat er dan een GGPO.dll, spdlog.dll, fmt.dll of zlib1.dll van een andere mod of oude installatie naast SSFIV.exe. Verplaats zulke bestanden en probeer het opnieuw. Staan ze er niet, stuur dan het launcherlogboek."
+msgstr "Het spel stopte voordat Ember kon starten: een geladen DLL mist een functie. Meestal staat er dan een GGPO.dll, spdlog.dll, fmt.dll of zlib1.dll van een andere mod of oude installatie naast SSFIV.exe. Verplaats zulke bestanden en probeer het opnieuw. Staan ze er niet, stuur dan het launcherlogboek (%APPDATA%\\sf4e\\logs\\launcher.log)."
 
 msgid "recovery.window"
 msgstr "Ember-herstel"
@@ -140,6 +140,15 @@ msgstr "Annuleer de huidige download of controle. Wacht tot dit klaar is voordat
 
 msgid "recovery.close_detail"
 msgstr "Sluit herstel zonder SF4 te starten. Lopende bewerkingen worden geannuleerd."
+
+msgid "updates.close_detail"
+msgstr "Sluit de updater zonder SF4 te starten. Lopende bewerkingen worden geannuleerd."
+
+msgid "updates.start_game"
+msgstr "SF4 starten"
+
+msgid "updates.start_game_detail"
+msgstr "Sluit de updater en start SF4 met Ember."
 
 msgid "recovery.close_cancels_detail"
 msgstr "Nu sluiten annuleert de lopende bewerking."
@@ -217,7 +226,7 @@ msgid "settings.language.detail"
 msgstr "Kies om uit de lijst te kiezen, of wissel met Links/Rechts. Automatisch volgt de speltaal en daarna Windows."
 
 msgid "settings.language.system_with"
-msgstr "Automatisch — {0}"
+msgstr "Automatisch: {0}"
 
 msgid "settings.language_save_failed"
 msgstr "Je taalkeuze kon niet worden opgeslagen. Deze blijft tijdens deze sessie actief."
@@ -475,7 +484,7 @@ msgid "home.settings"
 msgstr "Instellingen"
 
 msgid "home.settings_detail"
-msgstr "Speler, controller, standaard spelinstellingen, interface en Discord."
+msgstr "Speler, controller, standaard spelinstellingen, interface, taal en Discord."
 
 msgid "home.about"
 msgstr "Hulp en info"
@@ -604,7 +613,7 @@ msgid "settings.interface"
 msgstr "Interface"
 
 msgid "settings.interface_detail"
-msgstr "Rustige HUD en interfacegrootte."
+msgstr "Taal, Match-HUD en interfacegrootte."
 
 msgid "settings.discord_detail"
 msgstr "Activiteit en uitnodigingen."
@@ -622,7 +631,7 @@ msgid "player.use_keyboard"
 msgstr "Toetsenbord"
 
 msgid "player.use_keyboard_detail"
-msgstr "Wijs het toetsenbord zelf toe."
+msgstr "Wijs het toetsenbord toe als speelapparaat. Je controller bedient de menu's van Ember dan niet meer, tot je hem opnieuw toewijst."
 
 msgid "player.native_menus"
 msgstr "Spelmenu's openen"
@@ -712,7 +721,7 @@ msgid "about.controls"
 msgstr "Besturing"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A kiest; B gaat terug, los van de vechtknoppen. DirectInput: toegewezen LP kiest; LK gaat terug. D-pad navigeert; links/rechts past aan. Voor trainingsbesturing gebruik je toetsenbord en muis: F6 opent/sluit, pijltjes navigeren, Enter kiest, Escape gaat terug. Start opent alleen het spelpauzemenu in training. F10 opent Ember in het hoofdmenu; F5-F8 zijn trainingssneltoetsen."
+msgstr "Xbox-controller: A kiest en B gaat terug, los van de vechtknoppen. Andere controllers: de toegewezen LP kiest en LK gaat terug. Toetsenbord: pijltjes, Enter en Escape. De D-pad beweegt; links en rechts passen een waarde aan. Terug op het scherm Start verbergt Ember. F10, of de knop Start op de controller, opent Ember weer in het hoofdmenu van het spel.\n\nIn een kamer kies je met A op een tafel een plek, meld je je met A op je eigen plek klaar en verlaat B je plek of de wachtrij. Op een Xbox-controller opent X Vechter, Y Opties en View Chat; druk er nogmaals op om terug te gaan naar de kamer.\n\nIn training opent F6 de besturing, verbergt F5 de HUD, neemt F7 op en speelt F8 af."
 
 msgid "about.ember"
 msgstr "Over Ember"
@@ -810,11 +819,26 @@ msgstr "Tafel gesloten"
 msgid "controller.disconnected"
 msgstr "Controller niet verbonden. Sluit hem opnieuw aan of wijs hem zelf toe."
 
+msgid "controller.none"
+msgstr "Kies een spelcontroller"
+
+msgid "controller.keyboard"
+msgstr "Toetsenbord"
+
+msgid "controller.numbered"
+msgstr "Controller {0}"
+
+msgid "controller.disconnected_name"
+msgstr "{0} (niet verbonden)"
+
 msgid "room.control_unavailable"
 msgstr "Kamerbeheer niet beschikbaar. Vervang de kamer wanneer er geen match bezig is."
 
 msgid "room.control_recovering"
 msgstr "Kamerbeheer wordt hersteld. Kameracties zijn gepauzeerd."
+
+msgid "room.catching_up"
+msgstr "De kamer synchroniseert nog op deze pc. Kameracties zijn gepauzeerd."
 
 msgid "settings.preview"
 msgstr "Voorbeeld"
@@ -1104,6 +1128,9 @@ msgstr "Kies je gevechtslocatie."
 msgid "selection.select_saves"
 msgstr "Kiezen slaat dit op. Terug verlaat zonder de gemarkeerde voorvertoning te wijzigen."
 
+msgid "selection.adjust_saves"
+msgstr "Links en rechts wijzigen dit en slaan meteen op."
+
 msgid "selection.locked_detail"
 msgstr "Keuze vergrendeld. Ga terug naar je tafel voor de huidige status."
 
@@ -1248,6 +1275,12 @@ msgstr "Alleen voorbeeld - Kiezen slaat op"
 msgid "selection.status_editable"
 msgstr "Kiezen slaat op / Terug gaat één niveau terug."
 
+msgid "selection.status_browse"
+msgstr "Kiezen opent / Terug gaat één niveau terug."
+
+msgid "selection.status_adjust"
+msgstr "Links/rechts slaat op / Terug gaat één niveau terug."
+
 msgid "selection.status_locked"
 msgstr "Keuze vergrendeld - ga terug naar je tafel."
 
@@ -1280,6 +1313,8 @@ msgstr "Keuze niet beschikbaar met deze regels. Open Personage kiezen voor een b
 
 msgid "runtime.open_shortcut"
 msgstr "SF4 Ember Netplay  /  F10 of Start"
+msgid "runtime.return_menu_to_join"
+msgstr "Ga terug naar het hoofdmenu om mee te doen met de wedstrijd."
 
 msgid "runtime.waiting_opponent_join"
 msgstr "Wachten tot tegenstander de lobby betreedt..."
@@ -1303,10 +1338,10 @@ msgid "runtime.invalid_roster"
 msgstr "Ongeldige matchbezetting. Ga terug naar de kamer en probeer opnieuw."
 
 msgid "runtime.ggpo_start_failed"
-msgstr "GGPO kon niet starten — ga terug naar de lobby en druk opnieuw op Klaar."
+msgstr "GGPO kon niet starten. Ga terug naar de lobby en druk opnieuw op Klaar."
 
 msgid "runtime.ggpo_add_players_failed"
-msgstr "GGPO kon geen spelers toevoegen — ga terug naar de lobby en druk opnieuw op Klaar."
+msgstr "GGPO kon geen spelers toevoegen. Ga terug naar de lobby en druk opnieuw op Klaar."
 
 msgid "runtime.rollback_buffer_full"
 msgstr "Rollbackbuffer voor netplay is vol. De match is afgelopen."
@@ -1384,7 +1419,7 @@ msgid "update.extract_folder_failed"
 msgstr "Kon de uitpakmap voor de update niet maken ({0})."
 
 msgid "update.download_failed"
-msgstr "Download mislukt ({0}). Handmatig downloaden: {1} — details in %TEMP%\\sf4-netplay-update.log"
+msgstr "Download mislukt ({0}). Handmatig downloaden: {1} (details in %TEMP%\\sf4-netplay-update.log)"
 
 msgid "update.verify_failed"
 msgstr "Kon de gedownloade update niet controleren. Probeer opnieuw."
@@ -1542,12 +1577,6 @@ msgstr "De kamer is nog niet open. Controleer je verbinding of stop en probeer o
 msgid "room.waiting_state"
 msgstr "Wachten op kamerstatus."
 
-msgid "room.ready"
-msgstr "Klaar"
-
-msgid "room.ready.saved_fighter"
-msgstr "Gebruik opgeslagen personage."
-
 msgid "room.copy_invitation"
 msgstr "Uitnodiging kopiëren"
 
@@ -1627,7 +1656,7 @@ msgid "room.invitation_copied"
 msgstr "Uitnodiging gekopieerd."
 
 msgid "room.replacement_opening"
-msgstr "Nieuwe kamer wordt geopend. Kopieer de uitnodiging en stuur de nieuwe link — de oude werkt niet meer."
+msgstr "Nieuwe kamer wordt geopend. Kopieer de uitnodiging en stuur de nieuwe link. De oude werkt niet meer."
 
 msgid "room.action_rejected"
 msgstr "De kamer is veranderd of heeft deze actie geweigerd. Bekijk de huidige status en probeer opnieuw."
@@ -1653,9 +1682,6 @@ msgstr "Wachten tot een tegenstander de andere plek inneemt. Je kunt intussen je
 msgid "room.controller_required"
 msgstr "Wijs je controller toe of sluit hem opnieuw aan via Instellingen > Speler en controller."
 
-msgid "room.waiting_update"
-msgstr "Wachten tot de huidige kamerupdate klaar is."
-
 msgid "room.ready.cancel_detail"
 msgstr "Je bent KLAAR. Selecteer om Klaar te annuleren en kies daarna Personage wijzigen."
 
@@ -1669,13 +1695,16 @@ msgid "room.both_ready"
 msgstr "Beide spelers zijn klaar. De match begint."
 
 msgid "room.waiting_spectators"
-msgstr "Beide spelers zijn klaar. De match begint zodra vastgelegde kijkers terug zijn, of over 10 seconden."
+msgstr "Beide spelers zijn klaar. De match begint zodra vastgelegde kijkers terug zijn, of over {0} seconden."
 
 msgid "room.match_in_progress.detail"
 msgstr "De huidige match is bezig. Wacht tot deze voorbij is."
 
 msgid "room.unready"
 msgstr "Niet klaar / ontgrendel"
+
+msgid "room.cancel_start"
+msgstr "Start annuleren"
 
 msgid "room.readying"
 msgstr "Klaarmaken..."
@@ -1755,6 +1784,21 @@ msgstr "Maak je plek vrij."
 msgid "room.leave_seat.next_player"
 msgstr "Maak je plek vrij. De volgende speler in de wachtrij neemt hem in."
 
+msgid "room.leave_seat.unready_first"
+msgstr "Kies eerst Niet klaar en verlaat dan je plek."
+
+msgid "room.leave_seat.keep"
+msgstr "Plek behouden."
+
+msgid "room.leave_seat.costs_score"
+msgstr "Als je vertrekt eindigt je reeks en wordt de stand gereset ({0})."
+
+msgid "room.leave_seat.hands_over"
+msgstr "De volgende speler in de wachtrij neemt je plek in."
+
+msgid "room.cancel_stuck.in_progress"
+msgstr "Er is een partij bezig. Dit komt beschikbaar na {0} minuten zonder uitslag."
+
 msgid "room.abandon_result"
 msgstr "Onbesliste partij opgeven"
 
@@ -1783,13 +1827,13 @@ msgid "room.lock_spectating"
 msgstr "Kijken vastleggen"
 
 msgid "room.lock_spectating.detail"
-msgstr "De volgende match wacht tot 10 seconden terwijl je terugkeert naar de kamer."
+msgstr "De volgende match wacht tot {0} seconden terwijl je terugkeert naar de kamer."
 
 msgid "room.unlock_spectating"
 msgstr "Vastlegging opheffen"
 
 msgid "room.unlock_spectating.detail"
-msgstr "Je bent vastgelegd. De volgende match wacht tot 10 seconden op je."
+msgstr "Je bent vastgelegd. De volgende match wacht tot {0} seconden op je."
 
 msgid "room.table_rules"
 msgstr "Tafelregels"
@@ -1959,9 +2003,6 @@ msgstr "Bewerking annuleren"
 msgid "edit.bytes"
 msgstr "{0} / {1} bytes"
 
-msgid "discord.unavailable_build"
-msgstr "Discord-integratie is niet beschikbaar in deze build."
-
 msgid "runtime.record_invalid"
 msgstr "De lokale matchstand is ongeldig en is bewaard. Bijhouden is niet beschikbaar."
 
@@ -1985,6 +2026,9 @@ msgstr "Discord niet beschikbaar. Spel blijft werken."
 
 msgid "runtime.gameplay_device_disconnected"
 msgstr "Spelcontroller niet verbonden. Sluit hem opnieuw aan vóór de volgende match."
+
+msgid "runtime.match_input_blocked"
+msgstr "Matchinvoer geblokkeerd: sluit {0} opnieuw aan. Is de slot veranderd, ga dan terug naar de kamer om hem opnieuw toe te wijzen."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "Kon de controllertoewijzing voor de match niet controleren. Wijs hem opnieuw toe en probeer het weer."
@@ -2151,15 +2195,6 @@ msgstr "Wachten tot je Klaar-verzoek is verwerkt."
 msgid "runtime.lock.selection_update"
 msgstr "Wachten tot de huidige match of keuze-update klaar is."
 
-msgid "runtime.lock.return_to_menu_ready"
-msgstr "Ga terug naar het spelhoofdmenu voordat je je klaar meldt."
-
-msgid "runtime.lock.table_settings"
-msgstr "Wachten tot de tafelinstellingen zijn toegepast."
-
-msgid "runtime.lock.room_update"
-msgstr "Wachten tot de huidige kamer- of matchupdate klaar is."
-
 msgid "runtime.ready.control_changed"
 msgstr "Kamerbeheer veranderde voordat je Klaar-verzoek werd toegepast. Druk opnieuw op Klaar."
 
@@ -2207,3 +2242,18 @@ msgstr "Kon de kamer niet betreden. Controleer de uitnodiging en of beide speler
 
 msgid "runtime.room_connection_lost"
 msgstr "Kamerverbinding verbroken."
+
+msgid "runtime.desync_match_ended"
+msgstr "Match beëindigd: de twee spellen liepen uiteen (desync). Gebruik Diagnostiek exporteren bij beide spelers."
+
+msgid "runtime.desync_spectator"
+msgstr "Je toeschouwersweergave week af van het gevecht. Verlaat de kamer en kijk opnieuw."
+
+msgid "runtime.room_link_lost"
+msgstr "Verbinding met de spelkamer verbroken. Controleer je internet en probeer opnieuw."
+
+msgid "runtime.session_server_error"
+msgstr "Fout op de sessieserver. Controleer je internet en probeer opnieuw."
+
+msgid "runtime.settings_unreadable"
+msgstr "Opgeslagen instellingen onleesbaar; standaardwaarden gebruikt."

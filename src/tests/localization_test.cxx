@@ -2,6 +2,7 @@
 #include "../ui/Theme.hxx"
 #include "EmbeddedFonts.hxx"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -176,6 +177,57 @@ int main(int argc, char** argv) {
                 "run scripts/subset-cjk-fonts.py for CJK catalogs\n";
             std::exit(1);
         }
+    }
+
+    // An instruction that sends the player to a control names it with the words
+    // the control's own label uses. Polish, Czech and Russian inflect the label
+    // inside a sentence, and French and German phrase the connection check
+    // without naming the row.
+    {
+        struct Reference { const char* label; std::vector<const char*> uses; std::vector<Locale> exempt; };
+        const std::vector<Locale> inflected = {Locale::Pl, Locale::Cs, Locale::Ru};
+        const std::vector<Reference> references = {
+            {"home.settings", {"room.controller_required", "room.reject.name_taken"}, inflected},
+            {"screen.player", {"room.controller_required"}, inflected},
+            {"home.fighter_select", {"runtime.selection_unavailable", "runtime.ready.stage_unavailable",
+                "runtime.ready.fighter_unavailable"}, inflected},
+            {"connection.check", {"room.apply_recommendation.check_first"}, {Locale::Pl, Locale::Cs, Locale::Ru, Locale::Fr, Locale::De}},
+            {"room.abandon_result", {"room.result_unresolved.detail"}, inflected},
+        };
+        for (const auto& reference : references)
+            for (std::size_t i = 0; i < count; ++i) {
+                const auto locale = static_cast<Locale>(i);
+                if (std::find(reference.exempt.begin(), reference.exempt.end(), locale) != reference.exempt.end()) continue;
+                const auto& label = catalogs[i][reference.label];
+                for (const auto* use : reference.uses)
+                    if (catalogs[i][use].find(label) == std::string::npos) {
+                        std::cerr << Tag(locale) << ": " << use << " does not name \"" << label << "\" (" << reference.label << ")\n";
+                        std::exit(1);
+                    }
+            }
+        // A row and the screen it opens are one thing to the player.
+        for (std::size_t i = 0; i < count; ++i) CHECK(catalogs[i]["room.settings"] == catalogs[i]["screen.room_settings"]);
+    }
+    // The room's error ids and the session client's stand in the catalogs, so a
+    // failure the client reports is a sentence and never an internal code.
+    for (const char* id : {"runtime.room_request_failed", "runtime.build_mismatch", "room.catching_up", "room.control_recovering"})
+        for (std::size_t i = 0; i < count; ++i) CHECK(catalogs[i].count(id));
+
+    // Names, room names and chat are drawn by the embedded fonts whatever the
+    // interface language, so each script font holds the characters people type.
+    {
+        const auto has = [&](sf4e::loc::Script script, unsigned codepoint) {
+            for (const auto& font : sf4e::ui::fonts::ScriptFonts)
+                if (font.script == script) return HasGlyph(font.data, codepoint);
+            return false;
+        };
+        // Chinese names, Japanese names in kanji and kana, Korean names in Hangul.
+        for (const unsigned codepoint : {0x5F20u, 0x4F1Fu, 0x738Bu, 0x674Eu, 0x5218u})
+            CHECK(has(sf4e::loc::Script::SimplifiedChinese, codepoint));
+        for (const unsigned codepoint : {0x7530u, 0x4E2Du, 0x592Au, 0x90CEu, 0x82B1u, 0x5B50u, 0x3042u, 0x30A2u, 0x30FCu})
+            CHECK(has(sf4e::loc::Script::Japanese, codepoint));
+        for (const unsigned codepoint : {0xAE40u, 0xBBFCu, 0xC218u, 0xC774u, 0xBC15u, 0xD55Cu})
+            CHECK(has(sf4e::loc::Script::Korean, codepoint));
     }
 
     std::string sources;

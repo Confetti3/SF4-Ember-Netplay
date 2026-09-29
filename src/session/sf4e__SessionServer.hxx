@@ -54,7 +54,14 @@ namespace sf4e {
 		const session::MatchAuthority* RoomMatchAuthority(std::uint8_t table) const;
 		std::uint8_t RoomTableForGeneration(std::uint64_t generation) const;
 		void SendRoomTable(std::uint8_t table, const nlohmann::json& message);
+		// Whether the connection is in the live native roster of the table's
+		// generation. Table members outside it (a spectator still retiring the last
+		// game, or one left out of the start) are not.
 		bool IsRoomTableParticipant(session::Connection connection, std::uint8_t table) const;
+		// A connection reaching a table's native barrier for its live generation:
+		// the two fighters gate it, and the arrivals are reset with each grant. A
+		// participant that arrives after the fighters is released at once.
+		void ArriveAtRoomBarrier(session::Connection connection, bool loadBarrier, const nlohmann::json& release);
 
 		void BroadcastMessage(const nlohmann::json& msg);
 		// One handler per message type, called from Step().

@@ -1,13 +1,18 @@
 #include "Theme.hxx"
 #include "EmbeddedFonts.hxx"
 #include "EmbeddedBrand.hxx"
+#include "MenuProbes.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstdarg>
 #include <cstring>
 #include <iterator>
+#include <limits>
+#include <chrono>
+#include <map>
 #include <optional>
 #include <vector>
 
@@ -37,9 +42,62 @@ std::optional<loc::Locale> CatalogInAtlas(loc::Locale active) {
 std::optional<loc::Locale> atlasCatalog;
 ImVector<ImWchar> scriptRanges[ScriptFontCount];
 
+// Characters of player-written text that Inter cannot draw, which every script
+// font is asked for. Each records when a role last drew it. A character stays
+// wanted for glyphRetention after its last draw, so the wanted set follows the
+// text on screen: a room's chat and names stop costing atlas space once they
+// leave it. At most MaxUserGlyphs are wanted (each costs a glyph at three
+// sizes), taken by role, then by which was noted first, so a set that fills
+// the cap does not reshuffle from frame to frame. The atlas is rebuilt when
+// text needs a character it lacks, not more than once every rebuildInterval so
+// a burst of typing or chat costs one rebuild; characters no longer wanted are
+// dropped by whichever rebuild comes next.
+constexpr std::size_t UserTextRoles = 3;
+struct UserGlyph {
+    std::array<std::optional<std::chrono::steady_clock::time_point>, UserTextRoles> seen;
+    std::size_t order = 0;
+};
+std::map<ImWchar, UserGlyph> userGlyphs;
+std::size_t userGlyphOrder = 0;
+std::vector<ImWchar> wantedUserGlyphs, atlasUserGlyphs; // sorted
+constexpr std::size_t MaxUserGlyphs = 512;
+std::chrono::milliseconds rebuildInterval(250), glyphRetention(10000);
+std::chrono::steady_clock::time_point lastUserGlyphBuild;
+bool userGlyphBuildSeen = false;
+
+// Retires characters that no role has drawn within glyphRetention and fills
+// wantedUserGlyphs from the rest, best role first when over the cap.
+void UpdateWantedUserGlyphs(std::chrono::steady_clock::time_point now) {
+    struct Ranked { std::size_t role, order; ImWchar glyph; };
+    std::vector<Ranked> ranked;
+    ranked.reserve(userGlyphs.size());
+    for (auto it = userGlyphs.begin(); it != userGlyphs.end();) {
+        std::size_t role = UserTextRoles;
+        for (std::size_t r = 0; r < UserTextRoles && role == UserTextRoles; ++r)
+            if (it->second.seen[r] && now - *it->second.seen[r] <= glyphRetention) role = r;
+        if (role == UserTextRoles) { it = userGlyphs.erase(it); continue; }
+        ranked.push_back({role, it->second.order, it->first});
+        ++it;
+    }
+    if (ranked.size() > MaxUserGlyphs) {
+        std::sort(ranked.begin(), ranked.end(), [](const Ranked& a, const Ranked& b) {
+            return a.role != b.role ? a.role < b.role : a.order < b.order; });
+        ranked.resize(MaxUserGlyphs);
+    }
+    wantedUserGlyphs.clear();
+    for (const auto& glyph : ranked) wantedUserGlyphs.push_back(glyph.glyph);
+    std::sort(wantedUserGlyphs.begin(), wantedUserGlyphs.end());
+}
+
+bool InterDraws(unsigned codepoint) {
+    for (const ImWchar* range = UiGlyphRanges; range[0] && range[1]; range += 2)
+        if (codepoint >= range[0] && codepoint <= range[1]) return true;
+    return false;
+}
+
 // Every CJK glyph costs atlas space, so a script font gets its languages'
 // native names, for the language picker, and the catalog only if it draws it.
-void BuildScriptRanges(std::optional<loc::Locale> catalog) {
+void BuildScriptRanges(std::optional<loc::Locale> catalog, const std::vector<ImWchar>& glyphs) {
     for (std::size_t i = 0; i < ScriptFontCount; ++i) {
         ImFontGlyphRangesBuilder builder;
         for (int locale = 0; locale < static_cast<int>(loc::Locale::Count); ++locale)
@@ -47,6 +105,7 @@ void BuildScriptRanges(std::optional<loc::Locale> catalog) {
                 builder.AddText(loc::NativeName(static_cast<loc::Locale>(locale)));
         if (catalog && loc::ScriptOf(*catalog) == fonts::ScriptFonts[i].script)
             builder.AddText(loc::DisplayText(*catalog).c_str());
+        for (const auto glyph : glyphs) builder.AddChar(glyph);
         scriptRanges[i].clear();
         builder.BuildRanges(&scriptRanges[i]);
     }
@@ -65,20 +124,50 @@ ImFont* DiagnosticFont() {
     return fonts.Size == 3 ? fonts[2] : ImGui::GetFont();
 }
 const char* FontLicense() { return fonts::License; }
+void SetUserGlyphRebuildInterval(std::chrono::milliseconds interval) { rebuildInterval = interval; }
+void SetUserGlyphRetention(std::chrono::milliseconds retention) { glyphRetention = retention; }
+void NoteUserText(const std::string& utf8, UserTextRole role) {
+    std::optional<std::chrono::steady_clock::time_point> now;
+    for (std::size_t i = 0; i < utf8.size();) {
+        const auto lead = static_cast<unsigned char>(utf8[i]);
+        // ASCII and continuation bytes add nothing; everything else is decoded
+        // and checked against the ranges Inter draws.
+        if (lead < 0xC0) { ++i; continue; }
+        const int length = lead >= 0xF0 ? 4 : lead >= 0xE0 ? 3 : 2;
+        if (i + length > utf8.size()) return;
+        unsigned codepoint = lead & (0xFFu >> (length + 1));
+        for (int n = 1; n < length; ++n) codepoint = (codepoint << 6) | (static_cast<unsigned char>(utf8[i + n]) & 0x3Fu);
+        i += length;
+        if (codepoint > (std::numeric_limits<ImWchar>::max)() || InterDraws(codepoint)) continue;
+        if (!now) now = std::chrono::steady_clock::now();
+        auto& glyph = userGlyphs[static_cast<ImWchar>(codepoint)];
+        // A character retired since it was last drawn starts over, behind the
+        // ones still on screen.
+        if (std::none_of(glyph.seen.begin(), glyph.seen.end(), [](const auto& t) { return t.has_value(); })) glyph.order = ++userGlyphOrder;
+        glyph.seen[static_cast<std::size_t>(role)] = *now;
+    }
+}
 bool ApplyTheme(float dpiScale) {
     dpiScale = (std::max)(1.f, (std::min)(dpiScale, 3.f));
     auto& io = ImGui::GetIO();
     const auto catalog = CatalogInAtlas(loc::Active());
     // Font configuration survives device resets; texture ownership stays with DX9.
-    // A language change that needs other glyphs rebuilds the atlas.
+    // A language change that needs other glyphs rebuilds the atlas, and so does
+    // player text that needs them, once the last such rebuild is not too recent.
+    const auto now = std::chrono::steady_clock::now();
+    UpdateWantedUserGlyphs(now);
+    const bool userGlyphsAdded = !std::includes(atlasUserGlyphs.begin(), atlasUserGlyphs.end(), wantedUserGlyphs.begin(), wantedUserGlyphs.end());
+    const bool userGlyphsDue = userGlyphsAdded && (!userGlyphBuildSeen || now - lastUserGlyphBuild >= rebuildInterval);
     if (io.Fonts->Fonts.Size == 3 &&
         std::fabs(io.Fonts->Fonts[0]->FontSize - BodySize) < .01f &&
-        std::fabs(io.FontGlobalScale - dpiScale) < .001f && atlasCatalog == catalog)
+        std::fabs(io.FontGlobalScale - dpiScale) < .001f && atlasCatalog == catalog && !userGlyphsDue)
         return false;
     io.FontDefault = nullptr;
     io.Fonts->Clear();
-    BuildScriptRanges(catalog);
+    BuildScriptRanges(catalog, wantedUserGlyphs);
     atlasCatalog = catalog;
+    if (userGlyphsAdded) { lastUserGlyphBuild = now; userGlyphBuildSeen = true; }
+    atlasUserGlyphs = wantedUserGlyphs;
     // The catalog's font merges first so it draws the Han characters Japanese
     // and Chinese share.
     const auto drawsCatalog = [&](std::size_t font) { return catalog && fonts::ScriptFonts[font].script == loc::ScriptOf(*catalog); };
@@ -93,10 +182,16 @@ bool ApplyTheme(float dpiScale) {
         ImFontConfig config;
         config.FontDataOwnedByAtlas = false;
         config.GlyphRanges = UiGlyphRanges;
-        config.OversampleH = 3; config.OversampleV = 2;
         // Keep logical sizes integral: ImGui 1.91 truncates SizePixels. Baking at
         // display density then scaling metrics preserves fractional Windows DPI.
         config.RasterizerDensity = i == 2 ? (std::max)(3.5f,dpiScale) : dpiScale;
+        // ImGui stores an oversampled glyph at the oversampled size, so 3x2 costs
+        // six times the atlas area. A font baked at two texels or more per logical
+        // pixel (the diagnostic font always, body text from 200%) has the
+        // subpixel precision already, and its atlas, which the game's 32-bit
+        // address space has to allocate whole, is several times larger with it.
+        const bool dense = config.RasterizerDensity >= 2.f;
+        config.OversampleH = dense ? 1 : 3; config.OversampleV = dense ? 1 : 2;
         const auto* data = i == 1 ? fonts::Heading : fonts::Body;
         const int bytes = static_cast<int>(i == 1 ? sizeof(fonts::Heading) : sizeof(fonts::Body));
         std::snprintf(config.Name, sizeof(config.Name), "%s %.0fpx",
@@ -355,10 +450,9 @@ float MatchScale(const MatchStripView& view) {
     return viewport*sizes[(std::max)(0,(std::min)(2,view.size))];
 }
 }
-// GameMenu.cxx: the render harness's text probe.
-void ReportMenuText(const char* id,float textHeight,float interiorHeight,float textWidth,float availableWidth);
 namespace {
 void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, float w, float s) {
+    NoteUserText(view.names[0]);NoteUserText(view.names[1]);
     const float glyph=16*s,glyphGap=6*s,glyphSpace=glyph+glyphGap;
     auto* font=DiagnosticFont();
     const auto measure=[&](const std::string& t,float size){return font->CalcTextSizeA(size,FLT_MAX,0,t.c_str()).x;};
@@ -422,7 +516,7 @@ void DrawNetworkLinkGlyph(ImDrawList* draw, ImVec2 min, float size, NetworkLink 
     const float t=(std::max)(1.f,size*.11f);
     const auto at=[&](float x,float y){return ImVec2(min.x+size*x,min.y+size*y);};
     if(link==NetworkLink::Wireless){
-        // A quarter turn either side of straight up.
+        // An eighth turn (45 degrees) either side of straight up.
         const float up=-1.5707963f,spread=.7853982f;
         const ImVec2 origin=at(.5f,.86f);
         for(const float radius:{.26f,.48f,.7f}){

@@ -65,27 +65,34 @@ std::uint8_t SessionServer::RoomTableForGeneration(std::uint64_t generation) con
 }
 
 bool SessionServer::IsRoomTableParticipant(session::Connection connection, std::uint8_t tableId) const {
-	if (!_roomAuthority || tableId >= room::TableCount) return false;
-	const auto local = roomMembers.find(connection);
-	if (local == roomMembers.end()) return false;
-	const auto& table = _roomAuthority->SnapshotView().tables[tableId];
-	return table.p1 == local->second || table.p2 == local->second ||
-		std::find(table.spectators.begin(), table.spectators.end(), local->second) != table.spectators.end();
+	if (!_roomAuthority || tableId >= room::TableCount || roomMembers.find(connection) == roomMembers.end()) return false;
+	const auto* authority = RoomMatchAuthority(tableId);
+	return authority && authority->IsLiveParticipant(connection);
 }
 
 void SessionServer::SendRoomTable(std::uint8_t tableId, const json& message) {
 	if (!_roomAuthority || tableId >= room::TableCount) return;
-	const auto& table = _roomAuthority->SnapshotView().tables[tableId];
-	std::set<session::Connection> destinations;
-	const auto add = [&](room::MemberId id) {
-		if (!id) return;
-		for (const auto& member : roomMembers) {
-			if (member.second == id) { destinations.insert(member.first); break; }
-		}
-	};
-	add(table.p1); add(table.p2);
-	for (const auto spectator : table.spectators) add(spectator);
-	for (const auto connection : destinations) Respond(connection, message);
+	const auto* authority = RoomMatchAuthority(tableId);
+	if (!authority) return;
+	for (const auto connection : authority->LiveParticipants()) Respond(connection, message);
+}
+
+void SessionServer::ArriveAtRoomBarrier(session::Connection connection, bool loadBarrier, const json& release) {
+	if (!_roomAuthority) return;
+	for (std::uint8_t tableId = 0; tableId < room::TableCount; ++tableId) {
+		const auto* authority = RoomMatchAuthority(tableId);
+		if (!authority || authority->GetPhase() != session::MatchAuthority::Phase::Started ||
+			!IsRoomTableParticipant(connection, tableId)) continue;
+		auto& arrived = loadBarrier ? _roomBattleLoaded[tableId] : _roomPunchReady[tableId];
+		const auto first = authority->Fighter(0), second = authority->Fighter(1);
+		const auto fightersHere = [&] { return first && second && arrived.count(first) && arrived.count(second); };
+		const bool open = fightersHere();
+		arrived.insert(connection);
+		if (open) Respond(connection, release);
+		else if (fightersHere())
+			for (const auto peer : authority->LiveParticipants()) if (arrived.count(peer)) Respond(peer, release);
+		return;
+	}
 }
 
 bool SessionServer::BeginAuthorizedTable(std::uint8_t tableId, std::uint64_t generation) {
@@ -124,6 +131,9 @@ bool SessionServer::BeginAuthorizedTable(std::uint8_t tableId, std::uint64_t gen
 	// Send the immutable native projection before any prepare grant. Clients
 	// freeze their legacy game buffers when that grant arrives.
 	for (const auto& participant : participants) ProjectRoomTable(participant.connection, tableId);
+	// The native barriers belong to this generation alone.
+	_roomBattleLoaded[tableId].clear();
+	_roomPunchReady[tableId].clear();
 	return authority->BeginAtGeneration(participants, generation, MatchSender());
 }
 

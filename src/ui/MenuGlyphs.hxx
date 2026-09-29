@@ -1,7 +1,9 @@
 #pragma once
 #include "Theme.hxx"
 #include "SelectionArt.hxx"
+#include "MenuProbes.hxx"
 #include "../common/Localization.hxx"
+#include "../common/PadKind.hxx"
 #include <cstring>
 #include <string>
 #include <vector>
@@ -10,9 +12,9 @@ namespace sf4e { namespace ui {
 // Native XInput normalization at 006D8415..006D8466. DirectInput device shape
 // cannot be inferred from its binding index; never pretend it is an Xbox pad.
 inline const char* PhysicalGlyph(int type,unsigned mask,const char* fallback) {
-    if(type!=3)return fallback;
-    switch(mask){case 0x40000:return "A";case 0x20000:return "B";case 0x80000:return "X";case 0x10000:return "Y";
-    case 0x100000:return "LB";case 0x200000:return "RB";case 0x400000:return "LT";case 0x800000:return "RT";default:return fallback;}
+    if(type!=input::PadXInput)return fallback;
+    switch(mask){case input::xinput::A:return "A";case input::xinput::B:return "B";case input::xinput::X:return "X";case input::xinput::Y:return "Y";
+    case input::xinput::LB:return "LB";case input::xinput::RB:return "RB";case input::xinput::LT:return "LT";case input::xinput::RT:return "RT";default:return fallback;}
 }
 inline const char* PromptAsset(const char* glyph) {
     if(!std::strcmp(glyph,"A"))return "xbox_button_color_a";
@@ -35,8 +37,6 @@ inline const char* PromptAsset(const char* glyph) {
 }
 // A screen's own button, shown after the standard ones.
 struct LegendHint { const char* glyph; std::string label; };
-// GameMenu.hxx; declared here so the legend reports its labels too.
-void ReportMenuText(const char* id,float textHeight,float interiorHeight,float textWidth,float availableWidth);
 inline float MenuLegend(float width,const char* select,const char* back,bool draw,bool adjustable,SelectionArt* art,float scale=0,
                         const char* primary=loc::T("menu.select"),const std::vector<LegendHint>& extras={},const char* backText=nullptr) {
     const bool keyboard=!std::strcmp(select,"Enter");

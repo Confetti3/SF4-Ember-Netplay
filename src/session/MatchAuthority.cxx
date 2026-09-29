@@ -255,8 +255,19 @@ bool MatchAuthority::Acknowledge(Connection connection, const json& message, con
 		startSpectators_ = std::move(ready);
 		startReported_ = true;
 	}
+	bool sent = true;
+	if (fromP1 && phase_ == Phase::Preparing && !Acked(0)) {
+		// Spectators that left before P1 adopted the generation (MemberDeparted).
+		// Only now can P1 absorb their peer end, and only if it takes optional
+		// spectators; otherwise it needs every participant.
+		for (std::size_t slot = 2; slot < participants_.size(); ++slot) {
+			if (!departed_.count(participants_[slot].connection)) continue;
+			if (!spectatorsOptional_) return End(send);
+			sent = send(connection, json{{"type", "game_peer_end"}, {"generation", generation_}, {"slot", slot}}) && sent;
+		}
+	}
 	acknowledgments_.insert(connection);
-	return TryAdvance(send);
+	return TryAdvance(send) && sent;
 }
 
 bool MatchAuthority::Acked(std::size_t slot) const {
@@ -414,7 +425,31 @@ bool MatchAuthority::MemberDeparted(Connection connection, const Send& send) {
 			json{{"type", "game_peer_end"}, {"generation", generation_}, {"slot", slot}});
 		return TryAdvance(send) && sent;
 	}
+	// P1 drops a peer end for a generation it has not adopted yet, so a spectator
+	// that leaves before P1's game_prepared waits: Acknowledge tells P1 then.
+	if (slot >= 2 && phase_ == Phase::Preparing && !Acked(0)) {
+		acknowledgments_.erase(connection);
+		return true;
+	}
 	return End(send);
+}
+
+std::vector<Connection> MatchAuthority::LiveParticipants() const {
+	std::vector<Connection> live;
+	if (phase_ == Phase::Idle) return live;
+	for (const auto& participant : participants_)
+		if (!departed_.count(participant.connection)) live.push_back(participant.connection);
+	return live;
+}
+
+bool MatchAuthority::IsLiveParticipant(Connection connection) const {
+	return phase_ != Phase::Idle && !departed_.count(connection) && std::any_of(participants_.begin(), participants_.end(),
+		[&](const Participant& participant) { return participant.connection == connection; });
+}
+
+Connection MatchAuthority::Fighter(std::size_t seat) const {
+	if (phase_ == Phase::Idle || seat > 1 || seat >= participants_.size() || departed_.count(participants_[seat].connection)) return 0;
+	return participants_[seat].connection;
 }
 
 bool MatchAuthority::HasStartedSpectator(const SessionProtocol::ConnectionID& endpoint) const {

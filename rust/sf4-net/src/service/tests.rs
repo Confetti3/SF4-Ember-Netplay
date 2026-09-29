@@ -36,7 +36,7 @@ impl Actor {
         let Some(recovery) = self.recovery.clone() else {
             return Ok(());
         };
-        let applied = recovery.applied_member_ids().await;
+        let (applied, history) = recovery.applied_membership_provenance().await;
         let confirmed: Vec<u64> = self
             .pending_retired_incarnations
             .iter()
@@ -46,7 +46,7 @@ impl Actor {
         for incarnation in &confirmed {
             recovery.rpc.retire(*incarnation).await;
         }
-        self.apply_confirmed_retirements(confirmed.into_iter().collect());
+        self.apply_confirmed_retirements(confirmed.into_iter().collect(), &history);
         Ok(())
     }
 }
@@ -122,6 +122,7 @@ fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Actor {
         room_invite: None,
         host_address: None,
         controls: BTreeMap::new(),
+        parked_controls: BTreeMap::new(),
         games: BTreeMap::new(),
         closed_generation: 0,
         tasks: JoinSet::new(),
@@ -153,12 +154,16 @@ fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Actor {
         last_control_rebound: None,
         unwritable_leader_since: None,
         reconnect_target: None,
-        probe_reservations: BTreeMap::new(),
         pending_game_admissions: BTreeMap::new(),
         pending_probe_invalidations: BTreeMap::new(),
         probe_peers: BTreeSet::new(),
         probe_permissions: BTreeMap::new(),
+        own_probes: BTreeMap::new(),
         pending_probe_authorizations: BTreeMap::new(),
+        pending_probe_reservations: BTreeMap::new(),
+        join_settled: false,
+        join_control_losses: 0,
+        join_first_loss: None,
         retirement_started: None,
         departure_failed: false,
     }
@@ -1529,7 +1534,8 @@ async fn incomplete_game_marker_does_not_block_actor_commands() {
             stats: None,
             route_connection: None,
             expires: tokio::time::Instant::now() + Duration::from_secs(60),
-            prepare_deadline: None,
+            candidate: None,
+            diagnostics: GameDiagnostics::default(),
         },
     );
     actor.probe_peers.insert(remote.id());
@@ -1628,70 +1634,133 @@ async fn incomplete_game_marker_does_not_block_actor_commands() {
 }
 
 #[tokio::test]
-async fn completed_probe_keeps_connection_open_for_gameplay_upgrade() {
-    timeout(Duration::from_secs(15), async {
+async fn completed_probe_records_the_recommendation_and_closes_the_connection() {
+    timeout(Duration::from_secs(20), async {
         let host = endpoint().await;
         let guest = endpoint().await;
         let room = [47; 16];
-        let request = 9;
-        let pair_revision = 23;
-        let (host_probe, guest_connection) = tokio::join!(
-            run_probe(
-                host.clone(),
-                address(&guest),
-                room,
-                guest.id(),
+        let (request, pair_revision) = (9, 23);
+        // One exchange: the responder answers, then either closes at once, as
+        // the actor does once it has recorded the probe, or keeps its side
+        // open and hands the connection back.
+        let exchange = |close_after_answer: bool| {
+            let (host, guest) = (host.clone(), guest.clone());
+            async move {
+                tokio::join!(
+                    run_probe(
+                        host.clone(),
+                        address(&guest),
+                        room,
+                        guest.id(),
+                        request,
+                        pair_revision,
+                        false,
+                    ),
+                    async {
+                        let connection = guest.accept().await.unwrap().await.unwrap();
+                        match transport::accept_game_stream(&connection).await.unwrap() {
+                            transport::GameStream::Probe(send, recv) => {
+                                let connection = serve_probe(
+                                    connection,
+                                    send,
+                                    recv,
+                                    room,
+                                    request,
+                                    pair_revision,
+                                )
+                                .await?;
+                                if close_after_answer {
+                                    connection.close(0u32.into(), b"probe complete");
+                                    Ok(None)
+                                } else {
+                                    Ok(Some(connection))
+                                }
+                            }
+                            transport::GameStream::Gameplay(_, _) => {
+                                Err(failed("expected probe stream"))
+                            }
+                        }
+                    }
+                )
+            }
+        };
+
+        // The prober still receives the whole answer when the responder
+        // closes straight after it; the close may already be visible.
+        let (closed_probe, closed_guest) = exchange(true).await;
+        let closed_probe = closed_probe.unwrap();
+        closed_guest.unwrap();
+        assert!(
+            !closed_probe.route_changed,
+            "the responder's close after the stream end is not a route change"
+        );
+        assert!(!closed_probe.samples_us.is_empty());
+        if let Some(connection) = closed_probe.connection {
+            connection.close(0u32.into(), b"test done");
+        }
+
+        // With the responder's side held open, only completed_probe can close
+        // the connection, so the check below is about the actor.
+        let (host_probe, guest_side) = exchange(false).await;
+        let host_probe = host_probe.unwrap();
+        let _guest_side = guest_side.unwrap();
+        let connection = host_probe.connection.clone().unwrap();
+        assert!(connection.close_reason().is_none());
+
+        let (events, mut receiver) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let mut actor = test_actor(host.clone(), events);
+        actor.epoch = 5;
+        actor.room = Some(room);
+        let permit = |request, pair_revision| ProbePermission {
+            request,
+            pair_revision,
+            expires: tokio::time::Instant::now() + Duration::from_secs(5),
+        };
+        actor.own_probes.insert(
+            guest.id(),
+            OwnProbe {
                 request,
                 pair_revision,
-                false,
-            ),
-            async {
-                let connection = guest.accept().await.unwrap().await.unwrap();
-                match transport::accept_game_stream(&connection).await.unwrap() {
-                    transport::GameStream::Probe(send, recv) => {
-                        serve_probe(connection, send, recv, room, request, pair_revision).await
-                    }
-                    transport::GameStream::Gameplay(_, _) => Err(failed("expected probe stream")),
-                }
-            }
+            },
         );
-        let host_probe = host_probe.unwrap();
-        let host_connection = host_probe.connection.unwrap();
-        let guest_connection = guest_connection.unwrap();
-        assert!(host_connection.close_reason().is_none());
-        assert!(guest_connection.close_reason().is_none());
-        assert_eq!(
-            recovery::summarize_datagram_probe(
-                &host_probe.samples_us,
-                host_probe.metrics.expected,
-                host_probe.metrics.sent
-            )
-            .status,
-            "ready"
+        actor
+            .completed(Completion::Probe(5, Ok(host_probe)))
+            .await
+            .unwrap();
+        assert!(
+            connection.close_reason().is_some(),
+            "nothing reuses a probe connection, so it must not be kept open"
         );
+        assert!(actor.own_probes.is_empty());
+        assert!(matches!(
+            receiver.recv().await,
+            Some(Event::ProbeResult { request: 9, status, .. }) if status == "ready"
+        ));
 
-        let key = MatchKey {
-            room,
-            generation: 1,
-        };
-        let host_auth = GameAuthorization {
-            peer: guest.id(),
-            key,
-            capability: [71; 32],
-            max_packet: 1024,
-        };
-        let guest_auth = GameAuthorization {
-            peer: host.id(),
-            ..host_auth.clone()
-        };
-        let (_deadline_sender, deadline) =
-            watch::channel(tokio::time::Instant::now() + transport::PREPARED_GAME_TIMEOUT);
-        let (host_game, guest_game) = tokio::join!(
-            transport::accept_game_on(host_connection, host_auth, deadline),
-            transport::connect_game_on(guest_connection, guest_auth),
-        );
-        assert!(host_game.is_ok());
-        assert!(guest_game.is_ok());
+        // A check the peer runs against us reports nothing and leaves the
+        // recommendation alone.
+        actor.probe_peers.insert(guest.id());
+        actor.probe_permissions.insert(guest.id(), permit(10, 23));
+        actor
+            .completed(Completion::Probe(
+                5,
+                Ok(ProbeCompletion {
+                    peer: guest.id(),
+                    request: 10,
+                    pair_revision: 23,
+                    samples_us: Vec::new(),
+                    connection: None,
+                    report: false,
+                    route_changed: false,
+                    route: None,
+                    metrics: crate::probe::Metrics::default(),
+                }),
+            ))
+            .await
+            .unwrap();
+        assert!(actor.probe_permissions.is_empty() && actor.probe_peers.is_empty());
+        assert!(actor.pending_probe_invalidations.is_empty());
+        assert!(receiver.try_recv().is_err(), "the peer's check reported");
         host.close().await;
         guest.close().await;
     })
@@ -1700,33 +1769,14 @@ async fn completed_probe_keeps_connection_open_for_gameplay_upgrade() {
 }
 
 #[tokio::test]
-async fn closed_probe_invalidation_retries_after_bulk_backpressure() {
+async fn probe_invalidation_retries_after_bulk_backpressure() {
     timeout(Duration::from_secs(10), async {
         let local = endpoint().await;
         let remote = endpoint().await;
-        let (connection, remote_connection) =
-            tokio::join!(local.connect(address(&remote), GAME_ALPN), async {
-                remote.accept().await.unwrap().await
-            });
-        let connection = connection.unwrap();
-        let remote_connection = remote_connection.unwrap();
-        let original_route = selected_probe_route(&connection);
-        assert_ne!(original_route, "unavailable");
-
         let (events, mut receiver) = mpsc::channel(LIFECYCLE_EVENT_RESERVE + 1);
         let mut actor = test_actor(local.clone(), events);
         actor.epoch = 7;
         actor.room = Some([59; 16]);
-        actor.probe_reservations.insert(
-            remote.id(),
-            ProbeReservation {
-                reported: true,
-                connection: connection.clone(),
-                request: 23,
-                pair_revision: 37,
-                route: original_route.clone(),
-            },
-        );
         assert!(actor.emit_bulk(Event::CheckpointAck {
             epoch: 7,
             room: [59; 16],
@@ -1734,19 +1784,14 @@ async fn closed_probe_invalidation_retries_after_bulk_backpressure() {
             offset: 0,
         }));
 
-        remote_connection.close(1u32.into(), b"closed probe regression");
-        connection.closed().await;
-        assert!(connection.close_reason().is_some());
-        assert_eq!(selected_probe_route(&connection), original_route);
-        actor.invalidate_changed_probe_routes();
-        assert!(!actor.probe_reservations.contains_key(&remote.id()));
+        actor.queue_probe_invalidation(remote.id(), 23, 37, "unavailable".into());
         assert!(actor.pending_probe_invalidations.contains_key(&remote.id()));
         assert!(matches!(
             receiver.recv().await,
             Some(Event::CheckpointAck { .. })
         ));
 
-        actor.invalidate_changed_probe_routes();
+        actor.pump_probe_invalidations();
         assert!(!actor.pending_probe_invalidations.contains_key(&remote.id()));
         assert!(matches!(
             receiver.recv().await,
@@ -1771,15 +1816,10 @@ async fn obsolete_probe_completion_cannot_replace_newer_peer_state() {
     timeout(Duration::from_secs(10), async {
         let local = endpoint().await;
         let remote = endpoint().await;
-        let (new_connection, new_remote) =
-            tokio::join!(local.connect(address(&remote), GAME_ALPN), async {
-                remote.accept().await.unwrap().await
-            });
         let (old_connection, old_remote) =
             tokio::join!(local.connect(address(&remote), GAME_ALPN), async {
                 remote.accept().await.unwrap().await
             });
-        let new_connection = new_connection.unwrap();
         let old_connection = old_connection.unwrap();
         let old_observer = old_connection.clone();
         let (events, _receiver) = mpsc::channel(IPC_QUEUE_CAPACITY);
@@ -1793,16 +1833,6 @@ async fn obsolete_probe_completion_cannot_replace_newer_peer_state() {
                 request: 29,
                 pair_revision: 41,
                 expires: tokio::time::Instant::now() + Duration::from_secs(5),
-            },
-        );
-        actor.probe_reservations.insert(
-            remote.id(),
-            ProbeReservation {
-                reported: true,
-                route: selected_probe_route(&new_connection),
-                connection: new_connection,
-                request: 29,
-                pair_revision: 41,
             },
         );
         actor.pending_probe_invalidations.insert(
@@ -1825,6 +1855,7 @@ async fn obsolete_probe_completion_cannot_replace_newer_peer_state() {
                     connection: Some(old_connection),
                     report: false,
                     route_changed: false,
+                    route: None,
                     metrics: crate::probe::Metrics::default(),
                 }),
             ))
@@ -1842,14 +1873,6 @@ async fn obsolete_probe_completion_cannot_replace_newer_peer_state() {
         );
         assert!(
             actor
-                .probe_reservations
-                .get(&remote.id())
-                .is_some_and(
-                    |reservation| reservation.request == 29 && reservation.pair_revision == 41
-                )
-        );
-        assert!(
-            actor
                 .pending_probe_invalidations
                 .get(&remote.id())
                 .is_some_and(
@@ -1858,13 +1881,330 @@ async fn obsolete_probe_completion_cannot_replace_newer_peer_state() {
         );
         old_observer.closed().await;
         assert!(old_observer.close_reason().is_some());
-        drop(new_remote);
         drop(old_remote);
         local.close().await;
         remote.close().await;
     })
     .await
     .unwrap();
+}
+
+/// A completed probe of `request` and `pair_revision`, as a worker reports it:
+/// a clean hundred-sample measurement for the prober, nothing for the responder.
+fn probe_completion(
+    peer: EndpointId,
+    request: u64,
+    pair_revision: u64,
+    report: bool,
+) -> Completion {
+    let samples: Vec<u64> = if report { vec![300; 100] } else { Vec::new() };
+    Completion::Probe(
+        5,
+        Ok(ProbeCompletion {
+            peer,
+            request,
+            pair_revision,
+            metrics: crate::probe::Metrics {
+                expected: if report { 100 } else { 0 },
+                sent: if report { 100 } else { 0 },
+                replies: samples.len() as u32,
+                ..crate::probe::Metrics::default()
+            },
+            samples_us: samples,
+            connection: None,
+            report,
+            route_changed: false,
+            route: Some("ip:127.0.0.1:1".into()),
+        }),
+    )
+}
+
+/// The peer checks us while we check it, and both checks carry the same request
+/// id and pair revision. Each completion settles only the probe of its own role,
+/// in either order.
+#[tokio::test]
+async fn a_probe_completion_settles_only_the_probe_of_its_own_role() {
+    timeout(Duration::from_secs(10), async {
+        let local = endpoint().await;
+        let remote = endpoint().await;
+        let peer = remote.id();
+        let (events, mut receiver) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let mut actor = test_actor(local.clone(), events);
+        actor.epoch = 5;
+        actor.room = Some([62; 16]);
+        let stage = |actor: &mut Actor| {
+            actor.own_probes.insert(
+                peer,
+                OwnProbe {
+                    request: 1,
+                    pair_revision: 8,
+                },
+            );
+            actor.probe_peers.insert(peer);
+            actor.probe_permissions.insert(
+                peer,
+                ProbePermission {
+                    request: 1,
+                    pair_revision: 8,
+                    expires: tokio::time::Instant::now() + Duration::from_secs(5),
+                },
+            );
+        };
+
+        // The answered check finishes first. It reports nothing and leaves
+        // our own check running.
+        stage(&mut actor);
+        actor
+            .completed(probe_completion(peer, 1, 8, false))
+            .await
+            .unwrap();
+        assert!(actor.own_probes.contains_key(&peer));
+        assert!(actor.probe_permissions.is_empty() && actor.probe_peers.is_empty());
+        assert!(receiver.try_recv().is_err(), "the answered check reported");
+        // Our own check then completes with its own samples.
+        actor
+            .completed(probe_completion(peer, 1, 8, true))
+            .await
+            .unwrap();
+        assert!(actor.own_probes.is_empty());
+        assert!(matches!(
+            receiver.recv().await,
+            Some(Event::ProbeResult { request: 1, pair_revision: 8, status, sample_count: 100, .. })
+                if status == "ready"
+        ));
+
+        // Our own check finishes first. The answered check still being
+        // served is untouched by it, and finishing later reports nothing.
+        stage(&mut actor);
+        actor
+            .completed(probe_completion(peer, 1, 8, true))
+            .await
+            .unwrap();
+        assert!(actor.own_probes.is_empty());
+        assert!(actor.probe_permissions.contains_key(&peer));
+        assert!(actor.probe_peers.contains(&peer));
+        assert!(matches!(
+            receiver.recv().await,
+            Some(Event::ProbeResult { status, sample_count: 100, .. }) if status == "ready"
+        ));
+        actor
+            .completed(probe_completion(peer, 1, 8, false))
+            .await
+            .unwrap();
+        assert!(actor.probe_permissions.is_empty() && actor.probe_peers.is_empty());
+        assert!(receiver.try_recv().is_err(), "the answered check reported");
+        assert!(actor.pending_probe_invalidations.is_empty());
+        local.close().await;
+        remote.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+/// A helper actor staged for one probe exchange and started, as the real
+/// helper runs it.
+struct ProbeSide {
+    events: mpsc::Receiver<Event>,
+    _commands: mpsc::Sender<Request>,
+    _fault: watch::Sender<bool>,
+    _service: TaskScope,
+}
+
+impl ProbeSide {
+    const REVISION: u64 = 4;
+
+    fn actor(endpoint: &Endpoint) -> (Actor, mpsc::Receiver<Event>) {
+        let (events_tx, events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let mut actor = test_actor(endpoint.clone(), events_tx);
+        actor.epoch = 1;
+        actor.room = Some([94; 16]);
+        (actor, events)
+    }
+
+    /// The worker the probe command spawns to check `peer`, released once
+    /// `gate` opens.
+    fn stage_check(
+        actor: &mut Actor,
+        peer: &Endpoint,
+        gate: Option<tokio::sync::oneshot::Receiver<()>>,
+    ) {
+        let (endpoint, address, peer_id) = (actor.endpoint.clone(), address(peer), peer.id());
+        actor.own_probes.insert(
+            peer_id,
+            OwnProbe {
+                request: 1,
+                pair_revision: Self::REVISION,
+            },
+        );
+        actor.tasks.spawn(async move {
+            if let Some(gate) = gate {
+                let _ = gate.await;
+            }
+            let completion = run_probe(
+                endpoint,
+                address,
+                [94; 16],
+                peer_id,
+                1,
+                Self::REVISION,
+                false,
+            )
+            .await
+            .expect("check of the peer");
+            Completion::Probe(1, Ok(completion))
+        });
+    }
+
+    /// The reservation the peer's check needs, as its control frame installs it.
+    fn permit(actor: &mut Actor, peer: &Endpoint) {
+        actor.install_probe_permission(peer.id(), 1, Self::REVISION, now().unwrap() + 60);
+    }
+
+    fn start(mut actor: Actor, events: mpsc::Receiver<Event>) -> Self {
+        let (commands, command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let (fault, failure) = watch::channel(false);
+        let service = tokio::spawn(async move {
+            let result = actor.run(command_rx, failure).await;
+            actor.tasks.shutdown().await;
+            result
+        });
+        Self {
+            events,
+            _commands: commands,
+            _fault: fault,
+            _service: TaskScope(vec![service.abort_handle()]),
+        }
+    }
+
+    async fn probe_result(&mut self) -> Event {
+        timeout(Duration::from_secs(40), async {
+            loop {
+                match self.events.recv().await.expect("helper events") {
+                    event @ Event::ProbeResult { .. } => return event,
+                    Event::Error { code, .. } => panic!("helper reported {code}"),
+                    _ => (),
+                }
+            }
+        })
+        .await
+        .expect("a probe result")
+    }
+}
+
+/// A checks B and B checks A the moment A has its result, with the same request
+/// id and pair revision both ways, while A is still serving B's check. Both
+/// checks must finish with their own samples and neither helper may retire the
+/// other's recommendation, however the two helpers' closes and completions
+/// interleave.
+async fn reverse_check_after_check() {
+    let (a, b) = (endpoint().await, endpoint().await);
+    let ((mut a_actor, a_events), (mut b_actor, b_events)) =
+        (ProbeSide::actor(&a), ProbeSide::actor(&b));
+    let (release, gate) = tokio::sync::oneshot::channel();
+    ProbeSide::stage_check(&mut a_actor, &b, None);
+    ProbeSide::permit(&mut b_actor, &a);
+    ProbeSide::stage_check(&mut b_actor, &a, Some(gate));
+    ProbeSide::permit(&mut a_actor, &b);
+    let mut a_side = ProbeSide::start(a_actor, a_events);
+    let mut b_side = ProbeSide::start(b_actor, b_events);
+
+    match a_side.probe_result().await {
+        Event::ProbeResult {
+            peer,
+            request: 1,
+            status,
+            sample_count,
+            ..
+        } => assert!(peer == b.id() && status == "ready" && sample_count >= 80),
+        other => panic!("A's check: {}", serde_json::to_string(&other).unwrap()),
+    }
+    release.send(()).unwrap();
+    match b_side.probe_result().await {
+        Event::ProbeResult {
+            peer,
+            request: 1,
+            pair_revision: ProbeSide::REVISION,
+            route,
+            status,
+            sample_count,
+            ..
+        } => {
+            assert_eq!(peer, a.id());
+            assert_eq!(status, "ready", "B's check must not be retired: {route}");
+            assert!(sample_count >= 80, "{sample_count} samples");
+            assert!(route.starts_with("ip:"), "{route}");
+        }
+        other => panic!("B's check: {}", serde_json::to_string(&other).unwrap()),
+    }
+    // Serving B's check retires nothing of A's, and nothing of A's check
+    // reaches B afterwards.
+    assert!(
+        timeout(Duration::from_millis(500), a_side.probe_result())
+            .await
+            .is_err(),
+        "A's recommendation was retired or replaced"
+    );
+    assert!(
+        timeout(Duration::from_millis(300), b_side.probe_result())
+            .await
+            .is_err()
+    );
+    drop((a_side, b_side));
+    a.close().await;
+    b.close().await;
+}
+
+/// A and B check each other at the same moment, so each helper serves the
+/// other's check while its own is in flight and the two finish in any order.
+/// Each side ends with exactly one result of its own, with samples, and no
+/// retirement.
+async fn simultaneous_checks_both_ways() {
+    let (a, b) = (endpoint().await, endpoint().await);
+    let ((mut a_actor, a_events), (mut b_actor, b_events)) =
+        (ProbeSide::actor(&a), ProbeSide::actor(&b));
+    ProbeSide::permit(&mut a_actor, &b);
+    ProbeSide::permit(&mut b_actor, &a);
+    ProbeSide::stage_check(&mut a_actor, &b, None);
+    ProbeSide::stage_check(&mut b_actor, &a, None);
+    let mut a_side = ProbeSide::start(a_actor, a_events);
+    let mut b_side = ProbeSide::start(b_actor, b_events);
+
+    let (a_result, b_result) = tokio::join!(a_side.probe_result(), b_side.probe_result());
+    for (result, peer) in [(a_result, b.id()), (b_result, a.id())] {
+        match result {
+            Event::ProbeResult {
+                peer: reported,
+                request: 1,
+                pair_revision: ProbeSide::REVISION,
+                status,
+                sample_count,
+                ..
+            } => assert!(reported == peer && status == "ready" && sample_count >= 80),
+            other => panic!("check: {}", serde_json::to_string(&other).unwrap()),
+        }
+    }
+    for side in [&mut a_side, &mut b_side] {
+        assert!(
+            timeout(Duration::from_millis(500), side.probe_result())
+                .await
+                .is_err(),
+            "a recommendation was retired or replaced"
+        );
+    }
+    drop((a_side, b_side));
+    a.close().await;
+    b.close().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_peers_new_check_always_completes_with_its_own_samples() {
+    // Each exchange already overlaps two checks between the same pair; a few
+    // rounds cover both completion orders. Running them one after another
+    // keeps the sample counts about the checks, not about machine load.
+    for _ in 0..2 {
+        reverse_check_after_check().await;
+        simultaneous_checks_both_ways().await;
+    }
 }
 
 #[tokio::test]
@@ -2240,7 +2580,7 @@ async fn a_confirmed_departure_is_not_reconciled_on_every_refresh() {
 }
 
 #[tokio::test]
-async fn retirement_cap_fences_rpc_and_admission_before_exact_history_saturates() {
+async fn a_full_retirement_set_makes_room_by_dropping_an_aged_out_tombstone() {
     let host = endpoint().await;
     let departed_primary = endpoint().await;
     let relay = iroh::defaults::prod::default_relay_map()
@@ -2280,7 +2620,11 @@ async fn retirement_cap_fences_rpc_and_admission_before_exact_history_saturates(
     assert!(recovery.rpc.is_retired(incarnation).await);
     assert!(!actor.admissions.contains_key(&incarnation));
     assert!(!actor.admission_order.contains(&incarnation));
-    assert!(actor.pending_retired_incarnations.contains(&incarnation));
+    // The 128 tombstones are unknown to the replicated history, so they have
+    // aged out and the newest departure takes the place of the lowest one.
+    assert!(actor.pending_retired_incarnations.is_empty());
+    assert!(actor.retired_incarnations.contains(&incarnation));
+    assert!(!actor.retired_incarnations.contains(&1));
     assert_eq!(actor.retired_incarnations.len(), MAX_RETIRED_INCARNATIONS);
 
     recovery.stop().await;
@@ -2897,7 +3241,13 @@ async fn expired_probe_authorization_completion_never_installs_or_dials() {
     actor
         .pending_probe_authorizations
         .insert(peer_primary.id(), key.clone());
-    actor.probe_peers.insert(peer_primary.id());
+    actor.own_probes.insert(
+        peer_primary.id(),
+        OwnProbe {
+            request: 51,
+            pair_revision: 7,
+        },
+    );
     let task_count = actor.tasks.len();
     actor
         .completed(Completion::ProbeAuthorization(
@@ -2912,7 +3262,7 @@ async fn expired_probe_authorization_completion_never_installs_or_dials() {
         .await
         .unwrap();
     assert!(!actor.probe_permissions.contains_key(&peer_primary.id()));
-    assert!(!actor.probe_peers.contains(&peer_primary.id()));
+    assert!(!actor.own_probes.contains_key(&peer_primary.id()));
     assert_eq!(actor.tasks.len(), task_count);
     assert!(matches!(
         events_rx.recv().await,
@@ -2950,6 +3300,7 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
             room_invite: None,
             host_address: None,
             controls: BTreeMap::new(),
+            parked_controls: BTreeMap::new(),
             games: BTreeMap::new(),
             closed_generation: 0,
             tasks: JoinSet::new(),
@@ -2981,12 +3332,16 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
             last_control_rebound: None,
             unwritable_leader_since: None,
             reconnect_target: None,
-            probe_reservations: BTreeMap::new(),
             pending_game_admissions: BTreeMap::new(),
             pending_probe_invalidations: BTreeMap::new(),
             probe_peers: BTreeSet::new(),
             probe_permissions: BTreeMap::new(),
+            own_probes: BTreeMap::new(),
             pending_probe_authorizations: BTreeMap::new(),
+            pending_probe_reservations: BTreeMap::new(),
+            join_settled: false,
+            join_control_losses: 0,
+            join_first_loss: None,
             retirement_started: None,
             departure_failed: false,
         };
@@ -3232,6 +3587,7 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
         room_invite: Some(old.clone()),
         host_address: None,
         controls: BTreeMap::new(),
+        parked_controls: BTreeMap::new(),
         games: BTreeMap::new(),
         closed_generation: 99,
         tasks: JoinSet::new(),
@@ -3263,12 +3619,16 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
         last_control_rebound: None,
         unwritable_leader_since: None,
         reconnect_target: None,
-        probe_reservations: BTreeMap::new(),
         pending_game_admissions: BTreeMap::new(),
         pending_probe_invalidations: BTreeMap::new(),
         probe_peers: BTreeSet::new(),
         probe_permissions: BTreeMap::new(),
+        own_probes: BTreeMap::new(),
         pending_probe_authorizations: BTreeMap::new(),
+        pending_probe_reservations: BTreeMap::new(),
+        join_settled: false,
+        join_control_losses: 0,
+        join_first_loss: None,
         retirement_started: None,
         departure_failed: false,
     };
@@ -3351,6 +3711,7 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
             room_invite: Some(invite.clone()),
             host_address: None,
             controls: BTreeMap::new(),
+            parked_controls: BTreeMap::new(),
             games: BTreeMap::new(),
             closed_generation: 0,
             tasks: JoinSet::new(),
@@ -3382,12 +3743,16 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
             last_control_rebound: None,
             unwritable_leader_since: None,
             reconnect_target: None,
-            probe_reservations: BTreeMap::new(),
             pending_game_admissions: BTreeMap::new(),
             pending_probe_invalidations: BTreeMap::new(),
             probe_peers: BTreeSet::new(),
             probe_permissions: BTreeMap::new(),
+            own_probes: BTreeMap::new(),
             pending_probe_authorizations: BTreeMap::new(),
+            pending_probe_reservations: BTreeMap::new(),
+            join_settled: false,
+            join_control_losses: 0,
+            join_first_loss: None,
             retirement_started: None,
             departure_failed: false,
         };
@@ -3693,6 +4058,7 @@ async fn actor_admits_full_sixteen_member_room_and_fifteen_game_links() {
             room_invite: Some(invite.clone()),
             host_address: None,
             controls: BTreeMap::new(),
+            parked_controls: BTreeMap::new(),
             games: BTreeMap::new(),
             closed_generation: 0,
             tasks: JoinSet::new(),
@@ -3724,12 +4090,16 @@ async fn actor_admits_full_sixteen_member_room_and_fifteen_game_links() {
             last_control_rebound: None,
             unwritable_leader_since: None,
             reconnect_target: None,
-            probe_reservations: BTreeMap::new(),
             pending_game_admissions: BTreeMap::new(),
             pending_probe_invalidations: BTreeMap::new(),
             probe_peers: BTreeSet::new(),
             probe_permissions: BTreeMap::new(),
+            own_probes: BTreeMap::new(),
             pending_probe_authorizations: BTreeMap::new(),
+            pending_probe_reservations: BTreeMap::new(),
+            join_settled: false,
+            join_control_losses: 0,
+            join_first_loss: None,
             retirement_started: None,
             departure_failed: false,
         };
@@ -3919,4 +4289,1669 @@ async fn ipc_service_rejects_malformed_and_replayed_commands() {
         .await
         .unwrap();
     }
+}
+
+fn test_relay() -> iroh::RelayUrl {
+    iroh::defaults::prod::default_relay_map()
+        .urls::<Vec<_>>()
+        .remove(0)
+}
+
+#[tokio::test]
+async fn a_rejoining_incarnation_supersedes_the_older_one_of_its_endpoint() {
+    timeout(Duration::from_secs(60), async {
+        let host = endpoint().await;
+        let remote = endpoint().await;
+        let seed = Invite::create(
+            host.id(),
+            test_relay(),
+            "test-build".into(),
+            now().unwrap(),
+            3600,
+        )
+        .unwrap();
+        let room = seed.room();
+        let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let (_commands, command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let (_fault, failure) = watch::channel(false);
+        let mut actor = test_actor(host.clone(), events_tx);
+        let invite = actor.setup_host_recovery(seed).await.unwrap();
+        let recovery = actor.recovery.clone().unwrap();
+        while recovery.coordinator.current_leader() != Some(recovery.incarnation) {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        // The endpoint's previous process is an admitted member whose exit
+        // was abandoned, so the leader still holds its route binding.
+        let old = crate::recovery::RecoverySession::join(
+            room,
+            remote.id(),
+            recovery.incarnation,
+            recovery.coordination_address.clone(),
+            false,
+        )
+        .await
+        .unwrap();
+        let old_admission = old.advertise().await;
+        recovery.add_learner(&old_admission).await.unwrap();
+        actor.epoch = 1;
+        actor.room = Some(room);
+        actor.hosted = Some(invite.clone());
+        actor.room_invite = Some(invite.clone());
+        actor.remember_admission(old_admission);
+        let new = crate::recovery::RecoverySession::join(
+            room,
+            remote.id(),
+            recovery.incarnation,
+            recovery.coordination_address.clone(),
+            false,
+        )
+        .await
+        .unwrap();
+        let new_admission = new.advertise().await;
+        let service = tokio::spawn(async move {
+            let result = actor.run(command_rx, failure).await;
+            actor.clear_room();
+            actor.tasks.shutdown().await;
+            result
+        });
+        let _scope = TaskScope(vec![service.abort_handle()]);
+
+        let connection = remote.connect(address(&host), CONTROL_ALPN).await.unwrap();
+        let mut control = transport::connect_control_on(connection, &invite)
+            .await
+            .unwrap();
+        let _ = next(&mut events, "connected").await;
+        send_admission(&mut control, 2, new_admission).await;
+        // The new process is bound although the old one still held the
+        // endpoint, and the old one leaves the coordination membership.
+        let session = timeout(Duration::from_secs(20), next(&mut events, "peer_session"))
+            .await
+            .expect("the rejoining process was never bound");
+        assert!(matches!(
+            session,
+            Event::PeerSession { incarnation, .. } if incarnation == new.incarnation
+        ));
+        timeout(Duration::from_secs(30), async {
+            loop {
+                let members = recovery.applied_member_ids().await;
+                if members.contains(&new.incarnation) && !members.contains(&old.incarnation) {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+        })
+        .await
+        .expect("the superseded incarnation was never removed");
+        assert!(recovery.rpc.is_retired(old.incarnation).await);
+        old.stop().await;
+        new.stop().await;
+        recovery.stop().await;
+        host.close().await;
+        remote.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+fn joined_invite(authority: &Endpoint) -> Invite {
+    Invite::create(
+        authority.id(),
+        test_relay(),
+        "test-build".into(),
+        now().unwrap(),
+        3600,
+    )
+    .unwrap()
+}
+
+async fn next_error(events: &mut mpsc::Receiver<Event>) -> Event {
+    loop {
+        let event = events.recv().await.unwrap();
+        if matches!(event, Event::Error { .. }) {
+            return event;
+        }
+    }
+}
+
+#[tokio::test]
+async fn a_join_that_is_never_admitted_ends_in_join_failed() {
+    let joiner = endpoint().await;
+    let authority = endpoint().await;
+    let other = endpoint().await;
+    let invite = joined_invite(&authority);
+    let (events, mut receiver) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let mut actor = test_actor(joiner.clone(), events);
+    actor.epoch = 1;
+    actor.room = Some(invite.room());
+    actor.room_invite = Some(invite);
+    // Losing a control to some other member says nothing about the join.
+    for _ in 0..=MAX_JOIN_CONTROL_LOSSES {
+        assert!(!actor.join_control_lost(other.id()).await.unwrap());
+    }
+    for _ in 1..MAX_JOIN_CONTROL_LOSSES {
+        assert!(!actor.join_control_lost(authority.id()).await.unwrap());
+    }
+    // Quick refusals alone do not end the join, as on a slow relay; the same
+    // count spread over the give-up window does.
+    assert!(!actor.join_control_lost(authority.id()).await.unwrap());
+    assert!(actor.room.is_some());
+    actor.join_first_loss = actor.join_first_loss.map(|first| first - JOIN_GIVE_UP_AFTER);
+    assert!(actor.join_control_lost(authority.id()).await.unwrap());
+    assert!(actor.room.is_none());
+    assert!(matches!(
+        next_error(&mut receiver).await,
+        Event::Error { epoch: 1, ref code, .. } if code == "join_failed"
+    ));
+
+    // A join whose member was admitted redials without limit.
+    let mut settled = test_actor(joiner.clone(), mpsc::channel(IPC_QUEUE_CAPACITY).0);
+    settled.join_settled = true;
+    settled.room_invite = Some(joined_invite(&authority));
+    for _ in 0..=MAX_JOIN_CONTROL_LOSSES {
+        assert!(!settled.join_control_lost(authority.id()).await.unwrap());
+    }
+    joiner.close().await;
+    authority.close().await;
+    other.close().await;
+}
+
+#[tokio::test]
+async fn a_retirement_set_holding_only_recent_departures_fails_closed() {
+    let local = endpoint().await;
+    let (events, _receiver) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let mut actor = test_actor(local.clone(), events);
+    let mut history: BTreeSet<u64> = (1..=MAX_RETIRED_INCARNATIONS as u64).collect();
+    actor
+        .retired_incarnations
+        .extend(1..=MAX_RETIRED_INCARNATIONS as u64);
+    // Every tombstone is still inside the replicated window: none may go.
+    assert!(!actor.record_retirement(u64::MAX, &history));
+    assert_eq!(actor.retired_incarnations.len(), MAX_RETIRED_INCARNATIONS);
+    assert!(!actor.retired_incarnations.contains(&u64::MAX));
+    // Once one has aged out of the window it makes room.
+    history.remove(&5);
+    assert!(actor.record_retirement(u64::MAX, &history));
+    assert!(actor.retired_incarnations.contains(&u64::MAX));
+    assert!(!actor.retired_incarnations.contains(&5));
+    assert_eq!(actor.retired_incarnations.len(), MAX_RETIRED_INCARNATIONS);
+    local.close().await;
+}
+
+/// A learner follower with a control to a running leader that has admitted it.
+struct LearnerFollower {
+    fixture: BoundHost,
+    learner: crate::recovery::RecoverySession,
+    follower: Actor,
+    events: mpsc::Receiver<Event>,
+    commands: mpsc::Receiver<Request>,
+    failure: watch::Receiver<bool>,
+    _command_sender: mpsc::Sender<Request>,
+    _fault: watch::Sender<bool>,
+}
+
+async fn learner_follower() -> LearnerFollower {
+    let mut fixture = bound_host(|_| {}).await;
+    let learner = crate::recovery::RecoverySession::join(
+        fixture.room,
+        fixture.remote.id(),
+        fixture.recovery.incarnation,
+        fixture.recovery.coordination_address.clone(),
+        false,
+    )
+    .await
+    .unwrap();
+    let admission = learner.advertise().await;
+    let connection = fixture
+        .remote
+        .connect(address(&fixture.host), CONTROL_ALPN)
+        .await
+        .unwrap();
+    let channel = transport::connect_control_on(connection, &fixture.invite)
+        .await
+        .unwrap();
+    let _ = next(&mut fixture.events, "connected").await;
+    let worker = ControlWorker::start(channel);
+    worker
+        .try_send(ControlFrame {
+            message_id: TRANSPORT_MESSAGE_ID_BASE,
+            payload: serde_json::to_vec(&CoordinationControl::Admission {
+                admission: admission.clone(),
+            })
+            .unwrap(),
+        })
+        .unwrap();
+    // The leader binds the session once the learner is a Raft member. It
+    // also promotes the member, so hand the vote back: a learner is what a
+    // room of four or more members holds.
+    let _ = next(&mut fixture.events, "peer_session").await;
+    fixture
+        .recovery
+        .promote_voters(BTreeSet::from([fixture.recovery.incarnation]))
+        .await
+        .unwrap();
+    let (events_tx, events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let (command_sender, commands) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let (fault, failure) = watch::channel(false);
+    let mut follower = test_actor(fixture.remote.clone(), events_tx);
+    follower.epoch = 1;
+    follower.room = Some(fixture.room);
+    follower.room_invite = Some(fixture.invite.clone());
+    follower.remember_admission(admission);
+    follower.committed_native_members =
+        Some(BTreeSet::from([fixture.host.id(), fixture.remote.id()]));
+    follower.recovery = Some(learner.clone());
+    follower.next_transport_message = TRANSPORT_MESSAGE_ID_BASE + 1;
+    follower.controls.insert(fixture.host.id(), worker);
+    while learner.coordinator.current_leader() != Some(fixture.recovery.incarnation)
+        || learner.applied_voter_ids().await != BTreeSet::from([fixture.recovery.incarnation])
+    {
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    LearnerFollower {
+        fixture,
+        learner,
+        follower,
+        events,
+        commands,
+        failure,
+        _command_sender: command_sender,
+        _fault: fault,
+    }
+}
+
+/// The leader must hear the departure before it sees the control close.
+async fn expect_departure_before_close(events: &mut mpsc::Receiver<Event>, peer: EndpointId) {
+    loop {
+        match events.recv().await.unwrap() {
+            Event::PeerDeparted { peer: departed, .. } if departed == peer => return,
+            Event::ControlClosed { .. } => panic!("control closed before the departure notice"),
+            _ => (),
+        }
+    }
+}
+
+#[tokio::test]
+async fn a_learner_departure_notice_reaches_the_leader() {
+    timeout(Duration::from_secs(60), async {
+        let mut fixture = learner_follower().await;
+        assert!(
+            fixture
+                .follower
+                .leave_command(1, false, &mut fixture.commands, &mut fixture.failure)
+                .await
+                .unwrap()
+        );
+        assert!(matches!(
+            next(&mut fixture.events, "room_closed").await,
+            Event::RoomClosed { epoch: 1 }
+        ));
+        expect_departure_before_close(&mut fixture.fixture.events, fixture.fixture.remote.id())
+            .await;
+        fixture.learner.stop().await;
+        fixture.fixture.recovery.stop().await;
+        fixture.fixture.host.close().await;
+        fixture.fixture.remote.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn an_abandoning_follower_announces_its_departure() {
+    timeout(Duration::from_secs(60), async {
+        let mut fixture = learner_follower().await;
+        assert!(
+            fixture
+                .follower
+                .leave_command(1, true, &mut fixture.commands, &mut fixture.failure)
+                .await
+                .unwrap()
+        );
+        assert!(matches!(
+            next(&mut fixture.events, "room_closed").await,
+            Event::RoomClosed { epoch: 1 }
+        ));
+        assert!(fixture.follower.controls.is_empty());
+        expect_departure_before_close(&mut fixture.fixture.events, fixture.fixture.remote.id())
+            .await;
+        fixture.learner.stop().await;
+        fixture.fixture.recovery.stop().await;
+        fixture.fixture.host.close().await;
+        fixture.fixture.remote.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn removing_a_voter_does_not_wait_for_an_unreachable_voter() {
+    timeout(Duration::from_secs(60), async {
+        let host = endpoint().await;
+        let leaving_primary = endpoint().await;
+        let dead_primary = endpoint().await;
+        let seed = Invite::create(
+            host.id(),
+            test_relay(),
+            "test-build".into(),
+            now().unwrap(),
+            3600,
+        )
+        .unwrap();
+        let room = seed.room();
+        let (events, _events_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let mut actor = test_actor(host.clone(), events);
+        let invite = actor.setup_host_recovery(seed).await.unwrap();
+        actor.epoch = 1;
+        actor.room = Some(room);
+        actor.hosted = Some(invite.clone());
+        actor.room_invite = Some(invite);
+        let recovery = actor.recovery.clone().unwrap();
+        while recovery.coordinator.current_leader() != Some(recovery.incarnation) {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        let mut sessions = Vec::new();
+        for primary in [&leaving_primary, &dead_primary] {
+            let session = crate::recovery::RecoverySession::join(
+                room,
+                primary.id(),
+                recovery.incarnation,
+                recovery.coordination_address.clone(),
+                false,
+            )
+            .await
+            .unwrap();
+            let admission = session.advertise().await;
+            recovery.add_learner(&admission).await.unwrap();
+            actor.remember_admission(admission);
+            sessions.push(session);
+        }
+        let (leaving, dead) = (sessions.remove(0), sessions.remove(0));
+        recovery
+            .promote_voters(BTreeSet::from([
+                recovery.incarnation,
+                leaving.incarnation,
+                dead.incarnation,
+            ]))
+            .await
+            .unwrap();
+        // One voter has gone for good, and the roster has dropped the other.
+        dead.stop().await;
+        actor
+            .pending_retired_incarnations
+            .insert(leaving.incarnation);
+        let retained = BTreeSet::from([host.id(), dead_primary.id()]);
+        actor.committed_native_members = Some(retained.clone());
+        let term = recovery.state().await.term;
+        let revision = recovery.committed().await.revision;
+        actor.spawn_membership_operation(retained, term, revision);
+        // The replacement voter set leaves out the voter that cannot answer,
+        // so the change commits instead of waiting on it.
+        complete_next(&mut actor).await;
+        assert_eq!(
+            recovery.applied_voter_ids().await,
+            BTreeSet::from([recovery.incarnation])
+        );
+        assert!(actor.retired_incarnations.contains(&leaving.incarnation));
+        // The unreachable voter keeps its membership as a learner.
+        assert!(
+            recovery
+                .applied_member_ids()
+                .await
+                .contains(&dead.incarnation)
+        );
+        leaving.stop().await;
+        recovery.stop().await;
+        host.close().await;
+        leaving_primary.close().await;
+        dead_primary.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn a_probe_reservation_wait_does_not_block_the_actor() {
+    timeout(Duration::from_secs(60), async {
+        let host = endpoint().await;
+        let remote = endpoint().await;
+        let seed = Invite::create(
+            host.id(),
+            test_relay(),
+            "test-build".into(),
+            now().unwrap(),
+            3600,
+        )
+        .unwrap();
+        let room = seed.room();
+        let (events, _events_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let mut actor = test_actor(host.clone(), events);
+        let invite = actor.setup_host_recovery(seed).await.unwrap();
+        let recovery = actor.recovery.clone().unwrap();
+        while recovery.coordinator.current_leader() != Some(recovery.incarnation) {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        actor.epoch = 1;
+        actor.room = Some(room);
+        actor.hosted = Some(invite.clone());
+        actor.room_invite = Some(invite);
+        let source = crate::recovery::RecoverySession::join(
+            room,
+            remote.id(),
+            recovery.incarnation,
+            recovery.coordination_address.clone(),
+            false,
+        )
+        .await
+        .unwrap();
+        let source_admission = source.advertise().await;
+        recovery.add_learner(&source_admission).await.unwrap();
+        actor.remember_admission(source_admission);
+        actor.remember_admission(recovery.advertise().await);
+        let state = recovery.state().await;
+        // The native roster seats both members at table revision 5.
+        let roster = serde_json::json!({
+            "version": 1,
+            "request": 1,
+            "term": state.term,
+            "base_revision": 0,
+            "checkpoint": {
+                "members": [
+                    {"member": 1, "incarnation": source.incarnation,
+                     "data": {"authenticatedEndpoint": remote.id().to_string()}},
+                    {"member": 2, "incarnation": recovery.incarnation,
+                     "data": {"authenticatedEndpoint": host.id().to_string()}}
+                ],
+                "room": {"version": 2, "snapshot": {
+                    "members": [{"id": 1}, {"id": 2}],
+                    "tables": [{"revision": 5, "p1": 1, "p2": 2}]
+                }}
+            }
+        });
+        let receipt = recovery
+            .coordinator
+            .propose(crate::coordination::Proposal {
+                request: "roster".into(),
+                dedup_id: "roster".into(),
+                term: state.term,
+                base: recovery.committed().await.revision,
+                checkpoint: roster.to_string(),
+                admin: None,
+            })
+            .await
+            .unwrap();
+        assert!(receipt.accepted);
+
+        let expires = now().unwrap() + 60;
+        let payload = serde_json::to_string(&CoordinationControl::ProbeReservation {
+            room,
+            source: remote.id(),
+            source_incarnation: source.incarnation,
+            target_incarnation: recovery.incarnation,
+            request: 9,
+            pair_revision: 5,
+            term: state.term,
+            expires,
+        })
+        .unwrap();
+        // The reservation's Raft entry does not exist yet. The frame is
+        // accepted at once instead of holding the actor tick for the wait.
+        let started = std::time::Instant::now();
+        assert!(
+            actor
+                .accept_coordination_control(remote.id(), &payload)
+                .await
+                .unwrap()
+        );
+        assert!(started.elapsed() < Duration::from_secs(2));
+        assert!(actor.probe_permissions.is_empty());
+        assert!(actor.pending_probe_reservations.contains_key(&remote.id()));
+
+        recovery
+            .reserve_probe(
+                source.incarnation,
+                recovery.incarnation,
+                9,
+                5,
+                state.term,
+                expires,
+            )
+            .await
+            .unwrap();
+        complete_next(&mut actor).await;
+        assert!(actor.pending_probe_reservations.is_empty());
+        assert!(actor.probe_permissions.contains_key(&remote.id()));
+        assert!(actor.probe_peers.contains(&remote.id()));
+        source.stop().await;
+        recovery.stop().await;
+        host.close().await;
+        remote.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+/// One helper actor of a two-player room, driven through its command queue.
+struct GameSide {
+    commands: mpsc::Sender<Request>,
+    events: mpsc::Receiver<Event>,
+    socket: UdpSocket,
+    generation: u64,
+    _fault: watch::Sender<bool>,
+    _service: TaskScope,
+}
+
+impl GameSide {
+    /// `peer` is dialed through its bound address.
+    async fn start(endpoint: &Endpoint, room: [u8; 16], peer: &Endpoint) -> Self {
+        let (events_tx, events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let (commands, command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let (fault, failure) = watch::channel(false);
+        let mut actor = test_actor(endpoint.clone(), events_tx);
+        actor.epoch = 1;
+        actor.room = Some(room);
+        actor.host_address = Some(address(peer));
+        let service = tokio::spawn(async move {
+            let result = actor.run(command_rx, failure).await;
+            actor.tasks.shutdown().await;
+            result
+        });
+        Self {
+            commands,
+            events,
+            socket: UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap(),
+            generation: 1,
+            _fault: fault,
+            _service: TaskScope(vec![service.abort_handle()]),
+        }
+    }
+
+    async fn prepare(&mut self, room: [u8; 16], peer: &Endpoint, capability: u8, dial: bool) {
+        self.commands
+            .send(Request {
+                id: 1,
+                command: Command::PrepareGame {
+                    epoch: 1,
+                    peer: peer.id(),
+                    room,
+                    generation: self.generation,
+                    capability: [capability; 32],
+                    local_port: self.socket.local_addr().unwrap().port(),
+                    max_packet: 1024,
+                    dial,
+                },
+            })
+            .await
+            .unwrap();
+        let _ = next(&mut self.events, "game_waiting").await;
+    }
+
+    async fn ready(&mut self) -> u16 {
+        match next(&mut self.events, "game_ready").await {
+            Event::GameReady { virtual_port, .. } => virtual_port,
+            _ => unreachable!(),
+        }
+    }
+
+    /// End the current match. The next `prepare` is a rematch.
+    async fn end_match(&mut self) {
+        self.commands
+            .send(Request {
+                id: 2,
+                command: Command::EndMatch {
+                    epoch: 1,
+                    generation: self.generation,
+                },
+            })
+            .await
+            .unwrap();
+        self.generation += 1;
+    }
+
+    /// The `gameplay_prepare_failed` error, and the reason on the `game_closed` after it.
+    async fn failure(&mut self) -> (Option<EndpointId>, String, Option<String>) {
+        let mut error = None;
+        loop {
+            match self.events.recv().await.unwrap() {
+                Event::Error {
+                    code, peer, reason, ..
+                } => {
+                    assert_eq!(code, "gameplay_prepare_failed");
+                    error = Some((peer, reason.unwrap_or_default()));
+                }
+                Event::GameClosed { reason, .. } if error.is_some() => {
+                    let (peer, text) = error.unwrap();
+                    return (peer, text, reason);
+                }
+                _ => (),
+            }
+        }
+    }
+
+    /// Nothing that ends or completes the slot arrives within `wait`.
+    async fn stays_waiting(&mut self, wait: Duration, why: &str) {
+        let _ = timeout(wait, async {
+            while let Some(event) = self.events.recv().await {
+                assert!(
+                    !matches!(
+                        event,
+                        Event::GameClosed { .. } | Event::Error { .. } | Event::GameReady { .. }
+                    ),
+                    "{why}: {}",
+                    serde_json::to_string(&event).unwrap()
+                );
+            }
+        })
+        .await;
+    }
+}
+
+async fn game_connection_pair(from: &Endpoint, to: &Endpoint) -> (Connection, Connection) {
+    let (dialed, accepted) = tokio::join!(from.connect(address(to), GAME_ALPN), async {
+        to.accept().await.unwrap().await
+    });
+    (dialed.unwrap(), accepted.unwrap())
+}
+
+/// Both helpers prepare the current generation, the listener first so the dial
+/// finds it, and datagrams must cross the link that forms.
+async fn form_game_link(
+    listener: &mut GameSide,
+    dialer: &mut GameSide,
+    room: [u8; 16],
+    listener_endpoint: &Endpoint,
+    dialer_endpoint: &Endpoint,
+) {
+    let started = tokio::time::Instant::now();
+    listener.prepare(room, dialer_endpoint, 5, false).await;
+    dialer.prepare(room, listener_endpoint, 5, true).await;
+    let listener_port = listener.ready().await;
+    dialer.ready().await;
+    assert!(started.elapsed() < Duration::from_secs(5));
+    // The bridge relays what the local game socket sends to its virtual port.
+    let message = format!("link {}", listener.generation);
+    listener
+        .socket
+        .send_to(message.as_bytes(), (Ipv4Addr::LOCALHOST, listener_port))
+        .await
+        .unwrap();
+    let mut buffer = [0; 64];
+    let count = dialer.socket.recv(&mut buffer).await.unwrap();
+    assert_eq!(&buffer[..count], message.as_bytes());
+}
+
+/// The field bug: rematches failed after a connection check. A connection left
+/// over from a check stays open beside the games, and neither the first game
+/// nor the rematch depends on it.
+#[tokio::test]
+async fn a_stale_probe_connection_never_blocks_the_next_game() {
+    timeout(Duration::from_secs(30), async {
+        let (listener_endpoint, dialer_endpoint) = (endpoint().await, endpoint().await);
+        let room = [81; 16];
+        let (_dialer_end, _listener_end) =
+            game_connection_pair(&dialer_endpoint, &listener_endpoint).await;
+        let mut listener = GameSide::start(&listener_endpoint, room, &dialer_endpoint).await;
+        let mut dialer = GameSide::start(&dialer_endpoint, room, &listener_endpoint).await;
+        for _ in 0..2 {
+            form_game_link(
+                &mut listener,
+                &mut dialer,
+                room,
+                &listener_endpoint,
+                &dialer_endpoint,
+            )
+            .await;
+            listener.end_match().await;
+            dialer.end_match().await;
+        }
+        listener_endpoint.close().await;
+        dialer_endpoint.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn failed_gameplay_link_reports_its_cause_and_what_the_listener_saw() {
+    timeout(Duration::from_secs(20), async {
+        let (listener_endpoint, dialer_endpoint) = (endpoint().await, endpoint().await);
+        let room = [85; 16];
+        let mut listener = GameSide::start(&listener_endpoint, room, &dialer_endpoint).await;
+        let mut dialer = GameSide::start(&dialer_endpoint, room, &listener_endpoint).await;
+        // The two sides disagree on the capability, so no link can form.
+        listener.prepare(room, &dialer_endpoint, 5, false).await;
+        dialer.prepare(room, &listener_endpoint, 6, true).await;
+        let (peer, reason, closed) = dialer.failure().await;
+        assert_eq!(peer, Some(listener_endpoint.id()));
+        assert!(reason.contains("link failed"), "{reason}");
+        assert_eq!(closed.as_deref(), Some(reason.as_str()));
+        // The listener's rejected candidate does not end its slot, which keeps
+        // waiting for a valid dial until its window or the match ends.
+        listener
+            .commands
+            .send(Request {
+                id: 2,
+                command: Command::EndMatch {
+                    epoch: 1,
+                    generation: 1,
+                },
+            })
+            .await
+            .unwrap();
+        let reason = loop {
+            match listener.events.recv().await.unwrap() {
+                Event::GameClosed { peer, reason, .. } => {
+                    assert_eq!(peer, dialer_endpoint.id());
+                    break reason.unwrap_or_default();
+                }
+                Event::Error { code, .. } => panic!("listener reported {code}"),
+                _ => (),
+            }
+        };
+        assert!(reason.contains("ended before gameplay link"), "{reason}");
+        assert!(reason.contains("waiting=true"), "{reason}");
+        assert!(reason.contains("refused_incoming="), "{reason}");
+        assert!(reason.contains("rejected_candidates=1"), "{reason}");
+        listener_endpoint.close().await;
+        dialer_endpoint.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+/// A hosting actor with one remote member seated at table revision 5, the
+/// setup a probe reservation from that member needs. The remote's controls are
+/// real workers so their ids differ.
+struct ReservationFixture {
+    host: Endpoint,
+    remote: Endpoint,
+    actor: Actor,
+    events: mpsc::Receiver<Event>,
+    recovery: crate::recovery::RecoverySession,
+    source: crate::recovery::RecoverySession,
+    invite: Invite,
+    room: [u8; 16],
+    term: u64,
+    expires: u64,
+}
+
+impl ReservationFixture {
+    async fn start() -> Self {
+        let host = endpoint().await;
+        let remote = endpoint().await;
+        let seed = Invite::create(
+            host.id(),
+            test_relay(),
+            "test-build".into(),
+            now().unwrap(),
+            3600,
+        )
+        .unwrap();
+        let room = seed.room();
+        let (events_tx, events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let mut actor = test_actor(host.clone(), events_tx);
+        let invite = actor.setup_host_recovery(seed).await.unwrap();
+        let recovery = actor.recovery.clone().unwrap();
+        while recovery.coordinator.current_leader() != Some(recovery.incarnation) {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        actor.epoch = 1;
+        actor.room = Some(room);
+        actor.hosted = Some(invite.clone());
+        actor.room_invite = Some(invite.clone());
+        let source = crate::recovery::RecoverySession::join(
+            room,
+            remote.id(),
+            recovery.incarnation,
+            recovery.coordination_address.clone(),
+            false,
+        )
+        .await
+        .unwrap();
+        let source_admission = source.advertise().await;
+        recovery.add_learner(&source_admission).await.unwrap();
+        actor.remember_admission(source_admission);
+        actor.remember_admission(recovery.advertise().await);
+        let state = recovery.state().await;
+        let roster = serde_json::json!({
+            "version": 1,
+            "request": 1,
+            "term": state.term,
+            "base_revision": 0,
+            "checkpoint": {
+                "members": [
+                    {"member": 1, "incarnation": source.incarnation,
+                     "data": {"authenticatedEndpoint": remote.id().to_string()}},
+                    {"member": 2, "incarnation": recovery.incarnation,
+                     "data": {"authenticatedEndpoint": host.id().to_string()}}
+                ],
+                "room": {"version": 2, "snapshot": {
+                    "members": [{"id": 1}, {"id": 2}],
+                    "tables": [{"revision": 5, "p1": 1, "p2": 2}]
+                }}
+            }
+        });
+        let receipt = recovery
+            .coordinator
+            .propose(crate::coordination::Proposal {
+                request: "roster".into(),
+                dedup_id: "roster".into(),
+                term: state.term,
+                base: recovery.committed().await.revision,
+                checkpoint: roster.to_string(),
+                admin: None,
+            })
+            .await
+            .unwrap();
+        assert!(receipt.accepted);
+        Self {
+            host,
+            remote,
+            actor,
+            events,
+            recovery,
+            source,
+            invite,
+            room,
+            term: state.term,
+            expires: now().unwrap() + 60,
+        }
+    }
+
+    /// Install a fresh control from the remote, replacing any current one.
+    /// Returns its id.
+    async fn connect_control(&mut self) -> u64 {
+        let (_remote_side, accepted) = tokio::join!(
+            async {
+                let connection = self
+                    .remote
+                    .connect(address(&self.host), CONTROL_ALPN)
+                    .await
+                    .unwrap();
+                transport::connect_control_on(connection, &self.invite)
+                    .await
+                    .unwrap()
+            },
+            async {
+                let connection = self.host.accept().await.unwrap().await.unwrap();
+                transport::accept_control(connection, &self.invite)
+                    .await
+                    .unwrap()
+            }
+        );
+        let worker = ControlWorker::start(accepted);
+        let id = worker.id();
+        self.actor.remove_control(self.remote.id());
+        self.actor.controls.insert(self.remote.id(), worker);
+        id
+    }
+
+    fn frame(&self, request: u64) -> String {
+        serde_json::to_string(&CoordinationControl::ProbeReservation {
+            room: self.room,
+            source: self.remote.id(),
+            source_incarnation: self.source.incarnation,
+            target_incarnation: self.recovery.incarnation,
+            request,
+            pair_revision: 5,
+            term: self.term,
+            expires: self.expires,
+        })
+        .unwrap()
+    }
+
+    async fn reserve(&self, request: u64) {
+        self.recovery
+            .reserve_probe(
+                self.source.incarnation,
+                self.recovery.incarnation,
+                request,
+                5,
+                self.term,
+                self.expires,
+            )
+            .await
+            .unwrap();
+    }
+
+    fn no_control_closed(&mut self) {
+        while let Ok(event) = self.events.try_recv() {
+            assert!(
+                !matches!(event, Event::ControlClosed { .. }),
+                "an expired reservation closed a control it was not presented on"
+            );
+        }
+    }
+
+    async fn stop(mut self) {
+        self.actor.tasks.abort_all();
+        self.source.stop().await;
+        self.recovery.stop().await;
+        self.host.close().await;
+        self.remote.close().await;
+    }
+}
+
+#[tokio::test]
+async fn an_expired_reservation_wait_leaves_a_replacement_control_open() {
+    timeout(Duration::from_secs(60), async {
+        let mut fixture = ReservationFixture::start().await;
+        let original = fixture.connect_control().await;
+        // The reservation's Raft entry never arrives, so its wait is still
+        // pending when the control that presented it is replaced.
+        let payload = fixture.frame(9);
+        let remote = fixture.remote.id();
+        assert!(
+            fixture
+                .actor
+                .accept_coordination_control(remote, &payload)
+                .await
+                .unwrap()
+        );
+        assert_eq!(
+            fixture
+                .actor
+                .pending_probe_reservations
+                .get(&remote)
+                .map(|key| key.control),
+            Some(original)
+        );
+        let replacement = fixture.connect_control().await;
+        assert_ne!(replacement, original);
+        // The wait expires unapplied and settles against the old control's id.
+        complete_next(&mut fixture.actor).await;
+        assert!(fixture.actor.pending_probe_reservations.is_empty());
+        assert_eq!(
+            fixture.actor.controls.get(&remote).map(ControlWorker::id),
+            Some(replacement)
+        );
+        assert!(fixture.actor.probe_permissions.is_empty());
+        fixture.no_control_closed();
+        fixture.stop().await;
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn an_expired_reservation_wait_still_closes_the_control_that_presented_it() {
+    timeout(Duration::from_secs(60), async {
+        let mut fixture = ReservationFixture::start().await;
+        let control = fixture.connect_control().await;
+        let payload = fixture.frame(9);
+        let remote = fixture.remote.id();
+        assert!(
+            fixture
+                .actor
+                .accept_coordination_control(remote, &payload)
+                .await
+                .unwrap()
+        );
+        complete_next(&mut fixture.actor).await;
+        assert!(!fixture.actor.controls.contains_key(&remote));
+        assert!(matches!(
+            next(&mut fixture.events, "control_closed").await,
+            Event::ControlClosed { control: closed, .. } if closed == control
+        ));
+        fixture.stop().await;
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn a_newer_applied_reservation_supersedes_an_older_pending_wait() {
+    timeout(Duration::from_secs(60), async {
+        let mut fixture = ReservationFixture::start().await;
+        let control = fixture.connect_control().await;
+        let remote = fixture.remote.id();
+        // Request 9 is not applied and waits on a task.
+        let older = fixture.frame(9);
+        assert!(
+            fixture
+                .actor
+                .accept_coordination_control(remote, &older)
+                .await
+                .unwrap()
+        );
+        assert!(
+            fixture
+                .actor
+                .pending_probe_reservations
+                .contains_key(&remote)
+        );
+        // Request 10 is already applied and takes the fast path.
+        fixture.reserve(10).await;
+        let newer = fixture.frame(10);
+        assert!(
+            fixture
+                .actor
+                .accept_coordination_control(remote, &newer)
+                .await
+                .unwrap()
+        );
+        assert!(fixture.actor.pending_probe_reservations.is_empty());
+        assert_eq!(
+            fixture
+                .actor
+                .probe_permissions
+                .get(&remote)
+                .map(|permission| permission.request),
+            Some(10)
+        );
+        // The older wait expires unapplied and changes nothing.
+        complete_next(&mut fixture.actor).await;
+        assert_eq!(
+            fixture.actor.controls.get(&remote).map(ControlWorker::id),
+            Some(control)
+        );
+        assert_eq!(
+            fixture
+                .actor
+                .probe_permissions
+                .get(&remote)
+                .map(|permission| permission.request),
+            Some(10)
+        );
+        fixture.no_control_closed();
+        fixture.stop().await;
+    })
+    .await
+    .unwrap();
+}
+
+/// The dialer's half of a handshake on `dialer_end`, held open without confirming.
+async fn unconfirmed_dial(
+    dialer_end: &Connection,
+    listener: &Endpoint,
+    room: [u8; 16],
+) -> (transport::GameDialSend, GameAuthorization) {
+    let auth = GameAuthorization {
+        peer: listener.id(),
+        key: MatchKey {
+            room,
+            generation: 1,
+        },
+        capability: [5; 32],
+        max_packet: 1024,
+    };
+    let send = transport::connect_game_unconfirmed(dialer_end, &auth)
+        .await
+        .unwrap();
+    (send, auth)
+}
+
+#[tokio::test]
+async fn accept_completes_only_after_the_dialer_confirms() {
+    timeout(Duration::from_secs(20), async {
+        let (listener_endpoint, dialer_endpoint) = (endpoint().await, endpoint().await);
+        let auth = |peer: &Endpoint| GameAuthorization {
+            peer: peer.id(),
+            key: MatchKey {
+                room: [87; 16],
+                generation: 1,
+            },
+            capability: [5; 32],
+            max_packet: 1024,
+        };
+
+        // The reply reaches the dialer, which then finishes its stream.
+        let (dialer_end, listener_end) =
+            game_connection_pair(&dialer_endpoint, &listener_endpoint).await;
+        let mut accepted =
+            tokio::spawn(transport::accept_game(listener_end, auth(&dialer_endpoint)));
+        let (mut send, _) = unconfirmed_dial(&dialer_end, &listener_endpoint, [87; 16]).await;
+        assert!(
+            timeout(Duration::from_millis(300), &mut accepted)
+                .await
+                .is_err(),
+            "the listener committed before the dialer confirmed"
+        );
+        send.confirm().await.unwrap();
+        assert!(accepted.await.unwrap().is_ok());
+
+        // The dialer stops waiting and closes instead of confirming.
+        let (dialer_end, listener_end) =
+            game_connection_pair(&dialer_endpoint, &listener_endpoint).await;
+        let accepted = tokio::spawn(transport::accept_game(listener_end, auth(&dialer_endpoint)));
+        let (send, _) = unconfirmed_dial(&dialer_end, &listener_endpoint, [87; 16]).await;
+        dialer_end.close(1u32.into(), b"dial abandoned");
+        drop(send);
+        assert!(accepted.await.unwrap().is_err());
+        listener_endpoint.close().await;
+        dialer_endpoint.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+/// A dial that has read the listener's reply and then goes away never
+/// confirms. Dropping its send stream must reset it rather than finish it, or
+/// the listener would take the abandoned connection for the link. The slot
+/// keeps waiting, and a later valid dial forms the link.
+#[tokio::test]
+async fn an_abandoned_dial_is_never_confirmed_and_the_slot_keeps_waiting() {
+    timeout(Duration::from_secs(20), async {
+        let (listener_endpoint, dialer_endpoint) = (endpoint().await, endpoint().await);
+        let room = [88; 16];
+        let mut listener = GameSide::start(&listener_endpoint, room, &dialer_endpoint).await;
+        listener.prepare(room, &dialer_endpoint, 5, false).await;
+        let abandoned = dialer_endpoint
+            .connect(address(&listener_endpoint), GAME_ALPN)
+            .await
+            .unwrap();
+        let (send, auth) = unconfirmed_dial(&abandoned, &listener_endpoint, room).await;
+        drop(send);
+        listener
+            .stays_waiting(
+                Duration::from_millis(700),
+                "an abandoned dial ended the slot",
+            )
+            .await;
+        let game = transport::connect_game(&dialer_endpoint, address(&listener_endpoint), auth)
+            .await
+            .expect("the valid dial must still be accepted");
+        listener.ready().await;
+        assert!(game.connection.close_reason().is_none());
+        listener_endpoint.close().await;
+        dialer_endpoint.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+/// A departure the peer flushed and closed behind, queued after more frames
+/// than one poll delivers. The worker's transport is closed when the first
+/// poll ends, but the departure was accepted by the reader and must still be
+/// handed to the native room, ahead of the control's close. With
+/// `replacement`, a new control from the same endpoint arrives between poll
+/// budgets: the old frames still come first, under the old control, and the
+/// replacement's traffic follows its own `Connected`.
+async fn flushed_departure_behind_more_than_one_poll_budget(replacement: bool) {
+    fn drain(events: &mut mpsc::Receiver<Event>, order: &mut Vec<String>) {
+        while let Ok(event) = events.try_recv() {
+            match event {
+                Event::Message { payload, .. } => order.push(format!("message {payload}")),
+                Event::PeerDeparted { .. } => order.push("departed".into()),
+                Event::ControlClosed { control, .. } => order.push(format!("closed {control}")),
+                Event::Connected { control, .. } => order.push(format!("connected {control}")),
+                _ => (),
+            }
+        }
+    }
+    timeout(Duration::from_secs(60), async {
+        let mut fixture = ReservationFixture::start().await;
+        let remote_id = fixture.remote.id();
+        let (remote_side, accepted) = tokio::join!(
+            async {
+                let connection = fixture
+                    .remote
+                    .connect(address(&fixture.host), CONTROL_ALPN)
+                    .await
+                    .unwrap();
+                transport::connect_control_on(connection, &fixture.invite)
+                    .await
+                    .unwrap()
+            },
+            async {
+                let connection = fixture.host.accept().await.unwrap().await.unwrap();
+                transport::accept_control(connection, &fixture.invite)
+                    .await
+                    .unwrap()
+            }
+        );
+        fixture
+            .actor
+            .controls
+            .insert(remote_id, ControlWorker::start(accepted));
+
+        let ordinary = CONTROL_POLL_BUDGET * 2 + 5;
+        let mut remote_worker = ControlWorker::start(remote_side);
+        for id in 0..ordinary {
+            remote_worker
+                .try_send(ControlFrame {
+                    message_id: TRANSPORT_MESSAGE_ID_BASE + id as u64,
+                    payload: format!("ordinary {id}").into_bytes(),
+                })
+                .unwrap();
+        }
+        remote_worker
+            .try_send(ControlFrame {
+                message_id: TRANSPORT_MESSAGE_ID_BASE + ordinary as u64,
+                payload: serde_json::to_vec(&CoordinationControl::Departure {
+                    room: fixture.room,
+                    incarnation: fixture.source.incarnation,
+                })
+                .unwrap(),
+            })
+            .unwrap();
+        // Flush and close as a leaving peer does. The actor has not polled.
+        remote_worker.finish();
+        remote_worker
+            .finished(tokio::time::Instant::now() + Duration::from_secs(10))
+            .await;
+        drop(remote_worker);
+        timeout(Duration::from_secs(10), async {
+            while !fixture.actor.controls[&remote_id].is_closed() {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .unwrap();
+        // Let the reader queue what the closed stream still holds.
+        tokio::time::sleep(Duration::from_millis(300)).await;
+
+        let mut order: Vec<String> = Vec::new();
+        // One poll delivers one budget of the queued frames.
+        fixture.actor.poll_controls().await.unwrap();
+        drain(&mut fixture.events, &mut order);
+        assert!(!order.iter().any(|entry| entry == "departed"));
+
+        let (mut replacement_worker, mut replacement_id) = (None, 0);
+        if replacement {
+            let (replacement_side, accepted) = tokio::join!(
+                async {
+                    let connection = fixture
+                        .remote
+                        .connect(address(&fixture.host), CONTROL_ALPN)
+                        .await
+                        .unwrap();
+                    transport::connect_control_on(connection, &fixture.invite)
+                        .await
+                        .unwrap()
+                },
+                async {
+                    let connection = fixture.host.accept().await.unwrap().await.unwrap();
+                    transport::accept_control(connection, &fixture.invite)
+                        .await
+                        .unwrap()
+                }
+            );
+            replacement_id = accepted.connection.stable_id() as u64;
+            let epoch = fixture.actor.epoch;
+            fixture
+                .actor
+                .completed_control(epoch, Ok(accepted), None)
+                .await
+                .unwrap();
+            assert!(
+                fixture.actor.parked_controls.contains_key(&remote_id),
+                "the replacement started while the old control still held frames"
+            );
+            drain(&mut fixture.events, &mut order);
+            assert!(!order.iter().any(|entry| entry.starts_with("connected")));
+            let worker = ControlWorker::start(replacement_side);
+            worker
+                .try_send(ControlFrame {
+                    message_id: TRANSPORT_MESSAGE_ID_BASE + 1000,
+                    payload: b"replacement frame".to_vec(),
+                })
+                .unwrap();
+            replacement_worker = Some(worker);
+        }
+
+        let last = if replacement {
+            "message replacement frame".to_string()
+        } else {
+            format!("closed {}", fixture.actor.controls[&remote_id].id())
+        };
+        for _ in 0..400 {
+            fixture.actor.poll_controls().await.unwrap();
+            drain(&mut fixture.events, &mut order);
+            if order.iter().any(|entry| *entry == last) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        let position = |wanted: &str| order.iter().position(|entry| entry == wanted);
+        let departed = position("departed").expect("the queued departure was discarded");
+        let ordinary_delivered = order
+            .iter()
+            .filter(|entry| entry.starts_with("message ordinary"))
+            .count();
+        assert_eq!(ordinary_delivered, ordinary);
+        assert!(
+            order
+                .iter()
+                .rposition(|entry| entry.starts_with("message ordinary"))
+                .unwrap()
+                < departed,
+            "{order:?}"
+        );
+        let end = position(&last).expect("nothing followed the departure");
+        assert!(end > departed, "{order:?}");
+        if replacement {
+            assert_eq!(
+                position(&format!("connected {replacement_id}")).expect("replacement connected"),
+                end - 1,
+                "{order:?}"
+            );
+            assert!(
+                !order.iter().any(|entry| entry.starts_with("closed")),
+                "a superseded control is replaced without a close event: {order:?}"
+            );
+            assert!(fixture.actor.parked_controls.is_empty());
+            assert_eq!(
+                fixture.actor.controls[&remote_id].id(),
+                replacement_id,
+                "the replacement is the control now"
+            );
+        }
+        drop(replacement_worker);
+        fixture.stop().await;
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn a_flushed_departure_behind_more_than_one_poll_budget_is_delivered() {
+    flushed_departure_behind_more_than_one_poll_budget(false).await;
+}
+
+#[tokio::test]
+async fn a_replacement_control_waits_for_the_frames_the_old_one_received() {
+    flushed_departure_behind_more_than_one_poll_budget(true).await;
+}
+
+/// A parked replacement never outlives the worker it waited behind. Worker A
+/// holds queued frames, replacement B parks behind it, A is drained without an
+/// actor poll, and replacement C then completes. C is installed and B is
+/// closed, so B's drain deadline cannot later replace the newer C.
+#[tokio::test]
+async fn a_parked_replacement_cannot_evict_a_newer_installed_control() {
+    timeout(Duration::from_secs(60), async {
+        let mut fixture = ReservationFixture::start().await;
+        let remote_id = fixture.remote.id();
+        let epoch = fixture.actor.epoch;
+
+        let (remote_a, accepted_a) = tokio::join!(
+            async {
+                let connection = fixture
+                    .remote
+                    .connect(address(&fixture.host), CONTROL_ALPN)
+                    .await
+                    .unwrap();
+                transport::connect_control_on(connection, &fixture.invite)
+                    .await
+                    .unwrap()
+            },
+            async {
+                let connection = fixture.host.accept().await.unwrap().await.unwrap();
+                transport::accept_control(connection, &fixture.invite)
+                    .await
+                    .unwrap()
+            }
+        );
+        fixture
+            .actor
+            .controls
+            .insert(remote_id, ControlWorker::start(accepted_a));
+        let a_id = fixture.actor.controls[&remote_id].id();
+
+        // A queues a few frames, then its peer closes. The actor has not polled.
+        let mut remote_a_worker = ControlWorker::start(remote_a);
+        for id in 0..3 {
+            remote_a_worker
+                .try_send(ControlFrame {
+                    message_id: TRANSPORT_MESSAGE_ID_BASE + id,
+                    payload: format!("old {id}").into_bytes(),
+                })
+                .unwrap();
+        }
+        remote_a_worker.finish();
+        remote_a_worker
+            .finished(tokio::time::Instant::now() + Duration::from_secs(10))
+            .await;
+        drop(remote_a_worker);
+        timeout(Duration::from_secs(10), async {
+            while !fixture.actor.controls[&remote_id].is_closed() {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .unwrap();
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        assert!(
+            !fixture.actor.controls[&remote_id].is_drained(),
+            "A still holds the frames it received"
+        );
+
+        // B arrives while A holds frames and parks behind it.
+        let (remote_b, accepted_b) = tokio::join!(
+            async {
+                let connection = fixture
+                    .remote
+                    .connect(address(&fixture.host), CONTROL_ALPN)
+                    .await
+                    .unwrap();
+                transport::connect_control_on(connection, &fixture.invite)
+                    .await
+                    .unwrap()
+            },
+            async {
+                let connection = fixture.host.accept().await.unwrap().await.unwrap();
+                transport::accept_control(connection, &fixture.invite)
+                    .await
+                    .unwrap()
+            }
+        );
+        let b_connection = accepted_b.connection.clone();
+        fixture
+            .actor
+            .completed_control(epoch, Ok(accepted_b), None)
+            .await
+            .unwrap();
+        assert!(fixture.actor.parked_controls.contains_key(&remote_id));
+
+        // A finishes draining without the actor polling.
+        while fixture
+            .actor
+            .controls
+            .get_mut(&remote_id)
+            .unwrap()
+            .try_receive()
+            .is_some()
+        {}
+        timeout(Duration::from_secs(10), async {
+            while !fixture.actor.controls[&remote_id].is_drained() {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+                while fixture
+                    .actor
+                    .controls
+                    .get_mut(&remote_id)
+                    .unwrap()
+                    .try_receive()
+                    .is_some()
+                {}
+            }
+        })
+        .await
+        .unwrap();
+
+        // C completes before the next control poll.
+        let (remote_c, accepted_c) = tokio::join!(
+            async {
+                let connection = fixture
+                    .remote
+                    .connect(address(&fixture.host), CONTROL_ALPN)
+                    .await
+                    .unwrap();
+                transport::connect_control_on(connection, &fixture.invite)
+                    .await
+                    .unwrap()
+            },
+            async {
+                let connection = fixture.host.accept().await.unwrap().await.unwrap();
+                transport::accept_control(connection, &fixture.invite)
+                    .await
+                    .unwrap()
+            }
+        );
+        let c_id = accepted_c.connection.stable_id() as u64;
+        fixture
+            .actor
+            .completed_control(epoch, Ok(accepted_c), None)
+            .await
+            .unwrap();
+        assert_ne!(c_id, a_id);
+        assert_eq!(
+            fixture.actor.controls[&remote_id].id(),
+            c_id,
+            "C replaced the drained A"
+        );
+        assert!(
+            fixture.actor.parked_controls.is_empty(),
+            "the older parked B was superseded by C"
+        );
+        timeout(Duration::from_secs(10), async {
+            while b_connection.close_reason().is_none() {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("B was closed when C superseded it");
+
+        // With B gone there is nothing left to time out and replace C.
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        fixture.actor.poll_controls().await.unwrap();
+        assert_eq!(fixture.actor.controls[&remote_id].id(), c_id);
+        assert!(fixture.actor.parked_controls.is_empty());
+
+        drop((remote_b, remote_c));
+        fixture.stop().await;
+    })
+    .await
+    .unwrap();
+}
+
+/// Settling fences a parked candidate by the worker it waits behind: a worker
+/// installed for the peer after the candidate parked is never replaced by it.
+#[tokio::test]
+async fn a_parked_candidate_is_dropped_when_a_newer_worker_stands() {
+    timeout(Duration::from_secs(60), async {
+        let mut fixture = ReservationFixture::start().await;
+        let remote_id = fixture.remote.id();
+        let epoch = fixture.actor.epoch;
+        let mut pair = Vec::new();
+        for _ in 0..3 {
+            let (remote_side, accepted) = tokio::join!(
+                async {
+                    let connection = fixture
+                        .remote
+                        .connect(address(&fixture.host), CONTROL_ALPN)
+                        .await
+                        .unwrap();
+                    transport::connect_control_on(connection, &fixture.invite)
+                        .await
+                        .unwrap()
+                },
+                async {
+                    let connection = fixture.host.accept().await.unwrap().await.unwrap();
+                    transport::accept_control(connection, &fixture.invite)
+                        .await
+                        .unwrap()
+                }
+            );
+            pair.push((remote_side, accepted));
+        }
+        let (remote_c, accepted_c) = pair.pop().unwrap();
+        let (remote_b, accepted_b) = pair.pop().unwrap();
+        let (remote_a, accepted_a) = pair.pop().unwrap();
+        fixture
+            .actor
+            .controls
+            .insert(remote_id, ControlWorker::start(accepted_a));
+        let a_id = fixture.actor.controls[&remote_id].id();
+        // B is parked behind A, then a different worker is put in place
+        // without going through the replacement path.
+        let b_connection = accepted_b.connection.clone();
+        fixture.actor.parked_controls.insert(
+            remote_id,
+            ParkedControl {
+                epoch,
+                channel: accepted_b,
+                joined_invite: None,
+                behind: Some(a_id),
+                since: tokio::time::Instant::now() - CONTROL_REPLACE_DRAIN_LIMIT * 2,
+            },
+        );
+        let c_id = accepted_c.connection.stable_id() as u64;
+        fixture
+            .actor
+            .controls
+            .insert(remote_id, ControlWorker::start(accepted_c));
+        assert_eq!(fixture.actor.controls[&remote_id].id(), c_id);
+        fixture.actor.poll_controls().await.unwrap();
+        assert_eq!(
+            fixture.actor.controls[&remote_id].id(),
+            c_id,
+            "an overdue candidate must not replace a worker installed after it parked"
+        );
+        assert!(fixture.actor.parked_controls.is_empty());
+        timeout(Duration::from_secs(10), async {
+            while b_connection.close_reason().is_none() {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("the stale candidate was closed");
+        drop((remote_a, remote_b, remote_c));
+        fixture.stop().await;
+    })
+    .await
+    .unwrap();
+}
+
+/// Connections that fail validation do not end a listener's slot: the wrong
+/// generation, then the wrong capability. The window is still open for a valid
+/// dial, which forms the link.
+#[tokio::test]
+async fn a_rejected_candidate_leaves_the_slot_waiting_for_a_valid_dial() {
+    timeout(Duration::from_secs(30), async {
+        let (listener_endpoint, dialer_endpoint) = (endpoint().await, endpoint().await);
+        let room = [91; 16];
+        let mut listener = GameSide::start(&listener_endpoint, room, &dialer_endpoint).await;
+        listener.prepare(room, &dialer_endpoint, 5, false).await;
+        let auth = GameAuthorization {
+            peer: listener_endpoint.id(),
+            key: MatchKey {
+                room,
+                generation: 1,
+            },
+            capability: [5; 32],
+            max_packet: 1024,
+        };
+        let mut wrong_generation = auth.clone();
+        wrong_generation.key.generation = 2;
+        let mut wrong_capability = auth.clone();
+        wrong_capability.capability = [9; 32];
+        for bad in [wrong_generation, wrong_capability] {
+            let candidate = dialer_endpoint
+                .connect(address(&listener_endpoint), GAME_ALPN)
+                .await
+                .unwrap();
+            assert!(
+                transport::connect_game_unconfirmed(&candidate, &bad)
+                    .await
+                    .is_err()
+            );
+            // Candidates run one at a time; let the listener retire this one.
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        listener
+            .stays_waiting(
+                Duration::from_millis(700),
+                "a rejected candidate ended the slot",
+            )
+            .await;
+        let game = transport::connect_game(&dialer_endpoint, address(&listener_endpoint), auth)
+            .await
+            .expect("the valid dial must still be accepted");
+        listener.ready().await;
+        assert!(game.connection.close_reason().is_none());
+        listener_endpoint.close().await;
+        dialer_endpoint.close().await;
+    })
+    .await
+    .unwrap();
 }

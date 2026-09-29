@@ -9,6 +9,8 @@
 #include <imgui_internal.h>
 #include <imgui_impl_dx9.h>
 #include <windows.h>
+#include <dbghelp.h>
+#include <psapi.h>
 #include <d3d9.h>
 #include <algorithm>
 #include <cmath>
@@ -22,6 +24,7 @@
 #include <utility>
 #include <chrono>
 #include <memory>
+#include <random>
 #include <thread>
 
 namespace {
@@ -49,10 +52,15 @@ struct Renderer {
         params.Windowed = TRUE; params.SwapEffect = D3DSWAPEFFECT_DISCARD;
         params.BackBufferFormat = D3DFMT_A8R8G8B8;
         params.BackBufferWidth = width; params.BackBufferHeight = height; params.hDeviceWindow = window;
-        // Another window, a display change or a lock can take the device
-        // away. Wait until it can be reset, as RecoverySurface does.
-        for (int wait = 0; wait < 200 && device->TestCooperativeLevel() == D3DERR_DEVICELOST; ++wait) Sleep(50);
-        const HRESULT hr = device->Reset(&params);
+        // Another window, a display change, a sleeping monitor or a lock can
+        // take the device away. Wait until it can be reset, as
+        // RecoverySurface does, for up to two minutes.
+        HRESULT hr = D3DERR_DEVICELOST;
+        for (int wait = 0; wait < 2400 && hr == D3DERR_DEVICELOST; ++wait) {
+            if (device->TestCooperativeLevel() == D3DERR_DEVICELOST) { Sleep(50); continue; }
+            hr = device->Reset(&params);
+            if (hr == D3DERR_DEVICELOST) Sleep(50);
+        }
         if (FAILED(hr)) {
             char message[64];
             std::snprintf(message, sizeof(message), "DX9 device reset failed (0x%08lx)", static_cast<unsigned long>(hr));
@@ -108,11 +116,174 @@ void CheckStacks() {
     Require(GImGui->CurrentTable == nullptr, "Unbalanced table");
     Require(GImGui->ErrorCountCurrentFrame == 0, "ImGui reported a rendering error");
 }
+// How the 2 GB of address space this 32-bit process has is used: what is
+// committed, what is only reserved, and the largest block still free, which is
+// what an atlas or texture allocation needs to find.
+void PrintAddressSpace(const char* label) {
+    SYSTEM_INFO system{}; GetSystemInfo(&system);
+    std::size_t committed[3] = {}, reserved[3] = {}, freeTotal = 0, freeLargest = 0;
+    const char* names[3] = {"private", "mapped", "image"};
+    MEMORY_BASIC_INFORMATION region{};
+    for (auto* address = static_cast<char*>(system.lpMinimumApplicationAddress);
+         address < static_cast<char*>(system.lpMaximumApplicationAddress) &&
+         VirtualQuery(address, &region, sizeof(region)) == sizeof(region);
+         address = static_cast<char*>(region.BaseAddress) + region.RegionSize) {
+        if (region.State == MEM_FREE) { freeTotal += region.RegionSize; if (region.RegionSize > freeLargest) freeLargest = region.RegionSize; continue; }
+        const int kind = region.Type == MEM_IMAGE ? 2 : region.Type == MEM_MAPPED ? 1 : 0;
+        (region.State == MEM_COMMIT ? committed : reserved)[kind] += region.RegionSize;
+    }
+    std::fprintf(stderr, "ADDRESS %s: free %zu MB (largest %zu MB)", label, freeTotal >> 20, freeLargest >> 20);
+    for (int kind = 0; kind < 3; ++kind)
+        std::fprintf(stderr, ", %s %zu MB committed + %zu MB reserved", names[kind], committed[kind] >> 20, reserved[kind] >> 20);
+    std::fprintf(stderr, "\n");
+}
+// A crash here would otherwise be a bare SEGFAULT from ctest. Print what
+// faulted, the symbolized stack and how much memory the process held, and write
+// a minidump beside the test, so an intermittent failure names itself.
+LONG WINAPI ReportCrash(EXCEPTION_POINTERS* info) {
+    static volatile LONG reporting = 0;
+    if (InterlockedExchange(&reporting, 1)) return EXCEPTION_CONTINUE_SEARCH;
+    const auto* record = info->ExceptionRecord;
+    std::fprintf(stderr, "UI render check crashed: exception 0x%08lx at %p", record->ExceptionCode, record->ExceptionAddress);
+    if (record->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && record->NumberParameters >= 2)
+        std::fprintf(stderr, " (%s address %p)", record->ExceptionInformation[0] == 0 ? "read of" : record->ExceptionInformation[0] == 1 ? "write to" : "execute of",
+            reinterpret_cast<void*>(record->ExceptionInformation[1]));
+    PROCESS_MEMORY_COUNTERS_EX memory{};
+    if (GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory), sizeof(memory)))
+        std::fprintf(stderr, "\n  working set %zu MB, private %zu MB", memory.WorkingSetSize >> 20, memory.PrivateUsage >> 20);
+    std::fprintf(stderr, "\n");
+    PrintAddressSpace("at crash");
+    const HANDLE process = GetCurrentProcess(), thread = GetCurrentThread();
+    SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
+    if (SymInitialize(process, nullptr, TRUE)) {
+        CONTEXT context = *info->ContextRecord;
+        STACKFRAME64 frame{};
+        frame.AddrPC.Offset = context.Eip; frame.AddrFrame.Offset = context.Ebp; frame.AddrStack.Offset = context.Esp;
+        frame.AddrPC.Mode = frame.AddrFrame.Mode = frame.AddrStack.Mode = AddrModeFlat;
+        for (int depth = 0; depth < 48 && StackWalk64(IMAGE_FILE_MACHINE_I386, process, thread, &frame, &context, nullptr,
+                SymFunctionTableAccess64, SymGetModuleBase64, nullptr) && frame.AddrPC.Offset; ++depth) {
+            alignas(SYMBOL_INFO) char storage[sizeof(SYMBOL_INFO) + 256] = {};
+            auto* symbol = reinterpret_cast<SYMBOL_INFO*>(storage);
+            symbol->SizeOfStruct = sizeof(SYMBOL_INFO); symbol->MaxNameLen = 255;
+            DWORD64 displacement = 0; DWORD lineDisplacement = 0;
+            IMAGEHLP_LINE64 line{}; line.SizeOfStruct = sizeof(line);
+            const bool named = SymFromAddr(process, frame.AddrPC.Offset, &displacement, symbol) != FALSE;
+            const bool located = SymGetLineFromAddr64(process, frame.AddrPC.Offset, &lineDisplacement, &line) != FALSE;
+            std::fprintf(stderr, "  #%d 0x%08llx %s+0x%llx", depth, frame.AddrPC.Offset, named ? symbol->Name : "?", displacement);
+            if (located) std::fprintf(stderr, " (%s:%lu)", line.FileName, line.LineNumber);
+            std::fprintf(stderr, "\n");
+        }
+    }
+    const HANDLE dump = CreateFileA("UiRenderTest-crash.dmp", GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (dump != INVALID_HANDLE_VALUE) {
+        MINIDUMP_EXCEPTION_INFORMATION exception{GetCurrentThreadId(), info, FALSE};
+        MiniDumpWriteDump(process, GetCurrentProcessId(), dump, MiniDumpWithIndirectlyReferencedMemory, &exception, nullptr, nullptr);
+        CloseHandle(dump);
+    }
+    std::fflush(stderr);
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+// The atlas is kept as RGBA (the brand mark is painted into it) and the backend
+// uploads it as a texture, so a rebuild needs that many bytes in one piece,
+// twice over while the old texture lives. The game is a 32-bit process with
+// 2 GB of address space and ImGui does not survive a failed allocation: the
+// rebuild crashed in ImFontAtlas::GetTexDataAsRGBA32 when no free block was
+// left, at 4096x8192 (128 MB) for a Japanese atlas at 300% scale. Nothing may
+// bake more than this, whatever the language, scale or player text.
+constexpr int AtlasBudgetPixels = 2048 * 4096; // 32 MB as RGBA
+void RequireAtlasWithinBudget(const char* what, float dpi) {
+    const auto& atlas = *ImGui::GetIO().Fonts;
+    if (atlas.TexWidth * atlas.TexHeight <= AtlasBudgetPixels) return;
+    char message[160];
+    std::snprintf(message, sizeof(message), "%s at %.2fx bakes a %dx%d atlas, over the 2048x4096 budget", what, dpi, atlas.TexWidth, atlas.TexHeight);
+    throw std::runtime_error(message);
+}
+// Drives the atlas rebuild the way play does: between frames, for a changing
+// language and DPI, with player text of characters chosen at random from the
+// whole basic multilingual plane, some of which no font draws. Every rebuild
+// is followed by a frame that draws that text, so a rebuild that leaves the
+// context or the backend holding the old atlas shows up as a crash here, and
+// the atlas has to stay within its budget for the fullest text the atlas takes.
+void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
+    using namespace sf4e;
+    std::mt19937 rng(seed);
+    renderer.Resize(1280, 720);
+    ImGui::CreateContext();
+    auto& io = ImGui::GetIO();
+    io.IniFilename = nullptr; io.DisplaySize = ImVec2(1280, 720); io.DeltaTime = 1.f / 60;
+    ui::ApplyTheme(1.f);
+    ImGui_ImplDX9_Init(renderer.device);
+    const auto appendUtf8 = [](std::string& out, unsigned cp) {
+        if (cp < 0x80) out += static_cast<char>(cp);
+        else if (cp < 0x800) { out += static_cast<char>(0xC0 | (cp >> 6)); out += static_cast<char>(0x80 | (cp & 0x3F)); }
+        else { out += static_cast<char>(0xE0 | (cp >> 12)); out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F)); out += static_cast<char>(0x80 | (cp & 0x3F)); }
+    };
+    const unsigned edges[] = {0xFFFF, 0xFFFE, 0xD800, 0xDFFF, 0xE000, 0x2028, 0x200B, 0x0300, 0x0080, 0x009F, 0x3000, 0x4E00, 0x9FFF, 0xAC00, 0xD7A3};
+    const auto randomText = [&](std::size_t length) {
+        std::string text;
+        for (std::size_t i = 0; i < length; ++i) {
+            const unsigned pick = rng() % 10;
+            unsigned cp;
+            if (pick < 6) { const unsigned base[] = {0x3040, 0x30A0, 0x4E00, 0xAC00, 0x3400}, span[] = {0x60, 0x60, 0x51A5, 0x2BA4, 0x19C0};
+                const unsigned range = rng() % 5; cp = base[range] + rng() % span[range]; }
+            else if (pick < 9) cp = 0x80 + rng() % 0xFF7F;
+            else cp = edges[rng() % std::size(edges)];
+            appendUtf8(text, cp);
+        }
+        return text;
+    };
+    const auto drawFrame = [&](const std::string& name, const std::string& chat, const std::string& draft) {
+        ImGui_ImplDX9_NewFrame(); ImGui::NewFrame();
+        ImGui::Begin("Atlas stress");
+        ImGui::PushFont(ui::HeadingFont()); ImGui::TextWrapped("%s", name.c_str()); ImGui::PopFont();
+        ImGui::TextWrapped("%s", chat.c_str());
+        ImGui::PushFont(ui::DiagnosticFont()); ImGui::TextWrapped("%s", draft.c_str()); ImGui::PopFont();
+        ImGui::End();
+        ImGui::Render(); renderer.Draw();
+    };
+    // Every language at every scale the overlay clamps to, first with only its
+    // catalog, then holding as many player characters as the atlas takes.
+    ui::SetUserGlyphRebuildInterval(std::chrono::milliseconds(0));
+    for (const auto locale : {loc::Locale::En, loc::Locale::Ru, loc::Locale::Ja, loc::Locale::Ko, loc::Locale::ZhHans})
+        for (const float dpi : {1.f, 1.25f, 1.5f, 2.f, 3.f}) {
+            loc::SetActive(locale);
+            ui::SetUserGlyphRetention(std::chrono::milliseconds(1)); Sleep(5);
+            ui::ApplyTheme(dpi + .01f); ImGui_ImplDX9_InvalidateDeviceObjects(); ui::ApplyTheme(dpi);
+            RequireAtlasWithinBudget(loc::Tag(locale), dpi);
+            ui::SetUserGlyphRetention(std::chrono::milliseconds(60000));
+            std::string full;
+            for (unsigned i = 0; i < 512; ++i) appendUtf8(full, i % 3 == 0 ? 0x4E00 + i * 7 : i % 3 == 1 ? 0xAC00 + i * 11 : 0x3400 + i * 5);
+            ui::NoteUserText(full);
+            Require(ui::ApplyTheme(dpi), "Player text needing 512 glyphs did not rebuild the atlas");
+            ImGui_ImplDX9_InvalidateDeviceObjects();
+            RequireAtlasWithinBudget((std::string(loc::Tag(locale)) + " with 512 player characters").c_str(), dpi);
+            drawFrame("Player", full, "Draft");
+        }
+    const float scales[] = {1.f, 1.25f, 1.5f, 2.f, 3.f};
+    const std::chrono::milliseconds retentions[] = {std::chrono::milliseconds(0), std::chrono::milliseconds(30), std::chrono::milliseconds(10000)};
+    int rebuilds = 0;
+    for (int frame = 0; frame < iterations; ++frame) {
+        loc::SetActive(static_cast<loc::Locale>(rng() % static_cast<unsigned>(loc::Locale::Count)));
+        ui::SetUserGlyphRetention(retentions[rng() % std::size(retentions)]);
+        const std::string name = randomText(1 + rng() % 24), chat = randomText(rng() % 160), draft = randomText(rng() % 40);
+        ui::NoteUserText(name); ui::NoteUserText(chat, ui::UserTextRole::Chat); ui::NoteUserText(draft, ui::UserTextRole::Draft);
+        if (ui::ApplyTheme(scales[rng() % std::size(scales)])) { ImGui_ImplDX9_InvalidateDeviceObjects(); ++rebuilds; }
+        RequireAtlasWithinBudget("Random player text", ImGui::GetIO().FontGlobalScale);
+        drawFrame(name, chat, draft);
+        if (rng() % 8 == 0) Sleep(35);
+    }
+    Require(rebuilds > iterations / 8, "The atlas stress never rebuilt the atlas");
+    std::printf("Atlas stress: %d frames, %d atlas rebuilds.\n", iterations, rebuilds);
+    ImGui_ImplDX9_Shutdown(); ImGui::DestroyContext();
+    loc::SetActive(loc::Locale::En);
+}
 }
 
 int main(int argc, char** argv) {
+    SetUnhandledExceptionFilter(ReportCrash);
     try {
         Renderer renderer;
+        if (const char* stress = std::getenv("SF4E_UI_RENDER_ATLAS_STRESS")) { StressAtlas(renderer, std::atoi(stress), 1); return 0; }
         const std::string output = argc > 1 ? argv[1] : "";
         const bool trainingShotsOnly = argc > 2 && std::string(argv[2]) == "--training-shots-only";
         const bool recoveryShotsOnly = argc > 2 && std::string(argv[2]) == "--recovery-shots-only";
@@ -486,7 +657,7 @@ int main(int argc, char** argv) {
             for(int i=0;i<8&&shell.Navigation().Focus()!="table-2";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             Require(shell.Navigation().Focus()=="table-2","An empty table is unreachable at this viewport/DPI");
             draw(nullptr,MenuInput::Select,1);draw("room-seat-chooser");
-            Require(shell.Navigation().Confirming(),"A on an empty table did not open the seat chooser");
+            Require(shell.Navigation().Choosing(),"A on an empty table did not open the seat chooser");
             draw(nullptr,MenuInput::Right,1);draw("room-seat-chooser-p2");
             draw(nullptr,MenuInput::Back,1);draw();
             // A full table offers the queue, watching and the table's options;

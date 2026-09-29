@@ -138,7 +138,7 @@ namespace sf4e {
 
 		std::map<int, SessionProtocol::StateSnapshot> pendingRemoteSnapshots;
 		// Desync v2: remote hash checkpoints received before this client
-		// simulated (or aged) the same frame. Bounded — see Step().
+		// simulated (or aged) the same frame. Bounded; see Step().
 		std::map<int, SessionProtocol::BattleHashV2> pendingRemoteHashes;
 		SessionProtocol::ConnectionID _cid;
 

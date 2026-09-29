@@ -48,8 +48,8 @@ msgstr "Místnost se aktualizuje. Akci lze stále zrušit."
 msgid "launcher.update_failed"
 msgstr "Aktualizaci se nepodařilo nainstalovat. Zavřete hru a předchozí spouštěč a zkuste to znovu. Viz %TEMP%\\sf4-netplay-update.log; záložní kopie jsou v .ember-update-backups."
 
-msgid "launcher.recovery_title"
-msgstr "Obnovení spuštění"
+msgid "launcher.recovery_opened"
+msgstr "Síť nebyla dostupná, a proto se SF4 zavřelo kvůli obnovení. Spustit znovu hru spustí znovu; hra offline funguje bez sítě."
 
 msgid "launcher.path_failed"
 msgstr "Nepodařilo se nastavit cestu k běhovým souborům. Rozbalte celý balíček do složky s právem zápisu."
@@ -67,16 +67,16 @@ msgid "launcher.already_running"
 msgstr "SF4 Ember Netplay už běží. Pokud jej nevidíte, ukončete Launcher.exe a SSFIV.exe ve Správci úloh a znovu spusťte Ember."
 
 msgid "launcher.start_failed"
-msgstr "Spuštění hry nebo injekce selhala. Zkontrolujte protokol spouštěče a zkuste to znovu."
+msgstr "Spuštění hry nebo injekce selhala. Zkontrolujte protokol spouštěče v %APPDATA%\\sf4e\\logs\\launcher.log a zkuste to znovu."
 
 msgid "launcher.game_error"
-msgstr "Hra skončila s chybou. Zkontrolujte protokol spouštěče a zkuste to znovu."
+msgstr "Hra skončila s chybou. Zkontrolujte protokol spouštěče v %APPDATA%\\sf4e\\logs\\launcher.log a zkuste to znovu."
 
 msgid "launcher.runtime_shadowed"
 msgstr "Hra by místo souborů ze složky Ember načetla tyto soubory. Stará kopie ji zastaví ještě před spuštěním (\"entry point ggpo_get_last_confirmed_frame not found\"). Pocházejí z jiného netplay modu nebo starší instalace. Přesuňte je nebo přejmenujte a znovu spusťte Ember:\n\n{0}"
 
 msgid "launcher.game_wrong_dll"
-msgstr "Hra se zastavila před spuštěním Ember, protože načtené DLL chybí funkce. Obvykle je vedle SSFIV.exe soubor GGPO.dll, spdlog.dll, fmt.dll nebo zlib1.dll z jiného modu či starší instalace. Přesuňte nalezené soubory jinam a zkuste to znovu. Pokud tam žádný není, pošlete protokol spouštěče."
+msgstr "Hra se zastavila před spuštěním Ember, protože načtené DLL chybí funkce. Obvykle je vedle SSFIV.exe soubor GGPO.dll, spdlog.dll, fmt.dll nebo zlib1.dll z jiného modu či starší instalace. Přesuňte nalezené soubory jinam a zkuste to znovu. Pokud tam žádný není, pošlete protokol spouštěče (%APPDATA%\\sf4e\\logs\\launcher.log)."
 
 msgid "recovery.window"
 msgstr "Obnovení Ember"
@@ -140,6 +140,15 @@ msgstr "Zrušit stahování nebo kontrolu. Před dalším pokusem počkejte na d
 
 msgid "recovery.close_detail"
 msgstr "Zavřít obnovení bez spuštění SF4. Probíhající operace se zruší."
+
+msgid "updates.close_detail"
+msgstr "Zavřít aktualizace bez spuštění SF4. Probíhající operace se zruší."
+
+msgid "updates.start_game"
+msgstr "Spustit SF4"
+
+msgid "updates.start_game_detail"
+msgstr "Zavřít aktualizace a spustit SF4 s Ember."
 
 msgid "recovery.close_cancels_detail"
 msgstr "Zavřením se probíhající operace zruší."
@@ -217,7 +226,7 @@ msgid "settings.language.detail"
 msgstr "Vyberte ze seznamu, nebo přepínejte vlevo/vpravo. Automatický výběr se řídí jazykem hry a poté Windows."
 
 msgid "settings.language.system_with"
-msgstr "Automaticky — {0}"
+msgstr "Automaticky: {0}"
 
 msgid "settings.language_save_failed"
 msgstr "Volbu jazyka se nepodařilo uložit. Pro tuto relaci zůstává aktivní."
@@ -475,7 +484,7 @@ msgid "home.settings"
 msgstr "Nastavení"
 
 msgid "home.settings_detail"
-msgstr "Hráč, ovladač, výchozí nastavení hry, rozhraní a Discord."
+msgstr "Hráč, ovladač, výchozí nastavení hry, rozhraní, jazyk a Discord."
 
 msgid "home.about"
 msgstr "Nápověda"
@@ -604,7 +613,7 @@ msgid "settings.interface"
 msgstr "Rozhraní"
 
 msgid "settings.interface_detail"
-msgstr "Nenápadný HUD a velikost rozhraní."
+msgstr "Jazyk, HUD zápasu a velikost rozhraní."
 
 msgid "settings.discord_detail"
 msgstr "Aktivita a pozvánky."
@@ -622,7 +631,7 @@ msgid "player.use_keyboard"
 msgstr "Použít klávesnici"
 
 msgid "player.use_keyboard_detail"
-msgstr "Výslovně přiřadit klávesnici."
+msgstr "Přiřaďte klávesnici jako herní zařízení. Ovladač pak přestane ovládat nabídky Ember, dokud ho znovu nepřiřadíte."
 
 msgid "player.native_menus"
 msgstr "Otevřít nabídky hry"
@@ -712,7 +721,7 @@ msgid "about.controls"
 msgstr "Ovládání"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A vybírá, B se vrací, nezávisle na přiřazení bojových tlačítek. DirectInput: přiřazené LP vybírá, LK se vrací. D-pad slouží k pohybu; vlevo/vpravo upravuje hodnoty. Trénink se ovládá klávesnicí a myší: F6 otevírá/zavírá, šipky slouží k pohybu, Enter vybírá, Escape se vrací. Start v tréninku otevírá jen původní nabídku pauzy. F10 otevírá Ember v hlavní nabídce; F5–F8 jsou zkratky pro trénink."
+msgstr "Ovladač Xbox: A vybírá, B se vrací, nezávisle na bojových tlačítkách. Jiné ovladače: přiřazené LP vybírá, LK se vrací. Klávesnice: šipky, Enter a Escape. D-pad pohybuje; vlevo a vpravo mění hodnotu. Zpět na obrazovce Domů skryje Ember. F10, nebo Start na ovladači, ho znovu otevře v hlavní nabídce hry.\n\nV místnosti A na stole umožní vybrat místo, A na vlastním místě nastaví Připraven a B uvolní místo nebo opustí frontu. Na ovladači Xbox X otevře Bojovník, Y otevře Možnosti a View otevře Chat; dalším stiskem se vrátíte do místnosti.\n\nV tréninku F6 otevře ovládání, F5 skryje HUD, F7 nahrává a F8 přehrává."
 
 msgid "about.ember"
 msgstr "O Ember"
@@ -810,11 +819,26 @@ msgstr "Stůl zavřen"
 msgid "controller.disconnected"
 msgstr "Ovladač odpojen. Znovu jej připojte nebo přiřaďte."
 
+msgid "controller.none"
+msgstr "Vyberte herní zařízení"
+
+msgid "controller.keyboard"
+msgstr "Klávesnice"
+
+msgid "controller.numbered"
+msgstr "Ovladač {0}"
+
+msgid "controller.disconnected_name"
+msgstr "{0} (odpojeno)"
+
 msgid "room.control_unavailable"
 msgstr "Správa místnosti není dostupná. Až nebude probíhat zápas, nahraďte místnost."
 
 msgid "room.control_recovering"
 msgstr "Správa místnosti se obnovuje. Akce v místnosti jsou pozastaveny."
+
+msgid "room.catching_up"
+msgstr "Místnost se na tomto počítači stále synchronizuje. Akce v místnosti jsou pozastaveny."
 
 msgid "settings.preview"
 msgstr "Náhled"
@@ -1104,6 +1128,9 @@ msgstr "Vyberte scénu."
 msgid "selection.select_saves"
 msgstr "Vybrat uloží volbu. Zpět vrátí bez změny zobrazeného náhledu."
 
+msgid "selection.adjust_saves"
+msgstr "Vlevo a vpravo to změní a hned uloží."
+
 msgid "selection.locked_detail"
 msgstr "Výběr je uzamčen. Aktuální stav najdete u svého stolu."
 
@@ -1231,10 +1258,10 @@ msgid "selection.ultra_selected"
 msgstr "Toto Ultra je vybrané."
 
 msgid "selection.preview_save"
-msgstr "Jen náhled – uložte tlačítkem Vybrat."
+msgstr "Jen náhled: uložte tlačítkem Vybrat."
 
 msgid "selection.preview_locked"
-msgstr "Jen náhled – výběr je uzamčen."
+msgstr "Jen náhled: výběr je uzamčen."
 
 msgid "selection.saved_appearance"
 msgstr "Uloženo: {0} / Barva {1}"
@@ -1243,13 +1270,19 @@ msgid "selection.saved_full"
 msgstr "Uloženo: {0} / {1} / Barva {2}"
 
 msgid "selection.preview_save_short"
-msgstr "Jen náhled – uložte tlačítkem Vybrat"
+msgstr "Jen náhled: uložte tlačítkem Vybrat"
 
 msgid "selection.status_editable"
 msgstr "Vybrat uloží / Zpět o úroveň výš."
 
+msgid "selection.status_browse"
+msgstr "Vybrat otevře / Zpět o úroveň výš."
+
+msgid "selection.status_adjust"
+msgstr "Vlevo/vpravo uloží / Zpět o úroveň výš."
+
 msgid "selection.status_locked"
-msgstr "Výběr uzamčen – stav najdete u svého stolu."
+msgstr "Výběr uzamčen: stav najdete u svého stolu."
 
 msgid "runtime.room_recovering"
 msgstr "Správa místnosti se obnovuje. Spojení pro zápas zůstává zachováno."
@@ -1280,6 +1313,8 @@ msgstr "Výběr podle těchto pravidel není dostupný. Ve Výběru postavy zvol
 
 msgid "runtime.open_shortcut"
 msgstr "SF4 Ember Netplay  /  F10 nebo Start"
+msgid "runtime.return_menu_to_join"
+msgstr "Vraťte se do hlavní nabídky a připojte se k zápasu."
 
 msgid "runtime.waiting_opponent_join"
 msgstr "Čeká se na připojení soupeře do lobby..."
@@ -1303,10 +1338,10 @@ msgid "runtime.invalid_roster"
 msgstr "Neplatné obsazení zápasu. Vraťte se do místnosti a zkuste to znovu."
 
 msgid "runtime.ggpo_start_failed"
-msgstr "GGPO se nepodařilo spustit – vraťte se do lobby a znovu potvrďte Připraven."
+msgstr "GGPO se nepodařilo spustit. Vraťte se do lobby a znovu potvrďte Připraven."
 
 msgid "runtime.ggpo_add_players_failed"
-msgstr "GGPO nedokázalo přidat hráče – vraťte se do lobby a znovu potvrďte Připraven."
+msgstr "GGPO nedokázalo přidat hráče. Vraťte se do lobby a znovu potvrďte Připraven."
 
 msgid "runtime.rollback_buffer_full"
 msgstr "Vyrovnávací paměť rollbacku je plná. Zápas skončil."
@@ -1384,7 +1419,7 @@ msgid "update.extract_folder_failed"
 msgstr "Složku pro rozbalení nelze vytvořit ({0})."
 
 msgid "update.download_failed"
-msgstr "Stažení selhalo ({0}). Ruční stažení: {1} – podrobnosti v %TEMP%\\sf4-netplay-update.log"
+msgstr "Stažení selhalo ({0}). Ruční stažení: {1} (podrobnosti v %TEMP%\\sf4-netplay-update.log)"
 
 msgid "update.verify_failed"
 msgstr "Staženou aktualizaci se nepodařilo ověřit. Zkuste to znovu."
@@ -1542,12 +1577,6 @@ msgstr "Otevírání místnosti se nedokončilo. Zkontrolujte spojení, nebo akc
 msgid "room.waiting_state"
 msgstr "Čekání na stav místnosti."
 
-msgid "room.ready"
-msgstr "Připraven"
-
-msgid "room.ready.saved_fighter"
-msgstr "Použít uloženou postavu."
-
 msgid "room.copy_invitation"
 msgstr "Kopírovat pozvánku"
 
@@ -1627,7 +1656,7 @@ msgid "room.invitation_copied"
 msgstr "Pozvánka zkopírována."
 
 msgid "room.replacement_opening"
-msgstr "Otevírá se náhradní místnost. Zvolte Kopírovat pozvánku a pošlete nový odkaz – starý už nefunguje."
+msgstr "Otevírá se náhradní místnost. Zvolte Kopírovat pozvánku a pošlete nový odkaz. Starý už nefunguje."
 
 msgid "room.action_rejected"
 msgstr "Místnost se změnila nebo akci odmítla. Zkontrolujte aktuální stav a zkuste to znovu."
@@ -1653,9 +1682,6 @@ msgstr "Čeká se, až si soupeř sedne na druhé místo. Mezitím můžete změ
 msgid "room.controller_required"
 msgstr "Přiřaďte nebo znovu připojte ovladač v Nastavení > Hráč a ovladač."
 
-msgid "room.waiting_update"
-msgstr "Čeká se na dokončení aktualizace místnosti."
-
 msgid "room.ready.cancel_detail"
 msgstr "Jste PŘIPRAVENI. Výběrem zrušíte připravenost a pak můžete změnit postavu."
 
@@ -1669,13 +1695,16 @@ msgid "room.both_ready"
 msgstr "Oba hráči jsou připraveni. Zápas začíná."
 
 msgid "room.waiting_spectators"
-msgstr "Oba hráči jsou připraveni. Zápas začne, až se vrátí zamčení diváci, nejpozději za 10 sekund."
+msgstr "Oba hráči jsou připraveni. Zápas začne, až se vrátí zamčení diváci, nejpozději za {0} sekund."
 
 msgid "room.match_in_progress.detail"
 msgstr "Aktuální zápas probíhá. Počkejte na jeho konec."
 
 msgid "room.unready"
 msgstr "Zrušit připravenost"
+
+msgid "room.cancel_start"
+msgstr "Zrušit start"
 
 msgid "room.readying"
 msgstr "Příprava..."
@@ -1755,6 +1784,21 @@ msgstr "Uvolnit své místo."
 msgid "room.leave_seat.next_player"
 msgstr "Uvolnit své místo. Obsazí ho další hráč ve frontě."
 
+msgid "room.leave_seat.unready_first"
+msgstr "Nejdřív zrušte připravenost, pak opusťte místo."
+
+msgid "room.leave_seat.keep"
+msgstr "Ponechat si místo."
+
+msgid "room.leave_seat.costs_score"
+msgstr "Odchodem skončí vaše série a skóre se vynuluje ({0})."
+
+msgid "room.leave_seat.hands_over"
+msgstr "Vaše místo obsadí další hráč ve frontě."
+
+msgid "room.cancel_stuck.in_progress"
+msgstr "Zápas probíhá. Odemkne se po {0} minutách bez výsledku."
+
 msgid "room.abandon_result"
 msgstr "Vzdát nevyřešený zápas"
 
@@ -1783,13 +1827,13 @@ msgid "room.lock_spectating"
 msgstr "Zamknout sledování"
 
 msgid "room.lock_spectating.detail"
-msgstr "Další zápas na vás počká až 10 sekund, než se vrátíte do místnosti."
+msgstr "Další zápas na vás počká až {0} sekund, než se vrátíte do místnosti."
 
 msgid "room.unlock_spectating"
 msgstr "Zrušit zamčení"
 
 msgid "room.unlock_spectating.detail"
-msgstr "Sledování je zamčené. Další zápas na vás počká až 10 sekund."
+msgstr "Sledování je zamčené. Další zápas na vás počká až {0} sekund."
 
 msgid "room.table_rules"
 msgstr "Pravidla stolu"
@@ -1959,9 +2003,6 @@ msgstr "Zrušit úpravu"
 msgid "edit.bytes"
 msgstr "{0} / {1} bajtů"
 
-msgid "discord.unavailable_build"
-msgstr "Integrace s Discord není v tomto sestavení dostupná."
-
 msgid "runtime.record_invalid"
 msgstr "Místní záznam zápasů je neplatný a zůstal zachován. Sledování bilance není dostupné."
 
@@ -1985,6 +2026,9 @@ msgstr "Discord není dostupný. Hraní tím není ovlivněno."
 
 msgid "runtime.gameplay_device_disconnected"
 msgstr "Herní ovladač se odpojil. Před dalším zápasem jej připojte."
+
+msgid "runtime.match_input_blocked"
+msgstr "Vstup zápasu je zablokován: znovu připojte {0}. Pokud se pozice změnila, vraťte se do místnosti a přiřaďte ho znovu."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "Nepodařilo se ověřit přiřazení ovladače pro zápas. Před dalším pokusem jej přiřaďte znovu."
@@ -2151,15 +2195,6 @@ msgstr "Čeká se na dokončení vaší žádosti Připraven."
 msgid "runtime.lock.selection_update"
 msgstr "Čeká se na dokončení aktuálního zápasu nebo změny výběru."
 
-msgid "runtime.lock.return_to_menu_ready"
-msgstr "Před volbou Připraven se vraťte do hlavní nabídky hry."
-
-msgid "runtime.lock.table_settings"
-msgstr "Čeká se na použití nastavení stolu."
-
-msgid "runtime.lock.room_update"
-msgstr "Čeká se na dokončení aktualizace místnosti nebo zápasu."
-
 msgid "runtime.ready.control_changed"
 msgstr "Správa místnosti se změnila před potvrzením Připraven. Potvrďte Připraven znovu."
 
@@ -2207,3 +2242,18 @@ msgstr "K místnosti se nepodařilo připojit. Zkontrolujte pozvánku a zda maj�
 
 msgid "runtime.room_connection_lost"
 msgstr "Odpojeno od místnosti."
+
+msgid "runtime.desync_match_ended"
+msgstr "Zápas skončil: obě hry se rozešly (desynchronizace). Použijte Exportovat diagnostiku u obou hráčů."
+
+msgid "runtime.desync_spectator"
+msgstr "Váš pohled diváka se od zápasu odchýlil. Odejděte a sledujte znovu."
+
+msgid "runtime.room_link_lost"
+msgstr "Spojení s herní místností se ztratilo. Zkontrolujte internet a zkuste to znovu."
+
+msgid "runtime.session_server_error"
+msgstr "Chyba serveru relace. Zkontrolujte internet a zkuste to znovu."
+
+msgid "runtime.settings_unreadable"
+msgstr "Uložená nastavení se nepodařilo načíst; používají se výchozí hodnoty."

@@ -132,6 +132,10 @@ impl Actor {
         // publishes Membership to every member on each such refresh.
         // `retired` can name one too when this read began before the
         // confirmation landed.
+        // The history keeps a bounded window of departures; what fell out of
+        // it is no longer tracked here, or it would be fenced again.
+        self.applied_admission_members
+            .retain(|incarnation| applied_history.contains(incarnation));
         let confirmed = &self.retired_incarnations;
         let unconfirmed = self
             .applied_admission_members

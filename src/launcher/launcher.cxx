@@ -456,10 +456,12 @@ int ShowLauncherMessage(const char* key, UINT flags) {
 	return MessageBoxW(nullptr, sf4e::platform::Utf8ToWide(sf4e::loc::T(key)).c_str(), L"SF4 Ember Netplay", flags);
 }
 
-// The recovery screen, with its selection art reporting to launcher.log.
-bool ShowRecovery(std::string message, std::wstring& gameDirectory, bool updates = false) {
+// The recovery screen, with its selection art reporting to launcher.log. The
+// updater offers to start the game when canStart says the launch may go on.
+bool ShowRecovery(std::string message, std::wstring& gameDirectory, bool updates = false,
+	sf4e::ui::Tone tone = sf4e::ui::Tone::Error, bool canStart = false) {
 	return sf4e::ui::RunRecovery(std::move(message), gameDirectory, updates,
-		[](const std::string& line) { spdlog::warn("{}", line); });
+		[](const std::string& line) { spdlog::warn("{}", line); }, tone, canStart);
 }
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
@@ -502,8 +504,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         HANDLE oldGame = OpenProcess(SYNCHRONIZE, FALSE, waitPid);
         if (oldGame) { WaitForSingleObject(oldGame, 30000); CloseHandle(oldGame); }
     }
-    if (updates) { ShowRecovery(updateError ? sf4e::loc::T("launcher.update_failed") : "", chosenDirectory, true); return 0; }
-    if (recovery && !ShowRecovery(sf4e::loc::T("launcher.recovery_title"), chosenDirectory)) return 0;
+    // Declining an update, or a failed install, leaves the game as it was, so
+    // the updater can go on to start it; only Start continues past here.
+    if (updates && !ShowRecovery(updateError ? sf4e::loc::T("launcher.update_failed") : "", chosenDirectory, true, sf4e::ui::Tone::Error, true)) return 0;
+    if (recovery && !ShowRecovery(sf4e::loc::T("launcher.recovery_opened"), chosenDirectory, false, sf4e::ui::Tone::Neutral)) return 0;
     if (!instance.Acquire()) {
         // A Discord invite reaches the running copy, so a second start for it
         // stays quiet. Otherwise a leftover launcher (or one still waiting on

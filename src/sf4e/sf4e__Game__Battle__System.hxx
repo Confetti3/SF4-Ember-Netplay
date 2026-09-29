@@ -174,7 +174,7 @@ namespace sf4e {
 
 					// Copying would duplicate the `keys` ownership records
 					// and hand two objects a claim on the same memento
-					// payloads — the exact aliasing this type exists to
+					// payloads, the exact aliasing this type exists to
 					// prevent. Slots are referenced by pointer everywhere.
 					SaveState(const SaveState&) = delete;
 					SaveState& operator=(const SaveState&) = delete;
@@ -197,7 +197,7 @@ namespace sf4e {
 					// Returns a slot to the clean, unowned, unused state
 					// without touching engine memento data. Only safe when
 					// the payloads are known to be owned elsewhere (or gone,
-					// as after a battle teardown) — otherwise use Free.
+					// as after a battle teardown); otherwise use Free.
 					static void Reclaim(SaveState* victim, const char* reason, int slotIndex);
 				};
 
@@ -245,10 +245,13 @@ namespace sf4e {
 				static void RetireGgpoSession(const char* diagnosticsLabel);
 				// Safe to call from anywhere, including GGPO callbacks: inside a
 				// callback the abort is latched and completed by
-				// DrainPendingAbort() once the top-level GGPO call returns (as an
-				// Error; only callbacks defer). A non-empty reason is logged and
-				// shown to the player after the session is retired, and stays
-				// until the next session starts. An empty reason ends quietly.
+				// DrainPendingAbort() once the top-level GGPO call returns, always
+				// as an Error. A non-empty reason is logged (as an error only at
+				// Error severity) and published after the session is retired,
+				// with its severity's lifetime: an Error stays until a newer
+				// notice replaces it or the next session starts, Info and Warning
+				// expire on their own (NoticeSeverity). An empty reason ends
+				// quietly.
 				static void AbortGgpoMatch(const char* reason, NoticeSeverity severity = NoticeSeverity::Error);
 				// Completes an abort latched inside a callback. Returns true
 				// when a session was closed. Must be called after every

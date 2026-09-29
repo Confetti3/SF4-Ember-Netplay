@@ -41,6 +41,27 @@ static void TestMatchEndedFromPreparing() {
     CHECK(!EventNow(idle, EventKind::MatchEnded).accepted);
 }
 
+// A match still Playing or Preparing refuses the next grant. The runtime must
+// end the old one (a battle that closed without its session, a start that
+// failed) before a new grant can be entered, and once it does the grant is taken.
+static void TestNextGrantNeedsTheOldMatchEnded() {
+    SessionController controller;
+    CHECK(CommandNow(controller, CommandKind::HostRoom).accepted);
+    CHECK(EventNow(controller, EventKind::RoomJoined).accepted);
+    CHECK(EventNow(controller, EventKind::MatchPreparing).accepted);
+    CHECK(EventNow(controller, EventKind::GameplayReady).accepted);
+    CHECK(EventNow(controller, EventKind::MatchStarted).accepted);
+    CHECK(controller.GetSnapshot().match == MatchState::Playing);
+    CHECK(!EventNow(controller, EventKind::MatchPreparing).accepted);
+    CHECK(EventNow(controller, EventKind::MatchEnded).accepted);
+    CHECK(controller.GetSnapshot().match == MatchState::PostMatch);
+    CHECK(EventNow(controller, EventKind::MatchPreparing).accepted);
+    // The same from Preparing.
+    CHECK(!EventNow(controller, EventKind::MatchPreparing).accepted);
+    CHECK(EventNow(controller, EventKind::MatchEnded).accepted);
+    CHECK(EventNow(controller, EventKind::MatchPreparing).accepted);
+}
+
 static void StartMatch(SessionController& controller) {
     CHECK(CommandNow(controller, CommandKind::Ready).effect == Effect::SendReady);
     CHECK(!CommandNow(controller, CommandKind::Ready).accepted);
@@ -84,11 +105,27 @@ static void TestOpeningIsNotRecovery() {
     CHECK(joined.ControlPlaneEstablished() && !joined.GetSnapshot().openingStalled);
     CHECK(joined.GetSnapshot().recovery == Recovery::Recovering);
     CHECK(joined.GetSnapshot().control == Health::Lost);
-    CHECK(!joined.GetSnapshot().error.empty());
+    // The condition is a kind the interface words in the player's language, not
+    // an English sentence the controller writes into `error`.
+    CHECK(joined.GetSnapshot().fault == Fault::ControlRecovering && joined.GetSnapshot().error.empty());
+    // Leaving during the outage leaves nothing of it for the menu to show.
+    CHECK(CommandNow(joined, CommandKind::LeaveRoom).accepted);
+    CHECK(joined.GetSnapshot().fault == Fault::None && joined.GetSnapshot().error.empty());
+    CHECK(EventNow(joined, EventKind::RoomClosed).accepted);
+    CHECK(joined.GetSnapshot().fault == Fault::None && joined.GetSnapshot().error.empty());
+    // A failure the room reported is the player's to read after the room closes.
+    SessionController failed;
+    CHECK(CommandNow(failed, CommandKind::JoinInvite, "sf4e3:invite").accepted);
+    Event failure;
+    failure.kind = EventKind::RoomFailed; failure.generation = failed.GetSnapshot().generation; failure.error = "Could not join";
+    CHECK(failed.Apply(failure).accepted);
+    CHECK(EventNow(failed, EventKind::RoomClosed).accepted);
+    CHECK(failed.GetSnapshot().error == "Could not join");
 }
 
 int main() {
     TestMatchEndedFromPreparing();
+    TestNextGrantNeedsTheOldMatchEnded();
     TestOpeningIsNotRecovery();
     // Ordinary checkpoint delivery can trail the healthy coordination watch.
     // It pauses mutation, but must not announce a lost connection or erase Ready.
@@ -296,7 +333,7 @@ int main() {
         CHECK(!stalled.GetSnapshot().authorityWritable);
         CHECK(stalled.GetSnapshot().control == Health::Healthy);
         CHECK(stalled.GetSnapshot().recovery == Recovery::None);
-        CHECK(stalled.GetSnapshot().error.empty());
+        CHECK(stalled.GetSnapshot().error.empty() && stalled.GetSnapshot().fault == Fault::None);
         CHECK(!CommandNow(stalled, CommandKind::RoomAction).accepted);
         // H-006: the runtime can tell a fenced refusal from any other, so it
         // parks or reports it instead of dropping it silently.
@@ -331,11 +368,11 @@ int main() {
 
         // A stall that persists is named at ten seconds...
         CHECK(stalled.ObserveCoordination(1, 4, true, 3000, false));
-        CHECK(stalled.GetSnapshot().error.empty());
+        CHECK(stalled.GetSnapshot().fault == Fault::None);
         CHECK(stalled.ObserveCoordination(1, 5, true, 12000, false));
-        CHECK(stalled.GetSnapshot().error.empty());
+        CHECK(stalled.GetSnapshot().fault == Fault::None);
         CHECK(stalled.ObserveCoordination(1, 6, true, 13000, false));
-        CHECK(!stalled.GetSnapshot().error.empty());
+        CHECK(stalled.GetSnapshot().fault == Fault::CatchingUp && stalled.GetSnapshot().error.empty());
         CHECK(stalled.GetSnapshot().recovery == Recovery::None);
 
         // ...and offers a way out at thirty, without ever claiming a disconnect.

@@ -84,6 +84,8 @@ namespace sf4e {
 			room::Snapshot room;
 			bool helperReady = false;
 			bool atMainMenu = false;
+			// A started match is waiting for the player to return to the main menu.
+			bool matchWaitsForMenu = false;
 			bool canOpenRoom = false;
 			bool canReplaceRoom = false;
 			bool canReady = false;
@@ -97,7 +99,7 @@ namespace sf4e {
 			std::string readyFailure;
 			std::uint64_t readyFailureSequence = 0;
 			bool canEditSelection = false;
-            std::string selectionLockReason, readyLockReason;
+            std::string selectionLockReason;
 			bool canEditPreferences = false;
 			bool canEditLobby = false;
 			bool settingsPending = false;
@@ -150,11 +152,19 @@ namespace sf4e {
 		bool IsRuntimeRoomActive();
         bool IsRuntimeRecoveryEnabled();
 		void NotifyRuntimeMatchEnded();
+		// A netplay battle closed after its GGPO session was already retired, so
+		// NotifyRuntimeMatchEnded had no session to come from.
+		void NotifyRuntimeBattleClosedWithoutSession();
+		// A spectator's own GGPO stream failed with no committed match result and
+		// the session is being retired. Its battle then closes sessionless, and
+		// the runtime leaves that game instead of ending the view silently.
+		void NotifyRuntimeSpectatorStreamFailed();
 		void NotifyRuntimeMatchResult(room::MatchResult result);
 		// The room has committed the end of the current match (any result).
 		// Notices about losing that match's stream or peer are moot then.
 		bool IsRuntimeMatchEndCommitted();
-		// A match is being prepared or played, or its GGPO session is live.
+		// A match is being prepared or played, or its GGPO session is live for
+		// the match (not only draining spectators).
 		bool IsRuntimeMatchLive();
 		// Retires a spectator's view of a match whose end the room committed,
 		// once its stream is played out or its exit bound passed. Called after
@@ -187,8 +197,16 @@ namespace sf4e {
 		void SetLastError(const char* msg);
 		void PushAlert(const char* msg);
 		void PushAlert(const char* msg, NoticeSeverity severity);
-		// Drops the current notice (session retired, room shut down).
+		// The notice for a confirmed state divergence, worded in the player's
+		// language: an Error when the fight itself ended, a Warning when only
+		// a spectator's own view diverged.
+		void PushDesyncNotice(bool spectatorOnly);
+		// Drops the current notice (a new session starts).
 		void ClearMatchNotice();
+		// Drops an Info or Warning notice. An Error stays until a newer notice
+		// replaces it or a new session starts (NoticeSeverity), so retiring a
+		// session keeps the reason it ended.
+		void ClearTransientMatchNotice();
 		void HandleNetplayFailure(const char* reason, bool closeGgpo);
 
 		// Phase 7: room and control-plane failure handling. The room

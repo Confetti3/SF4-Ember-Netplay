@@ -48,8 +48,8 @@ msgstr "Trwa aktualizacja pokoju. Nadal możesz anulować."
 msgid "launcher.update_failed"
 msgstr "Nie udało się zainstalować aktualizacji. Zamknij grę i poprzedni launcher, a potem spróbuj ponownie. Szczegóły: %TEMP%\\sf4-netplay-update.log; kopie zapasowe produktu są w .ember-update-backups."
 
-msgid "launcher.recovery_title"
-msgstr "Naprawa startu"
+msgid "launcher.recovery_opened"
+msgstr "Sieć była niedostępna, więc SF4 zamknięto na potrzeby odzyskiwania. Uruchom ponownie uruchamia grę od nowa; gra offline działa bez sieci."
 
 msgid "launcher.path_failed"
 msgstr "Nie udało się ustawić ścieżki wyszukiwania bibliotek. Rozpakuj cały pakiet do folderu z prawem zapisu."
@@ -67,16 +67,16 @@ msgid "launcher.already_running"
 msgstr "SF4 Ember Netplay już działa. Jeśli go nie widzisz, zakończ Launcher.exe i SSFIV.exe w Menedżerze zadań, a potem uruchom Ember ponownie."
 
 msgid "launcher.start_failed"
-msgstr "Start gry lub wstrzyknięcie modułu nie powiodło się. Sprawdź dziennik i ponów próbę."
+msgstr "Start gry lub wstrzyknięcie modułu nie powiodło się. Sprawdź dziennik w %APPDATA%\\sf4e\\logs\\launcher.log i ponów próbę."
 
 msgid "launcher.game_error"
-msgstr "Gra zakończyła się błędem. Sprawdź dziennik launchera i spróbuj ponownie."
+msgstr "Gra zakończyła się błędem. Sprawdź dziennik launchera w %APPDATA%\\sf4e\\logs\\launcher.log i spróbuj ponownie."
 
 msgid "launcher.runtime_shadowed"
 msgstr "Gra załadowałaby te pliki zamiast plików z folderu Ember, a stara kopia blokuje jej start („entry point ggpo_get_last_confirmed_frame not found”). Pozostały po innej modyfikacji sieciowej lub starszej instalacji. Przenieś je albo zmień ich nazwy, a potem uruchom Ember ponownie:\n\n{0}"
 
 msgid "launcher.game_wrong_dll"
-msgstr "Gra zatrzymała się przed uruchomieniem Ember, bo w załadowanej bibliotece DLL brakuje funkcji. Zwykle oznacza to plik GGPO.dll, spdlog.dll, fmt.dll lub zlib1.dll obok SSFIV.exe, pochodzący z innej modyfikacji lub starszej instalacji. Przenieś znalezione pliki i spróbuj ponownie. Jeśli ich tam nie ma, wyślij dziennik launchera."
+msgstr "Gra zatrzymała się przed uruchomieniem Ember, bo w załadowanej bibliotece DLL brakuje funkcji. Zwykle oznacza to plik GGPO.dll, spdlog.dll, fmt.dll lub zlib1.dll obok SSFIV.exe, pochodzący z innej modyfikacji lub starszej instalacji. Przenieś znalezione pliki i spróbuj ponownie. Jeśli ich tam nie ma, wyślij dziennik launchera (%APPDATA%\\sf4e\\logs\\launcher.log)."
 
 msgid "recovery.window"
 msgstr "Odzyskiwanie Ember"
@@ -140,6 +140,15 @@ msgstr "Anuluj pobieranie lub sprawdzanie. Poczekaj na zakończenie anulowania p
 
 msgid "recovery.close_detail"
 msgstr "Zamknij odzyskiwanie bez uruchamiania SF4. Trwająca operacja zostanie anulowana."
+
+msgid "updates.close_detail"
+msgstr "Zamknij aktualizator bez uruchamiania SF4. Trwająca operacja zostanie anulowana."
+
+msgid "updates.start_game"
+msgstr "Uruchom SF4"
+
+msgid "updates.start_game_detail"
+msgstr "Zamknij aktualizator i uruchom SF4 z Ember."
 
 msgid "recovery.close_cancels_detail"
 msgstr "Zamknięcie teraz anuluje trwającą operację."
@@ -217,7 +226,7 @@ msgid "settings.language.detail"
 msgstr "Wybierz, aby wskazać z listy, lub przełączaj w lewo/w prawo. Automatyczny wybór korzysta najpierw z języka gry, a potem Windows."
 
 msgid "settings.language.system_with"
-msgstr "Automatycznie — {0}"
+msgstr "Automatycznie: {0}"
 
 msgid "settings.language_save_failed"
 msgstr "Nie udało się zapisać wyboru języka. Pozostanie aktywny w tej sesji."
@@ -475,7 +484,7 @@ msgid "home.settings"
 msgstr "Ustawienia"
 
 msgid "home.settings_detail"
-msgstr "Gracz, kontroler, domyślne ustawienia gry, interfejs i Discord."
+msgstr "Gracz, kontroler, domyślne ustawienia gry, interfejs, język i Discord."
 
 msgid "home.about"
 msgstr "Pomoc i informacje"
@@ -604,7 +613,7 @@ msgid "settings.interface"
 msgstr "Interfejs"
 
 msgid "settings.interface_detail"
-msgstr "Dyskretny HUD i rozmiar interfejsu."
+msgstr "Język, HUD walki i rozmiar interfejsu."
 
 msgid "settings.discord_detail"
 msgstr "Aktywność i zaproszenia."
@@ -622,7 +631,7 @@ msgid "player.use_keyboard"
 msgstr "Użyj klawiatury"
 
 msgid "player.use_keyboard_detail"
-msgstr "Przypisz klawiaturę ręcznie."
+msgstr "Przypisz klawiaturę jako urządzenie do gry. Kontroler przestanie obsługiwać menu Ember, dopóki nie przypiszesz go ponownie."
 
 msgid "player.native_menus"
 msgstr "Otwórz menu gry"
@@ -712,7 +721,7 @@ msgid "about.controls"
 msgstr "Sterowanie"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A wybiera, B cofa, niezależnie od ustawień przycisków walki. DirectInput: przypisany LP wybiera, LK cofa. D-pad służy do nawigacji; Lewo/Prawo zmienia wartość. Trening obsługuje klawiatura i mysz: F6 otwiera/zamyka panel, strzałki nawigują, Enter wybiera, Escape cofa. Start otwiera tylko menu pauzy gry w treningu. F10 otwiera Ember w menu głównym; F5–F8 to skróty treningowe."
+msgstr "Kontroler Xbox: A wybiera, B cofa, niezależnie od przycisków walki. Inne kontrolery: przypisany LP wybiera, LK cofa. Klawiatura: strzałki, Enter i Escape. D-pad porusza; Lewo i Prawo zmieniają wartość. Powrót na ekranie Start ukrywa Ember. F10 (lub przycisk Start na kontrolerze) otwiera go ponownie w menu głównym gry.\n\nW pokoju A na stole pozwala wybrać miejsce, A na własnym miejscu ustawia Gotowe, a B opuszcza miejsce lub kolejkę. Na kontrolerze Xbox X otwiera Postać, Y otwiera Opcje, a View otwiera Czat; naciśnij ponownie, aby wrócić do pokoju.\n\nW treningu F6 otwiera sterowanie, F5 ukrywa HUD, F7 nagrywa, a F8 odtwarza."
 
 msgid "about.ember"
 msgstr "O Ember"
@@ -810,11 +819,26 @@ msgstr "Stół zamknięty"
 msgid "controller.disconnected"
 msgstr "Kontroler odłączony. Podłącz go lub przypisz ręcznie."
 
+msgid "controller.none"
+msgstr "Wybierz urządzenie do gry"
+
+msgid "controller.keyboard"
+msgstr "Klawiatura"
+
+msgid "controller.numbered"
+msgstr "Kontroler {0}"
+
+msgid "controller.disconnected_name"
+msgstr "{0} (odłączony)"
+
 msgid "room.control_unavailable"
 msgstr "Sterowanie pokojem jest niedostępne. Zastąp pokój, gdy żadna walka nie trwa."
 
 msgid "room.control_recovering"
 msgstr "Przywracanie sterowania pokojem. Działania są wstrzymane."
+
+msgid "room.catching_up"
+msgstr "Pokój wciąż synchronizuje się na tym komputerze. Działania są wstrzymane."
 
 msgid "settings.preview"
 msgstr "Podgląd"
@@ -1104,6 +1128,9 @@ msgstr "Wybierz arenę walki."
 msgid "selection.select_saves"
 msgstr "Wybór zapisuje. Powrót wraca bez zmiany podglądu."
 
+msgid "selection.adjust_saves"
+msgstr "Lewo i Prawo zmieniają to i od razu zapisują."
+
 msgid "selection.locked_detail"
 msgstr "Wybór zablokowany. Wróć do stołu po aktualny stan."
 
@@ -1231,10 +1258,10 @@ msgid "selection.ultra_selected"
 msgstr "Wybrano to Ultra Combo."
 
 msgid "selection.preview_save"
-msgstr "Tylko podgląd — naciśnij Select, aby zapisać."
+msgstr "Tylko podgląd: naciśnij Select, aby zapisać."
 
 msgid "selection.preview_locked"
-msgstr "Tylko podgląd — wybór zablokowany."
+msgstr "Tylko podgląd: wybór zablokowany."
 
 msgid "selection.saved_appearance"
 msgstr "Zapisano: {0} / Kolor {1}"
@@ -1243,13 +1270,19 @@ msgid "selection.saved_full"
 msgstr "Zapisano: {0} / {1} / Kolor {2}"
 
 msgid "selection.preview_save_short"
-msgstr "Podgląd — Select zapisuje"
+msgstr "Podgląd: Select zapisuje"
 
 msgid "selection.status_editable"
 msgstr "Select zapisuje / Powrót wraca o poziom."
 
+msgid "selection.status_browse"
+msgstr "Select otwiera / Powrót wraca o poziom."
+
+msgid "selection.status_adjust"
+msgstr "Lewo/Prawo zapisuje / Powrót wraca o poziom."
+
 msgid "selection.status_locked"
-msgstr "Wybór zablokowany — wróć do stołu po stan."
+msgstr "Wybór zablokowany: wróć do stołu po stan."
 
 msgid "runtime.room_recovering"
 msgstr "Przywracanie sterowania pokojem. Połączenie walki pozostaje aktywne."
@@ -1280,6 +1313,8 @@ msgstr "Wybór jest niedostępny przy tych zasadach. Otwórz Wybór postaci i wy
 
 msgid "runtime.open_shortcut"
 msgstr "SF4 Ember Netplay  /  F10 lub Start"
+msgid "runtime.return_menu_to_join"
+msgstr "Wróć do menu głównego, aby dołączyć do meczu."
 
 msgid "runtime.waiting_opponent_join"
 msgstr "Czekanie, aż przeciwnik dołączy do lobby..."
@@ -1303,10 +1338,10 @@ msgid "runtime.invalid_roster"
 msgstr "Nieprawidłowi uczestnicy walki. Wróć do pokoju i spróbuj ponownie."
 
 msgid "runtime.ggpo_start_failed"
-msgstr "Nie udało się uruchomić GGPO — wróć do lobby i ponownie zgłoś gotowość."
+msgstr "Nie udało się uruchomić GGPO. Wróć do lobby i ponownie zgłoś gotowość."
 
 msgid "runtime.ggpo_add_players_failed"
-msgstr "GGPO nie mogło dodać graczy — wróć do lobby i ponownie zgłoś gotowość."
+msgstr "GGPO nie mogło dodać graczy. Wróć do lobby i ponownie zgłoś gotowość."
 
 msgid "runtime.rollback_buffer_full"
 msgstr "Bufor rollbacku gry sieciowej jest pełny. Walka się zakończyła."
@@ -1384,7 +1419,7 @@ msgid "update.extract_folder_failed"
 msgstr "Błąd tworzenia folderu rozpakowania ({0})."
 
 msgid "update.download_failed"
-msgstr "Pobieranie nie powiodło się ({0}). Pobierz ręcznie: {1} — szczegóły w %TEMP%\\sf4-netplay-update.log"
+msgstr "Pobieranie nie powiodło się ({0}). Pobierz ręcznie: {1} (szczegóły w %TEMP%\\sf4-netplay-update.log)"
 
 msgid "update.verify_failed"
 msgstr "Nie zweryfikowano pobranej aktualizacji. Spróbuj ponownie."
@@ -1542,12 +1577,6 @@ msgstr "Pokój nie otworzył się w pełni. Sprawdź połączenie albo przerwij 
 msgid "room.waiting_state"
 msgstr "Czekanie na stan pokoju."
 
-msgid "room.ready"
-msgstr "Gotów"
-
-msgid "room.ready.saved_fighter"
-msgstr "Użyj zapisanej postaci."
-
 msgid "room.copy_invitation"
 msgstr "Kopiuj zaproszenie"
 
@@ -1627,7 +1656,7 @@ msgid "room.invitation_copied"
 msgstr "Zaproszenie skopiowane."
 
 msgid "room.replacement_opening"
-msgstr "Otwieranie nowego pokoju. Wybierz Kopiuj zaproszenie i wyślij nowy link — stary już nie działa."
+msgstr "Otwieranie nowego pokoju. Wybierz Kopiuj zaproszenie i wyślij nowy link. Stary już nie działa."
 
 msgid "room.action_rejected"
 msgstr "Pokój się zmienił lub odrzucił działanie. Sprawdź aktualny stan i spróbuj ponownie."
@@ -1653,9 +1682,6 @@ msgstr "Czekanie, aż przeciwnik zajmie drugie miejsce. W tym czasie możesz zmi
 msgid "room.controller_required"
 msgstr "Przypisz lub podłącz kontroler w Ustawienia > Gracz i kontroler."
 
-msgid "room.waiting_update"
-msgstr "Czekanie na zakończenie aktualizacji pokoju."
-
 msgid "room.ready.cancel_detail"
 msgstr "Masz status GOTÓW. Wybierz, aby cofnąć gotowość, a potem Zmień postać."
 
@@ -1669,13 +1695,16 @@ msgid "room.both_ready"
 msgstr "Obaj gracze są gotowi. Walka się rozpoczyna."
 
 msgid "room.waiting_spectators"
-msgstr "Obaj gracze są gotowi. Mecz zacznie się po powrocie widzów z potwierdzeniem, najpóźniej za 10 sekund."
+msgstr "Obaj gracze są gotowi. Mecz zacznie się po powrocie widzów z potwierdzeniem, najpóźniej za {0} sekund."
 
 msgid "room.match_in_progress.detail"
 msgstr "Bieżąca walka trwa. Poczekaj na jej koniec."
 
 msgid "room.unready"
 msgstr "Cofnij gotowość / odblokuj"
+
+msgid "room.cancel_start"
+msgstr "Anuluj start"
 
 msgid "room.readying"
 msgstr "Zgłaszanie..."
@@ -1755,6 +1784,21 @@ msgstr "Zwolnij swoje miejsce."
 msgid "room.leave_seat.next_player"
 msgstr "Zwolnij swoje miejsce. Zajmie je kolejna osoba z kolejki."
 
+msgid "room.leave_seat.unready_first"
+msgstr "Najpierw cofnij gotowość, potem opuść miejsce."
+
+msgid "room.leave_seat.keep"
+msgstr "Zostań na miejscu."
+
+msgid "room.leave_seat.costs_score"
+msgstr "Wyjście kończy serię i zeruje wynik ({0})."
+
+msgid "room.leave_seat.hands_over"
+msgstr "Twoje miejsce zajmie kolejna osoba z kolejki."
+
+msgid "room.cancel_stuck.in_progress"
+msgstr "Walka trwa. Opcja odblokuje się po {0} min bez wyniku."
+
 msgid "room.abandon_result"
 msgstr "Porzuć walkę"
 
@@ -1783,13 +1827,13 @@ msgid "room.lock_spectating"
 msgstr "Potwierdź oglądanie"
 
 msgid "room.lock_spectating.detail"
-msgstr "Następny mecz poczeka na Ciebie do 10 sekund, aż wrócisz do pokoju."
+msgstr "Następny mecz poczeka na Ciebie do {0} sekund, aż wrócisz do pokoju."
 
 msgid "room.unlock_spectating"
 msgstr "Cofnij potwierdzenie"
 
 msgid "room.unlock_spectating.detail"
-msgstr "Oglądanie potwierdzone. Następny mecz poczeka na Ciebie do 10 sekund."
+msgstr "Oglądanie potwierdzone. Następny mecz poczeka na Ciebie do {0} sekund."
 
 msgid "room.table_rules"
 msgstr "Zasady stołu"
@@ -1959,9 +2003,6 @@ msgstr "Anuluj edycję"
 msgid "edit.bytes"
 msgstr "{0} / {1} bajtów"
 
-msgid "discord.unavailable_build"
-msgstr "Integracja z Discord jest niedostępna w tej wersji."
-
 msgid "runtime.record_invalid"
 msgstr "Lokalny bilans walk jest nieprawidłowy i został zachowany. Rejestrowanie jest niedostępne."
 
@@ -1985,6 +2026,9 @@ msgstr "Discord jest niedostępny. Gra działa bez zmian."
 
 msgid "runtime.gameplay_device_disconnected"
 msgstr "Urządzenie do gry odłączono. Podłącz je przed następną walką."
+
+msgid "runtime.match_input_blocked"
+msgstr "Sterowanie w walce zablokowane: podłącz ponownie {0}. Jeśli slot się zmienił, wróć do pokoju i przypisz go ponownie."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "Nie udało się potwierdzić przypisania kontrolera w walce. Przypisz go ponownie przed kolejną próbą."
@@ -2151,15 +2195,6 @@ msgstr "Czekanie na zgłoszenie gotowości."
 msgid "runtime.lock.selection_update"
 msgstr "Czekanie na zakończenie bieżącej walki lub aktualizacji wyboru."
 
-msgid "runtime.lock.return_to_menu_ready"
-msgstr "Wróć do menu głównego gry przed zgłoszeniem gotowości."
-
-msgid "runtime.lock.table_settings"
-msgstr "Czekanie na zastosowanie ustawień stołu."
-
-msgid "runtime.lock.room_update"
-msgstr "Czekanie na zakończenie aktualizacji pokoju lub walki."
-
 msgid "runtime.ready.control_changed"
 msgstr "Sterowanie pokojem zmieniło się przed zgłoszeniem gotowości. Zgłoś ją ponownie."
 
@@ -2207,3 +2242,18 @@ msgstr "Nie udało się dołączyć do pokoju. Sprawdź zaproszenie i upewnij si
 
 msgid "runtime.room_connection_lost"
 msgstr "Brak połączenia z pokojem."
+
+msgid "runtime.desync_match_ended"
+msgstr "Walka zakończona: obie gry się rozjechały (desynchronizacja). Użyj Eksportuj diagnostykę u obu graczy."
+
+msgid "runtime.desync_spectator"
+msgstr "Twój widok widza rozjechał się z walką. Wyjdź i obejrzyj ją ponownie."
+
+msgid "runtime.room_link_lost"
+msgstr "Utracono połączenie z pokojem gry. Sprawdź internet i spróbuj ponownie."
+
+msgid "runtime.session_server_error"
+msgstr "Błąd serwera sesji. Sprawdź internet i spróbuj ponownie."
+
+msgid "runtime.settings_unreadable"
+msgstr "Nie udało się odczytać zapisanych ustawień; używane są domyślne."

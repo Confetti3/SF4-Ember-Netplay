@@ -45,6 +45,12 @@ public:
 	// member leaves or switches tables. Resolve this from the authority's
 	// authenticated endpoint list rather than the mutable room projection.
 	bool HasStartedSpectator(const SessionProtocol::ConnectionID& endpoint) const;
+	// The generation's native roster: the connections it was begun with, in slot
+	// order, minus any that left or were left out of the start. Empty when Idle.
+	std::vector<Connection> LiveParticipants() const;
+	bool IsLiveParticipant(Connection connection) const;
+	// The fighter in seat 0 or 1, or 0 when that seat left or the seat is not one.
+	Connection Fighter(std::size_t seat) const;
 	Phase GetPhase() const { return phase_; }
 	std::uint64_t Generation() const { return generation_; }
 	nlohmann::json Checkpoint() const;

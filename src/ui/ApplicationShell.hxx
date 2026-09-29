@@ -7,6 +7,7 @@
 #include "../netplay/MemberView.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../session/RoomModel.hxx"
+#include <array>
 #include <functional>
 #include <vector>
 #include <set>
@@ -53,7 +54,7 @@ struct ShellView {
             input::Device inputDevice;
             bool canChangeController = false, controllerReady = false;
     std::string selectionSummary, selectionError;
-    std::string selectionLockReason, readyLockReason;
+    std::string selectionLockReason;
     // A Ready press in flight (parked, sent or awaiting commit), and the
     // last failure with a sequence that changes per occurrence.
     bool readyRequested = false;
@@ -84,7 +85,12 @@ public:
         if(previousRoomState_==netplay::RoomState::Idle)menu_.navigation.Home();
     }
     MenuNavigation& Navigation() { return menu_.navigation; }
+    // Where the language preference is written; the platform store unless a
+    // test supplies its own to fail it.
+    using LanguageSaver = std::function<bool(const std::string& preference, std::string& diagnostic)>;
+    void SetLanguageSaver(LanguageSaver saver) { languageSaver_ = std::move(saver); }
 private:
+    LanguageSaver languageSaver_;
     GameMenu menu_;
     // Parts of Draw, in the order it runs them.
     void UpdateRoomTransitions(const ShellView& view,double now);
@@ -96,18 +102,28 @@ private:
     void HandleActivate(const MenuAction& action,const ShellView& view,const std::string& screen,bool idle,const Submit& submit);
     void HandleAdjust(const MenuAction& action,const ShellView& view,const std::string& screen,const Submit& submit);
     void SetLanguage(std::string preference);
-    // The screen an opening room was started from; a Discord join has none,
-    // so it is shown as joining.
-    std::string OpeningScreen() const { return openingScreen_.empty()?"join":openingScreen_; }
-    std::string openingScreen_, openingError_;
-    bool opening_ = false;
+    // Whether the selector the shell is about to show was opened just now, not
+    // reshown after a match or an overlay, so it starts on its first page.
+    bool selectionFresh_=false;
+    // The screen an opening room was started from, as the controller recorded
+    // it when it accepted the command: hosting, or joining (an invitation
+    // or a Discord join). Read only while the room is opening.
+    static const char* OpeningScreen(const ShellView& view) { return view.session.isHost?"create":"join"; }
     std::vector<MenuEntry> RoomEntries(const ShellView& view);
     void RoomAction(const MenuAction& action, const ShellView& view, const Submit& submit);
     void RoomShortcut(const MenuAction& action, const ShellView& view);
-    // What B does on the board: leave your seat or queue place, or Back.
+    // What B does on the board while your own table card is focused: leave your
+    // seat or queue place (or say why the seat cannot be left yet). Empty
+    // (plain Back) otherwise.
     const char* PlaceExitLabel(const ShellView& view) const;
     void OpenTableOptions(const ShellView& view, int table);
     void ToggleReady(const ShellView& view, const Submit& submit);
+    // Leaves the seat or queue place B was pressed on, once any confirmation is answered.
+    void LeavePlace(const ShellView& view, const Submit& submit);
+    // Shows a refusal that stays true for as long as stillBlocked says so.
+    void Refuse(std::string text, std::function<bool(const ShellView&)> stillBlocked = {});
+    void TrackLiveGames(const ShellView& view, double now);
+    bool GameIsStale(std::size_t table) const;
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
     std::string roomBoardFocus_;
@@ -139,10 +155,18 @@ private:
     netplay::LobbySettings lobby_;
     std::string error_;
     // A shell error has no natural clear point (a paste that failed, an
-    // invalid value), so it expires after a while instead of following the
-    // player across every screen.
-    std::string lastError_;
+    // invalid value), so it ends with the screen it appeared on, with the
+    // condition a refusal named (Refuse), or a few seconds after it appeared.
+    std::string lastError_, errorScreen_, errorBlockedText_;
     double errorSince_=0;
+    std::function<bool(const ShellView&)> errorBlocked_;
+    // B on a seat that would lose a score or hand the seat over asks first: the
+    // table whose card carries the question, and whether it is open yet.
+    int leaveAsk_=-1;
+    bool leaveAsked_=false;
+    // When each table's live game was first seen, for the host's stuck-game row.
+    struct LiveGame { std::uint64_t generation=0; double since=-1; };
+    std::array<LiveGame,room::TableCount> liveGames_;
     std::string notice_;
     double noticeUntil_=0;
     Tone noticeTone_=Tone::Success;

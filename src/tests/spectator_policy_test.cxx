@@ -125,6 +125,19 @@ int main() {
 		policy.OnDisconnected(1000);
 		CHECK(policy.SyncOverdue(100 + SpectatorPolicy::SyncDeadlineMs).empty());
 	}
+	{
+		// A player enters a started match only from the main menu. A spectator
+		// elsewhere waits until P1's sync window has passed, then sits the game
+		// out; a fighter keeps waiting, and anyone at the menu enters.
+		using Step = SpectatorPolicy::EntryStep;
+		CHECK(SpectatorPolicy::EntryGate(true, true, 0) == Step::Enter);
+		CHECK(SpectatorPolicy::EntryGate(true, false, SpectatorPolicy::SyncDeadlineMs * 10) == Step::Enter);
+		CHECK(SpectatorPolicy::EntryGate(false, true, 0) == Step::Wait);
+		CHECK(SpectatorPolicy::EntryGate(false, true, SpectatorPolicy::SyncDeadlineMs - 1) == Step::Wait);
+		CHECK(SpectatorPolicy::EntryGate(false, true, SpectatorPolicy::SyncDeadlineMs) == Step::SitOut);
+		CHECK(SpectatorPolicy::EntryGate(false, false, 0) == Step::Wait);
+		CHECK(SpectatorPolicy::EntryGate(false, false, SpectatorPolicy::SyncDeadlineMs * 10) == Step::Wait);
+	}
 	std::printf("Spectator policy passed\n");
 	return 0;
 }

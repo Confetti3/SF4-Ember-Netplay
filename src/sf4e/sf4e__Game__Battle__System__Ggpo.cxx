@@ -224,7 +224,10 @@ void fSystem::RetireGgpoSession(const char* diagnosticsLabel) {
         ggpo = nullptr;
         s_abortLatch.Reset();
         s_disconnectTimeoutMs = 0;
-        sf4e::NetplayFacade::ClearMatchNotice();
+        // An Error says why the session ended (peer disconnected, stream
+        // dropped, desync) and outlives it until a newer notice or the next
+        // StartGGPO / StartSpectating.
+        sf4e::NetplayFacade::ClearTransientMatchNotice();
         EmitRollbackDiagSummary(diagnosticsLabel);
         ResetPacing();
     }
@@ -281,11 +284,17 @@ void fSystem::AbortGgpoMatch(const char* reason, sf4e::NoticeSeverity severity) 
             "GGPO match abort: {}", reason);
     }
     LogSaveSlotOccupancy("abort_entry");
+    // A spectator's session retired before the room knows the match's end is its
+    // own stream failure. The runtime learns why when the battle closes, and
+    // leaves the game without its lock-in instead of ending the view silently.
+    if (ggpo && localPlayerHandle == GGPO_INVALID_HANDLE && !MatchResultKnown()) {
+        sf4e::NetplayFacade::NotifyRuntimeSpectatorStreamFailed();
+    }
     simGate.OnFatal();
     RetireGgpoSession("abort");
     sf4e::NetplayFacade::ClearBattleState();
-    // Retiring the session clears its notices, so the reason is published
-    // after it. Published first, it was wiped before the player could see it.
+    // Retiring the session clears its transient notices, so the reason is
+    // published after it, and it replaces any Error the session kept.
     if (explained) {
         sf4e::NetplayFacade::PushAlert(reason, severity);
     }
@@ -334,7 +343,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     sf4e::NetplayFacade::ClearMatchNotice();
     for (auto& player : players) { player = {}; player.handle = GGPO_INVALID_HANDLE; }
     // The savestate pool must start empty. A slot still holding records here
-    // is leaked from the previous match — most often via the deferred-close
+    // is leaked from the previous match, most often via the deferred-close
     // path, which retires the session from NetplayFacade::TickFrame and so
     // never runs CloseBattle's free loop. Reclaim without engine calls: the
     // previous battle's objects are gone, so ClearKey through those pointers

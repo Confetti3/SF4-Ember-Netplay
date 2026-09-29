@@ -166,6 +166,7 @@ void SessionServer::HandleRoomAction(session::Connection conn, const json& msg, 
 			}
 		}
 		if (event.kind == room::Event::Kind::MemberRemoved && event.member != roomMember->second) {
+			roomIncarnations.erase(event.member);
 			if (actionMessage.action.kind == room::ActionKind::Kick) {
 				auto identity = roomPeerIdentities.find(event.member);
 				if (identity != roomPeerIdentities.end()) roomBannedIdentities.insert(identity->second);
@@ -221,6 +222,7 @@ void SessionServer::HandleRoomAction(session::Connection conn, const json& msg, 
 		const auto leavingConnection = conn;
 		const auto leavingMember = roomMember->second;
 		roomPeerIdentities.erase(leavingMember);
+		roomIncarnations.erase(leavingMember);
 		roomSelectedTables.erase(conn);
 		roomMembers.erase(roomMember);
 		cidMap.erase(leavingConnection);
@@ -493,21 +495,7 @@ void SessionServer::HandleLobbySetSettings(session::Connection conn, const json&
 
 void SessionServer::HandleBattleLoaded(session::Connection conn, bool& bSendBattleSynced) {
 	if (_roomAuthority) {
-		const auto tableId = RoomTableFor(conn);
-		if (!RoomMatchAuthority(tableId) || RoomMatchAuthority(tableId)->GetPhase() == session::MatchAuthority::Phase::Idle ||
-			!IsRoomTableParticipant(conn, tableId)) return;
-		_roomBattleLoaded[tableId].insert(conn);
-		const auto& table = _roomAuthority->SnapshotView().tables[tableId];
-		std::set<session::Connection> expected;
-		const auto add = [&](room::MemberId id) {
-			for (const auto& member : roomMembers) if (member.second == id) { expected.insert(member.first); break; }
-		};
-		add(table.p1); add(table.p2); for (const auto spectator : table.spectators) add(spectator);
-		if (!expected.empty() && std::all_of(expected.begin(), expected.end(), [&](session::Connection peer) {
-			return _roomBattleLoaded[tableId].count(peer) != 0;
-		})) {
-			SendRoomTable(tableId, json(SessionProtocol::BattleSynced()));
-		}
+		ArriveAtRoomBarrier(conn, true, json(SessionProtocol::BattleSynced()));
 	} else {
 		bSendBattleSynced = true;
 		for (int i = 0; i < clients.size(); i++) {
@@ -589,18 +577,7 @@ void SessionServer::HandleLobbyReset(session::Connection conn, const json& msg) 
 
 void SessionServer::HandlePunchReady(session::Connection conn) {
 	if (_roomAuthority) {
-		const auto tableId = RoomTableFor(conn);
-		if (!RoomMatchAuthority(tableId) || RoomMatchAuthority(tableId)->GetPhase() == session::MatchAuthority::Phase::Idle ||
-			!IsRoomTableParticipant(conn, tableId)) return;
-		_roomPunchReady[tableId].insert(conn);
-		const auto& table = _roomAuthority->SnapshotView().tables[tableId];
-		std::set<session::Connection> expected;
-		const auto add = [&](room::MemberId id) { for (const auto& pair : roomMembers) if (pair.second == id) { expected.insert(pair.first); break; } };
-		add(table.p1); add(table.p2); for (const auto spectator : table.spectators) add(spectator);
-		if (!expected.empty() && std::all_of(expected.begin(), expected.end(), [&](session::Connection peer) { return _roomPunchReady[tableId].count(peer) != 0; })) {
-			SendRoomTable(tableId, json(SessionProtocol::PunchGo()));
-			_roomPunchReady[tableId].clear();
-		}
+		ArriveAtRoomBarrier(conn, false, json(SessionProtocol::PunchGo()));
 		return;
 	}
 	int side = -1;

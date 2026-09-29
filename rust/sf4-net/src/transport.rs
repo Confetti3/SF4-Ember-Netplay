@@ -12,10 +12,7 @@ use iroh::{
 };
 use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
-use tokio::{
-    sync::watch,
-    time::{Instant, sleep_until, timeout},
-};
+use tokio::time::{Instant, timeout};
 
 use crate::{
     invite::{Invite, RoomProof},
@@ -29,15 +26,28 @@ pub const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 /// Keep that authorization bounded, while allowing the room journal enough
 /// time to replicate every participant's prepared acknowledgement.
 pub const PREPARED_GAME_TIMEOUT: Duration = Duration::from_secs(60);
-/// The first bytes on a GAME_ALPN stream identify its purpose. This lets a
-/// probe and gameplay handshake share one authenticated QUIC connection.
+/// The first bytes on a GAME_ALPN stream identify its purpose. They tell a
+/// probe stream from a gameplay stream; both use the same ALPN.
 pub const GAME_PROBE_MAGIC: [u8; 4] = *b"PRB2";
 pub const GAME_PLAY_MAGIC: [u8; 4] = *b"GME1";
+/// Written by a gameplay dialer, after it has read and validated the
+/// listener's reply, to say that it chose this connection. The end of the
+/// stream alone never counts: a dropped stream finishes implicitly.
+const GAME_CONFIRM: [u8; 4] = *b"GCF1";
+const GAME_DIAL_ABANDONED: u32 = 2;
 
 fn failed() -> io::Error {
     io::Error::new(
         io::ErrorKind::ConnectionAborted,
         "peer connection or admission failed",
+    )
+}
+/// A failure that keeps the stage and the underlying error text. Callers report
+/// it to the native log; the generic `failed()` hides which step went wrong.
+fn failed_at(stage: &str, detail: impl std::fmt::Display) -> io::Error {
+    io::Error::new(
+        io::ErrorKind::ConnectionAborted,
+        format!("{stage}: {detail}"),
     )
 }
 fn now() -> io::Result<u64> {
@@ -99,6 +109,17 @@ impl ControlSender {
         self.last_id = frame.message_id;
         self.poisoned = false;
         Ok(())
+    }
+}
+
+impl ControlSender {
+    /// End the stream and wait until the peer has acknowledged every byte
+    /// written to it, so a following connection close cannot discard them.
+    /// The caller bounds the wait.
+    pub async fn finish(&mut self) {
+        if !self.poisoned && self.stream.finish().is_ok() {
+            let _ = self.stream.stopped().await;
+        }
     }
 }
 
@@ -167,6 +188,54 @@ impl Drop for PendingConnection {
     fn drop(&mut self) {
         if let Some(connection) = &self.0 {
             connection.close(1u32.into(), b"admission ended");
+        }
+    }
+}
+
+/// The dialer's send half of a gameplay handshake. Dropping it before
+/// `confirm` completes resets the stream instead of letting the transport
+/// finish it, so an abandoned attempt can never look like a confirmation to
+/// the listener, whatever order the connection and stream are torn down in.
+pub struct GameDialSend {
+    send: SendStream,
+    armed: bool,
+}
+
+impl GameDialSend {
+    fn new(send: SendStream) -> Self {
+        Self { send, armed: true }
+    }
+
+    /// Send the confirmation and finish the stream. The write is the last
+    /// suspension point, so a dial that completes it returns without yielding.
+    pub async fn confirm(&mut self) -> io::Result<()> {
+        self.send
+            .write_all(&GAME_CONFIRM)
+            .await
+            .map_err(|error| failed_at("write confirmation", error))?;
+        self.send.finish().map_err(|_| failed())?;
+        self.armed = false;
+        Ok(())
+    }
+}
+
+impl std::ops::Deref for GameDialSend {
+    type Target = SendStream;
+    fn deref(&self) -> &SendStream {
+        &self.send
+    }
+}
+
+impl std::ops::DerefMut for GameDialSend {
+    fn deref_mut(&mut self) -> &mut SendStream {
+        &mut self.send
+    }
+}
+
+impl Drop for GameDialSend {
+    fn drop(&mut self) {
+        if self.armed {
+            let _ = self.send.reset(GAME_DIAL_ABANDONED.into());
         }
     }
 }
@@ -365,22 +434,29 @@ pub async fn connect_game(
         return Err(failed());
     }
     let deadline = Instant::now() + HANDSHAKE_TIMEOUT;
+    let mut attempts = 0u32;
+    let mut last = String::from("no attempt finished");
     loop {
         let remaining = deadline.saturating_duration_since(Instant::now());
         if remaining.is_zero() {
-            return Err(failed());
+            return Err(dial_timed_out(attempts, &last));
         }
+        attempts += 1;
         let Ok((result, connection)) = timeout(
             remaining,
             connect_game_once(endpoint, address.clone(), auth.clone()),
         )
         .await
         else {
-            return Err(failed());
+            return Err(dial_timed_out(attempts, &last));
         };
         match result {
             Ok(game) => return Ok(game),
             Err(error) => {
+                last = match connection.as_ref().and_then(Connection::close_reason) {
+                    Some(reason) => format!("{error} (closed: {reason})"),
+                    None => error.to_string(),
+                };
                 let retry = if let Some(connection) = &connection {
                     game_listener_pending(connection).await
                 } else {
@@ -390,7 +466,7 @@ pub async fn connect_game(
                     if let Some(connection) = &connection {
                         connection.close(1u32.into(), b"admission ended");
                     }
-                    return Err(error);
+                    return Err(failed_at(&format!("game dial attempt {attempts}"), last));
                 }
             }
         }
@@ -401,6 +477,16 @@ pub async fn connect_game(
     }
 }
 
+fn dial_timed_out(attempts: u32, last: &str) -> io::Error {
+    io::Error::new(
+        io::ErrorKind::TimedOut,
+        format!(
+            "game dial timed out after {}s and {attempts} attempt(s), last: {last}",
+            HANDSHAKE_TIMEOUT.as_secs()
+        ),
+    )
+}
+
 async fn connect_game_once(
     endpoint: &Endpoint,
     address: EndpointAddr,
@@ -408,20 +494,26 @@ async fn connect_game_once(
 ) -> (io::Result<GameConnection>, Option<Connection>) {
     let connection = match endpoint.connect(address, GAME_ALPN).await {
         Ok(connection) => connection,
-        Err(_) => return (Err(failed()), None),
+        Err(error) => return (Err(failed_at("connect", error)), None),
     };
     let observed = connection.clone();
     let mut pending = PendingConnection(Some(connection.clone()));
     let result = async {
-        let (mut send, mut recv) = connection.open_bi().await.map_err(|_| failed())?;
+        let (send, mut recv) = connection
+            .open_bi()
+            .await
+            .map_err(|error| failed_at("open stream", error))?;
+        let mut send = GameDialSend::new(send);
         auth.validate(&connection, &auth.proof())?;
         send.write_all(&GAME_PLAY_MAGIC)
             .await
-            .map_err(|_| failed())?;
+            .map_err(|error| failed_at("write marker", error))?;
         send_handshake(&mut send, &auth.proof()).await?;
-        let proof: GameProof = read_handshake(&mut recv).await?;
+        let proof: GameProof = read_handshake(&mut recv)
+            .await
+            .map_err(|error| failed_at("read reply", error))?;
         auth.validate(&connection, &proof)?;
-        send.finish().map_err(|_| failed())?;
+        send.confirm().await?;
         Ok(GameConnection {
             connection,
             authorization: auth,
@@ -493,59 +585,24 @@ async fn classify_game_stream(send: SendStream, mut recv: RecvStream) -> io::Res
     }
 }
 
-async fn accept_prepared_stream(
+/// The dialer's half of `connect_game_once` up to the reply, without the
+/// confirmation. It models a reply that reaches the dialer only after the
+/// dialer has stopped waiting: the caller holds the returned stream open and
+/// decides when, or whether, to `confirm`.
+#[cfg(test)]
+pub async fn connect_game_unconfirmed(
     connection: &Connection,
-    mut deadline: watch::Receiver<Instant>,
-) -> io::Result<(SendStream, RecvStream)> {
-    loop {
-        let expires = *deadline.borrow_and_update();
-        if expires <= Instant::now() {
-            return Err(failed());
-        }
-        tokio::select! {
-            result = connection.accept_bi() => return result.map_err(|_| failed()),
-            _ = sleep_until(expires) => {
-                if *deadline.borrow() <= Instant::now() {
-                    return Err(failed());
-                }
-            }
-            changed = deadline.changed() => {
-                if changed.is_err() {
-                    return Err(failed());
-                }
-            }
-        }
-    }
-}
-
-/// Finish the authenticated game handshake on a connection reserved by the
-/// same-future-game route probe.  The reservation carries no gameplay
-/// capability; this call is the only transition that makes a datagram bridge
-/// possible.
-pub async fn connect_game_on(
-    connection: Connection,
-    auth: GameAuthorization,
-) -> io::Result<GameConnection> {
-    timeout(HANDSHAKE_TIMEOUT, async {
-        if connection.alpn() != GAME_ALPN || connection.remote_id() != auth.peer {
-            return Err(failed());
-        }
-        let (mut send, mut recv) = connection.open_bi().await.map_err(|_| failed())?;
-        auth.validate(&connection, &auth.proof())?;
-        send.write_all(&GAME_PLAY_MAGIC)
-            .await
-            .map_err(|_| failed())?;
-        send_handshake(&mut send, &auth.proof()).await?;
-        let proof: GameProof = read_handshake(&mut recv).await?;
-        auth.validate(&connection, &proof)?;
-        send.finish().map_err(|_| failed())?;
-        Ok(GameConnection {
-            connection,
-            authorization: auth,
-        })
-    })
-    .await
-    .map_err(|_| failed())?
+    auth: &GameAuthorization,
+) -> io::Result<GameDialSend> {
+    let (send, mut recv) = connection.open_bi().await.map_err(|_| failed())?;
+    let mut send = GameDialSend::new(send);
+    send.write_all(&GAME_PLAY_MAGIC)
+        .await
+        .map_err(|_| failed())?;
+    send_handshake(&mut send, &auth.proof()).await?;
+    let proof: GameProof = read_handshake(&mut recv).await?;
+    auth.validate(connection, &proof)?;
+    Ok(send)
 }
 
 #[cfg(test)]
@@ -571,27 +628,6 @@ pub async fn accept_game(
         pending.0 = None;
     }
     result
-}
-
-pub async fn accept_game_on(
-    connection: Connection,
-    auth: GameAuthorization,
-    deadline: watch::Receiver<Instant>,
-) -> io::Result<GameConnection> {
-    if connection.alpn() != GAME_ALPN || connection.remote_id() != auth.peer {
-        return Err(failed());
-    }
-    let (send, recv) = accept_prepared_stream(&connection, deadline).await?;
-    timeout(HANDSHAKE_TIMEOUT, async {
-        match classify_game_stream(send, recv).await? {
-            GameStream::Gameplay(send, recv) => {
-                accept_game_stream_with(connection, auth, send, recv).await
-            }
-            GameStream::Probe(_, _) => Err(failed()),
-        }
-    })
-    .await
-    .map_err(|_| failed())?
 }
 
 pub async fn accept_game_stream_with(
@@ -623,6 +659,18 @@ pub async fn accept_game_stream_with_until(
         auth.validate(&connection, &proof)?;
         send_handshake(&mut send, &auth.proof()).await?;
         send.finish().map_err(|_| failed())?;
+        // The dialer writes the confirmation only after it has read and
+        // validated this reply. Bare end of stream is not enough, because a
+        // dropped send stream finishes implicitly; an abandoned dial resets its
+        // stream or closes the connection instead, and the caller can still
+        // accept another connection for the same generation.
+        let mut confirmation = [0u8; GAME_CONFIRM.len()];
+        recv.read_exact(&mut confirmation)
+            .await
+            .map_err(|_| failed())?;
+        if confirmation != GAME_CONFIRM {
+            return Err(failed());
+        }
         Ok(GameConnection {
             connection,
             authorization: auth,

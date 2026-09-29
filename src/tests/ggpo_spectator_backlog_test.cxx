@@ -1,10 +1,10 @@
 // spectator-catch-up.patch: a real spectator (ggpo_start_spectating) keeps
-// receiving P1's confirmed frames while it does not play them. Upstream kept
-// only 64 frames, so once the spectator was about a second behind the host an
-// unplayed frame was overwritten and ggpo_synchronize_input returned
-// GENERAL_FAILURE (-1), ending the view: the v0.9.9 field logs show it mid-match
-// and just after the result. The spectator now holds 1024 frames and reports
-// its backlog through ggpo_get_spectator_backlog, so it can catch up.
+// receiving P1's confirmed frames while it does not play them. Upstream's ring
+// holds only 64 frames, so a spectator about a second behind the host would
+// have an unplayed frame overwritten and ggpo_synchronize_input would return
+// GENERAL_FAILURE (-1), ending the view. The patch raises the ring to 1024
+// frames and reports the backlog through ggpo_get_spectator_backlog, so the
+// spectator can catch up.
 #include <ggponet.h>
 #include <winsock2.h>
 #include <cstdio>

@@ -129,6 +129,7 @@ pub(super) fn completion_stage(completion: &Completion) -> &'static str {
         Completion::MemberControl(..) => "task:member_control",
         Completion::Reconnect(..) => "task:reconnect",
         Completion::Game(..) => "task:game",
+        Completion::GameCandidate(..) => "task:game_candidate",
         Completion::BridgeEnded(..) => "task:bridge_ended",
         Completion::CheckpointProposal(..) => "task:checkpoint_proposal",
         Completion::CoordinationRefresh(..) => "task:coordination_refresh",
@@ -136,6 +137,7 @@ pub(super) fn completion_stage(completion: &Completion) -> &'static str {
         Completion::Admission(..) => "task:admission",
         Completion::ProbeAuthorization(..) => "task:probe_authorization",
         Completion::Probe(..) => "task:probe",
+        Completion::ProbeReservation(..) => "task:probe_reservation",
     }
 }
 

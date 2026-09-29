@@ -5,12 +5,14 @@
 
 namespace sf4e { namespace session {
 
-// Teardown has two independent boundaries.  The native GGPO owner may keep
-// the local UDP socket for an arbitrary amount of time (P1 holds it for up to
-// two minutes to drain the spectator streams it owns), while the helper close
-// command has a short, bounded acknowledgement window.  Keeping this state
-// separate prevents the helper deadline from aging while GGPO still owns the
-// socket or while the room is only waiting for its result event.
+// Teardown has four independent boundaries, each documented where it is
+// declared.  The first two: the native GGPO owner may keep the local UDP
+// socket for a while (P1 holds it for up to 10 s to drain the spectator
+// streams it owns), while the helper close command has a short, bounded
+// acknowledgement window.  Keeping this state separate prevents the helper
+// deadline from aging while GGPO still owns the socket or while the room is
+// only waiting for its result event.  The spectator exit and the room end
+// follow.
 class MatchTeardownTiming {
 public:
 	static constexpr std::uint64_t HelperTimeoutMs = 30000;

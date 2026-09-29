@@ -36,6 +36,17 @@ public:
 	// DropQueueFrames, not this count, is what protects the ring.
 	static constexpr int SlowSamples = 5;
 
+	// A player enters a started match only from the main menu. A spectator that
+	// is elsewhere (Training, Options) for SyncDeadlineMs has missed the window
+	// in which P1 waits for it, and sits that game out instead of entering a
+	// stream P1 dropped. A fighter keeps waiting: its opponent's GGPO
+	// disconnect tolerance bounds that.
+	enum class EntryStep { Enter, Wait, SitOut };
+	static EntryStep EntryGate(bool atMainMenu, bool spectator, std::uint64_t waitedMs) {
+		if (atMainMenu) return EntryStep::Enter;
+		return spectator && waitedMs >= SyncDeadlineMs ? EntryStep::SitOut : EntryStep::Wait;
+	}
+
 	void Start(std::uint64_t nowMs, const std::vector<int>& spectators) {
 		lastSampleMs_ = nowMs; fightersSyncedMs_ = 0; running_ = false;
 		spectators_.clear();

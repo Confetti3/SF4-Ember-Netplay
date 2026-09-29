@@ -66,7 +66,7 @@ You need **Windows 10 or later (x64)**, an owned **Steam copy of Ultra Street Fi
 1. For a fresh installation, [download the complete v0.9.9 ZIP](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v0.9.9/sf4-ember-netplay-0.9.9.zip) and its [SHA-256 checksum](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v0.9.9/sf4-ember-netplay-0.9.9.zip.sha256). Choose a release package, not GitHub's source-code download.
 2. Extract everything into a **new writable folder**. Keep your old launcher installation separate; moving from the legacy launcher to Ember is a fresh install.
 3. Run `preflight.cmd`, then `Launcher.exe`. Successful startup goes directly to the game. If needed, select the folder containing `SSFIV.exe` in launch recovery.
-4. At the main menu, choose your controller and player name. Use **Online Play → Create Room**, then copy the invitation. Guests choose **Join Room** and paste it.
+4. At the main menu, choose your controller and player name. Use **Online play → Create room**, then copy the invitation. Guests choose **Join room** and paste it.
 5. Choose a table, join its queue or watch. Save your fighter selection and ready when seated. **All participants must use the same Ember release.**
 
 No VPS account or manual port configuration is required. Iroh can use public relays when a direct connection is unavailable. Discord support is included in the package.
@@ -79,8 +79,11 @@ No VPS account or manual port configuration is required. Iroh can use public rel
 | Select | Enter | A | SF4-mapped Light Punch |
 | Back | Escape | B | SF4-mapped Light Kick |
 | Open at safe menu states | F10 | Start | SF4-mapped Start |
+| Change fighter (in a room) | none | X | none |
+| Table options (in a room) | none | Y | none |
+| Chat (in a room) | none | View | none |
 
-Back returns through menus and can hide Ember. Leaving a room requires the explicit **Leave room** action. Use **Play Offline** for native game menus. More detail: [controller guide](docs/guides/CONTROLLER_MENUS.md).
+Back returns through menus, and from Home it hides Ember. On your own table card in a room, Back leaves your seat or queue place at once. Leaving the room itself requires the explicit **Leave room** action. Use **Play offline** for native game menus. More detail: [controller guide](docs/guides/CONTROLLER_MENUS.md).
 
 ## Settings, updates and legacy builds
 

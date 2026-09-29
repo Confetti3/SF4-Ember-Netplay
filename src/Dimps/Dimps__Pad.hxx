@@ -1,6 +1,7 @@
 #pragma once
 
 #include <windows.h>
+#include "../common/PadKind.hxx"
 
 namespace Dimps {
 	namespace Pad {
@@ -11,6 +12,9 @@ namespace Dimps {
 			PADTYPE_XINPUT = 3,
             PADTYPE_DIRECTINPUT = 4,
 		};
+		// The UI and input code name the pad kinds without Dimps.
+		static_assert(PADTYPE_RAWINPUT == sf4e::input::PadKeyboard && PADTYPE_XINPUT == sf4e::input::PadXInput &&
+			PADTYPE_DIRECTINPUT == sf4e::input::PadDirectInput, "sf4e::input::PadKind must match PadType");
 
 		// Game thread, main menu or offline training; never assigns a side.
 		bool ReadController(int deviceType, int deviceIndex, unsigned int& held, unsigned int* physicalButtons = nullptr,

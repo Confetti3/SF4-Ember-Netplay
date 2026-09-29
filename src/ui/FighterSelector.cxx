@@ -209,7 +209,11 @@ bool DrawStageSelector(int& nativeId, SelectionArt* art) {
 
 bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt* art,const AvailabilityReader& readAvailability,int* stageId,bool editable,const std::string& selectionError) {
  using namespace selection;
- bool changed=false;auto& nav=menu_.navigation;const auto screen=nav.Screen();
+ bool changed=false;auto& nav=menu_.navigation;
+ // A selector the shell has just opened starts on its first page, not on the
+ // sub-page an earlier visit left it on; one it reshows resumes.
+ if(TakeEmbeddedFresh())nav.Home();
+ const auto screen=nav.Screen();
  // The parent says where Back from here goes and which of its shortcuts
  // this screen hands back to it.
  const auto& embedded=EmbeddedReturnContext();
@@ -217,6 +221,8 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  const auto availability=readAvailability?readAvailability(pick.fighter):Availability{};
  if(editable)changed=Normalize(pick,editionSelect,&availability);
  const char* locked=loc::T(editable?"selection.select_saves":"selection.locked_detail");
+ // The option rows step with Left and Right and save as they change; Select does nothing on them.
+ const char* adjusts=loc::T(editable?"selection.adjust_saves":"selection.locked_detail");
  std::vector<MenuEntry> rows;
  std::string title=loc::T("selection.title");int columns=1;
  if(screen=="home"){
@@ -262,10 +268,10 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   columns=(std::max)(2,(std::min)(4,static_cast<int>(ImGui::GetContentRegionAvail().x/(220*Scale()))));
  }else{
   title=loc::T("selection.options_title");
-  rows={Value("edition",loc::T("selection.edition"),FindEdition(pick.edition)->name,editionSelect?locked:loc::T("selection.usfiv_rules"),editable&&editionSelect),
-   Value("action",loc::T("selection.personal_action"),pick.personalAction==255?loc::T("common.none"):std::to_string(pick.personalAction+1),locked,editable&&availability.ready),
-   Value("quote",loc::T("selection.win_quote"),pick.winQuote==255?loc::T("selection.random"):std::to_string(pick.winQuote+1),locked,editable),
-   Value("handicap",loc::T("selection.handicap"),HandicapLabel(pick.handicap),locked,editable)};
+  rows={Value("edition",loc::T("selection.edition"),FindEdition(pick.edition)->name,editionSelect?adjusts:loc::T("selection.usfiv_rules"),editable&&editionSelect),
+   Value("action",loc::T("selection.personal_action"),pick.personalAction==255?loc::T("common.none"):std::to_string(pick.personalAction+1),adjusts,editable&&availability.ready),
+   Value("quote",loc::T("selection.win_quote"),pick.winQuote==255?loc::T("selection.random"):std::to_string(pick.winQuote+1),adjusts,editable),
+   Value("handicap",loc::T("selection.handicap"),HandicapLabel(pick.handicap),adjusts,editable)};
  }
  const bool compactAppearance=(screen=="costumes"||screen=="colors")&&ImGui::GetContentRegionAvail().x<820*Scale();
  const auto preview=[&](const std::string& id){
@@ -312,8 +318,12 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   if(saved)DrawCardBadge(ImVec2(min.x+3,min.y+2),max.x-min.x-6,loc::T("selection.saved"),"saved-badge");
   return true;
  };
+ // What the status line promises depends on the page: Select saves a card on
+ // the galleries, opens a page from the menus, and does nothing on the option rows.
+ const bool selectSaves=screen=="roster"||screen=="costumes"||screen=="colors"||screen=="ultra"||screen=="stage";
  const std::string status=!selectionError.empty()?selectionError:
-  loc::T(editable?"selection.status_editable":"selection.status_locked");
+  loc::T(!editable?"selection.status_locked":selectSaves?"selection.status_editable":
+   screen=="home"||screen=="appearance"?"selection.status_browse":"selection.status_adjust");
  // stableStatus: the galleries must not shift under a highlight when the
  // status grows from one line to two.
  const auto a=menu_.Draw(title.c_str(),rows,status.c_str(),preview,columns,card,{},0,

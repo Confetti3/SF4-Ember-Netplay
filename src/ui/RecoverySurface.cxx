@@ -11,6 +11,7 @@
 #include <d3d9.h>
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx9.h>
+#include <algorithm>
 #include <filesystem>
 #include <memory>
 #include <utility>
@@ -36,6 +37,19 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM w, LPARAM l) {
     if (message == WM_CLOSE) { PostQuitMessage(0); return 0; }
     return DefWindowProcW(window, message, w, l);
 }
+// The window is laid out for 96 dpi; on a denser display it grows with the
+// text, so a launcher message that fills it at 100% fills it at 150% too, and
+// it stays within the monitor's work area and centred there.
+void FitWindowToDisplay(HWND window, int width96, int height96) {
+    const UINT dpi = GetDpiForWindow(window);
+    MONITORINFO monitor{}; monitor.cbSize = sizeof(monitor);
+    if (!dpi || !GetMonitorInfoW(MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST), &monitor)) return;
+    const int workWidth = monitor.rcWork.right - monitor.rcWork.left, workHeight = monitor.rcWork.bottom - monitor.rcWork.top;
+    const int width = (std::min)(MulDiv(width96, dpi, 96), workWidth * 9 / 10);
+    const int height = (std::min)(MulDiv(height96, dpi, 96), workHeight * 9 / 10);
+    SetWindowPos(window, nullptr, monitor.rcWork.left + (workWidth - width) / 2, monitor.rcWork.top + (workHeight - height) / 2,
+        width, height, SWP_NOZORDER | SWP_NOACTIVATE);
+}
 bool ChooseDirectory(HWND owner, std::wstring& path) {
     IFileOpenDialog* dialog = nullptr;
     if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog)))) return false;
@@ -54,7 +68,8 @@ bool ChooseDirectory(HWND owner, std::wstring& path) {
     dialog->Release(); return selected;
 }
 }
-bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates, std::function<void(const std::string&)> artLog) {
+bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates, std::function<void(const std::string&)> artLog,
+    Tone messageTone, bool canStart) {
     const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     WNDCLASSW wc{}; wc.lpfnWndProc = WindowProc; wc.hInstance = GetModuleHandleW(nullptr);
     wc.lpszClassName = L"SF4EmberRecovery"; wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
@@ -62,6 +77,7 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
     RegisterClassW(&wc);
     HWND window = CreateWindowW(wc.lpszClassName, L"SF4 Ember Netplay", WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT, 940, 720, nullptr, nullptr, wc.hInstance, nullptr);
+    if (window) FitWindowToDisplay(window, 940, 720);
     auto* d3d = Direct3DCreate9(D3D_SDK_VERSION); IDirect3DDevice9* device = nullptr;
     D3DPRESENT_PARAMETERS params{}; params.Windowed = TRUE; params.SwapEffect = D3DSWAPEFFECT_DISCARD;
     params.hDeviceWindow = window; params.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
@@ -85,7 +101,10 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
     platform::ApplicationServices services;
     if (updates) services.Request(platform::ServiceAction::CheckUpdates);
     bool quit = false, retry = false;
-    Tone messageTone = Tone::Error;  // the launch failure that opened recovery
+    // Which of the launcher's message and the service's is the newer one: the
+    // launcher's until the player asks a service for something, and again when
+    // a picked folder replaces it.
+    bool serviceNewer = false;
     GameMenu menu;menu.navigation=RecoveryNavigation(updates);
     // Released before the window it is bound to is destroyed.
     auto controller=std::make_unique<RecoveryController>(window);
@@ -112,21 +131,19 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
         ImGui_ImplDX9_NewFrame(); ImGui_ImplWin32_NewFrame(); ImGui::NewFrame();
         // ReadMenuInput adds these keys to the pad bits itself; here they only
         // tell the legend that the keyboard was used last.
-        unsigned keyboard=0;
-        const ImGuiKey keys[]={ImGuiKey_UpArrow,ImGuiKey_DownArrow,ImGuiKey_LeftArrow,ImGuiKey_RightArrow,ImGuiKey_Enter,ImGuiKey_Escape};
-        for(unsigned i=0;i<6;++i)if(ImGui::IsKeyDown(keys[i]))keyboard|=1u<<i;
+        const unsigned keyboard=KeyboardMenuBits();
         if(std::exchange(devicesChanged,false))controller->DevicesChanged();
         // Pads are read whatever window has focus, so they drive the menu only
         // while it is in front.
         MenuInput input;input.held=controller->Poll(keyboard,GetForegroundWindow()==window);
         SetMenuInput(input);
         switch(controller->Family()){
-        case PadFamily::Xbox:SetMenuGlyphs(3,0x40000,0x20000);break;
-        case PadFamily::DirectInput:SetMenuGlyphs(4,0,0,"1","2");break;
-        default:SetMenuGlyphs(0,0,0);break;
+        case PadFamily::Xbox:SetMenuGlyphs(input::PadXInput,input::xinput::A,input::xinput::B);break;
+        case PadFamily::DirectInput:SetMenuGlyphs(input::PadDirectInput,0,0,"1","2");break;
+        default:SetMenuGlyphs(input::PadKeyboard,0,0);break;
         }
         const auto state = services.Snapshot();
-        switch(DrawRecoveryMenu(menu,state,message,updates,messageTone)) {
+        switch(DrawRecoveryMenu(menu,state,message,updates,messageTone,canStart,serviceNewer)) {
         case RecoveryChoice::Folder:
             // The picker blocks this loop, so the pads are disarmed before it
             // opens: a button held while it was up cannot press on return.
@@ -135,11 +152,12 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
                 const bool valid=std::filesystem::exists(std::filesystem::path(gameDirectory)/L"SSFIV.exe");
                 message=valid?loc::T("recovery.folder_selected"):loc::T("recovery.folder_invalid");
                 messageTone=valid?Tone::Success:Tone::Error;
+                serviceNewer=false;
             }
             break;
         case RecoveryChoice::Retry:retry=true;quit=true;break;
-        case RecoveryChoice::CheckUpdates:services.Request(platform::ServiceAction::CheckUpdates);break;
-        case RecoveryChoice::Install:services.Request(platform::ServiceAction::InstallUpdate);break;
+        case RecoveryChoice::CheckUpdates:serviceNewer=true;services.Request(platform::ServiceAction::CheckUpdates);break;
+        case RecoveryChoice::Install:serviceNewer=true;services.Request(platform::ServiceAction::InstallUpdate);break;
         case RecoveryChoice::Cancel:services.Cancel();break;
         case RecoveryChoice::Close:services.Cancel();quit=true;break;
         default:break;

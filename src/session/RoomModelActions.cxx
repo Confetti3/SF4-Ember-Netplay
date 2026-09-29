@@ -105,10 +105,7 @@ Result RoomAuthority::ApplyQueue(MemberId member, const Action& action, Table* t
 	// A named seat is that seat or nothing: it must be open, with nobody
 	// queued first. A Queue with no seat takes the first open one, or waits.
 	const bool asked = action.seat == 0 || action.seat == 1;
-	if (asked) {
-		const bool seatable = table->phase != TablePhase::Playing && table->phase != TablePhase::Paused;
-		if (!seatable || !table->queue.empty() || (action.seat == 0 ? table->p1 : table->p2)) return Reject(RejectReason::InvalidSeat);
-	}
+	if (asked && !SeatOpenNow(*table, action.seat)) return Reject(RejectReason::InvalidSeat);
 	// Watching is not a seat: a watcher who sits down stops watching.
 	StopWatching(member);
 	table->queue.push_back(member);
@@ -121,7 +118,21 @@ Result RoomAuthority::ApplyQueue(MemberId member, const Action& action, Table* t
 Result RoomAuthority::ApplyUnqueue(MemberId member, Table* table) {
 	auto found = std::find(table->queue.begin(), table->queue.end(), member);
 	if (found != table->queue.end()) {
-		table->queue.erase(found); Touch(*table); NormalizeMemberStatus(member); return Accept();
+		table->queue.erase(found);
+		// BeginMatch lists a queued member as a spectator of the game it waits
+		// out. While that game is live the entry carries the stream being watched,
+		// so it stays until the game ends. Otherwise the grant is spent, and
+		// leaving the queue leaves the table. A queued member never chose to watch:
+		// Queue stops watching and Watch refuses the queued.
+		const auto listed = std::find(table->spectators.begin(), table->spectators.end(), member);
+		if (listed != table->spectators.end()) {
+			const auto roster = MatchRoster(table->id);
+			const bool watchingNow = (table->phase == TablePhase::Playing || table->phase == TablePhase::Paused) &&
+				std::find(roster.begin(), roster.end(), member) != roster.end();
+			if (watchingNow) table->endingWatchers.push_back(member);
+			else table->spectators.erase(listed);
+		}
+		Touch(*table); NormalizeMemberStatus(member); return Accept();
 	}
 	// The same action is also the explicit way for a seated fighter to
 	// leave a waiting table. Never mutate a frozen match: the match
@@ -131,7 +142,8 @@ Result RoomAuthority::ApplyUnqueue(MemberId member, Table* table) {
 	if (seat < 0) return Reject(RejectReason::NotQueued);
 	if (table->phase == TablePhase::Playing || table->phase == TablePhase::Paused) return Reject(RejectReason::WrongPhase);
 	if (seat == 0) table->p1 = 0; else table->p2 = 0;
-	table->ready[0] = table->ready[1] = false;
+	if (auto* standing = Find(member)) standing->delayLocked = false;
+	ClearReadiness(*table);
 	table->score[0] = table->score[1] = 0;
 	table->resultPending = false;
 	table->phase = TablePhase::Idle;
@@ -145,6 +157,13 @@ Result RoomAuthority::ApplyUnqueue(MemberId member, Table* table) {
 
 Result RoomAuthority::ApplyWatch(MemberId member, Table* table) {
 	if (HasOutstandingTerminalReceiptForMember(member)) return Reject(RejectReason::TerminalLedgerFull);
+	// A member whose place ends with the live game asks to keep watching: the
+	// watch is then its own choice.
+	const auto ending = std::find(table->endingWatchers.begin(), table->endingWatchers.end(), member);
+	if (ending != table->endingWatchers.end()) {
+		table->endingWatchers.erase(ending);
+		Touch(*table); NormalizeMemberStatus(member); return Accept();
+	}
 	if (IsTableMember(*table, member)) return Reject(RejectReason::AlreadySeated);
 	for (const auto& other : snapshot_.tables) {
 		if (std::find(other.queue.begin(), other.queue.end(), member) != other.queue.end()) return Reject(RejectReason::AlreadyQueued);
@@ -163,6 +182,7 @@ void RoomAuthority::StopWatching(MemberId member) {
 		const auto oldNextSize = table.watchingNext.size();
 		table.spectators.erase(std::remove(table.spectators.begin(), table.spectators.end(), member), table.spectators.end());
 		table.watchingNext.erase(std::remove(table.watchingNext.begin(), table.watchingNext.end(), member), table.watchingNext.end());
+		table.endingWatchers.erase(std::remove(table.endingWatchers.begin(), table.endingWatchers.end(), member), table.endingWatchers.end());
 		if (oldSpectatorSize != table.spectators.size() || oldNextSize != table.watchingNext.size()) Touch(table);
 	}
 	// A lock-in holds the table it was made at.
@@ -171,14 +191,29 @@ void RoomAuthority::StopWatching(MemberId member) {
 
 Result RoomAuthority::ApplyUnwatch(MemberId member, Table* table) {
 	auto found = std::find(table->spectators.begin(), table->spectators.end(), member);
-	if (found != table->spectators.end()) table->spectators.erase(found);
-	else {
+	if (found != table->spectators.end()) {
+		table->spectators.erase(found);
+		table->endingWatchers.erase(std::remove(table->endingWatchers.begin(), table->endingWatchers.end(), member), table->endingWatchers.end());
+	} else {
 		auto next = std::find(table->watchingNext.begin(), table->watchingNext.end(), member);
 		if (next == table->watchingNext.end()) return Reject(RejectReason::NotWatching);
 		table->watchingNext.erase(next);
 	}
 	Find(member)->spectatorLocked = false;
 	Touch(*table); NormalizeMemberStatus(member); return Accept();
+}
+
+// The spectator's own stream or setup failed in the live game. It leaves that
+// game (the native side retires it) but keeps its place for later ones; its
+// lock-in ends, so a spectator that keeps failing cannot hold the fighters'
+// next start.
+Result RoomAuthority::ApplyLeaveGame(MemberId member, Table* table) {
+	const auto roster = MatchRoster(table->id);
+	if (table->p1 == member || table->p2 == member ||
+		std::find(roster.begin(), roster.end(), member) == roster.end()) return Reject(RejectReason::NotWatching);
+	auto* item = Find(member);
+	if (item && item->spectatorLocked) { item->spectatorLocked = false; Touch(*table); }
+	return Accept();
 }
 
 Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Table* table, Member* item) {
@@ -374,6 +409,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::AcknowledgeTerminal) return ApplyAcknowledgeTerminal(member, action);
 	if (generationScopedUnwatch && (table->phase != TablePhase::Playing && table->phase != TablePhase::Paused ||
 		action.matchGeneration != table->matchGeneration)) return Reject(RejectReason::WrongGeneration);
+	if (generationScopedUnwatch && action.keepWatching) return ApplyLeaveGame(member, table);
 	if (action.kind == ActionKind::SetRules) return ApplySetRules(member, action, table);
 	if (action.kind == ActionKind::Queue) return ApplyQueue(member, action, table);
 	if (action.kind == ActionKind::Unqueue) return ApplyUnqueue(member, table);

@@ -1,15 +1,19 @@
 #pragma once
 #include <imgui.h>
 #include "../common/NetworkLink.hxx"
+#include "MenuNavigation.hxx"
+#include <chrono>
 #include <cstdint>
 #include <string>
 #include <utility>
 
 namespace sf4e { namespace ui {
 // ImGui's default Latin range stops before typographic punctuation. Keep the
-// HUD's unavailable marker and UTF-8 player names in the baked atlas, with
-// Cyrillic and the low quotes German, Polish and Czech open with. Header
-// scope so the catalog test can check glyph coverage without linking the UI.
+// HUD's unavailable marker and Latin and Cyrillic player names in the baked
+// atlas, with the low quotes German, Polish and Czech open with. Characters
+// beyond these (Chinese, Japanese and Korean names and chat) are added when
+// text uses them: NoteUserText. Header scope so the catalog test can check
+// glyph coverage without linking the UI.
 constexpr ImWchar UiGlyphRanges[] = {0x0020, 0x017F, 0x0400, 0x04FF, 0x2013, 0x2014, 0x2018, 0x201E, 0x2026, 0x2026, 0};
 enum class Tone { Neutral, Success, Pending, Error };
 namespace palette {
@@ -27,6 +31,30 @@ inline ImVec4 EntryTextColor(bool enabled) { return enabled ? ImVec4(.95f,.92f,.
 
 // Call between frames. A true result requires backend font texture recreation.
 bool ApplyTheme(float dpiScale);
+// What player text is, from most to least worth atlas space when more distinct
+// characters are on screen than the atlas can hold.
+enum class UserTextRole { Name, Chat, Draft };
+// Text a player wrote (a name, a room name, a message) that is about to be
+// drawn, every frame it is drawn. The CJK fonts hold far more characters than
+// the atlas bakes, so any character outside Inter's ranges is wanted by the
+// atlas while text keeps using it; the next ApplyTheme rebuilds it (at most
+// every quarter second) and the text draws with real glyphs from then on.
+// Characters nothing has drawn for a while stop being wanted, and the next
+// rebuild drops them, so the atlas follows what is on screen rather than
+// everything ever seen. Cheap for text with nothing to add.
+void NoteUserText(const std::string& utf8, UserTextRole role = UserTextRole::Name);
+// The same for an entry's detail, which is player text only when the entry
+// says so. Called where the detail is drawn.
+inline void NoteDetailText(const std::string& detail, DetailText kind) {
+    if (kind == DetailText::Name) NoteUserText(detail);
+    else if (kind == DetailText::Chat) NoteUserText(detail, UserTextRole::Chat);
+}
+// The shortest time between two rebuilds for player text; tests widen it to
+// see a rebuild wait and narrow it to see it run.
+void SetUserGlyphRebuildInterval(std::chrono::milliseconds interval);
+// How long a character stays wanted after text last drew it; tests shorten it
+// to retire text.
+void SetUserGlyphRetention(std::chrono::milliseconds retention);
 float Scale();
 ImFont* HeadingFont();
 ImFont* DiagnosticFont();

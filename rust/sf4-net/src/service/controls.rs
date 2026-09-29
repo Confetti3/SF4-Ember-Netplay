@@ -152,6 +152,7 @@ impl Actor {
     pub(super) fn reconnect_control(&mut self, peer: EndpointId) {
         if self.reconnect_target.is_some()
             || self.controls.contains_key(&peer)
+            || self.parked_controls.contains_key(&peer)
             || self.tasks.len() >= MAX_TASKS
             || self.room.is_none()
         {
@@ -184,20 +185,58 @@ impl Actor {
         });
     }
 
-    /// A replacement control from the same admitted endpoint is safe only
-    /// after the previous transport has actually closed.  The bounded worker
-    /// is removed on the next poll tick in the usual case; this helper closes
-    /// the small race where a reconnect arrives between transport completion
-    /// and that tick.  An open worker is never replaced, preserving the
-    /// endpoint-to-incarnation binding and its message ordering.
-    pub(super) fn remove_closed_control(&mut self, peer: EndpointId) {
-        if self
+    /// Close and forget every parked replacement control.
+    pub(super) fn clear_parked_controls(&mut self) {
+        for parked in std::mem::take(&mut self.parked_controls).into_values() {
+            parked.channel.connection.close(1u32.into(), b"room unavailable");
+        }
+    }
+
+    /// Install the replacement parked behind the peer's worker once that
+    /// worker has nothing left to deliver: its transport is closed, its reader
+    /// has ended and the actor has taken every frame it queued. The old worker
+    /// is then dropped without a close event, as a superseded control always
+    /// was; the replacement announces itself with its own Connected. A worker
+    /// already removed by another path leaves the replacement free at once,
+    /// and one that cannot drain within CONTROL_REPLACE_DRAIN_LIMIT is dropped
+    /// with its frames, as every replaced worker was before they were drained.
+    async fn settle_parked_control(&mut self, peer: EndpointId) -> io::Result<()> {
+        let Some(parked) = self.parked_controls.get(&peer) else {
+            return Ok(());
+        };
+        // A candidate only ever replaces the worker it was parked behind. A
+        // different worker for the peer was installed after it was parked,
+        // is newer, and is left alone while the stale candidate is closed.
+        let current = self.controls.get(&peer).map(ControlWorker::id);
+        if current.is_some() && current != parked.behind {
+            if let Some(stale) = self.parked_controls.remove(&peer) {
+                stale
+                    .channel
+                    .connection
+                    .close(1u32.into(), b"control replaced");
+            }
+            return Ok(());
+        }
+        let drained = self
             .controls
             .get(&peer)
-            .is_some_and(|control| control.is_closed())
-        {
-            self.controls.remove(&peer);
+            .is_none_or(|old| old.is_closed() && old.is_drained());
+        if !drained && parked.since.elapsed() < CONTROL_REPLACE_DRAIN_LIMIT {
+            return Ok(());
         }
+        let Some(parked) = self.parked_controls.remove(&peer) else {
+            return Ok(());
+        };
+        self.controls.remove(&peer);
+        if parked.epoch != self.epoch || self.room.is_none() {
+            parked
+                .channel
+                .connection
+                .close(1u32.into(), b"room unavailable");
+            return Ok(());
+        }
+        self.install_control(parked.epoch, parked.channel, parked.joined_invite)
+            .await
     }
 
     pub(super) fn current_leader_primary(&self) -> Option<EndpointId> {
@@ -381,8 +420,6 @@ impl Actor {
                     || self
                         .pending_retired_incarnations
                         .contains(&admission.incarnation)
-                    || (!self.admissions.contains_key(&admission.incarnation)
-                        && self.retired_incarnations.len() >= MAX_RETIRED_INCARNATIONS)
                 {
                     return Err(failed("retired coordination incarnation"));
                 }
@@ -411,6 +448,10 @@ impl Actor {
                 }
                 let add_and_promote =
                     recovery.coordinator.current_leader() == Some(recovery.incarnation);
+                if add_and_promote {
+                    self.supersede_endpoint_incarnations(&recovery, &admission)
+                        .await;
+                }
                 self.remember_admission(admission.clone());
                 let incarnation = admission.incarnation;
                 // The binding is accepted by the asynchronous operation this
@@ -468,9 +509,7 @@ impl Actor {
                 }
                 for incarnation in retired {
                     if incarnation != recovery.incarnation {
-                        if self.retired_incarnations.len() < MAX_RETIRED_INCARNATIONS {
-                            self.retired_incarnations.insert(incarnation);
-                        }
+                        self.record_retirement(incarnation, &applied_history);
                         self.pending_retired_incarnations.insert(incarnation);
                     }
                 }
@@ -517,77 +556,69 @@ impl Actor {
                 term,
                 expires,
             } => {
-                let Some(recovery) = self.recovery.clone() else {
-                    return Ok(false);
-                };
-                let state = recovery.state().await;
-                if room != recovery.room
-                    || claimed_source != peer
-                    || request == 0
-                    || state.term != term
-                    || !state.writable
-                    || expires < now().unwrap_or(u64::MAX)
-                    || !self.admissions.values().any(|admission| {
-                        admission.room == room
-                            && admission.primary_endpoint == peer
-                            && admission.incarnation == source_incarnation
-                    })
-                    || !self.admissions.values().any(|admission| {
-                        admission.room == room
-                            && admission.primary_endpoint == self.endpoint.id()
-                            && admission.incarnation == target_incarnation
-                    })
-                    || !recovery
-                        .probe_pair_bound(
-                            source_incarnation,
-                            target_incarnation,
-                            peer,
-                            self.endpoint.id(),
-                            pair_revision,
-                        )
-                        .await
-                {
-                    return Err(failed("invalid probe reservation"));
-                }
-                let applied = timeout(Duration::from_secs(5), async {
-                    loop {
-                        if recovery
-                            .probe_reserved(
-                                source_incarnation,
-                                target_incarnation,
-                                request,
-                                pair_revision,
-                                term,
-                                expires,
-                            )
-                            .await
-                        {
-                            break true;
-                        }
-                        tokio::time::sleep(Duration::from_millis(25)).await;
-                    }
-                })
-                .await
-                .unwrap_or(false);
-                if !applied {
-                    return Err(failed("probe reservation not applied"));
-                }
-                self.probe_permissions.insert(
+                self.accept_probe_reservation(
                     peer,
-                    ProbePermission {
-                        request,
-                        pair_revision,
-                        expires: tokio::time::Instant::now()
-                            + Duration::from_secs(expires.saturating_sub(now().unwrap_or(expires))),
-                    },
-                );
-                self.probe_peers.insert(peer);
-                Ok(true)
+                    room,
+                    claimed_source,
+                    source_incarnation,
+                    target_incarnation,
+                    request,
+                    pair_revision,
+                    term,
+                    expires,
+                )
+                .await
             }
         }
     }
 
+    /// A joiner's control to the room's authority closed. The authority closes
+    /// it to refuse an Admission it cannot take, for example a retired
+    /// incarnation or a full membership history, and the joiner then redials
+    /// with the same Admission. Once its coordination member has appeared in
+    /// the applied membership a lost control is an ordinary reconnect; before
+    /// that, `MAX_JOIN_CONTROL_LOSSES` in a row end the join with `join_failed`.
+    /// Returns true when the room was cleared.
+    pub(super) async fn join_control_lost(&mut self, peer: EndpointId) -> io::Result<bool> {
+        if self.join_settled
+            || self.hosted.is_some()
+            || self
+                .room_invite
+                .as_ref()
+                .is_none_or(|invite| invite.endpoint() != peer)
+        {
+            return Ok(false);
+        }
+        if let Some(recovery) = &self.recovery
+            && recovery
+                .applied_member_ids()
+                .await
+                .contains(&recovery.incarnation)
+        {
+            self.join_settled = true;
+            return Ok(false);
+        }
+        self.join_control_losses = self.join_control_losses.saturating_add(1);
+        let first_loss = *self
+            .join_first_loss
+            .get_or_insert_with(tokio::time::Instant::now);
+        if self.join_control_losses < MAX_JOIN_CONTROL_LOSSES
+            || first_loss.elapsed() < JOIN_GIVE_UP_AFTER
+        {
+            return Ok(false);
+        }
+        self.clear_room();
+        self.error(0, "join_failed")?;
+        Ok(true)
+    }
+
     pub(super) async fn poll_controls(&mut self) -> io::Result<()> {
+        // A replacement waiting behind a worker that has since been removed,
+        // or that ran out of time, is installed before anything is polled.
+        let parked: Vec<_> = self.parked_controls.keys().copied().collect();
+        for peer in parked {
+            self.settle_parked_control(peer).await?;
+        }
         let peers: Vec<_> = self.controls.keys().copied().collect();
         for peer in peers {
             for _ in 0..CONTROL_POLL_BUDGET {
@@ -630,6 +661,9 @@ impl Actor {
                                     peer,
                                     control,
                                 });
+                                if self.join_control_lost(peer).await? {
+                                    return Ok(());
+                                }
                                 break;
                             }
                             if coordination.unwrap_or(false) {
@@ -671,11 +705,22 @@ impl Actor {
                     break;
                 }
             }
+            // A closed transport is not the end of its inbound frames: the
+            // peer may have finished a departure and closed while more than
+            // one poll budget of frames was still queued. The worker stays,
+            // and keeps being drained under the same budget, until its
+            // reader has ended and the queue is empty.
             if self
                 .controls
                 .get(&peer)
-                .is_some_and(|control| control.is_closed())
+                .is_some_and(|control| control.is_closed() && control.is_drained())
             {
+                // A parked replacement takes over from the drained worker
+                // without a close event for it.
+                if self.parked_controls.contains_key(&peer) {
+                    self.settle_parked_control(peer).await?;
+                    continue;
+                }
                 let control = self.remove_control(peer);
                 self.reconnect_control(peer);
                 self.emit(Event::ControlClosed {
@@ -683,6 +728,9 @@ impl Actor {
                     peer,
                     control,
                 })?;
+                if self.join_control_lost(peer).await? {
+                    return Ok(());
+                }
             }
         }
         // A pending native game authorization belongs to the committed room
@@ -693,16 +741,9 @@ impl Actor {
         // keeps its separate ten-second marker/proof handshake deadline.
         if self.recovery.is_some() && !self.coordination_writable {
             let deadline = tokio::time::Instant::now() + transport::PREPARED_GAME_TIMEOUT;
-            for slot in self
-                .games
-                .values_mut()
-                .filter(|slot| slot.waiting || slot.prepare_deadline.is_some())
-            {
+            for slot in self.games.values_mut().filter(|slot| slot.waiting) {
                 if slot.expires < deadline {
                     slot.expires = deadline;
-                    if let Some(sender) = slot.prepare_deadline.as_ref() {
-                        sender.send_replace(deadline);
-                    }
                 }
             }
         }
@@ -710,17 +751,22 @@ impl Actor {
             .games
             .iter()
             .filter(|(_, slot)| {
-                (slot.waiting || slot.prepare_deadline.is_some())
+                // A candidate in its handshake keeps the slot until that
+                // handshake's own deadline; a rejection then leaves the slot
+                // to expire here.
+                slot.waiting
+                    && slot.candidate.is_none()
                     && tokio::time::Instant::now() >= slot.expires
             })
             .map(|(peer, slot)| (*peer, slot.auth.key.generation))
             .collect();
         for (peer, generation) in expired {
-            self.games.remove(&peer);
+            let slot = self.games.remove(&peer);
             self.emit(Event::GameClosed {
                 epoch: self.epoch,
                 peer,
                 generation,
+                reason: slot.and_then(|slot| slot.unlinked_reason("prepare window expired")),
             })?;
         }
         Ok(())
@@ -735,7 +781,6 @@ impl Actor {
         match result {
             Ok(channel) => {
                 let peer = channel.connection.remote_id();
-                self.remove_closed_control(peer);
                 let replacing = self.controls.contains_key(&peer);
                 if epoch != self.epoch
                     || self.room.is_none()
@@ -748,62 +793,97 @@ impl Actor {
                 // as a new connection from the same helper endpoint.
                 // Supersede the old worker even if its remote close has
                 // not propagated yet; coordination admission still
-                // fences stale process incarnations independently.
-                if replacing {
-                    self.controls.remove(&peer);
+                // fences stale process incarnations independently. The
+                // old worker is closed, and the replacement waits behind
+                // it until the frames it already received are delivered.
+                // Every replacement takes this one path: a candidate still
+                // parked for the peer is superseded first, the new one
+                // records the worker it waits behind, and the common
+                // settle routine installs it at once when that worker has
+                // nothing left to deliver.
+                if let Some(previous) = self.parked_controls.remove(&peer) {
+                    previous
+                        .channel
+                        .connection
+                        .close(1u32.into(), b"control replaced");
                 }
-                self.opening = false;
-                self.controls.insert(peer, ControlWorker::start(channel));
-                if let Some(invite) = joined_invite.as_ref() {
-                    self.room_invite = Some(invite.clone());
-                    // sf4e2/emd2 intentionally omits the private
-                    // coordination endpoint. The authenticated host
-                    // Admission frame on this primary control stream
-                    // performs the authority lookup before recovery
-                    // starts. sf4e3/full invites can bootstrap
-                    // directly from their committed route.
-                    let setup = invite.coordination_address().is_some();
-                    if setup && self.setup_join_recovery(invite).await.is_err() {
-                        let control = self.remove_control(peer);
-                        let _ = self.emit_bulk(Event::ControlClosed {
-                            epoch,
-                            peer,
-                            control,
-                        });
-                        self.reconnect_control(peer);
-                        self.error(0, "coordination_unavailable")?;
-                        return Ok(());
-                    }
-                }
-                // Checked above; `&mut self` is held across the await between.
-                let Some(room) = self.room else {
-                    return Ok(());
-                };
-                let control = self.controls.get(&peer).map(ControlWorker::id).unwrap_or(0);
-                self.emit(Event::Connected {
-                    epoch,
+                let behind = self.controls.get(&peer).map(|old| {
+                    old.close();
+                    old.id()
+                });
+                self.parked_controls.insert(
                     peer,
-                    room,
-                    control,
-                })?;
-                if let Some(invite) = joined_invite {
-                    self.emit(Event::DiscordInvite {
+                    ParkedControl {
                         epoch,
-                        invitation: invite.encode()?,
-                        secret: invite.encode_discord()?,
-                    })?;
-                }
-                self.send_coordination_control(peer);
-                self.last_coordination_state = None;
-                self.last_control_rebound = None;
-                self.emit_coordination_state().await?;
+                        channel,
+                        joined_invite,
+                        behind,
+                        since: tokio::time::Instant::now(),
+                    },
+                );
+                self.settle_parked_control(peer).await
             }
             Err(_) if epoch == self.epoch && self.opening => {
                 self.clear_room();
-                self.error(0, "join_failed")?;
+                self.error(0, "join_failed")
             }
-            Err(_) => (), // Rejected inbound peer: keep the host's room alive.
+            Err(_) => Ok(()), // Rejected inbound peer: keep the host's room alive.
         }
-        Ok(())
+    }
+
+    /// Start the worker for an accepted control connection and announce it.
+    /// The peer has no worker when this runs.
+    async fn install_control(
+        &mut self,
+        epoch: u64,
+        channel: ControlChannel,
+        joined_invite: Option<Invite>,
+    ) -> io::Result<()> {
+        let peer = channel.connection.remote_id();
+        self.opening = false;
+        self.controls.insert(peer, ControlWorker::start(channel));
+        if let Some(invite) = joined_invite.as_ref() {
+            self.room_invite = Some(invite.clone());
+            // sf4e2/emd2 intentionally omits the private
+            // coordination endpoint. The authenticated host
+            // Admission frame on this primary control stream
+            // performs the authority lookup before recovery
+            // starts. sf4e3/full invites can bootstrap
+            // directly from their committed route.
+            let setup = invite.coordination_address().is_some();
+            if setup && self.setup_join_recovery(invite).await.is_err() {
+                let control = self.remove_control(peer);
+                let _ = self.emit_bulk(Event::ControlClosed {
+                    epoch,
+                    peer,
+                    control,
+                });
+                self.reconnect_control(peer);
+                self.error(0, "coordination_unavailable")?;
+                return Ok(());
+            }
+        }
+        // The caller checked this; `&mut self` is held across the await between.
+        let Some(room) = self.room else {
+            return Ok(());
+        };
+        let control = self.controls.get(&peer).map(ControlWorker::id).unwrap_or(0);
+        self.emit(Event::Connected {
+            epoch,
+            peer,
+            room,
+            control,
+        })?;
+        if let Some(invite) = joined_invite {
+            self.emit(Event::DiscordInvite {
+                epoch,
+                invitation: invite.encode()?,
+                secret: invite.encode_discord()?,
+            })?;
+        }
+        self.send_coordination_control(peer);
+        self.last_coordination_state = None;
+        self.last_control_rebound = None;
+        self.emit_coordination_state().await
     }
 }

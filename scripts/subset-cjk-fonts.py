@@ -2,7 +2,11 @@
 
 Each Japanese, Korean and Simplified Chinese catalog is drawn by a subset of
 Noto Sans CJK (SIL OFL 1.1) holding every character that catalog uses, plus
-every language's native name so the language picker can always draw them.
+the native names of the languages in its own script (Latin and Cyrillic names
+come from Inter) so the language picker can draw every name, plus
+the characters people type into names, room names and chat (USER_TEXT below),
+so that text draws whatever language the interface is in. The atlas bakes those
+glyphs only when some text on screen uses them (Theme.cxx, NoteUserText).
 Run it after changing a CJK catalog; the Localization test fails until the
 fonts cover the text.
 
@@ -21,6 +25,30 @@ ROOT = Path(__file__).resolve().parent.parent
 # Punctuation and full-width forms a translation may add without the catalog
 # having used them yet, so a small wording change rarely needs a new subset.
 EXTRA = [chr(c) for c in range(0x3000, 0x3020)] + [chr(c) for c in range(0xFF01, 0xFF5F)] + ["・", "ー"]
+
+
+def euc(encoding, leads):
+    """Every character an EUC encoding's rows `leads` hold."""
+    found = set()
+    for lead in leads:
+        for trail in range(0xA1, 0xFF):
+            try:
+                found.add(bytes([lead, trail]).decode(encoding))
+            except UnicodeDecodeError:
+                pass
+    return found
+
+
+# What people type as a name or a message, by script: the symbol rows and level-1
+# kanji of JIS X 0208 (2,965 kanji), the symbol rows and 2,350 Hangul syllables
+# of KS X 1001, and the symbol rows and level-1 hanzi of GB2312 (3,755 hanzi).
+# Rarer characters draw as the fallback glyph; the level-2 sets would add about
+# 0.8 MB to each Han font.
+USER_TEXT = {
+    "Japanese": lambda: euc("euc_jp", range(0xA1, 0xA9)) | euc("euc_jp", range(0xB0, 0xD0)),
+    "Korean": lambda: euc("euc_kr", range(0xA1, 0xAD)) | euc("euc_kr", range(0xB0, 0xC9)),
+    "SimplifiedChinese": lambda: euc("gb2312", range(0xA1, 0xAA)) | euc("gb2312", range(0xB0, 0xD8)),
+}
 
 
 def msgstrs(path):
@@ -50,7 +78,7 @@ def main():
     manifest = {"source": "notofonts/noto-cjk Sans2.004 (SIL OFL 1.1)", "fontTools": fonttools_version, "fonts": {}}
     for script in (entry for entry in registry["scripts"] if entry["font"]):
         output_name = script["font"]
-        text = set(EXTRA)
+        text = set(EXTRA) | USER_TEXT[script["id"]]()
         for locale in registry["locales"]:
             if locale["script"] == script["id"]:
                 text |= set(locale["name"])

@@ -8,10 +8,14 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <iostream>
 #include <map>
+#include <set>
 #include <stdexcept>
+#include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -49,6 +53,7 @@ int main() try {
     unsigned menuDraws = 0;
     unsigned cardDraws = 0;
     bool requireMenuFrame = false;
+    float step = 1.0f / 60.0f;
     std::map<std::string, ImVec2> targets;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries) { rows = entries; ++menuDraws; });
     SetMenuStatusProbe([&](const char* status, Tone) { menuStatus = status; });
@@ -60,7 +65,7 @@ int main() try {
         const auto beforeDraws = menuDraws;
         const auto beforeCards = cardDraws;
         const auto screen = shell.Navigation().Screen();
-        io.DeltaTime = 1.0f / 60.0f; SetMenuInput({buttons, 0}); ImGui::NewFrame();
+        io.DeltaTime = step; SetMenuInput({buttons, 0}); ImGui::NewFrame();
         shell.Draw(view, &open, [&](ShellAction action) { actions.push_back(std::move(action)); return true; }, [&] { ++selectionDraws; });
         ImGui::Render();
         if (requireMenuFrame) {
@@ -131,6 +136,70 @@ int main() try {
     frame();frame();
     Check(std::abs(chatWindow->Scroll.y-chatWindow->ScrollMax.y)<1,"Live chat stopped following at the bottom");
     view.room.chat.clear();
+    {
+        // Player text asks the atlas for glyphs where the renderer draws it, not
+        // from the snapshot. Old messages stay in the snapshot but scroll out of
+        // view, so once the retention passes they hold nothing and a message that
+        // becomes visible later still gets its characters. A muted sender's text
+        // is never drawn and never holds a glyph.
+        const auto encode = [](unsigned codepoint) {
+            std::string text;
+            text += static_cast<char>(0xE0 | (codepoint >> 12));
+            text += static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F));
+            text += static_cast<char>(0x80 | (codepoint & 0x3F));
+            return text;
+        };
+        const auto drawable = [&](ImWchar glyph) { return io.FontDefault->FindGlyphNoFallback(glyph) != nullptr; };
+        const auto settle = [&] { ApplyTheme(1.f); io.Fonts->Build(); };
+        settle();
+        SetUserGlyphRebuildInterval(std::chrono::milliseconds(0));
+        SetUserGlyphRetention(std::chrono::milliseconds(60));
+        room::Member muted; muted.id = 3; muted.name = "Muted";
+        view.room.members.push_back(muted);
+        shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
+        const auto toggleMute = [&] {
+            shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
+            focus("member-3"); press(MenuInput::Select);
+            Check(shell.Navigation().Screen() == "room-member", "The member row did not open its screen");
+            focus("mute"); press(MenuInput::Select);
+            shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
+        };
+        toggleMute();
+        // 600 distinct characters in old messages, more than the glyph budget holds.
+        for (unsigned i = 0; i < 40; ++i) {
+            std::string text = "Old message ";
+            for (unsigned k = 0; k < 15; ++k) text += encode(0x4E00 + i * 15 + k);
+            view.room.chat.push_back({i + 1, 2, text});
+        }
+        view.room.chat.push_back({41, 3, "Muted sender " + encode(0x6000) + encode(0x6001)});
+        view.room.chat.push_back({42, 2, "Recent " + encode(0x6708) + encode(0x65E5)});
+        for (int i = 0; i < 6; ++i) frame();
+        ImGuiWindow* recent = nullptr;
+        for (auto* window : GImGui->Windows) if (window->Active && std::strstr(window->Name, "Recent chat")) recent = window;
+        Check(recent && recent->ScrollMax.y > 0 && recent->Scroll.y > recent->ScrollMax.y - 1,
+            "The chat did not scroll to its newest messages");
+        // Everything noted while the first frames still showed the top has aged out.
+        std::this_thread::sleep_for(std::chrono::milliseconds(150));
+        for (int i = 0; i < 3; ++i) frame();
+        settle();
+        Check(drawable(0x6708) && drawable(0x65E5), "A visible chat message did not get its glyphs");
+        Check(!drawable(0x4E00) && !drawable(0x4E00 + 20),
+            "Chat scrolled out of view kept holding its glyphs while it stayed in the snapshot");
+        Check(!drawable(0x6000) && !drawable(0x6001), "A muted sender's message held glyphs");
+        // The retained old messages no longer starve a message that becomes visible.
+        view.room.chat.push_back({43, 2, "Later " + encode(0x6C34) + encode(0x706B)});
+        for (int i = 0; i < 3; ++i) frame();
+        Check(ApplyTheme(1.f), "A newly visible chat message did not rebuild the atlas");
+        io.Fonts->Build();
+        Check(drawable(0x6C34) && drawable(0x706B), "A newly visible chat message did not get its glyphs");
+        Check(!drawable(0x4E00), "The rebuild brought back glyphs of hidden chat");
+        view.room.chat.clear();
+        toggleMute();
+        view.room.members.pop_back();
+        SetUserGlyphRetention(std::chrono::seconds(10));
+        SetUserGlyphRebuildInterval(std::chrono::milliseconds(250));
+        shell.Navigation().Home(); frame();
+    }
     shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
     Check(row("recommended-delay").value == "4 frames" && !row("recommended-delay").adjustable,
         "Recommended delay was not read-only");
@@ -257,9 +326,60 @@ int main() try {
     frame();
     Check(row("unqueue").enabled && row("unqueue").detail.find("finish returning") == std::string::npos,
         "Terminal receipt disabled Leave queue");
-    Check(!row("watch").enabled, "Terminal receipt stopped fencing admission to the table");
+    // A queued member is offered no watch choice at all: the authority refuses
+    // it, and the game it waits out is not its choice.
+    Check(std::none_of(rows.begin(), rows.end(), [](const MenuEntry& entry) { return entry.id == "watch" || entry.id == "unwatch"; }),
+        "A queued member was offered Watch");
     view.room.tables[0].queue.clear(); view.room.members[0].table = -1;
     frame();
+
+    // A watcher at another table may still queue or watch here, since either
+    // ends the old watch, as the board's chooser offers. A queue place
+    // elsewhere still blocks both.
+    view.room.localTerminalPending = false; view.room.terminalPending[0] = false;
+    view.room.members[0].table = 1; view.room.members[0].seat = -1; view.room.members[0].status = room::MemberStatus::Watching;
+    view.room.tables[1].spectators = {1}; ++view.room.revision; frame();
+    Check(row("queue").enabled && row("watch").enabled && row("queue").detail.find("Leave your current table") == std::string::npos,
+        "A watcher at another table was told to leave it before queueing here");
+    const auto beforeWatcherQueue = actions.size();
+    focus("queue"); press(MenuInput::Select);
+    Check(actions.size() == beforeWatcherQueue + 1 && actions.back().roomAction.kind == room::ActionKind::Queue &&
+        actions.back().roomAction.table == 0, "A watcher's Queue at another table was not sent");
+    view.room.tables[1].spectators.clear(); view.room.tables[1].queue = {1};
+    view.room.members[0].status = room::MemberStatus::Queued; ++view.room.revision; frame();
+    Check(!row("queue").enabled && !row("watch").enabled && row("queue").detail.find("Leave your current table") != std::string::npos,
+        "A queue place at another table no longer blocks queueing here");
+    view.room.tables[1].queue.clear();
+
+    // Queued at this table, the member sees Leave queue and no watch row at any
+    // point of the game it waits out, whatever the spectator list holds.
+    const auto offersWatch = [&] {
+        return std::any_of(rows.begin(), rows.end(), [](const MenuEntry& entry) {
+            return entry.id == "watch" || entry.id == "unwatch" || entry.id == "lock-spectating"; });
+    };
+    view.room.tables[0].p1 = 2; view.room.tables[0].p2 = 3; view.room.tables[0].phase = room::TablePhase::Waiting;
+    view.room.tables[0].queue = {1}; view.room.tables[0].spectators.clear();
+    view.room.members[0].table = 0; view.room.members[0].status = room::MemberStatus::Queued;
+    ++view.room.revision; frame();
+    Check(row("unqueue").enabled && !offersWatch(), "A queued member was offered a watch row while waiting");
+    view.room.tables[0].phase = room::TablePhase::Playing; view.room.tables[0].matchGeneration = 3;
+    view.room.tables[0].spectators = {1}; ++view.room.revision; frame();
+    Check(row("unqueue").enabled && !offersWatch(), "A queued member was offered Stop watching during the game it waits out");
+    // Host, not a fighter: a live game is not stuck until it has run this long.
+    Check(!row("cancel-result").enabled && row("cancel-result").detail.find("in progress") != std::string::npos,
+        "A live game was offered to the host as stuck");
+    step = float(room::StaleGameSeconds + 60); frame(); step = 1.0f / 60.0f;
+    Check(row("cancel-result").enabled && row("cancel-result").label == "Cancel stuck game",
+        "A game with no result for a long time was not offered as stuck");
+    ++view.room.tables[0].matchGeneration; frame();
+    Check(!row("cancel-result").enabled, "A new game inherited the last one's stale clock");
+    view.room.tables[0].phase = room::TablePhase::Waiting; frame();
+    Check(!offersWatch(), "A queued member was offered a watch row after the game");
+    view.room.tables[0].queue.clear(); view.room.members[0].status = room::MemberStatus::Watching; ++view.room.revision; frame();
+    Check(row("unwatch").enabled, "A member who left the queue could not stop the watch it now chose");
+    view.room.tables[0].spectators.clear(); view.room.tables[0].matchGeneration = 0;
+    view.room.members[0].table = -1; view.room.members[0].status = room::MemberStatus::Idle;
+    ++view.room.revision; frame();
 
     view.room.members[0].table = 0; view.room.members[0].seat = 0;
     view.room.tables[0].p1 = 1; view.room.tables[0].p2 = 2;
@@ -307,6 +427,32 @@ int main() try {
     focus("ready"); press(MenuInput::Select);
     Check(actions.size() == beforeHeldUnready + 1 && actions.back().roomAction.kind == room::ActionKind::Unready,
         "Cancelling a held start did not send Unready");
+    // The held start is a Ready to take back, not a game: every row says so.
+    // The runtime locks the fighter for a readied seat, as it does here.
+    view.canEditSelection = false; frame();
+    Check(!row("selection").enabled && row("selection").detail == sf4e::loc::T("room.change_fighter.unready"),
+        "A held start told the fighter a match was in progress instead of to unready");
+    Check(!row("unqueue").enabled && row("unqueue").detail == sf4e::loc::T("room.leave_seat.unready_first"),
+        "A held start told the fighter to finish a game instead of to unready");
+    // On the board A keeps the Unready and B does not repeat it: it names the
+    // seat, dimmed, and says what to do first.
+    std::set<std::string> strip, legend;
+    SetMenuTextProbe([&](const char* id, float, float, float, float) {
+        if (!std::strncmp(id, "board-strip-", 12)) strip.insert(id + 12);
+        else if (!std::strncmp(id, "legend/", 7)) legend.insert(id + 7);
+    });
+    SetMenuGlyphs(3, 0x40000, 0x20000);
+    shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); focus("table-0"); frame(); frame();
+    Check(strip == std::set<std::string>({std::string(sf4e::loc::T("room.unready")), std::string(sf4e::loc::T("room.cancel_start"))}),
+        "During the held start the seat's two controls did not read differently");
+    Check(legend.count(sf4e::loc::T("room.unready")) && legend.count(sf4e::loc::T("room.cancel_start")),
+        "The legend did not name Unready for A and Cancel the start for B during the held start");
+    SetMenuTextProbe({});
+    const auto beforeHeldBack = actions.size();
+    press(MenuInput::Back);
+    Check(actions.size() == beforeHeldBack + 1 && actions.back().roomAction.kind == room::ActionKind::Unready &&
+        shell.Navigation().Screen() == "room", "B during the held start did not take Ready back");
+    view.canEditSelection = true;
     view.room.tables[0].phase = room::TablePhase::Waiting; view.room.tables[0].spectatorHold = false;
     view.room.tables[0].ready[0] = view.room.tables[0].ready[1] = false;
 
@@ -343,10 +489,28 @@ int main() try {
     view.room.members[0].table = -1; view.room.members[0].seat = -1;
     view.room.tables[0].p1 = 2; view.room.tables[0].p2 = 3;
     shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); frame();
+    // While a receipt is outstanding the card's queue and watch options are
+    // shown dimmed with the reason, as the options list shows them, and cannot
+    // be picked; the table's options stay open to look at.
+    view.room.localTerminalPending = true; ++view.room.revision; frame();
+    {
+        const auto& choices = row("table-0").choices;
+        Check(choices.size() == 3 && !choices[0].enabled && !choices[1].enabled && choices[2].enabled &&
+            choices[0].detail.find("finish returning") != std::string::npos,
+            "The seat chooser offered choices the terminal fence refuses");
+    }
+    focus("table-0"); press(MenuInput::Select);
+    Check(shell.Navigation().Choosing(), "The chooser did not open during a receipt wait");
+    const auto beforeFencedChoice = actions.size();
+    press(MenuInput::Select); press(MenuInput::Right); press(MenuInput::Select);
+    Check(actions.size() == beforeFencedChoice && shell.Navigation().Choosing(), "A dimmed chooser option was picked");
+    press(MenuInput::Back);
+    Check(!shell.Navigation().Choosing(), "Back did not close the chooser");
+    view.room.localTerminalPending = false; ++view.room.revision; frame();
     // A full table's card offers the queue or watching in place; Y opens its
     // options list.
     focus("table-0"); press(MenuInput::Select);
-    Check(shell.Navigation().Screen() == "room" && shell.Navigation().Confirming(), "Select did not open the seat chooser");
+    Check(shell.Navigation().Screen() == "room" && shell.Navigation().Choosing(), "Select did not open the seat chooser");
     press(MenuInput::Back);
     press(MenuInput::Options);
     Check(shell.Navigation().Screen() == "room-table", "Y did not enter the table");
@@ -564,6 +728,9 @@ int main() try {
                 "Post-Ready fixture did not render the committed match phase");
             const auto readyDetail = row("ready").detail;
             const auto selectionDetail = row("selection").detail;
+            // One reason for each hold on the table, worded once.
+            Check(selectionDetail == sf4e::loc::T(phase == room::TablePhase::Paused ? "room.result_unresolved.detail" : "room.match_active"),
+                "A fighter locked out by a live table was given the wrong reason");
             const auto beforeUpdates = actions.size();
             requireMenuFrame = true;
             for (int cycle = 0; cycle < 60; ++cycle) {
@@ -614,6 +781,21 @@ int main() try {
     view.session.authorityWritable = true;
     shell.Navigation().Home(); frame(); shell.Navigation().Push("room-table"); frame();
     Check(!hasRow("abandon-result"), "A live game offered Abandon unresolved game");
+    view.room.tables[0].resultPending = true; ++view.room.revision; frame();
+    Check(row("selection").detail == sf4e::loc::T("room.awaiting_result") &&
+        row("unqueue").detail == sf4e::loc::T("room.awaiting_result"),
+        "Fighter change and Leave seat did not agree while a result is awaited");
+    view.room.tables[0].resultPending = false; ++view.room.revision; frame();
+    // The table back in Waiting while this client's own game is still under
+    // way holds the seat with the same words B gives.
+    view.room.tables[0].phase = room::TablePhase::Waiting; view.session.match = netplay::MatchState::Playing;
+    view.room.tables[0].ready[0] = view.room.tables[0].ready[1] = false;
+    ++view.room.revision; frame();
+    Check(!row("unqueue").enabled && row("unqueue").detail == sf4e::loc::T("room.leave_seat.finish_first"),
+        "Leave seat did not say to finish this client's own game");
+    view.session.match = netplay::MatchState::None; view.room.tables[0].phase = room::TablePhase::Playing;
+    view.room.tables[0].ready[0] = view.room.tables[0].ready[1] = true;
+    ++view.room.revision; frame();
     view.room.tables[0].phase = room::TablePhase::Paused; ++view.room.tables[0].revision; ++view.room.revision;
     for (int i = 0; i < 5; ++i) frame();
     Check(hasRow("abandon-result") && row("abandon-result").enabled, "A seated fighter cannot abandon an unresolved game");
@@ -635,6 +817,30 @@ int main() try {
     view.session.control = netplay::Health::Healthy;
     view.session.coordinated = view.session.authorityWritable = true;
     view.room.closed = false;
+    // A new game at a table closes a confirmation about the last one on the
+    // table's own screen, but never a message or a name being typed elsewhere.
+    shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
+    focus("leave"); press(MenuInput::Select);
+    Check(shell.Navigation().Confirming(), "Leave room did not ask for confirmation");
+    for (auto& table : view.room.tables) ++table.matchGeneration;
+    frame();
+    Check(!shell.Navigation().Confirming(), "A new game left a confirmation about the last one open");
+    shell.Navigation().Home(); shell.Navigation().Push("room-chat"); frame();
+    focus("compose"); shell.Navigation().Choose(rows);
+    Check(shell.Navigation().Editing(), "Chat draft fixture did not enter the editor");
+    shell.Navigation().Draft("draft survives a new game");
+    for (auto& table : view.room.tables) ++table.matchGeneration;
+    frame(); frame();
+    Check(shell.Navigation().Editing() && shell.Navigation().Draft() == "draft survives a new game",
+        "A new game at the selected table discarded the chat being typed");
+    shell.Navigation().Cancel();
+    shell.Navigation().Home(); shell.Navigation().Push("room-admin"); frame();
+    focus("rename"); shell.Navigation().Choose(rows);
+    Check(shell.Navigation().Editing(), "Room name fixture did not enter the editor");
+    for (auto& table : view.room.tables) ++table.matchGeneration;
+    frame(); frame();
+    Check(shell.Navigation().Editing(), "A new game discarded the room name being typed");
+    shell.Navigation().Cancel();
     shell.Navigation().Home(); shell.Navigation().Push("room-chat"); frame();
     focus("compose"); shell.Navigation().Choose(rows);
     Check(shell.Navigation().Editing(), "Chat draft fixture did not enter the editor");
@@ -676,6 +882,68 @@ int main() try {
     for (const ImWchar glyph : {ImWchar(0x8A9E), ImWchar(0xD55C), ImWchar(0x7B80), ImWchar(0x0420)})
         Check(io.FontDefault->FindGlyphNoFallback(glyph) != nullptr, "A language's native name is not drawable in English");
     sf4e::loc::SetActive(sf4e::loc::Locale::En);
+
+    // Names, room names and chat use characters no catalog does. Noting them
+    // queues one rebuild; afterwards the atlas draws Han, kana and Hangul
+    // whatever the interface language, and a second batch waits for the interval.
+    ApplyTheme(1.f); io.Fonts->Build();
+    const auto drawable = [&](ImWchar glyph) { return io.FontDefault->FindGlyphNoFallback(glyph) != nullptr; };
+    Check(!drawable(0x5F20) && !drawable(0xAE40), "A character outside every catalog was already in the atlas");
+    Check(!ApplyTheme(1.f), "The atlas rebuilt with no player text to draw");
+    SetUserGlyphRebuildInterval(std::chrono::milliseconds(0));
+    NoteUserText("Ünïcödé Привет ASCII");
+    Check(!ApplyTheme(1.f), "Text Inter already draws rebuilt the atlas");
+    NoteUserText("张伟 田中 김민수 ひらがな");
+    Check(ApplyTheme(1.f), "Player text needing glyphs did not rebuild the atlas");
+    io.Fonts->Build();
+    for (const ImWchar glyph : {ImWchar(0x5F20), ImWchar(0x4F1F), ImWchar(0x7530), ImWchar(0x4E2D), ImWchar(0xAE40), ImWchar(0xBBFC), ImWchar(0xC218), ImWchar(0x3072)})
+        Check(drawable(glyph), "A character of player text is not drawable after the rebuild");
+    Check(!ApplyTheme(1.f), "Noted text rebuilt the atlas twice");
+    SetUserGlyphRebuildInterval(std::chrono::hours(1));
+    NoteUserText("雪");
+    Check(!ApplyTheme(1.f), "A second batch of player text rebuilt inside the interval");
+    SetUserGlyphRebuildInterval(std::chrono::milliseconds(0));
+    Check(ApplyTheme(1.f), "A waiting batch of player text never rebuilt the atlas");
+    io.Fonts->Build();
+    Check(drawable(0x96EA), "The waiting batch is not drawable after its rebuild");
+    // A language change keeps what players have written.
+    sf4e::loc::SetActive(sf4e::loc::Locale::Ja); ApplyTheme(1.f); io.Fonts->Build();
+    Check(drawable(0xAE40) && drawable(0x5F20), "A language change dropped the player text glyphs");
+    sf4e::loc::SetActive(sf4e::loc::Locale::En); ApplyTheme(1.f); io.Fonts->Build();
+
+    // The glyph budget follows the text on screen. A chat of more distinct
+    // characters than the cap fills it, names still outrank that chat, and once
+    // the room's text stops being drawn a later name gets its glyph, where a
+    // budget that only filled up would refuse it for good.
+    const auto encode = [](unsigned codepoint) {
+        std::string text;
+        text += static_cast<char>(0xE0 | (codepoint >> 12));
+        text += static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F));
+        text += static_cast<char>(0x80 | (codepoint & 0x3F));
+        return text;
+    };
+    std::string chat;
+    for (unsigned codepoint = 0x4E00; codepoint < 0x4E00 + 600; ++codepoint) chat += encode(codepoint);
+    chat += encode(0x9F9F); // the 601st distinct character, past the cap
+    Check(!drawable(0x9F99) && !drawable(0x971C) && !drawable(0x9F9F), "A later name's character was already in the atlas");
+    NoteUserText(chat, UserTextRole::Chat);
+    NoteUserText(encode(0x9F99), UserTextRole::Name);
+    Check(ApplyTheme(1.f), "A full chat and a name did not rebuild the atlas");
+    io.Fonts->Build();
+    Check(drawable(0x9F99), "A name lost its glyph to a chat that filled the budget");
+    Check(drawable(0x4E00 + 20), "The chat's first characters are not drawable");
+    Check(!drawable(0x9F9F), "The glyph budget did not cap the chat's distinct characters");
+    // Everything that was on screen retires; the next name is drawable.
+    SetUserGlyphRetention(std::chrono::milliseconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    NoteUserText(encode(0x971C) + encode(0x9F9F), UserTextRole::Name);
+    Check(ApplyTheme(1.f), "A name after retired room text did not rebuild the atlas");
+    io.Fonts->Build();
+    Check(drawable(0x971C) && drawable(0x9F9F), "A name shown after the budget filled up is not drawable");
+    Check(!drawable(0x9F99) && !drawable(0x4E00 + 20), "Text no longer on screen kept its glyphs at the next rebuild");
+    Check(drawable(0x8A9E) && drawable(0xD55C), "Retiring player text dropped the native language names");
+    SetUserGlyphRetention(std::chrono::seconds(10));
+    SetUserGlyphRebuildInterval(std::chrono::milliseconds(250));
 
     // A relayed check explains itself; a direct one does not carry the advice.
     ShellView measured = view;

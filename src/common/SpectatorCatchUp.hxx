@@ -6,9 +6,11 @@
 // P1 sends each confirmed frame as soon as the fighters confirm it and never
 // waits for a spectator. A spectator that runs slower, or hitches while it
 // keeps receiving, falls behind for good unless it plays faster for a while.
-// Before this, the lag only grew: once it passed GGPO's 64-frame spectator
-// ring an unplayed frame was overwritten and synchronize_input returned
-// GENERAL_FAILURE, which ended the view (field logs, v0.9.9).
+//
+// GGPO's spectator ring (SPECTATOR_FRAME_BUFFER_SIZE, 1024 frames or about 17 s;
+// vcpkg-overlays/ports/ggpo/spectator-catch-up.patch) holds the whole backlog.
+// A frame that arrives 1024 frames ahead of the next unplayed one overwrites
+// it, and synchronize_input then returns GENERAL_FAILURE, which ends the view.
 //
 // The spectator keeps ReserveFrames in hand against arrival jitter and plays
 // up to MaxExtraFrames more frames in one engine update while it holds more.
@@ -21,6 +23,9 @@ struct SpectatorCatchUp {
 
 	// backlogFrames: frames received and not yet played, counted after the
 	// frame this update already played. Never more than the backlog.
+	// Up to 15 frames past the reserve plays 1 extra frame per update, up to 60
+	// plays 2, and beyond that MaxExtraFrames. A full ring drains to the reserve
+	// in about 360 updates (6 s at 60 Hz), a 64-frame backlog in 37.
 	static int ExtraFrames(int backlogFrames) {
 		const int excess = backlogFrames - ReserveFrames;
 		if (excess <= 0) return 0;

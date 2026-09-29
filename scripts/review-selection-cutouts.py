@@ -35,17 +35,22 @@ def main():
             errors.append(f"Cutout uses an outdated source: {target}")
         if hashlib.sha256(target.read_bytes()).hexdigest() != record["sha256"]:
             errors.append(f"Cutout hash changed: {target}")
+        # Each record states the canvas and margin it was made with; palette
+        # cutouts (colors > 0) are stored as mode P, the rest as RGBA.
+        width, height = record.get("canvas", [512, 768])
+        margin = record.get("margin", 32)
         with Image.open(target) as image:
-            if image.mode != "RGBA" or image.size != (512, 768):
+            if image.mode != ("P" if record.get("colors") else "RGBA") or image.size != (width, height):
                 errors.append(f"Wrong format or size: {target}")
                 continue
-            alpha = image.getchannel("A")
+            alpha = image.convert("RGBA").getchannel("A")
             box = alpha.getbbox()
             if not box or alpha.getextrema() != (0, 255):
                 errors.append(f"Missing transparent/opaque foreground: {target}")
-            elif box[0] < 30 or box[1] < 30 or box[2] > 482 or box[3] > 738:
+            elif (box[0] < margin - 2 or box[1] < margin - 2 or box[2] > width - margin + 2 or
+                    box[3] > height - margin + 2):
                 errors.append(f"Foreground outside uniform margins: {target}: {box}")
-            if record["offset"][1] + record["scaled_size"][1] != 736:
+            if record["offset"][1] + record["scaled_size"][1] != height - margin:
                 errors.append(f"Incorrect bottom alignment: {target}")
     # Stable alphabetical sheets, five costumes per row; names stay readable.
     for page_start in range(0, len(records), 30):

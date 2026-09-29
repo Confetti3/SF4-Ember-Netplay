@@ -13,6 +13,7 @@
 
 #include "../Dimps/Dimps__Game__Battle.hxx"
 #include "../common/FighterCatalog.hxx"
+#include "../common/PadKind.hxx"
 #include "../common/StageValue.hxx"
 
 namespace sf4e {
@@ -103,7 +104,7 @@ namespace OverlayPrefs {
         data.stageID = selection::NormalizeStageChoice(data.stageID);
         if (data.lobbyRoundCountIdx < 0 || data.lobbyRoundCountIdx >= ROUND_COUNT_OPTIONS) data.lobbyRoundCountIdx = 1;
         if (data.lobbyRoundTimeIdx < 0 || data.lobbyRoundTimeIdx >= ROUND_TIME_OPTIONS) data.lobbyRoundTimeIdx = 2;
-        if ((data.deviceType != 1 && data.deviceType != 3) || (data.deviceType == 3 && data.deviceIdx > 3)) data.deviceIdx = data.deviceType = 0xff;
+        if ((data.deviceType != input::PadKeyboard && data.deviceType != input::PadXInput) || (data.deviceType == input::PadXInput && data.deviceIdx > 3)) data.deviceIdx = data.deviceType = 0xff;
     }
 
 	void FromJson(const nlohmann::json& j, Data& out) {

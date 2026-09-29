@@ -48,8 +48,8 @@ msgstr "방을 업데이트하고 있습니다. 취소할 수 있습니다."
 msgid "launcher.update_failed"
 msgstr "업데이트를 설치하지 못했습니다. 게임과 이전 런처를 닫고 다시 시도하세요. %TEMP%\\sf4-netplay-update.log를 확인하세요. 보존된 제품 사본은 .ember-update-backups에 있습니다."
 
-msgid "launcher.recovery_title"
-msgstr "실행 복구"
+msgid "launcher.recovery_opened"
+msgstr "네트워크를 사용할 수 없어 SF4를 복구를 위해 닫았습니다. 실행 재시도로 다시 시작할 수 있고, 오프라인 플레이는 네트워크 없이도 가능합니다."
 
 msgid "launcher.path_failed"
 msgstr "실행 파일 검색 경로를 설정하지 못했습니다. 전체 패키지를 쓰기 가능한 폴더에 압축 해제하세요."
@@ -67,16 +67,16 @@ msgid "launcher.already_running"
 msgstr "SF4 Ember Netplay가 이미 실행 중입니다. 창이 보이지 않으면 작업 관리자에서 Launcher.exe와 SSFIV.exe를 종료한 뒤 Ember를 다시 시작하세요."
 
 msgid "launcher.start_failed"
-msgstr "게임 실행 또는 인젝션에 실패했습니다. 런처 로그를 확인하고 다시 시도하세요."
+msgstr "게임 실행 또는 인젝션에 실패했습니다. 런처 로그(%APPDATA%\\sf4e\\logs\\launcher.log)를 확인하고 다시 시도하세요."
 
 msgid "launcher.game_error"
-msgstr "게임이 오류로 종료되었습니다. 런처 로그를 확인하고 다시 시도하세요."
+msgstr "게임이 오류로 종료되었습니다. 런처 로그(%APPDATA%\\sf4e\\logs\\launcher.log)를 확인하고 다시 시도하세요."
 
 msgid "launcher.runtime_shadowed"
 msgstr "게임이 Ember 폴더의 파일 대신 아래 파일을 불러오며, 오래된 사본 때문에 실행 전에 종료됩니다(\"entry point ggpo_get_last_confirmed_frame not found\"). 다른 넷플레이 모드나 이전 설치의 잔여 파일입니다. 해당 파일을 이동하거나 이름을 바꾼 뒤 Ember를 다시 시작하세요:\n\n{0}"
 
 msgid "launcher.game_wrong_dll"
-msgstr "불러온 DLL에 필요한 함수가 없어 Ember 시작 전에 게임이 종료되었습니다. 대개 SSFIV.exe 옆에 다른 모드나 이전 설치의 GGPO.dll, spdlog.dll, fmt.dll 또는 zlib1.dll이 있을 때 발생합니다. 발견한 파일을 다른 곳으로 옮긴 뒤 다시 시도하세요. 파일이 없다면 런처 로그를 보내주세요."
+msgstr "불러온 DLL에 필요한 함수가 없어 Ember 시작 전에 게임이 종료되었습니다. 대개 SSFIV.exe 옆에 다른 모드나 이전 설치의 GGPO.dll, spdlog.dll, fmt.dll 또는 zlib1.dll이 있을 때 발생합니다. 발견한 파일을 다른 곳으로 옮긴 뒤 다시 시도하세요. 파일이 없다면 런처 로그(%APPDATA%\\sf4e\\logs\\launcher.log)를 보내주세요."
 
 msgid "recovery.window"
 msgstr "Ember 복구"
@@ -140,6 +140,15 @@ msgstr "현재 다운로드 또는 확인을 취소합니다. 취소가 끝난 �
 
 msgid "recovery.close_detail"
 msgstr "SF4를 시작하지 않고 복구 화면을 닫습니다. 진행 중인 작업은 취소됩니다."
+
+msgid "updates.close_detail"
+msgstr "SF4를 시작하지 않고 업데이터를 닫습니다. 진행 중인 작업은 취소됩니다."
+
+msgid "updates.start_game"
+msgstr "SF4 시작"
+
+msgid "updates.start_game_detail"
+msgstr "업데이터를 닫고 Ember로 SF4를 시작합니다."
 
 msgid "recovery.close_cancels_detail"
 msgstr "지금 닫으면 진행 중인 작업이 취소됩니다."
@@ -217,7 +226,7 @@ msgid "settings.language.detail"
 msgstr "선택하면 목록에서 고를 수 있고, 좌우로도 바꿀 수 있습니다. 자동 선택 시 게임 언어를 따르고, 없으면 Windows 언어를 사용합니다."
 
 msgid "settings.language.system_with"
-msgstr "자동 — {0}"
+msgstr "자동: {0}"
 
 msgid "settings.language_save_failed"
 msgstr "언어 선택을 저장하지 못했습니다. 이번 실행 중에는 계속 적용됩니다."
@@ -475,7 +484,7 @@ msgid "home.settings"
 msgstr "설정"
 
 msgid "home.settings_detail"
-msgstr "플레이어, 컨트롤러, 게임플레이 기본 설정, 화면 및 Discord."
+msgstr "플레이어, 컨트롤러, 게임플레이 기본 설정, 화면, 언어 및 Discord."
 
 msgid "home.about"
 msgstr "도움말 및 정보"
@@ -604,7 +613,7 @@ msgid "settings.interface"
 msgstr "화면"
 
 msgid "settings.interface_detail"
-msgstr "간결한 HUD와 화면 크기입니다."
+msgstr "언어, 대전 HUD와 화면 크기입니다."
 
 msgid "settings.discord_detail"
 msgstr "활동 표시와 초대입니다."
@@ -622,7 +631,7 @@ msgid "player.use_keyboard"
 msgstr "키보드 사용"
 
 msgid "player.use_keyboard_detail"
-msgstr "키보드를 직접 지정합니다."
+msgstr "키보드를 게임플레이 장치로 지정합니다. 다시 지정하기 전까지 컨트롤러로 Ember 메뉴를 조작할 수 없게 됩니다."
 
 msgid "player.native_menus"
 msgstr "게임 메뉴 열기"
@@ -712,7 +721,7 @@ msgid "about.controls"
 msgstr "조작법"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A로 선택, B로 뒤로 갑니다. 대전 버튼 설정과는 별개입니다. DirectInput: 지정된 LP로 선택, LK로 뒤로 갑니다. D-pad로 이동하고 좌/우로 조정합니다. 트레이닝 조작에는 키보드와 마우스를 사용합니다. F6으로 열고 닫고, 방향키로 이동하고, Enter로 선택하고, Esc로 뒤로 갑니다. Start는 트레이닝 중 게임 일시정지 메뉴만 엽니다. F10은 메인 메뉴에서 Ember를 열고 F5-F8은 트레이닝 단축키입니다."
+msgstr "Xbox 패드: A로 선택, B로 뒤로 갑니다. 대전 버튼 설정과는 무관합니다. 다른 패드: 지정된 LP로 선택, LK로 뒤로 갑니다. 키보드: 방향키, Enter, Esc. D-pad로 이동하고 좌/우로 값을 바꿉니다. 홈에서 뒤로를 누르면 Ember가 숨겨집니다. 게임 메인 메뉴에서 F10(패드는 Start)으로 다시 엽니다.\n\n방에서는 테이블에서 A로 자리를 고르고, 내 자리에서 A로 준비하고, B로 자리나 대기열에서 나갑니다. Xbox 패드에서는 X가 캐릭터, Y가 옵션, View가 채팅을 열며, 다시 누르면 방으로 돌아갑니다.\n\n트레이닝에서는 F6으로 조작 창을 열고, F5로 HUD를 숨기고, F7로 녹화하고, F8로 재생합니다."
 
 msgid "about.ember"
 msgstr "Ember 정보"
@@ -810,11 +819,26 @@ msgstr "테이블 닫힘"
 msgid "controller.disconnected"
 msgstr "컨트롤러 연결이 끊겼습니다. 다시 연결하거나 직접 지정하세요."
 
+msgid "controller.none"
+msgstr "게임플레이 장치를 선택하세요"
+
+msgid "controller.keyboard"
+msgstr "키보드"
+
+msgid "controller.numbered"
+msgstr "컨트롤러 {0}"
+
+msgid "controller.disconnected_name"
+msgstr "{0} (연결 끊김)"
+
 msgid "room.control_unavailable"
 msgstr "방 제어를 사용할 수 없습니다. 대전이 진행 중이지 않을 때 방을 새로 만드세요."
 
 msgid "room.control_recovering"
 msgstr "방 제어를 복구 중입니다. 방 작업이 일시 중지됩니다."
+
+msgid "room.catching_up"
+msgstr "이 PC에서 방 동기화가 아직 끝나지 않았습니다. 방 작업이 일시 중지됩니다."
 
 msgid "settings.preview"
 msgstr "미리 보기"
@@ -1104,6 +1128,9 @@ msgstr "스테이지를 선택하세요."
 msgid "selection.select_saves"
 msgstr "선택하면 저장됩니다. 뒤로 가면 강조된 미리 보기를 변경하지 않고 돌아갑니다."
 
+msgid "selection.adjust_saves"
+msgstr "좌/우로 바꾸면 바로 저장됩니다."
+
 msgid "selection.locked_detail"
 msgstr "선택이 잠겼습니다. 현재 상태를 보려면 테이블로 돌아가세요."
 
@@ -1248,6 +1275,12 @@ msgstr "미리 보기 - 선택을 눌러 저장"
 msgid "selection.status_editable"
 msgstr "선택으로 저장 / 뒤로 한 단계 이동"
 
+msgid "selection.status_browse"
+msgstr "선택으로 열기 / 뒤로 한 단계 이동"
+
+msgid "selection.status_adjust"
+msgstr "좌/우로 저장 / 뒤로 한 단계 이동"
+
 msgid "selection.status_locked"
 msgstr "선택 잠김 - 상태를 보려면 테이블로 이동"
 
@@ -1280,6 +1313,8 @@ msgstr "이 규칙에서는 해당 선택을 사용할 수 없습니다. 캐릭�
 
 msgid "runtime.open_shortcut"
 msgstr "SF4 Ember Netplay  /  F10 또는 Start"
+msgid "runtime.return_menu_to_join"
+msgstr "메인 메뉴로 돌아가 경기에 참가하세요."
 
 msgid "runtime.waiting_opponent_join"
 msgstr "상대가 로비에 참가하기를 기다리는 중..."
@@ -1384,7 +1419,7 @@ msgid "update.extract_folder_failed"
 msgstr "업데이트 압축 해제 폴더를 만들지 못했습니다({0})."
 
 msgid "update.download_failed"
-msgstr "다운로드에 실패했습니다({0}). 수동 다운로드: {1} — 자세한 내용은 %TEMP%\\sf4-netplay-update.log를 확인하세요"
+msgstr "다운로드에 실패했습니다({0}). 수동 다운로드: {1} (자세한 내용은 %TEMP%\\sf4-netplay-update.log를 확인하세요)"
 
 msgid "update.verify_failed"
 msgstr "업데이트 다운로드를 검증하지 못했습니다. 다시 시도하세요."
@@ -1542,12 +1577,6 @@ msgstr "방이 아직 열리지 않았습니다. 연결을 확인하거나 중�
 msgid "room.waiting_state"
 msgstr "방 상태를 기다리는 중입니다."
 
-msgid "room.ready"
-msgstr "준비"
-
-msgid "room.ready.saved_fighter"
-msgstr "저장된 캐릭터를 사용합니다."
-
 msgid "room.copy_invitation"
 msgstr "초대 복사"
 
@@ -1653,9 +1682,6 @@ msgstr "상대가 반대편 자리에 앉기를 기다립니다. 기다리는 �
 msgid "room.controller_required"
 msgstr "설정 > 플레이어 및 컨트롤러에서 컨트롤러를 지정하거나 다시 연결하세요."
 
-msgid "room.waiting_update"
-msgstr "현재 방 업데이트가 끝나기를 기다립니다."
-
 msgid "room.ready.cancel_detail"
 msgstr "준비 완료 상태입니다. 선택해 준비를 취소한 뒤 캐릭터 변경을 선택하세요."
 
@@ -1669,13 +1695,16 @@ msgid "room.both_ready"
 msgstr "두 플레이어 모두 준비됐습니다. 대전을 시작합니다."
 
 msgid "room.waiting_spectators"
-msgstr "두 플레이어 모두 준비됐습니다. 관전 확정한 관전자가 돌아오거나 10초 후에 대전을 시작합니다."
+msgstr "두 플레이어 모두 준비됐습니다. 관전 확정한 관전자가 돌아오거나 {0}초 후에 대전을 시작합니다."
 
 msgid "room.match_in_progress.detail"
 msgstr "현재 대전이 진행 중입니다. 끝날 때까지 기다리세요."
 
 msgid "room.unready"
 msgstr "준비 취소 / 캐릭터 잠금 해제"
+
+msgid "room.cancel_start"
+msgstr "시작 취소"
 
 msgid "room.readying"
 msgstr "준비 중..."
@@ -1755,6 +1784,21 @@ msgstr "자리를 비웁니다."
 msgid "room.leave_seat.next_player"
 msgstr "자리를 비웁니다. 대기열의 다음 플레이어가 앉습니다."
 
+msgid "room.leave_seat.unready_first"
+msgstr "먼저 준비를 취소한 뒤 자리를 비우세요."
+
+msgid "room.leave_seat.keep"
+msgstr "자리 유지"
+
+msgid "room.leave_seat.costs_score"
+msgstr "자리를 비우면 세트가 끝나고 점수가 초기화됩니다({0})."
+
+msgid "room.leave_seat.hands_over"
+msgstr "대기열의 다음 플레이어가 자리에 앉습니다."
+
+msgid "room.cancel_stuck.in_progress"
+msgstr "대전이 진행 중입니다. 결과 없이 {0}분이 지나면 사용할 수 있습니다."
+
 msgid "room.abandon_result"
 msgstr "미확정 대전 포기"
 
@@ -1783,13 +1827,13 @@ msgid "room.lock_spectating"
 msgstr "관전 확정"
 
 msgid "room.lock_spectating.detail"
-msgstr "방으로 돌아올 때까지 다음 대전 시작을 최대 10초 기다립니다."
+msgstr "방으로 돌아올 때까지 다음 대전 시작을 최대 {0}초 기다립니다."
 
 msgid "room.unlock_spectating"
 msgstr "관전 확정 해제"
 
 msgid "room.unlock_spectating.detail"
-msgstr "관전 확정 중입니다. 다음 대전은 최대 10초 동안 기다립니다."
+msgstr "관전 확정 중입니다. 다음 대전은 최대 {0}초 동안 기다립니다."
 
 msgid "room.table_rules"
 msgstr "테이블 규칙"
@@ -1959,9 +2003,6 @@ msgstr "편집 취소"
 msgid "edit.bytes"
 msgstr "{0} / {1}바이트"
 
-msgid "discord.unavailable_build"
-msgstr "이 빌드에서는 Discord 연동을 사용할 수 없습니다."
-
 msgid "runtime.record_invalid"
 msgstr "로컬 대전 전적이 잘못되어 원본을 보존했습니다. 전적 기록을 사용할 수 없습니다."
 
@@ -1985,6 +2026,9 @@ msgstr "Discord를 사용할 수 없습니다. 게임플레이에는 영향이 �
 
 msgid "runtime.gameplay_device_disconnected"
 msgstr "게임플레이 장치의 연결이 끊겼습니다. 다음 대전 전에 다시 연결하세요."
+
+msgid "runtime.match_input_blocked"
+msgstr "대전 입력이 차단되었습니다. {0}을(를) 다시 연결하세요. 슬롯이 바뀌었다면 방으로 돌아가 다시 지정하세요."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "대전에서 사용할 컨트롤러 지정을 확인하지 못했습니다. 다시 지정한 뒤 시도하세요."
@@ -2151,15 +2195,6 @@ msgstr "준비 요청이 완료되기를 기다립니다."
 msgid "runtime.lock.selection_update"
 msgstr "현재 대전 또는 선택 업데이트가 끝나기를 기다립니다."
 
-msgid "runtime.lock.return_to_menu_ready"
-msgstr "준비하기 전에 게임의 메인 메뉴로 돌아가세요."
-
-msgid "runtime.lock.table_settings"
-msgstr "테이블 설정이 적용되기를 기다립니다."
-
-msgid "runtime.lock.room_update"
-msgstr "현재 방 또는 대전 업데이트가 끝나기를 기다립니다."
-
 msgid "runtime.ready.control_changed"
 msgstr "준비가 적용되기 전에 방 제어가 변경되었습니다. 준비를 다시 누르세요."
 
@@ -2207,3 +2242,18 @@ msgstr "방에 참가하지 못했습니다. 초대와 두 플레이어의 SF4 E
 
 msgid "runtime.room_connection_lost"
 msgstr "방 연결이 끊겼습니다."
+
+msgid "runtime.desync_match_ended"
+msgstr "대전이 종료되었습니다. 두 게임의 상태가 어긋났습니다(비동기). 두 플레이어 모두 진단 정보 내보내기를 실행하세요."
+
+msgid "runtime.desync_spectator"
+msgstr "관전 화면이 실제 대전과 어긋났습니다. 나갔다가 다시 관전하세요."
+
+msgid "runtime.room_link_lost"
+msgstr "게임 방과의 연결이 끊겼습니다. 인터넷 연결을 확인하고 다시 시도하세요."
+
+msgid "runtime.session_server_error"
+msgstr "세션 서버 오류입니다. 인터넷 연결을 확인하고 다시 시도하세요."
+
+msgid "runtime.settings_unreadable"
+msgstr "저장된 설정을 읽지 못해 기본값을 사용합니다."

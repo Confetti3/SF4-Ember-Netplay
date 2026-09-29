@@ -1,36 +1,4 @@
-#include "../session/RoomModel.hxx"
-#include "../session/RoomCommit.hxx"
-
-#include <cstdio>
-#include <cstdlib>
-#include <algorithm>
-
-#include <nlohmann/json.hpp>
-
-using namespace sf4e::room;
-static int failures = 0;
-#define CHECK(condition) do { if (!(condition)) { std::printf("FAIL line %d: %s\n", __LINE__, #condition); ++failures; } } while (false)
-
-static ConnectionRef Peer(int index) {
-	return ConnectionRef{"host", std::to_string(index)};
-}
-
-static Action TableAction(const RoomAuthority& authority, MemberId member, std::uint8_t table, ActionKind kind) {
-	Action action;
-	action.kind = kind;
-	action.roomEpoch = authority.SnapshotView().roomEpoch;
-	action.revision = authority.SnapshotView().revision;
-	action.table = table;
-	action.tableRevision = authority.SnapshotView().tables[table].revision;
-	action.actionId = member * 1000 + authority.SnapshotView().revision + 1;
-	return action;
-}
-
-static MemberId Join(RoomAuthority& authority, int index, bool host = false) {
-	const auto result = authority.Join("Player" + std::to_string(index), Peer(index), host);
-	CHECK(result.accepted);
-	return result.accepted ? result.snapshot.members.back().id : 0;
-}
+#include "room_authority_support.hxx"
 
 static void TestCommittedDepartureCheckpoint() {
     RoomAuthority source("Departure", 16, 92);
@@ -233,56 +201,6 @@ static void TestMatchFinishedAndSeatLifecycle() {
 	CHECK(authority.Apply(waiting.p1, unseat).accepted);
 	const auto after = authority.SnapshotView().tables[0];
 	CHECK(after.p1 != waiting.p1 && after.p1 != 0 && !after.ready[0] && !after.ready[1]);
-}
-
-static void TestQueueWatchAndReplay() {
-	RoomAuthority authority("Roster", 8, 1);
-	const MemberId host = Join(authority, 0, true);
-	const MemberId p1 = Join(authority, 1);
-	const MemberId p2 = Join(authority, 2);
-	const MemberId p3 = Join(authority, 3);
-	const MemberId p4 = Join(authority, 4);
-	for (const auto member : {p1, p2, p3, p4}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
-	const auto queued = authority.SnapshotView().tables[0];
-	for (const auto member : {queued.p1, queued.p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	CHECK(authority.BeginMatch(0, queued.p1, queued.p2).accepted);
-	const auto playing = authority.SnapshotView().tables[0];
-	CHECK(playing.queue.size() == 2 && playing.spectators.size() == 2);
-	const auto generation = playing.matchGeneration;
-	Action exactGeneration = TableAction(authority, p3, 0, ActionKind::Unwatch);
-	exactGeneration.matchGeneration = generation;
-	exactGeneration.tableRevision = playing.revision - 1; // stale UI revision, current native generation
-	CHECK(authority.Apply(p3, exactGeneration).accepted);
-	Action staleGeneration = TableAction(authority, p4, 0, ActionKind::Unwatch);
-	staleGeneration.matchGeneration = generation + 1;
-	CHECK(!authority.Apply(p4, staleGeneration).accepted);
-	CHECK(authority.EndMatch(0, playing.matchGeneration, MatchResult::P1Win).accepted);
-	const auto rematched = authority.SnapshotView().tables[0];
-	CHECK(rematched.p1 == p1 && rematched.p2 == p2 && rematched.score[0] == 1);
-	const auto terminalCheckpoint = authority.Checkpoint();
-	CHECK(terminalCheckpoint.at("terminal_receipts").at(0).at("recipients").size() == 4);
-	Action spectatorAck = TableAction(authority, p3, 0, ActionKind::AcknowledgeTerminal);
-	spectatorAck.matchGeneration = playing.matchGeneration;
-	CHECK(authority.Apply(p3, spectatorAck).accepted);
-	CHECK(std::find(rematched.queue.begin(), rematched.queue.end(), p3) != rematched.queue.end());
-	Action stop = TableAction(authority, p2, 0, ActionKind::Unqueue);
-	CHECK(authority.Apply(p2, stop).accepted);
-	const auto rotated = authority.SnapshotView().tables[0];
-	CHECK(rotated.p2 == p3 && std::find(rotated.queue.begin(), rotated.queue.end(), p3) == rotated.queue.end());
-	CHECK(rotated.score[0] == 0 && rotated.score[1] == 0);
-	Action replay = TableAction(authority, host, 0, ActionKind::Chat);
-	replay.text = "replay-safe";
-	replay.actionId = 9001;
-	const auto first = authority.Apply(host, replay);
-	const auto revision = authority.SnapshotView().revision;
-	const auto repeat = authority.Apply(host, replay);
-	CHECK(first.accepted && repeat.accepted && authority.SnapshotView().revision == revision && repeat.events.empty());
-
-	// A seated fighter cannot silently join another table as a watcher.
-	Action watch = TableAction(authority, rotated.p2, 1, ActionKind::Watch);
-	const auto before = authority.SnapshotCopy();
-	CHECK(!authority.Apply(rotated.p2, watch).accepted);
-	CHECK(authority.SnapshotView().revision == before.revision);
 }
 
 static void TestSnapshotBound() {
@@ -729,27 +647,72 @@ static void TestSpectatorDoesNotHoldTable() {
 	CHECK(!rejoin.accepted && rejoin.reason == RejectReason::TerminalLedgerFull);
 }
 
-static void TestQueueTakesAskedSeatAndEndsWatching() {
-	RoomAuthority authority("Seats", 8, 5);
+// The place, seat-opening and hold rules the room panel reads are the model's:
+// they agree with what the authority does, and each hold names one cause.
+static void TestPlaceAndSeatRules() {
+	RoomAuthority authority("Places", 8, 9);
 	Join(authority, 0, true);
-	const auto first = Join(authority, 1), second = Join(authority, 2), watcher = Join(authority, 3);
-	const auto queue = [&](MemberId member, std::uint8_t table, int seat) {
-		auto action = TableAction(authority, member, table, ActionKind::Queue);
+	const auto first = Join(authority, 1), second = Join(authority, 2), queued = Join(authority, 3),
+		watcher = Join(authority, 4), idle = Join(authority, 5);
+	const auto act = [&](MemberId member, std::uint8_t table, ActionKind kind, int seat = -1) {
+		auto action = TableAction(authority, member, table, kind);
 		action.seat = static_cast<std::int8_t>(seat);
-		return authority.Apply(member, action).accepted;
+		return authority.Apply(member, action);
 	};
-	CHECK(queue(first, 0, 1));
-	CHECK(authority.SnapshotView().tables[0].p2 == first && authority.SnapshotView().tables[0].p1 == 0);
-	// The asked-for seat is taken: refused, never swapped for the other one.
-	CHECK(!queue(second, 0, 1));
-	CHECK(authority.SnapshotView().tables[0].p1 == 0 && authority.SnapshotView().tables[0].queue.empty());
-	CHECK(queue(second, 0, 0));
-	CHECK(authority.SnapshotView().tables[0].p1 == second);
-	// A watcher sits down straight from watching, and stops watching.
-	CHECK(authority.Apply(watcher, TableAction(authority, watcher, 0, ActionKind::Watch)).accepted);
-	CHECK(queue(watcher, 1, 0));
-	const auto& tables = authority.SnapshotView().tables;
-	CHECK(tables[1].p1 == watcher && tables[0].spectators.empty() && tables[0].watchingNext.empty());
+	CHECK(PlaceOf(authority.SnapshotView(), idle).kind == Place::Kind::None);
+	CHECK(SeatOpenNow(authority.SnapshotView().tables[1], 0) && SeatOpenNow(authority.SnapshotView().tables[1], 1));
+	CHECK(!SeatOpenNow(authority.SnapshotView().tables[1], -1) && !SeatOpenNow(authority.SnapshotView().tables[1], 2));
+	CHECK(act(first, 0, ActionKind::Queue).accepted && act(second, 0, ActionKind::Queue).accepted);
+	CHECK(act(queued, 0, ActionKind::Queue).accepted && act(watcher, 0, ActionKind::Watch).accepted);
+	const auto& snapshot = authority.SnapshotView();
+	const auto seatOf = PlaceOf(snapshot, first), secondSeat = PlaceOf(snapshot, second);
+	CHECK(seatOf.kind == Place::Kind::Seat && seatOf.table == 0 && seatOf.seat == 0);
+	CHECK(secondSeat.kind == Place::Kind::Seat && secondSeat.table == 0 && secondSeat.seat == 1);
+	const auto waiting = PlaceOf(snapshot, queued);
+	CHECK(waiting.kind == Place::Kind::Queue && waiting.table == 0 && waiting.seat == -1);
+	// Watching is not a place, since Queue and Watch both end it.
+	CHECK(PlaceOf(snapshot, watcher).kind == Place::Kind::None && PlaceOf(snapshot, 99).kind == Place::Kind::None);
+	// The seat rule is the authority's: a full table has no open seat, and a
+	// named seat behind a queue is refused.
+	CHECK(!SeatOpenNow(snapshot.tables[0], 0) && !SeatOpenNow(snapshot.tables[0], 1));
+	CHECK(!act(idle, 0, ActionKind::Queue, 0).accepted);
+	CHECK(act(idle, 1, ActionKind::Queue, 1).accepted);
+	CHECK(SeatOpenNow(authority.SnapshotView().tables[1], 0) && !SeatOpenNow(authority.SnapshotView().tables[1], 1));
+	// A queued member's Watch at its own table is refused: the panel offers none.
+	const auto refused = act(queued, 0, ActionKind::Watch);
+	CHECK(!refused.accepted && refused.reason == RejectReason::AlreadySeated);
+	CHECK(!WatchesByChoice(authority.SnapshotView().tables[0], queued));
+
+	Table table;
+	table.p1 = first; table.p2 = second; table.phase = TablePhase::Waiting;
+	CHECK(LeavingSeatHold(table, 0, false, false) == SeatHold::None && ChangingFighterHold(table, 0, false) == SeatHold::None);
+	// This client's own game can outlast the table's Waiting phase.
+	CHECK(LeavingSeatHold(table, 0, true, false) == SeatHold::InProgress);
+	CHECK(LeavingSeatHold(table, 0, true, true) == SeatHold::InProgress);
+	table.ready[0] = true;
+	CHECK(LeavingSeatHold(table, 0, false, false) == SeatHold::None);
+	CHECK(ChangingFighterHold(table, 0, false) == SeatHold::UnreadyFirst && ChangingFighterHold(table, 1, false) == SeatHold::None);
+	CHECK(LeavingSeatHold(table, 0, true, false) == SeatHold::UnreadyFirst);
+	// A held start is a Ready that can still be taken back, not a game.
+	table.ready[1] = true; table.phase = TablePhase::Ready; table.spectatorHold = true;
+	CHECK(LeavingSeatHold(table, 0, false, false) == SeatHold::UnreadyFirst && LeavingSeatHold(table, 1, false, false) == SeatHold::UnreadyFirst);
+	CHECK(ChangingFighterHold(table, 1, false) == SeatHold::UnreadyFirst);
+	table.spectatorHold = false;
+	CHECK(LeavingSeatHold(table, 0, false, false) == SeatHold::InProgress && ChangingFighterHold(table, 0, false) == SeatHold::InProgress);
+	table.phase = TablePhase::Playing;
+	CHECK(LeavingSeatHold(table, 0, false, false) == SeatHold::InProgress);
+	CHECK(LeavingSeatHold(table, 0, false, true) == SeatHold::AwaitingResult && ChangingFighterHold(table, 0, true) == SeatHold::AwaitingResult);
+	table.resultPending = true;
+	CHECK(ChangingFighterHold(table, 0, false) == SeatHold::AwaitingResult);
+	table.phase = TablePhase::Paused;
+	CHECK(LeavingSeatHold(table, 0, false, false) == SeatHold::Unresolved && ChangingFighterHold(table, 1, false) == SeatHold::Unresolved);
+
+	Table fresh;
+	CHECK(!CostOfLeavingSeat(fresh));
+	fresh.score[1] = 2;
+	CHECK(CostOfLeavingSeat(fresh).score && !CostOfLeavingSeat(fresh).handsOver);
+	fresh.score[1] = 0; fresh.queue = {queued};
+	CHECK(!CostOfLeavingSeat(fresh).score && CostOfLeavingSeat(fresh).handsOver);
 }
 
 static void TestReadyDelaysShareTheHigherValue() {
@@ -865,10 +828,9 @@ int main() {
 	TestMatchFinishedAndSeatLifecycle();
 	TestTerminalLifecycleGate();
 	TestSpectatorDoesNotHoldTable();
-	TestQueueTakesAskedSeatAndEndsWatching();
+	TestPlaceAndSeatRules();
 	TestChatAfterSenderLeaves();
 	TestFighterAbandonsDisputedResult();
-	TestQueueWatchAndReplay();
 	TestSnapshotBound();
 	TestDepartureRecoveryAndSnapshotValidation();
     TestAuthorityRecovery();

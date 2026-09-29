@@ -15,17 +15,17 @@ receiving player's DLC ownership.
 
 | Choice | Supported range |
 | --- | --- |
-| Fighter | 44 native IDs, 0–43 |
+| Fighter | 44 native IDs, 0-43 |
 | Edition | SFIV (13), SSFIV (1), AE (2), AE 2012 (4), USFIV (14), Omega (16); filtered by fighter |
 | Ultra | SFIV: I; USFIV: I, II, Double; other supported editions: I, II |
 | Costume | Original plus six alternates for the original 25 fighters; original plus five for later fighters; filtered by local availability |
-| Color | 01–12 on earlier outfits, 01–22 on Vacation/Wild/Horror; filtered by local availability |
-| Personal action | None or actions 1–10; filtered by local unlocks |
-| Win quote | Random or quotes 1–11 |
+| Color | 01-12 on earlier outfits, 01-22 on Vacation/Wild/Horror; filtered by local availability |
+| Personal action | None or actions 1-10; filtered by local unlocks |
+| Win quote | Random or quotes 1-11 |
 | Handicap | Normal, one hit, 25%, 50%, 75% |
-| Stage | 28 versus arenas, native IDs 0–21 and 24–29; host controls the room stage |
+| Stage | 28 versus arenas, native IDs 0-21 and 24-29; host controls the room stage |
 
-Wire bytes are parsed as integers in 0–255 before narrowing. Negative, fractional,
+Wire bytes are parsed as integers in 0-255 before narrowing. Negative, fractional,
 boolean, string, null, and oversized values are rejected. None/Random use the
 native byte sentinel 255. The unused reserved byte remains a byte, not a UI choice.
 
@@ -54,8 +54,9 @@ native byte sentinel 255. The unused reserved byte remains a byte, not a UI choi
 The user approved local masking and cropping after image generation altered
 details and failed to produce transparency. `scripts/mask-selection-photos.py`
 uses local BiRefNet segmentation for alpha only. The photograph supplies RGB;
-the pipeline crops and proportionally resizes it into a transparent 512×768 PNG
-with 32-pixel margins and bottom alignment at y=736. Wide poses naturally occupy
+the pipeline crops and proportionally resizes it into a transparent 256×384
+palette PNG with 16-pixel margins (the margin defaults to 32 pixels scaled to
+the canvas width) and bottom alignment at y=368. Wide poses naturally occupy
 less height. Source photographs remain unchanged alongside `color-0-cutout.png`.
 The image loader prefers those cutouts. `cutouts.json` records output hashes,
 source bounds, scale, offsets, and review state. Model weights and intermediate
@@ -66,9 +67,9 @@ Reproduction from the repository root:
 ```powershell
 python -m venv build/fighter-selection/masking-venv
 & build/fighter-selection/masking-venv/Scripts/python.exe -m pip install -r scripts/selection-masking-requirements.txt
-& build/fighter-selection/masking-venv/Scripts/python.exe scripts/mask-selection-photos.py assets/selection
+& build/fighter-selection/masking-venv/Scripts/python.exe scripts/mask-selection-photos.py assets/selection --canvas 256x384 --colors 256
 & build/fighter-selection/masking-venv/Scripts/python.exe scripts/fetch-color-references.py
-& build/fighter-selection/masking-venv/Scripts/python.exe scripts/mask-selection-photos.py assets/selection --source-manifest color-sources.json
+& build/fighter-selection/masking-venv/Scripts/python.exe scripts/mask-selection-photos.py assets/selection --canvas 256x384 --colors 256 --source-manifest color-sources.json
 & build/fighter-selection/masking-venv/Scripts/python.exe scripts/review-selection-cutouts.py assets/selection --complete
 ```
 
@@ -105,7 +106,7 @@ Every option has a 640×360 screenshot, an orange selected border, and a larger
 selected-stage preview. The responsive grid supports the same ImGui keyboard
 and gamepad navigation as the costume cards.
 
-The 28 versus stages use native IDs 0–21 and 24–29 from code-table RVA 0x66b678.
+The 28 versus stages use native IDs 0-21 and 24-29 from code-table RVA 0x66b678.
 Car Destruction (22/GAS) and Barrel Destruction (23/SCX) are bonus rounds and
 are excluded. Stage names correct the old native table's abbreviations/typos.
 The photos come from SuperSoluce's June 16, 2014 USFIV stage guide; source links,

@@ -69,15 +69,24 @@ mod tests {
     async fn bind_skips_a_taken_port_and_falls_back_to_random() {
         let taken = std::net::UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).unwrap();
         let taken_port = taken.local_addr().unwrap().port();
-        let free_port = std::net::UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0))
-            .unwrap()
-            .local_addr()
-            .unwrap()
-            .port();
-
-        let next = bind(builder, &[taken_port, free_port]).await.unwrap();
-        let ports: Vec<_> = next.bound_sockets().iter().map(SocketAddr::port).collect();
-        assert!(ports.contains(&free_port));
+        // A port released here can be taken by another test running in
+        // parallel before `bind` reaches it, so pick a new one a few times.
+        let mut attempt = 0;
+        let (next, free_port) = loop {
+            let free_port = std::net::UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0))
+                .unwrap()
+                .local_addr()
+                .unwrap()
+                .port();
+            let next = bind(builder, &[taken_port, free_port]).await.unwrap();
+            let ports: Vec<_> = next.bound_sockets().iter().map(SocketAddr::port).collect();
+            if ports.contains(&free_port) {
+                break (next, free_port);
+            }
+            next.close().await;
+            attempt += 1;
+            assert!(attempt < 5, "bind never took the free port");
+        };
 
         let random = bind(builder, &[taken_port, free_port]).await.unwrap();
         let ports: Vec<_> = random

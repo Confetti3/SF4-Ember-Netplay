@@ -1,10 +1,12 @@
-// An abort's reason must reach the player. AbortGgpoMatch published it and
-// then retired the session, whose teardown clears the match notice, so every
-// abort explanation (the spectator's "stream was dropped" among them) was
-// wiped in the same call. The reason is now published after the retirement,
-// and cleared when the next session starts.
+// A notice that says why a match ended must reach the player. Retiring the
+// session clears its notices, so AbortGgpoMatch publishes the reason after the
+// retirement. An Error also survives a retirement that is not an abort (the
+// opponent disconnected, the stream dropped, a desync, a failed room), and
+// stays until a newer notice replaces it or the next session starts. Info and
+// Warning notices end with their session.
 #include "../sf4e/sf4e__Game__Battle__System.hxx"
 #include "../sf4e/sf4e__NetplayFacade.hxx"
+#include "../common/Localization.hxx"
 #include <winsock2.h>
 #include <cstring>
 #include <iostream>
@@ -42,7 +44,7 @@ static std::string Notice(sf4e::NoticeSeverity* severity = nullptr) {
 int main() {
 	WSADATA winsock{}; CHECK(WSAStartup(MAKEWORD(2, 2), &winsock) == 0);
 
-	// A notice raised during the session ends with it, as before.
+	// A notice raised during the session ends with it.
 	StartSession();
 	facade::PushAlert("Connection unstable.", sf4e::NoticeSeverity::Warning);
 	fSystem::RetireGgpoSession("test");
@@ -68,6 +70,52 @@ int main() {
 	fSystem::AbortGgpoMatch("");
 	CHECK(!fSystem::ggpo);
 	CHECK(Notice().empty());
+
+	// An Error raised while the session was live (the battle-close path of a
+	// GGPO disconnect) outlives the retirement, so the player still reads why
+	// the match ended once the room shell is back.
+	for (const char* label : {"battle_close", "deferred_close"}) {
+		facade::ClearMatchNotice();
+		StartSession();
+		facade::PushAlert("Opponent disconnected. The match is over.", sf4e::NoticeSeverity::Error);
+		fSystem::RetireGgpoSession(label);
+		CHECK(!fSystem::ggpo);
+		CHECK(Notice(&severity) == "Opponent disconnected. The match is over." && severity == sf4e::NoticeSeverity::Error);
+		// A newer notice still replaces it.
+		facade::PushAlert("Returning to the room.", sf4e::NoticeSeverity::Info);
+		CHECK(Notice(&severity) == "Returning to the room." && severity == sf4e::NoticeSeverity::Info);
+	}
+
+	// Shutting the netplay session down keeps the Error too, which is what the
+	// failure reason handed to HandleNetplayFailure relies on.
+	facade::ClearMatchNotice();
+	StartSession();
+	facade::HandleNetplayFailure("The room was lost.", true);
+	CHECK(!fSystem::ggpo);
+	CHECK(Notice(&severity) == "The room was lost." && severity == sf4e::NoticeSeverity::Error);
+	// ...but a passing note does not follow it out.
+	facade::ClearMatchNotice();
+	StartSession();
+	facade::PushAlert("Connection unstable.", sf4e::NoticeSeverity::Warning);
+	facade::ShutdownNetplay(true);
+	CHECK(!fSystem::ggpo);
+	CHECK(Notice().empty());
+
+	// The full clear, used when a new session starts, wipes an Error.
+	facade::PushAlert("Old failure.", sf4e::NoticeSeverity::Error);
+	facade::ClearMatchNotice();
+	CHECK(Notice().empty());
+
+	// A desync is announced from the catalog in the active language, as an Error
+	// when the fight ended and as a Warning when only a spectator's view did.
+	sf4e::loc::SetActive(sf4e::loc::Locale::Fr);
+	facade::PushDesyncNotice(false);
+	CHECK(Notice(&severity) == sf4e::loc::T("runtime.desync_match_ended") && severity == sf4e::NoticeSeverity::Error);
+	CHECK(Notice() != "Match ended: the two games diverged (desync). Export diagnostics from both players.");
+	facade::PushDesyncNotice(true);
+	CHECK(Notice(&severity) == sf4e::loc::T("runtime.desync_spectator") && severity == sf4e::NoticeSeverity::Warning);
+	sf4e::loc::SetActive(sf4e::loc::Locale::En);
+	facade::ClearMatchNotice();
 
 	std::cout << "Abort notice passed\n";
 	return 0;

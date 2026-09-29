@@ -9,6 +9,10 @@ const LEAVE_POLL_INTERVAL: Duration = Duration::from_millis(25);
 /// How long a departing follower keeps offering its departure notice to a
 /// control whose queue is full before it falls back to the bounded wait.
 const DEPARTURE_NOTICE_BOUND: Duration = Duration::from_secs(1);
+/// How long a departing helper lets its queued departure notice reach the
+/// peer before it drops the controls. This has to fit, with the earlier steps
+/// of a Leave, in the window the native side allows the helper at game close.
+const DEPARTURE_NOTICE_FLUSH: Duration = Duration::from_millis(500);
 /// How long a departed room's coordination route stays alive: long enough
 /// for the leader to commit this member's removal with its vote, or for a
 /// follower to obtain a departing leader's successor proof.
@@ -45,10 +49,12 @@ impl Actor {
             return Ok(Departure::Completed);
         }
         if abandon {
+            self.announce_abandoned_departure().await;
             self.abandon_room();
             self.emit(Event::RoomClosed { epoch })?;
             return Ok(Departure::Completed);
         }
+        let mut notice_offered = false;
         let retain_departure_authority = self.recovery.as_ref().is_some_and(|recovery| {
             recovery.coordinator.current_leader() == Some(recovery.incarnation)
         });
@@ -151,6 +157,7 @@ impl Actor {
                 {
                     tokio::time::sleep(LEAVE_POLL_INTERVAL).await;
                 }
+                notice_offered = true;
             }
             if voters.contains(&recovery.incarnation) && voters.len() > 1 {
                 if state.leader_local {
@@ -306,6 +313,11 @@ impl Actor {
             // successor proof (or the already-established retirement grace).
             // Do not turn an unused local flag into a second, weaker proof.
         }
+        // A learner has no removal to wait for, so nothing above kept its
+        // controls open long enough for the notice to leave the queue.
+        if notice_offered {
+            self.flush_controls().await;
+        }
         // A simultaneous follower Leave can become the committed singleton
         // successor while this future is running. Keep that newly acquired
         // authority route alive for the same proof window as the old leader,
@@ -320,6 +332,44 @@ impl Actor {
         }
         self.emit(Event::RoomClosed { epoch })?;
         Ok(Departure::Completed)
+    }
+
+    /// Let the frames queued on every control reach their peers, for at most
+    /// `DEPARTURE_NOTICE_FLUSH`, then drop the controls. Each writer finishes
+    /// its stream on its own task once its queue is empty.
+    async fn flush_controls(&mut self) {
+        let deadline = Instant::now() + DEPARTURE_NOTICE_FLUSH;
+        self.clear_parked_controls();
+        let mut workers = std::mem::take(&mut self.controls)
+            .into_values()
+            .collect::<Vec<_>>();
+        for worker in &mut workers {
+            worker.finish();
+        }
+        for worker in &mut workers {
+            worker.finished(deadline).await;
+        }
+    }
+
+    /// An abandoned departure has nothing to wait for, but a notice still lets
+    /// the leader retire the seat at once instead of after its grace. Offer it
+    /// once, without the retry of a graceful Leave, and give it a short
+    /// bounded chance to leave before the controls are dropped. The committed
+    /// leader announces nothing, and a room without a native roster has no
+    /// seat to retire.
+    async fn announce_abandoned_departure(&mut self) {
+        let Some(recovery) = self.recovery.as_ref() else {
+            return;
+        };
+        if self.retirement_started.is_some()
+            || self.committed_native_members.is_none()
+            || recovery.coordinator.current_leader() == Some(recovery.incarnation)
+        {
+            return;
+        }
+        let mut pending = self.controls.keys().copied().collect::<BTreeSet<_>>();
+        self.send_departure_control(&mut pending);
+        self.flush_controls().await;
     }
 
     /// Run the potentially slow membership handoff without starving the IPC
@@ -392,6 +442,7 @@ impl Actor {
                                 continue;
                             }
                             drop(leave);
+                            self.announce_abandoned_departure().await;
                             self.abandon_room();
                             self.emit(Event::RoomClosed { epoch })?;
                             return Ok(true);
@@ -463,6 +514,7 @@ impl Actor {
         self.host_address = None;
         self.opening = false;
         self.controls.clear();
+        self.clear_parked_controls();
         self.games.clear();
         self.tasks.abort_all();
         self.admissions.clear();
@@ -487,12 +539,13 @@ impl Actor {
         self.last_control_rebound = None;
         self.unwritable_leader_since = None;
         self.reconnect_target = None;
-        self.probe_reservations.clear();
         self.pending_game_admissions.clear();
         self.pending_probe_invalidations.clear();
         self.probe_peers.clear();
         self.probe_permissions.clear();
+        self.own_probes.clear();
         self.pending_probe_authorizations.clear();
+        self.pending_probe_reservations.clear();
         self.retirement_started = Some(Instant::now());
     }
 

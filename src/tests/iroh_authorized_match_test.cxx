@@ -301,15 +301,23 @@ int wmain(int argc, wchar_t** argv) {
         << " replies=" << measured.samples << " missed=" << measured.lost << " p50_us=" << measured.p50RttUs
         << " p95_us=" << measured.p95RttUs << " p99_us=" << measured.p99RttUs << " variation_us=" << measured.jitterUs << '\n';
 	CHECK(rooms[1]->RequestProbe(rooms[0]->LocalIdentity(), 1, pairRevision));
+	// A serves this check while holding its own result. Serving it must not
+	// touch that result, whichever order the two helpers finish in.
 	wait([&]() {
 		pump();
 		const auto& probe = rooms[1]->Probe();
+		CHECK(rooms[0]->Probe().status != "invalidated");
 		return (probe.status == "ready" || probe.status == "complete") && probe.samples >= 80 && probe.recommended >= 0;
 	});
 
 	std::cout << "Both seated players completed the connection check before Ready\n";
     const auto finalProbeRoute=rooms[1]->Probe().route;
-    wait([&](){pump();return rooms[0]->Probe().status=="invalidated";});
+    const auto settledAt=GetTickCount64()+1500;
+    wait([&](){pump();CHECK(rooms[0]->Probe().status!="invalidated");return GetTickCount64()>=settledAt;});
+    const auto& retained=rooms[0]->Probe();
+    CHECK(retained.status=="ready" || retained.status=="complete");
+    CHECK(retained.samples>=(benchmark?480U:80U) && retained.recommended>=0 && retained.route==probeRoute);
+    CHECK(rooms[1]->Probe().samples>=80 && rooms[1]->Probe().recommended>=0);
 	// The pair reservation is bound to the committed native table, including
 	// both selected fighters and the exact table revision.  Exercise the same
 	// pre-battle path the game uses before asking the helper to reserve QUIC.
@@ -359,9 +367,9 @@ int wmain(int argc, wchar_t** argv) {
 			<< "," << rooms[1]->Game(rooms[0]->LocalIdentity()).route
 			<< " frozen_delays=" << p1Delay << "," << p2Delay << '\n';
 		if (cycle == 1) {
-			// Gameplay must upgrade the most recent check, initiated by P2.
-            // P1's earlier recommendation was explicitly invalidated. GameSnapshot exposes its selected path; the control
-			// identity also must remain the same while that reservation is used.
+			// Gameplay dials its own connection, which selects the same path as P2's
+            // most recent check here. GameSnapshot exposes the selected path; the control
+			// identity also must remain the same across the checks.
 			CHECK(rooms[1]->Game(rooms[0]->LocalIdentity()).route == finalProbeRoute);
 			CHECK(rooms[0]->ConnectionForIdentity(probePeer) == probeControl);
 		}

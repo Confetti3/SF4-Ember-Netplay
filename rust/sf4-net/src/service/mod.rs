@@ -49,20 +49,39 @@ pub const MAX_GAME_LINKS: usize = 15;
 /// intentionally not detached from the actor's shutdown scope.
 pub const MAX_TASKS: usize = MAX_CONTROL_PEERS + MAX_GAME_LINKS + 8;
 const CONTROL_POLL_BUDGET: usize = 20;
+/// How long a replacement control waits behind the worker it supersedes. The
+/// old worker is closed at once, so its reader ends and its queue drains within
+/// a few polls; the limit only bounds a worker whose session binding never
+/// settles, which would otherwise hold its queue and the replacement forever.
+const CONTROL_REPLACE_DRAIN_LIMIT: Duration = Duration::from_secs(5);
 const LIFECYCLE_EVENT_RESERVE: usize = 8;
 const INVITE_LIFETIME: u64 = 3600;
 const CHECKPOINT_TRANSFER_TIMEOUT: Duration = Duration::from_secs(15);
 const COORDINATION_ADMISSION_TIMEOUT: Duration = Duration::from_secs(12);
+/// One membership reconciliation. A configuration change that needs a member
+/// which never answers would otherwise hold the single reconciliation slot for
+/// good; the next refresh retries once it times out.
+const MEMBERSHIP_OPERATION_TIMEOUT: Duration = Duration::from_secs(12);
+/// A probe reservation is waited for this long on the replica that must apply
+/// it before the requesting control is closed.
+const PROBE_RESERVATION_TIMEOUT: Duration = Duration::from_secs(5);
+/// A joiner whose control to the room's authority closes at least this many
+/// times in a row, over at least `JOIN_GIVE_UP_AFTER`, without its
+/// coordination member ever being admitted gives up with `join_failed`
+/// instead of redialling forever. The time floor keeps a slow relay join,
+/// whose first attempts can be refused in quick succession, from failing.
+const MAX_JOIN_CONTROL_LOSSES: u8 = 8;
+const JOIN_GIVE_UP_AFTER: Duration = Duration::from_secs(45);
 /// A single authority read can time out while a relay room is admitting a
 /// burst of members. Freeze native mutations immediately, but only ask one
 /// deterministic surviving voter to campaign after the same committed
 /// leader has remained unwritable for a full election window. This stays
 /// ahead of the native replacement-room offer at fifteen seconds.
 const RECOVERY_ELECTION_GRACE: Duration = Duration::from_secs(10);
-// Retired process incarnations are retained as exact provenance until the
-// room closes. Once this bounded tombstone budget is exhausted, admission of
-// another incarnation fails closed rather than allowing an old ID to be
-// forgotten and replayed on a lagging replica.
+// Retired process incarnations are kept as tombstones so an old Admission
+// cannot be replayed on a lagging replica. The set is bounded; once it is full,
+// the tombstone of an incarnation that has aged out of the replicated
+// membership history makes room (`record_retirement`).
 const MAX_RETIRED_INCARNATIONS: usize = crate::coordination::MAX_RETIRED_MEMBER_HISTORY;
 // One monotonic wire counter covers coordination and native messages. The
 // native logical message ID is carried in `NativeControlMessage` so C++ can
@@ -111,7 +130,11 @@ enum Completion {
     Control(u64, io::Result<ControlChannel>),
     MemberControl(u64, u64, io::Result<ControlChannel>),
     Reconnect(u64, EndpointId, io::Result<ControlChannel>),
+    /// A dialed gameplay link.
     Game(u64, EndpointId, u64, io::Result<GameConnection>),
+    /// A connection a listener accepted, keyed by that connection's stable
+    /// id. Its failure only ends this candidate, never the slot.
+    GameCandidate(u64, EndpointId, u64, usize, io::Result<GameConnection>),
     BridgeEnded(u64, EndpointId, u64, Option<crate::bridge::Failure>),
     CheckpointProposal(
         CheckpointProposalKey,
@@ -126,6 +149,7 @@ enum Completion {
     Admission(AdmissionOperationKey, io::Result<AdmissionOperationResult>),
     ProbeAuthorization(ProbeAuthorizationKey, io::Result<ProbeAuthorization>),
     Probe(u64, io::Result<ProbeCompletion>),
+    ProbeReservation(ProbeReservationKey, bool),
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -221,6 +245,20 @@ struct ProbeAuthorizationKey {
     benchmark: bool,
 }
 
+/// A probe reservation whose Raft entry this replica had not applied yet when
+/// the control frame arrived.
+#[derive(Clone, PartialEq, Eq)]
+struct ProbeReservationKey {
+    epoch: u64,
+    peer: EndpointId,
+    /// The control worker that presented the frame, or 0 when the peer had
+    /// none. A wait that ends unapplied may close only this exact control.
+    control: u64,
+    request: u64,
+    pair_revision: u64,
+    expires: u64,
+}
+
 struct ProbeAuthorization {
     term: u64,
     leader: Option<u64>,
@@ -236,7 +274,29 @@ struct GameSlot {
     stats: Option<Arc<BridgeStats>>,
     route_connection: Option<Connection>,
     expires: tokio::time::Instant,
-    prepare_deadline: Option<watch::Sender<tokio::time::Instant>>,
+    /// Stable id of the accepted connection whose handshake is running as
+    /// `task`. Candidates handshake one at a time; only this one's completion
+    /// counts, and one that arrives after it was retired is ignored.
+    candidate: Option<usize>,
+    diagnostics: GameDiagnostics,
+}
+
+/// What a gameplay slot saw before it linked. It is reported with the slot's
+/// close or failure so a link that never formed can be told from one that broke.
+#[derive(Default)]
+struct GameDiagnostics {
+    refused_incoming: u32,
+    /// Accepted connections that failed their handshake without ending the slot.
+    rejected_candidates: u32,
+}
+
+impl GameDiagnostics {
+    fn describe(&self, waiting: bool) -> String {
+        format!(
+            "waiting={} refused_incoming={} rejected_candidates={}",
+            waiting, self.refused_incoming, self.rejected_candidates
+        )
+    }
 }
 
 struct OutgoingCheckpoint {
@@ -261,12 +321,18 @@ struct PendingCheckpointCommitted {
     digest: String,
 }
 
-struct ProbeReservation {
-    reported: bool,
-    connection: Connection,
-    request: u64,
-    pair_revision: u64,
-    route: String,
+/// A control connection from an endpoint that already has a worker. It is not
+/// started until that worker has delivered every frame it received, so the old
+/// connection's frames, a departure among them, reach the native side under
+/// the old control identity and ahead of anything the replacement sends.
+struct ParkedControl {
+    epoch: u64,
+    channel: ControlChannel,
+    joined_invite: Option<Invite>,
+    /// Id of the worker this candidate waits behind, or None when the peer
+    /// had no worker. Only that worker may be replaced by this candidate.
+    behind: Option<u64>,
+    since: Instant,
 }
 
 #[derive(Clone)]
@@ -276,10 +342,20 @@ struct PendingProbeInvalidation {
     route: String,
 }
 
+/// Permission for a peer to open a probe connection to this helper, installed
+/// by the peer's reservation. It covers only probes this helper answers.
 struct ProbePermission {
     request: u64,
     pair_revision: u64,
     expires: tokio::time::Instant,
+}
+
+/// A check this helper runs against a peer, from its command until its
+/// completion. The peer may check us at the same time, with the same request
+/// id and pair revision, so this is kept apart from `ProbePermission`.
+struct OwnProbe {
+    request: u64,
+    pair_revision: u64,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -330,8 +406,20 @@ struct ProbeCompletion {
     connection: Option<Connection>,
     report: bool,
     route_changed: bool,
+    /// The route the measurement observed; unset when it must be read from
+    /// `connection`.
+    route: Option<String>,
     metrics: crate::probe::Metrics,
 }
+impl GameSlot {
+    /// Why a slot closed without a gameplay link, or `None` once it had one.
+    fn unlinked_reason(&self, cause: &str) -> Option<String> {
+        self.stats
+            .is_none()
+            .then(|| format!("{cause}: {}", self.diagnostics.describe(self.waiting)))
+    }
+}
+
 impl Drop for GameSlot {
     fn drop(&mut self) {
         if let Some(task) = &self.task {
@@ -441,6 +529,8 @@ struct Actor {
     room_invite: Option<Invite>,
     host_address: Option<EndpointAddr>,
     controls: BTreeMap<EndpointId, ControlWorker>,
+    /// The replacement for each control whose worker is still draining.
+    parked_controls: BTreeMap<EndpointId, ParkedControl>,
     games: BTreeMap<EndpointId, GameSlot>,
     closed_generation: u64,
     tasks: JoinSet<Completion>,
@@ -495,18 +585,25 @@ struct Actor {
     /// this fence a follower that has learned a new leader but has not yet
     /// connected would launch one ten-second dial per state tick.
     reconnect_target: Option<EndpointId>,
-    probe_reservations: BTreeMap<EndpointId, ProbeReservation>,
     pending_game_admissions: BTreeMap<EndpointId, (Connection, tokio::task::AbortHandle)>,
     /// Invalidations are retained until the bounded native event queue has
-    /// room. Otherwise a closed or migrated reserved connection could leave
-    /// native code recommending a route that can no longer be upgraded.
+    /// room. Otherwise a route-changed measurement could leave native code
+    /// holding a recommendation that no longer stands.
     pending_probe_invalidations: BTreeMap<EndpointId, PendingProbeInvalidation>,
-    // A GAME_ALPN connection is a probe reservation until the native side
-    // commits gameplay authorization.  This fence prevents a racing
-    // PrepareGame accept from consuming the probe handshake.
+    // Peers that hold a reservation to probe us. An incoming probe stream is
+    // served only for a peer in this set.
     probe_peers: BTreeSet<EndpointId>,
     probe_permissions: BTreeMap<EndpointId, ProbePermission>,
+    /// Checks we run, one per peer. A second check of the same peer is refused
+    /// while one is in flight; a probe we are answering does not count.
+    own_probes: BTreeMap<EndpointId, OwnProbe>,
     pending_probe_authorizations: BTreeMap<EndpointId, ProbeAuthorizationKey>,
+    pending_probe_reservations: BTreeMap<EndpointId, ProbeReservationKey>,
+    /// Set once the coordination member of a joined room has been seen in the
+    /// applied membership; only a join that never got there is bounded.
+    join_settled: bool,
+    join_control_losses: u8,
+    join_first_loss: Option<tokio::time::Instant>,
     /// A departing Raft leader keeps its authority RPC alive briefly after
     /// emitting room_closed. A simultaneous follower Leave can then obtain
     /// the committed voter-set proof before the leader's process shuts down.
@@ -588,6 +685,7 @@ impl Actor {
         self.room = None;
         self.opening = false;
         self.controls.clear();
+        self.clear_parked_controls();
         self.games.clear();
         self.tasks.abort_all();
         self.closed_generation = 0;
@@ -614,12 +712,16 @@ impl Actor {
         self.last_control_rebound = None;
         self.unwritable_leader_since = None;
         self.reconnect_target = None;
-        self.probe_reservations.clear();
         self.pending_game_admissions.clear();
         self.pending_probe_invalidations.clear();
         self.probe_peers.clear();
         self.probe_permissions.clear();
+        self.own_probes.clear();
         self.pending_probe_authorizations.clear();
+        self.pending_probe_reservations.clear();
+        self.join_settled = false;
+        self.join_control_losses = 0;
+        self.join_first_loss = None;
         self.retirement_started = None;
         self.departure_failed = false;
     }
@@ -835,43 +937,20 @@ impl Actor {
                     capability,
                     max_packet,
                 };
-                let reserved = self
-                    .probe_reservations
-                    .remove(&peer)
-                    .map(|reservation| reservation.connection);
                 let mut slot = GameSlot {
                     auth: auth.clone(),
                     local_port,
-                    waiting: !dial && reserved.is_none(),
+                    // The listener accepts an authorized connection from the
+                    // dialer, which always dials a new one.
+                    waiting: !dial,
                     task: None,
                     stats: None,
                     route_connection: None,
                     expires: tokio::time::Instant::now() + transport::PREPARED_GAME_TIMEOUT,
-                    prepare_deadline: None,
+                    candidate: None,
+                    diagnostics: GameDiagnostics::default(),
                 };
-                if let Some(connection) = reserved {
-                    let reserved_auth = auth.clone();
-                    let deadline = if dial {
-                        None
-                    } else {
-                        let (sender, receiver) = watch::channel(slot.expires);
-                        slot.prepare_deadline = Some(sender);
-                        Some(receiver)
-                    };
-                    slot.task = Some(self.tasks.spawn(async move {
-                        let result = if dial {
-                            transport::connect_game_on(connection, reserved_auth).await
-                        } else {
-                            transport::accept_game_on(
-                                connection,
-                                reserved_auth,
-                                deadline.expect("prepared listener deadline"),
-                            )
-                            .await
-                        };
-                        Completion::Game(epoch, peer, generation, result)
-                    }));
-                } else if dial {
+                if dial {
                     let endpoint = self.endpoint.clone();
                     let address = self
                         .host_address
@@ -904,9 +983,8 @@ impl Actor {
                     return Ok(true);
                 }
                 self.closed_generation = self.closed_generation.max(generation);
-                let peers: Vec<_> = self.games.keys().copied().collect();
-                self.games.clear();
-                for peer in peers {
+                let slots = std::mem::take(&mut self.games);
+                for (peer, slot) in slots {
                     if let Some((connection, task)) = self.pending_game_admissions.remove(&peer) {
                         connection.close(0u32.into(), b"match ended during admission");
                         task.abort();
@@ -915,6 +993,7 @@ impl Actor {
                         epoch,
                         peer,
                         generation,
+                        reason: slot.unlinked_reason("ended before gameplay link"),
                     })?;
                 }
             }
@@ -941,7 +1020,7 @@ impl Actor {
                     self.error(id, "stale_match")?;
                     return Ok(true);
                 }
-                self.games.remove(&peer);
+                let slot = self.games.remove(&peer);
                 if let Some((connection, task)) = self.pending_game_admissions.remove(&peer) {
                     connection.close(0u32.into(), b"peer ended during admission");
                     task.abort();
@@ -950,6 +1029,8 @@ impl Actor {
                     epoch,
                     peer,
                     generation,
+                    reason: slot
+                        .and_then(|slot| slot.unlinked_reason("peer ended before gameplay link")),
                 })?;
             }
             Command::CheckpointBegin { .. }
@@ -1037,11 +1118,18 @@ impl Actor {
             Completion::Game(epoch, peer, generation, result) => {
                 self.completed_game(epoch, peer, generation, result).await
             }
+            Completion::GameCandidate(epoch, peer, generation, candidate, result) => {
+                self.completed_game_candidate(epoch, peer, generation, candidate, result)
+                    .await
+            }
             Completion::BridgeEnded(epoch, peer, generation, failure) => {
                 self.completed_bridge_ended(epoch, peer, generation, failure)
                     .await
             }
             Completion::Probe(epoch, result) => self.completed_probe(epoch, result).await,
+            Completion::ProbeReservation(key, applied) => {
+                self.completed_probe_reservation(key, applied).await
+            }
         }
     }
 
@@ -1169,7 +1257,7 @@ impl Actor {
                     self.pump_pending_checkpoint_committed();
                     self.expire_checkpoint_transfers();
                     self.expire_probe_permissions();
-                    self.invalidate_changed_probe_routes();
+                    self.pump_probe_invalidations();
                     self.pump_outgoing_checkpoint();
                     busy.stage("tick:pump_committed_checkpoint");
                     self.pump_committed_checkpoint().await?;

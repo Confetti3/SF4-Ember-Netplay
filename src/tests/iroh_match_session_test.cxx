@@ -244,23 +244,27 @@ void TestSpectatorMissingRoomEndReturnsAtOnce() {
 // which stays in the room and returns to Idle.
 void TestFighterMissingRoomEndIsBounded() {
 	Fixture f(1);
+	CHECK(!f.session.Live());
 	f.transport->Push(f.Grant(5));
 	f.transport->Push(Fixture::Connect(5));
 	CHECK(f.client.Step() == 0);
 	CHECK(f.session.Tick());
 	CHECK(f.session.Tick());
 	CHECK(f.session.GetPhase() == Phase::Connecting);
+	CHECK(f.session.Live());
 	CHECK(f.session.LocalSlot() == 1);
 	f.session.End();
 	f.room->AbandonMatch(5);
 	CHECK(f.session.Tick());
 	CHECK(f.session.GetPhase() == Phase::Ending);
+	CHECK(!f.session.Live());
 	f.now += session::MatchTeardownTiming::RoomEndTimeoutMs - 1;
 	CHECK(f.session.Tick());
 	CHECK(f.session.GetPhase() == Phase::Ending);
 	f.now += 1;
 	CHECK(!f.session.Tick());
 	CHECK(f.session.GetPhase() == Phase::Failed);
+	CHECK(!f.session.Live());
 	CHECK(f.session.Error() == "match_room_end_timeout");
 	CHECK(f.session.Abort());
 	// N-005: the runtime traces the session after Abort; the reason stays.
@@ -274,8 +278,8 @@ void TestFighterMissingRoomEndIsBounded() {
 
 // (7) A spectator's stream source is P1's link. After the room's game_end the
 // spectator keeps its GGPO session while it plays the buffered tail; once
-// P1's link closes (P1 left at once in sf4e.1.log 23:04:36) nothing more can
-// arrive, which lets the runtime close the view instead of waiting 15 s. A
+// P1's link closes (P1 left at once) nothing more can arrive, which lets the
+// runtime close the view instead of waiting out the 15 s timeout. A
 // fighter never reports a closed source.
 void TestSpectatorStreamSourceClosed() {
 	Fixture f;

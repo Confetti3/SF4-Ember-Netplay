@@ -9,8 +9,10 @@
 namespace sf4e { namespace ui {
 // Copied input and semantic actions: no renderer, platform, or game dependency.
 struct MenuInput {
-    // Fighter, Options and Chat are the Xbox X, Y and View shortcuts
-    // (ControllerSample uses the same values; 64 is its Menu button).
+    // Fighter, Options and Chat are the Xbox X, Y and View shortcuts. The
+    // overlay passes a ControllerSample's buttons straight in, so both enums
+    // number them alike (asserted in ControllerNavigation.hxx); 64 is left for
+    // the sample's Menu button.
     enum Button : unsigned { Up=1, Down=2, Left=4, Right=8, Select=16, Back=32, Fighter=128, Options=256, Chat=512 };
     unsigned held = 0;
     double time = 0;
@@ -19,7 +21,12 @@ struct MenuInput {
 // One option of a choice. The id is what the option means, so a choice whose
 // options change meaning under the player closes instead of quietly sending
 // something else. label is short enough for a button; detail says it in full.
-struct MenuChoice { std::string id, label, detail; };
+// A choice that is not enabled is shown, with its reason in detail, but cannot
+// be picked.
+struct MenuChoice { std::string id, label, detail; bool enabled = true; };
+// Whose words an entry's detail carries. The renderer asks the atlas for the
+// glyphs of player-written detail when it draws it, and only then.
+enum class DetailText { Interface, Name, Chat };
 struct MenuEntry {
     std::string id, label, detail, value;
     bool enabled = true, adjustable = false, text = false, confirm = false;
@@ -48,7 +55,21 @@ struct MenuEntry {
     std::string left, right;
     // Presentation-only grace during a healthy room checkpoint. Never authorizes an action.
     bool pending = false;
+    // A detail that embeds a player's name, or is a chat message.
+    DetailText detailText = DetailText::Interface;
 };
+// What Select does on an entry, decided in one place so navigation and the
+// legend agree. A reader wins over text, text over choices, choices over a
+// confirmation (a confirmation that also carries choices asks by choosing).
+enum class SelectOpens { Nothing, Reader, Edit, Choice, Confirm, Activate };
+inline SelectOpens MenuSelectOpens(const MenuEntry& e) {
+    if (!e.enabled || e.info) return SelectOpens::Nothing;
+    if (e.reading) return SelectOpens::Reader;
+    if (e.adjustable && e.choices.empty()) return SelectOpens::Nothing;
+    if (e.text) return SelectOpens::Edit;
+    if (!e.choices.empty()) return SelectOpens::Choice;
+    return e.confirm ? SelectOpens::Confirm : SelectOpens::Activate;
+}
 // A grid's cards are the entries before its first wide one; the rest are its
 // footer. Rendering and navigation both read this, so what is drawn under the
 // cards is also what Down reaches from them.
@@ -74,31 +95,39 @@ public:
     }
     void Home() { Cancel(); stack_.resize(1); NeutralGate(); }
     void Cancel() {
-        const bool modal = Editing() || Confirming() || Reading();
-        dialog_.clear(); editing_.clear(); draft_.clear(); choiceIds_.clear(); reading_.clear();
+        const bool modal = mode_ != Modal::None;
+        mode_ = Modal::None; modalId_.clear(); draft_.clear(); choiceIds_.clear();
         if (modal) NeutralGate();
     }
     void NeutralGate() { previous_=~0u; armed_=false; direction_=0; nextRepeat_=0; }
     const std::string& Focus() const { return states_.at(Screen()).id; }
-    bool Editing() const { return !editing_.empty(); }
+    // The one open modal, if any; it belongs to the entry named by modalId_.
+    // Confirming, Choosing, Editing and Reading each name exactly one mode.
+    enum class Modal { None, Confirm, Choice, Edit, Read };
+    Modal Mode() const { return mode_; }
+    bool Editing() const { return mode_ == Modal::Edit; }
     // The editor's highlighted button: Accept, unless a moving pointer went to
     // Cancel. The controller's Select presses it; Enter always accepts.
     bool EditAccepts() const { return editAccept_; }
     void EditAccepts(bool accept) { if (Editing()) editAccept_ = accept; }
     // A reader is open on this entry; Back closes it.
-    bool Reading() const { return !reading_.empty(); }
-    const std::string& ReadingId() const { return reading_; }
-    bool Confirming() const { return !dialog_.empty(); }
+    bool Reading() const { return mode_ == Modal::Read; }
+    const std::string& ReadingId() const { return Reading() ? modalId_ : NoId(); }
+    // A yes/no question about the entry, drawn as a dialog.
+    bool Confirming() const { return mode_ == Modal::Confirm; }
     // A choice is a dialog its owning body draws in place.
-    bool Choosing() const { return !choiceIds_.empty(); }
+    bool Choosing() const { return mode_ == Modal::Choice; }
+    // A confirmation or a choice: a question the player answers with Select.
+    bool Asking() const { return Confirming() || Choosing(); }
     bool ConfirmSelected() const { return confirmSelected_; }
     // A pointer moving over a confirmation's button highlights it.
-    void ConfirmSelected(bool accept) { if (Confirming() && !Choosing()) confirmSelected_ = accept; }
+    void ConfirmSelected(bool accept) { if (Confirming()) confirmSelected_ = accept; }
     // The highlighted option of an open choice.
     std::size_t ChoiceIndex() const { return choiceIndex_; }
     void ChoiceIndex(std::size_t index) { if (index < choiceIds_.size()) choiceIndex_ = index; }
-    const std::string& EditingId() const { return editing_; }
-    const std::string& DialogId() const { return dialog_; }
+    const std::string& EditingId() const { return Editing() ? modalId_ : NoId(); }
+    // The entry an open confirmation or choice belongs to.
+    const std::string& DialogId() const { return Asking() ? modalId_ : NoId(); }
     const std::string& Draft() const { return draft_; }
     void Draft(std::string text) { draft_=std::move(text); }
     float& Scroll() { return states_[Screen()].scroll; }
@@ -108,60 +137,62 @@ public:
         if (it!=entries.end()) state.index=static_cast<std::size_t>(it-entries.begin());
         else if (!entries.empty()) { state.index=(std::min)(state.index,entries.size()-1); state.id=entries[state.index].id; }
         else { state.id.clear(); state.index=0; }
-        const auto valid = [&](const std::string& id, bool text) {
+        const auto valid = [&](bool text) {
             return std::any_of(entries.begin(), entries.end(), [&](const MenuEntry& e) {
-                return e.id == id && (text ? e.text : (e.confirm || !e.choices.empty()) && SameChoices(e)) &&
+                return e.id == modalId_ && (text ? e.text : (e.confirm || !e.choices.empty()) && SameChoices(e)) &&
                     (e.enabled || e.pending);
             });
         };
         // A transient checkpoint must not discard a draft. Removed entries,
         // changed kinds and genuinely unavailable actions still cancel immediately.
-        const bool readable = std::any_of(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == reading_ && e.reading; });
-        if ((!dialog_.empty() && !valid(dialog_, false)) ||
-            (!editing_.empty() && !valid(editing_, true)) || (Reading() && !readable)) Cancel();
-        const auto& owner = Editing() ? editing_ : Reading() ? reading_ : dialog_;
-        if (!owner.empty()) {
+        const bool readable = std::any_of(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == modalId_ && e.reading; });
+        if ((Asking() && !valid(false)) || (Editing() && !valid(true)) || (Reading() && !readable)) Cancel();
+        if (mode_ != Modal::None) {
             const auto target = std::find_if(entries.begin(), entries.end(),
-                [&](const MenuEntry& e) { return e.id == owner; });
-            state.id = owner; state.index = static_cast<std::size_t>(target - entries.begin());
+                [&](const MenuEntry& e) { return e.id == modalId_; });
+            state.id = modalId_; state.index = static_cast<std::size_t>(target - entries.begin());
         }
     }
     void Focus(const std::string& id,const std::vector<MenuEntry>& entries) {
-        if ((Editing() && id != editing_) || (Confirming() && id != dialog_) || (Reading() && id != reading_)) return;
+        if (mode_ != Modal::None && id != modalId_) return;
         auto it=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==id;});
         if(it!=entries.end()) { auto& s=states_[Screen()]; s.id=id; s.index=it-entries.begin(); }
     }
     MenuAction Return() {
-        if (Editing()||Confirming()||Reading()) { Cancel(); return {}; }
+        if (mode_ != Modal::None) { Cancel(); return {}; }
         if (stack_.size()>1) { stack_.pop_back(); NeutralGate(); return {MenuAction::Returned}; }
         return {MenuAction::Close};
     }
     MenuAction Choose(const std::vector<MenuEntry>& entries) {
         Reconcile(entries);
-        if (entries.empty() || Editing() || Confirming() || Reading()) return {};
+        if (entries.empty() || mode_ != Modal::None) return {};
         const auto& e=entries[states_[Screen()].index];
-        if(!e.enabled || e.info) return {};
-        if(e.reading) { reading_=e.id; return {}; }
-        if(e.adjustable && e.choices.empty()) return {};
-        if(e.text) { editing_=e.id; draft_=e.value; editAccept_=true; return {}; }
-        if(e.confirm||!e.choices.empty()) {
-            dialog_=e.id; confirmSelected_=false; choiceIndex_=0;
-            for (const auto& c : e.choices) {
-                if (c.id == e.chosen) choiceIndex_ = choiceIds_.size();
-                choiceIds_.push_back(c.id);
-            }
-            return {};
+        switch (MenuSelectOpens(e)) {
+        case SelectOpens::Reader: mode_=Modal::Read; modalId_=e.id; return {};
+        case SelectOpens::Edit: mode_=Modal::Edit; modalId_=e.id; draft_=e.value; editAccept_=true; return {};
+        case SelectOpens::Choice: case SelectOpens::Confirm: Open(e); return {};
+        case SelectOpens::Activate: return {MenuAction::Activate,e.id};
+        case SelectOpens::Nothing: break;
         }
-        return {MenuAction::Activate,e.id};
+        return {};
+    }
+    // Opens the entry's choice as if the player had selected it, for a
+    // choice that the player asked for some other way (Back on a place).
+    bool Ask(const std::string& id,const std::vector<MenuEntry>& entries) {
+        Reconcile(entries);
+        if (mode_ != Modal::None) return false;
+        const auto it=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==id;});
+        if (it==entries.end() || !it->enabled || it->choices.empty()) return false;
+        Focus(id,entries); Open(*it); return true;
     }
     MenuAction Confirm(bool accept,const std::vector<MenuEntry>& entries) {
         Reconcile(entries);
-        if (!Confirming() || Choosing()) return {};
+        if (!Confirming()) return {};
         const auto entry = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) {
-            return e.id == dialog_ && e.enabled && e.confirm;
+            return e.id == modalId_ && e.enabled && e.confirm;
         });
         if (accept && entry == entries.end()) return {};
-        const auto id=dialog_; Cancel();
+        const auto id=modalId_; Cancel();
         return accept ? MenuAction{MenuAction::Activate,id} : MenuAction{};
     }
     // Option `index` of the open choice, as it was when the choice opened;
@@ -169,15 +200,15 @@ public:
     MenuAction Pick(std::size_t index,const std::vector<MenuEntry>& entries) {
         Reconcile(entries);
         if (!Choosing() || index >= choiceIds_.size()) return {};
-        const auto entry = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == dialog_; });
-        if (entry == entries.end() || !entry->enabled) return {};
-        MenuAction a{MenuAction::Chosen, dialog_, choiceIds_[index]}; Cancel(); return a;
+        const auto entry = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == modalId_; });
+        if (entry == entries.end() || !entry->enabled || !entry->choices[index].enabled) return {};
+        MenuAction a{MenuAction::Chosen, modalId_, choiceIds_[index]}; Cancel(); return a;
     }
     MenuAction AcceptText(const std::vector<MenuEntry>& entries) {
         Reconcile(entries); if(!Editing()) return {};
-        auto it=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==editing_;});
+        auto it=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==modalId_;});
         if(it==entries.end()||!it->enabled||draft_.size()>it->textLimit) return {};
-        MenuAction a{MenuAction::TextAccepted,editing_,draft_}; Cancel(); return a;
+        MenuAction a{MenuAction::TextAccepted,modalId_,draft_}; Cancel(); return a;
     }
     MenuAction Update(MenuInput in,const std::vector<MenuEntry>& entries,int columns=1,bool deferBack=false,bool deferText=false) {
         Reconcile(entries);
@@ -189,7 +220,7 @@ public:
         const auto pressed=held&~previous_; previous_=held;
         // Renderers finish the current screen before committing a return, so
         // the outgoing frame still has its body, focus and scroll state.
-        if(pressed&MenuInput::Back) return deferBack&&!Editing()&&!Confirming()&&!Reading()?MenuAction{MenuAction::Back}:Return();
+        if(pressed&MenuInput::Back) return deferBack&&mode_==Modal::None?MenuAction{MenuAction::Back}:Return();
         // The reader scrolls with held directions, which its renderer reads.
         if(Reading()) return {};
         if(Editing()) {
@@ -203,7 +234,7 @@ public:
             return deferText ? MenuAction{MenuAction::SubmitText} : AcceptText(entries);
         }
         const unsigned shortcut=pressed&(MenuInput::Fighter|MenuInput::Options|MenuInput::Chat);
-        if(shortcut&&!Confirming()) return {MenuAction::Shortcut,{},{},static_cast<int>(shortcut&(~shortcut+1))};
+        if(shortcut&&mode_==Modal::None) return {MenuAction::Shortcut,{},{},static_cast<int>(shortcut&(~shortcut+1))};
         if(Choosing()) {
             if((pressed&(MenuInput::Left|MenuInput::Up))&&choiceIndex_>0) --choiceIndex_;
             if((pressed&(MenuInput::Right|MenuInput::Down))&&choiceIndex_+1<choiceIds_.size()) ++choiceIndex_;
@@ -246,6 +277,14 @@ public:
         return {};
     }
 private:
+    static const std::string& NoId() { static const std::string none; return none; }
+    void Open(const MenuEntry& e) {
+        mode_=e.choices.empty()?Modal::Confirm:Modal::Choice; modalId_=e.id; confirmSelected_=false; choiceIndex_=0;
+        for (const auto& c : e.choices) {
+            if (c.id == e.chosen) choiceIndex_ = choiceIds_.size();
+            choiceIds_.push_back(c.id);
+        }
+    }
     bool SameChoices(const MenuEntry& e) const {
         return e.choices.size() == choiceIds_.size() &&
             std::equal(choiceIds_.begin(), choiceIds_.end(), e.choices.begin(),
@@ -255,7 +294,10 @@ private:
     struct State { std::string id; std::size_t index=0; float scroll=0; };
     std::vector<std::string> stack_;
     std::map<std::string,State> states_;
-    std::string dialog_,editing_,draft_,reading_;
+    // The open modal and the entry it belongs to. choiceIds_ holds the option
+    // ids as they were when a choice opened; draft_ is an editor's text.
+    Modal mode_=Modal::None;
+    std::string modalId_,draft_;
     std::vector<std::string> choiceIds_;
     bool confirmSelected_=false, armed_=true, editAccept_=true;
     std::size_t choiceIndex_=0;

@@ -27,6 +27,12 @@ public:
 	void ReleasePortToGgpo();
 	std::uint16_t RemotePort(const SessionProtocol::ConnectionID& member) const;
 	Phase GetPhase() const { return phase_; }
+	// A match is being prepared or played on this session: not idle, ending
+	// or failed.
+	bool Live() const {
+		return phase_ == Phase::Preparing || phase_ == Phase::Prepared ||
+			phase_ == Phase::Connecting || phase_ == Phase::Started;
+	}
 	std::uint64_t Generation() const { return generation_; }
 	std::size_t LocalSlot() const { return slot_; }
 	const std::vector<SessionProtocol::ConnectionID>& Roster() const { return roster_; }

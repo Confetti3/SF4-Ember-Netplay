@@ -8,7 +8,8 @@ namespace sf4e { namespace ui {
 // nullptr for a screen with no name of its own.
 inline const char* MenuScreenName(const std::string& screen) {
     // Every screen the shell, the fighter selector, training and recovery can
-    // push. A test walks them all, so a new screen cannot fall through to its id.
+    // push. ScreenNames in controller_navigation_test checks the screens it
+    // lists, so add a new screen there too.
     const std::pair<const char*,const char*> names[]={
         {"home",loc::T("screen.home")},{"online",loc::T("screen.online")},{"selection",loc::T("screen.selection")},
         {"player",loc::T("screen.player")},{"defaults",loc::T("screen.defaults")},
@@ -34,9 +35,16 @@ inline std::string MenuScreenLabel(const std::string& screen) {
     return label;
 }
 inline const char* MenuPrimaryHint(const MenuEntry* entry) {
-    if(!entry||!entry->enabled||entry->info||(entry->adjustable&&entry->choices.empty()))return nullptr;
+    if(!entry)return nullptr;
+    const auto opens=MenuSelectOpens(*entry);
+    if(opens==SelectOpens::Nothing)return nullptr;
     if(!entry->hint.empty())return entry->hint.c_str();
-    return entry->text?loc::T("menu.edit"):entry->reading?loc::T("menu.read"):entry->confirm?loc::T("menu.review"):
-        !entry->choices.empty()?loc::T("menu.choose"):loc::T("menu.select");
+    switch(opens){
+    case SelectOpens::Reader:return loc::T("menu.read");
+    case SelectOpens::Edit:return loc::T("menu.edit");
+    case SelectOpens::Choice:return loc::T("menu.choose");
+    case SelectOpens::Confirm:return loc::T("menu.review");
+    default:return loc::T("menu.select");
+    }
 }
 } }

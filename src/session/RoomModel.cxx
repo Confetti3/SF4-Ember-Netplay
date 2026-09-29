@@ -448,6 +448,26 @@ void RoomAuthority::SeatQueued(Table& table) {
 	if (table.p1 != 0 && table.p2 != 0 && table.phase == TablePhase::Idle) table.phase = TablePhase::Waiting;
 }
 
+void RoomAuthority::ClearReadiness(Table& table) {
+	table.ready[0] = table.ready[1] = false;
+	for (const MemberId seated : {table.p1, table.p2})
+		if (auto* fighter = Find(seated)) fighter->delayLocked = false;
+}
+
+void RoomAuthority::CloseLiveGeneration(Table& table) {
+	activeMatchRecipients_[table.id].clear();
+	for (const auto watcher : table.watchingNext)
+		if (std::find(table.spectators.begin(), table.spectators.end(), watcher) == table.spectators.end())
+			table.spectators.push_back(watcher);
+	table.watchingNext.clear();
+	const auto ending = std::move(table.endingWatchers);
+	table.endingWatchers.clear();
+	for (const auto leaving : ending) {
+		table.spectators.erase(std::remove(table.spectators.begin(), table.spectators.end(), leaving), table.spectators.end());
+		NormalizeMemberStatus(leaving);
+	}
+}
+
 void RoomAuthority::RemoveFromTable(MemberId member, bool preserveSpectator) {
 	for (auto& table : snapshot_.tables) {
 		bool changed = false;
@@ -462,27 +482,35 @@ void RoomAuthority::RemoveFromTable(MemberId member, bool preserveSpectator) {
 			table.spectators.erase(std::remove(table.spectators.begin(), table.spectators.end(), member), table.spectators.end());
 			const auto oldNextSize = table.watchingNext.size();
 			table.watchingNext.erase(std::remove(table.watchingNext.begin(), table.watchingNext.end(), member), table.watchingNext.end());
-			ancillaryChanged = ancillaryChanged || oldSpectatorSize != table.spectators.size() || oldNextSize != table.watchingNext.size();
+			const auto oldEndingSize = table.endingWatchers.size();
+			table.endingWatchers.erase(std::remove(table.endingWatchers.begin(), table.endingWatchers.end(), member), table.endingWatchers.end());
+			ancillaryChanged = ancillaryChanged || oldSpectatorSize != table.spectators.size() ||
+				oldNextSize != table.watchingNext.size() || oldEndingSize != table.endingWatchers.size();
 		}
 		if (changed) {
-			table.ready[0] = table.ready[1] = false;
+			// Leave stored the game's abort receipt before this, so a live game is
+			// over for everyone: close it the way EndMatch does.
+			const bool live = table.phase == TablePhase::Playing || table.phase == TablePhase::Paused;
+			ClearReadiness(table);
 			table.resultPending = false;
 			resultReporter_[table.id] = 0;
 			resultPendingSince_[table.id] = 0;
 			table.score[0] = table.score[1] = 0;
+			if (live) CloseLiveGeneration(table);
 			// A departed seat always leaves a vacancy. Clear the transient phase
 			// before filling it so Ready/Playing tables cannot remain Paused with
 			// one stale fighter after a disconnect or explicit Leave.
 			table.phase = TablePhase::Idle;
 			Touch(table);
 			SeatQueued(table);
+			NormalizeTableMembers(table);
 		} else if (ancillaryChanged) Touch(table);
 	}
 	NormalizeMemberStatus(member);
 }
 
 void RoomAuthority::ResetTable(Table& table, bool clearScore) {
-	table.ready[0] = table.ready[1] = false;
+	ClearReadiness(table);
 	table.resultPending = false;
 	resultReporter_[table.id] = 0;
 	resultPendingSince_[table.id] = 0;
@@ -517,9 +545,12 @@ Result RoomAuthority::Leave(MemberId member) {
 	lastChatMs_.erase(member);
 	const bool wasHost = item->host || member == snapshot_.host;
 	std::vector<Event> departureEvents;
+	// A Ready table has no live game: its matchGeneration still names the last
+	// finished one, whose receipt holds the real result. Leaving from Ready only
+	// ends the start hold (ReleaseHeldStarts below).
 	for (const auto& table : snapshot_.tables) {
 		if ((table.p1 == member || table.p2 == member) &&
-			(table.phase == TablePhase::Ready || table.phase == TablePhase::Playing || table.phase == TablePhase::Paused)) {
+			(table.phase == TablePhase::Playing || table.phase == TablePhase::Paused)) {
 			departureEvents.push_back(Event{Event::Kind::MatchEnded, table.id, table.matchGeneration, member, MatchResult::Abort, true});
 		}
 	}
@@ -617,19 +648,15 @@ Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, M
 	// ledger is backpressure, so a failed EndMatch must leave the live table
 	// untouched and retryable.
 	if (!StoreTerminalReceipt(tableId, *table, result)) return Reject(RejectReason::TerminalLedgerFull);
-	activeMatchRecipients_[tableId].clear();
 	if (result == MatchResult::P1Win) ++table->score[0];
 	else if (result == MatchResult::P2Win) ++table->score[1];
 	const auto generationValue = table->matchGeneration;
-	for (const auto watcher : table->watchingNext) table->spectators.push_back(watcher);
-	table->watchingNext.clear();
+	CloseLiveGeneration(*table);
 	// Rooms are open-ended rematch tables. A result closes only the current
 	// game; the same fighter pair remains seated until one explicitly leaves.
 	// Draw/cancel/abort therefore preserve prior wins and never award a point.
 	table->phase = table->p1 != 0 && table->p2 != 0 ? TablePhase::Waiting : TablePhase::Idle;
-	table->ready[0] = table->ready[1] = false;
-	if (auto* first = Find(table->p1)) first->delayLocked = false;
-	if (auto* second = Find(table->p2)) second->delayLocked = false;
+	ClearReadiness(*table);
 	table->resultPending = false;
 	resultReporter_[tableId] = 0;
 	resultPendingSince_[tableId] = 0;
