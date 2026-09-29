@@ -207,7 +207,7 @@ bool DrawStageSelector(int& nativeId, SelectionArt* art) {
 }
 
 
-bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt* art,const AvailabilityReader& readAvailability,int* stageId,bool editable,const std::string& selectionError) {
+bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt* art,const AvailabilityReader& readAvailability,int* stageId,bool editable,const std::string& selectionError,selection::StageMask* randomStageExcluded) {
  using namespace selection;
  bool changed=false;auto& nav=menu_.navigation;
  // A selector the shell has just opened starts on its first page, not on the
@@ -263,8 +263,24 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   page_=Page::Stage;title=loc::T("selection.stage_title");
   rows.push_back(Saving(Row("stage-"+std::to_string(RandomStageId),loc::T("selection.random_stage"),stageId?loc::T("selection.random_stage.detail"):loc::T("selection.only_p1_stage"),editable&&stageId),"menu.hint.save_stage",editable&&stageId));
   for(const auto& stage:StageList())rows.push_back(Saving(Row("stage-"+std::to_string(stage.id),stage.name,stageId?locked:loc::T("selection.only_p1_stage"),editable&&stageId),"menu.hint.save_stage",editable&&stageId));
+  if(stageId&&randomStageExcluded){
+   rows.push_back(Row("random-pool",loc::T("selection.random_pool"),loc::Tf("selection.random_pool.detail",RandomPoolSize(*randomStageExcluded),VersusStageCount)));
+   rows.back().wide=true;
+  }
   // Derive columns like the roster and the galleries do. A fixed three columns
   // left 16:9 stage cards far below the width the sibling grids guarantee.
+  columns=(std::max)(2,(std::min)(4,static_cast<int>(ImGui::GetContentRegionAvail().x/(220*Scale()))));
+ }else if(screen=="random-pool"){
+  // Select takes a stage out of Random or puts it back; the last one stays.
+  page_=Page::Stage;title=loc::T("selection.random_pool_title");
+  const StageMask excluded=randomStageExcluded?*randomStageExcluded:0;
+  for(const auto& stage:StageList()){
+   const bool in=InRandomPool(stage.id,excluded),last=in&&RandomPoolSize(excluded)==1;
+   auto row=Row("pool-"+std::to_string(stage.id),stage.name,loc::T(last?"selection.random_pool_last":in?"selection.random_pool_in":"selection.random_pool_out"),
+    editable&&randomStageExcluded&&!last);
+   if(row.enabled)row.hint=loc::T(in?"menu.hint.skip_stage":"menu.hint.include_stage");
+   rows.push_back(std::move(row));
+  }
   columns=(std::max)(2,(std::min)(4,static_cast<int>(ImGui::GetContentRegionAvail().x/(220*Scale()))));
  }else{
   title=loc::T("selection.options_title");
@@ -291,6 +307,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   int focusFighter=pick.fighter,focusStage=stageId?*stageId:0,focusCostume=pick.costume,focusColor=pick.color;
   if(id.compare(0,8,"fighter-")==0)focusFighter=std::stoi(id.substr(8));
   if(id.compare(0,6,"stage-")==0)focusStage=std::stoi(id.substr(6));
+  if(id.compare(0,5,"pool-")==0)focusStage=std::stoi(id.substr(5));
   if(id.compare(0,8,"costume-")==0){focusCostume=std::stoi(id.substr(8));focusColor=PreviewColor(pick.fighter,focusCostume,availability);}
   if(id.compare(0,6,"color-")==0)focusColor=std::stoi(id.substr(6));
   ImGui::TextWrapped("%s",loc::Tf("selection.saved_full",FindFighter(pick.fighter)->name,CostumeLabel(pick),pick.color+1).c_str());
@@ -299,28 +316,34 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   const float height=(std::min)(ImGui::GetContentRegionAvail().y-10*Scale(),250*Scale());
   if(height>35*Scale()){
    const auto p=ImGui::GetCursorScreenPos();ImGui::Dummy(ImVec2(width,height));
-   const auto img=!art?Missing():screen=="stage"?art->Stage(focusStage):(screen=="appearance"||screen=="costumes"||screen=="colors")?art->Appearance(pick.fighter,focusCostume,focusColor):art->Portrait(focusFighter,true);
+   const auto img=!art?Missing():screen=="stage"||screen=="random-pool"?art->Stage(focusStage):(screen=="appearance"||screen=="costumes"||screen=="colors")?art->Appearance(pick.fighter,focusCostume,focusColor):art->Portrait(focusFighter,true);
    ImageInRect(img,p,ImVec2(p.x+width,p.y+height));
   }
  };
  GameMenu::Card card;
- if(screen=="roster"||screen=="stage"||screen=="costumes"||screen=="colors")card=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){
-  if(e.id=="waiting")return false;
-  const int id=std::stoi(e.id.substr(screen=="roster"||screen=="costumes"?8:6));
+ const bool pool=screen=="random-pool";
+ if(screen=="roster"||screen=="stage"||pool||screen=="costumes"||screen=="colors")card=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){
+  if(e.id=="waiting"||e.wide)return false;
+  const int id=std::stoi(e.id.substr(screen=="roster"||screen=="costumes"?8:pool?5:6));
   const float labelHeight=ImGui::GetTextLineHeight()+4*Scale();
-  const auto image=!art?Missing():screen=="roster"?art->Portrait(id):screen=="stage"?art->Stage(id):
+  const auto image=!art?Missing():screen=="roster"?art->Portrait(id):screen=="stage"||pool?art->Stage(id):
    art->Appearance(pick.fighter,screen=="costumes"?id:pick.costume,screen=="costumes"?PreviewColor(pick.fighter,id,availability):id);
   ImageInRect(image,ImVec2(min.x+3,min.y+3),ImVec2(max.x-3,max.y-labelHeight));
-  const bool saved=screen=="roster"?id==pick.fighter:screen=="costumes"?id==pick.costume:screen=="colors"?id==pick.color:stageId&&id==*stageId;
+  const bool saved=!pool&&(screen=="roster"?id==pick.fighter:screen=="costumes"?id==pick.costume:screen=="colors"?id==pick.color:stageId&&id==*stageId);
   ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(min.x,max.y-labelHeight),max,IM_COL32(16,15,14,230));
   const float font=(std::min)(ImGui::GetFontSize(),(max.x-min.x-6)*ImGui::GetFontSize()/(std::max)(1.f,ImGui::CalcTextSize(e.label.c_str()).x));
   ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),font,ImVec2(min.x+3,max.y-labelHeight),saved?palette::Ember:palette::Ivory,e.label.c_str());
   if(saved)DrawCardBadge(ImVec2(min.x+3,min.y+2),max.x-min.x-6,loc::T("selection.saved"),"saved-badge");
+  if(pool&&!InRandomPool(id,randomStageExcluded?*randomStageExcluded:0)){
+   // A skipped stage reads as switched off at a glance: dimmed, and labelled.
+   ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(min.x+3,min.y+3),ImVec2(max.x-3,max.y-labelHeight),IM_COL32(16,15,14,170));
+   DrawCardBadge(ImVec2(min.x+3,min.y+2),max.x-min.x-6,loc::T("selection.random_pool_skipped"),"skipped-badge");
+  }
   return true;
  };
  // What the status line promises depends on the page: Select saves a card on
  // the galleries, opens a page from the menus, and does nothing on the option rows.
- const bool selectSaves=screen=="roster"||screen=="costumes"||screen=="colors"||screen=="ultra"||screen=="stage";
+ const bool selectSaves=screen=="roster"||screen=="costumes"||screen=="colors"||screen=="ultra"||screen=="stage"||pool;
  const std::string status=!selectionError.empty()?selectionError:
   loc::T(!editable?"selection.status_locked":selectSaves?"selection.status_editable":
    screen=="home"||screen=="appearance"?"selection.status_browse":"selection.status_adjust");
@@ -330,7 +353,13 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   screen=="costumes"||screen=="colors"?180.f:100.f,true,selectionError.empty()?Tone::Neutral:Tone::Error);
  if(a.kind==MenuAction::Close||a.kind==MenuAction::Shortcut)ForwardMenuAction(a);
  if(a.kind==MenuAction::Activate){
-  if(screen=="home"||screen=="appearance")nav.Push(a.id);
+  if(screen=="home"||screen=="appearance"||a.id=="random-pool")nav.Push(a.id);
+  else if(editable&&randomStageExcluded&&a.id.compare(0,5,"pool-")==0){
+   const int id=std::stoi(a.id.substr(5));
+   const StageMask toggled=*randomStageExcluded^(StageMask(1)<<id);
+   // The page disables the last stage left; the check keeps Random from emptying.
+   if(FindStage(id)&&RandomPoolSize(toggled)>0){*randomStageExcluded=toggled;changed=true;}
+  }
   else if(editable&&a.id.compare(0,8,"fighter-")==0){
    pick.fighter=std::stoi(a.id.substr(8));const auto next=readAvailability?readAvailability(pick.fighter):Availability{};
    Normalize(pick,editionSelect,&next);changed=true;

@@ -12,9 +12,26 @@ int main() {
     const auto root = MakeTempRoot(L"ember-services-test-");
     {
         // Routes reduce to a category before they reach logs or exports.
-        CHECK(sf4e::ClassifyRoute("ip:203.0.113.7:45760")==sf4e::RouteKind::Direct);
-        CHECK(sf4e::ClassifyRoute("relay:https://use1-1.relay.n0.iroh.link./")==sf4e::RouteKind::Relayed);
+        CHECK(sf4e::ClassifyRoute("direct")==sf4e::RouteKind::Direct);
+        CHECK(sf4e::ClassifyRoute("relay:use1")==sf4e::RouteKind::Relayed && sf4e::ClassifyRoute("relay:other")==sf4e::RouteKind::Relayed);
         CHECK(sf4e::ClassifyRoute("unavailable")==sf4e::RouteKind::Unknown && sf4e::ClassifyRoute("")==sf4e::RouteKind::Unknown);
+        // The helper sends only a class and a region, never an address, so an
+        // address-shaped route from an older helper reads as unknown.
+        CHECK(sf4e::ClassifyRoute("ip:203.0.113.7:45760")==sf4e::RouteKind::Unknown);
+        CHECK(sf4e::ClassifyRoute("direct:1")==sf4e::RouteKind::Unknown);
+        // A relayed route reads as a region code; anything but a known code reads as "other".
+        CHECK(sf4e::RelayRegion("relay:use1")=="use1");
+        CHECK(sf4e::RelayRegion("relay:usw1")=="usw1");
+        CHECK(sf4e::RelayRegion("relay:euc1")=="euc1");
+        CHECK(sf4e::RelayRegion("relay:aps1")=="aps1");
+        CHECK(sf4e::RelayRegion("relay:other")=="other");
+        CHECK(sf4e::RelayRegion("relay:https://use1-1.relay.n0.iroh.link./")=="other");
+        CHECK(sf4e::RelayRegion("relay:use1 ")=="other" && sf4e::RelayRegion("relay:USE1")=="other");
+        CHECK(sf4e::RelayRegion("relay:")=="other");
+        CHECK(sf4e::RelayRegion("direct").empty() && sf4e::RelayRegion("ip:203.0.113.7:45760").empty() &&
+            sf4e::RelayRegion("unavailable").empty() && sf4e::RelayRegion("").empty());
+        CHECK(sf4e::NormalizeRelayRegion("euc1")=="euc1" && sf4e::NormalizeRelayRegion("")=="" &&
+            sf4e::NormalizeRelayRegion("https://use1-1.relay.n0.iroh.link./")=="other");
         ApplicationServices service(root.wstring()); DiagnosticsView view;
         CHECK(!service.Request(ServiceAction::None));
         view.probeState=4; view.probeFailure=8;
@@ -26,6 +43,19 @@ int main() {
         CHECK(service.Snapshot().connectionHistory.size()==16);
         view.probeState=2;view.probeRoute=sf4e::RouteKind::Direct;view.p95Us=45000;view.replies=96;view.missed=4;view.directLinks=3;
         view.room=999; CHECK(DescribeDiagnostics(view).find("Room: Unavailable")!=std::string::npos);
+        // The home relay and network class are named as codes and words, never an address.
+        CHECK(DescribeNetwork(view)=="Home relay: none | Network: checking | UDP: unknown | Captive portal: no");
+        {
+            auto network=view; network.probeRoute=sf4e::RouteKind::Relayed; network.probeRelay="euc1";
+            network.netReport.reported=true; network.netReport.relay="use1"; network.netReport.relayConnected=true;
+            network.netReport.nat=sf4e::NatClass::Strict; network.netReport.udp=true;
+            const auto text=DescribeDiagnostics(network);
+            CHECK(text.find("Measured route: Relayed via euc1")!=std::string::npos);
+            CHECK(DescribeNetwork(network)=="Home relay: use1 (connected) | Network: strict NAT | UDP: yes | Captive portal: no");
+            network.netReport.relayConnected=false; network.netReport.nat=sf4e::NatClass::NoUdp; network.netReport.udp=false;
+            CHECK(DescribeNetwork(network).find("Home relay: use1 (not connected) | Network: UDP blocked | UDP: no")==0);
+            CHECK(text.find("http")==std::string::npos && text.find("relay.n0")==std::string::npos);
+        }
         view.udpPort=45760;
         CHECK(service.Request(ServiceAction::ExportDiagnostics,view));
         const auto deadline=GetTickCount64()+5000;
@@ -81,7 +111,7 @@ int main() {
         CHECK(performance.find("Recovery checkpoint builds (current room lifetime): 42")!=std::string::npos);
         CHECK(performance.find("Prediction stalls: 3 | Prediction-skipped frames: 5")!=std::string::npos);
         CHECK(performance.find("Selected input delay: 2 frames")!=std::string::npos);
-        CHECK(performance.find("\nUDP port: Unavailable\n")!=std::string::npos);
+        CHECK(performance.find("\nUDP port: Unavailable\nHome relay: none | Network: checking")!=std::string::npos);
         CHECK(performance.size()<8192);
         // Export is constructed from this typed allowlist, never arbitrary logs/settings.
         for(const auto* forbidden:{"invitation","capability","identity","arbitrary log"}) {

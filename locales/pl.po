@@ -270,6 +270,12 @@ msgstr "Zapisz Ultra"
 msgid "menu.hint.save_stage"
 msgstr "Zapisz arenę"
 
+msgid "menu.hint.skip_stage"
+msgstr "Pomiń arenę"
+
+msgid "menu.hint.include_stage"
+msgstr "Uwzględnij arenę"
+
 msgid "menu.hint.paste"
 msgstr "Wklej"
 
@@ -390,8 +396,86 @@ msgstr "Nieznane"
 msgid "connection.relayed_advice"
 msgstr "Połączenie przez serwer oznacza, że sieci graczy nie mogły połączyć się bezpośrednio, więc ruch gry przechodzi przez serwer pośredniczący. Walki nadal działają; użyj zalecanego opóźnienia. Aby uzyskać połączenie bezpośrednie, dowolny gracz może włączyć UPnP w routerze, przekierować port UDP 45760 na swój komputer lub wyłączyć VPN."
 
+msgid "connection.route_relayed_via"
+msgstr "Przez serwer ({0})"
+
+msgid "connection.direct_checking"
+msgstr "Nadal sprawdzamy, czy Twoja sieć umożliwia połączenia bezpośrednie."
+
+msgid "connection.blocked_local_no_udp"
+msgstr "Prawdopodobna przyczyna: Twoja sieć blokuje UDP."
+
+msgid "connection.blocked_peer_no_udp"
+msgstr "Prawdopodobna przyczyna: sieć gracza {0} blokuje UDP."
+
+msgid "connection.blocked_local_strict"
+msgstr "Prawdopodobna przyczyna: Twój router używa ścisłego NAT."
+
+msgid "connection.blocked_peer_strict"
+msgstr "Prawdopodobna przyczyna: router gracza {0} używa ścisłego NAT."
+
+msgid "connection.blocked_both_open"
+msgstr "Obie sieci wyglądały na otwarte. Bezpośrednią ścieżkę może blokować zapora lub VPN."
+
 msgid "connection.check_again"
 msgstr "Sprawdź ponownie połączenie"
+
+msgid "network.relay"
+msgstr "Serwer"
+
+msgid "network.relay_detail"
+msgstr "Serwer pośredniczący, który pomaga grze znaleźć innych graczy. Ruch walki przechodzi przez niego tylko wtedy, gdy połączenie bezpośrednie jest niemożliwe."
+
+msgid "network.relay_connected"
+msgstr "{0} (połączono)"
+
+msgid "network.relay_connecting"
+msgstr "{0} (łączenie)"
+
+msgid "network.relay_none"
+msgstr "Brak połączenia"
+
+msgid "network.region_use1"
+msgstr "USA (wschód)"
+
+msgid "network.region_usw1"
+msgstr "USA (zachód)"
+
+msgid "network.region_euc1"
+msgstr "Europa"
+
+msgid "network.region_aps1"
+msgstr "Azja i Pacyfik"
+
+msgid "network.region_other"
+msgstr "Inny region"
+
+msgid "network.status"
+msgstr "Sieć"
+
+msgid "network.nat_open"
+msgstr "Otwarta"
+
+msgid "network.nat_strict"
+msgstr "Ścisły NAT"
+
+msgid "network.nat_no_udp"
+msgstr "UDP zablokowany"
+
+msgid "network.nat_detail_open"
+msgstr "Twoja sieć powinna umożliwiać bezpośrednie połączenia z innymi graczami."
+
+msgid "network.nat_detail_strict"
+msgstr "Twój router używa ścisłego NAT, dlatego połączenia bezpośrednie często się nie udają, a walki mogą iść przez serwer pośredniczący."
+
+msgid "network.nat_detail_no_udp"
+msgstr "Twoja sieć prawdopodobnie blokuje UDP, więc połączenia bezpośrednie nie powiodą się, a walki mogą iść przez serwer pośredniczący. Przyczyną może być zapora lub VPN."
+
+msgid "network.nat_detail_checking"
+msgstr "Sprawdzanie sieci. Po uruchomieniu gry trwa to kilka sekund."
+
+msgid "network.captive_portal"
+msgstr "Połączenie z internetem może przechwytywać strona logowania."
 
 msgid "connection.no_recommendation"
 msgstr "Brak zalecenia"
@@ -671,6 +755,24 @@ msgstr "Normalny"
 
 msgid "settings.bottom_spacing_detail"
 msgstr "Przesuwa HUD walki w górę od dolnej krawędzi."
+
+msgid "settings.ready_sound"
+msgstr "Zapowiedź pretendenta"
+
+msgid "settings.ready_sound_detail"
+msgstr "Komentator ogłasza, gdy rywal jest gotowy przed tobą."
+
+msgid "settings.ready_sound_volume"
+msgstr "Głośność zapowiedzi"
+
+msgid "settings.ready_sound_volume_detail"
+msgstr "Część głośności głosów w grze."
+
+msgid "settings.ready_sound_test"
+msgstr "Testuj zapowiedź"
+
+msgid "settings.ready_sound_test_detail"
+msgstr "Odtwarza zapowiedź raz z tą głośnością."
 
 msgid "settings.interface_size"
 msgstr "Rozmiar interfejsu"
@@ -1247,6 +1349,27 @@ msgstr "Losowo"
 
 msgid "selection.random_stage.detail"
 msgstr "Inna arena w każdej walce."
+
+msgid "selection.random_pool"
+msgstr "Losowe areny"
+
+msgid "selection.random_pool.detail"
+msgstr "{0} z {1} aren. Losowanie wybiera tylko spośród nich."
+
+msgid "selection.random_pool_title"
+msgstr "LOSOWE ARENY"
+
+msgid "selection.random_pool_in"
+msgstr "Losowanie może wybrać tę arenę."
+
+msgid "selection.random_pool_out"
+msgstr "Losowanie pomija tę arenę."
+
+msgid "selection.random_pool_last"
+msgstr "Losowanie wymaga co najmniej jednej areny."
+
+msgid "selection.random_pool_skipped"
+msgstr "POMINIĘTA"
 
 msgid "selection.handicap"
 msgstr "Handicap"
@@ -2239,6 +2362,21 @@ msgstr "Sieć jest niedostępna. Gra offline jest dostępna."
 
 msgid "runtime.room_join_failed"
 msgstr "Nie udało się dołączyć do pokoju. Sprawdź zaproszenie i upewnij się, że obaj gracze używają tego samego pakietu SF4 Ember Netplay."
+
+msgid "runtime.room_host_failed"
+msgstr "Nie udało się utworzyć pokoju. Sprawdź połączenie z internetem i spróbuj ponownie."
+
+msgid "runtime.relay_unreachable"
+msgstr "Nie udało się połączyć z serwerem pośredniczącym. Sprawdź internet, zaporę lub VPN i spróbuj ponownie."
+
+msgid "runtime.relay_unreachable_region"
+msgstr "Nie udało się połączyć z serwerem pośredniczącym ({0}). Sprawdź internet, zaporę lub VPN i spróbuj ponownie."
+
+msgid "runtime.host_unreachable"
+msgstr "Nie udało się połączyć z hostem ani bezpośrednio, ani przez serwer pośredniczący. Pokój mógł zostać zamknięty albo przeszkadza zapora lub VPN."
+
+msgid "runtime.join_control_lost"
+msgstr "Połączono się z hostem, ale połączenie stale się zrywało. Sprawdź połączenie z internetem i spróbuj ponownie."
 
 msgid "runtime.room_connection_lost"
 msgstr "Brak połączenia z pokojem."

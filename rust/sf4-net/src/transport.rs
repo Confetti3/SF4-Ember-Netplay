@@ -240,12 +240,24 @@ impl Drop for GameDialSend {
     }
 }
 
+/// The message of the error `connect_control` returns when no connection to
+/// the host ever opened, as opposed to one that opened and was then refused.
+pub const HOST_UNREACHABLE: &str = "host_unreachable";
+
+pub fn is_host_unreachable(error: &io::Error) -> bool {
+    error.to_string() == HOST_UNREACHABLE
+}
+
 pub async fn connect_control(endpoint: &Endpoint, invite: &Invite) -> io::Result<ControlChannel> {
-    timeout(HANDSHAKE_TIMEOUT, async {
+    let unreachable = || io::Error::new(io::ErrorKind::ConnectionAborted, HOST_UNREACHABLE);
+    // Set once the connection opens, so a timeout says which stage ran out.
+    let dialed = std::sync::atomic::AtomicBool::new(false);
+    let result = timeout(HANDSHAKE_TIMEOUT, async {
         let connection = endpoint
             .connect(invite.address(), CONTROL_ALPN)
             .await
-            .map_err(|_| failed())?;
+            .map_err(|_| unreachable())?;
+        dialed.store(true, std::sync::atomic::Ordering::Relaxed);
         let mut pending = PendingConnection(Some(connection.clone()));
         let result = connect_control_on(connection, invite).await;
         if result.is_ok() {
@@ -253,8 +265,12 @@ pub async fn connect_control(endpoint: &Endpoint, invite: &Invite) -> io::Result
         }
         result
     })
-    .await
-    .map_err(|_| failed())?
+    .await;
+    match result {
+        Ok(result) => result,
+        Err(_) if !dialed.load(std::sync::atomic::Ordering::Relaxed) => Err(unreachable()),
+        Err(_) => Err(failed()),
+    }
 }
 
 // Also used by the deterministic local harness with explicit loopback routing.

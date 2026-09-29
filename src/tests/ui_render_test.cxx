@@ -478,7 +478,7 @@ int main(int argc, char** argv) {
             ApplicationShell shell;ShellView view;bool open=true;
             view.controllerReady=view.canChangeController=view.canEditPreferences=view.canEditSelection=view.canOpenRoom=view.helperReady=true;
             view.controller="Assigned controller";view.preferences.displayName="Ember Player";view.selectionSummary="Ryu / Original / Color 01 / Ultra I";
-            FighterSelector selector;selection::Pick pick;int stage=0;
+            FighterSelector selector;selection::Pick pick;int stage=0;selection::StageMask stagePool=(1u<<0)|(1u<<15);
             auto availability=[](int id){selection::Availability a;a.ready=true;a.personalActions=0x3ff;
                 for(int c=0;c<selection::CostumeCount(id);++c){a.costumes|=1u<<c;a.colors[c]=(1u<<selection::ColorCount(id,c))-1;}return a;};
             training::View training;training.available=training.ready=training.checkpoint=true;training.generation=static_cast<unsigned>(size.w+size.dpi*100);
@@ -506,7 +506,7 @@ int main(int argc, char** argv) {
                     ImGui_ImplDX9_NewFrame();ImGui::NewFrame();
                     if(mode==0)shell.Draw(view,&open,[&](ShellAction a){
                         if(a.command.kind==netplay::CommandKind::SavePreferences&&view.settingsError.empty())view.preferences=a.preferences;
-                        return true;},[&]{selector.Draw(pick,true,art.get(),availability,&stage,view.canEditSelection);});
+                        return true;},[&]{selector.Draw(pick,true,art.get(),availability,&stage,view.canEditSelection,{},&stagePool);});
                     else if(mode==1)DrawTrainingFlyout(training,[&](training::Command c){trainingCommand=c;return acceptTraining;});
                     else if(mode==2)(void)DrawTrainingHud(training);
                     else if(mode==5)DrawControllerWarning("Match input blocked: reconnect your controller. If its slot changed, return to the room to reassign it.");
@@ -600,7 +600,7 @@ int main(int argc, char** argv) {
             Require(shell.Navigation().Focus()=="retry-save","Portrait retry is unreachable");draw("portrait-save-error");
             view.settingsError.clear();shell=ApplicationShell{};
             page("selection");
-            for(const char* screen:{"roster","appearance","costumes","colors","ultra","stage","options"}){
+            for(const char* screen:{"roster","appearance","costumes","colors","ultra","stage","random-pool","options"}){
                 selector.Navigation().Home();selector.Navigation().Push(screen);
                 if(argc>2&&!trainingShotsOnly&&(std::string(screen)=="costumes"||std::string(screen)=="colors")){
                     const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(10);
@@ -631,6 +631,11 @@ int main(int argc, char** argv) {
                     pick.ultra=savedUltra;
                 }
             }
+            // Select on the Random pool puts a skipped stage back (the page
+            // opens on the Training Stage, which the fixture skips).
+            selector.Navigation().Home();selector.Navigation().Push("random-pool");draw();
+            draw(nullptr,MenuInput::Select,1);draw();
+            Require(stagePool==(1u<<15),"Select did not put a skipped stage back in the Random pool");
             selector.Navigation().Home();selector.Navigation().Push("roster");draw();
             const int saved=pick.fighter;draw(nullptr,MenuInput::Right,1);draw("fighter-focus");
             Require(pick.fighter==saved,"Grid movement committed fighter");
@@ -824,6 +829,7 @@ int main(int argc, char** argv) {
                     "Match HUD size settings collapse at this viewport; two of the three choices do nothing");
             }
             auto* hud=FindWindow("Training frame meter");Require(hud->Size.x<=size.w*.76f&&hud->Size.y<size.h*.13f,"Passive HUD too large");
+            Require(hud->Pos.y+hud->Size.y<=size.h*.83f,"Training HUD covers the game's super meters");
             SetMenuGlyphs(4,0,0);draw("training-hud-directinput");
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"DirectInput HUD captured input");
             SetMenuGlyphs(0,0,0);draw("training-hud-keyboard");SetMenuGlyphs(3,0x40000,0x20000);

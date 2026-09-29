@@ -215,9 +215,11 @@ TrainingHudInput DrawTrainingHud(const training::View& view) {
     // turn it into a large panel over the fight.
     const float hudScale = (std::max)(1.f, (std::min)(1.5f, vp->Size.y / 900.f));
     const float width = (std::min)(620 * hudScale, vp->Size.x * .75f);
-    ImVec2 hudTop(vp->Pos.x + (vp->Size.x - width) / 2, vp->Pos.y + vp->Size.y);
-    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x / 2, vp->Pos.y + vp->Size.y - 8 * hudScale),
-        ImGuiCond_Always, ImVec2(.5f, 1));
+    // The game's super meters and their SUPER! banners start about 17% above
+    // the bottom edge and scale with the height, so the meter sits just above them.
+    const float hudBottom = vp->Pos.y + vp->Size.y * TrainingHudBottom;
+    ImVec2 hudTop(vp->Pos.x + (vp->Size.x - width) / 2, hudBottom);
+    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x / 2, hudBottom), ImGuiCond_Always, ImVec2(.5f, 1));
     ImGui::SetNextWindowSize(ImVec2(width, 0));
     ImGui::SetNextWindowBgAlpha(.42f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8 * hudScale, 6 * hudScale));

@@ -2,6 +2,7 @@
 #include "../ui/ControllerNavigation.hxx"
 #include "../common/MenuInputCapture.hxx"
 #include "../common/FighterCatalog.hxx"
+#include "../common/StageCatalog.hxx"
 #include "../discord/Presence.hxx"
 #include "../netplay/InputAssignment.hxx"
 
@@ -72,9 +73,11 @@ namespace sf4e {
 			std::string displayName;
 			Dimps::GameEvents::VsMode::ConfirmedCharaConditions character = {};
 			int stage = 0;
+			selection::StageMask randomStageExcluded = 0;
 			netplay::PlayerPreferences preferences;
 			room::Action roomAction;
             int selectedDelay=-1;
+            int previewSoundVolume=-1;
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
@@ -109,6 +112,9 @@ namespace sf4e {
             bool delayLocked=false, canProbe=false, canApplyDelay=false;
             std::string probeStatus;
             RouteKind probeRoute=RouteKind::Unknown;
+            std::string probeRelay, probeOpponent;
+            NatClass probeOpponentNat=NatClass::Unknown;
+            NetworkSummary netReport;
             std::uint64_t probeP50Us=0, probeP95Us=0, probeP99Us=0, probeJitterUs=0;
             bool probeBenchmark=false;
             unsigned probeSamples=0, probeLost=0, probeSent=0, probeExpected=0;

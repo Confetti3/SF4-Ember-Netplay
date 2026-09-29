@@ -1,6 +1,7 @@
 // Pure unit tests for the helper error scope table (F-017).
 
 #include "../session/HelperErrorScope.hxx"
+#include "../session/RoomFailure.hxx"
 
 #include <string>
 
@@ -83,6 +84,24 @@ static void TestScopeNames() {
 	CHECK(std::string(HelperErrorScopeName(HelperErrorScope::ControlLeader)) == "control_leader");
 }
 
+static void TestFailureStageFromReason() {
+	using sf4e::session::FailureStage;
+	using sf4e::session::FailureStageFromHelper;
+	using sf4e::session::FailureStageLabel;
+	CHECK(FailureStageFromHelper("join_failed", "relay_unreachable") == FailureStage::RelayUnreachable);
+	CHECK(FailureStageFromHelper("join_failed", "host_unreachable") == FailureStage::HostUnreachable);
+	CHECK(FailureStageFromHelper("join_failed", "control_lost") == FailureStage::ControlLost);
+	CHECK(FailureStageFromHelper("host_unavailable", "relay_unreachable") == FailureStage::RelayUnreachable);
+	// An older helper sends no reason; an unknown reason or another code is not a stage.
+	CHECK(FailureStageFromHelper("join_failed", "") == FailureStage::Unknown);
+	CHECK(FailureStageFromHelper("join_failed", "https://use1-1.relay.n0.iroh.link./") == FailureStage::Unknown);
+	CHECK(FailureStageFromHelper("control_send_failed", "relay_unreachable") == FailureStage::Unknown);
+	CHECK(std::string(FailureStageLabel(FailureStage::ControlLost)) == "control_lost");
+	// The failures that carry a stage are still room-fatal protocol labels.
+	CHECK(Scope("join_failed") == HelperErrorScope::RoomFatal && Labelled("join_failed"));
+	CHECK(Scope("host_unavailable") == HelperErrorScope::RoomFatal && Labelled("host_unavailable"));
+}
+
 int main() {
 	TestProbeAndGameplayStayLocal();
 	TestCheckpointErrorsRetryUnderCoordination();
@@ -90,6 +109,7 @@ int main() {
 	TestMatchErrorsEndOnlyTheMatch();
 	TestRoomFatalCodesAndTheirLabels();
 	TestScopeNames();
+	TestFailureStageFromReason();
 	printf("helper_error_scope_test: all tests passed\n");
 	return 0;
 }

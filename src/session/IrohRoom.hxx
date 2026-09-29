@@ -5,7 +5,9 @@
 #include "CheckpointTransfer.hxx"
 #include "SessionRecovery.hxx"
 #include "CheckpointDecodeWorker.hxx"
+#include "../common/NetworkNat.hxx"
 #include "../common/NetworkRoute.hxx"
+#include "RoomFailure.hxx"
 #include "../common/RoomLimits.hxx"
 #include <array>
 #include <deque>
@@ -109,8 +111,11 @@ public:
 	bool CloseFailedRoom(bool ggpoOwnsSocket);
 	void Poll();
 	State GetState() const { return state_; }
-	const std::string& Invitation() const { return invitation_; }
-	const std::string& DiscordInvitation() const { return discordInvitation_; }
+	// Hidden while the link to the leader is down. They survive that loss: the
+	// helper sends a joiner's invitation once, at join, and refreshes it only
+	// when the authority changes, which clears them here first.
+	const std::string& Invitation() const { return state_ == State::Degraded ? NoInvitation() : invitation_; }
+	const std::string& DiscordInvitation() const { return state_ == State::Degraded ? NoInvitation() : discordInvitation_; }
 	const std::string& Error() const { return error_; }
 	std::uint64_t Epoch() const { return epoch_; }
 	virtual std::array<std::uint8_t, 16> RoomId() const { return room_; }
@@ -120,6 +125,15 @@ public:
 	// The helper's fixed UDP port, 0 when the OS chose it, or empty until the
 	// helper first reports its status.
 	std::optional<std::uint16_t> LocalUdpPort() const { return localUdpPort_; }
+	// The local endpoint's network as the helper last reported it: home relay
+	// region and connection, and how UDP behaves here. Checking until its first
+	// net report; never an address.
+	const NetworkSummary& Network() const { return network_; }
+	// Reads a helper network_report event. Only a region code and flags survive:
+	// a relay string that is not a code reads as "other".
+	static NetworkSummary ReadNetworkReport(const nlohmann::json& event);
+	// Where the last host or join attempt failed, when the helper said.
+	FailureStage Stage() const { return failureStage_; }
     virtual const CoordinationSnapshot& Coordination() const { return coordination_; }
     const ProbeSnapshot& Probe() const { return probe_; }
     RecoverySnapshot RecoveryState() const;
@@ -166,6 +180,7 @@ private:
 	// Active controls remain bounded by the helper's room capacity. Native
 	// Started participants may retain stable handles after leaving the room.
 	static constexpr std::size_t MaximumRemotePeers = room::MaxMembers - 1 + room::TableCount * room::MaxMatchParticipants;
+	static const std::string& NoInvitation() { static const std::string none; return none; }
 	static bool IsEndpointIdentity(const std::string& identity);
 	// Short, log-safe form of an endpoint identity.
 	static std::string PeerTag(const std::string& peer);
@@ -302,6 +317,8 @@ private:
 	std::string error_;
 	std::string localIdentity_;
 	std::optional<std::uint16_t> localUdpPort_;
+	NetworkSummary network_;
+	FailureStage failureStage_ = FailureStage::Unknown;
 	std::uint64_t closedGeneration_ = 0;
 	std::map<std::string, GameSnapshot> games_;
 	std::map<Connection, Peer> peers_;

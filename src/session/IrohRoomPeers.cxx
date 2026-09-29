@@ -192,7 +192,7 @@ bool IrohRoom::HandleControlTraffic(const json& event, const std::string& type) 
 		ControlClosed(peer->second, DepartureGraceMs);
 		if (identity == coordination_.leader) {
 			coordination_.writable = false; coordination_.rebound = false;
-			state_ = State::Degraded; invitation_.clear(); discordInvitation_.clear();
+			state_ = State::Degraded;
 			probe_ = {};
 			// Make the freeze observable for one owner tick even if a
 			// queued authority watch and rebound follow immediately. This
@@ -209,7 +209,6 @@ bool IrohRoom::HandleControlTraffic(const json& event, const std::string& type) 
 		// independently authorized gameplay mappings. New match
 		// preparation is blocked by the degraded state.
 		state_ = State::Degraded;
-		invitation_.clear(); discordInvitation_.clear();
 		error_ = "room_control_closed";
 	}
 	return true;

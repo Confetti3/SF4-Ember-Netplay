@@ -33,6 +33,12 @@ struct ShellView {
     bool delayLocked=false, canProbe=false, canApplyDelay=false;
     std::string probeStatus;
     RouteKind probeRoute=RouteKind::Unknown;
+    // Where a relayed route goes (a region code) and who is on the other side,
+    // for the connection check: the opponent's name and how their network
+    // reported it. netReport is this PC's own.
+    std::string probeRelay, probeOpponent;
+    NatClass probeOpponentNat=NatClass::Unknown;
+    NetworkSummary netReport;
     std::uint64_t probeP50Us=0, probeP95Us=0, probeP99Us=0, probeJitterUs=0;
     bool probeBenchmark=false;
     unsigned probeSamples=0, probeLost=0, probeSent=0, probeExpected=0;
@@ -72,6 +78,8 @@ struct ShellAction {
     netplay::PlayerPreferences preferences;
     room::Action roomAction;
     int selectedDelay=-1;
+    // Plays the challenger call-out once at this volume (percent); -1 plays nothing.
+    int previewSoundVolume=-1;
 };
 
 class ApplicationShell {

@@ -90,6 +90,7 @@ namespace sf4e {
 		// Set before the hello/join exchange; profile editing is offline-only.
 		void SetProfileMain(int fighter) { _profile.mainFighter = fighter >= 0 && fighter < 44 ? fighter : -1; }
 		void SetProfileLink(NetworkLink link) { _profile.link = link; }
+		void SetProfileNat(NatClass nat) { _profile.nat = nat; }
 		bool IsCustomRoom() const { return _customRoomsSeen; }
 		const std::string& RoomError() const { return _roomError; }
 		bool TakeRoomEvent(room::Event& event);

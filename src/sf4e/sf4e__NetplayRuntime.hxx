@@ -10,6 +10,7 @@
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__InputDevices.hxx"
 #include "../Dimps/Dimps__Selection.hxx"
+#include "../Dimps/Dimps__Sound.hxx"
 #include "sf4e.hxx"
 #include "sf4e__UserApp.hxx"
 #include "sf4e__OverlayPrefs.hxx"
@@ -21,6 +22,7 @@
 #include "../session/IrohRoom.hxx"
 #include "../session/IrohMatchSession.hxx"
 #include "../session/RoomRecoveryRuntime.hxx"
+#include "../session/ReadyChime.hxx"
 #include "../netplay/BoundedMailbox.hxx"
 #include "../netplay/MatchResultOutbox.hxx"
 #include "../netplay/MatchEndRules.hxx"
@@ -165,6 +167,7 @@ struct Runtime {
 	// Outlives the helper's teardown bound: a match that fails to close ends the
 	// room with its own message before a parked Ready can blame it (F-008).
 	Intent readyIntent{session::MatchTeardownTiming::HelperTimeoutMs + 5000, Intent::Completion::OnCommit};
+	room::ReadyChime readyChime;
 	Intent lobbyEditIntent{15000, Intent::Completion::OnDispatch};
 	std::string readyFailure;
 	std::uint64_t readyFailureSequence = 0;
@@ -229,6 +232,8 @@ void AbortLocalMatch(const char* reason, NoticeSeverity severity = NoticeSeverit
 void RetireFinishedMatch(const char* label);
 void RetryPendingAbort();
 void RetrySpectatorLockRelease();
+// Game thread: the announcer's challenger call at a percent of the game's voice volume.
+void PlayChallengerCall(int volumePercent);
 void RetryMatchFinished();
 void PumpResultOutbox();
 void TickMatch();

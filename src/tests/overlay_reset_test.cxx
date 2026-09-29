@@ -55,6 +55,20 @@ static int CheckPerFighterPicks() {
         Prefs::Clamp(clamped);
         check(clamped.stageID == 0, "clamping kept an unsupported stage");
     }
+    // Stages taken out of Random round-trip as ids; unknown ids are dropped,
+    // and a list that would leave Random nothing is forgotten.
+    random.randomStageExcluded = (1u << 0) | (1u << 26);
+    Prefs::Data pool;
+    Prefs::FromJson(Prefs::ToJson(random), pool);
+    Prefs::Clamp(pool);
+    check(pool.randomStageExcluded == random.randomStageExcluded, "the Random stage pool did not round-trip");
+    Prefs::Data odd;
+    Prefs::FromJson({{"randomStageExcluded", {1, 22, 99, -3, "x"}}}, odd);
+    check(odd.randomStageExcluded == (1u << 1), "unknown stages entered the Random exclusions");
+    Prefs::Data none;
+    none.randomStageExcluded = ~0u;
+    Prefs::Clamp(none);
+    check(none.randomStageExcluded == 0, "clamping kept exclusions that leave Random nothing");
     return failures;
 }
 

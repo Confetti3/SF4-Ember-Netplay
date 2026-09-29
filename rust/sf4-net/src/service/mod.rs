@@ -95,6 +95,7 @@ mod entry;
 mod events;
 mod games;
 mod members;
+mod network;
 mod probes;
 mod protocol;
 mod refresh;
@@ -638,6 +639,20 @@ impl Actor {
         })
     }
 
+    /// An error whose `reason` says at which stage it failed (`relay_unreachable`,
+    /// `host_unreachable`, `control_lost`). The code is unchanged, so a native
+    /// client that ignores reasons behaves as before.
+    fn error_because(&self, request_id: u64, code: &str, reason: Option<&str>) -> io::Result<()> {
+        self.emit(Event::Error {
+            probe_failure: None,
+            request_id,
+            epoch: self.epoch,
+            peer: None,
+            code: code.into(),
+            reason: reason.map(Into::into),
+        })
+    }
+
     // Additive, allowlisted diagnostics: keep the existing error code so older
     // native clients still treat a rejected probe as a nonfatal operation.
     fn probe_error(&self, reason: u8) -> io::Result<()> {
@@ -1162,7 +1177,7 @@ impl Actor {
                 self.hosted = Some(invite);
                 self.room_invite = self.hosted.clone();
             }
-            Err(_) => self.error(0, "host_unavailable")?,
+            Err(error) => self.error_because(0, "host_unavailable", network::host_failure_reason(&error))?,
         }
         Ok(())
     }
@@ -1178,6 +1193,8 @@ impl Actor {
         // Load over the current statistics second; see Event::HelperLoad.
         let (mut tick_lag_max, mut tick_body_max) = (Duration::ZERO, Duration::ZERO);
         let mut event_free_min = usize::MAX;
+        // The last network summary the native side was sent; see network.rs.
+        let mut reported_network = None;
         let busy = stall::Busy::new(self.events.sender());
         let _watchdog = TaskScope(vec![busy.watch()]);
         loop {
@@ -1266,6 +1283,12 @@ impl Actor {
                 _ = statistics.tick() => {
                     let _step = busy.enter("statistics");
                     self.emit_coordination_state().await?;
+                    // Room or not: the settings screen shows it. A report that
+                    // found the queue busy is not counted as sent.
+                    let summary = network::network_summary(&self.endpoint);
+                    if reported_network.as_ref() != Some(&summary) && self.emit_bulk(summary.clone().into()) {
+                        reported_network = Some(summary);
+                    }
                     let micros = |value: Duration| u64::try_from(value.as_micros()).unwrap_or(u64::MAX);
                     let (lag, body) = (micros(tick_lag_max), micros(tick_body_max));
                     let free = if event_free_min == usize::MAX { self.events.capacity() } else { event_free_min } as u64;

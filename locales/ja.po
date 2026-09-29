@@ -270,6 +270,12 @@ msgstr "ウルトラを保存"
 msgid "menu.hint.save_stage"
 msgstr "ステージを保存"
 
+msgid "menu.hint.skip_stage"
+msgstr "ステージを除外"
+
+msgid "menu.hint.include_stage"
+msgstr "ステージを含める"
+
 msgid "menu.hint.paste"
 msgstr "貼り付け"
 
@@ -390,8 +396,86 @@ msgstr "不明"
 msgid "connection.relayed_advice"
 msgstr "中継接続では、2つのネットワーク間で直接接続できず、対戦通信が中継サーバーを経由します。対戦は可能です。推奨遅延を使ってください。直接接続には、どちらかのプレイヤーがルーターのUPnPを有効にする、UDPポート45760をPCに転送する、VPNをオフにする方法があります。"
 
+msgid "connection.route_relayed_via"
+msgstr "中継 ({0})"
+
+msgid "connection.direct_checking"
+msgstr "ネットワークが直接接続を許可しているか、まだ確認中です。"
+
+msgid "connection.blocked_local_no_udp"
+msgstr "考えられる原因: お使いのネットワークがUDPをブロックしています。"
+
+msgid "connection.blocked_peer_no_udp"
+msgstr "考えられる原因: {0}さんのネットワークがUDPをブロックしています。"
+
+msgid "connection.blocked_local_strict"
+msgstr "考えられる原因: お使いのルーターが厳格なNATを使用しています。"
+
+msgid "connection.blocked_peer_strict"
+msgstr "考えられる原因: {0}さんのルーターが厳格なNATを使用しています。"
+
+msgid "connection.blocked_both_open"
+msgstr "両方のネットワークがオープンに見えました。ファイアウォールやVPNが直接経路を妨げている可能性があります。"
+
 msgid "connection.check_again"
 msgstr "接続を再確認"
+
+msgid "network.relay"
+msgstr "中継サーバー"
+
+msgid "network.relay_detail"
+msgstr "ゲームが他のプレイヤーを見つけるのを助ける中継サーバーです。対戦の通信は、直接接続できない場合にのみここを経由します。"
+
+msgid "network.relay_connected"
+msgstr "{0} (接続済み)"
+
+msgid "network.relay_connecting"
+msgstr "{0} (接続中)"
+
+msgid "network.relay_none"
+msgstr "未接続"
+
+msgid "network.region_use1"
+msgstr "米国東部"
+
+msgid "network.region_usw1"
+msgstr "米国西部"
+
+msgid "network.region_euc1"
+msgstr "欧州"
+
+msgid "network.region_aps1"
+msgstr "アジア太平洋"
+
+msgid "network.region_other"
+msgstr "その他の地域"
+
+msgid "network.status"
+msgstr "ネットワーク"
+
+msgid "network.nat_open"
+msgstr "オープン"
+
+msgid "network.nat_strict"
+msgstr "厳格なNAT"
+
+msgid "network.nat_no_udp"
+msgstr "UDPブロック"
+
+msgid "network.nat_detail_open"
+msgstr "お使いのネットワークは、他のプレイヤーとの直接接続を許可しているはずです。"
+
+msgid "network.nat_detail_strict"
+msgstr "ルーターが厳格なNATを使用しているため、直接接続に失敗しやすく、対戦が中継を経由する場合があります。"
+
+msgid "network.nat_detail_no_udp"
+msgstr "ネットワークがUDPをブロックしているようです。直接接続はできず、対戦が中継を経由する場合があります。原因はファイアウォールやVPNかもしれません。"
+
+msgid "network.nat_detail_checking"
+msgstr "ネットワークを確認中です。ゲーム起動後、数秒かかります。"
+
+msgid "network.captive_portal"
+msgstr "ログインページがインターネット接続を横取りしている可能性があります。"
 
 msgid "connection.no_recommendation"
 msgstr "推奨値なし"
@@ -671,6 +755,24 @@ msgstr "通常"
 
 msgid "settings.bottom_spacing_detail"
 msgstr "対戦HUDを画面の下端から上に移動します。"
+
+msgid "settings.ready_sound"
+msgstr "挑戦者アナウンス"
+
+msgid "settings.ready_sound_detail"
+msgstr "相手が先に準備完了するとアナウンスが流れます。"
+
+msgid "settings.ready_sound_volume"
+msgstr "アナウンス音量"
+
+msgid "settings.ready_sound_volume_detail"
+msgstr "ゲームのボイス音量に対する割合です。"
+
+msgid "settings.ready_sound_test"
+msgstr "アナウンスをテスト"
+
+msgid "settings.ready_sound_test_detail"
+msgstr "この音量で一度再生します。"
 
 msgid "settings.interface_size"
 msgstr "画面サイズ"
@@ -1247,6 +1349,27 @@ msgstr "ランダム"
 
 msgid "selection.random_stage.detail"
 msgstr "対戦ごとに別のステージを選びます。"
+
+msgid "selection.random_pool"
+msgstr "ランダム対象ステージ"
+
+msgid "selection.random_pool.detail"
+msgstr "{1}ステージ中{0}。ランダムはこの中から選びます。"
+
+msgid "selection.random_pool_title"
+msgstr "ランダム対象ステージ"
+
+msgid "selection.random_pool_in"
+msgstr "ランダムで選ばれます。"
+
+msgid "selection.random_pool_out"
+msgstr "ランダムでは選ばれません。"
+
+msgid "selection.random_pool_last"
+msgstr "ランダムには1つ以上のステージが必要です。"
+
+msgid "selection.random_pool_skipped"
+msgstr "除外"
 
 msgid "selection.handicap"
 msgstr "ハンディキャップ"
@@ -2239,6 +2362,21 @@ msgstr "通信を利用できません。オフラインでは遊べます。"
 
 msgid "runtime.room_join_failed"
 msgstr "ルームに参加できませんでした。招待と、両者が同じSF4 Ember Netplayパッケージを使用しているか確認してください。"
+
+msgid "runtime.room_host_failed"
+msgstr "ルームを作成できませんでした。インターネット接続を確認して、もう一度お試しください。"
+
+msgid "runtime.relay_unreachable"
+msgstr "中継サーバーに接続できませんでした。インターネット接続、ファイアウォール、VPNを確認して、もう一度お試しください。"
+
+msgid "runtime.relay_unreachable_region"
+msgstr "中継サーバー ({0}) に接続できませんでした。インターネット接続、ファイアウォール、VPNを確認して、もう一度お試しください。"
+
+msgid "runtime.host_unreachable"
+msgstr "ホストに直接も中継経由でも接続できませんでした。ルームが閉じられたか、ファイアウォールやVPNが妨げている可能性があります。"
+
+msgid "runtime.join_control_lost"
+msgstr "ホストには接続できましたが、接続が何度も切れました。インターネット接続を確認して、もう一度お試しください。"
 
 msgid "runtime.room_connection_lost"
 msgstr "ルームへの接続が切れました。"

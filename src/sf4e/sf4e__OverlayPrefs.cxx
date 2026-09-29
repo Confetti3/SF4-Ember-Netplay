@@ -102,6 +102,7 @@ namespace OverlayPrefs {
         }
         if (data.lobby.charaID < data.fighters.size()) data.fighters[data.lobby.charaID] = data.lobby;
         data.stageID = selection::NormalizeStageChoice(data.stageID);
+        data.randomStageExcluded = selection::NormalizeRandomExclusions(data.randomStageExcluded);
         if (data.lobbyRoundCountIdx < 0 || data.lobbyRoundCountIdx >= ROUND_COUNT_OPTIONS) data.lobbyRoundCountIdx = 1;
         if (data.lobbyRoundTimeIdx < 0 || data.lobbyRoundTimeIdx >= ROUND_TIME_OPTIONS) data.lobbyRoundTimeIdx = 2;
         if ((data.deviceType != input::PadKeyboard && data.deviceType != input::PadXInput) || (data.deviceType == input::PadXInput && data.deviceIdx > 3)) data.deviceIdx = data.deviceType = 0xff;
@@ -123,6 +124,12 @@ namespace OverlayPrefs {
 			out.fighters[out.lobby.charaID] = out.lobby;
 		}
 		out.stageID = selection::PreferenceStage(j, "stageID", out.stageID);
+		if (j.contains("randomStageExcluded") && j["randomStageExcluded"].is_array()) {
+			std::uint64_t excluded = 0;
+			for (const auto& id : j["randomStageExcluded"])
+				if (id.is_number_integer() && selection::FindStage(id.get<std::int64_t>())) excluded |= std::uint64_t(1) << id.get<int>();
+			out.randomStageExcluded = selection::NormalizeRandomExclusions(excluded);
+		}
 
 		if (j.contains("lobbySettings") && j["lobbySettings"].is_object()) {
 			const auto& ls = j["lobbySettings"];
@@ -148,6 +155,9 @@ namespace OverlayPrefs {
 			j["fighters"].push_back(std::move(row));
 		}
 		j["stageID"] = data.stageID;
+		j["randomStageExcluded"] = nlohmann::json::array();
+		for (const auto& stage : selection::StageList())
+			if (!selection::InRandomPool(stage.id, data.randomStageExcluded)) j["randomStageExcluded"].push_back(stage.id);
 
 		j["lobbySettings"] = {
 			{"roundCountIdx", data.lobbyRoundCountIdx},
@@ -221,7 +231,7 @@ namespace OverlayPrefs {
 			{"editionSelect", preferences.lobby.editionSelect ? 1 : 0}, {"roundCount", preferences.lobby.roundCount},
 			{"roundTimeIntegral", preferences.lobby.roundTime}, {"showMatchHud", preferences.showMatchHud},
 			{"discordPresence", preferences.discordPresence}, {"discordInvites", preferences.discordInvites},
-            {"matchHudSize",preferences.matchHudSize},{"matchHudRaised",preferences.matchHudRaised},
+            {"matchHudSize",preferences.matchHudSize},{"matchHudRaised",preferences.matchHudRaised},{"readySound",preferences.readySound},{"readySoundVolume",preferences.readySoundVolume},
             {"interfaceScale", preferences.interfaceScale}, {"roomDefaults", netplay::RoomPreferences(preferences)}};
         if(preferences.record.available)values["onlineRecord"]=netplay::ProfileRecordJson(preferences.record);
         return writer->QueueLauncher(std::move(values));

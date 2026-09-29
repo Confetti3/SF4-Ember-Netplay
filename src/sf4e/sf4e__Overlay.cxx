@@ -42,6 +42,7 @@ static std::atomic<bool> mainRequested{false};
 static bool trainingOpen = false, trainingHud = true;
 static std::atomic<bool> trainingAvailable{false};
 static int lobbyStageID = 0, lobbyMenuCharaID = 0;
+static sf4e::selection::StageMask lobbyStageExcluded = 0;
 static rVsMode::ConfirmedCharaConditions lobbyConditions = {0,0,0,0,0,0,0,0,14};
 
 bool Overlay::CapturesMenuInput() { return capture.load(); }
@@ -86,6 +87,7 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 		s_prefs = prefs;
         sf4e::OverlayPrefs::ToConfirmed(lobbyConditions, prefs.lobby);
         lobbyMenuCharaID = prefs.lobby.charaID; lobbyStageID = prefs.stageID;
+        lobbyStageExcluded = prefs.randomStageExcluded;
 	}
 }
 
@@ -95,11 +97,13 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
 	pick.fighter = menuCharaID;
 	const bool editionSelect = snapshot.session.room == sf4e::netplay::RoomState::Joined ? snapshot.lobbySettings.editionSelect : true;
     int stagedStage = stageId ? *stageId : 0;
+    sf4e::selection::StageMask stagedPool = lobbyStageExcluded;
 	// The room screens direct the player here when a selection is unusable, so
 	// say what is wrong on this screen too, not only on the table.
 	const std::string selectionError = sf4e::selection::Available(pick, editionSelect, snapshot.fighterAvailability[pick.fighter]) ? std::string() :
 		sf4e::loc::T("runtime.selection_combination_unavailable");
-	s_fighterSelectors[0].Draw(pick, editionSelect, s_selectionArt.get(), [&](int fighter) { return snapshot.fighterAvailability[fighter]; }, stageId ? &stagedStage : nullptr, snapshot.canEditSelection, selectionError);
+	s_fighterSelectors[0].Draw(pick, editionSelect, s_selectionArt.get(), [&](int fighter) { return snapshot.fighterAvailability[fighter]; }, stageId ? &stagedStage : nullptr, snapshot.canEditSelection, selectionError,
+		stageId ? &stagedPool : nullptr);
 	if (snapshot.canEditSelection && pick.fighter != menuCharaID && pick.fighter >= 0 && pick.fighter < sf4e::selection::FighterCount) {
 		// Customization is per fighter: the selector carried the previous
 		// fighter's values over, so restore what this one last used, fitted to
@@ -110,7 +114,7 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
 	if (snapshot.canEditSelection) {
         sf4e::selection::ToNative(pick, charaConditions);
         menuCharaID = pick.fighter;
-        if (stageId) *stageId = stagedStage;
+        if (stageId) { *stageId = stagedStage; lobbyStageExcluded = stagedPool; }
     }
 
 }
@@ -141,6 +145,8 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.selectedDelay=snapshot.selectedDelay; view.recommendedDelay=snapshot.recommendedDelay;
     view.opponentDelay=snapshot.opponentDelay;
     view.delayLocked=snapshot.delayLocked; view.canProbe=snapshot.canProbe; view.canApplyDelay=snapshot.canApplyDelay;
+    view.probeRelay=snapshot.probeRelay; view.probeOpponent=snapshot.probeOpponent;
+    view.probeOpponentNat=snapshot.probeOpponentNat; view.netReport=snapshot.netReport;
     view.probeRoute=snapshot.probeRoute; view.probeP50Us=snapshot.probeP50Us; view.probeP95Us=snapshot.probeP95Us;
     view.probeP99Us=snapshot.probeP99Us; view.probeJitterUs=snapshot.probeJitterUs; view.probeBenchmark=snapshot.probeBenchmark;
     view.probeStatus=snapshot.probeStatus; view.probeSamples=snapshot.probeSamples; view.probeLost=snapshot.probeLost;
@@ -188,9 +194,11 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		request.preferences = std::move(action.preferences);
 		request.roomAction = std::move(action.roomAction);
         request.selectedDelay=action.selectedDelay;
+        request.previewSoundVolume=action.previewSoundVolume;
 		request.character = lobbyConditions;
 		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
 		request.stage = lobbyStageID;
+		request.randomStageExcluded = lobbyStageExcluded;
 		return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
 	}, [&] {
 		DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID,
@@ -317,6 +325,7 @@ void Overlay::DrawOverlay() {
     }
     sf4e::OverlayPrefs::Data prefs = s_prefs;
     sf4e::OverlayPrefs::FromConfirmed(prefs.lobby, lobbyConditions); prefs.stageID = lobbyStageID;
+    prefs.randomStageExcluded = lobbyStageExcluded;
     // Every edit is remembered for the fighter it was made on.
     if (prefs.lobby.charaID < prefs.fighters.size()) prefs.fighters[prefs.lobby.charaID] = prefs.lobby;
     if (memcmp(&prefs, &s_prefs, sizeof(prefs)) != 0 && sf4e::OverlayPrefs::Save(prefs)) s_prefs = prefs;

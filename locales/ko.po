@@ -270,6 +270,12 @@ msgstr "울트라 저장"
 msgid "menu.hint.save_stage"
 msgstr "스테이지 저장"
 
+msgid "menu.hint.skip_stage"
+msgstr "스테이지 제외"
+
+msgid "menu.hint.include_stage"
+msgstr "스테이지 포함"
+
 msgid "menu.hint.paste"
 msgstr "붙여넣기"
 
@@ -390,8 +396,86 @@ msgstr "알 수 없음"
 msgid "connection.relayed_advice"
 msgstr "중계 연결은 두 네트워크가 직접 연결되지 않아 대전 데이터가 중계 서버를 거친다는 뜻입니다. 대전은 가능하니 권장 지연 시간을 사용하세요. 직접 연결하려면 두 플레이어 중 한 명이 공유기의 UPnP를 켜거나, UDP 포트 45760을 PC로 전달하거나, VPN을 꺼보세요."
 
+msgid "connection.route_relayed_via"
+msgstr "중계 연결 ({0})"
+
+msgid "connection.direct_checking"
+msgstr "네트워크가 직접 연결을 허용하는지 아직 확인 중입니다."
+
+msgid "connection.blocked_local_no_udp"
+msgstr "예상 원인: 내 네트워크가 UDP를 차단합니다."
+
+msgid "connection.blocked_peer_no_udp"
+msgstr "예상 원인: {0}님의 네트워크가 UDP를 차단합니다."
+
+msgid "connection.blocked_local_strict"
+msgstr "예상 원인: 내 공유기가 엄격한 NAT를 사용합니다."
+
+msgid "connection.blocked_peer_strict"
+msgstr "예상 원인: {0}님의 공유기가 엄격한 NAT를 사용합니다."
+
+msgid "connection.blocked_both_open"
+msgstr "두 네트워크 모두 열려 있는 것으로 보였습니다. 방화벽이나 VPN이 직접 경로를 막고 있을 수 있습니다."
+
 msgid "connection.check_again"
 msgstr "연결 다시 확인"
+
+msgid "network.relay"
+msgstr "중계 서버"
+
+msgid "network.relay_detail"
+msgstr "게임이 다른 플레이어를 찾는 것을 돕는 중계 서버입니다. 직접 연결이 불가능할 때만 대전 데이터가 이 서버를 거칩니다."
+
+msgid "network.relay_connected"
+msgstr "{0} (연결됨)"
+
+msgid "network.relay_connecting"
+msgstr "{0} (연결 중)"
+
+msgid "network.relay_none"
+msgstr "연결 안 됨"
+
+msgid "network.region_use1"
+msgstr "미국 동부"
+
+msgid "network.region_usw1"
+msgstr "미국 서부"
+
+msgid "network.region_euc1"
+msgstr "유럽"
+
+msgid "network.region_aps1"
+msgstr "아시아 태평양"
+
+msgid "network.region_other"
+msgstr "기타 지역"
+
+msgid "network.status"
+msgstr "네트워크"
+
+msgid "network.nat_open"
+msgstr "열림"
+
+msgid "network.nat_strict"
+msgstr "엄격한 NAT"
+
+msgid "network.nat_no_udp"
+msgstr "UDP 차단됨"
+
+msgid "network.nat_detail_open"
+msgstr "네트워크에서 다른 플레이어와 직접 연결할 수 있을 것입니다."
+
+msgid "network.nat_detail_strict"
+msgstr "공유기가 엄격한 NAT를 사용해 직접 연결이 자주 실패하며, 대전이 중계 서버를 거칠 수 있습니다."
+
+msgid "network.nat_detail_no_udp"
+msgstr "네트워크가 UDP를 차단하는 것 같습니다. 직접 연결이 되지 않아 대전이 중계 서버를 거칠 수 있습니다. 방화벽이나 VPN이 원인일 수 있습니다."
+
+msgid "network.nat_detail_checking"
+msgstr "네트워크를 확인하는 중입니다. 게임 시작 후 몇 초가 걸립니다."
+
+msgid "network.captive_portal"
+msgstr "로그인 페이지가 인터넷 연결을 가로막고 있을 수 있습니다."
 
 msgid "connection.no_recommendation"
 msgstr "권장값 없음"
@@ -671,6 +755,24 @@ msgstr "보통"
 
 msgid "settings.bottom_spacing_detail"
 msgstr "대전 HUD를 화면 아래쪽에서 위로 올립니다."
+
+msgid "settings.ready_sound"
+msgstr "도전자 알림"
+
+msgid "settings.ready_sound_detail"
+msgstr "상대가 먼저 준비하면 아나운서가 알려 줍니다."
+
+msgid "settings.ready_sound_volume"
+msgstr "알림 음량"
+
+msgid "settings.ready_sound_volume_detail"
+msgstr "게임 음성 음량에 대한 비율입니다."
+
+msgid "settings.ready_sound_test"
+msgstr "알림 테스트"
+
+msgid "settings.ready_sound_test_detail"
+msgstr "이 음량으로 한 번 재생합니다."
 
 msgid "settings.interface_size"
 msgstr "화면 크기"
@@ -1247,6 +1349,27 @@ msgstr "랜덤"
 
 msgid "selection.random_stage.detail"
 msgstr "대전마다 다른 스테이지를 선택합니다."
+
+msgid "selection.random_pool"
+msgstr "랜덤 스테이지 목록"
+
+msgid "selection.random_pool.detail"
+msgstr "스테이지 {1}개 중 {0}개. 랜덤은 이 중에서만 고릅니다."
+
+msgid "selection.random_pool_title"
+msgstr "랜덤 스테이지 목록"
+
+msgid "selection.random_pool_in"
+msgstr "랜덤으로 선택될 수 있습니다."
+
+msgid "selection.random_pool_out"
+msgstr "랜덤에서 제외됩니다."
+
+msgid "selection.random_pool_last"
+msgstr "랜덤에는 스테이지가 하나 이상 필요합니다."
+
+msgid "selection.random_pool_skipped"
+msgstr "제외됨"
 
 msgid "selection.handicap"
 msgstr "핸디캡"
@@ -2239,6 +2362,21 @@ msgstr "네트워크를 사용할 수 없습니다. 오프라인 플레이는 �
 
 msgid "runtime.room_join_failed"
 msgstr "방에 참가하지 못했습니다. 초대와 두 플레이어의 SF4 Ember Netplay 패키지가 같은지 확인하세요."
+
+msgid "runtime.room_host_failed"
+msgstr "방을 만들지 못했습니다. 인터넷 연결을 확인하고 다시 시도하세요."
+
+msgid "runtime.relay_unreachable"
+msgstr "중계 서버에 연결하지 못했습니다. 인터넷 연결, 방화벽, VPN을 확인하고 다시 시도하세요."
+
+msgid "runtime.relay_unreachable_region"
+msgstr "중계 서버({0})에 연결하지 못했습니다. 인터넷 연결, 방화벽, VPN을 확인하고 다시 시도하세요."
+
+msgid "runtime.host_unreachable"
+msgstr "방장에게 직접도, 중계 서버를 통해서도 연결하지 못했습니다. 방이 닫혔거나 방화벽이나 VPN이 방해하고 있을 수 있습니다."
+
+msgid "runtime.join_control_lost"
+msgstr "방장에게는 연결했지만 연결이 계속 끊겼습니다. 인터넷 연결을 확인하고 다시 시도하세요."
 
 msgid "runtime.room_connection_lost"
 msgstr "방 연결이 끊겼습니다."

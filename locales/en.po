@@ -270,6 +270,12 @@ msgstr "Save Ultra"
 msgid "menu.hint.save_stage"
 msgstr "Save stage"
 
+msgid "menu.hint.skip_stage"
+msgstr "Skip stage"
+
+msgid "menu.hint.include_stage"
+msgstr "Include stage"
+
 msgid "menu.hint.paste"
 msgstr "Paste"
 
@@ -390,8 +396,86 @@ msgstr "Unknown"
 msgid "connection.relayed_advice"
 msgstr "Relayed means your two networks could not connect directly, so match traffic goes through a relay server. Matches still work; use the recommended delay. For a direct connection, either player can try turning on UPnP in their router, forwarding UDP port 45760 to their PC, or turning off a VPN."
 
+msgid "connection.route_relayed_via"
+msgstr "Relayed ({0})"
+
+msgid "connection.direct_checking"
+msgstr "Still checking whether your network allows direct connections."
+
+msgid "connection.blocked_local_no_udp"
+msgstr "Likely cause: your network blocks UDP."
+
+msgid "connection.blocked_peer_no_udp"
+msgstr "Likely cause: {0}'s network blocks UDP."
+
+msgid "connection.blocked_local_strict"
+msgstr "Likely cause: your router uses strict NAT."
+
+msgid "connection.blocked_peer_strict"
+msgstr "Likely cause: {0}'s router uses strict NAT."
+
+msgid "connection.blocked_both_open"
+msgstr "Both networks looked open. A firewall or VPN may be blocking the direct path."
+
 msgid "connection.check_again"
 msgstr "Check connection again"
+
+msgid "network.relay"
+msgstr "Relay"
+
+msgid "network.relay_detail"
+msgstr "The relay server that helps your game find other players. Match traffic goes through it only when a direct connection is not possible."
+
+msgid "network.relay_connected"
+msgstr "{0} (connected)"
+
+msgid "network.relay_connecting"
+msgstr "{0} (connecting)"
+
+msgid "network.relay_none"
+msgstr "Not connected"
+
+msgid "network.region_use1"
+msgstr "US East"
+
+msgid "network.region_usw1"
+msgstr "US West"
+
+msgid "network.region_euc1"
+msgstr "Europe"
+
+msgid "network.region_aps1"
+msgstr "Asia Pacific"
+
+msgid "network.region_other"
+msgstr "Other region"
+
+msgid "network.status"
+msgstr "Network"
+
+msgid "network.nat_open"
+msgstr "Open"
+
+msgid "network.nat_strict"
+msgstr "Strict NAT"
+
+msgid "network.nat_no_udp"
+msgstr "UDP blocked"
+
+msgid "network.nat_detail_open"
+msgstr "Your network should allow direct connections to other players."
+
+msgid "network.nat_detail_strict"
+msgstr "Your router uses strict NAT, so direct connections often fail and matches may go through a relay."
+
+msgid "network.nat_detail_no_udp"
+msgstr "Your network seems to block UDP, so direct connections will fail and matches may go through a relay. A firewall or VPN may be the cause."
+
+msgid "network.nat_detail_checking"
+msgstr "Checking your network. This takes a few seconds after the game starts."
+
+msgid "network.captive_portal"
+msgstr "A sign-in page may be intercepting your internet connection."
 
 msgid "connection.no_recommendation"
 msgstr "No recommendation"
@@ -671,6 +755,24 @@ msgstr "Normal"
 
 msgid "settings.bottom_spacing_detail"
 msgstr "Moves the match HUD above the bottom edge."
+
+msgid "settings.ready_sound"
+msgstr "Challenger call"
+
+msgid "settings.ready_sound_detail"
+msgstr "The announcer calls out when your opponent readies before you."
+
+msgid "settings.ready_sound_volume"
+msgstr "Challenger call volume"
+
+msgid "settings.ready_sound_volume_detail"
+msgstr "A share of the game's voice volume."
+
+msgid "settings.ready_sound_test"
+msgstr "Test challenger call"
+
+msgid "settings.ready_sound_test_detail"
+msgstr "Plays the call once at this volume."
 
 msgid "settings.interface_size"
 msgstr "Interface size"
@@ -1247,6 +1349,27 @@ msgstr "Random"
 
 msgid "selection.random_stage.detail"
 msgstr "A different stage every match."
+
+msgid "selection.random_pool"
+msgstr "Random stage pool"
+
+msgid "selection.random_pool.detail"
+msgstr "{0} of {1} stages. Random only picks from these."
+
+msgid "selection.random_pool_title"
+msgstr "RANDOM STAGE POOL"
+
+msgid "selection.random_pool_in"
+msgstr "Random can pick this stage."
+
+msgid "selection.random_pool_out"
+msgstr "Random skips this stage."
+
+msgid "selection.random_pool_last"
+msgstr "Random needs at least one stage."
+
+msgid "selection.random_pool_skipped"
+msgstr "SKIPPED"
 
 msgid "selection.handicap"
 msgstr "Handicap"
@@ -1925,6 +2048,21 @@ msgid "runtime.networking_unavailable"
 msgstr "Networking is unavailable. Offline is available."
 msgid "runtime.room_join_failed"
 msgstr "Could not join the room. Check the invitation and that both players use the same SF4 Ember Netplay package."
+
+msgid "runtime.room_host_failed"
+msgstr "Could not create the room. Check your internet connection and try again."
+
+msgid "runtime.relay_unreachable"
+msgstr "Could not reach the relay server. Check your internet connection, firewall or VPN, then try again."
+
+msgid "runtime.relay_unreachable_region"
+msgstr "Could not reach the relay server ({0}). Check your internet connection, firewall or VPN, then try again."
+
+msgid "runtime.host_unreachable"
+msgstr "Could not reach the host, directly or through a relay. The room may have closed, or a firewall or VPN may be in the way."
+
+msgid "runtime.join_control_lost"
+msgstr "Reached the host, but the connection kept dropping. Check your internet connection and try again."
 msgid "runtime.room_connection_lost"
 msgstr "Room connection lost."
 

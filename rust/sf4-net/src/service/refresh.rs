@@ -225,33 +225,6 @@ impl Actor {
             state.writable = false;
         }
         self.coordination_writable = state.writable;
-        // Refresh the compact/full invitation only after the new authority is
-        // visible through the committed Raft leader binding. This keeps old
-        // leader references from being used for a future join while retaining
-        // the room capability and expiry.
-        if let Some(admission) = leader_admission.as_ref()
-            && let Some(current) = self.room_invite.clone()
-            && (current.endpoint() != admission.primary_endpoint
-                || current.authority_term() != state.term
-                || current.authority_incarnation() != admission.incarnation)
-            && let Ok(updated) = current.with_authority_route(
-                admission.primary_endpoint,
-                admission.coordination_endpoint,
-                state.term.max(1),
-                admission.incarnation,
-            )
-            && let (Ok(invitation), Ok(secret)) = (updated.encode(), updated.encode_discord())
-            && self.emit_bulk(Event::DiscordInvite {
-                epoch: self.epoch,
-                invitation,
-                secret,
-            })
-        {
-            self.room_invite = Some(updated.clone());
-            if self.hosted.is_some() {
-                self.hosted = Some(updated);
-            }
-        }
         let marker = (
             state.term,
             state.revision,
@@ -274,6 +247,35 @@ impl Actor {
                 return Ok(());
             }
             self.last_coordination_state = Some(marker);
+        }
+        // Refresh the compact/full invitation only after the new authority is
+        // visible through the committed Raft leader binding. This keeps old
+        // leader references from being used for a future join while retaining
+        // the room capability and expiry. It follows CoordinationState: the native
+        // room drops its invitations when the term changes, so a refreshed one
+        // sent first would be dropped with them and never sent again.
+        if let Some(admission) = leader_admission.as_ref()
+            && let Some(current) = self.room_invite.clone()
+            && (current.endpoint() != admission.primary_endpoint
+                || current.authority_term() != state.term
+                || current.authority_incarnation() != admission.incarnation)
+            && let Ok(updated) = current.with_authority_route(
+                admission.primary_endpoint,
+                admission.coordination_endpoint,
+                state.term.max(1),
+                admission.incarnation,
+            )
+            && let (Ok(invitation), Ok(secret)) = (updated.encode(), updated.encode_discord())
+            && self.emit_bulk(Event::DiscordInvite {
+                epoch: self.epoch,
+                invitation,
+                secret,
+            })
+        {
+            self.room_invite = Some(updated.clone());
+            if self.hosted.is_some() {
+                self.hosted = Some(updated);
+            }
         }
         let connected: BTreeSet<String> = self
             .controls

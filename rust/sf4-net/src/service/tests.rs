@@ -79,6 +79,90 @@ fn native_wrapper_keeps_quote_heavy_json_below_frame_bound() {
     let decoded: NativeControlMessage = serde_json::from_str(&wire).unwrap();
     assert_eq!(decoded.payload, payload);
 }
+/// Every event that carries a route, built from paths with an address, a port
+/// or a relay URL to leak, serializes to a class and a region and nothing else.
+#[test]
+fn route_events_serialize_without_addresses_ports_or_urls() {
+    use crate::invite::public_route;
+    let peer = iroh::SecretKey::generate().public();
+    let paths = [
+        Some(TransportAddr::Ip("203.0.113.7:45760".parse().unwrap())),
+        Some(TransportAddr::Ip("[2001:db8::1]:57845".parse().unwrap())),
+        Some(TransportAddr::Relay(
+            "https://use1-1.relay.n0.iroh.link./".parse().unwrap(),
+        )),
+        Some(TransportAddr::Relay(
+            "https://relay.example.com:4433/".parse().unwrap(),
+        )),
+        None,
+    ];
+    for path in paths {
+        let route = public_route(path.as_ref());
+        let events = [
+            Event::ProbeResult {
+                epoch: 1,
+                room: [1; 16],
+                peer,
+                request: 2,
+                pair_revision: 3,
+                route: route.clone(),
+                status: "ready".into(),
+                sample_count: 100,
+                loss_count: 0,
+                p95_rtt_us: 2_000,
+                recommended_delay: 2,
+                metrics: crate::probe::Metrics::default(),
+            },
+            Event::GameReady {
+                epoch: 1,
+                peer,
+                generation: 1,
+                virtual_port: 41_000,
+                max_packet: 1024,
+                route: route.clone(),
+                fixed_port: false,
+            },
+            Event::GameFailed {
+                epoch: 1,
+                peer,
+                generation: 1,
+                reason: crate::bridge::Failure::PeerClosed,
+                route: route.clone(),
+                max_packet: 1024,
+                max_datagram: 1200,
+            },
+            Event::Statistics {
+                epoch: 1,
+                peer,
+                generation: 1,
+                sent_packets: 1,
+                received_packets: 1,
+                sent_bytes: 1,
+                received_bytes: 1,
+                rejected_packets: 0,
+                congestion_events: 0,
+                local_drops: 0,
+                route,
+            },
+        ];
+        for event in &events {
+            assert_no_address(event);
+            let json = serde_json::to_string(event).unwrap();
+            for leaked in [
+                "203.0.113",
+                "2001:db8",
+                "45760",
+                "57845",
+                "example.com",
+                "4433",
+            ] {
+                assert!(!json.contains(leaked), "{leaked} in {json}");
+            }
+        }
+    }
+}
+
+use iroh::TransportAddr;
 use iroh::endpoint::{PortmapperConfig, presets};
 use tokio::net::UdpSocket;
 
@@ -96,10 +180,35 @@ async fn endpoint() -> Endpoint {
 fn address(endpoint: &Endpoint) -> EndpointAddr {
     EndpointAddr::new(endpoint.id()).with_ip_addr(endpoint.bound_sockets()[0])
 }
+/// The only route strings an event may carry: a class and a relay region.
+fn assert_public_route(route: &str) {
+    let region = route.strip_prefix("relay:");
+    assert!(
+        route == "direct"
+            || route == "unavailable"
+            || region.is_some_and(|code| ["use1", "usw1", "euc1", "aps1", "other"].contains(&code)),
+        "route {route:?} is not a public route"
+    );
+}
+/// A serialized event names no address, port or relay URL, whatever route it
+/// carries.
+fn assert_no_address(event: &Event) {
+    let json = serde_json::to_string(event).unwrap();
+    for address in ["ip:", "http", "iroh.link", "127.0.0.1", "[::"] {
+        assert!(!json.contains(address), "{address} in {json}");
+    }
+    let value = serde_json::to_value(event).unwrap();
+    if let Some(route) = value["route"].as_str() {
+        assert_public_route(route);
+    }
+}
 async fn next(events: &mut mpsc::Receiver<Event>, kind: &str) -> Event {
     loop {
         let event = events.recv().await.unwrap();
         let value = serde_json::to_value(&event).unwrap();
+        if let Some(route) = value["route"].as_str() {
+            assert_public_route(route);
+        }
         if value["type"] == kind {
             return event;
         }
@@ -1914,7 +2023,7 @@ fn probe_completion(
             connection: None,
             report,
             route_changed: false,
-            route: Some("ip:127.0.0.1:1".into()),
+            route: Some("direct".into()),
         }),
     )
 }
@@ -2108,7 +2217,9 @@ async fn reverse_check_after_check() {
     let mut a_side = ProbeSide::start(a_actor, a_events);
     let mut b_side = ProbeSide::start(b_actor, b_events);
 
-    match a_side.probe_result().await {
+    let first = a_side.probe_result().await;
+    assert_no_address(&first);
+    match first {
         Event::ProbeResult {
             peer,
             request: 1,
@@ -2119,7 +2230,9 @@ async fn reverse_check_after_check() {
         other => panic!("A's check: {}", serde_json::to_string(&other).unwrap()),
     }
     release.send(()).unwrap();
-    match b_side.probe_result().await {
+    let second = b_side.probe_result().await;
+    assert_no_address(&second);
+    match second {
         Event::ProbeResult {
             peer,
             request: 1,
@@ -2132,7 +2245,7 @@ async fn reverse_check_after_check() {
             assert_eq!(peer, a.id());
             assert_eq!(status, "ready", "B's check must not be retired: {route}");
             assert!(sample_count >= 80, "{sample_count} samples");
-            assert!(route.starts_with("ip:"), "{route}");
+            assert_eq!(route, "direct");
         }
         other => panic!("B's check: {}", serde_json::to_string(&other).unwrap()),
     }
@@ -3880,7 +3993,9 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
         let game = transport::connect_game(&remote, address(&host), auth)
             .await
             .unwrap();
-        let virtual_host = match next(&mut events, "game_ready").await {
+        let ready = next(&mut events, "game_ready").await;
+        assert_no_address(&ready);
+        let virtual_host = match ready {
             Event::GameReady { virtual_port, .. } => virtual_port,
             _ => unreachable!(),
         };
@@ -4414,6 +4529,74 @@ async fn next_error(events: &mut mpsc::Receiver<Event>) -> Event {
 }
 
 #[tokio::test]
+async fn failed_attempts_say_at_which_stage_they_failed() {
+    let local = endpoint().await;
+    let (events, mut receiver) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let mut actor = test_actor(local.clone(), events);
+    let unreachable = || io::Error::new(io::ErrorKind::ConnectionAborted, transport::HOST_UNREACHABLE);
+    // A join whose connection never opened, with no home relay connected here
+    // (the test endpoint has none): the relay is what is missing.
+    actor.epoch = 1;
+    actor.opening = true;
+    actor
+        .completed_control(1, Err(unreachable()), None)
+        .await
+        .unwrap();
+    assert!(matches!(
+        next_error(&mut receiver).await,
+        Event::Error { epoch: 1, ref code, ref reason, .. }
+            if code == "join_failed" && reason.as_deref() == Some("relay_unreachable")
+    ));
+    // A connection that opened and was refused carries no stage.
+    actor.epoch = 2;
+    actor.opening = true;
+    actor
+        .completed_control(2, Err(io::Error::other("refused")), None)
+        .await
+        .unwrap();
+    assert!(matches!(
+        next_error(&mut receiver).await,
+        Event::Error { epoch: 2, ref code, reason: None, .. } if code == "join_failed"
+    ));
+    // A host attempt whose relay never came online.
+    actor.epoch = 3;
+    actor.opening = true;
+    actor
+        .completed_hosted(3, Err(failed("relay_unavailable")))
+        .await
+        .unwrap();
+    assert!(matches!(
+        next_error(&mut receiver).await,
+        Event::Error { epoch: 3, ref code, ref reason, .. }
+            if code == "host_unavailable" && reason.as_deref() == Some("relay_unreachable")
+    ));
+    local.close().await;
+}
+
+#[tokio::test]
+async fn the_actor_reports_its_network_without_a_room() {
+    timeout(Duration::from_secs(15), async {
+        let local = endpoint().await;
+        let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let (_commands, command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let (_fault, failure) = watch::channel(false);
+        let mut actor = test_actor(local.clone(), events_tx);
+        let service = tokio::spawn(async move { actor.run(command_rx, failure).await });
+        let _service_scope = TaskScope(vec![service.abort_handle()]);
+        // The first tick reports before any net report exists.
+        let Event::NetworkReport { relay, nat, .. } = next(&mut events, "network_report").await
+        else {
+            unreachable!()
+        };
+        assert!(relay.is_empty() || ["use1", "usw1", "euc1", "aps1", "other"].contains(&relay.as_str()));
+        assert!(["checking", "open", "strict", "no_udp"].contains(&nat.as_str()));
+        local.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
 async fn a_join_that_is_never_admitted_ends_in_join_failed() {
     let joiner = endpoint().await;
     let authority = endpoint().await;
@@ -4440,7 +4623,8 @@ async fn a_join_that_is_never_admitted_ends_in_join_failed() {
     assert!(actor.room.is_none());
     assert!(matches!(
         next_error(&mut receiver).await,
-        Event::Error { epoch: 1, ref code, .. } if code == "join_failed"
+        Event::Error { epoch: 1, ref code, ref reason, .. }
+            if code == "join_failed" && reason.as_deref() == Some("control_lost")
     ));
 
     // A join whose member was admitted redials without limit.

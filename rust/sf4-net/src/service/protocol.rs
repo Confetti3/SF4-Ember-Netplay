@@ -206,6 +206,23 @@ pub enum Event {
         peers: usize,
         games: usize,
     },
+    /// A privacy-safe summary of this endpoint's network, sent when it first
+    /// becomes known and again whenever it changes. It belongs to the endpoint,
+    /// not to a room, so it has no epoch. It carries no address, port or relay
+    /// URL.
+    NetworkReport {
+        /// Home relay region: `use1`, `usw1`, `euc1`, `aps1`, `other`, or
+        /// empty while no home relay is chosen.
+        relay: String,
+        relay_connected: bool,
+        /// A UDP round trip to a relay completed.
+        udp: bool,
+        /// `open`, `strict` (the public address differs by destination, so
+        /// hole punching usually fails), `no_udp`, or `checking` before the
+        /// first net report.
+        nat: String,
+        captive_portal: bool,
+    },
     Hosted {
         epoch: u64,
         invitation: String,

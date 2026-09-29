@@ -42,6 +42,10 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
             runtime->offlineRequested=false;
         return DispatchOutcome::Dropped;
     }
+    if (command.previewSoundVolume >= 0) {
+        PlayChallengerCall((std::min)(command.previewSoundVolume, 100));
+        return DispatchOutcome::Dropped;
+    }
     if (command.inputAction != input::Action::None) {
         if (command.inputAction == input::Action::Cancel) { runtime->input.Cancel(); runtime->inputInitialized=true; return DispatchOutcome::Dropped; }
         const auto current = runtime->controller.GetSnapshot();
@@ -310,7 +314,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		bool sent = client.PreBattle_SetChara(command.character) == session::SendResult::Queued;
 		if (!client._lobbyData.members.empty() && client._lobbyData.members[0].connId == client._cid) {
 			sent = client.PreBattle_SetEnv(sf4e::localRand()) == session::SendResult::Queued && sent;
-			sent = client.PreBattle_SetStage(selection::ResolveStage(command.stage, sf4e::localRand())) == session::SendResult::Queued && sent;
+			sent = client.PreBattle_SetStage(selection::ResolveStage(command.stage, sf4e::localRand(), command.randomStageExcluded)) == session::SendResult::Queued && sent;
 		}
 		if (!sent || client.Lobby_Ready() != session::SendResult::Queued) {
 			FailReady(loc::T("runtime.match_settings_send_failed"));

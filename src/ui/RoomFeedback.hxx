@@ -2,6 +2,7 @@
 #include "ApplicationShell.hxx"
 #include "../common/InputDelay.hxx"
 #include "../common/Localization.hxx"
+#include "NetworkFeedback.hxx"
 
 namespace sf4e { namespace ui {
 inline bool RoomActionsAvailable(const ShellView& view) {
@@ -34,6 +35,8 @@ inline const char* RoomWaitReason(const ShellView& view) {
 struct ConnectionCheckFeedback {
     std::string value, detail, action;
     bool checking = false;
+    // The detail names the opponent, whose name is a player's own text.
+    bool namesPlayer = false;
 };
 inline std::string ProbeMilliseconds(std::uint64_t us) {
     return std::to_string(us/1000)+"."+std::to_string((us%1000)/100);
@@ -49,14 +52,25 @@ inline ConnectionCheckFeedback DescribeConnectionCheck(const ShellView& view) {
     } else if (measured) {
         const bool relayed = view.probeRoute == RouteKind::Relayed;
         result.value = loc::Tf("connection.frames",view.recommendedDelay);
-        result.detail = loc::Tf("connection.result_detail",
-            loc::T(relayed ? "connection.route_relayed" :
-                view.probeRoute == RouteKind::Direct ? "connection.route_direct" : "connection.route_unknown"),
+        // A relayed route names its region when the helper reported one.
+        const std::string route = relayed ? DescribeRelayedRoute(view.probeRelay) :
+            std::string(loc::T(view.probeRoute == RouteKind::Direct ? "connection.route_direct" : "connection.route_unknown"));
+        result.detail = loc::Tf("connection.result_detail", route,
             ProbeMilliseconds(view.probeP50Us),
             ProbeMilliseconds(view.probeP95Us),ProbeMilliseconds(view.probeP99Us),ProbeMilliseconds(view.probeJitterUs),
             view.probeSent,view.probeSamples,view.probeLost);
-        // Players read Relayed as a fault. Say what it means and what can help.
-        if (relayed) result.detail += std::string("\n") + loc::T("connection.relayed_advice");
+        // Players read Relayed as a fault. Say where the direct path likely
+        // failed, from both sides' network reports, then what it means and what can help.
+        if (relayed) {
+            const auto name = view.probeOpponent.empty() ? std::string(loc::T("room.player")) : view.probeOpponent;
+            const auto why = DescribeDirectBlock(view.netReport.nat, view.probeOpponentNat, name);
+            if (!why.empty()) {
+                result.detail += "\n" + why;
+                const auto block = DiagnoseDirectPath(view.netReport.nat, view.probeOpponentNat);
+                result.namesPlayer = block == DirectBlock::PeerNoUdp || block == DirectBlock::PeerStrict;
+            }
+            result.detail += std::string("\n") + loc::T("connection.relayed_advice");
+        }
         result.action = loc::T("connection.check_again");
     } else if (!view.probeStatus.empty()) {
         result.value = loc::T("connection.no_recommendation");

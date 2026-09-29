@@ -270,6 +270,12 @@ msgstr "Enregistrer l'Ultra"
 msgid "menu.hint.save_stage"
 msgstr "Enregistrer le niveau"
 
+msgid "menu.hint.skip_stage"
+msgstr "Ignorer le niveau"
+
+msgid "menu.hint.include_stage"
+msgstr "Inclure le niveau"
+
 msgid "menu.hint.paste"
 msgstr "Coller"
 
@@ -390,8 +396,86 @@ msgstr "Inconnue"
 msgid "connection.relayed_advice"
 msgstr "Une connexion relayée signifie que vos réseaux ne peuvent pas se joindre directement : le trafic passe par un serveur relais. Les combats restent possibles ; utilisez le délai conseillé. Pour une connexion directe, chaque joueur peut activer UPnP sur son routeur, rediriger le port UDP 45760 vers son PC ou désactiver son VPN."
 
+msgid "connection.route_relayed_via"
+msgstr "Via relais ({0})"
+
+msgid "connection.direct_checking"
+msgstr "Vérification en cours de la prise en charge des connexions directes par votre réseau."
+
+msgid "connection.blocked_local_no_udp"
+msgstr "Cause probable : votre réseau bloque l'UDP."
+
+msgid "connection.blocked_peer_no_udp"
+msgstr "Cause probable : le réseau de {0} bloque l'UDP."
+
+msgid "connection.blocked_local_strict"
+msgstr "Cause probable : votre routeur utilise un NAT strict."
+
+msgid "connection.blocked_peer_strict"
+msgstr "Cause probable : le routeur de {0} utilise un NAT strict."
+
+msgid "connection.blocked_both_open"
+msgstr "Les deux réseaux semblaient ouverts. Un pare-feu ou un VPN bloque peut-être la voie directe."
+
 msgid "connection.check_again"
 msgstr "Revérifier la connexion"
+
+msgid "network.relay"
+msgstr "Relais"
+
+msgid "network.relay_detail"
+msgstr "Le serveur relais qui aide votre jeu à trouver les autres joueurs. Le trafic des combats ne passe par lui que si une connexion directe est impossible."
+
+msgid "network.relay_connected"
+msgstr "{0} (connecté)"
+
+msgid "network.relay_connecting"
+msgstr "{0} (connexion)"
+
+msgid "network.relay_none"
+msgstr "Non connecté"
+
+msgid "network.region_use1"
+msgstr "États-Unis Est"
+
+msgid "network.region_usw1"
+msgstr "États-Unis Ouest"
+
+msgid "network.region_euc1"
+msgstr "Europe"
+
+msgid "network.region_aps1"
+msgstr "Asie-Pacifique"
+
+msgid "network.region_other"
+msgstr "Autre région"
+
+msgid "network.status"
+msgstr "Réseau"
+
+msgid "network.nat_open"
+msgstr "Ouvert"
+
+msgid "network.nat_strict"
+msgstr "NAT strict"
+
+msgid "network.nat_no_udp"
+msgstr "UDP bloqué"
+
+msgid "network.nat_detail_open"
+msgstr "Votre réseau devrait autoriser les connexions directes avec les autres joueurs."
+
+msgid "network.nat_detail_strict"
+msgstr "Votre routeur utilise un NAT strict : les connexions directes échouent souvent et les combats peuvent passer par un relais."
+
+msgid "network.nat_detail_no_udp"
+msgstr "Votre réseau semble bloquer l'UDP : les connexions directes échoueront et les combats peuvent passer par un relais. Un pare-feu ou un VPN peut en être la cause."
+
+msgid "network.nat_detail_checking"
+msgstr "Vérification de votre réseau. Cela prend quelques secondes après le lancement du jeu."
+
+msgid "network.captive_portal"
+msgstr "Une page de connexion intercepte peut-être votre connexion Internet."
 
 msgid "connection.no_recommendation"
 msgstr "Aucune recommandation"
@@ -671,6 +755,24 @@ msgstr "Normal"
 
 msgid "settings.bottom_spacing_detail"
 msgstr "Éloigne l'affichage du combat du bord inférieur."
+
+msgid "settings.ready_sound"
+msgstr "Annonce du challenger"
+
+msgid "settings.ready_sound_detail"
+msgstr "L'annonceur vous prévient quand votre adversaire est prêt avant vous."
+
+msgid "settings.ready_sound_volume"
+msgstr "Volume de l'annonce"
+
+msgid "settings.ready_sound_volume_detail"
+msgstr "Une part du volume des voix du jeu."
+
+msgid "settings.ready_sound_test"
+msgstr "Tester l'annonce"
+
+msgid "settings.ready_sound_test_detail"
+msgstr "Joue l'annonce une fois à ce volume."
 
 msgid "settings.interface_size"
 msgstr "Taille interface"
@@ -1247,6 +1349,27 @@ msgstr "Aléatoire"
 
 msgid "selection.random_stage.detail"
 msgstr "Un niveau différent à chaque combat."
+
+msgid "selection.random_pool"
+msgstr "Niveaux aléatoires"
+
+msgid "selection.random_pool.detail"
+msgstr "{0} niveaux sur {1}. Aléatoire ne choisit que parmi eux."
+
+msgid "selection.random_pool_title"
+msgstr "NIVEAUX ALÉATOIRES"
+
+msgid "selection.random_pool_in"
+msgstr "Aléatoire peut choisir ce niveau."
+
+msgid "selection.random_pool_out"
+msgstr "Aléatoire ignore ce niveau."
+
+msgid "selection.random_pool_last"
+msgstr "Aléatoire a besoin d'au moins un niveau."
+
+msgid "selection.random_pool_skipped"
+msgstr "IGNORÉ"
 
 msgid "selection.handicap"
 msgstr "Handicap"
@@ -2239,6 +2362,21 @@ msgstr "Réseau indisponible. Le jeu hors ligne reste accessible."
 
 msgid "runtime.room_join_failed"
 msgstr "Impossible de rejoindre le salon. Vérifiez l'invitation et que les deux joueurs utilisent le même paquet SF4 Ember Netplay."
+
+msgid "runtime.room_host_failed"
+msgstr "Impossible de créer le salon. Vérifiez votre connexion Internet et réessayez."
+
+msgid "runtime.relay_unreachable"
+msgstr "Impossible de joindre le serveur relais. Vérifiez votre connexion Internet, votre pare-feu ou votre VPN, puis réessayez."
+
+msgid "runtime.relay_unreachable_region"
+msgstr "Impossible de joindre le serveur relais ({0}). Vérifiez votre connexion Internet, votre pare-feu ou votre VPN, puis réessayez."
+
+msgid "runtime.host_unreachable"
+msgstr "L'hôte est injoignable, en direct comme via un relais. Le salon a peut-être été fermé, ou un pare-feu ou un VPN gêne la connexion."
+
+msgid "runtime.join_control_lost"
+msgstr "L'hôte a été joint, mais la connexion n'a cessé de tomber. Vérifiez votre connexion Internet et réessayez."
 
 msgid "runtime.room_connection_lost"
 msgstr "Connexion au salon perdue."

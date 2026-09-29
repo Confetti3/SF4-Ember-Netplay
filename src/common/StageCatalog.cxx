@@ -47,8 +47,26 @@ bool IsRandomStage(std::int64_t id) { return id == RandomStageId; }
 int NormalizeStageChoice(std::int64_t id) {
     return IsRandomStage(id) ? RandomStageId : NormalizeStage(id);
 }
-int ResolveStage(int choice, std::uint32_t roll) {
-    if (IsRandomStage(choice)) return StageList()[roll % VersusStageCount].id;
-    return NormalizeStage(choice);
+bool InRandomPool(int id, StageMask excluded) {
+    return FindStage(id) && !(excluded >> id & 1u);
+}
+int RandomPoolSize(StageMask excluded) {
+    int size = 0;
+    for (const auto& stage : StageList()) size += InRandomPool(stage.id, excluded);
+    return size;
+}
+StageMask NormalizeRandomExclusions(std::uint64_t excluded) {
+    StageMask known = 0;
+    for (const auto& stage : StageList()) known |= StageMask(1) << stage.id;
+    const StageMask kept = static_cast<StageMask>(excluded) & known;
+    return kept == known ? 0 : kept;
+}
+int ResolveStage(int choice, std::uint32_t roll, StageMask excluded) {
+    if (!IsRandomStage(choice)) return NormalizeStage(choice);
+    excluded = NormalizeRandomExclusions(excluded);
+    int pick = static_cast<int>(roll % static_cast<std::uint32_t>(RandomPoolSize(excluded)));
+    for (const auto& stage : StageList())
+        if (InRandomPool(stage.id, excluded) && pick-- == 0) return stage.id;
+    return StageList()[0].id;
 }
 } }

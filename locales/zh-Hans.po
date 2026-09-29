@@ -270,6 +270,12 @@ msgstr "保存 Ultra"
 msgid "menu.hint.save_stage"
 msgstr "保存场地"
 
+msgid "menu.hint.skip_stage"
+msgstr "跳过场地"
+
+msgid "menu.hint.include_stage"
+msgstr "加入场地"
+
 msgid "menu.hint.paste"
 msgstr "粘贴"
 
@@ -390,8 +396,86 @@ msgstr "未知"
 msgid "connection.relayed_advice"
 msgstr "中继表示双方网络无法直连，对战流量会经过中继服务器。仍可正常对战，建议使用推荐延迟。如需直连，任一玩家可尝试在路由器开启 UPnP、将 UDP 端口 45760 转发至电脑，或关闭 VPN。"
 
+msgid "connection.route_relayed_via"
+msgstr "中继 ({0})"
+
+msgid "connection.direct_checking"
+msgstr "仍在检查你的网络是否允许直连。"
+
+msgid "connection.blocked_local_no_udp"
+msgstr "可能原因: 你的网络阻止了 UDP。"
+
+msgid "connection.blocked_peer_no_udp"
+msgstr "可能原因: {0} 的网络阻止了 UDP。"
+
+msgid "connection.blocked_local_strict"
+msgstr "可能原因: 你的路由器使用严格 NAT。"
+
+msgid "connection.blocked_peer_strict"
+msgstr "可能原因: {0} 的路由器使用严格 NAT。"
+
+msgid "connection.blocked_both_open"
+msgstr "两边的网络看起来都是开放的。防火墙或 VPN 可能挡住了直连通道。"
+
 msgid "connection.check_again"
 msgstr "重新检查连接"
+
+msgid "network.relay"
+msgstr "中继"
+
+msgid "network.relay_detail"
+msgstr "帮助游戏找到其他玩家的中继服务器。只有无法直连时，对战流量才会经过它。"
+
+msgid "network.relay_connected"
+msgstr "{0} (已连接)"
+
+msgid "network.relay_connecting"
+msgstr "{0} (连接中)"
+
+msgid "network.relay_none"
+msgstr "未连接"
+
+msgid "network.region_use1"
+msgstr "美国东部"
+
+msgid "network.region_usw1"
+msgstr "美国西部"
+
+msgid "network.region_euc1"
+msgstr "欧洲"
+
+msgid "network.region_aps1"
+msgstr "亚太"
+
+msgid "network.region_other"
+msgstr "其他地区"
+
+msgid "network.status"
+msgstr "网络"
+
+msgid "network.nat_open"
+msgstr "开放"
+
+msgid "network.nat_strict"
+msgstr "严格 NAT"
+
+msgid "network.nat_no_udp"
+msgstr "UDP 被阻止"
+
+msgid "network.nat_detail_open"
+msgstr "你的网络应允许与其他玩家直连。"
+
+msgid "network.nat_detail_strict"
+msgstr "你的路由器使用严格 NAT，直连常常失败，对战可能会经过中继服务器。"
+
+msgid "network.nat_detail_no_udp"
+msgstr "你的网络似乎阻止了 UDP，直连会失败，对战可能会经过中继服务器。原因可能是防火墙或 VPN。"
+
+msgid "network.nat_detail_checking"
+msgstr "正在检查网络。游戏启动后需要几秒钟。"
+
+msgid "network.captive_portal"
+msgstr "登录页面可能正在拦截你的互联网连接。"
 
 msgid "connection.no_recommendation"
 msgstr "无建议"
@@ -671,6 +755,24 @@ msgstr "正常"
 
 msgid "settings.bottom_spacing_detail"
 msgstr "将对战 HUD 移离屏幕底边。"
+
+msgid "settings.ready_sound"
+msgstr "挑战者播报"
+
+msgid "settings.ready_sound_detail"
+msgstr "对手先准备好时播报提醒。"
+
+msgid "settings.ready_sound_volume"
+msgstr "播报音量"
+
+msgid "settings.ready_sound_volume_detail"
+msgstr "占游戏语音音量的比例。"
+
+msgid "settings.ready_sound_test"
+msgstr "试听播报"
+
+msgid "settings.ready_sound_test_detail"
+msgstr "以此音量播放一次。"
 
 msgid "settings.interface_size"
 msgstr "界面大小"
@@ -1247,6 +1349,27 @@ msgstr "随机"
 
 msgid "selection.random_stage.detail"
 msgstr "每场对战随机更换场地。"
+
+msgid "selection.random_pool"
+msgstr "随机场地范围"
+
+msgid "selection.random_pool.detail"
+msgstr "{1} 个场地中的 {0} 个。随机只从这些场地中选。"
+
+msgid "selection.random_pool_title"
+msgstr "随机场地范围"
+
+msgid "selection.random_pool_in"
+msgstr "随机可能选中此场地。"
+
+msgid "selection.random_pool_out"
+msgstr "随机会跳过此场地。"
+
+msgid "selection.random_pool_last"
+msgstr "随机至少需要一个场地。"
+
+msgid "selection.random_pool_skipped"
+msgstr "已跳过"
 
 msgid "selection.handicap"
 msgstr "生命值调整"
@@ -2239,6 +2362,21 @@ msgstr "网络不可用，仍可离线游玩。"
 
 msgid "runtime.room_join_failed"
 msgstr "无法加入房间。请检查邀请，并确认双方使用同一 SF4 Ember Netplay 安装包。"
+
+msgid "runtime.room_host_failed"
+msgstr "无法创建房间。请检查网络连接后重试。"
+
+msgid "runtime.relay_unreachable"
+msgstr "无法连接到中继服务器。请检查网络连接、防火墙或 VPN 后重试。"
+
+msgid "runtime.relay_unreachable_region"
+msgstr "无法连接到中继服务器 ({0})。请检查网络连接、防火墙或 VPN 后重试。"
+
+msgid "runtime.host_unreachable"
+msgstr "无法连接到房主，直连和经中继都失败了。房间可能已关闭，或被防火墙或 VPN 挡住。"
+
+msgid "runtime.join_control_lost"
+msgstr "已连上房主，但连接一直中断。请检查网络连接后重试。"
 
 msgid "runtime.room_connection_lost"
 msgstr "房间连接已断开。"

@@ -93,6 +93,7 @@ bool IrohRoom::Begin(bool host) {
 	closedGeneration_ = 0;
 	invitation_.clear(); discordInvitation_.clear();
 	error_.clear();
+	failureStage_ = FailureStage::Unknown;
 	state_ = host ? State::Hosting : State::Joining;
 	return Command("{\"type\":\"status\"}");
 }
@@ -634,7 +635,6 @@ bool IrohRoom::HandleHelperError(const json& event) {
 		return true;
 	case HelperErrorScope::ControlLeader:
 		coordination_.writable=false; coordination_.rebound=false; state_=State::Degraded;
-		invitation_.clear(); discordInvitation_.clear();
 		error_="Room control is reconnecting."; return true;
 	case HelperErrorScope::Match:
 		// The helper no longer holds that match. Its own deadlines (setup,
@@ -644,9 +644,22 @@ bool IrohRoom::HandleHelperError(const json& event) {
 	case HelperErrorScope::RoomFatal:
 		break;
 	}
+	// Which stage a failed host or join reached; the runtime words it.
+	failureStage_ = FailureStageFromHelper(code, event.value("reason", std::string()));
 	// Only protocol-defined labels may enter UI diagnostics.
 	Fail(verdict.codeIsProtocolLabel ? code.c_str() : "helper_room_error");
 	return false;
+}
+
+NetworkSummary IrohRoom::ReadNetworkReport(const json& event) {
+	NetworkSummary report;
+	report.reported = true;
+	report.relay = NormalizeRelayRegion(event.at("relay").get<std::string>());
+	report.relayConnected = event.at("relay_connected").get<bool>();
+	report.udp = event.at("udp").get<bool>();
+	report.nat = NatClassFromHelper(event.at("nat").get<std::string>());
+	report.captivePortal = event.at("captive_portal").get<bool>();
+	return report;
 }
 
 void IrohRoom::Poll() {
@@ -712,6 +725,16 @@ void IrohRoom::Poll() {
 				localIdentity_ = identity;
 				localUdpPort_ = event.at("fixed_port").get<std::uint16_t>();
 				spdlog::info("Room: helper UDP port {}", *localUdpPort_ ? std::to_string(*localUdpPort_) : "random");
+				continue;
+			}
+			if (type == "network_report") {
+				// Endpoint-level, so it has no epoch.
+				auto report = ReadNetworkReport(event);
+				if (report != network_)
+					spdlog::info("Room: network relay={} connected={} udp={} nat={} captive_portal={}",
+						report.relay.empty() ? "-" : report.relay, report.relayConnected, report.udp,
+						NatClassLabel(report.nat), report.captivePortal);
+				network_ = std::move(report);
 				continue;
 			}
 			if (event.value("epoch", std::uint64_t(0)) != epoch_) continue;

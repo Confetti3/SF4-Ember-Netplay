@@ -126,12 +126,14 @@ int main() {
 	roomClient.RequireCustomRooms();
 	roomClient.SetProfileMain(13);
 	roomClient.SetProfileLink(NetworkLink::Wired);
+	roomClient.SetProfileNat(NatClass::Strict);
 	auto* roomTransport = new MockClient();
 	CHECK(roomClient.Connect(std::unique_ptr<session::ClientTransport>(roomTransport), false) == 0);
 	roomTransport->state = session::ConnectionState::Connected;
 	CHECK(roomClient.Step() == 0);
 	CHECK(roomTransport->sent.size() == 1 && roomTransport->sent.back().at("admission").value("mainFighter", -1) == 13 &&
-		roomTransport->sent.back().at("admission").value("link", -1) == static_cast<int>(NetworkLink::Wired));
+		roomTransport->sent.back().at("admission").value("link", -1) == static_cast<int>(NetworkLink::Wired) &&
+		roomTransport->sent.back().at("admission").value("nat", -1) == static_cast<int>(NatClass::Strict));
 	protocol::SessionHelloResp roomHello; roomHello.cid = {"room", "player"};
 	roomHello.roomMember = 1; roomHello.authenticatedEndpoint = "player"; roomHello.incarnation = 11;
 	roomTransport->Push(json(roomHello)); CHECK(roomClient.Step() == 0);

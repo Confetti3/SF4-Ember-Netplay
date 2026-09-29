@@ -270,6 +270,12 @@ msgstr "Ultra speichern"
 msgid "menu.hint.save_stage"
 msgstr "Stage speichern"
 
+msgid "menu.hint.skip_stage"
+msgstr "Stage auslassen"
+
+msgid "menu.hint.include_stage"
+msgstr "Stage aufnehmen"
+
 msgid "menu.hint.paste"
 msgstr "Einfügen"
 
@@ -390,8 +396,86 @@ msgstr "Unbekannt"
 msgid "connection.relayed_advice"
 msgstr "Über Relay bedeutet: Ihre Netzwerke konnten sich nicht direkt verbinden; der Spielverkehr läuft über einen Relay-Server. Spiele funktionieren weiterhin. Nutzen Sie die empfohlene Verzögerung. Für eine direkte Verbindung kann ein Spieler UPnP im Router aktivieren, UDP-Port 45760 an seinen PC weiterleiten oder ein VPN ausschalten."
 
+msgid "connection.route_relayed_via"
+msgstr "Über Relay ({0})"
+
+msgid "connection.direct_checking"
+msgstr "Es wird noch geprüft, ob Ihr Netzwerk direkte Verbindungen erlaubt."
+
+msgid "connection.blocked_local_no_udp"
+msgstr "Wahrscheinliche Ursache: Ihr Netzwerk blockiert UDP."
+
+msgid "connection.blocked_peer_no_udp"
+msgstr "Wahrscheinliche Ursache: Das Netzwerk von {0} blockiert UDP."
+
+msgid "connection.blocked_local_strict"
+msgstr "Wahrscheinliche Ursache: Ihr Router nutzt striktes NAT."
+
+msgid "connection.blocked_peer_strict"
+msgstr "Wahrscheinliche Ursache: Der Router von {0} nutzt striktes NAT."
+
+msgid "connection.blocked_both_open"
+msgstr "Beide Netzwerke wirkten offen. Eine Firewall oder ein VPN blockiert möglicherweise den direkten Weg."
+
 msgid "connection.check_again"
 msgstr "Verbindung erneut prüfen"
+
+msgid "network.relay"
+msgstr "Relay"
+
+msgid "network.relay_detail"
+msgstr "Der Relay-Server, der Ihrem Spiel hilft, andere Spieler zu finden. Spielverkehr läuft nur darüber, wenn keine direkte Verbindung möglich ist."
+
+msgid "network.relay_connected"
+msgstr "{0} (verbunden)"
+
+msgid "network.relay_connecting"
+msgstr "{0} (verbindet)"
+
+msgid "network.relay_none"
+msgstr "Nicht verbunden"
+
+msgid "network.region_use1"
+msgstr "USA Ost"
+
+msgid "network.region_usw1"
+msgstr "USA West"
+
+msgid "network.region_euc1"
+msgstr "Europa"
+
+msgid "network.region_aps1"
+msgstr "Asien-Pazifik"
+
+msgid "network.region_other"
+msgstr "Andere Region"
+
+msgid "network.status"
+msgstr "Netzwerk"
+
+msgid "network.nat_open"
+msgstr "Offen"
+
+msgid "network.nat_strict"
+msgstr "Strenges NAT"
+
+msgid "network.nat_no_udp"
+msgstr "UDP blockiert"
+
+msgid "network.nat_detail_open"
+msgstr "Ihr Netzwerk sollte direkte Verbindungen zu anderen Spielern erlauben."
+
+msgid "network.nat_detail_strict"
+msgstr "Ihr Router nutzt striktes NAT, daher scheitern direkte Verbindungen oft und Spiele laufen möglicherweise über ein Relay."
+
+msgid "network.nat_detail_no_udp"
+msgstr "Ihr Netzwerk scheint UDP zu blockieren, daher scheitern direkte Verbindungen und Spiele laufen möglicherweise über ein Relay. Ursache kann eine Firewall oder ein VPN sein."
+
+msgid "network.nat_detail_checking"
+msgstr "Ihr Netzwerk wird geprüft. Das dauert nach dem Spielstart einige Sekunden."
+
+msgid "network.captive_portal"
+msgstr "Eine Anmeldeseite fängt Ihre Internetverbindung möglicherweise ab."
 
 msgid "connection.no_recommendation"
 msgstr "Keine Empfehlung"
@@ -671,6 +755,24 @@ msgstr "Normal"
 
 msgid "settings.bottom_spacing_detail"
 msgstr "Verschiebt das Kampf-HUD vom unteren Rand weg."
+
+msgid "settings.ready_sound"
+msgstr "Herausforderer-Ansage"
+
+msgid "settings.ready_sound_detail"
+msgstr "Der Sprecher meldet sich, wenn Ihr Gegner vor Ihnen bereit ist."
+
+msgid "settings.ready_sound_volume"
+msgstr "Lautstärke der Ansage"
+
+msgid "settings.ready_sound_volume_detail"
+msgstr "Anteil an der Sprachlautstärke des Spiels."
+
+msgid "settings.ready_sound_test"
+msgstr "Ansage testen"
+
+msgid "settings.ready_sound_test_detail"
+msgstr "Spielt die Ansage einmal in dieser Lautstärke ab."
 
 msgid "settings.interface_size"
 msgstr "Oberflächengröße"
@@ -1247,6 +1349,27 @@ msgstr "Zufällig"
 
 msgid "selection.random_stage.detail"
 msgstr "In jedem Kampf eine andere Stage."
+
+msgid "selection.random_pool"
+msgstr "Zufällige Stages"
+
+msgid "selection.random_pool.detail"
+msgstr "{0} von {1} Stages. Zufällig wählt nur aus diesen."
+
+msgid "selection.random_pool_title"
+msgstr "ZUFÄLLIGE STAGES"
+
+msgid "selection.random_pool_in"
+msgstr "Zufällig kann diese Stage wählen."
+
+msgid "selection.random_pool_out"
+msgstr "Zufällig überspringt diese Stage."
+
+msgid "selection.random_pool_last"
+msgstr "Zufällig braucht mindestens eine Stage."
+
+msgid "selection.random_pool_skipped"
+msgstr "AUSGELASSEN"
 
 msgid "selection.handicap"
 msgstr "Handicap"
@@ -2239,6 +2362,21 @@ msgstr "Netzwerk nicht verfügbar. Offline-Spiel ist verfügbar."
 
 msgid "runtime.room_join_failed"
 msgstr "Raumbeitritt fehlgeschlagen. Prüfen Sie die Einladung und ob beide Spieler dasselbe SF4 Ember Netplay-Paket nutzen."
+
+msgid "runtime.room_host_failed"
+msgstr "Der Raum konnte nicht erstellt werden. Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut."
+
+msgid "runtime.relay_unreachable"
+msgstr "Der Relay-Server war nicht erreichbar. Prüfen Sie Internetverbindung, Firewall oder VPN und versuchen Sie es erneut."
+
+msgid "runtime.relay_unreachable_region"
+msgstr "Der Relay-Server ({0}) war nicht erreichbar. Prüfen Sie Internetverbindung, Firewall oder VPN und versuchen Sie es erneut."
+
+msgid "runtime.host_unreachable"
+msgstr "Der Host war weder direkt noch über ein Relay erreichbar. Der Raum wurde möglicherweise geschlossen, oder eine Firewall oder ein VPN stört."
+
+msgid "runtime.join_control_lost"
+msgstr "Der Host wurde erreicht, aber die Verbindung brach immer wieder ab. Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut."
 
 msgid "runtime.room_connection_lost"
 msgstr "Raumverbindung verloren."

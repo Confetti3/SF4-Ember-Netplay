@@ -280,7 +280,7 @@ static void TestProfileMain() {
     RoomAuthority authority("Profiles",16,70);
     CHECK(!authority.Join("Invalid",Peer(0),true,{44}).accepted);
     CHECK(!authority.Join("Invalid",Peer(0),true,{-2}).accepted);
-    CHECK(authority.Join("Main",Peer(0),true,{11,sf4e::NetworkLink::Wireless}).accepted);
+    CHECK(authority.Join("Main",Peer(0),true,{11,sf4e::NetworkLink::Wireless,sf4e::NatClass::Strict}).accepted);
     const auto host=authority.SnapshotView().host;
     CHECK(authority.SetMemberFighter(host,2));
     const auto encoded=nlohmann::json(authority.SnapshotView()).dump();
@@ -294,8 +294,15 @@ static void TestProfileMain() {
     auto member=nlohmann::json(decoded.members[0]);member.erase("main_fighter");member.erase("link");
     CHECK(member.get<Member>().mainFighter==-1&&member.get<Member>().link==sf4e::NetworkLink::Unknown);
     member["link"]=7;CHECK(member.get<Member>().link==sf4e::NetworkLink::Unknown);
+    // The same holds for how the member's network treats a direct connection.
+    CHECK(decoded.members[0].nat==sf4e::NatClass::Strict&&restored.SnapshotView().members[0].nat==sf4e::NatClass::Strict);
+    member.erase("nat");CHECK(member.get<Member>().nat==sf4e::NatClass::Unknown);
+    member["nat"]=9;CHECK(member.get<Member>().nat==sf4e::NatClass::Unknown);
+    member["nat"]=static_cast<int>(sf4e::NatClass::NoUdp);CHECK(member.get<Member>().nat==sf4e::NatClass::NoUdp);
     CHECK(authority.Join("Future",Peer(1),false,{-1,static_cast<sf4e::NetworkLink>(7)}).accepted);
     CHECK(authority.SnapshotView().members.back().link==sf4e::NetworkLink::Unknown);
+    CHECK(authority.Join("FutureNat",Peer(2),false,{-1,sf4e::NetworkLink::Unknown,static_cast<sf4e::NatClass>(9)}).accepted);
+    CHECK(authority.SnapshotView().members.back().nat==sf4e::NatClass::Unknown);
     for(const nlohmann::json invalid:{nlohmann::json(-2),nlohmann::json(44),nlohmann::json(1.5),nlohmann::json(UINT64_MAX)}){
         member["main_fighter"]=invalid;bool rejected=false;
         try{member.get<Member>();}catch(...){rejected=true;}CHECK(rejected);

@@ -147,6 +147,10 @@ if(BUILD_TESTING)
     target_link_libraries(RoomSpectatorLockTest PRIVATE sf4e_room_model)
     add_test(NAME RoomSpectatorLock COMMAND RoomSpectatorLockTest)
     set_tests_properties(RoomSpectatorLock PROPERTIES TIMEOUT 30)
+    add_executable(ReadyChimeTest "src/tests/ready_chime_test.cxx")
+    target_link_libraries(ReadyChimeTest PRIVATE sf4e_room_model)
+    add_test(NAME ReadyChime COMMAND ReadyChimeTest)
+    set_tests_properties(ReadyChime PROPERTIES TIMEOUT 30)
     add_executable(SessionRecoveryGateTest "src/tests/session_recovery_gate_test.cxx")
     target_compile_features(SessionRecoveryGateTest PRIVATE cxx_std_14)
     target_link_libraries(SessionRecoveryGateTest PRIVATE sf4e_room_model)
@@ -249,6 +253,10 @@ if(BUILD_TESTING)
     target_link_libraries(RoomPanelNavigationTest PRIVATE sf4e_ui Dimps)
     add_test(NAME RoomPanelNavigation COMMAND RoomPanelNavigationTest)
     set_tests_properties(RoomPanelNavigation PROPERTIES TIMEOUT 30)
+    add_executable(NetworkFeedbackTest src/tests/network_feedback_test.cxx)
+    target_link_libraries(NetworkFeedbackTest PRIVATE sf4e_ui Dimps)
+    add_test(NAME NetworkFeedback COMMAND NetworkFeedbackTest)
+    set_tests_properties(NetworkFeedback PROPERTIES TIMEOUT 30)
     add_executable(NativeSelectionAvailabilityTest src/tests/native_selection_availability_test.cxx)
     target_link_libraries(NativeSelectionAvailabilityTest PRIVATE sf4e_ui Dimps)
     add_test(NAME NativeSelectionAvailability COMMAND NativeSelectionAvailabilityTest)
@@ -282,6 +290,8 @@ endif()
 
 add_library(Dimps STATIC
     "src/Dimps/Dimps__Selection.cxx"
+    "src/Dimps/Dimps__Sound.hxx"
+    "src/Dimps/Dimps__Sound.cxx"
     "src/Dimps/Dimps.hxx"
     "src/Dimps/Dimps.cxx"
     "src/Dimps/Dimps__Eva.hxx"

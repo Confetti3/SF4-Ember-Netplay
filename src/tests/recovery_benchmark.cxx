@@ -715,17 +715,8 @@ json LatencyJson(std::vector<std::uint64_t> values) {
         {"p99_us", percentile(.99)}, {"max_us", values.back()}};
 }
 
+// The helper already reduces a route to "direct" or "relay:<region>".
 std::string RouteClass(const std::string& route) {
-    if (route.rfind("ip:[", 0) == 0) {
-        const auto close = route.find(']');
-        if (close != std::string::npos) return route.substr(0, close + 1);
-    }
-    const auto lastColon = route.rfind(':');
-    if (lastColon != std::string::npos) {
-        const auto port = route.substr(lastColon + 1);
-        if (!port.empty() && std::all_of(port.begin(), port.end(), [](char c) { return c >= '0' && c <= '9'; }))
-            return route.substr(0, lastColon);
-    }
     return route;
 }
 

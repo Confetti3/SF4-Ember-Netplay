@@ -57,6 +57,23 @@ void Journeys() {
  Check(h.shell.Navigation().Screen()=="assignment"&&h.actions.back().inputAction==input::Action::Cancel,"Assignment Back did not only cancel capture");
  h.view.inputCapture=input::Capture::Idle;h.Frame();Check(h.shell.Navigation().Screen()=="player","Assignment lost return destination");
  h.Screen("home");h.Choose("online");Check(h.shell.Navigation().Screen()=="online","Online route");
+ // The Online screen tells the player, for information only, which relay this PC uses
+ // and how its network treats a direct connection. The rows take focus but Select does nothing.
+ {
+  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+  const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});};
+  h.Frame();
+  Check(row("relay")!=rows.end()&&row("network")!=rows.end()&&row("relay")->info&&row("network")->info,"Online lacks the relay and network rows");
+  Check(row("relay")->value==loc::T("connection.checking")&&row("network")->value==loc::T("connection.checking"),"Unreported network is not shown as checking");
+  h.view.netReport.reported=true;h.view.netReport.relay="euc1";h.view.netReport.relayConnected=true;h.view.netReport.nat=NatClass::Strict;h.Frame();
+  Check(row("relay")->value==loc::Tf("network.relay_connected",loc::T("network.region_euc1"))&&row("network")->value==loc::T("network.nat_strict")&&
+   row("network")->detail==loc::T("network.nat_detail_strict"),"Online shows the wrong relay or network class");
+  h.view.netReport.relayConnected=false;h.view.netReport.nat=NatClass::NoUdp;h.view.netReport.captivePortal=true;h.Frame();
+  Check(row("relay")->value==loc::Tf("network.relay_connecting",loc::T("network.region_euc1"))&&row("network")->value==loc::T("network.nat_no_udp")&&
+   row("network")->detail.find(loc::T("network.captive_portal"))!=std::string::npos,"A disconnected relay or captive portal is not shown");
+  const auto actions=h.actions.size();h.Choose("network");Check(h.actions.size()==actions&&h.shell.Navigation().Screen()=="online","An information row acted on Select");
+  h.view.netReport=NetworkSummary{};SetMenuEntriesProbe({});
+ }
  h.Choose("create");h.Choose("host");Check(h.actions.back().command.kind==Kind::HostRoom,"Create journey");
  // Opening a room keeps the player on Create with a Cancel; the room screen
  // appears only once the committed snapshot says the room is joined.

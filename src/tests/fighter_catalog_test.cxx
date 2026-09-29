@@ -39,6 +39,21 @@ int main() {
     }
     CHECK(resolved == stageIds);
     CHECK(FindStage(ResolveStage(RandomStageId, UINT32_MAX)) != nullptr);
+    // Excluded stages never come up, a fixed choice ignores the pool, and a
+    // pool emptied by exclusions (or by unknown bits alone) is the full list.
+    const StageMask noTrainingOrSkyscraper = (1u << 0) | (1u << 15);
+    CHECK(RandomPoolSize(0) == VersusStageCount && RandomPoolSize(noTrainingOrSkyscraper) == VersusStageCount - 2);
+    CHECK(!InRandomPool(0, noTrainingOrSkyscraper) && InRandomPool(1, noTrainingOrSkyscraper) && !InRandomPool(22, 0));
+    std::set<int> pooled;
+    for (std::uint32_t roll = 0; roll <= 1000; ++roll) {
+        pooled.insert(ResolveStage(RandomStageId, roll, noTrainingOrSkyscraper));
+        CHECK(ResolveStage(0, roll, noTrainingOrSkyscraper) == 0);
+        CHECK(ResolveStage(RandomStageId, roll, ~(1u << 29)) == 29);
+    }
+    CHECK(pooled.size() == static_cast<std::size_t>(VersusStageCount - 2) && !pooled.count(0) && !pooled.count(15));
+    CHECK(NormalizeRandomExclusions(0xFFFFFFFFull) == 0 && NormalizeRandomExclusions(1ull << 22) == 0);
+    CHECK(NormalizeRandomExclusions(noTrainingOrSkyscraper | (1ull << 40)) == noTrainingOrSkyscraper);
+    for (std::uint32_t roll = 0; roll <= 100; ++roll) CHECK(FindStage(ResolveStage(RandomStageId, roll, ~0u)) != nullptr);
     CHECK(std::string(FindStage(24)->code) == "DET" && std::string(FindStage(29)->code) == "JUR");
     CHECK(IsSelectionAssetPath(L"assets\\selection\\stage-sources.json"));
     CHECK(IsSelectionAssetPath(L"assets\\selection\\ultra-sources.json"));

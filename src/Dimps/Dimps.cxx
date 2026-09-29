@@ -9,6 +9,7 @@
 #include "Dimps__Platform.hxx"
 #include "Dimps__UserApp.hxx"
 #include "Dimps__Selection.hxx"
+#include "Dimps__Sound.hxx"
 
 char** Dimps::characterCodes;
 char** Dimps::characterNames;
@@ -33,6 +34,7 @@ void Dimps::Locate(HMODULE peRoot) {
 	Platform::Locate(peRoot);
 	UserApp::Locate(peRoot);
 	Selection::Locate(peRoot);
+	Sound::Locate(peRoot);
 }
 
 void Dimps::App::Locate(HMODULE peRoot) {

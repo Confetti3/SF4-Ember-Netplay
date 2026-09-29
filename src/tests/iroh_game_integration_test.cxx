@@ -42,16 +42,38 @@ struct LocalUdp {
 int wmain(int argc, wchar_t** argv) {
 	CHECK(argc == 2 || (argc == 3 && std::wstring(argv[2]) == L"--relay-only"));
     session::IrohRoom::GameSnapshot routeSnapshot;
-    routeSnapshot.route="ip:127.0.0.1:1";
+    routeSnapshot.route="direct";
     nlohmann::json statistics={{"sent_packets",1},{"received_packets",1},{"sent_bytes",1024},{"received_bytes",1024},
-        {"rejected_packets",0},{"congestion_events",0},{"local_drops",0},{"route","relay:test"}};
+        {"rejected_packets",0},{"congestion_events",0},{"local_drops",0},{"route","relay:use1"}};
     routeSnapshot.ObserveStatistics(statistics);
-    CHECK(routeSnapshot.route=="relay:test" && routeSnapshot.routeChanges==1);
+    CHECK(routeSnapshot.route=="relay:use1" && routeSnapshot.routeChanges==1);
     routeSnapshot.ObserveStatistics(statistics);
     CHECK(routeSnapshot.routeChanges==1);
-    statistics["route"]="ip:127.0.0.1:2";
+    // The helper sends a class and a region, so a move between two direct
+    // addresses of the peer is not a change here; a move to another relay region or to direct is.
+    statistics["route"]="relay:usw1";
     routeSnapshot.ObserveStatistics(statistics);
-    CHECK(routeSnapshot.route=="ip:127.0.0.1:2" && routeSnapshot.routeChanges==2);
+    CHECK(routeSnapshot.route=="relay:usw1" && routeSnapshot.routeChanges==2);
+    statistics["route"]="direct";
+    routeSnapshot.ObserveStatistics(statistics);
+    CHECK(routeSnapshot.route=="direct" && routeSnapshot.routeChanges==3);
+    routeSnapshot.ObserveStatistics(statistics);
+    CHECK(routeSnapshot.routeChanges==3);
+    // A helper's network report reads as a region code and a class; a relay address never survives.
+    {
+        nlohmann::json report={{"type","network_report"},{"relay","euc1"},{"relay_connected",true},{"udp",true},{"nat","strict"},{"captive_portal",false}};
+        auto summary=session::IrohRoom::ReadNetworkReport(report);
+        CHECK(summary.reported && summary.relay=="euc1" && summary.relayConnected && summary.udp && summary.nat==NatClass::Strict && !summary.captivePortal);
+        report["relay"]="https://use1-1.relay.n0.iroh.link./";report["nat"]="checking";report["udp"]=false;report["captive_portal"]=true;
+        summary=session::IrohRoom::ReadNetworkReport(report);
+        CHECK(summary.relay=="other" && summary.Checking() && !summary.udp && summary.captivePortal);
+        report["relay"]="";report["nat"]="no_udp";
+        summary=session::IrohRoom::ReadNetworkReport(report);
+        CHECK(summary.relay.empty() && summary.nat==NatClass::NoUdp);
+        report.erase("nat");
+        bool rejected=false;try{session::IrohRoom::ReadNetworkReport(report);}catch(const nlohmann::json::exception&){rejected=true;}
+        CHECK(rejected);
+    }
 	WSADATA winsock; CHECK(WSAStartup(MAKEWORD(2, 2), &winsock) == 0);
 	platform::HelperProcess hostProcess, guestProcess;
 	CHECK(hostProcess.Start(argv[1], GetCurrentProcessId(), argc == 3));

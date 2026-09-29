@@ -39,6 +39,8 @@ namespace OverlayPrefs {
 		// restores that fighter's entry; fighters[lobby.charaID] equals lobby.
 		std::array<CharaPick, selection::FighterCount> fighters;
 		int stageID = 0;
+		// Stages Random skips (selection::StageMask).
+		std::uint32_t randomStageExcluded = 0;
 
 		// Lobby match settings (host-editable in the network panel)
 		int lobbyRoundCountIdx = 1;

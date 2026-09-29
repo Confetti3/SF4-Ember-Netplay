@@ -270,6 +270,12 @@ msgstr "Сохранить Ultra"
 msgid "menu.hint.save_stage"
 msgstr "Сохранить место"
 
+msgid "menu.hint.skip_stage"
+msgstr "Пропускать место"
+
+msgid "menu.hint.include_stage"
+msgstr "Включить место"
+
 msgid "menu.hint.paste"
 msgstr "Вставить"
 
@@ -390,8 +396,86 @@ msgstr "Неизвестно"
 msgid "connection.relayed_advice"
 msgstr "Соединение через ретранслятор означает, что ваши сети не смогли связаться напрямую. Матчи всё равно работают; используйте рекомендуемую задержку. Для прямого соединения любой из игроков может включить UPnP на роутере, перенаправить порт UDP 45760 на свой ПК или отключить VPN."
 
+msgid "connection.route_relayed_via"
+msgstr "Через сервер ({0})"
+
+msgid "connection.direct_checking"
+msgstr "Всё ещё проверяем, допускает ли ваша сеть прямые соединения."
+
+msgid "connection.blocked_local_no_udp"
+msgstr "Вероятная причина: ваша сеть блокирует UDP."
+
+msgid "connection.blocked_peer_no_udp"
+msgstr "Вероятная причина: сеть игрока {0} блокирует UDP."
+
+msgid "connection.blocked_local_strict"
+msgstr "Вероятная причина: ваш роутер использует строгий NAT."
+
+msgid "connection.blocked_peer_strict"
+msgstr "Вероятная причина: роутер игрока {0} использует строгий NAT."
+
+msgid "connection.blocked_both_open"
+msgstr "Обе сети выглядели открытыми. Прямой путь может блокировать брандмауэр или VPN."
+
 msgid "connection.check_again"
 msgstr "Проверить соединение ещё раз"
+
+msgid "network.relay"
+msgstr "Ретранслятор"
+
+msgid "network.relay_detail"
+msgstr "Сервер-ретранслятор, который помогает игре находить других игроков. Трафик матча идёт через него только тогда, когда прямое соединение невозможно."
+
+msgid "network.relay_connected"
+msgstr "{0} (подключено)"
+
+msgid "network.relay_connecting"
+msgstr "{0} (подключение)"
+
+msgid "network.relay_none"
+msgstr "Нет подключения"
+
+msgid "network.region_use1"
+msgstr "США (восток)"
+
+msgid "network.region_usw1"
+msgstr "США (запад)"
+
+msgid "network.region_euc1"
+msgstr "Европа"
+
+msgid "network.region_aps1"
+msgstr "Азия и Океания"
+
+msgid "network.region_other"
+msgstr "Другой регион"
+
+msgid "network.status"
+msgstr "Сеть"
+
+msgid "network.nat_open"
+msgstr "Открытая"
+
+msgid "network.nat_strict"
+msgstr "Строгий NAT"
+
+msgid "network.nat_no_udp"
+msgstr "UDP заблокирован"
+
+msgid "network.nat_detail_open"
+msgstr "Ваша сеть должна допускать прямые соединения с другими игроками."
+
+msgid "network.nat_detail_strict"
+msgstr "Ваш роутер использует строгий NAT, поэтому прямые соединения часто не удаются, а матчи могут идти через ретранслятор."
+
+msgid "network.nat_detail_no_udp"
+msgstr "Похоже, ваша сеть блокирует UDP, поэтому прямые соединения не удадутся, а матчи могут идти через ретранслятор. Причиной может быть брандмауэр или VPN."
+
+msgid "network.nat_detail_checking"
+msgstr "Проверка сети. После запуска игры это занимает несколько секунд."
+
+msgid "network.captive_portal"
+msgstr "Подключение к интернету может перехватывать страница входа."
 
 msgid "connection.no_recommendation"
 msgstr "Нет рекомендации"
@@ -671,6 +755,24 @@ msgstr "Обычный"
 
 msgid "settings.bottom_spacing_detail"
 msgstr "Приподнимает HUD матча над нижним краем."
+
+msgid "settings.ready_sound"
+msgstr "Объявление соперника"
+
+msgid "settings.ready_sound_detail"
+msgstr "Диктор сообщает, когда соперник готов раньше вас."
+
+msgid "settings.ready_sound_volume"
+msgstr "Громкость объявления"
+
+msgid "settings.ready_sound_volume_detail"
+msgstr "Доля от громкости голосов в игре."
+
+msgid "settings.ready_sound_test"
+msgstr "Проверить объявление"
+
+msgid "settings.ready_sound_test_detail"
+msgstr "Один раз воспроизводит объявление с этой громкостью."
 
 msgid "settings.interface_size"
 msgstr "Размер интерфейса"
@@ -1247,6 +1349,27 @@ msgstr "Случайно"
 
 msgid "selection.random_stage.detail"
 msgstr "Новое место битвы в каждом матче."
+
+msgid "selection.random_pool"
+msgstr "Случайные места"
+
+msgid "selection.random_pool.detail"
+msgstr "{0} из {1} мест. Случайный выбор идёт только среди них."
+
+msgid "selection.random_pool_title"
+msgstr "СЛУЧАЙНЫЕ МЕСТА"
+
+msgid "selection.random_pool_in"
+msgstr "Случайный выбор может выпасть на это место."
+
+msgid "selection.random_pool_out"
+msgstr "Случайный выбор пропускает это место."
+
+msgid "selection.random_pool_last"
+msgstr "Для случайного выбора нужно хотя бы одно место."
+
+msgid "selection.random_pool_skipped"
+msgstr "ПРОПУСК"
 
 msgid "selection.handicap"
 msgstr "Гандикап"
@@ -2239,6 +2362,21 @@ msgstr "Сеть недоступна. Игра без сети доступна
 
 msgid "runtime.room_join_failed"
 msgstr "Не удалось войти в зал. Проверьте приглашение и убедитесь, что у обоих игроков одинаковый пакет SF4 Ember Netplay."
+
+msgid "runtime.room_host_failed"
+msgstr "Не удалось создать зал. Проверьте подключение к интернету и повторите попытку."
+
+msgid "runtime.relay_unreachable"
+msgstr "Не удалось связаться с сервером-ретранслятором. Проверьте интернет, брандмауэр или VPN и повторите попытку."
+
+msgid "runtime.relay_unreachable_region"
+msgstr "Не удалось связаться с сервером-ретранслятором ({0}). Проверьте интернет, брандмауэр или VPN и повторите попытку."
+
+msgid "runtime.host_unreachable"
+msgstr "Не удалось связаться с ведущим ни напрямую, ни через ретранслятор. Возможно, зал закрыт или мешает брандмауэр или VPN."
+
+msgid "runtime.join_control_lost"
+msgstr "С ведущим удалось связаться, но соединение постоянно обрывалось. Проверьте подключение к интернету и повторите попытку."
 
 msgid "runtime.room_connection_lost"
 msgstr "Связь с залом потеряна."

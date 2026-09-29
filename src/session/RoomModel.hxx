@@ -14,6 +14,7 @@
 
 #include "../common/InputDelay.hxx"
 #include "../common/NetworkLink.hxx"
+#include "../common/NetworkNat.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../common/MatchResult.hxx"
 #include "../common/RoomRules.hxx"
@@ -117,6 +118,7 @@ enum class RejectReason : std::uint8_t {
 struct MemberProfile {
 	int mainFighter = -1;
 	NetworkLink link = NetworkLink::Unknown;
+	NatClass nat = NatClass::Unknown;
 };
 
 struct ConnectionRef {
@@ -147,6 +149,9 @@ struct Member {
     // Profile identity, independent from the fighter chosen for this table.
     int mainFighter = -1;
     NetworkLink link = NetworkLink::Unknown;
+    // How this member's network treats a direct connection, as its own helper
+    // reported it when it joined. Unknown while that check was still running.
+    NatClass nat = NatClass::Unknown;
     // The selected delay belongs to this fighter until Ready captures it.
     // Values are deliberately bounded by Action deserialization (0..10).
     std::uint8_t selectedDelay = 2;

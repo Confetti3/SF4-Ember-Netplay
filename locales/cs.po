@@ -270,6 +270,12 @@ msgstr "Uložit Ultra"
 msgid "menu.hint.save_stage"
 msgstr "Uložit scénu"
 
+msgid "menu.hint.skip_stage"
+msgstr "Vynechat scénu"
+
+msgid "menu.hint.include_stage"
+msgstr "Zařadit scénu"
+
 msgid "menu.hint.paste"
 msgstr "Vložit"
 
@@ -390,8 +396,86 @@ msgstr "Neznámé"
 msgid "connection.relayed_advice"
 msgstr "Spojení přes server znamená, že se vaše sítě nedokázaly spojit přímo, a data zápasu proto přenáší zprostředkující server. Zápasy fungují dál; použijte doporučené zpoždění. O přímé spojení se může pokusit kterýkoli hráč zapnutím UPnP na routeru, přesměrováním portu UDP 45760 na svůj počítač nebo vypnutím VPN."
 
+msgid "connection.route_relayed_via"
+msgstr "Přes server ({0})"
+
+msgid "connection.direct_checking"
+msgstr "Stále se kontroluje, zda vaše síť umožňuje přímá spojení."
+
+msgid "connection.blocked_local_no_udp"
+msgstr "Pravděpodobná příčina: vaše síť blokuje UDP."
+
+msgid "connection.blocked_peer_no_udp"
+msgstr "Pravděpodobná příčina: síť hráče {0} blokuje UDP."
+
+msgid "connection.blocked_local_strict"
+msgstr "Pravděpodobná příčina: váš router používá striktní NAT."
+
+msgid "connection.blocked_peer_strict"
+msgstr "Pravděpodobná příčina: router hráče {0} používá striktní NAT."
+
+msgid "connection.blocked_both_open"
+msgstr "Obě sítě vypadaly otevřeně. Přímou cestu může blokovat firewall nebo VPN."
+
 msgid "connection.check_again"
 msgstr "Zkontrolovat spojení znovu"
+
+msgid "network.relay"
+msgstr "Server"
+
+msgid "network.relay_detail"
+msgstr "Zprostředkující server, který hře pomáhá najít ostatní hráče. Data zápasu přes něj jdou jen tehdy, když přímé spojení není možné."
+
+msgid "network.relay_connected"
+msgstr "{0} (připojeno)"
+
+msgid "network.relay_connecting"
+msgstr "{0} (připojování)"
+
+msgid "network.relay_none"
+msgstr "Nepřipojeno"
+
+msgid "network.region_use1"
+msgstr "USA východ"
+
+msgid "network.region_usw1"
+msgstr "USA západ"
+
+msgid "network.region_euc1"
+msgstr "Evropa"
+
+msgid "network.region_aps1"
+msgstr "Asie a Tichomoří"
+
+msgid "network.region_other"
+msgstr "Jiná oblast"
+
+msgid "network.status"
+msgstr "Síť"
+
+msgid "network.nat_open"
+msgstr "Otevřená"
+
+msgid "network.nat_strict"
+msgstr "Striktní NAT"
+
+msgid "network.nat_no_udp"
+msgstr "UDP blokováno"
+
+msgid "network.nat_detail_open"
+msgstr "Vaše síť by měla umožňovat přímá spojení s ostatními hráči."
+
+msgid "network.nat_detail_strict"
+msgstr "Váš router používá striktní NAT, proto přímá spojení často selhávají a zápasy mohou jít přes server."
+
+msgid "network.nat_detail_no_udp"
+msgstr "Vaše síť zřejmě blokuje UDP, proto přímá spojení selžou a zápasy mohou jít přes server. Příčinou může být firewall nebo VPN."
+
+msgid "network.nat_detail_checking"
+msgstr "Kontrola vaší sítě. Po spuštění hry to trvá několik sekund."
+
+msgid "network.captive_portal"
+msgstr "Vaše připojení k internetu může zachytávat přihlašovací stránka."
 
 msgid "connection.no_recommendation"
 msgstr "Bez doporučení"
@@ -671,6 +755,24 @@ msgstr "Běžně"
 
 msgid "settings.bottom_spacing_detail"
 msgstr "Posune HUD zápasu výš od spodního okraje."
+
+msgid "settings.ready_sound"
+msgstr "Ohlášení vyzyvatele"
+
+msgid "settings.ready_sound_detail"
+msgstr "Hlasatel ohlásí, když je soupeř připraven dřív než vy."
+
+msgid "settings.ready_sound_volume"
+msgstr "Hlasitost ohlášení"
+
+msgid "settings.ready_sound_volume_detail"
+msgstr "Podíl z hlasitosti hlasů ve hře."
+
+msgid "settings.ready_sound_test"
+msgstr "Vyzkoušet ohlášení"
+
+msgid "settings.ready_sound_test_detail"
+msgstr "Jednou přehraje ohlášení v této hlasitosti."
 
 msgid "settings.interface_size"
 msgstr "Velikost rozhraní"
@@ -1247,6 +1349,27 @@ msgstr "Náhodně"
 
 msgid "selection.random_stage.detail"
 msgstr "Při každém zápase jiná scéna."
+
+msgid "selection.random_pool"
+msgstr "Náhodný výběr scén"
+
+msgid "selection.random_pool.detail"
+msgstr "{0} z {1} scén. Náhodná volba vybírá jen z nich."
+
+msgid "selection.random_pool_title"
+msgstr "NÁHODNÝ VÝBĚR SCÉN"
+
+msgid "selection.random_pool_in"
+msgstr "Náhodná volba může vybrat tuto scénu."
+
+msgid "selection.random_pool_out"
+msgstr "Náhodná volba tuto scénu vynechá."
+
+msgid "selection.random_pool_last"
+msgstr "Náhodná volba potřebuje aspoň jednu scénu."
+
+msgid "selection.random_pool_skipped"
+msgstr "VYNECHÁNO"
 
 msgid "selection.handicap"
 msgstr "Handicap"
@@ -2239,6 +2362,21 @@ msgstr "Síť není dostupná. Hraní offline je dostupné."
 
 msgid "runtime.room_join_failed"
 msgstr "K místnosti se nepodařilo připojit. Zkontrolujte pozvánku a zda mají oba hráči stejný balíček SF4 Ember Netplay."
+
+msgid "runtime.room_host_failed"
+msgstr "Místnost se nepodařilo vytvořit. Zkontrolujte připojení k internetu a zkuste to znovu."
+
+msgid "runtime.relay_unreachable"
+msgstr "K zprostředkujícímu serveru se nepodařilo připojit. Zkontrolujte internet, firewall nebo VPN a zkuste to znovu."
+
+msgid "runtime.relay_unreachable_region"
+msgstr "K zprostředkujícímu serveru ({0}) se nepodařilo připojit. Zkontrolujte internet, firewall nebo VPN a zkuste to znovu."
+
+msgid "runtime.host_unreachable"
+msgstr "Hostitele se nepodařilo zastihnout, ani přímo, ani přes zprostředkující server. Místnost se mohla zavřít, nebo může překážet firewall či VPN."
+
+msgid "runtime.join_control_lost"
+msgstr "K hostiteli se podařilo připojit, ale spojení se neustále přerušovalo. Zkontrolujte připojení k internetu a zkuste to znovu."
 
 msgid "runtime.room_connection_lost"
 msgstr "Odpojeno od místnosti."

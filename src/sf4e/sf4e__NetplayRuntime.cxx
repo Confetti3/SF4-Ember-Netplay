@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "../ui/NetworkFeedback.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace {
@@ -165,6 +166,8 @@ void AttachRoom() {
 	const auto link = DetectNetworkLink();
 	spdlog::info("Runtime: network link {}", NetworkLinkLabel(link));
 	UserApp::netplay->client.SetProfileLink(link);
+	// Known by now unless the helper started only moments ago; Unknown reads as checking.
+	UserApp::netplay->client.SetProfileNat(runtime->room->Network().nat);
     runtime->selectedDelay=runtime->preferences.inputDelay;
     UserApp::netplay->client.SetSelectedDelay(runtime->selectedDelay);
     runtime->inputInitialized=true;
@@ -204,6 +207,9 @@ void StartHelper() {
             const int hudSize = saved.value("matchHudSize", 1);
             runtime->preferences.matchHudSize = hudSize >= 0 && hudSize <= 2 ? hudSize : 1;
             runtime->preferences.matchHudRaised = saved.value("matchHudRaised", false);
+            runtime->preferences.readySound = saved.value("readySound", true);
+            const int volume = saved.value("readySoundVolume", 100);
+            runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
             runtime->preferences.discordPresence = saved.value("discordPresence", true);
             runtime->preferences.discordInvites = saved.value("discordInvites", true);
             const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;
@@ -292,7 +298,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 		command.preferences.roomName.size() > 64) return false;
 	// Gameplay/update commands join this queue when their effect handlers exist.
 	const auto kind = command.command.kind;
-	if (command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
+	if (command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
 		kind != netplay::CommandKind::LeaveRoom && kind != netplay::CommandKind::StartOffline &&
 		kind != netplay::CommandKind::Ready && kind != netplay::CommandKind::Rematch &&
 		kind != netplay::CommandKind::SavePreferences && kind != netplay::CommandKind::SetLobbySettings &&
@@ -382,7 +388,9 @@ static void SettleRoomState(bool helperReady) {
 		{
 			// The host's refusal (name taken, room full) says what to fix; the generic text does not.
 			const auto rejection = UserApp::netplay ? UserApp::netplay->client.JoinRejection() : std::nullopt;
-			Apply(netplay::EventKind::RoomFailed, loc::T(rejection ? SessionClient::JoinRejectionKey(*rejection) : "runtime.room_join_failed"));
+			// Without a rejection, the helper's stage says where it failed; hosting has its own wording.
+			Apply(netplay::EventKind::RoomFailed, rejection ? std::string(loc::T(SessionClient::JoinRejectionKey(*rejection))) :
+				ui::DescribeOpeningFailure(state.isHost, runtime->room->Stage(), runtime->room->Network().relay));
 		}
 	} else if (state.room == netplay::RoomState::Joined && runtime->room &&
 		(runtime->room->GetState() == session::IrohRoom::State::Failed || runtime->room->GetState() == session::IrohRoom::State::Idle ||
@@ -416,6 +424,17 @@ static void SettleRoomState(bool helperReady) {
     }
 }
 
+// The other fighter at this player's table readied first: the game's own
+// announcer says a challenger is here, unless the player turned it off.
+static void CallOutOpponentReady() {
+	if (!runtime->attached || !UserApp::netplay) { runtime->readyChime = {}; return; }
+	if (runtime->readyChime.Update(UserApp::netplay->client.GetRoomSnapshot(), GetTickCount64()) && runtime->preferences.readySound)
+		PlayChallengerCall(runtime->preferences.readySoundVolume);
+}
+void internal::PlayChallengerCall(int volumePercent) {
+	if (!Dimps::Sound::PlaySystemCue(Dimps::Sound::SystemCue::HereComesChallenger, Dimps::Sound::SystemChannel::Voice, volumePercent / 100.f))
+		spdlog::info("Room: challenger call not played; the game's sound system is not up");
+}
 void TickRuntime() {
 	if (!runtime) return;
 	{
@@ -472,6 +491,7 @@ void TickRuntime() {
 	ReleaseFinishedMatch();
 	ResolvePendingIntents(helperReady);
 	SettleRoomState(helperReady);
+	CallOutOpponentReady();
 	PublishAndTickDiscordInvite();
 }
 

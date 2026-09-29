@@ -10,6 +10,14 @@
 #include <cstring>
 
 namespace sf4e { namespace platform {
+std::string DescribeNetwork(const DiagnosticsView& view) {
+    // Region code and network class only; never a relay address or an IP.
+    const auto& net = view.netReport;
+    return std::string("Home relay: ") + (net.relay.empty() ? "none" : net.relay.c_str()) +
+        (net.relay.empty() ? "" : net.relayConnected ? " (connected)" : " (not connected)") +
+        " | Network: " + NatClassLabel(net.nat) + " | UDP: " + (net.reported ? (net.udp ? "yes" : "no") : "unknown") +
+        " | Captive portal: " + (net.captivePortal ? "yes" : "no");
+}
 std::string DescribeDiagnostics(const DiagnosticsView& view) {
     const char* rooms[] = {"Idle", "Opening", "Joined", "Closing", "Lost"};
     const char* matches[] = {"None", "Preparing", "Playing", "Post-match", "Failed"};
@@ -25,7 +33,7 @@ std::string DescribeDiagnostics(const DiagnosticsView& view) {
         " | Verification: " + (view.verificationAvailable ? "Available" : "Unavailable") +
         " | Network check: " + label(view.probeState,probes,7) + (view.benchmark ? " (30s benchmark)" : " (5s check)") +
         (view.probeState==4 ? std::string(" | Check rejection: ") + label(view.probeFailure,probeFailures,12) : std::string()) +
-        " | Measured route: " + RouteLabel(view.probeRoute) +
+        " | Measured route: " + RouteLabel(view.probeRoute) + (view.probeRoute==RouteKind::Relayed&&!view.probeRelay.empty() ? " via " + view.probeRelay : std::string()) +
         " | Sent/scheduled: " + std::to_string(view.sent) + "/" + std::to_string(view.expected) +
         " | Replies/missed: " + std::to_string(view.replies) + "/" + std::to_string(view.missed) +
         " | RTT p50/p95/p99 us: " + std::to_string(view.p50Us) + "/" + std::to_string(view.p95Us) + "/" + std::to_string(view.p99Us) +
@@ -82,7 +90,7 @@ void ApplicationServices::Run() {
                 output << "SF4 Ember Netplay\nVersion: " << SF4E_APP_VERSION
                     << "\nTransport: Iroh / GGPO\nUDP port: " << (!diagnostics.udpPort ? std::string("Unavailable") :
                         *diagnostics.udpPort ? std::to_string(*diagnostics.udpPort) : std::string("random"))
-                    << '\n' << DescribeDiagnostics(diagnostics)
+                    << '\n' << DescribeNetwork(diagnostics) << '\n' << DescribeDiagnostics(diagnostics)
                     << "\nPing: " << (diagnostics.pingMs < 0 ? "Unavailable" : std::to_string(diagnostics.pingMs) + " ms")
                     << "\nSelected input delay: " << (diagnostics.selectedDelay<0?"Unavailable":
                         std::to_string(diagnostics.selectedDelay)+" frames") << '\n';

@@ -224,11 +224,13 @@ namespace sf4e {
 			int mainFighter = -1;
 			// A NetworkLink value; older clients omit it.
 			int link = 0;
+			// A NatClass value; older clients omit it.
+			int nat = 0;
 			// The client keeps its room chat when a snapshot says chat_unchanged.
 			bool roomChatDelta = false;
-			room::MemberProfile Profile() const { return {mainFighter, NetworkLinkFromWire(link)}; }
+			room::MemberProfile Profile() const { return {mainFighter, NetworkLinkFromWire(link), NatClassFromWire(nat)}; }
 			void SetProfile(const room::MemberProfile& profile) {
-				mainFighter = profile.mainFighter; link = static_cast<int>(profile.link);
+				mainFighter = profile.mainFighter; link = static_cast<int>(profile.link); nat = static_cast<int>(profile.nat);
 			}
 		};
 
@@ -396,7 +398,7 @@ namespace sf4e {
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionHelloResp, type, cid, roomMember, authenticatedEndpoint, incarnation);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionDataUpdate, type, lobbyData, matchData, matchGeneration, authorityTerm, authorityRevision);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SessionJoinReject, type, result);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionJoinRequest, type, sidecarHash, username, port, customRooms, roomProtocol, mainFighter, link, roomChatDelta);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionJoinRequest, type, sidecarHash, username, port, customRooms, roomProtocol, mainFighter, link, nat, roomChatDelta);
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReady, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyAllReady, type);

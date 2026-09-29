@@ -402,6 +402,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     const bool recommended=v.recommendedDelay>=0&&v.recommendedDelay<=MaximumInputDelay;
     const auto check=DescribeConnectionCheck(v);
     rows.push_back(ReadOnlyValue("recommended-delay",loc::T("room.recommended_delay"),check.value,check.detail));
+    if(check.namesPlayer)rows.back().detailText=DetailText::Name;
     rows.push_back(Value("selected-delay",loc::T("room.selected_delay"),std::to_string(selectedDelay),
      delayEditable?loc::T("room.selected_delay.detail"):
       (v.delayLocked?loc::T("room.selected_delay.locked"):reason),delayEditable));
@@ -418,6 +419,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      ready?loc::T("room.check_connection.unready"):
      !delayEditable?loc::T("room.check_connection.finish_match"):check.detail,
      v.canProbe&&delayEditable&&!check.checking));
+    if(check.namesPlayer)rows.back().detailText=DetailText::Name;
     rows.push_back(Row("apply-recommendation",loc::T("room.apply_recommendation"),recommended?
      loc::Tf("room.apply_recommendation.detail",v.recommendedDelay):loc::T("room.apply_recommendation.check_first"),
      v.canApplyDelay&&recommended&&delayEditable&&!check.checking));

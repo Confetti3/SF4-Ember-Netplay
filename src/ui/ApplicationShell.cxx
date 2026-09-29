@@ -2,6 +2,7 @@
 #include "Theme.hxx"
 #include "MenuRows.hxx"
 #include "RoomFeedback.hxx"
+#include "NetworkFeedback.hxx"
 #include "MenuPresentation.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
@@ -176,7 +177,10 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   for(int id=0;id<selection::FighterCount;++id){rows.push_back(Row("main-"+std::to_string(id),selection::FindFighter(id)->name,v.canEditPreferences?loc::T("profile.choose_main_detail"):loc::T("profile.leave_room_to_edit"),v.canEditPreferences));
    rows.back().hint=loc::T("menu.hint.save_main");}
  }else if(screen=="online"){
-  title=loc::T("online.title");rows={Row("create",loc::T("online.create"),loc::T("online.create_detail"),v.canOpenRoom),Row("join",loc::T("online.join"),loc::T("online.join_detail"),v.canOpenRoom)};
+  title=loc::T("online.title");rows={Row("create",loc::T("online.create"),loc::T("online.create_detail"),v.canOpenRoom),Row("join",loc::T("online.join"),loc::T("online.join_detail"),v.canOpenRoom),
+   Row("relay",loc::T("network.relay"),loc::T("network.relay_detail")),Row("network",loc::T("network.status"),DescribeNatDetail(v.netReport))};
+  // Where this PC connects and how its network treats a direct path, for information only.
+  rows[2].info=rows[3].info=true;rows[2].value=DescribeRelay(v.netReport);rows[3].value=DescribeNat(v.netReport.nat);
  }else if(screen=="create"||screen=="defaults"){
   title=screen=="create"?loc::T("room.create_title"):loc::T("settings.gameplay_defaults_title");const bool can=screen=="create"?v.canOpenRoom:v.canEditPreferences;
   if(screen=="defaults")rows.push_back(Value("delay",loc::T("settings.input_delay"),std::to_string(preferences_.inputDelay),reason,can));
@@ -207,6 +211,9 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows={Value("hud",loc::T("settings.match_hud"),preferences_.showMatchHud?loc::T("common.on"):loc::T("common.off"),reason,v.canEditPreferences),
    Value("hud-size",loc::T("settings.match_hud_size"),hudSizes[(std::max)(0,(std::min)(2,preferences_.matchHudSize))],loc::T("settings.match_hud_size_detail"),v.canEditPreferences),
    Value("hud-spacing",loc::T("settings.bottom_spacing"),preferences_.matchHudRaised?loc::T("spacing.raised"):loc::T("spacing.normal"),loc::T("settings.bottom_spacing_detail"),v.canEditPreferences),
+   Value("ready-sound",loc::T("settings.ready_sound"),preferences_.readySound?loc::T("common.on"):loc::T("common.off"),loc::T("settings.ready_sound_detail"),v.canEditPreferences),
+   Value("ready-volume",loc::T("settings.ready_sound_volume"),std::to_string(preferences_.readySoundVolume)+"%",loc::T("settings.ready_sound_volume_detail"),v.canEditPreferences&&preferences_.readySound),
+   Row("ready-test",loc::T("settings.ready_sound_test"),loc::T("settings.ready_sound_test_detail"),v.canEditPreferences&&preferences_.readySound),
    Value("scale",loc::T("settings.interface_size"),size,reason,v.canEditPreferences),
    Value("language",loc::T("settings.language"),languageValue,languageSaveError_.empty()?std::string(loc::T("settings.language.detail")):languageSaveError_,true)};
   // Select lists the languages by their own names; browsing them changes nothing.
@@ -355,6 +362,11 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="invite-cancel"||a.id=="invite-switch"){ShellAction r;r.command.generation=v.session.generation;r.discordRevision=v.discordRevision;r.discordAction=a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch;if(!submit(std::move(r)))error_=loc::T("error.invitation_changed");}
  else if(a.id=="retry-save"){saveFailed_=false;retrySave_=true;preferencesDirty_=true;saveAt_=0;error_.clear();}
  else if(a.id=="diagnostics")Service(platform::ServiceAction::ExportDiagnostics,v,submit);
+ else if(a.id=="ready-test"){
+  // The volume on screen, which may not be saved yet.
+  ShellAction r;r.command.generation=v.session.generation;r.previewSoundVolume=preferences_.readySoundVolume;
+  if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
+ }
  else if(a.id=="updates")Service(platform::ServiceAction::CheckUpdates,v,submit);
  else if(a.id=="updater")Service(platform::ServiceAction::OpenUpdater,v,submit);
  else if(a.id=="recovery")Service(platform::ServiceAction::OpenRecovery,v,submit);
@@ -373,6 +385,8 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="delay")preferences_.inputDelay=(std::max)(0,(std::min)(10,preferences_.inputDelay+a.delta));
   else if(a.id=="hud-size")preferences_.matchHudSize=(std::max)(0,(std::min)(2,preferences_.matchHudSize+a.delta));
   else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
+  else if(a.id=="ready-sound")preferences_.readySound=a.delta>0;
+  else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
   else if(a.id=="hud")preferences_.showMatchHud=a.delta>0;else if(a.id=="presence")preferences_.discordPresence=a.delta>0;
   else if(a.id=="invites")preferences_.discordInvites=a.delta>0;else AdjustRule(preferences_.tableRules,a);

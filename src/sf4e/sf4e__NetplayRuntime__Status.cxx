@@ -8,6 +8,8 @@ void FillNetworkDiagnostics(platform::DiagnosticsView& view) {
     view.probeState=probe.status.empty()?0:probe.status=="checking"?1:
         probe.status=="ready"||probe.status=="complete"?2:probe.status=="invalidated"?3:probe.status=="timed_out"?5:probe.status=="local_overload"?6:4;
     view.probeRoute=ClassifyRoute(probe.route);
+    view.probeRelay=RelayRegion(probe.route);
+    view.netReport=runtime->room->Network();
     view.udpPort=runtime->room->LocalUdpPort();
     view.probeFailure=probe.failureReason;
     view.sent=probe.sent;view.expected=probe.expected;
@@ -128,6 +130,10 @@ static void FillRoomView(RuntimeSnapshot& snapshot) {
                     if (peer!=UserApp::server->roomPeerIdentities.end() && probe.peer==peer->second &&
                         probe.pairRevision==table->revision) {
                         snapshot.probeRoute=ClassifyRoute(probe.route);
+                        snapshot.probeRelay=RelayRegion(probe.route);
+                        const auto opponentMember=std::find_if(snapshot.room.members.begin(),snapshot.room.members.end(),
+                            [&](const room::Member& m){return m.id==opponent;});
+                        if(opponentMember!=snapshot.room.members.end()){snapshot.probeOpponent=opponentMember->name;snapshot.probeOpponentNat=opponentMember->nat;}
                         snapshot.probeP50Us=probe.p50RttUs; snapshot.probeP95Us=probe.p95RttUs; snapshot.probeP99Us=probe.p99RttUs;
                         snapshot.probeJitterUs=probe.jitterUs; snapshot.probeBenchmark=probe.benchmark;
                         snapshot.probeStatus=probe.status; snapshot.probeSamples=probe.samples; snapshot.probeLost=probe.lost;
@@ -281,7 +287,7 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->readyIntent.Armed()); mix(runtime->readyFailureSequence);
     mix(runtime->recoveringMatch); mix(OverlayPrefs::PersistencePending()); mixString(OverlayPrefs::PersistenceError());
     mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
-    mix(runtime->preferences.showMatchHud); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudRaised);
+    mix(runtime->preferences.showMatchHud); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudRaised); mix(runtime->preferences.readySound); mix(runtime->preferences.readySoundVolume);
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mix(AtMainMenu());
     return h;
@@ -300,6 +306,7 @@ PostPublishState Publish() {
     diagnostic.control = static_cast<int>(snapshot.session.control); diagnostic.gameplay = static_cast<int>(snapshot.session.gameplay);
     diagnostic.helperReady = snapshot.helperReady;
     FillNetworkDiagnostics(diagnostic);
+    snapshot.netReport = diagnostic.netReport;
     runtime->services.Observe(diagnostic);
     snapshot.services = runtime->services.Snapshot();
     snapshot.inputDevice = runtime->input.Selected();

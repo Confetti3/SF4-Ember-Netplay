@@ -270,6 +270,12 @@ msgstr "Ultra opslaan"
 msgid "menu.hint.save_stage"
 msgstr "Level opslaan"
 
+msgid "menu.hint.skip_stage"
+msgstr "Level overslaan"
+
+msgid "menu.hint.include_stage"
+msgstr "Level opnemen"
+
 msgid "menu.hint.paste"
 msgstr "Plakken"
 
@@ -390,8 +396,86 @@ msgstr "Onbekend"
 msgid "connection.relayed_advice"
 msgstr "Via relais betekent dat jullie netwerken niet direct konden verbinden; matchverkeer loopt via een relaisserver. Matches werken nog steeds. Gebruik de aanbevolen vertraging. Voor een directe verbinding kan een van jullie UPnP op de router inschakelen, UDP-poort 45760 naar de pc doorsturen of een VPN uitschakelen."
 
+msgid "connection.route_relayed_via"
+msgstr "Via relais ({0})"
+
+msgid "connection.direct_checking"
+msgstr "Er wordt nog gecontroleerd of je netwerk directe verbindingen toestaat."
+
+msgid "connection.blocked_local_no_udp"
+msgstr "Waarschijnlijke oorzaak: je netwerk blokkeert UDP."
+
+msgid "connection.blocked_peer_no_udp"
+msgstr "Waarschijnlijke oorzaak: het netwerk van {0} blokkeert UDP."
+
+msgid "connection.blocked_local_strict"
+msgstr "Waarschijnlijke oorzaak: je router gebruikt strikte NAT."
+
+msgid "connection.blocked_peer_strict"
+msgstr "Waarschijnlijke oorzaak: de router van {0} gebruikt strikte NAT."
+
+msgid "connection.blocked_both_open"
+msgstr "Beide netwerken leken open. Een firewall of VPN blokkeert mogelijk de directe route."
+
 msgid "connection.check_again"
 msgstr "Verbinding hercontroleren"
+
+msgid "network.relay"
+msgstr "Relais"
+
+msgid "network.relay_detail"
+msgstr "De relaisserver die je spel helpt andere spelers te vinden. Matchverkeer loopt er alleen via als een directe verbinding niet mogelijk is."
+
+msgid "network.relay_connected"
+msgstr "{0} (verbonden)"
+
+msgid "network.relay_connecting"
+msgstr "{0} (verbinden)"
+
+msgid "network.relay_none"
+msgstr "Niet verbonden"
+
+msgid "network.region_use1"
+msgstr "VS-oost"
+
+msgid "network.region_usw1"
+msgstr "VS-west"
+
+msgid "network.region_euc1"
+msgstr "Europa"
+
+msgid "network.region_aps1"
+msgstr "Azië-Pacific"
+
+msgid "network.region_other"
+msgstr "Andere regio"
+
+msgid "network.status"
+msgstr "Netwerk"
+
+msgid "network.nat_open"
+msgstr "Open"
+
+msgid "network.nat_strict"
+msgstr "Strikte NAT"
+
+msgid "network.nat_no_udp"
+msgstr "UDP geblokkeerd"
+
+msgid "network.nat_detail_open"
+msgstr "Je netwerk zou directe verbindingen met andere spelers moeten toestaan."
+
+msgid "network.nat_detail_strict"
+msgstr "Je router gebruikt strikte NAT, waardoor directe verbindingen vaak mislukken en matches via een relais kunnen lopen."
+
+msgid "network.nat_detail_no_udp"
+msgstr "Je netwerk lijkt UDP te blokkeren, waardoor directe verbindingen mislukken en matches via een relais kunnen lopen. Een firewall of VPN kan de oorzaak zijn."
+
+msgid "network.nat_detail_checking"
+msgstr "Je netwerk wordt gecontroleerd. Dit duurt een paar seconden na het starten van het spel."
+
+msgid "network.captive_portal"
+msgstr "Een inlogpagina onderschept mogelijk je internetverbinding."
 
 msgid "connection.no_recommendation"
 msgstr "Geen advies"
@@ -671,6 +755,24 @@ msgstr "Normaal"
 
 msgid "settings.bottom_spacing_detail"
 msgstr "Zet de match-HUD verder van de onderrand."
+
+msgid "settings.ready_sound"
+msgstr "Uitdager-melding"
+
+msgid "settings.ready_sound_detail"
+msgstr "De omroeper meldt het als je tegenstander eerder klaar is."
+
+msgid "settings.ready_sound_volume"
+msgstr "Volume van de melding"
+
+msgid "settings.ready_sound_volume_detail"
+msgstr "Een deel van het stemvolume van de game."
+
+msgid "settings.ready_sound_test"
+msgstr "Melding testen"
+
+msgid "settings.ready_sound_test_detail"
+msgstr "Speelt de melding één keer af op dit volume."
 
 msgid "settings.interface_size"
 msgstr "Interfacegrootte"
@@ -1247,6 +1349,27 @@ msgstr "Willekeurig"
 
 msgid "selection.random_stage.detail"
 msgstr "Elke match een ander level."
+
+msgid "selection.random_pool"
+msgstr "Willekeurige levels"
+
+msgid "selection.random_pool.detail"
+msgstr "{0} van {1} levels. Willekeurig kiest alleen hieruit."
+
+msgid "selection.random_pool_title"
+msgstr "WILLEKEURIGE LEVELS"
+
+msgid "selection.random_pool_in"
+msgstr "Willekeurig kan dit level kiezen."
+
+msgid "selection.random_pool_out"
+msgstr "Willekeurig slaat dit level over."
+
+msgid "selection.random_pool_last"
+msgstr "Willekeurig heeft minstens één level nodig."
+
+msgid "selection.random_pool_skipped"
+msgstr "OVERGESLAGEN"
 
 msgid "selection.handicap"
 msgstr "Handicap"
@@ -2239,6 +2362,21 @@ msgstr "Netwerk niet beschikbaar. Offline spelen kan nog wel."
 
 msgid "runtime.room_join_failed"
 msgstr "Kon de kamer niet betreden. Controleer de uitnodiging en of beide spelers hetzelfde SF4 Ember Netplay-pakket gebruiken."
+
+msgid "runtime.room_host_failed"
+msgstr "Kon de kamer niet maken. Controleer je internetverbinding en probeer het opnieuw."
+
+msgid "runtime.relay_unreachable"
+msgstr "Kon de relaisserver niet bereiken. Controleer je internetverbinding, firewall of VPN en probeer het opnieuw."
+
+msgid "runtime.relay_unreachable_region"
+msgstr "Kon de relaisserver ({0}) niet bereiken. Controleer je internetverbinding, firewall of VPN en probeer het opnieuw."
+
+msgid "runtime.host_unreachable"
+msgstr "De host was niet bereikbaar, direct noch via een relais. De kamer is misschien gesloten, of een firewall of VPN zit in de weg."
+
+msgid "runtime.join_control_lost"
+msgstr "De host werd bereikt, maar de verbinding bleef wegvallen. Controleer je internetverbinding en probeer het opnieuw."
 
 msgid "runtime.room_connection_lost"
 msgstr "Kamerverbinding verbroken."

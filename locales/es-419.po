@@ -270,6 +270,12 @@ msgstr "Guardar Ultra"
 msgid "menu.hint.save_stage"
 msgstr "Guardar escenario"
 
+msgid "menu.hint.skip_stage"
+msgstr "Omitir escenario"
+
+msgid "menu.hint.include_stage"
+msgstr "Incluir escenario"
+
 msgid "menu.hint.paste"
 msgstr "Pegar"
 
@@ -390,8 +396,86 @@ msgstr "desconocida"
 msgid "connection.relayed_advice"
 msgstr "Retransmitida significa que sus dos redes no pudieron conectarse directamente, así que el tráfico de la partida pasa por un servidor de retransmisión. Las partidas funcionan igual; usa el retraso recomendado. Para una conexión directa, cualquiera de los dos puede activar UPnP en su router, redirigir el puerto UDP 45760 a su PC o desactivar una VPN."
 
+msgid "connection.route_relayed_via"
+msgstr "por relé ({0})"
+
+msgid "connection.direct_checking"
+msgstr "Todavía se está verificando si tu red permite conexiones directas."
+
+msgid "connection.blocked_local_no_udp"
+msgstr "Causa probable: tu red bloquea UDP."
+
+msgid "connection.blocked_peer_no_udp"
+msgstr "Causa probable: la red de {0} bloquea UDP."
+
+msgid "connection.blocked_local_strict"
+msgstr "Causa probable: tu router usa NAT estricto."
+
+msgid "connection.blocked_peer_strict"
+msgstr "Causa probable: el router de {0} usa NAT estricto."
+
+msgid "connection.blocked_both_open"
+msgstr "Ambas redes parecían abiertas. Un firewall o una VPN podría estar bloqueando la vía directa."
+
 msgid "connection.check_again"
 msgstr "Verificar conexión otra vez"
+
+msgid "network.relay"
+msgstr "Relé"
+
+msgid "network.relay_detail"
+msgstr "El servidor de retransmisión que ayuda a tu juego a encontrar a otros jugadores. El tráfico de la partida pasa por él solo si no es posible una conexión directa."
+
+msgid "network.relay_connected"
+msgstr "{0} (conectado)"
+
+msgid "network.relay_connecting"
+msgstr "{0} (conectando)"
+
+msgid "network.relay_none"
+msgstr "Sin conexión"
+
+msgid "network.region_use1"
+msgstr "EE. UU. este"
+
+msgid "network.region_usw1"
+msgstr "EE. UU. oeste"
+
+msgid "network.region_euc1"
+msgstr "Europa"
+
+msgid "network.region_aps1"
+msgstr "Asia-Pacífico"
+
+msgid "network.region_other"
+msgstr "Otra región"
+
+msgid "network.status"
+msgstr "Red"
+
+msgid "network.nat_open"
+msgstr "Abierta"
+
+msgid "network.nat_strict"
+msgstr "NAT estricto"
+
+msgid "network.nat_no_udp"
+msgstr "UDP bloqueado"
+
+msgid "network.nat_detail_open"
+msgstr "Tu red debería permitir conexiones directas con otros jugadores."
+
+msgid "network.nat_detail_strict"
+msgstr "Tu router usa NAT estricto, por lo que las conexiones directas suelen fallar y las partidas pueden pasar por un relé."
+
+msgid "network.nat_detail_no_udp"
+msgstr "Tu red parece bloquear UDP, por lo que las conexiones directas fallarán y las partidas pueden pasar por un relé. La causa puede ser un firewall o una VPN."
+
+msgid "network.nat_detail_checking"
+msgstr "Verificando tu red. Tarda unos segundos después de iniciar el juego."
+
+msgid "network.captive_portal"
+msgstr "Una página de inicio de sesión podría estar interceptando tu conexión a internet."
 
 msgid "connection.no_recommendation"
 msgstr "Sin recomendación"
@@ -671,6 +755,24 @@ msgstr "Normal"
 
 msgid "settings.bottom_spacing_detail"
 msgstr "Mueve el HUD de partida por encima del borde inferior."
+
+msgid "settings.ready_sound"
+msgstr "Aviso de retador"
+
+msgid "settings.ready_sound_detail"
+msgstr "El anunciador avisa cuando tu rival está listo antes que tú."
+
+msgid "settings.ready_sound_volume"
+msgstr "Volumen del aviso"
+
+msgid "settings.ready_sound_volume_detail"
+msgstr "Una parte del volumen de voces del juego."
+
+msgid "settings.ready_sound_test"
+msgstr "Probar aviso"
+
+msgid "settings.ready_sound_test_detail"
+msgstr "Reproduce el aviso una vez con este volumen."
 
 msgid "settings.interface_size"
 msgstr "Tamaño de la interfaz"
@@ -1143,6 +1245,27 @@ msgid "selection.random_stage"
 msgstr "Aleatorio"
 msgid "selection.random_stage.detail"
 msgstr "Un escenario diferente en cada partida."
+
+msgid "selection.random_pool"
+msgstr "Escenarios al azar"
+
+msgid "selection.random_pool.detail"
+msgstr "{0} de {1} escenarios. Aleatorio solo elige entre estos."
+
+msgid "selection.random_pool_title"
+msgstr "ESCENARIOS AL AZAR"
+
+msgid "selection.random_pool_in"
+msgstr "Aleatorio puede elegir este escenario."
+
+msgid "selection.random_pool_out"
+msgstr "Aleatorio omite este escenario."
+
+msgid "selection.random_pool_last"
+msgstr "Aleatorio necesita al menos un escenario."
+
+msgid "selection.random_pool_skipped"
+msgstr "OMITIDO"
 msgid "selection.handicap"
 msgstr "Ventaja"
 msgid "selection.saved_value"
@@ -1809,6 +1932,21 @@ msgid "runtime.networking_unavailable"
 msgstr "La red no está disponible. El modo sin conexión está disponible."
 msgid "runtime.room_join_failed"
 msgstr "No se pudo entrar a la sala. Revisa la invitación y que ambos jugadores usen el mismo paquete de SF4 Ember Netplay."
+
+msgid "runtime.room_host_failed"
+msgstr "No se pudo crear la sala. Revisa tu conexión a internet e inténtalo de nuevo."
+
+msgid "runtime.relay_unreachable"
+msgstr "No se pudo conectar con el servidor de retransmisión. Revisa tu conexión a internet, el firewall o la VPN e inténtalo de nuevo."
+
+msgid "runtime.relay_unreachable_region"
+msgstr "No se pudo conectar con el servidor de retransmisión ({0}). Revisa tu conexión a internet, el firewall o la VPN e inténtalo de nuevo."
+
+msgid "runtime.host_unreachable"
+msgstr "No se pudo contactar con el anfitrión, ni directamente ni por un relé. Puede que la sala se haya cerrado, o que un firewall o una VPN lo impida."
+
+msgid "runtime.join_control_lost"
+msgstr "Se llegó al anfitrión, pero la conexión se cortaba una y otra vez. Revisa tu conexión a internet e inténtalo de nuevo."
 msgid "runtime.room_connection_lost"
 msgstr "Se perdió la conexión con la sala."
 

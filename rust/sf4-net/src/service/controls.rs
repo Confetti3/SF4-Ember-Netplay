@@ -608,7 +608,7 @@ impl Actor {
             return Ok(false);
         }
         self.clear_room();
-        self.error(0, "join_failed")?;
+        self.error_because(0, "join_failed", Some("control_lost"))?;
         Ok(true)
     }
 
@@ -823,9 +823,13 @@ impl Actor {
                 );
                 self.settle_parked_control(peer).await
             }
-            Err(_) if epoch == self.epoch && self.opening => {
+            Err(error) if epoch == self.epoch && self.opening => {
+                let reason = network::join_failure_reason(
+                    transport::is_host_unreachable(&error),
+                    network::home_relay_connected(&self.endpoint),
+                );
                 self.clear_room();
-                self.error(0, "join_failed")
+                self.error_because(0, "join_failed", reason)
             }
             Err(_) => Ok(()), // Rejected inbound peer: keep the host's room alive.
         }

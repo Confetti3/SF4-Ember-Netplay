@@ -659,11 +659,8 @@ pub(super) async fn serve_probe(
     Ok(connection)
 }
 
+/// The connection's selected route as an event may carry it: `direct`,
+/// `relay:<region>` or `unavailable`, never an address.
 pub(super) fn selected_probe_route(connection: &Connection) -> String {
-    let paths = connection.paths();
-    paths
-        .iter()
-        .find(|path| path.is_selected())
-        .map(|path| path.remote_addr().to_string())
-        .unwrap_or_else(|| "unavailable".into())
+    crate::probe::route(connection)
 }

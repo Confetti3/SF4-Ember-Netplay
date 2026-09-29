@@ -10,9 +10,9 @@
     },
     "NotoSansCJKkr-Subset.otf": {
       "sourceSha256": "6bcb2a0703aa137e874fc2dffa85f6c21ba9a67fa329e81b8c801663af7e992a",
-      "sha256": "881c576bba1811ef561c701575a2b6d7182799e5728768db2b5920004c7de931",
-      "codepoints": 3402,
-      "bytes": 372172
+      "sha256": "e9cbfb05e489e782c6120f093ef29a38dadfc700aa68afb434e38c442a4bdd48",
+      "codepoints": 3401,
+      "bytes": 372152
     },
     "NotoSansCJKsc-Subset.otf": {
       "sourceSha256": "2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b",

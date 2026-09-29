@@ -2,7 +2,7 @@
 use std::{fmt, io};
 
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use iroh::{EndpointAddr, EndpointId, RelayUrl};
+use iroh::{EndpointAddr, EndpointId, RelayUrl, TransportAddr};
 use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
 
@@ -23,6 +23,30 @@ const RELAYS: [&str; 4] = [
     "https://euc1-1.relay.n0.iroh.link./",
     "https://aps1-1.relay.n0.iroh.link./",
 ];
+
+// Short region codes for the pinned relays, in RELAYS order. The native side
+// shows these instead of a relay address.
+const RELAY_REGIONS: [&str; 4] = ["use1", "usw1", "euc1", "aps1"];
+
+/// The region code of a pinned relay, or "other" for any other URL.
+pub fn relay_region(relay: &RelayUrl) -> &'static str {
+    RELAYS
+        .iter()
+        .position(|url| url.parse::<RelayUrl>().is_ok_and(|pinned| pinned == *relay))
+        .map_or("other", |index| RELAY_REGIONS[index])
+}
+
+/// The route a selected path reports outside the helper: `direct` for an IP
+/// path, `relay:<region>` for a relay path (the code of `relay_region`), and
+/// `unavailable` when no path is selected. It never carries an address, a port
+/// or a relay URL, so no event, log or export built from it can either.
+pub fn public_route(remote: Option<&TransportAddr>) -> String {
+    match remote {
+        Some(TransportAddr::Ip(_)) => "direct".into(),
+        Some(TransportAddr::Relay(relay)) => format!("relay:{}", relay_region(relay)),
+        _ => "unavailable".into(),
+    }
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -397,6 +421,47 @@ mod tests {
             "{LEGACY_PREFIX}{}",
             URL_SAFE_NO_PAD.encode(serde_json::to_vec(invite).unwrap())
         )
+    }
+
+    #[test]
+    fn relay_regions_are_stable_codes_and_never_a_url() {
+        assert_eq!(RELAYS.len(), RELAY_REGIONS.len());
+        for (url, code) in RELAYS.iter().zip(RELAY_REGIONS) {
+            assert_eq!(relay_region(&url.parse().unwrap()), code);
+        }
+        // Every relay of the pinned release has a code of its own.
+        let mut seen = std::collections::BTreeSet::new();
+        for relay in iroh::defaults::prod::default_relay_map().urls::<Vec<_>>() {
+            let code = relay_region(&relay);
+            assert_ne!(code, "other");
+            assert!(seen.insert(code));
+        }
+        for other in [
+            "https://use1-1.relay.n0.iroh.link.evil/",
+            "https://relay.example.com/",
+            "https://use1-1.relay.n0.iroh.link./extra",
+        ] {
+            assert_eq!(relay_region(&other.parse().unwrap()), "other");
+        }
+    }
+
+    #[test]
+    fn a_public_route_is_a_class_and_a_region_never_an_address() {
+        let ip = |addr: &str| TransportAddr::Ip(addr.parse().unwrap());
+        assert_eq!(public_route(Some(&ip("203.0.113.7:45760"))), "direct");
+        assert_eq!(public_route(Some(&ip("[2001:db8::1]:57845"))), "direct");
+        for (url, code) in RELAYS.iter().zip(RELAY_REGIONS) {
+            let relay = TransportAddr::Relay(url.parse().unwrap());
+            assert_eq!(public_route(Some(&relay)), format!("relay:{code}"));
+        }
+        for other in [
+            "https://relay.example.com/",
+            "https://use1-1.relay.n0.iroh.link.evil/",
+        ] {
+            let relay = TransportAddr::Relay(other.parse().unwrap());
+            assert_eq!(public_route(Some(&relay)), "relay:other");
+        }
+        assert_eq!(public_route(None), "unavailable");
     }
 
     #[test]

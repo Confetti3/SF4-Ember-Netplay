@@ -1,5 +1,6 @@
 #pragma once
 #include "../launcher/update/github_release_client.hxx"
+#include "../common/NetworkNat.hxx"
 #include "../common/NetworkRoute.hxx"
 #include <condition_variable>
 #include <array>
@@ -52,6 +53,10 @@ struct DiagnosticsView {
     // Typed allowlist: no endpoint addresses, identities, credentials or names.
     int probeState=0;
     RouteKind probeRoute=RouteKind::Unknown;
+    // The relay region of the measured route when it is relayed, and the local
+    // network summary. Region codes and classes only, never an address.
+    std::string probeRelay;
+    NetworkSummary netReport;
     // The helper's fixed UDP port, 0 when the OS chose it, or empty when no
     // helper has reported one.
     std::optional<std::uint16_t> udpPort;
@@ -75,6 +80,9 @@ struct ServiceSnapshot {
     launcher::UpdateCheckResult update;
     std::vector<std::string> connectionHistory;
 };
+// The home relay and network class, once per export: they rarely change, so
+// the connection history lines leave them out.
+std::string DescribeNetwork(const DiagnosticsView& view);
 std::string DescribeDiagnostics(const DiagnosticsView& view);
 // A single bounded worker owns filesystem, HTTP and process operations. Views
 // contain no invitations, names, capabilities, arbitrary logs or settings.

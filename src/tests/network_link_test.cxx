@@ -1,4 +1,5 @@
 #include "../common/NetworkLink.hxx"
+#include "../common/NetworkNat.hxx"
 
 #include <algorithm>
 #include <cstdio>
@@ -95,6 +96,35 @@ int main() {
 	};
 	CHECK(ResolveNetworkLink(1000, fan(63, true), ethernetFacts) == NetworkLink::Wired);
 	CHECK(ResolveNetworkLink(1000, fan(64, true), ethernetFacts) == NetworkLink::Unknown);
+	// The NAT class travels the same way as the link: known values only.
+	CHECK(NatClassFromWire(1) == NatClass::Open && NatClassFromWire(2) == NatClass::Strict && NatClassFromWire(3) == NatClass::NoUdp);
+	CHECK(NatClassFromWire(0) == NatClass::Unknown && NatClassFromWire(4) == NatClass::Unknown && NatClassFromWire(-1) == NatClass::Unknown);
+	// The helper's names; "checking" and anything unexpected are not a class.
+	CHECK(NatClassFromHelper("open") == NatClass::Open && NatClassFromHelper("strict") == NatClass::Strict &&
+		NatClassFromHelper("no_udp") == NatClass::NoUdp);
+	CHECK(NatClassFromHelper("checking") == NatClass::Unknown && NatClassFromHelper("") == NatClass::Unknown &&
+		NatClassFromHelper("Open") == NatClass::Unknown && NatClassFromHelper("symmetric") == NatClass::Unknown);
+	{
+		NetworkSummary summary;
+		CHECK(!summary.reported && summary.Checking() && summary.relay.empty());
+		summary.nat = NatClass::Open; CHECK(!summary.Checking());
+		NetworkSummary other = summary; CHECK(summary == other);
+		other.relayConnected = true; CHECK(summary != other);
+	}
+	// Where the direct path most likely failed. This side's own check comes first,
+	// then blocked UDP on either side, then strict NAT, then two open networks.
+	CHECK(DiagnoseDirectPath(NatClass::Unknown, NatClass::NoUdp) == DirectBlock::Checking);
+	CHECK(DiagnoseDirectPath(NatClass::NoUdp, NatClass::Open) == DirectBlock::LocalNoUdp);
+	CHECK(DiagnoseDirectPath(NatClass::NoUdp, NatClass::NoUdp) == DirectBlock::LocalNoUdp);
+	CHECK(DiagnoseDirectPath(NatClass::Strict, NatClass::NoUdp) == DirectBlock::PeerNoUdp);
+	CHECK(DiagnoseDirectPath(NatClass::Open, NatClass::NoUdp) == DirectBlock::PeerNoUdp);
+	CHECK(DiagnoseDirectPath(NatClass::Strict, NatClass::Strict) == DirectBlock::LocalStrict);
+	CHECK(DiagnoseDirectPath(NatClass::Strict, NatClass::Open) == DirectBlock::LocalStrict);
+	CHECK(DiagnoseDirectPath(NatClass::Open, NatClass::Strict) == DirectBlock::PeerStrict);
+	CHECK(DiagnoseDirectPath(NatClass::Open, NatClass::Open) == DirectBlock::BothOpen);
+	// A peer whose class is not known (an older build, or still checking) is not called open.
+	CHECK(DiagnoseDirectPath(NatClass::Open, NatClass::Unknown) == DirectBlock::None);
+	CHECK(DiagnoseDirectPath(NatClass::Strict, NatClass::Unknown) == DirectBlock::LocalStrict);
 	// The live answer depends on the machine; it must only not fail.
 	std::printf("This machine's link: %s\n", NetworkLinkLabel(DetectNetworkLink()));
 	if (failures) return 1;

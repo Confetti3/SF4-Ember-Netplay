@@ -34,7 +34,7 @@ pub struct Measurement {
     pub metrics: Metrics,
 }
 
-/// The transport a route string names, such as `ip` or `relay`.
+/// The transport a route string names: `direct` or `relay`.
 fn route_kind(route: &str) -> &str {
     route.split(':').next().unwrap_or(route)
 }
@@ -44,7 +44,8 @@ fn route_kind(route: &str) -> &str {
 /// distributions into one recommendation. iroh also moves a healthy direct
 /// connection between addresses of the same peer, for example from its IPv4
 /// LAN address to an IPv6 one, while a check runs. Those paths measure alike
-/// and the move discards nothing, so it does not count. A moment with no
+/// and the move discards nothing, so it does not count; routes carry no
+/// address, so such a move is not even visible here. A moment with no
 /// selected path, which a move passes through, says nothing either way.
 struct RouteWatch {
     initial: String,
@@ -265,13 +266,13 @@ pub async fn respond(
     }
 }
 
+/// The selected path as it may leave the helper (`invite::public_route`): a
+/// class and a relay region, never an address.
 pub fn route(connection: &Connection) -> String {
-    connection
-        .paths()
-        .iter()
-        .find(|p| p.is_selected())
-        .map(|p| p.remote_addr().to_string())
-        .unwrap_or_else(|| "unavailable".into())
+    let paths = connection.paths();
+    let selected = paths.iter().find(|p| p.is_selected());
+    let remote = selected.as_ref().map(|p| p.remote_addr());
+    crate::invite::public_route(remote)
 }
 
 #[cfg(test)]
@@ -284,31 +285,25 @@ mod tests {
     fn a_move_between_direct_addresses_of_the_peer_is_not_a_route_change() {
         // The failing run: a complete measurement that began on the IPv4 LAN
         // address and was moved to an IPv6 one by iroh after the 17th packet.
-        let mut watch = RouteWatch::new("ip:10.1.42.192:45761".into());
+        // Both addresses are the one route `direct`.
+        let mut watch = RouteWatch::new("direct".into());
         for _ in 0..17 {
-            watch.packet("ip:10.1.42.192:45761".into());
+            watch.packet("direct".into());
         }
-        watch.packet("ip:[2600:1700:17c9:18f:a1d1:88f4:ef25:c490]:57845".into());
         // A move passes through a moment with no selected path.
         watch.packet("unavailable".into());
-        watch.packet("ip:[2600:1700:17c9:18f:a1d1:88f4:ef25:c490]:57845".into());
+        watch.packet("direct".into());
         assert!(!watch.changed);
-        assert_eq!(
-            watch.reported("ip:[2600:1700:17c9:18f:a1d1:88f4:ef25:c490]:57845".into()),
-            "ip:[2600:1700:17c9:18f:a1d1:88f4:ef25:c490]:57845"
-        );
-        assert_eq!(
-            watch.reported("unavailable".into()),
-            "ip:[2600:1700:17c9:18f:a1d1:88f4:ef25:c490]:57845"
-        );
+        assert_eq!(watch.reported("direct".into()), "direct");
+        assert_eq!(watch.reported("unavailable".into()), "direct");
     }
 
     #[test]
     fn a_move_between_transports_or_no_route_at_all_is_a_route_change() {
-        let mut upgraded = RouteWatch::new("relay:https://relay.example./".into());
-        upgraded.packet("relay:https://relay.example./".into());
+        let mut upgraded = RouteWatch::new("relay:use1".into());
+        upgraded.packet("relay:use1".into());
         assert!(!upgraded.changed);
-        upgraded.packet("ip:10.0.0.2:4000".into());
+        upgraded.packet("direct".into());
         assert!(upgraded.changed);
         assert!(RouteWatch::new("unavailable".into()).changed);
     }
