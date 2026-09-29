@@ -518,7 +518,8 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  if(!active) {
   for(auto& row:rows)if(row.id=="selection"||row.id=="ultra"||row.id=="check-connection"||
    row.id=="input-delay"||row.id=="queue"||row.id=="watch") {
-    const auto key=screen+"/"+row.id;
+    // Per table: a cached explanation never shows on another table's row.
+    const auto key=screen+"/"+std::to_string(selectedTable_)+"/"+row.id;
     if(roomUpdateVisible_)row.detail=RoomWaitReason(v);
     else if(RoomCheckpointPending(v)) {
      // Only reuse an explanation for the same action. Labels, values and

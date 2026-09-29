@@ -629,6 +629,26 @@ int main() try {
     Check(shell.Navigation().Screen() == "room-table" && shell.Navigation().Focus() == rulesFocus,
         "Same-room control refresh reset table navigation to the room overview");
 
+    // A cached explanation belongs to its table: table 0's fenced queue
+    // reason must not show on table 1's queue row during a checkpoint.
+    {
+        view.session.control = netplay::Health::Healthy; view.session.recovery = netplay::Recovery::None;
+        view.session.error.clear(); view.session.coordinated = false; view.session.authorityWritable = true;
+        view.room.members[0].table = -1; view.room.members[0].seat = -1; view.room.localTerminalPending = false;
+        view.room.terminalPending[0] = true; ++view.room.revision;
+        shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
+        focus("table-0"); press(MenuInput::Options);
+        Check(shell.Navigation().Screen() == "room-table" && row("queue").detail.find("finish returning") != std::string::npos,
+            "Table 0's fenced queue row lost its reason");
+        shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
+        view.session.coordinated = true; view.session.authorityWritable = false; frame();
+        focus("table-1"); press(MenuInput::Options);
+        Check(shell.Navigation().Screen() == "room-table" && row("queue").detail.find("finish returning") == std::string::npos,
+            "Table 0's queue explanation showed on table 1 during a checkpoint");
+        view.room.terminalPending[0] = false; view.session.coordinated = false; view.session.authorityWritable = true;
+        ++view.room.revision; frame();
+    }
+
     for (const float scale : {1.f, 1.5f}) {
       ApplyTheme(scale); io.Fonts->Build();
       for (const auto size : {ImVec2(1280, 960), ImVec2(640, 720)}) {

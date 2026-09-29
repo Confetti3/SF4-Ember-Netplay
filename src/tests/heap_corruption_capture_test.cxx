@@ -164,7 +164,11 @@ DWORD WINAPI ReturnAtOnce(void*) { return 0; }
 void TestEveryDumpIsKeptAndBadRequestsRefused() {
 	const std::wstring logs = TempDirectory();
 	wchar_t paths[3][DumpPathSize] = {};
-	for (auto& path : paths) CHECK(WriteDump(GetCurrentProcess(), GetCurrentProcessId(), logs.c_str(), GetCurrentThreadId(), nullptr, false, path));
+	for (auto& path : paths) {
+		const bool ok = WriteDump(GetCurrentProcess(), GetCurrentProcessId(), logs.c_str(), GetCurrentThreadId(), nullptr, false, path);
+		if (!ok) std::fprintf(stderr, "WriteDump failed: 0x%08lX\n", GetLastError());
+		CHECK(ok);
+	}
 	CHECK(std::wstring(paths[0]) != paths[1] && std::wstring(paths[1]) != paths[2] && std::wstring(paths[0]) != paths[2]);
 	CHECK(CountDumps(logs) == 3);
 	// The launcher keeps the newest, which sort last.

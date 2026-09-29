@@ -43,7 +43,7 @@ struct DumpRequest {
 constexpr MINIDUMP_TYPE DumpType = MINIDUMP_TYPE(MiniDumpWithIndirectlyReferencedMemory | MiniDumpWithDataSegs |
 	MiniDumpWithHandleData | MiniDumpWithThreadInfo | MiniDumpWithUnloadedModules);
 
-// Each crash gets a dump of its own, "sf4e-crash-<date>-<time>-<pid>.dmp" in
+// Each crash gets a dump of its own, "sf4e-crash-<date>-<time>-<ms>-<pid>.dmp" in
 // the logs folder, so a later or failed crash never costs an earlier one.
 constexpr size_t DumpPathSize = MAX_PATH + 64;
 
@@ -60,27 +60,52 @@ inline bool WriteDump(HANDLE process, DWORD processId, const wchar_t* directory,
 	GetLocalTime(&now);
 	wchar_t partial[DumpPathSize + 8] = {};
 	HANDLE file = INVALID_HANDLE_VALUE;
-	// Two dumps of one process in one second take the next free number.
-	for (int attempt = 0; attempt < 10 && file == INVALID_HANDLE_VALUE; ++attempt) {
+	// Two dumps of one process in one millisecond take the next free number.
+	for (int attempt = 0; attempt < 100 && file == INVALID_HANDLE_VALUE; ++attempt) {
 		const int printed = attempt == 0 ?
-			swprintf_s(path, L"%s\\sf4e-crash-%04u%02u%02u-%02u%02u%02u-%lu.dmp", directory, now.wYear, now.wMonth,
-				now.wDay, now.wHour, now.wMinute, now.wSecond, processId) :
-			swprintf_s(path, L"%s\\sf4e-crash-%04u%02u%02u-%02u%02u%02u-%lu-%d.dmp", directory, now.wYear, now.wMonth,
-				now.wDay, now.wHour, now.wMinute, now.wSecond, processId, attempt);
+			swprintf_s(path, L"%s\\sf4e-crash-%04u%02u%02u-%02u%02u%02u-%03u-%lu.dmp", directory, now.wYear, now.wMonth,
+				now.wDay, now.wHour, now.wMinute, now.wSecond, now.wMilliseconds, processId) :
+			swprintf_s(path, L"%s\\sf4e-crash-%04u%02u%02u-%02u%02u%02u-%03u-%lu-%02d.dmp", directory, now.wYear, now.wMonth,
+				now.wDay, now.wHour, now.wMinute, now.wSecond, now.wMilliseconds, processId, attempt);
 		if (printed < 0 || swprintf_s(partial, L"%s.partial", path) < 0) return false;
 		if (GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES) continue;
-		file = CreateFileW(partial, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+		// Nobody else may open the dump until it is published: a reader could
+		// otherwise block the rename and the cleanup.
+		file = CreateFileW(partial, GENERIC_WRITE | DELETE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
 		if (file == INVALID_HANDLE_VALUE && GetLastError() != ERROR_FILE_EXISTS) return false;
 	}
 	if (file == INVALID_HANDLE_VALUE) return false;
 	MINIDUMP_EXCEPTION_INFORMATION exception = { threadId, pointers, clientPointers ? TRUE : FALSE };
-	const BOOL written = MiniDumpWriteDump(process, processId, file, DumpType, pointers ? &exception : nullptr, nullptr, nullptr);
+	// Memory that changes while it is read (a dump of a running process, and
+	// always a dump of oneself) can fail the write with ERROR_PARTIAL_COPY.
+	// Try again, then with the plain dump, rather than end up with none.
+	const MINIDUMP_TYPE types[] = { DumpType, DumpType, MiniDumpNormal };
+	BOOL written = FALSE;
+	for (const MINIDUMP_TYPE type : types) {
+		LARGE_INTEGER start = {};
+		if (!SetFilePointerEx(file, start, nullptr, FILE_BEGIN) || !SetEndOfFile(file)) break;
+		written = MiniDumpWriteDump(process, processId, file, type, pointers ? &exception : nullptr, nullptr, nullptr);
+		if (written) break;
+	}
+	// Publish through the handle still held, so no other process can come
+	// between the write and the rename. It never replaces a file of that name.
+	bool published = false;
+	if (written && FlushFileBuffers(file)) {
+		alignas(FILE_RENAME_INFO) unsigned char buffer[sizeof(FILE_RENAME_INFO) + DumpPathSize * sizeof(wchar_t)] = {};
+		auto* rename = reinterpret_cast<FILE_RENAME_INFO*>(buffer);
+		rename->ReplaceIfExists = FALSE;
+		rename->FileNameLength = static_cast<DWORD>(wcslen(path) * sizeof(wchar_t));
+		memcpy(rename->FileName, path, rename->FileNameLength);
+		published = SetFileInformationByHandle(file, FileRenameInfo, rename, sizeof(buffer)) != FALSE;
+	}
+	if (!published) {
+		// Gone once closed, whoever else wanted it.
+		FILE_DISPOSITION_INFO remove = { TRUE };
+		SetFileInformationByHandle(file, FileDispositionInfo, &remove, sizeof(remove));
+		path[0] = L'\0';
+	}
 	CloseHandle(file);
-	// No flag: the rename fails rather than replace a file of the same name.
-	if (written && MoveFileExW(partial, path, MOVEFILE_WRITE_THROUGH)) return true;
-	DeleteFileW(partial);
-	path[0] = L'\0';
-	return false;
+	return published;
 }
 
 // The files in `directory` matching `pattern`, sorted by name.

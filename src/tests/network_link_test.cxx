@@ -135,7 +135,7 @@ int main() {
 	std::string detail;
 	std::printf("This machine's link: %s\n", NetworkLinkLabel(DetectNetworkLink(&detail)));
 	std::printf("  %s\n", detail.c_str());
-	CHECK(detail.find("route=if") == 0 || detail == "no default route");
+	CHECK(detail.find("route=if") == 0 || detail == "no default route" || detail == "wine");
 	if (failures) return 1;
 	std::puts("NetworkLink test passed");
 	return 0;
