@@ -228,6 +228,12 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   else if(openOn_=="ultra"){nav.Push("ultra");nav.Prefer("ultra-"+std::to_string(pick.ultra));}
   else openOn_.clear();
  }
+ if(ultraStepPending_&&nav.Screen()=="ultra"&&AllowedUltras(pick.fighter,pick.edition).size()<=1){
+  // The new fighter has one Ultra in its own edition: nothing to pick.
+  nav.Return();focusSavedUltra_=false;
+  if(!openOn_.empty())ForwardMenuAction({MenuAction::Close});else nav.Home();
+ }
+ ultraStepPending_=false;
  if(focusSavedUltra_&&nav.Screen()=="ultra")nav.Prefer("ultra-"+std::to_string(pick.ultra));
  focusSavedUltra_=false;
  const auto screen=nav.Screen();
@@ -404,8 +410,9 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    pick.fighter=std::stoi(a.id.substr(8));const auto next=readAvailability?readAvailability(pick.fighter):Availability{};
    Normalize(pick,editionSelect,&next);changed=true;
    // The Ultra comes next, when the fighter has more than one.
-   if(AllowedUltras(pick.fighter,pick.edition).size()>1){nav.Push("ultra");nav.Prefer("ultra-"+std::to_string(pick.ultra));focusSavedUltra_=true;}
-   else finish();
+   // The Ultra comes next; the next frame drops the step if this fighter,
+   // with its own saved pick restored, has only one.
+   nav.Push("ultra");nav.Prefer("ultra-"+std::to_string(pick.ultra));focusSavedUltra_=ultraStepPending_=true;
   }else if(editable&&a.id.compare(0,6,"ultra-")==0){pick.ultra=std::stoi(a.id.substr(6));changed=true;finish();}
   else if(editable&&a.id.compare(0,8,"costume-")==0){pick.costume=std::stoi(a.id.substr(8));Normalize(pick,editionSelect,&availability);changed=true;}
   else if(editable&&a.id.compare(0,6,"color-")==0){pick.color=std::stoi(a.id.substr(6));changed=true;}

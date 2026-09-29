@@ -213,6 +213,13 @@ impl Invite {
         };
         match invite {
             Some(invite) if invite.version != VERSION => "old_version",
+            // Cut at a whole Base64 group, a compact invitation still decodes,
+            // with only the start of this build: the text is short, not foreign.
+            Some(invite)
+                if invite.build.len() < build.len() && build.starts_with(&invite.build) =>
+            {
+                "malformed"
+            }
             Some(invite) if invite.build != build => "other_build",
             Some(invite) if invite.expires <= now => "expired",
             _ => "malformed",
@@ -485,6 +492,10 @@ mod tests {
             Invite::rejection_reason(&legacy(&old), 101, &build),
             "old_version"
         );
+        // Cut at a whole Base64 group: it still decodes, with part of the build.
+        let groups = &token[..token.len() - 8];
+        assert!(Invite::parse_for_build(groups, 101, &build).is_err());
+        assert_eq!(Invite::rejection_reason(groups, 101, &build), "malformed");
         // Cut short or not an invitation at all.
         for text in [&token[..token.len() - 10], "hello", "", "sf4e2:!!!"] {
             assert!(Invite::parse_for_build(text, 101, &build).is_err());

@@ -615,6 +615,18 @@ void AppearanceGalleries(){
  Check(selection::AllowedUltras(0,13).size()==1,"Ryu's SFIV edition should have one Ultra");
  selector.Navigation().Focus("fighter-0",ultras);single(0);single(MenuInput::Select);single(0);
  Check(pick.edition==13&&selector.Navigation().Screen()=="home","A single-Ultra fighter still asked for its Ultra");
+ // The step follows the new fighter's own saved pick, which the caller
+ // restores after the pick: from Ryu on SFIV to Zangief saved on Ultra, the
+ // step shows; from there to a fighter saved on SFIV, it does not.
+ Check(selection::AllowedUltras(5,13).size()==1,"Zangief's SFIV edition should have one Ultra");
+ selector.Navigation().Home();selector.Navigation().Push("roster");single(0);single(0);
+ selector.Navigation().Focus("fighter-5",ultras);single(0);single(MenuInput::Select);
+ pick.edition=14;single(0);single(0);
+ Check(pick.fighter==5&&selector.Navigation().Screen()=="ultra","A fighter saved on the Ultra edition skipped its Ultra");
+ selector.Navigation().Home();selector.Navigation().Push("roster");single(0);single(0);
+ selector.Navigation().Focus("fighter-0",ultras);single(0);single(MenuInput::Select);
+ pick.edition=13;single(0);single(0);
+ Check(pick.fighter==0&&selector.Navigation().Screen()=="home","A fighter saved on a single-Ultra edition still asked for its Ultra");
  SetMenuEntriesProbe({});
 }
 // A notice raised while an editor or a confirmation is open must be seen, and

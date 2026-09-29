@@ -33,6 +33,10 @@ private:
     // The Ultra step was just pushed: focus the Ultra the new fighter has,
     // which the caller restores after this frame.
     bool focusSavedUltra_ = false;
+    // A fighter was just picked. Whether its Ultra step is needed is decided
+    // on the next frame, from the pick as the caller restored it for that
+    // fighter (its own saved edition), not from the previous fighter's.
+    bool ultraStepPending_ = false;
     std::string notice_;
 };
 } }
