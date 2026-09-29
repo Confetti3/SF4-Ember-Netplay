@@ -121,12 +121,23 @@ void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max){
     d->AddText(ImVec2(min.x+4*Scale(),max.y-footer),saved?palette::Ember:palette::Ivory,label.c_str());
     if(saved)DrawCardBadge(ImVec2(min.x+4*Scale(),min.y+4*Scale()),max.x-min.x-8*Scale(),loc::T("profile.main_badge"),"main-badge");
 }
+// The legend follows whatever last moved the menu: a player with a pad
+// assigned who types on the keyboard sees keys, and the other way round.
+const char* padSelectGlyph="LP";const char* padBackGlyph="LK";
+bool keyboardLast=false;unsigned previousKeys=0,previousPad=0;
+void ApplyMenuGlyphs(){
+    const bool pad=menuDeviceType==input::PadXInput||menuDeviceType==input::PadDirectInput;
+    const bool keys=!pad||keyboardLast;
+    selectGlyph=keys?"Enter":padSelectGlyph;
+    backGlyph=keys?"Esc":padBackGlyph;
+}
 void SetMenuGlyphs(int type,unsigned select,unsigned back,const char* selectFallback,const char* backFallback){
     menuDeviceType=type;
-    const bool pad=type==input::PadXInput||type==input::PadDirectInput;
-    selectGlyph=!pad?"Enter":PhysicalGlyph(type,select,selectFallback);
-    backGlyph=!pad?"Esc":PhysicalGlyph(type,back,backFallback);
+    padSelectGlyph=PhysicalGlyph(type,select,selectFallback);
+    padBackGlyph=PhysicalGlyph(type,back,backFallback);
+    ApplyMenuGlyphs();
 }
+bool KeyboardPrompts(){ return !std::strcmp(selectGlyph,"Enter"); }
 void SetMenuArt(SelectionArt* art) { menuArt=art; }
 void ForwardMenuAction(MenuAction action) { forwarded=std::move(action); }
 namespace { EmbeddedReturn embeddedReturn; }
@@ -136,16 +147,29 @@ bool TakeEmbeddedFresh() { return std::exchange(embeddedReturn.fresh,false); }
 MenuAction TakeForwardedMenuAction() { return std::exchange(forwarded,MenuAction{}); }
 void SetMenuInput(MenuInput value) { input=value; }
 unsigned KeyboardMenuBits() {
-    static const struct { ImGuiKey key; unsigned bit; } keys[]={
+    struct Mapping { ImGuiKey key; unsigned bit; };
+    static const Mapping always[]={
         {ImGuiKey_UpArrow,MenuInput::Up},{ImGuiKey_DownArrow,MenuInput::Down},{ImGuiKey_LeftArrow,MenuInput::Left},
         {ImGuiKey_RightArrow,MenuInput::Right},{ImGuiKey_Enter,MenuInput::Select},{ImGuiKey_Escape,MenuInput::Back}};
+    // Letters, Space, Backspace and Delete belong to a text field while one
+    // is being typed in.
+    static const Mapping menuOnly[]={
+        {ImGuiKey_KeypadEnter,MenuInput::Select},{ImGuiKey_Space,MenuInput::Select},{ImGuiKey_Backspace,MenuInput::Back},
+        {ImGuiKey_F,MenuInput::Fighter},{ImGuiKey_T,MenuInput::Options},{ImGuiKey_C,MenuInput::Chat},{ImGuiKey_Delete,MenuInput::Leave}};
     unsigned bits=0;
-    for(const auto& mapping:keys) if(ImGui::IsKeyDown(mapping.key)) bits|=mapping.bit;
+    for(const auto& mapping:always) if(ImGui::IsKeyDown(mapping.key)) bits|=mapping.bit;
+    if(!ImGui::GetIO().WantTextInput)
+        for(const auto& mapping:menuOnly) if(ImGui::IsKeyDown(mapping.key)) bits|=mapping.bit;
     return bits;
 }
 MenuInput ReadMenuInput() {
     auto value=input; value.time=ImGui::GetTime();
-    value.held|=KeyboardMenuBits();
+    const unsigned keys=KeyboardMenuBits();
+    if(keys&~previousKeys) keyboardLast=true;
+    if(input.held&~previousPad) keyboardLast=false;
+    previousKeys=keys; previousPad=input.held;
+    ApplyMenuGlyphs();
+    value.held|=keys; value.keyboard=keys;
     value.acceptText=ImGui::IsKeyPressed(ImGuiKey_Enter,false);
     return value;
 }
@@ -273,14 +297,15 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     // Reserve the actual footer items and their spacing, not a guessed margin.
     const float footerSpacing=8*unit+2*ImGui::GetStyle().ItemSpacing.y+
         (home?HomeStatusHeight*unit+ImGui::GetStyle().ItemSpacing.y:0);
-    // Shortcut hints ride along only on an Xbox pad and only when they fit
+    // Shortcut hints ride along only on an Xbox pad or the keyboard, which
+    // have the buttons, and only when they fit
     // without another legend row; a narrow window keeps the standard legend.
     static const std::vector<LegendHint> noHints;
     const float legendWidth=ImGui::GetContentRegionAvail().x;
     // An open dialog takes the screen's shortcuts away.
     const char* back=dialog?dialogBack.c_str():backHint.c_str();
     const float standardLegend=MenuLegend(legendWidth,selectGlyph,backGlyph,false,adjustable,menuArt,unit,primary,noHints,back);
-    const bool hintsFit=!dialog&&!std::strcmp(selectGlyph,"A")&&!shortcutHints.empty()&&
+    const bool hintsFit=!dialog&&(!std::strcmp(selectGlyph,"A")||KeyboardPrompts())&&!shortcutHints.empty()&&
         MenuLegend(legendWidth,selectGlyph,backGlyph,false,adjustable,menuArt,unit,primary,shortcutHints,back)<=standardLegend;
     const auto& extras=hintsFit?shortcutHints:noHints;
     const float footer=standardLegend+footerSpacing;

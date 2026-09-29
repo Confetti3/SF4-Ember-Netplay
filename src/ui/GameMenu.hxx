@@ -28,10 +28,14 @@ void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max);
 // Set once per overlay frame. Only the visible player screen consumes it.
 void SetMenuInput(MenuInput input);
 MenuInput ReadMenuInput();
-// The MenuInput bits of the arrow, Enter and Escape keys held now; ReadMenuInput
-// adds them to the pad's, and surfaces that only need to know whether the
-// keyboard was used read them alone.
+// The MenuInput bits of the menu keys held now; ReadMenuInput adds them to
+// the pad's, and surfaces that only need to know whether the keyboard was
+// used read them alone. While a text field has the keyboard only the arrows,
+// Enter and Escape count, so typing never presses a menu key.
 unsigned KeyboardMenuBits();
+// True while the legend shows keyboard keys: the gameplay device is the
+// keyboard, or a key moved the menu after the pad last did.
+bool KeyboardPrompts();
 // An embedded screen (fighter select, the training flyout) hands its parent
 // what it does not handle itself: Close, or a shortcut the parent owns.
 void ForwardMenuAction(MenuAction action);
@@ -39,8 +43,10 @@ MenuAction TakeForwardedMenuAction();
 // What the parent tells an embedded screen before drawing it: where its Back
 // from the root goes, and the parent's shortcuts it forwards and so advertises.
 // fresh: the parent has just opened this screen, so it starts at its first
-// page; TakeEmbeddedFresh reads it once.
-struct EmbeddedReturn { std::string exitName; std::vector<LegendHint> shortcutHints; bool fresh=false; };
+// page; TakeEmbeddedFresh reads it once. changeFighter: the parent opened
+// fighter select to change the fighter, so it starts on the roster and hands
+// Close back once the fighter and its Ultra are picked.
+struct EmbeddedReturn { std::string exitName; std::vector<LegendHint> shortcutHints; bool fresh=false; bool changeFighter=false; };
 void SetEmbeddedReturn(EmbeddedReturn context);
 const EmbeddedReturn& EmbeddedReturnContext();
 bool TakeEmbeddedFresh();

@@ -113,6 +113,8 @@ private:
     // Whether the selector the shell is about to show was opened just now, not
     // reshown after a match or an overlay, so it starts on its first page.
     bool selectionFresh_=false;
+    // Fighter select was opened from a room to change the fighter.
+    bool changeFighter_=false;
     // The screen an opening room was started from, as the controller recorded
     // it when it accepted the command: hosting, or joining (an invitation
     // or a Discord join). Read only while the room is opening.

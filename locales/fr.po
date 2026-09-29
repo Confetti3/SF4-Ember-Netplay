@@ -828,6 +828,9 @@ msgstr "Commandes"
 msgid "about.controls_detail"
 msgstr "Manette Xbox : A sélectionne et B revient, quels que soient les boutons de combat. Autres manettes : le LP associé sélectionne et le LK revient. Clavier : flèches, Enter et Esc. Le D-pad déplace ; gauche et droite changent une valeur. Retour à l'Accueil masque Ember. F10, ou Start sur la manette, le rouvre au menu principal du jeu.\n\nDans un salon, A sur une table permet de choisir une place, A sur votre propre place passe à Prêt, et B quitte votre place ou la file. Sur une manette Xbox, X ouvre Combattant, Y ouvre Options et View ouvre Chat ; appuyez de nouveau pour revenir au salon.\n\nÀ l'entraînement, F6 ouvre les commandes, F5 masque le HUD, F7 enregistre et F8 lit."
 
+msgid "about.controls_keyboard"
+msgstr "Au clavier, Espace sélectionne aussi et Retour arrière revient aussi. Dans un salon, F ouvre Combattant, T ouvre Options et C ouvre Chat. Échap revient toujours, même sur votre propre place ; Suppr quitte votre place ou votre file."
+
 msgid "about.ember"
 msgstr "À propos d'Ember"
 
@@ -1253,6 +1256,9 @@ msgstr "{0} / Couleur {1}"
 
 msgid "selection.ultra_combo"
 msgstr "Ultra Combo"
+
+msgid "selection.ultra_row.detail"
+msgstr "Gauche et Droite changent l'Ultra ici. Sélectionner montre chaque Ultra avec sa commande."
 
 msgid "selection.ultra_double"
 msgstr "Ultra Combo Double"

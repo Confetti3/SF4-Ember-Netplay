@@ -241,7 +241,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   // The controls, credits and licence are longer than the detail pane, so
   // Select opens them in a reader a pad or keyboard can scroll.
   auto reading=[](MenuEntry e){e.reading=true;return e;};
-  title=loc::T("about.title");rows={reading(Row("help",loc::T("about.controls"),loc::T("about.controls_detail"))),
+  title=loc::T("about.title");rows={reading(Row("help",loc::T("about.controls"),std::string(loc::T("about.controls_detail"))+"\n\n"+loc::T("about.controls_keyboard"))),
    reading(Row("credits",loc::T("about.ember"),loc::Tf("about.ember_detail",v.build))),
    reading(Row("font",loc::T("about.font_license"),FontLicense())),Row("diagnostics",loc::T("about.export_diagnostics"),
     outcome({ServiceAction::ExportDiagnostics},loc::T("about.export_diagnostics_detail")),!v.services.pending),
@@ -352,7 +352,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="discord-invitation")nav.Push(a.id);
  else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
- else if(a.id=="selection"){selectionFresh_=true;nav.Push(a.id);}
+ else if(a.id=="selection"){selectionFresh_=true;changeFighter_=screen.compare(0,4,"room")==0;nav.Push(a.id);}
  else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="developer")nav.Push(a.id);
  else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
@@ -455,11 +455,13 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Room shortcuts work from every screen of a joined room, including the
  // embedded fighter selector, which forwards what it does not handle.
  const bool inRoom=v.session.room!=RoomState::Idle&&v.room.roomEpoch;
- const std::vector<LegendHint> roomHints={{"X",loc::T("room.legend_fighter")},{"Y",loc::T("room.legend_options")},{"Back/Select",loc::T("room.chat")}};
+ const bool keys=KeyboardPrompts();
+ std::vector<LegendHint> roomHints=keys?std::vector<LegendHint>{{"F",loc::T("room.legend_fighter")},{"T",loc::T("room.legend_options")},{"C",loc::T("room.chat")}}:
+  std::vector<LegendHint>{{"X",loc::T("room.legend_fighter")},{"Y",loc::T("room.legend_options")},{"Back/Select",loc::T("room.chat")}};
  if(nav.Screen()=="selection"&&selection){
   // The selector names where its Back goes and shows the room's shortcuts it hands back.
-  SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),inRoom?roomHints:std::vector<LegendHint>{},selectionFresh_});
-  selectionFresh_=false;
+  SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),inRoom?roomHints:std::vector<LegendHint>{},selectionFresh_,changeFighter_});
+  selectionFresh_=changeFighter_=false;
   // Only what this frame's selector forwards is read below.
   TakeForwardedMenuAction();
   selection();
@@ -512,13 +514,16 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const bool stableFeedback=screen!="home";
  if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=roomHints;
  else menu_.shortcutHints.clear();
+ // The keyboard leaves a seat with Delete, so Escape keeps its own word.
+ const char* placeExit=screen=="room"&&v.room.roomEpoch?PlaceExitLabel(v):"";
+ if(keys&&*placeExit)menu_.shortcutHints.insert(menu_.shortcutHints.begin(),{"Del",placeExit});
  // Back names where it goes when that is not simply the previous screen:
  // from Home, out of Ember or back to the room; on the board, out of your seat.
  menu_.exitName.clear();menu_.backHint.clear();
  if(screen=="home"){
   menu_.exitName=opening?MenuScreenLabel(OpeningScreen(v)):loc::T("screen.game");
   menu_.backHint=loc::Tf("menu.return_to",menu_.exitName);
- }else if(screen=="room"&&v.room.roomEpoch)menu_.backHint=PlaceExitLabel(v);
+ }else if(!keys)menu_.backHint=placeExit;
  // While a controller is being captured it cannot drive the menu, so the
  // legend shows the keyboard and names the cancel.
  if(v.inputCapture!=input::Capture::Idle){SetMenuGlyphs(input::PadKeyboard,0,0);menu_.backHint=loc::T("common.cancel");}

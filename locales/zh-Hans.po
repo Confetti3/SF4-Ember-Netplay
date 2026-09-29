@@ -828,6 +828,9 @@ msgstr "操作说明"
 msgid "about.controls_detail"
 msgstr "Xbox 手柄：按 A 选择，按 B 返回，不受格斗按键设置影响。其他手柄：按已映射的 LP 选择，LK 返回。键盘：方向键、Enter 和 Escape。D-pad 移动，左／右调整数值。在主页按返回会隐藏 Ember；在游戏主菜单按 F10（手柄按 Start）可再次打开。\n\n在房间里，在牌桌上按 A 可选择席位，在自己的席位上按 A 表示准备，按 B 离开席位或队列。Xbox 手柄上，X 打开角色，Y 打开选项，View 打开聊天，再按一次返回房间。\n\n训练中，F6 打开控制面板，F5 隐藏 HUD，F7 录制，F8 回放。"
 
+msgid "about.controls_keyboard"
+msgstr "键盘上，空格键也可选择，Backspace 也可返回。在房间中，F 打开角色，T 打开选项，C 打开聊天。Esc 始终返回，即使在你自己的座位上；Delete 离开座位或排队位置。"
+
 msgid "about.ember"
 msgstr "关于 Ember"
 
@@ -1253,6 +1256,9 @@ msgstr "{0}／颜色 {1}"
 
 msgid "selection.ultra_combo"
 msgstr "终极组合"
+
+msgid "selection.ultra_row.detail"
+msgstr "左右键在这里切换终极组合。选择会显示每个终极组合及其指令。"
 
 msgid "selection.ultra_double"
 msgstr "双重终极组合"

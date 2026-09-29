@@ -828,6 +828,9 @@ msgstr "Controles"
 msgid "about.controls_detail"
 msgstr "Control Xbox: A selecciona y B vuelve, sin importar los botones de pelea. Otros controles: el LP asignado selecciona y el LK vuelve. Teclado: flechas, Enter y Escape. La cruceta mueve; Izquierda y Derecha cambian un valor. Volver en Inicio oculta Ember. F10, o Start en el control, lo abre de nuevo en el menú principal del juego.\n\nEn una sala, A en una mesa te deja elegir un asiento, A en tu propio asiento marca Listo y B deja tu asiento o tu lugar en la cola. En un control Xbox, X abre Luchador, Y abre Opciones y View abre Chat; presiónalo otra vez para volver a la sala.\n\nEn entrenamiento, F6 abre los controles, F5 oculta el HUD, F7 graba y F8 reproduce."
 
+msgid "about.controls_keyboard"
+msgstr "En el teclado, Espacio también selecciona y Retroceso también regresa. En una sala, F abre Luchador, T abre Opciones y C abre Chat. Escape siempre regresa, incluso en tu propio asiento; Supr deja tu asiento o tu lugar en la fila."
+
 msgid "about.ember"
 msgstr "Acerca de Ember"
 
@@ -1182,6 +1185,9 @@ msgid "selection.appearance_value"
 msgstr "{0} / Color {1}"
 msgid "selection.ultra_combo"
 msgstr "Ultra Combo"
+msgid "selection.ultra_row.detail"
+msgstr "Izquierda y Derecha cambian el Ultra aquí. Seleccionar muestra cada Ultra con su comando."
+
 msgid "selection.ultra_double"
 msgstr "Ultra Doble"
 msgid "selection.ultra_one"

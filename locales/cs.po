@@ -828,6 +828,9 @@ msgstr "Ovládání"
 msgid "about.controls_detail"
 msgstr "Ovladač Xbox: A vybírá, B se vrací, nezávisle na bojových tlačítkách. Jiné ovladače: přiřazené LP vybírá, LK se vrací. Klávesnice: šipky, Enter a Escape. D-pad pohybuje; vlevo a vpravo mění hodnotu. Zpět na obrazovce Domů skryje Ember. F10, nebo Start na ovladači, ho znovu otevře v hlavní nabídce hry.\n\nV místnosti A na stole umožní vybrat místo, A na vlastním místě nastaví Připraven a B uvolní místo nebo opustí frontu. Na ovladači Xbox X otevře Bojovník, Y otevře Možnosti a View otevře Chat; dalším stiskem se vrátíte do místnosti.\n\nV tréninku F6 otevře ovládání, F5 skryje HUD, F7 nahrává a F8 přehrává."
 
+msgid "about.controls_keyboard"
+msgstr "Na klávesnici také Mezerník vybírá a Backspace vrací zpět. V místnosti F otevře Bojovníka, T Možnosti a C Chat. Escape vždy vrací zpět, i na vašem vlastním místě; Delete opustí vaše místo nebo frontu."
+
 msgid "about.ember"
 msgstr "O Ember"
 
@@ -1253,6 +1256,9 @@ msgstr "{0} / Barva {1}"
 
 msgid "selection.ultra_combo"
 msgstr "Ultra Combo"
+
+msgid "selection.ultra_row.detail"
+msgstr "Šipky vlevo a vpravo zde mění Ultra. Výběr ukáže každé Ultra i s jeho vstupem."
 
 msgid "selection.ultra_double"
 msgstr "Ultra Double"

@@ -828,6 +828,9 @@ msgstr "Besturing"
 msgid "about.controls_detail"
 msgstr "Xbox-controller: A kiest en B gaat terug, los van de vechtknoppen. Andere controllers: de toegewezen LP kiest en LK gaat terug. Toetsenbord: pijltjes, Enter en Escape. De D-pad beweegt; links en rechts passen een waarde aan. Terug op het scherm Start verbergt Ember. F10, of de knop Start op de controller, opent Ember weer in het hoofdmenu van het spel.\n\nIn een kamer kies je met A op een tafel een plek, meld je je met A op je eigen plek klaar en verlaat B je plek of de wachtrij. Op een Xbox-controller opent X Vechter, Y Opties en View Chat; druk er nogmaals op om terug te gaan naar de kamer.\n\nIn training opent F6 de besturing, verbergt F5 de HUD, neemt F7 op en speelt F8 af."
 
+msgid "about.controls_keyboard"
+msgstr "Op het toetsenbord selecteert Spatie ook en gaat Backspace ook terug. In een kamer opent F Vechter, T Opties en C Chat. Escape gaat altijd terug, ook op je eigen plaats; Delete verlaat je plaats of wachtrij."
+
 msgid "about.ember"
 msgstr "Over Ember"
 
@@ -1253,6 +1256,9 @@ msgstr "{0} / Kleur {1}"
 
 msgid "selection.ultra_combo"
 msgstr "Ultra Combo"
+
+msgid "selection.ultra_row.detail"
+msgstr "Links en Rechts wisselen hier de Ultra. Selecteren toont elke Ultra met zijn invoer."
 
 msgid "selection.ultra_double"
 msgstr "Ultra Double"

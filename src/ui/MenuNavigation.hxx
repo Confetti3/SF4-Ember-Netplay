@@ -9,14 +9,19 @@
 namespace sf4e { namespace ui {
 // Copied input and semantic actions: no renderer, platform, or game dependency.
 struct MenuInput {
-    // Fighter, Options and Chat are the Xbox X, Y and View shortcuts. The
-    // overlay passes a ControllerSample's buttons straight in, so both enums
-    // number them alike (asserted in ControllerNavigation.hxx); 64 is left for
-    // the sample's Menu button.
-    enum Button : unsigned { Up=1, Down=2, Left=4, Right=8, Select=16, Back=32, Fighter=128, Options=256, Chat=512 };
+    // Fighter, Options and Chat are the Xbox X, Y and View shortcuts and the
+    // F, T and C keys. The overlay passes a ControllerSample's buttons
+    // straight in, so both enums number them alike (asserted in
+    // ControllerNavigation.hxx); 64 is left for the sample's Menu button.
+    // Leave is the Delete key: it leaves your seat from your own table card,
+    // which a pad does with B.
+    enum Button : unsigned { Up=1, Down=2, Left=4, Right=8, Select=16, Back=32, Fighter=128, Options=256, Chat=512, Leave=1024 };
     unsigned held = 0;
     double time = 0;
     bool acceptText = false;
+    // The bits of `held` that come from keyboard keys. Last, so that
+    // {held, time} still initializes the other two.
+    unsigned keyboard = 0;
 };
 // One option of a choice. The id is what the option means, so a choice whose
 // options change meaning under the player closes instead of quietly sending
@@ -38,6 +43,9 @@ struct MenuEntry {
     std::string chosen;
     // Focusable information with nothing to do: no Select in the legend.
     bool info = false;
+    // A value row whose Select still opens its page: Left/Right change the
+    // value in place, Select shows the choices in full.
+    bool opens = false;
     // In a grid, an ordinary action (Retry saving) under the cards: it and
     // every entry after it form the grid's footer, one full-width row each
     // (MenuGridCells).
@@ -65,7 +73,7 @@ enum class SelectOpens { Nothing, Reader, Edit, Choice, Confirm, Activate };
 inline SelectOpens MenuSelectOpens(const MenuEntry& e) {
     if (!e.enabled || e.info) return SelectOpens::Nothing;
     if (e.reading) return SelectOpens::Reader;
-    if (e.adjustable && e.choices.empty()) return SelectOpens::Nothing;
+    if (e.adjustable && e.choices.empty() && !e.opens) return SelectOpens::Nothing;
     if (e.text) return SelectOpens::Edit;
     if (!e.choices.empty()) return SelectOpens::Choice;
     return e.confirm ? SelectOpens::Confirm : SelectOpens::Activate;
@@ -77,11 +85,14 @@ inline std::size_t MenuGridCells(const std::vector<MenuEntry>& entries) {
     return static_cast<std::size_t>(std::find_if(entries.begin(), entries.end(), [](const MenuEntry& e) { return e.wide; }) - entries.begin());
 }
 struct MenuAction {
-    // Shortcut: a Fighter/Options/Chat press, its button in delta.
+    // Shortcut: a Fighter/Options/Chat/Leave press, its button in delta.
     // Chosen: a choice entry's option, its id in text.
     enum Kind { None, Activate, Adjust, TextAccepted, Returned, Close, Back, SubmitText, Shortcut, Chosen } kind = None;
     std::string id, text;
     int delta = 0;
+    // A Back that came from Escape or Backspace, which always goes back;
+    // only a pad's B may mean "leave my seat".
+    bool keyboard = false;
 };
 class MenuNavigation {
 public:
@@ -153,6 +164,9 @@ public:
             state.id = modalId_; state.index = static_cast<std::size_t>(target - entries.begin());
         }
     }
+    // The entry to focus on this screen once its entries exist, for a screen
+    // just pushed whose rows are built on its first frame.
+    void Prefer(const std::string& id) { states_[Screen()].id = id; }
     void Focus(const std::string& id,const std::vector<MenuEntry>& entries) {
         if (mode_ != Modal::None && id != modalId_) return;
         auto it=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==id;});
@@ -220,7 +234,10 @@ public:
         const auto pressed=held&~previous_; previous_=held;
         // Renderers finish the current screen before committing a return, so
         // the outgoing frame still has its body, focus and scroll state.
-        if(pressed&MenuInput::Back) return deferBack&&mode_==Modal::None?MenuAction{MenuAction::Back}:Return();
+        if(pressed&MenuInput::Back) {
+            if(!deferBack||mode_!=Modal::None) return Return();
+            MenuAction back{MenuAction::Back}; back.keyboard=(in.keyboard&MenuInput::Back)!=0; return back;
+        }
         // The reader scrolls with held directions, which its renderer reads.
         if(Reading()) return {};
         if(Editing()) {
@@ -233,7 +250,7 @@ public:
             }
             return deferText ? MenuAction{MenuAction::SubmitText} : AcceptText(entries);
         }
-        const unsigned shortcut=pressed&(MenuInput::Fighter|MenuInput::Options|MenuInput::Chat);
+        const unsigned shortcut=pressed&(MenuInput::Fighter|MenuInput::Options|MenuInput::Chat|MenuInput::Leave);
         if(shortcut&&mode_==Modal::None) return {MenuAction::Shortcut,{},{},static_cast<int>(shortcut&(~shortcut+1))};
         if(Choosing()) {
             if((pressed&(MenuInput::Left|MenuInput::Up))&&choiceIndex_>0) --choiceIndex_;

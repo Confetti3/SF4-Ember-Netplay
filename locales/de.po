@@ -828,6 +828,9 @@ msgstr "Steuerung"
 msgid "about.controls_detail"
 msgstr "Xbox-Controller: A wählt aus, B geht zurück, unabhängig von der Kampfbelegung. Andere Controller: das zugewiesene LP wählt aus, LK geht zurück. Tastatur: Pfeiltasten, Enter und Escape. Das D-pad bewegt; Links und Rechts ändern einen Wert. Zurück auf der Startseite blendet Ember aus. F10, oder Start am Controller, öffnet es wieder im Hauptmenü des Spiels.\n\nIn einem Raum wählen Sie mit A auf einem Tisch einen Platz, A auf Ihrem eigenen Platz setzt Sie auf Bereit und B verlässt Ihren Platz oder die Warteliste. Am Xbox-Controller öffnet X Kämpfer, Y Optionen und View Chat; erneutes Drücken führt zurück in den Raum.\n\nIm Training öffnet F6 die Steuerung, F5 blendet das HUD aus, F7 nimmt auf und F8 spielt ab."
 
+msgid "about.controls_keyboard"
+msgstr "Auf der Tastatur wählt auch die Leertaste und Rücktaste geht ebenfalls zurück. Im Raum öffnet F den Kämpfer, T die Optionen und C den Chat. Escape geht immer zurück, auch auf dem eigenen Platz; Entf verlässt deinen Platz oder die Warteschlange."
+
 msgid "about.ember"
 msgstr "Über Ember"
 
@@ -1253,6 +1256,9 @@ msgstr "{0} / Farbe {1}"
 
 msgid "selection.ultra_combo"
 msgstr "Ultra Combo"
+
+msgid "selection.ultra_row.detail"
+msgstr "Links und Rechts wechseln hier das Ultra. Auswählen zeigt jedes Ultra mit seiner Eingabe."
 
 msgid "selection.ultra_double"
 msgstr "Ultra Double"

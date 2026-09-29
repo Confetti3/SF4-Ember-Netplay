@@ -540,10 +540,12 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  // B on your own table's card leaves your place there, cancels a start held
  // for a locked-in spectator, or says why a seat cannot be left yet; anywhere
  // else on the board it is the ordinary Back, so Home stays reachable without
- // giving up the place.
+ // giving up the place. On the keyboard Escape always goes back, and Delete
+ // does what B does on your card.
  const auto place=ExitFromPlace(v);
  const bool onOwnPlace=OnOwnPlace(place,focus);
- if(action.kind==MenuAction::Back&&onOwnPlace)action={MenuAction::Activate,"leave-place"};
+ const bool leaveKey=action.kind==MenuAction::Shortcut&&action.delta==MenuInput::Leave;
+ if(onOwnPlace&&((action.kind==MenuAction::Back&&!action.keyboard)||leaveKey))action={MenuAction::Activate,"leave-place"};
  std::string elided;
  const auto text=[&](ImVec2 p,float width,const std::string& value,float size,ImU32 color,bool centred=false){
   if(width<=0)return;
@@ -860,6 +862,8 @@ bool ApplicationShell::GameIsStale(std::size_t table) const {
 // again returns to the board.
 void ApplicationShell::RoomShortcut(const MenuAction& a,const ShellView& v) {
  auto& nav=menu_.navigation;
+ // Delete means something only on your own card (DrawRoomBoard).
+ if(a.delta==MenuInput::Leave)return;
  const char* target=a.delta==MenuInput::Fighter?"selection":a.delta==MenuInput::Options?"room-table":"room-chat";
  if(nav.Screen()==target){nav.Home();nav.Push("room");return;}
  if(a.delta==MenuInput::Fighter){
@@ -875,7 +879,7 @@ void ApplicationShell::RoomShortcut(const MenuAction& a,const ShellView& v) {
   OpenTableOptions(v,onTable?selectedTable_:OptionsTable(v,selectedTable_));
   return;
  }
- if(a.delta==MenuInput::Fighter)selectionFresh_=true;
+ if(a.delta==MenuInput::Fighter)selectionFresh_=changeFighter_=true;
  nav.Home();nav.Push("room");nav.Push(target);
 }
 void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const Submit& submit) {

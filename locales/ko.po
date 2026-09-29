@@ -828,6 +828,9 @@ msgstr "조작법"
 msgid "about.controls_detail"
 msgstr "Xbox 패드: A로 선택, B로 뒤로 갑니다. 대전 버튼 설정과는 무관합니다. 다른 패드: 지정된 LP로 선택, LK로 뒤로 갑니다. 키보드: 방향키, Enter, Esc. D-pad로 이동하고 좌/우로 값을 바꿉니다. 홈에서 뒤로를 누르면 Ember가 숨겨집니다. 게임 메인 메뉴에서 F10(패드는 Start)으로 다시 엽니다.\n\n방에서는 테이블에서 A로 자리를 고르고, 내 자리에서 A로 준비하고, B로 자리나 대기열에서 나갑니다. Xbox 패드에서는 X가 캐릭터, Y가 옵션, View가 채팅을 열며, 다시 누르면 방으로 돌아갑니다.\n\n트레이닝에서는 F6으로 조작 창을 열고, F5로 HUD를 숨기고, F7로 녹화하고, F8로 재생합니다."
 
+msgid "about.controls_keyboard"
+msgstr "키보드에서는 Space로도 선택하고 Backspace로도 돌아갑니다. 방에서는 F로 캐릭터, T로 옵션, C로 채팅을 엽니다. Esc는 내 자리에서도 항상 돌아가며, Delete로 자리나 대기열에서 나갑니다."
+
 msgid "about.ember"
 msgstr "Ember 정보"
 
@@ -1253,6 +1256,9 @@ msgstr "{0} / 색상 {1}"
 
 msgid "selection.ultra_combo"
 msgstr "울트라 콤보"
+
+msgid "selection.ultra_row.detail"
+msgstr "좌우로 여기서 울트라 콤보를 바꿉니다. 선택하면 각 울트라 콤보를 커맨드와 함께 보여 줍니다."
 
 msgid "selection.ultra_double"
 msgstr "울트라 더블"

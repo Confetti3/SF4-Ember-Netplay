@@ -828,6 +828,9 @@ msgstr "操作方法"
 msgid "about.controls_detail"
 msgstr "Xboxパッド：Aで選択、Bで戻ります。対戦用のボタン設定は関係ありません。ほかのパッド：割り当てたLPで選択、LKで戻ります。キーボード：方向キー、Enter、Escape。D-padで移動、左右で値を変更します。ホームで戻るとEmberを隠します。ゲームのメインメニューでは、F10（パッドではStart）でもう一度開けます。\n\nルームでは、テーブルでAを押すと席を選べ、自分の席でAを押すと準備完了になり、Bで席または順番待ちを離れます。XboxパッドではXでキャラ、Yで設定、Viewでチャットを開き、もう一度押すとルームに戻ります。\n\nトレーニングではF6で操作パネルを開き、F5でHUDを隠し、F7でレコーディング、F8で再生します。"
 
+msgid "about.controls_keyboard"
+msgstr "キーボードでは Space でも選択、Backspace でも戻ります。ルームでは F でキャラ、T で設定、C でチャットを開きます。Esc は自分の席の上でも常に戻ります。Delete で席や順番待ちから抜けます。"
+
 msgid "about.ember"
 msgstr "Emberについて"
 
@@ -1253,6 +1256,9 @@ msgstr "{0} / カラー{1}"
 
 msgid "selection.ultra_combo"
 msgstr "ウルトラコンボ"
+
+msgid "selection.ultra_row.detail"
+msgstr "左右でここのウルトラコンボを変更します。決定で各ウルトラコンボをコマンドと一緒に表示します。"
 
 msgid "selection.ultra_double"
 msgstr "ウルトラコンボダブル"

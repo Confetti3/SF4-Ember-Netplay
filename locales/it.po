@@ -828,6 +828,9 @@ msgstr "Comandi"
 msgid "about.controls_detail"
 msgstr "Controller Xbox: A seleziona e B torna indietro, indipendentemente dai tasti di combattimento. Altri controller: l'LP assegnato seleziona e l'LK torna indietro. Tastiera: frecce, Enter e Escape. Il D-pad si muove; Sinistra e Destra cambiano un valore. Indietro nella Home nasconde Ember. F10, o Start sul controller, lo riapre nel menu principale del gioco.\n\nIn una sala, A su un tavolo permette di scegliere un posto, A sul tuo posto ti mette pronto e B lascia il posto o la coda. Su un controller Xbox, X apre Lottatore, Y apre Opzioni e View apre Chat; premilo di nuovo per tornare alla sala.\n\nNell'allenamento, F6 apre i comandi, F5 nasconde l'HUD, F7 registra e F8 riproduce."
 
+msgid "about.controls_keyboard"
+msgstr "Da tastiera, anche Spazio seleziona e Backspace torna indietro. In una stanza, F apre Lottatore, T apre Opzioni e C apre Chat. Esc torna sempre indietro, anche sul tuo posto; Canc lascia il tuo posto o la coda."
+
 msgid "about.ember"
 msgstr "Su Ember"
 
@@ -1253,6 +1256,9 @@ msgstr "{0} / Colore {1}"
 
 msgid "selection.ultra_combo"
 msgstr "Ultra Combo"
+
+msgid "selection.ultra_row.detail"
+msgstr "Sinistra e Destra cambiano qui l'Ultra. Seleziona mostra ogni Ultra con il suo comando."
 
 msgid "selection.ultra_double"
 msgstr "Ultra Double"

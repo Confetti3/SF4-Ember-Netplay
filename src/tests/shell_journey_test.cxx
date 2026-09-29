@@ -195,11 +195,13 @@ void Journeys() {
  // The selector names the board as its way back and shows the room's shortcuts.
  Check(EmbeddedReturnContext().exitName=="Room"&&EmbeddedReturnContext().shortcutHints.size()==3,
   "The fighter selector does not know it returns to the room or which shortcuts it forwards");
- // Leaving the selector on a sub-page and coming back by X opens it at its first page.
- selector.Navigation().Push("appearance");selector.Navigation().Push("costumes");h.Frame();
+ // X opens the selector on the roster, to change the fighter; leaving it on
+ // another sub-page and coming back by X opens the roster again.
+ Check(selector.Navigation().Screen()=="roster","X did not open the selector on the roster");
+ selector.Navigation().Home();selector.Navigation().Push("appearance");selector.Navigation().Push("costumes");h.Frame();
  h.Press(MenuInput::Fighter);Check(h.shell.Navigation().Screen()=="room","X on a selector sub-page did not return to the board");
  h.Press(MenuInput::Fighter);
- Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="home","X reopened the selector on the sub-page it was left on");
+ Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="roster","X reopened the selector on the sub-page it was left on");
  h.Press(MenuInput::Fighter);Check(h.shell.Navigation().Screen()=="room","X in fighter selection did not return to the board");
  h.Press(MenuInput::Fighter);h.Press(MenuInput::Chat);Check(h.shell.Navigation().Screen()=="room-chat","View in fighter selection did not open chat");
  h.Press(MenuInput::Chat);h.selection=[]{};h.view.canEditSelection=false;
@@ -454,6 +456,67 @@ void Journeys() {
  h.view.preferences=h.actions.back().preferences;h.Frame();
  Check(h.shell.Navigation().Screen()=="profile","Retried portrait save did not return to Profile");
 }
+// A keyboard player reaches everything a pad does: F, T and C are X, Y and
+// View, Escape always goes back, and Delete leaves the seat that B leaves.
+void KeyboardJourneys(){
+ using namespace sf4e;
+ Harness h;h.Frame();
+ auto& io=ImGui::GetIO();
+ const auto key=[&](ImGuiKey k){h.Frame();io.AddKeyEvent(k,true);h.Frame();io.AddKeyEvent(k,false);h.Frame();};
+ SetMenuGlyphs(input::PadKeyboard,0,0);
+ h.view.session.generation.room=1;h.view.session.room=netplay::RoomState::Joined;h.view.session.control=netplay::Health::Healthy;
+ h.view.room.roomEpoch=10;h.view.room.localMember=1;h.view.room.host=1;h.view.room.name="Keys";h.view.room.revision=3;
+ for(int i=0;i<4;++i){h.view.room.tables[i].id=i;h.view.room.tables[i].revision=7;}
+ room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;h.view.room.members.push_back(local);
+ h.view.room.tables[0].p1=1;
+ h.Screen("room");h.FocusOn("table-0");
+ std::set<std::string> legend;
+ SetMenuTextProbe([&](const char* id,float,float,float,float){if(!std::strncmp(id,"legend/",7))legend.insert(id+7);});
+ h.Frame();SetMenuTextProbe({});
+ Check(KeyboardPrompts(),"A keyboard player does not see keyboard prompts");
+ Check(legend.count(loc::T("room.leave_seat"))&&legend.count(loc::T("room.legend_fighter"))&&legend.count(loc::T("common.back")),
+  "The keyboard legend lacks Delete's Leave seat, F's Fighter or Escape's Back");
+ // Escape on your own card goes back to Home and keeps the seat.
+ auto before=h.actions.size();key(ImGuiKey_Escape);
+ Check(h.shell.Navigation().Screen()=="home"&&h.actions.size()==before,"Escape on your own card left the seat");
+ h.Screen("room");h.FocusOn("table-0");
+ // Delete there leaves it, like a pad's B.
+ key(ImGuiKey_Delete);
+ Check(h.actions.size()==before+1&&h.actions.back().roomAction.kind==room::ActionKind::Unqueue,"Delete on your own card did not leave the seat");
+ // Delete anywhere else does nothing.
+ before=h.actions.size();h.FocusOn("copy");key(ImGuiKey_Delete);
+ Check(h.actions.size()==before&&h.shell.Navigation().Screen()=="room","Delete away from your card did something");
+ // T and C open table options and chat, and again return to the board.
+ key(ImGuiKey_T);Check(h.shell.Navigation().Screen()=="room-table","T did not open the table options");
+ key(ImGuiKey_T);Check(h.shell.Navigation().Screen()=="room","T again did not return to the board");
+ key(ImGuiKey_C);Check(h.shell.Navigation().Screen()=="room-chat","C did not open chat");
+ // Typing a message keeps every key for the text: F, T, C and Backspace
+ // neither open anything nor cancel the draft.
+ h.Choose("compose");Check(h.shell.Navigation().Editing(),"Compose did not open the editor");
+ h.Frame();io.AddInputCharactersUTF8("fct");key(ImGuiKey_F);key(ImGuiKey_T);key(ImGuiKey_Backspace);key(ImGuiKey_Space);
+ Check(h.shell.Navigation().Editing()&&h.shell.Navigation().Screen()=="room-chat","Typing in chat pressed a menu key");
+ key(ImGuiKey_Escape);Check(!h.shell.Navigation().Editing(),"Escape did not close the editor");
+ key(ImGuiKey_C);Check(h.shell.Navigation().Screen()=="room","C again did not return to the board");
+ // F opens fighter select on the roster, at the current fighter; picking
+ // one goes on to its Ultra, and the Ultra returns to the room.
+ FighterSelector selector;selection::Pick pick;pick.fighter=4;pick.edition=14;
+ h.selection=[&]{selector.Draw(pick,false,nullptr,{},nullptr,true);};h.view.canEditSelection=true;
+ key(ImGuiKey_F);
+ Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="roster"&&selector.Navigation().Focus()=="fighter-4",
+  "F did not open the roster at the current fighter");
+ key(ImGuiKey_RightArrow);key(ImGuiKey_Enter);
+ Check(pick.fighter==5&&selector.Navigation().Screen()=="ultra","Picking a fighter did not go on to its Ultra");
+ key(ImGuiKey_RightArrow);key(ImGuiKey_KeypadEnter);
+ Check(pick.ultra==1&&h.shell.Navigation().Screen()=="room","Picking the Ultra did not return to the room");
+ // Back from the roster returns to the room as well.
+ key(ImGuiKey_F);key(ImGuiKey_Backspace);
+ Check(h.shell.Navigation().Screen()=="room","Back from the roster did not return to the room");
+ // A pad press puts the pad's prompts back; a key brings the keys again.
+ SetMenuGlyphs(input::PadXInput,input::xinput::A,input::xinput::B);
+ h.Press(MenuInput::Down);Check(!KeyboardPrompts(),"A pad press left keyboard prompts up");
+ key(ImGuiKey_UpArrow);Check(KeyboardPrompts(),"A key press kept the pad's prompts");
+ h.selection=[]{};
+}
 void PresentationJourneys(){
  Check(MenuScreenLabel("room-members")=="Members"&&MenuScreenLabel("player")=="Player & controller","Internal screen keys leaked into Back labels");
  auto text=TextRow("name","Name","Player",31);auto value=Value("delay","Delay","2","Frames");
@@ -505,18 +568,39 @@ void AppearanceGalleries(){
  frame(0,false);
  available.colors[1]=5;selector.Navigation().Return();selector.Navigation().Push("ultra");frame();frame();
  std::vector<MenuEntry> ultras;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){ultras=rows;});
- press(MenuInput::Down);Check(pick.ultra==0,"Ultra focus committed a choice");
- Check(press(MenuInput::Select)&&pick.ultra==1,"Ultra II did not save");
- press(MenuInput::Up);frame();
+ frame();
+ // The Ultras are photo cards; Select saves one and returns to the selector's home.
+ selector.Navigation().Focus("ultra-1",ultras);frame();Check(pick.ultra==0,"Ultra focus committed a choice");
+ Check(press(MenuInput::Select)&&pick.ultra==1&&selector.Navigation().Screen()=="home","Ultra II did not save and return");
+ selector.Navigation().Push("ultra");frame();frame();
  Check(pick.ultra==1&&ultras.size()>=2&&ultras[1].value=="SAVED"&&ultras[0].value.empty(),"Saved Ultra has no persistent selection marker separate from focus");
  Dimps::GameEvents::VsMode::ConfirmedCharaConditions native{};
  selection::ToNative(pick,native);pick=selection::FromNative(native);frame();
  Check(pick.ultra==1&&ultras[1].value=="SAVED","Native selection round trip lost Ultra II");
- press(MenuInput::Select,false);Check(pick.ultra==1,"Locked Ultra selection changed");
- press(MenuInput::Down);press(MenuInput::Down);press(MenuInput::Select);frame();
- Check(pick.ultra==2&&ultras[2].value=="SAVED","Ultra Double did not save");
- selector.Navigation().Return();selector.Navigation().Push("ultra");frame();frame();
+ selector.Navigation().Focus("ultra-0",ultras);press(MenuInput::Select,false);Check(pick.ultra==1,"Locked Ultra selection changed");
+ selector.Navigation().Focus("ultra-2",ultras);press(MenuInput::Select);
+ Check(pick.ultra==2&&selector.Navigation().Screen()=="home","Ultra Double did not save");
+ selector.Navigation().Push("ultra");frame();frame();
  Check(pick.ultra==2&&ultras[2].value=="SAVED","Reopening Ultra lost saved selection");
+ // On the home page Left and Right change the Ultra in place, and Select
+ // still opens the cards.
+ selector.Navigation().Home();frame();selector.Navigation().Focus("ultra",ultras);frame();
+ Check(press(MenuInput::Left)&&pick.ultra==1&&selector.Navigation().Screen()=="home","Left on Ultra Combo did not step back to Ultra II");
+ Check(!press(MenuInput::Left,false)&&pick.ultra==1,"Locked Ultra Combo row still steps");
+ press(MenuInput::Select);Check(selector.Navigation().Screen()=="ultra","Select on Ultra Combo did not open the cards");
+ // Picking a fighter goes on to its Ultra, focused on the one it has; Back
+ // there keeps the new fighter and returns to the roster.
+ selector.Navigation().Home();selector.Navigation().Push("roster");frame();frame();
+ selector.Navigation().Focus("fighter-5",ultras);press(MenuInput::Select);
+ Check(pick.fighter==5&&selector.Navigation().Screen()=="ultra"&&selector.Navigation().Focus()=="ultra-1","Picking a fighter did not go on to its Ultra");
+ press(MenuInput::Back);Check(pick.fighter==5&&pick.ultra==1&&selector.Navigation().Screen()=="roster","Back from the Ultra step lost the fighter");
+ // A fighter with a single Ultra in its edition skips the step.
+ auto single=[&](unsigned buttons){SetMenuInput({buttons,0});ImGui::NewFrame();ImGui::Begin("Gallery test");
+  selector.Draw(pick,true,nullptr,[&](int){return available;},nullptr,true);ImGui::End();ImGui::Render();};
+ pick.fighter=0;pick.edition=13;pick.ultra=0;single(0);single(0);
+ Check(selection::AllowedUltras(0,13).size()==1,"Ryu's SFIV edition should have one Ultra");
+ selector.Navigation().Focus("fighter-0",ultras);single(0);single(MenuInput::Select);single(0);
+ Check(pick.edition==13&&selector.Navigation().Screen()=="home","A single-Ultra fighter still asked for its Ultra");
  SetMenuEntriesProbe({});
 }
 // A notice raised while an editor or a confirmation is open must be seen, and
@@ -740,5 +824,5 @@ void TrainingJourneys() {
  TakeForwardedMenuAction();
 }
 }
-int main(){try{Journeys();NoticeOverDialogs();LanguageSaveFailure();SessionReports();RecoveryWindow();SelectorPages();SelectorFromHome();DeveloperSelectors();TrainingJourneys();PresentationJourneys();AppearanceGalleries();std::cout<<"Shell journeys through the renderer passed.\n";return 0;}
+int main(){try{Journeys();KeyboardJourneys();NoticeOverDialogs();LanguageSaveFailure();SessionReports();RecoveryWindow();SelectorPages();SelectorFromHome();DeveloperSelectors();TrainingJourneys();PresentationJourneys();AppearanceGalleries();std::cout<<"Shell journeys through the renderer passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

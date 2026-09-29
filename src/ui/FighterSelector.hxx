@@ -28,6 +28,8 @@ public:
 private:
     GameMenu menu_;
     Page page_ = Page::Fighter;
+    // Opened to change the fighter (EmbeddedReturn::changeFighter).
+    bool changeFighter_ = false;
     std::string notice_;
 };
 } }

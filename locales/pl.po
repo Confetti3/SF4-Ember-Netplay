@@ -828,6 +828,9 @@ msgstr "Sterowanie"
 msgid "about.controls_detail"
 msgstr "Kontroler Xbox: A wybiera, B cofa, niezależnie od przycisków walki. Inne kontrolery: przypisany LP wybiera, LK cofa. Klawiatura: strzałki, Enter i Escape. D-pad porusza; Lewo i Prawo zmieniają wartość. Powrót na ekranie Start ukrywa Ember. F10 (lub przycisk Start na kontrolerze) otwiera go ponownie w menu głównym gry.\n\nW pokoju A na stole pozwala wybrać miejsce, A na własnym miejscu ustawia Gotowe, a B opuszcza miejsce lub kolejkę. Na kontrolerze Xbox X otwiera Postać, Y otwiera Opcje, a View otwiera Czat; naciśnij ponownie, aby wrócić do pokoju.\n\nW treningu F6 otwiera sterowanie, F5 ukrywa HUD, F7 nagrywa, a F8 odtwarza."
 
+msgid "about.controls_keyboard"
+msgstr "Na klawiaturze Spacja też wybiera, a Backspace też cofa. W pokoju F otwiera Postać, T Opcje, a C Czat. Escape zawsze cofa, także na twoim miejscu; Delete opuszcza miejsce lub kolejkę."
+
 msgid "about.ember"
 msgstr "O Ember"
 
@@ -1253,6 +1256,9 @@ msgstr "{0} / Kolor {1}"
 
 msgid "selection.ultra_combo"
 msgstr "Ultra Combo"
+
+msgid "selection.ultra_row.detail"
+msgstr "Lewo i Prawo zmieniają tu Ultra. Wybór pokazuje każde Ultra z jego komendą."
 
 msgid "selection.ultra_double"
 msgstr "Podwójne Ultra"

@@ -828,6 +828,9 @@ msgstr "Controls"
 msgid "about.controls_detail"
 msgstr "Xbox pad: A selects, B goes back, and the fighting buttons do not matter. Other pads: the LP you mapped selects and LK goes back. Keyboard: arrows, Enter and Escape. The D-pad moves; Left and Right change a value. Back at Home hides Ember. F10, or Start on a pad, opens it again at the game's main menu.\n\nIn a room, A on a table lets you pick a seat, A on your own seat readies up, and B leaves your seat or queue place. On an Xbox pad, X opens Fighter, Y opens Options and View opens Chat; press it again to return to the room.\n\nIn training, F6 opens the controls, F5 hides the HUD, F7 records and F8 plays."
 
+msgid "about.controls_keyboard"
+msgstr "On the keyboard, Space also selects and Backspace also goes back. In a room, F opens Fighter, T opens Options and C opens Chat. Escape always goes back, even on your own seat; Delete leaves your seat or queue place."
+
 msgid "about.ember"
 msgstr "About Ember"
 
@@ -1253,6 +1256,9 @@ msgstr "{0} / Color {1}"
 
 msgid "selection.ultra_combo"
 msgstr "Ultra Combo"
+
+msgid "selection.ultra_row.detail"
+msgstr "Left and Right change the Ultra here. Select shows each Ultra with its input."
 
 msgid "selection.ultra_double"
 msgstr "Ultra Double"
