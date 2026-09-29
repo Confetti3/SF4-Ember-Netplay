@@ -1,12 +1,14 @@
 #pragma once
 
 // The Win32 half of the crash record (F-015). A process that dies with an
-// unhandled exception, a CRT fault or a GGPO assertion leaves
-// sf4e/logs/sf4e-crash.log (the fault, the module and offset, the last log
-// lines) and sf4e-crash.dmp, written synchronously from the failing thread
-// before the asynchronous logger gets a chance to lose them. The portable
-// model lives in common/CrashReport.hxx.
+// unhandled exception, heap corruption, a CRT fault or a GGPO assertion
+// leaves sf4e/logs/sf4e-crash.log (the fault, the module and offset, the
+// last log lines), written synchronously from the failing thread before the
+// asynchronous logger gets a chance to lose them, and sf4e-crash.dmp, which
+// the launcher writes when it started the game (common/CrashDump.hxx). The
+// portable model lives in common/CrashReport.hxx.
 
+#include <windows.h>
 #include <spdlog/spdlog.h>
 
 namespace sf4e {
@@ -18,6 +20,16 @@ spdlog::sink_ptr RingSink();
 // Installs the handlers and sets where the record and the dump go. Call
 // once, after the logger exists, on the game thread.
 void Install(const wchar_t* logsDirectory);
+
+// The launcher's dump channel from the payload. Without it the game writes
+// the dump itself.
+void ConfigureDumpChannel(HANDLE request, HANDLE done, HANDLE mailbox);
+
+// SF4E_HEAP_CHECK=<n> validates every process heap after every n-th
+// save-state operation, and at each match boundary, and logs the first one
+// after which a heap no longer validates. A pass can take milliseconds, so
+// it is for reproducing a corruption, not for play. Game thread only.
+void HeapCheckpoint(const char* operation, int frame);
 
 // GGPO's assertion handler: records the message, then GGPO exits.
 void OnGgpoAssertion(const char* message);

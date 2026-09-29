@@ -72,6 +72,9 @@ msgstr "游戏启动或注入失败。请查看启动器日志（%APPDATA%\\sf4e
 msgid "launcher.game_error"
 msgstr "游戏异常退出。请查看启动器日志（%APPDATA%\\sf4e\\logs\\launcher.log）后重试。"
 
+msgid "launcher.game_crashed"
+msgstr "游戏崩溃了。请将 %APPDATA%\\sf4e\\logs 中的文件（sf4e.log、sf4e-crash.log 和 sf4e-crash.dmp）发送给 SF4 Ember Netplay 团队，然后重试。"
+
 msgid "launcher.runtime_shadowed"
 msgstr "游戏将加载以下文件，而非 Ember 文件夹中的版本。旧版文件会使游戏无法启动（\"entry point ggpo_get_last_confirmed_frame not found\"）。这些文件来自其他联机模组或旧版安装。请移动或重命名后重启 Ember：\n\n{0}"
 

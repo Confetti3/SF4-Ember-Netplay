@@ -72,6 +72,9 @@ msgstr "Falló el inicio o la inyección. Consulta el registro del lanzador en %
 msgid "launcher.game_error"
 msgstr "El juego se cerró con un error. Consulta el registro del lanzador en %APPDATA%\\sf4e\\logs\\launcher.log y vuelve a intentarlo."
 
+msgid "launcher.game_crashed"
+msgstr "El juego se ha bloqueado. Envía al equipo de SF4 Ember Netplay los archivos de %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log y sf4e-crash.dmp) y vuelve a intentarlo."
+
 msgid "launcher.runtime_shadowed"
 msgstr "El juego cargaría estos archivos en vez de los de la carpeta de Ember, y una copia antigua impediría que arrancase (\"entry point ggpo_get_last_confirmed_frame not found\"). Proceden de otro mod de netplay o de una instalación anterior. Muévelos o cámbiales el nombre y vuelve a iniciar Ember:\n\n{0}"
 

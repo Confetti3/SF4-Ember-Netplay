@@ -15,9 +15,13 @@ namespace sf4e {
 
 	typedef struct Payload {
 		uint32_t magic = 0x53463442; // SF4 bootstrap, independent of session settings.
-		uint32_t version = 1;
+		uint32_t version = 2;
 		Args args;
 		HANDLE hSyncEvent = NULL;
+		// The launcher's crash dump channel (common/CrashDump.hxx).
+		HANDLE hDumpRequest = NULL;
+		HANDLE hDumpDone = NULL;
+		HANDLE hDumpMailbox = NULL;
 		platform::HelperBootstrap helper;
         platform::HelperBootstrap discord;
 		uint32_t helperError = 0;
@@ -25,7 +29,7 @@ namespace sf4e {
 	} Payload;
 
 	inline bool IsCompatiblePayload(const Payload* payload, size_t length) {
-		return payload && length == sizeof(Payload) && payload->magic == 0x53463442 && payload->version == 1 &&
+		return payload && length == sizeof(Payload) && payload->magic == 0x53463442 && payload->version == 2 &&
 			payload->netplay.version == SF4E_NETPLAY_CONFIG_VERSION;
 	}
 

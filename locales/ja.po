@@ -72,6 +72,9 @@ msgstr "ゲームの起動または組み込みに失敗しました。ランチ
 msgid "launcher.game_error"
 msgstr "ゲームがエラーで終了しました。ランチャーのログ（%APPDATA%\\sf4e\\logs\\launcher.log）を確認して再試行してください。"
 
+msgid "launcher.game_crashed"
+msgstr "ゲームがクラッシュしました。%APPDATA%\\sf4e\\logs 内のファイル（sf4e.log、sf4e-crash.log、sf4e-crash.dmp）を SF4 Ember Netplay チームに送ってから再試行してください。"
+
 msgid "launcher.runtime_shadowed"
 msgstr "ゲームがEmberフォルダーの代わりに次のファイルを読み込もうとしています。古いファイルがあると起動前に停止します（\"entry point ggpo_get_last_confirmed_frame not found\"）。別のネット対戦MODまたは古いインストールの残りです。移動または名前を変更してからEmberを再起動してください：\n\n{0}"
 

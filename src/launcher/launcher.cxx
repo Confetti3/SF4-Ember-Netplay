@@ -28,6 +28,7 @@
 
 #include "../sf4e/sf4e.hxx"
 #include "../sidecar/sidecar.hxx"
+#include "../common/CrashDump.hxx"
 #include "../common/CrashReport.hxx"
 #include "../common/sf4e__NetplayConfig.hxx"
 #include "../common/install_paths.hxx"
@@ -40,6 +41,9 @@
 
 LPCWCH szLibrarySuffix = L"steamapps\\common\\Super Street Fighter IV - Arcade Edition";
 
+// Where the launcher and the game both log; the crash dump goes here too.
+wchar_t g_logsDir[MAX_PATH] = { 0 };
+
 void ConfigureLauncherLogging() {
 	PWSTR appData = NULL;
 	if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData) != S_OK) {
@@ -47,7 +51,7 @@ void ConfigureLauncherLogging() {
 	}
 
 	wchar_t sf4eDir[MAX_PATH] = { 0 };
-	wchar_t logsDir[MAX_PATH] = { 0 };
+	wchar_t* logsDir = g_logsDir;
 	wchar_t logPath[MAX_PATH] = { 0 };
 	if (SUCCEEDED(PathCchCombine(sf4eDir, MAX_PATH, appData, L"sf4e"))) {
 		CreateDirectoryW(sf4eDir, NULL);
@@ -244,6 +248,20 @@ void CreateAppIDFile(LPWSTR szGuiltyDirectory) {
 	}
 }
 
+// A fail-fast (0xC0000409) skips every handler in the game. Windows Error
+// Reporting still writes a dump when LocalDumps is set up for SSFIV.exe
+// (docs/guides/USER_NETPLAY.md); name it so it reaches the report.
+void NoteWindowsCrashDump(DWORD processId) {
+	PWSTR localAppData = NULL;
+	if (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &localAppData) != S_OK) return;
+	wchar_t name[64] = {}, path[MAX_PATH] = {};
+	StringCchPrintfW(name, 64, L"CrashDumps\\SSFIV.exe.%lu.dmp", processId);
+	const bool named = SUCCEEDED(PathCchCombine(path, MAX_PATH, localAppData, name));
+	CoTaskMemFree(localAppData);
+	if (named && GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES) spdlog::info(L"Windows wrote a crash dump to {}", path);
+	else spdlog::info("No crash dump from Sidecar or Windows Error Reporting; see USER_NETPLAY.md to turn on LocalDumps");
+}
+
 HANDLE CreateSF4Process(
 	const sf4e::Payload& payload,
 	sf4e::platform::HelperProcess& helper,
@@ -252,7 +270,8 @@ HANDLE CreateSF4Process(
 	LPWSTR szGameDirectory,
 	LPWSTR szExePath,
 	int nDlls,
-	LPCSTR* rlpDlls
+	LPCSTR* rlpDlls,
+	sf4e::crash::DumpChannel& dumps
 ) {
 	wchar_t szErrorString[1024] = { 0 };
 	DWORD dwError;
@@ -314,6 +333,14 @@ HANDLE CreateSF4Process(
 		if (!DuplicateHandle(GetCurrentProcess(), hSyncEvent, pi.hProcess, &p.hSyncEvent, 0, false, DUPLICATE_SAME_ACCESS)) {
 			spdlog::warn("CreateSF4Process: DuplicateHandle() could not duplicate game sync handle, game may be unable to access Steam: err {}", GetLastError());
 		}
+	}
+	// Without the channel the game writes its own crash dump.
+	if (dumps.view && !(
+		DuplicateHandle(GetCurrentProcess(), dumps.request, pi.hProcess, &p.hDumpRequest, 0, false, DUPLICATE_SAME_ACCESS) &&
+		DuplicateHandle(GetCurrentProcess(), dumps.done, pi.hProcess, &p.hDumpDone, 0, false, DUPLICATE_SAME_ACCESS) &&
+		DuplicateHandle(GetCurrentProcess(), dumps.mailbox, pi.hProcess, &p.hDumpMailbox, 0, false, DUPLICATE_SAME_ACCESS))) {
+		spdlog::warn("CreateSF4Process: could not hand the crash dump channel to the game (Win32 {})", GetLastError());
+		p.hDumpRequest = p.hDumpDone = p.hDumpMailbox = NULL;
 	}
 	if (!DetourCopyPayloadToProcess(pi.hProcess, sf4eSidecar::s_guidSidecarPayload, &p, sizeof(sf4e::Payload))) {
 		StringCchPrintf(szErrorString, 1024, L"DetourCopyPayloadToProcess failed: %d", GetLastError());
@@ -613,18 +640,36 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         CreateAppIDFile(location.directory.data());
         sf4e::platform::HelperProcess helper, discord;
         const auto helperPath = std::filesystem::path(installRoot)/L"sf4-net.exe";
-        HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),location.directory.data(),location.executable.data(),1,dlls);
+        sf4e::crash::DumpChannel dumps;
+        if (!dumps.Create()) spdlog::warn("Could not create the crash dump channel (Win32 {})", GetLastError());
+        HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),location.directory.data(),location.executable.data(),1,dlls,dumps);
         if (!game) {
+            dumps.Close();
             if (!ShowRecovery(sf4e::loc::T("launcher.start_failed"),chosenDirectory)) return 0;
             continue;
         }
-        WaitForSingleObject(game,INFINITE);
+        // The game's crash handler asks for its dump here and waits for it.
+        bool dumped = false;
+        for (;;) {
+            const HANDLE waits[] = {game, dumps.request};
+            if (WaitForMultipleObjects(dumps.view ? 2 : 1, waits, FALSE, INFINITE) != WAIT_OBJECT_0 + 1) break;
+            wchar_t dumpPath[MAX_PATH] = {};
+            const bool named = g_logsDir[0] && SUCCEEDED(PathCchCombine(dumpPath, MAX_PATH, g_logsDir, L"sf4e-crash.dmp"));
+            if (named && dumps.Serve(game, dumpPath)) { dumped = true; spdlog::info(L"Wrote the game's crash dump to {}", dumpPath); }
+            else {
+                if (!named) SetEvent(dumps.done);
+                spdlog::warn("Could not write the game's crash dump (Win32 {})", GetLastError());
+            }
+        }
+        dumps.Close();
         DWORD exitCode = 0; GetExitCodeProcess(game,&exitCode);
         spdlog::info("Game exited with code {:#010x} ({})", exitCode, sf4e::crash::ExitCodeName(exitCode));
+        const bool crashed = sf4e::crash::IsCrashExit(exitCode);
+        if (crashed && !dumped) NoteWindowsCrashDump(GetProcessId(game));
         discord.Stop(); helper.Stop(); CloseHandle(game);
         // A loader failure never reaches Sidecar's crash record, so the exit
         // code is the only thing that tells a missing export from a crash.
-        const char* exitMessage = exitCode == 0xC0000139u ? "launcher.game_wrong_dll" : "launcher.game_error";
+        const char* exitMessage = exitCode == 0xC0000139u ? "launcher.game_wrong_dll" : crashed ? "launcher.game_crashed" : "launcher.game_error";
         if (exitCode != 0 && ShowRecovery(sf4e::loc::T(exitMessage),chosenDirectory)) continue;
         return 0;
     }

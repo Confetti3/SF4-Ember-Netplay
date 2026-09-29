@@ -36,6 +36,12 @@ static void AssertSaveStateThreadAffinity() {
 // battle does not reallocate. Save warns once if the count outgrows it.
 static constexpr std::size_t kSaveStateKeyReservation = 96;
 
+// The live simulation frame, for diagnostics; -1 outside a battle.
+static int SimulatedFrame() {
+    rSystem* system = rSystem::staticMethods.GetSingleton();
+    return system ? (int)rSystem::GetNumFramesSimulated_FixedPoint(system)->integral : -1;
+}
+
 fSystem::SaveState::SaveState() {
     keys.reserve(kSaveStateKeyReservation);
     // Sound records: clear() keeps criPlayerState's capacity and Reset()
@@ -455,6 +461,37 @@ static uint64_t HashLiveStateForFreeCheck(bool includeKeys) {
     return hasher.Value();
 }
 
+// The swap release and a load both write saved keys back to their
+// addresses, which assumes those keys still exist (SAVESTATE_FREE.md). A key
+// the engine has cleared since the save no longer does; its object may be
+// gone, and writing to it would corrupt the heap. Say so once per process,
+// so a field log shows whether that assumption ever breaks.
+static void NoteUntrackedKeys(const fSystem::SaveState* state, const char* operation) {
+    static bool s_noted = false;
+    if (s_noted) {
+        return;
+    }
+    size_t untracked = 0;
+    for (const auto& entry : state->keys) {
+        if (entry.first && fKey::trackedKeys.find(entry.first) == fKey::trackedKeys.end()) {
+            ++untracked;
+        }
+    }
+    if (!untracked) {
+        return;
+    }
+    s_noted = true;
+    spdlog::error(
+        "SaveState: {} of {} saved keys are no longer tracked by the engine at {} (simFrame={} ggpoFrame={} live={})",
+        untracked,
+        state->keys.size(),
+        operation,
+        state->simulationFrame,
+        state->ggpoFrame,
+        SimulatedFrame()
+    );
+}
+
 // Default release. The engine's ClearKey (0x52F3D0) uses the live mementoable
 // object only to find its vtable, and every memento destructor it reaches
 // touches memento-owned memory alone (docs/design/SAVESTATE_FREE.md). So the victim's
@@ -463,6 +500,7 @@ static uint64_t HashLiveStateForFreeCheck(bool includeKeys) {
 static void FreeBySwap(fSystem::SaveState* victim) {
     diag::ScopedTimer _t(diag::OP_FREE_SWAP);
     if (victim->ownsKeys) {
+        NoteUntrackedKeys(victim, "release");
         for (auto& entry : victim->keys) {
             if (!entry.first) {
                 continue;
@@ -514,6 +552,7 @@ void fSystem::SaveState::Free(SaveState* victim) {
         }
         diag::G().occupiedSaveSlots.Update(occupied);
     }
+    sf4e::crash::HeapCheckpoint("free", SimulatedFrame());
 }
 
 // v0.8.5 release, kept for SF4E_LEGACY_SAVESTATE_FREE A/B comparison.
@@ -612,6 +651,7 @@ bool fSystem::SaveState::Load(SaveState* src) {
         }
     }
 
+    NoteUntrackedKeys(src, "load");
     sf4e::Game::MementoFailure::restore = false;
     {
         diag::ScopedTimer _t(diag::OP_LOAD_COPY_INTO_PLACE);
@@ -646,6 +686,7 @@ bool fSystem::SaveState::Load(SaveState* src) {
     for (auto iter = tmpVec.begin(); iter != tmpVec.end(); iter++) {
         *iter->first = iter->second;
     }
+    sf4e::crash::HeapCheckpoint("load", src->simulationFrame);
     return !sf4e::Game::MementoFailure::restore;
 }
 
@@ -765,5 +806,6 @@ bool fSystem::SaveState::Save(SaveState* dst, bool temporary) {
     dst->d.BattleFlowCallback_CallEveryFrame_aa9254 = *rSystem::staticVars.BattleFlowCallback_CallEveryFrame_aa9254;
 
     memcpy_s(&dst->d.gameManager, sizeof(GameManager), (system->*rSystem::publicMethods.GetGameManager)(), sizeof(GameManager));
+    if (!temporary) sf4e::crash::HeapCheckpoint("save", SimulatedFrame());
     return true;
 }

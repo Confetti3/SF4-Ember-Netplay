@@ -55,6 +55,13 @@ static void TestExitCodeNames() {
 	CHECK(std::string(ExitCodeName(0xC0000139u)).find("entry point not found") == 0);
 	CHECK(std::string(ExitCodeName(0xC0000139u)).find("GGPO.dll") != std::string::npos);
 	CHECK(std::string(ExitCodeName(0x12345678u)) == "unknown");
+	CHECK(IsCrashExit(0xC0000374u));
+	CHECK(IsCrashExit(0xC0000005u));
+	CHECK(IsCrashExit(0xC0000409u));
+	CHECK(IsCrashExit(0xE06D7363u));
+	CHECK(!IsCrashExit(0));
+	CHECK(!IsCrashExit(0xC0000139u));
+	CHECK(!IsCrashExit(0xC0000135u));
 }
 
 static void TestHeaderNamesTheFault() {

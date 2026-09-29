@@ -16,7 +16,9 @@
 #include <spdlog/details/null_mutex.h>
 #include <spdlog/sinks/base_sink.h>
 
+#include "../common/CrashDump.hxx"
 #include "../common/CrashReport.hxx"
+#include "../common/EnvFlag.hxx"
 #include "sf4e__Platform.hxx"
 
 namespace {
@@ -28,6 +30,7 @@ Ring s_ring;
 wchar_t s_recordPath[MAX_PATH] = {};
 wchar_t s_dumpPath[MAX_PATH] = {};
 LPTOP_LEVEL_EXCEPTION_FILTER s_previousFilter = nullptr;
+sf4e::crash::DumpClient s_dumpClient;
 // One record per process: a fault inside the record must not recurse.
 std::atomic<bool> s_recording(false);
 // Static so the record needs no stack in a stack overflow.
@@ -93,10 +96,14 @@ void WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 	HANDLE file = CreateFileW(s_recordPath, FILE_APPEND_DATA, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (file != INVALID_HANDLE_VALUE) WriteText(file, s_header, headerLength);
 	// The asynchronous logger may still hold the last lines: give its worker
-	// a moment, then take the ring, which now also carries this line.
-	spdlog::critical("Crash: {:.{}}", s_header, headerLength ? headerLength - 1 : 0); // without the newline
-	spdlog::default_logger()->flush();
-	Sleep(250);
+	// a moment, then take the ring, which now also carries this line. After
+	// heap corruption the worker may be stuck on the heap, and a flush could
+	// wait for it forever, so the ring is taken as it stands.
+	if (!sf4e::crash::IsHeapCorruption(pointers)) {
+		spdlog::critical("Crash: {:.{}}", s_header, headerLength ? headerLength - 1 : 0); // without the newline
+		spdlog::default_logger()->flush();
+		Sleep(250);
+	}
 	if (file != INVALID_HANDLE_VALUE) {
 		WriteText(file, "last log lines:\n", 16);
 		s_ring.ForEach([&](const char* line) {
@@ -106,11 +113,15 @@ void WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 		CloseHandle(file);
 	}
 	if (!pointers) return;
-	HANDLE dump = CreateFileW(s_dumpPath, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-	if (dump == INVALID_HANDLE_VALUE) return;
-	MINIDUMP_EXCEPTION_INFORMATION exception = { GetCurrentThreadId(), pointers, FALSE };
-	MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), dump, MiniDumpNormal, &exception, nullptr, nullptr);
-	CloseHandle(dump);
+	if (s_dumpClient.Request(pointers)) return;
+	sf4e::crash::WriteDump(GetCurrentProcess(), GetCurrentProcessId(), s_dumpPath, GetCurrentThreadId(), pointers, false);
+}
+
+// Heap corruption ends the process without reaching the unhandled-exception
+// filter; ntdll raises it once first, and only a vectored handler sees that.
+LONG CALLBACK OnVectoredException(EXCEPTION_POINTERS* pointers) {
+	if (sf4e::crash::IsHeapCorruption(pointers)) WriteRecord("heap_corruption", pointers, nullptr);
+	return EXCEPTION_CONTINUE_SEARCH;
 }
 
 LONG WINAPI OnUnhandledException(EXCEPTION_POINTERS* pointers) {
@@ -159,6 +170,50 @@ sf4e::crash::AddressSpaceSummary WalkAddressSpace() {
 	return summary;
 }
 
+struct HeapCheck {
+	unsigned interval = 0;
+	unsigned count = 0;
+	bool failed = false;
+	const char* lastOperation = "start";
+	int lastFrame = -1;
+};
+
+HeapCheck& HeapCheckState() {
+	static HeapCheck check = [] {
+		HeapCheck value;
+		char text[16] = {};
+		const DWORD length = GetEnvironmentVariableA("SF4E_HEAP_CHECK", text, sizeof(text));
+		if (length && length < sizeof(text)) value.interval = strtoul(text, nullptr, 10);
+		if (value.interval) spdlog::info("HeapCheck: validating every process heap after every {} save-state operations", value.interval);
+		return value;
+	}();
+	return check;
+}
+
+// The first heap that does not validate, or nullptr.
+HANDLE FirstInvalidHeap() {
+	HANDLE heaps[256];
+	const DWORD count = GetProcessHeaps(256, heaps);
+	for (DWORD i = 0; i < count && i < 256; ++i)
+		if (!HeapValidate(heaps[i], 0, nullptr)) return heaps[i];
+	return nullptr;
+}
+
+void CheckHeaps(const char* operation, int frame, bool always) {
+	HeapCheck& check = HeapCheckState();
+	if (!check.interval || check.failed) return;
+	if (!always && ++check.count % check.interval) return;
+	const HANDLE invalid = FirstInvalidHeap();
+	if (!invalid) {
+		check.lastOperation = operation;
+		check.lastFrame = frame;
+		return;
+	}
+	check.failed = true;
+	spdlog::error("HeapCheck: heap {} no longer validates after {} frame={}; it last passed after {} frame={}",
+		(void*)invalid, operation, frame, check.lastOperation, check.lastFrame);
+}
+
 } // namespace
 
 namespace sf4e {
@@ -175,6 +230,7 @@ void Install(const wchar_t* logsDirectory) {
 	ULONG reserve = 16 * 1024;
 	SetThreadStackGuarantee(&reserve);
 	s_previousFilter = SetUnhandledExceptionFilter(OnUnhandledException);
+	AddVectoredExceptionHandler(1, OnVectoredException);
 	std::set_terminate(OnTerminate);
 	_set_purecall_handler(OnPureCall);
 	_set_invalid_parameter_handler(OnInvalidParameter);
@@ -183,11 +239,20 @@ void Install(const wchar_t* logsDirectory) {
 	spdlog::info("Crash record: sf4e-crash.log and sf4e-crash.dmp beside sf4e.log");
 }
 
+void ConfigureDumpChannel(HANDLE request, HANDLE done, HANDLE mailbox) {
+	s_dumpClient.Configure(request, done, mailbox);
+}
+
 void OnGgpoAssertion(const char* message) {
 	WriteRecord("ggpo_assertion", nullptr, message);
 }
 
+void HeapCheckpoint(const char* operation, int frame) {
+	CheckHeaps(operation, frame, false);
+}
+
 void NoteMatchBoundary(const char* label) {
+	CheckHeaps(label, -1, true);
 	PROCESS_MEMORY_COUNTERS_EX memory = {};
 	memory.cb = sizeof(memory);
 	GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&memory, sizeof(memory));

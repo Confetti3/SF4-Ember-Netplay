@@ -72,6 +72,9 @@ msgstr "Spielstart oder Injection fehlgeschlagen. Launcher-Log prüfen (%APPDATA
 msgid "launcher.game_error"
 msgstr "Spiel mit Fehler beendet. Launcher-Log prüfen (%APPDATA%\\sf4e\\logs\\launcher.log) und erneut versuchen."
 
+msgid "launcher.game_crashed"
+msgstr "Das Spiel ist abgestürzt. Bitte die Dateien aus %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log und sf4e-crash.dmp) an das SF4-Ember-Netplay-Team senden und erneut versuchen."
+
 msgid "launcher.runtime_shadowed"
 msgstr "Das Spiel würde diese Dateien statt der im Ember-Ordner laden. Eine alte Kopie verhindert den Start (\"entry point ggpo_get_last_confirmed_frame not found\"). Sie stammen von einer anderen Netplay-Mod oder älteren Installation. Verschieben oder benennen Sie sie um und starten Sie Ember erneut:\n\n{0}"
 

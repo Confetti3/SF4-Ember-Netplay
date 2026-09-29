@@ -74,8 +74,15 @@ inline const char* ExitCodeName(uint32_t code) {
 	}
 }
 
+// True when the process died of a fault its crash handler may have
+// recorded, as opposed to a clean exit or a loader failure before Sidecar ran.
+inline bool IsCrashExit(uint32_t code) {
+	if (code == 0xC0000135u || code == 0xC0000139u) return false;
+	return (code & 0xF0000000u) == 0xC0000000u || code == 0xE06D7363u || code == 3;
+}
+
 struct CrashFacts {
-	const char* kind;         // unhandled_exception, ggpo_assertion, terminate, purecall, invalid_parameter
+	const char* kind;         // unhandled_exception, heap_corruption, ggpo_assertion, terminate, purecall, invalid_parameter
 	uint32_t code;            // exception code, or 0
 	uint64_t address;         // faulting address, or 0
 	const char* module;       // file name of the module containing address, or ""

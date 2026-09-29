@@ -41,4 +41,12 @@ The room host is separate from the P1 seat. The host can rename the room, lock a
 
 **Help & about:** controls, version, attribution, a redacted diagnostics export (which includes connection state), the Ember Discord and update checking. Leave your room before handing off to updates. Installation waits for shutdown and verifies the downloaded ZIP. Your own files are preserved, and the backup from the latest update is kept in `.ember-update-backups`. If an update was interrupted, the launcher restores the previous files the next time you start it, then opens normally. An update that can never be restored is reported once and set aside, and later starts go to the game.
 
+**If the game crashes:** the launcher says so and the files to send are in `%APPDATA%\sf4e\logs`: `sf4e.log`, `sf4e-crash.log` and `sf4e-crash.dmp`. A few crashes stop the game before any of its own handlers run. To catch those too, run this once in an **Administrator** PowerShell; Windows then keeps a full dump in `%LOCALAPPDATA%\CrashDumps`, and `launcher.log` names the file after a crash:
+
+```powershell
+New-Item -Path 'HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\SSFIV.exe' -Force | New-ItemProperty -Name DumpType -Value 2 -PropertyType DWord -Force
+```
+
+That dump holds the whole game's memory (about 500 MB), so zip it before sending it.
+
 This experimental release has automated transport coverage. Actual SF4 host/join, native fights, repeated rematches, spectators, different-network and clean-machine results must be recorded separately. The source repository contains the implementation record at `docs/design/EMBER_IMPLEMENTATION.md`; this package guide has no repository-relative links so it remains valid as `START_HERE.md`.

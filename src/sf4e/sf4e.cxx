@@ -8,6 +8,7 @@
 #include "../Dimps/Dimps__Platform.hxx"
 
 #include "sf4e.hxx"
+#include "sf4e__CrashDiagnostics.hxx"
 #include "sf4e__Event.hxx"
 #include "sf4e__Game.hxx"
 #include "sf4e__GameEvents.hxx"
@@ -217,6 +218,7 @@ void sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
 	if (payload) {
 		sf4e::args = payload->args;
 		sf4e::hSyncEvent = payload->hSyncEvent;
+		crash::ConfigureDumpChannel(payload->hDumpRequest, payload->hDumpDone, payload->hDumpMailbox);
 		NetplayFacade::InitFromPayload(payload->netplay);
 		NetplayFacade::ConfigureHelper(payload->helper, payload->helperError);
         NetplayFacade::ConfigureDiscord(payload->discord);

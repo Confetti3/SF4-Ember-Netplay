@@ -54,6 +54,11 @@ if(BUILD_TESTING)
     target_compile_features(CrashReportTest PRIVATE cxx_std_11)
     add_test(NAME CrashReport COMMAND CrashReportTest)
     set_tests_properties(CrashReport PROPERTIES TIMEOUT 15)
+    add_executable(HeapCorruptionCaptureTest "src/tests/heap_corruption_capture_test.cxx")
+    target_compile_features(HeapCorruptionCaptureTest PRIVATE cxx_std_14)
+    target_link_libraries(HeapCorruptionCaptureTest PRIVATE "dbghelp")
+    add_test(NAME HeapCorruptionCapture COMMAND HeapCorruptionCaptureTest)
+    set_tests_properties(HeapCorruptionCapture PROPERTIES TIMEOUT 90)
     add_executable(HelperErrorScopeTest "src/tests/helper_error_scope_test.cxx")
     target_compile_features(HelperErrorScopeTest PRIVATE cxx_std_11)
     add_test(NAME HelperErrorScope COMMAND HelperErrorScopeTest)
@@ -652,6 +657,7 @@ target_include_directories(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE "src/common" "sr
     "shlwapi"
     "pathcch"
     "version"
+    "dbghelp"
     "bcrypt"
     "shell32"
     "ole32"
