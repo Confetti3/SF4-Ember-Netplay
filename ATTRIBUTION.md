@@ -33,7 +33,16 @@ Maintained at: [github.com/Confetti3/SF4-Ember-Netplay](https://github.com/Confe
 
 ## License
 
-This project remains under the [MIT License](LICENSE), consistent with upstream sf4e. The MIT copyright notice from upstream must be preserved in all copies and substantial portions of the Software.
+This project remains under the [MIT License](LICENSE), consistent with upstream sf4e. The license carries two copyright notices: one for the SF4 Ember Netplay contributors, covering the work added in this port, and the upstream sf4e notice. Both must be preserved in all copies and substantial portions of the Software, including source files, patches and binary packages.
+
+## Using code from this port
+
+If you copy or adapt code, patches or fixes from SF4 Ember Netplay:
+
+- Keep the `Copyright (c) 2026 SF4 Ember Netplay contributors` notice in your LICENSE or bundled notices. The MIT license requires this.
+- Please also credit the project by name, with a link to [github.com/Confetti3/SF4-Ember-Netplay](https://github.com/Confetti3/SF4-Ember-Netplay), in your README and in the release notes of each release that includes our work, naming what you used.
+
+Releases up to v1.0.0-rc1 shipped with the upstream notice only. We ask for the same credit for work taken from those releases.
 
 ## Third-party and game notices
 
