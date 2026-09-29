@@ -44,6 +44,8 @@ static bool trainingOpen = false, trainingHud = true;
 static std::atomic<bool> trainingAvailable{false};
 static int lobbyStageID = 0, lobbyMenuCharaID = 0;
 static sf4e::selection::StageMask lobbyStageExcluded = 0;
+// The thread that draws the overlay (NoteMessageThread).
+static std::atomic<DWORD> s_drawThread{0};
 static rVsMode::ConfirmedCharaConditions lobbyConditions = {0,0,0,0,0,0,0,0,14};
 
 bool Overlay::CapturesMenuInput() { return capture.load(); }
@@ -226,6 +228,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 
 
 void Overlay::DrawOverlay() {
+    s_drawThread.store(GetCurrentThreadId());
 
     if (!ImGui::GetCurrentContext()) return;
     const auto sharedSnapshot = sf4e::NetplayFacade::GetRuntimeSnapshotShared();
@@ -355,7 +358,19 @@ void Overlay::FreeOverlay() {
     s_selectionArt.reset();
     ImGui_ImplDX9_Shutdown(); ImGui_ImplWin32_Shutdown(); ImGui::DestroyContext();
 }
+// ImGui's input queue is not thread-safe: the window messages that feed it
+// must come on the thread that draws the overlay. Say once which threads
+// those are, so a crash report shows whether they ever differ.
+static void NoteMessageThread() {
+    static std::atomic<bool> noted{false};
+    const DWORD draw = s_drawThread.load();
+    if (!draw || noted.exchange(true)) return;
+    const DWORD messages = GetCurrentThreadId();
+    if (messages == draw) spdlog::info("Overlay: window messages and drawing share thread {}", messages);
+    else spdlog::warn("Overlay: window messages arrive on thread {} but the overlay draws on thread {}", messages, draw);
+}
 LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, LPARAM l) {
+    NoteMessageThread();
     // The click that brings the game forward again must not press an Ember
     // row that is drawn under the pointer while the game is behind another window.
     static sf4e::ui::ActivationClickFilter activationClick;

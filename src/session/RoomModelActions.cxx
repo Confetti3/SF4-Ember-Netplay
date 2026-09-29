@@ -199,7 +199,7 @@ Result RoomAuthority::ApplyUnwatch(MemberId member, Table* table) {
 		if (next == table->watchingNext.end()) return Reject(RejectReason::NotWatching);
 		table->watchingNext.erase(next);
 	}
-	Find(member)->spectatorLocked = false;
+	if (auto* watcher = Find(member)) watcher->spectatorLocked = false;
 	Touch(*table); NormalizeMemberStatus(member); return Accept();
 }
 
