@@ -163,8 +163,9 @@ void AttachRoom() {
 		deviceType, deviceIndex, static_cast<uint8_t>(runtime->preferences.inputDelay));
 	UserApp::netplay->client.RequireCustomRooms();
 	UserApp::netplay->client.SetProfileMain(runtime->preferences.mainFighter);
-	const auto link = DetectNetworkLink();
-	spdlog::info("Runtime: network link {}", NetworkLinkLabel(link));
+	std::string linkDetail;
+	const auto link = DetectNetworkLink(&linkDetail);
+	spdlog::info("Runtime: network link {} ({})", NetworkLinkLabel(link), linkDetail);
 	UserApp::netplay->client.SetProfileLink(link);
 	// Known by now unless the helper started only moments ago; Unknown reads as checking.
 	UserApp::netplay->client.SetProfileNat(runtime->room->Network().nat);

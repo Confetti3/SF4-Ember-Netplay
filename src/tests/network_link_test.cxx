@@ -12,13 +12,19 @@ static int failures = 0;
 
 int main() {
 	using namespace interface_values;
-	constexpr unsigned long Ethernet802_3Medium = 14, Unspecified = 0, TunnelType = 131;
+	constexpr unsigned long Unspecified = UnspecifiedMedium, TunnelType = 131, BluetoothMedium = 10, PowerLineMedium = 4;
 	// Physical adapters.
 	CHECK(ClassifyInterface(true, EthernetType, Ethernet802_3Medium) == NetworkLink::Wired);
 	CHECK(ClassifyInterface(true, Ieee80211Type, Native80211Medium) == NetworkLink::Wireless);
 	// An older Wi-Fi driver: Ethernet type, 802.11 medium.
 	CHECK(ClassifyInterface(true, EthernetType, Native80211Medium) == NetworkLink::Wireless);
-	CHECK(ClassifyInterface(true, EthernetType, WirelessLanMedium) == NetworkLink::Wireless);
+	// A wired card reporting no medium is still a cable.
+	CHECK(ClassifyInterface(true, EthernetType, Unspecified) == NetworkLink::Wired);
+	// Only a clear answer: the legacy wireless-LAN medium, which some wired
+	// drivers report, and other media behind an Ethernet type are Unknown.
+	CHECK(ClassifyInterface(true, EthernetType, WirelessLanMedium) == NetworkLink::Unknown);
+	CHECK(ClassifyInterface(true, EthernetType, BluetoothMedium) == NetworkLink::Unknown);
+	CHECK(ClassifyInterface(true, EthernetType, PowerLineMedium) == NetworkLink::Unknown);
 	// Virtual Ethernet (VPN, Hyper-V switch, overlay network) hides the real link.
 	CHECK(ClassifyInterface(false, EthernetType, Ethernet802_3Medium) == NetworkLink::Unknown);
 	CHECK(ClassifyInterface(false, EthernetType, Unspecified) == NetworkLink::Unknown);
@@ -126,7 +132,10 @@ int main() {
 	CHECK(DiagnoseDirectPath(NatClass::Open, NatClass::Unknown) == DirectBlock::None);
 	CHECK(DiagnoseDirectPath(NatClass::Strict, NatClass::Unknown) == DirectBlock::LocalStrict);
 	// The live answer depends on the machine; it must only not fail.
-	std::printf("This machine's link: %s\n", NetworkLinkLabel(DetectNetworkLink()));
+	std::string detail;
+	std::printf("This machine's link: %s\n", NetworkLinkLabel(DetectNetworkLink(&detail)));
+	std::printf("  %s\n", detail.c_str());
+	CHECK(detail.find("route=if") == 0 || detail == "no default route");
 	if (failures) return 1;
 	std::puts("NetworkLink test passed");
 	return 0;
