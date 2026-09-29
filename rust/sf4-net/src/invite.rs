@@ -183,6 +183,42 @@ impl Invite {
         Ok(())
     }
 
+    /// Why `parse_for_build` refused `text`, for the player's message:
+    /// `old_version`, `other_build`, `expired` or `malformed`. Only this
+    /// word leaves the helper, never the invitation.
+    pub fn rejection_reason(text: &str, now: u64, build: &str) -> &'static str {
+        let text = text.trim_matches(|character: char| character.is_ascii_whitespace());
+        let decode = |payload: &str| URL_SAFE_NO_PAD.decode(payload).ok();
+        let invite = if text.len() > MAX_INVITE_LENGTH {
+            None
+        } else if let Some(payload) = text
+            .strip_prefix(DISCORD_PREFIX)
+            .or_else(|| text.strip_prefix(RECOVERY_DISCORD_PREFIX))
+        {
+            // A Discord invitation carries no build; it takes the local one.
+            decode(payload)
+                .filter(|bytes| bytes.len() == 91)
+                .and_then(|mut bytes| {
+                    bytes.extend_from_slice(build.as_bytes());
+                    Self::decode_compact(&bytes).ok()
+                })
+        } else if let Some(payload) = text.strip_prefix(PREFIX) {
+            decode(payload).and_then(|bytes| Self::decode_compact(&bytes).ok())
+        } else if let Some(payload) = text.strip_prefix(RECOVERY_PREFIX) {
+            decode(payload).and_then(|bytes| Self::decode_recovery_compact(&bytes).ok())
+        } else if let Some(payload) = text.strip_prefix(LEGACY_PREFIX) {
+            decode(payload).and_then(|bytes| serde_json::from_slice::<Self>(&bytes).ok())
+        } else {
+            None
+        };
+        match invite {
+            Some(invite) if invite.version != VERSION => "old_version",
+            Some(invite) if invite.build != build => "other_build",
+            Some(invite) if invite.expires <= now => "expired",
+            _ => "malformed",
+        }
+    }
+
     pub fn parse(text: &str, now: u64) -> io::Result<Self> {
         if text.len() > MAX_INVITE_LENGTH {
             return Err(invalid());
@@ -421,6 +457,42 @@ mod tests {
             "{LEGACY_PREFIX}{}",
             URL_SAFE_NO_PAD.encode(serde_json::to_vec(invite).unwrap())
         )
+    }
+
+    #[test]
+    fn a_refused_invitation_names_why() {
+        let original = invite();
+        let token = original.encode().unwrap();
+        let build = original.build().to_owned();
+        assert!(Invite::parse_for_build(&token, 101, &build).is_ok());
+        // Expired: an hour-old invitation from a room since closed.
+        assert!(Invite::parse_for_build(&token, 3700, &build).is_err());
+        assert_eq!(Invite::rejection_reason(&token, 3700, &build), "expired");
+        assert_eq!(
+            Invite::rejection_reason(&format!("{token}\r\n"), 3700, &build),
+            "expired"
+        );
+        // Another package.
+        assert!(Invite::parse_for_build(&token, 101, "other-sidecar").is_err());
+        assert_eq!(
+            Invite::rejection_reason(&token, 101, "other-sidecar"),
+            "other_build"
+        );
+        // An older invitation format.
+        let mut old = original.clone();
+        old.version = VERSION - 1;
+        assert_eq!(
+            Invite::rejection_reason(&legacy(&old), 101, &build),
+            "old_version"
+        );
+        // Cut short or not an invitation at all.
+        for text in [&token[..token.len() - 10], "hello", "", "sf4e2:!!!"] {
+            assert!(Invite::parse_for_build(text, 101, &build).is_err());
+            assert_eq!(Invite::rejection_reason(text, 101, &build), "malformed");
+        }
+        // A Discord invitation takes the local build, so only expiry shows.
+        let discord = original.encode_discord().unwrap();
+        assert_eq!(Invite::rejection_reason(&discord, 3700, &build), "expired");
     }
 
     #[test]

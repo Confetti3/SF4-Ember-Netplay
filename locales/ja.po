@@ -2366,6 +2366,15 @@ msgstr "通信を利用できません。オフラインでは遊べます。"
 msgid "runtime.room_join_failed"
 msgstr "ルームに参加できませんでした。招待と、両者が同じSF4 Ember Netplayパッケージを使用しているか確認してください。"
 
+msgid "runtime.invite_expired"
+msgstr "この招待は期限切れです。ホストに新しい招待をコピーしてもらってください。"
+
+msgid "runtime.invite_other_build"
+msgstr "ホストは別の SF4 Ember Netplay パッケージを使っています。両プレイヤーが同じバージョンを使う必要があります。"
+
+msgid "runtime.invite_malformed"
+msgstr "招待のテキストが不完全です。もう一度コピーして、招待全体を貼り付けてください。"
+
 msgid "runtime.room_host_failed"
 msgstr "ルームを作成できませんでした。インターネット接続を確認して、もう一度お試しください。"
 

@@ -2366,6 +2366,15 @@ msgstr "Réseau indisponible. Le jeu hors ligne reste accessible."
 msgid "runtime.room_join_failed"
 msgstr "Impossible de rejoindre le salon. Vérifiez l'invitation et que les deux joueurs utilisent le même paquet SF4 Ember Netplay."
 
+msgid "runtime.invite_expired"
+msgstr "Cette invitation a expiré. Demandez à l'hôte d'en copier une nouvelle."
+
+msgid "runtime.invite_other_build"
+msgstr "L'hôte utilise un autre paquet SF4 Ember Netplay. Les deux joueurs doivent avoir la même version."
+
+msgid "runtime.invite_malformed"
+msgstr "Le texte de l'invitation est incomplet. Copiez-la de nouveau et collez l'invitation entière."
+
 msgid "runtime.room_host_failed"
 msgstr "Impossible de créer le salon. Vérifiez votre connexion Internet et réessayez."
 

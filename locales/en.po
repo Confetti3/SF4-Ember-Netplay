@@ -2052,6 +2052,15 @@ msgstr "Networking is unavailable. Offline is available."
 msgid "runtime.room_join_failed"
 msgstr "Could not join the room. Check the invitation and that both players use the same SF4 Ember Netplay package."
 
+msgid "runtime.invite_expired"
+msgstr "This invitation has expired. Ask the host to copy a new one."
+
+msgid "runtime.invite_other_build"
+msgstr "The host is on a different SF4 Ember Netplay package. Both players need the same version."
+
+msgid "runtime.invite_malformed"
+msgstr "The invitation text is incomplete. Copy it again and paste the whole invitation."
+
 msgid "runtime.room_host_failed"
 msgstr "Could not create the room. Check your internet connection and try again."
 

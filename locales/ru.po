@@ -2366,6 +2366,15 @@ msgstr "Сеть недоступна. Игра без сети доступна
 msgid "runtime.room_join_failed"
 msgstr "Не удалось войти в зал. Проверьте приглашение и убедитесь, что у обоих игроков одинаковый пакет SF4 Ember Netplay."
 
+msgid "runtime.invite_expired"
+msgstr "Срок действия приглашения истёк. Попросите хоста скопировать новое."
+
+msgid "runtime.invite_other_build"
+msgstr "У хоста другой пакет SF4 Ember Netplay. Обоим игрокам нужна одна и та же версия."
+
+msgid "runtime.invite_malformed"
+msgstr "Текст приглашения неполный. Скопируйте его ещё раз и вставьте целиком."
+
 msgid "runtime.room_host_failed"
 msgstr "Не удалось создать зал. Проверьте подключение к интернету и повторите попытку."
 

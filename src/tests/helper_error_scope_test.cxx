@@ -96,6 +96,12 @@ static void TestFailureStageFromReason() {
 	CHECK(FailureStageFromHelper("join_failed", "") == FailureStage::Unknown);
 	CHECK(FailureStageFromHelper("join_failed", "https://use1-1.relay.n0.iroh.link./") == FailureStage::Unknown);
 	CHECK(FailureStageFromHelper("control_send_failed", "relay_unreachable") == FailureStage::Unknown);
+	CHECK(FailureStageFromHelper("invalid_or_incompatible_invitation", "expired") == FailureStage::InviteExpired);
+	CHECK(FailureStageFromHelper("invalid_or_incompatible_invitation", "other_build") == FailureStage::InviteOtherBuild);
+	CHECK(FailureStageFromHelper("invalid_or_incompatible_invitation", "old_version") == FailureStage::InviteOtherBuild);
+	CHECK(FailureStageFromHelper("invalid_or_incompatible_invitation", "malformed") == FailureStage::InviteMalformed);
+	CHECK(FailureStageFromHelper("invalid_or_incompatible_invitation", "") == FailureStage::Unknown);
+	CHECK(FailureStageFromHelper("join_failed", "expired") == FailureStage::Unknown);
 	CHECK(std::string(FailureStageLabel(FailureStage::ControlLost)) == "control_lost");
 	// The failures that carry a stage are still room-fatal protocol labels.
 	CHECK(Scope("join_failed") == HelperErrorScope::RoomFatal && Labelled("join_failed"));

@@ -812,13 +812,17 @@ impl Actor {
                     self.error_at(id, epoch, "invalid_room_state")?;
                     return Ok(true);
                 }
+                let time = now().ok();
                 let invite =
-                    now().and_then(|time| Invite::parse_for_build(&invitation, time, &build));
+                    time.and_then(|time| Invite::parse_for_build(&invitation, time, &build).ok());
                 let invite = match invite {
-                    Ok(invite) if invite.build() == build => invite,
+                    Some(invite) if invite.build() == build => invite,
                     _ => {
+                        let reason = time.map_or("malformed", |time| {
+                            Invite::rejection_reason(&invitation, time, &build)
+                        });
                         self.clear_room();
-                        self.error(id, "invalid_or_incompatible_invitation")?;
+                        self.error_because(id, "invalid_or_incompatible_invitation", Some(reason))?;
                         return Ok(true);
                     }
                 };

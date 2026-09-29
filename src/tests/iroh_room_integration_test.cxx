@@ -77,6 +77,7 @@ int wmain(int argc, wchar_t** argv) {
 	CHECK(guest->Join("not-an-invitation", "cpp-room-test"));
 	wait([&]() { guest->Poll(); return guest->GetState() == session::IrohRoom::State::Failed; });
 	CHECK(guest->Error() == "invalid_or_incompatible_invitation");
+	CHECK(guest->Stage() == session::FailureStage::InviteMalformed);
 	guest->Leave();
 	wait([&]() { guest->Poll(); return guest->GetState() == session::IrohRoom::State::Idle; });
 	CHECK(host->Host("cpp-room-test"));

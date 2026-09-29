@@ -2366,6 +2366,15 @@ msgstr "Netwerk niet beschikbaar. Offline spelen kan nog wel."
 msgid "runtime.room_join_failed"
 msgstr "Kon de kamer niet betreden. Controleer de uitnodiging en of beide spelers hetzelfde SF4 Ember Netplay-pakket gebruiken."
 
+msgid "runtime.invite_expired"
+msgstr "Deze uitnodiging is verlopen. Vraag de host een nieuwe te kopiëren."
+
+msgid "runtime.invite_other_build"
+msgstr "De host gebruikt een ander SF4 Ember Netplay-pakket. Beide spelers hebben dezelfde versie nodig."
+
+msgid "runtime.invite_malformed"
+msgstr "De uitnodigingstekst is onvolledig. Kopieer hem opnieuw en plak de hele uitnodiging."
+
 msgid "runtime.room_host_failed"
 msgstr "Kon de kamer niet maken. Controleer je internetverbinding en probeer het opnieuw."
 

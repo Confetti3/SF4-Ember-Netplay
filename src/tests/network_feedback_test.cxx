@@ -85,6 +85,10 @@ int main() try {
     Check(failure(false, FailureStage::HostUnreachable) == sf4e::loc::T("runtime.host_unreachable"), "An unreachable host has no sentence");
     Check(failure(false, FailureStage::ControlLost) == sf4e::loc::T("runtime.join_control_lost"), "A dropped link has no sentence");
     Check(failure(false, FailureStage::Unknown) == sf4e::loc::T("runtime.room_join_failed"), "A join without a stage lost its generic sentence");
+    Check(failure(false, FailureStage::InviteExpired) == sf4e::loc::T("runtime.invite_expired") &&
+        failure(false, FailureStage::InviteOtherBuild) == sf4e::loc::T("runtime.invite_other_build") &&
+        failure(false, FailureStage::InviteMalformed) == sf4e::loc::T("runtime.invite_malformed"),
+        "A refused invitation lost its reason");
     Check(failure(true, FailureStage::Unknown) == sf4e::loc::T("runtime.room_host_failed") &&
         failure(true, FailureStage::HostUnreachable) == sf4e::loc::T("runtime.room_host_failed"),
         "A failed host says it could not join");

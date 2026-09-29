@@ -2366,6 +2366,15 @@ msgstr "网络不可用，仍可离线游玩。"
 msgid "runtime.room_join_failed"
 msgstr "无法加入房间。请检查邀请，并确认双方使用同一 SF4 Ember Netplay 安装包。"
 
+msgid "runtime.invite_expired"
+msgstr "此邀请已过期。请让房主复制一个新的邀请。"
+
+msgid "runtime.invite_other_build"
+msgstr "房主使用的是另一个 SF4 Ember Netplay 包。双方需要使用相同版本。"
+
+msgid "runtime.invite_malformed"
+msgstr "邀请文本不完整。请重新复制并粘贴完整的邀请。"
+
 msgid "runtime.room_host_failed"
 msgstr "无法创建房间。请检查网络连接后重试。"
 

@@ -2366,6 +2366,15 @@ msgstr "Síť není dostupná. Hraní offline je dostupné."
 msgid "runtime.room_join_failed"
 msgstr "K místnosti se nepodařilo připojit. Zkontrolujte pozvánku a zda mají oba hráči stejný balíček SF4 Ember Netplay."
 
+msgid "runtime.invite_expired"
+msgstr "Platnost této pozvánky vypršela. Požádejte hostitele, ať zkopíruje novou."
+
+msgid "runtime.invite_other_build"
+msgstr "Hostitel používá jiný balíček SF4 Ember Netplay. Oba hráči potřebují stejnou verzi."
+
+msgid "runtime.invite_malformed"
+msgstr "Text pozvánky je neúplný. Zkopírujte ji znovu a vložte celou pozvánku."
+
 msgid "runtime.room_host_failed"
 msgstr "Místnost se nepodařilo vytvořit. Zkontrolujte připojení k internetu a zkuste to znovu."
 

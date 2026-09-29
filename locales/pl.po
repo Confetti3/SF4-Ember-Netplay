@@ -2366,6 +2366,15 @@ msgstr "Sieć jest niedostępna. Gra offline jest dostępna."
 msgid "runtime.room_join_failed"
 msgstr "Nie udało się dołączyć do pokoju. Sprawdź zaproszenie i upewnij się, że obaj gracze używają tego samego pakietu SF4 Ember Netplay."
 
+msgid "runtime.invite_expired"
+msgstr "To zaproszenie wygasło. Poproś gospodarza o skopiowanie nowego."
+
+msgid "runtime.invite_other_build"
+msgstr "Gospodarz używa innego pakietu SF4 Ember Netplay. Obaj gracze potrzebują tej samej wersji."
+
+msgid "runtime.invite_malformed"
+msgstr "Tekst zaproszenia jest niepełny. Skopiuj je ponownie i wklej całe zaproszenie."
+
 msgid "runtime.room_host_failed"
 msgstr "Nie udało się utworzyć pokoju. Sprawdź połączenie z internetem i spróbuj ponownie."
 

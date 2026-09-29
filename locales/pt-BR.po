@@ -1936,6 +1936,15 @@ msgstr "A rede não está disponível. O modo offline está disponível."
 msgid "runtime.room_join_failed"
 msgstr "Não foi possível entrar na sala. Verifique o convite e se os dois jogadores usam o mesmo pacote do SF4 Ember Netplay."
 
+msgid "runtime.invite_expired"
+msgstr "Este convite expirou. Peça ao anfitrião para copiar um novo."
+
+msgid "runtime.invite_other_build"
+msgstr "O anfitrião usa outro pacote do SF4 Ember Netplay. Os dois jogadores precisam da mesma versão."
+
+msgid "runtime.invite_malformed"
+msgstr "O texto do convite está incompleto. Copie de novo e cole o convite inteiro."
+
 msgid "runtime.room_host_failed"
 msgstr "Não foi possível criar a sala. Verifique sua conexão com a internet e tente novamente."
 
