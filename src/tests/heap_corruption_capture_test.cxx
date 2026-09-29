@@ -94,6 +94,16 @@ DWORD DumpedExceptionCode(const std::wstring& path, ULONGLONG& size) {
 	return code;
 }
 
+size_t CountDumps(const std::wstring& directory) {
+	size_t count = 0;
+	WIN32_FIND_DATAW found;
+	HANDLE search = FindFirstFileW((directory + L"\\*.dmp").c_str(), &found);
+	if (search == INVALID_HANDLE_VALUE) return 0;
+	do ++count; while (FindNextFileW(search, &found));
+	FindClose(search);
+	return count;
+}
+
 size_t Count(const std::string& text, const std::string& part) {
 	size_t count = 0;
 	for (size_t at = text.find(part); at != std::string::npos; at = text.find(part, at + part.size())) ++count;
@@ -114,9 +124,12 @@ void TestHandlerRecordsAndLauncherDumps(const wchar_t* heap) {
 	SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
 	CHECK(CreateProcessW(self, command, nullptr, nullptr, TRUE, 0, nullptr, nullptr, &startup, &process));
 
-	const std::wstring dump = logs + L"\\sf4e-crash.dmp";
+	std::wstring dump;
 	int served = 0, written = 0;
-	channel.ServeUntilExit(process.hProcess, dump.c_str(), [&](bool ok) { ++served; written += ok ? 1 : 0; });
+	channel.ServeUntilExit(process.hProcess, logs.c_str(), [&](bool ok) {
+		++served; written += ok ? 1 : 0;
+		if (ok) dump = channel.written;
+	});
 	DWORD exitCode = 0;
 	GetExitCodeProcess(process.hProcess, &exitCode);
 	CloseHandle(process.hThread);
@@ -128,8 +141,9 @@ void TestHandlerRecordsAndLauncherDumps(const wchar_t* heap) {
 	// One request, served once.
 	CHECK(served == 1 && written == 1);
 	ULONGLONG size = 0;
+	CHECK(dump.find(logs + L"\\sf4e-crash-") == 0);
 	CHECK(DumpedExceptionCode(dump, size) == HeapCorruptionCode);
-	CHECK(GetFileAttributesW((logs + L"\\sf4e-crash.partial.dmp").c_str()) == INVALID_FILE_ATTRIBUTES);
+	CHECK(CountDumps(logs) == 1);
 	std::printf("heap_corruption_capture_test: %ls heap dump is %llu KB\n", heap, size / 1024);
 	// MiniDumpNormal gave about 64 KB, too little to follow a corruption.
 	CHECK(size > 64 * 1024);
@@ -147,24 +161,33 @@ void TestHandlerRecordsAndLauncherDumps(const wchar_t* heap) {
 
 DWORD WINAPI ReturnAtOnce(void*) { return 0; }
 
-// A later dump never costs the earlier one, and a bad request still lets
-// the game go on.
-void TestDumpsKeepThePreviousAndRefuseBadRequests() {
+// Every crash keeps a dump of its own; a failed write leaves nothing behind,
+// and a bad request still lets the game go on.
+void TestEveryDumpIsKeptAndBadRequestsRefused() {
 	const std::wstring logs = TempDirectory();
-	const std::wstring dump = logs + L"\\sf4e-crash.dmp", previous = logs + L"\\sf4e-crash.previous.dmp";
-	CHECK(WriteDump(GetCurrentProcess(), GetCurrentProcessId(), dump.c_str(), GetCurrentThreadId(), nullptr, false));
-	CHECK(WriteDump(GetCurrentProcess(), GetCurrentProcessId(), dump.c_str(), GetCurrentThreadId(), nullptr, false));
-	CHECK(GetFileAttributesW(dump.c_str()) != INVALID_FILE_ATTRIBUTES && GetFileAttributesW(previous.c_str()) != INVALID_FILE_ATTRIBUTES);
-	CHECK(!WriteDump(GetCurrentProcess(), GetCurrentProcessId(), (logs + L"\\not-a-dump.txt").c_str(), 0, nullptr, false));
+	wchar_t paths[3][DumpPathSize] = {};
+	for (auto& path : paths) CHECK(WriteDump(GetCurrentProcess(), GetCurrentProcessId(), logs.c_str(), GetCurrentThreadId(), nullptr, false, path));
+	CHECK(std::wstring(paths[0]) != paths[1] && std::wstring(paths[1]) != paths[2] && std::wstring(paths[0]) != paths[2]);
+	CHECK(CountDumps(logs) == 3);
+	// The launcher keeps the newest, which sort last.
+	PruneDumps(logs.c_str(), 2);
+	CHECK(CountDumps(logs) == 2 && GetFileAttributesW(paths[2]) != INVALID_FILE_ATTRIBUTES);
+	// A dump that cannot be written leaves no file.
+	wchar_t failed[DumpPathSize] = {};
+	CHECK(!WriteDump(GetCurrentProcess(), GetCurrentProcessId(), (logs + L"\\missing-folder").c_str(), 0, nullptr, false, failed));
+	// No such process: the dump fails after its file exists.
+	CHECK(!WriteDump(nullptr, 0xFFFFFFF0u, logs.c_str(), 0, nullptr, false, failed));
+	CHECK(CountDumps(logs) == 2);
 
 	DumpChannel channel;
 	CHECK(channel.Create());
 	channel.view->magic = 0;
-	CHECK(!channel.Serve(GetCurrentProcess(), dump.c_str()));
-	CHECK(WaitForSingleObject(channel.done, 0) == WAIT_OBJECT_0 && channel.view->written == 0);
+	CHECK(!channel.Serve(GetCurrentProcess(), logs.c_str()));
+	CHECK(WaitForSingleObject(channel.done, 0) == WAIT_OBJECT_0 && channel.view->written == 0 && !channel.written[0]);
+	CHECK(CountDumps(logs) == 2);
 	channel.Close();
-	DeleteFileW(dump.c_str());
-	DeleteFileW(previous.c_str());
+	PruneDumps(logs.c_str(), 0);
+	CHECK(CountDumps(logs) == 0);
 	RemoveDirectoryW(logs.c_str());
 
 	// Without a channel the launcher only waits for the game to exit.
@@ -172,7 +195,7 @@ void TestDumpsKeepThePreviousAndRefuseBadRequests() {
 	HANDLE game = CreateThread(nullptr, 0, ReturnAtOnce, nullptr, 0, nullptr);
 	CHECK(game);
 	int served = 0;
-	none.ServeUntilExit(game, dump.c_str(), [&](bool) { ++served; });
+	none.ServeUntilExit(game, logs.c_str(), [&](bool) { ++served; });
 	CloseHandle(game);
 	CHECK(served == 0);
 }
@@ -190,7 +213,7 @@ void TestClientWithoutChannelDeclines() {
 int main(int argc, char** argv) {
 	if (argc == 7 && std::string(argv[1]) == "child") return RunChild(argv);
 	TestClientWithoutChannelDeclines();
-	TestDumpsKeepThePreviousAndRefuseBadRequests();
+	TestEveryDumpIsKeptAndBadRequestsRefused();
 	TestHandlerRecordsAndLauncherDumps(L"private");
 	TestHandlerRecordsAndLauncherDumps(L"process");
 	std::printf("heap_corruption_capture_test: all tests passed\n");

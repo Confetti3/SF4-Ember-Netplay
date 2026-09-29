@@ -73,7 +73,7 @@ msgid "launcher.game_error"
 msgstr "Hra skončila s chybou. Zkontrolujte protokol spouštěče v %APPDATA%\\sf4e\\logs\\launcher.log a zkuste to znovu."
 
 msgid "launcher.game_crashed"
-msgstr "Hra spadla. Pošlete prosím týmu SF4 Ember Netplay soubory ze složky %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log a sf4e-crash.dmp) a zkuste to znovu."
+msgstr "Hra spadla. Pošlete prosím týmu SF4 Ember Netplay soubory ze složky %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log a sf4e-crash-*.dmp) a zkuste to znovu."
 
 msgid "launcher.runtime_shadowed"
 msgstr "Hra by místo souborů ze složky Ember načetla tyto soubory. Stará kopie ji zastaví ještě před spuštěním (\"entry point ggpo_get_last_confirmed_frame not found\"). Pocházejí z jiného netplay modu nebo starší instalace. Přesuňte je nebo přejmenujte a znovu spusťte Ember:\n\n{0}"

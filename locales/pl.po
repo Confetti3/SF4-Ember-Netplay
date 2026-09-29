@@ -73,7 +73,7 @@ msgid "launcher.game_error"
 msgstr "Gra zakończyła się błędem. Sprawdź dziennik launchera w %APPDATA%\\sf4e\\logs\\launcher.log i spróbuj ponownie."
 
 msgid "launcher.game_crashed"
-msgstr "Gra uległa awarii. Wyślij zespołowi SF4 Ember Netplay pliki z %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log i sf4e-crash.dmp), a potem spróbuj ponownie."
+msgstr "Gra uległa awarii. Wyślij zespołowi SF4 Ember Netplay pliki z %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log i sf4e-crash-*.dmp), a potem spróbuj ponownie."
 
 msgid "launcher.runtime_shadowed"
 msgstr "Gra załadowałaby te pliki zamiast plików z folderu Ember, a stara kopia blokuje jej start („entry point ggpo_get_last_confirmed_frame not found”). Pozostały po innej modyfikacji sieciowej lub starszej instalacji. Przenieś je albo zmień ich nazwy, a potem uruchom Ember ponownie:\n\n{0}"

@@ -31,7 +31,8 @@ using Ring = sf4e::crash::LogRing<64, 256>;
 // The last log lines, filled by the logger's single worker thread.
 Ring s_ring;
 wchar_t s_recordPath[MAX_PATH] = {};
-wchar_t s_dumpPath[MAX_PATH] = {};
+wchar_t s_logsDirectory[MAX_PATH] = {};
+wchar_t s_dumpPath[sf4e::crash::DumpPathSize] = {};
 LPTOP_LEVEL_EXCEPTION_FILTER s_previousFilter = nullptr;
 sf4e::crash::DumpClient s_dumpClient;
 // One record per process: a fault inside the record must not recurse.
@@ -122,7 +123,7 @@ void WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 	}
 	if (!pointers || dumped) return;
 	if (!heapCorrupt && s_dumpClient.Request(pointers)) return;
-	sf4e::crash::WriteDump(GetCurrentProcess(), GetCurrentProcessId(), s_dumpPath, GetCurrentThreadId(), pointers, false);
+	sf4e::crash::WriteDump(GetCurrentProcess(), GetCurrentProcessId(), s_logsDirectory, GetCurrentThreadId(), pointers, false, s_dumpPath);
 }
 
 // Heap corruption ends the process without reaching the unhandled-exception
@@ -233,7 +234,7 @@ spdlog::sink_ptr RingSink() {
 
 void Install(const wchar_t* logsDirectory) {
 	PathCombineW(s_recordPath, logsDirectory, L"sf4e-crash.log");
-	PathCombineW(s_dumpPath, logsDirectory, L"sf4e-crash.dmp");
+	wcsncpy_s(s_logsDirectory, logsDirectory, _TRUNCATE);
 	// Room to write the record from a stack overflow on this thread.
 	ULONG reserve = 16 * 1024;
 	SetThreadStackGuarantee(&reserve);
@@ -244,7 +245,7 @@ void Install(const wchar_t* logsDirectory) {
 	_set_invalid_parameter_handler(OnInvalidParameter);
 	// A GGPO assertion exits the process; it used to show only a message box.
 	ggpo_set_assert_handler(OnGgpoAssertion);
-	spdlog::info("Crash record: sf4e-crash.log and sf4e-crash.dmp beside sf4e.log");
+	spdlog::info("Crash record: sf4e-crash.log and sf4e-crash-*.dmp beside sf4e.log");
 }
 
 void ConfigureDumpChannel(HANDLE request, HANDLE done, HANDLE mailbox) {

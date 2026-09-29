@@ -8,6 +8,9 @@
 // launcher (tests, a developer start) the game writes the dump itself.
 
 #include <stdint.h>
+#include <algorithm>
+#include <string>
+#include <vector>
 #include <windows.h>
 #include <dbghelp.h>
 
@@ -40,32 +43,51 @@ struct DumpRequest {
 constexpr MINIDUMP_TYPE DumpType = MINIDUMP_TYPE(MiniDumpWithIndirectlyReferencedMemory | MiniDumpWithDataSegs |
 	MiniDumpWithHandleData | MiniDumpWithThreadInfo | MiniDumpWithUnloadedModules);
 
-// `path` ending in ".dmp" with ".dmp" replaced by `suffix`, into `out`.
-inline bool DumpSibling(const wchar_t* path, const wchar_t* suffix, wchar_t* out, size_t size) {
-	const size_t length = wcslen(path);
-	if (length < 4 || _wcsicmp(path + length - 4, L".dmp") != 0) return false;
-	if (wcsncpy_s(out, size, path, length - 4) != 0) return false;
-	return wcscat_s(out, size, suffix) == 0;
-}
+// Each crash gets a dump of its own, "sf4e-crash-<date>-<time>-<pid>.dmp" in
+// the logs folder, so a later or failed crash never costs an earlier one.
+constexpr size_t DumpPathSize = MAX_PATH + 64;
 
-// Writes `path` (ending in ".dmp") in full or not at all: the dump goes to a
-// ".partial.dmp" first and replaces `path` only once written, and the dump it
-// replaces is kept as ".previous.dmp", so a failed or later crash never costs
-// the one already there. `clientPointers` is true when `pointers` belongs to
-// `process` rather than to the caller. Allocates nothing itself.
-inline bool WriteDump(HANDLE process, DWORD processId, const wchar_t* path, DWORD threadId,
-	EXCEPTION_POINTERS* pointers, bool clientPointers) {
-	wchar_t partial[MAX_PATH + 32] = {}, previous[MAX_PATH + 32] = {};
-	if (!DumpSibling(path, L".partial.dmp", partial, MAX_PATH + 32) ||
-		!DumpSibling(path, L".previous.dmp", previous, MAX_PATH + 32)) return false;
-	HANDLE file = CreateFileW(partial, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+// Writes the dump to a new file in `directory`, named into `path`; a dump
+// that cannot be written in full is deleted, and an existing file is never
+// opened. `clientPointers` is true when `pointers` belongs to `process`
+// rather than to the caller. Allocates nothing itself.
+inline bool WriteDump(HANDLE process, DWORD processId, const wchar_t* directory, DWORD threadId,
+	EXCEPTION_POINTERS* pointers, bool clientPointers, wchar_t (&path)[DumpPathSize]) {
+	SYSTEMTIME now;
+	GetLocalTime(&now);
+	HANDLE file = INVALID_HANDLE_VALUE;
+	// Two dumps of one process in one second take the next free number.
+	for (int attempt = 0; attempt < 10 && file == INVALID_HANDLE_VALUE; ++attempt) {
+		const int printed = attempt == 0 ?
+			swprintf_s(path, L"%s\\sf4e-crash-%04u%02u%02u-%02u%02u%02u-%lu.dmp", directory, now.wYear, now.wMonth,
+				now.wDay, now.wHour, now.wMinute, now.wSecond, processId) :
+			swprintf_s(path, L"%s\\sf4e-crash-%04u%02u%02u-%02u%02u%02u-%lu-%d.dmp", directory, now.wYear, now.wMonth,
+				now.wDay, now.wHour, now.wMinute, now.wSecond, processId, attempt);
+		if (printed < 0) return false;
+		file = CreateFileW(path, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+		if (file == INVALID_HANDLE_VALUE && GetLastError() != ERROR_FILE_EXISTS) return false;
+	}
 	if (file == INVALID_HANDLE_VALUE) return false;
 	MINIDUMP_EXCEPTION_INFORMATION exception = { threadId, pointers, clientPointers ? TRUE : FALSE };
 	const BOOL written = MiniDumpWriteDump(process, processId, file, DumpType, pointers ? &exception : nullptr, nullptr, nullptr);
 	CloseHandle(file);
-	if (!written) { DeleteFileW(partial); return false; }
-	if (GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES) MoveFileExW(path, previous, MOVEFILE_REPLACE_EXISTING);
-	return MoveFileExW(partial, path, MOVEFILE_REPLACE_EXISTING) != FALSE;
+	if (!written) DeleteFileW(path);
+	return written != FALSE;
+}
+
+// Keeps the newest `keep` dumps in `directory`; each is about 5 MB. The
+// names sort by time. Launcher side only: it allocates.
+inline void PruneDumps(const wchar_t* directory, size_t keep) {
+	std::vector<std::wstring> names;
+	WIN32_FIND_DATAW found;
+	const std::wstring pattern = std::wstring(directory) + L"\\sf4e-crash-*.dmp";
+	HANDLE search = FindFirstFileW(pattern.c_str(), &found);
+	if (search == INVALID_HANDLE_VALUE) return;
+	do names.push_back(found.cFileName); while (FindNextFileW(search, &found));
+	FindClose(search);
+	if (names.size() <= keep) return;
+	std::sort(names.begin(), names.end());
+	for (size_t i = 0; i + keep < names.size(); ++i) DeleteFileW((std::wstring(directory) + L"\\" + names[i]).c_str());
 }
 
 // The launcher's end: two events and the page that carries the request.
@@ -74,6 +96,8 @@ struct DumpChannel {
 	HANDLE done = nullptr;
 	HANDLE mailbox = nullptr;
 	DumpRequest* view = nullptr;
+	// The dump the last request wrote.
+	wchar_t written[DumpPathSize] = {};
 
 	bool Create(bool inheritable = false) {
 		SECURITY_ATTRIBUTES attributes = { sizeof(attributes), nullptr, inheritable ? TRUE : FALSE };
@@ -94,26 +118,30 @@ struct DumpChannel {
 		}
 		view = nullptr;
 	}
-	// Writes the dump the game asked for, then lets the game go on dying.
-	bool Serve(HANDLE process, const wchar_t* path) {
+	// Writes the dump the game asked for into `directory`, then lets the game
+	// go on dying.
+	bool Serve(HANDLE process, const wchar_t* directory) {
 		const DumpRequest asked = *view;
 		view->magic = 0;
-		bool written = false;
+		bool ok = false;
+		written[0] = L'\0';
 		if (asked.magic == DumpRequestMagic)
-			written = WriteDump(process, GetProcessId(process), path, asked.threadId,
-				reinterpret_cast<EXCEPTION_POINTERS*>(static_cast<uintptr_t>(asked.exceptionPointers)), true);
-		view->written = written ? 1 : 0;
+			ok = WriteDump(process, GetProcessId(process), directory, asked.threadId,
+				reinterpret_cast<EXCEPTION_POINTERS*>(static_cast<uintptr_t>(asked.exceptionPointers)), true, written);
+		if (!ok) written[0] = L'\0';
+		view->written = ok ? 1 : 0;
 		SetEvent(done);
-		return written;
+		return ok;
 	}
 	// Waits for `process` to exit, writing each dump it asks for on the way;
-	// `served(written)` hears of each request. Without a channel it only waits.
-	template <typename Served> void ServeUntilExit(HANDLE process, const wchar_t* path, Served served) {
+	// `served(ok)` hears of each request, with the file in `written`.
+	// Without a channel it only waits.
+	template <typename Served> void ServeUntilExit(HANDLE process, const wchar_t* directory, Served served) {
 		for (;;) {
 			const HANDLE waits[] = { process, request };
 			const DWORD woke = WaitForMultipleObjects(view ? 2 : 1, waits, FALSE, INFINITE);
 			if (woke != WAIT_OBJECT_0 + 1) return;
-			served(Serve(process, path));
+			served(Serve(process, directory));
 		}
 	}
 };

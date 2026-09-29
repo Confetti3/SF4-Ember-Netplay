@@ -73,7 +73,7 @@ msgid "launcher.game_error"
 msgstr "Spel afgesloten met een fout. Bekijk het launcherlogboek in %APPDATA%\\sf4e\\logs\\launcher.log en probeer opnieuw."
 
 msgid "launcher.game_crashed"
-msgstr "Het spel is gecrasht. Stuur de bestanden uit %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log en sf4e-crash.dmp) naar het SF4 Ember Netplay-team en probeer opnieuw."
+msgstr "Het spel is gecrasht. Stuur de bestanden uit %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log en sf4e-crash-*.dmp) naar het SF4 Ember Netplay-team en probeer opnieuw."
 
 msgid "launcher.runtime_shadowed"
 msgstr "Het spel zou deze bestanden laden in plaats van die in de Ember-map. Een oude kopie stopt het spel al voor de start (\"entry point ggpo_get_last_confirmed_frame not found\"). Ze zijn achtergelaten door een andere netplaymod of een oudere installatie. Verplaats of hernoem ze en start Ember opnieuw:\n\n{0}"

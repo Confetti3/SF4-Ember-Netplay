@@ -73,7 +73,7 @@ msgid "launcher.game_error"
 msgstr "The game exited with an error. Inspect the launcher log at %APPDATA%\\sf4e\\logs\\launcher.log, then retry."
 
 msgid "launcher.game_crashed"
-msgstr "The game crashed. Please send the files in %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log and sf4e-crash.dmp) to the SF4 Ember Netplay team, then retry."
+msgstr "The game crashed. Please send the files in %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log and sf4e-crash-*.dmp) to the SF4 Ember Netplay team, then retry."
 
 msgid "launcher.runtime_shadowed"
 msgstr "The game would load these files instead of the ones in the Ember folder, and an old copy stops the game before it starts (\"entry point ggpo_get_last_confirmed_frame not found\"). They were left by another netplay mod or an older install. Move or rename them, then start Ember again:\n\n{0}"

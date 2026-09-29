@@ -651,14 +651,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // The game's crash handler asks for its dump here and waits for it.
         // Without a logs folder there is nowhere to put one; the game then
         // writes its own after the request fails.
-        wchar_t dumpPath[MAX_PATH] = {};
-        if (!g_logsDir[0] || FAILED(PathCchCombine(dumpPath, MAX_PATH, g_logsDir, L"sf4e-crash.dmp"))) dumps.Close();
+        if (!g_logsDir[0]) dumps.Close();
         bool dumped = false;
-        dumps.ServeUntilExit(game, dumpPath, [&](bool written) {
-            if (written) { dumped = true; spdlog::info(L"Wrote the game's crash dump to {}", dumpPath); }
+        dumps.ServeUntilExit(game, g_logsDir, [&](bool written) {
+            if (written) { dumped = true; spdlog::info(L"Wrote the game's crash dump to {}", dumps.written); }
             else spdlog::warn("Could not write the game's crash dump (Win32 {})", GetLastError());
         });
         dumps.Close();
+        if (g_logsDir[0]) sf4e::crash::PruneDumps(g_logsDir, 5);
         DWORD exitCode = 0; GetExitCodeProcess(game,&exitCode);
         spdlog::info("Game exited with code {:#010x} ({})", exitCode, sf4e::crash::ExitCodeName(exitCode));
         const bool crashed = sf4e::crash::IsCrashExit(exitCode);

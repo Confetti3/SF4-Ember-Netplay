@@ -73,7 +73,7 @@ msgid "launcher.game_error"
 msgstr "게임이 오류로 종료되었습니다. 런처 로그(%APPDATA%\\sf4e\\logs\\launcher.log)를 확인하고 다시 시도하세요."
 
 msgid "launcher.game_crashed"
-msgstr "게임이 충돌했습니다. %APPDATA%\\sf4e\\logs 폴더의 파일(sf4e.log, sf4e-crash.log, sf4e-crash.dmp)을 SF4 Ember Netplay 팀에 보낸 뒤 다시 시도하세요."
+msgstr "게임이 충돌했습니다. %APPDATA%\\sf4e\\logs 폴더의 파일(sf4e.log, sf4e-crash.log, sf4e-crash-*.dmp)을 SF4 Ember Netplay 팀에 보낸 뒤 다시 시도하세요."
 
 msgid "launcher.runtime_shadowed"
 msgstr "게임이 Ember 폴더의 파일 대신 아래 파일을 불러오며, 오래된 사본 때문에 실행 전에 종료됩니다(\"entry point ggpo_get_last_confirmed_frame not found\"). 다른 넷플레이 모드나 이전 설치의 잔여 파일입니다. 해당 파일을 이동하거나 이름을 바꾼 뒤 Ember를 다시 시작하세요:\n\n{0}"

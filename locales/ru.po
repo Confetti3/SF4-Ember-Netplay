@@ -73,7 +73,7 @@ msgid "launcher.game_error"
 msgstr "Игра завершилась с ошибкой. Проверьте журнал лаунчера в %APPDATA%\\sf4e\\logs\\launcher.log и повторите попытку."
 
 msgid "launcher.game_crashed"
-msgstr "Игра аварийно завершилась. Отправьте команде SF4 Ember Netplay файлы из %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log и sf4e-crash.dmp) и повторите попытку."
+msgstr "Игра аварийно завершилась. Отправьте команде SF4 Ember Netplay файлы из %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log и sf4e-crash-*.dmp) и повторите попытку."
 
 msgid "launcher.runtime_shadowed"
 msgstr "Игра загрузит эти файлы вместо файлов из папки Ember. Старая копия остановит её ещё до запуска (\"entry point ggpo_get_last_confirmed_frame not found\"). Файлы оставлены другим сетевым модом или прежней установкой. Переместите или переименуйте их и снова запустите Ember:\n\n{0}"

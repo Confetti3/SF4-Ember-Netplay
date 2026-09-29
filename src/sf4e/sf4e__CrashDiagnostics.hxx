@@ -4,7 +4,7 @@
 // unhandled exception, heap corruption, a CRT fault or a GGPO assertion
 // leaves sf4e/logs/sf4e-crash.log (the fault, the module and offset, the
 // last log lines), written synchronously from the failing thread before the
-// asynchronous logger gets a chance to lose them, and sf4e-crash.dmp, which
+// asynchronous logger gets a chance to lose them, and a sf4e-crash-*.dmp, which
 // the launcher writes when it started the game (common/CrashDump.hxx). The
 // portable model lives in common/CrashReport.hxx.
 
