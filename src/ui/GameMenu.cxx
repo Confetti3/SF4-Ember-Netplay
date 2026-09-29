@@ -165,7 +165,10 @@ unsigned KeyboardMenuBits() {
 MenuInput ReadMenuInput() {
     auto value=input; value.time=ImGui::GetTime();
     const unsigned keys=KeyboardMenuBits();
-    if(keys&~previousKeys) keyboardLast=true;
+    // Typing counts as using the keyboard, though its keys press no menu bit.
+    const auto& io=ImGui::GetIO();
+    const bool typed=!io.InputQueueCharacters.empty()||ImGui::IsKeyPressed(ImGuiKey_Backspace,false)||ImGui::IsKeyPressed(ImGuiKey_Delete,false);
+    if((keys&~previousKeys)||typed) keyboardLast=true;
     if(input.held&~previousPad) keyboardLast=false;
     previousKeys=keys; previousPad=input.held;
     ApplyMenuGlyphs();

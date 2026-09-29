@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <imgui.h>
 #include "../common/NetworkLink.hxx"
 #include "MenuNavigation.hxx"
@@ -52,6 +53,9 @@ inline void NoteDetailText(const std::string& detail, DetailText kind) {
 // The shortest time between two rebuilds for player text; tests widen it to
 // see a rebuild wait and narrow it to see it run.
 void SetUserGlyphRebuildInterval(std::chrono::milliseconds interval);
+// Hears one line per font atlas rebuild (size, glyphs players' text added, and
+// whether the build completed), for the game's log.
+void SetAtlasBuildLog(std::function<void(const char*)> log);
 // How long a character stays wanted after text last drew it; tests shorten it
 // to retire text.
 void SetUserGlyphRetention(std::chrono::milliseconds retention);

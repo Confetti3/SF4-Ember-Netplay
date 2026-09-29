@@ -428,21 +428,22 @@ static void SettleRoomState(bool helperReady) {
 // announcer says a challenger is here, unless the player turned it off.
 static void CallOutOpponentReady() {
 	if (!runtime->attached || !UserApp::netplay) { runtime->readyChime = {}; return; }
-	if (!runtime->readyChime.Update(UserApp::netplay->client.GetRoomSnapshot(), GetTickCount64()) || !runtime->preferences.readySound) return;
-	// The call drives the game's sound system from outside the game's own
-	// code, so it only rings at the main menu with no match running, never in
-	// a battle or its transitions. The log line lets a crash report show
-	// whether and when it rang.
+	if (runtime->readyChime.Update(UserApp::netplay->client.GetRoomSnapshot(), GetTickCount64()) && runtime->preferences.readySound)
+		PlayChallengerCall(runtime->preferences.readySoundVolume);
+}
+// Every challenger call, the ready one and the settings preview, comes
+// through here. It drives the game's sound system from outside the game's own
+// code, so it only rings at the main menu with no match running, never in a
+// battle or its transitions. The log lines let a crash report show whether
+// and when it rang.
+void internal::PlayChallengerCall(int volumePercent) {
 	if (!AtMainMenu() || Game::Battle::System::ggpo) {
 		spdlog::info("Room: challenger call skipped outside the main menu");
 		return;
 	}
-	spdlog::info("Room: challenger call played");
-	PlayChallengerCall(runtime->preferences.readySoundVolume);
-}
-void internal::PlayChallengerCall(int volumePercent) {
 	if (!Dimps::Sound::PlaySystemCue(Dimps::Sound::SystemCue::HereComesChallenger, Dimps::Sound::SystemChannel::Voice, volumePercent / 100.f))
 		spdlog::info("Room: challenger call not played; the game's sound system is not up");
+	else spdlog::info("Room: challenger call played");
 }
 void TickRuntime() {
 	if (!runtime) return;

@@ -18,6 +18,14 @@
 
 namespace sf4e { namespace ui {
 namespace {
+std::function<void(const char*)> atlasBuildLog;
+void ReportAtlasBuild(bool complete, int width, int height, std::size_t userGlyphs, bool forUserText) {
+    if (!atlasBuildLog) return;
+    char line[160];
+    std::snprintf(line, sizeof(line), "Theme: font atlas rebuilt %dx%d user_glyphs=%u reason=%s%s", width, height,
+        static_cast<unsigned>(userGlyphs), forUserText ? "player_text" : "interface", complete ? "" : " incomplete");
+    atlasBuildLog(line);
+}
 ImVec4 Color(unsigned rgb, float alpha = 1.0f) {
     return ImVec4(((rgb >> 16) & 255) / 255.f, ((rgb >> 8) & 255) / 255.f,
                   (rgb & 255) / 255.f, alpha);
@@ -147,6 +155,7 @@ void NoteUserText(const std::string& utf8, UserTextRole role) {
         glyph.seen[static_cast<std::size_t>(role)] = *now;
     }
 }
+void SetAtlasBuildLog(std::function<void(const char*)> log) { atlasBuildLog = std::move(log); }
 bool ApplyTheme(float dpiScale) {
     dpiScale = (std::max)(1.f, (std::min)(dpiScale, 3.f));
     auto& io = ImGui::GetIO();
@@ -216,14 +225,21 @@ bool ApplyTheme(float dpiScale) {
     io.FontDefault = io.Fonts->Fonts[0];
     const int markIndex = io.Fonts->AddCustomRectRegular(brand::Size, brand::Size);
     IM_ASSERT(markIndex == 0); // Clear above makes this the first custom rectangle.
-    io.Fonts->Build();
+    const bool built = io.Fonts->Build();
     unsigned char* pixels = nullptr;
     int atlasWidth = 0, atlasHeight = 0;
     io.Fonts->GetTexDataAsRGBA32(&pixels, &atlasWidth, &atlasHeight);
     const auto* mark = io.Fonts->GetCustomRectByIndex(markIndex);
-    for (int row = 0; row < brand::Size; ++row)
-        std::memcpy(pixels + ((mark->Y + row) * atlasWidth + mark->X) * 4,
-                    brand::Pixels + row * brand::Size * 4, brand::Size * 4);
+    // The mark is copied into the atlas only where the build really placed
+    // it: an unplaced rectangle reads 0xFFFF, which would write far past the
+    // pixels, so a failed or partial build skips the mark instead.
+    const bool markFits = built && pixels && mark && mark->IsPacked() &&
+        mark->X + brand::Size <= atlasWidth && mark->Y + brand::Size <= atlasHeight;
+    if (markFits)
+        for (int row = 0; row < brand::Size; ++row)
+            std::memcpy(pixels + ((mark->Y + row) * atlasWidth + mark->X) * 4,
+                        brand::Pixels + row * brand::Size * 4, brand::Size * 4);
+    ReportAtlasBuild(built && markFits, atlasWidth, atlasHeight, atlasUserGlyphs.size(), userGlyphsAdded);
     io.Fonts->TexPixelsUseColors = true;
     ImGuiStyle style;
     ImGui::StyleColorsDark(&style);

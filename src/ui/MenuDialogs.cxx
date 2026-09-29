@@ -248,7 +248,7 @@ void GameMenu::DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEd
             const bool canAccept=entry&&entry->enabled;
             ImGui::TextWrapped("%s",entry?entry->label.c_str():loc::T("edit.title"));
             ImGui::TextWrapped("%s",loc::T("edit.instructions"));
-            char draft[4097]={}; std::strncpy(draft,navigation.Draft().c_str(),sizeof(draft)-1);
+            char draft[4097]={}; std::strncpy(draft,navigation.Draft().c_str(),limit);
             NoteUserText(navigation.Draft(),UserTextRole::Draft);
             if(lastEdit_!=navigation.EditingId()) ImGui::SetKeyboardFocusHere();
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);

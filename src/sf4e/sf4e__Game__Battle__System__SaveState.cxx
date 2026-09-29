@@ -468,10 +468,10 @@ static uint64_t HashLiveStateForFreeCheck(bool includeKeys) {
 // so a field log shows whether that assumption ever breaks.
 static void NoteUntrackedKeys(const fSystem::SaveState* state, const char* operation) {
     static bool s_noted = false;
-    // It is on in every build, for field logs, so it samples: every load (a
-    // rollback) and one release in 30, each about 90 set lookups.
-    static unsigned s_releases = 0;
-    if (operation[0] == 'r' && ++s_releases % 30 != 0) {
+    // It is on in every build, for field logs, so it samples one call in 30
+    // of each kind, a release or a load, each about 90 set lookups.
+    static unsigned s_releases = 0, s_loads = 0;
+    if (++(operation[0] == 'r' ? s_releases : s_loads) % 30 != 0) {
         return;
     }
     // Battle close frees every slot while the engine tears its objects down;

@@ -523,6 +523,12 @@ void KeyboardJourneys(){
  SetMenuGlyphs(input::PadXInput,input::xinput::A,input::xinput::B);
  h.Press(MenuInput::Down);Check(!KeyboardPrompts(),"A pad press left keyboard prompts up");
  key(ImGuiKey_UpArrow);Check(KeyboardPrompts(),"A key press kept the pad's prompts");
+ // Typing in a text field counts too, though its keys press no menu bit.
+ h.Press(MenuInput::Down);Check(!KeyboardPrompts(),"A pad press left keyboard prompts up");
+ h.Screen("room-chat");h.Choose("compose");Check(h.shell.Navigation().Editing(),"Compose did not open by pad");
+ h.Frame();io.AddInputCharactersUTF8("x");h.Frame();h.Frame();
+ Check(KeyboardPrompts(),"Typing with a pad assigned kept the pad's prompts");
+ key(ImGuiKey_Escape);
  h.selection=[]{};
 }
 void PresentationJourneys(){

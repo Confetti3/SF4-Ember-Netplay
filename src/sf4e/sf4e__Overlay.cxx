@@ -83,6 +83,7 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 		moduleFile.substr(0, moduleFile.find_last_of(L"\\/")) + L"/assets/selection",
 		[](const std::string& line) { spdlog::warn("{}", line); }));
     sf4e::ui::SetMenuArt(s_selectionArt.get());
+    sf4e::ui::SetAtlasBuildLog([](const char* line) { spdlog::info("{}", line); });
 	fMainMenu::OnModeSelectedOverride = OnMainMenuModeSelected;
 
 	sf4e::OverlayPrefs::Data prefs{};
