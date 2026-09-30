@@ -11,6 +11,9 @@ void SetOverlayCursorOwnership(bool capture);
 // the pads to the game.
 LRESULT HandleOverlayMessage(HWND window, UINT message, WPARAM w, LPARAM l,
                              bool capture, bool menuAvailable, bool pointer = false);
+// The same answer without feeding ImGui, for a message ImGui cannot take now;
+// `handled` is what ImGui's own handler returned, if it ran.
+LRESULT OverlayTakesMessage(UINT message, WPARAM w, bool capture, bool menuAvailable, bool pointer, LRESULT handled = 0);
 
 // The click that brings an inactive window forward is only a request to
 // focus it. The shell stays drawn while the game is behind another window, so

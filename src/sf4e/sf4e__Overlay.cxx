@@ -22,6 +22,8 @@
 #include <spdlog/spdlog.h>
 #include <memory>
 #include <atomic>
+#include <chrono>
+#include <mutex>
 
 namespace Overlay = sf4e::Overlay;
 using fMainMenu = sf4e::GameEvents::MainMenu;
@@ -46,6 +48,14 @@ static int lobbyStageID = 0, lobbyMenuCharaID = 0;
 static sf4e::selection::StageMask lobbyStageExcluded = 0;
 // The thread that draws the overlay (NoteMessageThread).
 static std::atomic<DWORD> s_drawThread{0};
+// ImGui's context and input queue are not thread-safe, and SF4 can pump the
+// window's messages on another thread than the one that draws (sf4e.log then
+// says "window messages arrive on thread"). Every ImGui access holds this
+// lock. The message thread waits for it only briefly: were the draw thread
+// ever to send the window a message while holding it, that message skips
+// ImGui instead of deadlocking the two threads.
+static std::recursive_timed_mutex s_imguiLock;
+using ImGuiLock = std::unique_lock<std::recursive_timed_mutex>;
 static rVsMode::ConfirmedCharaConditions lobbyConditions = {0,0,0,0,0,0,0,0,14};
 
 bool Overlay::CapturesMenuInput() { return capture.load(); }
@@ -60,6 +70,7 @@ static int OnMainMenuModeSelected(int mode) {
     presentation.Open(); shell.ShowPlay(); return 1;
 }
 void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
+	ImGuiLock lock(s_imguiLock);
 	sf4e::OverlayPrefs::StartPersistence();
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -236,6 +247,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 
 void Overlay::DrawOverlay() {
     s_drawThread.store(GetCurrentThreadId());
+    ImGuiLock lock(s_imguiLock);
 
     if (!ImGui::GetCurrentContext()) return;
     const auto sharedSnapshot = sf4e::NetplayFacade::GetRuntimeSnapshotShared();
@@ -359,6 +371,7 @@ void Overlay::FreeOverlay() {
     capture = false; pointerCapture = false;
     trainingAvailable = false;
     fMainMenu::bOverrideItemObserverState = -1;
+    ImGuiLock lock(s_imguiLock);
     if (!ImGui::GetCurrentContext()) return;
     controllerNavigation.Reset();
     sf4e::ui::SetMenuArt(nullptr);
@@ -381,6 +394,7 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
     // The click that brings the game forward again must not press an Ember
     // row that is drawn under the pointer while the game is behind another window.
     static sf4e::ui::ActivationClickFilter activationClick;
+    ImGuiLock lock(s_imguiLock, std::chrono::milliseconds(50));
     // Native display resets can pump activation messages after FreeOverlay and
     // before InitializeOverlay. Focus belongs to the window, not its ImGui
     // context: dropping reactivation here leaves F10/Start permanently gated.
@@ -391,15 +405,17 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
             sf4e::training::Submit({sf4e::training::Action::Stop, 0, training.generation});
             capture = false; pointerCapture = false;
             activationClick.Reset();
-            if (ImGui::GetCurrentContext()) {
+            if (lock.owns_lock() && ImGui::GetCurrentContext()) {
                 sf4e::ui::SetOverlayCursorOwnership(false);
                 ImGui::GetIO().ClearInputKeys(); ImGui::GetIO().ClearInputMouse();
             }
         }
     }
-    if (!ImGui::GetCurrentContext()) return 0;
+    if (lock.owns_lock() && !ImGui::GetCurrentContext()) return 0;
     if (activationClick.Swallow(message, l)) return 0;
-    const auto handled = sf4e::ui::HandleOverlayMessage(window, message, w, l, capture, presentation.Available(), pointerCapture);
+    const auto handled = lock.owns_lock() ?
+        sf4e::ui::HandleOverlayMessage(window, message, w, l, capture, presentation.Available(), pointerCapture) :
+        sf4e::ui::OverlayTakesMessage(message, w, capture, presentation.Available(), pointerCapture);
     if (trainingAvailable && w >= VK_F5 && w <= VK_F8 &&
         (message == WM_KEYDOWN || message == WM_KEYUP || message == WM_SYSKEYDOWN || message == WM_SYSKEYUP)) return 1;
     return handled;

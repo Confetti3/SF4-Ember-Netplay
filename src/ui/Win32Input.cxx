@@ -41,9 +41,11 @@ bool ActivationClickFilter::Swallow(UINT message, LPARAM l) {
 }
 LRESULT HandleOverlayMessage(HWND window, UINT message, WPARAM w, LPARAM l,
                              bool capture, bool menuAvailable, bool pointer) {
+    SetOverlayCursorOwnership(capture || pointer);
+    return OverlayTakesMessage(message, w, capture, menuAvailable, pointer, ImGui_ImplWin32_WndProcHandler(window, message, w, l));
+}
+LRESULT OverlayTakesMessage(UINT message, WPARAM w, bool capture, bool menuAvailable, bool pointer, LRESULT handled) {
     const bool mouse = capture || pointer;
-    SetOverlayCursorOwnership(mouse);
-    const auto handled = ImGui_ImplWin32_WndProcHandler(window, message, w, l);
     const bool key = message == WM_KEYDOWN || message == WM_KEYUP || message == WM_CHAR;
     // In particular, WM_SETCURSOR is not in WM_MOUSEFIRST..WM_MOUSELAST.
     // Letting it fall through makes the native handler overwrite the cursor
