@@ -18,11 +18,14 @@ vcpkg_from_github(
         "init-round-trip-time.patch"
         "assert-handler.patch"
         "spectator-catch-up.patch"
+        "bound-input-decoding.patch"
 )
 
 # One canonical policy is compiled by both GGPO and the portable tests.
 configure_file("${CMAKE_CURRENT_LIST_DIR}/input-repair.h"
     "${SOURCE_PATH}/src/lib/ggpo/network/input-repair.h" COPYONLY)
+configure_file("${CMAKE_CURRENT_LIST_DIR}/input-bits.h"
+    "${SOURCE_PATH}/src/lib/ggpo/network/input-bits.h" COPYONLY)
 
 vcpkg_cmake_configure(
     SOURCE_PATH ${SOURCE_PATH}
