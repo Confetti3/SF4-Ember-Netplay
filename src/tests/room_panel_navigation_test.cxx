@@ -228,18 +228,25 @@ int main() try {
     press(MenuInput::Right);
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 3,
         "Manual delay did not submit the bounded value");
-    // Fighter and Ultra sit under Ready. Left and Right step the Ultra without
-    // leaving the page; Select opens its cards in fighter select.
-    view.fighterName = "Ryu"; view.ultraName = "Ultra I: Metsu Hadoken"; view.ultraSteps = true; frame();
+    // Fighter, Ultra and Appearance sit under Ready. Left and Right step the
+    // Ultra and the color without leaving the page; Select opens their cards
+    // in fighter select.
+    view.fighterName = "Ryu"; view.ultraName = "Ultra I: Metsu Hadoken"; view.ultraSteps = true;
+    view.appearanceName = "Original / Color 1"; view.colorSteps = true; frame();
     Check(row("selection").value == "Ryu" && row("ultra").value == "Ultra I: Metsu Hadoken" && row("ultra").adjustable,
         "The table page does not show the fighter and a steppable Ultra");
-    Check(rows[1].id == "selection" && rows[2].id == "ultra" && rows[3].id == "input-delay",
-        "Fighter, Ultra and Input delay are not right under Ready");
+    Check(row("appearance").value == "Original / Color 1" && row("appearance").adjustable && row("appearance").enabled,
+        "The table page does not show a steppable appearance");
+    Check(rows[1].id == "selection" && rows[2].id == "ultra" && rows[3].id == "appearance" && rows[4].id == "input-delay",
+        "Fighter, Ultra, Appearance and Input delay are not right under Ready");
     focus("ultra"); press(MenuInput::Right);
-    Check(actions.back().ultraStep == 1, "Right on Ultra did not step it");
-    view.ultraSteps = false; frame();
+    Check(actions.back().ultraStep == 1 && actions.back().colorStep == 0, "Right on Ultra did not step it");
+    focus("appearance"); press(MenuInput::Left);
+    Check(actions.back().colorStep == -1 && actions.back().ultraStep == 0, "Left on Appearance did not step the color");
+    view.ultraSteps = false; view.colorSteps = false; frame();
     Check(!row("ultra").adjustable, "A fighter with one Ultra still offers to step it");
-    view.ultraSteps = true; frame();
+    Check(!row("appearance").adjustable, "A costume with one color still offers to step it");
+    view.ultraSteps = true; view.colorSteps = true; frame();
     // The host changes the rules in place; nothing is sent until Apply rules,
     // which only appears once something changed.
     Check(row("rounds").enabled && row("time").enabled && row("edition").enabled &&

@@ -1887,7 +1887,9 @@ msgid "room.change_fighter.waiting"
 msgstr "Čeká se na dokončení aktuálního zápasu nebo změny výběru."
 
 msgid "room.change_fighter.detail"
-msgstr "Vyberte postavu, pak projděte galerie kostýmů a barev. Vraťte se sem a potvrďte Připraven."
+msgstr "Vyberte postavu, pak její Ultra. Vraťte se sem a potvrďte Připraven."
+msgid "room.appearance.detail"
+msgstr "Šipky vlevo a vpravo zde mění barvu. Výběr zvolí kostým a pak jeho barvu."
 
 msgid "room.leave_seat"
 msgstr "Uvolnit místo"

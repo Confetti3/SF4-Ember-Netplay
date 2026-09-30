@@ -184,6 +184,10 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.ultraName = !fighter ? std::string() : summaryPick.ultra == 2 ? std::string(sf4e::loc::T("selection.ultra_double")) :
         std::string(sf4e::ui::UltraLabel(summaryPick.ultra)) + ": " + fighter->ultras[summaryPick.ultra < 0 || summaryPick.ultra > 1 ? 0 : summaryPick.ultra];
     view.ultraSteps = sf4e::selection::AllowedUltras(summaryPick.fighter, summaryPick.edition).size() > 1;
+    view.appearanceName = !fighter ? std::string() :
+        sf4e::loc::Tf("selection.appearance_value", sf4e::ui::CostumeLabel(summaryPick), lobbyConditions.color + 1);
+    view.colorSteps = fighter && sf4e::selection::AllowedColors(summaryPick.fighter, summaryPick.costume,
+        snapshot.fighterAvailability[lobbyMenuCharaID]).size() > 1;
     if (snapshot.atMainMenu && !sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),
         snapshot.lobbySettings.editionSelect, snapshot.fighterAvailability[lobbyMenuCharaID]))
         view.selectionError = sf4e::loc::T("runtime.selection_unavailable");
@@ -193,11 +197,13 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     if (view.error.empty() && status.lastError[0] && status.lastErrorSeverity != sf4e::NoticeSeverity::Info) view.error = status.lastError;
 	bool open = true;
     shell.Draw(view, &open, [&](sf4e::ui::ShellAction action) {
-		// The table page's Ultra row edits the pick here; nothing is sent.
-		if (action.ultraStep) {
-			if (!snapshot.canEditSelection) return false;
+		// The table page's Ultra and Appearance rows edit the pick here; nothing is sent.
+		if (action.ultraStep || action.colorStep) {
+			if (!snapshot.canEditSelection || !sf4e::selection::FindFighter(lobbyMenuCharaID)) return false;
 			auto pick = sf4e::selection::FromNative(lobbyConditions); pick.fighter = lobbyMenuCharaID;
-			sf4e::ui::Step(pick.ultra, sf4e::selection::AllowedUltras(pick.fighter, pick.edition), action.ultraStep);
+			if (action.ultraStep) sf4e::ui::Step(pick.ultra, sf4e::selection::AllowedUltras(pick.fighter, pick.edition), action.ultraStep);
+			else sf4e::ui::Step(pick.color, sf4e::selection::AllowedColors(pick.fighter, pick.costume,
+				snapshot.fighterAvailability[lobbyMenuCharaID]), action.colorStep);
 			sf4e::selection::ToNative(pick, lobbyConditions);
 			return true;
 		}

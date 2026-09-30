@@ -1887,7 +1887,9 @@ msgid "room.change_fighter.waiting"
 msgstr "In attesa della fine della partita o dell'aggiornamento della selezione."
 
 msgid "room.change_fighter.detail"
-msgstr "Scegli un personaggio, poi sfoglia costumi e colori. Torna qui e seleziona Mettiti pronto."
+msgstr "Scegli un personaggio, poi l'Ultra. Torna qui e seleziona Mettiti pronto."
+msgid "room.appearance.detail"
+msgstr "Sinistra e Destra cambiano qui il colore. Seleziona sceglie un costume, poi il suo colore."
 
 msgid "room.leave_seat"
 msgstr "Lascia posto"

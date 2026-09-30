@@ -409,14 +409,17 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    const bool ready=room::ReadyCancellable(t,place.seat);
     const auto readyControl=DescribeReady(v,t,place.seat);
     rows.push_back(Row("ready",readyControl.label,readyControl.detail,readyControl.kind!=ReadyControl::None));
-   // Fighter and Ultra sit right under Ready: A on Fighter opens the roster,
-   // then the Ultra; Left and Right step the Ultra in place.
+   // Fighter, Ultra and Appearance sit right under Ready: A on Fighter opens
+   // the roster, then the Ultra; A on Appearance opens the costumes, then
+   // their colors. Left and Right step the Ultra and the color in place.
    const bool canChange=mutableRoom&&v.canEditSelection&&!s.localTerminalPending;
    rows.push_back(Row("selection",loc::T("room.change_fighter"),canChange?
     std::string(loc::T("room.change_fighter.detail"))+"\n"+v.selectionSummary:SelectionBlocker(v),canChange));
    rows.back().value=v.fighterName;
    rows.push_back(Value("ultra",loc::T("selection.ultra_combo"),v.ultraName,canChange?loc::T("selection.ultra_row.detail"):SelectionBlocker(v),canChange));
    rows.back().adjustable=canChange&&v.ultraSteps;rows.back().opens=true;
+   rows.push_back(Value("appearance",loc::T("selection.appearance"),v.appearanceName,canChange?loc::T("room.appearance.detail"):SelectionBlocker(v),canChange));
+   rows.back().adjustable=canChange&&v.colorSteps;rows.back().opens=true;
     // One delay row: Left and Right choose it, Select takes the recommendation.
     const bool delayEditable=mutableRoom&&!active&&!v.delayLocked;
     const int selectedDelay=(std::max)(0,(std::min)(MaximumInputDelay,v.selectedDelay));
@@ -516,7 +519,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   rows.push_back(Row("apply-capacity",loc::T("room.apply_capacity"),loc::T("room.apply_capacity.detail"),host&&roomCapacity_>=static_cast<int>(s.members.size())));
  }
  if(!active) {
-  for(auto& row:rows)if(row.id=="selection"||row.id=="ultra"||row.id=="check-connection"||
+  for(auto& row:rows)if(row.id=="selection"||row.id=="ultra"||row.id=="appearance"||row.id=="check-connection"||
    row.id=="input-delay"||row.id=="queue"||row.id=="watch") {
     // Per table: a cached explanation never shows on another table's row.
     const auto key=screen+"/"+std::to_string(selectedTable_)+"/"+row.id;
@@ -958,6 +961,17 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    }else if(SelectionBlocker(v).empty()){
     // Select shows the Ultra cards, and picking one comes back here.
     selectionFresh_=true;selectionOpenOn_="ultra";nav.Push("selection");
+   }
+   return;
+  }
+  if(a.id=="appearance"){
+   if(a.kind==MenuAction::Adjust){
+    if(!v.canEditSelection||!RoomActionsAvailable(v))return;
+    ShellAction step;step.command.generation=v.session.generation;step.colorStep=a.delta;submit(std::move(step));
+   }else if(SelectionBlocker(v).empty()){
+    // Select shows the costume cards; a costume goes on to its colors, and
+    // picking one comes back here.
+    selectionFresh_=true;selectionOpenOn_="costumes";nav.Push("selection");
    }
    return;
   }

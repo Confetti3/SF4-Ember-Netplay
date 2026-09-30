@@ -226,6 +226,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   nav.Home();openOn_=embedded.openOn;
   if(openOn_=="roster"){nav.Push("roster");nav.Prefer("fighter-"+std::to_string(pick.fighter));}
   else if(openOn_=="ultra"){nav.Push("ultra");nav.Prefer("ultra-"+std::to_string(pick.ultra));}
+  else if(openOn_=="costumes"){nav.Push("costumes");nav.Prefer("costume-"+std::to_string(pick.costume));}
   else openOn_.clear();
  }
  if(ultraStepPending_&&nav.Screen()=="ultra"&&AllowedUltras(pick.fighter,pick.edition).size()<=1){
@@ -414,8 +415,11 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    // with its own saved pick restored, has only one.
    nav.Push("ultra");nav.Prefer("ultra-"+std::to_string(pick.ultra));focusSavedUltra_=ultraStepPending_=true;
   }else if(editable&&a.id.compare(0,6,"ultra-")==0){pick.ultra=std::stoi(a.id.substr(6));changed=true;finish();}
-  else if(editable&&a.id.compare(0,8,"costume-")==0){pick.costume=std::stoi(a.id.substr(8));Normalize(pick,editionSelect,&availability);changed=true;}
-  else if(editable&&a.id.compare(0,6,"color-")==0){pick.color=std::stoi(a.id.substr(6));changed=true;}
+  else if(editable&&a.id.compare(0,8,"costume-")==0){
+   // A costume's colors come next, from the color the pick keeps.
+   pick.costume=std::stoi(a.id.substr(8));Normalize(pick,editionSelect,&availability);changed=true;
+   nav.Push("colors");nav.Prefer("color-"+std::to_string(pick.color));
+  }else if(editable&&a.id.compare(0,6,"color-")==0){pick.color=std::stoi(a.id.substr(6));changed=true;finish();}
   else if(editable&&stageId&&a.id.compare(0,6,"stage-")==0){*stageId=std::stoi(a.id.substr(6));changed=true;}
  }else if(editable&&a.kind==MenuAction::Adjust){
   if(a.id=="ultra")Step(pick.ultra,AllowedUltras(pick.fighter,pick.edition),a.delta);

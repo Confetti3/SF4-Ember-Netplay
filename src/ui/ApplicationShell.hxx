@@ -60,10 +60,10 @@ struct ShellView {
             input::Device inputDevice;
             bool canChangeController = false, controllerReady = false;
     std::string selectionSummary, selectionError;
-    // The chosen fighter and Ultra, for the table page's rows; ultraSteps
-    // when the fighter has more than one Ultra to step through.
-    std::string fighterName, ultraName;
-    bool ultraSteps = false;
+    // The chosen fighter, Ultra and appearance, for the table page's rows;
+    // ultraSteps and colorSteps when there is more than one to step through.
+    std::string fighterName, ultraName, appearanceName;
+    bool ultraSteps = false, colorSteps = false;
     std::string selectionLockReason;
     // A Ready press in flight (parked, sent or awaiting commit), and the
     // last failure with a sequence that changes per occurrence.
@@ -87,6 +87,8 @@ struct ShellAction {
     // Steps the chosen Ultra by this much (the table page's Ultra row); the
     // overlay applies it to the pick, and nothing is sent.
     int ultraStep=0;
+    // Steps the chosen color the same way (the table page's Appearance row).
+    int colorStep=0;
 };
 
 class ApplicationShell {

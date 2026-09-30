@@ -1887,7 +1887,9 @@ msgid "room.change_fighter.waiting"
 msgstr "현재 대전 또는 선택 업데이트가 끝나기를 기다립니다."
 
 msgid "room.change_fighter.detail"
-msgstr "캐릭터를 선택한 뒤 코스튬과 색상 목록을 살펴보세요. 여기로 돌아와 준비를 선택하세요."
+msgstr "캐릭터를 선택한 뒤 울트라 콤보를 고르세요. 여기로 돌아와 준비를 선택하세요."
+msgid "room.appearance.detail"
+msgstr "좌우로 여기서 색상을 바꿉니다. 선택하면 코스튬을 고른 뒤 색상을 고릅니다."
 
 msgid "room.leave_seat"
 msgstr "자리 비우기"

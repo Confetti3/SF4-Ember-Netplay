@@ -1887,7 +1887,9 @@ msgid "room.change_fighter.waiting"
 msgstr "Attente de la fin du combat ou de la mise à jour de sélection."
 
 msgid "room.change_fighter.detail"
-msgstr "Choisissez un personnage, puis parcourez les galeries Costume et Couleur. Revenez ici et passez à Prêt."
+msgstr "Choisissez un personnage, puis son Ultra. Revenez ici et passez à Prêt."
+msgid "room.appearance.detail"
+msgstr "Gauche et Droite changent la couleur ici. Sélectionner choisit un costume, puis sa couleur."
 
 msgid "room.leave_seat"
 msgstr "Quitter la place"

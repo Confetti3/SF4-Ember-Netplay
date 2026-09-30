@@ -1887,7 +1887,9 @@ msgid "room.change_fighter.waiting"
 msgstr "Wachten tot de huidige match of keuze-update klaar is."
 
 msgid "room.change_fighter.detail"
-msgstr "Kies een personage en bekijk de outfit- en kleurengalerij. Kom hier terug en kies Klaar melden."
+msgstr "Kies een personage en daarna zijn Ultra. Kom hier terug en kies Klaar melden."
+msgid "room.appearance.detail"
+msgstr "Links en Rechts wisselen hier de kleur. Selecteren kiest een outfit en daarna de kleur."
 
 msgid "room.leave_seat"
 msgstr "Plek verlaten"

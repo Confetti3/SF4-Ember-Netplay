@@ -1887,7 +1887,9 @@ msgid "room.change_fighter.waiting"
 msgstr "等待当前对战或选择更新完成。"
 
 msgid "room.change_fighter.detail"
-msgstr "选择角色，然后浏览服装和颜色图库。返回此处并选择准备。"
+msgstr "选择角色，然后选择终极组合。返回此处并选择准备。"
+msgid "room.appearance.detail"
+msgstr "左右键在这里切换颜色。选择会先选服装，再选颜色。"
 
 msgid "room.leave_seat"
 msgstr "离开席位"
