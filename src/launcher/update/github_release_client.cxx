@@ -1,4 +1,5 @@
 #include "github_release_client_internal.hxx"
+#include "../../platform/Elevation.hxx"
 
 namespace sf4e {
 namespace launcher {
@@ -165,10 +166,25 @@ namespace launcher {
 			return true;
 		}
 
-		static bool SpawnUpdater(const wchar_t* installDir, const wchar_t* stagingDir, const wchar_t* params) {
+		// Every Updater start asks this first, so installing and recovering an
+		// interrupted update decide the same way (see platform/Elevation.hxx).
+		static bool UpdaterMayRun() {
+			const auto elevation = platform::ProcessElevation();
+			if (elevation == platform::Elevation::Normal) return true;
+			AppendUpdateLog(elevation == platform::Elevation::Elevated ?
+				"Updater not started: Ember is running as administrator" :
+				"Updater not started: could not tell whether Ember is running as administrator");
+			return false;
+		}
+
+		enum class SpawnResult { Started, Failed, NotNormalUser };
+		static SpawnResult SpawnUpdater(const wchar_t* installDir, const wchar_t* stagingDir, const wchar_t* params) {
+			if (!UpdaterMayRun()) {
+				return SpawnResult::NotNormalUser;
+			}
 			wchar_t updaterPath[MAX_PATH] = { 0 };
 			if (!StageUpdaterOutsideInstall(installDir, stagingDir, updaterPath, MAX_PATH)) {
-				return false;
+				return SpawnResult::Failed;
 			}
 
 			char paramsUtf8[4096] = { 0 };
@@ -186,13 +202,13 @@ namespace launcher {
 				char buf[128] = { 0 };
 				snprintf(buf, sizeof(buf), "spawn Updater failed (Win32 %lu)", GetLastError());
 				AppendUpdateLog(buf);
-				return false;
+				return SpawnResult::Failed;
 			}
 			if (sei.hProcess) {
 				CloseHandle(sei.hProcess);
 			}
 			AppendUpdateLog("spawn Updater ok");
-			return true;
+			return SpawnResult::Started;
 		}
 
 		static bool WideToUtf8(const wchar_t* wide, char* out, int outLen) {
@@ -363,7 +379,11 @@ namespace launcher {
 		swprintf_s(params, L"-InstallDir \"%s\" -RecoverOnly -WaitPid %lu", installDir, static_cast<unsigned long>(waitPid));
 		// The installed Updater may itself be part of the unfinished
 		// transaction, so it runs from a copy outside the install as usual.
-		return SpawnUpdater(installDir, installDir, params) ? PendingRecovery::Started : PendingRecovery::Failed;
+		switch (SpawnUpdater(installDir, installDir, params)) {
+		case SpawnResult::Started: return PendingRecovery::Started;
+		case SpawnResult::NotNormalUser: return PendingRecovery::NotNormalUser;
+		default: return PendingRecovery::Failed;
+		}
 	}
 
 	bool ReadInstalledVersion(char* outVersion, int outVersionLen) {
@@ -533,19 +553,6 @@ namespace launcher {
 		return result;
 	}
 
-	// Updates install as the normal user, like the rest of Ember's writable
-	// install. Wine reports its user as elevated, so it is not treated as one.
-	static bool ElevatedOutsideWine() {
-		if (GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "wine_get_version")) return false;
-		HANDLE token = nullptr;
-		if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) return false;
-		TOKEN_ELEVATION elevation{};
-		DWORD size = 0;
-		const bool elevated = GetTokenInformation(token, TokenElevation, &elevation, sizeof(elevation), &size) && elevation.TokenIsElevated;
-		CloseHandle(token);
-		return elevated;
-	}
-
 	ApplyUpdateResult DownloadAndApplyUpdate(
 		const char* zipDownloadUrl,
 		const char* zipApiUrl,
@@ -566,8 +573,8 @@ namespace launcher {
 			result.error = loc::T("update.close_sf4");
 			return result;
 		}
-		if (ElevatedOutsideWine()) {
-			AppendUpdateLog("update refused: running as administrator");
+		// Asked again before the Updater starts; asking now saves the download.
+		if (!UpdaterMayRun()) {
 			result.error = loc::T("update.elevated");
 			return result;
 		}
@@ -718,10 +725,11 @@ namespace launcher {
 		wchar_t updaterParams[4096] = { 0 };
 		swprintf_s(updaterParams, L"-InstallDir \"%s\" -StagingDir \"%s\" -WaitPid %lu",
 			installDir, stagingDir, GetCurrentProcessId());
-        if (!SpawnUpdater(installDir, stagingDir, updaterParams)) {
-			result.error = loc::T("update.updater_start_failed");
-			return result;
-		}
+        switch (SpawnUpdater(installDir, stagingDir, updaterParams)) {
+        case SpawnResult::Started: break;
+        case SpawnResult::NotNormalUser: result.error = loc::T("update.elevated"); return result;
+        default: result.error = loc::T("update.updater_start_failed"); return result;
+        }
 
 		AppendUpdateLog("DownloadAndApplyUpdate complete");
 

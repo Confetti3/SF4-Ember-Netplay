@@ -33,8 +33,9 @@ namespace launcher {
 	// journal), starts the Updater to restore it once process waitPid exits;
 	// the Updater then starts the Launcher again (ledger H-013). Started means
 	// the caller must exit now; Failed means an install is half replaced and
-	// the game must not start.
-	enum class PendingRecovery { None, Started, Failed };
+	// the game must not start; NotNormalUser is Failed because Ember was started
+	// as administrator, and starting it normally lets the recovery run.
+	enum class PendingRecovery { None, Started, Failed, NotNormalUser };
 	PendingRecovery StartPendingUpdateRecovery(std::uint32_t waitPid);
 	bool ReadInstalledVersion(char* outVersion, int outVersionLen);
 	bool IsGameProcessRunning();

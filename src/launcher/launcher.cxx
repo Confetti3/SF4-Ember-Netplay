@@ -550,6 +550,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     case sf4e::launcher::PendingRecovery::Failed:
         ShowRecovery(sf4e::loc::T("launcher.update_failed"), chosenDirectory, true);
         return 1;
+    case sf4e::launcher::PendingRecovery::NotNormalUser:
+        ShowRecovery(sf4e::loc::T("update.elevated"), chosenDirectory, true);
+        return 1;
     case sf4e::launcher::PendingRecovery::None: break;
     }
     wchar_t installRoot[MAX_PATH] = {}, dllDirectory[MAX_PATH] = {}, pathError[1024] = {};
