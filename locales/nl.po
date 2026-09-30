@@ -850,7 +850,7 @@ msgid "about.open_updater"
 msgstr "Afsluiten en updater openen"
 
 msgid "about.open_updater_detail"
-msgstr "Het spel wordt gesloten. Verlaat eerst je kamer."
+msgstr "Het spel sluit en de updater opent. Kies daar Downloaden en installeren. Verlaat eerst je kamer."
 
 msgid "about.open_recovery"
 msgstr "Afsluiten naar herstel"

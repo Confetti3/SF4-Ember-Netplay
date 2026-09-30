@@ -850,7 +850,7 @@ msgid "about.open_updater"
 msgstr "Wyjdź i otwórz aktualizator"
 
 msgid "about.open_updater_detail"
-msgstr "Gra zostanie zamknięta. Najpierw opuść pokój."
+msgstr "Gra się zamknie i otworzy się aktualizator. Tam wybierz Pobierz i zainstaluj. Najpierw opuść pokój."
 
 msgid "about.open_recovery"
 msgstr "Wyjdź do odzyskiwania"

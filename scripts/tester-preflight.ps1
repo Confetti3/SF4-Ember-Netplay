@@ -1,6 +1,27 @@
+# Checks an extracted Ember package: every required file is present and
+# matches MANIFEST.txt, and no stray program file sits in the folder. It
+# changes nothing.
 # -Strict (used when packaging) rejects every file outside the package inventory.
-param([string]$PackageDir = $PSScriptRoot, [switch]$Strict)
+# -Interactive (used by preflight.cmd, which players double-click) says what the
+# check is for and reports a failure in words instead of a PowerShell error.
+param([string]$PackageDir = $PSScriptRoot, [switch]$Strict, [switch]$Interactive)
 $ErrorActionPreference = 'Stop'
+# Scripts calling this (packaging, Install-Upgrade.ps1) get the error itself.
+trap {
+    if (!$Interactive) { break }
+    Write-Host "FAILED: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host 'Extract the downloaded ZIP again into a new, empty folder, then run this check again.'
+    exit 1
+}
+if ($Interactive) {
+    Write-Host 'SF4 Ember Netplay file check (preflight)'
+    Write-Host ''
+    Write-Host 'This optional check confirms that every Ember file was extracted completely and'
+    Write-Host 'unchanged. It changes nothing. It does not install, update or start Ember.'
+    Write-Host 'To play, run Launcher.exe. To update, choose Check for updates in Help & about,'
+    Write-Host 'or double-click Updater.exe.'
+    Write-Host ''
+}
 $package = (Resolve-Path -LiteralPath $PackageDir).Path.TrimEnd('\','/')
 $inventory = Join-Path $package 'PackageInventory.inc'
 $allowed = @(); $obsolete = @()
@@ -44,4 +65,5 @@ foreach ($file in Get-ChildItem -LiteralPath $package -File -Recurse) {
 }
 $artCount = @(Get-ChildItem -LiteralPath (Join-Path $package 'assets/selection') -Recurse -File -Filter '*.png').Count
 if ($artCount -lt 44) { throw 'Fighter artwork is incomplete' }
-Write-Host "SF4 Ember Netplay preflight passed: required files, obsolete runtime exclusion, manifest hashes, $artCount artwork images."
+if ($Interactive) { Write-Host "PASSED: every Ember file is present and unchanged ($artCount artwork images). You can close this window and run Launcher.exe." -ForegroundColor Green }
+else { Write-Host "SF4 Ember Netplay preflight passed: required files, obsolete runtime exclusion, manifest hashes, $artCount artwork images." }

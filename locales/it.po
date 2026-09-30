@@ -850,7 +850,7 @@ msgid "about.open_updater"
 msgstr "Esci e apri aggiornamento"
 
 msgid "about.open_updater_detail"
-msgstr "Il gioco si chiuderà. Esci prima dalla sala."
+msgstr "Il gioco si chiude e si apre l'aggiornamento. Lì scegli Scarica e installa. Esci prima dalla sala."
 
 msgid "about.open_recovery"
 msgstr "Esci al ripristino"

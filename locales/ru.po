@@ -850,7 +850,7 @@ msgid "about.open_updater"
 msgstr "Выйти и открыть обновление"
 
 msgid "about.open_updater_detail"
-msgstr "Игра закроется. Сначала выйдите из зала."
+msgstr "Игра закроется, и откроется обновление. Там выберите «Скачать и установить». Сначала выйдите из зала."
 
 msgid "about.open_recovery"
 msgstr "Выйти к восстановлению"

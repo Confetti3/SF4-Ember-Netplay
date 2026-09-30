@@ -850,7 +850,7 @@ msgid "about.open_updater"
 msgstr "Ukončit a aktualizovat"
 
 msgid "about.open_updater_detail"
-msgstr "Hra se zavře. Nejprve opusťte místnost."
+msgstr "Hra se zavře a otevře se aktualizace. Tam zvolte Stáhnout a nainstalovat. Nejprve opusťte místnost."
 
 msgid "about.open_recovery"
 msgstr "Ukončit a obnovit"

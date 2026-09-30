@@ -850,7 +850,7 @@ msgid "about.open_updater"
 msgstr "Exit and open updater"
 
 msgid "about.open_updater_detail"
-msgstr "The game will close. Leave your room first."
+msgstr "The game closes and the updater opens. Choose Download and install there. Leave your room first."
 
 msgid "about.open_recovery"
 msgstr "Exit to recovery"

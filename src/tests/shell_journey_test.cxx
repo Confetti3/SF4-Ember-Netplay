@@ -576,13 +576,20 @@ void PresentationJourneys(){
  h.view.preferences=h.actions.back().preferences;h.Frame(0,3);Check(status.find("Profile portrait saved:")==0,"Profile success notice missing");
  h.Frame(0,200);Check(status=="Saved","Success notice did not expire");SetMenuStatusProbe({});
  GameMenu recovery;recovery.navigation=RecoveryNavigation(true);sf4e::platform::ServiceSnapshot state;
- state.update.ok=state.update.updateAvailable=true;state.update.expectedSha256=std::string(64,'a');
+ state.update.ok=state.update.updateAvailable=true;state.update.expectedSha256=std::string(64,'a');state.update.latestVersion="v9.9.9";
+ std::vector<MenuEntry> updateRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){updateRows=r;});
  const auto frame=[&](unsigned held=0){SetMenuInput({held,0});ImGui::NewFrame();const auto choice=DrawRecoveryMenu(recovery,state,"",true);ImGui::Render();return choice;};
- frame();frame();frame(MenuInput::Down);frame();frame(MenuInput::Select);frame();
+ frame();frame();
+ // A found update is the first row, named by its version, so Select installs it.
+ Check(!updateRows.empty()&&updateRows[0].id=="install"&&updateRows[0].value=="v9.9.9"&&recovery.navigation.Focus()=="install",
+  "The updater did not offer the found update first");
+ frame(MenuInput::Select);frame();
  Check(recovery.navigation.Confirming()&&!recovery.navigation.ConfirmSelected(),"Recovery install not defaulting to Cancel");
  Check(frame(MenuInput::Select)==RecoveryChoice::None,"Recovery default confirmation installed an update");frame();
  state.pending=true;state.downloadedBytes=100;state.totalBytes=200;frame();
- frame(MenuInput::Down);frame();Check(frame(MenuInput::Select)==RecoveryChoice::Cancel,"Recovery cancellation not reachable");
+ for(int i=0;i<10&&recovery.navigation.Focus()!="cancel";++i){frame(MenuInput::Down);frame();}
+ Check(frame(MenuInput::Select)==RecoveryChoice::Cancel,"Recovery cancellation not reachable");
+ SetMenuEntriesProbe({});
 }
 void AppearanceGalleries(){
  using namespace sf4e;Harness h;FighterSelector selector;selection::Pick pick;

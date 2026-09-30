@@ -850,7 +850,7 @@ msgid "about.open_updater"
 msgstr "Ouvrir la mise à jour"
 
 msgid "about.open_updater_detail"
-msgstr "Le jeu se fermera. Quittez d'abord votre salon."
+msgstr "Le jeu se ferme et la mise à jour s'ouvre. Choisissez-y Télécharger et installer. Quittez d'abord votre salon."
 
 msgid "about.open_recovery"
 msgstr "Ouvrir la récupération"

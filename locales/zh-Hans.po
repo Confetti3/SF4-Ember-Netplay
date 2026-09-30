@@ -850,7 +850,7 @@ msgid "about.open_updater"
 msgstr "退出并打开更新程序"
 
 msgid "about.open_updater_detail"
-msgstr "游戏将关闭。请先离开房间。"
+msgstr "游戏将关闭并打开更新程序。请在其中选择“下载并安装”。请先离开房间。"
 
 msgid "about.open_recovery"
 msgstr "退出并打开恢复界面"

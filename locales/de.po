@@ -850,7 +850,7 @@ msgid "about.open_updater"
 msgstr "Beenden und Updater öffnen"
 
 msgid "about.open_updater_detail"
-msgstr "Spiel wird geschlossen. Verlassen Sie erst Ihren Raum."
+msgstr "Das Spiel wird geschlossen und der Updater öffnet sich. Wählen Sie dort Laden und installieren. Verlassen Sie erst Ihren Raum."
 
 msgid "about.open_recovery"
 msgstr "Starthilfe öffnen"
