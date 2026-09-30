@@ -71,7 +71,17 @@ static int OnMainMenuModeSelected(int mode) {
     if (mode != rMainMenu::MainMenuItemID::MMI_NETWORK) return 0;
     s_openRequests.Post(sf4e::ui::OpenRequests::Kind::Play); return 1;
 }
+// Which thread creates and frees the overlay, against the one that draws it.
+// Freeing it on another thread while a frame draws would use a freed context;
+// this says whether that can happen before anything guards against it.
+static void NoteLifecycleThread(const char* what) {
+    const DWORD self = GetCurrentThreadId(), draw = s_drawThread.load();
+    if (draw && self != draw) spdlog::warn("Overlay: {} on thread {} while the overlay draws on thread {}", what, self, draw);
+    else spdlog::info("Overlay: {} on thread {}", what, self);
+}
+
 void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
+	NoteLifecycleThread("initialize");
 	ImGuiLock lock(s_imguiLock);
 	sf4e::OverlayPrefs::StartPersistence();
 	IMGUI_CHECKVERSION();
@@ -273,6 +283,12 @@ void Overlay::DrawOverlay() {
     // still provided by the Win32 backend after explicit field activation.
     ImGui::GetIO().ConfigFlags &= ~(ImGuiConfigFlags_NavEnableGamepad | ImGuiConfigFlags_NavEnableKeyboard);
     ImGui_ImplDX9_NewFrame(); ImGui_ImplWin32_NewFrame();
+    static std::size_t notedOverflows = 0;
+    if (const auto overflows = s_inputBridge.Overflows(); overflows != notedOverflows) {
+        if (!notedOverflows) spdlog::warn("Overlay: window input backed up past {} events; dropped it and released every key",
+            sf4e::ui::Win32InputBridge::MaxQueuedEvents);
+        notedOverflows = overflows;
+    }
     controllerNavigation.Update(snapshot.menuController, sf4e::input::ControllerMenuAvailable(snapshot.menuContext),
         presentation.Visible() || trainingOpen, focused && !assigning);
     if (controllerNavigation.OpenRequested() && presentation.Available()) presentation.Open();
@@ -379,6 +395,7 @@ void Overlay::FreeOverlay() {
     capture = false; pointerCapture = false;
     trainingAvailable = false;
     fMainMenu::bOverrideItemObserverState = -1;
+    NoteLifecycleThread("free");
     ImGuiLock lock(s_imguiLock);
     if (!ImGui::GetCurrentContext()) return;
     controllerNavigation.Reset();

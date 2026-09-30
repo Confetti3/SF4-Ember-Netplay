@@ -31,7 +31,14 @@ void ApplyWin32Input(ImGuiIO& io, const Win32Input& input);
 // ReleaseCapture) never waits on it.
 class Win32InputBridge {
 public:
+    // A drawing thread that stops taking input (a long stall, a lost device)
+    // must not let the queue grow without end. At the bound the queued input is
+    // dropped and every key and button released, as RequestClear does, so no
+    // dropped release can leave a key held; the window's focus is kept.
+    static constexpr std::size_t MaxQueuedEvents = 4096;
     void Push(const Win32Input& input);
+    // How many times the bound dropped input.
+    std::size_t Overflows() const { return overflows_; }
     // Releases every key and button. Input queued before is dropped; input
     // queued after still applies.
     void RequestClear();
@@ -41,6 +48,7 @@ private:
     std::mutex lock_;
     std::vector<Win32Input> queued_;
     bool clear_ = false;
+    std::atomic<std::size_t> overflows_{0};
 };
 // The backend's route for one event: into the bridge when it has one,
 // otherwise straight to io.

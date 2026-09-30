@@ -139,6 +139,20 @@ int main() {
         frame();
         check(!ImGui::IsKeyDown(ImGuiKey_RightArrow), "focus loss did not release a held key");
 
+        // A drawing thread that stops taking input cannot grow the queue without
+        // end, and a release the bound drops still leaves no key held.
+        using sf4e::ui::Win32Input;
+        const auto overflowsBefore = bridge.Overflows();
+        bridge.Push(Win32Input::KeyEvent(ImGuiKey_LeftArrow, true, VK_LEFT));
+        frame();
+        check(ImGui::IsKeyDown(ImGuiKey_LeftArrow), "a queued press did not apply");
+        bridge.Push(Win32Input::KeyEvent(ImGuiKey_LeftArrow, false, VK_LEFT));
+        for (std::size_t i = 0; i < sf4e::ui::Win32InputBridge::MaxQueuedEvents; ++i)
+            bridge.Push(Win32Input::Of(Win32Input::MousePos, 0, 0, static_cast<float>(i % 100), 5.f));
+        check(bridge.Overflows() == overflowsBefore + 1, "the input bound did not trip");
+        frame();
+        check(!ImGui::IsKeyDown(ImGuiKey_LeftArrow), "a release dropped at the bound left the key held");
+
         // A real window procedure on the message thread: releasing the mouse
         // makes Windows send WM_CAPTURECHANGED back into it, and so into the
         // backend, from inside the backend's own ReleaseCapture call. That

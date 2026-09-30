@@ -28,6 +28,15 @@ void SetWin32CursorOwned(bool owned) { cursorOwned = owned; }
 
 void Win32InputBridge::Push(const Win32Input& input) {
     std::lock_guard<std::mutex> hold(lock_);
+    if (queued_.size() >= MaxQueuedEvents) {
+        Win32Input focus;
+        bool focusQueued = false;
+        for (const auto& event : queued_) if (event.kind == Win32Input::Focus) { focus = event; focusQueued = true; }
+        queued_.clear();
+        clear_ = true;
+        if (focusQueued) queued_.push_back(focus);
+        ++overflows_;
+    }
     queued_.push_back(input);
 }
 
