@@ -246,7 +246,8 @@ int main() try {
     view.localSlot = 1; view.stageName = "Random"; frame();
     Check(!row("stage").enabled && row("stage").detail == loc::T("selection.only_p1_stage"), "P2 could change the stage");
     view.localSlot = 0; frame();
-    Check(row("stage").enabled && row("stage").value == "Random", "P1 cannot change the stage from the table page");
+    Check(row("stage").enabled && row("stage").value == "Random" && !row("stage").adjustable,
+        "P1 cannot change the stage from the table page, or it advertises stepping in place");
     focus("ultra"); press(MenuInput::Right);
     using Field = ShellAction::SelectionStep::Field;
     Check(actions.back().selectionStep.field == Field::Ultra && actions.back().selectionStep.delta == 1, "Right on Ultra did not step it");

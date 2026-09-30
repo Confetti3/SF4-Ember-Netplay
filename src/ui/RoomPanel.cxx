@@ -224,7 +224,8 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    const bool stageOwner=v.localSlot==0;
    rows.push_back(Value("stage",loc::T("selection.stage"),v.stageName,
     !canChange?SelectionBlocker(v):loc::T(stageOwner?"selection.p1_stage":"selection.only_p1_stage"),canChange&&stageOwner));
-   rows.back().opens=true;
+   // Shows the stage; Select opens the cards. Nothing steps it in place.
+   rows.back().adjustable=false;rows.back().opens=true;
    rows.push_back(Row("fighter-options",loc::T("selection.additional_options"),
     canChange?std::string(loc::T("selection.additional_options.detail")):SelectionBlocker(v),canChange));
     // One delay row: Left and Right choose it, Select takes the recommendation.
@@ -773,7 +774,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    return;
   }
   if(a.id=="stage"||a.id=="fighter-options"){
-   if(SelectionBlocker(v).empty()){selectionFresh_=true;selectionOpenOn_=a.id=="stage"?"stage":"options";nav.Push("selection");}
+   if(a.kind==MenuAction::Activate&&SelectionBlocker(v).empty()){selectionFresh_=true;selectionOpenOn_=a.id=="stage"?"stage":"options";nav.Push("selection");}
    return;
   }
  if(a.id=="leave"){Send(netplay::CommandKind::LeaveRoom,v,submit);return;}

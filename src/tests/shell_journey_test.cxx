@@ -547,7 +547,10 @@ void KeyboardJourneys(){
  // P1 opens the stage cards at the saved stage, and a pick returns to the table page.
  int stage=0;h.view.localSlot=0;h.view.stageName="Random";
  h.selection=[&]{selector.Draw(pick,false,nullptr,[&](int){return available;},&stage,true);};
- h.FocusOn("stage");key(ImGuiKey_Enter);
+ // Stage shows its value but steps nothing in place: Left and Right stay here.
+ h.FocusOn("stage");key(ImGuiKey_RightArrow);key(ImGuiKey_LeftArrow);
+ Check(h.shell.Navigation().Screen()=="room-table"&&stage==0,"Left or Right on the table's Stage left the table page");
+ key(ImGuiKey_Enter);
  Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="stage",
   "Select on the table's Stage did not open the stage cards");
  key(ImGuiKey_RightArrow);key(ImGuiKey_Enter);
