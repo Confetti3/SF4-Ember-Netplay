@@ -3,7 +3,11 @@
 #include "../ui/Win32Input.hxx"
 #include <imgui.h>
 #include <imgui_impl_win32.h>
+#include <atomic>
 #include <cstdio>
+#include <cstdlib>
+#include <thread>
+IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
 int main() {
     HWND window = CreateWindowW(L"STATIC", L"Ember cursor regression", WS_OVERLAPPEDWINDOW,
@@ -94,6 +98,89 @@ int main() {
         check(filter.Swallow(WM_LBUTTONDOWN, 0), "a second activation did not swallow its press");
         filter.Reset();
         check(!filter.Swallow(WM_LBUTTONUP, 0), "Reset kept a release pending");
+    }
+    // SF4 may deliver window messages on another thread than the one that
+    // draws. Through the input bridge, every press and release sent from a
+    // second thread reaches ImGui in order while frames run, and focus loss
+    // releases what is still held.
+    {
+        auto& io = ImGui::GetIO();
+        io.DisplaySize = ImVec2(640, 480);
+        unsigned char* pixels = nullptr; int width = 0, height = 0;
+        io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+        const auto frame = [] { ImGui_ImplWin32_NewFrame(); ImGui::NewFrame(); ImGui::EndFrame(); };
+        sf4e::ui::Win32InputBridge bridge;
+        ImGui_ImplWin32_SetInputBridge(&bridge);
+        frame();
+        std::atomic<bool> sent{false};
+        int pressesSeen = 0;
+        std::thread messages([&] {
+            for (int i = 0; i < 2000; ++i) {
+                ImGui_ImplWin32_WndProcHandler(window, WM_KEYDOWN, VK_LEFT, 0);
+                ImGui_ImplWin32_WndProcHandler(window, WM_KEYUP, VK_LEFT, 0xC0000000);
+                ImGui_ImplWin32_WndProcHandler(window, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(10, 10));
+                ImGui_ImplWin32_WndProcHandler(window, WM_LBUTTONUP, 0, MAKELPARAM(10, 10));
+                ImGui_ImplWin32_WndProcHandler(window, WM_CHAR, 'd', 0);
+            }
+            ImGui_ImplWin32_WndProcHandler(window, WM_KEYDOWN, VK_RIGHT, 0);
+            sent = true;
+        });
+        while (!sent) { frame(); if (ImGui::IsKeyDown(ImGuiKey_LeftArrow) || ImGui::IsMouseDown(0)) ++pressesSeen; }
+        messages.join();
+        // ImGui applies one transition per key each frame, so the queued
+        // presses and releases take several frames to play out.
+        for (int i = 0; i < 20000 && (ImGui::IsKeyDown(ImGuiKey_LeftArrow) || ImGui::IsMouseDown(0) || !ImGui::IsKeyDown(ImGuiKey_RightArrow)); ++i) frame();
+        frame();
+        check(pressesSeen > 0, "no press from the message thread reached a frame");
+        check(!ImGui::IsKeyDown(ImGuiKey_LeftArrow) && !ImGui::IsMouseDown(0), "a release from the message thread was lost");
+        check(ImGui::IsKeyDown(ImGuiKey_RightArrow), "the last press from the message thread was lost");
+        std::thread focus([&] { bridge.RequestClear(); });
+        focus.join();
+        frame();
+        check(!ImGui::IsKeyDown(ImGuiKey_RightArrow), "focus loss did not release a held key");
+
+        // A real window procedure on the message thread: releasing the mouse
+        // makes Windows send WM_CAPTURECHANGED back into it, and so into the
+        // backend, from inside the backend's own ReleaseCapture call. That
+        // must finish while the drawing thread keeps running frames.
+        static std::atomic<int> captureChanges{0};
+        struct Owner {
+            static LRESULT CALLBACK Proc(HWND hwnd, UINT message, WPARAM w, LPARAM l) {
+                if (message == WM_CAPTURECHANGED) ++captureChanges;
+                ImGui_ImplWin32_WndProcHandler(hwnd, message, w, l);
+                return DefWindowProcW(hwnd, message, w, l);
+            }
+        };
+        WNDCLASSW windowClass{};
+        windowClass.lpfnWndProc = Owner::Proc;
+        windowClass.hInstance = GetModuleHandleW(nullptr);
+        windowClass.lpszClassName = L"EmberCaptureRegression";
+        RegisterClassW(&windowClass);
+        std::atomic<bool> captured{false}, finished{false};
+        std::thread owner([&] {
+            HWND own = CreateWindowW(windowClass.lpszClassName, L"", WS_OVERLAPPEDWINDOW, 0, 0, 320, 240,
+                nullptr, nullptr, windowClass.hInstance, nullptr);
+            for (int press = 0; own && press < 50; ++press) {
+                SendMessageW(own, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(10, 10));
+                if (GetCapture() == own) captured = true;
+                SendMessageW(own, WM_LBUTTONUP, 0, MAKELPARAM(10, 10));
+            }
+            if (own) DestroyWindow(own);
+            finished = true;
+        });
+        const auto started = GetTickCount64();
+        while (!finished && GetTickCount64() - started < 5000) frame();
+        if (!finished) {
+            std::printf("FAIL: releasing the mouse inside a real window procedure did not return\n");
+            std::fflush(stdout);
+            std::_Exit(1);
+        }
+        owner.join();
+        check(captured, "the test window never held the capture, so its release was not exercised");
+        check(captureChanges >= 50, "releasing the capture did not re-enter the window procedure");
+        for (int i = 0; i < 1000 && ImGui::IsMouseDown(0); ++i) frame();
+        check(!ImGui::IsMouseDown(0), "a release from the capturing window was lost");
+        ImGui_ImplWin32_SetInputBridge(nullptr);
     }
     SetCursor(previous);
     ImGui_ImplWin32_Shutdown(); ImGui::DestroyContext(); DestroyWindow(window);

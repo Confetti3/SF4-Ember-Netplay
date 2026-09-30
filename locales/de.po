@@ -850,7 +850,7 @@ msgid "about.open_updater"
 msgstr "Beenden und Updater öffnen"
 
 msgid "about.open_updater_detail"
-msgstr "Spiel wird geschlossen. Verlassen Sie erst Ihren Raum."
+msgstr "Das Spiel wird geschlossen und der Updater öffnet sich. Wählen Sie dort Laden und installieren. Verlassen Sie erst Ihren Raum."
 
 msgid "about.open_recovery"
 msgstr "Starthilfe öffnen"
@@ -1528,6 +1528,8 @@ msgstr "Versionstag fehlt."
 
 msgid "update.close_sf4"
 msgstr "Schließen Sie Ultra Street Fighter IV vor der Updateinstallation."
+msgid "update.elevated"
+msgstr "Ember läuft als Administrator. Schließen Sie es und starten Sie es normal, um Updates zu installieren."
 
 msgid "update.install_dir_failed"
 msgstr "Installationsordner unbekannt."
@@ -1887,7 +1889,9 @@ msgid "room.change_fighter.waiting"
 msgstr "Warten, bis die Kampf- oder Auswahlaktualisierung endet."
 
 msgid "room.change_fighter.detail"
-msgstr "Wählen Sie einen Charakter und sehen Sie Kleidung und Farben an. Kehren Sie zurück und wählen Sie Bereit."
+msgstr "Wählen Sie einen Charakter, dann sein Ultra. Kehren Sie zurück und wählen Sie Bereit."
+msgid "room.appearance.detail"
+msgstr "Links und Rechts wechseln hier die Farbe. Auswählen wählt eine Kleidung, dann ihre Farbe."
 
 msgid "room.leave_seat"
 msgstr "Platz verlassen"

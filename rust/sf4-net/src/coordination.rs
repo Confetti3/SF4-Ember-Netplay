@@ -45,6 +45,13 @@ pub const MAX_MEMBER_HISTORY: usize = MAX_RETIRED_MEMBER_HISTORY + MAX_MEMBERS;
 pub const MAX_SNAPSHOT: usize = MAX_CHECKPOINT * 6 + 65536;
 pub const SNAPSHOT_FRAGMENT_BYTES: usize = 16 * 1024;
 pub const SNAPSHOT_CREDIT_WINDOW: usize = 4;
+/// Encoded size bounds of the RPC bodies whose content is small and fixed in
+/// shape. Only an append carries a checkpoint and may reach `MAX_SNAPSHOT`.
+/// The tests encode the largest body of each kind against these bounds.
+pub const MAX_VOTE_REQUEST: usize = 4 * 1024;
+pub const MAX_PROPOSE_REQUEST: usize = 16 * 1024;
+pub const MAX_SNAPSHOT_REQUEST: usize = 128 * 1024;
+pub const MAX_RPC_RESPONSE: usize = 64 * 1024;
 const RECENT_REQUESTS: usize = 128;
 const SNAPSHOT_MAGIC: [u8; 8] = *b"sf4rs001";
 const SNAPSHOT_HEADER_BYTES: usize = SNAPSHOT_MAGIC.len() + size_of::<u64>() + 32;
@@ -1215,6 +1222,23 @@ impl Coordinator {
             .map_err(|_| io::Error::other("room commitment failed"))?;
         Ok(response.data)
     }
+    /// Whether the authenticated source may stand as a candidate here. Only
+    /// a voter of this node's latest or applied membership can be elected. A
+    /// fresh learner has no membership until its first entry or snapshot
+    /// arrives; until then the transport's admitted binding is the only check.
+    async fn may_campaign(&self, source: u64) -> bool {
+        let (empty, effective) = {
+            let metrics = self.raft.metrics();
+            let metrics = metrics.borrow();
+            let membership = metrics.membership_config.membership();
+            (
+                membership.nodes().next().is_none(),
+                membership.voter_ids().any(|id| id == source),
+            )
+        };
+        empty || effective || self.store.applied_voters().await.contains(&source)
+    }
+
     pub async fn dispatch(&self, source: u64, method: &str, bytes: &[u8]) -> io::Result<Vec<u8>> {
         let bad = || io::Error::other("invalid room coordination request");
         if source == 0 || bytes.len() > MAX_SNAPSHOT {
@@ -1323,7 +1347,13 @@ impl Coordinator {
             }
             "vote" => {
                 let request: VoteRequest<u64> = serde_json::from_slice(bytes).map_err(|_| bad())?;
-                if request.vote.leader_id.node_id != source {
+                // A candidate always asks with an uncommitted vote. OpenRaft
+                // stores the requested vote once the log check passes, so a
+                // vote is granted only in the candidate's form.
+                if request.vote.leader_id.node_id != source
+                    || request.vote.is_committed()
+                    || !self.may_campaign(source).await
+                {
                     return Err(bad());
                 }
                 serde_json::to_vec(&self.raft.vote(request).await.map_err(|_| bad())?)

@@ -106,6 +106,7 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
     // a picked folder replaces it.
     bool serviceNewer = false;
     GameMenu menu;menu.navigation=RecoveryNavigation(updates);
+    std::string offeredVersion;
     // Released before the window it is bound to is destroyed.
     auto controller=std::make_unique<RecoveryController>(window);
     while (!quit) {
@@ -143,6 +144,7 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
         default:SetMenuGlyphs(input::PadKeyboard,0,0);break;
         }
         const auto state = services.Snapshot();
+        OfferFoundUpdate(menu,state,offeredVersion);
         switch(DrawRecoveryMenu(menu,state,message,updates,messageTone,canStart,serviceNewer)) {
         case RecoveryChoice::Folder:
             // The picker blocks this loop, so the pads are disarmed before it

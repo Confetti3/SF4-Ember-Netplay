@@ -1,7 +1,8 @@
 //! Authenticated, bounded room-consensus transport. This endpoint is separate
 //! from the gameplay endpoint: shutting down consensus cannot retire GGPO links.
 use crate::coordination::{
-    AuthorityClaim, Coordinator, MAX_MEMBERS, MAX_SNAPSHOT, RpcTransport, SNAPSHOT_FRAGMENT_BYTES,
+    AuthorityClaim, Coordinator, MAX_MEMBERS, MAX_PROPOSE_REQUEST, MAX_RPC_RESPONSE, MAX_SNAPSHOT,
+    MAX_SNAPSHOT_REQUEST, MAX_VOTE_REQUEST, RpcTransport, SNAPSHOT_FRAGMENT_BYTES,
 };
 use iroh::{
     Endpoint, EndpointAddr, EndpointId,
@@ -27,6 +28,14 @@ const MAX_RPC: usize = MAX_SNAPSHOT;
 const RPC_TIMEOUT: Duration = Duration::from_secs(10);
 const CONNECTION_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_CONNECTION_STREAMS: usize = 8;
+/// A caller keeps one cached connection per target and redials after a
+/// canceled RPC closes it, so two cover the old connection winding down.
+const MAX_PEER_CONNECTIONS: usize = 2;
+/// Request bytes held at once, per authenticated endpoint and in total. One
+/// endpoint's allowance fits a full append beside its smaller RPCs, and the
+/// total leaves the same room for the rest of the room.
+const PEER_BODY_BUDGET: usize = 2 * MAX_RPC;
+const BODY_BUDGET: usize = 4 * MAX_RPC;
 const RELAY_READY_TIMEOUT: Duration = Duration::from_secs(10);
 const CHUNK: usize = SNAPSHOT_FRAGMENT_BYTES;
 const RETIRED_FILTER_WORDS: usize = 128;
@@ -47,7 +56,70 @@ pub struct IrohRpc {
     // False positives fail closed; the filter has no false negatives.
     retired_filter: RwLock<[u64; RETIRED_FILTER_WORDS]>,
     connections: RwLock<BTreeMap<u64, Connection>>,
+    /// One dial gate per target. Only its holder opens the target's
+    /// connection, so concurrent RPCs share one cached connection instead of
+    /// each dialing its own. The gate is held only while dialing.
+    dials: std::sync::Mutex<BTreeMap<u64, Arc<tokio::sync::Mutex<()>>>>,
     in_flight: Semaphore,
+    /// Served connections and the request byte allowance of each remote
+    /// endpoint. An entry lives while that endpoint has a served connection.
+    peers: std::sync::Mutex<BTreeMap<EndpointId, PeerLoad>>,
+    body_budget: Semaphore,
+}
+
+struct PeerLoad {
+    connections: usize,
+    bytes: Arc<Semaphore>,
+}
+
+/// One served connection of a remote endpoint, counted until it ends.
+struct PeerSlot {
+    owner: Arc<IrohRpc>,
+    peer: EndpointId,
+    bytes: Arc<Semaphore>,
+}
+
+impl PeerSlot {
+    fn claim(owner: &Arc<IrohRpc>, peer: EndpointId) -> Option<Self> {
+        let mut peers = owner.peers.lock().unwrap_or_else(|e| e.into_inner());
+        let load = peers.entry(peer).or_insert_with(|| PeerLoad {
+            connections: 0,
+            bytes: Arc::new(Semaphore::new(PEER_BODY_BUDGET)),
+        });
+        if load.connections >= MAX_PEER_CONNECTIONS {
+            return None;
+        }
+        load.connections += 1;
+        Some(Self {
+            owner: owner.clone(),
+            peer,
+            bytes: load.bytes.clone(),
+        })
+    }
+}
+
+impl Drop for PeerSlot {
+    fn drop(&mut self) {
+        let mut peers = self.owner.peers.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(load) = peers.get_mut(&self.peer) {
+            load.connections = load.connections.saturating_sub(1);
+            if load.connections == 0 {
+                peers.remove(&self.peer);
+            }
+        }
+    }
+}
+
+/// The largest request body each method can carry. Only an append holds a
+/// checkpoint; the single-byte methods carry a fixed marker.
+fn request_ceiling(method: &str) -> usize {
+    match method {
+        "append" => MAX_RPC,
+        "vote" => MAX_VOTE_REQUEST,
+        "snapshot" => MAX_SNAPSHOT_REQUEST,
+        "propose" => MAX_PROPOSE_REQUEST,
+        _ => 1,
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -117,7 +189,10 @@ impl IrohRpc {
             members: RwLock::new(BTreeMap::new()),
             retired_filter: RwLock::new([0; RETIRED_FILTER_WORDS]),
             connections: RwLock::new(BTreeMap::new()),
+            dials: std::sync::Mutex::new(BTreeMap::new()),
             in_flight: Semaphore::new(MAX_MEMBERS),
+            peers: std::sync::Mutex::new(BTreeMap::new()),
+            body_budget: Semaphore::new(BODY_BUDGET),
         }))
     }
     pub fn address(&self) -> EndpointAddr {
@@ -140,7 +215,12 @@ impl IrohRpc {
         primary: impl Into<Option<EndpointId>>,
     ) -> io::Result<()> {
         let primary = primary.into();
-        if self.retired_filter_contains(incarnation).await {
+        // This process never routes RPCs to itself, so its own incarnation
+        // and coordination key are never bound to a route.
+        if incarnation == self.incarnation
+            || address.id == self.endpoint.id()
+            || self.retired_filter_contains(incarnation).await
+        {
             return Err(failure());
         }
         let now = Instant::now();
@@ -161,6 +241,7 @@ impl IrohRpc {
             expired
         };
         for id in expired {
+            self.forget_dial(id);
             if let Some(connection) = self.connections.write().await.remove(&id) {
                 connection.close(1u32.into(), b"retired room route expired");
             }
@@ -238,9 +319,57 @@ impl IrohRpc {
     }
     pub async fn revoke(&self, incarnation: u64) {
         self.members.write().await.remove(&incarnation);
+        self.forget_dial(incarnation);
         if let Some(connection) = self.connections.write().await.remove(&incarnation) {
             connection.close(1u32.into(), b"room membership ended");
         }
+    }
+
+    fn forget_dial(&self, target: u64) {
+        self.dials
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&target);
+    }
+
+    async fn cached_connection(&self, target: u64) -> Option<Connection> {
+        self.connections
+            .read()
+            .await
+            .get(&target)
+            .filter(|c| c.close_reason().is_none())
+            .cloned()
+    }
+
+    /// The open cached connection to `target`, dialed once if there is none.
+    /// Callers that arrive while a dial is in progress wait for it and then
+    /// share its connection. A caller canceled while dialing releases the
+    /// gate, and the next caller dials in its place.
+    async fn route(&self, target: u64, address: EndpointAddr) -> io::Result<Connection> {
+        if let Some(connection) = self.cached_connection(target).await {
+            return Ok(connection);
+        }
+        let gate = self
+            .dials
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .entry(target)
+            .or_default()
+            .clone();
+        let _dialing = gate.lock().await;
+        if let Some(connection) = self.cached_connection(target).await {
+            return Ok(connection);
+        }
+        let connection = self
+            .endpoint
+            .connect(address, ALPN)
+            .await
+            .map_err(|_| failure())?;
+        self.connections
+            .write()
+            .await
+            .insert(target, connection.clone());
+        Ok(connection)
     }
 
     fn retired_filter_index(&self, incarnation: u64, round: u64) -> usize {
@@ -367,6 +496,12 @@ impl IrohRpc {
                         }) {
                             connection.close(1u32.into(), b"room member required"); return;
                         }
+                        // Each endpoint holds at most a couple of served
+                        // connections, so one endpoint never takes the shared
+                        // connection limit from the other members.
+                        let Some(slot) = PeerSlot::claim(&owner, connection.remote_id()) else {
+                            connection.close(1u32.into(), b"room RPC connection limit"); return;
+                        };
                         // Serve the streams of one connection concurrently. A large
                         // checkpoint append must not queue the authority reads and
                         // heartbeats behind it: both sides would then report quorum
@@ -398,6 +533,7 @@ impl IrohRpc {
                             };
                             let owner = owner.clone(); let coordinator = coordinator.clone();
                             let connection = connection.clone();
+                            let peer_bytes = slot.bytes.clone();
                             streams.spawn(timeout(RPC_TIMEOUT, async move {
                                 let mut room = [0; 16]; recv.read_exact(&mut room).await.map_err(|_| failure())?;
                                 let source = recv.read_u64().await?;
@@ -413,7 +549,13 @@ impl IrohRpc {
                                 if room != owner.room || target != owner.incarnation { return Err(failure()); }
                                 let method = match method { 1 => "append", 2 => "vote", 3 => "snapshot", 4 => "authority", 5 => "propose", 6 => "elect", 7 => "remove", _ => return Err(failure()) };
                                 if retired.is_some() && method != "authority" { return Err(failure()); }
-                                let body = read_body(&mut recv).await?;
+                                // The announced size is held against the endpoint's
+                                // and the shared allowance before any of it is read,
+                                // and the body grows only as its bytes arrive.
+                                let size = read_size(&mut recv, request_ceiling(method)).await?;
+                                let _peer_bytes = peer_bytes.acquire_many(size as u32).await.map_err(|_| failure())?;
+                                let _bytes = owner.body_budget.acquire_many(size as u32).await.map_err(|_| failure())?;
+                                let body = read_sized(&mut recv, size).await?;
                                 let response = coordinator.dispatch(source, method, &body).await?;
                                 write_body(&mut send, &response).await?;
                                 send.finish().map_err(|_| failure())?;
@@ -432,16 +574,37 @@ impl IrohRpc {
         }
     }
 }
-async fn read_body(reader: &mut (impl tokio::io::AsyncRead + Unpin)) -> io::Result<Vec<u8>> {
+async fn read_size(
+    reader: &mut (impl tokio::io::AsyncRead + Unpin),
+    ceiling: usize,
+) -> io::Result<usize> {
     let size = reader.read_u32().await? as usize;
-    if size == 0 || size > MAX_RPC {
+    if size == 0 || size > ceiling.min(MAX_RPC) {
         return Err(failure());
     }
-    let mut data = vec![0; size];
-    for chunk in data.chunks_mut(CHUNK) {
-        reader.read_exact(chunk).await?;
+    Ok(size)
+}
+/// Read a body of the announced size one chunk at a time, so memory follows
+/// the bytes actually received rather than the size a header announced.
+async fn read_sized(
+    reader: &mut (impl tokio::io::AsyncRead + Unpin),
+    size: usize,
+) -> io::Result<Vec<u8>> {
+    let mut data = Vec::with_capacity(size.min(CHUNK));
+    let mut chunk = vec![0; size.min(CHUNK)];
+    while data.len() < size {
+        let part = &mut chunk[..(size - data.len()).min(CHUNK)];
+        reader.read_exact(part).await?;
+        data.extend_from_slice(part);
     }
     Ok(data)
+}
+async fn read_body(
+    reader: &mut (impl tokio::io::AsyncRead + Unpin),
+    ceiling: usize,
+) -> io::Result<Vec<u8>> {
+    let size = read_size(reader, ceiling).await?;
+    read_sized(reader, size).await
 }
 async fn write_body(
     writer: &mut (impl tokio::io::AsyncWrite + Unpin),
@@ -477,27 +640,7 @@ impl RpcTransport for IrohRpc {
                 if address.id.to_string() != expected {
                     return Err(failure());
                 }
-                let cached = self
-                    .connections
-                    .read()
-                    .await
-                    .get(&target)
-                    .filter(|c| c.close_reason().is_none())
-                    .cloned();
-                let connection = if let Some(connection) = cached {
-                    connection
-                } else {
-                    let connection = self
-                        .endpoint
-                        .connect(address, ALPN)
-                        .await
-                        .map_err(|_| failure())?;
-                    self.connections
-                        .write()
-                        .await
-                        .insert(target, connection.clone());
-                    connection
-                };
+                let connection = self.route(target, address).await?;
                 // If this future is canceled by OpenRaft before the transport
                 // timeout, Drop still closes the cached route. A retry must
                 // never reuse a connection whose response stream was abandoned.
@@ -527,7 +670,8 @@ impl RpcTransport for IrohRpc {
                 .await?;
                 write_body(&mut send, &body).await?;
                 send.finish().map_err(|_| failure())?;
-                let result = read_body(&mut recv).await;
+                // Every response is a small Raft reply, receipt or claim.
+                let result = read_body(&mut recv, MAX_RPC_RESPONSE).await;
                 if result.is_ok() {
                     connection_guard.succeeded();
                 }
@@ -543,226 +687,4 @@ impl RpcTransport for IrohRpc {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::coordination::Proposal;
-    use openraft::BasicNode;
-    #[tokio::test]
-    async fn authenticated_iroh_commit_and_host_loss() {
-        let mut transports = Vec::new();
-        let mut nodes = Vec::new();
-        let mut tasks = JoinSet::new();
-        for id in 1..=3 {
-            let transport = IrohRpc::bind([7; 16], id, false).await.unwrap();
-            let node = Arc::new(Coordinator::new(id, transport.clone()).await.unwrap());
-            transports.push(transport);
-            nodes.push(node);
-        }
-        for transport in &transports {
-            for (i, peer) in transports.iter().enumerate() {
-                transport.admit(i as u64 + 1, peer.address()).await.unwrap();
-            }
-        }
-        for i in 0..3 {
-            tasks.spawn(transports[i].clone().serve(nodes[i].clone()));
-        }
-        nodes[0]
-            .raft()
-            .initialize(
-                transports
-                    .iter()
-                    .enumerate()
-                    .map(|(i, t)| (i as u64 + 1, BasicNode::new(t.identity().to_string())))
-                    .collect::<BTreeMap<_, _>>(),
-            )
-            .await
-            .unwrap();
-        nodes[0]
-            .raft()
-            .wait(Some(Duration::from_secs(15)))
-            .current_leader(1, "Iroh leader")
-            .await
-            .unwrap();
-        let proposal = Proposal {
-            request: "first".into(),
-            dedup_id: "test:first".into(),
-            term: nodes[0].raft().metrics().borrow().current_term,
-            base: 0,
-            checkpoint: "active generation 42".into(),
-            admin: None,
-        };
-        assert!(nodes[0].propose(proposal).await.unwrap().accepted);
-        tokio::time::timeout(Duration::from_secs(5), async {
-            loop {
-                if nodes[1].committed().await.revision == 1
-                    && nodes[2].committed().await.revision == 1
-                {
-                    break;
-                }
-                tokio::time::sleep(Duration::from_millis(25)).await;
-            }
-        })
-        .await
-        .unwrap();
-        nodes[0].raft().shutdown().await.unwrap();
-        transports[0].close().await;
-        nodes[1].raft().trigger().elect().await.unwrap();
-        tokio::time::timeout(Duration::from_secs(15), async {
-            loop {
-                if nodes[1].raft().metrics().borrow().current_leader.is_some()
-                    || nodes[2].raft().metrics().borrow().current_leader.is_some()
-                {
-                    break;
-                }
-                tokio::time::sleep(Duration::from_millis(50)).await;
-            }
-        })
-        .await
-        .unwrap();
-        let successor = if nodes[1].raft().metrics().borrow().current_leader == Some(2) {
-            &nodes[1]
-        } else {
-            &nodes[2]
-        };
-        assert_eq!(
-            successor.committed().await.checkpoint,
-            "active generation 42"
-        );
-        for i in 1..3 {
-            nodes[i].raft().shutdown().await.unwrap();
-            transports[i].close().await;
-        }
-        tasks.abort_all();
-        while tasks.join_next().await.is_some() {}
-    }
-
-    #[tokio::test]
-    async fn primary_binding_is_unique_until_incarnation_revoke() {
-        let router = IrohRpc::bind([8; 16], 1, false).await.unwrap();
-        let first = IrohRpc::bind([8; 16], 2, false).await.unwrap();
-        let second = IrohRpc::bind([8; 16], 3, false).await.unwrap();
-        let primary = router.identity();
-
-        router
-            .admit_bound(2, first.address(), Some(primary))
-            .await
-            .unwrap();
-        assert!(
-            router
-                .admit_bound(3, second.address(), Some(primary))
-                .await
-                .is_err()
-        );
-        router.admit_bound(3, second.address(), None).await.unwrap();
-        router.revoke(2).await;
-        router
-            .admit_bound(3, second.address(), Some(primary))
-            .await
-            .unwrap();
-
-        router.close().await;
-        first.close().await;
-        second.close().await;
-    }
-
-    /// Drops `call` once the receiver reports that the RPC's stream reached it,
-    /// so the cancellation lands on a call that is waiting for its response
-    /// whatever the connection setup cost.
-    async fn cancel_once_received<F: Future>(
-        call: F,
-        received: &mut tokio::sync::mpsc::UnboundedReceiver<()>,
-    ) {
-        tokio::select! {
-            _ = call => panic!("the stalled receiver answered the RPC"),
-            arrived = timeout(Duration::from_secs(30), received.recv()) => {
-                assert!(matches!(arrived, Ok(Some(()))), "the RPC never reached the receiver");
-            }
-        }
-    }
-
-    #[tokio::test]
-    async fn canceled_rpc_closes_the_cached_connection_before_retry() {
-        let room = [11; 16];
-        let caller = IrohRpc::bind(room, 1, false).await.unwrap();
-        let receiver = IrohRpc::bind(room, 2, false).await.unwrap();
-        caller.admit(2, receiver.address()).await.unwrap();
-        let receiver_endpoint = receiver.endpoint.clone();
-        let (received_tx, mut received) = tokio::sync::mpsc::unbounded_channel();
-        let stalled = tokio::spawn(async move {
-            let incoming = receiver_endpoint.accept().await.unwrap();
-            let connection = incoming.await.unwrap();
-            let _read = connection.accept_bi().await.unwrap();
-            received_tx.send(()).unwrap();
-            let _append = connection.accept_bi().await.unwrap();
-            received_tx.send(()).unwrap();
-            // Hold the connection and both streams open, never answering,
-            // until the test aborts this task.
-            std::future::pending::<()>().await;
-        });
-
-        // A canceled authority read shares the route with raft traffic and
-        // must leave it open.
-        let read = <IrohRpc as RpcTransport>::call(
-            caller.as_ref(),
-            2,
-            receiver.identity().to_string(),
-            "authority",
-            vec![0],
-        );
-        cancel_once_received(read, &mut received).await;
-        let cached = caller.connections.read().await.get(&2).cloned().unwrap();
-        assert!(
-            cached.close_reason().is_none(),
-            "canceled authority read closed the shared route"
-        );
-
-        let call = <IrohRpc as RpcTransport>::call(
-            caller.as_ref(),
-            2,
-            receiver.identity().to_string(),
-            "append",
-            vec![0],
-        );
-        cancel_once_received(call, &mut received).await;
-        let cached = caller.connections.read().await.get(&2).cloned().unwrap();
-        assert!(
-            cached.close_reason().is_some(),
-            "canceled RPC left a dead cached connection reusable"
-        );
-        stalled.abort();
-        caller.close().await;
-        receiver.close().await;
-    }
-
-    #[tokio::test]
-    async fn retired_incarnation_cannot_replay_admission() {
-        let router = IrohRpc::bind([9; 16], 1, false).await.unwrap();
-        let departing = IrohRpc::bind([9; 16], 2, false).await.unwrap();
-        let replacement = IrohRpc::bind([9; 16], 3, false).await.unwrap();
-        let primary = router.identity();
-
-        router
-            .admit_bound(2, departing.address(), Some(primary))
-            .await
-            .unwrap();
-        router.retire(2).await;
-
-        // A disconnected member may retain an authenticated transport long
-        // enough to finish its Leave proof, but replaying its old admission
-        // must never restore append/vote authority or evict a fresh process.
-        assert!(
-            router
-                .admit_bound(2, departing.address(), Some(primary))
-                .await
-                .is_err()
-        );
-        router
-            .admit_bound(3, replacement.address(), Some(primary))
-            .await
-            .unwrap();
-
-        router.close().await;
-        departing.close().await;
-        replacement.close().await;
-    }
-}
+mod tests;

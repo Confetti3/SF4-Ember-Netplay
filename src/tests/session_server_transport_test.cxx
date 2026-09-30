@@ -1659,6 +1659,16 @@ static void TestCustomRoomDepartures() {
 	acknowledge(2, "game_ready", generation0, {{"slots", json::array({2})}});
 	for (session::Connection connection = 3; connection <= 4; ++connection) acknowledge(connection, "game_ready", generation0);
 	CHECK(server.RoomSnapshot()->tables[0].phase == room::TablePhase::Playing);
+	// Verification is the two fighters' exchange: a fighter's snapshot reaches
+	// everyone else at the table, and a spectator's is not relayed.
+	{
+		protocol::BattleSnapshot verification; verification.snapshot.frameIdx = 60;
+		transport->outgoing.clear();
+		transport->Push(4, json(verification)); step();
+		CHECK(!hasMessage("battle_snapshot"));
+		transport->Push(2, json(verification)); step();
+		CHECK(hasMessage("battle_snapshot", 3) && hasMessage("battle_snapshot", 4) && !hasMessage("battle_snapshot", 2));
+	}
 	action(4, room::ActionKind::Unwatch, 0);
 	CHECK(server.RoomSnapshot()->tables[0].phase == room::TablePhase::Playing);
 	CHECK(hasMessage("game_peer_end", 2));

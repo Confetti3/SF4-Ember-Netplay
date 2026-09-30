@@ -850,7 +850,7 @@ msgid "about.open_updater"
 msgstr "退出并打开更新程序"
 
 msgid "about.open_updater_detail"
-msgstr "游戏将关闭。请先离开房间。"
+msgstr "游戏将关闭并打开更新程序。请在其中选择“下载并安装”。请先离开房间。"
 
 msgid "about.open_recovery"
 msgstr "退出并打开恢复界面"
@@ -1528,6 +1528,8 @@ msgstr "缺少版本标签。"
 
 msgid "update.close_sf4"
 msgstr "安装更新前请关闭《终极街头霸王IV》。"
+msgid "update.elevated"
+msgstr "Ember 正以管理员身份运行。请关闭后以普通方式启动，再安装更新。"
 
 msgid "update.install_dir_failed"
 msgstr "无法确定安装目录。"
@@ -1887,7 +1889,9 @@ msgid "room.change_fighter.waiting"
 msgstr "等待当前对战或选择更新完成。"
 
 msgid "room.change_fighter.detail"
-msgstr "选择角色，然后浏览服装和颜色图库。返回此处并选择准备。"
+msgstr "选择角色，然后选择终极组合。返回此处并选择准备。"
+msgid "room.appearance.detail"
+msgstr "左右键在这里切换颜色。选择会先选服装，再选颜色。"
 
 msgid "room.leave_seat"
 msgstr "离开席位"

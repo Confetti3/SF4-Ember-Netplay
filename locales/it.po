@@ -850,7 +850,7 @@ msgid "about.open_updater"
 msgstr "Esci e apri aggiornamento"
 
 msgid "about.open_updater_detail"
-msgstr "Il gioco si chiuderà. Esci prima dalla sala."
+msgstr "Il gioco si chiude e si apre l'aggiornamento. Lì scegli Scarica e installa. Esci prima dalla sala."
 
 msgid "about.open_recovery"
 msgstr "Esci al ripristino"
@@ -1528,6 +1528,8 @@ msgstr "Tag versione mancante."
 
 msgid "update.close_sf4"
 msgstr "Chiudi Ultra Street Fighter IV prima di installare un aggiornamento."
+msgid "update.elevated"
+msgstr "Ember è in esecuzione come amministratore. Chiudilo e avvialo normalmente per installare gli aggiornamenti."
 
 msgid "update.install_dir_failed"
 msgstr "Impossibile trovare la cartella di installazione."
@@ -1887,7 +1889,9 @@ msgid "room.change_fighter.waiting"
 msgstr "In attesa della fine della partita o dell'aggiornamento della selezione."
 
 msgid "room.change_fighter.detail"
-msgstr "Scegli un personaggio, poi sfoglia costumi e colori. Torna qui e seleziona Mettiti pronto."
+msgstr "Scegli un personaggio, poi l'Ultra. Torna qui e seleziona Mettiti pronto."
+msgid "room.appearance.detail"
+msgstr "Sinistra e Destra cambiano qui il colore. Seleziona sceglie un costume, poi il suo colore."
 
 msgid "room.leave_seat"
 msgstr "Lascia posto"

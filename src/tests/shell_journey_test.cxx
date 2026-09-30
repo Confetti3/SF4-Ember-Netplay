@@ -518,6 +518,26 @@ void KeyboardJourneys(){
   "Select on the table's Ultra did not open the Ultra cards at the saved one");
  key(ImGuiKey_LeftArrow);key(ImGuiKey_Enter);
  Check(pick.ultra==0&&h.shell.Navigation().Screen()=="room-table","Picking an Ultra did not return to the table page");
+ // Select on the table page's Appearance opens the costume cards at the saved
+ // costume; a costume goes on to its colors, and a color returns to the table page.
+ selection::Availability available;available.ready=true;available.costumes=3;available.colors[0]=available.colors[1]=5;available.personalActions=1;
+ h.selection=[&]{selector.Draw(pick,false,nullptr,[&](int){return available;},nullptr,true);};
+ h.view.appearanceName="Original / Color 1";h.FocusOn("appearance");key(ImGuiKey_Enter);
+ Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="costumes"&&selector.Navigation().Focus()=="costume-0",
+  "Select on the table's Appearance did not open the costume cards at the saved one");
+ key(ImGuiKey_RightArrow);key(ImGuiKey_Enter);
+ Check(pick.costume==1&&selector.Navigation().Screen()=="colors"&&selector.Navigation().Focus()=="color-"+std::to_string(pick.color),
+  "Picking a costume did not go on to its colors at the kept color");
+ const auto colors=selection::AllowedColors(pick.fighter,1,available);
+ Check(colors.size()>1&&pick.color==colors[0],"The test costume has too few colors");
+ key(ImGuiKey_RightArrow);key(ImGuiKey_Enter);
+ Check(pick.color==colors[1]&&h.shell.Navigation().Screen()=="room-table","Picking a color did not return to the table page");
+ // Back from the colors goes to the costumes, and Back from there to the table page.
+ h.FocusOn("appearance");key(ImGuiKey_Enter);key(ImGuiKey_Enter);
+ Check(selector.Navigation().Screen()=="colors","Picking the saved costume again did not open its colors");
+ key(ImGuiKey_Backspace);Check(selector.Navigation().Screen()=="costumes","Back from the colors did not return to the costumes");
+ key(ImGuiKey_Backspace);Check(h.shell.Navigation().Screen()=="room-table","Back from the costumes did not return to the table page");
+ Check(pick.costume==1&&pick.color==colors[1],"Backing out of the galleries changed the pick");
  key(ImGuiKey_Escape);
  // A pad press puts the pad's prompts back; a key brings the keys again.
  SetMenuGlyphs(input::PadXInput,input::xinput::A,input::xinput::B);
@@ -556,13 +576,30 @@ void PresentationJourneys(){
  h.view.preferences=h.actions.back().preferences;h.Frame(0,3);Check(status.find("Profile portrait saved:")==0,"Profile success notice missing");
  h.Frame(0,200);Check(status=="Saved","Success notice did not expire");SetMenuStatusProbe({});
  GameMenu recovery;recovery.navigation=RecoveryNavigation(true);sf4e::platform::ServiceSnapshot state;
- state.update.ok=state.update.updateAvailable=true;state.update.expectedSha256=std::string(64,'a');
+ state.update.ok=state.update.updateAvailable=true;state.update.expectedSha256=std::string(64,'a');state.update.latestVersion="v9.9.9";
+ std::vector<MenuEntry> updateRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){updateRows=r;});
  const auto frame=[&](unsigned held=0){SetMenuInput({held,0});ImGui::NewFrame();const auto choice=DrawRecoveryMenu(recovery,state,"",true);ImGui::Render();return choice;};
- frame();frame();frame(MenuInput::Down);frame();frame(MenuInput::Select);frame();
+ frame();frame();
+ // A found update is the first row, named by its version, so Select installs it.
+ Check(!updateRows.empty()&&updateRows[0].id=="install"&&updateRows[0].value=="v9.9.9"&&recovery.navigation.Focus()=="install",
+  "The updater did not offer the found update first");
+ frame(MenuInput::Select);frame();
  Check(recovery.navigation.Confirming()&&!recovery.navigation.ConfirmSelected(),"Recovery install not defaulting to Cancel");
  Check(frame(MenuInput::Select)==RecoveryChoice::None,"Recovery default confirmation installed an update");frame();
  state.pending=true;state.downloadedBytes=100;state.totalBytes=200;frame();
- frame(MenuInput::Down);frame();Check(frame(MenuInput::Select)==RecoveryChoice::Cancel,"Recovery cancellation not reachable");
+ for(int i=0;i<10&&recovery.navigation.Focus()!="cancel";++i){frame(MenuInput::Down);frame();}
+ Check(frame(MenuInput::Select)==RecoveryChoice::Cancel,"Recovery cancellation not reachable");
+ // An update found while the window is open takes the highlight once; after
+ // that the player's own movement stands, until a newer version is found.
+ GameMenu found;found.navigation=RecoveryNavigation(true);sf4e::platform::ServiceSnapshot checking;checking.pending=true;std::string offered;
+ const auto show=[&](unsigned held=0){OfferFoundUpdate(found,checking,offered);SetMenuInput({held,0});ImGui::NewFrame();DrawRecoveryMenu(found,checking,"",true);ImGui::Render();};
+ show();show();Check(found.navigation.Focus()=="check","The updater did not start on its check");
+ checking.pending=false;checking.update.ok=checking.update.updateAvailable=true;checking.update.expectedSha256=std::string(64,'a');checking.update.latestVersion="v9.9.9";
+ show();show();Check(found.navigation.Focus()=="install","A newly found update did not take the highlight");
+ show(MenuInput::Down);show();Check(found.navigation.Focus()=="check","Moving off the found update did not work");
+ show();show();Check(found.navigation.Focus()=="check","The found update took the highlight back after the player moved");
+ checking.update.latestVersion="v9.9.10";show();show();Check(found.navigation.Focus()=="install","A newer update did not take the highlight");
+ SetMenuEntriesProbe({});
 }
 void AppearanceGalleries(){
  using namespace sf4e;Harness h;FighterSelector selector;selection::Pick pick;
@@ -573,9 +610,12 @@ void AppearanceGalleries(){
  selector.Navigation().Push("costumes");frame();frame();
  press(MenuInput::Right);Check(pick.costume==0,"Gallery focus committed costume");
  Check(press(MenuInput::Select)&&pick.costume==1,"Costume card did not save");
+ Check(selector.Navigation().Screen()=="colors","Saving a costume did not go on to its colors");
  selector.Navigation().Return();selector.Navigation().Push("colors");frame();frame();
  press(MenuInput::Right);Check(pick.color==0,"Gallery focus committed color");
  Check(press(MenuInput::Select)&&pick.color==2,"Color gallery ignored native availability gaps");
+ Check(selector.Navigation().Screen()=="home","Saving a color did not return to the selector's home");
+ selector.Navigation().Push("colors");frame(0,false);frame(0,false);
  press(MenuInput::Left,false);press(MenuInput::Select,false);Check(pick.color==2,"Locked gallery saved a choice");
  available.colors[1]=0;selector.Navigation().Return();selector.Navigation().Push("costumes");frame(0,false);
  // Missing palette data must not dereference an empty preview list.

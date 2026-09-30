@@ -60,10 +60,10 @@ struct ShellView {
             input::Device inputDevice;
             bool canChangeController = false, controllerReady = false;
     std::string selectionSummary, selectionError;
-    // The chosen fighter and Ultra, for the table page's rows; ultraSteps
-    // when the fighter has more than one Ultra to step through.
-    std::string fighterName, ultraName;
-    bool ultraSteps = false;
+    // The chosen fighter, Ultra and appearance, for the table page's rows;
+    // ultraSteps and colorSteps when there is more than one to step through.
+    std::string fighterName, ultraName, appearanceName;
+    bool ultraSteps = false, colorSteps = false;
     std::string selectionLockReason;
     // A Ready press in flight (parked, sent or awaiting commit), and the
     // last failure with a sequence that changes per occurrence.
@@ -84,9 +84,12 @@ struct ShellAction {
     int selectedDelay=-1;
     // Plays the challenger call-out once at this volume (percent); -1 plays nothing.
     int previewSoundVolume=-1;
-    // Steps the chosen Ultra by this much (the table page's Ultra row); the
-    // overlay applies it to the pick, and nothing is sent.
-    int ultraStep=0;
+    // Steps the chosen Ultra or color by delta (the table page's Ultra and
+    // Appearance rows); the overlay applies it to the pick, and nothing is sent.
+    struct SelectionStep {
+        enum class Field { None, Ultra, Color } field = Field::None;
+        int delta = 0;
+    } selectionStep;
 };
 
 class ApplicationShell {

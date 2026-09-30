@@ -850,7 +850,7 @@ msgid "about.open_updater"
 msgstr "終了してアップデーターを開く"
 
 msgid "about.open_updater_detail"
-msgstr "ゲームを終了します。先にルームから退出してください。"
+msgstr "ゲームを終了し、アップデーターを開きます。そこで「ダウンロードしてインストール」を選んでください。先にルームから退出してください。"
 
 msgid "about.open_recovery"
 msgstr "終了して復旧画面を開く"
@@ -1528,6 +1528,8 @@ msgstr "バージョンタグがありません。"
 
 msgid "update.close_sf4"
 msgstr "更新をインストールする前にUltra Street Fighter IVを閉じてください。"
+msgid "update.elevated"
+msgstr "Ember が管理者として実行されています。アップデートをインストールするには、終了して通常どおり起動してください。"
 
 msgid "update.install_dir_failed"
 msgstr "インストール先を特定できませんでした。"
@@ -1887,7 +1889,9 @@ msgid "room.change_fighter.waiting"
 msgstr "現在の対戦または選択の更新が終わるのを待っています。"
 
 msgid "room.change_fighter.detail"
-msgstr "キャラを選び、コスチュームとカラーを確認します。戻って準備完了にしてください。"
+msgstr "キャラを選び、次にウルトラコンボを選びます。戻って準備完了にしてください。"
+msgid "room.appearance.detail"
+msgstr "左右でここのカラーを変更します。決定でコスチュームを選び、次にカラーを選びます。"
 
 msgid "room.leave_seat"
 msgstr "席を離れる"

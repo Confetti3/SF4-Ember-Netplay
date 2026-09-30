@@ -239,6 +239,7 @@ fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Actor {
         recovery: None,
         admissions: BTreeMap::new(),
         admission_order: Vec::new(),
+        pending_admissions: BTreeMap::new(),
         applied_admission_members: BTreeSet::new(),
         incoming_transfer: None,
         pending_checkpoint_proposal: None,
@@ -1304,15 +1305,25 @@ async fn a_completion_settles_only_the_control_pending_for_its_incarnation() {
         drop(old_control); // replaced before its operation completes
         let (_remote_side, current) = tokio::join!(connect(invite.clone()), accept(invite.clone()));
         let mut current = ControlWorker::start(current);
-        let admission = |incarnation| Admission {
-            room,
-            incarnation,
-            authority_term: 1,
-            coordination_endpoint: remote.id(),
-            coordination_address: address(&remote),
-            primary_endpoint: remote.id(),
-        };
+        // Every process incarnation binds its own coordination key.
+        let old_coordination = endpoint().await;
+        let new_coordination = endpoint().await;
         let (old, new) = (0x1111, 0x2222);
+        let admission = |incarnation| {
+            let coordination = if incarnation == old {
+                &old_coordination
+            } else {
+                &new_coordination
+            };
+            Admission {
+                room,
+                incarnation,
+                authority_term: 1,
+                coordination_endpoint: coordination.id(),
+                coordination_address: address(coordination),
+                primary_endpoint: remote.id(),
+            }
+        };
         current.set_session(Session::Pending(new));
         let control_id = current.id();
         actor.controls.insert(remote.id(), current);
@@ -1426,6 +1437,8 @@ async fn a_completion_settles_only_the_control_pending_for_its_incarnation() {
         recovery.stop().await;
         host.close().await;
         remote.close().await;
+        old_coordination.close().await;
+        new_coordination.close().await;
     })
     .await
     .unwrap();
@@ -2607,6 +2620,153 @@ async fn successor_rejects_replayed_admission_from_applied_membership_history() 
     .unwrap();
 }
 
+#[tokio::test]
+async fn an_accepted_admission_keeps_its_identity() {
+    timeout(Duration::from_secs(20), async {
+        let host = endpoint().await;
+        let peer = endpoint().await;
+        let member_primary = endpoint().await;
+        let member_coordination = endpoint().await;
+        let peer_coordination = endpoint().await;
+        let relay = iroh::defaults::prod::default_relay_map()
+            .urls::<Vec<_>>()
+            .remove(0);
+        let seed =
+            Invite::create(host.id(), relay, "test-build".into(), now().unwrap(), 3600).unwrap();
+        let room = seed.room();
+        let (events, _events_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let mut actor = test_actor(host.clone(), events);
+        let invite = actor.setup_host_recovery(seed).await.unwrap();
+        actor.epoch = 1;
+        actor.room = Some(room);
+        actor.hosted = Some(invite.clone());
+        actor.room_invite = Some(invite);
+        let recovery = actor.recovery.clone().unwrap();
+        let own = actor.admissions[&recovery.incarnation].clone();
+        let member = Admission {
+            room,
+            incarnation: 0x5150,
+            authority_term: 1,
+            coordination_endpoint: member_coordination.id(),
+            coordination_address: address(&member_coordination),
+            primary_endpoint: member_primary.id(),
+        };
+        actor.remember_admission(member.clone());
+        let present = |admission: Admission| {
+            serde_json::to_string(&CoordinationControl::Admission { admission }).unwrap()
+        };
+
+        // The peer's authenticated primary endpoint paired with an
+        // identity another admission already holds: the host's own
+        // incarnation, a member's incarnation, or the host's coordination key
+        // under a fresh incarnation. Also a coordination key that disagrees
+        // with the address that would route it.
+        let conflicting = [
+            Admission {
+                primary_endpoint: peer.id(),
+                ..own.clone()
+            },
+            Admission {
+                primary_endpoint: peer.id(),
+                ..member.clone()
+            },
+            Admission {
+                incarnation: 0x5151,
+                primary_endpoint: peer.id(),
+                ..own.clone()
+            },
+            Admission {
+                incarnation: 0x5152,
+                primary_endpoint: peer.id(),
+                ..member.clone()
+            },
+            Admission {
+                room,
+                incarnation: 0x5152,
+                authority_term: 1,
+                coordination_endpoint: member_coordination.id(),
+                coordination_address: address(&peer_coordination),
+                primary_endpoint: peer.id(),
+            },
+        ];
+        for admission in conflicting {
+            assert!(
+                actor
+                    .accept_coordination_control(peer.id(), &present(admission))
+                    .await
+                    .is_err()
+            );
+        }
+        assert_eq!(
+            actor.admissions[&recovery.incarnation].primary_endpoint,
+            host.id()
+        );
+        assert_eq!(
+            actor.admissions[&0x5150].primary_endpoint,
+            member_primary.id()
+        );
+        assert!(actor.pending_admissions.is_empty());
+        assert!(actor.pending_admission_operation.is_none());
+
+        // An admission with its own identities is held apart until its
+        // operation accepts it; nothing resolves a route through it before.
+        let fresh = Admission {
+            room,
+            incarnation: 0x5153,
+            authority_term: 1,
+            coordination_endpoint: peer_coordination.id(),
+            coordination_address: address(&peer_coordination),
+            primary_endpoint: peer.id(),
+        };
+        assert!(
+            actor
+                .accept_coordination_control(peer.id(), &present(fresh.clone()))
+                .await
+                .unwrap()
+        );
+        assert!(!actor.admissions.contains_key(&fresh.incarnation));
+        assert_eq!(
+            actor.pending_admissions[&peer.id()].incarnation,
+            fresh.incarnation
+        );
+
+        // Even a completion that reports a conflicting binding as validated
+        // leaves the accepted record in place.
+        let key = actor.pending_admission_operation.clone().unwrap();
+        actor
+            .completed_admission(
+                key,
+                Ok(AdmissionOperationResult {
+                    admissions: vec![Admission {
+                        primary_endpoint: peer.id(),
+                        ..member.clone()
+                    }],
+                }),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            actor.admissions[&0x5150].primary_endpoint,
+            member_primary.id()
+        );
+        assert!(!actor.admissions.contains_key(&fresh.incarnation));
+
+        actor.tasks.abort_all();
+        recovery.stop().await;
+        for endpoint in [
+            host,
+            peer,
+            member_primary,
+            member_coordination,
+            peer_coordination,
+        ] {
+            endpoint.close().await;
+        }
+    })
+    .await
+    .unwrap();
+}
+
 /// Runs the actor's next finished worker through its completion handler.
 async fn complete_next(actor: &mut Actor) {
     let completion = timeout(Duration::from_secs(10), actor.tasks.join_next())
@@ -3421,6 +3581,7 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
             recovery: None,
             admissions: BTreeMap::new(),
             admission_order: Vec::new(),
+            pending_admissions: BTreeMap::new(),
             applied_admission_members: BTreeSet::new(),
             incoming_transfer: None,
             pending_checkpoint_proposal: None,
@@ -3708,6 +3869,7 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
         recovery: None,
         admissions: BTreeMap::new(),
         admission_order: Vec::new(),
+        pending_admissions: BTreeMap::new(),
         applied_admission_members: BTreeSet::new(),
         incoming_transfer: None,
         pending_checkpoint_proposal: None,
@@ -3832,6 +3994,7 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
             recovery: None,
             admissions: BTreeMap::new(),
             admission_order: Vec::new(),
+            pending_admissions: BTreeMap::new(),
             applied_admission_members: BTreeSet::new(),
             incoming_transfer: None,
             pending_checkpoint_proposal: None,
@@ -4181,6 +4344,7 @@ async fn actor_admits_full_sixteen_member_room_and_fifteen_game_links() {
             recovery: None,
             admissions: BTreeMap::new(),
             admission_order: Vec::new(),
+            pending_admissions: BTreeMap::new(),
             applied_admission_members: BTreeSet::new(),
             incoming_transfer: None,
             pending_checkpoint_proposal: None,

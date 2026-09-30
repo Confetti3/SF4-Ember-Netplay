@@ -22,6 +22,7 @@
 #include <spdlog/spdlog.h>
 #include <memory>
 #include <atomic>
+#include <mutex>
 
 namespace Overlay = sf4e::Overlay;
 using fMainMenu = sf4e::GameEvents::MainMenu;
@@ -46,6 +47,17 @@ static int lobbyStageID = 0, lobbyMenuCharaID = 0;
 static sf4e::selection::StageMask lobbyStageExcluded = 0;
 // The thread that draws the overlay (NoteMessageThread).
 static std::atomic<DWORD> s_drawThread{0};
+// SF4 can pump the window's messages on another thread than the one that
+// draws (sf4e.log then says "window messages arrive on thread"). The Win32
+// backend hands their ImGui input to this bridge, which the drawing thread
+// applies, so the window procedure only needs the context to stay alive while
+// it runs: this lock covers creating and destroying the context, never a frame.
+static sf4e::ui::Win32InputBridge s_inputBridge;
+static std::recursive_mutex s_imguiLock;
+using ImGuiLock = std::lock_guard<std::recursive_mutex>;
+// Whether the menu can open now, published by the drawing thread for the
+// window procedure (F10 is the game's key otherwise).
+static std::atomic<bool> s_menuAvailable{false};
 static rVsMode::ConfirmedCharaConditions lobbyConditions = {0,0,0,0,0,0,0,0,14};
 
 bool Overlay::CapturesMenuInput() { return capture.load(); }
@@ -60,6 +72,7 @@ static int OnMainMenuModeSelected(int mode) {
     presentation.Open(); shell.ShowPlay(); return 1;
 }
 void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
+	ImGuiLock lock(s_imguiLock);
 	sf4e::OverlayPrefs::StartPersistence();
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -70,6 +83,8 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(hWnd));
 	ImGui::GetPlatformIO().Platform_SetImeDataFn = nullptr;
 	ImGui_ImplWin32_Init(hWnd);
+	s_inputBridge.RequestClear(); // nothing queued for a context that is gone
+	ImGui_ImplWin32_SetInputBridge(&s_inputBridge);
 	ImGui_ImplDX9_Init(lpDevice);
 	wchar_t gamePath[MAX_PATH] = {}, modulePath[MAX_PATH] = {};
 	HMODULE module = nullptr;
@@ -184,6 +199,10 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.ultraName = !fighter ? std::string() : summaryPick.ultra == 2 ? std::string(sf4e::loc::T("selection.ultra_double")) :
         std::string(sf4e::ui::UltraLabel(summaryPick.ultra)) + ": " + fighter->ultras[summaryPick.ultra < 0 || summaryPick.ultra > 1 ? 0 : summaryPick.ultra];
     view.ultraSteps = sf4e::selection::AllowedUltras(summaryPick.fighter, summaryPick.edition).size() > 1;
+    view.appearanceName = !fighter ? std::string() :
+        sf4e::loc::Tf("selection.appearance_value", sf4e::ui::CostumeLabel(summaryPick), lobbyConditions.color + 1);
+    view.colorSteps = fighter && sf4e::selection::AllowedColors(summaryPick.fighter, summaryPick.costume,
+        snapshot.fighterAvailability[lobbyMenuCharaID]).size() > 1;
     if (snapshot.atMainMenu && !sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),
         snapshot.lobbySettings.editionSelect, snapshot.fighterAvailability[lobbyMenuCharaID]))
         view.selectionError = sf4e::loc::T("runtime.selection_unavailable");
@@ -193,11 +212,13 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     if (view.error.empty() && status.lastError[0] && status.lastErrorSeverity != sf4e::NoticeSeverity::Info) view.error = status.lastError;
 	bool open = true;
     shell.Draw(view, &open, [&](sf4e::ui::ShellAction action) {
-		// The table page's Ultra row edits the pick here; nothing is sent.
-		if (action.ultraStep) {
-			if (!snapshot.canEditSelection) return false;
+		// The table page's Ultra and Appearance rows edit the pick here; nothing is sent.
+		if (const auto step = action.selectionStep; step.field != sf4e::ui::ShellAction::SelectionStep::Field::None) {
+			if (!snapshot.canEditSelection || !sf4e::selection::FindFighter(lobbyMenuCharaID)) return false;
 			auto pick = sf4e::selection::FromNative(lobbyConditions); pick.fighter = lobbyMenuCharaID;
-			sf4e::ui::Step(pick.ultra, sf4e::selection::AllowedUltras(pick.fighter, pick.edition), action.ultraStep);
+			const bool ultra = step.field == sf4e::ui::ShellAction::SelectionStep::Field::Ultra;
+			sf4e::ui::Step(ultra ? pick.ultra : pick.color, ultra ? sf4e::selection::AllowedUltras(pick.fighter, pick.edition) :
+				sf4e::selection::AllowedColors(pick.fighter, pick.costume, snapshot.fighterAvailability[lobbyMenuCharaID]), step.delta);
 			sf4e::selection::ToNative(pick, lobbyConditions);
 			return true;
 		}
@@ -236,6 +257,7 @@ void Overlay::DrawOverlay() {
     const auto& snapshot = *sharedSnapshot;
     if (sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(s_overlayWindow) * snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
     presentation.Update(snapshot.atMainMenu, snapshot.session.match, snapshot.offlineRequested, focused);
+    s_menuAvailable = presentation.Available();
     if(mainRequested.exchange(false) && presentation.Available()) presentation.Open();
     static bool inviteShown=false;
     if (snapshot.discordPending && !inviteShown && snapshot.atMainMenu) { presentation.Open(); inviteShown=true; }
@@ -353,6 +375,7 @@ void Overlay::FreeOverlay() {
     capture = false; pointerCapture = false;
     trainingAvailable = false;
     fMainMenu::bOverrideItemObserverState = -1;
+    ImGuiLock lock(s_imguiLock);
     if (!ImGui::GetCurrentContext()) return;
     controllerNavigation.Reset();
     sf4e::ui::SetMenuArt(nullptr);
@@ -375,6 +398,7 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
     // The click that brings the game forward again must not press an Ember
     // row that is drawn under the pointer while the game is behind another window.
     static sf4e::ui::ActivationClickFilter activationClick;
+    ImGuiLock lock(s_imguiLock);
     // Native display resets can pump activation messages after FreeOverlay and
     // before InitializeOverlay. Focus belongs to the window, not its ImGui
     // context: dropping reactivation here leaves F10/Start permanently gated.
@@ -385,15 +409,13 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
             sf4e::training::Submit({sf4e::training::Action::Stop, 0, training.generation});
             capture = false; pointerCapture = false;
             activationClick.Reset();
-            if (ImGui::GetCurrentContext()) {
-                sf4e::ui::SetOverlayCursorOwnership(false);
-                ImGui::GetIO().ClearInputKeys(); ImGui::GetIO().ClearInputMouse();
-            }
+            sf4e::ui::SetOverlayCursorOwnership(false);
+            s_inputBridge.RequestClear();
         }
     }
     if (!ImGui::GetCurrentContext()) return 0;
     if (activationClick.Swallow(message, l)) return 0;
-    const auto handled = sf4e::ui::HandleOverlayMessage(window, message, w, l, capture, presentation.Available(), pointerCapture);
+    const auto handled = sf4e::ui::HandleOverlayMessage(window, message, w, l, capture, s_menuAvailable, pointerCapture);
     if (trainingAvailable && w >= VK_F5 && w <= VK_F8 &&
         (message == WM_KEYDOWN || message == WM_KEYUP || message == WM_SYSKEYDOWN || message == WM_SYSKEYUP)) return 1;
     return handled;

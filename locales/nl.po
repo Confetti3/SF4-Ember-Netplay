@@ -850,7 +850,7 @@ msgid "about.open_updater"
 msgstr "Afsluiten en updater openen"
 
 msgid "about.open_updater_detail"
-msgstr "Het spel wordt gesloten. Verlaat eerst je kamer."
+msgstr "Het spel sluit en de updater opent. Kies daar Downloaden en installeren. Verlaat eerst je kamer."
 
 msgid "about.open_recovery"
 msgstr "Afsluiten naar herstel"
@@ -1528,6 +1528,8 @@ msgstr "Versietag ontbreekt."
 
 msgid "update.close_sf4"
 msgstr "Sluit Ultra Street Fighter IV voor je een update installeert."
+msgid "update.elevated"
+msgstr "Ember draait als beheerder. Sluit het en start het normaal om updates te installeren."
 
 msgid "update.install_dir_failed"
 msgstr "Kon de installatiemap niet bepalen."
@@ -1887,7 +1889,9 @@ msgid "room.change_fighter.waiting"
 msgstr "Wachten tot de huidige match of keuze-update klaar is."
 
 msgid "room.change_fighter.detail"
-msgstr "Kies een personage en bekijk de outfit- en kleurengalerij. Kom hier terug en kies Klaar melden."
+msgstr "Kies een personage en daarna zijn Ultra. Kom hier terug en kies Klaar melden."
+msgid "room.appearance.detail"
+msgstr "Links en Rechts wisselen hier de kleur. Selecteren kiest een outfit en daarna de kleur."
 
 msgid "room.leave_seat"
 msgstr "Plek verlaten"

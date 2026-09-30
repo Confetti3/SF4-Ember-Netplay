@@ -65,6 +65,9 @@ int main() try {
             frame(0, false); frame();
             Check(pick.costume == costume && Available(pick, true, availability),
                 "Locking or refreshing selection reset an owned DLC costume");
+            // A saved costume goes on to its colors; come back for the next card.
+            Check(selector.Navigation().Screen() == "colors", "Saving a DLC costume did not go on to its colors");
+            selector.Navigation().Return(); frame(); frame();
         }
     }
     SetMenuEntriesProbe({});

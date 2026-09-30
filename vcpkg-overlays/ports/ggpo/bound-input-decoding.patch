@@ -1,0 +1,30 @@
+diff --git a/src/lib/ggpo/network/udp_proto.cpp b/src/lib/ggpo/network/udp_proto.cpp
+index 2a3b46c..18a219f 100644
+--- a/src/lib/ggpo/network/udp_proto.cpp
++++ b/src/lib/ggpo/network/udp_proto.cpp
+@@ -9,6 +9,7 @@
+ #include "udp_proto.h"
+ #include <stddef.h>
+ #include "bitvector.h"
++#include "input-bits.h"
+ 
+ static const int UDP_HEADER_SIZE = 28;     /* Size of IP + UDP headers */
+ static const int NUM_SYNC_PACKETS = 5;
+@@ -630,6 +631,17 @@ UdpProtocol::OnSyncReply(UdpMsg *msg, int len)
+ bool
+ UdpProtocol::OnInput(UdpMsg *msg, int len)
+ {
++   /*
++    * Check the whole input encoding before any of it changes this
++    * endpoint's state (see input-bits.h).
++    */
++   if (msg->u.input.num_bits &&
++       !sf4e::netplay::InputBitsValid(msg->u.input.bits, msg->u.input.num_bits, (int)sizeof(msg->u.input.bits),
++                                      msg->u.input.input_size, (int)sizeof(_last_received_input.bits))) {
++      Log("skipping input with an invalid encoding (bits:%d size:%d).\n", (int)msg->u.input.num_bits, (int)msg->u.input.input_size);
++      return true;
++   }
++
+    /*
+     * If a disconnect is requested, go ahead and disconnect now.
+     */

@@ -1,5 +1,6 @@
 #include "update/PackageInstaller.hxx"
 #include "../common/PackageInventory.hxx"
+#include "../platform/Elevation.hxx"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -223,6 +224,24 @@ int wmain(int argc, wchar_t** argv) {
 	wchar_t stagingDir[MAX_PATH] = { 0 };
 	DWORD waitPid = 0;
 	bool recoverOnly = false;
+
+	// Players double-click Updater.exe to update. Its own work needs the
+	// launcher's arguments, so a plain start opens the launcher's Updates
+	// window, which checks for, downloads and installs the update.
+	if (argc == 1) {
+		wchar_t ownDir[MAX_PATH] = { 0 };
+		const DWORD length = GetModuleFileNameW(nullptr, ownDir, MAX_PATH);
+		if (length == 0 || length >= MAX_PATH || FAILED(PathCchRemoveFileSpec(ownDir, MAX_PATH))) return 1;
+		AppendLog("Updater started without arguments; opening the Updates window");
+		return StartLauncher(ownDir, L"--updates") ? 0 : 1;
+	}
+
+	// The Launcher starts this only as the normal user (UpdaterMayRun); a copy
+	// started any other way does not install or recover either.
+	if (sf4e::platform::ProcessElevation() != sf4e::platform::Elevation::Normal) {
+		AppendLog("ERROR: Updater does not run as administrator; start Ember normally");
+		return 1;
+	}
 
 	if (!ParseArgs(argc, argv, installDir, MAX_PATH, stagingDir, MAX_PATH, &waitPid, &recoverOnly)) {
 		AppendLog("ERROR: missing -InstallDir or -StagingDir");

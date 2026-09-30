@@ -313,9 +313,18 @@ int fMain::Initialize(void* a, void* b, void* c) {
             int max_files = 10;
 
             std::vector<spdlog::sink_ptr> sinks;
-            sinks.push_back(std::shared_ptr<spdlog::sinks::rotating_file_sink_mt>(
-                new spdlog::sinks::rotating_file_sink_mt(logpath, max_size, max_files, true)
-            ));
+            // A log file that cannot be opened or rotated (read-only, or held
+            // open elsewhere) must not stop the game: play on without it, with
+            // the crash ring and crash capture still in place.
+            std::string fileError;
+            try {
+                sinks.push_back(std::shared_ptr<spdlog::sinks::rotating_file_sink_mt>(
+                    new spdlog::sinks::rotating_file_sink_mt(logpath, max_size, max_files, true)
+                ));
+            }
+            catch (const spdlog::spdlog_ex& ex) {
+                fileError = ex.what();
+            }
             if (hasConsole) {
                 sinks.push_back(std::shared_ptr<spdlog::sinks::wincolor_stdout_sink_mt>(
                     new spdlog::sinks::wincolor_stdout_sink_mt()
@@ -328,6 +337,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
             spdlog::set_default_logger(logger);
             spdlog::flush_on(spdlog::level::info);
             spdlog::info("Welcome to sf4e");
+            if (!fileError.empty()) spdlog::error("sf4e.log is unavailable, so this session is not written to it: {}", fileError);
             wchar_t logsDirectory[MAX_PATH];
             PathCombineW(logsDirectory, path, L"sf4e/logs");
             sf4e::crash::Install(logsDirectory);
@@ -337,7 +347,6 @@ int fMain::Initialize(void* a, void* b, void* c) {
         catch (const spdlog::spdlog_ex& ex)
         {
             MessageBoxA(NULL, ex.what(), NULL, MB_OK);
-            DebugBreak();
         }
     }
     else {

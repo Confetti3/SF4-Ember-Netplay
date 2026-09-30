@@ -850,7 +850,7 @@ msgid "about.open_updater"
 msgstr "Выйти и открыть обновление"
 
 msgid "about.open_updater_detail"
-msgstr "Игра закроется. Сначала выйдите из зала."
+msgstr "Игра закроется, и откроется обновление. Там выберите «Скачать и установить». Сначала выйдите из зала."
 
 msgid "about.open_recovery"
 msgstr "Выйти к восстановлению"
@@ -1528,6 +1528,8 @@ msgstr "Нет метки версии."
 
 msgid "update.close_sf4"
 msgstr "Закройте Ultra Street Fighter IV перед установкой обновления."
+msgid "update.elevated"
+msgstr "Ember запущен от имени администратора. Закройте его и запустите обычным способом, чтобы устанавливать обновления."
 
 msgid "update.install_dir_failed"
 msgstr "Не удалось определить папку установки."
@@ -1887,7 +1889,9 @@ msgid "room.change_fighter.waiting"
 msgstr "Ожидание завершения текущего матча или обновления выбора."
 
 msgid "room.change_fighter.detail"
-msgstr "Выберите персонажа, затем просмотрите галереи костюмов и цветов. Вернитесь сюда и нажмите «Готов»."
+msgstr "Выберите персонажа, затем его Ultra Combo. Вернитесь сюда и нажмите «Готов»."
+msgid "room.appearance.detail"
+msgstr "Влево и вправо меняют цвет здесь. Выбор открывает костюмы, затем цвета выбранного костюма."
 
 msgid "room.leave_seat"
 msgstr "Встать"

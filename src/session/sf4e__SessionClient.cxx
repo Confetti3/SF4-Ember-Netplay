@@ -45,6 +45,9 @@ const char* SessionClient::JoinRejectionKey(ErrorType type) {
 
 // Bound for buffered remote v2 hashes (matches the checkpoint ring span).
 static const size_t MAX_PENDING_REMOTE_HASHES = 64;
+// The opponent is at most a rollback window ahead, a few snapshots, so a
+// small window is kept; compared snapshots are removed as they match.
+static const size_t MAX_PENDING_REMOTE_SNAPSHOTS = 64;
 
 // The legacy snapshot comparison is a whole-struct memcmp, so a mismatch used
 // to be reported as "Desync detected!" and nothing else. That is not enough to
@@ -417,6 +420,9 @@ bool SessionClient::HandleBattleSnapshot(json& msg) {
 		if (bVerboseLogging) {
 			spdlog::error("Client: snapshot receipt: pendingRemoteSnapshots.emplace({})", m.snapshot.frameIdx);
 		}
+		if (pendingRemoteSnapshots.size() >= MAX_PENDING_REMOTE_SNAPSHOTS) {
+			pendingRemoteSnapshots.erase(pendingRemoteSnapshots.begin());
+		}
 		pendingRemoteSnapshots.emplace(m.snapshot.frameIdx, m.snapshot);
 	}
 	return true;
@@ -634,6 +640,7 @@ int SessionClient::Step()
 						TerminateOnDesync("reconciliation", localSnapshot.frameIdx);
 					}
 					localSnapshotIter->second.second.confirmed = true;
+					pendingRemoteSnapshots.erase(remoteSnapshotIter);
 				}
 			}
 

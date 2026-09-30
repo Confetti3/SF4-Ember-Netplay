@@ -1,5 +1,7 @@
 use super::*;
+
 use serde_json::json;
+
 use std::{
     collections::BTreeSet,
     sync::{
@@ -18,10 +20,12 @@ struct Bus {
     snapshot_rpc_delay_ms: AtomicU64,
     snapshot_rpc_count: AtomicU64,
 }
+
 struct TestNetwork {
     source: u64,
     bus: Arc<Bus>,
 }
+
 impl RpcTransport for TestNetwork {
     fn call(
         &self,
@@ -69,6 +73,7 @@ impl RpcTransport for TestNetwork {
         })
     }
 }
+
 async fn cluster(count: u64) -> (Arc<Bus>, Vec<Arc<Coordinator>>) {
     let bus = Arc::new(Bus::default());
     let mut nodes = Vec::new();
@@ -219,6 +224,112 @@ fn compressed_coordination_wire_is_versioned_bounded_and_verified() {
     corrupted.digest[0] ^= 0x80;
     assert!(corrupted.decode::<String>().is_err());
 }
+
+#[test]
+fn the_largest_rpc_bodies_fit_their_transport_bounds() {
+    let high = u64::MAX;
+    let log_id = LogId::new(openraft::CommittedLeaderId::new(high, high), high);
+    let vote = serde_json::to_vec(&VoteRequest::new(Vote::new(high, high), Some(log_id))).unwrap();
+    assert!(
+        vote.len() <= MAX_VOTE_REQUEST,
+        "vote request {}",
+        vote.len()
+    );
+
+    // A remote proposal is a probe reservation; its identifiers are capped
+    // at 128 bytes, which JSON can escape to six bytes each.
+    let escaped = "\u{1}".repeat(128);
+    let propose = serde_json::to_vec(&Proposal {
+        request: escaped.clone(),
+        dedup_id: escaped,
+        term: high,
+        base: high,
+        checkpoint: String::new(),
+        admin: Some(AdminEntry::ProbeReservation(ProbeReservation {
+            room: [u8::MAX; 16],
+            source_incarnation: high,
+            target_incarnation: high,
+            request: high,
+            pair_revision: high,
+            term: high,
+            expires: high,
+        })),
+    })
+    .unwrap();
+    assert!(
+        propose.len() <= MAX_PROPOSE_REQUEST,
+        "propose {}",
+        propose.len()
+    );
+
+    // A full credit window of snapshot data, with the metadata of a joint
+    // configuration that names every member.
+    let ids = (0..MAX_MEMBERS as u64)
+        .map(|index| high - index)
+        .collect::<BTreeSet<_>>();
+    let nodes = ids
+        .iter()
+        .map(|id| (*id, BasicNode::new("f".repeat(128))))
+        .collect::<BTreeMap<_, _>>();
+    let membership = openraft::Membership::new(vec![ids.clone(), ids.clone()], nodes);
+    let snapshot = serde_json::to_vec(&InstallSnapshotWire::encode(InstallSnapshotRequest {
+        vote: Vote::new_committed(high, high),
+        meta: SnapshotMeta {
+            last_log_id: Some(log_id),
+            last_membership: StoredMembership::new(Some(log_id), membership),
+            snapshot_id: format!("{:?}", Some(log_id)),
+        },
+        offset: high,
+        data: vec![u8::MAX; SNAPSHOT_FRAGMENT_BYTES * SNAPSHOT_CREDIT_WINDOW],
+        done: true,
+    }))
+    .unwrap();
+    assert!(
+        snapshot.len() <= MAX_SNAPSHOT_REQUEST,
+        "snapshot {}",
+        snapshot.len()
+    );
+
+    let responses = [
+        serde_json::to_vec(&AuthorityClaim {
+            incarnation: high,
+            term: high,
+            leader: Some(high),
+            revision: high,
+            voters: ids.clone(),
+            members: ids,
+        })
+        .unwrap(),
+        serde_json::to_vec(&AppendEntriesResponse::<u64>::HigherVote(
+            Vote::new_committed(high, high),
+        ))
+        .unwrap(),
+        serde_json::to_vec(&AppendEntriesResponse::<u64>::PartialSuccess(Some(log_id))).unwrap(),
+        serde_json::to_vec(&VoteResponse::new(
+            Vote::new_committed(high, high),
+            Some(log_id),
+            true,
+        ))
+        .unwrap(),
+        serde_json::to_vec(&InstallSnapshotResponse {
+            vote: Vote::new_committed(high, high),
+        })
+        .unwrap(),
+        serde_json::to_vec(&Receipt {
+            accepted: true,
+            revision: high,
+        })
+        .unwrap(),
+    ];
+    for response in responses {
+        assert!(
+            response.len() <= MAX_RPC_RESPONSE,
+            "response {}",
+            response.len()
+        );
+    }
+}
+
 async fn stop(nodes: Vec<Arc<Coordinator>>) {
     for node in nodes {
         node.raft.shutdown().await.unwrap();
@@ -291,173 +402,6 @@ async fn commitment_deduplication_and_checkpoint_transfer() {
 }
 
 #[tokio::test]
-async fn bounded_relay_sized_append_does_not_forfeit_healthy_quorum() {
-    let (bus, nodes) = cluster(3).await;
-    // Public-relay admission carries a roughly 320 KiB private checkpoint.
-    // A healthy append can take longer than one second while still staying
-    // within the transport's bounded ten-second RPC allowance.
-    bus.append_delay_ms.store(4_000, Ordering::Relaxed);
-    let checkpoint = "x".repeat(320 * 1024);
-    let receipt = tokio::time::timeout(
-        Duration::from_secs(10),
-        nodes[0].propose(proposal(&nodes[0], "relay-sized", 0, &checkpoint)),
-    )
-    .await
-    .expect("healthy bounded append lost quorum")
-    .expect("healthy bounded append failed");
-    assert!(receipt.accepted);
-    assert_eq!(
-        nodes[0].committed().await.checkpoint.len(),
-        checkpoint.len()
-    );
-    stop(nodes).await;
-}
-
-#[tokio::test]
-async fn bounded_relay_snapshot_bootstraps_a_fresh_learner() {
-    let (bus, mut nodes) = cluster(1).await;
-    for revision in 0..12 {
-        let request = format!("snapshot-{revision}");
-        assert!(
-            nodes[0]
-                .propose(proposal(
-                    &nodes[0],
-                    &request,
-                    revision,
-                    &"s".repeat(32 * 1024)
-                ))
-                .await
-                .unwrap()
-                .accepted
-        );
-    }
-    tokio::time::timeout(Duration::from_secs(5), async {
-        loop {
-            if nodes[0].store.0.lock().await.purged.is_some() {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(25)).await;
-        }
-    })
-    .await
-    .expect("leader did not compact a snapshot");
-
-    let learner = Arc::new(
-        Coordinator::new(
-            2,
-            Arc::new(TestNetwork {
-                source: 2,
-                bus: bus.clone(),
-            }),
-        )
-        .await
-        .unwrap(),
-    );
-    bus.peers.lock().await.insert(2, Arc::downgrade(&learner));
-    nodes.push(learner);
-    bus.snapshot_delay_ms.store(6_000, Ordering::Relaxed);
-    tokio::time::timeout(
-        Duration::from_secs(14),
-        nodes[0].raft.add_learner(2, BasicNode::new("2"), true),
-    )
-    .await
-    .expect("bounded relay snapshot stranded learner")
-    .expect("bounded relay snapshot admission failed");
-    tokio::time::timeout(Duration::from_secs(14), async {
-        loop {
-            if nodes[1].committed().await.revision == 12 {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(25)).await;
-        }
-    })
-    .await
-    .expect("bounded relay snapshot never reached learner");
-    stop(nodes).await;
-}
-
-#[tokio::test]
-async fn bounded_relay_snapshot_batches_a_four_chunk_credit_window() {
-    let (bus, mut nodes) = cluster(1).await;
-    let checkpoint = "w".repeat(512 * 1024);
-    for revision in 0..12 {
-        let request = format!("window-{revision}");
-        assert!(
-            nodes[0]
-                .propose(proposal(&nodes[0], &request, revision, &checkpoint))
-                .await
-                .unwrap()
-                .accepted
-        );
-    }
-    tokio::time::timeout(Duration::from_secs(5), async {
-        loop {
-            if nodes[0].store.0.lock().await.purged.is_some() {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(25)).await;
-        }
-    })
-    .await
-    .expect("leader did not compact the relay-sized snapshot");
-    let encoded_snapshot_bytes = nodes[0]
-        .store
-        .0
-        .lock()
-        .await
-        .snapshot
-        .as_ref()
-        .expect("missing compacted snapshot")
-        .1
-        .len();
-    assert!(
-        encoded_snapshot_bytes < checkpoint.len() / 4,
-        "repetitive checkpoint snapshot was not compressed"
-    );
-
-    let learner = Arc::new(
-        Coordinator::new(
-            2,
-            Arc::new(TestNetwork {
-                source: 2,
-                bus: bus.clone(),
-            }),
-        )
-        .await
-        .unwrap(),
-    );
-    bus.peers.lock().await.insert(2, Arc::downgrade(&learner));
-    nodes.push(learner);
-    // Model a relay RTT on every OpenRaft snapshot RPC. Sending one 16 KiB
-    // fragment per RPC cannot finish a 512 KiB checkpoint in this bound;
-    // one four-fragment credit window can.
-    bus.snapshot_rpc_delay_ms.store(350, Ordering::Relaxed);
-    nodes[0]
-        .raft
-        .add_learner(2, BasicNode::new("2"), true)
-        .await
-        .expect("relay snapshot learner admission failed");
-    let caught_up = tokio::time::timeout(Duration::from_secs(14), async {
-        loop {
-            if nodes[1].committed().await.revision == 12 {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(25)).await;
-        }
-    })
-    .await;
-    assert!(
-        caught_up.is_ok(),
-        "relay snapshot did not use the four-chunk credit window; RPCs={}",
-        bus.snapshot_rpc_count.load(Ordering::Relaxed)
-    );
-    assert!(
-        bus.snapshot_rpc_count.load(Ordering::Relaxed) <= 10,
-        "relay snapshot exceeded four-fragment RPC windows"
-    );
-    stop(nodes).await;
-}
-#[tokio::test]
 async fn two_member_partition_never_commits_a_second_host() {
     let (bus, nodes) = cluster(2).await;
     assert_eq!(nodes[0].applied_voter_ids().await, BTreeSet::from([1, 2]));
@@ -497,34 +441,6 @@ async fn admitted_voter_can_commit_its_own_non_native_departure() {
     })
     .await
     .unwrap();
-    stop(nodes).await;
-}
-
-#[tokio::test]
-async fn snapshot_preserves_removed_member_provenance_for_new_replica() {
-    let (_, nodes) = cluster(2).await;
-    assert_eq!(nodes[0].dispatch(2, "remove", &[0]).await.unwrap(), vec![1]);
-    tokio::time::timeout(Duration::from_secs(5), async {
-        loop {
-            if nodes[0].applied_member_ids().await == BTreeSet::from([1]) {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(25)).await;
-        }
-    })
-    .await
-    .unwrap();
-
-    let mut source = nodes[0].store.clone();
-    let snapshot = source.build_snapshot().await.unwrap();
-    let mut restored = Store::default();
-    restored
-        .install_snapshot(&snapshot.meta, snapshot.snapshot)
-        .await
-        .unwrap();
-    let (current, history) = restored.applied_membership_provenance().await;
-    assert_eq!(current, BTreeSet::from([1]));
-    assert_eq!(history, BTreeSet::from([1, 2]));
     stop(nodes).await;
 }
 
@@ -578,6 +494,157 @@ async fn coordination_only_learner_is_removed_before_departure_proof() {
     learner.raft.shutdown().await.unwrap();
     stop(nodes).await;
 }
+
+/// The id of the entry at `index` in `node`'s log, if it is still held.
+async fn log_id_at(node: &Coordinator, index: Option<u64>) -> Option<LogId<u64>> {
+    let index = index?;
+    node.store
+        .0
+        .lock()
+        .await
+        .log
+        .get(&index)
+        .map(|entry| entry.log_id)
+}
+
+#[tokio::test]
+async fn only_a_voter_asks_for_a_vote_and_only_as_a_candidate() {
+    let (bus, nodes) = cluster(3).await;
+    let learner = Arc::new(
+        Coordinator::new(
+            4,
+            Arc::new(TestNetwork {
+                source: 4,
+                bus: bus.clone(),
+            }),
+        )
+        .await
+        .unwrap(),
+    );
+    bus.peers.lock().await.insert(4, Arc::downgrade(&learner));
+    nodes[0]
+        .raft
+        .add_learner(4, BasicNode::new("4"), true)
+        .await
+        .unwrap();
+    let follower = &nodes[1];
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !follower.applied_member_ids().await.contains(&4) {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let term = follower.current_term();
+    let last = follower.raft.metrics().borrow().last_log_index;
+    let last_log_id = log_id_at(follower, last).await;
+    let request =
+        |vote: Vote<u64>| serde_json::to_vec(&VoteRequest::new(vote, last_log_id)).unwrap();
+
+    // A learner is not a candidate.
+    assert!(
+        follower
+            .dispatch(4, "vote", &request(Vote::new(term + 5, 4)))
+            .await
+            .is_err()
+    );
+    // A voter campaigns with the uncommitted vote of a candidate; a request
+    // carrying a committed vote is not one.
+    assert!(
+        follower
+            .dispatch(3, "vote", &request(Vote::new_committed(term + 5, 3)))
+            .await
+            .is_err()
+    );
+    assert_eq!(follower.current_term(), term);
+    assert_eq!(follower.current_leader(), Some(1));
+    // A voter's candidate request is still answered.
+    assert!(
+        follower
+            .dispatch(3, "vote", &request(Vote::new(term, 3)))
+            .await
+            .is_ok()
+    );
+    assert!(
+        nodes[0]
+            .propose(proposal(&nodes[0], "after", 0, "leader checkpoint"))
+            .await
+            .unwrap()
+            .accepted
+    );
+    learner.raft.shutdown().await.unwrap();
+    stop(nodes).await;
+}
+
+/// A leader that commits its own removal still delivers that commit to the
+/// followers that appended the change, and the survivors carry on.
+#[tokio::test]
+async fn a_leader_removing_itself_still_commits_and_hands_over() {
+    let (bus, nodes) = cluster(3).await;
+    nodes[0]
+        .raft
+        .change_membership(BTreeSet::from([2, 3]), false)
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while nodes[1].applied_voter_ids().await != BTreeSet::from([2, 3])
+            || nodes[2].applied_voter_ids().await != BTreeSet::from([2, 3])
+        {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("followers never applied the leader's own removal");
+    bus.isolated.lock().await.insert(1);
+    nodes[1].raft.trigger().elect().await.unwrap();
+    let successor = wait_for_successor(&nodes, "self-removal").await;
+    let receipt = nodes[successor]
+        .propose(proposal(&nodes[successor], "after-removal", 0, "state"))
+        .await
+        .unwrap();
+    assert!(receipt.accepted);
+    stop(nodes).await;
+}
+
+/// The helper's leave: the leader keeps itself as a learner behind a single
+/// successor voter and asks that successor to elect itself at once.
+#[tokio::test]
+async fn a_singleton_handoff_elects_the_successor_and_replicates() {
+    let (_, nodes) = cluster(3).await;
+    nodes[0]
+        .raft
+        .change_membership(BTreeSet::from([2]), true)
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while nodes[1].applied_voter_ids().await != BTreeSet::from([2]) {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("successor never applied the singleton membership");
+    assert_eq!(nodes[1].dispatch(1, "elect", &[0]).await.unwrap(), vec![1]);
+    nodes[1]
+        .raft
+        .wait(Some(Duration::from_secs(5)))
+        .current_leader(2, "handoff successor")
+        .await
+        .unwrap();
+    let receipt = nodes[1]
+        .propose(proposal(&nodes[1], "after-handoff", 0, "handed over"))
+        .await
+        .unwrap();
+    assert!(receipt.accepted);
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while nodes[2].committed().await.checkpoint != "handed over" {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("the retained learner never applied the successor's commit");
+    stop(nodes).await;
+}
+
 #[tokio::test]
 async fn majority_recovers_and_old_leader_is_fenced() {
     let (bus, nodes) = cluster(3).await;
@@ -622,6 +689,7 @@ async fn majority_recovers_and_old_leader_is_fenced() {
     );
     stop(nodes).await;
 }
+
 #[tokio::test]
 async fn sixteen_members_commit_with_one_failed_host() {
     let (bus, nodes) = cluster(16).await;
@@ -650,171 +718,7 @@ async fn sixteen_members_commit_with_one_failed_host() {
     stop(nodes).await;
 }
 
-#[test]
-fn departed_history_keeps_the_newest_departures_and_all_current_members() {
-    let mut machine = Machine::default();
-    for departed in 1..=300u64 {
-        machine.remember_members(&BTreeSet::from([1000, departed]));
-    }
-    assert_eq!(
-        machine.member_history.len(),
-        RETAINED_RETIRED_MEMBER_HISTORY + 2
-    );
-    assert_eq!(
-        machine.departed_order.len() + 2,
-        machine.member_history.len()
-    );
-    // 300 is current; 299 down to 173 are the newest departures.
-    assert!(machine.member_history.contains(&1000));
-    assert!(machine.member_history.contains(&300));
-    assert!(machine.member_history.contains(&299));
-    assert!(machine.member_history.contains(&173));
-    assert!(!machine.member_history.contains(&172));
-    assert!(!machine.member_history.contains(&1));
-    // A member that stays is never dropped, however many departures follow.
-    for departed in 301..=600u64 {
-        machine.remember_members(&BTreeSet::from([1000, departed]));
-    }
-    assert!(machine.member_history.contains(&1000));
-    assert!(machine.member_history.len() <= MAX_MEMBER_HISTORY);
-}
-
-#[test]
-fn history_from_a_snapshot_without_order_drops_the_lowest_ids_first() {
-    let mut machine = Machine {
-        member_history: (1..=200u64).collect(),
-        ..Machine::default()
-    };
-    machine.remember_members(&BTreeSet::from([500]));
-    assert_eq!(
-        machine.member_history.len(),
-        RETAINED_RETIRED_MEMBER_HISTORY + 1
-    );
-    assert!(!machine.member_history.contains(&73));
-    assert!(machine.member_history.contains(&74));
-    assert!(machine.member_history.contains(&200));
-    assert!(machine.member_history.contains(&500));
-    assert_eq!(
-        machine.departed_order.len() + 1,
-        machine.member_history.len()
-    );
-}
-
-/// A member that stayed through many rotations, then leaves. Its incarnation
-/// entered the history first, but it departed last, so it is the newest
-/// departure and must outlive every older one.
-fn machine_after_long_lived_member_left() -> Machine {
-    let mut machine = Machine::default();
-    for departed in 1..=300u64 {
-        machine.remember_members(&BTreeSet::from([1000, departed]));
-    }
-    machine.remember_members(&BTreeSet::from([300]));
-    machine
-}
-
-#[test]
-fn a_long_lived_member_that_just_left_outlives_older_departures() {
-    let mut machine = machine_after_long_lived_member_left();
-    // 1000 departed last: kept. 173 was the oldest departure: dropped.
-    assert!(machine.member_history.contains(&1000));
-    assert!(machine.member_history.contains(&300));
-    assert!(machine.member_history.contains(&174));
-    assert!(!machine.member_history.contains(&173));
-    assert_eq!(
-        machine.member_history.len(),
-        RETAINED_RETIRED_MEMBER_HISTORY + 1
-    );
-    assert_eq!(machine.departed_order.last(), Some(&1000));
-    assert_eq!(machine.departed_order.first(), Some(&174));
-    // It is dropped only once 127 newer departures follow it: 126 kept.
-    for live in 301..=426u64 {
-        machine.remember_members(&BTreeSet::from([live]));
-        assert!(machine.member_history.contains(&1000));
-    }
-    machine.remember_members(&BTreeSet::from([427]));
-    assert!(!machine.member_history.contains(&1000));
-    assert!(machine.member_history.contains(&300));
-}
-
-#[test]
-fn snapshot_carries_the_departure_order_of_a_long_lived_member() {
-    let machine = machine_after_long_lived_member_left();
-    let restored = decode_snapshot(&encode_snapshot(&machine).unwrap()).unwrap();
-    assert_eq!(restored.member_history, machine.member_history);
-    assert_eq!(restored.departed_order, machine.departed_order);
-    // Both replicas evict the same incarnations from here on.
-    let (mut original, mut restored) = (machine, restored);
-    for next in 301..=340u64 {
-        original.remember_members(&BTreeSet::from([next]));
-        restored.remember_members(&BTreeSet::from([next]));
-        assert_eq!(restored.member_history, original.member_history);
-        assert_eq!(restored.departed_order, original.departed_order);
-    }
-    assert!(restored.member_history.contains(&1000));
-}
-
-#[test]
-fn snapshot_without_a_departure_order_falls_back_to_ascending_ids() {
-    let machine = machine_after_long_lived_member_left();
-    let mut value = serde_json::to_value(&machine).unwrap();
-    value.as_object_mut().unwrap().remove("departed_order");
-    let mut legacy: Machine = serde_json::from_value(value).unwrap();
-    assert!(legacy.departed_order.is_empty());
-    assert_eq!(legacy.member_history, machine.member_history);
-    legacy.remember_members(&BTreeSet::from([301]));
-    // The unordered entries depart together in ascending order, so the
-    // lowest ids go first and 1000 is not the one dropped.
-    assert_eq!(
-        legacy.member_history.len(),
-        RETAINED_RETIRED_MEMBER_HISTORY + 1
-    );
-    assert!(legacy.member_history.contains(&1000));
-    assert!(legacy.member_history.contains(&301));
-    assert!(!legacy.member_history.contains(&174));
-    assert!(legacy.member_history.contains(&175));
-    // The same input gives the same result on every replica.
-    let mut again: Machine =
-        serde_json::from_value(serde_json::to_value(&legacy).unwrap()).unwrap();
-    again.remember_members(&BTreeSet::from([302]));
-    legacy.remember_members(&BTreeSet::from([302]));
-    assert_eq!(again.member_history, legacy.member_history);
-    assert_eq!(again.departed_order, legacy.departed_order);
-}
-
-#[tokio::test]
-async fn a_room_keeps_admitting_members_past_the_departed_history_bound() {
-    let (bus, nodes) = cluster(1).await;
-    let last = MAX_RETIRED_MEMBER_HISTORY as u64 + 20;
-    for id in 2..=last {
-        let learner = Arc::new(
-            Coordinator::new(
-                id,
-                Arc::new(TestNetwork {
-                    source: id,
-                    bus: bus.clone(),
-                }),
-            )
-            .await
-            .unwrap(),
-        );
-        bus.peers.lock().await.insert(id, Arc::downgrade(&learner));
-        nodes[0]
-            .raft
-            .add_learner(id, BasicNode::new(id.to_string()), true)
-            .await
-            .unwrap();
-        nodes[0]
-            .raft
-            .change_membership(ChangeMembers::RemoveNodes(BTreeSet::from([id])), false)
-            .await
-            .unwrap();
-        let _ = learner.raft.shutdown().await;
-    }
-    let (members, history) = nodes[0].applied_membership_provenance().await;
-    assert_eq!(members, BTreeSet::from([1]));
-    assert!(history.len() <= RETAINED_RETIRED_MEMBER_HISTORY + 1);
-    // The newest departure is still remembered, the first is not.
-    assert!(history.contains(&last));
-    assert!(!history.contains(&2));
-    stop(nodes).await;
-}
+// Relay-sized appends and snapshot transfer to new replicas.
+mod transfer;
+// Departed-member history and its bound.
+mod history;

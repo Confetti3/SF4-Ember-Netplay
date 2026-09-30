@@ -4,11 +4,9 @@
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
 namespace sf4e { namespace ui {
-void SetOverlayCursorOwnership(bool capture) {
-    auto& io = ImGui::GetIO();
-    if (capture) io.ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
-    else io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
-}
+// A shared flag rather than io.ConfigFlags: the window procedure sets it on
+// the message thread, which may not be the drawing thread.
+void SetOverlayCursorOwnership(bool capture) { SetWin32CursorOwned(capture); }
 namespace {
 // The button-up that ends a press, or 0 when the message is not a button press.
 UINT ReleaseOf(UINT message) {

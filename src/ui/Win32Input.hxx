@@ -1,5 +1,10 @@
 #pragma once
 #include <windows.h>
+#include "Win32InputBridge.hxx"
+
+// Ember's addition to the vendored Win32 backend (src/ui/backends): with a
+// bridge, the window procedure's ImGui input is applied on the drawing thread.
+IMGUI_API void ImGui_ImplWin32_SetInputBridge(sf4e::ui::Win32InputBridge* bridge);
 
 namespace sf4e { namespace ui {
 // Set before the Win32 backend's NewFrame as well as on visibility/focus changes.

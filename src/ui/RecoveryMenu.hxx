@@ -9,6 +9,12 @@ namespace sf4e { namespace ui {
 enum class RecoveryChoice { None, Folder, Retry, CheckUpdates, Install, Cancel, Close };
 // The root screen names the header's "< Back / ..." breadcrumb (MenuScreenLabel).
 inline MenuNavigation RecoveryNavigation(bool updates) { return MenuNavigation(updates?"updates":"recovery"); }
+// Each newly found update takes the highlight once, so Select installs it
+// rather than checking again; offered remembers the version that already did.
+inline void OfferFoundUpdate(GameMenu& menu,const platform::ServiceSnapshot& state,std::string& offered) {
+    if(!state.update.ok||!state.update.updateAvailable||state.pending||state.update.latestVersion==offered)return;
+    offered=state.update.latestVersion;menu.navigation.Prefer("install");
+}
 // Rendering returns intent only. The launcher owns dialogs, services and exit.
 // messageTone is the launcher message's own severity: a selected folder is
 // good news, a launch failure is not. The status shows one of two messages: the
@@ -26,10 +32,14 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
         rows.push_back(Row("folder",loc::T("recovery.choose_folder"),loc::T("recovery.choose_folder_detail"),!state.pending));
         rows.push_back(Row("retry",loc::T("recovery.retry"),state.pending?loc::T("recovery.retry_busy"):loc::T("recovery.retry_detail"),!state.pending));
     }
-    rows.push_back(Row("check",loc::T("updates.check"),state.pending?loc::T("updates.busy"):loc::T("updates.check_detail"),!state.pending));
-    if(state.update.ok&&state.update.updateAvailable)
+    // A found update comes first, named by its version: installing it is
+    // what the player came here for.
+    if(state.update.ok&&state.update.updateAvailable){
         rows.push_back(ConfirmRow("install",loc::T("updates.install"),state.update.expectedSha256.size()==64?
             loc::T("updates.install_detail"):loc::T("updates.unverified"),!state.pending&&state.update.expectedSha256.size()==64));
+        rows.back().value=state.update.latestVersion;
+    }
+    rows.push_back(Row("check",loc::T("updates.check"),state.pending?loc::T("updates.busy"):loc::T("updates.check_detail"),!state.pending));
     if(state.pending)rows.push_back(Row("cancel",loc::T("updates.cancel"),loc::T("updates.cancel_detail")));
     if(updates&&canStart)
         rows.push_back(Row("retry",loc::T("updates.start_game"),state.pending?loc::T("recovery.retry_busy"):loc::T("updates.start_game_detail"),!state.pending));

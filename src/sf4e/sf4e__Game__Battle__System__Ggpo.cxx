@@ -3,6 +3,10 @@
 #include "sf4e__Game__Battle__System__Internal.hxx"
 #include "../common/GgpoDisconnectTolerance.hxx"
 #include "../common/SpectatorCatchUp.hxx"
+#include <atomic>
+
+// Stands in for a saved state on frames that save nothing (the save callback).
+static unsigned char s_inertSaveState;
 
 static sf4e::RollbackHud rollbackHud;
 
@@ -533,6 +537,10 @@ bool fSystem::GetRemoteNetworkStats(GGPONetworkStats& stats) {
 // only frame length changes. A stalled tick already repays time and its
 // advantage pair is unreliable, so it holds the estimate and does not shift.
 fSystem::PacingTick fSystem::StepPacing() {
+    // Beside the overlay's thread note: whether the simulation shares a thread
+    // with the window messages, which wait on the overlay's ImGui lock.
+    static std::atomic<bool> threadNoted{ false };
+    if (!threadNoted.exchange(true)) spdlog::info("GGPO: battle ticks run on thread {}", GetCurrentThreadId());
     PacingTick tick{ 0.0, 0.0 };
     if (!ggpo) return tick;
     tick.appliedMs = sf4e::Platform::D3D::TakeAppliedShift();
@@ -566,15 +574,16 @@ bool fSystem::ggpo_advance_frame_callback(int)
         diag::G().OnRollbackCallback(diag::NowMs());
     }
 
-    // Once the session is fatal (an earlier callback in this burst aborted),
-    // GGPO still calls back for the remaining frames. Do no engine work.
-    if (!ggpo || simGate.fatalError) {
+    if (!ggpo) {
         return true;
     }
-    // The battle is closed and its slots freed; a session kept open for
-    // spectators may still resimulate on a late input. Keep GGPO's frame
-    // count moving without touching the engine.
-    if (sf4e::NetplayFacade::DrainingSpectators()) {
+    // Once the session is fatal (an earlier callback in this burst aborted),
+    // GGPO still calls back for the remaining frames; once the battle is
+    // closed, a session kept open for spectators may still resimulate on a
+    // late input. Neither touches the engine, but both keep GGPO's frame
+    // count moving: a rollback that ends short of its target fails GGPO's
+    // frame-count ASSERT, which calls exit(1) in release builds too.
+    if (simGate.fatalError || sf4e::NetplayFacade::DrainingSpectators()) {
         ggpo_advance_frame(ggpo);
         return true;
     }
@@ -590,6 +599,7 @@ bool fSystem::ggpo_advance_frame_callback(int)
     }
     if (!GGPO_SUCCEEDED(result)) {
         AbortGgpoMatch(sf4e::loc::T("runtime.netplay_sync_failed"));
+        if (ggpo) ggpo_advance_frame(ggpo);
         return true;
     }
     NoteDisconnectFlags(disconnect_flags);
@@ -659,10 +669,14 @@ bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, in
     // errors with an assertion if the length is zero.
     *len = 1;
 
-    // After battle close GGPO still wants a buffer per resimulated frame.
-    // Hand it an unused slot without saving; its later free is ignored.
-    if (sf4e::NetplayFacade::DrainingSpectators()) {
-        *buffer = (unsigned char*)&saveStates[0];
+    // A fatal session (until the outer tick closes it) and a battle already
+    // closed for draining spectators only move GGPO's frame count; nothing is
+    // saved. GGPO still needs a buffer per frame, and asserts one exists if a
+    // later rollback in the same poll loads it, so these frames all share the
+    // inert token: loading it touches nothing in either state, and freeing it
+    // is ignored.
+    if (simGate.fatalError || sf4e::NetplayFacade::DrainingSpectators()) {
+        *buffer = &s_inertSaveState;
         *checksum = 0;
         return true;
     }
@@ -727,6 +741,7 @@ void fSystem::ggpo_free_buffer(void* buffer)
     // &saveStates[i]. Validate rather than trust: a stale or duplicated free
     // would otherwise run CopyIntoPlace on an arbitrary address and push
     // garbage keys into live engine objects.
+    if (buffer == &s_inertSaveState) return;
     if (!buffer) {
         spdlog::error("GGPO: free_buffer called with null buffer; ignoring");
         return;
