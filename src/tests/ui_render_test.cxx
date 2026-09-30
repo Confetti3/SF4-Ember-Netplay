@@ -876,8 +876,9 @@ int main(int argc, char** argv) {
             auto* warning=FindWindow("Controller warning");
             Require(warning->ScrollMax.y<1&&warning->Pos.y+warning->Size.y<size.h,"Controller warning escaped viewport");
             mode=4;draw("launch-recovery");recoveryUpdates=true;recoveryMenu.navigation=RecoveryNavigation(true);recoveryState.update.ok=recoveryState.update.updateAvailable=true;
-            recoveryState.update.expectedSha256=std::string(64,'a');draw("update-available");
-            draw(nullptr,MenuInput::Down,1);draw();draw(nullptr,MenuInput::Select,1);draw("update-confirmation");
+            recoveryState.update.expectedSha256=std::string(64,'a');recoveryState.update.latestVersion="v1.0.0";draw("update-available");
+            // The found update is the first row, so Select asks to install it.
+            draw(nullptr,MenuInput::Select,1);draw("update-confirmation");
             Require(recoveryMenu.navigation.Confirming()&&!recoveryMenu.navigation.ConfirmSelected(),"Recovery update confirmation is unsafe");
             draw(nullptr,MenuInput::Back,1);draw();recoveryState.pending=true;recoveryState.downloadedBytes=25*1024*1024;recoveryState.totalBytes=100*1024*1024;
             recoveryState.message="Downloading the verified update. You can cancel this operation.";draw("update-downloading");
