@@ -703,6 +703,17 @@ target_compile_definitions(Launcher PRIVATE -D_UNICODE -DUNICODE "SF4E_APP_VERSI
 set_target_properties(Launcher PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 sf4e_configure_windows_version(Launcher "SF4 Ember Netplay" "Launcher.exe" "VFT_APP")
 sf4e_embed_manifest(Launcher "Launcher.exe.manifest")
+# The source revision the launcher and Sidecar log at startup, refreshed on every build.
+set(SF4E_BUILD_IDENTITY_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/identity")
+add_custom_target(sf4e_build_identity
+    COMMAND "${CMAKE_COMMAND}" "-DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}" "-DOUTPUT=${SF4E_BUILD_IDENTITY_DIR}/BuildIdentity.hxx"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_build_identity.cmake"
+    BYPRODUCTS "${SF4E_BUILD_IDENTITY_DIR}/BuildIdentity.hxx"
+    VERBATIM)
+foreach(target sf4e Launcher)
+    add_dependencies(${target} sf4e_build_identity)
+    target_include_directories(${target} PRIVATE "${SF4E_BUILD_IDENTITY_DIR}")
+endforeach()
 if(BUILD_TESTING)
     add_executable(GameLocatorTest src/tests/game_locator_test.cxx src/launcher/GameLocator.cxx src/common/SteamKeyValues.cxx)
     target_compile_features(GameLocatorTest PRIVATE cxx_std_17)

@@ -38,6 +38,7 @@
 #include "GameLocator.hxx"
 #include "netplay/netplay_persist.hxx"
 #include "update/github_release_client.hxx"
+#include "BuildIdentity.hxx"
 
 LPCWCH szLibrarySuffix = L"steamapps\\common\\Super Street Fighter IV - Arcade Edition";
 
@@ -70,6 +71,8 @@ void ConfigureLauncherLogging() {
 					spdlog::set_default_logger(logger);
 					spdlog::flush_on(spdlog::level::info);
 					spdlog::info("Launcher logging initialized");
+					// A field log names the build it came from.
+					spdlog::info("Launcher build: version={} revision={}", SF4E_APP_VERSION, SF4E_SOURCE_REVISION);
 				}
 				catch (const spdlog::spdlog_ex&) {
 					// Logging should never block game startup.

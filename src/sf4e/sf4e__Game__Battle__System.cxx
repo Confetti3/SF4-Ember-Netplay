@@ -154,7 +154,19 @@ static int NoticePlayers(rSystem* system, bool& failure) {
 }
 
 int fSystem::GetMementoSize() {
-    return (this->*rSystem::mementoableMethods.GetMementoSize)() + sizeof(AdditionalMemento);
+    const int native = (this->*rSystem::mementoableMethods.GetMementoSize)();
+    // The additional memento is placed right after sizeof(Memento) bytes. A
+    // native memento of another size would put it past the allocation (smaller)
+    // or over the engine's own data (larger). Said once, on the first real query.
+    static bool noted = false;
+    if (!noted) {
+        noted = true;
+        if (native != static_cast<int>(sizeof(Memento)))
+            spdlog::error("System memento: the engine's is {:#x} bytes, but the additional memento is placed after {:#x}",
+                native, sizeof(Memento));
+        else spdlog::info("System memento: {:#x} bytes plus {:#x} additional", native, sizeof(AdditionalMemento));
+    }
+    return native + sizeof(AdditionalMemento);
 }
 
 int fSystem::RecordToMemento(Memento* m, GameMementoKey::MementoID* id) {
@@ -553,6 +565,32 @@ void fSystem::LogSaveSlotOccupancy(const char* label) {
     spdlog::info("SaveSlots [{}]: {}/{} occupied", label, occupied, NUM_SAVE_STATES);
 }
 
+// Rollback restores a particle's fields with a raw copy (0x5BF760), its name
+// string included. A name longer than the 15 characters kept inline lives on
+// the heap, and such a copy could bring back a freed buffer. Says once whether
+// a netplay battle ever has one.
+static void NoteHeapParticleNames(rSystem* system) {
+    namespace rVfx = Dimps::Game::Battle::Vfx;
+    static bool noted = false;
+    if (noted || !system) return;
+    auto* unit = (VfxUnit*)(system->*rSystem::publicMethods.GetUnitByIndex)(rSystem::U_VFX);
+    if (!unit) return;
+    auto* particles = (rVfx::ParticleContainer*)(unit->*VfxUnit::publicMethods.GetContainerByType)(VfxUnit::CT_PARTICLE);
+    if (!particles) return;
+    unsigned heapNames = 0;
+    std::size_t longest = 0;
+    for (unsigned int i = 0; i < rVfx::ParticleContainer::DEFAULT_PARTICLE_COUNT; i++) {
+        rVfx::Particle* particle = (particles->*rVfx::ParticleContainer::publicMethods.GetParticleFromHandle)(
+            rVfx::ParticleContainer::GenerateFakeHandle(i));
+        if (!particle) continue;
+        const std::size_t length = rVfx::Particle::GetNameTmp(particle)->size();
+        if (length > 15) { ++heapNames; longest = (std::max)(longest, length); }
+    }
+    if (!heapNames) return;
+    noted = true;
+    spdlog::warn("VFX: {} live particles have names on the heap (longest {}); rollback copies them raw", heapNames, longest);
+}
+
 void fSystem::CloseBattle() {
     rSystem* _this = (rSystem*)this;
     // The engine is closing this battle, so a session retired from here on
@@ -562,6 +600,7 @@ void fSystem::CloseBattle() {
     bool summaryEmitted = false;
     LogSaveSlotOccupancy("battle_close_entry");
     sf4e::crash::NoteMatchBoundary("battle_close");
+    if (ggpo) NoteHeapParticleNames(_this);
     if (ggpo) {
         PublishConfirmedNativeMatchResult();
         int confirmedInput = -1;

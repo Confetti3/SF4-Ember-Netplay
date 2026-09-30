@@ -19,6 +19,7 @@
 #include "sf4e.hxx"
 #include "sf4e__CrashDiagnostics.hxx"
 #include "sf4e__Game.hxx"
+#include "BuildIdentity.hxx"
 #include "sf4e__Platform.hxx"
 #include "sf4e__UserApp.hxx"
 #include "sf4e__Overlay.hxx"
@@ -341,6 +342,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
             spdlog::set_default_logger(logger);
             spdlog::flush_on(spdlog::level::info);
             spdlog::info("Welcome to sf4e");
+            spdlog::info("Sidecar build: revision={}", SF4E_SOURCE_REVISION);
             if (!fileError.empty()) spdlog::error("sf4e.log is unavailable, so this session is not written to it: {}", fileError);
             wchar_t logsDirectory[MAX_PATH];
             PathCombineW(logsDirectory, path, L"sf4e/logs");

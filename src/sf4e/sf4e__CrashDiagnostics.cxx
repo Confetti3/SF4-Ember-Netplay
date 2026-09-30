@@ -2,6 +2,8 @@
 
 #include <atomic>
 #include <exception>
+#include <map>
+#include <string>
 #include <stdlib.h>
 #include <string.h>
 
@@ -278,9 +280,15 @@ void NoteMatchBoundary(const char* label) {
 	const bool restored = current != OnUnhandledException;
 	if (restored && current) s_previousFilter = current;
 	const double mb = 1024.0 * 1024.0;
-	spdlog::info("Process [{}]: private={:.0f}MB working={:.0f}MB largest_free={:.0f}MB free={:.0f}MB free_regions={} "
-		"handles={} threads={} log_dropped={} crash_filter={}",
-		label, memory.PrivateUsage / mb, memory.WorkingSetSize / mb, space.largestFree / mb, space.totalFree / mb,
+	// Growth since the last boundary of the same kind, so a leak across
+	// matches reads from one line per match.
+	static std::map<std::string, SIZE_T> previous;
+	auto& last = previous[label];
+	const double growth = last ? (static_cast<double>(memory.PrivateUsage) - static_cast<double>(last)) / mb : 0.0;
+	last = memory.PrivateUsage;
+	spdlog::info("Process [{}]: private={:.0f}MB ({:+.0f}MB since the last) working={:.0f}MB largest_free={:.0f}MB free={:.0f}MB "
+		"free_regions={} handles={} threads={} log_dropped={} crash_filter={}",
+		label, memory.PrivateUsage / mb, growth, memory.WorkingSetSize / mb, space.largestFree / mb, space.totalFree / mb,
 		space.freeRegions, handles, CountThreads(), sf4e::Platform::AsyncLogDropped(), restored ? "restored" : "ours");
 }
 
