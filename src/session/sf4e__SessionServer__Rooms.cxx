@@ -70,6 +70,12 @@ bool SessionServer::IsRoomTableParticipant(session::Connection connection, std::
 	return authority && authority->IsLiveParticipant(connection);
 }
 
+bool SessionServer::IsRoomTableFighter(session::Connection connection, std::uint8_t tableId) const {
+	if (!IsRoomTableParticipant(connection, tableId)) return false;
+	const auto* authority = RoomMatchAuthority(tableId);
+	return connection && (authority->Fighter(0) == connection || authority->Fighter(1) == connection);
+}
+
 void SessionServer::SendRoomTable(std::uint8_t tableId, const json& message) {
 	if (!_roomAuthority || tableId >= room::TableCount) return;
 	const auto* authority = RoomMatchAuthority(tableId);

@@ -160,13 +160,14 @@ int SessionServer::Step()
 	// recovery candidate exists: journaling it used to turn every 30 frames of
 	// a fight into a full checkpoint proposal that fenced the whole room.
 	// Delivery is best effort; a peer whose control socket is gone simply
-	// misses a frame, as it did when journaling skipped it.
+	// misses a frame, as it did when journaling skipped it. Verification is
+	// the two fighters' exchange, so only theirs is relayed.
 	for (auto it = messages.begin(); it != messages.end();) {
 		if (!session::IsRoomVerificationMessage(*it)) { ++it; continue; }
 		const auto conn = it->connection;
 		const auto table = _roomAuthority ? RoomTableFor(conn) : static_cast<std::uint8_t>(room::TableCount);
 		const bool live = cidMap.find(conn) != cidMap.end() && (!_roomAuthority || (RoomMatchAuthority(table) &&
-			RoomMatchAuthority(table)->GetPhase() != session::MatchAuthority::Phase::Idle && IsRoomTableParticipant(conn, table)));
+			RoomMatchAuthority(table)->GetPhase() != session::MatchAuthority::Phase::Idle && IsRoomTableFighter(conn, table)));
 		if (live && _transport)
 			for (const auto& client : clients)
 				if (client.conn != conn && (!_roomAuthority || IsRoomTableParticipant(client.conn, table)))

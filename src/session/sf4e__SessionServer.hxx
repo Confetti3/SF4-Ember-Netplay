@@ -58,6 +58,8 @@ namespace sf4e {
 		// generation. Table members outside it (a spectator still retiring the last
 		// game, or one left out of the start) are not.
 		bool IsRoomTableParticipant(session::Connection connection, std::uint8_t table) const;
+		// One of the table's two fighters in its current match.
+		bool IsRoomTableFighter(session::Connection connection, std::uint8_t table) const;
 		// A connection reaching a table's native barrier for its live generation:
 		// the two fighters gate it, and the arrivals are reset with each grant. A
 		// participant that arrives after the fighters is released at once.
