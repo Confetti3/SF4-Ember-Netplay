@@ -257,18 +257,23 @@ bool IrohRoom::PeerDeparted(std::map<Connection, Peer>::iterator peer) {
 bool IrohRoom::ReceiveControlMessage(std::map<Connection, Peer>::iterator peer, const json& event) {
 	const auto id = event.at("message_id").get<std::int64_t>();
 	const auto payload = event.at("payload").get<std::string>();
-	if (id <= peer->second.receivedId || payload.empty() || payload.size() > MaximumPayload) {
-		spdlog::warn("Room: control message rejected peer={} id={} last={} bytes={}", PeerTag(peer->second.identity), id,
+	// A message that repeats a number or does not parse is skipped on its own;
+	// the room and the peer's later messages carry on.
+	json decoded;
+	try { decoded = json::parse(payload); } catch (const json::exception&) {}
+	const auto typeField = decoded.is_object() ? decoded.find("type") : decoded.end();
+	if (id <= peer->second.receivedId || payload.empty() || payload.size() > MaximumPayload || !decoded.is_object() ||
+		(typeField != decoded.end() && !typeField->is_string())) {
+		spdlog::warn("Room: control message dropped peer={} id={} last={} bytes={}", PeerTag(peer->second.identity), id,
 			peer->second.receivedId, payload.size());
-		Fail("invalid_control_message"); return false;
+		return true;
 	}
 	peer->second.receivedId = id;
 	// Authority watches and control streams can arrive in either
 	// order during takeover. Committed effects always go through
 	// recipient validation; client intents wait behind the server's
 	// local committed-leader gate regardless of the current UI role.
-	const auto decoded = json::parse(payload);
-	const bool effect = decoded.is_object() && decoded.contains("_commit");
+	const bool effect = decoded.contains("_commit");
 	// Only a bare admission response from the committed
 	// leader enters the local client queue.  Other untagged
 	// peer payloads remain server intents.
