@@ -198,12 +198,12 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	bool open = true;
     shell.Draw(view, &open, [&](sf4e::ui::ShellAction action) {
 		// The table page's Ultra and Appearance rows edit the pick here; nothing is sent.
-		if (action.ultraStep || action.colorStep) {
+		if (const auto step = action.selectionStep; step.field != sf4e::ui::ShellAction::SelectionStep::Field::None) {
 			if (!snapshot.canEditSelection || !sf4e::selection::FindFighter(lobbyMenuCharaID)) return false;
 			auto pick = sf4e::selection::FromNative(lobbyConditions); pick.fighter = lobbyMenuCharaID;
-			if (action.ultraStep) sf4e::ui::Step(pick.ultra, sf4e::selection::AllowedUltras(pick.fighter, pick.edition), action.ultraStep);
-			else sf4e::ui::Step(pick.color, sf4e::selection::AllowedColors(pick.fighter, pick.costume,
-				snapshot.fighterAvailability[lobbyMenuCharaID]), action.colorStep);
+			const bool ultra = step.field == sf4e::ui::ShellAction::SelectionStep::Field::Ultra;
+			sf4e::ui::Step(ultra ? pick.ultra : pick.color, ultra ? sf4e::selection::AllowedUltras(pick.fighter, pick.edition) :
+				sf4e::selection::AllowedColors(pick.fighter, pick.costume, snapshot.fighterAvailability[lobbyMenuCharaID]), step.delta);
 			sf4e::selection::ToNative(pick, lobbyConditions);
 			return true;
 		}

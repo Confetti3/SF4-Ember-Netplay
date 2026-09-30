@@ -84,11 +84,12 @@ struct ShellAction {
     int selectedDelay=-1;
     // Plays the challenger call-out once at this volume (percent); -1 plays nothing.
     int previewSoundVolume=-1;
-    // Steps the chosen Ultra by this much (the table page's Ultra row); the
-    // overlay applies it to the pick, and nothing is sent.
-    int ultraStep=0;
-    // Steps the chosen color the same way (the table page's Appearance row).
-    int colorStep=0;
+    // Steps the chosen Ultra or color by delta (the table page's Ultra and
+    // Appearance rows); the overlay applies it to the pick, and nothing is sent.
+    struct SelectionStep {
+        enum class Field { None, Ultra, Color } field = Field::None;
+        int delta = 0;
+    } selectionStep;
 };
 
 class ApplicationShell {

@@ -240,9 +240,10 @@ int main() try {
     Check(rows[1].id == "selection" && rows[2].id == "ultra" && rows[3].id == "appearance" && rows[4].id == "input-delay",
         "Fighter, Ultra, Appearance and Input delay are not right under Ready");
     focus("ultra"); press(MenuInput::Right);
-    Check(actions.back().ultraStep == 1 && actions.back().colorStep == 0, "Right on Ultra did not step it");
+    using Field = ShellAction::SelectionStep::Field;
+    Check(actions.back().selectionStep.field == Field::Ultra && actions.back().selectionStep.delta == 1, "Right on Ultra did not step it");
     focus("appearance"); press(MenuInput::Left);
-    Check(actions.back().colorStep == -1 && actions.back().ultraStep == 0, "Left on Appearance did not step the color");
+    Check(actions.back().selectionStep.field == Field::Color && actions.back().selectionStep.delta == -1, "Left on Appearance did not step the color");
     view.ultraSteps = false; view.colorSteps = false; frame();
     Check(!row("ultra").adjustable, "A fighter with one Ultra still offers to step it");
     Check(!row("appearance").adjustable, "A costume with one color still offers to step it");
