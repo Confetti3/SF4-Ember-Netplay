@@ -6,9 +6,10 @@ Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by A
 
 ## Changes since v1.0.0-rc3
 
-### Replays
+### Saved replays
 
-- **Replays saved after an online match play back correctly.** The game records one input per frame while the match runs. Each rollback replays a few frames, and the game recorded those frames a second time, so from the first rollback on the replay fell out of step and the fighters did things that never happened. The recording now rewinds with the rollback. Replays saved on earlier builds stay broken; only new recordings are fixed.
+- **Replays saved after an online match now play back correctly.** USF4 records one input per frame during a match. When Ember rolled back to correct a late input, the game recorded those frames a second time. From the first rollback, the saved replay fell out of step. On playback, the fighters did things that never happened in the match. Ember now rewinds the game's replay recording along with the rollback.
+- **Earlier replays stay broken.** The fix only applies to replays recorded on rc4.
 
 ## Compatibility
 
@@ -16,10 +17,12 @@ Install the complete v1.0.0-rc4 package on both machines. Both players need rc4 
 
 ## What to report
 
-All 80 automated tests pass on the full build, and an independent code review approved the fix. The developer recorded a replay on one PC with a rollback forced every 8 frames and checked that it played back correctly. We still need these tests:
+All 80 automated tests pass on the full build, and an independent code review approved the fix. The developer recorded a replay on one PC with a rollback forced every 8 frames, over 1,100 rollbacks in one match. It played back correctly in a normal session. A replay from a real two-PC online match has not yet been checked. We still need these tests:
 
-- **A replay from a real online match.** Save the replay after a match with some rollback and play it back. Tell us whether it matches what happened.
-- **Everything from rc3:** typing a name, a two-PC rematch series (ideally with a spectator), and changing appearance at a table while someone else is in the room.
+- **A saved online replay.** Play a real online match with some rollback, save a replay and play it back. Tell us whether it matches what happened.
+- **Typing a name.** If typing ever closed your game on an earlier build, try it on rc4 and tell us whether it still happens.
+- **A two-PC rematch series.** Play back-to-back rematches, ideally with a spectator, and report any crash or other problem.
+- **Changing appearance at a table** while someone else is in the room.
 - **Crash logs.** If the game crashes, send the `%APPDATA%\sf4e\logs` folder, including any crash dump.
 
 ## Install and play
