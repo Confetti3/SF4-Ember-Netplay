@@ -167,6 +167,7 @@ namespace sf4e {
 						void (*BattleFlowCallback_CallEveryFrame_aa9254)(Dimps::Game::Battle::System * s) = nullptr;
 
 						Dimps::Game::Battle::GameManager gameManager = { 0 };
+						sf4e::replay::Snapshot replayRecorder = {};
 					};
 					GlobalData d;
 

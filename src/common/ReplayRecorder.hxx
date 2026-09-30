@@ -1,0 +1,77 @@
+#pragma once
+
+// The native replay recorder, Dimps::Game::Battle::ReplaySystem (singleton at
+// 0xAA7228). The Command unit's "CMD POST" task (0x59AA20) appends one input
+// record per battle update, so every frame a rollback re-simulates is
+// appended again. The recorder lives outside Battle::System and no memento
+// covers it, so a save state keeps a copy of it by value.
+//
+// The object is plain data apart from its seven round streams. Each stream
+// owns a buffer and an RLE codec (append 0x7831C0) that never rewrites bytes
+// behind its write cursor, so putting the object and codecs back truncates
+// every stream to its saved length without copying any buffer.
+// ReplayRecorderTest covers capture and restore on buffers at these offsets.
+
+#include <cstddef>
+#include <cstdint>
+
+namespace sf4e { namespace replay {
+
+static_assert(sizeof(void*) == 4, "the recorder layout is the 32-bit engine's");
+
+constexpr int kStreams = 7;
+constexpr std::size_t kRecorderBytes = 0xAE0;
+
+// The type-4 RLE codec (0x783330): frames, bytes, base, write cursor,
+// capacity, last value and pending repeat count after its vtable.
+struct Codec {
+	std::uint8_t bytes[0x20];
+};
+
+// A round stream (0x782860), 0x1C bytes from recorder +4.
+struct Stream {
+	const void* vtable;
+	Codec* codec;
+	std::uint8_t* buffer;
+	std::uint32_t capacity;
+	std::uint32_t bytes;
+	std::uint32_t frames;
+	std::uint32_t codecType;
+};
+static_assert(sizeof(Stream) == 0x1C, "stream wrapper size");
+
+struct Recorder {
+	const void* vtable;
+	Stream streams[kStreams];
+	std::uint8_t rest[kRecorderBytes - sizeof(void*) - kStreams * sizeof(Stream)];
+};
+static_assert(sizeof(Recorder) == kRecorderBytes, "recorder size");
+
+struct Snapshot {
+	Recorder recorder;
+	Codec codecs[kStreams];
+};
+
+inline void Capture(const Recorder& live, Snapshot& out) {
+	out.recorder = live;
+	for (int i = 0; i < kStreams; i++) {
+		if (live.streams[i].codec) out.codecs[i] = *live.streams[i].codec;
+	}
+}
+
+// False, changing nothing, when the live streams are not the allocations the
+// snapshot was taken from. The engine frees and reallocates them between
+// sessions, so their old addresses must never be put back.
+inline bool Restore(const Snapshot& saved, Recorder& live) {
+	for (int i = 0; i < kStreams; i++) {
+		if (live.streams[i].codec != saved.recorder.streams[i].codec ||
+			live.streams[i].buffer != saved.recorder.streams[i].buffer) return false;
+	}
+	live = saved.recorder;
+	for (int i = 0; i < kStreams; i++) {
+		if (live.streams[i].codec) *live.streams[i].codec = saved.codecs[i];
+	}
+	return true;
+}
+
+} }

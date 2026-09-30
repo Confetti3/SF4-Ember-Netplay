@@ -302,6 +302,13 @@ void CopyIntoPlace(fSystem::SaveState* src) {
     *rSystem::staticVars.BattleFlowSubstateCallable_aa9258 = src->d.BattleFlowSubstateCallable_aa9258;
     *rSystem::staticVars.BattleFlowCallback_CallEveryFrame_aa9254 = src->d.BattleFlowCallback_CallEveryFrame_aa9254;
     memcpy_s((system->*rSystem::publicMethods.GetGameManager)(), sizeof(GameManager), &src->d.gameManager, sizeof(GameManager));
+    if (!sf4e::replay::Restore(src->d.replayRecorder, *Dimps::Game::Battle::ReplaySystem::staticMethods.GetSingleton())) {
+        static bool s_warnedReplayRecorder = false;
+        if (!s_warnedReplayRecorder) {
+            s_warnedReplayRecorder = true;
+            spdlog::error("SaveState: the replay recorder's streams changed since this state was saved; the recording was not rewound");
+        }
+    }
 
     // Restore only what the state recorded. An adapter or manager that did
     // not exist at save time is left alone; the old map-based lookup
@@ -814,6 +821,7 @@ bool fSystem::SaveState::Save(SaveState* dst, bool temporary) {
     dst->d.BattleFlowCallback_CallEveryFrame_aa9254 = *rSystem::staticVars.BattleFlowCallback_CallEveryFrame_aa9254;
 
     memcpy_s(&dst->d.gameManager, sizeof(GameManager), (system->*rSystem::publicMethods.GetGameManager)(), sizeof(GameManager));
+    sf4e::replay::Capture(*Dimps::Game::Battle::ReplaySystem::staticMethods.GetSingleton(), dst->d.replayRecorder);
     if (!temporary && sf4e::crash::HeapCheckEnabled()) sf4e::crash::HeapCheckpoint("save", SimulatedFrame());
     return true;
 }

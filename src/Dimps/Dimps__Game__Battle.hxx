@@ -6,6 +6,7 @@
 #include "Dimps__Eva.hxx"
 #include "Dimps__Math.hxx"
 #include "Dimps__Platform.hxx"
+#include "../common/ReplayRecorder.hxx"
 
 #define NUM_VALID_EDITIONS 7
 
@@ -87,6 +88,17 @@ namespace Dimps {
 
 				static void Locate(HMODULE peRoot);
 				static __publicMethods publicMethods;
+			};
+
+			// The replay recorder singleton; common/ReplayRecorder.hxx has its
+			// layout and how a save state keeps it.
+			struct ReplaySystem {
+				typedef struct __staticMethods {
+					sf4e::replay::Recorder* (*GetSingleton)();
+				} __staticMethods;
+
+				static void Locate(HMODULE peRoot);
+				static __staticMethods staticMethods;
 			};
 
 			namespace Network {

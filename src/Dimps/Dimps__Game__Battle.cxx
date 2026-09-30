@@ -19,6 +19,7 @@ using Dimps::Eva::Task;
 using Battle::GameManager;
 using Battle::IUnit;
 using Battle::JobManager;
+using Battle::ReplaySystem;
 using Battle::Sound::SoundPlayerManager;
 using SoundUnit = Battle::Sound::Unit;
 using Dimps::Platform::SoundObjectPool;
@@ -26,6 +27,7 @@ using Dimps::Platform::SoundObjectPool;
 GameManager::__publicMethods GameManager::publicMethods;
 IUnit::__publicMethods IUnit::publicMethods;
 JobManager::__publicMethods JobManager::publicMethods;
+ReplaySystem::__staticMethods ReplaySystem::staticMethods;
 SoundPlayerManager::__publicMethods SoundPlayerManager::publicMethods;
 SoundPlayerManager::__staticMethods SoundPlayerManager::staticMethods;
 SoundPlayerManager::CriPlayerAdapter::__publicMethods SoundPlayerManager::CriPlayerAdapter::publicMethods;
@@ -59,6 +61,7 @@ void Battle::Locate(HMODULE peRoot) {
 	Hud::Locate(peRoot);
 	IUnit::Locate(peRoot);
 	JobManager::Locate(peRoot);
+	ReplaySystem::Locate(peRoot);
 	SoundPlayerManager::Locate(peRoot);
 	SoundUnit::Locate(peRoot);
 	System::Locate(peRoot);
@@ -75,6 +78,11 @@ void IUnit::Locate(HMODULE peRoot) {
 void JobManager::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 	*(PVOID*)&publicMethods.Start = (PVOID)(peRootOffset + 0x138110);
+}
+
+void ReplaySystem::Locate(HMODULE peRoot) {
+	unsigned int peRootOffset = (unsigned int)peRoot;
+	staticMethods.GetSingleton = (sf4e::replay::Recorder* (*)())(peRootOffset + 0x1d6700);
 }
 
 void GameManager::Locate(HMODULE peRoot) {
