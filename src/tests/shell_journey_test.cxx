@@ -538,6 +538,20 @@ void KeyboardJourneys(){
  key(ImGuiKey_Backspace);Check(selector.Navigation().Screen()=="costumes","Back from the colors did not return to the costumes");
  key(ImGuiKey_Backspace);Check(h.shell.Navigation().Screen()=="room-table","Back from the costumes did not return to the table page");
  Check(pick.costume==1&&pick.color==colors[1],"Backing out of the galleries changed the pick");
+ // The rest of the pick is on the table page too: Additional options opens its
+ // page (personal action, win quote and the others), and Back returns.
+ h.FocusOn("fighter-options");key(ImGuiKey_Enter);
+ Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="options",
+  "Select on the table's Additional options did not open the options page");
+ key(ImGuiKey_Backspace);Check(h.shell.Navigation().Screen()=="room-table","Back from the options page did not return to the table page");
+ // P1 opens the stage cards at the saved stage, and a pick returns to the table page.
+ int stage=0;h.view.localSlot=0;h.view.stageName="Random";
+ h.selection=[&]{selector.Draw(pick,false,nullptr,[&](int){return available;},&stage,true);};
+ h.FocusOn("stage");key(ImGuiKey_Enter);
+ Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="stage",
+  "Select on the table's Stage did not open the stage cards");
+ key(ImGuiKey_RightArrow);key(ImGuiKey_Enter);
+ Check(stage!=0&&h.shell.Navigation().Screen()=="room-table","Picking a stage did not return to the table page");
  key(ImGuiKey_Escape);
  // A pad press puts the pad's prompts back; a key brings the keys again.
  SetMenuGlyphs(input::PadXInput,input::xinput::A,input::xinput::B);

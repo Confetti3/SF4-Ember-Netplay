@@ -237,8 +237,16 @@ int main() try {
         "The table page does not show the fighter and a steppable Ultra");
     Check(row("appearance").value == "Original / Color 1" && row("appearance").adjustable && row("appearance").enabled,
         "The table page does not show a steppable appearance");
-    Check(rows[1].id == "selection" && rows[2].id == "ultra" && rows[3].id == "appearance" && rows[4].id == "input-delay",
-        "Fighter, Ultra, Appearance and Input delay are not right under Ready");
+    Check(rows[1].id == "selection" && rows[2].id == "ultra" && rows[3].id == "appearance" && rows[4].id == "stage" &&
+        rows[5].id == "fighter-options" && rows[6].id == "input-delay",
+        "Fighter, Ultra, Appearance, Stage, Additional options and Input delay are not right under Ready");
+    // Personal action, win quote and the other options are reachable from a seat;
+    // the stage only for P1, who sends it.
+    Check(row("fighter-options").enabled, "The table page has no way to the additional options");
+    view.localSlot = 1; view.stageName = "Random"; frame();
+    Check(!row("stage").enabled && row("stage").detail == loc::T("selection.only_p1_stage"), "P2 could change the stage");
+    view.localSlot = 0; frame();
+    Check(row("stage").enabled && row("stage").value == "Random", "P1 cannot change the stage from the table page");
     focus("ultra"); press(MenuInput::Right);
     using Field = ShellAction::SelectionStep::Field;
     Check(actions.back().selectionStep.field == Field::Ultra && actions.back().selectionStep.delta == 1, "Right on Ultra did not step it");

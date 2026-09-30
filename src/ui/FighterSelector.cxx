@@ -157,10 +157,10 @@ MenuEntry Saving(MenuEntry row,const char* hint,bool editable) {
     if(editable)row.hint=loc::T(hint);
     return row;
 }
+}
 const char* StageLabel(int stageId) {
     if (selection::IsRandomStage(stageId)) return loc::T("selection.random_stage");
     return selection::FindStage(selection::NormalizeStage(stageId))->name;
-}
 }
 std::string CostumeLabel(const selection::Pick& pick) {
     if (pick.costume == 0) return loc::T("selection.original");
@@ -227,6 +227,8 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   if(openOn_=="roster"){nav.Push("roster");nav.Prefer("fighter-"+std::to_string(pick.fighter));}
   else if(openOn_=="ultra"){nav.Push("ultra");nav.Prefer("ultra-"+std::to_string(pick.ultra));}
   else if(openOn_=="costumes"){nav.Push("costumes");nav.Prefer("costume-"+std::to_string(pick.costume));}
+  else if(openOn_=="stage"&&stageId){nav.Push("stage");nav.Prefer("stage-"+std::to_string(*stageId));}
+  else if(openOn_=="options")nav.Push("options");
   else openOn_.clear();
  }
  if(ultraStepPending_&&nav.Screen()=="ultra"&&AllowedUltras(pick.fighter,pick.edition).size()<=1){
@@ -420,7 +422,11 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    pick.costume=std::stoi(a.id.substr(8));Normalize(pick,editionSelect,&availability);changed=true;
    nav.Push("colors");nav.Prefer("color-"+std::to_string(pick.color));
   }else if(editable&&a.id.compare(0,6,"color-")==0){pick.color=std::stoi(a.id.substr(6));changed=true;finish();}
-  else if(editable&&stageId&&a.id.compare(0,6,"stage-")==0){*stageId=std::stoi(a.id.substr(6));changed=true;}
+  else if(editable&&stageId&&a.id.compare(0,6,"stage-")==0){
+   *stageId=std::stoi(a.id.substr(6));changed=true;
+   // Opened for this one change, the pick is it; from its own menu the stage page stays.
+   if(!openOn_.empty())finish();
+  }
  }else if(editable&&a.kind==MenuAction::Adjust){
   if(a.id=="ultra")Step(pick.ultra,AllowedUltras(pick.fighter,pick.edition),a.delta);
   else if(a.id=="costume")Step(pick.costume,AllowedCostumes(pick.fighter,availability),a.delta);

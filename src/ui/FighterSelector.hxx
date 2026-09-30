@@ -12,6 +12,8 @@ bool DrawStageSelector(int& nativeId, SelectionArt* art);
 // and an Ultra, so a saved choice reads the same as the card that made it.
 std::string CostumeLabel(const selection::Pick& pick);
 const char* UltraLabel(int ultra);
+// A stage's name, or Random.
+const char* StageLabel(int stageId);
 class FighterSelector {
 public:
     enum class Page { Fighter, Appearance, Ultra, Stage };

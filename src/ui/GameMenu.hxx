@@ -44,8 +44,9 @@ MenuAction TakeForwardedMenuAction();
 // from the root goes, and the parent's shortcuts it forwards and so advertises.
 // fresh: the parent has just opened this screen, so it starts at its first
 // page; TakeEmbeddedFresh reads it once. openOn: the parent opened fighter
-// select for one change ("roster" or "ultra"), so it starts on that page and
-// hands Close back once the pick is made, or on Back from that page.
+// select for one change ("roster", "ultra", "costumes", "stage" or "options"),
+// so it starts on that page and hands Close back once the pick is made, or on
+// Back from that page.
 struct EmbeddedReturn { std::string exitName; std::vector<LegendHint> shortcutHints; bool fresh=false; std::string openOn; };
 void SetEmbeddedReturn(EmbeddedReturn context);
 const EmbeddedReturn& EmbeddedReturnContext();

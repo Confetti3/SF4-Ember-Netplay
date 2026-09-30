@@ -206,9 +206,11 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    const bool ready=room::ReadyCancellable(t,place.seat);
     const auto readyControl=DescribeReady(v,t,place.seat);
     rows.push_back(Row("ready",readyControl.label,readyControl.detail,readyControl.kind!=ReadyControl::None));
-   // Fighter, Ultra and Appearance sit right under Ready: A on Fighter opens
-   // the roster, then the Ultra; A on Appearance opens the costumes, then
-   // their colors. Left and Right step the Ultra and the color in place.
+   // The whole pick sits right under Ready: A on Fighter opens the roster,
+   // then the Ultra; A on Appearance opens the costumes, then their colors;
+   // Stage (P1's, sent with Ready) and Additional options (edition, personal
+   // action, win quote, handicap) open their own pages. Left and Right step
+   // the Ultra and the color in place.
    const bool canChange=mutableRoom&&v.canEditSelection&&!s.localTerminalPending;
    rows.push_back(Row("selection",loc::T("room.change_fighter"),canChange?
     std::string(loc::T("room.change_fighter.detail"))+"\n"+v.selectionSummary:SelectionBlocker(v),canChange));
@@ -219,6 +221,12 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    };
    stepRow("ultra",loc::T("selection.ultra_combo"),v.ultraName,loc::T("selection.ultra_row.detail"),v.ultraSteps);
    stepRow("appearance",loc::T("selection.appearance"),v.appearanceName,loc::T("room.appearance.detail"),v.colorSteps);
+   const bool stageOwner=v.localSlot==0;
+   rows.push_back(Value("stage",loc::T("selection.stage"),v.stageName,
+    !canChange?SelectionBlocker(v):loc::T(stageOwner?"selection.p1_stage":"selection.only_p1_stage"),canChange&&stageOwner));
+   rows.back().opens=true;
+   rows.push_back(Row("fighter-options",loc::T("selection.additional_options"),
+    canChange?std::string(loc::T("selection.additional_options.detail")):SelectionBlocker(v),canChange));
     // One delay row: Left and Right choose it, Select takes the recommendation.
     const bool delayEditable=mutableRoom&&!active&&!v.delayLocked;
     const int selectedDelay=(std::max)(0,(std::min)(MaximumInputDelay,v.selectedDelay));
@@ -318,7 +326,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   rows.push_back(Row("apply-capacity",loc::T("room.apply_capacity"),loc::T("room.apply_capacity.detail"),host&&roomCapacity_>=static_cast<int>(s.members.size())));
  }
  if(!active) {
-  for(auto& row:rows)if(row.id=="selection"||row.id=="ultra"||row.id=="appearance"||row.id=="check-connection"||
+  for(auto& row:rows)if(row.id=="selection"||row.id=="ultra"||row.id=="appearance"||row.id=="stage"||row.id=="fighter-options"||row.id=="check-connection"||
    row.id=="input-delay"||row.id=="queue"||row.id=="watch") {
     // Per table: a cached explanation never shows on another table's row.
     const auto key=screen+"/"+std::to_string(selectedTable_)+"/"+row.id;
@@ -762,6 +770,10 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
     ShellAction step;step.command.generation=v.session.generation;
     step.selectionStep={ultra?ShellAction::SelectionStep::Field::Ultra:ShellAction::SelectionStep::Field::Color,a.delta};submit(std::move(step));
    }else if(SelectionBlocker(v).empty()){selectionFresh_=true;selectionOpenOn_=ultra?"ultra":"costumes";nav.Push("selection");}
+   return;
+  }
+  if(a.id=="stage"||a.id=="fighter-options"){
+   if(SelectionBlocker(v).empty()){selectionFresh_=true;selectionOpenOn_=a.id=="stage"?"stage":"options";nav.Push("selection");}
    return;
   }
  if(a.id=="leave"){Send(netplay::CommandKind::LeaveRoom,v,submit);return;}
