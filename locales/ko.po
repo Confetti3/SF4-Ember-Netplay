@@ -1528,6 +1528,8 @@ msgstr "버전 태그가 없습니다."
 
 msgid "update.close_sf4"
 msgstr "업데이트를 설치하기 전에 Ultra Street Fighter IV를 닫으세요."
+msgid "update.elevated"
+msgstr "Ember가 관리자 권한으로 실행 중입니다. 업데이트를 설치하려면 종료한 뒤 일반 방식으로 실행하세요."
 
 msgid "update.install_dir_failed"
 msgstr "설치 폴더를 확인하지 못했습니다."

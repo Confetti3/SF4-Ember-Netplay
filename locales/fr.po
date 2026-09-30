@@ -1528,6 +1528,8 @@ msgstr "Version manquante."
 
 msgid "update.close_sf4"
 msgstr "Fermez Ultra Street Fighter IV avant d'installer une mise à jour."
+msgid "update.elevated"
+msgstr "Ember est lancé en tant qu'administrateur. Fermez-le et relancez-le normalement pour installer les mises à jour."
 
 msgid "update.install_dir_failed"
 msgstr "Impossible de trouver le dossier d'installation."

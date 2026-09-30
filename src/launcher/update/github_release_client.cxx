@@ -533,6 +533,19 @@ namespace launcher {
 		return result;
 	}
 
+	// Updates install as the normal user, like the rest of Ember's writable
+	// install. Wine reports its user as elevated, so it is not treated as one.
+	static bool ElevatedOutsideWine() {
+		if (GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "wine_get_version")) return false;
+		HANDLE token = nullptr;
+		if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) return false;
+		TOKEN_ELEVATION elevation{};
+		DWORD size = 0;
+		const bool elevated = GetTokenInformation(token, TokenElevation, &elevation, sizeof(elevation), &size) && elevation.TokenIsElevated;
+		CloseHandle(token);
+		return elevated;
+	}
+
 	ApplyUpdateResult DownloadAndApplyUpdate(
 		const char* zipDownloadUrl,
 		const char* zipApiUrl,
@@ -551,6 +564,11 @@ namespace launcher {
 		}
 		if (IsGameProcessRunning()) {
 			result.error = loc::T("update.close_sf4");
+			return result;
+		}
+		if (ElevatedOutsideWine()) {
+			AppendUpdateLog("update refused: running as administrator");
+			result.error = loc::T("update.elevated");
 			return result;
 		}
 

@@ -1528,6 +1528,8 @@ msgstr "Нет метки версии."
 
 msgid "update.close_sf4"
 msgstr "Закройте Ultra Street Fighter IV перед установкой обновления."
+msgid "update.elevated"
+msgstr "Ember запущен от имени администратора. Закройте его и запустите обычным способом, чтобы устанавливать обновления."
 
 msgid "update.install_dir_failed"
 msgstr "Не удалось определить папку установки."

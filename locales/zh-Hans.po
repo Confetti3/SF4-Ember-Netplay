@@ -1528,6 +1528,8 @@ msgstr "缺少版本标签。"
 
 msgid "update.close_sf4"
 msgstr "安装更新前请关闭《终极街头霸王IV》。"
+msgid "update.elevated"
+msgstr "Ember 正以管理员身份运行。请关闭后以普通方式启动，再安装更新。"
 
 msgid "update.install_dir_failed"
 msgstr "无法确定安装目录。"

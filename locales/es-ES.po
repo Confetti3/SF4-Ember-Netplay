@@ -1528,6 +1528,8 @@ msgstr "Sin etiqueta de versión."
 
 msgid "update.close_sf4"
 msgstr "Cierra Ultra Street Fighter IV antes de instalar una actualización."
+msgid "update.elevated"
+msgstr "Ember se está ejecutando como administrador. Ciérralo y ábrelo de forma normal para instalar actualizaciones."
 
 msgid "update.install_dir_failed"
 msgstr "No se pudo determinar la carpeta de instalación."

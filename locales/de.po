@@ -1528,6 +1528,8 @@ msgstr "Versionstag fehlt."
 
 msgid "update.close_sf4"
 msgstr "Schließen Sie Ultra Street Fighter IV vor der Updateinstallation."
+msgid "update.elevated"
+msgstr "Ember läuft als Administrator. Schließen Sie es und starten Sie es normal, um Updates zu installieren."
 
 msgid "update.install_dir_failed"
 msgstr "Installationsordner unbekannt."
