@@ -683,6 +683,157 @@ async fn coordination_only_learner_is_removed_before_departure_proof() {
     learner.raft.shutdown().await.unwrap();
     stop(nodes).await;
 }
+
+/// The id of the entry at `index` in `node`'s log, if it is still held.
+async fn log_id_at(node: &Coordinator, index: Option<u64>) -> Option<LogId<u64>> {
+    let index = index?;
+    node.store
+        .0
+        .lock()
+        .await
+        .log
+        .get(&index)
+        .map(|entry| entry.log_id)
+}
+
+#[tokio::test]
+async fn only_a_voter_asks_for_a_vote_and_only_as_a_candidate() {
+    let (bus, nodes) = cluster(3).await;
+    let learner = Arc::new(
+        Coordinator::new(
+            4,
+            Arc::new(TestNetwork {
+                source: 4,
+                bus: bus.clone(),
+            }),
+        )
+        .await
+        .unwrap(),
+    );
+    bus.peers.lock().await.insert(4, Arc::downgrade(&learner));
+    nodes[0]
+        .raft
+        .add_learner(4, BasicNode::new("4"), true)
+        .await
+        .unwrap();
+    let follower = &nodes[1];
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !follower.applied_member_ids().await.contains(&4) {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let term = follower.current_term();
+    let last = follower.raft.metrics().borrow().last_log_index;
+    let last_log_id = log_id_at(follower, last).await;
+    let request =
+        |vote: Vote<u64>| serde_json::to_vec(&VoteRequest::new(vote, last_log_id)).unwrap();
+
+    // A learner is not a candidate.
+    assert!(
+        follower
+            .dispatch(4, "vote", &request(Vote::new(term + 5, 4)))
+            .await
+            .is_err()
+    );
+    // A voter campaigns with the uncommitted vote of a candidate; a request
+    // carrying a committed vote is not one.
+    assert!(
+        follower
+            .dispatch(3, "vote", &request(Vote::new_committed(term + 5, 3)))
+            .await
+            .is_err()
+    );
+    assert_eq!(follower.current_term(), term);
+    assert_eq!(follower.current_leader(), Some(1));
+    // A voter's candidate request is still answered.
+    assert!(
+        follower
+            .dispatch(3, "vote", &request(Vote::new(term, 3)))
+            .await
+            .is_ok()
+    );
+    assert!(
+        nodes[0]
+            .propose(proposal(&nodes[0], "after", 0, "leader checkpoint"))
+            .await
+            .unwrap()
+            .accepted
+    );
+    learner.raft.shutdown().await.unwrap();
+    stop(nodes).await;
+}
+
+/// A leader that commits its own removal still delivers that commit to the
+/// followers that appended the change, and the survivors carry on.
+#[tokio::test]
+async fn a_leader_removing_itself_still_commits_and_hands_over() {
+    let (bus, nodes) = cluster(3).await;
+    nodes[0]
+        .raft
+        .change_membership(BTreeSet::from([2, 3]), false)
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while nodes[1].applied_voter_ids().await != BTreeSet::from([2, 3])
+            || nodes[2].applied_voter_ids().await != BTreeSet::from([2, 3])
+        {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("followers never applied the leader's own removal");
+    bus.isolated.lock().await.insert(1);
+    nodes[1].raft.trigger().elect().await.unwrap();
+    let successor = wait_for_successor(&nodes, "self-removal").await;
+    let receipt = nodes[successor]
+        .propose(proposal(&nodes[successor], "after-removal", 0, "state"))
+        .await
+        .unwrap();
+    assert!(receipt.accepted);
+    stop(nodes).await;
+}
+
+/// The helper's leave: the leader keeps itself as a learner behind a single
+/// successor voter and asks that successor to elect itself at once.
+#[tokio::test]
+async fn a_singleton_handoff_elects_the_successor_and_replicates() {
+    let (_, nodes) = cluster(3).await;
+    nodes[0]
+        .raft
+        .change_membership(BTreeSet::from([2]), true)
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while nodes[1].applied_voter_ids().await != BTreeSet::from([2]) {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("successor never applied the singleton membership");
+    assert_eq!(nodes[1].dispatch(1, "elect", &[0]).await.unwrap(), vec![1]);
+    nodes[1]
+        .raft
+        .wait(Some(Duration::from_secs(5)))
+        .current_leader(2, "handoff successor")
+        .await
+        .unwrap();
+    let receipt = nodes[1]
+        .propose(proposal(&nodes[1], "after-handoff", 0, "handed over"))
+        .await
+        .unwrap();
+    assert!(receipt.accepted);
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while nodes[2].committed().await.checkpoint != "handed over" {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("the retained learner never applied the successor's commit");
+    stop(nodes).await;
+}
+
 #[tokio::test]
 async fn majority_recovers_and_old_leader_is_fenced() {
     let (bus, nodes) = cluster(3).await;

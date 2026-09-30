@@ -1222,6 +1222,23 @@ impl Coordinator {
             .map_err(|_| io::Error::other("room commitment failed"))?;
         Ok(response.data)
     }
+    /// Whether the authenticated source may stand as a candidate here. Only
+    /// a voter of this node's latest or applied membership can be elected. A
+    /// fresh learner has no membership until its first entry or snapshot
+    /// arrives; until then the transport's admitted binding is the only check.
+    async fn may_campaign(&self, source: u64) -> bool {
+        let (empty, effective) = {
+            let metrics = self.raft.metrics();
+            let metrics = metrics.borrow();
+            let membership = metrics.membership_config.membership();
+            (
+                membership.nodes().next().is_none(),
+                membership.voter_ids().any(|id| id == source),
+            )
+        };
+        empty || effective || self.store.applied_voters().await.contains(&source)
+    }
+
     pub async fn dispatch(&self, source: u64, method: &str, bytes: &[u8]) -> io::Result<Vec<u8>> {
         let bad = || io::Error::other("invalid room coordination request");
         if source == 0 || bytes.len() > MAX_SNAPSHOT {
@@ -1330,7 +1347,13 @@ impl Coordinator {
             }
             "vote" => {
                 let request: VoteRequest<u64> = serde_json::from_slice(bytes).map_err(|_| bad())?;
-                if request.vote.leader_id.node_id != source {
+                // A candidate always asks with an uncommitted vote. OpenRaft
+                // stores the requested vote once the log check passes, so a
+                // vote is granted only in the candidate's form.
+                if request.vote.leader_id.node_id != source
+                    || request.vote.is_committed()
+                    || !self.may_campaign(source).await
+                {
                     return Err(bad());
                 }
                 serde_json::to_vec(&self.raft.vote(request).await.map_err(|_| bad())?)
