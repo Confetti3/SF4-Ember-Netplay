@@ -22,11 +22,20 @@ static_assert(sizeof(void*) == 4, "the recorder layout is the 32-bit engine's");
 constexpr int kStreams = 7;
 constexpr std::size_t kRecorderBytes = 0xAE0;
 
-// The type-4 RLE codec (0x783330): frames, bytes, base, write cursor,
-// capacity, last value and pending repeat count after its vtable.
+// The type-4 RLE codec (0x783330). Append (0x7831C0) writes 3-byte records
+// at the cursor: a 22-bit value, or a repeat count flagged 0x400000.
 struct Codec {
-	std::uint8_t bytes[0x20];
+	const void* vtable;
+	std::uint32_t frames;
+	std::uint32_t bytes;
+	std::uint8_t* base;
+	std::uint8_t* cursor;
+	std::uint32_t capacity;
+	std::uint32_t last;
+	std::uint32_t repeat;
 };
+static_assert(sizeof(Codec) == 0x20, "codec size");
+static_assert(offsetof(Codec, cursor) == 0x10 && offsetof(Codec, repeat) == 0x1C, "codec fields");
 
 // A round stream (0x782860), 0x1C bytes from recorder +4.
 struct Stream {
@@ -38,14 +47,14 @@ struct Stream {
 	std::uint32_t frames;
 	std::uint32_t codecType;
 };
-static_assert(sizeof(Stream) == 0x1C, "stream wrapper size");
+static_assert(sizeof(Stream) == 0x1C && offsetof(Stream, frames) == 0x14, "stream wrapper layout");
 
 struct Recorder {
 	const void* vtable;
 	Stream streams[kStreams];
 	std::uint8_t rest[kRecorderBytes - sizeof(void*) - kStreams * sizeof(Stream)];
 };
-static_assert(sizeof(Recorder) == kRecorderBytes, "recorder size");
+static_assert(sizeof(Recorder) == kRecorderBytes && offsetof(Recorder, streams) == 4, "recorder layout");
 
 struct Snapshot {
 	Recorder recorder;
@@ -59,9 +68,10 @@ inline void Capture(const Recorder& live, Snapshot& out) {
 	}
 }
 
-// False, changing nothing, when the live streams are not the allocations the
-// snapshot was taken from. The engine frees and reallocates them between
-// sessions, so their old addresses must never be put back.
+// False, changing nothing, when a live stream's codec or buffer is not at the
+// address saved. The engine frees and reallocates the streams between
+// sessions, and a save state never outlives its battle, so a mismatch means
+// the state is from another session and nothing in it can be put back.
 inline bool Restore(const Snapshot& saved, Recorder& live) {
 	for (int i = 0; i < kStreams; i++) {
 		if (live.streams[i].codec != saved.recorder.streams[i].codec ||

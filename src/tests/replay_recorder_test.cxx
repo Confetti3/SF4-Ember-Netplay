@@ -1,8 +1,8 @@
 // Capture and Restore of the native replay recorder on memory laid out the way
-// the engine lays it out. The codec below reproduces the engine's type-4 RLE
-// append (0x7831C0) at its real offsets, so a rollback that restores a
-// snapshot and appends the corrected frames can be compared byte for byte
-// with a recording that never mispredicted.
+// the engine lays it out. Append below reproduces the engine's type-4 RLE
+// append (0x7831C0), so a rollback that restores a snapshot and appends the
+// corrected frames can be compared byte for byte with a recording that never
+// mispredicted.
 #include <cstdint>
 #include <vector>
 
@@ -16,30 +16,14 @@ namespace {
 constexpr std::uint32_t kRepeatFlag = 0x400000;
 constexpr std::uint32_t kCapacity = 3 * 64;
 
-// The codec's fields after its vtable, as 0x7831C0 uses them.
-struct CodecFields {
-	const void* vtable;
-	std::uint32_t frames;
-	std::uint32_t bytes;
-	std::uint8_t* base;
-	std::uint8_t* cursor;
-	std::uint32_t capacity;
-	std::uint32_t last;
-	std::uint32_t repeat;
-};
-static_assert(sizeof(CodecFields) == sizeof(rp::Codec), "codec field layout");
-
-CodecFields& Fields(rp::Codec& codec) { return *reinterpret_cast<CodecFields*>(&codec); }
-
-void Put(CodecFields& c, std::uint32_t value) {
+void Put(rp::Codec& c, std::uint32_t value) {
 	c.cursor[0] = std::uint8_t(value);
 	c.cursor[1] = std::uint8_t(value >> 8);
 	c.cursor[2] = std::uint8_t(value >> 16);
 	c.cursor += 3;
 }
 
-void Append(rp::Codec& codec, std::uint32_t value) {
-	CodecFields& c = Fields(codec);
+void Append(rp::Codec& c, std::uint32_t value) {
 	if (c.cursor >= c.base + c.capacity) return;
 	if (c.last == value) {
 		c.repeat++;
@@ -61,7 +45,7 @@ struct FakeRecorder {
 	FakeRecorder() {
 		for (int i = 0; i < rp::kStreams; i++) {
 			buffers[i].assign(kCapacity, 0xCD);
-			CodecFields& c = Fields(codecs[i]);
+			rp::Codec& c = codecs[i];
 			c.base = c.cursor = buffers[i].data();
 			c.capacity = kCapacity;
 			c.last = 0xFFFFFFFF;
@@ -71,8 +55,8 @@ struct FakeRecorder {
 		}
 	}
 
-	std::vector<std::uint8_t> Written(int stream) {
-		const CodecFields& c = Fields(codecs[stream]);
+	std::vector<std::uint8_t> Written(int stream) const {
+		const rp::Codec& c = codecs[stream];
 		return std::vector<std::uint8_t>(c.base, c.cursor);
 	}
 };
@@ -93,10 +77,10 @@ void TestRollbackRewritesTheTail() {
 	CHECK(rp::Restore(saved, rolled.recorder));
 	for (int i = kSaved; i < 10; i++) Append(rolled.codecs[0], corrected[i]);
 
-	CHECK(Fields(rolled.codecs[0]).frames == 10);
+	CHECK(rolled.codecs[0].frames == 10);
 	CHECK(rolled.Written(0) == clean.Written(0));
-	CHECK(Fields(rolled.codecs[0]).last == Fields(clean.codecs[0]).last);
-	CHECK(Fields(rolled.codecs[0]).repeat == Fields(clean.codecs[0]).repeat);
+	CHECK(rolled.codecs[0].last == clean.codecs[0].last);
+	CHECK(rolled.codecs[0].repeat == clean.codecs[0].repeat);
 }
 
 void TestRestoreBringsBackRecorderFields() {
@@ -112,8 +96,8 @@ void TestRestoreBringsBackRecorderFields() {
 	CHECK(rp::Restore(saved, live.recorder));
 	CHECK(live.recorder.rest[0] == 7);
 	CHECK(live.recorder.streams[2].frames == 30);
-	CHECK(Fields(live.codecs[2]).frames == 0);
-	CHECK(Fields(live.codecs[2]).cursor == live.buffers[2].data());
+	CHECK(live.codecs[2].frames == 0);
+	CHECK(live.codecs[2].cursor == live.buffers[2].data());
 }
 
 void TestRestoreRefusesReallocatedStreams() {
@@ -126,13 +110,13 @@ void TestRestoreRefusesReallocatedStreams() {
 	rp::Codec moved = live.codecs[4];
 	live.recorder.streams[4].codec = &moved;
 	CHECK(!rp::Restore(saved, live.recorder));
-	CHECK(live.recorder.rest[0] == 3 && Fields(live.codecs[0]).frames == 1);
+	CHECK(live.recorder.rest[0] == 3 && live.codecs[0].frames == 1);
 
 	live.recorder.streams[4].codec = &live.codecs[4];
 	std::vector<std::uint8_t> other(kCapacity);
 	live.recorder.streams[6].buffer = other.data();
 	CHECK(!rp::Restore(saved, live.recorder));
-	CHECK(live.recorder.rest[0] == 3 && Fields(live.codecs[0]).frames == 1);
+	CHECK(live.recorder.rest[0] == 3 && live.codecs[0].frames == 1);
 }
 
 void TestUnallocatedStreamsRestore() {

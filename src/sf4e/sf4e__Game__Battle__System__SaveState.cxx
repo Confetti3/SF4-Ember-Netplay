@@ -302,13 +302,6 @@ void CopyIntoPlace(fSystem::SaveState* src) {
     *rSystem::staticVars.BattleFlowSubstateCallable_aa9258 = src->d.BattleFlowSubstateCallable_aa9258;
     *rSystem::staticVars.BattleFlowCallback_CallEveryFrame_aa9254 = src->d.BattleFlowCallback_CallEveryFrame_aa9254;
     memcpy_s((system->*rSystem::publicMethods.GetGameManager)(), sizeof(GameManager), &src->d.gameManager, sizeof(GameManager));
-    if (!sf4e::replay::Restore(src->d.replayRecorder, *Dimps::Game::Battle::ReplaySystem::staticMethods.GetSingleton())) {
-        static bool s_warnedReplayRecorder = false;
-        if (!s_warnedReplayRecorder) {
-            s_warnedReplayRecorder = true;
-            spdlog::error("SaveState: the replay recorder's streams changed since this state was saved; the recording was not rewound");
-        }
-    }
 
     // Restore only what the state recorded. An adapter or manager that did
     // not exist at save time is left alone; the old map-based lookup
@@ -633,6 +626,13 @@ void fSystem::SaveState::FreeByRoundTrip(SaveState* victim) {
 bool fSystem::SaveState::Load(SaveState* src) {
     diag::ScopedTimer _loadTimer(diag::OP_LOAD_TOTAL);
     AssertSaveStateThreadAffinity();
+    // The replay recorder appends a record per battle update, so it rewinds
+    // with the timeline. It goes first: a state from another session is
+    // refused before any live state changes.
+    if (!sf4e::replay::Restore(src->d.replayRecorder, *Dimps::Game::Battle::ReplaySystem::staticMethods.GetSingleton())) {
+        spdlog::error("SaveState: the replay recorder's streams are not the ones this state saved (simFrame={})", src->simulationFrame);
+        return false;
+    }
     // Main-thread scratch (asserted above). Kept across loads so a rollback
     // does not allocate; clear() retains the capacity.
     static std::vector<std::pair<rKey*, rKey>> tmpVec;
