@@ -144,11 +144,7 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
         default:SetMenuGlyphs(input::PadKeyboard,0,0);break;
         }
         const auto state = services.Snapshot();
-        // Each newly found update takes the highlight once, so Select installs
-        // it rather than checking again.
-        if(state.update.ok&&state.update.updateAvailable&&!state.pending&&state.update.latestVersion!=offeredVersion){
-            offeredVersion=state.update.latestVersion;menu.navigation.Prefer("install");
-        }
+        OfferFoundUpdate(menu,state,offeredVersion);
         switch(DrawRecoveryMenu(menu,state,message,updates,messageTone,canStart,serviceNewer)) {
         case RecoveryChoice::Folder:
             // The picker blocks this loop, so the pads are disarmed before it

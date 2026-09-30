@@ -589,6 +589,16 @@ void PresentationJourneys(){
  state.pending=true;state.downloadedBytes=100;state.totalBytes=200;frame();
  for(int i=0;i<10&&recovery.navigation.Focus()!="cancel";++i){frame(MenuInput::Down);frame();}
  Check(frame(MenuInput::Select)==RecoveryChoice::Cancel,"Recovery cancellation not reachable");
+ // An update found while the window is open takes the highlight once; after
+ // that the player's own movement stands, until a newer version is found.
+ GameMenu found;found.navigation=RecoveryNavigation(true);sf4e::platform::ServiceSnapshot checking;checking.pending=true;std::string offered;
+ const auto show=[&](unsigned held=0){OfferFoundUpdate(found,checking,offered);SetMenuInput({held,0});ImGui::NewFrame();DrawRecoveryMenu(found,checking,"",true);ImGui::Render();};
+ show();show();Check(found.navigation.Focus()=="check","The updater did not start on its check");
+ checking.pending=false;checking.update.ok=checking.update.updateAvailable=true;checking.update.expectedSha256=std::string(64,'a');checking.update.latestVersion="v9.9.9";
+ show();show();Check(found.navigation.Focus()=="install","A newly found update did not take the highlight");
+ show(MenuInput::Down);show();Check(found.navigation.Focus()=="check","Moving off the found update did not work");
+ show();show();Check(found.navigation.Focus()=="check","The found update took the highlight back after the player moved");
+ checking.update.latestVersion="v9.9.10";show();show();Check(found.navigation.Focus()=="install","A newer update did not take the highlight");
  SetMenuEntriesProbe({});
 }
 void AppearanceGalleries(){

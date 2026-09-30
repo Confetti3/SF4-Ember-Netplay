@@ -9,6 +9,12 @@ namespace sf4e { namespace ui {
 enum class RecoveryChoice { None, Folder, Retry, CheckUpdates, Install, Cancel, Close };
 // The root screen names the header's "< Back / ..." breadcrumb (MenuScreenLabel).
 inline MenuNavigation RecoveryNavigation(bool updates) { return MenuNavigation(updates?"updates":"recovery"); }
+// Each newly found update takes the highlight once, so Select installs it
+// rather than checking again; offered remembers the version that already did.
+inline void OfferFoundUpdate(GameMenu& menu,const platform::ServiceSnapshot& state,std::string& offered) {
+    if(!state.update.ok||!state.update.updateAvailable||state.pending||state.update.latestVersion==offered)return;
+    offered=state.update.latestVersion;menu.navigation.Prefer("install");
+}
 // Rendering returns intent only. The launcher owns dialogs, services and exit.
 // messageTone is the launcher message's own severity: a selected folder is
 // good news, a launch failure is not. The status shows one of two messages: the
