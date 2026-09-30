@@ -84,6 +84,7 @@ pub async fn run<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         recovery: None,
         admissions: BTreeMap::new(),
         admission_order: Vec::new(),
+        pending_admissions: BTreeMap::new(),
         applied_admission_members: BTreeSet::new(),
         incoming_transfer: None,
         pending_checkpoint_proposal: None,

@@ -178,10 +178,20 @@ impl Actor {
         // until it appears in applied membership and retry it from each fresh
         // leader read; otherwise one transient add_learner failure strands the
         // native join forever on an otherwise healthy control connection.
+        // A held admission is retried only while its control is open; a
+        // reconnect presents it again.
+        let controls = &self.controls;
+        self.pending_admissions
+            .retain(|peer, _| controls.contains_key(peer));
         if state.leader_local {
             let unapplied = self
                 .admissions
                 .values()
+                .chain(
+                    self.pending_admissions
+                        .values()
+                        .filter(|pending| !self.admissions.contains_key(&pending.incarnation)),
+                )
                 .filter(|admission| {
                     admission.incarnation != recovery.incarnation
                         && !applied_members.contains(&admission.incarnation)

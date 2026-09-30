@@ -387,7 +387,7 @@ impl Actor {
                         || admission.room != self.room.unwrap_or([0; 16])
                         || admission.primary_endpoint != peer
                         || admission.coordination_endpoint == self.endpoint.id()
-                        || admission.incarnation == 0
+                        || !admission.identity_consistent()
                         || admission.authority_term == 0
                     {
                         return Err(failed("invalid coordination authority response"));
@@ -413,7 +413,17 @@ impl Actor {
                     self.emit_coordination_state().await?;
                     return Ok(true);
                 };
-                if admission.room != recovery.room || admission.primary_endpoint != peer {
+                // An Admission describes the presenting peer's own process:
+                // never this process's identity, and never an incarnation or
+                // coordination key that another accepted admission holds. The
+                // leader route and the refreshed invitation are resolved
+                // through those records.
+                if admission.room != recovery.room
+                    || admission.primary_endpoint != peer
+                    || admission.incarnation == recovery.incarnation
+                    || admission.coordination_endpoint == recovery.coordination_endpoint
+                    || self.admission_conflicts(&admission)
+                {
                     return Err(failed("invalid coordination member binding"));
                 }
                 if self.retired_incarnations.contains(&admission.incarnation)
@@ -452,7 +462,9 @@ impl Actor {
                     self.supersede_endpoint_incarnations(&recovery, &admission)
                         .await;
                 }
-                self.remember_admission(admission.clone());
+                // Held apart until the operation below validates it; only its
+                // completion installs the record.
+                self.hold_pending_admission(admission.clone());
                 let incarnation = admission.incarnation;
                 // The binding is accepted by the asynchronous operation this
                 // control presents. Until then nothing native is read from it,
@@ -518,6 +530,9 @@ impl Actor {
                 for admission in admissions {
                     if admission.room != recovery.room
                         || admission.primary_endpoint == self.endpoint.id()
+                        || admission.incarnation == recovery.incarnation
+                        || admission.coordination_endpoint == recovery.coordination_endpoint
+                        || self.admission_conflicts(&admission)
                         || self.retired_incarnations.contains(&admission.incarnation)
                         || self
                             .pending_retired_incarnations

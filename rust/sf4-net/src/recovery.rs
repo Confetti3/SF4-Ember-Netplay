@@ -193,7 +193,9 @@ impl RecoverySession {
 
     async fn admit_unlocked(&self, admission: &Admission) -> io::Result<()> {
         if admission.room != self.room
-            || admission.incarnation == 0
+            || !admission.identity_consistent()
+            || admission.incarnation == self.incarnation
+            || admission.coordination_endpoint == self.coordination_endpoint
             || admission.primary_endpoint == self.primary_endpoint
         {
             return Err(io::Error::other("invalid room member binding"));
@@ -630,6 +632,15 @@ pub struct Admission {
     pub coordination_endpoint: EndpointId,
     pub coordination_address: EndpointAddr,
     pub primary_endpoint: EndpointId,
+}
+
+impl Admission {
+    /// The coordination identity is carried twice: `coordination_endpoint`
+    /// names the Raft node and resolves the leader, while the address routes
+    /// its RPCs. A valid admission names the same endpoint in both.
+    pub fn identity_consistent(&self) -> bool {
+        self.incarnation != 0 && self.coordination_endpoint == self.coordination_address.id
+    }
 }
 
 #[derive(Clone, Debug)]

@@ -519,6 +519,7 @@ impl Actor {
         self.tasks.abort_all();
         self.admissions.clear();
         self.admission_order.clear();
+        self.pending_admissions.clear();
         self.applied_admission_members.clear();
         self.incoming_transfer = None;
         self.pending_checkpoint_proposal = None;

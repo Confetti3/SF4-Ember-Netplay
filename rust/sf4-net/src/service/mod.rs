@@ -539,6 +539,11 @@ struct Actor {
     recovery: Option<crate::recovery::RecoverySession>,
     admissions: BTreeMap<u64, Admission>,
     admission_order: Vec<u64>,
+    /// Admissions presented by a control whose asynchronous validation has
+    /// not succeeded yet, keyed by that control's authenticated endpoint.
+    /// They are installed in `admissions` only once the operation accepts
+    /// them, so a rejected one never replaces an accepted binding.
+    pending_admissions: BTreeMap<EndpointId, Admission>,
     /// Incarnations that this actor has observed in its own applied Raft
     /// membership.  Comparing this provenance with the next applied
     /// membership lets a successor derive a retirement even if the former
@@ -706,6 +711,7 @@ impl Actor {
         self.closed_generation = 0;
         self.admissions.clear();
         self.admission_order.clear();
+        self.pending_admissions.clear();
         self.applied_admission_members.clear();
         self.incoming_transfer = None;
         self.pending_checkpoint_proposal = None;

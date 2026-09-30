@@ -6,6 +6,7 @@ impl Actor {
         let incarnation = admission.incarnation;
         if self.retired_incarnations.contains(&incarnation)
             || self.pending_retired_incarnations.contains(&incarnation)
+            || self.admission_conflicts(&admission)
         {
             return;
         }
@@ -13,6 +14,37 @@ impl Actor {
         if !self.admission_order.contains(&incarnation) {
             self.admission_order.push(incarnation);
         }
+    }
+
+    /// Whether an Admission would change the identity already accepted for
+    /// its incarnation or claim a coordination endpoint that another
+    /// incarnation holds. The leader route and the refreshed invitation are
+    /// resolved through these records, so the first accepted binding of an
+    /// incarnation stays fixed until the incarnation retires. A changed
+    /// address for the same identities, such as a new relay, still updates.
+    pub(super) fn admission_conflicts(&self, admission: &Admission) -> bool {
+        if !admission.identity_consistent() {
+            return true;
+        }
+        if let Some(known) = self.admissions.get(&admission.incarnation)
+            && (known.primary_endpoint != admission.primary_endpoint
+                || known.coordination_endpoint != admission.coordination_endpoint)
+        {
+            return true;
+        }
+        self.admissions.values().any(|known| {
+            known.incarnation != admission.incarnation
+                && known.coordination_endpoint == admission.coordination_endpoint
+        })
+    }
+
+    /// Hold an Admission whose asynchronous validation has not succeeded yet,
+    /// so the leader can retry it from a later refresh. Nothing resolves a
+    /// route through this map; one entry per authenticated control peer keeps
+    /// it bounded.
+    pub(super) fn hold_pending_admission(&mut self, admission: Admission) {
+        self.pending_admissions
+            .insert(admission.primary_endpoint, admission);
     }
 
     pub(super) fn apply_confirmed_retirements(
@@ -462,6 +494,18 @@ impl Actor {
         if current_room && let Ok(result) = result {
             let (members, history) = recovery.applied_membership_provenance().await;
             for admission in result.admissions {
+                if self
+                    .pending_admissions
+                    .get(&admission.primary_endpoint)
+                    .is_some_and(|pending| pending.incarnation == admission.incarnation)
+                {
+                    self.pending_admissions.remove(&admission.primary_endpoint);
+                }
+                // An accepted record keeps its identity whatever a later
+                // operation reports.
+                if self.admission_conflicts(&admission) {
+                    continue;
+                }
                 if self.retired_incarnations.contains(&admission.incarnation)
                     || self
                         .pending_retired_incarnations

@@ -140,7 +140,12 @@ impl IrohRpc {
         primary: impl Into<Option<EndpointId>>,
     ) -> io::Result<()> {
         let primary = primary.into();
-        if self.retired_filter_contains(incarnation).await {
+        // This process never routes RPCs to itself, so its own incarnation
+        // and coordination key are never bound to a route.
+        if incarnation == self.incarnation
+            || address.id == self.endpoint.id()
+            || self.retired_filter_contains(incarnation).await
+        {
             return Err(failure());
         }
         let now = Instant::now();
@@ -560,7 +565,9 @@ mod tests {
         }
         for transport in &transports {
             for (i, peer) in transports.iter().enumerate() {
-                transport.admit(i as u64 + 1, peer.address()).await.unwrap();
+                if !Arc::ptr_eq(transport, peer) {
+                    transport.admit(i as u64 + 1, peer.address()).await.unwrap();
+                }
             }
         }
         for i in 0..3 {
@@ -663,6 +670,20 @@ mod tests {
         router.close().await;
         first.close().await;
         second.close().await;
+    }
+
+    #[tokio::test]
+    async fn own_incarnation_and_coordination_key_are_never_bound() {
+        let router = IrohRpc::bind([10; 16], 1, false).await.unwrap();
+        let peer = IrohRpc::bind([10; 16], 2, false).await.unwrap();
+
+        assert!(router.admit(1, peer.address()).await.is_err());
+        assert!(router.admit(2, router.address()).await.is_err());
+        assert!(!router.has_binding(1).await);
+        router.admit(2, peer.address()).await.unwrap();
+
+        router.close().await;
+        peer.close().await;
     }
 
     /// Drops `call` once the receiver reports that the RPC's stream reached it,
