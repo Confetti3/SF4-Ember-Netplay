@@ -56,6 +56,10 @@ pub struct IrohRpc {
     // False positives fail closed; the filter has no false negatives.
     retired_filter: RwLock<[u64; RETIRED_FILTER_WORDS]>,
     connections: RwLock<BTreeMap<u64, Connection>>,
+    /// One dial gate per target. Only its holder opens the target's
+    /// connection, so concurrent RPCs share one cached connection instead of
+    /// each dialing its own. The gate is held only while dialing.
+    dials: std::sync::Mutex<BTreeMap<u64, Arc<tokio::sync::Mutex<()>>>>,
     in_flight: Semaphore,
     /// Served connections and the request byte allowance of each remote
     /// endpoint. An entry lives while that endpoint has a served connection.
@@ -185,6 +189,7 @@ impl IrohRpc {
             members: RwLock::new(BTreeMap::new()),
             retired_filter: RwLock::new([0; RETIRED_FILTER_WORDS]),
             connections: RwLock::new(BTreeMap::new()),
+            dials: std::sync::Mutex::new(BTreeMap::new()),
             in_flight: Semaphore::new(MAX_MEMBERS),
             peers: std::sync::Mutex::new(BTreeMap::new()),
             body_budget: Semaphore::new(BODY_BUDGET),
@@ -236,6 +241,7 @@ impl IrohRpc {
             expired
         };
         for id in expired {
+            self.forget_dial(id);
             if let Some(connection) = self.connections.write().await.remove(&id) {
                 connection.close(1u32.into(), b"retired room route expired");
             }
@@ -313,9 +319,57 @@ impl IrohRpc {
     }
     pub async fn revoke(&self, incarnation: u64) {
         self.members.write().await.remove(&incarnation);
+        self.forget_dial(incarnation);
         if let Some(connection) = self.connections.write().await.remove(&incarnation) {
             connection.close(1u32.into(), b"room membership ended");
         }
+    }
+
+    fn forget_dial(&self, target: u64) {
+        self.dials
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&target);
+    }
+
+    async fn cached_connection(&self, target: u64) -> Option<Connection> {
+        self.connections
+            .read()
+            .await
+            .get(&target)
+            .filter(|c| c.close_reason().is_none())
+            .cloned()
+    }
+
+    /// The open cached connection to `target`, dialed once if there is none.
+    /// Callers that arrive while a dial is in progress wait for it and then
+    /// share its connection. A caller canceled while dialing releases the
+    /// gate, and the next caller dials in its place.
+    async fn route(&self, target: u64, address: EndpointAddr) -> io::Result<Connection> {
+        if let Some(connection) = self.cached_connection(target).await {
+            return Ok(connection);
+        }
+        let gate = self
+            .dials
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .entry(target)
+            .or_default()
+            .clone();
+        let _dialing = gate.lock().await;
+        if let Some(connection) = self.cached_connection(target).await {
+            return Ok(connection);
+        }
+        let connection = self
+            .endpoint
+            .connect(address, ALPN)
+            .await
+            .map_err(|_| failure())?;
+        self.connections
+            .write()
+            .await
+            .insert(target, connection.clone());
+        Ok(connection)
     }
 
     fn retired_filter_index(&self, incarnation: u64, round: u64) -> usize {
@@ -586,27 +640,7 @@ impl RpcTransport for IrohRpc {
                 if address.id.to_string() != expected {
                     return Err(failure());
                 }
-                let cached = self
-                    .connections
-                    .read()
-                    .await
-                    .get(&target)
-                    .filter(|c| c.close_reason().is_none())
-                    .cloned();
-                let connection = if let Some(connection) = cached {
-                    connection
-                } else {
-                    let connection = self
-                        .endpoint
-                        .connect(address, ALPN)
-                        .await
-                        .map_err(|_| failure())?;
-                    self.connections
-                        .write()
-                        .await
-                        .insert(target, connection.clone());
-                    connection
-                };
+                let connection = self.route(target, address).await?;
                 // If this future is canceled by OpenRaft before the transport
                 // timeout, Drop still closes the cached route. A retry must
                 // never reuse a connection whose response stream was abandoned.
@@ -885,6 +919,75 @@ mod tests {
         })
         .await
         .unwrap();
+
+        serving.abort();
+        coordinator.raft().shutdown().await.unwrap();
+        server.close().await;
+        client.close().await;
+    }
+
+    #[tokio::test]
+    async fn concurrent_calls_share_one_dialed_connection() {
+        let room = [13; 16];
+        let server = IrohRpc::bind(room, 1, false).await.unwrap();
+        let client = IrohRpc::bind(room, 2, false).await.unwrap();
+        server.admit(2, client.address()).await.unwrap();
+        client.admit(1, server.address()).await.unwrap();
+        let coordinator = Arc::new(
+            Coordinator::new_for_room(room, 1, server.clone())
+                .await
+                .unwrap(),
+        );
+        coordinator
+            .raft()
+            .initialize(BTreeMap::from([(
+                1,
+                BasicNode::new(server.identity().to_string()),
+            )]))
+            .await
+            .unwrap();
+        coordinator
+            .raft()
+            .wait(Some(Duration::from_secs(5)))
+            .current_leader(1, "single leader")
+            .await
+            .unwrap();
+        let serving = tokio::spawn(server.clone().serve(coordinator.clone()));
+        let expected = server.identity().to_string();
+        let call = || {
+            <IrohRpc as RpcTransport>::call(
+                client.as_ref(),
+                1,
+                expected.clone(),
+                "authority",
+                vec![0],
+            )
+        };
+        let served = || {
+            server
+                .peers
+                .lock()
+                .unwrap()
+                .get(&client.identity())
+                .map_or(0, |load| load.connections)
+        };
+
+        for round in 0..2 {
+            let results = tokio::join!(call(), call(), call(), call());
+            for result in [results.0, results.1, results.2, results.3] {
+                assert!(result.is_ok(), "round {round}: a concurrent call failed");
+            }
+            assert_eq!(served(), 1, "round {round}: calls dialed more than once");
+            // A closed cached connection is replaced by a single new dial.
+            client.connections.read().await[&1].close(0u32.into(), b"closed");
+            timeout(Duration::from_secs(10), async {
+                while served() != 0 {
+                    sleep(Duration::from_millis(25)).await;
+                }
+            })
+            .await
+            .unwrap();
+        }
 
         serving.abort();
         coordinator.raft().shutdown().await.unwrap();
