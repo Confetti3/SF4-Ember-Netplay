@@ -219,6 +219,111 @@ fn compressed_coordination_wire_is_versioned_bounded_and_verified() {
     corrupted.digest[0] ^= 0x80;
     assert!(corrupted.decode::<String>().is_err());
 }
+
+#[test]
+fn the_largest_rpc_bodies_fit_their_transport_bounds() {
+    let high = u64::MAX;
+    let log_id = LogId::new(openraft::CommittedLeaderId::new(high, high), high);
+    let vote = serde_json::to_vec(&VoteRequest::new(Vote::new(high, high), Some(log_id))).unwrap();
+    assert!(
+        vote.len() <= MAX_VOTE_REQUEST,
+        "vote request {}",
+        vote.len()
+    );
+
+    // A remote proposal is a probe reservation; its identifiers are capped
+    // at 128 bytes, which JSON can escape to six bytes each.
+    let escaped = "\u{1}".repeat(128);
+    let propose = serde_json::to_vec(&Proposal {
+        request: escaped.clone(),
+        dedup_id: escaped,
+        term: high,
+        base: high,
+        checkpoint: String::new(),
+        admin: Some(AdminEntry::ProbeReservation(ProbeReservation {
+            room: [u8::MAX; 16],
+            source_incarnation: high,
+            target_incarnation: high,
+            request: high,
+            pair_revision: high,
+            term: high,
+            expires: high,
+        })),
+    })
+    .unwrap();
+    assert!(
+        propose.len() <= MAX_PROPOSE_REQUEST,
+        "propose {}",
+        propose.len()
+    );
+
+    // A full credit window of snapshot data, with the metadata of a joint
+    // configuration that names every member.
+    let ids = (0..MAX_MEMBERS as u64)
+        .map(|index| high - index)
+        .collect::<BTreeSet<_>>();
+    let nodes = ids
+        .iter()
+        .map(|id| (*id, BasicNode::new("f".repeat(128))))
+        .collect::<BTreeMap<_, _>>();
+    let membership = openraft::Membership::new(vec![ids.clone(), ids.clone()], nodes);
+    let snapshot = serde_json::to_vec(&InstallSnapshotWire::encode(InstallSnapshotRequest {
+        vote: Vote::new_committed(high, high),
+        meta: SnapshotMeta {
+            last_log_id: Some(log_id),
+            last_membership: StoredMembership::new(Some(log_id), membership),
+            snapshot_id: format!("{:?}", Some(log_id)),
+        },
+        offset: high,
+        data: vec![u8::MAX; SNAPSHOT_FRAGMENT_BYTES * SNAPSHOT_CREDIT_WINDOW],
+        done: true,
+    }))
+    .unwrap();
+    assert!(
+        snapshot.len() <= MAX_SNAPSHOT_REQUEST,
+        "snapshot {}",
+        snapshot.len()
+    );
+
+    let responses = [
+        serde_json::to_vec(&AuthorityClaim {
+            incarnation: high,
+            term: high,
+            leader: Some(high),
+            revision: high,
+            voters: ids.clone(),
+            members: ids,
+        })
+        .unwrap(),
+        serde_json::to_vec(&AppendEntriesResponse::<u64>::HigherVote(
+            Vote::new_committed(high, high),
+        ))
+        .unwrap(),
+        serde_json::to_vec(&AppendEntriesResponse::<u64>::PartialSuccess(Some(log_id))).unwrap(),
+        serde_json::to_vec(&VoteResponse::new(
+            Vote::new_committed(high, high),
+            Some(log_id),
+            true,
+        ))
+        .unwrap(),
+        serde_json::to_vec(&InstallSnapshotResponse {
+            vote: Vote::new_committed(high, high),
+        })
+        .unwrap(),
+        serde_json::to_vec(&Receipt {
+            accepted: true,
+            revision: high,
+        })
+        .unwrap(),
+    ];
+    for response in responses {
+        assert!(
+            response.len() <= MAX_RPC_RESPONSE,
+            "response {}",
+            response.len()
+        );
+    }
+}
 async fn stop(nodes: Vec<Arc<Coordinator>>) {
     for node in nodes {
         node.raft.shutdown().await.unwrap();

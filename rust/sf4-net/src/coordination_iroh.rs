@@ -1,7 +1,8 @@
 //! Authenticated, bounded room-consensus transport. This endpoint is separate
 //! from the gameplay endpoint: shutting down consensus cannot retire GGPO links.
 use crate::coordination::{
-    AuthorityClaim, Coordinator, MAX_MEMBERS, MAX_SNAPSHOT, RpcTransport, SNAPSHOT_FRAGMENT_BYTES,
+    AuthorityClaim, Coordinator, MAX_MEMBERS, MAX_PROPOSE_REQUEST, MAX_RPC_RESPONSE, MAX_SNAPSHOT,
+    MAX_SNAPSHOT_REQUEST, MAX_VOTE_REQUEST, RpcTransport, SNAPSHOT_FRAGMENT_BYTES,
 };
 use iroh::{
     Endpoint, EndpointAddr, EndpointId,
@@ -27,6 +28,14 @@ const MAX_RPC: usize = MAX_SNAPSHOT;
 const RPC_TIMEOUT: Duration = Duration::from_secs(10);
 const CONNECTION_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_CONNECTION_STREAMS: usize = 8;
+/// A caller keeps one cached connection per target and redials after a
+/// canceled RPC closes it, so two cover the old connection winding down.
+const MAX_PEER_CONNECTIONS: usize = 2;
+/// Request bytes held at once, per authenticated endpoint and in total. One
+/// endpoint's allowance fits a full append beside its smaller RPCs, and the
+/// total leaves the same room for the rest of the room.
+const PEER_BODY_BUDGET: usize = 2 * MAX_RPC;
+const BODY_BUDGET: usize = 4 * MAX_RPC;
 const RELAY_READY_TIMEOUT: Duration = Duration::from_secs(10);
 const CHUNK: usize = SNAPSHOT_FRAGMENT_BYTES;
 const RETIRED_FILTER_WORDS: usize = 128;
@@ -48,6 +57,65 @@ pub struct IrohRpc {
     retired_filter: RwLock<[u64; RETIRED_FILTER_WORDS]>,
     connections: RwLock<BTreeMap<u64, Connection>>,
     in_flight: Semaphore,
+    /// Served connections and the request byte allowance of each remote
+    /// endpoint. An entry lives while that endpoint has a served connection.
+    peers: std::sync::Mutex<BTreeMap<EndpointId, PeerLoad>>,
+    body_budget: Semaphore,
+}
+
+struct PeerLoad {
+    connections: usize,
+    bytes: Arc<Semaphore>,
+}
+
+/// One served connection of a remote endpoint, counted until it ends.
+struct PeerSlot {
+    owner: Arc<IrohRpc>,
+    peer: EndpointId,
+    bytes: Arc<Semaphore>,
+}
+
+impl PeerSlot {
+    fn claim(owner: &Arc<IrohRpc>, peer: EndpointId) -> Option<Self> {
+        let mut peers = owner.peers.lock().unwrap_or_else(|e| e.into_inner());
+        let load = peers.entry(peer).or_insert_with(|| PeerLoad {
+            connections: 0,
+            bytes: Arc::new(Semaphore::new(PEER_BODY_BUDGET)),
+        });
+        if load.connections >= MAX_PEER_CONNECTIONS {
+            return None;
+        }
+        load.connections += 1;
+        Some(Self {
+            owner: owner.clone(),
+            peer,
+            bytes: load.bytes.clone(),
+        })
+    }
+}
+
+impl Drop for PeerSlot {
+    fn drop(&mut self) {
+        let mut peers = self.owner.peers.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(load) = peers.get_mut(&self.peer) {
+            load.connections = load.connections.saturating_sub(1);
+            if load.connections == 0 {
+                peers.remove(&self.peer);
+            }
+        }
+    }
+}
+
+/// The largest request body each method can carry. Only an append holds a
+/// checkpoint; the single-byte methods carry a fixed marker.
+fn request_ceiling(method: &str) -> usize {
+    match method {
+        "append" => MAX_RPC,
+        "vote" => MAX_VOTE_REQUEST,
+        "snapshot" => MAX_SNAPSHOT_REQUEST,
+        "propose" => MAX_PROPOSE_REQUEST,
+        _ => 1,
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -118,6 +186,8 @@ impl IrohRpc {
             retired_filter: RwLock::new([0; RETIRED_FILTER_WORDS]),
             connections: RwLock::new(BTreeMap::new()),
             in_flight: Semaphore::new(MAX_MEMBERS),
+            peers: std::sync::Mutex::new(BTreeMap::new()),
+            body_budget: Semaphore::new(BODY_BUDGET),
         }))
     }
     pub fn address(&self) -> EndpointAddr {
@@ -372,6 +442,12 @@ impl IrohRpc {
                         }) {
                             connection.close(1u32.into(), b"room member required"); return;
                         }
+                        // Each endpoint holds at most a couple of served
+                        // connections, so one endpoint never takes the shared
+                        // connection limit from the other members.
+                        let Some(slot) = PeerSlot::claim(&owner, connection.remote_id()) else {
+                            connection.close(1u32.into(), b"room RPC connection limit"); return;
+                        };
                         // Serve the streams of one connection concurrently. A large
                         // checkpoint append must not queue the authority reads and
                         // heartbeats behind it: both sides would then report quorum
@@ -403,6 +479,7 @@ impl IrohRpc {
                             };
                             let owner = owner.clone(); let coordinator = coordinator.clone();
                             let connection = connection.clone();
+                            let peer_bytes = slot.bytes.clone();
                             streams.spawn(timeout(RPC_TIMEOUT, async move {
                                 let mut room = [0; 16]; recv.read_exact(&mut room).await.map_err(|_| failure())?;
                                 let source = recv.read_u64().await?;
@@ -418,7 +495,13 @@ impl IrohRpc {
                                 if room != owner.room || target != owner.incarnation { return Err(failure()); }
                                 let method = match method { 1 => "append", 2 => "vote", 3 => "snapshot", 4 => "authority", 5 => "propose", 6 => "elect", 7 => "remove", _ => return Err(failure()) };
                                 if retired.is_some() && method != "authority" { return Err(failure()); }
-                                let body = read_body(&mut recv).await?;
+                                // The announced size is held against the endpoint's
+                                // and the shared allowance before any of it is read,
+                                // and the body grows only as its bytes arrive.
+                                let size = read_size(&mut recv, request_ceiling(method)).await?;
+                                let _peer_bytes = peer_bytes.acquire_many(size as u32).await.map_err(|_| failure())?;
+                                let _bytes = owner.body_budget.acquire_many(size as u32).await.map_err(|_| failure())?;
+                                let body = read_sized(&mut recv, size).await?;
                                 let response = coordinator.dispatch(source, method, &body).await?;
                                 write_body(&mut send, &response).await?;
                                 send.finish().map_err(|_| failure())?;
@@ -437,16 +520,37 @@ impl IrohRpc {
         }
     }
 }
-async fn read_body(reader: &mut (impl tokio::io::AsyncRead + Unpin)) -> io::Result<Vec<u8>> {
+async fn read_size(
+    reader: &mut (impl tokio::io::AsyncRead + Unpin),
+    ceiling: usize,
+) -> io::Result<usize> {
     let size = reader.read_u32().await? as usize;
-    if size == 0 || size > MAX_RPC {
+    if size == 0 || size > ceiling.min(MAX_RPC) {
         return Err(failure());
     }
-    let mut data = vec![0; size];
-    for chunk in data.chunks_mut(CHUNK) {
-        reader.read_exact(chunk).await?;
+    Ok(size)
+}
+/// Read a body of the announced size one chunk at a time, so memory follows
+/// the bytes actually received rather than the size a header announced.
+async fn read_sized(
+    reader: &mut (impl tokio::io::AsyncRead + Unpin),
+    size: usize,
+) -> io::Result<Vec<u8>> {
+    let mut data = Vec::with_capacity(size.min(CHUNK));
+    let mut chunk = vec![0; size.min(CHUNK)];
+    while data.len() < size {
+        let part = &mut chunk[..(size - data.len()).min(CHUNK)];
+        reader.read_exact(part).await?;
+        data.extend_from_slice(part);
     }
     Ok(data)
+}
+async fn read_body(
+    reader: &mut (impl tokio::io::AsyncRead + Unpin),
+    ceiling: usize,
+) -> io::Result<Vec<u8>> {
+    let size = read_size(reader, ceiling).await?;
+    read_sized(reader, size).await
 }
 async fn write_body(
     writer: &mut (impl tokio::io::AsyncWrite + Unpin),
@@ -532,7 +636,8 @@ impl RpcTransport for IrohRpc {
                 .await?;
                 write_body(&mut send, &body).await?;
                 send.finish().map_err(|_| failure())?;
-                let result = read_body(&mut recv).await;
+                // Every response is a small Raft reply, receipt or claim.
+                let result = read_body(&mut recv, MAX_RPC_RESPONSE).await;
                 if result.is_ok() {
                     connection_guard.succeeded();
                 }
@@ -684,6 +789,107 @@ mod tests {
 
         router.close().await;
         peer.close().await;
+    }
+
+    /// One RPC written by hand, so a test chooses the method byte and body.
+    async fn raw_rpc(connection: &Connection, method: u8, body: &[u8]) -> io::Result<Vec<u8>> {
+        let (mut send, mut recv) = connection.open_bi().await.map_err(|_| failure())?;
+        send.write_all(&[12; 16]).await?;
+        send.write_u64(2).await?;
+        send.write_u64(1).await?;
+        send.write_u8(method).await?;
+        send.write_u32(body.len() as u32).await?;
+        send.write_all(body).await?;
+        send.finish().map_err(|_| failure())?;
+        read_body(&mut recv, MAX_RPC_RESPONSE).await
+    }
+
+    #[tokio::test]
+    async fn served_connections_and_bodies_stay_within_their_bounds() {
+        let room = [12; 16];
+        let server = IrohRpc::bind(room, 1, false).await.unwrap();
+        let client = IrohRpc::bind(room, 2, false).await.unwrap();
+        server.admit(2, client.address()).await.unwrap();
+        let coordinator = Arc::new(
+            Coordinator::new_for_room(room, 1, server.clone())
+                .await
+                .unwrap(),
+        );
+        coordinator
+            .raft()
+            .initialize(BTreeMap::from([(
+                1,
+                BasicNode::new(server.identity().to_string()),
+            )]))
+            .await
+            .unwrap();
+        coordinator
+            .raft()
+            .wait(Some(Duration::from_secs(5)))
+            .current_leader(1, "single leader")
+            .await
+            .unwrap();
+        let serving = tokio::spawn(server.clone().serve(coordinator.clone()));
+        let connect = || client.endpoint.connect(server.address(), ALPN);
+
+        let first = connect().await.unwrap();
+        let second = connect().await.unwrap();
+        assert!(raw_rpc(&first, 4, &[0]).await.is_ok());
+        assert!(raw_rpc(&second, 4, &[0]).await.is_ok());
+        // A third connection from the same endpoint is closed at once.
+        let third = connect().await.unwrap();
+        assert!(
+            timeout(Duration::from_secs(10), third.closed())
+                .await
+                .is_ok()
+        );
+
+        // A size beyond its method's limit fails the stream from the header
+        // alone, before any body byte arrives.
+        let (mut send, mut recv) = first.open_bi().await.unwrap();
+        send.write_all(&room).await.unwrap();
+        send.write_u64(2).await.unwrap();
+        send.write_u64(1).await.unwrap();
+        send.write_u8(4).await.unwrap();
+        send.write_u32(2).await.unwrap();
+        assert!(matches!(
+            timeout(
+                Duration::from_secs(3),
+                read_body(&mut recv, MAX_RPC_RESPONSE)
+            )
+            .await,
+            Ok(Err(_))
+        ));
+        drop(send);
+
+        // A body beyond its method's size fails its own stream only.
+        assert!(raw_rpc(&first, 4, &[0, 0]).await.is_err());
+        assert!(
+            raw_rpc(&first, 2, &vec![b' '; MAX_VOTE_REQUEST + 1])
+                .await
+                .is_err()
+        );
+        assert!(raw_rpc(&first, 4, &[0]).await.is_ok());
+
+        // A closed connection frees its place for a new one.
+        second.close(0u32.into(), b"done");
+        timeout(Duration::from_secs(10), async {
+            loop {
+                if let Ok(next) = connect().await
+                    && raw_rpc(&next, 4, &[0]).await.is_ok()
+                {
+                    break;
+                }
+                sleep(Duration::from_millis(50)).await;
+            }
+        })
+        .await
+        .unwrap();
+
+        serving.abort();
+        coordinator.raft().shutdown().await.unwrap();
+        server.close().await;
+        client.close().await;
     }
 
     /// Drops `call` once the receiver reports that the RPC's stream reached it,

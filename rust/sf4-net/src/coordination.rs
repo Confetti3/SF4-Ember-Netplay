@@ -45,6 +45,13 @@ pub const MAX_MEMBER_HISTORY: usize = MAX_RETIRED_MEMBER_HISTORY + MAX_MEMBERS;
 pub const MAX_SNAPSHOT: usize = MAX_CHECKPOINT * 6 + 65536;
 pub const SNAPSHOT_FRAGMENT_BYTES: usize = 16 * 1024;
 pub const SNAPSHOT_CREDIT_WINDOW: usize = 4;
+/// Encoded size bounds of the RPC bodies whose content is small and fixed in
+/// shape. Only an append carries a checkpoint and may reach `MAX_SNAPSHOT`.
+/// The tests encode the largest body of each kind against these bounds.
+pub const MAX_VOTE_REQUEST: usize = 4 * 1024;
+pub const MAX_PROPOSE_REQUEST: usize = 16 * 1024;
+pub const MAX_SNAPSHOT_REQUEST: usize = 128 * 1024;
+pub const MAX_RPC_RESPONSE: usize = 64 * 1024;
 const RECENT_REQUESTS: usize = 128;
 const SNAPSHOT_MAGIC: [u8; 8] = *b"sf4rs001";
 const SNAPSHOT_HEADER_BYTES: usize = SNAPSHOT_MAGIC.len() + size_of::<u64>() + 32;
