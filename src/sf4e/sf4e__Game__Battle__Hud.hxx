@@ -8,6 +8,7 @@
 
 #include "sf4e.hxx"
 #include "sf4e__Game.hxx"
+#include "../common/HudMementoQueue.hxx"
 
 namespace sf4e {
 	namespace Game {
@@ -38,8 +39,7 @@ namespace sf4e {
 
 					struct Unit : Dimps::Game::Battle::Hud::Announce::Unit {
 						typedef struct AdditionalMemento {
-							Dimps::Game::Battle::Hud::Announce::Announcement queuedAnnouncements[4];
-							int numQueuedAnnouncements;
+							sf4e::HudMementoQueue<Dimps::Game::Battle::Hud::Announce::Announcement, 4> queuedAnnouncements;
 							Dimps::Game::Sprite::Control* activeControl;
 
 							Round::AdditionalMemento round;
@@ -123,10 +123,8 @@ namespace sf4e {
 						struct AdditionalMemento {
 							Bonus::AdditionalMemento bonuses[2];
 							Combo::AdditionalMemento combo;
-							int nQueuedBonuses;
-							int nQueuedCombos;
-							Dimps::Game::Battle::Hud::Notice::NoticeData queuedBonuses[8];
-							Dimps::Game::Battle::Hud::Notice::NoticeData queuedCombos[8];
+							sf4e::HudMementoQueue<Dimps::Game::Battle::Hud::Notice::NoticeData, 8> queuedBonuses;
+							sf4e::HudMementoQueue<Dimps::Game::Battle::Hud::Notice::NoticeData, 8> queuedCombos;
 						};
 
 						static void RecordToAdditionalMemento(rPlayer* c, AdditionalMemento& m);

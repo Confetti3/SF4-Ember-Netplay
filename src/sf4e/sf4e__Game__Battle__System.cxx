@@ -144,6 +144,15 @@ void fSystem::Install() {
     DetourAttach((PVOID*)&rSystem::staticMethods.OnBattleFlow_BattleStart, OnBattleFlow_BattleStart);
 }
 
+// The notice view keeps one player per simulated fighter and the memento room
+// for two. A frame simulating more cannot be recorded or restored whole.
+static int NoticePlayers(rSystem* system, bool& failure) {
+    const int simulated = (system->*rSystem::publicMethods.GetNumCharasToSimulateThisFrame)();
+    constexpr int slots = sizeof(fSystem::AdditionalMemento::playerNotices) / sizeof(fSystem::AdditionalMemento::playerNotices[0]);
+    if (simulated > slots) failure = true;
+    return simulated < slots ? simulated : slots;
+}
+
 int fSystem::GetMementoSize() {
     return (this->*rSystem::mementoableMethods.GetMementoSize)() + sizeof(AdditionalMemento);
 }
@@ -164,7 +173,8 @@ int fSystem::RecordToMemento(Memento* m, GameMementoKey::MementoID* id) {
 
     rHud::Notice::View* noticeView = *rHud::Notice::Unit::GetView(*HudUnit::GetNotice(hud));
     WithReleaser<rHud::Notice::Player>* noticePlayers = rHud::Notice::View::GetPlayers(noticeView);
-    for (int playerIdx = 0; playerIdx < (_this->*rSystem::publicMethods.GetNumCharasToSimulateThisFrame)(); playerIdx++) {
+    const int noticeCount = NoticePlayers(_this, sf4e::Game::MementoFailure::record);
+    for (int playerIdx = 0; playerIdx < noticeCount; playerIdx++) {
         fHud::Notice::Player::RecordToAdditionalMemento(
             noticePlayers[playerIdx].obj,
             additional->playerNotices[playerIdx]
@@ -201,7 +211,8 @@ int fSystem::RestoreFromMemento(Memento* m, GameMementoKey::MementoID* id) {
 
     rHud::Notice::View* noticeView = *rHud::Notice::Unit::GetView(*HudUnit::GetNotice(hud));
     WithReleaser<rHud::Notice::Player>* noticePlayers = rHud::Notice::View::GetPlayers(noticeView);
-    for (int playerIdx = 0; playerIdx < (_this->*rSystem::publicMethods.GetNumCharasToSimulateThisFrame)(); playerIdx++) {
+    const int noticeCount = NoticePlayers(_this, sf4e::Game::MementoFailure::restore);
+    for (int playerIdx = 0; playerIdx < noticeCount; playerIdx++) {
         fHud::Notice::Player::RestoreFromAdditionalMemento(
             noticePlayers[playerIdx].obj,
             additional->playerNotices[playerIdx]
@@ -273,7 +284,7 @@ int fSystem::RestoreFromMemento(Memento* m, GameMementoKey::MementoID* id) {
         }
         else if (strcmp(name, "HUD TRAINING") == 0) {
             if (*HudUnit::GetTraining(hud)) {
-                *rHud::Training::Unit::GetHudTrainingUpdateTask(*HudUnit::GetTraining(hud)) = nullptr;
+                *rHud::Training::Unit::GetHudTrainingUpdateTask(*HudUnit::GetTraining(hud)) = cursor;
             }
         }
     }

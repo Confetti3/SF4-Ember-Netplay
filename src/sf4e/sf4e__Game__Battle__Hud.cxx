@@ -27,6 +27,23 @@ using rIUnit = Dimps::Game::Battle::IUnit;
 
 bool fHud::bAllowHudUpdate = true;
 
+// The native queues have no fixed bound; the memento does. A longer queue keeps
+// its oldest entries and loses the rest on restore, so say so the first times.
+template <typename Queue> static void CaptureQueue(Queue& memento, dDeque_0x10* native, const char* name) {
+    const std::size_t held = memento.Capture(native->begin(), native->end());
+    static unsigned noted = 0;
+    if (held > Queue::Capacity && noted < 4) {
+        ++noted;
+        spdlog::warn("HUD memento: the {} queue held {} entries; {} were kept", name, held, Queue::Capacity);
+    }
+}
+
+template <typename Queue> static void RestoreQueue(const Queue& memento, dDeque_0x10* native) {
+    (native->*dDeque_0x10::publicMethods.clear)();
+    for (const auto& entry : memento)
+        (native->*dDeque_0x10::publicMethods.push_back)((dDeque_0x10::value_type*)&entry);
+}
+
 void fHud::Install() {
     Unit::Install();
     Announce::Unit::Install();
@@ -99,16 +116,7 @@ void fHud::Announce::Unit::Install() {
 void fHud::Announce::Unit::RecordToAdditionalMemento(rHud::Announce::Unit* u, AdditionalMemento& m) {
     rHud::Announce::View* v = *rHud::Announce::Unit::GetView(u);
     m.activeControl = *rHud::Announce::View::GetActiveControl(v);
-
-    dDeque_0x10* queuedAnnouncements = rHud::Announce::View::GetQueuedAnnouncements(v);
-    int i;
-    dDeque_0x10::iterator iter;
-    assert(queuedAnnouncements->size() <= 4);
-    assert(sizeof(rHud::Announce::Announcement) == sizeof(dDeque_0x10::value_type));
-    for (iter = queuedAnnouncements->begin(), i = 0; iter != queuedAnnouncements->end(); iter++, i++) {
-        memcpy_s(&m.queuedAnnouncements[i], sizeof(rHud::Announce::Announcement), &*iter, sizeof(dDeque_0x10::value_type));
-    }
-    m.numQueuedAnnouncements = i;
+    CaptureQueue(m.queuedAnnouncements, rHud::Announce::View::GetQueuedAnnouncements(v), "announcement");
 
     Round::RecordToAdditionalMemento(*rHud::Announce::View::GetRoundControl(v), m.round);
     sf4e::Game::Sprite::SingleNodeControl::RecordToAdditionalMemento(*rHud::Announce::View::GetFinalRoundControl(v), m.finalRound);
@@ -132,14 +140,7 @@ void fHud::Announce::Unit::RecordToAdditionalMemento(rHud::Announce::Unit* u, Ad
 void fHud::Announce::Unit::RestoreFromAdditionalMemento(rHud::Announce::Unit* u, const AdditionalMemento& m) {
     rHud::Announce::View* v = *rHud::Announce::Unit::GetView(u);
     *rHud::Announce::View::GetActiveControl(v) = m.activeControl;
-
-    dDeque_0x10* queuedAnnouncements = rHud::Announce::View::GetQueuedAnnouncements(v);
-    (queuedAnnouncements->*dDeque_0x10::publicMethods.clear)();
-    assert(sizeof(rHud::Announce::Announcement) == sizeof(dDeque_0x10::value_type));
-    int i;
-    for (i = 0; i < m.numQueuedAnnouncements; i++) {
-        (queuedAnnouncements->*dDeque_0x10::publicMethods.push_back)((dDeque_0x10::value_type*)&m.queuedAnnouncements[i]);
-    }
+    RestoreQueue(m.queuedAnnouncements, rHud::Announce::View::GetQueuedAnnouncements(v));
 
     Round::RestoreFromAdditionalMemento(*rHud::Announce::View::GetRoundControl(v), m.round);
     sf4e::Game::Sprite::SingleNodeControl::RestoreFromAdditionalMemento(*rHud::Announce::View::GetFinalRoundControl(v), m.finalRound);
@@ -300,21 +301,8 @@ void fHud::Notice::Player::RecordToAdditionalMemento(
     rHud::Notice::Player* p,
     AdditionalMemento& m
 ) {
-    dDeque_0x10* queuedBonuses = rHud::Notice::Player::GetQueuedBonusNotices(p);
-    dDeque_0x10* queuedCombos = rHud::Notice::Player::GetQueuedComboNotices(p);
-    int i;
-    dDeque_0x10::iterator iter;
-    assert(queuedBonuses->size() <= 8);
-    assert(queuedCombos->size() <= 8);
-    assert(sizeof(rHud::Notice::NoticeData) == sizeof(dDeque_0x10::value_type));
-    for (iter = queuedBonuses->begin(), i = 0; iter != queuedBonuses->end(); iter++, i++) {
-        memcpy_s(&m.queuedBonuses[i], sizeof(rHud::Notice::NoticeData), &*iter, sizeof(dDeque_0x10::value_type));
-    }
-    m.nQueuedBonuses = i;
-    for (iter = queuedCombos->begin(), i = 0; iter != queuedCombos->end(); iter++, i++) {
-        memcpy_s(&m.queuedCombos[i], sizeof(rHud::Notice::NoticeData), &*iter, sizeof(dDeque_0x10::value_type));
-    }
-    m.nQueuedCombos = i;
+    CaptureQueue(m.queuedBonuses, rHud::Notice::Player::GetQueuedBonusNotices(p), "bonus notice");
+    CaptureQueue(m.queuedCombos, rHud::Notice::Player::GetQueuedComboNotices(p), "combo notice");
 
     fHud::Notice::Combo::RecordToAdditionalMemento(
         rHud::Notice::Player::GetCombo(p)->obj,
@@ -333,18 +321,8 @@ void fHud::Notice::Player::RestoreFromAdditionalMemento(
     rHud::Notice::Player* p,
     const AdditionalMemento& m
 ) {
-    dDeque_0x10* queuedBonuses = rHud::Notice::Player::GetQueuedBonusNotices(p);
-    dDeque_0x10* queuedCombos = rHud::Notice::Player::GetQueuedComboNotices(p);
-    (queuedBonuses->*dDeque_0x10::publicMethods.clear)();
-    (queuedCombos->*dDeque_0x10::publicMethods.clear)();
-    assert(sizeof(rHud::Notice::NoticeData) == sizeof(dDeque_0x10::value_type));
-    int i;
-    for (i = 0; i < m.nQueuedBonuses; i++) {
-        (queuedBonuses->*dDeque_0x10::publicMethods.push_back)((dDeque_0x10::value_type*)&m.queuedBonuses[i]);
-    }
-    for (i = 0; i < m.nQueuedCombos; i++) {
-        (queuedCombos->*dDeque_0x10::publicMethods.push_back)((dDeque_0x10::value_type*)&m.queuedCombos[i]);
-    }
+    RestoreQueue(m.queuedBonuses, rHud::Notice::Player::GetQueuedBonusNotices(p));
+    RestoreQueue(m.queuedCombos, rHud::Notice::Player::GetQueuedComboNotices(p));
 
     fHud::Notice::Combo::RestoreFromAdditionalMemento(
         rHud::Notice::Player::GetCombo(p)->obj,
