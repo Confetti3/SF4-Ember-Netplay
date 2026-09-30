@@ -38,13 +38,38 @@ struct DumpRequest {
 	uint64_t exceptionPointers;
 };
 
-// Enough heap and module data to follow a corruption back to its source,
-// without the whole 400 MB of a running match.
+// Stacks, module data and the memory they point at: enough to follow most
+// crashes, a few MB.
 constexpr MINIDUMP_TYPE DumpType = MINIDUMP_TYPE(MiniDumpWithIndirectlyReferencedMemory | MiniDumpWithDataSegs |
 	MiniDumpWithHandleData | MiniDumpWithThreadInfo | MiniDumpWithUnloadedModules);
+// Heap corruption is found long after the write that caused it, at a site
+// that says little, so its dump also keeps the process's private memory, the
+// heaps included: several hundred MB during a match, and it can hold names,
+// chat and invitations. Named "...-heap.dmp", and fewer are kept.
+constexpr MINIDUMP_TYPE HeapDumpType = MINIDUMP_TYPE(DumpType | MiniDumpWithPrivateReadWriteMemory);
+constexpr size_t HeapDumpsKept = 2;
+
+// The exception code behind `pointers`, read from `process` when they are its
+// (the launcher serving the game), or 0 when it cannot be read. Allocates nothing.
+inline DWORD ExceptionCodeForDump(HANDLE process, const EXCEPTION_POINTERS* pointers, bool clientPointers) {
+	if (!pointers) return 0;
+	if (!clientPointers) return pointers->ExceptionRecord ? pointers->ExceptionRecord->ExceptionCode : 0;
+	EXCEPTION_POINTERS remote = {};
+	EXCEPTION_RECORD record = {};
+	SIZE_T read = 0;
+	if (!ReadProcessMemory(process, pointers, &remote, sizeof(remote), &read) || read != sizeof(remote) || !remote.ExceptionRecord) return 0;
+	if (!ReadProcessMemory(process, remote.ExceptionRecord, &record, sizeof(record), &read) || read != sizeof(record)) return 0;
+	return record.ExceptionCode;
+}
+
+inline bool IsHeapDumpName(const wchar_t* name) {
+	const size_t length = wcslen(name);
+	return length >= 9 && _wcsicmp(name + length - 9, L"-heap.dmp") == 0;
+}
 
 // Each crash gets a dump of its own, "sf4e-crash-<date>-<time>-<ms>-<pid>.dmp" in
-// the logs folder, so a later or failed crash never costs an earlier one.
+// the logs folder ("...-heap.dmp" for heap corruption), so a later or failed
+// crash never costs an earlier one.
 constexpr size_t DumpPathSize = MAX_PATH + 64;
 
 // Writes the dump into `directory` and names the finished file in `path`.
@@ -58,15 +83,17 @@ inline bool WriteDump(HANDLE process, DWORD processId, const wchar_t* directory,
 	EXCEPTION_POINTERS* pointers, bool clientPointers, wchar_t (&path)[DumpPathSize]) {
 	SYSTEMTIME now;
 	GetLocalTime(&now);
+	const bool heap = ExceptionCodeForDump(process, pointers, clientPointers) == HeapCorruptionCode;
+	const wchar_t* suffix = heap ? L"-heap" : L"";
 	wchar_t partial[DumpPathSize + 8] = {};
 	HANDLE file = INVALID_HANDLE_VALUE;
 	// Two dumps of one process in one millisecond take the next free number.
 	for (int attempt = 0; attempt < 100 && file == INVALID_HANDLE_VALUE; ++attempt) {
 		const int printed = attempt == 0 ?
-			swprintf_s(path, L"%s\\sf4e-crash-%04u%02u%02u-%02u%02u%02u-%03u-%lu.dmp", directory, now.wYear, now.wMonth,
-				now.wDay, now.wHour, now.wMinute, now.wSecond, now.wMilliseconds, processId) :
-			swprintf_s(path, L"%s\\sf4e-crash-%04u%02u%02u-%02u%02u%02u-%03u-%lu-%02d.dmp", directory, now.wYear, now.wMonth,
-				now.wDay, now.wHour, now.wMinute, now.wSecond, now.wMilliseconds, processId, attempt);
+			swprintf_s(path, L"%s\\sf4e-crash-%04u%02u%02u-%02u%02u%02u-%03u-%lu%s.dmp", directory, now.wYear, now.wMonth,
+				now.wDay, now.wHour, now.wMinute, now.wSecond, now.wMilliseconds, processId, suffix) :
+			swprintf_s(path, L"%s\\sf4e-crash-%04u%02u%02u-%02u%02u%02u-%03u-%lu-%02d%s.dmp", directory, now.wYear, now.wMonth,
+				now.wDay, now.wHour, now.wMinute, now.wSecond, now.wMilliseconds, processId, attempt, suffix);
 		if (printed < 0 || swprintf_s(partial, L"%s.partial", path) < 0) return false;
 		if (GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES) continue;
 		// Nobody else may open the dump until it is published: a reader could
@@ -78,8 +105,9 @@ inline bool WriteDump(HANDLE process, DWORD processId, const wchar_t* directory,
 	MINIDUMP_EXCEPTION_INFORMATION exception = { threadId, pointers, clientPointers ? TRUE : FALSE };
 	// Memory that changes while it is read (a dump of a running process, and
 	// always a dump of oneself) can fail the write with ERROR_PARTIAL_COPY.
-	// Try again, then with the plain dump, rather than end up with none.
-	const MINIDUMP_TYPE types[] = { DumpType, DumpType, MiniDumpNormal };
+	// Try again (a heap dump with the ordinary type), then with the plain dump,
+	// rather than end up with none.
+	const MINIDUMP_TYPE types[] = { heap ? HeapDumpType : DumpType, DumpType, MiniDumpNormal };
 	BOOL written = FALSE;
 	for (const MINIDUMP_TYPE type : types) {
 		LARGE_INTEGER start = {};
@@ -121,19 +149,24 @@ inline std::vector<std::wstring> DumpFiles(const wchar_t* directory, const wchar
 	return names;
 }
 
-// Keeps the newest `keep` finished dumps in `directory` (about 5 MB each;
-// the names sort by time) and clears any unfinished ".partial" left by an
-// interrupted write. Call it once the game has exited. Launcher side only:
-// it allocates.
+// Keeps the newest `keep` ordinary dumps and the newest HeapDumpsKept heap
+// dumps in `directory` (the names sort by time) and clears any unfinished
+// ".partial" left by an interrupted write. Call it once the game has exited.
+// Launcher side only: it allocates.
 inline void PruneDumps(const wchar_t* directory, size_t keep) {
 	for (const auto& name : DumpFiles(directory, L"sf4e-crash-*.dmp.partial"))
 		DeleteFileW((std::wstring(directory) + L"\\" + name).c_str());
-	auto finished = DumpFiles(directory, L"sf4e-crash-*.dmp");
-	// "*.dmp" also matches "*.dmp.partial" under 8.3 names; count only whole dumps.
-	finished.erase(std::remove_if(finished.begin(), finished.end(), [](const std::wstring& name) {
-		return name.size() < 4 || _wcsicmp(name.c_str() + name.size() - 4, L".dmp") != 0;
-	}), finished.end());
-	for (size_t i = 0; i + keep < finished.size(); ++i) DeleteFileW((std::wstring(directory) + L"\\" + finished[i]).c_str());
+	std::vector<std::wstring> ordinary, heap;
+	for (const auto& name : DumpFiles(directory, L"sf4e-crash-*.dmp")) {
+		// "*.dmp" also matches "*.dmp.partial" under 8.3 names; count only whole dumps.
+		if (name.size() < 4 || _wcsicmp(name.c_str() + name.size() - 4, L".dmp") != 0) continue;
+		(IsHeapDumpName(name.c_str()) ? heap : ordinary).push_back(name);
+	}
+	const auto prune = [directory](const std::vector<std::wstring>& names, size_t kept) {
+		for (size_t i = 0; i + kept < names.size(); ++i) DeleteFileW((std::wstring(directory) + L"\\" + names[i]).c_str());
+	};
+	prune(ordinary, keep);
+	prune(heap, HeapDumpsKept);
 }
 
 // The launcher's end: two events and the page that carries the request.

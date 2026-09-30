@@ -9,6 +9,7 @@
 #include "../sf4e/sf4e__CrashDiagnostics.hxx"
 
 #include <fstream>
+#include <iterator>
 #include <memory>
 #include <sstream>
 #include <stdlib.h>
@@ -24,6 +25,41 @@ using namespace sf4e::crash;
 namespace sf4e { namespace Platform { unsigned long long AsyncLogDropped() { return 0; } } }
 
 namespace {
+
+// Bytes no module holds: built at run time into a heap block nothing points
+// at, so only a dump that keeps heap memory can contain them.
+constexpr size_t MarkerSize = 256;
+void FillMarker(unsigned char* out) {
+	for (size_t i = 0; i < MarkerSize; ++i) out[i] = static_cast<unsigned char>((i * 131 + 17) ^ 0xA5);
+}
+
+// On a thread that then exits, so no stack, live or stale, still holds the
+// block's address for a dump to follow.
+DWORD WINAPI MarkerThread(void*) {
+	HANDLE heap = HeapCreate(0, 0, 0);
+	auto* block = static_cast<unsigned char*>(heap ? HeapAlloc(heap, 0, MarkerSize) : nullptr);
+	if (!block) return 1;
+	FillMarker(block);
+	return 0;
+}
+
+void LeaveUnreferencedMarker() {
+	HANDLE thread = CreateThread(nullptr, 0, MarkerThread, nullptr, 0, nullptr);
+	CHECK(thread);
+	WaitForSingleObject(thread, INFINITE);
+	DWORD code = 1;
+	GetExitCodeThread(thread, &code);
+	CloseHandle(thread);
+	CHECK(code == 0);
+}
+
+bool FileContainsMarker(const std::wstring& path) {
+	std::ifstream in(path.c_str(), std::ios::binary);
+	const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+	unsigned char marker[MarkerSize];
+	FillMarker(marker);
+	return bytes.find(std::string(reinterpret_cast<const char*>(marker), MarkerSize)) != std::string::npos;
+}
 
 HANDLE HandleArgument(const char* text) {
 	return reinterpret_cast<HANDLE>(static_cast<uintptr_t>(strtoull(text, nullptr, 16)));
@@ -43,6 +79,7 @@ int RunChild(char** argv) {
 	Install(logs);
 	ConfigureDumpChannel(HandleArgument(argv[4]), HandleArgument(argv[5]), HandleArgument(argv[6]));
 	Sleep(300); // the logger's worker puts the line in the ring
+	LeaveUnreferencedMarker();
 	HeapSetInformation(nullptr, HeapEnableTerminationOnCorruption, nullptr, 0);
 	HANDLE heap = std::string(argv[2]) == "process" ? GetProcessHeap() : HeapCreate(0, 0, 0);
 	if (!heap) return 71;
@@ -140,7 +177,10 @@ void TestHandlerRecordsAndLauncherDumps(const wchar_t* heap) {
 	CHECK(served == 1 && written == 1);
 	ULONGLONG size = 0;
 	CHECK(dump.find(logs + L"\\sf4e-crash-") == 0);
+	CHECK(IsHeapDumpName(dump.c_str()));
 	CHECK(DumpedExceptionCode(dump, size) == HeapCorruptionCode);
+	// The heap itself is in the dump, not only what the stacks point at.
+	CHECK(FileContainsMarker(dump));
 	CHECK(CountDumps(logs) == 1);
 	std::printf("heap_corruption_capture_test: %ls heap dump is %llu KB\n", heap, size / 1024);
 	// MiniDumpNormal gave about 64 KB, too little to follow a corruption.
@@ -168,6 +208,15 @@ void TestEveryDumpIsKeptAndBadRequestsRefused() {
 		const bool ok = WriteDump(GetCurrentProcess(), GetCurrentProcessId(), logs.c_str(), GetCurrentThreadId(), nullptr, false, path);
 		if (!ok) std::fprintf(stderr, "WriteDump failed: 0x%08lX\n", GetLastError());
 		CHECK(ok);
+		CHECK(!IsHeapDumpName(path));
+	}
+	// Other crashes keep the smaller dump: no heap block nothing points at.
+	LeaveUnreferencedMarker();
+	{
+		wchar_t plain[DumpPathSize] = {};
+		CHECK(WriteDump(GetCurrentProcess(), GetCurrentProcessId(), logs.c_str(), GetCurrentThreadId(), nullptr, false, plain));
+		CHECK(!FileContainsMarker(plain));
+		DeleteFileW(plain);
 	}
 	CHECK(std::wstring(paths[0]) != paths[1] && std::wstring(paths[1]) != paths[2] && std::wstring(paths[0]) != paths[2]);
 	CHECK(CountDumps(logs) == 3);
@@ -215,6 +264,30 @@ void TestEveryDumpIsKeptAndBadRequestsRefused() {
 	CHECK(served == 0);
 }
 
+// Heap dumps are large, so fewer of them are kept, apart from the others.
+void TestHeapDumpsAreKeptApart() {
+	const std::wstring logs = TempDirectory();
+	const wchar_t* names[] = {
+		L"sf4e-crash-20260101-000000-000-1-heap.dmp", L"sf4e-crash-20260102-000000-000-1-heap.dmp",
+		L"sf4e-crash-20260103-000000-000-1-heap.dmp", L"sf4e-crash-20260101-000000-000-2.dmp",
+		L"sf4e-crash-20260102-000000-000-2.dmp", L"sf4e-crash-20260103-000000-000-2.dmp",
+	};
+	for (const wchar_t* name : names) {
+		HANDLE file = CreateFileW((logs + L"\\" + name).c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, 0, nullptr);
+		CHECK(file != INVALID_HANDLE_VALUE);
+		CloseHandle(file);
+	}
+	PruneDumps(logs.c_str(), 5);
+	CHECK(CountDumps(logs) == 3 + HeapDumpsKept);
+	CHECK(GetFileAttributesW((logs + L"\\" + names[0]).c_str()) == INVALID_FILE_ATTRIBUTES);
+	CHECK(GetFileAttributesW((logs + L"\\" + names[2]).c_str()) != INVALID_FILE_ATTRIBUTES);
+	CHECK(GetFileAttributesW((logs + L"\\" + names[3]).c_str()) != INVALID_FILE_ATTRIBUTES);
+	PruneDumps(logs.c_str(), 0);
+	CHECK(CountDumps(logs) == HeapDumpsKept);
+	for (const auto& name : DumpFiles(logs.c_str(), L"*")) DeleteFileW((logs + L"\\" + name).c_str());
+	RemoveDirectoryW(logs.c_str());
+}
+
 void TestClientWithoutChannelDeclines() {
 	DumpClient client;
 	CHECK(!client.Available());
@@ -229,6 +302,7 @@ int main(int argc, char** argv) {
 	if (argc == 7 && std::string(argv[1]) == "child") return RunChild(argv);
 	TestClientWithoutChannelDeclines();
 	TestEveryDumpIsKeptAndBadRequestsRefused();
+	TestHeapDumpsAreKeptApart();
 	TestHandlerRecordsAndLauncherDumps(L"private");
 	TestHandlerRecordsAndLauncherDumps(L"process");
 	std::printf("heap_corruption_capture_test: all tests passed\n");
