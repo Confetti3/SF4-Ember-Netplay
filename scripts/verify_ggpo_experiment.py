@@ -41,7 +41,13 @@ def main() -> None:
             run("git", "apply", "--check", "--ignore-whitespace", patch, cwd=source)
             run("git", "apply", "--ignore-whitespace", "--whitespace=nowarn", patch, cwd=source)
             print(f"PASS applied {name}", flush=True)
-        shutil.copy2(port / "input-repair.h", source / "src/lib/ggpo/network/input-repair.h")
+        # Copy the same headers the portfile adds after patching.
+        headers = re.findall(r'configure_file\("\$\{CMAKE_CURRENT_LIST_DIR\}/([^"]+)"\s+'
+                             r'"\$\{SOURCE_PATH\}/([^"]+)"\s+COPYONLY\)', text)
+        if not headers:
+            raise RuntimeError("No GGPO port headers found")
+        for name, target in headers:
+            shutil.copy2(port / name, source / target)
         run("git", "diff", "--check", cwd=source)
         if args.build:
             build = work / "build"
