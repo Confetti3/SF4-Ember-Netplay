@@ -18,6 +18,7 @@
 #include "../Dimps/Dimps__Platform.hxx"
 #include "sf4e.hxx"
 #include "sf4e__CrashDiagnostics.hxx"
+#include "sf4e__Game.hxx"
 #include "sf4e__Platform.hxx"
 #include "sf4e__UserApp.hxx"
 #include "sf4e__Overlay.hxx"
@@ -250,28 +251,31 @@ DWORD fD3D::Reset() {
     return out;
 }
 
-void fGFxApp::RecordToAdditionalMemento(rGFxApp* a, AdditionalMemento& m) {
-    int i;
+static_assert(sizeof(Dimps::Eva::IEmSpriteAction) == 0x260, "the pool's slot stride (0x6EE9A0)");
+static_assert(NUM_GFX_ACTIONS == sf4e::gfx::MaxActions, "memento slots");
 
-    rGFxApp::ObjectPool<Dimps::Eva::IEmSpriteAction>* actionPool = rGFxApp::GetActionPool(a);
-    for (i = 0; i < NUM_GFX_ACTIONS; i++) {
-        m.actions[i].first = actionPool->useIndex[i];
-        if (actionPool->useIndex[i]) {
-            sf4e::Eva::IEmSpriteAction::RecordToAdditionalMemento(&actionPool->raw[i], m.actions[i].second);
-        }
+void fGFxApp::RecordToAdditionalMemento(rGFxApp* a, AdditionalMemento& m) {
+    const auto* actionPool = rGFxApp::GetActionPool(a);
+    if (!sf4e::gfx::Capture(*actionPool, m.pool)) {
+        spdlog::error("GFx memento: action pool max={} used={} does not fit the memento", actionPool->max, actionPool->used);
+        sf4e::Game::MementoFailure::record = true;
+        return;
     }
+    for (std::uint32_t i = 0; i < m.pool.max; i++)
+        if (m.pool.inUse[i]) sf4e::Eva::IEmSpriteAction::RecordToAdditionalMemento(&actionPool->raw[i], m.actions[i]);
 }
 
 void fGFxApp::RestoreFromAdditionalMemento(rGFxApp* a, const AdditionalMemento& m) {
-    int i;
-
-    rGFxApp::ObjectPool<Dimps::Eva::IEmSpriteAction>* actionPool = rGFxApp::GetActionPool(a);
-    for (i = 0; i < NUM_GFX_ACTIONS; i++) {
-        actionPool->useIndex[i] = m.actions[i].first;
-        if (actionPool->useIndex[i]) {
-            sf4e::Eva::IEmSpriteAction::RestoreFromAdditionalMemento(&actionPool->raw[i], m.actions[i].second);
-        }
+    auto* actionPool = rGFxApp::GetActionPool(a);
+    if (!sf4e::gfx::Fits(*actionPool, m.pool)) {
+        spdlog::error("GFx memento: saved action pool (max={} used={}) does not fit the live one (max={} used={})",
+            m.pool.max, m.pool.used, actionPool->max, actionPool->used);
+        sf4e::Game::MementoFailure::restore = true;
+        return;
     }
+    sf4e::gfx::Apply(*actionPool, m.pool);
+    for (std::uint32_t i = 0; i < m.pool.max; i++)
+        if (m.pool.inUse[i]) sf4e::Eva::IEmSpriteAction::RestoreFromAdditionalMemento(&actionPool->raw[i], m.actions[i]);
 }
 
 void fMain::Install() {

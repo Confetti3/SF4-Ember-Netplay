@@ -3,6 +3,7 @@
 #include <vector>
 #include <windows.h>
 #include "../Dimps/Dimps__Platform.hxx"
+#include "../common/GfxActionPoolState.hxx"
 #include "sf4e.hxx"
 
 namespace sf4e {
@@ -33,9 +34,13 @@ namespace sf4e {
 		struct GFxApp : Dimps::Platform::GFxApp
 		{
 			struct AdditionalMemento {
-				std::pair<bool, sf4e::Eva::IEmSpriteAction::AdditionalMemento> actions[NUM_GFX_ACTIONS];
+				gfx::PoolState pool;
+				// Filled for the slots the pool state marks in use.
+				sf4e::Eva::IEmSpriteAction::AdditionalMemento actions[NUM_GFX_ACTIONS];
 			};
 
+			// A pool the memento cannot represent, or a saved pool that does not
+			// fit the live one, sets Game::MementoFailure (nothing is written then).
 			static void RecordToAdditionalMemento(Dimps::Platform::GFxApp* a, AdditionalMemento& m);
 			static void RestoreFromAdditionalMemento(Dimps::Platform::GFxApp* a, const AdditionalMemento& m);
 		};
