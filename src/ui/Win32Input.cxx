@@ -2,13 +2,12 @@
 #include <imgui.h>
 #include <imgui_impl_win32.h>
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
+IMGUI_API void ImGui_ImplWin32_SetCursorOwned(bool owned);
 
 namespace sf4e { namespace ui {
-void SetOverlayCursorOwnership(bool capture) {
-    auto& io = ImGui::GetIO();
-    if (capture) io.ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
-    else io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
-}
+// Kept in the backend rather than io.ConfigFlags: the window procedure sets it
+// on the message thread, which may not be the drawing thread.
+void SetOverlayCursorOwnership(bool capture) { ImGui_ImplWin32_SetCursorOwned(capture); }
 namespace {
 // The button-up that ends a press, or 0 when the message is not a button press.
 UINT ReleaseOf(UINT message) {
@@ -41,11 +40,9 @@ bool ActivationClickFilter::Swallow(UINT message, LPARAM l) {
 }
 LRESULT HandleOverlayMessage(HWND window, UINT message, WPARAM w, LPARAM l,
                              bool capture, bool menuAvailable, bool pointer) {
-    SetOverlayCursorOwnership(capture || pointer);
-    return OverlayTakesMessage(message, w, capture, menuAvailable, pointer, ImGui_ImplWin32_WndProcHandler(window, message, w, l));
-}
-LRESULT OverlayTakesMessage(UINT message, WPARAM w, bool capture, bool menuAvailable, bool pointer, LRESULT handled) {
     const bool mouse = capture || pointer;
+    SetOverlayCursorOwnership(mouse);
+    const auto handled = ImGui_ImplWin32_WndProcHandler(window, message, w, l);
     const bool key = message == WM_KEYDOWN || message == WM_KEYUP || message == WM_CHAR;
     // In particular, WM_SETCURSOR is not in WM_MOUSEFIRST..WM_MOUSELAST.
     // Letting it fall through makes the native handler overwrite the cursor

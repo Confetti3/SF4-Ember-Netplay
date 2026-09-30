@@ -22,7 +22,6 @@
 #include <spdlog/spdlog.h>
 #include <memory>
 #include <atomic>
-#include <chrono>
 #include <mutex>
 
 namespace Overlay = sf4e::Overlay;
@@ -48,14 +47,16 @@ static int lobbyStageID = 0, lobbyMenuCharaID = 0;
 static sf4e::selection::StageMask lobbyStageExcluded = 0;
 // The thread that draws the overlay (NoteMessageThread).
 static std::atomic<DWORD> s_drawThread{0};
-// ImGui's context and input queue are not thread-safe, and SF4 can pump the
-// window's messages on another thread than the one that draws (sf4e.log then
-// says "window messages arrive on thread"). Every ImGui access holds this
-// lock. The message thread waits for it only briefly: were the draw thread
-// ever to send the window a message while holding it, that message skips
-// ImGui instead of deadlocking the two threads.
-static std::recursive_timed_mutex s_imguiLock;
-using ImGuiLock = std::unique_lock<std::recursive_timed_mutex>;
+// SF4 can pump the window's messages on another thread than the one that
+// draws (sf4e.log then says "window messages arrive on thread"). The Win32
+// backend queues their ImGui input for the drawing thread (deferred input), so
+// the window procedure only needs the context to stay alive while it runs:
+// this lock covers creating and destroying the context, never a frame.
+static std::recursive_mutex s_imguiLock;
+using ImGuiLock = std::lock_guard<std::recursive_mutex>;
+// Whether the menu can open now, published by the drawing thread for the
+// window procedure (F10 is the game's key otherwise).
+static std::atomic<bool> s_menuAvailable{false};
 static rVsMode::ConfirmedCharaConditions lobbyConditions = {0,0,0,0,0,0,0,0,14};
 
 bool Overlay::CapturesMenuInput() { return capture.load(); }
@@ -81,6 +82,7 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(hWnd));
 	ImGui::GetPlatformIO().Platform_SetImeDataFn = nullptr;
 	ImGui_ImplWin32_Init(hWnd);
+	ImGui_ImplWin32_SetDeferredInput(true);
 	ImGui_ImplDX9_Init(lpDevice);
 	wchar_t gamePath[MAX_PATH] = {}, modulePath[MAX_PATH] = {};
 	HMODULE module = nullptr;
@@ -247,13 +249,13 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 
 void Overlay::DrawOverlay() {
     s_drawThread.store(GetCurrentThreadId());
-    ImGuiLock lock(s_imguiLock);
 
     if (!ImGui::GetCurrentContext()) return;
     const auto sharedSnapshot = sf4e::NetplayFacade::GetRuntimeSnapshotShared();
     const auto& snapshot = *sharedSnapshot;
     if (sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(s_overlayWindow) * snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
     presentation.Update(snapshot.atMainMenu, snapshot.session.match, snapshot.offlineRequested, focused);
+    s_menuAvailable = presentation.Available();
     if(mainRequested.exchange(false) && presentation.Available()) presentation.Open();
     static bool inviteShown=false;
     if (snapshot.discordPending && !inviteShown && snapshot.atMainMenu) { presentation.Open(); inviteShown=true; }
@@ -394,7 +396,7 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
     // The click that brings the game forward again must not press an Ember
     // row that is drawn under the pointer while the game is behind another window.
     static sf4e::ui::ActivationClickFilter activationClick;
-    ImGuiLock lock(s_imguiLock, std::chrono::milliseconds(50));
+    ImGuiLock lock(s_imguiLock);
     // Native display resets can pump activation messages after FreeOverlay and
     // before InitializeOverlay. Focus belongs to the window, not its ImGui
     // context: dropping reactivation here leaves F10/Start permanently gated.
@@ -405,17 +407,13 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
             sf4e::training::Submit({sf4e::training::Action::Stop, 0, training.generation});
             capture = false; pointerCapture = false;
             activationClick.Reset();
-            if (lock.owns_lock() && ImGui::GetCurrentContext()) {
-                sf4e::ui::SetOverlayCursorOwnership(false);
-                ImGui::GetIO().ClearInputKeys(); ImGui::GetIO().ClearInputMouse();
-            }
+            sf4e::ui::SetOverlayCursorOwnership(false);
+            if (ImGui::GetCurrentContext()) ImGui_ImplWin32_ClearInput();
         }
     }
-    if (lock.owns_lock() && !ImGui::GetCurrentContext()) return 0;
+    if (!ImGui::GetCurrentContext()) return 0;
     if (activationClick.Swallow(message, l)) return 0;
-    const auto handled = lock.owns_lock() ?
-        sf4e::ui::HandleOverlayMessage(window, message, w, l, capture, presentation.Available(), pointerCapture) :
-        sf4e::ui::OverlayTakesMessage(message, w, capture, presentation.Available(), pointerCapture);
+    const auto handled = sf4e::ui::HandleOverlayMessage(window, message, w, l, capture, s_menuAvailable, pointerCapture);
     if (trainingAvailable && w >= VK_F5 && w <= VK_F8 &&
         (message == WM_KEYDOWN || message == WM_KEYUP || message == WM_SYSKEYDOWN || message == WM_SYSKEYUP)) return 1;
     return handled;

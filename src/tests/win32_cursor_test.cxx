@@ -3,7 +3,10 @@
 #include "../ui/Win32Input.hxx"
 #include <imgui.h>
 #include <imgui_impl_win32.h>
+#include <atomic>
 #include <cstdio>
+#include <thread>
+IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
 int main() {
     HWND window = CreateWindowW(L"STATIC", L"Ember cursor regression", WS_OVERLAPPEDWINDOW,
@@ -94,6 +97,46 @@ int main() {
         check(filter.Swallow(WM_LBUTTONDOWN, 0), "a second activation did not swallow its press");
         filter.Reset();
         check(!filter.Swallow(WM_LBUTTONUP, 0), "Reset kept a release pending");
+    }
+    // SF4 may deliver window messages on another thread than the one that
+    // draws. With deferred input, every press and release sent from a second
+    // thread reaches ImGui in order while frames run, and focus loss releases
+    // what is still held.
+    {
+        auto& io = ImGui::GetIO();
+        io.DisplaySize = ImVec2(640, 480);
+        unsigned char* pixels = nullptr; int width = 0, height = 0;
+        io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+        const auto frame = [] { ImGui_ImplWin32_NewFrame(); ImGui::NewFrame(); ImGui::EndFrame(); };
+        ImGui_ImplWin32_SetDeferredInput(true);
+        frame();
+        std::atomic<bool> sent{false};
+        int pressesSeen = 0;
+        std::thread messages([&] {
+            for (int i = 0; i < 2000; ++i) {
+                ImGui_ImplWin32_WndProcHandler(window, WM_KEYDOWN, VK_LEFT, 0);
+                ImGui_ImplWin32_WndProcHandler(window, WM_KEYUP, VK_LEFT, 0xC0000000);
+                ImGui_ImplWin32_WndProcHandler(window, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(10, 10));
+                ImGui_ImplWin32_WndProcHandler(window, WM_LBUTTONUP, 0, MAKELPARAM(10, 10));
+                ImGui_ImplWin32_WndProcHandler(window, WM_CHAR, 'd', 0);
+            }
+            ImGui_ImplWin32_WndProcHandler(window, WM_KEYDOWN, VK_RIGHT, 0);
+            sent = true;
+        });
+        while (!sent) { frame(); if (ImGui::IsKeyDown(ImGuiKey_LeftArrow) || ImGui::IsMouseDown(0)) ++pressesSeen; }
+        messages.join();
+        // ImGui applies one transition per key each frame, so the queued
+        // presses and releases take several frames to play out.
+        for (int i = 0; i < 20000 && (ImGui::IsKeyDown(ImGuiKey_LeftArrow) || ImGui::IsMouseDown(0) || !ImGui::IsKeyDown(ImGuiKey_RightArrow)); ++i) frame();
+        frame();
+        check(pressesSeen > 0, "no press from the message thread reached a frame");
+        check(!ImGui::IsKeyDown(ImGuiKey_LeftArrow) && !ImGui::IsMouseDown(0), "a release from the message thread was lost");
+        check(ImGui::IsKeyDown(ImGuiKey_RightArrow), "the last press from the message thread was lost");
+        std::thread focus([&] { ImGui_ImplWin32_ClearInput(); });
+        focus.join();
+        frame();
+        check(!ImGui::IsKeyDown(ImGuiKey_RightArrow), "focus loss did not release a held key");
+        ImGui_ImplWin32_SetDeferredInput(false);
     }
     SetCursor(previous);
     ImGui_ImplWin32_Shutdown(); ImGui::DestroyContext(); DestroyWindow(window);

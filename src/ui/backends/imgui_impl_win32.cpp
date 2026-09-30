@@ -105,6 +105,19 @@ typedef DWORD(WINAPI* PFN_XInputGetState)(DWORD, XINPUT_STATE*);
 #pragma GCC diagnostic ignored "-Wcast-function-type"       // warning: cast between incompatible function types (for loader)
 #endif
 
+// SF4 Ember: SF4 can deliver window messages on another thread than the one
+// that draws. With deferred input (ImGui_ImplWin32_SetDeferredInput) the window
+// procedure keeps its Win32 work (capture, mouse tracking, key state) on the
+// message thread but queues the ImGui input events it would submit, in order;
+// ImGui_ImplWin32_NewFrame applies them on the drawing thread. Nothing is
+// dropped, and the message thread never waits for a frame.
+struct ImGui_ImplWin32_InputEvent
+{
+    enum Kind { MouseSource, MousePos, MouseButton, MouseWheel, Key, Focus, CharUTF16, Char } kind;
+    int         a, b, c;
+    float       x, y;
+};
+
 struct ImGui_ImplWin32_Data
 {
     HWND                        hWnd;
@@ -115,6 +128,13 @@ struct ImGui_ImplWin32_Data
     INT64                       TicksPerSecond;
     ImGuiMouseCursor            LastMouseCursor;
     UINT32                      KeyboardCodePage;
+
+    // SF4 Ember: deferred input (see ImGui_ImplWin32_InputEvent). InputLock
+    // guards the queue and the mouse fields above between the two threads.
+    SRWLOCK                     InputLock;
+    ImVector<ImGui_ImplWin32_InputEvent> PendingInput;
+    bool                        DeferInput;
+    bool                        PendingClear;
 
 #ifndef IMGUI_IMPL_WIN32_DISABLE_GAMEPAD
     bool                        HasGamepad;
@@ -139,6 +159,60 @@ static ImGui_ImplWin32_Data* ImGui_ImplWin32_GetBackendData(ImGuiIO& io)
 {
     return (ImGui_ImplWin32_Data*)io.BackendPlatformUserData;
 }
+
+// SF4 Ember: set while a deferred window procedure runs on this thread.
+static thread_local bool g_Win32Deferring = false;
+// SF4 Ember: whether Ember owns the OS cursor. Written from either thread, so
+// it lives here rather than in io.ConfigFlags.
+static volatile LONG g_Win32CursorOwned = 1;
+
+static void ImGui_ImplWin32_ApplyInput(ImGuiIO& io, const ImGui_ImplWin32_InputEvent& e)
+{
+    switch (e.kind)
+    {
+    case ImGui_ImplWin32_InputEvent::MouseSource: io.AddMouseSourceEvent((ImGuiMouseSource)e.a); break;
+    case ImGui_ImplWin32_InputEvent::MousePos:    io.AddMousePosEvent(e.x, e.y); break;
+    case ImGui_ImplWin32_InputEvent::MouseButton: io.AddMouseButtonEvent(e.a, e.b != 0); break;
+    case ImGui_ImplWin32_InputEvent::MouseWheel:  io.AddMouseWheelEvent(e.x, e.y); break;
+    case ImGui_ImplWin32_InputEvent::Key:
+        io.AddKeyEvent((ImGuiKey)e.a, e.b != 0);
+        if (e.c >= 0) // Modifier keys (ImGuiMod_*) carry no native key.
+            io.SetKeyEventNativeData((ImGuiKey)e.a, e.c, -1); // To support legacy indexing (<1.87 user code)
+        break;
+    case ImGui_ImplWin32_InputEvent::Focus:       io.AddFocusEvent(e.a != 0); break;
+    case ImGui_ImplWin32_InputEvent::CharUTF16:   io.AddInputCharacterUTF16((ImWchar16)e.a); break;
+    case ImGui_ImplWin32_InputEvent::Char:        io.AddInputCharacter((unsigned int)e.a); break;
+    }
+}
+
+static void ImGui_ImplWin32_SubmitInput(ImGuiIO& io, ImGui_ImplWin32_InputEvent::Kind kind, int a = 0, int b = 0, int c = 0, float x = 0.0f, float y = 0.0f)
+{
+    const ImGui_ImplWin32_InputEvent e = { kind, a, b, c, x, y };
+    ImGui_ImplWin32_Data* bd = (ImGui_ImplWin32_Data*)io.BackendPlatformUserData;
+    if (g_Win32Deferring && bd != nullptr)
+        bd->PendingInput.push_back(e);
+    else
+        ImGui_ImplWin32_ApplyInput(io, e);
+}
+
+// SF4 Ember: holds InputLock for a scope when input is deferred.
+struct ImGui_ImplWin32_InputScope
+{
+    ImGui_ImplWin32_Data* bd;
+    bool locked;
+    ImGui_ImplWin32_InputScope(ImGui_ImplWin32_Data* data, bool deferring) : bd(data), locked(data != nullptr && data->DeferInput)
+    {
+        if (!locked) return;
+        ::AcquireSRWLockExclusive(&bd->InputLock);
+        g_Win32Deferring = deferring;
+    }
+    ~ImGui_ImplWin32_InputScope()
+    {
+        if (!locked) return;
+        g_Win32Deferring = false;
+        ::ReleaseSRWLockExclusive(&bd->InputLock);
+    }
+};
 
 // Functions
 static void ImGui_ImplWin32_UpdateKeyboardCodePage(ImGuiIO& io)
@@ -234,12 +308,12 @@ void    ImGui_ImplWin32_Shutdown()
     IM_DELETE(bd);
 }
 
-static bool ImGui_ImplWin32_UpdateMouseCursor(ImGuiIO& io, ImGuiMouseCursor imgui_cursor)
+static bool ImGui_ImplWin32_UpdateMouseCursor(ImGuiIO& io, ImGuiMouseCursor imgui_cursor, bool read_io = true)
 {
-    if (io.ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange)
+    if (!g_Win32CursorOwned || (read_io && (io.ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange)))
         return false;
 
-    if (imgui_cursor == ImGuiMouseCursor_None || io.MouseDrawCursor)
+    if (imgui_cursor == ImGuiMouseCursor_None || (read_io && io.MouseDrawCursor))
     {
         // Hide OS mouse cursor if imgui is drawing it or if it wants no cursor
         ::SetCursor(nullptr);
@@ -274,8 +348,7 @@ static bool IsVkDown(int vk)
 
 static void ImGui_ImplWin32_AddKeyEvent(ImGuiIO& io, ImGuiKey key, bool down, int native_keycode, int native_scancode = -1)
 {
-    io.AddKeyEvent(key, down);
-    io.SetKeyEventNativeData(key, native_keycode, native_scancode); // To support legacy indexing (<1.87 user code)
+    ImGui_ImplWin32_SubmitInput(io, ImGui_ImplWin32_InputEvent::Key, key, down, native_keycode);
     IM_UNUSED(native_scancode);
 }
 
@@ -296,10 +369,10 @@ static void ImGui_ImplWin32_ProcessKeyEventsWorkarounds(ImGuiIO& io)
 
 static void ImGui_ImplWin32_UpdateKeyModifiers(ImGuiIO& io)
 {
-    io.AddKeyEvent(ImGuiMod_Ctrl, IsVkDown(VK_CONTROL));
-    io.AddKeyEvent(ImGuiMod_Shift, IsVkDown(VK_SHIFT));
-    io.AddKeyEvent(ImGuiMod_Alt, IsVkDown(VK_MENU));
-    io.AddKeyEvent(ImGuiMod_Super, IsVkDown(VK_LWIN) || IsVkDown(VK_RWIN));
+    ImGui_ImplWin32_AddKeyEvent(io, ImGuiMod_Ctrl, IsVkDown(VK_CONTROL), -1);
+    ImGui_ImplWin32_AddKeyEvent(io, ImGuiMod_Shift, IsVkDown(VK_SHIFT), -1);
+    ImGui_ImplWin32_AddKeyEvent(io, ImGuiMod_Alt, IsVkDown(VK_MENU), -1);
+    ImGui_ImplWin32_AddKeyEvent(io, ImGuiMod_Super, IsVkDown(VK_LWIN) || IsVkDown(VK_RWIN), -1);
 }
 
 static void ImGui_ImplWin32_UpdateMouseData(ImGuiIO& io)
@@ -393,6 +466,18 @@ void    ImGui_ImplWin32_NewFrame()
     ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
     IM_ASSERT(bd != nullptr && "Context or backend not initialized? Did you call ImGui_ImplWin32_Init()?");
     ImGuiIO& io = ImGui::GetIO();
+
+    // SF4 Ember: apply the input the window procedure queued, in order.
+    ImGui_ImplWin32_InputScope input_scope(bd, false);
+    if (bd->PendingClear)
+    {
+        io.ClearInputKeys();
+        io.ClearInputMouse();
+        bd->PendingClear = false;
+    }
+    for (const ImGui_ImplWin32_InputEvent& e : bd->PendingInput)
+        ImGui_ImplWin32_ApplyInput(io, e);
+    bd->PendingInput.resize(0);
 
     // Setup display size (every frame to accommodate for window resizing)
     RECT rect = { 0, 0, 0, 0 };
@@ -625,6 +710,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandlerEx(HWND hwnd, UINT msg, WPA
     ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData(io);
     if (bd == nullptr)
         return 0;
+    ImGui_ImplWin32_InputScope input_scope(bd, true); // SF4 Ember
     switch (msg)
     {
     case WM_MOUSEMOVE:
@@ -646,8 +732,8 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandlerEx(HWND hwnd, UINT msg, WPA
         POINT mouse_pos = { (LONG)GET_X_LPARAM(lParam), (LONG)GET_Y_LPARAM(lParam) };
         if (msg == WM_NCMOUSEMOVE && ::ScreenToClient(hwnd, &mouse_pos) == FALSE) // WM_NCMOUSEMOVE are provided in absolute coordinates.
             return 0;
-        io.AddMouseSourceEvent(mouse_source);
-        io.AddMousePosEvent((float)mouse_pos.x, (float)mouse_pos.y);
+        ImGui_ImplWin32_SubmitInput(io, ImGui_ImplWin32_InputEvent::MouseSource, mouse_source);
+        ImGui_ImplWin32_SubmitInput(io, ImGui_ImplWin32_InputEvent::MousePos, 0, 0, 0, (float)mouse_pos.x, (float)mouse_pos.y);
         return 0;
     }
     case WM_MOUSELEAVE:
@@ -659,7 +745,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandlerEx(HWND hwnd, UINT msg, WPA
             if (bd->MouseHwnd == hwnd)
                 bd->MouseHwnd = nullptr;
             bd->MouseTrackedArea = 0;
-            io.AddMousePosEvent(-FLT_MAX, -FLT_MAX);
+            ImGui_ImplWin32_SubmitInput(io, ImGui_ImplWin32_InputEvent::MousePos, 0, 0, 0, -FLT_MAX, -FLT_MAX);
         }
         return 0;
     }
@@ -670,7 +756,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandlerEx(HWND hwnd, UINT msg, WPA
             ::TrackMouseEvent(&tme_cancel);
             bd->MouseHwnd = nullptr;
             bd->MouseTrackedArea = 0;
-            io.AddMousePosEvent(-FLT_MAX, -FLT_MAX);
+            ImGui_ImplWin32_SubmitInput(io, ImGui_ImplWin32_InputEvent::MousePos, 0, 0, 0, -FLT_MAX, -FLT_MAX);
         }
         return 0;
     case WM_LBUTTONDOWN: case WM_LBUTTONDBLCLK:
@@ -687,8 +773,8 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandlerEx(HWND hwnd, UINT msg, WPA
         if (bd->MouseButtonsDown == 0 && ::GetCapture() == nullptr)
             ::SetCapture(hwnd); // Allow us to read mouse coordinates when dragging mouse outside of our window bounds.
         bd->MouseButtonsDown |= 1 << button;
-        io.AddMouseSourceEvent(mouse_source);
-        io.AddMouseButtonEvent(button, true);
+        ImGui_ImplWin32_SubmitInput(io, ImGui_ImplWin32_InputEvent::MouseSource, mouse_source);
+        ImGui_ImplWin32_SubmitInput(io, ImGui_ImplWin32_InputEvent::MouseButton, button, true);
         return 0;
     }
     case WM_LBUTTONUP:
@@ -705,15 +791,15 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandlerEx(HWND hwnd, UINT msg, WPA
         bd->MouseButtonsDown &= ~(1 << button);
         if (bd->MouseButtonsDown == 0 && ::GetCapture() == hwnd)
             ::ReleaseCapture();
-        io.AddMouseSourceEvent(mouse_source);
-        io.AddMouseButtonEvent(button, false);
+        ImGui_ImplWin32_SubmitInput(io, ImGui_ImplWin32_InputEvent::MouseSource, mouse_source);
+        ImGui_ImplWin32_SubmitInput(io, ImGui_ImplWin32_InputEvent::MouseButton, button, false);
         return 0;
     }
     case WM_MOUSEWHEEL:
-        io.AddMouseWheelEvent(0.0f, (float)GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA);
+        ImGui_ImplWin32_SubmitInput(io, ImGui_ImplWin32_InputEvent::MouseWheel, 0, 0, 0, 0.0f, (float)GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA);
         return 0;
     case WM_MOUSEHWHEEL:
-        io.AddMouseWheelEvent(-(float)GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA, 0.0f);
+        ImGui_ImplWin32_SubmitInput(io, ImGui_ImplWin32_InputEvent::MouseWheel, 0, 0, 0, -(float)GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA, 0.0f);
         return 0;
     case WM_KEYDOWN:
     case WM_KEYUP:
@@ -761,7 +847,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandlerEx(HWND hwnd, UINT msg, WPA
     }
     case WM_SETFOCUS:
     case WM_KILLFOCUS:
-        io.AddFocusEvent(msg == WM_SETFOCUS);
+        ImGui_ImplWin32_SubmitInput(io, ImGui_ImplWin32_InputEvent::Focus, msg == WM_SETFOCUS);
         return 0;
     case WM_INPUTLANGCHANGE:
         ImGui_ImplWin32_UpdateKeyboardCodePage(io);
@@ -771,18 +857,20 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandlerEx(HWND hwnd, UINT msg, WPA
         {
             // You can also use ToAscii()+GetKeyboardState() to retrieve characters.
             if (wParam > 0 && wParam < 0x10000)
-                io.AddInputCharacterUTF16((unsigned short)wParam);
+                ImGui_ImplWin32_SubmitInput(io, ImGui_ImplWin32_InputEvent::CharUTF16, (int)wParam);
         }
         else
         {
             wchar_t wch = 0;
             ::MultiByteToWideChar(bd->KeyboardCodePage, MB_PRECOMPOSED, (char*)&wParam, 1, &wch, 1);
-            io.AddInputCharacter(wch);
+            ImGui_ImplWin32_SubmitInput(io, ImGui_ImplWin32_InputEvent::Char, (int)wch);
         }
         return 0;
     case WM_SETCURSOR:
         // This is required to restore cursor when transitioning from e.g resize borders to client area.
-        if (LOWORD(lParam) == HTCLIENT && ImGui_ImplWin32_UpdateMouseCursor(io, bd->LastMouseCursor))
+        // SF4 Ember: LastMouseCursor already accounts for io.MouseDrawCursor, and
+        // io may belong to another thread here, so it is not read.
+        if (LOWORD(lParam) == HTCLIENT && ImGui_ImplWin32_UpdateMouseCursor(io, bd->LastMouseCursor, false))
             return 1;
         return 0;
     case WM_DEVICECHANGE:
@@ -795,6 +883,41 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandlerEx(HWND hwnd, UINT msg, WPA
     return 0;
 }
 
+
+// SF4 Ember: call after ImGui_ImplWin32_Init, on the thread that draws.
+IMGUI_IMPL_API void ImGui_ImplWin32_SetDeferredInput(bool defer)
+{
+    ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
+    if (bd == nullptr)
+        return;
+    ::AcquireSRWLockExclusive(&bd->InputLock);
+    bd->DeferInput = defer;
+    ::ReleaseSRWLockExclusive(&bd->InputLock);
+}
+
+// SF4 Ember: releases every key and button, in order with the queued input:
+// what was queued before is dropped, what comes after still applies.
+IMGUI_IMPL_API void ImGui_ImplWin32_ClearInput()
+{
+    ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
+    if (bd == nullptr)
+        return;
+    ImGui_ImplWin32_InputScope input_scope(bd, false);
+    if (!bd->DeferInput)
+    {
+        ImGui::GetIO().ClearInputKeys();
+        ImGui::GetIO().ClearInputMouse();
+        return;
+    }
+    bd->PendingInput.resize(0);
+    bd->PendingClear = true;
+}
+
+// SF4 Ember: whether the backend may set the OS cursor; safe from any thread.
+IMGUI_IMPL_API void ImGui_ImplWin32_SetCursorOwned(bool owned)
+{
+    ::InterlockedExchange(&g_Win32CursorOwned, owned ? 1 : 0);
+}
 
 //--------------------------------------------------------------------------------------------------------
 // DPI-related helpers (optional)

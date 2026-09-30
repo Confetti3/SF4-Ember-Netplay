@@ -1,5 +1,12 @@
 #pragma once
 #include <windows.h>
+#include <imgui.h>
+
+// Ember's additions to the vendored Win32 backend (src/ui/backends). With
+// deferred input the window procedure queues ImGui input for the drawing
+// thread's NewFrame; ClearInput releases every key and button in that order.
+IMGUI_API void ImGui_ImplWin32_SetDeferredInput(bool defer);
+IMGUI_API void ImGui_ImplWin32_ClearInput();
 
 namespace sf4e { namespace ui {
 // Set before the Win32 backend's NewFrame as well as on visibility/focus changes.
@@ -11,9 +18,6 @@ void SetOverlayCursorOwnership(bool capture);
 // the pads to the game.
 LRESULT HandleOverlayMessage(HWND window, UINT message, WPARAM w, LPARAM l,
                              bool capture, bool menuAvailable, bool pointer = false);
-// The same answer without feeding ImGui, for a message ImGui cannot take now;
-// `handled` is what ImGui's own handler returned, if it ran.
-LRESULT OverlayTakesMessage(UINT message, WPARAM w, bool capture, bool menuAvailable, bool pointer, LRESULT handled = 0);
 
 // The click that brings an inactive window forward is only a request to
 // focus it. The shell stays drawn while the game is behind another window, so
