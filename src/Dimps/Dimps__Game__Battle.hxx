@@ -96,9 +96,14 @@ namespace Dimps {
 				typedef struct __staticMethods {
 					sf4e::replay::Recorder* (*GetSingleton)();
 				} __staticMethods;
+				// The round streams' RLE codec (vtable 0x9D7858).
+				typedef struct __codecMethods {
+					std::uint8_t* (sf4e::replay::Codec::* Append)(std::uint32_t value);
+				} __codecMethods;
 
 				static void Locate(HMODULE peRoot);
 				static __staticMethods staticMethods;
+				static __codecMethods codecMethods;
 			};
 
 			namespace Network {

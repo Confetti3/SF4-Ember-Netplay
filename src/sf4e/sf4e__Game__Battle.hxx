@@ -31,6 +31,13 @@ namespace sf4e {
 				static bool bAllowHudUpdate;
 			};
 
+			// Keeps the replay codec's appends inside its stream (ReplayRecorder.hxx).
+			struct ReplayCodec : sf4e::replay::Codec {
+				static void Install();
+
+				std::uint8_t* Append(std::uint32_t value);
+			};
+
 			struct JobManager : Dimps::Game::Battle::JobManager {
 				static void Install();
 

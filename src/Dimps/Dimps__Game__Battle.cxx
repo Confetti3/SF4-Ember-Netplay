@@ -28,6 +28,7 @@ GameManager::__publicMethods GameManager::publicMethods;
 IUnit::__publicMethods IUnit::publicMethods;
 JobManager::__publicMethods JobManager::publicMethods;
 ReplaySystem::__staticMethods ReplaySystem::staticMethods;
+ReplaySystem::__codecMethods ReplaySystem::codecMethods;
 SoundPlayerManager::__publicMethods SoundPlayerManager::publicMethods;
 SoundPlayerManager::__staticMethods SoundPlayerManager::staticMethods;
 SoundPlayerManager::CriPlayerAdapter::__publicMethods SoundPlayerManager::CriPlayerAdapter::publicMethods;
@@ -83,6 +84,7 @@ void JobManager::Locate(HMODULE peRoot) {
 void ReplaySystem::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 	staticMethods.GetSingleton = (sf4e::replay::Recorder* (*)())(peRootOffset + 0x1d6700);
+	*(PVOID*)&codecMethods.Append = (PVOID)(peRootOffset + 0x3831c0);
 }
 
 void GameManager::Locate(HMODULE peRoot) {

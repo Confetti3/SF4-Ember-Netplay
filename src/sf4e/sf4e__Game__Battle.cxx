@@ -54,6 +54,25 @@ void fBattle::Install() {
 	Sound::SoundPlayerManager::Install();
 	System::Install();
 	Vfx::Install();
+	ReplayCodec::Install();
+}
+
+void sf4e::Game::Battle::ReplayCodec::Install() {
+	std::uint8_t* (ReplayCodec::* _fAppend)(std::uint32_t) = &Append;
+	DetourAttach((PVOID*)&Dimps::Game::Battle::ReplaySystem::codecMethods.Append, *(PVOID*)&_fAppend);
+}
+
+std::uint8_t* sf4e::Game::Battle::ReplayCodec::Append(std::uint32_t value) {
+	if (!sf4e::replay::CanAppend(*this, value)) {
+		static unsigned noted = 0;
+		if (noted < 4) {
+			++noted;
+			spdlog::warn("Replay: a round stream is full at {} of {} bytes; later frames are not recorded",
+				static_cast<std::size_t>(cursor - base), capacity);
+		}
+		return cursor; // the codec's own answer when full
+	}
+	return (this->*Dimps::Game::Battle::ReplaySystem::codecMethods.Append)(value);
 }
 
 void fJobManager::Install() {

@@ -56,6 +56,22 @@ struct Recorder {
 };
 static_assert(sizeof(Recorder) == kRecorderBytes && offsetof(Recorder, streams) == 4, "recorder layout");
 
+// Append (0x7831C0) checks only cursor < base + capacity, then writes a
+// pending repeat record and the new value: up to 6 bytes. With the cursor 3
+// bytes short of the end and a repeat pending, it wrote 3 bytes past the
+// 61,440-byte stream, which a round of about 20,480 records reaches (long
+// round times). An append that would not fit is refused, which is what the
+// codec itself does once full. A repeat of the last value writes nothing and
+// is left to the codec. Derived from the codec alone, so a rollback to an
+// earlier cursor records again.
+inline bool CanAppend(const Codec& codec, std::uint32_t value) {
+	if (value == codec.last) return true;
+	if (!codec.base || codec.cursor < codec.base) return false;
+	const std::size_t used = static_cast<std::size_t>(codec.cursor - codec.base);
+	const std::size_t write = codec.repeat ? 6 : 3;
+	return used <= codec.capacity && codec.capacity - used >= write;
+}
+
 struct Snapshot {
 	Recorder recorder;
 	Codec codecs[kStreams];
