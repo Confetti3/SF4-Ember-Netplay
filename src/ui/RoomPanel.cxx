@@ -206,13 +206,14 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    const bool ready=room::ReadyCancellable(t,place.seat);
     const auto readyControl=DescribeReady(v,t,place.seat);
     rows.push_back(Row("ready",readyControl.label,readyControl.detail,readyControl.kind!=ReadyControl::None));
-   // The whole pick sits right under Ready: A on Fighter opens the roster,
-   // then the Ultra; A on Appearance opens the costumes, then their colors;
-   // Stage (P1's, sent with Ready) and Additional options (edition, personal
-   // action, win quote, handicap) open their own pages. Left and Right step
-   // the Ultra and the color in place.
+   // Under Ready, in the order a player reads them: their own pick (fighter,
+   // Ultra, appearance, fighter options), then the match (P1's stage and the
+   // table's rules), then their connection, then leaving. A on Fighter opens
+   // the roster, then the Ultra; A on Appearance opens the costumes, then
+   // their colors; Fighter options and Stage open their own pages. Left and
+   // Right step the Ultra and the color in place.
    const bool canChange=mutableRoom&&v.canEditSelection&&!s.localTerminalPending;
-   rows.push_back(Row("selection",loc::T("room.change_fighter"),canChange?
+   rows.push_back(Row("selection",loc::T("selection.fighter"),canChange?
     std::string(loc::T("room.change_fighter.detail"))+"\n"+v.selectionSummary:SelectionBlocker(v),canChange));
    rows.back().value=v.fighterName;
    const auto stepRow=[&](const char* id,const char* label,const std::string& value,const char* detail,bool steps){
@@ -221,13 +222,17 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    };
    stepRow("ultra",loc::T("selection.ultra_combo"),v.ultraName,loc::T("selection.ultra_row.detail"),v.ultraSteps);
    stepRow("appearance",loc::T("selection.appearance"),v.appearanceName,loc::T("room.appearance.detail"),v.colorSteps);
+   // These two show their value; Select opens the page. Nothing steps them in place.
+   const auto pageRow=[&](const char* id,const char* label,const std::string& value,const std::string& detail,bool enabled){
+    rows.push_back(Value(id,label,value,detail,enabled));
+    rows.back().adjustable=false;rows.back().opens=true;
+   };
+   pageRow("fighter-options",loc::T("room.fighter_options"),v.fighterOptionsName,
+    canChange?std::string(loc::T("selection.additional_options.detail")):SelectionBlocker(v),canChange);
    const bool stageOwner=v.localSlot==0;
-   rows.push_back(Value("stage",loc::T("selection.stage"),v.stageName,
-    !canChange?SelectionBlocker(v):loc::T(stageOwner?"selection.p1_stage":"selection.only_p1_stage"),canChange&&stageOwner));
-   // Shows the stage; Select opens the cards. Nothing steps it in place.
-   rows.back().adjustable=false;rows.back().opens=true;
-   rows.push_back(Row("fighter-options",loc::T("selection.additional_options"),
-    canChange?std::string(loc::T("selection.additional_options.detail")):SelectionBlocker(v),canChange));
+   pageRow("stage",loc::T("selection.stage"),v.stageName,
+    !canChange?SelectionBlocker(v):loc::T(stageOwner?"selection.p1_stage":"selection.only_p1_stage"),canChange&&stageOwner);
+   rulesRows();
     // One delay row: Left and Right choose it, Select takes the recommendation.
     const bool delayEditable=mutableRoom&&!active&&!v.delayLocked;
     const int selectedDelay=(std::max)(0,(std::min)(MaximumInputDelay,v.selectedDelay));
@@ -251,7 +256,6 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      !delayEditable?loc::T("room.check_connection.finish_match"):check.detail,
      v.canProbe&&delayEditable&&!check.checking));
     if(check.namesPlayer)rows.back().detailText=DetailText::Name;
-    rulesRows();
     // The same departure rule as B on the board. Leaving that gives up a score
     // asks first, and says what it gives up.
     // During a held start B takes Ready back; this row only ever leaves, so it

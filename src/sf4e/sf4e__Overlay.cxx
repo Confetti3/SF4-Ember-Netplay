@@ -212,6 +212,9 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.appearanceName = !fighter ? std::string() :
         sf4e::loc::Tf("selection.appearance_value", sf4e::ui::CostumeLabel(summaryPick), lobbyConditions.color + 1);
     view.stageName = sf4e::ui::StageLabel(lobbyStageID);
+    view.fighterOptionsName = sf4e::loc::Tf("room.fighter_options.value",
+        lobbyConditions.personalAction == 255 ? std::string(sf4e::loc::T("common.none")) : std::to_string(lobbyConditions.personalAction + 1),
+        lobbyConditions.winQuote == 255 ? std::string(sf4e::loc::T("selection.random")) : std::to_string(lobbyConditions.winQuote + 1));
     view.colorSteps = fighter && sf4e::selection::AllowedColors(summaryPick.fighter, summaryPick.costume,
         snapshot.fighterAvailability[lobbyMenuCharaID]).size() > 1;
     if (snapshot.atMainMenu && !sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),

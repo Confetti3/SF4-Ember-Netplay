@@ -1684,8 +1684,11 @@ msgstr "Chat"
 msgid "room.chat.detail"
 msgstr "Lees berichten en schrijf zelf tekst met een toetsenbord."
 
-msgid "room.change_fighter"
-msgstr "Personage wijzigen"
+msgid "room.fighter_options"
+msgstr "Personage-opties"
+
+msgid "room.fighter_options.value"
+msgstr "Actie {0}, Winquote {1}"
 
 msgid "room.settings"
 msgstr "Kamerinstellingen"

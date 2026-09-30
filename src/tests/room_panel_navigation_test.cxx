@@ -237,12 +237,22 @@ int main() try {
         "The table page does not show the fighter and a steppable Ultra");
     Check(row("appearance").value == "Original / Color 1" && row("appearance").adjustable && row("appearance").enabled,
         "The table page does not show a steppable appearance");
-    Check(rows[1].id == "selection" && rows[2].id == "ultra" && rows[3].id == "appearance" && rows[4].id == "stage" &&
-        rows[5].id == "fighter-options" && rows[6].id == "input-delay",
-        "Fighter, Ultra, Appearance, Stage, Additional options and Input delay are not right under Ready");
-    // Personal action, win quote and the other options are reachable from a seat;
-    // the stage only for P1, who sends it.
-    Check(row("fighter-options").enabled, "The table page has no way to the additional options");
+    // Under Ready: the player's own pick, then the match (stage and the table's
+    // rules), then the connection, then leaving.
+    const auto at = [&](const char* id) {
+        for (std::size_t i = 0; i < rows.size(); ++i) if (rows[i].id == id) return static_cast<int>(i);
+        return -1;
+    };
+    const int rules = at("edition") >= 0 ? at("edition") : at("rules");
+    Check(rows[1].id == "selection" && rows[2].id == "ultra" && rows[3].id == "appearance" &&
+        rows[4].id == "fighter-options" && rows[5].id == "stage" && rules == 6 &&
+        at("input-delay") > rules && at("check-connection") == at("input-delay") + 1 && at("unqueue") > at("check-connection"),
+        "The table page is not ordered pick, match, connection, leave");
+    // Personal action, win quote and the other options are reachable from a seat
+    // and shown on the row; the stage only for P1, who sends it.
+    view.fighterOptionsName = "Action 1, Quote Random"; frame();
+    Check(row("fighter-options").enabled && row("fighter-options").value == "Action 1, Quote Random" && !row("fighter-options").adjustable,
+        "The table page does not show the fighter options, or advertises stepping them in place");
     view.localSlot = 1; view.stageName = "Random"; frame();
     Check(!row("stage").enabled && row("stage").detail == loc::T("selection.only_p1_stage"), "P2 could change the stage");
     view.localSlot = 0; frame();

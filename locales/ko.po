@@ -1684,8 +1684,11 @@ msgstr "채팅"
 msgid "room.chat.detail"
 msgstr "메시지를 읽고 키보드로 직접 작성합니다."
 
-msgid "room.change_fighter"
-msgstr "캐릭터 변경"
+msgid "room.fighter_options"
+msgstr "캐릭터 옵션"
+
+msgid "room.fighter_options.value"
+msgstr "퍼스널 액션 {0}, 승리 대사 {1}"
 
 msgid "room.settings"
 msgstr "방 설정"

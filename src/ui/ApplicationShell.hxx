@@ -60,9 +60,10 @@ struct ShellView {
             input::Device inputDevice;
             bool canChangeController = false, controllerReady = false;
     std::string selectionSummary, selectionError;
-    // The chosen fighter, Ultra, appearance and stage, for the table page's
-    // rows; ultraSteps and colorSteps when there is more than one to step through.
-    std::string fighterName, ultraName, appearanceName, stageName;
+    // The chosen fighter, Ultra, appearance, fighter options and stage, for
+    // the table page's rows; ultraSteps and colorSteps when there is more than
+    // one to step through.
+    std::string fighterName, ultraName, appearanceName, fighterOptionsName, stageName;
     bool ultraSteps = false, colorSteps = false;
     std::string selectionLockReason;
     // A Ready press in flight (parked, sent or awaiting commit), and the

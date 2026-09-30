@@ -1684,8 +1684,11 @@ msgstr "Chat"
 msgid "room.chat.detail"
 msgstr "Lee mensajes y escribe texto explícitamente con un teclado."
 
-msgid "room.change_fighter"
-msgstr "Cambiar personaje"
+msgid "room.fighter_options"
+msgstr "Opciones del personaje"
+
+msgid "room.fighter_options.value"
+msgstr "Burla {0}, Cita {1}"
 
 msgid "room.settings"
 msgstr "Ajustes de la sala"

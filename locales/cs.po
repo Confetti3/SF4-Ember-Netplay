@@ -1684,8 +1684,11 @@ msgstr "Chat"
 msgid "room.chat.detail"
 msgstr "Číst zprávy a psát text na klávesnici."
 
-msgid "room.change_fighter"
-msgstr "Změnit postavu"
+msgid "room.fighter_options"
+msgstr "Možnosti postavy"
+
+msgid "room.fighter_options.value"
+msgstr "Provokace {0}, Vítězná fráze {1}"
 
 msgid "room.settings"
 msgstr "Nastavení místnosti"

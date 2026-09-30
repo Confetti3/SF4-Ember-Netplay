@@ -15,7 +15,8 @@ Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by A
 
 ### Rooms
 
-- **Stage and Additional options are back on the table page.** Since rc2, personal action, win quote, handicap and edition could not be changed in a room, and neither could P1's stage. Both rows sit under Appearance. Select opens the page, and a pick or Back returns to the table. Only P1 can change the stage, since theirs is the one the match uses.
+- **Fighter options and Stage are back on the table page.** Since rc2, personal action, win quote, handicap and edition could not be changed in a room, and neither could P1's stage. Select on either row opens its page, and a pick or Back returns to the table. Only P1 can change the stage, since theirs is the one the match uses.
+- **The table page reads in order.** Under Ready come your own pick (fighter, Ultra, appearance, fighter options), then the match (stage and the table's rules), then your connection (input delay, connection check), then Leave seat.
 
 ### Crash reports
 

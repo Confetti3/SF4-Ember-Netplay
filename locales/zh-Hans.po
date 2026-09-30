@@ -1684,8 +1684,11 @@ msgstr "聊天"
 msgid "room.chat.detail"
 msgstr "阅读消息，并使用键盘主动编写文字。"
 
-msgid "room.change_fighter"
-msgstr "更换角色"
+msgid "room.fighter_options"
+msgstr "角色选项"
+
+msgid "room.fighter_options.value"
+msgstr "个人行动 {0}，胜利台词 {1}"
 
 msgid "room.settings"
 msgstr "房间设置"

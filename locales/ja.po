@@ -1684,8 +1684,11 @@ msgstr "チャット"
 msgid "room.chat.detail"
 msgstr "メッセージを読み、キーボードで入力します。"
 
-msgid "room.change_fighter"
-msgstr "キャラを変更"
+msgid "room.fighter_options"
+msgstr "キャラオプション"
+
+msgid "room.fighter_options.value"
+msgstr "アピール {0}、勝利コメント {1}"
 
 msgid "room.settings"
 msgstr "ルーム設定"

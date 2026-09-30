@@ -1684,8 +1684,11 @@ msgstr "Чат"
 msgid "room.chat.detail"
 msgstr "Читайте сообщения и вводите текст с клавиатуры."
 
-msgid "room.change_fighter"
-msgstr "Сменить персонажа"
+msgid "room.fighter_options"
+msgstr "Настройки персонажа"
+
+msgid "room.fighter_options.value"
+msgstr "Провокация {0}, Победный клич {1}"
 
 msgid "room.settings"
 msgstr "Настройки зала"

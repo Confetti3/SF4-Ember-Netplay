@@ -1684,8 +1684,11 @@ msgstr "Czat"
 msgid "room.chat.detail"
 msgstr "Czytaj wiadomości i pisz je ręcznie na klawiaturze."
 
-msgid "room.change_fighter"
-msgstr "Zmień postać"
+msgid "room.fighter_options"
+msgstr "Opcje postaci"
+
+msgid "room.fighter_options.value"
+msgstr "Obelga {0}, Odzywka {1}"
 
 msgid "room.settings"
 msgstr "Ustawienia pokoju"

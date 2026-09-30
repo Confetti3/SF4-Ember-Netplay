@@ -1684,8 +1684,11 @@ msgstr "Chat"
 msgid "room.chat.detail"
 msgstr "Lire les messages et écrire au clavier."
 
-msgid "room.change_fighter"
-msgstr "Changer perso"
+msgid "room.fighter_options"
+msgstr "Options du personnage"
+
+msgid "room.fighter_options.value"
+msgstr "Provocation {0}, Réplique {1}"
 
 msgid "room.settings"
 msgstr "Paramètres du salon"
