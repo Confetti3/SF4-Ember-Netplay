@@ -392,6 +392,8 @@ void fUserApp::Steam_PostUpdate() {
         diag::ScopedTimer _t(diag::OP_STEAM_POST_UPDATE);
         rUserApp::staticMethods.Steam_PostUpdate();
     }
+    // Everything this tick changed is settled: hand the overlay its next frame.
+    sf4e::NetplayFacade::PublishPresentationFrame();
 
     if (diagnosticsEnabled) {
         const double now = diag::NowMs();

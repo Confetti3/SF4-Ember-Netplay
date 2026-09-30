@@ -8,6 +8,7 @@
 //   sf4e__NetplayRuntime__Input.cxx    controller capture and the gameplay device
 //   sf4e__NetplayRuntime__Status.cxx   the published snapshot, errors, Discord
 #include "sf4e__NetplayFacade.hxx"
+#include "sf4e__RuntimeBridge.hxx"
 #include "sf4e__InputDevices.hxx"
 #include "../Dimps/Dimps__Selection.hxx"
 #include "../Dimps/Dimps__Sound.hxx"
@@ -187,10 +188,9 @@ struct Runtime {
 	ULONGLONG lobbySettingsDeadline = 0;
 	netplay::PlayerPreferences preferences;
 	netplay::SessionController controller;
-	netplay::BoundedMailbox<RuntimeCommand> commands{32, 128 * 1024};
-	std::mutex snapshotMutex;
-	// Replaced whole on each publish, never mutated, so readers share it.
-	std::shared_ptr<const RuntimeSnapshot> snapshot = std::make_shared<const RuntimeSnapshot>();
+	// Shared with the bridge (sf4e__RuntimeBridge), which producers on other
+	// threads push through; StopHelper closes it before this object goes.
+	std::shared_ptr<bridge::CommandMailbox> commands = std::make_shared<bridge::CommandMailbox>(32, 128 * 1024);
 	std::string displayName;
 	std::string languagePreference = "auto";
 	std::string error;

@@ -33,7 +33,7 @@ namespace sf4e {
 		uint8_t inputDelay = 0;
 		char opponentName[NETPLAY_DISPLAY_NAME_LEN] = { 0 };
 		// The most recent netplay notice (connection events, aborts, room
-		// loss, join rejections), or empty. Filled by GetStatus.
+		// loss, join rejections), or empty.
 		char lastError[256] = { 0 };
 		NoticeSeverity lastErrorSeverity = NoticeSeverity::Info;
         MatchSide matchSides[2];
@@ -139,6 +139,19 @@ namespace sf4e {
             input::Device inputDevice;
             bool canChangeController = false, controllerReady = false;
 		};
+		// Everything the overlay draws from, built on the game thread at the end
+		// of each outer tick and never changed afterwards. It owns its values:
+		// nothing in it points into live game, session or GGPO state, so the
+		// drawing thread can hold it across a whole frame while the game thread
+		// moves on, shuts a session down or replaces the room.
+		struct PresentationSnapshot {
+			// The latest room view; republished less often than this envelope.
+			std::shared_ptr<const RuntimeSnapshot> runtime;
+			NetplayStatus netplay;
+			// A GGPO session exists (fighting, spectating or draining spectators).
+			bool ggpoSessionActive = false;
+			std::uint64_t sequence = 0;
+		};
 		// Configure copies POD under the loader lock. Start/Stop run from the
 		// normal platform lifecycle; TickRuntime runs only on the game thread.
 		void ConfigureHelper(const platform::HelperBootstrap& bootstrap, uint32_t startupError);
@@ -152,8 +165,16 @@ namespace sf4e {
 		RuntimeSnapshot GetRuntimeSnapshot();
 		// The published snapshot itself, shared rather than copied. Per-frame
 		// readers (overlay, input) use this; the snapshot is immutable once
-		// published and is never null.
+		// published and is never null. Safe on any thread, before StartHelper
+		// and after StopHelper.
 		std::shared_ptr<const RuntimeSnapshot> GetRuntimeSnapshotShared();
+		// The overlay's frame input, on any thread; never null.
+		std::shared_ptr<const PresentationSnapshot> GetPresentationSnapshotShared();
+		// Game thread, once at the end of every outer tick: expires notices and
+		// publishes the next PresentationSnapshot.
+		void PublishPresentationFrame();
+		// Any thread. False when the command is malformed, the queue is full,
+		// or no runtime is accepting commands.
 		bool SubmitRuntimeCommand(RuntimeCommand command);
 		bool IsRuntimeRoomActive();
         bool IsRuntimeRecoveryEnabled();
@@ -196,9 +217,11 @@ namespace sf4e {
 		bool IsDevOverlayEnabled();
 		void NotifyGameReady();
 		void TickFrame();
+		// Game thread only: samples live netplay state. Other threads read the
+		// sample PublishPresentationFrame published.
 		NetplayStatus GetStatus();
-		// Records a notice for the player. Both are read back through
-		// GetStatus().lastError; SetLastError and the one-argument PushAlert
+		// Game thread only. Records a notice for the player, read back through
+		// NetplayStatus::lastError; SetLastError and the one-argument PushAlert
 		// record an Error.
 		void SetLastError(const char* msg);
 		void PushAlert(const char* msg);

@@ -117,6 +117,15 @@ int main() {
 	sf4e::loc::SetActive(sf4e::loc::Locale::En);
 	facade::ClearMatchNotice();
 
+	// The overlay reads the reason from the frame the tick publishes.
+	StartSession();
+	fSystem::AbortGgpoMatch("The spectator stream was dropped.");
+	facade::PublishPresentationFrame();
+	const auto frame = facade::GetPresentationSnapshotShared();
+	CHECK(std::string(frame->netplay.lastError) == "The spectator stream was dropped.");
+	CHECK(frame->netplay.lastErrorSeverity == sf4e::NoticeSeverity::Error && !frame->ggpoSessionActive);
+	facade::ClearMatchNotice();
+
 	std::cout << "Abort notice passed\n";
 	return 0;
 }

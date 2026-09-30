@@ -369,7 +369,7 @@ void FailReady(const char* reason) {
 
 void DrainCommands(bool helperReady) {
 	RuntimeCommand command;
-	for (int budget = 0; budget < 8 && runtime->commands.TryPop(command); ++budget)
+	for (int budget = 0; budget < 8 && runtime->commands->TryPop(command); ++budget)
 		Dispatch(std::move(command), helperReady, Attempt::Fresh);
 }
 

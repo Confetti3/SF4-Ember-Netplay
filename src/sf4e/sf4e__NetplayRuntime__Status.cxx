@@ -370,14 +370,7 @@ PostPublishState Publish() {
 	PublishDiscordPresence(snapshot);
 	TraceSnapshot(snapshot);
     PostPublishState result{snapshot.session,snapshot.discordCanSwitch,snapshot.canOpenRoom};
-    auto published = std::make_shared<const RuntimeSnapshot>(std::move(snapshot));
-    std::shared_ptr<const RuntimeSnapshot> previous;
-    {
-        std::lock_guard<std::mutex> lock(runtime->snapshotMutex);
-        previous = std::move(runtime->snapshot);
-        runtime->snapshot = std::move(published);
-    }
-    // `previous` is released here, outside the lock, unless a reader still holds it.
+    bridge::PublishRuntime(std::make_shared<const RuntimeSnapshot>(std::move(snapshot)));
     return result;
 }
 
@@ -454,12 +447,7 @@ void PublishAndTickDiscordInvite() {
 }
 } // namespace internal
 
-std::shared_ptr<const RuntimeSnapshot> GetRuntimeSnapshotShared() {
-	static const auto empty = std::make_shared<const RuntimeSnapshot>();
-	if (!runtime) return empty;
-	std::lock_guard<std::mutex> lock(runtime->snapshotMutex);
-	return runtime->snapshot;
-}
+std::shared_ptr<const RuntimeSnapshot> GetRuntimeSnapshotShared() { return bridge::LatestRuntime(); }
 
 RuntimeSnapshot GetRuntimeSnapshot() {
 	return *GetRuntimeSnapshotShared();

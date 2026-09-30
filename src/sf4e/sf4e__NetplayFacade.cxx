@@ -42,19 +42,6 @@ namespace sf4e {
 	// spectators can finish: the tick after which it closes regardless.
 	static ULONGLONG s_spectatorDrainUntil = 0;
 
-	// The single current notice. Earlier builds queued alerts here but
-	// nothing read the queue and GetStatus never filled lastError, so every
-	// in-match message was lost. One slot is enough: the newest event is
-	// the one the player needs, and severity decides how long it stays.
-	struct MatchNotice {
-		std::string text;
-		NoticeSeverity severity = NoticeSeverity::Info;
-		ULONGLONG shownAtMs = 0;
-	};
-	static MatchNotice s_notice;
-	static const ULONGLONG kInfoNoticeMs = 6000;
-	static const ULONGLONG kWarningNoticeMs = 12000;
-
 	void NetplayFacade::NotifyGameReady() { NotifyRuntimeGameReady(); }
 
 	void NetplayFacade::InitFromPayload(const NetplayConfig& cfg) {
@@ -110,40 +97,6 @@ namespace sf4e {
         return false;
 #endif
     }
-
-	void NetplayFacade::PushAlert(const char* msg, NoticeSeverity severity) {
-		if (!msg || !msg[0]) return;
-		s_notice.text.assign(msg, (std::min)(strlen(msg), size_t(255)));
-		s_notice.severity = severity;
-		s_notice.shownAtMs = GetTickCount64();
-		spdlog::info("Netplay notice ({}): {}", (int)severity, s_notice.text);
-	}
-
-	void NetplayFacade::PushDesyncNotice(bool spectatorOnly) {
-		PushAlert(loc::T(spectatorOnly ? "runtime.desync_spectator" : "runtime.desync_match_ended"),
-			spectatorOnly ? NoticeSeverity::Warning : NoticeSeverity::Error);
-	}
-
-	void NetplayFacade::SetLastError(const char* msg) { PushAlert(msg, NoticeSeverity::Error); }
-
-	void NetplayFacade::PushAlert(const char* msg) { PushAlert(msg, NoticeSeverity::Error); }
-
-	void NetplayFacade::ClearMatchNotice() {
-		s_notice = MatchNotice();
-	}
-
-	void NetplayFacade::ClearTransientMatchNotice() {
-		if (s_notice.severity != NoticeSeverity::Error) s_notice = MatchNotice();
-	}
-
-	static void ExpireNotice(ULONGLONG now) {
-		if (s_notice.text.empty()) return;
-		const ULONGLONG age = now - s_notice.shownAtMs;
-		if ((s_notice.severity == NoticeSeverity::Info && age >= kInfoNoticeMs) ||
-			(s_notice.severity == NoticeSeverity::Warning && age >= kWarningNoticeMs)) {
-			s_notice = MatchNotice();
-		}
-	}
 
 	// Last health reported by each cause. The control plane is lost while
 	// either is false.
@@ -242,55 +195,6 @@ namespace sf4e {
             s_spectatorDrainUntil = 0;
         }
     }
-
-	NetplayStatus NetplayFacade::GetStatus() {
-		NetplayStatus st;
-		const ULONGLONG now = GetTickCount64();
-		ExpireNotice(now);
-		if (!s_notice.text.empty()) {
-			strncpy_s(st.lastError, s_notice.text.c_str(), _TRUNCATE);
-			st.lastErrorSeverity = s_notice.severity;
-		}
-		if (fSystem::ggpo) {
-			st.connectionWarning = fSystem::simGate.connectionWarningActive;
-			st.predictionStalled = fSystem::simGate.predictionStalled;
-			st.disconnectCountdownMs = fSystem::DisconnectCountdownMs();
-		}
-		st.active = fUserApp::netplay != nullptr || fUserApp::server != nullptr;
-		if (fUserApp::netplay) {
-			st.connected = fUserApp::netplay->client.IsConnected();
-			st.inLobby = st.connected && fSystem::ggpo == nullptr;
-			st.inMatch = fSystem::ggpo != nullptr;
-			st.inputDelay = fUserApp::netplay->delay;
-            for (int side = 0; side < 2; ++side) st.matchSides[side] = fUserApp::netplay->matchSides[side];
-            // Spectators carry their table too, so everyone watching sees the same count.
-            const auto& room = fUserApp::netplay->client.GetRoomSnapshot();
-            std::uint32_t liveScore[2] = { 0, 0 };
-            bool liveScoreKnown = false;
-            for (const auto& m : room.members)
-                if (m.id == room.localMember && m.table >= 0) {
-                    liveScoreKnown = true;
-                    for (int side = 0; side < 2; ++side) liveScore[side] = room.tables[m.table].score[side];
-                }
-            st.hasMatchScore = HudScore(fSystem::ggpo && fUserApp::netplay->spectating, fUserApp::netplay->startScoreKnown,
-                fUserApp::netplay->startScore, liveScoreKnown, liveScore, st.matchScore);
-            st.rollbackFrames = fSystem::RecentRollbackFrames();
-
-			for (const auto& m : fUserApp::netplay->client._lobbyData.members) {
-				if (m.name != fUserApp::netplay->client._name) {
-					strncpy_s(st.opponentName, m.name.c_str(), _TRUNCATE);
-					break;
-				}
-			}
-
-            if (fSystem::ggpo) {
-                st.pingMs = fSystem::matchTelemetry.Ping(GetTickCount64());
-                st.appliedDelay = fSystem::matchTelemetry.appliedDelay;
-                st.spectator = fSystem::matchTelemetry.spectator;
-            }
-		}
-		return st;
-	}
 
 	void NetplayFacade::ShutdownNetplay(bool closeGgpo) {
 		if (closeGgpo && fSystem::ggpo) {

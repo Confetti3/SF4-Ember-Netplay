@@ -2,7 +2,7 @@
 #include "sf4e__OverlayPrefs.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__GameEvents.hxx"
-#include "sf4e__Game__Battle__System.hxx"
+#include "sf4e.hxx"
 #include "../Dimps/Dimps__Selection.hxx"
 #include "../ui/ApplicationShell.hxx"
 #include "../ui/FighterSelector.hxx"
@@ -28,7 +28,6 @@ namespace Overlay = sf4e::Overlay;
 using fMainMenu = sf4e::GameEvents::MainMenu;
 using rMainMenu = Dimps::GameEvents::MainMenu;
 using rVsMode = Dimps::GameEvents::VsMode;
-using fSystem = sf4e::Game::Battle::System;
 static HWND s_overlayWindow = nullptr;
 static sf4e::ui::ControllerNavigation controllerNavigation;
 static std::unique_ptr<sf4e::ui::SelectionArt> s_selectionArt;
@@ -138,7 +137,7 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
 
 }
 
-static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot) {
+static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot, const sf4e::NetplayStatus& status) {
 	sf4e::ui::ShellView view;
     view.controllerAvailable = controllerNavigation.Available();
     view.controllerUnavailable = controllerNavigation.Unavailable();
@@ -206,7 +205,6 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     if (snapshot.atMainMenu && !sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),
         snapshot.lobbySettings.editionSelect, snapshot.fighterAvailability[lobbyMenuCharaID]))
         view.selectionError = sf4e::loc::T("runtime.selection_unavailable");
-    const auto status = sf4e::NetplayFacade::GetStatus();
     // Outside a fight the shell status line carries the notice; transient
     // info ("Connection restored.") belongs to the match HUD only.
     if (view.error.empty() && status.lastError[0] && status.lastErrorSeverity != sf4e::NoticeSeverity::Info) view.error = status.lastError;
@@ -253,8 +251,10 @@ void Overlay::DrawOverlay() {
     s_drawThread.store(GetCurrentThreadId());
 
     if (!ImGui::GetCurrentContext()) return;
-    const auto sharedSnapshot = sf4e::NetplayFacade::GetRuntimeSnapshotShared();
-    const auto& snapshot = *sharedSnapshot;
+    // The frame reads only this: the game thread's state as its last tick left it.
+    const auto frame = sf4e::NetplayFacade::GetPresentationSnapshotShared();
+    const auto& snapshot = *frame->runtime;
+    const auto& status = frame->netplay;
     if (sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(s_overlayWindow) * snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
     presentation.Update(snapshot.atMainMenu, snapshot.session.match, snapshot.offlineRequested, focused);
     s_menuAvailable = presentation.Available();
@@ -279,7 +279,7 @@ void Overlay::DrawOverlay() {
     // Every overlay frame, since the training panel draws art with the menu
     // closed. Pump returns at once when nothing drew art since the last pump.
     if (s_selectionArt) s_selectionArt->Pump();
-    if (presentation.Visible()) DrawApplicationHome(snapshot);
+    if (presentation.Visible()) DrawApplicationHome(snapshot, status);
     if (!presentation.Visible() && assigning) {
         sf4e::NetplayFacade::RuntimeCommand cancel;
         cancel.command = {sf4e::netplay::CommandKind::HostRoom, snapshot.session.generation, {}};
@@ -341,9 +341,8 @@ void Overlay::DrawOverlay() {
             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
         ImGui::TextUnformatted(sf4e::loc::T("runtime.return_menu_to_join")); ImGui::End();
     }
-    if(fSystem::ggpo)sf4e::ui::DrawControllerWarning(snapshot.gameplayInputError);
-    if (fSystem::ggpo) {
-        const auto status = sf4e::NetplayFacade::GetStatus();
+    if (frame->ggpoSessionActive) {
+        sf4e::ui::DrawControllerWarning(snapshot.gameplayInputError);
         sf4e::ui::MatchStripView strip;
         for (int side = 0; side < 2; ++side) { strip.names[side] = status.matchSides[side].name; strip.links[side] = status.matchSides[side].link; }
         if (status.hasMatchScore) strip.score = sf4e::ui::SetScoreText(status.matchScore);

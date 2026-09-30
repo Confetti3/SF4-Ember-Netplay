@@ -420,6 +420,9 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__NetplayRuntime__Match.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Room.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Status.cxx"
+    "src/sf4e/sf4e__NetplayPresentation.cxx"
+    "src/sf4e/sf4e__RuntimeBridge.hxx"
+    "src/sf4e/sf4e__RuntimeBridge.cxx"
 )
 target_include_directories(sf4e PUBLIC "src/common")
 option(SF4E_DEVELOPER_UI "Build the fixed developer inspector page" OFF)
@@ -480,6 +483,11 @@ if(BUILD_TESTING)
     target_link_libraries(AbortNoticeTest PRIVATE Session sf4e sf4e_localization Dimps "d3d9")
     add_test(NAME AbortNotice COMMAND AbortNoticeTest)
     set_tests_properties(AbortNotice PROPERTIES TIMEOUT 15 PASS_REGULAR_EXPRESSION "Abort notice passed")
+    add_executable(PresentationSnapshotTest "src/tests/presentation_snapshot_test.cxx")
+    target_compile_features(PresentationSnapshotTest PRIVATE cxx_std_17)
+    target_link_libraries(PresentationSnapshotTest PRIVATE Session sf4e sf4e_localization Dimps "d3d9")
+    add_test(NAME PresentationSnapshot COMMAND PresentationSnapshotTest)
+    set_tests_properties(PresentationSnapshot PROPERTIES TIMEOUT 30 PASS_REGULAR_EXPRESSION "Presentation snapshot passed")
     if(SF4E_BUILD_IROH_HELPER)
         # Explicitly invoked comparison tool; network workloads are not CTest
         # unit tests, and the benchmark executable is not installed in packages.

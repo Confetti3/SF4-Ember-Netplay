@@ -187,6 +187,7 @@ void ConfigureDiscord(const platform::HelperBootstrap& bootstrap) { pendingDisco
 void StartHelper() {
 	if (runtime) return;
 	runtime = new Runtime();
+	bridge::OpenCommands(runtime->commands);
     runtime->languagePreference = platform::LoadLanguagePreference();
     wchar_t gamePath[MAX_PATH] = {};
     if (GetModuleFileNameW(nullptr, gamePath, MAX_PATH)) platform::SetGameDirectory(std::filesystem::path(gamePath).parent_path());
@@ -265,7 +266,7 @@ void StopHelper() {
         runtime->discordClient->Send("{\"type\":\"shutdown\"}");
         runtime->discordClient->Stop();
     }
-	runtime->commands.Close();
+	bridge::CloseCommands();
 	CloseRoom();
 	if (runtime->room && runtime->helper) {
 		// Closing the game must mean the same thing to the room as Leave room.
@@ -291,10 +292,11 @@ void StopHelper() {
 	}
 	delete runtime;
 	runtime = nullptr;
+	bridge::Reset();
 }
 
 bool SubmitRuntimeCommand(RuntimeCommand command) {
-	if (!runtime || command.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.command.invitation.size() > 4096 ||
+	if (command.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.command.invitation.size() > 4096 ||
 		command.preferences.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.roomAction.text.size() > room::MaximumChatBytes ||
 		command.preferences.roomName.size() > 64) return false;
 	// Gameplay/update commands join this queue when their effect handlers exist.
@@ -307,7 +309,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 		kind != netplay::CommandKind::CheckConnection && kind != netplay::CommandKind::ApplyDelay) return false;
 	const auto bytes = sizeof(RuntimeCommand) + command.displayName.size() + command.command.invitation.size() +
 		command.preferences.displayName.size() + command.preferences.roomName.size() + command.roomAction.text.size();
-	return runtime->commands.TryPush(std::move(command), bytes);
+	return bridge::PushCommand(std::move(command), bytes);
 }
 
 bool IsRuntimeRoomActive() { return runtime && runtime->attached; }
