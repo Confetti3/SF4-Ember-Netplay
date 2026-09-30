@@ -121,35 +121,42 @@ void TestRestoreRefusesReallocatedStreams() {
 
 // The engine's append checks only that the cursor is inside the stream, then
 // may write a repeat record and a value. Guarded, a stream that fills never
-// writes past its end, and a rollback to an earlier cursor records again.
+// writes past its end, stops at the first frame it cannot take and takes no
+// later one, and a rollback to an earlier cursor records again.
 void TestAppendStaysInsideTheStream() {
 	std::vector<std::uint8_t> memory(kCapacity + 16, 0xCD);
 	rp::Codec c{};
 	c.base = c.cursor = memory.data();
 	c.capacity = kCapacity;
 	c.last = 0xFFFFFFFF;
-	auto guarded = [&](std::uint32_t value) { if (rp::CanAppend(c, value)) Append(c, value); };
-	// Fill all but the last record, then leave a repeat pending.
-	for (std::uint32_t v = 0; c.cursor + 3 < c.base + c.capacity; ++v) guarded(v);
-	CHECK(c.cursor == c.base + c.capacity - 3);
-	const rp::Codec beforeRepeat = c;
-	guarded(c.last); guarded(c.last);
-	CHECK(c.repeat == 2 && c.cursor == beforeRepeat.cursor);
-	// Unguarded, this is where the engine wrote 3 bytes past the stream.
-	CHECK(!rp::CanAppend(c, 7));
-	for (std::uint32_t v = 100; v < 200; ++v) guarded(v);
+	auto guarded = [&](std::uint32_t value) { if (rp::CanAppend(c)) Append(c, value); };
+	for (std::uint32_t v = 0; rp::CanAppend(c); ++v) guarded(v);
+	// Stopped with less than one worst-case append left.
+	CHECK(c.cursor + rp::kLargestAppend > c.base + c.capacity && c.cursor <= c.base + c.capacity);
+	const rp::Codec full = c;
+	// A new value, then a repeat of the last one: neither is taken, so no gap
+	// is folded into the last run.
+	guarded(12345); guarded(c.last); guarded(c.last);
+	CHECK(c.frames == full.frames && c.repeat == full.repeat && c.cursor == full.cursor);
 	for (std::size_t i = kCapacity; i < memory.size(); ++i) CHECK(memory[i] == 0xCD);
-	// With no repeat pending, the final record still fits.
-	c = beforeRepeat;
-	CHECK(rp::CanAppend(c, 9));
-	guarded(9);
-	CHECK(c.cursor == c.base + c.capacity && !rp::CanAppend(c, 10));
+
+	// With a repeat pending close to the end, where the engine overran, the
+	// flush and the next value still fit when the stream takes the repeat.
+	rp::Codec tail{};
+	tail.base = memory.data(); tail.capacity = kCapacity; tail.last = 7;
+	tail.cursor = tail.base + kCapacity - rp::kLargestAppend;
+	CHECK(rp::CanAppend(tail));
+	Append(tail, 7); CHECK(tail.repeat == 1 && rp::CanAppend(tail));
+	Append(tail, 8); // flush + value: exactly the room left
+	CHECK(tail.cursor == tail.base + kCapacity && !rp::CanAppend(tail));
 	for (std::size_t i = kCapacity; i < memory.size(); ++i) CHECK(memory[i] == 0xCD);
+
 	// A rollback restores the codec, and with it the room to record.
-	c = beforeRepeat;
-	CHECK(rp::CanAppend(c, 11));
+	c = full;
+	c.cursor = c.base;
+	CHECK(rp::CanAppend(c));
 	rp::Codec empty{};
-	CHECK(!rp::CanAppend(empty, 1));
+	CHECK(!rp::CanAppend(empty));
 }
 
 void TestUnallocatedStreamsRestore() {

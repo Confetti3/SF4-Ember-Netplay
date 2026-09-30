@@ -63,7 +63,7 @@ void sf4e::Game::Battle::ReplayCodec::Install() {
 }
 
 std::uint8_t* sf4e::Game::Battle::ReplayCodec::Append(std::uint32_t value) {
-	if (!sf4e::replay::CanAppend(*this, value)) {
+	if (!sf4e::replay::CanAppend(*this)) {
 		static unsigned noted = 0;
 		if (noted < 4) {
 			++noted;

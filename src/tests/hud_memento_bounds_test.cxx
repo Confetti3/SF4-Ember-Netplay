@@ -1,7 +1,9 @@
 // The HUD's rollback mementos keep a fixed number of queued announcements and
 // notices. Release builds drop asserts, so a fifth announcement used to write
 // over the stored count and the active control beside the array, and restore
-// then installed that garbage. HudMementoQueue bounds both directions.
+// then installed that garbage. HudMementoQueue refuses what it cannot hold:
+// capture reports a queue longer than its slots, and a damaged stored count is
+// invalid rather than clamped into a HUD the game never had.
 #include "../common/HudMementoQueue.hxx"
 #include <cstdint>
 #include <cstring>
@@ -39,26 +41,29 @@ static void CheckCapture(int held) {
     m.before = 0x11111111; m.after = 0x22222222;
     m.activeControl = reinterpret_cast<void*>(0x1234);
     const auto native = NativeQueue(held);
-    CHECK(m.queue.Capture(native.begin(), native.end()) == static_cast<std::size_t>(held));
-    const std::size_t kept = held < 4 ? held : 4;
-    CHECK(m.queue.Size() == kept);
+    const bool complete = m.queue.Capture(native.begin(), native.end());
+    CHECK(complete == (held <= 4));
     CHECK(m.before == 0x11111111 && m.after == 0x22222222);
     CHECK(m.activeControl == reinterpret_cast<void*>(0x1234));
-    std::size_t i = 0;
-    for (const auto& entry : m.queue) { CHECK(entry.a == static_cast<int>(i) && entry.d == static_cast<int>(i) + 3); ++i; }
-    CHECK(i == kept);
+    if (!complete) return;
+    CHECK(m.queue.Valid() && m.queue.count == held);
+    int i = 0;
+    for (const auto& entry : m.queue) { CHECK(entry.a == i && entry.d == i + 3); ++i; }
+    CHECK(i == held);
     // Unused slots are zero, so equal HUD states record equal bytes.
-    for (std::size_t slot = kept; slot < 4; ++slot)
-        CHECK(m.queue.entries[slot].a == 0 && m.queue.entries[slot].d == 0);
+    for (int slot = held; slot < 4; ++slot) CHECK(m.queue.entries[slot].a == 0 && m.queue.entries[slot].d == 0);
 }
 
 int main() {
     for (int held : {0, 1, 4, 5, 64}) CheckCapture(held);
 
-    // A stored count damaged in the memento never walks past the slots.
+    // A stored count damaged in the memento is invalid and restores nothing.
     sf4e::HudMementoQueue<Entry, 8> stored{};
-    stored.count = 1000; CHECK(stored.Size() == 8 && stored.end() == stored.begin() + 8);
-    stored.count = -5; CHECK(stored.Size() == 0 && stored.begin() == stored.end());
+    for (int bad : {9, 1000, -1, -5}) {
+        stored.count = bad;
+        CHECK(!stored.Valid() && stored.begin() == stored.end());
+    }
+    stored.count = 8; CHECK(stored.Valid() && stored.end() == stored.begin() + 8);
 
     std::cout << "HUD memento bounds passed\n";
     return 0;

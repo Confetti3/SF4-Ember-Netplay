@@ -27,18 +27,21 @@ using rIUnit = Dimps::Game::Battle::IUnit;
 
 bool fHud::bAllowHudUpdate = true;
 
-// The native queues have no fixed bound; the memento does. A longer queue keeps
-// its oldest entries and loses the rest on restore, so say so the first times.
+// The native queues have no fixed bound; the memento does. A queue longer than
+// its slots, or a stored count outside them, fails the save or the load
+// (Game::MementoFailure) rather than rolling back to a HUD the game never had.
 template <typename Queue> static void CaptureQueue(Queue& memento, dDeque_0x10* native, const char* name) {
-    const std::size_t held = memento.Capture(native->begin(), native->end());
-    static unsigned noted = 0;
-    if (held > Queue::Capacity && noted < 4) {
-        ++noted;
-        spdlog::warn("HUD memento: the {} queue held {} entries; {} were kept", name, held, Queue::Capacity);
-    }
+    if (memento.Capture(native->begin(), native->end())) return;
+    spdlog::error("HUD memento: the {} queue holds {} entries, more than its {} slots", name, native->size(), Queue::Capacity);
+    sf4e::Game::MementoFailure::record = true;
 }
 
 template <typename Queue> static void RestoreQueue(const Queue& memento, dDeque_0x10* native) {
+    if (!memento.Valid()) {
+        spdlog::error("HUD memento: a stored queue count of {} is outside its {} slots", memento.count, Queue::Capacity);
+        sf4e::Game::MementoFailure::restore = true;
+        return;
+    }
     (native->*dDeque_0x10::publicMethods.clear)();
     for (const auto& entry : memento)
         (native->*dDeque_0x10::publicMethods.push_back)((dDeque_0x10::value_type*)&entry);
