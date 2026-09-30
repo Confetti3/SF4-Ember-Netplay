@@ -5,6 +5,9 @@
 #include "../common/SpectatorCatchUp.hxx"
 #include <atomic>
 
+// Stands in for a saved state on frames that save nothing (the save callback).
+static unsigned char s_inertSaveState;
+
 static sf4e::RollbackHud rollbackHud;
 
 // Always-on netplay time series: one log line per 15 s window and one at the
@@ -666,18 +669,14 @@ bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, in
     // errors with an assertion if the length is zero.
     *len = 1;
 
-    // A fatal session only advances GGPO's frame count until the outer tick
-    // closes it (see the advance callback), so nothing is saved. The session
-    // closes before GGPO could load this frame, and freeing null is ignored.
-    if (simGate.fatalError) {
-        *buffer = nullptr;
-        *checksum = 0;
-        return true;
-    }
-    // After battle close GGPO still wants a buffer per resimulated frame.
-    // Hand it an unused slot without saving; its later free is ignored.
-    if (sf4e::NetplayFacade::DrainingSpectators()) {
-        *buffer = (unsigned char*)&saveStates[0];
+    // A fatal session (until the outer tick closes it) and a battle already
+    // closed for draining spectators only move GGPO's frame count; nothing is
+    // saved. GGPO still needs a buffer per frame, and asserts one exists if a
+    // later rollback in the same poll loads it, so these frames all share the
+    // inert token: loading it touches nothing in either state, and freeing it
+    // is ignored.
+    if (simGate.fatalError || sf4e::NetplayFacade::DrainingSpectators()) {
+        *buffer = &s_inertSaveState;
         *checksum = 0;
         return true;
     }
@@ -742,9 +741,9 @@ void fSystem::ggpo_free_buffer(void* buffer)
     // &saveStates[i]. Validate rather than trust: a stale or duplicated free
     // would otherwise run CopyIntoPlace on an arbitrary address and push
     // garbage keys into live engine objects.
+    if (buffer == &s_inertSaveState) return;
     if (!buffer) {
-        // Frames advanced after a fatal abort carry no state (save callback).
-        if (!simGate.fatalError) spdlog::error("GGPO: free_buffer called with null buffer; ignoring");
+        spdlog::error("GGPO: free_buffer called with null buffer; ignoring");
         return;
     }
     const char* base = (const char*)&saveStates[0];
