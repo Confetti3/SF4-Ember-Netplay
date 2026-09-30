@@ -49,9 +49,10 @@ static sf4e::selection::StageMask lobbyStageExcluded = 0;
 static std::atomic<DWORD> s_drawThread{0};
 // SF4 can pump the window's messages on another thread than the one that
 // draws (sf4e.log then says "window messages arrive on thread"). The Win32
-// backend queues their ImGui input for the drawing thread (deferred input), so
-// the window procedure only needs the context to stay alive while it runs:
-// this lock covers creating and destroying the context, never a frame.
+// backend hands their ImGui input to this bridge, which the drawing thread
+// applies, so the window procedure only needs the context to stay alive while
+// it runs: this lock covers creating and destroying the context, never a frame.
+static sf4e::ui::Win32InputBridge s_inputBridge;
 static std::recursive_mutex s_imguiLock;
 using ImGuiLock = std::lock_guard<std::recursive_mutex>;
 // Whether the menu can open now, published by the drawing thread for the
@@ -82,7 +83,8 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(hWnd));
 	ImGui::GetPlatformIO().Platform_SetImeDataFn = nullptr;
 	ImGui_ImplWin32_Init(hWnd);
-	ImGui_ImplWin32_SetDeferredInput(true);
+	s_inputBridge.RequestClear(); // nothing queued for a context that is gone
+	ImGui_ImplWin32_SetInputBridge(&s_inputBridge);
 	ImGui_ImplDX9_Init(lpDevice);
 	wchar_t gamePath[MAX_PATH] = {}, modulePath[MAX_PATH] = {};
 	HMODULE module = nullptr;
@@ -408,7 +410,7 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
             capture = false; pointerCapture = false;
             activationClick.Reset();
             sf4e::ui::SetOverlayCursorOwnership(false);
-            if (ImGui::GetCurrentContext()) ImGui_ImplWin32_ClearInput();
+            s_inputBridge.RequestClear();
         }
     }
     if (!ImGui::GetCurrentContext()) return 0;

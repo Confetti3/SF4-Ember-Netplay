@@ -2,12 +2,11 @@
 #include <imgui.h>
 #include <imgui_impl_win32.h>
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
-IMGUI_API void ImGui_ImplWin32_SetCursorOwned(bool owned);
 
 namespace sf4e { namespace ui {
-// Kept in the backend rather than io.ConfigFlags: the window procedure sets it
-// on the message thread, which may not be the drawing thread.
-void SetOverlayCursorOwnership(bool capture) { ImGui_ImplWin32_SetCursorOwned(capture); }
+// A shared flag rather than io.ConfigFlags: the window procedure sets it on
+// the message thread, which may not be the drawing thread.
+void SetOverlayCursorOwnership(bool capture) { SetWin32CursorOwned(capture); }
 namespace {
 // The button-up that ends a press, or 0 when the message is not a button press.
 UINT ReleaseOf(UINT message) {
