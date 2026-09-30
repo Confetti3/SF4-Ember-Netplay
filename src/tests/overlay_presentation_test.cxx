@@ -39,5 +39,15 @@ int main() {
     OverlayPresentation late;
     late.Update(true, MatchState::Preparing, false, true); CHECK(!late.Visible() && !late.Available());
     late.Update(true, MatchState::PostMatch, false, true); CHECK(late.Visible() && late.Reopened());
+    // Game-thread open requests wait for the drawing thread and coalesce, Play first.
+    using Kind = sf4e::ui::OpenRequests::Kind;
+    sf4e::ui::OpenRequests requests;
+    CHECK(requests.Take() == Kind::None);
+    requests.Post(Kind::Controls); requests.Post(Kind::Play);
+    CHECK(requests.Take() == Kind::Play && requests.Take() == Kind::None);
+    requests.Post(Kind::Play); requests.Post(Kind::Controls);
+    CHECK(requests.Take() == Kind::Play);
+    requests.Post(Kind::Controls);
+    CHECK(requests.Take() == Kind::Controls);
     std::cout << "Safe-menu, focus, offline, loading, fight and rematch visibility passed\n";
 }

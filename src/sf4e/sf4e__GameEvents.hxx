@@ -1,6 +1,7 @@
 #pragma once
 
 #include <windows.h>
+#include <atomic>
 
 #include "../Dimps/Dimps__GameEvents.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
@@ -16,7 +17,8 @@ namespace sf4e {
 			int GetItemObserverState();
 
 			static int (*OnModeSelectedOverride)(int mode);
-			static int bOverrideItemObserverState;
+			// Written by the overlay on the drawing thread, read by the game.
+			static std::atomic<int> bOverrideItemObserverState;
 			static void Install();
 		};
 

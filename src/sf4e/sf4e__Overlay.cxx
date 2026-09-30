@@ -39,7 +39,7 @@ static std::atomic<bool> capture{false};
 // The pointer is over the training HUD's chip: the mouse (only) is Ember's.
 static std::atomic<bool> pointerCapture{false};
 static std::atomic<bool> focused{true};
-static std::atomic<bool> mainRequested{false};
+static sf4e::ui::OpenRequests s_openRequests;
 static bool trainingOpen = false, trainingHud = true;
 static std::atomic<bool> trainingAvailable{false};
 static int lobbyStageID = 0, lobbyMenuCharaID = 0;
@@ -61,14 +61,15 @@ static rVsMode::ConfirmedCharaConditions lobbyConditions = {0,0,0,0,0,0,0,0,14};
 
 bool Overlay::CapturesMenuInput() { return capture.load(); }
 bool Overlay::HasInputFocus() { return focused.load(); }
-void Overlay::RequestMainControls() { if(focused) { capture=true; mainRequested=true; } }
+void Overlay::RequestMainControls() { if(focused) { capture=true; s_openRequests.Post(sf4e::ui::OpenRequests::Kind::Controls); } }
 void Overlay::PushNetplayAlert(const char* message) { if (message) sf4e::NetplayFacade::SetLastError(message); }
 void Overlay::OnClientError(SessionClient::ErrorType type, SessionClient* const, const SessionClient::Callbacks&) {
     PushNetplayAlert(sf4e::loc::T(SessionClient::JoinRejectionKey(type)));
 }
+// Game thread: the native menu's Network item opens the room shell instead.
 static int OnMainMenuModeSelected(int mode) {
     if (mode != rMainMenu::MainMenuItemID::MMI_NETWORK) return 0;
-    presentation.Open(); shell.ShowPlay(); return 1;
+    s_openRequests.Post(sf4e::ui::OpenRequests::Kind::Play); return 1;
 }
 void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	ImGuiLock lock(s_imguiLock);
@@ -258,7 +259,11 @@ void Overlay::DrawOverlay() {
     if (sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(s_overlayWindow) * snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
     presentation.Update(snapshot.atMainMenu, snapshot.session.match, snapshot.offlineRequested, focused);
     s_menuAvailable = presentation.Available();
-    if(mainRequested.exchange(false) && presentation.Available()) presentation.Open();
+    const auto openRequest = s_openRequests.Take();
+    if (openRequest != sf4e::ui::OpenRequests::Kind::None && presentation.Available()) {
+        presentation.Open();
+        if (openRequest == sf4e::ui::OpenRequests::Kind::Play) shell.ShowPlay();
+    }
     static bool inviteShown=false;
     if (snapshot.discordPending && !inviteShown && snapshot.atMainMenu) { presentation.Open(); inviteShown=true; }
     if (!snapshot.discordPending) inviteShown=false;

@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include "../netplay/SessionController.hxx"
 
 namespace sf4e { namespace ui {
@@ -39,5 +40,22 @@ private:
     unsigned awayFrames_ = 0;
     bool reopened_ = false, reopen_ = false, previousOffline_ = false;
     netplay::MatchState previousMatch_ = netplay::MatchState::None;
+};
+
+// The game thread asks the drawing thread to open the shell: the native
+// Network item wants the Play page, the pad's Start only the shell. Only the
+// drawing thread touches the presentation and the shell's navigation, so a
+// request waits for its next frame. Requests arriving before then coalesce,
+// and Play outranks Controls.
+class OpenRequests {
+public:
+    enum class Kind : int { None = 0, Controls = 1, Play = 2 };
+    void Post(Kind kind) {
+        int current = value_.load();
+        while (current < static_cast<int>(kind) && !value_.compare_exchange_weak(current, static_cast<int>(kind))) {}
+    }
+    Kind Take() { return static_cast<Kind>(value_.exchange(static_cast<int>(Kind::None))); }
+private:
+    std::atomic<int> value_{0};
 };
 } }

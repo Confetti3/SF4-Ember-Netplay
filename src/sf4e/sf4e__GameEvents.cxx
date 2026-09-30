@@ -35,7 +35,7 @@ using fVsStageSelect = fGameEvents::VsStageSelect;
 using fUserApp = sf4e::UserApp;
 
 int (*fMainMenu::OnModeSelectedOverride)(int mode);
-int fMainMenu::bOverrideItemObserverState = -1;
+std::atomic<int> fMainMenu::bOverrideItemObserverState{-1};
 void (*fVsBattle::OnTasksRegistered)() = nullptr;
 void (*fVsPreBattle::OnTasksRegistered)() = nullptr;
 
@@ -138,8 +138,9 @@ void fMainMenu::Install() {
 
 int fMainMenu::GetItemObserverState() {
 	sf4e::NetplayFacade::NotifyRuntimeEventSystemReady();
-	if (bOverrideItemObserverState != -1) {
-		return bOverrideItemObserverState;
+	const int overridden = bOverrideItemObserverState.load();
+	if (overridden != -1) {
+		return overridden;
 	}
 
 	return (this->*rMainMenu::itemObserverMethods.GetItemObserverState)();
