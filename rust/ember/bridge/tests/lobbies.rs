@@ -94,6 +94,37 @@ impl Fixture {
         body
     }
 
+    /// An ordinary first-to-1 match between two of the players.
+    async fn bracket(&self, external: &str, first: usize, second: usize) -> Value {
+        let (status, bracket) = self
+            .bridge
+            .post_keyed(
+                &self.provider,
+                "/v1/matches",
+                json!({
+                    "external_match_id": external,
+                    "game": "usf4",
+                    "participants": [
+                        { "participant_id": self.participant(first), "ember_id": self.id(first), "slot": 0 },
+                        { "participant_id": self.participant(second), "ember_id": self.id(second), "slot": 1 },
+                    ],
+                    "rules": {
+                        "games_to_win": 1, "draw_policy": "replay_no_score", "native_rules_profile": "organizer-reported-v1",
+                        "edition_policy": "ultra_only", "character_policy": "unrestricted_between_games",
+                        "stage_policy": "p1_selects", "input_delay_policy": "ember_existing_ready_policy",
+                    },
+                    "observer_policy": "authorized_only",
+                    "result_policy": "two_player_agreement_or_review",
+                    "required_build_id": "test-build",
+                    "metadata": {},
+                }),
+                Some(external),
+            )
+            .await;
+        assert_eq!(status, StatusCode::CREATED, "{bracket}");
+        bracket
+    }
+
     /// The organizer records one game of the lobby's running set.
     async fn win(&self, lobby: &str, winner_slot: u8) -> (StatusCode, Value) {
         let current = self.lobby(lobby).await;
@@ -477,32 +508,7 @@ async fn leaving_unlinking_and_closing() {
 #[tokio::test]
 async fn a_busy_player_keeps_their_place() {
     let f = fixture(5).await;
-    let (status, bracket) = f
-        .bridge
-        .post_keyed(
-            &f.provider,
-            "/v1/matches",
-            json!({
-                "external_match_id": "bracket-1",
-                "game": "usf4",
-                "participants": [
-                    { "participant_id": f.participant(2), "ember_id": f.id(2), "slot": 0 },
-                    { "participant_id": f.participant(3), "ember_id": f.id(3), "slot": 1 },
-                ],
-                "rules": {
-                    "games_to_win": 1, "draw_policy": "replay_no_score", "native_rules_profile": "organizer-reported-v1",
-                    "edition_policy": "ultra_only", "character_policy": "unrestricted_between_games",
-                    "stage_policy": "p1_selects", "input_delay_policy": "ember_existing_ready_policy",
-                },
-                "observer_policy": "authorized_only",
-                "result_policy": "two_player_agreement_or_review",
-                "required_build_id": "test-build",
-                "metadata": {},
-            }),
-            Some("bracket-1"),
-        )
-        .await;
-    assert_eq!(status, StatusCode::CREATED, "{bracket}");
+    f.bracket("bracket-1", 2, 3).await;
     let lobby = f.create("busy", 1, "winner_stays").await;
     let id = lobby["lobby_id"].as_str().unwrap().to_owned();
     for index in [0, 1, 2, 4] {
@@ -515,4 +521,77 @@ async fn a_busy_player_keeps_their_place() {
         vec![(0, f.id(0).into()), (1, f.id(4).into())]
     );
     assert_eq!(queued(&after), vec![f.id(2).to_owned(), f.id(1).to_owned()]);
+}
+
+// A lobby that waits on players busy in other matches starts its set when
+// those matches complete or are cancelled, including for a player who was
+// given another match while already seated.
+#[tokio::test]
+async fn a_lobby_resumes_when_its_players_are_free() {
+    let f = fixture(5).await;
+    let bracket = f.bracket("bracket-free", 0, 1).await;
+    let lobby = f.create("waiting", 1, "winner_stays").await;
+    let id = lobby["lobby_id"].as_str().unwrap().to_owned();
+    for index in [0, 1] {
+        let (status, body) = f.join(&id, index).await;
+        assert_eq!(status, StatusCode::CREATED, "{body}");
+    }
+    let idle = f.lobby(&id).await;
+    assert!(idle["current_match_id"].is_null());
+    assert!(seated(&idle).is_empty());
+    let match_id = bracket["match_id"].as_str().unwrap();
+    let (status, body) = f
+        .bridge
+        .post_keyed(
+            &f.organizer,
+            &format!("/v1/matches/{match_id}/adjudications"),
+            json!({
+                "kind": "game_result",
+                "winner_slot": 0,
+                "reason": "Bracket game",
+                "expected_revision": bracket["revision"],
+            }),
+            Some("bracket-free-win"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    let resumed = f.lobby(&id).await;
+    assert!(resumed["current_match_id"].is_string(), "{resumed}");
+    assert_eq!(
+        seated(&resumed),
+        vec![(0, f.id(0).into()), (1, f.id(1).into())]
+    );
+
+    // A seated player waiting for an opponent is given another match. The
+    // opponent who joins sits down, and the set waits for that match.
+    let other = f.create("seated-busy", 1, "winner_stays").await;
+    let other_id = other["lobby_id"].as_str().unwrap().to_owned();
+    f.join(&other_id, 2).await;
+    let side = f.bracket("bracket-side", 2, 3).await;
+    let (status, body) = f.join(&other_id, 4).await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    let waiting = f.lobby(&other_id).await;
+    assert!(waiting["current_match_id"].is_null(), "{waiting}");
+    assert_eq!(
+        seated(&waiting),
+        vec![(0, f.id(2).into()), (1, f.id(4).into())]
+    );
+    let side_id = side["match_id"].as_str().unwrap();
+    let (status, body) = f
+        .bridge
+        .post_keyed(
+            &f.provider,
+            &format!("/v1/matches/{side_id}/cancel"),
+            json!({ "reason": "No show", "expected_revision": side["revision"] }),
+            Some("bracket-side-cancel"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let started = f.lobby(&other_id).await;
+    assert!(started["current_match_id"].is_string(), "{started}");
+    let events = f.bridge.events(&f.provider, "0").await;
+    assert_eq!(
+        last(&events, "lobby.queue.changed")["data"]["reason"],
+        "player_available"
+    );
 }

@@ -635,6 +635,7 @@ pub async fn cancel(
                     .detail("lobby_id", lobby_id.clone()));
                 }
                 let revision = cancel_match(tx, &ctx, &found, &command.reason)?;
+                release(tx, &ctx, &found, &participants(tx, &found.id, found.generation)?)?;
                 audit(tx, ctx.now, ("service", service.id.clone()), "match.cancel", &found.id, "ok", Some(&command.reason))?;
                 Ok((StatusCode::OK, json!({ "match_id": found.id, "state": "cancelled", "revision": revision.to_string() })))
             })
@@ -654,6 +655,13 @@ fn cancel_match(tx: &Transaction<'_>, ctx: &Ctx, found: &Match, reason: &str) ->
         json!({ "match_id": found.id, "match_revision": revision.to_string(), "state": "cancelled", "reason": reason }),
     )?;
     Ok(revision)
+}
+
+/// A match outside any lobby has ended, so lobbies its players wait in may
+/// start their next set.
+fn release(tx: &Transaction<'_>, ctx: &Ctx, found: &Match, roster: &[Participant]) -> Result<()> {
+    let players: Vec<EmberId> = roster.iter().map(|p| p.ember_id.clone()).collect();
+    lobbies::on_players_free(tx, ctx, &found.connection_id, &players)
 }
 
 /// Cancels a lobby's running set when a seated player leaves or the lobby
@@ -940,8 +948,12 @@ fn apply_adjudication(
             Kind::MatchCompleted,
             serde_json::to_value(&completed).unwrap_or_default(),
         )?;
-        if let (Some(lobby_id), false) = (&found.lobby_id, correcting) {
-            lobbies::on_set_completed(tx, ctx, lobby_id, &found.id, slot as u8, &score_rows)?;
+        match (&found.lobby_id, correcting) {
+            (Some(lobby_id), false) => {
+                lobbies::on_set_completed(tx, ctx, lobby_id, &found.id, slot as u8, &score_rows)?
+            }
+            (None, false) => release(tx, ctx, found, &roster)?,
+            (_, true) => {}
         }
     }
     Ok((

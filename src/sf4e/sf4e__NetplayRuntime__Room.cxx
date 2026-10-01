@@ -560,6 +560,14 @@ void ResolvePendingIntents(bool helperReady) {
 	runtime->chatIntent.DropStale(currentGeneration);
 	runtime->readyIntent.DropStale(currentGeneration);
 	runtime->lobbyEditIntent.DropStale(currentGeneration);
+	// A set that ended while a Ready or Rematch was parked can rotate this
+	// player into the queue. The seat is gone, so the press ends with it
+	// before its gate or budget is consulted.
+	if (runtime->readyIntent.Parked()) {
+		const auto publishedShared = GetRuntimeSnapshotShared();
+		if (publishedShared->session.room == netplay::RoomState::Joined &&
+			(publishedShared->localSlot < 0 || publishedShared->localSlot > 1)) runtime->readyIntent.Clear();
+	}
 	// A match recovery pauses a room action's budget; it restarts once the
 	// recovery resolves, which is when the action can be submitted (H-006).
 	// Say so when it gives up rather than applying a stale intent.

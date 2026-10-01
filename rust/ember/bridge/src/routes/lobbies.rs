@@ -261,6 +261,13 @@ fn advance(
     let [Some(first), Some(second)] = &seated else {
         return Ok(None);
     };
+    // A seated player who was given another match while waiting for an
+    // opponent keeps the seat; the set starts when that match ends.
+    for entry in [first, second] {
+        if matches::busy(tx, &lobby.connection_id, &entry.ember_id, "")? {
+            return Ok(None);
+        }
+    }
     let number = lobby.sets_started + 1;
     let roster = [first, second].map(|entry| Assigned {
         participant_id: entry.participant_id.clone(),
@@ -465,6 +472,44 @@ fn remove(
         &dropped,
         started,
     )
+}
+
+/// Called when a match outside any lobby completes or is cancelled. Its
+/// players are free again, which may be all an idle lobby was waiting for.
+pub fn on_players_free(
+    tx: &Transaction<'_>,
+    ctx: &Ctx,
+    connection_id: &str,
+    players: &[EmberId],
+) -> Result<()> {
+    for ember_id in players {
+        let lobbies = tx
+            .prepare(
+                "SELECT l.id FROM lobbies l JOIN lobby_entries e ON e.lobby_id = l.id
+                 WHERE l.connection_id = ?1 AND l.state = 'open' AND l.current_match_id IS NULL
+                   AND e.ember_id = ?2 AND e.state != 'left'",
+            )?
+            .query_map(params![connection_id, ember_id.as_str()], |row| {
+                row.get::<_, String>(0)
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        for id in lobbies {
+            let mut dropped = Vec::new();
+            let started = advance(tx, ctx, &id, &mut dropped)?;
+            if started.is_some() || !dropped.is_empty() {
+                announce(
+                    tx,
+                    ctx,
+                    &id,
+                    "player_available",
+                    Some(ember_id),
+                    &dropped,
+                    started,
+                )?;
+            }
+        }
+    }
+    Ok(())
 }
 
 /// An ended link ends that player's places in the connection's open lobbies.

@@ -34,9 +34,6 @@ namespace sf4e {
             // as the watched game started (see HudScore).
             std::uint32_t startScore[2] = { 0, 0 };
             bool startScoreKnown = false;
-            // The table's game this native match plays, so a fighter's HUD can
-            // keep the final score of the set that game decided.
-            std::uint64_t startGeneration = 0;
             bool spectating = false;
         };
 

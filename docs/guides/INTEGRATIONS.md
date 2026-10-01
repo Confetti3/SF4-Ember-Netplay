@@ -103,7 +103,10 @@ capabilities `features` and `lobby_rotations` say a bridge has them.
 
   The next queued players sit down; with nobody waiting the same two play a new
   set. A queued player with another active match on your connection keeps their
-  place and is skipped until it ends.
+  place and is skipped until it ends. A seated player given another match while
+  waiting for an opponent keeps the seat, and the set waits for that match. When
+  such a match completes or is cancelled the lobby picks up where it left off,
+  with a `lobby.queue.changed` event whose reason is `player_available`.
 - `POST /v1/lobbies/{id}/queue/{participant_id}/leave` takes a player out.
   Leaving a seat cancels the running set; the other player stays seated. A
   player whose link ends leaves the same way, with the reason

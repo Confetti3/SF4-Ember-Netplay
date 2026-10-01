@@ -131,11 +131,9 @@ static bool StartRuntimeGgpo() {
     netplay->spectating = endpoints.localSlot >= 2;
     netplay->startScoreKnown = false;
     netplay->startScore[0] = netplay->startScore[1] = 0;
-    netplay->startGeneration = 0;
     for (const auto& member : room.members)
         if (member.id == room.localMember && member.table >= 0 && member.table < static_cast<std::int8_t>(sf4e::room::TableCount)) {
             netplay->startScoreKnown = true;
-            netplay->startGeneration = room.tables[member.table].matchGeneration;
             for (int side = 0; side < 2; ++side) netplay->startScore[side] = room.tables[member.table].score[side];
         }
     if (endpoints.localSlot >= 2) {

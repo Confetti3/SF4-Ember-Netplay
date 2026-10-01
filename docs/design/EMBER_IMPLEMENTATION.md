@@ -92,10 +92,15 @@ package inventory while adding the private room authority. A room admits up to
 explicitly queues for a fighter seat or watches a table. Each table has two
 fighters and can carry up to 14 spectators.
 
-The same fighter pair keeps its seats until one of them leaves. Both
-fighters must ready for each game, and valid native results accumulate wins for
-that pair. A seat departure promotes the next queued member and starts a fresh
-pair score. Conflicting or missing native result reports remain unresolved;
+Both fighters must ready for each game, and valid native results accumulate
+wins for the seated pair. With no set length the pair keeps its seats until one
+of them leaves. A table can instead play first-to-1, 2, 3 or 5 sets: when a
+win reaches the set length the set ends, and the table's rotation decides who
+gives up the seat (winner stays, loser stays, or both rotate, winner first).
+Rotated fighters join the back of the queue and the front of the queue fills
+the empty seats; with nobody queued the same pair starts a new set. Draws and
+aborted games never end a set. A seat departure promotes the next queued member
+and starts a fresh pair score. Conflicting or missing native result reports remain unresolved;
 the host can cancel that game without awarding a win or changing earlier
 scores. The host can rename the room, lock admission, change capacity, edit
 waiting-table rules and kick members. Host ownership is separate from the P1
