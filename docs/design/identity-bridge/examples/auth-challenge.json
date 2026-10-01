@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "bridge_id": "brg_11111111-1111-4111-8111-111111111111",
+  "audience": "https://bridge.ember.example",
+  "challenge_id": "chl_55555555-5555-4555-8555-555555555555",
+  "ember_id": "emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja",
+  "action": "session.create",
+  "method": "POST",
+  "path": "/v1/sessions",
+  "request_digest": "7SGviL7xcss-_tjIY6TXuY-hSFRZOQ6C3ynqKLX7jQU",
+  "nonce": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8",
+  "issued_at": 1790812800,
+  "expires_at": 1790812860
+}

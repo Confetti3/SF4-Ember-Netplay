@@ -1,0 +1,11 @@
+{
+  "warning": "PUBLIC TEST SECRET. Never use for a real subscription.",
+  "secret_base64": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8=",
+  "body_file": "match-completed-event.json",
+  "verification_time_unix": 1790813520,
+  "headers": {
+    "webhook-id": "evt_cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    "webhook-timestamp": "1790813520",
+    "webhook-signature": "v1,jyPnKuhJp39m3E+Eb+skh89PQUfG1kCM3hkk3AdNB8U="
+  }
+}

@@ -1,0 +1,35 @@
+PASS: JSON Schema 2020-12 structure
+PASS: schema: identity.json
+PASS: schema: auth-challenge.json
+PASS: schema: auth-proof.json
+PASS: schema: create-match.json
+PASS: schema: game-report-p1.json
+PASS: schema: game-report-p2.json
+PASS: schema: match-completed-event.json
+PASS: identity derivation vector 1
+PASS: identity derivation vector 2
+PASS: challenge canonical bytes
+PASS: challenge signing bytes
+PASS: challenge signature and request binding
+PASS: reject tampered challenge nonce
+PASS: reject wrong audience
+PASS: reject wrong command digest
+PASS: reject expired challenge
+PASS: player-one report signature and consistency
+PASS: player-two report signature and consistency
+PASS: distinct players agree despite different confirmation frames
+PASS: reject altered winner
+PASS: reject substituted signing identity
+PASS: reject unconfirmed native result claim
+PASS: reject noncanonical counter
+PASS: reject counter overflow beyond schema pattern
+PASS: reject cross-domain report signature
+PASS: reject duplicate JSON properties
+PASS: restricted fixture canonicalizer rejects floats
+PASS: FT2 completed-event score consistency
+PASS: Standard Webhooks raw-body HMAC fixture
+PASS: reject modified raw webhook body
+PASS: reject stale webhook delivery
+PASS: reject wrong webhook secret
+
+33 fixture checks passed. No product integration tests were run.

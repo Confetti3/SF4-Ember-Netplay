@@ -1,0 +1,677 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ember.example/identity-tournament/v1/core.schema.json",
+  "title": "Ember Identity and Tournament Core v1 — proposed contract",
+  "description": "Select a definition through $ref. These schemas do not replace cryptographic, cross-field, database, or authorization checks. All domains are documentation-only.",
+  "$defs": {
+    "EmberId": {
+      "type": "string",
+      "pattern": "^emb1_[a-z2-7]{52}$",
+      "minLength": 57,
+      "maxLength": 57
+    },
+    "PublicKey": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{43}$"
+    },
+    "Digest": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{43}$"
+    },
+    "Signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{86}$"
+    },
+    "Counter": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "PositiveCounter": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "Time": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "BridgeId": {
+      "type": "string",
+      "pattern": "^brg_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "MatchId": {
+      "type": "string",
+      "pattern": "^emt_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "AttemptId": {
+      "type": "string",
+      "pattern": "^ega_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "ParticipantId": {
+      "type": "string",
+      "pattern": "^epl_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "ChallengeId": {
+      "type": "string",
+      "pattern": "^chl_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "PermitId": {
+      "type": "string",
+      "pattern": "^per_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "ObservationId": {
+      "type": "string",
+      "pattern": "^obs_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "InstanceId": {
+      "type": "string",
+      "pattern": "^ins_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "EventId": {
+      "type": "string",
+      "pattern": "^evt_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "ReportId": {
+      "type": "string",
+      "pattern": "^rpt_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "Origin": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://[^/?#@]+$"
+    },
+    "RoomId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "BuildId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "Identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ember_id": {
+          "$ref": "#/$defs/EmberId"
+        },
+        "public_key": {
+          "$ref": "#/$defs/PublicKey"
+        },
+        "algorithm": {
+          "const": "Ed25519"
+        }
+      },
+      "required": [
+        "ember_id",
+        "public_key",
+        "algorithm"
+      ]
+    },
+    "Challenge": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "bridge_id": {
+          "$ref": "#/$defs/BridgeId"
+        },
+        "audience": {
+          "$ref": "#/$defs/Origin"
+        },
+        "challenge_id": {
+          "$ref": "#/$defs/ChallengeId"
+        },
+        "ember_id": {
+          "$ref": "#/$defs/EmberId"
+        },
+        "action": {
+          "enum": [
+            "session.create",
+            "link.claim",
+            "link.cancel",
+            "link.remove",
+            "match.claim",
+            "room.publish",
+            "lease.renew",
+            "attempt.prepare",
+            "handoff.redeem"
+          ]
+        },
+        "method": {
+          "enum": [
+            "POST",
+            "DELETE"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/v1/[a-zA-Z0-9_/-]+$",
+          "maxLength": 512
+        },
+        "request_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "nonce": {
+          "$ref": "#/$defs/Digest"
+        },
+        "issued_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/Time"
+        }
+      },
+      "required": [
+        "version",
+        "bridge_id",
+        "audience",
+        "challenge_id",
+        "ember_id",
+        "action",
+        "method",
+        "path",
+        "request_digest",
+        "nonce",
+        "issued_at",
+        "expires_at"
+      ]
+    },
+    "Proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "challenge_id": {
+          "$ref": "#/$defs/ChallengeId"
+        },
+        "signature": {
+          "$ref": "#/$defs/Signature"
+        }
+      },
+      "required": [
+        "challenge_id",
+        "signature"
+      ]
+    },
+    "Participant": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "participant_id": {
+          "$ref": "#/$defs/ParticipantId"
+        },
+        "ember_id": {
+          "$ref": "#/$defs/EmberId"
+        },
+        "slot": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "participant_id",
+        "ember_id",
+        "slot"
+      ]
+    },
+    "Rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "games_to_win": {
+          "enum": [
+            1,
+            2,
+            3,
+            5
+          ]
+        },
+        "draw_policy": {
+          "const": "replay_no_score"
+        },
+        "native_rules_profile": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "edition_policy": {
+          "const": "ultra_only"
+        },
+        "character_policy": {
+          "const": "unrestricted_between_games"
+        },
+        "stage_policy": {
+          "const": "p1_selects"
+        },
+        "input_delay_policy": {
+          "const": "ember_existing_ready_policy"
+        }
+      },
+      "required": [
+        "games_to_win",
+        "draw_policy",
+        "native_rules_profile",
+        "edition_policy",
+        "character_policy",
+        "stage_policy",
+        "input_delay_policy"
+      ]
+    },
+    "CreateMatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "external_match_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "game": {
+          "const": "usf4"
+        },
+        "participants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Participant"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "rules": {
+          "$ref": "#/$defs/Rules"
+        },
+        "observer_policy": {
+          "const": "authorized_only"
+        },
+        "result_policy": {
+          "const": "two_player_agreement_or_review"
+        },
+        "required_build_id": {
+          "$ref": "#/$defs/BuildId"
+        },
+        "metadata": {
+          "type": "object",
+          "maxProperties": 16,
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 1024
+          }
+        }
+      },
+      "required": [
+        "external_match_id",
+        "game",
+        "participants",
+        "rules",
+        "observer_policy",
+        "result_policy",
+        "required_build_id",
+        "metadata"
+      ]
+    },
+    "GameReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "bridge_id": {
+          "$ref": "#/$defs/BridgeId"
+        },
+        "match_id": {
+          "$ref": "#/$defs/MatchId"
+        },
+        "assignment_generation": {
+          "$ref": "#/$defs/PositiveCounter"
+        },
+        "attempt_id": {
+          "$ref": "#/$defs/AttemptId"
+        },
+        "permit_id": {
+          "$ref": "#/$defs/PermitId"
+        },
+        "observation_id": {
+          "$ref": "#/$defs/ObservationId"
+        },
+        "room_id": {
+          "$ref": "#/$defs/RoomId"
+        },
+        "table_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "match_generation": {
+          "$ref": "#/$defs/PositiveCounter"
+        },
+        "reporter_id": {
+          "$ref": "#/$defs/EmberId"
+        },
+        "opponent_id": {
+          "$ref": "#/$defs/EmberId"
+        },
+        "p1_id": {
+          "$ref": "#/$defs/EmberId"
+        },
+        "p2_id": {
+          "$ref": "#/$defs/EmberId"
+        },
+        "rules_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "roster_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "build_id": {
+          "$ref": "#/$defs/BuildId"
+        },
+        "result": {
+          "enum": [
+            "p1_win",
+            "p2_win",
+            "draw",
+            "abort",
+            "cancel"
+          ]
+        },
+        "capture_frame": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PositiveCounter"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "confirmed_input_frame": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Counter"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observed_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "helper_instance_id": {
+          "$ref": "#/$defs/InstanceId"
+        }
+      },
+      "required": [
+        "version",
+        "bridge_id",
+        "match_id",
+        "assignment_generation",
+        "attempt_id",
+        "permit_id",
+        "observation_id",
+        "room_id",
+        "table_id",
+        "match_generation",
+        "reporter_id",
+        "opponent_id",
+        "p1_id",
+        "p2_id",
+        "rules_digest",
+        "roster_digest",
+        "build_id",
+        "result",
+        "capture_frame",
+        "confirmed_input_frame",
+        "observed_at",
+        "helper_instance_id"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "result": {
+                "enum": [
+                  "p1_win",
+                  "p2_win",
+                  "draw"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "capture_frame": {
+                "$ref": "#/$defs/PositiveCounter"
+              },
+              "confirmed_input_frame": {
+                "$ref": "#/$defs/Counter"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "SignedReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "report": {
+          "$ref": "#/$defs/GameReport"
+        },
+        "public_key": {
+          "$ref": "#/$defs/PublicKey"
+        },
+        "signature": {
+          "$ref": "#/$defs/Signature"
+        }
+      },
+      "required": [
+        "report",
+        "public_key",
+        "signature"
+      ]
+    },
+    "Score": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ember_id": {
+          "$ref": "#/$defs/EmberId"
+        },
+        "wins": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        }
+      },
+      "required": [
+        "ember_id",
+        "wins"
+      ]
+    },
+    "MatchCompletedData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "match_id": {
+          "$ref": "#/$defs/MatchId"
+        },
+        "match_revision": {
+          "$ref": "#/$defs/PositiveCounter"
+        },
+        "assignment_generation": {
+          "$ref": "#/$defs/PositiveCounter"
+        },
+        "state": {
+          "const": "completed"
+        },
+        "games_to_win": {
+          "enum": [
+            1,
+            2,
+            3,
+            5
+          ]
+        },
+        "scores": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Score"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "winner_id": {
+          "$ref": "#/$defs/EmberId"
+        },
+        "resolution": {
+          "enum": [
+            "player_agreement",
+            "organizer_adjudication"
+          ]
+        },
+        "accepted_attempt_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AttemptId"
+          },
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "evidence_report_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReportId"
+          },
+          "maxItems": 512,
+          "uniqueItems": true
+        },
+        "provider_delivery_state": {
+          "enum": [
+            "not_required",
+            "queued",
+            "delivering",
+            "delivered",
+            "retrying",
+            "failed",
+            "ambiguous"
+          ]
+        }
+      },
+      "required": [
+        "match_id",
+        "match_revision",
+        "assignment_generation",
+        "state",
+        "games_to_win",
+        "scores",
+        "winner_id",
+        "resolution",
+        "accepted_attempt_ids",
+        "evidence_report_ids",
+        "provider_delivery_state"
+      ]
+    },
+    "Event": {
+      "type": "object",
+      "required": [
+        "specversion",
+        "id",
+        "source",
+        "type",
+        "subject",
+        "time",
+        "datacontenttype",
+        "dataschema",
+        "emberseq",
+        "data"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "specversion": {
+          "const": "1.0"
+        },
+        "id": {
+          "$ref": "#/$defs/EventId"
+        },
+        "source": {
+          "$ref": "#/$defs/Origin"
+        },
+        "type": {
+          "type": "string",
+          "pattern": "^io\\.ember\\.[a-z_]+(?:\\.[a-z_]+)+\\.v1$",
+          "maxLength": 160
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "datacontenttype": {
+          "const": "application/json"
+        },
+        "dataschema": {
+          "type": "string",
+          "format": "uri"
+        },
+        "emberseq": {
+          "$ref": "#/$defs/PositiveCounter"
+        },
+        "data": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "io.ember.tournament.match.completed.v1"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/MatchCompletedData"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Identity"
+    },
+    {
+      "$ref": "#/$defs/Challenge"
+    },
+    {
+      "$ref": "#/$defs/Proof"
+    },
+    {
+      "$ref": "#/$defs/CreateMatch"
+    },
+    {
+      "$ref": "#/$defs/SignedReport"
+    },
+    {
+      "$ref": "#/$defs/Event"
+    }
+  ]
+}

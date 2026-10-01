@@ -1,0 +1,31 @@
+{
+  "external_match_id": "mock-tournament-01-winners-round-2-set-4",
+  "game": "usf4",
+  "participants": [
+    {
+      "participant_id": "epl_66666666-6666-4666-8666-666666666666",
+      "ember_id": "emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja",
+      "slot": 0
+    },
+    {
+      "participant_id": "epl_77777777-7777-4777-8777-777777777777",
+      "ember_id": "emb1_e3ab53xlwdoaqniajp7s4nqfhs6itnxxejgnkwgoyhsmhqn3qklq",
+      "slot": 1
+    }
+  ],
+  "rules": {
+    "games_to_win": 2,
+    "draw_policy": "replay_no_score",
+    "native_rules_profile": "usf4-standard-v1",
+    "edition_policy": "ultra_only",
+    "character_policy": "unrestricted_between_games",
+    "stage_policy": "p1_selects",
+    "input_delay_policy": "ember_existing_ready_policy"
+  },
+  "observer_policy": "authorized_only",
+  "result_policy": "two_player_agreement_or_review",
+  "required_build_id": "test-build-not-a-real-ember-release",
+  "metadata": {
+    "round_label": "Winners round 2"
+  }
+}

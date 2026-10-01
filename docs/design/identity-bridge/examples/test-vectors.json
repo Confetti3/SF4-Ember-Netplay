@@ -1,0 +1,31 @@
+{
+  "warning": "These seeds are public deterministic TEST FIXTURES, not user identities. Never deploy them.",
+  "fixture_canonicalization": "Restricted ASCII-key/string and safe-integer subset of JCS only.",
+  "identities": [
+    {
+      "seed_hex": "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60",
+      "public_key_hex": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+      "public_key_base64url": "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo",
+      "ember_id": "emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja"
+    },
+    {
+      "seed_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "public_key_hex": "03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8",
+      "public_key_base64url": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg",
+      "ember_id": "emb1_e3ab53xlwdoaqniajp7s4nqfhs6itnxxejgnkwgoyhsmhqn3qklq"
+    }
+  ],
+  "challenge": {
+    "file": "auth-challenge.json",
+    "command": {
+      "requested_scopes": [
+        "self:read",
+        "tournament:participate"
+      ]
+    },
+    "proof_file": "auth-proof.json",
+    "canonical_utf8": "{\"action\":\"session.create\",\"audience\":\"https://bridge.ember.example\",\"bridge_id\":\"brg_11111111-1111-4111-8111-111111111111\",\"challenge_id\":\"chl_55555555-5555-4555-8555-555555555555\",\"ember_id\":\"emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja\",\"expires_at\":1790812860,\"issued_at\":1790812800,\"method\":\"POST\",\"nonce\":\"ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8\",\"path\":\"/v1/sessions\",\"request_digest\":\"7SGviL7xcss-_tjIY6TXuY-hSFRZOQ6C3ynqKLX7jQU\",\"version\":1}",
+    "signing_bytes_hex": "454d4245523a4348414c4c454e47453a310a7b22616374696f6e223a2273657373696f6e2e637265617465222c2261756469656e6365223a2268747470733a2f2f6272696467652e656d6265722e6578616d706c65222c226272696467655f6964223a226272675f31313131313131312d313131312d343131312d383131312d313131313131313131313131222c226368616c6c656e67655f6964223a2263686c5f35353535353535352d353535352d343535352d383535352d353535353535353535353535222c22656d6265725f6964223a22656d62315f6a32357a72686536796a69727274366c6769767a737166726c737a6b3373717778776f61366b3278746b7567706d6468766c6a61222c22657870697265735f6174223a313739303831323836302c226973737565645f6174223a313739303831323830302c226d6574686f64223a22504f5354222c226e6f6e6365223a22494345694979516c4a69636f4b536f724c4330754c7a41784d6a4d304e5459334f446b364f7a7739506a38222c2270617468223a222f76312f73657373696f6e73222c22726571756573745f646967657374223a2237534776694c37786373732d5f746a495936545875592d685346525a4f51364333796e714b4c58376a5155222c2276657273696f6e223a317d",
+    "signature_base64url": "mMUEGVTGeBcbIaT8URIFFDq9aYSK4-msp7PalVL626fBlKS04Ykmp_TZyNB_wP7i6h-bPZouOFHQtC6OxbUKDQ"
+  }
+}

@@ -1,0 +1,2078 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ember Identity and Tournament Bridge — Implementation Specification</title>
+<style>
+:root{--ink:#172331;--muted:#5c6978;--line:#dbe2e8;--accent:#a64125;--paper:#fff;--nav:#f2f5f7}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--paper);font-size:16px;line-height:1.7}
+nav{position:fixed;inset:0 auto 0 0;width:298px;padding:27px 20px;background:var(--nav);overflow:auto;border-right:1px solid var(--line)}
+nav .brand{font-weight:800;letter-spacing:.13em;font-size:13px;color:var(--accent);margin:0 0 9px}nav .title{font-size:21px;font-weight:750;line-height:1.25;margin:0 0 10px}nav .meta{font-size:12px;line-height:1.5;color:var(--muted);padding:0 0 20px;border-bottom:1px solid var(--line);margin-bottom:16px}
+nav a{display:flex;gap:10px;text-decoration:none;color:var(--ink);font-size:12.5px;line-height:1.5;padding:8px 6px;border-radius:5px}nav a:hover{background:#e3eaf0;color:var(--accent)}nav a span{font-variant-numeric:tabular-nums;min-width:20px;color:var(--muted)}
+main{margin-left:298px;padding:46px 5vw 70px;max-width:1450px}article{max-width:960px;margin:auto}h1,h2,h3,h4{line-height:1.24;scroll-margin-top:25px}h1{font-size:38px;letter-spacing:-.035em;margin:0 0 12px}h2{font-size:25px;letter-spacing:-.02em;margin:54px 0 18px;padding-top:24px;border-top:1px solid var(--line)}h1+h2{font-size:20px;color:var(--muted);border:0;padding:0;margin:0 0 32px;font-weight:500}h3{font-size:19px;margin:32px 0 12px}h4{font-size:16px;margin-top:24px}p{margin:13px 0}a{color:#255c87;text-underline-offset:3px}strong{font-weight:700}hr{border:0;border-top:1px solid var(--line);margin:32px 0}
+blockquote{margin:22px 0;padding:12px 22px;border-left:4px solid var(--accent);background:#faf3ee;border-radius:0 6px 6px 0}blockquote p{margin:7px 0}ul,ol{padding-left:25px}li{padding-left:3px;margin:7px 0}
+code{font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;font-size:.88em;background:#edf1f4;padding:2px 5px;border-radius:3px;overflow-wrap:anywhere}pre{background:#142331;color:#eff4f9;padding:20px 22px;border-radius:7px;overflow:auto;font-size:13px;line-height:1.6;margin:20px 0}pre code{background:none;color:inherit;padding:0;border-radius:0;overflow-wrap:normal;font-size:inherit;white-space:pre}
+table{width:100%;border-collapse:collapse;margin:22px 0;font-size:13px;line-height:1.6;table-layout:auto}th{background:#eaf0f4;text-align:left;font-weight:700;border-top:1px solid var(--line)}th,td{padding:11px 12px;vertical-align:top;border-bottom:1px solid var(--line)}td code{font-size:12px}tr:nth-child(even) td{background:#fafbfd}footer{border-top:1px solid var(--line);margin-top:55px;padding-top:20px;color:var(--muted);font-size:13px}
+@media(max-width:1050px){nav{width:245px;padding:23px 15px}main{margin-left:245px;padding:35px 28px}h1{font-size:31px}table{font-size:12px}th,td{padding:8px}}
+@media(max-width:760px){nav{position:static;width:auto;max-height:270px;border-right:0;border-bottom:1px solid var(--line)}nav .title{font-size:19px}nav a{font-size:13px}main{margin:0;padding:30px 18px}h1{font-size:30px}h2{font-size:23px}body{font-size:15px}table{display:block;overflow:auto}pre{padding:15px;font-size:12px}}
+@media print{nav{display:none}main{margin:0;padding:0;max-width:none}body{font-size:10pt;line-height:1.45}h1{font-size:25pt}h2{font-size:17pt;break-after:avoid}h3,h4{break-after:avoid}pre{white-space:pre-wrap;overflow-wrap:anywhere;break-inside:avoid;color:#111;background:#f3f3f3}pre code{white-space:pre-wrap}blockquote{break-inside:avoid}tr{break-inside:avoid}thead{display:table-header-group}table{font-size:8.5pt}a{color:inherit}footer{font-size:9pt}}
+</style></head><body>
+<nav aria-label="Document sections"><div class="brand">EMBER / TECHNICAL DESIGN</div><div class="title">Identity &amp;<br>Tournament Bridge</div><div class="meta">EMBER-TB-001 · 1.0-draft.1<br>1 October 2026 · Proposed contract</div><a href="#section-1"><span>01</span>Scope, priorities, and explicit non-goals</a><a href="#section-2"><span>02</span>Evidence baseline and unresolved external contracts</a><a href="#section-3"><span>03</span>Terminology and ownership boundaries</a><a href="#section-4"><span>04</span>Architecture and deployment</a><a href="#section-5"><span>05</span>Security model and invariants</a><a href="#section-6"><span>06</span>Persistent identity and identifier format</a><a href="#section-7"><span>07</span>Local key storage, startup, and failure handling</a><a href="#section-8"><span>08</span>Backup, import, replacement, and revocation</a><a href="#section-9"><span>09</span>Bridge trust and cryptographic wire rules</a><a href="#section-10"><span>10</span>Authentication and operation proofs</a><a href="#section-11"><span>11</span>Code-based external account linking</a><a href="#section-12"><span>12</span>Launcher handoff and application UX</a><a href="#section-13"><span>13</span>Generic match model and rules</a><a href="#section-14"><span>14</span>Room provisioning, admission, and host migration</a><a href="#section-15"><span>15</span>Official game permits and readiness</a><a href="#section-16"><span>16</span>Result capture, reconciliation, and set scoring</a><a href="#section-17"><span>17</span>Match lifecycle and failure policy</a><a href="#section-18"><span>18</span>Helper IPC and runtime isolation</a><a href="#section-19"><span>19</span>Public API contract</a><a href="#section-20"><span>20</span>Events and webhooks</a><a href="#section-21"><span>21</span>Provider SDK and adapter contract</a><a href="#section-22"><span>22</span>BluMint adapter and verification gates</a><a href="#section-23"><span>23</span>Data model, consistency, and persistence</a><a href="#section-24"><span>24</span>Privacy, audit, and operational security</a><a href="#section-25"><span>25</span>Limits, performance, and observability</a><a href="#section-26"><span>26</span>Compatibility and packaging</a><a href="#section-27"><span>27</span>Implementation work packages</a><a href="#section-28"><span>28</span>Acceptance and adversarial test matrix</a><a href="#section-29"><span>29</span>Rollout, rollback, and release gates</a><a href="#section-30"><span>30</span>Decisions and remaining sign-offs</a><a href="#section-31"><span>31</span>Worked end-to-end scenario</a><a href="#section-32"><span>32</span>Sources and verification notes</a></nav>
+<main><article><h1>Ember Identity and Tournament Bridge</h1>
+<h2>Provider-neutral identity, linking, SDK, and tournament automation specification</h2>
+<p><strong>Document:</strong> EMBER-TB-001<br />
+<strong>Revision:</strong> 1.0-draft.1<br />
+<strong>Date:</strong> 2026-10-01<br />
+<strong>Status:</strong> Proposed implementation contract, not a statement of shipped capabilities<br />
+<strong>Project:</strong> SF4 Ember Netplay<br />
+<strong>Initial adapter:</strong> BluMint<br />
+<strong>Scope:</strong> Persistent local identity, account linking, bridge authentication, room admission, result reporting, provider API, webhooks, recovery, and validation</p>
+<blockquote>
+<p><strong>Core decision:</strong> Ember owns a locally generated signing identity. A trusted, independently deployable bridge links that identity to external accounts. Tournament platforms integrate with a generic API and event contract. No tournament-platform code belongs in GGPO, the native result reader, or the game-side room implementation.</p>
+</blockquote>
+<blockquote>
+<p><strong>Identity promise:</strong> The Ember ID remains the same while the same private key is retained or restored. Changing names, updating Ember, joining a different room, or unlinking an external account does not change it. Losing or replacing the key changes the ID. A key is an identity credential, not proof of a unique person or an unmodified game client.</p>
+</blockquote>
+<hr />
+<h2 id="section-1">1. Scope, priorities, and explicit non-goals</h2>
+<h3>1.1 Goals</h3>
+<p>The first complete release MUST support:</p>
+<ul>
+<li>A persistent Ed25519 identity generated locally by <code>sf4-net.exe</code>, with no Ember username/password registration.</li>
+<li>One-time-code linking to a verified external account, with explicit consent and browser confirmation.</li>
+<li>A provider-neutral bridge API for match assignment, room coordination, authenticated admission, status, results, and cancellation.</li>
+<li>Automatic hosting/joining through existing Ember session abstractions, subject to local user consent and safe game boundaries.</li>
+<li>Individual native-game reports and first-to-N set aggregation without confusing a USF4 game with a bracket match.</li>
+<li>Signed, retryable result reports, duplicate suppression, disagreement handling, and an organizer review path.</li>
+<li>Generic signed webhooks and a resumable client event stream.</li>
+<li>Windows support and an explicitly tested Wine/Proton identity-storage path.</li>
+<li>Continued casual/offline play without a bridge, linked account, or working identity store.</li>
+<li>Encrypted identity export/import so users have a way to preserve the same ID across machines or operating-system reinstalls.</li>
+</ul>
+<h3>1.2 Priorities</h3>
+<p><strong>P0:</strong> Preserve game stability, identity continuity, authorization, and scoring correctness.<br />
+<strong>P1:</strong> Automate linking, room entry, bracket reporting, and operator recovery.<br />
+<strong>P2:</strong> Improve convenience, observer workflows, and additional adapters.</p>
+<p>Correctness takes precedence over apparent automation. An unresolved result MUST be visible as unresolved, not converted into a guessed winner to keep a bracket moving.</p>
+<h3>1.3 Non-goals for v1</h3>
+<p>This work does not create a global ranked service, a public room directory, a payment system, an anti-cheat system, a global ban authority, or a universal account-recovery service. It does not replace GGPO, Iroh, existing room authority, or native match-result detection.</p>
+<p>It does not require another player-installed executable. It does not require an Ember-operated central cloud. A platform, organizer, or Ember operator may deploy the bridge.</p>
+<p>The first automated tournament mode is <strong>one two-player bracket match on one reserved table in a dedicated room</strong>. The protocol includes table identity from day one, but automated multi-table tournament scheduling is a later capability. Existing casual four-table rooms remain unchanged.</p>
+<p>No remotely supplied scripts, DLLs, executable plugins, arbitrary commands, or provider-controlled game memory writes are permitted.</p>
+<h3>1.4 Requirement language</h3>
+<p><code>MUST</code> and <code>MUST NOT</code> describe release requirements. <code>SHOULD</code> describes a default that requires an explicit documented exception. <code>MAY</code> describes an optional capability. All new behaviors below are proposals unless identified as existing behavior in Section 2.</p>
+<h2 id="section-2">2. Evidence baseline and unresolved external contracts</h2>
+<h3>2.1 Inspected Ember baseline</h3>
+<p>Repository reads for this document were pinned to:</p>
+<pre><code class="language-text">Repository: Confetti3/SF4-Ember-Netplay
+Branch inspected: release
+Commit: 92aad00459e36b009951a6145b6dab19f6e7f223
+</code></pre>
+<p>The branch lookup also returned <code>feat/ui-consistency</code> at <code>99e79b72d82892e09e94b1916bf98ddba229bdad</code>. That older branch is not treated as the current implementation baseline. Before coding, refresh branch state and review intervening changes; this document is not a whole-repository audit. [<a href="#source-e1">E1</a>]</p>
+<table>
+<thead>
+<tr>
+<th>Existing building block</th>
+<th>Observed behavior</th>
+<th>Consequence for this proposal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Rust helper manifest</td>
+<td>Pins Iroh <code>=1.1.0</code>; includes Tokio, Serde, SHA-256, and Windows bindings.</td>
+<td>Extend the helper; pin any new security/storage dependencies separately. [<a href="#source-e2">E2</a>]</td>
+</tr>
+<tr>
+<td><code>transport::bind_endpoint_with_policy</code></td>
+<td>Constructs an Iroh endpoint without supplying <code>.secret_key(...)</code>. Iroh documents random default endpoint identity.</td>
+<td>Do not change transport-key persistence to implement tournament identity. [<a href="#source-e3">E3</a>, <a href="#source-s2">S2</a>]</td>
+</tr>
+<tr>
+<td><code>SessionController</code></td>
+<td>Defines host/join commands, room and match generations, health, recovery, and copied snapshots.</td>
+<td>Use existing command/state boundaries; do not manipulate native state from network tasks. [<a href="#source-e4">E4</a>]</td>
+</tr>
+<tr>
+<td><code>RoomModel</code></td>
+<td>Defines members, roles/status, table phases, permissions, and room actions.</td>
+<td>Add an optional tournament policy, not a second room implementation. [<a href="#source-e5">E5</a>]</td>
+</tr>
+<tr>
+<td><code>RoomRules</code></td>
+<td>Contains FT1, FT2, FT3, FT5, unlimited, rotation, round-count and timer fields.</td>
+<td>A tournament rules translator must validate native semantics rather than invent new values. [<a href="#source-e6">E6</a>]</td>
+</tr>
+<tr>
+<td><code>RoomLimits</code></td>
+<td>Four tables, two fighters per game, sixteen room members.</td>
+<td>Carry table IDs and respect current capacity; v1 automation reserves one table. [<a href="#source-e7">E7</a>]</td>
+</tr>
+<tr>
+<td>Native result design</td>
+<td>Separates capture from publication and publishes only after GGPO input confirmation.</td>
+<td>Reuse this source; never scrape a HUD or infer victory from a disconnect. [<a href="#source-e8">E8</a>]</td>
+</tr>
+<tr>
+<td><code>MatchResultOutbox</code></td>
+<td>Tracks captured results, retry identity, terminal observation, and profile persistence.</td>
+<td>Preserve this mechanism, but add a distinct durable external-report outbox. Existing local retries are not an HTTP delivery guarantee. [<a href="#source-e9">E9</a>]</td>
+</tr>
+</tbody>
+</table>
+<p>The inspected files do not establish an existing persistent tournament account-linking service. Every account-linking endpoint, identity file, admission certificate, and provider SDK in this document is new work.</p>
+<h3>2.2 BluMint verification status</h3>
+<p>The user supplied:</p>
+<pre><code class="language-text">https://staging.blumint.io/docs/game-guide
+https://staging.blumint.io/docs
+</code></pre>
+<p>Both pages failed to load through the browser tool during preparation. A direct container request also failed DNS resolution. No live BluMint endpoint was exercised. Search did not recover a usable authoritative contract. [<a href="#source-b1">B1</a>, <a href="#source-b2">B2</a>]</p>
+<p>Earlier discussion described player lookup, match creation/status callbacks, and a result-submission API. <strong>Those descriptions are treated as provisional integration assumptions, not verified endpoint names, authentication requirements, or JSON schemas.</strong></p>
+<p>This does not block the generic identity/bridge design. It does block declaring the BluMint adapter production-compatible. Section 22 lists the exact contract evidence needed before enabling that adapter.</p>
+<h3>2.3 Companion files</h3>
+<p>The accompanying JSON schemas define the <strong>cryptographic and event core</strong>, not a complete generated HTTP server. Fixtures exercise deterministic ID derivation, challenge/report signatures, and webhook signatures. The verifier tests those fixtures and schemas only. It does not test Ember, Windows DPAPI, Wine, Iroh networking, or BluMint.</p>
+<h2 id="section-3">3. Terminology and ownership boundaries</h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ember ID</td>
+<td>Stable public identifier derived from one persistent local public key.</td>
+</tr>
+<tr>
+<td>Identity key</td>
+<td>Locally held Ed25519 signing seed/private key. Never a bridge or provider secret.</td>
+</tr>
+<tr>
+<td>Transport endpoint</td>
+<td>Iroh endpoint identity used for a particular helper lifetime; separate from Ember ID.</td>
+</tr>
+<tr>
+<td>Bridge</td>
+<td>Trusted web service managing links, assignments, admission policy, result reconciliation, and delivery.</td>
+</tr>
+<tr>
+<td>Provider connection</td>
+<td>One configured adapter instance, tenant, and environment. <code>blumint-staging</code> and <code>blumint-production</code> are distinct connections.</td>
+</tr>
+<tr>
+<td>External subject</td>
+<td>Stable account identifier asserted by an authenticated provider, not a user-entered display name.</td>
+</tr>
+<tr>
+<td>Participant ID</td>
+<td>Bridge-scoped opaque handle for an external participant record. May survive re-linking to a replacement Ember key.</td>
+</tr>
+<tr>
+<td>Bracket match / set</td>
+<td>A first-to-N series scheduled by a tournament platform.</td>
+</tr>
+<tr>
+<td>Game attempt</td>
+<td>One actual USF4 game, including an attempt later drawn, voided, or disputed.</td>
+</tr>
+<tr>
+<td>Native generation</td>
+<td>Ember's generation for a game at a particular room/table. Not a global match ID.</td>
+</tr>
+<tr>
+<td>Assignment generation</td>
+<td>Bridge counter identifying a particular roster/rules/room binding.</td>
+</tr>
+<tr>
+<td>Provisioning lease</td>
+<td>Temporary exclusive permission to create/publish a room before that room is established.</td>
+</tr>
+<tr>
+<td>Admission certificate</td>
+<td>Bridge-signed permission binding an Ember ID to an endpoint, match, room, role, and assignment generation.</td>
+</tr>
+<tr>
+<td>Game permit</td>
+<td>Bridge-signed agreement identifying one official game attempt and its immutable participants/rules.</td>
+</tr>
+<tr>
+<td>Report</td>
+<td>A player's signed statement about the result observed by its own client.</td>
+</tr>
+<tr>
+<td>Adjudication</td>
+<td>An organizer's explicit resolution, distinct from an automatically reconciled native result.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Authority split:</strong> the provider owns bracket membership and advancement; the bridge owns accepted tournament assignments and result policy; Ember owns room and native game lifecycle; the local key authenticates the reporting identity. These are separate authorities.</p>
+<h2 id="section-4">4. Architecture and deployment</h2>
+<pre><code class="language-text">Tournament platform / organizer application
+       | authenticated API calls; signed outbound notifications
+       v
+Provider adapter (BluMint first; separately versioned)
+       |
+       v
+Generic Ember bridge
+  - linking and identity registry
+  - match state and game-attempt ledger
+  - admission issuer and public verification keys
+  - provider delivery outbox and webhook workers
+  - organizer review and audit UI
+       ^
+       | outbound HTTPS + authenticated event stream
+       |
+Existing sf4-net.exe
+  - persistent identity and secure storage
+  - constrained signing operations
+  - bridge client, local report outbox, reconnect/retry
+  - tournament admission validation and Iroh endpoint binding
+       ^
+       | existing protected helper IPC, extended with typed messages
+       v
+Existing game-side Ember runtime / Sidecar.dll
+  - UI and local consent
+  - existing SessionController / room authority
+  - optional tournament policy and safe start gate
+  - rollback-confirmed native result capture
+       |
+       +---------------- Iroh / GGPO ---------------- other players
+</code></pre>
+<p>The bridge is not a gameplay relay, dedicated USF4 instance, or simulation authority. Gameplay input traffic does not travel through the tournament API.</p>
+<h3>4.1 Deployment boundary</h3>
+<p>The reference deployment consists of a public HTTPS API, a relational database, and background delivery workers. They MAY run in one hosted service initially. Adapters MAY run in that service or externally against its generic API. The choice must not alter the native client contract.</p>
+<p>The native client initiates all bridge connections. No incoming public HTTP listener, router forwarding rule, or provider webhook listener is added to players' PCs.</p>
+<p>The service operator must be explicit in the UI. Trusting a bridge means trusting its account mapping and tournament permissions. Self-hosting does not automatically grant authority over other bridges' tournaments or links.</p>
+<h3>4.2 Casual mode</h3>
+<p>With tournaments disabled, no bridge traffic, linked-account query, or tournament heartbeat is generated. Identity/storage/service failure MUST NOT stop local play or ordinary Ember rooms. Any cloud dependency is confined to opted-in tournament operations.</p>
+<h2 id="section-5">5. Security model and invariants</h2>
+<h3>5.1 What authentication establishes</h3>
+<p>A valid identity signature establishes possession of the key corresponding to an Ember ID. A completed link establishes that an authenticated external-account holder approved associating that account with that key. A validated admission certificate authorizes a particular role under a particular bridge policy.</p>
+<p>None establishes a unique human, legal identity, ownership of a Steam license, absence of malware, absence of cheating, or correctness of arbitrary client-reported game state.</p>
+<h3>5.2 Threats in scope</h3>
+<p>Protect against network eavesdropping/tampering; replayed codes, proofs, and deliveries; stolen public room URLs; unauthorized fighters or spectators; cross-tenant/provider confusion; malicious callbacks; stale room generations; duplicate results; hostile or contradictory client reports; accidental identity regeneration; and privacy leakage through logs or crash exports.</p>
+<h3>5.3 Limits of protection</h3>
+<p>Malware running as the player, a compromised bridge operator, or an attacker with the identity private key remains a serious threat. DPAPI is not a boundary against every process running as the same Windows user. An exported backup is another usable copy of the identity when unlocked. Two colluding clients can sign a fabricated matching result. No wording or UI label may imply otherwise. [<a href="#source-s3">S3</a>]</p>
+<h3>5.4 Mandatory invariants</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Invariant</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SEC-01</td>
+<td>Private identity material never appears in normal logs, URLs, native snapshots, diagnostic exports, or general-purpose IPC responses.</td>
+</tr>
+<tr>
+<td>SEC-02</td>
+<td>The persistent identity key is not passed to the Iroh endpoint builder.</td>
+</tr>
+<tr>
+<td>SEC-03</td>
+<td>Possessing a link code alone cannot finalize an external-account link.</td>
+</tr>
+<tr>
+<td>SEC-04</td>
+<td>Possessing a room invite, match ID, or public match URL alone cannot occupy a tournament fighter seat.</td>
+</tr>
+<tr>
+<td>SEC-05</td>
+<td>Provider API credentials and bridge signing keys never ship in a player build.</td>
+</tr>
+<tr>
+<td>SEC-06</td>
+<td>Native thread progress never waits for HTTP, a webhook, key-store I/O, or an expensive KDF.</td>
+</tr>
+<tr>
+<td>SEC-07</td>
+<td>A room host is not implicitly a tournament organizer.</td>
+</tr>
+<tr>
+<td>SEC-08</td>
+<td>One native game result is never treated as completion of a multi-game bracket set.</td>
+</tr>
+<tr>
+<td>SEC-09</td>
+<td>Duplicate observations/deliveries cannot add another game win.</td>
+</tr>
+<tr>
+<td>SEC-10</td>
+<td>A missing, aborting, or disagreeing report does not imply a winner.</td>
+</tr>
+<tr>
+<td>SEC-11</td>
+<td>Existing identity data that cannot be read is not silently replaced.</td>
+</tr>
+<tr>
+<td>SEC-12</td>
+<td>All link, match, and provider operations are scoped to an explicit bridge, tenant, and provider connection.</td>
+</tr>
+<tr>
+<td>SEC-13</td>
+<td>Native result acknowledgments and external-delivery acknowledgments are different obligations.</td>
+</tr>
+<tr>
+<td>SEC-14</td>
+<td>A bridge outage may delay tournament progress, but never interrupts an already-started game merely because the bridge disappeared.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="section-6">6. Persistent identity and identifier format</h2>
+<h3>6.1 Cryptographic identity</h3>
+<p>Use Ed25519 with a 32-byte secret seed and its derived 32-byte public key. Signatures are 64 bytes. Use a maintained library implementation, not hand-written curve arithmetic. The inspected helper already depends on Iroh; a private wrapper may use its <code>SecretKey</code> facilities, provided interoperability tests and memory-handling review pass. The wire contract is Ed25519, not an Iroh-specific object representation. [<a href="#source-s1">S1</a>, <a href="#source-s2">S2</a>]</p>
+<p>Generation MUST use operating-system-backed cryptographic randomness through a supported library. Do not seed from a username, timestamp, hardware identifier, room code, MAC address, or user-selected password. RNG failure is an explicit error, not permission to use a weaker generator.</p>
+<p>Create the identity on first explicit identity/tournament enablement. Do not create or upload identities merely because an ordinary room opens. Generation occurs only after suitable storage is available, and the identity is not registered with a bridge until it has been persisted and successfully read back.</p>
+<h3>6.2 Canonical Ember ID</h3>
+<p>Freeze the following v1 derivation:</p>
+<pre><code class="language-text">public_key  = exactly 32 raw Ed25519 public-key bytes
+id_input    = ASCII(&quot;ember-id-v1&quot;) || byte(0x00) || public_key
+digest      = SHA-256(id_input)
+encoded     = RFC 4648 Base32(digest), lowercase, no '=' padding
+ember_id    = &quot;emb1_&quot; || encoded
+</code></pre>
+<p>The full ID is 57 ASCII characters: a five-character prefix plus 52 Base32 characters. All 256 hash bits are retained. A receiver MUST recompute it from the public key. It MUST NOT accept a caller's unrelated claimed ID.</p>
+<p>Wire public keys use unpadded Base64url of the raw 32 bytes: 43 characters. Wire signatures use unpadded Base64url of the raw 64 bytes: 86 characters. Decoders MUST enforce exact decoded length and canonical re-encoding, not only a regular expression.</p>
+<h3>6.3 Display identifiers</h3>
+<p>The UI MAY show a shortened fingerprint, for example the first eight and last eight characters of the encoded portion. Copy-ID always copies the full canonical ID. Short fingerprints are for human confirmation only; database keys, authorization, linking, and seat ownership always use the full ID/public key.</p>
+<p>Display names are editable labels. They are neither unique account keys nor authentication credentials. Never match users by case-insensitive display-name comparison.</p>
+<h3>6.4 Stability and portability</h3>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Ember ID</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ember restart or update, same store</td>
+<td>Unchanged</td>
+</tr>
+<tr>
+<td>Network change or fresh Iroh endpoint</td>
+<td>Unchanged</td>
+</tr>
+<tr>
+<td>Name/language/settings change</td>
+<td>Unchanged</td>
+</tr>
+<tr>
+<td>Link/unlink/re-link to a provider, same identity key</td>
+<td>Unchanged</td>
+</tr>
+<tr>
+<td>Import the same seed on another machine</td>
+<td>Unchanged</td>
+</tr>
+<tr>
+<td>New Windows account or Wine prefix without import</td>
+<td>New identity or no identity until enabled</td>
+</tr>
+<tr>
+<td>Lost key followed by generating a replacement</td>
+<td>Changed</td>
+</tr>
+<tr>
+<td>Cryptographic key rotation</td>
+<td>Changed in v1</td>
+</tr>
+</tbody>
+</table>
+<p>The ID is persistent per stored identity, not inherently a machine ID or a universal person ID. A bridge's participant record may outlive key replacement, but it MUST NOT present the replacement cryptographic ID as the old ID.</p>
+<h2 id="section-7">7. Local key storage, startup, and failure handling</h2>
+<h3>7.1 Storage layout</h3>
+<p>Use a per-user, non-install-directory location resolved through operating-system APIs. Proposed Windows layout:</p>
+<pre><code class="language-text">%LOCALAPPDATA%\Ember\Identity\v1\identity.bin
+%LOCALAPPDATA%\Ember\Identity\v1\identity-state.json
+%LOCALAPPDATA%\Ember\Tournament\v1\outbox.sqlite
+%LOCALAPPDATA%\Ember\Tournament\v1\bridges.json
+</code></pre>
+<p><code>identity-state.json</code> contains only public continuity metadata: format version, expected Ember ID, public key, storage backend, and creation time. It is a guard against accidental replacement, not a tamper-proof secret. <code>bridges.json</code> contains approved bridge origins/IDs and public metadata, not session tokens.</p>
+<p>Do not place the key in the game directory, the release ZIP, a portable-default configuration folder, replay exports, or a directory swept into routine log bundles.</p>
+<h3>7.2 Native Windows backend</h3>
+<p>Protect the seed and inner metadata with current-user <code>CryptProtectData</code>. Use <code>CRYPTPROTECT_UI_FORBIDDEN</code>; do not use <code>CRYPTPROTECT_LOCAL_MACHINE</code>. Restrict the directory and files to the intended user and system accounts. Resolve the normal interactive user correctly when a launcher is elevated; never accidentally provision a second identity under a different account. [<a href="#source-s3">S3</a>]</p>
+<p>Encrypted inner metadata MUST include format, algorithm, seed, and the expected public-key/ID binding. After unprotecting, derive the public key again and verify the binding before use. Optional DPAPI entropy, if used, is a fixed versioned application context, not a secret substitute for Windows protection.</p>
+<p>Free OS buffers correctly and zero temporary plaintext buffers on a best-effort basis. Do not implement <code>Debug</code>/serialization for a live identity object in a way that exposes key material. A public debug view may include only the Ember ID and locked/unlocked state.</p>
+<p>DPAPI protection normally depends on the user profile and machine context. Copying a protected file is not a portable backup strategy. Document exceptions and limitations rather than claiming the blob can never be decrypted elsewhere. [<a href="#source-s3">S3</a>]</p>
+<h3>7.3 Wine/Proton backend</h3>
+<p>Do not assume a Wine implementation of DPAPI provides the same at-rest security properties as native Windows. This spec makes no verified claim about a particular Wine/Proton build's protection guarantees.</p>
+<p>The required v1 fallback is a <strong>passphrase-encrypted identity file</strong> using the portable envelope in Section 8. Users unlock it once per helper lifetime. The helper retains the decrypted seed only in memory. There is no plaintext fallback and no automatic storage of that passphrase next to the file.</p>
+<p>Prefer this backend under detected Wine/Proton. Detection failure MUST NOT silently advertise native-Windows protection. Show the selected backend in diagnostics and allow an explicit encrypted-file choice. Run a protection round-trip self-test before enabling tournament identity.</p>
+<p>A future host-keyring integration is optional and requires its own support/security review. It must not be smuggled into v1 as another required executable. Native Linux helper support, if added, uses a separately tested storage backend; it is not assumed to exist today.</p>
+<h3>7.4 Atomic creation</h3>
+<p>Under a per-user identity-store lock:</p>
+<ol>
+<li>Check both final key file and continuity metadata.</li>
+<li>If a valid final key exists, load it; never generate a competing identity.</li>
+<li>If continuity metadata exists but the key is missing or unreadable, enter recovery-required state.</li>
+<li>If both are absent, and the user has enabled identity, generate a seed.</li>
+<li>Protect it and write a restricted temporary file on the same volume.</li>
+<li>Flush data and atomically install the final file without overwriting another creator's successful file.</li>
+<li>Read/decrypt/derive/verify the final file.</li>
+<li>Atomically write the public continuity metadata.</li>
+<li>Only now report <code>ready</code> or contact a bridge.</li>
+</ol>
+<p>If another process wins creation, discard and zero the losing seed, then load the winner. If the key is valid but metadata is missing after a crash, reconstruct metadata from the key. A leftover incomplete temporary file is not an established identity.</p>
+<h3>7.5 Errors and lifecycle</h3>
+<p>Expose <code>disabled</code>, <code>creating</code>, <code>locked</code>, <code>ready</code>, <code>unavailable</code>, and <code>recovery_required</code> states. Distinguish not-found, permission denied, corruption, unsupported envelope, wrong passphrase, and decryption failure internally; user-facing text must not leak secrets.</p>
+<p>Identity operations MUST NOT block casual startup. Unavailable identity disables only functions that need it. Never regenerate after a decryption failure, after changing storage backends, after an application update, or after a network outage.</p>
+<p>If both identity and continuity files have been deleted, the application cannot prove that an older identity existed. The enablement screen must still offer import before creating a new identity.</p>
+<h2 id="section-8">8. Backup, import, replacement, and revocation</h2>
+<h3>8.1 Portable encrypted envelope</h3>
+<p>Implement encrypted export/import in the first complete identity release. Export uses a user-chosen passphrase, a fresh 16-byte salt, Argon2id, and XChaCha20-Poly1305 with a fresh 24-byte nonce. Use maintained libraries. Argon2 and XChaCha properties are documented in [<a href="#source-s4">S4</a>, <a href="#source-s5">S5</a>]; parameter choices below are application defaults, not a claim that every value is prescribed by those sources.</p>
+<p>Default KDF parameters:</p>
+<pre><code class="language-text">Argon2id version: 19
+Memory:          65,536 KiB (64 MiB)
+Iterations:      3
+Parallelism:     1
+Derived key:     32 bytes
+</code></pre>
+<p>Benchmark on low-spec supported hardware. KDF work runs on a bounded blocking worker and not during an active game. Imported files are untrusted: cap file size at 16 KiB, memory at 256 MiB, iterations at 6, and parallelism at 4 before allocating or deriving. Reject missing/unknown algorithms and unsupported versions.</p>
+<p>Envelope structure:</p>
+<pre><code class="language-json">{
+  &quot;header&quot;: {
+    &quot;format&quot;: &quot;ember-key-backup&quot;,
+    &quot;version&quot;: 1,
+    &quot;algorithm&quot;: &quot;Ed25519&quot;,
+    &quot;ember_id&quot;: &quot;&lt;full Ember ID&gt;&quot;,
+    &quot;public_key&quot;: &quot;&lt;base64url public key&gt;&quot;,
+    &quot;kdf&quot;: {
+      &quot;algorithm&quot;: &quot;argon2id&quot;,
+      &quot;version&quot;: 19,
+      &quot;memory_kib&quot;: 65536,
+      &quot;iterations&quot;: 3,
+      &quot;parallelism&quot;: 1,
+      &quot;salt&quot;: &quot;&lt;base64url 16 bytes&gt;&quot;
+    },
+    &quot;aead&quot;: &quot;XChaCha20-Poly1305&quot;,
+    &quot;nonce&quot;: &quot;&lt;base64url 24 bytes&gt;&quot;
+  },
+  &quot;ciphertext&quot;: &quot;&lt;base64url ciphertext including authentication tag&gt;&quot;
+}
+</code></pre>
+<p>Use <code>ASCII(&quot;EMBER:KEY-BACKUP:1\n&quot;) || JCS(header)</code> as authenticated additional data. Encrypt exactly the 32-byte seed; successful decryption yields 32 bytes, after which the header public key and ID MUST be rederived and checked. Salt and nonce are regenerated for every export, even with the same passphrase.</p>
+<p>The default local encrypted-file backend uses the same envelope with a distinct format value <code>ember-key-local</code>, a distinct domain <code>EMBER:KEY-LOCAL:1\n</code>, and the same validation rules. Do not confuse local-store and backup envelope types.</p>
+<h3>8.2 Passphrase UX</h3>
+<p>Confirm a new passphrase twice, support paste and password managers, and provide a strength warning. Treat passphrases as exact UTF-8 bytes without trimming or Unicode normalization. Reject inputs over 1,024 UTF-8 bytes. Display that neither Ember nor the bridge can recover a forgotten backup passphrase.</p>
+<p>The passphrase may pass once through the existing authenticated local IPC from an explicit unlock/export UI to the helper. That narrowly scoped input is not permission to send the private key through IPC. Avoid retaining passphrases in UI state, history, logs, or generic command tracing.</p>
+<h3>8.3 Import</h3>
+<p>Validate envelope bounds, decrypt, derive the ID, and show it before confirmation. Import of the same current identity is idempotent. Import of a different identity requires explicit replacement confirmation, logout from bridge sessions, review of active assignments, and atomic replacement only outside a live game.</p>
+<p>On native Windows, imported seed material is reprotected with DPAPI for the destination user. Do not overwrite a working identity until the imported identity has passed all checks. Preserve the previous encrypted store until the replacement commit and read-back succeed; do not leave an unencrypted recovery copy.</p>
+<h3>8.4 Lost and compromised keys</h3>
+<p>A verified external account can authorize linking a new key, but cannot reconstruct the lost old private key. The new Ember ID is different. Preserve historical match records under the original ID.</p>
+<p>If compromise is suspected, unlink/revoke at every trusted bridge that used the key, revoke current sessions/admission leases, generate a replacement, and re-link through verified provider authentication. Revocation is bridge-local unless an explicit future federation protocol is adopted.</p>
+<p>Do not promise revocation of already-started P2P gameplay. Block new official attempts/admission and flag an in-progress affected match for review. Previously issued permits remain evidence of what was authorized at issuance; they do not authorize unlimited future games.</p>
+<h3>8.5 Multiple machines</h3>
+<p>Importing one backup on two machines produces the same ID on both. There is no cryptographic way to distinguish legitimate copies of the same key. The bridge therefore permits only one active fighter endpoint lease for a given participant in a given match. A takeover requires an explicit recovery flow and fences the old lease before the next game.</p>
+<h2 id="section-9">9. Bridge trust and cryptographic wire rules</h2>
+<h3>9.1 Bridge registration</h3>
+<p>A bridge profile contains an immutable <code>bridge_id</code>, HTTPS origin, display name, API major version, supported capabilities, and public signing-key metadata. A configured default is acceptable; adding another bridge requires explicit user approval.</p>
+<p>Discovery at <code>/.well-known/ember-bridge.json</code> is informational, not automatic trust. Deep links, QR codes, provider metadata, and match payloads MUST NOT silently add arbitrary signing issuers or network destinations. All examples use reserved <code>.example</code> domains, not a claimed deployed Ember service.</p>
+<p>TLS certificates MUST be verified. Reject credential-bearing redirects to another origin. No token or proof is sent to a host merely because a server response supplied a URL.</p>
+<h3>9.2 Serialization profile</h3>
+<p>Use UTF-8 JSON and RFC 8785 JSON Canonicalization Scheme for Ember-signed JSON objects. Reject duplicate keys before converting into a normal map, invalid Unicode, unsupported critical fields, excessive nesting, and non-finite numbers. Unsigned display-only extensions may be tolerated only where specified. [<a href="#source-s6">S6</a>]</p>
+<p>All native 64-bit counters and revisions travel as canonical nonnegative decimal strings. No leading zeroes except <code>&quot;0&quot;</code>. Enforce the native maximum at the application layer. JSON number fields are confined to small exact integers such as table index, score, and Unix-second timestamps.</p>
+<p>Do not claim that sorting keys with an ordinary JSON encoder is a complete JCS implementation. The fixture verifier intentionally exercises only a restricted ASCII/integer subset; production must use a conforming canonicalizer.</p>
+<h3>9.3 Signature domains</h3>
+<p>Freeze these byte prefixes:</p>
+<pre><code class="language-text">Identity derivation: &quot;ember-id-v1&quot; || 0x00
+Client challenge:   &quot;EMBER:CHALLENGE:1\n&quot;
+Native game report: &quot;EMBER:GAME-REPORT:1\n&quot;
+Local key envelope: &quot;EMBER:KEY-LOCAL:1\n&quot;
+Backup envelope:    &quot;EMBER:KEY-BACKUP:1\n&quot;
+</code></pre>
+<p>A client signs the full canonical structured object after the appropriate prefix, not a bare nonce. Bridge, purpose, target, and request digest are bound by that object. Every supported signing operation has a typed local handler. There is no <code>sign_arbitrary_bytes</code> IPC or public API.</p>
+<h3>9.4 Admission and permit tokens</h3>
+<p>Use an established JWS/JWT library for bridge-signed certificates and permits. The v1 profile uses Ed25519 keys with JOSE <code>alg=EdDSA</code>, explicit token <code>typ</code>, issuer, audience, and <code>kid</code> allowlisting. Reject <code>none</code>, HMAC substitutions, unapproved algorithms, embedded key URLs, unexpected token types, and untrusted issuers. Validation policy follows [<a href="#source-s7">S7</a>, <a href="#source-s8">S8</a>].</p>
+<p>No client identity seed, provider API credential, or webhook secret may also be a bridge signing key. Rotation retains old public keys for outstanding permitted lifetimes, with an emergency-revocation path. A token's <code>kid</code> selects a key only within the already trusted bridge's key set.</p>
+<h2 id="section-10">10. Authentication and operation proofs</h2>
+<h3>10.1 Generic challenge flow</h3>
+<p>The helper requests a challenge with its public key, an allowed <code>action</code>, HTTP method/path, and the digest of the unsigned command body. The bridge constructs and stores the challenge. For authenticated actions, it additionally verifies the current session and the actor's basic authorization before issuing a challenge.</p>
+<p>Normative challenge fields:</p>
+<pre><code class="language-json">{
+  &quot;version&quot;: 1,
+  &quot;bridge_id&quot;: &quot;brg_&lt;uuid&gt;&quot;,
+  &quot;audience&quot;: &quot;https://bridge.ember.example&quot;,
+  &quot;challenge_id&quot;: &quot;chl_&lt;uuid&gt;&quot;,
+  &quot;ember_id&quot;: &quot;&lt;full Ember ID&gt;&quot;,
+  &quot;action&quot;: &quot;session.create&quot;,
+  &quot;method&quot;: &quot;POST&quot;,
+  &quot;path&quot;: &quot;/v1/sessions&quot;,
+  &quot;request_digest&quot;: &quot;&lt;base64url SHA-256 of JCS(command)&gt;&quot;,
+  &quot;nonce&quot;: &quot;&lt;base64url 32 cryptographically random bytes&gt;&quot;,
+  &quot;issued_at&quot;: 1790812800,
+  &quot;expires_at&quot;: 1790812860
+}
+</code></pre>
+<p>The helper MUST validate expected bridge/origin, ID, action, target, digest, bounded lifetime, and the locally pending user operation before signing:</p>
+<pre><code class="language-text">signature = Ed25519.Sign(identity_key,
+    UTF8(&quot;EMBER:CHALLENGE:1\n&quot;) || JCS(challenge))
+</code></pre>
+<p>Submit the command through its normal API with a proof object:</p>
+<pre><code class="language-json">{
+  &quot;command&quot;: { &quot;requested_scopes&quot;: [&quot;self:read&quot;, &quot;tournament:participate&quot;] },
+  &quot;proof&quot;: {
+    &quot;challenge_id&quot;: &quot;chl_&lt;uuid&gt;&quot;,
+    &quot;signature&quot;: &quot;&lt;base64url 64-byte signature&gt;&quot;
+  }
+}
+</code></pre>
+<p>The server retrieves its stored challenge/public key, validates the digest against the actual command, verifies the signature, checks authorization again, and atomically consumes the challenge with the operation's state change. Clients cannot replace stored challenge fields by posting their own challenge object.</p>
+<h3>10.2 Replay and retry semantics</h3>
+<p>A challenge lives for 60 seconds by default. Its nonce is single-use. A session-creation proof that has already been consumed is rejected; the client requests another challenge rather than needing the server to retain a recoverable bearer token.</p>
+<p>For state mutations, use a separate idempotency key and durable request digest. Repeating an already completed operation with the same actor/key/digest returns its recorded result, without performing the mutation twice. A different command under the same idempotency key returns <code>409 idempotency_conflict</code>.</p>
+<p>Idempotency is not an authorization bypass. Retry lookups are scoped to the original actor and operation. Replaying a proof cannot substitute a different link, match, role, or endpoint.</p>
+<h3>10.3 Sessions</h3>
+<p>Successful key proof creates an opaque 32-byte random session token, returned only over HTTPS. Default lifetime is ten minutes. Store a keyed hash of the token server-side; keep the token only in helper memory. No long-lived refresh token is required in v1: reauthenticate with the key.</p>
+<p>A session is bound in server state to Ember ID, bridge, tenant visibility, scopes, and expiry. It is a <strong>bearer credential</strong> for its permitted read/event operations. It is not magically proof-of-possession on every request. A stolen token can expose data permitted to that session until expiry/revocation.</p>
+<p>Therefore link changes, fighter claims, room publication, endpoint replacement, and official-attempt preparation also require a fresh operation-specific signed challenge. Game reports carry their own durable identity signatures. Ordinary status snapshots never include reusable room capabilities or private admission credentials.</p>
+<p>A key without an external link may authenticate to manage its own links. It cannot create provider assignments or claim arbitrary players. Key registration is not external-account verification.</p>
+<h3>10.4 Authentication separation</h3>
+<p>Browser management sessions use an authenticated external-provider channel and CSRF protections. Provider services use separately issued scoped service credentials. Organizers use an authenticated organizer role, with strong authentication and fresh confirmation for adjudication/rebinding. These credentials do not substitute for a player's private-key proof when that proof is required.</p>
+<h2 id="section-11">11. Code-based external account linking</h2>
+<h3>11.1 Verified account prerequisite</h3>
+<p>A link intent must begin from one of two trusted routes:</p>
+<ol>
+<li>A browser session whose external subject the bridge verified through a supported provider login flow; or</li>
+<li>A backend-to-backend request from a configured provider connection allowed to assert that subject.</li>
+</ol>
+<p>For the second route, the provider may proxy the verified browser user’s explicit approval through its authenticated backend. That narrowly scoped approval must identify the exact intent, claim, subject, and Ember ID; an unauthenticated browser assertion is never accepted. The adapter must document whether approval is performed by a bridge browser session or by this trusted provider proxy.</p>
+<p>A posted <code>provider_user_id</code>, display name, email string, or screenshot does not establish account ownership. The bridge must not invent a provider verification endpoint. BluMint's ability to provide either trusted route remains a verification gate.</p>
+<h3>11.2 Link code</h3>
+<p>The bridge generates ten random Crockford-Base32 symbols, displayed as <code>ABCDE-FGHJK</code>. This provides 50 bits before online rate limits. Normalize case and the single display separator only; reject other syntax rather than applying surprising substitutions.</p>
+<p>Codes expire after five minutes and are single-use at final approval. Store only a server-keyed HMAC of the normalized code; a plain short-code hash would facilitate offline guessing after a database leak. Bind the intent to tenant, provider connection, external subject, expiry, and the initiating authenticated browser/provider context.</p>
+<p>The code is a rendezvous secret, not a password and not sufficient account authorization.</p>
+<h3>11.3 Approved flow</h3>
+<pre><code class="language-text">Authenticated provider/bridge page      Ember helper                 Bridge
+       |                                  |                           |
+       | create link intent               |                           |
+       |-------------------------------------------------------------&gt;|
+       | display short-lived code         |                           |
+       |&lt;-------------------------------------------------------------|
+       |                 user types code  |                           |
+       |                                  | signed link.claim command |
+       |                                  |--------------------------&gt;|
+       |                                  | pending claim + preview   |
+       |                                  |&lt;--------------------------|
+       | show requested Ember fingerprint |                           |
+       |&lt;-------------------------------------------------------------|
+       | user checks fingerprint and approves                         |
+       |-------------------------------------------------------------&gt;|
+       |                                  | linked event              |
+       |                                  |&lt;--------------------------|
+</code></pre>
+<p>Entering the code and confirming the named provider in Ember records client consent. The authenticated browser then approves the <strong>specific claim ID and full Ember ID</strong>, using a CSRF-protected POST. The browser must show that it is linking an Ember installation, not merely logging into an unrelated site.</p>
+<p>A code stolen by another client can at most propose a different pending key; it cannot finalize the link without browser approval. The browser displays the same shortened fingerprint shown in Ember and warns against approving unexpected requests. This is a device-linking flow informed by RFC 8628 security considerations, not a claim that these custom endpoints implement OAuth Device Authorization Grant. [<a href="#source-s9">S9</a>]</p>
+<h3>11.4 State machine</h3>
+<pre><code class="language-text">created -&gt; claim_pending -&gt; approved
+    |            |
+    +-&gt; expired  +-&gt; denied / expired / cancelled
+</code></pre>
+<p>A claim is immutably bound to one Ember ID. It cannot be silently replaced by a different contender while a confirmation screen is open. Allow one live pending claim per intent; give the browser an explicit reset/reject control. Expire abandoned claims promptly and rate-limit attackers so a leaked code cannot be used for unbounded denial of service.</p>
+<p>Final approval occurs in a database transaction that locks the intent, verifies it is current, verifies the exact pending claim, checks unique-link constraints, records the link, consumes the code, and queues the completion event. All-or-nothing behavior is mandatory.</p>
+<h3>11.5 Association rules</h3>
+<p>For v1, one external subject per provider connection has one active Ember ID; one Ember ID has one active subject per provider connection. The same Ember ID may link to different provider connections/platforms.</p>
+<p>Re-linking the same association is idempotent. Replacing another active association requires a separate, explicit replacement approval in a freshly authenticated external-account session. Do not overwrite a link simply because a second client knows a code.</p>
+<p>Provider subject IDs are opaque strings. Preserve exact bytes according to the provider's contract; do not coerce 64-bit Steam-like IDs through JavaScript numbers.</p>
+<h3>11.6 Unlink</h3>
+<p>Either the currently linked Ember key, with fresh signed proof, or the verified external-account owner can unlink. Revoke future assignment/admission permissions derived from that association, invalidate applicable sessions/leases, and retain minimal audit history. Unlinking does not delete the local key or change the Ember ID.</p>
+<p>An active game's roster is immutable. An unlink or replacement during a live game marks the tournament match for review and blocks the next official attempt; it does not remap the current fighter to another identity.</p>
+<h2 id="section-12">12. Launcher handoff and application UX</h2>
+<h3>12.1 No new player executable</h3>
+<p>Extend existing <code>Launcher.exe</code> and <code>sf4-net.exe</code> behavior. The launcher may register an <code>ember:</code> URI handler, but this is new functionality to implement and test, not an assumed existing handler.</p>
+<p>Use a narrow route such as:</p>
+<pre><code class="language-text">ember://tournament/open?bridge=approved-bridge-id&amp;handoff=opaque-single-use-code
+</code></pre>
+<p>The <code>handoff</code> is a high-entropy, 60-second, single-use server record bound to the expected Ember ID and match. It is not a provider API token, the player's session token, or an unrestricted room invitation. Redemption requires the expected identity's signed proof. Copying a URI alone must not grant access.</p>
+<p>Do not place a long-lived credential or a bearer-only signed player ticket in a browser-visible URL. URI handlers can be intercepted or exposed in process arguments; proof-of-possession and narrow lifetime limit that risk.</p>
+<h3>12.2 URI validation</h3>
+<p>Limit URIs to 2 KiB. Parse once using a strict URI parser. Require the known scheme, host/action, and allowed parameters; reject duplicate security parameters, credentials, fragments, unexpected paths, malformed encodings, embedded NULs, or oversized values. Never build a shell command from a URI or execute an arbitrary URL/path supplied by it.</p>
+<p>An unrecognized bridge opens a non-sensitive trust prompt, not an automatic token exchange. Production profiles never accept a staging issuer as an alias. Redact handoff values from launcher logs and Windows command-line diagnostics under Ember's control.</p>
+<h3>12.3 Running-instance behavior</h3>
+<p>Route a validated handoff to the existing running instance through the project's single-instance mechanism after reviewing its security. If no instance is running, the launcher starts the normal game/helper path with a bounded pending handoff. Do not start a second game instance silently.</p>
+<p>If a game is live, queue a notification for after the game. Never force an immediate room change. Local confirmation is required before leaving a casual room or accepting a different tournament assignment. Readiness and character selection remain player actions; an external service cannot impersonate the player's Ready input.</p>
+<h3>12.4 Fallback and accessibility</h3>
+<p>A browser button is convenience, not a prerequisite. Provide a copyable match/handoff code in Ember and an assignment list fetched after authentication. This is the required fallback for Wine/Proton URI registration, browser restrictions, or unusual Steam launch configurations.</p>
+<p>All new UI strings use the existing localization system. Support controller and keyboard navigation, pasted codes, clear account/provider names, visible identity fingerprint, and explicit <code>waiting for browser approval</code> status. Never label a pending link as linked.</p>
+<p>Required screens: identity enable/unlock/status; copy ID; export/import/reset; approved bridges; enter link code; pending approval; linked accounts/unlink; current assignment; join/provision status; score/report synchronization; and organizer-review-required state.</p>
+<h2 id="section-13">13. Generic match model and rules</h2>
+<h3>13.1 Provider-neutral objects</h3>
+<p>A match-create command contains:</p>
+<pre><code class="language-json">{
+  &quot;external_match_id&quot;: &quot;tournament-provider-opaque-match-id&quot;,
+  &quot;game&quot;: &quot;usf4&quot;,
+  &quot;participants&quot;: [
+    { &quot;participant_id&quot;: &quot;epl_&lt;uuid-a&gt;&quot;, &quot;ember_id&quot;: &quot;&lt;full ID A&gt;&quot;, &quot;slot&quot;: 0 },
+    { &quot;participant_id&quot;: &quot;epl_&lt;uuid-b&gt;&quot;, &quot;ember_id&quot;: &quot;&lt;full ID B&gt;&quot;, &quot;slot&quot;: 1 }
+  ],
+  &quot;rules&quot;: {
+    &quot;games_to_win&quot;: 2,
+    &quot;draw_policy&quot;: &quot;replay_no_score&quot;,
+    &quot;native_rules_profile&quot;: &quot;usf4-standard-v1&quot;,
+    &quot;edition_policy&quot;: &quot;ultra_only&quot;,
+    &quot;character_policy&quot;: &quot;unrestricted_between_games&quot;,
+    &quot;stage_policy&quot;: &quot;p1_selects&quot;,
+    &quot;input_delay_policy&quot;: &quot;ember_existing_ready_policy&quot;
+  },
+  &quot;observer_policy&quot;: &quot;authorized_only&quot;,
+  &quot;result_policy&quot;: &quot;two_player_agreement_or_review&quot;,
+  &quot;required_build_id&quot;: &quot;&lt;agreed compatible Ember build identifier&gt;&quot;,
+  &quot;metadata&quot;: { &quot;round_label&quot;: &quot;Winners round 2&quot; }
+}
+</code></pre>
+<p>Examples with angle-bracket placeholders are explanatory templates, not fixture values. Companion fixtures contain concrete, schema-valid values.</p>
+<p>The provider connection and tenant are obtained from service authentication, not trusted from the command's own fields. The bridge MUST resolve each participant against that connection's current approved link. It rejects mismatched IDs, identical fighters, unknown identities, conflicting active assignments, and unsupported rules.</p>
+<p><code>external_match_id</code> is opaque and scoped to a provider connection. The bridge assigns its own <code>match_id</code>. The uniqueness constraint is <code>(tenant_id, provider_connection_id, external_match_id)</code>, not a globally unique provider string.</p>
+<h3>13.2 Stable identities and slot mapping</h3>
+<p>Freeze the complete two-player mapping for each assignment generation. Native P1/P2 slots, bracket slots, room host, and elected coordination leader are separate concepts. The bridge must never infer a winner from the network host's identity.</p>
+<p><code>assignment_generation</code> increases when a roster, required rules, or physical room binding is replaced. Ordinary leader transfer, reconnect within an unchanged binding, or display-name changes do not change it. A replacement carries forward explicitly accepted set score and historical attempts; it does not erase them.</p>
+<h3>13.3 Rules and first-to-N</h3>
+<p>For the first release, advertise and accept only FT1, FT2, FT3, and FT5 when the rules translator and tests support them. Unlimited is not a tournament completion condition. Reject unsupported values rather than approximating them.</p>
+<p><code>games_to_win</code> is the required number of game victories, not the number of rounds in a USF4 game. A draw or voided attempt does not increment either score. A valid first-to-N set finishes when one score reaches N; the other must remain below N.</p>
+<p>Native round-count semantics require a verified translator. The current code's <code>roundCount = 3</code> default must not be interpreted blindly as three wins or three total rounds. <code>usf4-standard-v1</code> must be defined against an observed native configuration and tested before it is advertised. [<a href="#source-e6">E6</a>]</p>
+<p>Tournament rules also specify edition, allowed character/stage behavior, spectator policy, and whether winner/loser character retention is supported. v1 MUST NOT advertise winner-lock enforcement until the native layer actually enforces it at every rematch and reconnect. Unsupported policy returns <code>422 unsupported_rules</code>.</p>
+<h3>13.4 Rules locks</h3>
+<p>An active tournament binding restricts fighter seats, official start authorization, rules changes, and automatic queue/rotation behavior. The v1 room reserves table 0 and disables casual table rotation for the bound set; completing a set enters tournament post-set state rather than handing a seat to a queued stranger.</p>
+<p>Existing casual-room controls remain unchanged outside tournament mode. An organizer override is a bridge action with audit history, not a hidden use of a host's normal room controls.</p>
+<h2 id="section-14">14. Room provisioning, admission, and host migration</h2>
+<h3>14.1 Provisioning state</h3>
+<p>A provider creates a logical match; it does not thereby create a running USF4 room. An eligible assigned player who claims the match obtains the provisioning lease. The bridge uses an atomic compare-and-set, not a timing assumption that two requests cannot arrive together.</p>
+<p>Default pre-room provisioning lease: 30 seconds, renewed every ten seconds. The lease is bound to match, assignment generation, Ember ID, Iroh endpoint, helper-instance ID, and fencing counter. An expired lease holder cannot publish a room after a replacement has been selected.</p>
+<p>The local runtime receives a typed host request and uses its existing host path. It asynchronously publishes room identity, invitation, supported build, table binding, and the lease's fencing counter through a signed bridge operation.</p>
+<p>Once a room is published, lease expiry <strong>does not automatically create another room</strong>. The bridge must reconcile established room state before reprovisioning, especially if a game is running. A network timeout is not proof the old room no longer exists.</p>
+<h3>14.2 Protected invitations</h3>
+<p>Store room invitations encrypted at rest on the bridge and return them only through authorized claim/admission operations. They never appear in generic match snapshots, outgoing provider webhooks, public pages, or routine audit metadata.</p>
+<p>The invitation remains an existing room capability, but is insufficient for tournament participation. New tournament admission checks are layered on top of it.</p>
+<h3>14.3 Admission certificate</h3>
+<p>An admission JWT's protected type is <code>ember-admission+jwt</code>. Required claims include:</p>
+<pre><code class="language-text">Protected header: alg=&quot;EdDSA&quot;, typ=&quot;ember-admission+jwt&quot;, kid
+Claims: iss, aud=&quot;ember-tournament-room&quot;, iat, nbf, exp, jti
+bridge_id, match_id, assignment_generation
+ember_id, public_key
+room_id, table_id
+role (fighter or spectator), slot (0/1 for fighter; null for spectator)
+iroh_endpoint_id, helper_instance_id
+rules_digest, roster_digest, required_build_id
+lease_id
+</code></pre>
+<p>Default lifetime: ten minutes, renewable while the assignment remains authorized. Certificates are signed permissions, not encrypted documents; do not include provider secrets, external account details, or unnecessary personal information.</p>
+<p>The local helper and receiving room validate the trusted issuer/key, token type, time bounds, exact room/table, current assignment generation, role/slot, rule/build binding, and the Iroh remote endpoint ID. The admission key's Ember ID must match its public key. Room-side role enforcement must reject an otherwise valid spectator attempting to queue as a fighter.</p>
+<p>The helper verifies cryptography; C++ receives bounded validated claims associated with a specific authenticated connection. C++ must still enforce room phase, seat, role, and generation rules. A valid signature is not a substitute for application authorization.</p>
+<h3>14.4 Reconnect and replay</h3>
+<p>The one-use browser handoff code is not the reconnect credential. Certificate and lease reuse by the same identity/endpoint/helper within the same still-active binding is idempotent. Do not consume an admission token once and thereby make ordinary transport retries impossible.</p>
+<p>A different endpoint after helper restart requires a fresh signed claim and bridge-approved lease replacement. The old endpoint is fenced before the next native game. One identity cannot concurrently occupy both fighter seats or operate two live fighter leases for the same match.</p>
+<p>Certificates alone cannot promise immediate offline revocation. New official games require a current permit, which is where current bridge authorization is checked. Existing gameplay is allowed to finish rather than relying on real-time central revocation.</p>
+<h3>14.5 Host migration</h3>
+<p>Persist the validated tournament binding, rules/roster hashes, current permit, and identity-to-member mapping in the room recovery/checkpoint path. Do not replicate private keys, bridge session tokens, or provider credentials.</p>
+<p>An ordinary Iroh/room leadership change retains the random room ID and current tournament binding. The new leader must enforce the same admission policy before taking further actions. An admission bypass through restored checkpoints, late joins, or migration is a release blocker.</p>
+<p>A genuinely replaced room gets a fresh physical room ID and assignment generation. Accepted game outcomes remain in the bridge's ledger. Late reports from the previous binding can be stored as evidence but cannot silently score a new attempt.</p>
+<h3>14.6 Observer policy</h3>
+<p>Spectator access is explicit, independently authorized, and not equivalent to organizer privileges. A tournament may issue observer grants to approved broadcast accounts. v1 does not permit an arbitrary public lobby code to become a spectator bypass.</p>
+<p>Observer absence must not override the existing bounded spectator-start behavior or create an indefinite web-service dependency. A spectator's report is witness evidence, not automatically a replacement for a missing fighter report.</p>
+<h2 id="section-15">15. Official game permits and readiness</h2>
+<h3>15.1 Why a permit exists</h3>
+<p>A signed identity and a room score alone do not identify which games belong to the scheduled set. A permit gives each official attempt an immutable identity and prevents casual rematches, stale reports, or duplicated room histories from becoming extra bracket wins.</p>
+<h3>15.2 Safe start gate</h3>
+<p>At a between-game boundary, after both players have chosen Ready:</p>
+<ol>
+<li>The room owner reserves a prospective native generation without starting native gameplay.</li>
+<li>Both helpers submit signed preparation acknowledgments for the same match, assignment generation, room/table, prospective native generation, roster digest, rules digest, and required build.</li>
+<li>The bridge verifies both acknowledgments, both current participant leases, and the absence of an unresolved earlier attempt.</li>
+<li>In one transaction it creates or returns one <code>attempt_id</code> and a signed game permit.</li>
+<li>Both clients validate and receive the same permit.</li>
+<li>The room start gate checks it against the committed actual generation before invoking the existing native start path.</li>
+</ol>
+<p>Waiting is represented in the orchestration state/UI. It never blocks a render/simulation thread on a future or a network request. If readiness, roster, generation, or settings change while approval is pending, discard the prospective start and require a matching new preparation.</p>
+<h3>15.3 Permit contents</h3>
+<p>Use <code>typ=ember-game-permit+jwt</code>, an audience distinct from admission tokens, and claims for bridge, match, assignment generation, attempt ID, permit ID, physical room/table, native generation, P1/P2 Ember IDs, rules/roster hashes, build, and issue/start-expiry times.</p>
+<p>The start authorization expires after two minutes by default. Expiry prevents starting a new game; it does not invalidate an already-started game's result. Signed reports are reconciled against the durable permit record, not rejected just because a ten-minute game outlasted a two-minute start window.</p>
+<p>A permit cannot be reused for a different generation or another native game. Admission verification and game permission must be complete before any remote peer reaches the native GGPO start path.</p>
+<h3>15.4 Offline policy</h3>
+<p>Default tournament policy is <strong>finish current game, pause before next official game</strong> during a bridge outage. Keep unsent evidence and show <code>Tournament service unavailable; current game unaffected</code>.</p>
+<p>Do not pre-authorize unlimited future games in v1. An offline/manual continuation mode, if an organizer selects it, is explicitly unverified/manual tournament operation until reconciliation or adjudication. Casual Ember remains independent.</p>
+<h2 id="section-16">16. Result capture, reconciliation, and set scoring</h2>
+<h3>16.1 Capture boundary</h3>
+<p>Observe the existing rollback-confirmed native result. The documented publication boundary is a saved state N whose contained inputs are confirmed through at least N-1. This is a local rollback-safety guarantee within the running implementation, not remote attestation. [<a href="#source-e8">E8</a>]</p>
+<p>Freeze native room ID, table ID, native generation, tournament assignment generation, attempt/permit ID, slot mapping, and rules/build identifiers at attempt start. Do not recover these later from mutable room seats or whichever table the UI currently displays.</p>
+<p>Capture after native confirmation, not after a HUD transition and not during a speculative re-simulation. A cancelled prediction must never generate an official report.</p>
+<h3>16.2 Signed report</h3>
+<p>Each assigned fighter signs its own report using <code>EMBER:GAME-REPORT:1\n || JCS(report)</code>. Required fields are:</p>
+<pre><code class="language-text">version, bridge_id, match_id, assignment_generation
+attempt_id, permit_id, observation_id
+room_id, table_id, match_generation
+reporter_id, opponent_id, p1_id, p2_id
+rules_digest, roster_digest, build_id
+result: p1_win | p2_win | draw | abort | cancel
+capture_frame, confirmed_input_frame
+observed_at, helper_instance_id
+</code></pre>
+<p><code>capture_frame</code> and <code>confirmed_input_frame</code> are decimal strings for an observed native win/draw; they may be null for an abort/cancel observation. A native outcome must satisfy the reported confirmation bound. The server can validate internal consistency of that claim, but cannot prove a modified client reported its real memory state.</p>
+<p>The signed-report transport object contains the report, public key, and signature. Recompute reporter ID from the public key. A host forwarding an opponent's report must forward that original signed object unchanged; the host's own signature cannot count for both players.</p>
+<h3>16.3 Independent agreement</h3>
+<p>The bridge accepts an automatically scored game only when it has valid reports from <strong>both distinct assigned keys</strong> agreeing on the immutable attempt identity and outcome. Compare normalized match/room/generation/roster/rules/build fields and P1/P2 result.</p>
+<p>Different local observation IDs, timestamps, or qualifying confirmation frames are not by themselves a disagreement; clients may publish at different poll times. Opposite winners, different slot mappings, different permits, or inconsistent rules are disagreements.</p>
+<p>The UI calls this <code>Player reports agree</code>, not <code>Cheat-proof</code> or <code>Server-verified gameplay</code>. A signed result identifies who reported it; it does not make the result intrinsically true.</p>
+<h3>16.4 Report identity and conflicts</h3>
+<p>Use <code>(bridge_id, attempt_id, reporter_id, observation_id)</code> to identify a report. Store its canonical digest and signature. Exact retries return the original receipt. The same report identity with different bytes returns a conflict and preserves an audit entry.</p>
+<p>Maintain the selected outcome per <code>(attempt_id, reporter_id)</code> but retain every valid conflicting submission as evidence. Never overwrite a signed result with a later contradictory one. Even a new observation ID from the same player cannot count as the second player's vote.</p>
+<p>Separately enforce the unique scoring effect for <code>attempt_id</code>. Do not rely only on a network event ID, in-memory cache, process epoch, leader term, or current table score to prevent duplicate wins.</p>
+<h3>16.5 Set score</h3>
+<p>The bridge derives set score from accepted, non-voided attempts under its durable ledger. The room scoreboard is useful presentation but is not the external accounting source, because room seats/score may reset or a room may be replaced.</p>
+<p>Example FT2: A wins, B wins, A wins produces <code>2-1</code>. Only then may the bridge emit the set-level completion event and submit a final result to the provider. Individual game results still produce game-level events.</p>
+<p>A draw produces no score increment and may authorize a new attempt under the configured replay policy. An abort/cancel produces no automatic win. A deliberate organizer forfeit is an adjudicated tournament outcome, not a forged native P1/P2 report.</p>
+<h3>16.6 Missing or disputed reports</h3>
+<p>After one report, wait up to 60 seconds by default for the other. If it is missing or contradictory, enter <code>needs_review</code> and block the next official attempt. Late agreement may resolve missing-report review automatically only if no organizer decision, cancellation, key-compromise flag, or competing conflict has intervened.</p>
+<p>Require explicit organizer decisions for conflicting valid outcomes, disconnect forfeits, no-shows, forced room replacement with uncertain results, or report loss. Decisions carry actor, reason, evidence references, expected match revision, and resulting score/outcome.</p>
+<p>After a completed provider submission, a correction is a new revision and <code>match.corrected</code> event. Do not silently mutate old accepted evidence or assume the provider supports undoing bracket advancement.</p>
+<h3>16.7 Local durable external outbox</h3>
+<p>Create a distinct helper-owned report spool. A runtime event is copied into a bounded queue, signed by the helper, and durably recorded before the helper claims it is safe to retry later. HTTP delivery runs from that spool with exponential backoff and idempotent receipts.</p>
+<p>Do not make existing native terminal acknowledgments wait for a provider webhook, HTTP success, or indefinite storage retry. If the new spool cannot accept a report, expose <code>report not durably saved</code>, stop the next official attempt, and request reconciliation. A full-process crash before any durable handoff can lose an observation; this must lead to missing-report handling, not an invented guarantee of lossless delivery.</p>
+<p>Store to SQLite with a transaction and durability settings appropriate for acknowledged records, on a dedicated worker. Signed report payloads must be immutable once queued. On restart, retry pending records after authentication. Preserve exact signed bytes or reconstruct from the same canonical object without semantic changes.</p>
+<p>Default automatic report-submission window is 24 hours from the bridge's recorded attempt, not from a caller-controlled timestamp. Older evidence can enter organizer review. Do not apply the 60-second authentication-challenge expiry to an offline durable game report.</p>
+<h2 id="section-17">17. Match lifecycle and failure policy</h2>
+<h3>17.1 Explicit tournament state machine</h3>
+<p>This layer needs its own small set-level state machine. It cannot be replaced by mapping every <code>TablePhase::Playing</code>/<code>MatchEnded</code> into provider <code>running</code>/<code>complete</code>.</p>
+<pre><code class="language-text">created -&gt; awaiting_players -&gt; provisioning -&gt; ready
+                                            |
+                                            v
+                                  running &lt;-&gt; between_games
+                                      |             |
+                                      +-&gt; awaiting_reports
+                                                |
+                              +-----------------+----------------+
+                              v                 v                v
+                        between_games      needs_review       completed
+
+Any nonterminal state may become cancelled through authorized policy.
+Irrecoverable setup failure becomes failed, with an explicit reason.
+</code></pre>
+<p><code>needs_review</code> is recoverable through evidence or adjudication. <code>completed</code>, <code>cancelled</code>, and <code>failed</code> are terminal for that revision. Changes after completion are explicit correction/replacement records.</p>
+<p>Track provider delivery separately: <code>not_required</code>, <code>queued</code>, <code>delivering</code>, <code>delivered</code>, <code>retrying</code>, <code>failed</code>, or <code>ambiguous</code>. A set can be internally completed while bracket submission is delayed.</p>
+<h3>17.2 Failure matrix</h3>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Required behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bridge unavailable before entry</td>
+<td>Keep casual play available; show assignment temporarily unavailable.</td>
+</tr>
+<tr>
+<td>Bridge disappears mid-game</td>
+<td>Let game finish; spool reports; block next official game.</td>
+</tr>
+<tr>
+<td>HTTP response lost after storing report</td>
+<td>Retry original report; unique scoring effect remains one.</td>
+</tr>
+<tr>
+<td>Duplicate provider create request</td>
+<td>Return existing logical match when command matches. Reject conflicting reuse.</td>
+</tr>
+<tr>
+<td>Hosting lease expires before room publication</td>
+<td>Reassign atomically; reject old lease's late publication.</td>
+</tr>
+<tr>
+<td>Heartbeat missing after room established</td>
+<td>Reconcile; never immediately spawn a second room.</td>
+</tr>
+<tr>
+<td>Fighter disconnects before valid result</td>
+<td>No automatic native win; review/forfeit policy.</td>
+</tr>
+<tr>
+<td>Room host transfers to another member</td>
+<td>Preserve tournament binding and seat authorization.</td>
+</tr>
+<tr>
+<td>Helper crashes but persistent key survives</td>
+<td>Reauthenticate same Ember ID; recover endpoint lease at a safe boundary.</td>
+</tr>
+<tr>
+<td>Identity store unreadable</td>
+<td>No automatic new key; tournament identity unavailable; casual mode intact.</td>
+</tr>
+<tr>
+<td>Provider rejects final submission</td>
+<td>Keep internal result; show operator delivery failure; retry only when safe.</td>
+</tr>
+<tr>
+<td>Provider timeout after possible acceptance</td>
+<td>Mark delivery ambiguous; reconcile using provider-supported status/idempotency before repeating.</td>
+</tr>
+<tr>
+<td>Player unlinks while assigned</td>
+<td>Revoke future permissions; freeze live-game mapping; review as needed.</td>
+</tr>
+<tr>
+<td>Report arrives for old room/assignment</td>
+<td>Store evidence; never apply to the newer attempt implicitly.</td>
+</tr>
+<tr>
+<td>Organizer cancellation while game is live</td>
+<td>Record cancellation; do not forcibly kill native gameplay by default; disallow automatic further scoring.</td>
+</tr>
+</tbody>
+</table>
+<h3>17.3 Reconnect event synchronization</h3>
+<p>Each bridge snapshot includes an event cursor and revision from a consistent database view. A client reconnects with its last cursor. When the cursor is too old, the server returns <code>resync_required</code> and a fresh snapshot/cursor pair; events after that cursor are then applied.</p>
+<p>Never combine a snapshot from one transaction with a watermark from a later transaction that could skip intervening events. Clients ignore older revisions and deduplicate event IDs. A missing event is recovered by replay or a snapshot, not by guessing local state.</p>
+<h2 id="section-18">18. Helper IPC and runtime isolation</h2>
+<h3>18.1 Proposed native-facing operations</h3>
+<p>Add typed, version-negotiated operations such as:</p>
+<pre><code class="language-text">IdentityGetStatus / IdentityEnable / IdentityUnlock
+IdentityExport / IdentityImport / IdentityResetConfirmed
+BridgeSelect / LinkClaim / LinkCancel / LinkRemove
+TournamentListAssignments / TournamentAccept / TournamentLeave
+TournamentObserveState / TournamentObserveNativeResult
+</code></pre>
+<p>Responses contain public identity, state, safe display fields, validation errors, and action/result identifiers. They do not expose identity seeds, provider credentials, bridge bearer tokens, or a generic signing function.</p>
+<p>Do not reuse <code>RecordResult</code> as a way for an external platform to manufacture a native result. Native result observations originate from the validated game path; organizer outcomes are a separate bridge contract.</p>
+<h3>18.2 Ownership</h3>
+<p>C++ remains the owner of game/session/room mutations. Rust owns key material, bridge HTTP, admission cryptography, and external-delivery persistence. The bridge owns participant linking, official attempt permits, result acceptance, and provider delivery.</p>
+<p>Network tasks enqueue validated immutable messages. The C++ owner applies them only at its existing safe boundaries. No background task retains references to mutable room or native game memory. [<a href="#source-e4">E4</a>, <a href="#source-e5">E5</a>]</p>
+<h3>18.3 Isolation inside the existing helper</h3>
+<p>Separate tournament queues/tasks from Iroh control and gameplay queues. Bound HTTP concurrency, JSON sizes, cryptographic work, disk retries, and event backlogs. Use cancellation tokens and structured task ownership. Blocking KDF/storage work must not occupy the helper's critical network executor indefinitely.</p>
+<p>A shared process is still a shared crash boundary. Adding this module does not provide process isolation. Every parser and worker must avoid unchecked panics and unbounded memory growth; a tournament task failure must be reported and stopped without intentionally terminating the existing helper.</p>
+<p>No key generation, KDF, import/export, schema migration, or bulk webhook processing is permitted on a gameplay-sensitive thread. Enrollment/backup UI operations are deferred while a native game is active.</p>
+<h3>18.4 IPC trust limits</h3>
+<p>Keep the project's local authenticated helper IPC protections and peer-process checks. Review its existing authorization before extending it. Do not turn a new loopback HTTP server into an unauthenticated shortcut.</p>
+<p>A compromised process running as the user may still manipulate its own client or access same-user resources. Restricting the IPC surface reduces exposure; it is not anti-cheat or a guarantee against local malware.</p>
+<h2 id="section-19">19. Public API contract</h2>
+<h3>19.1 Common rules</h3>
+<p>Use <code>/v1/</code> for this API major. HTTPS is mandatory outside explicit local test fixtures. JSON request limit is 64 KiB except smaller route-specific limits. Reject oversized/deep bodies before expensive processing. Times are UTC Unix seconds for signed data and RFC 3339 strings in event metadata.</p>
+<p>All state-changing service/client requests require an <code>Idempotency-Key</code> except one-use session creation and explicitly ephemeral heartbeat observations. Keys are scoped by authenticated actor, tenant, method, and canonical path. Store command digests and durable outcomes. Do not permit an attacker to select another actor's idempotency namespace.</p>
+<p><code>If-Match</code>/expected revision is required for cancellation, rebind, adjudication, and configuration changes that can race. A stale revision returns <code>409 stale_revision</code> or <code>412 precondition_failed</code>, consistently documented per endpoint.</p>
+<h3>19.2 Authentication classes</h3>
+<ul>
+<li><strong>Public:</strong> bounded capability discovery and challenge issuance; no private match data.</li>
+<li><strong>Player:</strong> authenticated key session; fresh signed proof for privileged client mutations.</li>
+<li><strong>Browser:</strong> verified external-account session, CSRF protection, recent-auth checks where specified.</li>
+<li><strong>Provider:</strong> scoped backend service credential mapped to a tenant/provider connection.</li>
+<li><strong>Organizer:</strong> authorized tournament operator within a tenant, not merely a room host.</li>
+</ul>
+<h3>19.3 Endpoint inventory</h3>
+<table>
+<thead>
+<tr>
+<th>Method and path</th>
+<th>Actor</th>
+<th>Contract</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /.well-known/ember-bridge.json</code></td>
+<td>Public</td>
+<td>Bridge ID/origin, API version, supported discovery URLs; does not establish trust by itself.</td>
+</tr>
+<tr>
+<td><code>GET /v1/capabilities</code></td>
+<td>Public</td>
+<td>Supported game/rules profiles, API/event versions, public size limits and optional features.</td>
+</tr>
+<tr>
+<td><code>GET /v1/signing-keys</code></td>
+<td>Public</td>
+<td>Approved bridge public JWKs, key IDs, validity windows; fetched only from configured origin.</td>
+</tr>
+<tr>
+<td><code>POST /v1/auth/challenges</code></td>
+<td>Public/Player</td>
+<td>Public key + action + target + command digest; returns stored 60-second challenge.</td>
+</tr>
+<tr>
+<td><code>POST /v1/sessions</code></td>
+<td>Signed proof</td>
+<td>Verifies <code>session.create</code>; returns opaque token, scopes, and expiry.</td>
+</tr>
+<tr>
+<td><code>DELETE /v1/sessions/current</code></td>
+<td>Player</td>
+<td>Revokes current session; does not unlink or reset key.</td>
+</tr>
+<tr>
+<td><code>GET /v1/identity</code></td>
+<td>Player</td>
+<td>Own Ember ID and own bridge state; no global identity directory.</td>
+</tr>
+<tr>
+<td><code>POST /v1/link-intents</code></td>
+<td>Browser/Provider</td>
+<td>Creates intent for an already verified external subject; returns code/expiry once.</td>
+</tr>
+<tr>
+<td><code>GET /v1/link-intents/{id}</code></td>
+<td>Owning Browser</td>
+<td>Pending exact claimant, fingerprint, provider label, and expiry.</td>
+</tr>
+<tr>
+<td><code>POST /v1/link-claims</code></td>
+<td>Player + proof</td>
+<td><code>link.claim</code>, code, explicit chosen provider/bridge context; creates pending claim.</td>
+</tr>
+<tr>
+<td><code>POST /v1/link-intents/{id}/approve</code></td>
+<td>Owning Browser / authorized Provider proxy</td>
+<td>Explicit verified-user claim/key approval; browser uses CSRF protection; proxy is scoped to the exact subject/connection; transactionally consumes intent.</td>
+</tr>
+<tr>
+<td><code>POST /v1/link-intents/{id}/cancel</code></td>
+<td>Owning Browser</td>
+<td>Cancels unapproved intent.</td>
+</tr>
+<tr>
+<td><code>POST /v1/link-claims/{id}/cancel</code></td>
+<td>Owning Player + proof</td>
+<td>Cancels that key's pending claim.</td>
+</tr>
+<tr>
+<td><code>GET /v1/links</code></td>
+<td>Player</td>
+<td>Lists own approved/pending links, masked external labels, and status.</td>
+</tr>
+<tr>
+<td><code>DELETE /v1/links/{id}</code></td>
+<td>Linked Player + proof / Owning Browser</td>
+<td>Unlink, revoke derived future permissions, and audit.</td>
+</tr>
+<tr>
+<td><code>POST /v1/players/resolve</code></td>
+<td>Provider</td>
+<td>Resolve only that connection's verified external subjects to bridge participant handles/current Ember IDs.</td>
+</tr>
+<tr>
+<td><code>POST /v1/matches</code></td>
+<td>Provider</td>
+<td>Validate roster/rules and create logical set; return match ID, public-safe match URL, and revision.</td>
+</tr>
+<tr>
+<td><code>GET /v1/matches/{id}</code></td>
+<td>Assigned Player/Provider/Organizer</td>
+<td>Authorized snapshot, score, lifecycle, report and delivery state, consistent cursor; no invites/tokens.</td>
+</tr>
+<tr>
+<td><code>GET /v1/assignments</code></td>
+<td>Player</td>
+<td>Own assignments, pagination/cursor; no arbitrary-player query.</td>
+</tr>
+<tr>
+<td><code>POST /v1/matches/{id}/claims</code></td>
+<td>Assigned Player + proof</td>
+<td>Claim/recover endpoint lease; return host job, waiting state, or protected join/admission material.</td>
+</tr>
+<tr>
+<td><code>POST /v1/matches/{id}/room</code></td>
+<td>Provisioning holder + proof</td>
+<td>Publish physical room with current fencing token and assignment generation.</td>
+</tr>
+<tr>
+<td><code>POST /v1/matches/{id}/leases/{lease}/renew</code></td>
+<td>Lease holder + proof</td>
+<td>Renew pre-room provisioning or authorized endpoint lease; validates exact holder and generation.</td>
+</tr>
+<tr>
+<td><code>POST /v1/matches/{id}/attempts/prepare</code></td>
+<td>Assigned Player + proof</td>
+<td>Submit own prepared descriptor; returns pending or same jointly authorized game permit.</td>
+</tr>
+<tr>
+<td><code>POST /v1/matches/{id}/reports</code></td>
+<td>Player session + signed report</td>
+<td>Store own immutable report; acknowledge durable receipt, not implied scoring/completion.</td>
+</tr>
+<tr>
+<td><code>POST /v1/matches/{id}/observations</code></td>
+<td>Assigned Player</td>
+<td>Bounded nonauthoritative presence/start/failure observations; cannot create wins or rewrite roster.</td>
+</tr>
+<tr>
+<td><code>POST /v1/matches/{id}/cancel</code></td>
+<td>Provider/Organizer</td>
+<td>Versioned cancellation with reason and in-flight policy.</td>
+</tr>
+<tr>
+<td><code>POST /v1/matches/{id}/rebind</code></td>
+<td>Organizer</td>
+<td>Controlled room/endpoint recovery outside active native gameplay; increments binding generation when needed.</td>
+</tr>
+<tr>
+<td><code>POST /v1/matches/{id}/adjudications</code></td>
+<td>Organizer</td>
+<td>Versioned score/forfeit/void/replay/correction decision with reason/evidence.</td>
+</tr>
+<tr>
+<td><code>POST /v1/handoffs</code></td>
+<td>Owning Browser/Provider</td>
+<td>Mint expected-player-bound one-use application handoff after authorization.</td>
+</tr>
+<tr>
+<td><code>POST /v1/handoffs/redeem</code></td>
+<td>Expected Player + proof</td>
+<td>Consume handoff and return assignment reference; does not bypass match admission.</td>
+</tr>
+<tr>
+<td><code>GET /v1/events</code></td>
+<td>Player/Provider/Organizer</td>
+<td>Cursor-based authorized event replay and continuation token.</td>
+</tr>
+<tr>
+<td><code>GET /v1/events/stream</code></td>
+<td>Player/Provider/Organizer</td>
+<td>Authenticated SSE stream; same event IDs/replay contract as event API.</td>
+</tr>
+<tr>
+<td><code>POST /v1/webhook-subscriptions</code></td>
+<td>Provider/Organizer</td>
+<td>Register allowed event types and reviewed HTTPS destination; secret returned once.</td>
+</tr>
+<tr>
+<td><code>DELETE /v1/webhook-subscriptions/{id}</code></td>
+<td>Subscription owner</td>
+<td>Disable future delivery; purge pending credentials under retention policy.</td>
+</tr>
+<tr>
+<td><code>POST /v1/webhook-subscriptions/{id}/rotate-secret</code></td>
+<td>Subscription owner</td>
+<td>Issue new secret and bounded overlap window.</td>
+</tr>
+</tbody>
+</table>
+<p>Provider callback routes under <code>/adapters/{provider}/...</code> are adapter-owned translations, not additions to the core native protocol. Their exact names depend on the verified provider contract.</p>
+<h3>19.4 Common responses</h3>
+<p>A created match response includes <code>match_id</code>, <code>external_match_id</code>, <code>state</code>, <code>revision</code>, and a public-safe <code>match_url</code>. A claim response has <code>kind=host|wait|join|recovery_required</code>, <code>assignment_generation</code>, <code>lease_id</code>, expiry, and only the credentials appropriate to that actor. A preparation response has <code>state=pending|authorized</code>, <code>attempt_id</code> when allocated, and the permit when both acknowledgments match.</p>
+<p>A report receipt includes <code>report_id</code>, <code>durable=true</code>, <code>duplicate</code>, <code>attempt_state</code>, and <code>match_revision</code>. <code>durable=true</code> means the bridge stored that report; it does not mean the opponent agreed or the provider accepted a final result.</p>
+<p>A player-presence record includes observed connection/readiness, observation time, and <code>stale</code>. An absent heartbeat cannot be represented as proof of a voluntary forfeit.</p>
+<h3>19.5 Error contract</h3>
+<pre><code class="language-json">{
+  &quot;error&quot;: {
+    &quot;code&quot;: &quot;stale_assignment&quot;,
+    &quot;message&quot;: &quot;This assignment has been replaced. Refresh the match.&quot;,
+    &quot;retryable&quot;: false,
+    &quot;request_id&quot;: &quot;req_&lt;uuid&gt;&quot;,
+    &quot;details&quot;: { &quot;current_assignment_generation&quot;: &quot;4&quot; }
+  }
+}
+</code></pre>
+<p>Required stable codes include: <code>invalid_request</code>, <code>unsupported_version</code>, <code>unauthenticated</code>, <code>forbidden</code>, <code>challenge_expired</code>, <code>challenge_used</code>, <code>invalid_signature</code>, <code>identity_unavailable</code>, <code>link_expired</code>, <code>link_pending_approval</code>, <code>link_conflict</code>, <code>idempotency_conflict</code>, <code>stale_revision</code>, <code>stale_assignment</code>, <code>lease_conflict</code>, <code>unsupported_rules</code>, <code>incompatible_build</code>, <code>report_conflict</code>, <code>needs_review</code>, <code>rate_limited</code>, <code>resync_required</code>, and <code>service_unavailable</code>.</p>
+<p>Use HTTP 400/401/403/404/409/412/422/429/503 appropriately. Hide existence where enumeration would leak private accounts/matches. Only expose current-generation details to an already authorized actor. Return <code>Retry-After</code> on rate limiting/transient service throttling.</p>
+<h2 id="section-20">20. Events and webhooks</h2>
+<h3>20.1 Delivery direction</h3>
+<p>Provider webhooks terminate at the bridge or a provider adapter, never a player's computer. The helper maintains an outbound event connection or polls the bridge. External systems subscribe to bridge events; they do not inject native game-state events into Ember.</p>
+<h3>20.2 Event envelope</h3>
+<p>Use CloudEvents 1.0 structured JSON with <code>specversion</code>, stable <code>id</code>, <code>source</code>, <code>type</code>, <code>subject</code>, <code>time</code>, <code>datacontenttype</code>, <code>dataschema</code>, and typed <code>data</code>. Add an <code>emberseq</code> extension as a decimal-string stream cursor. The core event names and fields are frozen per major version. [<a href="#source-s10">S10</a>]</p>
+<p>Example event type: <code>io.ember.tournament.match.completed.v1</code>. <code>source</code> is the configured bridge origin, not a client-supplied string. <code>subject</code> identifies the bridge match. Event data contains a provider-neutral result and report/adjudication references, not provider credentials or room capabilities.</p>
+<p>Required event families:</p>
+<pre><code class="language-text">identity.link.pending / identity.link.completed / identity.link.removed
+match.created / match.assignment.changed / match.room.ready
+match.player.present / match.player.ready / match.started
+match.attempt.authorized / match.game.reported / match.game.confirmed
+match.score.changed / match.needs_review / match.completed
+match.cancelled / match.failed / match.corrected
+provider.delivery.succeeded / provider.delivery.failed / provider.delivery.ambiguous
+</code></pre>
+<p>Apply the namespace and <code>.v1</code> suffix consistently. Player-private identity events are never broadcast to unrelated subscribers.</p>
+<h3>20.3 Webhook authentication</h3>
+<p>Use the Standard Webhooks HMAC-SHA256 profile and a maintained verifier. Headers are <code>webhook-id</code>, <code>webhook-timestamp</code>, and <code>webhook-signature</code>; signing input is the ASCII event ID, a dot, the ASCII Unix timestamp, a dot, and the exact raw request-body bytes. Signature header values use the profile's versioned format. [<a href="#source-s11">S11</a>]</p>
+<p>Each subscription has its own random 32-byte secret. The event body/id remain stable across retries; delivery timestamp/signature are regenerated for each attempt. Timestamp tolerance is five minutes by default. Reject invalid signatures and stale timestamps before processing JSON. Verify using constant-time comparison and the documented secret encoding, not an application-specific accidental variant.</p>
+<p>Accept only configured event types/sources and bound payload sizes. Signature validity does not eliminate the need for tenant/subject authorization or schema validation.</p>
+<h3>20.4 Durable, at-least-once delivery</h3>
+<p>Commit a state transition, event, and outbox record in one database transaction. A worker sends the event and marks success only after a successful receiver response. Delivery is at least once; ordering is not guaranteed. Exactly-once delivery across independent HTTP systems is not promised.</p>
+<p>Receivers persist/deduplicate event IDs and make their own side effects idempotent. A receiver should acknowledge with 2xx only after durable acceptance into its own queue or transaction. The request need not wait for all downstream processing.</p>
+<p>Suggested retry schedule: 1 s, 5 s, 15 s, 1 min, 5 min, 15 min, then hourly, with jitter and a 24-hour automatic budget. Honor <code>Retry-After</code>. Pause on credential failures; disable/flag consistently gone endpoints; retain dead-letter records for review. Never block a native game or existing room receipt on webhook acknowledgment.</p>
+<h3>20.5 Outbound-destination security</h3>
+<p>Webhook URLs are configured by authorized service owners, not arbitrary match metadata. Allow HTTPS/443 only by default, disallow credentials and redirects, and validate destinations against an explicit policy. Block loopback, private/link-local networks, multicast, cloud metadata endpoints, and unsafe IPv6 equivalents.</p>
+<p>Revalidate DNS/address policy at connection time and enforce egress controls; registration-time validation alone is insufficient against DNS rebinding. Bound connect/total timeouts, response size, retries, and concurrent requests. Do not allow custom headers to overwrite security-critical delivery headers.</p>
+<h3>20.6 Client event transport</h3>
+<p>SSE is the baseline client stream; an SDK may later add WebSocket without changing event semantics. Send keepalives every 20 seconds. Authenticate through headers in the native client, not tokens in query strings. Reconnect with jitter and the last committed cursor. A 30-second polling fallback is supported.</p>
+<p>The event stream is notification, not sole authority. Reconcile with snapshots after gaps or contradictory revisions. Separate low-value/coalescible presence events from non-droppable game/report/assignment transitions.</p>
+<h2 id="section-21">21. Provider SDK and adapter contract</h2>
+<h3>21.1 SDK scope</h3>
+<p>Publish a language-neutral HTTP/JSON specification plus a small TypeScript SDK for platform developers and Rust types/client helpers for <code>sf4-net</code>. JSON Schemas are the wire contract; SDK classes are conveniences. No native C++ ABI or dynamically loaded provider DLL is required.</p>
+<p>The first SDK should expose:</p>
+<pre><code class="language-text">getCapabilities()
+resolvePlayers(subjects)
+createMatch(spec, idempotencyKey)
+getMatch(matchId)
+cancelMatch(matchId, expectedRevision, reason)
+createLinkIntent(verifiedSubject)
+createHandoff(authorizedMatch, expectedPlayer)
+verifyWebhook(rawBody, headers, subscriptionSecret)
+parseEvent(validatedPayload)
+</code></pre>
+<p>Provide typed errors, timeout/backoff hooks, idempotency support, and fixture-based conformance tests. Do not hide an ambiguous provider write behind an automatic infinite retry.</p>
+<h3>21.2 Adapter interface</h3>
+<p>A provider adapter translates a <strong>verified provider contract</strong> into generic commands/events. Its responsibilities include authenticating provider callbacks, mapping external subjects and IDs, translating rules/status/result shapes, final submission, and reconciling ambiguous provider responses.</p>
+<p>Conceptual service-side interface:</p>
+<pre><code class="language-text">ProviderAdapter
+  authenticateInbound(request) -&gt; ProviderContext
+  normalizePlayerLookup(payload) -&gt; ResolvePlayersCommand
+  normalizeMatchCreate(payload) -&gt; CreateMatchCommand
+  normalizeStatusQuery(payload) -&gt; MatchReference
+  projectMatchSnapshot(snapshot) -&gt; ProviderStatusPayload
+  submitFinalResult(acceptedResult, deliveryKey) -&gt; DeliveryOutcome
+  reconcileDelivery(deliveryRecord) -&gt; DeliveryOutcome
+</code></pre>
+<p><code>DeliveryOutcome</code> is <code>accepted</code>, <code>retryable</code>, <code>permanent_failure</code>, or <code>ambiguous</code>, with safe diagnostic detail. Never make the core bridge assume every provider has idempotent writes, webhooks, OAuth login, result correction, or status polling.</p>
+<h3>21.3 Capability negotiation</h3>
+<p>Publish capabilities including external-login/subject-assertion support, match creation, status, final score submission, result correction, idempotent writes, authorized observers, supported rules profiles, and optional scheduling features.</p>
+<p>A generic webhook consumer can use the service without a dedicated adapter. An unsupported provider feature is explicitly rejected or handled through organizer review, not silently approximated. Future platform adapters are possibilities, not claims of compatibility already established for start.gg, Challonge, or another service.</p>
+<h2 id="section-22">22. BluMint adapter and verification gates</h2>
+<h3>22.1 Proposed mapping, pending confirmation</h3>
+<table>
+<thead>
+<tr>
+<th>Provisional platform need</th>
+<th>Generic bridge responsibility</th>
+<th>Verification required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Resolve a game's player identity</td>
+<td><code>players/resolve</code> after approved external-account link</td>
+<td>Exact subject identifiers, request/response schema, batch behavior, and privacy scope</td>
+</tr>
+<tr>
+<td>Create a scheduled match</td>
+<td><code>matches</code> with frozen participant mapping and rules</td>
+<td>Callback authentication, provider match key, retry behavior, and return fields</td>
+</tr>
+<tr>
+<td>Retrieve match/player status</td>
+<td>Project generic state/presence into platform states</td>
+<td>Enumerations, polling semantics, stale/pending/review representation</td>
+</tr>
+<tr>
+<td>Submit final score</td>
+<td>Adapter consumes accepted set result</td>
+<td>Correct endpoint/base URL, payload, idempotency/reconciliation, score/winner semantics</td>
+</tr>
+<tr>
+<td>Player clicks Play</td>
+<td>Authorized handoff to existing launcher</td>
+<td>Whether platform supports a per-player authenticated handoff or only a shared match URL</td>
+</tr>
+<tr>
+<td>Link account</td>
+<td>Verified browser login or trusted subject assertion</td>
+<td>Provider support; lookup callbacks alone do not establish account ownership</td>
+</tr>
+</tbody>
+</table>
+<p>Do not hard-code the previously mentioned <code>/api/tournaments/match/submit</code> path as a verified fact. Do not ship example player-lookup JSON from the earlier conversation as a production schema without the actual documentation or approved fixtures.</p>
+<h3>22.2 State translation rules</h3>
+<p>Whatever names BluMint ultimately requires, the adapter must preserve these meanings:</p>
+<ul>
+<li>Waiting for players, provisioning, and between-game readiness are not completed matches.</li>
+<li>One confirmed native game is not a completed FT2/FT3 set.</li>
+<li><code>needs_review</code> cannot be mapped to a guessed winner. If the platform has no review state, hold it in a nonterminal state and surface operator attention.</li>
+<li>Player <code>ready</code> requires the game's actual valid readiness state for the assigned attempt, not merely a connected browser or a platform check-in flag.</li>
+<li>A bridge-completed result is not automatically provider-delivered. Track both statuses.</li>
+</ul>
+<h3>22.3 Required provider evidence before production</h3>
+<p>Obtain versioned docs or a provider-approved OpenAPI/JSON schema snapshot; real callback fixtures with secrets removed; exact authentication/secret-rotation rules; staging and production base URLs; match identity/idempotency behavior; supported result corrections; expected timeouts/retries; account-ownership/linking support; player launch/handoff behavior; and an authorized staging test account/tournament.</p>
+<p>Run contract tests against those fixtures and a complete two-player staging set, then inject duplicate creation, duplicate result, response loss, invalid auth, expired link, disconnected player, and a disputed result. A provider contact must confirm how an ambiguous final submission is reconciled before automation is enabled.</p>
+<p>The generic bridge is allowed to ship/test with a mock provider while these gates remain open. The BluMint adapter must remain disabled by default until they are closed.</p>
+<h2 id="section-23">23. Data model, consistency, and persistence</h2>
+<h3>23.1 Required records</h3>
+<p>Use transactional storage with explicit uniqueness and foreign-key constraints. PostgreSQL is the reference database choice for the hosted service; an alternative must demonstrate equivalent concurrency/durability behavior. This is an architectural selection, not a claim that a particular hosting service is required.</p>
+<table>
+<thead>
+<tr>
+<th>Record</th>
+<th>Required contents and constraints</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>identities</code></td>
+<td>Full Ember ID, raw public key, status, created time; unique public key; derive/check ID on insertion.</td>
+</tr>
+<tr>
+<td><code>provider_connections</code></td>
+<td>Tenant, provider kind/environment, scopes, encrypted provider credentials, configuration revision, enabled state.</td>
+</tr>
+<tr>
+<td><code>external_accounts</code></td>
+<td>Connection ID + exact external subject, bridge participant ID, safe display label; unique within connection.</td>
+</tr>
+<tr>
+<td><code>links</code></td>
+<td>Account, identity, approval provenance, consent timestamps, revoked time; one active link per account and per identity/connection.</td>
+</tr>
+<tr>
+<td><code>link_intents</code></td>
+<td>Code HMAC, owner account/context, expiry, state, pending claim, failure/rate counters; never plaintext code at rest.</td>
+</tr>
+<tr>
+<td><code>link_claims</code></td>
+<td>Intent, exact key/ID, proof reference, client consent, browser approval, state.</td>
+</tr>
+<tr>
+<td><code>auth_challenges</code></td>
+<td>Public key, canonical challenge, target/digest, expiry, consumed marker; atomically single-use.</td>
+</tr>
+<tr>
+<td><code>sessions</code></td>
+<td>Token HMAC, key/ID, scopes, expiry, revocation; no recoverable long-lived token in logs.</td>
+</tr>
+<tr>
+<td><code>matches</code></td>
+<td>Tenant/connection/external key, bridge match ID, immutable create digest, current revision/generation, lifecycle and accepted score.</td>
+</tr>
+<tr>
+<td><code>match_participants</code></td>
+<td>Frozen participant/Ember ID/slot mapping per assignment generation.</td>
+</tr>
+<tr>
+<td><code>room_bindings</code></td>
+<td>Match/generation, physical room/table, rules/roster/build binding, encrypted invitation, replacement history.</td>
+</tr>
+<tr>
+<td><code>leases</code></td>
+<td>Actor/endpoint/helper, match/generation, role, lease expiry and fence; one active fighter lease per assigned player.</td>
+</tr>
+<tr>
+<td><code>attempts</code></td>
+<td>Match/assignment, permit and attempt IDs, native generation, immutable descriptor, state, score effect.</td>
+</tr>
+<tr>
+<td><code>reports</code></td>
+<td>Attempt/reporter/observation key, canonical payload bytes/digest, public key/signature, received time; append-only conflicts.</td>
+</tr>
+<tr>
+<td><code>adjudications</code></td>
+<td>Organizer, expected revision, reason, evidence, explicit result/void/forfeit/correction, timestamp.</td>
+</tr>
+<tr>
+<td><code>events</code></td>
+<td>Stable ID, tenant sequence, type, subject, revision, immutable payload, creation time.</td>
+</tr>
+<tr>
+<td><code>delivery_outbox</code></td>
+<td>Event/subscription or provider result revision, state, attempts, next attempt, safe last error.</td>
+</tr>
+<tr>
+<td><code>provider_submissions</code></td>
+<td>Provider/match/result revision, stable delivery key, payload digest, remote acknowledgment, ambiguous/reconciled state.</td>
+</tr>
+<tr>
+<td><code>webhook_subscriptions</code></td>
+<td>Tenant/owner, validated endpoint, event filter, encrypted secrets/rotation state, enabled state.</td>
+</tr>
+<tr>
+<td><code>idempotency_records</code></td>
+<td>Actor/tenant/method/path/key, command digest, operation state, replayable nonsecret result, retention deadline.</td>
+</tr>
+<tr>
+<td><code>audit_entries</code></td>
+<td>Actor class and ID, action, target, result, reason, request ID; no secret request bodies.</td>
+</tr>
+</tbody>
+</table>
+<h3>23.2 Transaction boundaries</h3>
+<p>The following are single transactions or equivalent serializable critical sections:</p>
+<ul>
+<li>Link approval + uniqueness checks + code consumption + completion event/outbox.</li>
+<li>Hosting lease acquisition/replacement + incremented fencing counter.</li>
+<li>Match creation + immutable participants/rules + create event.</li>
+<li>Two-player preparation barrier + unique official attempt/permit allocation.</li>
+<li>New report + agreement evaluation + unique score effect + match revision + game/set events.</li>
+<li>Organizer adjudication + score recalculation + correction event + delivery record.</li>
+<li>Provider delivery-state transition + audit/event update.</li>
+</ul>
+<p>A uniqueness constraint or row lock must protect against two workers scoring the same attempt concurrently. Application-level <code>if not exists</code> followed by a separate insert is insufficient.</p>
+<h3>23.3 Idempotency and retention</h3>
+<p>Preserve match-create uniqueness for the lifetime of the provider match record. Preserve attempt scoring uniqueness and terminal revision records for the tournament's supported history window. A short Redis TTL alone is not adequate duplicate suppression.</p>
+<p>A default 24-hour HTTP response-cache retention is acceptable for ordinary idempotency replies, but expiring that cache must not remove durable domain uniqueness. If large/private result payloads are purged, retain enough nonsecret tombstone state to reject duplicate score effects within the supported replay window.</p>
+<p>Receivers never treat provider match IDs or native generation numbers as interchangeable. All database lookups include their tenant/provider/room/assignment scope.</p>
+<h3>23.4 Service restart and disaster recovery</h3>
+<p>After restart, resume pending outbox work, expire old challenges/link intents, reconcile leases against established-room state, and recover incomplete deliveries. Do not reset identities, match revisions, or score ledgers.</p>
+<p>Back up encrypted provider/webhook secrets and bridge signing-key recovery material separately from application data, with access controls and tested restoration. A restored database must not blindly reuse an old provisioning fence or reissue an already consumed game permit as a new attempt. During uncertain restore, pause issuance and reconcile active tournaments before reopening writes.</p>
+<p>Test restoration of a completed set with an ambiguous provider submission. The recovered bridge must not produce a duplicate bracket advance.</p>
+<h2 id="section-24">24. Privacy, audit, and operational security</h2>
+<h3>24.1 Data minimization</h3>
+<p>An Ember ID is a persistent, potentially linkable pseudonym. Separating it from an ephemeral Iroh endpoint avoids making every transport identity a permanent account identity, but does not make tournament participation anonymous. The same ID disclosed to multiple bridges can be correlated.</p>
+<p>Send persistent ID/public key only to approved bridges and peers that require tournament admission. Ordinary casual rooms do not broadcast the tournament ID by default. A bridge must not expose a public reverse-lookup graph of all linked provider accounts.</p>
+<p>Store only the external subject identifiers and display data required for linking and tournament operation. Avoid collecting emails, real names, IP history, or hardware identifiers unless a separately justified feature requires them. Display labels do not need to include email addresses.</p>
+<h3>24.2 Logs and diagnostic exports</h3>
+<p>Never log private keys, backup passphrases, link codes, bearer tokens, provider credentials, admission token strings, room invitations, handoff codes, or raw webhook secrets. Redact authorization headers and query parameters before tracing. Use safe request IDs, coarse errors, and nonsecret hashes where correlation is necessary.</p>
+<p>Default support bundles exclude the entire identity directory and tournament credential stores. Crash dumps may contain live in-memory secrets despite application logging rules; disable automatic public upload and warn users before sharing full helper/game dumps. Secret-handling design cannot guarantee that process memory never enters an OS dump.</p>
+<h3>24.3 Default retention policy</h3>
+<p>Suggested operational defaults, to be made visible and configurable by the operator:</p>
+<ul>
+<li>Link intents/challenges: remove expired secret-bearing state within 24 hours; retain minimal abuse counters briefly.</li>
+<li>Session records: remove expired token hashes after the incident/debug window, default 24 hours.</li>
+<li>Detailed native reports and adjudication evidence: 90 days after tournament completion.</li>
+<li>Outbox/dead letters: 30 days after final resolution unless operator policy requires longer.</li>
+<li>Active approved links: until the user or provider unlinks; retain minimal revocation/audit references as disclosed.</li>
+<li>Raw networking telemetry: disabled by default for identity linking; short retention only for opt-in diagnostics.</li>
+</ul>
+<p>These are design defaults, not assertions of legal compliance. Public deployment needs an operator-approved privacy policy and retention/access process.</p>
+<h3>24.4 Service administration</h3>
+<p>Separate player, provider-service, organizer, and infrastructure-admin roles. Restrict credentials by tenant and capability. Production and staging use separate provider connections, service credentials, signing keys, databases or isolated namespaces, and webhook secrets.</p>
+<p>Use encrypted secrets at rest, least-privilege service accounts, TLS, dependency scanning, and rate limiting. Audit secret rotation, organizer adjudication, link replacement, bridge-key changes, and report conflicts.</p>
+<p>A provider adapter must not gain permission to operate unrelated tenants or forge a player's proof. A database entry saying a key exists is not permission to disclose its linked accounts to every adapter.</p>
+<h2 id="section-25">25. Limits, performance, and observability</h2>
+<h3>25.1 Initial protocol limits</h3>
+<p>These are proposed defaults and acceptance targets, not measured properties of existing Ember.</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Link code</td>
+<td>10 Base32 symbols; 5-minute lifetime</td>
+</tr>
+<tr>
+<td>Authentication/operation challenge</td>
+<td>32-byte nonce; 60-second lifetime</td>
+</tr>
+<tr>
+<td>Helper session</td>
+<td>10 minutes; reauthenticate rather than persist refresh token</td>
+</tr>
+<tr>
+<td>Browser handoff</td>
+<td>32 random bytes encoded Base64url; 60-second lifetime; one-use</td>
+</tr>
+<tr>
+<td>Pre-room provisioning lease</td>
+<td>30 seconds; renew every 10 seconds</td>
+</tr>
+<tr>
+<td>Fighter endpoint lease</td>
+<td>90 seconds; renew every 30 seconds; no mid-game forced termination on expiry</td>
+</tr>
+<tr>
+<td>Admission certificate</td>
+<td>10 minutes; renew only while authorized</td>
+</tr>
+<tr>
+<td>Game-permit start window</td>
+<td>2 minutes; duration of started game not limited by this window</td>
+</tr>
+<tr>
+<td>Missing-opponent-report grace</td>
+<td>60 seconds before review</td>
+</tr>
+<tr>
+<td>Automatic report replay window</td>
+<td>24 hours from bridge-recorded attempt</td>
+</tr>
+<tr>
+<td>URI length</td>
+<td>2 KiB</td>
+</tr>
+<tr>
+<td>Link/proof request size</td>
+<td>8 KiB</td>
+</tr>
+<tr>
+<td>Signed native-report size</td>
+<td>8 KiB</td>
+</tr>
+<tr>
+<td>General API/event payload</td>
+<td>64 KiB</td>
+</tr>
+<tr>
+<td>JSON nesting</td>
+<td>16 levels maximum</td>
+</tr>
+<tr>
+<td>External subject / metadata value</td>
+<td>256 / 1,024 UTF-8 bytes</td>
+</tr>
+<tr>
+<td>Metadata total</td>
+<td>8 KiB; display-only, never authorization policy</td>
+</tr>
+<tr>
+<td>Local pending report spool</td>
+<td>2,000 records or 32 MiB, whichever first; pause next official attempt when full</td>
+</tr>
+<tr>
+<td>In-memory terminal/control queue</td>
+<td>Bounded separately; reserve capacity for result and cancellation events</td>
+</tr>
+<tr>
+<td>Helper HTTP concurrency</td>
+<td>4 tournament requests maximum, separate from gameplay I/O</td>
+</tr>
+<tr>
+<td>SSE keepalive / polling fallback</td>
+<td>20 / 30 seconds</td>
+</tr>
+<tr>
+<td>Automatic webhook retry budget</td>
+<td>24 hours, with dead-letter review afterward</td>
+</tr>
+</tbody>
+</table>
+<h3>25.2 Rate limiting</h3>
+<p>Apply limits per key, source network, link intent, external account, and tenant rather than solely IP; shared/NAT networks must remain usable. Initial ceilings: 30 challenge requests per minute per key; ten link-code submissions per ten minutes per key; five incorrect attempts against an identifiable intent; and limited concurrent pending intents per external account.</p>
+<p>The valid path must remain usable during an IP-level attack. Codes cannot be enumerated through different error texts or timing. Use backoff and server-side HMAC lookup. Avoid a permanently locked external account from unauthenticated hostile traffic.</p>
+<h3>25.3 Performance acceptance</h3>
+<p>No additional per-frame HTTP calls, file writes, key derivations, or signing operations are allowed. Native result handling copies bounded data into a queue. Identity startup/signing and report serialization occur outside the simulation critical path.</p>
+<p>Measure baseline versus tournament-enabled builds on supported low-spec systems, including a four-GB-memory test machine/profile, Windows, and Wine/Proton. Exercise HTTP stalls, report retries, event floods, and storage faults during matches. Record median/p95/p99 frame times, overruns, helper CPU/RSS, queue occupancy, and native networking latency.</p>
+<p>A release fails if bridge worker activity introduces sustained game-frame overruns, unbounded memory growth, or starvation of existing Iroh/gameplay work. Numeric budgets may be tightened after baseline measurement; this document does not assert an already demonstrated performance improvement or line-count estimate.</p>
+<h3>25.4 Operational metrics</h3>
+<p>Measure identity-store failure category, link expiry/approval duration, challenge failure rates, claims/provisioning latency, stale leases, report durability/delivery latency, one-sided/conflicting reports, review backlog, duplicate suppression, provider delivery ambiguity, webhook age, and resync frequency.</p>
+<p>Metrics must not label series with raw IDs, full provider subjects, or secrets at unbounded cardinality. Use aggregate counters, bounded reason codes, and restricted trace lookups.</p>
+<h2 id="section-26">26. Compatibility and packaging</h2>
+<h3>26.1 Independent versions</h3>
+<p>Version identity envelope, ID derivation, signed challenge/report schema, bridge API, event schema, helper IPC, tournament admission policy, and provider adapter independently. A bridge API change must not silently change a user's Ember ID.</p>
+<p>Minor API changes are additive only where parsers allow them. Signed security objects have strict versioned schemas; unknown required/security-critical fields are rejected. Clients must negotiate capabilities before accepting a tournament assignment.</p>
+<h3>26.2 Mixed builds</h3>
+<p>Tournament rooms require the new admission/start-gate capability. An older client that lacks those checks must be rejected from a tournament room even if its casual room protocol would otherwise connect. Never downgrade a protected match into a normal room automatically.</p>
+<p>Existing casual compatibility rules remain unchanged. The new feature must not implicitly upgrade Iroh, GGPO, or the room wire protocol merely to obtain a convenient identity API. Any necessary version change gets its own review and tests.</p>
+<h3>26.3 Packaging</h3>
+<p>Players receive the normal Ember package with updated launcher/helper/game-side components. There is no mandatory <code>Tournament.exe</code>, <code>BluMint.exe</code>, background Windows service, or browser extension.</p>
+<p>The bridge and provider SDK are separate deployable/developer artifacts. Source may live in the same repository under distinct directories or a separate repository. Releases of provider adapters do not require a new gameplay binary unless the generic protocol actually changes.</p>
+<p>Updates preserve identity and tournament state directories. Uninstall leaves identity data by default or asks separately before deleting it. Do not sweep it away as a cache. Diagnostics and release packaging tests must scan for accidentally included real key files or production secrets.</p>
+<h3>26.4 Disabled/unsupported feature behavior</h3>
+<p>Feature flags may disable enrollment, a specific bridge/provider adapter, new match issuance, automatic result acceptance, or deep links independently. Disabling tournament automation never disables casual play. Security-critical failures do not silently fall back to weaker authentication or plaintext key storage.</p>
+<h2 id="section-27">27. Implementation work packages</h2>
+<h3>WP0 — Contract and baseline</h3>
+<p>Pin an implementation branch, review current helper IPC and room recovery, document native rules translation, and capture provider-independent schemas. Record all external/provider unknowns. Deliver a mock bridge/provider and test fixtures before changing game integration.</p>
+<p><strong>Exit:</strong> baseline tests preserved, exact source ownership mapped, unsupported policies explicitly rejected.</p>
+<h3>WP1 — Local identity</h3>
+<p>Implement identity wrapper, deterministic ID, secure RNG, Windows DPAPI backend, encrypted-file backend, store locking/atomic writes, public status, encrypted backup/import, and explicit replacement UX. Add negative/corruption tests and update-preservation tests.</p>
+<p>Suggested new helper modules:</p>
+<pre><code class="language-text">rust/sf4-net/src/identity/
+  mod.rs          # private key wrapper; public identity view
+  id.rs           # frozen derivation / encoding
+  store.rs        # load/create state and atomic persistence
+  windows.rs      # current-user DPAPI wrapper
+  encrypted.rs    # portable encrypted envelope
+  backup.rs       # explicit export/import
+  proof.rs        # allowed canonical message signing
+</code></pre>
+<p>These are proposed files, not claims that they exist now.</p>
+<p><strong>Exit:</strong> one identity survives restart/update and explicit export/import; unreadable state never triggers automatic replacement; casual play survives all injected storage failures.</p>
+<h3>WP2 — Bridge identity and linking</h3>
+<p>Build bridge configuration/trust metadata, challenge/session service, verified external-account entry point, link intent/claim/browser approval, unlink/replacement, RBAC, rate limits, and audit.</p>
+<p><strong>Exit:</strong> two independently implemented clients derive matching IDs/signatures; a stolen link code cannot finalize a link; cross-tenant/provider tests pass.</p>
+<h3>WP3 — Generic SDK, event log, and mock provider</h3>
+<p>Publish schema package and TypeScript/Rust bindings, core match CRUD, durable outbox, Standard Webhooks signing/verifying, replay/snapshot synchronization, provider-service scopes, and an operator review UI skeleton.</p>
+<p><strong>Exit:</strong> an external sample application creates a match and consumes a verified event without any BluMint code in the client/helper.</p>
+<h3>WP4 — Native tournament binding and room entry</h3>
+<p>Add generic <code>TournamentCoordinator</code>/binding state on the native side, typed IPC, runtime opt-in UX, protected host/join workflow, roster/rules enforcement, signed admission validation, and checkpoint/migration persistence.</p>
+<p>Suggested boundaries to inspect/update:</p>
+<pre><code class="language-text">src/netplay/SessionController.*
+src/session/RoomModel.* and room/session authorization paths
+src/session/MatchAuthority.* and pre-native start authorization
+src/sf4e/sf4e__NetplayRuntime__Room.cxx
+src/sf4e/sf4e__NetplayRuntime__Match.cxx
+src/platform/HelperClient.*
+rust/sf4-net/src/service/*
+rust/sf4-net/src/transport.rs
+</code></pre>
+<p>Exact changes must follow an implementation review; the listing is not permission to bypass existing room-authority checks.</p>
+<p><strong>Exit:</strong> old/unauthorized clients cannot occupy reserved roles; no extra executable; host transfer/reconnect preserve policy.</p>
+<h3>WP5 — Game permits and report reconciliation</h3>
+<p>Implement the pre-start barrier, immutable attempt binding, copied native result export, signed durable reports, two-player agreement, set-score ledger, review/adjudication, and outbox recovery.</p>
+<p>Use the existing confirmed-result reader and preserve its tests. Extend or observe existing terminal-result handling without making it depend on bridge or provider acknowledgments.</p>
+<p><strong>Exit:</strong> FT2/FT3 scoring, rollback-corrected results, room replacement, duplicate reports, disagreement, process crashes, and service outages all behave according to this spec.</p>
+<h3>WP6 — Launcher convenience and platform validation</h3>
+<p>Implement strict URI handling and running-instance delivery, assignment UI, code fallback, localization, Windows/Proton smoke tests, and safe backup UX.</p>
+<p><strong>Exit:</strong> a browser click or copied code reaches the assigned room; an active game cannot be interrupted by a handoff; no secret appears in exported logs.</p>
+<h3>WP7 — BluMint adapter</h3>
+<p>Only after Section 22 gates close: implement verified callback translations, player lookup, launch/link flow, final submission/reconciliation, credential rotation, and full staging fixtures.</p>
+<p><strong>Exit:</strong> provider-approved staging tournament succeeds with fault injection, and no platform name or schema has leaked into native gameplay/session code.</p>
+<h3>WP8 — Hardening and release</h3>
+<p>Fuzz parsers, exercise adversarial tests, validate backup/restore, benchmark low-spec systems, run canary tournaments with human review, and document operator runbooks.</p>
+<p><strong>Exit:</strong> release gates in Section 29 are met. Do not substitute a successful single match for identity/security/recovery validation.</p>
+<h2 id="section-28">28. Acceptance and adversarial test matrix</h2>
+<p>Each test below must become an automated test or an explicitly recorded manual/platform test. Requirements about unavailable production services remain unpassed until actually exercised.</p>
+<h3>28.1 Identity and storage</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Test / required result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ID-01</td>
+<td>Fixed known seed yields the exact fixture public key and Ember ID.</td>
+</tr>
+<tr>
+<td>ID-02</td>
+<td>Windows restart and update load the same key and ID.</td>
+</tr>
+<tr>
+<td>ID-03</td>
+<td>New Iroh endpoint leaves Ember ID unchanged.</td>
+</tr>
+<tr>
+<td>ID-04</td>
+<td>Display-name, language, and provider-link changes leave ID unchanged.</td>
+</tr>
+<tr>
+<td>ID-05</td>
+<td>RNG failure returns an error; no fallback or partially registered key.</td>
+</tr>
+<tr>
+<td>ID-06</td>
+<td>Concurrent helper startup installs only one identity.</td>
+</tr>
+<tr>
+<td>ID-07</td>
+<td>Crash at every creation/write/rename step does not replace an established key.</td>
+</tr>
+<tr>
+<td>ID-08</td>
+<td>Wrong user, invalid DPAPI blob, permission denial, and corruption do not regenerate a key.</td>
+</tr>
+<tr>
+<td>ID-09</td>
+<td>Missing key with existing continuity metadata enters recovery-required state.</td>
+</tr>
+<tr>
+<td>ID-10</td>
+<td>Valid key with missing metadata repairs metadata from the key.</td>
+</tr>
+<tr>
+<td>ID-11</td>
+<td>Same backup imported elsewhere yields the same ID.</td>
+</tr>
+<tr>
+<td>ID-12</td>
+<td>Wrong passphrase, modified ciphertext/header, truncated file, and unsupported KDF fail closed.</td>
+</tr>
+<tr>
+<td>ID-13</td>
+<td>Import bounds reject excessive memory/time parameters before resource allocation.</td>
+</tr>
+<tr>
+<td>ID-14</td>
+<td>Different-key import requires confirmation and preserves old store on failure.</td>
+</tr>
+<tr>
+<td>ID-15</td>
+<td>Export, logging, and support bundles contain no plaintext seed/passphrase.</td>
+</tr>
+<tr>
+<td>ID-16</td>
+<td>Windows normal/elevated launch does not unintentionally create different users' identities.</td>
+</tr>
+<tr>
+<td>ID-17</td>
+<td>Wine/Proton uses the declared, tested backend; no silent plaintext/weak fallback.</td>
+</tr>
+<tr>
+<td>ID-18</td>
+<td>Locked/unavailable identity does not block casual play.</td>
+</tr>
+</tbody>
+</table>
+<h3>28.2 Authentication and linking</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Test / required result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AUTH-01</td>
+<td>Challenge signature validates across Rust and bridge implementations.</td>
+</tr>
+<tr>
+<td>AUTH-02</td>
+<td>Modified audience, action, method, path, digest, ID, nonce, or expiry fails verification.</td>
+</tr>
+<tr>
+<td>AUTH-03</td>
+<td>Expired/consumed challenge cannot authenticate again.</td>
+</tr>
+<tr>
+<td>AUTH-04</td>
+<td>A fresh proof for one command cannot authorize another command under an idempotency key.</td>
+</tr>
+<tr>
+<td>AUTH-05</td>
+<td>Duplicate JSON keys and noncanonical binary encodings are rejected before authorization.</td>
+</tr>
+<tr>
+<td>AUTH-06</td>
+<td>Session expiry/revocation removes access; player tokens do not work on provider/admin APIs.</td>
+</tr>
+<tr>
+<td>AUTH-07</td>
+<td>Bearer session alone cannot finalize linking or claim a new fighter endpoint.</td>
+</tr>
+<tr>
+<td>AUTH-08</td>
+<td>Untrusted bridge/deep-link origin cannot obtain signatures or tokens silently.</td>
+</tr>
+<tr>
+<td>LINK-01</td>
+<td>Verified browser plus entered code plus matching fingerprint approval completes a link.</td>
+</tr>
+<tr>
+<td>LINK-02</td>
+<td>Stolen code plus attacker's key cannot complete the link without authenticated browser approval.</td>
+</tr>
+<tr>
+<td>LINK-03</td>
+<td>Unauthenticated claimed provider ID cannot create an approvable account association.</td>
+</tr>
+<tr>
+<td>LINK-04</td>
+<td>Approval races consume the intent once and retain exactly one approved mapping.</td>
+</tr>
+<tr>
+<td>LINK-05</td>
+<td>A pending claimant cannot be swapped while approval is displayed.</td>
+</tr>
+<tr>
+<td>LINK-06</td>
+<td>Expired/cancelled code never links; retries of the same completed association are idempotent.</td>
+</tr>
+<tr>
+<td>LINK-07</td>
+<td>Cross-provider/environment/tenant code reuse is rejected.</td>
+</tr>
+<tr>
+<td>LINK-08</td>
+<td>Existing link replacement requires fresh external authentication and explicit approval.</td>
+</tr>
+<tr>
+<td>LINK-09</td>
+<td>Unlink does not change key/ID but revokes derived future permissions.</td>
+</tr>
+<tr>
+<td>LINK-10</td>
+<td>Guessed codes are rate-limited without permanent unauthenticated account lockout.</td>
+</tr>
+<tr>
+<td>LINK-11</td>
+<td>Unicode/external numeric IDs preserve the provider's exact identity semantics.</td>
+</tr>
+<tr>
+<td>LINK-12</td>
+<td>Provider lookup cannot enumerate unrelated users or reveal another tenant's links.</td>
+</tr>
+</tbody>
+</table>
+<h3>28.3 Room, permissions, and lifecycle</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Test / required result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ROOM-01</td>
+<td>Simultaneous first claims produce one valid provisioning lease.</td>
+</tr>
+<tr>
+<td>ROOM-02</td>
+<td>A late expired host cannot publish a competing room.</td>
+</tr>
+<tr>
+<td>ROOM-03</td>
+<td>Established-room heartbeat loss does not automatically create another room.</td>
+</tr>
+<tr>
+<td>ROOM-04</td>
+<td>Public URL/invite without valid identity admission cannot occupy a fighter seat.</td>
+</tr>
+<tr>
+<td>ROOM-05</td>
+<td>Copied certificate used from another Iroh endpoint/helper is rejected.</td>
+</tr>
+<tr>
+<td>ROOM-06</td>
+<td>Valid spectator cannot queue into a reserved fighter seat.</td>
+</tr>
+<tr>
+<td>ROOM-07</td>
+<td>Unknown issuer, wrong token type, <code>none</code>, wrong algorithm/key, or stale assignment is rejected.</td>
+</tr>
+<tr>
+<td>ROOM-08</td>
+<td>Same-endpoint reconnect is idempotent; a restarted helper performs approved rebind.</td>
+</tr>
+<tr>
+<td>ROOM-09</td>
+<td>Same Ember key on two devices cannot own two active fighter leases in one match.</td>
+</tr>
+<tr>
+<td>ROOM-10</td>
+<td>Host transfer preserves the complete tournament authorization policy.</td>
+</tr>
+<tr>
+<td>ROOM-11</td>
+<td>Checkpoint restore/late join cannot strip tournament rules or admit an old client.</td>
+</tr>
+<tr>
+<td>ROOM-12</td>
+<td>Bracket slot and transport host independence cannot invert the winner.</td>
+</tr>
+<tr>
+<td>ROOM-13</td>
+<td>Rule/roster change while readiness awaits a permit invalidates the prospective start.</td>
+</tr>
+<tr>
+<td>ROOM-14</td>
+<td>One permit cannot authorize two generations or two official games.</td>
+</tr>
+<tr>
+<td>ROOM-15</td>
+<td>Expired start permission stops a new game, not an already-running one.</td>
+</tr>
+<tr>
+<td>ROOM-16</td>
+<td>Browser handoff during gameplay cannot interrupt or open another game instance.</td>
+</tr>
+<tr>
+<td>ROOM-17</td>
+<td>Manual code/assignment fallback works without URI integration under Proton.</td>
+</tr>
+<tr>
+<td>ROOM-18</td>
+<td>Casual room behavior, queue rotation, and spectator features regress neither when disabled nor enabled elsewhere.</td>
+</tr>
+</tbody>
+</table>
+<h3>28.4 Results and accounting</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Test / required result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RESULT-01</td>
+<td>A discarded speculative native winner produces no external result.</td>
+</tr>
+<tr>
+<td>RESULT-02</td>
+<td>Confirmation that occurs during idle/final polling still produces a report.</td>
+</tr>
+<tr>
+<td>RESULT-03</td>
+<td>Signed report from one player cannot count for both participants.</td>
+</tr>
+<tr>
+<td>RESULT-04</td>
+<td>Same-outcome reports with different valid local confirmation frames may agree.</td>
+</tr>
+<tr>
+<td>RESULT-05</td>
+<td>Conflicting outcomes/slot mappings/rules produce review, not a score.</td>
+</tr>
+<tr>
+<td>RESULT-06</td>
+<td>Missing second report produces review after grace; no inferred disconnect win.</td>
+</tr>
+<tr>
+<td>RESULT-07</td>
+<td>Duplicate report/event/HTTP delivery after restart adds no extra game win.</td>
+</tr>
+<tr>
+<td>RESULT-08</td>
+<td>Same observation identity with changed bytes is a retained conflict.</td>
+</tr>
+<tr>
+<td>RESULT-09</td>
+<td>FT2 sequence A/B/A produces exactly one final <code>2-1</code> set result.</td>
+</tr>
+<tr>
+<td>RESULT-10</td>
+<td>Draw produces no increment and a distinct replay attempt.</td>
+</tr>
+<tr>
+<td>RESULT-11</td>
+<td>Abort/cancel does not produce a native victory; organizer forfeit is separately marked.</td>
+</tr>
+<tr>
+<td>RESULT-12</td>
+<td>Late old-room result cannot score a replacement binding.</td>
+</tr>
+<tr>
+<td>RESULT-13</td>
+<td>Host migration does not change report identity or duplicate an accepted attempt.</td>
+</tr>
+<tr>
+<td>RESULT-14</td>
+<td>Spool disk-full/queue-full pauses next official attempt without blocking native teardown.</td>
+</tr>
+<tr>
+<td>RESULT-15</td>
+<td>Helper crash before durable report produces visible missing evidence, never a made-up result.</td>
+</tr>
+<tr>
+<td>RESULT-16</td>
+<td>Bridge crash during two-report reconciliation has all-or-nothing score/event/outbox effect.</td>
+</tr>
+<tr>
+<td>RESULT-17</td>
+<td>Permit's start expiry does not invalidate a long game's legitimate report.</td>
+</tr>
+<tr>
+<td>RESULT-18</td>
+<td>Provider outage leaves local set complete and delivery pending, with no native-game dependency.</td>
+</tr>
+<tr>
+<td>RESULT-19</td>
+<td>Correction creates a new result revision and explicit provider reconciliation path.</td>
+</tr>
+<tr>
+<td>RESULT-20</td>
+<td>Signed/colluding fabricated reports are not described as anti-cheat proof in UI/docs.</td>
+</tr>
+</tbody>
+</table>
+<h3>28.5 Web, provider, and operations</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Test / required result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>WEB-01</td>
+<td>Raw-body webhook fixture verifies; body/header mutation fails.</td>
+</tr>
+<tr>
+<td>WEB-02</td>
+<td>Old delivery timestamp fails; legitimate retry with new timestamp and same event ID deduplicates.</td>
+</tr>
+<tr>
+<td>WEB-03</td>
+<td>Key rotation supports bounded old/new overlap and then rejects old secret.</td>
+</tr>
+<tr>
+<td>WEB-04</td>
+<td>Receiver crash after durable enqueue produces no duplicate side effect on retry.</td>
+</tr>
+<tr>
+<td>WEB-05</td>
+<td>Out-of-order/gapped events recover via cursor and consistent snapshot.</td>
+</tr>
+<tr>
+<td>WEB-06</td>
+<td>Event stream authorization hides unrelated matches and identity links.</td>
+</tr>
+<tr>
+<td>WEB-07</td>
+<td>Loopback/private/metadata targets, unsafe IPv6, redirects, and DNS rebinding are blocked.</td>
+</tr>
+<tr>
+<td>WEB-08</td>
+<td>Malicious callback response cannot exhaust memory, pin all workers, or affect Iroh work.</td>
+</tr>
+<tr>
+<td>PROVIDER-01</td>
+<td>Real provider fixtures pass request/auth/response contract tests.</td>
+</tr>
+<tr>
+<td>PROVIDER-02</td>
+<td>Retried match creation cannot schedule a second logical match.</td>
+</tr>
+<tr>
+<td>PROVIDER-03</td>
+<td>Timed-out result acceptance becomes ambiguous until verified, not blindly resubmitted.</td>
+</tr>
+<tr>
+<td>PROVIDER-04</td>
+<td>Provider without correction/review support triggers an explicit operator path.</td>
+</tr>
+<tr>
+<td>PROVIDER-05</td>
+<td>Staging credentials/keys cannot authorize production matches.</td>
+</tr>
+<tr>
+<td>OPS-01</td>
+<td>Bridge backup/restore preserves identities, permits, accepted scores, and delivery uniqueness.</td>
+</tr>
+<tr>
+<td>OPS-02</td>
+<td>Secret scanning catches a intentionally seeded test secret in a release/support archive.</td>
+</tr>
+<tr>
+<td>OPS-03</td>
+<td>HTTP stalls/event floods/KDF attempts do not cause gameplay-thread I/O or sustained frame overruns.</td>
+</tr>
+<tr>
+<td>OPS-04</td>
+<td>Feature disablement leaves casual play and existing identity untouched.</td>
+</tr>
+<tr>
+<td>OPS-05</td>
+<td>Canary rollback disables new permits without stranding records or duplicating provider delivery.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="section-29">29. Rollout, rollback, and release gates</h2>
+<h3>29.1 Rollout sequence</h3>
+<p>Begin with local identity/backup tests, then private bridge linking against a mock provider. Add observation-only native reporting without automatic bracket submission. Compare reports to human-reviewed sets. Enable protected rooms/permits and automatic two-player reconciliation for a small canary tournament. Only then enable a verified provider's final submission.</p>
+<p>Keep automatic submission behind a per-provider/per-tournament flag. During early events, make organizer review readily available and preserve the ability to enter results manually without falsifying native evidence.</p>
+<h3>29.2 Required release gates</h3>
+<p><strong>G1 Identity continuity:</strong> Windows and Proton persistence/export/import/error cases pass.<br />
+<strong>G2 Account ownership:</strong> a verified provider identity channel and two-sided approval exist.<br />
+<strong>G3 Admission:</strong> room invite alone cannot bypass the new role/endpoint gates.<br />
+<strong>G4 Native safety:</strong> no network/storage/crypto blocking in the simulation path; baseline regressions pass.<br />
+<strong>G5 Score correctness:</strong> deduplicated attempt ledger, two-player reconciliation, and organizer review survive faults.<br />
+<strong>G6 Delivery:</strong> transactional outbox, authenticated webhooks, and ambiguous provider-write handling pass.<br />
+<strong>G7 Recovery:</strong> helper/bridge restart, room migration/replacement, and backup restoration pass.<br />
+<strong>G8 Provider contract:</strong> versioned BluMint evidence and authorized staging end-to-end test complete before enabling its adapter.<br />
+<strong>G9 Operator readiness:</strong> secrets, monitoring, backups, privacy notices, and incident/runbook ownership are assigned.</p>
+<h3>29.3 Rollback plan</h3>
+<p>Disable new tournament issuance and automatic provider delivery first; do not delete identity stores or pending evidence. Let already-started native games finish. Preserve snapshots and outbox records for reconciliation. A native build rollback must not convert an already protected tournament room into an unprotected casual room.</p>
+<p>Keep schema migrations forward/backward planning explicit. An older helper that cannot read the new identity envelope reports unsupported storage; it does not generate a replacement. A rollback that cannot safely consume pending reports uses an export/operator path, not silent loss.</p>
+<h2 id="section-30">30. Decisions and remaining sign-offs</h2>
+<h3>30.1 Decisions fixed by this draft</h3>
+<p>Persistent per-user Ed25519 identity; deterministic full-length public ID; separate ephemeral transport identity; no new player executable; generic independently hosted bridge; typed SDK/API rather than injected provider plugins; verified-provider code linking with browser confirmation; Windows DPAPI plus tested encrypted-file fallback; encrypted backup/import; key-bound room admission; official game-attempt permits; independent fighter reports; explicit set-level state machine; durable at-least-once delivery; and unchanged casual/offline availability.</p>
+<h3>30.2 Sign-offs required before implementation is considered complete</h3>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Needed decision/evidence</th>
+<th>Default until resolved</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bridge operation</td>
+<td>Who hosts, maintains, and supports the first bridge and controls its signing keys?</td>
+<td>Local/mock environment; no public production claims.</td>
+</tr>
+<tr>
+<td>External account ownership</td>
+<td>Which verified BluMint login/subject-assertion route is actually supported?</td>
+<td>Linking adapter disabled.</td>
+</tr>
+<tr>
+<td>BluMint API</td>
+<td>Exact schemas, auth, retries, result semantics, and recovery endpoints</td>
+<td>Contract gate open; mock provider only.</td>
+</tr>
+<tr>
+<td>Native rules mapping</td>
+<td>Observed USF4 round/edition/stage/character semantics</td>
+<td>Advertise only tested named profiles.</td>
+</tr>
+<tr>
+<td>Proton secure storage</td>
+<td>Confirmed encrypted-file implementation and launch/URI behavior on supported builds</td>
+<td>Manual code fallback; no DPAPI-equivalence claim.</td>
+</tr>
+<tr>
+<td>Organizer policy</td>
+<td>Forfeit/no-show/disconnect rules, review authority, response process</td>
+<td>No automatic inferred wins.</td>
+</tr>
+<tr>
+<td>Performance</td>
+<td>Measured budgets on low-spec Windows and Proton machines</td>
+<td>Targets, not demonstrated results.</td>
+</tr>
+<tr>
+<td>Security review</td>
+<td>Crypto serialization, link hijacking, admission migration, backup and webhooks</td>
+<td>Draft protocol not production-approved.</td>
+</tr>
+</tbody>
+</table>
+<h3>30.3 Future work deliberately deferred</h3>
+<p>Multiple independent device keys under a recoverable human account; maintaining a stable logical account ID across key rotation; passkeys or hardware-backed signing; provider-independent global account recovery; multi-table scheduler; public room discovery; broadcast-specific observer automation; offline batch permits; and additional bracket adapters.</p>
+<p>These must not be implemented by changing <code>emb1_</code> derivation semantics in place. A logical account identity above keys would be a separate versioned concept with explicit recovery/trust rules.</p>
+<h2 id="section-31">31. Worked end-to-end scenario</h2>
+<ol>
+<li>A player opens Tournaments for the first time. <code>sf4-net</code> generates and safely stores a local seed, derives the public key/Ember ID, and offers encrypted backup. No external account has been created yet.</li>
+<li>The player authenticates on an approved provider/bridge page. The bridge receives a verified external subject and generates a five-minute link code.</li>
+<li>The player enters that code in Ember. The helper proves possession of its local key and submits a pending link claim. Both sides display the same Ember fingerprint.</li>
+<li>The authenticated browser approves that exact claim. The bridge atomically links the provider participant to the Ember ID. The code can no longer be used.</li>
+<li>A provider service creates an FT2 match for two linked participants. The bridge resolves current identities, freezes slots/rules/build, and returns a logical match reference.</li>
+<li>Players accept the assignment through a launcher handoff or Ember's assignment list. The first eligible claimant acquires a fenced provisioning lease, and the existing native host path creates a room.</li>
+<li>The helper publishes that room. Both players obtain identity/endpoint-bound admission certificates. The room checks those certificates in addition to its existing invitation capability.</li>
+<li>Both players choose Ready. Matching preparation acknowledgments cause the bridge to allocate official attempt 1. The native start gate accepts its permit and the normal Iroh/GGPO game begins.</li>
+<li>A wins. Each client independently reaches the existing native confirmation boundary, copies a result observation, and its helper signs/spools the report. The bridge verifies both distinct identities and reconciles the same outcome. Set score becomes <code>1-0</code>; the bracket does not advance yet.</li>
+<li>After the next shared permit, B wins game 2. Score becomes <code>1-1</code>.</li>
+<li>A wins game 3. Exactly three accepted scoring attempts yield <code>2-1</code>. The bridge creates a set-completion event and one provider-delivery record in the same transaction.</li>
+<li>The adapter submits the provider's verified final-result format. If a response is lost after possible provider acceptance, it marks delivery ambiguous and reconciles instead of risking a second advance.</li>
+<li>The player restarts Ember the next day. The same stored seed produces the same Ember ID, regardless of the new Iroh endpoint. Existing bridge links still refer to that ID.</li>
+<li>If the player moves to another PC, importing the encrypted backup preserves the same ID. Re-linking a newly generated replacement key instead would create a new ID and requires explicit association replacement.</li>
+</ol>
+<p>This is the intended meaning of “generate a key once, link it with a code, then reuse that identity”: durable local identity, explicit external-account consent, and reusable provider-neutral automation without putting a tournament platform in the rollback implementation.</p>
+<h2 id="section-32">32. Sources and verification notes</h2>
+<p>Repository references below are pinned to the inspected commit. They ground statements about existing code; they do not imply the proposed features have been implemented. Standards references ground selected primitives/formats. Application policies, timeouts, file paths, limits, and module names are design choices in this document.</p>
+<h3>Ember primary-source references</h3>
+<p><strong id="source-e1">[<a href="#source-e1">E1</a>] Repository branch lookup, inspected 2026-10-01.</strong><br />
+<code>https://api.github.com/repos/Confetti3/SF4-Ember-Netplay/branches?per_page=100</code></p>
+<p><strong id="source-e2">[<a href="#source-e2">E2</a>] Helper dependency manifest.</strong><br />
+<code>https://github.com/Confetti3/SF4-Ember-Netplay/blob/92aad00459e36b009951a6145b6dab19f6e7f223/rust/sf4-net/Cargo.toml</code></p>
+<p><strong id="source-e3">[<a href="#source-e3">E3</a>] Iroh transport construction and admission code.</strong><br />
+<code>https://github.com/Confetti3/SF4-Ember-Netplay/blob/92aad00459e36b009951a6145b6dab19f6e7f223/rust/sf4-net/src/transport.rs</code></p>
+<p><strong id="source-e4">[<a href="#source-e4">E4</a>] Native session-controller ownership and commands.</strong><br />
+<code>https://github.com/Confetti3/SF4-Ember-Netplay/blob/92aad00459e36b009951a6145b6dab19f6e7f223/src/netplay/SessionController.hxx</code></p>
+<p><strong id="source-e5">[<a href="#source-e5">E5</a>] Room model, actions, permissions, and member state.</strong><br />
+<code>https://github.com/Confetti3/SF4-Ember-Netplay/blob/92aad00459e36b009951a6145b6dab19f6e7f223/src/session/RoomModel.hxx</code></p>
+<p><strong id="source-e6">[<a href="#source-e6">E6</a>] Native room rules.</strong><br />
+<code>https://github.com/Confetti3/SF4-Ember-Netplay/blob/92aad00459e36b009951a6145b6dab19f6e7f223/src/common/RoomRules.hxx</code></p>
+<p><strong id="source-e7">[<a href="#source-e7">E7</a>] Room/table/fighter limits.</strong><br />
+<code>https://github.com/Confetti3/SF4-Ember-Netplay/blob/92aad00459e36b009951a6145b6dab19f6e7f223/src/common/RoomLimits.hxx</code></p>
+<p><strong id="source-e8">[<a href="#source-e8">E8</a>] Native rollback-confirmed match-result design.</strong><br />
+<code>https://github.com/Confetti3/SF4-Ember-Netplay/blob/92aad00459e36b009951a6145b6dab19f6e7f223/docs/design/NATIVE_MATCH_RESULT.md</code></p>
+<p><strong id="source-e9">[<a href="#source-e9">E9</a>] Existing result outbox interface and persistence boundary.</strong><br />
+<code>https://github.com/Confetti3/SF4-Ember-Netplay/blob/92aad00459e36b009951a6145b6dab19f6e7f223/src/netplay/MatchResultOutbox.hxx</code></p>
+<h3>Standards and platform references</h3>
+<p><strong id="source-s1">[<a href="#source-s1">S1</a>] RFC 8032, Edwards-Curve Digital Signature Algorithm (EdDSA).</strong> Ed25519 primitive, keys/signatures, and test vectors.<br />
+<code>https://www.rfc-editor.org/rfc/rfc8032</code></p>
+<p><strong id="source-s2">[<a href="#source-s2">S2</a>] Iroh SecretKey and endpoint-builder documentation.</strong> The retrieved SecretKey page described <code>generate</code>, <code>public</code>, <code>sign</code>, and byte conversion; builder documentation described default random endpoint identity. The exact pinned dependency remains the implementation source of truth, not the moving <code>latest</code> URL.<br />
+<code>https://docs.rs/iroh/latest/iroh/struct.SecretKey.html</code><br />
+<code>https://docs.rs/iroh/latest/iroh/endpoint/struct.Builder.html</code></p>
+<p><strong id="source-s3">[<a href="#source-s3">S3</a>] Microsoft CryptProtectData documentation.</strong> Current-user/machine scope, roaming-profile exceptions, and machine-scope flag behavior.<br />
+<code>https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata</code></p>
+<p><strong id="source-s4">[<a href="#source-s4">S4</a>] RFC 9106, Argon2.</strong> KDF algorithm and parameter/security discussion; application defaults are specified separately in Section 8.<br />
+<code>https://www.rfc-editor.org/rfc/rfc9106</code></p>
+<p><strong id="source-s5">[<a href="#source-s5">S5</a>] Libsodium XChaCha20-Poly1305 documentation.</strong> AEAD construction and nonce/key use.<br />
+<code>https://doc.libsodium.org/secret-key_cryptography/aead/chacha20-poly1305/xchacha20-poly1305_construction</code></p>
+<p><strong id="source-s6">[<a href="#source-s6">S6</a>] RFC 8785, JSON Canonicalization Scheme.</strong> Canonical signed serialization, duplicate-property rejection, number/string constraints.<br />
+<code>https://www.rfc-editor.org/rfc/rfc8785</code></p>
+<p><strong id="source-s7">[<a href="#source-s7">S7</a>] RFC 8725, JSON Web Token Best Current Practices.</strong> Algorithm, audience, issuer, and cross-token confusion safeguards.<br />
+<code>https://www.rfc-editor.org/rfc/rfc8725</code></p>
+<p><strong id="source-s8">[<a href="#source-s8">S8</a>] RFC 8037, EdDSA in JOSE.</strong> Ed25519 key/signature representation for the selected JWS profile.<br />
+<code>https://www.rfc-editor.org/rfc/rfc8037</code></p>
+<p><strong id="source-s9">[<a href="#source-s9">S9</a>] RFC 8628, OAuth 2.0 Device Authorization Grant.</strong> Code-flow threat considerations; Ember's custom linking API is not represented as an OAuth grant implementation.<br />
+<code>https://www.rfc-editor.org/rfc/rfc8628</code></p>
+<p><strong id="source-s10">[<a href="#source-s10">S10</a>] CloudEvents specification v1.0.2.</strong> Structured event envelope and context attributes.<br />
+<code>https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md</code></p>
+<p><strong id="source-s11">[<a href="#source-s11">S11</a>] Standard Webhooks specification.</strong> Signed raw-body delivery profile and header semantics.<br />
+<code>https://github.com/standard-webhooks/standard-webhooks/blob/main/spec/standard-webhooks.md</code></p>
+<h3>Unverified provider references</h3>
+<p><strong id="source-b1">[<a href="#source-b1">B1</a>] BluMint game guide — supplied by user; unavailable during this run.</strong><br />
+<code>https://staging.blumint.io/docs/game-guide</code></p>
+<p><strong id="source-b2">[<a href="#source-b2">B2</a>] BluMint documentation index — supplied by user; unavailable during this run.</strong><br />
+<code>https://staging.blumint.io/docs</code></p>
+<p>No provider API schema, live endpoint success, production service domain, security audit completion, Windows/Proton execution, or game test result is asserted on the basis of these unavailable pages.</p>
+<hr />
+<p><strong>End of specification.</strong></p>
+<footer>Self-contained reading edition. The Markdown specification is the editable source. Refer to the package validation report for the limited scope of executed fixture checks.</footer></article></main></body></html>

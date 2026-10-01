@@ -1,0 +1,40 @@
+{
+  "specversion": "1.0",
+  "id": "evt_cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "source": "https://bridge.ember.example",
+  "type": "io.ember.tournament.match.completed.v1",
+  "subject": "matches/emt_22222222-2222-4222-8222-222222222222",
+  "time": "2026-10-01T00:12:00Z",
+  "datacontenttype": "application/json",
+  "dataschema": "https://schemas.ember.example/identity-tournament/v1/match-completed",
+  "emberseq": "12",
+  "data": {
+    "match_id": "emt_22222222-2222-4222-8222-222222222222",
+    "match_revision": "7",
+    "assignment_generation": "1",
+    "state": "completed",
+    "games_to_win": 2,
+    "scores": [
+      {
+        "ember_id": "emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja",
+        "wins": 2
+      },
+      {
+        "ember_id": "emb1_e3ab53xlwdoaqniajp7s4nqfhs6itnxxejgnkwgoyhsmhqn3qklq",
+        "wins": 1
+      }
+    ],
+    "winner_id": "emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja",
+    "resolution": "player_agreement",
+    "accepted_attempt_ids": [
+      "ega_dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      "ega_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      "ega_33333333-3333-4333-8333-333333333333"
+    ],
+    "evidence_report_ids": [
+      "rpt_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+      "rpt_bbbbbbbb-cccc-4ddd-8eee-ffffffffffff"
+    ],
+    "provider_delivery_state": "queued"
+  }
+}
