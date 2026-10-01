@@ -10,9 +10,10 @@ Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by A
 
 - **Choose seats, queue or watch from a table card.** Table options brings together Ready, fighter, Ultra, appearance, fighter options, P1's stage, rules, input delay, Check connection and Leave seat.
 - **Spectators can lock in to watch consecutive games.** Choose Lock in to watch in Table options. The next start waits up to 10 seconds for a locked-in spectator still leaving the previous game. Either fighter can cancel by taking Ready back. Playback can also catch up when it falls behind.
+- **Leaving your seat cancels a pending Ready.** You no longer see "Your Ready did not go through" after leaving.
 - **Connection checks no longer block later rematches.** Your result also stays available when the other player runs a check.
 - **New online replays track rollback correctly.** Replay recording now rewinds with the match, so corrected frames are not recorded twice. Existing damaged replays stay broken.
-- **Fixed a cause of long-session and rematch crashes.** Updating a connection message could cause heap corruption and exit code `0xC0000374`.
+- **Fixed a cause of long-session and rematch crashes.** Updating a connection message during a match could crash the game.
 
 ### Menus and controls
 
@@ -27,7 +28,7 @@ Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by A
 - **Failed watching no longer silently skips later games.** You stay set to watch, but a failed stream or setup clears lock-in so you can choose it again. Spectators return sooner after a finished game, and stream-loss and opponent-disconnect messages remain visible.
 - **Leaving and rejoining handle more room failures.** Rejoining after a crash no longer loops or leaves a ghost seat. A player dropping while someone else leaves no longer freezes the room. Leaving the queue stops automatic watching unless you choose to watch.
 - **Guests can copy the room invitation.** Refused invitations explain whether they expired, came from a different package or were pasted incompletely.
-- **Rooms stay joinable after an hour.** The invitation every member shows is renewed while the room is open, so a fresh copy always works. A copied invitation still expires within an hour.
+- **Rooms stay joinable after an hour.** The invitation every member shows is renewed while the room is open, so new copies no longer expire just because the room has been open for an hour. A copied invitation still expires within an hour.
 - **A former host can rejoin.** After handing host to another player and leaving, copy the room's invitation again. A copy taken before you left points at your own game; it now says so instead of reporting an unreachable host.
 
 ### Stages, languages and appearance
@@ -44,10 +45,11 @@ Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by A
 
 ### Stability, updates and crash reports
 
-- **Rollback restores sound state and sprite animation slots correctly.** A failed restore returns you to the room instead of closing the game. If the HUD cannot be restored exactly, the match ends with a message.
-- **Rollback memory is checked and old saves are freed without touching the game.** Added after a heap corruption crash (`0xC0000374`) while an old rollback save was freed, whose first cause is not confirmed. Freeing a save no longer writes into the running game, and the save system tracks who owns each saved block. Anything unsafe is skipped and the match ends with a message instead of corrupting memory. Each match ends with a `SaveSlots [battle_close_exit]: guards` line in `sf4e.log`.
-- **The overlay is no longer freed while it is drawn.** A display reset (for example Alt+Tab in fullscreen) recreated the overlay while the render thread could still be drawing it.
-- **Very long rounds stop replay recording when the round's recording buffer fills.**
+- **Rollback restores sound and sprite animations correctly.** A failed restore returns you to the room instead of closing the game. If the HUD cannot be restored exactly, the match ends with a message.
+- **Rollback memory is checked and old saves are freed without touching the game.** Detected problems end the match with a message. These changes followed a heap corruption crash (`0xC0000374`) while an old rollback save was freed. The original cause is still unknown, so this is not a confirmed fix for that crash. Each match ends with a `SaveSlots [battle_close_exit]: guards` line in `sf4e.log`.
+- **Fixed a rare startup crash when the game window lost focus while loading.**
+- **Fixed a cause of crashes during display resets.** Alt+Tab in fullscreen or a resolution change could crash the game while Ember was drawing its menus.
+- **Replay recording stops if a very long round reaches the recording limit.**
 - **The game starts even if `sf4e.log` cannot be opened.**
 - **Double-clicking `Updater.exe` opens Updates.** A found update appears first with its version; Select installs it. The in-game Exit and open updater row explains the next step.
 - **`preflight.cmd` is an optional extraction check.** It changes nothing, shows PASSED or FAILED with the next step, and waits for a key.
@@ -55,7 +57,7 @@ Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by A
 
 ## Testing
 
-The full build passes all automated tests. A two-PC rematch series of 17 matches over 48 minutes ran cleanly, with no crash, and recovered from an 8 second connection drop mid-match.
+The full build passes all automated tests, and the room fixture passed after the last two fixes. A two-PC rematch series of 17 matches over 48 minutes ran without a crash and recovered from an 8 second connection drop mid-match.
 
 Thanks to everyone who tested the 1.0.0 rc builds.
 
