@@ -2367,6 +2367,9 @@ msgstr "Kon de kamer niet betreden. Controleer de uitnodiging en of beide speler
 msgid "runtime.invite_expired"
 msgstr "Deze uitnodiging is verlopen. Vraag de host een nieuwe te kopiëren."
 
+msgid "runtime.invite_own_room"
+msgstr "Deze uitnodiging verwijst naar je eigen spel: hij is gekopieerd voordat je de kamer verliet. Vraag de host de uitnodiging opnieuw te kopiëren."
+
 msgid "runtime.invite_other_build"
 msgstr "De host gebruikt een ander SF4 Ember Netplay-pakket. Beide spelers hebben dezelfde versie nodig."
 

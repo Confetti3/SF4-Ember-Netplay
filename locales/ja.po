@@ -2367,6 +2367,9 @@ msgstr "ルームに参加できませんでした。招待と、両者が同じ
 msgid "runtime.invite_expired"
 msgstr "この招待は期限切れです。ホストに新しい招待をコピーしてもらってください。"
 
+msgid "runtime.invite_own_room"
+msgstr "この招待はあなた自身のゲームを指しています。ルームを出る前にコピーされたものです。ホストに招待をもう一度コピーしてもらってください。"
+
 msgid "runtime.invite_other_build"
 msgstr "ホストは別の SF4 Ember Netplay パッケージを使っています。両プレイヤーが同じバージョンを使う必要があります。"
 

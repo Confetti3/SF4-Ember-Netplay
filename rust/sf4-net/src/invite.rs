@@ -363,6 +363,22 @@ impl Invite {
         self.authority_incarnation
     }
 
+    pub fn expires(&self) -> u64 {
+        self.expires
+    }
+
+    /// The same room, route and capability, valid for `lifetime` from `now`.
+    /// Only a member of the open room renews its own copy; a joiner never
+    /// sees anything but the expiry written into the text it was given.
+    pub fn renewed(mut self, now: u64, lifetime: u64) -> io::Result<Self> {
+        if lifetime == 0 || lifetime > MAX_INVITE_LIFETIME_SECS {
+            return Err(invalid());
+        }
+        self.expires = now.checked_add(lifetime).ok_or_else(invalid)?;
+        self.validate(now)?;
+        Ok(self)
+    }
+
     pub fn with_authority(
         self,
         coordination_endpoint: EndpointId,
@@ -464,6 +480,24 @@ mod tests {
             "{LEGACY_PREFIX}{}",
             URL_SAFE_NO_PAD.encode(serde_json::to_vec(invite).unwrap())
         )
+    }
+
+    #[test]
+    fn a_renewed_invitation_keeps_its_room_and_route() {
+        let original = invite();
+        let renewed = original.clone().renewed(3000, 3600).unwrap();
+        assert_eq!(renewed.expires(), 6600);
+        assert_eq!(renewed.room(), original.room());
+        assert_eq!(renewed.endpoint(), original.endpoint());
+        assert_eq!(renewed.build(), original.build());
+        assert!(bool::from(renewed.capability.ct_eq(&original.capability)));
+        // The old text is still refused once its own hour is over; the
+        // renewed text is accepted.
+        let build = original.build().to_owned();
+        assert!(Invite::parse_for_build(&original.encode().unwrap(), 3700, &build).is_err());
+        assert!(Invite::parse_for_build(&renewed.encode().unwrap(), 3700, &build).is_ok());
+        assert!(original.clone().renewed(3000, 0).is_err());
+        assert!(original.renewed(3000, MAX_INVITE_LIFETIME_SECS + 1).is_err());
     }
 
     #[test]

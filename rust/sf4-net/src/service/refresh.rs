@@ -2,6 +2,39 @@
 use super::*;
 
 impl Actor {
+    /// An invitation lasts INVITE_LIFETIME from when it was made, and a room
+    /// can outlive that: every copy, and every rejoin of a member who left,
+    /// would then be refused as expired. While the room is open each member
+    /// re-stamps its own copy once half the lifetime is gone and republishes
+    /// it. Admission checks the leader's copy, so the room stays joinable.
+    pub(super) fn renew_invitation(&mut self, now: u64) {
+        let Some(current) = self.room_invite.clone().or_else(|| self.hosted.clone()) else {
+            return;
+        };
+        if current.expires().saturating_sub(now) > INVITE_LIFETIME / 2 {
+            return;
+        }
+        let Ok(updated) = current.renewed(now, INVITE_LIFETIME) else {
+            return;
+        };
+        let (Ok(invitation), Ok(secret)) = (updated.encode(), updated.encode_discord()) else {
+            return;
+        };
+        if !self.emit_bulk(Event::DiscordInvite {
+            epoch: self.epoch,
+            invitation,
+            secret,
+        }) {
+            return;
+        }
+        if self.room_invite.is_some() {
+            self.room_invite = Some(updated.clone());
+        }
+        if self.hosted.is_some() {
+            self.hosted = Some(updated);
+        }
+    }
+
     pub(super) async fn setup_host_recovery(&mut self, invite: Invite) -> io::Result<Invite> {
         let session = crate::recovery::RecoverySession::host(
             invite.room(),

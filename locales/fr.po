@@ -2367,6 +2367,9 @@ msgstr "Impossible de rejoindre le salon. Vérifiez l'invitation et que les deux
 msgid "runtime.invite_expired"
 msgstr "Cette invitation a expiré. Demandez à l'hôte d'en copier une nouvelle."
 
+msgid "runtime.invite_own_room"
+msgstr "Cette invitation renvoie vers votre propre jeu : elle a été copiée avant que vous quittiez le salon. Demandez à l'hôte de copier l'invitation à nouveau."
+
 msgid "runtime.invite_other_build"
 msgstr "L'hôte utilise un autre paquet SF4 Ember Netplay. Les deux joueurs doivent avoir la même version."
 

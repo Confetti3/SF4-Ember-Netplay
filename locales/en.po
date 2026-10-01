@@ -2061,6 +2061,9 @@ msgstr "Could not join the room. Check the invitation and that both players use 
 msgid "runtime.invite_expired"
 msgstr "This invitation has expired. Ask the host to copy a new one."
 
+msgid "runtime.invite_own_room"
+msgstr "This invitation points back to your own game: it was copied before you left the room. Ask the host to copy the invitation again."
+
 msgid "runtime.invite_other_build"
 msgstr "The host is on a different SF4 Ember Netplay package. Both players need the same version."
 

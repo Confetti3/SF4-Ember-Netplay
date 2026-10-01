@@ -832,6 +832,14 @@ impl Actor {
                         return Ok(true);
                     }
                 };
+                // A copy taken while this helper still led the room names this
+                // endpoint. Iroh refuses to dial itself, which would otherwise
+                // read as an unreachable host.
+                if invite.endpoint() == self.endpoint.id() {
+                    self.clear_room();
+                    self.error_because(id, "invalid_or_incompatible_invitation", Some("own_room"))?;
+                    return Ok(true);
+                }
                 self.room = Some(invite.room());
                 self.host_address = Some(invite.address());
                 let endpoint = self.endpoint.clone();
@@ -1293,6 +1301,9 @@ impl Actor {
                 _ = statistics.tick() => {
                     let _step = busy.enter("statistics");
                     self.emit_coordination_state().await?;
+                    if let Ok(time) = now() {
+                        self.renew_invitation(time);
+                    }
                     // Room or not: the settings screen shows it. A report that
                     // found the queue busy is not counted as sent.
                     let summary = network::network_summary(&self.endpoint);

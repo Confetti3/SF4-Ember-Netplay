@@ -2367,6 +2367,9 @@ msgstr "K místnosti se nepodařilo připojit. Zkontrolujte pozvánku a zda maj�
 msgid "runtime.invite_expired"
 msgstr "Platnost této pozvánky vypršela. Požádejte hostitele, ať zkopíruje novou."
 
+msgid "runtime.invite_own_room"
+msgstr "Tato pozvánka vede zpět na vaši vlastní hru: byla zkopírována dřív, než jste místnost opustili. Požádejte hostitele, ať pozvánku zkopíruje znovu."
+
 msgid "runtime.invite_other_build"
 msgstr "Hostitel používá jiný balíček SF4 Ember Netplay. Oba hráči potřebují stejnou verzi."
 

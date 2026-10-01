@@ -2367,6 +2367,9 @@ msgstr "无法加入房间。请检查邀请，并确认双方使用同一 SF4 E
 msgid "runtime.invite_expired"
 msgstr "此邀请已过期。请让房主复制一个新的邀请。"
 
+msgid "runtime.invite_own_room"
+msgstr "此邀请指向你自己的游戏：它是在你离开房间之前复制的。请让房主重新复制邀请。"
+
 msgid "runtime.invite_other_build"
 msgstr "房主使用的是另一个 SF4 Ember Netplay 包。双方需要使用相同版本。"
 

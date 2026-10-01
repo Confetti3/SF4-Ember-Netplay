@@ -86,6 +86,7 @@ inline std::string DescribeOpeningFailure(bool hosting, session::FailureStage st
     case session::FailureStage::InviteExpired: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_expired");
     case session::FailureStage::InviteOtherBuild: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_other_build");
     case session::FailureStage::InviteMalformed: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_malformed");
+    case session::FailureStage::InviteOwnRoom: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_own_room");
     default: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.room_join_failed");
     }
 }

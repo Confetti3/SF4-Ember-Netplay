@@ -100,6 +100,9 @@ static void TestFailureStageFromReason() {
 	CHECK(FailureStageFromHelper("invalid_or_incompatible_invitation", "other_build") == FailureStage::InviteOtherBuild);
 	CHECK(FailureStageFromHelper("invalid_or_incompatible_invitation", "old_version") == FailureStage::InviteOtherBuild);
 	CHECK(FailureStageFromHelper("invalid_or_incompatible_invitation", "malformed") == FailureStage::InviteMalformed);
+	CHECK(FailureStageFromHelper("invalid_or_incompatible_invitation", "own_room") == FailureStage::InviteOwnRoom);
+	CHECK(FailureStageFromHelper("join_failed", "own_room") == FailureStage::Unknown);
+	CHECK(std::string(FailureStageLabel(FailureStage::InviteOwnRoom)) == "invite_own_room");
 	CHECK(FailureStageFromHelper("invalid_or_incompatible_invitation", "") == FailureStage::Unknown);
 	CHECK(FailureStageFromHelper("join_failed", "expired") == FailureStage::Unknown);
 	CHECK(std::string(FailureStageLabel(FailureStage::ControlLost)) == "control_lost");

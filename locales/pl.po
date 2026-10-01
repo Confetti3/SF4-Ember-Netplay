@@ -2367,6 +2367,9 @@ msgstr "Nie udało się dołączyć do pokoju. Sprawdź zaproszenie i upewnij si
 msgid "runtime.invite_expired"
 msgstr "To zaproszenie wygasło. Poproś gospodarza o skopiowanie nowego."
 
+msgid "runtime.invite_own_room"
+msgstr "To zaproszenie prowadzi z powrotem do Twojej gry: zostało skopiowane, zanim opuściłeś pokój. Poproś gospodarza o ponowne skopiowanie zaproszenia."
+
 msgid "runtime.invite_other_build"
 msgstr "Gospodarz używa innego pakietu SF4 Ember Netplay. Obaj gracze potrzebują tej samej wersji."
 

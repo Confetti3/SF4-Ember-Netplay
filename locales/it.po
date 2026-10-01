@@ -2367,6 +2367,9 @@ msgstr "Impossibile entrare nella sala. Controlla l'invito e che entrambi usino 
 msgid "runtime.invite_expired"
 msgstr "Questo invito è scaduto. Chiedi all'host di copiarne uno nuovo."
 
+msgid "runtime.invite_own_room"
+msgstr "Questo invito rimanda al tuo stesso gioco: è stato copiato prima che lasciassi la sala. Chiedi all'host di copiare di nuovo l'invito."
+
 msgid "runtime.invite_other_build"
 msgstr "L'host usa un altro pacchetto di SF4 Ember Netplay. Entrambi i giocatori devono avere la stessa versione."
 

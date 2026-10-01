@@ -2367,6 +2367,9 @@ msgstr "Raumbeitritt fehlgeschlagen. Prüfen Sie die Einladung und ob beide Spie
 msgid "runtime.invite_expired"
 msgstr "Diese Einladung ist abgelaufen. Bitte den Host, eine neue zu kopieren."
 
+msgid "runtime.invite_own_room"
+msgstr "Diese Einladung führt zurück zu deinem eigenen Spiel: Sie wurde kopiert, bevor du den Raum verlassen hast. Bitte den Host, die Einladung erneut zu kopieren."
+
 msgid "runtime.invite_other_build"
 msgstr "Der Host nutzt ein anderes SF4-Ember-Netplay-Paket. Beide Spieler brauchen dieselbe Version."
 

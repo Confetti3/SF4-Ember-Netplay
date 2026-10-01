@@ -71,7 +71,8 @@ private:
 
 // None stops the technical leader's helper. Departure is a graceful leader
 // Leave; FollowerKilled closes a seated follower's pipe without one.
-enum class Fault { None, Departure, FollowerKilled, KilledThenLeaderLeaves, Preparing, PreparingMinority, SameTermPreparation, Started, CommittedResult };
+// HostRejoin hands host to a follower, leaves, and rejoins as a guest.
+enum class Fault { None, Departure, HostRejoin, FollowerKilled, KilledThenLeaderLeaves, Preparing, PreparingMinority, SameTermPreparation, Started, CommittedResult };
 static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t count, Fault fault) {
     std::array<platform::HelperProcess,3> processes;
     std::array<platform::HelperClient,3> helpers;
@@ -287,6 +288,52 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
         phase="graceful fixture shutdown";
         wait([&](){for(std::size_t i=0;i<count;++i) if(processes[i].IsRunning()) return false;return true;});
         std::cout << "Explicit moderator transfer and normal leader departure preserved usable room authority; relay-only=" << relayOnly << '\n';
+        return;
+    }
+    if(fault==Fault::HostRejoin) {
+        // A field report: the host handed host to another player, left, and
+        // could not get back in with the new host's invitation.
+        phase="hand host to a follower";
+        const auto newHost=peers[2].client->GetRoomSnapshot().localMember;
+        action(0,room::ActionKind::TransferHost,"",newHost);
+        // Host is a room role; peer 0 still leads the helpers, so the new
+        // host's invitation still names peer 0's own endpoint.
+        const auto copiedBeforeLeave=peers[2].room->Invitation();
+        CHECK(!copiedBeforeLeave.empty());
+        phase="former host leaves";
+        action(0,room::ActionKind::Leave);
+        CHECK(peers[0].client->GetRoomSnapshot().localMember==0);
+        live.erase(live.begin());
+        peers[0].client.reset();peers[0].server.reset();peers[0].room->Leave(false);
+        wait([&](){pump();if(peers[0].room->GetState()!=session::IrohRoom::State::Idle) return false;
+            unsigned leaders=0;for(auto* peer:live) {
+                const auto& authority=peer->room->Coordination();const auto& snapshot=peer->client->GetRoomSnapshot();
+                if(!authority.writable || !peer->recovery.CaughtUp(authority) || snapshot.host!=newHost ||
+                    snapshot.closed || snapshot.members.size()!=2 || peer->room->RoomId()!=oldRoom) return false;
+                leaders+=authority.leaderLocal?1:0;
+            }return leaders==1;});
+        phase="a copy from before the leave names the former host";
+        CHECK(peers[0].room->Join(copiedBeforeLeave,"recovery-integration"));
+        wait([&](){pump();return peers[0].room->GetState()==session::IrohRoom::State::Failed;});
+        CHECK(peers[0].room->Stage()==session::FailureStage::InviteOwnRoom);
+        peers[0].room->Leave(true);
+        wait([&](){pump();return peers[0].room->GetState()==session::IrohRoom::State::Idle;});
+        phase="the new host's invitation follows the successor";
+        wait([&](){pump();const auto& fresh=peers[2].room->Invitation();return !fresh.empty() && fresh!=copiedBeforeLeave;});
+        phase="former host rejoins as a guest";
+        CHECK(peers[0].room->Join(peers[2].room->Invitation(),"recovery-integration"));
+        wait([&](){pump();return peers[0].room->GetState()==session::IrohRoom::State::Ready;});
+        CHECK(peers[0].room->RoomId()==oldRoom);
+        peers[0].recovery=session::RoomRecoveryRuntime{};
+        CHECK(test::ConfigureIrohIntegrationPeer(peers[0],callbacks,"recovery-integration",31000));
+        live.insert(live.begin(),&peers[0]);
+        wait([&](){pump();return test::AllIrohRoomMembers(live,3);});
+        for(auto* peer:live) CHECK(peer->client->GetRoomSnapshot().host==newHost);
+        action(0,room::ActionKind::Chat,"Former host is back");
+        for(std::size_t i=0;i<count;++i) CHECK(helpers[i].Send("{\"type\":\"shutdown\"}"));
+        phase="graceful fixture shutdown";
+        wait([&](){for(std::size_t i=0;i<count;++i) if(processes[i].IsRunning()) return false;return true;});
+        std::cout << "Former host rejoined through the new host's invitation; a copy from before the leave was refused as its own room; relay-only=" << relayOnly << '\n';
         return;
     }
     if(fault==Fault::FollowerKilled) {
@@ -930,6 +977,7 @@ int wmain(int argc,wchar_t** argv) {
     struct Case { const wchar_t* name; std::size_t count; Fault fault; };
     const Case cases[]={
         {L"majority",3,Fault::None},{L"minority",2,Fault::None},{L"departure",3,Fault::Departure},
+        {L"host-rejoin",3,Fault::HostRejoin},
         {L"started",3,Fault::Started},{L"preparing",3,Fault::Preparing},
         {L"preparing-minority",3,Fault::PreparingMinority},{L"same-term-preparing",3,Fault::SameTermPreparation},
         {L"committed-result",3,Fault::CommittedResult},{L"follower-killed",3,Fault::FollowerKilled},

@@ -804,6 +804,70 @@ async fn actor_replaces_authenticated_control_from_same_endpoint() {
 }
 
 #[tokio::test]
+async fn a_join_through_an_invitation_to_this_helper_says_so() {
+    let own = endpoint().await;
+    let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let mut actor = test_actor(own.clone(), events_tx);
+    // A former leader holding a copy taken while it still led the room.
+    let invitation = Invite::create(own.id(), test_relay(), "test-build".into(), now().unwrap(), 3600)
+        .unwrap()
+        .encode()
+        .unwrap();
+    assert!(
+        actor
+            .command(Request {
+                id: 6,
+                command: Command::Join {
+                    epoch: 1,
+                    invitation,
+                    build: "test-build".into(),
+                },
+            })
+            .unwrap()
+    );
+    assert!(matches!(
+        events.recv().await.unwrap(),
+        Event::Error { epoch: 1, request_id: 6, ref code, ref reason, .. }
+            if code == "invalid_or_incompatible_invitation" && reason.as_deref() == Some("own_room")
+    ));
+    assert_eq!(actor.room, None);
+    own.close().await;
+}
+
+#[tokio::test]
+async fn an_open_room_renews_its_invitation_before_it_expires() {
+    let own = endpoint().await;
+    let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let mut actor = test_actor(own.clone(), events_tx);
+    actor.epoch = 4;
+    let start = now().unwrap();
+    let invite = Invite::create(own.id(), test_relay(), "test-build".into(), start, INVITE_LIFETIME).unwrap();
+    actor.hosted = Some(invite.clone());
+    actor.room_invite = Some(invite.clone());
+    // More than half its lifetime left: nothing to do.
+    actor.renew_invitation(start + INVITE_LIFETIME / 4);
+    assert!(events.try_recv().is_err());
+    assert_eq!(actor.room_invite.as_ref().unwrap().expires(), invite.expires());
+    // Past the half: both copies move on and the native side hears of it.
+    let later = start + INVITE_LIFETIME * 3 / 4;
+    actor.renew_invitation(later);
+    let Event::DiscordInvite { epoch, invitation, .. } = events.recv().await.unwrap() else {
+        panic!("expected a refreshed invitation");
+    };
+    assert_eq!(epoch, 4);
+    assert_eq!(actor.room_invite.as_ref().unwrap().expires(), later + INVITE_LIFETIME);
+    assert_eq!(actor.hosted.as_ref().unwrap().expires(), later + INVITE_LIFETIME);
+    let parsed = Invite::parse_for_build(&invitation, invite.expires() + 1, "test-build").unwrap();
+    assert_eq!(parsed.room(), invite.room());
+    // Out of a room there is nothing to renew.
+    actor.hosted = None;
+    actor.room_invite = None;
+    actor.renew_invitation(later + INVITE_LIFETIME);
+    assert!(events.try_recv().is_err());
+    own.close().await;
+}
+
+#[tokio::test]
 async fn a_refused_join_names_the_epoch_it_asked_for() {
     let host = endpoint().await;
     let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);

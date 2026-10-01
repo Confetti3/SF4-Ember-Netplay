@@ -17,7 +17,8 @@ enum class FailureStage {
 	ControlLost,      // connected to the host, then the link kept dropping
 	InviteExpired,    // the invitation is past its hour, usually from a room since closed
 	InviteOtherBuild, // the invitation comes from a different package
-	InviteMalformed   // the pasted text is cut short or is not an invitation
+	InviteMalformed,  // the pasted text is cut short or is not an invitation
+	InviteOwnRoom     // the invitation names this PC's own helper, copied while it still led the room
 };
 
 inline FailureStage FailureStageFromHelper(const std::string& code, const std::string& reason) {
@@ -25,6 +26,7 @@ inline FailureStage FailureStageFromHelper(const std::string& code, const std::s
 		if (reason == "expired") return FailureStage::InviteExpired;
 		if (reason == "other_build" || reason == "old_version") return FailureStage::InviteOtherBuild;
 		if (reason == "malformed") return FailureStage::InviteMalformed;
+		if (reason == "own_room") return FailureStage::InviteOwnRoom;
 		return FailureStage::Unknown;
 	}
 	if (code != "join_failed" && code != "host_unavailable") return FailureStage::Unknown;
@@ -43,6 +45,7 @@ inline const char* FailureStageLabel(FailureStage stage) {
 	case FailureStage::InviteExpired: return "invite_expired";
 	case FailureStage::InviteOtherBuild: return "invite_other_build";
 	case FailureStage::InviteMalformed: return "invite_malformed";
+	case FailureStage::InviteOwnRoom: return "invite_own_room";
 	default: return "unknown";
 	}
 }

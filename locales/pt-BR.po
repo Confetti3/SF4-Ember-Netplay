@@ -1945,6 +1945,9 @@ msgstr "Não foi possível entrar na sala. Verifique o convite e se os dois joga
 msgid "runtime.invite_expired"
 msgstr "Este convite expirou. Peça ao anfitrião para copiar um novo."
 
+msgid "runtime.invite_own_room"
+msgstr "Este convite aponta para o seu próprio jogo: ele foi copiado antes de você sair da sala. Peça ao anfitrião para copiar o convite novamente."
+
 msgid "runtime.invite_other_build"
 msgstr "O anfitrião usa outro pacote do SF4 Ember Netplay. Os dois jogadores precisam da mesma versão."
 

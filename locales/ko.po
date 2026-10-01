@@ -2367,6 +2367,9 @@ msgstr "방에 참가하지 못했습니다. 초대와 두 플레이어의 SF4 E
 msgid "runtime.invite_expired"
 msgstr "이 초대는 만료되었습니다. 호스트에게 새 초대를 복사해 달라고 하세요."
 
+msgid "runtime.invite_own_room"
+msgstr "이 초대는 내 게임을 가리키고 있습니다. 방을 나가기 전에 복사된 초대입니다. 방장에게 초대를 다시 복사해 달라고 하세요."
+
 msgid "runtime.invite_other_build"
 msgstr "호스트가 다른 SF4 Ember Netplay 패키지를 사용 중입니다. 두 플레이어 모두 같은 버전이 필요합니다."
 
