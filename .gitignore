@@ -11,6 +11,9 @@
 /CMakeSettings.json
 /CMakeUserPresets.json
 /rust/sf4-net/target/
+/rust/ember/target/
+/sdk/typescript/node_modules/
+/sdk/typescript/dist/
 debug-*.log
 debug-screenshots/
 benchmark-results/
