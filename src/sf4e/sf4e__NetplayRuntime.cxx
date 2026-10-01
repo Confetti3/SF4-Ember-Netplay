@@ -221,6 +221,19 @@ void StartHelper() {
         } catch (...) { runtime->error = loc::T("runtime.interface_preferences_failed"); }
     }
     runtime->offlineRequested = EnvFlag("SF4E_START_OFFLINE");
+    {
+        // Read once and cleared, so the helper never inherits the code.
+        char link[64] = {};
+        const DWORD length = GetEnvironmentVariableA("SF4E_JOIN_LINK", link, sizeof(link));
+        SetEnvironmentVariableA("SF4E_JOIN_LINK", nullptr);
+        const auto code = length && length < sizeof(link) ? join_link::ParseCode(link) : std::string();
+        if (!code.empty()) {
+            runtime->pendingJoinLink = join_link::ShortLink(code);
+            ++runtime->pendingJoinSequence;
+            spdlog::info("Room: started with a room link");
+        }
+        if (!runtime->joinLinks.Open()) spdlog::warn("Room: room links from the browser cannot reach this game");
+    }
 	runtime->preferences.inputDelay = GetConfig().inputDelay;
 	runtime->preferences.lobby.editionSelect = GetConfig().editionSelect != 0;
 	runtime->preferences.lobby.roundCount = GetConfig().roundCount;
@@ -293,6 +306,16 @@ void StopHelper() {
 	delete runtime;
 	runtime = nullptr;
 	bridge::Reset();
+}
+
+// A room link a later launcher handed over. The Join screen shows it; the
+// player still chooses Join room.
+static void TakeJoinLink() {
+	const auto code = runtime->joinLinks.Take();
+	if (code.empty()) return;
+	runtime->pendingJoinLink = join_link::ShortLink(code);
+	++runtime->pendingJoinSequence;
+	spdlog::info("Room: a room link arrived from the browser");
 }
 
 bool SubmitRuntimeCommand(RuntimeCommand command) {
@@ -505,6 +528,7 @@ void TickRuntime() {
 	ResolvePendingIntents(helperReady);
 	SettleRoomState(helperReady);
 	CallOutOpponentReady();
+	TakeJoinLink();
 	PublishAndTickDiscordInvite();
 }
 

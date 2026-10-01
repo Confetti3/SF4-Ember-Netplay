@@ -49,6 +49,9 @@ struct ShellView {
     std::string shortInvitation;
     bool shortInvitationPending = false;
     std::uint64_t shortInvitationFailures = 0;
+    // The newest room link opened from the browser, and its sequence.
+    std::string pendingJoinLink;
+    std::uint64_t pendingJoinSequence = 0;
     std::string languagePreference = "auto";
     // The game's own config.ini as read at launch, and whether the player has
     // already dismissed the card for good.
@@ -123,6 +126,7 @@ private:
     bool UpdateRoomFeedback(const ShellView& view);
     void UpdatePreferenceSave(const ShellView& view,const Submit& submit);
     void UpdateShortCopy(const ShellView& view,double now);
+    void UpdateJoinLink(const ShellView& view,double now);
     void CopyShortInvitation(const ShellView& view,const Submit& submit);
     std::vector<MenuEntry> BuildRows(const ShellView& view,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title);
     std::pair<std::string,Tone> UpdateStatus(const ShellView& view,const std::string& screen,bool opening,bool healthyRoom,std::string& title);
@@ -204,6 +208,9 @@ private:
     bool shortCopyPending_=false;
     double shortCopyUntil_=0;
     std::uint64_t shortFailuresSeen_=0;
+    // A room link from the browser waits here until no room is open.
+    std::uint64_t joinLinkSeen_=0;
+    std::string joinLink_;
     Tone noticeTone_=Tone::Success;
     std::uint64_t roomEpoch_ = 0, rulesRevision_ = 0, nextActionId_ = 1, readyFailureSequence_ = 0;
     int selectedTable_ = 0, roomCapacity_ = 16;

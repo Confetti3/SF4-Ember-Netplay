@@ -153,6 +153,20 @@ void ApplicationShell::UpdateShortCopy(const ShellView& v,double now) {
  shortCopyPending_=false;ImGui::SetClipboardText(v.invitation.c_str());
  notice_=loc::T("room.short_invitation_unavailable");noticeTone_=Tone::Neutral;noticeUntil_=now+6;
 }
+// A room link opened from the browser fills the Join screen; joining is
+// still the player's own press. While a room is open it waits, so a link
+// never moves the player out of a room or a match.
+void ApplicationShell::UpdateJoinLink(const ShellView& v,double now) {
+ using namespace netplay; auto& nav=menu_.navigation;
+ if(v.pendingJoinSequence!=joinLinkSeen_){
+  joinLinkSeen_=v.pendingJoinSequence;joinLink_=v.pendingJoinLink;
+  if(!joinLink_.empty()&&v.session.room!=RoomState::Idle){notice_=loc::T("room.link_waiting");noticeTone_=Tone::Pending;noticeUntil_=now+8;}
+ }
+ if(joinLink_.empty()||v.session.room!=RoomState::Idle||v.session.match!=MatchState::None)return;
+ std::snprintf(invitation_,sizeof(invitation_),"%s",joinLink_.c_str());joinLink_.clear();
+ nav.Cancel();nav.Home();nav.Push("online");nav.Push("join");
+ error_.clear();notice_=loc::T("room.link_opened");noticeTone_=Tone::Neutral;noticeUntil_=now+8;
+}
 void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
  if(saveQueued_&&!v.settingsPending){
@@ -471,6 +485,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const bool healthyRoom=UpdateRoomFeedback(v);
  UpdatePreferenceSave(v,submit);
  UpdateShortCopy(v,now);
+ UpdateJoinLink(v,now);
  if(v.readyFailureSequence!=readyFailureSequence_){
   readyFailureSequence_=v.readyFailureSequence;
   if(readyFailureSequence_&&!v.readyFailure.empty())menu_.ShowNotice(v.readyFailure);

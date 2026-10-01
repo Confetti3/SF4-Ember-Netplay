@@ -1804,6 +1804,12 @@ msgstr "Creando el enlace corto..."
 msgid "room.short_invitation_unavailable"
 msgstr "El servicio de enlaces no ha respondido, así que se ha copiado la invitación completa."
 
+msgid "room.link_opened"
+msgstr "Se ha abierto desde un enlace de sala. Revísalo y elige Unirse a sala."
+
+msgid "room.link_waiting"
+msgstr "Se ha abierto un enlace de sala. Estará en la pantalla para unirse cuando salgas de esta sala."
+
 msgid "room.replacement_opening"
 msgstr "Abriendo una sala nueva. Copia la invitación y envía el enlace nuevo; el anterior ya no funciona."
 

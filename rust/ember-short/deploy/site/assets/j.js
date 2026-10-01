@@ -62,6 +62,9 @@
     // A code typed into the path moves into the fragment, out of later requests.
     if (fromPath && history.replaceState) history.replaceState(null, '', '/j#' + shown);
     document.getElementById('code').textContent = shown;
+    // Opens only on the player's click, never by itself: a browser without
+    // Ember's handler would otherwise replace this page with an error.
+    document.getElementById('open').href = 'ember://join/' + shown;
     document.getElementById('copy-link').addEventListener('click', function () { copy(link, 'Link copied. Paste it into Ember.'); });
     document.getElementById('copy-code').addEventListener('click', function () { copy(shown, 'Code copied. Paste it into Ember.'); });
     document.getElementById('room').hidden = false;

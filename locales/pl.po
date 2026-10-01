@@ -1804,6 +1804,12 @@ msgstr "Tworzenie krótkiego linku..."
 msgid "room.short_invitation_unavailable"
 msgstr "Usługa linków nie odpowiedziała, więc skopiowano pełne zaproszenie."
 
+msgid "room.link_opened"
+msgstr "Otwarto z linku do pokoju. Sprawdź go, a potem wybierz Dołącz."
+
+msgid "room.link_waiting"
+msgstr "Otwarto link do pokoju. Pojawi się na ekranie dołączania, gdy opuścisz ten pokój."
+
 msgid "room.replacement_opening"
 msgstr "Otwieranie nowego pokoju. Wybierz Kopiuj zaproszenie i wyślij nowy link. Stary już nie działa."
 

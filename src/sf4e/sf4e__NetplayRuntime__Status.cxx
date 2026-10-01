@@ -352,6 +352,8 @@ PostPublishState Publish() {
     snapshot.gameplayInputError=Game::Battle::System::ggpo&&runtime->matchInputFault&&runtime->match&&!LocalIsSpectator()?
         loc::Tf("runtime.match_input_blocked",DeviceName(runtime->matchInput)):std::string();
 	snapshot.offlineRequested = runtime->offlineRequested;
+	snapshot.pendingJoinLink = runtime->pendingJoinLink;
+	snapshot.pendingJoinSequence = runtime->pendingJoinSequence;
 	if (runtime->room) {
 		snapshot.invitation = runtime->room->Invitation();
 		snapshot.shortInvitation = runtime->room->ShortInvitation();

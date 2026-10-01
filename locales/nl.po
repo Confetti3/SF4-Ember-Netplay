@@ -1804,6 +1804,12 @@ msgstr "Korte link wordt gemaakt..."
 msgid "room.short_invitation_unavailable"
 msgstr "De linkdienst reageerde niet, dus de volledige uitnodiging is gekopieerd."
 
+msgid "room.link_opened"
+msgstr "Geopend via een kamerlink. Controleer hem en kies dan Kamer betreden."
+
+msgid "room.link_waiting"
+msgstr "Er is een kamerlink geopend. Zodra je deze kamer verlaat, staat hij klaar op het scherm om mee te doen."
+
 msgid "room.replacement_opening"
 msgstr "Nieuwe kamer wordt geopend. Kopieer de uitnodiging en stuur de nieuwe link. De oude werkt niet meer."
 

@@ -185,6 +185,8 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.shortInvitation = snapshot.shortInvitation;
 	view.shortInvitationPending = snapshot.shortInvitationPending;
 	view.shortInvitationFailures = snapshot.shortInvitationFailures;
+	view.pendingJoinLink = snapshot.pendingJoinLink;
+	view.pendingJoinSequence = snapshot.pendingJoinSequence;
 	view.error = snapshot.helperError;
 	view.settingsError = snapshot.settingsError;
 	view.languagePreference = snapshot.languagePreference;
@@ -287,6 +289,12 @@ void Overlay::DrawOverlay() {
     static bool inviteShown=false;
     if (snapshot.discordPending && !inviteShown && snapshot.atMainMenu) { presentation.Open(); inviteShown=true; }
     if (!snapshot.discordPending) inviteShown=false;
+    // A room link from the browser opens the menu at the main menu, where
+    // the shell puts it on the Join screen.
+    static std::uint64_t joinLinkShown=0;
+    if (snapshot.pendingJoinSequence!=joinLinkShown && snapshot.atMainMenu && presentation.Available()) {
+        presentation.Open(); joinLinkShown=snapshot.pendingJoinSequence;
+    }
     sf4e::ui::SetOverlayCursorOwnership(focused && presentation.Visible());
     const bool assigning = snapshot.inputCapture != sf4e::input::Capture::Idle;
     // Player navigation is semantic, not ImGui spatial scoring. Text input is

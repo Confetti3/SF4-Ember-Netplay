@@ -1804,6 +1804,12 @@ msgstr "短縮リンクを作成中..."
 msgid "room.short_invitation_unavailable"
 msgstr "リンクサービスが応答しなかったため、招待全体をコピーしました。"
 
+msgid "room.link_opened"
+msgstr "ルームのリンクから開きました。内容を確認してから「ルームに参加」を選んでください。"
+
+msgid "room.link_waiting"
+msgstr "ルームのリンクが開かれました。このルームから退出すると参加画面に表示されます。"
+
 msgid "room.replacement_opening"
 msgstr "代わりのルームを開設中です。「招待をコピー」で新しいリンクを送ってください。古いリンクは使えません。"
 

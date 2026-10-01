@@ -1804,6 +1804,12 @@ msgstr "Création du lien court..."
 msgid "room.short_invitation_unavailable"
 msgstr "Le service de liens n'a pas répondu : l'invitation complète a été copiée à la place."
 
+msgid "room.link_opened"
+msgstr "Ouvert depuis un lien de salon. Vérifiez-le, puis choisissez Rejoindre."
+
+msgid "room.link_waiting"
+msgstr "Un lien de salon a été ouvert. Il sera sur l'écran pour rejoindre dès que vous quitterez ce salon."
+
 msgid "room.replacement_opening"
 msgstr "Ouverture du nouveau salon. Copiez l'invitation et envoyez le nouveau lien : l'ancien ne fonctionne plus."
 
