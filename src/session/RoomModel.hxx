@@ -338,6 +338,13 @@ inline Place PlaceOf(const Snapshot& snapshot, MemberId id) {
 	return place;
 }
 
+// True when a custom room's snapshot gives this client no seat: it stood up,
+// waits in a queue, or is no longer a member. A legacy lobby (no epoch) has no
+// seats to lose.
+inline bool LocalLeftSeat(const Snapshot& snapshot) {
+	return snapshot.roomEpoch && PlaceOf(snapshot, snapshot.localMember).kind != Place::Kind::Seat;
+}
+
 struct Action {
 	ActionKind kind = ActionKind::Queue;
 	std::uint32_t protocolVersion = ProtocolVersion;

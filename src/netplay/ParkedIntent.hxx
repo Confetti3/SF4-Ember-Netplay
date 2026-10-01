@@ -93,4 +93,12 @@ private:
     Completion completion_;
 };
 
+// A Ready belongs to the seat it was pressed from. Ends one that is parked or
+// awaiting its commit once the room gives this client no seat; true if it did.
+template <typename Intent, typename RoomSnapshot> bool DropReadyWithoutSeat(Intent& ready, const RoomSnapshot& room) {
+    if (!ready.Active() || !LocalLeftSeat(room)) return false;
+    ready.Clear();
+    return true;
+}
+
 } }
