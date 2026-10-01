@@ -68,7 +68,7 @@ static void ThreeThreadsNeverSeeAFreedContext() {
     });
     std::thread window([&] {
         while (!stop) {
-            const auto lock = lifecycle.Message();
+            const OverlayLifecycle::Message message(lifecycle);
             if (!Whole(context)) ++torn;
             ++messages;
         }
@@ -89,8 +89,8 @@ static void ThreeThreadsNeverSeeAFreedContext() {
 static void AMessageDuringAChangeOnItsThreadPassesThrough() {
     OverlayLifecycle lifecycle;
     OverlayLifecycle::Change change(lifecycle);
-    const auto lock = lifecycle.Message();
-    Check(!lock.owns_lock(), "a message on the changing thread took the lock again");
+    const OverlayLifecycle::Message message(lifecycle);
+    Check(!message.Locked(), "a message on the changing thread took the lock again");
 }
 
 // A frame in progress holds a change off until it is drawn, and a message
@@ -107,12 +107,38 @@ static void AChangeWaitsForTheFrameInProgress() {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         Check(!changed, "the context was replaced under a frame");
         const auto start = Clock::now();
-        const auto lock = lifecycle.Message();
+        const OverlayLifecycle::Message message(lifecycle);
         Check(Clock::now() - start < std::chrono::milliseconds(50), "a message on the drawing thread waited");
-        Check(!lock.owns_lock(), "a message on the drawing thread took the lock again");
+        Check(!message.Locked(), "a message on the drawing thread took the lock again");
     }
     game.join();
     Check(changed, "the change never ran after the frame");
+}
+
+// Handling a message can send another to the same window (ReleaseCapture
+// sends WM_CAPTURECHANGED). With a change waiting for the outer message, the
+// nested one must pass straight through rather than queue behind the change.
+static void ANestedMessagePassesAWaitingChange() {
+    OverlayLifecycle lifecycle;
+    std::atomic<bool> changed{false};
+    std::thread game;
+    {
+        const OverlayLifecycle::Message outer(lifecycle);
+        Check(outer.Locked(), "an outer message did not take the lock");
+        game = std::thread([&] { OverlayLifecycle::Change change(lifecycle); changed = true; });
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        const auto start = Clock::now();
+        {
+            const OverlayLifecycle::Message nested(lifecycle);
+            Check(!nested.Locked(), "a nested message took the lock again");
+        }
+        Check(Clock::now() - start < std::chrono::milliseconds(50), "a nested message waited for the change");
+        Check(!changed, "the context was replaced under a message");
+    }
+    game.join();
+    Check(changed, "the change never ran after the message");
+    const OverlayLifecycle::Message later(lifecycle);
+    Check(later.Locked(), "a message after the nested one did not take the lock");
 }
 
 // While a change runs, frames on other threads are skipped, not delayed.
@@ -129,6 +155,7 @@ int main() {
     ThreeThreadsNeverSeeAFreedContext();
     AMessageDuringAChangeOnItsThreadPassesThrough();
     AChangeWaitsForTheFrameInProgress();
+    ANestedMessagePassesAWaitingChange();
     AFrameDuringAChangeIsSkipped();
     if (g_failures) { std::printf("overlay lifecycle: %d check(s) failed\n", g_failures); return 1; }
     std::printf("overlay lifecycle: all checks passed\n");

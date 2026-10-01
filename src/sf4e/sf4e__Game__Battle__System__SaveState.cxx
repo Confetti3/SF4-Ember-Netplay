@@ -375,7 +375,10 @@ void Clear(fSystem::SaveState* victim) {
             if (!ReleaseDetached(victim, *iter, "clear.release")) continue;
             // Only the legacy round trip gets here owning keys, with this
             // payload installed at the live key; drop that reference to it.
-            if (iter->first->mementos == iter->second.mementos)
+            // An empty saved key is released without a liveness check, so
+            // check before touching the live one.
+            if (sf4e::memento::CheckKeyWrite(victim, iter->first, iter->second, "clear.zero", false) &&
+                iter->first->mementos == iter->second.mementos)
                 memset(iter->first, 0, sizeof(rKey));
         }
     }

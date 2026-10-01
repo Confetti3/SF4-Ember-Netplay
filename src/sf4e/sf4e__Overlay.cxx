@@ -425,7 +425,7 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
     // The click that brings the game forward again must not press an Ember
     // row that is drawn under the pointer while the game is behind another window.
     static sf4e::ui::ActivationClickFilter activationClick;
-    const auto lock = s_lifecycle.Message();
+    const sf4e::ui::OverlayLifecycle::Message handling(s_lifecycle);
     // Native display resets can pump activation messages after FreeOverlay and
     // before InitializeOverlay. Focus belongs to the window, not its ImGui
     // context: dropping reactivation here leaves F10/Start permanently gated.

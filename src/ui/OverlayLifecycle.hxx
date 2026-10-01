@@ -9,8 +9,10 @@
 // A frame never waits: while the context is being replaced it is skipped. A
 // message does wait, since the input bridge must see every key release
 // (dropping them is what the input bridge replaced). A thread that holds the
-// context already, replacing it or drawing a frame, passes straight through
-// when a window message reaches it, so neither re-enters the lock.
+// context already, replacing it, drawing a frame or handling a message, passes
+// straight through when a window message reaches it. Handling one can send
+// another (ReleaseCapture sends WM_CAPTURECHANGED), and a second shared
+// acquisition would queue behind a waiting change that waits for the first.
 
 #include <atomic>
 #include <mutex>
@@ -23,8 +25,8 @@ public:
     // Held while the context is created or freed.
     class Change {
     public:
-        explicit Change(OverlayLifecycle& lifecycle) : lock_(lifecycle.mutex_) { depth_ = 1; }
-        ~Change() { depth_ = 0; }
+        explicit Change(OverlayLifecycle& lifecycle) : lock_(lifecycle.mutex_) { ++depth_; }
+        ~Change() { --depth_; }
         Change(const Change&) = delete;
         Change& operator=(const Change&) = delete;
     private:
@@ -35,9 +37,9 @@ public:
     class Frame {
     public:
         explicit Frame(OverlayLifecycle& lifecycle) : lock_(lifecycle.mutex_, std::try_to_lock) {
-            if (lock_.owns_lock()) depth_ = 1;
+            if (lock_.owns_lock()) ++depth_;
         }
-        ~Frame() { if (lock_.owns_lock()) depth_ = 0; }
+        ~Frame() { if (lock_.owns_lock()) --depth_; }
         explicit operator bool() const { return lock_.owns_lock(); }
         Frame(const Frame&) = delete;
         Frame& operator=(const Frame&) = delete;
@@ -45,15 +47,25 @@ public:
         std::shared_lock<std::shared_mutex> lock_;
     };
 
-    // Held while one window message is handled.
-    std::shared_lock<std::shared_mutex> Message() {
-        if (depth_) return {};
-        return std::shared_lock<std::shared_mutex>(mutex_);
-    }
+    // Held while one window message is handled. Locks only when this thread
+    // does not hold the context already.
+    class Message {
+    public:
+        explicit Message(OverlayLifecycle& lifecycle) {
+            if (!depth_) lock_ = std::shared_lock<std::shared_mutex>(lifecycle.mutex_);
+            ++depth_;
+        }
+        ~Message() { --depth_; }
+        bool Locked() const { return lock_.owns_lock(); }
+        Message(const Message&) = delete;
+        Message& operator=(const Message&) = delete;
+    private:
+        std::shared_lock<std::shared_mutex> lock_;
+    };
 
 private:
     std::shared_mutex mutex_;
-    // Whether this thread already holds the context (a Change or a Frame).
+    // How many of this thread's guards hold the context (Change, Frame, Message).
     static inline thread_local int depth_ = 0;
 };
 
