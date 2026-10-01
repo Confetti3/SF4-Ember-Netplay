@@ -86,6 +86,76 @@ fn accepts_the_specification_fixture_once() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// A lobby event as the bridge would send it.
+fn lobby_event(kind: &str, data: Value) -> Event {
+    serde_json::from_value(json!({
+        "specversion": "1.0",
+        "id": "evt_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        "source": "https://bridge.ember.example",
+        "type": format!("io.ember.tournament.{kind}.v1"),
+        "subject": "lobbies/elb_1",
+        "time": "2026-10-01T00:00:00Z",
+        "datacontenttype": "application/json",
+        "dataschema": format!("urn:ember:identity-tournament:v1:{kind}"),
+        "emberseq": "1",
+        "data": data,
+    }))
+    .unwrap()
+}
+
+#[test]
+fn announces_lobby_rotations() {
+    let fixture: Value =
+        serde_json::from_slice(&std::fs::read(examples().join("webhook-fixture.json")).unwrap())
+            .unwrap();
+    let dir = temp("lobby");
+    let king = "emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";
+    let notifier = Notifier::new(
+        Config {
+            listen: "127.0.0.1:0".into(),
+            bridge_origin: "https://bridge.ember.example".into(),
+            secrets: vec![fixture["secret_base64"].as_str().unwrap().into()],
+            database: dir.join("inbox.sqlite3"),
+            discord: None,
+            twitch: None,
+            names: [(king.to_owned(), "Player A".to_owned())].into(),
+        },
+        Clock::default(),
+    )
+    .unwrap();
+    let created = notifier
+        .render(&lobby_event(
+            "lobby.created",
+            json!({ "lobby_id": "elb_1", "games_to_win": 2, "rotation": "winner_stays", "metadata": { "title": "Stream night" } }),
+        ))
+        .unwrap();
+    assert_eq!(created.title, "Stream night");
+    assert!(
+        created.text.contains("first to 2, winner stays"),
+        "{}",
+        created.text
+    );
+    let completed = notifier
+        .render(&lobby_event(
+            "lobby.set.completed",
+            json!({ "lobby_id": "elb_1", "winner_id": king, "streak": { "ember_id": king, "sets": 3 }, "queue": [] }),
+        ))
+        .unwrap();
+    assert_eq!(
+        completed.text,
+        "Player A wins the set, 3 sets in a row. Nobody is waiting in the queue."
+    );
+    // Queue changes are not announced; the set's own match events say who plays.
+    assert!(
+        notifier
+            .render(&lobby_event(
+                "lobby.queue.changed",
+                json!({ "lobby_id": "elb_1" })
+            ))
+            .is_none()
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
 #[derive(Clone, Default)]
 struct Captured(Arc<Mutex<Vec<(HeaderMap, Value)>>>);
 

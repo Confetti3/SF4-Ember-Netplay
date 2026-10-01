@@ -17,6 +17,11 @@ await bridge.approveLinkClaim(intent.intent_id, { claimId, emberId, subject: use
 // Matches. Reuse the idempotency key when retrying.
 const match = await bridge.createMatch(spec, `match-${bracketMatchId}`);
 
+// A king-of-the-hill lobby: first to 2, the winner keeps the seat.
+const lobby = await bridge.createLobby({ external_lobby_id: "stream-night", games_to_win: 2, rotation: "winner_stays", required_build_id: build });
+// Queue a linked player who asked to play (for example with a chat command).
+await bridge.joinLobby(lobby.lobby_id, { participantId, emberId });
+
 // Webhooks: verify the raw body first, then parse.
 verifyWebhook(rawBody, request.headers, [subscriptionSecret]);
 const event = parseEvent(rawBody);

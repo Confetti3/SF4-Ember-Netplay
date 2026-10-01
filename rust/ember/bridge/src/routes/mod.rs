@@ -1,6 +1,7 @@
 pub mod discovery;
 pub mod events;
 pub mod links;
+pub mod lobbies;
 pub mod matches;
 pub mod sessions;
 pub mod webhooks;
@@ -48,6 +49,14 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/matches/{id}/cancel", post(matches::cancel))
         .route("/v1/matches/{id}/adjudications", post(matches::adjudicate))
         .route("/v1/assignments", get(matches::assignments))
+        .route("/v1/lobbies", post(lobbies::create))
+        .route("/v1/lobbies/{id}", get(lobbies::get))
+        .route("/v1/lobbies/{id}/queue", post(lobbies::join))
+        .route(
+            "/v1/lobbies/{id}/queue/{participant}/leave",
+            post(lobbies::leave),
+        )
+        .route("/v1/lobbies/{id}/close", post(lobbies::close))
         .route("/v1/events", get(events::list))
         .route("/v1/events/stream", get(events::stream))
         .route(

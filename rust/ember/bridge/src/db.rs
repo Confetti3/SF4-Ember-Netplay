@@ -13,6 +13,7 @@ use crate::error::ApiFailure;
 const MIGRATIONS: &[(i64, &str)] = &[
     (1, include_str!("../migrations/001_identity.sql")),
     (2, include_str!("../migrations/002_matches.sql")),
+    (3, include_str!("../migrations/003_lobbies.sql")),
 ];
 
 #[derive(Clone)]

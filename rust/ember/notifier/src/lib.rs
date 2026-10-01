@@ -253,16 +253,16 @@ impl Notifier {
             )
             .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
             == 1;
-        if fresh && event.kind() == Some(Kind::MatchCreated) {
-            let label = event
-                .data
-                .get("metadata")
-                .and_then(|metadata| metadata.get("round_label"))
-                .and_then(Value::as_str)
-                .unwrap_or("Match");
+        // Later events name their match or lobby by the label it was created with.
+        let labelled = match event.kind() {
+            Some(Kind::MatchCreated) => Some(("match_id", match_label(&event.data))),
+            Some(Kind::LobbyCreated) => Some(("lobby_id", lobby_title(&event.data).to_owned())),
+            _ => None,
+        };
+        if let (true, Some((key, label))) = (fresh, labelled) {
             let id = event
                 .data
-                .get("match_id")
+                .get(key)
                 .and_then(Value::as_str)
                 .unwrap_or_default();
             let _ = db.execute(
@@ -462,17 +462,13 @@ impl Notifier {
                         )
                     })
                     .collect();
-                let label = data
-                    .get("metadata")
-                    .and_then(|metadata| metadata.get("round_label"))
-                    .and_then(Value::as_str)
-                    .unwrap_or("Match");
+                let label = match_label(data);
                 let first_to = data
                     .get("games_to_win")
                     .and_then(Value::as_u64)
                     .unwrap_or(1);
                 (
-                    label.to_owned(),
+                    label,
                     format!(
                         "{} vs {}, first to {first_to}",
                         names.first()?,
@@ -505,6 +501,64 @@ impl Notifier {
                 self.label(match_id),
                 "The organizer corrected the result.".into(),
                 0xFAA61A,
+            ),
+            Kind::LobbyCreated => {
+                let first_to = data
+                    .get("games_to_win")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(1);
+                let rotation = match data.get("rotation").and_then(Value::as_str)? {
+                    "winner_stays" => "winner stays",
+                    "loser_stays" => "loser stays",
+                    _ => "both players rotate",
+                };
+                (
+                    lobby_title(data).to_owned(),
+                    format!(
+                        "Lobby open: first to {first_to}, {rotation}. Ask to join the queue to play."
+                    ),
+                    0x5865F2,
+                )
+            }
+            // The set's own match events announce who plays and the score;
+            // this adds what the rotation did.
+            Kind::LobbySetCompleted => {
+                let lobby_id = data.get("lobby_id").and_then(Value::as_str)?;
+                let winner = self.name(data.get("winner_id").and_then(Value::as_str)?);
+                let streak = data
+                    .get("streak")
+                    .and_then(|streak| streak.get("sets"))
+                    .and_then(Value::as_u64)
+                    .filter(|sets| *sets >= 2)
+                    .map(|sets| format!(", {sets} sets in a row"))
+                    .unwrap_or_default();
+                let next: Vec<String> = data
+                    .get("queue")
+                    .and_then(Value::as_array)
+                    .map(|queue| {
+                        queue
+                            .iter()
+                            .take(3)
+                            .filter_map(Value::as_str)
+                            .map(|id| self.name(id))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let queue = if next.is_empty() {
+                    "Nobody is waiting in the queue.".to_owned()
+                } else {
+                    format!("Next in the queue: {}.", next.join(", "))
+                };
+                (
+                    self.label(lobby_id),
+                    format!("{winner} wins the set{streak}. {queue}"),
+                    0xF1C40F,
+                )
+            }
+            Kind::LobbyClosed => (
+                self.label(data.get("lobby_id").and_then(Value::as_str)?),
+                "Lobby closed.".into(),
+                0x99AAB5,
             ),
             _ => return None,
         };
@@ -667,6 +721,24 @@ async fn classify(response: reqwest::Result<reqwest::Response>, reset: Reset, no
     } else {
         Sent::Failed(format!("status {}", status.as_u16()))
     }
+}
+
+/// A match's display label: its round label, or its lobby and set number.
+fn match_label(data: &serde_json::Map<String, Value>) -> String {
+    let metadata = data.get("metadata");
+    let field = |key: &str| metadata.and_then(|m| m.get(key)).and_then(Value::as_str);
+    match (field("round_label"), field("lobby_set")) {
+        (Some(label), _) => label.to_owned(),
+        (None, Some(set)) => format!("{}, set {set}", field("title").unwrap_or("Lobby")),
+        (None, None) => "Match".to_owned(),
+    }
+}
+
+fn lobby_title(data: &serde_json::Map<String, Value>) -> &str {
+    data.get("metadata")
+        .and_then(|metadata| metadata.get("title"))
+        .and_then(Value::as_str)
+        .unwrap_or("Lobby")
 }
 
 /// Keeps names and labels from being read as Discord formatting.

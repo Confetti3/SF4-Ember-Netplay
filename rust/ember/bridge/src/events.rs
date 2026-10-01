@@ -25,6 +25,8 @@ pub struct NewEvent<'a> {
     /// Set only for identity events, which are private to this identity and
     /// its provider connection.
     pub ember_id: Option<&'a EmberId>,
+    /// The lobby an event belongs to. Everyone who has joined it may read it.
+    pub lobby_id: Option<&'a str>,
     pub data: serde_json::Value,
 }
 
@@ -54,8 +56,8 @@ pub fn emit(tx: &Transaction<'_>, config: &Config, now: u64, event: NewEvent<'_>
         .map_err(|_| ApiFailure::unavailable())?;
     let body = json::canonical(&envelope).map_err(|_| ApiFailure::unavailable())?;
     tx.execute(
-        "INSERT INTO events (seq, id, tenant_id, connection_id, type, subject, match_id, ember_id, body, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        "INSERT INTO events (seq, id, tenant_id, connection_id, type, subject, match_id, ember_id, body, created_at, lobby_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
         params![
             seq,
             id,
@@ -66,7 +68,8 @@ pub fn emit(tx: &Transaction<'_>, config: &Config, now: u64, event: NewEvent<'_>
             event.match_id,
             event.ember_id.map(EmberId::as_str),
             body,
-            now
+            now,
+            event.lobby_id
         ],
     )?;
     fan_out(tx, seq, &event, &envelope.kind, now)?;
@@ -171,7 +174,8 @@ pub fn list(
         Viewer::Player { ember_id } => tx
             .prepare(
                 "SELECT seq, body FROM events WHERE seq > ?1 AND (ember_id = ?2 OR match_id IN
-                    (SELECT match_id FROM match_participants WHERE ember_id = ?2))
+                    (SELECT match_id FROM match_participants WHERE ember_id = ?2) OR lobby_id IN
+                    (SELECT lobby_id FROM lobby_entries WHERE ember_id = ?2))
                  ORDER BY seq LIMIT ?3",
             )?
             .query_map(params![after, ember_id.as_str(), limit], map)?

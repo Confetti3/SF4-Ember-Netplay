@@ -39,10 +39,15 @@ pub enum Kind {
     DeliverySucceeded,
     DeliveryFailed,
     DeliveryAmbiguous,
+    LobbyCreated,
+    LobbyQueueChanged,
+    LobbySetStarted,
+    LobbySetCompleted,
+    LobbyClosed,
 }
 
 impl Kind {
-    pub const ALL: [Kind; 21] = [
+    pub const ALL: [Kind; 26] = [
         Self::LinkPending,
         Self::LinkCompleted,
         Self::LinkRemoved,
@@ -64,6 +69,11 @@ impl Kind {
         Self::DeliverySucceeded,
         Self::DeliveryFailed,
         Self::DeliveryAmbiguous,
+        Self::LobbyCreated,
+        Self::LobbyQueueChanged,
+        Self::LobbySetStarted,
+        Self::LobbySetCompleted,
+        Self::LobbyClosed,
     ];
 
     /// The short family name from spec 20.2.
@@ -90,6 +100,11 @@ impl Kind {
             Self::DeliverySucceeded => "provider.delivery.succeeded",
             Self::DeliveryFailed => "provider.delivery.failed",
             Self::DeliveryAmbiguous => "provider.delivery.ambiguous",
+            Self::LobbyCreated => "lobby.created",
+            Self::LobbyQueueChanged => "lobby.queue.changed",
+            Self::LobbySetStarted => "lobby.set.started",
+            Self::LobbySetCompleted => "lobby.set.completed",
+            Self::LobbyClosed => "lobby.closed",
         }
     }
 

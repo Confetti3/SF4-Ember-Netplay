@@ -15,11 +15,15 @@ use ember_protocol::{
     encoding::{Counter, is_prefixed_id},
     event::Kind,
     json,
-    matches::{CreateMatch, DeliveryState, MatchCompleted, MatchState, Resolution, Score},
+    matches::{
+        CreateMatch, DeliveryState, MatchCompleted, MatchState, Participant as Assigned,
+        Resolution, Rules, Score,
+    },
 };
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::collections::BTreeMap;
 
 use crate::{
     AppState,
@@ -27,7 +31,10 @@ use crate::{
     error::{ApiFailure, Result},
     events::{self, NewEvent, emit},
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key, ok},
-    routes::links::{Ctx, audit},
+    routes::{
+        links::{Ctx, audit},
+        lobbies,
+    },
 };
 
 /// The one rules profile this bridge accepts: results are entered by an
@@ -53,12 +60,15 @@ struct Match {
     generation: u64,
     state: MatchState,
     games_to_win: u8,
+    /// The lobby that plays this match as one of its sets.
+    lobby_id: Option<String>,
 }
 
 fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
     Ok(tx
         .query_row(
-            "SELECT id, tenant_id, connection_id, external_match_id, revision, assignment_generation, state, games_to_win
+            "SELECT id, tenant_id, connection_id, external_match_id, revision, assignment_generation, state, games_to_win,
+                    lobby_id
              FROM matches WHERE id = ?1",
             [id],
             |row| {
@@ -71,6 +81,7 @@ fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
                     row.get::<_, u64>(5)?,
                     row.get::<_, String>(6)?,
                     row.get::<_, u8>(7)?,
+                    row.get::<_, Option<String>>(8)?,
                 ))
             },
         )
@@ -84,11 +95,12 @@ fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
             generation: row.5,
             state: MatchState::parse(&row.6).unwrap_or(MatchState::Failed),
             games_to_win: row.7,
+            lobby_id: row.8,
         }))
 }
 
 /// Whether the identity has an active match on the connection other than `except`.
-fn busy(
+pub fn busy(
     tx: &Transaction<'_>,
     connection_id: &str,
     ember_id: &EmberId,
@@ -269,6 +281,7 @@ fn match_event(
             subject: format!("matches/{}", found.id),
             match_id: Some(&found.id),
             ember_id: None,
+            lobby_id: found.lobby_id.as_deref(),
             data,
         },
     )
@@ -285,6 +298,11 @@ pub async fn create(
     let key = idempotency_key(&headers)?;
     let command: CreateMatch = body.parse()?;
     command.check()?;
+    if command.external_match_id.starts_with(lobbies::MATCH_PREFIX) {
+        return Err(ApiFailure::invalid(
+            "external_match_id values starting with lobby: are reserved for lobby sets.",
+        ));
+    }
     if command.rules.native_rules_profile != ORGANIZER_PROFILE {
         return Err(ApiFailure::new(
             ErrorCode::UnsupportedRules,
@@ -339,22 +357,72 @@ fn create_match(
         let found = load(tx, &id)?.ok_or_else(ApiFailure::unavailable)?;
         return Ok((StatusCode::OK, created_body(ctx, &found)));
     }
-    for participant in command.by_slot() {
-        let linked: bool = tx.query_row(
-            "SELECT EXISTS (SELECT 1 FROM external_accounts a JOIN links l ON l.account_id = a.id
-              WHERE a.connection_id = ?1 AND a.participant_id = ?2 AND l.ember_id = ?3 AND l.revoked_at IS NULL)",
-            params![connection_id, participant.participant_id, participant.ember_id.as_str()],
-            |row| row.get(0),
-        )?;
-        if !linked {
+    let id = insert_match(
+        tx,
+        ctx,
+        &NewMatch {
+            tenant_id,
+            connection_id,
+            external_match_id: &command.external_match_id,
+            digest,
+            rules: &command.rules,
+            required_build_id: &command.required_build_id,
+            metadata: &command.metadata,
+            participants: command.by_slot(),
+            lobby_id: None,
+        },
+    )?;
+    let found = load(tx, &id)?.ok_or_else(ApiFailure::unavailable)?;
+    Ok((StatusCode::CREATED, created_body(ctx, &found)))
+}
+
+/// A match about to be created, by a provider or by a lobby for its next set.
+pub struct NewMatch<'a> {
+    pub tenant_id: &'a str,
+    pub connection_id: &'a str,
+    pub external_match_id: &'a str,
+    pub digest: &'a str,
+    pub rules: &'a Rules,
+    pub required_build_id: &'a str,
+    pub metadata: &'a BTreeMap<String, String>,
+    /// Ordered by slot.
+    pub participants: [&'a Assigned; 2],
+    pub lobby_id: Option<&'a str>,
+}
+
+/// Whether `participant_id` on the connection is currently linked to `ember_id`.
+pub fn linked(
+    tx: &Transaction<'_>,
+    connection_id: &str,
+    participant_id: &str,
+    ember_id: &EmberId,
+) -> Result<bool> {
+    Ok(tx.query_row(
+        "SELECT EXISTS (SELECT 1 FROM external_accounts a JOIN links l ON l.account_id = a.id
+          WHERE a.connection_id = ?1 AND a.participant_id = ?2 AND l.ember_id = ?3 AND l.revoked_at IS NULL)",
+        params![connection_id, participant_id, ember_id.as_str()],
+        |row| row.get(0),
+    )?)
+}
+
+/// Checks the roster against current links and other active matches, then
+/// records the match and its `match.created` event. Returns the new ID.
+pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Result<String> {
+    for participant in new.participants {
+        if !linked(
+            tx,
+            new.connection_id,
+            &participant.participant_id,
+            &participant.ember_id,
+        )? {
             return Err(ApiFailure::invalid(
                 "A participant is not currently linked to that Ember ID on this connection.",
             )
             .detail("slot", participant.slot));
         }
     }
-    for participant in command.by_slot() {
-        if busy(tx, connection_id, &participant.ember_id, "")? {
+    for participant in new.participants {
+        if busy(tx, new.connection_id, &participant.ember_id, "")? {
             return Err(ApiFailure::new(
                 ErrorCode::LeaseConflict,
                 "A participant already has an active match.",
@@ -366,22 +434,23 @@ fn create_match(
     tx.execute(
         "INSERT INTO matches (id, tenant_id, connection_id, external_match_id, create_digest, revision,
             assignment_generation, state, games_to_win, rules, required_build_id, metadata, delivery_state,
-            created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, 1, 1, 'awaiting_players', ?6, ?7, ?8, ?9, 'not_required', ?10, ?10)",
+            created_at, updated_at, lobby_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, 1, 1, 'awaiting_players', ?6, ?7, ?8, ?9, 'not_required', ?10, ?10, ?11)",
         params![
             id,
-            tenant_id,
-            connection_id,
-            command.external_match_id,
-            digest,
-            command.rules.games_to_win,
-            serde_json::to_string(&command.rules).unwrap_or_default(),
-            command.required_build_id,
-            serde_json::to_string(&command.metadata).unwrap_or_default(),
-            ctx.now
+            new.tenant_id,
+            new.connection_id,
+            new.external_match_id,
+            new.digest,
+            new.rules.games_to_win,
+            serde_json::to_string(new.rules).unwrap_or_default(),
+            new.required_build_id,
+            serde_json::to_string(new.metadata).unwrap_or_default(),
+            ctx.now,
+            new.lobby_id
         ],
     )?;
-    for participant in command.by_slot() {
+    for participant in new.participants {
         tx.execute(
             "INSERT INTO match_participants (match_id, assignment_generation, slot, participant_id, ember_id)
              VALUES (?1, 1, ?2, ?3, ?4)",
@@ -397,16 +466,16 @@ fn create_match(
         Kind::MatchCreated,
         json!({
             "match_id": id,
-            "external_match_id": command.external_match_id,
+            "external_match_id": new.external_match_id,
             "match_revision": "1",
             "assignment_generation": "1",
             "state": MatchState::AwaitingPlayers,
-            "games_to_win": command.rules.games_to_win,
+            "games_to_win": new.rules.games_to_win,
             "participants": roster,
-            "metadata": command.metadata,
+            "metadata": new.metadata,
         }),
     )?;
-    Ok((StatusCode::CREATED, created_body(ctx, &found)))
+    Ok(id)
 }
 
 fn created_body(ctx: &Ctx, found: &Match) -> serde_json::Value {
@@ -558,14 +627,14 @@ pub async fn cancel(
                     return Err(ApiFailure::new(ErrorCode::StaleRevision, "The match is already finished.")
                         .detail("state", found.state.as_str()));
                 }
-                let revision = bump(tx, &found, MatchState::Cancelled, ctx.now)?;
-                match_event(
-                    tx,
-                    &ctx,
-                    &found,
-                    Kind::MatchCancelled,
-                    json!({ "match_id": found.id, "match_revision": revision.to_string(), "state": "cancelled", "reason": command.reason }),
-                )?;
+                if let Some(lobby_id) = &found.lobby_id {
+                    return Err(ApiFailure::new(
+                        ErrorCode::LeaseConflict,
+                        "This match is a lobby set. Remove a player from the lobby or close the lobby instead.",
+                    )
+                    .detail("lobby_id", lobby_id.clone()));
+                }
+                let revision = cancel_match(tx, &ctx, &found, &command.reason)?;
                 audit(tx, ctx.now, ("service", service.id.clone()), "match.cancel", &found.id, "ok", Some(&command.reason))?;
                 Ok((StatusCode::OK, json!({ "match_id": found.id, "state": "cancelled", "revision": revision.to_string() })))
             })
@@ -573,6 +642,33 @@ pub async fn cancel(
         .await?;
     state.committed();
     Ok(respond(result))
+}
+
+fn cancel_match(tx: &Transaction<'_>, ctx: &Ctx, found: &Match, reason: &str) -> Result<u64> {
+    let revision = bump(tx, found, MatchState::Cancelled, ctx.now)?;
+    match_event(
+        tx,
+        ctx,
+        found,
+        Kind::MatchCancelled,
+        json!({ "match_id": found.id, "match_revision": revision.to_string(), "state": "cancelled", "reason": reason }),
+    )?;
+    Ok(revision)
+}
+
+/// Cancels a lobby's running set when a seated player leaves or the lobby
+/// closes. A finished set is left as it is.
+pub fn cancel_lobby_set(
+    tx: &Transaction<'_>,
+    ctx: &Ctx,
+    match_id: &str,
+    reason: &str,
+) -> Result<()> {
+    let found = load(tx, match_id)?.ok_or_else(ApiFailure::unavailable)?;
+    if !found.state.is_terminal() {
+        cancel_match(tx, ctx, &found, reason)?;
+    }
+    Ok(())
 }
 
 fn check_reason(reason: &str) -> Result<()> {
@@ -764,6 +860,14 @@ fn apply_adjudication(
     } else {
         MatchState::BetweenGames
     };
+    // A lobby seats its next set as soon as one ends, so a finished lobby set
+    // cannot be reopened.
+    if correcting && next != MatchState::Completed && found.lobby_id.is_some() {
+        return Err(ApiFailure::new(
+            ErrorCode::LeaseConflict,
+            "The lobby has moved on to its next set, so this set cannot be reopened.",
+        ));
+    }
     // A correction that reopens the match makes its players busy again, so it
     // must not double-book one who has started another match meanwhile.
     if correcting && next != MatchState::Completed {
@@ -836,6 +940,9 @@ fn apply_adjudication(
             Kind::MatchCompleted,
             serde_json::to_value(&completed).unwrap_or_default(),
         )?;
+        if let (Some(lobby_id), false) = (&found.lobby_id, correcting) {
+            lobbies::on_set_completed(tx, ctx, lobby_id, &found.id, slot as u8, &score_rows)?;
+        }
     }
     Ok((
         StatusCode::CREATED,
@@ -886,7 +993,8 @@ fn record_adjudication(
 }
 
 /// An unlinked identity cannot keep playing an assigned match: every active
-/// match on that connection that names it goes to review (spec 11.6).
+/// match on that connection that names it goes to review (spec 11.6). Its
+/// lobby places end instead, which cancels a lobby set it was playing.
 pub fn on_unlink(
     tx: &Transaction<'_>,
     ctx: &Ctx,
@@ -894,11 +1002,12 @@ pub fn on_unlink(
     connection_id: &str,
     ember_id: &EmberId,
 ) -> Result<()> {
+    lobbies::on_unlink(tx, ctx, connection_id, ember_id)?;
     let ids = tx
         .prepare(
             "SELECT m.id FROM matches m JOIN match_participants p
                ON p.match_id = m.id AND p.assignment_generation = m.assignment_generation
-             WHERE m.connection_id = ?1 AND p.ember_id = ?2
+             WHERE m.connection_id = ?1 AND p.ember_id = ?2 AND m.lobby_id IS NULL
                AND m.state NOT IN ('completed', 'cancelled', 'failed', 'needs_review')",
         )?
         .query_map(params![connection_id, ember_id.as_str()], |row| {

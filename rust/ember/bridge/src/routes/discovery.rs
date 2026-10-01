@@ -3,6 +3,7 @@ use axum::{extract::State, response::Response};
 use ember_protocol::{
     api::{API_VERSION, BridgeProfile, Capabilities, ConnectionInfo, Limits, WELL_KNOWN_PATH},
     challenge, json,
+    lobby::Rotation,
 };
 use serde_json::json;
 
@@ -27,6 +28,7 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
         "link.code".to_owned(),
         "link.provider_proxy".to_owned(),
         "matches.adjudication".to_owned(),
+        "lobbies".to_owned(),
         "events.poll".to_owned(),
         "events.sse".to_owned(),
         "webhooks.standard".to_owned(),
@@ -45,6 +47,10 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
         native_play: false,
         result_sources: vec!["organizer_adjudication".into()],
         features,
+        lobby_rotations: Rotation::ALL
+            .iter()
+            .map(|rotation| rotation.as_str().to_owned())
+            .collect(),
         connections: state
             .config
             .tenants

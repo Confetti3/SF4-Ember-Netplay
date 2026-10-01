@@ -12,6 +12,7 @@ mod error;
 pub mod event;
 pub mod id;
 pub mod json;
+pub mod lobby;
 pub mod matches;
 pub mod report;
 pub mod sign;

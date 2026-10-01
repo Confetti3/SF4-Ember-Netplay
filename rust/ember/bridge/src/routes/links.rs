@@ -524,6 +524,7 @@ pub fn claim(
             subject: format!("link-intents/{}", intent.id),
             match_id: None,
             ember_id: Some(ember_id),
+            lobby_id: None,
             data: json!({
                 "intent_id": intent.id,
                 "claim_id": claim_id,
@@ -673,6 +674,7 @@ pub fn approve(
             subject: format!("links/{link_id}"),
             match_id: None,
             ember_id: Some(&claim.ember_id),
+            lobby_id: None,
             data: json!({
                 "link_id": link_id,
                 "ember_id": claim.ember_id,
@@ -808,6 +810,7 @@ fn revoke_link(
             subject: format!("links/{link_id}"),
             match_id: None,
             ember_id: Some(ember_id),
+            lobby_id: None,
             data: json!({
                 "link_id": link_id,
                 "ember_id": ember_id,

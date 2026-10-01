@@ -23,6 +23,11 @@ export const EVENT_TYPES = [
   "provider.delivery.succeeded",
   "provider.delivery.failed",
   "provider.delivery.ambiguous",
+  "lobby.created",
+  "lobby.queue.changed",
+  "lobby.set.started",
+  "lobby.set.completed",
+  "lobby.closed",
 ] as const;
 
 export type EventName = (typeof EVENT_TYPES)[number];

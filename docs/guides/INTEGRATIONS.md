@@ -81,6 +81,51 @@ version of this flow, open `http://127.0.0.1:8787/mock/mock-local/login`.
 Every write names the revision it expects, as the decimal string the match
 shows, so two people acting at once cannot both win.
 
+## Run a lobby (first-to-N, king of the hill)
+
+A lobby is a queue on your connection that plays one first-to-N set after
+another, for a stream or a community night. Each set is an ordinary match, so
+the organizer records its games exactly as above and every match event still
+fires. Lobbies go beyond the EMBER-TB-001 package; `"lobbies"` in the
+capabilities `features` and `lobby_rotations` say a bridge has them.
+
+- `POST /v1/lobbies` (provider, `Idempotency-Key`) takes `external_lobby_id`,
+  `games_to_win` (1, 2, 3 or 5), `rotation` and `required_build_id`, with
+  optional display `metadata` such as `title`.
+- `POST /v1/lobbies/{id}/queue` adds a linked player who asked to play:
+  `{"participant_id": "...", "ember_id": "..."}`. Nobody is queued without
+  asking, and a player can be in one open lobby per connection.
+- When two players are available the next set starts at once. When a set
+  completes the seats rotate in the same transaction:
+  - `winner_stays` (king of the hill): the loser goes to the back of the queue.
+  - `loser_stays`: the winner goes to the back.
+  - `both_rotate`: both go to the back, winner first.
+
+  The next queued players sit down; with nobody waiting the same two play a new
+  set. A queued player with another active match on your connection keeps their
+  place and is skipped until it ends.
+- `POST /v1/lobbies/{id}/queue/{participant_id}/leave` takes a player out.
+  Leaving a seat cancels the running set; the other player stays seated. A
+  player whose link ends leaves the same way, with the reason
+  `identity_unlinked`.
+- `POST /v1/lobbies/{id}/close` (provider or organizer, with a reason and the
+  lobby revision) cancels the running set and empties the lobby.
+- `GET /v1/lobbies/{id}` shows the seats, the queue in order, the running set,
+  and the current streak (who has won sets back to back, and how many).
+
+A lobby set cannot be cancelled through `/v1/matches/{id}/cancel`, and a
+correction that would reopen a finished lobby set is refused, because the
+lobby has already moved on. `external_match_id` values starting with `lobby:`
+are reserved for lobby sets.
+
+Lobby events are `lobby.created`, `lobby.queue.changed`, `lobby.set.started`,
+`lobby.set.completed` (winner, loser, scores, streak and the queue after the
+rotation) and `lobby.closed`. Players who have joined a lobby can read its
+events with their own session.
+
+The game's own rooms follow the same set lengths and rotations, but today they
+run on their own: a room table does not report to a bridge lobby yet.
+
 ## Receive events
 
 Events are CloudEvents 1.0 with an `emberseq` cursor, for example
@@ -98,7 +143,7 @@ Events are CloudEvents 1.0 with an `emberseq` cursor, for example
 - **SSE.** `GET /v1/events/stream`, resuming with `Last-Event-ID`.
 
 Providers see their connection's events, organizers their tenant's match
-events, and players their own matches and links.
+events, and players their own matches, links and lobbies.
 
 ## Discord and Twitch
 
@@ -123,7 +168,8 @@ Discord channel and to Twitch chat. Configure it with a JSON file:
 ```
 
 Subscribe it to `match.created`, `match.score.changed`, `match.completed`,
-`match.cancelled`, `match.needs_review` and `match.corrected`, then run
+`match.cancelled`, `match.needs_review` and `match.corrected`, and for lobbies
+`lobby.created`, `lobby.set.completed` and `lobby.closed`, then run
 `cargo run -p ember-notifier -- serve notifier.json`. The Twitch token is a
 user access token with the `user:write:chat` scope for the sender account.
 Discord posts never mention anyone. Players show by name when `names` lists

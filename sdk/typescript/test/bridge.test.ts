@@ -152,6 +152,24 @@ test("SDK drives a live bridge end to end", { skip: !existsSync(binary) && "buil
       parseEvent(delivery.body);
     }
     assert.equal(parseEvent(deliveries[1]!.body).type, eventType("match.completed"));
+
+    // A king-of-the-hill lobby with nobody else waiting: the same two start a
+    // new set when one ends.
+    const lobby = await provider.createLobby({ external_lobby_id: "sdk-hill", games_to_win: 1, rotation: "winner_stays", required_build_id: "sdk" });
+    assert.equal(lobby.state, "open");
+    for (const player of participants) await provider.joinLobby(lobby.lobby_id, { participantId: player.participant_id, emberId: player.ember_id });
+    const playing = await provider.getLobby(lobby.lobby_id);
+    assert.equal(playing.seated.length, 2);
+    const set = await organizer.getMatch(playing.current_match_id!);
+    await organizer.recordGame(playing.current_match_id!, { winnerSlot: 1 }, set.revision as string, "Called on stream");
+    const next = await provider.getLobby(lobby.lobby_id);
+    assert.equal(next.sets_completed, 1);
+    assert.notEqual(next.current_match_id, playing.current_match_id);
+    assert.deepEqual(next.streak, { ember_id: participants[1]!.ember_id, sets: 1 });
+    const lobbyEvents = (await provider.listEvents("0", 200)).events.map((event) => event.type);
+    assert.ok(lobbyEvents.includes(eventType("lobby.set.completed")));
+    const closed = await provider.closeLobby(lobby.lobby_id, next.revision, "End of stream");
+    assert.equal(closed.state, "closed");
   } finally {
     child.process?.kill();
     receiver.close();

@@ -108,6 +108,9 @@ pub struct Capabilities {
     pub native_play: bool,
     pub result_sources: Vec<String>,
     pub features: Vec<String>,
+    /// Seat rotations a lobby can use. Absent on a bridge without lobbies.
+    #[serde(default)]
+    pub lobby_rotations: Vec<String>,
     /// Provider connections a player can link to on this bridge.
     #[serde(default)]
     pub connections: Vec<ConnectionInfo>,

@@ -46,6 +46,40 @@ export interface MatchSpec {
   metadata?: { [key: string]: string };
 }
 
+/** Who gives up the seat when a lobby set ends. Winner stays is king of the hill. */
+export type Rotation = "winner_stays" | "loser_stays" | "both_rotate";
+
+export interface LobbySpec {
+  external_lobby_id: string;
+  games_to_win: 1 | 2 | 3 | 5;
+  rotation: Rotation;
+  required_build_id: string;
+  metadata?: { [key: string]: string };
+}
+
+export interface LobbyPlayer {
+  participant_id: string;
+  ember_id: string;
+  slot?: 0 | 1;
+}
+
+export interface Lobby {
+  lobby_id: string;
+  external_lobby_id: string;
+  state: "open" | "closed";
+  revision: string;
+  games_to_win: number;
+  rotation: Rotation;
+  current_match_id: string | null;
+  sets_started: number;
+  sets_completed: number;
+  seated: LobbyPlayer[];
+  queue: LobbyPlayer[];
+  streak: { ember_id: string; sets: number } | null;
+  metadata: { [key: string]: string };
+  event_cursor: string;
+}
+
 export interface ResolvedPlayer {
   subject: string;
   linked: boolean;
@@ -215,6 +249,60 @@ export class BridgeClient {
       "POST",
       `/v1/matches/${encodeURIComponent(matchId)}/adjudications`,
       { kind: "void_game", attempt_id: attemptId, reason, expected_revision: expectedRevision },
+      { "idempotency-key": idempotencyKey },
+    );
+  }
+
+  /**
+   * Opens a lobby: a queue that plays first-to-N sets one after another and
+   * rotates its seats when a set ends. Each set is an ordinary match.
+   */
+  createLobby(spec: LobbySpec, idempotencyKey: string = randomUUID()): Promise<Lobby> {
+    return this.#json(
+      "POST",
+      "/v1/lobbies",
+      {
+        external_lobby_id: spec.external_lobby_id,
+        game: "usf4",
+        games_to_win: spec.games_to_win,
+        rotation: spec.rotation,
+        required_build_id: spec.required_build_id,
+        metadata: spec.metadata ?? {},
+      },
+      { "idempotency-key": idempotencyKey },
+    );
+  }
+
+  getLobby(lobbyId: string): Promise<Lobby> {
+    return this.#json("GET", `/v1/lobbies/${encodeURIComponent(lobbyId)}`);
+  }
+
+  /** Queues a linked player who asked to play. Nobody is queued without asking. */
+  joinLobby(lobbyId: string, player: { participantId: string; emberId: string }, idempotencyKey: string = randomUUID()): Promise<Lobby> {
+    return this.#json(
+      "POST",
+      `/v1/lobbies/${encodeURIComponent(lobbyId)}/queue`,
+      { participant_id: player.participantId, ember_id: player.emberId },
+      { "idempotency-key": idempotencyKey },
+    );
+  }
+
+  /** Takes a player out of the queue or their seat. Leaving a seat cancels the running set. */
+  leaveLobby(lobbyId: string, participantId: string, idempotencyKey: string = randomUUID()): Promise<Lobby> {
+    return this.#json(
+      "POST",
+      `/v1/lobbies/${encodeURIComponent(lobbyId)}/queue/${encodeURIComponent(participantId)}/leave`,
+      {},
+      { "idempotency-key": idempotencyKey },
+    );
+  }
+
+  /** `expectedRevision` is the lobby's `revision`. A running set is cancelled. */
+  closeLobby(lobbyId: string, expectedRevision: string, reason: string, idempotencyKey: string = randomUUID()): Promise<Lobby> {
+    return this.#json(
+      "POST",
+      `/v1/lobbies/${encodeURIComponent(lobbyId)}/close`,
+      { reason, expected_revision: expectedRevision },
       { "idempotency-key": idempotencyKey },
     );
   }
