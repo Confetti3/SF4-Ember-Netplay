@@ -595,3 +595,40 @@ async fn a_lobby_resumes_when_its_players_are_free() {
         "player_available"
     );
 }
+
+// One freed player sits down while the other is still busy: the set waits,
+// and the seating is announced under a new revision.
+#[tokio::test]
+async fn a_partial_resume_is_announced() {
+    let f = fixture(4).await;
+    let first = f.bracket("bracket-a", 0, 2).await;
+    f.bracket("bracket-b", 1, 3).await;
+    let lobby = f.create("partial", 1, "winner_stays").await;
+    let id = lobby["lobby_id"].as_str().unwrap().to_owned();
+    for index in [0, 1] {
+        let (status, body) = f.join(&id, index).await;
+        assert_eq!(status, StatusCode::CREATED, "{body}");
+    }
+    let before = f.lobby(&id).await;
+    assert!(seated(&before).is_empty());
+    let match_id = first["match_id"].as_str().unwrap();
+    let (status, body) = f
+        .bridge
+        .post_keyed(
+            &f.provider,
+            &format!("/v1/matches/{match_id}/cancel"),
+            json!({ "reason": "No show", "expected_revision": first["revision"] }),
+            Some("bracket-a-cancel"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let after = f.lobby(&id).await;
+    assert!(after["current_match_id"].is_null(), "{after}");
+    assert_eq!(seated(&after), vec![(0, f.id(0).into())]);
+    assert_eq!(queued(&after), vec![f.id(1).to_owned()]);
+    assert_ne!(after["revision"], before["revision"]);
+    let events = f.bridge.events(&f.provider, "0").await;
+    let changed = last(&events, "lobby.queue.changed");
+    assert_eq!(changed["data"]["reason"], "player_available");
+    assert_eq!(changed["data"]["lobby_revision"], after["revision"]);
+}

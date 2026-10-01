@@ -135,6 +135,10 @@ fn seats(tx: &Transaction<'_>, lobby_id: &str) -> Result<[Option<Entry>; 2]> {
     Ok(seats)
 }
 
+fn seated_ids(tx: &Transaction<'_>, lobby_id: &str) -> Result<[Option<EmberId>; 2]> {
+    Ok(seats(tx, lobby_id)?.map(|entry| entry.map(|entry| entry.ember_id)))
+}
+
 fn ids(entries: &[Entry]) -> Vec<&EmberId> {
     entries.iter().map(|entry| &entry.ember_id).collect()
 }
@@ -494,9 +498,12 @@ pub fn on_players_free(
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         for id in lobbies {
+            // A freed player can take a seat even when the set cannot start
+            // yet; that is a change the lobby announces like any other.
+            let before = seated_ids(tx, &id)?;
             let mut dropped = Vec::new();
             let started = advance(tx, ctx, &id, &mut dropped)?;
-            if started.is_some() || !dropped.is_empty() {
+            if started.is_some() || !dropped.is_empty() || seated_ids(tx, &id)? != before {
                 announce(
                     tx,
                     ctx,
