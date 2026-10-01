@@ -9,6 +9,7 @@
 #include "../common/NetworkRoute.hxx"
 #include "RoomFailure.hxx"
 #include "../common/RoomLimits.hxx"
+#include "../netplay/IdentityView.hxx"
 #include <array>
 #include <deque>
 #include <map>
@@ -134,6 +135,13 @@ public:
 	static NetworkSummary ReadNetworkReport(const nlohmann::json& event);
 	// Where the last host or join attempt failed, when the helper said.
 	FailureStage Stage() const { return failureStage_; }
+	// The Ember identity and bridge state from the helper's tournament events.
+	// Endpoint-level like the network report: kept with or without a room.
+	const netplay::IdentityView& Identity() const { return identity_; }
+	// Sends one tournament request, a JSON object, to the helper. Its answer is
+	// a tournament event whose request_id is *requestId. The caller wipes the
+	// request text, which may hold a passphrase; this wipes its own copy.
+	bool SendTournament(const std::string& request, std::uint64_t* requestId);
     virtual const CoordinationSnapshot& Coordination() const { return coordination_; }
     const ProbeSnapshot& Probe() const { return probe_; }
     RecoverySnapshot RecoveryState() const;
@@ -318,6 +326,7 @@ private:
 	std::string localIdentity_;
 	std::optional<std::uint16_t> localUdpPort_;
 	NetworkSummary network_;
+	netplay::IdentityView identity_;
 	FailureStage failureStage_ = FailureStage::Unknown;
 	std::uint64_t closedGeneration_ = 0;
 	std::map<std::string, GameSnapshot> games_;

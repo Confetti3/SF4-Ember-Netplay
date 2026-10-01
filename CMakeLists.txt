@@ -467,6 +467,7 @@ add_library(Session STATIC
     "src/session/sf4e__SessionProtocol.hxx"
     "src/session/sf4e__SessionServer.hxx"
     "src/session/IrohRoom.cxx"
+    "src/session/IdentityEvents.cxx"
     "src/session/IrohRoomAdapters.cxx"
     "src/session/IrohRoomCheckpoint.cxx"
     "src/session/IrohRoomPeers.cxx"

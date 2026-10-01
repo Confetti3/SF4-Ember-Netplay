@@ -1,4 +1,5 @@
 #include "IrohRoom.hxx"
+#include "IdentityEvents.hxx"
 #include <spdlog/spdlog.h>
 #include "HelperErrorScope.hxx"
 #include "../common/InputDelay.hxx"
@@ -332,6 +333,14 @@ IrohRoom::RecoverySnapshot IrohRoom::RecoveryState() const {
         }
     } catch(const std::exception&) { state.clientHeadType="invalid"; }
     return state;
+}
+
+bool IrohRoom::SendTournament(const std::string& request, std::uint64_t* requestId) {
+	if (request.empty() || request.size() > 8192 || request.front() != '{' || !json::accept(request)) return false;
+	std::string payload = "{\"type\":\"tournament\",\"request\":" + request + "}";
+	const bool sent = helper_.Send(payload, requestId);
+	SecureZeroMemory(&payload[0], payload.size());
+	return sent;
 }
 
 bool IrohRoom::RequestProbe(const std::string& peer, std::uint64_t request, std::uint64_t pairRevision, bool benchmark) {
@@ -735,6 +744,11 @@ void IrohRoom::Poll() {
 						report.relay.empty() ? "-" : report.relay, report.relayConnected, report.udp,
 						NatClassLabel(report.nat), report.captivePortal);
 				network_ = std::move(report);
+				continue;
+			}
+			if (type == "tournament") {
+				// Identity and bridge answers have no epoch either.
+				ApplyTournamentEvent(event, identity_);
 				continue;
 			}
 			if (event.value("epoch", std::uint64_t(0)) != epoch_) continue;
