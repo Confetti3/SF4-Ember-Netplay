@@ -161,6 +161,7 @@ runs the sf4-net suite). Mock fixtures are not counted as product acceptance.
 | Game screens | ShellJourney `IdentityJourneys`; UiRender Ember ID pages in every locale and size | Automated, pass |
 | Room sets (extension) | `RoomSets`: every rotation, empty queue, draws, rules changes, a rotated fighter's receipt, checkpoint and wire | Automated, pass; no two-PC game run |
 | Lobbies (extension) | bridge `lobbies.rs` (rotations, leaving and unlinking, players busy in other matches, and the lobby resuming and announcing seat changes when they are free); notifier `announces_lobby_rotations`; SDK `bridge.test.ts` | Automated, pass |
+| Linux | `cargo test --locked` in `rust/ember` and `npm test` in `sdk/typescript` (Node 24 from nodejs.org) on Ubuntu 26.04, x86_64, at `efe545e` | Automated, pass |
 
 Not run: AUTH-06 apart from stream revocation, LINK-03 to LINK-05, LINK-11, every ROOM item, RESULT items other than
 RESULT-09, WEB-04 and WEB-08, PROVIDER-01 and PROVIDER-03 to 05, every OPS item, and all

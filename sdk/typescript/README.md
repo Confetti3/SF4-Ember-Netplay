@@ -45,4 +45,7 @@ npm test
 `test/bridge.test.ts` runs against the real bridge when
 `rust/ember/target/debug/ember-bridge` exists (`cargo build -p ember-bridge`)
 and is skipped otherwise. Node 22.18 or later runs the TypeScript sources
-directly; `npm run build` emits JavaScript with `tsc`.
+directly, as long as it was built with TypeScript support: some Linux
+distribution packages leave it out (`node -p process.features.typescript`
+prints `false`), so use the nodejs.org build there. `npm run build` emits
+JavaScript with `tsc`, and the published package needs no TypeScript support.
