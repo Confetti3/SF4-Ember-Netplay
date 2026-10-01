@@ -78,6 +78,8 @@ namespace sf4e {
 			room::Action roomAction;
             int selectedDelay=-1;
             int previewSoundVolume=-1;
+            // Ask the helper for the room's short link (IrohRoom::RequestShortInvitation).
+            bool shortInvitation=false;
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
@@ -126,6 +128,10 @@ namespace sf4e {
 			bool offlineRequested = false;
 			std::string displayName;
 			std::string invitation;
+			// The room's short link once the helper has one; see IrohRoom.
+			std::string shortInvitation;
+			bool shortInvitationPending = false;
+			std::uint64_t shortInvitationFailures = 0;
 			std::string helperError;
             std::string gameplayInputError;
             std::vector<netplay::MemberView> members;

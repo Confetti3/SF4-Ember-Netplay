@@ -423,6 +423,13 @@ impl Invite {
         &self.build
     }
 
+    /// The room's short code (`short_invite`). Every member's copy, renewed
+    /// or rerouted, gives the same code, since room and capability never
+    /// change while the room is open. Never log the result.
+    pub fn short_code(&self) -> String {
+        crate::short_invite::code_from_secrets(&self.room, &self.capability)
+    }
+
     pub(crate) fn proof(&self) -> RoomProof {
         RoomProof {
             version: VERSION,

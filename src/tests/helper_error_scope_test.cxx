@@ -103,6 +103,12 @@ static void TestFailureStageFromReason() {
 	CHECK(FailureStageFromHelper("invalid_or_incompatible_invitation", "own_room") == FailureStage::InviteOwnRoom);
 	CHECK(FailureStageFromHelper("join_failed", "own_room") == FailureStage::Unknown);
 	CHECK(std::string(FailureStageLabel(FailureStage::InviteOwnRoom)) == "invite_own_room");
+	// A short link the link service could not open, or has no room for.
+	CHECK(FailureStageFromHelper("invalid_or_incompatible_invitation", "short_unavailable") == FailureStage::ShortUnavailable);
+	CHECK(FailureStageFromHelper("invalid_or_incompatible_invitation", "short_unknown") == FailureStage::ShortUnknown);
+	CHECK(FailureStageFromHelper("join_failed", "short_unknown") == FailureStage::Unknown);
+	CHECK(std::string(FailureStageLabel(FailureStage::ShortUnavailable)) == "short_unavailable");
+	CHECK(std::string(FailureStageLabel(FailureStage::ShortUnknown)) == "short_unknown");
 	CHECK(FailureStageFromHelper("invalid_or_incompatible_invitation", "") == FailureStage::Unknown);
 	CHECK(FailureStageFromHelper("join_failed", "expired") == FailureStage::Unknown);
 	CHECK(std::string(FailureStageLabel(FailureStage::ControlLost)) == "control_lost");

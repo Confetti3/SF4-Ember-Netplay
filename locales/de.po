@@ -1717,6 +1717,12 @@ msgstr "Einladung kopieren"
 msgid "room.copy_invitation.detail"
 msgstr "Private Einladung mit Freunden teilen."
 
+msgid "room.copy_short_invitation"
+msgstr "Kurzlink kopieren"
+
+msgid "room.copy_short_invitation.detail"
+msgstr "Ein kurzer Link für den Chat. Der Ember-Linkdienst hält ihn bereit, solange der Raum offen ist."
+
 msgid "room.leaving"
 msgstr "Verlasse Raum..."
 
@@ -1788,6 +1794,15 @@ msgstr "{0} / Sie: {1}\nWarteschlange: {2} / Zuschauer: {3}"
 
 msgid "room.invitation_copied"
 msgstr "Einladung kopiert."
+
+msgid "room.short_invitation_copied"
+msgstr "Kurzlink kopiert."
+
+msgid "room.short_invitation_pending"
+msgstr "Kurzlink wird erstellt..."
+
+msgid "room.short_invitation_unavailable"
+msgstr "Der Linkdienst hat nicht geantwortet, daher wurde die vollständige Einladung kopiert."
 
 msgid "room.replacement_opening"
 msgstr "Ersatzraum wird geöffnet. Wählen Sie Einladung kopieren und senden Sie den neuen Link. Der alte gilt nicht mehr."
@@ -2375,6 +2390,12 @@ msgstr "Der Host nutzt ein anderes SF4-Ember-Netplay-Paket. Beide Spieler brauch
 
 msgid "runtime.invite_malformed"
 msgstr "Der Einladungstext ist unvollständig. Erneut kopieren und die ganze Einladung einfügen."
+
+msgid "runtime.invite_short_unavailable"
+msgstr "Der Ember-Linkdienst ist nicht erreichbar, daher lässt sich dieser Kurzlink nicht öffnen. Bitten Sie den Host um die vollständige Einladung und fügen Sie diese ein."
+
+msgid "runtime.invite_short_unknown"
+msgstr "Zu diesem Kurzlink wurde kein Raum gefunden. Prüfen Sie den Code oder bitten Sie den Host um einen neuen Link, falls der Raum geschlossen wurde."
 
 msgid "runtime.room_host_failed"
 msgstr "Der Raum konnte nicht erstellt werden. Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut."

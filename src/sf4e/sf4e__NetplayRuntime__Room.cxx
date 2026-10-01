@@ -46,6 +46,11 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         PlayChallengerCall((std::min)(command.previewSoundVolume, 100));
         return DispatchOutcome::Dropped;
     }
+    if (command.shortInvitation) {
+        // The answer, or the failure, reaches the interface through the snapshot.
+        if (runtime->room) runtime->room->RequestShortInvitation();
+        return DispatchOutcome::Dropped;
+    }
     if (command.inputAction != input::Action::None) {
         if (command.inputAction == input::Action::Cancel) { runtime->input.Cancel(); runtime->inputInitialized=true; return DispatchOutcome::Dropped; }
         const auto current = runtime->controller.GetSnapshot();

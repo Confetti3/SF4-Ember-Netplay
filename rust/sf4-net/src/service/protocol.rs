@@ -105,6 +105,10 @@ pub enum Command {
         #[serde(default)]
         benchmark: bool,
     },
+    /// Publish this room's short link, answered by `Event::ShortInvite`.
+    ShortInvite {
+        epoch: u64,
+    },
     Shutdown,
 }
 
@@ -115,6 +119,14 @@ pub enum Event {
         epoch: u64,
         invitation: String,
         secret: String,
+    },
+    /// The answer to `Command::ShortInvite`: `status` is `ready` with the
+    /// link, or `unavailable` with an empty link when the link service could
+    /// not take the room. The link stays the same for the room's life.
+    ShortInvite {
+        epoch: u64,
+        link: String,
+        status: String,
     },
     CoordinationState {
         epoch: u64,

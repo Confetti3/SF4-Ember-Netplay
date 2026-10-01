@@ -99,6 +99,7 @@ mod network;
 mod probes;
 mod protocol;
 mod refresh;
+mod short_links;
 mod stall;
 #[cfg(test)]
 mod tests;
@@ -109,6 +110,7 @@ use events::EventOutbox;
 use probes::{selected_probe_route, serve_probe};
 use protocol::NativeControlMessage;
 pub use protocol::{Command, Event};
+use short_links::{ShortLinks, ShortPublished};
 
 struct Request {
     id: u64,
@@ -150,6 +152,17 @@ enum Completion {
     Admission(AdmissionOperationKey, io::Result<AdmissionOperationResult>),
     ProbeAuthorization(ProbeAuthorizationKey, io::Result<ProbeAuthorization>),
     Probe(u64, io::Result<ProbeCompletion>),
+    /// A store of this room's sealed invitation at the link service.
+    ShortPublished(u64, ShortPublished),
+    /// A pasted short link looked up: request, epoch, build, code, and the
+    /// invitation it stands for.
+    ShortResolved(
+        u64,
+        u64,
+        String,
+        String,
+        Result<String, crate::short_invite::ShortError>,
+    ),
     ProbeReservation(ProbeReservationKey, bool),
 }
 
@@ -620,6 +633,8 @@ struct Actor {
     /// instead open a newer epoch, that epoch releases this stale room rather
     /// than being refused for it until the process restarts.
     departure_failed: bool,
+    /// The room's short link, once the native side asked for one.
+    short: ShortLinks,
 }
 
 impl Actor {
@@ -701,6 +716,7 @@ impl Actor {
         }
         self.hosted = None;
         self.room_invite = None;
+        self.short.room = None;
         self.host_address = None;
         self.room = None;
         self.opening = false;
@@ -818,36 +834,15 @@ impl Actor {
                     self.error_at(id, epoch, "invalid_room_state")?;
                     return Ok(true);
                 }
-                let time = now().ok();
-                let invite =
-                    time.and_then(|time| Invite::parse_for_build(&invitation, time, &build).ok());
-                let invite = match invite {
-                    Some(invite) if invite.build() == build => invite,
-                    _ => {
-                        let reason = time.map_or("malformed", |time| {
-                            Invite::rejection_reason(&invitation, time, &build)
-                        });
-                        self.clear_room();
-                        self.error_because(id, "invalid_or_incompatible_invitation", Some(reason))?;
-                        return Ok(true);
-                    }
-                };
-                // A copy taken while this helper still led the room names this
-                // endpoint. Iroh refuses to dial itself, which would otherwise
-                // read as an unreachable host.
-                if invite.endpoint() == self.endpoint.id() {
-                    self.clear_room();
-                    self.error_because(id, "invalid_or_incompatible_invitation", Some("own_room"))?;
-                    return Ok(true);
+                // A short link is looked up first; the full invitation it
+                // stands for then takes the same path as a pasted one.
+                if let Some(code) = crate::short_invite::parse(&invitation) {
+                    self.join_short(id, epoch, code, build)?;
+                } else {
+                    self.join_invitation(id, &invitation, build, None)?;
                 }
-                self.room = Some(invite.room());
-                self.host_address = Some(invite.address());
-                let endpoint = self.endpoint.clone();
-                self.tasks.spawn(async move {
-                    let result = transport::connect_control(&endpoint, &invite).await;
-                    Completion::GuestControl(epoch, invite, result)
-                });
             }
+            Command::ShortInvite { epoch } => self.short_invite_command(epoch)?,
             Command::Leave { epoch, abandon } => {
                 let _ = abandon;
                 if !self.matches(epoch) {
@@ -1077,6 +1072,59 @@ impl Actor {
         Ok(true)
     }
 
+    /// Joins the room `invitation` names. `short_code` is the code a short
+    /// link was opened with; the invitation must derive that same code, so a
+    /// record cannot stand in for another room.
+    fn join_invitation(
+        &mut self,
+        id: u64,
+        invitation: &str,
+        build: String,
+        short_code: Option<&str>,
+    ) -> io::Result<()> {
+        let epoch = self.epoch;
+        let time = now().ok();
+        let invite = time.and_then(|time| Invite::parse_for_build(invitation, time, &build).ok());
+        let invite = match invite {
+            Some(invite)
+                if invite.build() == build
+                    && short_code.is_none_or(|code| invite.short_code() == code) =>
+            {
+                invite
+            }
+            Some(_) => {
+                self.clear_room();
+                return self.error_because(
+                    id,
+                    "invalid_or_incompatible_invitation",
+                    Some("malformed"),
+                );
+            }
+            None => {
+                let reason = time.map_or("malformed", |time| {
+                    Invite::rejection_reason(invitation, time, &build)
+                });
+                self.clear_room();
+                return self.error_because(id, "invalid_or_incompatible_invitation", Some(reason));
+            }
+        };
+        // A copy taken while this helper still led the room names this
+        // endpoint. Iroh refuses to dial itself, which would otherwise
+        // read as an unreachable host.
+        if invite.endpoint() == self.endpoint.id() {
+            self.clear_room();
+            return self.error_because(id, "invalid_or_incompatible_invitation", Some("own_room"));
+        }
+        self.room = Some(invite.room());
+        self.host_address = Some(invite.address());
+        let endpoint = self.endpoint.clone();
+        self.tasks.spawn(async move {
+            let result = transport::connect_control(&endpoint, &invite).await;
+            Completion::GuestControl(epoch, invite, result)
+        });
+        Ok(())
+    }
+
     async fn completed(&mut self, completion: Completion) -> io::Result<()> {
         let (completion, joined_invite) = match completion {
             Completion::GuestControl(epoch, invite, result) => {
@@ -1162,6 +1210,12 @@ impl Actor {
             Completion::Probe(epoch, result) => self.completed_probe(epoch, result).await,
             Completion::ProbeReservation(key, applied) => {
                 self.completed_probe_reservation(key, applied).await
+            }
+            Completion::ShortPublished(epoch, published) => {
+                self.completed_short_publish(epoch, published)
+            }
+            Completion::ShortResolved(id, epoch, build, code, result) => {
+                self.completed_short_resolve(id, epoch, build, code, result)
             }
         }
     }
@@ -1303,6 +1357,7 @@ impl Actor {
                     self.emit_coordination_state().await?;
                     if let Ok(time) = now() {
                         self.renew_invitation(time);
+                        self.pump_short_link(time);
                     }
                     // Room or not: the settings screen shows it. A report that
                     // found the queue busy is not counted as sent.

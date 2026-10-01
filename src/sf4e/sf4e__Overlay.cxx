@@ -182,6 +182,9 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.probeSent=snapshot.probeSent; view.probeExpected=snapshot.probeExpected;
 	view.localSlot = snapshot.localSlot;
 	view.invitation = snapshot.invitation;
+	view.shortInvitation = snapshot.shortInvitation;
+	view.shortInvitationPending = snapshot.shortInvitationPending;
+	view.shortInvitationFailures = snapshot.shortInvitationFailures;
 	view.error = snapshot.helperError;
 	view.settingsError = snapshot.settingsError;
 	view.languagePreference = snapshot.languagePreference;
@@ -245,6 +248,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		request.roomAction = std::move(action.roomAction);
         request.selectedDelay=action.selectedDelay;
         request.previewSoundVolume=action.previewSoundVolume;
+        request.shortInvitation=action.shortInvitation;
 		request.character = lobbyConditions;
 		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
 		request.stage = lobbyStageID;

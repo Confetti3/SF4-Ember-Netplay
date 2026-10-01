@@ -125,6 +125,34 @@ bool ApplicationShell::UpdateRoomFeedback(const ShellView& v) {
  roomUpdateVisible_=healthyRoom&&ImGui::GetTime()<roomUpdateUntil_;
  return healthyRoom;
 }
+void ApplicationShell::CopyShortInvitation(const ShellView& v,const Submit& submit) {
+ error_.clear();
+ if(!v.shortInvitation.empty()){
+  ImGui::SetClipboardText(v.shortInvitation.c_str());
+  notice_=loc::T("room.short_invitation_copied");noticeTone_=Tone::Success;noticeUntil_=ImGui::GetTime()+3;shortCopyPending_=false;
+  return;
+ }
+ ShellAction request;request.command.generation=v.session.generation;request.shortInvitation=true;
+ shortFailuresSeen_=v.shortInvitationFailures;
+ shortCopyPending_=true;shortCopyUntil_=ImGui::GetTime()+12;
+ // A request that cannot be queued falls back at once, in UpdateShortCopy.
+ if(!submit(std::move(request)))shortCopyUntil_=0;
+ notice_=loc::T("room.short_invitation_pending");noticeTone_=Tone::Pending;noticeUntil_=ImGui::GetTime()+12;
+}
+// The short link answers within a few seconds. Without one, the full
+// invitation goes to the clipboard so the press still shares the room.
+void ApplicationShell::UpdateShortCopy(const ShellView& v,double now) {
+ if(!shortCopyPending_)return;
+ if(v.session.room==netplay::RoomState::Idle||v.invitation.empty()){shortCopyPending_=false;return;}
+ if(!v.shortInvitation.empty()){
+  shortCopyPending_=false;ImGui::SetClipboardText(v.shortInvitation.c_str());
+  notice_=loc::T("room.short_invitation_copied");noticeTone_=Tone::Success;noticeUntil_=now+3;
+  return;
+ }
+ if(v.shortInvitationFailures==shortFailuresSeen_&&now<shortCopyUntil_)return;
+ shortCopyPending_=false;ImGui::SetClipboardText(v.invitation.c_str());
+ notice_=loc::T("room.short_invitation_unavailable");noticeTone_=Tone::Neutral;noticeUntil_=now+6;
+}
 void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
  if(saveQueued_&&!v.settingsPending){
@@ -413,6 +441,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   saveAt_ = RebaseUiTimestamp(saveAt_, lastUiTime_, now);
   languageSaveAt_ = RebaseUiTimestamp(languageSaveAt_, lastUiTime_, now);
   noticeUntil_ = RebaseUiTimestamp(noticeUntil_, lastUiTime_, now);
+  shortCopyUntil_ = RebaseUiTimestamp(shortCopyUntil_, lastUiTime_, now);
   roomUpdateUntil_ = RebaseUiTimestamp(roomUpdateUntil_, lastUiTime_, now);
   roomUpdateStarted_ = -1;
  }
@@ -441,6 +470,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  TrackLiveGames(v,now);
  const bool healthyRoom=UpdateRoomFeedback(v);
  UpdatePreferenceSave(v,submit);
+ UpdateShortCopy(v,now);
  if(v.readyFailureSequence!=readyFailureSequence_){
   readyFailureSequence_=v.readyFailureSequence;
   if(readyFailureSequence_&&!v.readyFailure.empty())menu_.ShowNotice(v.readyFailure);

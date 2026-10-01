@@ -115,6 +115,7 @@ pub(super) fn command_stage(command: &Command) -> &'static str {
         Command::CheckpointEnd { .. } => "command:checkpoint_end",
         Command::CheckpointAck { .. } => "command:checkpoint_ack",
         Command::ProbeRequest { .. } => "command:probe_request",
+        Command::ShortInvite { .. } => "command:short_invite",
         Command::Shutdown => "command:shutdown",
     }
 }
@@ -138,6 +139,8 @@ pub(super) fn completion_stage(completion: &Completion) -> &'static str {
         Completion::ProbeAuthorization(..) => "task:probe_authorization",
         Completion::Probe(..) => "task:probe",
         Completion::ProbeReservation(..) => "task:probe_reservation",
+        Completion::ShortPublished(..) => "task:short_published",
+        Completion::ShortResolved(..) => "task:short_resolved",
     }
 }
 

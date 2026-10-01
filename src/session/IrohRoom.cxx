@@ -33,7 +33,7 @@ void IrohRoom::Fail(const char* code) {
 	coordination_.writable = false;
 	coordination_.rebound = false;
 	error_ = code;
-	invitation_.clear(); discordInvitation_.clear();
+	invitation_.clear(); discordInvitation_.clear(); shortInvitation_.clear(); shortPending_ = false;
 	serverMessages_.clear();
 	clientMessages_.clear();
 	queuedBytes_ = 0;
@@ -91,7 +91,7 @@ bool IrohRoom::Begin(bool host) {
 	room_ = {};
 	games_.clear();
 	closedGeneration_ = 0;
-	invitation_.clear(); discordInvitation_.clear();
+	invitation_.clear(); discordInvitation_.clear(); shortInvitation_.clear(); shortPending_ = false;
 	error_.clear();
 	failureStage_ = FailureStage::Unknown;
 	state_ = host ? State::Hosting : State::Joining;
@@ -103,6 +103,16 @@ bool IrohRoom::Host(const std::string& build) {
 	if (!Begin(true)) return false;
 	roomCommandQueued_ = Command(json{{"type", "host"}, {"epoch", epoch_}, {"build", build}}.dump());
 	return roomCommandQueued_;
+}
+
+bool IrohRoom::RequestShortInvitation() {
+	if (!shortInvitation_.empty() || shortPending_) return true;
+	// A failed send is the request's failure, not the room's.
+	const bool open = state_ == State::Ready || state_ == State::Hosting || state_ == State::Joining;
+	if (!open || invitation_.empty() ||
+		!helper_.Send(json{{"type", "short_invite"}, {"epoch", epoch_}}.dump())) { ++shortFailures_; return false; }
+	shortPending_ = true;
+	return true;
 }
 
 bool IrohRoom::Join(const std::string& invitation, const std::string& build) {
@@ -124,7 +134,7 @@ void IrohRoom::Leave(bool abandon) {
     leaveDeadline_ = GetTickCount64() + LeaveTimeoutMs;
 
 	localOpen_ = false;
-	invitation_.clear(); discordInvitation_.clear();
+	invitation_.clear(); discordInvitation_.clear(); shortInvitation_.clear(); shortPending_ = false;
 	serverMessages_.clear();
 	clientMessages_.clear();
 	queuedBytes_ = 0;
@@ -770,6 +780,15 @@ void IrohRoom::Poll() {
                 if (token.size()>128 || token.size()<6 || (token.compare(0,5,"emd1:") && token.compare(0,5,"emd2:"))) { Fail("invalid_discord_invite"); return; }
                 discordInvitation_ = token;
                 invitation_ = event.at("invitation").get<std::string>();
+            } else if (type == "short_invite") {
+				// Only a link to the Ember site is ever shown or copied.
+				const auto link = event.at("link").get<std::string>();
+				const bool ready = event.at("status").get<std::string>() == "ready" && link.size() <= 64 &&
+					link.compare(0, 28, "https://embernetplay.link/j#") == 0;
+				shortPending_ = false;
+				if (ready) shortInvitation_ = link;
+				else ++shortFailures_;
+				spdlog::info("Room: short link {}", ready ? "ready" : "unavailable");
             } else if (type == "hosted" && hosting_ && state_ == State::Hosting) {
 				room_ = event.at("room").get<std::array<std::uint8_t, 16>>();
 				invitation_ = event.at("invitation").get<std::string>();

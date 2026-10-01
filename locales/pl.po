@@ -1717,6 +1717,12 @@ msgstr "Kopiuj zaproszenie"
 msgid "room.copy_invitation.detail"
 msgstr "Udostępnij prywatne zaproszenie znajomym."
 
+msgid "room.copy_short_invitation"
+msgstr "Kopiuj krótki link"
+
+msgid "room.copy_short_invitation.detail"
+msgstr "Krótki link do czatu. Usługa linków Ember przechowuje go, dopóki pokój jest otwarty."
+
 msgid "room.leaving"
 msgstr "Opuszczanie pokoju..."
 
@@ -1788,6 +1794,15 @@ msgstr "{0} / Ty: {1}\nKolejka: {2} / Widzowie: {3}"
 
 msgid "room.invitation_copied"
 msgstr "Zaproszenie skopiowane."
+
+msgid "room.short_invitation_copied"
+msgstr "Krótki link skopiowany."
+
+msgid "room.short_invitation_pending"
+msgstr "Tworzenie krótkiego linku..."
+
+msgid "room.short_invitation_unavailable"
+msgstr "Usługa linków nie odpowiedziała, więc skopiowano pełne zaproszenie."
 
 msgid "room.replacement_opening"
 msgstr "Otwieranie nowego pokoju. Wybierz Kopiuj zaproszenie i wyślij nowy link. Stary już nie działa."
@@ -2375,6 +2390,12 @@ msgstr "Gospodarz używa innego pakietu SF4 Ember Netplay. Obaj gracze potrzebuj
 
 msgid "runtime.invite_malformed"
 msgstr "Tekst zaproszenia jest niepełny. Skopiuj je ponownie i wklej całe zaproszenie."
+
+msgid "runtime.invite_short_unavailable"
+msgstr "Nie udało się połączyć z usługą linków Ember, więc nie można otworzyć tego krótkiego linku. Poproś gospodarza o pełne zaproszenie i wklej je zamiast linku."
+
+msgid "runtime.invite_short_unknown"
+msgstr "Nie znaleziono pokoju dla tego krótkiego linku. Sprawdź kod albo, jeśli pokój został zamknięty, poproś gospodarza o nowy link."
 
 msgid "runtime.room_host_failed"
 msgstr "Nie udało się utworzyć pokoju. Sprawdź połączenie z internetem i spróbuj ponownie."

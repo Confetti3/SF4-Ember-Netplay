@@ -1717,6 +1717,12 @@ msgstr "Copier l'invitation"
 msgid "room.copy_invitation.detail"
 msgstr "Partagez l'invitation privée avec vos amis."
 
+msgid "room.copy_short_invitation"
+msgstr "Copier le lien court"
+
+msgid "room.copy_short_invitation.detail"
+msgstr "Un lien court pour le chat, conservé par le service de liens Ember tant que le salon est ouvert."
+
 msgid "room.leaving"
 msgstr "Sortie du salon..."
 
@@ -1788,6 +1794,15 @@ msgstr "{0} / Vous : {1}\nFile : {2} / Spectateurs : {3}"
 
 msgid "room.invitation_copied"
 msgstr "Invitation copiée."
+
+msgid "room.short_invitation_copied"
+msgstr "Lien court copié."
+
+msgid "room.short_invitation_pending"
+msgstr "Création du lien court..."
+
+msgid "room.short_invitation_unavailable"
+msgstr "Le service de liens n'a pas répondu : l'invitation complète a été copiée à la place."
 
 msgid "room.replacement_opening"
 msgstr "Ouverture du nouveau salon. Copiez l'invitation et envoyez le nouveau lien : l'ancien ne fonctionne plus."
@@ -2375,6 +2390,12 @@ msgstr "L'hôte utilise un autre paquet SF4 Ember Netplay. Les deux joueurs doiv
 
 msgid "runtime.invite_malformed"
 msgstr "Le texte de l'invitation est incomplet. Copiez-la de nouveau et collez l'invitation entière."
+
+msgid "runtime.invite_short_unavailable"
+msgstr "Le service de liens Ember est injoignable, ce lien court ne peut donc pas être ouvert. Demandez l'invitation complète à l'hôte et collez-la à la place."
+
+msgid "runtime.invite_short_unknown"
+msgstr "Aucun salon ne correspond à ce lien court. Vérifiez le code ou, si le salon a été fermé, demandez un nouveau lien à l'hôte."
 
 msgid "runtime.room_host_failed"
 msgstr "Impossible de créer le salon. Vérifiez votre connexion Internet et réessayez."

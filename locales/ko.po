@@ -1717,6 +1717,12 @@ msgstr "초대 복사"
 msgid "room.copy_invitation.detail"
 msgstr "친구에게 비공개 초대를 공유하세요."
 
+msgid "room.copy_short_invitation"
+msgstr "짧은 링크 복사"
+
+msgid "room.copy_short_invitation.detail"
+msgstr "채팅용 짧은 링크입니다. 방이 열려 있는 동안 Ember 링크 서비스가 보관합니다."
+
 msgid "room.leaving"
 msgstr "방 나가는 중..."
 
@@ -1788,6 +1794,15 @@ msgstr "{0} / 나: {1}\n대기: {2} / 관전: {3}"
 
 msgid "room.invitation_copied"
 msgstr "초대를 복사했습니다."
+
+msgid "room.short_invitation_copied"
+msgstr "짧은 링크를 복사했습니다."
+
+msgid "room.short_invitation_pending"
+msgstr "짧은 링크를 만드는 중..."
+
+msgid "room.short_invitation_unavailable"
+msgstr "링크 서비스가 응답하지 않아 전체 초대를 대신 복사했습니다."
 
 msgid "room.replacement_opening"
 msgstr "새 방을 여는 중입니다. 초대 복사를 선택해 새 링크를 보내세요. 이전 링크는 더 이상 사용할 수 없습니다."
@@ -2375,6 +2390,12 @@ msgstr "호스트가 다른 SF4 Ember Netplay 패키지를 사용 중입니다. 
 
 msgid "runtime.invite_malformed"
 msgstr "초대 텍스트가 불완전합니다. 다시 복사해서 초대 전체를 붙여 넣으세요."
+
+msgid "runtime.invite_short_unavailable"
+msgstr "Ember 링크 서비스에 연결할 수 없어 이 짧은 링크를 열 수 없습니다. 방장에게 전체 초대를 받아 대신 붙여 넣으세요."
+
+msgid "runtime.invite_short_unknown"
+msgstr "이 짧은 링크에 해당하는 방을 찾지 못했습니다. 코드를 확인하거나, 방이 닫혔다면 방장에게 새 링크를 요청하세요."
 
 msgid "runtime.room_host_failed"
 msgstr "방을 만들지 못했습니다. 인터넷 연결을 확인하고 다시 시도하세요."

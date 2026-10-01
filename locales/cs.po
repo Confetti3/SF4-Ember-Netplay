@@ -1717,6 +1717,12 @@ msgstr "Kopírovat pozvánku"
 msgid "room.copy_invitation.detail"
 msgstr "Sdílet soukromou pozvánku s přáteli."
 
+msgid "room.copy_short_invitation"
+msgstr "Kopírovat krátký odkaz"
+
+msgid "room.copy_short_invitation.detail"
+msgstr "Krátký odkaz do chatu. Drží ho odkazová služba Ember, dokud je místnost otevřená."
+
 msgid "room.leaving"
 msgstr "Odcházení..."
 
@@ -1788,6 +1794,15 @@ msgstr "{0} / Vy: {1}\nFronta: {2} / Sleduje: {3}"
 
 msgid "room.invitation_copied"
 msgstr "Pozvánka zkopírována."
+
+msgid "room.short_invitation_copied"
+msgstr "Krátký odkaz zkopírován."
+
+msgid "room.short_invitation_pending"
+msgstr "Vytváří se krátký odkaz..."
+
+msgid "room.short_invitation_unavailable"
+msgstr "Odkazová služba neodpověděla, proto se zkopírovala celá pozvánka."
 
 msgid "room.replacement_opening"
 msgstr "Otevírá se náhradní místnost. Zvolte Kopírovat pozvánku a pošlete nový odkaz. Starý už nefunguje."
@@ -2375,6 +2390,12 @@ msgstr "Hostitel používá jiný balíček SF4 Ember Netplay. Oba hráči potř
 
 msgid "runtime.invite_malformed"
 msgstr "Text pozvánky je neúplný. Zkopírujte ji znovu a vložte celou pozvánku."
+
+msgid "runtime.invite_short_unavailable"
+msgstr "Odkazovou službu Ember se nepodařilo zastihnout, takže tento krátký odkaz nejde otevřít. Požádejte hostitele o celou pozvánku a vložte ji místo odkazu."
+
+msgid "runtime.invite_short_unknown"
+msgstr "K tomuto krátkému odkazu se nenašla žádná místnost. Zkontrolujte kód, nebo pokud se místnost zavřela, požádejte hostitele o nový odkaz."
 
 msgid "runtime.room_host_failed"
 msgstr "Místnost se nepodařilo vytvořit. Zkontrolujte připojení k internetu a zkuste to znovu."
