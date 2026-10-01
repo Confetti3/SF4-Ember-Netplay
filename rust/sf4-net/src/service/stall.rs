@@ -115,6 +115,7 @@ pub(super) fn command_stage(command: &Command) -> &'static str {
         Command::CheckpointEnd { .. } => "command:checkpoint_end",
         Command::CheckpointAck { .. } => "command:checkpoint_ack",
         Command::ProbeRequest { .. } => "command:probe_request",
+        Command::Tournament { .. } => "command:tournament",
         Command::Shutdown => "command:shutdown",
     }
 }

@@ -108,7 +108,18 @@ pub struct Capabilities {
     pub native_play: bool,
     pub result_sources: Vec<String>,
     pub features: Vec<String>,
+    /// Provider connections a player can link to on this bridge.
+    #[serde(default)]
+    pub connections: Vec<ConnectionInfo>,
     pub limits: Limits,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ConnectionInfo {
+    pub id: String,
+    pub display_name: String,
+    /// `local`, `staging` or `production`.
+    pub environment: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

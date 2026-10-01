@@ -1,7 +1,7 @@
 //! Public, unauthenticated discovery (spec 9.1, 19.3).
 use axum::{extract::State, response::Response};
 use ember_protocol::{
-    api::{API_VERSION, BridgeProfile, Capabilities, Limits, WELL_KNOWN_PATH},
+    api::{API_VERSION, BridgeProfile, Capabilities, ConnectionInfo, Limits, WELL_KNOWN_PATH},
     challenge, json,
 };
 use serde_json::json;
@@ -45,6 +45,18 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
         native_play: false,
         result_sources: vec!["organizer_adjudication".into()],
         features,
+        connections: state
+            .config
+            .tenants
+            .iter()
+            .flat_map(|tenant| &tenant.connections)
+            .filter(|connection| connection.enabled)
+            .map(|connection| ConnectionInfo {
+                id: connection.id.clone(),
+                display_name: connection.display_name.clone(),
+                environment: connection.environment.clone(),
+            })
+            .collect(),
         limits: Limits {
             max_body_bytes: json::MAX_BODY,
             max_proof_body_bytes: challenge::MAX_PROOF_BODY,

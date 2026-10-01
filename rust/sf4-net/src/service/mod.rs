@@ -784,6 +784,8 @@ impl Actor {
                 self.games.len(),
             ))?,
             Command::Shutdown => return Ok(false),
+            // The IPC reader routes these to the tournament worker.
+            Command::Tournament { .. } => self.error(id, "invalid_request")?,
             Command::Host { epoch, build } => {
                 if !self.begin(epoch, &build) {
                     self.error_at(id, epoch, "invalid_room_state")?;

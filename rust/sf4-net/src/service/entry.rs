@@ -11,6 +11,7 @@ pub async fn run<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     let (events, mut outbound) = mpsc::channel::<Event>(IPC_QUEUE_CAPACITY);
     let (failed_ipc, failure) = watch::channel(false);
     let writer_failed = failed_ipc.clone();
+    let (tournament, tournament_task) = crate::tournament::spawn(events.clone());
     let reader_task = tokio::spawn(async move {
         let mut last_id = 1;
         while let Ok(frame) = wire::read_ipc(&mut reader).await {
@@ -21,6 +22,10 @@ pub async fn run<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
             let Ok(command) = serde_json::from_slice(&frame.payload) else {
                 break;
             };
+            if let Command::Tournament { request } = command {
+                tournament.submit(frame.message_id, request);
+                continue;
+            }
             if commands
                 .send(Request {
                     id: frame.message_id,
@@ -62,6 +67,7 @@ pub async fn run<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         }
     });
     let _task_scope = TaskScope(vec![
+        tournament_task.abort_handle(),
         reader_task.abort_handle(),
         writer_abort,
         writer_watch.abort_handle(),

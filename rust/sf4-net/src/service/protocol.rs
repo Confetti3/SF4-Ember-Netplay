@@ -105,6 +105,11 @@ pub enum Command {
         #[serde(default)]
         benchmark: bool,
     },
+    /// Identity and tournament-bridge requests. The IPC reader hands these
+    /// to `crate::tournament`; they never reach the room actor.
+    Tournament {
+        request: crate::tournament::Request,
+    },
     Shutdown,
 }
 
@@ -345,6 +350,21 @@ pub enum Event {
         /// `queue_full`, `queue_closed` or `invalid`. Diagnostic only.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         reason: Option<String>,
+    },
+    /// The answer to a `tournament` command (`request_id` 0 for the status
+    /// sent at startup). `identity` is the public identity status after the
+    /// operation; `reason` is a stable failure code. Neither ever carries a
+    /// key, passphrase or bridge token.
+    Tournament {
+        request_id: u64,
+        op: String,
+        ok: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reason: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        identity: Option<serde_json::Value>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        data: Option<serde_json::Value>,
     },
     Stopped,
 }
