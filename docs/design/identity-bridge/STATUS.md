@@ -165,8 +165,14 @@ runs the sf4-net suite). Mock fixtures are not counted as product acceptance.
 
 Not run: AUTH-06 apart from stream revocation, LINK-03 to LINK-05, LINK-11, every ROOM item, RESULT items other than
 RESULT-09, WEB-04 and WEB-08, PROVIDER-01 and PROVIDER-03 to 05, every OPS item, and all
-release gates. No in-game run of the Ember ID screens has been made yet; that is a
-separate acceptance step.
+release gates.
+
+In-game run on 2026-10-01 (Windows, one PC, this branch's staged build against a local
+bridge with the mock provider): turning on Ember ID created the key under
+`%LOCALAPPDATA%\Ember\Identity\v1`, and approving the bridge, entering a link code from the
+mock login page and confirming the fingerprint completed the link (the bridge recorded
+`identity.link.pending` then `identity.link.completed`). Export, import, unlink and a
+helper restart keeping the same ID were not exercised in that run.
 
 ## Open sign-offs (spec section 30.2)
 
