@@ -1,6 +1,6 @@
 # SF4 Ember Netplay v1.0.0
 
-v1.0.0 adds controller and keyboard table controls, spectator lock-in and fixes for saved replays, rematches and long-session crashes.
+v1.0.0 adds controller and keyboard table controls, spectator lock-in and fixes for saved replays, rematches, rejoining rooms and long-session crashes.
 
 Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by Anthony Danducci and contributors](https://codeberg.org/adanducci/sf4e). Preserve upstream attribution and bundled licenses.
 
@@ -26,7 +26,9 @@ Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by A
 
 - **Failed watching no longer silently skips later games.** You stay set to watch, but a failed stream or setup clears lock-in so you can choose it again. Spectators return sooner after a finished game, and stream-loss and opponent-disconnect messages remain visible.
 - **Leaving and rejoining handle more room failures.** Rejoining after a crash no longer loops or leaves a ghost seat. A player dropping while someone else leaves no longer freezes the room. Leaving the queue stops automatic watching unless you choose to watch.
-- **Guests can copy the room invitation.** Refused invitations explain whether they expired after one hour, came from a different package or were pasted incompletely.
+- **Guests can copy the room invitation.** Refused invitations explain whether they expired, came from a different package or were pasted incompletely.
+- **Rooms stay joinable after an hour.** The invitation every member shows is renewed while the room is open, so a fresh copy always works. A copied invitation still expires within an hour.
+- **A former host can rejoin.** After handing host to another player and leaving, copy the room's invitation again. A copy taken before you left points at your own game; it now says so instead of reporting an unreachable host.
 
 ### Stages, languages and appearance
 
@@ -43,6 +45,8 @@ Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by A
 ### Stability, updates and crash reports
 
 - **Rollback restores sound state and sprite animation slots correctly.** A failed restore returns you to the room instead of closing the game. If the HUD cannot be restored exactly, the match ends with a message.
+- **Rollback memory is checked and old saves are freed without touching the game.** Added after a heap corruption crash (`0xC0000374`) while an old rollback save was freed, whose first cause is not confirmed. Freeing a save no longer writes into the running game, and the save system tracks who owns each saved block. Anything unsafe is skipped and the match ends with a message instead of corrupting memory. Each match ends with a `SaveSlots [battle_close_exit]: guards` line in `sf4e.log`.
+- **The overlay is no longer freed while it is drawn.** A display reset (for example Alt+Tab in fullscreen) recreated the overlay while the render thread could still be drawing it.
 - **Very long rounds stop replay recording when the round's recording buffer fills.**
 - **The game starts even if `sf4e.log` cannot be opened.**
 - **Double-clicking `Updater.exe` opens Updates.** A found update appears first with its version; Select installs it. The in-game Exit and open updater row explains the next step.
@@ -77,6 +81,6 @@ See the [player guide](https://github.com/Confetti3/SF4-Ember-Netplay/blob/v1.0.
 
 Report crashes, freezes, failed rematches, spectator lock-in problems, incorrect replay playback, or controls and translations that feel wrong in the [Ember Discord](https://discord.gg/uPNqF5A5uq). Say roughly when it happened, what you were doing and which controller or keyboard controls you used.
 
-Include `sf4e.log`, the newest `session-*.log`, `launcher.log` and `sf4e-crash.log` if present, from `%APPDATA%\sf4e\logs`. Logs from both players and affected spectators help. See [saving logs](https://github.com/Confetti3/SF4-Ember-Netplay/blob/v1.0.0/docs/guides/SAVING_LOGS.md).
+Include `sf4e.log`, the newest `session-*.log`, `launcher.log` and `sf4e-crash.log` if present, from `%APPDATA%\sf4e\logs`. Logs from both players and affected spectators help. A `MementoGuard:` line, or a nonzero count on a `guards` line other than `releases` and `tracked_keys`, is worth reporting even when nothing seemed wrong. See [saving logs](https://github.com/Confetti3/SF4-Ember-Netplay/blob/v1.0.0/docs/guides/SAVING_LOGS.md).
 
 Send crash dumps privately. They can contain invitations, player names and chat.
