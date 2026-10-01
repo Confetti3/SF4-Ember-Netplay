@@ -1,0 +1,23 @@
+[package]
+name = "ember-notifier"
+description = "Reference bridge webhook receiver that posts to Discord and Twitch chat"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio"] }
+ember-protocol = { path = "../protocol" }
+reqwest = { version = "0.13.4", default-features = false, features = ["rustls-no-provider"] }
+rusqlite = { version = "0.40.2", features = ["bundled", "fallible_uint"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+zeroize = "1"
+
+[dev-dependencies]
+ember-bridge = { path = "../bridge" }
+getrandom = "0.3"

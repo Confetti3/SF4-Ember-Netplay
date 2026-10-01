@@ -335,6 +335,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "ember-notifier"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "ember-bridge",
+ "ember-protocol",
+ "getrandom 0.3.4",
+ "reqwest",
+ "rusqlite",
+ "rustls",
+ "serde",
+ "serde_json",
+ "tokio",
+ "zeroize",
+]
+
+[[package]]
 name = "ember-protocol"
 version = "0.1.0"
 dependencies = [
