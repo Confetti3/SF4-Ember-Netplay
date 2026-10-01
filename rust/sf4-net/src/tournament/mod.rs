@@ -440,7 +440,7 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
                 return Err(Failure::new("bridge_changed"));
             }
             let store = shared.clone();
-            tokio::task::spawn_blocking(move || {
+            let displaced = tokio::task::spawn_blocking(move || {
                 store
                     .bridges
                     .lock()
@@ -449,6 +449,10 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             })
             .await
             .map_err(|_| Failure::new("internal"))??;
+            // A replaced profile's session is never offered to another origin.
+            for id in displaced.iter().chain([&bridge_id]) {
+                shared.client.forget_session(id);
+            }
             Ok(None)
         }
         Request::BridgeForget { bridge_id } => {

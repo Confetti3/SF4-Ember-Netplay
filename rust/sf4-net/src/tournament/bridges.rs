@@ -81,7 +81,9 @@ impl Store {
             .cloned()
     }
 
-    pub fn approve(&mut self, profile: &BridgeProfile) -> Result<(), Failure> {
+    /// Approves a profile and returns the bridge IDs whose entries it
+    /// replaced, so their sessions can be dropped.
+    pub fn approve(&mut self, profile: &BridgeProfile) -> Result<Vec<String>, Failure> {
         let entry = Approved {
             bridge_id: profile.bridge_id.clone(),
             origin: profile.origin.clone(),
@@ -100,13 +102,24 @@ impl Store {
         }
         // One entry per bridge ID and per origin: a bridge that changed its
         // ID at the same origin is a different bridge and replaces it.
-        self.bridges
-            .retain(|bridge| bridge.bridge_id != entry.bridge_id && bridge.origin != entry.origin);
+        let (displaced, kept): (Vec<_>, Vec<_>) = self.bridges.drain(..).partition(|bridge| {
+            bridge.bridge_id == entry.bridge_id || bridge.origin == entry.origin
+        });
+        self.bridges = kept;
         if self.bridges.len() >= MAX_BRIDGES {
+            self.bridges.extend(displaced);
             return Err(Failure::new("too_many_bridges"));
         }
         self.bridges.push(entry);
-        self.save()
+        if let Err(failure) = self.save() {
+            self.bridges.pop();
+            self.bridges.extend(displaced);
+            return Err(failure);
+        }
+        Ok(displaced
+            .into_iter()
+            .map(|bridge| bridge.bridge_id)
+            .collect())
     }
 
     pub fn forget(&mut self, bridge_id: &str) -> Result<(), Failure> {
@@ -183,9 +196,10 @@ mod tests {
         let reopened = Store::open(dir.clone());
         assert_eq!(reopened.list().len(), 2);
         let mut store = reopened;
-        store
+        let displaced = store
             .approve(&profile(5, "https://bridge.one.example"))
             .unwrap();
+        assert_eq!(displaced, vec![profile(1, "").bridge_id]);
         assert_eq!(store.list().len(), 2);
         assert!(store.get(&profile(1, "").bridge_id).is_none());
         store.forget(&profile(5, "").bridge_id).unwrap();

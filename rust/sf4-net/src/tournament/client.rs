@@ -27,10 +27,12 @@ const POLICY: OriginPolicy = OriginPolicy::AllowLoopbackHttp;
 /// Renew a cached session this long before it expires.
 const SESSION_MARGIN_SECS: u64 = 30;
 
-/// A bridge session, valid only for the Ember ID that opened it.
+/// A bridge session, valid only for the origin that issued it and the
+/// Ember ID that opened it.
 struct Session {
     token: Zeroizing<String>,
     expires_at: u64,
+    origin: String,
     ember_id: EmberId,
 }
 
@@ -79,11 +81,11 @@ impl Client {
         }
     }
 
-    fn cached(&self, bridge_id: &str, ember_id: &EmberId) -> Option<Zeroizing<String>> {
+    fn cached(&self, bridge: &Approved, ember_id: &EmberId) -> Option<Zeroizing<String>> {
         let sessions = self.sessions.lock().ok()?;
         sessions
-            .get(bridge_id)
-            .filter(|session| &session.ember_id == ember_id)
+            .get(&bridge.bridge_id)
+            .filter(|session| session.origin == bridge.origin && &session.ember_id == ember_id)
             .filter(|session| session.expires_at > now() + SESSION_MARGIN_SECS)
             .map(|session| session.token.clone())
     }
@@ -280,7 +282,7 @@ fn current_id(shared: &Shared) -> Result<EmberId, Failure> {
 async fn session(shared: &Shared, bridge: &Approved) -> Result<Zeroizing<String>, Failure> {
     // A session opened by an identity the player has since replaced is never reused.
     let ember_id = current_id(shared)?;
-    if let Some(token) = shared.client.cached(&bridge.bridge_id, &ember_id) {
+    if let Some(token) = shared.client.cached(bridge, &ember_id) {
         return Ok(token);
     }
     let body = prove(
@@ -311,6 +313,7 @@ async fn session(shared: &Shared, bridge: &Approved) -> Result<Zeroizing<String>
             Session {
                 token: token.clone(),
                 expires_at: created.expires_at,
+                origin: bridge.origin.clone(),
                 ember_id,
             },
         );
@@ -446,4 +449,36 @@ pub async fn remove_link(shared: &Arc<Shared>, bridge_id: &str, link_id: &str) -
         Ok(Some(answer(status, &response, &[200])?))
     })
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_session_is_offered_only_to_its_origin() {
+        let client = Client::new();
+        let ember_id = ember_protocol::SigningIdentity::from_seed(&Zeroizing::new([7; 32]))
+            .unwrap()
+            .ember_id()
+            .clone();
+        let bridge_id = ember_protocol::encoding::prefixed_id("brg", [1; 16]);
+        client.sessions.lock().unwrap().insert(
+            bridge_id.clone(),
+            Session {
+                token: Zeroizing::new("token".into()),
+                expires_at: now() + 600,
+                origin: "https://a.example".into(),
+                ember_id: ember_id.clone(),
+            },
+        );
+        let at = |origin: &str| Approved {
+            bridge_id: bridge_id.clone(),
+            origin: origin.into(),
+            display_name: "Bridge".into(),
+            approved_at: 0,
+        };
+        assert!(client.cached(&at("https://a.example"), &ember_id).is_some());
+        assert!(client.cached(&at("https://b.example"), &ember_id).is_none());
+    }
 }
