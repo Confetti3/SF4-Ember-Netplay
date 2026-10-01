@@ -13,10 +13,6 @@ RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint6
 	snapshot_.capacity = InRange<std::uint8_t>(capacity, 2, static_cast<std::uint8_t>(MaximumMembers))
 		? capacity : static_cast<std::uint8_t>(MaximumMembers);
 	if (!ValidRules(defaults)) defaults = Rules();
-	defaults.format = SetFormat::Unlimited;
-	// Open-ended rooms never rotate a set. Keep the legacy field stable on the
-	// wire so old clients cannot infer a queue rotation policy from it.
-	defaults.rotation = RotationMode::WinnerStays;
 	for (std::size_t i = 0; i < TableCount; ++i) { snapshot_.tables[i].id = static_cast<std::uint8_t>(i); snapshot_.tables[i].rules = defaults; }
 }
 
@@ -449,6 +445,43 @@ void RoomAuthority::SeatQueued(Table& table) {
 	if (table.p1 != 0 && table.p2 != 0 && table.phase == TablePhase::Idle) table.phase = TablePhase::Waiting;
 }
 
+void RoomAuthority::CompleteSet(Table& table, int winnerSeat) {
+	table.lastSet.generation = table.matchGeneration;
+	table.lastSet.p1 = table.p1;
+	table.lastSet.p2 = table.p2;
+	table.lastSet.score[0] = table.score[0];
+	table.lastSet.score[1] = table.score[1];
+	table.lastSet.winnerSeat = static_cast<std::uint8_t>(winnerSeat);
+	const MemberId winner = table.lastSet.Winner();
+	const MemberId loser = table.lastSet.Loser();
+	if (table.streakHolder == winner) {
+		if (table.streak != (std::numeric_limits<std::uint32_t>::max)()) ++table.streak;
+	} else {
+		table.streakHolder = winner;
+		table.streak = 1;
+	}
+	table.score[0] = table.score[1] = 0;
+	// The rotated fighters join the back of the queue, so an empty queue seats
+	// them again for a new set. Only members who queued themselves are ahead of
+	// them: nobody else is ever put in the queue.
+	std::vector<MemberId> leaving;
+	if (table.rules.rotation == RotationMode::WinnerStays) leaving = {loser};
+	else if (table.rules.rotation == RotationMode::LoserStays) leaving = {winner};
+	else leaving = {winner, loser};
+	for (const auto member : leaving) {
+		if (table.p1 == member) table.p1 = 0;
+		if (table.p2 == member) table.p2 = 0;
+		if (std::find(table.queue.begin(), table.queue.end(), member) == table.queue.end()) table.queue.push_back(member);
+	}
+}
+
+void RoomAuthority::KeepStreak(Table& table) {
+	if (table.streakHolder && table.streakHolder != table.p1 && table.streakHolder != table.p2) {
+		table.streakHolder = 0;
+		table.streak = 0;
+	}
+}
+
 void RoomAuthority::ClearReadiness(Table& table) {
 	table.ready[0] = table.ready[1] = false;
 	for (const MemberId seated : {table.p1, table.p2})
@@ -498,6 +531,7 @@ void RoomAuthority::RemoveFromTable(MemberId member, bool preserveSpectator) {
 			resultPendingSince_[table.id] = 0;
 			table.score[0] = table.score[1] = 0;
 			if (live) CloseLiveGeneration(table);
+			KeepStreak(table);
 			// A departed seat always leaves a vacancy. Clear the transient phase
 			// before filling it so Ready/Playing tables cannot remain Paused with
 			// one stale fighter after a disconnect or explicit Leave.
@@ -571,6 +605,11 @@ Result RoomAuthority::Leave(MemberId member) {
 		}
 	}
 	RemoveFromTable(member);
+	// A finished set names members only while they are in the room.
+	for (auto& table : snapshot_.tables) {
+		if (table.lastSet.p1 == member) table.lastSet.p1 = 0;
+		if (table.lastSet.p2 == member) table.lastSet.p2 = 0;
+	}
 	snapshot_.members.erase(std::remove_if(snapshot_.members.begin(), snapshot_.members.end(), [member](const Member& value) { return value.id == member; }), snapshot_.members.end());
 	// A chat line names its sender by member id, which no longer resolves;
 	// snapshot readers reject a sender outside the roster.
@@ -653,17 +692,24 @@ Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, M
 	else if (result == MatchResult::P2Win) ++table->score[1];
 	const auto generationValue = table->matchGeneration;
 	CloseLiveGeneration(*table);
-	// Rooms are open-ended rematch tables. A result closes only the current
-	// game; the same fighter pair remains seated until one explicitly leaves.
-	// Draw/cancel/abort therefore preserve prior wins and never award a point.
-	table->phase = table->p1 != 0 && table->p2 != 0 ? TablePhase::Waiting : TablePhase::Idle;
+	// With no set length the same pair stays seated until one leaves. A
+	// first-to-N table ends the set when a win reaches N and rotates its seats.
+	// Draw/cancel/abort preserve prior wins and never award a point.
+	const auto goal = static_cast<std::uint32_t>(table->rules.format);
+	const int winnerSeat = result == MatchResult::P1Win ? 0 : result == MatchResult::P2Win ? 1 : -1;
+	// Clear readiness while the fighters who readied are still seated: it also
+	// unlocks their delays.
 	ClearReadiness(*table);
+	if (goal != 0 && winnerSeat >= 0 && table->score[winnerSeat] >= goal) CompleteSet(*table, winnerSeat);
+	table->phase = table->p1 != 0 && table->p2 != 0 ? TablePhase::Waiting : TablePhase::Idle;
 	table->resultPending = false;
 	resultReporter_[tableId] = 0;
 	resultPendingSince_[tableId] = 0;
 	if (table->phase == TablePhase::Waiting || table->phase == TablePhase::Idle) SeatQueued(*table);
+	KeepStreak(*table);
 	Touch(*table);
 	NormalizeTableMembers(*table);
+	for (const auto queued : table->queue) NormalizeMemberStatus(queued);
 	return Accept({Event{Event::Kind::MatchEnded, tableId, generationValue, 0, result, true}, Event{Event::Kind::SnapshotChanged, tableId, generationValue, 0, result, true}});
 }
 

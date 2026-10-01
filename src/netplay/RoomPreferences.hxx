@@ -8,10 +8,8 @@ namespace sf4e { namespace netplay {
 // battle preferences; decoding is transactional so malformed data stays intact.
 inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
     return {{"name", value.roomName}, {"capacity", value.roomCapacity},
-        // Keep the legacy keys in the persisted shape for migration readers,
-        // but always write the only supported custom-room rule set.
-        {"format", static_cast<int>(room::SetFormat::Unlimited)},
-        {"rotation", static_cast<int>(room::RotationMode::WinnerStays)},
+        {"format", static_cast<int>(value.tableRules.format)},
+        {"rotation", static_cast<int>(value.tableRules.rotation)},
         {"editionSelect", value.tableRules.editionSelect},
         {"roundCount", value.tableRules.roundCount}, {"roundTime", value.tableRules.roundTime}};
 }
@@ -37,10 +35,8 @@ inline bool ReadRoomPreferences(const nlohmann::json& document, PlayerPreference
         const auto format = defaults.value("format", static_cast<std::int64_t>(candidate.tableRules.format));
         const auto rotation = defaults.value("rotation", static_cast<std::int64_t>(candidate.tableRules.rotation));
         if ((format != 0 && format != 1 && format != 2 && format != 3 && format != 5) || rotation < 0 || rotation > 2) return false;
-        // Legacy values are parsed for compatibility, then normalized so a
-        // migrated profile cannot reintroduce set rotation semantics.
-        candidate.tableRules.format = room::SetFormat::Unlimited;
-        candidate.tableRules.rotation = room::RotationMode::WinnerStays;
+        candidate.tableRules.format = static_cast<room::SetFormat>(format);
+        candidate.tableRules.rotation = static_cast<room::RotationMode>(rotation);
         const auto rounds = defaults.value("roundCount", static_cast<std::int64_t>(candidate.tableRules.roundCount));
         const auto time = defaults.value("roundTime", static_cast<std::int64_t>(candidate.tableRules.roundTime));
         if (rounds < 1 || rounds > 99 || time < 30 || time > 9999) return false;

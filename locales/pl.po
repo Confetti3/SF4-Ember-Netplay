@@ -2789,3 +2789,51 @@ msgstr "Ten ID jest już na tym komputerze. Przywrócenie ustawia nowe hasło dl
 
 msgid "identity.failure.already_answered"
 msgstr "Strona już odpowiedziała na tę prośbę, więc nie została anulowana. Powiązania poniżej pokazują, co zdecydowała."
+
+msgid "rules.set_length"
+msgstr "Długość seta"
+
+msgid "rules.set_length.none"
+msgstr "Bez długości"
+
+msgid "rules.set_length.first_to"
+msgstr "Do {0} wygranych"
+
+msgid "rules.set_length.detail"
+msgstr "Set kończy się, gdy gracz wygra tyle gier. Bez długości ta sama dwójka gra dalej."
+
+msgid "rules.rotation"
+msgstr "Po secie"
+
+msgid "rules.rotation.winner_stays"
+msgstr "Zwycięzca zostaje"
+
+msgid "rules.rotation.loser_stays"
+msgstr "Przegrany zostaje"
+
+msgid "rules.rotation.both_rotate"
+msgstr "Obaj się zmieniają"
+
+msgid "rules.rotation.winner_stays.detail"
+msgstr "Król wzgórza: zwycięzca zostaje na miejscu, a przegrany wraca na koniec kolejki."
+
+msgid "rules.rotation.loser_stays.detail"
+msgstr "Przegrany zostaje na miejscu, a zwycięzca wraca na koniec kolejki."
+
+msgid "rules.rotation.both_rotate.detail"
+msgstr "Obaj gracze wracają na koniec kolejki, a siadają dwaj następni."
+
+msgid "rules.rotation.needs_set"
+msgstr "Najpierw wybierz długość seta. Bez niej nikt się nie zmienia."
+
+msgid "rules.set_summary"
+msgstr "{0}, {1}"
+
+msgid "room.table_set"
+msgstr "Set"
+
+msgid "room.table_footer_set"
+msgstr "{0}, {1}     Kolejka: {2}     Widzowie: {3}"
+
+msgid "room.streak"
+msgstr "Sety z rzędu: {0}"

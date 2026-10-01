@@ -61,11 +61,30 @@ connection and path. It estimates one-way latency as half of the measured 95th
 percentile round-trip time and allows two frames of prediction. These are
 tuning assumptions, not a guarantee about frame timing or network quality.
 
-There is no set length. The same two fighters keep playing until one of them
-leaves, and results count their wins against each other. The running count,
-such as 2 - 1, replaces "VS" on the table card and "vs" on the match HUD. Both fighters must ready again after returning to
-the room. When a fighter leaves their seat, the next queued member takes that
-seat and the new pair starts with fresh win counts. B on your own table card, or
+Each table has a **Set length** and, once it has one, an **After a set** rule.
+The host sets both with the other table rules. With no set length the same two
+fighters keep playing until one of them leaves, and results count their wins
+against each other. With a set length of first to 1, 2, 3 or 5, the set ends
+when a fighter reaches that many wins and the seats rotate:
+
+- **Winner stays** (king of the hill): the winner keeps the seat and the loser
+  goes to the back of the queue.
+- **Loser stays**: the loser keeps the seat and the winner goes to the back.
+- **Both rotate**: both go to the back of the queue, winner first, and the next
+  two sit down.
+
+Only members who chose **Join queue** are ever given a seat. Watching a table
+never puts anyone in its queue, and a fighter rotated out can leave the queue
+at any time to just watch. When nobody is waiting, the same two start a new set.
+A fighter who wins two or more sets in a row at the table has the streak shown
+under their name. Changing the set length or rotation starts a new set; the
+other rules apply from the next game and keep the score.
+
+The running count, such as 2 - 1, replaces "VS" on the table card and "vs" on
+the match HUD, and the HUD keeps the final count on the screen of the game that
+ended the set. Both fighters must ready again after returning to the room. When
+a fighter leaves their seat, the next queued member takes that seat and the new
+pair starts with fresh win counts. B on your own table card, or
 **Leave seat** in the table options, leaves your seat at once. It asks first
 only when the pair has wins on the board or a queued member would take the seat;
 the question starts on staying. A game in progress or an unresolved result holds

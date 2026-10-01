@@ -2789,3 +2789,51 @@ msgstr "이미 이 PC에 있는 ID입니다. 복원하면 이 PC의 새 암호�
 
 msgid "identity.failure.already_answered"
 msgstr "사이트가 이미 이 요청에 응답했으므로 취소되지 않았습니다. 아래 연동 목록에서 결과를 확인하세요."
+
+msgid "rules.set_length"
+msgstr "세트 길이"
+
+msgid "rules.set_length.none"
+msgstr "세트 없음"
+
+msgid "rules.set_length.first_to"
+msgstr "{0}선승"
+
+msgid "rules.set_length.detail"
+msgstr "한 플레이어가 이만큼 이기면 세트가 끝납니다. 세트가 없으면 같은 두 사람이 계속 대전합니다."
+
+msgid "rules.rotation"
+msgstr "세트 후"
+
+msgid "rules.rotation.winner_stays"
+msgstr "승자 유지"
+
+msgid "rules.rotation.loser_stays"
+msgstr "패자 유지"
+
+msgid "rules.rotation.both_rotate"
+msgstr "둘 다 교대"
+
+msgid "rules.rotation.winner_stays.detail"
+msgstr "승자 연전: 승자는 자리를 지키고 패자는 대기열 맨 뒤로 갑니다."
+
+msgid "rules.rotation.loser_stays.detail"
+msgstr "패자는 자리를 지키고 승자는 대기열 맨 뒤로 갑니다."
+
+msgid "rules.rotation.both_rotate.detail"
+msgstr "두 플레이어 모두 대기열 맨 뒤로 가고 다음 두 사람이 앉습니다."
+
+msgid "rules.rotation.needs_set"
+msgstr "먼저 세트 길이를 고르세요. 세트가 없으면 아무도 교대하지 않습니다."
+
+msgid "rules.set_summary"
+msgstr "{0}, {1}"
+
+msgid "room.table_set"
+msgstr "세트"
+
+msgid "room.table_footer_set"
+msgstr "{0}, {1}     대기 {2}     관전 {3}"
+
+msgid "room.streak"
+msgstr "{0}세트 연속"

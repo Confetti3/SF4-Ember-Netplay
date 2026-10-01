@@ -65,7 +65,11 @@ namespace sf4e {
 			for (const auto& m : room.members)
 				if (m.id == room.localMember && m.table >= 0 && m.table < static_cast<int>(room.tables.size())) {
 					liveScoreKnown = true;
-					for (int side = 0; side < 2; ++side) liveScore[side] = room.tables[m.table].score[side];
+					// The game that ended a set leaves the table at 0-0 for the next
+					// one; its fighters keep seeing the final score until it is gone.
+					const auto& table = room.tables[m.table];
+					const bool decided = table.lastSet.generation != 0 && table.lastSet.generation == fUserApp::netplay->startGeneration;
+					for (int side = 0; side < 2; ++side) liveScore[side] = decided ? table.lastSet.score[side] : table.score[side];
 				}
 			st.hasMatchScore = HudScore(fSystem::ggpo && fUserApp::netplay->spectating, fUserApp::netplay->startScoreKnown,
 				fUserApp::netplay->startScore, liveScoreKnown, liveScore, st.matchScore);

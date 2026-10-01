@@ -70,8 +70,6 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
     else if (kind == netplay::CommandKind::HostRoom || kind == netplay::CommandKind::SavePreferences) {
         // Keep the legacy lobby copy synchronized while the room defaults use
         // the richer per-table Rules contract.
-        action.preferences.tableRules.format = room::SetFormat::Unlimited;
-        action.preferences.tableRules.rotation = room::RotationMode::WinnerStays;
         action.preferences.lobby.editionSelect = action.preferences.tableRules.editionSelect;
         action.preferences.lobby.roundCount = action.preferences.tableRules.roundCount;
         action.preferences.lobby.roundTime = action.preferences.tableRules.roundTime;

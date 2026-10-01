@@ -2789,3 +2789,51 @@ msgstr "Dit is de ID die al op deze pc staat. Herstellen stelt een nieuwe wachtw
 
 msgid "identity.failure.already_answered"
 msgstr "De site heeft dit verzoek al beantwoord, dus het is niet geannuleerd. Je koppelingen hieronder tonen de uitkomst."
+
+msgid "rules.set_length"
+msgstr "Setlengte"
+
+msgid "rules.set_length.none"
+msgstr "Geen setlengte"
+
+msgid "rules.set_length.first_to"
+msgstr "Eerst tot {0}"
+
+msgid "rules.set_length.detail"
+msgstr "Een set eindigt als een speler zoveel potjes wint. Zonder setlengte blijven dezelfde twee spelen."
+
+msgid "rules.rotation"
+msgstr "Na een set"
+
+msgid "rules.rotation.winner_stays"
+msgstr "Winnaar blijft"
+
+msgid "rules.rotation.loser_stays"
+msgstr "Verliezer blijft"
+
+msgid "rules.rotation.both_rotate"
+msgstr "Beiden wisselen"
+
+msgid "rules.rotation.winner_stays.detail"
+msgstr "King of the hill: de winnaar houdt de plek en de verliezer sluit achteraan de wachtrij aan."
+
+msgid "rules.rotation.loser_stays.detail"
+msgstr "De verliezer houdt de plek en de winnaar sluit achteraan de wachtrij aan."
+
+msgid "rules.rotation.both_rotate.detail"
+msgstr "Beide spelers sluiten achteraan de wachtrij aan en de volgende twee gaan zitten."
+
+msgid "rules.rotation.needs_set"
+msgstr "Kies eerst een setlengte. Zonder setlengte wisselt niemand."
+
+msgid "rules.set_summary"
+msgstr "{0}, {1}"
+
+msgid "room.table_set"
+msgstr "Set"
+
+msgid "room.table_footer_set"
+msgstr "{0}, {1}     Wachtrij {2}     Kijken {3}"
+
+msgid "room.streak"
+msgstr "{0} sets op rij"

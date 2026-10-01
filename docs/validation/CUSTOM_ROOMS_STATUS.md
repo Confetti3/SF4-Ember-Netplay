@@ -52,11 +52,16 @@ replace current recovery validation.
 
 One private Iroh room admits up to 16 members and owns four independent versus
 tables. Members can play, watch, queue, or remain idle. A game uses one local
-instance at a time; queued members watch from the next game. The same two
-fighters keep their seats, game after game, until one leaves. There is no
-first-to limit and no automatic rotation. The next queued member fills a freed
-seat, and both fighters ready before each game. Reconciled native results count
-wins for the current pair without ending the room session.
+instance at a time; queued members watch from the next game. A table with no
+set length keeps the same two fighters seated, game after game, until one
+leaves. A first-to-N table (1, 2, 3 or 5) ends the set when a fighter reaches N
+wins and rotates its seats by the table's rule (winner stays, loser stays or
+both rotate): the fighters it sends away join the back of the queue and the
+next queued members sit down. Only members who joined the queue are seated.
+The next queued member also fills a seat freed by leaving, and both fighters
+ready before each game. Reconciled native results count wins for the current
+pair without ending the room session. Room protocol 2 carries the set record and
+streak; a build speaking protocol 1 is told the builds do not match.
 
 Room text chat is bounded to 256 UTF-8 bytes and 100 retained messages, with
 host moderation and local mute. Hosting is separate from P1. The recovery

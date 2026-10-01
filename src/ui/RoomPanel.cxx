@@ -197,6 +197,8 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    if(!host){
     rows.push_back(ReadOnlyValue("rules",loc::T("room.table_rules"),loc::Tf("room.rules_summary",static_cast<int>(t.rules.roundCount),static_cast<int>(t.rules.roundTime),
      loc::T(t.rules.editionSelect?"common.on":"common.off")),loc::T("room.rules.host_only")));
+    rows.push_back(ReadOnlyValue("set-rules",loc::T("room.table_set"),SetSummaryText(t.rules),
+     t.rules.format==room::SetFormat::Unlimited?loc::T("rules.set_length.detail"):RotationDetail(t.rules.rotation)));
     return;
    }
    RuleRows(rows,tableRules_,!active,loc::T(active?"room.rules.finish_game":"room.rules.apply_note"));
@@ -494,10 +496,18 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    std::string caption=m?(f?f->name:loc::T("room.fighter_not_shared")):std::string();
    if(m&&m->id==v.room.localMember)caption+=loc::T("room.suffix_you");
    if(!caption.empty())text(ImVec2(tx,top+23*s),tw,caption,14*s,palette::Muted,true);
+   // The fighter who has won sets back to back at this table.
+   if(m&&t.streakHolder==m->id&&t.streak>=2)text(ImVec2(tx,top+40*s),tw,loc::Tf("room.streak",t.streak),13*s,palette::Ember,true);
   }
   text(ImVec2(p.x+12*s+half,top+16*s),gap,middle,18*s,palette::Ember,true);
   // An option strip covers the footer, so the footer gives way to it.
-  if(!choosing&&!ownPlace)text(ImVec2(p.x+12*s,p.y+h-22*s),width-24*s,loc::Tf("room.table_footer",t.rules.roundCount,t.rules.roundTime,t.queue.size(),t.spectators.size()+t.watchingNext.size()),14*s,palette::Muted);
+  // A first-to-N table names its set and rotation where the round settings
+  // would be; those stay on the table's rules rows.
+  const auto watching=t.spectators.size()+t.watchingNext.size();
+  const std::string footer=t.rules.format==room::SetFormat::Unlimited
+   ?loc::Tf("room.table_footer",t.rules.roundCount,t.rules.roundTime,t.queue.size(),watching)
+   :loc::Tf("room.table_footer_set",SetLengthText(t.rules.format),RotationText(t.rules.rotation),t.queue.size(),watching);
+  if(!choosing&&!ownPlace)text(ImVec2(p.x+12*s,p.y+h-22*s),width-24*s,footer,14*s,palette::Muted);
   if(choosing){
    // The chosen side follows the mouse, and the seat a sit option would take
    // blinks.

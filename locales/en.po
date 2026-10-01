@@ -2482,3 +2482,51 @@ msgstr "It is the ID already on this PC. Restoring it sets a new passphrase for 
 
 msgid "identity.failure.already_answered"
 msgstr "The site already answered that request, so it was not cancelled. Your links below show what it decided."
+
+msgid "rules.set_length"
+msgstr "Set length"
+
+msgid "rules.set_length.none"
+msgstr "No set length"
+
+msgid "rules.set_length.first_to"
+msgstr "First to {0}"
+
+msgid "rules.set_length.detail"
+msgstr "A set ends when one player wins this many games. With no set length the same two keep playing."
+
+msgid "rules.rotation"
+msgstr "After a set"
+
+msgid "rules.rotation.winner_stays"
+msgstr "Winner stays"
+
+msgid "rules.rotation.loser_stays"
+msgstr "Loser stays"
+
+msgid "rules.rotation.both_rotate"
+msgstr "Both rotate"
+
+msgid "rules.rotation.winner_stays.detail"
+msgstr "King of the hill: the winner keeps the seat and the loser goes to the back of the queue."
+
+msgid "rules.rotation.loser_stays.detail"
+msgstr "The loser keeps the seat and the winner goes to the back of the queue."
+
+msgid "rules.rotation.both_rotate.detail"
+msgstr "Both players go to the back of the queue and the next two sit down."
+
+msgid "rules.rotation.needs_set"
+msgstr "Choose a set length first. With no set length nobody rotates."
+
+msgid "rules.set_summary"
+msgstr "{0}, {1}"
+
+msgid "room.table_set"
+msgstr "Set"
+
+msgid "room.table_footer_set"
+msgstr "{0}, {1}     Queue {2}     Watching {3}"
+
+msgid "room.streak"
+msgstr "{0} sets in a row"

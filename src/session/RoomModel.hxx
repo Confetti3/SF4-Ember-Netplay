@@ -28,7 +28,8 @@ namespace sf4e { namespace room {
 using MemberId = std::uint64_t;
 using ActionId = std::uint64_t;
 
-constexpr std::uint32_t ProtocolVersion = 1;
+// 2: tables end first-to-N sets and rotate their queue.
+constexpr std::uint32_t ProtocolVersion = 2;
 constexpr std::size_t MaximumMembers = MaxMembers;
 constexpr std::size_t MaximumRoomNameBytes = 64;
 constexpr std::size_t MaximumChatMessages = 100;
@@ -163,6 +164,18 @@ struct Member {
     bool spectatorLocked = false;
 };
 
+// The set a table finished last: who sat where for its deciding game, and the
+// final score by seat. The score itself resets for the next set.
+struct SetRecord {
+	std::uint64_t generation = 0;
+	MemberId p1 = 0;
+	MemberId p2 = 0;
+	std::uint32_t score[2] = { 0, 0 };
+	std::uint8_t winnerSeat = 0;
+	MemberId Winner() const { return winnerSeat == 0 ? p1 : p2; }
+	MemberId Loser() const { return winnerSeat == 0 ? p2 : p1; }
+};
+
 struct Table {
 	std::uint8_t id = 0;
 	Rules rules;
@@ -182,6 +195,12 @@ struct Table {
 	// Immutable per-fighter values captured at the Ready quorum boundary.
 	std::uint8_t inputDelay[2] = { 2, 2 };
 	std::uint32_t score[2] = { 0, 0 };
+	// First-to-N tables: the last finished set, and how many sets in a row
+	// streakHolder has won here. The streak ends when its holder loses a set
+	// or stops fighting at this table.
+	SetRecord lastSet;
+	MemberId streakHolder = 0;
+	std::uint32_t streak = 0;
 	bool resultPending = false;
 	// Both fighters are ready and the start is waiting, for at most
 	// SpectatorStartHoldMs, on a locked-in spectator still retiring the
@@ -511,6 +530,11 @@ private:
 	void StopWatching(MemberId member);
 	void SeatQueued(Table& table);
 	void FillVacancy(Table& table, int seat);
+	// A first-to-N table whose score just reached N: records the set, moves the
+	// streak, and sends the rotated fighters to the back of the queue.
+	void CompleteSet(Table& table, int winnerSeat);
+	// Ends a streak whose holder no longer fights at the table.
+	void KeepStreak(Table& table);
 	void RemoveFromTable(MemberId member, bool preserveSpectator = false);
 	// Ready flags and the delay locks that go with them.
 	void ClearReadiness(Table& table);

@@ -2789,3 +2789,51 @@ msgstr "È l'ID già presente su questo PC. Ripristinarlo imposta una nuova pass
 
 msgid "identity.failure.already_answered"
 msgstr "Il sito ha già risposto a questa richiesta, quindi non è stata annullata. I collegamenti qui sotto mostrano cosa ha deciso."
+
+msgid "rules.set_length"
+msgstr "Durata del set"
+
+msgid "rules.set_length.none"
+msgstr "Nessuna durata"
+
+msgid "rules.set_length.first_to"
+msgstr "Primo a {0}"
+
+msgid "rules.set_length.detail"
+msgstr "Un set finisce quando un giocatore vince questo numero di partite. Senza durata, gli stessi due continuano."
+
+msgid "rules.rotation"
+msgstr "Dopo un set"
+
+msgid "rules.rotation.winner_stays"
+msgstr "Resta il vincitore"
+
+msgid "rules.rotation.loser_stays"
+msgstr "Resta il perdente"
+
+msgid "rules.rotation.both_rotate"
+msgstr "Cambiano entrambi"
+
+msgid "rules.rotation.winner_stays.detail"
+msgstr "Re della collina: il vincitore tiene il posto e il perdente torna in fondo alla coda."
+
+msgid "rules.rotation.loser_stays.detail"
+msgstr "Il perdente tiene il posto e il vincitore torna in fondo alla coda."
+
+msgid "rules.rotation.both_rotate.detail"
+msgstr "Entrambi i giocatori tornano in fondo alla coda e si siedono i due successivi."
+
+msgid "rules.rotation.needs_set"
+msgstr "Scegli prima una durata del set. Senza durata nessuno cambia."
+
+msgid "rules.set_summary"
+msgstr "{0}, {1}"
+
+msgid "room.table_set"
+msgstr "Set"
+
+msgid "room.table_footer_set"
+msgstr "{0}, {1}     Coda {2}     Spettatori {3}"
+
+msgid "room.streak"
+msgstr "{0} set di fila"

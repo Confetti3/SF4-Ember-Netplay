@@ -2789,3 +2789,51 @@ msgstr "C'est l'ID déjà présent sur ce PC. La restauration définit une nouve
 
 msgid "identity.failure.already_answered"
 msgstr "Le site a déjà répondu à cette demande, elle n'a donc pas été annulée. Vos associations ci-dessous montrent sa décision."
+
+msgid "rules.set_length"
+msgstr "Longueur du set"
+
+msgid "rules.set_length.none"
+msgstr "Pas de longueur"
+
+msgid "rules.set_length.first_to"
+msgstr "Premier à {0}"
+
+msgid "rules.set_length.detail"
+msgstr "Un set se termine quand un joueur gagne ce nombre de parties. Sans longueur, les deux mêmes continuent."
+
+msgid "rules.rotation"
+msgstr "Après un set"
+
+msgid "rules.rotation.winner_stays"
+msgstr "Le gagnant reste"
+
+msgid "rules.rotation.loser_stays"
+msgstr "Le perdant reste"
+
+msgid "rules.rotation.both_rotate"
+msgstr "Les deux changent"
+
+msgid "rules.rotation.winner_stays.detail"
+msgstr "Roi de la colline : le gagnant garde la place et le perdant retourne au bout de la file."
+
+msgid "rules.rotation.loser_stays.detail"
+msgstr "Le perdant garde la place et le gagnant retourne au bout de la file."
+
+msgid "rules.rotation.both_rotate.detail"
+msgstr "Les deux joueurs retournent au bout de la file et les deux suivants s'assoient."
+
+msgid "rules.rotation.needs_set"
+msgstr "Choisissez d'abord une longueur de set. Sans longueur, personne ne change."
+
+msgid "rules.set_summary"
+msgstr "{0}, {1}"
+
+msgid "room.table_set"
+msgstr "Set"
+
+msgid "room.table_footer_set"
+msgstr "{0}, {1}     File {2}     Spect. {3}"
+
+msgid "room.streak"
+msgstr "{0} sets d'affilée"

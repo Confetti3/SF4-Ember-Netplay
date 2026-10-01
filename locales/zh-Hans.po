@@ -2789,3 +2789,51 @@ msgstr "这就是此电脑上已有的 ID。恢复时会为此电脑设置新密
 
 msgid "identity.failure.already_answered"
 msgstr "网站已回应此请求，因此未能取消。请在下方的绑定列表中查看结果。"
+
+msgid "rules.set_length"
+msgstr "每组局数"
+
+msgid "rules.set_length.none"
+msgstr "不限局数"
+
+msgid "rules.set_length.first_to"
+msgstr "先赢 {0} 局"
+
+msgid "rules.set_length.detail"
+msgstr "一方赢下这么多局时，本组对战结束。不限局数时，同样的两人会继续对战。"
+
+msgid "rules.rotation"
+msgstr "一组结束后"
+
+msgid "rules.rotation.winner_stays"
+msgstr "胜者留下"
+
+msgid "rules.rotation.loser_stays"
+msgstr "败者留下"
+
+msgid "rules.rotation.both_rotate"
+msgstr "双方轮换"
+
+msgid "rules.rotation.winner_stays.detail"
+msgstr "擂台模式：胜者留在席上，败者回到队列末尾。"
+
+msgid "rules.rotation.loser_stays.detail"
+msgstr "败者留在席上，胜者回到队列末尾。"
+
+msgid "rules.rotation.both_rotate.detail"
+msgstr "双方都回到队列末尾，由接下来的两人入座。"
+
+msgid "rules.rotation.needs_set"
+msgstr "请先选择每组局数。不限局数时没有人轮换。"
+
+msgid "rules.set_summary"
+msgstr "{0}，{1}"
+
+msgid "room.table_set"
+msgstr "对战组"
+
+msgid "room.table_footer_set"
+msgstr "{0}，{1}     排队 {2}     观战 {3}"
+
+msgid "room.streak"
+msgstr "连胜 {0} 组"

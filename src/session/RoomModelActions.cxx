@@ -90,10 +90,12 @@ Result RoomAuthority::ApplyAcknowledgeTerminal(MemberId member, const Action& ac
 Result RoomAuthority::ApplySetRules(MemberId member, const Action& action, Table* table) {
 	if (!CanEditRules(member)) return Reject(RejectReason::NotHost);
 	if (table->phase == TablePhase::Playing || table->phase == TablePhase::Ready || table->phase == TablePhase::Paused || !ValidRules(action.rules)) return Reject(RejectReason::InvalidRules);
-	Rules normalized = action.rules;
-	normalized.format = SetFormat::Unlimited;
-	normalized.rotation = RotationMode::WinnerStays;
-	table->rules = normalized; ResetTable(*table, false); return Accept();
+	// A different set length or rotation starts a new set. Round count, time and
+	// edition apply from the next game and keep the score.
+	const bool newSet = action.rules.format != table->rules.format || action.rules.rotation != table->rules.rotation;
+	table->rules = action.rules;
+	if (newSet) { table->streakHolder = 0; table->streak = 0; }
+	ResetTable(*table, newSet); return Accept();
 }
 
 Result RoomAuthority::ApplyQueue(MemberId member, const Action& action, Table* table) {
@@ -150,6 +152,7 @@ Result RoomAuthority::ApplyUnqueue(MemberId member, Table* table) {
 	Touch(*table);
 	NormalizeMemberStatus(member);
 	SeatQueued(*table);
+	KeepStreak(*table);
 	NormalizeMemberStatus(table->p1);
 	NormalizeMemberStatus(table->p2);
 	return Accept();

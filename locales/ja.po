@@ -2789,3 +2789,51 @@ msgstr "このPCにすでにあるIDと同じです。復元するとこのPCの
 
 msgid "identity.failure.already_answered"
 msgstr "サイトがすでにこのリクエストに応答したため、キャンセルされませんでした。下の連携一覧で結果を確認してください。"
+
+msgid "rules.set_length"
+msgstr "セットの長さ"
+
+msgid "rules.set_length.none"
+msgstr "セットなし"
+
+msgid "rules.set_length.first_to"
+msgstr "{0}本先取"
+
+msgid "rules.set_length.detail"
+msgstr "どちらかがこの数だけ勝つとセット終了です。セットなしでは同じ二人が続けて対戦します。"
+
+msgid "rules.rotation"
+msgstr "セット終了後"
+
+msgid "rules.rotation.winner_stays"
+msgstr "勝者残り"
+
+msgid "rules.rotation.loser_stays"
+msgstr "敗者残り"
+
+msgid "rules.rotation.both_rotate"
+msgstr "両者交代"
+
+msgid "rules.rotation.winner_stays.detail"
+msgstr "勝ち抜き戦：勝者が席に残り、敗者は順番待ちの最後に並びます。"
+
+msgid "rules.rotation.loser_stays.detail"
+msgstr "敗者が席に残り、勝者は順番待ちの最後に並びます。"
+
+msgid "rules.rotation.both_rotate.detail"
+msgstr "両者とも順番待ちの最後に並び、次の二人が席に着きます。"
+
+msgid "rules.rotation.needs_set"
+msgstr "先にセットの長さを選んでください。セットなしでは交代しません。"
+
+msgid "rules.set_summary"
+msgstr "{0}、{1}"
+
+msgid "room.table_set"
+msgstr "セット"
+
+msgid "room.table_footer_set"
+msgstr "{0}、{1}     順番待ち{2}     観戦{3}"
+
+msgid "room.streak"
+msgstr "{0}セット連続"

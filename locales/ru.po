@@ -2789,3 +2789,51 @@ msgstr "Этот ID уже есть на этом ПК. Восстановлен
 
 msgid "identity.failure.already_answered"
 msgstr "Сайт уже ответил на этот запрос, поэтому он не отменён. Ваши привязки ниже показывают его решение."
+
+msgid "rules.set_length"
+msgstr "Длина сета"
+
+msgid "rules.set_length.none"
+msgstr "Без длины"
+
+msgid "rules.set_length.first_to"
+msgstr "До {0} побед"
+
+msgid "rules.set_length.detail"
+msgstr "Сет заканчивается, когда игрок выигрывает столько игр. Без длины те же двое продолжают играть."
+
+msgid "rules.rotation"
+msgstr "После сета"
+
+msgid "rules.rotation.winner_stays"
+msgstr "Победитель остаётся"
+
+msgid "rules.rotation.loser_stays"
+msgstr "Проигравший остаётся"
+
+msgid "rules.rotation.both_rotate"
+msgstr "Меняются оба"
+
+msgid "rules.rotation.winner_stays.detail"
+msgstr "Царь горы: победитель остаётся на месте, а проигравший встаёт в конец очереди."
+
+msgid "rules.rotation.loser_stays.detail"
+msgstr "Проигравший остаётся на месте, а победитель встаёт в конец очереди."
+
+msgid "rules.rotation.both_rotate.detail"
+msgstr "Оба игрока встают в конец очереди, а садятся следующие двое."
+
+msgid "rules.rotation.needs_set"
+msgstr "Сначала выберите длину сета. Без неё никто не меняется."
+
+msgid "rules.set_summary"
+msgstr "{0}, {1}"
+
+msgid "room.table_set"
+msgstr "Сет"
+
+msgid "room.table_footer_set"
+msgstr "{0}, {1}     Очередь: {2}     Зрители: {3}"
+
+msgid "room.streak"
+msgstr "Сетов подряд: {0}"

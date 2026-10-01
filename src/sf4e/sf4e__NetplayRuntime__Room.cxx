@@ -208,6 +208,13 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		// one budget and resubmits it here once the gate reopens.
 		const auto publishedShared = GetRuntimeSnapshotShared();
 		const auto& published = *publishedShared;
+		// A set that ended while the press waited can rotate this player into the
+		// queue. The seat is gone, so the press quietly ends with it.
+		if (attempt == Attempt::Retry && published.session.room == netplay::RoomState::Joined &&
+			(published.localSlot < 0 || published.localSlot > 1)) {
+			runtime->readyIntent.Clear();
+			return DispatchOutcome::Dropped;
+		}
 		auto* client = UserApp::netplay ? &UserApp::netplay->client : nullptr;
 		const bool inFlight = runtime->readyIntent.Parked() || runtime->controller.GetSnapshot().readyPending ||
 			(client && (client->_outstandingReadyRequestNumber != -1 ||

@@ -128,7 +128,8 @@ static void TestUnlimitedRematch() {
 		CHECK(authority.Apply(member, queue).accepted);
 	}
 	Action rules = TableAction(authority, host, 0, ActionKind::SetRules);
-	rules.rules.format = SetFormat::Ft1; // normalized to Unlimited by the room
+	rules.rules.format = SetFormat::Unlimited; // no set length: the pair stays seated
+	rules.rules.roundCount = 5; // a rules change that is not a new set
 	CHECK(authority.Apply(host, rules).accepted);
 	const auto before = authority.SnapshotView().tables[0];
 	for (int game = 1; game <= 8; ++game) {

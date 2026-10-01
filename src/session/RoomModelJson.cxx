@@ -290,7 +290,7 @@ void from_json(const nlohmann::json& json, Member& value) {
     value.link = json.contains("link") ? NetworkLinkFromWire(json.at("link").get<long long>()) : NetworkLink::Unknown;
     value.nat = json.contains("nat") ? NatClassFromWire(json.at("nat").get<long long>()) : NatClass::Unknown;
 }
-void to_json(nlohmann::json& json, const Table& value) { json = nlohmann::json{{"id", value.id}, {"rules", value.rules}, {"phase", static_cast<int>(value.phase)}, {"revision", value.revision}, {"match_generation", value.matchGeneration}, {"p1", value.p1}, {"p2", value.p2}, {"queue", value.queue}, {"spectators", value.spectators}, {"watching_next", value.watchingNext}, {"ending_watchers", value.endingWatchers}, {"ready", {value.ready[0], value.ready[1]}}, {"input_delay", {value.inputDelay[0], value.inputDelay[1]}}, {"score", {value.score[0], value.score[1]}}, {"result_pending", value.resultPending}, {"spectator_hold", value.spectatorHold}}; }
+void to_json(nlohmann::json& json, const Table& value) { json = nlohmann::json{{"id", value.id}, {"rules", value.rules}, {"phase", static_cast<int>(value.phase)}, {"revision", value.revision}, {"match_generation", value.matchGeneration}, {"p1", value.p1}, {"p2", value.p2}, {"queue", value.queue}, {"spectators", value.spectators}, {"watching_next", value.watchingNext}, {"ending_watchers", value.endingWatchers}, {"ready", {value.ready[0], value.ready[1]}}, {"input_delay", {value.inputDelay[0], value.inputDelay[1]}}, {"score", {value.score[0], value.score[1]}}, {"result_pending", value.resultPending}, {"spectator_hold", value.spectatorHold}, {"last_set", {{"generation", value.lastSet.generation}, {"p1", value.lastSet.p1}, {"p2", value.lastSet.p2}, {"score", {value.lastSet.score[0], value.lastSet.score[1]}}, {"winner_seat", value.lastSet.winnerSeat}}}, {"streak_holder", value.streakHolder}, {"streak", value.streak}}; }
 void from_json(const nlohmann::json& json, Table& value) {
 	value.id = static_cast<std::uint8_t>(ReadInt(json, "id", 0, static_cast<int>(TableCount - 1)));
 	json.at("rules").get_to(value.rules);
@@ -324,6 +324,21 @@ void from_json(const nlohmann::json& json, Table& value) {
 	if (!json.at("result_pending").is_boolean()) throw std::invalid_argument("room result pending"); value.resultPending = json.at("result_pending").get<bool>();
 	value.spectatorHold = json.contains("spectator_hold") ? json.at("spectator_hold").get<bool>() : false;
 	if (value.spectatorHold && value.phase != TablePhase::Ready) throw std::invalid_argument("room spectator hold");
+	value.lastSet = SetRecord();
+	if (json.contains("last_set")) {
+		const auto& set = json.at("last_set");
+		if (!set.is_object()) throw std::invalid_argument("room last set");
+		value.lastSet.generation = ReadU64(set, "generation");
+		value.lastSet.p1 = ReadU64(set, "p1"); value.lastSet.p2 = ReadU64(set, "p2");
+		const auto setScore = set.at("score"); if (!setScore.is_array() || setScore.size() != 2) throw std::invalid_argument("room last set score");
+		value.lastSet.score[0] = readScore(setScore.at(0)); value.lastSet.score[1] = readScore(setScore.at(1));
+		value.lastSet.winnerSeat = static_cast<std::uint8_t>(ReadInt(set, "winner_seat", 0, 1));
+	}
+	value.streakHolder = json.contains("streak_holder") ? ReadU64(json, "streak_holder") : 0;
+	const auto streak = json.contains("streak") ? ReadU64(json, "streak") : 0;
+	if (streak > (std::numeric_limits<std::uint32_t>::max)()) throw std::out_of_range("room streak");
+	value.streak = static_cast<std::uint32_t>(streak);
+	if (!value.streakHolder) value.streak = 0;
 }
 void to_json(nlohmann::json& json, const ChatMessage& value) { json = nlohmann::json{{"sequence", value.sequence}, {"sender", value.sender}, {"text", value.text}}; }
 void from_json(const nlohmann::json& json, ChatMessage& value) { value.sequence = ReadU64(json, "sequence"); value.sender = ReadU64(json, "sender"); if (!value.sender) throw std::invalid_argument("room chat sender"); value.text = ReadText(json, "text", MaximumChatBytes, false); }
@@ -374,6 +389,12 @@ void from_json(const nlohmann::json& json, Snapshot& value) {
 		for (const auto id : table.watchingNext) if (spectators.count(id)) throw std::invalid_argument("room duplicate watcher");
 		validateList(table.endingWatchers);
 		for (const auto id : table.endingWatchers) if (!spectators.count(id)) throw std::invalid_argument("room ending watcher");
+		// A finished set and a streak describe the past: a member who has since
+		// left is dropped from them rather than refusing the room state.
+		auto& history = value.tables[i];
+		if (!memberIds.count(history.lastSet.p1)) history.lastSet.p1 = 0;
+		if (!memberIds.count(history.lastSet.p2)) history.lastSet.p2 = 0;
+		if (!memberIds.count(history.streakHolder)) { history.streakHolder = 0; history.streak = 0; }
 	}
 	ReadMemberList(json, "chat", value.chat, MaximumChatMessages);
 	if (value.host && !memberIds.count(value.host)) throw std::invalid_argument("room host member"); if (value.localMember && !memberIds.count(value.localMember)) throw std::invalid_argument("room local member");

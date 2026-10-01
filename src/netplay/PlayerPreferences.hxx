@@ -46,7 +46,9 @@ struct PlayerPreferences {
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;
-        if (tableRules.format != room::SetFormat::Unlimited || tableRules.rotation != room::RotationMode::WinnerStays) return false;
+        const auto format = static_cast<int>(tableRules.format);
+        if ((format != 0 && format != 1 && format != 2 && format != 3 && format != 5) ||
+            static_cast<int>(tableRules.rotation) > static_cast<int>(room::RotationMode::BothRotate)) return false;
         LobbySettings battle;
         battle.editionSelect = tableRules.editionSelect;
         battle.roundCount = tableRules.roundCount;

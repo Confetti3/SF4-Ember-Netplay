@@ -202,9 +202,9 @@ int main() {
     sf4e::netplay::PlayerPreferences restored;
     CHECK(sf4e::netplay::ReadRoomPreferences(result, restored));
     CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12 &&
-        restored.tableRules.format == sf4e::room::SetFormat::Unlimited && restored.tableRules.rotation == sf4e::room::RotationMode::WinnerStays);
+        restored.tableRules.format == sf4e::room::SetFormat::Ft5 && restored.tableRules.rotation == sf4e::room::RotationMode::BothRotate);
     for (const Json& invalid : {Json{{"capacity", 17}}, Json{{"capacity", 258}}, Json{{"capacity", 2.5}},
-        Json{{"format", 257}}, Json{{"rotation", -1}}, Json{{"name", std::string(65, 'x')}}}) {
+        Json{{"format", 257}}, Json{{"format", 4}}, Json{{"rotation", -1}}, Json{{"rotation", 3}}, Json{{"name", std::string(65, 'x')}}}) {
         CHECK(!sf4e::netplay::ReadRoomPreferences({{"roomDefaults", invalid}}, restored));
         CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12);
     }

@@ -2789,3 +2789,51 @@ msgstr "Das ist die ID, die schon auf diesem PC ist. Beim Wiederherstellen legen
 
 msgid "identity.failure.already_answered"
 msgstr "Die Seite hat diese Anfrage bereits beantwortet, sie wurde also nicht abgebrochen. Ihre Verknüpfungen unten zeigen das Ergebnis."
+
+msgid "rules.set_length"
+msgstr "Satzlänge"
+
+msgid "rules.set_length.none"
+msgstr "Keine Satzlänge"
+
+msgid "rules.set_length.first_to"
+msgstr "Wer zuerst {0} gewinnt"
+
+msgid "rules.set_length.detail"
+msgstr "Ein Satz endet, wenn ein Spieler so viele Spiele gewinnt. Ohne Satzlänge spielen dieselben zwei weiter."
+
+msgid "rules.rotation"
+msgstr "Nach einem Satz"
+
+msgid "rules.rotation.winner_stays"
+msgstr "Sieger bleibt"
+
+msgid "rules.rotation.loser_stays"
+msgstr "Verlierer bleibt"
+
+msgid "rules.rotation.both_rotate"
+msgstr "Beide wechseln"
+
+msgid "rules.rotation.winner_stays.detail"
+msgstr "King of the Hill: Der Sieger behält den Platz, der Verlierer stellt sich hinten in der Warteschlange an."
+
+msgid "rules.rotation.loser_stays.detail"
+msgstr "Der Verlierer behält den Platz, der Sieger stellt sich hinten in der Warteschlange an."
+
+msgid "rules.rotation.both_rotate.detail"
+msgstr "Beide stellen sich hinten in der Warteschlange an, die nächsten zwei setzen sich."
+
+msgid "rules.rotation.needs_set"
+msgstr "Wähle zuerst eine Satzlänge. Ohne Satzlänge wechselt niemand."
+
+msgid "rules.set_summary"
+msgstr "{0}, {1}"
+
+msgid "room.table_set"
+msgstr "Satz"
+
+msgid "room.table_footer_set"
+msgstr "{0}, {1}     Warteschlange {2}     Zuschauer {3}"
+
+msgid "room.streak"
+msgstr "{0} Sätze in Folge"

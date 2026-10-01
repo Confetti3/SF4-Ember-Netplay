@@ -2366,3 +2366,51 @@ msgstr "É o ID que já está neste PC. Restaurá-lo define uma nova senha para 
 
 msgid "identity.failure.already_answered"
 msgstr "O site já respondeu a essa solicitação, então ela não foi cancelada. Seus vínculos abaixo mostram o que ele decidiu."
+
+msgid "rules.set_length"
+msgstr "Duração do set"
+
+msgid "rules.set_length.none"
+msgstr "Sem duração"
+
+msgid "rules.set_length.first_to"
+msgstr "Primeiro a {0}"
+
+msgid "rules.set_length.detail"
+msgstr "Um set termina quando um jogador vence essa quantidade de partidas. Sem duração, os mesmos dois continuam jogando."
+
+msgid "rules.rotation"
+msgstr "Depois de um set"
+
+msgid "rules.rotation.winner_stays"
+msgstr "Vencedor fica"
+
+msgid "rules.rotation.loser_stays"
+msgstr "Perdedor fica"
+
+msgid "rules.rotation.both_rotate"
+msgstr "Os dois trocam"
+
+msgid "rules.rotation.winner_stays.detail"
+msgstr "Rei da colina: o vencedor mantém o lugar e o perdedor volta para o fim da fila."
+
+msgid "rules.rotation.loser_stays.detail"
+msgstr "O perdedor mantém o lugar e o vencedor volta para o fim da fila."
+
+msgid "rules.rotation.both_rotate.detail"
+msgstr "Os dois jogadores voltam para o fim da fila e os dois seguintes se sentam."
+
+msgid "rules.rotation.needs_set"
+msgstr "Escolha primeiro uma duração de set. Sem duração, ninguém troca."
+
+msgid "rules.set_summary"
+msgstr "{0}, {1}"
+
+msgid "room.table_set"
+msgstr "Set"
+
+msgid "room.table_footer_set"
+msgstr "{0}, {1}     Fila {2}     Assistindo {3}"
+
+msgid "room.streak"
+msgstr "{0} sets seguidos"

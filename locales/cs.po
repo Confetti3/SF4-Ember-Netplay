@@ -2789,3 +2789,51 @@ msgstr "Toto ID už v tomto počítači je. Obnovením nastavíte nové heslo pr
 
 msgid "identity.failure.already_answered"
 msgstr "Web na tuto žádost už odpověděl, takže nebyla zrušena. Vaše propojení níže ukazují, jak rozhodl."
+
+msgid "rules.set_length"
+msgstr "Délka setu"
+
+msgid "rules.set_length.none"
+msgstr "Bez délky"
+
+msgid "rules.set_length.first_to"
+msgstr "Do {0} výher"
+
+msgid "rules.set_length.detail"
+msgstr "Set skončí, když hráč vyhraje tolik her. Bez délky hrají dál stejní dva."
+
+msgid "rules.rotation"
+msgstr "Po setu"
+
+msgid "rules.rotation.winner_stays"
+msgstr "Vítěz zůstává"
+
+msgid "rules.rotation.loser_stays"
+msgstr "Poražený zůstává"
+
+msgid "rules.rotation.both_rotate"
+msgstr "Střídají se oba"
+
+msgid "rules.rotation.winner_stays.detail"
+msgstr "Král kopce: vítěz si nechá místo a poražený jde na konec fronty."
+
+msgid "rules.rotation.loser_stays.detail"
+msgstr "Poražený si nechá místo a vítěz jde na konec fronty."
+
+msgid "rules.rotation.both_rotate.detail"
+msgstr "Oba hráči jdou na konec fronty a usednou další dva."
+
+msgid "rules.rotation.needs_set"
+msgstr "Nejprve zvolte délku setu. Bez ní se nikdo nestřídá."
+
+msgid "rules.set_summary"
+msgstr "{0}, {1}"
+
+msgid "room.table_set"
+msgstr "Set"
+
+msgid "room.table_footer_set"
+msgstr "{0}, {1}     Fronta: {2}     Sleduje: {3}"
+
+msgid "room.streak"
+msgstr "Sety v řadě: {0}"
