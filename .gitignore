@@ -14,6 +14,8 @@
 /rust/ember/target/
 /sdk/typescript/node_modules/
 /sdk/typescript/dist/
+# Local bridge and notifier state from docs/guides/INTEGRATIONS.md: holds secrets.
+/bridge-dev/
 debug-*.log
 debug-screenshots/
 benchmark-results/
