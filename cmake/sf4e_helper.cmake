@@ -45,6 +45,13 @@ if(WIN32)
                     "${SF4E_CARGO_EXECUTABLE}" test --locked --target x86_64-pc-windows-msvc
                 WORKING_DIRECTORY "${SF4E_HELPER_SOURCE}")
             set_tests_properties(HelperRust PROPERTIES TIMEOUT 1800)
+            # The identity protocol and tournament bridge workspace. The bridge
+            # is not shipped to players; its tests still gate the build.
+            add_test(NAME EmberRust
+                COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-ember-target"
+                    "${SF4E_CARGO_EXECUTABLE}" test --locked
+                WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/rust/ember")
+            set_tests_properties(EmberRust PROPERTIES TIMEOUT 1800)
         endif()
     endif()
 endif()

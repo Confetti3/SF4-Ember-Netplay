@@ -9,6 +9,9 @@ use crate::{
 pub const SPEC_VERSION: &str = "1.0";
 pub const NAMESPACE: &str = "io.ember.";
 pub const CONTENT_TYPE: &str = "application/json";
+/// `dataschema` prefix for events this bridge writes. A URN keeps the value
+/// valid whatever origin the bridge is deployed at.
+pub const SCHEMA_PREFIX: &str = "urn:ember:identity-tournament:v1:";
 const MAX_TYPE: usize = 160;
 const MAX_SUBJECT: usize = 256;
 
@@ -138,7 +141,12 @@ impl Event {
             ),
             (is_rfc3339_utc(&self.time), "time"),
             (self.datacontenttype == CONTENT_TYPE, "datacontenttype"),
-            (self.dataschema.starts_with("https://"), "dataschema"),
+            (
+                self.dataschema.len() <= 512
+                    && (self.dataschema.starts_with("https://")
+                        || self.dataschema.starts_with("urn:")),
+                "dataschema",
+            ),
             (self.emberseq.is_positive(), "emberseq"),
         ];
         match fields.iter().find(|(ok, _)| !ok) {
