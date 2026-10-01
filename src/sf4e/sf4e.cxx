@@ -16,6 +16,7 @@
 #include "sf4e__Platform.hxx"
 #include "sf4e__UserApp.hxx"
 #include "sf4e__NetplayFacade.hxx"
+#include "../common/MementoGuards.hxx"
 
 std::mt19937 sf4e::localRand;
 std::string sf4e::sidecarHash;
@@ -385,6 +386,11 @@ void fTaskCore::RecordToAdditionalMemento(rTaskCore* c, AdditionalMemento& m) {
 }
 
 void fTaskCore::RestoreFromAdditionalMemento(rTaskCore* c, const AdditionalMemento& m) {
+	if (!sf4e::memento::ValidTaskCount(m.numUsed, MAX_TASKS_PER_CORE)) {
+		spdlog::error("Rollback: restoring task count {} outside core capacity {}", m.numUsed, MAX_TASKS_PER_CORE);
+		sf4e::Game::MementoFailure::restore = true;
+		return;
+	}
 	rTask* cursor;
 	for (
 		cursor = rTaskCore::GetTaskHead(c);

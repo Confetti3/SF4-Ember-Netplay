@@ -8,6 +8,7 @@
 #include "../Dimps/Dimps__Game.hxx"
 #include "sf4e__Game.hxx"
 #include "sf4e__Game__Battle.hxx"
+#include "sf4e__MementoGuards.hxx"
 
 namespace rGame = Dimps::Game;
 using rSpriteNode = Dimps::Eva::IEmSpriteNode;
@@ -36,11 +37,15 @@ void fKey::Install() {
 }
 
 void fKey::Initialize(void* mementoable, int numMementos) {
+    // Initialize clears its previous payload internally. Check here too so
+    // ownership enforcement does not depend on that native call's routing.
+    sf4e::memento::NoteEngineClear(this, "initialize");
     (this->*rKey::publicMethods.Initialize)(mementoable, numMementos);
     trackedKeys.insert(this);
 }
 
 void fKey::ClearKey() {
+    sf4e::memento::NoteEngineClear(this, "clear");
     (this->*rKey::publicMethods.ClearKey)();
     trackedKeys.erase((rKey*)this);
 }

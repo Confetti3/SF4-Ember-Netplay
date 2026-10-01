@@ -1,5 +1,6 @@
 #include "sf4e__Game__Battle__System__Internal.hxx"
 #include "../common/SpectatorCatchUp.hxx"
+#include "sf4e__MementoGuards.hxx"
 
 // Native result state is captured in GGPO saves, including resimulation. The
 // history is rewound to each restored state; the emitted latch is deliberately
@@ -153,23 +154,33 @@ static int NoticePlayers(rSystem* system, bool& failure) {
     return simulated < slots ? simulated : slots;
 }
 
+static bool s_systemMementoLayoutValid = true;
+
 int fSystem::GetMementoSize() {
     const int native = (this->*rSystem::mementoableMethods.GetMementoSize)();
+    s_systemMementoLayoutValid = native == static_cast<int>(sizeof(Memento));
+    if (!s_systemMementoLayoutValid) sf4e::Game::MementoFailure::record = true;
     // The additional memento is placed right after sizeof(Memento) bytes. A
     // native memento of another size would put it past the allocation (smaller)
-    // or over the engine's own data (larger). Said once, on the first real query.
+    // or over the engine's own data (larger). Reject that layout before record.
     static bool noted = false;
-    if (!noted) {
+    static bool notedMismatch = false;
+    if (!s_systemMementoLayoutValid && !notedMismatch) {
+        notedMismatch = true;
+        spdlog::error("System memento: the engine's is {:#x} bytes, but the additional memento is placed after {:#x}; record refused",
+            native, sizeof(Memento));
+    } else if (s_systemMementoLayoutValid && !noted) {
         noted = true;
-        if (native != static_cast<int>(sizeof(Memento)))
-            spdlog::error("System memento: the engine's is {:#x} bytes, but the additional memento is placed after {:#x}",
-                native, sizeof(Memento));
-        else spdlog::info("System memento: {:#x} bytes plus {:#x} additional", native, sizeof(AdditionalMemento));
+        spdlog::info("System memento: {:#x} bytes plus {:#x} additional", native, sizeof(AdditionalMemento));
     }
     return native + sizeof(AdditionalMemento);
 }
 
 int fSystem::RecordToMemento(Memento* m, GameMementoKey::MementoID* id) {
+    if (!s_systemMementoLayoutValid) {
+        sf4e::Game::MementoFailure::record = true;
+        return 0;
+    }
     AdditionalMemento* additional = (AdditionalMemento*)((unsigned int)m + sizeof(Memento));
     rSystem* _this = rSystem::FromMementoable(this);
     additional->nFirstCharaToSimulate = *rSystem::GetFirstCharaToSimulate(_this);
@@ -207,6 +218,10 @@ int fSystem::RecordToMemento(Memento* m, GameMementoKey::MementoID* id) {
 }
 
 int fSystem::RestoreFromMemento(Memento* m, GameMementoKey::MementoID* id) {
+    if (!s_systemMementoLayoutValid) {
+        sf4e::Game::MementoFailure::restore = true;
+        return 0;
+    }
     AdditionalMemento* additional = (AdditionalMemento*)((unsigned int)m + sizeof(Memento));
     rSystem* _this = rSystem::FromMementoable(this);
     *rSystem::GetFirstCharaToSimulate(_this) = additional->nFirstCharaToSimulate;
@@ -406,6 +421,7 @@ static void CatchUpSpectator(rSystem* system) {
 }
 
 void fSystem::BattleUpdate() {
+    sf4e::memento::DrainAbort();
     rSystem* _this = (rSystem*)this;
     rSystem::__publicMethods& sysMethods = rSystem::publicMethods;
     rPadSystem* p = rPadSystem::staticMethods.GetSingleton();
@@ -652,6 +668,8 @@ void fSystem::CloseBattle() {
         EmitRollbackDiagSummary("battle_close_deferred");
     }
     (_this->*rSystem::publicMethods.CloseBattle)();
+    sf4e::memento::LogCounters("battle_close_exit");
+    sf4e::memento::ResetCounters();
     ResetNativeResultMatch();
 
     // If the room was lost mid-fight (degraded mode), the fight is now

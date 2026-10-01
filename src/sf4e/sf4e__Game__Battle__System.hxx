@@ -130,6 +130,10 @@ namespace sf4e {
 					// swap release clears the payloads itself and then drops
 					// the claim the same way. See fSystem::SaveState::Free.
 					bool ownsKeys = true;
+					bool keyFailure = false;
+					// Payload claims this state holds in the memento guard's
+					// ownership table (sf4e::memento::PayloadOwners).
+					size_t guardClaims = 0;
 
 					// Frame identity (v2). simulationFrame is the engine
 					// frames-simulated count; ggpoFrame is GGPO's frame

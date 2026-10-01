@@ -49,6 +49,26 @@ To turn on rollback diagnostics, open Command Prompt in the Ember folder, run `s
 
 `Recovery checkpoint builds` counts checkpoint serialization attempts during the lifetime of the current hosted room. A value of zero means that the available room counter observed no builds; `Unavailable` means there was no hosted-room counter to read, so it must not be interpreted as zero. Starting a different hosted room starts a different counter lifetime.
 
+## Heap checkpoints for testers
+
+For a heap-corruption test, close Ember and the game, then open
+`%APPDATA%\sf4e\settings.json` in a text editor. Add or merge this object
+inside the existing `overlay` section, preserving the other preferences:
+
+```json
+"diagnostics": { "heapCheckInterval": 1 }
+```
+
+Restart Ember. `sf4e.log` should show `HeapCheck: validating every process
+heap` with `(settings.json)`. The interval is the number of save-state
+operations between checks; `1` checks every save, load and release. Match
+boundaries are also checked. A check can take milliseconds and affect match
+performance, so use this only for reproducing a problem. Set the interval to
+`0` or remove the key and restart to disable it. The existing
+`SF4E_HEAP_CHECK=<n>` environment variable still works and takes precedence,
+including `SF4E_HEAP_CHECK=0` to disable checks. A failed checkpoint reports
+the operation and frame in `sf4e.log`; collect the whole logs folder.
+
 ## Send a useful report
 
 Include:

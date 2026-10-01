@@ -15,6 +15,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include "MementoGuards.hxx"
 
 namespace sf4e { namespace afterimage {
 
@@ -31,9 +32,9 @@ constexpr int kActorLists = 5;
 constexpr size_t kActorCountsOffset = 4;
 // GameMementoKey::Initialize (0x52FD40) allocates numMementos * (size + 12):
 // each slot's memento, then a 12-byte metadata entry per slot.
-constexpr uint64_t kMetadataBytes = 12;
+constexpr uint64_t kMetadataBytes = memento::kMetadataBytes;
 // The engine only ever uses one slot per key; this bounds a corrupt count.
-constexpr int64_t kMaxMementos = 64;
+constexpr int64_t kMaxMementos = memento::kMaxMementos;
 
 // Afterimage's own restore (0x562100) copies its state, 0x6870 bytes from
 // memento +16 into object +676, then restores its pose ring from memento
@@ -80,6 +81,8 @@ struct SlotView {
 		if (numMementos <= 0 || numMementos > kMaxMementos) return Reject(slot, "memento count out of range");
 		if (!listed || listedCount != uint64_t(numMementos)) return Reject(slot, "metadata does not match the memento count");
 		if (sizeAllocated <= 0 || sizeAllocated % numMementos != 0) return Reject(slot, "allocation is not whole slots");
+		if (!memento::ContainsBytes(reinterpret_cast<uintptr_t>(mementos), uint64_t(sizeAllocated),
+			reinterpret_cast<uintptr_t>(m), sizeof(uintptr_t))) return Reject(slot, "memento outside allocation");
 		const uint64_t perSlot = uint64_t(sizeAllocated / numMementos);
 		if (perSlot < kMetadataBytes + kNativeFixedBytes + kTrailerBytes) return Reject(slot, "slot smaller than the fixed memento");
 		const uint64_t size = perSlot - kMetadataBytes;

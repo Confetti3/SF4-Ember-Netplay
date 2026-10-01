@@ -300,6 +300,22 @@ void TestClientWithoutChannelDeclines() {
 
 int main(int argc, char** argv) {
 	if (argc == 7 && std::string(argv[1]) == "child") return RunChild(argv);
+	if (argc == 2 && std::string(argv[1]) == "heap-check-settings") {
+		CHECK(SetEnvironmentVariableA("SF4E_HEAP_CHECK", nullptr));
+		CHECK(!HeapCheckEnabled());
+		ConfigureHeapCheck(1);
+		CHECK(HeapCheckEnabled());
+		HeapCheckpoint("settings-test", 1);
+		ConfigureHeapCheck(0);
+		CHECK(!HeapCheckEnabled());
+		return 0;
+	}
+	if (argc == 2 && std::string(argv[1]) == "heap-check-environment") {
+		CHECK(SetEnvironmentVariableA("SF4E_HEAP_CHECK", "0"));
+		ConfigureHeapCheck(1);
+		CHECK(!HeapCheckEnabled());
+		return 0;
+	}
 	TestClientWithoutChannelDeclines();
 	TestEveryDumpIsKeptAndBadRequestsRefused();
 	TestHeapDumpsAreKeptApart();

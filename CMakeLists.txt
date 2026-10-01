@@ -71,6 +71,10 @@ if(BUILD_TESTING)
     target_compile_features(AfterimageMementoTest PRIVATE cxx_std_14)
     add_test(NAME AfterimageMemento COMMAND AfterimageMementoTest)
     set_tests_properties(AfterimageMemento PROPERTIES TIMEOUT 15)
+    add_executable(MementoGuardsTest "src/tests/memento_guards_test.cxx")
+    target_compile_features(MementoGuardsTest PRIVATE cxx_std_14)
+    add_test(NAME MementoGuards COMMAND MementoGuardsTest)
+    set_tests_properties(MementoGuards PROPERTIES TIMEOUT 15)
     # The recorder layout is the 32-bit engine's.
     if(CMAKE_SIZEOF_VOID_P EQUAL 4)
         add_executable(ReplayRecorderTest "src/tests/replay_recorder_test.cxx")
@@ -113,6 +117,8 @@ if(BUILD_TESTING)
     target_compile_features(HeapCorruptionCaptureTest PRIVATE cxx_std_17)
     target_link_libraries(HeapCorruptionCaptureTest PRIVATE spdlog::spdlog ggpo::GGPO "dbghelp" "psapi" "shlwapi")
     add_test(NAME HeapCorruptionCapture COMMAND HeapCorruptionCaptureTest)
+    add_test(NAME HeapCheckSettings COMMAND HeapCorruptionCaptureTest heap-check-settings)
+    add_test(NAME HeapCheckEnvironment COMMAND HeapCorruptionCaptureTest heap-check-environment)
     set_tests_properties(HeapCorruptionCapture PROPERTIES TIMEOUT 90)
 endif()
 
@@ -399,6 +405,7 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__Game__Battle__System__Ggpo.cxx"
     "src/sf4e/sf4e__Game__Battle__System__RollbackStress.cxx"
     "src/sf4e/sf4e__Game__Battle__System__SaveState.cxx"
+    "src/sf4e/sf4e__MementoGuards.cxx"
     "src/sf4e/sf4e__Game__Battle__Vfx.hxx"
     "src/sf4e/sf4e__Game__Battle__Vfx.cxx"
     "src/sf4e/sf4e__GameEvents.hxx"

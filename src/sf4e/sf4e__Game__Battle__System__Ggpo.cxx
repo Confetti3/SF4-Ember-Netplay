@@ -1,6 +1,7 @@
 // GGPO session lifecycle, callbacks, spectator policy and pacing for
 // sf4e::Game::Battle::System. Split from sf4e__Game__Battle__System.cxx.
 #include "sf4e__Game__Battle__System__Internal.hxx"
+#include "sf4e__MementoGuards.hxx"
 #include "../common/GgpoDisconnectTolerance.hxx"
 #include "../common/SpectatorCatchUp.hxx"
 #include <atomic>
@@ -227,6 +228,7 @@ void fSystem::RetireGgpoSession(const char* diagnosticsLabel) {
         ggpo_close_session(ggpo);
         ggpo = nullptr;
         s_abortLatch.Reset();
+        sf4e::memento::DiscardPendingAbort();
         s_disconnectTimeoutMs = 0;
         // An Error says why the session ended (peer disconnected, stream
         // dropped, desync) and outlives it until a newer notice or the next
@@ -362,6 +364,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     s_lastDisconnectFlags = 0;
     s_disconnectTimeoutMs = 0;
     s_abortLatch.Reset();
+    sf4e::memento::DiscardPendingAbort();
     localPlayerHandle = GGPO_INVALID_HANDLE;
     lastGgpoSaveFrame = -1;
 
@@ -462,6 +465,7 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
     s_lastDisconnectFlags = 0;
     s_disconnectTimeoutMs = 0;
     s_abortLatch.Reset();
+    sf4e::memento::DiscardPendingAbort();
     // No fighter handles on a spectator client; stale ones from an earlier
     // match must not classify the host stream's events.
     for (auto& player : players) { player = {}; player.handle = GGPO_INVALID_HANDLE; }

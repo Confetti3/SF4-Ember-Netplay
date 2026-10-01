@@ -1,5 +1,6 @@
 // sf4e::Game::Battle::System: save states, semantic state hashing and snapshot capture.
 #include "sf4e__Game__Battle__System__Internal.hxx"
+#include "sf4e__MementoGuards.hxx"
 
 // SaveState operations mutate live engine objects (memento record/restore,
 // key clearing) and are only valid on the game main thread — the thread that
@@ -289,6 +290,11 @@ static auto FindSavedEntry(Entries& entries, Key key, size_t& cursor) -> decltyp
 }
 
 void CopyIntoPlace(fSystem::SaveState* src) {
+    sf4e::memento::RestoreScope restoreScope;
+    if (src->keyFailure) {
+        sf4e::Game::MementoFailure::restore = true;
+        return;
+    }
     rSystem* system = rSystem::staticMethods.GetSingleton();
 
     *rSystem::staticVars.CurrentBattleFlow = src->d.CurrentBattleFlow;
@@ -330,11 +336,13 @@ void CopyIntoPlace(fSystem::SaveState* src) {
 
     // Place each memento key back into its position.
     for (auto iter = src->keys.begin(); iter != src->keys.end(); iter++) {
+        if (!sf4e::memento::CheckKeyWrite(src, iter->first, iter->second, "load.install", true)) continue;
         *iter->first = iter->second;
     }
 
     // Force the system to reload from the replaced mementos.
-    fSystem::RestoreAllFromInternalMementos(system, &GGPO_MEMENTO_ID);
+    if (!sf4e::Game::MementoFailure::restore)
+        fSystem::RestoreAllFromInternalMementos(system, &GGPO_MEMENTO_ID);
 }
 
 void Clear(fSystem::SaveState* victim) {
@@ -344,14 +352,20 @@ void Clear(fSystem::SaveState* victim) {
     // would be a double free.
     if (victim->ownsKeys) {
         for (auto iter = victim->keys.begin(); iter != victim->keys.end(); iter++) {
-            if (iter->first) {
+            if (!(victim->keyFailure && !iter->second.mementos) &&
+                sf4e::memento::CheckKeyWrite(victim, iter->first, iter->second, "clear.release", false) &&
+                sf4e::memento::CheckRelease(victim, iter->first, iter->second, "clear.release")) {
+                sf4e::memento::ForgetPayload(victim, iter->second.mementos);
                 (iter->first->*rKey::publicMethods.ClearKey)();
-                memset(iter->first, 0, sizeof(rKey));
+                if (sf4e::memento::CheckKeyWrite(victim, iter->first, iter->second, "clear.zero", false))
+                    memset(iter->first, 0, sizeof(rKey));
             }
         }
     }
+    sf4e::memento::ForgetPayloads(victim);
     victim->keys.clear();
     victim->ownsKeys = true;
+    victim->keyFailure = false;
 
     // Restore all non-memento-key state to a sane default. Slot reuse must
     // also reset frame metadata so a stale callback identity can never be
@@ -461,45 +475,6 @@ static uint64_t HashLiveStateForFreeCheck(bool includeKeys) {
     return hasher.Value();
 }
 
-// The swap release and a load both write saved keys back to their
-// addresses, which assumes those keys still exist (SAVESTATE_FREE.md). A key
-// the engine has cleared since the save no longer does; its object may be
-// gone, and writing to it would corrupt the heap. Say so once per process,
-// so a field log shows whether that assumption ever breaks.
-static void NoteUntrackedKeys(const fSystem::SaveState* state, const char* operation) {
-    static bool s_noted = false;
-    // It is on in every build, for field logs, so it samples one call in 30
-    // of each kind, a release or a load, each about 90 set lookups.
-    static unsigned s_releases = 0, s_loads = 0;
-    if (++(operation[0] == 'r' ? s_releases : s_loads) % 30 != 0) {
-        return;
-    }
-    // Battle close frees every slot while the engine tears its objects down;
-    // keys gone then are expected and must not spend the one note.
-    if (s_noted || fSystem::simGate.phase == sf4e::gate::PHASE_BATTLE_CLOSING) {
-        return;
-    }
-    size_t untracked = 0;
-    for (const auto& entry : state->keys) {
-        if (entry.first && fKey::trackedKeys.find(entry.first) == fKey::trackedKeys.end()) {
-            ++untracked;
-        }
-    }
-    if (!untracked) {
-        return;
-    }
-    s_noted = true;
-    spdlog::error(
-        "SaveState: {} of {} saved keys are no longer tracked by the engine at {} (simFrame={} ggpoFrame={} live={})",
-        untracked,
-        state->keys.size(),
-        operation,
-        state->simulationFrame,
-        state->ggpoFrame,
-        SimulatedFrame()
-    );
-}
-
 // Default release. The engine's ClearKey (0x52F3D0) uses the live mementoable
 // object only to find its vtable, and every memento destructor it reaches
 // touches memento-owned memory alone (docs/design/SAVESTATE_FREE.md). So the victim's
@@ -508,17 +483,20 @@ static void NoteUntrackedKeys(const fSystem::SaveState* state, const char* opera
 static void FreeBySwap(fSystem::SaveState* victim) {
     diag::ScopedTimer _t(diag::OP_FREE_SWAP);
     if (victim->ownsKeys) {
-        NoteUntrackedKeys(victim, "release");
         for (auto& entry : victim->keys) {
-            if (!entry.first) {
+            if (!entry.first || (victim->keyFailure && !entry.second.mementos)) {
                 continue;
             }
+            if (!sf4e::memento::CheckKeyWrite(victim, entry.first, entry.second, "free.install", false) ||
+                !sf4e::memento::CheckRelease(victim, entry.first, entry.second, "free.release")) continue;
             const rKey live = *entry.first;
             *entry.first = entry.second;
             // The original engine function, not the tracking detour: the
             // address still belongs to a live, tracked key.
+            sf4e::memento::ForgetPayload(victim, entry.second.mementos);
             (entry.first->*rKey::publicMethods.ClearKey)();
-            *entry.first = live;
+            if (sf4e::memento::CheckKeyWrite(victim, entry.first, live, "free.restore", false))
+                *entry.first = live;
         }
     }
     // The payloads were released above; Clear must only drop the records.
@@ -565,7 +543,14 @@ void fSystem::SaveState::Free(SaveState* victim) {
 
 // v0.8.5 release, kept for SF4E_LEGACY_SAVESTATE_FREE A/B comparison.
 void fSystem::SaveState::FreeByRoundTrip(SaveState* victim) {
+    // The round trip restores the victim before releasing it, so a descriptor
+    // that would fail release validation must not be installed at all.
+    if (victim->keyFailure || !sf4e::memento::AllReleasable(victim)) {
+        FreeBySwap(victim);
+        return;
+    }
     SaveState tmp;
+    sf4e::Game::MementoFailure::restore = false;
 
     {
         diag::ScopedTimer _t(diag::OP_FREE_TMP_SAVE);
@@ -592,6 +577,7 @@ void fSystem::SaveState::FreeByRoundTrip(SaveState* victim) {
         diag::ScopedTimer _t(diag::OP_FREE_VICTIM_INSTALL);
         CopyIntoPlace(victim);
     }
+    const bool victimRestoreFailed = sf4e::Game::MementoFailure::restore;
     {
         diag::ScopedTimer _t(diag::OP_FREE_CLEAR);
         Clear(victim);
@@ -611,13 +597,15 @@ void fSystem::SaveState::FreeByRoundTrip(SaveState* victim) {
         diag::ScopedTimer _t(diag::OP_FREE_LIVE_RESTORE);
         sf4e::Game::MementoFailure::restore = false;
         CopyIntoPlace(&tmp);
+        sf4e::memento::ForgetPayloads(&tmp);
         tmp.ownsKeys = false;
         tmp.keys.clear();
     }
-    if (sf4e::Game::MementoFailure::restore) {
+    if (victimRestoreFailed || sf4e::Game::MementoFailure::restore) {
         // The live battle did not come back whole; it cannot be played on
         // (ledger A-001). Only this legacy A/B release restores live state.
         spdlog::error("SaveState: round-trip release could not restore the live battle; leaving it");
+        sf4e::memento::RequestAbort();
         if (rSystem* system = rSystem::staticMethods.GetSingleton())
             *rSystem::GetReadyState(system) = rSystem::RS_ISLEAVING;
     }
@@ -626,6 +614,9 @@ void fSystem::SaveState::FreeByRoundTrip(SaveState* victim) {
 bool fSystem::SaveState::Load(SaveState* src) {
     diag::ScopedTimer _loadTimer(diag::OP_LOAD_TOTAL);
     AssertSaveStateThreadAffinity();
+    sf4e::memento::RestoreScope restoreScope;
+    sf4e::Game::MementoFailure::restore = src->keyFailure;
+    if (src->keyFailure) return false;
     // The replay recorder appends a record per battle update, so it rewinds
     // with the timeline. It goes first: a state from another session is
     // refused before any live state changes.
@@ -666,8 +657,6 @@ bool fSystem::SaveState::Load(SaveState* src) {
         }
     }
 
-    NoteUntrackedKeys(src, "load");
-    sf4e::Game::MementoFailure::restore = false;
     {
         diag::ScopedTimer _t(diag::OP_LOAD_COPY_INTO_PLACE);
         CopyIntoPlace(src);
@@ -692,14 +681,15 @@ bool fSystem::SaveState::Load(SaveState* src) {
     // keys that existed in the state when load was called, so this
     // function can't iterate over the existing tracked keys.
     for (auto iter = src->keys.begin(); iter != src->keys.end(); iter++) {
-        if (iter->first) {
+        if (sf4e::memento::CheckKeyWrite(src, iter->first, iter->second, "load.zero", true)) {
             memset(iter->first, 0, sizeof(rKey));
         }
     }
 
     // Finally, restore the original state of all tracked keys.
     for (auto iter = tmpVec.begin(); iter != tmpVec.end(); iter++) {
-        *iter->first = iter->second;
+        if (sf4e::memento::CheckKeyWrite(src, iter->first, iter->second, "load.restore", true))
+            *iter->first = iter->second;
     }
     if (sf4e::crash::HeapCheckEnabled()) sf4e::crash::HeapCheckpoint("load", src->simulationFrame);
     return !sf4e::Game::MementoFailure::restore;
@@ -729,6 +719,8 @@ bool fSystem::SaveState::Save(SaveState* dst, bool temporary) {
 
     dst->used = true;
     dst->ownsKeys = true;
+    dst->keyFailure = false;
+    dst->simulationFrame = SimulatedFrame();
 
     sf4e::Game::MementoFailure::record = false;
     {
@@ -749,6 +741,7 @@ bool fSystem::SaveState::Save(SaveState* dst, bool temporary) {
             memset(*iter, 0, sizeof(rKey));
         }
     }
+    sf4e::memento::RegisterPayloads(dst);
     if (sf4e::Game::MementoFailure::record) {
         // Release the incomplete snapshot now (the default swap release,
         // never the round trip, which would save again). An unused slot is

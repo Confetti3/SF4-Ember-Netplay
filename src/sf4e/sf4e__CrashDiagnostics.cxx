@@ -183,6 +183,7 @@ sf4e::crash::AddressSpaceSummary WalkAddressSpace() {
 
 struct HeapCheck {
 	unsigned interval = 0;
+	bool environmentSet = false;
 	unsigned count = 0;
 	bool failed = false;
 	const char* lastOperation = "start";
@@ -194,6 +195,7 @@ HeapCheck& HeapCheckState() {
 		HeapCheck value;
 		char text[16] = {};
 		const DWORD length = GetEnvironmentVariableA("SF4E_HEAP_CHECK", text, sizeof(text));
+		value.environmentSet = length != 0;
 		if (length && length < sizeof(text)) value.interval = strtoul(text, nullptr, 10);
 		if (value.interval) spdlog::info("HeapCheck: validating every process heap after every {} save-state operations", value.interval);
 		return value;
@@ -260,6 +262,13 @@ void OnGgpoAssertion(const char* message) {
 
 bool HeapCheckEnabled() {
 	return HeapCheckState().interval != 0;
+}
+
+void ConfigureHeapCheck(unsigned interval) {
+	HeapCheck& check = HeapCheckState();
+	if (check.environmentSet) return;
+	check.interval = interval;
+	if (interval) spdlog::info("HeapCheck: validating every process heap after every {} save-state operations (settings.json)", interval);
 }
 
 void HeapCheckpoint(const char* operation, int frame) {

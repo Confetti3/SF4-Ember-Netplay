@@ -1,10 +1,12 @@
 #include "sf4e__OverlayPrefs.hxx"
+#include "sf4e__CrashDiagnostics.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
 #include "../netplay/SettingsWriter.hxx"
 #include "../netplay/RoomPreferences.hxx"
 
 #include <fstream>
+#include <climits>
 #include <shlobj.h>
 #include <pathcch.h>
 
@@ -189,6 +191,15 @@ namespace OverlayPrefs {
 			}
 
 			FromJson(j, out);
+			if (j.contains("diagnostics") && j["diagnostics"].is_object()) {
+				const auto& diagnostics = j["diagnostics"];
+				if (diagnostics.contains("heapCheckInterval")) {
+					const auto& interval = diagnostics["heapCheckInterval"];
+					if (interval.is_number_integer() && interval >= 0 && interval <= UINT_MAX)
+						crash::ConfigureHeapCheck(interval.get<unsigned>());
+					else spdlog::warn("HeapCheck: diagnostics.heapCheckInterval must be an unsigned integer");
+				}
+			}
 			Clamp(out);
 			cached = out;
 			haveCached = true;

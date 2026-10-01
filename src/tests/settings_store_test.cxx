@@ -37,7 +37,7 @@ int main() {
         {"roundTimeIntegral", 300}, {"editionSelect", 1}, {"sessionPort", 23456},
         {"relayHostSecret", "old-test-secret"}, {"relayRoomCode", "OLD1"}, {"relaySessionPort", 30001},
         {"unknownPreference", "retain"}};
-    const Json overlay = {{"stageID", 12}, {"lobby", {{"charaID", 23}, {"color", 7}}},
+    const Json overlay = {{"diagnostics", {{"heapCheckInterval", 1}}}, {"stageID", 12}, {"lobby", {{"charaID", 23}, {"color", 7}}},
         {"mainMenu", {{"p2", {{"charaID", 9}}}}}, {"device", {{"idx", 2}, {"type", 1}}}};
     Write(path / L"config.json", launcher.dump(4));
     Write(path / L"overlay_prefs.json", overlay.dump(4));
