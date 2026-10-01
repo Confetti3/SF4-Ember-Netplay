@@ -165,6 +165,25 @@ async fn link_an_identity_through_the_helper() {
     assert_eq!(identity["state"], "ready");
     let ember_id = identity["ember_id"].as_str().unwrap().to_owned();
 
+    // A backup goes into a folder the game names but has not made.
+    let backup = dirs
+        .0
+        .join("settings")
+        .join("identity-backups")
+        .join("ember.backup");
+    let backup = backup.to_str().unwrap();
+    let (ok, reason, _, written) = worker
+        .ask(json!({ "op": "identity_export", "path": backup, "passphrase": "backup words" }))
+        .await;
+    assert!(ok, "{reason:?}");
+    assert_eq!(written["path"], backup);
+    let (ok, _, _, preview) = worker
+        .ask(json!({ "op": "identity_preview_import", "path": backup, "passphrase": "backup words" }))
+        .await;
+    assert!(ok);
+    assert_eq!(preview["ember_id"], ember_id.as_str());
+    assert_eq!(preview["same_identity"], true);
+
     let (ok, _, _, inspected) = worker
         .ask(json!({ "op": "bridge_inspect", "origin": origin }))
         .await;

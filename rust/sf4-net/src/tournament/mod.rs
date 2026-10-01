@@ -369,7 +369,12 @@ fn identity_request(shared: &Shared, request: Request) -> Outcome {
             Ok(None)
         }
         Request::IdentityExport { path, passphrase } => {
-            identity.export(check_path(&path)?, &passphrase)?;
+            let target = check_path(&path)?;
+            // The game names a file in its own backups folder, which may not exist yet.
+            if let Some(parent) = target.parent() {
+                std::fs::create_dir_all(parent).map_err(|_| Failure::new("io"))?;
+            }
+            identity.export(target, &passphrase)?;
             Ok(Some(json!({ "path": path })))
         }
         Request::IdentityPreviewImport { path, passphrase } => {
