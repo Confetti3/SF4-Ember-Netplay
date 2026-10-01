@@ -72,14 +72,14 @@ version of this flow, open `http://127.0.0.1:8787/mock/mock-local/login`.
   `external_match_id` returns the same match.
 - `POST /v1/matches/{id}/adjudications` (organizer only) records one game:
   `{"kind": "game_result", "winner_slot": 0, "reason": "...",
-  "expected_revision": 1}`, or `"draw": true`, which scores nothing. When a
+  "expected_revision": "1"}`, or `"draw": true`, which scores nothing. When a
   player reaches the set length the match completes. `{"kind": "void_game",
   "attempt_id": "..."}` removes a game; on a completed match that reopens it as
   a correction.
 - `POST /v1/matches/{id}/cancel` cancels with a reason.
 
-Every write names the revision it expects, so two people acting at once cannot
-both win.
+Every write names the revision it expects, as the decimal string the match
+shows, so two people acting at once cannot both win.
 
 ## Receive events
 

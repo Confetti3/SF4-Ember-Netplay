@@ -89,7 +89,8 @@ fn accepts_the_specification_fixture_once() {
 #[derive(Clone, Default)]
 struct Captured(Arc<Mutex<Vec<(HeaderMap, Value)>>>);
 
-async fn fake(path: &'static str) -> (String, Captured) {
+/// A fake endpoint that records each post and answers `answer`.
+async fn fake(path: &'static str, answer: &'static str) -> (String, Captured) {
     let captured = Captured::default();
     let sink = captured.clone();
     let app = Router::new().route(
@@ -101,7 +102,7 @@ async fn fake(path: &'static str) -> (String, Captured) {
                     .lock()
                     .unwrap()
                     .push((headers, serde_json::from_slice(&body).unwrap()));
-                axum::http::StatusCode::OK
+                (axum::http::StatusCode::OK, answer)
             }
         }),
     );
@@ -170,8 +171,12 @@ async fn announces_a_set_on_discord_and_twitch() {
         .unwrap();
 
     // Fake Discord and Twitch, then the notifier.
-    let (discord_origin, discord) = fake("/api/webhooks/1/token").await;
-    let (twitch_origin, twitch) = fake("/helix/chat/messages").await;
+    let (discord_origin, discord) = fake("/api/webhooks/1/token", "{}").await;
+    let (twitch_origin, twitch) = fake(
+        "/helix/chat/messages",
+        r#"{"data":[{"message_id":"m","is_sent":true,"drop_reason":null}]}"#,
+    )
+    .await;
     let notifier_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let notifier_url = format!("http://{}/webhook", notifier_listener.local_addr().unwrap());
     let subscription = call(
@@ -250,7 +255,7 @@ async fn announces_a_set_on_discord_and_twitch() {
         &organizer,
         &format!("/v1/matches/{id}/adjudications"),
         "g1",
-        json!({ "kind": "game_result", "winner_slot": 0, "reason": "Reported on stream", "expected_revision": 1 }),
+        json!({ "kind": "game_result", "winner_slot": 0, "reason": "Reported on stream", "expected_revision": "1" }),
     )
     .await;
 

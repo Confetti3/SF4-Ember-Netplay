@@ -322,19 +322,22 @@ impl Identity {
         let temp = self.write_temp(&file)?;
         // The old store stays intact until the new file is written and readable.
         let retired = if key_path.exists() || self.dir.join(STATE_FILE).exists() {
-            Some(self.retire().inspect_err(|_| {
+            Some(self.retire_key().inspect_err(|_| {
                 let _ = fs::remove_file(&temp);
             })?)
         } else {
             None
         };
-        if let Err(error) = platform::install_new(&temp, &key_path) {
+        if let Err(error) = self
+            .step(Step::InstallKey)
+            .and_then(|()| platform::install_new(&temp, &key_path).map_err(io_failure))
+        {
             let _ = fs::remove_file(&temp);
             if let Some(retired) = &retired {
                 self.restore(retired);
             }
             self.evaluate();
-            return Err(io_failure(error));
+            return Err(error);
         }
         self.read_back(&imported, protection)?;
         let created = if preview.same_identity {
@@ -556,14 +559,36 @@ impl Identity {
         Ok(path)
     }
 
-    /// Moves the key and continuity files into a fresh `retired\` folder.
-    fn retire(&self) -> Result<PathBuf, Failure> {
+    fn retired_folder(&self) -> Result<PathBuf, Failure> {
         let suffix: [u8; 4] = random()?;
         let folder = self
             .dir
             .join(RETIRED_DIR)
             .join(format!("{}-{}", now(), b64u(&suffix)));
         fs::create_dir_all(&folder).map_err(io_failure)?;
+        Ok(folder)
+    }
+
+    /// Moves the key aside for a replacement and copies the continuity file
+    /// beside it, leaving the original in place. Until the new key commits
+    /// its own continuity, a crash leaves a guard without its key (or with
+    /// another key), which reads as recovery-required, never as an empty store.
+    fn retire_key(&self) -> Result<PathBuf, Failure> {
+        let folder = self.retired_folder()?;
+        let state = self.dir.join(STATE_FILE);
+        if state.exists() {
+            fs::copy(&state, folder.join(STATE_FILE)).map_err(io_failure)?;
+        }
+        let key = self.dir.join(KEY_FILE);
+        if key.exists() {
+            platform::install_new(&key, &folder.join(KEY_FILE)).map_err(io_failure)?;
+        }
+        Ok(folder)
+    }
+
+    /// Moves the key and continuity files into a fresh `retired\` folder.
+    fn retire(&self) -> Result<PathBuf, Failure> {
+        let folder = self.retired_folder()?;
         for name in [KEY_FILE, STATE_FILE] {
             let from = self.dir.join(name);
             if from.exists() {

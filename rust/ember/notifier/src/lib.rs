@@ -560,7 +560,53 @@ impl Notifier {
             .header("client-id", &config.client_id)
             .header("content-type", "application/json")
             .body(serde_json::to_vec(&body).unwrap_or_default());
-        classify(request.send().await, "ratelimit-reset").await
+        match request.send().await {
+            // Twitch answers 200 for a message it then drops (AutoMod, a ban,
+            // slow mode), so success is what the answer says.
+            Ok(response) if response.status().is_success() => {
+                match bounded_body(response, MAX_TWITCH_ANSWER).await {
+                    Some(body) => twitch_outcome(&body),
+                    None => Sent::Failed("unreadable response".into()),
+                }
+            }
+            other => classify(other, "ratelimit-reset").await,
+        }
+    }
+}
+
+const MAX_TWITCH_ANSWER: usize = 64 * 1024;
+
+async fn bounded_body(mut response: reqwest::Response, limit: usize) -> Option<Vec<u8>> {
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await.ok()? {
+        if body.len() + chunk.len() > limit {
+            return None;
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Some(body)
+}
+
+/// Reads `POST /helix/chat/messages`: `{"data":[{"is_sent":..,"drop_reason":..}]}`.
+fn twitch_outcome(body: &[u8]) -> Sent {
+    let Ok(value) = serde_json::from_slice::<Value>(body) else {
+        return Sent::Failed("unexpected response".into());
+    };
+    let entry = &value["data"][0];
+    match entry["is_sent"].as_bool() {
+        Some(true) => Sent::Done,
+        Some(false) => {
+            // The code is Twitch's text: keep it short and plain for the log.
+            let code: String = entry["drop_reason"]["code"]
+                .as_str()
+                .unwrap_or("unknown")
+                .chars()
+                .filter(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .take(64)
+                .collect();
+            Sent::Failed(format!("dropped: {code}"))
+        }
+        None => Sent::Failed("unexpected response".into()),
     }
 }
 
@@ -647,5 +693,16 @@ mod tests {
             escape_markdown("**Kate** @everyone"),
             "\\*\\*Kate\\*\\* \\@everyone"
         );
+    }
+
+    #[test]
+    fn a_dropped_twitch_message_is_not_delivered() {
+        let sent = br#"{"data":[{"message_id":"m1","is_sent":true,"drop_reason":null}]}"#;
+        assert!(matches!(twitch_outcome(sent), Sent::Done));
+        let dropped = br#"{"data":[{"message_id":"","is_sent":false,"drop_reason":{"code":"msg_rejected","message":"AutoMod"}}]}"#;
+        assert!(
+            matches!(twitch_outcome(dropped), Sent::Failed(reason) if reason == "dropped: msg_rejected")
+        );
+        assert!(matches!(twitch_outcome(b""), Sent::Failed(_)));
     }
 }

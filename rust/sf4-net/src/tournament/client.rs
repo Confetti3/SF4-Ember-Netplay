@@ -8,6 +8,7 @@ use std::{
 };
 
 use ember_protocol::{
+    EmberId,
     api::{ApiError, BridgeProfile, Capabilities, WELL_KNOWN_PATH},
     challenge::{
         Action, Challenge, Expected, MAX_PROOF_BODY, Method, ProvenRequest, command_digest,
@@ -26,9 +27,11 @@ const POLICY: OriginPolicy = OriginPolicy::AllowLoopbackHttp;
 /// Renew a cached session this long before it expires.
 const SESSION_MARGIN_SECS: u64 = 30;
 
+/// A bridge session, valid only for the Ember ID that opened it.
 struct Session {
     token: Zeroizing<String>,
     expires_at: u64,
+    ember_id: EmberId,
 }
 
 pub struct Client {
@@ -76,10 +79,11 @@ impl Client {
         }
     }
 
-    fn cached(&self, bridge_id: &str) -> Option<Zeroizing<String>> {
+    fn cached(&self, bridge_id: &str, ember_id: &EmberId) -> Option<Zeroizing<String>> {
         let sessions = self.sessions.lock().ok()?;
         sessions
             .get(bridge_id)
+            .filter(|session| &session.ember_id == ember_id)
             .filter(|session| session.expires_at > now() + SESSION_MARGIN_SECS)
             .map(|session| session.token.clone())
     }
@@ -261,8 +265,22 @@ struct SessionCreated {
     expires_at: u64,
 }
 
+/// The unlocked identity's ID, without waiting on key work.
+fn current_id(shared: &Shared) -> Result<EmberId, Failure> {
+    let identity = shared
+        .identity
+        .try_lock()
+        .map_err(|_| Failure::new("identity_busy"))?;
+    identity
+        .signer()
+        .map(|signer| signer.ember_id().clone())
+        .ok_or_else(|| Failure::new("identity_unavailable"))
+}
+
 async fn session(shared: &Shared, bridge: &Approved) -> Result<Zeroizing<String>, Failure> {
-    if let Some(token) = shared.client.cached(&bridge.bridge_id) {
+    // A session opened by an identity the player has since replaced is never reused.
+    let ember_id = current_id(shared)?;
+    if let Some(token) = shared.client.cached(&bridge.bridge_id, &ember_id) {
         return Ok(token);
     }
     let body = prove(
@@ -293,6 +311,7 @@ async fn session(shared: &Shared, bridge: &Approved) -> Result<Zeroizing<String>
             Session {
                 token: token.clone(),
                 expires_at: created.expires_at,
+                ember_id,
             },
         );
     }

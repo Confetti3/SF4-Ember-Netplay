@@ -30,6 +30,10 @@ public:
     void Accept(const MenuAction& action, const ShellView& view);
     // The panel's own status line while one of its screens shows.
     bool Status(std::string& status, Tone& tone, double now) const;
+    // The shell is hidden: wipes what was typed, as leaving the screens does,
+    // drops requests not yet sent, and asks for a fresh status when the
+    // screens show again.
+    void Conceal() { Wipe(); queue_.clear(); onScreens_ = false; lastScreen_.clear(); }
 private:
     bool Busy(const ShellView& view) const;
     bool Answered(const ShellView& view) const;

@@ -580,8 +580,9 @@ pub fn approve(
         return Err(ApiFailure::not_found());
     }
     if intent.state == "approved" {
-        // A retried approval of the same claim returns the same link.
-        return link_for_claim(tx, &command.claim_id)?
+        // A retried approval of the same claim returns the same link, and
+        // only a claim made on this intent.
+        return link_for_claim(tx, &intent.id, &command.claim_id)?
             .filter(|link| link.ember_id == command.ember_id)
             .ok_or_else(code_rejected);
     }
@@ -700,13 +701,18 @@ pub fn approve(
     })
 }
 
-fn link_for_claim(tx: &Transaction<'_>, claim_id: &str) -> Result<Option<LinkView>> {
+fn link_for_claim(
+    tx: &Transaction<'_>,
+    intent_id: &str,
+    claim_id: &str,
+) -> Result<Option<LinkView>> {
     Ok(tx
         .query_row(
             "SELECT l.id, l.ember_id, l.connection_id, a.participant_id, l.approved_via, l.approved_at
              FROM links l JOIN external_accounts a ON a.id = l.account_id
-             WHERE l.claim_id = ?1 AND l.revoked_at IS NULL",
-            [claim_id],
+             JOIN link_claims c ON c.id = l.claim_id
+             WHERE l.claim_id = ?1 AND c.intent_id = ?2 AND l.revoked_at IS NULL",
+            [claim_id, intent_id],
             |row| {
                 Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?))
             },

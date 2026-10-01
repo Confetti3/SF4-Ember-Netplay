@@ -958,10 +958,15 @@ void IdentityJourneys() {
  // Leaving the screens wipes what was typed.
  h.Screen("home");h.Screen("identity-backup");h.Frame();
  Check(row("id-backup-passphrase")->value==loc::T("identity.secret_empty"),"A passphrase survived leaving the screens");
+ // So does hiding the overlay, even with the editor open.
+ h.Choose("id-backup-passphrase");type("hidden words");h.Choose("id-backup-confirm");ImGui::GetIO().AddInputCharactersUTF8("half");h.Frame();
+ h.shell.Conceal();Check(!h.shell.Navigation().Editing(),"Hiding the overlay left a passphrase editor open");h.Frame();
+ Check(row("id-backup-passphrase")->value==loc::T("identity.secret_empty"),"A passphrase survived hiding the overlay");
  // Linked accounts list the services, then inspect and list the first one.
  id.bridges={{"brg_1","https://tournaments.example","Example Tournaments"}};
- // The backup screen's status is still in flight; then this screen's status and list.
- h.Screen("linked-accounts");answer();answer();answer();
+ // Earlier statuses are still in flight; answer them and this screen's status and list.
+ h.Screen("linked-accounts");
+ for(int i=0;i<8&&sent().back()->op!=IdentityOp::BridgeInspect;++i)answer();
  Check(sent().back()->op==IdentityOp::BridgeInspect&&sent().back()->origin=="https://tournaments.example","The trusted service was not inspected");
  id.inspected=id.bridges[0];id.connections={{"blumint","BluMint"},{"mock-local","Mock provider"}};answer();
  Check(sent().back()->op==IdentityOp::LinkList&&sent().back()->bridge=="brg_1","The service's links were not listed");

@@ -468,6 +468,46 @@ fn different_identity_import_requires_confirmation_and_keeps_the_old_store() {
     assert_eq!(fs::read(folder.join(KEY_FILE)).unwrap(), old_key);
 }
 
+// ID-07 for a replacement: a crash after the old key moves aside, before the
+// new one is installed, must not leave a store that reads as never created.
+#[test]
+fn crash_during_replacement_needs_recovery() {
+    let (a, b) = (Dir::new(), Dir::new());
+    let mut source = a.store();
+    source.enable(Protection::Default).unwrap();
+    let imported_id = id(&source);
+    let backup = a.path("ember.backup");
+    source.export(&backup, "pass").unwrap();
+    let bytes = fs::read(&backup).unwrap();
+
+    let mut target = b.store();
+    target.enable(Protection::Default).unwrap();
+    let old_id = id(&target);
+    // The process dies at the install step: nothing after it runs.
+    target.set_faults(|at| {
+        if at == Step::InstallKey {
+            panic!("simulated crash");
+        }
+        false
+    });
+    let crashed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        target.import(&bytes, "pass", &imported_id, Protection::Default, true)
+    }));
+    assert!(crashed.is_err());
+    drop(target);
+
+    let mut reopened = b.store();
+    let status = reopened.status();
+    assert_eq!(status.state, State::RecoveryRequired);
+    assert_eq!(status.ember_id.as_ref(), Some(&old_id));
+    // Enabling cannot start over; restoring the backup can.
+    assert!(reopened.enable(Protection::Default).is_err());
+    reopened
+        .import(&bytes, "pass", &imported_id, Protection::Default, true)
+        .unwrap();
+    assert_eq!(id(&b.store()), imported_id);
+}
+
 #[test]
 fn backup_recovers_a_missing_key() {
     let dir = Dir::new();

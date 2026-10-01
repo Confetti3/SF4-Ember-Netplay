@@ -2,6 +2,7 @@
 
 #include "HelperProcess.hxx"
 #include "../netplay/BoundedMailbox.hxx"
+#include "../common/WipeText.hxx"
 #include <atomic>
 #include <mutex>
 #include <thread>
@@ -9,6 +10,16 @@
 namespace sf4e { namespace platform {
 
 struct HelperMessage { uint64_t id = 0; std::string payload; };
+// A command on its way to the helper. It may carry a passphrase, so every
+// copy is wiped when it goes, including one a full or closed queue drops.
+struct OutgoingMessage : HelperMessage {
+    OutgoingMessage() = default;
+    OutgoingMessage(const OutgoingMessage&) = default;
+    OutgoingMessage(OutgoingMessage&&) = default;
+    OutgoingMessage& operator=(const OutgoingMessage&) = default;
+    OutgoingMessage& operator=(OutgoingMessage&&) = default;
+    ~OutgoingMessage() { WipeText(payload); }
+};
 enum class HelperState { Stopped, Connecting, Connected, Failed };
 
 // All pipe connection/authentication/I/O happens on this owned worker. Game
@@ -37,7 +48,7 @@ private:
     std::mutex sendMutex_;
     uint64_t nextId_ = 2;
     bool started_ = false;
-    netplay::BoundedMailbox<HelperMessage> outgoing_;
+    netplay::BoundedMailbox<OutgoingMessage> outgoing_;
     netplay::BoundedMailbox<HelperMessage> incoming_;
 };
 

@@ -135,9 +135,9 @@ test("SDK drives a live bridge end to end", { skip: !existsSync(binary) && "buil
       "sdk-create",
     );
     assert.equal(again.match_id, created.match_id);
-    await assert.rejects(provider.recordGame(created.match_id, { winnerSlot: 0 }, 1, "providers cannot"), (error: BridgeError) => error.code === "forbidden");
-    await organizer.recordGame(created.match_id, { winnerSlot: 0 }, 1, "VOD", "g1");
-    await organizer.recordGame(created.match_id, { winnerSlot: 0 }, 2, "VOD", "g2");
+    await assert.rejects(provider.recordGame(created.match_id, { winnerSlot: 0 }, "1", "providers cannot"), (error: BridgeError) => error.code === "forbidden");
+    await organizer.recordGame(created.match_id, { winnerSlot: 0 }, created.revision as string, "VOD", "g1");
+    await organizer.recordGame(created.match_id, { winnerSlot: 0 }, "2", "VOD", "g2");
     const snapshot = await organizer.getMatch(created.match_id);
     assert.equal(snapshot.state, "completed");
 

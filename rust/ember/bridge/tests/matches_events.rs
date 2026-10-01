@@ -237,7 +237,7 @@ async fn ft2_set_scores_once_per_game() {
     let f = fixture().await;
     let (id, _) = create_match(&f).await;
     let game = |slot: Option<u8>, revision: u64| {
-        let mut body = json!({ "kind": "game_result", "reason": "Reported by both players on stream", "expected_revision": revision });
+        let mut body = json!({ "kind": "game_result", "reason": "Reported by both players on stream", "expected_revision": revision.to_string() });
         match slot {
             Some(slot) => body["winner_slot"] = slot.into(),
             None => body["draw"] = true.into(),
@@ -319,11 +319,39 @@ async fn ft2_set_scores_once_per_game() {
     let (status, _) = adjudicate(&f, &id, "g5", game(Some(1), 5)).await;
     assert_eq!(status, StatusCode::CONFLICT);
     let last = snapshot["attempts"][3]["attempt_id"].as_str().unwrap();
+    // Reopening it would double-book a player who has started another match.
+    let (status, next_set) = f
+        .bridge
+        .post_keyed(
+            &f.provider,
+            "/v1/matches",
+            create_body(&f, "set-2", "organizer-reported-v1"),
+            Some("create-next"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{next_set}");
+    let void = json!({ "kind": "void_game", "attempt_id": last, "reason": "Wrong game recorded", "expected_revision": "5" });
+    let (status, refused) = adjudicate(&f, &id, "v0", void.clone()).await;
+    assert_eq!(
+        (status, code(&refused)),
+        (StatusCode::CONFLICT, "lease_conflict")
+    );
+    let next_id = next_set["match_id"].as_str().unwrap();
+    let (status, _) = f
+        .bridge
+        .post_keyed(
+            &f.provider,
+            &format!("/v1/matches/{next_id}/cancel"),
+            json!({ "reason": "Correction first", "expected_revision": "1" }),
+            Some("cancel-next"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
     let (status, corrected) = adjudicate(
         &f,
         &id,
         "v1",
-        json!({ "kind": "void_game", "attempt_id": last, "reason": "Wrong game recorded", "expected_revision": 5 }),
+        json!({ "kind": "void_game", "attempt_id": last, "reason": "Wrong game recorded", "expected_revision": "5" }),
     )
     .await;
     assert_eq!(status, StatusCode::CREATED, "{corrected}");
@@ -345,7 +373,7 @@ async fn cancel_and_unlink_follow_policy() {
         .post_keyed(
             &f.provider,
             &path,
-            json!({ "reason": "No show", "expected_revision": 9 }),
+            json!({ "reason": "No show", "expected_revision": "9" }),
             Some("c1"),
         )
         .await;
@@ -371,7 +399,7 @@ async fn cancel_and_unlink_follow_policy() {
         .post_keyed(
             &f.provider,
             &path,
-            json!({ "reason": "Player left", "expected_revision": 2 }),
+            json!({ "reason": "Player left", "expected_revision": "2" }),
             Some("c2"),
         )
         .await;
@@ -526,7 +554,7 @@ async fn webhooks_are_signed_retried_and_rotated() {
         .await;
     assert_eq!(status, StatusCode::OK, "{rotated}");
     let new_secret = Secret::parse(rotated["secret"].as_str().unwrap()).unwrap();
-    adjudicate(&f, &id, "g1", json!({ "kind": "game_result", "winner_slot": 1, "reason": "Stream VOD", "expected_revision": 1 })).await;
+    adjudicate(&f, &id, "g1", json!({ "kind": "game_result", "winner_slot": 1, "reason": "Stream VOD", "expected_revision": "1" })).await;
     let deliveries = wait_for(&hook, 3).await;
     let third = &deliveries[2];
     let now = f.bridge.clock.now();
@@ -534,7 +562,7 @@ async fn webhooks_are_signed_retried_and_rotated() {
     webhook::verify(&[&new_secret], &third.0, &third.1, now).unwrap();
     // After the overlap only the new secret signs.
     f.bridge.clock.advance(61);
-    adjudicate(&f, &id, "g2", json!({ "kind": "game_result", "winner_slot": 1, "reason": "Stream VOD", "expected_revision": 2 })).await;
+    adjudicate(&f, &id, "g2", json!({ "kind": "game_result", "winner_slot": 1, "reason": "Stream VOD", "expected_revision": "2" })).await;
     let deliveries = wait_for(&hook, 4).await;
     let fourth = &deliveries[3];
     let now = f.bridge.clock.now();

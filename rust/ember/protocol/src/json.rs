@@ -161,7 +161,7 @@ impl Value {
             serde_json::Value::Number(number) => Self::Int(
                 number
                     .as_i64()
-                    .filter(|value| value.abs() <= MAX_SAFE_INTEGER)
+                    .filter(|value| (-MAX_SAFE_INTEGER..=MAX_SAFE_INTEGER).contains(value))
                     .ok_or_else(|| Error::InvalidJson("number is not a safe integer".into()))?,
             ),
             serde_json::Value::String(text) => Self::String(text.clone()),
@@ -237,7 +237,7 @@ impl<'de> Visitor<'de> for Seed {
     }
 
     fn visit_i64<E: de::Error>(self, value: i64) -> std::result::Result<Value, E> {
-        if value.abs() > MAX_SAFE_INTEGER {
+        if !(-MAX_SAFE_INTEGER..=MAX_SAFE_INTEGER).contains(&value) {
             return Err(E::custom("integer is outside the safe range"));
         }
         Ok(Value::Int(value))
@@ -305,6 +305,7 @@ mod tests {
             r#"{"n":1e3}"#,
             r#"{"n":9007199254740992}"#,
             r#"{"n":-9007199254740992}"#,
+            r#"{"n":-9223372036854775808}"#,
             r#"{"n":18446744073709551616}"#,
             r#"{"a":1} x"#,
             r#"{"a":"\ud800"}"#,

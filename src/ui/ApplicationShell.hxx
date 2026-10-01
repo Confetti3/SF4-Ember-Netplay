@@ -113,6 +113,12 @@ public:
         if(previousRoomState_==netplay::RoomState::Idle)menu_.navigation.Home();
     }
     MenuNavigation& Navigation() { return menu_.navigation; }
+    // The shell is not being drawn (the overlay is hidden): nothing typed into
+    // a passphrase field may wait in it until it next opens.
+    void Conceal() {
+        identity_.Conceal();
+        if (menu_.navigation.EditingSecret()) menu_.navigation.Cancel();
+    }
     // Where the language preference is written; the platform store unless a
     // test supplies its own to fail it.
     using LanguageSaver = std::function<bool(const std::string& preference, std::string& diagnostic)>;

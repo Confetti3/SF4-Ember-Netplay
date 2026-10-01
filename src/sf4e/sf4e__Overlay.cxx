@@ -311,6 +311,7 @@ void Overlay::DrawOverlay() {
     // closed. Pump returns at once when nothing drew art since the last pump.
     if (s_selectionArt) s_selectionArt->Pump();
     if (presentation.Visible()) DrawApplicationHome(snapshot, status);
+    else shell.Conceal();
     if (!presentation.Visible() && assigning) {
         sf4e::NetplayFacade::RuntimeCommand cancel;
         cancel.command = {sf4e::netplay::CommandKind::HostRoom, snapshot.session.generation, {}};

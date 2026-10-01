@@ -87,6 +87,23 @@ fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
         }))
 }
 
+/// Whether the identity has an active match on the connection other than `except`.
+fn busy(
+    tx: &Transaction<'_>,
+    connection_id: &str,
+    ember_id: &EmberId,
+    except: &str,
+) -> Result<bool> {
+    Ok(tx.query_row(
+        "SELECT EXISTS (SELECT 1 FROM matches m JOIN match_participants p
+           ON p.match_id = m.id AND p.assignment_generation = m.assignment_generation
+          WHERE m.connection_id = ?1 AND p.ember_id = ?2 AND m.id != ?3
+            AND m.state NOT IN ('completed', 'cancelled', 'failed'))",
+        params![connection_id, ember_id.as_str(), except],
+        |row| row.get(0),
+    )?)
+}
+
 fn participants(tx: &Transaction<'_>, id: &str, generation: u64) -> Result<Vec<Participant>> {
     tx.prepare(
         "SELECT slot, participant_id, ember_id FROM match_participants
@@ -337,15 +354,7 @@ fn create_match(
         }
     }
     for participant in command.by_slot() {
-        let busy: bool = tx.query_row(
-            "SELECT EXISTS (SELECT 1 FROM matches m JOIN match_participants p
-               ON p.match_id = m.id AND p.assignment_generation = m.assignment_generation
-              WHERE m.connection_id = ?1 AND p.ember_id = ?2
-                AND m.state NOT IN ('completed', 'cancelled', 'failed'))",
-            params![connection_id, participant.ember_id.as_str()],
-            |row| row.get(0),
-        )?;
-        if busy {
+        if busy(tx, connection_id, &participant.ember_id, "")? {
             return Err(ApiFailure::new(
                 ErrorCode::LeaseConflict,
                 "A participant already has an active match.",
@@ -510,8 +519,9 @@ pub async fn assignments(State(state): State<AppState>, headers: HeaderMap) -> R
 #[serde(deny_unknown_fields)]
 struct CancelCommand {
     reason: String,
+    /// A canonical decimal string, like every revision (spec 9.2).
     #[serde(default)]
-    expected_revision: Option<u64>,
+    expected_revision: Option<Counter>,
 }
 
 /// `POST /v1/matches/{id}/cancel`: provider or organizer, versioned.
@@ -526,7 +536,10 @@ pub async fn cancel(
     let key = idempotency_key(&headers)?;
     let command: CancelCommand = body.parse()?;
     check_reason(&command.reason)?;
-    let expected = expected_revision(&headers, command.expected_revision)?;
+    let expected = expected_revision(
+        &headers,
+        command.expected_revision.map(|revision| revision.0),
+    )?;
     let digest = json::digest(&command)?;
     let ctx = Ctx::of(&state);
     let path = format!("/v1/matches/{id}/cancel");
@@ -597,8 +610,9 @@ struct AdjudicationCommand {
     reason: String,
     #[serde(default)]
     evidence: Vec<String>,
+    /// A canonical decimal string, like every revision (spec 9.2).
     #[serde(default)]
-    expected_revision: Option<u64>,
+    expected_revision: Option<Counter>,
 }
 
 /// `POST /v1/matches/{id}/adjudications`: organizers only (SEC-07).
@@ -624,7 +638,10 @@ pub async fn adjudicate(
             "Evidence is up to 16 references of 1 to 256 bytes.",
         ));
     }
-    let expected = expected_revision(&headers, command.expected_revision)?;
+    let expected = expected_revision(
+        &headers,
+        command.expected_revision.map(|revision| revision.0),
+    )?;
     let digest = json::digest(&command)?;
     let ctx = Ctx::of(&state);
     let path = format!("/v1/matches/{id}/adjudications");
@@ -747,6 +764,19 @@ fn apply_adjudication(
     } else {
         MatchState::BetweenGames
     };
+    // A correction that reopens the match makes its players busy again, so it
+    // must not double-book one who has started another match meanwhile.
+    if correcting && next != MatchState::Completed {
+        for participant in &roster {
+            if busy(tx, &found.connection_id, &participant.ember_id, &found.id)? {
+                return Err(ApiFailure::new(
+                    ErrorCode::LeaseConflict,
+                    "A player has another active match. Finish or cancel it before reopening this one.",
+                )
+                .detail("slot", participant.slot));
+            }
+        }
+    }
     let revision = bump(tx, found, next, ctx.now)?;
     let revision_text = revision.to_string();
     for (kind, mut data) in events {

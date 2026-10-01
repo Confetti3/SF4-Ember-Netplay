@@ -14,12 +14,16 @@ pub async fn run<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     let (tournament, tournament_task) = crate::tournament::spawn(events.clone());
     let reader_task = tokio::spawn(async move {
         let mut last_id = 1;
-        while let Ok(frame) = wire::read_ipc(&mut reader).await {
+        while let Ok(mut frame) = wire::read_ipc(&mut reader).await {
             if frame.message_id <= last_id {
                 break;
             }
             last_id = frame.message_id;
-            let Ok(command) = serde_json::from_slice(&frame.payload) else {
+            let parsed = serde_json::from_slice(&frame.payload);
+            // A tournament request's text holds its passphrase; the parsed
+            // request wipes its own copy, and this one goes now.
+            zeroize::Zeroize::zeroize(&mut frame.payload);
+            let Ok(command) = parsed else {
                 break;
             };
             if let Command::Tournament { request } = command {

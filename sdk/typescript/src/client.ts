@@ -178,7 +178,8 @@ export class BridgeClient {
     return this.#json("GET", `/v1/matches/${encodeURIComponent(matchId)}`);
   }
 
-  cancelMatch(matchId: string, expectedRevision: number, reason: string, idempotencyKey: string = randomUUID()): Promise<Body> {
+  /** `expectedRevision` is the match's `revision`, a decimal string. */
+  cancelMatch(matchId: string, expectedRevision: string, reason: string, idempotencyKey: string = randomUUID()): Promise<Body> {
     return this.#json(
       "POST",
       `/v1/matches/${encodeURIComponent(matchId)}/cancel`,
@@ -191,7 +192,7 @@ export class BridgeClient {
   recordGame(
     matchId: string,
     result: { winnerSlot: 0 | 1 } | { draw: true },
-    expectedRevision: number,
+    expectedRevision: string,
     reason: string,
     idempotencyKey: string = randomUUID(),
   ): Promise<Body> {
@@ -209,7 +210,7 @@ export class BridgeClient {
   }
 
   /** Organizer credentials only. On a completed match this is a correction. */
-  voidGame(matchId: string, attemptId: string, expectedRevision: number, reason: string, idempotencyKey: string = randomUUID()): Promise<Body> {
+  voidGame(matchId: string, attemptId: string, expectedRevision: string, reason: string, idempotencyKey: string = randomUUID()): Promise<Body> {
     return this.#json(
       "POST",
       `/v1/matches/${encodeURIComponent(matchId)}/adjudications`,

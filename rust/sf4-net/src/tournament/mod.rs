@@ -399,6 +399,8 @@ fn identity_request(shared: &Shared, request: Request) -> Outcome {
                 protection(local_passphrase.as_ref()),
                 replace,
             )?;
+            // Sessions may belong to the identity the import replaced.
+            shared.client.forget_sessions();
             Ok(None)
         }
         Request::IdentityReset { confirm_ember_id } => {

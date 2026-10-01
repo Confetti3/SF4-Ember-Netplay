@@ -41,7 +41,7 @@ bool HelperClient::Send(const std::string& payload, uint64_t* requestId) {
     if (payload.empty() || payload.size() > MaxPayload || state_ != HelperState::Connected) { return false; }
     std::lock_guard<std::mutex> lock(sendMutex_);
     if (nextId_ > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) { return false; }
-    HelperMessage message; message.id = nextId_; message.payload = payload;
+    OutgoingMessage message; message.id = nextId_; message.payload = payload;
     if (!outgoing_.TryPush(std::move(message), payload.size())) { return false; }
     if (requestId) { *requestId = nextId_; }
     ++nextId_;
@@ -144,9 +144,10 @@ void HelperClient::Run(HelperBootstrap bootstrap) {
     while (WaitForSingleObject(stop_, 0) == WAIT_TIMEOUT) {
         HelperMessage message;
         // Bound work in each direction so outgoing traffic cannot starve reads.
-        for (size_t i = 0; i < 8 && outgoing_.TryPop(message); ++i) {
-            const bool written = WriteFrame(pipe.value, message);
-            if (!message.payload.empty()) { SecureZeroMemory(&message.payload[0], message.payload.size()); }
+        OutgoingMessage sending;
+        for (size_t i = 0; i < 8 && outgoing_.TryPop(sending); ++i) {
+            const bool written = WriteFrame(pipe.value, sending);
+            WipeText(sending.payload);
             if (!written) { state_ = HelperState::Failed; return; }
         }
         // The helper may publish a complete checkpoint window and lifecycle

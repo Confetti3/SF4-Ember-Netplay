@@ -264,6 +264,41 @@ async fn link_an_identity_through_the_helper() {
         .await;
     assert!(ok);
 
+    // Importing a different identity drops the session the old one opened:
+    // the next claim is signed and sent as the new identity.
+    let other_dirs = Dirs(dirs.0.join("other"));
+    let mut other = Worker::start(&other_dirs);
+    other.next_answer(0).await;
+    let (_, _, other_identity, _) = other.ask(json!({ "op": "identity_enable" })).await;
+    let other_id = other_identity["ember_id"].as_str().unwrap().to_owned();
+    let other_backup = other_dirs.0.join("other.backup");
+    let other_backup = other_backup.to_str().unwrap();
+    let (ok, _, _, _) = other
+        .ask(json!({ "op": "identity_export", "path": other_backup, "passphrase": "other words" }))
+        .await;
+    assert!(ok);
+    other.task.abort();
+    let (ok, reason, identity, _) = restarted
+        .ask(
+            json!({ "op": "identity_import", "path": other_backup, "passphrase": "other words",
+            "expected_ember_id": other_id, "replace": true }),
+        )
+        .await;
+    assert!(ok, "{reason:?}");
+    assert_eq!(identity["ember_id"], other_id.as_str());
+    let intent = provider_call(
+        &origin,
+        &provider,
+        "/v1/link-intents",
+        json!({ "subject": "kate-two", "display_label": "Kate" }),
+    )
+    .await;
+    let (ok, reason, _, claim) = restarted
+        .ask(json!({ "op": "link_claim", "bridge_id": bridge_id, "connection_id": "mock-local", "code": intent["code"] }))
+        .await;
+    assert!(ok, "{reason:?}");
+    assert_eq!(claim["ember_id"], other_id.as_str());
+
     // Unknown fields and passphrase-free unlocks are refused at the IPC edge.
     let bad: Result<Command, _> = serde_json::from_value(
         json!({ "type": "tournament", "request": { "op": "identity_status", "extra": 1 } }),

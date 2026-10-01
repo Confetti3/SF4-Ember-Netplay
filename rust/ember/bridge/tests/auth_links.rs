@@ -289,6 +289,39 @@ async fn provider_proxy_link_flow() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(repeat["link_id"], link["link_id"]);
 
+    // A retry on another approved intent cannot name this claim to read its link.
+    let second_subject = "76561198000000002";
+    let (_, second) = bridge
+        .post(
+            &provider,
+            "/v1/link-intents",
+            json!({ "subject": second_subject, "display_label": "Bob" }),
+        )
+        .await;
+    let second_id = second["intent_id"].as_str().unwrap().to_owned();
+    let mut second_player = bridge.player(5);
+    bridge.open_session(&mut second_player).await;
+    let (_, second_claim) = bridge
+        .claim(&second_player, second["code"].as_str().unwrap(), "mock-a")
+        .await;
+    let (status, _) = bridge
+        .post(
+            &provider,
+            &format!("/v1/link-intents/{second_id}/approve"),
+            json!({ "claim_id": second_claim["claim_id"], "ember_id": second_player.id(), "subject": second_subject }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, leaked) = bridge
+        .post(
+            &provider,
+            &format!("/v1/link-intents/{second_id}/approve"),
+            json!({ "claim_id": claim["claim_id"], "ember_id": player.id(), "subject": second_subject }),
+        )
+        .await;
+    assert_ne!(status, StatusCode::OK, "{leaked}");
+    assert!(leaked.get("link_id").is_none());
+
     // The code is spent.
     let (status, spent) = bridge.claim(&player, &code_text, "mock-a").await;
     assert_eq!(
@@ -333,7 +366,8 @@ async fn provider_proxy_link_flow() {
             "io.ember.tournament.identity.link.completed.v1"
         ]
     );
-    assert_eq!(bridge.events(&provider, "0").await.len(), 2);
+    // Both links' pending and completed events.
+    assert_eq!(bridge.events(&provider, "0").await.len(), 4);
     // An organizer sees match events only, never identity links.
     let organizer = bridge.organizer("t1").await;
     assert!(bridge.events(&organizer, "0").await.is_empty());
