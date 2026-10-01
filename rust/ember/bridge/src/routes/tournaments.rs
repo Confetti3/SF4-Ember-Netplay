@@ -801,7 +801,7 @@ pub fn on_reopen(
     ctx: &Ctx,
     tournament_id: &str,
     match_id: &str,
-) -> Result<()> {
+) -> Result<Vec<EmberId>> {
     check_correction(tx, tournament_id)?;
     let tournament = load(tx, tournament_id)?.ok_or_else(ApiFailure::unavailable)?;
     let mut bracket = load_bracket(tx, &tournament)?;
@@ -815,6 +815,19 @@ pub fn on_reopen(
             "This set is no longer part of the bracket.",
         ));
     };
+    // A set with a player who has since withdrawn would only be a walkover
+    // again, and a withdrawn player cannot be put back into play.
+    if bracket.states[node]
+        .slots
+        .iter()
+        .filter_map(|slot| slot.entrant())
+        .any(|seed| bracket.seeds[seed].withdrawn)
+    {
+        return Err(ApiFailure::new(
+            ErrorCode::LeaseConflict,
+            "A player in this set has withdrawn, so its result stands.",
+        ));
+    }
     let mut games = vec![false; bracket.plan.len()];
     for (later, id) in bracket.matches.iter().enumerate() {
         if let Some(id) = id {
@@ -840,11 +853,17 @@ pub fn on_reopen(
         }
     };
     let mut undone = Vec::new();
+    let mut freed = Vec::new();
     for &later in &cancelled {
         if let Some(id) = bracket.matches[later].take() {
-            // The players are not handed to lobbies here: the reopened set's
-            // players must stay free for it.
-            matches::cancel_tournament_set(tx, ctx, &id, "bracket_corrected")?;
+            // The caller hands these players on once the reopened set's
+            // match is active again, so its own players stay reserved for it.
+            freed.extend(matches::cancel_tournament_set(
+                tx,
+                ctx,
+                &id,
+                "bracket_corrected",
+            )?);
             let mut set = set_json(&bracket, later);
             set["match_id"] = id.into();
             undone.push(set);
@@ -863,7 +882,7 @@ pub fn on_reopen(
         data,
         revision,
     )?;
-    Ok(())
+    Ok(freed)
 }
 
 /// A match on the connection ended: tournaments those players are in may

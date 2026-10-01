@@ -508,4 +508,10 @@ async fn standings_rank_the_lobby() {
     assert_eq!(status, StatusCode::OK, "{seen}");
     assert!(!seen.to_string().contains(f.participant(0)));
     assert!(seen.to_string().contains(f.participant(2)));
+    // Lobby events, which every player in the lobby reads, carry Ember IDs only.
+    for event in f.bridge.events(&f.provider, "0").await {
+        if event["type"].as_str().unwrap().contains(".lobby.") {
+            assert!(!event.to_string().contains("participant_id"), "{event}");
+        }
+    }
 }

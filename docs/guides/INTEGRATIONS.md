@@ -129,7 +129,8 @@ are reserved for lobby sets.
 Lobby events are `lobby.created`, `lobby.queue.changed`, `lobby.set.started`,
 `lobby.set.completed` (winner, loser, scores, streak and the queue after the
 rotation) and `lobby.closed`. Players who have joined a lobby can read its
-events with their own session.
+events with their own session; those events name players by Ember ID only,
+and each set's match events stay visible to that set's two players.
 
 The game's own rooms follow the same set lengths and rotations, but today they
 run on their own: a room table does not report to a bridge lobby yet.
@@ -190,7 +191,10 @@ Tournament events are `tournament.created`, `tournament.entrants.changed`,
 `tournament.started`, `tournament.match.started`, `tournament.match.completed`
 (who advanced where, and who was eliminated), `tournament.match.reopened`,
 `tournament.completed` (the placements) and `tournament.cancelled`. Entrants
-can read a tournament and its events with their own session.
+can read a tournament and its events with their own session. Tournament events
+name players by Ember ID only, a player reading the snapshot sees only their
+own `participant_id`, and each set's match events stay visible to that set's
+two players. A correction is refused for a set whose player has withdrawn.
 
 ## Player records
 

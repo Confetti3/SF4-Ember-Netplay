@@ -285,8 +285,10 @@ fn match_event(
             subject: format!("matches/{}", found.id),
             match_id: Some(&found.id),
             ember_id: None,
-            lobby_id: found.lobby_id.as_deref(),
-            tournament_id: found.tournament_id.as_deref(),
+            // A match's events carry its roster, so players read only their
+            // own matches' events, not every set of a lobby or tournament.
+            lobby_id: None,
+            tournament_id: None,
             data,
         },
     )
@@ -941,11 +943,12 @@ fn apply_adjudication(
     }
     // Reopening a bracket set takes back what its result fed, as long as no
     // later set has a game recorded; that frees the players for the check below.
+    let mut freed = Vec::new();
     if correcting && let Some(tournament_id) = &found.tournament_id {
         if next == MatchState::Completed {
             tournaments::check_correction(tx, tournament_id)?;
         } else {
-            tournaments::on_reopen(tx, ctx, tournament_id, &found.id)?;
+            freed = tournaments::on_reopen(tx, ctx, tournament_id, &found.id)?;
         }
     }
     // A correction that reopens the match makes its players busy again, so it
@@ -962,6 +965,11 @@ fn apply_adjudication(
         }
     }
     let revision = bump(tx, found, next, ctx.now)?;
+    // The reopened match now holds its players; the ones a bracket
+    // correction released from later sets can be picked up elsewhere.
+    if !freed.is_empty() {
+        release_players(tx, ctx, &found.connection_id, &freed)?;
+    }
     let revision_text = revision.to_string();
     for (kind, mut data) in events {
         data["match_revision"] = revision_text.clone().into();

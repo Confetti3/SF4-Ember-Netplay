@@ -328,7 +328,10 @@ fn advance(
         "match_id": match_id,
         "set": number,
         "games_to_win": lobby.games_to_win,
-        "participants": roster,
+        "participants": roster
+            .iter()
+            .map(|player| json!({ "ember_id": player.ember_id, "slot": player.slot }))
+            .collect::<Vec<_>>(),
     })))
 }
 
@@ -368,7 +371,11 @@ fn announce(
             "reason": reason,
             "ember_id": ember_id,
             "removed": dropped,
-            "seated": seated.iter().flatten().collect::<Vec<_>>(),
+            "seated": seated
+                .iter()
+                .flatten()
+                .map(|entry| json!({ "ember_id": entry.ember_id, "slot": entry.slot }))
+                .collect::<Vec<_>>(),
             "queue": ids(&waiting),
         }),
     )?;

@@ -206,19 +206,12 @@ async fn single_elimination_runs_to_placements() {
         );
     }
     assert!(!seen.to_string().contains(f.participant(0)));
-    let started_event = f
-        .bridge
-        .events(f.players[4].token(), "0")
-        .await
-        .into_iter()
-        .find(|event| {
-            event["type"]
-                .as_str()
-                .unwrap()
-                .ends_with("tournament.started.v1")
-        })
-        .unwrap();
-    assert!(!started_event.to_string().contains(f.participant(0)));
+    // Player 4 only ever played player 3, so no event they can read names
+    // the other entrants' account handles.
+    let visible = serde_json::to_string(&f.bridge.events(f.players[4].token(), "0").await).unwrap();
+    for other in 0..3 {
+        assert!(!visible.contains(f.participant(other)), "entrant {other}");
+    }
     // A record counts tournament sets like any other.
     let (_, record) = f
         .bridge
@@ -696,4 +689,87 @@ async fn cancelling_frees_players_for_lobbies() {
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert!(f.lobby(&lobby_id).await["current_match_id"].is_string());
+}
+
+// A correction that cancels a later set hands its players on: here player 2's
+// set in another tournament starts once the final 0 v 2 is undone.
+#[tokio::test]
+async fn a_correction_frees_players_from_later_sets() {
+    let f = fixture(5).await;
+    let main = create(&f, "main", json!({ "format": "single_elimination" })).await;
+    for index in 0..4 {
+        register(&f, &main, index).await;
+    }
+    let side = create(&f, "side", json!({ "format": "single_elimination" })).await;
+    register(&f, &side, 2).await;
+    register(&f, &side, 4).await;
+    let started = start(&f, &main, None).await;
+    let first = started["sets"][0]["match_id"].as_str().unwrap().to_owned();
+    let second = started["sets"][1]["match_id"].as_str().unwrap().to_owned();
+    // Player 2 is busy in the main bracket, so the side final waits.
+    assert_eq!(start(&f, &side, None).await["sets"][0]["status"], "ready");
+    f.game(&first, 0).await;
+    f.game(&second, 1).await;
+    let main_now = tournament(&f, &main).await;
+    assert_eq!(main_now["sets"][2]["status"], "playing");
+    assert_eq!(tournament(&f, &side).await["sets"][0]["status"], "ready");
+    // Undo player 0's semifinal win: the final 0 v 2 is cancelled, and player
+    // 2 is free for the side final.
+    let (_, snapshot) = f
+        .bridge
+        .get(&f.organizer, &format!("/v1/matches/{first}"))
+        .await;
+    let attempt = snapshot["attempts"][0]["attempt_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let (status, body) = f.void(&first, &attempt).await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    assert_eq!(tournament(&f, &side).await["sets"][0]["status"], "playing");
+}
+
+// A set whose player has withdrawn keeps its result.
+#[tokio::test]
+async fn a_withdrawn_player_set_cannot_be_reopened() {
+    let f = fixture(4).await;
+    let id = create(
+        &f,
+        "withdrawn-reopen",
+        json!({ "format": "single_elimination" }),
+    )
+    .await;
+    for index in 0..4 {
+        register(&f, &id, index).await;
+    }
+    let started = start(&f, &id, None).await;
+    let first = started["sets"][0]["match_id"].as_str().unwrap().to_owned();
+    f.game(&first, 0).await;
+    let (status, body) = f
+        .bridge
+        .post_keyed(
+            &f.provider,
+            &format!(
+                "/v1/tournaments/{id}/entrants/{}/withdraw",
+                f.participant(3)
+            ),
+            json!({}),
+            Some("withdraw-eliminated"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let (_, snapshot) = f
+        .bridge
+        .get(&f.organizer, &format!("/v1/matches/{first}"))
+        .await;
+    let attempt = snapshot["attempts"][0]["attempt_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let (status, refused) = f.void(&first, &attempt).await;
+    assert_eq!(
+        (status, code(&refused)),
+        (StatusCode::CONFLICT, "lease_conflict"),
+        "{refused}"
+    );
+    assert_eq!(tournament(&f, &id).await["sets"][0]["status"], "played");
 }
