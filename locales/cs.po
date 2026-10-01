@@ -2783,3 +2783,6 @@ msgstr "Počkejte, až zápas skončí."
 
 msgid "identity.refused.no_folder"
 msgstr "Ember nemůže najít složku nastavení, do které by uložil zálohu."
+
+msgid "identity.backup_same_locked"
+msgstr "Toto ID už v tomto počítači je. Obnovením nastavíte nové heslo pro tento počítač, a tak obnovíte přístup, pokud jste staré zapomněli."

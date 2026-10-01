@@ -2360,3 +2360,6 @@ msgstr "Aguarde o fim da partida."
 
 msgid "identity.refused.no_folder"
 msgstr "O Ember não encontra sua pasta de configurações para salvar o backup."
+
+msgid "identity.backup_same_locked"
+msgstr "É o ID que já está neste PC. Restaurá-lo define uma nova senha para este PC, o que recupera o acesso se você esqueceu a anterior."

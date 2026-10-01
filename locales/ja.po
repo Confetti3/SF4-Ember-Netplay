@@ -2783,3 +2783,6 @@ msgstr "対戦が終わるまでお待ちください。"
 
 msgid "identity.refused.no_folder"
 msgstr "バックアップを保存するEmberの設定フォルダーが見つかりません。"
+
+msgid "identity.backup_same_locked"
+msgstr "このPCにすでにあるIDと同じです。復元するとこのPCのパスフレーズを新しく設定できるため、忘れたパスフレーズの代わりになります。"

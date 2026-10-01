@@ -2783,3 +2783,6 @@ msgstr "Attendi la fine della partita."
 
 msgid "identity.refused.no_folder"
 msgstr "Ember non trova la sua cartella delle impostazioni in cui salvare il backup."
+
+msgid "identity.backup_same_locked"
+msgstr "È l'ID già presente su questo PC. Ripristinarlo imposta una nuova password per questo PC, così recuperi l'accesso se hai dimenticato quella vecchia."

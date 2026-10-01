@@ -2783,3 +2783,6 @@ msgstr "Warten Sie, bis das Spiel endet."
 
 msgid "identity.refused.no_folder"
 msgstr "Ember findet seinen Einstellungsordner nicht, um die Sicherung dort zu speichern."
+
+msgid "identity.backup_same_locked"
+msgstr "Das ist die ID, die schon auf diesem PC ist. Beim Wiederherstellen legen Sie eine neue Passphrase für diesen PC fest und ersetzen so eine vergessene."

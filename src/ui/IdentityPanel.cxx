@@ -263,10 +263,13 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
         rows.push_back(Row("id-preview", loc::T("identity.check_backup"), loc::T("identity.check_backup_detail"),
             !busy && !restorePath_.empty() && !restorePassphrase_.empty()));
         if (!previewPath_.empty() && previewPath_ == restorePath_ && !id.previewEmberId.empty()) {
-            const bool alreadyHere = id.previewSame && (ready || id.state == "locked");
+            // A locked ID restored from its own backup gets a new passphrase on
+            // this PC, which is how a forgotten one is recovered.
+            const bool alreadyHere = id.previewSame && ready;
             std::string holds = loc::Tf("identity.backup_holds_detail", id.previewEmberId);
             holds += "\n\n";
-            holds += alreadyHere ? loc::T("identity.backup_same") : id.previewReplaces ? loc::T("identity.backup_replaces") : loc::T("identity.backup_new");
+            holds += alreadyHere ? loc::T("identity.backup_same") : id.previewSame ? loc::T("identity.backup_same_locked") :
+                id.previewReplaces ? loc::T("identity.backup_replaces") : loc::T("identity.backup_new");
             rows.push_back(Info("id-preview-result", loc::T("identity.backup_holds"), id.previewFingerprint, holds));
             if (!alreadyHere) {
                 if (id.passphraseRequired) local(rows);

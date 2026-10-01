@@ -70,6 +70,8 @@ struct Stream {
     signal: tokio::sync::watch::Receiver<u64>,
     /// Player streams end when the session does.
     expires_at: Option<u64>,
+    /// Rechecked with every page, so revoking the credential ends the stream.
+    standing: auth::Standing,
 }
 
 /// `GET /v1/events/stream`. Resumes from `Last-Event-ID` or `?after=`.
@@ -84,6 +86,7 @@ pub async fn stream(
         _ => None,
     };
     let viewer = viewer_of(&actor)?;
+    let standing = actor.standing();
     let resume = headers
         .get("last-event-id")
         .and_then(|value| value.to_str().ok())
@@ -104,6 +107,7 @@ pub async fn stream(
         pending: VecDeque::new(),
         signal,
         expires_at,
+        standing,
     };
     let events = stream::unfold(initial, |mut stream| async move {
         loop {
@@ -121,22 +125,30 @@ pub async fn stream(
                 return None;
             }
             let viewer = stream.viewer.clone();
+            let standing = stream.standing.clone();
             let after = stream.cursor;
+            let now = stream.state.now();
             match stream
                 .state
                 .db
-                .read(move |tx| events::list(tx, &viewer, after, MAX_PAGE))
+                .read(move |tx| {
+                    if !auth::still_valid(tx, &standing, now)? {
+                        return Ok(None);
+                    }
+                    events::list(tx, &viewer, after, MAX_PAGE).map(Some)
+                })
                 .await
             {
-                Ok(rows) if !rows.is_empty() => {
+                Ok(None) => return None,
+                Ok(Some(rows)) if !rows.is_empty() => {
                     stream.cursor = rows.last().map_or(after, |(seq, _)| *seq);
                     stream.pending.extend(rows);
                     continue;
                 }
-                Ok(_) => {}
+                Ok(Some(_)) => {}
                 Err(_) => return None,
             }
-            // Wait for a commit, or recheck now and then for session expiry.
+            // Wait for a commit, or recheck now and then for expiry and revocation.
             let _ = tokio::time::timeout(Duration::from_secs(5), stream.signal.changed()).await;
         }
     });

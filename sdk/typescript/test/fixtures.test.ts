@@ -2,6 +2,7 @@
 // (AUTH-01, AUTH-02, AUTH-05, WEB-01, WEB-02). All seeds and secrets are
 // public test values.
 import assert from "node:assert/strict";
+import { createPrivateKey, sign } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
@@ -20,6 +21,7 @@ import {
   verifyReport,
   verifyWebhook,
   CHALLENGE_DOMAIN,
+  REPORT_DOMAIN,
   type Challenge,
   type Json,
   type Proof,
@@ -91,8 +93,28 @@ test("reports verify, agree, and reject tampering", () => {
   assert.throws(() => verifyReport({ ...a, report: { ...a.report, result: "p2_win" } }), /invalid signature/);
   assert.throws(() => verifyReport({ ...a, public_key: b.public_key }), /reporter/);
   assert.throws(() => verifyReport({ ...a, report: { ...a.report, confirmed_input_frame: "1" } }), /not confirmed/);
-  assert.throws(() => verifyReport({ ...a, report: { ...a.report, match_generation: "03" } }), /canonical counter/);
-  assert.throws(() => verifyReport({ ...a, report: { ...a.report, match_generation: "18446744073709551616" } }), /canonical counter/);
+  assert.throws(() => verifyReport({ ...a, report: { ...a.report, match_generation: "03" } }), /match_generation/);
+  assert.throws(() => verifyReport({ ...a, report: { ...a.report, match_generation: "18446744073709551616" } }), /match_generation/);
+  // Validly signed but outside the frozen rules: refused as the Rust crate refuses them.
+  const resign = (envelope: SignedReport, change: { [key: string]: Json }): SignedReport => {
+    const report = { ...envelope.report, ...change };
+    const vector = vectors.identities.find((identity) => identity.public_key_base64url === envelope.public_key)!;
+    const key = createPrivateKey({
+      key: Buffer.concat([Buffer.from("302e020100300506032b657004220420", "hex"), Buffer.from(vector.seed_hex, "hex")]),
+      format: "der",
+      type: "pkcs8",
+    });
+    return { ...envelope, report, signature: sign(null, signingBytes(REPORT_DOMAIN, report), key).toString("base64url") };
+  };
+  verifyReport(resign(a, {}));
+  assert.throws(() => verifyReport(resign(a, { capture_frame: "0", confirmed_input_frame: "0" })), /not confirmed/);
+  assert.throws(() => verifyReport(resign(a, { assignment_generation: "0" })), /assignment_generation/);
+  assert.throws(() => verifyReport(resign(a, { match_generation: "0" })), /match_generation/);
+  assert.throws(() => verifyReport(resign(a, { version: 2 })), /version/);
+  assert.throws(() => verifyReport(resign(a, { table_id: 4 })), /table_id/);
+  assert.throws(() => verifyReport(resign(a, { result: "forfeit" })), /result/);
+  assert.throws(() => verifyReport(resign(a, { extra: 1 })), /unknown report field/);
+  assert.throws(() => verifyReport(resign(a, { result: "abort", capture_frame: "0", confirmed_input_frame: null })), /capture_frame/);
 });
 
 test("strict JSON", () => {

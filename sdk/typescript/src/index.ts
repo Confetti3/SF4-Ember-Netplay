@@ -7,6 +7,7 @@ export { base64url, decodeBase64url, emberIdFromPublicKey, EncodingError, finger
 export {
   CHALLENGE_DOMAIN,
   checkChallenge,
+  checkReport,
   commandDigest,
   ProofError,
   publicKeyFromSeed,

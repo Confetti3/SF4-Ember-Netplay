@@ -2476,3 +2476,6 @@ msgstr "Wait until the game ends."
 
 msgid "identity.refused.no_folder"
 msgstr "Ember cannot find its settings folder to save the backup in."
+
+msgid "identity.backup_same_locked"
+msgstr "It is the ID already on this PC. Restoring it sets a new passphrase for this PC, which recovers a forgotten one."

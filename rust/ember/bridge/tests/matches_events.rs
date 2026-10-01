@@ -628,4 +628,27 @@ async fn event_stream_resumes_and_hides_others() {
     assert_eq!(rest[0], all[1]);
     let (status, _) = f.bridge.get(f.a.token(), "/v1/events?after=01").await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    // Revoking the session ends the stream it opened.
+    let revoke = f
+        .bridge
+        .client
+        .delete(f.bridge.url("/v1/sessions/current"))
+        .bearer_auth(f.a.token())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(revoke.status(), StatusCode::OK);
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
+    let mut ended = false;
+    while tokio::time::Instant::now() < deadline {
+        match tokio::time::timeout(Duration::from_secs(1), response.chunk()).await {
+            Ok(Ok(None)) | Ok(Err(_)) => {
+                ended = true;
+                break;
+            }
+            _ => {}
+        }
+    }
+    assert!(ended, "a revoked session's stream kept running");
 }

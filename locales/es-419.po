@@ -2360,3 +2360,6 @@ msgstr "Espera a que termine la partida."
 
 msgid "identity.refused.no_folder"
 msgstr "Ember no encuentra su carpeta de ajustes para guardar el respaldo."
+
+msgid "identity.backup_same_locked"
+msgstr "Es el ID que ya está en esta PC. Al restaurarlo se define una nueva contraseña para esta PC, así recuperas el acceso si olvidaste la anterior."

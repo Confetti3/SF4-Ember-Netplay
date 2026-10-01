@@ -311,7 +311,9 @@ impl Identity {
         let _lock = self.lock()?;
         self.evaluate();
         let preview = self.preview(&imported);
-        if preview.same_identity && matches!(self.state, State::Ready | State::Locked) {
+        // A locked store of the same ID is protected again from the backup:
+        // the way back when its local passphrase is forgotten.
+        if preview.same_identity && self.state == State::Ready {
             return Ok(self.status());
         }
         if preview.replaces_existing && !replace {
@@ -340,6 +342,18 @@ impl Identity {
             return Err(error);
         }
         self.read_back(&imported, protection)?;
+        // The new key is installed and verified, and the guard still names the
+        // replaced ID (its copy is retired). Without it a failed write below is
+        // repaired from the key at the next start, as after a first creation.
+        if !preview.same_identity {
+            let guard = self.dir.join(STATE_FILE);
+            if guard.exists()
+                && let Err(error) = fs::remove_file(&guard)
+            {
+                self.evaluate();
+                return Err(io_failure(error));
+            }
+        }
         let created = if preview.same_identity {
             self.continuity.as_ref().map_or_else(now, |c| c.created_at)
         } else {
@@ -357,10 +371,24 @@ impl Identity {
         if self.state == State::Disabled {
             return Err(Failure::WrongState);
         }
+        let _lock = self.lock()?;
+        // The confirmation is checked against the store as it is now, under
+        // the lock: another helper may have replaced the ID the player saw.
+        let unlocked = self.key.take();
+        self.evaluate();
+        if let Some(key) = unlocked
+            && self.state == State::Locked
+            && self.status().ember_id.as_ref() == Some(key.ember_id())
+        {
+            // Still the key on disk: keep it unlocked.
+            self.accept(key, Backend::Passphrase);
+        }
+        if self.state == State::Disabled {
+            return Err(Failure::WrongState);
+        }
         if self.status().ember_id.as_ref() != confirm {
             return Err(Failure::ConfirmationMismatch);
         }
-        let _lock = self.lock()?;
         self.retire()?;
         self.key = None;
         self.continuity = None;

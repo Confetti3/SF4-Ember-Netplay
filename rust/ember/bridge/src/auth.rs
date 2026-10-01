@@ -61,6 +61,51 @@ pub enum Actor {
     Browser(Browser),
 }
 
+/// The credential a long-lived response was opened with, rechecked while it
+/// runs so a revoked session or credential stops it.
+#[derive(Clone)]
+pub enum Standing {
+    Player([u8; 32]),
+    Service(String),
+    Browser([u8; 32]),
+}
+
+impl Actor {
+    pub fn standing(&self) -> Standing {
+        match self {
+            Self::Player(player) => Standing::Player(player.token_hash),
+            Self::Service(service) => Standing::Service(service.id.clone()),
+            Self::Browser(browser) => Standing::Browser(browser.token_hash),
+        }
+    }
+}
+
+/// Whether the credential still authorizes requests at `now`.
+pub fn still_valid(
+    tx: &rusqlite::Connection,
+    standing: &Standing,
+    now: u64,
+) -> rusqlite::Result<bool> {
+    match standing {
+        Standing::Player(hash) => tx.query_row(
+            "SELECT EXISTS (SELECT 1 FROM sessions WHERE token_hash = ?1 AND revoked_at IS NULL AND expires_at > ?2)",
+            params![hash.as_slice(), now],
+            |row| row.get(0),
+        ),
+        Standing::Service(id) => tx.query_row(
+            "SELECT EXISTS (SELECT 1 FROM service_credentials WHERE id = ?1 AND revoked_at IS NULL)",
+            [id],
+            |row| row.get(0),
+        ),
+        Standing::Browser(hash) => tx.query_row(
+            "SELECT EXISTS (SELECT 1 FROM browser_sessions b JOIN provider_connections c ON c.id = b.connection_id
+              WHERE b.token_hash = ?1 AND b.expires_at > ?2 AND c.enabled = 1)",
+            params![hash.as_slice(), now],
+            |row| row.get(0),
+        ),
+    }
+}
+
 pub fn hash(keys: &Keys, purpose: &str, token: &str) -> [u8; 32] {
     keys.keyed_hash(purpose, token.as_bytes())
 }

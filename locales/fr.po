@@ -2783,3 +2783,6 @@ msgstr "Attendez la fin du combat."
 
 msgid "identity.refused.no_folder"
 msgstr "Ember ne trouve pas son dossier de paramètres pour y enregistrer la sauvegarde."
+
+msgid "identity.backup_same_locked"
+msgstr "C'est l'ID déjà présent sur ce PC. La restauration définit une nouvelle phrase secrète pour ce PC, ce qui remplace celle que vous avez oubliée."

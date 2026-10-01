@@ -2783,3 +2783,6 @@ msgstr "请等待对战结束。"
 
 msgid "identity.refused.no_folder"
 msgstr "Ember 找不到用于保存备份的设置文件夹。"
+
+msgid "identity.backup_same_locked"
+msgstr "这就是此电脑上已有的 ID。恢复时会为此电脑设置新密码，可用于找回忘记的密码。"

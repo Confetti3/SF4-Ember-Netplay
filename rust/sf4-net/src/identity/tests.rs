@@ -508,6 +508,90 @@ fn crash_during_replacement_needs_recovery() {
     assert_eq!(id(&b.store()), imported_id);
 }
 
+// Start over retires only the ID the player confirmed, even when another
+// helper replaced it after this one last looked.
+#[test]
+fn reset_confirms_against_the_store_on_disk() {
+    let (a, b) = (Dir::new(), Dir::new());
+    let mut source = a.store();
+    source.enable(Protection::Default).unwrap();
+    let other_id = id(&source);
+    let backup = a.path("ember.backup");
+    source.export(&backup, "pass").unwrap();
+    let bytes = fs::read(&backup).unwrap();
+
+    let mut first = b.store();
+    first.enable(Protection::Default).unwrap();
+    let shown_id = id(&first);
+    let mut second = b.store();
+    second
+        .import(&bytes, "pass", &other_id, Protection::Default, true)
+        .unwrap();
+    assert_eq!(
+        first.reset(Some(&shown_id)).err(),
+        Some(Failure::ConfirmationMismatch)
+    );
+    assert_eq!(id(&b.store()), other_id);
+    // Confirming what is there now works.
+    first.reset(Some(&other_id)).unwrap();
+    assert_eq!(b.store().status().state, State::Disabled);
+}
+
+// A forgotten local passphrase is recovered from a backup of the same ID.
+#[test]
+fn backup_replaces_a_forgotten_local_passphrase() {
+    let dir = Dir::new();
+    let mut store = dir.wine_store();
+    store.enable(Protection::Passphrase("forgotten")).unwrap();
+    let ember_id = id(&store);
+    let backup = dir.path("ember.backup");
+    store.export(&backup, "backup words").unwrap();
+    let bytes = fs::read(&backup).unwrap();
+    drop(store);
+
+    let mut locked = dir.wine_store();
+    assert_eq!(locked.status().state, State::Locked);
+    let status = locked
+        .import(
+            &bytes,
+            "backup words",
+            &ember_id,
+            Protection::Passphrase("remembered"),
+            false,
+        )
+        .unwrap();
+    assert_eq!(status.state, State::Ready);
+    assert_eq!(status.ember_id.as_ref(), Some(&ember_id));
+    let mut reopened = dir.wine_store();
+    assert!(reopened.unlock("forgotten").is_err());
+    reopened.unlock("remembered").unwrap();
+    assert_eq!(id(&reopened), ember_id);
+}
+
+// A replacement whose continuity write fails still opens as the new ID.
+#[test]
+fn replacement_with_a_failed_continuity_write_is_repaired() {
+    let (a, b) = (Dir::new(), Dir::new());
+    let mut source = a.store();
+    source.enable(Protection::Default).unwrap();
+    let imported_id = id(&source);
+    let backup = a.path("ember.backup");
+    source.export(&backup, "pass").unwrap();
+    let bytes = fs::read(&backup).unwrap();
+
+    let mut target = b.store();
+    target.enable(Protection::Default).unwrap();
+    target.set_faults(|at| at == Step::WriteContinuity);
+    let status = target
+        .import(&bytes, "pass", &imported_id, Protection::Default, true)
+        .unwrap();
+    assert_eq!(status.state, State::Ready);
+    drop(target);
+    let reopened = b.store();
+    assert_eq!(reopened.status().state, State::Ready);
+    assert_eq!(id(&reopened), imported_id);
+}
+
 #[test]
 fn backup_recovers_a_missing_key() {
     let dir = Dir::new();
