@@ -7,6 +7,7 @@
 #include "../ui/ApplicationShell.hxx"
 #include "../ui/FighterSelector.hxx"
 #include "../ui/MenuRows.hxx"
+#include "../ui/OverlayLifecycle.hxx"
 #include "../ui/OverlayPresentation.hxx"
 #include "../ui/Theme.hxx"
 #include "../ui/Win32Input.hxx"
@@ -22,7 +23,6 @@
 #include <spdlog/spdlog.h>
 #include <memory>
 #include <atomic>
-#include <mutex>
 
 namespace Overlay = sf4e::Overlay;
 using fMainMenu = sf4e::GameEvents::MainMenu;
@@ -49,11 +49,11 @@ static std::atomic<DWORD> s_drawThread{0};
 // SF4 can pump the window's messages on another thread than the one that
 // draws (sf4e.log then says "window messages arrive on thread"). The Win32
 // backend hands their ImGui input to this bridge, which the drawing thread
-// applies, so the window procedure only needs the context to stay alive while
-// it runs: this lock covers creating and destroying the context, never a frame.
+// applies, so a message and a frame never wait for each other. Each D3D Reset
+// frees and recreates the context on the game thread; s_lifecycle keeps that
+// from happening under a frame or a message (OverlayLifecycle.hxx).
 static sf4e::ui::Win32InputBridge s_inputBridge;
-static std::recursive_mutex s_imguiLock;
-using ImGuiLock = std::lock_guard<std::recursive_mutex>;
+static sf4e::ui::OverlayLifecycle s_lifecycle;
 // Whether the menu can open now, published by the drawing thread for the
 // window procedure (F10 is the game's key otherwise).
 static std::atomic<bool> s_menuAvailable{false};
@@ -82,7 +82,7 @@ static void NoteLifecycleThread(const char* what) {
 
 void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	NoteLifecycleThread("initialize");
-	ImGuiLock lock(s_imguiLock);
+	sf4e::ui::OverlayLifecycle::Change change(s_lifecycle);
 	sf4e::OverlayPrefs::StartPersistence();
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -265,7 +265,9 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 void Overlay::DrawOverlay() {
     s_drawThread.store(GetCurrentThreadId());
 
-    if (!ImGui::GetCurrentContext()) return;
+    // Skipped while a Reset replaces the context; held until the frame is drawn.
+    sf4e::ui::OverlayLifecycle::Frame drawing(s_lifecycle);
+    if (!drawing || !ImGui::GetCurrentContext()) return;
     // The frame reads only this: the game thread's state as its last tick left it.
     const auto frame = sf4e::NetplayFacade::GetPresentationSnapshotShared();
     const auto& snapshot = *frame->runtime;
@@ -400,7 +402,7 @@ void Overlay::FreeOverlay() {
     trainingAvailable = false;
     fMainMenu::bOverrideItemObserverState = -1;
     NoteLifecycleThread("free");
-    ImGuiLock lock(s_imguiLock);
+    sf4e::ui::OverlayLifecycle::Change change(s_lifecycle);
     if (!ImGui::GetCurrentContext()) return;
     controllerNavigation.Reset();
     sf4e::ui::SetMenuArt(nullptr);
@@ -423,7 +425,7 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
     // The click that brings the game forward again must not press an Ember
     // row that is drawn under the pointer while the game is behind another window.
     static sf4e::ui::ActivationClickFilter activationClick;
-    ImGuiLock lock(s_imguiLock);
+    const auto lock = s_lifecycle.Message();
     // Native display resets can pump activation messages after FreeOverlay and
     // before InitializeOverlay. Focus belongs to the window, not its ImGui
     // context: dropping reactivation here leaves F10/Start permanently gated.
