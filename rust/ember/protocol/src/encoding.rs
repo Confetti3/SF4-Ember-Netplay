@@ -32,6 +32,21 @@ pub fn decode_b64u<const N: usize>(text: &str, field: &'static str) -> Result<[u
     Ok(bytes)
 }
 
+/// Decodes unpadded base64url of any length up to `max` bytes, with the same
+/// canonical re-encoding check as `decode_b64u`.
+pub fn decode_b64u_vec(text: &str, max: usize, field: &'static str) -> Result<Vec<u8>> {
+    if text.len() > (4 * max).div_ceil(3) {
+        return Err(Error::InvalidEncoding(field));
+    }
+    let raw = URL_SAFE_NO_PAD
+        .decode(text)
+        .map_err(|_| Error::InvalidEncoding(field))?;
+    if raw.len() > max || b64u(&raw) != text {
+        return Err(Error::InvalidEncoding(field));
+    }
+    Ok(raw)
+}
+
 /// Standard padded base64, as the Standard Webhooks signature header uses.
 pub fn b64(data: &[u8]) -> String {
     STANDARD.encode(data)

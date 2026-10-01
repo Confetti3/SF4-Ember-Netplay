@@ -35,6 +35,21 @@ handoff and Proton validation, WP7 BluMint adapter, WP8 hardening.
   without Docker. Uniqueness is enforced by constraints, not check-then-insert. The SQL
   avoids SQLite-only syntax where it can so a PostgreSQL backend can be added later.
 
+## New dependencies
+
+| Crate | Where | Why |
+|---|---|---|
+| `ember-protocol` (path) | sf4-net, bridge, notifier | Shared wire rules |
+| `ed25519-dalek =3.0.0` | ember-protocol | Already in sf4-net's lock through iroh |
+| `hmac 0.12` | ember-protocol | Standard Webhooks HMAC-SHA256 |
+| `argon2 =0.5.3` | sf4-net | Passphrase KDF for local store and backups |
+| `chacha20poly1305 =0.10.1` | sf4-net | XChaCha20-Poly1305 envelope |
+| `getrandom 0.3` | sf4-net | OS RNG for seeds, salts and nonces; already in the lock |
+| `zeroize 1` | sf4-net, ember-protocol | Wiping seeds and keys; already in the lock |
+
+DPAPI, Wine detection and the known-folder lookup use additional `windows-sys` features,
+not new crates.
+
 ## Open sign-offs (spec section 30.2)
 
 | Topic | Default until resolved |

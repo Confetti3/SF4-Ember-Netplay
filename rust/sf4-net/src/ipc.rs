@@ -80,7 +80,7 @@ impl Drop for Handle {
         }
     }
 }
-struct Local(*mut c_void);
+pub(crate) struct Local(pub(crate) *mut c_void);
 impl Drop for Local {
     fn drop(&mut self) {
         unsafe {
@@ -148,7 +148,8 @@ pub fn valid_pipe_name(name: &str) -> bool {
         .is_some_and(|suffix| suffix.len() == 32 && suffix.bytes().all(|c| c.is_ascii_hexdigit()))
 }
 
-fn current_user_descriptor() -> io::Result<Local> {
+/// A security descriptor from `sddl`, which receives the current user's SID.
+pub(crate) fn current_user_descriptor(sddl: impl FnOnce(&str) -> String) -> io::Result<Local> {
     unsafe {
         let mut raw_token = ptr::null_mut();
         if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut raw_token) == 0 {
@@ -185,10 +186,7 @@ fn current_user_descriptor() -> io::Result<Local> {
         let sid_string =
             String::from_utf16(std::slice::from_raw_parts(text, count)).map_err(|_| denied())?;
         drop(sid_text);
-        let descriptor: Vec<u16> = format!("D:P(A;;GA;;;{sid_string})")
-            .encode_utf16()
-            .chain(Some(0))
-            .collect();
+        let descriptor: Vec<u16> = sddl(&sid_string).encode_utf16().chain(Some(0)).collect();
         let mut security = ptr::null_mut();
         if ConvertStringSecurityDescriptorToSecurityDescriptorW(
             descriptor.as_ptr(),
@@ -207,7 +205,7 @@ pub fn create_server(name: &str) -> io::Result<NamedPipeServer> {
     if !valid_pipe_name(name) {
         return Err(denied());
     }
-    let descriptor = current_user_descriptor()?;
+    let descriptor = current_user_descriptor(|sid| format!("D:P(A;;GA;;;{sid})"))?;
     let mut attributes = SECURITY_ATTRIBUTES {
         nLength: mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
         lpSecurityDescriptor: descriptor.0,

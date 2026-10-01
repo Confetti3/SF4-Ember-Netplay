@@ -6009,7 +6009,7 @@ async fn flushed_departure_behind_more_than_one_poll_budget(replacement: bool) {
         for _ in 0..400 {
             fixture.actor.poll_controls().await.unwrap();
             drain(&mut fixture.events, &mut order);
-            if order.iter().any(|entry| *entry == last) {
+            if order.contains(&last) {
                 break;
             }
             tokio::time::sleep(Duration::from_millis(5)).await;

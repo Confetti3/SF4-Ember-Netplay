@@ -13,7 +13,8 @@ if(WIN32)
         find_program(SF4E_CARGO_EXECUTABLE cargo REQUIRED)
         set(SF4E_HELPER_SOURCE "${CMAKE_SOURCE_DIR}/rust/sf4-net")
         set(SF4E_HELPER_EXECUTABLE "${CMAKE_BINARY_DIR}/sf4-net.exe")
-        file(GLOB_RECURSE SF4E_HELPER_RUST_SOURCES CONFIGURE_DEPENDS "${SF4E_HELPER_SOURCE}/src/*.rs")
+        file(GLOB_RECURSE SF4E_HELPER_RUST_SOURCES CONFIGURE_DEPENDS "${SF4E_HELPER_SOURCE}/src/*.rs"
+            "${CMAKE_SOURCE_DIR}/rust/ember/protocol/src/*.rs")
         add_custom_command(OUTPUT "${SF4E_HELPER_EXECUTABLE}"
             COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-target"
                 "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS=-C target-feature=+crt-static"
@@ -24,6 +25,7 @@ if(WIN32)
             WORKING_DIRECTORY "${SF4E_HELPER_SOURCE}"
             DEPENDS ${SF4E_HELPER_RUST_SOURCES} "${SF4E_HELPER_SOURCE}/Cargo.toml"
                 "${SF4E_HELPER_SOURCE}/Cargo.lock" "${SF4E_HELPER_SOURCE}/rust-toolchain.toml"
+                "${CMAKE_SOURCE_DIR}/rust/ember/protocol/Cargo.toml"
                 "${SF4E_HELPER_SOURCE}/build.rs" "${SF4E_HELPER_SOURCE}/resource.rc" "${CMAKE_SOURCE_DIR}/src/ui/ember.ico"
             VERBATIM COMMENT "Build the pinned x64 Iroh helper")
         add_custom_target(IrohHelper ALL DEPENDS "${SF4E_HELPER_EXECUTABLE}")

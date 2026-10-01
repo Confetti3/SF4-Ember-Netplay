@@ -3,6 +3,7 @@ pub mod bridge;
 pub mod control;
 pub mod coordination;
 pub mod coordination_iroh;
+pub mod identity;
 pub mod invite;
 #[cfg(windows)]
 pub mod ipc;
