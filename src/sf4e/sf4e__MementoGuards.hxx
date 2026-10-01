@@ -15,6 +15,8 @@ void ForgetPayload(SaveState* state, void* payload);
 void NoteEngineClear(Key* key, const char* operation);
 bool CheckKeyWrite(SaveState* state, Key* address, const Key& saved, const char* operation, bool restoring);
 bool CheckRelease(SaveState* state, Key* address, const Key& saved, const char* operation);
+// Counts payloads released through a detached key copy, for LogCounters.
+void NoteRelease();
 void ResetCounters();
 void LogCounters(const char* label);
 void DrainAbort();

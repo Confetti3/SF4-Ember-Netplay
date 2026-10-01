@@ -345,6 +345,26 @@ void CopyIntoPlace(fSystem::SaveState* src) {
         fSystem::RestoreAllFromInternalMementos(system, &GGPO_MEMENTO_ID);
 }
 
+// The engine's ClearKey (0x52F3D0) reads only the key's own fields, the
+// mementoable object's vtable and the payload, and every memento destructor it
+// reaches touches memento-owned memory alone (docs/design/SAVESTATE_FREE.md).
+// So a saved payload is released through a copy of its key: the live key and
+// the object holding it are never written. The original engine function, not
+// the tracking detour, since the copy is not a key the engine knows.
+static bool ReleaseDetached(fSystem::SaveState* victim, const std::pair<rKey*, rKey>& entry, const char* operation) {
+    if (!entry.first || (victim->keyFailure && !entry.second.mementos)) return false;
+    if (!sf4e::memento::CheckRelease(victim, entry.first, entry.second, operation)) return false;
+    if (!entry.second.mementos) return true;
+    // ClearKey still calls through the mementoable object, which lives with
+    // the key; a key the engine no longer tracks means that object is gone.
+    if (!sf4e::memento::CheckKeyWrite(victim, entry.first, entry.second, operation, false)) return false;
+    sf4e::memento::ForgetPayload(victim, entry.second.mementos);
+    rKey detached = entry.second;
+    (detached.*rKey::publicMethods.ClearKey)();
+    sf4e::memento::NoteRelease();
+    return true;
+}
+
 void Clear(fSystem::SaveState* victim) {
     // Only release payloads this state still has a claim on. A state whose
     // ownership was handed back (see SaveState::Free) holds stale copies
@@ -352,14 +372,11 @@ void Clear(fSystem::SaveState* victim) {
     // would be a double free.
     if (victim->ownsKeys) {
         for (auto iter = victim->keys.begin(); iter != victim->keys.end(); iter++) {
-            if (!(victim->keyFailure && !iter->second.mementos) &&
-                sf4e::memento::CheckKeyWrite(victim, iter->first, iter->second, "clear.release", false) &&
-                sf4e::memento::CheckRelease(victim, iter->first, iter->second, "clear.release")) {
-                sf4e::memento::ForgetPayload(victim, iter->second.mementos);
-                (iter->first->*rKey::publicMethods.ClearKey)();
-                if (sf4e::memento::CheckKeyWrite(victim, iter->first, iter->second, "clear.zero", false))
-                    memset(iter->first, 0, sizeof(rKey));
-            }
+            if (!ReleaseDetached(victim, *iter, "clear.release")) continue;
+            // Only the legacy round trip gets here owning keys, with this
+            // payload installed at the live key; drop that reference to it.
+            if (iter->first->mementos == iter->second.mementos)
+                memset(iter->first, 0, sizeof(rKey));
         }
     }
     sf4e::memento::ForgetPayloads(victim);
@@ -434,19 +451,20 @@ static const SaveStateFreePolicy& FreePolicy() {
 }
 
 const char* SaveStateFreePathName() {
-    return FreePolicy().legacyRoundTrip ? "legacy_round_trip" : "swap";
+    return FreePolicy().legacyRoundTrip ? "legacy_round_trip" : "detached";
 }
 
 void LogSaveStateFreePolicy() {
     spdlog::info(
-        "SaveState: free path={} verify={}",
-        FreePolicy().legacyRoundTrip ? "legacy_round_trip" : "swap",
-        FreePolicy().verify
+        "SaveState: free path={} verify={} tracked_keys={}",
+        FreePolicy().legacyRoundTrip ? "legacy_round_trip" : "detached",
+        FreePolicy().verify,
+        fKey::trackedKeys.size()
     );
 }
 
 // Everything a release must not change: the semantic gameplay hash, the
-// battle-flow globals, the GameManager block and, for the swap path, every
+// battle-flow globals, the GameManager block and, for the detached path, every
 // live memento key byte. The legacy round trip hands the temporary save's
 // payloads to the live keys by design, so its key bytes always differ.
 static uint64_t HashLiveStateForFreeCheck(bool includeKeys) {
@@ -475,29 +493,12 @@ static uint64_t HashLiveStateForFreeCheck(bool includeKeys) {
     return hasher.Value();
 }
 
-// Default release. The engine's ClearKey (0x52F3D0) uses the live mementoable
-// object only to find its vtable, and every memento destructor it reaches
-// touches memento-owned memory alone (docs/design/SAVESTATE_FREE.md). So the victim's
-// key is installed just long enough to release it, and the live key is put
-// back. No temporary save and no memento restore is needed.
-static void FreeBySwap(fSystem::SaveState* victim) {
+// Default release: each saved payload through a copy of its key (see
+// ReleaseDetached), then the records are dropped.
+static void FreeDetached(fSystem::SaveState* victim) {
     diag::ScopedTimer _t(diag::OP_FREE_SWAP);
     if (victim->ownsKeys) {
-        for (auto& entry : victim->keys) {
-            if (!entry.first || (victim->keyFailure && !entry.second.mementos)) {
-                continue;
-            }
-            if (!sf4e::memento::CheckKeyWrite(victim, entry.first, entry.second, "free.install", false) ||
-                !sf4e::memento::CheckRelease(victim, entry.first, entry.second, "free.release")) continue;
-            const rKey live = *entry.first;
-            *entry.first = entry.second;
-            // The original engine function, not the tracking detour: the
-            // address still belongs to a live, tracked key.
-            sf4e::memento::ForgetPayload(victim, entry.second.mementos);
-            (entry.first->*rKey::publicMethods.ClearKey)();
-            if (sf4e::memento::CheckKeyWrite(victim, entry.first, live, "free.restore", false))
-                *entry.first = live;
-        }
+        for (const auto& entry : victim->keys) ReleaseDetached(victim, entry, "free.release");
     }
     // The payloads were released above; Clear must only drop the records.
     victim->ownsKeys = false;
@@ -513,14 +514,14 @@ void fSystem::SaveState::Free(SaveState* victim) {
         FreeByRoundTrip(victim);
     }
     else {
-        FreeBySwap(victim);
+        FreeDetached(victim);
     }
     if (policy.verify) {
         const uint64_t after = HashLiveStateForFreeCheck(!policy.legacyRoundTrip);
         if (after != before) {
             spdlog::error(
                 "SaveState: releasing a state changed live game state (path={} simFrame={} before={:016x} after={:016x})",
-                policy.legacyRoundTrip ? "legacy_round_trip" : "swap",
+                policy.legacyRoundTrip ? "legacy_round_trip" : "detached",
                 rSystem::staticMethods.GetSingleton()
                     ? (int)rSystem::GetNumFramesSimulated_FixedPoint(rSystem::staticMethods.GetSingleton())->integral
                     : -1,
@@ -546,7 +547,7 @@ void fSystem::SaveState::FreeByRoundTrip(SaveState* victim) {
     // The round trip restores the victim before releasing it, so a descriptor
     // that would fail release validation must not be installed at all.
     if (victim->keyFailure || !sf4e::memento::AllReleasable(victim)) {
-        FreeBySwap(victim);
+        FreeDetached(victim);
         return;
     }
     SaveState tmp;
@@ -556,9 +557,9 @@ void fSystem::SaveState::FreeByRoundTrip(SaveState* victim) {
         diag::ScopedTimer _t(diag::OP_FREE_TMP_SAVE);
         if (!SaveState::Save(&tmp, true)) {
             // Without a complete copy of the live state there is nothing
-            // safe to round-trip back into place; release by swap instead.
-            spdlog::warn("SaveState: round-trip release could not save the live state; releasing by swap");
-            FreeBySwap(victim);
+            // safe to round-trip back into place; release detached instead.
+            spdlog::warn("SaveState: round-trip release could not save the live state; releasing detached");
+            FreeDetached(victim);
             return;
         }
     }
@@ -743,10 +744,10 @@ bool fSystem::SaveState::Save(SaveState* dst, bool temporary) {
     }
     sf4e::memento::RegisterPayloads(dst);
     if (sf4e::Game::MementoFailure::record) {
-        // Release the incomplete snapshot now (the default swap release,
+        // Release the incomplete snapshot now (the default detached release,
         // never the round trip, which would save again). An unused slot is
         // what every caller already treats as "nothing to load".
-        FreeBySwap(dst);
+        FreeDetached(dst);
         return false;
     }
 

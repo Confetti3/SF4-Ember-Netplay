@@ -177,18 +177,16 @@ static void MirrorFree(MirrorSaveState* victim) {
 	MirrorClear(&tmp);
 }
 
-// Mirror of the default swap release: install each victim key just long enough
-// for the engine to clear it, put the live key back, then drop the records.
-static void MirrorFreeBySwap(MirrorSaveState* victim) {
+// Mirror of the default detached release: the engine clears a copy of each
+// saved key, so the live keys are never written, then the records are dropped.
+static void MirrorFreeDetached(MirrorSaveState* victim) {
 	if (victim->ownsKeys) {
 		for (auto& e : victim->keys) {
 			if (!e.first) {
 				continue;
 			}
-			const FakeKey live = *e.first;
-			*e.first = e.second;
-			e.first->ClearKey();
-			*e.first = live;
+			FakeKey detached = e.second;
+			detached.ClearKey();
 		}
 	}
 	victim->ownsKeys = false;
@@ -202,12 +200,12 @@ static void MirrorReclaim(MirrorSaveState* victim) {
 }
 
 // Mirror of SaveState::Save's A-001 contract: when recording reports state
-// the memento cannot represent, Save releases the slot by swap and returns
+// the memento cannot represent, Save releases the slot detached and returns
 // false, so no caller can keep or load a partial snapshot.
 static bool MirrorSaveChecked(MirrorSaveState* dst, bool recordFailed) {
 	MirrorSave(dst);
 	if (recordFailed) {
-		MirrorFreeBySwap(dst);
+		MirrorFreeDetached(dst);
 		return false;
 	}
 	return true;
@@ -234,7 +232,7 @@ static void TestFailedSaveReleasesTheSlot() {
 	CHECK(MirrorSaveChecked(&slot, false));
 	CHECK(slot.used);
 	CHECK(slot.keys.size() == 4);
-	MirrorFreeBySwap(&slot);
+	MirrorFreeDetached(&slot);
 	CHECK(g_heap.Leaked() == 0);
 	CHECK(g_heap.doubleFrees == 0);
 }
@@ -447,9 +445,9 @@ static std::vector<int> LivePayloads() {
 	return payloads;
 }
 
-// The swap release frees exactly the slot's payloads and leaves every live key
-// byte-identical, including keys the engine has not repopulated yet.
-static void TestSwapFreeReleasesSlotAndKeepsLiveKeys() {
+// The detached release frees exactly the slot's payloads and leaves every live
+// key byte-identical, including keys the engine has not repopulated yet.
+static void TestDetachedFreeReleasesSlotAndKeepsLiveKeys() {
 	ResetWorld(4);
 	MirrorSaveState slot;
 	MirrorSave(&slot);
@@ -457,7 +455,7 @@ static void TestSwapFreeReleasesSlotAndKeepsLiveKeys() {
 	g_liveKeys[2].ClearKey(); // one live key currently owns nothing
 	const auto before = LivePayloads();
 
-	MirrorFreeBySwap(&slot);
+	MirrorFreeDetached(&slot);
 	CHECK(slot.keys.empty());
 	CHECK(!slot.used);
 	CHECK(slot.ownsKeys);
@@ -473,7 +471,7 @@ static void TestSwapFreeReleasesSlotAndKeepsLiveKeys() {
 // the end. Both release paths must balance the heap exactly.
 static void TestRingOfSavesBalancesWithEitherRelease() {
 	for (int path = 0; path < 2; path++) {
-		const auto release = path == 0 ? MirrorFreeBySwap : MirrorFree;
+		const auto release = path == 0 ? MirrorFreeDetached : MirrorFree;
 		ResetWorld(5);
 		const int kSlots = 10;
 		MirrorSaveState slots[kSlots];
@@ -500,27 +498,27 @@ static void TestRingOfSavesBalancesWithEitherRelease() {
 	}
 }
 
-// Guard: a swap release that forgets to put the live key back is caught, so
-// the swap tests keep their diagnostic power.
-static void TestMirrorDetectsLostLiveKey() {
+// Guard: a release that clears through the live key instead of a copy frees
+// the live payloads and loses the slot's, which these checks must notice.
+static void TestMirrorDetectsClearThroughLiveKey() {
 	ResetWorld(3);
 	MirrorSaveState slot;
 	MirrorSave(&slot);
 	AdvanceEngineFrame();
 	const auto before = LivePayloads();
 	for (auto& e : slot.keys) {
-		*e.first = e.second;
-		e.first->ClearKey(); // (missing: restore the live key)
+		e.first->ClearKey(); // (should be: a copy of e.second)
 	}
 	slot.ownsKeys = false;
 	MirrorClear(&slot);
 	CHECK(LivePayloads() != before);
+	CHECK(g_heap.Leaked() == 3); // the slot's three payloads, never released
 }
 
 int main() {
-	TestSwapFreeReleasesSlotAndKeepsLiveKeys();
+	TestDetachedFreeReleasesSlotAndKeepsLiveKeys();
 	TestRingOfSavesBalancesWithEitherRelease();
-	TestMirrorDetectsLostLiveKey();
+	TestMirrorDetectsClearThroughLiveKey();
 	TestFreeReleasesSlotButKeepsLivePayloads();
 	TestFreeLoopDoesNotDoubleFree();
 	TestSaveIntoDirtySlotRecovers();

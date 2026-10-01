@@ -16,6 +16,7 @@ struct Counters {
     uint64_t loadWrites = 0;
     uint64_t freeWrites = 0;
     uint64_t badDescriptors = 0;
+    uint64_t releases = 0;
 } counters;
 
 int SlotIndex(const SaveState* state) {
@@ -108,14 +109,20 @@ bool CheckRelease(SaveState* state, Key* address, const Key& saved, const char* 
     return false;
 }
 
+void NoteRelease() { ++counters.releases; }
+
 RestoreScope::RestoreScope() { ++restoreDepth; }
 RestoreScope::~RestoreScope() { --restoreDepth; }
 // Battle close ends the match anyway, so a pending abort is dropped with the counters.
 void ResetCounters() { counters = {}; abortPending = false; }
 void RequestAbort() { Fail(false); }
 void LogCounters(const char* label) {
-    spdlog::info("SaveSlots [{}]: guards engine_clears={} skipped_load_writes={} skipped_free_writes={} leaked_descriptors={}",
-        label, counters.engineClears, counters.loadWrites, counters.freeWrites, counters.badDescriptors);
+    // tracked_keys: keys the engine still has after its own teardown. Every
+    // battle object's destructor clears its key, so only objects that outlive
+    // the battle should remain; a count that grows match to match does not.
+    spdlog::info("SaveSlots [{}]: guards engine_clears={} skipped_load_writes={} skipped_free_writes={} leaked_descriptors={} releases={} tracked_keys={}",
+        label, counters.engineClears, counters.loadWrites, counters.freeWrites, counters.badDescriptors,
+        counters.releases, fKey::trackedKeys.size());
 }
 void DiscardPendingAbort() { abortPending = false; }
 void DrainAbort() {

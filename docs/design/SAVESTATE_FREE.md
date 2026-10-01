@@ -81,34 +81,51 @@ itself took when it was recorded. Those are released exactly once in both
 paths. Restoring the victim first changes neither what `ClearKey` releases
 nor the live state left afterwards.
 
-## v0.8.6 release: swap and clear (default)
+## v0.8.6 release: swap and clear (replaced in v1.0)
 
-For each `(address, key)` the victim recorded:
+For each `(address, key)` the victim recorded, v0.8.6 to v1.0.0-rc5 installed
+the victim key at `address`, called `ClearKey(address)` and put the live key
+back. That wrote 48 bytes into a live engine object per key per release, and
+relied on every recorded address still being key storage.
+
+## v1.0 release: detached clear (default)
+
+`ClearKey` reads nothing from where the key is stored: only the key's own
+fields, the mementoable object's vtable and the payload. So each saved payload
+is released through a copy of its key:
 
 ```
-live = *address
-*address = key          // victim key installed
-ClearKey(address)       // original engine function, not the tracking detour
-*address = live         // live key back, byte-identical
+detached = key          // the victim's descriptor, on the stack
+ClearKey(&detached)     // original engine function, not the tracking detour
 ```
 
-The records are then dropped with `ownsKeys = false`. No temporary save and no
-memento restore run, and the live game (engine objects, battle-flow globals,
-GameManager, sound pools and live keys) is not written at all.
+The records are then dropped with `ownsKeys = false`. No temporary save, no
+memento restore, and nothing in the live game (engine objects, live keys,
+battle-flow globals, GameManager, sound pools) is written at all.
 
-It relies on the same assumption as the round trip: a victim's key addresses
-are still valid key storage. Keys live inside unit objects that exist for the
-whole battle. The round trip already wrote victim keys to those same
-addresses, and battle teardown and session start reclaim slots without engine
-calls.
+`ClearKey` still calls through `mementoableObject`, which lives in the same
+engine object as the key. So a key the engine no longer tracks is not released
+(its payload is leaked and the guard counts it), and battle teardown and
+session start drop slots without engine calls, as before.
+
+Every battle close logs one line:
+
+```
+SaveSlots [battle_close_exit]: guards engine_clears=0 skipped_load_writes=0 skipped_free_writes=0 leaked_descriptors=0 releases=N tracked_keys=K
+```
+
+`releases` counts payloads released this match. `tracked_keys` counts keys the
+engine still has after its own teardown; every battle object's destructor
+clears its key, so only objects that outlive a battle should remain, and the
+number should not grow from match to match.
 
 ## Controls and checks
 
 | Environment variable | Effect |
 | --- | --- |
 | `SF4E_LEGACY_SAVESTATE_FREE=1` | Use the v0.8.5 round trip, for A/B comparison. Read once per process; the chosen path is logged at each GGPO start. |
-| `SF4E_SAVESTATE_FREE_VERIFY=1` | Hash the semantic gameplay state, battle-flow globals, GameManager and (swap path) every live key's bytes before and after each release; log an error if they differ. Development only; it costs a full hash per frame. |
-| `SF4E_ROLLBACK_DIAGNOSTICS=1` | `free`, `free.swap` and the legacy `free.*` phases, plus `record.{chara,effect,vfx,other}` and `restore.{chara,effect,vfx,other}` per pass. **Help & About → Export diagnostics** includes Free state, Effect restore and VFX restore. |
+| `SF4E_SAVESTATE_FREE_VERIFY=1` | Hash the semantic gameplay state, battle-flow globals, GameManager and (detached path) every live key's bytes before and after each release; log an error if they differ. Development only; it costs a full hash per frame. |
+| `SF4E_ROLLBACK_DIAGNOSTICS=1` | `free`, `free.swap` (the detached release) and the legacy `free.*` phases, plus `record.{chara,effect,vfx,other}` and `restore.{chara,effect,vfx,other}` per pass. **Help & About → Export diagnostics** includes Free state, Effect restore and VFX restore. |
 
 Compare characters with the same stage, costume, delay and route. With the
 legacy path, `restore.effect` / `restore.vfx` include the two restores inside

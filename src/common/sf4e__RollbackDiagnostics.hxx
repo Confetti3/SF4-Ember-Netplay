@@ -58,7 +58,7 @@ enum TimedOp {
 	OP_FREE_VICTIM_INSTALL,        // CopyIntoPlace(victim)
 	OP_FREE_CLEAR,                 // victim-key cleanup
 	OP_FREE_LIVE_RESTORE,          // live-state restoration
-	OP_FREE_SWAP,                  // swap-and-clear release (default Free path)
+	OP_FREE_SWAP,                  // detached release (default Free path)
 
 	// Per-unit memento work inside RecordAll/RestoreAll. Rollback saves,
 	// loads and the legacy free path all pass through these.
