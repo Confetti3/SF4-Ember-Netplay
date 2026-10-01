@@ -29,7 +29,7 @@ Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by A
 - **Leaving and rejoining handle more room failures.** Rejoining after a crash no longer loops or leaves a ghost seat. A player dropping while someone else leaves no longer freezes the room. Leaving the queue stops automatic watching unless you choose to watch.
 - **Guests can copy the room invitation.** Refused invitations explain whether they expired, came from a different package or were pasted incompletely.
 - **Rooms stay joinable after an hour.** The invitation every member shows is renewed while the room is open, so new copies no longer expire just because the room has been open for an hour. A copied invitation still expires within an hour.
-- **A former host can rejoin.** After handing host to another player and leaving, copy the room's invitation again. A copy taken before you left points at your own game; it now says so instead of reporting an unreachable host.
+- **A former host can rejoin.** After handing host to another player and leaving, ask someone still in the room to copy the invitation again. A copy taken before you left points at your own game. Ember now explains this instead of reporting an unreachable host.
 
 ### Stages, languages and appearance
 
@@ -57,7 +57,7 @@ Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by A
 
 ## Testing
 
-The full build passes all automated tests, and the room fixture passed after the last two fixes. A two-PC rematch series of 17 matches over 48 minutes ran without a crash and recovered from an 8 second connection drop mid-match.
+The full build passed all 87 automated tests. The single-table room fixture passed after the last two fixes. A two-PC rematch series of 17 matches over 48 minutes ran without a crash and recovered from an 8 second drop.
 
 Thanks to everyone who tested the 1.0.0 rc builds.
 
