@@ -115,6 +115,64 @@ export interface RecentMatch {
   finished_at: number;
 }
 
+/** Single elimination, double elimination (with an optional grand final reset) or round robin. */
+export type TournamentFormat = "single_elimination" | "double_elimination" | "round_robin";
+
+export interface TournamentSpec {
+  external_tournament_id: string;
+  format: TournamentFormat;
+  games_to_win: 1 | 2 | 3 | 5;
+  /** The final (single elimination) or grand final and reset (double elimination). Defaults to `games_to_win`. */
+  finals_games_to_win?: 1 | 2 | 3 | 5;
+  /** Double elimination: a second grand final when the losers-bracket player wins the first. Default true. */
+  grand_final_reset?: boolean;
+  required_build_id: string;
+  metadata?: { [key: string]: string };
+}
+
+export interface TournamentEntrant {
+  ember_id: string;
+  participant_id: string;
+  state: "registered" | "withdrawn";
+  /** 1 is the top seed; set when the tournament starts. */
+  seed: number | null;
+  placement: number | null;
+}
+
+/** One set of the bracket. A `players` entry is null while undecided, or `{ bye: true }` for nobody. */
+export interface TournamentSet {
+  node: number;
+  side: "winners" | "losers" | "grand_final" | "round_robin";
+  round: number;
+  label: string;
+  status: "pending" | "ready" | "playing" | "played" | "bye" | "walkover" | "skipped";
+  players: [TournamentSlot, TournamentSlot];
+  winner_slot: 0 | 1 | null;
+  match_id: string | null;
+  games_to_win: number;
+  wins?: [number, number];
+}
+
+export type TournamentSlot = { ember_id: string; participant_id: string } | { bye: true } | null;
+
+export interface Tournament {
+  tournament_id: string;
+  external_tournament_id: string;
+  state: "registration" | "running" | "completed" | "cancelled";
+  revision: string;
+  format: TournamentFormat;
+  games_to_win: number;
+  finals_games_to_win: number;
+  grand_final_reset: boolean;
+  required_build_id: string;
+  metadata: { [key: string]: string };
+  entrants: TournamentEntrant[];
+  sets: TournamentSet[];
+  /** Round robin only: sets won, then game difference, then games won, then head-to-head, then seed. */
+  standings: { ember_id: string; participant_id: string; sets_won: number; sets_lost: number; games_won: number; games_lost: number }[];
+  event_cursor: string;
+}
+
 export interface ResolvedPlayer {
   subject: string;
   linked: boolean;
@@ -347,6 +405,54 @@ export class BridgeClient {
     return this.#json(
       "POST",
       `/v1/lobbies/${encodeURIComponent(lobbyId)}/close`,
+      { reason, expected_revision: expectedRevision },
+      { "idempotency-key": idempotencyKey },
+    );
+  }
+
+  /** Opens registration for a tournament on your connection. */
+  createTournament(spec: TournamentSpec, idempotencyKey: string = randomUUID()): Promise<Tournament> {
+    return this.#json("POST", "/v1/tournaments", { game: "usf4", metadata: {}, ...spec }, { "idempotency-key": idempotencyKey });
+  }
+
+  getTournament(tournamentId: string): Promise<Tournament> {
+    return this.#json("GET", `/v1/tournaments/${encodeURIComponent(tournamentId)}`);
+  }
+
+  /** Registers a linked player who asked to enter, before the start. */
+  registerEntrant(tournamentId: string, player: { participantId: string; emberId: string }, idempotencyKey: string = randomUUID()): Promise<Tournament> {
+    return this.#json(
+      "POST",
+      `/v1/tournaments/${encodeURIComponent(tournamentId)}/entrants`,
+      { participant_id: player.participantId, ember_id: player.emberId },
+      { "idempotency-key": idempotencyKey },
+    );
+  }
+
+  /** Before the start this removes the player; once running, every set they have left goes to their opponent. */
+  withdrawEntrant(tournamentId: string, participantId: string, idempotencyKey: string = randomUUID()): Promise<Tournament> {
+    return this.#json(
+      "POST",
+      `/v1/tournaments/${encodeURIComponent(tournamentId)}/entrants/${encodeURIComponent(participantId)}/withdraw`,
+      {},
+      { "idempotency-key": idempotencyKey },
+    );
+  }
+
+  /** Seeds the entrants (`seeding` lists every registered participant_id, top seed first; registration order otherwise) and starts the first sets. */
+  startTournament(tournamentId: string, expectedRevision: string, seeding?: string[], idempotencyKey: string = randomUUID()): Promise<Tournament> {
+    return this.#json(
+      "POST",
+      `/v1/tournaments/${encodeURIComponent(tournamentId)}/start`,
+      seeding ? { expected_revision: expectedRevision, seeding } : { expected_revision: expectedRevision },
+      { "idempotency-key": idempotencyKey },
+    );
+  }
+
+  cancelTournament(tournamentId: string, expectedRevision: string, reason: string, idempotencyKey: string = randomUUID()): Promise<Tournament> {
+    return this.#json(
+      "POST",
+      `/v1/tournaments/${encodeURIComponent(tournamentId)}/cancel`,
       { reason, expected_revision: expectedRevision },
       { "idempotency-key": idempotencyKey },
     );

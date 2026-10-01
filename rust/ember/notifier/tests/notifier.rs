@@ -156,6 +156,73 @@ fn announces_lobby_rotations() {
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn announces_tournament_progress() {
+    let fixture: Value =
+        serde_json::from_slice(&std::fs::read(examples().join("webhook-fixture.json")).unwrap())
+            .unwrap();
+    let dir = temp("tournament");
+    let a = "emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";
+    let notifier = Notifier::new(
+        Config {
+            listen: "127.0.0.1:0".into(),
+            bridge_origin: "https://bridge.ember.example".into(),
+            secrets: vec![fixture["secret_base64"].as_str().unwrap().into()],
+            database: dir.join("inbox.sqlite3"),
+            discord: None,
+            twitch: None,
+            names: [(a.to_owned(), "Player A".to_owned())].into(),
+        },
+        Clock::default(),
+    )
+    .unwrap();
+    let created = notifier
+        .render(&lobby_event(
+            "tournament.created",
+            json!({ "tournament_id": "etn_1", "format": "double_elimination", "games_to_win": 2,
+                    "finals_games_to_win": 3, "metadata": { "title": "Friday night" } }),
+        ))
+        .unwrap();
+    assert_eq!(created.title, "Friday night");
+    assert_eq!(
+        created.text,
+        "Registration is open: double elimination, first to 2, finals first to 3."
+    );
+    let b = "emb1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    let advanced = notifier
+        .render(&lobby_event(
+            "tournament.match.completed",
+            json!({ "tournament_id": "etn_1", "label": "Winners round 1", "walkover": false,
+                    "winner": { "ember_id": a }, "loser": { "ember_id": b },
+                    "eliminated": null, "winner_next": "Winners final", "loser_next": "Losers round 1" }),
+        ))
+        .unwrap();
+    assert!(
+        advanced
+            .text
+            .starts_with("Player A advances to Winners final. ")
+            && advanced.text.ends_with(" drops to Losers round 1."),
+        "{}",
+        advanced.text
+    );
+    let done = notifier
+        .render(&lobby_event(
+            "tournament.completed",
+            json!({ "tournament_id": "etn_1", "placements": [
+                { "ember_id": a, "placement": 1 },
+                { "ember_id": b, "placement": 2 },
+            ] }),
+        ))
+        .unwrap();
+    assert!(
+        done.text.starts_with("Champion: Player A. 2nd: "),
+        "{}",
+        done.text
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[derive(Clone, Default)]
 struct Captured(Arc<Mutex<Vec<(HeaderMap, Value)>>>);
 

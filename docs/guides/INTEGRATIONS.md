@@ -19,6 +19,9 @@ implemented, and how it differs from the draft, is in `STATUS.md` there.
 - Matches are created by a provider and decided game by game by an organizer.
   Ember does not yet report native results or enforce tournament rooms; those
   are the next work packages.
+- On top of matches, the bridge can run king-of-the-hill lobbies and whole
+  tournaments (single elimination, double elimination, round robin), and it
+  keeps each player's record of sets and games.
 - Every change is an event, delivered to webhooks and readable by cursor or
   over SSE.
 - The only provider kind is a mock one, for local testing. A real platform
@@ -131,6 +134,64 @@ events with their own session.
 The game's own rooms follow the same set lengths and rotations, but today they
 run on their own: a room table does not report to a bridge lobby yet.
 
+## Run a tournament (brackets and round robin)
+
+A tournament is a bracket the bridge runs for you: players register, you start
+it, and every set is created as a match the moment both of its players are
+known and free. Results are entered game by game like any other match, and the
+bracket moves on in the same step.
+
+- `POST /v1/tournaments` (provider, `Idempotency-Key`) takes
+  `external_tournament_id`, `format` (`single_elimination`,
+  `double_elimination` or `round_robin`), `games_to_win`, and optionally
+  `finals_games_to_win` (the final, or the grand final and its reset),
+  `grand_final_reset` (double elimination, on by default), `required_build_id`
+  and display `metadata` such as `title`.
+- `POST /v1/tournaments/{id}/entrants` registers a linked player who asked to
+  enter, until the start. Elimination brackets take up to 128 players, a round
+  robin up to 32.
+- `POST /v1/tournaments/{id}/start` (provider or organizer, with the
+  tournament revision) seeds the players and starts the first sets. Pass
+  `seeding` with every registered `participant_id`, top seed first, or leave
+  it out for registration order. Brackets use standard seeding, so the top
+  seeds get the byes when the count is not a power of two.
+- `POST /v1/tournaments/{id}/entrants/{participant_id}/withdraw` (provider or
+  organizer) takes a player out. Before the start that is all; once running, a
+  set they are playing is cancelled and every set they have left goes to their
+  opponent as a walkover. A player whose link ends is withdrawn the same way.
+- `POST /v1/tournaments/{id}/cancel` (with a reason and the revision) cancels
+  every running set.
+- `GET /v1/tournaments/{id}` shows the entrants with their seed and, at the
+  end, their placement; every set with its label (for example "Winners
+  semifinals" or "Grand final"), status, players, match and score; and for a
+  round robin the standings.
+
+Each set's match carries `round_label` and `tournament_node` in its metadata,
+plus your tournament metadata, so `match.created` and `match.completed` read
+like any other match. A set whose player is still busy in another match on
+your connection waits and starts as soon as that match ends. A lobby does not
+seat a player whose bracket set is waiting for them: the bracket comes first.
+
+Placements follow how far each player got, so players who go out at the same
+stage share a place (two 3rds in single elimination, for example). A round
+robin ranks by sets won, then game difference, then games won, then the
+head-to-head result when exactly two players are level, then seed; a walkover
+counts as a set won.
+
+To fix a wrong result, void the game as usual. That reopens the set and takes
+back what its result fed: later sets that have no games yet are cleared and
+their matches cancelled, and are created again once the set is decided. A
+correction is refused once a later set it fed has a game recorded, and once
+the tournament is over. Bracket sets cannot be cancelled through
+`/v1/matches/{id}/cancel`, and `external_match_id` values starting with
+`tournament:` are reserved.
+
+Tournament events are `tournament.created`, `tournament.entrants.changed`,
+`tournament.started`, `tournament.match.started`, `tournament.match.completed`
+(who advanced where, and who was eliminated), `tournament.match.reopened`,
+`tournament.completed` (the placements) and `tournament.cancelled`. Entrants
+can read a tournament and its events with their own session.
+
 ## Player records
 
 `GET /v1/players/{ember_id}/record` adds up a player's finished matches: sets
@@ -161,7 +222,7 @@ Events are CloudEvents 1.0 with an `emberseq` cursor, for example
 - **SSE.** `GET /v1/events/stream`, resuming with `Last-Event-ID`.
 
 Providers see their connection's events, organizers their tenant's match
-events, and players their own matches, links and lobbies.
+events, and players their own matches, links, lobbies and tournaments.
 
 ## Discord and Twitch
 
@@ -186,8 +247,10 @@ Discord channel and to Twitch chat. Configure it with a JSON file:
 ```
 
 Subscribe it to `match.created`, `match.score.changed`, `match.completed`,
-`match.cancelled`, `match.needs_review` and `match.corrected`, and for lobbies
-`lobby.created`, `lobby.set.completed` and `lobby.closed`, then run
+`match.cancelled`, `match.needs_review` and `match.corrected`, for lobbies
+`lobby.created`, `lobby.set.completed` and `lobby.closed`, and for tournaments
+`tournament.created`, `tournament.started`, `tournament.match.completed`,
+`tournament.completed` and `tournament.cancelled`, then run
 `cargo run -p ember-notifier -- serve notifier.json`. The Twitch token is a
 user access token with the `user:write:chat` scope for the sender account.
 Discord posts never mention anyone. Players show by name when `names` lists

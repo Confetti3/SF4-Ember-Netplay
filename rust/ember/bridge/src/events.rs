@@ -27,6 +27,8 @@ pub struct NewEvent<'a> {
     pub ember_id: Option<&'a EmberId>,
     /// The lobby an event belongs to. Everyone who has joined it may read it.
     pub lobby_id: Option<&'a str>,
+    /// The tournament an event belongs to. Its entrants may read it.
+    pub tournament_id: Option<&'a str>,
     pub data: serde_json::Value,
 }
 
@@ -56,8 +58,9 @@ pub fn emit(tx: &Transaction<'_>, config: &Config, now: u64, event: NewEvent<'_>
         .map_err(|_| ApiFailure::unavailable())?;
     let body = json::canonical(&envelope).map_err(|_| ApiFailure::unavailable())?;
     tx.execute(
-        "INSERT INTO events (seq, id, tenant_id, connection_id, type, subject, match_id, ember_id, body, created_at, lobby_id)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        "INSERT INTO events (seq, id, tenant_id, connection_id, type, subject, match_id, ember_id, body, created_at, lobby_id,
+            tournament_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
             seq,
             id,
@@ -69,7 +72,8 @@ pub fn emit(tx: &Transaction<'_>, config: &Config, now: u64, event: NewEvent<'_>
             event.ember_id.map(EmberId::as_str),
             body,
             now,
-            event.lobby_id
+            event.lobby_id,
+            event.tournament_id
         ],
     )?;
     fan_out(tx, seq, &event, &envelope.kind, now)?;
@@ -175,7 +179,8 @@ pub fn list(
             .prepare(
                 "SELECT seq, body FROM events WHERE seq > ?1 AND (ember_id = ?2 OR match_id IN
                     (SELECT match_id FROM match_participants WHERE ember_id = ?2) OR lobby_id IN
-                    (SELECT lobby_id FROM lobby_entries WHERE ember_id = ?2))
+                    (SELECT lobby_id FROM lobby_entries WHERE ember_id = ?2) OR tournament_id IN
+                    (SELECT tournament_id FROM tournament_entrants WHERE ember_id = ?2))
                  ORDER BY seq LIMIT ?3",
             )?
             .query_map(params![after, ember_id.as_str(), limit], map)?

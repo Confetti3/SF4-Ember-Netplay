@@ -37,7 +37,7 @@ use crate::{
         matches::{
             self, NewMatch, ORGANIZER_PROFILE, idempotent, into_response, service_viewer, viewer_of,
         },
-        records,
+        records, tournaments,
     },
 };
 
@@ -183,6 +183,7 @@ fn lobby_event(
             match_id: None,
             ember_id: None,
             lobby_id: Some(&lobby.id),
+            tournament_id: None,
             data,
         },
     )
@@ -212,6 +213,13 @@ fn set_entry(
         params![lobby_id, ember_id.as_str(), state, slot, position, now],
     )?;
     Ok(())
+}
+
+/// Busy in another match, or due to play a tournament set: a bracket comes
+/// before the lobby, so its set can start as soon as both players are free.
+fn unavailable(tx: &Transaction<'_>, connection_id: &str, ember_id: &EmberId) -> Result<bool> {
+    Ok(matches::busy(tx, connection_id, ember_id, "")?
+        || tournaments::waiting(tx, connection_id, ember_id)?)
 }
 
 /// The next set when both seats can be filled and none is running. Empty
@@ -245,7 +253,7 @@ fn advance(
                 dropped.push(candidate.ember_id.clone());
                 continue;
             }
-            if matches::busy(tx, &lobby.connection_id, &candidate.ember_id, "")? {
+            if unavailable(tx, &lobby.connection_id, &candidate.ember_id)? {
                 continue;
             }
             set_entry(
@@ -269,7 +277,7 @@ fn advance(
     // A seated player who was given another match while waiting for an
     // opponent keeps the seat; the set starts when that match ends.
     for entry in [first, second] {
-        if matches::busy(tx, &lobby.connection_id, &entry.ember_id, "")? {
+        if unavailable(tx, &lobby.connection_id, &entry.ember_id)? {
             return Ok(None);
         }
     }
@@ -308,6 +316,7 @@ fn advance(
             metadata: &metadata,
             participants: [&roster[0], &roster[1]],
             lobby_id: Some(&lobby.id),
+            tournament_id: None,
         },
     )?;
     tx.execute(

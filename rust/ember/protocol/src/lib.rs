@@ -16,6 +16,7 @@ pub mod lobby;
 pub mod matches;
 pub mod report;
 pub mod sign;
+pub mod tournament;
 pub mod webhook;
 
 pub use error::Error;

@@ -5,6 +5,7 @@ pub mod lobbies;
 pub mod matches;
 pub mod records;
 pub mod sessions;
+pub mod tournaments;
 pub mod webhooks;
 
 use std::time::Duration;
@@ -59,6 +60,15 @@ pub fn router(state: AppState) -> Router {
             post(lobbies::leave),
         )
         .route("/v1/lobbies/{id}/close", post(lobbies::close))
+        .route("/v1/tournaments", post(tournaments::create))
+        .route("/v1/tournaments/{id}", get(tournaments::get))
+        .route("/v1/tournaments/{id}/entrants", post(tournaments::register))
+        .route(
+            "/v1/tournaments/{id}/entrants/{participant}/withdraw",
+            post(tournaments::withdraw_route),
+        )
+        .route("/v1/tournaments/{id}/start", post(tournaments::start))
+        .route("/v1/tournaments/{id}/cancel", post(tournaments::cancel))
         .route("/v1/events", get(events::list))
         .route("/v1/events/stream", get(events::stream))
         .route(

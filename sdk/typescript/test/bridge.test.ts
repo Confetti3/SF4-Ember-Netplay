@@ -179,6 +179,24 @@ test("SDK drives a live bridge end to end", { skip: !existsSync(binary) && "buil
     assert.ok(lobbyEvents.includes(eventType("lobby.set.completed")));
     const closed = await provider.closeLobby(lobby.lobby_id, next.revision, "End of stream");
     assert.equal(closed.state, "closed");
+
+    // A two-player single elimination bracket: one set decides it.
+    const created2 = await provider.createTournament({ external_tournament_id: "sdk-cup", format: "single_elimination", games_to_win: 1, required_build_id: "sdk", metadata: { title: "SDK cup" } });
+    assert.equal(created2.state, "registration");
+    for (const player of participants) await provider.registerEntrant(created2.tournament_id, { participantId: player.participant_id, emberId: player.ember_id });
+    const running = await provider.startTournament(created2.tournament_id, (await provider.getTournament(created2.tournament_id)).revision, [participants[1]!.participant_id, participants[0]!.participant_id]);
+    assert.equal(running.state, "running");
+    const finalSet = running.sets[0]!;
+    assert.equal(finalSet.status, "playing");
+    assert.equal(finalSet.label, "Final");
+    const finalMatch = await organizer.getMatch(finalSet.match_id!);
+    await organizer.recordGame(finalSet.match_id!, { winnerSlot: 0 }, finalMatch.revision as string, "Called on stream");
+    const finished = await provider.getTournament(created2.tournament_id);
+    assert.equal(finished.state, "completed");
+    const champion = finished.entrants.find((entrant) => entrant.placement === 1)!;
+    assert.equal(champion.ember_id, participants[1]!.ember_id);
+    const kinds = (await provider.listEvents("0", 200)).events.map((event) => event.type);
+    assert.ok(kinds.includes(eventType("tournament.completed")));
   } finally {
     child.process?.kill();
     receiver.close();

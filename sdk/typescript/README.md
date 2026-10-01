@@ -25,6 +25,12 @@ await bridge.joinLobby(lobby.lobby_id, { participantId, emberId });
 // Sets and games won and lost, and the latest matches.
 const record = await bridge.getPlayerRecord(emberId);
 
+// A double elimination bracket, grand final first to 3. Each set becomes a
+// match when its players are known; record games on it as usual.
+const cup = await bridge.createTournament({ external_tournament_id: "weekly-12", format: "double_elimination", games_to_win: 2, finals_games_to_win: 3, required_build_id: build, metadata: { title: "Weekly 12" } });
+await bridge.registerEntrant(cup.tournament_id, { participantId, emberId });
+await bridge.startTournament(cup.tournament_id, (await bridge.getTournament(cup.tournament_id)).revision);
+
 // Webhooks: verify the raw body first, then parse.
 verifyWebhook(rawBody, request.headers, [subscriptionSecret]);
 const event = parseEvent(rawBody);

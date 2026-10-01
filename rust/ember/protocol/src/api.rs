@@ -111,6 +111,9 @@ pub struct Capabilities {
     /// Seat rotations a lobby can use. Absent on a bridge without lobbies.
     #[serde(default)]
     pub lobby_rotations: Vec<String>,
+    /// Bracket formats a tournament can use. Absent on a bridge without tournaments.
+    #[serde(default)]
+    pub tournament_formats: Vec<String>,
     /// Provider connections a player can link to on this bridge.
     #[serde(default)]
     pub connections: Vec<ConnectionInfo>,

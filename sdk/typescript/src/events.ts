@@ -28,6 +28,14 @@ export const EVENT_TYPES = [
   "lobby.set.started",
   "lobby.set.completed",
   "lobby.closed",
+  "tournament.created",
+  "tournament.entrants.changed",
+  "tournament.started",
+  "tournament.match.started",
+  "tournament.match.completed",
+  "tournament.match.reopened",
+  "tournament.completed",
+  "tournament.cancelled",
 ] as const;
 
 export type EventName = (typeof EVENT_TYPES)[number];

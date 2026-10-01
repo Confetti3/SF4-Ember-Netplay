@@ -253,10 +253,17 @@ impl Notifier {
             )
             .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
             == 1;
-        // Later events name their match or lobby by the label it was created with.
+        // Later events name their match, lobby or tournament by the label it
+        // was created with.
         let labelled = match event.kind() {
             Some(Kind::MatchCreated) => Some(("match_id", match_label(&event.data))),
-            Some(Kind::LobbyCreated) => Some(("lobby_id", lobby_title(&event.data).to_owned())),
+            Some(Kind::LobbyCreated) => {
+                Some(("lobby_id", title_of(&event.data, "Lobby").to_owned()))
+            }
+            Some(Kind::TournamentCreated) => Some((
+                "tournament_id",
+                title_of(&event.data, "Tournament").to_owned(),
+            )),
             _ => None,
         };
         if let (true, Some((key, label))) = (fresh, labelled) {
@@ -502,6 +509,103 @@ impl Notifier {
                 "The organizer corrected the result.".into(),
                 0xFAA61A,
             ),
+            Kind::TournamentCreated => {
+                let first_to = data
+                    .get("games_to_win")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(1);
+                let finals = data
+                    .get("finals_games_to_win")
+                    .and_then(Value::as_u64)
+                    .filter(|finals| *finals != first_to)
+                    .map(|finals| format!(", finals first to {finals}"))
+                    .unwrap_or_default();
+                (
+                    title_of(data, "Tournament").to_owned(),
+                    format!(
+                        "Registration is open: {}, first to {first_to}{finals}.",
+                        format_name(data)
+                    ),
+                    0x5865F2,
+                )
+            }
+            Kind::TournamentStarted => {
+                let tournament_id = data.get("tournament_id").and_then(Value::as_str)?;
+                let entrants = data
+                    .get("entrants")
+                    .and_then(Value::as_array)
+                    .map_or(0, Vec::len);
+                (
+                    self.label(tournament_id),
+                    format!(
+                        "The bracket is set: {entrants} players, {}.",
+                        format_name(data)
+                    ),
+                    0x5865F2,
+                )
+            }
+            // The set's own match events announce who played and the score;
+            // this adds where the players go.
+            Kind::TournamentMatchCompleted => {
+                let tournament_id = data.get("tournament_id").and_then(Value::as_str)?;
+                let player = |key: &str| {
+                    data.get(key)
+                        .and_then(|player| player.get("ember_id"))
+                        .and_then(Value::as_str)
+                        .map(|id| self.name(id))
+                };
+                let winner = player("winner")?;
+                let walkover = data.get("walkover").and_then(Value::as_bool) == Some(true);
+                let field = |key: &str| data.get(key).and_then(Value::as_str);
+                let mut text = match (walkover, field("winner_next")) {
+                    (true, Some(next)) => format!("{winner} advances to {next} by walkover."),
+                    (true, None) => format!(
+                        "{winner} wins {} by walkover.",
+                        field("label").unwrap_or("the set")
+                    ),
+                    (false, Some(next)) => format!("{winner} advances to {next}."),
+                    (false, None) => {
+                        format!("{winner} wins {}.", field("label").unwrap_or("the set"))
+                    }
+                };
+                if let Some(loser) = player("loser") {
+                    if data.get("eliminated").and_then(Value::as_str).is_some() {
+                        text.push_str(&format!(" {loser} is out."));
+                    } else if let Some(next) = field("loser_next") {
+                        text.push_str(&format!(" {loser} drops to {next}."));
+                    }
+                }
+                (self.label(tournament_id), text, 0xF1C40F)
+            }
+            Kind::TournamentCompleted => {
+                let tournament_id = data.get("tournament_id").and_then(Value::as_str)?;
+                let mut places: BTreeMap<u64, Vec<String>> = BTreeMap::new();
+                for entry in data.get("placements").and_then(Value::as_array)? {
+                    let place = entry.get("placement").and_then(Value::as_u64)?;
+                    if place <= 3 {
+                        let id = entry.get("ember_id").and_then(Value::as_str)?;
+                        places.entry(place).or_default().push(self.name(id));
+                    }
+                }
+                let text = places
+                    .iter()
+                    .map(|(place, names)| {
+                        let label = match place {
+                            1 => "Champion".to_owned(),
+                            2 => "2nd".to_owned(),
+                            _ => "3rd".to_owned(),
+                        };
+                        format!("{label}: {}.", names.join(" and "))
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                (self.label(tournament_id), text, 0xF1C40F)
+            }
+            Kind::TournamentCancelled => (
+                self.label(data.get("tournament_id").and_then(Value::as_str)?),
+                "Tournament cancelled.".into(),
+                0xED4245,
+            ),
             Kind::LobbyCreated => {
                 let first_to = data
                     .get("games_to_win")
@@ -513,7 +617,7 @@ impl Notifier {
                     _ => "both players rotate",
                 };
                 (
-                    lobby_title(data).to_owned(),
+                    title_of(data, "Lobby").to_owned(),
                     format!(
                         "Lobby open: first to {first_to}, {rotation}. Ask to join the queue to play."
                     ),
@@ -723,22 +827,39 @@ async fn classify(response: reqwest::Result<reqwest::Response>, reset: Reset, no
     }
 }
 
-/// A match's display label: its round label, or its lobby and set number.
+/// A match's display label: its round label (after its tournament's title
+/// for a bracket set), or its lobby and set number.
 fn match_label(data: &serde_json::Map<String, Value>) -> String {
     let metadata = data.get("metadata");
     let field = |key: &str| metadata.and_then(|m| m.get(key)).and_then(Value::as_str);
-    match (field("round_label"), field("lobby_set")) {
-        (Some(label), _) => label.to_owned(),
-        (None, Some(set)) => format!("{}, set {set}", field("title").unwrap_or("Lobby")),
-        (None, None) => "Match".to_owned(),
+    match (
+        field("round_label"),
+        field("lobby_set"),
+        field("tournament_node"),
+    ) {
+        (Some(label), _, Some(_)) => match field("title") {
+            Some(title) => format!("{title}, {label}"),
+            None => label.to_owned(),
+        },
+        (Some(label), _, None) => label.to_owned(),
+        (None, Some(set), _) => format!("{}, set {set}", field("title").unwrap_or("Lobby")),
+        (None, None, _) => "Match".to_owned(),
     }
 }
 
-fn lobby_title(data: &serde_json::Map<String, Value>) -> &str {
+fn title_of<'a>(data: &'a serde_json::Map<String, Value>, fallback: &'a str) -> &'a str {
     data.get("metadata")
         .and_then(|metadata| metadata.get("title"))
         .and_then(Value::as_str)
-        .unwrap_or("Lobby")
+        .unwrap_or(fallback)
+}
+
+fn format_name(data: &serde_json::Map<String, Value>) -> &'static str {
+    match data.get("format").and_then(Value::as_str) {
+        Some("double_elimination") => "double elimination",
+        Some("round_robin") => "round robin",
+        _ => "single elimination",
+    }
 }
 
 /// Keeps names and labels from being read as Discord formatting.

@@ -52,6 +52,16 @@ lists queue rotation and multi-table scheduling as future work.
   games on every read, so corrections show at once; only a lobby player's best streak is
   stored, as sets complete. Records are scoped like events: a provider sees its
   connection, an organizer its tenant, and a player only their own.
+- **Tournaments.** `/v1/tournaments` runs single elimination, double elimination (with
+  an optional grand final reset) and round robin on a provider connection. Spec 1.3
+  leaves multi-match scheduling to providers; this is a deliberate extension for
+  communities without one. The layout is a pure function of format and entrant count in
+  `ember_protocol::tournament`, which also holds the state machine (byes, walkovers,
+  reopening a result, placements), so the bridge stores only node states. Each set is
+  an ordinary match created in the transaction that decides its players. A busy player's
+  set waits until their match ends, and lobbies do not seat a player whose bracket set is
+  waiting. A correction reopens a set and clears what it fed while no later set has a
+  game; finished tournaments are final.
 
 ## Deviations from the specification
 
@@ -166,6 +176,7 @@ runs the sf4-net suite). Mock fixtures are not counted as product acceptance.
 | Game screens | ShellJourney `IdentityJourneys`; UiRender Ember ID pages in every locale and size | Automated, pass |
 | Room sets (extension) | `RoomSets`: every rotation, empty queue, draws, rules changes, a rotated fighter's receipt, checkpoint and wire | Automated, pass; no two-PC game run |
 | Records (extension) | bridge `records_follow_finished_matches`, `standings_rank_the_lobby`; SDK `bridge.test.ts` | Automated, pass |
+| Tournaments (extension) | protocol `tournament` unit tests (seeding, byes for 3 to 17, every double elimination entrant losing twice, the first losers drop avoiding a rematch at 8, 16 and 32, resets, walkovers, reopening); bridge `tournaments.rs` (each format end to end, a busy player and a lobby, withdrawal, unlinking, corrections, cancellation); notifier `announces_tournament_progress`; SDK `bridge.test.ts` | Automated, pass |
 | Lobbies (extension) | bridge `lobbies.rs` (rotations, leaving and unlinking, players busy in other matches, and the lobby resuming and announcing seat changes when they are free); notifier `announces_lobby_rotations`; SDK `bridge.test.ts` | Automated, pass |
 | Linux | `cargo test --locked` in `rust/ember` and `npm test` in `sdk/typescript` (Node 24 from nodejs.org) on Ubuntu 26.04, x86_64, at `efe545e` | Automated, pass |
 

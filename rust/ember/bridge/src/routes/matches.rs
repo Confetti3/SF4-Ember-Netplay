@@ -33,7 +33,7 @@ use crate::{
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key, ok},
     routes::{
         links::{Ctx, audit},
-        lobbies,
+        lobbies, tournaments,
     },
 };
 
@@ -62,13 +62,15 @@ struct Match {
     games_to_win: u8,
     /// The lobby that plays this match as one of its sets.
     lobby_id: Option<String>,
+    /// The tournament that plays this match as one of its bracket sets.
+    tournament_id: Option<String>,
 }
 
 fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
     Ok(tx
         .query_row(
             "SELECT id, tenant_id, connection_id, external_match_id, revision, assignment_generation, state, games_to_win,
-                    lobby_id
+                    lobby_id, tournament_id
              FROM matches WHERE id = ?1",
             [id],
             |row| {
@@ -82,6 +84,7 @@ fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
                     row.get::<_, String>(6)?,
                     row.get::<_, u8>(7)?,
                     row.get::<_, Option<String>>(8)?,
+                    row.get::<_, Option<String>>(9)?,
                 ))
             },
         )
@@ -96,6 +99,7 @@ fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
             state: MatchState::parse(&row.6).unwrap_or(MatchState::Failed),
             games_to_win: row.7,
             lobby_id: row.8,
+            tournament_id: row.9,
         }))
 }
 
@@ -116,7 +120,7 @@ pub fn busy(
     )?)
 }
 
-fn participants(tx: &Transaction<'_>, id: &str, generation: u64) -> Result<Vec<Participant>> {
+pub fn participants(tx: &Transaction<'_>, id: &str, generation: u64) -> Result<Vec<Participant>> {
     tx.prepare(
         "SELECT slot, participant_id, ember_id FROM match_participants
          WHERE match_id = ?1 AND assignment_generation = ?2 ORDER BY slot",
@@ -140,7 +144,7 @@ fn participants(tx: &Transaction<'_>, id: &str, generation: u64) -> Result<Vec<P
 }
 
 /// Accepted wins per slot, from the ledger rather than any room score.
-fn scores(tx: &Transaction<'_>, id: &str) -> Result<([u8; 2], Vec<String>)> {
+pub fn scores(tx: &Transaction<'_>, id: &str) -> Result<([u8; 2], Vec<String>)> {
     let mut wins = [0u8; 2];
     let mut accepted = Vec::new();
     let rows = tx
@@ -282,6 +286,7 @@ fn match_event(
             match_id: Some(&found.id),
             ember_id: None,
             lobby_id: found.lobby_id.as_deref(),
+            tournament_id: found.tournament_id.as_deref(),
             data,
         },
     )
@@ -298,9 +303,13 @@ pub async fn create(
     let key = idempotency_key(&headers)?;
     let command: CreateMatch = body.parse()?;
     command.check()?;
-    if command.external_match_id.starts_with(lobbies::MATCH_PREFIX) {
+    if command.external_match_id.starts_with(lobbies::MATCH_PREFIX)
+        || command
+            .external_match_id
+            .starts_with(tournaments::MATCH_PREFIX)
+    {
         return Err(ApiFailure::invalid(
-            "external_match_id values starting with lobby: are reserved for lobby sets.",
+            "external_match_id values starting with lobby: or tournament: are reserved for lobby and tournament sets.",
         ));
     }
     if command.rules.native_rules_profile != ORGANIZER_PROFILE {
@@ -370,6 +379,7 @@ fn create_match(
             metadata: &command.metadata,
             participants: command.by_slot(),
             lobby_id: None,
+            tournament_id: None,
         },
     )?;
     let found = load(tx, &id)?.ok_or_else(ApiFailure::unavailable)?;
@@ -388,6 +398,7 @@ pub struct NewMatch<'a> {
     /// Ordered by slot.
     pub participants: [&'a Assigned; 2],
     pub lobby_id: Option<&'a str>,
+    pub tournament_id: Option<&'a str>,
 }
 
 /// Whether `participant_id` on the connection is currently linked to `ember_id`.
@@ -434,8 +445,8 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
     tx.execute(
         "INSERT INTO matches (id, tenant_id, connection_id, external_match_id, create_digest, revision,
             assignment_generation, state, games_to_win, rules, required_build_id, metadata, delivery_state,
-            created_at, updated_at, lobby_id)
-         VALUES (?1, ?2, ?3, ?4, ?5, 1, 1, 'awaiting_players', ?6, ?7, ?8, ?9, 'not_required', ?10, ?10, ?11)",
+            created_at, updated_at, lobby_id, tournament_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, 1, 1, 'awaiting_players', ?6, ?7, ?8, ?9, 'not_required', ?10, ?10, ?11, ?12)",
         params![
             id,
             new.tenant_id,
@@ -447,7 +458,8 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
             new.required_build_id,
             serde_json::to_string(new.metadata).unwrap_or_default(),
             ctx.now,
-            new.lobby_id
+            new.lobby_id,
+            new.tournament_id
         ],
     )?;
     for participant in new.participants {
@@ -634,6 +646,13 @@ pub async fn cancel(
                     )
                     .detail("lobby_id", lobby_id.clone()));
                 }
+                if let Some(tournament_id) = &found.tournament_id {
+                    return Err(ApiFailure::new(
+                        ErrorCode::LeaseConflict,
+                        "This match is a tournament set. Withdraw an entrant or cancel the tournament instead.",
+                    )
+                    .detail("tournament_id", tournament_id.clone()));
+                }
                 let revision = cancel_match(tx, &ctx, &found, &command.reason)?;
                 release(tx, &ctx, &found, &participants(tx, &found.id, found.generation)?)?;
                 audit(tx, ctx.now, ("service", service.id.clone()), "match.cancel", &found.id, "ok", Some(&command.reason))?;
@@ -657,15 +676,26 @@ fn cancel_match(tx: &Transaction<'_>, ctx: &Ctx, found: &Match, reason: &str) ->
     Ok(revision)
 }
 
-/// A match outside any lobby has ended, so lobbies its players wait in may
-/// start their next set.
 fn release(tx: &Transaction<'_>, ctx: &Ctx, found: &Match, roster: &[Participant]) -> Result<()> {
     let players: Vec<EmberId> = roster.iter().map(|p| p.ember_id.clone()).collect();
-    lobbies::on_players_free(tx, ctx, &found.connection_id, &players)
+    release_players(tx, ctx, &found.connection_id, &players)
+}
+
+/// A match has ended, so its players are free: a tournament set waiting on
+/// them starts first, then a lobby they wait in may start its next set.
+pub fn release_players(
+    tx: &Transaction<'_>,
+    ctx: &Ctx,
+    connection_id: &str,
+    players: &[EmberId],
+) -> Result<()> {
+    tournaments::on_players_free(tx, ctx, connection_id, players)?;
+    lobbies::on_players_free(tx, ctx, connection_id, players)
 }
 
 /// Cancels a lobby's running set when a seated player leaves or the lobby
-/// closes. A finished set is left as it is.
+/// closes. A finished set is left as it is. A tournament set waiting on its
+/// players can start; the lobby itself moves on in its own code.
 pub fn cancel_lobby_set(
     tx: &Transaction<'_>,
     ctx: &Ctx,
@@ -675,8 +705,41 @@ pub fn cancel_lobby_set(
     let found = load(tx, match_id)?.ok_or_else(ApiFailure::unavailable)?;
     if !found.state.is_terminal() {
         cancel_match(tx, ctx, &found, reason)?;
+        let players: Vec<EmberId> = participants(tx, &found.id, found.generation)?
+            .into_iter()
+            .map(|p| p.ember_id)
+            .collect();
+        tournaments::on_players_free(tx, ctx, &found.connection_id, &players)?;
     }
     Ok(())
+}
+
+/// Cancels a tournament set that a withdrawal, a correction or the
+/// tournament's end has made moot, returning its players.
+pub fn cancel_tournament_set(
+    tx: &Transaction<'_>,
+    ctx: &Ctx,
+    match_id: &str,
+    reason: &str,
+) -> Result<Vec<EmberId>> {
+    let found = load(tx, match_id)?.ok_or_else(ApiFailure::unavailable)?;
+    if found.state.is_terminal() {
+        return Ok(Vec::new());
+    }
+    cancel_match(tx, ctx, &found, reason)?;
+    Ok(participants(tx, &found.id, found.generation)?
+        .into_iter()
+        .map(|p| p.ember_id)
+        .collect())
+}
+
+/// Whether a match has an accepted game.
+pub fn has_games(tx: &Transaction<'_>, match_id: &str) -> Result<bool> {
+    Ok(tx.query_row(
+        "SELECT EXISTS (SELECT 1 FROM attempts WHERE match_id = ?1 AND state = 'accepted')",
+        [match_id],
+        |row| row.get(0),
+    )?)
 }
 
 fn check_reason(reason: &str) -> Result<()> {
@@ -876,6 +939,14 @@ fn apply_adjudication(
             "The lobby has moved on to its next set, so this set cannot be reopened.",
         ));
     }
+    // Reopening a bracket set takes back what its result fed, as long as no
+    // later set has a game recorded; that frees the players for the check below.
+    if correcting
+        && next != MatchState::Completed
+        && let Some(tournament_id) = &found.tournament_id
+    {
+        tournaments::on_reopen(tx, ctx, tournament_id, &found.id)?;
+    }
     // A correction that reopens the match makes its players busy again, so it
     // must not double-book one who has started another match meanwhile.
     if correcting && next != MatchState::Completed {
@@ -948,12 +1019,21 @@ fn apply_adjudication(
             Kind::MatchCompleted,
             serde_json::to_value(&completed).unwrap_or_default(),
         )?;
-        match (&found.lobby_id, correcting) {
-            (Some(lobby_id), false) => {
-                lobbies::on_set_completed(tx, ctx, lobby_id, &found.id, slot as u8, &score_rows)?
+        if !correcting {
+            if let Some(lobby_id) = &found.lobby_id {
+                lobbies::on_set_completed(tx, ctx, lobby_id, &found.id, slot as u8, &score_rows)?;
             }
-            (None, false) => release(tx, ctx, found, &roster)?,
-            (_, true) => {}
+            if let Some(tournament_id) = &found.tournament_id {
+                tournaments::on_match_completed(
+                    tx,
+                    ctx,
+                    tournament_id,
+                    &found.id,
+                    slot as u8,
+                    &score_rows,
+                )?;
+            }
+            release(tx, ctx, found, &roster)?;
         }
     }
     Ok((
@@ -1015,11 +1095,12 @@ pub fn on_unlink(
     ember_id: &EmberId,
 ) -> Result<()> {
     lobbies::on_unlink(tx, ctx, connection_id, ember_id)?;
+    tournaments::on_unlink(tx, ctx, connection_id, ember_id)?;
     let ids = tx
         .prepare(
             "SELECT m.id FROM matches m JOIN match_participants p
                ON p.match_id = m.id AND p.assignment_generation = m.assignment_generation
-             WHERE m.connection_id = ?1 AND p.ember_id = ?2 AND m.lobby_id IS NULL
+             WHERE m.connection_id = ?1 AND p.ember_id = ?2 AND m.lobby_id IS NULL AND m.tournament_id IS NULL
                AND m.state NOT IN ('completed', 'cancelled', 'failed', 'needs_review')",
         )?
         .query_map(params![connection_id, ember_id.as_str()], |row| {

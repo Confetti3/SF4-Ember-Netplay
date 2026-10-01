@@ -525,6 +525,7 @@ pub fn claim(
             match_id: None,
             ember_id: Some(ember_id),
             lobby_id: None,
+            tournament_id: None,
             data: json!({
                 "intent_id": intent.id,
                 "claim_id": claim_id,
@@ -675,6 +676,7 @@ pub fn approve(
             match_id: None,
             ember_id: Some(&claim.ember_id),
             lobby_id: None,
+            tournament_id: None,
             data: json!({
                 "link_id": link_id,
                 "ember_id": claim.ember_id,
@@ -811,6 +813,7 @@ fn revoke_link(
             match_id: None,
             ember_id: Some(ember_id),
             lobby_id: None,
+            tournament_id: None,
             data: json!({
                 "link_id": link_id,
                 "ember_id": ember_id,

@@ -14,6 +14,12 @@ export {
   type RecentMatch,
   type ResolvedPlayer,
   type Rotation,
+  type Tournament,
+  type TournamentEntrant,
+  type TournamentFormat,
+  type TournamentSet,
+  type TournamentSlot,
+  type TournamentSpec,
 } from "./client.ts";
 export { canonicalize, parseStrict, StrictJsonError, type Json } from "./canonical.ts";
 export { EVENT_TYPES, EventError, eventType, parseEvent, type BridgeEvent, type EventName } from "./events.ts";

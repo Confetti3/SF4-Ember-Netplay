@@ -31,6 +31,7 @@ struct Played {
     finished: bool,
     games_to_win: u8,
     lobby_id: Option<String>,
+    tournament_id: Option<String>,
     round_label: Option<String>,
     updated_at: u64,
     opponent: Option<(String, String)>,
@@ -57,7 +58,7 @@ fn played(tx: &Transaction<'_>, viewer: &Viewer, ember_id: &EmberId) -> Result<V
     };
     tx.prepare(
         "SELECT m.id, m.state, m.games_to_win, m.lobby_id, m.metadata, m.updated_at, p.slot,
-                o.participant_id, o.ember_id,
+                o.participant_id, o.ember_id, m.tournament_id,
                 (SELECT COUNT(*) FROM attempts a WHERE a.match_id = m.id AND a.state = 'accepted' AND a.outcome = 'p1_win'),
                 (SELECT COUNT(*) FROM attempts a WHERE a.match_id = m.id AND a.state = 'accepted' AND a.outcome = 'p2_win'),
                 (SELECT COUNT(*) FROM attempts a WHERE a.match_id = m.id AND a.state = 'accepted' AND a.outcome = 'draw')
@@ -71,8 +72,8 @@ fn played(tx: &Transaction<'_>, viewer: &Viewer, ember_id: &EmberId) -> Result<V
     )?
     .query_map(params![ember_id.as_str(), connection, tenant], |row| {
         let slot: u8 = row.get(6)?;
-        let p1: u32 = row.get(9)?;
-        let p2: u32 = row.get(10)?;
+        let p1: u32 = row.get(10)?;
+        let p2: u32 = row.get(11)?;
         let metadata: String = row.get(4)?;
         let opponent = match (row.get::<_, Option<String>>(7)?, row.get::<_, Option<String>>(8)?) {
             (Some(participant), Some(ember)) => Some((participant, ember)),
@@ -83,12 +84,13 @@ fn played(tx: &Transaction<'_>, viewer: &Viewer, ember_id: &EmberId) -> Result<V
             finished: row.get::<_, String>(1)? == "completed",
             games_to_win: row.get(2)?,
             lobby_id: row.get(3)?,
+            tournament_id: row.get(9)?,
             round_label: serde_json::from_str::<BTreeMap<String, String>>(&metadata)
                 .ok()
                 .and_then(|mut metadata| metadata.remove("round_label")),
             updated_at: row.get(5)?,
             opponent,
-            games: if slot == 0 { [p1, p2, row.get(11)?] } else { [p2, p1, row.get(11)?] },
+            games: if slot == 0 { [p1, p2, row.get(12)?] } else { [p2, p1, row.get(12)?] },
         })
     })?
     .collect::<rusqlite::Result<Vec<_>>>()
@@ -171,6 +173,7 @@ pub async fn record(
                         "games_to_win": row.games_to_win,
                         "opponent": opponent,
                         "lobby_id": row.lobby_id,
+                        "tournament_id": row.tournament_id,
                         "round_label": row.round_label,
                         "finished_at": row.updated_at,
                     })
