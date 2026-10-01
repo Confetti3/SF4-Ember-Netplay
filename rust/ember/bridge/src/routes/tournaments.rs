@@ -869,6 +869,13 @@ pub fn on_reopen(
             undone.push(set);
         }
     }
+    // Every set the correction cleared waits for new players; one decided by
+    // a walkover keeps no link to its old, already cancelled match.
+    for (later, state) in bracket.states.iter().enumerate() {
+        if state.status == Status::Pending {
+            bracket.matches[later] = None;
+        }
+    }
     save(tx, &tournament.id, &bracket, 0..bracket.plan.len(), ctx.now)?;
     let revision = touch(tx, &tournament.id, ctx.now)?;
     let mut data = set_json(&bracket, node);

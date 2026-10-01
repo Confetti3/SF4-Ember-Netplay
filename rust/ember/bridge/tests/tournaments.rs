@@ -773,3 +773,118 @@ async fn a_withdrawn_player_set_cannot_be_reopened() {
     );
     assert_eq!(tournament(&f, &id).await["sets"][0]["status"], "played");
 }
+
+/// Eight players, first to 2. The quarterfinals 0 v 7 and 3 v 4 go to the
+/// better seed, the semifinal 0 v 3 starts (with one game for player 0 when
+/// `game_first`), and then player 3 withdraws, making it a walkover. Returns
+/// the tournament and the 0 v 7 quarterfinal's match.
+async fn walkover_after_quarterfinals(
+    f: &Fixture,
+    external: &str,
+    game_first: bool,
+) -> (String, String) {
+    let id = create(
+        f,
+        external,
+        json!({ "format": "single_elimination", "games_to_win": 2 }),
+    )
+    .await;
+    for index in 0..8 {
+        register(f, &id, index).await;
+    }
+    let started = start(f, &id, None).await;
+    let quarter = |a: usize| {
+        started["sets"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|set| set["players"][0]["ember_id"] == f.id(a))
+            .unwrap()["match_id"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    let (first, second) = (quarter(0), quarter(3));
+    for _ in 0..2 {
+        f.game(&first, 0).await;
+        f.game(&second, 0).await;
+    }
+    let semifinal = tournament(f, &id).await["sets"][4].clone();
+    assert_eq!(semifinal["status"], "playing", "{semifinal}");
+    if game_first {
+        f.game(semifinal["match_id"].as_str().unwrap(), 0).await;
+    }
+    let (status, body) = f
+        .bridge
+        .post_keyed(
+            &f.provider,
+            &format!(
+                "/v1/tournaments/{id}/entrants/{}/withdraw",
+                f.participant(3)
+            ),
+            json!({}),
+            Some(&format!("withdraw-{external}")),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(tournament(f, &id).await["sets"][4]["status"], "walkover");
+    (id, first)
+}
+
+/// Voids the last accepted game of a match.
+async fn void_last(f: &Fixture, match_id: &str) -> (StatusCode, Value) {
+    let (_, snapshot) = f
+        .bridge
+        .get(&f.organizer, &format!("/v1/matches/{match_id}"))
+        .await;
+    let attempt = snapshot["attempts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .rev()
+        .find(|attempt| attempt["state"] == "accepted")
+        .unwrap()["attempt_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    f.void(match_id, &attempt).await
+}
+
+// Unwinding through a walkover respects the games its cancelled match
+// recorded, and a set it clears forgets that match.
+#[tokio::test]
+async fn corrections_through_a_walkover() {
+    let f = fixture(8).await;
+    let (id, quarter) = walkover_after_quarterfinals(&f, "walkover-games", true).await;
+    let (status, refused) = void_last(&f, &quarter).await;
+    assert_eq!(
+        (status, code(&refused)),
+        (StatusCode::CONFLICT, "lease_conflict"),
+        "{refused}"
+    );
+    let current = tournament(&f, &id).await;
+    f.bridge
+        .post_keyed(
+            &f.provider,
+            &format!("/v1/tournaments/{id}/cancel"),
+            json!({ "reason": "Next one", "expected_revision": current["revision"] }),
+            Some("cancel-walkover-games"),
+        )
+        .await;
+
+    let (id, quarter) = walkover_after_quarterfinals(&f, "walkover-clean", false).await;
+    let (status, body) = void_last(&f, &quarter).await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    let cleared = tournament(&f, &id).await["sets"][4].clone();
+    assert_eq!(cleared["status"], "pending", "{cleared}");
+    assert!(cleared["match_id"].is_null(), "{cleared}");
+    // Player 7 takes the quarterfinal after all and walks over withdrawn 3.
+    for _ in 0..2 {
+        f.game(&quarter, 1).await;
+    }
+    let semifinal = tournament(&f, &id).await["sets"][4].clone();
+    assert_eq!(semifinal["status"], "walkover", "{semifinal}");
+    assert!(semifinal["match_id"].is_null(), "{semifinal}");
+    let winner_slot = semifinal["winner_slot"].as_u64().unwrap() as usize;
+    assert_eq!(semifinal["players"][winner_slot]["ember_id"], f.id(7));
+}

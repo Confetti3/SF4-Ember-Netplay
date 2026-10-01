@@ -646,6 +646,11 @@ fn unwind(
             }
             Status::Played => return Err(Blocked::Downstream(later)),
             Status::Bye | Status::Walkover | Status::Skipped => {
+                // A walkover can follow a match that had games before the
+                // withdrawal cancelled it; those games still count.
+                if has_games(later) {
+                    return Err(Blocked::Downstream(later));
+                }
                 unwind(plan, states, later, has_games, cancelled)?;
             }
         }
@@ -1020,6 +1025,29 @@ mod tests {
             reopen(&nodes, &mut states, 2, |_| false),
             Err(Blocked::NotPlayed)
         );
+    }
+
+    #[test]
+    fn a_walkover_with_games_blocks_reopening() {
+        let nodes = plan(Format::SingleElimination, 4, true).unwrap();
+        let (mut states, mut withdrawn) = start(&nodes, 4);
+        for node in [0, 1] {
+            states[node].status = Status::Playing;
+            complete(&mut states, node, 0).unwrap();
+        }
+        settle(&nodes, &mut states, &withdrawn);
+        states[2].status = Status::Playing;
+        // The final's second player withdraws after a game was recorded.
+        withdrawn[1] = true;
+        settle(&nodes, &mut states, &withdrawn);
+        assert_eq!(states[2].status, Status::Walkover);
+        assert_eq!(
+            reopen(&nodes, &mut states, 0, |node| node == 2),
+            Err(Blocked::Downstream(2))
+        );
+        assert_eq!(states[0].status, Status::Played);
+        assert_eq!(reopen(&nodes, &mut states, 0, |_| false), Ok(vec![]));
+        assert_eq!(states[2].status, Status::Pending);
     }
 
     #[test]
