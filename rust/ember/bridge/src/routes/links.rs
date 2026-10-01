@@ -1136,22 +1136,33 @@ pub async fn cancel_claim_route(
                 sessions::Target { action: Action::LinkCancel, method: Method::Post, path: &path },
                 Some(&player.ember_id),
             )?;
-            let intent: String = tx
+            let (intent, claim_state): (String, String) = tx
                 .query_row(
-                    "SELECT intent_id FROM link_claims WHERE id = ?1 AND ember_id = ?2",
+                    "SELECT intent_id, state FROM link_claims WHERE id = ?1 AND ember_id = ?2",
                     params![id, ember_id.as_str()],
-                    |row| row.get(0),
+                    |row| Ok((row.get(0)?, row.get(1)?)),
                 )
                 .optional()?
                 .ok_or_else(ApiFailure::not_found)?;
-            let changed = tx.execute(
-                "UPDATE link_claims SET state = 'cancelled', decided_at = ?1 WHERE id = ?2 AND state = 'pending'",
-                params![ctx.now, id],
-            )?;
-            if changed == 1 {
-                tx.execute("UPDATE link_intents SET state = 'created' WHERE id = ?1 AND state = 'claim_pending'", [&intent])?;
+            match claim_state.as_str() {
+                "pending" => {
+                    tx.execute(
+                        "UPDATE link_claims SET state = 'cancelled', decided_at = ?1 WHERE id = ?2 AND state = 'pending'",
+                        params![ctx.now, id],
+                    )?;
+                    tx.execute("UPDATE link_intents SET state = 'created' WHERE id = ?1 AND state = 'claim_pending'", [&intent])?;
+                    Ok(())
+                }
+                // A retried cancellation.
+                "cancelled" => Ok(()),
+                // The account side answered first: say so instead of claiming
+                // a cancellation that did not happen.
+                decided => Err(ApiFailure::new(
+                    ErrorCode::LinkConflict,
+                    "The request was already answered. Check your links.",
+                )
+                .detail("state", decided.to_owned())),
             }
-            Ok(())
         })
         .await?;
     Ok(ok(

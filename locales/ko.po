@@ -2786,3 +2786,6 @@ msgstr "백업을 저장할 Ember 설정 폴더를 찾을 수 없습니다."
 
 msgid "identity.backup_same_locked"
 msgstr "이미 이 PC에 있는 ID입니다. 복원하면 이 PC의 새 암호를 설정하므로, 잊어버린 암호를 대신할 수 있습니다."
+
+msgid "identity.failure.already_answered"
+msgstr "사이트가 이미 이 요청에 응답했으므로 취소되지 않았습니다. 아래 연동 목록에서 결과를 확인하세요."

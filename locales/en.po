@@ -2479,3 +2479,6 @@ msgstr "Ember cannot find its settings folder to save the backup in."
 
 msgid "identity.backup_same_locked"
 msgstr "It is the ID already on this PC. Restoring it sets a new passphrase for this PC, which recovers a forgotten one."
+
+msgid "identity.failure.already_answered"
+msgstr "The site already answered that request, so it was not cancelled. Your links below show what it decided."

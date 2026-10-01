@@ -2786,3 +2786,6 @@ msgstr "Ember ne trouve pas son dossier de paramètres pour y enregistrer la sau
 
 msgid "identity.backup_same_locked"
 msgstr "C'est l'ID déjà présent sur ce PC. La restauration définit une nouvelle phrase secrète pour ce PC, ce qui remplace celle que vous avez oubliée."
+
+msgid "identity.failure.already_answered"
+msgstr "Le site a déjà répondu à cette demande, elle n'a donc pas été annulée. Vos associations ci-dessous montrent sa décision."

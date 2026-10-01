@@ -2786,3 +2786,6 @@ msgstr "Ember kan zijn instellingenmap niet vinden om de back-up in op te slaan.
 
 msgid "identity.backup_same_locked"
 msgstr "Dit is de ID die al op deze pc staat. Herstellen stelt een nieuwe wachtwoordzin voor deze pc in, zo kom je er weer in als je de oude vergeten bent."
+
+msgid "identity.failure.already_answered"
+msgstr "De site heeft dit verzoek al beantwoord, dus het is niet geannuleerd. Je koppelingen hieronder tonen de uitkomst."

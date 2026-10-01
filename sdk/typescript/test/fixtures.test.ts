@@ -114,6 +114,10 @@ test("reports verify, agree, and reject tampering", () => {
   assert.throws(() => verifyReport(resign(a, { table_id: 4 })), /table_id/);
   assert.throws(() => verifyReport(resign(a, { result: "forfeit" })), /result/);
   assert.throws(() => verifyReport(resign(a, { extra: 1 })), /unknown report field/);
+  const omitted: { [key: string]: Json } = { ...a.report, result: "abort" };
+  delete omitted.capture_frame;
+  delete omitted.confirmed_input_frame;
+  assert.throws(() => verifyReport(resign({ ...a, report: omitted }, {})), /capture_frame is missing/);
   assert.throws(() => verifyReport(resign(a, { result: "abort", capture_frame: "0", confirmed_input_frame: null })), /capture_frame/);
 });
 

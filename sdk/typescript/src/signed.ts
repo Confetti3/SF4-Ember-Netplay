@@ -140,7 +140,9 @@ export function checkReport(report: { [key: string]: Json }): void {
   const keys = Object.keys(report);
   const unknown = keys.find((key) => !REPORT_FIELDS.includes(key));
   if (unknown !== undefined) throw new ProofError(`unknown report field ${unknown}`);
-  const missing = REPORT_FIELDS.find((key) => !(key in report) && key !== "capture_frame" && key !== "confirmed_input_frame");
+  // Every field is present; the two frames may be null. Rust signs an absent
+  // frame as null, so a report that omits one would not verify there.
+  const missing = REPORT_FIELDS.find((key) => !(key in report));
   if (missing !== undefined) throw new ProofError(`${missing} is missing`);
   const room = report.room_id;
   const assignment = counter(report.assignment_generation);
@@ -173,7 +175,7 @@ export function checkReport(report: { [key: string]: Json }): void {
   }
   const frame = (key: string): bigint | null | undefined => {
     const value = report[key];
-    if (value === undefined || value === null) return undefined;
+    if (value === null) return undefined;
     const parsed = counter(value);
     if (parsed === null) throw new ProofError(`${key} is not a canonical counter`);
     return parsed;

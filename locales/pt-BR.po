@@ -2363,3 +2363,6 @@ msgstr "O Ember não encontra sua pasta de configurações para salvar o backup.
 
 msgid "identity.backup_same_locked"
 msgstr "É o ID que já está neste PC. Restaurá-lo define uma nova senha para este PC, o que recupera o acesso se você esqueceu a anterior."
+
+msgid "identity.failure.already_answered"
+msgstr "O site já respondeu a essa solicitação, então ela não foi cancelada. Seus vínculos abaixo mostram o que ele decidiu."

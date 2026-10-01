@@ -137,6 +137,14 @@ void IdentityPanel::Finish(const ShellView& v) {
     if (!id.ok) {
         // A link list on a service the helper no longer trusts just ends the selection.
         if (sentOp_ == IdentityOp::LinkList && id.failure == "bridge_not_approved") { bridge_.clear(); listedBridge_.clear(); return; }
+        // The site approved or refused the request before the cancellation
+        // arrived: say so and show what it decided.
+        if (sentOp_ == IdentityOp::LinkCancel && id.failure == "link_conflict") {
+            Say(loc::T("identity.failure.already_answered"), true);
+            queue_.clear();
+            IdentityRequest list; list.op = IdentityOp::LinkList; list.bridge = bridge_; Queue(std::move(list));
+            return;
+        }
         Say(FailureText(id.failure), true); queue_.clear(); return;
     }
     switch (sentOp_) {

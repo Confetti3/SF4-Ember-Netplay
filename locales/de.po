@@ -2786,3 +2786,6 @@ msgstr "Ember findet seinen Einstellungsordner nicht, um die Sicherung dort zu s
 
 msgid "identity.backup_same_locked"
 msgstr "Das ist die ID, die schon auf diesem PC ist. Beim Wiederherstellen legen Sie eine neue Passphrase für diesen PC fest und ersetzen so eine vergessene."
+
+msgid "identity.failure.already_answered"
+msgstr "Die Seite hat diese Anfrage bereits beantwortet, sie wurde also nicht abgebrochen. Ihre Verknüpfungen unten zeigen das Ergebnis."

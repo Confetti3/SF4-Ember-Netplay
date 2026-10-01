@@ -723,4 +723,38 @@ async fn players_cancel_their_own_pending_claims() {
         .await;
     assert_eq!(view["state"], "created");
     assert!(view["claim"].is_null());
+
+    // Once the account side approved, a cancellation is refused, not reported as done.
+    let (_, claim) = bridge
+        .claim(&player, intent["code"].as_str().unwrap(), "mock-a")
+        .await;
+    let claim_id = claim["claim_id"].as_str().unwrap();
+    let (status, _) = bridge
+        .post(
+            &provider,
+            &format!(
+                "/v1/link-intents/{}/approve",
+                intent["intent_id"].as_str().unwrap()
+            ),
+            json!({ "claim_id": claim_id, "ember_id": player.id(), "subject": "erin" }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let path = format!("/v1/link-claims/{claim_id}/cancel");
+    let body = bridge
+        .prove(
+            &player,
+            Action::LinkCancel,
+            Method::Post,
+            &path,
+            json!({ "claim_id": claim_id }),
+        )
+        .await;
+    let (status, refused) = bridge.send_proof(&player, Method::Post, &path, body).await;
+    assert_eq!(
+        (status, code(&refused)),
+        (StatusCode::CONFLICT, "link_conflict")
+    );
+    let (_, links) = bridge.get(player.token(), "/v1/links").await;
+    assert_eq!(links["links"].as_array().unwrap().len(), 1);
 }

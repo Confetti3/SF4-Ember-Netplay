@@ -2786,3 +2786,6 @@ msgstr "Ember nie może znaleźć folderu ustawień, aby zapisać w nim kopię."
 
 msgid "identity.backup_same_locked"
 msgstr "Ten ID jest już na tym komputerze. Przywrócenie ustawia nowe hasło dla tego komputera, co pozwala odzyskać dostęp po zapomnieniu starego."
+
+msgid "identity.failure.already_answered"
+msgstr "Strona już odpowiedziała na tę prośbę, więc nie została anulowana. Powiązania poniżej pokazują, co zdecydowała."

@@ -2786,3 +2786,6 @@ msgstr "バックアップを保存するEmberの設定フォルダーが見つ�
 
 msgid "identity.backup_same_locked"
 msgstr "このPCにすでにあるIDと同じです。復元するとこのPCのパスフレーズを新しく設定できるため、忘れたパスフレーズの代わりになります。"
+
+msgid "identity.failure.already_answered"
+msgstr "サイトがすでにこのリクエストに応答したため、キャンセルされませんでした。下の連携一覧で結果を確認してください。"

@@ -97,6 +97,9 @@ struct MenuAction {
     // A Back that came from Escape or Backspace, which always goes back;
     // only a pad's B may mean "leave my seat".
     bool keyboard = false;
+    // Accepted text can be a passphrase, so no copy of an action leaves it
+    // behind. (With this destructor, copies stand in for moves.)
+    ~MenuAction() { WipeText(text); }
 };
 class MenuNavigation {
 public:
@@ -144,7 +147,9 @@ public:
     // The entry an open confirmation or choice belongs to.
     const std::string& DialogId() const { return Asking() ? modalId_ : NoId(); }
     const std::string& Draft() const { return draft_; }
-    void Draft(std::string text) { WipeText(draft_); draft_=std::move(text); }
+    // Swapped in, then the parameter is wiped too: a moved-from short string
+    // keeps its characters in its own buffer.
+    void Draft(std::string text) { WipeText(draft_); draft_.swap(text); WipeText(text); }
     // The open editor holds a passphrase (MenuEntry::secret).
     bool EditingSecret() const { return Editing() && secret_; }
     float& Scroll() { return states_[Screen()].scroll; }

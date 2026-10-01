@@ -2786,3 +2786,6 @@ msgstr "Ember non trova la sua cartella delle impostazioni in cui salvare il bac
 
 msgid "identity.backup_same_locked"
 msgstr "È l'ID già presente su questo PC. Ripristinarlo imposta una nuova password per questo PC, così recuperi l'accesso se hai dimenticato quella vecchia."
+
+msgid "identity.failure.already_answered"
+msgstr "Il sito ha già risposto a questa richiesta, quindi non è stata annullata. I collegamenti qui sotto mostrano cosa ha deciso."

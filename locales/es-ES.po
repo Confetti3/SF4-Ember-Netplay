@@ -2786,3 +2786,6 @@ msgstr "Ember no encuentra su carpeta de ajustes para guardar la copia."
 
 msgid "identity.backup_same_locked"
 msgstr "Es el ID que ya hay en este ordenador. Al restaurarlo se define una nueva contraseña para este ordenador, así recuperas el acceso si olvidaste la anterior."
+
+msgid "identity.failure.already_answered"
+msgstr "El sitio ya respondió a esa solicitud, así que no se ha cancelado. Tus vínculos de abajo muestran lo que decidió."
