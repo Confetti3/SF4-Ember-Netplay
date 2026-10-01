@@ -76,8 +76,43 @@ export interface Lobby {
   seated: LobbyPlayer[];
   queue: LobbyPlayer[];
   streak: { ember_id: string; sets: number } | null;
+  /** Everyone who has finished a set: sets won, then fewest lost, then game difference, then best streak. */
+  standings: LobbyStanding[];
   metadata: { [key: string]: string };
   event_cursor: string;
+}
+
+export interface LobbyStanding {
+  ember_id: string;
+  participant_id: string;
+  sets_won: number;
+  sets_lost: number;
+  games_won: number;
+  games_lost: number;
+  best_streak: number;
+}
+
+/** A player's finished matches as one viewer may see them. */
+export interface PlayerRecord {
+  ember_id: string;
+  sets: { played: number; won: number; lost: number };
+  games: { won: number; lost: number; drawn: number };
+  cancelled: number;
+  recent: RecentMatch[];
+  event_cursor: string;
+}
+
+export interface RecentMatch {
+  match_id: string;
+  result: "won" | "lost" | "cancelled";
+  wins: number;
+  opponent_wins: number;
+  games_to_win: number;
+  /** `participant_id` is present for provider and organizer credentials only. */
+  opponent: { ember_id: string; participant_id?: string } | null;
+  lobby_id: string | null;
+  round_label: string | null;
+  finished_at: number;
 }
 
 export interface ResolvedPlayer {
@@ -150,6 +185,16 @@ export class BridgeClient {
   async resolvePlayers(subjects: string[]): Promise<ResolvedPlayer[]> {
     const result = await this.#json<{ players: ResolvedPlayer[] }>("POST", "/v1/players/resolve", { subjects });
     return result.players;
+  }
+
+  /**
+   * Sets and games won and lost, and the most recent finished matches. A
+   * provider sees its connection's matches, an organizer its tenant's, and a
+   * player only their own record.
+   */
+  getPlayerRecord(emberId: string, recent?: number): Promise<PlayerRecord> {
+    const query = recent === undefined ? "" : `?limit=${recent}`;
+    return this.#json("GET", `/v1/players/${encodeURIComponent(emberId)}/record${query}`);
   }
 
   /** Starts linking for a subject your service has verified. The code is returned once. */

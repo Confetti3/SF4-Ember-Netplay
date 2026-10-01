@@ -3,6 +3,8 @@
 //! browser. All keys and seeds here are throwaway test values.
 #![allow(dead_code)]
 
+pub mod league;
+
 use std::path::PathBuf;
 
 use ember_bridge::{AppState, Clock, Config, Db, Keys, Running, config};

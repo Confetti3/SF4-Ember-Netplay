@@ -30,7 +30,7 @@ handoff and Proton validation, WP7 BluMint adapter, WP8 hardening.
 
 ## Beyond the package
 
-Two additions go beyond EMBER-TB-001, which covers two-player bracket sets only and
+These additions go beyond EMBER-TB-001, which covers two-player bracket sets only and
 lists queue rotation and multi-table scheduling as future work.
 
 - **Casual room sets and rotation.** A room table can have a set length of first to 1,
@@ -47,6 +47,11 @@ lists queue rotation and multi-table scheduling as future work.
   the rotation and the next set happen in the transaction that completes a set. Lobby
   sets cannot be cancelled or reopened through the match routes. A room table does not
   report to a lobby yet; results still come from organizer adjudication.
+- **Player records and lobby standings.** `GET /v1/players/{ember_id}/record` and the
+  lobby snapshot's `standings` add up finished matches. They are computed from accepted
+  games on every read, so corrections show at once; only a lobby player's best streak is
+  stored, as sets complete. Records are scoped like events: a provider sees its
+  connection, an organizer its tenant, and a player only their own.
 
 ## Deviations from the specification
 
@@ -160,6 +165,7 @@ runs the sf4-net suite). Mock fixtures are not counted as product acceptance.
 | PROVIDER-02 | `match_creation_is_validated_and_idempotent` | Automated, pass |
 | Game screens | ShellJourney `IdentityJourneys`; UiRender Ember ID pages in every locale and size | Automated, pass |
 | Room sets (extension) | `RoomSets`: every rotation, empty queue, draws, rules changes, a rotated fighter's receipt, checkpoint and wire | Automated, pass; no two-PC game run |
+| Records (extension) | bridge `records_follow_finished_matches`, `standings_rank_the_lobby`; SDK `bridge.test.ts` | Automated, pass |
 | Lobbies (extension) | bridge `lobbies.rs` (rotations, leaving and unlinking, players busy in other matches, and the lobby resuming and announcing seat changes when they are free); notifier `announces_lobby_rotations`; SDK `bridge.test.ts` | Automated, pass |
 | Linux | `cargo test --locked` in `rust/ember` and `npm test` in `sdk/typescript` (Node 24 from nodejs.org) on Ubuntu 26.04, x86_64, at `efe545e` | Automated, pass |
 

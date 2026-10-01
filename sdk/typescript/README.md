@@ -22,6 +22,9 @@ const lobby = await bridge.createLobby({ external_lobby_id: "stream-night", game
 // Queue a linked player who asked to play (for example with a chat command).
 await bridge.joinLobby(lobby.lobby_id, { participantId, emberId });
 
+// Sets and games won and lost, and the latest matches.
+const record = await bridge.getPlayerRecord(emberId);
+
 // Webhooks: verify the raw body first, then parse.
 verifyWebhook(rawBody, request.headers, [subscriptionSecret]);
 const event = parseEvent(rawBody);

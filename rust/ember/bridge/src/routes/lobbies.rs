@@ -37,6 +37,7 @@ use crate::{
         matches::{
             self, NewMatch, ORGANIZER_PROFILE, idempotent, into_response, service_viewer, viewer_of,
         },
+        records,
     },
 };
 
@@ -400,6 +401,10 @@ pub fn on_set_completed(
          WHERE id = ?1",
         params![lobby.id, winner.ember_id.as_str(), streak],
     )?;
+    tx.execute(
+        "UPDATE lobby_entries SET best_streak = MAX(best_streak, ?3) WHERE lobby_id = ?1 AND ember_id = ?2",
+        params![lobby.id, winner.ember_id.as_str(), streak],
+    )?;
     for slot in lobby.rotation.leaving(winner_slot) {
         if let Some(leaving) = &seated[usize::from(slot)] {
             set_entry(tx, &lobby.id, &leaving.ember_id, "queued", None, ctx.now)?;
@@ -555,6 +560,7 @@ fn snapshot(tx: &Transaction<'_>, lobby: &Lobby) -> Result<serde_json::Value> {
         "seated": seats(tx, &lobby.id)?.iter().flatten().collect::<Vec<_>>(),
         "queue": queue(tx, &lobby.id)?,
         "streak": lobby.streak_holder.as_ref().map(|holder| json!({ "ember_id": holder, "sets": lobby.streak })),
+        "standings": records::lobby_standings(tx, &lobby.id)?,
         "metadata": lobby.metadata,
         "event_cursor": events::head(tx)?.to_string(),
     }))

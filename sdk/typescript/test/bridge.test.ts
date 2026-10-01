@@ -166,6 +166,15 @@ test("SDK drives a live bridge end to end", { skip: !existsSync(binary) && "buil
     assert.equal(next.sets_completed, 1);
     assert.notEqual(next.current_match_id, playing.current_match_id);
     assert.deepEqual(next.streak, { ember_id: participants[1]!.ember_id, sets: 1 });
+    assert.equal(next.standings[0]!.ember_id, participants[1]!.ember_id);
+    assert.equal(next.standings[0]!.sets_won, 1);
+
+    // Records add up the first-to-2 set and the lobby set.
+    const record = await provider.getPlayerRecord(participants[0]!.ember_id);
+    assert.deepEqual(record.sets, { played: 2, won: 1, lost: 1 });
+    assert.deepEqual(record.games, { won: 2, lost: 1, drawn: 0 });
+    assert.equal(record.recent[0]!.result, "lost");
+    assert.equal(record.recent[0]!.lobby_id, lobby.lobby_id);
     const lobbyEvents = (await provider.listEvents("0", 200)).events.map((event) => event.type);
     assert.ok(lobbyEvents.includes(eventType("lobby.set.completed")));
     const closed = await provider.closeLobby(lobby.lobby_id, next.revision, "End of stream");

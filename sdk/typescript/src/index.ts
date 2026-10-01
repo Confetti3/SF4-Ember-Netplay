@@ -6,9 +6,12 @@ export {
   type BridgeClientOptions,
   type Lobby,
   type LobbyPlayer,
+  type LobbyStanding,
   type LobbySpec,
   type MatchSpec,
   type Participant,
+  type PlayerRecord,
+  type RecentMatch,
   type ResolvedPlayer,
   type Rotation,
 } from "./client.ts";

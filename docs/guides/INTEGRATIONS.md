@@ -114,7 +114,9 @@ capabilities `features` and `lobby_rotations` say a bridge has them.
 - `POST /v1/lobbies/{id}/close` (provider or organizer, with a reason and the
   lobby revision) cancels the running set and empties the lobby.
 - `GET /v1/lobbies/{id}` shows the seats, the queue in order, the running set,
-  and the current streak (who has won sets back to back, and how many).
+  the current streak (who has won sets back to back, and how many) and the
+  lobby's `standings`: everyone who has finished a set there, ranked by sets
+  won, then fewest lost, then game difference, then best streak.
 
 A lobby set cannot be cancelled through `/v1/matches/{id}/cancel`, and a
 correction that would reopen a finished lobby set is refused, because the
@@ -128,6 +130,19 @@ events with their own session.
 
 The game's own rooms follow the same set lengths and rotations, but today they
 run on their own: a room table does not report to a bridge lobby yet.
+
+## Player records
+
+`GET /v1/players/{ember_id}/record` adds up a player's finished matches: sets
+played, won and lost, games won, lost and drawn, cancelled matches, and the
+most recent matches (`?limit=`, 10 by default, at most 50) with the opponent,
+the score, `round_label` and the lobby a set belonged to. A provider sees the
+matches on its connection, an organizer every match in its tenant, and a player
+only their own record, without other players' account IDs.
+
+Records are worked out from the accepted games each time they are read, so a
+voided game or other correction shows straight away. Lobby standings work the
+same way; only a lobby player's best streak is kept as sets are played.
 
 ## Receive events
 

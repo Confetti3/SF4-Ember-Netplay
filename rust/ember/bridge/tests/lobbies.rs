@@ -2,192 +2,13 @@
 //! rotates its seats when a set ends (an extension beyond EMBER-TB-001).
 mod common;
 
-use common::{Bridge, Player, code, types};
+use common::{
+    code,
+    league::{fixture, last, queued, seated},
+    types,
+};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
-
-struct Fixture {
-    bridge: Bridge,
-    provider: String,
-    organizer: String,
-    players: Vec<Player>,
-    links: Vec<Value>,
-}
-
-async fn fixture(count: u8) -> Fixture {
-    let bridge = Bridge::start().await;
-    let provider = bridge.provider("mock-a").await;
-    let organizer = bridge.organizer("t1").await;
-    let mut players = Vec::new();
-    let mut links = Vec::new();
-    for index in 0..count {
-        let mut player = bridge.player(60 + index);
-        bridge.open_session(&mut player).await;
-        links.push(
-            bridge
-                .link(
-                    &provider,
-                    &player,
-                    "mock-a",
-                    &format!("lobby-player-{index}"),
-                )
-                .await,
-        );
-        players.push(player);
-    }
-    Fixture {
-        bridge,
-        provider,
-        organizer,
-        players,
-        links,
-    }
-}
-
-impl Fixture {
-    fn id(&self, index: usize) -> &str {
-        self.players[index].id().as_str()
-    }
-
-    fn participant(&self, index: usize) -> &str {
-        self.links[index]["participant_id"].as_str().unwrap()
-    }
-
-    async fn create(&self, external: &str, games_to_win: u8, rotation: &str) -> Value {
-        let (status, lobby) = self
-            .bridge
-            .post_keyed(
-                &self.provider,
-                "/v1/lobbies",
-                json!({
-                    "external_lobby_id": external,
-                    "game": "usf4",
-                    "games_to_win": games_to_win,
-                    "rotation": rotation,
-                    "required_build_id": "test-build",
-                    "metadata": { "title": "Stream night" },
-                }),
-                Some(&format!("create-{external}")),
-            )
-            .await;
-        assert_eq!(status, StatusCode::CREATED, "{lobby}");
-        lobby
-    }
-
-    async fn join(&self, lobby: &str, index: usize) -> (StatusCode, Value) {
-        self.bridge
-            .post_keyed(
-                &self.provider,
-                &format!("/v1/lobbies/{lobby}/queue"),
-                json!({ "participant_id": self.participant(index), "ember_id": self.id(index) }),
-                Some(&format!("join-{lobby}-{index}-{}", rand_key())),
-            )
-            .await
-    }
-
-    async fn lobby(&self, lobby: &str) -> Value {
-        let (status, body) = self
-            .bridge
-            .get(&self.provider, &format!("/v1/lobbies/{lobby}"))
-            .await;
-        assert_eq!(status, StatusCode::OK, "{body}");
-        body
-    }
-
-    /// An ordinary first-to-1 match between two of the players.
-    async fn bracket(&self, external: &str, first: usize, second: usize) -> Value {
-        let (status, bracket) = self
-            .bridge
-            .post_keyed(
-                &self.provider,
-                "/v1/matches",
-                json!({
-                    "external_match_id": external,
-                    "game": "usf4",
-                    "participants": [
-                        { "participant_id": self.participant(first), "ember_id": self.id(first), "slot": 0 },
-                        { "participant_id": self.participant(second), "ember_id": self.id(second), "slot": 1 },
-                    ],
-                    "rules": {
-                        "games_to_win": 1, "draw_policy": "replay_no_score", "native_rules_profile": "organizer-reported-v1",
-                        "edition_policy": "ultra_only", "character_policy": "unrestricted_between_games",
-                        "stage_policy": "p1_selects", "input_delay_policy": "ember_existing_ready_policy",
-                    },
-                    "observer_policy": "authorized_only",
-                    "result_policy": "two_player_agreement_or_review",
-                    "required_build_id": "test-build",
-                    "metadata": {},
-                }),
-                Some(external),
-            )
-            .await;
-        assert_eq!(status, StatusCode::CREATED, "{bracket}");
-        bracket
-    }
-
-    /// The organizer records one game of the lobby's running set.
-    async fn win(&self, lobby: &str, winner_slot: u8) -> (StatusCode, Value) {
-        let current = self.lobby(lobby).await;
-        let id = current["current_match_id"]
-            .as_str()
-            .expect("a running set")
-            .to_owned();
-        let (_, found) = self
-            .bridge
-            .get(&self.organizer, &format!("/v1/matches/{id}"))
-            .await;
-        self.bridge
-            .post_keyed(
-                &self.organizer,
-                &format!("/v1/matches/{id}/adjudications"),
-                json!({
-                    "kind": "game_result",
-                    "winner_slot": winner_slot,
-                    "reason": "Called on stream",
-                    "expected_revision": found["revision"],
-                }),
-                Some(&format!("win-{id}-{}", rand_key())),
-            )
-            .await
-    }
-}
-
-fn rand_key() -> String {
-    let mut bytes = [0u8; 8];
-    getrandom::fill(&mut bytes).unwrap();
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
-
-fn seated(lobby: &Value) -> Vec<(u64, String)> {
-    lobby["seated"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|entry| {
-            (
-                entry["slot"].as_u64().unwrap(),
-                entry["ember_id"].as_str().unwrap().to_owned(),
-            )
-        })
-        .collect()
-}
-
-fn queued(lobby: &Value) -> Vec<String> {
-    lobby["queue"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|entry| entry["ember_id"].as_str().unwrap().to_owned())
-        .collect()
-}
-
-fn last<'a>(events: &'a [serde_json::Value], kind: &str) -> &'a Value {
-    events
-        .iter()
-        .rev()
-        .find(|event| event["type"] == format!("io.ember.tournament.{kind}.v1"))
-        .unwrap_or_else(|| panic!("no {kind} event"))
-}
 
 // King of the hill: the winner keeps the seat, the loser rejoins the back of
 // the queue, and only players who joined are ever seated.
@@ -631,4 +452,52 @@ async fn a_partial_resume_is_announced() {
     let changed = last(&events, "lobby.queue.changed");
     assert_eq!(changed["data"]["reason"], "player_available");
     assert_eq!(changed["data"]["lobby_revision"], after["revision"]);
+}
+
+// Standings rank everyone who finished a set: sets won, then fewest lost.
+// The best streak is kept as sets are played.
+#[tokio::test]
+async fn standings_rank_the_lobby() {
+    let f = fixture(3).await;
+    let lobby = f.create("standings", 1, "winner_stays").await;
+    let id = lobby["lobby_id"].as_str().unwrap().to_owned();
+    for index in [0, 1, 2] {
+        f.join(&id, index).await;
+    }
+    // 0 beats 1, then 0 beats 2, then 1 beats 0.
+    for winner in [0, 0, 1] {
+        let (status, body) = f.win(&id, winner).await;
+        assert_eq!(status, StatusCode::CREATED, "{body}");
+    }
+    let after = f.lobby(&id).await;
+    let standings = after["standings"].as_array().unwrap();
+    let row = |index: usize| {
+        standings
+            .iter()
+            .position(|row| row["ember_id"] == f.id(index))
+            .map(|rank| (rank, &standings[rank]))
+            .unwrap()
+    };
+    let (rank, first) = row(0);
+    assert_eq!(rank, 0);
+    assert_eq!(
+        (
+            &first["sets_won"],
+            &first["sets_lost"],
+            &first["best_streak"]
+        ),
+        (&json!(2), &json!(1), &json!(2))
+    );
+    let (rank, second) = row(1);
+    assert_eq!(rank, 1);
+    assert_eq!(
+        (&second["sets_won"], &second["sets_lost"]),
+        (&json!(1), &json!(1))
+    );
+    let (rank, third) = row(2);
+    assert_eq!(rank, 2);
+    assert_eq!(
+        (&third["sets_won"], &third["sets_lost"]),
+        (&json!(0), &json!(1))
+    );
 }
