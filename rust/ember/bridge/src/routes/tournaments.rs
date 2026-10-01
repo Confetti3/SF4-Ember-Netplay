@@ -40,9 +40,11 @@ use crate::{
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key, ok},
     routes::{
         links::{Ctx, audit},
+        lobbies,
         matches::{
             self, NewMatch, ORGANIZER_PROFILE, idempotent, into_response, service_viewer, viewer_of,
         },
+        records,
     },
 };
 
@@ -101,8 +103,14 @@ struct Entrant {
 }
 
 impl Entrant {
+    /// For snapshots; a player reading one sees only their own `participant_id`.
     fn player(&self) -> serde_json::Value {
         json!({ "ember_id": self.ember_id, "participant_id": self.participant_id })
+    }
+
+    /// For events, which entrants read unchanged: no account handles.
+    fn public(&self) -> serde_json::Value {
+        json!({ "ember_id": self.ember_id })
     }
 }
 
@@ -149,10 +157,11 @@ impl Bracket {
         self.seeds.iter().map(|entrant| entrant.withdrawn).collect()
     }
 
-    fn slot(&self, slot: Slot) -> serde_json::Value {
+    fn slot(&self, slot: Slot, public: bool) -> serde_json::Value {
         match slot {
             Slot::Open => serde_json::Value::Null,
             Slot::Empty => json!({ "bye": true }),
+            Slot::Entrant(seed) if public => self.seeds[seed].public(),
             Slot::Entrant(seed) => self.seeds[seed].player(),
         }
     }
@@ -161,11 +170,13 @@ impl Bracket {
         seed.map(|seed| &self.seeds[seed])
     }
 
-    /// The label of the set that a node's winner or loser plays next.
+    /// The label of the set that a node's winner or loser plays next. A
+    /// grand final reset counts only when the losers-bracket player won.
     fn next(&self, node: usize, source: fn(usize) -> Source) -> Option<&str> {
         self.plan
             .iter()
             .find(|later| later.sources.contains(&source(node)))
+            .filter(|later| later.reset_of != Some(node) || self.states[node].winner == Some(1))
             .map(|later| later.label.as_str())
     }
 }
@@ -444,6 +455,7 @@ fn progress(
     if changed.is_empty() && started.is_empty() {
         if bracket::finished(&bracket.states) {
             finish(tx, ctx, tournament, bracket)?;
+            wake_lobbies(tx, ctx, tournament, bracket)?;
         }
         return Ok(freed);
     }
@@ -455,8 +467,8 @@ fn progress(
             let state = bracket.states[node];
             let mut data = set_json(bracket, node);
             data["walkover"] = true.into();
-            data["winner"] = bracket.entrant(state.winner()).map(Entrant::player).into();
-            data["loser"] = bracket.entrant(state.loser()).map(Entrant::player).into();
+            data["winner"] = bracket.entrant(state.winner()).map(Entrant::public).into();
+            data["loser"] = bracket.entrant(state.loser()).map(Entrant::public).into();
             data["eliminated"] = json!(
                 bracket
                     .entrant(bracket::eliminated(&bracket.plan, &bracket.states, node))
@@ -483,7 +495,7 @@ fn progress(
             tournament.games_to_win
         }
         .into();
-        data["participants"] = json!(state.slots.map(|slot| bracket.slot(slot)));
+        data["participants"] = json!(state.slots.map(|slot| bracket.slot(slot, true)));
         tournament_event(
             tx,
             ctx,
@@ -496,7 +508,24 @@ fn progress(
     if bracket::finished(&bracket.states) {
         finish(tx, ctx, tournament, bracket)?;
     }
+    wake_lobbies(tx, ctx, tournament, bracket)?;
     Ok(freed)
+}
+
+/// Lobbies skip a player whose bracket set is ready; once the bracket has
+/// moved, they look at its entrants again.
+fn wake_lobbies(
+    tx: &Transaction<'_>,
+    ctx: &Ctx,
+    tournament: &Tournament,
+    bracket: &Bracket,
+) -> Result<()> {
+    let players: Vec<EmberId> = bracket
+        .seeds
+        .iter()
+        .map(|entrant| entrant.ember_id.clone())
+        .collect();
+    lobbies::on_players_free(tx, ctx, &tournament.connection_id, &players)
 }
 
 /// Places every entrant and closes the tournament.
@@ -533,7 +562,7 @@ fn finish(
     let placements: Vec<_> = order
         .into_iter()
         .map(|seed| {
-            let mut player = bracket.seeds[seed].player();
+            let mut player = bracket.seeds[seed].public();
             player["placement"] = places[seed].into();
             player
         })
@@ -639,7 +668,7 @@ fn snapshot(tx: &Transaction<'_>, tournament: &Tournament) -> Result<serde_json:
         for (node, state) in bracket.states.iter().enumerate() {
             let mut set = set_json(&bracket, node);
             set["status"] = state.status.as_str().into();
-            set["players"] = json!(state.slots.map(|slot| bracket.slot(slot)));
+            set["players"] = json!(state.slots.map(|slot| bracket.slot(slot, false)));
             set["winner_slot"] = state.winner.into();
             set["match_id"] = bracket.matches[node].clone().into();
             set["games_to_win"] = if bracket.plan[node].finals {
@@ -725,8 +754,8 @@ pub fn on_match_completed(
     let mut data = set_json(&bracket, node);
     data["match_id"] = match_id.into();
     data["walkover"] = false.into();
-    data["winner"] = bracket.entrant(state.winner()).map(Entrant::player).into();
-    data["loser"] = bracket.entrant(state.loser()).map(Entrant::player).into();
+    data["winner"] = bracket.entrant(state.winner()).map(Entrant::public).into();
+    data["loser"] = bracket.entrant(state.loser()).map(Entrant::public).into();
     data["scores"] = json!(scores);
     data["eliminated"] = json!(bracket.entrant(eliminated).map(|entrant| &entrant.ember_id));
     data["winner_next"] = bracket.next(node, Source::Winner).into();
@@ -749,6 +778,20 @@ pub fn on_match_completed(
     matches::release_players(tx, ctx, &tournament.connection_id, &freed)
 }
 
+/// Called by the match code before any correction of a tournament set that
+/// stays finished: a finished or cancelled tournament's results are final.
+pub fn check_correction(tx: &Transaction<'_>, tournament_id: &str) -> Result<()> {
+    let tournament = load(tx, tournament_id)?.ok_or_else(ApiFailure::unavailable)?;
+    match tournament.state.as_str() {
+        "running" => Ok(()),
+        "completed" => Err(ApiFailure::new(
+            ErrorCode::LeaseConflict,
+            "The tournament is over, so its results are final.",
+        )),
+        _ => Err(closed()),
+    }
+}
+
 /// Called by the match code before a correction reopens a tournament set.
 /// Later sets its result fed are cleared, and their matches cancelled while
 /// they have no games; a later set that has been played or has a game makes
@@ -759,17 +802,8 @@ pub fn on_reopen(
     tournament_id: &str,
     match_id: &str,
 ) -> Result<()> {
+    check_correction(tx, tournament_id)?;
     let tournament = load(tx, tournament_id)?.ok_or_else(ApiFailure::unavailable)?;
-    match tournament.state.as_str() {
-        "running" => {}
-        "completed" => {
-            return Err(ApiFailure::new(
-                ErrorCode::LeaseConflict,
-                "The tournament is over, so its results are final.",
-            ));
-        }
-        _ => return Err(closed()),
-    }
     let mut bracket = load_bracket(tx, &tournament)?;
     let Some(node) = bracket
         .matches
@@ -1066,7 +1100,11 @@ pub async fn get(
             if !visible(tx, &viewer, &tournament)? {
                 return Err(ApiFailure::not_found());
             }
-            snapshot(tx, &tournament)
+            let mut body = snapshot(tx, &tournament)?;
+            if let Viewer::Player { ember_id } = &viewer {
+                records::redact(&mut body, ember_id);
+            }
+            Ok(body)
         })
         .await?;
     Ok(ok(&body))
@@ -1305,7 +1343,7 @@ pub async fn start(
                     .iter()
                     .enumerate()
                     .map(|(seed, entrant)| {
-                        let mut player = entrant.player();
+                        let mut player = entrant.public();
                         player["seed"] = (seed + 1).into();
                         player
                     })
@@ -1412,6 +1450,12 @@ pub async fn cancel(
                     Some(&command.reason),
                 )?;
                 matches::release_players(tx, &ctx, &tournament.connection_id, &freed)?;
+                // Entrants a ready set held back from lobbies are free now.
+                let everyone: Vec<EmberId> = entrants(tx, &tournament.id)?
+                    .into_iter()
+                    .map(|entrant| entrant.ember_id)
+                    .collect();
+                lobbies::on_players_free(tx, &ctx, &tournament.connection_id, &everyone)?;
                 let tournament = load(tx, &tournament.id)?.ok_or_else(ApiFailure::unavailable)?;
                 Ok((StatusCode::OK, snapshot(tx, &tournament)?))
             })

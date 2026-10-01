@@ -191,11 +191,34 @@ async fn single_elimination_runs_to_placements() {
             .iter()
             .any(|seen| seen.ends_with("tournament.completed.v1"))
     );
-    let (status, _) = f
+    let (status, seen) = f
         .bridge
         .get(f.players[4].token(), &format!("/v1/tournaments/{id}"))
         .await;
     assert_eq!(status, StatusCode::OK);
+    // A player sees their own account handle and nobody else's, in the
+    // snapshot or in events.
+    for entrant in seen["entrants"].as_array().unwrap() {
+        assert_eq!(
+            entrant["participant_id"].is_string(),
+            entrant["ember_id"] == f.id(4),
+            "{entrant}"
+        );
+    }
+    assert!(!seen.to_string().contains(f.participant(0)));
+    let started_event = f
+        .bridge
+        .events(f.players[4].token(), "0")
+        .await
+        .into_iter()
+        .find(|event| {
+            event["type"]
+                .as_str()
+                .unwrap()
+                .ends_with("tournament.started.v1")
+        })
+        .unwrap();
+    assert!(!started_event.to_string().contains(f.participant(0)));
     // A record counts tournament sets like any other.
     let (_, record) = f
         .bridge
@@ -578,6 +601,24 @@ async fn unlinking_withdraws_an_entrant() {
         .find(|entrant| entrant["ember_id"] == f.id(1))
         .unwrap();
     assert_eq!(withdrawn["state"], "withdrawn");
+    // The champion took the grand final by walkover; nothing says they play the reset.
+    let grand_final = f
+        .bridge
+        .events(&f.provider, "0")
+        .await
+        .into_iter()
+        .find(|event| {
+            event["type"]
+                .as_str()
+                .unwrap()
+                .ends_with("tournament.match.completed.v1")
+                && event["data"]["label"] == "Grand final"
+        })
+        .unwrap();
+    assert!(
+        grand_final["data"]["winner_next"].is_null(),
+        "{grand_final}"
+    );
     // The winners-bracket player took the grand final, so there is no reset.
     let reset = done["sets"]
         .as_array()
@@ -586,4 +627,73 @@ async fn unlinking_withdraws_an_entrant() {
         .find(|set| set["label"] == "Grand final reset")
         .unwrap();
     assert_eq!(reset["status"], "skipped");
+}
+
+// Once a tournament is over its results are final, even for a correction
+// that would leave the set finished.
+#[tokio::test]
+async fn a_finished_tournament_is_final() {
+    let f = fixture(2).await;
+    let id = create(
+        &f,
+        "final",
+        json!({ "format": "single_elimination", "games_to_win": 2 }),
+    )
+    .await;
+    register(&f, &id, 0).await;
+    register(&f, &id, 1).await;
+    let started = start(&f, &id, None).await;
+    let match_id = started["sets"][0]["match_id"].as_str().unwrap().to_owned();
+    for winner in [0, 1, 0] {
+        f.game(&match_id, winner).await;
+    }
+    assert_eq!(tournament(&f, &id).await["state"], "completed");
+    let (_, snapshot) = f
+        .bridge
+        .get(&f.organizer, &format!("/v1/matches/{match_id}"))
+        .await;
+    // Voiding the loser's game would keep the set at 2-0.
+    let attempt = snapshot["attempts"][1]["attempt_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let (status, refused) = f.void(&match_id, &attempt).await;
+    assert_eq!(
+        (status, code(&refused)),
+        (StatusCode::CONFLICT, "lease_conflict"),
+        "{refused}"
+    );
+}
+
+// Cancelling a tournament frees the players a ready set held back from a lobby.
+#[tokio::test]
+async fn cancelling_frees_players_for_lobbies() {
+    let f = fixture(4).await;
+    let id = create(
+        &f,
+        "cancel-lobby",
+        json!({ "format": "single_elimination" }),
+    )
+    .await;
+    register(&f, &id, 0).await;
+    register(&f, &id, 1).await;
+    f.bracket("cancel-side", 0, 2).await;
+    start(&f, &id, None).await;
+    let lobby = f.create("cancel-hill", 1, "winner_stays").await;
+    let lobby_id = lobby["lobby_id"].as_str().unwrap().to_owned();
+    f.join(&lobby_id, 1).await;
+    f.join(&lobby_id, 3).await;
+    assert!(f.lobby(&lobby_id).await["current_match_id"].is_null());
+    let current = tournament(&f, &id).await;
+    let (status, body) = f
+        .bridge
+        .post_keyed(
+            &f.provider,
+            &format!("/v1/tournaments/{id}/cancel"),
+            json!({ "reason": "Called off", "expected_revision": current["revision"] }),
+            Some("cancel-lobby-tournament"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert!(f.lobby(&lobby_id).await["current_match_id"].is_string());
 }

@@ -192,6 +192,31 @@ pub async fn record(
     Ok(ok(&body))
 }
 
+/// Removes other players' `participant_id` from a snapshot a player reads:
+/// they see their own account handle and everyone else's Ember ID only.
+pub fn redact(value: &mut serde_json::Value, own: &EmberId) {
+    match value {
+        serde_json::Value::Object(map) => {
+            let other = map
+                .get("ember_id")
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|id| id != own.as_str());
+            if other {
+                map.remove("participant_id");
+            }
+            for child in map.values_mut() {
+                redact(child, own);
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                redact(item, own);
+            }
+        }
+        _ => {}
+    }
+}
+
 #[derive(Default)]
 struct Standing {
     participant_id: String,

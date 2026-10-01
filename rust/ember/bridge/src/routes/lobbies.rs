@@ -671,7 +671,11 @@ pub async fn get(
             if !visible(tx, &viewer, &lobby)? {
                 return Err(ApiFailure::not_found());
             }
-            snapshot(tx, &lobby)
+            let mut body = snapshot(tx, &lobby)?;
+            if let Viewer::Player { ember_id } = &viewer {
+                records::redact(&mut body, ember_id);
+            }
+            Ok(body)
         })
         .await?;
     Ok(ok(&body))

@@ -111,6 +111,7 @@ export interface RecentMatch {
   /** `participant_id` is present for provider and organizer credentials only. */
   opponent: { ember_id: string; participant_id?: string } | null;
   lobby_id: string | null;
+  tournament_id: string | null;
   round_label: string | null;
   finished_at: number;
 }

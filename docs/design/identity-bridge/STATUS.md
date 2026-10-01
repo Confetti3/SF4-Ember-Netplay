@@ -51,7 +51,12 @@ lists queue rotation and multi-table scheduling as future work.
   lobby snapshot's `standings` add up finished matches. They are computed from accepted
   games on every read, so corrections show at once; only a lobby player's best streak is
   stored, as sets complete. Records are scoped like events: a provider sees its
-  connection, an organizer its tenant, and a player only their own.
+  connection, an organizer its tenant, and a player only their own. Lobbies (migration
+  003) and the stored best streak (004) are both unreleased and ship together, so no
+  deployed bridge has lobby history without it; a local test database that played lobby
+  sets before 004 keeps a best streak of zero for those earlier sets. Snapshots a player
+  reads (lobbies, tournaments) show only that player's own `participant_id`, and
+  tournament events carry Ember IDs only.
 - **Tournaments.** `/v1/tournaments` runs single elimination, double elimination (with
   an optional grand final reset) and round robin on a provider connection. Spec 1.3
   leaves multi-match scheduling to providers; this is a deliberate extension for

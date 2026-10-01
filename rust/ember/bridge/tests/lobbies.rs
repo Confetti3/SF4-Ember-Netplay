@@ -500,4 +500,12 @@ async fn standings_rank_the_lobby() {
         (&third["sets_won"], &third["sets_lost"]),
         (&json!(0), &json!(1))
     );
+    // A player reading the lobby sees only their own account handle.
+    let (status, seen) = f
+        .bridge
+        .get(f.players[2].token(), &format!("/v1/lobbies/{id}"))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{seen}");
+    assert!(!seen.to_string().contains(f.participant(0)));
+    assert!(seen.to_string().contains(f.participant(2)));
 }

@@ -941,11 +941,12 @@ fn apply_adjudication(
     }
     // Reopening a bracket set takes back what its result fed, as long as no
     // later set has a game recorded; that frees the players for the check below.
-    if correcting
-        && next != MatchState::Completed
-        && let Some(tournament_id) = &found.tournament_id
-    {
-        tournaments::on_reopen(tx, ctx, tournament_id, &found.id)?;
+    if correcting && let Some(tournament_id) = &found.tournament_id {
+        if next == MatchState::Completed {
+            tournaments::check_correction(tx, tournament_id)?;
+        } else {
+            tournaments::on_reopen(tx, ctx, tournament_id, &found.id)?;
+        }
     }
     // A correction that reopens the match makes its players busy again, so it
     // must not double-book one who has started another match meanwhile.
