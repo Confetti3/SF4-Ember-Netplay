@@ -2408,3 +2408,378 @@ msgstr "세션 서버 오류입니다. 인터넷 연결을 확인하고 다시 �
 
 msgid "runtime.settings_unreadable"
 msgstr "저장된 설정을 읽지 못해 기본값을 사용합니다."
+
+msgid "screen.identity"
+msgstr "Ember ID"
+
+msgid "screen.identity_backup"
+msgstr "백업 및 복원"
+
+msgid "screen.linked_accounts"
+msgstr "연동된 계정"
+
+msgid "settings.identity_detail"
+msgstr "대회 사이트용 Ember ID와 백업, 연동된 계정을 관리합니다."
+
+msgid "identity.title"
+msgstr "Ember ID"
+
+msgid "identity.backup_title"
+msgstr "백업 및 복원"
+
+msgid "identity.linked_title"
+msgstr "연동된 계정"
+
+msgid "identity.status"
+msgstr "Ember ID"
+
+msgid "identity.state.checking"
+msgstr "확인 중"
+
+msgid "identity.state.checking_detail"
+msgstr "Ember가 네트워크 보조 프로그램에 내 Ember ID 상태를 확인하는 중입니다."
+
+msgid "identity.state.disabled_detail"
+msgstr "Ember ID가 있으면 대회 사이트에서 결과가 본인의 것인지 확인할 수 있습니다. Ember ID는 이 PC에 보관되는 키입니다. 일반 대전에는 필요하지 않습니다."
+
+msgid "identity.state.creating"
+msgstr "생성 중"
+
+msgid "identity.state.creating_detail"
+msgstr "Ember가 키를 생성하는 중입니다. 잠시 걸립니다."
+
+msgid "identity.state.locked"
+msgstr "잠김"
+
+msgid "identity.state.locked_detail"
+msgstr "키가 암호로 보호되어 있습니다. 암호를 입력하면 게임을 종료할 때까지 Ember ID를 사용할 수 있습니다."
+
+msgid "identity.state.ready_detail"
+msgstr "내 Ember ID는 {0}입니다.\n\n사이트에는 짧은 형식인 {1}(으)로 표시됩니다. 연동을 승인하기 전에 일치하는지 확인하세요."
+
+msgid "identity.state.recovery"
+msgstr "복원 필요"
+
+msgid "identity.state.recovery_detail"
+msgstr "Ember가 Ember ID 기록을 찾았지만 키를 읽을 수 없습니다. 백업에서 복원하거나 새 ID로 다시 시작하세요. Ember가 임의로 교체하는 일은 없습니다."
+
+msgid "identity.state.unavailable"
+msgstr "사용 불가"
+
+msgid "identity.state.unavailable_detail"
+msgstr "Ember가 이 PC에서 키를 사용할 수 없습니다. {0}"
+
+msgid "identity.local_passphrase"
+msgstr "이 PC의 암호"
+
+msgid "identity.local_passphrase_detail"
+msgstr "Wine과 Proton에서는 Windows 키 보호를 사용할 수 없으므로 암호로 키를 보호합니다. 게임을 시작할 때마다 한 번 입력합니다."
+
+msgid "identity.repeat_passphrase"
+msgstr "암호 다시 입력"
+
+msgid "identity.repeat_passphrase_detail"
+msgstr "입력 실수를 막기 위해 같은 암호를 한 번 더 입력하세요."
+
+msgid "identity.passphrases_differ"
+msgstr "두 암호가 일치하지 않습니다."
+
+msgid "identity.secret_empty"
+msgstr "미입력"
+
+msgid "identity.secret_set"
+msgstr "입력됨"
+
+msgid "identity.enable"
+msgstr "Ember ID 만들기"
+
+msgid "identity.enable_detail"
+msgstr "이 PC에 키를 만듭니다. 이 Windows 계정만 사용할 수 있습니다."
+
+msgid "identity.leave_room"
+msgstr "Ember ID를 변경하려면 방을 나가 메인 메뉴로 돌아가세요."
+
+msgid "identity.unlock"
+msgstr "잠금 해제"
+
+msgid "identity.unlock_detail"
+msgstr "이 PC에 설정한 암호를 입력하세요."
+
+msgid "identity.copy"
+msgstr "Ember ID 복사"
+
+msgid "identity.copy_detail"
+msgstr "대회 사이트에 붙여 넣을 수 있도록 전체 Ember ID를 복사합니다."
+
+msgid "identity.linked_detail"
+msgstr "신뢰하는 대회 서비스와 내 Ember ID에 연동된 계정입니다."
+
+msgid "identity.backup_detail"
+msgstr "암호화된 백업을 저장하거나 백업을 복원합니다."
+
+msgid "identity.restore_detail"
+msgstr "백업에서 Ember ID를 복원합니다."
+
+msgid "identity.reset"
+msgstr "새 ID로 다시 시작"
+
+msgid "identity.reset_detail"
+msgstr "현재 키를 삭제하지 않고 따로 옮겨 두어, 다른 ID를 만들거나 복원할 수 있게 합니다. 이전 ID에 연동된 사이트는 새 ID를 인식하지 않습니다."
+
+msgid "identity.backup_passphrase"
+msgstr "백업 암호"
+
+msgid "identity.backup_passphrase_detail"
+msgstr "백업 파일을 보호합니다. 암호가 없으면 백업을 열 수 없으며, 누구도 대신 복구해 줄 수 없습니다."
+
+msgid "identity.export"
+msgstr "백업 저장"
+
+msgid "identity.export_detail"
+msgstr "암호화된 키 사본을 Ember 설정의 identity-backups 폴더에 저장합니다. 이 PC가 아닌 안전한 곳에도 사본을 보관하세요."
+
+msgid "identity.export_saved"
+msgstr "마지막 백업"
+
+msgid "identity.paste_path"
+msgstr "백업 경로 붙여넣기"
+
+msgid "identity.paste_path_detail"
+msgstr "클립보드의 파일 경로를 사용합니다. 파일 탐색기에서 Shift 키를 누른 채 파일을 마우스 오른쪽 버튼으로 클릭한 다음 경로로 복사를 선택하세요."
+
+msgid "identity.backup_file"
+msgstr "백업 파일"
+
+msgid "identity.backup_file_detail"
+msgstr "Ember로 저장한 백업의 전체 경로입니다."
+
+msgid "identity.restore_passphrase_detail"
+msgstr "백업을 저장할 때 정한 암호입니다."
+
+msgid "identity.check_backup"
+msgstr "백업 확인"
+
+msgid "identity.check_backup_detail"
+msgstr "아무것도 변경하지 않고 백업을 열어 안에 있는 Ember ID를 보여 줍니다."
+
+msgid "identity.backup_holds"
+msgstr "백업 내용"
+
+msgid "identity.backup_holds_detail"
+msgstr "이 백업에는 Ember ID {0}이(가) 들어 있습니다."
+
+msgid "identity.backup_same"
+msgstr "이미 이 PC에 있는 ID입니다. 복원할 필요가 없습니다."
+
+msgid "identity.backup_replaces"
+msgstr "복원하면 이 PC에 있는 다른 ID는 따로 옮겨집니다. 그 ID에 연동된 사이트는 이 ID를 인식하지 않습니다."
+
+msgid "identity.backup_new"
+msgstr "복원하면 이 ID가 이 PC의 Ember ID가 됩니다."
+
+msgid "identity.import"
+msgstr "이 ID 복원"
+
+msgid "identity.import_detail"
+msgstr "백업의 Ember ID를 이 PC에 설치합니다."
+
+msgid "identity.import_replaces_detail"
+msgstr "백업의 Ember ID를 설치하고, 현재 ID는 삭제하지 않고 따로 옮겨 둡니다."
+
+msgid "identity.linked_needs_id"
+msgstr "Ember ID 필요"
+
+msgid "identity.linked_needs_id_detail"
+msgstr "먼저 Ember ID를 만들거나 잠금 해제하세요. 연동하면 계정이 이 Ember ID의 것임을 사이트에 증명할 수 있습니다."
+
+msgid "identity.service"
+msgstr "대회 서비스"
+
+msgid "identity.unlink"
+msgstr "연동 해제"
+
+msgid "identity.unlink_detail"
+msgstr "이 연동을 해제합니다. 다시 연동할 때까지 사이트는 이 계정을 내 계정으로 인식하지 않습니다."
+
+msgid "identity.pending_label"
+msgstr "{0}에서 승인 대기 중"
+
+msgid "identity.pending_detail"
+msgstr "브라우저에서 사이트에 접속해 연동을 승인하세요. 선택하면 취소됩니다."
+
+msgid "identity.cancel_claim"
+msgstr "연동 취소"
+
+msgid "identity.no_links"
+msgstr "연동된 계정 없음"
+
+msgid "identity.no_links_detail"
+msgstr "대회 사이트에서 연동을 시작한 뒤, 표시되는 코드를 아래에 입력하세요."
+
+msgid "identity.site"
+msgstr "사이트"
+
+msgid "identity.site_detail"
+msgstr "이 서비스에서 내 계정이 있는 사이트입니다."
+
+msgid "identity.link_code"
+msgstr "연동 코드"
+
+msgid "identity.link_code_detail"
+msgstr "대회 사이트에서 연동을 시작하면 표시되는 코드입니다(예: ABCDE-12345)."
+
+msgid "identity.link_account"
+msgstr "계정 연동"
+
+msgid "identity.link_account_detail"
+msgstr "내 Ember ID로 서명한 코드를 보냅니다. 그다음 사이트에서 연동을 승인하세요."
+
+msgid "identity.refresh"
+msgstr "새로 고침"
+
+msgid "identity.refresh_detail"
+msgstr "이 서비스에 새 연동이나 승인이 있는지 확인합니다."
+
+msgid "identity.forget"
+msgstr "이 서비스 삭제"
+
+msgid "identity.forget_detail"
+msgstr "이 PC에서 이 서비스를 더 이상 신뢰하지 않습니다. 서비스에 있는 연동은 그곳에서 해제할 때까지 남아 있습니다."
+
+msgid "identity.service_address"
+msgstr "서비스 추가"
+
+msgid "identity.service_address_detail"
+msgstr "Ember 대회 서비스의 주소입니다(예: https://tournaments.example). 대회 주최자가 알려 줍니다."
+
+msgid "identity.look_up"
+msgstr "서비스 조회"
+
+msgid "identity.look_up_detail"
+msgstr "신뢰할지 결정하기 전에 이 주소가 어떤 서비스인지 확인합니다."
+
+msgid "identity.trust"
+msgstr "{0} 신뢰"
+
+msgid "identity.trust_detail"
+msgstr "Ember가 내 Ember ID로 {0}의 서비스에 로그인할 수 있게 합니다. 주최자가 알려 준 서비스만 신뢰하세요."
+
+msgid "identity.working"
+msgstr "처리 중..."
+
+msgid "identity.working_key"
+msgstr "키를 처리하는 중입니다. 몇 초 걸릴 수 있습니다..."
+
+msgid "identity.done.enabled"
+msgstr "Ember ID가 준비되었습니다."
+
+msgid "identity.done.unlocked"
+msgstr "Ember ID 잠금을 해제했습니다."
+
+msgid "identity.done.exported"
+msgstr "백업을 {0}에 저장했습니다."
+
+msgid "identity.done.imported"
+msgstr "Ember ID를 복원했습니다."
+
+msgid "identity.done.reset"
+msgstr "이전 키를 따로 옮겼습니다. 이제 ID를 만들거나 복원할 수 있습니다."
+
+msgid "identity.done.trusted"
+msgstr "이제 {0}을(를) 신뢰합니다."
+
+msgid "identity.done.forgotten"
+msgstr "서비스를 삭제했습니다."
+
+msgid "identity.done.claimed"
+msgstr "코드를 보냈습니다. 사이트에서 연동을 승인하고, {0}이(가) 표시되는지 확인하세요."
+
+msgid "identity.done.unlinked"
+msgstr "계정 연동을 해제했습니다."
+
+msgid "identity.done.cancelled"
+msgstr "연동을 취소했습니다."
+
+msgid "identity.done.copied"
+msgstr "Ember ID를 복사했습니다."
+
+msgid "identity.failure.wrong_passphrase"
+msgstr "암호가 올바르지 않습니다."
+
+msgid "identity.failure.invalid_passphrase"
+msgstr "암호는 한 글자 이상이어야 합니다."
+
+msgid "identity.failure.passphrase_required"
+msgstr "이 PC에서는 키를 보호하기 위해 암호가 필요합니다."
+
+msgid "identity.failure.corrupt"
+msgstr "Ember ID 백업 파일이 아니거나 손상된 파일입니다."
+
+msgid "identity.failure.file"
+msgstr "Ember가 이 파일을 읽을 수 없습니다. 경로를 확인하세요."
+
+msgid "identity.failure.busy"
+msgstr "다른 Ember가 내 Ember ID를 사용하고 있습니다. 잠시 후 다시 시도하세요."
+
+msgid "identity.failure.state"
+msgstr "Ember ID가 아직 이 작업을 할 수 있는 상태가 아닙니다."
+
+msgid "identity.failure.changed"
+msgstr "그사이 Ember ID가 바뀌었습니다. 다시 확인하세요."
+
+msgid "identity.failure.storage"
+msgstr "Ember가 이 PC에서 키를 읽거나 저장하지 못했습니다."
+
+msgid "identity.failure.unreachable"
+msgstr "대회 서비스가 응답하지 않았습니다. 주소와 연결을 확인하세요."
+
+msgid "identity.failure.not_bridge"
+msgstr "이 주소는 Ember가 사용할 수 있는 Ember 대회 서비스가 아닙니다."
+
+msgid "identity.failure.bridge_changed"
+msgstr "이 주소의 서비스가 신뢰한 서비스와 다릅니다. ID를 보호하기 위해 Ember가 작업을 중단했습니다."
+
+msgid "identity.failure.not_approved"
+msgstr "먼저 이 서비스를 신뢰하세요."
+
+msgid "identity.failure.too_many"
+msgstr "Ember에 등록할 수 있는 서비스 수는 제한되어 있습니다. 먼저 하나를 삭제하세요."
+
+msgid "identity.failure.code"
+msgstr "연동 코드가 잘못되었거나 만료되었습니다. 사이트에서 새로 연동을 시작하세요."
+
+msgid "identity.failure.link_conflict"
+msgstr "이 계정은 이미 다른 Ember ID에 연동되어 있습니다."
+
+msgid "identity.failure.rate_limited"
+msgstr "시도 횟수가 너무 많습니다. 1분 기다린 뒤 다시 시도하세요."
+
+msgid "identity.failure.sign_in"
+msgstr "서비스 로그인에 실패했습니다. 다시 시도하세요."
+
+msgid "identity.failure.forbidden"
+msgstr "서비스에서 이 작업을 허용하지 않습니다."
+
+msgid "identity.failure.refused"
+msgstr "서비스가 요청을 거부했습니다."
+
+msgid "identity.failure.other"
+msgstr "작업에 실패했습니다({0})."
+
+msgid "identity.failure.timeout"
+msgstr "네트워크 보조 프로그램이 응답하지 않았습니다. 다시 시도하세요."
+
+msgid "identity.failure.paste"
+msgstr "클립보드에 파일 경로가 없습니다."
+
+msgid "identity.refused.helper"
+msgstr "네트워크 보조 프로그램이 실행 중이 아니어서 지금은 Ember ID를 사용할 수 없습니다."
+
+msgid "identity.refused.leave_room"
+msgstr "Ember ID를 변경하려면 방을 나가 메인 메뉴로 돌아가세요."
+
+msgid "identity.refused.match"
+msgstr "대전이 끝날 때까지 기다리세요."
+
+msgid "identity.refused.no_folder"
+msgstr "백업을 저장할 Ember 설정 폴더를 찾을 수 없습니다."

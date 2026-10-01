@@ -13,6 +13,8 @@
 #include "../netplay/SessionController.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "../netplay/MemberView.hxx"
+#include "../netplay/IdentityView.hxx"
+#include "../netplay/IdentityRequest.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../session/RoomModel.hxx"
@@ -78,6 +80,8 @@ namespace sf4e {
 			room::Action roomAction;
             int selectedDelay=-1;
             int previewSoundVolume=-1;
+            // An identity or bridge request; op None when the command is something else.
+            netplay::IdentityRequest identity;
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
@@ -138,6 +142,13 @@ namespace sf4e {
             input::Capture inputCapture = input::Capture::Idle;
             input::Device inputDevice;
             bool canChangeController = false, controllerReady = false;
+            // The identity as the helper last reported it. identityTicket is the
+            // interface's last request the runtime handled, and identityRequest
+            // the helper request it became, or 0 when it was refused, with the
+            // catalog id of why in identityRefusal.
+            netplay::IdentityView identity;
+            std::uint64_t identityTicket = 0, identityRequest = 0;
+            std::string identityRefusal;
 		};
 		// Everything the overlay draws from, built on the game thread at the end
 		// of each outer tick and never changed afterwards. It owns its values:

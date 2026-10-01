@@ -50,10 +50,25 @@ handoff and Proton validation, WP7 BluMint adapter, WP8 hardening.
   disconnect rulings wait for the organizer-policy sign-off.
 - **Passphrases over IPC.** Enabling, unlocking, exporting and importing pass the
   passphrase once over the authenticated helper pipe, as spec 8.2 allows. The helper
-  wipes its copy after use and never logs or returns it.
+  wipes its copy after use and never logs or returns it. On the game side the Ember ID
+  screens hold what the player typed until it is sent, and wipe it when the player
+  leaves those screens; every request copy, the JSON text, the IPC frame and the
+  outgoing queue entry are wiped after use. Two copies are outside Ember's control:
+  Dear ImGui keeps the text of the last active field in its own edit state until
+  another field takes focus, and freed heap pages are not scrubbed by the CRT.
+- **Backups go to a fixed folder.** An export always writes a new file in
+  `%APPDATA%\sf4e\identity-backups`, named by date and time, which the helper creates.
+  The game chooses the path, so the interface needs no file dialog; restoring reads any
+  path the player pastes.
 - **Helper routing.** Identity and bridge commands are handled by a separate worker
   that the IPC reader feeds directly. The room actor never sees them and was not
   changed apart from one defensive match arm.
+- **Game requests are typed.** The interface never writes helper JSON. It sends a
+  typed request (`netplay::IdentityRequest`) that the runtime turns into the helper's
+  JSON with one case per operation, so a request the helper would refuse to parse, which
+  would end the IPC link, cannot be built. Key changes (create, restore, start over)
+  are allowed only at the main menu outside a room; bridge and key use wait for no live
+  game; status and lists are always allowed.
 
 ## New dependencies
 
@@ -72,6 +87,61 @@ handoff and Proton validation, WP7 BluMint adapter, WP8 hardening.
 
 DPAPI, Wine detection and the known-folder lookup use additional `windows-sys` features,
 not new crates.
+
+## Checklist evidence
+
+`IMPLEMENTATION_CHECKLIST.md` is part of the package and stays unchanged; its items are
+recorded here instead. Everything below ran on Windows 11 (10.0.26300), x64 Rust 1.98.0
+and the x86 game build, on `feat/identity-bridge`. "Automated" means a test in the
+build's ctest run (`EmberRust` runs `cargo test --locked` in `rust/ember`, `HelperRust`
+runs the sf4-net suite). Mock fixtures are not counted as product acceptance.
+
+| Item | Evidence | Result |
+|---|---|---|
+| ID-01 | protocol `identity_derivation_vectors`; SDK `fixtures.test.ts` | Automated, pass |
+| ID-02 | `dpapi_identity_survives_restart` (store reopened, same ID) | Automated, pass; OS restart and update not run |
+| ID-03 | Identity store is separate from the Iroh endpoint key, which is unchanged | By construction; not tested |
+| ID-04 | None | Not run |
+| ID-05 | None | Not run |
+| ID-06 | `concurrent_enable_installs_one_identity` | Automated, pass |
+| ID-07 | `crash_at_any_step_never_replaces_an_established_key` | Automated, pass |
+| ID-08 | `unreadable_keys_are_reported_and_kept`, `dpapi_round_trip_and_tamper` | Automated, pass; another Windows user not run |
+| ID-09 | `missing_key_with_continuity_needs_recovery` | Automated, pass |
+| ID-10 | `missing_continuity_is_repaired_from_the_key` | Automated, pass |
+| ID-11 | `backup_restores_the_same_id_elsewhere`; helper export into a new folder and preview (`tournament_bridge`) | Automated, pass |
+| ID-12 | `fails_closed`, `import_fails_closed_without_touching_the_store` | Automated, pass |
+| ID-13 | `bounds_cost_before_deriving`, `oversized_files_are_refused_before_reading` | Automated, pass |
+| ID-14 | `different_identity_import_requires_confirmation_and_keeps_the_old_store` | Automated, pass |
+| ID-15 | `no_seed_in_exports_status_or_debug`, `requests_carry_no_debug_output_of_secrets` | Automated, pass; diagnostics export not inspected |
+| ID-16 | None | Not run (manual, elevated launch) |
+| ID-17 | `wine_requires_a_passphrase` with the Wine probe forced | Automated, pass; real Wine and Proton not run |
+| ID-18 | Identity requests never enter the room or match path | By construction; no gameplay run |
+| AUTH-01 | protocol `challenge_signature_and_binding`; SDK `fixtures.test.ts` | Automated, pass |
+| AUTH-02 | `challenge_rejections` | Automated, pass |
+| AUTH-03 | `sessions_need_a_fresh_single_use_proof` | Automated, pass |
+| AUTH-04 | `privileged_challenges_need_a_session_for_the_same_key`; proof routes take no idempotency key (deviation above) | Automated, pass |
+| AUTH-05 | `strict_json_rejections`, `strict_json_is_enforced_before_authorization` | Automated, pass |
+| AUTH-07 | `a_stolen_code_cannot_finish_a_link` | Automated, pass |
+| AUTH-08 | Helper refuses an unapproved bridge (`link_an_identity_through_the_helper`) | Automated, pass |
+| LINK-01 | `provider_proxy_link_flow`, `browser_approval_and_replacement`, `link_an_identity_through_the_helper` | Automated, pass |
+| LINK-02 | `a_stolen_code_cannot_finish_a_link` | Automated, pass |
+| LINK-06, LINK-07 | `codes_are_scoped_and_bounded` | Automated, pass |
+| LINK-08 | `browser_approval_and_replacement` | Automated, pass |
+| LINK-09 | `cancel_and_unlink_follow_policy` | Automated, pass |
+| LINK-10 | `windows_slide` (limiter only) | Automated, pass; no lockout test |
+| LINK-12 | `provider_proxy_link_flow` (another tenant sees nothing) | Automated, pass |
+| WEB-01, WEB-02 | protocol `webhook_fixture`; notifier `accepts_the_specification_fixture_once` | Automated, pass |
+| WEB-03 | `webhooks_are_signed_retried_and_rotated` | Automated, pass |
+| WEB-05, WEB-06 | `event_stream_resumes_and_hides_others` | Automated, pass |
+| WEB-07 | `refuses_special_addresses`; addresses rechecked at connect | Automated, pass; DNS rebinding not exercised |
+| RESULT-09 | `ft2_set_scores_once_per_game`, through organizer adjudication only | Automated, pass |
+| PROVIDER-02 | `match_creation_is_validated_and_idempotent` | Automated, pass |
+| Game screens | ShellJourney `IdentityJourneys`; UiRender Ember ID pages in every locale and size | Automated, pass |
+
+Not run: AUTH-06, LINK-03 to LINK-05, LINK-11, every ROOM item, RESULT items other than
+RESULT-09, WEB-04 and WEB-08, PROVIDER-01 and PROVIDER-03 to 05, every OPS item, and all
+release gates. No in-game run of the Ember ID screens has been made yet; that is a
+separate acceptance step.
 
 ## Open sign-offs (spec section 30.2)
 

@@ -5,6 +5,8 @@
 #include "../netplay/SessionController.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "../netplay/MemberView.hxx"
+#include "../netplay/IdentityView.hxx"
+#include "../netplay/IdentityRequest.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../session/RoomModel.hxx"
 #include <array>
@@ -13,6 +15,7 @@
 #include <set>
 #include <map>
 #include "GameMenu.hxx"
+#include "IdentityPanel.hxx"
 
 namespace sf4e { namespace ui {
 
@@ -72,6 +75,10 @@ struct ShellView {
     std::string readyFailure;
     std::uint64_t readyFailureSequence = 0;
     int selectedFighter = 0;
+    // The Ember identity (RuntimeSnapshot::identity and its request fields).
+    netplay::IdentityView identity;
+    std::uint64_t identityTicket = 0, identityRequest = 0;
+    std::string identityRefusal;
 };
 
 struct ShellAction {
@@ -91,6 +98,8 @@ struct ShellAction {
         enum class Field { None, Ultra, Color } field = Field::None;
         int delta = 0;
     } selectionStep;
+    // An identity or bridge request; op None for everything else.
+    netplay::IdentityRequest identity;
 };
 
 class ApplicationShell {
@@ -111,6 +120,7 @@ public:
 private:
     LanguageSaver languageSaver_;
     GameMenu menu_;
+    IdentityPanel identity_;
     // Parts of Draw, in the order it runs them.
     void UpdateRoomTransitions(const ShellView& view,double now);
     bool UpdateRoomFeedback(const ShellView& view);

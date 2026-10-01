@@ -1,4 +1,7 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "../session/IdentityEvents.hxx"
+#include "../platform/Utf8.hxx"
+#include <cwchar>
 
 namespace sf4e { namespace NetplayFacade {
 namespace {
@@ -29,9 +32,49 @@ static DispatchOutcome Defer(Intent& intent, const RuntimeCommand& command, Inte
 	return DispatchOutcome::Deferred;
 }
 
+// Where an export writes: a new file in the settings folder's backups folder,
+// which the helper creates. Empty when the settings folder is unknown.
+std::string IdentityBackupPath() {
+	const auto folder = netplay::SettingsStore::DefaultDirectory();
+	if (folder.empty()) return {};
+	const auto now = std::time(nullptr);
+	std::tm local = {};
+	if (localtime_s(&local, &now)) return {};
+	wchar_t name[64] = {};
+	if (!std::wcsftime(name, 64, L"ember-id-%Y%m%d-%H%M%S.backup", &local)) return {};
+	return platform::WideToUtf8(folder + L"\\identity-backups\\" + name);
+}
+
+// Sends one identity or bridge request to the helper, or records why not.
+// Endpoint-level like the connection check: no room generation applies. Key
+// changes wait for the main menu outside a room; bridge and key use waits for
+// no live game.
+void DispatchIdentity(netplay::IdentityRequest& request, bool helperReady) {
+	using netplay::IdentityOp;
+	runtime->identityTicket = request.ticket; runtime->identityRequest = 0; runtime->identityRefusal = "";
+	const auto op = request.op;
+	const bool readOnly = op == IdentityOp::Status || op == IdentityOp::BridgeList ||
+		op == IdentityOp::BridgeInspect || op == IdentityOp::LinkList;
+	const bool changesKey = op == IdentityOp::Enable || op == IdentityOp::Import || op == IdentityOp::Reset;
+	if (!helperReady || !runtime->room) { runtime->identityRefusal = "identity.refused.helper"; return; }
+	if (changesKey && !GetRuntimeSnapshotShared()->canEditPreferences) { runtime->identityRefusal = "identity.refused.leave_room"; return; }
+	if (!readOnly && !changesKey && Game::Battle::System::ggpo) { runtime->identityRefusal = "identity.refused.match"; return; }
+	if (op == IdentityOp::Export && (request.path = IdentityBackupPath()).empty()) { runtime->identityRefusal = "identity.refused.no_folder"; return; }
+	auto text = session::BuildTournamentRequest(request);
+	std::uint64_t id = 0;
+	const bool sent = !text.empty() && runtime->room->SendTournament(text, &id);
+	WipeText(text);
+	if (sent) runtime->identityRequest = id;
+	else runtime->identityRefusal = "identity.refused.helper";
+}
+
 // Validates and applies one command. Fresh presses come from the interface
 // queue; retries come straight from a parked intent, revalidated here.
 static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attempt attempt) {
+	if (command.identity.op != netplay::IdentityOp::None) {
+		DispatchIdentity(command.identity, helperReady);
+		return DispatchOutcome::Dropped;
+	}
 	// Validate ownership before even a deferred GGPO teardown side effect.
 	if (!(command.command.generation == runtime->controller.GetSnapshot().generation)) return DispatchOutcome::Dropped;
     if (command.discordAction != discord::InviteAction::None) {

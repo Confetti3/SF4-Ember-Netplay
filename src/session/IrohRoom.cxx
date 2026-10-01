@@ -339,7 +339,7 @@ bool IrohRoom::SendTournament(const std::string& request, std::uint64_t* request
 	if (request.empty() || request.size() > 8192 || request.front() != '{' || !json::accept(request)) return false;
 	std::string payload = "{\"type\":\"tournament\",\"request\":" + request + "}";
 	const bool sent = helper_.Send(payload, requestId);
-	SecureZeroMemory(&payload[0], payload.size());
+	WipeText(payload);
 	return sent;
 }
 

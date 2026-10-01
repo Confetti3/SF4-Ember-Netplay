@@ -2408,3 +2408,378 @@ msgstr "セッションサーバーでエラーが発生しました。インタ
 
 msgid "runtime.settings_unreadable"
 msgstr "保存された設定を読み取れません。初期設定を使用します。"
+
+msgid "screen.identity"
+msgstr "Ember ID"
+
+msgid "screen.identity_backup"
+msgstr "バックアップと復元"
+
+msgid "screen.linked_accounts"
+msgstr "連携アカウント"
+
+msgid "settings.identity_detail"
+msgstr "大会サイト用のEmber ID、そのバックアップ、連携しているアカウントです。"
+
+msgid "identity.title"
+msgstr "Ember ID"
+
+msgid "identity.backup_title"
+msgstr "バックアップと復元"
+
+msgid "identity.linked_title"
+msgstr "連携アカウント"
+
+msgid "identity.status"
+msgstr "Ember ID"
+
+msgid "identity.state.checking"
+msgstr "確認中"
+
+msgid "identity.state.checking_detail"
+msgstr "EmberがEmber IDについて通信補助プログラムに問い合わせています。"
+
+msgid "identity.state.disabled_detail"
+msgstr "Ember IDがあると、大会サイトは結果が本人のものだと確認できます。Ember IDはこのPCに保存される鍵です。カジュアルな対戦では必要ありません。"
+
+msgid "identity.state.creating"
+msgstr "作成中"
+
+msgid "identity.state.creating_detail"
+msgstr "Emberが鍵を作成しています。少しお待ちください。"
+
+msgid "identity.state.locked"
+msgstr "ロック中"
+
+msgid "identity.state.locked_detail"
+msgstr "鍵はパスフレーズで保護されています。入力すると、ゲームを終了するまでEmber IDを使えます。"
+
+msgid "identity.state.ready_detail"
+msgstr "Ember IDは{0}です。\n\nサイトには短縮形の{1}が表示されます。連携を承認する前に一致していることを確認してください。"
+
+msgid "identity.state.recovery"
+msgstr "要復元"
+
+msgid "identity.state.recovery_detail"
+msgstr "EmberはEmber IDの記録を見つけましたが、その鍵を読み込めません。バックアップから復元するか、新しいIDでやり直してください。Emberが自動で置き換えることはありません。"
+
+msgid "identity.state.unavailable"
+msgstr "利用不可"
+
+msgid "identity.state.unavailable_detail"
+msgstr "EmberはこのPCで鍵を使用できません。{0}"
+
+msgid "identity.local_passphrase"
+msgstr "このPCのパスフレーズ"
+
+msgid "identity.local_passphrase_detail"
+msgstr "WineとProtonではWindowsの鍵保護を使えないため、パスフレーズで鍵を保護します。ゲームを起動するたびに一度入力します。"
+
+msgid "identity.repeat_passphrase"
+msgstr "パスフレーズを再入力"
+
+msgid "identity.repeat_passphrase_detail"
+msgstr "入力ミスを防ぐため、同じパスフレーズをもう一度入力してください。"
+
+msgid "identity.passphrases_differ"
+msgstr "2つのパスフレーズが一致しません。"
+
+msgid "identity.secret_empty"
+msgstr "未入力"
+
+msgid "identity.secret_set"
+msgstr "入力済み"
+
+msgid "identity.enable"
+msgstr "Ember IDを作成"
+
+msgid "identity.enable_detail"
+msgstr "このPCに鍵を作成します。このWindowsアカウントだけが使用できます。"
+
+msgid "identity.leave_room"
+msgstr "Ember IDを変更するには、ルームから退出してメインメニューに戻ってください。"
+
+msgid "identity.unlock"
+msgstr "ロック解除"
+
+msgid "identity.unlock_detail"
+msgstr "このPC用に決めたパスフレーズを入力してください。"
+
+msgid "identity.copy"
+msgstr "Ember IDをコピー"
+
+msgid "identity.copy_detail"
+msgstr "大会サイトに貼り付けるため、Ember ID全体をコピーします。"
+
+msgid "identity.linked_detail"
+msgstr "信頼している大会サービスと、Ember IDに連携しているアカウントです。"
+
+msgid "identity.backup_detail"
+msgstr "暗号化したバックアップを保存するか、バックアップから復元します。"
+
+msgid "identity.restore_detail"
+msgstr "バックアップからEmber IDを復元します。"
+
+msgid "identity.reset"
+msgstr "新しいIDでやり直す"
+
+msgid "identity.reset_detail"
+msgstr "現在の鍵を削除せずに退避し、別の鍵を作成または復元できるようにします。古いIDに連携したサイトは、新しいIDを認識しません。"
+
+msgid "identity.backup_passphrase"
+msgstr "バックアップのパスフレーズ"
+
+msgid "identity.backup_passphrase_detail"
+msgstr "バックアップファイルを保護します。これがないとバックアップは開けず、誰にも復旧できません。"
+
+msgid "identity.export"
+msgstr "バックアップを保存"
+
+msgid "identity.export_detail"
+msgstr "鍵の暗号化コピーを、Emberの設定にあるidentity-backupsフォルダーに保存します。コピーはこのPC以外の安全な場所にも保管してください。"
+
+msgid "identity.export_saved"
+msgstr "前回のバックアップ"
+
+msgid "identity.paste_path"
+msgstr "バックアップのパスを貼り付け"
+
+msgid "identity.paste_path_detail"
+msgstr "クリップボードのファイルパスを使います。エクスプローラーでShiftキーを押しながらファイルを右クリックし、「パスのコピー」を選んでください。"
+
+msgid "identity.backup_file"
+msgstr "バックアップファイル"
+
+msgid "identity.backup_file_detail"
+msgstr "Emberで保存したバックアップのフルパスです。"
+
+msgid "identity.restore_passphrase_detail"
+msgstr "バックアップを保存したときに決めたパスフレーズです。"
+
+msgid "identity.check_backup"
+msgstr "バックアップを確認"
+
+msgid "identity.check_backup_detail"
+msgstr "何も変更せずにバックアップを開き、中のEmber IDを表示します。"
+
+msgid "identity.backup_holds"
+msgstr "バックアップの内容"
+
+msgid "identity.backup_holds_detail"
+msgstr "このバックアップのEmber IDは{0}です。"
+
+msgid "identity.backup_same"
+msgstr "このPCにすでにあるIDと同じです。復元の必要はありません。"
+
+msgid "identity.backup_replaces"
+msgstr "復元すると、このPCにある別のIDは退避されます。そのIDに連携したサイトは、このIDを認識しません。"
+
+msgid "identity.backup_new"
+msgstr "復元すると、これがこのPCのEmber IDになります。"
+
+msgid "identity.import"
+msgstr "このIDを復元"
+
+msgid "identity.import_detail"
+msgstr "バックアップのEmber IDをこのPCにインストールします。"
+
+msgid "identity.import_replaces_detail"
+msgstr "バックアップのEmber IDをインストールし、現在のIDは削除せずに退避します。"
+
+msgid "identity.linked_needs_id"
+msgstr "Ember IDが必要"
+
+msgid "identity.linked_needs_id_detail"
+msgstr "先にEmber IDを作成するか、ロックを解除してください。連携により、アカウントがこのEmber IDのものであることをサイトに証明します。"
+
+msgid "identity.service"
+msgstr "大会サービス"
+
+msgid "identity.unlink"
+msgstr "連携解除"
+
+msgid "identity.unlink_detail"
+msgstr "この連携を解除します。もう一度連携するまで、サイトはこのアカウントを本人のものと認識しなくなります。"
+
+msgid "identity.pending_label"
+msgstr "{0}で承認待ち"
+
+msgid "identity.pending_detail"
+msgstr "ブラウザーでサイトを開き、連携を承認してください。選択でキャンセルします。"
+
+msgid "identity.cancel_claim"
+msgstr "連携をキャンセル"
+
+msgid "identity.no_links"
+msgstr "連携アカウントなし"
+
+msgid "identity.no_links_detail"
+msgstr "大会サイトで連携を開始し、表示されたコードを下に入力してください。"
+
+msgid "identity.site"
+msgstr "サイト"
+
+msgid "identity.site_detail"
+msgstr "このサービスで、アカウントがあるサイトです。"
+
+msgid "identity.link_code"
+msgstr "連携コード"
+
+msgid "identity.link_code_detail"
+msgstr "大会サイトで連携を開始すると表示されるコードです（例：ABCDE-12345）。"
+
+msgid "identity.link_account"
+msgstr "アカウントを連携"
+
+msgid "identity.link_account_detail"
+msgstr "Ember IDで署名したコードを送信します。その後、サイトで連携を承認してください。"
+
+msgid "identity.refresh"
+msgstr "更新"
+
+msgid "identity.refresh_detail"
+msgstr "このサービスに新しい連携や承認がないか確認します。"
+
+msgid "identity.forget"
+msgstr "このサービスを削除"
+
+msgid "identity.forget_detail"
+msgstr "このPCでこのサービスを信頼しなくなります。サービス上の連携は、そちらで削除するまで残ります。"
+
+msgid "identity.service_address"
+msgstr "サービスを追加"
+
+msgid "identity.service_address_detail"
+msgstr "Emberの大会サービスのアドレスです（例：https://tournaments.example）。大会の主催者から伝えられます。"
+
+msgid "identity.look_up"
+msgstr "サービスを確認"
+
+msgid "identity.look_up_detail"
+msgstr "信頼するかどうかを決める前に、このアドレスがどのようなサービスか問い合わせます。"
+
+msgid "identity.trust"
+msgstr "{0}を信頼"
+
+msgid "identity.trust_detail"
+msgstr "EmberがEmber IDを使って{0}のサービスにサインインできるようにします。主催者が指定したサービスだけを信頼してください。"
+
+msgid "identity.working"
+msgstr "処理中..."
+
+msgid "identity.working_key"
+msgstr "鍵を処理しています。数秒かかることがあります..."
+
+msgid "identity.done.enabled"
+msgstr "Ember IDの準備ができました。"
+
+msgid "identity.done.unlocked"
+msgstr "Ember IDのロックを解除しました。"
+
+msgid "identity.done.exported"
+msgstr "バックアップを{0}に保存しました。"
+
+msgid "identity.done.imported"
+msgstr "Ember IDを復元しました。"
+
+msgid "identity.done.reset"
+msgstr "古い鍵を退避しました。IDを作成または復元できます。"
+
+msgid "identity.done.trusted"
+msgstr "{0}を信頼しました。"
+
+msgid "identity.done.forgotten"
+msgstr "サービスを削除しました。"
+
+msgid "identity.done.claimed"
+msgstr "コードを送信しました。サイトで連携を承認し、{0}と表示されていることを確認してください。"
+
+msgid "identity.done.unlinked"
+msgstr "アカウントの連携を解除しました。"
+
+msgid "identity.done.cancelled"
+msgstr "連携をキャンセルしました。"
+
+msgid "identity.done.copied"
+msgstr "Ember IDをコピーしました。"
+
+msgid "identity.failure.wrong_passphrase"
+msgstr "パスフレーズが正しくありません。"
+
+msgid "identity.failure.invalid_passphrase"
+msgstr "パスフレーズは1文字以上必要です。"
+
+msgid "identity.failure.passphrase_required"
+msgstr "このPCでは、鍵を保護するためにパスフレーズが必要です。"
+
+msgid "identity.failure.corrupt"
+msgstr "このファイルはEmber IDのバックアップではないか、破損しています。"
+
+msgid "identity.failure.file"
+msgstr "Emberはこのファイルを読み込めません。パスを確認してください。"
+
+msgid "identity.failure.busy"
+msgstr "別のEmberがEmber IDを使用中です。少し待ってから再試行してください。"
+
+msgid "identity.failure.state"
+msgstr "Ember IDはまだその操作ができる状態ではありません。"
+
+msgid "identity.failure.changed"
+msgstr "処理中にEmber IDが変わりました。もう一度確認してください。"
+
+msgid "identity.failure.storage"
+msgstr "EmberはこのPCで鍵の読み込みまたは保存ができませんでした。"
+
+msgid "identity.failure.unreachable"
+msgstr "大会サービスから応答がありません。アドレスと接続を確認してください。"
+
+msgid "identity.failure.not_bridge"
+msgstr "このアドレスは、Emberで使えるEmberの大会サービスではありません。"
+
+msgid "identity.failure.bridge_changed"
+msgstr "このアドレスのサービスは、信頼したサービスとは異なります。IDを守るため、Emberは処理を中止しました。"
+
+msgid "identity.failure.not_approved"
+msgstr "先にこのサービスを信頼してください。"
+
+msgid "identity.failure.too_many"
+msgstr "Emberに登録できるサービスの数には上限があります。先にどれかを削除してください。"
+
+msgid "identity.failure.code"
+msgstr "連携コードが間違っているか、期限切れです。サイトで新しく連携を開始してください。"
+
+msgid "identity.failure.link_conflict"
+msgstr "このアカウントは、すでに別のEmber IDと連携しています。"
+
+msgid "identity.failure.rate_limited"
+msgstr "試行回数が多すぎます。1分待ってから再試行してください。"
+
+msgid "identity.failure.sign_in"
+msgstr "サービスへのサインインに失敗しました。再試行してください。"
+
+msgid "identity.failure.forbidden"
+msgstr "サービスがこの操作を許可していません。"
+
+msgid "identity.failure.refused"
+msgstr "サービスがこのリクエストを拒否しました。"
+
+msgid "identity.failure.other"
+msgstr "操作に失敗しました（{0}）。"
+
+msgid "identity.failure.timeout"
+msgstr "通信補助プログラムから応答がありません。再試行してください。"
+
+msgid "identity.failure.paste"
+msgstr "クリップボードにファイルパスがありません。"
+
+msgid "identity.refused.helper"
+msgstr "通信補助プログラムが動作していないため、現在Ember IDを使用できません。"
+
+msgid "identity.refused.leave_room"
+msgstr "Ember IDを変更するには、ルームから退出してメインメニューに戻ってください。"
+
+msgid "identity.refused.match"
+msgstr "対戦が終わるまでお待ちください。"
+
+msgid "identity.refused.no_folder"
+msgstr "バックアップを保存するEmberの設定フォルダーが見つかりません。"

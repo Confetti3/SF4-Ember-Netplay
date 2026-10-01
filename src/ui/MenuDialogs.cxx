@@ -248,11 +248,14 @@ void GameMenu::DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEd
             const bool canAccept=entry&&entry->enabled;
             ImGui::TextWrapped("%s",entry?entry->label.c_str():loc::T("edit.title"));
             ImGui::TextWrapped("%s",loc::T("edit.instructions"));
+            const bool secret=navigation.EditingSecret();
             char draft[4097]={}; std::strncpy(draft,navigation.Draft().c_str(),limit);
-            NoteUserText(navigation.Draft(),UserTextRole::Draft);
+            // A masked passphrase draws only asterisks, so its glyphs are never needed.
+            if(!secret) NoteUserText(navigation.Draft(),UserTextRole::Draft);
             if(lastEdit_!=navigation.EditingId()) ImGui::SetKeyboardFocusHere();
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-            if(ImGui::InputText("##Draft",draft,limit+1)) navigation.Draft(draft);
+            if(ImGui::InputText(secret?"##Secret":"##Draft",draft,limit+1,secret?ImGuiInputTextFlags_Password:0)) navigation.Draft(draft);
+            if(secret) WipeText(draft,sizeof(draft));
             ImGui::TextDisabled("%s",loc::Tf("edit.bytes",static_cast<unsigned>(navigation.Draft().size()),static_cast<unsigned>(limit)).c_str());
             const bool visualAccept=entry&&feedback_.Enabled(*entry);
             ImGui::BeginChild("Edit feedback",ImVec2(0,2*ImGui::GetTextLineHeightWithSpacing()));

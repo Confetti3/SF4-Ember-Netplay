@@ -70,4 +70,61 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& vi
     }
     } catch (const nlohmann::json::exception&) {}
 }
+
+std::string BuildTournamentRequest(const netplay::IdentityRequest& r) {
+    using netplay::IdentityOp;
+    nlohmann::json body = nlohmann::json::object();
+    // The fields each op needs, in the helper's names; any one empty refuses it.
+    const auto need = [&](std::initializer_list<std::pair<const char*, const std::string*>> fields) {
+        for (const auto& field : fields) { if (field.second->empty()) return false; body[field.first] = *field.second; }
+        return true;
+    };
+    bool complete = true;
+    switch (r.op) {
+    case IdentityOp::Status: body["op"] = "identity_status"; break;
+    case IdentityOp::Enable:
+        body["op"] = "identity_enable";
+        if (!r.passphrase.empty()) body["passphrase"] = r.passphrase;
+        break;
+    case IdentityOp::Unlock: body["op"] = "identity_unlock"; complete = need({{"passphrase", &r.passphrase}}); break;
+    case IdentityOp::Export: body["op"] = "identity_export"; complete = need({{"path", &r.path}, {"passphrase", &r.passphrase}}); break;
+    case IdentityOp::PreviewImport:
+        body["op"] = "identity_preview_import"; complete = need({{"path", &r.path}, {"passphrase", &r.passphrase}}); break;
+    case IdentityOp::Import:
+        body["op"] = "identity_import";
+        complete = need({{"path", &r.path}, {"passphrase", &r.passphrase}, {"expected_ember_id", &r.emberId}});
+        if (!r.localPassphrase.empty()) body["local_passphrase"] = r.localPassphrase;
+        if (r.replace) body["replace"] = true;
+        break;
+    case IdentityOp::Reset:
+        body["op"] = "identity_reset";
+        if (!r.emberId.empty()) body["confirm_ember_id"] = r.emberId;
+        break;
+    case IdentityOp::BridgeList: body["op"] = "bridge_list"; break;
+    case IdentityOp::BridgeInspect: body["op"] = "bridge_inspect"; complete = need({{"origin", &r.origin}}); break;
+    case IdentityOp::BridgeApprove:
+        body["op"] = "bridge_approve"; complete = need({{"origin", &r.origin}, {"bridge_id", &r.bridge}}); break;
+    case IdentityOp::BridgeForget: body["op"] = "bridge_forget"; complete = need({{"bridge_id", &r.bridge}}); break;
+    case IdentityOp::LinkList: body["op"] = "link_list"; complete = need({{"bridge_id", &r.bridge}}); break;
+    case IdentityOp::LinkClaim:
+        body["op"] = "link_claim";
+        complete = need({{"bridge_id", &r.bridge}, {"connection_id", &r.connection}, {"code", &r.code}});
+        break;
+    case IdentityOp::LinkCancel:
+        body["op"] = "link_cancel"; complete = need({{"bridge_id", &r.bridge}, {"claim_id", &r.target}}); break;
+    case IdentityOp::LinkRemove:
+        body["op"] = "link_remove"; complete = need({{"bridge_id", &r.bridge}, {"link_id", &r.target}}); break;
+    default: complete = false; break;
+    }
+    std::string text;
+    if (complete) {
+        try { text = body.dump(); } catch (const nlohmann::json::exception&) { text.clear(); }
+    }
+    // The tree holds its own copies of any passphrase.
+    for (const char* key : {"passphrase", "local_passphrase"}) {
+        const auto it = body.find(key);
+        if (it != body.end() && it->is_string()) WipeText(it->get_ref<std::string&>());
+    }
+    return text;
+}
 } }

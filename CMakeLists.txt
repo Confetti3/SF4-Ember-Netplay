@@ -259,7 +259,7 @@ install(DIRECTORY "assets/brand" DESTINATION "assets" FILES_MATCHING PATTERN "*.
 install(DIRECTORY "assets/input" DESTINATION "assets" FILES_MATCHING PATTERN "*.png" PATTERN "*.txt")
 target_sources(sf4e_ui PRIVATE src/ui/ControllerNavigation.cxx src/ui/backends/imgui_impl_win32.cpp)
 set_source_files_properties(src/ui/backends/imgui_impl_win32.cpp PROPERTIES COMPILE_DEFINITIONS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
-target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx)
+target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/IdentityPanel.cxx)
 target_compile_features(sf4e_ui PUBLIC cxx_std_17)
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_fonts.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_brand.cmake")

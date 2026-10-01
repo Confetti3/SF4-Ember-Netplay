@@ -141,6 +141,10 @@ struct Runtime {
     std::uint64_t leaveActionId=0, leaveRetryAt=0, leaveDeadline=0;
     int selectedDelay=2;
     std::uint64_t nextProbeRequest=1;
+    // The interface's last identity request: its ticket, the helper request it
+    // became (0 when refused) and the catalog id of a refusal.
+    std::uint64_t identityTicket=0, identityRequest=0;
+    const char* identityRefusal="";
     session::RoomRecoveryRuntime recovery;
     std::uint64_t observedAuthorityTerm=0;
 	// A terminal receipt is released only after its local outcome has been

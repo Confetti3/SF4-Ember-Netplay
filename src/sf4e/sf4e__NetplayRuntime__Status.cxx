@@ -307,6 +307,9 @@ PostPublishState Publish() {
     diagnostic.helperReady = snapshot.helperReady;
     FillNetworkDiagnostics(diagnostic);
     snapshot.netReport = diagnostic.netReport;
+    if (runtime->room) snapshot.identity = runtime->room->Identity();
+    snapshot.identityTicket = runtime->identityTicket; snapshot.identityRequest = runtime->identityRequest;
+    snapshot.identityRefusal = runtime->identityRefusal;
     runtime->services.Observe(diagnostic);
     snapshot.services = runtime->services.Snapshot();
     snapshot.inputDevice = runtime->input.Selected();

@@ -906,6 +906,75 @@ void TrainingJourneys() {
  Check(commands.size()==1&&commands.back().action==training::Action::Record,"Confirming the overwrite did not send one Record");
  TakeForwardedMenuAction();
 }
+// The Ember ID screens: what each request carries, that one is in flight at a
+// time, that passphrases open empty and masked, and that answers and refusals
+// reach the status line.
+void IdentityJourneys() {
+ using namespace sf4e;using netplay::IdentityOp;
+ Harness h;auto& id=h.view.identity;id.known=true;id.state="disabled";id.passphraseRequired=true;h.Frame();
+ std::vector<MenuEntry> rows;std::string status;
+ SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
+ const auto row=[&](const char* name)->const MenuEntry*{const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;});return it==rows.end()?nullptr:&*it;};
+ // The identity requests sent so far, and an answer to the newest one.
+ const auto sent=[&]{std::vector<const netplay::IdentityRequest*> out;for(const auto& a:h.actions)if(a.identity.op!=IdentityOp::None)out.push_back(&a.identity);return out;};
+ const auto answer=[&](bool ok=true,const char* failure=""){
+  const auto requests=sent();Check(!requests.empty(),"No identity request to answer");
+  h.view.identityTicket=requests.back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;
+  id.ok=ok;id.failure=failure;h.Frame(0,2);
+ };
+ const auto type=[&](const char* text){
+  ImGui::GetIO().AddInputCharactersUTF8(text);h.Frame();
+  ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,true);h.Frame();ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,false);h.Frame();
+ };
+ h.Screen("settings");h.Choose("identity");Check(h.shell.Navigation().Screen()=="identity","Settings does not open the Ember ID screen");
+ Check(sent().size()==1&&sent().back()->op==IdentityOp::Status,"Opening the Ember ID screen did not ask for its status");
+ answer();
+ // Under Wine the key needs a passphrase, typed twice, before it can be created.
+ h.Frame();Check(row("id-enable")&&!row("id-enable")->enabled,"Create was offered before a passphrase");
+ h.Choose("id-new-passphrase");
+ Check(h.shell.Navigation().EditingSecret()&&h.shell.Navigation().Draft().empty(),"The passphrase editor is not secret or did not open empty");
+ type("correct horse");
+ Check(row("id-new-passphrase")->value==loc::T("identity.secret_set"),"An entered passphrase is not shown as entered");
+ h.Choose("id-new-confirm");type("correct hose");h.Frame();
+ Check(!row("id-enable")->enabled&&row("id-new-confirm")->detail==loc::T("identity.passphrases_differ"),"Differing passphrases did not hold Create back");
+ h.Choose("id-new-confirm");type("correct horse");h.Frame();Check(row("id-enable")->enabled,"Matching passphrases did not offer Create");
+ h.Choose("id-enable");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+ Check(sent().back()->op==IdentityOp::Enable&&sent().back()->passphrase=="correct horse","Create did not send the passphrase once");
+ // One request in flight: nothing else goes out until it is answered.
+ const auto inFlight=sent().size();h.Frame(0,5);Check(sent().size()==inFlight&&status==loc::T("identity.working_key"),"Key work is not shown as in progress");
+ id.state="ready";id.passphraseRequired=false;id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
+ answer();Check(status==loc::T("identity.done.enabled"),"A created ID was not announced");
+ Check(row("id-status")->value==id.fingerprint,"The ready ID does not show its fingerprint");
+ // A refusal names its reason, and a helper failure is a sentence.
+ h.Choose("identity-backup");answer();
+ h.Choose("id-backup-passphrase");type("backup words");h.Choose("id-backup-confirm");type("backup words");
+ h.Choose("id-export");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+ Check(sent().back()->op==IdentityOp::Export&&sent().back()->passphrase=="backup words"&&sent().back()->path.empty(),
+  "Export did not leave the file to the runtime");
+ h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=0;h.view.identityRefusal="identity.refused.match";h.Frame(0,2);
+ Check(status==loc::T("identity.refused.match"),"A refused request did not say why");
+ h.Choose("id-export");h.Press(MenuInput::Right);h.Press(MenuInput::Select);answer(false,"io");
+ Check(status==loc::T("identity.failure.storage"),"A helper failure was not put in words");
+ // Leaving the screens wipes what was typed.
+ h.Screen("home");h.Screen("identity-backup");h.Frame();
+ Check(row("id-backup-passphrase")->value==loc::T("identity.secret_empty"),"A passphrase survived leaving the screens");
+ // Linked accounts list the services, then inspect and list the first one.
+ id.bridges={{"brg_1","https://tournaments.example","Example Tournaments"}};
+ // The backup screen's status is still in flight; then this screen's status and list.
+ h.Screen("linked-accounts");answer();answer();answer();
+ Check(sent().back()->op==IdentityOp::BridgeInspect&&sent().back()->origin=="https://tournaments.example","The trusted service was not inspected");
+ id.inspected=id.bridges[0];id.connections={{"blumint","BluMint"},{"mock-local","Mock provider"}};answer();
+ Check(sent().back()->op==IdentityOp::LinkList&&sent().back()->bridge=="brg_1","The service's links were not listed");
+ id.links={{"lnk_1","blumint","BluMint","PlayerOne"}};answer();
+ Check(row("id-unlink:lnk_1")&&row("id-connection"),"Links and sites are not shown");
+ h.Choose("id-code");type("ABCDE-12345");h.Choose("id-claim");
+ Check(sent().back()->op==IdentityOp::LinkClaim&&sent().back()->bridge=="brg_1"&&sent().back()->connection=="blumint"&&
+  sent().back()->code=="ABCDE-12345","A claim did not carry its service, site and code");
+ id.claimFingerprint="j25zrhe6-pmdhvlja";answer();
+ Check(status==loc::Tf("identity.done.claimed",id.claimFingerprint)&&sent().back()->op==IdentityOp::LinkList,
+  "A claim did not show the fingerprint to check, or did not refresh the links");
+ SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
-int main(){try{Journeys();KeyboardJourneys();NoticeOverDialogs();LanguageSaveFailure();SessionReports();RecoveryWindow();SelectorPages();SelectorFromHome();DeveloperSelectors();TrainingJourneys();PresentationJourneys();AppearanceGalleries();std::cout<<"Shell journeys through the renderer passed.\n";return 0;}
+}
+int main(){try{Journeys();IdentityJourneys();KeyboardJourneys();NoticeOverDialogs();LanguageSaveFailure();SessionReports();RecoveryWindow();SelectorPages();SelectorFromHome();DeveloperSelectors();TrainingJourneys();PresentationJourneys();AppearanceGalleries();std::cout<<"Shell journeys through the renderer passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

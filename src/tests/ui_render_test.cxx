@@ -505,6 +505,11 @@ int main(int argc, char** argv) {
                         for(unsigned key=0;key<6;++key)io.AddKeyEvent(keys[key],(buttons&(1u<<key))!=0);}
                     ImGui_ImplDX9_NewFrame();ImGui::NewFrame();
                     if(mode==0)shell.Draw(view,&open,[&](ShellAction a){
+                        // An identity request is answered at once, successfully.
+                        if(a.identity.op!=netplay::IdentityOp::None){
+                            view.identityTicket=a.identity.ticket;view.identityRequest=view.identity.requestId=view.identityTicket+1000;
+                            view.identity.ok=true;view.identity.failure.clear();return true;
+                        }
                         if(a.command.kind==netplay::CommandKind::SavePreferences&&view.settingsError.empty())view.preferences=a.preferences;
                         return true;},[&]{selector.Draw(pick,true,art.get(),availability,&stage,view.canEditSelection,{},&stagePool);});
                     else if(mode==1)DrawTrainingFlyout(training,[&](training::Command c){trainingCommand=c;return acceptTraining;});
@@ -801,6 +806,26 @@ int main(int argc, char** argv) {
             draw(nullptr,MenuInput::Back,1);draw();
             view.discordPending=view.discordConfirm=view.discordCanSwitch=true;view.discordRevision=3;draw("discord-invitation");
             view.discordPending=false;draw();
+            {
+                // The Ember ID screens in each state that changes their rows.
+                auto& id=view.identity;id=netplay::IdentityView{};id.known=true;
+                id.state="disabled";id.passphraseRequired=true;page("identity");draw("identity-disabled-passphrase");
+                id.state="locked";id.passphraseRequired=false;id.backend="passphrase";
+                id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
+                page("identity");draw("identity-locked");
+                id.state="recovery_required";page("identity");draw("identity-recovery");
+                id.state="ready";id.backend="dpapi";page("identity");draw("identity-ready");
+                id.exportPath="C:\\Users\\Player\\AppData\\Roaming\\sf4e\\identity-backups\\ember-id-20261001-120000.backup";
+                page("identity-backup");draw("identity-backup");
+                id.bridges={{"brg_00000000-0000-4000-8000-000000000001","https://tournaments.example","Example Tournaments"}};
+                id.inspected=id.bridges[0];id.connections={{"blumint","BluMint"},{"mock-local","Mock provider"}};
+                id.links={{"lnk_1","blumint","BluMint","PlayerOne"}};id.pending={{"clm_1","mock-local","Mock provider",{}}};
+                // The page lists services, then inspects and lists the first.
+                page("linked-accounts");draw(nullptr,0,12);draw("linked-accounts");
+                Require(shell.Navigation().Screen()=="linked-accounts","Linked accounts did not open");
+                id.state="disabled";page("linked-accounts");draw("linked-accounts-no-id");
+                view.identity=netplay::IdentityView{};
+            }
             mode=1;TrainingNavigation().Home();draw("training-home");
             Require(TrainingNavigation().Focus()=="recording","Removed practice position still occupies training root");
             for(const char* screen:{"recording","history"}){

@@ -2408,3 +2408,378 @@ msgstr "Ошибка сервера сессии. Проверьте интер�
 
 msgid "runtime.settings_unreadable"
 msgstr "Не удалось прочитать сохранённые настройки; используются значения по умолчанию."
+
+msgid "screen.identity"
+msgstr "Ember ID"
+
+msgid "screen.identity_backup"
+msgstr "Резервные копии"
+
+msgid "screen.linked_accounts"
+msgstr "Привязанные аккаунты"
+
+msgid "settings.identity_detail"
+msgstr "Ваш Ember ID для турнирных сайтов, его резервная копия и привязанные к нему аккаунты."
+
+msgid "identity.title"
+msgstr "EMBER ID"
+
+msgid "identity.backup_title"
+msgstr "РЕЗЕРВНЫЕ КОПИИ"
+
+msgid "identity.linked_title"
+msgstr "ПРИВЯЗАННЫЕ АККАУНТЫ"
+
+msgid "identity.status"
+msgstr "Ember ID"
+
+msgid "identity.state.checking"
+msgstr "Проверка"
+
+msgid "identity.state.checking_detail"
+msgstr "Ember запрашивает у сетевого компонента сведения о вашем Ember ID."
+
+msgid "identity.state.disabled_detail"
+msgstr "Ember ID позволяет турнирным сайтам подтвердить, что результат получен от вас. Это ключ, который хранится на этом ПК. Для обычной игры он не нужен."
+
+msgid "identity.state.creating"
+msgstr "Создание"
+
+msgid "identity.state.creating_detail"
+msgstr "Ember создаёт ваш ключ. Это займёт немного времени."
+
+msgid "identity.state.locked"
+msgstr "Заблокирован"
+
+msgid "identity.state.locked_detail"
+msgstr "Ваш ключ защищён паролем. Введите его, чтобы пользоваться Ember ID до закрытия игры."
+
+msgid "identity.state.ready_detail"
+msgstr "Ваш Ember ID: {0}.\n\nСайты показывают краткую форму {1}. Прежде чем подтвердить привязку, убедитесь, что она совпадает."
+
+msgid "identity.state.recovery"
+msgstr "Нужно восстановить"
+
+msgid "identity.state.recovery_detail"
+msgstr "Ember нашёл запись о вашем Ember ID, но не может прочитать его ключ. Восстановите его из резервной копии или начните заново с новым ID. Ember никогда не заменяет его сам."
+
+msgid "identity.state.unavailable"
+msgstr "Недоступен"
+
+msgid "identity.state.unavailable_detail"
+msgstr "Ember не может использовать ключ на этом ПК. {0}"
+
+msgid "identity.local_passphrase"
+msgstr "Пароль для этого ПК"
+
+msgid "identity.local_passphrase_detail"
+msgstr "Wine и Proton не поддерживают защиту ключей Windows, поэтому ваш ключ защищает пароль. Его нужно вводить один раз при каждом запуске игры."
+
+msgid "identity.repeat_passphrase"
+msgstr "Повторите пароль"
+
+msgid "identity.repeat_passphrase_detail"
+msgstr "Введите тот же пароль ещё раз, чтобы исключить опечатку."
+
+msgid "identity.passphrases_differ"
+msgstr "Пароли не совпадают."
+
+msgid "identity.secret_empty"
+msgstr "Не введён"
+
+msgid "identity.secret_set"
+msgstr "Введён"
+
+msgid "identity.enable"
+msgstr "Создать Ember ID"
+
+msgid "identity.enable_detail"
+msgstr "Создаёт ваш ключ на этом ПК. Использовать его сможет только эта учётная запись Windows."
+
+msgid "identity.leave_room"
+msgstr "Чтобы изменить Ember ID, выйдите из зала и вернитесь в главное меню."
+
+msgid "identity.unlock"
+msgstr "Разблокировать"
+
+msgid "identity.unlock_detail"
+msgstr "Введите пароль, выбранный для этого ПК."
+
+msgid "identity.copy"
+msgstr "Копировать Ember ID"
+
+msgid "identity.copy_detail"
+msgstr "Копирует полный Ember ID, чтобы вставить его на турнирном сайте."
+
+msgid "identity.linked_detail"
+msgstr "Турнирные сервисы, которым вы доверяете, и аккаунты, привязанные к вашему Ember ID."
+
+msgid "identity.backup_detail"
+msgstr "Сохраните зашифрованную резервную копию или восстановите ID из копии."
+
+msgid "identity.restore_detail"
+msgstr "Восстановите Ember ID из резервной копии."
+
+msgid "identity.reset"
+msgstr "Начать заново с новым ID"
+
+msgid "identity.reset_detail"
+msgstr "Убирает текущий ключ в сторону, не удаляя его, чтобы можно было создать или восстановить другой. Сайты, привязанные к старому ID, не узнают новый."
+
+msgid "identity.backup_passphrase"
+msgstr "Пароль копии"
+
+msgid "identity.backup_passphrase_detail"
+msgstr "Защищает файл резервной копии. Без него копию не открыть, и никто не сможет восстановить её за вас."
+
+msgid "identity.export"
+msgstr "Сохранить копию"
+
+msgid "identity.export_detail"
+msgstr "Сохраняет зашифрованную копию ключа в папке identity-backups в настройках Ember. Храните копию в надёжном месте вне этого ПК."
+
+msgid "identity.export_saved"
+msgstr "Последняя копия"
+
+msgid "identity.paste_path"
+msgstr "Вставить путь к копии"
+
+msgid "identity.paste_path_detail"
+msgstr "Берёт путь к файлу из буфера обмена. В Проводнике удерживайте Shift, щёлкните файл правой кнопкой мыши и выберите «Копировать как путь»."
+
+msgid "identity.backup_file"
+msgstr "Файл копии"
+
+msgid "identity.backup_file_detail"
+msgstr "Полный путь к резервной копии, сохранённой Ember."
+
+msgid "identity.restore_passphrase_detail"
+msgstr "Пароль, выбранный при сохранении копии."
+
+msgid "identity.check_backup"
+msgstr "Проверить копию"
+
+msgid "identity.check_backup_detail"
+msgstr "Открывает копию и показывает Ember ID в ней, ничего не меняя."
+
+msgid "identity.backup_holds"
+msgstr "В копии"
+
+msgid "identity.backup_holds_detail"
+msgstr "В этой копии хранится Ember ID {0}."
+
+msgid "identity.backup_same"
+msgstr "Этот ID уже есть на этом ПК. Восстанавливать нечего."
+
+msgid "identity.backup_replaces"
+msgstr "При восстановлении другой ID на этом ПК будет убран в сторону. Сайты, привязанные к нему, не узнают этот."
+
+msgid "identity.backup_new"
+msgstr "После восстановления он станет вашим Ember ID на этом ПК."
+
+msgid "identity.import"
+msgstr "Восстановить этот ID"
+
+msgid "identity.import_detail"
+msgstr "Устанавливает Ember ID из резервной копии на этот ПК."
+
+msgid "identity.import_replaces_detail"
+msgstr "Устанавливает Ember ID из резервной копии и убирает текущий в сторону, не удаляя его."
+
+msgid "identity.linked_needs_id"
+msgstr "Нужен Ember ID"
+
+msgid "identity.linked_needs_id_detail"
+msgstr "Сначала создайте или разблокируйте Ember ID. Привязка доказывает сайту, что аккаунт принадлежит ему."
+
+msgid "identity.service"
+msgstr "Турнирный сервис"
+
+msgid "identity.unlink"
+msgstr "Отвязать"
+
+msgid "identity.unlink_detail"
+msgstr "Удаляет эту привязку. Сайт перестанет считать этот аккаунт вашим, пока вы не привяжете его снова."
+
+msgid "identity.pending_label"
+msgstr "Ожидание подтверждения: {0}"
+
+msgid "identity.pending_detail"
+msgstr "Подтвердите привязку на сайте в браузере. «Выбрать» отменяет её."
+
+msgid "identity.cancel_claim"
+msgstr "Отменить привязку"
+
+msgid "identity.no_links"
+msgstr "Нет привязанных аккаунтов"
+
+msgid "identity.no_links_detail"
+msgstr "Начните привязку на турнирном сайте, затем введите ниже код, который он покажет."
+
+msgid "identity.site"
+msgstr "Сайт"
+
+msgid "identity.site_detail"
+msgstr "Сайт этого сервиса, где находится ваш аккаунт."
+
+msgid "identity.link_code"
+msgstr "Код привязки"
+
+msgid "identity.link_code_detail"
+msgstr "Код, который турнирный сайт показывает в начале привязки, например ABCDE-12345."
+
+msgid "identity.link_account"
+msgstr "Привязать аккаунт"
+
+msgid "identity.link_account_detail"
+msgstr "Отправляет код, подписанный вашим Ember ID. Затем подтвердите привязку на сайте."
+
+msgid "identity.refresh"
+msgstr "Обновить"
+
+msgid "identity.refresh_detail"
+msgstr "Проверяет, нет ли у сервиса новых привязок и подтверждений."
+
+msgid "identity.forget"
+msgstr "Забыть сервис"
+
+msgid "identity.forget_detail"
+msgstr "Этот ПК перестаёт доверять сервису. Привязки на сервисе остаются, пока вы не удалите их там."
+
+msgid "identity.service_address"
+msgstr "Добавить сервис"
+
+msgid "identity.service_address_detail"
+msgstr "Адрес турнирного сервиса Ember, например https://tournaments.example. Его сообщит организатор турнира."
+
+msgid "identity.look_up"
+msgstr "Проверить сервис"
+
+msgid "identity.look_up_detail"
+msgstr "Узнаёт, что находится по адресу, прежде чем вы решите ему доверять."
+
+msgid "identity.trust"
+msgstr "Доверять: {0}"
+
+msgid "identity.trust_detail"
+msgstr "Позволяет Ember входить в сервис по адресу {0} с вашим Ember ID. Доверяйте только сервису, который назвал организатор."
+
+msgid "identity.working"
+msgstr "Выполняется..."
+
+msgid "identity.working_key"
+msgstr "Работа с ключом. Это может занять несколько секунд..."
+
+msgid "identity.done.enabled"
+msgstr "Ваш Ember ID готов."
+
+msgid "identity.done.unlocked"
+msgstr "Ember ID разблокирован."
+
+msgid "identity.done.exported"
+msgstr "Копия сохранена в {0}."
+
+msgid "identity.done.imported"
+msgstr "Ember ID восстановлен."
+
+msgid "identity.done.reset"
+msgstr "Старый ключ убран в сторону. Теперь можно создать или восстановить ID."
+
+msgid "identity.done.trusted"
+msgstr "Сервис {0} теперь доверенный."
+
+msgid "identity.done.forgotten"
+msgstr "Сервис забыт."
+
+msgid "identity.done.claimed"
+msgstr "Код отправлен. Подтвердите привязку на сайте и проверьте, что там показан {0}."
+
+msgid "identity.done.unlinked"
+msgstr "Аккаунт отвязан."
+
+msgid "identity.done.cancelled"
+msgstr "Привязка отменена."
+
+msgid "identity.done.copied"
+msgstr "Ember ID скопирован."
+
+msgid "identity.failure.wrong_passphrase"
+msgstr "Неверный пароль."
+
+msgid "identity.failure.invalid_passphrase"
+msgstr "Пароль должен содержать хотя бы один символ."
+
+msgid "identity.failure.passphrase_required"
+msgstr "На этом ПК для защиты ключа нужен пароль."
+
+msgid "identity.failure.corrupt"
+msgstr "Этот файл не является резервной копией Ember ID или повреждён."
+
+msgid "identity.failure.file"
+msgstr "Ember не может прочитать этот файл. Проверьте путь."
+
+msgid "identity.failure.busy"
+msgstr "Ваш Ember ID использует другая копия Ember. Повторите попытку чуть позже."
+
+msgid "identity.failure.state"
+msgstr "Ваш Ember ID для этого не готов."
+
+msgid "identity.failure.changed"
+msgstr "Ваш Ember ID тем временем изменился. Проверьте его ещё раз."
+
+msgid "identity.failure.storage"
+msgstr "Ember не удалось прочитать или сохранить ваш ключ на этом ПК."
+
+msgid "identity.failure.unreachable"
+msgstr "Турнирный сервис не ответил. Проверьте адрес и подключение."
+
+msgid "identity.failure.not_bridge"
+msgstr "По этому адресу нет турнирного сервиса Ember, который Ember может использовать."
+
+msgid "identity.failure.bridge_changed"
+msgstr "Сервис по этому адресу не тот, которому вы доверились. Ember остановился, чтобы защитить ваш ID."
+
+msgid "identity.failure.not_approved"
+msgstr "Сначала отметьте этот сервис как доверенный."
+
+msgid "identity.failure.too_many"
+msgstr "Ember хранит ограниченное число сервисов. Сначала забудьте один из них."
+
+msgid "identity.failure.code"
+msgstr "Код привязки неверен или истёк. Начните новую привязку на сайте."
+
+msgid "identity.failure.link_conflict"
+msgstr "Этот аккаунт уже привязан к другому Ember ID."
+
+msgid "identity.failure.rate_limited"
+msgstr "Слишком много попыток. Подождите минуту и повторите."
+
+msgid "identity.failure.sign_in"
+msgstr "Не удалось войти в сервис. Повторите попытку."
+
+msgid "identity.failure.forbidden"
+msgstr "Сервис этого не разрешает."
+
+msgid "identity.failure.refused"
+msgstr "Сервис отклонил этот запрос."
+
+msgid "identity.failure.other"
+msgstr "Не получилось ({0})."
+
+msgid "identity.failure.timeout"
+msgstr "Сетевой компонент не ответил. Повторите попытку."
+
+msgid "identity.failure.paste"
+msgstr "В буфере обмена нет пути к файлу."
+
+msgid "identity.refused.helper"
+msgstr "Сетевой компонент не запущен, поэтому сейчас нельзя использовать ваш Ember ID."
+
+msgid "identity.refused.leave_room"
+msgstr "Чтобы изменить Ember ID, выйдите из зала и вернитесь в главное меню."
+
+msgid "identity.refused.match"
+msgstr "Дождитесь окончания матча."
+
+msgid "identity.refused.no_folder"
+msgstr "Ember не может найти папку настроек, чтобы сохранить в ней копию."

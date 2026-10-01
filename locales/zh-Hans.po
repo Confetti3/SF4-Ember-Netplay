@@ -2408,3 +2408,378 @@ msgstr "会话服务器出错。请检查网络后重试。"
 
 msgid "runtime.settings_unreadable"
 msgstr "无法读取已保存的设置，正在使用默认设置。"
+
+msgid "screen.identity"
+msgstr "Ember ID"
+
+msgid "screen.identity_backup"
+msgstr "备份与恢复"
+
+msgid "screen.linked_accounts"
+msgstr "已绑定账号"
+
+msgid "settings.identity_detail"
+msgstr "用于赛事网站的 Ember ID、其备份以及已绑定的账号。"
+
+msgid "identity.title"
+msgstr "Ember ID"
+
+msgid "identity.backup_title"
+msgstr "备份与恢复"
+
+msgid "identity.linked_title"
+msgstr "已绑定账号"
+
+msgid "identity.status"
+msgstr "Ember ID"
+
+msgid "identity.state.checking"
+msgstr "检查中"
+
+msgid "identity.state.checking_detail"
+msgstr "Ember 正在向网络辅助程序查询您的 Ember ID。"
+
+msgid "identity.state.disabled_detail"
+msgstr "有了 Ember ID，赛事网站就能确认成绩确实来自您。它是保存在此电脑上的密钥。休闲对战无需使用。"
+
+msgid "identity.state.creating"
+msgstr "创建中"
+
+msgid "identity.state.creating_detail"
+msgstr "Ember 正在创建您的密钥，请稍候。"
+
+msgid "identity.state.locked"
+msgstr "已锁定"
+
+msgid "identity.state.locked_detail"
+msgstr "您的密钥受密码保护。输入密码后，在游戏关闭前都可以使用 Ember ID。"
+
+msgid "identity.state.ready_detail"
+msgstr "您的 Ember ID 是 {0}。\n\n网站会显示其简短形式 {1}。批准绑定前，请确认两者一致。"
+
+msgid "identity.state.recovery"
+msgstr "需要恢复"
+
+msgid "identity.state.recovery_detail"
+msgstr "Ember 找到了您的 Ember ID 记录，但无法读取其密钥。请从备份恢复，或使用新 ID 重新开始。Ember 绝不会自行替换它。"
+
+msgid "identity.state.unavailable"
+msgstr "不可用"
+
+msgid "identity.state.unavailable_detail"
+msgstr "Ember 无法在此电脑上使用密钥。{0}"
+
+msgid "identity.local_passphrase"
+msgstr "此电脑的密码"
+
+msgid "identity.local_passphrase_detail"
+msgstr "Wine 和 Proton 无法使用 Windows 密钥保护，因此改用密码保护您的密钥。每次启动游戏时需输入一次。"
+
+msgid "identity.repeat_passphrase"
+msgstr "再次输入密码"
+
+msgid "identity.repeat_passphrase_detail"
+msgstr "请再次输入相同的密码，以防输错。"
+
+msgid "identity.passphrases_differ"
+msgstr "两次输入的密码不一致。"
+
+msgid "identity.secret_empty"
+msgstr "未输入"
+
+msgid "identity.secret_set"
+msgstr "已输入"
+
+msgid "identity.enable"
+msgstr "创建 Ember ID"
+
+msgid "identity.enable_detail"
+msgstr "在此电脑上创建密钥。只有当前 Windows 账户可以使用。"
+
+msgid "identity.leave_room"
+msgstr "请离开房间并返回主菜单后再更改 Ember ID。"
+
+msgid "identity.unlock"
+msgstr "解锁"
+
+msgid "identity.unlock_detail"
+msgstr "输入您为此电脑设置的密码。"
+
+msgid "identity.copy"
+msgstr "复制 Ember ID"
+
+msgid "identity.copy_detail"
+msgstr "复制完整的 Ember ID，以便粘贴到赛事网站。"
+
+msgid "identity.linked_detail"
+msgstr "您信任的赛事服务，以及绑定到您的 Ember ID 的账号。"
+
+msgid "identity.backup_detail"
+msgstr "保存加密备份，或从备份恢复。"
+
+msgid "identity.restore_detail"
+msgstr "从备份恢复您的 Ember ID。"
+
+msgid "identity.reset"
+msgstr "使用新 ID 重新开始"
+
+msgid "identity.reset_detail"
+msgstr "将当前密钥移到一旁（不会删除），以便创建或恢复另一个 ID。绑定旧 ID 的网站不会识别新 ID。"
+
+msgid "identity.backup_passphrase"
+msgstr "备份密码"
+
+msgid "identity.backup_passphrase_detail"
+msgstr "用于保护备份文件。没有它就无法打开备份，也没有人能帮您找回。"
+
+msgid "identity.export"
+msgstr "保存备份"
+
+msgid "identity.export_detail"
+msgstr "将密钥的加密副本保存到 Ember 设置中的 identity-backups 文件夹。请另存一份到此电脑以外的安全位置。"
+
+msgid "identity.export_saved"
+msgstr "上次备份"
+
+msgid "identity.paste_path"
+msgstr "粘贴备份路径"
+
+msgid "identity.paste_path_detail"
+msgstr "使用剪贴板中的文件路径。在文件资源管理器中按住 Shift 键并右键单击文件，然后选择“复制文件地址”。"
+
+msgid "identity.backup_file"
+msgstr "备份文件"
+
+msgid "identity.backup_file_detail"
+msgstr "Ember 所保存备份的完整路径。"
+
+msgid "identity.restore_passphrase_detail"
+msgstr "保存备份时设置的密码。"
+
+msgid "identity.check_backup"
+msgstr "检查备份"
+
+msgid "identity.check_backup_detail"
+msgstr "打开备份并显示其中的 Ember ID，不做任何更改。"
+
+msgid "identity.backup_holds"
+msgstr "备份内容"
+
+msgid "identity.backup_holds_detail"
+msgstr "此备份包含 Ember ID {0}。"
+
+msgid "identity.backup_same"
+msgstr "这就是此电脑上已有的 ID，无需恢复。"
+
+msgid "identity.backup_replaces"
+msgstr "恢复后，此电脑上的另一个 ID 将被移到一旁。绑定该 ID 的网站不会识别此 ID。"
+
+msgid "identity.backup_new"
+msgstr "恢复后，它将成为此电脑上的 Ember ID。"
+
+msgid "identity.import"
+msgstr "恢复此 ID"
+
+msgid "identity.import_detail"
+msgstr "将备份中的 Ember ID 安装到此电脑。"
+
+msgid "identity.import_replaces_detail"
+msgstr "安装备份中的 Ember ID，并将当前 ID 移到一旁（不会删除）。"
+
+msgid "identity.linked_needs_id"
+msgstr "需要 Ember ID"
+
+msgid "identity.linked_needs_id_detail"
+msgstr "请先创建或解锁您的 Ember ID。绑定可向网站证明某个账号属于该 Ember ID。"
+
+msgid "identity.service"
+msgstr "赛事服务"
+
+msgid "identity.unlink"
+msgstr "解除绑定"
+
+msgid "identity.unlink_detail"
+msgstr "移除此绑定。在重新绑定之前，网站将不再把此账号识别为您的账号。"
+
+msgid "identity.pending_label"
+msgstr "等待在 {0} 上批准"
+
+msgid "identity.pending_detail"
+msgstr "请在浏览器中的网站上批准绑定。按选择可取消。"
+
+msgid "identity.cancel_claim"
+msgstr "取消绑定请求"
+
+msgid "identity.no_links"
+msgstr "暂无绑定账号"
+
+msgid "identity.no_links_detail"
+msgstr "请在赛事网站上发起绑定，然后在下方输入网站显示的代码。"
+
+msgid "identity.site"
+msgstr "网站"
+
+msgid "identity.site_detail"
+msgstr "此服务中您的账号所在的网站。"
+
+msgid "identity.link_code"
+msgstr "绑定码"
+
+msgid "identity.link_code_detail"
+msgstr "在赛事网站上发起绑定时显示的代码，例如 ABCDE-12345。"
+
+msgid "identity.link_account"
+msgstr "绑定账号"
+
+msgid "identity.link_account_detail"
+msgstr "发送使用您的 Ember ID 签名的代码。然后请在网站上批准绑定。"
+
+msgid "identity.refresh"
+msgstr "刷新"
+
+msgid "identity.refresh_detail"
+msgstr "检查此服务是否有新的绑定和批准。"
+
+msgid "identity.forget"
+msgstr "移除此服务"
+
+msgid "identity.forget_detail"
+msgstr "此电脑将不再信任此服务。该服务上的绑定会一直保留，直到您在那里移除。"
+
+msgid "identity.service_address"
+msgstr "添加服务"
+
+msgid "identity.service_address_detail"
+msgstr "Ember 赛事服务的地址，例如 https://tournaments.example。由赛事主办方提供给您。"
+
+msgid "identity.look_up"
+msgstr "查询服务"
+
+msgid "identity.look_up_detail"
+msgstr "在您决定是否信任之前，先查询该地址是什么服务。"
+
+msgid "identity.trust"
+msgstr "信任 {0}"
+
+msgid "identity.trust_detail"
+msgstr "允许 Ember 使用您的 Ember ID 登录 {0} 上的服务。请只信任主办方指定的服务。"
+
+msgid "identity.working"
+msgstr "处理中..."
+
+msgid "identity.working_key"
+msgstr "正在处理密钥，可能需要几秒钟..."
+
+msgid "identity.done.enabled"
+msgstr "您的 Ember ID 已就绪。"
+
+msgid "identity.done.unlocked"
+msgstr "Ember ID 已解锁。"
+
+msgid "identity.done.exported"
+msgstr "备份已保存到 {0}。"
+
+msgid "identity.done.imported"
+msgstr "Ember ID 已恢复。"
+
+msgid "identity.done.reset"
+msgstr "旧密钥已移到一旁。现在可以创建或恢复 ID。"
+
+msgid "identity.done.trusted"
+msgstr "已信任 {0}。"
+
+msgid "identity.done.forgotten"
+msgstr "已移除服务。"
+
+msgid "identity.done.claimed"
+msgstr "代码已发送。请在网站上批准绑定，并确认网站显示的是 {0}。"
+
+msgid "identity.done.unlinked"
+msgstr "账号已解除绑定。"
+
+msgid "identity.done.cancelled"
+msgstr "已取消绑定请求。"
+
+msgid "identity.done.copied"
+msgstr "Ember ID 已复制。"
+
+msgid "identity.failure.wrong_passphrase"
+msgstr "密码不正确。"
+
+msgid "identity.failure.invalid_passphrase"
+msgstr "密码至少需要一个字符。"
+
+msgid "identity.failure.passphrase_required"
+msgstr "此电脑需要设置密码来保护您的密钥。"
+
+msgid "identity.failure.corrupt"
+msgstr "该文件不是 Ember ID 备份，或已损坏。"
+
+msgid "identity.failure.file"
+msgstr "Ember 无法读取该文件。请检查路径。"
+
+msgid "identity.failure.busy"
+msgstr "另一个 Ember 正在使用您的 Ember ID。请稍后重试。"
+
+msgid "identity.failure.state"
+msgstr "您的 Ember ID 尚未准备好执行此操作。"
+
+msgid "identity.failure.changed"
+msgstr "您的 Ember ID 在此期间已更改。请重新检查。"
+
+msgid "identity.failure.storage"
+msgstr "Ember 无法在此电脑上读取或保存您的密钥。"
+
+msgid "identity.failure.unreachable"
+msgstr "赛事服务没有响应。请检查地址和网络连接。"
+
+msgid "identity.failure.not_bridge"
+msgstr "该地址不是 Ember 可用的 Ember 赛事服务。"
+
+msgid "identity.failure.bridge_changed"
+msgstr "该地址上的服务不是您信任的那个。为保护您的 ID，Ember 已停止操作。"
+
+msgid "identity.failure.not_approved"
+msgstr "请先信任该服务。"
+
+msgid "identity.failure.too_many"
+msgstr "Ember 可保存的服务数量有限。请先移除一个。"
+
+msgid "identity.failure.code"
+msgstr "绑定码错误或已过期。请在网站上重新发起绑定。"
+
+msgid "identity.failure.link_conflict"
+msgstr "该账号已绑定到另一个 Ember ID。"
+
+msgid "identity.failure.rate_limited"
+msgstr "尝试次数过多。请等待一分钟后重试。"
+
+msgid "identity.failure.sign_in"
+msgstr "登录服务失败，请重试。"
+
+msgid "identity.failure.forbidden"
+msgstr "该服务不允许此操作。"
+
+msgid "identity.failure.refused"
+msgstr "该服务拒绝了此请求。"
+
+msgid "identity.failure.other"
+msgstr "操作失败（{0}）。"
+
+msgid "identity.failure.timeout"
+msgstr "网络辅助程序没有响应，请重试。"
+
+msgid "identity.failure.paste"
+msgstr "剪贴板中没有文件路径。"
+
+msgid "identity.refused.helper"
+msgstr "网络辅助程序未运行，目前无法使用您的 Ember ID。"
+
+msgid "identity.refused.leave_room"
+msgstr "请离开房间并返回主菜单后再更改 Ember ID。"
+
+msgid "identity.refused.match"
+msgstr "请等待对战结束。"
+
+msgid "identity.refused.no_folder"
+msgstr "Ember 找不到用于保存备份的设置文件夹。"

@@ -2408,3 +2408,378 @@ msgstr "Fout op de sessieserver. Controleer je internet en probeer opnieuw."
 
 msgid "runtime.settings_unreadable"
 msgstr "Opgeslagen instellingen onleesbaar; standaardwaarden gebruikt."
+
+msgid "screen.identity"
+msgstr "Ember ID"
+
+msgid "screen.identity_backup"
+msgstr "Back-up en herstel"
+
+msgid "screen.linked_accounts"
+msgstr "Gekoppelde accounts"
+
+msgid "settings.identity_detail"
+msgstr "Je Ember ID voor toernooisites, de back-up ervan en de gekoppelde accounts."
+
+msgid "identity.title"
+msgstr "EMBER ID"
+
+msgid "identity.backup_title"
+msgstr "BACK-UP EN HERSTEL"
+
+msgid "identity.linked_title"
+msgstr "GEKOPPELDE ACCOUNTS"
+
+msgid "identity.status"
+msgstr "Ember ID"
+
+msgid "identity.state.checking"
+msgstr "Controleren"
+
+msgid "identity.state.checking_detail"
+msgstr "Ember vraagt de netwerkhelper naar je Ember ID."
+
+msgid "identity.state.disabled_detail"
+msgstr "Met een Ember ID kunnen toernooisites bevestigen dat een uitslag van jou komt. Het is een sleutel op deze pc. Voor gewoon spelen heb je er geen nodig."
+
+msgid "identity.state.creating"
+msgstr "Aanmaken"
+
+msgid "identity.state.creating_detail"
+msgstr "Ember maakt je sleutel aan. Dit duurt even."
+
+msgid "identity.state.locked"
+msgstr "Vergrendeld"
+
+msgid "identity.state.locked_detail"
+msgstr "Je sleutel is beveiligd met een wachtwoordzin. Voer die in om je Ember ID te gebruiken tot het spel sluit."
+
+msgid "identity.state.ready_detail"
+msgstr "Je Ember ID is {0}.\n\nSites tonen de korte vorm {1}. Controleer of die klopt voordat je een koppeling goedkeurt."
+
+msgid "identity.state.recovery"
+msgstr "Herstel nodig"
+
+msgid "identity.state.recovery_detail"
+msgstr "Ember heeft een gegeven van je Ember ID gevonden, maar kan de sleutel niet lezen. Herstel hem uit een back-up of begin opnieuw met een nieuwe ID. Ember vervangt hem nooit uit zichzelf."
+
+msgid "identity.state.unavailable"
+msgstr "Niet beschikbaar"
+
+msgid "identity.state.unavailable_detail"
+msgstr "Ember kan de sleutel op deze pc niet gebruiken. {0}"
+
+msgid "identity.local_passphrase"
+msgstr "Wachtwoordzin voor deze pc"
+
+msgid "identity.local_passphrase_detail"
+msgstr "Wine en Proton kunnen de sleutelbeveiliging van Windows niet gebruiken, dus beschermt een wachtwoordzin je sleutel. Je voert hem één keer in bij elke start van het spel."
+
+msgid "identity.repeat_passphrase"
+msgstr "Wachtwoordzin herhalen"
+
+msgid "identity.repeat_passphrase_detail"
+msgstr "Typ dezelfde wachtwoordzin nog eens, om een typfout te vangen."
+
+msgid "identity.passphrases_differ"
+msgstr "De twee wachtwoordzinnen komen niet overeen."
+
+msgid "identity.secret_empty"
+msgstr "Niet ingevoerd"
+
+msgid "identity.secret_set"
+msgstr "Ingevoerd"
+
+msgid "identity.enable"
+msgstr "Ember ID maken"
+
+msgid "identity.enable_detail"
+msgstr "Maakt je sleutel aan op deze pc. Alleen dit Windows-account kan hem gebruiken."
+
+msgid "identity.leave_room"
+msgstr "Verlaat de kamer en ga terug naar het hoofdmenu om je Ember ID te wijzigen."
+
+msgid "identity.unlock"
+msgstr "Ontgrendelen"
+
+msgid "identity.unlock_detail"
+msgstr "Voer de wachtwoordzin in die je voor deze pc hebt gekozen."
+
+msgid "identity.copy"
+msgstr "Ember ID kopiëren"
+
+msgid "identity.copy_detail"
+msgstr "Kopieert je volledige Ember ID, om in een toernooisite te plakken."
+
+msgid "identity.linked_detail"
+msgstr "Toernooidiensten die je vertrouwt en de accounts die aan je Ember ID gekoppeld zijn."
+
+msgid "identity.backup_detail"
+msgstr "Sla een versleutelde back-up op, of herstel er een."
+
+msgid "identity.restore_detail"
+msgstr "Herstel je Ember ID uit een back-up."
+
+msgid "identity.reset"
+msgstr "Opnieuw met nieuwe ID"
+
+msgid "identity.reset_detail"
+msgstr "Zet de huidige sleutel opzij, zonder hem te verwijderen, zodat je een andere kunt maken of herstellen. Sites die aan de oude ID gekoppeld zijn, herkennen de nieuwe niet."
+
+msgid "identity.backup_passphrase"
+msgstr "Wachtwoordzin back-up"
+
+msgid "identity.backup_passphrase_detail"
+msgstr "Beschermt het back-upbestand. Zonder deze zin kan de back-up niet worden geopend, en niemand kan hem voor je terughalen."
+
+msgid "identity.export"
+msgstr "Back-up opslaan"
+
+msgid "identity.export_detail"
+msgstr "Slaat een versleutelde kopie van je sleutel op in de map identity-backups van de Ember-instellingen. Bewaar een kopie op een veilige plek, niet op deze pc."
+
+msgid "identity.export_saved"
+msgstr "Laatste back-up"
+
+msgid "identity.paste_path"
+msgstr "Back-uppad plakken"
+
+msgid "identity.paste_path_detail"
+msgstr "Gebruikt het bestandspad op het klembord. Houd in Verkenner Shift ingedrukt, klik met de rechtermuisknop op het bestand en kies Kopiëren als pad."
+
+msgid "identity.backup_file"
+msgstr "Back-upbestand"
+
+msgid "identity.backup_file_detail"
+msgstr "Het volledige pad van een back-up die Ember heeft opgeslagen."
+
+msgid "identity.restore_passphrase_detail"
+msgstr "De wachtwoordzin die is gekozen toen de back-up werd opgeslagen."
+
+msgid "identity.check_backup"
+msgstr "Back-up controleren"
+
+msgid "identity.check_backup_detail"
+msgstr "Opent de back-up en toont de Ember ID erin, zonder iets te wijzigen."
+
+msgid "identity.backup_holds"
+msgstr "Inhoud back-up"
+
+msgid "identity.backup_holds_detail"
+msgstr "Deze back-up bevat de Ember ID {0}."
+
+msgid "identity.backup_same"
+msgstr "Dit is de ID die al op deze pc staat. Er hoeft niets hersteld te worden."
+
+msgid "identity.backup_replaces"
+msgstr "Herstellen zet de andere ID op deze pc opzij. Sites die aan die ID gekoppeld zijn, herkennen deze niet."
+
+msgid "identity.backup_new"
+msgstr "Herstellen maakt dit je Ember ID op deze pc."
+
+msgid "identity.import"
+msgstr "Deze ID herstellen"
+
+msgid "identity.import_detail"
+msgstr "Installeert de Ember ID uit de back-up op deze pc."
+
+msgid "identity.import_replaces_detail"
+msgstr "Installeert de Ember ID uit de back-up en zet de huidige opzij, zonder hem te verwijderen."
+
+msgid "identity.linked_needs_id"
+msgstr "Ember ID nodig"
+
+msgid "identity.linked_needs_id_detail"
+msgstr "Maak of ontgrendel eerst je Ember ID. Een koppeling bewijst aan een site dat een account erbij hoort."
+
+msgid "identity.service"
+msgstr "Toernooidienst"
+
+msgid "identity.unlink"
+msgstr "Ontkoppelen"
+
+msgid "identity.unlink_detail"
+msgstr "Verwijdert deze koppeling. De site herkent dit account pas weer als het jouwe wanneer je het opnieuw koppelt."
+
+msgid "identity.pending_label"
+msgstr "Wacht op goedkeuring op {0}"
+
+msgid "identity.pending_detail"
+msgstr "Keur de koppeling goed op de site in je browser. Kiezen annuleert hem."
+
+msgid "identity.cancel_claim"
+msgstr "Koppeling annuleren"
+
+msgid "identity.no_links"
+msgstr "Geen gekoppelde accounts"
+
+msgid "identity.no_links_detail"
+msgstr "Start een koppeling op de toernooisite en voer hieronder de code in die je ziet."
+
+msgid "identity.site"
+msgstr "Site"
+
+msgid "identity.site_detail"
+msgstr "De site van deze dienst waar je account staat."
+
+msgid "identity.link_code"
+msgstr "Koppelcode"
+
+msgid "identity.link_code_detail"
+msgstr "De code die de toernooisite toont als je een koppeling start, zoals ABCDE-12345."
+
+msgid "identity.link_account"
+msgstr "Account koppelen"
+
+msgid "identity.link_account_detail"
+msgstr "Verstuurt de code, ondertekend met je Ember ID. Daarna keur je de koppeling goed op de site."
+
+msgid "identity.refresh"
+msgstr "Vernieuwen"
+
+msgid "identity.refresh_detail"
+msgstr "Controleert deze dienst op nieuwe koppelingen en goedkeuringen."
+
+msgid "identity.forget"
+msgstr "Dienst vergeten"
+
+msgid "identity.forget_detail"
+msgstr "Deze pc vertrouwt de dienst niet langer. Koppelingen bij de dienst blijven bestaan tot je ze daar verwijdert."
+
+msgid "identity.service_address"
+msgstr "Dienst toevoegen"
+
+msgid "identity.service_address_detail"
+msgstr "Het adres van een Ember-toernooidienst, zoals https://tournaments.example. Je toernooiorganisator geeft het je."
+
+msgid "identity.look_up"
+msgstr "Dienst opzoeken"
+
+msgid "identity.look_up_detail"
+msgstr "Vraagt het adres wat het is, voordat je besluit het te vertrouwen."
+
+msgid "identity.trust"
+msgstr "{0} vertrouwen"
+
+msgid "identity.trust_detail"
+msgstr "Laat Ember met je Ember ID inloggen bij de dienst op {0}. Vertrouw alleen een dienst die je organisator heeft genoemd."
+
+msgid "identity.working"
+msgstr "Bezig..."
+
+msgid "identity.working_key"
+msgstr "Bezig met je sleutel. Dit kan enkele seconden duren..."
+
+msgid "identity.done.enabled"
+msgstr "Je Ember ID is klaar."
+
+msgid "identity.done.unlocked"
+msgstr "Ember ID ontgrendeld."
+
+msgid "identity.done.exported"
+msgstr "Back-up opgeslagen in {0}."
+
+msgid "identity.done.imported"
+msgstr "Ember ID hersteld."
+
+msgid "identity.done.reset"
+msgstr "De oude sleutel is opzijgezet. Je kunt nu een ID maken of herstellen."
+
+msgid "identity.done.trusted"
+msgstr "{0} wordt nu vertrouwd."
+
+msgid "identity.done.forgotten"
+msgstr "Dienst vergeten."
+
+msgid "identity.done.claimed"
+msgstr "Code verstuurd. Keur de koppeling goed op de site en controleer of die {0} toont."
+
+msgid "identity.done.unlinked"
+msgstr "Account ontkoppeld."
+
+msgid "identity.done.cancelled"
+msgstr "Koppeling geannuleerd."
+
+msgid "identity.done.copied"
+msgstr "Ember ID gekopieerd."
+
+msgid "identity.failure.wrong_passphrase"
+msgstr "Die wachtwoordzin klopt niet."
+
+msgid "identity.failure.invalid_passphrase"
+msgstr "Een wachtwoordzin heeft minstens één teken nodig."
+
+msgid "identity.failure.passphrase_required"
+msgstr "Deze pc heeft een wachtwoordzin nodig om je sleutel te beschermen."
+
+msgid "identity.failure.corrupt"
+msgstr "Dat bestand is geen back-up van een Ember ID, of het is beschadigd."
+
+msgid "identity.failure.file"
+msgstr "Ember kan dat bestand niet lezen. Controleer het pad."
+
+msgid "identity.failure.busy"
+msgstr "Een andere kopie van Ember gebruikt je Ember ID. Probeer het zo opnieuw."
+
+msgid "identity.failure.state"
+msgstr "Je Ember ID is daar nog niet klaar voor."
+
+msgid "identity.failure.changed"
+msgstr "Je Ember ID is intussen gewijzigd. Controleer hem opnieuw."
+
+msgid "identity.failure.storage"
+msgstr "Ember kon je sleutel op deze pc niet lezen of opslaan."
+
+msgid "identity.failure.unreachable"
+msgstr "De toernooidienst antwoordde niet. Controleer het adres en je verbinding."
+
+msgid "identity.failure.not_bridge"
+msgstr "Dat adres is geen Ember-toernooidienst die Ember kan gebruiken."
+
+msgid "identity.failure.bridge_changed"
+msgstr "De dienst op dat adres is niet degene die je vertrouwde. Ember is gestopt om je ID te beschermen."
+
+msgid "identity.failure.not_approved"
+msgstr "Vertrouw die dienst eerst."
+
+msgid "identity.failure.too_many"
+msgstr "Ember bewaart een beperkt aantal diensten. Vergeet er eerst een."
+
+msgid "identity.failure.code"
+msgstr "Die koppelcode is onjuist of verlopen. Start een nieuwe koppeling op de site."
+
+msgid "identity.failure.link_conflict"
+msgstr "Dat account is al gekoppeld aan een andere Ember ID."
+
+msgid "identity.failure.rate_limited"
+msgstr "Te veel pogingen. Wacht een minuut en probeer het dan opnieuw."
+
+msgid "identity.failure.sign_in"
+msgstr "Inloggen bij de dienst is mislukt. Probeer opnieuw."
+
+msgid "identity.failure.forbidden"
+msgstr "De dienst staat dat niet toe."
+
+msgid "identity.failure.refused"
+msgstr "De dienst heeft dat verzoek geweigerd."
+
+msgid "identity.failure.other"
+msgstr "Dat is niet gelukt ({0})."
+
+msgid "identity.failure.timeout"
+msgstr "De netwerkhelper antwoordde niet. Probeer opnieuw."
+
+msgid "identity.failure.paste"
+msgstr "Het klembord bevat geen bestandspad."
+
+msgid "identity.refused.helper"
+msgstr "De netwerkhelper draait niet, dus je Ember ID kan nu niet worden gebruikt."
+
+msgid "identity.refused.leave_room"
+msgstr "Verlaat de kamer en ga terug naar het hoofdmenu om je Ember ID te wijzigen."
+
+msgid "identity.refused.match"
+msgstr "Wacht tot de match voorbij is."
+
+msgid "identity.refused.no_folder"
+msgstr "Ember kan zijn instellingenmap niet vinden om de back-up in op te slaan."

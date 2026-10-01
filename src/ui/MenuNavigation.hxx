@@ -1,4 +1,5 @@
 #pragma once
+#include "../common/WipeText.hxx"
 #include <algorithm>
 #include <cstdint>
 #include <map>
@@ -65,6 +66,9 @@ struct MenuEntry {
     bool pending = false;
     // A detail that embeds a player's name, or is a chat message.
     DetailText detailText = DetailText::Interface;
+    // A text row for a passphrase: the editor masks it and opens empty, and
+    // its draft is wiped when the editor closes.
+    bool secret = false;
 };
 // What Select does on an entry, decided in one place so navigation and the
 // legend agree. A reader wins over text, text over choices, choices over a
@@ -107,7 +111,7 @@ public:
     void Home() { Cancel(); stack_.resize(1); NeutralGate(); }
     void Cancel() {
         const bool modal = mode_ != Modal::None;
-        mode_ = Modal::None; modalId_.clear(); draft_.clear(); choiceIds_.clear();
+        mode_ = Modal::None; modalId_.clear(); WipeText(draft_); choiceIds_.clear();
         if (modal) NeutralGate();
     }
     void NeutralGate() { previous_=~0u; armed_=false; direction_=0; nextRepeat_=0; }
@@ -140,7 +144,9 @@ public:
     // The entry an open confirmation or choice belongs to.
     const std::string& DialogId() const { return Asking() ? modalId_ : NoId(); }
     const std::string& Draft() const { return draft_; }
-    void Draft(std::string text) { draft_=std::move(text); }
+    void Draft(std::string text) { WipeText(draft_); draft_=std::move(text); }
+    // The open editor holds a passphrase (MenuEntry::secret).
+    bool EditingSecret() const { return Editing() && secret_; }
     float& Scroll() { return states_[Screen()].scroll; }
     void Reconcile(const std::vector<MenuEntry>& entries) {
         auto& state=states_[Screen()];
@@ -183,7 +189,7 @@ public:
         const auto& e=entries[states_[Screen()].index];
         switch (MenuSelectOpens(e)) {
         case SelectOpens::Reader: mode_=Modal::Read; modalId_=e.id; return {};
-        case SelectOpens::Edit: mode_=Modal::Edit; modalId_=e.id; draft_=e.value; editAccept_=true; return {};
+        case SelectOpens::Edit: mode_=Modal::Edit; modalId_=e.id; secret_=e.secret; draft_=e.secret?std::string():e.value; editAccept_=true; return {};
         case SelectOpens::Choice: case SelectOpens::Confirm: Open(e); return {};
         case SelectOpens::Activate: return {MenuAction::Activate,e.id};
         case SelectOpens::Nothing: break;
@@ -316,7 +322,7 @@ private:
     Modal mode_=Modal::None;
     std::string modalId_,draft_;
     std::vector<std::string> choiceIds_;
-    bool confirmSelected_=false, armed_=true, editAccept_=true;
+    bool confirmSelected_=false, armed_=true, editAccept_=true, secret_=false;
     std::size_t choiceIndex_=0;
     unsigned previous_=0,direction_=0;
     double nextRepeat_=0;

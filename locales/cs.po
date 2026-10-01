@@ -2408,3 +2408,378 @@ msgstr "Chyba serveru relace. Zkontrolujte internet a zkuste to znovu."
 
 msgid "runtime.settings_unreadable"
 msgstr "Uložená nastavení se nepodařilo načíst; používají se výchozí hodnoty."
+
+msgid "screen.identity"
+msgstr "Ember ID"
+
+msgid "screen.identity_backup"
+msgstr "Záloha a obnovení"
+
+msgid "screen.linked_accounts"
+msgstr "Propojené účty"
+
+msgid "settings.identity_detail"
+msgstr "Vaše Ember ID pro turnajové weby, jeho záloha a účty s ním propojené."
+
+msgid "identity.title"
+msgstr "EMBER ID"
+
+msgid "identity.backup_title"
+msgstr "ZÁLOHA A OBNOVENÍ"
+
+msgid "identity.linked_title"
+msgstr "PROPOJENÉ ÚČTY"
+
+msgid "identity.status"
+msgstr "Ember ID"
+
+msgid "identity.state.checking"
+msgstr "Kontrola"
+
+msgid "identity.state.checking_detail"
+msgstr "Ember se ptá síťového pomocníka na vaše Ember ID."
+
+msgid "identity.state.disabled_detail"
+msgstr "Ember ID umožňuje turnajovým webům ověřit, že výsledek pochází od vás. Je to klíč uložený v tomto počítači. Pro běžné hraní ho nikdy nepotřebujete."
+
+msgid "identity.state.creating"
+msgstr "Vytváření"
+
+msgid "identity.state.creating_detail"
+msgstr "Ember vytváří váš klíč. Chvíli to potrvá."
+
+msgid "identity.state.locked"
+msgstr "Uzamčeno"
+
+msgid "identity.state.locked_detail"
+msgstr "Váš klíč je chráněn heslem. Zadejte ho a Ember ID budete moci používat až do zavření hry."
+
+msgid "identity.state.ready_detail"
+msgstr "Vaše Ember ID je {0}.\n\nWeby zobrazují zkrácený tvar {1}. Než propojení schválíte, ověřte, že se shoduje."
+
+msgid "identity.state.recovery"
+msgstr "Nutné obnovení"
+
+msgid "identity.state.recovery_detail"
+msgstr "Ember našel záznam o vašem Ember ID, ale nemůže přečíst jeho klíč. Obnovte ho ze zálohy, nebo začněte znovu s novým ID. Ember ho nikdy sám nenahradí."
+
+msgid "identity.state.unavailable"
+msgstr "Nedostupné"
+
+msgid "identity.state.unavailable_detail"
+msgstr "Ember nemůže v tomto počítači použít klíč. {0}"
+
+msgid "identity.local_passphrase"
+msgstr "Heslo pro tento počítač"
+
+msgid "identity.local_passphrase_detail"
+msgstr "Wine a Proton nemohou používat ochranu klíčů Windows, proto váš klíč chrání heslo. Zadáte ho jednou při každém spuštění hry."
+
+msgid "identity.repeat_passphrase"
+msgstr "Zopakujte heslo"
+
+msgid "identity.repeat_passphrase_detail"
+msgstr "Zadejte stejné heslo znovu, aby se odhalil případný překlep."
+
+msgid "identity.passphrases_differ"
+msgstr "Hesla se neshodují."
+
+msgid "identity.secret_empty"
+msgstr "Nezadáno"
+
+msgid "identity.secret_set"
+msgstr "Zadáno"
+
+msgid "identity.enable"
+msgstr "Vytvořit Ember ID"
+
+msgid "identity.enable_detail"
+msgstr "Vytvoří váš klíč v tomto počítači. Použít ho může jen tento účet Windows."
+
+msgid "identity.leave_room"
+msgstr "Pro změnu Ember ID opusťte místnost a vraťte se do hlavní nabídky."
+
+msgid "identity.unlock"
+msgstr "Odemknout"
+
+msgid "identity.unlock_detail"
+msgstr "Zadejte heslo, které jste pro tento počítač zvolili."
+
+msgid "identity.copy"
+msgstr "Kopírovat Ember ID"
+
+msgid "identity.copy_detail"
+msgstr "Zkopíruje celé Ember ID, abyste ho mohli vložit na turnajový web."
+
+msgid "identity.linked_detail"
+msgstr "Turnajové služby, kterým důvěřujete, a účty propojené s vaším Ember ID."
+
+msgid "identity.backup_detail"
+msgstr "Uložte šifrovanou zálohu, nebo nějakou obnovte."
+
+msgid "identity.restore_detail"
+msgstr "Obnovte své Ember ID ze zálohy."
+
+msgid "identity.reset"
+msgstr "Začít znovu s novým ID"
+
+msgid "identity.reset_detail"
+msgstr "Odloží současný klíč stranou, aniž by ho smazal, abyste mohli vytvořit nebo obnovit jiný. Weby propojené se starým ID nové nerozpoznají."
+
+msgid "identity.backup_passphrase"
+msgstr "Heslo zálohy"
+
+msgid "identity.backup_passphrase_detail"
+msgstr "Chrání soubor zálohy. Bez něj zálohu nelze otevřít a nikdo vám ji neobnoví."
+
+msgid "identity.export"
+msgstr "Uložit zálohu"
+
+msgid "identity.export_detail"
+msgstr "Uloží šifrovanou kopii vašeho klíče do složky identity-backups v nastavení Ember. Kopii mějte i na bezpečném místě mimo tento počítač."
+
+msgid "identity.export_saved"
+msgstr "Poslední záloha"
+
+msgid "identity.paste_path"
+msgstr "Vložit cestu zálohy"
+
+msgid "identity.paste_path_detail"
+msgstr "Použije cestu k souboru ze schránky. V Průzkumníku souborů podržte Shift, klikněte na soubor pravým tlačítkem a zvolte Kopírovat jako cestu."
+
+msgid "identity.backup_file"
+msgstr "Soubor zálohy"
+
+msgid "identity.backup_file_detail"
+msgstr "Úplná cesta k záloze, kterou uložil Ember."
+
+msgid "identity.restore_passphrase_detail"
+msgstr "Heslo zvolené při ukládání zálohy."
+
+msgid "identity.check_backup"
+msgstr "Ověřit zálohu"
+
+msgid "identity.check_backup_detail"
+msgstr "Otevře zálohu a ukáže Ember ID, které obsahuje, aniž by cokoli změnil."
+
+msgid "identity.backup_holds"
+msgstr "Záloha obsahuje"
+
+msgid "identity.backup_holds_detail"
+msgstr "Tato záloha obsahuje Ember ID {0}."
+
+msgid "identity.backup_same"
+msgstr "Toto ID už v tomto počítači je. Není co obnovovat."
+
+msgid "identity.backup_replaces"
+msgstr "Obnovení odloží jiné ID v tomto počítači stranou. Weby propojené s tím ID toto nerozpoznají."
+
+msgid "identity.backup_new"
+msgstr "Obnovením se toto ID stane vaším Ember ID v tomto počítači."
+
+msgid "identity.import"
+msgstr "Obnovit toto ID"
+
+msgid "identity.import_detail"
+msgstr "Nainstaluje Ember ID ze zálohy do tohoto počítače."
+
+msgid "identity.import_replaces_detail"
+msgstr "Nainstaluje Ember ID ze zálohy a současné odloží stranou, aniž by ho smazal."
+
+msgid "identity.linked_needs_id"
+msgstr "Je nutné Ember ID"
+
+msgid "identity.linked_needs_id_detail"
+msgstr "Nejprve vytvořte nebo odemkněte své Ember ID. Propojení webu prokáže, že mu účet patří."
+
+msgid "identity.service"
+msgstr "Turnajová služba"
+
+msgid "identity.unlink"
+msgstr "Odpojit"
+
+msgid "identity.unlink_detail"
+msgstr "Odebere toto propojení. Web přestane tento účet považovat za váš, dokud ho znovu nepropojíte."
+
+msgid "identity.pending_label"
+msgstr "Čeká na schválení: {0}"
+
+msgid "identity.pending_detail"
+msgstr "Schvalte propojení na webu v prohlížeči. Vybrat ho zruší."
+
+msgid "identity.cancel_claim"
+msgstr "Zrušit propojení"
+
+msgid "identity.no_links"
+msgstr "Žádné propojené účty"
+
+msgid "identity.no_links_detail"
+msgstr "Zahajte propojení na turnajovém webu a níže zadejte kód, který zobrazí."
+
+msgid "identity.site"
+msgstr "Web"
+
+msgid "identity.site_detail"
+msgstr "Web této služby, kde máte účet."
+
+msgid "identity.link_code"
+msgstr "Kód propojení"
+
+msgid "identity.link_code_detail"
+msgstr "Kód, který turnajový web zobrazí při zahájení propojení, např. ABCDE-12345."
+
+msgid "identity.link_account"
+msgstr "Propojit účet"
+
+msgid "identity.link_account_detail"
+msgstr "Odešle kód podepsaný vaším Ember ID. Propojení pak schválíte na webu."
+
+msgid "identity.refresh"
+msgstr "Aktualizovat"
+
+msgid "identity.refresh_detail"
+msgstr "Zkontroluje, zda služba nemá nová propojení a schválení."
+
+msgid "identity.forget"
+msgstr "Zapomenout službu"
+
+msgid "identity.forget_detail"
+msgstr "Tento počítač přestane službě důvěřovat. Propojení ve službě zůstanou, dokud je tam neodeberete."
+
+msgid "identity.service_address"
+msgstr "Přidat službu"
+
+msgid "identity.service_address_detail"
+msgstr "Adresa turnajové služby Ember, např. https://tournaments.example. Dostanete ji od pořadatele turnaje."
+
+msgid "identity.look_up"
+msgstr "Vyhledat službu"
+
+msgid "identity.look_up_detail"
+msgstr "Zjistí, co je na této adrese, než se rozhodnete jí důvěřovat."
+
+msgid "identity.trust"
+msgstr "Důvěřovat: {0}"
+
+msgid "identity.trust_detail"
+msgstr "Ember se bude moci přihlásit ke službě na adrese {0} pomocí vašeho Ember ID. Důvěřujte jen službě, kterou uvedl váš pořadatel."
+
+msgid "identity.working"
+msgstr "Probíhá..."
+
+msgid "identity.working_key"
+msgstr "Pracuje se s vaším klíčem. Může to trvat několik sekund..."
+
+msgid "identity.done.enabled"
+msgstr "Vaše Ember ID je připraveno."
+
+msgid "identity.done.unlocked"
+msgstr "Ember ID odemčeno."
+
+msgid "identity.done.exported"
+msgstr "Záloha uložena do {0}."
+
+msgid "identity.done.imported"
+msgstr "Ember ID obnoveno."
+
+msgid "identity.done.reset"
+msgstr "Starý klíč byl odložen stranou. Nyní můžete vytvořit nebo obnovit ID."
+
+msgid "identity.done.trusted"
+msgstr "Služba {0} je nyní důvěryhodná."
+
+msgid "identity.done.forgotten"
+msgstr "Služba zapomenuta."
+
+msgid "identity.done.claimed"
+msgstr "Kód odeslán. Schvalte propojení na webu a ověřte, že zobrazuje {0}."
+
+msgid "identity.done.unlinked"
+msgstr "Účet odpojen."
+
+msgid "identity.done.cancelled"
+msgstr "Propojení zrušeno."
+
+msgid "identity.done.copied"
+msgstr "Ember ID zkopírováno."
+
+msgid "identity.failure.wrong_passphrase"
+msgstr "Toto heslo není správné."
+
+msgid "identity.failure.invalid_passphrase"
+msgstr "Heslo musí mít alespoň jeden znak."
+
+msgid "identity.failure.passphrase_required"
+msgstr "Tento počítač potřebuje k ochraně vašeho klíče heslo."
+
+msgid "identity.failure.corrupt"
+msgstr "Tento soubor není záloha Ember ID, nebo je poškozený."
+
+msgid "identity.failure.file"
+msgstr "Ember tento soubor nemůže přečíst. Zkontrolujte cestu."
+
+msgid "identity.failure.busy"
+msgstr "Vaše Ember ID používá jiná kopie Ember. Zkuste to za chvíli znovu."
+
+msgid "identity.failure.state"
+msgstr "Vaše Ember ID na to není připraveno."
+
+msgid "identity.failure.changed"
+msgstr "Vaše Ember ID se mezitím změnilo. Zkontrolujte ho znovu."
+
+msgid "identity.failure.storage"
+msgstr "Ember nemohl v tomto počítači přečíst ani uložit váš klíč."
+
+msgid "identity.failure.unreachable"
+msgstr "Turnajová služba neodpověděla. Zkontrolujte adresu a připojení."
+
+msgid "identity.failure.not_bridge"
+msgstr "Na této adrese není turnajová služba Ember, kterou by Ember mohl použít."
+
+msgid "identity.failure.bridge_changed"
+msgstr "Služba na této adrese není ta, které jste důvěřovali. Ember se zastavil, aby vaše ID ochránil."
+
+msgid "identity.failure.not_approved"
+msgstr "Nejprve této službě důvěřujte."
+
+msgid "identity.failure.too_many"
+msgstr "Ember uchovává omezený počet služeb. Nejprve jednu zapomeňte."
+
+msgid "identity.failure.code"
+msgstr "Tento kód propojení je chybný nebo vypršel. Zahajte nové propojení na webu."
+
+msgid "identity.failure.link_conflict"
+msgstr "Tento účet je už propojen s jiným Ember ID."
+
+msgid "identity.failure.rate_limited"
+msgstr "Příliš mnoho pokusů. Počkejte minutu a zkuste to znovu."
+
+msgid "identity.failure.sign_in"
+msgstr "Přihlášení ke službě selhalo. Zkuste to znovu."
+
+msgid "identity.failure.forbidden"
+msgstr "Služba to nepovoluje."
+
+msgid "identity.failure.refused"
+msgstr "Služba tento požadavek odmítla."
+
+msgid "identity.failure.other"
+msgstr "Nepodařilo se ({0})."
+
+msgid "identity.failure.timeout"
+msgstr "Síťový pomocník neodpověděl. Zkuste to znovu."
+
+msgid "identity.failure.paste"
+msgstr "Schránka neobsahuje cestu k souboru."
+
+msgid "identity.refused.helper"
+msgstr "Síťový pomocník neběží, takže vaše Ember ID teď nelze použít."
+
+msgid "identity.refused.leave_room"
+msgstr "Pro změnu Ember ID opusťte místnost a vraťte se do hlavní nabídky."
+
+msgid "identity.refused.match"
+msgstr "Počkejte, až zápas skončí."
+
+msgid "identity.refused.no_folder"
+msgstr "Ember nemůže najít složku nastavení, do které by uložil zálohu."

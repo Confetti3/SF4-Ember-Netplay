@@ -94,7 +94,8 @@ bool HelperClient::WriteFrame(HANDLE pipe, const HelperMessage& message) {
     for (int i = 0; i < 8; ++i) { bytes[6 + i] = static_cast<uint8_t>(message.id >> (56 - 8 * i)); }
     memcpy(bytes.data() + HeaderSize, message.payload.data(), message.payload.size());
     const bool success = Transfer(pipe, bytes.data(), static_cast<DWORD>(bytes.size()), true);
-    if (message.id == 1) { SecureZeroMemory(bytes.data(), bytes.size()); }
+    // A frame may carry the bootstrap nonce or a passphrase; none outlives its write.
+    SecureZeroMemory(bytes.data(), bytes.size());
     return success;
 }
 
@@ -144,7 +145,9 @@ void HelperClient::Run(HelperBootstrap bootstrap) {
         HelperMessage message;
         // Bound work in each direction so outgoing traffic cannot starve reads.
         for (size_t i = 0; i < 8 && outgoing_.TryPop(message); ++i) {
-            if (!WriteFrame(pipe.value, message)) { state_ = HelperState::Failed; return; }
+            const bool written = WriteFrame(pipe.value, message);
+            if (!message.payload.empty()) { SecureZeroMemory(&message.payload[0], message.payload.size()); }
+            if (!written) { state_ = HelperState::Failed; return; }
         }
         // The helper may publish a complete checkpoint window and lifecycle
         // events faster than the game thread can consume them. Keep one read

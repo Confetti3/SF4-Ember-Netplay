@@ -200,6 +200,9 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.inputCapture = snapshot.inputCapture;
     view.controllerReady = snapshot.controllerReady;
     view.canChangeController = snapshot.canChangeController;
+    view.identity = snapshot.identity;
+    view.identityTicket = snapshot.identityTicket; view.identityRequest = snapshot.identityRequest;
+    view.identityRefusal = snapshot.identityRefusal;
     const auto* fighter = sf4e::selection::FindFighter(lobbyMenuCharaID);
     view.selectedFighter=lobbyMenuCharaID;
     auto summaryPick = sf4e::selection::FromNative(lobbyConditions); summaryPick.fighter = lobbyMenuCharaID;
@@ -245,6 +248,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		request.roomAction = std::move(action.roomAction);
         request.selectedDelay=action.selectedDelay;
         request.previewSoundVolume=action.previewSoundVolume;
+        request.identity = std::move(action.identity);
 		request.character = lobbyConditions;
 		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
 		request.stage = lobbyStageID;

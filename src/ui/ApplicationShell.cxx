@@ -197,7 +197,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows[0].hint=loc::T("menu.hint.paste");if(!opening)rows[1].hint=loc::T("online.join");
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
  }else if(screen=="settings"){
-  title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail"))};
+  title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),
+   Row("identity",loc::T("screen.identity"),loc::T("settings.identity_detail"))};
  }else if(screen=="player"){
   title=loc::T("player.title");rows={TextRow("name",loc::T("profile.player_name"),preferences_.displayName,31,v.canEditPreferences),
    Row("capture",loc::T("player.change_controller"),loc::Tf("player.change_controller_detail",v.controller),v.canChangeController),
@@ -225,6 +226,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   title=loc::T("discord.invitation_title");rows={Row("invite-cancel",loc::T("discord.cancel_invitation"),loc::T("discord.cancel_invitation_detail"))};
   if(v.discordConfirm)rows.push_back(ConfirmRow("invite-switch",loc::T("discord.switch_room"),v.discordCanSwitch?loc::T("discord.switch_room_detail"):loc::T("discord.wait_game"),v.discordCanSwitch));
   else rows.push_back(Row("invite-wait",loc::T("discord.invitation_pending"),loc::T("discord.invitation_pending_detail"),false));
+ }else if(IdentityPanel::Owns(screen)){
+  rows=identity_.Rows(v,screen,title);
  }else if(screen=="developer"&&developer){
   // The inspector's selectors are not the shell's own: they inherit no room
   // hints or Back label, and whatever they forward has no reader here.
@@ -310,6 +313,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  // The failed language save is about the row on the Interface screen, so it
  // speaks there only, and every other report below outranks it.
  if(!languageSaveError_.empty()&&screen=="interface"){status=languageSaveError_;statusTone=Tone::Error;}
+ if(IdentityPanel::Owns(screen)){std::string own;Tone ownTone=Tone::Neutral;if(identity_.Status(own,ownTone,ImGui::GetTime())){status=own;statusTone=ownTone;}}
  if(v.controllerUnavailable){status=loc::T("controller.disconnected");statusTone=Tone::Error;}
  if(v.session.room==RoomState::Opening&&v.session.openingStalled){status=loc::T("room.opening_stalled");statusTone=Tone::Error;}
  const std::string sessionProblem=SessionProblem(v.session);
@@ -347,13 +351,15 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
 }
 void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,const std::string& screen,bool idle,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
+ // The retry row a failed save adds to every screen stays the shell's.
+ if(IdentityPanel::Owns(screen)&&a.id!="retry-save"){identity_.Activate(a,v,nav);return;}
  // An opening room keeps its own screen, with its Stop row, until it joins.
  if(a.id=="online")nav.Push(idle?"online":v.session.room==RoomState::Opening?OpeningScreen(v):"room");
  else if(a.id=="discord-invitation")nav.Push(a.id);
  else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
- else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="developer")nav.Push(a.id);
+ else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="identity"||a.id=="developer")nav.Push(a.id);
  else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
  else if(a.id=="offline"||a.id=="controls")Send(CommandKind::StartOffline,v,submit);
@@ -376,6 +382,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
 void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const std::string& screen,const Submit& submit) {
  using namespace netplay;
  if(screen.compare(0,4,"room")==0)RoomAction(a,v,submit);
+ else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
  else if(a.id=="invite-text")std::snprintf(invitation_,sizeof(invitation_),"%s",a.text.c_str());
  else if(a.id=="language")SetLanguage(std::string(loc::NextPreference(languagePreference_,a.delta)));
  else{
@@ -449,6 +456,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(!v.discordPending&&nav.Screen()=="discord-invitation")nav.Return();
  if(v.inputCapture!=input::Capture::Idle&&nav.Screen()!="assignment")nav.Push("assignment");
  if(v.inputCapture==input::Capture::Idle&&nav.Screen()=="assignment")nav.Return();
+ identity_.Update(v,nav.Screen(),submit,now);
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
@@ -540,12 +548,15 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(inRoom)RoomShortcut(a,v);
  }else if(a.kind==MenuAction::Chosen){
   if(roomScreen)RoomAction(a,v,submit);
+  else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
   else if(a.id=="language")SetLanguage(a.text);
  }else if(a.kind==MenuAction::Activate){
   HandleActivate(a,v,screen,idle,submit);
  }else if(a.kind==MenuAction::Adjust||a.kind==MenuAction::TextAccepted){
   HandleAdjust(a,v,screen,submit);
  }
+ // Accepted text may be a passphrase; the panel kept its own copy.
+ if(a.kind==MenuAction::TextAccepted)WipeText(a.text);
  ImGui::End();ImGui::PopStyleVar(2);
 }
 } }

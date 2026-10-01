@@ -1985,3 +1985,378 @@ msgstr "Erro do servidor de sessão. Verifique sua internet e tente novamente."
 
 msgid "runtime.settings_unreadable"
 msgstr "Não foi possível ler as configurações salvas; os padrões estão em uso."
+
+msgid "screen.identity"
+msgstr "Ember ID"
+
+msgid "screen.identity_backup"
+msgstr "Backup e restauração"
+
+msgid "screen.linked_accounts"
+msgstr "Contas vinculadas"
+
+msgid "settings.identity_detail"
+msgstr "Seu Ember ID para sites de torneios, o backup dele e as contas vinculadas a ele."
+
+msgid "identity.title"
+msgstr "EMBER ID"
+
+msgid "identity.backup_title"
+msgstr "BACKUP E RESTAURAÇÃO"
+
+msgid "identity.linked_title"
+msgstr "CONTAS VINCULADAS"
+
+msgid "identity.status"
+msgstr "Ember ID"
+
+msgid "identity.state.checking"
+msgstr "Verificando"
+
+msgid "identity.state.checking_detail"
+msgstr "O Ember está consultando o auxiliar de rede sobre o seu Ember ID."
+
+msgid "identity.state.disabled_detail"
+msgstr "Um Ember ID permite que sites de torneios confirmem que um resultado veio de você. É uma chave guardada neste PC. Partidas casuais nunca precisam dele."
+
+msgid "identity.state.creating"
+msgstr "Criando"
+
+msgid "identity.state.creating_detail"
+msgstr "O Ember está criando sua chave. Isso leva um momento."
+
+msgid "identity.state.locked"
+msgstr "Bloqueado"
+
+msgid "identity.state.locked_detail"
+msgstr "Sua chave está protegida por uma senha. Digite-a para usar seu Ember ID até o jogo fechar."
+
+msgid "identity.state.ready_detail"
+msgstr "Seu Ember ID é {0}.\n\nOs sites mostram a forma curta {1}. Confira se ela corresponde antes de aprovar um vínculo."
+
+msgid "identity.state.recovery"
+msgstr "Precisa restaurar"
+
+msgid "identity.state.recovery_detail"
+msgstr "O Ember encontrou um registro do seu Ember ID, mas não consegue ler a chave dele. Restaure-o de um backup ou recomece com um novo ID. O Ember nunca o substitui por conta própria."
+
+msgid "identity.state.unavailable"
+msgstr "Indisponível"
+
+msgid "identity.state.unavailable_detail"
+msgstr "O Ember não consegue usar a chave neste PC. {0}"
+
+msgid "identity.local_passphrase"
+msgstr "Senha deste PC"
+
+msgid "identity.local_passphrase_detail"
+msgstr "Wine e Proton não podem usar a proteção de chaves do Windows, então uma senha protege sua chave. Você a digita uma vez sempre que o jogo inicia."
+
+msgid "identity.repeat_passphrase"
+msgstr "Repetir senha"
+
+msgid "identity.repeat_passphrase_detail"
+msgstr "Digite a mesma senha de novo, para detectar um erro de digitação."
+
+msgid "identity.passphrases_differ"
+msgstr "As duas senhas não coincidem."
+
+msgid "identity.secret_empty"
+msgstr "Não digitada"
+
+msgid "identity.secret_set"
+msgstr "Digitada"
+
+msgid "identity.enable"
+msgstr "Criar Ember ID"
+
+msgid "identity.enable_detail"
+msgstr "Cria sua chave neste PC. Somente esta conta do Windows pode usá-la."
+
+msgid "identity.leave_room"
+msgstr "Saia da sala e volte ao menu principal para alterar seu Ember ID."
+
+msgid "identity.unlock"
+msgstr "Desbloquear"
+
+msgid "identity.unlock_detail"
+msgstr "Digite a senha que você escolheu para este PC."
+
+msgid "identity.copy"
+msgstr "Copiar Ember ID"
+
+msgid "identity.copy_detail"
+msgstr "Copia seu Ember ID completo, para colar em um site de torneios."
+
+msgid "identity.linked_detail"
+msgstr "Os serviços de torneios em que você confia e as contas vinculadas ao seu Ember ID."
+
+msgid "identity.backup_detail"
+msgstr "Salve um backup criptografado ou restaure um."
+
+msgid "identity.restore_detail"
+msgstr "Restaure seu Ember ID de um backup."
+
+msgid "identity.reset"
+msgstr "Recomeçar com um novo ID"
+
+msgid "identity.reset_detail"
+msgstr "Põe a chave atual de lado, sem excluí-la, para que você possa criar ou restaurar outra. Os sites vinculados ao ID antigo não vão reconhecer o novo."
+
+msgid "identity.backup_passphrase"
+msgstr "Senha do backup"
+
+msgid "identity.backup_passphrase_detail"
+msgstr "Protege o arquivo de backup. Sem ela o backup não pode ser aberto, e ninguém pode recuperá-lo para você."
+
+msgid "identity.export"
+msgstr "Salvar backup"
+
+msgid "identity.export_detail"
+msgstr "Salva uma cópia criptografada da sua chave na pasta identity-backups das configurações do Ember. Guarde uma cópia em um lugar seguro, fora deste PC."
+
+msgid "identity.export_saved"
+msgstr "Último backup"
+
+msgid "identity.paste_path"
+msgstr "Colar caminho do backup"
+
+msgid "identity.paste_path_detail"
+msgstr "Usa o caminho de arquivo da área de transferência. No Explorador de Arquivos, mantenha a tecla Shift pressionada, clique com o botão direito no arquivo e escolha Copiar como caminho."
+
+msgid "identity.backup_file"
+msgstr "Arquivo de backup"
+
+msgid "identity.backup_file_detail"
+msgstr "O caminho completo de um backup salvo pelo Ember."
+
+msgid "identity.restore_passphrase_detail"
+msgstr "A senha escolhida quando o backup foi salvo."
+
+msgid "identity.check_backup"
+msgstr "Verificar backup"
+
+msgid "identity.check_backup_detail"
+msgstr "Abre o backup e mostra o Ember ID que ele contém, sem alterar nada."
+
+msgid "identity.backup_holds"
+msgstr "Conteúdo do backup"
+
+msgid "identity.backup_holds_detail"
+msgstr "Este backup contém o Ember ID {0}."
+
+msgid "identity.backup_same"
+msgstr "É o ID que já está neste PC. Não há nada para restaurar."
+
+msgid "identity.backup_replaces"
+msgstr "Restaurá-lo põe de lado o outro ID deste PC. Os sites vinculados a esse ID não vão reconhecer este."
+
+msgid "identity.backup_new"
+msgstr "Restaurá-lo torna este o seu Ember ID neste PC."
+
+msgid "identity.import"
+msgstr "Restaurar este ID"
+
+msgid "identity.import_detail"
+msgstr "Instala neste PC o Ember ID do backup."
+
+msgid "identity.import_replaces_detail"
+msgstr "Instala o Ember ID do backup e põe o atual de lado, sem excluí-lo."
+
+msgid "identity.linked_needs_id"
+msgstr "Ember ID necessário"
+
+msgid "identity.linked_needs_id_detail"
+msgstr "Primeiro crie ou desbloqueie seu Ember ID. A vinculação prova a um site que uma conta pertence ao seu Ember ID."
+
+msgid "identity.service"
+msgstr "Serviço de torneios"
+
+msgid "identity.unlink"
+msgstr "Desvincular"
+
+msgid "identity.unlink_detail"
+msgstr "Remove este vínculo. O site deixa de reconhecer esta conta como sua até você vinculá-la de novo."
+
+msgid "identity.pending_label"
+msgstr "Aguardando aprovação em {0}"
+
+msgid "identity.pending_detail"
+msgstr "Aprove o vínculo no site, no seu navegador. Pressione Selecionar para cancelar."
+
+msgid "identity.cancel_claim"
+msgstr "Cancelar vínculo"
+
+msgid "identity.no_links"
+msgstr "Nenhuma conta vinculada"
+
+msgid "identity.no_links_detail"
+msgstr "Inicie um vínculo no site de torneios e digite abaixo o código que ele mostrar."
+
+msgid "identity.site"
+msgstr "Site"
+
+msgid "identity.site_detail"
+msgstr "O site deste serviço onde fica sua conta."
+
+msgid "identity.link_code"
+msgstr "Código de vínculo"
+
+msgid "identity.link_code_detail"
+msgstr "O código que o site de torneios mostra quando você inicia um vínculo, como ABCDE-12345."
+
+msgid "identity.link_account"
+msgstr "Vincular conta"
+
+msgid "identity.link_account_detail"
+msgstr "Envia o código assinado com seu Ember ID. Depois você aprova o vínculo no site."
+
+msgid "identity.refresh"
+msgstr "Atualizar"
+
+msgid "identity.refresh_detail"
+msgstr "Busca novos vínculos e aprovações neste serviço."
+
+msgid "identity.forget"
+msgstr "Esquecer este serviço"
+
+msgid "identity.forget_detail"
+msgstr "Deixa de confiar neste serviço neste PC. Os vínculos no serviço continuam até você removê-los lá."
+
+msgid "identity.service_address"
+msgstr "Adicionar um serviço"
+
+msgid "identity.service_address_detail"
+msgstr "O endereço de um serviço de torneios do Ember, como https://tournaments.example. O organizador do seu torneio fornece esse endereço."
+
+msgid "identity.look_up"
+msgstr "Consultar serviço"
+
+msgid "identity.look_up_detail"
+msgstr "Pergunta ao endereço o que ele é, antes de você decidir confiar nele."
+
+msgid "identity.trust"
+msgstr "Confiar em {0}"
+
+msgid "identity.trust_detail"
+msgstr "Permite que o Ember entre no serviço em {0} com seu Ember ID. Só confie em um serviço indicado pelo seu organizador."
+
+msgid "identity.working"
+msgstr "Processando..."
+
+msgid "identity.working_key"
+msgstr "Trabalhando com sua chave. Isso pode levar alguns segundos..."
+
+msgid "identity.done.enabled"
+msgstr "Seu Ember ID está pronto."
+
+msgid "identity.done.unlocked"
+msgstr "Ember ID desbloqueado."
+
+msgid "identity.done.exported"
+msgstr "Backup salvo em {0}."
+
+msgid "identity.done.imported"
+msgstr "Ember ID restaurado."
+
+msgid "identity.done.reset"
+msgstr "A chave antiga foi posta de lado. Agora você pode criar ou restaurar um ID."
+
+msgid "identity.done.trusted"
+msgstr "Agora você confia em {0}."
+
+msgid "identity.done.forgotten"
+msgstr "Serviço esquecido."
+
+msgid "identity.done.claimed"
+msgstr "Código enviado. Aprove o vínculo no site e confira se ele mostra {0}."
+
+msgid "identity.done.unlinked"
+msgstr "Conta desvinculada."
+
+msgid "identity.done.cancelled"
+msgstr "Vínculo cancelado."
+
+msgid "identity.done.copied"
+msgstr "Ember ID copiado."
+
+msgid "identity.failure.wrong_passphrase"
+msgstr "Essa senha não está correta."
+
+msgid "identity.failure.invalid_passphrase"
+msgstr "A senha precisa de pelo menos um caractere."
+
+msgid "identity.failure.passphrase_required"
+msgstr "Este PC precisa de uma senha para proteger sua chave."
+
+msgid "identity.failure.corrupt"
+msgstr "Esse arquivo não é um backup de Ember ID ou está danificado."
+
+msgid "identity.failure.file"
+msgstr "O Ember não consegue ler esse arquivo. Confira o caminho."
+
+msgid "identity.failure.busy"
+msgstr "Outra cópia do Ember está usando seu Ember ID. Tente novamente em um momento."
+
+msgid "identity.failure.state"
+msgstr "Seu Ember ID não está pronto para isso."
+
+msgid "identity.failure.changed"
+msgstr "Seu Ember ID mudou nesse meio-tempo. Verifique-o de novo."
+
+msgid "identity.failure.storage"
+msgstr "O Ember não conseguiu ler nem salvar sua chave neste PC."
+
+msgid "identity.failure.unreachable"
+msgstr "O serviço de torneios não respondeu. Confira o endereço e sua conexão."
+
+msgid "identity.failure.not_bridge"
+msgstr "Esse endereço não é um serviço de torneios do Ember que o Ember possa usar."
+
+msgid "identity.failure.bridge_changed"
+msgstr "O serviço nesse endereço não é aquele em que você confiou. O Ember parou para manter seu ID seguro."
+
+msgid "identity.failure.not_approved"
+msgstr "Primeiro confie nesse serviço."
+
+msgid "identity.failure.too_many"
+msgstr "O Ember guarda um número limitado de serviços. Primeiro esqueça um."
+
+msgid "identity.failure.code"
+msgstr "Esse código de vínculo está errado ou expirou. Inicie um novo vínculo no site."
+
+msgid "identity.failure.link_conflict"
+msgstr "Essa conta já está vinculada a outro Ember ID."
+
+msgid "identity.failure.rate_limited"
+msgstr "Tentativas demais. Aguarde um minuto e tente novamente."
+
+msgid "identity.failure.sign_in"
+msgstr "Não foi possível entrar no serviço. Tente novamente."
+
+msgid "identity.failure.forbidden"
+msgstr "O serviço não permite isso."
+
+msgid "identity.failure.refused"
+msgstr "O serviço recusou essa solicitação."
+
+msgid "identity.failure.other"
+msgstr "Não funcionou ({0})."
+
+msgid "identity.failure.timeout"
+msgstr "O auxiliar de rede não respondeu. Tente novamente."
+
+msgid "identity.failure.paste"
+msgstr "A área de transferência não contém um caminho de arquivo."
+
+msgid "identity.refused.helper"
+msgstr "O auxiliar de rede não está em execução, então seu Ember ID não pode ser usado agora."
+
+msgid "identity.refused.leave_room"
+msgstr "Saia da sala e volte ao menu principal para alterar seu Ember ID."
+
+msgid "identity.refused.match"
+msgstr "Aguarde o fim da partida."
+
+msgid "identity.refused.no_folder"
+msgstr "O Ember não encontra sua pasta de configurações para salvar o backup."
