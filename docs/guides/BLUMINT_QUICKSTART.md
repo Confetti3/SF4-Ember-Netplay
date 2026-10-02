@@ -69,7 +69,10 @@ finds no such match. The page opens the match in Ember, or shows how to get
 Ember first. It does not expire.
 
 A player can be in one active match per connection; creating a second one
-for them is refused until the first ends.
+for them is refused (`409`) until the first ends. Sending the same request
+again (same players in the same order, same `gamesToWin`) while that match is
+on answers with the same match, so a creation whose answer was lost can be
+retried.
 
 ## Match status
 

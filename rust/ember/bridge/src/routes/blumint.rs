@@ -28,7 +28,7 @@ use ember_protocol::{
     matches::{MatchState, Participant, Rules},
     play::{PROFILE, play_url},
 };
-use rusqlite::{Transaction, params};
+use rusqlite::{OptionalExtension, Transaction, params};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use zeroize::Zeroizing;
@@ -165,6 +165,9 @@ pub async fn create(
     let match_id = state
         .db
         .write(move |tx| {
+            if let Some(id) = active(tx, &connection_id, &players, games_to_win)? {
+                return Ok(id);
+            }
             let tenant_id = ctx.tenant_of(&connection_id)?;
             let mut roster = Vec::new();
             for (slot, ember_id) in players.iter().enumerate() {
@@ -199,6 +202,31 @@ pub async fn create(
     Ok(ok(
         &json!({ "matchId": match_id, "matchUrl": play_url(&bridge_id, &match_id) }),
     ))
+}
+
+/// The active match the connection already has between these players, in
+/// this order, of this length. BluMint sends no request ID, so this is how
+/// a creation it retries after losing the answer gets the same match; any
+/// other request for a busy player is refused as busy.
+fn active(
+    tx: &Transaction<'_>,
+    connection_id: &str,
+    players: &[EmberId],
+    games_to_win: u8,
+) -> Result<Option<String>> {
+    Ok(tx
+        .query_row(
+            "SELECT m.id FROM matches m
+             JOIN match_participants a
+               ON a.match_id = m.id AND a.assignment_generation = m.assignment_generation AND a.slot = 0
+             JOIN match_participants b
+               ON b.match_id = m.id AND b.assignment_generation = m.assignment_generation AND b.slot = 1
+             WHERE m.connection_id = ?1 AND a.ember_id = ?2 AND b.ember_id = ?3 AND m.games_to_win = ?4
+               AND m.state NOT IN ('completed', 'cancelled', 'failed')",
+            params![connection_id, players[0].as_str(), players[1].as_str(), games_to_win],
+            |row| row.get(0),
+        )
+        .optional()?)
 }
 
 /// The participant an Ember ID is linked as on the connection.

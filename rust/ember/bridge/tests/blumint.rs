@@ -334,6 +334,16 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
     let (status, created) = create(&f, json!({ "gamesToWin": 1, "gravity": 1.1 })).await;
     assert_eq!(status, StatusCode::OK, "{created}");
     let id = created["matchId"].as_str().unwrap().to_owned();
+    // BluMint lost the answer and asks again: the same match. A different
+    // request for the same players is refused while it is on.
+    assert_eq!(
+        create(&f, json!({ "gamesToWin": 1, "gravity": 1.1 })).await,
+        (StatusCode::OK, created.clone())
+    );
+    assert_eq!(
+        create(&f, json!({ "gamesToWin": 3 })).await.0,
+        StatusCode::CONFLICT
+    );
     assert_eq!(
         created["matchUrl"],
         format!("https://embernetplay.link/m#{}/{id}", f.bridge.bridge_id).as_str()
