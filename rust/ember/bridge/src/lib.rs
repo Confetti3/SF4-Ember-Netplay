@@ -238,8 +238,10 @@ pub async fn list_credentials(state: &AppState) -> Result<Vec<CredentialInfo>, e
 }
 
 /// Revokes the credential `id`. Requests with it fail from the next one on,
-/// and event streams it opened end at their next check. `Ok(false)` when it
-/// was already revoked.
+/// event streams it opened end at their next check, and the webhook
+/// subscriptions it created are disabled with their secrets wiped and their
+/// pending deliveries cancelled, as a delete would. `Ok(false)` when it was
+/// already revoked.
 pub async fn revoke_credential(state: &AppState, id: &str) -> Result<bool, error::ApiFailure> {
     use rusqlite::OptionalExtension;
     let id = id.to_owned();
@@ -260,6 +262,17 @@ pub async fn revoke_credential(state: &AppState, id: &str) -> Result<bool, error
                 Some(None) => {
                     tx.execute(
                         "UPDATE service_credentials SET revoked_at = ?1 WHERE id = ?2",
+                        rusqlite::params![now, id],
+                    )?;
+                    tx.execute(
+                        "UPDATE delivery_outbox SET state = 'cancelled' WHERE state = 'pending'
+                           AND subscription_id IN (SELECT id FROM webhook_subscriptions WHERE owner_credential = ?1)",
+                        [&id],
+                    )?;
+                    tx.execute(
+                        "UPDATE webhook_subscriptions SET enabled = 0, disabled_at = COALESCE(disabled_at, ?1),
+                            secret_sealed = x'', previous_secret_sealed = NULL, previous_expires_at = NULL
+                         WHERE owner_credential = ?2",
                         rusqlite::params![now, id],
                     )?;
                     Ok(true)

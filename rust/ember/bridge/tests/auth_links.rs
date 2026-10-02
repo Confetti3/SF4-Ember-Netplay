@@ -30,12 +30,31 @@ async fn discovery_is_public_and_informational() {
     assert_eq!(keys["keys"][0]["x"].as_str().unwrap().len(), 43);
 }
 
-// AUTH-06: a revoked service credential stops working at once.
+// AUTH-06: a revoked service credential stops working at once, webhooks included.
 #[tokio::test]
 async fn revoked_credentials_stop_working() {
     let bridge = Bridge::start().await;
     let provider = bridge.provider("mock-a").await;
     let other = bridge.organizer("t1").await;
+    let hook = |key: &str| json!({ "url": format!("http://127.0.0.1:9/{key}"), "event_types": ["io.ember.tournament.match.created.v1"] });
+    let (status, _) = bridge
+        .post_keyed(
+            &provider,
+            "/v1/webhook-subscriptions",
+            hook("revoked"),
+            Some("revoked"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let (status, _) = bridge
+        .post_keyed(
+            &other,
+            "/v1/webhook-subscriptions",
+            hook("kept"),
+            Some("kept"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED);
     let (status, _) = bridge.get(&provider, "/v1/webhook-subscriptions").await;
     assert_eq!(status, StatusCode::OK);
 
@@ -54,8 +73,25 @@ async fn revoked_credentials_stop_working() {
     );
     let (status, _) = bridge.get(&provider, "/v1/webhook-subscriptions").await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
-    let (status, _) = bridge.get(&other, "/v1/webhook-subscriptions").await;
+    let (status, kept) = bridge.get(&other, "/v1/webhook-subscriptions").await;
     assert_eq!(status, StatusCode::OK);
+    assert_eq!(kept["subscriptions"][0]["enabled"], true);
+    // The revoked credential's webhook is disabled with its secret wiped.
+    let owner = issued.id.clone();
+    let (enabled, secret_len): (bool, i64) = bridge
+        .state()
+        .db
+        .read(move |tx| {
+            Ok(tx.query_row(
+                "SELECT enabled, length(secret_sealed) FROM webhook_subscriptions WHERE owner_credential = ?1",
+                [owner],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?)
+        })
+        .await
+        .unwrap();
+    assert!(!enabled);
+    assert_eq!(secret_len, 0);
 
     assert!(
         !ember_bridge::revoke_credential(bridge.state(), &issued.id)

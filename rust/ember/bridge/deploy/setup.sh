@@ -19,6 +19,8 @@
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
+# Commands run as ember-bridge below would not be able to read katie's home.
+cd /
 HOST=bridge.embernetplay.link
 LIB=/usr/local/lib/ember-bridge
 STATE=/var/lib/ember-bridge
@@ -121,7 +123,7 @@ systemctl reload nginx || systemctl restart nginx
 rm -rf "$backup"
 
 # The bridge must answer with its own origin, directly and through nginx.
-BRIDGE_ID=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["bridge_id"])' "$STATE/bridge.json")
+BRIDGE_ID=$(sudo -u ember-bridge python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["bridge_id"])' "$STATE/bridge.json")
 check() {
     local where=$1; shift
     local body

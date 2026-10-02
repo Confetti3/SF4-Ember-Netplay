@@ -99,6 +99,11 @@ pub async fn run(state: AppState) {
             };
             let state = state.clone();
             tokio::spawn(async move {
+                // A delete or a revoked owner since the lease cancels the
+                // delivery; check again just before sending.
+                if !still_due(&state, item.outbox_id).await {
+                    return;
+                }
                 let outcome = attempt(&state, &item).await;
                 record(&state, &item, outcome).await;
                 drop(permit);
@@ -108,6 +113,22 @@ pub async fn run(state: AppState) {
             let _ = tokio::time::timeout(Duration::from_secs(1), state.delivery.notified()).await;
         }
     }
+}
+
+async fn still_due(state: &AppState, outbox_id: i64) -> bool {
+    state
+        .db
+        .read(move |tx| {
+            Ok(tx.query_row(
+                "SELECT EXISTS (SELECT 1 FROM delivery_outbox o
+                   JOIN webhook_subscriptions s ON s.id = o.subscription_id
+                   WHERE o.id = ?1 AND o.state = 'pending' AND s.enabled = 1)",
+                [outbox_id],
+                |row| row.get::<_, bool>(0),
+            )?)
+        })
+        .await
+        .unwrap_or(false)
 }
 
 async fn attempt(state: &AppState, item: &Due) -> Outcome {
