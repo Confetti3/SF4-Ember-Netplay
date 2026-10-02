@@ -397,6 +397,58 @@ async fn cancelled_and_disputed_matches_are_restarted_on_blumint() {
 }
 
 #[tokio::test]
+async fn a_match_keeps_its_platforms_policy_after_the_connection_leaves_the_configuration() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, json!({})).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    // A game was permitted and neither player reported it.
+    let match_id = id.clone();
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "INSERT INTO attempts (id, match_id, assignment_generation, seq, source, state, created_at, start_by, permit_id)
+                 VALUES ('att_silent', ?1, 1, 1, 'player_agreement', 'permitted', 0, 0, 'pmt_silent')",
+                [&match_id],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    // BluMint's connection leaves the configuration; then the game times out.
+    let mut config = (*f.bridge.state().config).clone();
+    config.tenants.retain(|tenant| tenant.id != "bm");
+    let state = AppState::new(
+        config,
+        Keys::generate(),
+        Secrets::default(),
+        f.bridge.state().db.clone(),
+        f.bridge.clock.clone(),
+    );
+    ember_bridge::sync_config(&state).await.unwrap();
+    f.bridge.clock.advance(31 * 60);
+    ember_bridge::maintain(&state).await;
+    let match_id = id.clone();
+    let (match_state, delivery): (String, String) = state
+        .db
+        .read(move |tx| {
+            Ok(tx.query_row(
+                "SELECT state, delivery_state FROM matches WHERE id = ?1",
+                [&match_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?)
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        (match_state.as_str(), delivery.as_str()),
+        ("cancelled", "queued")
+    );
+}
+
+#[tokio::test]
 async fn registration_tells_blumint_where_to_call_with_a_working_credential() {
     let f = fixture().await;
     ember_bridge::register_blumint(f.bridge.state(), CONNECTION)

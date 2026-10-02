@@ -88,19 +88,26 @@ fn enabled() -> bool {
     true
 }
 
-/// What a connection's platform expects of its matches, by kind.
-impl Connection {
+/// What a connection's platform expects of its matches, by the connection's
+/// kind.
+#[derive(Clone, Copy, Debug)]
+pub struct Policy {
     /// The bridge sends each finished match's result to the platform
     /// (BluMint). Other platforms read results from the API and events.
-    pub fn sends_results(&self) -> bool {
-        self.kind == BLUMINT
-    }
-
+    pub sends_results: bool,
     /// A disputed match waits in `needs_review` for an organizer, unless the
     /// platform has no review (BluMint): it is cancelled instead, which the
     /// platform hears as a restart.
-    pub fn reviews_disputes(&self) -> bool {
-        self.kind != BLUMINT
+    pub reviews_disputes: bool,
+}
+
+impl Policy {
+    pub fn of(kind: &str) -> Self {
+        let blumint = kind == BLUMINT;
+        Self {
+            sends_results: blumint,
+            reviews_disputes: !blumint,
+        }
     }
 }
 

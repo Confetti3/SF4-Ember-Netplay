@@ -24,6 +24,7 @@ use std::collections::BTreeMap;
 use crate::{
     AppState,
     auth::{self, Actor, Role, Service},
+    config::Policy,
     error::{ApiFailure, Result},
     events,
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key, ok},
@@ -281,9 +282,10 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
         }
     }
     let id = crate::util::new_id("emt");
-    let delivery = match ctx.config.connection(new.connection_id) {
-        Some((_, connection)) if connection.sends_results() => "queued",
-        _ => "not_required",
+    let delivery = if policy(tx, new.connection_id)?.sends_results {
+        "queued"
+    } else {
+        "not_required"
     };
     tx.execute(
         "INSERT INTO matches (id, tenant_id, connection_id, external_match_id, create_digest, revision,
@@ -928,10 +930,25 @@ pub fn on_unlink(
     Ok(())
 }
 
+/// The policy of a connection's platform, from the kind its record keeps.
+/// A kind never changes, and the record stays when the connection leaves the
+/// configuration, so its matches keep their policy.
+fn policy(tx: &Transaction<'_>, connection_id: &str) -> Result<Policy> {
+    let kind: String = tx
+        .query_row(
+            "SELECT kind FROM provider_connections WHERE id = ?1",
+            [connection_id],
+            |row| row.get(0),
+        )
+        .optional()?
+        .ok_or_else(ApiFailure::unavailable)?;
+    Ok(Policy::of(&kind))
+}
+
 /// A match whose result needs a person (spec 16.6) waits in `needs_review`
 /// for its organizer. Where the platform has no review
-/// (`Connection::reviews_disputes`), it is cancelled instead and its players
-/// are free. `attempt_id` is the game held, when one is.
+/// (`Policy::reviews_disputes`), it is cancelled instead and its players are
+/// free. `attempt_id` is the game held, when one is.
 pub fn needs_review(
     tx: &Transaction<'_>,
     ctx: &Ctx,
@@ -939,11 +956,7 @@ pub fn needs_review(
     reason: &str,
     attempt_id: Option<&str>,
 ) -> Result<()> {
-    let reviewed = ctx
-        .config
-        .connection(&found.connection_id)
-        .is_none_or(|(_, connection)| connection.reviews_disputes());
-    if !reviewed {
+    if !policy(tx, &found.connection_id)?.reviews_disputes {
         cancel_and_release(tx, ctx, found, reason)?;
         return Ok(());
     }
