@@ -570,6 +570,12 @@ msgstr "Einstellungen"
 msgid "home.identity_detail"
 msgstr "Ihre Turnierspiele, Discord für Turnierseiten und Ihre Ember ID."
 
+msgid "home.identity_start"
+msgstr "Starten Sie hier, um Turniere zu spielen: Richten Sie Ihre Ember ID ein und verbinden Sie Discord."
+
+msgid "home.identity_matches"
+msgstr "Spielbereite Turnierspiele: {0}"
+
 msgid "home.settings_detail"
 msgstr "Spieler, Controller, Spielvorgaben, Oberfläche, Sprache und Discord."
 
@@ -2964,8 +2970,8 @@ msgstr "Verlässt den Raum des Spiels. Sie können das Spiel über diese Liste e
 msgid "tournament.needs_service"
 msgstr "Kein Turnierdienst"
 
-msgid "tournament.needs_service_detail"
-msgstr "Vertrauen Sie zuerst einem Turnierdienst und verknüpfen Sie Ihr Konto unter Verknüpfte Konten."
+msgid "tournament.needs_discord_detail"
+msgstr "Nutzen Sie zuerst Discord verbinden, damit Turnierseiten wie BluMint Sie finden und Ihnen Spiele zuweisen können. Hat Ihnen eine Seite einen Verknüpfungscode gegeben, nutzen Sie stattdessen Verknüpfte Konten."
 
 msgid "tournament.match"
 msgstr "Spiel"
@@ -2995,7 +3001,7 @@ msgid "tournament.none"
 msgstr "Keine Spiele"
 
 msgid "tournament.none_detail"
-msgstr "Der Turnierdienst hat gerade keine Spiele für Sie."
+msgstr "Registrieren Sie sich auf Ihrer Turnierseite. Ihre Spiele erscheinen hier, sobald die Seite sie zuweist, und Ember meldet es Ihnen auf der Startseite."
 
 msgid "tournament.refresh_detail"
 msgstr "Fragt den Turnierdienst erneut nach Ihren Spielen."
@@ -3032,6 +3038,9 @@ msgstr "Kopieren Sie den Spiel-Link auf der Turnierseite und wählen Sie dies, u
 
 msgid "tournament.link_opened"
 msgstr "Die Turnierseite hat ein Spiel geöffnet. Drücken Sie Spielen, wenn Sie bereit sind."
+
+msgid "tournament.assigned_notice"
+msgstr "Ein Turnierspiel ist für Sie bereit. Öffnen Sie Ember ID, dann Turnierspiele."
 
 msgid "tournament.link_waiting"
 msgstr "Ein Turnier-Spiel-Link ist angekommen. Verlassen Sie Ihren Raum und spielen Sie es unter Turnierspiele."

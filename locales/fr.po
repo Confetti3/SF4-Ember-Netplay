@@ -570,6 +570,12 @@ msgstr "Paramètres"
 msgid "home.identity_detail"
 msgstr "Vos matchs du tournoi, Discord pour les sites de tournoi et votre Ember ID."
 
+msgid "home.identity_start"
+msgstr "Commencez ici pour jouer en tournoi : configurez votre Ember ID et connectez Discord."
+
+msgid "home.identity_matches"
+msgstr "Matchs du tournoi prêts à jouer : {0}"
+
 msgid "home.settings_detail"
 msgstr "Joueur, manette, réglages de jeu, interface, langue et Discord."
 
@@ -2964,8 +2970,8 @@ msgstr "Quitte le salon du match. Vous pourrez rejouer le match depuis cette lis
 msgid "tournament.needs_service"
 msgstr "Aucun service de tournoi"
 
-msgid "tournament.needs_service_detail"
-msgstr "Faites d'abord confiance à un service de tournoi et associez votre compte dans Comptes associés."
+msgid "tournament.needs_discord_detail"
+msgstr "Utilisez d'abord Connecter Discord, pour que les sites de tournoi comme BluMint vous trouvent et vous attribuent vos matchs. Si un site vous a donné un code d'association, utilisez plutôt Comptes associés."
 
 msgid "tournament.match"
 msgstr "Match"
@@ -2995,7 +3001,7 @@ msgid "tournament.none"
 msgstr "Aucun match"
 
 msgid "tournament.none_detail"
-msgstr "Le service de tournoi n'a aucun match pour vous pour le moment."
+msgstr "Inscrivez-vous sur votre site de tournoi. Vos matchs apparaissent ici quand le site vous les attribue, et Ember vous prévient sur l'écran Accueil."
 
 msgid "tournament.refresh_detail"
 msgstr "Redemande vos matchs au service de tournoi."
@@ -3032,6 +3038,9 @@ msgstr "Copiez le lien du match sur le site du tournoi, puis choisissez ceci pou
 
 msgid "tournament.link_opened"
 msgstr "Le site du tournoi a ouvert un match. Appuyez sur Jouer quand vous êtes prêt."
+
+msgid "tournament.assigned_notice"
+msgstr "Un match du tournoi vous attend. Ouvrez Ember ID, puis Matchs du tournoi."
 
 msgid "tournament.link_waiting"
 msgstr "Un lien de match du tournoi est arrivé. Quittez votre salon, puis jouez-le depuis Matchs du tournoi."

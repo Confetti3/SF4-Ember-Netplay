@@ -570,6 +570,12 @@ msgstr "Configurações"
 msgid "home.identity_detail"
 msgstr "Suas partidas do torneio, Discord para sites de torneio e seu Ember ID."
 
+msgid "home.identity_start"
+msgstr "Comece aqui para jogar torneios: configure seu Ember ID e conecte o Discord."
+
+msgid "home.identity_matches"
+msgstr "Partidas do torneio prontas para jogar: {0}"
+
 msgid "home.settings_detail"
 msgstr "Jogador, controle, padrões de jogo, interface, idioma e Discord."
 
@@ -2533,8 +2539,8 @@ msgstr "Sai da sala da partida. Você pode jogar a partida de novo por esta list
 msgid "tournament.needs_service"
 msgstr "Nenhum serviço de torneios"
 
-msgid "tournament.needs_service_detail"
-msgstr "Primeiro confie em um serviço de torneios e vincule sua conta em Contas vinculadas."
+msgid "tournament.needs_discord_detail"
+msgstr "Primeiro use Conectar Discord, para que sites de torneio como o BluMint encontrem você e atribuam suas partidas. Se um site deu um código de vínculo a você, use Contas vinculadas em vez disso."
 
 msgid "tournament.match"
 msgstr "Partida"
@@ -2564,7 +2570,7 @@ msgid "tournament.none"
 msgstr "Nenhuma partida"
 
 msgid "tournament.none_detail"
-msgstr "O serviço de torneios não tem partidas para você no momento."
+msgstr "Cadastre-se no seu site de torneio. Suas partidas aparecem aqui quando o site as atribui, e o Ember avisa você no Início."
 
 msgid "tournament.refresh_detail"
 msgstr "Pede de novo suas partidas ao serviço de torneios."
@@ -2601,6 +2607,9 @@ msgstr "Copie o link da partida no site do torneio e escolha esta opção para a
 
 msgid "tournament.link_opened"
 msgstr "O site do torneio abriu uma partida. Pressione Jogar quando estiver pronto."
+
+msgid "tournament.assigned_notice"
+msgstr "Uma partida do torneio está pronta para você. Abra Ember ID e depois Partidas do torneio."
 
 msgid "tournament.link_waiting"
 msgstr "Chegou um link de partida do torneio. Saia da sua sala e jogue em Partidas do torneio."

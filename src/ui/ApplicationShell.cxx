@@ -206,7 +206,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Row("selection",loc::T("home.fighter_select"),v.canEditSelection?v.selectionSummary:
     v.selectionLockReason.empty()?loc::T("home.selection_locked"):v.selectionLockReason,bool(selection)),
    Row("profile",loc::T("home.profile"),loc::T("home.profile_detail")),
-   Row("identity",loc::T("screen.identity"),loc::T("home.identity_detail")),
+   Row("identity",loc::T("screen.identity"),identity_.HomeDetail(v)),
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
    Row("about",loc::T("home.about"),loc::T("home.about_detail")),
    Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle)};
@@ -541,6 +541,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    notice_=loc::T("tournament.link_opened");noticeTone_=Tone::Success;
   }else{notice_=loc::T("tournament.link_waiting");noticeTone_=Tone::Pending;}
   noticeUntil_=now+15;
+ }
+ // A match newly assigned is announced outside a room, so the player never
+ // has to go looking for it.
+ if(v.session.room==RoomState::Idle&&identity_.TakeAssigned(v)){
+  notice_=loc::T("tournament.assigned_notice");noticeTone_=Tone::Success;noticeUntil_=now+15;
  }
  // A Discord connect link opens Connect Discord for its service, where the
  // player decides. In a room it waits until the room closes.

@@ -772,5 +772,51 @@ void EmberIdFromHome(){
  Check(row("discord-connect")&&row("discord-connect")->value==loc::T("identity.discord_none"),"The Ember ID screen still shows the account");
  SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
-int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();ConnectReadsRecover();RetainedChangesStayTheirs();EmberIdFromHome();DiscordConnectPastedLink();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
+// Home guides the player: Ember ID says to start there before setup, and,
+// once matches are read in the background, how many are ready to play, with
+// a notice for each new one. The matches screen's empty states lead to
+// Connect Discord.
+void HomeGuides(){
+ using namespace sf4e;using netplay::IdentityOp;using netplay::tournament::Command;
+ const std::string ember="https://bridge.embernetplay.link";
+ std::vector<MenuEntry> rows;std::string status;
+ {
+ Harness h;auto& id=h.view.identity;id.known=true;id.state="disabled";
+ SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
+ const auto row=[&](const char* name)->const MenuEntry*{const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;});return it==rows.end()?nullptr:&*it;};
+ const auto sent=[&]{std::vector<const netplay::IdentityRequest*> out;for(const auto& a:h.actions)if(a.identity.op!=IdentityOp::None)out.push_back(&a.identity);return out;};
+ const auto played=[&]{std::vector<const Command*> out;for(const auto& a:h.actions)if(a.tournament.op!=Command::Op::None)out.push_back(&a.tournament);return out;};
+ const auto answer=[&]{
+  h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=true;id.failure.clear();h.Frame(0,2);
+ };
+ h.Screen("home");h.Frame();
+ Check(!sent().empty()&&sent().back()->op==IdentityOp::Status,"Home did not learn the Ember ID's state");
+ Check(row("identity")&&row("identity")->detail==loc::T("home.identity_start"),"Home does not say to start at Ember ID");
+ // With an ID and Ember's service, the matches are read in the background.
+ id.state="ready";id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
+ id.bridges={{"brg_1",ember,"Ember"}};answer();
+ Check(sent().back()->op==IdentityOp::BridgeList,"Home did not learn the services");
+ answer();h.Frame(0,2);
+ Check(!played().empty()&&played().back()->op==Command::Op::Refresh&&played().back()->bridgeId=="brg_1","Home did not read the matches");
+ Check(row("identity")->detail==loc::T("home.identity_detail"),"Home says to start with an ID and a service");
+ auto& t=h.view.tournament;t.list.bridge="brg_1";
+ netplay::tournament::Assignment match;match.matchId="emt_1";match.state="ready";match.profile="ember-room-v1";match.gamesToWin=2;
+ t.list.items={match};h.Frame(0,2);
+ Check(status==loc::T("tournament.assigned_notice"),"A new match was not announced");
+ Check(row("identity")->detail==loc::Tf("home.identity_matches",1),"Home does not count the ready match");
+ // Read again a minute later.
+ const auto reads=played().size();h.Frame(0,3700);
+ Check(played().size()>reads&&played().back()->op==Command::Op::Refresh,"The matches were not read again");
+ }
+ // The matches screen's empty states lead to Connect Discord.
+ const auto row=[&](const char* name)->const MenuEntry*{const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;});return it==rows.end()?nullptr:&*it;};
+ Harness fresh;auto& other=fresh.view.identity;other.known=true;other.state="disabled";
+ fresh.Screen("tournament-matches");fresh.Frame();
+ Check(row("id-linked-unavailable")&&row("discord-connect"),"Without an ID the matches screen does not lead to Connect Discord");
+ other.state="ready";other.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";other.fingerprint="j25zrhe6-pmdhvlja";fresh.Frame(0,2);
+ Check(row("tm-no-service")&&row("tm-no-service")->detail==loc::T("tournament.needs_discord_detail")&&row("discord-connect"),
+  "Without a service the matches screen does not lead to Connect Discord");
+ SetMenuEntriesProbe({});SetMenuStatusProbe({});
+}
+int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();ConnectReadsRecover();RetainedChangesStayTheirs();EmberIdFromHome();HomeGuides();DiscordConnectPastedLink();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

@@ -570,6 +570,12 @@ msgstr "Instellingen"
 msgid "home.identity_detail"
 msgstr "Je toernooiwedstrijden, Discord voor toernooisites en je Ember ID."
 
+msgid "home.identity_start"
+msgstr "Begin hier om toernooien te spelen: stel je Ember ID in en koppel Discord."
+
+msgid "home.identity_matches"
+msgstr "Toernooiwedstrijden klaar om te spelen: {0}"
+
 msgid "home.settings_detail"
 msgstr "Speler, controller, standaard spelinstellingen, interface, taal en Discord."
 
@@ -2964,8 +2970,8 @@ msgstr "Verlaat de kamer van de wedstrijd. Je kunt de wedstrijd opnieuw spelen v
 msgid "tournament.needs_service"
 msgstr "Geen toernooidienst"
 
-msgid "tournament.needs_service_detail"
-msgstr "Vertrouw eerst een toernooidienst en koppel je account bij Gekoppelde accounts."
+msgid "tournament.needs_discord_detail"
+msgstr "Gebruik eerst Discord koppelen, zodat toernooisites zoals BluMint je kunnen vinden en je wedstrijden kunnen toewijzen. Heeft een site je een koppelcode gegeven, gebruik dan Gekoppelde accounts."
 
 msgid "tournament.match"
 msgstr "Wedstrijd"
@@ -2995,7 +3001,7 @@ msgid "tournament.none"
 msgstr "Geen wedstrijden"
 
 msgid "tournament.none_detail"
-msgstr "De toernooidienst heeft nu geen wedstrijden voor je."
+msgstr "Schrijf je in op je toernooisite. Je wedstrijden verschijnen hier zodra de site ze toewijst, en Ember laat het je weten op het scherm Start."
 
 msgid "tournament.refresh_detail"
 msgstr "Vraagt de toernooidienst opnieuw om je wedstrijden."
@@ -3032,6 +3038,9 @@ msgstr "Kopieer de wedstrijdlink op de toernooisite en kies dit om die wedstrijd
 
 msgid "tournament.link_opened"
 msgstr "De toernooisite heeft een wedstrijd geopend. Druk op Spelen als je klaar bent."
+
+msgid "tournament.assigned_notice"
+msgstr "Er staat een toernooiwedstrijd voor je klaar. Open Ember ID en dan Toernooiwedstrijden."
 
 msgid "tournament.link_waiting"
 msgstr "Er kwam een toernooiwedstrijdlink binnen. Verlaat je kamer en speel hem via Toernooiwedstrijden."

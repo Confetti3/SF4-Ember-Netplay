@@ -42,6 +42,12 @@ public:
     void OpenDiscord(const std::string& bridge);
     // The row the matches screen should focus, once it is among `rows`.
     std::string TakeFocus(const std::vector<MenuEntry>& rows);
+    // The Home entry's line: where to start, how many matches are ready to
+    // play, or what the screens hold.
+    std::string HomeDetail(const ShellView& view) const;
+    // A playable match the player has not been told about yet: true once for
+    // each new one, except while the matches screen already shows them.
+    bool TakeAssigned(const ShellView& view);
     // Every frame, before the rows: notes answers, sends the next request,
     // and wipes what the player typed once they leave these screens.
     void Update(const ShellView& view, const std::string& screen, const Submit& submit, double now);
@@ -121,7 +127,7 @@ private:
     // players trust; any other can be typed over it.
     std::string restorePath_, origin_ = EmberService, code_;
     // The selected service and site, and the service whose links the view lists.
-    std::string bridge_, connection_, listedBridge_, sentBridge_;
+    std::string bridge_, connection_, listedBridge_, sentBridge_, sentOrigin_;
     // The Discord account last read from each service: its user ID (empty
     // when none is connected) and name, whether it was ever read, and
     // whether the latest read of the service or its account failed (then
@@ -146,6 +152,12 @@ private:
     std::string previewPath_;
     // A service the player looked up and may now trust.
     netplay::IdentityBridge found_;
+    // Away from these screens, Home learns the Ember ID's state and the
+    // services once, then the matches every minute: whether each was asked,
+    // the service list answered, when to refresh next, and the matches told.
+    bool statusAsked_ = false, servicesAsked_ = false, servicesKnown_ = false;
+    double assignmentsAt_ = 0;
+    std::vector<std::string> told_;
     // The assignment list is wanted for the selected service; a Play or Stop
     // waiting to be sent; and what the last refresh said, to report a failure once.
     bool wantAssignments_ = false, loadingAssignments_ = false;

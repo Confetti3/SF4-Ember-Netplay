@@ -570,6 +570,12 @@ msgstr "设置"
 msgid "home.identity_detail"
 msgstr "赛事对局、用于赛事网站的 Discord 关联和 Ember ID。"
 
+msgid "home.identity_start"
+msgstr "从这里开始参加赛事：设置你的 Ember ID 并关联 Discord。"
+
+msgid "home.identity_matches"
+msgstr "可进行的赛事对局：{0}"
+
 msgid "home.settings_detail"
 msgstr "玩家、控制器、对战默认设置、界面、语言和 Discord。"
 
@@ -2964,8 +2970,8 @@ msgstr "离开对局房间。您可以从此列表再次进行该对局。"
 msgid "tournament.needs_service"
 msgstr "没有赛事服务"
 
-msgid "tournament.needs_service_detail"
-msgstr "请先在已绑定账号中信任一个赛事服务并绑定您的账号。"
+msgid "tournament.needs_discord_detail"
+msgstr "请先使用“关联 Discord”，以便 BluMint 等赛事网站找到你并为你分配对局。如果网站给了你绑定码，请改用“已绑定账号”。"
 
 msgid "tournament.match"
 msgstr "对局"
@@ -2995,7 +3001,7 @@ msgid "tournament.none"
 msgstr "没有对局"
 
 msgid "tournament.none_detail"
-msgstr "赛事服务目前没有您的对局。"
+msgstr "请在你的赛事网站上报名。网站为你分配对局后，对局会显示在这里，Ember 也会在主页上通知你。"
 
 msgid "tournament.refresh_detail"
 msgstr "再次向赛事服务获取您的对局。"
@@ -3032,6 +3038,9 @@ msgstr "在赛事网站复制对局链接，然后选择此项即可在这里打
 
 msgid "tournament.link_opened"
 msgstr "赛事网站打开了一个对局。准备好后请按开始。"
+
+msgid "tournament.assigned_notice"
+msgstr "有一场赛事对局已为你准备好。请打开“Ember ID”，再打开“赛事对局”。"
 
 msgid "tournament.link_waiting"
 msgstr "收到一个赛事对局链接。请先离开当前房间，再从赛事对局中进行。"

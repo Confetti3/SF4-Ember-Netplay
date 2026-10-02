@@ -570,6 +570,12 @@ msgstr "設定"
 msgid "home.identity_detail"
 msgstr "大会の試合、大会サイト向けのDiscord連携、Ember ID。"
 
+msgid "home.identity_start"
+msgstr "大会に参加するにはここから始めます。Ember IDを設定し、Discordを連携してください。"
+
+msgid "home.identity_matches"
+msgstr "プレイできる大会の試合：{0}"
+
 msgid "home.settings_detail"
 msgstr "プレイヤー、コントローラー、対戦の初期設定、表示、言語、Discord。"
 
@@ -2964,8 +2970,8 @@ msgstr "試合のルームから退出します。この一覧から試合をも
 msgid "tournament.needs_service"
 msgstr "大会サービスがありません"
 
-msgid "tournament.needs_service_detail"
-msgstr "先に連携アカウントで大会サービスを信頼し、アカウントを連携してください。"
+msgid "tournament.needs_discord_detail"
+msgstr "先に「Discordを連携」を使ってください。BluMintなどの大会サイトがあなたを見つけ、試合を割り当てられるようになります。連携コードを受け取ったサイトの場合は、代わりに「連携アカウント」を使います。"
 
 msgid "tournament.match"
 msgstr "試合"
@@ -2995,7 +3001,7 @@ msgid "tournament.none"
 msgstr "試合はありません"
 
 msgid "tournament.none_detail"
-msgstr "現在、大会サービスにあなたの試合はありません。"
+msgstr "大会サイトで参加登録してください。サイトが試合を割り当てるとここに表示され、ホームでEmberがお知らせします。"
 
 msgid "tournament.refresh_detail"
 msgstr "大会サービスに試合をもう一度問い合わせます。"
@@ -3032,6 +3038,9 @@ msgstr "大会サイトで試合のリンクをコピーし、これを選ぶと
 
 msgid "tournament.link_opened"
 msgstr "大会サイトが試合を開きました。準備ができたらプレイを押してください。"
+
+msgid "tournament.assigned_notice"
+msgstr "大会の試合の準備ができました。「Ember ID」、「大会の試合」の順に開いてください。"
 
 msgid "tournament.link_waiting"
 msgstr "大会の試合リンクが届きました。今のルームから退出し、大会の試合からプレイしてください。"

@@ -570,6 +570,12 @@ msgstr "Nastavení"
 msgid "home.identity_detail"
 msgstr "Vaše turnajové zápasy, Discord pro turnajové weby a vaše Ember ID."
 
+msgid "home.identity_start"
+msgstr "Začněte zde, chcete-li hrát turnaje: nastavte si Ember ID a připojte Discord."
+
+msgid "home.identity_matches"
+msgstr "Turnajové zápasy připravené ke hře: {0}"
+
 msgid "home.settings_detail"
 msgstr "Hráč, ovladač, výchozí nastavení hry, rozhraní, jazyk a Discord."
 
@@ -2964,8 +2970,8 @@ msgstr "Opustí místnost zápasu. Zápas můžete hrát znovu z tohoto seznamu.
 msgid "tournament.needs_service"
 msgstr "Žádná turnajová služba"
 
-msgid "tournament.needs_service_detail"
-msgstr "Nejprve důvěřujte turnajové službě a propojte svůj účet v části Propojené účty."
+msgid "tournament.needs_discord_detail"
+msgstr "Nejprve použijte Připojit Discord, aby vás turnajové weby, například BluMint, mohly najít a přidělovat vám zápasy. Pokud vám web dal kód propojení, použijte místo toho část Propojené účty."
 
 msgid "tournament.match"
 msgstr "Zápas"
@@ -2995,7 +3001,7 @@ msgid "tournament.none"
 msgstr "Žádné zápasy"
 
 msgid "tournament.none_detail"
-msgstr "Turnajová služba pro vás teď nemá žádné zápasy."
+msgstr "Zaregistrujte se na svém turnajovém webu. Vaše zápasy se tu zobrazí, jakmile vám je web přidělí, a Ember vám to oznámí na obrazovce Domů."
 
 msgid "tournament.refresh_detail"
 msgstr "Znovu požádá turnajovou službu o vaše zápasy."
@@ -3032,6 +3038,9 @@ msgstr "Zkopírujte odkaz na zápas ze stránky turnaje a zvolte tuto možnost, 
 
 msgid "tournament.link_opened"
 msgstr "Stránka turnaje otevřela zápas. Až budete připraveni, stiskněte Hrát."
+
+msgid "tournament.assigned_notice"
+msgstr "Máte připravený turnajový zápas. Otevřete Ember ID a pak Turnajové zápasy."
 
 msgid "tournament.link_waiting"
 msgstr "Přišel odkaz na turnajový zápas. Opusťte svou místnost a hrajte ho z části Turnajové zápasy."

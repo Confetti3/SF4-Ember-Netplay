@@ -570,6 +570,12 @@ msgstr "Settings"
 msgid "home.identity_detail"
 msgstr "Your tournament matches, Discord for tournament sites, and your Ember ID."
 
+msgid "home.identity_start"
+msgstr "Start here to play tournaments: set up your Ember ID and connect Discord."
+
+msgid "home.identity_matches"
+msgstr "Tournament matches ready to play: {0}"
+
 msgid "home.settings_detail"
 msgstr "Player, controller, gameplay defaults, interface, language and Discord."
 
@@ -2649,8 +2655,8 @@ msgstr "Leaves the match room. You can play the match again from this list."
 msgid "tournament.needs_service"
 msgstr "No tournament service"
 
-msgid "tournament.needs_service_detail"
-msgstr "Trust a tournament service and link your account under Linked accounts first."
+msgid "tournament.needs_discord_detail"
+msgstr "Connect Discord first, so tournament sites such as BluMint can find you and assign your matches. A site that gave you a link code uses Linked accounts instead."
 
 msgid "tournament.match"
 msgstr "Match"
@@ -2680,7 +2686,7 @@ msgid "tournament.none"
 msgstr "No matches"
 
 msgid "tournament.none_detail"
-msgstr "The tournament service has no matches for you right now."
+msgstr "Register on your tournament site. Your matches show up here when the site assigns them, and Ember tells you on Home."
 
 msgid "tournament.refresh_detail"
 msgstr "Asks the tournament service for your matches again."
@@ -2717,6 +2723,9 @@ msgstr "Copy the match link from the tournament site, then choose this to open t
 
 msgid "tournament.link_opened"
 msgstr "The tournament site opened a match. Press Play when you are ready."
+
+msgid "tournament.assigned_notice"
+msgstr "A tournament match is ready for you. Open Ember ID, then Tournament matches."
 
 msgid "tournament.link_waiting"
 msgstr "A tournament match link arrived. Leave your room, then play it from Tournament matches."

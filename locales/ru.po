@@ -570,6 +570,12 @@ msgstr "Настройки"
 msgid "home.identity_detail"
 msgstr "Ваши турнирные матчи, Discord для турнирных сайтов и ваш Ember ID."
 
+msgid "home.identity_start"
+msgstr "Начните здесь, чтобы играть в турнирах: настройте Ember ID и подключите Discord."
+
+msgid "home.identity_matches"
+msgstr "Турнирных матчей готово к игре: {0}"
+
 msgid "home.settings_detail"
 msgstr "Игрок, контроллер, настройки игры, интерфейс, язык и Discord."
 
@@ -2964,8 +2970,8 @@ msgstr "Выход из зала матча. Сыграть матч снова 
 msgid "tournament.needs_service"
 msgstr "Нет турнирного сервиса"
 
-msgid "tournament.needs_service_detail"
-msgstr "Сначала доверьтесь турнирному сервису и привяжите аккаунт в разделе «Привязанные аккаунты»."
+msgid "tournament.needs_discord_detail"
+msgstr "Сначала используйте «Подключить Discord», чтобы турнирные сайты, например BluMint, могли найти вас и назначать вам матчи. Если сайт дал вам код привязки, используйте вместо этого раздел «Привязанные аккаунты»."
 
 msgid "tournament.match"
 msgstr "Матч"
@@ -2995,7 +3001,7 @@ msgid "tournament.none"
 msgstr "Нет матчей"
 
 msgid "tournament.none_detail"
-msgstr "У турнирного сервиса сейчас нет матчей для вас."
+msgstr "Зарегистрируйтесь на своём турнирном сайте. Ваши матчи появятся здесь, когда сайт их назначит, и Ember сообщит об этом на экране «Главная»."
 
 msgid "tournament.refresh_detail"
 msgstr "Снова запрашивает ваши матчи у турнирного сервиса."
@@ -3032,6 +3038,9 @@ msgstr "Скопируйте ссылку на матч на сайте турн
 
 msgid "tournament.link_opened"
 msgstr "Сайт турнира открыл матч. Нажмите «Играть», когда будете готовы."
+
+msgid "tournament.assigned_notice"
+msgstr "Для вас готов турнирный матч. Откройте «Ember ID», затем «Турнирные матчи»."
 
 msgid "tournament.link_waiting"
 msgstr "Пришла ссылка на турнирный матч. Выйдите из своего зала и сыграйте его в разделе «Турнирные матчи»."

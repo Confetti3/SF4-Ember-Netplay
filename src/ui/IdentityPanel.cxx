@@ -18,6 +18,8 @@ constexpr double AnswerSeconds = 120;
 // While a Discord sign-in is open in the browser, the account is read this
 // often, for as long as the bridge keeps the sign-in.
 constexpr double DiscordPollSeconds = 4, DiscordSignInSeconds = 600;
+// Away from the matches screen, the assigned matches are read this often.
+constexpr double AssignmentsSeconds = 60;
 
 // The helper's and the bridge's failure codes, in words. Codes that mean the
 // same thing to the player share a sentence.
@@ -154,6 +156,33 @@ void IdentityPanel::OpenMatch(const std::string& bridge, const std::string& matc
     IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
 }
 
+namespace {
+// A match the player can play from the list now.
+bool Playable(const netplay::tournament::Assignment& match) { return match.PlayedInEmber() && !match.Finished(); }
+}
+
+std::string IdentityPanel::HomeDetail(const ShellView& v) const {
+    const auto& id = v.identity;
+    if (id.known && id.state == "disabled") return loc::T("home.identity_start");
+    if (id.known && id.state == "ready") {
+        if (servicesKnown_ && id.bridges.empty()) return loc::T("home.identity_start");
+        const auto& list = v.tournament.list;
+        const auto ready = list.bridge == bridge_ ? std::count_if(list.items.begin(), list.items.end(), Playable) : 0;
+        if (ready > 0) return loc::Tf("home.identity_matches", static_cast<int>(ready));
+    }
+    return loc::T("home.identity_detail");
+}
+
+bool IdentityPanel::TakeAssigned(const ShellView& v) {
+    bool fresh = false;
+    for (const auto& match : v.tournament.list.items) {
+        if (!Playable(match) || std::find(told_.begin(), told_.end(), match.matchId) != told_.end()) continue;
+        told_.push_back(match.matchId);
+        fresh = true;
+    }
+    return fresh && lastScreen_ != "tournament-matches";
+}
+
 std::string IdentityPanel::TakeFocus(const std::vector<MenuEntry>& rows) {
     if (!opened_ || std::none_of(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == opened_->row; })) return {};
     const std::string row = opened_->row;
@@ -193,6 +222,19 @@ void IdentityPanel::Queue(IdentityRequest request, bool lookUp) {
     const auto owner = finishing_ ? sentJourney_ : journey_;
     // The new journey reads everything again itself.
     if (owner != journey_ && Retirable(request.op)) return;
+    // A read the same as one waiting or out for this journey adds nothing:
+    // its answer is handled for whichever screen is open when it comes.
+    const bool read = request.op == IdentityOp::Status || request.op == IdentityOp::BridgeList ||
+        request.op == IdentityOp::BridgeInspect || request.op == IdentityOp::LinkList || request.op == IdentityOp::DiscordStatus;
+    if (read) {
+        if (sent_ && sentJourney_ == owner && sentOp_ == request.op && sentBridge_ == request.bridge &&
+            sentOrigin_ == request.origin && sentLookUp_ == lookUp) return;
+        const bool waiting = std::any_of(queue_.begin(), queue_.end(), [&](const Queued& q) {
+            return q.journey == owner && q.request.op == request.op && q.request.bridge == request.bridge &&
+                q.request.origin == request.origin && q.lookUp == lookUp;
+        });
+        if (waiting) return;
+    }
     if (queue_.size() < 8) queue_.push_back(Queued{std::move(request), lookUp, owner});
 }
 
@@ -237,6 +279,13 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
         if (!Superseded()) { Say(loc::T("identity.failure.timeout"), true); DropQueue(); }
         sent_ = 0;
     }
+    // Away from these screens, Home learns the state, then the services.
+    if (!owned && !sent_ && queue_.empty()) {
+        if (!statusAsked_) { statusAsked_ = true; IdentityRequest status; status.op = IdentityOp::Status; Queue(std::move(status)); }
+        else if (!servicesAsked_ && v.identity.state == "ready") {
+            servicesAsked_ = true; IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
+        }
+    }
     SendTournament(v, screen, submit);
     // While Discord's page is open in the browser, the account is read again
     // every few seconds, so the screen shows it connected by itself.
@@ -255,7 +304,7 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
     action.identity = std::move(queue_.front().request); queue_.pop_front();
     action.identity.ticket = ++nextTicket_;
     const auto ticket = action.identity.ticket;
-    sentOp_ = action.identity.op; sentBridge_ = action.identity.bridge;
+    sentOp_ = action.identity.op; sentBridge_ = action.identity.bridge; sentOrigin_ = action.identity.origin;
     if (submit(std::move(action))) { sent_ = ticket; sentAt_ = now; }
     else { Say(loc::T("error.queue_failed"), true); DropQueue(); }
 }
@@ -281,8 +330,9 @@ void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen
     if (play_) {
         action.tournament = std::move(*play_);
         play_.reset();
-    } else if (wantAssignments_ && screen == "tournament-matches" && FindBridge(v, bridge_) && !t.list.loading) {
-        wantAssignments_ = false;
+    } else if ((wantAssignments_ && screen == "tournament-matches" || !Owns(screen) && now_ >= assignmentsAt_ && servicesKnown_) &&
+               FindBridge(v, bridge_) && !t.list.loading) {
+        wantAssignments_ = false; assignmentsAt_ = now_ + AssignmentsSeconds;
         action.tournament.op = Command::Op::Refresh;
         action.tournament.bridgeId = bridge_;
         if (opened_ && opened_->bridge == bridge_) opened_->finishedBefore = t.list.finished;
@@ -421,7 +471,16 @@ void IdentityPanel::Finish(const ShellView& v) {
             if (id.state == "ready") Say(loc::T("tournament.failure.link_service"), true, 12);
             opened_.reset();
         }
+        servicesKnown_ = true;
         if (lastScreen_ == "discord-connect") { ConnectNext(v); break; }
+        // Away from these screens only the service is chosen: Ember's own, or the first.
+        if (!Owns(lastScreen_)) {
+            if (!FindBridge(v, bridge_)) {
+                const auto* ember = EmberBridge(v);
+                bridge_ = ember ? ember->id : id.bridges.empty() ? std::string() : id.bridges.front().id;
+            }
+            break;
+        }
         // The Ember ID screen shows the Discord account on Ember's own
         // service: its profile, whose answer asks for the account.
         if (lastScreen_ == "identity") {
@@ -677,6 +736,8 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
         title = loc::T("screen.tournament_matches");
         if (!ready) {
             rows.push_back(Info("id-linked-unavailable", loc::T("identity.linked_needs_id"), {}, loc::T("identity.linked_needs_id_detail")));
+            // Connect Discord creates the Ember ID on the way.
+            rows.push_back(Row("discord-connect", loc::T("screen.connect_discord"), loc::T("identity.connect_discord_detail")));
             return rows;
         }
         const auto& t = v.tournament;
@@ -689,7 +750,9 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
         }
         const auto* bridge = FindBridge(v, bridge_);
         if (!bridge) {
-            rows.push_back(Info("tm-no-service", loc::T("tournament.needs_service"), {}, loc::T("tournament.needs_service_detail")));
+            rows.push_back(Info("tm-no-service", loc::T("tournament.needs_service"), {}, loc::T("tournament.needs_discord_detail")));
+            // Connect Discord sets up Ember's own service; Linked accounts any other.
+            rows.push_back(Row("discord-connect", loc::T("screen.connect_discord"), loc::T("identity.connect_discord_detail")));
             rows.push_back(Row("linked-accounts", loc::T("screen.linked_accounts"), loc::T("identity.linked_detail")));
             return rows;
         }

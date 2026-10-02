@@ -570,6 +570,12 @@ msgstr "설정"
 msgid "home.identity_detail"
 msgstr "대회 경기, 대회 사이트용 Discord 연결 및 Ember ID입니다."
 
+msgid "home.identity_start"
+msgstr "대회에 참가하려면 여기서 시작하세요. Ember ID를 설정하고 Discord를 연결하세요."
+
+msgid "home.identity_matches"
+msgstr "플레이할 수 있는 대회 경기: {0}"
+
 msgid "home.settings_detail"
 msgstr "플레이어, 컨트롤러, 게임플레이 기본 설정, 화면, 언어 및 Discord."
 
@@ -2964,8 +2970,8 @@ msgstr "경기 방에서 나갑니다. 이 목록에서 경기를 다시 플레�
 msgid "tournament.needs_service"
 msgstr "대회 서비스 없음"
 
-msgid "tournament.needs_service_detail"
-msgstr "먼저 연동된 계정에서 대회 서비스를 신뢰하고 계정을 연동하세요."
+msgid "tournament.needs_discord_detail"
+msgstr "먼저 Discord 연결을 사용하세요. 그러면 BluMint 같은 대회 사이트가 나를 찾아 경기를 배정할 수 있습니다. 연동 코드를 받은 사이트라면 대신 연동된 계정을 사용하세요."
 
 msgid "tournament.match"
 msgstr "경기"
@@ -2995,7 +3001,7 @@ msgid "tournament.none"
 msgstr "경기 없음"
 
 msgid "tournament.none_detail"
-msgstr "지금은 대회 서비스에 당신의 경기가 없습니다."
+msgstr "대회 사이트에서 참가 등록을 하세요. 사이트가 경기를 배정하면 여기에 표시되고, Ember가 홈에서 알려 줍니다."
 
 msgid "tournament.refresh_detail"
 msgstr "대회 서비스에 경기를 다시 요청합니다."
@@ -3032,6 +3038,9 @@ msgstr "대회 사이트에서 경기 링크를 복사한 다음 이것을 선�
 
 msgid "tournament.link_opened"
 msgstr "대회 사이트가 경기를 열었습니다. 준비되면 플레이를 누르세요."
+
+msgid "tournament.assigned_notice"
+msgstr "대회 경기가 준비되었습니다. Ember ID를 연 다음 대회 경기를 여세요."
 
 msgid "tournament.link_waiting"
 msgstr "대회 경기 링크가 도착했습니다. 지금 방에서 나간 다음 대회 경기에서 플레이하세요."

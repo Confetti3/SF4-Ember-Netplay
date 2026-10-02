@@ -570,6 +570,12 @@ msgstr "Ustawienia"
 msgid "home.identity_detail"
 msgstr "Twoje mecze turniejowe, Discord dla stron turniejowych i Twoje Ember ID."
 
+msgid "home.identity_start"
+msgstr "Zacznij tutaj, aby grać w turniejach: skonfiguruj Ember ID i połącz Discord."
+
+msgid "home.identity_matches"
+msgstr "Mecze turniejowe gotowe do gry: {0}"
+
 msgid "home.settings_detail"
 msgstr "Gracz, kontroler, domyślne ustawienia gry, interfejs, język i Discord."
 
@@ -2964,8 +2970,8 @@ msgstr "Opuszcza pokój meczu. Mecz można rozegrać ponownie z tej listy."
 msgid "tournament.needs_service"
 msgstr "Brak serwisu turniejowego"
 
-msgid "tournament.needs_service_detail"
-msgstr "Najpierw zaufaj serwisowi turniejowemu i powiąż konto w sekcji Powiązane konta."
+msgid "tournament.needs_discord_detail"
+msgstr "Najpierw użyj opcji Połącz Discord, aby strony turniejowe, na przykład BluMint, mogły Cię znaleźć i przydzielać Ci mecze. Jeśli strona dała Ci kod powiązania, użyj zamiast tego sekcji Powiązane konta."
 
 msgid "tournament.match"
 msgstr "Mecz"
@@ -2995,7 +3001,7 @@ msgid "tournament.none"
 msgstr "Brak meczów"
 
 msgid "tournament.none_detail"
-msgstr "Serwis turniejowy nie ma teraz dla ciebie meczów."
+msgstr "Zarejestruj się na swojej stronie turniejowej. Twoje mecze pojawią się tutaj, gdy strona je przydzieli, a Ember powiadomi Cię o tym na ekranie Start."
 
 msgid "tournament.refresh_detail"
 msgstr "Ponownie pobiera mecze z serwisu turniejowego."
@@ -3032,6 +3038,9 @@ msgstr "Skopiuj link meczu ze strony turnieju, a potem wybierz tę opcję, aby o
 
 msgid "tournament.link_opened"
 msgstr "Strona turnieju otworzyła mecz. Naciśnij Graj, gdy będziesz gotów."
+
+msgid "tournament.assigned_notice"
+msgstr "Mecz turniejowy czeka na Ciebie. Otwórz Ember ID, a potem Mecze turniejowe."
 
 msgid "tournament.link_waiting"
 msgstr "Przyszedł link meczu turniejowego. Opuść swój pokój, a potem zagraj go z sekcji Mecze turniejowe."
