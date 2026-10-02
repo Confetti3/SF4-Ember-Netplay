@@ -13,7 +13,7 @@ use axum::{
     routing::post,
 };
 use common::{Bridge, Player};
-use ember_bridge::{config, integrations::Secrets};
+use ember_bridge::{AppState, Keys, config, integrations::Secrets};
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
 use zeroize::Zeroizing;
@@ -77,7 +77,19 @@ struct Fixture {
     sam: Player,
 }
 
+fn keyed() -> Secrets {
+    Secrets {
+        api_keys: [(CONNECTION.to_owned(), Zeroizing::new("bm-key".to_owned()))].into(),
+        ..Default::default()
+    }
+}
+
 async fn fixture() -> Fixture {
+    fixture_with(keyed()).await
+}
+
+/// The fixture with these integration secrets.
+async fn fixture_with(secrets: Secrets) -> Fixture {
     let (api_base, blumint) = fake_blumint().await;
     let bridge = Bridge::start_with(
         |config| {
@@ -94,10 +106,7 @@ async fn fixture() -> Fixture {
                 }],
             });
         },
-        Secrets {
-            api_keys: [(CONNECTION.to_owned(), Zeroizing::new("bm-key".to_owned()))].into(),
-            ..Default::default()
-        },
+        secrets,
     )
     .await;
     let provider = bridge.provider(CONNECTION).await;
@@ -277,7 +286,8 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
 
 #[tokio::test]
 async fn cancelled_and_disputed_matches_are_restarted_on_blumint() {
-    let f = fixture().await;
+    // BluMint's key is configured only after these matches end.
+    let f = fixture_with(Secrets::default()).await;
     lookup(&f, json!({ "discord": [KATE, SAM] })).await;
     let (_, created) = create(&f, json!({})).await;
     let first = created["matchId"].as_str().unwrap().to_owned();
@@ -291,36 +301,58 @@ async fn cancelled_and_disputed_matches_are_restarted_on_blumint() {
         )
         .await;
     assert_eq!(status, StatusCode::OK);
-    ember_bridge::deliver_to_blumint(f.bridge.state()).await;
-    assert_eq!(
-        submitted(&f),
-        vec![json!({ "matchId": first, "mustRestart": true })]
-    );
 
-    // A result the two games disputed has no organizer at BluMint: the match
-    // is cancelled here, its players are free, and BluMint restarts it.
+    // A match that would wait for an organizer's review has none at BluMint:
+    // removing Sam's link cancels it here and frees its players.
     let (_, created) = create(&f, json!({})).await;
     let second = created["matchId"].as_str().unwrap().to_owned();
-    let id = second.clone();
-    f.bridge
+    let sam = f.sam.id().to_string();
+    let link: String = f
+        .bridge
         .state()
         .db
-        .write(move |tx| {
-            tx.execute(
-                "UPDATE matches SET state = 'needs_review' WHERE id = ?1",
-                [&id],
-            )?;
-            Ok(())
+        .read(move |tx| {
+            Ok(tx.query_row(
+                "SELECT id FROM links WHERE ember_id = ?1 AND connection_id = ?2 AND revoked_at IS NULL",
+                [sam.as_str(), CONNECTION],
+                |row| row.get(0),
+            )?)
         })
         .await
         .unwrap();
-    assert_eq!(match_status(&f, &second).await["status"], "running");
-    ember_bridge::deliver_to_blumint(f.bridge.state()).await;
+    let removed = f
+        .bridge
+        .client
+        .delete(f.bridge.url(&format!("/v1/links/{link}")))
+        .bearer_auth(&f.provider)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(removed.status(), StatusCode::OK);
     assert_eq!(match_status(&f, &second).await["status"], "cancelled");
-    assert_eq!(
-        submitted(&f).last().unwrap(),
-        &json!({ "matchId": second, "mustRestart": true })
+
+    // Without the key nothing is sent; with it, both restarts are.
+    ember_bridge::deliver_to_blumint(f.bridge.state()).await;
+    assert!(submitted(&f).is_empty());
+    let state = f.bridge.state();
+    let with_key = AppState::new(
+        (*state.config).clone(),
+        Keys::generate(),
+        keyed(),
+        state.db.clone(),
+        f.bridge.clock.clone(),
     );
+    ember_bridge::deliver_to_blumint(&with_key).await;
+    let mut sent = submitted(&f);
+    sent.sort_by_key(|body| body["matchId"].as_str().unwrap().to_owned());
+    let mut restarts = vec![
+        json!({ "matchId": first, "mustRestart": true }),
+        json!({ "matchId": second, "mustRestart": true }),
+    ];
+    restarts.sort_by_key(|body| body["matchId"].as_str().unwrap().to_owned());
+    assert_eq!(sent, restarts);
+
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
     let (status, _) = create(&f, json!({})).await;
     assert_eq!(
         status,

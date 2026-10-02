@@ -11,7 +11,8 @@ use serde::{Deserialize, Serialize};
 /// mock login pages when `mock_browser` is set; `blumint` also gets BluMint's
 /// partner API (`routes::blumint`), whose contract was read from BluMint's
 /// published guide and OpenAPI document (spec 22).
-pub const SUPPORTED_KINDS: &[&str] = &["direct", "mock", "blumint"];
+pub const SUPPORTED_KINDS: &[&str] = &["direct", "mock", BLUMINT];
+pub const BLUMINT: &str = "blumint";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -85,6 +86,22 @@ pub struct Connection {
 
 fn enabled() -> bool {
     true
+}
+
+/// What a connection's platform expects of its matches, by kind.
+impl Connection {
+    /// The bridge sends each finished match's result to the platform
+    /// (BluMint). Other platforms read results from the API and events.
+    pub fn sends_results(&self) -> bool {
+        self.kind == BLUMINT
+    }
+
+    /// A disputed match waits in `needs_review` for an organizer, unless the
+    /// platform has no review (BluMint): it is cancelled instead, which the
+    /// platform hears as a restart.
+    pub fn reviews_disputes(&self) -> bool {
+        self.kind != BLUMINT
+    }
 }
 
 impl Config {

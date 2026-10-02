@@ -10,10 +10,11 @@
 //! - match status: pending, running, complete or cancelled, with each player's
 //!   presence and the score.
 //!
-//! When BluMint's API key for the connection is configured, the bridge also
-//! sends each finished match's score to BluMint, or asks it to restart a match
-//! that was cancelled or whose result the two games disputed (BluMint has no
-//! organizer review; a restart is its way to replay). `register` tells BluMint
+//! The bridge sends each finished match's score to BluMint, or asks it to
+//! restart a cancelled match, once BluMint's API key for the connection is
+//! configured. A match whose result the two games disputed is cancelled where
+//! it would wait for review (`matches::needs_review`), since BluMint has no
+//! organizer review; a restart is its way to replay. `register` tells BluMint
 //! where the three endpoints are.
 use std::collections::BTreeMap;
 
@@ -33,19 +34,18 @@ use serde_json::{Value, json};
 
 use crate::{
     AppState, auth,
-    config::Connection,
+    config::{BLUMINT, Connection},
     error::{ApiFailure, Result},
     http::{Body, GENERAL_BODY, ok},
     routes::{
         discord,
         ledger::{Match, load, participants, scores},
         links::{Ctx, audit},
-        matches::{NewMatch, cancel_and_release, insert_match},
+        matches::{NewMatch, insert_match},
     },
     util::{new_id, outbound_client},
 };
 
-pub const KIND: &str = "blumint";
 pub const LOOKUP_PATH: &str = "/v1/blumint/lookup";
 pub const MATCHES_PATH: &str = "/v1/blumint/matches";
 pub const STATUS_PATH: &str = "/v1/blumint/matches/status";
@@ -78,7 +78,7 @@ async fn connection(state: &AppState, headers: &HeaderMap) -> Result<String> {
     let service = auth::service(state, headers).await?;
     let id = service.provider_connection()?.to_owned();
     match state.config.connection(&id) {
-        Some((_, connection)) if connection.kind == KIND => Ok(id),
+        Some((_, connection)) if connection.kind == BLUMINT => Ok(id),
         _ => Err(ApiFailure::not_found()),
     }
 }
@@ -163,7 +163,6 @@ pub async fn create(
             .ok_or_else(|| ApiFailure::invalid("matchSettings.gamesToWin must be 1, 2, 3 or 5."))?,
     };
     let ctx = Ctx::of(&state);
-    let delivers = state.integrations.api_keys.contains_key(&connection_id);
     let bridge_id = state.config.bridge_id.clone();
     let match_id = state
         .db
@@ -180,7 +179,7 @@ pub async fn create(
             let rules = Rules::standard(games_to_win, PROFILE);
             let external_match_id = new_id("blumint");
             let digest = wire::digest(&json!({ "blumint": external_match_id }))?;
-            let id = insert_match(
+            insert_match(
                 tx,
                 &ctx,
                 &NewMatch {
@@ -195,14 +194,7 @@ pub async fn create(
                     lobby_id: None,
                     tournament_id: None,
                 },
-            )?;
-            if delivers {
-                tx.execute(
-                    "UPDATE matches SET delivery_state = 'queued' WHERE id = ?1",
-                    [&id],
-                )?;
-            }
-            Ok(id)
+            )
         })
         .await?;
     state.committed();
@@ -313,20 +305,9 @@ struct Due {
 /// Sends what is due to BluMint, once. `run` repeats it; tests call it.
 pub async fn deliver_once(state: &AppState) {
     let ctx = Ctx::of(state);
-    // A disputed result has no organizer at BluMint: the match is cancelled
-    // here and BluMint is asked to restart it.
     let due = state
         .db
         .write(move |tx| {
-            let disputed: Vec<String> = tx
-                .prepare("SELECT id FROM matches WHERE delivery_state IN ('queued', 'retrying') AND state = 'needs_review'")?
-                .query_map([], |row| row.get(0))?
-                .collect::<rusqlite::Result<_>>()?;
-            for id in disputed {
-                if let Some(found) = load(tx, &id)? {
-                    cancel_and_release(tx, &ctx, &found, "The two games disagreed; BluMint restarts the match.")?;
-                }
-            }
             Ok(tx
                 .prepare(
                     "SELECT id, connection_id, delivery_attempts FROM matches
@@ -334,7 +315,11 @@ pub async fn deliver_once(state: &AppState) {
                        AND state IN ('completed', 'cancelled', 'failed') LIMIT 16",
                 )?
                 .query_map([ctx.now], |row| {
-                    Ok(Due { id: row.get(0)?, connection_id: row.get(1)?, attempts: row.get(2)? })
+                    Ok(Due {
+                        id: row.get(0)?,
+                        connection_id: row.get(1)?,
+                        attempts: row.get(2)?,
+                    })
                 })?
                 .collect::<rusqlite::Result<Vec<_>>>()?)
         })
@@ -419,7 +404,7 @@ pub async fn register(state: &AppState, connection_id: &str) -> std::result::Res
     let Some((_, connection)) = state
         .config
         .connection(connection_id)
-        .filter(|(_, c)| c.kind == KIND)
+        .filter(|(_, c)| c.kind == BLUMINT)
     else {
         return Err(format!("{connection_id} is not a blumint connection"));
     };

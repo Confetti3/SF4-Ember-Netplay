@@ -28,6 +28,7 @@ use crate::{
     routes::{
         ledger::{Cause, Match, bump, load, match_event, participants, scores, settle},
         links::Ctx,
+        matches,
         play::{self, fighter},
     },
     util::new_id,
@@ -341,21 +342,7 @@ fn hold(
     if changed == 0 || current.state.is_terminal() || current.state == MatchState::NeedsReview {
         return Ok(());
     }
-    let revision = bump(tx, &current, MatchState::NeedsReview, ctx.now)?;
-    match_event(
-        tx,
-        ctx,
-        &current,
-        Kind::NeedsReview,
-        json!({
-            "match_id": match_id,
-            "match_revision": revision.to_string(),
-            "state": MatchState::NeedsReview,
-            "attempt_id": attempt_id,
-            "reason": reason,
-        }),
-    )?;
-    Ok(())
+    matches::needs_review(tx, ctx, &current, reason, Some(attempt_id))
 }
 
 /// Holds attempts whose second report never came, and permitted games that

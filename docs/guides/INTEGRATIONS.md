@@ -198,11 +198,13 @@ the connection's provider credential as `Authorization: Bearer`:
   `pending`, `running`, `complete` or `cancelled`, with each player's presence
   and score.
 
-With BluMint's API key for the connection in the integration secrets, the
-bridge posts each completed match's score to BluMint, and `mustRestart` for a
-cancelled match. A match in `needs_review` is cancelled and posted as
-`mustRestart`, since BluMint has no review step. Posts are retried for a day;
-the match's `provider_delivery_state` says how it went. `ember-bridge
+The bridge posts each completed match's score to BluMint, and `mustRestart`
+for a cancelled match. BluMint has no review step, so a match that would go
+to `needs_review` (the two games disagree, a report never arrives, a player's
+link ends) is cancelled instead. Posts need BluMint's API key for the
+connection in the integration secrets; a match that ends before the key is
+there is posted once it is. Posts are retried for a day; the match's
+`provider_delivery_state` says how it went. `ember-bridge
 blumint-register <bridge.json> <connection>` registers the three endpoints
 with BluMint, handing over a new provider credential that is never shown.
 `BLUMINT_QUICKSTART.md` is the guide for BluMint's side.

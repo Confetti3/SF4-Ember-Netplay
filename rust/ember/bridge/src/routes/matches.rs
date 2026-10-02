@@ -281,11 +281,15 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
         }
     }
     let id = crate::util::new_id("emt");
+    let delivery = match ctx.config.connection(new.connection_id) {
+        Some((_, connection)) if connection.sends_results() => "queued",
+        _ => "not_required",
+    };
     tx.execute(
         "INSERT INTO matches (id, tenant_id, connection_id, external_match_id, create_digest, revision,
             assignment_generation, state, games_to_win, rules, required_build_id, metadata, delivery_state,
             created_at, updated_at, lobby_id, tournament_id)
-         VALUES (?1, ?2, ?3, ?4, ?5, 1, 1, 'awaiting_players', ?6, ?7, ?8, ?9, 'not_required', ?10, ?10, ?11, ?12)",
+         VALUES (?1, ?2, ?3, ?4, ?5, 1, 1, 'awaiting_players', ?6, ?7, ?8, ?9, ?13, ?10, ?10, ?11, ?12)",
         params![
             id,
             new.tenant_id,
@@ -298,7 +302,8 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
             serde_json::to_string(new.metadata).unwrap_or_default(),
             ctx.now,
             new.lobby_id,
-            new.tournament_id
+            new.tournament_id,
+            delivery
         ],
     )?;
     for participant in new.participants {
@@ -918,15 +923,41 @@ pub fn on_unlink(
             "UPDATE attempts SET state = 'review' WHERE match_id = ?1 AND state = 'permitted'",
             [&id],
         )?;
-        let revision = bump(tx, &found, MatchState::NeedsReview, ctx.now)?;
-        match_event(
-            tx,
-            ctx,
-            &found,
-            Kind::NeedsReview,
-            json!({ "match_id": id, "match_revision": revision.to_string(), "state": "needs_review", "reason": "identity_unlinked" }),
-        )?;
+        needs_review(tx, ctx, &found, "identity_unlinked", None)?;
     }
+    Ok(())
+}
+
+/// A match whose result needs a person (spec 16.6) waits in `needs_review`
+/// for its organizer. Where the platform has no review
+/// (`Connection::reviews_disputes`), it is cancelled instead and its players
+/// are free. `attempt_id` is the game held, when one is.
+pub fn needs_review(
+    tx: &Transaction<'_>,
+    ctx: &Ctx,
+    found: &Match,
+    reason: &str,
+    attempt_id: Option<&str>,
+) -> Result<()> {
+    let reviewed = ctx
+        .config
+        .connection(&found.connection_id)
+        .is_none_or(|(_, connection)| connection.reviews_disputes());
+    if !reviewed {
+        cancel_and_release(tx, ctx, found, reason)?;
+        return Ok(());
+    }
+    let revision = bump(tx, found, MatchState::NeedsReview, ctx.now)?;
+    let mut data = json!({
+        "match_id": found.id,
+        "match_revision": revision.to_string(),
+        "state": MatchState::NeedsReview,
+        "reason": reason,
+    });
+    if let Some(attempt_id) = attempt_id {
+        data["attempt_id"] = json!(attempt_id);
+    }
+    match_event(tx, ctx, found, Kind::NeedsReview, data)?;
     Ok(())
 }
 
