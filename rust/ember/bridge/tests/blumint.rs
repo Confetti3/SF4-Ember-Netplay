@@ -303,6 +303,24 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
     assert_eq!(status, StatusCode::BAD_REQUEST);
     let (status, _) = create(&f, json!({ "gamesToWin": 4 })).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
+    // One player on both sides is refused, and nothing is created.
+    let (status, refused) = f
+        .bridge
+        .post(
+            &f.provider,
+            "/v1/blumint/matches",
+            json!({ "teams": [ { "players": [ { "inGameId": f.kate.id() } ] }, { "players": [ { "inGameId": f.kate.id() } ] } ] }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    let matches: i64 = f
+        .bridge
+        .state()
+        .db
+        .read(|tx| Ok(tx.query_row("SELECT COUNT(*) FROM matches", [], |row| row.get(0))?))
+        .await
+        .unwrap();
+    assert_eq!(matches, 0);
 
     let (status, created) = create(&f, json!({ "gamesToWin": 1, "gravity": 1.1 })).await;
     assert_eq!(status, StatusCode::OK, "{created}");

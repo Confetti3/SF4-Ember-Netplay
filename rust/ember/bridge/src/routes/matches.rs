@@ -259,6 +259,13 @@ pub fn linked(
 /// Checks the roster against current links and other active matches, then
 /// records the match and its `match.created` event. Returns the new ID.
 pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Result<String> {
+    // Every creation path meets here, so the two fighters are told apart here.
+    let [first, second] = new.participants;
+    if first.ember_id == second.ember_id || first.participant_id == second.participant_id {
+        return Err(ApiFailure::invalid(
+            "A match is between two different players.",
+        ));
+    }
     for participant in new.participants {
         if !linked(
             tx,
