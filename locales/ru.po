@@ -2733,6 +2733,15 @@ msgstr "Аккаунт Discord {0} подключён. Можно вернуть
 msgid "connect.link_waiting"
 msgstr "Турнирный сайт просит подключить Discord. Ember откроет «Подключить Discord», когда вы выйдете из зала."
 
+msgid "connect.paste"
+msgstr "Вставить ссылку"
+
+msgid "connect.paste_detail"
+msgstr "Если кнопка «Open in Ember» не открыла Ember, скопируйте ссылку на странице Ember вашего турнирного сайта и вставьте её сюда. Затем Ember подключит Discord через турнирный сервис этого сайта."
+
+msgid "connect.paste_failed"
+msgstr "Это не ссылка со страницы Ember турнирного сайта. Скопируйте её со страницы ещё раз."
+
 msgid "identity.site"
 msgstr "Сайт"
 

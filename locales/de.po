@@ -2733,6 +2733,15 @@ msgstr "Discord-Konto {0} verbunden. Sie können zur Turnierseite zurückkehren.
 msgid "connect.link_waiting"
 msgstr "Eine Turnierseite bittet Sie, Discord zu verbinden. Ember öffnet die Seite Discord verbinden, sobald Sie den Raum verlassen."
 
+msgid "connect.paste"
+msgstr "Link einfügen"
+
+msgid "connect.paste_detail"
+msgstr "Falls sich Ember über die Schaltfläche Open in Ember nicht geöffnet hat, kopieren Sie den Link auf der Ember-Seite Ihrer Turnierseite und fügen Sie ihn hier ein. Ember verbindet Discord dann beim Turnierdienst dieser Seite."
+
+msgid "connect.paste_failed"
+msgstr "Das ist kein Link von der Ember-Seite einer Turnierseite. Kopieren Sie ihn erneut von der Seite."
+
 msgid "identity.site"
 msgstr "Seite"
 

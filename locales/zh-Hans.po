@@ -2733,6 +2733,15 @@ msgstr "已关联 Discord 账号 {0}。你可以返回赛事网站了。"
 msgid "connect.link_waiting"
 msgstr "有赛事网站请求你关联 Discord。离开房间后，Ember 会打开“关联 Discord”。"
 
+msgid "connect.paste"
+msgstr "粘贴链接"
+
+msgid "connect.paste_detail"
+msgstr "如果“Open in Ember”没有打开 Ember，请在赛事网站的 Ember 页面复制链接并粘贴到这里。之后 Ember 会通过该网站的赛事服务关联 Discord。"
+
+msgid "connect.paste_failed"
+msgstr "这不是赛事网站 Ember 页面上的链接。请从该页面重新复制。"
+
 msgid "identity.site"
 msgstr "网站"
 

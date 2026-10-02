@@ -2733,6 +2733,15 @@ msgstr "Discord-account {0} gekoppeld. Je kunt teruggaan naar de toernooisite."
 msgid "connect.link_waiting"
 msgstr "Een toernooisite vraagt je om Discord te koppelen. Ember opent Discord koppelen zodra je de kamer verlaat."
 
+msgid "connect.paste"
+msgstr "Link plakken"
+
+msgid "connect.paste_detail"
+msgstr "Als Ember niet opende via de knop Open in Ember, kopieer dan de link op de Ember-pagina van je toernooisite en plak hem hier. Ember koppelt Discord daarna bij de toernooidienst van die site."
+
+msgid "connect.paste_failed"
+msgstr "Dat is geen link van de Ember-pagina van een toernooisite. Kopieer hem opnieuw van de pagina."
+
 msgid "identity.site"
 msgstr "Site"
 

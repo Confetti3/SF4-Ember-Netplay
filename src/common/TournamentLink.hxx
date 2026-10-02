@@ -135,14 +135,36 @@ inline MatchLink ParsePageLink(const std::string& text) {
 	return Checked(rest.substr(0, slash), rest.substr(slash + 1));
 }
 
-// What a player pasted: either link, with stray spaces or quotes around it.
-inline MatchLink ParsePasted(const std::string& text) {
+// Pasted text without the stray spaces or quotes around it.
+inline std::string Trimmed(const std::string& text) {
 	std::string trimmed = text;
 	while (!trimmed.empty() && (trimmed[0] == ' ' || trimmed[0] == '"')) trimmed.erase(0, 1);
 	while (!trimmed.empty() && (trimmed[trimmed.size() - 1] == ' ' || trimmed[trimmed.size() - 1] == '"'))
 		trimmed.erase(trimmed.size() - 1);
+	return trimmed;
+}
+
+// What a player pasted: either link, with stray spaces or quotes around it.
+inline MatchLink ParsePasted(const std::string& text) {
+	const std::string trimmed = Trimmed(text);
 	const MatchLink link = ParseLink(trimmed);
 	return link.Valid() ? link : ParsePageLink(trimmed);
+}
+
+// The page a tournament site sends a player it could not find. Its fragment
+// names the site's service.
+inline const char* ConnectPagePrefix() { return "https://embernetplay.link/start#"; }
+
+// The service a pasted connect link names: the page's own link, as its Copy
+// button gives it, or the ember: link, with stray spaces or quotes; or "".
+inline std::string ParseConnectPasted(const std::string& text) {
+	const std::string trimmed = Trimmed(text);
+	const std::string bridge = ParseConnectLink(trimmed);
+	if (!bridge.empty()) return bridge;
+	if (!PlainText(trimmed) || !StartsWithFolded(trimmed, ConnectPagePrefix())) return std::string();
+	std::string rest = trimmed.substr(std::char_traits<char>::length(ConnectPagePrefix()));
+	if (!rest.empty() && rest[rest.size() - 1] == '/') rest.erase(rest.size() - 1);
+	return IsBridgeId(rest) ? rest : std::string();
 }
 
 } // namespace tournament_link

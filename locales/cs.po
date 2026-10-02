@@ -2733,6 +2733,15 @@ msgstr "Účet Discord {0} je připojen. Můžete se vrátit na turnajový web."
 msgid "connect.link_waiting"
 msgstr "Turnajový web vás žádá o připojení Discordu. Ember otevře obrazovku Připojit Discord, až opustíte místnost."
 
+msgid "connect.paste"
+msgstr "Vložit odkaz"
+
+msgid "connect.paste_detail"
+msgstr "Pokud tlačítko Open in Ember nespustilo Ember, zkopírujte odkaz ze stránky Ember na vašem turnajovém webu a vložte ho sem. Ember pak připojí Discord k turnajové službě tohoto webu."
+
+msgid "connect.paste_failed"
+msgstr "Toto není odkaz ze stránky Ember turnajového webu. Zkopírujte ho ze stránky znovu."
+
 msgid "identity.site"
 msgstr "Web"
 

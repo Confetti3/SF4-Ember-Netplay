@@ -120,6 +120,20 @@ static void TestOnlyTheConnectLinkIsAccepted() {
 	CHECK(ParseConnectLink(nul).empty());
 	// A connect link is neither a room nor a match link.
 	CHECK(ParseUri(link).empty() && !ParseLink(link).Valid());
+	// Pasted: the page's own link, as its Copy button gives it, or the ember:
+	// link, with spaces or quotes around either.
+	const std::string page = std::string(ConnectPagePrefix()) + bridge;
+	CHECK(ParseConnectPasted(page) == bridge && ParseConnectPasted(" \"" + page + "/\" ") == bridge);
+	CHECK(ParseConnectPasted("HTTPS://EmberNetplay.link/START#" + bridge) == bridge);
+	CHECK(ParseConnectPasted("\"" + link + "\"") == bridge);
+	const std::string refusedPages[] = {
+		"", "hello", bridge, "https://embernetplay.link/start", "https://embernetplay.link/start#",
+		"https://embernetplay.link/start#" + std::string(Match), "https://embernetplay.link/m#" + bridge,
+		"https://example.com/start#" + bridge, "http://embernetplay.link/start#" + bridge, page + "/x", page + " x",
+		"https://embernetplay.link/start#" + bridge.substr(0, 39),
+	};
+	for (const auto& text : refusedPages) CHECK(ParseConnectPasted(text).empty());
+	CHECK(!ParsePasted(page).Valid());
 }
 
 #ifdef _WIN32

@@ -106,11 +106,11 @@
       lead: 'Your tournament site finds players by their Discord account. Ember connects yours in a few steps.',
       code: null,
       ember: 'ember://discord/connect?bridge=' + bridge,
-      link: null,
+      link: 'https://embernetplay.link/start#' + bridge,
       after: 'Ember opens Connect Discord and walks you through it. Your browser may ask first whether to open Ember. When it says Discord is connected, come back to your tournament site.',
-      fallback: 'That happens when Ember has not been started on this PC yet, on Linux or Steam Deck, or when the browser blocks it. Do it from Ember instead:',
+      fallback: 'That happens when Ember has not been started on this PC yet, on Linux or Steam Deck, or when the browser blocks it. Copy the link and paste it into Ember instead, so it connects Discord for this site:',
       steps: ['Start SF4 Ember Netplay.', 'Choose <strong>Settings</strong>, then <strong>Ember ID</strong>, and create your Ember ID if you have none.',
-        'Choose <strong>Connect Discord</strong> and follow the steps.'],
+        'Choose <strong>Connect Discord</strong>, then <strong>Paste link</strong>, and follow the steps.'],
       lasts: 'Discord is optional in Ember. Tournament sites that find players by Discord account, such as BluMint, need it.'
     };
   }
@@ -140,9 +140,7 @@
     // The steps are this page's own fixed text.
     document.getElementById('steps').innerHTML = found.steps.map(function (step) { return '<li>' + step + '</li>'; }).join('');
     if (found.fallback) document.getElementById('fallback-lead').textContent = found.fallback;
-    var copyLink = document.getElementById('copy-link');
-    if (found.link) copyLink.addEventListener('click', function () { copy(found.link, 'Link copied. Paste it into Ember.'); });
-    else copyLink.parentNode.hidden = true;
+    document.getElementById('copy-link').addEventListener('click', function () { copy(found.link, 'Link copied. Paste it into Ember.'); });
     if (found.code) {
       var code = document.getElementById('code');
       code.textContent = found.code;

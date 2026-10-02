@@ -2733,6 +2733,15 @@ msgstr "Discordアカウント{0}を連携しました。大会サイトに戻�
 msgid "connect.link_waiting"
 msgstr "大会サイトからDiscordの連携を求められました。ルームから退出すると、Emberが「Discordを連携」を開きます。"
 
+msgid "connect.paste"
+msgstr "リンクを貼り付け"
+
+msgid "connect.paste_detail"
+msgstr "「Open in Ember」でEmberが開かなかった場合は、大会サイトのEmberページでリンクをコピーし、ここに貼り付けてください。その後、Emberがそのサイトの大会サービスでDiscordを連携します。"
+
+msgid "connect.paste_failed"
+msgstr "大会サイトのEmberページのリンクではありません。ページからもう一度コピーしてください。"
+
 msgid "identity.site"
 msgstr "サイト"
 

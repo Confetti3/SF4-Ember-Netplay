@@ -507,6 +507,48 @@ void DiscordConnectKeepsItsService(){
  Check(sent().back()->op==IdentityOp::DiscordConnect&&sent().back()->bridge=="brg_2","Connect did not name the link's service");
  SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
+// Where the browser cannot open Ember, the page's link pasted into Connect
+// Discord, opened from the menu, starts the journey for the site's service,
+// not Ember's own. Something else pasted says so and changes nothing.
+std::string g_pasted;
+void DiscordConnectPastedLink(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";
+ id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
+ const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
+ const std::string site="brg_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12";
+ id.bridges={{"brg_1",ember,"Ember"},{site,other,"Other"}};h.Frame();
+ std::vector<MenuEntry> rows;std::string status;
+ SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
+ const auto row=[&](const char* name)->const MenuEntry*{const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;});return it==rows.end()?nullptr:&*it;};
+ const auto sent=[&]{std::vector<const netplay::IdentityRequest*> out;for(const auto& a:h.actions)if(a.identity.op!=IdentityOp::None)out.push_back(&a.identity);return out;};
+ const auto answer=[&]{
+  h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=true;id.failure.clear();h.Frame(0,2);
+ };
+ const auto until=[&](IdentityOp op){for(int i=0;i<10&&sent().back()->op!=op;++i)answer();return sent().back()->op==op;};
+ auto& clipboard=ImGui::GetPlatformIO();
+ clipboard.Platform_GetClipboardTextFn=[](ImGuiContext*){return g_pasted.c_str();};
+ // From the menu, Connect Discord is for Ember's own service.
+ h.Screen("identity");for(int i=0;i<4;++i)answer();
+ h.Choose("discord-connect");
+ Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==ember,"Connect Discord from the menu is not for Ember's own service");
+ id.inspected=id.bridges[0];id.inspectedDiscord=true;answer();for(int i=0;i<4;++i)answer();
+ Check(row("dc-paste")!=nullptr,"Connect Discord does not offer to paste the page's link");
+ // Something else pasted says so.
+ g_pasted="hello";const auto before=sent().size();h.Choose("dc-paste");h.Frame();
+ Check(status==loc::T("connect.paste_failed")&&sent().size()==before,"Pasting something else did not say so");
+ // The page's link starts the journey for the site's service.
+ g_pasted="https://embernetplay.link/start#"+site;h.Choose("dc-paste");
+ Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==other,"A pasted page link did not start the journey for its service");
+ id.inspected=id.bridges[1];id.inspectedDiscord=true;answer();
+ Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge==site,"The site's service's account was not read");
+ id.discordUser.clear();id.discordName.clear();answer();
+ Check(row("dc-service")&&row("dc-service")->value=="Other","Connect Discord does not show the site's service");
+ h.Choose("id-discord-connect");
+ Check(sent().back()->op==IdentityOp::DiscordConnect&&sent().back()->bridge==site,"Connect did not name the site's service");
+ clipboard.Platform_GetClipboardTextFn=nullptr;
+ SetMenuEntriesProbe({});SetMenuStatusProbe({});
+}
 // A sign-in started under Linked accounts before any Connect Discord visit
 // is retired like any other once a connect link arrives: its late Connect
 // answer, a failed or an unanswered poll neither stop the new journey nor
@@ -551,5 +593,5 @@ void FirstSignInRetires(){
   SetMenuEntriesProbe({});SetMenuStatusProbe({});
  }
 }
-int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
+int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();DiscordConnectPastedLink();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

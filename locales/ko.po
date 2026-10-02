@@ -2733,6 +2733,15 @@ msgstr "Discord 계정 {0}을(를) 연결했습니다. 대회 사이트로 돌�
 msgid "connect.link_waiting"
 msgstr "대회 사이트에서 Discord 연결을 요청했습니다. 방을 나가면 Ember가 Discord 연결 화면을 엽니다."
 
+msgid "connect.paste"
+msgstr "링크 붙여넣기"
+
+msgid "connect.paste_detail"
+msgstr "Open in Ember로 Ember가 열리지 않았다면 대회 사이트의 Ember 페이지에서 링크를 복사해 여기에 붙여넣으세요. 그러면 Ember가 그 사이트의 대회 서비스에서 Discord를 연결합니다."
+
+msgid "connect.paste_failed"
+msgstr "대회 사이트의 Ember 페이지에서 복사한 링크가 아닙니다. 페이지에서 다시 복사하세요."
+
 msgid "identity.site"
 msgstr "사이트"
 

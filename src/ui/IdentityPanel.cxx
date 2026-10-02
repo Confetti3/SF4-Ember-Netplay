@@ -609,6 +609,9 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
         } else {
             ConnectRows(v, rows, busy);
         }
+        // Where Open in Ember cannot open the game, the page's link is pasted.
+        rows.push_back(Row("dc-paste", loc::T("connect.paste"), loc::T("connect.paste_detail")));
+        rows.back().hint = loc::T("menu.hint.paste");
     } else if (screen == "tournament-matches") {
         title = loc::T("screen.tournament_matches");
         if (!ready) {
@@ -670,6 +673,15 @@ void IdentityPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
     if (a.id == "identity" || a.id == "linked-accounts" || a.id == "identity-backup" || a.id == "tournament-matches" ||
         a.id == "discord-connect") { nav.Push(a.id); return; }
     if (a.id == "dc-retry") { message_.clear(); Refresh(v, "discord-connect"); return; }
+    if (a.id == "dc-paste") {
+        // The tournament site's link names its service; the journey starts over for it.
+        const char* text = ImGui::GetClipboardText();
+        const std::string bridge = tournament_link::ParseConnectPasted(text ? text : "");
+        if (bridge.empty()) { Say(loc::T("connect.paste_failed"), true); return; }
+        message_.clear();
+        OpenDiscord(bridge);
+        return;
+    }
     if (a.id == "tm-refresh") { wantAssignments_ = true; message_.clear(); return; }
     if (a.id == "tm-paste") {
         // The match link the tournament site gave: its page or the ember: link.
