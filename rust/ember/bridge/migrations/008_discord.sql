@@ -1,3 +1,6 @@
+-- Match links (play_url) replaced the one-use browser handoffs of version 7.
+DROP TABLE handoffs;
+
 -- Discord accounts players connected to their Ember IDs through Discord's own
 -- sign-in. One account per Ember ID and one Ember ID per account; the latest
 -- sign-in replaces both. Platforms that find players by Discord account read

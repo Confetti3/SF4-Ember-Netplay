@@ -2,7 +2,7 @@
 -- player's Discord sign-in approved: approved_via 'discord', with the Discord
 -- user ID as the evidence in claim_id. SQLite cannot change a CHECK, so the
 -- table is rebuilt; nothing references it.
-CREATE TABLE links_v8 (
+CREATE TABLE links_v9 (
     id TEXT PRIMARY KEY,
     account_id TEXT NOT NULL REFERENCES external_accounts(id),
     connection_id TEXT NOT NULL REFERENCES provider_connections(id),
@@ -14,10 +14,10 @@ CREATE TABLE links_v8 (
     revoked_at INTEGER,
     revoked_by TEXT
 );
-INSERT INTO links_v8 SELECT id, account_id, connection_id, ember_id, approved_via, claim_id,
+INSERT INTO links_v9 SELECT id, account_id, connection_id, ember_id, approved_via, claim_id,
     consented_at, approved_at, revoked_at, revoked_by FROM links;
 DROP TABLE links;
-ALTER TABLE links_v8 RENAME TO links;
+ALTER TABLE links_v9 RENAME TO links;
 CREATE UNIQUE INDEX links_active_account ON links (account_id) WHERE revoked_at IS NULL;
 CREATE UNIQUE INDEX links_active_identity ON links (ember_id, connection_id) WHERE revoked_at IS NULL;
 

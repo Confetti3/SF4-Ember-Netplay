@@ -10,6 +10,8 @@ use rusqlite::{Connection, Transaction, TransactionBehavior};
 
 use crate::error::ApiFailure;
 
+/// Applied in order, each once, recorded by version. A version that shipped
+/// keeps its number and its contents; a change is a new version at the end.
 const MIGRATIONS: &[(i64, &str)] = &[
     (1, include_str!("../migrations/001_identity.sql")),
     (2, include_str!("../migrations/002_matches.sql")),
@@ -17,8 +19,9 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (4, include_str!("../migrations/004_records.sql")),
     (5, include_str!("../migrations/005_tournaments.sql")),
     (6, include_str!("../migrations/006_play.sql")),
-    (7, include_str!("../migrations/007_discord.sql")),
-    (8, include_str!("../migrations/008_blumint.sql")),
+    (7, include_str!("../migrations/007_handoffs.sql")),
+    (8, include_str!("../migrations/008_discord.sql")),
+    (9, include_str!("../migrations/009_blumint.sql")),
 ];
 
 #[derive(Clone)]
@@ -32,7 +35,7 @@ impl Db {
         connection.pragma_update(None, "foreign_keys", "ON")?;
         connection.busy_timeout(std::time::Duration::from_secs(5))?;
         let mut db = connection;
-        migrate(&mut db)?;
+        migrate(&mut db, MIGRATIONS)?;
         Ok(Self(Arc::new(Mutex::new(db))))
     }
 
@@ -72,11 +75,11 @@ impl Db {
     }
 }
 
-fn migrate(connection: &mut Connection) -> rusqlite::Result<()> {
+fn migrate(connection: &mut Connection, migrations: &[(i64, &str)]) -> rusqlite::Result<()> {
     connection.execute_batch(
         "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)",
     )?;
-    for (version, sql) in MIGRATIONS {
+    for (version, sql) in migrations {
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let applied: bool = transaction.query_row(
             "SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE version = ?1)",
@@ -93,4 +96,53 @@ fn migrate(connection: &mut Connection) -> rusqlite::Result<()> {
         transaction.commit()?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn table_exists(connection: &Connection, name: &str) -> bool {
+        connection
+            .query_row(
+                "SELECT EXISTS (SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1)",
+                [name],
+                |row| row.get(0),
+            )
+            .unwrap()
+    }
+
+    #[test]
+    fn a_database_from_before_discord_upgrades_to_the_current_schema() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection.pragma_update(None, "foreign_keys", "ON").unwrap();
+        // Versions 1 to 7 as they shipped, the last with browser handoffs.
+        migrate(&mut connection, &MIGRATIONS[..7]).unwrap();
+        assert!(table_exists(&connection, "handoffs"));
+        assert!(!table_exists(&connection, "discord_accounts"));
+
+        migrate(&mut connection, MIGRATIONS).unwrap();
+        assert!(!table_exists(&connection, "handoffs"));
+        assert!(table_exists(&connection, "discord_accounts"));
+        assert!(table_exists(&connection, "discord_sign_ins"));
+        let links_sql: String = connection
+            .query_row(
+                "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'links'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(links_sql.contains("'discord'"), "{links_sql}");
+        connection
+            .prepare("SELECT delivery_attempts, delivery_next_at FROM matches")
+            .unwrap();
+        let versions: Vec<i64> = connection
+            .prepare("SELECT version FROM schema_migrations ORDER BY version")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        assert_eq!(versions, (1..=9).collect::<Vec<_>>());
+    }
 }
