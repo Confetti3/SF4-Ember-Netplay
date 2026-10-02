@@ -6,6 +6,7 @@
 #include <optional>
 #include <cstdint>
 #include <deque>
+#include <map>
 #include <functional>
 #include <string>
 #include <vector>
@@ -84,6 +85,8 @@ private:
     // Connect Discord starts over: a sign-in an earlier visit opened is no
     // longer waited for, and its late answers start no wait.
     void NewJourney();
+    // The answer in flight is a Connect from a journey since replaced.
+    bool Superseded() const;
 
     std::deque<Queued> queue_;
     std::uint64_t nextTicket_ = 0, sent_ = 0;
@@ -104,8 +107,12 @@ private:
     std::string restorePath_, origin_ = EmberService, code_;
     // The selected service and site, and the service whose links the view lists.
     std::string bridge_, connection_, listedBridge_, sentBridge_;
-    // The service the view's Discord account was last read from.
-    std::string discordBridge_;
+    // The Discord account last read from each service: its user ID (empty
+    // when none is connected) and name. A service not here was not read.
+    struct DiscordAccount {
+        std::string user, name;
+    };
+    std::map<std::string, DiscordAccount> discord_;
     // The service a connect link named; empty for Ember's own. Whether this
     // visit already looked Ember's own service up.
     std::string connectBridge_;

@@ -373,9 +373,10 @@ void DiscordConnectLink(){
  SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
 // The wait for a Discord sign-in belongs to the service it was opened for:
-// another service that already has an account does not end it, and a new
-// connect link stops waiting for the old one, even when the old Connect's
-// answer arrives after it.
+// another service that already has an account does not end it, its polls do
+// not change what another selected service shows, and a new connect link
+// stops waiting for the old one. An old Connect's late answer, success or
+// failure, changes nothing in the new visit.
 void DiscordWaitsForItsService(){
  using namespace sf4e;using netplay::IdentityOp;
  Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";
@@ -384,6 +385,7 @@ void DiscordWaitsForItsService(){
  id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};h.Frame();
  std::vector<MenuEntry> rows;std::string status;
  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
+ const auto row=[&](const char* name)->const MenuEntry*{const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;});return it==rows.end()?nullptr:&*it;};
  const auto sent=[&]{std::vector<const netplay::IdentityRequest*> out;for(const auto& a:h.actions)if(a.identity.op!=IdentityOp::None)out.push_back(&a.identity);return out;};
  const auto answer=[&]{
   h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=true;id.failure.clear();h.Frame(0,2);
@@ -403,6 +405,7 @@ void DiscordWaitsForItsService(){
  const auto connect=sent().back()->ticket;
  h.view.tournament.connect.bridge="brg_2";h.view.tournament.connect.sequence=2;h.Frame(0,2);
  h.view.identityTicket=connect;h.view.identityRequest=id.requestId=connect+100;id.ok=true;h.Frame(0,2);
+ Check(status!=loc::T("identity.done.discord_opened"),"A replaced visit's Connect answer changed the status");
  Check(until(IdentityOp::BridgeInspect),"The second link did not inspect its service");
  id.inspected=id.bridges[1];id.inspectedDiscord=true;answer();
  Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge=="brg_2","The second link did not read its service's account");
@@ -418,6 +421,30 @@ void DiscordWaitsForItsService(){
  Check(sent().back()->op==IdentityOp::DiscordStatus&&sent().back()->bridge=="brg_1","The poll did not read the sign-in's service");
  id.discordUser="222";id.discordName="kate";answer();
  Check(status==loc::Tf("connect.done","kate"),"The sign-in's own account did not end the wait");
+ // A failed late answer does not reach the new visit either.
+ id.discordUser.clear();id.discordName.clear();
+ open("brg_1",4,id.bridges[0]);answer();
+ h.Choose("id-discord-connect");const auto failing=sent().back()->ticket;
+ h.view.tournament.connect.bridge="brg_2";h.view.tournament.connect.sequence=5;h.Frame(0,2);
+ h.view.identityTicket=failing;h.view.identityRequest=id.requestId=failing+100;id.ok=false;id.failure="rate_limited";h.Frame(0,2);
+ Check(status!=loc::T("identity.failure.rate_limited"),"A replaced visit's failed Connect changed the status");
+ Check(until(IdentityOp::BridgeInspect),"A replaced visit's failed Connect dropped the new visit's requests");
+ // Under Linked accounts, the selected service keeps showing its own
+ // account while the sign-in on Ember's service is polled.
+ open("brg_1",6,id.bridges[0]);id.discordUser.clear();id.discordName.clear();answer();
+ h.Choose("id-discord-connect");answer();
+ h.Screen("linked-accounts");for(int i=0;i<8;++i)answer();
+ h.FocusOn("id-bridge");h.Press(MenuInput::Select);h.Press(MenuInput::Down);h.Press(MenuInput::Select);
+ Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==other,"Selecting the other service did not inspect it");
+ id.inspected=id.bridges[1];id.inspectedDiscord=true;answer();
+ Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge=="brg_2","The other service's account was not read");
+ id.discordUser="111";id.discordName="sam";answer();for(int i=0;i<4;++i)answer();
+ Check(row("id-discord-remove")&&row("id-discord-remove")->value=="sam","The other service's account is not shown");
+ id.discordUser.clear();id.discordName.clear();
+ h.Frame(0,300);
+ Check(sent().back()->op==IdentityOp::DiscordStatus&&sent().back()->bridge=="brg_1","The sign-in's service was not polled");
+ answer();
+ Check(row("id-discord-remove")&&row("id-discord-remove")->value=="sam","A poll of another service replaced the shown account");
  SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
 // A link's journey keeps its service through a locked Ember ID, unlocked on

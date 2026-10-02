@@ -98,6 +98,10 @@ bool IdentityPanel::Owns(const std::string& screen) {
         screen == "discord-connect";
 }
 
+bool IdentityPanel::Superseded() const {
+    return sentOp_ == IdentityOp::DiscordConnect && sentJourney_ != journey_;
+}
+
 void IdentityPanel::NewJourney() {
     ++journey_;
     discordWaitUntil_ = 0;
@@ -193,9 +197,12 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
     if (!owned && onScreens_) Wipe();
     if (owned && screen != lastScreen_) Refresh(v, screen);
     onScreens_ = owned; lastScreen_ = screen;
-    if (sent_ && Answered(v)) { Finish(v); sent_ = 0; }
+    // A Connect from a replaced journey is retired without touching the
+    // new one's status or requests.
+    if (sent_ && Answered(v)) { if (!Superseded()) Finish(v); sent_ = 0; }
     else if (sent_ && now - sentAt_ > AnswerSeconds) {
-        Say(loc::T("identity.failure.timeout"), true); sent_ = 0; queue_.clear();
+        if (!Superseded()) { Say(loc::T("identity.failure.timeout"), true); queue_.clear(); }
+        sent_ = 0;
     }
     SendTournament(v, screen, submit);
     // While Discord's page is open in the browser, the account is read again
@@ -266,10 +273,11 @@ MenuEntry IdentityPanel::ServiceRow(const ShellView& v, const netplay::IdentityB
 // it, also where sign-in is off now. Optional for the player.
 std::optional<MenuEntry> IdentityPanel::DiscordRow(const ShellView& v, bool busy) const {
     const auto& id = v.identity;
-    const bool read = discordBridge_ == bridge_;
-    if (read && !id.discordUser.empty()) {
+    const auto account = discord_.find(bridge_);
+    const bool read = account != discord_.end();
+    if (read && !account->second.user.empty()) {
         auto row = ConfirmRow("id-discord-remove", loc::T("identity.discord"), loc::T("identity.discord_remove_detail"), !busy);
-        row.value = id.discordName; row.userText = true; row.hint = loc::T("identity.unlink");
+        row.value = account->second.name; row.userText = true; row.hint = loc::T("identity.unlink");
         return row;
     }
     if (!id.inspectedDiscord) return std::nullopt;
@@ -315,9 +323,10 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
     }
     auto service = Info("dc-service", loc::T("identity.service"), target->name.empty() ? target->origin : target->name, target->origin);
     service.userText = true; rows.push_back(std::move(service));
-    const bool read = bridge_ == target->id && discordBridge_ == target->id;
-    if (read && !id.discordUser.empty()) {
-        auto connected = Info("dc-connected", loc::T("connect.connected"), id.discordName, loc::T("connect.connected_detail"));
+    const auto account = discord_.find(target->id);
+    const bool read = bridge_ == target->id && account != discord_.end();
+    if (read && !account->second.user.empty()) {
+        auto connected = Info("dc-connected", loc::T("connect.connected"), account->second.name, loc::T("connect.connected_detail"));
         connected.userText = true; rows.push_back(std::move(connected));
     } else if (id.inspected.id == target->id && !id.inspectedDiscord) {
         rows.push_back(Info("dc-off", loc::T("connect.off"), {}, loc::T("connect.off_detail")));
@@ -383,7 +392,7 @@ void IdentityPanel::Finish(const ShellView& v) {
         }
         break;
     case IdentityOp::DiscordStatus:
-        discordBridge_ = sentBridge_;
+        discord_[sentBridge_] = DiscordAccount{id.discordUser, id.discordName};
         // Only the service the sign-in is for ends the wait.
         if (discordWaitUntil_ > 0 && sentBridge_ == discordWaitBridge_ && !id.discordUser.empty()) {
             discordWaitUntil_ = 0;
@@ -398,7 +407,8 @@ void IdentityPanel::Finish(const ShellView& v) {
         }
         break;
     case IdentityOp::DiscordRemove:
-        discordBridge_ = sentBridge_; discordWaitUntil_ = 0;
+        discord_[sentBridge_] = DiscordAccount{};
+        if (sentBridge_ == discordWaitBridge_) discordWaitUntil_ = 0;
         Say(loc::T("identity.done.discord_removed"), false);
         break;
     case IdentityOp::BridgeApprove: {
