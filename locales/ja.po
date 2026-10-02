@@ -567,6 +567,9 @@ msgstr "名前、メインキャラ、ローカルで確定したオンライン
 msgid "home.settings"
 msgstr "設定"
 
+msgid "home.identity_detail"
+msgstr "大会の試合、大会サイト向けのDiscord連携、Ember ID。"
+
 msgid "home.settings_detail"
 msgstr "プレイヤー、コントローラー、対戦の初期設定、表示、言語、Discord。"
 

@@ -567,6 +567,9 @@ msgstr "Vaše jméno, hlavní postava a místní potvrzená bilance online."
 msgid "home.settings"
 msgstr "Nastavení"
 
+msgid "home.identity_detail"
+msgstr "Vaše turnajové zápasy, Discord pro turnajové weby a vaše Ember ID."
+
 msgid "home.settings_detail"
 msgstr "Hráč, ovladač, výchozí nastavení hry, rozhraní, jazyk a Discord."
 

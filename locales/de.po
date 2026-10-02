@@ -567,6 +567,9 @@ msgstr "Ihr Name, Hauptcharakter und lokal bestätigte Online-Bilanz."
 msgid "home.settings"
 msgstr "Einstellungen"
 
+msgid "home.identity_detail"
+msgstr "Ihre Turnierspiele, Discord für Turnierseiten und Ihre Ember ID."
+
 msgid "home.settings_detail"
 msgstr "Spieler, Controller, Spielvorgaben, Oberfläche, Sprache und Discord."
 

@@ -567,6 +567,9 @@ msgstr "Je naam, hoofdpersonage en lokaal bevestigde online resultaten."
 msgid "home.settings"
 msgstr "Instellingen"
 
+msgid "home.identity_detail"
+msgstr "Je toernooiwedstrijden, Discord voor toernooisites en je Ember ID."
+
 msgid "home.settings_detail"
 msgstr "Speler, controller, standaard spelinstellingen, interface, taal en Discord."
 

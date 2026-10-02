@@ -567,6 +567,9 @@ msgstr "您的名称、主角和本地已确认的在线战绩。"
 msgid "home.settings"
 msgstr "设置"
 
+msgid "home.identity_detail"
+msgstr "赛事对局、用于赛事网站的 Discord 关联和 Ember ID。"
+
 msgid "home.settings_detail"
 msgstr "玩家、控制器、对战默认设置、界面、语言和 Discord。"
 

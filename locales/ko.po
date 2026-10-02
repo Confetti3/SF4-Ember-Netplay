@@ -567,6 +567,9 @@ msgstr "이름, 주 캐릭터, 로컬에 확정된 온라인 전적입니다."
 msgid "home.settings"
 msgstr "설정"
 
+msgid "home.identity_detail"
+msgstr "대회 경기, 대회 사이트용 Discord 연결 및 Ember ID입니다."
+
 msgid "home.settings_detail"
 msgstr "플레이어, 컨트롤러, 게임플레이 기본 설정, 화면, 언어 및 Discord."
 

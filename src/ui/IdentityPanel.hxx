@@ -86,6 +86,8 @@ private:
     void CheckOpenedMatch(const netplay::tournament::AssignmentList& list);
     MenuEntry ServiceRow(const ShellView& view, const netplay::IdentityBridge& bridge) const;
     std::optional<MenuEntry> DiscordRow(const ShellView& view, bool busy) const;
+    // Ember's own service, once trusted; null before.
+    const netplay::IdentityBridge* EmberBridge(const ShellView& view) const;
     // The trusted service the Connect Discord screen is for: the one its link
     // named, or Ember's own; null until the player trusts it.
     const netplay::IdentityBridge* ConnectTarget(const ShellView& view) const;

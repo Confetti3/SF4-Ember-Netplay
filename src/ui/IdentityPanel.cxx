@@ -136,11 +136,14 @@ void IdentityPanel::OpenDiscord(const std::string& bridge) {
     lastScreen_.clear();
 }
 
-const netplay::IdentityBridge* IdentityPanel::ConnectTarget(const ShellView& v) const {
-    if (!connectBridge_.empty()) return FindBridge(v, connectBridge_);
+const netplay::IdentityBridge* IdentityPanel::EmberBridge(const ShellView& v) const {
     const auto it = std::find_if(v.identity.bridges.begin(), v.identity.bridges.end(),
         [](const netplay::IdentityBridge& bridge) { return bridge.origin == EmberService; });
     return it == v.identity.bridges.end() ? nullptr : &*it;
+}
+
+const netplay::IdentityBridge* IdentityPanel::ConnectTarget(const ShellView& v) const {
+    return connectBridge_.empty() ? EmberBridge(v) : FindBridge(v, connectBridge_);
 }
 
 void IdentityPanel::OpenMatch(const std::string& bridge, const std::string& match) {
@@ -359,6 +362,9 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
     if (read && !account->second.user.empty()) {
         auto connected = Info("dc-connected", loc::T("connect.connected"), account->second.name, loc::T("connect.connected_detail"));
         connected.userText = true; rows.push_back(std::move(connected));
+        // Disconnecting is here too, not only under Linked accounts.
+        auto remove = ConfirmRow("id-discord-remove", loc::T("identity.unlink"), loc::T("identity.discord_remove_detail"), !busy);
+        remove.hint = loc::T("identity.unlink"); rows.push_back(std::move(remove));
     } else if (id.inspected.id == target->id && !id.inspectedDiscord) {
         rows.push_back(Info("dc-off", loc::T("connect.off"), {}, loc::T("connect.off_detail")));
     } else {
@@ -390,6 +396,11 @@ void IdentityPanel::Finish(const ShellView& v) {
         Say(FailureText(id.failure), true); DropQueue(); return;
     }
     switch (sentOp_) {
+    case IdentityOp::Status:
+        // A ready Ember ID screen shows the Discord account on Ember's own
+        // service; without an ID nothing holds Create back.
+        if (lastScreen_ == "identity" && id.state == "ready") { IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list)); }
+        break;
     case IdentityOp::Enable: case IdentityOp::Unlock:
         if (sentOp_ == IdentityOp::Enable) { WipeText(newPassphrase_); WipeText(newConfirm_); }
         Say(loc::T(sentOp_ == IdentityOp::Enable ? "identity.done.enabled" : "identity.done.unlocked"), false);
@@ -411,6 +422,15 @@ void IdentityPanel::Finish(const ShellView& v) {
             opened_.reset();
         }
         if (lastScreen_ == "discord-connect") { ConnectNext(v); break; }
+        // The Ember ID screen shows the Discord account on Ember's own
+        // service: its profile, whose answer asks for the account.
+        if (lastScreen_ == "identity") {
+            if (const auto* ember = EmberBridge(v); ember && id.state == "ready") {
+                bridge_ = ember->id;
+                IdentityRequest inspect; inspect.op = IdentityOp::BridgeInspect; inspect.origin = ember->origin; Queue(std::move(inspect));
+            }
+            break;
+        }
         if (!FindBridge(v, bridge_)) bridge_ = id.bridges.empty() ? std::string() : id.bridges.front().id;
         if (!bridge_.empty()) SelectBridge(v, bridge_);
         break;
@@ -520,10 +540,21 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
             rows.back().hint = loc::T("identity.unlock");
         }
         if (ready) {
-            rows.push_back(Row("id-copy", loc::T("identity.copy"), loc::T("identity.copy_detail")));
-            rows.push_back(Row("discord-connect", loc::T("screen.connect_discord"), loc::T("identity.connect_discord_detail")));
-            rows.push_back(Row("linked-accounts", loc::T("screen.linked_accounts"), loc::T("identity.linked_detail")));
+            // What players come here for first: their matches, then Discord.
             rows.push_back(Row("tournament-matches", loc::T("screen.tournament_matches"), loc::T("identity.matches_detail")));
+            auto discord = Row("discord-connect", loc::T("identity.discord"), loc::T("identity.connect_discord_detail"));
+            if (const auto* ember = EmberBridge(v)) {
+                const auto account = discord_.find(ember->id);
+                if (account != discord_.end() && account->second.read && !account->second.failed) {
+                    discord.value = account->second.user.empty() ? std::string(loc::T("identity.discord_none")) : account->second.name;
+                    discord.userText = !account->second.user.empty();
+                }
+            } else {
+                discord.value = loc::T("identity.discord_none");
+            }
+            rows.push_back(std::move(discord));
+            rows.push_back(Row("linked-accounts", loc::T("screen.linked_accounts"), loc::T("identity.linked_detail")));
+            rows.push_back(Row("id-copy", loc::T("identity.copy"), loc::T("identity.copy_detail")));
         }
         rows.push_back(Row("identity-backup", loc::T("screen.identity_backup"),
             ready ? loc::T("identity.backup_detail") : loc::T("identity.restore_detail"), id.known && id.state != "creating"));

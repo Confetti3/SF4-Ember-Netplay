@@ -500,7 +500,7 @@ void DiscordConnectKeepsItsService(){
  h.Choose("identity");Check(h.shell.Navigation().Screen()=="identity","Connect Discord did not open the Ember ID screen");
  id.state="ready";for(int i=0;i<4;++i)answer();
  h.Choose("discord-connect");
- Check(h.shell.Navigation().Screen()=="discord-connect"&&h.shell.Navigation().Parent()=="home","Connect Discord from the Ember ID screen did not go back to the journey");
+ Check(h.shell.Navigation().Screen()=="discord-connect"&&h.shell.Navigation().Parent()=="identity","Connect Discord from the Ember ID screen did not go back to the journey");
  for(int i=0;i<8;++i)answer();
  Check(row("dc-service")&&row("dc-service")->value=="Other","The journey lost the link's service");
  h.Choose("id-discord-connect");
@@ -730,5 +730,47 @@ void RetainedChangesStayTheirs(){
   SetMenuEntriesProbe({});SetMenuStatusProbe({});
  }
 }
-int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();ConnectReadsRecover();RetainedChangesStayTheirs();DiscordConnectPastedLink();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
+// Ember ID is on Home. Its screen leads with the matches, then Discord on
+// Ember's own service, showing the connected account, which Connect Discord
+// can also disconnect.
+void EmberIdFromHome(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";
+ id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
+ const std::string ember="https://bridge.embernetplay.link";
+ id.bridges={{"brg_1",ember,"Ember"}};h.Frame();
+ std::vector<MenuEntry> rows;std::string status;
+ SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
+ const auto row=[&](const char* name)->const MenuEntry*{const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;});return it==rows.end()?nullptr:&*it;};
+ const auto index=[&](const char* name){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;})-rows.begin();};
+ const auto sent=[&]{std::vector<const netplay::IdentityRequest*> out;for(const auto& a:h.actions)if(a.identity.op!=IdentityOp::None)out.push_back(&a.identity);return out;};
+ const auto answer=[&]{
+  h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=true;id.failure.clear();h.Frame(0,2);
+ };
+ const auto until=[&](IdentityOp op){for(int i=0;i<10&&sent().back()->op!=op;++i)answer();return sent().back()->op==op;};
+ h.Screen("home");
+ Check(row("identity")!=nullptr,"Home has no Ember ID entry");
+ h.Choose("identity");Check(h.shell.Navigation().Screen()=="identity","Ember ID on Home did not open its screen");
+ Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==ember,"The Ember ID screen did not read Ember's own service");
+ id.inspected=id.bridges[0];id.inspectedDiscord=true;answer();
+ Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge=="brg_1","The Ember ID screen did not read the Discord account");
+ id.discordUser="274220342558756145";id.discordName="kate";answer();
+ Check(row("tournament-matches")&&row("discord-connect")&&index("tournament-matches")<index("discord-connect")&&index("discord-connect")<index("linked-accounts"),
+  "The Ember ID screen does not lead with matches, then Discord");
+ Check(row("discord-connect")->value=="kate","The Ember ID screen does not show the connected Discord account");
+ // Connect Discord shows it connected and can disconnect it.
+ h.Choose("discord-connect");
+ Check(until(IdentityOp::DiscordStatus),"Connect Discord did not read the account");
+ answer();for(int i=0;i<4;++i)answer();
+ Check(row("dc-connected")&&row("id-discord-remove"),"Connect Discord does not offer to disconnect");
+ h.Choose("id-discord-remove");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+ Check(sent().back()->op==IdentityOp::DiscordRemove&&sent().back()->bridge=="brg_1","Disconnect did not name Ember's service");
+ id.discordUser.clear();id.discordName.clear();answer();
+ Check(!row("dc-connected")&&row("id-discord-connect")&&row("id-discord-connect")->enabled,"A disconnected account still shows connected");
+ // Back on the Ember ID screen it reads Not connected.
+ h.shell.Navigation().Return();h.Frame(0,2);for(int i=0;i<8;++i)answer();
+ Check(row("discord-connect")&&row("discord-connect")->value==loc::T("identity.discord_none"),"The Ember ID screen still shows the account");
+ SetMenuEntriesProbe({});SetMenuStatusProbe({});
+}
+int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();ConnectReadsRecover();RetainedChangesStayTheirs();EmberIdFromHome();DiscordConnectPastedLink();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

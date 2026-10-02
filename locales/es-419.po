@@ -567,6 +567,9 @@ msgstr "Tu nombre, personaje principal y registro local de partidas en línea co
 msgid "home.settings"
 msgstr "Ajustes"
 
+msgid "home.identity_detail"
+msgstr "Tus partidas del torneo, Discord para sitios de torneos y tu Ember ID."
+
 msgid "home.settings_detail"
 msgstr "Jugador, control, valores de juego, interfaz, idioma y Discord."
 

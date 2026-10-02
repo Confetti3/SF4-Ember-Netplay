@@ -206,6 +206,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Row("selection",loc::T("home.fighter_select"),v.canEditSelection?v.selectionSummary:
     v.selectionLockReason.empty()?loc::T("home.selection_locked"):v.selectionLockReason,bool(selection)),
    Row("profile",loc::T("home.profile"),loc::T("home.profile_detail")),
+   Row("identity",loc::T("screen.identity"),loc::T("home.identity_detail")),
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
    Row("about",loc::T("home.about"),loc::T("home.about_detail")),
    Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle)};
@@ -536,7 +537,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   matchLinkSequence_=v.tournament.link.sequence;
   identity_.OpenMatch(v.tournament.link.bridge,v.tournament.link.match);
   if(v.session.room==RoomState::Idle){
-   if(nav.Screen()!="tournament-matches"){nav.Home();nav.Push("tournament-matches");}
+   if(nav.Screen()!="tournament-matches"){nav.Home();nav.Push("identity");nav.Push("tournament-matches");}
    notice_=loc::T("tournament.link_opened");noticeTone_=Tone::Success;
   }else{notice_=loc::T("tournament.link_waiting");noticeTone_=Tone::Pending;}
   noticeUntil_=now+15;
@@ -549,7 +550,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }
  if(!pendingConnect_.empty()&&v.session.room==RoomState::Idle){
   identity_.OpenDiscord(pendingConnect_);pendingConnect_.clear();
-  if(nav.Screen()!="discord-connect"){nav.Home();nav.Push("discord-connect");}
+  if(nav.Screen()!="discord-connect"){nav.Home();nav.Push("identity");nav.Push("discord-connect");}
  }
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);

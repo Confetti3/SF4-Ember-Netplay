@@ -567,6 +567,9 @@ msgstr "Ваше имя, основной персонаж и локальная
 msgid "home.settings"
 msgstr "Настройки"
 
+msgid "home.identity_detail"
+msgstr "Ваши турнирные матчи, Discord для турнирных сайтов и ваш Ember ID."
+
 msgid "home.settings_detail"
 msgstr "Игрок, контроллер, настройки игры, интерфейс, язык и Discord."
 
