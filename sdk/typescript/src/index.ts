@@ -41,4 +41,5 @@ export {
   type Proof,
   type SignedReport,
 } from "./signed.ts";
+export { TestPlayer, type LinkClaim, type TestPlayerOptions } from "./testing.ts";
 export { signWebhook, TOLERANCE_SECONDS, verifyWebhook, WebhookError, type WebhookHeaders } from "./webhook.ts";

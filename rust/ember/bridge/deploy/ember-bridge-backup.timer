@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Ember bridge backup
+
+[Timer]
+OnCalendar=*-*-* 04:20:00
+RandomizedDelaySec=15m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

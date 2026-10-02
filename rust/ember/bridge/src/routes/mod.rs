@@ -8,11 +8,13 @@ pub mod sessions;
 pub mod tournaments;
 pub mod webhooks;
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use axum::{
     Router,
-    extract::DefaultBodyLimit,
+    extract::{DefaultBodyLimit, Request},
+    middleware::{self, Next},
+    response::Response,
     routing::{delete, get, post},
 };
 use rusqlite::params;
@@ -100,7 +102,24 @@ pub fn router(state: AppState) -> Router {
             .route("/mock/{connection}/logout", post(mock::logout));
     }
     app.layer(DefaultBodyLimit::max(FORM_LIMIT))
+        .layer(middleware::from_fn(access_log))
         .with_state(state)
+}
+
+/// One stderr line per request: method, path, status and milliseconds. The
+/// query string, headers and bodies are left out; they can carry cursors,
+/// credentials and proofs.
+async fn access_log(request: Request, next: Next) -> Response {
+    let method = request.method().clone();
+    let path = request.uri().path().to_owned();
+    let started = Instant::now();
+    let response = next.run(request).await;
+    eprintln!(
+        "{method} {path} {} {}ms",
+        response.status().as_u16(),
+        started.elapsed().as_millis()
+    );
+    response
 }
 
 /// Expires link intents and removes stale challenges, sessions and replay

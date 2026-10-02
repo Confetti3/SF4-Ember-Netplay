@@ -12,14 +12,10 @@ import { fileURLToPath } from "node:url";
 import {
   BridgeClient,
   BridgeError,
-  commandDigest,
   eventType,
   parseEvent,
-  parseStrict,
-  publicKeyFromSeed,
-  signChallenge,
+  TestPlayer,
   verifyWebhook,
-  type Challenge,
   type Json,
 } from "../src/index.ts";
 
@@ -31,38 +27,6 @@ async function freePort(): Promise<number> {
   const port = (server.address() as { port: number }).port;
   await new Promise((resolve) => server.close(resolve));
   return port;
-}
-
-/** Acts as an Ember helper holding `seed`: opens a session and claims `code`. */
-async function claimAsPlayer(origin: string, bridgeId: string, seed: Uint8Array, code: string, connectionId: string): Promise<Record<string, Json>> {
-  const publicKey = publicKeyFromSeed(seed);
-  const prove = async (token: string | undefined, action: string, path: string, command: Json) => {
-    const response = await fetch(`${origin}/v1/auth/challenges`, {
-      method: "POST",
-      headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify({ public_key: publicKey, action, method: "POST", path, request_digest: commandDigest(command) }),
-    });
-    assert.equal(response.status, 201);
-    const challenge = parseStrict(await response.text()) as unknown as Challenge;
-    const proof = signChallenge(
-      seed,
-      challenge,
-      { bridgeId, audience: origin, emberId: challenge.ember_id, action, method: "POST", path, command },
-      Math.floor(Date.now() / 1000),
-    );
-    return JSON.stringify({ command, proof });
-  };
-  const sessionBody = await prove(undefined, "session.create", "/v1/sessions", { requested_scopes: ["self:read"] });
-  const session = (await (await fetch(`${origin}/v1/sessions`, { method: "POST", body: sessionBody })).json()) as { session_token: string };
-  const command = { code, connection_id: connectionId, consent: true };
-  const claimBody = await prove(session.session_token, "link.claim", "/v1/link-claims", command);
-  const response = await fetch(`${origin}/v1/link-claims`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${session.session_token}` },
-    body: claimBody,
-  });
-  assert.equal(response.status, 201);
-  return (await response.json()) as Record<string, Json>;
 }
 
 test("SDK drives a live bridge end to end", { skip: !existsSync(binary) && "build ember-bridge first", timeout: 60_000 }, async () => {
@@ -108,7 +72,6 @@ test("SDK drives a live bridge end to end", { skip: !existsSync(binary) && "buil
     const organizer = new BridgeClient({ origin, credential: organizerToken });
     const capabilities = await provider.getCapabilities();
     assert.equal(capabilities.native_play, false);
-    const profile = (await (await fetch(`${origin}/.well-known/ember-bridge.json`)).json()) as { bridge_id: string };
 
     const subscription = await organizer.createWebhookSubscription(hookUrl, [eventType("match.created"), eventType("match.completed")]);
     assert.ok(subscription.secret?.startsWith("whsec_"));
@@ -117,9 +80,11 @@ test("SDK drives a live bridge end to end", { skip: !existsSync(binary) && "buil
     for (const [slot, byte] of [[0, 51], [1, 52]] as const) {
       const subject = `sdk-player-${slot}`;
       const intent = await provider.createLinkIntent(subject, subject);
-      const claim = await claimAsPlayer(origin, profile.bridge_id, Buffer.alloc(32, byte), intent.code, connection);
-      const link = await provider.approveLinkClaim(intent.intent_id, { claimId: claim.claim_id as string, emberId: claim.ember_id as string, subject });
-      participants.push({ participant_id: link.participant_id as string, ember_id: claim.ember_id as string, slot });
+      const player = new TestPlayer({ origin, seed: Buffer.alloc(32, byte) });
+      const claim = await player.claimLink(intent.code, connection);
+      assert.equal(claim.fingerprint, player.fingerprint);
+      const link = await provider.approveLinkClaim(intent.intent_id, { claimId: claim.claim_id!, emberId: claim.ember_id, subject });
+      participants.push({ participant_id: link.participant_id as string, ember_id: claim.ember_id, slot });
     }
     const resolved = await provider.resolvePlayers(["sdk-player-0", "nobody"]);
     assert.equal(resolved[0]!.linked, true);

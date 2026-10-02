@@ -87,9 +87,13 @@ impl Keys {
         };
         let text =
             Zeroizing::new(serde_json::to_vec_pretty(&file).map_err(|error| error.to_string())?);
-        let mut out = fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
+        let mut options = fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        // Owner only, whatever the umask. On Windows the file inherits the
+        // folder's ACL.
+        #[cfg(unix)]
+        std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+        let mut out = options
             .open(path)
             .map_err(|error| format!("cannot create {}: {error}", path.display()))?;
         out.write_all(&text).map_err(|error| error.to_string())?;

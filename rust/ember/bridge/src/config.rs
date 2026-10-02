@@ -6,9 +6,12 @@ use std::{fs, path::Path, path::PathBuf};
 use ember_protocol::encoding::{OriginPolicy, check_origin, is_prefixed_id};
 use serde::{Deserialize, Serialize};
 
-/// Provider kinds this build can serve. Real provider adapters are added
-/// only after their contract is verified (spec 22).
-pub const SUPPORTED_KINDS: &[&str] = &["mock"];
+/// Provider kinds this build can serve. `direct` is a platform that calls
+/// the generic API itself with its provider credential; `mock` also gets the
+/// mock login pages when `mock_browser` is set. Adapters that call a
+/// platform's own API are added only after its contract is verified
+/// (spec 22).
+pub const SUPPORTED_KINDS: &[&str] = &["direct", "mock"];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

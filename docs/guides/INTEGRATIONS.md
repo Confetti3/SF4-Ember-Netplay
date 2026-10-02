@@ -24,8 +24,13 @@ implemented, and how it differs from the draft, is in `STATUS.md` there.
   keeps each player's record of sets and games.
 - Every change is an event, delivered to webhooks and readable by cursor or
   over SSE.
-- The only provider kind is a mock one, for local testing. A real platform
-  adapter, BluMint first, waits on that platform's verified API contract.
+- A platform connects as a `direct` provider: it calls this API itself with
+  its provider credential. The `mock` kind adds browser login pages for local
+  testing. An adapter that calls a platform's own API instead, BluMint first,
+  waits on that platform's verified API contract.
+- A staging bridge runs at `https://bridge.embernetplay.link`. Platforms get a
+  connection and credentials on it from the Ember team; BluMint starts from
+  `BLUMINT_QUICKSTART.md`.
 
 ## Run a local bridge
 
@@ -46,7 +51,9 @@ prints a token once; the bridge keeps only a keyed hash. Keep
 
 Loopback `http` is accepted only because `init` sets `allow_loopback_http`
 and `allow_private_webhooks` for local work. A deployed bridge uses an
-`https` origin with both off.
+`https` origin with both off, and `mock_browser` off.
+`rust/ember/bridge/deploy` holds the staging deployment: a systemd unit, an
+nginx site, a daily backup and `setup.sh`.
 
 ## Link a player
 
@@ -66,6 +73,12 @@ create a claim that the account holder sees and rejects. To try the browser
 version of this flow, open `http://127.0.0.1:8787/mock/mock-local/login`.
 
 `POST /v1/players/resolve` maps your subjects to their current Ember IDs.
+
+To test linking without the game, `sdk/typescript/tools/test-player.ts` stands
+in for a player: it holds a throwaway Ember key and claims a code the way Ember
+does (`TestPlayer` in the SDK does the same from code).
+`sdk/typescript/tools/walkthrough.ts` runs linking, a match and its events
+end to end against any bridge.
 
 ## Create and decide matches
 

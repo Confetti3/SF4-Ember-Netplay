@@ -28,6 +28,23 @@ notifier that turns bridge events into Discord webhook posts and Twitch chat mes
 Not in this branch: WP4 room admission, WP5 permits and signed reports, WP6 launcher
 handoff and Proton validation, WP7 BluMint adapter, WP8 hardening.
 
+## Staging bridge
+
+A staging bridge runs at `https://bridge.embernetplay.link` on the project VPS so a
+platform can build its side before WP4 to WP7. It is this branch's bridge with
+SQLite, behind nginx with the `embernetplay.link` wildcard certificate, deployed by
+`rust/ember/bridge/deploy/setup.sh` (systemd unit with a dedicated account, request
+budgets per address in nginx, and a daily database and secrets backup kept 14 days
+on the same machine). All three development switches are off. Connections:
+`blumint-staging` (tenant `blumint`) and `ember-test` (tenant `ember`) for our own
+checks, both of the new `direct` kind: the platform calls the generic API with its
+provider credential, and no adapter calls the platform. Partner onboarding is
+`docs/guides/BLUMINT_QUICKSTART.md`.
+
+For testing without the game, the SDK has `TestPlayer` and `tools/test-player.ts`
+(a throwaway key that claims a link code the way the helper does) and
+`tools/walkthrough.ts` (linking, a match decided by the organizer, and its events).
+
 ## Beyond the package
 
 These additions go beyond EMBER-TB-001, which covers two-player bracket sets only and
@@ -200,7 +217,7 @@ helper restart keeping the same ID were not exercised in that run.
 
 | Topic | Default until resolved |
 |---|---|
-| Who hosts the first bridge and holds its signing keys | Local and mock only |
+| Who hosts the first bridge and holds its signing keys | Staging on the project VPS; no production bridge |
 | Which BluMint login or subject-assertion route exists | Linking adapter disabled |
 | BluMint API schemas, auth, retries, results | Mock provider only |
 | Native USF4 rules mapping | No native rules profile advertised |

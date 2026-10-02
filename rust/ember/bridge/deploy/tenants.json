@@ -1,0 +1,21 @@
+{
+  "display_name": "Ember bridge (staging)",
+  "origin": "https://bridge.embernetplay.link",
+  "listen": "127.0.0.1:47820",
+  "tenants": [
+    {
+      "id": "blumint",
+      "name": "BluMint",
+      "connections": [
+        { "id": "blumint-staging", "kind": "direct", "environment": "staging", "display_name": "BluMint (staging)" }
+      ]
+    },
+    {
+      "id": "ember",
+      "name": "Ember",
+      "connections": [
+        { "id": "ember-test", "kind": "direct", "environment": "staging", "display_name": "Ember test" }
+      ]
+    }
+  ]
+}

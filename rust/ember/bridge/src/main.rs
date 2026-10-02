@@ -122,11 +122,29 @@ async fn serve(path: PathBuf) -> Result<(), String> {
         .map_err(|error| format!("cannot listen on {}: {error}", state.config.listen))?;
     let running = ember_bridge::start(state, listener).map_err(|error| error.to_string())?;
     println!("Ember bridge listening on http://{}", running.address);
-    tokio::signal::ctrl_c()
-        .await
-        .map_err(|error| error.to_string())?;
+    shutdown_signal().await?;
+    // Every write is one transaction, so stopping between requests loses
+    // nothing; a webhook cut off mid-send is retried on the next start.
     running.abort();
     Ok(())
+}
+
+/// Ctrl+C, or SIGTERM from a service manager.
+async fn shutdown_signal() -> Result<(), String> {
+    #[cfg(unix)]
+    {
+        let mut terminate =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                .map_err(|error| error.to_string())?;
+        tokio::select! {
+            result = tokio::signal::ctrl_c() => result.map_err(|error| error.to_string()),
+            _ = terminate.recv() => Ok(()),
+        }
+    }
+    #[cfg(not(unix))]
+    tokio::signal::ctrl_c()
+        .await
+        .map_err(|error| error.to_string())
 }
 
 async fn sync_tenants(state: &AppState) -> Result<(), String> {
