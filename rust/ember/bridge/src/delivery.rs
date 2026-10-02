@@ -46,6 +46,9 @@ enum Outcome {
     },
     /// The receiver said the endpoint is gone (410).
     Gone,
+    /// Deleted, disabled or revoked after the lease; nothing was sent and
+    /// whatever cancelled it already updated the outbox.
+    Cancelled,
 }
 
 pub async fn run(state: AppState) {
@@ -62,7 +65,9 @@ pub async fn run(state: AppState) {
                          FROM delivery_outbox o
                          JOIN events e ON e.seq = o.event_seq
                          JOIN webhook_subscriptions s ON s.id = o.subscription_id
+                         JOIN service_credentials c ON c.id = s.owner_credential
                          WHERE o.state = 'pending' AND o.next_attempt_at <= ?1 AND s.enabled = 1
+                           AND c.revoked_at IS NULL
                          ORDER BY o.next_attempt_at, o.id LIMIT ?2",
                     )?
                     .query_map(params![now, BATCH], |row| {
@@ -99,11 +104,6 @@ pub async fn run(state: AppState) {
             };
             let state = state.clone();
             tokio::spawn(async move {
-                // A delete or a revoked owner since the lease cancels the
-                // delivery; check again just before sending.
-                if !still_due(&state, item.outbox_id).await {
-                    return;
-                }
                 let outcome = attempt(&state, &item).await;
                 record(&state, &item, outcome).await;
                 drop(permit);
@@ -115,6 +115,8 @@ pub async fn run(state: AppState) {
     }
 }
 
+/// Whether a leased delivery may still go out: pending, its subscription
+/// enabled and its owner's credential not revoked.
 async fn still_due(state: &AppState, outbox_id: i64) -> bool {
     state
         .db
@@ -122,7 +124,8 @@ async fn still_due(state: &AppState, outbox_id: i64) -> bool {
             Ok(tx.query_row(
                 "SELECT EXISTS (SELECT 1 FROM delivery_outbox o
                    JOIN webhook_subscriptions s ON s.id = o.subscription_id
-                   WHERE o.id = ?1 AND o.state = 'pending' AND s.enabled = 1)",
+                   JOIN service_credentials c ON c.id = s.owner_credential
+                   WHERE o.id = ?1 AND o.state = 'pending' AND s.enabled = 1 AND c.revoked_at IS NULL)",
                 [outbox_id],
                 |row| row.get::<_, bool>(0),
             )?)
@@ -186,6 +189,11 @@ async fn attempt(state: &AppState, item: &Due) -> Outcome {
     let Ok(client) = builder.build() else {
         return retry("client");
     };
+    // A delete or a revoked owner since the lease, including while the
+    // destination resolved, cancels the delivery. Checked as late as possible.
+    if !still_due(state, item.outbox_id).await {
+        return Outcome::Cancelled;
+    }
     let response = client
         .post(url)
         .header("content-type", "application/json")
@@ -338,6 +346,7 @@ async fn record(state: &AppState, item: &Due, outcome: Outcome) {
     let (status, next, error, disable) = match outcome {
         Outcome::Delivered => ("delivered", now, None, false),
         Outcome::Gone => ("dead", now, Some("gone".to_owned()), true),
+        Outcome::Cancelled => return,
         Outcome::Retry { error, retry_after } => {
             let base = SCHEDULE
                 .get(item.attempts as usize)

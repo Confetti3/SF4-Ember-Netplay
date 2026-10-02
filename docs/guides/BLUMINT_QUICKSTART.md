@@ -88,8 +88,11 @@ A match is two linked players and a set length (first to 1, 2, 3 or 5). Today
 results come from organizer adjudication: your organizer credential records
 each game, and the match completes when someone reaches the set length.
 Voiding a game scores the match again: a finished match stays finished while
-a player still has enough wins and reopens otherwise, so read the state and
-revision the bridge returns before recording another game. Every change is an
+a player still has enough wins, and otherwise reopens if it can. A correction
+that would reopen it is refused when either player has started another match
+since (and for lobby and bracket sets that have moved on), so read the state
+and revision the bridge returns, and handle a refusal, before changing your
+own result. Every change is an
 event, delivered by webhook (Standard Webhooks signatures), by cursor polling
 or by server-sent events.
 

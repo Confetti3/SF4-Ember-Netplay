@@ -652,3 +652,81 @@ async fn event_stream_resumes_and_hides_others() {
     }
     assert!(ended, "a revoked session's stream kept running");
 }
+
+// A subscription whose owner was revoked receives nothing, even if it is
+// still marked enabled (a create that raced the revocation).
+#[tokio::test]
+async fn a_revoked_owners_webhook_receives_nothing() {
+    let f = fixture().await;
+    let (url, hook) = receiver().await;
+    let (control_url, control) = receiver().await;
+    let rogue = ember_bridge::issue_credential(f.bridge.state(), None, Some("t1"), "rogue")
+        .await
+        .unwrap();
+    let subscribe =
+        |url: &str| json!({ "url": url, "event_types": ["io.ember.tournament.match.created.v1"] });
+    let (status, created) = f
+        .bridge
+        .post_keyed(
+            &rogue,
+            "/v1/webhook-subscriptions",
+            subscribe(&url),
+            Some("rogue"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let (status, _) = f
+        .bridge
+        .post_keyed(
+            &f.organizer,
+            "/v1/webhook-subscriptions",
+            subscribe(&control_url),
+            Some("control"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED);
+
+    let credentials = ember_bridge::list_credentials(f.bridge.state())
+        .await
+        .unwrap();
+    let rogue_id = credentials
+        .iter()
+        .find(|c| c.label == "rogue")
+        .unwrap()
+        .id
+        .clone();
+    assert!(
+        ember_bridge::revoke_credential(f.bridge.state(), &rogue_id)
+            .await
+            .unwrap()
+    );
+    // The state a create committed just after the revocation would leave.
+    let sub = created["subscription_id"].as_str().unwrap().to_owned();
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            Ok(tx.execute(
+                "UPDATE webhook_subscriptions SET enabled = 1 WHERE id = ?1",
+                [sub],
+            )?)
+        })
+        .await
+        .unwrap();
+
+    create_match(&f).await;
+    wait_for(&control, 1).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(hook.deliveries.lock().unwrap().is_empty());
+    // And a revoked credential cannot create another subscription.
+    let (status, _) = f
+        .bridge
+        .post_keyed(
+            &rogue,
+            "/v1/webhook-subscriptions",
+            subscribe(&url),
+            Some("again"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+}

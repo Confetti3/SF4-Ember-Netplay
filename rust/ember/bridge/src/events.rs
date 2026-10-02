@@ -88,7 +88,9 @@ fn fan_out(
     now: u64,
 ) -> Result<()> {
     let mut statement = tx.prepare(
-        "SELECT id, connection_id, event_types FROM webhook_subscriptions WHERE tenant_id = ?1 AND enabled = 1",
+        "SELECT s.id, s.connection_id, s.event_types FROM webhook_subscriptions s
+           JOIN service_credentials c ON c.id = s.owner_credential
+          WHERE s.tenant_id = ?1 AND s.enabled = 1 AND c.revoked_at IS NULL",
     )?;
     let subscriptions = statement
         .query_map([event.tenant_id], |row| {

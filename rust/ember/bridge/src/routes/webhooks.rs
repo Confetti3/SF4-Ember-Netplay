@@ -114,6 +114,16 @@ pub async fn create(
         .write(move |tx| {
             let mut fresh = false;
             let result = idempotent_request(tx, &service.id, "/v1/webhook-subscriptions", &key, &digest, now, |tx| {
+                // Authentication ran in an earlier transaction; a revocation
+                // committed since then must not be outlived by a new webhook.
+                let live: bool = tx.query_row(
+                    "SELECT EXISTS (SELECT 1 FROM service_credentials WHERE id = ?1 AND revoked_at IS NULL)",
+                    [&service.id],
+                    |row| row.get(0),
+                )?;
+                if !live {
+                    return Err(ApiFailure::unauthenticated());
+                }
                 let count: i64 = tx.query_row(
                     "SELECT COUNT(*) FROM webhook_subscriptions WHERE owner_credential = ?1 AND enabled = 1",
                     [&service.id],
