@@ -1,7 +1,7 @@
 //! Discord sign-in against a stand-in Discord: starting needs a proof, the
 //! callback takes each sign-in once and in time, the latest sign-in wins, a
-//! platform's links follow the account, and a bridge without Discord offers
-//! none of it.
+//! disconnect ends sign-ins in flight, a platform's links follow the account,
+//! and a bridge without Discord offers none of it.
 mod common;
 
 use axum::{
@@ -14,6 +14,7 @@ use ember_bridge::{config, integrations::Secrets};
 use ember_protocol::challenge::{Action, Method};
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
+use tokio::sync::Notify;
 use zeroize::Zeroizing;
 
 const KATE: &str = "274220342558756145";
@@ -21,8 +22,13 @@ const SAM: &str = "1725265127372152396";
 /// A platform that finds players by Discord account.
 const BLUMINT: &str = "bm-partner";
 
-/// A stand-in for Discord's token and user endpoints. Codes `good-kate` and
-/// `good-sam` sign in those users; anything else is refused.
+/// Code `slow-kate` signs Kate in once the test lets it: Discord has the
+/// code (`SLOW_ARRIVED`) until `SLOW_RELEASE`.
+static SLOW_ARRIVED: Notify = Notify::const_new();
+static SLOW_RELEASE: Notify = Notify::const_new();
+
+/// A stand-in for Discord's token and user endpoints. Codes `good-kate`,
+/// `slow-kate` and `good-sam` sign in those users; anything else is refused.
 async fn fake_discord() -> String {
     type Answer = (AxumStatus, [(header::HeaderName, &'static str); 1], String);
     fn answer(status: AxumStatus, body: Json) -> Answer {
@@ -39,12 +45,23 @@ async fn fake_discord() -> String {
             && form
                 .get("redirect_uri")
                 .is_some_and(|uri| uri.ends_with("/v1/discord/callback"));
-        match form.get("code").map(String::as_str) {
-            Some(code @ ("good-kate" | "good-sam")) if valid => answer(
+        let code = form.get("code").map(String::as_str);
+        if code == Some("slow-kate") {
+            SLOW_ARRIVED.notify_one();
+            SLOW_RELEASE.notified().await;
+        }
+        let user = match code {
+            Some("good-kate" | "slow-kate") => "kate",
+            Some("good-sam") => "sam",
+            _ => "",
+        };
+        if valid && !user.is_empty() {
+            answer(
                 AxumStatus::OK,
-                json!({ "access_token": format!("token-{}", &code[5..]), "token_type": "Bearer", "scope": "identify" }),
-            ),
-            _ => answer(AxumStatus::BAD_REQUEST, json!({ "error": "invalid_grant" })),
+                json!({ "access_token": format!("token-{user}"), "token_type": "Bearer", "scope": "identify" }),
+            )
+        } else {
+            answer(AxumStatus::BAD_REQUEST, json!({ "error": "invalid_grant" }))
         }
     }
     async fn me(headers: HeaderMap) -> Answer {
@@ -307,6 +324,36 @@ async fn the_latest_sign_in_wins_and_a_player_can_disconnect() {
         (StatusCode::OK, Json::Null)
     );
     assert_eq!(account(&bridge, &two).await, Json::Null);
+}
+
+#[tokio::test]
+async fn a_disconnect_ends_sign_ins_in_flight() {
+    let bridge = bridge_with_discord().await;
+    let kate = player(&bridge, 1).await;
+    connect(&bridge, &kate, "sam").await;
+    // A sign-in the player never finished.
+    let state = start(&bridge, &kate).await;
+    assert_eq!(disconnect(&bridge, &kate).await.0, StatusCode::OK);
+    assert!(
+        back(&bridge, &format!("code=good-kate&state={state}"))
+            .await
+            .contains("Sign-in expired")
+    );
+
+    // A sign-in Discord is still confirming when the player disconnects.
+    connect(&bridge, &kate, "sam").await;
+    let state = start(&bridge, &kate).await;
+    let url = bridge.url(&format!(
+        "/v1/discord/callback?code=slow-kate&state={state}"
+    ));
+    let client = bridge.client.clone();
+    let answer =
+        tokio::spawn(async move { client.get(url).send().await.unwrap().text().await.unwrap() });
+    SLOW_ARRIVED.notified().await;
+    assert_eq!(disconnect(&bridge, &kate).await.0, StatusCode::OK);
+    SLOW_RELEASE.notify_one();
+    assert!(answer.await.unwrap().contains("Sign-in expired"));
+    assert_eq!(account(&bridge, &kate).await, Json::Null);
 }
 
 #[tokio::test]

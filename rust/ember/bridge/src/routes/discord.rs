@@ -179,31 +179,29 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
             "This Ember service does not offer Discord sign-in.",
         );
     };
-    // The sign-in this browser carries, once, whatever Discord answered.
+    // Only a sign-in Ember is waiting for reaches Discord. It is taken once,
+    // whatever Discord answered, in the same write that stores the account:
+    // a sign-in a disconnect or another answer took meanwhile connects nothing.
     let hash = state_hash(&state, answer.state.as_deref().unwrap_or_default());
     let now = state.now();
-    let ember_id = state
+    let waiting = state
         .db
-        .write(move |tx| {
-            let ember_id: Option<String> = tx
+        .read(move |tx| {
+            Ok(tx
                 .query_row(
-                    "DELETE FROM discord_sign_ins WHERE state_hash = ?1 AND expires_at > ?2 RETURNING ember_id",
+                    "SELECT EXISTS (SELECT 1 FROM discord_sign_ins WHERE state_hash = ?1 AND expires_at > ?2)",
                     params![hash.as_slice(), now],
-                    |row| row.get(0),
-                )
-                .optional()?;
-            Ok(ember_id)
+                    |row| row.get::<_, bool>(0),
+                )?)
         })
         .await;
-    let Ok(Some(ember_id)) = ember_id else {
-        return finished(
-            "Sign-in expired",
-            "This Discord sign-in is not one Ember is waiting for, or it took longer than ten minutes. Choose Connect Discord in Ember again.",
-        );
-    };
+    if !matches!(waiting, Ok(true)) {
+        return not_waiting();
+    }
     let code = match (answer.error.as_deref(), answer.code) {
         (None, Some(code)) if !code.is_empty() && code.len() <= 256 => code,
         _ => {
+            let _ = state.db.write(move |tx| take(tx, &hash, now)).await;
             return finished(
                 "Not connected",
                 "Discord did not connect the account. Choose Connect Discord in Ember to try again.",
@@ -211,19 +209,20 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
         }
     };
     let Some(user) = discord_user(&state, &discord, &code).await else {
+        let _ = state.db.write(move |tx| take(tx, &hash, now)).await;
         return finished(
             "Discord did not answer",
             "Discord did not confirm the account. Choose Connect Discord in Ember to try again.",
         );
     };
     let shown = user.username.clone();
-    let fingerprint = EmberId::parse(&ember_id)
-        .map(|id| id.fingerprint())
-        .unwrap_or_default();
     let ctx = Ctx::of(&state);
     let stored = state
         .db
         .write(move |tx| {
+            let Some(ember_id) = take(tx, &hash, ctx.now)? else {
+                return Ok(None);
+            };
             // The latest sign-in wins: this account leaves any other Ember ID,
             // and this Ember ID leaves any other account.
             let replaced: Vec<(String, String)> = tx
@@ -241,16 +240,23 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
                 "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, ?3, ?4)",
                 params![user.id, ember_id, user.username, ctx.now],
             )?;
-            Ok(())
+            Ok(Some(ember_id))
         })
         .await;
-    if stored.is_err() {
-        return finished(
-            "Not connected",
-            "The Ember service could not save the account. Try again later.",
-        );
-    }
+    let ember_id = match stored {
+        Ok(Some(ember_id)) => ember_id,
+        Ok(None) => return not_waiting(),
+        Err(_) => {
+            return finished(
+                "Not connected",
+                "The Ember service could not save the account. Try again later.",
+            );
+        }
+    };
     state.committed();
+    let fingerprint = EmberId::parse(&ember_id)
+        .map(|id| id.fingerprint())
+        .unwrap_or_default();
     finished(
         "Discord connected",
         &format!(
@@ -260,6 +266,25 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
             html(&shown),
             html(&fingerprint)
         ),
+    )
+}
+
+/// Takes the sign-in `hash` names if it is still waiting: the Ember ID that
+/// started it.
+fn take(tx: &Transaction<'_>, hash: &[u8; 32], now: u64) -> Result<Option<String>> {
+    Ok(tx
+        .query_row(
+            "DELETE FROM discord_sign_ins WHERE state_hash = ?1 AND expires_at > ?2 RETURNING ember_id",
+            params![hash.as_slice(), now],
+            |row| row.get(0),
+        )
+        .optional()?)
+}
+
+fn not_waiting() -> Response {
+    finished(
+        "Sign-in expired",
+        "This Discord sign-in is not one Ember is waiting for, or it took longer than ten minutes. Choose Connect Discord in Ember again.",
     )
 }
 
@@ -370,6 +395,12 @@ pub async fn remove(
         Method::Delete,
         ACCOUNT_PATH,
         |tx, ctx, ember_id| {
+            // Sign-ins it started end too, including one whose answer is
+            // still being checked with Discord.
+            tx.execute(
+                "DELETE FROM discord_sign_ins WHERE ember_id = ?1",
+                [ember_id],
+            )?;
             let removed: Option<String> = tx
                 .query_row(
                     "DELETE FROM discord_accounts WHERE ember_id = ?1 RETURNING user_id",
