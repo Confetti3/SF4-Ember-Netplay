@@ -158,10 +158,15 @@ fn submit(
             ctx.now
         ],
     )?;
-    // Evidence only: the attempt was already decided, or the window closed.
-    if found.state == "permitted" && ctx.now <= found.created_at + SCORING_SECS {
+    // Evidence only once the attempt is decided, or while the match is
+    // finished or waiting for an organizer; past the window it goes to review.
+    let current = load(tx, match_id)?.ok_or_else(ApiFailure::unavailable)?;
+    let open = found.state == "permitted"
+        && !current.state.is_terminal()
+        && current.state != MatchState::NeedsReview;
+    if open && ctx.now <= found.created_at + SCORING_SECS {
         reconcile(tx, ctx, match_id, &found)?;
-    } else if found.state == "permitted" {
+    } else if open {
         hold(tx, ctx, match_id, &found.id, "report_late")?;
     }
     Ok((
@@ -333,7 +338,7 @@ fn hold(
         [attempt_id],
     )?;
     let current = load(tx, match_id)?.ok_or_else(ApiFailure::unavailable)?;
-    if changed == 0 || current.state.is_terminal() {
+    if changed == 0 || current.state.is_terminal() || current.state == MatchState::NeedsReview {
         return Ok(());
     }
     let revision = bump(tx, &current, MatchState::NeedsReview, ctx.now)?;

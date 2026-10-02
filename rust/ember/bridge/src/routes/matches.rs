@@ -503,6 +503,12 @@ pub async fn cancel(
 }
 
 fn cancel_match(tx: &Transaction<'_>, ctx: &Ctx, found: &Match, reason: &str) -> Result<u64> {
+    // A game the fighters were playing counts for nobody; reports that come
+    // later are kept as evidence only.
+    tx.execute(
+        "UPDATE attempts SET state = 'aborted' WHERE match_id = ?1 AND state IN ('permitted', 'review')",
+        [&found.id],
+    )?;
     let revision = bump(tx, found, MatchState::Cancelled, ctx.now)?;
     match_event(
         tx,
@@ -858,6 +864,11 @@ pub fn on_unlink(
         .collect::<rusqlite::Result<Vec<_>>>()?;
     for id in ids {
         let found = load(tx, &id)?.ok_or_else(ApiFailure::unavailable)?;
+        // A game in progress waits for the organizer with the rest of the match.
+        tx.execute(
+            "UPDATE attempts SET state = 'review' WHERE match_id = ?1 AND state = 'permitted'",
+            [&id],
+        )?;
         let revision = bump(tx, &found, MatchState::NeedsReview, ctx.now)?;
         match_event(
             tx,

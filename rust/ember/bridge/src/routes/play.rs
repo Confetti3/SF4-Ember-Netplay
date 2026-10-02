@@ -428,6 +428,15 @@ fn publish(
     let current = room(tx, match_id)?;
     let sealed = ctx.keys.seal(command.invitation.as_bytes());
     let conflict = |message: &'static str| ApiFailure::new(ErrorCode::LeaseConflict, message);
+    // The current room again: a retry after a lost answer, or the room
+    // refreshing its invitation as it ages.
+    if current.room_id.as_deref() == Some(command.room_id.as_str()) {
+        tx.execute(
+            "UPDATE match_rooms SET invitation_sealed = ?1 WHERE match_id = ?2",
+            params![sealed, match_id],
+        )?;
+        return room_answer(tx, ctx, &fighter, &claimed);
+    }
     match (&command.lease_id, &command.replaces, &current.room_id) {
         (Some(lease_id), None, None) => {
             let holds = current.lease_id.as_deref() == Some(lease_id.as_str())
@@ -441,14 +450,6 @@ fn publish(
             }
         }
         (Some(_), None, Some(_)) => return Err(conflict("The match already has a room.")),
-        (None, None, Some(room_id)) if *room_id == command.room_id => {
-            // Refreshing the current room's invitation as it ages.
-            tx.execute(
-                "UPDATE match_rooms SET invitation_sealed = ?1 WHERE match_id = ?2",
-                params![sealed, match_id],
-            )?;
-            return room_answer(tx, ctx, &fighter, &claimed);
-        }
         (None, Some(replaces), Some(room_id)) if replaces == room_id => {
             if open_attempt(tx, match_id)? {
                 return Err(conflict(

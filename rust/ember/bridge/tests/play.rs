@@ -525,3 +525,82 @@ async fn claims_and_descriptors_are_checked() {
     assert_eq!(replaced["binding"]["binding"]["assignment_generation"], "2");
     assert_eq!(state(&f, &id).await["scores"][0]["wins"], 0);
 }
+
+#[tokio::test]
+async fn a_cancelled_match_stays_cancelled() {
+    let f = fixture().await;
+    let id = create(&f, "play-8", "ember-room-v1", 2).await;
+    let binding = bound(&f, &id).await;
+    let permit = permit(&f, &id, &binding, 61).await;
+    let (status, _) = f
+        .bridge
+        .post_keyed(
+            &f.provider,
+            &format!("/v1/matches/{id}/cancel"),
+            json!({ "reason": "Bracket reset", "expected_revision": state(&f, &id).await["revision"] }),
+            Some("cancel-play"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    report(&f, &f.a, &f.a, &id, &permit, 1, Outcome::P1Win).await;
+    let (status, late) = report(&f, &f.b, &f.b, &id, &permit, 2, Outcome::P1Win).await;
+    assert_eq!(status, StatusCode::CREATED, "{late}");
+    assert_eq!(late["attempt_state"], "aborted");
+    assert_eq!(late["match_state"], "cancelled");
+    assert_eq!(state(&f, &id).await["scores"][0]["wins"], 0);
+}
+
+#[tokio::test]
+async fn an_unlink_mid_game_waits_for_the_organizer() {
+    let f = fixture().await;
+    let id = create(&f, "play-9", "ember-room-v1", 2).await;
+    let binding = bound(&f, &id).await;
+    let permit = permit(&f, &id, &binding, 71).await;
+    let (_, links) = f.bridge.get(f.b.token(), "/v1/links").await;
+    let link = links["links"][0]["link_id"].as_str().unwrap().to_owned();
+    let path = format!("/v1/links/{link}");
+    let body = f
+        .bridge
+        .prove(
+            &f.b,
+            Action::LinkRemove,
+            Method::Delete,
+            &path,
+            json!({ "link_id": link }),
+        )
+        .await;
+    let (status, _) = f.bridge.send_proof(&f.b, Method::Delete, &path, body).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(state(&f, &id).await["state"], "needs_review");
+    // Agreeing reports do not undo the review.
+    report(&f, &f.a, &f.a, &id, &permit, 1, Outcome::P1Win).await;
+    let (_, receipt) = report(&f, &f.b, &f.b, &id, &permit, 2, Outcome::P1Win).await;
+    assert_eq!(receipt["attempt_state"], "review");
+    assert_eq!(receipt["match_state"], "needs_review");
+}
+
+#[tokio::test]
+async fn a_publish_retry_and_a_silent_game() {
+    let f = fixture().await;
+    let id = create(&f, "play-10", "ember-room-v1", 2).await;
+    let (_, host) = claim(&f, &f.a, &id, &endpoint(&f.a), BUILD).await;
+    claim(&f, &f.b, &id, &endpoint(&f.b), BUILD).await;
+    let (status, first) = publish(&f, &f.a, &id, ROOM, Some(&host), None).await;
+    assert_eq!(status, StatusCode::OK, "{first}");
+    // The same publish again, as after a lost answer, returns the room.
+    let (status, again) = publish(&f, &f.a, &id, ROOM, Some(&host), None).await;
+    assert_eq!(
+        (status, again["role"].as_str()),
+        (StatusCode::OK, Some("room")),
+        "{again}"
+    );
+    let binding = again["binding"]["binding"].clone();
+    // A permitted game nobody reports goes to review half an hour after its start window.
+    permit(&f, &id, &binding, 81).await;
+    f.bridge.clock.advance(120 + 30 * 60 - 1);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(state(&f, &id).await["state"], "running");
+    f.bridge.clock.advance(2);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(state(&f, &id).await["state"], "needs_review");
+}
