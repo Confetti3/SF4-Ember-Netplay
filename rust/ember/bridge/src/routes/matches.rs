@@ -24,14 +24,13 @@ use std::collections::BTreeMap;
 use crate::{
     AppState,
     auth::{self, Actor, Role, Service},
-    config::Policy,
     error::{ApiFailure, Result},
     events,
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key, ok},
     routes::{
         ledger::{Cause, Match, bump, load, match_event, release, settle, stale},
         links::{Ctx, audit},
-        lobbies, tournaments,
+        lobbies, policy, tournaments,
     },
 };
 
@@ -140,7 +139,7 @@ pub async fn create(
 ) -> Result<Response> {
     let service = auth::service(&state, &headers).await?;
     let connection_id = service.provider_connection()?.to_owned();
-    generic_connection(&state, &connection_id).await?;
+    policy::generic_connection(&state, &connection_id).await?;
     let key = idempotency_key(&headers)?;
     let command: CreateMatch = body.parse()?;
     command.check()?;
@@ -290,7 +289,7 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
         }
     }
     let id = crate::util::new_id("emt");
-    let delivery = if policy(tx, new.connection_id)?.sends_results {
+    let delivery = if policy::of(tx, new.connection_id)?.sends_results {
         "queued"
     } else {
         "not_required"
@@ -938,39 +937,6 @@ pub fn on_unlink(
     Ok(())
 }
 
-/// The policy of a connection's platform, from the kind its record keeps.
-/// A kind never changes, and the record stays when the connection leaves the
-/// configuration, so its matches keep their policy.
-fn policy(tx: &Transaction<'_>, connection_id: &str) -> Result<Policy> {
-    let kind: String = tx
-        .query_row(
-            "SELECT kind FROM provider_connections WHERE id = ?1",
-            [connection_id],
-            |row| row.get(0),
-        )
-        .optional()?
-        .ok_or_else(ApiFailure::unavailable)?;
-    Ok(Policy::of(&kind))
-}
-
-/// Refuses the generic match, lobby and tournament routes to a connection
-/// whose platform makes its matches through its own API
-/// (`Policy::sends_results`).
-pub async fn generic_connection(state: &AppState, connection_id: &str) -> Result<()> {
-    let id = connection_id.to_owned();
-    let own_api = state
-        .db
-        .read(move |tx| Ok(policy(tx, &id)?.sends_results))
-        .await?;
-    if own_api {
-        return Err(ApiFailure::new(
-            ErrorCode::Forbidden,
-            "This connection's platform creates its matches through its own API.",
-        ));
-    }
-    Ok(())
-}
-
 /// A match whose result needs a person (spec 16.6) waits in `needs_review`
 /// for its organizer. Where the platform has no review
 /// (`Policy::reviews_disputes`), it is cancelled instead and its players are
@@ -982,7 +948,7 @@ pub fn needs_review(
     reason: &str,
     attempt_id: Option<&str>,
 ) -> Result<()> {
-    if !policy(tx, &found.connection_id)?.reviews_disputes {
+    if !policy::of(tx, &found.connection_id)?.reviews_disputes {
         cancel_and_release(tx, ctx, found, reason)?;
         return Ok(());
     }

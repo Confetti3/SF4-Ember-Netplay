@@ -7,6 +7,7 @@ pub mod links;
 pub mod lobbies;
 pub mod matches;
 pub mod play;
+pub mod policy;
 pub mod records;
 pub mod reports;
 pub mod sessions;

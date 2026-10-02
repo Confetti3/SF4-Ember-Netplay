@@ -44,7 +44,7 @@ use crate::{
         matches::{
             self, NewMatch, ORGANIZER_PROFILE, idempotent, into_response, service_viewer, viewer_of,
         },
-        records,
+        policy, records,
     },
 };
 
@@ -1028,7 +1028,7 @@ pub async fn create(
 ) -> Result<Response> {
     let service = auth::service(&state, &headers).await?;
     let connection_id = service.provider_connection()?.to_owned();
-    matches::generic_connection(&state, &connection_id).await?;
+    policy::generic_connection(&state, &connection_id).await?;
     let key = idempotency_key(&headers)?;
     let command: CreateTournament = body.parse()?;
     command.check()?;
