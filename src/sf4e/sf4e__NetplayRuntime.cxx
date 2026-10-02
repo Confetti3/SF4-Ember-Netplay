@@ -308,8 +308,8 @@ void StopHelper() {
 	bridge::Reset();
 }
 
-// A room link a later launcher handed over. The Join screen shows it; the
-// player still chooses Join room.
+// A room link a later launcher handed over. The shell joins it when the
+// player is free, and otherwise holds it for the Join screen.
 static void TakeJoinLink() {
 	const auto code = runtime->joinLinks.Take();
 	if (code.empty()) return;

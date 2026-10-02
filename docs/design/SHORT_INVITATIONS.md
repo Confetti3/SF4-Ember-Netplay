@@ -28,11 +28,11 @@ The link opens `/j`, a static page. Its script reads the code from the fragment,
 1. The launcher accepts only `ember://join/<code>` (any case, optional trailing slash, at most 64 printable ASCII characters, no query, fragment, user, port or escapes) and reads the code from it. Anything else is ignored. The code is never logged.
 2. If Ember is already running, the launcher writes the code into a small named section in the session's `Local\` namespace that the game holds (`Local\SF4EmberJoinLink`), signals the game's event and exits quietly. Both objects carry the default security of the player's own token.
 3. If Ember is not running, the launcher starts it as usual and passes the code in `SF4E_JOIN_LINK`, which the game reads once and clears.
-4. The game opens its menu at the main menu and puts the link on the Join room screen. The player checks it and chooses Join room. Nothing joins by itself, and a link that arrives while a room is open waits, with a notice, until the player has left that room.
+4. The game opens its menu at the main menu and joins the room, as if the player had pasted the link and chosen Join room. A game that is still starting joins once it reaches the main menu, within two minutes of the link. A link that arrives while a room is open waits, with a notice, until the player has left that room; it then fills the Join room screen and the player chooses Join room, as does a link the game could not use within the two minutes.
 
 | Where | What happens |
 |---|---|
-| Windows, Ember run at least once | The browser asks whether to open Ember; the game shows the room on its Join room screen. |
+| Windows, Ember run at least once | The browser asks whether to open Ember; the game joins the room. |
 | Windows, Ember never run, or moved since | The browser reports no handler (or nothing happens). The page's Copy link works. |
 | Wine or Proton | The handler is registered inside the Wine prefix, which Linux browsers do not consult, so Open in Ember does nothing. Copy link and paste into Ember works as on Windows. |
 
@@ -62,7 +62,7 @@ Records live in memory only. Limits per client address (an IPv4 address, or an I
 - Someone without the code who asks the service directly has to guess a code, run Argon2id on it and spend one lookup. Each guess finds a record with probability N / 2^60 (under 2 x 10^-14 at the full store), and lookups are limited to 20 a minute per address.
 - Anyone who holds the code, or the full invitation, can join the room, exactly as with the full invitation today; the room capability is what admits a member. They can also replace the record, since the write token comes from the code. That lets a member break the link for others (the full invitation still works), but not point it at another room, because of the binding check.
 - The link sits in chat logs and browser history like the full invitation does. It is only as private as the place it is shared.
-- Opened through `ember:`, the code is on the launcher's command line and in the game's environment until it is read, where the player's own processes can see it. Any page can offer an `ember://join/` link, but the browser asks before opening Ember and the game only fills the Join screen; joining is still the player's choice.
+- Opened through `ember:`, the code is on the launcher's command line and in the game's environment until it is read, where the player's own processes can see it. Any page can offer an `ember://join/` link, but the browser asks before opening Ember, and that answer is the player's choice to join. A link never takes a player out of a room or a match, and a joined room can be left at once.
 
 ## Failure handling
 

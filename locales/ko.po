@@ -1804,6 +1804,9 @@ msgstr "짧은 링크를 만드는 중..."
 msgid "room.short_invitation_unavailable"
 msgstr "링크 서비스가 응답하지 않아 전체 초대를 대신 복사했습니다."
 
+msgid "room.link_joining"
+msgstr "링크의 방에 참가하는 중입니다."
+
 msgid "room.link_opened"
 msgstr "방 링크로 열었습니다. 확인한 다음 방 참가를 선택하세요."
 

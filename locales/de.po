@@ -1804,6 +1804,9 @@ msgstr "Kurzlink wird erstellt..."
 msgid "room.short_invitation_unavailable"
 msgstr "Der Linkdienst hat nicht geantwortet, daher wurde die vollständige Einladung kopiert."
 
+msgid "room.link_joining"
+msgstr "Der Raum aus dem Link wird betreten."
+
 msgid "room.link_opened"
 msgstr "Aus einem Raumlink geöffnet. Prüfen Sie ihn und wählen Sie dann Raum beitreten."
 

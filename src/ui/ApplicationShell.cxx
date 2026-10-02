@@ -153,19 +153,28 @@ void ApplicationShell::UpdateShortCopy(const ShellView& v,double now) {
  shortCopyPending_=false;ImGui::SetClipboardText(v.invitation.c_str());
  notice_=loc::T("room.short_invitation_unavailable");noticeTone_=Tone::Neutral;noticeUntil_=now+6;
 }
-// A room link opened from the browser fills the Join screen; joining is
-// still the player's own press. While a room is open it waits, so a link
-// never moves the player out of a room or a match.
-void ApplicationShell::UpdateJoinLink(const ShellView& v,double now) {
+// A room link opened from the browser joins its room at once when the
+// player is free, as soon as a room can be opened. While a room is open it
+// waits, so a link never moves the player out of a room or a match; that
+// link, or one that could not be used in time, fills the Join screen and
+// joining is the player's own press.
+void ApplicationShell::UpdateJoinLink(const ShellView& v,double now,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
+ const bool free=v.session.room==RoomState::Idle&&v.session.match==MatchState::None;
  if(v.pendingJoinSequence!=joinLinkSeen_){
   joinLinkSeen_=v.pendingJoinSequence;joinLink_=v.pendingJoinLink;
+  joinLinkDirectUntil_=free?now+JoinLinkDirectSeconds:0;
   if(!joinLink_.empty()&&v.session.room!=RoomState::Idle){notice_=loc::T("room.link_waiting");noticeTone_=Tone::Pending;noticeUntil_=now+8;}
  }
- if(joinLink_.empty()||v.session.room!=RoomState::Idle||v.session.match!=MatchState::None)return;
- std::snprintf(invitation_,sizeof(invitation_),"%s",joinLink_.c_str());joinLink_.clear();
+ if(joinLink_.empty())return;
+ if(!free){joinLinkDirectUntil_=0;return;}
+ const bool direct=now<joinLinkDirectUntil_;
+ if(direct&&!v.canOpenRoom)return;
+ std::snprintf(invitation_,sizeof(invitation_),"%s",joinLink_.c_str());joinLink_.clear();joinLinkDirectUntil_=0;
  nav.Cancel();nav.Home();nav.Push("online");nav.Push("join");
- error_.clear();notice_=loc::T("room.link_opened");noticeTone_=Tone::Neutral;noticeUntil_=now+8;
+ error_.clear();noticeTone_=Tone::Neutral;noticeUntil_=now+8;
+ if(direct&&Send(CommandKind::JoinInvite,v,submit)){notice_=loc::T("room.link_joining");noticeTone_=Tone::Pending;}
+ else notice_=loc::T("room.link_opened");
 }
 void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
@@ -485,7 +494,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const bool healthyRoom=UpdateRoomFeedback(v);
  UpdatePreferenceSave(v,submit);
  UpdateShortCopy(v,now);
- UpdateJoinLink(v,now);
+ UpdateJoinLink(v,now,submit);
  if(v.readyFailureSequence!=readyFailureSequence_){
   readyFailureSequence_=v.readyFailureSequence;
   if(readyFailureSequence_&&!v.readyFailure.empty())menu_.ShowNotice(v.readyFailure);

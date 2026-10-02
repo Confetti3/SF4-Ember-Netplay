@@ -1804,6 +1804,9 @@ msgstr "Creazione del link breve..."
 msgid "room.short_invitation_unavailable"
 msgstr "Il servizio link non ha risposto, quindi è stato copiato l'invito completo."
 
+msgid "room.link_joining"
+msgstr "Ingresso nella sala del link."
+
 msgid "room.link_opened"
 msgstr "Aperto da un link della sala. Controllalo, poi scegli Entra in sala."
 

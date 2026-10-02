@@ -126,7 +126,7 @@ private:
     bool UpdateRoomFeedback(const ShellView& view);
     void UpdatePreferenceSave(const ShellView& view,const Submit& submit);
     void UpdateShortCopy(const ShellView& view,double now);
-    void UpdateJoinLink(const ShellView& view,double now);
+    void UpdateJoinLink(const ShellView& view,double now,const Submit& submit);
     void CopyShortInvitation(const ShellView& view,const Submit& submit);
     std::vector<MenuEntry> BuildRows(const ShellView& view,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title);
     std::pair<std::string,Tone> UpdateStatus(const ShellView& view,const std::string& screen,bool opening,bool healthyRoom,std::string& title);
@@ -208,9 +208,13 @@ private:
     bool shortCopyPending_=false;
     double shortCopyUntil_=0;
     std::uint64_t shortFailuresSeen_=0;
-    // A room link from the browser waits here until no room is open.
+    // A room link from the browser waits here until no room is open. One
+    // that arrived while the player was free joins by itself until the
+    // deadline, which covers a game still starting up.
+    static constexpr double JoinLinkDirectSeconds=120;
     std::uint64_t joinLinkSeen_=0;
     std::string joinLink_;
+    double joinLinkDirectUntil_=0;
     Tone noticeTone_=Tone::Success;
     std::uint64_t roomEpoch_ = 0, rulesRevision_ = 0, nextActionId_ = 1, readyFailureSequence_ = 0;
     int selectedTable_ = 0, roomCapacity_ = 16;

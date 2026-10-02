@@ -1804,6 +1804,9 @@ msgstr "正在生成短链接..."
 msgid "room.short_invitation_unavailable"
 msgstr "链接服务没有响应，已改为复制完整邀请。"
 
+msgid "room.link_joining"
+msgstr "正在加入链接中的房间。"
+
 msgid "room.link_opened"
 msgstr "已通过房间链接打开。确认后请选择加入房间。"
 

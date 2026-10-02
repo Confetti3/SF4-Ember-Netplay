@@ -908,7 +908,8 @@ void TrainingJourneys() {
 }
 }
 // Copy short link copies the link once the helper has one, and the full
-// invitation when it reports a failure. A room link from the browser fills
+// invitation when it reports a failure. A room link from the browser joins
+// by itself when the player is free; one that arrived during a room fills
 // the Join screen once no room is open, and sends nothing by itself.
 std::string g_clipboard;
 void RoomLinks(){
@@ -952,6 +953,17 @@ void RoomLinks(){
   "Join room did not join with the room link");
  // The same link is not offered twice.
  h.shell.Navigation().Home();h.Frame(0,3);Check(h.shell.Navigation().Screen()=="home","A used room link came back");
+ // A link that arrives while the player is free joins by itself, once a
+ // room can be opened.
+ const std::string second="https://embernetplay.link/j#0X1R-7K3M-T9PZ";
+ before=h.actions.size();h.view.canOpenRoom=false;
+ h.view.pendingJoinLink=second;h.view.pendingJoinSequence=2;h.Frame(0,3);
+ Check(h.actions.size()==before&&h.shell.Navigation().Screen()=="home","A room link joined before a room could be opened");
+ h.view.canOpenRoom=true;h.Frame(0,3);
+ Check(h.shell.Navigation().Screen()=="join","A room link did not open the Join screen while joining");
+ Check(h.actions.size()==before+1&&h.actions.back().command.kind==Kind::JoinInvite&&h.actions.back().command.invitation==second,
+  "A room link did not join its room");
+ h.Frame(0,3);Check(h.actions.size()==before+1,"A room link joined twice");
 }
 int main(){try{Journeys();RoomLinks();KeyboardJourneys();NoticeOverDialogs();LanguageSaveFailure();SessionReports();RecoveryWindow();SelectorPages();SelectorFromHome();DeveloperSelectors();TrainingJourneys();PresentationJourneys();AppearanceGalleries();std::cout<<"Shell journeys through the renderer passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

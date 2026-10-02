@@ -1804,6 +1804,9 @@ msgstr "Создаётся короткая ссылка..."
 msgid "room.short_invitation_unavailable"
 msgstr "Сервис ссылок не ответил, поэтому скопировано полное приглашение."
 
+msgid "room.link_joining"
+msgstr "Вход в зал по ссылке."
+
 msgid "room.link_opened"
 msgstr "Открыто по ссылке на зал. Проверьте её и выберите «Войти в зал»."
 

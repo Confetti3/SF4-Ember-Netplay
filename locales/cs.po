@@ -1804,6 +1804,9 @@ msgstr "Vytváří se krátký odkaz..."
 msgid "room.short_invitation_unavailable"
 msgstr "Odkazová služba neodpověděla, proto se zkopírovala celá pozvánka."
 
+msgid "room.link_joining"
+msgstr "Připojování k místnosti z odkazu."
+
 msgid "room.link_opened"
 msgstr "Otevřeno z odkazu na místnost. Zkontrolujte ho a zvolte Připojit se."
 
