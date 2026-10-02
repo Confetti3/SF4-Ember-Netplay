@@ -323,7 +323,9 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  }
  if(screen=="room"&&status.empty()){
   const bool healthy=v.session.control==Health::Healthy;
-  status=healthy?(v.room.locked?loc::T("room.locked_status"):loc::T("room.private_status")):loc::T("room.reconnecting");
+  status=!healthy?std::string(loc::T("room.reconnecting")):v.room.tournament.Active()?
+   loc::Tf("room.tournament_status",static_cast<int>(v.room.tournament.gamesToWin)):
+   std::string(loc::T(v.room.locked?"room.locked_status":"room.private_status"));
   if(!healthy)statusTone=Tone::Pending;
  }
  if(screen=="room-table"){

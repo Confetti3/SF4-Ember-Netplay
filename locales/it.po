@@ -882,6 +882,9 @@ msgstr "Sala bloccata / solo inviti"
 msgid "room.private_status"
 msgstr "Sala privata / solo inviti"
 
+msgid "room.tournament_status"
+msgstr "Partita del torneo, vince chi arriva a {0}. Possono entrare solo i suoi due giocatori."
+
 msgid "room.reconnecting"
 msgstr "Riconnessione alla sala..."
 

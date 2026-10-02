@@ -882,6 +882,9 @@ msgstr "Room locked / invitation only"
 msgid "room.private_status"
 msgstr "Private room / invitation only"
 
+msgid "room.tournament_status"
+msgstr "Tournament match, first to {0}. Only its two players can join."
+
 msgid "room.reconnecting"
 msgstr "Reconnecting to room..."
 

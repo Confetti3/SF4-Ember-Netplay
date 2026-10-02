@@ -101,6 +101,9 @@ PlaceExit ExitFromPlace(const ShellView& v) {
             exit.allowed = true; exit.unready = true; exit.seatIndex = place.seat; exit.label = loc::T("room.cancel_start");
         }
         else exit.blocker = loc::T(LeaveBlockerKey(hold));
+        // A tournament fighter's seat is the match's: it is given up only by
+        // leaving the room, so there is nothing to leave here but a held start.
+        if (v.room.tournament.Active() && place.table == room::TournamentTable && !exit.unready) return PlaceExit{};
     } else if (place.kind == room::Place::Kind::Queue) {
         exit.table = place.table; exit.allowed = true; exit.label = loc::T("room.leave_queue");
     }

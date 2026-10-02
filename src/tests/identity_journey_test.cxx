@@ -151,6 +151,13 @@ void TournamentRoom(){
  Check(has("ready")&&!has("unqueue")&&!has("rounds")&&has("rules"),"A tournament table offers seat or rules changes");
  h.view.tournament.phase=netplay::tournament::Phase::InRoom;h.view.tournament.waitingForPermit=true;h.Frame(0,2);
  Check(status==loc::T("tournament.state.waiting_permit"),"A tournament table does not say it waits for the service");
+ // On the board: the room says it is a tournament match, offers no
+ // invitation, and B on the fighter's own seat does not try to leave it.
+ h.view.tournament=netplay::tournament::Status{};h.Screen("room");h.Frame(0,2);
+ Check(status==loc::Tf("room.tournament_status",2)&&!has("copy")&&!has("copy-short"),"A tournament room reads like a casual one");
+ const auto sent=h.actions.size();h.FocusOn("table-0");h.Press(MenuInput::Back);
+ for(std::size_t i=sent;i<h.actions.size();++i)
+  Check(h.actions[i].roomAction.kind!=room::ActionKind::Unqueue,"B on a tournament seat tried to leave it");
  h.Screen("room");h.Choose("room-members");h.Choose("member-2");
  Check(has("mute")&&!has("kick"),"A tournament room offers Kick");
  SetMenuEntriesProbe({});SetMenuStatusProbe({});

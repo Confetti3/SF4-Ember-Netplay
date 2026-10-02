@@ -882,6 +882,9 @@ msgstr "房间已锁定／仅限邀请"
 msgid "room.private_status"
 msgstr "私人房间／仅限邀请"
 
+msgid "room.tournament_status"
+msgstr "赛事对局，先胜{0}局。只有本局的两名玩家可以加入。"
+
 msgid "room.reconnecting"
 msgstr "正在重连房间..."
 

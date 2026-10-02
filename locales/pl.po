@@ -882,6 +882,9 @@ msgstr "Pokój zamknięty / tylko zaproszenia"
 msgid "room.private_status"
 msgstr "Pokój prywatny / tylko zaproszenia"
 
+msgid "room.tournament_status"
+msgstr "Mecz turniejowy, do {0} wygranych. Mogą dołączyć tylko jego dwaj gracze."
+
 msgid "room.reconnecting"
 msgstr "Ponowne łączenie z pokojem..."
 

@@ -882,6 +882,9 @@ msgstr "Salon verrouillé / sur invitation"
 msgid "room.private_status"
 msgstr "Salon privé / sur invitation"
 
+msgid "room.tournament_status"
+msgstr "Match de tournoi, premier à {0}. Seuls ses deux joueurs peuvent entrer."
+
 msgid "room.reconnecting"
 msgstr "Reconnexion au salon..."
 

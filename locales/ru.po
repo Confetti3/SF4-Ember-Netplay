@@ -882,6 +882,9 @@ msgstr "Зал закрыт / вход по приглашению"
 msgid "room.private_status"
 msgstr "Закрытый зал / вход по приглашению"
 
+msgid "room.tournament_status"
+msgstr "Турнирный матч, до {0} побед. Войти могут только два его игрока."
+
 msgid "room.reconnecting"
 msgstr "Переподключение..."
 

@@ -882,6 +882,9 @@ msgstr "Raum gesperrt / nur mit Einladung"
 msgid "room.private_status"
 msgstr "Privater Raum / nur mit Einladung"
 
+msgid "room.tournament_status"
+msgstr "Turnierspiel, Ziel {0} Siege. Nur seine zwei Spieler können beitreten."
+
 msgid "room.reconnecting"
 msgstr "Verbinde erneut..."
 

@@ -882,6 +882,9 @@ msgstr "Uzamčená místnost / jen s pozvánkou"
 msgid "room.private_status"
 msgstr "Soukromá místnost / jen s pozvánkou"
 
+msgid "room.tournament_status"
+msgstr "Turnajový zápas, hraje se na {0} výhry. Připojit se mohou jen jeho dva hráči."
+
 msgid "room.reconnecting"
 msgstr "Obnovování spojení..."
 

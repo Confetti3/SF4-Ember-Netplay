@@ -882,6 +882,9 @@ msgstr "Kamer op slot / op uitnodiging"
 msgid "room.private_status"
 msgstr "Privékamer / alleen op uitnodiging"
 
+msgid "room.tournament_status"
+msgstr "Toernooiwedstrijd, eerst tot {0}. Alleen de twee spelers kunnen erin."
+
 msgid "room.reconnecting"
 msgstr "Kamer opnieuw verbinden..."
 

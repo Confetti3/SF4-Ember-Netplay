@@ -182,10 +182,14 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   }else{
    rows.push_back(Row("room-status",loc::T("room.connection_status"),loc::T(v.session.room==netplay::RoomState::Opening?"room.opening":"room.waiting_state"),false));
   }
-  rows.push_back(Row("copy",loc::T("room.copy_invitation"),loc::T("room.copy_invitation.detail"),!v.invitation.empty()));
-  // Once made, the detail shows the link itself so it can be read out.
-  rows.push_back(Row("copy-short",loc::T("room.copy_short_invitation"),v.shortInvitation.empty()?std::string(loc::T("room.copy_short_invitation.detail")):
-   v.shortInvitation.substr(v.shortInvitation.find("//")==std::string::npos?0:v.shortInvitation.find("//")+2),!v.invitation.empty()));
+  // A tournament room admits only its two fighters, who reach it through the
+  // tournament service, so there is no invitation to hand out.
+  if(!tournamentRoom){
+   rows.push_back(Row("copy",loc::T("room.copy_invitation"),loc::T("room.copy_invitation.detail"),!v.invitation.empty()));
+   // Once made, the detail shows the link itself so it can be read out.
+   rows.push_back(Row("copy-short",loc::T("room.copy_short_invitation"),v.shortInvitation.empty()?std::string(loc::T("room.copy_short_invitation.detail")):
+    v.shortInvitation.substr(v.shortInvitation.find("//")==std::string::npos?0:v.shortInvitation.find("//")+2),!v.invitation.empty()));
+  }
   rows.push_back(ConfirmRow("leave",loc::T(v.session.room==netplay::RoomState::Closing?"room.leaving":"room.leave"),
    LeaveRoomDetail(v),v.session.room!=netplay::RoomState::Closing));
   if(v.session.recovery==netplay::Recovery::ReplacementOffered)

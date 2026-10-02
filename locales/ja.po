@@ -882,6 +882,9 @@ msgstr "ルームはロック中 / 招待者のみ"
 msgid "room.private_status"
 msgstr "プライベートルーム / 招待者のみ"
 
+msgid "room.tournament_status"
+msgstr "大会の試合、{0}本先取。参加できるのはこの試合の2人だけです。"
+
 msgid "room.reconnecting"
 msgstr "ルームに再接続中..."
 
