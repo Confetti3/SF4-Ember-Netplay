@@ -95,6 +95,38 @@ pub struct BridgeProfile {
     pub signing_keys_url: String,
 }
 
+/// One public bridge key from `/v1/signing-keys`, as an Ed25519 JWK. A
+/// client trusts it only when fetched from a bridge the player approved.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SigningKey {
+    pub kty: String,
+    pub crv: String,
+    pub alg: String,
+    #[serde(rename = "use")]
+    pub usage: String,
+    pub kid: String,
+    pub x: String,
+}
+
+impl SigningKey {
+    /// The key, when this is an Ed25519 signature key.
+    pub fn public_key(&self) -> Option<crate::PublicKey> {
+        let shape = self.kty == "OKP" && self.crv == "Ed25519" && self.alg == "EdDSA" && self.usage == "sig";
+        let kid = !self.kid.is_empty() && self.kid.len() <= 64 && self.kid.is_ascii();
+        (shape && kid)
+            .then(|| crate::PublicKey::from_b64u(&self.x).ok())
+            .flatten()
+    }
+}
+
+/// `/v1/signing-keys`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SigningKeys {
+    pub keys: Vec<SigningKey>,
+}
+
 /// `/v1/capabilities`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Capabilities {

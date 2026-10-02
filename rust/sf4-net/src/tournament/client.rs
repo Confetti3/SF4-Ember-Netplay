@@ -9,7 +9,7 @@ use std::{
 
 use ember_protocol::{
     EmberId,
-    api::{ApiError, BridgeProfile, Capabilities, WELL_KNOWN_PATH},
+    api::{ApiError, BridgeProfile, Capabilities, SigningKey, SigningKeys, WELL_KNOWN_PATH},
     challenge::{
         Action, Challenge, Expected, MAX_PROOF_BODY, Method, ProvenRequest, command_digest,
     },
@@ -41,7 +41,7 @@ pub struct Client {
     sessions: Mutex<HashMap<String, Session>>,
 }
 
-fn now() -> u64 {
+pub(super) fn now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |elapsed| elapsed.as_secs())
@@ -91,7 +91,7 @@ impl Client {
     }
 
     /// Sends one request and reads at most `MAX_RESPONSE` bytes back.
-    async fn call(
+    pub(super) async fn call(
         &self,
         method: reqwest::Method,
         url: &str,
@@ -159,10 +159,29 @@ impl Client {
         }
         Ok((profile, capabilities))
     }
+
+    /// The bridge's public signing keys, from the approved origin only.
+    pub async fn signing_keys(&self, origin: &str) -> Result<Vec<SigningKey>, Failure> {
+        check_origin(origin, POLICY).map_err(|_| Failure::new("invalid_origin"))?;
+        let (status, body) = self
+            .call(
+                reqwest::Method::GET,
+                &format!("{origin}/v1/signing-keys"),
+                None,
+                None,
+            )
+            .await?;
+        if status != 200 {
+            return Err(Failure::new("not_a_bridge"));
+        }
+        let keys: SigningKeys =
+            json::parse_as(&body, MAX_RESPONSE).map_err(|_| Failure::new("not_a_bridge"))?;
+        Ok(keys.keys)
+    }
 }
 
 /// The bridge's answer, as a failure code when it is not a success.
-fn answer(status: u16, body: &[u8], expected: &[u16]) -> Result<Value, Failure> {
+pub(super) fn answer(status: u16, body: &[u8], expected: &[u16]) -> Result<Value, Failure> {
     if expected.contains(&status) {
         return json::parse(body, MAX_RESPONSE)
             .and_then(|value| json::from_value::<Value>(&value))
@@ -180,7 +199,7 @@ fn answer(status: u16, body: &[u8], expected: &[u16]) -> Result<Value, Failure> 
     Err(Failure(code))
 }
 
-fn approved(shared: &Shared, bridge_id: &str) -> Result<Approved, Failure> {
+pub(super) fn approved(shared: &Shared, bridge_id: &str) -> Result<Approved, Failure> {
     shared
         .bridges
         .lock()
@@ -192,7 +211,7 @@ fn approved(shared: &Shared, bridge_id: &str) -> Result<Approved, Failure> {
 /// Requests a challenge for `command`, checks it, and signs it. The identity
 /// lock is only tried: a key operation in progress makes this `identity_busy`
 /// rather than blocking a runtime thread.
-async fn prove(
+pub(super) async fn prove(
     shared: &Shared,
     bridge: &Approved,
     token: Option<&str>,
@@ -268,7 +287,7 @@ struct SessionCreated {
 }
 
 /// The unlocked identity's ID, without waiting on key work.
-fn current_id(shared: &Shared) -> Result<EmberId, Failure> {
+pub(super) fn current_id(shared: &Shared) -> Result<EmberId, Failure> {
     let identity = shared
         .identity
         .try_lock()
@@ -323,7 +342,7 @@ async fn session(shared: &Shared, bridge: &Approved) -> Result<Zeroizing<String>
 
 /// Runs `operation` with a session, retrying once with a new session if the
 /// bridge no longer accepts the cached one.
-async fn with_session<F, Fut>(shared: &Arc<Shared>, bridge_id: &str, operation: F) -> Outcome
+pub(super) async fn with_session<F, Fut>(shared: &Arc<Shared>, bridge_id: &str, operation: F) -> Outcome
 where
     F: Fn(Approved, Zeroizing<String>) -> Fut,
     Fut: std::future::Future<Output = Outcome>,
@@ -477,6 +496,7 @@ mod tests {
             origin: origin.into(),
             display_name: "Bridge".into(),
             approved_at: 0,
+            keys: Vec::new(),
         };
         assert!(client.cached(&at("https://a.example"), &ember_id).is_some());
         assert!(client.cached(&at("https://b.example"), &ember_id).is_none());

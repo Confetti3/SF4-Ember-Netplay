@@ -7,13 +7,20 @@
 //! here waits on, or is waited on by, room or gameplay work (spec 18.3).
 mod bridges;
 mod client;
+mod play;
+mod spool;
 
 use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
 
-use ember_protocol::EmberId;
+use ember_protocol::{
+    EmberId,
+    encoding::Counter,
+    play::PublishRoom,
+    report::Outcome as GameOutcome,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::sync::{Semaphore, mpsc};
@@ -26,6 +33,8 @@ use crate::{
 
 /// Bridge requests in flight at once (spec 25.1).
 const HTTP_CONCURRENCY: usize = 4;
+/// How often spooled reports are sent again.
+const SPOOL_RETRY_SECS: u64 = 20;
 const QUEUE: usize = 32;
 const MAX_PATH: usize = 1024;
 
@@ -93,6 +102,37 @@ pub enum Request {
         bridge_id: String,
         link_id: String,
     },
+    AssignmentList {
+        bridge_id: String,
+    },
+    MatchClaim {
+        bridge_id: String,
+        match_id: String,
+        build: String,
+    },
+    RoomPublish {
+        bridge_id: String,
+        match_id: String,
+        room: PublishRoom,
+    },
+    GamePrepare {
+        bridge_id: String,
+        match_id: String,
+        match_generation: Counter,
+    },
+    GameReport {
+        bridge_id: String,
+        match_id: String,
+        match_generation: Counter,
+        result: GameOutcome,
+        #[serde(default)]
+        capture_frame: Option<Counter>,
+        #[serde(default)]
+        confirmed_input_frame: Option<Counter>,
+    },
+    MatchLeave {
+        match_id: String,
+    },
 }
 
 impl Request {
@@ -113,6 +153,12 @@ impl Request {
             Self::LinkClaim { .. } => "link_claim",
             Self::LinkCancel { .. } => "link_cancel",
             Self::LinkRemove { .. } => "link_remove",
+            Self::AssignmentList { .. } => "assignment_list",
+            Self::MatchClaim { .. } => "match_claim",
+            Self::RoomPublish { .. } => "room_publish",
+            Self::GamePrepare { .. } => "game_prepare",
+            Self::GameReport { .. } => "game_report",
+            Self::MatchLeave { .. } => "match_leave",
         }
     }
 
@@ -185,17 +231,38 @@ pub(crate) struct Shared {
     bridges: Mutex<bridges::Store>,
     client: client::Client,
     http: Semaphore,
+    play: Mutex<play::State>,
+    spool: spool::Spool,
+    /// This helper run's Iroh endpoint, which tournament claims name.
+    endpoint_id: String,
+    /// Names this helper run in claims and reports.
+    instance_id: String,
 }
 
 /// Starts the worker on the per-user stores. The identity store is opened on
 /// a blocking thread; nothing is created until the user enables an identity.
-pub fn spawn(events: mpsc::Sender<Event>) -> (Handle, tokio::task::JoinHandle<()>) {
-    spawn_with(events, || {
+/// `endpoint_id` is this helper run's Iroh endpoint.
+pub fn spawn(
+    events: mpsc::Sender<Event>,
+    endpoint_id: String,
+) -> (Handle, tokio::task::JoinHandle<()>) {
+    spawn_with(events, endpoint_id, || {
+        let dir = tournament_directory();
         (
             Identity::open_default(),
-            bridges::Store::open(tournament_directory()),
+            bridges::Store::open(dir.clone()),
+            spool::Spool::open(spool_directory(&dir)),
         )
     })
+}
+
+/// Reports wait in their own folder beside the bridge list.
+fn spool_directory(dir: &Path) -> PathBuf {
+    if dir.as_os_str().is_empty() {
+        PathBuf::new()
+    } else {
+        dir.join("reports")
+    }
 }
 
 /// Starts the worker on stores in the given directories, for tests.
@@ -204,18 +271,21 @@ pub fn spawn_in(
     identity_dir: PathBuf,
     tournament_dir: PathBuf,
     wine: bool,
+    endpoint_id: String,
 ) -> (Handle, tokio::task::JoinHandle<()>) {
-    spawn_with(events, move || {
+    spawn_with(events, endpoint_id, move || {
         (
             Identity::open(identity_dir, wine, identity::Cost::DEFAULT),
-            bridges::Store::open(tournament_dir),
+            bridges::Store::open(tournament_dir.clone()),
+            spool::Spool::open(spool_directory(&tournament_dir)),
         )
     })
 }
 
 fn spawn_with(
     events: mpsc::Sender<Event>,
-    open: impl FnOnce() -> (Identity, bridges::Store) + Send + 'static,
+    endpoint_id: String,
+    open: impl FnOnce() -> (Identity, bridges::Store, spool::Spool) + Send + 'static,
 ) -> (Handle, tokio::task::JoinHandle<()>) {
     let (jobs, mut receiver) = mpsc::channel::<Job>(QUEUE);
     let handle = Handle {
@@ -224,14 +294,22 @@ fn spawn_with(
     };
     let task = tokio::spawn(async move {
         let opened = tokio::task::spawn_blocking(open).await;
-        let Ok((identity, bridges)) = opened else {
+        let Ok((identity, bridges, spool)) = opened else {
             return;
         };
+        let mut random = [0u8; 16];
+        if getrandom::fill(&mut random).is_err() {
+            return;
+        }
         let shared = Arc::new(Shared {
             identity: Mutex::new(identity),
             bridges: Mutex::new(bridges),
             client: client::Client::new(),
             http: Semaphore::new(HTTP_CONCURRENCY),
+            play: Mutex::new(play::State::default()),
+            spool,
+            endpoint_id,
+            instance_id: ember_protocol::encoding::prefixed_id("ins", random),
         });
         // An initial status lets the native side render without asking.
         respond(&events, &shared, 0, "identity_status", Ok(None)).await;
@@ -250,6 +328,19 @@ fn spawn_with(
                             .await
                             .unwrap_or_else(|_| Err(Failure::new("internal")));
                     respond(&events, &shared, job.request_id, op, outcome).await;
+                }
+            })
+        };
+        // Spooled reports go out in the background, oldest first, also after
+        // a restart; one pass at a time so they keep their order.
+        let resend = {
+            let shared = shared.clone();
+            tokio::spawn(async move {
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_secs(SPOOL_RETRY_SECS)).await;
+                    if let Ok(_permit) = shared.http.acquire().await {
+                        play::deliver_pending(&shared).await;
+                    }
                 }
             })
         };
@@ -272,6 +363,7 @@ fn spawn_with(
             });
         }
         serial.abort();
+        resend.abort();
     });
     (handle, task)
 }
@@ -439,13 +531,15 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             if profile.bridge_id != bridge_id {
                 return Err(Failure::new("bridge_changed"));
             }
+            // The keys that sign this bridge's bindings and permits, from
+            // the origin being approved.
+            let keys = shared.client.signing_keys(&origin).await?;
             let store = shared.clone();
             let displaced = tokio::task::spawn_blocking(move || {
-                store
-                    .bridges
-                    .lock()
-                    .map_err(|_| Failure::new("internal"))?
-                    .approve(&profile)
+                let mut bridges = store.bridges.lock().map_err(|_| Failure::new("internal"))?;
+                let displaced = bridges.approve(&profile)?;
+                bridges.set_keys(&profile.bridge_id, keys)?;
+                Ok::<_, Failure>(displaced)
             })
             .await
             .map_err(|_| Failure::new("internal"))??;
@@ -483,6 +577,42 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
         Request::LinkRemove { bridge_id, link_id } => {
             client::remove_link(shared, &bridge_id, &link_id).await
         }
+        Request::AssignmentList { bridge_id } => play::assignments(shared, &bridge_id).await,
+        Request::MatchClaim {
+            bridge_id,
+            match_id,
+            build,
+        } => play::claim_match(shared, &bridge_id, &match_id, &build).await,
+        Request::RoomPublish {
+            bridge_id,
+            match_id,
+            room,
+        } => play::publish_room(shared, &bridge_id, &match_id, room).await,
+        Request::GamePrepare {
+            bridge_id,
+            match_id,
+            match_generation,
+        } => play::prepare_game(shared, &bridge_id, &match_id, match_generation).await,
+        Request::GameReport {
+            bridge_id,
+            match_id,
+            match_generation,
+            result,
+            capture_frame,
+            confirmed_input_frame,
+        } => {
+            play::report_game(
+                shared,
+                &bridge_id,
+                &match_id,
+                match_generation,
+                result,
+                capture_frame,
+                confirmed_input_frame,
+            )
+            .await
+        }
+        Request::MatchLeave { match_id } => play::forget(shared, &match_id),
         _ => Err(Failure::new("invalid_request")),
     }
 }

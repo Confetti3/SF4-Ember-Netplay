@@ -1,6 +1,7 @@
 //! Bridges the user approved (spec 9.1): `bridges.json` holds public
-//! profile data only, never a token. Discovery documents and deep links
-//! cannot add an entry; only an explicit approval from the native UI does.
+//! profile data and the bridge's public signing keys only, never a token.
+//! Discovery documents and deep links cannot add an entry; only an explicit
+//! approval from the native UI does.
 use std::{
     fs,
     io::Write,
@@ -9,7 +10,7 @@ use std::{
 };
 
 use ember_protocol::{
-    api::BridgeProfile,
+    api::{BridgeProfile, SigningKey},
     encoding::{OriginPolicy, b64u, check_origin, is_prefixed_id},
     json,
 };
@@ -29,6 +30,20 @@ pub struct Approved {
     pub origin: String,
     pub display_name: String,
     pub approved_at: u64,
+    /// The bridge's public keys, fetched from its approved origin. They sign
+    /// the room bindings and game permits this helper accepts.
+    #[serde(default)]
+    pub keys: Vec<SigningKey>,
+}
+
+impl Approved {
+    /// The bridge key `kid` names, if the bridge published it.
+    pub fn key(&self, kid: &str) -> Option<ember_protocol::PublicKey> {
+        self.keys
+            .iter()
+            .find(|key| key.kid == kid)
+            .and_then(SigningKey::public_key)
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -96,6 +111,7 @@ impl Store {
             approved_at: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .map_or(0, |elapsed| elapsed.as_secs()),
+            keys: Vec::new(),
         };
         if !valid(&entry) {
             return Err(Failure::new("invalid_bridge"));
@@ -120,6 +136,26 @@ impl Store {
             .into_iter()
             .map(|bridge| bridge.bridge_id)
             .collect())
+    }
+
+    /// Records an approved bridge's current public keys (at most 8 usable ones).
+    pub fn set_keys(&mut self, bridge_id: &str, keys: Vec<SigningKey>) -> Result<(), Failure> {
+        let keys: Vec<SigningKey> = keys
+            .into_iter()
+            .filter(|key| key.public_key().is_some())
+            .take(8)
+            .collect();
+        let Some(entry) = self.bridges.iter_mut().find(|bridge| bridge.bridge_id == bridge_id) else {
+            return Err(Failure::new("bridge_not_approved"));
+        };
+        let previous = std::mem::replace(&mut entry.keys, keys);
+        if let Err(failure) = self.save() {
+            if let Some(entry) = self.bridges.iter_mut().find(|bridge| bridge.bridge_id == bridge_id) {
+                entry.keys = previous;
+            }
+            return Err(failure);
+        }
+        Ok(())
     }
 
     pub fn forget(&mut self, bridge_id: &str) -> Result<(), Failure> {

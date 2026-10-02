@@ -67,12 +67,18 @@ struct Worker {
 
 impl Worker {
     fn start(dirs: &Dirs) -> Self {
+        Self::start_as(dirs, "a".repeat(64))
+    }
+
+    /// A worker whose helper run has the Iroh endpoint `endpoint`.
+    fn start_as(dirs: &Dirs, endpoint: String) -> Self {
         let (sender, events) = mpsc::channel(64);
         let (handle, task) = tournament::spawn_in(
             sender,
             dirs.0.join("identity"),
             dirs.0.join("tournament"),
             false,
+            endpoint,
         );
         Self {
             handle,
@@ -127,6 +133,7 @@ async fn provider_call(origin: &str, token: &str, path: &str, body: Value) -> Va
         .post(format!("{origin}{path}"))
         .bearer_auth(token)
         .header("content-type", "application/json")
+        .header("idempotency-key", ember_protocol::encoding::b64u(&random16()))
         .body(serde_json::to_vec(&body).unwrap())
         .send()
         .await
@@ -315,4 +322,136 @@ fn requests_carry_no_debug_output_of_secrets() {
         serde_json::from_value(json!({ "op": "identity_unlock", "passphrase": "secret words" }))
             .unwrap();
     takes(&request);
+}
+
+/// One worker with an enabled identity, the bridge approved, and its
+/// identity linked to `subject` on the mock connection.
+async fn linked_worker(dirs: &Dirs, endpoint: &str, origin: &str, provider: &str, subject: &str) -> (Worker, String, String, Value) {
+    let mut worker = Worker::start_as(dirs, endpoint.to_owned());
+    worker.next_answer(0).await;
+    let (_, _, identity, _) = worker.ask(json!({ "op": "identity_enable" })).await;
+    let ember_id = identity["ember_id"].as_str().unwrap().to_owned();
+    let (_, _, _, inspected) = worker.ask(json!({ "op": "bridge_inspect", "origin": origin })).await;
+    let bridge_id = inspected["profile"]["bridge_id"].as_str().unwrap().to_owned();
+    let (ok, reason, _, _) = worker
+        .ask(json!({ "op": "bridge_approve", "origin": origin, "bridge_id": bridge_id }))
+        .await;
+    assert!(ok, "{reason:?}");
+    let intent = provider_call(origin, provider, "/v1/link-intents", json!({ "subject": subject })).await;
+    let (ok, reason, _, claim) = worker
+        .ask(json!({ "op": "link_claim", "bridge_id": bridge_id, "connection_id": "mock-local", "code": intent["code"] }))
+        .await;
+    assert!(ok, "{reason:?}");
+    let link = provider_call(
+        origin,
+        provider,
+        &format!("/v1/link-intents/{}/approve", intent["intent_id"].as_str().unwrap()),
+        json!({ "claim_id": claim["claim_id"], "ember_id": ember_id, "subject": subject }),
+    )
+    .await;
+    (worker, ember_id, bridge_id, link)
+}
+
+#[tokio::test]
+async fn play_a_set_through_two_helpers() {
+    let dirs = Dirs(std::env::temp_dir().join(format!(
+        "sf4-tournament-play-{}",
+        ember_protocol::encoding::b64u(&random16())
+    )));
+    std::fs::create_dir_all(&dirs.0).unwrap();
+    let (running, origin) = bridge(&dirs.0).await;
+    let provider = ember_bridge::issue_credential(&running.state, Some("mock-local"), None, "play")
+        .await
+        .unwrap();
+    let (host_endpoint, guest_endpoint) = ("a".repeat(64), "b".repeat(64));
+    let host_dirs = Dirs(dirs.0.join("host"));
+    let guest_dirs = Dirs(dirs.0.join("guest"));
+    let (mut host, host_id, bridge_id, host_link) =
+        linked_worker(&host_dirs, &host_endpoint, &origin, &provider, "host").await;
+    let (mut guest, guest_id, _, guest_link) =
+        linked_worker(&guest_dirs, &guest_endpoint, &origin, &provider, "guest").await;
+    let created = provider_call(
+        &origin,
+        &provider,
+        "/v1/matches",
+        json!({
+            "external_match_id": "helper-set",
+            "game": "usf4",
+            "participants": [
+                { "participant_id": host_link["participant_id"], "ember_id": host_id, "slot": 0 },
+                { "participant_id": guest_link["participant_id"], "ember_id": guest_id, "slot": 1 },
+            ],
+            "rules": {
+                "games_to_win": 2, "draw_policy": "replay_no_score", "native_rules_profile": "ember-room-v1",
+                "edition_policy": "ultra_only", "character_policy": "unrestricted_between_games",
+                "stage_policy": "p1_selects", "input_delay_policy": "ember_existing_ready_policy",
+            },
+            "observer_policy": "authorized_only",
+            "result_policy": "two_player_agreement_or_review",
+            "required_build_id": "ember",
+            "metadata": {},
+        }),
+    )
+    .await;
+    let match_id = created["match_id"].as_str().unwrap().to_owned();
+
+    let (_, _, _, assignments) = host.ask(json!({ "op": "assignment_list", "bridge_id": bridge_id })).await;
+    assert_eq!(assignments["assignments"][0]["match_id"], match_id.as_str());
+    // The first claim hosts; the second waits for the room.
+    let claim = json!({ "op": "match_claim", "bridge_id": bridge_id, "match_id": match_id, "build": "build-1" });
+    let (ok, reason, _, lease) = host.ask(claim.clone()).await;
+    assert!(ok, "{reason:?}");
+    assert_eq!(lease["role"], "host");
+    let (_, _, _, wait) = guest.ask(claim.clone()).await;
+    assert_eq!(wait["role"], "wait");
+    let room_id = "0123456789abcdef0123456789abcdef";
+    let (ok, reason, _, published) = host
+        .ask(json!({ "op": "room_publish", "bridge_id": bridge_id, "match_id": match_id, "room": {
+            "room_id": room_id, "invitation": "sf4e3:test", "lease_id": lease["lease_id"], "fence": lease["fence"], "replaces": null,
+        }}))
+        .await;
+    assert!(ok, "{reason:?}");
+    // The helper hands the game the checked binding, with its own slot.
+    assert_eq!(published["binding"]["local_slot"], 0);
+    let (_, _, _, joined) = guest.ask(claim.clone()).await;
+    assert_eq!(joined["invitation"], "sf4e3:test");
+    assert_eq!(joined["binding"]["local_slot"], 1);
+    assert_eq!(joined["binding"]["fighters"][0]["endpoint_id"], host_endpoint.as_str());
+
+    for (generation, result) in [(3u64, "p1_win"), (4, "p1_win")] {
+        let prepare = json!({ "op": "game_prepare", "bridge_id": bridge_id, "match_id": match_id, "match_generation": generation.to_string() });
+        let (_, _, _, pending) = host.ask(prepare.clone()).await;
+        assert_eq!(pending["state"], "pending");
+        let (ok, reason, _, permitted) = guest.ask(prepare.clone()).await;
+        assert!(ok, "{reason:?}");
+        assert_eq!(permitted["state"], "permitted");
+        let (_, _, _, again) = host.ask(prepare).await;
+        assert_eq!(again["permit_id"], permitted["permit_id"]);
+        let report = json!({
+            "op": "game_report", "bridge_id": bridge_id, "match_id": match_id, "match_generation": generation.to_string(),
+            "result": result, "capture_frame": "900", "confirmed_input_frame": "899",
+        });
+        let (ok, reason, _, first) = host.ask(report.clone()).await;
+        assert!(ok, "{reason:?}");
+        assert_eq!((first["saved"].as_bool(), first["delivered"].as_bool()), (Some(true), Some(true)));
+        let (_, _, _, second) = guest.ask(report).await;
+        assert_eq!(second["attempt_state"], "accepted");
+    }
+    let (ok, _, _, last) = guest
+        .ask(json!({ "op": "assignment_list", "bridge_id": bridge_id }))
+        .await;
+    assert!(ok);
+    assert_eq!(last["assignments"][0]["state"], "completed");
+    // Delivered reports leave nothing in the spool.
+    let spooled = std::fs::read_dir(host_dirs.0.join("tournament").join("reports"))
+        .map(|entries| entries.count())
+        .unwrap_or(0);
+    assert_eq!(spooled, 0);
+    // A game this helper never got a permit for cannot be reported.
+    let (ok, reason, _, _) = host
+        .ask(json!({ "op": "game_report", "bridge_id": bridge_id, "match_id": match_id, "match_generation": "99", "result": "p1_win", "capture_frame": "1", "confirmed_input_frame": "1" }))
+        .await;
+    assert!(!ok);
+    assert_eq!(reason.as_deref(), Some("unknown_permit"));
+    running.abort();
 }
