@@ -510,15 +510,38 @@ async fn a_disabled_connection_sends_nothing_until_enabled_again() {
     };
     let disabled = keyed_state(false);
     ember_bridge::sync_config(&disabled).await.unwrap();
+    let credentials = || async {
+        f.bridge
+            .state()
+            .db
+            .read(|tx| {
+                Ok(tx.query_row(
+                    "SELECT COUNT(*) FROM service_credentials WHERE connection_id = ?1",
+                    [CONNECTION],
+                    |row| row.get::<_, i64>(0),
+                )?)
+            })
+            .await
+            .unwrap()
+    };
+    let issued = credentials().await;
     ember_bridge::deliver_to_blumint(&disabled).await;
     assert!(
         ember_bridge::register_blumint(&disabled, CONNECTION)
             .await
             .is_err()
     );
-    // A bridge still configured with it enabled finds it disabled when leasing.
-    ember_bridge::deliver_to_blumint(&keyed_state(true)).await;
-    assert!(submitted(&f).is_empty());
+    // A bridge still configured with it enabled finds it disabled when leasing
+    // and when registering.
+    let stale = keyed_state(true);
+    ember_bridge::deliver_to_blumint(&stale).await;
+    assert!(
+        ember_bridge::register_blumint(&stale, CONNECTION)
+            .await
+            .is_err()
+    );
+    assert!(f.blumint.lock().unwrap().calls.is_empty());
+    assert_eq!(credentials().await, issued);
     assert_eq!(delivery(&f, &id).await, ("queued".into(), 0));
 
     let enabled = keyed_state(true);

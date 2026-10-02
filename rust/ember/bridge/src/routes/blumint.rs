@@ -285,6 +285,15 @@ fn enabled(tx: &Transaction<'_>, connection_id: &str) -> Result<bool> {
     )?)
 }
 
+async fn stored_enabled(state: &AppState, connection_id: &str) -> bool {
+    let id = connection_id.to_owned();
+    state
+        .db
+        .read(move |tx| enabled(tx, &id))
+        .await
+        .unwrap_or(false)
+}
+
 /// What the bridge sends BluMint for a match, or None while it is still on.
 fn submission(tx: &Transaction<'_>, found: &Match) -> Result<Option<Value>> {
     Ok(match found.state {
@@ -485,6 +494,12 @@ pub async fn register(state: &AppState, connection_id: &str) -> std::result::Res
         .ok_or_else(|| {
             format!("no BluMint API key for {connection_id} in the integration secrets")
         })?;
+    // The connection's record decides, as it does for result posts, checked
+    // again before each call so a connection disabled meanwhile stops them.
+    let disabled = || format!("{connection_id} is disabled");
+    if !stored_enabled(state, connection_id).await {
+        return Err(disabled());
+    }
     let token = crate::issue_credential(state, Some(connection_id), None, "BluMint callbacks")
         .await
         .map_err(|_| "could not issue the callback credential".to_owned())?;
@@ -513,6 +528,9 @@ pub async fn register(state: &AppState, connection_id: &str) -> std::result::Res
             STATUS_PATH,
         ),
     ] {
+        if !stored_enabled(state, connection_id).await {
+            return Err(disabled());
+        }
         let body = json!({ field: format!("{origin}{ours}"), "authentication": authentication });
         let response = client
             .post(format!("{}{path}", api_base(connection)))
