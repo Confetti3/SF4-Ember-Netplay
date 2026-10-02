@@ -95,6 +95,8 @@ public:
 	void OnRoom(Output::Kind request, const ClaimReply& reply, std::uint64_t nowMs);
 	void OnPrepare(const PrepareReply& reply, std::uint64_t nowMs);
 	void OnFailure(Output::Kind request, const std::string& code, std::uint64_t nowMs);
+	// The helper saved (and perhaps sent) a report.
+	void OnReported();
 	// A rollback-confirmed native result of the bound table's game.
 	void OnTerminal(std::uint64_t generation, room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame);
 
@@ -130,6 +132,10 @@ private:
 	std::map<std::uint64_t, std::string> permits_;
 	std::map<std::uint64_t, std::uint64_t> permitToldMs_;
 	std::set<std::uint64_t> started_, reported_;
+	// Reports sent and not yet answered: the helper keeps the match's permits
+	// until they are, so Forget waits for them.
+	std::size_t reportsInFlight_ = 0;
+	bool forgetAfterReports_ = false;
 };
 
 // The wire name of a native result in a report.

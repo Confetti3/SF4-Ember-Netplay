@@ -44,7 +44,9 @@ void TournamentPlay::Stop() {
 void TournamentPlay::Fail(Phase phase, const std::string& reason) {
 	const bool active = phase_ == Phase::Claiming || phase_ == Phase::Opening || phase_ == Phase::InRoom;
 	if (active && (hostRequested_ || joinRequested_ || !targetRoom_.empty())) pending_.push_back(Make(Output::Kind::Leave));
-	if (active) pending_.push_back(Make(Output::Kind::Forget));
+	// A report still on its way needs the permit the helper would forget.
+	if (active && reportsInFlight_) forgetAfterReports_ = true;
+	else if (active) pending_.push_back(Make(Output::Kind::Forget));
 	phase_ = phase;
 	reason_ = reason;
 	waitingForOpponent_ = waitingForPermit_ = false;
@@ -53,14 +55,25 @@ void TournamentPlay::Fail(Phase phase, const std::string& reason) {
 std::vector<Output> TournamentPlay::Tick(std::uint64_t nowMs, const RoomView& room) {
 	std::vector<Output> out = std::move(pending_);
 	pending_.clear();
-	if (phase_ != Phase::Claiming && phase_ != Phase::Opening && phase_ != Phase::InRoom) return out;
-	if (!claimInFlight_ && nowMs >= nextClaimMs_) {
-		out.push_back(Make(Output::Kind::Claim));
-		claimInFlight_ = true;
+	if (phase_ == Phase::Claiming || phase_ == Phase::Opening || phase_ == Phase::InRoom) {
+		if (!claimInFlight_ && nowMs >= nextClaimMs_) {
+			out.push_back(Make(Output::Kind::Claim));
+			claimInFlight_ = true;
+		}
+		FollowClaim(nowMs, room, out);
+		TrackPermits(nowMs, room, out);
 	}
-	FollowClaim(nowMs, room, out);
-	TrackPermits(nowMs, room, out);
+	reportsInFlight_ += static_cast<std::size_t>(std::count_if(out.begin(), out.end(),
+		[](const Output& output) { return output.kind == Output::Kind::Report; }));
 	return out;
+}
+
+void TournamentPlay::OnReported() {
+	if (reportsInFlight_) --reportsInFlight_;
+	if (!reportsInFlight_ && forgetAfterReports_) {
+		forgetAfterReports_ = false;
+		pending_.push_back(Make(Output::Kind::Forget));
+	}
 }
 
 void TournamentPlay::FollowClaim(std::uint64_t nowMs, const RoomView& room, std::vector<Output>& out) {
@@ -88,7 +101,9 @@ void TournamentPlay::FollowClaim(std::uint64_t nowMs, const RoomView& room, std:
 			hostRequested_ = true;
 			openedAtMs_ = nowMs;
 			phase_ = Phase::Opening;
-		} else if (room.joined && !publishInFlight_ && nowMs >= nextPublishMs_ && !room.roomId.empty() && !room.invitation.empty()) {
+		} else if (room.joined && hostRequested_ && !publishInFlight_ && nowMs >= nextPublishMs_ &&
+			!room.roomId.empty() && !room.invitation.empty()) {
+			// Only a room this game opened for the match is published.
 			auto publish = Make(Output::Kind::Publish);
 			publish.roomId = room.roomId;
 			publish.invitation = room.invitation;
@@ -183,6 +198,9 @@ void TournamentPlay::OnRoom(Output::Kind request, const ClaimReply& reply, std::
 		if (targetRoom_.empty()) { leaseId_ = reply.leaseId; fence_ = reply.fence; }
 		break;
 	case ClaimReply::Role::Wait:
+		// The other fighter holds the lease now; a room opened late is not the match's.
+		leaseId_.clear();
+		fence_.clear();
 		if (request == Output::Kind::Claim)
 			nextClaimMs_ = nowMs + (std::max)(reply.retryAfterMs, std::uint64_t(1000));
 		break;
@@ -239,6 +257,7 @@ void TournamentPlay::OnFailure(Output::Kind request, const std::string& code, st
 		break;
 	case Output::Kind::Report:
 		if (code == "report_not_saved") reason_ = code;
+		OnReported();
 		break;
 	default:
 		break;

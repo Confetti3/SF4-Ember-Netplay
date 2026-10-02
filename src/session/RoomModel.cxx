@@ -620,6 +620,8 @@ Result RoomAuthority::Leave(MemberId member) {
 		if (table.lastSet.p2 == member) table.lastSet.p2 = 0;
 	}
 	snapshot_.members.erase(std::remove_if(snapshot_.members.begin(), snapshot_.members.end(), [member](const Member& value) { return value.id == member; }), snapshot_.members.end());
+	// A bound slot freed by this departure goes to its fighter if it is here.
+	if (snapshot_.tournament.Active()) SeatBoundFighters();
 	// A chat line names its sender by member id, which no longer resolves;
 	// snapshot readers reject a sender outside the roster.
 	snapshot_.chat.erase(std::remove_if(snapshot_.chat.begin(), snapshot_.chat.end(),

@@ -234,6 +234,55 @@ static void TestFinishedAndFailed() {
 	CHECK(Count(other.Tick(2, {}), Kind::Leave) == 0);
 }
 
+// The helper forgets the match only once every report has its answer; a
+// lease lost while opening is never published; and only a room this game
+// opened is published at all.
+static void TestOrderingAndLeases() {
+	TournamentPlay play;
+	play.Start("brg_x", "emt_x", 0);
+	play.Tick(0, {});
+	play.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 0)), 0);
+	room::Snapshot snapshot;
+	snapshot.tournament = MakeBinding(RoomA, 0).room;
+	auto& table = snapshot.tables[room::TournamentTable];
+	table.phase = room::TablePhase::Ready;
+	table.permitGeneration = 3;
+	play.Tick(100, Joined(RoomA, &snapshot, false));
+	PrepareReply permitted;
+	permitted.permitted = true;
+	permitted.generation = 3;
+	permitted.permitId = "per_z";
+	play.OnPrepare(permitted, 200);
+	play.OnTerminal(3, room::MatchResult::P1Win, 10, 9);
+	CHECK(Count(play.Tick(300, Joined(RoomA, &snapshot, false)), Kind::Report) == 1);
+	play.OnFailure(Kind::Claim, "stale_revision", 400);
+	auto out = play.Tick(500, {});
+	CHECK(Count(out, Kind::Leave) == 1 && Count(out, Kind::Forget) == 0);
+	play.OnReported();
+	CHECK(Count(play.Tick(600, {}), Kind::Forget) == 1);
+
+	TournamentPlay late;
+	late.Start("brg_x", "emt_x", 0);
+	late.Tick(0, {});
+	ClaimReply lease;
+	lease.role = ClaimReply::Role::Host;
+	lease.leaseId = "lse_1";
+	lease.fence = "1";
+	late.OnRoom(Kind::Claim, lease, 0);
+	CHECK(Count(late.Tick(100, {}), Kind::Host) == 1);
+	ClaimReply wait;
+	wait.role = ClaimReply::Role::Wait;
+	late.OnRoom(Kind::Claim, wait, 200);
+	CHECK(Count(late.Tick(300, Joined(RoomA, &snapshot)), Kind::Publish) == 0);
+
+	TournamentPlay casual;
+	casual.Start("brg_x", "emt_x", 0);
+	casual.Tick(0, {});
+	casual.OnRoom(Kind::Claim, lease, 0);
+	// Already sitting in a room it did not open for the match.
+	CHECK(Count(casual.Tick(100, Joined(RoomB, &snapshot)), Kind::Publish) == 0);
+}
+
 int main() {
 	TestHostPublishesAndBinds();
 	TestGuestJoins();
@@ -241,6 +290,7 @@ int main() {
 	TestPermitsAndReports();
 	TestCancelledStart();
 	TestFinishedAndFailed();
+	TestOrderingAndLeases();
 	if (failures) std::printf("%d failure(s)\n", failures);
 	else std::printf("tournament play tests passed\n");
 	return failures ? 1 : 0;

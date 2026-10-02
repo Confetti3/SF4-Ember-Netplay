@@ -79,6 +79,11 @@ static void TestFightersOnly() {
 	const MemberId again = JoinAs(authority, "B", EndpointC);
 	CHECK(again && authority.SnapshotView().tables[0].p2 == again);
 	CHECK(!authority.BindTournament(Binding(1)).accepted);
+	// A fighter who leaves and comes back takes its slot again.
+	CHECK(authority.Leave(again).accepted);
+	CHECK(authority.SnapshotView().tables[0].p2 == 0);
+	const MemberId back = JoinAs(authority, "B", EndpointC);
+	CHECK(back && authority.SnapshotView().tables[0].p2 == back);
 }
 
 // Ready reserves a generation and waits for both fighters to hold the same
