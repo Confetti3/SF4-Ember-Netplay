@@ -26,6 +26,9 @@ const BLUMINT: &str = "bm-partner";
 /// code (`SLOW_ARRIVED`) until `SLOW_RELEASE`.
 static SLOW_ARRIVED: Notify = Notify::const_new();
 static SLOW_RELEASE: Notify = Notify::const_new();
+/// The same for code `held-kate`, so tests holding a code run side by side.
+static HELD_ARRIVED: Notify = Notify::const_new();
+static HELD_RELEASE: Notify = Notify::const_new();
 
 /// A stand-in for Discord's token and user endpoints. Codes `good-kate`,
 /// `slow-kate` and `good-sam` sign in those users; anything else is refused.
@@ -50,8 +53,12 @@ async fn fake_discord() -> String {
             SLOW_ARRIVED.notify_one();
             SLOW_RELEASE.notified().await;
         }
+        if code == Some("held-kate") {
+            HELD_ARRIVED.notify_one();
+            HELD_RELEASE.notified().await;
+        }
         let user = match code {
-            Some("good-kate" | "slow-kate") => "kate",
+            Some("good-kate" | "slow-kate" | "held-kate") => "kate",
             Some("good-sam") => "sam",
             _ => "",
         };
@@ -324,6 +331,29 @@ async fn the_latest_sign_in_wins_and_a_player_can_disconnect() {
         (StatusCode::OK, Json::Null)
     );
     assert_eq!(account(&bridge, &two).await, Json::Null);
+}
+
+#[tokio::test]
+async fn a_second_answer_for_a_sign_in_is_turned_away() {
+    let bridge = bridge_with_discord().await;
+    let kate = player(&bridge, 1).await;
+    let state = start(&bridge, &kate).await;
+    let url = bridge.url(&format!(
+        "/v1/discord/callback?code=held-kate&state={state}"
+    ));
+    let client = bridge.client.clone();
+    let first =
+        tokio::spawn(async move { client.get(url).send().await.unwrap().text().await.unwrap() });
+    HELD_ARRIVED.notified().await;
+    // The same answer again, say from a reload, while Discord still checks the first.
+    assert!(
+        back(&bridge, &format!("code=held-kate&state={state}"))
+            .await
+            .contains("Sign-in expired")
+    );
+    HELD_RELEASE.notify_one();
+    assert!(first.await.unwrap().contains("Discord connected"));
+    assert_eq!(account(&bridge, &kate).await["user_id"], KATE);
 }
 
 #[tokio::test]

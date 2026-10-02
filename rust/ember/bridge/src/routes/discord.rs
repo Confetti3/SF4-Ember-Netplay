@@ -181,23 +181,24 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
             "This Ember service does not offer Discord sign-in.",
         );
     };
-    // Only a sign-in Ember is waiting for reaches Discord. It is taken once,
-    // whatever Discord answered, in the same write that stores the account:
-    // a sign-in a disconnect or another answer took meanwhile connects nothing.
+    // Only a sign-in Ember is waiting for reaches Discord, and only for the
+    // first answer that claims it; another answer for it is turned away. The
+    // claimer takes it, whatever Discord answered, in the same write that
+    // stores the account, so a sign-in a disconnect ended meanwhile connects
+    // nothing.
     let hash = state_hash(&state, answer.state.as_deref().unwrap_or_default());
     let now = state.now();
-    let waiting = state
+    let claimed = state
         .db
-        .read(move |tx| {
-            Ok(tx
-                .query_row(
-                    "SELECT EXISTS (SELECT 1 FROM discord_sign_ins WHERE state_hash = ?1 AND expires_at > ?2)",
-                    params![hash.as_slice(), now],
-                    |row| row.get::<_, bool>(0),
-                )?)
+        .write(move |tx| {
+            Ok(tx.execute(
+                "UPDATE discord_sign_ins SET claimed = 1
+                 WHERE state_hash = ?1 AND expires_at > ?2 AND claimed = 0",
+                params![hash.as_slice(), now],
+            )? == 1)
         })
         .await;
-    if !matches!(waiting, Ok(true)) {
+    if !matches!(claimed, Ok(true)) {
         return not_waiting();
     }
     let code = match (answer.error.as_deref(), answer.code) {
@@ -271,12 +272,13 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
     )
 }
 
-/// Takes the sign-in `hash` names if it is still waiting: the Ember ID that
-/// started it.
+/// Takes the claimed sign-in `hash` names if it is still there: the Ember ID
+/// that started it.
 fn take(tx: &Transaction<'_>, hash: &[u8; 32], now: u64) -> Result<Option<String>> {
     Ok(tx
         .query_row(
-            "DELETE FROM discord_sign_ins WHERE state_hash = ?1 AND expires_at > ?2 RETURNING ember_id",
+            "DELETE FROM discord_sign_ins WHERE state_hash = ?1 AND expires_at > ?2 AND claimed = 1
+             RETURNING ember_id",
             params![hash.as_slice(), now],
             |row| row.get(0),
         )
