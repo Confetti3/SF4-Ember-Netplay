@@ -210,6 +210,11 @@ struct Runtime {
 	platform::JoinLinkMailbox joinLinks;
 	std::string pendingJoinLink;
 	std::uint64_t pendingJoinSequence = 0;
+	// A link joins by itself only if it arrived with no room or match open,
+	// and only for a while after it arrived (JoinLinkDirectWindow); the
+	// window covers a game that is still starting up.
+	bool pendingJoinFree = false;
+	std::chrono::steady_clock::time_point pendingJoinArrived{};
 };
 
 struct PostPublishState {

@@ -154,21 +154,23 @@ void ApplicationShell::UpdateShortCopy(const ShellView& v,double now) {
 // A room link opened from the browser joins its room at once when the
 // player is free, as soon as a room can be opened. While a room is open it
 // waits, so a link never moves the player out of a room or a match; that
-// link, or one that could not be used in time, fills the Join screen and
-// joining is the player's own press.
+// link, or one the runtime no longer offers for a direct join, fills the
+// Join screen and joining is the player's own press. Neither happens over
+// a dialog or an Ember ID screen, whose drafts the move would discard.
 void ApplicationShell::UpdateJoinLink(const ShellView& v,double now,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
  const bool free=v.session.room==RoomState::Idle&&v.session.match==MatchState::None;
  if(v.pendingJoinSequence!=joinLinkSeen_){
   joinLinkSeen_=v.pendingJoinSequence;joinLink_=v.pendingJoinLink;
-  joinLinkDirectUntil_=free?now+JoinLinkDirectSeconds:0;
+  joinLinkDirect_=free&&v.pendingJoinDirect;
   if(!joinLink_.empty()&&v.session.room!=RoomState::Idle){notice_=loc::T("room.link_waiting");noticeTone_=Tone::Pending;noticeUntil_=now+8;}
  }
  if(joinLink_.empty())return;
- if(!free){joinLinkDirectUntil_=0;return;}
- const bool direct=now<joinLinkDirectUntil_;
+ if(!free){joinLinkDirect_=false;return;}
+ const bool direct=joinLinkDirect_&&v.pendingJoinDirect;
  if(direct&&!v.canOpenRoom)return;
- std::snprintf(invitation_,sizeof(invitation_),"%s",joinLink_.c_str());joinLink_.clear();joinLinkDirectUntil_=0;
+ if(nav.Editing()||nav.Reading()||nav.Confirming()||nav.Choosing()||nav.Screen().rfind("identity",0)==0)return;
+ std::snprintf(invitation_,sizeof(invitation_),"%s",joinLink_.c_str());joinLink_.clear();joinLinkDirect_=false;
  nav.Cancel();nav.Home();nav.Push("online");nav.Push("join");
  error_.clear();noticeTone_=Tone::Neutral;noticeUntil_=now+8;
  if(direct&&Send(CommandKind::JoinInvite,v,submit)){notice_=loc::T("room.link_joining");noticeTone_=Tone::Pending;}

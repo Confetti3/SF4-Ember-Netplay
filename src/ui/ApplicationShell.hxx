@@ -55,6 +55,9 @@ struct ShellView {
     // The newest room link opened from the browser, and its sequence.
     std::string pendingJoinLink;
     std::uint64_t pendingJoinSequence = 0;
+    // That link arrived while the player was free and is still fresh
+    // enough to join by itself.
+    bool pendingJoinDirect = false;
     std::string languagePreference = "auto";
     // The game's own config.ini as read at launch, and whether the player has
     // already dismissed the card for good.
@@ -225,12 +228,11 @@ private:
     double shortCopyUntil_=0;
     std::uint64_t shortFailuresSeen_=0;
     // A room link from the browser waits here until no room is open. One
-    // that arrived while the player was free joins by itself until the
-    // deadline, which covers a game still starting up.
-    static constexpr double JoinLinkDirectSeconds=120;
+    // that arrived while the player was free joins by itself, for as long
+    // as the runtime offers that.
     std::uint64_t joinLinkSeen_=0;
     std::string joinLink_;
-    double joinLinkDirectUntil_=0;
+    bool joinLinkDirect_=false;
     Tone noticeTone_=Tone::Success;
     std::uint64_t roomEpoch_ = 0, rulesRevision_ = 0, nextActionId_ = 1, readyFailureSequence_ = 0;
     int selectedTable_ = 0, roomCapacity_ = 16;

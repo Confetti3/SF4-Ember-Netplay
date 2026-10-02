@@ -1031,13 +1031,21 @@ void RoomLinks(){
  // room can be opened.
  const std::string second="https://embernetplay.link/j#0X1R-7K3M-T9PZ";
  before=h.actions.size();h.view.canOpenRoom=false;
- h.view.pendingJoinLink=second;h.view.pendingJoinSequence=2;h.Frame(0,3);
+ h.view.pendingJoinLink=second;h.view.pendingJoinSequence=2;h.view.pendingJoinDirect=true;h.Frame(0,3);
  Check(h.actions.size()==before&&h.shell.Navigation().Screen()=="home","A room link joined before a room could be opened");
  h.view.canOpenRoom=true;h.Frame(0,3);
  Check(h.shell.Navigation().Screen()=="join","A room link did not open the Join screen while joining");
  Check(h.actions.size()==before+1&&h.actions.back().command.kind==Kind::JoinInvite&&h.actions.back().command.invitation==second,
   "A room link did not join its room");
  h.Frame(0,3);Check(h.actions.size()==before+1,"A room link joined twice");
+ // It never interrupts an Ember ID screen, and once the runtime stops
+ // offering the direct join it only fills the Join screen.
+ const std::string third="https://embernetplay.link/j#T9PZ-0X1R-7K3M";
+ h.Screen("identity");before=h.actions.size();
+ h.view.pendingJoinLink=third;h.view.pendingJoinSequence=3;h.Frame(0,3);
+ Check(h.actions.size()==before&&h.shell.Navigation().Screen()=="identity","A room link interrupted the Ember ID screen");
+ h.view.pendingJoinDirect=false;h.shell.Navigation().Home();h.Frame(0,3);
+ Check(h.shell.Navigation().Screen()=="join"&&h.actions.size()==before,"A stale room link did not just fill the Join screen");
 }
 int main(){try{Journeys();IdentityJourneys();RoomLinks();KeyboardJourneys();NoticeOverDialogs();LanguageSaveFailure();SessionReports();RecoveryWindow();SelectorPages();SelectorFromHome();DeveloperSelectors();TrainingJourneys();PresentationJourneys();AppearanceGalleries();std::cout<<"Shell journeys through the renderer passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

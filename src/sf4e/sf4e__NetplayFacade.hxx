@@ -139,6 +139,7 @@ namespace sf4e {
 			// The newest room link opened from the browser, as an https link.
 			std::string pendingJoinLink;
 			std::uint64_t pendingJoinSequence = 0;
+			bool pendingJoinDirect = false;
 			std::string helperError;
             std::string gameplayInputError;
             std::vector<netplay::MemberView> members;

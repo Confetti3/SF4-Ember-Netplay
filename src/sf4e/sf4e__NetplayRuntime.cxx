@@ -230,6 +230,8 @@ void StartHelper() {
         if (!code.empty()) {
             runtime->pendingJoinLink = join_link::ShortLink(code);
             ++runtime->pendingJoinSequence;
+            runtime->pendingJoinFree = true;
+            runtime->pendingJoinArrived = std::chrono::steady_clock::now();
             spdlog::info("Room: started with a room link");
         }
         if (!runtime->joinLinks.Open()) spdlog::warn("Room: room links from the browser cannot reach this game");
@@ -315,6 +317,9 @@ static void TakeJoinLink() {
 	if (code.empty()) return;
 	runtime->pendingJoinLink = join_link::ShortLink(code);
 	++runtime->pendingJoinSequence;
+	const auto session = runtime->controller.GetSnapshot();
+	runtime->pendingJoinFree = session.room == netplay::RoomState::Idle && session.match == netplay::MatchState::None;
+	runtime->pendingJoinArrived = std::chrono::steady_clock::now();
 	spdlog::info("Room: a room link arrived from the browser");
 }
 

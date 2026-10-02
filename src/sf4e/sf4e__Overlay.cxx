@@ -187,6 +187,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.shortInvitationFailures = snapshot.shortInvitationFailures;
 	view.pendingJoinLink = snapshot.pendingJoinLink;
 	view.pendingJoinSequence = snapshot.pendingJoinSequence;
+	view.pendingJoinDirect = snapshot.pendingJoinDirect;
 	view.error = snapshot.helperError;
 	view.settingsError = snapshot.settingsError;
 	view.languagePreference = snapshot.languagePreference;

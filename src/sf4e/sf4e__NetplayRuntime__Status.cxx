@@ -357,6 +357,9 @@ PostPublishState Publish() {
 	snapshot.offlineRequested = runtime->offlineRequested;
 	snapshot.pendingJoinLink = runtime->pendingJoinLink;
 	snapshot.pendingJoinSequence = runtime->pendingJoinSequence;
+	constexpr std::chrono::seconds JoinLinkDirectWindow{120};
+	snapshot.pendingJoinDirect = runtime->pendingJoinFree &&
+		std::chrono::steady_clock::now() - runtime->pendingJoinArrived < JoinLinkDirectWindow;
 	if (runtime->room) {
 		snapshot.invitation = runtime->room->Invitation();
 		snapshot.shortInvitation = runtime->room->ShortInvitation();
