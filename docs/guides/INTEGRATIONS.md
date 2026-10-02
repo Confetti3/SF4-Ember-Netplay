@@ -177,8 +177,11 @@ Ember (Settings, Ember ID, Linked accounts, Discord):
    `DELETE /v1/discord` (a `discord.remove` proof) disconnects it.
 
 One Discord account belongs to one Ember ID and the other way round; the
-latest sign-in replaces both. Nothing else from Discord is stored. Without the
-client secret the bridge starts with Discord off and says so in its log.
+latest sign-in replaces both. A platform's links that a sign-in approved
+(`approved_via` `discord`) end when that account moves to another Ember ID or
+is disconnected, and the platform's next lookup links it where it now
+belongs. Nothing else from Discord is stored. Without the client secret the
+bridge starts with Discord off and says so in its log.
 
 ## BluMint
 

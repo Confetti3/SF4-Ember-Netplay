@@ -1,6 +1,7 @@
 //! Discord sign-in against a stand-in Discord: starting needs a proof, the
-//! callback takes each sign-in once and in time, the latest sign-in wins, and
-//! a bridge without Discord offers none of it.
+//! callback takes each sign-in once and in time, the latest sign-in wins, a
+//! platform's links follow the account, and a bridge without Discord offers
+//! none of it.
 mod common;
 
 use axum::{
@@ -17,6 +18,8 @@ use zeroize::Zeroizing;
 
 const KATE: &str = "274220342558756145";
 const SAM: &str = "1725265127372152396";
+/// A platform that finds players by Discord account.
+const BLUMINT: &str = "bm-partner";
 
 /// A stand-in for Discord's token and user endpoints. Codes `good-kate` and
 /// `good-sam` sign in those users; anything else is refused.
@@ -76,6 +79,18 @@ async fn bridge_with_discord() -> Bridge {
                 api_base,
             });
             config.integration_secrets = Some("unused-in-tests.json".into());
+            config.tenants.push(config::Tenant {
+                id: "bm".into(),
+                name: "BluMint".into(),
+                connections: vec![config::Connection {
+                    id: BLUMINT.into(),
+                    kind: "blumint".into(),
+                    environment: "staging".into(),
+                    display_name: "BluMint (test)".into(),
+                    enabled: true,
+                    api_base: None,
+                }],
+            });
         },
         Secrets {
             discord_client_secret: Some(Zeroizing::new("test-secret".into())),
@@ -131,6 +146,56 @@ async fn account(bridge: &Bridge, player: &Player) -> Json {
     let (status, body) = bridge.get(player.token(), "/v1/discord").await;
     assert_eq!(status, StatusCode::OK, "{body}");
     body["account"].clone()
+}
+
+/// Signs `player` in as `who` (`kate` or `sam`).
+async fn connect(bridge: &Bridge, player: &Player, who: &str) {
+    let state = start(bridge, player).await;
+    let page = back(bridge, &format!("code=good-{who}&state={state}")).await;
+    assert!(page.contains("Discord connected"), "{page}");
+}
+
+async fn disconnect(bridge: &Bridge, player: &Player) -> (StatusCode, Json) {
+    let body = bridge
+        .prove(
+            player,
+            Action::DiscordRemove,
+            Method::Delete,
+            "/v1/discord",
+            json!({}),
+        )
+        .await;
+    bridge
+        .send_proof(player, Method::Delete, "/v1/discord", body)
+        .await
+}
+
+/// BluMint's player lookup for these Discord users.
+async fn lookup(bridge: &Bridge, provider: &str, users: &[&str]) -> Json {
+    let (status, found) = bridge
+        .post(provider, "/v1/blumint/lookup", json!({ "discord": users }))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{found}");
+    found
+}
+
+/// The active links on BluMint's connection: Ember ID and the claim that
+/// approved it, by Ember ID.
+async fn platform_links(bridge: &Bridge) -> Vec<(String, String)> {
+    bridge
+        .state()
+        .db
+        .read(|tx| {
+            Ok(tx
+                .prepare(
+                    "SELECT ember_id, claim_id FROM links
+                     WHERE connection_id = ?1 AND revoked_at IS NULL ORDER BY ember_id",
+                )?
+                .query_map([BLUMINT], |row| Ok((row.get(0)?, row.get(1)?)))?
+                .collect::<rusqlite::Result<_>>()?)
+        })
+        .await
+        .unwrap()
 }
 
 #[tokio::test]
@@ -236,23 +301,66 @@ async fn the_latest_sign_in_wins_and_a_player_can_disconnect() {
         .await
         .unwrap();
     assert_eq!(refused.status(), StatusCode::BAD_REQUEST);
-    let body = bridge
-        .prove(
-            &two,
-            Action::DiscordRemove,
-            Method::Delete,
-            "/v1/discord",
-            json!({}),
-        )
-        .await;
-    let (status, removed) = bridge
-        .send_proof(&two, Method::Delete, "/v1/discord", body)
-        .await;
+    let (status, removed) = disconnect(&bridge, &two).await;
     assert_eq!(
         (status, removed["account"].clone()),
         (StatusCode::OK, Json::Null)
     );
     assert_eq!(account(&bridge, &two).await, Json::Null);
+}
+
+#[tokio::test]
+async fn a_platforms_links_follow_the_discord_account() {
+    let bridge = bridge_with_discord().await;
+    let provider = bridge.provider(BLUMINT).await;
+    let (one, two) = (player(&bridge, 1).await, player(&bridge, 2).await);
+    let (one_id, two_id) = (one.id().to_string(), two.id().to_string());
+    let claim = |user: &str| format!("discord:{user}");
+    let mut both = vec![(one_id.clone(), claim(KATE)), (two_id.clone(), claim(SAM))];
+    both.sort();
+    connect(&bridge, &one, "kate").await;
+    connect(&bridge, &two, "sam").await;
+    assert_eq!(
+        lookup(&bridge, &provider, &[KATE, SAM]).await,
+        json!({ "discord": [one_id, two_id] })
+    );
+    assert_eq!(platform_links(&bridge).await, both);
+
+    // Kate's account moves to the second Ember ID, replacing Sam's there: the
+    // links both sign-ins approved end at once.
+    connect(&bridge, &two, "kate").await;
+    assert_eq!(platform_links(&bridge).await, vec![]);
+    assert_eq!(
+        lookup(&bridge, &provider, &[KATE, SAM]).await,
+        json!({ "discord": [two_id] })
+    );
+    assert_eq!(
+        platform_links(&bridge).await,
+        vec![(two_id.clone(), claim(KATE))]
+    );
+    // The first Ember ID can no longer be put in a match there.
+    let (status, refused) = bridge
+        .post(
+            &provider,
+            "/v1/blumint/matches",
+            json!({ "teams": [ { "players": [ { "inGameId": one_id } ] }, { "players": [ { "inGameId": two_id } ] } ] }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+
+    // Signing in again with the same account keeps its link.
+    connect(&bridge, &two, "kate").await;
+    assert_eq!(
+        platform_links(&bridge).await,
+        vec![(two_id.clone(), claim(KATE))]
+    );
+    // Disconnecting ends it.
+    assert_eq!(disconnect(&bridge, &two).await.0, StatusCode::OK);
+    assert_eq!(platform_links(&bridge).await, vec![]);
+    assert_eq!(
+        lookup(&bridge, &provider, &[KATE]).await,
+        json!({ "discord": [] })
+    );
 }
 
 #[tokio::test]
