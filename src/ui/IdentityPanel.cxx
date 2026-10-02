@@ -119,8 +119,10 @@ void IdentityPanel::ReadFailed() {
     if (sentOp_ == IdentityOp::DiscordStatus) {
         discord_[sentBridge_].failed = true;
         if (sentBridge_ == discordWaitBridge_) discordPaused_ = true;
-    } else if (sentOp_ == IdentityOp::BridgeInspect && !sentLookUp_ && !bridge_.empty()) {
-        discord_[bridge_].failed = true;
+    } else if (sentOp_ == IdentityOp::BridgeInspect && !sentLookUp_) {
+        // The service the inspection was for: an account read's own, or the selected one.
+        const std::string& target = sentAccount_.empty() ? bridge_ : sentAccount_;
+        if (!target.empty()) discord_[target].failed = true;
     }
 }
 

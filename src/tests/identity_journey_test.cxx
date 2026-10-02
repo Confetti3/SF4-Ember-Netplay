@@ -1001,6 +1001,11 @@ void OnboardingRecovers(){
    Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge=="brg_1","The Ember ID screen did not read the account");
    id.discordUser="111";id.discordName="kate";answer();
    Check(row("discord-connect")&&row("discord-connect")->value=="kate","The Ember ID screen does not show the account");
+   // A failed read of Ember's service no longer shows its account as current.
+   h.Screen("home");h.Screen("identity");
+   Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==ember,"The Ember ID screen did not read Ember's service again");
+   h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=false;id.failure="service_unavailable";h.Frame(0,2);
+   Check(row("discord-connect")&&row("discord-connect")->value!="kate","A failed read still showed Ember's account as current");
    // Back on the matches, the selection is the player's.
    h.Screen("tournament-matches");for(int i=0;i<6;++i)answer();
    Check(row("id-bridge")&&row("id-bridge")->value=="Other","Visiting Ember ID changed the selected service");
