@@ -109,13 +109,22 @@ bool IdentityPanel::Superseded() const {
     return sentJourney_ != journey_ && Retirable(sentOp_);
 }
 
+void IdentityPanel::ReadFailed() {
+    if (sentOp_ == IdentityOp::DiscordStatus) {
+        discord_[sentBridge_].failed = true;
+        if (sentBridge_ == discordWaitBridge_) discordPaused_ = true;
+    } else if (sentOp_ == IdentityOp::BridgeInspect && !sentLookUp_ && !bridge_.empty()) {
+        discord_[bridge_].failed = true;
+    }
+}
+
 void IdentityPanel::DropQueue() {
     if (sentJourney_ == journey_) queue_.clear();
 }
 
 void IdentityPanel::NewJourney() {
     ++journey_;
-    discordWaitUntil_ = 0;
+    discordWaitUntil_ = 0; discordPaused_ = false;
     discordWaitBridge_.clear();
     queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [](const Queued& q) { return Retirable(q.request.op); }), queue_.end());
 }
@@ -189,6 +198,8 @@ void IdentityPanel::Wipe() {
 }
 
 void IdentityPanel::Refresh(const ShellView&, const std::string& screen) {
+    // Reading everything again also resumes a paused sign-in's polls.
+    discordPaused_ = false;
     IdentityRequest status; status.op = IdentityOp::Status; Queue(std::move(status));
     if (screen == "discord-connect") connectLookedUp_ = false;
     if (screen == "linked-accounts" || screen == "tournament-matches" || screen == "discord-connect") {
@@ -226,7 +237,7 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
     SendTournament(v, screen, submit);
     // While Discord's page is open in the browser, the account is read again
     // every few seconds, so the screen shows it connected by itself.
-    if (discordWaitUntil_ > 0 && !sent_ && queue_.empty() && now >= discordPollAt_ &&
+    if (discordWaitUntil_ > 0 && !discordPaused_ && !sent_ && queue_.empty() && now >= discordPollAt_ &&
         (screen == "discord-connect" || screen == "linked-accounts")) {
         if (now > discordWaitUntil_) discordWaitUntil_ = 0;
         else {
@@ -293,7 +304,7 @@ MenuEntry IdentityPanel::ServiceRow(const ShellView& v, const netplay::IdentityB
 std::optional<MenuEntry> IdentityPanel::DiscordRow(const ShellView& v, bool busy) const {
     const auto& id = v.identity;
     const auto account = discord_.find(bridge_);
-    const bool read = account != discord_.end();
+    const bool read = account != discord_.end() && account->second.read;
     if (read && !account->second.user.empty()) {
         auto row = ConfirmRow("id-discord-remove", loc::T("identity.discord"), loc::T("identity.discord_remove_detail"), !busy);
         row.value = account->second.name; row.userText = true; row.hint = loc::T("identity.unlink");
@@ -342,8 +353,9 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
     }
     auto service = Info("dc-service", loc::T("identity.service"), target->name.empty() ? target->origin : target->name, target->origin);
     service.userText = true; rows.push_back(std::move(service));
+    // Read, and the latest read did not fail.
     const auto account = discord_.find(target->id);
-    const bool read = bridge_ == target->id && account != discord_.end();
+    const bool read = bridge_ == target->id && account != discord_.end() && account->second.read && !account->second.failed;
     if (read && !account->second.user.empty()) {
         auto connected = Info("dc-connected", loc::T("connect.connected"), account->second.name, loc::T("connect.connected_detail"));
         connected.userText = true; rows.push_back(std::move(connected));
@@ -352,7 +364,7 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
     } else {
         rows.push_back(Row("id-discord-connect", loc::T("screen.connect_discord"), loc::T("connect.connect_detail"),
             !busy && read));
-        // Nothing in flight and the account still unread: reading it failed.
+        // Nothing in flight and the account not read: reading it failed.
         if (!busy && !read) rows.push_back(Row("dc-retry", loc::T("connect.retry"), loc::T("connect.retry_detail")));
     }
 }
@@ -361,7 +373,7 @@ void IdentityPanel::Finish(const ShellView& v) {
     const auto& id = v.identity;
     if (!v.identityRequest) {
         Say(v.identityRefusal.empty() ? std::string(loc::T("identity.refused.helper")) : std::string(loc::T(v.identityRefusal.c_str())), true);
-        DropQueue(); return;
+        ReadFailed(); DropQueue(); return;
     }
     if (!id.ok) {
         // A link list on a service the helper no longer trusts just ends the selection.
@@ -374,7 +386,7 @@ void IdentityPanel::Finish(const ShellView& v) {
             IdentityRequest list; list.op = IdentityOp::LinkList; list.bridge = bridge_; Queue(std::move(list));
             return;
         }
-        if (sentOp_ == IdentityOp::DiscordStatus && sentBridge_ == discordWaitBridge_) discordWaitUntil_ = 0;
+        ReadFailed();
         Say(FailureText(id.failure), true); DropQueue(); return;
     }
     switch (sentOp_) {
@@ -413,7 +425,7 @@ void IdentityPanel::Finish(const ShellView& v) {
         }
         break;
     case IdentityOp::DiscordStatus:
-        discord_[sentBridge_] = DiscordAccount{id.discordUser, id.discordName};
+        discord_[sentBridge_] = DiscordAccount{id.discordUser, id.discordName, true, false};
         // Only the service the sign-in is for ends the wait.
         if (discordWaitUntil_ > 0 && sentBridge_ == discordWaitBridge_ && !id.discordUser.empty()) {
             discordWaitUntil_ = 0;
@@ -423,10 +435,10 @@ void IdentityPanel::Finish(const ShellView& v) {
     case IdentityOp::DiscordConnect:
         Say(loc::T("identity.done.discord_opened"), false, 30);
         discordWaitBridge_ = sentBridge_;
-        discordWaitUntil_ = now_ + DiscordSignInSeconds; discordPollAt_ = now_ + DiscordPollSeconds;
+        discordWaitUntil_ = now_ + DiscordSignInSeconds; discordPollAt_ = now_ + DiscordPollSeconds; discordPaused_ = false;
         break;
     case IdentityOp::DiscordRemove:
-        discord_[sentBridge_] = DiscordAccount{};
+        discord_[sentBridge_] = DiscordAccount{{}, {}, true, false};
         if (sentBridge_ == discordWaitBridge_) discordWaitUntil_ = 0;
         Say(loc::T("identity.done.discord_removed"), false);
         break;
@@ -461,7 +473,7 @@ bool IdentityPanel::Status(std::string& status, Tone& tone, double now) const {
     if (!message_.empty() && now < messageUntil_) { status = message_; tone = messageError_ ? Tone::Error : Tone::Success; return true; }
     // The account is read again while the player approves in the browser.
     const bool polling = lastScreen_ == "discord-connect" || lastScreen_ == "linked-accounts";
-    if (polling && discordWaitUntil_ > 0 && queue_.empty() && (!sent_ || sentOp_ == IdentityOp::DiscordStatus)) {
+    if (polling && discordWaitUntil_ > 0 && !discordPaused_ && queue_.empty() && (!sent_ || sentOp_ == IdentityOp::DiscordStatus)) {
         status = loc::T("connect.waiting"); tone = Tone::Pending; return true;
     }
     if (sent_ || !queue_.empty()) {

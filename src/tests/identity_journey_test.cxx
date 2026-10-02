@@ -596,13 +596,15 @@ void FirstSignInRetires(){
 // Reads Linked accounts still had out when a connect link arrived are
 // retired: their failure neither says so nor holds the new journey back.
 // A read of the journey's own service that fails offers Try again, which
-// reads it again.
+// reads it again; so does a poll that fails during a sign-in, which pauses
+// the polls until Try again resumes them without a second Connect, and a
+// failed read of an account shown connected before.
 void ConnectReadsRecover(){
  using namespace sf4e;using netplay::IdentityOp;
  const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
  std::vector<MenuEntry> rows;std::string status;
  const auto row=[&](const char* name)->const MenuEntry*{const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;});return it==rows.end()?nullptr:&*it;};
- for(int ending=0;ending<3;++ending){
+ for(int ending=0;ending<4;++ending){
   Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";
   id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
   id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};h.Frame();
@@ -626,7 +628,7 @@ void ConnectReadsRecover(){
    Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge=="brg_2","The journey did not read its service's account");
    id.discordUser.clear();id.discordName.clear();answer();
    Check(row("id-discord-connect")&&row("id-discord-connect")->enabled&&!row("dc-retry"),"The journey did not offer Connect");
-  }else{
+  }else if(ending==2){
    // The journey's own reads fail: Try again reads them again.
    h.view.tournament.connect.bridge="brg_2";h.view.tournament.connect.sequence=1;h.Frame(0,2);
    Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==other,"The journey did not inspect its service");
@@ -643,6 +645,32 @@ void ConnectReadsRecover(){
    Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge=="brg_2","Try again did not read the account again");
    id.discordUser.clear();id.discordName.clear();answer();
    Check(row("id-discord-connect")&&row("id-discord-connect")->enabled&&!row("dc-retry"),"A read account did not offer Connect");
+  }
+  if(ending==3){
+   // A sign-in on the journey's service: a poll fails partway.
+   h.view.tournament.connect.bridge="brg_2";h.view.tournament.connect.sequence=1;h.Frame(0,2);
+   Check(until(IdentityOp::BridgeInspect),"The journey did not inspect its service");
+   id.inspected=id.bridges[1];id.inspectedDiscord=true;answer();
+   Check(until(IdentityOp::DiscordStatus),"The journey did not read its account");
+   id.discordUser.clear();id.discordName.clear();answer();
+   h.Choose("id-discord-connect");answer();h.Frame(0,300);
+   Check(sent().back()->op==IdentityOp::DiscordStatus&&sent().back()->bridge=="brg_2","No poll was sent");
+   reply(false);
+   Check(row("dc-retry")&&!row("id-discord-connect")->enabled,"A failed poll did not offer Try again in place of Connect");
+   const auto paused=sent().size();h.Frame(0,300);
+   Check(sent().size()==paused,"Polls went on after a failed poll");
+   // Try again reads the account; the sign-in finished meanwhile.
+   h.Choose("dc-retry");
+   Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge=="brg_2","Try again did not read the account");
+   id.discordUser="333";id.discordName="kate";answer();
+   Check(status==loc::Tf("connect.done","kate")&&row("dc-connected"),"Try again did not finish the sign-in");
+   std::size_t connects=0;for(const auto* r:sent())connects+=r->op==IdentityOp::DiscordConnect;
+   Check(connects==1,"Recovering sent another Connect");
+   // A later read of that account that fails no longer shows it connected.
+   h.view.tournament.connect.sequence=2;h.Frame(0,2);
+   Check(until(IdentityOp::DiscordStatus),"The second visit did not read the account");
+   reply(false);
+   Check(!row("dc-connected")&&row("dc-retry"),"A failed read still showed the account connected");
   }
   SetMenuEntriesProbe({});SetMenuStatusProbe({});
  }

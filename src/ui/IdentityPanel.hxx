@@ -70,6 +70,9 @@ private:
     bool Answered(const ShellView& view) const;
     void Finish(const ShellView& view);
     void Queue(netplay::IdentityRequest request, bool lookUp = false);
+    // The read in flight failed: its service's account is not trusted, and a
+    // sign-in waiting on it pauses its polls.
+    void ReadFailed();
     // Drops the requests waiting to be sent after the one in flight failed,
     // unless it came from an earlier journey: those are not its to drop.
     void DropQueue();
@@ -118,9 +121,12 @@ private:
     // The selected service and site, and the service whose links the view lists.
     std::string bridge_, connection_, listedBridge_, sentBridge_;
     // The Discord account last read from each service: its user ID (empty
-    // when none is connected) and name. A service not here was not read.
+    // when none is connected) and name, whether it was ever read, and
+    // whether the latest read of the service or its account failed (then
+    // Connect Discord trusts none of it until Try again succeeds).
     struct DiscordAccount {
         std::string user, name;
+        bool read = false, failed = false;
     };
     std::map<std::string, DiscordAccount> discord_;
     // The service a connect link named; empty for Ember's own. Whether this
@@ -129,8 +135,11 @@ private:
     bool connectLookedUp_ = false;
     // While Discord's page is open in the browser: the service the sign-in
     // is for, until when it can finish, and when its account is read again.
+    // A failed read pauses the polls until Try again; the sign-in still
+    // counts until its deadline.
     std::string discordWaitBridge_;
     double discordWaitUntil_ = 0, discordPollAt_ = 0;
+    bool discordPaused_ = false;
     // The backup the view's preview describes, while the path still names it.
     std::string previewPath_;
     // A service the player looked up and may now trust.
