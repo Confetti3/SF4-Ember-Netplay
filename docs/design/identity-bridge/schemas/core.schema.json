@@ -138,8 +138,7 @@
             "room.publish",
             "lease.renew",
             "attempt.prepare",
-            "discord.connect",
-            "discord.remove"
+            "handoff.redeem"
           ]
         },
         "method": {

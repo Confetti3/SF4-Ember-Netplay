@@ -107,6 +107,8 @@ lists queue rotation and multi-table scheduling as future work.
   ID. Platforms that find players by Discord account (BluMint's player lookup) get the
   Ember ID and a link with `approved_via` `discord`, the player's own sign-in being the
   consent. The code link flow is unchanged and still the way for direct providers.
+  Its proof actions, `discord.connect` and `discord.remove`, are defined in
+  `ember-protocol`; the specification package's schemas stay as published.
 
 - **Casual room sets and rotation.** A room table can have a set length of first to 1,
   2, 3 or 5 and a rotation: winner stays (king of the hill), loser stays, or both
