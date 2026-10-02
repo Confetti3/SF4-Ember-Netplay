@@ -81,11 +81,16 @@ private:
     void ConnectRows(const ShellView& view, std::vector<MenuEntry>& rows, bool busy) const;
     // Connect Discord's next request once the service list is known.
     void ConnectNext(const ShellView& view);
+    // Connect Discord starts over: a sign-in an earlier visit opened is no
+    // longer waited for, and its late answers start no wait.
+    void NewJourney();
 
     std::deque<Queued> queue_;
     std::uint64_t nextTicket_ = 0, sent_ = 0;
     netplay::IdentityOp sentOp_ = netplay::IdentityOp::None;
     bool sentLookUp_ = false;
+    // The Connect Discord journey, and the one the request in flight was sent in.
+    std::uint64_t journey_ = 0, sentJourney_ = 0;
     double sentAt_ = 0, now_ = 0;
     bool onScreens_ = false;
     std::string lastScreen_;
@@ -105,8 +110,9 @@ private:
     // visit already looked Ember's own service up.
     std::string connectBridge_;
     bool connectLookedUp_ = false;
-    // While Discord's page is open in the browser: until when the sign-in
-    // can finish, and when the account is read again.
+    // While Discord's page is open in the browser: the service the sign-in
+    // is for, until when it can finish, and when its account is read again.
+    std::string discordWaitBridge_;
     double discordWaitUntil_ = 0, discordPollAt_ = 0;
     // The backup the view's preview describes, while the path still names it.
     std::string previewPath_;

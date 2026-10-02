@@ -98,7 +98,14 @@ bool IdentityPanel::Owns(const std::string& screen) {
         screen == "discord-connect";
 }
 
+void IdentityPanel::NewJourney() {
+    ++journey_;
+    discordWaitUntil_ = 0;
+    discordWaitBridge_.clear();
+}
+
 void IdentityPanel::OpenDiscord(const std::string& bridge) {
+    NewJourney();
     connectBridge_ = bridge;
     // The screen reads everything again, as if newly opened.
     lastScreen_.clear();
@@ -198,7 +205,7 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
         if (now > discordWaitUntil_) discordWaitUntil_ = 0;
         else {
             discordPollAt_ = now + DiscordPollSeconds;
-            IdentityRequest poll; poll.op = IdentityOp::DiscordStatus; poll.bridge = bridge_; Queue(std::move(poll));
+            IdentityRequest poll; poll.op = IdentityOp::DiscordStatus; poll.bridge = discordWaitBridge_; Queue(std::move(poll));
         }
     }
     if (sent_ || queue_.empty()) return;
@@ -208,7 +215,7 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
     action.identity = std::move(queue_.front().request); queue_.pop_front();
     action.identity.ticket = ++nextTicket_;
     const auto ticket = action.identity.ticket;
-    sentOp_ = action.identity.op; sentBridge_ = action.identity.bridge;
+    sentOp_ = action.identity.op; sentBridge_ = action.identity.bridge; sentJourney_ = journey_;
     if (submit(std::move(action))) { sent_ = ticket; sentAt_ = now; }
     else { Say(loc::T("error.queue_failed"), true); queue_.clear(); }
 }
@@ -337,7 +344,7 @@ void IdentityPanel::Finish(const ShellView& v) {
             IdentityRequest list; list.op = IdentityOp::LinkList; list.bridge = bridge_; Queue(std::move(list));
             return;
         }
-        if (sentOp_ == IdentityOp::DiscordStatus) discordWaitUntil_ = 0;
+        if (sentOp_ == IdentityOp::DiscordStatus && sentBridge_ == discordWaitBridge_) discordWaitUntil_ = 0;
         Say(FailureText(id.failure), true); queue_.clear(); return;
     }
     switch (sentOp_) {
@@ -377,14 +384,18 @@ void IdentityPanel::Finish(const ShellView& v) {
         break;
     case IdentityOp::DiscordStatus:
         discordBridge_ = sentBridge_;
-        if (discordWaitUntil_ > 0 && !id.discordUser.empty()) {
+        // Only the service the sign-in is for ends the wait.
+        if (discordWaitUntil_ > 0 && sentBridge_ == discordWaitBridge_ && !id.discordUser.empty()) {
             discordWaitUntil_ = 0;
             Say(loc::Tf("connect.done", id.discordName), false, 20);
         }
         break;
     case IdentityOp::DiscordConnect:
         Say(loc::T("identity.done.discord_opened"), false, 30);
-        discordWaitUntil_ = now_ + DiscordSignInSeconds; discordPollAt_ = now_ + DiscordPollSeconds;
+        if (sentJourney_ == journey_) {
+            discordWaitBridge_ = sentBridge_;
+            discordWaitUntil_ = now_ + DiscordSignInSeconds; discordPollAt_ = now_ + DiscordPollSeconds;
+        }
         break;
     case IdentityOp::DiscordRemove:
         discordBridge_ = sentBridge_; discordWaitUntil_ = 0;
@@ -638,7 +649,7 @@ void IdentityPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
     const auto& id = v.identity;
     IdentityRequest r;
     // Connect Discord opened from the menu is for Ember's own service.
-    if (a.id == "discord-connect") connectBridge_.clear();
+    if (a.id == "discord-connect") { NewJourney(); connectBridge_.clear(); }
     if (a.id == "identity" || a.id == "linked-accounts" || a.id == "identity-backup" || a.id == "tournament-matches" ||
         a.id == "discord-connect") { nav.Push(a.id); return; }
     if (a.id == "dc-retry") { message_.clear(); Refresh(v, "discord-connect"); return; }

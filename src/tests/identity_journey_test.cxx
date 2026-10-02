@@ -372,5 +372,53 @@ void DiscordConnectLink(){
  Check(row("discord-connect")!=nullptr,"The Ember ID screen does not offer Connect Discord");
  SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
-int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
+// The wait for a Discord sign-in belongs to the service it was opened for:
+// another service that already has an account does not end it, and a new
+// connect link stops waiting for the old one, even when the old Connect's
+// answer arrives after it.
+void DiscordWaitsForItsService(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";
+ id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
+ const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
+ id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};h.Frame();
+ std::vector<MenuEntry> rows;std::string status;
+ SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
+ const auto sent=[&]{std::vector<const netplay::IdentityRequest*> out;for(const auto& a:h.actions)if(a.identity.op!=IdentityOp::None)out.push_back(&a.identity);return out;};
+ const auto answer=[&]{
+  h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=true;id.failure.clear();h.Frame(0,2);
+ };
+ const auto until=[&](IdentityOp op){for(int i=0;i<10&&sent().back()->op!=op;++i)answer();return sent().back()->op==op;};
+ const auto open=[&](const char* bridge,std::uint64_t sequence,const netplay::IdentityBridge& profile){
+  h.view.tournament.connect.bridge=bridge;h.view.tournament.connect.sequence=sequence;h.Frame(0,2);
+  Check(until(IdentityOp::BridgeInspect),"Connect Discord did not inspect its service");
+  id.inspected=profile;id.inspectedDiscord=true;answer();
+  Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge==bridge,"Connect Discord did not read its service's account");
+ };
+ // A sign-in opened on Ember's service.
+ open("brg_1",1,id.bridges[0]);id.discordUser.clear();id.discordName.clear();answer();
+ h.Choose("id-discord-connect");Check(sent().back()->op==IdentityOp::DiscordConnect&&sent().back()->bridge=="brg_1","Connect did not name its service");
+ // Its answer arrives only after a second link, for a service that already
+ // has an account, started a new visit.
+ const auto connect=sent().back()->ticket;
+ h.view.tournament.connect.bridge="brg_2";h.view.tournament.connect.sequence=2;h.Frame(0,2);
+ h.view.identityTicket=connect;h.view.identityRequest=id.requestId=connect+100;id.ok=true;h.Frame(0,2);
+ Check(until(IdentityOp::BridgeInspect),"The second link did not inspect its service");
+ id.inspected=id.bridges[1];id.inspectedDiscord=true;answer();
+ Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge=="brg_2","The second link did not read its service's account");
+ id.discordUser="111";id.discordName="sam";answer();
+ Check(status!=loc::Tf("connect.done","sam"),"Another service's account ended the sign-in's wait");
+ // Nothing is read again for the first service's sign-in.
+ const auto before=sent().size();h.Frame(0,300);
+ Check(sent().size()==before,"A sign-in from an earlier visit was still waited for");
+ // In one visit, polls go to the sign-in's service and only its account ends the wait.
+ open("brg_1",3,id.bridges[0]);id.discordUser.clear();id.discordName.clear();answer();
+ h.Choose("id-discord-connect");answer();
+ h.Frame(0,300);
+ Check(sent().back()->op==IdentityOp::DiscordStatus&&sent().back()->bridge=="brg_1","The poll did not read the sign-in's service");
+ id.discordUser="222";id.discordName="kate";answer();
+ Check(status==loc::Tf("connect.done","kate"),"The sign-in's own account did not end the wait");
+ SetMenuEntriesProbe({});SetMenuStatusProbe({});
+}
+int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
