@@ -8,6 +8,7 @@
 //! use this one.
 pub mod api;
 pub mod challenge;
+pub mod discord;
 pub mod encoding;
 mod error;
 pub mod event;

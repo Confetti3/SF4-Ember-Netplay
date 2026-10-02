@@ -43,11 +43,21 @@ fn connection(id: &str) -> config::Connection {
         environment: "local".into(),
         display_name: format!("Mock {id}"),
         enabled: true,
+        api_base: None,
     }
 }
 
 impl Bridge {
     pub async fn start() -> Self {
+        Self::start_with(|_| {}, Default::default()).await
+    }
+
+    /// A bridge whose configuration `adjust` changes first, with these
+    /// integration secrets.
+    pub async fn start_with(
+        adjust: impl FnOnce(&mut Config),
+        integrations: ember_bridge::integrations::Secrets,
+    ) -> Self {
         let dir = std::env::temp_dir().join(format!(
             "ember-bridge-test-{}",
             ember_protocol::encoding::b64u(&rand16())
@@ -56,7 +66,7 @@ impl Bridge {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let origin = format!("http://{}", listener.local_addr().unwrap());
         let bridge_id = ember_protocol::encoding::prefixed_id("brg", rand16());
-        let config = Config {
+        let mut config = Config {
             bridge_id: bridge_id.clone(),
             display_name: "Test bridge".into(),
             origin: origin.clone(),
@@ -66,6 +76,8 @@ impl Bridge {
             allow_loopback_http: true,
             allow_private_webhooks: true,
             mock_browser: true,
+            discord: None,
+            integration_secrets: None,
             tenants: vec![
                 config::Tenant {
                     id: "t1".into(),
@@ -79,10 +91,11 @@ impl Bridge {
                 },
             ],
         };
+        adjust(&mut config);
         config.validate().unwrap();
         let db = Db::open(&config.database).unwrap();
         let clock = Clock::default();
-        let state = AppState::new(config, Keys::generate(), db, clock.clone());
+        let state = AppState::new(config, Keys::generate(), integrations, db, clock.clone());
         ember_bridge::sync_config(&state).await.unwrap();
         let running = ember_bridge::start(state, listener).unwrap();
         Self {

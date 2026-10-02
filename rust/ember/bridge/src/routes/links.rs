@@ -61,7 +61,7 @@ impl Ctx {
         }
     }
 
-    fn tenant_of(&self, connection_id: &str) -> Result<String> {
+    pub fn tenant_of(&self, connection_id: &str) -> Result<String> {
         self.config
             .connection(connection_id)
             .map(|(tenant, _)| tenant.id.clone())
@@ -791,7 +791,7 @@ pub fn cancel_intent(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn revoke_link(
+pub fn revoke_link(
     tx: &Transaction<'_>,
     ctx: &Ctx,
     tenant: &str,

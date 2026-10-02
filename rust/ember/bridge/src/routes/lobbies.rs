@@ -287,15 +287,7 @@ fn advance(
         ember_id: entry.ember_id.clone(),
         slot: entry.slot.unwrap_or(0),
     });
-    let rules = Rules {
-        games_to_win: lobby.games_to_win,
-        draw_policy: "replay_no_score".into(),
-        native_rules_profile: ORGANIZER_PROFILE.into(),
-        edition_policy: "ultra_only".into(),
-        character_policy: "unrestricted_between_games".into(),
-        stage_policy: "p1_selects".into(),
-        input_delay_policy: "ember_existing_ready_policy".into(),
-    };
+    let rules = Rules::standard(lobby.games_to_win, ORGANIZER_PROFILE);
     let external_match_id = format!("{MATCH_PREFIX}{}:{number}", lobby.id);
     let digest = json::digest(&json!({ "lobby_id": lobby.id, "set": number }))
         .map_err(|_| ApiFailure::unavailable())?;

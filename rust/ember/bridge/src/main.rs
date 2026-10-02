@@ -1,7 +1,7 @@
 //! `ember-bridge init <dir>`, `serve <config>`,
 //! `credential <config> provider <connection> <label>` or
 //! `credential <config> organizer <tenant> <label>`, `credentials <config>`
-//! and `revoke <config> <credential-id>`.
+//! `revoke <config> <credential-id>` and `blumint-register <config> <connection>`.
 use std::{
     path::{Path, PathBuf},
     process::ExitCode,
@@ -40,6 +40,15 @@ fn main() -> ExitCode {
         )),
         ["credentials", path] => runtime.block_on(credentials(PathBuf::from(path))),
         ["revoke", path, id] => runtime.block_on(revoke(PathBuf::from(path), id)),
+        ["blumint-register", path, connection] => runtime.block_on(async {
+            let state = open(Path::new(path))?;
+            ember_bridge::sync_config(&state)
+                .await
+                .map_err(|error| error.message.to_string())?;
+            ember_bridge::register_blumint(&state, connection).await?;
+            println!("BluMint now calls this bridge for {connection}.");
+            Ok(())
+        }),
         _ => Err(USAGE.into()),
     };
     match result {
@@ -54,7 +63,8 @@ const USAGE: &str = "usage:
   ember-bridge credential <bridge.json> provider <connection-id> <label>
   ember-bridge credential <bridge.json> organizer <tenant-id> <label>
   ember-bridge credentials <bridge.json>
-  ember-bridge revoke <bridge.json> <credential-id>";
+  ember-bridge revoke <bridge.json> <credential-id>
+  ember-bridge blumint-register <bridge.json> <connection-id>";
 
 fn fail(message: &str) -> ExitCode {
     eprintln!("ember-bridge: {message}");
@@ -79,6 +89,8 @@ fn init(dir: PathBuf) -> Result<(), String> {
         allow_loopback_http: true,
         allow_private_webhooks: true,
         mock_browser: true,
+        discord: None,
+        integration_secrets: None,
         tenants: vec![config::Tenant {
             id: "local".into(),
             name: "Local tournaments".into(),
@@ -88,6 +100,7 @@ fn init(dir: PathBuf) -> Result<(), String> {
                 environment: "local".into(),
                 display_name: "Mock provider".into(),
                 enabled: true,
+                api_base: None,
             }],
         }],
     };
@@ -113,9 +126,10 @@ fn random() -> [u8; 16] {
 fn open(path: &Path) -> Result<AppState, String> {
     let config = Config::load(path)?;
     let keys = Keys::load(&config.secrets)?;
+    let integrations = ember_bridge::integrations::Secrets::load(&config)?;
     let db =
         Db::open(&config.database).map_err(|error| format!("cannot open database: {error}"))?;
-    let state = AppState::new(config, keys, db, Clock::default());
+    let state = AppState::new(config, keys, integrations, db, Clock::default());
     Ok(state)
 }
 

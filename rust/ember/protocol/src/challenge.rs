@@ -34,6 +34,10 @@ pub enum Action {
     LeaseRenew,
     #[serde(rename = "attempt.prepare")]
     AttemptPrepare,
+    #[serde(rename = "discord.connect")]
+    DiscordConnect,
+    #[serde(rename = "discord.remove")]
+    DiscordRemove,
 }
 
 impl Action {
@@ -47,6 +51,8 @@ impl Action {
             Self::RoomPublish => "room.publish",
             Self::LeaseRenew => "lease.renew",
             Self::AttemptPrepare => "attempt.prepare",
+            Self::DiscordConnect => "discord.connect",
+            Self::DiscordRemove => "discord.remove",
         }
     }
 }

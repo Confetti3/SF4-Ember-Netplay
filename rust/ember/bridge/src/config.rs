@@ -8,10 +8,10 @@ use serde::{Deserialize, Serialize};
 
 /// Provider kinds this build can serve. `direct` is a platform that calls
 /// the generic API itself with its provider credential; `mock` also gets the
-/// mock login pages when `mock_browser` is set. Adapters that call a
-/// platform's own API are added only after its contract is verified
-/// (spec 22).
-pub const SUPPORTED_KINDS: &[&str] = &["direct", "mock"];
+/// mock login pages when `mock_browser` is set; `blumint` also gets BluMint's
+/// partner API (`routes::blumint`), whose contract was read from BluMint's
+/// published guide and OpenAPI document (spec 22).
+pub const SUPPORTED_KINDS: &[&str] = &["direct", "mock", "blumint"];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -33,7 +33,30 @@ pub struct Config {
     /// Serve the mock provider's login and approval pages.
     #[serde(default)]
     pub mock_browser: bool,
+    /// Discord sign-in, so a player can connect their Discord account to
+    /// their Ember ID. Off when absent.
+    #[serde(default)]
+    pub discord: Option<Discord>,
+    /// An owner-only file with the secrets of the services this bridge calls
+    /// (`integrations::Secrets`). Needed when `discord` is set.
+    #[serde(default)]
+    pub integration_secrets: Option<PathBuf>,
     pub tenants: Vec<Tenant>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Discord {
+    /// The Discord application's public client ID. Its redirect list must hold
+    /// `<origin>/v1/discord/callback`.
+    pub client_id: String,
+    /// Discord's API, replaced only by tests.
+    #[serde(default = "discord_api")]
+    pub api_base: String,
+}
+
+fn discord_api() -> String {
+    "https://discord.com/api".into()
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -54,6 +77,10 @@ pub struct Connection {
     pub display_name: String,
     #[serde(default = "enabled")]
     pub enabled: bool,
+    /// The platform API this bridge calls for the connection, when the
+    /// kind's default for its environment is not the one (tests).
+    #[serde(default)]
+    pub api_base: Option<String>,
 }
 
 fn enabled() -> bool {
@@ -68,7 +95,10 @@ impl Config {
             .map_err(|error| format!("invalid configuration: {error}"))?;
         // Relative paths are relative to the configuration file.
         let base = path.parent().unwrap_or(Path::new("."));
-        for file in [&mut config.database, &mut config.secrets] {
+        for file in [&mut config.database, &mut config.secrets]
+            .into_iter()
+            .chain(config.integration_secrets.as_mut())
+        {
             if file.is_relative() {
                 *file = base.join(&*file);
             }
@@ -93,6 +123,19 @@ impl Config {
             .map_err(|_| "origin must be a bare https origin".to_owned())?;
         if self.display_name.is_empty() || self.display_name.len() > 128 {
             return Err("display_name must be 1 to 128 bytes".into());
+        }
+        if let Some(discord) = &self.discord {
+            if !ember_protocol::discord::is_user_id(&discord.client_id) {
+                return Err("discord.client_id must be the application's numeric ID".into());
+            }
+            check_origin(
+                discord.api_base.strip_suffix("/api").unwrap_or_default(),
+                self.policy(),
+            )
+            .map_err(|_| "discord.api_base must be an https origin followed by /api".to_owned())?;
+            if self.integration_secrets.is_none() {
+                return Err("discord needs integration_secrets for its client secret".into());
+            }
         }
         let mut seen = std::collections::BTreeSet::new();
         for tenant in &self.tenants {

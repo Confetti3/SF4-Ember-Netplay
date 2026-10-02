@@ -5,7 +5,7 @@
 use axum::{
     Form,
     extract::{Path, State},
-    http::{HeaderMap, HeaderValue, StatusCode, header},
+    http::{HeaderMap, HeaderValue, header},
     response::{IntoResponse, Redirect, Response},
 };
 use ember_protocol::EmberId;
@@ -15,45 +15,10 @@ use crate::{
     AppState,
     auth::{self, BROWSER_COOKIE, BROWSER_SECS, Browser},
     error::{ApiFailure, Result},
+    http::page,
     routes::links::{self, ApproveCommand, Ctx, IntentCreated, Owner},
     util::html,
 };
-
-const STYLE: &str = "body{font:16px/1.5 system-ui,sans-serif;max-width:34rem;margin:2rem auto;padding:0 1rem;color:#1d1d1f;background:#fff}\
-h1{font-size:1.4rem}code,.code{font:600 2rem ui-monospace,monospace;letter-spacing:.1em}\
-.box{border:1px solid #c7c7cc;border-radius:8px;padding:1rem;margin:1rem 0}.warn{background:#fff4e5;border-color:#f5a623}\
-button{font:inherit;padding:.4rem 1rem;margin-right:.5rem}input{font:inherit;padding:.3rem;width:100%;box-sizing:border-box}\
-@media (prefers-color-scheme:dark){body{color:#f5f5f7;background:#1c1c1e}.box{border-color:#48484a}.warn{background:#3a2a10}}";
-
-fn page(title: &str, body: &str, refresh: bool) -> Response {
-    let refresh = if refresh {
-        r#"<meta http-equiv="refresh" content="3">"#
-    } else {
-        ""
-    };
-    let document = format!(
-        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">{refresh}<title>{}</title><style>{STYLE}</style></head><body>{body}</body></html>",
-        html(title)
-    );
-    let mut response = (
-        StatusCode::OK,
-        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
-        document,
-    )
-        .into_response();
-    let headers = response.headers_mut();
-    headers.insert(
-        header::CONTENT_SECURITY_POLICY,
-        HeaderValue::from_static("default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'"),
-    );
-    headers.insert(header::X_FRAME_OPTIONS, HeaderValue::from_static("DENY"));
-    headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
-    headers.insert(
-        header::REFERRER_POLICY,
-        HeaderValue::from_static("no-referrer"),
-    );
-    response
-}
 
 fn enabled(state: &AppState, connection: &str) -> Result<()> {
     let mock = state

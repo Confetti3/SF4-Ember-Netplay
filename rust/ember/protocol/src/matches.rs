@@ -36,6 +36,20 @@ pub struct Rules {
 }
 
 impl Rules {
+    /// A first-to-`games_to_win` set under `native_rules_profile`, with the
+    /// only policies v1 has.
+    pub fn standard(games_to_win: u8, native_rules_profile: &str) -> Self {
+        Self {
+            games_to_win,
+            draw_policy: "replay_no_score".into(),
+            native_rules_profile: native_rules_profile.into(),
+            edition_policy: "ultra_only".into(),
+            character_policy: "unrestricted_between_games".into(),
+            stage_policy: "p1_selects".into(),
+            input_delay_policy: "ember_existing_ready_policy".into(),
+        }
+    }
+
     pub fn check(&self) -> Result<()> {
         let valid = [
             (matches!(self.games_to_win, 1 | 2 | 3 | 5), "games_to_win"),

@@ -484,15 +484,7 @@ mod tests {
     }
 
     fn rules() -> Rules {
-        Rules {
-            games_to_win: 2,
-            draw_policy: "replay_no_score".into(),
-            native_rules_profile: PROFILE.into(),
-            edition_policy: "ultra_only".into(),
-            character_policy: "unrestricted_between_games".into(),
-            stage_policy: "p1_selects".into(),
-            input_delay_policy: "ember_existing_ready_policy".into(),
-        }
+        Rules::standard(2, PROFILE)
     }
 
     fn permit(p1: &EmberId, p2: &EmberId) -> Permit {

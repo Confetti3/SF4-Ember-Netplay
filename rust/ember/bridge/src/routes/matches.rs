@@ -523,8 +523,7 @@ pub async fn cancel(
                     )
                     .detail("tournament_id", tournament_id.clone()));
                 }
-                let revision = cancel_match(tx, &ctx, &found, &command.reason)?;
-                release(tx, &ctx, &found, &participants(tx, &found.id, found.generation)?)?;
+                let revision = cancel_and_release(tx, &ctx, &found, &command.reason)?;
                 audit(tx, ctx.now, ("service", service.id.clone()), "match.cancel", &found.id, "ok", Some(&command.reason))?;
                 Ok((StatusCode::OK, json!({ "match_id": found.id, "state": "cancelled", "revision": revision.to_string() })))
             })
@@ -532,6 +531,24 @@ pub async fn cancel(
         .await?;
     state.committed();
     Ok(respond(result))
+}
+
+/// Cancels a match and returns its players to their other matches, as the
+/// cancel route does. Returns the new revision.
+pub fn cancel_and_release(
+    tx: &Transaction<'_>,
+    ctx: &Ctx,
+    found: &Match,
+    reason: &str,
+) -> Result<u64> {
+    let revision = cancel_match(tx, ctx, found, reason)?;
+    release(
+        tx,
+        ctx,
+        found,
+        &participants(tx, &found.id, found.generation)?,
+    )?;
+    Ok(revision)
 }
 
 fn cancel_match(tx: &Transaction<'_>, ctx: &Ctx, found: &Match, reason: &str) -> Result<u64> {

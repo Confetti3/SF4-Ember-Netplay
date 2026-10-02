@@ -283,6 +283,8 @@ async fn announces_a_set_on_discord_and_twitch() {
         allow_loopback_http: true,
         allow_private_webhooks: true,
         mock_browser: false,
+        discord: None,
+        integration_secrets: None,
         tenants: vec![config::Tenant {
             id: "local".into(),
             name: "Local".into(),
@@ -292,12 +294,14 @@ async fn announces_a_set_on_discord_and_twitch() {
                 environment: "local".into(),
                 display_name: "Mock".into(),
                 enabled: true,
+                api_base: None,
             }],
         }],
     };
     let state = AppState::new(
         bridge_config,
         Keys::generate(),
+        Default::default(),
         Db::open(&dir.join("bridge.sqlite3")).unwrap(),
         Default::default(),
     );

@@ -13,7 +13,7 @@ use std::{
 };
 
 use ember_protocol::webhook::{self, Secret};
-use reqwest::{Url, redirect};
+use reqwest::Url;
 use rusqlite::params;
 use tokio::sync::Semaphore;
 
@@ -172,12 +172,7 @@ async fn attempt(state: &AppState, item: &Due) -> Outcome {
         Ok(address) => address,
         Err(error) => return retry(error),
     };
-    let mut builder = reqwest::Client::builder()
-        .redirect(redirect::Policy::none())
-        .connect_timeout(Duration::from_secs(5))
-        .timeout(Duration::from_secs(15))
-        .user_agent(concat!("ember-bridge/", env!("CARGO_PKG_VERSION")))
-        .no_proxy();
+    let mut builder = crate::util::outbound_client();
     if let Some(host) = url.host_str()
         && literal_ip(&url).is_none()
     {

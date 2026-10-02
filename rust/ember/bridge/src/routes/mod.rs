@@ -1,3 +1,5 @@
+pub mod blumint;
+pub mod discord;
 pub mod discovery;
 pub mod events;
 pub mod ledger;
@@ -67,6 +69,18 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/v1/matches/{id}/reports", post(reports::submit_route))
         .route("/v1/assignments", get(matches::assignments))
+        .route(blumint::LOOKUP_PATH, post(blumint::lookup))
+        .route(blumint::MATCHES_PATH, post(blumint::create))
+        .route(
+            blumint::STATUS_PATH,
+            get(blumint::status).post(blumint::status),
+        )
+        .route(discord::START_PATH, post(discord::start))
+        .route(discord::CALLBACK_PATH, get(discord::callback))
+        .route(
+            discord::ACCOUNT_PATH,
+            get(discord::get).delete(discord::remove),
+        )
         .route("/v1/lobbies", post(lobbies::create))
         .route("/v1/lobbies/{id}", get(lobbies::get))
         .route("/v1/lobbies/{id}/queue", post(lobbies::join))
@@ -155,6 +169,7 @@ pub async fn maintenance_once(state: &AppState) {
         .write(move |tx| {
             reports::expire(tx, &ctx)?;
             links::expire(tx, now)?;
+            discord::expire(tx, now)?;
             tx.execute(
                 "DELETE FROM auth_challenges WHERE expires_at <= ?1",
                 [cutoff],

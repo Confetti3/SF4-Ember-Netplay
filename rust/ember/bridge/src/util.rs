@@ -56,3 +56,14 @@ pub fn html(text: &str) -> String {
     }
     out
 }
+
+/// A client for the services the bridge calls: no redirects, short timeouts,
+/// no proxy. Callers add what their destination needs.
+pub fn outbound_client() -> reqwest::ClientBuilder {
+    reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .connect_timeout(std::time::Duration::from_secs(5))
+        .timeout(std::time::Duration::from_secs(15))
+        .user_agent(concat!("ember-bridge/", env!("CARGO_PKG_VERSION")))
+        .no_proxy()
+}

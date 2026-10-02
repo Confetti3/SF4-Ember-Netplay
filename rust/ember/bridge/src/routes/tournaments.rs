@@ -379,15 +379,7 @@ fn start_node(
         }
         metadata.entry(key.clone()).or_insert_with(|| value.clone());
     }
-    let rules = Rules {
-        games_to_win,
-        draw_policy: "replay_no_score".into(),
-        native_rules_profile: ORGANIZER_PROFILE.into(),
-        edition_policy: "ultra_only".into(),
-        character_policy: "unrestricted_between_games".into(),
-        stage_policy: "p1_selects".into(),
-        input_delay_policy: "ember_existing_ready_policy".into(),
-    };
+    let rules = Rules::standard(games_to_win, ORGANIZER_PROFILE);
     let roster = [first, second].map(|entrant| entrant.clone());
     let assigned = [0u8, 1].map(|slot| Assigned {
         participant_id: roster[usize::from(slot)].participant_id.clone(),

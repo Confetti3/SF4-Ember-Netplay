@@ -40,6 +40,8 @@ async fn bridge(dir: &std::path::Path) -> (ember_bridge::Running, String) {
         allow_loopback_http: true,
         allow_private_webhooks: true,
         mock_browser: false,
+        discord: None,
+        integration_secrets: None,
         tenants: vec![config::Tenant {
             id: "local".into(),
             name: "Local".into(),
@@ -49,11 +51,12 @@ async fn bridge(dir: &std::path::Path) -> (ember_bridge::Running, String) {
                 environment: "local".into(),
                 display_name: "Mock provider".into(),
                 enabled: true,
+                api_base: None,
             }],
         }],
     };
     let db = Db::open(&config.database).unwrap();
-    let state = AppState::new(config, Keys::generate(), db, Clock::default());
+    let state = AppState::new(config, Keys::generate(), Default::default(), db, Clock::default());
     ember_bridge::sync_config(&state).await.unwrap();
     (ember_bridge::start(state, listener).unwrap(), origin)
 }

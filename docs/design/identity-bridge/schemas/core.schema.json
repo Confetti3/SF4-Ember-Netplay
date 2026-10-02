@@ -137,7 +137,9 @@
             "match.claim",
             "room.publish",
             "lease.renew",
-            "attempt.prepare"
+            "attempt.prepare",
+            "discord.connect",
+            "discord.remove"
           ]
         },
         "method": {

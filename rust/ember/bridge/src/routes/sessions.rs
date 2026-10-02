@@ -130,6 +130,8 @@ fn route_matches(action: Action, method: Method, path: &str) -> bool {
         (Action::AttemptPrepare, Method::Post) => {
             id_between("/v1/matches/", "emt", "/attempts/prepare")
         }
+        (Action::DiscordConnect, Method::Post) => path == super::discord::START_PATH,
+        (Action::DiscordRemove, Method::Delete) => path == super::discord::ACCOUNT_PATH,
         _ => false,
     }
 }

@@ -12,6 +12,7 @@ mod delivery;
 mod error;
 mod events;
 mod http;
+pub mod integrations;
 mod mock;
 mod rate;
 mod routes;
@@ -32,6 +33,7 @@ pub use util::Clock;
 pub struct AppState {
     pub config: Arc<Config>,
     pub keys: Arc<Keys>,
+    pub integrations: Arc<integrations::Secrets>,
     pub db: Db,
     pub clock: Clock,
     rate: Arc<rate::Limiter>,
@@ -42,10 +44,17 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(config: Config, keys: Keys, db: Db, clock: Clock) -> Self {
+    pub fn new(
+        config: Config,
+        keys: Keys,
+        integrations: integrations::Secrets,
+        db: Db,
+        clock: Clock,
+    ) -> Self {
         Self {
             config: Arc::new(config),
             keys: Arc::new(keys),
+            integrations: Arc::new(integrations),
             db,
             clock,
             rate: Arc::new(rate::Limiter::default()),
@@ -100,6 +109,7 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
     let workers = vec![
         tokio::spawn(delivery::run(state.clone())),
         tokio::spawn(routes::maintenance(state.clone())),
+        tokio::spawn(routes::blumint::run(state.clone())),
     ];
     Ok(Running {
         address,
@@ -114,6 +124,16 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
 /// runs it every few seconds; tests call it after moving the clock.
 pub async fn maintain(state: &AppState) {
     routes::maintenance_once(state).await;
+}
+
+/// One pass of sending finished matches' results to BluMint; tests call it.
+pub async fn deliver_to_blumint(state: &AppState) {
+    routes::blumint::deliver_once(state).await;
+}
+
+/// Tells BluMint where the connection's endpoints are (`routes::blumint`).
+pub async fn register_blumint(state: &AppState, connection_id: &str) -> Result<(), String> {
+    routes::blumint::register(state, connection_id).await
 }
 
 /// Records configured tenants and connections. Connections removed from the
