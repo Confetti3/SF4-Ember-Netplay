@@ -67,8 +67,6 @@ std::vector<Output> TournamentPlay::Tick(std::uint64_t nowMs, const RoomView& ro
 		FollowClaim(nowMs, room, out);
 		TrackPermits(nowMs, room, out);
 	}
-	reportsInFlight_ += static_cast<std::size_t>(std::count_if(out.begin(), out.end(),
-		[](const Output& output) { return output.kind == Output::Kind::Report; }));
 	return out;
 }
 
@@ -188,6 +186,7 @@ void TournamentPlay::TrackPermits(std::uint64_t nowMs, const RoomView& room, std
 		cancel.result = ResultName(room::MatchResult::Cancel);
 		out.push_back(cancel);
 		reported_.insert(held);
+		++reportsInFlight_;
 	}
 }
 
@@ -281,6 +280,9 @@ void TournamentPlay::OnTerminal(std::uint64_t generation, room::MatchResult resu
 	pending_.push_back(report);
 	reported_.insert(generation);
 	started_.insert(generation);
+	// Counted now, not when sent: a Stop before the next tick must still
+	// hold the helper's Forget until this report is answered.
+	++reportsInFlight_;
 }
 
 } } }

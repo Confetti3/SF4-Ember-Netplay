@@ -728,3 +728,67 @@ async fn a_handoff_names_the_match_once_for_its_own_player() {
     let (status, _) = handoff(&f, &organized, &f.a).await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
 }
+
+async fn send_report(f: &Fixture, sender: &Player, id: &str, body: &Json) -> StatusCode {
+    let response = f
+        .bridge
+        .client
+        .post(f.bridge.url(&format!("/v1/matches/{id}/reports")))
+        .bearer_auth(sender.token())
+        .header("content-type", "application/json")
+        .body(serde_json::to_vec(body).unwrap())
+        .send()
+        .await
+        .unwrap();
+    common::read(response).await.0
+}
+
+/// Reports a player could forge or misdirect: signed by someone who is not
+/// the reporter, changed after signing, sent to another match, or for the
+/// other fighter's slot. None of them count, and the game still scores from
+/// the two honest reports.
+#[tokio::test]
+async fn forged_and_misdirected_reports_are_refused() {
+    let f = fixture().await;
+    let id = create(&f, "play-14", "ember-room-v1", 2).await;
+    let binding = bound(&f, &id).await;
+    let permit = permit(&f, &id, &binding, 31).await;
+    let honest = permit
+        .permit
+        .report(f.a.id(), observation(1, Outcome::P1Win))
+        .unwrap();
+    // Carrying another player's key: it does not match the reporter. (The
+    // library refuses to sign that way, so the forgery is made on the wire.)
+    let stranger = f.bridge.player(41);
+    for key in [f.b.identity.public_key(), stranger.identity.public_key()] {
+        let mut forged = serde_json::to_value(honest.sign(&f.a.identity).unwrap()).unwrap();
+        forged["public_key"] = serde_json::to_value(key).unwrap();
+        assert_ne!(
+            send_report(&f, &f.a, &id, &forged).await,
+            StatusCode::CREATED
+        );
+    }
+    // Changed after signing.
+    let mut tampered = serde_json::to_value(honest.sign(&f.a.identity).unwrap()).unwrap();
+    tampered["report"]["result"] = json!("p2_win");
+    assert_ne!(
+        send_report(&f, &f.a, &id, &tampered).await,
+        StatusCode::CREATED
+    );
+    // Sent to a match it is not for.
+    let signed = serde_json::to_value(honest.sign(&f.a.identity).unwrap()).unwrap();
+    let elsewhere = "emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a77";
+    assert_ne!(
+        send_report(&f, &f.a, elsewhere, &signed).await,
+        StatusCode::CREATED
+    );
+    // Nothing counted yet; the honest pair still scores the game.
+    assert_eq!(state(&f, &id).await["scores"][0]["wins"], 0);
+    assert_eq!(
+        send_report(&f, &f.a, &id, &signed).await,
+        StatusCode::CREATED
+    );
+    let (_, decided) = report(&f, &f.b, &f.b, &id, &permit, 2, Outcome::P1Win).await;
+    assert_eq!(decided["attempt_state"], "accepted");
+    assert_eq!(state(&f, &id).await["scores"][0]["wins"], 1);
+}

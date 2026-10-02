@@ -697,4 +697,186 @@ mod tests {
         };
         assert!(replacing.check().is_ok());
     }
+
+    /// Seeded mutation fuzzing of what a helper or the bridge reads from the
+    /// other side. Fixed seeds, so a failure reproduces.
+    mod fuzz {
+        use super::*;
+        use crate::{
+            challenge::ProvenRequest,
+            encoding::{b64u, decode_b64u},
+            report::SignedReport,
+        };
+
+        struct Random(u64);
+
+        impl Random {
+            fn next(&mut self) -> u64 {
+                self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
+                let mut z = self.0;
+                z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+                z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+                z ^ (z >> 31)
+            }
+            fn below(&mut self, bound: usize) -> usize {
+                (self.next() % bound.max(1) as u64) as usize
+            }
+        }
+
+        const SYMBOLS: &[u8] = b"\"{}[],:0123456789aefnrtu -";
+
+        /// Flips, inserts, deletes or duplicates a few bytes.
+        fn mutate(random: &mut Random, bytes: &mut Vec<u8>) {
+            for _ in 0..=random.below(3) {
+                let at = random.below(bytes.len() + 1);
+                match random.below(4) {
+                    0 if at < bytes.len() => bytes[at] ^= 1 << random.below(8),
+                    1 => bytes.insert(at, SYMBOLS[random.below(SYMBOLS.len())]),
+                    2 if at < bytes.len() => {
+                        bytes.remove(at);
+                    }
+                    _ if at < bytes.len() => {
+                        let byte = bytes[at];
+                        bytes.insert(at, byte);
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        fn binding(a: &SigningIdentity, b: &SigningIdentity) -> Binding {
+            Binding {
+                version: VERSION,
+                bridge_id: "brg_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a11".into(),
+                match_id: "emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12".into(),
+                assignment_generation: Counter(1),
+                binding_revision: Counter(1),
+                room_id: "0123456789abcdef0123456789abcdef".into(),
+                build_id: "build".into(),
+                games_to_win: 2,
+                rules_digest: rules_digest(&rules()).unwrap(),
+                roster_digest: roster_digest(a.ember_id(), b.ember_id()).unwrap(),
+                fighters: [
+                    BoundFighter {
+                        ember_id: a.ember_id().clone(),
+                        endpoint_id: "a".repeat(64),
+                    },
+                    BoundFighter {
+                        ember_id: b.ember_id().clone(),
+                        endpoint_id: "b".repeat(64),
+                    },
+                ],
+                issued_at: 100,
+            }
+        }
+
+        /// A changed signed value either fails to parse, fails to verify, or
+        /// says exactly what was signed.
+        #[test]
+        fn signed_values_change_only_by_failing() {
+            let mut random = Random(0x5EED_0001);
+            let bridge = key(9);
+            let (a, b) = (key(1), key(2));
+            let binding = binding(&a, &b).sign(&bridge, "k1").unwrap();
+            let permit = permit(a.ember_id(), b.ember_id())
+                .sign(&bridge, "k1")
+                .unwrap();
+            let observation = Observation {
+                observation_id: "obs_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a16".into(),
+                result: Outcome::P1Win,
+                capture_frame: Some(Counter(900)),
+                confirmed_input_frame: Some(Counter(899)),
+                observed_at: 200,
+                helper_instance_id: "ins_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a15".into(),
+            };
+            let report = permit
+                .permit
+                .report(a.ember_id(), observation)
+                .unwrap()
+                .sign(&a)
+                .unwrap();
+            let originals = [
+                serde_json::to_vec(&binding).unwrap(),
+                serde_json::to_vec(&permit).unwrap(),
+                serde_json::to_vec(&report).unwrap(),
+            ];
+            let mut verified = 0;
+            for round in 0..6000 {
+                let which = round % 3;
+                let mut bytes = originals[which].clone();
+                mutate(&mut random, &mut bytes);
+                match which {
+                    0 => {
+                        if let Ok(parsed) = json::parse_as::<SignedBinding>(&bytes, 8192)
+                            && let Ok(inner) = parsed.verify(&bridge.public_key(), "k1")
+                        {
+                            assert_eq!(*inner, binding.binding);
+                            verified += 1;
+                        }
+                    }
+                    1 => {
+                        if let Ok(parsed) = json::parse_as::<SignedPermit>(&bytes, 8192)
+                            && let Ok(inner) = parsed.verify(&bridge.public_key(), "k1")
+                        {
+                            assert_eq!(*inner, permit.permit);
+                            verified += 1;
+                        }
+                    }
+                    _ => {
+                        if let Ok(parsed) = json::parse_as::<SignedReport>(&bytes, 8192)
+                            && let Ok(inner) = parsed.verify()
+                        {
+                            assert_eq!(*inner, report.report);
+                            verified += 1;
+                        }
+                    }
+                }
+            }
+            // Whitespace-only changes still verify, so the check above ran.
+            assert!(verified > 0);
+        }
+
+        /// Any body, however broken, is refused with an error, never a panic.
+        #[test]
+        fn proof_bodies_never_panic() {
+            let mut random = Random(0x5EED_0002);
+            let valid = br#"{"command":{"handoff":"q2Zp0yH4c8Jm1bWk7nVt3xR6sL9dF5gA2eU0iO4uYwA"},"proof":{"challenge_id":"chl_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12","signature":"x"}}"#;
+            for _ in 0..20000 {
+                let mut bytes = valid.to_vec();
+                mutate(&mut random, &mut bytes);
+                let _ = ProvenRequest::parse(&bytes);
+                let _ =
+                    json::parse_as::<RedeemHandoff>(&bytes, 8192).map(|command| command.check());
+                let _ = json::parse_as::<Claim>(&bytes, 8192).map(|claim| claim.check());
+                let _ = json::parse_as::<PublishRoom>(&bytes, 8192).map(|room| room.check());
+            }
+        }
+
+        /// Text decoders accept only canonical text: what they accept writes
+        /// back as the same text.
+        #[test]
+        fn decoders_accept_only_canonical_text() {
+            let mut random = Random(0x5EED_0003);
+            let alphabet = b"0123456789abcdefABCDEF-_=+/ \x00z";
+            for _ in 0..50000 {
+                let length = random.below(48);
+                let text: String = (0..length)
+                    .map(|_| alphabet[random.below(alphabet.len())] as char)
+                    .collect();
+                if let Ok(bytes) = decode_b64u::<32>(&text, "x") {
+                    assert_eq!(b64u(&bytes), text);
+                    assert!(is_handoff(&text));
+                }
+                if let Ok(counter) = Counter::parse(&text) {
+                    assert_eq!(counter.0.to_string(), text);
+                }
+                if is_hex(&text, 32) {
+                    assert!(
+                        text.bytes()
+                            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                    );
+                }
+            }
+        }
+    }
 }

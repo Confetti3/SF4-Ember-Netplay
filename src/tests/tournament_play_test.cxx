@@ -291,6 +291,21 @@ static void TestOrderingAndLeases() {
 	casual.OnRoom(Kind::Claim, lease, 0);
 	// Already sitting in a room it did not open for the match.
 	CHECK(Count(casual.Tick(100, Joined(RoomB, &snapshot)), Kind::Publish) == 0);
+
+	// A game that ends just before the player stops: its report still goes
+	// first, and Forget waits for its answer.
+	TournamentPlay stopping;
+	stopping.Start("brg_x", "emt_x", 0);
+	stopping.Tick(0, {});
+	stopping.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 0)), 0);
+	stopping.Tick(100, Joined(RoomA, &snapshot, false));
+	stopping.OnPrepare(permitted, 200);
+	stopping.OnTerminal(3, room::MatchResult::P2Win, 10, 9);
+	stopping.Stop();
+	out = stopping.Tick(300, {});
+	CHECK(Count(out, Kind::Report) == 1 && Count(out, Kind::Forget) == 0);
+	stopping.OnReported();
+	CHECK(Count(stopping.Tick(400, {}), Kind::Forget) == 1);
 }
 
 int main() {
