@@ -397,6 +397,11 @@ static void FuzzBoundRoom(Random& random) {
 }
 
 int main() {
+	// Every play answer reaches the runtime, a match link's too, and not the
+	// Ember ID screens.
+	for (const char* op : {"match_claim", "room_publish", "game_prepare", "game_report", "match_leave", "assignment_list", "handoff_redeem"})
+		CHECK(session::ReadTournamentAnswer({{"op", op}, {"request_id", 7u}, {"ok", true}, {"data", {{"match_id", "emt_x"}}}}).has_value());
+	CHECK(!session::ReadTournamentAnswer({{"op", "link_list"}, {"request_id", 7u}, {"ok", true}}).has_value());
 	Random random(Seed());
 	FuzzAnswers(random);
 	FuzzLinks(random);

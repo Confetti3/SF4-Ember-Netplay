@@ -10,7 +10,8 @@
 #include "../netplay/TournamentStatus.hxx"
 
 // The helper's answers to tournament play requests (match_claim,
-// room_publish, game_prepare, game_report, match_leave, assignment_list),
+// room_publish, game_prepare, game_report, match_leave, assignment_list,
+// handoff_redeem),
 // held apart from the identity answers the Ember ID screens show. Each is
 // decoded completely into a typed reply, or not at all: a malformed answer
 // never reaches the state machine half-read.

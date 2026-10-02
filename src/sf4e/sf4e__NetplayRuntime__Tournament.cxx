@@ -137,8 +137,9 @@ void TakeAssignments(const session::TournamentAnswer& answer) {
 }
 
 // How long a match link waits for the helper and the Ember ID: the bridge
-// keeps it for a minute.
+// keeps it for a minute. And how long a sent redeem waits for its answer.
 constexpr ULONGLONG HandoffWaitMs = 55000;
+constexpr ULONGLONG HandoffAnswerMs = 30000;
 
 void HandoffDone(const std::string& matchId, const std::string& error) {
 	auto& result = runtime->handoffResult;
@@ -164,8 +165,11 @@ void TakeHandoff(const session::TournamentAnswer& answer) {
 // Sends a waiting match link once the helper and the Ember ID can redeem it.
 void RedeemHandoff(bool helperReady) {
 	auto& pending = runtime->pendingHandoff;
-	if (!pending.Valid() || runtime->handoffRequest) return;
 	const auto now = GetTickCount64();
+	// An answer that never comes ends the wait instead of leaving the link
+	// shown as opening; its late answer, if any, is then ignored.
+	if (runtime->handoffRequest && now - runtime->handoffSentMs > HandoffAnswerMs) HandoffDone({}, "unavailable");
+	if (!pending.Valid() || runtime->handoffRequest) return;
 	if (now - runtime->handoffArrivedMs > HandoffWaitMs) {
 		WipeText(pending.code);
 		pending = {};
@@ -180,7 +184,7 @@ void RedeemHandoff(bool helperReady) {
 	runtime->handoffResult.bridge = pending.bridgeId;
 	WipeText(pending.code);
 	pending = {};
-	if (sent) runtime->handoffRequest = id;
+	if (sent) { runtime->handoffRequest = id; runtime->handoffSentMs = now; }
 	else HandoffDone({}, "helper_unavailable");
 }
 

@@ -69,7 +69,7 @@ Binding DecodeBinding(const json& view) {
 
 bool IsTournamentPlayOp(const std::string& op) {
 	return op == "match_claim" || op == "room_publish" || op == "game_prepare" || op == "game_report" ||
-		op == "match_leave" || op == "assignment_list";
+		op == "match_leave" || op == "assignment_list" || op == "handoff_redeem";
 }
 
 std::optional<TournamentAnswer> ReadTournamentAnswer(const nlohmann::json& event) {

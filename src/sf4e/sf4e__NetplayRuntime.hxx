@@ -164,6 +164,7 @@ struct Runtime {
     tournament_link::Handoff pendingHandoff;
     ULONGLONG handoffArrivedMs=0;
     std::uint64_t handoffRequest=0;
+    ULONGLONG handoffSentMs=0;
     session::RoomRecoveryRuntime recovery;
     std::uint64_t observedAuthorityTerm=0;
 	// A terminal receipt is released only after its local outcome has been
