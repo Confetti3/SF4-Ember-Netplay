@@ -507,5 +507,49 @@ void DiscordConnectKeepsItsService(){
  Check(sent().back()->op==IdentityOp::DiscordConnect&&sent().back()->bridge=="brg_2","Connect did not name the link's service");
  SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
-int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
+// A sign-in started under Linked accounts before any Connect Discord visit
+// is retired like any other once a connect link arrives: its late Connect
+// answer, a failed or an unanswered poll neither stop the new journey nor
+// wait again.
+void FirstSignInRetires(){
+ using namespace sf4e;using netplay::IdentityOp;
+ const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
+ std::vector<MenuEntry> rows;std::string status;
+ for(int ending=0;ending<3;++ending){
+  Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";
+  id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
+  id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};h.Frame();
+  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
+  const auto sent=[&]{std::vector<const netplay::IdentityRequest*> out;for(const auto& a:h.actions)if(a.identity.op!=IdentityOp::None)out.push_back(&a.identity);return out;};
+  const auto answer=[&]{
+   h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=true;id.failure.clear();h.Frame(0,2);
+  };
+  const auto until=[&](IdentityOp op){for(int i=0;i<10&&sent().back()->op!=op;++i)answer();return sent().back()->op==op;};
+  const auto late=[&](std::uint64_t ticket,bool ok){
+   h.view.identityTicket=ticket;h.view.identityRequest=id.requestId=ticket+100;id.ok=ok;id.failure=ok?"":"rate_limited";h.Frame(0,2);
+  };
+  h.Screen("linked-accounts");
+  Check(until(IdentityOp::BridgeInspect),"Linked accounts did not inspect the service");
+  id.inspected=id.bridges[0];id.inspectedDiscord=true;answer();
+  Check(until(IdentityOp::DiscordStatus),"Linked accounts did not read the account");
+  id.discordUser.clear();id.discordName.clear();answer();for(int i=0;i<4;++i)answer();
+  h.Choose("id-discord-connect");
+  Check(sent().back()->op==IdentityOp::DiscordConnect&&sent().back()->bridge=="brg_1","Connect did not name its service");
+  if(ending>0){answer();h.Frame(0,300);Check(sent().back()->op==IdentityOp::DiscordStatus&&sent().back()->bridge=="brg_1","No poll was in flight");}
+  const auto ticket=sent().back()->ticket;
+  h.view.tournament.connect.bridge="brg_2";h.view.tournament.connect.sequence=1;h.Frame(0,2);
+  if(ending==0)late(ticket,true);
+  else if(ending==1)late(ticket,false);
+  else h.Frame(0,7300);
+  // Only a Connect answered after the link could say to finish in the browser.
+  Check((ending>0||status!=loc::T("identity.done.discord_opened"))&&status!=loc::T("identity.failure.rate_limited")&&
+   status!=loc::T("identity.failure.timeout"),"The first sign-in's late answer changed the new journey's status");
+  Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==other,"The first sign-in's late answer stopped the new journey");
+  id.inspected=id.bridges[1];answer();for(int i=0;i<4;++i)answer();
+  const auto before=sent().size();h.Frame(0,300);
+  for(std::size_t i=before;i<sent().size();++i)Check(sent()[i]->bridge!="brg_1","The first sign-in was waited for again");
+  SetMenuEntriesProbe({});SetMenuStatusProbe({});
+ }
+}
+int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

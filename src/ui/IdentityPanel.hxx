@@ -97,8 +97,9 @@ private:
     std::uint64_t nextTicket_ = 0, sent_ = 0;
     netplay::IdentityOp sentOp_ = netplay::IdentityOp::None;
     bool sentLookUp_ = false;
-    // The Connect Discord journey, and the one the request in flight belongs to (0: none).
-    std::uint64_t journey_ = 0, sentJourney_ = 0;
+    // The Connect Discord journey, from 1, and the one the request in flight
+    // belongs to; 0 marks a request outside any journey.
+    std::uint64_t journey_ = 1, sentJourney_ = 0;
     double sentAt_ = 0, now_ = 0;
     bool onScreens_ = false;
     std::string lastScreen_;
