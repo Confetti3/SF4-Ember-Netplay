@@ -470,6 +470,64 @@ async fn a_match_keeps_its_platforms_policy_after_the_connection_leaves_the_conf
 }
 
 #[tokio::test]
+async fn a_disabled_connection_sends_nothing_until_enabled_again() {
+    // The bridge's own worker has no key here, so only these passes send.
+    let f = fixture_with(Secrets::default()).await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, json!({})).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    let (status, _) = f
+        .bridge
+        .post_keyed(
+            &f.provider,
+            &format!("/v1/matches/{id}/cancel"),
+            json!({ "reason": "No show", "expected_revision": status_revision(&f, &id).await }),
+            Some("cancel-1"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    // A bridge with the key, configured with the connection enabled or not.
+    let keyed_state = |enabled: bool| {
+        let state = f.bridge.state();
+        let mut config = (*state.config).clone();
+        for tenant in &mut config.tenants {
+            for connection in &mut tenant.connections {
+                if connection.id == CONNECTION {
+                    connection.enabled = enabled;
+                }
+            }
+        }
+        AppState::new(
+            config,
+            Keys::generate(),
+            keyed(),
+            state.db.clone(),
+            f.bridge.clock.clone(),
+        )
+    };
+    let disabled = keyed_state(false);
+    ember_bridge::sync_config(&disabled).await.unwrap();
+    ember_bridge::deliver_to_blumint(&disabled).await;
+    assert!(
+        ember_bridge::register_blumint(&disabled, CONNECTION)
+            .await
+            .is_err()
+    );
+    // A bridge still configured with it enabled finds it disabled when leasing.
+    ember_bridge::deliver_to_blumint(&keyed_state(true)).await;
+    assert!(submitted(&f).is_empty());
+    assert_eq!(delivery(&f, &id).await, ("queued".into(), 0));
+
+    let enabled = keyed_state(true);
+    ember_bridge::sync_config(&enabled).await.unwrap();
+    ember_bridge::deliver_to_blumint(&enabled).await;
+    assert_eq!(
+        submitted(&f),
+        vec![json!({ "matchId": id, "mustRestart": true })]
+    );
+}
+
+#[tokio::test]
 async fn registration_tells_blumint_where_to_call_with_a_working_credential() {
     let f = fixture().await;
     ember_bridge::register_blumint(f.bridge.state(), CONNECTION)

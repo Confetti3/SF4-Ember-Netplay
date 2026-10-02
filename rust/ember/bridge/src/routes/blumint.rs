@@ -276,6 +276,15 @@ pub fn presence(state: MatchState, claimed: bool) -> &'static str {
     }
 }
 
+/// Whether the connection's record is enabled.
+fn enabled(tx: &Transaction<'_>, connection_id: &str) -> Result<bool> {
+    Ok(tx.query_row(
+        "SELECT enabled FROM provider_connections WHERE id = ?1",
+        [connection_id],
+        |row| row.get(0),
+    )?)
+}
+
 /// What the bridge sends BluMint for a match, or None while it is still on.
 fn submission(tx: &Transaction<'_>, found: &Match) -> Result<Option<Value>> {
     Ok(match found.state {
@@ -300,10 +309,10 @@ struct Destination {
     key: Zeroizing<String>,
 }
 
-/// Finished matches' results (a `delivery::Queue`), for the BluMint
+/// Finished matches' results (a `delivery::Queue`), for the enabled BluMint
 /// connections whose API key is configured. Matches of a connection still
-/// waiting for its key are never leased, so they hold nobody else's back,
-/// and go out once the key is there.
+/// waiting for its key, or disabled, are never leased, so they hold nobody
+/// else's back, and go out once it has its key and is enabled again.
 pub struct Results {
     destinations: BTreeMap<String, Destination>,
 }
@@ -315,7 +324,7 @@ impl Results {
             .tenants
             .iter()
             .flat_map(|tenant| &tenant.connections)
-            .filter(|connection| connection.kind == BLUMINT)
+            .filter(|connection| connection.kind == BLUMINT && connection.enabled)
             .filter_map(|connection| {
                 let key = state.integrations.api_keys.get(&connection.id)?;
                 let destination = Destination {
@@ -341,11 +350,12 @@ impl Queue for Results {
         let connections: Vec<&String> = self.destinations.keys().collect();
         let rows = tx
             .prepare(
-                "SELECT id, connection_id, delivery_attempts, delivery_first_at FROM matches
-                 WHERE delivery_state IN ('queued', 'retrying') AND delivery_next_at <= ?1
-                   AND state IN ('completed', 'cancelled', 'failed')
-                   AND connection_id IN (SELECT value FROM json_each(?2))
-                 ORDER BY delivery_next_at, id LIMIT ?3",
+                "SELECT m.id, m.connection_id, m.delivery_attempts, m.delivery_first_at
+                 FROM matches m JOIN provider_connections c ON c.id = m.connection_id
+                 WHERE m.delivery_state IN ('queued', 'retrying') AND m.delivery_next_at <= ?1
+                   AND m.state IN ('completed', 'cancelled', 'failed')
+                   AND m.connection_id IN (SELECT value FROM json_each(?2)) AND c.enabled = 1
+                 ORDER BY m.delivery_next_at, m.id LIMIT ?3",
             )?
             .query_map(params![now, json!(connections).to_string(), BATCH], |row| {
                 Ok(Leased {
@@ -373,17 +383,19 @@ impl Queue for Results {
             return Outcome::Cancelled;
         };
         let id = item.match_id.clone();
+        // Checked again as late as possible, as webhooks are.
         let body = state
             .db
             .read(move |tx| match load(tx, &id)? {
-                Some(found) => submission(tx, &found),
-                None => Ok(None),
+                Some(found) if enabled(tx, &found.connection_id)? => submission(tx, &found),
+                _ => Ok(None),
             })
             .await;
         let body = match body {
             Ok(Some(body)) => body,
-            // Reopened by a correction since the lease; it is sent when it
-            // ends, its attempts one higher.
+            // Reopened by a correction, or its connection disabled, since the
+            // lease; it is sent when it ends or is enabled again, its attempts
+            // one higher.
             Ok(None) => return Outcome::Cancelled,
             Err(_) => return retry("database unavailable".into(), None),
         };
@@ -460,9 +472,11 @@ pub async fn register(state: &AppState, connection_id: &str) -> std::result::Res
     let Some((_, connection)) = state
         .config
         .connection(connection_id)
-        .filter(|(_, c)| c.kind == BLUMINT)
+        .filter(|(_, c)| c.kind == BLUMINT && c.enabled)
     else {
-        return Err(format!("{connection_id} is not a blumint connection"));
+        return Err(format!(
+            "{connection_id} is not an enabled blumint connection"
+        ));
     };
     let key = state
         .integrations
