@@ -180,8 +180,12 @@ One Discord account belongs to one Ember ID and the other way round; the
 latest sign-in replaces both. A platform's links that a sign-in approved
 (`approved_via` `discord`) end when that account moves to another Ember ID or
 is disconnected, and the platform's next lookup links it where it now
-belongs. Nothing else from Discord is stored. Without the client secret the
-bridge starts with Discord off and says so in its log.
+belongs. A link the player removes stays removed: lookups do not make it
+again until the player signs in with Discord again. Nothing else from Discord
+is stored. Without the client secret the
+bridge offers no sign-in and says so in its log, but every bridge lists
+`discord.accounts` and keeps `GET` and `DELETE /v1/discord`, so a player can
+always see and disconnect an account connected earlier.
 
 ## BluMint
 

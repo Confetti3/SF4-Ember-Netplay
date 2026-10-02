@@ -287,6 +287,14 @@ void DiscordAndFirstLink(){
  // A service without Discord shows no row.
  id.inspectedDiscord=false;h.Choose("id-refresh");for(int i=0;i<10;++i)answer();
  Check(!row("id-discord-connect")&&!row("id-discord-remove"),"A service without Discord offers it");
+ // Sign-in off now, but an account connected earlier: it can still be disconnected, and none can be connected.
+ id.inspectedDiscordAccounts=true;h.Choose("id-refresh");
+ for(int i=0;i<10&&sent().back()->op!=IdentityOp::DiscordStatus;++i)answer();
+ Check(sent().back()->op==IdentityOp::DiscordStatus,"A service keeping Discord accounts was not asked for one");
+ id.discordUser="274220342558756145";id.discordName="kate";answer();
+ Check(row("id-discord-remove")&&!row("id-discord-connect"),"An account kept without sign-in cannot be disconnected");
+ id.discordUser.clear();id.discordName.clear();h.Choose("id-refresh");for(int i=0;i<10;++i)answer();
+ Check(!row("id-discord-connect")&&!row("id-discord-remove"),"A service without sign-in offers to connect Discord");
  SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
 int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();std::cout<<"Identity and tournament journeys passed.\n";return 0;}

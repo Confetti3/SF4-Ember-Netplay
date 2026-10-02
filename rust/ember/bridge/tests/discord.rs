@@ -95,6 +95,15 @@ async fn fake_discord() -> String {
 }
 
 async fn bridge_with_discord() -> Bridge {
+    bridge_with_discord_secret(Secrets {
+        discord_client_secret: Some(Zeroizing::new("test-secret".into())),
+        ..Default::default()
+    })
+    .await
+}
+
+/// A bridge configured for Discord and BluMint, with these secrets.
+async fn bridge_with_discord_secret(secrets: Secrets) -> Bridge {
     let api_base = fake_discord().await;
     Bridge::start_with(
         |config| {
@@ -116,10 +125,7 @@ async fn bridge_with_discord() -> Bridge {
                 }],
             });
         },
-        Secrets {
-            discord_client_secret: Some(Zeroizing::new("test-secret".into())),
-            ..Default::default()
-        },
+        secrets,
     )
     .await
 }
@@ -517,18 +523,67 @@ async fn a_code_link_on_a_discord_named_account_is_kept() {
 }
 
 #[tokio::test]
-async fn a_bridge_without_discord_offers_none_of_it() {
+async fn an_account_can_be_disconnected_after_sign_in_is_turned_off() {
+    // Configured for Discord, but its client secret is gone.
+    let bridge = bridge_with_discord_secret(Secrets::default()).await;
+    let (_, capabilities) = bridge.get("", "/v1/capabilities").await;
+    let features = capabilities["features"].as_array().unwrap();
+    assert!(!features.contains(&json!("discord")));
+    assert!(features.contains(&json!("discord.accounts")));
+    let kate = player(&bridge, 1).await;
+    let body = bridge
+        .prove(
+            &kate,
+            Action::DiscordConnect,
+            Method::Post,
+            "/v1/discord/start",
+            json!({}),
+        )
+        .await;
+    let (status, _) = bridge
+        .send_proof(&kate, Method::Post, "/v1/discord/start", body)
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    // An account connected while sign-in was on is still found by BluMint.
+    let ember_id = kate.id().to_string();
+    bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, 'kate', 0)",
+                rusqlite::params![KATE, ember_id],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    let provider = bridge.provider(BLUMINT).await;
+    assert_eq!(
+        lookup(&bridge, &provider, &[KATE]).await,
+        json!({ "discord": [kate.id()] })
+    );
+    // The player sees it and disconnects it; BluMint finds nobody after.
+    assert_eq!(account(&bridge, &kate).await["user_id"], KATE);
+    assert_eq!(disconnect(&bridge, &kate).await.0, StatusCode::OK);
+    assert_eq!(account(&bridge, &kate).await, Json::Null);
+    assert_eq!(
+        lookup(&bridge, &provider, &[KATE]).await,
+        json!({ "discord": [] })
+    );
+    assert_eq!(platform_links(&bridge).await, vec![]);
+}
+
+#[tokio::test]
+async fn a_bridge_without_discord_offers_no_sign_in() {
     let bridge = Bridge::start().await;
     let (_, capabilities) = bridge.get("", "/v1/capabilities").await;
-    assert!(
-        !capabilities["features"]
-            .as_array()
-            .unwrap()
-            .contains(&json!("discord"))
-    );
+    let features = capabilities["features"].as_array().unwrap();
+    assert!(!features.contains(&json!("discord")));
+    assert!(features.contains(&json!("discord.accounts")));
     let kate = player(&bridge, 1).await;
-    let (status, _) = bridge.get(kate.token(), "/v1/discord").await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(account(&bridge, &kate).await, Json::Null);
     let response = bridge
         .client
         .get(bridge.url("/v1/discord/callback?code=x&state=y"))

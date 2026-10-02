@@ -52,9 +52,11 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
         for (const auto& connection : capabilities.value("connections", nlohmann::json::array()))
             if (connection.is_object() && view.connections.size() < 16)
                 view.connections.push_back({Text(connection, "id", 64), Text(connection, "display_name", 64)});
-        view.inspectedDiscord = false;
-        for (const auto& feature : capabilities.value("features", nlohmann::json::array()))
+        view.inspectedDiscord = view.inspectedDiscordAccounts = false;
+        for (const auto& feature : capabilities.value("features", nlohmann::json::array())) {
             view.inspectedDiscord = view.inspectedDiscord || feature == "discord";
+            view.inspectedDiscordAccounts = view.inspectedDiscordAccounts || feature == "discord.accounts";
+        }
     } else if (view.op == "link_list") {
         view.links.clear(); view.pending.clear();
         for (const auto& link : data.value("links", nlohmann::json::array()))

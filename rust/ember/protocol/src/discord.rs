@@ -5,8 +5,12 @@
 //! lookup) then get the Ember ID, and Discord features can mention the player.
 use serde::{Deserialize, Serialize};
 
-/// The `discord` capabilities feature.
+/// The `discord` capabilities feature: the bridge offers Discord sign-in.
 pub const FEATURE: &str = "discord";
+/// The `discord.accounts` capabilities feature: a player can read and
+/// disconnect their connected account (`ACCOUNT_PATH`), whether or not
+/// sign-in is offered now.
+pub const ACCOUNTS_FEATURE: &str = "discord.accounts";
 /// How long a started sign-in waits for Discord's answer.
 pub const SIGN_IN_SECS: u64 = 10 * 60;
 pub const START_PATH: &str = "/v1/discord/start";

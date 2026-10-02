@@ -40,7 +40,8 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
     if state.config.mock_browser {
         features.push("link.mock_browser".into());
     }
-    if state.config.discord.is_some() {
+    features.push(ember_protocol::discord::ACCOUNTS_FEATURE.into());
+    if crate::routes::discord::sign_in(&state).is_some() {
         features.push(ember_protocol::discord::FEATURE.into());
     }
     ok(&Capabilities {

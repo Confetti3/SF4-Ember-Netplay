@@ -46,12 +46,19 @@ use crate::{
 /// Sign-ins one Ember ID may start per hour.
 const STARTS_PER_HOUR: usize = 10;
 
-fn enabled(state: &AppState) -> Result<&Discord> {
+/// Discord sign-in, offered when the configuration has `discord` and the
+/// integration secrets hold its client secret. Reading and disconnecting a
+/// connected account need neither, so a player can always withdraw one.
+pub fn sign_in(state: &AppState) -> Option<&Discord> {
     state
         .config
         .discord
         .as_ref()
-        .ok_or_else(ApiFailure::not_found)
+        .filter(|_| state.integrations.discord_client_secret.is_some())
+}
+
+fn enabled(state: &AppState) -> Result<&Discord> {
+    sign_in(state).ok_or_else(ApiFailure::not_found)
 }
 
 fn state_hash(state: &AppState, text: &str) -> [u8; 32] {
@@ -360,7 +367,6 @@ async fn discord_user(state: &AppState, discord: &Discord, code: &str) -> Option
 
 /// `GET /v1/discord`: the session player's connected account.
 pub async fn get(State(state): State<AppState>, headers: HeaderMap) -> Result<Response> {
-    enabled(&state)?;
     let player = auth::player(&state, &headers).await?;
     let account = state
         .db
@@ -389,7 +395,6 @@ pub async fn remove(
     headers: HeaderMap,
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
-    enabled(&state)?;
     let player = auth::player(&state, &headers).await?;
     proven(
         &state,

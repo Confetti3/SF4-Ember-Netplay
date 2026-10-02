@@ -60,7 +60,7 @@ private:
     // Says so when the list a link's refresh brought back lacks its match.
     void CheckOpenedMatch(const netplay::tournament::AssignmentList& list);
     MenuEntry ServiceRow(const ShellView& view, const netplay::IdentityBridge& bridge) const;
-    MenuEntry DiscordRow(const ShellView& view, bool busy) const;
+    std::optional<MenuEntry> DiscordRow(const ShellView& view, bool busy) const;
 
     std::deque<netplay::IdentityRequest> queue_;
     std::uint64_t nextTicket_ = 0, sent_ = 0;

@@ -223,9 +223,10 @@ MenuEntry IdentityPanel::ServiceRow(const ShellView& v, const netplay::IdentityB
     return service;
 }
 
-// Discord on the selected service: connect it (Ember opens Discord's page in
-// the browser) or, once connected, disconnect it. Optional for the player.
-MenuEntry IdentityPanel::DiscordRow(const ShellView& v, bool busy) const {
+// Discord on the selected service: connect it where sign-in is offered
+// (Ember opens Discord's page in the browser) or, once connected, disconnect
+// it, also where sign-in is off now. Optional for the player.
+std::optional<MenuEntry> IdentityPanel::DiscordRow(const ShellView& v, bool busy) const {
     const auto& id = v.identity;
     const bool read = discordBridge_ == bridge_;
     if (read && !id.discordUser.empty()) {
@@ -233,6 +234,7 @@ MenuEntry IdentityPanel::DiscordRow(const ShellView& v, bool busy) const {
         row.value = id.discordName; row.userText = true; row.hint = loc::T("identity.unlink");
         return row;
     }
+    if (!id.inspectedDiscord) return std::nullopt;
     auto row = Row("id-discord-connect", loc::T("identity.discord"), loc::T("identity.discord_detail"), !busy && read);
     row.value = loc::T("identity.discord_none");
     return row;
@@ -283,7 +285,7 @@ void IdentityPanel::Finish(const ShellView& v) {
             const bool known = std::any_of(id.connections.begin(), id.connections.end(),
                 [&](const netplay::IdentityConnection& c) { return c.id == connection_; });
             if (!known) connection_ = id.connections.empty() ? std::string() : id.connections.front().id;
-            if (id.inspectedDiscord) { IdentityRequest discord; discord.op = IdentityOp::DiscordStatus; discord.bridge = bridge_; Queue(std::move(discord)); }
+            if (id.inspectedDiscord || id.inspectedDiscordAccounts) { IdentityRequest discord; discord.op = IdentityOp::DiscordStatus; discord.bridge = bridge_; Queue(std::move(discord)); }
         }
         break;
     case IdentityOp::DiscordStatus: discordBridge_ = sentBridge_; break;
@@ -431,7 +433,8 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
                 if (id.links.empty() && id.pending.empty())
                     rows.push_back(Info("id-no-links", loc::T("identity.no_links"), {}, loc::T("identity.no_links_detail")));
             }
-            if (id.inspected.id == bridge_ && id.inspectedDiscord) rows.push_back(DiscordRow(v, busy));
+            if (id.inspected.id == bridge_ && (id.inspectedDiscord || id.inspectedDiscordAccounts))
+                if (auto discord = DiscordRow(v, busy)) rows.push_back(std::move(*discord));
             if (id.inspected.id == bridge_ && id.connections.size() > 1) {
                 auto connection = Row("id-connection", loc::T("identity.site"), loc::T("identity.site_detail"));
                 for (const auto& choice : id.connections) {
