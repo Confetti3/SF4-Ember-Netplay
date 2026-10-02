@@ -22,6 +22,9 @@ use crate::{
 };
 
 pub const KEEPALIVE_SECS: u64 = 20;
+/// Events a stream reads ahead per query. Small, so a slow reader holds at
+/// most this many bodies in memory; the next page loads as these drain.
+const STREAM_PAGE: usize = 10;
 
 #[derive(Deserialize)]
 pub struct Cursor {
@@ -135,7 +138,7 @@ pub async fn stream(
                     if !auth::still_valid(tx, &standing, now)? {
                         return Ok(None);
                     }
-                    events::list(tx, &viewer, after, MAX_PAGE).map(Some)
+                    events::list(tx, &viewer, after, STREAM_PAGE).map(Some)
                 })
                 .await
             {

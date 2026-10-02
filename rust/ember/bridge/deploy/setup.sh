@@ -74,6 +74,11 @@ deployed = json.load(sys.stdin)
 with open(path) as file:
     config = json.load(file)
 config.update(deployed)
+# backup.sh and restore.sh work on these names; refuse anything else rather
+# than back up or restore the wrong files.
+for key, expected in (("database", "bridge.sqlite3"), ("secrets", "bridge-secrets.json")):
+    if config.get(key) != expected:
+        sys.exit(f"bridge.json has {key} {config.get(key)!r}; this deployment expects {expected!r}")
 config["allow_loopback_http"] = False
 config["allow_private_webhooks"] = False
 config["mock_browser"] = False

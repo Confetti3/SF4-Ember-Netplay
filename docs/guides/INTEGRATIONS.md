@@ -92,11 +92,13 @@ end to end against any bridge.
   player reaches the set length the match completes. `{"kind": "void_game",
   "attempt_id": "..."}` removes a game and scores the match again. On a
   completed match that is a correction: it stays completed while a player
-  still has enough wins, and otherwise reopens if reopening is allowed. It is
-  refused (`lease_conflict`) when either player has started another active
-  match since, for a lobby set the lobby has moved past, and for a bracket set
-  whose later sets have games. Read `state` and `revision` from the answer,
-  and handle a refused correction, before changing your own result.
+  still has enough wins, and otherwise reopens. Only a correction that would
+  reopen the match can be refused (`lease_conflict`): when either player has
+  another match currently active on the same connection, for a lobby set the
+  lobby has moved past, or for a bracket set whose later sets have games.
+  Corrections in a finished tournament are always refused. Read `state` and
+  `revision` from the answer, and handle a refusal, before changing your own
+  result.
 - `POST /v1/matches/{id}/cancel` cancels with a reason.
 
 Every write names the revision it expects, as the decimal string the match
