@@ -342,6 +342,7 @@ void DiscordConnectLink(){
  id.discordUser.clear();id.discordName.clear();answer();
  Check(row("dc-service")&&row("id-discord-connect")&&row("id-discord-connect")->enabled,"Connect Discord was not offered on the service");
  Check(none(IdentityOp::DiscordConnect,start),"Discord was opened before the player pressed Connect");
+ Check(none(IdentityOp::LinkList,start),"Connect Discord asked for the linked accounts");
  h.Choose("id-discord-connect");
  Check(sent().back()->op==IdentityOp::DiscordConnect&&sent().back()->bridge=="brg_1","Connect did not name its service");
  answer();Check(status==loc::T("identity.done.discord_opened"),"Connect did not say to finish in the browser");

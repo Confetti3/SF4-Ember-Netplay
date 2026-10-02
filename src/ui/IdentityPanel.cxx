@@ -154,8 +154,8 @@ void IdentityPanel::Say(std::string text, bool error, double seconds) {
     message_ = std::move(text); messageError_ = error; messageUntil_ = now_ + seconds;
 }
 
-void IdentityPanel::Queue(IdentityRequest request) {
-    if (queue_.size() < 8) queue_.push_back(std::move(request));
+void IdentityPanel::Queue(IdentityRequest request, bool lookUp) {
+    if (queue_.size() < 8) queue_.push_back(Queued{std::move(request), lookUp});
 }
 
 void IdentityPanel::Wipe() {
@@ -204,7 +204,8 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
     if (sent_ || queue_.empty()) return;
     ShellAction action;
     action.command.generation = v.session.generation;
-    action.identity = std::move(queue_.front()); queue_.pop_front();
+    sentLookUp_ = queue_.front().lookUp;
+    action.identity = std::move(queue_.front().request); queue_.pop_front();
     action.identity.ticket = ++nextTicket_;
     const auto ticket = action.identity.ticket;
     sentOp_ = action.identity.op; sentBridge_ = action.identity.bridge;
@@ -268,6 +269,20 @@ std::optional<MenuEntry> IdentityPanel::DiscordRow(const ShellView& v, bool busy
     auto row = Row("id-discord-connect", loc::T("identity.discord"), loc::T("identity.discord_detail"), !busy && read);
     row.value = loc::T("identity.discord_none");
     return row;
+}
+
+// Connect Discord asks only what its steps need: its trusted service's
+// profile, whose answer asks for the Discord account, or Ember's own service
+// looked up once for the player to trust.
+void IdentityPanel::ConnectNext(const ShellView& v) {
+    if (v.identity.state != "ready") return;
+    if (const auto* target = ConnectTarget(v)) {
+        bridge_ = target->id;
+        IdentityRequest inspect; inspect.op = IdentityOp::BridgeInspect; inspect.origin = target->origin; Queue(std::move(inspect));
+    } else if (!connectLookedUp_) {
+        connectLookedUp_ = true; found_ = {};
+        IdentityRequest look; look.op = IdentityOp::BridgeInspect; look.origin = EmberService; Queue(std::move(look), true);
+    }
 }
 
 // Steps 2 and 3 of Connect Discord, with the Ember ID ready: trust the
@@ -346,21 +361,14 @@ void IdentityPanel::Finish(const ShellView& v) {
             if (id.state == "ready") Say(loc::T("tournament.failure.link_service"), true, 12);
             opened_.reset();
         }
-        // Connect Discord selects its service once trusted, or looks Ember's
-        // own up for the player to trust.
-        if (lastScreen_ == "discord-connect" && id.state == "ready") {
-            if (const auto* target = ConnectTarget(v)) bridge_ = target->id;
-            else if (!connectLookedUp_) {
-                connectLookedUp_ = true; lookingUp_ = true; found_ = {};
-                IdentityRequest look; look.op = IdentityOp::BridgeInspect; look.origin = EmberService; Queue(std::move(look));
-            }
-        }
+        if (lastScreen_ == "discord-connect") { ConnectNext(v); break; }
         if (!FindBridge(v, bridge_)) bridge_ = id.bridges.empty() ? std::string() : id.bridges.front().id;
         if (!bridge_.empty()) SelectBridge(v, bridge_);
         break;
     case IdentityOp::BridgeInspect:
-        if (lookingUp_) { found_ = id.inspected; lookingUp_ = false; }
-        if (id.inspected.id == bridge_) {
+        if (sentLookUp_) found_ = id.inspected;
+        // The selected service's profile, or a look-up of it once trusted.
+        if (id.inspected.id == bridge_ && FindBridge(v, bridge_)) {
             const bool known = std::any_of(id.connections.begin(), id.connections.end(),
                 [&](const netplay::IdentityConnection& c) { return c.id == connection_; });
             if (!known) connection_ = id.connections.empty() ? std::string() : id.connections.front().id;
@@ -676,7 +684,10 @@ void IdentityPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
     } else if (a.id == "id-claim") { r.op = IdentityOp::LinkClaim; r.bridge = bridge_; r.connection = connection_; r.code = code_; }
     else if (a.id == "id-refresh") { Refresh(v, "linked-accounts"); return; }
     else if (a.id == "id-forget") { r.op = IdentityOp::BridgeForget; r.bridge = bridge_; }
-    else if (a.id == "id-lookup") { r.op = IdentityOp::BridgeInspect; r.origin = origin_; lookingUp_ = true; found_ = {}; }
+    else if (a.id == "id-lookup") {
+        r.op = IdentityOp::BridgeInspect; r.origin = origin_; found_ = {};
+        message_.clear(); Queue(std::move(r), true); return;
+    }
     else if (a.id == "id-approve") { r.op = IdentityOp::BridgeApprove; r.origin = found_.origin; r.bridge = found_.id; }
     else if (a.id.compare(0, 10, "id-unlink:") == 0) { r.op = IdentityOp::LinkRemove; r.bridge = bridge_; r.target = a.id.substr(10); }
     else if (a.id.compare(0, 10, "id-cancel:") == 0) { r.op = IdentityOp::LinkCancel; r.bridge = bridge_; r.target = a.id.substr(10); }

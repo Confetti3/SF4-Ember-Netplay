@@ -55,10 +55,16 @@ public:
     // screens show again.
     void Conceal() { Wipe(); queue_.clear(); play_.reset(); onScreens_ = false; lastScreen_.clear(); }
 private:
+    // A request waiting to be sent. A look-up's answer is a service the
+    // player may trust, not the selected one's profile.
+    struct Queued {
+        netplay::IdentityRequest request;
+        bool lookUp = false;
+    };
     bool Busy(const ShellView& view) const;
     bool Answered(const ShellView& view) const;
     void Finish(const ShellView& view);
-    void Queue(netplay::IdentityRequest request);
+    void Queue(netplay::IdentityRequest request, bool lookUp = false);
     void Say(std::string text, bool error, double seconds = 6);
     void Wipe();
     void Refresh(const ShellView& view, const std::string& screen);
@@ -73,10 +79,13 @@ private:
     // named, or Ember's own; null until the player trusts it.
     const netplay::IdentityBridge* ConnectTarget(const ShellView& view) const;
     void ConnectRows(const ShellView& view, std::vector<MenuEntry>& rows, bool busy) const;
+    // Connect Discord's next request once the service list is known.
+    void ConnectNext(const ShellView& view);
 
-    std::deque<netplay::IdentityRequest> queue_;
+    std::deque<Queued> queue_;
     std::uint64_t nextTicket_ = 0, sent_ = 0;
     netplay::IdentityOp sentOp_ = netplay::IdentityOp::None;
+    bool sentLookUp_ = false;
     double sentAt_ = 0, now_ = 0;
     bool onScreens_ = false;
     std::string lastScreen_;
@@ -102,7 +111,6 @@ private:
     // The backup the view's preview describes, while the path still names it.
     std::string previewPath_;
     // A service the player looked up and may now trust.
-    bool lookingUp_ = false;
     netplay::IdentityBridge found_;
     // The assignment list is wanted for the selected service; a Play or Stop
     // waiting to be sent; and what the last refresh said, to report a failure once.
