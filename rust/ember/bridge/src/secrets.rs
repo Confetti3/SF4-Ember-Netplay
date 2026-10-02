@@ -1,7 +1,8 @@
 //! The bridge's three independent server secrets (spec 9.4, SEC-05):
 //! an HMAC key for every stored token, code and credential hash; an
-//! encryption key for webhook secrets at rest; and the Ed25519 seed whose
-//! public half `/v1/signing-keys` publishes. None doubles as another.
+//! encryption key for webhook secrets and room invitations at rest; and the
+//! Ed25519 seed whose public half `/v1/signing-keys` publishes and which signs
+//! room bindings and game permits. None doubles as another.
 use std::{fs, io::Write, path::Path};
 
 use chacha20poly1305::{
@@ -12,6 +13,7 @@ use ember_protocol::{
     PublicKey, SigningIdentity,
     encoding::{b64u, decode_b64u},
     json,
+    play::{Binding, Permit, SignedBinding, SignedPermit},
 };
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
@@ -140,6 +142,16 @@ impl Keys {
     /// Key ID: the first 16 characters of the key's SHA-256 thumbprint.
     pub fn signing_kid(&self) -> String {
         b64u(&Sha256::digest(self.signing.public_key().to_bytes()))[..16].to_owned()
+    }
+
+    /// Signs a room binding with the bridge key.
+    pub fn sign_binding(&self, binding: &Binding) -> ember_protocol::Result<SignedBinding> {
+        binding.sign(&self.signing, &self.signing_kid())
+    }
+
+    /// Signs a game permit with the bridge key.
+    pub fn sign_permit(&self, permit: &Permit) -> ember_protocol::Result<SignedPermit> {
+        permit.sign(&self.signing, &self.signing_kid())
     }
 }
 

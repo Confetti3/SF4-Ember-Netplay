@@ -96,7 +96,7 @@ pub enum ClaimAnswer {
     Room {
         room_id: String,
         invitation: String,
-        binding: Option<SignedBinding>,
+        binding: Option<Box<SignedBinding>>,
     },
 }
 
@@ -303,7 +303,7 @@ pub enum PrepareAnswer {
         retry_after: u64,
     },
     Permitted {
-        permit: SignedPermit,
+        permit: Box<SignedPermit>,
     },
 }
 

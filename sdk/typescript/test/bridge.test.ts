@@ -71,7 +71,7 @@ test("SDK drives a live bridge end to end", { skip: !existsSync(binary) && "buil
     const provider = new BridgeClient({ origin, credential: providerToken });
     const organizer = new BridgeClient({ origin, credential: organizerToken });
     const capabilities = await provider.getCapabilities();
-    assert.equal(capabilities.native_play, false);
+    assert.equal(capabilities.native_play, true);
 
     const subscription = await organizer.createWebhookSubscription(hookUrl, [eventType("match.created"), eventType("match.completed")]);
     assert.ok(subscription.secret?.startsWith("whsec_"));

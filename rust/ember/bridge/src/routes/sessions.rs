@@ -125,6 +125,11 @@ fn route_matches(action: Action, method: Method, path: &str) -> bool {
         (Action::LinkClaim, Method::Post) => path == "/v1/link-claims",
         (Action::LinkCancel, Method::Post) => id_between("/v1/link-claims/", "lkc", "/cancel"),
         (Action::LinkRemove, Method::Delete) => id_between("/v1/links/", "lnk", ""),
+        (Action::MatchClaim, Method::Post) => id_between("/v1/matches/", "emt", "/claims"),
+        (Action::RoomPublish, Method::Post) => id_between("/v1/matches/", "emt", "/room"),
+        (Action::AttemptPrepare, Method::Post) => {
+            id_between("/v1/matches/", "emt", "/attempts/prepare")
+        }
         _ => false,
     }
 }

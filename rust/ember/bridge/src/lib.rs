@@ -109,6 +109,13 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
     })
 }
 
+/// One pass of the bridge's periodic work: expiring link intents, holding
+/// games whose reports did not arrive, and pruning stale records. `start`
+/// runs it every few seconds; tests call it after moving the clock.
+pub async fn maintain(state: &AppState) {
+    routes::maintenance_once(state).await;
+}
+
 /// Records configured tenants and connections. Connections removed from the
 /// configuration are disabled, never deleted, so their history stays.
 pub async fn sync_config(state: &AppState) -> Result<(), error::ApiFailure> {

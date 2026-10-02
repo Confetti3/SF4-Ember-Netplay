@@ -1,9 +1,12 @@
 pub mod discovery;
 pub mod events;
+pub mod ledger;
 pub mod links;
 pub mod lobbies;
 pub mod matches;
+pub mod play;
 pub mod records;
+pub mod reports;
 pub mod sessions;
 pub mod tournaments;
 pub mod webhooks;
@@ -23,6 +26,9 @@ use crate::{AppState, mock};
 
 /// Form bodies (mock pages only); JSON routes cap their own bodies.
 const FORM_LIMIT: usize = 16 * 1024;
+/// How often maintenance runs; a lone game report waits at most this much
+/// longer than its partner window before review.
+const MAINTENANCE_SECS: u64 = 10;
 /// Expired secret-bearing rows are removed after this (spec 24.3).
 const RETENTION_SECS: u64 = 24 * 60 * 60;
 
@@ -53,6 +59,13 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/matches/{id}", get(matches::get))
         .route("/v1/matches/{id}/cancel", post(matches::cancel))
         .route("/v1/matches/{id}/adjudications", post(matches::adjudicate))
+        .route("/v1/matches/{id}/claims", post(play::claim_route))
+        .route("/v1/matches/{id}/room", post(play::publish_route))
+        .route(
+            "/v1/matches/{id}/attempts/prepare",
+            post(play::prepare_route),
+        )
+        .route("/v1/matches/{id}/reports", post(reports::submit_route))
         .route("/v1/assignments", get(matches::assignments))
         .route("/v1/lobbies", post(lobbies::create))
         .route("/v1/lobbies/{id}", get(lobbies::get))
@@ -122,31 +135,42 @@ async fn access_log(request: Request, next: Next) -> Response {
     response
 }
 
-/// Expires link intents and removes stale challenges, sessions and replay
-/// records. Durable domain records (links, matches, attempts, events) stay.
+/// Runs `maintenance_once` forever.
 pub async fn maintenance(state: AppState) {
     loop {
-        let now = state.now();
-        let cutoff = now.saturating_sub(RETENTION_SECS);
-        let _ = state
-            .db
-            .write(move |tx| {
-                tx.execute(
-                    "UPDATE link_intents SET state = 'expired' WHERE state IN ('created', 'claim_pending') AND expires_at <= ?1",
-                    [now],
-                )?;
-                tx.execute(
-                    "UPDATE link_claims SET state = 'expired', decided_at = ?1 WHERE state = 'pending'
-                       AND intent_id IN (SELECT id FROM link_intents WHERE state = 'expired')",
-                    [now],
-                )?;
-                tx.execute("DELETE FROM auth_challenges WHERE expires_at <= ?1", [cutoff])?;
-                tx.execute("DELETE FROM sessions WHERE expires_at <= ?1", [cutoff])?;
-                tx.execute("DELETE FROM browser_sessions WHERE expires_at <= ?1", [cutoff])?;
-                tx.execute("DELETE FROM idempotency_records WHERE created_at <= ?1", params![cutoff])?;
-                Ok(())
-            })
-            .await;
-        tokio::time::sleep(Duration::from_secs(60)).await;
+        maintenance_once(&state).await;
+        tokio::time::sleep(Duration::from_secs(MAINTENANCE_SECS)).await;
+    }
+}
+
+/// Expires link intents, holds games whose reports did not arrive, and
+/// removes stale challenges, sessions and replay records. Durable domain
+/// records (links, matches, attempts, reports, events) stay.
+pub async fn maintenance_once(state: &AppState) {
+    let now = state.now();
+    let cutoff = now.saturating_sub(RETENTION_SECS);
+    let ctx = links::Ctx::of(state);
+    let done = state
+        .db
+        .write(move |tx| {
+            reports::expire(tx, &ctx)?;
+            tx.execute(
+                "UPDATE link_intents SET state = 'expired' WHERE state IN ('created', 'claim_pending') AND expires_at <= ?1",
+                [now],
+            )?;
+            tx.execute(
+                "UPDATE link_claims SET state = 'expired', decided_at = ?1 WHERE state = 'pending'
+                   AND intent_id IN (SELECT id FROM link_intents WHERE state = 'expired')",
+                [now],
+            )?;
+            tx.execute("DELETE FROM auth_challenges WHERE expires_at <= ?1", [cutoff])?;
+            tx.execute("DELETE FROM sessions WHERE expires_at <= ?1", [cutoff])?;
+            tx.execute("DELETE FROM browser_sessions WHERE expires_at <= ?1", [cutoff])?;
+            tx.execute("DELETE FROM idempotency_records WHERE created_at <= ?1", params![cutoff])?;
+            Ok(())
+        })
+        .await;
+    if done.is_ok() {
+        state.committed();
     }
 }

@@ -1,9 +1,7 @@
-//! Logical matches (spec 13, 16.5, 17).
-//!
-//! In this release results come only from organizer adjudication: native
-//! game reports, permits and room admission are later work packages. Each
-//! adjudicated game is an attempt row with exactly one score effect, so
-//! retries and duplicate deliveries cannot add a win (SEC-09).
+//! Logical matches (spec 13, 16.5, 17): creating them, reading them,
+//! cancelling them and organizer adjudication. Fighters' claims, permits and
+//! reports are in `play`. Each decided game is an attempt row with exactly one
+//! score effect, so retries and duplicate deliveries cannot add a win (SEC-09).
 use axum::{
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
@@ -15,10 +13,7 @@ use ember_protocol::{
     encoding::{Counter, is_prefixed_id},
     event::Kind,
     json,
-    matches::{
-        CreateMatch, DeliveryState, MatchCompleted, MatchState, Participant as Assigned,
-        Resolution, Rules, Score,
-    },
+    matches::{CreateMatch, MatchState, Participant as Assigned, Resolution, Rules},
 };
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
@@ -29,138 +24,26 @@ use crate::{
     AppState,
     auth::{self, Actor, Role, Service},
     error::{ApiFailure, Result},
-    events::{self, NewEvent, emit},
+    events,
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key, ok},
     routes::{
+        ledger::{Cause, Match, bump, load, match_event, release, settle, stale},
         links::{Ctx, audit},
         lobbies, tournaments,
     },
 };
 
-/// The one rules profile this bridge accepts: results are entered by an
-/// organizer, and no native rule is enforced by Ember. Native profiles such
-/// as `usf4-standard-v1` are refused until a tested translator exists.
+pub use crate::routes::ledger::{busy, participants, release_players, scores};
+
+/// Results entered by an organizer; Ember plays no part in the match.
 pub const ORGANIZER_PROFILE: &str = "organizer-reported-v1";
+/// The rules profiles a match may use. `ember-room-v1` games are played in an
+/// Ember room under the room's own settings and reported by both fighters.
+/// Native profiles such as `usf4-standard-v1` are refused until a tested
+/// rules translator exists.
+pub const PROFILES: [&str; 2] = [ORGANIZER_PROFILE, ember_protocol::play::PROFILE];
 const MAX_REASON: usize = 512;
 const MAX_EVIDENCE: usize = 16;
-
-#[derive(Clone, Debug, Serialize)]
-pub struct Participant {
-    pub slot: u8,
-    pub participant_id: String,
-    pub ember_id: EmberId,
-}
-
-struct Match {
-    id: String,
-    tenant_id: String,
-    connection_id: String,
-    external_match_id: String,
-    revision: u64,
-    generation: u64,
-    state: MatchState,
-    games_to_win: u8,
-    /// The lobby that plays this match as one of its sets.
-    lobby_id: Option<String>,
-    /// The tournament that plays this match as one of its bracket sets.
-    tournament_id: Option<String>,
-}
-
-fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
-    Ok(tx
-        .query_row(
-            "SELECT id, tenant_id, connection_id, external_match_id, revision, assignment_generation, state, games_to_win,
-                    lobby_id, tournament_id
-             FROM matches WHERE id = ?1",
-            [id],
-            |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
-                    row.get::<_, u64>(4)?,
-                    row.get::<_, u64>(5)?,
-                    row.get::<_, String>(6)?,
-                    row.get::<_, u8>(7)?,
-                    row.get::<_, Option<String>>(8)?,
-                    row.get::<_, Option<String>>(9)?,
-                ))
-            },
-        )
-        .optional()?
-        .map(|row| Match {
-            id: row.0,
-            tenant_id: row.1,
-            connection_id: row.2,
-            external_match_id: row.3,
-            revision: row.4,
-            generation: row.5,
-            state: MatchState::parse(&row.6).unwrap_or(MatchState::Failed),
-            games_to_win: row.7,
-            lobby_id: row.8,
-            tournament_id: row.9,
-        }))
-}
-
-/// Whether the identity has an active match on the connection other than `except`.
-pub fn busy(
-    tx: &Transaction<'_>,
-    connection_id: &str,
-    ember_id: &EmberId,
-    except: &str,
-) -> Result<bool> {
-    Ok(tx.query_row(
-        "SELECT EXISTS (SELECT 1 FROM matches m JOIN match_participants p
-           ON p.match_id = m.id AND p.assignment_generation = m.assignment_generation
-          WHERE m.connection_id = ?1 AND p.ember_id = ?2 AND m.id != ?3
-            AND m.state NOT IN ('completed', 'cancelled', 'failed'))",
-        params![connection_id, ember_id.as_str(), except],
-        |row| row.get(0),
-    )?)
-}
-
-pub fn participants(tx: &Transaction<'_>, id: &str, generation: u64) -> Result<Vec<Participant>> {
-    tx.prepare(
-        "SELECT slot, participant_id, ember_id FROM match_participants
-         WHERE match_id = ?1 AND assignment_generation = ?2 ORDER BY slot",
-    )?
-    .query_map(params![id, generation], |row| {
-        Ok((
-            row.get::<_, u8>(0)?,
-            row.get::<_, String>(1)?,
-            row.get::<_, String>(2)?,
-        ))
-    })?
-    .map(|row| {
-        let (slot, participant_id, ember_id) = row?;
-        Ok(Participant {
-            slot,
-            participant_id,
-            ember_id: EmberId::parse(&ember_id).map_err(|_| ApiFailure::unavailable())?,
-        })
-    })
-    .collect()
-}
-
-/// Accepted wins per slot, from the ledger rather than any room score.
-pub fn scores(tx: &Transaction<'_>, id: &str) -> Result<([u8; 2], Vec<String>)> {
-    let mut wins = [0u8; 2];
-    let mut accepted = Vec::new();
-    let rows = tx
-        .prepare("SELECT id, outcome FROM attempts WHERE match_id = ?1 AND state = 'accepted' ORDER BY seq")?
-        .query_map([id], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
-    for (attempt, outcome) in rows {
-        match outcome.as_str() {
-            "p1_win" => wins[0] += 1,
-            "p2_win" => wins[1] += 1,
-            _ => continue,
-        }
-        accepted.push(attempt);
-    }
-    Ok((wins, accepted))
-}
 
 /// Who may see a match: its assigned players, its provider connection, or
 /// an organizer of its tenant. Anyone else gets `not_found`.
@@ -247,53 +130,6 @@ fn respond((status, body): (StatusCode, serde_json::Value)) -> Response {
     crate::http::json(status, &body)
 }
 
-fn stale(current: u64) -> ApiFailure {
-    ApiFailure::new(
-        ErrorCode::StaleRevision,
-        "The match changed. Refresh it and try again.",
-    )
-    .detail("current_revision", current.to_string())
-}
-
-fn bump(tx: &Transaction<'_>, found: &Match, state: MatchState, now: u64) -> Result<u64> {
-    let revision = found.revision + 1;
-    let changed = tx.execute(
-        "UPDATE matches SET revision = ?1, state = ?2, updated_at = ?3 WHERE id = ?4 AND revision = ?5",
-        params![revision, state.as_str(), now, found.id, found.revision],
-    )?;
-    if changed != 1 {
-        return Err(stale(found.revision));
-    }
-    Ok(revision)
-}
-
-fn match_event(
-    tx: &Transaction<'_>,
-    ctx: &Ctx,
-    found: &Match,
-    kind: Kind,
-    data: serde_json::Value,
-) -> Result<i64> {
-    emit(
-        tx,
-        &ctx.config,
-        ctx.now,
-        NewEvent {
-            kind,
-            tenant_id: &found.tenant_id,
-            connection_id: Some(&found.connection_id),
-            subject: format!("matches/{}", found.id),
-            match_id: Some(&found.id),
-            ember_id: None,
-            // A match's events carry its roster, so players read only their
-            // own matches' events, not every set of a lobby or tournament.
-            lobby_id: None,
-            tournament_id: None,
-            data,
-        },
-    )
-}
-
 /// `POST /v1/matches`.
 pub async fn create(
     State(state): State<AppState>,
@@ -314,12 +150,12 @@ pub async fn create(
             "external_match_id values starting with lobby: or tournament: are reserved for lobby and tournament sets.",
         ));
     }
-    if command.rules.native_rules_profile != ORGANIZER_PROFILE {
+    if !PROFILES.contains(&command.rules.native_rules_profile.as_str()) {
         return Err(ApiFailure::new(
             ErrorCode::UnsupportedRules,
-            "That rules profile is not supported. This bridge accepts organizer-reported-v1 only.",
+            "That rules profile is not supported. This bridge accepts organizer-reported-v1 and ember-room-v1.",
         )
-        .detail("supported_profiles", vec![ORGANIZER_PROFILE]));
+        .detail("supported_profiles", PROFILES.to_vec()));
     }
     let digest = json::digest(&command)?;
     let ctx = Ctx::of(&state);
@@ -519,10 +355,10 @@ fn snapshot(tx: &Transaction<'_>, found: &Match) -> Result<serde_json::Value> {
             Ok(json!({
                 "attempt_id": row.get::<_, String>(0)?,
                 "seq": row.get::<_, u64>(1)?,
-                "outcome": row.get::<_, String>(2)?,
+                "outcome": row.get::<_, Option<String>>(2)?,
                 "state": row.get::<_, String>(3)?,
                 "source": row.get::<_, String>(4)?,
-                "adjudication_id": row.get::<_, String>(5)?,
+                "adjudication_id": row.get::<_, Option<String>>(5)?,
             }))
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -676,23 +512,6 @@ fn cancel_match(tx: &Transaction<'_>, ctx: &Ctx, found: &Match, reason: &str) ->
         json!({ "match_id": found.id, "match_revision": revision.to_string(), "state": "cancelled", "reason": reason }),
     )?;
     Ok(revision)
-}
-
-fn release(tx: &Transaction<'_>, ctx: &Ctx, found: &Match, roster: &[Participant]) -> Result<()> {
-    let players: Vec<EmberId> = roster.iter().map(|p| p.ember_id.clone()).collect();
-    release_players(tx, ctx, &found.connection_id, &players)
-}
-
-/// A match has ended, so its players are free: a tournament set waiting on
-/// them starts first, then a lobby they wait in may start its next set.
-pub fn release_players(
-    tx: &Transaction<'_>,
-    ctx: &Ctx,
-    connection_id: &str,
-    players: &[EmberId],
-) -> Result<()> {
-    tournaments::on_players_free(tx, ctx, connection_id, players)?;
-    lobbies::on_players_free(tx, ctx, connection_id, players)
 }
 
 /// Cancels a lobby's running set when a seated player leaves or the lobby
@@ -864,23 +683,50 @@ fn apply_adjudication(
                     ));
                 }
             };
-            if command.attempt_id.is_some() {
-                return Err(ApiFailure::invalid(
-                    "A game result creates its own attempt.",
-                ));
-            }
+            let open: Option<(String, u64)> = tx
+                .query_row(
+                    "SELECT id, seq FROM attempts WHERE match_id = ?1 AND state IN ('permitted', 'review')",
+                    [&found.id],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .optional()?;
             record_adjudication(tx, ctx, service, found, &adjudication_id, command, expected)?;
-            let seq: u64 = tx.query_row(
-                "SELECT COALESCE(MAX(seq), 0) + 1 FROM attempts WHERE match_id = ?1",
-                [&found.id],
-                |row| row.get(0),
-            )?;
-            let attempt_id = crate::util::new_id("ega");
-            tx.execute(
-                "INSERT INTO attempts (id, match_id, assignment_generation, seq, outcome, source, state, adjudication_id, created_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, 'organizer_adjudication', 'accepted', ?6, ?7)",
-                params![attempt_id, found.id, found.generation, seq, outcome, adjudication_id, ctx.now],
-            )?;
+            // A game the fighters played and could not settle is decided in
+            // place; otherwise the result is a new organizer attempt.
+            let (attempt_id, seq) = match (&command.attempt_id, open) {
+                (Some(named), Some((open_id, seq))) if *named == open_id => {
+                    tx.execute(
+                        "UPDATE attempts SET state = 'accepted', outcome = ?1, adjudication_id = ?2 WHERE id = ?3",
+                        params![outcome, adjudication_id, open_id],
+                    )?;
+                    (open_id, seq)
+                }
+                (Some(_), _) => {
+                    return Err(ApiFailure::invalid(
+                        "That attempt is not this match's open game.",
+                    ));
+                }
+                (None, Some((open_id, _))) => {
+                    return Err(ApiFailure::invalid(
+                        "This match has a played game waiting for a result. Decide it by its attempt_id.",
+                    )
+                    .detail("attempt_id", open_id));
+                }
+                (None, None) => {
+                    let seq: u64 = tx.query_row(
+                        "SELECT COALESCE(MAX(seq), 0) + 1 FROM attempts WHERE match_id = ?1",
+                        [&found.id],
+                        |row| row.get(0),
+                    )?;
+                    let attempt_id = crate::util::new_id("ega");
+                    tx.execute(
+                        "INSERT INTO attempts (id, match_id, assignment_generation, seq, outcome, source, state, adjudication_id, created_at)
+                         VALUES (?1, ?2, ?3, ?4, ?5, 'organizer_adjudication', 'accepted', ?6, ?7)",
+                        params![attempt_id, found.id, found.generation, seq, outcome, adjudication_id, ctx.now],
+                    )?;
+                    (attempt_id, seq)
+                }
+            };
             let winner = command
                 .winner_slot
                 .and_then(|slot| roster.iter().find(|p| p.slot == slot))
@@ -914,145 +760,39 @@ fn apply_adjudication(
                 ));
             }
             record_adjudication(tx, ctx, service, found, &adjudication_id, command, expected)?;
+            // An accepted game, or a played game still waiting for a result.
             let changed = tx.execute(
-                "UPDATE attempts SET state = 'voided', voided_by = ?1 WHERE id = ?2 AND match_id = ?3 AND state = 'accepted'",
+                "UPDATE attempts SET state = 'voided', voided_by = ?1
+                 WHERE id = ?2 AND match_id = ?3 AND state IN ('accepted', 'permitted', 'review')",
                 params![adjudication_id, attempt, found.id],
             )?;
             if changed != 1 {
                 return Err(ApiFailure::invalid(
-                    "That attempt is not an accepted game of this match.",
+                    "That attempt is not a game of this match that can be voided.",
                 ));
             }
         }
     }
-    let (wins, accepted) = scores(tx, &found.id)?;
-    let n = found.games_to_win;
-    let winner_slot = (0..2).find(|&slot| wins[slot] >= n);
-    let next = if winner_slot.is_some() {
-        MatchState::Completed
-    } else {
-        MatchState::BetweenGames
-    };
-    // A lobby seats its next set as soon as one ends, so a finished lobby set
-    // cannot be reopened.
-    if correcting && next != MatchState::Completed && found.lobby_id.is_some() {
-        return Err(ApiFailure::new(
-            ErrorCode::LeaseConflict,
-            "The lobby has moved on to its next set, so this set cannot be reopened.",
-        ));
-    }
-    // Reopening a bracket set takes back what its result fed, as long as no
-    // later set has a game recorded; that frees the players for the check below.
-    let mut freed = Vec::new();
-    if correcting && let Some(tournament_id) = &found.tournament_id {
-        if next == MatchState::Completed {
-            tournaments::check_correction(tx, tournament_id)?;
-        } else {
-            freed = tournaments::on_reopen(tx, ctx, tournament_id, &found.id)?;
-        }
-    }
-    // A correction that reopens the match makes its players busy again, so it
-    // must not double-book one who has started another match meanwhile.
-    if correcting && next != MatchState::Completed {
-        for participant in &roster {
-            if busy(tx, &found.connection_id, &participant.ember_id, &found.id)? {
-                return Err(ApiFailure::new(
-                    ErrorCode::LeaseConflict,
-                    "A player has another active match. Finish or cancel it before reopening this one.",
-                )
-                .detail("slot", participant.slot));
-            }
-        }
-    }
-    let revision = bump(tx, found, next, ctx.now)?;
-    // The reopened match now holds its players; the ones a bracket
-    // correction released from later sets can be picked up elsewhere.
-    if !freed.is_empty() {
-        release_players(tx, ctx, &found.connection_id, &freed)?;
-    }
-    let revision_text = revision.to_string();
-    for (kind, mut data) in events {
-        data["match_revision"] = revision_text.clone().into();
-        match_event(tx, ctx, found, kind, data)?;
-    }
-    let score_rows: Vec<Score> = roster
-        .iter()
-        .map(|p| Score {
-            ember_id: p.ember_id.clone(),
-            wins: wins[usize::from(p.slot)],
-        })
-        .collect();
-    if wins != wins_before {
-        match_event(
-            tx,
-            ctx,
-            found,
-            Kind::ScoreChanged,
-            json!({ "match_id": found.id, "match_revision": revision_text, "games_to_win": n, "scores": score_rows }),
-        )?;
-    }
-    if correcting {
-        match_event(
-            tx,
-            ctx,
-            found,
-            Kind::MatchCorrected,
-            json!({
-                "match_id": found.id,
-                "match_revision": revision_text,
-                "state": next,
-                "adjudication_id": adjudication_id,
-                "reason": command.reason,
-            }),
-        )?;
-    }
-    if let Some(slot) = winner_slot {
-        let completed = MatchCompleted {
-            match_id: found.id.clone(),
-            match_revision: Counter(revision),
-            assignment_generation: Counter(found.generation),
-            state: MatchState::Completed,
-            games_to_win: n,
-            scores: score_rows.clone(),
-            winner_id: roster[slot].ember_id.clone(),
-            resolution: Resolution::OrganizerAdjudication,
-            accepted_attempt_ids: accepted,
-            evidence_report_ids: Vec::new(),
-            provider_delivery_state: DeliveryState::NotRequired,
-        };
-        completed.check().map_err(|_| ApiFailure::unavailable())?;
-        match_event(
-            tx,
-            ctx,
-            found,
-            Kind::MatchCompleted,
-            serde_json::to_value(&completed).unwrap_or_default(),
-        )?;
-        if !correcting {
-            if let Some(lobby_id) = &found.lobby_id {
-                lobbies::on_set_completed(tx, ctx, lobby_id, &found.id, slot as u8, &score_rows)?;
-            }
-            if let Some(tournament_id) = &found.tournament_id {
-                tournaments::on_match_completed(
-                    tx,
-                    ctx,
-                    tournament_id,
-                    &found.id,
-                    slot as u8,
-                    &score_rows,
-                )?;
-            }
-            release(tx, ctx, found, &roster)?;
-        }
-    }
+    let settled = settle(
+        tx,
+        ctx,
+        found,
+        &roster,
+        wins_before,
+        Cause::Organizer {
+            adjudication_id: &adjudication_id,
+            reason: &command.reason,
+        },
+        events,
+    )?;
     Ok((
         StatusCode::CREATED,
         json!({
             "adjudication_id": adjudication_id,
             "match_id": found.id,
-            "state": next,
-            "revision": revision_text,
-            "scores": score_rows,
+            "state": settled.state,
+            "revision": settled.revision.to_string(),
+            "scores": settled.scores,
         }),
     ))
 }

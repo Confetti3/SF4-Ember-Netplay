@@ -23,8 +23,8 @@ async fn discovery_is_public_and_informational() {
     assert_eq!(profile["bridge_id"], bridge.bridge_id.as_str());
     assert_eq!(profile["origin"], bridge.origin.as_str());
     let caps = fetch("/v1/capabilities").await;
-    assert_eq!(caps["native_play"], false);
-    assert_eq!(caps["native_rules_profiles"], json!([]));
+    assert_eq!(caps["native_play"], true);
+    assert_eq!(caps["native_rules_profiles"], json!(["ember-room-v1"]));
     let keys = fetch("/v1/signing-keys").await;
     assert_eq!(keys["keys"][0]["alg"], "EdDSA");
     assert_eq!(keys["keys"][0]["x"].as_str().unwrap().len(), 43);

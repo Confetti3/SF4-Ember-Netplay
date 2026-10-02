@@ -29,6 +29,7 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
         "link.code".to_owned(),
         "link.provider_proxy".to_owned(),
         "matches.adjudication".to_owned(),
+        "matches.play".to_owned(),
         "lobbies".to_owned(),
         "tournaments".to_owned(),
         "records".to_owned(),
@@ -44,11 +45,11 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
         event_version: "v1".into(),
         games: vec!["usf4".into()],
         games_to_win: vec![1, 2, 3, 5],
-        // No native rules translator is tested yet (spec 13.3), so rooms
-        // cannot enforce a profile and native play is not offered.
-        native_rules_profiles: Vec::new(),
-        native_play: false,
-        result_sources: vec!["organizer_adjudication".into()],
+        // `ember-room-v1` plays under the room's own settings. No translator
+        // for a native USF4 rules profile is tested yet (spec 13.3).
+        native_rules_profiles: vec![ember_protocol::play::PROFILE.into()],
+        native_play: true,
+        result_sources: vec!["organizer_adjudication".into(), "player_agreement".into()],
         features,
         lobby_rotations: Rotation::ALL
             .iter()
