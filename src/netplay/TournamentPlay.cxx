@@ -261,8 +261,12 @@ void TournamentPlay::OnFailure(Output::Kind request, const std::string& code, st
 		if (code == "stale_revision") nextClaimMs_ = nowMs;
 		break;
 	case Output::Kind::Report:
-		if (code == "report_not_saved") reason_ = code;
 		OnReported();
+		// A result that could not be saved stops the match here (spec 16.7):
+		// no further official game starts until the organizer has reconciled
+		// it, and the player sees why. The other fighter's report sends the
+		// game to review on the bridge.
+		if (code == "report_not_saved") Fail(Phase::Failed, code);
 		break;
 	default:
 		break;

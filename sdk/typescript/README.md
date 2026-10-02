@@ -14,8 +14,12 @@ const intent = await bridge.createLinkIntent(user.id, user.name);
 // After Ember submits a claim, show its fingerprint and approve that exact claim.
 await bridge.approveLinkClaim(intent.intent_id, { claimId, emberId, subject: user.id });
 
-// Matches. Reuse the idempotency key when retrying.
+// Matches. Reuse the idempotency key when retrying. With
+// native_rules_profile "ember-room-v1" the players play it in Ember and the
+// game reports each result; with "organizer-reported-v1" an organizer does.
 const match = await bridge.createMatch(spec, `match-${bracketMatchId}`);
+// A Play button: a fresh one-use link per click, opened in that player's browser.
+const { uri } = await bridge.createHandoff(match.match_id, emberId);
 
 // A king-of-the-hill lobby: first to 2, the winner keeps the seat.
 const lobby = await bridge.createLobby({ external_lobby_id: "stream-night", games_to_win: 2, rotation: "winner_stays", required_build_id: build });
@@ -44,6 +48,8 @@ if (event.type === eventType("match.completed")) { /* advance the bracket */ }
 The package also implements the identity and signature rules shared with
 Ember (`emberIdFromPublicKey`, `verifyProof`, `verifyReport`, `canonicalize`).
 Its tests check them against the specification's public fixtures.
+`TestPlayer` stands in for a player's game in tests: it links, claims a match,
+publishes a room, asks for game permits and signs reports the way Ember does.
 
 ## Tests
 

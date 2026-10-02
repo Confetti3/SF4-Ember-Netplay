@@ -3,8 +3,8 @@
 Ember's tournament bridge is a provider-neutral web service. Tournament
 platforms, organizers and bots talk to it over one HTTP and event contract,
 and it never relays gameplay. This guide covers what works in this branch:
-identity linking, matches with organizer-reported results, and signed events
-for webhooks, Discord and Twitch.
+identity linking, matches played in Ember and reported by the game, matches
+decided by an organizer, and signed events for webhooks, Discord and Twitch.
 
 The full design is EMBER-TB-001 in `docs/design/identity-bridge/`. What is
 implemented, and how it differs from the draft, is in `STATUS.md` there.
@@ -16,9 +16,12 @@ implemented, and how it differs from the draft, is in `STATUS.md` there.
   updates, and an encrypted backup carries it to another PC.
 - A bridge links that ID to an account on your platform with a short code that
   the account holder approves.
-- Matches are created by a provider and decided game by game by an organizer.
-  Ember does not yet report native results or enforce tournament rooms; those
-  are the next work packages.
+- Matches are created by a provider. A match can be played in Ember, where the
+  game opens a room for the two players, keeps everyone else out, and reports
+  each game's result itself (`ember-room-v1`), or decided game by game by an
+  organizer (`organizer-reported-v1`).
+- A Play button on your site can open a player's match in Ember with a
+  one-use link.
 - On top of matches, the bridge can run king-of-the-hill lobbies and whole
   tournaments (single elimination, double elimination, round robin), and it
   keeps each player's record of sets and games.
@@ -84,8 +87,9 @@ end to end against any bridge.
 
 - `POST /v1/matches` (provider, `Idempotency-Key` required) takes the two
   linked participants, the set length (`games_to_win` of 1, 2, 3 or 5) and the
-  rules profile `organizer-reported-v1`. Retrying with the same key or the same
-  `external_match_id` returns the same match.
+  rules profile: `ember-room-v1` for a match played in Ember (next section) or
+  `organizer-reported-v1` for one an organizer decides. Retrying with the same
+  key or the same `external_match_id` returns the same match.
 - `POST /v1/matches/{id}/adjudications` (organizer only) records one game:
   `{"kind": "game_result", "winner_slot": 0, "reason": "...",
   "expected_revision": "1"}`, or `"draw": true`, which scores nothing. When a
@@ -103,6 +107,50 @@ end to end against any bridge.
 
 Every write names the revision it expects, as the decimal string the match
 shows, so two people acting at once cannot both win.
+
+## Matches played in Ember
+
+With `native_rules_profile: "ember-room-v1"` the players play the set in Ember
+and the game reports it:
+
+1. Each player opens the match in Ember: from the Tournament matches screen
+   (Settings > Ember ID), or from your Play button (below). The first player's
+   game opens a room and the second joins it. Only the two assigned players
+   can be in that room, and the room plays the set length you chose.
+2. Before each game both games ask the bridge for permission to start it, and
+   the game starts only when both have it. You see `match.room.ready` once
+   the room is published, then `match.attempt.authorized` for each game.
+3. When a game ends, each player's game reports what it saw, signed with that
+   player's Ember ID (`match.game.reported`). When both agree the game counts
+   (`match.game.confirmed`, `match.score.changed`), and at the set length the
+   match completes (`match.completed`).
+4. When the reports disagree, only one arrives within a minute, or a started
+   game is never reported, the match waits in `needs_review`
+   (`match.needs_review`). An organizer then decides that game with an
+   adjudication naming its `attempt_id` (from the error detail or the match),
+   or voids it so it is played again. Nothing is guessed: a missing report never
+   becomes a win for the other player.
+
+Signed reports show which Ember ID said what. Two players who agree on a false
+result can still both report it, so treat them as the players' own account of
+the game, not as proof against cheating.
+
+Both players need the same Ember build; the second player's game is refused
+with `incompatible_build` otherwise. `required_build_id` is your label for the
+build and is not checked against the game.
+
+### A Play button
+
+`POST /v1/handoffs` with `{"match_id": "...", "ember_id": "..."}` (your
+provider or organizer credential) returns a one-use link for that player:
+`ember://tournament/open?bridge=...&handoff=...`. Put it behind the player's
+Play button and open it in their browser. It lasts one minute and only that
+player's Ember ID can use it, so make a fresh one per click and never store or
+log it. Ember opens the Tournament matches screen on that match, and the player
+presses Play there; a player in a game or a room is never moved. Where the
+`ember:` link does not open Ember (some Linux setups), the player can copy the
+link and choose Paste match link on that screen, or simply pick the match from
+the list.
 
 ## Run a lobby (first-to-N, king of the hill)
 

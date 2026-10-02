@@ -306,6 +306,21 @@ static void TestOrderingAndLeases() {
 	CHECK(Count(out, Kind::Report) == 1 && Count(out, Kind::Forget) == 0);
 	stopping.OnReported();
 	CHECK(Count(stopping.Tick(400, {}), Kind::Forget) == 1);
+
+	// A report the helper could not save stops the match: it leaves the room
+	// and starts no further game.
+	TournamentPlay lost;
+	lost.Start("brg_x", "emt_x", 0);
+	lost.Tick(0, {});
+	lost.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 0)), 0);
+	lost.Tick(100, Joined(RoomA, &snapshot, false));
+	lost.OnPrepare(permitted, 200);
+	lost.OnTerminal(3, room::MatchResult::P1Win, 10, 9);
+	CHECK(Count(lost.Tick(300, Joined(RoomA, &snapshot, false)), Kind::Report) == 1);
+	lost.OnFailure(Kind::Report, "report_not_saved", 400);
+	CHECK(lost.GetPhase() == Phase::Failed && lost.Reason() == "report_not_saved");
+	out = lost.Tick(500, Joined(RoomA, &snapshot, false));
+	CHECK(Count(out, Kind::Leave) == 1 && Count(out, Kind::Prepare) == 0 && Count(out, Kind::Claim) == 0);
 }
 
 int main() {

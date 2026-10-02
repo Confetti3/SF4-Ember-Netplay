@@ -82,11 +82,19 @@ It prints the test Ember ID and fingerprint and submits the claim. Passing a
 key file keeps the same test identity across runs; the file holds a private
 key, so keep it out of source control.
 
-## Matches and results today
+## Matches and results
 
-A match is two linked players and a set length (first to 1, 2, 3 or 5). Today
-results come from organizer adjudication: your organizer credential records
-each game, and the match completes when someone reaches the set length.
+A match is two linked players and a set length (first to 1, 2, 3 or 5). Create
+it with the rules profile `ember-room-v1` and the players play it in Ember: the
+game opens a room only they can enter, and each game's result comes from both
+players' games, signed with their Ember IDs. When both agree the game counts;
+when they disagree, or one report is missing, the match waits for your organizer
+in `needs_review` (see `INTEGRATIONS.md`, "Matches played in Ember"). With
+`organizer-reported-v1` instead, your organizer credential records each game.
+Either way the match completes when someone reaches the set length.
+
+For a Play button, ask for a one-use link per click with
+`createHandoff(matchId, emberId)` and open its `uri` in the player's browser.
 Voiding a game scores the match again: a finished match stays finished while
 a player still has enough wins, and otherwise reopens. Reopening is refused
 while either player has another match currently active on the same connection
@@ -103,10 +111,8 @@ brackets only needs matches.
 
 ## Not built yet
 
-- **Results from the game.** Ember does not yet report game results to the
-  bridge by itself, and tournament matches are not yet enforced inside Ember's
-  rooms. That is the next stage of work; until then an organizer records
-  results.
+- **Tested with real players.** Matches played in Ember are covered by
+  automated tests but have not yet been played on two PCs.
 - **A player build with Ember ID.** The current public Ember release does not
   include the Ember ID screens. A test build can be provided for end-to-end
   tests with real players.
@@ -126,8 +132,7 @@ These decide how the rest is built (spec section 22):
    you retry a create or a result after a lost response.
 4. **Results.** How BluMint records a set score, a correction, a forfeit and a
    no-show, and what it does with a disputed result.
-5. **Play.** What happens when a player clicks Play: a per-player link into
-   Ember, or one shared match link.
+5. **Play.** Whether a per-player Play link (above) suits your match page.
 6. **Webhooks.** The HTTPS URL that should receive bridge events, if any.
 7. **Testing.** A staging account and test tournament on your side, and a
    contact for questions.

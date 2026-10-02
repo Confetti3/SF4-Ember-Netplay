@@ -25,8 +25,41 @@ WP0 to WP3: local identity and backup, bridge authentication and linking, the ge
 match and event API, signed webhooks, a TypeScript SDK, a mock provider, and a reference
 notifier that turns bridge events into Discord webhook posts and Twitch chat messages.
 
-Not in this branch: WP4 room admission, WP5 permits and signed reports, WP6 launcher
-handoff and Proton validation, WP7 BluMint adapter, WP8 hardening.
+`feat/tournament-play` adds WP4 (a room bound to a match), WP5 (game permits, signed
+reports and two-player agreement), WP6 (browser handoff and the in-game match list) and
+the automated part of WP8 (seeded fuzzing and adversarial tests).
+
+Not done: WP7 (BluMint calls the generic API directly, so no adapter calls BluMint),
+Windows/Proton link registration checks, low-spec benchmarks, canary tournaments, and
+every check that needs two PCs or a real browser. No tournament match has been played
+in the game yet.
+
+## Tournament play
+
+A match whose rules profile is `ember-room-v1` is played in an Ember room:
+
+1. Each fighter's game claims the match through its helper. The first claim gets a
+   30-second provisioning lease and hosts a room; the other waits. The host publishes
+   the room with the lease and fence, and both claims then return the room and a
+   bridge-signed binding naming the two fighters' Ember IDs and Iroh endpoints. Each
+   helper checks the binding against the bridge key the player approved.
+2. The game that leads the room applies the binding through a recovery checkpoint.
+   Table 0 then seats the two named endpoints by slot, nobody else can stay or join,
+   and seat, watch, rules and kick changes there are refused. Room protocol version 3.
+3. When both fighters press Ready the room reserves a match generation and holds the
+   start. Each game asks the bridge to prepare that game, and the bridge signs a permit
+   once both described the same game. The start waits (up to 150 s) until both
+   fighters hold the same permit.
+4. When the game ends, each game reports what it saw, rollback-confirmed, in a report
+   signed by the player's identity. Two agreeing reports score the game; disagreement,
+   a lone report after 60 s, or a permitted game nobody reports goes to organizer review.
+   Reports are saved to disk before sending and retried every 20 s.
+5. The set ends at first to N; the next claim answers `stale_revision` and the game
+   leaves the room.
+
+Players find their matches on the Ember ID screen (Tournament matches) or open one from
+a site's Play button (`ember://tournament/open`, see WP6 below). Nothing starts a match
+without the player pressing Play, and nothing moves a player out of a room.
 
 ## Staging bridge
 
@@ -111,10 +144,33 @@ lists queue rotation and multi-table scheduling as future work.
 - **Link intents are not idempotent.** `POST /v1/link-intents` shows its code once and
   stores only an HMAC of it, so a replay could not return the code. Each call makes a
   new intent; at most three live intents per account.
-- **Rules profile.** The only accepted `native_rules_profile` is
-  `organizer-reported-v1`: results come from organizer adjudication and Ember enforces
-  no native rule. `usf4-standard-v1` and every other profile return
-  `422 unsupported_rules` until a tested rules translator exists (spec 13.3).
+- **Rules profiles.** Two `native_rules_profile` values are accepted:
+  `organizer-reported-v1` (results come from organizer adjudication) and `ember-room-v1`
+  (games are played in an Ember room under the room's own game settings and scored by
+  the fighters' agreeing signed reports). `usf4-standard-v1` and every other profile
+  return `422 unsupported_rules` until a tested rules translator exists (spec 13.3).
+- **Signed grants instead of JWS (spec 9.4).** Bindings and permits are canonical JSON
+  signed with the bridge's Ed25519 key under their own domains (`EMBER:BINDING:1`,
+  `EMBER:PERMIT:1`), the same rules player proofs use. There is no JOSE header, so
+  algorithm confusion and `none` cannot arise. Only the fighter's own helper verifies
+  them; the game receives the checked fields.
+- **The binding is the admission certificate (spec 9.4).** Instead of a per-fighter
+  certificate presented on join, the room admits by the Iroh endpoints the bridge-signed
+  binding names. The leading game applies the binding its own helper verified; every
+  other game's helper verifies its own copy. A restarted helper has a new endpoint, so
+  its claim moves the binding revision and the room seats the new endpoint.
+- **Claiming again renews the lease.** There is no separate lease renewal route; the
+  `lease.renew` proof action is reserved and unused.
+- **A lone cancel closes its game (spec 16.6).** A `cancel` report says a start was
+  called off before the game began, so nothing is in dispute and the attempt closes as
+  aborted without waiting for the other report. A lone `abort` still goes to review.
+- **`required_build_id` is the provider's label.** The bridge does not compare it with
+  the game build. Both fighters' claims must carry the same build, or the second claim
+  is refused with `incompatible_build`.
+- **No observations route.** Observations travel only inside signed reports.
+- **Handoff answers.** A redeem that fails for any reason (unknown, used, expired, or
+  for another player) answers `not_found`, so a code says nothing to anyone else. A
+  player may hold four live codes per match.
 - **Adjudication kinds.** Organizers can record a game result (win or draw) and void a
   game, which reopens a completed match as a correction. Forfeits, no-shows and
   disconnect rulings wait for the organizer-policy sign-off.
@@ -214,9 +270,38 @@ runs the sf4-net suite). Mock fixtures are not counted as product acceptance.
 | Lobbies (extension) | bridge `lobbies.rs` (rotations, leaving and unlinking, players busy in other matches, and the lobby resuming and announcing seat changes when they are free); notifier `announces_lobby_rotations`; SDK `bridge.test.ts` | Automated, pass |
 | Linux | `cargo test --locked` in `rust/ember` and `npm test` in `sdk/typescript` (Node 24 from nodejs.org) on Ubuntu 26.04, x86_64, at `efe545e` | Automated, pass |
 
-Not run: AUTH-06 apart from stream revocation, LINK-03 to LINK-05, LINK-11, every ROOM item, RESULT items other than
-RESULT-09, WEB-04 and WEB-08, PROVIDER-01 and PROVIDER-03 to 05, every OPS item, and all
-release gates.
+Tournament play on `feat/tournament-play` (same machine and toolchain):
+
+| Item | Evidence | Result |
+|---|---|---|
+| ROOM-01 | bridge `claims_and_descriptors_are_checked` (first claim hosts, the second waits); claims are written under `BEGIN IMMEDIATE` | Automated, partial: claims run one after the other |
+| ROOM-02 | bridge `a_publish_retry_and_a_silent_game`, `claims_and_descriptors_are_checked` (only the lease holder publishes the first room) | Automated, partial: an expired lease is not exercised |
+| ROOM-04, ROOM-06 | `RoomTournament` fighters only; `SessionServerTournament` (strangers are sent away and cannot join); `TournamentFuzz` bound room | Automated, pass |
+| ROOM-07 | protocol `permits_verify_only_under_their_domain_and_key`, fuzz `signed_values_change_only_by_failing`; bridge stale binding refused | Automated, pass (no JWS, see deviations) |
+| ROOM-08 | `RoomTournament` (a new endpoint takes its slot; a fighter who leaves sits down again) | Automated, pass; a restarted helper in a real game not run |
+| ROOM-11 | `RoomTournament` checkpoint (binding and permit hold survive; a hold without a binding is refused) | Automated, pass |
+| ROOM-13 | `RoomTournament` (taking Ready back or the hold running out burns the generation) | Automated, partial |
+| ROOM-14 | `RoomTournament` permit gate; bridge "a native game is used once" | Automated, pass |
+| ROOM-16 | `ShellJourney` (a match link never starts a match or moves a player out of a room); the launcher hands a link to the running game (`JoinLink`) | Automated, partial: no real browser |
+| ROOM-17 | `ShellJourney` Paste match link | Automated, UI only; Proton not run |
+| ROOM-18 | `RoomTournament` casual rooms need no permit; every room suite unchanged | Automated, pass |
+| RESULT-03 | bridge `forged_and_misdirected_reports_are_refused` | Automated, pass |
+| RESULT-05 | bridge `disagreement_holds_the_match_for_an_organizer` | Automated, pass |
+| RESULT-06 | bridge `a_lone_report_or_a_silent_game_goes_to_review` | Automated, pass |
+| RESULT-07, RESULT-08 | bridge `reports_are_idempotent_and_never_rewritten`; helper spool `reports_survive_reopening_until_done` | Automated, pass |
+| RESULT-09 | bridge `agreeing_reports_score_a_set`; helper `play_a_set_through_two_helpers`; SDK `play.test.ts` | Automated, pass |
+| RESULT-10 | SDK `play.test.ts` (a draw between wins; the set still ends 2-1) | Automated, pass |
+| RESULT-11 | bridge `a_lone_cancel_closes_the_game_and_a_lone_abort_waits_for_review` | Automated, pass |
+| RESULT-14, RESULT-15 | helper spool `no_folder_means_not_saved`; `TournamentPlay` (a report that could not be saved stops the match, leaves the room and starts no further game, with the reason shown) | Automated, partial: a full disk is not simulated |
+| RESULT-17 | bridge `a_publish_retry_and_a_silent_game` (review only after the start window plus 30 minutes) | Automated, partial |
+| Handoff (WP6) | bridge `a_handoff_names_the_match_once_for_its_own_player`; helper `play_a_set_through_two_helpers`; `JoinLink`; `ShellJourney`; SDK `play.test.ts` | Automated, pass; real browser and Proton not run |
+| Fuzzing (WP8) | `TournamentFuzz` (helper answers, links, the state machine, a bound room; seeded, with coverage checks); protocol `fuzz` module | Automated, pass; it found one ordering bug, fixed in `707d030` |
+
+Not run: AUTH-06 apart from stream revocation, LINK-03 to LINK-05, LINK-11, ROOM-03,
+ROOM-05, ROOM-09, ROOM-10, ROOM-12, ROOM-15, RESULT-01, RESULT-02, RESULT-04, RESULT-12,
+RESULT-13, RESULT-16, RESULT-18 to RESULT-20, WEB-04 and WEB-08, PROVIDER-01 and
+PROVIDER-03 to 05, every OPS item, and all release gates. Every tournament item above
+still needs a two-PC game.
 
 In-game run on 2026-10-01 (Windows, one PC, this branch's staged build against a local
 bridge with the mock provider): turning on Ember ID created the key under
