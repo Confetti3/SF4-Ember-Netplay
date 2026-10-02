@@ -505,7 +505,6 @@ async fn a_link_the_player_removed_stays_removed_until_they_sign_in_again() {
     assert_eq!(status, StatusCode::BAD_REQUEST);
 
     // Signing in with Discord again gives the consent again.
-    bridge.clock.advance(1);
     connect(&bridge, &kate, "kate").await;
     assert_eq!(
         lookup(&bridge, &provider, &[KATE]).await,
@@ -531,7 +530,6 @@ async fn a_sign_in_started_before_an_unlink_does_not_undo_it() {
     let late =
         tokio::spawn(async move { client.get(url).send().await.unwrap().text().await.unwrap() });
     LATE.arrived.notified().await;
-    bridge.clock.advance(5);
     let (_, links) = bridge.get(kate.token(), "/v1/links").await;
     let link = links["links"][0]["link_id"].as_str().unwrap().to_owned();
     let path = format!("/v1/links/{link}");
@@ -551,18 +549,17 @@ async fn a_sign_in_started_before_an_unlink_does_not_undo_it() {
             .0,
         StatusCode::OK
     );
-    bridge.clock.advance(5);
-    LATE.release.notify_one();
-    assert!(late.await.unwrap().contains("Discord connected"));
     for _ in 0..2 {
         assert_eq!(
             lookup(&bridge, &provider, &[KATE]).await,
             json!({ "discord": [] })
         );
     }
-    // A sign-in started after the unlink gives the consent again.
-    bridge.clock.advance(1);
+    // A sign-in started after the unlink, in the same second, gives the
+    // consent again; the older one then finishing changes nothing.
     connect(&bridge, &kate, "kate").await;
+    LATE.release.notify_one();
+    assert!(late.await.unwrap().contains("Sign-in expired"));
     assert_eq!(
         lookup(&bridge, &provider, &[KATE]).await,
         json!({ "discord": [kate_id] })

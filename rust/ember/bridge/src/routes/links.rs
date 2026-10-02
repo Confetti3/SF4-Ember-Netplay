@@ -30,7 +30,7 @@ use crate::{
     error::{ApiFailure, Result},
     events::{NewEvent, emit},
     http::{Body, PROOF_BODY, json, ok},
-    routes::{matches, sessions},
+    routes::{discord, matches, sessions},
     util::{new_id, random},
 };
 
@@ -877,6 +877,9 @@ pub fn unlink(
         &participant_id,
         &format!("unlinked_by_{}", actor.0),
     )?;
+    if !matches!(by, Unlinker::Account(Owner::Provider { .. })) {
+        discord::withdraw(tx, link_id)?;
+    }
     audit(tx, ctx.now, actor, "link.remove", link_id, "ok", None)?;
     Ok(json!({ "link_id": link_id, "state": "removed" }))
 }

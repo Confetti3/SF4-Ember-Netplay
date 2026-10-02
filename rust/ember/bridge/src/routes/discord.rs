@@ -11,9 +11,8 @@
 //! that Ember ID: moving or disconnecting the account ends the links its
 //! sign-in approved, in the same transaction. The next lookup links the
 //! account again where it now belongs. A link the player (or the platform
-//! account's holder) removed stays removed: lookup does not link it again
-//! until a Discord sign-in the player starts after that gives that consent
-//! again. An account's `connected_at` is when its sign-in was started.
+//! account's holder) removes stays removed (`withdraw`): lookup does not link
+//! it again until the player completes a Discord sign-in started after that.
 use axum::{
     extract::{Query, State},
     http::{HeaderMap, StatusCode},
@@ -231,7 +230,7 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
     let stored = state
         .db
         .write(move |tx| {
-            let Some((ember_id, started_at)) = take(tx, &hash, ctx.now)? else {
+            let Some(ember_id) = take(tx, &hash, ctx.now)? else {
                 return Ok(None);
             };
             // The latest sign-in wins: this account leaves any other Ember ID,
@@ -247,11 +246,11 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
                     end_links(tx, &ctx, &user_id, "replaced")?;
                 }
             }
-            // The player consented when they started the sign-in, so one they
-            // started before removing a link does not give that link back.
+            // A new account row is fresh consent: the withdrawals of the old
+            // one went with it.
             tx.execute(
                 "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, ?3, ?4)",
-                params![user.id, ember_id, user.username, started_at],
+                params![user.id, ember_id, user.username, ctx.now],
             )?;
             Ok(Some(ember_id))
         })
@@ -283,14 +282,14 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
 }
 
 /// Takes the claimed sign-in `hash` names if it is still there: the Ember ID
-/// that started it, and when.
-fn take(tx: &Transaction<'_>, hash: &[u8; 32], now: u64) -> Result<Option<(String, u64)>> {
+/// that started it.
+fn take(tx: &Transaction<'_>, hash: &[u8; 32], now: u64) -> Result<Option<String>> {
     Ok(tx
         .query_row(
             "DELETE FROM discord_sign_ins WHERE state_hash = ?1 AND expires_at > ?2 AND claimed = 1
-             RETURNING ember_id, expires_at",
+             RETURNING ember_id",
             params![hash.as_slice(), now],
-            |row| Ok((row.get(0)?, row.get::<_, u64>(1)? - SIGN_IN_SECS)),
+            |row| row.get(0),
         )
         .optional()?)
 }
@@ -488,13 +487,9 @@ fn link(
     if linked {
         return Ok(true);
     }
-    // Removing the link withdrew the consent the sign-in gave; only a newer
-    // sign-in gives it again.
     let withdrawn: bool = tx.query_row(
-        "SELECT EXISTS (SELECT 1 FROM links l JOIN discord_accounts d ON d.user_id = ?4
-           WHERE l.ember_id = ?1 AND l.connection_id = ?2 AND l.approved_via = 'discord' AND l.claim_id = ?3
-             AND l.revoked_by IN ('unlinked_by_player', 'unlinked_by_browser') AND l.revoked_at >= d.connected_at)",
-        params![ember_id.as_str(), connection_id, subject, user_id],
+        "SELECT EXISTS (SELECT 1 FROM discord_withdrawals WHERE user_id = ?1 AND connection_id = ?2)",
+        params![user_id, connection_id],
         |row| row.get(0),
     )?;
     if withdrawn {
@@ -539,6 +534,35 @@ fn link(
         },
     )?;
     Ok(true)
+}
+
+/// The player (or the platform account's holder) removed `link_id`. If a
+/// Discord sign-in approved it and that account is still connected, the
+/// consent is withdrawn on that connection until the account's row is
+/// replaced by a new sign-in, and the player's sign-ins in flight end, so
+/// only one started from now on gives it again.
+pub fn withdraw(tx: &Transaction<'_>, link_id: &str) -> Result<()> {
+    let link: Option<(String, String, String)> = tx
+        .query_row(
+            "SELECT claim_id, connection_id, ember_id FROM links WHERE id = ?1 AND approved_via = 'discord'",
+            [link_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()?;
+    let Some((claim, connection_id, ember_id)) = link else {
+        return Ok(());
+    };
+    let user_id = claim.strip_prefix("discord:").unwrap_or_default();
+    tx.execute(
+        "INSERT OR IGNORE INTO discord_withdrawals (user_id, connection_id)
+         SELECT user_id, ?2 FROM discord_accounts WHERE user_id = ?1 AND ember_id = ?3",
+        params![user_id, connection_id, ember_id],
+    )?;
+    tx.execute(
+        "DELETE FROM discord_sign_ins WHERE ember_id = ?1",
+        [&ember_id],
+    )?;
+    Ok(())
 }
 
 /// Ends every link this Discord account's sign-in approved, on every
