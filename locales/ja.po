@@ -2667,6 +2667,72 @@ msgstr "任意です。Discordアカウントを連携すると、このサー�
 msgid "identity.discord_remove_detail"
 msgstr "このサービスでこのDiscordアカウントとEmber IDの連携を解除します。大会サイトはこのアカウントからあなたを見つけられなくなります。"
 
+msgid "screen.connect_discord"
+msgstr "Discordを連携"
+
+msgid "identity.connect_discord_detail"
+msgstr "BluMintなど、大会サイトが把握しているDiscordアカウントを連携して、大会サイトがEmber IDを見つけられるようにします。Emberが手順を案内します。"
+
+msgid "connect.about"
+msgstr "この機能について"
+
+msgid "connect.about_detail"
+msgstr "BluMintなどの大会サイトは、Discordアカウントでプレイヤーを見つけます。自分のアカウントを連携すると、どのEmber IDがあなたのものかがEmberの大会サービスに伝わり、サイトがあなたを見つけて試合をEmberに送れるようになります。DiscordはEmberでは任意です。"
+
+msgid "connect.create"
+msgstr "Ember IDを作成"
+
+msgid "connect.create_detail"
+msgstr "ステップ1/3。Ember IDは、このEmberがあなたのものであることを大会サイトに伝えます。このPCで作成され、アカウントやメールアドレスは不要です。"
+
+msgid "connect.identity_detail"
+msgstr "ステップ1/3。Ember IDの準備がまだできていません。「Ember ID」画面を開いて、必要なことを確認してください。"
+
+msgid "connect.trust_detail"
+msgstr "ステップ2/3。EmberがEmber IDを使って{0}のEmberの大会サービスにサインインできるようにします。"
+
+msgid "connect.looking_up"
+msgstr "Emberの大会サービスを検索中"
+
+msgid "connect.looking_up_detail"
+msgstr "ステップ2/3。少々お待ちください。"
+
+msgid "connect.unknown"
+msgstr "大会サービスが見つかりません"
+
+msgid "connect.unknown_detail"
+msgstr "このリンクの大会サービスに接続できないか、Emberが認識していないサービスです。インターネット接続を確認してもう一度お試しいただくか、「連携アカウント」でサービスを追加してください。"
+
+msgid "connect.retry"
+msgstr "再試行"
+
+msgid "connect.retry_detail"
+msgstr "大会サービスをもう一度探します。"
+
+msgid "connect.connect_detail"
+msgstr "ステップ3/3。EmberがブラウザーでDiscordを開きます。大会サイトが把握しているDiscordアカウントで承認してください。完了するとこの画面に表示されます。"
+
+msgid "connect.connected"
+msgstr "Discord連携済み"
+
+msgid "connect.connected_detail"
+msgstr "このサービスを使う大会サイトが、あなたのEmber IDを見つけられるようになりました。大会サイトに戻って続けてください。連携を解除するには「連携アカウント」を使います。"
+
+msgid "connect.off"
+msgstr "Discordでのサインインは無効です"
+
+msgid "connect.off_detail"
+msgstr "この大会サービスでは現在Discordでのサインインを利用できません。しばらくしてからもう一度お試しください。"
+
+msgid "connect.waiting"
+msgstr "ブラウザーで承認してください。Discordが連携されると、この画面が更新されます。"
+
+msgid "connect.done"
+msgstr "Discordアカウント{0}を連携しました。大会サイトに戻れます。"
+
+msgid "connect.link_waiting"
+msgstr "大会サイトからDiscordの連携を求められました。ルームから退出すると、Emberが「Discordを連携」を開きます。"
+
 msgid "identity.site"
 msgstr "サイト"
 

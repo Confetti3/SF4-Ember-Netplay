@@ -6,7 +6,8 @@
 // own link, https://embernetplay.link/m#<bridge id>/<match id>, instead.
 // A link only names a match, so it is not a secret: the bridge lets only the
 // match's two assigned Ember IDs claim it, and anyone else's Ember finds no
-// such match in their list. This side checks only the link's shape.
+// such match in their list. This side checks only the link's shape. A site
+// can also open Ember's Connect Discord screen for its service (ParseConnectLink).
 //
 // Pure component: no Windows, game or helper dependencies, unit tested.
 
@@ -100,6 +101,24 @@ inline MatchLink ParseLink(const std::string& text) {
 		else return MatchLink();
 	}
 	return Checked(bridge, match);
+}
+
+// The service a Discord connect link names, or "". A tournament site that
+// could not find a player sends them, through embernetplay.link/start, to
+//   ember://discord/connect?bridge=<bridge id>
+// and Ember opens its Connect Discord screen for that service. Like a match
+// link it is not a secret and does nothing by itself: the player presses
+// Connect there. Only that path with exactly the bridge parameter; a
+// browser's trailing slash is ignored.
+inline std::string ParseConnectLink(const std::string& text) {
+	static const char prefix[] = "ember://discord/connect";
+	if (!PlainText(text) || text.find('#') != std::string::npos || !StartsWithFolded(text, prefix)) return std::string();
+	std::string rest = text.substr(sizeof(prefix) - 1);
+	if (rest.compare(0, 2, "/?") == 0) rest.erase(0, 1);
+	if (rest.compare(0, 8, "?bridge=") != 0) return std::string();
+	std::string bridge = rest.substr(8);
+	if (!bridge.empty() && bridge[bridge.size() - 1] == '/') bridge.erase(bridge.size() - 1);
+	return IsBridgeId(bridge) ? bridge : std::string();
 }
 
 // The page a tournament site links to. Its fragment carries the match, so

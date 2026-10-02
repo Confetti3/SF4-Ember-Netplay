@@ -2352,6 +2352,72 @@ msgstr "Optional. Connect your Discord account so tournament sites that use this
 msgid "identity.discord_remove_detail"
 msgstr "Disconnects this Discord account from your Ember ID on this service. Tournament sites can no longer find you by it."
 
+msgid "screen.connect_discord"
+msgstr "Connect Discord"
+
+msgid "identity.connect_discord_detail"
+msgstr "Connect the Discord account your tournament site knows, such as BluMint, so it can find your Ember ID. Ember walks you through it."
+
+msgid "connect.about"
+msgstr "What this does"
+
+msgid "connect.about_detail"
+msgstr "Tournament sites such as BluMint find players by their Discord account. Connecting yours tells Ember's tournament service which Ember ID is yours, so the site can find you and send your matches to Ember. Discord is optional in Ember."
+
+msgid "connect.create"
+msgstr "Create Ember ID"
+
+msgid "connect.create_detail"
+msgstr "Step 1 of 3. Your Ember ID tells tournament sites that this copy of Ember is you. It is made on this PC; no account or email is needed."
+
+msgid "connect.identity_detail"
+msgstr "Step 1 of 3. Your Ember ID is not ready yet. Open the Ember ID screen to see what it needs."
+
+msgid "connect.trust_detail"
+msgstr "Step 2 of 3. Lets Ember sign in to Ember's tournament service at {0} with your Ember ID."
+
+msgid "connect.looking_up"
+msgstr "Finding Ember's tournament service"
+
+msgid "connect.looking_up_detail"
+msgstr "Step 2 of 3. One moment."
+
+msgid "connect.unknown"
+msgstr "Tournament service not found"
+
+msgid "connect.unknown_detail"
+msgstr "Ember could not reach the tournament service this link is for, or does not know it. Check your internet connection and try again, or add the service under Linked accounts."
+
+msgid "connect.retry"
+msgstr "Try again"
+
+msgid "connect.retry_detail"
+msgstr "Looks for the tournament service again."
+
+msgid "connect.connect_detail"
+msgstr "Step 3 of 3. Ember opens Discord in your browser. Approve there with the Discord account your tournament site knows. This screen shows when it is done."
+
+msgid "connect.connected"
+msgstr "Discord connected"
+
+msgid "connect.connected_detail"
+msgstr "Tournament sites that use this service can now find your Ember ID. Go back to the tournament site to continue. To disconnect, use Linked accounts."
+
+msgid "connect.off"
+msgstr "Discord sign-in is off"
+
+msgid "connect.off_detail"
+msgstr "This tournament service does not offer Discord sign-in right now. Try again later."
+
+msgid "connect.waiting"
+msgstr "Approve in your browser. This screen updates when Discord is connected."
+
+msgid "connect.done"
+msgstr "Discord account {0} connected. You can go back to the tournament site."
+
+msgid "connect.link_waiting"
+msgstr "A tournament site asked you to connect Discord. Ember opens Connect Discord when you leave the room."
+
 msgid "identity.site"
 msgstr "Site"
 

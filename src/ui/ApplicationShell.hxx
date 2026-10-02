@@ -213,6 +213,10 @@ private:
     netplay::tournament::Phase tournamentPhase_ = netplay::tournament::Phase::Idle;
     // The last match link outcome announced.
     std::uint64_t matchLinkSequence_ = 0;
+    // The last Discord connect link seen, and its service until Connect
+    // Discord can open (not in a room).
+    std::uint64_t connectLinkSequence_ = 0;
+    std::string pendingConnect_;
     netplay::PlayerPreferences preferences_;
     netplay::LobbySettings lobby_;
     std::string error_;

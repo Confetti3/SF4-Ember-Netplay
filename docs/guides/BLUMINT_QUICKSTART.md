@@ -15,7 +15,7 @@ report every game, so results arrive without anyone typing them in.
 | Player lookup | `POST https://bridge.embernetplay.link/v1/blumint/lookup` |
 | Match creation | `POST https://bridge.embernetplay.link/v1/blumint/matches` |
 | Match status | `GET https://bridge.embernetplay.link/v1/blumint/matches/status?matchId=...` |
-| Getting started page for players | `https://embernetplay.link/start` |
+| Getting started page for players | `https://embernetplay.link/start#brg_0dbc0598-2312-4ce3-9df8-e160330565e6` |
 
 Ember registers these three URLs with BluMint itself (the `setLookupPlayer`,
 `match/setCreate` and `match/setRetrieveStatus` webhooks), with an
@@ -28,8 +28,8 @@ carries no uptime promise yet.
 ## Player lookup
 
 Ember supports one sign-in method: **Discord**. A player connects their
-Discord account to their Ember ID once, from Ember (Settings, Ember ID, Linked
-accounts, Discord), through Discord's own sign-in. The lookup answers only
+Discord account to their Ember ID once, from Ember (Settings, Ember ID,
+Connect Discord), through Discord's own sign-in. The lookup answers only
 `discord`:
 
 ```json
@@ -40,11 +40,16 @@ with `[]` when none of the user's Discord IDs is connected. Other sign-in
 methods are ignored, and so are the emails BluMint sends alongside Discord
 IDs. The in-game ID is the player's Ember ID (`emb1_...`).
 
-When a registering user has no Ember account, point them at
-`https://embernetplay.link/start` (for example as a registration option's
-`postambleLink`). It explains getting Ember and connecting Discord, then
-sends them back to register again. It goes live with the first public Ember
-release that has Ember ID and Discord (see "Not built yet").
+When a registering user has no Ember account, point them at the getting
+started page above (for example as a registration option's `postambleLink`).
+Its fragment names this bridge, so the page's **Open in Ember** button opens
+Ember straight to its Connect Discord screen for it: Ember creates the
+player's Ember ID if needed, trusts this service when the player confirms,
+and opens Discord's sign-in. The page also explains getting Ember first, and
+sends the player back to register again. The bridge ID is the `bridge_id` in
+`https://bridge.embernetplay.link/.well-known/ember-bridge.json`. The page
+goes live with the first public Ember release that has Ember ID and Discord
+(see "Not built yet").
 
 ## Match creation
 

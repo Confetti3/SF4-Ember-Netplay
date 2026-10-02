@@ -2667,6 +2667,72 @@ msgstr "Необязательно. Подключите аккаунт Discord,
 msgid "identity.discord_remove_detail"
 msgstr "Отключает этот аккаунт Discord от вашего Ember ID в этом сервисе. Турнирные сайты больше не найдут вас по нему."
 
+msgid "screen.connect_discord"
+msgstr "Подключить Discord"
+
+msgid "identity.connect_discord_detail"
+msgstr "Подключите аккаунт Discord, который знает ваш турнирный сайт, например BluMint, чтобы он нашёл ваш Ember ID. Ember проведёт вас по шагам."
+
+msgid "connect.about"
+msgstr "Что это даёт"
+
+msgid "connect.about_detail"
+msgstr "Турнирные сайты, например BluMint, находят игроков по аккаунту Discord. Подключение вашего аккаунта сообщает турнирному сервису Ember, какой Ember ID ваш, чтобы сайт мог найти вас и отправлять ваши матчи в Ember. Discord в Ember необязателен."
+
+msgid "connect.create"
+msgstr "Создать Ember ID"
+
+msgid "connect.create_detail"
+msgstr "Шаг 1 из 3. Ember ID показывает турнирным сайтам, что эта копия Ember принадлежит вам. Он создаётся на этом ПК; аккаунт и почта не нужны."
+
+msgid "connect.identity_detail"
+msgstr "Шаг 1 из 3. Ваш Ember ID ещё не готов. Откройте экран «Ember ID», чтобы узнать, чего не хватает."
+
+msgid "connect.trust_detail"
+msgstr "Шаг 2 из 3. Позволяет Ember входить в турнирный сервис Ember по адресу {0} с вашим Ember ID."
+
+msgid "connect.looking_up"
+msgstr "Поиск турнирного сервиса Ember"
+
+msgid "connect.looking_up_detail"
+msgstr "Шаг 2 из 3. Подождите немного."
+
+msgid "connect.unknown"
+msgstr "Турнирный сервис не найден"
+
+msgid "connect.unknown_detail"
+msgstr "Ember не удалось связаться с турнирным сервисом этой ссылки, или он ему неизвестен. Проверьте подключение к интернету и повторите попытку либо добавьте сервис в разделе «Привязанные аккаунты»."
+
+msgid "connect.retry"
+msgstr "Повторить"
+
+msgid "connect.retry_detail"
+msgstr "Снова ищет турнирный сервис."
+
+msgid "connect.connect_detail"
+msgstr "Шаг 3 из 3. Ember откроет Discord в браузере. Подтвердите там вход аккаунтом Discord, который знает ваш турнирный сайт. Этот экран покажет, когда всё будет готово."
+
+msgid "connect.connected"
+msgstr "Discord подключён"
+
+msgid "connect.connected_detail"
+msgstr "Турнирные сайты, использующие этот сервис, теперь могут найти ваш Ember ID. Вернитесь на турнирный сайт, чтобы продолжить. Отключить его можно в разделе «Привязанные аккаунты»."
+
+msgid "connect.off"
+msgstr "Вход через Discord отключён"
+
+msgid "connect.off_detail"
+msgstr "Этот турнирный сервис сейчас не предлагает вход через Discord. Повторите попытку позже."
+
+msgid "connect.waiting"
+msgstr "Подтвердите в браузере. Этот экран обновится, когда Discord будет подключён."
+
+msgid "connect.done"
+msgstr "Аккаунт Discord {0} подключён. Можно вернуться на турнирный сайт."
+
+msgid "connect.link_waiting"
+msgstr "Турнирный сайт просит подключить Discord. Ember откроет «Подключить Discord», когда вы выйдете из зала."
+
 msgid "identity.site"
 msgstr "Сайт"
 

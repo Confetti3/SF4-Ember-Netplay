@@ -195,6 +195,14 @@ void OpenMatchLink(const tournament_link::MatchLink& link) {
 	spdlog::info("Tournament: a link opened match {}", link.matchId);
 }
 
+void OpenConnectLink(const std::string& bridge) {
+	if (!tournament_link::IsBridgeId(bridge)) return;
+	auto& opened = runtime->openedConnect;
+	opened.bridge = bridge;
+	++opened.sequence;
+	spdlog::info("Tournament: a link asked to connect Discord on service {}", bridge);
+}
+
 void DispatchTournament(const netplay::tournament::Command& command, bool helperReady) {
 	using Op = netplay::tournament::Command::Op;
 	const auto now = GetTickCount64();
@@ -245,6 +253,7 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 void TickTournament(bool helperReady) {
 	if (!runtime->room) return;
 	OpenMatchLink(runtime->matchLinks.Take());
+	OpenConnectLink(runtime->connectLinks.Take());
 	const auto now = GetTickCount64();
 	// The helper is not restarted while the game runs, and the binding names
 	// its endpoint: without it the match cannot go on from this game.
@@ -280,6 +289,7 @@ netplay::tournament::Status TournamentStatus() {
 	netplay::tournament::Status status;
 	status.list = runtime->assignmentList;
 	status.link = runtime->openedLink;
+	status.connect = runtime->openedConnect;
 	const auto& play = runtime->tournament;
 	status.phase = play.GetPhase();
 	status.bridgeId = play.BridgeId();

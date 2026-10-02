@@ -541,7 +541,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     DWORD waitPid = 0;
     std::string localeOverride, joinUri;
     CLI::App app("SF4 Ember Netplay for Ultra Street Fighter IV", "Launcher");
-    app.add_option("--join-link", joinUri, "Open a room or tournament match link from the browser (ember://join/... or ember://tournament/open?...).");
+    app.add_option("--join-link", joinUri, "Open a room, tournament match or Discord connect link from the browser (ember://join/..., ember://tournament/open?... or ember://discord/connect?...).");
     app.add_flag("--discord-launch", discordLaunch, "Start Ember for an accepted Discord invitation.");
     app.add_flag("--console", payload.args.bShowConsole, "Show diagnostic logging.");
     app.add_flag("--offline", offline, "Start at the native game menu without networking.");
@@ -557,13 +557,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         languagePreference = localeOverride;
         sf4e::loc::SetActive(sf4e::platform::ResolveUiLocale(languagePreference));
     }
-    // The link is a room's short code, never logged, or a tournament match.
+    // The link is a room's short code, never logged, a tournament match, or a
+    // tournament service asking the player to connect Discord.
     const std::string joinCode = joinUri.empty() ? std::string() : sf4e::join_link::ParseUri(joinUri);
     const auto matchLink = joinUri.empty() || !joinCode.empty() ? sf4e::tournament_link::MatchLink() :
         sf4e::tournament_link::ParseLink(joinUri);
+    const std::string connectBridge = joinUri.empty() || !joinCode.empty() || matchLink.Valid() ? std::string() :
+        sf4e::tournament_link::ParseConnectLink(joinUri);
     if (!joinCode.empty()) spdlog::info("Started with a room link");
     else if (matchLink.Valid()) spdlog::info("Started with a link to tournament match {}", matchLink.matchId);
-    else if (!joinUri.empty()) spdlog::info("Ignored a link that is not an Ember room or tournament match link");
+    else if (!connectBridge.empty()) spdlog::info("Started with a link to connect Discord on service {}", connectBridge);
+    else if (!joinUri.empty()) spdlog::info("Ignored a link that is not an Ember room, tournament match or Discord connect link");
     sf4e::WipeText(joinUri);
     sf4e::platform::LauncherInstance instance;
     std::wstring chosenDirectory;
@@ -586,6 +590,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // row for the player to press Play; a game in progress is never interrupted.
         if (matchLink.Valid() && sf4e::platform::DeliverMatchLink(matchLink)) {
             spdlog::info("Handed the tournament match link to the running game");
+            return 0;
+        }
+        // A connect link opens the running game's Connect Discord screen,
+        // where the player decides.
+        if (!connectBridge.empty() && sf4e::platform::DeliverConnectLink(connectBridge)) {
+            spdlog::info("Handed the Discord connect link to the running game");
             return 0;
         }
         // A Discord invite reaches the running copy, so a second start for it
@@ -632,6 +642,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // A match link likewise, as "<bridge id> <match id>".
     SetEnvironmentVariableW(L"SF4E_MATCH_LINK", !matchLink.Valid() ? nullptr :
         sf4e::platform::Utf8ToWide((matchLink.bridgeId + " " + matchLink.matchId).c_str()).c_str());
+    // A connect link as the service's ID.
+    SetEnvironmentVariableW(L"SF4E_CONNECT_LINK", connectBridge.empty() ? nullptr :
+        sf4e::platform::Utf8ToWide(connectBridge.c_str()).c_str());
     // A folder picked in recovery on an earlier launch comes before the search.
     sf4e::launcher::RememberedFolder remembered{sf4e::platform::Utf8ToWide(settings.gameDirectory.c_str())};
     const auto exists = [](const std::wstring& path) { return PathFileExistsW(path.c_str()) != FALSE; };

@@ -2,7 +2,8 @@
 
 // Hands a link from a second Launcher.exe (started by the browser for an
 // ember: link) to the game that is already running: a room link
-// (ember://join/...) or a tournament match link (ember://tournament/open).
+// (ember://join/...), a tournament match link (ember://tournament/open) or a
+// Discord connect link (ember://discord/connect).
 // The game holds, for each, a small named section, an auto-reset event and a
 // mutex in this session's Local namespace; the launcher writes the slot and
 // signals. All are created with the default security of the player's own
@@ -26,6 +27,8 @@ inline const wchar_t* JoinLinkSectionName() { return L"Local\\SF4EmberJoinLink";
 inline const wchar_t* JoinLinkEventName() { return L"Local\\SF4EmberJoinLinkReady"; }
 inline const wchar_t* MatchLinkSectionName() { return L"Local\\SF4EmberMatchLink"; }
 inline const wchar_t* MatchLinkEventName() { return L"Local\\SF4EmberMatchLinkReady"; }
+inline const wchar_t* ConnectLinkSectionName() { return L"Local\\SF4EmberConnectLink"; }
+inline const wchar_t* ConnectLinkEventName() { return L"Local\\SF4EmberConnectLinkReady"; }
 inline std::wstring JoinLinkLockName(const wchar_t* section) { return std::wstring(section) + L"Lock"; }
 inline bool JoinLinkLocked(DWORD wait) { return wait == WAIT_OBJECT_0 || wait == WAIT_ABANDONED; }
 
@@ -36,6 +39,10 @@ struct JoinLinkSlot {
 struct MatchLinkSlot {
 	char bridge[48];
 	char match[48];
+};
+
+struct ConnectLinkSlot {
+	char bridge[48];
 };
 
 // The game's end of one slot. Open once; Take on the game thread, as often as wanted.
@@ -164,6 +171,32 @@ inline bool DeliverMatchLink(const tournament_link::MatchLink& link,
 	MatchLinkSlot slot = {};
 	std::memcpy(slot.bridge, link.bridgeId.data(), link.bridgeId.size());
 	std::memcpy(slot.match, link.matchId.data(), link.matchId.size());
+	return DeliverSlot(slot, sectionName, readyName);
+}
+
+// Discord connect links: the service.
+class ConnectLinkMailbox {
+public:
+	ConnectLinkMailbox(const wchar_t* section = ConnectLinkSectionName(), const wchar_t* ready = ConnectLinkEventName())
+		: slots_(section, ready) {}
+	bool Open() { return slots_.Open(); }
+	// The newest service since the last call, or "".
+	std::string Take() {
+		ConnectLinkSlot slot;
+		if (!slots_.Take(slot)) return std::string();
+		char bridge[sizeof(slot.bridge) + 1] = {};
+		std::memcpy(bridge, slot.bridge, sizeof(slot.bridge));
+		return tournament_link::IsBridgeId(bridge) ? std::string(bridge) : std::string();
+	}
+private:
+	SlotMailbox<ConnectLinkSlot> slots_;
+};
+
+inline bool DeliverConnectLink(const std::string& bridge,
+	const wchar_t* sectionName = ConnectLinkSectionName(), const wchar_t* readyName = ConnectLinkEventName()) {
+	if (!tournament_link::IsBridgeId(bridge)) return false;
+	ConnectLinkSlot slot = {};
+	std::memcpy(slot.bridge, bridge.data(), bridge.size());
 	return DeliverSlot(slot, sectionName, readyName);
 }
 

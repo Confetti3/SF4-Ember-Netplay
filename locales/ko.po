@@ -2667,6 +2667,72 @@ msgstr "선택 사항입니다. Discord 계정을 연결하면 이 서비스를 
 msgid "identity.discord_remove_detail"
 msgstr "이 서비스에서 이 Discord 계정과 Ember ID의 연결을 끊습니다. 대회 사이트가 이 계정으로 더 이상 찾을 수 없습니다."
 
+msgid "screen.connect_discord"
+msgstr "Discord 연결"
+
+msgid "identity.connect_discord_detail"
+msgstr "대회 사이트(예: BluMint)가 알고 있는 Discord 계정을 연결하면 대회 사이트가 Ember ID를 찾을 수 있습니다. Ember가 단계별로 안내합니다."
+
+msgid "connect.about"
+msgstr "이 기능의 역할"
+
+msgid "connect.about_detail"
+msgstr "BluMint 같은 대회 사이트는 Discord 계정으로 플레이어를 찾습니다. 내 계정을 연결하면 Ember의 대회 서비스가 어떤 Ember ID가 내 것인지 알게 되어, 사이트가 나를 찾고 경기를 Ember로 보낼 수 있습니다. Ember에서 Discord는 선택 사항입니다."
+
+msgid "connect.create"
+msgstr "Ember ID 만들기"
+
+msgid "connect.create_detail"
+msgstr "3단계 중 1단계. Ember ID는 이 Ember가 내 것임을 대회 사이트에 알려 줍니다. 이 PC에서 만들어지며 계정이나 이메일은 필요 없습니다."
+
+msgid "connect.identity_detail"
+msgstr "3단계 중 1단계. Ember ID가 아직 준비되지 않았습니다. Ember ID 화면을 열어 필요한 사항을 확인하세요."
+
+msgid "connect.trust_detail"
+msgstr "3단계 중 2단계. Ember가 내 Ember ID로 {0}의 Ember 대회 서비스에 로그인할 수 있게 합니다."
+
+msgid "connect.looking_up"
+msgstr "Ember 대회 서비스를 찾는 중"
+
+msgid "connect.looking_up_detail"
+msgstr "3단계 중 2단계. 잠시 기다려 주세요."
+
+msgid "connect.unknown"
+msgstr "대회 서비스를 찾을 수 없음"
+
+msgid "connect.unknown_detail"
+msgstr "Ember가 이 링크의 대회 서비스에 연결하지 못했거나 알 수 없는 서비스입니다. 인터넷 연결을 확인하고 다시 시도하거나, 연동된 계정에서 서비스를 추가하세요."
+
+msgid "connect.retry"
+msgstr "다시 시도"
+
+msgid "connect.retry_detail"
+msgstr "대회 서비스를 다시 찾습니다."
+
+msgid "connect.connect_detail"
+msgstr "3단계 중 3단계. Ember가 브라우저에서 Discord를 엽니다. 대회 사이트가 알고 있는 Discord 계정으로 승인하세요. 완료되면 이 화면에 표시됩니다."
+
+msgid "connect.connected"
+msgstr "Discord 연결됨"
+
+msgid "connect.connected_detail"
+msgstr "이 서비스를 쓰는 대회 사이트가 이제 Ember ID를 찾을 수 있습니다. 대회 사이트로 돌아가 계속하세요. 연결을 끊으려면 연동된 계정을 사용하세요."
+
+msgid "connect.off"
+msgstr "Discord 로그인이 꺼져 있음"
+
+msgid "connect.off_detail"
+msgstr "이 대회 서비스는 현재 Discord 로그인을 제공하지 않습니다. 나중에 다시 시도하세요."
+
+msgid "connect.waiting"
+msgstr "브라우저에서 승인하세요. Discord가 연결되면 이 화면이 업데이트됩니다."
+
+msgid "connect.done"
+msgstr "Discord 계정 {0}을(를) 연결했습니다. 대회 사이트로 돌아가도 됩니다."
+
+msgid "connect.link_waiting"
+msgstr "대회 사이트에서 Discord 연결을 요청했습니다. 방을 나가면 Ember가 Discord 연결 화면을 엽니다."
+
 msgid "identity.site"
 msgstr "사이트"
 

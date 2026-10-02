@@ -15,6 +15,9 @@ using netplay::IdentityRequest;
 // An answer gets this long before the panel stops waiting for it. Key work
 // takes seconds; a bridge request is bounded by the helper's own timeouts.
 constexpr double AnswerSeconds = 120;
+// While a Discord sign-in is open in the browser, the account is read this
+// often, for as long as the bridge keeps the sign-in.
+constexpr double DiscordPollSeconds = 4, DiscordSignInSeconds = 600;
 
 // The helper's and the bridge's failure codes, in words. Codes that mean the
 // same thing to the player share a sentence.
@@ -91,7 +94,21 @@ const netplay::IdentityBridge* FindBridge(const ShellView& v, const std::string&
 }
 
 bool IdentityPanel::Owns(const std::string& screen) {
-    return screen == "identity" || screen == "identity-backup" || screen == "linked-accounts" || screen == "tournament-matches";
+    return screen == "identity" || screen == "identity-backup" || screen == "linked-accounts" || screen == "tournament-matches" ||
+        screen == "discord-connect";
+}
+
+void IdentityPanel::OpenDiscord(const std::string& bridge) {
+    connectBridge_ = bridge;
+    // The screen reads everything again, as if newly opened.
+    lastScreen_.clear();
+}
+
+const netplay::IdentityBridge* IdentityPanel::ConnectTarget(const ShellView& v) const {
+    if (!connectBridge_.empty()) return FindBridge(v, connectBridge_);
+    const auto it = std::find_if(v.identity.bridges.begin(), v.identity.bridges.end(),
+        [](const netplay::IdentityBridge& bridge) { return bridge.origin == EmberService; });
+    return it == v.identity.bridges.end() ? nullptr : &*it;
 }
 
 void IdentityPanel::OpenMatch(const std::string& bridge, const std::string& match) {
@@ -147,7 +164,10 @@ void IdentityPanel::Wipe() {
 
 void IdentityPanel::Refresh(const ShellView&, const std::string& screen) {
     IdentityRequest status; status.op = IdentityOp::Status; Queue(std::move(status));
-    if (screen == "linked-accounts" || screen == "tournament-matches") { IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list)); }
+    if (screen == "discord-connect") connectLookedUp_ = false;
+    if (screen == "linked-accounts" || screen == "tournament-matches" || screen == "discord-connect") {
+        IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
+    }
     if (screen == "tournament-matches") wantAssignments_ = true;
 }
 
@@ -171,6 +191,16 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
         Say(loc::T("identity.failure.timeout"), true); sent_ = 0; queue_.clear();
     }
     SendTournament(v, screen, submit);
+    // While Discord's page is open in the browser, the account is read again
+    // every few seconds, so the screen shows it connected by itself.
+    if (discordWaitUntil_ > 0 && !sent_ && queue_.empty() && now >= discordPollAt_ &&
+        (screen == "discord-connect" || screen == "linked-accounts")) {
+        if (now > discordWaitUntil_) discordWaitUntil_ = 0;
+        else {
+            discordPollAt_ = now + DiscordPollSeconds;
+            IdentityRequest poll; poll.op = IdentityOp::DiscordStatus; poll.bridge = bridge_; Queue(std::move(poll));
+        }
+    }
     if (sent_ || queue_.empty()) return;
     ShellAction action;
     action.command.generation = v.session.generation;
@@ -240,6 +270,41 @@ std::optional<MenuEntry> IdentityPanel::DiscordRow(const ShellView& v, bool busy
     return row;
 }
 
+// Steps 2 and 3 of Connect Discord, with the Ember ID ready: trust the
+// service, then connect Discord on it.
+void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows, bool busy) const {
+    const auto& id = v.identity;
+    const auto* target = ConnectTarget(v);
+    if (!target) {
+        const bool offered = !found_.id.empty() && found_.origin == EmberService &&
+            (connectBridge_.empty() || found_.id == connectBridge_);
+        if (offered) {
+            auto trust = ConfirmRow("id-approve", loc::Tf("identity.trust", found_.name.empty() ? found_.origin : found_.name),
+                loc::Tf("connect.trust_detail", found_.origin), !busy);
+            trust.userText = true; rows.push_back(std::move(trust));
+        } else if (busy) {
+            rows.push_back(Info("dc-looking", loc::T("connect.looking_up"), {}, loc::T("connect.looking_up_detail")));
+        } else {
+            rows.push_back(Info("dc-unknown", loc::T("connect.unknown"), {}, loc::T("connect.unknown_detail")));
+            rows.push_back(Row("dc-retry", loc::T("connect.retry"), loc::T("connect.retry_detail")));
+            rows.push_back(Row("linked-accounts", loc::T("screen.linked_accounts"), loc::T("identity.linked_detail")));
+        }
+        return;
+    }
+    auto service = Info("dc-service", loc::T("identity.service"), target->name.empty() ? target->origin : target->name, target->origin);
+    service.userText = true; rows.push_back(std::move(service));
+    const bool read = bridge_ == target->id && discordBridge_ == target->id;
+    if (read && !id.discordUser.empty()) {
+        auto connected = Info("dc-connected", loc::T("connect.connected"), id.discordName, loc::T("connect.connected_detail"));
+        connected.userText = true; rows.push_back(std::move(connected));
+    } else if (id.inspected.id == target->id && !id.inspectedDiscord) {
+        rows.push_back(Info("dc-off", loc::T("connect.off"), {}, loc::T("connect.off_detail")));
+    } else {
+        rows.push_back(Row("id-discord-connect", loc::T("screen.connect_discord"), loc::T("connect.connect_detail"),
+            !busy && read));
+    }
+}
+
 void IdentityPanel::Finish(const ShellView& v) {
     const auto& id = v.identity;
     if (!v.identityRequest) {
@@ -257,11 +322,16 @@ void IdentityPanel::Finish(const ShellView& v) {
             IdentityRequest list; list.op = IdentityOp::LinkList; list.bridge = bridge_; Queue(std::move(list));
             return;
         }
+        if (sentOp_ == IdentityOp::DiscordStatus) discordWaitUntil_ = 0;
         Say(FailureText(id.failure), true); queue_.clear(); return;
     }
     switch (sentOp_) {
-    case IdentityOp::Enable: WipeText(newPassphrase_); WipeText(newConfirm_); Say(loc::T("identity.done.enabled"), false); break;
-    case IdentityOp::Unlock: Say(loc::T("identity.done.unlocked"), false); break;
+    case IdentityOp::Enable: case IdentityOp::Unlock:
+        if (sentOp_ == IdentityOp::Enable) { WipeText(newPassphrase_); WipeText(newConfirm_); }
+        Say(loc::T(sentOp_ == IdentityOp::Enable ? "identity.done.enabled" : "identity.done.unlocked"), false);
+        // Connect Discord goes on to the next step with the ID ready.
+        if (lastScreen_ == "discord-connect") { IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list)); }
+        break;
     case IdentityOp::Export:
         WipeText(backupPassphrase_); WipeText(backupConfirm_);
         Say(loc::Tf("identity.done.exported", id.exportPath), false, 10); break;
@@ -276,6 +346,15 @@ void IdentityPanel::Finish(const ShellView& v) {
             if (id.state == "ready") Say(loc::T("tournament.failure.link_service"), true, 12);
             opened_.reset();
         }
+        // Connect Discord selects its service once trusted, or looks Ember's
+        // own up for the player to trust.
+        if (lastScreen_ == "discord-connect" && id.state == "ready") {
+            if (const auto* target = ConnectTarget(v)) bridge_ = target->id;
+            else if (!connectLookedUp_) {
+                connectLookedUp_ = true; lookingUp_ = true; found_ = {};
+                IdentityRequest look; look.op = IdentityOp::BridgeInspect; look.origin = EmberService; Queue(std::move(look));
+            }
+        }
         if (!FindBridge(v, bridge_)) bridge_ = id.bridges.empty() ? std::string() : id.bridges.front().id;
         if (!bridge_.empty()) SelectBridge(v, bridge_);
         break;
@@ -288,9 +367,21 @@ void IdentityPanel::Finish(const ShellView& v) {
             if (id.inspectedDiscord || id.inspectedDiscordAccounts) { IdentityRequest discord; discord.op = IdentityOp::DiscordStatus; discord.bridge = bridge_; Queue(std::move(discord)); }
         }
         break;
-    case IdentityOp::DiscordStatus: discordBridge_ = sentBridge_; break;
-    case IdentityOp::DiscordConnect: Say(loc::T("identity.done.discord_opened"), false, 30); break;
-    case IdentityOp::DiscordRemove: discordBridge_ = sentBridge_; Say(loc::T("identity.done.discord_removed"), false); break;
+    case IdentityOp::DiscordStatus:
+        discordBridge_ = sentBridge_;
+        if (discordWaitUntil_ > 0 && !id.discordUser.empty()) {
+            discordWaitUntil_ = 0;
+            Say(loc::Tf("connect.done", id.discordName), false, 20);
+        }
+        break;
+    case IdentityOp::DiscordConnect:
+        Say(loc::T("identity.done.discord_opened"), false, 30);
+        discordWaitUntil_ = now_ + DiscordSignInSeconds; discordPollAt_ = now_ + DiscordPollSeconds;
+        break;
+    case IdentityOp::DiscordRemove:
+        discordBridge_ = sentBridge_; discordWaitUntil_ = 0;
+        Say(loc::T("identity.done.discord_removed"), false);
+        break;
     case IdentityOp::BridgeApprove: {
         Say(loc::Tf("identity.done.trusted", found_.name), false);
         bridge_ = found_.id; found_ = {}; WipeText(origin_);
@@ -320,6 +411,11 @@ void IdentityPanel::Finish(const ShellView& v) {
 
 bool IdentityPanel::Status(std::string& status, Tone& tone, double now) const {
     if (!message_.empty() && now < messageUntil_) { status = message_; tone = messageError_ ? Tone::Error : Tone::Success; return true; }
+    // The account is read again while the player approves in the browser.
+    const bool polling = lastScreen_ == "discord-connect" || lastScreen_ == "linked-accounts";
+    if (polling && discordWaitUntil_ > 0 && queue_.empty() && (!sent_ || sentOp_ == IdentityOp::DiscordStatus)) {
+        status = loc::T("connect.waiting"); tone = Tone::Pending; return true;
+    }
     if (sent_ || !queue_.empty()) {
         const bool slow = sentOp_ == IdentityOp::Enable || sentOp_ == IdentityOp::Unlock || sentOp_ == IdentityOp::Export ||
             sentOp_ == IdentityOp::PreviewImport || sentOp_ == IdentityOp::Import;
@@ -365,6 +461,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
         }
         if (ready) {
             rows.push_back(Row("id-copy", loc::T("identity.copy"), loc::T("identity.copy_detail")));
+            rows.push_back(Row("discord-connect", loc::T("screen.connect_discord"), loc::T("identity.connect_discord_detail")));
             rows.push_back(Row("linked-accounts", loc::T("screen.linked_accounts"), loc::T("identity.linked_detail")));
             rows.push_back(Row("tournament-matches", loc::T("screen.tournament_matches"), loc::T("identity.matches_detail")));
         }
@@ -461,6 +558,23 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
                 loc::Tf("identity.trust_detail", found_.origin), !busy);
             trust.userText = true; rows.push_back(std::move(trust));
         }
+    } else if (screen == "discord-connect") {
+        title = loc::T("screen.connect_discord");
+        rows.push_back(Info("dc-about", loc::T("connect.about"), {}, loc::T("connect.about_detail")));
+        if (!id.known) {
+            rows.push_back(Info("dc-checking", loc::T("identity.status"), loc::T("identity.state.checking"), loc::T("identity.state.checking_detail")));
+        } else if (id.state == "disabled") {
+            // Step 1: an Ember ID, created here.
+            if (id.passphraseRequired) local(rows);
+            const bool secretOk = !id.passphraseRequired || Matching(newPassphrase_, newConfirm_);
+            rows.push_back(ConfirmRow("id-enable", loc::T("connect.create"),
+                canEdit ? loc::T("connect.create_detail") : loc::T("identity.leave_room"), canEdit && !busy && secretOk));
+        } else if (!ready) {
+            // Locked, being created, or needing recovery: the Ember ID screen says what to do.
+            rows.push_back(Row("identity", loc::T("screen.identity"), loc::T("connect.identity_detail")));
+        } else {
+            ConnectRows(v, rows, busy);
+        }
     } else if (screen == "tournament-matches") {
         title = loc::T("screen.tournament_matches");
         if (!ready) {
@@ -515,7 +629,11 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
 void IdentityPanel::Activate(const MenuAction& a, const ShellView& v, MenuNavigation& nav) {
     const auto& id = v.identity;
     IdentityRequest r;
-    if (a.id == "linked-accounts" || a.id == "identity-backup" || a.id == "tournament-matches") { nav.Push(a.id); return; }
+    // Connect Discord opened from the menu is for Ember's own service.
+    if (a.id == "discord-connect") connectBridge_.clear();
+    if (a.id == "identity" || a.id == "linked-accounts" || a.id == "identity-backup" || a.id == "tournament-matches" ||
+        a.id == "discord-connect") { nav.Push(a.id); return; }
+    if (a.id == "dc-retry") { message_.clear(); Refresh(v, "discord-connect"); return; }
     if (a.id == "tm-refresh") { wantAssignments_ = true; message_.clear(); return; }
     if (a.id == "tm-paste") {
         // The match link the tournament site gave: its page or the ember: link.

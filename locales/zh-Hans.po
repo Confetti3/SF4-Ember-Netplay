@@ -2667,6 +2667,72 @@ msgstr "可选。关联你的 Discord 账号后，使用此服务的赛事网站
 msgid "identity.discord_remove_detail"
 msgstr "在此服务中解除此 Discord 账号与你的 Ember ID 的关联。赛事网站将无法再通过它找到你。"
 
+msgid "screen.connect_discord"
+msgstr "关联 Discord"
+
+msgid "identity.connect_discord_detail"
+msgstr "关联你的赛事网站（例如 BluMint）所知道的 Discord 账号，让它能找到你的 Ember ID。Ember 会逐步引导你完成。"
+
+msgid "connect.about"
+msgstr "这有什么用"
+
+msgid "connect.about_detail"
+msgstr "BluMint 等赛事网站通过 Discord 账号查找玩家。关联你的账号后，Ember 的赛事服务就能知道哪个 Ember ID 是你的，网站便能找到你并把你的对局发送到 Ember。在 Ember 中，Discord 是可选的。"
+
+msgid "connect.create"
+msgstr "创建 Ember ID"
+
+msgid "connect.create_detail"
+msgstr "第 1 步，共 3 步。你的 Ember ID 向赛事网站表明这份 Ember 属于你。它在此电脑上生成，无需账号或电子邮件。"
+
+msgid "connect.identity_detail"
+msgstr "第 1 步，共 3 步。你的 Ember ID 尚未就绪。请打开“Ember ID”界面查看还需要什么。"
+
+msgid "connect.trust_detail"
+msgstr "第 2 步，共 3 步。允许 Ember 使用你的 Ember ID 登录 {0} 上的 Ember 赛事服务。"
+
+msgid "connect.looking_up"
+msgstr "正在查找 Ember 的赛事服务"
+
+msgid "connect.looking_up_detail"
+msgstr "第 2 步，共 3 步。请稍候。"
+
+msgid "connect.unknown"
+msgstr "未找到赛事服务"
+
+msgid "connect.unknown_detail"
+msgstr "Ember 无法连接此链接对应的赛事服务，或不认识该服务。请检查网络连接后重试，或在“已绑定账号”中添加该服务。"
+
+msgid "connect.retry"
+msgstr "重试"
+
+msgid "connect.retry_detail"
+msgstr "重新查找赛事服务。"
+
+msgid "connect.connect_detail"
+msgstr "第 3 步，共 3 步。Ember 会在浏览器中打开 Discord。请在那里使用你的赛事网站所知道的 Discord 账号批准。完成后此界面会显示。"
+
+msgid "connect.connected"
+msgstr "Discord 已关联"
+
+msgid "connect.connected_detail"
+msgstr "使用此服务的赛事网站现在可以找到你的 Ember ID。请返回赛事网站继续。如需解除关联，请前往“已绑定账号”。"
+
+msgid "connect.off"
+msgstr "Discord 登录已关闭"
+
+msgid "connect.off_detail"
+msgstr "此赛事服务目前不提供 Discord 登录。请稍后再试。"
+
+msgid "connect.waiting"
+msgstr "请在浏览器中批准。Discord 关联后，此界面会更新。"
+
+msgid "connect.done"
+msgstr "已关联 Discord 账号 {0}。你可以返回赛事网站了。"
+
+msgid "connect.link_waiting"
+msgstr "有赛事网站请求你关联 Discord。离开房间后，Ember 会打开“关联 Discord”。"
+
 msgid "identity.site"
 msgstr "网站"
 

@@ -245,6 +245,14 @@ void StartHelper() {
         if (split != std::string::npos) OpenMatchLink(tournament_link::Checked(value.substr(0, split), value.substr(split + 1)));
         if (!runtime->matchLinks.Open()) spdlog::warn("Tournament: match links from the browser cannot reach this game");
     }
+    {
+        // A Discord connect link likewise: the service's ID.
+        char text[64] = {};
+        const DWORD length = GetEnvironmentVariableA("SF4E_CONNECT_LINK", text, sizeof(text));
+        SetEnvironmentVariableA("SF4E_CONNECT_LINK", nullptr);
+        if (length && length < sizeof(text)) OpenConnectLink(std::string(text, length));
+        if (!runtime->connectLinks.Open()) spdlog::warn("Tournament: Discord connect links from the browser cannot reach this game");
+    }
 	runtime->preferences.inputDelay = GetConfig().inputDelay;
 	runtime->preferences.lobby.editionSelect = GetConfig().editionSelect != 0;
 	runtime->preferences.lobby.roundCount = GetConfig().roundCount;

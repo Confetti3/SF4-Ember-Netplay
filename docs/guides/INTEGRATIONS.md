@@ -165,7 +165,13 @@ A bridge whose configuration has `discord` (the Discord application's
 `client_id`, with `<origin>/v1/discord/callback` in its redirect list) and
 whose integration secrets hold the client secret lists `discord` in its
 capabilities `features`. A player then connects their Discord account from
-Ember (Settings, Ember ID, Linked accounts, Discord):
+Ember (Settings, Ember ID, Connect Discord, or the Discord row under Linked
+accounts). A platform can send the player there directly: the link
+`ember://discord/connect?bridge=<bridge_id>`, offered by the page
+`https://embernetplay.link/start#<bridge_id>`, opens Ember's Connect Discord
+screen for that bridge, which creates the Ember ID if needed, offers to trust
+Ember's own bridge, and connects Discord when the player presses Connect. The
+link names a bridge only; Ember never trusts one by itself. The sign-in:
 
 1. Ember's helper calls `POST /v1/discord/start` with a `discord.connect`
    proof and opens the returned Discord page in the browser.

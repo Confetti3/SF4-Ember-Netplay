@@ -16,13 +16,17 @@ struct ShellAction;
 enum class Tone;
 
 // The Ember ID screens: the identity itself, its backup and restore, the
-// accounts linked through tournament services, and the matches those
-// services assigned, which the player can play from here. It holds the passphrases the
+// accounts linked through tournament services, the matches those services
+// assigned, which the player can play from here, and Connect Discord, which
+// takes a player from no Ember ID to a connected Discord account step by
+// step. It holds the passphrases the
 // player types until they are sent, and wipes them when the player leaves
 // these screens. One request is in flight at a time; the rest wait in order.
 class IdentityPanel {
 public:
     using Submit = std::function<bool(ShellAction)>;
+    // Ember's own tournament service, the one most players trust.
+    static constexpr const char* EmberService = "https://bridge.embernetplay.link";
     static bool Owns(const std::string& screen);
     // Why a tournament match stopped, from its stable code, in words.
     static std::string TournamentFailure(const std::string& code);
@@ -31,6 +35,10 @@ public:
     // Play. A service the player does not trust, or a match not in their
     // list, is said instead.
     void OpenMatch(const std::string& bridge, const std::string& match);
+    // A tournament site asked the player to connect Discord on `bridge`: the
+    // Connect Discord screen shows that service, from wherever the player is
+    // in the steps. Nothing is sent to Discord until the player presses Connect.
+    void OpenDiscord(const std::string& bridge);
     // The row the matches screen should focus, once it is among `rows`.
     std::string TakeFocus(const std::vector<MenuEntry>& rows);
     // Every frame, before the rows: notes answers, sends the next request,
@@ -61,6 +69,10 @@ private:
     void CheckOpenedMatch(const netplay::tournament::AssignmentList& list);
     MenuEntry ServiceRow(const ShellView& view, const netplay::IdentityBridge& bridge) const;
     std::optional<MenuEntry> DiscordRow(const ShellView& view, bool busy) const;
+    // The trusted service the Connect Discord screen is for: the one its link
+    // named, or Ember's own; null until the player trusts it.
+    const netplay::IdentityBridge* ConnectTarget(const ShellView& view) const;
+    void ConnectRows(const ShellView& view, std::vector<MenuEntry>& rows, bool busy) const;
 
     std::deque<netplay::IdentityRequest> queue_;
     std::uint64_t nextTicket_ = 0, sent_ = 0;
@@ -75,11 +87,18 @@ private:
     std::string newPassphrase_, newConfirm_, backupPassphrase_, backupConfirm_, restorePassphrase_;
     // The address starts as Ember's own tournament service, the one most
     // players trust; any other can be typed over it.
-    std::string restorePath_, origin_ = "https://bridge.embernetplay.link", code_;
+    std::string restorePath_, origin_ = EmberService, code_;
     // The selected service and site, and the service whose links the view lists.
     std::string bridge_, connection_, listedBridge_, sentBridge_;
     // The service the view's Discord account was last read from.
     std::string discordBridge_;
+    // The service a connect link named; empty for Ember's own. Whether this
+    // visit already looked Ember's own service up.
+    std::string connectBridge_;
+    bool connectLookedUp_ = false;
+    // While Discord's page is open in the browser: until when the sign-in
+    // can finish, and when the account is read again.
+    double discordWaitUntil_ = 0, discordPollAt_ = 0;
     // The backup the view's preview describes, while the path still names it.
     std::string previewPath_;
     // A service the player looked up and may now trust.

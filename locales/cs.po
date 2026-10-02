@@ -2667,6 +2667,72 @@ msgstr "Volitelné. Připojte svůj účet Discord, aby vás turnajové weby pou
 msgid "identity.discord_remove_detail"
 msgstr "Odpojí tento účet Discord od vašeho Ember ID v této službě. Turnajové weby vás podle něj už nenajdou."
 
+msgid "screen.connect_discord"
+msgstr "Připojit Discord"
+
+msgid "identity.connect_discord_detail"
+msgstr "Připojte účet Discord, který zná váš turnajový web, například BluMint, aby mohl najít vaše Ember ID. Ember vás tím provede krok za krokem."
+
+msgid "connect.about"
+msgstr "K čemu to slouží"
+
+msgid "connect.about_detail"
+msgstr "Turnajové weby, například BluMint, hledají hráče podle účtu Discord. Připojením vašeho účtu sdělíte turnajové službě Ember, které Ember ID je vaše, aby vás web mohl najít a posílat vaše zápasy do Ember. Discord je v Ember volitelný."
+
+msgid "connect.create"
+msgstr "Vytvořit Ember ID"
+
+msgid "connect.create_detail"
+msgstr "Krok 1 ze 3. Vaše Ember ID turnajovým webům sděluje, že tato kopie Ember patří vám. Vzniká v tomto počítači; účet ani e-mail nejsou potřeba."
+
+msgid "connect.identity_detail"
+msgstr "Krok 1 ze 3. Vaše Ember ID ještě není připravené. Otevřete obrazovku Ember ID a podívejte se, co je potřeba."
+
+msgid "connect.trust_detail"
+msgstr "Krok 2 ze 3. Ember se bude moci přihlásit k turnajové službě Ember na adrese {0} pomocí vašeho Ember ID."
+
+msgid "connect.looking_up"
+msgstr "Hledání turnajové služby Ember"
+
+msgid "connect.looking_up_detail"
+msgstr "Krok 2 ze 3. Chvilku strpení."
+
+msgid "connect.unknown"
+msgstr "Turnajová služba nenalezena"
+
+msgid "connect.unknown_detail"
+msgstr "Ember se nepodařilo spojit s turnajovou službou tohoto odkazu, nebo ji nezná. Zkontrolujte připojení k internetu a zkuste to znovu, nebo přidejte službu v části Propojené účty."
+
+msgid "connect.retry"
+msgstr "Zkusit znovu"
+
+msgid "connect.retry_detail"
+msgstr "Znovu vyhledá turnajovou službu."
+
+msgid "connect.connect_detail"
+msgstr "Krok 3 ze 3. Ember otevře Discord ve vašem prohlížeči. Schvalte to tam účtem Discord, který zná váš turnajový web. Tato obrazovka ukáže, až bude hotovo."
+
+msgid "connect.connected"
+msgstr "Discord připojen"
+
+msgid "connect.connected_detail"
+msgstr "Turnajové weby používající tuto službu teď najdou vaše Ember ID. Pokračujte návratem na turnajový web. Odpojit ho můžete v části Propojené účty."
+
+msgid "connect.off"
+msgstr "Přihlášení přes Discord je vypnuté"
+
+msgid "connect.off_detail"
+msgstr "Tato turnajová služba teď přihlášení přes Discord nenabízí. Zkuste to později."
+
+msgid "connect.waiting"
+msgstr "Schvalte to v prohlížeči. Tato obrazovka se aktualizuje, jakmile bude Discord připojen."
+
+msgid "connect.done"
+msgstr "Účet Discord {0} je připojen. Můžete se vrátit na turnajový web."
+
+msgid "connect.link_waiting"
+msgstr "Turnajový web vás žádá o připojení Discordu. Ember otevře obrazovku Připojit Discord, až opustíte místnost."
+
 msgid "identity.site"
 msgstr "Web"
 

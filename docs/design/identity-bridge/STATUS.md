@@ -102,7 +102,8 @@ These additions go beyond EMBER-TB-001, which covers two-player bracket sets onl
 lists queue rotation and multi-table scheduling as future work.
 
 - **Discord sign-in.** Optional on both sides: a bridge offers it when configured, and a
-  player connects it from Linked accounts. The bridge runs Discord's authorization code
+  player connects it from Connect Discord, which a platform can open with
+  `ember://discord/connect?bridge=<bridge_id>`. The bridge runs Discord's authorization code
   flow itself (`identify` only) and keeps the user ID and username, one account per Ember
   ID. Platforms that find players by Discord account (BluMint's player lookup) get the
   Ember ID and a link with `approved_via` `discord`, the player's own sign-in being the

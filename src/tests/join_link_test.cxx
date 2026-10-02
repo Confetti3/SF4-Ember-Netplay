@@ -1,6 +1,6 @@
-// Unit tests for room links and tournament match links handed over by a
-// browser (JoinLink.hxx, TournamentLink.hxx) and their hand-over from a second
-// launcher to a running game (JoinLinkMailbox.hxx).
+// Unit tests for room links, tournament match links and Discord connect links
+// handed over by a browser (JoinLink.hxx, TournamentLink.hxx) and their
+// hand-over from a second launcher to a running game (JoinLinkMailbox.hxx).
 
 #include "../common/JoinLink.hxx"
 #include "../common/TournamentLink.hxx"
@@ -98,6 +98,30 @@ static void TestOnlyTheTournamentLinkIsAccepted() {
 	CHECK(!ParsePasted("hello").Valid());
 }
 
+static void TestOnlyTheConnectLinkIsAccepted() {
+	using namespace sf4e::tournament_link;
+	const std::string bridge = Bridge, link = "ember://discord/connect?bridge=" + bridge;
+	CHECK(ParseConnectLink(link) == bridge);
+	CHECK(ParseConnectLink("EMBER://DISCORD/CONNECT/?bridge=" + bridge + "/") == bridge);
+	const std::string refused[] = {
+		"", "ember://discord/connect", "ember://discord/connect?", "ember://discord/connect?bridge=",
+		link + "&extra=1", link + "&bridge=" + bridge, link + "#x", link + " ", link + "\n",
+		"ember://discord/connect?bridge=" + bridge.substr(0, 39), "ember://discord/connect?bridge=" + std::string(Match),
+		"ember://discord/connect?bridge=BRG_0DBC0598-2312-4CE3-9DF8-E160330565E6",
+		"ember://discord/connect?bridge=brg%5F0dbc0598-2312-4ce3-9df8-e160330565e6",
+		"ember://discord/connect?Bridge=" + bridge, "ember://discord/connect?match=" + bridge,
+		"ember://discord/connectx?bridge=" + bridge, "ember://discord/remove?bridge=" + bridge,
+		"ember://user@discord/connect?bridge=" + bridge, "ember://tournament/open?bridge=" + bridge,
+		"https://embernetplay.link/start#" + bridge, link + std::string(200, 'A'),
+	};
+	for (const auto& uri : refused) CHECK(ParseConnectLink(uri).empty());
+	std::string nul = link;
+	nul.insert(nul.begin() + 30, '\0');
+	CHECK(ParseConnectLink(nul).empty());
+	// A connect link is neither a room nor a match link.
+	CHECK(ParseUri(link).empty() && !ParseLink(link).Valid());
+}
+
 #ifdef _WIN32
 // The launcher's hand-over to a running game, under names of the test's own.
 static void TestARunningGameReceivesTheLink() {
@@ -142,6 +166,20 @@ static void TestARunningGameReceivesTheLink() {
 	std::memcpy(forged.match, "x", 1);
 	CHECK(sf4e::platform::DeliverSlot(forged, matchSection.c_str(), matchReady.c_str()));
 	CHECK(!links.Take().Valid());
+	// A connect link travels in a slot of its own too.
+	using sf4e::platform::ConnectLinkMailbox;
+	using sf4e::platform::DeliverConnectLink;
+	const std::wstring connectSection = L"Local\\SF4EmberConnectLinkTest" + id, connectReady = L"Local\\SF4EmberConnectLinkTestReady" + id;
+	CHECK(!DeliverConnectLink(Bridge, connectSection.c_str(), connectReady.c_str()));
+	ConnectLinkMailbox connects(connectSection.c_str(), connectReady.c_str());
+	CHECK(connects.Open() && connects.Take().empty());
+	CHECK(DeliverConnectLink(Bridge, connectSection.c_str(), connectReady.c_str()));
+	CHECK(connects.Take() == Bridge && connects.Take().empty());
+	CHECK(!DeliverConnectLink(Match, connectSection.c_str(), connectReady.c_str()));
+	sf4e::platform::ConnectLinkSlot forgedConnect = {};
+	std::memcpy(forgedConnect.bridge, Match, 40);
+	CHECK(sf4e::platform::DeliverSlot(forgedConnect, connectSection.c_str(), connectReady.c_str()));
+	CHECK(connects.Take().empty());
 }
 #endif
 
@@ -150,6 +188,7 @@ int main() {
 	TestOnlyTheJoinLinkIsAccepted();
 	TestTheJoinScreenGetsTheShortLink();
 	TestOnlyTheTournamentLinkIsAccepted();
+	TestOnlyTheConnectLinkIsAccepted();
 #ifdef _WIN32
 	TestARunningGameReceivesTheLink();
 #endif

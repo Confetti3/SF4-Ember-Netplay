@@ -541,6 +541,16 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   }else{notice_=loc::T("tournament.link_waiting");noticeTone_=Tone::Pending;}
   noticeUntil_=now+15;
  }
+ // A Discord connect link opens Connect Discord for its service, where the
+ // player decides. In a room it waits until the room closes.
+ if(v.tournament.connect.sequence!=connectLinkSequence_){
+  connectLinkSequence_=v.tournament.connect.sequence;pendingConnect_=v.tournament.connect.bridge;
+  if(v.session.room!=RoomState::Idle){notice_=loc::T("connect.link_waiting");noticeTone_=Tone::Pending;noticeUntil_=now+15;}
+ }
+ if(!pendingConnect_.empty()&&v.session.room==RoomState::Idle){
+  identity_.OpenDiscord(pendingConnect_);pendingConnect_.clear();
+  if(nav.Screen()!="discord-connect"){nav.Home();nav.Push("discord-connect");}
+ }
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);

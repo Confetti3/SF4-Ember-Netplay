@@ -2667,6 +2667,72 @@ msgstr "Facultatif. Connectez votre compte Discord pour que les sites de tournoi
 msgid "identity.discord_remove_detail"
 msgstr "Déconnecte ce compte Discord de votre Ember ID sur ce service. Les sites de tournoi ne pourront plus vous trouver grâce à lui."
 
+msgid "screen.connect_discord"
+msgstr "Connecter Discord"
+
+msgid "identity.connect_discord_detail"
+msgstr "Connectez le compte Discord que connaît votre site de tournoi, comme BluMint, pour qu'il trouve votre Ember ID. Ember vous guide étape par étape."
+
+msgid "connect.about"
+msgstr "À quoi ça sert"
+
+msgid "connect.about_detail"
+msgstr "Les sites de tournoi comme BluMint trouvent les joueurs grâce à leur compte Discord. Connecter le vôtre indique au service de tournoi d'Ember quel Ember ID est le vôtre, pour que le site vous trouve et envoie vos matchs à Ember. Discord est facultatif dans Ember."
+
+msgid "connect.create"
+msgstr "Créer l'Ember ID"
+
+msgid "connect.create_detail"
+msgstr "Étape 1 sur 3. Votre Ember ID indique aux sites de tournoi que cette copie d'Ember est la vôtre. Il est créé sur ce PC, sans compte ni adresse e-mail."
+
+msgid "connect.identity_detail"
+msgstr "Étape 1 sur 3. Votre Ember ID n'est pas encore prêt. Ouvrez l'écran Ember ID pour voir ce qu'il lui faut."
+
+msgid "connect.trust_detail"
+msgstr "Étape 2 sur 3. Permet à Ember de se connecter au service de tournoi d'Ember sur {0} avec votre Ember ID."
+
+msgid "connect.looking_up"
+msgstr "Recherche du service de tournoi d'Ember"
+
+msgid "connect.looking_up_detail"
+msgstr "Étape 2 sur 3. Un instant."
+
+msgid "connect.unknown"
+msgstr "Service de tournoi introuvable"
+
+msgid "connect.unknown_detail"
+msgstr "Ember n'a pas pu joindre le service de tournoi de ce lien, ou ne le connaît pas. Vérifiez votre connexion Internet et réessayez, ou ajoutez le service dans Comptes associés."
+
+msgid "connect.retry"
+msgstr "Réessayer"
+
+msgid "connect.retry_detail"
+msgstr "Cherche à nouveau le service de tournoi."
+
+msgid "connect.connect_detail"
+msgstr "Étape 3 sur 3. Ember ouvre Discord dans votre navigateur. Approuvez-y avec le compte Discord que connaît votre site de tournoi. Cet écran indique quand c'est terminé."
+
+msgid "connect.connected"
+msgstr "Discord connecté"
+
+msgid "connect.connected_detail"
+msgstr "Les sites de tournoi qui utilisent ce service peuvent maintenant trouver votre Ember ID. Retournez sur le site de tournoi pour continuer. Pour déconnecter Discord, utilisez Comptes associés."
+
+msgid "connect.off"
+msgstr "Connexion Discord désactivée"
+
+msgid "connect.off_detail"
+msgstr "Ce service de tournoi ne propose pas la connexion Discord pour le moment. Réessayez plus tard."
+
+msgid "connect.waiting"
+msgstr "Approuvez dans votre navigateur. Cet écran se met à jour quand Discord est connecté."
+
+msgid "connect.done"
+msgstr "Compte Discord {0} connecté. Vous pouvez retourner sur le site de tournoi."
+
+msgid "connect.link_waiting"
+msgstr "Un site de tournoi vous demande de connecter Discord. Ember ouvre Connecter Discord quand vous quittez le salon."
+
 msgid "identity.site"
 msgstr "Site"
 

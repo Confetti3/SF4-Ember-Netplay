@@ -160,6 +160,9 @@ struct Runtime {
     // launcher or the start argument, and the last one the interface was given.
     platform::MatchLinkMailbox matchLinks;
     netplay::tournament::OpenedLink openedLink;
+    // Discord connect links (ember://discord/connect) likewise: the service.
+    platform::ConnectLinkMailbox connectLinks;
+    netplay::tournament::OpenedLink openedConnect;
     session::RoomRecoveryRuntime recovery;
     std::uint64_t observedAuthorityTerm=0;
 	// A terminal receipt is released only after its local outcome has been
@@ -277,6 +280,7 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 void TickTournament(bool helperReady);
 // Hands a match link from the browser to the interface, which opens its row.
 void OpenMatchLink(const tournament_link::MatchLink& link);
+void OpenConnectLink(const std::string& bridge);
 // A table's end as the room committed it, with how it compares to this game's own capture.
 void ObserveTournamentTerminal(const room::Event& event, netplay::MatchResultOutbox::TerminalResult terminal);
 netplay::tournament::Status TournamentStatus();

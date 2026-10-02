@@ -1,6 +1,8 @@
 // Opens an Ember link: a room invitation (/j#CODE) or a tournament match
 // (/m#BRIDGE/MATCH), or, at /start, tells a player new to Ember how to get it
-// and connect Discord for tournament sites. It reads the link from the URL
+// and connect Discord for tournament sites. A site that names its service
+// (/start#BRIDGE) gets a button that opens Ember's Connect Discord screen for
+// it. It reads the link from the URL
 // fragment, which is never sent to the server, makes no requests of its own,
 // and offers the ember: link only on the player's click, never by itself: a
 // browser without Ember's handler would otherwise replace this page with an error.
@@ -94,10 +96,30 @@
     lead: 'SF4 Ember Netplay plays Ultra Street Fighter IV tournament matches online. Get it, then connect the Discord account your tournament site knows.'
   };
 
+  // The same, from a site that names its service: Ember opens Connect Discord
+  // for it and walks the player through each step.
+  function connect(fragment) {
+    var bridge = fragment.replace(/\/$/, '');
+    if (!ID.test(bridge) || bridge.slice(0, 4) !== 'brg_') return null;
+    return {
+      title: 'Connect Ember',
+      lead: 'Your tournament site finds players by their Discord account. Ember connects yours in a few steps.',
+      code: null,
+      ember: 'ember://discord/connect?bridge=' + bridge,
+      link: null,
+      after: 'Ember opens Connect Discord and walks you through it. Your browser may ask first whether to open Ember. When it says Discord is connected, come back to your tournament site.',
+      fallback: 'That happens when Ember has not been started on this PC yet, on Linux or Steam Deck, or when the browser blocks it. Do it from Ember instead:',
+      steps: ['Start SF4 Ember Netplay.', 'Choose <strong>Settings</strong>, then <strong>Ember ID</strong>, and create your Ember ID if you have none.',
+        'Choose <strong>Connect Discord</strong> and follow the steps.'],
+      lasts: 'Discord is optional in Ember. Tournament sites that find players by Discord account, such as BluMint, need it.'
+    };
+  }
+
   function start() {
     var fragment = location.hash.replace(/^#/, '');
     var path = location.pathname.replace(/\/$/, '');
-    var found = path === '/start' ? GETTING_STARTED : path.indexOf('/m') === 0 ? match(path, fragment) : room(path, fragment);
+    var found = path === '/start' ? connect(fragment) || GETTING_STARTED :
+      path.indexOf('/m') === 0 ? match(path, fragment) : room(path, fragment);
     if (!found) {
       document.getElementById('missing').hidden = false;
       return;
@@ -117,7 +139,10 @@
     document.getElementById('open').href = found.ember;
     // The steps are this page's own fixed text.
     document.getElementById('steps').innerHTML = found.steps.map(function (step) { return '<li>' + step + '</li>'; }).join('');
-    document.getElementById('copy-link').addEventListener('click', function () { copy(found.link, 'Link copied. Paste it into Ember.'); });
+    if (found.fallback) document.getElementById('fallback-lead').textContent = found.fallback;
+    var copyLink = document.getElementById('copy-link');
+    if (found.link) copyLink.addEventListener('click', function () { copy(found.link, 'Link copied. Paste it into Ember.'); });
+    else copyLink.parentNode.hidden = true;
     if (found.code) {
       var code = document.getElementById('code');
       code.textContent = found.code;

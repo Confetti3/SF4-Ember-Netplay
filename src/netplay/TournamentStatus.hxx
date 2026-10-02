@@ -42,8 +42,9 @@ struct AssignmentList {
 	std::uint64_t finished = 0;
 };
 
-// The last match link a browser opened: the service and match it named. The
-// sequence changes with each link.
+// The last match link a browser opened: the service and match it named, or
+// the last Discord connect link: the service alone. The sequence changes
+// with each link.
 struct OpenedLink {
 	std::string bridge, match;
 	std::uint64_t sequence = 0;
@@ -57,7 +58,7 @@ struct Status {
 	std::string reason;
 	bool waitingForOpponent = false, waitingForPermit = false;
 	AssignmentList list;
-	OpenedLink link;
+	OpenedLink link, connect;
 };
 
 } } }
