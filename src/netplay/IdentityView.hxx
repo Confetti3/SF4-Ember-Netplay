@@ -18,6 +18,8 @@ struct IdentityView {
     std::string state, reason, emberId, fingerprint, backend;
     bool passphraseRequired = false;
     std::vector<IdentityBridge> bridges;
+    // Services the player removed: never trusted again by themselves.
+    std::vector<std::string> removedBridges;
     // The bridge last inspected or listed, with the connections it offers,
     // whether it offers Discord sign-in, and whether a connected Discord
     // account can be read and disconnected there (with or without sign-in).

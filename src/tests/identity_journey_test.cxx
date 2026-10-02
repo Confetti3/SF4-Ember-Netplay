@@ -378,7 +378,7 @@ void DiscordConnectLink(){
 // failure, changes nothing in the new visit.
 void DiscordWaitsForItsService(){
  using namespace sf4e;using netplay::IdentityOp;
- Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";h.view.tournament.connectAgeMs=60000;
+ Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";h.view.tournament.connect.confirm=true;
  id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
  const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
  id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};h.Frame();
@@ -467,7 +467,7 @@ void DiscordWaitsForItsService(){
 // Connect Discord itself, and through a visit to the Ember ID screen.
 void DiscordConnectKeepsItsService(){
  using namespace sf4e;using netplay::IdentityOp;
- Harness h;auto& id=h.view.identity;id.known=true;id.state="locked";h.Frame();h.view.tournament.connectAgeMs=60000;
+ Harness h;auto& id=h.view.identity;id.known=true;id.state="locked";h.Frame();h.view.tournament.connect.confirm=true;
  const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
  std::vector<MenuEntry> rows;std::string status;
  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
@@ -542,9 +542,9 @@ void DiscordConnectPastedLink(){
  id.inspected=id.bridges[1];id.inspectedDiscord=true;answer();
  Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge==site,"The site's service's account was not read");
  id.discordUser.clear();id.discordName.clear();answer();
+ // Pasting is the player's press: Discord opens by itself, for the site's service.
  Check(row("dc-service")&&row("dc-service")->value=="Other","Connect Discord does not show the site's service");
- h.Choose("id-discord-connect");
- Check(sent().back()->op==IdentityOp::DiscordConnect&&sent().back()->bridge==site,"Connect did not name the site's service");
+ Check(sent().back()->op==IdentityOp::DiscordConnect&&sent().back()->bridge==site,"A pasted link did not open Discord for the site's service");
  clipboard.Platform_GetClipboardTextFn=nullptr;
  SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
@@ -557,7 +557,7 @@ void FirstSignInRetires(){
  const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
  std::vector<MenuEntry> rows;std::string status;
  for(int ending=0;ending<3;++ending){
-  Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";h.view.tournament.connectAgeMs=60000;
+  Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";h.view.tournament.connect.confirm=true;
   id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
   id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};h.Frame();
   SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
@@ -604,7 +604,7 @@ void ConnectReadsRecover(){
  std::vector<MenuEntry> rows;std::string status;
  const auto row=[&](const char* name)->const MenuEntry*{const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;});return it==rows.end()?nullptr:&*it;};
  for(int ending=0;ending<4;++ending){
-  Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";h.view.tournament.connectAgeMs=60000;
+  Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";h.view.tournament.connect.confirm=true;
   id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
   id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};h.Frame();
   SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
@@ -684,7 +684,7 @@ void RetainedChangesStayTheirs(){
  const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
  std::vector<MenuEntry> rows;std::string status;
  for(int ending=0;ending<2;++ending){
-  Harness h;auto& id=h.view.identity;id.known=true;id.state=ending==0?"ready":"locked";h.view.tournament.connectAgeMs=60000;
+  Harness h;auto& id=h.view.identity;id.known=true;id.state=ending==0?"ready":"locked";h.view.tournament.connect.confirm=true;
   id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
   id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};h.Frame();
   SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
@@ -788,12 +788,19 @@ void HomeGuides(){
  const auto answer=[&]{
   h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=true;id.failure.clear();h.Frame(0,2);
  };
- h.Screen("home");h.Frame();
+ // The state is not known yet: Home asks for it, and again after a failure.
+ id.known=false;h.Screen("home");h.Frame();
  Check(!sent().empty()&&sent().back()->op==IdentityOp::Status,"Home did not learn the Ember ID's state");
+ h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=0;h.view.identityRefusal="identity.refused.helper";h.Frame(0,2);
+ h.view.identityRefusal.clear();
+ Check(status!=loc::T("identity.refused.helper"),"A failed background read was said on Home");
+ const auto tries=sent().size();h.Frame(0,1900);
+ Check(sent().size()>tries&&sent().back()->op==IdentityOp::Status,"Home did not read the state again after a failure");
+ id.known=true;answer();
  Check(row("identity")&&row("identity")->detail==loc::T("home.identity_start"),"Home does not say to start at Ember ID");
  // With an ID and Ember's service, the matches are read in the background.
  id.state="ready";id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
- id.bridges={{"brg_1",ember,"Ember"}};answer();
+ id.bridges={{"brg_1",ember,"Ember"}};h.Frame(0,2);
  Check(sent().back()->op==IdentityOp::BridgeList,"Home did not learn the services");
  answer();h.Frame(0,2);
  Check(!played().empty()&&played().back()->op==Command::Op::Refresh&&played().back()->bridgeId=="brg_1","Home did not read the matches");
@@ -817,5 +824,74 @@ void HomeGuides(){
   "Without a service the matches screen does not lead to Connect Discord");
  SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
-int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();ConnectReadsRecover();RetainedChangesStayTheirs();EmberIdFromHome();HomeGuides();DiscordConnectPastedLink();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
+// The one-link attempt's guards: a second link while Discord's page is being
+// opened opens no second page; Cancel during setup stops it, and a later link
+// for the same service shows it rather than starting again; changing account
+// finishes only when another account is read; a service the player removed
+// is not trusted by itself.
+void OnboardingGuards(){
+ using namespace sf4e;using netplay::IdentityOp;
+ const std::string ember="https://bridge.embernetplay.link";
+ std::vector<MenuEntry> rows;std::string status;
+ const auto row=[&](const char* name)->const MenuEntry*{const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;});return it==rows.end()?nullptr:&*it;};
+ for(int part=0;part<3;++part){
+  Harness h;auto& id=h.view.identity;id.known=true;
+  id.state=part==0?"ready":"disabled";
+  if(part==0){id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";id.bridges={{"brg_1",ember,"Ember"}};}
+  if(part==2)id.removedBridges={"brg_1"};
+  h.Frame();
+  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
+  const auto sent=[&]{std::vector<const netplay::IdentityRequest*> out;for(const auto& a:h.actions)if(a.identity.op!=IdentityOp::None)out.push_back(&a.identity);return out;};
+  const auto answer=[&]{
+   h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=true;id.failure.clear();h.Frame(0,2);
+  };
+  const auto until=[&](IdentityOp op){for(int i=0;i<12&&sent().back()->op!=op;++i)answer();return sent().back()->op==op;};
+  const auto count=[&](IdentityOp op){std::size_t n=0;for(const auto* r:sent())n+=r->op==op;return n;};
+  const auto link=[&](std::uint64_t sequence){h.view.tournament.connect.bridge="brg_1";h.view.tournament.connect.sequence=sequence;h.Frame(0,2);};
+  if(part==0){
+   // A second link while Discord's page is being opened opens no second one.
+   link(1);
+   Check(until(IdentityOp::BridgeInspect),"The link did not inspect its service");
+   id.inspected=id.bridges[0];id.inspectedDiscord=true;answer();
+   Check(until(IdentityOp::DiscordStatus),"The link did not read the account");
+   id.discordUser.clear();id.discordName.clear();answer();
+   Check(sent().back()->op==IdentityOp::DiscordConnect,"The link did not open Discord");
+   const auto opening=sent().back()->ticket;
+   link(2);
+   h.view.identityTicket=opening;h.view.identityRequest=id.requestId=opening+100;id.ok=true;h.Frame(0,2);
+   Check(row("dc-waiting")&&count(IdentityOp::DiscordConnect)==1,"A second link opened a second page or lost the wait");
+   // Changing account: the old account read back keeps waiting; another finishes.
+   id.discordUser="111";id.discordName="kate";h.Frame(0,300);until(IdentityOp::DiscordStatus);answer();
+   Check(row("dc-connected")&&status==loc::Tf("connect.done","kate"),"The first account did not finish the sign-in");
+   h.Choose("id-discord-connect");
+   Check(sent().back()->op==IdentityOp::DiscordConnect,"Use a different Discord account did not open Discord");
+   answer();h.Frame(0,300);
+   Check(sent().back()->op==IdentityOp::DiscordStatus,"The change of account was not read");
+   answer();h.Frame(0,300);answer();
+   Check(row("dc-waiting")&&!row("dc-connected"),"The old account read back ended the change of account");
+   id.discordUser="222";id.discordName="sam";h.Frame(0,300);answer();
+   Check(row("dc-connected")&&row("dc-connected")->value=="sam","The new account did not finish the change");
+  }else if(part==1){
+   // Cancel during setup stops it; a later link for the service only shows it.
+   link(1);
+   Check(row("dc-progress")&&row("dc-cancel"),"Setting up offers no Cancel");
+   h.Choose("dc-cancel");h.Frame(0,2);for(int i=0;i<6;++i)answer();
+   Check(count(IdentityOp::Enable)==0&&status==loc::T("connect.cancelled"),"Cancel did not stop the setup");
+   link(2);for(int i=0;i<6;++i)answer();
+   Check(count(IdentityOp::Enable)==0&&row("dc-go"),"A link restarted a cancelled attempt");
+   h.Choose("dc-go");
+   Check(sent().back()->op==IdentityOp::Enable,"Connect did not restart the attempt");
+  }else{
+   // A service the player removed is offered to trust, not trusted.
+   link(1);
+   Check(until(IdentityOp::Enable),"The link did not create the Ember ID");
+   id.state="ready";id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";answer();
+   Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==ember,"The link did not look up Ember's own service");
+   id.inspected={"brg_1",ember,"Ember"};answer();for(int i=0;i<4;++i)answer();
+   Check(row("id-approve")&&count(IdentityOp::BridgeApprove)==0,"A removed service was trusted by itself");
+  }
+  SetMenuEntriesProbe({});SetMenuStatusProbe({});
+ }
+}
+int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();ConnectReadsRecover();RetainedChangesStayTheirs();EmberIdFromHome();HomeGuides();OnboardingGuards();DiscordConnectPastedLink();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

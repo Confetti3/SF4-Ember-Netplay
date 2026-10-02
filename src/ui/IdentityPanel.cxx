@@ -18,8 +18,9 @@ constexpr double AnswerSeconds = 120;
 // While a Discord sign-in is open in the browser, the account is read this
 // often, for as long as the bridge keeps the sign-in.
 constexpr double DiscordPollSeconds = 4, DiscordSignInSeconds = 600;
-// Away from the matches screen, the assigned matches are read this often.
-constexpr double AssignmentsSeconds = 60;
+// Away from the matches screen, the assigned matches are read this often,
+// and a failed background read of the state or services is tried again after this.
+constexpr double AssignmentsSeconds = 60, BackgroundRetrySeconds = 30;
 
 // The helper's and the bridge's failure codes, in words. Codes that mean the
 // same thing to the player share a sentence.
@@ -112,7 +113,9 @@ bool IdentityPanel::Superseded() const {
 }
 
 void IdentityPanel::ReadFailed() {
-    autoRun_ = false;
+    // A background read on Home is tried again a little later.
+    if (!Owns(lastScreen_) && Retirable(sentOp_)) backgroundAt_ = now_ + BackgroundRetrySeconds;
+    if (sentJourney_ == journey_ && (attempt_ == Attempt::Setup || attempt_ == Attempt::Opening)) attempt_ = Attempt::Stopped;
     if (sentOp_ == IdentityOp::DiscordStatus) {
         discord_[sentBridge_].failed = true;
         if (sentBridge_ == discordWaitBridge_) discordPaused_ = true;
@@ -127,18 +130,20 @@ void IdentityPanel::DropQueue() {
 
 void IdentityPanel::NewJourney() {
     ++journey_;
-    discordWaitUntil_ = 0; discordPaused_ = false; autoRun_ = false;
+    discordWaitUntil_ = 0; discordPaused_ = false;
+    attempt_ = Attempt::None; attemptBefore_.clear();
     discordWaitBridge_.clear();
     queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [](const Queued& q) { return Retirable(q.request.op); }), queue_.end());
 }
 
 void IdentityPanel::OpenDiscord(const std::string& bridge, bool automatic) {
-    // A second link for the sign-in already open in the browser opens no
-    // second page: the screen shows the wait.
-    if (discordWaitUntil_ > 0 && bridge == discordWaitBridge_) { lastScreen_.clear(); return; }
+    // A link for the attempt under way, or one that stopped, shows it: no
+    // second page, and no restart without Connect or Try again.
+    const bool same = bridge == connectBridge_ || (!discordWaitBridge_.empty() && bridge == discordWaitBridge_);
+    if (attempt_ != Attempt::None && same) { lastScreen_.clear(); return; }
     NewJourney();
     connectBridge_ = bridge;
-    autoRun_ = automatic;
+    attempt_ = automatic ? Attempt::Setup : Attempt::None;
     // The screen reads everything again, as if newly opened.
     lastScreen_.clear();
 }
@@ -272,6 +277,10 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
     const bool owned = Owns(screen);
     if (!owned && onScreens_) Wipe();
     const bool entered = owned && screen != lastScreen_;
+    // Leaving Connect Discord while it sets up stops it: nothing opens a
+    // browser page behind the player's back.
+    if (lastScreen_ == "discord-connect" && screen != "discord-connect" &&
+        (attempt_ == Attempt::Setup || attempt_ == Attempt::Opening)) CancelAttempt();
     onScreens_ = owned; lastScreen_ = screen;
     if (entered) Refresh(v, screen);
     // An answer from a replaced journey is retired without touching the
@@ -281,22 +290,23 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
         sent_ = 0;
     }
     else if (sent_ && now - sentAt_ > AnswerSeconds) {
-        if (!Superseded()) { Say(loc::T("identity.failure.timeout"), true); DropQueue(); }
+        if (!Superseded()) {
+            if (Owns(lastScreen_) || !Retirable(sentOp_)) Say(loc::T("identity.failure.timeout"), true);
+            ReadFailed(); DropQueue();
+        }
         sent_ = 0;
     }
     // Away from these screens, Home learns the state, then the services.
-    if (!owned && !sent_ && queue_.empty()) {
-        if (!statusAsked_) { statusAsked_ = true; IdentityRequest status; status.op = IdentityOp::Status; Queue(std::move(status)); }
-        else if (!servicesAsked_ && v.identity.state == "ready") {
-            servicesAsked_ = true; IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
-        }
+    if (!owned && !sent_ && queue_.empty() && now >= backgroundAt_) {
+        if (!v.identity.known) { IdentityRequest status; status.op = IdentityOp::Status; Queue(std::move(status)); }
+        else if (!servicesKnown_ && v.identity.state == "ready") { IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list)); }
     }
     SendTournament(v, screen, submit);
     // While Discord's page is open in the browser, the account is read again
     // every few seconds, so the screen shows it connected by itself.
     if (discordWaitUntil_ > 0 && !discordPaused_ && !sent_ && queue_.empty() && now >= discordPollAt_ &&
         (screen == "discord-connect" || screen == "linked-accounts")) {
-        if (now > discordWaitUntil_) discordWaitUntil_ = 0;
+        if (now > discordWaitUntil_) { discordWaitUntil_ = 0; attempt_ = Attempt::Stopped; }
         else {
             discordPollAt_ = now + DiscordPollSeconds;
             IdentityRequest poll; poll.op = IdentityOp::DiscordStatus; poll.bridge = discordWaitBridge_; Queue(std::move(poll));
@@ -311,7 +321,7 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
     const auto ticket = action.identity.ticket;
     sentOp_ = action.identity.op; sentBridge_ = action.identity.bridge; sentOrigin_ = action.identity.origin;
     if (submit(std::move(action))) { sent_ = ticket; sentAt_ = now; }
-    else { Say(loc::T("error.queue_failed"), true); DropQueue(); }
+    else { Say(loc::T("error.queue_failed"), true); ReadFailed(); DropQueue(); }
 }
 
 void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen, const Submit& submit) {
@@ -392,9 +402,29 @@ bool IdentityPanel::EmberOffered() const {
     return !found_.id.empty() && found_.origin == EmberService && (connectBridge_.empty() || found_.id == connectBridge_);
 }
 
+bool IdentityPanel::Removed(const ShellView& v, const std::string& bridge) const {
+    const auto& removed = v.identity.removedBridges;
+    return std::find(removed.begin(), removed.end(), bridge) != removed.end();
+}
+
+void IdentityPanel::OpenSignIn(const std::string& bridge) {
+    const auto account = discord_.find(bridge);
+    attemptBefore_ = account == discord_.end() ? std::string() : account->second.user;
+    attempt_ = Attempt::Opening; discordWaitBridge_ = bridge;
+    IdentityRequest r; r.op = IdentityOp::DiscordConnect; r.bridge = bridge; Queue(std::move(r));
+}
+
+void IdentityPanel::CancelAttempt() {
+    queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [&](const Queued& q) {
+        return q.journey == journey_ && (q.request.op == IdentityOp::Enable || q.request.op == IdentityOp::BridgeApprove ||
+            q.request.op == IdentityOp::DiscordConnect);
+    }), queue_.end());
+    attempt_ = Attempt::Stopped; discordWaitUntil_ = 0; discordPaused_ = false;
+}
+
 void IdentityPanel::ConnectGo(const ShellView& v) {
     const auto& id = v.identity;
-    autoRun_ = true; message_.clear();
+    attempt_ = Attempt::Setup; message_.clear();
     if (id.state == "disabled") {
         IdentityRequest r; r.op = IdentityOp::Enable;
         if (id.passphraseRequired) r.passphrase = newPassphrase_;
@@ -415,7 +445,7 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
     const auto* target = ConnectTarget(v);
     if (!target) {
         const bool offered = EmberOffered();
-        const bool removed = offered && std::find(forgotten_.begin(), forgotten_.end(), found_.id) != forgotten_.end();
+        const bool removed = offered && Removed(v, found_.id);
         if (removed) {
             // Removed by the player this run: trusting it again is theirs to say.
             auto trust = ConfirmRow("id-approve", loc::Tf("identity.trust", found_.name.empty() ? found_.origin : found_.name),
@@ -441,6 +471,9 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
     if (waiting) {
         rows.push_back(Info("dc-waiting", loc::T("connect.waiting_label"), {}, loc::T("connect.waiting_detail")));
         rows.push_back(Row("dc-cancel", loc::T("common.cancel"), loc::T("connect.cancel_detail")));
+    } else if (attempt_ == Attempt::Setup || attempt_ == Attempt::Opening) {
+        rows.push_back(Info("dc-progress", loc::T("connect.setting_up"), {}, loc::T("connect.setting_up_detail")));
+        rows.push_back(Row("dc-cancel", loc::T("common.cancel"), loc::T("connect.cancel_detail")));
     } else if (read && !account->second.user.empty()) {
         auto connected = Info("dc-connected", loc::T("connect.connected"), account->second.name, loc::T("connect.connected_detail"));
         connected.userText = true; rows.push_back(std::move(connected));
@@ -448,8 +481,6 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
         rows.push_back(Row("id-discord-connect", loc::T("connect.change"), loc::T("connect.change_detail"), !busy));
         auto remove = ConfirmRow("id-discord-remove", loc::T("identity.unlink"), loc::T("identity.discord_remove_detail"), !busy);
         remove.hint = loc::T("identity.unlink"); rows.push_back(std::move(remove));
-    } else if (autoRun_ && busy) {
-        rows.push_back(Info("dc-progress", loc::T("connect.setting_up"), {}, loc::T("connect.setting_up_detail")));
     } else if (id.inspected.id == target->id && !id.inspectedDiscord) {
         rows.push_back(Info("dc-off", loc::T("connect.off"), {}, loc::T("connect.off_detail")));
     } else {
@@ -463,7 +494,8 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
 void IdentityPanel::Finish(const ShellView& v) {
     const auto& id = v.identity;
     if (!v.identityRequest) {
-        Say(v.identityRefusal.empty() ? std::string(loc::T("identity.refused.helper")) : std::string(loc::T(v.identityRefusal.c_str())), true);
+        if (Owns(lastScreen_) || !Retirable(sentOp_))
+            Say(v.identityRefusal.empty() ? std::string(loc::T("identity.refused.helper")) : std::string(loc::T(v.identityRefusal.c_str())), true);
         ReadFailed(); DropQueue(); return;
     }
     if (!id.ok) {
@@ -478,7 +510,9 @@ void IdentityPanel::Finish(const ShellView& v) {
             return;
         }
         ReadFailed();
-        Say(FailureText(id.failure), true); DropQueue(); return;
+        // A background read on Home fails quietly; it is tried again.
+        if (Owns(lastScreen_) || !Retirable(sentOp_)) Say(FailureText(id.failure), true);
+        DropQueue(); return;
     }
     switch (sentOp_) {
     case IdentityOp::Status:
@@ -486,8 +520,9 @@ void IdentityPanel::Finish(const ShellView& v) {
         // service; without an ID nothing holds Create back.
         if (lastScreen_ == "identity" && id.state == "ready") { IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list)); }
         // A running Connect creates the Ember ID itself when nothing must be typed.
-        if (autoRun_ && lastScreen_ == "discord-connect" && id.state == "disabled") {
-            if (id.passphraseRequired || !v.canEditPreferences) autoRun_ = false;
+        // A passphrase (Wine and Proton) waits for the player's Connect.
+        if (attempt_ == Attempt::Setup && lastScreen_ == "discord-connect" && id.state == "disabled") {
+            if (id.passphraseRequired || !v.canEditPreferences) attempt_ = Attempt::None;
             else { IdentityRequest r; r.op = IdentityOp::Enable; Queue(std::move(r)); }
         }
         break;
@@ -536,11 +571,12 @@ void IdentityPanel::Finish(const ShellView& v) {
     case IdentityOp::BridgeInspect:
         if (sentLookUp_) found_ = id.inspected;
         // A running Connect trusts Ember's own service, unless the player removed it.
-        if (sentLookUp_ && autoRun_ && lastScreen_ == "discord-connect") {
-            if (EmberOffered() && std::find(forgotten_.begin(), forgotten_.end(), found_.id) == forgotten_.end()) {
+        if (sentLookUp_ && attempt_ == Attempt::Setup && lastScreen_ == "discord-connect") {
+            if (EmberOffered() && !Removed(v, found_.id)) {
                 IdentityRequest r; r.op = IdentityOp::BridgeApprove; r.origin = found_.origin; r.bridge = found_.id; Queue(std::move(r));
             } else {
-                autoRun_ = false;
+                // Not Ember's own, or removed by the player: theirs to trust.
+                attempt_ = Attempt::None;
             }
         }
         // The selected service's profile, or a look-up of it once trusted.
@@ -553,29 +589,32 @@ void IdentityPanel::Finish(const ShellView& v) {
         break;
     case IdentityOp::DiscordStatus:
         discord_[sentBridge_] = DiscordAccount{id.discordUser, id.discordName, true, false};
-        // Only the service the sign-in is for ends the wait.
-        if (discordWaitUntil_ > 0 && sentBridge_ == discordWaitBridge_ && !id.discordUser.empty()) {
-            discordWaitUntil_ = 0;
+        // Only the service the sign-in is for ends the wait, and only with
+        // an account other than the one connected when Discord's page opened.
+        if (discordWaitUntil_ > 0 && sentBridge_ == discordWaitBridge_ && !id.discordUser.empty() && id.discordUser != attemptBefore_) {
+            discordWaitUntil_ = 0; attempt_ = Attempt::None;
             Say(loc::Tf("connect.done", id.discordName), false, 20);
         }
         // A running Connect opens Discord once the account is read: none yet,
         // on a service that offers sign-in. A connected account is shown.
-        if (autoRun_ && lastScreen_ == "discord-connect") {
+        if (attempt_ == Attempt::Setup && lastScreen_ == "discord-connect") {
             const auto* target = ConnectTarget(v);
-            if (target && target->id == sentBridge_ && id.discordUser.empty() && id.inspected.id == target->id && id.inspectedDiscord) {
-                IdentityRequest r; r.op = IdentityOp::DiscordConnect; r.bridge = sentBridge_; Queue(std::move(r));
+            if (target && target->id == sentBridge_) {
+                if (id.discordUser.empty() && id.inspected.id == target->id && id.inspectedDiscord) OpenSignIn(sentBridge_);
+                else attempt_ = Attempt::None;
             }
-            if (target && target->id == sentBridge_) autoRun_ = false;
         }
         break;
     case IdentityOp::DiscordConnect:
+        // A cancelled attempt does not wait, though its page may have opened.
+        if (attempt_ != Attempt::Opening || sentBridge_ != discordWaitBridge_) break;
         Say(loc::T("identity.done.discord_opened"), false, 30);
-        discordWaitBridge_ = sentBridge_;
+        attempt_ = Attempt::Waiting;
         discordWaitUntil_ = now_ + DiscordSignInSeconds; discordPollAt_ = now_ + DiscordPollSeconds; discordPaused_ = false;
         break;
     case IdentityOp::DiscordRemove:
         discord_[sentBridge_] = DiscordAccount{{}, {}, true, false};
-        if (sentBridge_ == discordWaitBridge_) discordWaitUntil_ = 0;
+        if (sentBridge_ == discordWaitBridge_) { discordWaitUntil_ = 0; attempt_ = Attempt::None; }
         Say(loc::T("identity.done.discord_removed"), false);
         break;
     case IdentityOp::BridgeApprove: {
@@ -585,7 +624,6 @@ void IdentityPanel::Finish(const ShellView& v) {
         break;
     }
     case IdentityOp::BridgeForget: {
-        forgotten_.push_back(sentBridge_);
         Say(loc::T("identity.done.forgotten"), false); bridge_.clear(); listedBridge_.clear();
         IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
         break;
@@ -771,8 +809,9 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
         }
     } else if (screen == "discord-connect") {
         title = loc::T("screen.connect_discord");
-        if (!id.known || autoRun_ && busy && !ready) {
+        if (!id.known || (attempt_ == Attempt::Setup || attempt_ == Attempt::Opening) && !ready) {
             rows.push_back(Info("dc-progress", loc::T("connect.setting_up"), {}, loc::T("connect.setting_up_detail")));
+            if (id.known) rows.push_back(Row("dc-cancel", loc::T("common.cancel"), loc::T("connect.cancel_detail")));
         } else if (id.state == "disabled") {
             // Connect creates the Ember ID first; only Wine and Proton need a passphrase for it.
             if (id.passphraseRequired) local(rows);
@@ -856,22 +895,23 @@ void IdentityPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
     if (a.id == "discord-connect") { NewJourney(); connectBridge_.clear(); }
     if (a.id == "identity" || a.id == "linked-accounts" || a.id == "identity-backup" || a.id == "tournament-matches" ||
         a.id == "discord-connect") { nav.Push(a.id); return; }
-    if (a.id == "dc-retry") { message_.clear(); Refresh(v, "discord-connect"); return; }
-    if (a.id == "dc-go") { ConnectGo(v); return; }
-    if (a.id == "dc-cancel") {
-        discordWaitUntil_ = 0; autoRun_ = false;
-        Say(loc::T("connect.cancelled"), false);
-        return;
+    if (a.id == "dc-retry") {
+        // Try again restarts a stopped attempt; a paused wait resumes its polls.
+        if (attempt_ == Attempt::Stopped) attempt_ = Attempt::Setup;
+        message_.clear(); Refresh(v, "discord-connect"); return;
     }
+    if (a.id == "dc-go") { ConnectGo(v); return; }
+    if (a.id == "dc-cancel") { CancelAttempt(); Say(loc::T("connect.cancelled"), false); return; }
     // Trusting a service on Connect Discord goes on to connect it.
-    if (a.id == "id-approve" && lastScreen_ == "discord-connect") autoRun_ = true;
+    if (a.id == "id-approve" && lastScreen_ == "discord-connect") attempt_ = Attempt::Setup;
     if (a.id == "dc-paste") {
         // The tournament site's link names its service; the journey starts over for it.
         const char* text = ImGui::GetClipboardText();
         const std::string bridge = tournament_link::ParseConnectPasted(text ? text : "");
         if (bridge.empty()) { Say(loc::T("connect.paste_failed"), true); return; }
+        // Pasting is the player's press: the steps run by themselves, as for a link.
         message_.clear();
-        OpenDiscord(bridge);
+        OpenDiscord(bridge, true);
         return;
     }
     if (a.id == "tm-refresh") { wantAssignments_ = true; message_.clear(); return; }
@@ -923,7 +963,7 @@ void IdentityPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
     else if (a.id == "id-approve") { r.op = IdentityOp::BridgeApprove; r.origin = found_.origin; r.bridge = found_.id; }
     else if (a.id.compare(0, 10, "id-unlink:") == 0) { r.op = IdentityOp::LinkRemove; r.bridge = bridge_; r.target = a.id.substr(10); }
     else if (a.id.compare(0, 10, "id-cancel:") == 0) { r.op = IdentityOp::LinkCancel; r.bridge = bridge_; r.target = a.id.substr(10); }
-    else if (a.id == "id-discord-connect") { r.op = IdentityOp::DiscordConnect; r.bridge = bridge_; }
+    else if (a.id == "id-discord-connect") { message_.clear(); OpenSignIn(bridge_); return; }
     else if (a.id == "id-discord-remove") { r.op = IdentityOp::DiscordRemove; r.bridge = bridge_; }
     else return;
     message_.clear();

@@ -44,6 +44,10 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
         for (const auto& bridge : data.value("bridges", nlohmann::json::array()))
             if (bridge.is_object() && view.bridges.size() < 16)
                 view.bridges.push_back({Text(bridge, "bridge_id", 64), Text(bridge, "origin"), Text(bridge, "display_name", 64)});
+        view.removedBridges.clear();
+        for (const auto& removed : data.value("removed", nlohmann::json::array()))
+            if (removed.is_string() && view.removedBridges.size() < 64)
+                view.removedBridges.push_back(removed.get<std::string>().substr(0, 64));
     } else if (view.op == "bridge_inspect") {
         const auto profile = data.value("profile", nlohmann::json::object());
         view.inspected = {Text(profile, "bridge_id", 64), Text(profile, "origin"), Text(profile, "display_name", 64)};

@@ -195,12 +195,13 @@ void OpenMatchLink(const tournament_link::MatchLink& link) {
 	spdlog::info("Tournament: a link opened match {}", link.matchId);
 }
 
-void OpenConnectLink(const std::string& bridge) {
+void OpenConnectLink(const std::string& bridge, bool launched) {
 	if (!tournament_link::IsBridgeId(bridge)) return;
 	auto& opened = runtime->openedConnect;
 	opened.bridge = bridge;
 	++opened.sequence;
-	opened.at = GetTickCount64();
+	const bool idle = AtMainMenu() && runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && !UserApp::netplay;
+	opened.confirm = !launched && !idle;
 	spdlog::info("Tournament: a link asked to connect Discord on service {}", bridge);
 }
 
@@ -291,7 +292,6 @@ netplay::tournament::Status TournamentStatus() {
 	status.list = runtime->assignmentList;
 	status.link = runtime->openedLink;
 	status.connect = runtime->openedConnect;
-	status.connectAgeMs = status.connect.at ? GetTickCount64() - status.connect.at : 0;
 	const auto& play = runtime->tournament;
 	status.phase = play.GetPhase();
 	status.bridgeId = play.BridgeId();

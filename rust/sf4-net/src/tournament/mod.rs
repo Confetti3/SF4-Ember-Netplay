@@ -535,12 +535,14 @@ fn identity_request(shared: &Shared, request: Request) -> Outcome {
 async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
     match request {
         Request::BridgeList {} => {
-            let bridges = shared
-                .bridges
-                .lock()
-                .map_err(|_| Failure::new("internal"))?
-                .list();
-            Ok(Some(json!({ "bridges": bridges })))
+            let (bridges, removed) = {
+                let store = shared
+                    .bridges
+                    .lock()
+                    .map_err(|_| Failure::new("internal"))?;
+                (store.list(), store.removed())
+            };
+            Ok(Some(json!({ "bridges": bridges, "removed": removed })))
         }
         Request::BridgeInspect { origin } => {
             let (profile, capabilities) = shared.client.inspect(&origin).await?;

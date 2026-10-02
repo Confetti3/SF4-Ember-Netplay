@@ -555,9 +555,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(v.session.room!=RoomState::Idle){notice_=loc::T("connect.link_waiting");noticeTone_=Tone::Pending;noticeUntil_=now+15;}
  }
  if(!pendingConnect_.empty()&&v.session.room==RoomState::Idle){
-  // A link the player just clicked goes on by itself; one that waited for
-  // a room or a match to end asks first.
-  const bool fresh=!pendingConnectStale_&&v.tournament.connectAgeMs<ConnectLinkFreshMs;
+  // A link the player just clicked goes on by itself; one that arrived
+  // during play or waited for a room asks first.
+  const bool fresh=!pendingConnectStale_&&!v.tournament.connect.confirm;
   identity_.OpenDiscord(pendingConnect_,fresh);pendingConnect_.clear();pendingConnectStale_=false;
   if(nav.Screen()!="discord-connect"){nav.Home();nav.Push("identity");nav.Push("discord-connect");}
  }

@@ -250,7 +250,7 @@ void StartHelper() {
         char text[64] = {};
         const DWORD length = GetEnvironmentVariableA("SF4E_CONNECT_LINK", text, sizeof(text));
         SetEnvironmentVariableA("SF4E_CONNECT_LINK", nullptr);
-        if (length && length < sizeof(text)) OpenConnectLink(std::string(text, length));
+        if (length && length < sizeof(text)) OpenConnectLink(std::string(text, length), true);
         if (!runtime->connectLinks.Open()) spdlog::warn("Tournament: Discord connect links from the browser cannot reach this game");
     }
 	runtime->preferences.inputDelay = GetConfig().inputDelay;

@@ -280,7 +280,8 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 void TickTournament(bool helperReady);
 // Hands a match link from the browser to the interface, which opens its row.
 void OpenMatchLink(const tournament_link::MatchLink& link);
-void OpenConnectLink(const std::string& bridge);
+// `launched`: the link started Ember, so it was just clicked.
+void OpenConnectLink(const std::string& bridge, bool launched = false);
 // A table's end as the room committed it, with how it compares to this game's own capture.
 void ObserveTournamentTerminal(const room::Event& event, netplay::MatchResultOutbox::TerminalResult terminal);
 netplay::tournament::Status TournamentStatus();

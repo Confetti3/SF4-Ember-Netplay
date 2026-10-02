@@ -106,8 +106,16 @@ private:
     void ConnectNext(const ShellView& view);
     // The press of Connect Discord: runs the steps from wherever they stand.
     void ConnectGo(const ShellView& view);
-    // Ember's own service, found by its look-up, may be trusted now.
+    // Ember's own service, found by its look-up, may be trusted now; the
+    // player has not removed it (the helper remembers removals).
     bool EmberOffered() const;
+    bool Removed(const ShellView& view, const std::string& bridge) const;
+    // Opens Discord's page for `bridge`, noting the account connected now.
+    void OpenSignIn(const std::string& bridge);
+    // Stops the attempt: what it queued and has not sent goes too, and an
+    // answer already out no longer advances it.
+    void CancelAttempt();
+    bool Active() const { return attempt_ == Attempt::Setup || attempt_ == Attempt::Opening || attempt_ == Attempt::Waiting; }
     // Connect Discord starts over: a sign-in an earlier visit opened is no
     // longer waited for, and its late answers start no wait.
     void NewJourney();
@@ -149,11 +157,17 @@ private:
     // visit already looked Ember's own service up.
     std::string connectBridge_;
     bool connectLookedUp_ = false;
-    // Connect Discord's steps run by themselves until Discord's page opens,
-    // a step needs the player, or one fails.
-    bool autoRun_ = false;
-    // Services the player removed this run: never trusted again by themselves.
-    std::vector<std::string> forgotten_;
+    // The Connect Discord attempt on the journey's service: running its steps
+    // by itself (Setup), opening Discord's page (Opening), waiting for the
+    // account while the page is open (Waiting), or stopped by a failure,
+    // Cancel or its deadline (Stopped), which only Connect or Try again
+    // restarts. A link for the same service shows it rather than starting
+    // another.
+    enum class Attempt { None, Setup, Opening, Waiting, Stopped };
+    Attempt attempt_ = Attempt::None;
+    // The account connected when Discord's page was opened: only another one
+    // (a first one, or a change of account) finishes the attempt.
+    std::string attemptBefore_;
     // While Discord's page is open in the browser: the service the sign-in
     // is for, until when it can finish, and when its account is read again.
     // A failed read pauses the polls until Try again; the sign-in still
@@ -166,10 +180,11 @@ private:
     // A service the player looked up and may now trust.
     netplay::IdentityBridge found_;
     // Away from these screens, Home learns the Ember ID's state and the
-    // services once, then the matches every minute: whether each was asked,
-    // the service list answered, when to refresh next, and the matches told.
-    bool statusAsked_ = false, servicesAsked_ = false, servicesKnown_ = false;
-    double assignmentsAt_ = 0;
+    // services (again after a failure, quietly), then the matches every
+    // minute: whether the services are known, when to read next, and the
+    // matches told.
+    bool servicesKnown_ = false;
+    double backgroundAt_ = 0, assignmentsAt_ = 0;
     std::vector<std::string> told_;
     // The assignment list is wanted for the selected service; a Play or Stop
     // waiting to be sent; and what the last refresh said, to report a failure once.

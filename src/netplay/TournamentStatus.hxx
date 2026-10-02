@@ -48,8 +48,10 @@ struct AssignmentList {
 struct OpenedLink {
 	std::string bridge, match;
 	std::uint64_t sequence = 0;
-	// When it arrived (GetTickCount64), for its age.
-	std::uint64_t at = 0;
+	// A connect link that arrived while the player was not idle at the main
+	// menu (in a room, a match or offline play): Ember asks before going on.
+	// One that started Ember, or arrived at the main menu, goes on by itself.
+	bool confirm = false;
 };
 
 struct Status {
@@ -61,8 +63,6 @@ struct Status {
 	bool waitingForOpponent = false, waitingForPermit = false;
 	AssignmentList list;
 	OpenedLink link, connect;
-	// How long ago the connect link arrived, in milliseconds.
-	std::uint64_t connectAgeMs = 0;
 };
 
 } } }

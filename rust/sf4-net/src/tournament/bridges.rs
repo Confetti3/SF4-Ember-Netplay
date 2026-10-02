@@ -1,11 +1,13 @@
 //! Bridges the user approved (spec 9.1): `bridges.json` holds public
 //! profile data and the bridge's public signing keys only, never a token.
 //! Discovery documents and deep links cannot add an entry; only an explicit
-//! approval from the native UI does.
+//! approval from the native UI does. `removed.json` remembers the bridges the
+//! player deliberately forgot, so nothing re-trusts one without a fresh
+//! approval.
 use std::{
     fs,
     io::Write,
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -22,6 +24,10 @@ const FILE: &str = "bridges.json";
 const FORMAT: &str = "ember-bridges";
 const MAX_BRIDGES: usize = 16;
 const MAX_FILE: usize = 64 * 1024;
+// A separate file, so `bridges.json` keeps the format older builds parse.
+const REMOVED_FILE: &str = "removed.json";
+const REMOVED_FORMAT: &str = "ember-bridges-removed";
+const MAX_REMOVED: usize = 64;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -54,9 +60,19 @@ struct File {
     bridges: Vec<Approved>,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RemovedFile {
+    format: String,
+    version: u8,
+    removed: Vec<String>,
+}
+
 pub struct Store {
     dir: PathBuf,
     bridges: Vec<Approved>,
+    /// Bridge IDs the player removed, oldest first.
+    removed: Vec<String>,
 }
 
 impl Store {
@@ -69,6 +85,7 @@ impl Store {
             return Self {
                 dir,
                 bridges: Vec::new(),
+                removed: Vec::new(),
             };
         }
         let bridges = fs::read(dir.join(FILE))
@@ -82,7 +99,29 @@ impl Store {
             .filter(valid)
             .take(MAX_BRIDGES)
             .collect();
-        Self { dir, bridges }
+        let removed = fs::read(dir.join(REMOVED_FILE))
+            .ok()
+            .filter(|bytes| bytes.len() <= MAX_FILE)
+            .and_then(|bytes| json::parse_as::<RemovedFile>(&bytes, MAX_FILE).ok())
+            .filter(|file| file.format == REMOVED_FORMAT && file.version == 1)
+            .map(|file| file.removed)
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|id| is_prefixed_id(id, "brg"))
+            .fold(Vec::new(), |mut list, id| {
+                remember(&mut list, id);
+                list
+            });
+        Self {
+            dir,
+            bridges,
+            removed,
+        }
+    }
+
+    /// Bridge IDs the player deliberately removed, oldest first.
+    pub fn removed(&self) -> Vec<String> {
+        self.removed.clone()
     }
 
     pub fn list(&self) -> Vec<Approved> {
@@ -130,8 +169,14 @@ impl Store {
         if kept.len() >= MAX_BRIDGES {
             return Err(Failure::new("too_many_bridges"));
         }
+        let approved_id = entry.bridge_id.clone();
         kept.push(entry);
         self.replace(kept)?;
+        // An explicit approval is the only way back after a removal.
+        if self.removed.contains(&approved_id) {
+            self.removed.retain(|id| *id != approved_id);
+            self.save_removed();
+        }
         Ok(displaced
             .into_iter()
             .map(|bridge| bridge.bridge_id)
@@ -152,7 +197,23 @@ impl Store {
     pub fn forget(&mut self, bridge_id: &str) -> Result<(), Failure> {
         let mut kept = self.bridges.clone();
         kept.retain(|bridge| bridge.bridge_id != bridge_id);
-        self.replace(kept)
+        self.replace(kept)?;
+        // The trust is already gone. If the record cannot be saved, memory
+        // still holds it for this run and the forget still succeeds.
+        remember(&mut self.removed, bridge_id.to_owned());
+        self.save_removed();
+        Ok(())
+    }
+
+    fn save_removed(&self) {
+        let Ok(bytes) = serde_json::to_vec_pretty(&RemovedFile {
+            format: REMOVED_FORMAT.into(),
+            version: 1,
+            removed: self.removed.clone(),
+        }) else {
+            return;
+        };
+        let _ = write_atomic(&self.dir, REMOVED_FILE, &bytes);
     }
 
     /// Saves `bridges` and only then makes it the live list, so memory never
@@ -164,32 +225,47 @@ impl Store {
     }
 
     fn save_list(&self, bridges: &[Approved]) -> Result<(), Failure> {
-        if self.dir.as_os_str().is_empty() || !self.dir.is_absolute() {
-            return Err(Failure::new("io"));
-        }
-        fs::create_dir_all(&self.dir).map_err(|_| Failure::new("io"))?;
         let bytes = serde_json::to_vec_pretty(&File {
             format: FORMAT.into(),
             version: 1,
             bridges: bridges.to_vec(),
         })
         .map_err(|_| Failure::new("io"))?;
-        let mut suffix = [0u8; 8];
-        getrandom::fill(&mut suffix).map_err(|_| Failure::new("io"))?;
-        let temp = self.dir.join(format!(".tmp-{FILE}-{}", b64u(&suffix)));
-        let result = (|| {
-            let mut file = fs::File::create(&temp)?;
-            file.write_all(&bytes)?;
-            file.sync_all()?;
-            drop(file);
-            fs::rename(&temp, self.dir.join(FILE))
-        })();
-        if result.is_err() {
-            let _ = fs::remove_file(&temp);
-            return Err(Failure::new("io"));
-        }
-        Ok(())
+        write_atomic(&self.dir, FILE, &bytes)
     }
+}
+
+/// Notes a removal: one entry per ID, newest last, oldest dropped past the cap.
+fn remember(removed: &mut Vec<String>, bridge_id: String) {
+    removed.retain(|id| *id != bridge_id);
+    removed.push(bridge_id);
+    if removed.len() > MAX_REMOVED {
+        removed.drain(..removed.len() - MAX_REMOVED);
+    }
+}
+
+/// Writes `name` in `dir` through a temp file and a rename, so a crash leaves
+/// the old file or the new one, never half of one.
+fn write_atomic(dir: &Path, name: &str, bytes: &[u8]) -> Result<(), Failure> {
+    if dir.as_os_str().is_empty() || !dir.is_absolute() {
+        return Err(Failure::new("io"));
+    }
+    fs::create_dir_all(dir).map_err(|_| Failure::new("io"))?;
+    let mut suffix = [0u8; 8];
+    getrandom::fill(&mut suffix).map_err(|_| Failure::new("io"))?;
+    let temp = dir.join(format!(".tmp-{name}-{}", b64u(&suffix)));
+    let result = (|| {
+        let mut file = fs::File::create(&temp)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        drop(file);
+        fs::rename(&temp, dir.join(name))
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temp);
+        return Err(Failure::new("io"));
+    }
+    Ok(())
 }
 
 /// At most 8 keys, each a usable Ed25519 signature key.
@@ -248,6 +324,81 @@ mod tests {
         assert!(store.get(&profile(1, "").bridge_id).is_none());
         store.forget(&profile(5, "").bridge_id).unwrap();
         assert_eq!(Store::open(dir.clone()).list().len(), 1);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    fn temp_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("sf4-bridges-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        dir
+    }
+
+    #[test]
+    fn removal_persists_and_approval_clears_it() {
+        let dir = temp_dir("removed");
+        let mut store = Store::open(dir.clone());
+        let one = profile(1, "https://bridge.one.example");
+        store.approve(&one, Vec::new()).unwrap();
+        assert!(store.removed().is_empty());
+        store.forget(&one.bridge_id).unwrap();
+        assert_eq!(store.removed(), vec![one.bridge_id.clone()]);
+        let mut reopened = Store::open(dir.clone());
+        assert!(reopened.list().is_empty());
+        assert_eq!(reopened.removed(), vec![one.bridge_id.clone()]);
+        // Approving a different bridge leaves the record alone.
+        reopened
+            .approve(&profile(2, "https://bridge.two.example"), Vec::new())
+            .unwrap();
+        assert_eq!(reopened.removed(), vec![one.bridge_id.clone()]);
+        reopened.approve(&one, Vec::new()).unwrap();
+        assert!(reopened.removed().is_empty());
+        assert!(Store::open(dir.clone()).removed().is_empty());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn removed_record_dedupes_and_caps() {
+        let dir = temp_dir("removed-cap");
+        let mut store = Store::open(dir.clone());
+        let id = |n: u8| profile(n, "").bridge_id;
+        store.forget(&id(1)).unwrap();
+        store.forget(&id(2)).unwrap();
+        store.forget(&id(1)).unwrap();
+        assert_eq!(store.removed(), vec![id(2), id(1)]);
+        let last = MAX_REMOVED as u8 + 10;
+        for n in 3..=last {
+            store.forget(&id(n)).unwrap();
+        }
+        let removed = Store::open(dir.clone()).removed();
+        assert_eq!(removed.len(), MAX_REMOVED);
+        assert_eq!(removed.last(), Some(&id(last)));
+        assert!(!removed.contains(&id(1)));
+        assert!(!removed.contains(&id(2)));
+        assert_eq!(removed, store.removed());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn garbage_removed_record_reads_as_empty() {
+        let dir = temp_dir("removed-garbage");
+        fs::create_dir_all(&dir).unwrap();
+        for text in [
+            "not json".to_owned(),
+            r#"{"format":"other","version":1,"removed":[]}"#.to_owned(),
+            r#"{"format":"ember-bridges-removed","version":2,"removed":[]}"#.to_owned(),
+            r#"{"format":"ember-bridges-removed","version":1,"removed":[],"extra":1}"#.to_owned(),
+            " ".repeat(MAX_FILE + 1),
+        ] {
+            fs::write(dir.join(REMOVED_FILE), text).unwrap();
+            assert!(Store::open(dir.clone()).removed().is_empty());
+        }
+        // Entries that are not bridge IDs are dropped; valid ones kept once.
+        let good = profile(7, "").bridge_id;
+        let text = format!(
+            r#"{{"format":"ember-bridges-removed","version":1,"removed":["junk","{good}","{good}"]}}"#
+        );
+        fs::write(dir.join(REMOVED_FILE), text).unwrap();
+        assert_eq!(Store::open(dir.clone()).removed(), vec![good]);
         let _ = fs::remove_dir_all(&dir);
     }
 
