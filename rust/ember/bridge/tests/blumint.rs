@@ -301,27 +301,6 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
     f.blumint.lock().unwrap().fail = 1;
     win(&f, &id, 1, "game-1").await;
     assert_eq!(match_status(&f, &id).await["status"], "complete");
-    // The completion event and the match both say the result is to be sent.
-    let completed: Vec<Json> = f
-        .bridge
-        .events(&f.provider, "0")
-        .await
-        .into_iter()
-        .filter(|event| event["type"] == "io.ember.tournament.match.completed.v1")
-        .collect();
-    assert_eq!(completed.len(), 1);
-    assert_eq!(completed[0]["data"]["provider_delivery_state"], "queued");
-    let (_, snapshot) = f
-        .bridge
-        .get(&f.provider, &format!("/v1/matches/{id}"))
-        .await;
-    assert!(
-        matches!(
-            snapshot["provider_delivery_state"].as_str(),
-            Some("queued" | "retrying")
-        ),
-        "{snapshot}"
-    );
     until(&f, &id, |(state, attempts)| {
         state == "retrying" && attempts == 1
     })
@@ -338,6 +317,30 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
             { "score": 1, "players": [ { "inGameId": f.sam.id() } ] },
         ] })]
     );
+}
+
+#[tokio::test]
+async fn a_completed_match_says_its_result_is_to_be_sent() {
+    // Without a key nothing is sent, so the state stays as completion left it.
+    let f = fixture_with(Secrets::default()).await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, json!({ "gamesToWin": 1 })).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    win(&f, &id, 0, "game-1").await;
+    let completed: Vec<Json> = f
+        .bridge
+        .events(&f.provider, "0")
+        .await
+        .into_iter()
+        .filter(|event| event["type"] == "io.ember.tournament.match.completed.v1")
+        .collect();
+    assert_eq!(completed.len(), 1);
+    assert_eq!(completed[0]["data"]["provider_delivery_state"], "queued");
+    let (_, snapshot) = f
+        .bridge
+        .get(&f.provider, &format!("/v1/matches/{id}"))
+        .await;
+    assert_eq!(snapshot["provider_delivery_state"], "queued");
 }
 
 #[tokio::test]
