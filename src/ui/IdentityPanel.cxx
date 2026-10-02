@@ -93,6 +93,26 @@ bool IdentityPanel::Owns(const std::string& screen) {
     return screen == "identity" || screen == "identity-backup" || screen == "linked-accounts" || screen == "tournament-matches";
 }
 
+std::string IdentityPanel::HandoffFailure(const std::string& code) {
+    if (code == "not_found" || code == "handoff_expired" || code == "invalid_link" || code == "invalid_request")
+        return loc::T("tournament.failure.handoff");
+    if (code == "bridge_not_approved") return loc::T("tournament.failure.handoff_service");
+    return TournamentFailure(code);
+}
+
+void IdentityPanel::OpenMatch(const std::string& bridge, const std::string& match) {
+    bridge_ = bridge;
+    wantAssignments_ = true;
+    focusRow_ = "tm-play:" + match;
+}
+
+std::string IdentityPanel::TakeFocus(const std::vector<MenuEntry>& rows) {
+    if (focusRow_.empty() || std::none_of(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == focusRow_; })) return {};
+    std::string row;
+    row.swap(focusRow_);
+    return row;
+}
+
 std::string IdentityPanel::TournamentFailure(const std::string& code) {
     if (code == "incompatible_build") return loc::T("tournament.failure.build");
     if (code == "unsupported_rules") return loc::T("tournament.failure.rules");
@@ -161,6 +181,7 @@ void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen
     using netplay::tournament::Phase;
     const auto& t = v.tournament;
     loadingAssignments_ = t.assignmentsLoading;
+    openingLink_ = t.handoffPending;
     // A refresh's failure is said once; the runtime clears it when the next one is sent.
     if (t.assignmentsError != assignmentsError_) {
         assignmentsError_ = t.assignmentsError;
@@ -271,6 +292,7 @@ bool IdentityPanel::Status(std::string& status, Tone& tone, double now) const {
             sentOp_ == IdentityOp::PreviewImport || sentOp_ == IdentityOp::Import;
         status = loc::T(slow ? "identity.working_key" : "identity.working"); tone = Tone::Pending; return true;
     }
+    if (lastScreen_ == "tournament-matches" && openingLink_) { status = loc::T("tournament.opening_link"); tone = Tone::Pending; return true; }
     if (lastScreen_ == "tournament-matches" && loadingAssignments_) { status = loc::T("tournament.loading"); tone = Tone::Pending; return true; }
     return false;
 }
@@ -450,6 +472,8 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
                 rows.push_back(Info("tm-none", loc::T("tournament.none"), {}, loc::T("tournament.none_detail")));
         }
         rows.push_back(Row("tm-refresh", loc::T("identity.refresh"), loc::T("tournament.refresh_detail"), !t.assignmentsLoading));
+        rows.push_back(Row("tm-paste", loc::T("tournament.paste_link"), loc::T("tournament.paste_link_detail"), !t.handoffPending));
+        rows.back().hint = loc::T("menu.hint.paste");
     }
     return rows;
 }
@@ -459,9 +483,18 @@ void IdentityPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
     IdentityRequest r;
     if (a.id == "linked-accounts" || a.id == "identity-backup" || a.id == "tournament-matches") { nav.Push(a.id); return; }
     if (a.id == "tm-refresh") { wantAssignments_ = true; message_.clear(); return; }
-    if (a.id == "tm-stop") { play_ = netplay::tournament::Command{netplay::tournament::Command::Op::Stop, {}, {}}; return; }
+    if (a.id == "tm-paste") {
+        // The site's Play link, or its code alone for the selected service.
+        const char* text = ImGui::GetClipboardText();
+        std::string pasted = text ? text : "";
+        if (pasted.empty() || pasted.size() > netplay::tournament::Command::MaxField) { Say(loc::T("tournament.failure.handoff"), true); return; }
+        play_ = netplay::tournament::Command{netplay::tournament::Command::Op::Redeem, bridge_, {}, std::move(pasted)};
+        message_.clear();
+        return;
+    }
+    if (a.id == "tm-stop") { play_ = netplay::tournament::Command{netplay::tournament::Command::Op::Stop, {}, {}, {}}; return; }
     if (a.id.compare(0, 8, "tm-play:") == 0) {
-        play_ = netplay::tournament::Command{netplay::tournament::Command::Op::Play, bridge_, a.id.substr(8)};
+        play_ = netplay::tournament::Command{netplay::tournament::Command::Op::Play, bridge_, a.id.substr(8), {}};
         message_.clear();
         return;
     }

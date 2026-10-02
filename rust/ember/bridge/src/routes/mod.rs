@@ -1,5 +1,6 @@
 pub mod discovery;
 pub mod events;
+pub mod handoffs;
 pub mod ledger;
 pub mod links;
 pub mod lobbies;
@@ -67,6 +68,8 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/v1/matches/{id}/reports", post(reports::submit_route))
         .route("/v1/assignments", get(matches::assignments))
+        .route("/v1/handoffs", post(handoffs::create))
+        .route(handoffs::REDEEM_PATH, post(handoffs::redeem_route))
         .route("/v1/lobbies", post(lobbies::create))
         .route("/v1/lobbies/{id}", get(lobbies::get))
         .route("/v1/lobbies/{id}/queue", post(lobbies::join))
@@ -155,6 +158,7 @@ pub async fn maintenance_once(state: &AppState) {
         .write(move |tx| {
             reports::expire(tx, &ctx)?;
             links::expire(tx, now)?;
+            handoffs::expire(tx, cutoff)?;
             tx.execute(
                 "DELETE FROM auth_challenges WHERE expires_at <= ?1",
                 [cutoff],

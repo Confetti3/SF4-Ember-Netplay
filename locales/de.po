@@ -2925,6 +2925,27 @@ msgstr "Das Ergebnis eines Kampfes konnte nicht für den Turnierdienst gespeiche
 msgid "tournament.failure.not_found"
 msgstr "Der Turnierdienst hat dieses Spiel nicht mehr."
 
+msgid "tournament.paste_link"
+msgstr "Spiel-Link einfügen"
+
+msgid "tournament.paste_link_detail"
+msgstr "Kopieren Sie den Link oder Code des Spiels auf der Turnierseite und wählen Sie dies, um das Spiel hier zu öffnen."
+
+msgid "tournament.opening_link"
+msgstr "Spiel-Link wird geöffnet..."
+
+msgid "tournament.handoff_opened"
+msgstr "Die Turnierseite hat ein Spiel geöffnet. Drücken Sie Spielen, wenn Sie bereit sind."
+
+msgid "tournament.handoff_waiting"
+msgstr "Ein Turnier-Spiel-Link ist angekommen. Verlassen Sie Ihren Raum und spielen Sie es unter Turnierspiele."
+
+msgid "tournament.failure.handoff"
+msgstr "Dieser Spiel-Link wurde bereits benutzt, ist abgelaufen oder gilt einem anderen Spieler. Spielen Sie das Spiel über diese Liste."
+
+msgid "tournament.failure.handoff_service"
+msgstr "Vertrauen Sie diesem Turnierdienst unter Verknüpfte Konten und öffnen Sie den Spiel-Link dann erneut."
+
 msgid "rules.set_length"
 msgstr "Satzlänge"
 

@@ -133,7 +133,10 @@ async fn provider_call(origin: &str, token: &str, path: &str, body: Value) -> Va
         .post(format!("{origin}{path}"))
         .bearer_auth(token)
         .header("content-type", "application/json")
-        .header("idempotency-key", ember_protocol::encoding::b64u(&random16()))
+        .header(
+            "idempotency-key",
+            ember_protocol::encoding::b64u(&random16()),
+        )
         .body(serde_json::to_vec(&body).unwrap())
         .send()
         .await
@@ -326,18 +329,35 @@ fn requests_carry_no_debug_output_of_secrets() {
 
 /// One worker with an enabled identity, the bridge approved, and its
 /// identity linked to `subject` on the mock connection.
-async fn linked_worker(dirs: &Dirs, endpoint: &str, origin: &str, provider: &str, subject: &str) -> (Worker, String, String, Value) {
+async fn linked_worker(
+    dirs: &Dirs,
+    endpoint: &str,
+    origin: &str,
+    provider: &str,
+    subject: &str,
+) -> (Worker, String, String, Value) {
     let mut worker = Worker::start_as(dirs, endpoint.to_owned());
     worker.next_answer(0).await;
     let (_, _, identity, _) = worker.ask(json!({ "op": "identity_enable" })).await;
     let ember_id = identity["ember_id"].as_str().unwrap().to_owned();
-    let (_, _, _, inspected) = worker.ask(json!({ "op": "bridge_inspect", "origin": origin })).await;
-    let bridge_id = inspected["profile"]["bridge_id"].as_str().unwrap().to_owned();
+    let (_, _, _, inspected) = worker
+        .ask(json!({ "op": "bridge_inspect", "origin": origin }))
+        .await;
+    let bridge_id = inspected["profile"]["bridge_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     let (ok, reason, _, _) = worker
         .ask(json!({ "op": "bridge_approve", "origin": origin, "bridge_id": bridge_id }))
         .await;
     assert!(ok, "{reason:?}");
-    let intent = provider_call(origin, provider, "/v1/link-intents", json!({ "subject": subject })).await;
+    let intent = provider_call(
+        origin,
+        provider,
+        "/v1/link-intents",
+        json!({ "subject": subject }),
+    )
+    .await;
     let (ok, reason, _, claim) = worker
         .ask(json!({ "op": "link_claim", "bridge_id": bridge_id, "connection_id": "mock-local", "code": intent["code"] }))
         .await;
@@ -345,7 +365,10 @@ async fn linked_worker(dirs: &Dirs, endpoint: &str, origin: &str, provider: &str
     let link = provider_call(
         origin,
         provider,
-        &format!("/v1/link-intents/{}/approve", intent["intent_id"].as_str().unwrap()),
+        &format!(
+            "/v1/link-intents/{}/approve",
+            intent["intent_id"].as_str().unwrap()
+        ),
         json!({ "claim_id": claim["claim_id"], "ember_id": ember_id, "subject": subject }),
     )
     .await;
@@ -395,8 +418,28 @@ async fn play_a_set_through_two_helpers() {
     .await;
     let match_id = created["match_id"].as_str().unwrap().to_owned();
 
-    let (_, _, _, assignments) = host.ask(json!({ "op": "assignment_list", "bridge_id": bridge_id })).await;
+    let (_, _, _, assignments) = host
+        .ask(json!({ "op": "assignment_list", "bridge_id": bridge_id }))
+        .await;
     assert_eq!(assignments["assignments"][0]["match_id"], match_id.as_str());
+    // A browser handoff names the match to its own player, once.
+    let handoff = provider_call(
+        &origin,
+        &provider,
+        "/v1/handoffs",
+        json!({ "match_id": match_id, "ember_id": host_id }),
+    )
+    .await;
+    let redeem =
+        json!({ "op": "handoff_redeem", "bridge_id": bridge_id, "handoff": handoff["handoff"] });
+    let (ok, reason, _, named) = guest.ask(redeem.clone()).await;
+    assert!(!ok, "{named}");
+    assert_eq!(reason.as_deref(), Some("not_found"));
+    let (ok, reason, _, named) = host.ask(redeem.clone()).await;
+    assert!(ok, "{reason:?}");
+    assert_eq!(named["match_id"], match_id.as_str());
+    let (ok, _, _, _) = host.ask(redeem).await;
+    assert!(!ok);
     // The first claim hosts; the second waits for the room.
     let claim = json!({ "op": "match_claim", "bridge_id": bridge_id, "match_id": match_id, "build": "build-1" });
     let (ok, reason, _, lease) = host.ask(claim.clone()).await;
@@ -416,7 +459,10 @@ async fn play_a_set_through_two_helpers() {
     let (_, _, _, joined) = guest.ask(claim.clone()).await;
     assert_eq!(joined["invitation"], "sf4e3:test");
     assert_eq!(joined["binding"]["local_slot"], 1);
-    assert_eq!(joined["binding"]["fighters"][0]["endpoint_id"], host_endpoint.as_str());
+    assert_eq!(
+        joined["binding"]["fighters"][0]["endpoint_id"],
+        host_endpoint.as_str()
+    );
 
     for (generation, result) in [(3u64, "p1_win"), (4, "p1_win")] {
         let prepare = json!({ "op": "game_prepare", "bridge_id": bridge_id, "match_id": match_id, "match_generation": generation.to_string() });
@@ -433,7 +479,10 @@ async fn play_a_set_through_two_helpers() {
         });
         let (ok, reason, _, first) = host.ask(report.clone()).await;
         assert!(ok, "{reason:?}");
-        assert_eq!((first["saved"].as_bool(), first["delivered"].as_bool()), (Some(true), Some(true)));
+        assert_eq!(
+            (first["saved"].as_bool(), first["delivered"].as_bool()),
+            (Some(true), Some(true))
+        );
         let (_, _, _, second) = guest.ask(report).await;
         assert_eq!(second["attempt_state"], "accepted");
     }

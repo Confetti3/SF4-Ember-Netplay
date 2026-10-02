@@ -1,7 +1,9 @@
-// Unit tests for room links handed over by a browser (JoinLink.hxx) and their
-// hand-over from a second launcher to a running game (JoinLinkMailbox.hxx).
+// Unit tests for room links and tournament match links handed over by a
+// browser (JoinLink.hxx, TournamentLink.hxx) and their hand-over from a second
+// launcher to a running game (JoinLinkMailbox.hxx).
 
 #include "../common/JoinLink.hxx"
+#include "../common/TournamentLink.hxx"
 #ifdef _WIN32
 #include "../platform/JoinLinkMailbox.hxx"
 #endif
@@ -50,6 +52,42 @@ static void TestTheJoinScreenGetsTheShortLink() {
 	CHECK(ShortLink("7K3M").empty());
 }
 
+static const char* const Bridge = "brg_0dbc0598-2312-4ce3-9df8-e160330565e6";
+static const char* const Code = "q2Zp0yH4c8Jm1bWk7nVt3xR6sL9dF5gA2eU0iO4uYwA";
+
+static void TestOnlyTheTournamentLinkIsAccepted() {
+	using namespace sf4e::tournament_link;
+	const std::string bridge = Bridge, code = Code;
+	CHECK(IsHandoffCode(code) && IsBridgeId(bridge));
+	const std::string link = "ember://tournament/open?bridge=" + bridge + "&handoff=" + code;
+	Handoff parsed = ParseLink(link);
+	CHECK(parsed.Valid() && parsed.bridgeId == bridge && parsed.code == code);
+	CHECK(ParseLink("ember://tournament/open?handoff=" + code + "&bridge=" + bridge).code == code);
+	CHECK(ParseLink("EMBER://TOURNAMENT/OPEN/?bridge=" + bridge + "&handoff=" + code + "/").Valid());
+	const std::string refused[] = {
+		"", "ember://tournament/open", "ember://tournament/open?", "ember://tournament/open?bridge=" + bridge,
+		link + "&extra=1", link + "&handoff=" + code, "ember://tournament/open?bridge=" + bridge + "&bridge=" + bridge,
+		link + "#x", "ember://tournament/open?bridge=" + bridge + "&handoff=" + code.substr(0, 42),
+		"ember://tournament/open?bridge=" + bridge + "&handoff=" + code.substr(0, 42) + "B",
+		"ember://tournament/open?bridge=" + bridge + "&handoff=" + code.substr(0, 20) + "%2B" + code.substr(23),
+		"ember://tournament/open?bridge=BRG_0DBC0598-2312-4CE3-9DF8-E160330565E6&handoff=" + code,
+		"ember://tournament/open?bridge=brg_0dbc0598-2312-3ce3-9df8-e160330565e6&handoff=" + code,
+		"ember://tournament/join?bridge=" + bridge + "&handoff=" + code, "ember://join/7K3M-0X1R-T9PZ",
+		"ember://user@tournament/open?bridge=" + bridge + "&handoff=" + code, link + " ", link + "\n",
+		"ember://tournament/open?bridge=" + bridge + "&&handoff=" + code, "ember://tournament/open?bridge==" + bridge + "&handoff=" + code,
+		link + std::string(200, 'A'),
+	};
+	for (const auto& uri : refused) CHECK(!ParseLink(uri).Valid());
+	std::string nul = link;
+	nul.insert(nul.begin() + 30, '\0');
+	CHECK(!ParseLink(nul).Valid());
+	// A pasted code goes to the selected service; a pasted link names its own.
+	CHECK(ParsePasted(" " + code + " ", bridge).bridgeId == bridge);
+	CHECK(ParsePasted("\"" + link + "\"", "").code == code);
+	CHECK(!ParsePasted(code, "").Valid());
+	CHECK(!ParsePasted("hello", bridge).Valid());
+}
+
 #ifdef _WIN32
 // The launcher's hand-over to a running game, under names of the test's own.
 static void TestARunningGameReceivesTheLink() {
@@ -73,6 +111,29 @@ static void TestARunningGameReceivesTheLink() {
 	CHECK(!DeliverJoinLink("7K3M-0X1R-T9PZ", section.c_str(), ready.c_str()));
 	CHECK(!DeliverJoinLink("", section.c_str(), ready.c_str()));
 	CHECK(mailbox.Take().empty());
+	// A tournament handoff travels in its own slot, checked on both ends.
+	using sf4e::platform::DeliverTournamentHandoff;
+	using sf4e::platform::TournamentHandoffMailbox;
+	const std::wstring handoffSection = L"Local\\SF4EmberHandoffTest" + id, handoffReady = L"Local\\SF4EmberHandoffTestReady" + id;
+	sf4e::tournament_link::Handoff handoff;
+	handoff.bridgeId = Bridge;
+	handoff.code = Code;
+	CHECK(!DeliverTournamentHandoff(handoff, handoffSection.c_str(), handoffReady.c_str()));
+	TournamentHandoffMailbox handoffs(handoffSection.c_str(), handoffReady.c_str());
+	CHECK(handoffs.Open() && !handoffs.Take().Valid());
+	CHECK(DeliverTournamentHandoff(handoff, handoffSection.c_str(), handoffReady.c_str()));
+	const auto taken = handoffs.Take();
+	CHECK(taken.bridgeId == Bridge && taken.code == Code);
+	CHECK(!handoffs.Take().Valid());
+	sf4e::tournament_link::Handoff bad = handoff;
+	bad.code = "not-a-code";
+	CHECK(!DeliverTournamentHandoff(bad, handoffSection.c_str(), handoffReady.c_str()));
+	// Another process of the player's could write the slot; a malformed one is dropped.
+	sf4e::platform::TournamentHandoffSlot forged = {};
+	std::memcpy(forged.bridge, Bridge, 40);
+	std::memcpy(forged.code, "x", 1);
+	CHECK(sf4e::platform::DeliverSlot(forged, handoffSection.c_str(), handoffReady.c_str()));
+	CHECK(!handoffs.Take().Valid());
 }
 #endif
 
@@ -80,6 +141,7 @@ int main() {
 	TestCodesNormalizeLikeTheHelper();
 	TestOnlyTheJoinLinkIsAccepted();
 	TestTheJoinScreenGetsTheShortLink();
+	TestOnlyTheTournamentLinkIsAccepted();
 #ifdef _WIN32
 	TestARunningGameReceivesTheLink();
 #endif

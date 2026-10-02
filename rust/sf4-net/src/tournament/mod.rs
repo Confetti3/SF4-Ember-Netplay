@@ -16,10 +16,7 @@ use std::{
 };
 
 use ember_protocol::{
-    EmberId,
-    encoding::Counter,
-    play::PublishRoom,
-    report::Outcome as GameOutcome,
+    EmberId, encoding::Counter, play::PublishRoom, report::Outcome as GameOutcome,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -133,6 +130,11 @@ pub enum Request {
     MatchLeave {
         match_id: String,
     },
+    /// A browser handoff's code, wiped when the request is dropped.
+    HandoffRedeem {
+        bridge_id: String,
+        handoff: Zeroizing<String>,
+    },
 }
 
 impl Request {
@@ -159,6 +161,7 @@ impl Request {
             Self::GamePrepare { .. } => "game_prepare",
             Self::GameReport { .. } => "game_report",
             Self::MatchLeave { .. } => "match_leave",
+            Self::HandoffRedeem { .. } => "handoff_redeem",
         }
     }
 
@@ -626,6 +629,9 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             .await
         }
         Request::MatchLeave { match_id } => play::forget(shared, &match_id),
+        Request::HandoffRedeem { bridge_id, handoff } => {
+            play::redeem_handoff(shared, &bridge_id, &handoff).await
+        }
         _ => Err(Failure::new("invalid_request")),
     }
 }

@@ -2925,6 +2925,27 @@ msgstr "Не удалось сохранить результат боя для 
 msgid "tournament.failure.not_found"
 msgstr "У турнирного сервиса больше нет этого матча."
 
+msgid "tournament.paste_link"
+msgstr "Вставить ссылку на матч"
+
+msgid "tournament.paste_link_detail"
+msgstr "Скопируйте ссылку или код матча на сайте турнира и выберите этот пункт, чтобы открыть матч здесь."
+
+msgid "tournament.opening_link"
+msgstr "Открытие ссылки на матч..."
+
+msgid "tournament.handoff_opened"
+msgstr "Сайт турнира открыл матч. Нажмите «Играть», когда будете готовы."
+
+msgid "tournament.handoff_waiting"
+msgstr "Пришла ссылка на турнирный матч. Выйдите из своего зала и сыграйте его в разделе «Турнирные матчи»."
+
+msgid "tournament.failure.handoff"
+msgstr "Эта ссылка на матч уже использована, истекла или предназначена другому игроку. Сыграйте матч из этого списка."
+
+msgid "tournament.failure.handoff_service"
+msgstr "Доверьтесь этому турнирному сервису в разделе «Привязанные аккаунты» и снова откройте ссылку на матч."
+
 msgid "rules.set_length"
 msgstr "Длина сета"
 

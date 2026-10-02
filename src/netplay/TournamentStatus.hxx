@@ -24,11 +24,12 @@ struct Assignment {
 };
 
 struct Command {
-	enum class Op : std::uint8_t { None, Refresh, Play, Stop } op = Op::None;
-	std::string bridgeId, matchId;
+	// Redeem opens a match link the player pasted: `handoff` is its one-use code.
+	enum class Op : std::uint8_t { None, Refresh, Play, Stop, Redeem } op = Op::None;
+	std::string bridgeId, matchId, handoff;
 	static constexpr std::size_t MaxField = 256;
-	bool Valid() const { return bridgeId.size() <= MaxField && matchId.size() <= MaxField; }
-	std::size_t Bytes() const { return bridgeId.size() + matchId.size(); }
+	bool Valid() const { return bridgeId.size() <= MaxField && matchId.size() <= MaxField && handoff.size() <= MaxField; }
+	std::size_t Bytes() const { return bridgeId.size() + matchId.size() + handoff.size(); }
 };
 
 struct Status {
@@ -44,6 +45,12 @@ struct Status {
 	bool assignmentsLoading = false;
 	// The helper's code when the last refresh failed.
 	std::string assignmentsError;
+	// The last match link opened from a browser or pasted: the service and
+	// match it named, or the code of why it could not be opened. The sequence
+	// changes with each outcome; a link waiting to be redeemed is pending.
+	std::string handoffBridge, handoffMatch, handoffError;
+	std::uint64_t handoffSequence = 0;
+	bool handoffPending = false;
 };
 
 } } }

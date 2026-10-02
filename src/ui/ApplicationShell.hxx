@@ -211,6 +211,8 @@ private:
     netplay::RoomState previousRoomState_ = netplay::RoomState::Idle;
     // The tournament phase last seen, to announce a match that ended.
     netplay::tournament::Phase tournamentPhase_ = netplay::tournament::Phase::Idle;
+    // The last match link outcome announced.
+    std::uint64_t handoffSequence_ = 0;
     netplay::PlayerPreferences preferences_;
     netplay::LobbySettings lobby_;
     std::string error_;

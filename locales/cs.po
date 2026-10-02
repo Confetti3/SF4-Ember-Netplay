@@ -2925,6 +2925,27 @@ msgstr "Výsledek souboje se pro turnajovou službu nepodařilo uložit."
 msgid "tournament.failure.not_found"
 msgstr "Turnajová služba už tento zápas nemá."
 
+msgid "tournament.paste_link"
+msgstr "Vložit odkaz na zápas"
+
+msgid "tournament.paste_link_detail"
+msgstr "Zkopírujte odkaz nebo kód zápasu ze stránky turnaje a zvolte tuto možnost, abyste zápas otevřeli zde."
+
+msgid "tournament.opening_link"
+msgstr "Otevírání odkazu na zápas..."
+
+msgid "tournament.handoff_opened"
+msgstr "Stránka turnaje otevřela zápas. Až budete připraveni, stiskněte Hrát."
+
+msgid "tournament.handoff_waiting"
+msgstr "Přišel odkaz na turnajový zápas. Opusťte svou místnost a hrajte ho z části Turnajové zápasy."
+
+msgid "tournament.failure.handoff"
+msgstr "Tento odkaz na zápas už byl použit, vypršel nebo patří jinému hráči. Hrajte zápas z tohoto seznamu."
+
+msgid "tournament.failure.handoff_service"
+msgstr "Důvěřujte této turnajové službě v části Propojené účty a pak odkaz na zápas otevřete znovu."
+
 msgid "rules.set_length"
 msgstr "Délka setu"
 

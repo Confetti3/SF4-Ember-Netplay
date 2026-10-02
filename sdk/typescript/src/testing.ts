@@ -135,6 +135,12 @@ export class TestPlayer {
     return (await this.#act("match.claim", `/v1/matches/${matchId}/claims`, command)) as unknown as ClaimAnswer;
   }
 
+  /** Redeems a handoff from `createHandoff`, as Ember does when the player
+   * opens its link: the answer names the match, once. */
+  async redeemHandoff(handoff: string): Promise<{ match_id: string }> {
+    return (await this.#act("handoff.redeem", "/v1/handoffs/redeem", { handoff })) as unknown as { match_id: string };
+  }
+
   /** Publishes the match's room: with the lease from a `host` claim for the
    * first room, or naming the room it replaces. */
   async publishRoom(

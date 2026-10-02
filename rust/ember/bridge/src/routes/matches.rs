@@ -47,7 +47,7 @@ const MAX_EVIDENCE: usize = 16;
 
 /// Who may see a match: its assigned players, its provider connection, or
 /// an organizer of its tenant. Anyone else gets `not_found`.
-fn visible(tx: &Transaction<'_>, actor: &Viewer, found: &Match) -> Result<bool> {
+pub fn visible(tx: &Transaction<'_>, actor: &Viewer, found: &Match) -> Result<bool> {
     Ok(match actor {
         Viewer::Provider { connection_id, .. } => *connection_id == found.connection_id,
         Viewer::Organizer { tenant_id } => *tenant_id == found.tenant_id,

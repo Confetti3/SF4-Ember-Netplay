@@ -2494,6 +2494,27 @@ msgstr "Não foi possível salvar o resultado de um jogo para o serviço de torn
 msgid "tournament.failure.not_found"
 msgstr "O serviço de torneios não tem mais esta partida."
 
+msgid "tournament.paste_link"
+msgstr "Colar link da partida"
+
+msgid "tournament.paste_link_detail"
+msgstr "Copie o link ou o código da partida no site do torneio e escolha esta opção para abrir a partida aqui."
+
+msgid "tournament.opening_link"
+msgstr "Abrindo o link da partida..."
+
+msgid "tournament.handoff_opened"
+msgstr "O site do torneio abriu uma partida. Pressione Jogar quando estiver pronto."
+
+msgid "tournament.handoff_waiting"
+msgstr "Chegou um link de partida do torneio. Saia da sua sala e jogue em Partidas do torneio."
+
+msgid "tournament.failure.handoff"
+msgstr "Esse link de partida já foi usado, expirou ou é de outro jogador. Jogue a partida por esta lista."
+
+msgid "tournament.failure.handoff_service"
+msgstr "Confie neste serviço de torneios em Contas vinculadas e abra o link da partida de novo."
+
 msgid "rules.set_length"
 msgstr "Duração do set"
 

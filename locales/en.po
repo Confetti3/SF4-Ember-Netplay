@@ -2610,6 +2610,27 @@ msgstr "A game's result could not be saved for the tournament service."
 msgid "tournament.failure.not_found"
 msgstr "The tournament service no longer has this match."
 
+msgid "tournament.paste_link"
+msgstr "Paste match link"
+
+msgid "tournament.paste_link_detail"
+msgstr "Copy the match link or code from the tournament site, then choose this to open that match here."
+
+msgid "tournament.opening_link"
+msgstr "Opening the match link..."
+
+msgid "tournament.handoff_opened"
+msgstr "The tournament site opened a match. Press Play when you are ready."
+
+msgid "tournament.handoff_waiting"
+msgstr "A tournament match link arrived. Leave your room, then play it from Tournament matches."
+
+msgid "tournament.failure.handoff"
+msgstr "That match link is used, expired or for another player. Play the match from this list instead."
+
+msgid "tournament.failure.handoff_service"
+msgstr "Trust this tournament service under Linked accounts, then open the match link again."
+
 msgid "rules.set_length"
 msgstr "Set length"
 

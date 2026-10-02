@@ -325,6 +325,16 @@ export class BridgeClient {
     return this.#json("GET", `/v1/matches/${encodeURIComponent(matchId)}`);
   }
 
+  /**
+   * A one-use link that opens an `ember-room-v1` match in Ember for one of its
+   * assigned players: put `uri` behind that player's Play button. It lasts a
+   * minute and only that player's Ember ID can use it, so make a fresh one
+   * per click rather than storing it. The code is shown once.
+   */
+  createHandoff(matchId: string, emberId: string): Promise<{ handoff: string; uri: string; bridge_id: string; match_id: string; expires_at: number }> {
+    return this.#json("POST", "/v1/handoffs", { match_id: matchId, ember_id: emberId });
+  }
+
   /** `expectedRevision` is the match's `revision`, a decimal string. */
   cancelMatch(matchId: string, expectedRevision: string, reason: string, idempotencyKey: string = randomUUID()): Promise<Body> {
     return this.#json(

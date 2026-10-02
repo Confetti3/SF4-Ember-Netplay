@@ -156,6 +156,13 @@ struct Runtime {
     std::map<std::uint64_t, netplay::tournament::Output::Kind> tournamentRequests;
     std::uint64_t assignmentRequest=0;
     netplay::tournament::Status assignments;
+    // Match links from the browser (ember://tournament/open), from a later
+    // launcher or the start argument, or pasted. One waits here until the
+    // helper and the Ember ID can redeem it, at most HandoffWaitMs.
+    platform::TournamentHandoffMailbox handoffLinks;
+    tournament_link::Handoff pendingHandoff;
+    ULONGLONG handoffArrivedMs=0;
+    std::uint64_t handoffRequest=0;
     session::RoomRecoveryRuntime recovery;
     std::uint64_t observedAuthorityTerm=0;
 	// A terminal receipt is released only after its local outcome has been
@@ -271,6 +278,9 @@ void ReleaseFinishedMatch();
 // Tournament play (sf4e__NetplayRuntime__Tournament.cxx).
 void DispatchTournament(const netplay::tournament::Command& command, bool helperReady);
 void TickTournament(bool helperReady);
+// A match link to redeem once the helper and the Ember ID are ready. A newer
+// one replaces it; the code is never logged.
+void QueueTournamentHandoff(tournament_link::Handoff handoff);
 // A table's end as the room committed it, with how it compares to this game's own capture.
 void ObserveTournamentTerminal(const room::Event& event, netplay::MatchResultOutbox::TerminalResult terminal);
 netplay::tournament::Status TournamentStatus();

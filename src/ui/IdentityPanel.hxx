@@ -26,6 +26,13 @@ public:
     static bool Owns(const std::string& screen);
     // Why a tournament match stopped, from its stable code, in words.
     static std::string TournamentFailure(const std::string& code);
+    // Why a match link could not be opened, in words.
+    static std::string HandoffFailure(const std::string& code);
+    // A match link named this match: the matches screen selects its service,
+    // refreshes the list and focuses the match's row, for the player to press Play.
+    void OpenMatch(const std::string& bridge, const std::string& match);
+    // The row the matches screen should focus, once it is among `rows`.
+    std::string TakeFocus(const std::vector<MenuEntry>& rows);
     // Every frame, before the rows: notes answers, sends the next request,
     // and wipes what the player typed once they leave these screens.
     void Update(const ShellView& view, const std::string& screen, const Submit& submit, double now);
@@ -77,5 +84,7 @@ private:
     std::optional<netplay::tournament::Command> play_;
     std::string assignmentsError_;
     netplay::tournament::Phase phase_ = netplay::tournament::Phase::Idle;
+    std::string focusRow_;
+    bool openingLink_ = false;
 };
 } }

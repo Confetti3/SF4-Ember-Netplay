@@ -1007,6 +1007,31 @@ void IdentityJourneys() {
  h.Screen("home");
  t.phase=netplay::tournament::Phase::Failed;t.reason="incompatible_build";h.Frame(0,2);
  Check(status==loc::Tf("tournament.stopped_notice",loc::T("tournament.failure.build")),"A stopped match was not announced");
+ // A match link from the browser opens the matches screen on its match, for
+ // the player to press Play; nothing is played by itself.
+ t=netplay::tournament::Status{};t.assignmentsBridge="brg_1";t.assignments={playable};
+ const auto before=played().size();
+ t.handoffBridge="brg_1";t.handoffMatch="emt_1";t.handoffSequence=1;h.Frame(0,3);
+ Check(h.shell.Navigation().Screen()=="tournament-matches"&&h.shell.Navigation().Focus()=="tm-play:emt_1",
+  "A match link did not open its match's row");
+ for(std::size_t i=before;i<played().size();++i)Check(played()[i]->op!=Command::Op::Play,"A match link started the match by itself");
+ // A pasted link goes to the runtime as it was pasted.
+ auto& clipboard=ImGui::GetPlatformIO();
+ static std::string pastedLink;pastedLink="ember://tournament/open?bridge=brg_1&handoff=x";
+ clipboard.Platform_GetClipboardTextFn=[](ImGuiContext*){return pastedLink.c_str();};
+ h.Choose("tm-paste");h.Frame();
+ Check(played().back()->op==Command::Op::Redeem&&played().back()->handoff==pastedLink&&played().back()->bridgeId=="brg_1",
+  "Paste match link did not send the pasted link");
+ clipboard.Platform_GetClipboardTextFn=nullptr;
+ // In a room, a link only says where to find the match.
+ h.view.session.room=netplay::RoomState::Joined;h.Screen("home");
+ t.handoffSequence=2;h.Frame(0,2);
+ Check(status==loc::T("tournament.handoff_waiting")&&h.shell.Navigation().Screen()!="tournament-matches",
+  "A match link moved a player who is in a room");
+ h.view.session.room=netplay::RoomState::Idle;
+ // A link that cannot be opened says why.
+ t.handoffMatch.clear();t.handoffError="not_found";t.handoffSequence=3;h.Screen("home");h.Frame(0,2);
+ Check(status==loc::T("tournament.failure.handoff"),"A refused match link did not say why");
  SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
 }

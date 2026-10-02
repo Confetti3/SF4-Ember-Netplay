@@ -2925,6 +2925,27 @@ msgstr "Non è stato possibile salvare il risultato di un incontro per il serviz
 msgid "tournament.failure.not_found"
 msgstr "Il servizio tornei non ha più questa partita."
 
+msgid "tournament.paste_link"
+msgstr "Incolla link partita"
+
+msgid "tournament.paste_link_detail"
+msgstr "Copia il link o il codice della partita dal sito del torneo, poi scegli questa voce per aprire qui la partita."
+
+msgid "tournament.opening_link"
+msgstr "Apertura del link della partita..."
+
+msgid "tournament.handoff_opened"
+msgstr "Il sito del torneo ha aperto una partita. Premi Gioca quando sei pronto."
+
+msgid "tournament.handoff_waiting"
+msgstr "È arrivato un link di una partita del torneo. Esci dalla tua sala, poi giocala da Partite del torneo."
+
+msgid "tournament.failure.handoff"
+msgstr "Questo link è già stato usato, è scaduto o è di un altro giocatore. Gioca la partita da questo elenco."
+
+msgid "tournament.failure.handoff_service"
+msgstr "Dai fiducia a questo servizio tornei in Account collegati, poi apri di nuovo il link della partita."
+
 msgid "rules.set_length"
 msgstr "Durata del set"
 

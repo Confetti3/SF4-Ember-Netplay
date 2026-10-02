@@ -461,6 +461,75 @@ impl SignedPermit {
     }
 }
 
+/// How long a browser handoff stays redeemable (spec 12.1, 25.3).
+pub const HANDOFF_SECS: u64 = 60;
+/// A handoff code: 32 random bytes as unpadded base64url.
+pub const HANDOFF_LEN: usize = 43;
+
+/// True for text shaped like a handoff code. Only the bridge can say whether
+/// it names a live handoff.
+pub fn is_handoff(text: &str) -> bool {
+    decode_b64u::<32>(text, "handoff").is_ok()
+}
+
+/// The `ember:` link a browser opens to hand a match to Ember.
+pub fn handoff_uri(bridge_id: &str, handoff: &str) -> String {
+    format!("ember://tournament/open?bridge={bridge_id}&handoff={handoff}")
+}
+
+/// `POST /v1/handoffs`: a provider or organizer asks for a handoff that lets
+/// one assigned player open a match in Ember.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CreateHandoff {
+    pub match_id: String,
+    pub ember_id: EmberId,
+}
+
+impl CreateHandoff {
+    pub fn check(&self) -> Result<()> {
+        if !is_prefixed_id(&self.match_id, "emt") {
+            return Err(Error::InvalidField("match_id"));
+        }
+        Ok(())
+    }
+}
+
+/// The handoff, shown once. The bridge keeps only a keyed hash of it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HandoffCreated {
+    pub handoff: String,
+    pub uri: String,
+    pub bridge_id: String,
+    pub match_id: String,
+    pub expires_at: u64,
+}
+
+/// `POST /v1/handoffs/redeem`, signed by the expected player's identity.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RedeemHandoff {
+    pub handoff: String,
+}
+
+impl RedeemHandoff {
+    pub fn check(&self) -> Result<()> {
+        if !is_handoff(&self.handoff) {
+            return Err(Error::InvalidField("handoff"));
+        }
+        Ok(())
+    }
+}
+
+/// What a redeemed handoff names: the match to open. Joining it still goes
+/// through the claim and the room's own admission.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HandoffRedeemed {
+    pub match_id: String,
+}
+
 #[cfg(test)]
 mod tests {
     use zeroize::Zeroizing;

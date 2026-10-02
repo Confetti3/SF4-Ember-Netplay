@@ -11,8 +11,8 @@ use ember_protocol::{
     challenge::{Action, Method},
     encoding::{Counter, is_prefixed_id, prefixed_id},
     play::{
-        Binding, Claim, ClaimAnswer, Observation, Permit, Prepare, PrepareAnswer, PublishRoom,
-        SignedBinding, SignedPermit, TABLE,
+        Binding, Claim, ClaimAnswer, HandoffRedeemed, Observation, Permit, Prepare, PrepareAnswer,
+        PublishRoom, RedeemHandoff, SignedBinding, SignedPermit, TABLE,
     },
     report::Outcome as GameOutcome,
 };
@@ -161,6 +161,39 @@ async fn proven(
         )
         .await?;
     answer(status, &response, &[200])
+}
+
+/// Redeems a browser handoff for the match it names. Only this player's
+/// identity can, once, within its minute; the answer is just the match ID.
+pub async fn redeem_handoff(shared: &Arc<Shared>, bridge_id: &str, handoff: &str) -> Outcome {
+    let command = RedeemHandoff {
+        handoff: handoff.to_owned(),
+    };
+    command
+        .check()
+        .map_err(|_| Failure::new("invalid_request"))?;
+    let value = serde_json::to_value(&command).map_err(|_| Failure::new("internal"))?;
+    client::with_session(shared, bridge_id, |bridge, token| {
+        let value = value.clone();
+        async move {
+            let answer = proven(
+                shared,
+                &bridge,
+                &token,
+                Action::HandoffRedeem,
+                "/v1/handoffs/redeem",
+                value,
+            )
+            .await?;
+            let redeemed: HandoffRedeemed = serde_json::from_value(answer)
+                .map_err(|_| Failure::new("bridge_invalid_response"))?;
+            if !is_prefixed_id(&redeemed.match_id, "emt") {
+                return Err(Failure::new("bridge_invalid_response"));
+            }
+            Ok(Some(json!({ "match_id": redeemed.match_id })))
+        }
+    })
+    .await
 }
 
 pub async fn assignments(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {

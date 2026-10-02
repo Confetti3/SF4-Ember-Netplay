@@ -279,6 +279,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   else rows.push_back(Row("invite-wait",loc::T("discord.invitation_pending"),loc::T("discord.invitation_pending_detail"),false));
  }else if(IdentityPanel::Owns(screen)){
   rows=identity_.Rows(v,screen,title);
+  if(screen=="tournament-matches"){const auto focus=identity_.TakeFocus(rows);if(!focus.empty())nav.Focus(focus,rows);}
  }else if(screen=="developer"&&developer){
   // The inspector's selectors are not the shell's own: they inherit no room
   // hints or Back label, and whatever they forward has no reader here.
@@ -526,6 +527,22 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    notice_=loc::Tf("tournament.stopped_notice",IdentityPanel::TournamentFailure(v.tournament.reason));noticeTone_=Tone::Error;noticeUntil_=now+20;
   }
   tournamentPhase_=v.tournament.phase;
+ }
+ // A match link from the browser opens the match's row for the player to
+ // press Play. It never leaves a room by itself: in one, it only says so.
+ if(v.tournament.handoffSequence!=handoffSequence_){
+  handoffSequence_=v.tournament.handoffSequence;
+  const auto& t=v.tournament;
+  if(!t.handoffMatch.empty()){
+   identity_.OpenMatch(t.handoffBridge,t.handoffMatch);
+   if(v.session.room==RoomState::Idle){
+    if(nav.Screen()!="tournament-matches"){nav.Home();nav.Push("tournament-matches");}
+    notice_=loc::T("tournament.handoff_opened");noticeTone_=Tone::Success;
+   }else{notice_=loc::T("tournament.handoff_waiting");noticeTone_=Tone::Pending;}
+   noticeUntil_=now+15;
+  }else if(!t.handoffError.empty()){
+   notice_=IdentityPanel::HandoffFailure(t.handoffError);noticeTone_=Tone::Error;noticeUntil_=now+20;
+  }
  }
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);

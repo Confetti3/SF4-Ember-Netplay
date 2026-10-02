@@ -2925,6 +2925,27 @@ msgstr "No se ha podido guardar el resultado de un combate para el servicio de t
 msgid "tournament.failure.not_found"
 msgstr "El servicio de torneos ya no tiene esta partida."
 
+msgid "tournament.paste_link"
+msgstr "Pegar enlace de partida"
+
+msgid "tournament.paste_link_detail"
+msgstr "Copia el enlace o el código de la partida en la web del torneo y elige esta opción para abrirla aquí."
+
+msgid "tournament.opening_link"
+msgstr "Abriendo el enlace de la partida..."
+
+msgid "tournament.handoff_opened"
+msgstr "La web del torneo ha abierto una partida. Pulsa Jugar cuando estés listo."
+
+msgid "tournament.handoff_waiting"
+msgstr "Ha llegado un enlace de partida del torneo. Sal de tu sala y juégala desde Partidas del torneo."
+
+msgid "tournament.failure.handoff"
+msgstr "Ese enlace de partida ya se ha usado, ha caducado o es de otro jugador. Juega la partida desde esta lista."
+
+msgid "tournament.failure.handoff_service"
+msgstr "Confía en este servicio de torneos en Cuentas vinculadas y vuelve a abrir el enlace de la partida."
+
 msgid "rules.set_length"
 msgstr "Duración del set"
 

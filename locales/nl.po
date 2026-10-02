@@ -2925,6 +2925,27 @@ msgstr "De uitslag van een gevecht kon niet worden opgeslagen voor de toernooidi
 msgid "tournament.failure.not_found"
 msgstr "De toernooidienst heeft deze wedstrijd niet meer."
 
+msgid "tournament.paste_link"
+msgstr "Wedstrijdlink plakken"
+
+msgid "tournament.paste_link_detail"
+msgstr "Kopieer de link of code van de wedstrijd op de toernooisite en kies dit om die wedstrijd hier te openen."
+
+msgid "tournament.opening_link"
+msgstr "Wedstrijdlink openen..."
+
+msgid "tournament.handoff_opened"
+msgstr "De toernooisite heeft een wedstrijd geopend. Druk op Spelen als je klaar bent."
+
+msgid "tournament.handoff_waiting"
+msgstr "Er kwam een toernooiwedstrijdlink binnen. Verlaat je kamer en speel hem via Toernooiwedstrijden."
+
+msgid "tournament.failure.handoff"
+msgstr "Deze wedstrijdlink is al gebruikt, verlopen of voor een andere speler. Speel de wedstrijd via deze lijst."
+
+msgid "tournament.failure.handoff_service"
+msgstr "Vertrouw deze toernooidienst bij Gekoppelde accounts en open de wedstrijdlink dan opnieuw."
+
 msgid "rules.set_length"
 msgstr "Setlengte"
 
