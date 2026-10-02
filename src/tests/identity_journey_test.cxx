@@ -420,5 +420,48 @@ void DiscordWaitsForItsService(){
  Check(status==loc::Tf("connect.done","kate"),"The sign-in's own account did not end the wait");
  SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
-int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
+// A link's journey keeps its service through a locked Ember ID, unlocked on
+// Connect Discord itself, and through a visit to the Ember ID screen.
+void DiscordConnectKeepsItsService(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Harness h;auto& id=h.view.identity;id.known=true;id.state="locked";h.Frame();
+ const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
+ std::vector<MenuEntry> rows;std::string status;
+ SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
+ const auto row=[&](const char* name)->const MenuEntry*{const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;});return it==rows.end()?nullptr:&*it;};
+ const auto sent=[&]{std::vector<const netplay::IdentityRequest*> out;for(const auto& a:h.actions)if(a.identity.op!=IdentityOp::None)out.push_back(&a.identity);return out;};
+ const auto answer=[&]{
+  h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=true;id.failure.clear();h.Frame(0,2);
+ };
+ const auto until=[&](IdentityOp op){for(int i=0;i<10&&sent().back()->op!=op;++i)answer();return sent().back()->op==op;};
+ const auto type=[&](const char* text){
+  ImGui::GetIO().AddInputCharactersUTF8(text);h.Frame();
+  ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,true);h.Frame();ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,false);h.Frame();
+ };
+ // A link for a trusted service other than Ember's own, with the ID locked.
+ h.view.tournament.connect.bridge="brg_2";h.view.tournament.connect.sequence=1;h.Frame(0,2);
+ for(int i=0;i<4;++i)answer();
+ Check(h.shell.Navigation().Screen()=="discord-connect"&&row("id-unlock"),"A locked ID is not unlocked on Connect Discord");
+ h.Choose("id-unlock");type("correct horse");
+ Check(sent().back()->op==IdentityOp::Unlock&&sent().back()->passphrase=="correct horse","Unlock did not send the passphrase");
+ id.state="ready";id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
+ id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};answer();
+ Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==other,"Unlocking did not go on to the link's service");
+ id.inspected=id.bridges[1];id.inspectedDiscord=true;answer();
+ Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge=="brg_2","The link's service's account was not read");
+ id.discordUser.clear();id.discordName.clear();answer();
+ // A visit to the Ember ID screen comes back to the same journey.
+ id.state="recovery_required";h.Frame(0,2);
+ Check(row("identity")!=nullptr,"An ID needing recovery does not lead to the Ember ID screen");
+ h.Choose("identity");Check(h.shell.Navigation().Screen()=="identity","Connect Discord did not open the Ember ID screen");
+ id.state="ready";for(int i=0;i<4;++i)answer();
+ h.Choose("discord-connect");
+ Check(h.shell.Navigation().Screen()=="discord-connect"&&h.shell.Navigation().Parent()=="home","Connect Discord from the Ember ID screen did not go back to the journey");
+ for(int i=0;i<8;++i)answer();
+ Check(row("dc-service")&&row("dc-service")->value=="Other","The journey lost the link's service");
+ h.Choose("id-discord-connect");
+ Check(sent().back()->op==IdentityOp::DiscordConnect&&sent().back()->bridge=="brg_2","Connect did not name the link's service");
+ SetMenuEntriesProbe({});SetMenuStatusProbe({});
+}
+int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

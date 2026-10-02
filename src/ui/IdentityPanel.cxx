@@ -588,8 +588,12 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
             const bool secretOk = !id.passphraseRequired || Matching(newPassphrase_, newConfirm_);
             rows.push_back(ConfirmRow("id-enable", loc::T("connect.create"),
                 canEdit ? loc::T("connect.create_detail") : loc::T("identity.leave_room"), canEdit && !busy && secretOk));
+        } else if (id.state == "locked") {
+            // Unlocked here, so the journey goes on with its service.
+            rows.push_back(Secret("id-unlock", loc::T("identity.unlock"), {}, loc::T("identity.unlock_detail"), true));
+            rows.back().hint = loc::T("identity.unlock");
         } else if (!ready) {
-            // Locked, being created, or needing recovery: the Ember ID screen says what to do.
+            // Being created or needing recovery: the Ember ID screen says what to do.
             rows.push_back(Row("identity", loc::T("screen.identity"), loc::T("connect.identity_detail")));
         } else {
             ConnectRows(v, rows, busy);
@@ -648,7 +652,9 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
 void IdentityPanel::Activate(const MenuAction& a, const ShellView& v, MenuNavigation& nav) {
     const auto& id = v.identity;
     IdentityRequest r;
-    // Connect Discord opened from the menu is for Ember's own service.
+    // Connect Discord opened from the menu is for Ember's own service, unless
+    // the player came to the Ember ID screen from a journey: it goes on.
+    if (a.id == "discord-connect" && nav.Parent() == "discord-connect") { nav.Return(); return; }
     if (a.id == "discord-connect") { NewJourney(); connectBridge_.clear(); }
     if (a.id == "identity" || a.id == "linked-accounts" || a.id == "identity-backup" || a.id == "tournament-matches" ||
         a.id == "discord-connect") { nav.Push(a.id); return; }
