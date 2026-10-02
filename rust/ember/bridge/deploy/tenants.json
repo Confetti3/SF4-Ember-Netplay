@@ -13,9 +13,15 @@
       "connections": [
         {
           "id": "blumint-staging",
-          "kind": "blumint",
+          "kind": "direct",
           "environment": "staging",
           "display_name": "BluMint (staging)"
+        },
+        {
+          "id": "blumint-partner-staging",
+          "kind": "blumint",
+          "environment": "staging",
+          "display_name": "BluMint partner API (staging)"
         }
       ]
     },

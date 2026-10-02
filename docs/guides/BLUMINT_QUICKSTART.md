@@ -11,7 +11,7 @@ report every game, so results arrive without anyone typing them in.
 | | |
 |---|---|
 | Staging bridge | `https://bridge.embernetplay.link` |
-| Your connection | `blumint-staging` (tenant `blumint`) |
+| Your connection | `blumint-partner-staging` (tenant `blumint`) |
 | Player lookup | `POST https://bridge.embernetplay.link/v1/blumint/lookup` |
 | Match creation | `POST https://bridge.embernetplay.link/v1/blumint/matches` |
 | Match status | `GET https://bridge.embernetplay.link/v1/blumint/matches/status?matchId=...` |

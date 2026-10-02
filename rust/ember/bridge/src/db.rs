@@ -115,7 +115,9 @@ mod tests {
     #[test]
     fn a_database_from_before_discord_upgrades_to_the_current_schema() {
         let mut connection = Connection::open_in_memory().unwrap();
-        connection.pragma_update(None, "foreign_keys", "ON").unwrap();
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .unwrap();
         // Versions 1 to 7 as they shipped, the last with browser handoffs.
         migrate(&mut connection, &MIGRATIONS[..7]).unwrap();
         assert!(table_exists(&connection, "handoffs"));

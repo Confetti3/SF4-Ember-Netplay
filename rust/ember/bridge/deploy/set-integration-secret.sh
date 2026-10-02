@@ -4,7 +4,7 @@
 #   sudo bash ~/ember-bridge/set-integration-secret.sh discord
 #       Discord's client secret (Developer Portal, the Ember application, OAuth2).
 #   sudo bash ~/ember-bridge/set-integration-secret.sh blumint <connection-id>
-#       The API key BluMint issued for that connection, such as blumint-staging.
+#       The API key BluMint issued for that connection, such as blumint-partner-staging.
 #
 # The secret is pasted at a hidden prompt, so it never appears on the screen,
 # in the shell history or on a command line. It is written to

@@ -75,7 +75,9 @@ budgets per address in nginx, and a daily database and secrets backup kept 14 da
 on the same machine). All three development switches are off. Connections:
 `blumint-staging` (tenant `blumint`) and `ember-test` (tenant `ember`) for our own
 checks, both of the new `direct` kind: the platform calls the generic API with its
-provider credential, and no adapter calls the platform. Partner onboarding is
+provider credential, and no adapter calls the platform. `blumint-partner-staging`
+(tenant `blumint`, kind `blumint`) serves BluMint's partner API (WP7); a connection
+never changes kind, so it is a connection of its own. Partner onboarding is
 `docs/guides/BLUMINT_QUICKSTART.md`. `ember-bridge credentials` lists issued
 credentials without their tokens and `ember-bridge revoke` ends one at once;
 `restore.sh` puts a backup set back.
