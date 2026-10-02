@@ -1717,6 +1717,12 @@ msgstr "Copia invito"
 msgid "room.copy_invitation.detail"
 msgstr "Condividi l'invito privato con gli amici."
 
+msgid "room.copy_short_invitation"
+msgstr "Copia link breve"
+
+msgid "room.copy_short_invitation.detail"
+msgstr "Un link breve per la chat, conservato dal servizio link di Ember finché la sala è aperta."
+
 msgid "room.leaving"
 msgstr "Uscita dalla sala..."
 
@@ -1788,6 +1794,24 @@ msgstr "{0} / Tu: {1}\nCoda: {2} / Spettatori: {3}"
 
 msgid "room.invitation_copied"
 msgstr "Invito copiato."
+
+msgid "room.short_invitation_copied"
+msgstr "Link breve copiato."
+
+msgid "room.short_invitation_pending"
+msgstr "Creazione del link breve..."
+
+msgid "room.short_invitation_unavailable"
+msgstr "Il servizio link non ha risposto, quindi è stato copiato l'invito completo."
+
+msgid "room.link_joining"
+msgstr "Ingresso nella sala del link."
+
+msgid "room.link_opened"
+msgstr "Aperto da un link della sala. Controllalo, poi scegli Entra in sala."
+
+msgid "room.link_waiting"
+msgstr "È stato aperto un link della sala. Lo troverai nella schermata per entrare quando lasci questa sala."
 
 msgid "room.replacement_opening"
 msgstr "Apertura nuova sala. Scegli Copia invito e invia il nuovo link: il vecchio non funziona più."
@@ -2375,6 +2399,12 @@ msgstr "L'host usa un altro pacchetto di SF4 Ember Netplay. Entrambi i giocatori
 
 msgid "runtime.invite_malformed"
 msgstr "Il testo dell'invito è incompleto. Copialo di nuovo e incolla l'invito intero."
+
+msgid "runtime.invite_short_unavailable"
+msgstr "Impossibile raggiungere il servizio link di Ember per aprire questo link breve. Chiedi all'host l'invito completo e incolla quello."
+
+msgid "runtime.invite_short_unknown"
+msgstr "Nessuna sala trovata per questo link breve. Controlla il codice oppure, se la sala è stata chiusa, chiedi all'host un nuovo link."
 
 msgid "runtime.room_host_failed"
 msgstr "Impossibile creare la sala. Controlla la connessione a internet e riprova."

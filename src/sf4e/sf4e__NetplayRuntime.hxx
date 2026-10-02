@@ -38,6 +38,7 @@
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../common/Localization.hxx"
 #include "../platform/LocaleWindows.hxx"
+#include "../platform/JoinLinkMailbox.hxx"
 #include "../platform/UiPreferencesStore.hxx"
 #include <algorithm>
 #include <mutex>
@@ -203,6 +204,17 @@ struct Runtime {
 	bool attached = false;
 	bool helperLossReported = false;
 	bool offlineRequested = false;
+	// Room links from the browser (ember://join/...): the launcher's start
+	// argument, or one a later launcher handed over. The newest waits here
+	// as the https link for the Join screen; the sequence tells it apart.
+	platform::JoinLinkMailbox joinLinks;
+	std::string pendingJoinLink;
+	std::uint64_t pendingJoinSequence = 0;
+	// A link joins by itself only if it arrived with no room or match open,
+	// and only for a while after it arrived (JoinLinkDirectWindow); the
+	// window covers a game that is still starting up.
+	bool pendingJoinFree = false;
+	std::chrono::steady_clock::time_point pendingJoinArrived{};
 };
 
 struct PostPublishState {

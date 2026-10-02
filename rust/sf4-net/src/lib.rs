@@ -10,6 +10,7 @@ pub mod ipc;
 pub mod probe;
 pub mod recovery;
 pub mod service;
+pub mod short_invite;
 pub mod tournament;
 pub mod transport;
 pub mod wire;

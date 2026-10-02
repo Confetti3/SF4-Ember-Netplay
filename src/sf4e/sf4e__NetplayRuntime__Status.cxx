@@ -355,7 +355,17 @@ PostPublishState Publish() {
     snapshot.gameplayInputError=Game::Battle::System::ggpo&&runtime->matchInputFault&&runtime->match&&!LocalIsSpectator()?
         loc::Tf("runtime.match_input_blocked",DeviceName(runtime->matchInput)):std::string();
 	snapshot.offlineRequested = runtime->offlineRequested;
-	if (runtime->room) snapshot.invitation = runtime->room->Invitation();
+	snapshot.pendingJoinLink = runtime->pendingJoinLink;
+	snapshot.pendingJoinSequence = runtime->pendingJoinSequence;
+	constexpr std::chrono::seconds JoinLinkDirectWindow{120};
+	snapshot.pendingJoinDirect = runtime->pendingJoinFree &&
+		std::chrono::steady_clock::now() - runtime->pendingJoinArrived < JoinLinkDirectWindow;
+	if (runtime->room) {
+		snapshot.invitation = runtime->room->Invitation();
+		snapshot.shortInvitation = runtime->room->ShortInvitation();
+		snapshot.shortInvitationPending = runtime->room->ShortInvitationPending();
+		snapshot.shortInvitationFailures = runtime->room->ShortInvitationFailures();
+	}
 	FillRoomView(snapshot);
     snapshot.canChangeController = snapshot.canEditSelection && !runtime->readyIntent.Parked() &&
         !snapshot.session.readyPending && !runtime->lobbyEditIntent.Parked() && !runtime->pendingAbort;

@@ -17,6 +17,7 @@
 #include <vector>
 #include <filesystem>
 #include "../ui/RecoverySurface.hxx"
+#include "../platform/JoinLinkMailbox.hxx"
 #include "../platform/LauncherInstance.hxx"
 #include "../platform/Utf8.hxx"
 #include "../platform/WineBuiltin.hxx"
@@ -494,6 +495,32 @@ bool ShowRecovery(std::string message, std::wstring& gameDirectory, bool updates
 		[](const std::string& line) { spdlog::warn("{}", line); }, tone, canStart);
 }
 
+// Lets the /j page on embernetplay.link hand a room link to Ember through
+// ember://join/<code>. Per user (HKCU), no elevation; written only when the
+// command does not already name this Launcher.exe. A wrong or missing entry
+// costs nothing: the page always offers the link to copy and paste instead.
+static void RegisterJoinScheme() {
+    wchar_t executable[MAX_PATH] = {};
+    const DWORD length = GetModuleFileNameW(nullptr, executable, MAX_PATH);
+    if (!length || length >= MAX_PATH) return;
+    const std::wstring command = L"\"" + std::wstring(executable) + L"\" --join-link \"%1\"";
+    const wchar_t* commandKey = L"Software\\Classes\\ember\\shell\\open\\command";
+    wchar_t current[2 * MAX_PATH] = {};
+    DWORD size = sizeof(current);
+    if (RegGetValueW(HKEY_CURRENT_USER, commandKey, nullptr, RRF_RT_REG_SZ, nullptr, current, &size) == ERROR_SUCCESS &&
+        command == current) return;
+    const auto set = [](const wchar_t* key, const wchar_t* name, const std::wstring& value) {
+        return RegSetKeyValueW(HKEY_CURRENT_USER, key, name, REG_SZ, value.c_str(),
+            static_cast<DWORD>((value.size() + 1) * sizeof(wchar_t))) == ERROR_SUCCESS;
+    };
+    const bool registered = set(L"Software\\Classes\\ember", nullptr, L"URL:SF4 Ember Netplay room link") &&
+        set(L"Software\\Classes\\ember", L"URL Protocol", L"") &&
+        set(L"Software\\Classes\\ember\\DefaultIcon", nullptr, L"\"" + std::wstring(executable) + L"\",0") &&
+        set(commandKey, nullptr, command);
+    if (registered) spdlog::info("Registered the ember: room link handler");
+    else spdlog::warn("Could not register the ember: room link handler");
+}
+
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     sf4e::install::ConfigureDllSearch();
     auto languagePreference = sf4e::platform::LoadLanguagePreference();
@@ -511,8 +538,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     sf4e::Payload payload{};
     bool offline = false, updates = false, recovery = false, updateError = false, discordLaunch = false;
     DWORD waitPid = 0;
-    std::string localeOverride;
+    std::string localeOverride, joinUri;
     CLI::App app("SF4 Ember Netplay for Ultra Street Fighter IV", "Launcher");
+    app.add_option("--join-link", joinUri, "Open a room link from the browser (ember://join/...) on the Join screen.");
     app.add_flag("--discord-launch", discordLaunch, "Start Ember for an accepted Discord invitation.");
     app.add_flag("--console", payload.args.bShowConsole, "Show diagnostic logging.");
     app.add_flag("--offline", offline, "Start at the native game menu without networking.");
@@ -528,6 +556,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         languagePreference = localeOverride;
         sf4e::loc::SetActive(sf4e::platform::ResolveUiLocale(languagePreference));
     }
+    // The link is a room's short code. Never log it.
+    const std::string joinCode = joinUri.empty() ? std::string() : sf4e::join_link::ParseUri(joinUri);
+    if (!joinUri.empty()) spdlog::info(joinCode.empty() ? "Ignored a room link that is not ember://join/<code>" : "Started with a room link");
     sf4e::platform::LauncherInstance instance;
     std::wstring chosenDirectory;
     if (waitPid) {
@@ -539,6 +570,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     if (updates && !ShowRecovery(updateError ? sf4e::loc::T("launcher.update_failed") : "", chosenDirectory, true, sf4e::ui::Tone::Error, true)) return 0;
     if (recovery && !ShowRecovery(sf4e::loc::T("launcher.recovery_opened"), chosenDirectory, false, sf4e::ui::Tone::Neutral)) return 0;
     if (!instance.Acquire()) {
+        // A room link goes to the running game, which shows it on its Join
+        // screen for the player to confirm.
+        if (!joinCode.empty() && sf4e::platform::DeliverJoinLink(joinCode)) {
+            spdlog::info("Handed the room link to the running game");
+            return 0;
+        }
         // A Discord invite reaches the running copy, so a second start for it
         // stays quiet. Otherwise a leftover launcher (or one still waiting on
         // a game that never closed) made every start do nothing at all.
@@ -546,6 +583,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (!discordLaunch) ShowLauncherMessage("launcher.already_running", MB_OK | MB_ICONINFORMATION);
         return 0;
     }
+    RegisterJoinScheme();
     // An update interrupted mid-install must be restored before the game runs
     // on a half-replaced install. The Updater restarts the Launcher after.
     switch (sf4e::launcher::StartPendingUpdateRecovery(GetCurrentProcessId())) {
@@ -577,6 +615,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     payload.netplay.deviceIdx = payload.netplay.deviceType = 0xff;
     payload.netplay.useRelay = 0;
     SetEnvironmentVariableW(L"SF4E_START_OFFLINE", offline ? L"1" : nullptr);
+    // The game reads the room link once at start and clears it (NetplayRuntime).
+    SetEnvironmentVariableW(L"SF4E_JOIN_LINK", joinCode.empty() ? nullptr : sf4e::platform::Utf8ToWide(joinCode.c_str()).c_str());
     // A folder picked in recovery on an earlier launch comes before the search.
     sf4e::launcher::RememberedFolder remembered{sf4e::platform::Utf8ToWide(settings.gameDirectory.c_str())};
     const auto exists = [](const std::wstring& path) { return PathFileExistsW(path.c_str()) != FALSE; };

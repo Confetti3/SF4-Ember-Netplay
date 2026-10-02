@@ -1,0 +1,40 @@
+[Unit]
+Description=Ember short invitation links
+After=network.target
+
+[Service]
+ExecStart=/usr/local/lib/ember-short/ember-short --listen 127.0.0.1:47810
+Restart=on-failure
+RestartSec=2
+DynamicUser=yes
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged
+IPAddressDeny=any
+IPAddressAllow=localhost
+MemoryMax=96M
+TasksMax=32
+
+[Install]
+WantedBy=multi-user.target

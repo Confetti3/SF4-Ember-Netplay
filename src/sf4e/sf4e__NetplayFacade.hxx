@@ -82,6 +82,8 @@ namespace sf4e {
             int previewSoundVolume=-1;
             // An identity or bridge request; op None when the command is something else.
             netplay::IdentityRequest identity;
+            // Ask the helper for the room's short link (IrohRoom::RequestShortInvitation).
+            bool shortInvitation=false;
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
@@ -130,6 +132,14 @@ namespace sf4e {
 			bool offlineRequested = false;
 			std::string displayName;
 			std::string invitation;
+			// The room's short link once the helper has one; see IrohRoom.
+			std::string shortInvitation;
+			bool shortInvitationPending = false;
+			std::uint64_t shortInvitationFailures = 0;
+			// The newest room link opened from the browser, as an https link.
+			std::string pendingJoinLink;
+			std::uint64_t pendingJoinSequence = 0;
+			bool pendingJoinDirect = false;
 			std::string helperError;
             std::string gameplayInputError;
             std::vector<netplay::MemberView> members;

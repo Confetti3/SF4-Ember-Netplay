@@ -131,6 +131,7 @@ pub async fn run<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         join_first_loss: None,
         retirement_started: None,
         departure_failed: false,
+        short: ShortLinks::default(),
     };
     let result = actor.run(receiver, failure).await;
     actor.clear_room();

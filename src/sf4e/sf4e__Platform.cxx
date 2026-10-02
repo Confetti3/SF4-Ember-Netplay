@@ -288,6 +288,11 @@ void fMain::Install() {
 }
 
 int fMain::Initialize(void* a, void* b, void* c) {
+	// The game builds this singleton on first use and marks it built before
+	// its constructor has run. A focus change while a loading thread was in
+	// that constructor made the window procedure enter a lock that was still
+	// zeroed. Build it here, while this is the only game thread.
+	rMain::staticMethods.GetFocusStateSingleton();
 	// This hook is outside DllMain: worker creation and named-pipe IPC are safe.
 	sf4e::NetplayFacade::StartHelper();
     if (sf4e::hSyncEvent != NULL) {

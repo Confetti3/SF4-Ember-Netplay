@@ -1,0 +1,23 @@
+[package]
+name = "ember-short"
+description = "Short invitation store for SF4 Ember Netplay: holds sealed records under opaque locators"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+publish = false
+license = "MIT"
+
+[dependencies]
+axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio"] }
+base64 = "0.22"
+rand = "0.10"
+sha2 = "0.10.9"
+subtle = "2"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+
+[dev-dependencies]
+tower = { version = "0.5", default-features = false, features = ["util"] }
+
+[profile.release]
+strip = "debuginfo"
+lto = "thin"
