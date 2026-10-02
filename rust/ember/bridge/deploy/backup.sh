@@ -4,7 +4,9 @@
 # are needed to restore: the secrets unlock the database's credential hashes
 # and sealed webhook secrets, and bridge.json holds the bridge ID players
 # trusted. Restore one stamp with restore.sh, which also moves the old
-# database's WAL and shared-memory files out of the way.
+# database's WAL and shared-memory files out of the way. integrations.json
+# (other services' secrets) is left out and left in place: it can be stored
+# again from those services at any time.
 set -euo pipefail
 
 STATE=/var/lib/ember-bridge

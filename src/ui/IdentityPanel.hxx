@@ -60,6 +60,7 @@ private:
     // Says so when the list a link's refresh brought back lacks its match.
     void CheckOpenedMatch(const netplay::tournament::AssignmentList& list);
     MenuEntry ServiceRow(const ShellView& view, const netplay::IdentityBridge& bridge) const;
+    MenuEntry DiscordRow(const ShellView& view, bool busy) const;
 
     std::deque<netplay::IdentityRequest> queue_;
     std::uint64_t nextTicket_ = 0, sent_ = 0;
@@ -72,9 +73,13 @@ private:
     double messageUntil_ = 0;
     // What the player typed. The passphrase fields are secrets.
     std::string newPassphrase_, newConfirm_, backupPassphrase_, backupConfirm_, restorePassphrase_;
-    std::string restorePath_, origin_, code_;
+    // The address starts as Ember's own tournament service, the one most
+    // players trust; any other can be typed over it.
+    std::string restorePath_, origin_ = "https://bridge.embernetplay.link", code_;
     // The selected service and site, and the service whose links the view lists.
     std::string bridge_, connection_, listedBridge_, sentBridge_;
+    // The service the view's Discord account was last read from.
+    std::string discordBridge_;
     // The backup the view's preview describes, while the path still names it.
     std::string previewPath_;
     // A service the player looked up and may now trust.

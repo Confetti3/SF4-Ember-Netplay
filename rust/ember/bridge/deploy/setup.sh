@@ -11,6 +11,10 @@
 #   user ember-bridge                                  system account the bridge runs as
 #   /usr/local/lib/ember-bridge/                       binary, backup and restore scripts (root-owned)
 #   /var/lib/ember-bridge/                             bridge.json, bridge-secrets.json, database (0700)
+#                                                      and integrations.json, which only
+#                                                      set-integration-secret.sh writes: Discord
+#                                                      sign-in and BluMint results start once
+#                                                      their secrets are stored there
 #   /var/backups/ember-bridge/                         daily backups, kept 14 days (0700)
 #   /etc/systemd/system/ember-bridge*.{service,timer}  the service and the backup timer
 #   /etc/nginx/conf.d/ember-bridge.conf                request rate zones

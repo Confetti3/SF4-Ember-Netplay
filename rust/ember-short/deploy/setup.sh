@@ -102,7 +102,7 @@ for attempt in 1 2 3 4 5; do
 done
 echo "service: $(curl -fsS http://127.0.0.1:47810/s/health || echo 'no answer')"
 echo "public:  $(curl -fsS --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/s/health || echo 'no answer')"
-for page in j j/K7QM-4XRT-9PZD m; do
+for page in j j/K7QM-4XRT-9PZD m start; do
     echo "/$page:  $(curl -fsS -o /dev/null -w '%{http_code}' --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/$page)"
 done
 echo "=== done ==="

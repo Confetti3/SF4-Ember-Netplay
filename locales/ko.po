@@ -2655,6 +2655,18 @@ msgstr "연동된 계정 없음"
 msgid "identity.no_links_detail"
 msgstr "대회 사이트에서 연동을 시작한 뒤, 표시되는 코드를 아래에 입력하세요."
 
+msgid "identity.discord"
+msgstr "Discord"
+
+msgid "identity.discord_none"
+msgstr "연결 안 됨"
+
+msgid "identity.discord_detail"
+msgstr "선택 사항입니다. Discord 계정을 연결하면 이 서비스를 쓰는 대회 사이트(예: BluMint)가 그 계정으로 Ember ID를 찾을 수 있습니다. Ember가 브라우저에서 Discord 로그인 페이지를 엽니다."
+
+msgid "identity.discord_remove_detail"
+msgstr "이 서비스에서 이 Discord 계정과 Ember ID의 연결을 끊습니다. 대회 사이트가 이 계정으로 더 이상 찾을 수 없습니다."
+
 msgid "identity.site"
 msgstr "사이트"
 
@@ -2735,6 +2747,12 @@ msgstr "코드를 보냈습니다. 사이트에서 연동을 승인하고, {0}�
 
 msgid "identity.done.unlinked"
 msgstr "계정 연동을 해제했습니다."
+
+msgid "identity.done.discord_opened"
+msgstr "브라우저에서 Discord 로그인을 마친 다음 새로 고침을 선택하세요."
+
+msgid "identity.done.discord_removed"
+msgstr "Discord 계정 연결을 끊었습니다."
 
 msgid "identity.done.cancelled"
 msgstr "연동을 취소했습니다."

@@ -2224,6 +2224,18 @@ msgstr "Nenhuma conta vinculada"
 msgid "identity.no_links_detail"
 msgstr "Inicie um vínculo no site de torneios e digite abaixo o código que ele mostrar."
 
+msgid "identity.discord"
+msgstr "Discord"
+
+msgid "identity.discord_none"
+msgstr "Não conectado"
+
+msgid "identity.discord_detail"
+msgstr "Opcional. Conecte sua conta do Discord para que sites de torneio que usam este serviço, como o BluMint, encontrem seu Ember ID por ela. O Ember abre a página de login do Discord no navegador."
+
+msgid "identity.discord_remove_detail"
+msgstr "Desconecta esta conta do Discord do seu Ember ID neste serviço. Os sites de torneio não vão mais encontrar você por ela."
+
 msgid "identity.site"
 msgstr "Site"
 
@@ -2304,6 +2316,12 @@ msgstr "Código enviado. Aprove o vínculo no site e confira se ele mostra {0}."
 
 msgid "identity.done.unlinked"
 msgstr "Conta desvinculada."
+
+msgid "identity.done.discord_opened"
+msgstr "Termine o login no Discord no navegador e escolha Atualizar."
+
+msgid "identity.done.discord_removed"
+msgstr "Conta do Discord desconectada."
 
 msgid "identity.done.cancelled"
 msgstr "Vínculo cancelado."

@@ -223,6 +223,21 @@ MenuEntry IdentityPanel::ServiceRow(const ShellView& v, const netplay::IdentityB
     return service;
 }
 
+// Discord on the selected service: connect it (Ember opens Discord's page in
+// the browser) or, once connected, disconnect it. Optional for the player.
+MenuEntry IdentityPanel::DiscordRow(const ShellView& v, bool busy) const {
+    const auto& id = v.identity;
+    const bool read = discordBridge_ == bridge_;
+    if (read && !id.discordUser.empty()) {
+        auto row = ConfirmRow("id-discord-remove", loc::T("identity.discord"), loc::T("identity.discord_remove_detail"), !busy);
+        row.value = id.discordName; row.userText = true; row.hint = loc::T("identity.unlink");
+        return row;
+    }
+    auto row = Row("id-discord-connect", loc::T("identity.discord"), loc::T("identity.discord_detail"), !busy && read);
+    row.value = loc::T("identity.discord_none");
+    return row;
+}
+
 void IdentityPanel::Finish(const ShellView& v) {
     const auto& id = v.identity;
     if (!v.identityRequest) {
@@ -254,7 +269,11 @@ void IdentityPanel::Finish(const ShellView& v) {
         Say(loc::T("identity.done.imported"), false); break;
     case IdentityOp::Reset: previewPath_.clear(); Say(loc::T("identity.done.reset"), false); break;
     case IdentityOp::BridgeList:
-        if (opened_ && !FindBridge(v, opened_->bridge)) { Say(loc::T("tournament.failure.link_service"), true, 12); opened_.reset(); }
+        // Without an Ember ID the matches screen already says to create one first.
+        if (opened_ && !FindBridge(v, opened_->bridge)) {
+            if (id.state == "ready") Say(loc::T("tournament.failure.link_service"), true, 12);
+            opened_.reset();
+        }
         if (!FindBridge(v, bridge_)) bridge_ = id.bridges.empty() ? std::string() : id.bridges.front().id;
         if (!bridge_.empty()) SelectBridge(v, bridge_);
         break;
@@ -264,8 +283,12 @@ void IdentityPanel::Finish(const ShellView& v) {
             const bool known = std::any_of(id.connections.begin(), id.connections.end(),
                 [&](const netplay::IdentityConnection& c) { return c.id == connection_; });
             if (!known) connection_ = id.connections.empty() ? std::string() : id.connections.front().id;
+            if (id.inspectedDiscord) { IdentityRequest discord; discord.op = IdentityOp::DiscordStatus; discord.bridge = bridge_; Queue(std::move(discord)); }
         }
         break;
+    case IdentityOp::DiscordStatus: discordBridge_ = sentBridge_; break;
+    case IdentityOp::DiscordConnect: Say(loc::T("identity.done.discord_opened"), false, 30); break;
+    case IdentityOp::DiscordRemove: discordBridge_ = sentBridge_; Say(loc::T("identity.done.discord_removed"), false); break;
     case IdentityOp::BridgeApprove: {
         Say(loc::Tf("identity.done.trusted", found_.name), false);
         bridge_ = found_.id; found_ = {}; WipeText(origin_);
@@ -408,6 +431,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
                 if (id.links.empty() && id.pending.empty())
                     rows.push_back(Info("id-no-links", loc::T("identity.no_links"), {}, loc::T("identity.no_links_detail")));
             }
+            if (id.inspected.id == bridge_ && id.inspectedDiscord) rows.push_back(DiscordRow(v, busy));
             if (id.inspected.id == bridge_ && id.connections.size() > 1) {
                 auto connection = Row("id-connection", loc::T("identity.site"), loc::T("identity.site_detail"));
                 for (const auto& choice : id.connections) {
@@ -535,6 +559,8 @@ void IdentityPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
     else if (a.id == "id-approve") { r.op = IdentityOp::BridgeApprove; r.origin = found_.origin; r.bridge = found_.id; }
     else if (a.id.compare(0, 10, "id-unlink:") == 0) { r.op = IdentityOp::LinkRemove; r.bridge = bridge_; r.target = a.id.substr(10); }
     else if (a.id.compare(0, 10, "id-cancel:") == 0) { r.op = IdentityOp::LinkCancel; r.bridge = bridge_; r.target = a.id.substr(10); }
+    else if (a.id == "id-discord-connect") { r.op = IdentityOp::DiscordConnect; r.bridge = bridge_; }
+    else if (a.id == "id-discord-remove") { r.op = IdentityOp::DiscordRemove; r.bridge = bridge_; }
     else return;
     message_.clear();
     Queue(std::move(r));

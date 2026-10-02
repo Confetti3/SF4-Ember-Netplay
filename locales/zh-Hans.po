@@ -2655,6 +2655,18 @@ msgstr "暂无绑定账号"
 msgid "identity.no_links_detail"
 msgstr "请在赛事网站上发起绑定，然后在下方输入网站显示的代码。"
 
+msgid "identity.discord"
+msgstr "Discord"
+
+msgid "identity.discord_none"
+msgstr "未关联"
+
+msgid "identity.discord_detail"
+msgstr "可选。关联你的 Discord 账号后，使用此服务的赛事网站（例如 BluMint）可以通过它找到你的 Ember ID。Ember 会在浏览器中打开 Discord 登录页面。"
+
+msgid "identity.discord_remove_detail"
+msgstr "在此服务中解除此 Discord 账号与你的 Ember ID 的关联。赛事网站将无法再通过它找到你。"
+
 msgid "identity.site"
 msgstr "网站"
 
@@ -2735,6 +2747,12 @@ msgstr "代码已发送。请在网站上批准绑定，并确认网站显示的
 
 msgid "identity.done.unlinked"
 msgstr "账号已解除绑定。"
+
+msgid "identity.done.discord_opened"
+msgstr "请在浏览器中完成 Discord 登录，然后选择刷新。"
+
+msgid "identity.done.discord_removed"
+msgstr "已解除 Discord 账号关联。"
 
 msgid "identity.done.cancelled"
 msgstr "已取消绑定请求。"

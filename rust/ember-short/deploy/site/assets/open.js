@@ -1,8 +1,9 @@
 // Opens an Ember link: a room invitation (/j#CODE) or a tournament match
-// (/m#BRIDGE/MATCH). It reads the link from the URL fragment, which is never
-// sent to the server, makes no requests of its own, and offers the ember:
-// link only on the player's click, never by itself: a browser without
-// Ember's handler would otherwise replace this page with an error.
+// (/m#BRIDGE/MATCH), or, at /start, tells a player new to Ember how to get it
+// and connect Discord for tournament sites. It reads the link from the URL
+// fragment, which is never sent to the server, makes no requests of its own,
+// and offers the ember: link only on the player's click, never by itself: a
+// browser without Ember's handler would otherwise replace this page with an error.
 (function () {
   'use strict';
   var ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
@@ -87,10 +88,16 @@
     }
   }
 
+  // Where a tournament site sends a player it could not find.
+  var GETTING_STARTED = {
+    title: 'Play tournaments with Ember',
+    lead: 'SF4 Ember Netplay plays Ultra Street Fighter IV tournament matches online. Get it, then connect the Discord account your tournament site knows.'
+  };
+
   function start() {
     var fragment = location.hash.replace(/^#/, '');
-    var path = location.pathname;
-    var found = path.indexOf('/m') === 0 ? match(path, fragment) : room(path, fragment);
+    var path = location.pathname.replace(/\/$/, '');
+    var found = path === '/start' ? GETTING_STARTED : path.indexOf('/m') === 0 ? match(path, fragment) : room(path, fragment);
     if (!found) {
       document.getElementById('missing').hidden = false;
       return;
@@ -98,6 +105,13 @@
     document.title = found.title;
     document.getElementById('title').textContent = found.title;
     document.getElementById('lead').textContent = found.lead;
+    document.getElementById('page').hidden = false;
+    if (!found.ember) {
+      document.getElementById('get-title').textContent = 'Get Ember';
+      document.getElementById('come-back').hidden = true;
+      document.getElementById('tournaments').hidden = false;
+      return;
+    }
     document.getElementById('after').textContent = found.after;
     document.getElementById('lasts').textContent = found.lasts;
     document.getElementById('open').href = found.ember;
@@ -113,6 +127,7 @@
       copyCode.addEventListener('click', function () { copy(found.code, 'Code copied. Paste it into Ember.'); });
     }
     document.getElementById('link').hidden = false;
+    document.getElementById('fallback').hidden = false;
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);

@@ -2655,6 +2655,18 @@ msgstr "連携アカウントなし"
 msgid "identity.no_links_detail"
 msgstr "大会サイトで連携を開始し、表示されたコードを下に入力してください。"
 
+msgid "identity.discord"
+msgstr "Discord"
+
+msgid "identity.discord_none"
+msgstr "未連携"
+
+msgid "identity.discord_detail"
+msgstr "任意です。Discordアカウントを連携すると、このサービスを使う大会サイト（BluMintなど）がそのアカウントからあなたのEmber IDを見つけられます。EmberがブラウザでDiscordのサインインページを開きます。"
+
+msgid "identity.discord_remove_detail"
+msgstr "このサービスでこのDiscordアカウントとEmber IDの連携を解除します。大会サイトはこのアカウントからあなたを見つけられなくなります。"
+
 msgid "identity.site"
 msgstr "サイト"
 
@@ -2735,6 +2747,12 @@ msgstr "コードを送信しました。サイトで連携を承認し、{0}と
 
 msgid "identity.done.unlinked"
 msgstr "アカウントの連携を解除しました。"
+
+msgid "identity.done.discord_opened"
+msgstr "ブラウザでDiscordへのサインインを完了してから、更新を選んでください。"
+
+msgid "identity.done.discord_removed"
+msgstr "Discordアカウントの連携を解除しました。"
 
 msgid "identity.done.cancelled"
 msgstr "連携をキャンセルしました。"

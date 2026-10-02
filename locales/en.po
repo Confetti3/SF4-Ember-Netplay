@@ -2340,6 +2340,18 @@ msgstr "No linked accounts"
 msgid "identity.no_links_detail"
 msgstr "Start a link on the tournament site, then enter the code it shows below."
 
+msgid "identity.discord"
+msgstr "Discord"
+
+msgid "identity.discord_none"
+msgstr "Not connected"
+
+msgid "identity.discord_detail"
+msgstr "Optional. Connect your Discord account so tournament sites that use this service, such as BluMint, can find your Ember ID from it. Ember opens Discord's sign-in page in your browser."
+
+msgid "identity.discord_remove_detail"
+msgstr "Disconnects this Discord account from your Ember ID on this service. Tournament sites can no longer find you by it."
+
 msgid "identity.site"
 msgstr "Site"
 
@@ -2420,6 +2432,12 @@ msgstr "Code sent. Approve the link on the site, and check that it shows {0}."
 
 msgid "identity.done.unlinked"
 msgstr "Account unlinked."
+
+msgid "identity.done.discord_opened"
+msgstr "Finish signing in to Discord in your browser, then choose Refresh."
+
+msgid "identity.done.discord_removed"
+msgstr "Discord account disconnected."
 
 msgid "identity.done.cancelled"
 msgstr "Link cancelled."

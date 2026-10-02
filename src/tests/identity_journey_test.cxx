@@ -240,5 +240,54 @@ void RoomLinks(){
  h.view.pendingJoinDirect=false;h.shell.Navigation().Home();h.Frame(0,3);
  Check(h.shell.Navigation().Screen()=="join"&&h.actions.size()==before,"A stale room link did not just fill the Join screen");
 }
-int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
+// Discord on a service that offers it: optional, connected from the Linked
+// accounts screen through the browser, read back with Refresh, disconnected
+// with a confirmation. A brand-new player's match link asks for an Ember ID
+// first, not for a service.
+void DiscordAndFirstLink(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Harness h;auto& id=h.view.identity;id.known=true;id.state="disabled";h.Frame();
+ std::vector<MenuEntry> rows;std::string status;
+ SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
+ const auto row=[&](const char* name)->const MenuEntry*{const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;});return it==rows.end()?nullptr:&*it;};
+ const auto sent=[&]{std::vector<const netplay::IdentityRequest*> out;for(const auto& a:h.actions)if(a.identity.op!=IdentityOp::None)out.push_back(&a.identity);return out;};
+ const auto answer=[&]{
+  h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=true;id.failure.clear();h.Frame(0,2);
+ };
+ // No Ember ID yet: the link opens the matches screen, which says to create one.
+ h.view.tournament.link.bridge="brg_1";h.view.tournament.link.match="emt_1";h.view.tournament.link.sequence=1;h.Frame(0,3);
+ Check(h.shell.Navigation().Screen()=="tournament-matches"&&row("id-linked-unavailable"),"A new player's match link did not ask for an Ember ID");
+ for(int i=0;i<6;++i)answer();
+ Check(status!=loc::T("tournament.failure.link_service"),"A new player's match link asked to trust a service");
+ // With an ID, the address field starts on Ember's own service.
+ id.state="ready";id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
+ h.Screen("linked-accounts");for(int i=0;i<4;++i)answer();
+ Check(row("id-origin")&&row("id-origin")->value=="https://bridge.embernetplay.link","The service address does not start on Ember's own service");
+ // A service with Discord: its status is asked for, and Connect opens the browser through the helper.
+ id.bridges={{"brg_1","https://bridge.embernetplay.link","Ember"}};h.Screen("home");h.Screen("linked-accounts");
+ for(int i=0;i<8&&sent().back()->op!=IdentityOp::BridgeInspect;++i)answer();
+ id.inspected=id.bridges[0];id.connections={{"blumint","BluMint"}};id.inspectedDiscord=true;answer();
+ for(int i=0;i<4&&sent().back()->op!=IdentityOp::DiscordStatus;++i)answer();
+ Check(sent().back()->op==IdentityOp::DiscordStatus&&sent().back()->bridge=="brg_1","A Discord service's account was not asked for");
+ id.discordUser.clear();id.discordName.clear();answer();
+ Check(row("id-discord-connect")&&row("id-discord-connect")->enabled&&row("id-discord-connect")->value==loc::T("identity.discord_none"),
+  "An unconnected Discord account is not offered");
+ h.Choose("id-discord-connect");
+ Check(sent().back()->op==IdentityOp::DiscordConnect&&sent().back()->bridge=="brg_1","Connect Discord did not name its service");
+ answer();Check(status==loc::T("identity.done.discord_opened"),"Connect Discord did not say to finish in the browser");
+ // Refresh reads the account back; a connected one is disconnected after a confirmation.
+ h.Choose("id-refresh");
+ for(int i=0;i<10&&sent().back()->op!=IdentityOp::DiscordStatus;++i)answer();
+ id.discordUser="274220342558756145";id.discordName="kate";answer();
+ Check(row("id-discord-remove")&&row("id-discord-remove")->value=="kate","A connected Discord account is not shown");
+ h.Choose("id-discord-remove");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+ Check(sent().back()->op==IdentityOp::DiscordRemove,"Disconnect did not send");
+ id.discordUser.clear();id.discordName.clear();answer();
+ Check(status==loc::T("identity.done.discord_removed")&&row("id-discord-connect"),"A disconnected account is still shown");
+ // A service without Discord shows no row.
+ id.inspectedDiscord=false;h.Choose("id-refresh");for(int i=0;i<10;++i)answer();
+ Check(!row("id-discord-connect")&&!row("id-discord-remove"),"A service without Discord offers it");
+ SetMenuEntriesProbe({});SetMenuStatusProbe({});
+}
+int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

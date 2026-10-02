@@ -124,9 +124,13 @@ fn random() -> [u8; 16] {
 }
 
 fn open(path: &Path) -> Result<AppState, String> {
-    let config = Config::load(path)?;
+    let mut config = Config::load(path)?;
     let keys = Keys::load(&config.secrets)?;
     let integrations = ember_bridge::integrations::Secrets::load(&config)?;
+    if config.discord.is_some() && integrations.discord_client_secret.is_none() {
+        eprintln!("ember-bridge: Discord sign-in is off until its client secret is stored");
+        config.discord = None;
+    }
     let db =
         Db::open(&config.database).map_err(|error| format!("cannot open database: {error}"))?;
     let state = AppState::new(config, keys, integrations, db, Clock::default());

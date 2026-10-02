@@ -2655,6 +2655,18 @@ msgstr "Aucun compte associé"
 msgid "identity.no_links_detail"
 msgstr "Lancez une association sur le site du tournoi, puis saisissez ci-dessous le code affiché."
 
+msgid "identity.discord"
+msgstr "Discord"
+
+msgid "identity.discord_none"
+msgstr "Non connecté"
+
+msgid "identity.discord_detail"
+msgstr "Facultatif. Connectez votre compte Discord pour que les sites de tournoi qui utilisent ce service, comme BluMint, trouvent votre Ember ID grâce à lui. Ember ouvre la page de connexion de Discord dans votre navigateur."
+
+msgid "identity.discord_remove_detail"
+msgstr "Déconnecte ce compte Discord de votre Ember ID sur ce service. Les sites de tournoi ne pourront plus vous trouver grâce à lui."
+
 msgid "identity.site"
 msgstr "Site"
 
@@ -2735,6 +2747,12 @@ msgstr "Code envoyé. Approuvez l'association sur le site, et vérifiez qu'il af
 
 msgid "identity.done.unlinked"
 msgstr "Compte dissocié."
+
+msgid "identity.done.discord_opened"
+msgstr "Terminez la connexion à Discord dans votre navigateur, puis choisissez Actualiser."
+
+msgid "identity.done.discord_removed"
+msgstr "Compte Discord déconnecté."
 
 msgid "identity.done.cancelled"
 msgstr "Association annulée."

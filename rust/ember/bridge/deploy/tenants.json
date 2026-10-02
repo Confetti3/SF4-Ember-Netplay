@@ -2,19 +2,33 @@
   "display_name": "Ember bridge (staging)",
   "origin": "https://bridge.embernetplay.link",
   "listen": "127.0.0.1:47820",
+  "discord": {
+    "client_id": "1546980049692135514"
+  },
+  "integration_secrets": "integrations.json",
   "tenants": [
     {
       "id": "blumint",
       "name": "BluMint",
       "connections": [
-        { "id": "blumint-staging", "kind": "direct", "environment": "staging", "display_name": "BluMint (staging)" }
+        {
+          "id": "blumint-staging",
+          "kind": "blumint",
+          "environment": "staging",
+          "display_name": "BluMint (staging)"
+        }
       ]
     },
     {
       "id": "ember",
       "name": "Ember",
       "connections": [
-        { "id": "ember-test", "kind": "direct", "environment": "staging", "display_name": "Ember test" }
+        {
+          "id": "ember-test",
+          "kind": "direct",
+          "environment": "staging",
+          "display_name": "Ember test"
+        }
       ]
     }
   ]

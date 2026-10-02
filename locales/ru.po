@@ -2655,6 +2655,18 @@ msgstr "Нет привязанных аккаунтов"
 msgid "identity.no_links_detail"
 msgstr "Начните привязку на турнирном сайте, затем введите ниже код, который он покажет."
 
+msgid "identity.discord"
+msgstr "Discord"
+
+msgid "identity.discord_none"
+msgstr "Не подключён"
+
+msgid "identity.discord_detail"
+msgstr "Необязательно. Подключите аккаунт Discord, чтобы турнирные сайты, использующие этот сервис, например BluMint, находили по нему ваш Ember ID. Ember откроет страницу входа Discord в браузере."
+
+msgid "identity.discord_remove_detail"
+msgstr "Отключает этот аккаунт Discord от вашего Ember ID в этом сервисе. Турнирные сайты больше не найдут вас по нему."
+
 msgid "identity.site"
 msgstr "Сайт"
 
@@ -2735,6 +2747,12 @@ msgstr "Код отправлен. Подтвердите привязку на 
 
 msgid "identity.done.unlinked"
 msgstr "Аккаунт отвязан."
+
+msgid "identity.done.discord_opened"
+msgstr "Завершите вход в Discord в браузере, затем выберите «Обновить»."
+
+msgid "identity.done.discord_removed"
+msgstr "Аккаунт Discord отключён."
 
 msgid "identity.done.cancelled"
 msgstr "Привязка отменена."

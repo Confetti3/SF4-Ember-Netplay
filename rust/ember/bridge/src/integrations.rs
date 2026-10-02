@@ -25,7 +25,7 @@ struct File {
 
 #[derive(Default)]
 pub struct Secrets {
-    /// Present exactly when the configuration turns Discord sign-in on.
+    /// Discord's client secret. Without it Discord sign-in stays off.
     pub discord_client_secret: Option<Zeroizing<String>>,
     /// A platform's API key, by connection ID. A BluMint connection without
     /// one is served but not sent results.
@@ -33,24 +33,22 @@ pub struct Secrets {
 }
 
 impl Secrets {
-    /// The secrets `config` needs: none without `integration_secrets`.
+    /// The file `config` names, or none. A file not written yet reads as
+    /// empty, so a deployment can name it before any secret is stored.
     pub fn load(config: &Config) -> Result<Self, String> {
-        let Some(path) = &config.integration_secrets else {
+        let Some(path) = config
+            .integration_secrets
+            .as_deref()
+            .filter(|path| path.exists())
+        else {
             return Ok(Self::default());
         };
         let file = read(path)?;
-        let discord_client_secret = file
-            .discord_client_secret
-            .clone()
-            .filter(|_| config.discord.is_some());
-        if config.discord.is_some() && discord_client_secret.as_deref().is_none_or(str::is_empty) {
-            return Err(
-                "discord is configured but the integration secrets have no discord_client_secret"
-                    .into(),
-            );
-        }
         Ok(Self {
-            discord_client_secret: discord_client_secret.map(Zeroizing::new),
+            discord_client_secret: file
+                .discord_client_secret
+                .filter(|secret| !secret.is_empty())
+                .map(Zeroizing::new),
             api_keys: file
                 .api_keys
                 .into_iter()

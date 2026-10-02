@@ -2655,6 +2655,18 @@ msgstr "Geen gekoppelde accounts"
 msgid "identity.no_links_detail"
 msgstr "Start een koppeling op de toernooisite en voer hieronder de code in die je ziet."
 
+msgid "identity.discord"
+msgstr "Discord"
+
+msgid "identity.discord_none"
+msgstr "Niet gekoppeld"
+
+msgid "identity.discord_detail"
+msgstr "Optioneel. Koppel je Discord-account zodat toernooisites die deze dienst gebruiken, zoals BluMint, je Ember ID ermee vinden. Ember opent de aanmeldpagina van Discord in je browser."
+
+msgid "identity.discord_remove_detail"
+msgstr "Ontkoppelt dit Discord-account van je Ember ID bij deze dienst. Toernooisites kunnen je er dan niet meer mee vinden."
+
 msgid "identity.site"
 msgstr "Site"
 
@@ -2735,6 +2747,12 @@ msgstr "Code verstuurd. Keur de koppeling goed op de site en controleer of die {
 
 msgid "identity.done.unlinked"
 msgstr "Account ontkoppeld."
+
+msgid "identity.done.discord_opened"
+msgstr "Rond de aanmelding bij Discord af in je browser en kies dan Vernieuwen."
+
+msgid "identity.done.discord_removed"
+msgstr "Discord-account ontkoppeld."
 
 msgid "identity.done.cancelled"
 msgstr "Koppeling geannuleerd."

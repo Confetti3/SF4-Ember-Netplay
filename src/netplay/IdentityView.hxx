@@ -18,9 +18,13 @@ struct IdentityView {
     std::string state, reason, emberId, fingerprint, backend;
     bool passphraseRequired = false;
     std::vector<IdentityBridge> bridges;
-    // The bridge last inspected or listed, with the connections it offers.
+    // The bridge last inspected or listed, with the connections it offers
+    // and whether it offers Discord sign-in.
     IdentityBridge inspected;
     std::vector<IdentityConnection> connections;
+    bool inspectedDiscord = false;
+    // The Discord account connected on the bridge last asked; empty when none.
+    std::string discordUser, discordName;
     // Links and pending claims on the bridge last listed.
     std::vector<IdentityLink> links, pending;
     // The last answer: which request, what it did, and a stable failure code.

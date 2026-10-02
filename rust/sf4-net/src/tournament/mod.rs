@@ -7,6 +7,7 @@
 //! here waits on, or is waited on by, room or gameplay work (spec 18.3).
 mod bridges;
 mod client;
+mod discord;
 mod play;
 mod spool;
 
@@ -99,6 +100,15 @@ pub enum Request {
         bridge_id: String,
         link_id: String,
     },
+    DiscordStatus {
+        bridge_id: String,
+    },
+    DiscordConnect {
+        bridge_id: String,
+    },
+    DiscordRemove {
+        bridge_id: String,
+    },
     AssignmentList {
         bridge_id: String,
     },
@@ -150,6 +160,9 @@ impl Request {
             Self::LinkClaim { .. } => "link_claim",
             Self::LinkCancel { .. } => "link_cancel",
             Self::LinkRemove { .. } => "link_remove",
+            Self::DiscordStatus { .. } => "discord_status",
+            Self::DiscordConnect { .. } => "discord_connect",
+            Self::DiscordRemove { .. } => "discord_remove",
             Self::AssignmentList { .. } => "assignment_list",
             Self::MatchClaim { .. } => "match_claim",
             Self::RoomPublish { .. } => "room_publish",
@@ -587,6 +600,9 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
         Request::LinkRemove { bridge_id, link_id } => {
             client::remove_link(shared, &bridge_id, &link_id).await
         }
+        Request::DiscordStatus { bridge_id } => discord::status(shared, &bridge_id).await,
+        Request::DiscordConnect { bridge_id } => discord::connect(shared, &bridge_id).await,
+        Request::DiscordRemove { bridge_id } => discord::remove(shared, &bridge_id).await,
         Request::AssignmentList { bridge_id } => play::assignments(shared, &bridge_id).await,
         Request::MatchClaim {
             bridge_id,

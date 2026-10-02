@@ -2655,6 +2655,18 @@ msgstr "Žádné propojené účty"
 msgid "identity.no_links_detail"
 msgstr "Zahajte propojení na turnajovém webu a níže zadejte kód, který zobrazí."
 
+msgid "identity.discord"
+msgstr "Discord"
+
+msgid "identity.discord_none"
+msgstr "Nepřipojeno"
+
+msgid "identity.discord_detail"
+msgstr "Volitelné. Připojte svůj účet Discord, aby vás turnajové weby používající tuto službu, například BluMint, podle něj našly. Ember otevře přihlašovací stránku Discordu ve vašem prohlížeči."
+
+msgid "identity.discord_remove_detail"
+msgstr "Odpojí tento účet Discord od vašeho Ember ID v této službě. Turnajové weby vás podle něj už nenajdou."
+
 msgid "identity.site"
 msgstr "Web"
 
@@ -2735,6 +2747,12 @@ msgstr "Kód odeslán. Schvalte propojení na webu a ověřte, že zobrazuje {0}
 
 msgid "identity.done.unlinked"
 msgstr "Účet odpojen."
+
+msgid "identity.done.discord_opened"
+msgstr "Dokončete přihlášení k Discordu v prohlížeči a pak zvolte Aktualizovat."
+
+msgid "identity.done.discord_removed"
+msgstr "Účet Discord byl odpojen."
 
 msgid "identity.done.cancelled"
 msgstr "Propojení zrušeno."

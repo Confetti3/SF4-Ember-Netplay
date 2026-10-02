@@ -2655,6 +2655,18 @@ msgstr "Keine verknüpften Konten"
 msgid "identity.no_links_detail"
 msgstr "Starten Sie eine Verknüpfung auf der Turnierseite und geben Sie dann unten den angezeigten Code ein."
 
+msgid "identity.discord"
+msgstr "Discord"
+
+msgid "identity.discord_none"
+msgstr "Nicht verbunden"
+
+msgid "identity.discord_detail"
+msgstr "Optional. Verbinden Sie Ihr Discord-Konto, damit Turnierseiten, die diesen Dienst nutzen, etwa BluMint, Ihre Ember ID darüber finden. Ember öffnet die Discord-Anmeldeseite in Ihrem Browser."
+
+msgid "identity.discord_remove_detail"
+msgstr "Trennt dieses Discord-Konto in diesem Dienst von Ihrer Ember ID. Turnierseiten finden Sie dann nicht mehr darüber."
+
 msgid "identity.site"
 msgstr "Seite"
 
@@ -2735,6 +2747,12 @@ msgstr "Code gesendet. Bestätigen Sie die Verknüpfung auf der Seite und prüfe
 
 msgid "identity.done.unlinked"
 msgstr "Konto getrennt."
+
+msgid "identity.done.discord_opened"
+msgstr "Schließen Sie die Discord-Anmeldung im Browser ab und wählen Sie dann Aktualisieren."
+
+msgid "identity.done.discord_removed"
+msgstr "Discord-Konto getrennt."
 
 msgid "identity.done.cancelled"
 msgstr "Verknüpfung abgebrochen."

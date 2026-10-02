@@ -52,6 +52,9 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
         for (const auto& connection : capabilities.value("connections", nlohmann::json::array()))
             if (connection.is_object() && view.connections.size() < 16)
                 view.connections.push_back({Text(connection, "id", 64), Text(connection, "display_name", 64)});
+        view.inspectedDiscord = false;
+        for (const auto& feature : capabilities.value("features", nlohmann::json::array()))
+            view.inspectedDiscord = view.inspectedDiscord || feature == "discord";
     } else if (view.op == "link_list") {
         view.links.clear(); view.pending.clear();
         for (const auto& link : data.value("links", nlohmann::json::array()))
@@ -60,6 +63,10 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
         for (const auto& claim : data.value("pending", nlohmann::json::array()))
             if (claim.is_object() && view.pending.size() < 32)
                 view.pending.push_back({Text(claim, "claim_id", 64), Text(claim, "connection_id", 64), Text(claim, "provider", 64), {}});
+    } else if (view.op == "discord_status" || view.op == "discord_remove") {
+        const auto account = data.value("account", nlohmann::json());
+        view.discordUser = account.is_object() ? Text(account, "user_id", 20) : std::string();
+        view.discordName = account.is_object() ? Text(account, "username", 64) : std::string();
     } else if (view.op == "link_claim") {
         view.claimFingerprint = Text(data, "fingerprint", 32);
     } else if (view.op == "identity_preview_import") {
@@ -117,6 +124,9 @@ std::string BuildTournamentRequest(const netplay::IdentityRequest& r) {
         body["op"] = "link_cancel"; complete = need({{"bridge_id", &r.bridge}, {"claim_id", &r.target}}); break;
     case IdentityOp::LinkRemove:
         body["op"] = "link_remove"; complete = need({{"bridge_id", &r.bridge}, {"link_id", &r.target}}); break;
+    case IdentityOp::DiscordStatus: body["op"] = "discord_status"; complete = need({{"bridge_id", &r.bridge}}); break;
+    case IdentityOp::DiscordConnect: body["op"] = "discord_connect"; complete = need({{"bridge_id", &r.bridge}}); break;
+    case IdentityOp::DiscordRemove: body["op"] = "discord_remove"; complete = need({{"bridge_id", &r.bridge}}); break;
     default: complete = false; break;
     }
     std::string text;
