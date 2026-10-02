@@ -140,6 +140,7 @@ pub async fn create(
 ) -> Result<Response> {
     let service = auth::service(&state, &headers).await?;
     let connection_id = service.provider_connection()?.to_owned();
+    generic_connection(&state, &connection_id).await?;
     let key = idempotency_key(&headers)?;
     let command: CreateMatch = body.parse()?;
     command.check()?;
@@ -950,6 +951,24 @@ fn policy(tx: &Transaction<'_>, connection_id: &str) -> Result<Policy> {
         .optional()?
         .ok_or_else(ApiFailure::unavailable)?;
     Ok(Policy::of(&kind))
+}
+
+/// Refuses the generic match, lobby and tournament routes to a connection
+/// whose platform makes its matches through its own API
+/// (`Policy::sends_results`).
+pub async fn generic_connection(state: &AppState, connection_id: &str) -> Result<()> {
+    let id = connection_id.to_owned();
+    let own_api = state
+        .db
+        .read(move |tx| Ok(policy(tx, &id)?.sends_results))
+        .await?;
+    if own_api {
+        return Err(ApiFailure::new(
+            ErrorCode::Forbidden,
+            "This connection's platform creates its matches through its own API.",
+        ));
+    }
+    Ok(())
 }
 
 /// A match whose result needs a person (spec 16.6) waits in `needs_review`

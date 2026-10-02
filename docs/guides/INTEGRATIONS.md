@@ -211,6 +211,10 @@ blumint-register <bridge.json> <connection>` registers the three endpoints
 with BluMint, handing over a new provider credential that is never shown.
 `BLUMINT_QUICKSTART.md` is the guide for BluMint's side.
 
+A `blumint` connection makes matches only through BluMint's create
+callback; the generic match, lobby and tournament routes refuse it, so every
+match on it is one BluMint knows.
+
 BluMint's bodies are parsed as ordinary JSON, since its match settings carry
 decimals; every other route keeps the strict profile.
 

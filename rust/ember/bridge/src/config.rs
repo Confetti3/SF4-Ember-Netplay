@@ -94,6 +94,8 @@ fn enabled() -> bool {
 pub struct Policy {
     /// The bridge sends each finished match's result to the platform
     /// (BluMint). Other platforms read results from the API and events.
+    /// Such a platform makes its matches through its own API only, so every
+    /// match on its connection is one it knows.
     pub sends_results: bool,
     /// A disputed match waits in `needs_review` for an organizer, unless the
     /// platform has no review (BluMint): it is cancelled instead, which the

@@ -276,6 +276,15 @@ async fn lookup_finds_players_by_their_discord_accounts() {
         lookup(&f, json!({ "email": ["sam@example.com"] })).await,
         json!({ "discord": [] })
     );
+    // BluMint's connection makes matches only through these endpoints, so
+    // every match on it is one BluMint knows.
+    for path in ["/v1/matches", "/v1/lobbies", "/v1/tournaments"] {
+        let (status, refused) = f
+            .bridge
+            .post_keyed(&f.provider, path, json!({}), Some("generic"))
+            .await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{path}: {refused}");
+    }
     // Only a blumint connection's credential reaches these endpoints.
     let other = f.bridge.provider("mock-a").await;
     let (status, _) = f
