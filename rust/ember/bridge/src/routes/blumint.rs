@@ -353,15 +353,15 @@ impl Queue for Results {
                         match_id: row.get(0)?,
                         connection_id: row.get(1)?,
                     },
-                    attempts: row.get(2)?,
+                    attempt: row.get::<_, u32>(2)? + 1,
                     first_attempt_at: row.get(3)?,
                 })
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         for row in &rows {
             tx.execute(
-                "UPDATE matches SET delivery_next_at = ?1 WHERE id = ?2",
-                params![until, row.item.match_id],
+                "UPDATE matches SET delivery_next_at = ?1, delivery_attempts = ?2 WHERE id = ?3",
+                params![until, row.attempt, row.item.match_id],
             )?;
         }
         Ok(rows)
@@ -382,7 +382,8 @@ impl Queue for Results {
             .await;
         let body = match body {
             Ok(Some(body)) => body,
-            // Reopened by a correction since the lease; it is sent when it ends.
+            // Reopened by a correction since the lease; it is sent when it
+            // ends, its attempts one higher.
             Ok(None) => return Outcome::Cancelled,
             Err(_) => return retry("database unavailable".into(), None),
         };
@@ -426,16 +427,15 @@ impl Queue for Results {
             }
         };
         let changed = tx.execute(
-            "UPDATE matches SET delivery_state = ?1, delivery_attempts = ?2, delivery_next_at = ?3,
-                delivery_first_at = COALESCE(delivery_first_at, ?4)
-             WHERE id = ?5 AND delivery_state IN ('queued', 'retrying') AND delivery_attempts = ?6",
+            "UPDATE matches SET delivery_state = ?1, delivery_next_at = ?2,
+                delivery_first_at = COALESCE(delivery_first_at, ?3)
+             WHERE id = ?4 AND delivery_state IN ('queued', 'retrying') AND delivery_attempts = ?5",
             params![
                 state,
-                record.attempts,
                 next,
                 record.first_attempt_at,
                 leased.item.match_id,
-                leased.attempts
+                leased.attempt
             ],
         )?;
         if changed == 1 {
@@ -537,6 +537,88 @@ mod tests {
         ];
         for (state, status) in table {
             assert_eq!(match_status(state), status, "{state:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn only_the_latest_lease_records_its_outcome() {
+        let path = std::env::temp_dir().join(format!(
+            "ember-bridge-lease-{}.sqlite3",
+            ember_protocol::encoding::b64u(&crate::util::random::<12>())
+        ));
+        let db = crate::Db::open(&path).unwrap();
+        db.write(|tx| {
+            tx.execute_batch(
+                "INSERT INTO tenants (id, name) VALUES ('bm', 'BluMint');
+                 INSERT INTO provider_connections (id, tenant_id, kind, environment, display_name, enabled)
+                   VALUES ('bm-partner', 'bm', 'blumint', 'staging', 'BluMint', 1);
+                 INSERT INTO matches (id, tenant_id, connection_id, external_match_id, create_digest, revision,
+                   assignment_generation, state, games_to_win, rules, required_build_id, metadata,
+                   delivery_state, created_at, updated_at)
+                   VALUES ('emt_1', 'bm', 'bm-partner', 'blumint_1', '', 1, 1, 'completed', 2, '{}', '', '{}',
+                   'queued', 0, 0);",
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+        let results = std::sync::Arc::new(Results {
+            destinations: [(
+                "bm-partner".to_owned(),
+                Destination {
+                    submit_url: String::new(),
+                    key: Zeroizing::new(String::new()),
+                },
+            )]
+            .into(),
+        });
+        let lease = |now: u64| {
+            let results = results.clone();
+            db.write(move |tx| results.lease(tx, now, now + 60))
+        };
+        let record = |leased: Leased<Due>, settled: Settled| {
+            let results = results.clone();
+            db.write(move |tx| {
+                results.record(
+                    tx,
+                    &leased,
+                    &Record {
+                        at: 100,
+                        first_attempt_at: 0,
+                        settled,
+                    },
+                )
+            })
+        };
+        let first = lease(0).await.unwrap().pop().unwrap();
+        assert!(lease(30).await.unwrap().is_empty(), "leased twice");
+        // The first attempt outlives its lease and is leased again.
+        let second = lease(61).await.unwrap().pop().unwrap();
+        assert_eq!((first.attempt, second.attempt), (1, 2));
+        record(
+            first,
+            Settled::Retry {
+                at: 101,
+                error: "timeout".into(),
+            },
+        )
+        .await
+        .unwrap();
+        record(second, Settled::Delivered).await.unwrap();
+        let stored: (String, u32) = db
+            .read(|tx| {
+                Ok(tx.query_row(
+                    "SELECT delivery_state, delivery_attempts FROM matches WHERE id = 'emt_1'",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )?)
+            })
+            .await
+            .unwrap();
+        assert_eq!(stored, ("delivered".to_owned(), 2));
+        drop(db);
+        for suffix in ["", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(format!("{}{suffix}", path.display()));
         }
     }
 

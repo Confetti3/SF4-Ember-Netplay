@@ -54,7 +54,7 @@ impl Queue for Webhooks {
                 let previous: Option<Vec<u8>> = row.get(8)?;
                 let until: Option<u64> = row.get(9)?;
                 Ok(Leased {
-                    attempts: row.get(1)?,
+                    attempt: row.get::<_, u32>(1)? + 1,
                     first_attempt_at: row.get(2)?,
                     item: Due {
                         outbox_id: row.get(0)?,
@@ -70,8 +70,8 @@ impl Queue for Webhooks {
             .collect::<rusqlite::Result<Vec<_>>>()?;
         for row in &rows {
             tx.execute(
-                "UPDATE delivery_outbox SET next_attempt_at = ?1 WHERE id = ?2",
-                params![until, row.item.outbox_id],
+                "UPDATE delivery_outbox SET next_attempt_at = ?1, attempts = ?2 WHERE id = ?3",
+                params![until, row.attempt, row.item.outbox_id],
             )?;
         }
         Ok(rows)
@@ -88,17 +88,16 @@ impl Queue for Webhooks {
             Settled::Refused(error) | Settled::Expired(error) => ("dead", record.at, Some(error)),
         };
         let changed = tx.execute(
-            "UPDATE delivery_outbox SET state = ?1, attempts = ?2, next_attempt_at = ?3,
-                first_attempt_at = COALESCE(first_attempt_at, ?4), last_error = ?5
-             WHERE id = ?6 AND state = 'pending' AND attempts = ?7",
+            "UPDATE delivery_outbox SET state = ?1, next_attempt_at = ?2,
+                first_attempt_at = COALESCE(first_attempt_at, ?3), last_error = ?4
+             WHERE id = ?5 AND state = 'pending' AND attempts = ?6",
             params![
                 status,
-                record.attempts,
                 next,
                 record.first_attempt_at,
                 error,
                 leased.item.outbox_id,
-                leased.attempts
+                leased.attempt
             ],
         )?;
         // The receiver said the endpoint is gone (410).

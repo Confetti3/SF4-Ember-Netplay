@@ -1,9 +1,9 @@
 //! At-least-once delivery (spec 20.4, 20.5). Each queue has one worker: it
-//! leases what is due, oldest first, in one write, sends up to `CONCURRENCY`
-//! at once, and records each outcome only while the item is still as it was
-//! leased, so a concurrent pass can never overwrite a newer outcome. Retries
-//! follow one schedule with jitter until a day has passed since the first
-//! attempt.
+//! leases what is due, the longest due first, as many as it sends at once,
+//! and sends them. Leasing numbers the attempt, and an outcome is recorded
+//! only under the latest lease, so an attempt that outlived its lease never
+//! overwrites the one that replaced it. Retries follow one schedule with
+//! jitter until a day has passed since the first attempt.
 //!
 //! Two queues use it: signed webhooks from the outbox (`webhooks`), and
 //! match results sent to the platform that created the match
@@ -17,11 +17,12 @@ use rusqlite::Transaction;
 
 use crate::{AppState, error::Result, util::random};
 
-/// Items leased per pass.
-pub const BATCH: i64 = 16;
 const CONCURRENCY: usize = 4;
-/// A leased item is not leased again for this long, longer than a pass of
-/// attempts takes.
+/// Items leased per pass: as many as are sent at once, so each one starts
+/// as soon as it is leased.
+pub const BATCH: i64 = CONCURRENCY as i64;
+/// A leased item is not leased again for this long, longer than one attempt
+/// can take (a DNS lookup and an HTTP request, each with its own timeout).
 const LEASE_SECS: u64 = 60;
 const BUDGET_SECS: u64 = 24 * 60 * 60;
 const SCHEDULE: &[u64] = &[1, 5, 15, 60, 300, 900];
@@ -30,8 +31,10 @@ const HOURLY: u64 = 3600;
 /// Something a queue sends, as it was leased.
 pub struct Leased<T> {
     pub item: T,
-    /// Attempts recorded before this one.
-    pub attempts: u32,
+    /// This attempt's number, which leasing stored as the item's attempts.
+    /// A later lease stores the next number, so this one's outcome no longer
+    /// applies.
+    pub attempt: u32,
     pub first_attempt_at: Option<u64>,
 }
 
@@ -67,8 +70,6 @@ pub enum Settled {
 pub struct Record {
     /// When the attempt ended.
     pub at: u64,
-    /// Attempts including this one.
-    pub attempts: u32,
     pub first_attempt_at: u64,
     pub settled: Settled,
 }
@@ -77,13 +78,14 @@ pub trait Queue: Send + Sync + 'static {
     type Item: Send + Sync + 'static;
 
     /// Up to `BATCH` items due at `now`, the longest due first, each leased
-    /// in this write so no pass takes it again before `until`.
+    /// in this write: not taken again before `until`, and its attempts
+    /// counted up to this attempt's number.
     fn lease(&self, tx: &Transaction<'_>, now: u64, until: u64) -> Result<Vec<Leased<Self::Item>>>;
 
     fn attempt(&self, state: &AppState, item: &Self::Item) -> impl Future<Output = Outcome> + Send;
 
-    /// Records `record` if the item is still waiting with the attempts it
-    /// was leased with; otherwise another pass got there first.
+    /// Records `record` if the item is still waiting under this lease (its
+    /// attempts are still `leased.attempt`); otherwise a later lease owns it.
     fn record(
         &self,
         tx: &Transaction<'_>,
@@ -137,7 +139,7 @@ fn settle<T>(now: u64, leased: &Leased<T>, outcome: Outcome) -> Option<Record> {
         Outcome::Refused(error) => Settled::Refused(error),
         Outcome::Retry { error, retry_after } => {
             let base = SCHEDULE
-                .get(leased.attempts as usize)
+                .get(leased.attempt.saturating_sub(1) as usize)
                 .copied()
                 .unwrap_or(HOURLY);
             // Up to 20 percent jitter so retries from many items spread out.
@@ -155,7 +157,6 @@ fn settle<T>(now: u64, leased: &Leased<T>, outcome: Outcome) -> Option<Record> {
     };
     Some(Record {
         at: now,
-        attempts: leased.attempts + 1,
         first_attempt_at,
         settled,
     })
