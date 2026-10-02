@@ -449,6 +449,7 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__NetplayRuntime__Input.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Match.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Room.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__Tournament.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Status.cxx"
     "src/sf4e/sf4e__NetplayPresentation.cxx"
     "src/sf4e/sf4e__RuntimeBridge.hxx"
@@ -475,6 +476,7 @@ set(SF4E_SESSION_SERVER_SOURCES
     "src/session/sf4e__SessionServer__Handlers.cxx"
     "src/session/sf4e__SessionServer__Recovery.cxx"
     "src/session/sf4e__SessionServer__Rooms.cxx"
+    "src/session/sf4e__SessionServer__Tournament.cxx"
     "src/session/sf4e__SessionProtocol.cxx"
 )
 add_library(Session STATIC
@@ -486,6 +488,7 @@ add_library(Session STATIC
     "src/session/sf4e__SessionServer.hxx"
     "src/session/IrohRoom.cxx"
     "src/session/IdentityEvents.cxx"
+    "src/session/TournamentAnswers.cxx"
     "src/session/IrohRoomAdapters.cxx"
     "src/session/IrohRoomCheckpoint.cxx"
     "src/session/IrohRoomPeers.cxx"
@@ -497,7 +500,7 @@ target_compile_features(Session PUBLIC cxx_std_17)
 target_link_libraries(
     Session
     PRIVATE Dimps sf4e_common sf4e_helper_platform sf4e_room_model
-    PUBLIC nlohmann_json::nlohmann_json spdlog::spdlog  "ws2_32"
+    PUBLIC nlohmann_json::nlohmann_json spdlog::spdlog  "ws2_32" sf4e_tournament_play
 )
 
 if(BUILD_TESTING)
@@ -608,6 +611,13 @@ if(BUILD_TESTING)
         nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
     target_compile_features(SessionServerTransportTest PRIVATE cxx_std_14)
     add_test(NAME SessionServerTransport COMMAND SessionServerTransportTest)
+    add_executable(SessionServerTournamentTest
+        "src/tests/session_server_tournament_test.cxx"
+        ${SF4E_SESSION_SERVER_SOURCES})
+    target_link_libraries(SessionServerTournamentTest PRIVATE
+        nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
+    target_compile_features(SessionServerTournamentTest PRIVATE cxx_std_17)
+    add_test(NAME SessionServerTournament COMMAND SessionServerTournamentTest)
     # Explicitly invoked host-cost benchmark; not a CTest (see the source).
     add_executable(RoomHostBench
         "src/tests/room_host_bench.cxx"

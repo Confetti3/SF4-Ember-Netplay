@@ -403,7 +403,9 @@ pub async fn get(
     Ok(ok(&body))
 }
 
-/// `GET /v1/assignments`: the caller's own matches only.
+/// `GET /v1/assignments`: the caller's own matches only, with what a player
+/// needs to pick one: the set length and score, the round, the opponent's
+/// fingerprint and whether the game is played through Ember.
 pub async fn assignments(State(state): State<AppState>, headers: HeaderMap) -> Result<Response> {
     let player = auth::player(&state, &headers).await?;
     let config = state.config.clone();
@@ -412,23 +414,49 @@ pub async fn assignments(State(state): State<AppState>, headers: HeaderMap) -> R
         .read(move |tx| {
             let rows = tx
                 .prepare(
-                    "SELECT m.id, m.connection_id, m.state, m.revision, p.slot FROM matches m
+                    "SELECT m.id, m.connection_id, m.state, m.revision, p.slot, m.games_to_win, m.rules, m.metadata,
+                            o.ember_id
+                     FROM matches m
                      JOIN match_participants p ON p.match_id = m.id AND p.assignment_generation = m.assignment_generation
+                     JOIN match_participants o ON o.match_id = m.id AND o.assignment_generation = m.assignment_generation
+                       AND o.slot != p.slot
                      WHERE p.ember_id = ?1 ORDER BY (m.state IN ('completed', 'cancelled', 'failed')), m.updated_at DESC
                      LIMIT 50",
                 )?
                 .query_map([player.ember_id.as_str()], |row| {
-                    let connection: String = row.get(1)?;
-                    Ok(json!({
-                        "match_id": row.get::<_, String>(0)?,
-                        "provider": config.connection(&connection).map(|(_, c)| c.display_name.clone()),
-                        "state": row.get::<_, String>(2)?,
-                        "revision": row.get::<_, u64>(3)?.to_string(),
-                        "slot": row.get::<_, u8>(4)?,
-                    }))
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, u64>(3)?,
+                        row.get::<_, u8>(4)?,
+                        row.get::<_, u8>(5)?,
+                        row.get::<_, String>(6)?,
+                        row.get::<_, String>(7)?,
+                        row.get::<_, String>(8)?,
+                    ))
                 })?
                 .collect::<rusqlite::Result<Vec<_>>>()?;
-            Ok(json!({ "assignments": rows, "event_cursor": events::head(tx)?.to_string() }))
+            let mut assignments = Vec::with_capacity(rows.len());
+            for (id, connection, state, revision, slot, games_to_win, rules, metadata, opponent) in rows {
+                let (wins, _) = scores(tx, &id)?;
+                let rules: serde_json::Value = serde_json::from_str(&rules).unwrap_or_default();
+                let metadata: serde_json::Value = serde_json::from_str(&metadata).unwrap_or_default();
+                let opponent = EmberId::parse(&opponent).map_err(|_| ApiFailure::unavailable())?;
+                assignments.push(json!({
+                    "match_id": id,
+                    "provider": config.connection(&connection).map(|(_, c)| c.display_name.clone()),
+                    "state": state,
+                    "revision": revision.to_string(),
+                    "slot": slot,
+                    "games_to_win": games_to_win,
+                    "native_rules_profile": rules.get("native_rules_profile"),
+                    "round_label": metadata.get("round_label"),
+                    "opponent": { "ember_id": opponent, "fingerprint": opponent.fingerprint() },
+                    "wins": wins,
+                }));
+            }
+            Ok(json!({ "assignments": assignments, "event_cursor": events::head(tx)?.to_string() }))
         })
         .await?;
     Ok(ok(&body))

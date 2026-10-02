@@ -18,9 +18,9 @@ std::string CurrentProbePeer(std::uint64_t& revision) {
     revision=table.revision; return peer->second;
 }
 
-// A command is dispatched fresh from the interface, or retried from its
-// parked intent.
-enum class Attempt { Fresh, Retry };
+// A command is dispatched fresh from the interface, retried from its parked
+// intent, or sent by tournament play on the player's behalf.
+enum class Attempt { Fresh, Retry, Tournament };
 using netplay::DispatchOutcome;
 // Chat and table actions (Queue, Watch, Unready and the like) park apart.
 static Intent& RoomActionIntent(const RuntimeCommand& command) {
@@ -73,6 +73,10 @@ void DispatchIdentity(netplay::IdentityRequest& request, bool helperReady) {
 static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attempt attempt) {
 	if (command.identity.op != netplay::IdentityOp::None) {
 		DispatchIdentity(command.identity, helperReady);
+		return DispatchOutcome::Dropped;
+	}
+	if (command.tournament.op != netplay::tournament::Command::Op::None) {
+		DispatchTournament(command.tournament, helperReady);
 		return DispatchOutcome::Dropped;
 	}
 	// Validate ownership before even a deferred GGPO teardown side effect.
@@ -254,6 +258,9 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		runtime->error = loc::T("runtime.return_main_menu"); return DispatchOutcome::Dropped;
 	}
 	if (kind == netplay::CommandKind::ReplaceRoom && !CanBeginReplacement()) return DispatchOutcome::Dropped;
+	// Leaving the room by hand stops the tournament match too, or it would
+	// only open the room again.
+	if (kind == netplay::CommandKind::LeaveRoom && attempt != Attempt::Tournament) runtime->tournament.Stop();
 	const auto decision = runtime->controller.Execute(command.command);
 	if (!decision.accepted) {
 		// The authority checkpoint fence is transient. Dropping a fenced command
@@ -420,6 +427,15 @@ void FailReady(const char* reason) {
 	spdlog::warn("Ready failed: {}", reason);
 }
 
+DispatchOutcome DispatchTournamentRoomCommand(netplay::Command command) {
+	RuntimeCommand runtimeCommand;
+	runtimeCommand.command = std::move(command);
+	runtimeCommand.command.generation = runtime->controller.GetSnapshot().generation;
+	runtimeCommand.preferences = runtime->preferences;
+	const bool helperReady = runtime->helper && runtime->helper->State() == platform::HelperState::Connected;
+	return Dispatch(std::move(runtimeCommand), helperReady, Attempt::Tournament);
+}
+
 void DrainCommands(bool helperReady) {
 	RuntimeCommand command;
 	for (int budget = 0; budget < 8 && runtime->commands->TryPop(command); ++budget)
@@ -438,6 +454,7 @@ void DrainRoomEvents() {
 				const auto resultTerminal = runtime->room ? runtime->resultOutbox.ObserveTerminal(runtime->room->RoomId(),
 					UserApp::netplay->client.GetRoomSnapshot().roomEpoch, event.table, event.matchGeneration, event.result) :
 					netplay::MatchResultOutbox::TerminalResult::Unrelated;
+				ObserveTournamentTerminal(event, resultTerminal);
 				if(event.matchGeneration==runtime->matchFinishedGeneration && event.table==runtime->matchFinishedTable) {
 					runtime->matchFinishedPending=false;
 					runtime->finishActionId=runtime->finishRetryAt=0;

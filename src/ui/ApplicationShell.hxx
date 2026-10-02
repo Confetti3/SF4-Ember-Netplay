@@ -7,6 +7,7 @@
 #include "../netplay/MemberView.hxx"
 #include "../netplay/IdentityView.hxx"
 #include "../netplay/IdentityRequest.hxx"
+#include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../session/RoomModel.hxx"
 #include <array>
@@ -90,6 +91,8 @@ struct ShellView {
     netplay::IdentityView identity;
     std::uint64_t identityTicket = 0, identityRequest = 0;
     std::string identityRefusal;
+    // The tournament match being played and the assignment list (RuntimeSnapshot::tournament).
+    netplay::tournament::Status tournament;
 };
 
 struct ShellAction {
@@ -113,6 +116,8 @@ struct ShellAction {
     } selectionStep;
     // An identity or bridge request; op None for everything else.
     netplay::IdentityRequest identity;
+    // Refresh the assignment list, play a match or stop; op None for everything else.
+    netplay::tournament::Command tournament;
 };
 
 class ApplicationShell {
@@ -204,6 +209,8 @@ private:
     std::string languagePreference_ = "auto", languageSaveError_;
     netplay::Generation generation_;
     netplay::RoomState previousRoomState_ = netplay::RoomState::Idle;
+    // The tournament phase last seen, to announce a match that ended.
+    netplay::tournament::Phase tournamentPhase_ = netplay::tournament::Phase::Idle;
     netplay::PlayerPreferences preferences_;
     netplay::LobbySettings lobby_;
     std::string error_;

@@ -345,6 +345,13 @@ IrohRoom::RecoverySnapshot IrohRoom::RecoveryState() const {
     return state;
 }
 
+std::vector<TournamentAnswer> IrohRoom::TakeTournamentAnswers() {
+	std::vector<TournamentAnswer> answers(std::make_move_iterator(tournamentAnswers_.begin()),
+		std::make_move_iterator(tournamentAnswers_.end()));
+	tournamentAnswers_.clear();
+	return answers;
+}
+
 bool IrohRoom::SendTournament(const std::string& request, std::uint64_t* requestId) {
 	if (request.empty() || request.size() > 8192 || request.front() != '{' || !json::accept(request)) return false;
 	std::string payload = "{\"type\":\"tournament\",\"request\":" + request + "}";
@@ -757,7 +764,13 @@ void IrohRoom::Poll() {
 				continue;
 			}
 			if (type == "tournament") {
-				// Identity and bridge answers have no epoch either.
+				// Identity and bridge answers have no epoch either. Play answers
+				// go to the runtime; the rest are what the Ember ID screens show.
+				if (auto answer = ReadTournamentAnswer(event)) {
+					if (tournamentAnswers_.size() >= 64) tournamentAnswers_.pop_front();
+					tournamentAnswers_.push_back(std::move(*answer));
+					continue;
+				}
 				ApplyTournamentEvent(event, identity_);
 				continue;
 			}

@@ -339,6 +339,14 @@ async fn agreeing_reports_score_a_set() {
     // A finished match permits nothing more.
     let (status, _) = prepare(&f, &f.a, &id, &binding, generation + 1).await;
     assert_eq!(status, StatusCode::CONFLICT);
+    // The player's own list shows the set as Ember plays it.
+    let (_, listed) = f.bridge.get(f.a.token(), "/v1/assignments").await;
+    let row = &listed["assignments"][0];
+    assert_eq!(row["match_id"], id.as_str());
+    assert_eq!(row["native_rules_profile"], "ember-room-v1");
+    assert_eq!(row["games_to_win"], 2);
+    assert_eq!(row["wins"], json!([2, 1]));
+    assert_eq!(row["opponent"]["fingerprint"], f.b.id().fingerprint());
 }
 
 #[tokio::test]

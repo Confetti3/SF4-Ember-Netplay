@@ -199,7 +199,7 @@ void PollSpectatorExit() {
 		PushAlert(loc::T("runtime.spectator_close_timeout"), NoticeSeverity::Warning);
 }
 
-void NotifyRuntimeMatchResult(room::MatchResult result) {
+void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame) {
 	// Native observer calls on the outer game tick, never while resimulating.
 	if (!runtime || !runtime->match || !UserApp::netplay || LocalIsSpectator() ||
 		(result != room::MatchResult::P1Win && result != room::MatchResult::P2Win && result != room::MatchResult::Draw)) return;
@@ -215,6 +215,8 @@ void NotifyRuntimeMatchResult(room::MatchResult result) {
 	capture.table = static_cast<std::uint8_t>(member->table);
 	capture.slot = static_cast<unsigned>(runtime->match->LocalSlot());
 	capture.result = result;
+	capture.captureFrame = captureFrame;
+	capture.confirmedFrame = confirmedFrame;
 	if (runtime->resultOutbox.Capture(capture))
 		spdlog::info("Match result: captured table={} generation={} slot={} outcome={}",
 			capture.table, generation, capture.slot, static_cast<int>(result));

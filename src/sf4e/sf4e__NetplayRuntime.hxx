@@ -7,6 +7,7 @@
 //   sf4e__NetplayRuntime__Match.cxx    the match lifecycle, results and teardown
 //   sf4e__NetplayRuntime__Input.cxx    controller capture and the gameplay device
 //   sf4e__NetplayRuntime__Status.cxx   the published snapshot, errors, Discord
+//   sf4e__NetplayRuntime__Tournament.cxx  playing a bridge-run tournament match
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__RuntimeBridge.hxx"
 #include "sf4e__InputDevices.hxx"
@@ -28,6 +29,8 @@
 #include "../netplay/MatchResultOutbox.hxx"
 #include "../netplay/MatchEndRules.hxx"
 #include "../netplay/ParkedIntent.hxx"
+#include "../netplay/TournamentPlay.hxx"
+#include "../netplay/TournamentStatus.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
 #include "../netplay/RoomPreferences.hxx"
@@ -41,6 +44,7 @@
 #include "../platform/JoinLinkMailbox.hxx"
 #include "../platform/UiPreferencesStore.hxx"
 #include <algorithm>
+#include <map>
 #include <mutex>
 #include <optional>
 #include <ctime>
@@ -146,6 +150,12 @@ struct Runtime {
     // became (0 when refused) and the catalog id of a refusal.
     std::uint64_t identityTicket=0, identityRequest=0;
     const char* identityRefusal="";
+    // The tournament match being played, its helper requests still awaiting
+    // an answer (by request id), and the assignment list's last refresh.
+    netplay::tournament::TournamentPlay tournament;
+    std::map<std::uint64_t, netplay::tournament::Output::Kind> tournamentRequests;
+    std::uint64_t assignmentRequest=0;
+    netplay::tournament::Status assignments;
     session::RoomRecoveryRuntime recovery;
     std::uint64_t observedAuthorityTerm=0;
 	// A terminal receipt is released only after its local outcome has been
@@ -242,6 +252,9 @@ void PersistTerminalOutcome();
 void DrainActionReplies();
 void ConfirmLobbySettings();
 void ResolvePendingIntents(bool helperReady);
+// A room command (host, join, leave) on tournament play's behalf, through
+// the same checks as a press.
+netplay::DispatchOutcome DispatchTournamentRoomCommand(netplay::Command command);
 
 // The match lifecycle (sf4e__NetplayRuntime__Match.cxx).
 void AbortLocalMatch(const char* reason, NoticeSeverity severity = NoticeSeverity::Error);
@@ -254,6 +267,13 @@ void RetryMatchFinished();
 void PumpResultOutbox();
 void TickMatch();
 void ReleaseFinishedMatch();
+
+// Tournament play (sf4e__NetplayRuntime__Tournament.cxx).
+void DispatchTournament(const netplay::tournament::Command& command, bool helperReady);
+void TickTournament(bool helperReady);
+// A table's end as the room committed it, with how it compares to this game's own capture.
+void ObserveTournamentTerminal(const room::Event& event, netplay::MatchResultOutbox::TerminalResult terminal);
+netplay::tournament::Status TournamentStatus();
 
 // Controllers (sf4e__NetplayRuntime__Input.cxx).
 std::string DeviceName(const input::Device& device);

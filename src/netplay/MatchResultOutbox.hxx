@@ -14,6 +14,10 @@ struct MatchResultCapture {
     std::uint8_t table = 0;
     unsigned slot = 2;
     room::MatchResult result = room::MatchResult::Abort;
+    // The save frame the result was captured at and the input frame confirmed
+    // when it was published; zero when unknown.
+    std::uint64_t captureFrame = 0;
+    std::uint64_t confirmedFrame = 0;
 
     bool Valid() const;
     std::string ProfileKey() const;

@@ -58,16 +58,19 @@ public:
 		for (auto& sample : samples_)
 			if (sample.frame > stateFrame) sample = {};
 	}
-	Result Confirmed(int lastConfirmedInput) const {
-		const Sample* latest = nullptr;
+	struct Sample { int frame = -1; Result result = Result::None; };
+	// The newest outcome whose inputs are all confirmed, with the save frame
+	// it was captured at (a tournament report carries both frames).
+	Sample ConfirmedSample(int lastConfirmedInput) const {
+		Sample latest;
 		for (const auto& sample : samples_) {
 			if (sample.result != Result::None && statehash::IsConfirmedCheckpoint(sample.frame, lastConfirmedInput) &&
-				(!latest || sample.frame > latest->frame)) latest = &sample;
+				sample.frame > latest.frame) latest = sample;
 		}
-		return latest ? latest->result : Result::None;
+		return latest;
 	}
+	Result Confirmed(int lastConfirmedInput) const { return ConfirmedSample(lastConfirmedInput).result; }
 	// Newest captured outcome regardless of confirmation, for teardown logs.
-	struct Sample { int frame = -1; Result result = Result::None; };
 	Sample Latest() const {
 		Sample latest;
 		for (const auto& sample : samples_)

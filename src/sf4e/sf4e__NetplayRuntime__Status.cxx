@@ -310,6 +310,7 @@ PostPublishState Publish() {
     if (runtime->room) snapshot.identity = runtime->room->Identity();
     snapshot.identityTicket = runtime->identityTicket; snapshot.identityRequest = runtime->identityRequest;
     snapshot.identityRefusal = runtime->identityRefusal;
+    snapshot.tournament = TournamentStatus();
     runtime->services.Observe(diagnostic);
     snapshot.services = runtime->services.Snapshot();
     snapshot.inputDevice = runtime->input.Selected();

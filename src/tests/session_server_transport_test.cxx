@@ -10,57 +10,12 @@
 #include <string>
 
 #include "test_support.hxx"
+#include "server_transport_support.hxx"
 
 using namespace sf4e;
 namespace protocol = sf4e::SessionProtocol;
 using nlohmann::json;
 
-class MockTransport final : public session::ServerTransport {
-public:
-	std::vector<session::Message> incoming;
-	std::vector<session::Connection> disconnected;
-	std::vector<std::pair<session::Connection, json>> outgoing;
-	bool writable = true;
-	bool closed = false;
-	bool Listen(std::uint16_t) override { return true; }
-	bool Attach(session::Connection) override { return true; }
-	bool Poll(std::vector<session::Message>& messages,
-		std::vector<session::Connection>& departed, std::size_t maximum) override {
-		CHECK(maximum > 0);
-		const auto count = (std::min)(incoming.size(), maximum);
-		messages.insert(messages.end(), std::make_move_iterator(incoming.begin()),
-			std::make_move_iterator(incoming.begin() + count));
-		incoming.erase(incoming.begin(), incoming.begin() + count);
-		departed.swap(disconnected);
-		return !closed;
-	}
-	bool PollRecoveryPrefix(std::vector<session::Message>& messages,
-		std::vector<session::Connection>& departed, std::size_t maximum,
-		const BatchPredicate& batchable) override {
-		CHECK(maximum > 0);
-		std::size_t count = incoming.empty() ? 0 : 1;
-		if (count && batchable(incoming.front()))
-			while (count < incoming.size() && count < maximum && batchable(incoming[count])) ++count;
-		messages.insert(messages.end(), std::make_move_iterator(incoming.begin()),
-			std::make_move_iterator(incoming.begin() + count));
-		incoming.erase(incoming.begin(), incoming.begin() + count);
-		departed.swap(disconnected);
-		return !closed;
-	}
-	bool Send(session::Connection connection, const std::string& payload) override {
-		if (!writable) return false;
-		outgoing.emplace_back(connection, json::parse(payload));
-		return true;
-	}
-	void Close() override { closed = true; }
-	void Push(session::Connection connection, json payload, std::int64_t id = 2) {
-		incoming.push_back({connection, id, payload.dump(), ""});
-	}
-	bool Contains(const char* type) const {
-		for (const auto& sent : outgoing) if (sent.second.at("type") == type) return true;
-		return false;
-	}
-};
 
 static void TestAtomicMatchRebind() {
 	std::array<std::uint8_t, 16> room = {};

@@ -166,34 +166,21 @@ void SessionServer::HandleRoomAction(session::Connection conn, const json& msg, 
 			}
 		}
 		if (event.kind == room::Event::Kind::MemberRemoved && event.member != roomMember->second) {
-			roomIncarnations.erase(event.member);
 			if (actionMessage.action.kind == room::ActionKind::Kick) {
 				auto identity = roomPeerIdentities.find(event.member);
 				if (identity != roomPeerIdentities.end()) roomBannedIdentities.insert(identity->second);
-			}
-			for (auto kicked = roomMembers.begin(); kicked != roomMembers.end(); ++kicked) {
-				if (kicked->second == event.member) {
-					const auto kickedConnection = kicked->first;
-					if (actionMessage.action.kind == room::ActionKind::Kick) {
-						SessionProtocol::RoomResultMessage kickedResponse;
-						kickedResponse.result.accepted = false;
-						kickedResponse.result.reason = room::RejectReason::MemberKicked;
-						kickedResponse.result.snapshot = _roomAuthority->SnapshotCopy();
-						kickedResponse.result.snapshot.localMember = 0;
-						Respond(kickedConnection, json(kickedResponse));
-					}
-					roomSelectedTables.erase(kicked->first);
-					roomPeerIdentities.erase(event.member);
-					roomMembers.erase(kicked);
-					cidMap.erase(kickedConnection);
-					clients.erase(std::remove_if(clients.begin(), clients.end(), [&](const SessionMember& client) {
-						return client.conn == kickedConnection;
-					}), clients.end());
-					for (auto& loaded : _roomBattleLoaded) loaded.erase(kickedConnection);
-					for (auto& punch : _roomPunchReady) punch.erase(kickedConnection);
+				for (const auto& kicked : roomMembers) {
+					if (kicked.second != event.member) continue;
+					SessionProtocol::RoomResultMessage kickedResponse;
+					kickedResponse.result.accepted = false;
+					kickedResponse.result.reason = room::RejectReason::MemberKicked;
+					kickedResponse.result.snapshot = _roomAuthority->SnapshotCopy();
+					kickedResponse.result.snapshot.localMember = 0;
+					Respond(kicked.first, json(kickedResponse));
 					break;
 				}
 			}
+			ForgetRoomMember(event.member);
 		}
 	}
 	SessionProtocol::RoomResultMessage response;

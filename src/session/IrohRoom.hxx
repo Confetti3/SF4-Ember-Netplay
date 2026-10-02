@@ -10,6 +10,7 @@
 #include "RoomFailure.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../netplay/IdentityView.hxx"
+#include "TournamentAnswers.hxx"
 #include <array>
 #include <deque>
 #include <map>
@@ -148,6 +149,8 @@ public:
 	// The Ember identity and bridge state from the helper's tournament events.
 	// Endpoint-level like the network report: kept with or without a room.
 	const netplay::IdentityView& Identity() const { return identity_; }
+	// The helper's answers to tournament play requests since the last call.
+	std::vector<TournamentAnswer> TakeTournamentAnswers();
 	// Sends one tournament request, a JSON object, to the helper. Its answer is
 	// a tournament event whose request_id is *requestId. The caller wipes the
 	// request text, which may hold a passphrase; this wipes its own copy.
@@ -340,6 +343,8 @@ private:
 	std::optional<std::uint16_t> localUdpPort_;
 	NetworkSummary network_;
 	netplay::IdentityView identity_;
+	// Bounded: a runtime that stopped draining cannot grow it without limit.
+	std::deque<TournamentAnswer> tournamentAnswers_;
 	FailureStage failureStage_ = FailureStage::Unknown;
 	std::uint64_t closedGeneration_ = 0;
 	std::map<std::string, GameSnapshot> games_;

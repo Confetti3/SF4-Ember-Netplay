@@ -15,6 +15,7 @@
 #include "../netplay/MemberView.hxx"
 #include "../netplay/IdentityView.hxx"
 #include "../netplay/IdentityRequest.hxx"
+#include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../session/RoomModel.hxx"
@@ -84,6 +85,8 @@ namespace sf4e {
             netplay::IdentityRequest identity;
             // Ask the helper for the room's short link (IrohRoom::RequestShortInvitation).
             bool shortInvitation=false;
+            // Refresh the assignment list, play a match or stop; op None otherwise.
+            netplay::tournament::Command tournament;
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
@@ -159,6 +162,8 @@ namespace sf4e {
             netplay::IdentityView identity;
             std::uint64_t identityTicket = 0, identityRequest = 0;
             std::string identityRefusal;
+            // The tournament match being played and the player's assignments.
+            netplay::tournament::Status tournament;
 		};
 		// Everything the overlay draws from, built on the game thread at the end
 		// of each outer tick and never changed afterwards. It owns its values:
@@ -207,7 +212,9 @@ namespace sf4e {
 		// the session is being retired. Its battle then closes sessionless, and
 		// the runtime leaves that game instead of ending the view silently.
 		void NotifyRuntimeSpectatorStreamFailed();
-		void NotifyRuntimeMatchResult(room::MatchResult result);
+		// A rollback-confirmed native result, with the save frame it was
+		// captured at and the input frame confirmed when it was published.
+		void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame);
 		// The room has committed the end of the current match (any result).
 		// Notices about losing that match's stream or peer are moot then.
 		bool IsRuntimeMatchEndCommitted();

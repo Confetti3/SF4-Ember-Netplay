@@ -118,6 +118,11 @@ namespace sf4e {
 		bool CustomRoomsEnabled() const { return static_cast<bool>(_roomAuthority); }
 		const room::Snapshot* RoomSnapshot() const { return !_roomAuthority ? nullptr : (_hasRecoveryProjection ? &_recoveryProjection : &_roomAuthority->SnapshotView()); }
 		void AdvanceCustomRoom(std::uint64_t nowMs);
+		// Applies the tournament binding this server's own helper checked to
+		// the room it leads, broadcasts the room and proposes the change. False
+		// when the room cannot take it now (not the writable owner, a quorum
+		// round in progress) or refuses it; the caller tries again later.
+		bool BindTournament(const room::TournamentBinding& binding);
 		// Private recovery state, never a player-facing room snapshot. Import is
 		// atomic and does not send messages, create capabilities, or touch sockets.
 		nlohmann::json Checkpoint() const;
@@ -268,6 +273,8 @@ namespace sf4e {
 		bool RestoreRecoveryState(const nlohmann::json& checkpoint,
 			std::vector<session::EffectEnvelope> journal, const session::AuthorityStamp* authority);
 		void CaptureFrozenMember(room::MemberId member, const room::Snapshot& prior);
+		// Drops a member the room removed: its connection, identity and slots.
+		void ForgetRoomMember(room::MemberId member);
 		void PruneFrozenMembers();
 		std::vector<SessionMember> clients;
 

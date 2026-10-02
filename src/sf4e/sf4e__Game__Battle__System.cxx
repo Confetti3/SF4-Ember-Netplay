@@ -55,20 +55,23 @@ static void PublishConfirmedNativeMatchResult() {
         fSystem::localPlayerHandle == GGPO_INVALID_HANDLE) return;
     int confirmed = -1;
     if (!GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(fSystem::ggpo, &confirmed))) return;
-    const auto result = s_nativeResultTimeline.Confirmed(confirmed);
+    const auto sample = s_nativeResultTimeline.ConfirmedSample(confirmed);
+    const auto result = sample.result;
     if (result == sf4e::native_result::Result::None) return;
 
     s_nativeResultEmitted = true;
-    spdlog::info("Match result: confirmed native outcome={} input_frame={}", static_cast<int>(result), confirmed);
+    spdlog::info("Match result: confirmed native outcome={} input_frame={} save_frame={}", static_cast<int>(result), confirmed, sample.frame);
+    const auto captureFrame = static_cast<std::uint64_t>(sample.frame);
+    const auto confirmedFrame = static_cast<std::uint64_t>(confirmed < 0 ? 0 : confirmed);
     switch (result) {
     case sf4e::native_result::Result::P1Win:
-        sf4e::NetplayFacade::NotifyRuntimeMatchResult(sf4e::room::MatchResult::P1Win);
+        sf4e::NetplayFacade::NotifyRuntimeMatchResult(sf4e::room::MatchResult::P1Win, captureFrame, confirmedFrame);
         break;
     case sf4e::native_result::Result::P2Win:
-        sf4e::NetplayFacade::NotifyRuntimeMatchResult(sf4e::room::MatchResult::P2Win);
+        sf4e::NetplayFacade::NotifyRuntimeMatchResult(sf4e::room::MatchResult::P2Win, captureFrame, confirmedFrame);
         break;
     case sf4e::native_result::Result::Draw:
-        sf4e::NetplayFacade::NotifyRuntimeMatchResult(sf4e::room::MatchResult::Draw);
+        sf4e::NetplayFacade::NotifyRuntimeMatchResult(sf4e::room::MatchResult::Draw, captureFrame, confirmedFrame);
         break;
     case sf4e::native_result::Result::None:
         break;

@@ -41,6 +41,10 @@ void TournamentPlay::Stop() {
 	Fail(Phase::Idle, {});
 }
 
+void TournamentPlay::Abandon(const std::string& reason) {
+	if (phase_ == Phase::Claiming || phase_ == Phase::Opening || phase_ == Phase::InRoom) Fail(Phase::Failed, reason);
+}
+
 void TournamentPlay::Fail(Phase phase, const std::string& reason) {
 	const bool active = phase_ == Phase::Claiming || phase_ == Phase::Opening || phase_ == Phase::InRoom;
 	if (active && (hostRequested_ || joinRequested_ || !targetRoom_.empty())) pending_.push_back(Make(Output::Kind::Leave));
@@ -135,13 +139,15 @@ void TournamentPlay::FollowClaim(std::uint64_t nowMs, const RoomView& room, std:
 	const auto& current = room.snapshot->tournament;
 	const bool applied = current.matchId == wanted.matchId && current.assignmentGeneration == wanted.assignmentGeneration &&
 		current.bindingRevision == wanted.bindingRevision;
-	const bool tried = boundGeneration_ == wanted.assignmentGeneration && boundRevision_ == wanted.bindingRevision;
-	if (applied || tried || (current.Active() && !current.SupersededBy(wanted))) return;
+	const bool recent = offeredGeneration_ == wanted.assignmentGeneration &&
+		offeredRevision_ == wanted.bindingRevision && nowMs - boundAtMs_ < 1000;
+	if (applied || recent || (current.Active() && !current.SupersededBy(wanted))) return;
 	auto bind = Make(Output::Kind::Bind);
 	bind.binding = wanted;
 	out.push_back(bind);
-	boundGeneration_ = wanted.assignmentGeneration;
-	boundRevision_ = wanted.bindingRevision;
+	offeredGeneration_ = wanted.assignmentGeneration;
+	offeredRevision_ = wanted.bindingRevision;
+	boundAtMs_ = nowMs;
 }
 
 void TournamentPlay::TrackPermits(std::uint64_t nowMs, const RoomView& room, std::vector<Output>& out) {

@@ -232,6 +232,16 @@ static void TestFinishedAndFailed() {
 	other.OnFailure(Kind::Claim, "not_found", 1);
 	CHECK(other.GetPhase() == Phase::Failed);
 	CHECK(Count(other.Tick(2, {}), Kind::Leave) == 0);
+	// Losing the helper gives the match up with its reason; once ended, it stays ended.
+	TournamentPlay lost;
+	lost.Start("brg_x", "emt_x", 0);
+	lost.Tick(0, {});
+	lost.OnRoom(Kind::Claim, Room(RoomA, std::nullopt), 0);
+	lost.Abandon("helper_lost");
+	CHECK(lost.GetPhase() == Phase::Failed && lost.Reason() == "helper_lost");
+	CHECK(Count(lost.Tick(100, {}), Kind::Leave) == 1);
+	other.Abandon("helper_lost");
+	CHECK(other.Reason() == "not_found");
 }
 
 // The helper forgets the match only once every report has its answer; a

@@ -89,6 +89,9 @@ public:
 	void Start(std::string bridgeId, std::string matchId, std::uint64_t nowMs);
 	// Leaves the match's room and forgets it. Safe to call in any phase.
 	void Stop();
+	// Gives the match up for a reason outside it (the helper is gone): Failed
+	// with `reason`. Nothing when no match is under way.
+	void Abandon(const std::string& reason);
 	std::vector<Output> Tick(std::uint64_t nowMs, const RoomView& room);
 
 	// The answer to a Claim or a Publish: both name the match's room.
@@ -124,8 +127,10 @@ private:
 	bool hostRequested_ = false, joinRequested_ = false, leaving_ = false, published_ = false;
 	// The room the bridge names for the match.
 	std::string targetRoom_, targetInvitation_, publishedInvitation_, publishingInvitation_;
-	// The binding revision last handed to the room, so a refused one is not resent every tick.
-	std::uint64_t boundRevision_ = 0, boundGeneration_ = 0;
+	// When the binding was last handed to the room. The room can refuse it for
+	// a moment (a quorum round in progress), so it is offered again, at most
+	// once a second, until the room shows it.
+	std::uint64_t boundAtMs_ = 0, offeredGeneration_ = 0, offeredRevision_ = 0;
 	std::optional<Binding> binding_;
 	bool waitingForOpponent_ = false, waitingForPermit_ = false;
 	// Permits this fighter holds, by generation; games that started; games reported.
