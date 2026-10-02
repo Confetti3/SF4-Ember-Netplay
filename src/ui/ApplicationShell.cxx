@@ -530,18 +530,18 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }
  // A match link from the browser opens the match's row for the player to
  // press Play. It never leaves a room by itself: in one, it only says so.
- if(v.tournament.handoffSequence!=handoffSequence_){
-  handoffSequence_=v.tournament.handoffSequence;
+ if(v.tournament.handoff.sequence!=handoffSequence_){
+  handoffSequence_=v.tournament.handoff.sequence;
   const auto& t=v.tournament;
-  if(!t.handoffMatch.empty()){
-   identity_.OpenMatch(t.handoffBridge,t.handoffMatch);
+  if(!t.handoff.match.empty()){
+   identity_.OpenMatch(t.handoff.bridge,t.handoff.match);
    if(v.session.room==RoomState::Idle){
     if(nav.Screen()!="tournament-matches"){nav.Home();nav.Push("tournament-matches");}
     notice_=loc::T("tournament.handoff_opened");noticeTone_=Tone::Success;
    }else{notice_=loc::T("tournament.handoff_waiting");noticeTone_=Tone::Pending;}
    noticeUntil_=now+15;
-  }else if(!t.handoffError.empty()){
-   notice_=IdentityPanel::HandoffFailure(t.handoffError);noticeTone_=Tone::Error;noticeUntil_=now+20;
+  }else if(!t.handoff.error.empty()){
+   notice_=IdentityPanel::HandoffFailure(t.handoff.error);noticeTone_=Tone::Error;noticeUntil_=now+20;
   }
  }
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);

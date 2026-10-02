@@ -32,6 +32,24 @@ struct Command {
 	std::size_t Bytes() const { return bridgeId.size() + matchId.size() + handoff.size(); }
 };
 
+// The assignment list for `bridge`, from its last refresh.
+struct AssignmentList {
+	std::string bridge;
+	std::vector<Assignment> items;
+	bool loading = false;
+	// The helper's code when the last refresh failed.
+	std::string error;
+};
+
+// The last match link opened from a browser or pasted: the service and match
+// it named, or the code of why it could not be opened. The sequence changes
+// with each outcome; a link waiting to be redeemed is pending.
+struct HandoffResult {
+	std::string bridge, match, error;
+	std::uint64_t sequence = 0;
+	bool pending = false;
+};
+
 struct Status {
 	// The match being played, and how far it got.
 	Phase phase = Phase::Idle;
@@ -39,18 +57,8 @@ struct Status {
 	// Why it finished or failed: a stable code, empty otherwise.
 	std::string reason;
 	bool waitingForOpponent = false, waitingForPermit = false;
-	// The assignment list for `assignmentsBridge`, from its last refresh.
-	std::string assignmentsBridge;
-	std::vector<Assignment> assignments;
-	bool assignmentsLoading = false;
-	// The helper's code when the last refresh failed.
-	std::string assignmentsError;
-	// The last match link opened from a browser or pasted: the service and
-	// match it named, or the code of why it could not be opened. The sequence
-	// changes with each outcome; a link waiting to be redeemed is pending.
-	std::string handoffBridge, handoffMatch, handoffError;
-	std::uint64_t handoffSequence = 0;
-	bool handoffPending = false;
+	AssignmentList list;
+	HandoffResult handoff;
 };
 
 } } }

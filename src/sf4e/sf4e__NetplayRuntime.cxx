@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "../common/HexText.hxx"
 #include "../ui/NetworkFeedback.hxx"
 
 namespace sf4e { namespace NetplayFacade {
@@ -141,9 +142,7 @@ void AttachRoom() {
     const auto deviceIndex = static_cast<uint8_t>(device.index), deviceType = static_cast<uint8_t>(device.type);
 	if (runtime->controller.GetSnapshot().isHost || runtime->room->Coordination().active) {
 		const auto id = runtime->room->RoomId();
-		std::string identity = "iroh:";
-		const char* digits = "0123456789abcdef";
-		for (auto byte : id) { identity += digits[byte >> 4]; identity += digits[byte & 15]; }
+		const std::string identity = "iroh:" + HexLower(id);
 		UserApp::server.reset(new SessionServer(identity, sf4e::sidecarHash,
 			runtime->preferences.lobby.editionSelect, runtime->preferences.lobby.roundCount,
 			{0, static_cast<short>(runtime->preferences.lobby.roundTime)}, runtime->room->Server()));

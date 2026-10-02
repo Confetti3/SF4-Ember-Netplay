@@ -180,11 +180,11 @@ void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen
     using netplay::tournament::Command;
     using netplay::tournament::Phase;
     const auto& t = v.tournament;
-    loadingAssignments_ = t.assignmentsLoading;
-    openingLink_ = t.handoffPending;
+    loadingAssignments_ = t.list.loading;
+    openingLink_ = t.handoff.pending;
     // A refresh's failure is said once; the runtime clears it when the next one is sent.
-    if (t.assignmentsError != assignmentsError_) {
-        assignmentsError_ = t.assignmentsError;
+    if (t.list.error != assignmentsError_) {
+        assignmentsError_ = t.list.error;
         if (!assignmentsError_.empty() && screen == "tournament-matches") Say(TournamentFailure(assignmentsError_), true);
     }
     // A match that ended has a new score to show.
@@ -197,7 +197,7 @@ void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen
     if (play_) {
         action.tournament = std::move(*play_);
         play_.reset();
-    } else if (wantAssignments_ && screen == "tournament-matches" && FindBridge(v, bridge_) && !t.assignmentsLoading) {
+    } else if (wantAssignments_ && screen == "tournament-matches" && FindBridge(v, bridge_) && !t.list.loading) {
         wantAssignments_ = false;
         action.tournament.op = Command::Op::Refresh;
         action.tournament.bridgeId = bridge_;
@@ -448,9 +448,9 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
             return rows;
         }
         rows.push_back(ServiceRow(v, *bridge));
-        if (t.assignmentsBridge == bridge_) {
+        if (t.list.bridge == bridge_) {
             const bool free = v.session.room == netplay::RoomState::Idle && !playing;
-            for (const auto& match : t.assignments) {
+            for (const auto& match : t.list.items) {
                 const bool slotKnown = match.slot == 0 || match.slot == 1;
                 const auto own = slotKnown ? match.wins[static_cast<std::size_t>(match.slot)] : 0u;
                 const auto other = slotKnown ? match.wins[static_cast<std::size_t>(1 - match.slot)] : 0u;
@@ -468,11 +468,11 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
                 if (!playable) row.info = true;
                 rows.push_back(std::move(row));
             }
-            if (t.assignments.empty() && !t.assignmentsLoading && t.assignmentsError.empty())
+            if (t.list.items.empty() && !t.list.loading && t.list.error.empty())
                 rows.push_back(Info("tm-none", loc::T("tournament.none"), {}, loc::T("tournament.none_detail")));
         }
-        rows.push_back(Row("tm-refresh", loc::T("identity.refresh"), loc::T("tournament.refresh_detail"), !t.assignmentsLoading));
-        rows.push_back(Row("tm-paste", loc::T("tournament.paste_link"), loc::T("tournament.paste_link_detail"), !t.handoffPending));
+        rows.push_back(Row("tm-refresh", loc::T("identity.refresh"), loc::T("tournament.refresh_detail"), !t.list.loading));
+        rows.push_back(Row("tm-paste", loc::T("tournament.paste_link"), loc::T("tournament.paste_link_detail"), !t.handoff.pending));
         rows.back().hint = loc::T("menu.hint.paste");
     }
     return rows;

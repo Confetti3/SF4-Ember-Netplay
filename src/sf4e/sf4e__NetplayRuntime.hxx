@@ -155,7 +155,8 @@ struct Runtime {
     netplay::tournament::TournamentPlay tournament;
     std::map<std::uint64_t, netplay::tournament::Output::Kind> tournamentRequests;
     std::uint64_t assignmentRequest=0;
-    netplay::tournament::Status assignments;
+    netplay::tournament::AssignmentList assignmentList;
+    netplay::tournament::HandoffResult handoffResult;
     // Match links from the browser (ember://tournament/open), from a later
     // launcher or the start argument, or pasted. One waits here until the
     // helper and the Ember ID can redeem it, at most HandoffWaitMs.

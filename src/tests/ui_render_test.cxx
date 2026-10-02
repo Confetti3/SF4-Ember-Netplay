@@ -826,15 +826,15 @@ int main(int argc, char** argv) {
                 // The matches page with a match in play, one to play and one
                 // the organizer enters, then with none and no service.
                 auto& t=view.tournament;t=netplay::tournament::Status{};
-                t.assignmentsBridge=id.bridges[0].id;
+                t.list.bridge=id.bridges[0].id;
                 netplay::tournament::Assignment match;match.matchId="emt_1";match.state="ready";match.profile="ember-room-v1";
                 match.slot=0;match.gamesToWin=3;match.wins={1,2};match.roundLabel="Winners Round 1";match.opponentFingerprint="abcd1234-efgh5678";
                 auto organizer=match;organizer.matchId="emt_2";organizer.profile="organizer-reported-v1";organizer.roundLabel="Grand Final";
-                t.assignments={match,organizer};
+                t.list.items={match,organizer};
                 t.phase=netplay::tournament::Phase::InRoom;t.matchId="emt_1";t.waitingForPermit=true;
                 page("tournament-matches");draw(nullptr,0,4);draw("tournament-matches");
                 Require(shell.Navigation().Screen()=="tournament-matches","Tournament matches did not open");
-                t=netplay::tournament::Status{};t.assignmentsBridge=id.bridges[0].id;
+                t=netplay::tournament::Status{};t.list.bridge=id.bridges[0].id;
                 page("tournament-matches");draw(nullptr,0,4);draw("tournament-matches-none");
                 id.state="disabled";page("linked-accounts");draw("linked-accounts-no-id");
                 view.identity=netplay::IdentityView{};view.tournament=netplay::tournament::Status{};

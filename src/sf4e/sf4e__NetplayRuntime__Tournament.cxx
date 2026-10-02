@@ -4,19 +4,12 @@
 // drained, so a game's end reaches the state machine on the tick it commits.
 #include "sf4e__NetplayRuntime.hxx"
 #include "../session/TournamentAnswers.hxx"
+#include "../common/HexText.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace {
 using netplay::tournament::Output;
 using nlohmann::json;
-
-std::string Hex(const std::array<std::uint8_t, 16>& bytes) {
-	static constexpr char digits[] = "0123456789abcdef";
-	std::string text;
-	text.reserve(32);
-	for (const auto value : bytes) { text += digits[value >> 4]; text += digits[value & 15]; }
-	return text;
-}
 
 json Counter(std::uint64_t value) { return value ? json(std::to_string(value)) : json(nullptr); }
 json OptionalText(const std::string& text) { return text.empty() ? json(nullptr) : json(text); }
@@ -129,18 +122,18 @@ void Execute(const Output& output, std::uint64_t nowMs) {
 // The helper's answer to an assignment refresh.
 void TakeAssignments(const session::TournamentAnswer& answer) {
 	runtime->assignmentRequest = 0;
-	runtime->assignments.assignmentsLoading = false;
+	runtime->assignmentList.loading = false;
 	if (!answer.ok) {
-		runtime->assignments.assignmentsError = answer.reason.empty() ? "unavailable" : answer.reason;
+		runtime->assignmentList.error = answer.reason.empty() ? "unavailable" : answer.reason;
 		return;
 	}
 	auto list = session::DecodeAssignments(answer.data);
 	if (!list) {
-		runtime->assignments.assignmentsError = "bridge_invalid_response";
+		runtime->assignmentList.error = "bridge_invalid_response";
 		return;
 	}
-	runtime->assignments.assignmentsError.clear();
-	runtime->assignments.assignments = std::move(*list);
+	runtime->assignmentList.error.clear();
+	runtime->assignmentList.items = std::move(*list);
 }
 
 // How long a match link waits for the helper and the Ember ID: the bridge
@@ -148,11 +141,11 @@ void TakeAssignments(const session::TournamentAnswer& answer) {
 constexpr ULONGLONG HandoffWaitMs = 55000;
 
 void HandoffDone(const std::string& matchId, const std::string& error) {
-	auto& status = runtime->assignments;
-	status.handoffPending = false;
-	status.handoffMatch = matchId;
-	status.handoffError = error;
-	++status.handoffSequence;
+	auto& result = runtime->handoffResult;
+	result.pending = false;
+	result.match = matchId;
+	result.error = error;
+	++result.sequence;
 	runtime->handoffRequest = 0;
 	if (error.empty()) spdlog::info("Tournament: a match link named match {}", matchId);
 	else spdlog::info("Tournament: a match link could not be opened: {}", error);
@@ -184,7 +177,7 @@ void RedeemHandoff(bool helperReady) {
 	std::uint64_t id = 0;
 	const bool sent = runtime->room->SendTournament(text, &id);
 	WipeText(text);
-	runtime->assignments.handoffBridge = pending.bridgeId;
+	runtime->handoffResult.bridge = pending.bridgeId;
 	WipeText(pending.code);
 	pending = {};
 	if (sent) runtime->handoffRequest = id;
@@ -232,7 +225,7 @@ netplay::tournament::RoomView View(bool helperReady) {
 	view.opening = !view.joined && (state.room != netplay::RoomState::Idle || !helperReady || !AtMainMenu() ||
 		UserApp::netplay || UserApp::server || Game::Battle::System::ggpo);
 	if (!view.joined) return view;
-	view.roomId = Hex(runtime->room->RoomId());
+	view.roomId = HexLower(runtime->room->RoomId());
 	view.invitation = runtime->room->Invitation();
 	view.authorityWritable = UserApp::server && (!state.coordinated || state.authorityWritable);
 	view.snapshot = &UserApp::netplay->client.GetRoomSnapshot();
@@ -246,8 +239,8 @@ void QueueTournamentHandoff(tournament_link::Handoff handoff) {
 	WipeText(runtime->pendingHandoff.code);
 	runtime->pendingHandoff = std::move(handoff);
 	runtime->handoffArrivedMs = GetTickCount64();
-	runtime->assignments.handoffPending = true;
-	runtime->assignments.handoffBridge = runtime->pendingHandoff.bridgeId;
+	runtime->handoffResult.pending = true;
+	runtime->handoffResult.bridge = runtime->pendingHandoff.bridgeId;
 	spdlog::info("Tournament: a match link arrived");
 }
 
@@ -258,18 +251,18 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 	switch (command.op) {
 	case Op::Refresh: {
 		if (command.bridgeId.empty()) return;
-		auto& status = runtime->assignments;
-		if (status.assignmentsBridge != command.bridgeId) status.assignments.clear();
-		status.assignmentsBridge = command.bridgeId;
+		auto& list = runtime->assignmentList;
+		if (list.bridge != command.bridgeId) list.items.clear();
+		list.bridge = command.bridgeId;
 		std::uint64_t id = 0;
 		const auto text = json{{"op", "assignment_list"}, {"bridge_id", command.bridgeId}}.dump();
 		if (helperReady && runtime->room && runtime->room->SendTournament(text, &id)) {
 			runtime->assignmentRequest = id;
-			status.assignmentsLoading = true;
-			status.assignmentsError.clear();
+			list.loading = true;
+			list.error.clear();
 		} else {
-			status.assignmentsLoading = false;
-			status.assignmentsError = "helper_unavailable";
+			list.loading = false;
+			list.error = "helper_unavailable";
 		}
 		return;
 	}
@@ -339,7 +332,9 @@ void ObserveTournamentTerminal(const room::Event& event, netplay::MatchResultOut
 }
 
 netplay::tournament::Status TournamentStatus() {
-	auto status = runtime->assignments;
+	netplay::tournament::Status status;
+	status.list = runtime->assignmentList;
+	status.handoff = runtime->handoffResult;
 	const auto& play = runtime->tournament;
 	status.phase = play.GetPhase();
 	status.bridgeId = play.BridgeId();
