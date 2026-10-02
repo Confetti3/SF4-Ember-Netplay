@@ -22,16 +22,30 @@ const SAM: &str = "1725265127372152396";
 /// A platform that finds players by Discord account.
 const BLUMINT: &str = "bm-partner";
 
-/// Code `slow-kate` signs Kate in once the test lets it: Discord has the
-/// code (`SLOW_ARRIVED`) until `SLOW_RELEASE`.
-static SLOW_ARRIVED: Notify = Notify::const_new();
-static SLOW_RELEASE: Notify = Notify::const_new();
-/// The same for code `held-kate`, so tests holding a code run side by side.
-static HELD_ARRIVED: Notify = Notify::const_new();
-static HELD_RELEASE: Notify = Notify::const_new();
+/// A code the stand-in Discord holds until the test lets it go: `arrived`
+/// says Discord has it, `release` lets it sign Kate in. One per test, so
+/// tests holding a code run side by side.
+struct Gate {
+    arrived: Notify,
+    release: Notify,
+}
+
+impl Gate {
+    const fn new() -> Self {
+        Self {
+            arrived: Notify::const_new(),
+            release: Notify::const_new(),
+        }
+    }
+}
+
+static SLOW: Gate = Gate::new();
+static HELD: Gate = Gate::new();
+static LATE: Gate = Gate::new();
 
 /// A stand-in for Discord's token and user endpoints. Codes `good-kate`,
-/// `slow-kate` and `good-sam` sign in those users; anything else is refused.
+/// `good-sam` and the gated `slow-kate`, `held-kate` and `late-kate` sign in
+/// those users; anything else is refused.
 async fn fake_discord() -> String {
     type Answer = (AxumStatus, [(header::HeaderName, &'static str); 1], String);
     fn answer(status: AxumStatus, body: Json) -> Answer {
@@ -49,16 +63,19 @@ async fn fake_discord() -> String {
                 .get("redirect_uri")
                 .is_some_and(|uri| uri.ends_with("/v1/discord/callback"));
         let code = form.get("code").map(String::as_str);
-        if code == Some("slow-kate") {
-            SLOW_ARRIVED.notify_one();
-            SLOW_RELEASE.notified().await;
-        }
-        if code == Some("held-kate") {
-            HELD_ARRIVED.notify_one();
-            HELD_RELEASE.notified().await;
+        let gate = match code {
+            Some("slow-kate") => Some(&SLOW),
+            Some("held-kate") => Some(&HELD),
+            Some("late-kate") => Some(&LATE),
+            _ => None,
+        };
+        if let Some(gate) = gate {
+            gate.arrived.notify_one();
+            gate.release.notified().await;
         }
         let user = match code {
-            Some("good-kate" | "slow-kate" | "held-kate") => "kate",
+            Some("good-kate") => "kate",
+            Some(_) if gate.is_some() => "kate",
             Some("good-sam") => "sam",
             _ => "",
         };
@@ -350,14 +367,14 @@ async fn a_second_answer_for_a_sign_in_is_turned_away() {
     let client = bridge.client.clone();
     let first =
         tokio::spawn(async move { client.get(url).send().await.unwrap().text().await.unwrap() });
-    HELD_ARRIVED.notified().await;
+    HELD.arrived.notified().await;
     // The same answer again, say from a reload, while Discord still checks the first.
     assert!(
         back(&bridge, &format!("code=held-kate&state={state}"))
             .await
             .contains("Sign-in expired")
     );
-    HELD_RELEASE.notify_one();
+    HELD.release.notify_one();
     assert!(first.await.unwrap().contains("Discord connected"));
     assert_eq!(account(&bridge, &kate).await["user_id"], KATE);
 }
@@ -385,9 +402,9 @@ async fn a_disconnect_ends_sign_ins_in_flight() {
     let client = bridge.client.clone();
     let answer =
         tokio::spawn(async move { client.get(url).send().await.unwrap().text().await.unwrap() });
-    SLOW_ARRIVED.notified().await;
+    SLOW.arrived.notified().await;
     assert_eq!(disconnect(&bridge, &kate).await.0, StatusCode::OK);
-    SLOW_RELEASE.notify_one();
+    SLOW.release.notify_one();
     assert!(answer.await.unwrap().contains("Sign-in expired"));
     assert_eq!(account(&bridge, &kate).await, Json::Null);
 }
@@ -488,6 +505,62 @@ async fn a_link_the_player_removed_stays_removed_until_they_sign_in_again() {
     assert_eq!(status, StatusCode::BAD_REQUEST);
 
     // Signing in with Discord again gives the consent again.
+    bridge.clock.advance(1);
+    connect(&bridge, &kate, "kate").await;
+    assert_eq!(
+        lookup(&bridge, &provider, &[KATE]).await,
+        json!({ "discord": [kate_id] })
+    );
+}
+
+#[tokio::test]
+async fn a_sign_in_started_before_an_unlink_does_not_undo_it() {
+    let bridge = bridge_with_discord().await;
+    let provider = bridge.provider(BLUMINT).await;
+    let kate = player(&bridge, 1).await;
+    let kate_id = kate.id().to_string();
+    connect(&bridge, &kate, "kate").await;
+    lookup(&bridge, &provider, &[KATE]).await;
+    // A sign-in is started, and Discord is still answering it when the
+    // player removes BluMint's link.
+    let state = start(&bridge, &kate).await;
+    let url = bridge.url(&format!(
+        "/v1/discord/callback?code=late-kate&state={state}"
+    ));
+    let client = bridge.client.clone();
+    let late =
+        tokio::spawn(async move { client.get(url).send().await.unwrap().text().await.unwrap() });
+    LATE.arrived.notified().await;
+    bridge.clock.advance(5);
+    let (_, links) = bridge.get(kate.token(), "/v1/links").await;
+    let link = links["links"][0]["link_id"].as_str().unwrap().to_owned();
+    let path = format!("/v1/links/{link}");
+    let body = bridge
+        .prove(
+            &kate,
+            Action::LinkRemove,
+            Method::Delete,
+            &path,
+            json!({ "link_id": link }),
+        )
+        .await;
+    assert_eq!(
+        bridge
+            .send_proof(&kate, Method::Delete, &path, body)
+            .await
+            .0,
+        StatusCode::OK
+    );
+    bridge.clock.advance(5);
+    LATE.release.notify_one();
+    assert!(late.await.unwrap().contains("Discord connected"));
+    for _ in 0..2 {
+        assert_eq!(
+            lookup(&bridge, &provider, &[KATE]).await,
+            json!({ "discord": [] })
+        );
+    }
+    // A sign-in started after the unlink gives the consent again.
     bridge.clock.advance(1);
     connect(&bridge, &kate, "kate").await;
     assert_eq!(

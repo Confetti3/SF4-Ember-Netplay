@@ -12,7 +12,8 @@
 //! sign-in approved, in the same transaction. The next lookup links the
 //! account again where it now belongs. A link the player (or the platform
 //! account's holder) removed stays removed: lookup does not link it again
-//! until a newer Discord sign-in gives that consent again.
+//! until a Discord sign-in the player starts after that gives that consent
+//! again. An account's `connected_at` is when its sign-in was started.
 use axum::{
     extract::{Query, State},
     http::{HeaderMap, StatusCode},
@@ -230,7 +231,7 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
     let stored = state
         .db
         .write(move |tx| {
-            let Some(ember_id) = take(tx, &hash, ctx.now)? else {
+            let Some((ember_id, started_at)) = take(tx, &hash, ctx.now)? else {
                 return Ok(None);
             };
             // The latest sign-in wins: this account leaves any other Ember ID,
@@ -246,9 +247,11 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
                     end_links(tx, &ctx, &user_id, "replaced")?;
                 }
             }
+            // The player consented when they started the sign-in, so one they
+            // started before removing a link does not give that link back.
             tx.execute(
                 "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, ?3, ?4)",
-                params![user.id, ember_id, user.username, ctx.now],
+                params![user.id, ember_id, user.username, started_at],
             )?;
             Ok(Some(ember_id))
         })
@@ -280,14 +283,14 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
 }
 
 /// Takes the claimed sign-in `hash` names if it is still there: the Ember ID
-/// that started it.
-fn take(tx: &Transaction<'_>, hash: &[u8; 32], now: u64) -> Result<Option<String>> {
+/// that started it, and when.
+fn take(tx: &Transaction<'_>, hash: &[u8; 32], now: u64) -> Result<Option<(String, u64)>> {
     Ok(tx
         .query_row(
             "DELETE FROM discord_sign_ins WHERE state_hash = ?1 AND expires_at > ?2 AND claimed = 1
-             RETURNING ember_id",
+             RETURNING ember_id, expires_at",
             params![hash.as_slice(), now],
-            |row| row.get(0),
+            |row| Ok((row.get(0)?, row.get::<_, u64>(1)? - SIGN_IN_SECS)),
         )
         .optional()?)
 }
