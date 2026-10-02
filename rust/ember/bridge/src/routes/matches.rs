@@ -351,10 +351,10 @@ fn created_body(ctx: &Ctx, found: &Match) -> serde_json::Value {
 fn snapshot(tx: &Transaction<'_>, bridge_id: &str, found: &Match) -> Result<serde_json::Value> {
     let roster = participants(tx, &found.id, found.generation)?;
     let (wins, _) = scores(tx, &found.id)?;
-    let (rules, metadata, delivery): (String, String, String) = tx.query_row(
-        "SELECT rules, metadata, delivery_state FROM matches WHERE id = ?1",
+    let (rules, metadata): (String, String) = tx.query_row(
+        "SELECT rules, metadata FROM matches WHERE id = ?1",
         [&found.id],
-        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        |row| Ok((row.get(0)?, row.get(1)?)),
     )?;
     let attempts = tx
         .prepare(
@@ -387,7 +387,7 @@ fn snapshot(tx: &Transaction<'_>, bridge_id: &str, found: &Match) -> Result<serd
         "participants": roster,
         "scores": scores,
         "attempts": attempts,
-        "provider_delivery_state": delivery,
+        "provider_delivery_state": found.delivery,
         "metadata": serde_json::from_str::<serde_json::Value>(&metadata).unwrap_or_default(),
         "event_cursor": events::head(tx)?.to_string(),
     }))

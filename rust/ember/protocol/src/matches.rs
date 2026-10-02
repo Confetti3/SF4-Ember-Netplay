@@ -212,6 +212,12 @@ pub enum DeliveryState {
     Ambiguous,
 }
 
+impl DeliveryState {
+    pub fn parse(text: &str) -> Option<Self> {
+        serde_json::from_value(serde_json::Value::String(text.to_owned())).ok()
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Resolution {

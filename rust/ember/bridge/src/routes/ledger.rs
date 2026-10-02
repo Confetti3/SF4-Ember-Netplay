@@ -38,13 +38,15 @@ pub struct Match {
     pub lobby_id: Option<String>,
     /// The tournament that plays this match as one of its bracket sets.
     pub tournament_id: Option<String>,
+    /// Whether, and how far, its result has been sent to its platform.
+    pub delivery: DeliveryState,
 }
 
 pub fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
     Ok(tx
         .query_row(
             "SELECT id, tenant_id, connection_id, external_match_id, revision, assignment_generation, state, games_to_win,
-                    lobby_id, tournament_id
+                    lobby_id, tournament_id, delivery_state
              FROM matches WHERE id = ?1",
             [id],
             |row| {
@@ -59,6 +61,7 @@ pub fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
                     row.get::<_, u8>(7)?,
                     row.get::<_, Option<String>>(8)?,
                     row.get::<_, Option<String>>(9)?,
+                    row.get::<_, String>(10)?,
                 ))
             },
         )
@@ -74,6 +77,7 @@ pub fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
             games_to_win: row.7,
             lobby_id: row.8,
             tournament_id: row.9,
+            delivery: DeliveryState::parse(&row.10).unwrap_or(DeliveryState::Ambiguous),
         }))
 }
 
@@ -343,7 +347,7 @@ pub fn settle(
                 Cause::Organizer { .. } => Vec::new(),
                 Cause::Players { report_ids } => report_ids.clone(),
             },
-            provider_delivery_state: DeliveryState::NotRequired,
+            provider_delivery_state: found.delivery,
         };
         completed.check().map_err(|_| ApiFailure::unavailable())?;
         match_event(

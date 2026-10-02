@@ -10,7 +10,7 @@ use std::{
 use axum::{Router, body::Bytes, http::HeaderMap, routing::post};
 use common::{Bridge, Player, code, types};
 use ember_protocol::{
-    matches::MatchCompleted,
+    matches::{DeliveryState, MatchCompleted},
     webhook::{self, Headers, Secret},
 };
 use reqwest::StatusCode;
@@ -302,6 +302,9 @@ async fn ft2_set_scores_once_per_game() {
     data.check().unwrap();
     assert_eq!(data.winner_id, *f.a.id());
     assert_eq!(data.accepted_attempt_ids.len(), 3);
+    // This provider reads results itself; the bridge sends it none.
+    assert_eq!(snapshot["provider_delivery_state"], "not_required");
+    assert_eq!(data.provider_delivery_state, DeliveryState::NotRequired);
     assert_eq!(
         kinds
             .iter()
