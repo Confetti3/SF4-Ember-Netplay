@@ -10,7 +10,9 @@
 //! claim `discord:<user ID>`) stands only while that account is connected to
 //! that Ember ID: moving or disconnecting the account ends the links its
 //! sign-in approved, in the same transaction. The next lookup links the
-//! account again where it now belongs.
+//! account again where it now belongs. A link the player (or the platform
+//! account's holder) removed stays removed: lookup does not link it again
+//! until a newer Discord sign-in gives that consent again.
 use axum::{
     extract::{Query, State},
     http::{HeaderMap, StatusCode},
@@ -409,7 +411,7 @@ pub async fn remove(
                 )
                 .optional()?;
             match removed {
-                Some(user_id) => end_links(tx, ctx, &user_id, "unlinked_by_player"),
+                Some(user_id) => end_links(tx, ctx, &user_id, "discord_disconnected"),
                 None => Ok(()),
             }
         },
@@ -452,7 +454,8 @@ pub fn find_and_link(
 
 /// Links the Discord account's subject on the connection to `ember_id`,
 /// approved by the player's Discord sign-in, and says whether `ember_id` is
-/// linked there now. A link from a code the player claimed is kept: on the
+/// linked there now. A link the player removed since that sign-in is not
+/// made again. A link from a code the player claimed is kept: on the
 /// Ember ID, which then needs no other, or on the subject (a provider can
 /// name its accounts `discord:<user ID>` too), which leaves this Ember ID
 /// unlinked. Moving or disconnecting the account ended every link its
@@ -474,6 +477,18 @@ fn link(
     )?;
     if linked {
         return Ok(true);
+    }
+    // Removing the link withdrew the consent the sign-in gave; only a newer
+    // sign-in gives it again.
+    let withdrawn: bool = tx.query_row(
+        "SELECT EXISTS (SELECT 1 FROM links l JOIN discord_accounts d ON d.user_id = ?4
+           WHERE l.ember_id = ?1 AND l.connection_id = ?2 AND l.approved_via = 'discord' AND l.claim_id = ?3
+             AND l.revoked_by IN ('unlinked_by_player', 'unlinked_by_browser') AND l.revoked_at >= d.connected_at)",
+        params![ember_id.as_str(), connection_id, subject, user_id],
+        |row| row.get(0),
+    )?;
+    if withdrawn {
+        return Ok(false);
     }
     let tenant = ctx.tenant_of(connection_id)?;
     let (account_id, participant_id) = account(tx, connection_id, &subject, username, ctx.now)?;

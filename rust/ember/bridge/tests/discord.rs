@@ -411,6 +411,56 @@ async fn a_platforms_links_follow_the_discord_account() {
 }
 
 #[tokio::test]
+async fn a_link_the_player_removed_stays_removed_until_they_sign_in_again() {
+    let bridge = bridge_with_discord().await;
+    let provider = bridge.provider(BLUMINT).await;
+    let kate = player(&bridge, 1).await;
+    let kate_id = kate.id().to_string();
+    connect(&bridge, &kate, "kate").await;
+    lookup(&bridge, &provider, &[KATE]).await;
+    let (_, links) = bridge.get(kate.token(), "/v1/links").await;
+    let link = links["links"][0]["link_id"].as_str().unwrap().to_owned();
+    let path = format!("/v1/links/{link}");
+    let body = bridge
+        .prove(
+            &kate,
+            Action::LinkRemove,
+            Method::Delete,
+            &path,
+            json!({ "link_id": link }),
+        )
+        .await;
+    let (status, removed) = bridge.send_proof(&kate, Method::Delete, &path, body).await;
+    assert_eq!(status, StatusCode::OK, "{removed}");
+
+    // BluMint's next lookups find nobody, and no match can be made.
+    for _ in 0..2 {
+        assert_eq!(
+            lookup(&bridge, &provider, &[KATE]).await,
+            json!({ "discord": [] })
+        );
+    }
+    assert_eq!(platform_links(&bridge).await, vec![]);
+    let other = player(&bridge, 2).await;
+    let (status, _) = bridge
+        .post(
+            &provider,
+            "/v1/blumint/matches",
+            json!({ "teams": [ { "players": [ { "inGameId": kate_id } ] }, { "players": [ { "inGameId": other.id() } ] } ] }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    // Signing in with Discord again gives the consent again.
+    bridge.clock.advance(1);
+    connect(&bridge, &kate, "kate").await;
+    assert_eq!(
+        lookup(&bridge, &provider, &[KATE]).await,
+        json!({ "discord": [kate_id] })
+    );
+}
+
+#[tokio::test]
 async fn a_code_link_on_a_discord_named_account_is_kept() {
     let bridge = bridge_with_discord().await;
     let provider = bridge.provider(BLUMINT).await;
