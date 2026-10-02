@@ -1,4 +1,5 @@
 #include "room_authority_support.hxx"
+#include "../netplay/ParkedIntent.hxx"
 
 static void TestQueueWatchAndReplay() {
 	RoomAuthority authority("Roster", 8, 1);
@@ -280,7 +281,56 @@ static void TestHudScoreFollowsTheWatchedGame() {
 	CHECK(!sf4e::HudScore(false, true, start, false, none, shown));
 }
 
+// A Ready belongs to its seat. Once the committed room gives the client no
+// seat, a sent or parked press ends instead of running out its budget.
+static void TestLeavingTheSeatEndsItsReady() {
+	using Intent = sf4e::netplay::ParkedIntent<int>;
+	const sf4e::netplay::Generation generation{1, 1};
+	RoomAuthority authority("Stand up", 8, 9);
+	Join(authority, 0, true);
+	const auto fighter = Join(authority, 1), second = Join(authority, 2), third = Join(authority, 3);
+	const auto act = [&](MemberId member, ActionKind kind, int seat = -1) {
+		auto action = TableAction(authority, member, 0, kind);
+		action.seat = static_cast<std::int8_t>(seat);
+		return authority.Apply(member, action).accepted;
+	};
+	const auto sent = [&] {
+		Intent ready(20000, Intent::Completion::OnCommit);
+		ready.Arm(0, generation);
+		ready.Defer(1, generation, 0, Intent::Budget::Timed);
+		ready.Take();
+		ready.Settle(sf4e::netplay::DispatchOutcome::Dispatched);
+		return ready;
+	};
+	CHECK(act(fighter, ActionKind::Queue, 0) && act(second, ActionKind::Queue, 1));
+	// Seated: the press stays, and so does a parked one.
+	auto ready = sent();
+	CHECK(!sf4e::netplay::DropReadyWithoutSeat(ready, authority.SnapshotFor(fighter)) && ready.AwaitingCommit());
+	// A refused leave changes nothing: Queue while seated is rejected.
+	CHECK(!act(fighter, ActionKind::Queue, 1));
+	CHECK(!sf4e::netplay::DropReadyWithoutSeat(ready, authority.SnapshotFor(fighter)) && ready.Expired(20000));
+	// Stood up: the sent press ends and never reports a stall.
+	CHECK(act(fighter, ActionKind::Unqueue));
+	CHECK(sf4e::netplay::DropReadyWithoutSeat(ready, authority.SnapshotFor(fighter)));
+	CHECK(!ready.Active() && !ready.Expired(20000));
+	// Nothing armed, nothing to end.
+	CHECK(!sf4e::netplay::DropReadyWithoutSeat(ready, authority.SnapshotFor(fighter)));
+	// A parked press ends the same way, and a queue place is not a seat.
+	CHECK(act(third, ActionKind::Queue, 0) && act(fighter, ActionKind::Queue));
+	Intent parked(20000, Intent::Completion::OnCommit);
+	parked.Defer(2, generation, 0, Intent::Budget::Timed);
+	CHECK(PlaceOf(authority.SnapshotView(), fighter).kind == Place::Kind::Queue);
+	CHECK(sf4e::netplay::DropReadyWithoutSeat(parked, authority.SnapshotFor(fighter)) && !parked.Active());
+	// No longer a member (the snapshot names no local member).
+	auto removed = sent();
+	CHECK(sf4e::netplay::DropReadyWithoutSeat(removed, authority.SnapshotFor(9999)) && !removed.Active());
+	// A legacy lobby has no seats to lose.
+	auto legacy = sent();
+	CHECK(!sf4e::netplay::DropReadyWithoutSeat(legacy, Snapshot{}) && legacy.AwaitingCommit());
+}
+
 int main() {
+	TestLeavingTheSeatEndsItsReady();
 	TestQueueTakesAskedSeatAndEndsWatching();
 	TestQueueWatchAndReplay();
 	TestFighterDepartureClosesTheGame();

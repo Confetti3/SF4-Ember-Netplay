@@ -393,12 +393,10 @@ static void ObserveReadyCommit() {
 		if (client._outstandingReadyRequestNumber == -1) runtime->readyIntent.Commit();
 		return;
 	}
-	const auto local = std::find_if(room.members.begin(), room.members.end(),
-		[&](const room::Member& member) { return member.id == room.localMember; });
-	if (local == room.members.end() || local->table < 0 || local->table >= room::TableCount ||
-		local->seat < 0 || local->seat >= 2) return;
-	const auto& table = room.tables[local->table];
-	if (table.ready[local->seat] || table.phase != room::TablePhase::Waiting) runtime->readyIntent.Commit();
+	const auto place = room::PlaceOf(room, room.localMember);
+	if (place.kind != room::Place::Kind::Seat) return;
+	const auto& table = room.tables[place.table];
+	if (table.ready[place.seat] || table.phase != room::TablePhase::Waiting) runtime->readyIntent.Commit();
 }
 
 // Retries a parked command through the same dispatch as a fresh press. The
@@ -576,6 +574,13 @@ void ResolvePendingIntents(bool helperReady) {
 			intent->Clear();
 			runtime->error = loc::T("runtime.room_catchup_timeout");
 		}
+	// A Ready ends without a notice once the room shows its seat is gone (the
+	// player stood up, or was removed). Left armed, it ran out its budget and
+	// blamed the previous match. Only the committed room decides this: a leave
+	// the room refuses keeps the press.
+	if (runtime->attached && UserApp::netplay &&
+		netplay::DropReadyWithoutSeat(runtime->readyIntent, UserApp::netplay->client.GetRoomSnapshot()))
+		spdlog::info("Ready: dropped, the seat it was pressed from is gone");
 	// A parked Ready or lobby edit that never gets its turn is reported, not
 	// forgotten: the player pressed it and GGPO was already retired for it.
 	if (runtime->readyIntent.Expired(now)) FailReady(loc::T("runtime.ready.previous_match_timeout"));

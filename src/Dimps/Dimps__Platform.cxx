@@ -71,6 +71,7 @@ void Main::Locate(HMODULE peRoot) {
     *(PVOID*)&publicMethods.Destroy = (PVOID)(peRootOffset + 0x37e6c0);
     staticMethods.GetSingleton = (Main*(*)())(peRootOffset + 0x37eab0);
     staticMethods.RunWindowFunc = (void(WINAPI*)(Main*, HWND, UINT, WPARAM, LPARAM))(peRootOffset + 0x37eb20);
+    staticMethods.GetFocusStateSingleton = (void*(*)())(peRootOffset + 0x2b5fd0);
 }
 
 Main::Win32_WindowData** Main::GetWindowData(Main* m) {

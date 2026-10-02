@@ -137,6 +137,9 @@ namespace Dimps {
 			typedef struct __staticMethods {
 				Main* (*GetSingleton)();
 				void (WINAPI* RunWindowFunc)(Main* lpMain, HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+				// The singleton at 0xAACAD8 that the window procedure asks for
+				// its state on a focus change. Built on first use (0x6B5C00).
+				void* (*GetFocusStateSingleton)();
 			} __staticMethods;
 
 			static void Locate(HMODULE peRoot);
