@@ -87,7 +87,9 @@ key, so keep it out of source control.
 A match is two linked players and a set length (first to 1, 2, 3 or 5). Today
 results come from organizer adjudication: your organizer credential records
 each game, and the match completes when someone reaches the set length.
-Voiding a game reopens a finished match as a correction. Every change is an
+Voiding a game scores the match again: a finished match stays finished while
+a player still has enough wins and reopens otherwise, so read the state and
+revision the bridge returns before recording another game. Every change is an
 event, delivered by webhook (Standard Webhooks signatures), by cursor polling
 or by server-sent events.
 

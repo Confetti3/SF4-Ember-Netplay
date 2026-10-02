@@ -90,8 +90,11 @@ end to end against any bridge.
   `{"kind": "game_result", "winner_slot": 0, "reason": "...",
   "expected_revision": "1"}`, or `"draw": true`, which scores nothing. When a
   player reaches the set length the match completes. `{"kind": "void_game",
-  "attempt_id": "..."}` removes a game; on a completed match that reopens it as
-  a correction.
+  "attempt_id": "..."}` removes a game and scores the match again. On a
+  completed match that is a correction: it stays completed while a player
+  still has enough wins, and reopens otherwise (lobby sets that have moved on,
+  and some bracket sets, refuse to reopen). Read `state` and `revision` from
+  the answer before recording the next game.
 - `POST /v1/matches/{id}/cancel` cancels with a reason.
 
 Every write names the revision it expects, as the decimal string the match
@@ -192,8 +195,8 @@ robin ranks by sets won, then game difference, then games won, then the
 head-to-head result when exactly two players are level, then seed; a walkover
 counts as a set won.
 
-To fix a wrong result, void the game as usual. That reopens the set and takes
-back what its result fed: later sets that have no games yet are cleared and
+To fix a wrong result, void the game as usual. When that leaves nobody with
+enough wins, the set reopens and takes back what its result fed: later sets that have no games yet are cleared and
 their matches cancelled, and are created again once the set is decided. A
 correction is refused once a later set it fed has a game recorded, and once
 the tournament is over. Bracket sets cannot be cancelled through
