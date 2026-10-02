@@ -2031,6 +2031,9 @@ msgstr "変更は「適用」後に反映されます。"
 msgid "room.rules.host_only"
 msgstr "対戦席のルールを変更できるのはホストだけです。"
 
+msgid "room.rules.tournament"
+msgstr "このテーブルのルールは大会が決めます。"
+
 msgid "room.apply_rules"
 msgstr "ルールを適用"
 
@@ -2448,6 +2451,9 @@ msgstr "バックアップと復元"
 msgid "screen.linked_accounts"
 msgstr "連携アカウント"
 
+msgid "screen.tournament_matches"
+msgstr "大会の試合"
+
 msgid "settings.identity_detail"
 msgstr "大会サイト用のEmber ID、そのバックアップ、連携しているアカウントです。"
 
@@ -2819,6 +2825,105 @@ msgstr "このPCにすでにあるIDと同じです。復元するとこのPCの
 
 msgid "identity.failure.already_answered"
 msgstr "サイトがすでにこのリクエストに応答したため、キャンセルされませんでした。下の連携一覧で結果を確認してください。"
+
+msgid "identity.matches_detail"
+msgstr "大会サービスから割り当てられた試合です。ここからプレイできます。"
+
+msgid "tournament.current"
+msgstr "現在の試合"
+
+msgid "tournament.current_detail"
+msgstr "対戦は試合のルームで行われ、各結果は自動的に大会サービスへ送られます。"
+
+msgid "tournament.state.claiming"
+msgstr "試合のルームを検索中"
+
+msgid "tournament.state.opening"
+msgstr "試合のルームを開いています"
+
+msgid "tournament.state.in_room"
+msgstr "試合のルームにいます"
+
+msgid "tournament.state.waiting_opponent"
+msgstr "対戦相手を待っています"
+
+msgid "tournament.state.waiting_permit"
+msgstr "大会サービスを待っています"
+
+msgid "tournament.state.finished"
+msgstr "試合終了"
+
+msgid "tournament.state.failed"
+msgstr "停止しました"
+
+msgid "tournament.stop"
+msgstr "プレイをやめる"
+
+msgid "tournament.stop_detail"
+msgstr "試合のルームから退出します。この一覧から試合をもう一度プレイできます。"
+
+msgid "tournament.needs_service"
+msgstr "大会サービスがありません"
+
+msgid "tournament.needs_service_detail"
+msgstr "先に連携アカウントで大会サービスを信頼し、アカウントを連携してください。"
+
+msgid "tournament.match"
+msgstr "試合"
+
+msgid "tournament.score"
+msgstr "{0}-{1}、{2}本先取"
+
+msgid "tournament.row_detail"
+msgstr "対戦相手：{0}。あなたはプレイヤー{1}です。"
+
+msgid "tournament.play"
+msgstr "プレイ"
+
+msgid "tournament.play_detail"
+msgstr "この試合のルームを開くか、参加します。各対戦の結果は自動的に大会サービスへ送られます。"
+
+msgid "tournament.organizer_detail"
+msgstr "この試合の結果は主催者が入力します。Emberではプレイしません。"
+
+msgid "tournament.finished_detail"
+msgstr "この試合は終了しました。"
+
+msgid "tournament.leave_room_detail"
+msgstr "この試合をプレイするには、今のルームから退出してください。"
+
+msgid "tournament.none"
+msgstr "試合はありません"
+
+msgid "tournament.none_detail"
+msgstr "現在、大会サービスにあなたの試合はありません。"
+
+msgid "tournament.refresh_detail"
+msgstr "大会サービスに試合をもう一度問い合わせます。"
+
+msgid "tournament.loading"
+msgstr "試合を確認中..."
+
+msgid "tournament.done_notice"
+msgstr "大会の試合が終了しました。"
+
+msgid "tournament.stopped_notice"
+msgstr "大会の試合が停止しました。{0}"
+
+msgid "tournament.failure.build"
+msgstr "このゲームのバージョンは大会が求めるものではありません。"
+
+msgid "tournament.failure.rules"
+msgstr "この試合のルールはEmberではプレイできません。"
+
+msgid "tournament.failure.helper"
+msgstr "ネットワークが停止しました。試合をもう一度プレイするにはゲームを再起動してください。"
+
+msgid "tournament.failure.report"
+msgstr "対戦の結果を大会サービス用に保存できませんでした。"
+
+msgid "tournament.failure.not_found"
+msgstr "大会サービスにこの試合はもうありません。"
 
 msgid "rules.set_length"
 msgstr "セットの長さ"

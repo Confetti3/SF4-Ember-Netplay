@@ -2031,6 +2031,9 @@ msgstr "변경 사항은 적용을 누른 뒤 반영됩니다."
 msgid "room.rules.host_only"
 msgstr "방장만 테이블 규칙을 바꿀 수 있습니다."
 
+msgid "room.rules.tournament"
+msgstr "이 테이블의 규칙은 대회가 정합니다."
+
 msgid "room.apply_rules"
 msgstr "규칙 적용"
 
@@ -2448,6 +2451,9 @@ msgstr "백업 및 복원"
 msgid "screen.linked_accounts"
 msgstr "연동된 계정"
 
+msgid "screen.tournament_matches"
+msgstr "대회 경기"
+
 msgid "settings.identity_detail"
 msgstr "대회 사이트용 Ember ID와 백업, 연동된 계정을 관리합니다."
 
@@ -2819,6 +2825,105 @@ msgstr "이미 이 PC에 있는 ID입니다. 복원하면 이 PC의 새 암호�
 
 msgid "identity.failure.already_answered"
 msgstr "사이트가 이미 이 요청에 응답했으므로 취소되지 않았습니다. 아래 연동 목록에서 결과를 확인하세요."
+
+msgid "identity.matches_detail"
+msgstr "대회 서비스가 배정한 경기입니다. 여기서 플레이할 수 있습니다."
+
+msgid "tournament.current"
+msgstr "현재 경기"
+
+msgid "tournament.current_detail"
+msgstr "대전은 경기 방에서 진행되며, 각 결과는 대회 서비스로 자동 전송됩니다."
+
+msgid "tournament.state.claiming"
+msgstr "경기 방 찾는 중"
+
+msgid "tournament.state.opening"
+msgstr "경기 방 여는 중"
+
+msgid "tournament.state.in_room"
+msgstr "경기 방에 있음"
+
+msgid "tournament.state.waiting_opponent"
+msgstr "상대를 기다리는 중"
+
+msgid "tournament.state.waiting_permit"
+msgstr "대회 서비스를 기다리는 중"
+
+msgid "tournament.state.finished"
+msgstr "경기 완료"
+
+msgid "tournament.state.failed"
+msgstr "중지됨"
+
+msgid "tournament.stop"
+msgstr "플레이 그만하기"
+
+msgid "tournament.stop_detail"
+msgstr "경기 방에서 나갑니다. 이 목록에서 경기를 다시 플레이할 수 있습니다."
+
+msgid "tournament.needs_service"
+msgstr "대회 서비스 없음"
+
+msgid "tournament.needs_service_detail"
+msgstr "먼저 연동된 계정에서 대회 서비스를 신뢰하고 계정을 연동하세요."
+
+msgid "tournament.match"
+msgstr "경기"
+
+msgid "tournament.score"
+msgstr "{0}-{1}, {2}선승"
+
+msgid "tournament.row_detail"
+msgstr "상대: {0}. 당신은 플레이어 {1}입니다."
+
+msgid "tournament.play"
+msgstr "플레이"
+
+msgid "tournament.play_detail"
+msgstr "이 경기의 방을 열거나 참가합니다. 각 대전의 결과는 대회 서비스로 자동 전송됩니다."
+
+msgid "tournament.organizer_detail"
+msgstr "이 경기의 결과는 주최자가 입력합니다. Ember로 플레이하지 않습니다."
+
+msgid "tournament.finished_detail"
+msgstr "이 경기는 끝났습니다."
+
+msgid "tournament.leave_room_detail"
+msgstr "이 경기를 플레이하려면 지금 방에서 나가세요."
+
+msgid "tournament.none"
+msgstr "경기 없음"
+
+msgid "tournament.none_detail"
+msgstr "지금은 대회 서비스에 당신의 경기가 없습니다."
+
+msgid "tournament.refresh_detail"
+msgstr "대회 서비스에 경기를 다시 요청합니다."
+
+msgid "tournament.loading"
+msgstr "경기 확인 중..."
+
+msgid "tournament.done_notice"
+msgstr "대회 경기가 끝났습니다."
+
+msgid "tournament.stopped_notice"
+msgstr "대회 경기가 중지되었습니다. {0}"
+
+msgid "tournament.failure.build"
+msgstr "이 게임의 버전은 대회가 요구하는 버전이 아닙니다."
+
+msgid "tournament.failure.rules"
+msgstr "이 경기의 규칙은 Ember로 플레이할 수 없습니다."
+
+msgid "tournament.failure.helper"
+msgstr "네트워크가 중지되었습니다. 경기를 다시 플레이하려면 게임을 다시 시작하세요."
+
+msgid "tournament.failure.report"
+msgstr "대전 결과를 대회 서비스용으로 저장하지 못했습니다."
+
+msgid "tournament.failure.not_found"
+msgstr "대회 서비스에 이 경기가 더 이상 없습니다."
 
 msgid "rules.set_length"
 msgstr "세트 길이"

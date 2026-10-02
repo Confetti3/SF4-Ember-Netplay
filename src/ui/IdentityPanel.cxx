@@ -49,6 +49,23 @@ std::string FailureText(const std::string& code) {
     for (const auto& entry : table) if (code == entry.first) return loc::T(entry.second);
     return loc::Tf("identity.failure.other", code.empty() ? std::string("?") : code);
 }
+bool Playing(const netplay::tournament::Status& t) {
+    using netplay::tournament::Phase;
+    return t.phase == Phase::Claiming || t.phase == Phase::Opening || t.phase == Phase::InRoom;
+}
+std::string PlayState(const netplay::tournament::Status& t) {
+    using netplay::tournament::Phase;
+    switch (t.phase) {
+    case Phase::Claiming: return loc::T("tournament.state.claiming");
+    case Phase::Opening: return loc::T("tournament.state.opening");
+    case Phase::InRoom:
+        return t.waitingForPermit ? loc::T("tournament.state.waiting_permit") :
+            t.waitingForOpponent ? loc::T("tournament.state.waiting_opponent") : loc::T("tournament.state.in_room");
+    case Phase::Finished: return loc::T("tournament.state.finished");
+    case Phase::Failed: return loc::T("tournament.state.failed");
+    default: return {};
+    }
+}
 const char* SecretValue(const std::string& secret) {
     return secret.empty() ? loc::T("identity.secret_empty") : loc::T("identity.secret_set");
 }
@@ -73,7 +90,16 @@ const netplay::IdentityBridge* FindBridge(const ShellView& v, const std::string&
 }
 
 bool IdentityPanel::Owns(const std::string& screen) {
-    return screen == "identity" || screen == "identity-backup" || screen == "linked-accounts";
+    return screen == "identity" || screen == "identity-backup" || screen == "linked-accounts" || screen == "tournament-matches";
+}
+
+std::string IdentityPanel::TournamentFailure(const std::string& code) {
+    if (code == "incompatible_build") return loc::T("tournament.failure.build");
+    if (code == "unsupported_rules") return loc::T("tournament.failure.rules");
+    if (code == "helper_lost" || code == "helper_unavailable") return loc::T("tournament.failure.helper");
+    if (code == "report_not_saved") return loc::T("tournament.failure.report");
+    if (code == "not_found") return loc::T("tournament.failure.not_found");
+    return FailureText(code);
 }
 
 bool IdentityPanel::Answered(const ShellView& v) const {
@@ -95,7 +121,8 @@ void IdentityPanel::Wipe() {
 
 void IdentityPanel::Refresh(const ShellView&, const std::string& screen) {
     IdentityRequest status; status.op = IdentityOp::Status; Queue(std::move(status));
-    if (screen == "linked-accounts") { IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list)); }
+    if (screen == "linked-accounts" || screen == "tournament-matches") { IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list)); }
+    if (screen == "tournament-matches") wantAssignments_ = true;
 }
 
 void IdentityPanel::SelectBridge(const ShellView& v, const std::string& id) {
@@ -117,6 +144,7 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
     else if (sent_ && now - sentAt_ > AnswerSeconds) {
         Say(loc::T("identity.failure.timeout"), true); sent_ = 0; queue_.clear();
     }
+    SendTournament(v, screen, submit);
     if (sent_ || queue_.empty()) return;
     ShellAction action;
     action.command.generation = v.session.generation;
@@ -126,6 +154,45 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
     sentOp_ = action.identity.op; sentBridge_ = action.identity.bridge;
     if (submit(std::move(action))) { sent_ = ticket; sentAt_ = now; }
     else { Say(loc::T("error.queue_failed"), true); queue_.clear(); }
+}
+
+void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen, const Submit& submit) {
+    using netplay::tournament::Command;
+    using netplay::tournament::Phase;
+    const auto& t = v.tournament;
+    loadingAssignments_ = t.assignmentsLoading;
+    // A refresh's failure is said once; the runtime clears it when the next one is sent.
+    if (t.assignmentsError != assignmentsError_) {
+        assignmentsError_ = t.assignmentsError;
+        if (!assignmentsError_.empty() && screen == "tournament-matches") Say(TournamentFailure(assignmentsError_), true);
+    }
+    // A match that ended has a new score to show.
+    if (t.phase != phase_) {
+        if (t.phase == Phase::Finished || t.phase == Phase::Failed) wantAssignments_ = true;
+        phase_ = t.phase;
+    }
+    ShellAction action;
+    action.command.generation = v.session.generation;
+    if (play_) {
+        action.tournament = std::move(*play_);
+        play_.reset();
+    } else if (wantAssignments_ && screen == "tournament-matches" && FindBridge(v, bridge_) && !t.assignmentsLoading) {
+        wantAssignments_ = false;
+        action.tournament.op = Command::Op::Refresh;
+        action.tournament.bridgeId = bridge_;
+    } else {
+        return;
+    }
+    if (!submit(std::move(action))) Say(loc::T("error.queue_failed"), true);
+}
+
+MenuEntry IdentityPanel::ServiceRow(const ShellView& v, const netplay::IdentityBridge& bridge) const {
+    auto service = Row("id-bridge", loc::T("identity.service"), bridge.origin);
+    service.value = bridge.name.empty() ? bridge.origin : bridge.name; service.userText = true;
+    for (const auto& choice : v.identity.bridges) service.choices.push_back({choice.id, choice.name.empty() ? choice.origin : choice.name, choice.origin});
+    service.chosen = bridge_;
+    if (service.choices.size() < 2) service.info = true;
+    return service;
 }
 
 void IdentityPanel::Finish(const ShellView& v) {
@@ -204,6 +271,7 @@ bool IdentityPanel::Status(std::string& status, Tone& tone, double now) const {
             sentOp_ == IdentityOp::PreviewImport || sentOp_ == IdentityOp::Import;
         status = loc::T(slow ? "identity.working_key" : "identity.working"); tone = Tone::Pending; return true;
     }
+    if (lastScreen_ == "tournament-matches" && loadingAssignments_) { status = loc::T("tournament.loading"); tone = Tone::Pending; return true; }
     return false;
 }
 
@@ -244,6 +312,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
         if (ready) {
             rows.push_back(Row("id-copy", loc::T("identity.copy"), loc::T("identity.copy_detail")));
             rows.push_back(Row("linked-accounts", loc::T("screen.linked_accounts"), loc::T("identity.linked_detail")));
+            rows.push_back(Row("tournament-matches", loc::T("screen.tournament_matches"), loc::T("identity.matches_detail")));
         }
         rows.push_back(Row("identity-backup", loc::T("screen.identity_backup"),
             ready ? loc::T("identity.backup_detail") : loc::T("identity.restore_detail"), id.known && id.state != "creating"));
@@ -294,12 +363,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
             return rows;
         }
         if (const auto* bridge = FindBridge(v, bridge_)) {
-            auto service = Row("id-bridge", loc::T("identity.service"), bridge->origin);
-            service.value = bridge->name.empty() ? bridge->origin : bridge->name; service.userText = true;
-            for (const auto& choice : id.bridges) service.choices.push_back({choice.id, choice.name.empty() ? choice.origin : choice.name, choice.origin});
-            service.chosen = bridge_;
-            if (service.choices.size() < 2) service.info = true;
-            rows.push_back(std::move(service));
+            rows.push_back(ServiceRow(v, *bridge));
             if (listedBridge_ == bridge_) {
                 for (const auto& link : id.links) {
                     auto row = ConfirmRow("id-unlink:" + link.id, link.account.empty() ? link.provider : link.provider + ": " + link.account,
@@ -341,6 +405,51 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
                 loc::Tf("identity.trust_detail", found_.origin), !busy);
             trust.userText = true; rows.push_back(std::move(trust));
         }
+    } else if (screen == "tournament-matches") {
+        title = loc::T("screen.tournament_matches");
+        if (!ready) {
+            rows.push_back(Info("id-linked-unavailable", loc::T("identity.linked_needs_id"), {}, loc::T("identity.linked_needs_id_detail")));
+            return rows;
+        }
+        const auto& t = v.tournament;
+        const bool playing = Playing(t);
+        if (!t.matchId.empty() && t.phase != netplay::tournament::Phase::Idle) {
+            const bool failed = t.phase == netplay::tournament::Phase::Failed;
+            rows.push_back(Info("tm-current", loc::T("tournament.current"), PlayState(t),
+                failed ? TournamentFailure(t.reason) : std::string(loc::T("tournament.current_detail"))));
+            if (playing) rows.push_back(ConfirmRow("tm-stop", loc::T("tournament.stop"), loc::T("tournament.stop_detail")));
+        }
+        const auto* bridge = FindBridge(v, bridge_);
+        if (!bridge) {
+            rows.push_back(Info("tm-no-service", loc::T("tournament.needs_service"), {}, loc::T("tournament.needs_service_detail")));
+            rows.push_back(Row("linked-accounts", loc::T("screen.linked_accounts"), loc::T("identity.linked_detail")));
+            return rows;
+        }
+        rows.push_back(ServiceRow(v, *bridge));
+        if (t.assignmentsBridge == bridge_) {
+            const bool free = v.session.room == netplay::RoomState::Idle && !playing;
+            for (const auto& match : t.assignments) {
+                const bool slotKnown = match.slot == 0 || match.slot == 1;
+                const auto own = slotKnown ? match.wins[static_cast<std::size_t>(match.slot)] : 0u;
+                const auto other = slotKnown ? match.wins[static_cast<std::size_t>(1 - match.slot)] : 0u;
+                std::string detail = loc::Tf("tournament.row_detail",
+                    match.opponentFingerprint.empty() ? std::string("?") : match.opponentFingerprint, match.slot + 1);
+                detail += "\n\n";
+                const bool playable = match.PlayedInEmber() && !match.Finished();
+                detail += match.Finished() ? loc::T("tournament.finished_detail") : !match.PlayedInEmber() ? loc::T("tournament.organizer_detail") :
+                    free ? loc::T("tournament.play_detail") : loc::T("tournament.leave_room_detail");
+                auto row = Row("tm-play:" + match.matchId, match.roundLabel.empty() ? std::string(loc::T("tournament.match")) : match.roundLabel,
+                    std::move(detail), playable && free);
+                row.value = loc::Tf("tournament.score", own, other, match.gamesToWin);
+                row.userText = !match.roundLabel.empty();
+                row.hint = loc::T("tournament.play");
+                if (!playable) row.info = true;
+                rows.push_back(std::move(row));
+            }
+            if (t.assignments.empty() && !t.assignmentsLoading && t.assignmentsError.empty())
+                rows.push_back(Info("tm-none", loc::T("tournament.none"), {}, loc::T("tournament.none_detail")));
+        }
+        rows.push_back(Row("tm-refresh", loc::T("identity.refresh"), loc::T("tournament.refresh_detail"), !t.assignmentsLoading));
     }
     return rows;
 }
@@ -348,7 +457,14 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
 void IdentityPanel::Activate(const MenuAction& a, const ShellView& v, MenuNavigation& nav) {
     const auto& id = v.identity;
     IdentityRequest r;
-    if (a.id == "linked-accounts" || a.id == "identity-backup") { nav.Push(a.id); return; }
+    if (a.id == "linked-accounts" || a.id == "identity-backup" || a.id == "tournament-matches") { nav.Push(a.id); return; }
+    if (a.id == "tm-refresh") { wantAssignments_ = true; message_.clear(); return; }
+    if (a.id == "tm-stop") { play_ = netplay::tournament::Command{netplay::tournament::Command::Op::Stop, {}, {}}; return; }
+    if (a.id.compare(0, 8, "tm-play:") == 0) {
+        play_ = netplay::tournament::Command{netplay::tournament::Command::Op::Play, bridge_, a.id.substr(8)};
+        message_.clear();
+        return;
+    }
     if (a.id == "id-copy") {
         if (!id.emberId.empty()) { ImGui::SetClipboardText(id.emberId.c_str()); Say(loc::T("identity.done.copied"), false, 3); }
         return;
@@ -396,7 +512,7 @@ void IdentityPanel::Accept(const MenuAction& a, const ShellView& v) {
     else if (a.id == "id-unlock" && !a.text.empty()) {
         IdentityRequest r; r.op = IdentityOp::Unlock; r.passphrase = a.text;
         message_.clear(); Queue(std::move(r));
-    } else if (a.id == "id-bridge" && a.kind == MenuAction::Chosen) SelectBridge(v, a.text);
+    } else if (a.id == "id-bridge" && a.kind == MenuAction::Chosen) { SelectBridge(v, a.text); wantAssignments_ = true; }
     else if (a.id == "id-connection" && a.kind == MenuAction::Chosen) connection_ = a.text;
 }
 } }

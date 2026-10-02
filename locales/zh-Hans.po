@@ -2031,6 +2031,9 @@ msgstr "更改仅在点击应用后生效。"
 msgid "room.rules.host_only"
 msgstr "只有房主可以更改对战席规则。"
 
+msgid "room.rules.tournament"
+msgstr "此桌的规则由赛事决定。"
+
 msgid "room.apply_rules"
 msgstr "应用规则"
 
@@ -2448,6 +2451,9 @@ msgstr "备份与恢复"
 msgid "screen.linked_accounts"
 msgstr "已绑定账号"
 
+msgid "screen.tournament_matches"
+msgstr "赛事对局"
+
 msgid "settings.identity_detail"
 msgstr "用于赛事网站的 Ember ID、其备份以及已绑定的账号。"
 
@@ -2819,6 +2825,105 @@ msgstr "这就是此电脑上已有的 ID。恢复时会为此电脑设置新密
 
 msgid "identity.failure.already_answered"
 msgstr "网站已回应此请求，因此未能取消。请在下方的绑定列表中查看结果。"
+
+msgid "identity.matches_detail"
+msgstr "赛事服务分配给您的对局，可以在这里进行。"
+
+msgid "tournament.current"
+msgstr "当前对局"
+
+msgid "tournament.current_detail"
+msgstr "对战在对局房间中进行，每局结果会自动发送给赛事服务。"
+
+msgid "tournament.state.claiming"
+msgstr "正在寻找对局房间"
+
+msgid "tournament.state.opening"
+msgstr "正在打开对局房间"
+
+msgid "tournament.state.in_room"
+msgstr "在对局房间中"
+
+msgid "tournament.state.waiting_opponent"
+msgstr "正在等待对手"
+
+msgid "tournament.state.waiting_permit"
+msgstr "正在等待赛事服务"
+
+msgid "tournament.state.finished"
+msgstr "对局已完成"
+
+msgid "tournament.state.failed"
+msgstr "已停止"
+
+msgid "tournament.stop"
+msgstr "停止进行"
+
+msgid "tournament.stop_detail"
+msgstr "离开对局房间。您可以从此列表再次进行该对局。"
+
+msgid "tournament.needs_service"
+msgstr "没有赛事服务"
+
+msgid "tournament.needs_service_detail"
+msgstr "请先在已绑定账号中信任一个赛事服务并绑定您的账号。"
+
+msgid "tournament.match"
+msgstr "对局"
+
+msgid "tournament.score"
+msgstr "{0}-{1}，先胜{2}局"
+
+msgid "tournament.row_detail"
+msgstr "对手：{0}。您是玩家{1}。"
+
+msgid "tournament.play"
+msgstr "开始"
+
+msgid "tournament.play_detail"
+msgstr "打开或加入此对局的房间。每局结果会自动发送给赛事服务。"
+
+msgid "tournament.organizer_detail"
+msgstr "此对局的结果由主办方录入，不通过 Ember 进行。"
+
+msgid "tournament.finished_detail"
+msgstr "此对局已结束。"
+
+msgid "tournament.leave_room_detail"
+msgstr "请先离开当前房间再进行此对局。"
+
+msgid "tournament.none"
+msgstr "没有对局"
+
+msgid "tournament.none_detail"
+msgstr "赛事服务目前没有您的对局。"
+
+msgid "tournament.refresh_detail"
+msgstr "再次向赛事服务获取您的对局。"
+
+msgid "tournament.loading"
+msgstr "正在查询对局..."
+
+msgid "tournament.done_notice"
+msgstr "赛事对局已完成。"
+
+msgid "tournament.stopped_notice"
+msgstr "赛事对局已停止。{0}"
+
+msgid "tournament.failure.build"
+msgstr "此游戏的版本不是赛事要求的版本。"
+
+msgid "tournament.failure.rules"
+msgstr "此对局的规则无法通过 Ember 进行。"
+
+msgid "tournament.failure.helper"
+msgstr "网络已停止。请重新启动游戏以再次进行该对局。"
+
+msgid "tournament.failure.report"
+msgstr "无法为赛事服务保存一局的结果。"
+
+msgid "tournament.failure.not_found"
+msgstr "赛事服务已没有此对局。"
 
 msgid "rules.set_length"
 msgstr "每组局数"

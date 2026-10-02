@@ -2031,6 +2031,9 @@ msgstr "Изменения ещё не применены."
 msgid "room.rules.host_only"
 msgstr "Правила стола может менять только ведущий."
 
+msgid "room.rules.tournament"
+msgstr "Правила за этим столом задаёт турнир."
+
 msgid "room.apply_rules"
 msgstr "Применить"
 
@@ -2448,6 +2451,9 @@ msgstr "Резервные копии"
 msgid "screen.linked_accounts"
 msgstr "Привязанные аккаунты"
 
+msgid "screen.tournament_matches"
+msgstr "Турнирные матчи"
+
 msgid "settings.identity_detail"
 msgstr "Ваш Ember ID для турнирных сайтов, его резервная копия и привязанные к нему аккаунты."
 
@@ -2819,6 +2825,105 @@ msgstr "Этот ID уже есть на этом ПК. Восстановлен
 
 msgid "identity.failure.already_answered"
 msgstr "Сайт уже ответил на этот запрос, поэтому он не отменён. Ваши привязки ниже показывают его решение."
+
+msgid "identity.matches_detail"
+msgstr "Матчи, назначенные вам турнирным сервисом. Их можно сыграть отсюда."
+
+msgid "tournament.current"
+msgstr "Текущий матч"
+
+msgid "tournament.current_detail"
+msgstr "Бои проходят в зале матча, и каждый результат сам отправляется в турнирный сервис."
+
+msgid "tournament.state.claiming"
+msgstr "Поиск зала матча"
+
+msgid "tournament.state.opening"
+msgstr "Открытие зала матча"
+
+msgid "tournament.state.in_room"
+msgstr "В зале матча"
+
+msgid "tournament.state.waiting_opponent"
+msgstr "Ожидание соперника"
+
+msgid "tournament.state.waiting_permit"
+msgstr "Ожидание турнирного сервиса"
+
+msgid "tournament.state.finished"
+msgstr "Матч завершён"
+
+msgid "tournament.state.failed"
+msgstr "Остановлено"
+
+msgid "tournament.stop"
+msgstr "Прекратить игру"
+
+msgid "tournament.stop_detail"
+msgstr "Выход из зала матча. Сыграть матч снова можно из этого списка."
+
+msgid "tournament.needs_service"
+msgstr "Нет турнирного сервиса"
+
+msgid "tournament.needs_service_detail"
+msgstr "Сначала доверьтесь турнирному сервису и привяжите аккаунт в разделе «Привязанные аккаунты»."
+
+msgid "tournament.match"
+msgstr "Матч"
+
+msgid "tournament.score"
+msgstr "{0}-{1}, до {2} побед"
+
+msgid "tournament.row_detail"
+msgstr "Соперник: {0}. Вы игрок {1}."
+
+msgid "tournament.play"
+msgstr "Играть"
+
+msgid "tournament.play_detail"
+msgstr "Открывает зал этого матча или входит в него. Результат каждого боя сам отправляется в турнирный сервис."
+
+msgid "tournament.organizer_detail"
+msgstr "Результаты этого матча вносит организатор. Он не играется через Ember."
+
+msgid "tournament.finished_detail"
+msgstr "Этот матч окончен."
+
+msgid "tournament.leave_room_detail"
+msgstr "Чтобы сыграть этот матч, выйдите из своего зала."
+
+msgid "tournament.none"
+msgstr "Нет матчей"
+
+msgid "tournament.none_detail"
+msgstr "У турнирного сервиса сейчас нет матчей для вас."
+
+msgid "tournament.refresh_detail"
+msgstr "Снова запрашивает ваши матчи у турнирного сервиса."
+
+msgid "tournament.loading"
+msgstr "Поиск матчей..."
+
+msgid "tournament.done_notice"
+msgstr "Турнирный матч завершён."
+
+msgid "tournament.stopped_notice"
+msgstr "Турнирный матч остановлен. {0}"
+
+msgid "tournament.failure.build"
+msgstr "Версия этой игры не та, которую требует турнир."
+
+msgid "tournament.failure.rules"
+msgstr "Правила этого матча нельзя сыграть через Ember."
+
+msgid "tournament.failure.helper"
+msgstr "Сеть остановлена. Перезапустите игру, чтобы снова сыграть матч."
+
+msgid "tournament.failure.report"
+msgstr "Не удалось сохранить результат боя для турнирного сервиса."
+
+msgid "tournament.failure.not_found"
+msgstr "У турнирного сервиса больше нет этого матча."
 
 msgid "rules.set_length"
 msgstr "Длина сета"

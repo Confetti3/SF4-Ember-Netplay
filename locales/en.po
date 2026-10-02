@@ -2074,6 +2074,9 @@ msgstr "Networking is unavailable. Offline is available."
 msgid "runtime.room_join_failed"
 msgstr "Could not join the room. Check the invitation and that both players use the same SF4 Ember Netplay package."
 
+msgid "room.rules.tournament"
+msgstr "The tournament sets the rules at this table."
+
 msgid "runtime.invite_expired"
 msgstr "This invitation has expired. Ask the host to copy a new one."
 
@@ -2132,6 +2135,9 @@ msgstr "Backup and restore"
 
 msgid "screen.linked_accounts"
 msgstr "Linked accounts"
+
+msgid "screen.tournament_matches"
+msgstr "Tournament matches"
 
 msgid "settings.identity_detail"
 msgstr "Your Ember ID for tournament sites, its backup and the accounts linked to it."
@@ -2504,6 +2510,105 @@ msgstr "It is the ID already on this PC. Restoring it sets a new passphrase for 
 
 msgid "identity.failure.already_answered"
 msgstr "The site already answered that request, so it was not cancelled. Your links below show what it decided."
+
+msgid "identity.matches_detail"
+msgstr "Matches a tournament service assigned to you, which you can play from here."
+
+msgid "tournament.current"
+msgstr "Current match"
+
+msgid "tournament.current_detail"
+msgstr "Games are played in the match room, and each result goes to the tournament service by itself."
+
+msgid "tournament.state.claiming"
+msgstr "Finding the match room"
+
+msgid "tournament.state.opening"
+msgstr "Opening the match room"
+
+msgid "tournament.state.in_room"
+msgstr "In the match room"
+
+msgid "tournament.state.waiting_opponent"
+msgstr "Waiting for your opponent"
+
+msgid "tournament.state.waiting_permit"
+msgstr "Waiting for the tournament service"
+
+msgid "tournament.state.finished"
+msgstr "Match complete"
+
+msgid "tournament.state.failed"
+msgstr "Stopped"
+
+msgid "tournament.stop"
+msgstr "Stop playing"
+
+msgid "tournament.stop_detail"
+msgstr "Leaves the match room. You can play the match again from this list."
+
+msgid "tournament.needs_service"
+msgstr "No tournament service"
+
+msgid "tournament.needs_service_detail"
+msgstr "Trust a tournament service and link your account under Linked accounts first."
+
+msgid "tournament.match"
+msgstr "Match"
+
+msgid "tournament.score"
+msgstr "{0}-{1}, first to {2}"
+
+msgid "tournament.row_detail"
+msgstr "Against {0}. You are player {1}."
+
+msgid "tournament.play"
+msgstr "Play"
+
+msgid "tournament.play_detail"
+msgstr "Opens or joins this match's room. Each game's result goes to the tournament service by itself."
+
+msgid "tournament.organizer_detail"
+msgstr "The organizer enters the results for this match. It is not played through Ember."
+
+msgid "tournament.finished_detail"
+msgstr "This match is over."
+
+msgid "tournament.leave_room_detail"
+msgstr "Leave your room to play this match."
+
+msgid "tournament.none"
+msgstr "No matches"
+
+msgid "tournament.none_detail"
+msgstr "The tournament service has no matches for you right now."
+
+msgid "tournament.refresh_detail"
+msgstr "Asks the tournament service for your matches again."
+
+msgid "tournament.loading"
+msgstr "Checking for matches..."
+
+msgid "tournament.done_notice"
+msgstr "Tournament match complete."
+
+msgid "tournament.stopped_notice"
+msgstr "Tournament match stopped. {0}"
+
+msgid "tournament.failure.build"
+msgstr "This game's version is not the one the tournament requires."
+
+msgid "tournament.failure.rules"
+msgstr "This match's rules cannot be played through Ember."
+
+msgid "tournament.failure.helper"
+msgstr "Networking stopped. Restart the game to play the match again."
+
+msgid "tournament.failure.report"
+msgstr "A game's result could not be saved for the tournament service."
+
+msgid "tournament.failure.not_found"
+msgstr "The tournament service no longer has this match."
 
 msgid "rules.set_length"
 msgstr "Set length"

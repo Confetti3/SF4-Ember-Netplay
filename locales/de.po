@@ -2031,6 +2031,9 @@ msgstr "Änderungen gelten erst nach Übernehmen."
 msgid "room.rules.host_only"
 msgstr "Nur der Host kann Tischregeln ändern."
 
+msgid "room.rules.tournament"
+msgstr "Das Turnier legt die Regeln an diesem Tisch fest."
+
 msgid "room.apply_rules"
 msgstr "Regeln übernehmen"
 
@@ -2448,6 +2451,9 @@ msgstr "Sichern & Wiederherstellen"
 msgid "screen.linked_accounts"
 msgstr "Verknüpfte Konten"
 
+msgid "screen.tournament_matches"
+msgstr "Turnierspiele"
+
 msgid "settings.identity_detail"
 msgstr "Ihre Ember ID für Turnierseiten, ihre Sicherung und die damit verknüpften Konten."
 
@@ -2819,6 +2825,105 @@ msgstr "Das ist die ID, die schon auf diesem PC ist. Beim Wiederherstellen legen
 
 msgid "identity.failure.already_answered"
 msgstr "Die Seite hat diese Anfrage bereits beantwortet, sie wurde also nicht abgebrochen. Ihre Verknüpfungen unten zeigen das Ergebnis."
+
+msgid "identity.matches_detail"
+msgstr "Spiele, die Ihnen ein Turnierdienst zugewiesen hat und die Sie hier spielen können."
+
+msgid "tournament.current"
+msgstr "Aktuelles Spiel"
+
+msgid "tournament.current_detail"
+msgstr "Die Kämpfe finden im Raum des Spiels statt, und jedes Ergebnis geht von selbst an den Turnierdienst."
+
+msgid "tournament.state.claiming"
+msgstr "Raum des Spiels wird gesucht"
+
+msgid "tournament.state.opening"
+msgstr "Raum des Spiels wird geöffnet"
+
+msgid "tournament.state.in_room"
+msgstr "Im Raum des Spiels"
+
+msgid "tournament.state.waiting_opponent"
+msgstr "Warten auf Ihren Gegner"
+
+msgid "tournament.state.waiting_permit"
+msgstr "Warten auf den Turnierdienst"
+
+msgid "tournament.state.finished"
+msgstr "Spiel beendet"
+
+msgid "tournament.state.failed"
+msgstr "Angehalten"
+
+msgid "tournament.stop"
+msgstr "Nicht mehr spielen"
+
+msgid "tournament.stop_detail"
+msgstr "Verlässt den Raum des Spiels. Sie können das Spiel über diese Liste erneut spielen."
+
+msgid "tournament.needs_service"
+msgstr "Kein Turnierdienst"
+
+msgid "tournament.needs_service_detail"
+msgstr "Vertrauen Sie zuerst einem Turnierdienst und verknüpfen Sie Ihr Konto unter Verknüpfte Konten."
+
+msgid "tournament.match"
+msgstr "Spiel"
+
+msgid "tournament.score"
+msgstr "{0}-{1}, Ziel {2} Siege"
+
+msgid "tournament.row_detail"
+msgstr "Gegen {0}. Sie sind Spieler {1}."
+
+msgid "tournament.play"
+msgstr "Spielen"
+
+msgid "tournament.play_detail"
+msgstr "Öffnet den Raum dieses Spiels oder tritt ihm bei. Das Ergebnis jedes Kampfes geht von selbst an den Turnierdienst."
+
+msgid "tournament.organizer_detail"
+msgstr "Die Ergebnisse dieses Spiels trägt der Veranstalter ein. Es wird nicht über Ember gespielt."
+
+msgid "tournament.finished_detail"
+msgstr "Dieses Spiel ist vorbei."
+
+msgid "tournament.leave_room_detail"
+msgstr "Verlassen Sie Ihren Raum, um dieses Spiel zu spielen."
+
+msgid "tournament.none"
+msgstr "Keine Spiele"
+
+msgid "tournament.none_detail"
+msgstr "Der Turnierdienst hat gerade keine Spiele für Sie."
+
+msgid "tournament.refresh_detail"
+msgstr "Fragt den Turnierdienst erneut nach Ihren Spielen."
+
+msgid "tournament.loading"
+msgstr "Spiele werden gesucht..."
+
+msgid "tournament.done_notice"
+msgstr "Turnierspiel beendet."
+
+msgid "tournament.stopped_notice"
+msgstr "Turnierspiel angehalten. {0}"
+
+msgid "tournament.failure.build"
+msgstr "Die Version dieses Spiels ist nicht die, die das Turnier verlangt."
+
+msgid "tournament.failure.rules"
+msgstr "Die Regeln dieses Spiels lassen sich nicht über Ember spielen."
+
+msgid "tournament.failure.helper"
+msgstr "Die Netzwerkverbindung wurde beendet. Starten Sie das Spiel neu, um das Spiel erneut zu spielen."
+
+msgid "tournament.failure.report"
+msgstr "Das Ergebnis eines Kampfes konnte nicht für den Turnierdienst gespeichert werden."
+
+msgid "tournament.failure.not_found"
+msgstr "Der Turnierdienst hat dieses Spiel nicht mehr."
 
 msgid "rules.set_length"
 msgstr "Satzlänge"

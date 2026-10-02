@@ -2031,6 +2031,9 @@ msgstr "Modifications actives après Appliquer."
 msgid "room.rules.host_only"
 msgstr "Seul l'hôte modifie ces règles."
 
+msgid "room.rules.tournament"
+msgstr "Le tournoi fixe les règles de cette table."
+
 msgid "room.apply_rules"
 msgstr "Appliquer"
 
@@ -2448,6 +2451,9 @@ msgstr "Sauvegarde et restauration"
 msgid "screen.linked_accounts"
 msgstr "Comptes associés"
 
+msgid "screen.tournament_matches"
+msgstr "Matchs du tournoi"
+
 msgid "settings.identity_detail"
 msgstr "Votre Ember ID pour les sites de tournoi, sa sauvegarde et les comptes qui y sont associés."
 
@@ -2819,6 +2825,105 @@ msgstr "C'est l'ID déjà présent sur ce PC. La restauration définit une nouve
 
 msgid "identity.failure.already_answered"
 msgstr "Le site a déjà répondu à cette demande, elle n'a donc pas été annulée. Vos associations ci-dessous montrent sa décision."
+
+msgid "identity.matches_detail"
+msgstr "Les matchs qu'un service de tournoi vous a attribués, à jouer d'ici."
+
+msgid "tournament.current"
+msgstr "Match en cours"
+
+msgid "tournament.current_detail"
+msgstr "Les combats se jouent dans le salon du match, et chaque résultat est envoyé de lui-même au service de tournoi."
+
+msgid "tournament.state.claiming"
+msgstr "Recherche du salon du match"
+
+msgid "tournament.state.opening"
+msgstr "Ouverture du salon du match"
+
+msgid "tournament.state.in_room"
+msgstr "Dans le salon du match"
+
+msgid "tournament.state.waiting_opponent"
+msgstr "En attente de votre adversaire"
+
+msgid "tournament.state.waiting_permit"
+msgstr "En attente du service de tournoi"
+
+msgid "tournament.state.finished"
+msgstr "Match terminé"
+
+msgid "tournament.state.failed"
+msgstr "Arrêté"
+
+msgid "tournament.stop"
+msgstr "Arrêter de jouer"
+
+msgid "tournament.stop_detail"
+msgstr "Quitte le salon du match. Vous pourrez rejouer le match depuis cette liste."
+
+msgid "tournament.needs_service"
+msgstr "Aucun service de tournoi"
+
+msgid "tournament.needs_service_detail"
+msgstr "Faites d'abord confiance à un service de tournoi et associez votre compte dans Comptes associés."
+
+msgid "tournament.match"
+msgstr "Match"
+
+msgid "tournament.score"
+msgstr "{0}-{1}, premier à {2}"
+
+msgid "tournament.row_detail"
+msgstr "Contre {0}. Vous êtes le joueur {1}."
+
+msgid "tournament.play"
+msgstr "Jouer"
+
+msgid "tournament.play_detail"
+msgstr "Ouvre ou rejoint le salon de ce match. Le résultat de chaque combat est envoyé de lui-même au service de tournoi."
+
+msgid "tournament.organizer_detail"
+msgstr "L'organisateur saisit les résultats de ce match. Il ne se joue pas via Ember."
+
+msgid "tournament.finished_detail"
+msgstr "Ce match est terminé."
+
+msgid "tournament.leave_room_detail"
+msgstr "Quittez votre salon pour jouer ce match."
+
+msgid "tournament.none"
+msgstr "Aucun match"
+
+msgid "tournament.none_detail"
+msgstr "Le service de tournoi n'a aucun match pour vous pour le moment."
+
+msgid "tournament.refresh_detail"
+msgstr "Redemande vos matchs au service de tournoi."
+
+msgid "tournament.loading"
+msgstr "Recherche des matchs..."
+
+msgid "tournament.done_notice"
+msgstr "Match du tournoi terminé."
+
+msgid "tournament.stopped_notice"
+msgstr "Match du tournoi arrêté. {0}"
+
+msgid "tournament.failure.build"
+msgstr "La version de ce jeu n'est pas celle qu'exige le tournoi."
+
+msgid "tournament.failure.rules"
+msgstr "Les règles de ce match ne peuvent pas être jouées via Ember."
+
+msgid "tournament.failure.helper"
+msgstr "Le réseau s'est arrêté. Redémarrez le jeu pour rejouer le match."
+
+msgid "tournament.failure.report"
+msgstr "Le résultat d'un combat n'a pas pu être enregistré pour le service de tournoi."
+
+msgid "tournament.failure.not_found"
+msgstr "Le service de tournoi n'a plus ce match."
 
 msgid "rules.set_length"
 msgstr "Longueur du set"

@@ -351,6 +351,12 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
   }
   else if(table.phase==room::TablePhase::Closed)status=loc::T("room.table_closed");
  }
+ // A tournament room says what its next game waits for: the other fighter,
+ // or the tournament service's go-ahead.
+ if((screen=="room"||screen=="room-table")&&v.room.tournament.Active()){
+  if(v.tournament.waitingForPermit){status=loc::T("tournament.state.waiting_permit");statusTone=Tone::Pending;}
+  else if(v.tournament.waitingForOpponent){status=loc::T("tournament.state.waiting_opponent");statusTone=Tone::Pending;}
+ }
  if(ImGui::GetTime()>=noticeUntil_)notice_.clear();
  if(error_!=lastError_){lastError_=error_;errorSince_=ImGui::GetTime();errorScreen_=screen;}
  // A refusal belongs to the screen it was raised on and to the condition it
@@ -511,6 +517,16 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v.inputCapture!=input::Capture::Idle&&nav.Screen()!="assignment")nav.Push("assignment");
  if(v.inputCapture==input::Capture::Idle&&nav.Screen()=="assignment")nav.Return();
  identity_.Update(v,nav.Screen(),submit,now);
+ // A tournament match that ended is announced wherever the player is: the
+ // room it was played in closes with it.
+ if(v.tournament.phase!=tournamentPhase_){
+  using netplay::tournament::Phase;
+  if(v.tournament.phase==Phase::Finished){notice_=loc::T("tournament.done_notice");noticeTone_=Tone::Success;noticeUntil_=now+12;}
+  else if(v.tournament.phase==Phase::Failed){
+   notice_=loc::Tf("tournament.stopped_notice",IdentityPanel::TournamentFailure(v.tournament.reason));noticeTone_=Tone::Error;noticeUntil_=now+20;
+  }
+  tournamentPhase_=v.tournament.phase;
+ }
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);

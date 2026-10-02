@@ -115,6 +115,11 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  std::vector<MenuEntry> rows;
   const bool mutableRoom=RoomActionsAvailable(v);
   const bool host=mutableRoom&&s.host==s.localMember;
+  // A room bound to a tournament match seats its two fighters at table 0 by
+  // itself and keeps everyone else out; the room refuses seat, watch, rules
+  // and kick changes there, so they are not offered.
+  const bool tournamentRoom=s.tournament.Active();
+  const bool boundTable=tournamentRoom&&selectedTable_==room::TournamentTable;
  const auto* local=Member(s,s.localMember);
  const auto& t=s.tables[selectedTable_];
  const auto screen=nav.Screen();
@@ -197,9 +202,9 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   // press (applying clears Ready), everyone else reads them on one line.
   const auto rulesRows=[&]{
    if(!rulesDirty_&&rulesRevision_!=t.revision){tableRules_=t.rules;rulesRevision_=t.revision;}
-   if(!host){
+   if(!host||boundTable){
     rows.push_back(ReadOnlyValue("rules",loc::T("room.table_rules"),loc::Tf("room.rules_summary",static_cast<int>(t.rules.roundCount),static_cast<int>(t.rules.roundTime),
-     loc::T(t.rules.editionSelect?"common.on":"common.off")),loc::T("room.rules.host_only")));
+     loc::T(t.rules.editionSelect?"common.on":"common.off")),loc::T(boundTable?"room.rules.tournament":"room.rules.host_only")));
     rows.push_back(ReadOnlyValue("set-rules",loc::T("room.table_set"),SetSummaryText(t.rules),
      t.rules.format==room::SetFormat::Unlimited?loc::T("rules.set_length.detail"):RotationDetail(t.rules.rotation)));
     return;
@@ -270,8 +275,10 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     std::string leaveDetail=leaves?loc::T(t.queue.empty()?"room.leave_seat.release":"room.leave_seat.next_player"):
      leave.unready?loc::T("room.leave_seat.unready_first"):leave.blocker;
     if(leaves&&leave.cost.score)leaveDetail+=" "+loc::Tf("room.leave_seat.costs_score",SetScoreText(t.score));
-    rows.push_back(Row("unqueue",loc::T("room.leave_seat"),leaveDetail,mutableRoom&&leaves));
-    rows.back().confirm=leaves&&bool(leave.cost);
+    if(!boundTable){
+     rows.push_back(Row("unqueue",loc::T("room.leave_seat"),leaveDetail,mutableRoom&&leaves));
+     rows.back().confirm=leaves&&bool(leave.cost);
+    }
     // The authority accepts AbortMatch from either fighter. Offer it only once
     // the result is Paused, so a fighter can never cut a live game short.
     if(t.phase==TablePhase::Paused)rows.push_back(ConfirmRow("abandon-result",loc::T("room.abandon_result"),
@@ -283,11 +290,11 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      const bool fenced=TerminalFenced(s,kind,selectedTable_);
      rows.push_back(Row(id,loc::T(label),fenced?TerminalPendingReason():reason,mutableRoom&&!elsewhere&&!fenced));
     };
-    tableRow(queued?room::ActionKind::Unqueue:room::ActionKind::Queue,queued?"unqueue":"queue",
+    if(!boundTable)tableRow(queued?room::ActionKind::Unqueue:room::ActionKind::Queue,queued?"unqueue":"queue",
      queued?"room.leave_queue":"room.join_queue");
     // A queued member has no watch choice: Watch is refused them, and the game
     // they wait out is theirs to watch until they are seated or leave the queue.
-    if(!queued)tableRow(watching?room::ActionKind::Unwatch:room::ActionKind::Watch,watching?"unwatch":"watch",
+    if(!queued&&!boundTable)tableRow(watching?room::ActionKind::Unwatch:room::ActionKind::Watch,watching?"unwatch":"watch",
      watching?"room.stop_watching":"room.watch_next");
     // A watcher's lock-in is never fenced: the one still leaving the last
     // game is exactly who it is for.
@@ -319,8 +326,10 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   }else if(screen=="room-member"){
    const auto* m=Member(s,selectedMember_);const bool other=m&&m->id!=s.localMember;
    rows.push_back(Row("mute",loc::T(muted_.count(selectedMember_)?"room.unmute_member":"room.mute_member"),loc::T(m?"room.mute_member.detail":"room.member_left.detail"),other));
-   rows.push_back(ConfirmRow("kick",loc::T("room.kick_member"),m?loc::Tf("room.kick_member.detail",m->name):loc::T("room.member_left.detail"),host&&other));
-   rows.back().detailText=DetailText::Name;
+   if(!tournamentRoom){
+    rows.push_back(ConfirmRow("kick",loc::T("room.kick_member"),m?loc::Tf("room.kick_member.detail",m->name):loc::T("room.member_left.detail"),host&&other));
+    rows.back().detailText=DetailText::Name;
+   }
    rows.push_back(ConfirmRow("transfer-host",loc::T("room.transfer_host"),m?loc::Tf("room.transfer_host.detail",m->name):loc::T("room.member_left.detail"),host&&other));
    rows.back().detailText=DetailText::Name;
  }else if(screen=="room-chat"){

@@ -2031,6 +2031,9 @@ msgstr "Změny se projeví až po potvrzení."
 msgid "room.rules.host_only"
 msgstr "Pravidla stolu může měnit jen hostitel."
 
+msgid "room.rules.tournament"
+msgstr "Pravidla u tohoto stolu určuje turnaj."
+
 msgid "room.apply_rules"
 msgstr "Použít pravidla"
 
@@ -2448,6 +2451,9 @@ msgstr "Záloha a obnovení"
 msgid "screen.linked_accounts"
 msgstr "Propojené účty"
 
+msgid "screen.tournament_matches"
+msgstr "Turnajové zápasy"
+
 msgid "settings.identity_detail"
 msgstr "Vaše Ember ID pro turnajové weby, jeho záloha a účty s ním propojené."
 
@@ -2819,6 +2825,105 @@ msgstr "Toto ID už v tomto počítači je. Obnovením nastavíte nové heslo pr
 
 msgid "identity.failure.already_answered"
 msgstr "Web na tuto žádost už odpověděl, takže nebyla zrušena. Vaše propojení níže ukazují, jak rozhodl."
+
+msgid "identity.matches_detail"
+msgstr "Zápasy, které vám přidělila turnajová služba a které můžete hrát odsud."
+
+msgid "tournament.current"
+msgstr "Aktuální zápas"
+
+msgid "tournament.current_detail"
+msgstr "Souboje se hrají v místnosti zápasu a každý výsledek odejde turnajové službě sám."
+
+msgid "tournament.state.claiming"
+msgstr "Hledání místnosti zápasu"
+
+msgid "tournament.state.opening"
+msgstr "Otevírání místnosti zápasu"
+
+msgid "tournament.state.in_room"
+msgstr "V místnosti zápasu"
+
+msgid "tournament.state.waiting_opponent"
+msgstr "Čekání na soupeře"
+
+msgid "tournament.state.waiting_permit"
+msgstr "Čekání na turnajovou službu"
+
+msgid "tournament.state.finished"
+msgstr "Zápas dokončen"
+
+msgid "tournament.state.failed"
+msgstr "Zastaveno"
+
+msgid "tournament.stop"
+msgstr "Přestat hrát"
+
+msgid "tournament.stop_detail"
+msgstr "Opustí místnost zápasu. Zápas můžete hrát znovu z tohoto seznamu."
+
+msgid "tournament.needs_service"
+msgstr "Žádná turnajová služba"
+
+msgid "tournament.needs_service_detail"
+msgstr "Nejprve důvěřujte turnajové službě a propojte svůj účet v části Propojené účty."
+
+msgid "tournament.match"
+msgstr "Zápas"
+
+msgid "tournament.score"
+msgstr "{0}-{1}, hraje se na {2} výhry"
+
+msgid "tournament.row_detail"
+msgstr "Soupeř: {0}. Jste hráč {1}."
+
+msgid "tournament.play"
+msgstr "Hrát"
+
+msgid "tournament.play_detail"
+msgstr "Otevře místnost tohoto zápasu nebo se do ní připojí. Výsledek každého souboje odejde turnajové službě sám."
+
+msgid "tournament.organizer_detail"
+msgstr "Výsledky tohoto zápasu zadává organizátor. Nehraje se přes Ember."
+
+msgid "tournament.finished_detail"
+msgstr "Tento zápas skončil."
+
+msgid "tournament.leave_room_detail"
+msgstr "Pro hraní tohoto zápasu opusťte svou místnost."
+
+msgid "tournament.none"
+msgstr "Žádné zápasy"
+
+msgid "tournament.none_detail"
+msgstr "Turnajová služba pro vás teď nemá žádné zápasy."
+
+msgid "tournament.refresh_detail"
+msgstr "Znovu požádá turnajovou službu o vaše zápasy."
+
+msgid "tournament.loading"
+msgstr "Hledání zápasů..."
+
+msgid "tournament.done_notice"
+msgstr "Turnajový zápas dokončen."
+
+msgid "tournament.stopped_notice"
+msgstr "Turnajový zápas zastaven. {0}"
+
+msgid "tournament.failure.build"
+msgstr "Verze této hry není ta, kterou turnaj vyžaduje."
+
+msgid "tournament.failure.rules"
+msgstr "Pravidla tohoto zápasu nelze hrát přes Ember."
+
+msgid "tournament.failure.helper"
+msgstr "Síť přestala fungovat. Restartujte hru, abyste mohli zápas hrát znovu."
+
+msgid "tournament.failure.report"
+msgstr "Výsledek souboje se pro turnajovou službu nepodařilo uložit."
+
+msgid "tournament.failure.not_found"
+msgstr "Turnajová služba už tento zápas nemá."
 
 msgid "rules.set_length"
 msgstr "Délka setu"

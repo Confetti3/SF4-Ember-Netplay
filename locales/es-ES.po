@@ -2031,6 +2031,9 @@ msgstr "Solo se aplican al pulsar Aplicar."
 msgid "room.rules.host_only"
 msgstr "Solo el anfitrión puede cambiar las reglas."
 
+msgid "room.rules.tournament"
+msgstr "El torneo establece las reglas de esta mesa."
+
 msgid "room.apply_rules"
 msgstr "Aplicar reglas"
 
@@ -2448,6 +2451,9 @@ msgstr "Copia y restauración"
 msgid "screen.linked_accounts"
 msgstr "Cuentas vinculadas"
 
+msgid "screen.tournament_matches"
+msgstr "Partidas del torneo"
+
 msgid "settings.identity_detail"
 msgstr "Tu Ember ID para sitios de torneos, su copia de seguridad y las cuentas vinculadas."
 
@@ -2819,6 +2825,105 @@ msgstr "Es el ID que ya hay en este ordenador. Al restaurarlo se define una nuev
 
 msgid "identity.failure.already_answered"
 msgstr "El sitio ya respondió a esa solicitud, así que no se ha cancelado. Tus vínculos de abajo muestran lo que decidió."
+
+msgid "identity.matches_detail"
+msgstr "Partidas que un servicio de torneos te ha asignado y que puedes jugar desde aquí."
+
+msgid "tournament.current"
+msgstr "Partida actual"
+
+msgid "tournament.current_detail"
+msgstr "Los combates se disputan en la sala de la partida, y cada resultado llega solo al servicio de torneos."
+
+msgid "tournament.state.claiming"
+msgstr "Buscando la sala de la partida"
+
+msgid "tournament.state.opening"
+msgstr "Abriendo la sala de la partida"
+
+msgid "tournament.state.in_room"
+msgstr "En la sala de la partida"
+
+msgid "tournament.state.waiting_opponent"
+msgstr "Esperando a tu oponente"
+
+msgid "tournament.state.waiting_permit"
+msgstr "Esperando al servicio de torneos"
+
+msgid "tournament.state.finished"
+msgstr "Partida terminada"
+
+msgid "tournament.state.failed"
+msgstr "Detenida"
+
+msgid "tournament.stop"
+msgstr "Dejar de jugar"
+
+msgid "tournament.stop_detail"
+msgstr "Sale de la sala de la partida. Puedes volver a jugarla desde esta lista."
+
+msgid "tournament.needs_service"
+msgstr "Ningún servicio de torneos"
+
+msgid "tournament.needs_service_detail"
+msgstr "Primero confía en un servicio de torneos y vincula tu cuenta en Cuentas vinculadas."
+
+msgid "tournament.match"
+msgstr "Partida"
+
+msgid "tournament.score"
+msgstr "{0}-{1}, primero a {2}"
+
+msgid "tournament.row_detail"
+msgstr "Contra {0}. Eres el jugador {1}."
+
+msgid "tournament.play"
+msgstr "Jugar"
+
+msgid "tournament.play_detail"
+msgstr "Abre la sala de esta partida o se une a ella. El resultado de cada combate llega solo al servicio de torneos."
+
+msgid "tournament.organizer_detail"
+msgstr "El organizador introduce los resultados de esta partida. No se juega con Ember."
+
+msgid "tournament.finished_detail"
+msgstr "Esta partida ha terminado."
+
+msgid "tournament.leave_room_detail"
+msgstr "Sal de tu sala para jugar esta partida."
+
+msgid "tournament.none"
+msgstr "No hay partidas"
+
+msgid "tournament.none_detail"
+msgstr "El servicio de torneos no tiene partidas para ti ahora mismo."
+
+msgid "tournament.refresh_detail"
+msgstr "Vuelve a pedir tus partidas al servicio de torneos."
+
+msgid "tournament.loading"
+msgstr "Buscando partidas..."
+
+msgid "tournament.done_notice"
+msgstr "Partida del torneo terminada."
+
+msgid "tournament.stopped_notice"
+msgstr "Partida del torneo detenida. {0}"
+
+msgid "tournament.failure.build"
+msgstr "La versión de este juego no es la que exige el torneo."
+
+msgid "tournament.failure.rules"
+msgstr "Las reglas de esta partida no se pueden jugar con Ember."
+
+msgid "tournament.failure.helper"
+msgstr "La red se ha detenido. Reinicia el juego para volver a jugar la partida."
+
+msgid "tournament.failure.report"
+msgstr "No se ha podido guardar el resultado de un combate para el servicio de torneos."
+
+msgid "tournament.failure.not_found"
+msgstr "El servicio de torneos ya no tiene esta partida."
 
 msgid "rules.set_length"
 msgstr "Duración del set"

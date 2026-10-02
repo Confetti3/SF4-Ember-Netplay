@@ -2031,6 +2031,9 @@ msgstr "Zmiany po zastosowaniu."
 msgid "room.rules.host_only"
 msgstr "Tylko host może zmieniać zasady stołu."
 
+msgid "room.rules.tournament"
+msgstr "Zasady przy tym stole ustala turniej."
+
 msgid "room.apply_rules"
 msgstr "Zastosuj zasady"
 
@@ -2448,6 +2451,9 @@ msgstr "Kopia i przywracanie"
 msgid "screen.linked_accounts"
 msgstr "Powiązane konta"
 
+msgid "screen.tournament_matches"
+msgstr "Mecze turniejowe"
+
 msgid "settings.identity_detail"
 msgstr "Twój Ember ID dla stron turniejowych, jego kopia zapasowa i powiązane z nim konta."
 
@@ -2819,6 +2825,105 @@ msgstr "Ten ID jest już na tym komputerze. Przywrócenie ustawia nowe hasło dl
 
 msgid "identity.failure.already_answered"
 msgstr "Strona już odpowiedziała na tę prośbę, więc nie została anulowana. Powiązania poniżej pokazują, co zdecydowała."
+
+msgid "identity.matches_detail"
+msgstr "Mecze przydzielone przez serwis turniejowy, które możesz rozegrać stąd."
+
+msgid "tournament.current"
+msgstr "Bieżący mecz"
+
+msgid "tournament.current_detail"
+msgstr "Walki toczą się w pokoju meczu, a każdy wynik trafia do serwisu turniejowego sam."
+
+msgid "tournament.state.claiming"
+msgstr "Szukanie pokoju meczu"
+
+msgid "tournament.state.opening"
+msgstr "Otwieranie pokoju meczu"
+
+msgid "tournament.state.in_room"
+msgstr "W pokoju meczu"
+
+msgid "tournament.state.waiting_opponent"
+msgstr "Czekanie na przeciwnika"
+
+msgid "tournament.state.waiting_permit"
+msgstr "Czekanie na serwis turniejowy"
+
+msgid "tournament.state.finished"
+msgstr "Mecz zakończony"
+
+msgid "tournament.state.failed"
+msgstr "Zatrzymano"
+
+msgid "tournament.stop"
+msgstr "Przestań grać"
+
+msgid "tournament.stop_detail"
+msgstr "Opuszcza pokój meczu. Mecz można rozegrać ponownie z tej listy."
+
+msgid "tournament.needs_service"
+msgstr "Brak serwisu turniejowego"
+
+msgid "tournament.needs_service_detail"
+msgstr "Najpierw zaufaj serwisowi turniejowemu i powiąż konto w sekcji Powiązane konta."
+
+msgid "tournament.match"
+msgstr "Mecz"
+
+msgid "tournament.score"
+msgstr "{0}-{1}, do {2} wygranych"
+
+msgid "tournament.row_detail"
+msgstr "Przeciwnik: {0}. Grasz jako gracz {1}."
+
+msgid "tournament.play"
+msgstr "Graj"
+
+msgid "tournament.play_detail"
+msgstr "Otwiera pokój tego meczu lub do niego dołącza. Wynik każdej walki trafia do serwisu turniejowego sam."
+
+msgid "tournament.organizer_detail"
+msgstr "Wyniki tego meczu wpisuje organizator. Nie rozgrywa się go przez Ember."
+
+msgid "tournament.finished_detail"
+msgstr "Ten mecz się zakończył."
+
+msgid "tournament.leave_room_detail"
+msgstr "Opuść swój pokój, aby rozegrać ten mecz."
+
+msgid "tournament.none"
+msgstr "Brak meczów"
+
+msgid "tournament.none_detail"
+msgstr "Serwis turniejowy nie ma teraz dla ciebie meczów."
+
+msgid "tournament.refresh_detail"
+msgstr "Ponownie pobiera mecze z serwisu turniejowego."
+
+msgid "tournament.loading"
+msgstr "Sprawdzanie meczów..."
+
+msgid "tournament.done_notice"
+msgstr "Mecz turniejowy zakończony."
+
+msgid "tournament.stopped_notice"
+msgstr "Mecz turniejowy zatrzymany. {0}"
+
+msgid "tournament.failure.build"
+msgstr "Wersja tej gry nie jest wersją wymaganą przez turniej."
+
+msgid "tournament.failure.rules"
+msgstr "Zasad tego meczu nie da się rozegrać przez Ember."
+
+msgid "tournament.failure.helper"
+msgstr "Sieć przestała działać. Uruchom grę ponownie, aby rozegrać mecz."
+
+msgid "tournament.failure.report"
+msgstr "Nie udało się zapisać wyniku walki dla serwisu turniejowego."
+
+msgid "tournament.failure.not_found"
+msgstr "Serwis turniejowy nie ma już tego meczu."
 
 msgid "rules.set_length"
 msgstr "Długość seta"

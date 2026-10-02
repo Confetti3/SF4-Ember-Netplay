@@ -2,6 +2,8 @@
 #include "MenuNavigation.hxx"
 #include "../netplay/IdentityRequest.hxx"
 #include "../netplay/IdentityView.hxx"
+#include "../netplay/TournamentStatus.hxx"
+#include <optional>
 #include <cstdint>
 #include <deque>
 #include <functional>
@@ -13,14 +15,17 @@ struct ShellView;
 struct ShellAction;
 enum class Tone;
 
-// The Ember ID screens: the identity itself, its backup and restore, and the
-// accounts linked through tournament services. It holds the passphrases the
+// The Ember ID screens: the identity itself, its backup and restore, the
+// accounts linked through tournament services, and the matches those
+// services assigned, which the player can play from here. It holds the passphrases the
 // player types until they are sent, and wipes them when the player leaves
 // these screens. One request is in flight at a time; the rest wait in order.
 class IdentityPanel {
 public:
     using Submit = std::function<bool(ShellAction)>;
     static bool Owns(const std::string& screen);
+    // Why a tournament match stopped, from its stable code, in words.
+    static std::string TournamentFailure(const std::string& code);
     // Every frame, before the rows: notes answers, sends the next request,
     // and wipes what the player typed once they leave these screens.
     void Update(const ShellView& view, const std::string& screen, const Submit& submit, double now);
@@ -33,7 +38,7 @@ public:
     // The shell is hidden: wipes what was typed, as leaving the screens does,
     // drops requests not yet sent, and asks for a fresh status when the
     // screens show again.
-    void Conceal() { Wipe(); queue_.clear(); onScreens_ = false; lastScreen_.clear(); }
+    void Conceal() { Wipe(); queue_.clear(); play_.reset(); onScreens_ = false; lastScreen_.clear(); }
 private:
     bool Busy(const ShellView& view) const;
     bool Answered(const ShellView& view) const;
@@ -43,6 +48,9 @@ private:
     void Wipe();
     void Refresh(const ShellView& view, const std::string& screen);
     void SelectBridge(const ShellView& view, const std::string& bridge);
+    // Sends a waiting Play or Stop, or the assignment refresh the matches screen wants.
+    void SendTournament(const ShellView& view, const std::string& screen, const Submit& submit);
+    MenuEntry ServiceRow(const ShellView& view, const netplay::IdentityBridge& bridge) const;
 
     std::deque<netplay::IdentityRequest> queue_;
     std::uint64_t nextTicket_ = 0, sent_ = 0;
@@ -63,5 +71,11 @@ private:
     // A service the player looked up and may now trust.
     bool lookingUp_ = false;
     netplay::IdentityBridge found_;
+    // The assignment list is wanted for the selected service; a Play or Stop
+    // waiting to be sent; and what the last refresh said, to report a failure once.
+    bool wantAssignments_ = false, loadingAssignments_ = false;
+    std::optional<netplay::tournament::Command> play_;
+    std::string assignmentsError_;
+    netplay::tournament::Phase phase_ = netplay::tournament::Phase::Idle;
 };
 } }

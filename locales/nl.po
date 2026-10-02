@@ -2031,6 +2031,9 @@ msgstr "Wijzigingen gelden pas na Toepassen."
 msgid "room.rules.host_only"
 msgstr "Alleen de host kan tafelregels wijzigen."
 
+msgid "room.rules.tournament"
+msgstr "Het toernooi bepaalt de regels aan deze tafel."
+
 msgid "room.apply_rules"
 msgstr "Regels toepassen"
 
@@ -2448,6 +2451,9 @@ msgstr "Back-up en herstel"
 msgid "screen.linked_accounts"
 msgstr "Gekoppelde accounts"
 
+msgid "screen.tournament_matches"
+msgstr "Toernooiwedstrijden"
+
 msgid "settings.identity_detail"
 msgstr "Je Ember ID voor toernooisites, de back-up ervan en de gekoppelde accounts."
 
@@ -2819,6 +2825,105 @@ msgstr "Dit is de ID die al op deze pc staat. Herstellen stelt een nieuwe wachtw
 
 msgid "identity.failure.already_answered"
 msgstr "De site heeft dit verzoek al beantwoord, dus het is niet geannuleerd. Je koppelingen hieronder tonen de uitkomst."
+
+msgid "identity.matches_detail"
+msgstr "Wedstrijden die een toernooidienst aan je heeft toegewezen en die je hier kunt spelen."
+
+msgid "tournament.current"
+msgstr "Huidige wedstrijd"
+
+msgid "tournament.current_detail"
+msgstr "De gevechten worden in de kamer van de wedstrijd gespeeld, en elke uitslag gaat vanzelf naar de toernooidienst."
+
+msgid "tournament.state.claiming"
+msgstr "Kamer van de wedstrijd zoeken"
+
+msgid "tournament.state.opening"
+msgstr "Kamer van de wedstrijd openen"
+
+msgid "tournament.state.in_room"
+msgstr "In de kamer van de wedstrijd"
+
+msgid "tournament.state.waiting_opponent"
+msgstr "Wachten op je tegenstander"
+
+msgid "tournament.state.waiting_permit"
+msgstr "Wachten op de toernooidienst"
+
+msgid "tournament.state.finished"
+msgstr "Wedstrijd voltooid"
+
+msgid "tournament.state.failed"
+msgstr "Gestopt"
+
+msgid "tournament.stop"
+msgstr "Stoppen met spelen"
+
+msgid "tournament.stop_detail"
+msgstr "Verlaat de kamer van de wedstrijd. Je kunt de wedstrijd opnieuw spelen vanuit deze lijst."
+
+msgid "tournament.needs_service"
+msgstr "Geen toernooidienst"
+
+msgid "tournament.needs_service_detail"
+msgstr "Vertrouw eerst een toernooidienst en koppel je account bij Gekoppelde accounts."
+
+msgid "tournament.match"
+msgstr "Wedstrijd"
+
+msgid "tournament.score"
+msgstr "{0}-{1}, eerst tot {2}"
+
+msgid "tournament.row_detail"
+msgstr "Tegen {0}. Jij bent speler {1}."
+
+msgid "tournament.play"
+msgstr "Spelen"
+
+msgid "tournament.play_detail"
+msgstr "Opent of betreedt de kamer van deze wedstrijd. De uitslag van elk gevecht gaat vanzelf naar de toernooidienst."
+
+msgid "tournament.organizer_detail"
+msgstr "De organisator voert de uitslagen van deze wedstrijd in. Hij wordt niet via Ember gespeeld."
+
+msgid "tournament.finished_detail"
+msgstr "Deze wedstrijd is voorbij."
+
+msgid "tournament.leave_room_detail"
+msgstr "Verlaat je kamer om deze wedstrijd te spelen."
+
+msgid "tournament.none"
+msgstr "Geen wedstrijden"
+
+msgid "tournament.none_detail"
+msgstr "De toernooidienst heeft nu geen wedstrijden voor je."
+
+msgid "tournament.refresh_detail"
+msgstr "Vraagt de toernooidienst opnieuw om je wedstrijden."
+
+msgid "tournament.loading"
+msgstr "Wedstrijden zoeken..."
+
+msgid "tournament.done_notice"
+msgstr "Toernooiwedstrijd voltooid."
+
+msgid "tournament.stopped_notice"
+msgstr "Toernooiwedstrijd gestopt. {0}"
+
+msgid "tournament.failure.build"
+msgstr "De versie van dit spel is niet de versie die het toernooi vereist."
+
+msgid "tournament.failure.rules"
+msgstr "De regels van deze wedstrijd kunnen niet via Ember worden gespeeld."
+
+msgid "tournament.failure.helper"
+msgstr "Het netwerk is gestopt. Start het spel opnieuw om de wedstrijd weer te spelen."
+
+msgid "tournament.failure.report"
+msgstr "De uitslag van een gevecht kon niet worden opgeslagen voor de toernooidienst."
+
+msgid "tournament.failure.not_found"
+msgstr "De toernooidienst heeft deze wedstrijd niet meer."
 
 msgid "rules.set_length"
 msgstr "Setlengte"
