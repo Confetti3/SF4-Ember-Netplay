@@ -411,6 +411,32 @@ async fn a_platforms_links_follow_the_discord_account() {
 }
 
 #[tokio::test]
+async fn a_code_link_on_a_discord_named_account_is_kept() {
+    let bridge = bridge_with_discord().await;
+    let provider = bridge.provider(BLUMINT).await;
+    let (one, two) = (player(&bridge, 1).await, player(&bridge, 2).await);
+    let one_id = one.id().to_string();
+    // The platform named its account after Kate's Discord ID and linked it to
+    // the first Ember ID with a code; Kate's Discord account is the second's.
+    bridge
+        .link(&provider, &one, BLUMINT, &format!("discord:{KATE}"))
+        .await;
+    connect(&bridge, &two, "kate").await;
+    connect(&bridge, &one, "sam").await;
+    // Kate is not found, the rest of the lookup is, and the code link stays.
+    assert_eq!(
+        lookup(&bridge, &provider, &[KATE, SAM]).await,
+        json!({ "discord": [one_id] })
+    );
+    let linked: Vec<String> = platform_links(&bridge)
+        .await
+        .into_iter()
+        .map(|(ember_id, _)| ember_id)
+        .collect();
+    assert_eq!(linked, vec![one_id]);
+}
+
+#[tokio::test]
 async fn a_bridge_without_discord_offers_none_of_it() {
     let bridge = Bridge::start().await;
     let (_, capabilities) = bridge.get("", "/v1/capabilities").await;

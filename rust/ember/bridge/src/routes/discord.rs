@@ -418,10 +418,10 @@ pub async fn remove(
     Ok(ok(&Connection { account: None }))
 }
 
-/// The Ember IDs connected to these Discord user IDs, in order and without
-/// repeats, each linked on `connection_id` so its platform can create
-/// matches for it. Anything that is not a Discord user ID (BluMint also sends
-/// emails) is skipped.
+/// The Ember IDs connected to these Discord user IDs and linked on
+/// `connection_id`, so its platform can create matches for them, in order and
+/// without repeats. Anything that is not a Discord user ID (BluMint also
+/// sends emails) is skipped, and so is an account `link` cannot link.
 pub fn find_and_link(
     tx: &Transaction<'_>,
     ctx: &Ctx,
@@ -441,8 +441,9 @@ pub fn find_and_link(
             continue;
         };
         let ember_id = EmberId::parse(&ember_id).map_err(|_| ApiFailure::unavailable())?;
-        if !found.contains(&ember_id) {
-            link(tx, ctx, connection_id, user_id, &username, &ember_id)?;
+        if !found.contains(&ember_id)
+            && link(tx, ctx, connection_id, user_id, &username, &ember_id)?
+        {
             found.push(ember_id);
         }
     }
@@ -450,11 +451,12 @@ pub fn find_and_link(
 }
 
 /// Links the Discord account's subject on the connection to `ember_id`,
-/// approved by the player's Discord sign-in, unless it is linked already or
-/// the Ember ID has a link there from a code the player claimed, which it
-/// keeps. Moving or disconnecting the account ended every other link its
-/// sign-in approved (`end_links`), so it has none elsewhere; the links
-/// table's unique indexes would refuse a second one.
+/// approved by the player's Discord sign-in, and says whether `ember_id` is
+/// linked there now. A link from a code the player claimed is kept: on the
+/// Ember ID, which then needs no other, or on the subject (a provider can
+/// name its accounts `discord:<user ID>` too), which leaves this Ember ID
+/// unlinked. Moving or disconnecting the account ended every link its
+/// sign-in approved elsewhere (`end_links`).
 fn link(
     tx: &Transaction<'_>,
     ctx: &Ctx,
@@ -462,7 +464,7 @@ fn link(
     user_id: &str,
     username: &str,
     ember_id: &EmberId,
-) -> Result<()> {
+) -> Result<bool> {
     let subject = format!("discord:{user_id}");
     let linked: bool = tx.query_row(
         "SELECT EXISTS (SELECT 1 FROM links WHERE ember_id = ?1 AND connection_id = ?2 AND revoked_at IS NULL
@@ -471,10 +473,18 @@ fn link(
         |row| row.get(0),
     )?;
     if linked {
-        return Ok(());
+        return Ok(true);
     }
     let tenant = ctx.tenant_of(connection_id)?;
     let (account_id, participant_id) = account(tx, connection_id, &subject, username, ctx.now)?;
+    let taken: bool = tx.query_row(
+        "SELECT EXISTS (SELECT 1 FROM links WHERE account_id = ?1 AND revoked_at IS NULL)",
+        [&account_id],
+        |row| row.get(0),
+    )?;
+    if taken {
+        return Ok(false);
+    }
     let link_id = new_id("lnk");
     tx.execute(
         "INSERT INTO links (id, account_id, connection_id, ember_id, approved_via, claim_id, consented_at, approved_at)
@@ -503,7 +513,7 @@ fn link(
             }),
         },
     )?;
-    Ok(())
+    Ok(true)
 }
 
 /// Ends every link this Discord account's sign-in approved, on every
