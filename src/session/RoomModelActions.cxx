@@ -228,6 +228,10 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 	// Once Ready has captured a value, a second Ready cannot replace it.
 	// Unready is the explicit unlock operation.
 	if (action.kind == ActionKind::Ready && table->ready[seat]) return Reject(RejectReason::WrongPhase);
+	// A bound table reserves a generation when both are ready; refuse before
+	// anything changes if none is left.
+	if (action.kind == ActionKind::Ready && BoundTable(*table) &&
+		nextMatchGeneration_ == (std::numeric_limits<std::uint64_t>::max)()) return Reject(RejectReason::WrongGeneration);
 	// The native match may have ended before this room event reached one of
 	// its frozen recipients. Keep the table in Waiting until every retained
 	// recipient has acknowledged outcome persistence and socket/helper
@@ -252,8 +256,12 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 	// before the start; ReleaseHeldStarts ends it.
 	table->spectatorHold = table->phase == TablePhase::Ready && LockedSpectatorReturning(*table);
 	startHeldSince_[table->id] = table->spectatorHold ? nowMs_ : 0;
+	// A bound table's ready fighters wait for the bridge's permit for the
+	// game reserved now; taking Ready back calls that game off.
+	if (BoundTable(*table) && table->phase == TablePhase::Ready && !table->permitGeneration) ReservePermit(*table);
+	if (table->phase != TablePhase::Ready) ClearPermit(*table);
 	Touch(*table); NormalizeMemberStatus(member);
-	if (table->phase == TablePhase::Ready && !table->spectatorHold)
+	if (table->phase == TablePhase::Ready && !table->spectatorHold && !PermitPending(*table))
 		return Accept({Event{Event::Kind::MatchReady, table->id, table->matchGeneration, 0, MatchResult::Abort}});
 	return Accept();
 }
@@ -361,7 +369,9 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 		action.kind == ActionKind::TransferHost;
 	if (roomAction && action.revision != snapshot_.revision) return Reject(RejectReason::StaleRoom);
 	const bool generationScopedUnwatch = action.kind == ActionKind::Unwatch && action.matchGeneration != 0;
-	if (IsTableAction(action.kind) && action.kind != ActionKind::RecordResult && action.kind != ActionKind::MatchFinished && action.kind != ActionKind::CancelResult && action.kind != ActionKind::AbortMatch && action.kind != ActionKind::AcknowledgeTerminal && !generationScopedUnwatch) {
+	// PermitReady names its reserved generation, so the other fighter's
+	// permit arriving first does not make it stale.
+	if (IsTableAction(action.kind) && action.kind != ActionKind::RecordResult && action.kind != ActionKind::MatchFinished && action.kind != ActionKind::CancelResult && action.kind != ActionKind::AbortMatch && action.kind != ActionKind::AcknowledgeTerminal && action.kind != ActionKind::PermitReady && !generationScopedUnwatch) {
 		const Table* table = FindTable(action.table);
 		if (!table) return Reject(RejectReason::UnknownTable);
 		if (action.tableRevision != table->revision) return Reject(RejectReason::StaleTable);
@@ -374,6 +384,8 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::TransferHost) return TransferHost(member, action.target);
 	if (action.kind == ActionKind::SetCapacity) return ApplySetCapacity(member, action);
 	if (action.kind == ActionKind::Lock) return ApplyLock(member, action);
+	// The bound fighters keep their seats; nobody is kicked from a match room.
+	if (action.kind == ActionKind::Kick && snapshot_.tournament.Active()) return Reject(RejectReason::Unauthorized);
 	if (action.kind == ActionKind::Kick) return ApplyKick(member, action);
 	if (action.kind == ActionKind::Chat) return ApplyChat(member, action);
 	if (action.kind == ActionKind::Rename) return ApplyRename(member, action);
@@ -410,6 +422,11 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 		}
 	}
 	if (action.kind == ActionKind::AcknowledgeTerminal) return ApplyAcknowledgeTerminal(member, action);
+	// Seating and rules at a bound table come from the binding alone.
+	const bool seatingOrRules = action.kind == ActionKind::Queue || action.kind == ActionKind::Unqueue ||
+		action.kind == ActionKind::Watch || action.kind == ActionKind::Unwatch || action.kind == ActionKind::SetRules;
+	if (BoundTable(*table) && seatingOrRules) return Reject(RejectReason::Unauthorized);
+	if (action.kind == ActionKind::PermitReady) return ApplyPermitReady(member, action, table);
 	if (generationScopedUnwatch && (table->phase != TablePhase::Playing && table->phase != TablePhase::Paused ||
 		action.matchGeneration != table->matchGeneration)) return Reject(RejectReason::WrongGeneration);
 	if (generationScopedUnwatch && action.keepWatching) return ApplyLeaveGame(member, table);

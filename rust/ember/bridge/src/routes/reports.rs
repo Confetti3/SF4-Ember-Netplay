@@ -375,7 +375,27 @@ pub fn expire(tx: &Transaction<'_>, ctx: &Ctx) -> Result<()> {
         )?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     for (match_id, attempt_id, reason) in due {
-        hold(tx, ctx, &match_id, &attempt_id, &reason)?;
+        // A game called off before it started (a lone cancel) counts for
+        // nobody, so it closes instead of waiting for an organizer. A game
+        // that started and broke (abort), or a lone result, still goes to
+        // review (spec 17.2).
+        let reports = first_reports(tx, &attempt_id)?;
+        let current = load(tx, &match_id)?.ok_or_else(ApiFailure::unavailable)?;
+        match reports.as_slice() {
+            [(report_id, report)]
+                if report.result == Outcome::Cancel && !current.state.is_terminal() =>
+            {
+                decide(
+                    tx,
+                    ctx,
+                    &current,
+                    &attempt_id,
+                    Outcome::Cancel,
+                    vec![report_id.clone()],
+                )?;
+            }
+            _ => hold(tx, ctx, &match_id, &attempt_id, &reason)?,
+        }
     }
     Ok(())
 }

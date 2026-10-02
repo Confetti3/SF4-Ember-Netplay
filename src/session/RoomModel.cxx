@@ -45,6 +45,7 @@ template <typename Visit> void RoomAuthority::ForEachTableTimer(Visit&& visit) {
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		if (snapshot_.tables[i].resultPending) visit(resultPendingSince_[i], ResultDisputeTimeoutMs);
 		if (snapshot_.tables[i].spectatorHold) visit(startHeldSince_[i], SpectatorStartHoldMs);
+		if (snapshot_.tables[i].permitGeneration) visit(permitHeldSince_[i], PermitHoldMs);
 	}
 }
 
@@ -363,6 +364,9 @@ Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connect
 		if (member.connection == connection) return Reject(RejectReason::UnknownMember);
 	}
 	if (host && snapshot_.host != 0) return Reject(RejectReason::Unauthorized);
+	// A room bound to a tournament match admits only its two fighters.
+	if (snapshot_.tournament.Active() && snapshot_.tournament.SlotOf(connection.user) < 0)
+		return Reject(RejectReason::Unauthorized);
 	if (nextMemberId_ == 0 || nextMemberId_ == (std::numeric_limits<MemberId>::max)()) return Reject(RejectReason::RoomFull);
 	Member member;
 	member.id = nextMemberId_++;
@@ -375,6 +379,7 @@ Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connect
 	member.joinOrder = nextJoinOrder_++;
 	if (member.host) snapshot_.host = member.id;
 	snapshot_.members.push_back(member);
+	if (snapshot_.tournament.Active()) SeatBoundFighters();
 	TouchRoom();
 	return Accept({Event{Event::Kind::SnapshotChanged, 0, 0, member.id, MatchResult::Abort}});
 }
@@ -461,6 +466,9 @@ void RoomAuthority::CompleteSet(Table& table, int winnerSeat) {
 		table.streak = 1;
 	}
 	table.score[0] = table.score[1] = 0;
+	// A tournament set has no queue to rotate: the bridge decides what comes
+	// next, and the same two fighters stay seated by slot.
+	if (BoundTable(table)) return;
 	// The rotated fighters join the back of the queue, so an empty queue seats
 	// them again for a new set. Only members who queued themselves are ahead of
 	// them: nobody else is ever put in the queue.
@@ -526,6 +534,7 @@ void RoomAuthority::RemoveFromTable(MemberId member, bool preserveSpectator) {
 			// over for everyone: close it the way EndMatch does.
 			const bool live = table.phase == TablePhase::Playing || table.phase == TablePhase::Paused;
 			ClearReadiness(table);
+			ClearPermit(table);
 			table.resultPending = false;
 			resultReporter_[table.id] = 0;
 			resultPendingSince_[table.id] = 0;
@@ -632,9 +641,13 @@ Result RoomAuthority::Leave(MemberId member) {
 Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2) {
 	Table* table = FindTable(tableId);
 	if (!table || table->p1 != p1 || table->p2 != p2 || p1 == 0 || p2 == 0 ||
-		table->phase != TablePhase::Ready || table->spectatorHold || table->resultPending || HasOutstandingTerminalReceipt(tableId) ||
+		table->phase != TablePhase::Ready || table->spectatorHold || PermitPending(*table) || table->resultPending ||
+		HasOutstandingTerminalReceipt(tableId) ||
+		(BoundTable(*table) && !table->permitGeneration) ||
 		nextMatchGeneration_ == (std::numeric_limits<std::uint64_t>::max)()) return Reject(table ? RejectReason::WrongPhase : RejectReason::UnknownTable);
-	table->matchGeneration = nextMatchGeneration_++;
+	// A bound table plays the generation its permit names.
+	table->matchGeneration = table->permitGeneration ? table->permitGeneration : nextMatchGeneration_++;
+	ClearPermit(*table);
 	table->phase = TablePhase::Playing;
 	table->resultPending = false;
 	resultReporter_[tableId] = 0;
@@ -717,6 +730,7 @@ bool RoomAuthority::HasDueTimerTransition(std::uint64_t nowMs) const {
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		const auto& table = snapshot_.tables[i];
 		if (table.spectatorHold && TimerDue(startHeldSince_[i], SpectatorStartHoldMs, nowMs)) return true;
+		if (table.permitGeneration && TimerDue(permitHeldSince_[i], PermitHoldMs, nowMs)) return true;
 		if (table.resultPending && table.phase == TablePhase::Playing &&
 			TimerDue(resultPendingSince_[i], ResultDisputeTimeoutMs, nowMs)) return true;
 	}
@@ -744,6 +758,20 @@ std::vector<Event> RoomAuthority::AdvanceTime(std::uint64_t nowMs) {
 		Touch(table);
 		events.push_back(Event{Event::Kind::ResultDisputed, static_cast<std::uint8_t>(i), table.matchGeneration, resultReporter_[i], pendingResult_[i]});
 	}
+	// A permit that never reached both fighters calls the start off; they
+	// ready again for a new one.
+	for (auto& table : snapshot_.tables) {
+		if (!table.permitGeneration || !PermitPending(table) ||
+			!TimerDue(permitHeldSince_[table.id], PermitHoldMs, nowMs_)) continue;
+		ClearReadiness(table);
+		ClearPermit(table);
+		table.spectatorHold = false;
+		startHeldSince_[table.id] = 0;
+		table.phase = table.p1 && table.p2 ? TablePhase::Waiting : TablePhase::Idle;
+		Touch(table);
+		NormalizeTableMembers(table);
+		events.push_back(Event{Event::Kind::SnapshotChanged, table.id, 0, 0, MatchResult::Abort});
+	}
 	ReleaseHeldStarts(events);
 	return events;
 }
@@ -767,7 +795,8 @@ bool RoomAuthority::ReleaseHeldStarts(std::vector<Event>& events) {
 		startHeldSince_[table.id] = 0;
 		Touch(table);
 		changed = true;
-		if (starting) events.push_back(Event{Event::Kind::MatchReady, table.id, table.matchGeneration, 0, MatchResult::Abort});
+		if (starting && !PermitPending(table))
+			events.push_back(Event{Event::Kind::MatchReady, table.id, table.matchGeneration, 0, MatchResult::Abort});
 	}
 	return changed;
 }

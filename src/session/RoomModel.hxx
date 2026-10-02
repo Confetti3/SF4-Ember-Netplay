@@ -18,6 +18,7 @@
 #include "../common/RoomLimits.hxx"
 #include "../common/MatchResult.hxx"
 #include "../common/RoomRules.hxx"
+#include "TournamentBinding.hxx"
 
 // The room model is deliberately independent from the game and transport
 // headers.  It is the value boundary between the session owner and the UI.
@@ -29,7 +30,9 @@ using MemberId = std::uint64_t;
 using ActionId = std::uint64_t;
 
 // 2: tables end first-to-N sets and rotate their queue.
-constexpr std::uint32_t ProtocolVersion = 2;
+// 3: a room can be bound to a tournament match; its table 0 then seats only
+// the bound fighters and waits for the bridge's permit before each game.
+constexpr std::uint32_t ProtocolVersion = 3;
 constexpr std::size_t MaximumMembers = MaxMembers;
 constexpr std::size_t MaximumRoomNameBytes = 64;
 constexpr std::size_t MaximumChatMessages = 100;
@@ -84,6 +87,9 @@ enum class ActionKind : std::uint8_t {
 	// A spectator's lock-in, on (Action::locked) or off. Appended so older
 	// authorities reject it as an unknown kind.
 	LockSpectating,
+	// A bound table's fighter has the bridge's permit for the reserved game
+	// (Action::matchGeneration), named by Action::text.
+	PermitReady,
 };
 
 enum class RejectReason : std::uint8_t {
@@ -206,6 +212,12 @@ struct Table {
 	// SpectatorStartHoldMs, on a locked-in spectator still retiring the
 	// previous game.
 	bool spectatorHold = false;
+	// A bound table's ready fighters wait, for at most PermitHoldMs, for the
+	// bridge's permit for this reserved generation. Each seat's permit ID is
+	// filled when that fighter's helper has it; the game starts when both name
+	// the same permit. Zero when no game is waiting for one.
+	std::uint64_t permitGeneration = 0;
+	std::array<std::string, 2> permits;
 };
 
 // A seated fighter may still change fighter and delay: no game is being
@@ -215,11 +227,18 @@ inline bool SeatEditable(const Table& table, int seat) {
 	return (table.phase == TablePhase::Idle || table.phase == TablePhase::Waiting) && !table.ready[seat];
 }
 
+// The bridge's permit for a bound table's reserved game has not reached both
+// fighters yet.
+inline bool PermitPending(const Table& table) {
+	return table.permitGeneration != 0 &&
+		(table.permits[0].empty() || table.permits[0] != table.permits[1]);
+}
+
 // A fighter who readied can still take it back: while the other seat is not
-// ready, or while the start is held for a locked-in spectator.
+// ready, or while the start is held for a locked-in spectator or a permit.
 inline bool ReadyCancellable(const Table& table, int seat) {
 	return table.ready[seat] && (table.phase == TablePhase::Waiting ||
-		(table.phase == TablePhase::Ready && table.spectatorHold));
+		(table.phase == TablePhase::Ready && (table.spectatorHold || PermitPending(table))));
 }
 
 // Watching this table by choice. A queued member is also listed as a
@@ -325,6 +344,8 @@ struct Snapshot {
 	// used as confirmation for a newer terminal event.
 	std::array<std::uint64_t, TableCount> localTerminalGenerations = {};
 	std::vector<ChatMessage> chat;
+	// The tournament match this room plays at table 0, when it is bound to one.
+	TournamentBinding tournament;
 };
 
 inline const Member* FindMember(const Snapshot& snapshot, MemberId id) {
@@ -445,6 +466,12 @@ public:
 	// only the session owner can grant a match generation or acknowledge native
 	// game teardown.
 	Result BeginMatch(std::uint8_t table, MemberId p1, MemberId p2);
+	// The session owner applies the tournament binding its own helper checked.
+	// It never comes from another member. Members whose endpoint the binding
+	// does not name leave, and the bound fighters are seated by slot at table
+	// 0 when no game is under way there. A binding for another match, or an
+	// older one for this match, is refused.
+	Result BindTournament(const TournamentBinding& binding);
 	Result EndMatch(std::uint8_t table, std::uint64_t generation, MatchResult result);
 	// True only when AdvanceTime(nowMs) can emit a timer-driven room event.
 	// Pending results which have not reached their deadline, and unresolved
@@ -512,6 +539,16 @@ private:
 	Result ApplyCancelResult(MemberId member, const Action& action, Table* table);
 	Result ApplyAbortMatch(MemberId member, const Action& action, Table* table);
 	Result ApplyLockSpectating(MemberId member, const Action& action, Table* table, Member* item);
+	Result ApplyPermitReady(MemberId member, const Action& action, Table* table);
+	// Table 0 of a room bound to a tournament match.
+	bool BoundTable(const Table& table) const;
+	// Seats each bound fighter in its slot at table 0, unless a game is being
+	// started, played or resolved there.
+	void SeatBoundFighters();
+	// Reserves the next generation for a bound table's ready fighters to get
+	// a permit for.
+	void ReservePermit(Table& table);
+	void ClearPermit(Table& table);
 	Result ApplyAction(MemberId member, const Action& action);
 	// A locked-in spectator of this table has not yet acknowledged an earlier
 	// generation, so a start now would leave it out.
@@ -601,6 +638,7 @@ private:
 	std::array<MatchResult, TableCount> pendingResult_ = {};
 	std::array<std::uint64_t, TableCount> resultPendingSince_ = {};
 	std::array<std::uint64_t, TableCount> startHeldSince_ = {};
+	std::array<std::uint64_t, TableCount> permitHeldSince_ = {};
 	// Every running table deadline with its timeout, on the owner's monotonic
 	// clock. Recovery turns them into ages and back through this one list.
 	template <typename Visit> void ForEachTableTimer(Visit&& visit);

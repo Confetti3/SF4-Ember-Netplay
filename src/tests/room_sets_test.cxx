@@ -241,7 +241,7 @@ static void TestSetHistoryOnTheWire() {
 		CHECK(t.streakHolder == a && t.streak == 1 && t.rules.format == SetFormat::Ft1);
 	}
 	const nlohmann::json wire = authority.SnapshotView();
-	CHECK(wire.at("protocol_version").get<int>() == 2);
+	CHECK(wire.at("protocol_version").get<int>() == static_cast<int>(ProtocolVersion));
 	Snapshot read = wire.get<Snapshot>();
 	CHECK(read.tables[0].lastSet.Winner() == a && read.tables[0].streak == 1);
 	auto departed = wire;

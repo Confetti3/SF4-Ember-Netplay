@@ -604,3 +604,25 @@ async fn a_publish_retry_and_a_silent_game() {
     ember_bridge::maintain(f.bridge.state()).await;
     assert_eq!(state(&f, &id).await["state"], "needs_review");
 }
+
+#[tokio::test]
+async fn a_lone_cancel_closes_the_game_and_a_lone_abort_waits_for_review() {
+    let f = fixture().await;
+    let id = create(&f, "play-11", "ember-room-v1", 2).await;
+    let binding = bound(&f, &id).await;
+    // A start called off before the game began: only one fighter's helper had the permit.
+    let permit_a = permit(&f, &id, &binding, 91).await;
+    report(&f, &f.a, &f.a, &id, &permit_a, 1, Outcome::Cancel).await;
+    f.bridge.clock.advance(61);
+    ember_bridge::maintain(f.bridge.state()).await;
+    let after = state(&f, &id).await;
+    assert_eq!(after["state"], "between_games", "{after}");
+    assert_eq!(after["attempts"][0]["state"], "aborted");
+    // The next game can be prepared at once.
+    let permit_b = permit(&f, &id, &binding, 92).await;
+    // A game that started and broke, reported by one fighter, is for an organizer.
+    report(&f, &f.b, &f.b, &id, &permit_b, 2, Outcome::Abort).await;
+    f.bridge.clock.advance(61);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(state(&f, &id).await["state"], "needs_review");
+}
