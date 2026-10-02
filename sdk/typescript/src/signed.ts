@@ -204,3 +204,18 @@ export function verifyReport(envelope: SignedReport): { [key: string]: Json } {
   }
   return report;
 }
+
+/** Signs a fighter's report with its key seed, after the same checks `verifyReport` makes. */
+export function signReport(seed: Uint8Array, report: { [key: string]: Json }): SignedReport {
+  checkReport(report);
+  const publicKey = publicKeyFromSeed(seed);
+  if (report.reporter_id !== emberIdFromPublicKey(decodeBase64url(publicKey, 32))) {
+    throw new ProofError("reporter does not match key");
+  }
+  const key = createPrivateKey({ key: Buffer.concat([PKCS8_PREFIX, Buffer.from(seed)]), format: "der", type: "pkcs8" });
+  return {
+    report,
+    public_key: publicKey,
+    signature: base64url(sign(null, signingBytes(REPORT_DOMAIN, report), key)),
+  };
+}

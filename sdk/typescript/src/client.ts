@@ -38,11 +38,20 @@ export interface Participant {
   slot: 0 | 1;
 }
 
+/**
+ * Who decides a match's games. `organizer-reported-v1`: your organizer
+ * credential records each game. `ember-room-v1`: the players play in an Ember
+ * room and both players' Ember reports each game; agreeing reports score it.
+ */
+export type RulesProfile = "organizer-reported-v1" | "ember-room-v1";
+
 export interface MatchSpec {
   external_match_id: string;
   participants: [Participant, Participant];
   games_to_win: 1 | 2 | 3 | 5;
   required_build_id: string;
+  /** Defaults to `organizer-reported-v1`. */
+  native_rules_profile?: RulesProfile;
   metadata?: { [key: string]: string };
 }
 
@@ -297,7 +306,7 @@ export class BridgeClient {
         rules: {
           games_to_win: spec.games_to_win,
           draw_policy: "replay_no_score",
-          native_rules_profile: "organizer-reported-v1",
+          native_rules_profile: spec.native_rules_profile ?? "organizer-reported-v1",
           edition_policy: "ultra_only",
           character_policy: "unrestricted_between_games",
           stage_policy: "p1_selects",

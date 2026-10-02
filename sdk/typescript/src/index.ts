@@ -14,6 +14,7 @@ export {
   type RecentMatch,
   type ResolvedPlayer,
   type Rotation,
+  type RulesProfile,
   type Tournament,
   type TournamentEntrant,
   type TournamentFormat,
@@ -33,6 +34,7 @@ export {
   publicKeyFromSeed,
   REPORT_DOMAIN,
   signChallenge,
+  signReport,
   signingBytes,
   verifyProof,
   verifyReport,
@@ -41,5 +43,15 @@ export {
   type Proof,
   type SignedReport,
 } from "./signed.ts";
-export { TestPlayer, type LinkClaim, type TestPlayerOptions } from "./testing.ts";
+export {
+  TestPlayer,
+  type Binding,
+  type ClaimAnswer,
+  type GameResult,
+  type LinkClaim,
+  type Permit,
+  type PrepareAnswer,
+  type ReportReceipt,
+  type TestPlayerOptions,
+} from "./testing.ts";
 export { signWebhook, TOLERANCE_SECONDS, verifyWebhook, WebhookError, type WebhookHeaders } from "./webhook.ts";
