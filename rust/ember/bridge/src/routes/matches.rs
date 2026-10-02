@@ -14,6 +14,7 @@ use ember_protocol::{
     event::Kind,
     json,
     matches::{CreateMatch, MatchState, Participant as Assigned, Resolution, Rules},
+    play::play_url,
 };
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
@@ -335,11 +336,12 @@ fn created_body(ctx: &Ctx, found: &Match) -> serde_json::Value {
         "state": found.state,
         "revision": found.revision.to_string(),
         "match_url": format!("{}/v1/matches/{}", ctx.config.origin, found.id),
+        "play_url": play_url(&ctx.config.bridge_id, &found.id),
     })
 }
 
 /// A consistent snapshot plus the event cursor from the same read (17.3).
-fn snapshot(tx: &Transaction<'_>, found: &Match) -> Result<serde_json::Value> {
+fn snapshot(tx: &Transaction<'_>, bridge_id: &str, found: &Match) -> Result<serde_json::Value> {
     let roster = participants(tx, &found.id, found.generation)?;
     let (wins, _) = scores(tx, &found.id)?;
     let (rules, metadata, delivery): (String, String, String) = tx.query_row(
@@ -371,6 +373,7 @@ fn snapshot(tx: &Transaction<'_>, found: &Match) -> Result<serde_json::Value> {
         "external_match_id": found.external_match_id,
         "state": found.state,
         "revision": found.revision.to_string(),
+        "play_url": play_url(bridge_id, &found.id),
         "assignment_generation": found.generation.to_string(),
         "games_to_win": found.games_to_win,
         "rules": serde_json::from_str::<serde_json::Value>(&rules).unwrap_or_default(),
@@ -390,6 +393,7 @@ pub async fn get(
     Path(id): Path<String>,
 ) -> Result<Response> {
     let viewer = viewer_of(&auth::any(&state, &headers).await?)?;
+    let bridge_id = state.config.bridge_id.clone();
     let body = state
         .db
         .read(move |tx| {
@@ -397,7 +401,7 @@ pub async fn get(
             if !visible(tx, &viewer, &found)? {
                 return Err(ApiFailure::not_found());
             }
-            snapshot(tx, &found)
+            snapshot(tx, &bridge_id, &found)
         })
         .await?;
     Ok(ok(&body))

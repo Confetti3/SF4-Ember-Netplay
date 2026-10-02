@@ -2,7 +2,7 @@
 
 // Hands a link from a second Launcher.exe (started by the browser for an
 // ember: link) to the game that is already running: a room link
-// (ember://join/...) or a tournament match handoff (ember://tournament/open).
+// (ember://join/...) or a tournament match link (ember://tournament/open).
 // The game holds, for each, a small named section, an auto-reset event and a
 // mutex in this session's Local namespace; the launcher writes the slot and
 // signals. All are created with the default security of the player's own
@@ -24,8 +24,8 @@ namespace platform {
 
 inline const wchar_t* JoinLinkSectionName() { return L"Local\\SF4EmberJoinLink"; }
 inline const wchar_t* JoinLinkEventName() { return L"Local\\SF4EmberJoinLinkReady"; }
-inline const wchar_t* TournamentHandoffSectionName() { return L"Local\\SF4EmberTournamentHandoff"; }
-inline const wchar_t* TournamentHandoffEventName() { return L"Local\\SF4EmberTournamentHandoffReady"; }
+inline const wchar_t* MatchLinkSectionName() { return L"Local\\SF4EmberMatchLink"; }
+inline const wchar_t* MatchLinkEventName() { return L"Local\\SF4EmberMatchLinkReady"; }
 inline std::wstring JoinLinkLockName(const wchar_t* section) { return std::wstring(section) + L"Lock"; }
 inline bool JoinLinkLocked(DWORD wait) { return wait == WAIT_OBJECT_0 || wait == WAIT_ABANDONED; }
 
@@ -33,9 +33,9 @@ struct JoinLinkSlot {
 	char code[16];
 };
 
-struct TournamentHandoffSlot {
+struct MatchLinkSlot {
 	char bridge[48];
-	char code[48];
+	char match[48];
 };
 
 // The game's end of one slot. Open once; Take on the game thread, as often as wanted.
@@ -139,41 +139,32 @@ inline bool DeliverJoinLink(const std::string& code, const wchar_t* sectionName 
 	return DeliverSlot(slot, sectionName, readyName);
 }
 
-// Tournament handoffs: the bridge and the one-use code.
-class TournamentHandoffMailbox {
+// Tournament match links: the bridge and the match.
+class MatchLinkMailbox {
 public:
-	TournamentHandoffMailbox(const wchar_t* section = TournamentHandoffSectionName(),
-		const wchar_t* ready = TournamentHandoffEventName()) : slots_(section, ready) {}
+	MatchLinkMailbox(const wchar_t* section = MatchLinkSectionName(), const wchar_t* ready = MatchLinkEventName())
+		: slots_(section, ready) {}
 	bool Open() { return slots_.Open(); }
-	// The newest handoff since the last call, or an invalid one.
-	tournament_link::Handoff Take() {
-		TournamentHandoffSlot slot;
-		tournament_link::Handoff handoff;
-		if (!slots_.Take(slot)) return handoff;
-		char bridge[sizeof(slot.bridge) + 1] = {}, code[sizeof(slot.code) + 1] = {};
+	// The newest link since the last call, or an invalid one.
+	tournament_link::MatchLink Take() {
+		MatchLinkSlot slot;
+		if (!slots_.Take(slot)) return tournament_link::MatchLink();
+		char bridge[sizeof(slot.bridge) + 1] = {}, match[sizeof(slot.match) + 1] = {};
 		std::memcpy(bridge, slot.bridge, sizeof(slot.bridge));
-		std::memcpy(code, slot.code, sizeof(slot.code));
-		SecureZeroMemory(&slot, sizeof(slot));
-		if (tournament_link::IsBridgeId(bridge) && tournament_link::IsHandoffCode(code)) {
-			handoff.bridgeId = bridge;
-			handoff.code = code;
-		}
-		SecureZeroMemory(code, sizeof(code));
-		return handoff;
+		std::memcpy(match, slot.match, sizeof(slot.match));
+		return tournament_link::Checked(bridge, match);
 	}
 private:
-	SlotMailbox<TournamentHandoffSlot> slots_;
+	SlotMailbox<MatchLinkSlot> slots_;
 };
 
-inline bool DeliverTournamentHandoff(const tournament_link::Handoff& handoff,
-	const wchar_t* sectionName = TournamentHandoffSectionName(), const wchar_t* readyName = TournamentHandoffEventName()) {
-	if (!tournament_link::IsBridgeId(handoff.bridgeId) || !tournament_link::IsHandoffCode(handoff.code)) return false;
-	TournamentHandoffSlot slot = {};
-	std::memcpy(slot.bridge, handoff.bridgeId.data(), handoff.bridgeId.size());
-	std::memcpy(slot.code, handoff.code.data(), handoff.code.size());
-	const bool delivered = DeliverSlot(slot, sectionName, readyName);
-	SecureZeroMemory(&slot, sizeof(slot));
-	return delivered;
+inline bool DeliverMatchLink(const tournament_link::MatchLink& link,
+	const wchar_t* sectionName = MatchLinkSectionName(), const wchar_t* readyName = MatchLinkEventName()) {
+	if (!tournament_link::Checked(link.bridgeId, link.matchId).Valid()) return false;
+	MatchLinkSlot slot = {};
+	std::memcpy(slot.bridge, link.bridgeId.data(), link.bridgeId.size());
+	std::memcpy(slot.match, link.matchId.data(), link.matchId.size());
+	return DeliverSlot(slot, sectionName, readyName);
 }
 
 } // namespace platform

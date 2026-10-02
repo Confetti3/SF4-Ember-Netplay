@@ -2932,21 +2932,21 @@ msgid "tournament.paste_link"
 msgstr "Pegar enlace de partida"
 
 msgid "tournament.paste_link_detail"
-msgstr "Copia el enlace o el código de la partida en la web del torneo y elige esta opción para abrirla aquí."
+msgstr "Copia el enlace de la partida en la web del torneo y elige esta opción para abrirla aquí."
 
-msgid "tournament.opening_link"
-msgstr "Abriendo el enlace de la partida..."
-
-msgid "tournament.handoff_opened"
+msgid "tournament.link_opened"
 msgstr "La web del torneo ha abierto una partida. Pulsa Jugar cuando estés listo."
 
-msgid "tournament.handoff_waiting"
+msgid "tournament.link_waiting"
 msgstr "Ha llegado un enlace de partida del torneo. Sal de tu sala y juégala desde Partidas del torneo."
 
-msgid "tournament.failure.handoff"
-msgstr "Ese enlace de partida ya se ha usado, ha caducado o es de otro jugador. Juega la partida desde esta lista."
+msgid "tournament.failure.link"
+msgstr "Eso no es un enlace de partida. Vuelve a copiarlo en la web del torneo."
 
-msgid "tournament.failure.handoff_service"
+msgid "tournament.failure.not_yours"
+msgstr "Esa partida no está en tu lista. Es de otros jugadores, o este servicio vincula tu cuenta con otro Ember ID."
+
+msgid "tournament.failure.link_service"
 msgstr "Confía en este servicio de torneos en Cuentas vinculadas y vuelve a abrir el enlace de la partida."
 
 msgid "rules.set_length"

@@ -24,12 +24,11 @@ struct Assignment {
 };
 
 struct Command {
-	// Redeem opens a match link the player pasted: `handoff` is its one-use code.
-	enum class Op : std::uint8_t { None, Refresh, Play, Stop, Redeem } op = Op::None;
-	std::string bridgeId, matchId, handoff;
+	enum class Op : std::uint8_t { None, Refresh, Play, Stop } op = Op::None;
+	std::string bridgeId, matchId;
 	static constexpr std::size_t MaxField = 256;
-	bool Valid() const { return bridgeId.size() <= MaxField && matchId.size() <= MaxField && handoff.size() <= MaxField; }
-	std::size_t Bytes() const { return bridgeId.size() + matchId.size() + handoff.size(); }
+	bool Valid() const { return bridgeId.size() <= MaxField && matchId.size() <= MaxField; }
+	std::size_t Bytes() const { return bridgeId.size() + matchId.size(); }
 };
 
 // The assignment list for `bridge`, from its last refresh.
@@ -39,15 +38,15 @@ struct AssignmentList {
 	bool loading = false;
 	// The helper's code when the last refresh failed.
 	std::string error;
+	// Refreshes finished so far, answered or not, so a reader can tell a newer one.
+	std::uint64_t finished = 0;
 };
 
-// The last match link opened from a browser or pasted: the service and match
-// it named, or the code of why it could not be opened. The sequence changes
-// with each outcome; a link waiting to be redeemed is pending.
-struct HandoffResult {
-	std::string bridge, match, error;
+// The last match link a browser opened: the service and match it named. The
+// sequence changes with each link.
+struct OpenedLink {
+	std::string bridge, match;
 	std::uint64_t sequence = 0;
-	bool pending = false;
 };
 
 struct Status {
@@ -58,7 +57,7 @@ struct Status {
 	std::string reason;
 	bool waitingForOpponent = false, waitingForPermit = false;
 	AssignmentList list;
-	HandoffResult handoff;
+	OpenedLink link;
 };
 
 } } }

@@ -26,10 +26,10 @@ public:
     static bool Owns(const std::string& screen);
     // Why a tournament match stopped, from its stable code, in words.
     static std::string TournamentFailure(const std::string& code);
-    // Why a match link could not be opened, in words.
-    static std::string HandoffFailure(const std::string& code);
     // A match link named this match: the matches screen selects its service,
-    // refreshes the list and focuses the match's row, for the player to press Play.
+    // refreshes the list and focuses the match's row, for the player to press
+    // Play. A service the player does not trust, or a match not in their
+    // list, is said instead.
     void OpenMatch(const std::string& bridge, const std::string& match);
     // The row the matches screen should focus, once it is among `rows`.
     std::string TakeFocus(const std::vector<MenuEntry>& rows);
@@ -57,6 +57,8 @@ private:
     void SelectBridge(const ShellView& view, const std::string& bridge);
     // Sends a waiting Play or Stop, or the assignment refresh the matches screen wants.
     void SendTournament(const ShellView& view, const std::string& screen, const Submit& submit);
+    // Says so when the list a link's refresh brought back lacks its match.
+    void CheckOpenedMatch(const netplay::tournament::AssignmentList& list);
     MenuEntry ServiceRow(const ShellView& view, const netplay::IdentityBridge& bridge) const;
 
     std::deque<netplay::IdentityRequest> queue_;
@@ -84,7 +86,12 @@ private:
     std::optional<netplay::tournament::Command> play_;
     std::string assignmentsError_;
     netplay::tournament::Phase phase_ = netplay::tournament::Phase::Idle;
-    std::string focusRow_;
-    bool openingLink_ = false;
+    // The match a link named, until its row is focused or found missing: its
+    // service, its row, and the refreshes finished before its own was sent.
+    struct OpenedMatch {
+        std::string bridge, row;
+        std::optional<std::uint64_t> finishedBefore;
+    };
+    std::optional<OpenedMatch> opened_;
 };
 } }

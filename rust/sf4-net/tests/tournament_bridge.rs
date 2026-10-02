@@ -422,24 +422,11 @@ async fn play_a_set_through_two_helpers() {
         .ask(json!({ "op": "assignment_list", "bridge_id": bridge_id }))
         .await;
     assert_eq!(assignments["assignments"][0]["match_id"], match_id.as_str());
-    // A browser handoff names the match to its own player, once.
-    let handoff = provider_call(
-        &origin,
-        &provider,
-        "/v1/handoffs",
-        json!({ "match_id": match_id, "ember_id": host_id }),
-    )
-    .await;
-    let redeem =
-        json!({ "op": "handoff_redeem", "bridge_id": bridge_id, "handoff": handoff["handoff"] });
-    let (ok, reason, _, named) = guest.ask(redeem.clone()).await;
-    assert!(!ok, "{named}");
-    assert_eq!(reason.as_deref(), Some("not_found"));
-    let (ok, reason, _, named) = host.ask(redeem.clone()).await;
-    assert!(ok, "{reason:?}");
-    assert_eq!(named["match_id"], match_id.as_str());
-    let (ok, _, _, _) = host.ask(redeem).await;
-    assert!(!ok);
+    // The site's Play button opens this page, which opens the match in Ember.
+    assert_eq!(
+        created["play_url"],
+        format!("https://embernetplay.link/m#{bridge_id}/{match_id}").as_str()
+    );
     // The first claim hosts; the second waits for the room.
     let claim = json!({ "op": "match_claim", "bridge_id": bridge_id, "match_id": match_id, "build": "build-1" });
     let (ok, reason, _, lease) = host.ask(claim.clone()).await;

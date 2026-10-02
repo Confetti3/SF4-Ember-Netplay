@@ -18,8 +18,8 @@ await bridge.approveLinkClaim(intent.intent_id, { claimId, emberId, subject: use
 // native_rules_profile "ember-room-v1" the players play it in Ember and the
 // game reports each result; with "organizer-reported-v1" an organizer does.
 const match = await bridge.createMatch(spec, `match-${bracketMatchId}`);
-// A Play button: a fresh one-use link per click, opened in that player's browser.
-const { uri } = await bridge.createHandoff(match.match_id, emberId);
+// A Play button for both players: match.play_url opens the match in Ember,
+// or offers to install Ember first.
 
 // A king-of-the-hill lobby: first to 2, the winner keeps the seat.
 const lobby = await bridge.createLobby({ external_lobby_id: "stream-night", games_to_win: 2, rotation: "winner_stays", required_build_id: build });

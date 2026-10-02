@@ -1,11 +1,12 @@
 #pragma once
 
-// Tournament match links a browser hands to Ember (spec 12.1):
-//   ember://tournament/open?bridge=<bridge id>&handoff=<code>
-// and the code alone, which a player may paste instead. The handoff is a
-// one-use, one-minute code that only the expected player's Ember ID can
-// redeem, and it names a match, nothing more; it is still never logged. This
-// side checks only the link's shape: the bridge decides what it means.
+// Tournament match links. A browser hands Ember
+//   ember://tournament/open?bridge=<bridge id>&match=<match id>
+// from the page a tournament site links to, and a player may paste that page's
+// own link, https://embernetplay.link/m#<bridge id>/<match id>, instead.
+// A link only names a match, so it is not a secret: the bridge lets only the
+// match's two assigned Ember IDs claim it, and anyone else's Ember finds no
+// such match in their list. This side checks only the link's shape.
 //
 // Pure component: no Windows, game or helper dependencies, unit tested.
 
@@ -14,38 +15,20 @@
 namespace sf4e {
 namespace tournament_link {
 
-// 32 random bytes as unpadded base64url.
-static const std::size_t HandoffLength = 43;
-// brg_ and a lowercase version 4 UUID.
-static const std::size_t BridgeIdLength = 40;
+// <prefix>_ and a lowercase version 4 UUID.
+static const std::size_t IdLength = 40;
 // Longer than any valid link, short enough to refuse anything odd early.
 static const std::size_t MaximumUriLength = 256;
 
-struct Handoff {
-	std::string bridgeId, code;
-	bool Valid() const { return !bridgeId.empty() && !code.empty(); }
+struct MatchLink {
+	std::string bridgeId, matchId;
+	bool Valid() const { return !bridgeId.empty() && !matchId.empty(); }
 };
 
-inline int Base64UrlValue(char symbol) {
-	if (symbol >= 'A' && symbol <= 'Z') return symbol - 'A';
-	if (symbol >= 'a' && symbol <= 'z') return symbol - 'a' + 26;
-	if (symbol >= '0' && symbol <= '9') return symbol - '0' + 52;
-	if (symbol == '-') return 62;
-	if (symbol == '_') return 63;
-	return -1;
-}
-
-// A canonical handoff code: 43 base64url symbols whose last one carries no
-// stray bits, as the bridge writes them.
-inline bool IsHandoffCode(const std::string& text) {
-	if (text.size() != HandoffLength) return false;
-	for (std::size_t i = 0; i < text.size(); ++i)
-		if (Base64UrlValue(text[i]) < 0) return false;
-	return (Base64UrlValue(text[text.size() - 1]) & 0x03) == 0;
-}
-
-inline bool IsBridgeId(const std::string& text) {
-	if (text.size() != BridgeIdLength || text.compare(0, 4, "brg_") != 0) return false;
+// An ID as the bridge writes them: a three-letter prefix, "_" and a
+// lowercase version 4 UUID.
+inline bool IsPrefixedId(const std::string& text, const char* prefix) {
+	if (text.size() != IdLength || text.compare(0, 3, prefix) != 0 || text[3] != '_') return false;
 	for (std::size_t i = 4; i < text.size(); ++i) {
 		const std::size_t at = i - 4;
 		const char symbol = text[i];
@@ -59,61 +42,88 @@ inline bool IsBridgeId(const std::string& text) {
 	return true;
 }
 
-// The bridge and code in a link the browser handed over, or an invalid
-// Handoff. Only ember://tournament/open with exactly the bridge and handoff
-// parameters, once each and in either order: no user, port, fragment,
-// percent escapes, other parameters or characters. A browser's trailing slash
-// after the path or at the end is ignored.
-inline Handoff ParseLink(const std::string& text) {
-	Handoff none;
-	if (text.empty() || text.size() > MaximumUriLength) return none;
-	for (std::size_t i = 0; i < text.size(); ++i) {
-		const unsigned char character = static_cast<unsigned char>(text[i]);
-		if (character < 0x21 || character > 0x7E || character == '%' || character == '#' || character == '+') return none;
-	}
-	static const char prefix[] = "ember://tournament/open";
-	const std::size_t prefixLength = sizeof(prefix) - 1;
-	if (text.size() <= prefixLength) return none;
-	for (std::size_t i = 0; i < prefixLength; ++i) {
+inline bool IsBridgeId(const std::string& text) { return IsPrefixedId(text, "brg"); }
+inline bool IsMatchId(const std::string& text) { return IsPrefixedId(text, "emt"); }
+
+inline MatchLink Checked(const std::string& bridgeId, const std::string& matchId) {
+	MatchLink link;
+	if (IsBridgeId(bridgeId) && IsMatchId(matchId)) { link.bridgeId = bridgeId; link.matchId = matchId; }
+	return link;
+}
+
+// Whether `text` starts with `prefix`, ignoring the case of letters.
+inline bool StartsWithFolded(const std::string& text, const char* prefix) {
+	std::size_t i = 0;
+	for (; prefix[i]; ++i) {
+		if (i == text.size()) return false;
 		char symbol = text[i];
 		if (symbol >= 'A' && symbol <= 'Z') symbol = static_cast<char>(symbol - 'A' + 'a');
-		if (symbol != prefix[i]) return none;
+		if (symbol != prefix[i]) return false;
 	}
-	std::string rest = text.substr(prefixLength);
+	return true;
+}
+
+// Printable ASCII only, without escapes, spaces or anything that could hide
+// a second part; nothing longer than MaximumUriLength.
+inline bool PlainText(const std::string& text) {
+	if (text.empty() || text.size() > MaximumUriLength) return false;
+	for (std::size_t i = 0; i < text.size(); ++i) {
+		const unsigned char character = static_cast<unsigned char>(text[i]);
+		if (character < 0x21 || character > 0x7E || character == '%' || character == '+') return false;
+	}
+	return true;
+}
+
+// The match a browser link names, or an invalid MatchLink. Only
+// ember://tournament/open with exactly the bridge and match parameters, once
+// each and in either order: no user, port, fragment or other parameters. A
+// browser's trailing slash after the path or at the end is ignored.
+inline MatchLink ParseLink(const std::string& text) {
+	static const char prefix[] = "ember://tournament/open";
+	if (!PlainText(text) || text.find('#') != std::string::npos || !StartsWithFolded(text, prefix)) return MatchLink();
+	std::string rest = text.substr(sizeof(prefix) - 1);
 	if (rest.compare(0, 2, "/?") == 0) rest.erase(0, 1);
-	if (rest.empty() || rest[0] != '?') return none;
+	if (rest.empty() || rest[0] != '?') return MatchLink();
 	std::string query = rest.substr(1);
 	if (!query.empty() && query[query.size() - 1] == '/') query.erase(query.size() - 1);
 	const std::size_t split = query.find('&');
-	if (split == std::string::npos || query.find('&', split + 1) != std::string::npos) return none;
-	Handoff found;
-	bool bridgeSeen = false, handoffSeen = false;
+	if (split == std::string::npos || query.find('&', split + 1) != std::string::npos) return MatchLink();
+	std::string bridge, match;
+	bool bridgeSeen = false, matchSeen = false;
 	const std::string parts[2] = { query.substr(0, split), query.substr(split + 1) };
-	for (std::size_t i = 0; i < 2; ++i) {
-		const std::size_t equals = parts[i].find('=');
-		if (equals == std::string::npos || parts[i].find('=', equals + 1) != std::string::npos) return none;
-		const std::string name = parts[i].substr(0, equals), value = parts[i].substr(equals + 1);
-		if (name == "bridge" && !bridgeSeen) { bridgeSeen = true; found.bridgeId = value; }
-		else if (name == "handoff" && !handoffSeen) { handoffSeen = true; found.code = value; }
-		else return none;
+	for (const auto& part : parts) {
+		const std::size_t equals = part.find('=');
+		if (equals == std::string::npos || part.find('=', equals + 1) != std::string::npos) return MatchLink();
+		const std::string name = part.substr(0, equals), value = part.substr(equals + 1);
+		if (name == "bridge" && !bridgeSeen) { bridgeSeen = true; bridge = value; }
+		else if (name == "match" && !matchSeen) { matchSeen = true; match = value; }
+		else return MatchLink();
 	}
-	if (!IsBridgeId(found.bridgeId) || !IsHandoffCode(found.code)) return none;
-	return found;
+	return Checked(bridge, match);
 }
 
-// What a player pasted: the whole link, or the code alone for `bridgeId`.
-inline Handoff ParsePasted(const std::string& text, const std::string& bridgeId) {
+// The page a tournament site links to. Its fragment carries the match, so
+// the web server never sees which one.
+inline const char* PagePrefix() { return "https://embernetplay.link/m#"; }
+
+// The match the page's own link names, or an invalid MatchLink.
+inline MatchLink ParsePageLink(const std::string& text) {
+	if (!PlainText(text) || !StartsWithFolded(text, PagePrefix())) return MatchLink();
+	std::string rest = text.substr(std::char_traits<char>::length(PagePrefix()));
+	if (!rest.empty() && rest[rest.size() - 1] == '/') rest.erase(rest.size() - 1);
+	const std::size_t slash = rest.find('/');
+	if (slash == std::string::npos) return MatchLink();
+	return Checked(rest.substr(0, slash), rest.substr(slash + 1));
+}
+
+// What a player pasted: either link, with stray spaces or quotes around it.
+inline MatchLink ParsePasted(const std::string& text) {
 	std::string trimmed = text;
 	while (!trimmed.empty() && (trimmed[0] == ' ' || trimmed[0] == '"')) trimmed.erase(0, 1);
 	while (!trimmed.empty() && (trimmed[trimmed.size() - 1] == ' ' || trimmed[trimmed.size() - 1] == '"'))
 		trimmed.erase(trimmed.size() - 1);
-	if (IsHandoffCode(trimmed) && IsBridgeId(bridgeId)) {
-		Handoff handoff;
-		handoff.bridgeId = bridgeId;
-		handoff.code = trimmed;
-		return handoff;
-	}
-	return ParseLink(trimmed);
+	const MatchLink link = ParseLink(trimmed);
+	return link.Valid() ? link : ParsePageLink(trimmed);
 }
 
 } // namespace tournament_link

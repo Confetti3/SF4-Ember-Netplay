@@ -20,8 +20,8 @@ implemented, and how it differs from the draft, is in `STATUS.md` there.
   game opens a room for the two players, keeps everyone else out, and reports
   each game's result itself (`ember-room-v1`), or decided game by game by an
   organizer (`organizer-reported-v1`).
-- A Play button on your site can open a player's match in Ember with a
-  one-use link.
+- Every match played in Ember has a Play link, the same for both players,
+  that opens it in Ember or shows how to install Ember first.
 - On top of matches, the bridge can run king-of-the-hill lobbies and whole
   tournaments (single elimination, double elimination, round robin), and it
   keeps each player's record of sets and games.
@@ -141,16 +141,21 @@ build and is not checked against the game.
 
 ### A Play button
 
-`POST /v1/handoffs` with `{"match_id": "...", "ember_id": "..."}` (your
-provider or organizer credential) returns a one-use link for that player:
-`ember://tournament/open?bridge=...&handoff=...`. Put it behind the player's
-Play button and open it in their browser. It lasts one minute and only that
-player's Ember ID can use it, so make a fresh one per click and never store or
-log it. Ember opens the Tournament matches screen on that match, and the player
-presses Play there; a player in a game or a room is never moved. Where the
-`ember:` link does not open Ember (some Linux setups), the player can copy the
-link and choose Paste match link on that screen, or simply pick the match from
-the list.
+The answer to `POST /v1/matches`, and `GET /v1/matches/{id}`, carry the
+match's `play_url`: `https://embernetplay.link/m#<bridge id>/<match id>`. It is
+the same for both players and safe to put in messages: only the match's two
+assigned Ember IDs can claim the match, and anyone else's Ember finds no such
+match in their list. It does not expire, so you can store it.
+
+The page asks the player to choose Open in Ember, which hands Ember
+`ember://tournament/open?bridge=...&match=...`. Below that it shows how to get
+Ember when it is not installed yet (download, start it once, come back to the
+same link), so your site needs no explanation of its own. Ember opens the
+Tournament matches screen on that match and the player presses Play there; a
+player in a game or a room is never moved. Where the `ember:` link does not
+open Ember (Linux browsers, or a PC where Ember has not been started yet), the
+page's Copy link and Paste match link on that screen do the same, or the player
+picks the match from the list.
 
 ## Run a lobby (first-to-N, king of the hill)
 

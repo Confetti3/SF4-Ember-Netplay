@@ -2932,21 +2932,21 @@ msgid "tournament.paste_link"
 msgstr "試合リンクを貼り付け"
 
 msgid "tournament.paste_link_detail"
-msgstr "大会サイトで試合のリンクまたはコードをコピーし、これを選ぶとその試合をここで開きます。"
+msgstr "大会サイトで試合のリンクをコピーし、これを選ぶとその試合をここで開きます。"
 
-msgid "tournament.opening_link"
-msgstr "試合リンクを開いています..."
-
-msgid "tournament.handoff_opened"
+msgid "tournament.link_opened"
 msgstr "大会サイトが試合を開きました。準備ができたらプレイを押してください。"
 
-msgid "tournament.handoff_waiting"
+msgid "tournament.link_waiting"
 msgstr "大会の試合リンクが届きました。今のルームから退出し、大会の試合からプレイしてください。"
 
-msgid "tournament.failure.handoff"
-msgstr "この試合リンクは使用済み、期限切れ、または別のプレイヤー用です。この一覧から試合をプレイしてください。"
+msgid "tournament.failure.link"
+msgstr "これは試合リンクではありません。大会サイトからもう一度コピーしてください。"
 
-msgid "tournament.failure.handoff_service"
+msgid "tournament.failure.not_yours"
+msgstr "この試合は一覧にありません。別のプレイヤーの試合か、このサービスであなたのアカウントが別のEmber IDと連携されています。"
+
+msgid "tournament.failure.link_service"
 msgstr "連携アカウントでこの大会サービスを信頼してから、試合リンクをもう一度開いてください。"
 
 msgid "rules.set_length"

@@ -93,8 +93,9 @@ in `needs_review` (see `INTEGRATIONS.md`, "Matches played in Ember"). With
 `organizer-reported-v1` instead, your organizer credential records each game.
 Either way the match completes when someone reaches the set length.
 
-For a Play button, ask for a one-use link per click with
-`createHandoff(matchId, emberId)` and open its `uri` in the player's browser.
+Each match's `play_url` is its Play link for both players: show it in your
+messages or behind a Play button. The page opens the match in Ember, or shows
+how to install Ember first.
 Voiding a game scores the match again: a finished match stays finished while
 a player still has enough wins, and otherwise reopens. Reopening is refused
 while either player has another match currently active on the same connection

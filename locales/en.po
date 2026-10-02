@@ -2617,21 +2617,21 @@ msgid "tournament.paste_link"
 msgstr "Paste match link"
 
 msgid "tournament.paste_link_detail"
-msgstr "Copy the match link or code from the tournament site, then choose this to open that match here."
+msgstr "Copy the match link from the tournament site, then choose this to open that match here."
 
-msgid "tournament.opening_link"
-msgstr "Opening the match link..."
-
-msgid "tournament.handoff_opened"
+msgid "tournament.link_opened"
 msgstr "The tournament site opened a match. Press Play when you are ready."
 
-msgid "tournament.handoff_waiting"
+msgid "tournament.link_waiting"
 msgstr "A tournament match link arrived. Leave your room, then play it from Tournament matches."
 
-msgid "tournament.failure.handoff"
-msgstr "That match link is used, expired or for another player. Play the match from this list instead."
+msgid "tournament.failure.link"
+msgstr "That is not a match link. Copy it again from the tournament site."
 
-msgid "tournament.failure.handoff_service"
+msgid "tournament.failure.not_yours"
+msgstr "That match is not in your list. It belongs to other players, or this service links your account to another Ember ID."
+
+msgid "tournament.failure.link_service"
 msgstr "Trust this tournament service under Linked accounts, then open the match link again."
 
 msgid "rules.set_length"

@@ -238,14 +238,12 @@ void StartHelper() {
     {
         // A match link, read once and cleared like the room link.
         char text[128] = {};
-        const DWORD length = GetEnvironmentVariableA("SF4E_TOURNAMENT_HANDOFF", text, sizeof(text));
-        SetEnvironmentVariableA("SF4E_TOURNAMENT_HANDOFF", nullptr);
+        const DWORD length = GetEnvironmentVariableA("SF4E_MATCH_LINK", text, sizeof(text));
+        SetEnvironmentVariableA("SF4E_MATCH_LINK", nullptr);
         const std::string value = length && length < sizeof(text) ? std::string(text, length) : std::string();
-        WipeText(text, sizeof(text));
         const auto split = value.find(' ');
-        if (split != std::string::npos)
-            QueueTournamentHandoff(tournament_link::ParsePasted(value.substr(split + 1), value.substr(0, split)));
-        if (!runtime->handoffLinks.Open()) spdlog::warn("Tournament: match links from the browser cannot reach this game");
+        if (split != std::string::npos) OpenMatchLink(tournament_link::Checked(value.substr(0, split), value.substr(split + 1)));
+        if (!runtime->matchLinks.Open()) spdlog::warn("Tournament: match links from the browser cannot reach this game");
     }
 	runtime->preferences.inputDelay = GetConfig().inputDelay;
 	runtime->preferences.lobby.editionSelect = GetConfig().editionSelect != 0;

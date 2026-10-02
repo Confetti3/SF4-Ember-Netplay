@@ -10,9 +10,9 @@
 #   /usr/local/lib/ember-short/ember-short      the service binary (root-owned)
 #   /etc/systemd/system/ember-short.service     runs it as a transient user on 127.0.0.1:47810
 #   /etc/nginx/conf.d/ember-short.conf          request rate zone for /s/
-#   /etc/nginx/snippets/ember-short.conf        /s/ proxy and the /j page, without access logs
+#   /etc/nginx/snippets/ember-short.conf        /s/ proxy and the /j and /m page, without access logs
 #   /etc/nginx/sites-available/embernetplay.link  one include line in the 443 server
-#   /var/www/embernetplay.link/j.html, assets/  the page a short link opens
+#   /var/www/embernetplay.link/open.html, assets/  the page room and match links open
 # Nothing is opened in ufw: the service listens on loopback only.
 set -euo pipefail
 
@@ -28,7 +28,7 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 for file in bin/ember-short ember-short.service nginx/ember-short-zone.conf \
-    nginx/ember-short-locations.conf site/j.html site/assets/j.js site/assets/j.css; do
+    nginx/ember-short-locations.conf site/open.html site/assets/open.js site/assets/open.css; do
     if [ ! -f "$SRC/$file" ]; then
         echo "Missing $SRC/$file" >&2
         exit 1
@@ -45,9 +45,9 @@ mv -f "$LIB/ember-short.new" "$LIB/ember-short"
 install -o root -g root -m 0644 "$SRC/ember-short.service" /etc/systemd/system/ember-short.service
 
 install -d -o root -g root -m 0755 "$ROOT/assets"
-install -o root -g root -m 0644 "$SRC/site/j.html" "$ROOT/j.html"
-install -o root -g root -m 0644 "$SRC/site/assets/j.js" "$ROOT/assets/j.js"
-install -o root -g root -m 0644 "$SRC/site/assets/j.css" "$ROOT/assets/j.css"
+install -o root -g root -m 0644 "$SRC/site/open.html" "$ROOT/open.html"
+install -o root -g root -m 0644 "$SRC/site/assets/open.js" "$ROOT/assets/open.js"
+install -o root -g root -m 0644 "$SRC/site/assets/open.css" "$ROOT/assets/open.css"
 
 # nginx: keep copies so a failed check puts everything back as it was.
 backup=$(mktemp -d)
@@ -89,6 +89,9 @@ systemctl enable ember-short
 systemctl restart ember-short
 systemctl reload nginx || systemctl restart nginx
 rm -rf "$backup"
+# The page under its earlier name, removed only now: a failed run restores
+# the earlier configuration, which still serves it.
+rm -f "$ROOT/j.html" "$ROOT/assets/j.js" "$ROOT/assets/j.css"
 
 echo
 echo "=== ember-short ==="
@@ -99,5 +102,7 @@ for attempt in 1 2 3 4 5; do
 done
 echo "service: $(curl -fsS http://127.0.0.1:47810/s/health || echo 'no answer')"
 echo "public:  $(curl -fsS --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/s/health || echo 'no answer')"
-echo "page:    $(curl -fsS -o /dev/null -w '%{http_code}' --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/j)"
+for page in j j/K7QM-4XRT-9PZD m; do
+    echo "/$page:  $(curl -fsS -o /dev/null -w '%{http_code}' --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/$page)"
+done
 echo "=== done ==="

@@ -27,12 +27,8 @@ test("two test players play a set reported by the game", { skip: missing, timeou
       native_rules_profile: "ember-room-v1",
     });
 
-    // A Play button's handoff opens the match for its own player, once.
-    const handoff = await provider.createHandoff(match.match_id, host.emberId);
-    assert.ok(handoff.uri.startsWith(`ember://tournament/open?bridge=${handoff.bridge_id}&handoff=`));
-    await assert.rejects(guest.redeemHandoff(handoff.handoff));
-    assert.equal((await host.redeemHandoff(handoff.handoff)).match_id, match.match_id);
-    await assert.rejects(host.redeemHandoff(handoff.handoff));
+    // One Play link for both players, the page that opens the match in Ember.
+    assert.match(match.play_url, new RegExp(`^https://embernetplay\\.link/m#brg_[0-9a-f-]{36}/${match.match_id}$`));
 
     // The first claim hosts; the room it publishes reaches the other player with the binding.
     const lease = await host.claimMatch(match.match_id);

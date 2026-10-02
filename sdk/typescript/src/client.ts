@@ -295,7 +295,12 @@ export class BridgeClient {
    * Creates a logical match. Reuse the same `idempotencyKey` when retrying,
    * so a lost response never schedules a second match.
    */
-  createMatch(spec: MatchSpec, idempotencyKey: string = randomUUID()): Promise<{ match_id: string; state: string; revision: string; match_url: string }> {
+  /**
+   * `play_url` is the match's Play link for both players: a page that opens
+   * the match in Ember, or offers to install Ember first. It is safe to show
+   * in messages, since only the two assigned Ember IDs can claim the match.
+   */
+  createMatch(spec: MatchSpec, idempotencyKey: string = randomUUID()): Promise<{ match_id: string; state: string; revision: string; match_url: string; play_url: string }> {
     return this.#json(
       "POST",
       "/v1/matches",
@@ -323,16 +328,6 @@ export class BridgeClient {
 
   getMatch(matchId: string): Promise<Body> {
     return this.#json("GET", `/v1/matches/${encodeURIComponent(matchId)}`);
-  }
-
-  /**
-   * A one-use link that opens an `ember-room-v1` match in Ember for one of its
-   * assigned players: put `uri` behind that player's Play button. It lasts a
-   * minute and only that player's Ember ID can use it, so make a fresh one
-   * per click rather than storing it. The code is shown once.
-   */
-  createHandoff(matchId: string, emberId: string): Promise<{ handoff: string; uri: string; bridge_id: string; match_id: string; expires_at: number }> {
-    return this.#json("POST", "/v1/handoffs", { match_id: matchId, ember_id: emberId });
   }
 
   /** `expectedRevision` is the match's `revision`, a decimal string. */

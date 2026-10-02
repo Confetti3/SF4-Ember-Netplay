@@ -2932,21 +2932,21 @@ msgid "tournament.paste_link"
 msgstr "Вставить ссылку на матч"
 
 msgid "tournament.paste_link_detail"
-msgstr "Скопируйте ссылку или код матча на сайте турнира и выберите этот пункт, чтобы открыть матч здесь."
+msgstr "Скопируйте ссылку на матч на сайте турнира и выберите этот пункт, чтобы открыть матч здесь."
 
-msgid "tournament.opening_link"
-msgstr "Открытие ссылки на матч..."
-
-msgid "tournament.handoff_opened"
+msgid "tournament.link_opened"
 msgstr "Сайт турнира открыл матч. Нажмите «Играть», когда будете готовы."
 
-msgid "tournament.handoff_waiting"
+msgid "tournament.link_waiting"
 msgstr "Пришла ссылка на турнирный матч. Выйдите из своего зала и сыграйте его в разделе «Турнирные матчи»."
 
-msgid "tournament.failure.handoff"
-msgstr "Эта ссылка на матч уже использована, истекла или предназначена другому игроку. Сыграйте матч из этого списка."
+msgid "tournament.failure.link"
+msgstr "Это не ссылка на матч. Скопируйте её снова на сайте турнира."
 
-msgid "tournament.failure.handoff_service"
+msgid "tournament.failure.not_yours"
+msgstr "Этого матча нет в вашем списке. Он принадлежит другим игрокам, или этот сервис привязал ваш аккаунт к другому Ember ID."
+
+msgid "tournament.failure.link_service"
 msgstr "Доверьтесь этому турнирному сервису в разделе «Привязанные аккаунты» и снова откройте ссылку на матч."
 
 msgid "rules.set_length"

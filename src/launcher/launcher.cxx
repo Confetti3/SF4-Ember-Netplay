@@ -557,12 +557,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         languagePreference = localeOverride;
         sf4e::loc::SetActive(sf4e::platform::ResolveUiLocale(languagePreference));
     }
-    // The link is a room's short code or a tournament match handoff. Never log either.
+    // The link is a room's short code, never logged, or a tournament match.
     const std::string joinCode = joinUri.empty() ? std::string() : sf4e::join_link::ParseUri(joinUri);
-    const auto handoff = joinUri.empty() || !joinCode.empty() ? sf4e::tournament_link::Handoff() :
+    const auto matchLink = joinUri.empty() || !joinCode.empty() ? sf4e::tournament_link::MatchLink() :
         sf4e::tournament_link::ParseLink(joinUri);
     if (!joinCode.empty()) spdlog::info("Started with a room link");
-    else if (handoff.Valid()) spdlog::info("Started with a tournament match link");
+    else if (matchLink.Valid()) spdlog::info("Started with a link to tournament match {}", matchLink.matchId);
     else if (!joinUri.empty()) spdlog::info("Ignored a link that is not an Ember room or tournament match link");
     sf4e::WipeText(joinUri);
     sf4e::platform::LauncherInstance instance;
@@ -584,7 +584,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
         // A match link goes to the running game too, which opens the match's
         // row for the player to press Play; a game in progress is never interrupted.
-        if (handoff.Valid() && sf4e::platform::DeliverTournamentHandoff(handoff)) {
+        if (matchLink.Valid() && sf4e::platform::DeliverMatchLink(matchLink)) {
             spdlog::info("Handed the tournament match link to the running game");
             return 0;
         }
@@ -629,9 +629,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     SetEnvironmentVariableW(L"SF4E_START_OFFLINE", offline ? L"1" : nullptr);
     // The game reads the room link once at start and clears it (NetplayRuntime).
     SetEnvironmentVariableW(L"SF4E_JOIN_LINK", joinCode.empty() ? nullptr : sf4e::platform::Utf8ToWide(joinCode.c_str()).c_str());
-    // A match link likewise, as "<bridge id> <code>".
-    SetEnvironmentVariableW(L"SF4E_TOURNAMENT_HANDOFF", !handoff.Valid() ? nullptr :
-        sf4e::platform::Utf8ToWide((handoff.bridgeId + " " + handoff.code).c_str()).c_str());
+    // A match link likewise, as "<bridge id> <match id>".
+    SetEnvironmentVariableW(L"SF4E_MATCH_LINK", !matchLink.Valid() ? nullptr :
+        sf4e::platform::Utf8ToWide((matchLink.bridgeId + " " + matchLink.matchId).c_str()).c_str());
     // A folder picked in recovery on an earlier launch comes before the search.
     sf4e::launcher::RememberedFolder remembered{sf4e::platform::Utf8ToWide(settings.gameDirectory.c_str())};
     const auto exists = [](const std::wstring& path) { return PathFileExistsW(path.c_str()) != FALSE; };

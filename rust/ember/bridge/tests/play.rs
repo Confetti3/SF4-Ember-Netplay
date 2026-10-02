@@ -635,98 +635,14 @@ async fn a_lone_cancel_closes_the_game_and_a_lone_abort_waits_for_review() {
     assert_eq!(state(&f, &id).await["state"], "needs_review");
 }
 
-async fn handoff(f: &Fixture, id: &str, player: &Player) -> (StatusCode, Json) {
-    f.bridge
-        .post(
-            &f.provider,
-            "/v1/handoffs",
-            json!({ "match_id": id, "ember_id": player.id() }),
-        )
-        .await
-}
-
-async fn redeem(f: &Fixture, player: &Player, code: &Json) -> (StatusCode, Json) {
-    act(
-        f,
-        player,
-        Action::HandoffRedeem,
-        "/v1/handoffs/redeem",
-        json!({ "handoff": code }),
-    )
-    .await
-}
-
+/// Every match has one play link, the same for both players, that a site
+/// can show in its messages: the page opens the match in Ember.
 #[tokio::test]
-async fn a_handoff_names_the_match_once_for_its_own_player() {
+async fn a_match_has_one_play_link_for_both_players() {
     let f = fixture().await;
     let id = create(&f, "play-12", "ember-room-v1", 2).await;
-    let (status, made) = handoff(&f, &id, &f.a).await;
-    assert_eq!(status, StatusCode::CREATED, "{made}");
-    let code = made["handoff"].clone();
-    assert_eq!(code.as_str().unwrap().len(), 43);
-    assert!(
-        made["uri"]
-            .as_str()
-            .unwrap()
-            .starts_with("ember://tournament/open?bridge=brg_")
-    );
-    // The other fighter cannot use it, and a proof made for another route
-    // does not redeem it.
-    let (status, _) = redeem(&f, &f.b, &code).await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
-    let response = f
-        .bridge
-        .client
-        .post(f.bridge.url("/v1/auth/challenges"))
-        .bearer_auth(f.a.session.as_deref().unwrap())
-        .header("content-type", "application/json")
-        .body(
-            serde_json::to_vec(&json!({
-                "public_key": f.a.identity.public_key(),
-                "action": Action::MatchClaim,
-                "method": Method::Post,
-                "path": "/v1/handoffs/redeem",
-                "request_digest": "0".repeat(43),
-            }))
-            .unwrap(),
-        )
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let (status, redeemed) = redeem(&f, &f.a, &code).await;
-    assert_eq!(
-        (status, redeemed["match_id"].as_str()),
-        (StatusCode::OK, Some(id.as_str())),
-        "{redeemed}"
-    );
-    // Once only.
-    let (status, _) = redeem(&f, &f.a, &code).await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
-    // A code lapses after a minute.
-    let (_, late) = handoff(&f, &id, &f.a).await;
-    f.bridge.clock.advance(61);
-    let (status, _) = redeem(&f, &f.a, &late["handoff"]).await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
-    // Only an assigned player of a match played through Ember gets one.
-    let (status, _) = handoff(&f, &id, &f.bridge.player(40)).await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    // Nor a match that is finished.
-    let (status, _) = f
-        .bridge
-        .post_keyed(
-            &f.provider,
-            &format!("/v1/matches/{id}/cancel"),
-            json!({ "reason": "Bracket reset", "expected_revision": state(&f, &id).await["revision"] }),
-            Some("cancel-handoff"),
-        )
-        .await;
-    assert_eq!(status, StatusCode::OK);
-    let (status, _) = handoff(&f, &id, &f.a).await;
-    assert_eq!(status, StatusCode::CONFLICT);
-    let organized = create(&f, "play-13", "organizer-reported-v1", 2).await;
-    let (status, _) = handoff(&f, &organized, &f.a).await;
-    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    let link = format!("https://embernetplay.link/m#{}/{id}", f.bridge.bridge_id);
+    assert_eq!(state(&f, &id).await["play_url"], link.as_str());
 }
 
 async fn send_report(f: &Fixture, sender: &Player, id: &str, body: &Json) -> StatusCode {

@@ -2932,21 +2932,21 @@ msgid "tournament.paste_link"
 msgstr "粘贴对局链接"
 
 msgid "tournament.paste_link_detail"
-msgstr "在赛事网站复制对局链接或代码，然后选择此项即可在这里打开该对局。"
+msgstr "在赛事网站复制对局链接，然后选择此项即可在这里打开该对局。"
 
-msgid "tournament.opening_link"
-msgstr "正在打开对局链接..."
-
-msgid "tournament.handoff_opened"
+msgid "tournament.link_opened"
 msgstr "赛事网站打开了一个对局。准备好后请按开始。"
 
-msgid "tournament.handoff_waiting"
+msgid "tournament.link_waiting"
 msgstr "收到一个赛事对局链接。请先离开当前房间，再从赛事对局中进行。"
 
-msgid "tournament.failure.handoff"
-msgstr "此对局链接已被使用、已过期或属于其他玩家。请从此列表进行该对局。"
+msgid "tournament.failure.link"
+msgstr "这不是对局链接。请从赛事网站重新复制。"
 
-msgid "tournament.failure.handoff_service"
+msgid "tournament.failure.not_yours"
+msgstr "此对局不在你的列表中。它属于其他玩家，或此服务将你的账号绑定到了另一个 Ember ID。"
+
+msgid "tournament.failure.link_service"
 msgstr "请先在已绑定账号中信任此赛事服务，然后再次打开对局链接。"
 
 msgid "rules.set_length"

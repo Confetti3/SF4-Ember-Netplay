@@ -107,27 +107,37 @@ void IdentityJourneys() {
  // the player to press Play; nothing is played by itself.
  t=netplay::tournament::Status{};t.list.bridge="brg_1";t.list.items={playable};
  const auto before=played().size();
- t.handoff.bridge="brg_1";t.handoff.match="emt_1";t.handoff.sequence=1;h.Frame(0,3);
+ t.link.bridge="brg_1";t.link.match="emt_1";t.link.sequence=1;h.Frame(0,3);
  Check(h.shell.Navigation().Screen()=="tournament-matches"&&h.shell.Navigation().Focus()=="tm-play:emt_1",
   "A match link did not open its match's row");
  for(std::size_t i=before;i<played().size();++i)Check(played()[i]->op!=Command::Op::Play,"A match link started the match by itself");
- // A pasted link goes to the runtime as it was pasted.
+ for(int i=0;i<4;++i)answer();
+ // A match the refreshed list does not hold is not the player's.
+ t.link.match="emt_9";t.link.sequence=2;h.Frame(0,2);
+ Check(played().back()->op==Command::Op::Refresh&&played().back()->bridgeId=="brg_1","A match link did not refresh its service's list");
+ ++t.list.finished;h.Frame(0,2);
+ Check(status==loc::T("tournament.failure.not_yours"),"A match missing from the player's list was not said");
+ for(int i=0;i<4;++i)answer();
+ // Pasted text that is not a match link says so; a pasted page link opens
+ // like one from the browser, and a service the player does not trust says so.
  auto& clipboard=ImGui::GetPlatformIO();
- static std::string pastedLink;pastedLink="ember://tournament/open?bridge=brg_1&handoff=x";
+ static std::string pastedLink;pastedLink="hello";
  clipboard.Platform_GetClipboardTextFn=[](ImGuiContext*){return pastedLink.c_str();};
  h.Choose("tm-paste");h.Frame();
- Check(played().back()->op==Command::Op::Redeem&&played().back()->handoff==pastedLink&&played().back()->bridgeId=="brg_1",
-  "Paste match link did not send the pasted link");
+ Check(status==loc::T("tournament.failure.link"),"Pasting something else did not say it is no match link");
+ pastedLink="https://embernetplay.link/m#brg_0dbc0598-2312-4ce3-9df8-e160330565e6/emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12";
+ h.Choose("tm-paste");h.Frame();
+ for(int i=0;i<4&&sent().back()->op!=IdentityOp::BridgeList;++i)answer();
+ Check(sent().back()->op==IdentityOp::BridgeList,"A pasted match link did not check its service");
+ answer();
+ Check(status==loc::T("tournament.failure.link_service"),"A link to an untrusted service did not say so");
  clipboard.Platform_GetClipboardTextFn=nullptr;
  // In a room, a link only says where to find the match.
  h.view.session.room=netplay::RoomState::Joined;h.Screen("home");
- t.handoff.sequence=2;h.Frame(0,2);
- Check(status==loc::T("tournament.handoff_waiting")&&h.shell.Navigation().Screen()!="tournament-matches",
+ t.link.sequence=3;h.Frame(0,2);
+ Check(status==loc::T("tournament.link_waiting")&&h.shell.Navigation().Screen()!="tournament-matches",
   "A match link moved a player who is in a room");
  h.view.session.room=netplay::RoomState::Idle;
- // A link that cannot be opened says why.
- t.handoff.match.clear();t.handoff.error="not_found";t.handoff.sequence=3;h.Screen("home");h.Frame(0,2);
- Check(status==loc::T("tournament.failure.handoff"),"A refused match link did not say why");
  SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
 }

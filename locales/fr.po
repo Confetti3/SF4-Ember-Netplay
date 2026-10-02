@@ -2932,21 +2932,21 @@ msgid "tournament.paste_link"
 msgstr "Coller le lien du match"
 
 msgid "tournament.paste_link_detail"
-msgstr "Copiez le lien ou le code du match sur le site du tournoi, puis choisissez ceci pour ouvrir ce match ici."
+msgstr "Copiez le lien du match sur le site du tournoi, puis choisissez ceci pour ouvrir ce match ici."
 
-msgid "tournament.opening_link"
-msgstr "Ouverture du lien du match..."
-
-msgid "tournament.handoff_opened"
+msgid "tournament.link_opened"
 msgstr "Le site du tournoi a ouvert un match. Appuyez sur Jouer quand vous êtes prêt."
 
-msgid "tournament.handoff_waiting"
+msgid "tournament.link_waiting"
 msgstr "Un lien de match du tournoi est arrivé. Quittez votre salon, puis jouez-le depuis Matchs du tournoi."
 
-msgid "tournament.failure.handoff"
-msgstr "Ce lien de match est déjà utilisé, expiré ou destiné à un autre joueur. Jouez le match depuis cette liste."
+msgid "tournament.failure.link"
+msgstr "Ce n'est pas un lien de match. Copiez-le à nouveau sur le site du tournoi."
 
-msgid "tournament.failure.handoff_service"
+msgid "tournament.failure.not_yours"
+msgstr "Ce match n'est pas dans votre liste. Il appartient à d'autres joueurs, ou ce service associe votre compte à un autre Ember ID."
+
+msgid "tournament.failure.link_service"
 msgstr "Faites confiance à ce service de tournoi dans Comptes associés, puis rouvrez le lien du match."
 
 msgid "rules.set_length"

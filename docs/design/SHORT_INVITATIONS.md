@@ -18,14 +18,15 @@ The code is the 12 symbols after `#`. The game's Paste invitation box accepts th
 
 ## Opening the link in a browser
 
-The link opens `/j`, a static page. Its script reads the code from the fragment, which browsers never send, so the web server sees only `/j`. The page makes no requests of its own and loads nothing from other sites. It shows the code with three actions:
+The link opens `/j`, a static page (`open.html`, which also serves tournament match links at `/m`). Its script reads the code from the fragment, which browsers never send, so the web server sees only `/j`. The page makes no requests of its own and loads nothing from other sites. It shows the code with:
 
 - Open in Ember: a link to `ember://join/XXXX-XXXX-XXXX`. It is only followed when the player clicks it; the page never redirects by itself, because a browser without the handler would replace the page with an error.
+- How to get Ember for someone who does not have it yet: Ultra Street Fighter IV on Steam, the download, starting Launcher.exe once, then coming back to the same link.
 - Copy link and Copy code, with the steps to paste it on the Join room screen. This always works, whatever the browser or system.
 
 `Launcher.exe` registers the `ember:` scheme for the current user on every start (`HKCU\Software\Classes\ember`, no elevation; rewritten only when it names another Launcher.exe), as `"<Launcher.exe>" --join-link "%1"`. When the browser starts it:
 
-1. The launcher accepts only `ember://join/<code>` (any case, optional trailing slash, at most 64 printable ASCII characters, no query, fragment, user, port or escapes) and reads the code from it. Anything else is ignored. The code is never logged.
+1. The launcher accepts only `ember://join/<code>` (any case, optional trailing slash, at most 64 printable ASCII characters, no query, fragment, user, port or escapes) and reads the code from it, or a tournament match link (`ember://tournament/open?bridge=...&match=...`, see `identity-bridge/STATUS.md`), which travels the same way in its own section. Anything else is ignored. The code is never logged.
 2. If Ember is already running, the launcher writes the code into a small named section in the session's `Local\` namespace that the game holds (`Local\SF4EmberJoinLink`), signals the game's event and exits quietly. A mutex beside them covers each write and read, so reading one link never erases a newer one. All three objects carry the default security of the player's own token.
 3. If Ember is not running, the launcher starts it as usual and passes the code in `SF4E_JOIN_LINK`, which the game reads once and clears.
 4. The game opens its menu at the main menu and joins the room, as if the player had pasted the link and chosen Join room. A game that is still starting joins once it reaches the main menu, within two minutes of the link. A link that arrives while a room is open waits, with a notice, until the player has left that room; it then fills the Join room screen and the player chooses Join room, as does a link the game could not use within the two minutes. The two minutes run from when the game received the link. A link never interrupts a dialog, a notice or an Ember ID screen; it is used once the player leaves it.

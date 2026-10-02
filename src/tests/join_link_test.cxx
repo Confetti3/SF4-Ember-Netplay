@@ -53,39 +53,49 @@ static void TestTheJoinScreenGetsTheShortLink() {
 }
 
 static const char* const Bridge = "brg_0dbc0598-2312-4ce3-9df8-e160330565e6";
-static const char* const Code = "q2Zp0yH4c8Jm1bWk7nVt3xR6sL9dF5gA2eU0iO4uYwA";
+static const char* const Match = "emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12";
 
 static void TestOnlyTheTournamentLinkIsAccepted() {
 	using namespace sf4e::tournament_link;
-	const std::string bridge = Bridge, code = Code;
-	CHECK(IsHandoffCode(code) && IsBridgeId(bridge));
-	const std::string link = "ember://tournament/open?bridge=" + bridge + "&handoff=" + code;
-	Handoff parsed = ParseLink(link);
-	CHECK(parsed.Valid() && parsed.bridgeId == bridge && parsed.code == code);
-	CHECK(ParseLink("ember://tournament/open?handoff=" + code + "&bridge=" + bridge).code == code);
-	CHECK(ParseLink("EMBER://TOURNAMENT/OPEN/?bridge=" + bridge + "&handoff=" + code + "/").Valid());
+	const std::string bridge = Bridge, match = Match;
+	CHECK(IsBridgeId(bridge) && IsMatchId(match) && !IsMatchId(bridge) && !IsBridgeId(match));
+	const std::string link = "ember://tournament/open?bridge=" + bridge + "&match=" + match;
+	const MatchLink parsed = ParseLink(link);
+	CHECK(parsed.Valid() && parsed.bridgeId == bridge && parsed.matchId == match);
+	CHECK(ParseLink("ember://tournament/open?match=" + match + "&bridge=" + bridge).matchId == match);
+	CHECK(ParseLink("EMBER://TOURNAMENT/OPEN/?bridge=" + bridge + "&match=" + match + "/").Valid());
 	const std::string refused[] = {
 		"", "ember://tournament/open", "ember://tournament/open?", "ember://tournament/open?bridge=" + bridge,
-		link + "&extra=1", link + "&handoff=" + code, "ember://tournament/open?bridge=" + bridge + "&bridge=" + bridge,
-		link + "#x", "ember://tournament/open?bridge=" + bridge + "&handoff=" + code.substr(0, 42),
-		"ember://tournament/open?bridge=" + bridge + "&handoff=" + code.substr(0, 42) + "B",
-		"ember://tournament/open?bridge=" + bridge + "&handoff=" + code.substr(0, 20) + "%2B" + code.substr(23),
-		"ember://tournament/open?bridge=BRG_0DBC0598-2312-4CE3-9DF8-E160330565E6&handoff=" + code,
-		"ember://tournament/open?bridge=brg_0dbc0598-2312-3ce3-9df8-e160330565e6&handoff=" + code,
-		"ember://tournament/join?bridge=" + bridge + "&handoff=" + code, "ember://join/7K3M-0X1R-T9PZ",
-		"ember://user@tournament/open?bridge=" + bridge + "&handoff=" + code, link + " ", link + "\n",
-		"ember://tournament/open?bridge=" + bridge + "&&handoff=" + code, "ember://tournament/open?bridge==" + bridge + "&handoff=" + code,
-		link + std::string(200, 'A'),
+		link + "&extra=1", link + "&match=" + match, "ember://tournament/open?bridge=" + bridge + "&bridge=" + bridge,
+		link + "#x", "ember://tournament/open?bridge=" + bridge + "&match=" + match.substr(0, 39),
+		"ember://tournament/open?bridge=" + bridge + "&match=" + bridge,
+		"ember://tournament/open?bridge=" + bridge + "&match=emt%5F6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12",
+		"ember://tournament/open?bridge=BRG_0DBC0598-2312-4CE3-9DF8-E160330565E6&match=" + match,
+		"ember://tournament/open?bridge=brg_0dbc0598-2312-3ce3-9df8-e160330565e6&match=" + match,
+		"ember://tournament/join?bridge=" + bridge + "&match=" + match, "ember://join/7K3M-0X1R-T9PZ",
+		"ember://user@tournament/open?bridge=" + bridge + "&match=" + match, link + " ", link + "\n",
+		"ember://tournament/open?bridge=" + bridge + "&&match=" + match, "ember://tournament/open?bridge==" + bridge + "&match=" + match,
+		"ember://tournament/open?bridge=" + bridge + "&handoff=" + match, link + std::string(200, 'A'),
 	};
 	for (const auto& uri : refused) CHECK(!ParseLink(uri).Valid());
 	std::string nul = link;
 	nul.insert(nul.begin() + 30, '\0');
 	CHECK(!ParseLink(nul).Valid());
-	// A pasted code goes to the selected service; a pasted link names its own.
-	CHECK(ParsePasted(" " + code + " ", bridge).bridgeId == bridge);
-	CHECK(ParsePasted("\"" + link + "\"", "").code == code);
-	CHECK(!ParsePasted(code, "").Valid());
-	CHECK(!ParsePasted("hello", bridge).Valid());
+	// The page's own link, as its Copy button gives it.
+	const std::string page = std::string(PagePrefix()) + bridge + "/" + match;
+	CHECK(ParsePageLink(page).matchId == match && ParsePageLink(page).bridgeId == bridge);
+	CHECK(ParsePageLink("HTTPS://EmberNetplay.link/m#" + bridge + "/" + match + "/").Valid());
+	const std::string refusedPages[] = {
+		"https://embernetplay.link/m#" + bridge, "https://embernetplay.link/m#" + match + "/" + bridge,
+		"https://embernetplay.link/j#" + bridge + "/" + match, "https://example.com/m#" + bridge + "/" + match,
+		"http://embernetplay.link/m#" + bridge + "/" + match, page + "/x", page + " x",
+	};
+	for (const auto& text : refusedPages) CHECK(!ParsePageLink(text).Valid());
+	// Pasted text may have spaces or quotes around either link.
+	CHECK(ParsePasted("\"" + link + "\"").matchId == match);
+	CHECK(ParsePasted("  " + page + " ").bridgeId == bridge);
+	CHECK(!ParsePasted(match).Valid());
+	CHECK(!ParsePasted("hello").Valid());
 }
 
 #ifdef _WIN32
@@ -111,29 +121,27 @@ static void TestARunningGameReceivesTheLink() {
 	CHECK(!DeliverJoinLink("7K3M-0X1R-T9PZ", section.c_str(), ready.c_str()));
 	CHECK(!DeliverJoinLink("", section.c_str(), ready.c_str()));
 	CHECK(mailbox.Take().empty());
-	// A tournament handoff travels in its own slot, checked on both ends.
-	using sf4e::platform::DeliverTournamentHandoff;
-	using sf4e::platform::TournamentHandoffMailbox;
-	const std::wstring handoffSection = L"Local\\SF4EmberHandoffTest" + id, handoffReady = L"Local\\SF4EmberHandoffTestReady" + id;
-	sf4e::tournament_link::Handoff handoff;
-	handoff.bridgeId = Bridge;
-	handoff.code = Code;
-	CHECK(!DeliverTournamentHandoff(handoff, handoffSection.c_str(), handoffReady.c_str()));
-	TournamentHandoffMailbox handoffs(handoffSection.c_str(), handoffReady.c_str());
-	CHECK(handoffs.Open() && !handoffs.Take().Valid());
-	CHECK(DeliverTournamentHandoff(handoff, handoffSection.c_str(), handoffReady.c_str()));
-	const auto taken = handoffs.Take();
-	CHECK(taken.bridgeId == Bridge && taken.code == Code);
-	CHECK(!handoffs.Take().Valid());
-	sf4e::tournament_link::Handoff bad = handoff;
-	bad.code = "not-a-code";
-	CHECK(!DeliverTournamentHandoff(bad, handoffSection.c_str(), handoffReady.c_str()));
+	// A match link travels in its own slot, checked on both ends.
+	using sf4e::platform::DeliverMatchLink;
+	using sf4e::platform::MatchLinkMailbox;
+	const std::wstring matchSection = L"Local\\SF4EmberMatchLinkTest" + id, matchReady = L"Local\\SF4EmberMatchLinkTestReady" + id;
+	const auto link = sf4e::tournament_link::Checked(Bridge, Match);
+	CHECK(!DeliverMatchLink(link, matchSection.c_str(), matchReady.c_str()));
+	MatchLinkMailbox links(matchSection.c_str(), matchReady.c_str());
+	CHECK(links.Open() && !links.Take().Valid());
+	CHECK(DeliverMatchLink(link, matchSection.c_str(), matchReady.c_str()));
+	const auto taken = links.Take();
+	CHECK(taken.bridgeId == Bridge && taken.matchId == Match);
+	CHECK(!links.Take().Valid());
+	sf4e::tournament_link::MatchLink bad = link;
+	bad.matchId = "not-a-match";
+	CHECK(!DeliverMatchLink(bad, matchSection.c_str(), matchReady.c_str()));
 	// Another process of the player's could write the slot; a malformed one is dropped.
-	sf4e::platform::TournamentHandoffSlot forged = {};
+	sf4e::platform::MatchLinkSlot forged = {};
 	std::memcpy(forged.bridge, Bridge, 40);
-	std::memcpy(forged.code, "x", 1);
-	CHECK(sf4e::platform::DeliverSlot(forged, handoffSection.c_str(), handoffReady.c_str()));
-	CHECK(!handoffs.Take().Valid());
+	std::memcpy(forged.match, "x", 1);
+	CHECK(sf4e::platform::DeliverSlot(forged, matchSection.c_str(), matchReady.c_str()));
+	CHECK(!links.Take().Valid());
 }
 #endif
 

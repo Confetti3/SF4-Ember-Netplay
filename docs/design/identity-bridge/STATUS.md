@@ -26,7 +26,7 @@ match and event API, signed webhooks, a TypeScript SDK, a mock provider, and a r
 notifier that turns bridge events into Discord webhook posts and Twitch chat messages.
 
 `feat/tournament-play` adds WP4 (a room bound to a match), WP5 (game permits, signed
-reports and two-player agreement), WP6 (browser handoff and the in-game match list) and
+reports and two-player agreement), WP6 (match links and the in-game match list) and
 the automated part of WP8 (seeded fuzzing and adversarial tests).
 
 Not done: WP7 (BluMint calls the generic API directly, so no adapter calls BluMint),
@@ -168,9 +168,15 @@ lists queue rotation and multi-table scheduling as future work.
   the game build. Both fighters' claims must carry the same build, or the second claim
   is refused with `incompatible_build`.
 - **No observations route.** Observations travel only inside signed reports.
-- **Handoff answers.** A redeem that fails for any reason (unknown, used, expired, or
-  for another player) answers `not_found`, so a code says nothing to anyone else. A
-  player may hold four live codes per match.
+- **Match links instead of one-use handoffs (spec 12.1).** A match's link names its
+  bridge and match (`ember://tournament/open?bridge=...&match=...`, opened from the page
+  `https://embernetplay.link/m#<bridge>/<match>`, the match's `play_url`) and does not
+  expire. Tournament sites send one join link per match to both players (BluMint's
+  `matchUrl`), which a per-player, one-minute code cannot be, and a player who first has
+  to install Ember comes back to the same link. Nothing is lost: the link was never what
+  admitted a player. Only the two assigned Ember IDs can claim the match, and another
+  player's Ember finds no such match in their list and says so. There is no
+  `/v1/handoffs` route and no `handoff.redeem` proof action.
 - **Adjudication kinds.** Organizers can record a game result (win or draw) and void a
   game, which reopens a completed match as a correction. Forfeits, no-shows and
   disconnect rulings wait for the organizer-policy sign-off.
@@ -294,7 +300,7 @@ Tournament play on `feat/tournament-play` (same machine and toolchain):
 | RESULT-11 | bridge `a_lone_cancel_closes_the_game_and_a_lone_abort_waits_for_review` | Automated, pass |
 | RESULT-14, RESULT-15 | helper spool `no_folder_means_not_saved`; `TournamentPlay` (a report that could not be saved stops the match, leaves the room and starts no further game, with the reason shown) | Automated, partial: a full disk is not simulated |
 | RESULT-17 | bridge `a_publish_retry_and_a_silent_game` (review only after the start window plus 30 minutes) | Automated, partial |
-| Handoff (WP6) | bridge `a_handoff_names_the_match_once_for_its_own_player`; helper `play_a_set_through_two_helpers`; `JoinLink`; `ShellJourney`; SDK `play.test.ts` | Automated, pass; real browser and Proton not run |
+| Match links (WP6) | bridge `a_match_has_one_play_link_for_both_players`; helper `play_a_set_through_two_helpers`; `JoinLink`; `TournamentFuzz`; `ShellJourney`; SDK `play.test.ts` | Automated, pass; real browser and Proton not run |
 | Fuzzing (WP8) | `TournamentFuzz` (helper answers, links, the state machine, a bound room; seeded, with coverage checks); protocol `fuzz` module | Automated, pass; it found one ordering bug, fixed in `707d030` |
 
 Not run: AUTH-06 apart from stream revocation, LINK-03 to LINK-05, LINK-11, ROOM-03,

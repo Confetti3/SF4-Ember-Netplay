@@ -2932,21 +2932,21 @@ msgid "tournament.paste_link"
 msgstr "경기 링크 붙여넣기"
 
 msgid "tournament.paste_link_detail"
-msgstr "대회 사이트에서 경기 링크나 코드를 복사한 다음 이것을 선택하면 여기서 그 경기를 엽니다."
+msgstr "대회 사이트에서 경기 링크를 복사한 다음 이것을 선택하면 여기서 그 경기를 엽니다."
 
-msgid "tournament.opening_link"
-msgstr "경기 링크 여는 중..."
-
-msgid "tournament.handoff_opened"
+msgid "tournament.link_opened"
 msgstr "대회 사이트가 경기를 열었습니다. 준비되면 플레이를 누르세요."
 
-msgid "tournament.handoff_waiting"
+msgid "tournament.link_waiting"
 msgstr "대회 경기 링크가 도착했습니다. 지금 방에서 나간 다음 대회 경기에서 플레이하세요."
 
-msgid "tournament.failure.handoff"
-msgstr "이 경기 링크는 이미 사용되었거나 만료되었거나 다른 플레이어의 것입니다. 이 목록에서 경기를 플레이하세요."
+msgid "tournament.failure.link"
+msgstr "경기 링크가 아닙니다. 대회 사이트에서 다시 복사하세요."
 
-msgid "tournament.failure.handoff_service"
+msgid "tournament.failure.not_yours"
+msgstr "이 경기는 목록에 없습니다. 다른 플레이어의 경기이거나, 이 서비스에서 계정이 다른 Ember ID와 연동되어 있습니다."
+
+msgid "tournament.failure.link_service"
 msgstr "연동된 계정에서 이 대회 서비스를 신뢰한 다음 경기 링크를 다시 여세요."
 
 msgid "rules.set_length"

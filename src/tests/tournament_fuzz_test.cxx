@@ -149,30 +149,31 @@ static void FuzzAnswers(Random& random) {
 	}
 }
 
-// A browser link parses to a canonical bridge and code, or not at all.
+// A browser or pasted link parses to a canonical bridge and match, or not at all.
 static void FuzzLinks(Random& random) {
-	const std::string bridge = "brg_0dbc0598-2312-4ce3-9df8-e160330565e6", code = "q2Zp0yH4c8Jm1bWk7nVt3xR6sL9dF5gA2eU0iO4uYwA";
-	const std::string good = "ember://tournament/open?bridge=" + bridge + "&handoff=" + code;
-	CHECK(tournament_link::ParseLink(good).Valid());
+	const std::string bridge = "brg_0dbc0598-2312-4ce3-9df8-e160330565e6", match = "emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12";
+	const std::string goods[] = { "ember://tournament/open?bridge=" + bridge + "&match=" + match,
+		std::string(tournament_link::PagePrefix()) + bridge + "/" + match };
+	for (const auto& good : goods) CHECK(tournament_link::ParsePasted(good).Valid());
 	int accepted = 0;
 	for (int round = 0, rounds = Rounds(50000); round < rounds; ++round) {
-		std::string text = good;
+		std::string text = goods[random.Below(2)];
 		for (std::uint64_t i = 1 + random.Below(3); i; --i) {
 			const auto at = random.Below(text.size() + 1);
 			switch (random.Below(4)) {
 			case 0: if (!text.empty() && at < text.size()) text.erase(at, 1 + random.Below(3)); break;
 			case 1: text.insert(at, 1, static_cast<char>(random.Below(256))); break;
 			case 2: if (at < text.size()) text[at] = static_cast<char>(random.Below(256)); break;
-			default: text.insert(at, random.Pick(std::vector<std::string>{"&", "=", "?", "/", "%2F", "#", "bridge=", "handoff=", "&handoff=" + code})); break;
+			default: text.insert(at, random.Pick(std::vector<std::string>{"&", "=", "?", "/", "%2F", "#", " ", "\"", "bridge=", "match=", "&match=" + match})); break;
 			}
 		}
-		const auto parsed = tournament_link::ParseLink(text);
+		const auto parsed = tournament_link::ParsePasted(text);
 		if (!parsed.Valid()) continue;
 		++accepted;
-		CHECK(tournament_link::IsBridgeId(parsed.bridgeId) && tournament_link::IsHandoffCode(parsed.code));
+		CHECK(tournament_link::IsBridgeId(parsed.bridgeId) && tournament_link::IsMatchId(parsed.matchId));
 		// What was accepted is exactly a link the bridge could have written.
-		const auto again = tournament_link::ParseLink("ember://tournament/open?bridge=" + parsed.bridgeId + "&handoff=" + parsed.code);
-		CHECK(again.bridgeId == parsed.bridgeId && again.code == parsed.code);
+		const auto again = tournament_link::ParseLink("ember://tournament/open?bridge=" + parsed.bridgeId + "&match=" + parsed.matchId);
+		CHECK(again.bridgeId == parsed.bridgeId && again.matchId == parsed.matchId);
 		CHECK(text.size() <= tournament_link::MaximumUriLength);
 	}
 	CHECK(accepted > 0);
@@ -399,7 +400,7 @@ static void FuzzBoundRoom(Random& random) {
 int main() {
 	// Every play answer reaches the runtime, a match link's too, and not the
 	// Ember ID screens.
-	for (const char* op : {"match_claim", "room_publish", "game_prepare", "game_report", "match_leave", "assignment_list", "handoff_redeem"})
+	for (const char* op : {"match_claim", "room_publish", "game_prepare", "game_report", "match_leave", "assignment_list"})
 		CHECK(session::ReadTournamentAnswer({{"op", op}, {"request_id", 7u}, {"ok", true}, {"data", {{"match_id", "emt_x"}}}}).has_value());
 	CHECK(!session::ReadTournamentAnswer({{"op", "link_list"}, {"request_id", 7u}, {"ok", true}}).has_value());
 	Random random(Seed());

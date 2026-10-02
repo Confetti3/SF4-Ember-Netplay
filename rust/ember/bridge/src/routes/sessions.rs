@@ -127,7 +127,6 @@ fn route_matches(action: Action, method: Method, path: &str) -> bool {
         (Action::LinkRemove, Method::Delete) => id_between("/v1/links/", "lnk", ""),
         (Action::MatchClaim, Method::Post) => id_between("/v1/matches/", "emt", "/claims"),
         (Action::RoomPublish, Method::Post) => id_between("/v1/matches/", "emt", "/room"),
-        (Action::HandoffRedeem, Method::Post) => path == super::handoffs::REDEEM_PATH,
         (Action::AttemptPrepare, Method::Post) => {
             id_between("/v1/matches/", "emt", "/attempts/prepare")
         }

@@ -461,73 +461,16 @@ impl SignedPermit {
     }
 }
 
-/// How long a browser handoff stays redeemable (spec 12.1, 25.3).
-pub const HANDOFF_SECS: u64 = 60;
-/// A handoff code: 32 random bytes as unpadded base64url.
-pub const HANDOFF_LEN: usize = 43;
+/// The page a tournament site links each match to. It opens the match in
+/// Ember, or offers to install Ember first. The match rides in the fragment,
+/// which browsers never send to the server.
+pub const PLAY_PAGE: &str = "https://embernetplay.link/m#";
 
-/// True for text shaped like a handoff code. Only the bridge can say whether
-/// it names a live handoff.
-pub fn is_handoff(text: &str) -> bool {
-    decode_b64u::<32>(text, "handoff").is_ok()
-}
-
-/// The `ember:` link a browser opens to hand a match to Ember.
-pub fn handoff_uri(bridge_id: &str, handoff: &str) -> String {
-    format!("ember://tournament/open?bridge={bridge_id}&handoff={handoff}")
-}
-
-/// `POST /v1/handoffs`: a provider or organizer asks for a handoff that lets
-/// one assigned player open a match in Ember.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct CreateHandoff {
-    pub match_id: String,
-    pub ember_id: EmberId,
-}
-
-impl CreateHandoff {
-    pub fn check(&self) -> Result<()> {
-        if !is_prefixed_id(&self.match_id, "emt") {
-            return Err(Error::InvalidField("match_id"));
-        }
-        Ok(())
-    }
-}
-
-/// The handoff, shown once. The bridge keeps only a keyed hash of it.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct HandoffCreated {
-    pub handoff: String,
-    pub uri: String,
-    pub bridge_id: String,
-    pub match_id: String,
-    pub expires_at: u64,
-}
-
-/// `POST /v1/handoffs/redeem`, signed by the expected player's identity.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct RedeemHandoff {
-    pub handoff: String,
-}
-
-impl RedeemHandoff {
-    pub fn check(&self) -> Result<()> {
-        if !is_handoff(&self.handoff) {
-            return Err(Error::InvalidField("handoff"));
-        }
-        Ok(())
-    }
-}
-
-/// What a redeemed handoff names: the match to open. Joining it still goes
-/// through the claim and the room's own admission.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct HandoffRedeemed {
-    pub match_id: String,
+/// A match's play link, the same for both players and safe to share: only the
+/// match's assigned Ember IDs can claim it, and anyone else's Ember finds no
+/// such match in their list.
+pub fn play_url(bridge_id: &str, match_id: &str) -> String {
+    format!("{PLAY_PAGE}{bridge_id}/{match_id}")
 }
 
 #[cfg(test)]
@@ -840,13 +783,11 @@ mod tests {
         #[test]
         fn proof_bodies_never_panic() {
             let mut random = Random(0x5EED_0002);
-            let valid = br#"{"command":{"handoff":"q2Zp0yH4c8Jm1bWk7nVt3xR6sL9dF5gA2eU0iO4uYwA"},"proof":{"challenge_id":"chl_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12","signature":"x"}}"#;
+            let valid = br#"{"command":{"match_id":"emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12"},"proof":{"challenge_id":"chl_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12","signature":"x"}}"#;
             for _ in 0..20000 {
                 let mut bytes = valid.to_vec();
                 mutate(&mut random, &mut bytes);
                 let _ = ProvenRequest::parse(&bytes);
-                let _ =
-                    json::parse_as::<RedeemHandoff>(&bytes, 8192).map(|command| command.check());
                 let _ = json::parse_as::<Claim>(&bytes, 8192).map(|claim| claim.check());
                 let _ = json::parse_as::<PublishRoom>(&bytes, 8192).map(|room| room.check());
             }
@@ -865,7 +806,6 @@ mod tests {
                     .collect();
                 if let Ok(bytes) = decode_b64u::<32>(&text, "x") {
                     assert_eq!(b64u(&bytes), text);
-                    assert!(is_handoff(&text));
                 }
                 if let Ok(counter) = Counter::parse(&text) {
                     assert_eq!(counter.0.to_string(), text);

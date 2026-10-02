@@ -34,8 +34,6 @@ pub enum Action {
     LeaseRenew,
     #[serde(rename = "attempt.prepare")]
     AttemptPrepare,
-    #[serde(rename = "handoff.redeem")]
-    HandoffRedeem,
 }
 
 impl Action {
@@ -49,7 +47,6 @@ impl Action {
             Self::RoomPublish => "room.publish",
             Self::LeaseRenew => "lease.renew",
             Self::AttemptPrepare => "attempt.prepare",
-            Self::HandoffRedeem => "handoff.redeem",
         }
     }
 }

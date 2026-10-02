@@ -137,8 +137,7 @@
             "match.claim",
             "room.publish",
             "lease.renew",
-            "attempt.prepare",
-            "handoff.redeem"
+            "attempt.prepare"
           ]
         },
         "method": {

@@ -123,6 +123,7 @@ void Execute(const Output& output, std::uint64_t nowMs) {
 void TakeAssignments(const session::TournamentAnswer& answer) {
 	runtime->assignmentRequest = 0;
 	runtime->assignmentList.loading = false;
+	++runtime->assignmentList.finished;
 	if (!answer.ok) {
 		runtime->assignmentList.error = answer.reason.empty() ? "unavailable" : answer.reason;
 		return;
@@ -136,61 +137,8 @@ void TakeAssignments(const session::TournamentAnswer& answer) {
 	runtime->assignmentList.items = std::move(*list);
 }
 
-// How long a match link waits for the helper and the Ember ID: the bridge
-// keeps it for a minute. And how long a sent redeem waits for its answer.
-constexpr ULONGLONG HandoffWaitMs = 55000;
-constexpr ULONGLONG HandoffAnswerMs = 30000;
-
-void HandoffDone(const std::string& matchId, const std::string& error) {
-	auto& result = runtime->handoffResult;
-	result.pending = false;
-	result.match = matchId;
-	result.error = error;
-	++result.sequence;
-	runtime->handoffRequest = 0;
-	if (error.empty()) spdlog::info("Tournament: a match link named match {}", matchId);
-	else spdlog::info("Tournament: a match link could not be opened: {}", error);
-}
-
-// The answer to a redeem: the match the link names.
-void TakeHandoff(const session::TournamentAnswer& answer) {
-	if (!answer.ok) { HandoffDone({}, answer.reason.empty() ? std::string("unavailable") : answer.reason); return; }
-	const auto found = answer.data.find("match_id");
-	const bool valid = found != answer.data.end() && found->is_string() &&
-		found->get<std::string>().size() == 40 && found->get<std::string>().compare(0, 4, "emt_") == 0;
-	if (!valid) { HandoffDone({}, "bridge_invalid_response"); return; }
-	HandoffDone(found->get<std::string>(), {});
-}
-
-// Sends a waiting match link once the helper and the Ember ID can redeem it.
-void RedeemHandoff(bool helperReady) {
-	auto& pending = runtime->pendingHandoff;
-	const auto now = GetTickCount64();
-	// An answer that never comes ends the wait instead of leaving the link
-	// shown as opening; its late answer, if any, is then ignored.
-	if (runtime->handoffRequest && now - runtime->handoffSentMs > HandoffAnswerMs) HandoffDone({}, "unavailable");
-	if (!pending.Valid() || runtime->handoffRequest) return;
-	if (now - runtime->handoffArrivedMs > HandoffWaitMs) {
-		WipeText(pending.code);
-		pending = {};
-		HandoffDone({}, "handoff_expired");
-		return;
-	}
-	if (!helperReady || runtime->room->Identity().state != "ready") return;
-	auto text = json{{"op", "handoff_redeem"}, {"bridge_id", pending.bridgeId}, {"handoff", pending.code}}.dump();
-	std::uint64_t id = 0;
-	const bool sent = runtime->room->SendTournament(text, &id);
-	WipeText(text);
-	runtime->handoffResult.bridge = pending.bridgeId;
-	WipeText(pending.code);
-	pending = {};
-	if (sent) { runtime->handoffRequest = id; runtime->handoffSentMs = now; }
-	else HandoffDone({}, "helper_unavailable");
-}
-
 void TakeAnswer(const session::TournamentAnswer& answer, std::uint64_t nowMs) {
 	if (answer.requestId && answer.requestId == runtime->assignmentRequest) { TakeAssignments(answer); return; }
-	if (answer.requestId && answer.requestId == runtime->handoffRequest) { TakeHandoff(answer); return; }
 	const auto found = runtime->tournamentRequests.find(answer.requestId);
 	if (found == runtime->tournamentRequests.end()) return;
 	const auto kind = found->second;
@@ -238,14 +186,13 @@ netplay::tournament::RoomView View(bool helperReady) {
 }
 
 namespace internal {
-void QueueTournamentHandoff(tournament_link::Handoff handoff) {
-	if (!handoff.Valid()) return;
-	WipeText(runtime->pendingHandoff.code);
-	runtime->pendingHandoff = std::move(handoff);
-	runtime->handoffArrivedMs = GetTickCount64();
-	runtime->handoffResult.pending = true;
-	runtime->handoffResult.bridge = runtime->pendingHandoff.bridgeId;
-	spdlog::info("Tournament: a match link arrived");
+void OpenMatchLink(const tournament_link::MatchLink& link) {
+	if (!link.Valid()) return;
+	auto& opened = runtime->openedLink;
+	opened.bridge = link.bridgeId;
+	opened.match = link.matchId;
+	++opened.sequence;
+	spdlog::info("Tournament: a link opened match {}", link.matchId);
 }
 
 void DispatchTournament(const netplay::tournament::Command& command, bool helperReady) {
@@ -267,6 +214,7 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 		} else {
 			list.loading = false;
 			list.error = "helper_unavailable";
+			++list.finished;
 		}
 		return;
 	}
@@ -289,12 +237,6 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 		spdlog::info("Tournament: stopped by the player");
 		play.Stop();
 		return;
-	case Op::Redeem: {
-		auto handoff = tournament_link::ParsePasted(command.handoff, command.bridgeId);
-		if (handoff.Valid()) QueueTournamentHandoff(std::move(handoff));
-		else HandoffDone({}, "invalid_link");
-		return;
-	}
 	default:
 		return;
 	}
@@ -302,8 +244,7 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 
 void TickTournament(bool helperReady) {
 	if (!runtime->room) return;
-	QueueTournamentHandoff(runtime->handoffLinks.Take());
-	RedeemHandoff(helperReady);
+	OpenMatchLink(runtime->matchLinks.Take());
 	const auto now = GetTickCount64();
 	// The helper is not restarted while the game runs, and the binding names
 	// its endpoint: without it the match cannot go on from this game.
@@ -338,7 +279,7 @@ void ObserveTournamentTerminal(const room::Event& event, netplay::MatchResultOut
 netplay::tournament::Status TournamentStatus() {
 	netplay::tournament::Status status;
 	status.list = runtime->assignmentList;
-	status.handoff = runtime->handoffResult;
+	status.link = runtime->openedLink;
 	const auto& play = runtime->tournament;
 	status.phase = play.GetPhase();
 	status.bridgeId = play.BridgeId();
