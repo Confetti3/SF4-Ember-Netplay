@@ -80,11 +80,14 @@ private:
         netplay::IdentityRequest request;
         bool lookUp = false;
         std::uint64_t journey = 0;
+        // An inspection only to read this service's Discord account, which
+        // leaves the selected service as it is.
+        std::string account;
     };
     bool Busy(const ShellView& view) const;
     bool Answered(const ShellView& view) const;
     void Finish(const ShellView& view);
-    void Queue(netplay::IdentityRequest request, bool lookUp = false);
+    void Queue(netplay::IdentityRequest request, bool lookUp = false, std::string account = {});
     // The read in flight failed: its service's account is not trusted, and a
     // sign-in waiting on it pauses its polls.
     void ReadFailed();
@@ -131,6 +134,7 @@ private:
     std::uint64_t nextTicket_ = 0, sent_ = 0;
     netplay::IdentityOp sentOp_ = netplay::IdentityOp::None;
     bool sentLookUp_ = false;
+    std::string sentAccount_;
     // The Connect Discord journey, and the one the request in flight was
     // queued in. While its answer is handled, what it queues belongs to that
     // journey too: an earlier journey's follow-up reads are not queued.

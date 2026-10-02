@@ -228,7 +228,7 @@ void IdentityPanel::Say(std::string text, bool error, double seconds) {
     message_ = std::move(text); messageError_ = error; messageUntil_ = now_ + seconds;
 }
 
-void IdentityPanel::Queue(IdentityRequest request, bool lookUp) {
+void IdentityPanel::Queue(IdentityRequest request, bool lookUp, std::string account) {
     const auto owner = finishing_ ? sentJourney_ : journey_;
     // The new journey reads everything again itself.
     if (owner != journey_ && Retirable(request.op)) return;
@@ -238,14 +238,14 @@ void IdentityPanel::Queue(IdentityRequest request, bool lookUp) {
         request.op == IdentityOp::BridgeInspect || request.op == IdentityOp::LinkList || request.op == IdentityOp::DiscordStatus;
     if (read) {
         if (sent_ && sentJourney_ == owner && sentOp_ == request.op && sentBridge_ == request.bridge &&
-            sentOrigin_ == request.origin && sentLookUp_ == lookUp) return;
+            sentOrigin_ == request.origin && sentLookUp_ == lookUp && sentAccount_ == account) return;
         const bool waiting = std::any_of(queue_.begin(), queue_.end(), [&](const Queued& q) {
             return q.journey == owner && q.request.op == request.op && q.request.bridge == request.bridge &&
-                q.request.origin == request.origin && q.lookUp == lookUp;
+                q.request.origin == request.origin && q.lookUp == lookUp && q.account == account;
         });
         if (waiting) return;
     }
-    if (queue_.size() < 8) queue_.push_back(Queued{std::move(request), lookUp, owner});
+    if (queue_.size() < 8) queue_.push_back(Queued{std::move(request), lookUp, owner, std::move(account)});
 }
 
 void IdentityPanel::Wipe() {
@@ -315,7 +315,7 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
     if (sent_ || queue_.empty()) return;
     ShellAction action;
     action.command.generation = v.session.generation;
-    sentLookUp_ = queue_.front().lookUp; sentJourney_ = queue_.front().journey;
+    sentLookUp_ = queue_.front().lookUp; sentJourney_ = queue_.front().journey; sentAccount_ = queue_.front().account;
     action.identity = std::move(queue_.front().request); queue_.pop_front();
     action.identity.ticket = ++nextTicket_;
     const auto ticket = action.identity.ticket;
@@ -560,8 +560,8 @@ void IdentityPanel::Finish(const ShellView& v) {
         // service: its profile, whose answer asks for the account.
         if (lastScreen_ == "identity") {
             if (const auto* ember = EmberBridge(v); ember && id.state == "ready") {
-                bridge_ = ember->id;
-                IdentityRequest inspect; inspect.op = IdentityOp::BridgeInspect; inspect.origin = ember->origin; Queue(std::move(inspect));
+                IdentityRequest inspect; inspect.op = IdentityOp::BridgeInspect; inspect.origin = ember->origin;
+                Queue(std::move(inspect), false, ember->id);
             }
             break;
         }
@@ -578,6 +578,13 @@ void IdentityPanel::Finish(const ShellView& v) {
                 // Not Ember's own, or removed by the player: theirs to trust.
                 attempt_ = Attempt::None;
             }
+        }
+        // Only an account to read: the selection stays.
+        if (!sentAccount_.empty()) {
+            if (id.inspected.id == sentAccount_ && (id.inspectedDiscord || id.inspectedDiscordAccounts)) {
+                IdentityRequest discord; discord.op = IdentityOp::DiscordStatus; discord.bridge = sentAccount_; Queue(std::move(discord));
+            }
+            break;
         }
         // The selected service's profile, or a look-up of it once trusted.
         if (id.inspected.id == bridge_ && FindBridge(v, bridge_)) {
@@ -812,7 +819,10 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
         // Setting up shows while its work is out; a step that needs the
         // player (unlock, recovery, a passphrase) shows its own row instead.
         const bool working = (attempt_ == Attempt::Setup || attempt_ == Attempt::Opening) && busy;
-        if (!id.known || working && !ready) {
+        if (!id.known && !busy) {
+            // The first read of the state failed: nothing is out to wait for.
+            rows.push_back(Row("dc-retry", loc::T("connect.retry"), loc::T("connect.retry_detail")));
+        } else if (!id.known || working && !ready) {
             rows.push_back(Info("dc-progress", loc::T("connect.setting_up"), {}, loc::T("connect.setting_up_detail")));
         } else if (id.state == "disabled") {
             // Connect creates the Ember ID first; only Wine and Proton need a passphrase for it.

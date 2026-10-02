@@ -954,5 +954,60 @@ void OnboardingSteps(){
   SetMenuEntriesProbe({});SetMenuStatusProbe({});
  }
 }
-int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();ConnectReadsRecover();RetainedChangesStayTheirs();EmberIdFromHome();HomeGuides();OnboardingGuards();OnboardingSteps();DiscordConnectPastedLink();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
+// A link whose first read of the state fails offers Try again, which goes on
+// by itself. Visiting the Ember ID screen reads Ember's Discord account
+// without changing the tournament service the player selected.
+void OnboardingRecovers(){
+ using namespace sf4e;using netplay::IdentityOp;using netplay::tournament::Command;
+ const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
+ std::vector<MenuEntry> rows;std::string status;
+ const auto row=[&](const char* name)->const MenuEntry*{const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;});return it==rows.end()?nullptr:&*it;};
+ for(int part=0;part<2;++part){
+  Harness h;auto& id=h.view.identity;
+  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
+  const auto sent=[&]{std::vector<const netplay::IdentityRequest*> out;for(const auto& a:h.actions)if(a.identity.op!=IdentityOp::None)out.push_back(&a.identity);return out;};
+  const auto played=[&]{std::vector<const Command*> out;for(const auto& a:h.actions)if(a.tournament.op!=Command::Op::None)out.push_back(&a.tournament);return out;};
+  const auto answer=[&]{
+   h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=true;id.failure.clear();h.Frame(0,2);
+  };
+  const auto until=[&](IdentityOp op){for(int i=0;i<12&&sent().back()->op!=op;++i)answer();return sent().back()->op==op;};
+  if(part==0){
+   // The state is not known yet when the link arrives, and its read is refused.
+   id.known=false;h.Frame();
+   h.view.tournament.connect.bridge="brg_1";h.view.tournament.connect.sequence=1;h.Frame(0,2);
+   // Home's own read was still out when the link arrived; the link's follows.
+   for(int i=0;i<2;++i){
+    Check(sent().back()->op==IdentityOp::Status,"The link did not read the state");
+    h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=0;h.view.identityRefusal="identity.refused.helper";h.Frame(0,2);
+   }
+   h.view.identityRefusal.clear();h.Frame(0,400);
+   Check(row("dc-retry")&&!row("dc-progress"),"A failed first read left Setting up with nothing to wait for");
+   h.Choose("dc-retry");
+   Check(sent().back()->op==IdentityOp::Status,"Try again did not read the state");
+   id.known=true;id.state="disabled";
+   Check(until(IdentityOp::Enable),"Try again did not go on by itself");
+  }else{
+   id.known=true;id.state="ready";id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
+   id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};h.Frame();
+   // The player selects the other service for its matches.
+   h.Screen("tournament-matches");for(int i=0;i<6;++i)answer();
+   h.FocusOn("id-bridge");h.Press(MenuInput::Select);h.Press(MenuInput::Down);h.Press(MenuInput::Select);
+   for(int i=0;i<6;++i)answer();
+   Check(row("id-bridge")&&row("id-bridge")->value=="Other","The other service was not selected");
+   // The Ember ID screen reads Ember's own Discord account.
+   h.Screen("identity");
+   Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==ember,"The Ember ID screen did not read Ember's service");
+   id.inspected=id.bridges[0];id.inspectedDiscord=true;answer();
+   Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge=="brg_1","The Ember ID screen did not read the account");
+   id.discordUser="111";id.discordName="kate";answer();
+   Check(row("discord-connect")&&row("discord-connect")->value=="kate","The Ember ID screen does not show the account");
+   // Back on the matches, the selection is the player's.
+   h.Screen("tournament-matches");for(int i=0;i<6;++i)answer();
+   Check(row("id-bridge")&&row("id-bridge")->value=="Other","Visiting Ember ID changed the selected service");
+   Check(!played().empty()&&played().back()->bridgeId=="brg_2","The matches are no longer read from the selected service");
+  }
+  SetMenuEntriesProbe({});SetMenuStatusProbe({});
+ }
+}
+int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();ConnectReadsRecover();RetainedChangesStayTheirs();EmberIdFromHome();HomeGuides();OnboardingGuards();OnboardingSteps();OnboardingRecovers();DiscordConnectPastedLink();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
