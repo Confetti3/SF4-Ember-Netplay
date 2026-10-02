@@ -1044,6 +1044,8 @@ void RoomLinks(){
  h.Screen("identity");before=h.actions.size();
  h.view.pendingJoinLink=third;h.view.pendingJoinSequence=3;h.Frame(0,3);
  Check(h.actions.size()==before&&h.shell.Navigation().Screen()=="identity","A room link interrupted the Ember ID screen");
+ h.Screen("linked-accounts");h.Frame(0,3);
+ Check(h.actions.size()==before&&h.shell.Navigation().Screen()=="linked-accounts","A room link interrupted the linked accounts");
  h.view.pendingJoinDirect=false;h.shell.Navigation().Home();h.Frame(0,3);
  Check(h.shell.Navigation().Screen()=="join"&&h.actions.size()==before,"A stale room link did not just fill the Join screen");
 }

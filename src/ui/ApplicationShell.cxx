@@ -156,7 +156,7 @@ void ApplicationShell::UpdateShortCopy(const ShellView& v,double now) {
 // waits, so a link never moves the player out of a room or a match; that
 // link, or one the runtime no longer offers for a direct join, fills the
 // Join screen and joining is the player's own press. Neither happens over
-// a dialog or an Ember ID screen, whose drafts the move would discard.
+// a dialog, a notice or an Ember ID screen, whose drafts the move would discard.
 void ApplicationShell::UpdateJoinLink(const ShellView& v,double now,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
  const bool free=v.session.room==RoomState::Idle&&v.session.match==MatchState::None;
@@ -169,7 +169,7 @@ void ApplicationShell::UpdateJoinLink(const ShellView& v,double now,const Submit
  if(!free){joinLinkDirect_=false;return;}
  const bool direct=joinLinkDirect_&&v.pendingJoinDirect;
  if(direct&&!v.canOpenRoom)return;
- if(nav.Editing()||nav.Reading()||nav.Confirming()||nav.Choosing()||nav.Screen().rfind("identity",0)==0)return;
+ if(nav.Editing()||nav.Reading()||nav.Confirming()||nav.Choosing()||menu_.NoticeOpen()||IdentityPanel::Owns(nav.Screen()))return;
  std::snprintf(invitation_,sizeof(invitation_),"%s",joinLink_.c_str());joinLink_.clear();joinLinkDirect_=false;
  nav.Cancel();nav.Home();nav.Push("online");nav.Push("join");
  error_.clear();noticeTone_=Tone::Neutral;noticeUntil_=now+8;
