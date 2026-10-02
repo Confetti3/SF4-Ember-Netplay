@@ -3,9 +3,8 @@
 # included) with its secrets file and bridge.json, kept for 14 days. All three
 # are needed to restore: the secrets unlock the database's credential hashes
 # and sealed webhook secrets, and bridge.json holds the bridge ID players
-# trusted. To restore, stop ember-bridge, copy the three files of one stamp
-# back into /var/lib/ember-bridge under their usual names (owned by
-# ember-bridge, mode 0600), then start it.
+# trusted. Restore one stamp with restore.sh, which also moves the old
+# database's WAL and shared-memory files out of the way.
 set -euo pipefail
 
 STATE=/var/lib/ember-bridge

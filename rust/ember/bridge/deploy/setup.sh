@@ -9,7 +9,7 @@
 #
 # What it changes:
 #   user ember-bridge                                  system account the bridge runs as
-#   /usr/local/lib/ember-bridge/                       binary and backup script (root-owned)
+#   /usr/local/lib/ember-bridge/                       binary, backup and restore scripts (root-owned)
 #   /var/lib/ember-bridge/                             bridge.json, bridge-secrets.json, database (0700)
 #   /var/backups/ember-bridge/                         daily backups, kept 14 days (0700)
 #   /etc/systemd/system/ember-bridge*.{service,timer}  the service and the backup timer
@@ -32,7 +32,7 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 for file in bin/ember-bridge ember-bridge.service ember-bridge-backup.service \
-    ember-bridge-backup.timer backup.sh tenants.json \
+    ember-bridge-backup.timer backup.sh restore.sh tenants.json \
     nginx/ember-bridge-zone.conf nginx/$HOST.conf; do
     if [ ! -f "$SRC/$file" ]; then
         echo "Missing $SRC/$file" >&2
@@ -54,6 +54,7 @@ install -d -o root -g root -m 0755 "$LIB"
 install -o root -g root -m 0755 "$SRC/bin/ember-bridge" "$LIB/ember-bridge.new"
 mv -f "$LIB/ember-bridge.new" "$LIB/ember-bridge"
 install -o root -g root -m 0755 "$SRC/backup.sh" "$LIB/backup.sh"
+install -o root -g root -m 0755 "$SRC/restore.sh" "$LIB/restore.sh"
 install -d -o ember-bridge -g ember-bridge -m 0700 "$STATE" "$BACKUPS"
 
 # First install: a fresh bridge ID and secrets, then the deployed settings.
