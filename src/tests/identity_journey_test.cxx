@@ -593,5 +593,59 @@ void FirstSignInRetires(){
   SetMenuEntriesProbe({});SetMenuStatusProbe({});
  }
 }
-int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();DiscordConnectPastedLink();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
+// Reads Linked accounts still had out when a connect link arrived are
+// retired: their failure neither says so nor holds the new journey back.
+// A read of the journey's own service that fails offers Try again, which
+// reads it again.
+void ConnectReadsRecover(){
+ using namespace sf4e;using netplay::IdentityOp;
+ const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
+ std::vector<MenuEntry> rows;std::string status;
+ const auto row=[&](const char* name)->const MenuEntry*{const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;});return it==rows.end()?nullptr:&*it;};
+ for(int ending=0;ending<3;++ending){
+  Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";
+  id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
+  id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};h.Frame();
+  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
+  const auto sent=[&]{std::vector<const netplay::IdentityRequest*> out;for(const auto& a:h.actions)if(a.identity.op!=IdentityOp::None)out.push_back(&a.identity);return out;};
+  const auto reply=[&](bool ok){
+   h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=ok;id.failure=ok?"":"service_unavailable";h.Frame(0,2);
+  };
+  const auto answer=[&]{reply(true);};
+  const auto until=[&](IdentityOp op){for(int i=0;i<10&&sent().back()->op!=op;++i)answer();return sent().back()->op==op;};
+  if(ending<2){
+   // Linked accounts is reading Ember's service when the link for the other arrives.
+   h.Screen("linked-accounts");
+   Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==ember,"Linked accounts did not inspect its service");
+   if(ending==1){id.inspected=id.bridges[0];answer();Check(sent().back()->op==IdentityOp::LinkList,"Linked accounts did not list its links");}
+   h.view.tournament.connect.bridge="brg_2";h.view.tournament.connect.sequence=1;h.Frame(0,2);
+   reply(false);
+   Check(status!=loc::T("identity.failure.unreachable"),"A replaced Linked accounts read said it failed");
+   Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==other,"A replaced Linked accounts read held the journey back");
+   id.inspected=id.bridges[1];id.inspectedDiscord=true;answer();
+   Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge=="brg_2","The journey did not read its service's account");
+   id.discordUser.clear();id.discordName.clear();answer();
+   Check(row("id-discord-connect")&&row("id-discord-connect")->enabled&&!row("dc-retry"),"The journey did not offer Connect");
+  }else{
+   // The journey's own reads fail: Try again reads them again.
+   h.view.tournament.connect.bridge="brg_2";h.view.tournament.connect.sequence=1;h.Frame(0,2);
+   Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==other,"The journey did not inspect its service");
+   reply(false);
+   Check(status==loc::T("identity.failure.unreachable")&&row("dc-retry")&&!row("id-discord-connect")->enabled,
+    "A failed inspection did not offer Try again");
+   h.Choose("dc-retry");
+   Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==other,"Try again did not inspect the service again");
+   id.inspected=id.bridges[1];id.inspectedDiscord=true;answer();
+   Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge=="brg_2","The service's account was not read");
+   reply(false);
+   Check(row("dc-retry")&&!row("id-discord-connect")->enabled,"A failed account read did not offer Try again");
+   h.Choose("dc-retry");
+   Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge=="brg_2","Try again did not read the account again");
+   id.discordUser.clear();id.discordName.clear();answer();
+   Check(row("id-discord-connect")&&row("id-discord-connect")->enabled&&!row("dc-retry"),"A read account did not offer Connect");
+  }
+  SetMenuEntriesProbe({});SetMenuStatusProbe({});
+ }
+}
+int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();ConnectReadsRecover();DiscordConnectPastedLink();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

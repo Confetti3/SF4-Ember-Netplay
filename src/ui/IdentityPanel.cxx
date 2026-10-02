@@ -98,15 +98,26 @@ bool IdentityPanel::Owns(const std::string& screen) {
         screen == "discord-connect";
 }
 
+// Requests whose answers only show something or start a wait for Discord:
+// a replaced journey's are retired. Changes the player asked for are not.
+static bool Retirable(IdentityOp op) {
+    return op == IdentityOp::Status || op == IdentityOp::BridgeList || op == IdentityOp::BridgeInspect || op == IdentityOp::LinkList ||
+        op == IdentityOp::PreviewImport || op == IdentityOp::DiscordStatus || op == IdentityOp::DiscordConnect;
+}
+
 bool IdentityPanel::Superseded() const {
-    return sentJourney_ != 0 && sentJourney_ != journey_;
+    return sentJourney_ != journey_ && Retirable(sentOp_);
+}
+
+void IdentityPanel::DropQueue() {
+    if (sentJourney_ == journey_) queue_.clear();
 }
 
 void IdentityPanel::NewJourney() {
     ++journey_;
     discordWaitUntil_ = 0;
     discordWaitBridge_.clear();
-    queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [](const Queued& q) { return q.journey != 0; }), queue_.end());
+    queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [](const Queued& q) { return Retirable(q.request.op); }), queue_.end());
 }
 
 void IdentityPanel::OpenDiscord(const std::string& bridge) {
@@ -166,9 +177,8 @@ void IdentityPanel::Say(std::string text, bool error, double seconds) {
     message_ = std::move(text); messageError_ = error; messageUntil_ = now_ + seconds;
 }
 
-void IdentityPanel::Queue(IdentityRequest request, bool lookUp, bool journey) {
-    const bool owned = journey || lastScreen_ == "discord-connect" || request.op == IdentityOp::DiscordConnect;
-    if (queue_.size() < 8) queue_.push_back(Queued{std::move(request), lookUp, owned ? journey_ : 0});
+void IdentityPanel::Queue(IdentityRequest request, bool lookUp) {
+    if (queue_.size() < 8) queue_.push_back(Queued{std::move(request), lookUp, journey_});
 }
 
 void IdentityPanel::Wipe() {
@@ -204,7 +214,7 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
     // new one's status or requests.
     if (sent_ && Answered(v)) { if (!Superseded()) Finish(v); sent_ = 0; }
     else if (sent_ && now - sentAt_ > AnswerSeconds) {
-        if (!Superseded()) { Say(loc::T("identity.failure.timeout"), true); queue_.clear(); }
+        if (!Superseded()) { Say(loc::T("identity.failure.timeout"), true); DropQueue(); }
         sent_ = 0;
     }
     SendTournament(v, screen, submit);
@@ -215,7 +225,7 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
         if (now > discordWaitUntil_) discordWaitUntil_ = 0;
         else {
             discordPollAt_ = now + DiscordPollSeconds;
-            IdentityRequest poll; poll.op = IdentityOp::DiscordStatus; poll.bridge = discordWaitBridge_; Queue(std::move(poll), false, true);
+            IdentityRequest poll; poll.op = IdentityOp::DiscordStatus; poll.bridge = discordWaitBridge_; Queue(std::move(poll));
         }
     }
     if (sent_ || queue_.empty()) return;
@@ -336,6 +346,8 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
     } else {
         rows.push_back(Row("id-discord-connect", loc::T("screen.connect_discord"), loc::T("connect.connect_detail"),
             !busy && read));
+        // Nothing in flight and the account still unread: reading it failed.
+        if (!busy && !read) rows.push_back(Row("dc-retry", loc::T("connect.retry"), loc::T("connect.retry_detail")));
     }
 }
 
@@ -343,7 +355,7 @@ void IdentityPanel::Finish(const ShellView& v) {
     const auto& id = v.identity;
     if (!v.identityRequest) {
         Say(v.identityRefusal.empty() ? std::string(loc::T("identity.refused.helper")) : std::string(loc::T(v.identityRefusal.c_str())), true);
-        queue_.clear(); return;
+        DropQueue(); return;
     }
     if (!id.ok) {
         // A link list on a service the helper no longer trusts just ends the selection.
@@ -352,12 +364,12 @@ void IdentityPanel::Finish(const ShellView& v) {
         // arrived: say so and show what it decided.
         if (sentOp_ == IdentityOp::LinkCancel && id.failure == "link_conflict") {
             Say(loc::T("identity.failure.already_answered"), true);
-            queue_.clear();
+            DropQueue();
             IdentityRequest list; list.op = IdentityOp::LinkList; list.bridge = bridge_; Queue(std::move(list));
             return;
         }
         if (sentOp_ == IdentityOp::DiscordStatus && sentBridge_ == discordWaitBridge_) discordWaitUntil_ = 0;
-        Say(FailureText(id.failure), true); queue_.clear(); return;
+        Say(FailureText(id.failure), true); DropQueue(); return;
     }
     switch (sentOp_) {
     case IdentityOp::Enable: case IdentityOp::Unlock:
