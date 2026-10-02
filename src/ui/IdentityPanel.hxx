@@ -64,7 +64,12 @@ public:
     // The shell is hidden: wipes what was typed, as leaving the screens does,
     // drops requests not yet sent, and asks for a fresh status when the
     // screens show again.
-    void Conceal() { Wipe(); queue_.clear(); play_.reset(); onScreens_ = false; lastScreen_.clear(); }
+    // Hiding Ember stops a Connect Discord setup, as leaving its screen does;
+    // a wait for the browser goes on.
+    void Conceal() {
+        if (attempt_ == Attempt::Setup || attempt_ == Attempt::Opening) CancelAttempt();
+        Wipe(); queue_.clear(); play_.reset(); onScreens_ = false; lastScreen_.clear();
+    }
 private:
     // A request waiting to be sent. A look-up's answer is a service the
     // player may trust, not the selected one's profile. Every request names

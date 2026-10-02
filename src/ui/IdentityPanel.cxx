@@ -453,6 +453,8 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
             trust.userText = true; rows.push_back(std::move(trust));
         } else if (offered && !busy) {
             rows.push_back(Row("dc-go", loc::T("screen.connect_discord"), loc::T("connect.go_detail")));
+        } else if (busy && (attempt_ == Attempt::Setup || attempt_ == Attempt::Opening)) {
+            rows.push_back(Info("dc-progress", loc::T("connect.setting_up"), {}, loc::T("connect.setting_up_detail")));
         } else if (busy) {
             rows.push_back(Info("dc-looking", loc::T("connect.looking_up"), {}, loc::T("connect.looking_up_detail")));
         } else {
@@ -470,10 +472,8 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
     const bool waiting = discordWaitUntil_ > 0 && !discordPaused_ && discordWaitBridge_ == target->id;
     if (waiting) {
         rows.push_back(Info("dc-waiting", loc::T("connect.waiting_label"), {}, loc::T("connect.waiting_detail")));
-        rows.push_back(Row("dc-cancel", loc::T("common.cancel"), loc::T("connect.cancel_detail")));
-    } else if (attempt_ == Attempt::Setup || attempt_ == Attempt::Opening) {
+    } else if ((attempt_ == Attempt::Setup || attempt_ == Attempt::Opening) && busy) {
         rows.push_back(Info("dc-progress", loc::T("connect.setting_up"), {}, loc::T("connect.setting_up_detail")));
-        rows.push_back(Row("dc-cancel", loc::T("common.cancel"), loc::T("connect.cancel_detail")));
     } else if (read && !account->second.user.empty()) {
         auto connected = Info("dc-connected", loc::T("connect.connected"), account->second.name, loc::T("connect.connected_detail"));
         connected.userText = true; rows.push_back(std::move(connected));
@@ -809,9 +809,11 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
         }
     } else if (screen == "discord-connect") {
         title = loc::T("screen.connect_discord");
-        if (!id.known || (attempt_ == Attempt::Setup || attempt_ == Attempt::Opening) && !ready) {
+        // Setting up shows while its work is out; a step that needs the
+        // player (unlock, recovery, a passphrase) shows its own row instead.
+        const bool working = (attempt_ == Attempt::Setup || attempt_ == Attempt::Opening) && busy;
+        if (!id.known || working && !ready) {
             rows.push_back(Info("dc-progress", loc::T("connect.setting_up"), {}, loc::T("connect.setting_up_detail")));
-            if (id.known) rows.push_back(Row("dc-cancel", loc::T("common.cancel"), loc::T("connect.cancel_detail")));
         } else if (id.state == "disabled") {
             // Connect creates the Ember ID first; only Wine and Proton need a passphrase for it.
             if (id.passphraseRequired) local(rows);
@@ -828,6 +830,8 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
         } else {
             ConnectRows(v, rows, busy);
         }
+        // Every running attempt can be stopped, whatever its step.
+        if (Active()) rows.push_back(Row("dc-cancel", loc::T("common.cancel"), loc::T("connect.cancel_detail")));
         // Where Open in Ember cannot open the game, the page's link is pasted.
         rows.push_back(Row("dc-paste", loc::T("connect.paste"), loc::T("connect.paste_detail")));
         rows.back().hint = loc::T("menu.hint.paste");

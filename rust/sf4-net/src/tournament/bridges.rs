@@ -173,9 +173,11 @@ impl Store {
         kept.push(entry);
         self.replace(kept)?;
         // An explicit approval is the only way back after a removal.
+        // A record that cannot be cleared on disk only makes onboarding ask
+        // again after a restart.
         if self.removed.contains(&approved_id) {
             self.removed.retain(|id| *id != approved_id);
-            self.save_removed();
+            let _ = self.save_removed(&self.removed);
         }
         Ok(displaced
             .into_iter()
@@ -195,25 +197,25 @@ impl Store {
     }
 
     pub fn forget(&mut self, bridge_id: &str) -> Result<(), Failure> {
+        // The removal is recorded first: should the trust then fail to go,
+        // the record only keeps onboarding from trusting it by itself.
+        let mut removed = self.removed.clone();
+        remember(&mut removed, bridge_id.to_owned());
+        self.save_removed(&removed)?;
+        self.removed = removed;
         let mut kept = self.bridges.clone();
         kept.retain(|bridge| bridge.bridge_id != bridge_id);
-        self.replace(kept)?;
-        // The trust is already gone. If the record cannot be saved, memory
-        // still holds it for this run and the forget still succeeds.
-        remember(&mut self.removed, bridge_id.to_owned());
-        self.save_removed();
-        Ok(())
+        self.replace(kept)
     }
 
-    fn save_removed(&self) {
-        let Ok(bytes) = serde_json::to_vec_pretty(&RemovedFile {
+    fn save_removed(&self, removed: &[String]) -> Result<(), Failure> {
+        let bytes = serde_json::to_vec_pretty(&RemovedFile {
             format: REMOVED_FORMAT.into(),
             version: 1,
-            removed: self.removed.clone(),
-        }) else {
-            return;
-        };
-        let _ = write_atomic(&self.dir, REMOVED_FILE, &bytes);
+            removed: removed.to_vec(),
+        })
+        .map_err(|_| Failure::new("io"))?;
+        write_atomic(&self.dir, REMOVED_FILE, &bytes)
     }
 
     /// Saves `bridges` and only then makes it the live list, so memory never

@@ -893,5 +893,66 @@ void OnboardingGuards(){
   SetMenuEntriesProbe({});SetMenuStatusProbe({});
  }
 }
-int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();ConnectReadsRecover();RetainedChangesStayTheirs();EmberIdFromHome();HomeGuides();OnboardingGuards();DiscordConnectPastedLink();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
+// A link meets a locked Ember ID: Unlock shows, not an endless Setting up,
+// and unlocking goes on to Discord by itself. Cancel is there at every step
+// of setup. Hiding Ember during setup stops it: reopening sends nothing more.
+void OnboardingSteps(){
+ using namespace sf4e;using netplay::IdentityOp;
+ const std::string ember="https://bridge.embernetplay.link";
+ std::vector<MenuEntry> rows;std::string status;
+ const auto row=[&](const char* name)->const MenuEntry*{const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;});return it==rows.end()?nullptr:&*it;};
+ for(int part=0;part<3;++part){
+  Harness h;auto& id=h.view.identity;id.known=true;id.state=part==0?"locked":"disabled";h.Frame();
+  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
+  const auto sent=[&]{std::vector<const netplay::IdentityRequest*> out;for(const auto& a:h.actions)if(a.identity.op!=IdentityOp::None)out.push_back(&a.identity);return out;};
+  const auto answer=[&]{
+   h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=true;id.failure.clear();h.Frame(0,2);
+  };
+  const auto until=[&](IdentityOp op){for(int i=0;i<12&&sent().back()->op!=op;++i)answer();return sent().back()->op==op;};
+  const auto count=[&](IdentityOp op){std::size_t n=0;for(const auto* r:sent())n+=r->op==op;return n;};
+  const auto type=[&](const char* text){
+   ImGui::GetIO().AddInputCharactersUTF8(text);h.Frame();
+   ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,true);h.Frame();ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,false);h.Frame();
+  };
+  const auto ready=[&]{id.state="ready";id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";};
+  h.view.tournament.connect.bridge="brg_1";h.view.tournament.connect.sequence=1;h.Frame(0,2);
+  if(part==0){
+   for(int i=0;i<6;++i)answer();
+   Check(row("id-unlock")&&!row("dc-progress"),"A locked ID hid Unlock behind Setting up");
+   h.Choose("id-unlock");type("correct horse");
+   Check(sent().back()->op==IdentityOp::Unlock,"Unlock did not send");
+   ready();answer();
+   Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==ember,"Unlocking did not go on");
+   id.inspected={"brg_1",ember,"Ember"};id.inspectedDiscord=true;answer();
+   Check(sent().back()->op==IdentityOp::BridgeApprove,"Unlocking did not go on to trust Ember's service");
+   id.bridges={{"brg_1",ember,"Ember"}};
+   Check(until(IdentityOp::DiscordStatus),"Unlocking did not go on to read the account");
+   id.discordUser.clear();id.discordName.clear();answer();
+   Check(sent().back()->op==IdentityOp::DiscordConnect,"Unlocking did not go on to open Discord");
+  }else if(part==1){
+   // Cancel at each step: creating the ID, looking up and trusting the service.
+   Check(row("dc-cancel")!=nullptr,"No Cancel while the state is read");
+   Check(until(IdentityOp::Enable)&&row("dc-cancel"),"No Cancel while the ID is created");
+   ready();answer();
+   Check(until(IdentityOp::BridgeInspect)&&row("dc-cancel"),"No Cancel while the service is looked up");
+   id.inspected={"brg_1",ember,"Ember"};id.inspectedDiscord=true;answer();
+   Check(sent().back()->op==IdentityOp::BridgeApprove&&row("dc-cancel"),"No Cancel while the service is trusted");
+   h.Choose("dc-cancel");id.bridges={{"brg_1",ember,"Ember"}};for(int i=0;i<8;++i)answer();
+   // The trust already sent finishes; nothing goes on to open Discord.
+   Check(count(IdentityOp::DiscordConnect)==0&&row("id-discord-connect")&&!row("dc-cancel"),"Cancel did not stop the setup");
+  }else{
+   // Hiding Ember while the state is read stops the setup.
+   Check(sent().back()->op==IdentityOp::Status,"The link did not read the state");
+   const auto before=sent().size();
+   h.shell.Conceal();h.Frame();
+   h.shell.Navigation().Home();h.shell.Navigation().Push("discord-connect");h.Frame(0,2);
+   for(int i=0;i<8;++i)answer();
+   for(std::size_t i=before;i<sent().size();++i)
+    Check(sent()[i]->op!=IdentityOp::Enable&&sent()[i]->op!=IdentityOp::DiscordConnect,"Reopening Ember resumed a hidden setup");
+   Check(row("dc-go")!=nullptr,"A stopped setup does not offer Connect");
+  }
+  SetMenuEntriesProbe({});SetMenuStatusProbe({});
+ }
+}
+int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();ConnectReadsRecover();RetainedChangesStayTheirs();EmberIdFromHome();HomeGuides();OnboardingGuards();OnboardingSteps();DiscordConnectPastedLink();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
