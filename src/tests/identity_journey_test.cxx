@@ -445,6 +445,23 @@ void DiscordWaitsForItsService(){
  Check(sent().back()->op==IdentityOp::DiscordStatus&&sent().back()->bridge=="brg_1","The sign-in's service was not polled");
  answer();
  Check(row("id-discord-remove")&&row("id-discord-remove")->value=="sam","A poll of another service replaced the shown account");
+ // A poll from a replaced journey that fails, or never answers, does not
+ // reach the new journey either.
+ h.Frame(0,300);
+ Check(sent().back()->op==IdentityOp::DiscordStatus&&sent().back()->bridge=="brg_1","No poll was in flight");
+ const auto poll=sent().back()->ticket;
+ h.view.tournament.connect.bridge="brg_2";h.view.tournament.connect.sequence=7;h.Frame(0,2);
+ h.view.identityTicket=poll;h.view.identityRequest=id.requestId=poll+100;id.ok=false;id.failure="rate_limited";h.Frame(0,2);
+ Check(status!=loc::T("identity.failure.rate_limited"),"A replaced journey's failed poll changed the status");
+ Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==other,"A replaced journey's failed poll dropped the new journey's requests");
+ id.inspected=id.bridges[1];id.inspectedDiscord=true;answer();
+ Check(until(IdentityOp::DiscordStatus),"The new journey did not read its account");
+ id.discordUser.clear();id.discordName.clear();answer();
+ h.Choose("id-discord-connect");answer();h.Frame(0,300);
+ Check(sent().back()->op==IdentityOp::DiscordStatus&&sent().back()->bridge=="brg_2","No poll was in flight on the new journey");
+ h.view.tournament.connect.bridge="brg_1";h.view.tournament.connect.sequence=8;h.Frame(0,7300);
+ Check(status!=loc::T("identity.failure.timeout"),"A replaced journey's unanswered poll timed out on the new journey");
+ Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==ember,"A replaced journey's unanswered poll dropped the new journey's requests");
  SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
 // A link's journey keeps its service through a locked Ember ID, unlocked on

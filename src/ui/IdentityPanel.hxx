@@ -57,15 +57,20 @@ public:
     void Conceal() { Wipe(); queue_.clear(); play_.reset(); onScreens_ = false; lastScreen_.clear(); }
 private:
     // A request waiting to be sent. A look-up's answer is a service the
-    // player may trust, not the selected one's profile.
+    // player may trust, not the selected one's profile. A request of a
+    // Connect Discord journey names it; an answer to one since replaced is
+    // retired without effect.
     struct Queued {
         netplay::IdentityRequest request;
         bool lookUp = false;
+        std::uint64_t journey = 0;
     };
     bool Busy(const ShellView& view) const;
     bool Answered(const ShellView& view) const;
     void Finish(const ShellView& view);
-    void Queue(netplay::IdentityRequest request, bool lookUp = false);
+    // Queues a request; one queued on Connect Discord, a Connect, or a poll
+    // (`journey`) belongs to the current journey.
+    void Queue(netplay::IdentityRequest request, bool lookUp = false, bool journey = false);
     void Say(std::string text, bool error, double seconds = 6);
     void Wipe();
     void Refresh(const ShellView& view, const std::string& screen);
@@ -85,14 +90,14 @@ private:
     // Connect Discord starts over: a sign-in an earlier visit opened is no
     // longer waited for, and its late answers start no wait.
     void NewJourney();
-    // The answer in flight is a Connect from a journey since replaced.
+    // The answer in flight belongs to a journey since replaced.
     bool Superseded() const;
 
     std::deque<Queued> queue_;
     std::uint64_t nextTicket_ = 0, sent_ = 0;
     netplay::IdentityOp sentOp_ = netplay::IdentityOp::None;
     bool sentLookUp_ = false;
-    // The Connect Discord journey, and the one the request in flight was sent in.
+    // The Connect Discord journey, and the one the request in flight belongs to (0: none).
     std::uint64_t journey_ = 0, sentJourney_ = 0;
     double sentAt_ = 0, now_ = 0;
     bool onScreens_ = false;

@@ -99,13 +99,14 @@ bool IdentityPanel::Owns(const std::string& screen) {
 }
 
 bool IdentityPanel::Superseded() const {
-    return sentOp_ == IdentityOp::DiscordConnect && sentJourney_ != journey_;
+    return sentJourney_ != 0 && sentJourney_ != journey_;
 }
 
 void IdentityPanel::NewJourney() {
     ++journey_;
     discordWaitUntil_ = 0;
     discordWaitBridge_.clear();
+    queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [](const Queued& q) { return q.journey != 0; }), queue_.end());
 }
 
 void IdentityPanel::OpenDiscord(const std::string& bridge) {
@@ -165,8 +166,9 @@ void IdentityPanel::Say(std::string text, bool error, double seconds) {
     message_ = std::move(text); messageError_ = error; messageUntil_ = now_ + seconds;
 }
 
-void IdentityPanel::Queue(IdentityRequest request, bool lookUp) {
-    if (queue_.size() < 8) queue_.push_back(Queued{std::move(request), lookUp});
+void IdentityPanel::Queue(IdentityRequest request, bool lookUp, bool journey) {
+    const bool owned = journey || lastScreen_ == "discord-connect" || request.op == IdentityOp::DiscordConnect;
+    if (queue_.size() < 8) queue_.push_back(Queued{std::move(request), lookUp, owned ? journey_ : 0});
 }
 
 void IdentityPanel::Wipe() {
@@ -195,9 +197,10 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
     now_ = now;
     const bool owned = Owns(screen);
     if (!owned && onScreens_) Wipe();
-    if (owned && screen != lastScreen_) Refresh(v, screen);
+    const bool entered = owned && screen != lastScreen_;
     onScreens_ = owned; lastScreen_ = screen;
-    // A Connect from a replaced journey is retired without touching the
+    if (entered) Refresh(v, screen);
+    // An answer from a replaced journey is retired without touching the
     // new one's status or requests.
     if (sent_ && Answered(v)) { if (!Superseded()) Finish(v); sent_ = 0; }
     else if (sent_ && now - sentAt_ > AnswerSeconds) {
@@ -212,17 +215,17 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
         if (now > discordWaitUntil_) discordWaitUntil_ = 0;
         else {
             discordPollAt_ = now + DiscordPollSeconds;
-            IdentityRequest poll; poll.op = IdentityOp::DiscordStatus; poll.bridge = discordWaitBridge_; Queue(std::move(poll));
+            IdentityRequest poll; poll.op = IdentityOp::DiscordStatus; poll.bridge = discordWaitBridge_; Queue(std::move(poll), false, true);
         }
     }
     if (sent_ || queue_.empty()) return;
     ShellAction action;
     action.command.generation = v.session.generation;
-    sentLookUp_ = queue_.front().lookUp;
+    sentLookUp_ = queue_.front().lookUp; sentJourney_ = queue_.front().journey;
     action.identity = std::move(queue_.front().request); queue_.pop_front();
     action.identity.ticket = ++nextTicket_;
     const auto ticket = action.identity.ticket;
-    sentOp_ = action.identity.op; sentBridge_ = action.identity.bridge; sentJourney_ = journey_;
+    sentOp_ = action.identity.op; sentBridge_ = action.identity.bridge;
     if (submit(std::move(action))) { sent_ = ticket; sentAt_ = now; }
     else { Say(loc::T("error.queue_failed"), true); queue_.clear(); }
 }
@@ -401,10 +404,8 @@ void IdentityPanel::Finish(const ShellView& v) {
         break;
     case IdentityOp::DiscordConnect:
         Say(loc::T("identity.done.discord_opened"), false, 30);
-        if (sentJourney_ == journey_) {
-            discordWaitBridge_ = sentBridge_;
-            discordWaitUntil_ = now_ + DiscordSignInSeconds; discordPollAt_ = now_ + DiscordPollSeconds;
-        }
+        discordWaitBridge_ = sentBridge_;
+        discordWaitUntil_ = now_ + DiscordSignInSeconds; discordPollAt_ = now_ + DiscordPollSeconds;
         break;
     case IdentityOp::DiscordRemove:
         discord_[sentBridge_] = DiscordAccount{};
