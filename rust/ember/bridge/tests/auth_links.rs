@@ -30,6 +30,52 @@ async fn discovery_is_public_and_informational() {
     assert_eq!(keys["keys"][0]["x"].as_str().unwrap().len(), 43);
 }
 
+// AUTH-06: a revoked service credential stops working at once.
+#[tokio::test]
+async fn revoked_credentials_stop_working() {
+    let bridge = Bridge::start().await;
+    let provider = bridge.provider("mock-a").await;
+    let other = bridge.organizer("t1").await;
+    let (status, _) = bridge.get(&provider, "/v1/webhook-subscriptions").await;
+    assert_eq!(status, StatusCode::OK);
+
+    let list = ember_bridge::list_credentials(bridge.state())
+        .await
+        .unwrap();
+    assert_eq!(list.len(), 2);
+    let issued = list.iter().find(|c| c.role == "provider").unwrap();
+    assert_eq!(issued.connection_id.as_deref(), Some("mock-a"));
+    assert!(issued.revoked_at.is_none());
+
+    assert!(
+        ember_bridge::revoke_credential(bridge.state(), &issued.id)
+            .await
+            .unwrap()
+    );
+    let (status, _) = bridge.get(&provider, "/v1/webhook-subscriptions").await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let (status, _) = bridge.get(&other, "/v1/webhook-subscriptions").await;
+    assert_eq!(status, StatusCode::OK);
+
+    assert!(
+        !ember_bridge::revoke_credential(bridge.state(), &issued.id)
+            .await
+            .unwrap()
+    );
+    assert!(
+        ember_bridge::revoke_credential(bridge.state(), "cred_unknown")
+            .await
+            .is_err()
+    );
+    let list = ember_bridge::list_credentials(bridge.state())
+        .await
+        .unwrap();
+    assert!(
+        list.iter()
+            .any(|c| c.id == issued.id && c.revoked_at.is_some())
+    );
+}
+
 // AUTH-01, AUTH-03, AUTH-04, AUTH-06
 #[tokio::test]
 async fn sessions_need_a_fresh_single_use_proof() {

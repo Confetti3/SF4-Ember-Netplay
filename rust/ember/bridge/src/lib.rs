@@ -200,6 +200,75 @@ pub async fn issue_credential(
         .await
 }
 
+/// One issued service credential, without its token.
+#[derive(Debug)]
+pub struct CredentialInfo {
+    pub id: String,
+    pub tenant_id: String,
+    pub connection_id: Option<String>,
+    pub role: String,
+    pub label: String,
+    pub created_at: u64,
+    pub revoked_at: Option<u64>,
+}
+
+/// Every service credential ever issued, oldest first.
+pub async fn list_credentials(state: &AppState) -> Result<Vec<CredentialInfo>, error::ApiFailure> {
+    state
+        .db
+        .read(|tx| {
+            let mut statement = tx.prepare(
+                "SELECT id, tenant_id, connection_id, role, label, created_at, revoked_at
+                   FROM service_credentials ORDER BY created_at, id",
+            )?;
+            let rows = statement.query_map([], |row| {
+                Ok(CredentialInfo {
+                    id: row.get(0)?,
+                    tenant_id: row.get(1)?,
+                    connection_id: row.get(2)?,
+                    role: row.get(3)?,
+                    label: row.get(4)?,
+                    created_at: row.get(5)?,
+                    revoked_at: row.get(6)?,
+                })
+            })?;
+            Ok(rows.collect::<Result<Vec<_>, _>>()?)
+        })
+        .await
+}
+
+/// Revokes the credential `id`. Requests with it fail from the next one on,
+/// and event streams it opened end at their next check. `Ok(false)` when it
+/// was already revoked.
+pub async fn revoke_credential(state: &AppState, id: &str) -> Result<bool, error::ApiFailure> {
+    use rusqlite::OptionalExtension;
+    let id = id.to_owned();
+    let now = state.now();
+    state
+        .db
+        .write(move |tx| {
+            let revoked: Option<Option<u64>> = tx
+                .query_row(
+                    "SELECT revoked_at FROM service_credentials WHERE id = ?1",
+                    [&id],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            match revoked {
+                None => Err(error::ApiFailure::invalid("unknown credential")),
+                Some(Some(_)) => Ok(false),
+                Some(None) => {
+                    tx.execute(
+                        "UPDATE service_credentials SET revoked_at = ?1 WHERE id = ?2",
+                        rusqlite::params![now, id],
+                    )?;
+                    Ok(true)
+                }
+            }
+        })
+        .await
+}
+
 /// rustls uses ring, the provider iroh already ships, rather than aws-lc.
 pub fn install_crypto_provider() {
     let _ = rustls::crypto::ring::default_provider().install_default();

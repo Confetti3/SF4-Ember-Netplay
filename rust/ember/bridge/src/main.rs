@@ -1,6 +1,7 @@
-//! `ember-bridge init <dir>`, `serve <config>`, and
+//! `ember-bridge init <dir>`, `serve <config>`,
 //! `credential <config> provider <connection> <label>` or
-//! `credential <config> organizer <tenant> <label>`.
+//! `credential <config> organizer <tenant> <label>`, `credentials <config>`
+//! and `revoke <config> <credential-id>`.
 use std::{
     path::{Path, PathBuf},
     process::ExitCode,
@@ -37,6 +38,8 @@ fn main() -> ExitCode {
             Some(tenant.to_string()),
             label,
         )),
+        ["credentials", path] => runtime.block_on(credentials(PathBuf::from(path))),
+        ["revoke", path, id] => runtime.block_on(revoke(PathBuf::from(path), id)),
         _ => Err(USAGE.into()),
     };
     match result {
@@ -49,7 +52,9 @@ const USAGE: &str = "usage:
   ember-bridge init <directory>
   ember-bridge serve <bridge.json>
   ember-bridge credential <bridge.json> provider <connection-id> <label>
-  ember-bridge credential <bridge.json> organizer <tenant-id> <label>";
+  ember-bridge credential <bridge.json> organizer <tenant-id> <label>
+  ember-bridge credentials <bridge.json>
+  ember-bridge revoke <bridge.json> <credential-id>";
 
 fn fail(message: &str) -> ExitCode {
     eprintln!("ember-bridge: {message}");
@@ -167,5 +172,48 @@ async fn credential(
             .map_err(|error| format!("cannot issue credential: {}", error.message))?;
     println!("{token}");
     eprintln!("Store this credential now. The bridge keeps only a hash of it.");
+    Ok(())
+}
+
+/// Lists issued credentials (never their tokens) so one can be revoked.
+async fn credentials(path: PathBuf) -> Result<(), String> {
+    let state = open(&path)?;
+    let list = ember_bridge::list_credentials(&state)
+        .await
+        .map_err(|error| format!("cannot list credentials: {}", error.message))?;
+    for credential in list {
+        let scope = credential
+            .connection_id
+            .as_deref()
+            .unwrap_or(&credential.tenant_id);
+        let revoked = credential
+            .revoked_at
+            .map(|at| format!("  revoked {}", ember_protocol::event::rfc3339(at)))
+            .unwrap_or_default();
+        println!(
+            "{}  {:<9}  {}  {}  {:?}{revoked}",
+            credential.id,
+            credential.role,
+            scope,
+            ember_protocol::event::rfc3339(credential.created_at),
+            credential.label,
+        );
+    }
+    Ok(())
+}
+
+async fn revoke(path: PathBuf, id: &str) -> Result<(), String> {
+    let state = open(&path)?;
+    let changed = ember_bridge::revoke_credential(&state, id)
+        .await
+        .map_err(|error| format!("cannot revoke {id}: {}", error.message))?;
+    println!(
+        "{id} {}",
+        if changed {
+            "revoked"
+        } else {
+            "was already revoked"
+        }
+    );
     Ok(())
 }

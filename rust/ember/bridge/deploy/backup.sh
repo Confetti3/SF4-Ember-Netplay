@@ -11,7 +11,9 @@ STATE=/var/lib/ember-bridge
 DEST=/var/backups/ember-bridge
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 
-python3 - "$STATE/bridge.sqlite3" "$DEST/bridge-$stamp.sqlite3" <<'PY'
+# Everything is written under .partial names and renamed once complete, the
+# database last, so an interrupted run never leaves a set restore.sh accepts.
+python3 - "$STATE/bridge.sqlite3" "$DEST/bridge-$stamp.sqlite3.partial" <<'PY'
 import sqlite3, sys
 source = sqlite3.connect(f"file:{sys.argv[1]}?mode=ro", uri=True)
 target = sqlite3.connect(sys.argv[2])
@@ -22,8 +24,12 @@ source.close()
 if check != "ok":
     sys.exit(f"backup failed its integrity check: {check}")
 PY
-cp "$STATE/bridge-secrets.json" "$DEST/bridge-secrets-$stamp.json"
-cp "$STATE/bridge.json" "$DEST/bridge-config-$stamp.json"
+cp "$STATE/bridge-secrets.json" "$DEST/bridge-secrets-$stamp.json.partial"
+cp "$STATE/bridge.json" "$DEST/bridge-config-$stamp.json.partial"
+mv "$DEST/bridge-secrets-$stamp.json.partial" "$DEST/bridge-secrets-$stamp.json"
+mv "$DEST/bridge-config-$stamp.json.partial" "$DEST/bridge-config-$stamp.json"
+mv "$DEST/bridge-$stamp.sqlite3.partial" "$DEST/bridge-$stamp.sqlite3"
 
 find "$DEST" -maxdepth 1 -type f \( -name 'bridge-*.sqlite3' -o -name 'bridge-secrets-*.json' -o -name 'bridge-config-*.json' \) -mtime +14 -delete
+find "$DEST" -maxdepth 1 -type f -name '*.partial' -mtime +1 -delete
 echo "backed up to $DEST/bridge-$stamp.sqlite3"

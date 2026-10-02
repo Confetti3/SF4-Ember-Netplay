@@ -28,7 +28,10 @@ if check != "ok":
     sys.exit(f"the backup fails its integrity check: {check}")
 PY
 
-systemctl stop ember-bridge-backup.timer ember-bridge
+# The timer first, so no new backup starts; then any backup already running
+# (stop waits for it to exit) and the bridge, so nothing holds the database.
+systemctl stop ember-bridge-backup.timer
+systemctl stop ember-bridge-backup.service ember-bridge
 recovery="$STATE/recovery-$(date -u +%Y%m%dT%H%M%SZ)"
 install -d -o ember-bridge -g ember-bridge -m 0700 "$recovery"
 for name in bridge.sqlite3 bridge.sqlite3-wal bridge.sqlite3-shm bridge-secrets.json bridge.json; do

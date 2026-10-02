@@ -39,7 +39,19 @@ on the same machine). All three development switches are off. Connections:
 `blumint-staging` (tenant `blumint`) and `ember-test` (tenant `ember`) for our own
 checks, both of the new `direct` kind: the platform calls the generic API with its
 provider credential, and no adapter calls the platform. Partner onboarding is
-`docs/guides/BLUMINT_QUICKSTART.md`.
+`docs/guides/BLUMINT_QUICKSTART.md`. `ember-bridge credentials` lists issued
+credentials without their tokens and `ember-bridge revoke` ends one at once;
+`restore.sh` puts a backup set back.
+
+Live checks on 2026-10-02 against the deployed bridge: `setup.sh` probes passed directly
+and through nginx; the helper's HTTP client (reqwest 0.13.4 with rustls on Windows)
+accepted the certificate and still refused an expired one; `tools/walkthrough.ts` on the
+`ember-test` connection linked two test players, completed a first-to-2 match 2-1 and
+read its 12 events and the record; the SSE stream delivered events and keep-alives through
+nginx; a credential was issued while the bridge ran; and a webhook to an `https` address
+on the bridge's own host reached nginx (logged as `POST /webhook-tls-check 404`, retried
+on schedule), so outbound TLS verification works from the service. A 2xx webhook receiver
+on the public internet was not exercised. `restore.sh` was run in a sandbox only.
 
 For testing without the game, the SDK has `TestPlayer` and `tools/test-player.ts`
 (a throwaway key that claims a link code the way the helper does) and

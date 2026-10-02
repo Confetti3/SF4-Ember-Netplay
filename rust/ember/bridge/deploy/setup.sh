@@ -62,24 +62,27 @@ if [ ! -f "$STATE/bridge.json" ]; then
     sudo -u ember-bridge "$LIB/ember-bridge" init "$STATE"
 fi
 # Apply tenants.json and the deployed settings, keeping bridge_id and paths.
-# Development switches are always off here. Runs as root because katie's
-# home, where tenants.json is, is not readable by the service account.
-python3 - "$STATE/bridge.json" "$SRC/tenants.json" <<'PY'
-import json, os, sys
-path, deployed = sys.argv[1], json.load(open(sys.argv[2]))
-config = json.load(open(path))
+# Development switches are always off here. Root only opens tenants.json
+# (katie's home is closed to the service account) and hands it over on
+# stdin; everything inside the service-owned folder runs as ember-bridge.
+MERGE=$(cat <<'PY'
+import json, os, sys, tempfile
+path = sys.argv[1]
+deployed = json.load(sys.stdin)
+with open(path) as file:
+    config = json.load(file)
 config.update(deployed)
 config["allow_loopback_http"] = False
 config["allow_private_webhooks"] = False
 config["mock_browser"] = False
-temporary = path + ".new"
-with open(temporary, "w") as file:
+handle, temporary = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".bridge.json.")
+with os.fdopen(handle, "w") as file:
     json.dump(config, file, indent=2)
     file.write("\n")
-os.chown(temporary, os.stat(path).st_uid, os.stat(path).st_gid)
-os.chmod(temporary, 0o600)
 os.replace(temporary, path)
 PY
+)
+sudo -u ember-bridge python3 -c "$MERGE" "$STATE/bridge.json" < "$SRC/tenants.json"
 
 install -o root -g root -m 0644 "$SRC/ember-bridge.service" /etc/systemd/system/ember-bridge.service
 install -o root -g root -m 0644 "$SRC/ember-bridge-backup.service" /etc/systemd/system/ember-bridge-backup.service
