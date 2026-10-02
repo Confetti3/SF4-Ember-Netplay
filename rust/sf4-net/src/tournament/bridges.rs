@@ -96,9 +96,14 @@ impl Store {
             .cloned()
     }
 
-    /// Approves a profile and returns the bridge IDs whose entries it
-    /// replaced, so their sessions can be dropped.
-    pub fn approve(&mut self, profile: &BridgeProfile) -> Result<Vec<String>, Failure> {
+    /// Approves a profile with the keys fetched from its origin, and returns
+    /// the bridge IDs whose entries it replaced, so their sessions can be
+    /// dropped.
+    pub fn approve(
+        &mut self,
+        profile: &BridgeProfile,
+        keys: Vec<SigningKey>,
+    ) -> Result<Vec<String>, Failure> {
         let entry = Approved {
             bridge_id: profile.bridge_id.clone(),
             origin: profile.origin.clone(),
@@ -111,59 +116,54 @@ impl Store {
             approved_at: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .map_or(0, |elapsed| elapsed.as_secs()),
-            keys: Vec::new(),
+            keys: usable(keys),
         };
         if !valid(&entry) {
             return Err(Failure::new("invalid_bridge"));
         }
         // One entry per bridge ID and per origin: a bridge that changed its
         // ID at the same origin is a different bridge and replaces it.
-        let (displaced, kept): (Vec<_>, Vec<_>) = self.bridges.drain(..).partition(|bridge| {
-            bridge.bridge_id == entry.bridge_id || bridge.origin == entry.origin
-        });
-        self.bridges = kept;
-        if self.bridges.len() >= MAX_BRIDGES {
-            self.bridges.extend(displaced);
+        let (displaced, mut kept): (Vec<_>, Vec<_>) =
+            self.bridges.iter().cloned().partition(|bridge| {
+                bridge.bridge_id == entry.bridge_id || bridge.origin == entry.origin
+            });
+        if kept.len() >= MAX_BRIDGES {
             return Err(Failure::new("too_many_bridges"));
         }
-        self.bridges.push(entry);
-        if let Err(failure) = self.save() {
-            self.bridges.pop();
-            self.bridges.extend(displaced);
-            return Err(failure);
-        }
+        kept.push(entry);
+        self.replace(kept)?;
         Ok(displaced
             .into_iter()
             .map(|bridge| bridge.bridge_id)
             .collect())
     }
 
-    /// Records an approved bridge's current public keys (at most 8 usable ones).
+    /// Records an approved bridge's current public keys.
     pub fn set_keys(&mut self, bridge_id: &str, keys: Vec<SigningKey>) -> Result<(), Failure> {
-        let keys: Vec<SigningKey> = keys
-            .into_iter()
-            .filter(|key| key.public_key().is_some())
-            .take(8)
-            .collect();
-        let Some(entry) = self.bridges.iter_mut().find(|bridge| bridge.bridge_id == bridge_id) else {
-            return Err(Failure::new("bridge_not_approved"));
-        };
-        let previous = std::mem::replace(&mut entry.keys, keys);
-        if let Err(failure) = self.save() {
-            if let Some(entry) = self.bridges.iter_mut().find(|bridge| bridge.bridge_id == bridge_id) {
-                entry.keys = previous;
-            }
-            return Err(failure);
-        }
-        Ok(())
+        let mut updated = self.bridges.clone();
+        let entry = updated
+            .iter_mut()
+            .find(|bridge| bridge.bridge_id == bridge_id)
+            .ok_or_else(|| Failure::new("bridge_not_approved"))?;
+        entry.keys = usable(keys);
+        self.replace(updated)
     }
 
     pub fn forget(&mut self, bridge_id: &str) -> Result<(), Failure> {
-        self.bridges.retain(|bridge| bridge.bridge_id != bridge_id);
-        self.save()
+        let mut kept = self.bridges.clone();
+        kept.retain(|bridge| bridge.bridge_id != bridge_id);
+        self.replace(kept)
     }
 
-    fn save(&self) -> Result<(), Failure> {
+    /// Saves `bridges` and only then makes it the live list, so memory never
+    /// says something the file does not.
+    fn replace(&mut self, bridges: Vec<Approved>) -> Result<(), Failure> {
+        self.save_list(&bridges)?;
+        self.bridges = bridges;
+        Ok(())
+    }
+
+    fn save_list(&self, bridges: &[Approved]) -> Result<(), Failure> {
         if self.dir.as_os_str().is_empty() || !self.dir.is_absolute() {
             return Err(Failure::new("io"));
         }
@@ -171,7 +171,7 @@ impl Store {
         let bytes = serde_json::to_vec_pretty(&File {
             format: FORMAT.into(),
             version: 1,
-            bridges: self.bridges.clone(),
+            bridges: bridges.to_vec(),
         })
         .map_err(|_| Failure::new("io"))?;
         let mut suffix = [0u8; 8];
@@ -190,6 +190,14 @@ impl Store {
         }
         Ok(())
     }
+}
+
+/// At most 8 keys, each a usable Ed25519 signature key.
+fn usable(keys: Vec<SigningKey>) -> Vec<SigningKey> {
+    keys.into_iter()
+        .filter(|key| key.public_key().is_some())
+        .take(8)
+        .collect()
 }
 
 fn valid(bridge: &Approved) -> bool {
@@ -220,20 +228,20 @@ mod tests {
         let mut store = Store::open(dir.clone());
         assert!(store.list().is_empty());
         store
-            .approve(&profile(1, "https://bridge.one.example"))
+            .approve(&profile(1, "https://bridge.one.example"), Vec::new())
             .unwrap();
-        store.approve(&profile(2, "http://127.0.0.1:8787")).unwrap();
-        assert!(store.approve(&profile(3, "http://10.0.0.1:8787")).is_err());
+        store.approve(&profile(2, "http://127.0.0.1:8787"), Vec::new()).unwrap();
+        assert!(store.approve(&profile(3, "http://10.0.0.1:8787"), Vec::new()).is_err());
         assert!(
             store
-                .approve(&profile(4, "https://bridge.one.example/path"))
+                .approve(&profile(4, "https://bridge.one.example/path"), Vec::new())
                 .is_err()
         );
         let reopened = Store::open(dir.clone());
         assert_eq!(reopened.list().len(), 2);
         let mut store = reopened;
         let displaced = store
-            .approve(&profile(5, "https://bridge.one.example"))
+            .approve(&profile(5, "https://bridge.one.example"), Vec::new())
             .unwrap();
         assert_eq!(displaced, vec![profile(1, "").bridge_id]);
         assert_eq!(store.list().len(), 2);
@@ -248,7 +256,7 @@ mod tests {
         let mut store = Store::open(PathBuf::new());
         assert!(
             store
-                .approve(&profile(1, "https://bridge.one.example"))
+                .approve(&profile(1, "https://bridge.one.example"), Vec::new())
                 .is_err()
         );
         assert!(!std::path::Path::new(FILE).exists());

@@ -232,27 +232,6 @@ impl Notifier {
         if event.source != self.0.config.bridge_origin || event.id != headers.id {
             return Err(StatusCode::BAD_REQUEST);
         }
-        let db = self
-            .0
-            .db
-            .lock()
-            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-        let now = self.0.clock.now();
-        let fresh = db
-            .execute(
-                "INSERT OR IGNORE INTO inbox (id, type, body, received_at, discord_done, twitch_done, next_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?4)",
-                params![
-                    event.id,
-                    event.kind,
-                    body,
-                    now,
-                    self.0.config.discord.is_none(),
-                    self.0.config.twitch.is_none()
-                ],
-            )
-            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
-            == 1;
         // Later events name their match, lobby or tournament by the label it
         // was created with.
         let labelled = match event.kind() {
@@ -266,17 +245,44 @@ impl Notifier {
             )),
             _ => None,
         };
+        let mut db = self
+            .0
+            .db
+            .lock()
+            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        let now = self.0.clock.now();
+        // The event and the label it brings commit together, so a retried
+        // delivery never finds one without the other.
+        let unavailable = |_| StatusCode::SERVICE_UNAVAILABLE;
+        let tx = db.transaction().map_err(unavailable)?;
+        let fresh = tx
+            .execute(
+                "INSERT OR IGNORE INTO inbox (id, type, body, received_at, discord_done, twitch_done, next_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?4)",
+                params![
+                    event.id,
+                    event.kind,
+                    body,
+                    now,
+                    self.0.config.discord.is_none(),
+                    self.0.config.twitch.is_none()
+                ],
+            )
+            .map_err(unavailable)?
+            == 1;
         if let (true, Some((key, label))) = (fresh, labelled) {
             let id = event
                 .data
                 .get(key)
                 .and_then(Value::as_str)
                 .unwrap_or_default();
-            let _ = db.execute(
+            tx.execute(
                 "INSERT OR IGNORE INTO matches (id, label) VALUES (?1, ?2)",
                 params![id, label.chars().take(100).collect::<String>()],
-            );
+            )
+            .map_err(unavailable)?;
         }
+        tx.commit().map_err(unavailable)?;
         drop(db);
         self.0.wake.notify_one();
         Ok(fresh)

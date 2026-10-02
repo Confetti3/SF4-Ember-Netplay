@@ -147,7 +147,9 @@ pub fn account(
     )?)
 }
 
-fn expire(tx: &Transaction<'_>, now: u64) -> Result<()> {
+/// Expires intents past their time and every pending claim on an expired
+/// intent. The one place an intent and its claim end together.
+pub fn expire(tx: &Transaction<'_>, now: u64) -> Result<()> {
     tx.execute(
         "UPDATE link_intents SET state = 'expired' WHERE state IN ('created', 'claim_pending') AND expires_at <= ?1",
         [now],
@@ -445,6 +447,8 @@ pub fn claim(
              WHERE id = ?3",
             params![attempts, MAX_FAILED_ATTEMPTS, intent.id],
         )?;
+        // An intent that just ran out of attempts takes its pending claim with it.
+        expire(tx, ctx.now)?;
         return Ok(Err(code_rejected()));
     }
     if !matches!(intent.state.as_str(), "created" | "claim_pending") || intent.expires_at <= ctx.now
@@ -1206,7 +1210,8 @@ pub async fn list(State(state): State<AppState>, headers: HeaderMap) -> Result<R
             let pending = tx
                 .prepare(
                     "SELECT c.id, i.connection_id, i.expires_at FROM link_claims c JOIN link_intents i ON i.id = c.intent_id
-                     WHERE c.ember_id = ?1 AND c.state = 'pending' AND i.expires_at > ?2",
+                     WHERE c.ember_id = ?1 AND c.state = 'pending' AND i.expires_at > ?2
+                       AND i.state IN ('created', 'claim_pending')",
                 )?
                 .query_map(params![player.ember_id.as_str(), now], |row| {
                     let connection: String = row.get(1)?;

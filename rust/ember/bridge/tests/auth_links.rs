@@ -575,6 +575,37 @@ async fn codes_are_scoped_and_bounded() {
     assert_eq!(last, StatusCode::TOO_MANY_REQUESTS);
 }
 
+// A code retired by misuse ends the claim waiting on it at once.
+#[tokio::test]
+async fn misused_codes_end_their_pending_claim() {
+    let bridge = Bridge::start().await;
+    let provider = bridge.provider("mock-a").await;
+    let mut owner = bridge.player(8);
+    let mut thief = bridge.player(9);
+    bridge.open_session(&mut owner).await;
+    bridge.open_session(&mut thief).await;
+    let (_, intent) = bridge
+        .post(&provider, "/v1/link-intents", json!({ "subject": "dana" }))
+        .await;
+    let code_text = intent["code"].as_str().unwrap();
+    let (status, _) = bridge.claim(&owner, code_text, "mock-a").await;
+    assert_eq!(status, StatusCode::CREATED);
+    let (_, links) = bridge.get(owner.token(), "/v1/links").await;
+    assert_eq!(links["pending"].as_array().unwrap().len(), 1);
+    for _ in 0..5 {
+        bridge.claim(&thief, code_text, "mock-b").await;
+    }
+    let (_, links) = bridge.get(owner.token(), "/v1/links").await;
+    assert_eq!(links["pending"], json!([]));
+    let (_, found) = bridge
+        .get(
+            &provider,
+            &format!("/v1/link-intents/{}", intent["intent_id"].as_str().unwrap()),
+        )
+        .await;
+    assert_eq!(found["state"], "expired", "{found}");
+}
+
 fn form(pairs: &[(&str, &str)]) -> String {
     url::form_urlencoded::Serializer::new(String::new())
         .extend_pairs(pairs)

@@ -12,9 +12,11 @@ std::string Text(const nlohmann::json& object, const char* key, std::size_t limi
 }
 }
 
-void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& view) {
-    // A malformed answer is ignored: it must never reach the room's own
-    // failure handling.
+void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& live) {
+    // The answer is decoded into a copy that replaces the live view only once
+    // all of it has parsed. A malformed answer changes nothing, and never
+    // reaches the room's own failure handling.
+    netplay::IdentityView view = live;
     try {
     const auto status = event.find("identity");
     if (status != event.end() && status->is_object()) {
@@ -35,7 +37,7 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& vi
         view.previewSame = view.previewReplaces = false;
     }
     const auto found = event.find("data");
-    if (!view.ok || found == event.end() || !found->is_object()) return;
+    if (!view.ok || found == event.end() || !found->is_object()) { live = std::move(view); return; }
     const auto& data = *found;
     if (view.op == "bridge_list") {
         view.bridges.clear();
@@ -68,7 +70,8 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& vi
     } else if (view.op == "identity_export") {
         view.exportPath = Text(data, "path", 1024);
     }
-    } catch (const nlohmann::json::exception&) {}
+    } catch (const nlohmann::json::exception&) { return; }
+    live = std::move(view);
 }
 
 std::string BuildTournamentRequest(const netplay::IdentityRequest& r) {

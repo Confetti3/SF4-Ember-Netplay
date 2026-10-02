@@ -214,23 +214,28 @@ impl Handle {
             })
             .is_err()
         {
-            let _ = self.events.try_send(Event::Tournament {
-                request_id,
-                op: op.into(),
-                ok: false,
-                reason: Some("busy".into()),
-                identity: None,
-                data: None,
-            });
+            busy(&self.events, request_id, op);
         }
     }
+}
+
+/// The answer to a request no queue had room for.
+fn busy(events: &mpsc::Sender<Event>, request_id: u64, op: &str) {
+    let _ = events.try_send(Event::Tournament {
+        request_id,
+        op: op.into(),
+        ok: false,
+        reason: Some("busy".into()),
+        identity: None,
+        data: None,
+    });
 }
 
 pub(crate) struct Shared {
     identity: Mutex<Identity>,
     bridges: Mutex<bridges::Store>,
     client: client::Client,
-    http: Semaphore,
+    http: Arc<Semaphore>,
     play: Mutex<play::State>,
     spool: spool::Spool,
     /// This helper run's Iroh endpoint, which tournament claims name.
@@ -305,7 +310,7 @@ fn spawn_with(
             identity: Mutex::new(identity),
             bridges: Mutex::new(bridges),
             client: client::Client::new(),
-            http: Semaphore::new(HTTP_CONCURRENCY),
+            http: Arc::new(Semaphore::new(HTTP_CONCURRENCY)),
             play: Mutex::new(play::State::default()),
             spool,
             endpoint_id,
@@ -344,26 +349,33 @@ fn spawn_with(
                 }
             })
         };
+        // Bridge jobs start only when an HTTP slot is free, so the bounded
+        // channel is the only place they wait; the set owns every running one.
+        let mut running = tokio::task::JoinSet::new();
         while let Some(job) = receiver.recv().await {
             if job.request.is_identity() {
-                if identity_jobs.try_send(job).is_err() {
-                    break;
+                if let Err(full) = identity_jobs.try_send(job) {
+                    let job = full.into_inner();
+                    busy(&events, job.request_id, job.request.op());
                 }
                 continue;
             }
+            let Ok(permit) = shared.http.clone().acquire_owned().await else {
+                break;
+            };
+            while running.try_join_next().is_some() {}
             let shared = shared.clone();
             let events = events.clone();
-            tokio::spawn(async move {
+            running.spawn(async move {
+                let _permit = permit;
                 let op = job.request.op();
-                let outcome = match shared.http.acquire().await {
-                    Ok(_permit) => bridge_request(&shared, job.request).await,
-                    Err(_) => Err(Failure::new("internal")),
-                };
+                let outcome = bridge_request(&shared, job.request).await;
                 respond(&events, &shared, job.request_id, op, outcome).await;
             });
         }
         serial.abort();
         resend.abort();
+        running.abort_all();
     });
     (handle, task)
 }
@@ -536,10 +548,11 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             let keys = shared.client.signing_keys(&origin).await?;
             let store = shared.clone();
             let displaced = tokio::task::spawn_blocking(move || {
-                let mut bridges = store.bridges.lock().map_err(|_| Failure::new("internal"))?;
-                let displaced = bridges.approve(&profile)?;
-                bridges.set_keys(&profile.bridge_id, keys)?;
-                Ok::<_, Failure>(displaced)
+                store
+                    .bridges
+                    .lock()
+                    .map_err(|_| Failure::new("internal"))?
+                    .approve(&profile, keys)
             })
             .await
             .map_err(|_| Failure::new("internal"))??;

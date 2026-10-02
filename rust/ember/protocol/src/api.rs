@@ -112,7 +112,10 @@ pub struct SigningKey {
 impl SigningKey {
     /// The key, when this is an Ed25519 signature key.
     pub fn public_key(&self) -> Option<crate::PublicKey> {
-        let shape = self.kty == "OKP" && self.crv == "Ed25519" && self.alg == "EdDSA" && self.usage == "sig";
+        let shape = self.kty == "OKP"
+            && self.crv == "Ed25519"
+            && self.alg == "EdDSA"
+            && self.usage == "sig";
         let kid = !self.kid.is_empty() && self.kid.len() <= 64 && self.kid.is_ascii();
         (shape && kid)
             .then(|| crate::PublicKey::from_b64u(&self.x).ok())

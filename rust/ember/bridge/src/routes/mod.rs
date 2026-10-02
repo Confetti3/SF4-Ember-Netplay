@@ -154,19 +154,20 @@ pub async fn maintenance_once(state: &AppState) {
         .db
         .write(move |tx| {
             reports::expire(tx, &ctx)?;
+            links::expire(tx, now)?;
             tx.execute(
-                "UPDATE link_intents SET state = 'expired' WHERE state IN ('created', 'claim_pending') AND expires_at <= ?1",
-                [now],
+                "DELETE FROM auth_challenges WHERE expires_at <= ?1",
+                [cutoff],
             )?;
-            tx.execute(
-                "UPDATE link_claims SET state = 'expired', decided_at = ?1 WHERE state = 'pending'
-                   AND intent_id IN (SELECT id FROM link_intents WHERE state = 'expired')",
-                [now],
-            )?;
-            tx.execute("DELETE FROM auth_challenges WHERE expires_at <= ?1", [cutoff])?;
             tx.execute("DELETE FROM sessions WHERE expires_at <= ?1", [cutoff])?;
-            tx.execute("DELETE FROM browser_sessions WHERE expires_at <= ?1", [cutoff])?;
-            tx.execute("DELETE FROM idempotency_records WHERE created_at <= ?1", params![cutoff])?;
+            tx.execute(
+                "DELETE FROM browser_sessions WHERE expires_at <= ?1",
+                [cutoff],
+            )?;
+            tx.execute(
+                "DELETE FROM idempotency_records WHERE created_at <= ?1",
+                params![cutoff],
+            )?;
             Ok(())
         })
         .await;
