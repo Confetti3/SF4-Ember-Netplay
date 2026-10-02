@@ -29,8 +29,10 @@ implemented, and how it differs from the draft, is in `STATUS.md` there.
   over SSE.
 - A platform connects as a `direct` provider: it calls this API itself with
   its provider credential. The `mock` kind adds browser login pages for local
-  testing. An adapter that calls a platform's own API instead, BluMint first,
-  waits on that platform's verified API contract.
+  testing. The `blumint` kind serves BluMint's game partner API instead (see
+  "BluMint" below).
+- Optionally, a player connects their Discord account to their Ember ID, so a
+  platform that finds players by Discord account gets their Ember ID.
 - A staging bridge runs at `https://bridge.embernetplay.link`. Platforms get a
   connection and credentials on it from the Ember team; BluMint starts from
   `BLUMINT_QUICKSTART.md`.
@@ -156,6 +158,54 @@ player in a game or a room is never moved. Where the `ember:` link does not
 open Ember (Linux browsers, or a PC where Ember has not been started yet), the
 page's Copy link and Paste match link on that screen do the same, or the player
 picks the match from the list.
+
+## Discord sign-in (optional)
+
+A bridge whose configuration has `discord` (the Discord application's
+`client_id`, with `<origin>/v1/discord/callback` in its redirect list) and
+whose integration secrets hold the client secret lists `discord` in its
+capabilities `features`. A player then connects their Discord account from
+Ember (Settings, Ember ID, Linked accounts, Discord):
+
+1. Ember's helper calls `POST /v1/discord/start` with a `discord.connect`
+   proof and opens the returned Discord page in the browser.
+2. Discord sends the browser to `GET /v1/discord/callback`. The bridge
+   exchanges the code itself, with the `identify` scope only, and keeps the
+   Discord user ID and username. The sign-in is one-use and lapses after ten
+   minutes.
+3. `GET /v1/discord` (player session) shows the connected account and
+   `DELETE /v1/discord` (a `discord.remove` proof) disconnects it.
+
+One Discord account belongs to one Ember ID and the other way round; the
+latest sign-in replaces both. Nothing else from Discord is stored. Without the
+client secret the bridge starts with Discord off and says so in its log.
+
+## BluMint
+
+A connection of kind `blumint` serves BluMint's game partner API (v1.3.0) with
+the connection's provider credential as `Authorization: Bearer`:
+
+- `POST /v1/blumint/lookup` answers `discord` with the Ember IDs connected to
+  those Discord accounts, and links each on the connection (`approved_via`
+  `discord`) so matches can be created for it. An Ember ID already linked
+  there by a code keeps that link.
+- `POST /v1/blumint/matches` creates an `ember-room-v1` set from two teams of
+  one and answers `matchId` and the match's `play_url` as `matchUrl`.
+- `GET` (or `POST`) `/v1/blumint/matches/status?matchId=` maps the match to
+  `pending`, `running`, `complete` or `cancelled`, with each player's presence
+  and score.
+
+With BluMint's API key for the connection in the integration secrets, the
+bridge posts each completed match's score to BluMint, and `mustRestart` for a
+cancelled match. A match in `needs_review` is cancelled and posted as
+`mustRestart`, since BluMint has no review step. Posts are retried for a day;
+the match's `provider_delivery_state` says how it went. `ember-bridge
+blumint-register <bridge.json> <connection>` registers the three endpoints
+with BluMint, handing over a new provider credential that is never shown.
+`BLUMINT_QUICKSTART.md` is the guide for BluMint's side.
+
+BluMint's bodies are parsed as ordinary JSON, since its match settings carry
+decimals; every other route keeps the strict profile.
 
 ## Run a lobby (first-to-N, king of the hill)
 

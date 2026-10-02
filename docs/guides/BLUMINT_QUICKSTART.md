@@ -1,10 +1,10 @@
 # Ember bridge: getting started for BluMint
 
-This is the starting point for BluMint's side of the Ember integration. Ember
-is the netplay mod for Ultra Street Fighter IV. The Ember bridge is a small web
-service that links a player's Ember ID to a BluMint account and keeps the
-matches, results and events a tournament platform needs. Your service talks to
-the bridge over HTTPS; nothing BluMint-specific runs in the game.
+Ember is the netplay mod for Ultra Street Fighter IV. The Ember bridge is the
+"game service" in BluMint's game integration guide: it serves BluMint's three
+callbacks (player lookup, match creation, match status) and posts each match's
+result to BluMint. Players play the matches in Ember, and both players' games
+report every game, so results arrive without anyone typing them in.
 
 ## What you get
 
@@ -12,128 +12,99 @@ the bridge over HTTPS; nothing BluMint-specific runs in the game.
 |---|---|
 | Staging bridge | `https://bridge.embernetplay.link` |
 | Your connection | `blumint-staging` (tenant `blumint`) |
-| Provider credential | links accounts, creates matches, lobbies and tournaments, reads events |
-| Organizer credential | records game results and corrections for the `blumint` tenant |
+| Player lookup | `POST https://bridge.embernetplay.link/v1/blumint/lookup` |
+| Match creation | `POST https://bridge.embernetplay.link/v1/blumint/matches` |
+| Match status | `GET https://bridge.embernetplay.link/v1/blumint/matches/status?matchId=...` |
+| Getting started page for players | `https://embernetplay.link/start` |
 
-Both credentials arrive separately from this document. Treat them as secrets:
-send them only in an `Authorization: Bearer` header to the origin above.
+Ember registers these three URLs with BluMint itself (the `setLookupPlayer`,
+`match/setCreate` and `match/setRetrieveStatus` webhooks), with an
+`authentication` object that has BluMint send `Authorization: Bearer <key>`.
+For that, Ember needs a BluMint API key for this game.
 
-`GET https://bridge.embernetplay.link/.well-known/ember-bridge.json` describes
-the bridge and `GET /v1/capabilities` (with a credential) lists what it
-supports.
+This is a staging service. Its data may be reset before production, and it
+carries no uptime promise yet.
 
-This is a staging service for building and testing the integration. Its data
-may be reset before production, and it carries no uptime promise yet.
+## Player lookup
 
-## The pieces in this repository
+Ember supports one sign-in method: **Discord**. A player connects their
+Discord account to their Ember ID once, from Ember (Settings, Ember ID, Linked
+accounts, Discord), through Discord's own sign-in. The lookup answers only
+`discord`:
 
-- `docs/guides/INTEGRATIONS.md`: the API guide (linking, matches, lobbies,
-  tournaments, records, events, webhooks).
-- `sdk/typescript`: a TypeScript client with no runtime dependencies,
-  including webhook verification. See its README.
-- `sdk/typescript/tools/walkthrough.ts`: the whole provider flow in one
-  script.
-- `sdk/typescript/tools/test-player.ts`: a stand-in Ember player for testing
-  account linking without the game.
-- `docs/design/identity-bridge/`: the full design (EMBER-TB-001), its JSON
-  schemas and test fixtures. `STATUS.md` there says what is built and what is
-  not.
-
-## First run
-
-With Node 22.18 or later (from nodejs.org), in `sdk/typescript`:
-
-```sh
-EMBER_ORIGIN=https://bridge.embernetplay.link \
-EMBER_CONNECTION=blumint-staging \
-EMBER_PROVIDER_TOKEN=... \
-EMBER_ORGANIZER_TOKEN=... \
-node tools/walkthrough.ts
+```json
+{ "discord": ["emb1_..."] }
 ```
 
-It links two throwaway test players, plays a first-to-2 match through
-organizer results, and prints the events that produced. Every run uses new
-test identities.
+with `[]` when none of the user's Discord IDs is connected. Other sign-in
+methods are ignored, and so are the emails BluMint sends alongside Discord
+IDs. The in-game ID is the player's Ember ID (`emb1_...`).
 
-## Linking a BluMint account to an Ember ID
+When a registering user has no Ember account, point them at
+`https://embernetplay.link/start` (for example as a registration option's
+`postambleLink`). It explains getting Ember and connecting Discord, then
+sends them back to register again.
 
-1. A signed-in BluMint user asks to link Ember. Your backend calls
-   `createLinkIntent(subject)`, where `subject` is your stable user ID, and
-   shows the returned code to that user only. It works once and expires after
-   five minutes.
-2. In Ember (Profile, Ember ID, Linked accounts) the player adds the service
-   `https://bridge.embernetplay.link` once and trusts it, then types the
-   code. Ember proves it holds the player's key and submits a claim. Your
-   page should tell players that address.
-3. Your page shows the claim's fingerprint (`getLinkIntent`) next to the one
-   Ember shows. When the user confirms they match, approve that exact claim
-   with `approveLinkClaim`.
+## Match creation
 
-From then on `resolvePlayers([subject])` gives that user's Ember ID and
-participant ID, which is what matches, lobbies and tournaments take.
+Send two teams of one player each, by in-game ID (`inGameId`; `playerId` is
+accepted too). `matchSettings.gamesToWin` sets the set length: 1, 2, 3 or 5,
+first to 2 when absent. Other settings are ignored.
 
-Until you have a game build with Ember ID (below), stand in for the player:
-
-```sh
-node tools/test-player.ts https://bridge.embernetplay.link blumint-staging <CODE> player-a.key
+```json
+{ "teams": [ { "players": [ { "inGameId": "emb1_..." } ] },
+             { "players": [ { "inGameId": "emb1_..." } ] } ],
+  "matchSettings": { "gamesToWin": 2 } }
 ```
 
-It prints the test Ember ID and fingerprint and submits the claim. Passing a
-key file keeps the same test identity across runs; the file holds a private
-key, so keep it out of source control.
+The answer:
 
-## Matches and results
+```json
+{ "matchId": "emt_...", "matchUrl": "https://embernetplay.link/m#brg_.../emt_..." }
+```
 
-A match is two linked players and a set length (first to 1, 2, 3 or 5). Create
-it with the rules profile `ember-room-v1` and the players play it in Ember: the
-game opens a room only they can enter, and each game's result comes from both
-players' games, signed with their Ember IDs. When both agree the game counts;
-when they disagree, or one report is missing, the match waits for your organizer
-in `needs_review` (see `INTEGRATIONS.md`, "Matches played in Ember"). With
-`organizer-reported-v1` instead, your organizer credential records each game.
-Either way the match completes when someone reaches the set length.
+`matchUrl` is the same for both players and safe to send in your messages:
+only the two assigned Ember IDs can play the match, and anyone else's Ember
+finds no such match. The page opens the match in Ember, or shows how to get
+Ember first. It does not expire.
 
-Each match's `play_url` is its Play link for both players: show it in your
-messages or behind a Play button. The page opens the match in Ember, or shows
-how to install Ember first.
-Voiding a game scores the match again: a finished match stays finished while
-a player still has enough wins, and otherwise reopens. Reopening is refused
-while either player has another match currently active on the same connection
-(and for lobby and bracket sets that have moved on), so read the state and
-revision the bridge returns, and handle a refusal, before changing your own
-result. Every change is an
-event, delivered by webhook (Standard Webhooks signatures), by cursor polling
-or by server-sent events.
+A player can be in one active match per connection; creating a second one
+for them is refused until the first ends.
 
-On top of matches the bridge can run lobbies (first-to-N queues with winner
-stays, loser stays or both rotate) and whole tournaments (single and double
-elimination, round robin). Use them if they help; a platform that runs its own
-brackets only needs matches.
+## Match status
+
+`status` is `pending` until both players' Ember has joined, `running` while
+they play, `complete` when someone reaches the set length, and `cancelled`
+when the match was called off. Each player is `absent` until their Ember
+claims the match, `present-not-ready` while the room is being set up, and
+`present-ready` from then on. Each team's `score` is games won.
+
+## Results
+
+When a match completes, the bridge posts its score to
+`/tournaments/match/submit` (`teams` with `score` and `inGameId`). A cancelled
+match is posted as `mustRestart`. When the two games disagree about a game's
+result, or one never reports it, there is no one at BluMint to review it, so
+the bridge cancels the match and posts `mustRestart`; BluMint then creates a
+new match. Posts are retried for a day; `409` counts as already received.
 
 ## Not built yet
 
 - **Tested with real players.** Matches played in Ember are covered by
   automated tests but have not yet been played on two PCs.
-- **A player build with Ember ID.** The current public Ember release does not
-  include the Ember ID screens. A test build can be provided for end-to-end
-  tests with real players.
+- **A player build with Ember ID and Discord.** The current public Ember
+  release does not include them yet. A test build can be provided.
 - **Production.** There is no production bridge yet.
 
-## What we need from BluMint
+## Questions for BluMint
 
-These decide how the rest is built (spec section 22):
-
-1. **Which direction you want.** This staging bridge assumes BluMint calls the
-   Ember bridge with the SDK. If you would rather Ember call BluMint's API, we
-   need that API's versioned documentation or OpenAPI schema, sample callbacks
-   with secrets removed, and its authentication and secret rotation rules.
-2. **Account ownership.** Is the link-code flow above acceptable, or can
-   BluMint provide a verified login or a signed subject assertion instead?
-3. **Match identity.** What ID you would use as `external_match_id`, and how
-   you retry a create or a result after a lost response.
-4. **Results.** How BluMint records a set score, a correction, a forfeit and a
-   no-show, and what it does with a disputed result.
-5. **Play.** Whether a per-player Play link (above) suits your match page.
-6. **Webhooks.** The HTTPS URL that should receive bridge events, if any.
-7. **Testing.** A staging account and test tournament on your side, and a
-   contact for questions.
+1. **API key.** Ember needs an API key for this game to register the three
+   URLs and post results.
+2. **Field names.** The guide's examples use `playerId` in match creation and
+   results, while the OpenAPI schema uses `inGameId`. Ember accepts both and
+   sends `inGameId`. Which does BluMint read?
+3. **Status method.** The guide calls the status endpoint with `GET` and a
+   `matchId` query; `setRetrieveStatus`'s description says `POST`. Ember
+   serves both. Which will BluMint use?
+4. **Restarts.** Is `mustRestart` the right answer for a disputed game, or is
+   there another way to report it?

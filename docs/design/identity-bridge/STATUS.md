@@ -29,10 +29,14 @@ notifier that turns bridge events into Discord webhook posts and Twitch chat mes
 reports and two-player agreement), WP6 (match links and the in-game match list) and
 the automated part of WP8 (seeded fuzzing and adversarial tests).
 
-Not done: WP7 (BluMint calls the generic API directly, so no adapter calls BluMint),
-Windows/Proton link registration checks, low-spec benchmarks, canary tournaments, and
-every check that needs two PCs or a real browser. No tournament match has been played
-in the game yet.
+WP7 is the `blumint` connection kind: BluMint's three callbacks and result posts, built
+from BluMint's published guide and OpenAPI document (game partner API 1.3.0). BluMint
+finds players by their sign-in accounts, so a player can connect Discord to their Ember
+ID (see "Beyond the package"). Registering with BluMint waits for its API key.
+
+Not done: Windows/Proton link registration checks, low-spec benchmarks, canary
+tournaments, and every check that needs two PCs, a real browser or BluMint's live API.
+No tournament match has been played in the game yet.
 
 ## Tournament play
 
@@ -94,6 +98,13 @@ For testing without the game, the SDK has `TestPlayer` and `tools/test-player.ts
 
 These additions go beyond EMBER-TB-001, which covers two-player bracket sets only and
 lists queue rotation and multi-table scheduling as future work.
+
+- **Discord sign-in.** Optional on both sides: a bridge offers it when configured, and a
+  player connects it from Linked accounts. The bridge runs Discord's authorization code
+  flow itself (`identify` only) and keeps the user ID and username, one account per Ember
+  ID. Platforms that find players by Discord account (BluMint's player lookup) get the
+  Ember ID and a link with `approved_via` `discord`, the player's own sign-in being the
+  consent. The code link flow is unchanged and still the way for direct providers.
 
 - **Casual room sets and rotation.** A room table can have a set length of first to 1,
   2, 3 or 5 and a rotation: winner stays (king of the hill), loser stays, or both
@@ -300,6 +311,8 @@ Tournament play on `feat/tournament-play` (same machine and toolchain):
 | RESULT-11 | bridge `a_lone_cancel_closes_the_game_and_a_lone_abort_waits_for_review` | Automated, pass |
 | RESULT-14, RESULT-15 | helper spool `no_folder_means_not_saved`; `TournamentPlay` (a report that could not be saved stops the match, leaves the room and starts no further game, with the reason shown) | Automated, partial: a full disk is not simulated |
 | RESULT-17 | bridge `a_publish_retry_and_a_silent_game` (review only after the start window plus 30 minutes) | Automated, partial |
+| Discord sign-in | bridge `discord` tests (one-use and expiring sign-ins, denied and refused codes, the latest sign-in winning, a bridge without Discord); helper `only_discords_sign_in_page_is_opened`; `IdentityJourney` (`DiscordAndFirstLink`) | Automated, pass; Discord itself not reached |
+| BluMint (WP7) | bridge `blumint` tests (lookup, creation, status, result posts with a retry, restarts for cancelled and disputed matches, registration) against a stand-in BluMint; `every_match_state_reads_as_one_blumint_status` | Automated, pass; BluMint's live API not reached |
 | Match links (WP6) | bridge `a_match_has_one_play_link_for_both_players`; helper `play_a_set_through_two_helpers`; `JoinLink`; `TournamentFuzz`; `ShellJourney`; SDK `play.test.ts` | Automated, pass; real browser and Proton not run |
 | Fuzzing (WP8) | `TournamentFuzz` (helper answers, links, the state machine, a bound room; seeded, with coverage checks); protocol `fuzz` module | Automated, pass; it found one ordering bug, fixed in `707d030` |
 
