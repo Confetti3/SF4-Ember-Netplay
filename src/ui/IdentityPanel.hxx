@@ -99,8 +99,11 @@ private:
     std::uint64_t nextTicket_ = 0, sent_ = 0;
     netplay::IdentityOp sentOp_ = netplay::IdentityOp::None;
     bool sentLookUp_ = false;
-    // The Connect Discord journey, and the one the request in flight was queued in.
+    // The Connect Discord journey, and the one the request in flight was
+    // queued in. While its answer is handled, what it queues belongs to that
+    // journey too: an earlier journey's follow-up reads are not queued.
     std::uint64_t journey_ = 1, sentJourney_ = 1;
+    bool finishing_ = false;
     double sentAt_ = 0, now_ = 0;
     bool onScreens_ = false;
     std::string lastScreen_;

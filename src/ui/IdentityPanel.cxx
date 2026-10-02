@@ -178,7 +178,10 @@ void IdentityPanel::Say(std::string text, bool error, double seconds) {
 }
 
 void IdentityPanel::Queue(IdentityRequest request, bool lookUp) {
-    if (queue_.size() < 8) queue_.push_back(Queued{std::move(request), lookUp, journey_});
+    const auto owner = finishing_ ? sentJourney_ : journey_;
+    // The new journey reads everything again itself.
+    if (owner != journey_ && Retirable(request.op)) return;
+    if (queue_.size() < 8) queue_.push_back(Queued{std::move(request), lookUp, owner});
 }
 
 void IdentityPanel::Wipe() {
@@ -212,7 +215,10 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
     if (entered) Refresh(v, screen);
     // An answer from a replaced journey is retired without touching the
     // new one's status or requests.
-    if (sent_ && Answered(v)) { if (!Superseded()) Finish(v); sent_ = 0; }
+    if (sent_ && Answered(v)) {
+        if (!Superseded()) { finishing_ = true; Finish(v); finishing_ = false; }
+        sent_ = 0;
+    }
     else if (sent_ && now - sentAt_ > AnswerSeconds) {
         if (!Superseded()) { Say(loc::T("identity.failure.timeout"), true); DropQueue(); }
         sent_ = 0;
@@ -237,7 +243,7 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
     const auto ticket = action.identity.ticket;
     sentOp_ = action.identity.op; sentBridge_ = action.identity.bridge;
     if (submit(std::move(action))) { sent_ = ticket; sentAt_ = now; }
-    else { Say(loc::T("error.queue_failed"), true); queue_.clear(); }
+    else { Say(loc::T("error.queue_failed"), true); DropQueue(); }
 }
 
 void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen, const Submit& submit) {

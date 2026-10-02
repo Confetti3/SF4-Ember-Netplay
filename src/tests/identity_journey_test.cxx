@@ -647,5 +647,60 @@ void ConnectReadsRecover(){
   SetMenuEntriesProbe({});SetMenuStatusProbe({});
  }
 }
-int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();ConnectReadsRecover();DiscordConnectPastedLink();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
+// A change the player asked for just before a connect link arrived still
+// finishes, but it is not the new journey's: an unlink's follow-up read is
+// not queued, and an unlock typed while the Ember ID screen was loading is
+// sent after the link, and its refused submission drops none of the new
+// journey's requests.
+void RetainedChangesStayTheirs(){
+ using namespace sf4e;using netplay::IdentityOp;
+ const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
+ std::vector<MenuEntry> rows;std::string status;
+ for(int ending=0;ending<2;++ending){
+  Harness h;auto& id=h.view.identity;id.known=true;id.state=ending==0?"ready":"locked";
+  id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
+  id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};h.Frame();
+  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
+  const auto sent=[&]{std::vector<const netplay::IdentityRequest*> out;for(const auto& a:h.actions)if(a.identity.op!=IdentityOp::None)out.push_back(&a.identity);return out;};
+  const auto answer=[&]{
+   h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=true;id.failure.clear();h.Frame(0,2);
+  };
+  const auto until=[&](IdentityOp op){for(int i=0;i<10&&sent().back()->op!=op;++i)answer();return sent().back()->op==op;};
+  const auto link=[&]{h.view.tournament.connect.bridge="brg_2";h.view.tournament.connect.sequence=1;h.Frame(0,2);};
+  std::size_t before=0;
+  if(ending==0){
+   // An unlink under Linked accounts finishes after the link arrived.
+   h.Screen("linked-accounts");
+   Check(until(IdentityOp::BridgeInspect),"Linked accounts did not inspect its service");
+   id.inspected=id.bridges[0];answer();
+   Check(sent().back()->op==IdentityOp::LinkList,"Linked accounts did not list its links");
+   id.links={{"lnk_1","blumint","BluMint","PlayerOne"}};answer();for(int i=0;i<4;++i)answer();
+   h.Choose("id-unlink:lnk_1");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+   Check(sent().back()->op==IdentityOp::LinkRemove,"Unlink was not sent");
+   before=sent().size();link();answer();
+  }else{
+   // An unlock typed while the Ember ID screen's status is still out waits
+   // behind it; the link arrives; the unlock's submission is refused.
+   h.Screen("identity");
+   Check(sent().back()->op==IdentityOp::Status,"The Ember ID screen did not ask for its status");
+   h.Choose("id-unlock");ImGui::GetIO().AddInputCharactersUTF8("correct horse");h.Frame();
+   ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,true);h.Frame();ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,false);h.Frame();
+   Check(sent().back()->op==IdentityOp::Status,"The unlock did not wait behind the status");
+   before=sent().size();link();
+   // Only that one submission is refused: the frame that answers the status sends it.
+   id.state="ready";
+   h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=true;
+   h.accept=false;h.Frame();h.accept=true;
+   Check(sent().back()->op==IdentityOp::Unlock&&status==loc::T("error.queue_failed"),"The unlock was not the refused submission");
+   h.Frame();
+  }
+  Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==other,"An earlier change held the journey back");
+  id.inspected=id.bridges[1];id.inspectedDiscord=true;answer();
+  Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge=="brg_2","The journey did not read its service's account");
+  for(std::size_t i=before;i<sent().size();++i)
+   Check(!(sent()[i]->op==IdentityOp::LinkList&&sent()[i]->bridge=="brg_1"),"An earlier change's follow-up read was queued");
+  SetMenuEntriesProbe({});SetMenuStatusProbe({});
+ }
+}
+int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();ConnectReadsRecover();RetainedChangesStayTheirs();DiscordConnectPastedLink();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
