@@ -39,7 +39,11 @@ public:
     // A tournament site asked the player to connect Discord on `bridge`: the
     // Connect Discord screen shows that service, from wherever the player is
     // in the steps. Nothing is sent to Discord until the player presses Connect.
-    void OpenDiscord(const std::string& bridge);
+    // `automatic`: the player just clicked the link at the menus, so the
+    // steps run by themselves up to Discord's page; otherwise the screen
+    // waits for Connect. A link for the sign-in already waited for only
+    // shows it.
+    void OpenDiscord(const std::string& bridge, bool automatic = false);
     // The row the matches screen should focus, once it is among `rows`.
     std::string TakeFocus(const std::vector<MenuEntry>& rows);
     // The Home entry's line: where to start, how many matches are ready to
@@ -100,6 +104,10 @@ private:
     void ConnectRows(const ShellView& view, std::vector<MenuEntry>& rows, bool busy) const;
     // Connect Discord's next request once the service list is known.
     void ConnectNext(const ShellView& view);
+    // The press of Connect Discord: runs the steps from wherever they stand.
+    void ConnectGo(const ShellView& view);
+    // Ember's own service, found by its look-up, may be trusted now.
+    bool EmberOffered() const;
     // Connect Discord starts over: a sign-in an earlier visit opened is no
     // longer waited for, and its late answers start no wait.
     void NewJourney();
@@ -141,6 +149,11 @@ private:
     // visit already looked Ember's own service up.
     std::string connectBridge_;
     bool connectLookedUp_ = false;
+    // Connect Discord's steps run by themselves until Discord's page opens,
+    // a step needs the player, or one fails.
+    bool autoRun_ = false;
+    // Services the player removed this run: never trusted again by themselves.
+    std::vector<std::string> forgotten_;
     // While Discord's page is open in the browser: the service the sign-in
     // is for, until when it can finish, and when its account is read again.
     // A failed read pauses the polls until Try again; the sign-in still

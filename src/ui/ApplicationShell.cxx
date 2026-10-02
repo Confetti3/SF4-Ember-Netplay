@@ -208,7 +208,6 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Row("profile",loc::T("home.profile"),loc::T("home.profile_detail")),
    Row("identity",loc::T("screen.identity"),identity_.HomeDetail(v)),
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
-   Row("about",loc::T("home.about"),loc::T("home.about_detail")),
    Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle)};
   if(opening)rows[0].detail=v.session.isHost?loc::T("room.creating_status"):loc::T("room.joining_status");
   if(!v.controllerReady)rows.insert(rows.begin(),Row("player",loc::T("home.choose_controller"),loc::T("home.choose_controller_detail")));
@@ -250,7 +249,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
  }else if(screen=="settings"){
   title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),
-   Row("identity",loc::T("screen.identity"),loc::T("settings.identity_detail"))};
+   Row("about",loc::T("home.about"),loc::T("home.about_detail"))};
  }else if(screen=="player"){
   title=loc::T("player.title");rows={TextRow("name",loc::T("profile.player_name"),preferences_.displayName,31,v.canEditPreferences),
    Row("capture",loc::T("player.change_controller"),loc::Tf("player.change_controller_detail",v.controller),v.canChangeController),
@@ -551,10 +550,15 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // player decides. In a room it waits until the room closes.
  if(v.tournament.connect.sequence!=connectLinkSequence_){
   connectLinkSequence_=v.tournament.connect.sequence;pendingConnect_=v.tournament.connect.bridge;
+  // In a room the link waits, and so is no longer fresh when it opens.
+  if(v.session.room!=RoomState::Idle)pendingConnectStale_=true;
   if(v.session.room!=RoomState::Idle){notice_=loc::T("connect.link_waiting");noticeTone_=Tone::Pending;noticeUntil_=now+15;}
  }
  if(!pendingConnect_.empty()&&v.session.room==RoomState::Idle){
-  identity_.OpenDiscord(pendingConnect_);pendingConnect_.clear();
+  // A link the player just clicked goes on by itself; one that waited for
+  // a room or a match to end asks first.
+  const bool fresh=!pendingConnectStale_&&v.tournament.connectAgeMs<ConnectLinkFreshMs;
+  identity_.OpenDiscord(pendingConnect_,fresh);pendingConnect_.clear();pendingConnectStale_=false;
   if(nav.Screen()!="discord-connect"){nav.Home();nav.Push("identity");nav.Push("discord-connect");}
  }
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);

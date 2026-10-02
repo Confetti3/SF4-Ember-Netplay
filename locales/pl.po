@@ -2466,9 +2466,6 @@ msgstr "Powiązane konta"
 msgid "screen.tournament_matches"
 msgstr "Mecze turniejowe"
 
-msgid "settings.identity_detail"
-msgstr "Twój Ember ID dla stron turniejowych, jego kopia zapasowa i powiązane z nim konta."
-
 msgid "identity.title"
 msgstr "EMBER ID"
 
@@ -2682,18 +2679,6 @@ msgstr "Połącz Discord"
 msgid "identity.connect_discord_detail"
 msgstr "Połącz konto Discord, które zna Twoja strona turniejowa, na przykład BluMint, aby mogła znaleźć Twoje Ember ID. Ember przeprowadzi Cię przez to krok po kroku."
 
-msgid "connect.about"
-msgstr "Do czego to służy"
-
-msgid "connect.about_detail"
-msgstr "Strony turniejowe, na przykład BluMint, znajdują graczy po koncie Discord. Połączenie Twojego konta przekazuje serwisowi turniejowemu Ember, które Ember ID należy do Ciebie, dzięki czemu strona może Cię znaleźć i wysyłać Twoje mecze do Ember. Discord jest w Ember opcjonalny."
-
-msgid "connect.create"
-msgstr "Utwórz Ember ID"
-
-msgid "connect.create_detail"
-msgstr "Krok 1 z 3. Ember ID pokazuje stronom turniejowym, że ta kopia Ember należy do Ciebie. Powstaje na tym komputerze; konto ani e-mail nie są potrzebne."
-
 msgid "connect.identity_detail"
 msgstr "Krok 1 z 3. Twoje Ember ID nie jest jeszcze gotowe. Otwórz ekran Ember ID, aby sprawdzić, czego brakuje."
 
@@ -2718,14 +2703,11 @@ msgstr "Spróbuj ponownie"
 msgid "connect.retry_detail"
 msgstr "Ponownie wyszukuje serwis turniejowy."
 
-msgid "connect.connect_detail"
-msgstr "Krok 3 z 3. Ember otworzy Discord w przeglądarce. Zatwierdź tam kontem Discord, które zna Twoja strona turniejowa. Ten ekran pokaże, kiedy będzie gotowe."
-
 msgid "connect.connected"
 msgstr "Discord połączony"
 
 msgid "connect.connected_detail"
-msgstr "Strony turniejowe korzystające z tego serwisu mogą teraz znaleźć Twoje Ember ID. Wróć na stronę turniejową, aby kontynuować. Aby odłączyć konto, użyj sekcji Powiązane konta."
+msgstr "Użyj tego konta Discord na swojej stronie turniejowej. Wróć na stronę, aby kontynuować; jeśli nadal Cię nie znajduje, poproś ją o ponowne sprawdzenie."
 
 msgid "connect.off"
 msgstr "Logowanie przez Discord jest wyłączone"
@@ -2737,7 +2719,34 @@ msgid "connect.waiting"
 msgstr "Zatwierdź w przeglądarce. Ten ekran zaktualizuje się po połączeniu Discorda."
 
 msgid "connect.done"
-msgstr "Połączono konto Discord {0}. Możesz wrócić na stronę turniejową."
+msgstr "Discord połączony jako {0}. Wróć na swoją stronę turniejową, aby kontynuować."
+
+msgid "connect.go_detail"
+msgstr "Połączenie Discorda pozwala stronom turniejowym, takim jak BluMint, znaleźć Twoje Ember ID. Ember w razie potrzeby skonfiguruje Twoje Ember ID na tym komputerze, a potem otworzy Discord w przeglądarce: zatwierdź tam kontem Discord, które zna Twoja strona turniejowa."
+
+msgid "connect.setting_up"
+msgstr "Konfigurowanie"
+
+msgid "connect.setting_up_detail"
+msgstr "Ember konfiguruje Twoje Ember ID i otwiera Discord w przeglądarce. Połączenie Discorda pozwala stronom turniejowym, takim jak BluMint, Cię znaleźć."
+
+msgid "connect.waiting_label"
+msgstr "Oczekiwanie na Discord"
+
+msgid "connect.waiting_detail"
+msgstr "Zatwierdź w przeglądarce kontem Discord, które zna Twoja strona turniejowa. Ten ekran zaktualizuje się sam."
+
+msgid "connect.cancel_detail"
+msgstr "Przestaje czekać. Wybierz ponownie Połącz Discord, kiedy zechcesz."
+
+msgid "connect.cancelled"
+msgstr "Przestano czekać na Discord."
+
+msgid "connect.change"
+msgstr "Użyj innego konta Discord"
+
+msgid "connect.change_detail"
+msgstr "Otwiera Discord w przeglądarce, aby zamiast tego połączyć inne konto. Twoja strona turniejowa będzie wtedy musiała używać tego konta."
 
 msgid "connect.link_waiting"
 msgstr "Strona turniejowa prosi o połączenie Discorda. Ember otworzy ekran Połącz Discord po wyjściu z pokoju."

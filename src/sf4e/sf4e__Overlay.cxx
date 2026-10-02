@@ -302,6 +302,12 @@ void Overlay::DrawOverlay() {
     if (snapshot.pendingJoinSequence!=joinLinkShown && snapshot.atMainMenu && presentation.Available()) {
         presentation.Open(); joinLinkShown=snapshot.pendingJoinSequence;
     }
+    // A Discord connect link likewise, at the main menu only: during play it
+    // waits until the player opens Ember, which then asks before going on.
+    static std::uint64_t connectLinkShown=0;
+    if (snapshot.tournament.connect.sequence!=connectLinkShown && snapshot.atMainMenu && presentation.Available()) {
+        presentation.Open(); connectLinkShown=snapshot.tournament.connect.sequence;
+    }
     sf4e::ui::SetOverlayCursorOwnership(focused && presentation.Visible());
     const bool assigning = snapshot.inputCapture != sf4e::input::Capture::Idle;
     // Player navigation is semantic, not ImGui spatial scoring. Text input is

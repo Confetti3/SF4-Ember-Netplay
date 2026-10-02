@@ -274,7 +274,7 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
         &format!(
             "Discord account <strong>{}</strong> is now connected to Ember ID <strong>{}</strong>. \
              Tournament sites that use this Ember service can find your Ember ID from this Discord account. \
-             You can close this tab and go back to Ember.",
+             You can close this tab and go back to your tournament site; Ember shows the connection too.",
             html(&shown),
             html(&fingerprint)
         ),

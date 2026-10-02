@@ -200,6 +200,7 @@ void OpenConnectLink(const std::string& bridge) {
 	auto& opened = runtime->openedConnect;
 	opened.bridge = bridge;
 	++opened.sequence;
+	opened.at = GetTickCount64();
 	spdlog::info("Tournament: a link asked to connect Discord on service {}", bridge);
 }
 
@@ -290,6 +291,7 @@ netplay::tournament::Status TournamentStatus() {
 	status.list = runtime->assignmentList;
 	status.link = runtime->openedLink;
 	status.connect = runtime->openedConnect;
+	status.connectAgeMs = status.connect.at ? GetTickCount64() - status.connect.at : 0;
 	const auto& play = runtime->tournament;
 	status.phase = play.GetPhase();
 	status.bridgeId = play.BridgeId();

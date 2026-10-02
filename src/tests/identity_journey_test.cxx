@@ -23,7 +23,7 @@ void IdentityJourneys() {
   ImGui::GetIO().AddInputCharactersUTF8(text);h.Frame();
   ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,true);h.Frame();ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,false);h.Frame();
  };
- h.Screen("settings");h.Choose("identity");Check(h.shell.Navigation().Screen()=="identity","Settings does not open the Ember ID screen");
+ h.Screen("home");h.Choose("identity");Check(h.shell.Navigation().Screen()=="identity","Home does not open the Ember ID screen");
  Check(sent().size()==1&&sent().back()->op==IdentityOp::Status,"Opening the Ember ID screen did not ask for its status");
  answer();
  // Under Wine the key needs a passphrase, typed twice, before it can be created.
@@ -298,11 +298,12 @@ void DiscordAndFirstLink(){
  Check(!row("id-discord-connect")&&!row("id-discord-remove"),"A service without sign-in offers to connect Discord");
  SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
-// A tournament site's connect link takes a brand-new player through Connect
-// Discord: create the Ember ID, trust Ember's own service, connect Discord.
-// Each step waits for the player; the screen reads the account back while
-// the browser is open and says when it is connected. In a room the link
-// waits, and a link for a service Ember does not know says so.
+// A tournament site's connect link onboards a brand-new player by itself:
+// the link they just clicked creates the Ember ID, trusts Ember's own
+// service and opens Discord's page, so Discord's Authorize is the only
+// press; the screen then reads the account until it is connected. A link
+// that waited for a room asks first. A connected account is only shown, and
+// a link for a service Ember does not know trusts nothing.
 void DiscordConnectLink(){
  using namespace sf4e;using netplay::IdentityOp;
  Harness h;auto& id=h.view.identity;id.known=true;id.state="disabled";h.Frame();
@@ -313,39 +314,36 @@ void DiscordConnectLink(){
  const auto answer=[&]{
   h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=true;id.failure.clear();h.Frame(0,2);
  };
- const auto until=[&](IdentityOp op){for(int i=0;i<10&&sent().back()->op!=op;++i)answer();return sent().back()->op==op;};
- const auto none=[&](IdentityOp op,std::size_t from){
-  const auto all=sent();for(std::size_t i=from;i<all.size();++i)if(all[i]->op==op)return false;return true;};
+ const auto until=[&](IdentityOp op){for(int i=0;i<12&&sent().back()->op!=op;++i)answer();return sent().back()->op==op;};
+ const auto count=[&](IdentityOp op,std::size_t from){
+  std::size_t n=0;const auto all=sent();for(std::size_t i=from;i<all.size();++i)n+=all[i]->op==op;return n;};
  const std::string ember="https://bridge.embernetplay.link";
- // In a room the link only says it will open later.
+ // In a room the link only says it will open later, and then asks first.
  h.view.session.room=netplay::RoomState::Joined;h.Screen("home");
  h.view.tournament.connect.bridge="brg_1";h.view.tournament.connect.sequence=1;h.Frame(0,2);
  Check(status==loc::T("connect.link_waiting")&&h.shell.Navigation().Screen()!="discord-connect","A connect link moved a player who is in a room");
+ const auto waited=sent().size();
  h.view.session.room=netplay::RoomState::Idle;h.Frame(0,2);
  Check(h.shell.Navigation().Screen()=="discord-connect","A connect link did not open Connect Discord once the room closed");
- // Step 1: no Ember ID yet, so it is created here.
  for(int i=0;i<4;++i)answer();
- Check(row("dc-about")&&row("id-enable")&&row("id-enable")->enabled,"Connect Discord did not offer to create the Ember ID");
- const auto start=sent().size();
- h.Choose("id-enable");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
- Check(sent().back()->op==IdentityOp::Enable,"Create Ember ID did not send");
+ Check(row("dc-go")&&row("dc-go")->enabled&&count(IdentityOp::Enable,waited)==0,"A link that waited for a room did not ask first");
+ // A link the player just clicked runs by itself up to Discord's page.
+ h.Screen("home");const auto start=sent().size();
+ h.view.tournament.connect.sequence=2;h.Frame(0,2);
+ Check(h.shell.Navigation().Screen()=="discord-connect"&&h.shell.Navigation().Parent()=="identity","A connect link did not open Connect Discord under Ember ID");
+ Check(until(IdentityOp::Enable),"The link did not create the Ember ID by itself");
+ Check(row("dc-progress")!=nullptr,"Connect Discord does not show it is setting up");
  id.state="ready";id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";answer();
- // Step 2: Ember's own service is looked up for the player to trust.
- Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==ember,"Connect Discord did not look up Ember's own service");
+ Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==ember,"The link did not look up Ember's own service");
  id.inspected={"brg_1",ember,"Ember"};id.inspectedDiscord=true;answer();
- Check(row("id-approve")&&row("id-approve")->enabled&&!row("id-discord-connect"),"Ember's own service was not offered to trust first");
- h.Choose("id-approve");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
- Check(sent().back()->op==IdentityOp::BridgeApprove&&sent().back()->bridge=="brg_1"&&sent().back()->origin==ember,"Trust did not name the service");
+ Check(sent().back()->op==IdentityOp::BridgeApprove&&sent().back()->bridge=="brg_1"&&sent().back()->origin==ember,"The link did not trust Ember's own service by itself");
  id.bridges={{"brg_1",ember,"Ember"}};answer();
- // Step 3: Discord, on that service.
- Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge=="brg_1","The trusted service's Discord account was not asked for");
+ Check(until(IdentityOp::DiscordStatus)&&sent().back()->bridge=="brg_1","The link did not read the account first");
  id.discordUser.clear();id.discordName.clear();answer();
- Check(row("dc-service")&&row("id-discord-connect")&&row("id-discord-connect")->enabled,"Connect Discord was not offered on the service");
- Check(none(IdentityOp::DiscordConnect,start),"Discord was opened before the player pressed Connect");
- Check(none(IdentityOp::LinkList,start),"Connect Discord asked for the linked accounts");
- h.Choose("id-discord-connect");
- Check(sent().back()->op==IdentityOp::DiscordConnect&&sent().back()->bridge=="brg_1","Connect did not name its service");
- answer();Check(status==loc::T("identity.done.discord_opened"),"Connect did not say to finish in the browser");
+ Check(sent().back()->op==IdentityOp::DiscordConnect&&sent().back()->bridge=="brg_1","The link did not open Discord by itself");
+ Check(count(IdentityOp::LinkList,start)==0,"Connect Discord asked for the linked accounts");
+ answer();Check(status==loc::T("identity.done.discord_opened"),"Opening Discord did not say to finish in the browser");
+ Check(row("dc-waiting")&&row("dc-cancel"),"Waiting for Discord is not shown with Cancel");
  // While the browser is open the account is read again by itself.
  const auto polled=sent().size();h.Frame(0,300);
  Check(sent().size()>polled&&sent().back()->op==IdentityOp::DiscordStatus&&sent().back()->bridge=="brg_1","The account was not read again");
@@ -353,20 +351,21 @@ void DiscordConnectLink(){
  Check(status==loc::T("connect.waiting"),"Waiting for Discord is not said once the first notice ends");
  id.discordUser="274220342558756145";id.discordName="kate";until(IdentityOp::DiscordStatus);answer();
  Check(status==loc::Tf("connect.done","kate")&&row("dc-connected")&&row("dc-connected")->value=="kate","A connected account was not shown");
+ Check(row("id-discord-connect")&&row("id-discord-remove"),"A connected account offers no other account or Unlink");
  const auto settled=sent().size();h.Frame(0,300);
  Check(sent().size()==settled,"The account was still read again after it connected");
- // A second link for the same service finds it already connected.
- h.Screen("home");h.view.tournament.connect.sequence=2;h.Frame(0,2);
+ // A second link for a connected account only shows it.
+ h.Screen("home");h.view.tournament.connect.sequence=3;h.Frame(0,2);
  Check(h.shell.Navigation().Screen()=="discord-connect","A second connect link did not open Connect Discord");
  for(int i=0;i<8;++i)answer();
- Check(row("dc-connected"),"An account connected earlier is not shown");
+ Check(row("dc-connected")&&count(IdentityOp::DiscordConnect,start)==1,"A link for a connected account opened Discord again");
  // A link for a service Ember does not know says so; nothing is trusted by itself.
  const auto before=sent().size();
- h.view.tournament.connect.bridge="brg_9";h.view.tournament.connect.sequence=3;h.Frame(0,2);
+ h.view.tournament.connect.bridge="brg_9";h.view.tournament.connect.sequence=4;h.Frame(0,2);
  Check(until(IdentityOp::BridgeInspect)&&sent().back()->origin==ember,"A connect link for another service did not check Ember's own");
  id.inspected={"brg_1",ember,"Ember"};answer();for(int i=0;i<6;++i)answer();
  Check(row("dc-unknown")&&row("dc-retry")&&!row("id-approve")&&!row("id-discord-connect"),"A link for an unknown service was not said");
- Check(none(IdentityOp::BridgeApprove,before),"A connect link trusted a service by itself");
+ Check(count(IdentityOp::BridgeApprove,before)==0,"A connect link trusted another service by itself");
  // The Ember ID screen opens Connect Discord too.
  h.Screen("identity");for(int i=0;i<4;++i)answer();
  Check(row("discord-connect")!=nullptr,"The Ember ID screen does not offer Connect Discord");
@@ -379,7 +378,7 @@ void DiscordConnectLink(){
 // failure, changes nothing in the new visit.
 void DiscordWaitsForItsService(){
  using namespace sf4e;using netplay::IdentityOp;
- Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";
+ Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";h.view.tournament.connectAgeMs=60000;
  id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
  const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
  id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};h.Frame();
@@ -468,7 +467,7 @@ void DiscordWaitsForItsService(){
 // Connect Discord itself, and through a visit to the Ember ID screen.
 void DiscordConnectKeepsItsService(){
  using namespace sf4e;using netplay::IdentityOp;
- Harness h;auto& id=h.view.identity;id.known=true;id.state="locked";h.Frame();
+ Harness h;auto& id=h.view.identity;id.known=true;id.state="locked";h.Frame();h.view.tournament.connectAgeMs=60000;
  const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
  std::vector<MenuEntry> rows;std::string status;
  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
@@ -558,7 +557,7 @@ void FirstSignInRetires(){
  const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
  std::vector<MenuEntry> rows;std::string status;
  for(int ending=0;ending<3;++ending){
-  Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";
+  Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";h.view.tournament.connectAgeMs=60000;
   id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
   id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};h.Frame();
   SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
@@ -605,7 +604,7 @@ void ConnectReadsRecover(){
  std::vector<MenuEntry> rows;std::string status;
  const auto row=[&](const char* name)->const MenuEntry*{const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;});return it==rows.end()?nullptr:&*it;};
  for(int ending=0;ending<4;++ending){
-  Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";
+  Harness h;auto& id=h.view.identity;id.known=true;id.state="ready";h.view.tournament.connectAgeMs=60000;
   id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
   id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};h.Frame();
   SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
@@ -685,7 +684,7 @@ void RetainedChangesStayTheirs(){
  const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
  std::vector<MenuEntry> rows;std::string status;
  for(int ending=0;ending<2;++ending){
-  Harness h;auto& id=h.view.identity;id.known=true;id.state=ending==0?"ready":"locked";
+  Harness h;auto& id=h.view.identity;id.known=true;id.state=ending==0?"ready":"locked";h.view.tournament.connectAgeMs=60000;
   id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
   id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};h.Frame();
   SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});

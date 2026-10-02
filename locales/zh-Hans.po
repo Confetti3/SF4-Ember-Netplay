@@ -2466,9 +2466,6 @@ msgstr "已绑定账号"
 msgid "screen.tournament_matches"
 msgstr "赛事对局"
 
-msgid "settings.identity_detail"
-msgstr "用于赛事网站的 Ember ID、其备份以及已绑定的账号。"
-
 msgid "identity.title"
 msgstr "Ember ID"
 
@@ -2682,18 +2679,6 @@ msgstr "关联 Discord"
 msgid "identity.connect_discord_detail"
 msgstr "关联你的赛事网站（例如 BluMint）所知道的 Discord 账号，让它能找到你的 Ember ID。Ember 会逐步引导你完成。"
 
-msgid "connect.about"
-msgstr "这有什么用"
-
-msgid "connect.about_detail"
-msgstr "BluMint 等赛事网站通过 Discord 账号查找玩家。关联你的账号后，Ember 的赛事服务就能知道哪个 Ember ID 是你的，网站便能找到你并把你的对局发送到 Ember。在 Ember 中，Discord 是可选的。"
-
-msgid "connect.create"
-msgstr "创建 Ember ID"
-
-msgid "connect.create_detail"
-msgstr "第 1 步，共 3 步。你的 Ember ID 向赛事网站表明这份 Ember 属于你。它在此电脑上生成，无需账号或电子邮件。"
-
 msgid "connect.identity_detail"
 msgstr "第 1 步，共 3 步。你的 Ember ID 尚未就绪。请打开“Ember ID”界面查看还需要什么。"
 
@@ -2718,14 +2703,11 @@ msgstr "重试"
 msgid "connect.retry_detail"
 msgstr "重新查找赛事服务。"
 
-msgid "connect.connect_detail"
-msgstr "第 3 步，共 3 步。Ember 会在浏览器中打开 Discord。请在那里使用你的赛事网站所知道的 Discord 账号批准。完成后此界面会显示。"
-
 msgid "connect.connected"
 msgstr "Discord 已关联"
 
 msgid "connect.connected_detail"
-msgstr "使用此服务的赛事网站现在可以找到你的 Ember ID。请返回赛事网站继续。如需解除关联，请前往“已绑定账号”。"
+msgstr "请在你的赛事网站上使用这个 Discord 账号。返回网站继续；如果它仍然找不到你，请让它再检查一次。"
 
 msgid "connect.off"
 msgstr "Discord 登录已关闭"
@@ -2737,7 +2719,34 @@ msgid "connect.waiting"
 msgstr "请在浏览器中批准。Discord 关联后，此界面会更新。"
 
 msgid "connect.done"
-msgstr "已关联 Discord 账号 {0}。你可以返回赛事网站了。"
+msgstr "已将 Discord 关联为 {0}。请返回你的赛事网站继续。"
+
+msgid "connect.go_detail"
+msgstr "关联 Discord 后，BluMint 等赛事网站就能找到你的 Ember ID。如有需要，Ember 会先在此电脑上设置你的 Ember ID，然后在浏览器中打开 Discord：请在那里使用你的赛事网站所认识的 Discord 账号进行批准。"
+
+msgid "connect.setting_up"
+msgstr "正在设置"
+
+msgid "connect.setting_up_detail"
+msgstr "Ember 正在设置你的 Ember ID，并在浏览器中打开 Discord。关联 Discord 后，BluMint 等赛事网站就能找到你。"
+
+msgid "connect.waiting_label"
+msgstr "正在等待 Discord"
+
+msgid "connect.waiting_detail"
+msgstr "请在浏览器中使用你的赛事网站所认识的 Discord 账号进行批准。此界面会自动更新。"
+
+msgid "connect.cancel_detail"
+msgstr "停止等待。准备好后，请再次选择“关联 Discord”。"
+
+msgid "connect.cancelled"
+msgstr "已停止等待 Discord。"
+
+msgid "connect.change"
+msgstr "使用其他 Discord 账号"
+
+msgid "connect.change_detail"
+msgstr "在浏览器中打开 Discord，改为关联另一个账号。之后你的赛事网站必须使用该账号。"
 
 msgid "connect.link_waiting"
 msgstr "有赛事网站请求你关联 Discord。离开房间后，Ember 会打开“关联 Discord”。"

@@ -2466,9 +2466,6 @@ msgstr "Propojené účty"
 msgid "screen.tournament_matches"
 msgstr "Turnajové zápasy"
 
-msgid "settings.identity_detail"
-msgstr "Vaše Ember ID pro turnajové weby, jeho záloha a účty s ním propojené."
-
 msgid "identity.title"
 msgstr "EMBER ID"
 
@@ -2682,18 +2679,6 @@ msgstr "Připojit Discord"
 msgid "identity.connect_discord_detail"
 msgstr "Připojte účet Discord, který zná váš turnajový web, například BluMint, aby mohl najít vaše Ember ID. Ember vás tím provede krok za krokem."
 
-msgid "connect.about"
-msgstr "K čemu to slouží"
-
-msgid "connect.about_detail"
-msgstr "Turnajové weby, například BluMint, hledají hráče podle účtu Discord. Připojením vašeho účtu sdělíte turnajové službě Ember, které Ember ID je vaše, aby vás web mohl najít a posílat vaše zápasy do Ember. Discord je v Ember volitelný."
-
-msgid "connect.create"
-msgstr "Vytvořit Ember ID"
-
-msgid "connect.create_detail"
-msgstr "Krok 1 ze 3. Vaše Ember ID turnajovým webům sděluje, že tato kopie Ember patří vám. Vzniká v tomto počítači; účet ani e-mail nejsou potřeba."
-
 msgid "connect.identity_detail"
 msgstr "Krok 1 ze 3. Vaše Ember ID ještě není připravené. Otevřete obrazovku Ember ID a podívejte se, co je potřeba."
 
@@ -2718,14 +2703,11 @@ msgstr "Zkusit znovu"
 msgid "connect.retry_detail"
 msgstr "Znovu vyhledá turnajovou službu."
 
-msgid "connect.connect_detail"
-msgstr "Krok 3 ze 3. Ember otevře Discord ve vašem prohlížeči. Schvalte to tam účtem Discord, který zná váš turnajový web. Tato obrazovka ukáže, až bude hotovo."
-
 msgid "connect.connected"
 msgstr "Discord připojen"
 
 msgid "connect.connected_detail"
-msgstr "Turnajové weby používající tuto službu teď najdou vaše Ember ID. Pokračujte návratem na turnajový web. Odpojit ho můžete v části Propojené účty."
+msgstr "Použijte tento účet Discord na svém turnajovém webu. Pro pokračování se na web vraťte; pokud vás stále nenajde, požádejte ho, aby to zkontroloval znovu."
 
 msgid "connect.off"
 msgstr "Přihlášení přes Discord je vypnuté"
@@ -2737,7 +2719,34 @@ msgid "connect.waiting"
 msgstr "Schvalte to v prohlížeči. Tato obrazovka se aktualizuje, jakmile bude Discord připojen."
 
 msgid "connect.done"
-msgstr "Účet Discord {0} je připojen. Můžete se vrátit na turnajový web."
+msgstr "Discord připojen jako {0}. Pro pokračování se vraťte na svůj turnajový web."
+
+msgid "connect.go_detail"
+msgstr "Po připojení Discordu mohou turnajové weby, například BluMint, najít vaše Ember ID. Ember podle potřeby nastaví vaše Ember ID na tomto počítači a poté otevře Discord ve vašem prohlížeči: tam schvalte účet Discord, který váš turnajový web zná."
+
+msgid "connect.setting_up"
+msgstr "Nastavování"
+
+msgid "connect.setting_up_detail"
+msgstr "Ember nastavuje vaše Ember ID a otevírá Discord ve vašem prohlížeči. Po připojení Discordu vás turnajové weby, například BluMint, najdou."
+
+msgid "connect.waiting_label"
+msgstr "Čekání na Discord"
+
+msgid "connect.waiting_detail"
+msgstr "Schvalte v prohlížeči pomocí účtu Discord, který váš turnajový web zná. Tato obrazovka se aktualizuje sama."
+
+msgid "connect.cancel_detail"
+msgstr "Přestane čekat. Až budete připraveni, zvolte znovu Připojit Discord."
+
+msgid "connect.cancelled"
+msgstr "Čekání na Discord bylo zastaveno."
+
+msgid "connect.change"
+msgstr "Použít jiný účet Discord"
+
+msgid "connect.change_detail"
+msgstr "Otevře Discord ve vašem prohlížeči a připojí místo toho jiný účet. Váš turnajový web pak musí používat tento účet."
 
 msgid "connect.link_waiting"
 msgstr "Turnajový web vás žádá o připojení Discordu. Ember otevře obrazovku Připojit Discord, až opustíte místnost."

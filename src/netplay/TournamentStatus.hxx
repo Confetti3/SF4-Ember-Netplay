@@ -48,6 +48,8 @@ struct AssignmentList {
 struct OpenedLink {
 	std::string bridge, match;
 	std::uint64_t sequence = 0;
+	// When it arrived (GetTickCount64), for its age.
+	std::uint64_t at = 0;
 };
 
 struct Status {
@@ -59,6 +61,8 @@ struct Status {
 	bool waitingForOpponent = false, waitingForPermit = false;
 	AssignmentList list;
 	OpenedLink link, connect;
+	// How long ago the connect link arrived, in milliseconds.
+	std::uint64_t connectAgeMs = 0;
 };
 
 } } }

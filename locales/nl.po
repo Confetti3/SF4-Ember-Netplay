@@ -2466,9 +2466,6 @@ msgstr "Gekoppelde accounts"
 msgid "screen.tournament_matches"
 msgstr "Toernooiwedstrijden"
 
-msgid "settings.identity_detail"
-msgstr "Je Ember ID voor toernooisites, de back-up ervan en de gekoppelde accounts."
-
 msgid "identity.title"
 msgstr "EMBER ID"
 
@@ -2682,18 +2679,6 @@ msgstr "Discord koppelen"
 msgid "identity.connect_discord_detail"
 msgstr "Koppel het Discord-account dat je toernooisite kent, zoals BluMint, zodat die je Ember ID kan vinden. Ember helpt je stap voor stap."
 
-msgid "connect.about"
-msgstr "Wat dit doet"
-
-msgid "connect.about_detail"
-msgstr "Toernooisites zoals BluMint vinden spelers via hun Discord-account. Als je het jouwe koppelt, weet de toernooidienst van Ember welke Ember ID van jou is, zodat de site je kan vinden en je wedstrijden naar Ember kan sturen. Discord is optioneel in Ember."
-
-msgid "connect.create"
-msgstr "Ember ID maken"
-
-msgid "connect.create_detail"
-msgstr "Stap 1 van 3. Met je Ember ID weten toernooisites dat deze kopie van Ember van jou is. Je maakt die op deze pc; een account of e-mail is niet nodig."
-
 msgid "connect.identity_detail"
 msgstr "Stap 1 van 3. Je Ember ID is nog niet klaar. Open het scherm Ember ID om te zien wat er nodig is."
 
@@ -2718,14 +2703,11 @@ msgstr "Opnieuw proberen"
 msgid "connect.retry_detail"
 msgstr "Zoekt opnieuw naar de toernooidienst."
 
-msgid "connect.connect_detail"
-msgstr "Stap 3 van 3. Ember opent Discord in je browser. Keur het daar goed met het Discord-account dat je toernooisite kent. Dit scherm laat zien wanneer het klaar is."
-
 msgid "connect.connected"
 msgstr "Discord gekoppeld"
 
 msgid "connect.connected_detail"
-msgstr "Toernooisites die deze dienst gebruiken, kunnen je Ember ID nu vinden. Ga terug naar de toernooisite om verder te gaan. Ontkoppelen doe je bij Gekoppelde accounts."
+msgstr "Gebruik dit Discord-account op je toernooisite. Ga terug naar de site om verder te gaan; als die je nog steeds niet kan vinden, vraag hem dan opnieuw te controleren."
 
 msgid "connect.off"
 msgstr "Aanmelden met Discord staat uit"
@@ -2737,7 +2719,34 @@ msgid "connect.waiting"
 msgstr "Keur het goed in je browser. Dit scherm wordt bijgewerkt zodra Discord gekoppeld is."
 
 msgid "connect.done"
-msgstr "Discord-account {0} gekoppeld. Je kunt teruggaan naar de toernooisite."
+msgstr "Discord gekoppeld als {0}. Ga terug naar je toernooisite om verder te gaan."
+
+msgid "connect.go_detail"
+msgstr "Als je Discord koppelt, kunnen toernooisites zoals BluMint je Ember ID vinden. Ember stelt zo nodig je Ember ID op deze pc in en opent daarna Discord in je browser: keur daar goed met het Discord-account dat je toernooisite kent."
+
+msgid "connect.setting_up"
+msgstr "Instellen"
+
+msgid "connect.setting_up_detail"
+msgstr "Ember stelt je Ember ID in en opent Discord in je browser. Als je Discord koppelt, kunnen toernooisites zoals BluMint je vinden."
+
+msgid "connect.waiting_label"
+msgstr "Wachten op Discord"
+
+msgid "connect.waiting_detail"
+msgstr "Keur goed in je browser met het Discord-account dat je toernooisite kent. Dit scherm wordt vanzelf bijgewerkt."
+
+msgid "connect.cancel_detail"
+msgstr "Stopt met wachten. Kies Discord koppelen opnieuw als je klaar bent."
+
+msgid "connect.cancelled"
+msgstr "Gestopt met wachten op Discord."
+
+msgid "connect.change"
+msgstr "Een ander Discord-account gebruiken"
+
+msgid "connect.change_detail"
+msgstr "Opent Discord in je browser om in plaats daarvan een ander account te koppelen. Je toernooisite moet dan dat account gebruiken."
 
 msgid "connect.link_waiting"
 msgstr "Een toernooisite vraagt je om Discord te koppelen. Ember opent Discord koppelen zodra je de kamer verlaat."

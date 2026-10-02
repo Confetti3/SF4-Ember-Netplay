@@ -2466,9 +2466,6 @@ msgstr "連携アカウント"
 msgid "screen.tournament_matches"
 msgstr "大会の試合"
 
-msgid "settings.identity_detail"
-msgstr "大会サイト用のEmber ID、そのバックアップ、連携しているアカウントです。"
-
 msgid "identity.title"
 msgstr "Ember ID"
 
@@ -2682,18 +2679,6 @@ msgstr "Discordを連携"
 msgid "identity.connect_discord_detail"
 msgstr "BluMintなど、大会サイトが把握しているDiscordアカウントを連携して、大会サイトがEmber IDを見つけられるようにします。Emberが手順を案内します。"
 
-msgid "connect.about"
-msgstr "この機能について"
-
-msgid "connect.about_detail"
-msgstr "BluMintなどの大会サイトは、Discordアカウントでプレイヤーを見つけます。自分のアカウントを連携すると、どのEmber IDがあなたのものかがEmberの大会サービスに伝わり、サイトがあなたを見つけて試合をEmberに送れるようになります。DiscordはEmberでは任意です。"
-
-msgid "connect.create"
-msgstr "Ember IDを作成"
-
-msgid "connect.create_detail"
-msgstr "ステップ1/3。Ember IDは、このEmberがあなたのものであることを大会サイトに伝えます。このPCで作成され、アカウントやメールアドレスは不要です。"
-
 msgid "connect.identity_detail"
 msgstr "ステップ1/3。Ember IDの準備がまだできていません。「Ember ID」画面を開いて、必要なことを確認してください。"
 
@@ -2718,14 +2703,11 @@ msgstr "再試行"
 msgid "connect.retry_detail"
 msgstr "大会サービスをもう一度探します。"
 
-msgid "connect.connect_detail"
-msgstr "ステップ3/3。EmberがブラウザーでDiscordを開きます。大会サイトが把握しているDiscordアカウントで承認してください。完了するとこの画面に表示されます。"
-
 msgid "connect.connected"
 msgstr "Discord連携済み"
 
 msgid "connect.connected_detail"
-msgstr "このサービスを使う大会サイトが、あなたのEmber IDを見つけられるようになりました。大会サイトに戻って続けてください。連携を解除するには「連携アカウント」を使います。"
+msgstr "このDiscordアカウントを大会サイトで使ってください。続けるには大会サイトに戻ってください。それでも見つけられない場合は、もう一度確認するよう大会サイトに依頼してください。"
 
 msgid "connect.off"
 msgstr "Discordでのサインインは無効です"
@@ -2737,7 +2719,34 @@ msgid "connect.waiting"
 msgstr "ブラウザーで承認してください。Discordが連携されると、この画面が更新されます。"
 
 msgid "connect.done"
-msgstr "Discordアカウント{0}を連携しました。大会サイトに戻れます。"
+msgstr "Discordを{0}として連携しました。続けるには大会サイトに戻ってください。"
+
+msgid "connect.go_detail"
+msgstr "Discordを連携すると、BluMintなどの大会サイトがあなたのEmber IDを見つけられるようになります。必要に応じてEmberがこのPCでEmber IDを設定し、ブラウザーでDiscordを開きます。そこで、大会サイトが認識しているDiscordアカウントで承認してください。"
+
+msgid "connect.setting_up"
+msgstr "設定中"
+
+msgid "connect.setting_up_detail"
+msgstr "EmberがEmber IDを設定し、ブラウザーでDiscordを開いています。Discordを連携すると、BluMintなどの大会サイトがあなたを見つけられるようになります。"
+
+msgid "connect.waiting_label"
+msgstr "Discordを待っています"
+
+msgid "connect.waiting_detail"
+msgstr "ブラウザーで、大会サイトが認識しているDiscordアカウントで承認してください。この画面は自動で更新されます。"
+
+msgid "connect.cancel_detail"
+msgstr "待機をやめます。準備ができたら、もう一度「Discordを連携」を選んでください。"
+
+msgid "connect.cancelled"
+msgstr "Discordの待機をやめました。"
+
+msgid "connect.change"
+msgstr "別のDiscordアカウントを使う"
+
+msgid "connect.change_detail"
+msgstr "ブラウザーでDiscordを開き、代わりに別のアカウントを連携します。その後は、大会サイトでもそのアカウントを使う必要があります。"
 
 msgid "connect.link_waiting"
 msgstr "大会サイトからDiscordの連携を求められました。ルームから退出すると、Emberが「Discordを連携」を開きます。"

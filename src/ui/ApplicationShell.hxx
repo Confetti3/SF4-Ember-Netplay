@@ -217,6 +217,10 @@ private:
     // Discord can open (not in a room).
     std::uint64_t connectLinkSequence_ = 0;
     std::string pendingConnect_;
+    // Whether it waited for a room, and how recent a link must be to count
+    // as just clicked (the overlay opens for it at the main menu).
+    bool pendingConnectStale_ = false;
+    static constexpr std::uint64_t ConnectLinkFreshMs = 3000;
     netplay::PlayerPreferences preferences_;
     netplay::LobbySettings lobby_;
     std::string error_;

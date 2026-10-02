@@ -112,6 +112,7 @@ bool IdentityPanel::Superseded() const {
 }
 
 void IdentityPanel::ReadFailed() {
+    autoRun_ = false;
     if (sentOp_ == IdentityOp::DiscordStatus) {
         discord_[sentBridge_].failed = true;
         if (sentBridge_ == discordWaitBridge_) discordPaused_ = true;
@@ -126,14 +127,18 @@ void IdentityPanel::DropQueue() {
 
 void IdentityPanel::NewJourney() {
     ++journey_;
-    discordWaitUntil_ = 0; discordPaused_ = false;
+    discordWaitUntil_ = 0; discordPaused_ = false; autoRun_ = false;
     discordWaitBridge_.clear();
     queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [](const Queued& q) { return Retirable(q.request.op); }), queue_.end());
 }
 
-void IdentityPanel::OpenDiscord(const std::string& bridge) {
+void IdentityPanel::OpenDiscord(const std::string& bridge, bool automatic) {
+    // A second link for the sign-in already open in the browser opens no
+    // second page: the screen shows the wait.
+    if (discordWaitUntil_ > 0 && bridge == discordWaitBridge_) { lastScreen_.clear(); return; }
     NewJourney();
     connectBridge_ = bridge;
+    autoRun_ = automatic;
     // The screen reads everything again, as if newly opened.
     lastScreen_.clear();
 }
@@ -383,18 +388,41 @@ void IdentityPanel::ConnectNext(const ShellView& v) {
     }
 }
 
+bool IdentityPanel::EmberOffered() const {
+    return !found_.id.empty() && found_.origin == EmberService && (connectBridge_.empty() || found_.id == connectBridge_);
+}
+
+void IdentityPanel::ConnectGo(const ShellView& v) {
+    const auto& id = v.identity;
+    autoRun_ = true; message_.clear();
+    if (id.state == "disabled") {
+        IdentityRequest r; r.op = IdentityOp::Enable;
+        if (id.passphraseRequired) r.passphrase = newPassphrase_;
+        Queue(std::move(r));
+        return;
+    }
+    if (!ConnectTarget(v) && EmberOffered()) {
+        IdentityRequest r; r.op = IdentityOp::BridgeApprove; r.origin = found_.origin; r.bridge = found_.id; Queue(std::move(r));
+        return;
+    }
+    Refresh(v, "discord-connect");
+}
+
 // Steps 2 and 3 of Connect Discord, with the Ember ID ready: trust the
 // service, then connect Discord on it.
 void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows, bool busy) const {
     const auto& id = v.identity;
     const auto* target = ConnectTarget(v);
     if (!target) {
-        const bool offered = !found_.id.empty() && found_.origin == EmberService &&
-            (connectBridge_.empty() || found_.id == connectBridge_);
-        if (offered) {
+        const bool offered = EmberOffered();
+        const bool removed = offered && std::find(forgotten_.begin(), forgotten_.end(), found_.id) != forgotten_.end();
+        if (removed) {
+            // Removed by the player this run: trusting it again is theirs to say.
             auto trust = ConfirmRow("id-approve", loc::Tf("identity.trust", found_.name.empty() ? found_.origin : found_.name),
                 loc::Tf("connect.trust_detail", found_.origin), !busy);
             trust.userText = true; rows.push_back(std::move(trust));
+        } else if (offered && !busy) {
+            rows.push_back(Row("dc-go", loc::T("screen.connect_discord"), loc::T("connect.go_detail")));
         } else if (busy) {
             rows.push_back(Info("dc-looking", loc::T("connect.looking_up"), {}, loc::T("connect.looking_up_detail")));
         } else {
@@ -409,16 +437,23 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
     // Read, and the latest read did not fail.
     const auto account = discord_.find(target->id);
     const bool read = bridge_ == target->id && account != discord_.end() && account->second.read && !account->second.failed;
-    if (read && !account->second.user.empty()) {
+    const bool waiting = discordWaitUntil_ > 0 && !discordPaused_ && discordWaitBridge_ == target->id;
+    if (waiting) {
+        rows.push_back(Info("dc-waiting", loc::T("connect.waiting_label"), {}, loc::T("connect.waiting_detail")));
+        rows.push_back(Row("dc-cancel", loc::T("common.cancel"), loc::T("connect.cancel_detail")));
+    } else if (read && !account->second.user.empty()) {
         auto connected = Info("dc-connected", loc::T("connect.connected"), account->second.name, loc::T("connect.connected_detail"));
         connected.userText = true; rows.push_back(std::move(connected));
-        // Disconnecting is here too, not only under Linked accounts.
+        // Another account, or none: both here, not only under Linked accounts.
+        rows.push_back(Row("id-discord-connect", loc::T("connect.change"), loc::T("connect.change_detail"), !busy));
         auto remove = ConfirmRow("id-discord-remove", loc::T("identity.unlink"), loc::T("identity.discord_remove_detail"), !busy);
         remove.hint = loc::T("identity.unlink"); rows.push_back(std::move(remove));
+    } else if (autoRun_ && busy) {
+        rows.push_back(Info("dc-progress", loc::T("connect.setting_up"), {}, loc::T("connect.setting_up_detail")));
     } else if (id.inspected.id == target->id && !id.inspectedDiscord) {
         rows.push_back(Info("dc-off", loc::T("connect.off"), {}, loc::T("connect.off_detail")));
     } else {
-        rows.push_back(Row("id-discord-connect", loc::T("screen.connect_discord"), loc::T("connect.connect_detail"),
+        rows.push_back(Row("id-discord-connect", loc::T("screen.connect_discord"), loc::T("connect.go_detail"),
             !busy && read));
         // Nothing in flight and the account not read: reading it failed.
         if (!busy && !read) rows.push_back(Row("dc-retry", loc::T("connect.retry"), loc::T("connect.retry_detail")));
@@ -450,6 +485,11 @@ void IdentityPanel::Finish(const ShellView& v) {
         // A ready Ember ID screen shows the Discord account on Ember's own
         // service; without an ID nothing holds Create back.
         if (lastScreen_ == "identity" && id.state == "ready") { IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list)); }
+        // A running Connect creates the Ember ID itself when nothing must be typed.
+        if (autoRun_ && lastScreen_ == "discord-connect" && id.state == "disabled") {
+            if (id.passphraseRequired || !v.canEditPreferences) autoRun_ = false;
+            else { IdentityRequest r; r.op = IdentityOp::Enable; Queue(std::move(r)); }
+        }
         break;
     case IdentityOp::Enable: case IdentityOp::Unlock:
         if (sentOp_ == IdentityOp::Enable) { WipeText(newPassphrase_); WipeText(newConfirm_); }
@@ -495,6 +535,14 @@ void IdentityPanel::Finish(const ShellView& v) {
         break;
     case IdentityOp::BridgeInspect:
         if (sentLookUp_) found_ = id.inspected;
+        // A running Connect trusts Ember's own service, unless the player removed it.
+        if (sentLookUp_ && autoRun_ && lastScreen_ == "discord-connect") {
+            if (EmberOffered() && std::find(forgotten_.begin(), forgotten_.end(), found_.id) == forgotten_.end()) {
+                IdentityRequest r; r.op = IdentityOp::BridgeApprove; r.origin = found_.origin; r.bridge = found_.id; Queue(std::move(r));
+            } else {
+                autoRun_ = false;
+            }
+        }
         // The selected service's profile, or a look-up of it once trusted.
         if (id.inspected.id == bridge_ && FindBridge(v, bridge_)) {
             const bool known = std::any_of(id.connections.begin(), id.connections.end(),
@@ -509,6 +557,15 @@ void IdentityPanel::Finish(const ShellView& v) {
         if (discordWaitUntil_ > 0 && sentBridge_ == discordWaitBridge_ && !id.discordUser.empty()) {
             discordWaitUntil_ = 0;
             Say(loc::Tf("connect.done", id.discordName), false, 20);
+        }
+        // A running Connect opens Discord once the account is read: none yet,
+        // on a service that offers sign-in. A connected account is shown.
+        if (autoRun_ && lastScreen_ == "discord-connect") {
+            const auto* target = ConnectTarget(v);
+            if (target && target->id == sentBridge_ && id.discordUser.empty() && id.inspected.id == target->id && id.inspectedDiscord) {
+                IdentityRequest r; r.op = IdentityOp::DiscordConnect; r.bridge = sentBridge_; Queue(std::move(r));
+            }
+            if (target && target->id == sentBridge_) autoRun_ = false;
         }
         break;
     case IdentityOp::DiscordConnect:
@@ -528,6 +585,7 @@ void IdentityPanel::Finish(const ShellView& v) {
         break;
     }
     case IdentityOp::BridgeForget: {
+        forgotten_.push_back(sentBridge_);
         Say(loc::T("identity.done.forgotten"), false); bridge_.clear(); listedBridge_.clear();
         IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
         break;
@@ -589,6 +647,9 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
         else { value = loc::T("identity.state.unavailable"); detail = loc::Tf("identity.state.unavailable_detail", FailureText(id.reason)); }
         rows.push_back(Info("id-status", loc::T("identity.status"), value, detail));
         if (id.state == "disabled") {
+            // Most players come for Discord: Connect Discord creates the ID on the way.
+            auto discord = Row("discord-connect", loc::T("identity.discord"), loc::T("identity.connect_discord_detail"));
+            discord.value = loc::T("identity.discord_none"); rows.push_back(std::move(discord));
             if (id.passphraseRequired) local(rows);
             const bool secretOk = !id.passphraseRequired || Matching(newPassphrase_, newConfirm_);
             rows.push_back(ConfirmRow("id-enable", loc::T("identity.enable"),
@@ -710,15 +771,14 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
         }
     } else if (screen == "discord-connect") {
         title = loc::T("screen.connect_discord");
-        rows.push_back(Info("dc-about", loc::T("connect.about"), {}, loc::T("connect.about_detail")));
-        if (!id.known) {
-            rows.push_back(Info("dc-checking", loc::T("identity.status"), loc::T("identity.state.checking"), loc::T("identity.state.checking_detail")));
+        if (!id.known || autoRun_ && busy && !ready) {
+            rows.push_back(Info("dc-progress", loc::T("connect.setting_up"), {}, loc::T("connect.setting_up_detail")));
         } else if (id.state == "disabled") {
-            // Step 1: an Ember ID, created here.
+            // Connect creates the Ember ID first; only Wine and Proton need a passphrase for it.
             if (id.passphraseRequired) local(rows);
             const bool secretOk = !id.passphraseRequired || Matching(newPassphrase_, newConfirm_);
-            rows.push_back(ConfirmRow("id-enable", loc::T("connect.create"),
-                canEdit ? loc::T("connect.create_detail") : loc::T("identity.leave_room"), canEdit && !busy && secretOk));
+            rows.push_back(Row("dc-go", loc::T("screen.connect_discord"),
+                canEdit ? loc::T("connect.go_detail") : loc::T("identity.leave_room"), canEdit && !busy && secretOk));
         } else if (id.state == "locked") {
             // Unlocked here, so the journey goes on with its service.
             rows.push_back(Secret("id-unlock", loc::T("identity.unlock"), {}, loc::T("identity.unlock_detail"), true));
@@ -797,6 +857,14 @@ void IdentityPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
     if (a.id == "identity" || a.id == "linked-accounts" || a.id == "identity-backup" || a.id == "tournament-matches" ||
         a.id == "discord-connect") { nav.Push(a.id); return; }
     if (a.id == "dc-retry") { message_.clear(); Refresh(v, "discord-connect"); return; }
+    if (a.id == "dc-go") { ConnectGo(v); return; }
+    if (a.id == "dc-cancel") {
+        discordWaitUntil_ = 0; autoRun_ = false;
+        Say(loc::T("connect.cancelled"), false);
+        return;
+    }
+    // Trusting a service on Connect Discord goes on to connect it.
+    if (a.id == "id-approve" && lastScreen_ == "discord-connect") autoRun_ = true;
     if (a.id == "dc-paste") {
         // The tournament site's link names its service; the journey starts over for it.
         const char* text = ImGui::GetClipboardText();

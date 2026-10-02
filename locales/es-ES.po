@@ -2466,9 +2466,6 @@ msgstr "Cuentas vinculadas"
 msgid "screen.tournament_matches"
 msgstr "Partidas del torneo"
 
-msgid "settings.identity_detail"
-msgstr "Tu Ember ID para sitios de torneos, su copia de seguridad y las cuentas vinculadas."
-
 msgid "identity.title"
 msgstr "EMBER ID"
 
@@ -2682,18 +2679,6 @@ msgstr "Conectar Discord"
 msgid "identity.connect_discord_detail"
 msgstr "Conecta la cuenta de Discord que conoce tu web de torneos, como BluMint, para que pueda encontrar tu Ember ID. Ember te guía paso a paso."
 
-msgid "connect.about"
-msgstr "Qué hace esto"
-
-msgid "connect.about_detail"
-msgstr "Las webs de torneos como BluMint encuentran a los jugadores por su cuenta de Discord. Al conectar la tuya, el servicio de torneos de Ember sabe qué Ember ID es tuyo, así la web puede encontrarte y enviar tus partidas a Ember. Discord es opcional en Ember."
-
-msgid "connect.create"
-msgstr "Crear Ember ID"
-
-msgid "connect.create_detail"
-msgstr "Paso 1 de 3. Tu Ember ID indica a las webs de torneos que esta copia de Ember eres tú. Se crea en este ordenador; no hace falta cuenta ni correo electrónico."
-
 msgid "connect.identity_detail"
 msgstr "Paso 1 de 3. Tu Ember ID aún no está listo. Abre la pantalla Ember ID para ver qué necesita."
 
@@ -2718,14 +2703,11 @@ msgstr "Intentar de nuevo"
 msgid "connect.retry_detail"
 msgstr "Vuelve a buscar el servicio de torneos."
 
-msgid "connect.connect_detail"
-msgstr "Paso 3 de 3. Ember abre Discord en tu navegador. Aprueba allí con la cuenta de Discord que conoce tu web de torneos. Esta pantalla te avisa cuando termine."
-
 msgid "connect.connected"
 msgstr "Discord conectado"
 
 msgid "connect.connected_detail"
-msgstr "Las webs de torneos que usan este servicio ya pueden encontrar tu Ember ID. Vuelve a la web de torneos para continuar. Para desconectarlo, usa Cuentas vinculadas."
+msgstr "Usa esta cuenta de Discord en tu web de torneos. Vuelve a la web para continuar; si aún no te encuentra, pídele que lo compruebe de nuevo."
 
 msgid "connect.off"
 msgstr "El inicio de sesión con Discord está desactivado"
@@ -2737,7 +2719,34 @@ msgid "connect.waiting"
 msgstr "Aprueba en tu navegador. Esta pantalla se actualiza cuando Discord esté conectado."
 
 msgid "connect.done"
-msgstr "Cuenta de Discord {0} conectada. Puedes volver a la web de torneos."
+msgstr "Discord conectado como {0}. Vuelve a tu web de torneos para continuar."
+
+msgid "connect.go_detail"
+msgstr "Al conectar Discord, las webs de torneos como BluMint pueden encontrar tu Ember ID. Ember configura tu Ember ID en este ordenador si hace falta y luego abre Discord en tu navegador: aprueba allí con la cuenta de Discord que tu web de torneos conoce."
+
+msgid "connect.setting_up"
+msgstr "Configurando"
+
+msgid "connect.setting_up_detail"
+msgstr "Ember está configurando tu Ember ID y abriendo Discord en tu navegador. Al conectar Discord, las webs de torneos como BluMint pueden encontrarte."
+
+msgid "connect.waiting_label"
+msgstr "Esperando a Discord"
+
+msgid "connect.waiting_detail"
+msgstr "Aprueba en tu navegador con la cuenta de Discord que tu web de torneos conoce. Esta pantalla se actualiza sola."
+
+msgid "connect.cancel_detail"
+msgstr "Deja de esperar. Elige Conectar Discord de nuevo cuando estés listo."
+
+msgid "connect.cancelled"
+msgstr "Se ha dejado de esperar a Discord."
+
+msgid "connect.change"
+msgstr "Usar otra cuenta de Discord"
+
+msgid "connect.change_detail"
+msgstr "Abre Discord en tu navegador para conectar otra cuenta. Tu web de torneos deberá usar entonces esa cuenta."
 
 msgid "connect.link_waiting"
 msgstr "Una web de torneos te ha pedido conectar Discord. Ember abre Conectar Discord cuando salgas de la sala."

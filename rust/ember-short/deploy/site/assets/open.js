@@ -62,7 +62,7 @@
       ember: 'ember://tournament/open?bridge=' + parts[0] + '&match=' + parts[1],
       link: 'https://embernetplay.link/m#' + parts[0] + '/' + parts[1],
       after: 'Ember opens the match on its Tournament matches screen; press Play there. Your browser may ask first whether to open Ember.',
-      steps: ['Start SF4 Ember Netplay.', 'Choose <strong>Settings</strong>, <strong>Ember ID</strong>, then <strong>Tournament matches</strong>.',
+      steps: ['Start SF4 Ember Netplay.', 'Choose <strong>Ember ID</strong>, then <strong>Tournament matches</strong>.',
         'Choose <strong>Paste match link</strong>, then <strong>Play</strong>.'],
       lasts: 'Only the two players in this match can play it, so it is safe to share this link with them.'
     };
@@ -107,10 +107,10 @@
       code: null,
       ember: 'ember://discord/connect?bridge=' + bridge,
       link: 'https://embernetplay.link/start#' + bridge,
-      after: 'Ember opens Connect Discord and walks you through it. Your browser may ask first whether to open Ember. When it says Discord is connected, come back to your tournament site.',
+      after: 'Ember sets itself up and opens Discord in your browser. Approve there with the Discord account this site knows, then come back here. Your browser may ask first whether to open Ember.',
       fallback: 'That happens when Ember has not been started on this PC yet, on Linux or Steam Deck, or when the browser blocks it. Copy the link and paste it into Ember instead, so it connects Discord for this site:',
-      steps: ['Start SF4 Ember Netplay.', 'Choose <strong>Settings</strong>, then <strong>Ember ID</strong>, and create your Ember ID if you have none.',
-        'Choose <strong>Connect Discord</strong>, then <strong>Paste link</strong>, and follow the steps.'],
+      steps: ['Start SF4 Ember Netplay.', 'Choose <strong>Ember ID</strong>, then <strong>Discord</strong>.',
+        'Choose <strong>Paste link</strong>, then approve in Discord.'],
       lasts: 'Discord is optional in Ember. Tournament sites that find players by Discord account, such as BluMint, need it.'
     };
   }
