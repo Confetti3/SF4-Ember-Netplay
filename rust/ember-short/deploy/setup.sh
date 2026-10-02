@@ -6,6 +6,11 @@
 # `cargo build --release` in ~/ember-short/src), ember-short.service,
 # nginx/ and site/. Running it again installs a newer binary or page.
 #
+# The page's match links (/m) and getting-started steps (/start) need the
+# Ember release that opens match links and has Ember ID. Install a page with
+# them once that release is the latest public one; until then they are for
+# testers with the test build.
+#
 # What it changes:
 #   /usr/local/lib/ember-short/ember-short      the service binary (root-owned)
 #   /etc/systemd/system/ember-short.service     runs it as a transient user on 127.0.0.1:47810

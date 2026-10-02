@@ -43,7 +43,8 @@ IDs. The in-game ID is the player's Ember ID (`emb1_...`).
 When a registering user has no Ember account, point them at
 `https://embernetplay.link/start` (for example as a registration option's
 `postambleLink`). It explains getting Ember and connecting Discord, then
-sends them back to register again.
+sends them back to register again. It goes live with the first public Ember
+release that has Ember ID and Discord (see "Not built yet").
 
 ## Match creation
 
@@ -98,7 +99,9 @@ so BluMint never receives a second, different result for a match.
 - **Tested with real players.** Matches played in Ember are covered by
   automated tests but have not yet been played on two PCs.
 - **A player build with Ember ID and Discord.** The current public Ember
-  release does not include them yet. A test build can be provided.
+  release does not include them yet, so the getting-started page and match
+  links go live with the release that does. Until then, staging testing uses
+  a test build Ember provides.
 - **Production.** There is no production bridge yet.
 
 ## Questions for BluMint
