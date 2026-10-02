@@ -152,11 +152,9 @@ impl Config {
             if !ember_protocol::discord::is_user_id(&discord.client_id) {
                 return Err("discord.client_id must be the application's numeric ID".into());
             }
-            check_origin(
-                discord.api_base.strip_suffix("/api").unwrap_or_default(),
-                self.policy(),
-            )
-            .map_err(|_| "discord.api_base must be an https origin followed by /api".to_owned())?;
+            if !self.is_api_base(&discord.api_base) {
+                return Err("discord.api_base must be an https origin followed by /api".into());
+            }
             if self.integration_secrets.is_none() {
                 return Err("discord needs integration_secrets for its client secret".into());
             }
@@ -182,9 +180,32 @@ impl Config {
                 ) {
                     return Err(format!("invalid environment for {}", connection.id));
                 }
+                // Only a connection the bridge calls out for has an API.
+                match &connection.api_base {
+                    Some(_) if connection.kind != BLUMINT => {
+                        return Err(format!(
+                            "{} has an api_base but its kind calls no API",
+                            connection.id
+                        ));
+                    }
+                    Some(base) if !self.is_api_base(base) => {
+                        return Err(format!(
+                            "{}: api_base must be an https origin followed by /api",
+                            connection.id
+                        ));
+                    }
+                    _ => {}
+                }
             }
         }
         Ok(())
+    }
+
+    /// A service's API: an origin under this bridge's policy (https, or
+    /// loopback http for local tests), then `/api`, and nothing else.
+    fn is_api_base(&self, base: &str) -> bool {
+        base.strip_suffix("/api")
+            .is_some_and(|origin| check_origin(origin, self.policy()).is_ok())
     }
 
     pub fn connection(&self, id: &str) -> Option<(&Tenant, &Connection)> {
@@ -207,4 +228,48 @@ pub fn is_slug(text: &str) -> bool {
         && bytes
             .iter()
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'-')
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn with_api_base(kind: &str, api_base: &str, loopback: bool) -> Result<(), String> {
+        let config: Config = serde_json::from_value(serde_json::json!({
+            "bridge_id": ember_protocol::encoding::prefixed_id("brg", [7; 16]),
+            "display_name": "Test bridge",
+            "origin": "https://bridge.example",
+            "listen": "127.0.0.1:0",
+            "database": "bridge.sqlite3",
+            "secrets": "secrets.json",
+            "allow_loopback_http": loopback,
+            "tenants": [{ "id": "bm", "name": "BluMint", "connections": [{
+                "id": "bm-partner", "kind": kind, "environment": "staging",
+                "display_name": "BluMint", "api_base": api_base,
+            }] }],
+        }))
+        .unwrap();
+        config.validate()
+    }
+
+    #[test]
+    fn a_connections_api_is_an_https_origin_and_api() {
+        assert!(with_api_base(BLUMINT, "https://staging.blumint.io/api", false).is_ok());
+        for refused in [
+            "http://staging.blumint.io/api",
+            "http://127.0.0.1:9000/api",
+            "https://staging.blumint.io/api/",
+            "https://staging.blumint.io/v2/api",
+            "https://user:pass@staging.blumint.io/api",
+            "https://staging.blumint.io/api?key=1",
+            "https://staging.blumint.io",
+        ] {
+            assert!(with_api_base(BLUMINT, refused, false).is_err(), "{refused}");
+        }
+        // Local tests may use loopback http, and nothing else.
+        assert!(with_api_base(BLUMINT, "http://127.0.0.1:9000/api", true).is_ok());
+        assert!(with_api_base(BLUMINT, "http://staging.blumint.io/api", true).is_err());
+        // A kind that calls no API takes none.
+        assert!(with_api_base("direct", "https://staging.blumint.io/api", false).is_err());
+    }
 }
