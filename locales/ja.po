@@ -1717,6 +1717,12 @@ msgstr "招待をコピー"
 msgid "room.copy_invitation.detail"
 msgstr "プライベートな招待をフレンドと共有します。"
 
+msgid "room.copy_short_invitation"
+msgstr "短縮リンクをコピー"
+
+msgid "room.copy_short_invitation.detail"
+msgstr "チャット用の短いリンクです。ルームが開いている間、Emberのリンクサービスが保持します。"
+
 msgid "room.leaving"
 msgstr "ルームから退出中..."
 
@@ -1788,6 +1794,24 @@ msgstr "{0} / あなた：{1}\n順番待ち：{2} / 観戦：{3}"
 
 msgid "room.invitation_copied"
 msgstr "招待をコピーしました。"
+
+msgid "room.short_invitation_copied"
+msgstr "短縮リンクをコピーしました。"
+
+msgid "room.short_invitation_pending"
+msgstr "短縮リンクを作成中..."
+
+msgid "room.short_invitation_unavailable"
+msgstr "リンクサービスが応答しなかったため、招待全体をコピーしました。"
+
+msgid "room.link_joining"
+msgstr "リンクのルームに参加しています。"
+
+msgid "room.link_opened"
+msgstr "ルームのリンクから開きました。内容を確認してから「ルームに参加」を選んでください。"
+
+msgid "room.link_waiting"
+msgstr "ルームのリンクが開かれました。このルームから退出すると参加画面に表示されます。"
 
 msgid "room.replacement_opening"
 msgstr "代わりのルームを開設中です。「招待をコピー」で新しいリンクを送ってください。古いリンクは使えません。"
@@ -2375,6 +2399,12 @@ msgstr "ホストは別の SF4 Ember Netplay パッケージを使っていま�
 
 msgid "runtime.invite_malformed"
 msgstr "招待のテキストが不完全です。もう一度コピーして、招待全体を貼り付けてください。"
+
+msgid "runtime.invite_short_unavailable"
+msgstr "Emberのリンクサービスに接続できず、この短縮リンクを開けません。ホストに招待全体を送ってもらい、それを貼り付けてください。"
+
+msgid "runtime.invite_short_unknown"
+msgstr "この短縮リンクのルームが見つかりません。コードを確認するか、ルームが閉じられた場合はホストに新しいリンクをもらってください。"
 
 msgid "runtime.room_host_failed"
 msgstr "ルームを作成できませんでした。インターネット接続を確認して、もう一度お試しください。"

@@ -88,12 +88,15 @@ int main() try {
     Check(failure(false, FailureStage::InviteExpired) == sf4e::loc::T("runtime.invite_expired") &&
         failure(false, FailureStage::InviteOtherBuild) == sf4e::loc::T("runtime.invite_other_build") &&
         failure(false, FailureStage::InviteMalformed) == sf4e::loc::T("runtime.invite_malformed") &&
-        failure(false, FailureStage::InviteOwnRoom) == sf4e::loc::T("runtime.invite_own_room"),
+        failure(false, FailureStage::InviteOwnRoom) == sf4e::loc::T("runtime.invite_own_room") &&
+        failure(false, FailureStage::ShortUnavailable) == sf4e::loc::T("runtime.invite_short_unavailable") &&
+        failure(false, FailureStage::ShortUnknown) == sf4e::loc::T("runtime.invite_short_unknown"),
         "A refused invitation lost its reason");
     Check(failure(true, FailureStage::InviteExpired) == sf4e::loc::T("runtime.room_host_failed") &&
         failure(true, FailureStage::InviteOtherBuild) == sf4e::loc::T("runtime.room_host_failed") &&
         failure(true, FailureStage::InviteMalformed) == sf4e::loc::T("runtime.room_host_failed") &&
-        failure(true, FailureStage::InviteOwnRoom) == sf4e::loc::T("runtime.room_host_failed"),
+        failure(true, FailureStage::InviteOwnRoom) == sf4e::loc::T("runtime.room_host_failed") &&
+        failure(true, FailureStage::ShortUnknown) == sf4e::loc::T("runtime.room_host_failed"),
         "A host was told about an invitation");
     Check(failure(true, FailureStage::Unknown) == sf4e::loc::T("runtime.room_host_failed") &&
         failure(true, FailureStage::HostUnreachable) == sf4e::loc::T("runtime.room_host_failed"),

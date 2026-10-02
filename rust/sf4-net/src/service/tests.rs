@@ -276,6 +276,7 @@ fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Actor {
         join_first_loss: None,
         retirement_started: None,
         departure_failed: false,
+        short: ShortLinks::default(),
     }
 }
 
@@ -3682,6 +3683,7 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
             join_first_loss: None,
             retirement_started: None,
             departure_failed: false,
+            short: ShortLinks::default(),
         };
         let mut host_actor = make_actor(host.clone(), host_events_tx);
         let invite = host_actor.setup_host_recovery(seed).await.unwrap();
@@ -3970,6 +3972,7 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
         join_first_loss: None,
         retirement_started: None,
         departure_failed: false,
+        short: ShortLinks::default(),
     };
     actor
         .command(Request {
@@ -4095,6 +4098,7 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
             join_first_loss: None,
             retirement_started: None,
             departure_failed: false,
+            short: ShortLinks::default(),
         };
         let service = tokio::spawn(async move {
             let result = actor.run(command_rx, failure).await;
@@ -4445,6 +4449,7 @@ async fn actor_admits_full_sixteen_member_room_and_fifteen_game_links() {
             join_first_loss: None,
             retirement_started: None,
             departure_failed: false,
+            short: ShortLinks::default(),
         };
         let service = tokio::spawn(async move {
             let result = actor.run(command_rx, failure).await;
@@ -6366,4 +6371,221 @@ async fn a_rejected_candidate_leaves_the_slot_waiting_for_a_valid_dial() {
     })
     .await
     .unwrap();
+}
+
+/// A link service on loopback, the same code as the one deployed.
+async fn short_service() -> (String, ember_short::AppState) {
+    let state = ember_short::AppState::new(
+        ember_short::Limits::default(),
+        ember_short::system_clock(),
+    );
+    let listener = tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
+        .await
+        .unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let served = state.clone();
+    tokio::spawn(async move {
+        let _ = ember_short::serve_until(listener, served, std::future::pending()).await;
+    });
+    (format!("http://127.0.0.1:{port}/s/v1/"), state)
+}
+
+/// Runs finished tasks through `completed` until a short-link task has
+/// been handled. Tasks a cleared room aborted are skipped.
+async fn complete_short(actor: &mut Actor) {
+    loop {
+        let finished = timeout(Duration::from_secs(20), actor.tasks.join_next())
+            .await
+            .expect("a task finishes")
+            .expect("a task was running");
+        let completion = match finished {
+            Ok(completion) => completion,
+            Err(error) if error.is_cancelled() => continue,
+            Err(error) => panic!("task failed: {error}"),
+        };
+        let short = matches!(
+            completion,
+            Completion::ShortPublished(..) | Completion::ShortResolved(..)
+        );
+        actor.completed(completion).await.unwrap();
+        if short {
+            return;
+        }
+    }
+}
+
+fn short_join(epoch: u64, invitation: &str, build: &str) -> Request {
+    Request {
+        id: 40 + epoch,
+        command: Command::Join {
+            epoch,
+            invitation: invitation.into(),
+            build: build.into(),
+        },
+    }
+}
+
+async fn joined_reason(guest: &mut Actor, events: &mut mpsc::Receiver<Event>, epoch: u64, text: &str, build: &str) -> Option<String> {
+    assert!(guest.command(short_join(epoch, text, build)).unwrap());
+    complete_short(guest).await;
+    match timeout(Duration::from_secs(5), events.recv()).await.unwrap().unwrap() {
+        Event::Error { epoch: refused, ref code, reason, .. } => {
+            assert_eq!(refused, epoch);
+            assert_eq!(code, "invalid_or_incompatible_invitation");
+            assert_eq!(guest.room, None);
+            assert!(!guest.opening);
+            reason
+        }
+        _ => panic!("expected a refused join"),
+    }
+}
+
+#[test]
+fn short_invite_ipc_round_trips() {
+    let command: Command = serde_json::from_str(r#"{"type":"short_invite","epoch":3}"#).unwrap();
+    assert!(matches!(command, Command::ShortInvite { epoch: 3 }));
+    assert!(serde_json::from_str::<Command>(r#"{"type":"short_invite","epoch":3,"extra":1}"#).is_err());
+    let event = serde_json::to_value(Event::ShortInvite {
+        epoch: 3,
+        link: "https://embernetplay.link/j#0000-0000-0000".into(),
+        status: "ready".into(),
+    })
+    .unwrap();
+    assert_eq!(event["type"], "short_invite");
+    assert_eq!(event["status"], "ready");
+}
+
+#[tokio::test]
+async fn a_short_link_opens_the_room_it_was_made_for() {
+    let (service, store) = short_service().await;
+    let host_endpoint = endpoint().await;
+    let guest_endpoint = endpoint().await;
+    let (host_events_tx, mut host_events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let (guest_events_tx, mut guest_events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let mut host = test_actor(host_endpoint.clone(), host_events_tx);
+    let mut guest = test_actor(guest_endpoint.clone(), guest_events_tx);
+    host.short.service = service.clone();
+    guest.short.service = service.clone();
+    host.epoch = 4;
+    let start = now().unwrap();
+    let invite = Invite::create(host_endpoint.id(), test_relay(), "test-build".into(), start, INVITE_LIFETIME).unwrap();
+    host.hosted = Some(invite.clone());
+    host.room_invite = Some(invite.clone());
+
+    // A stale epoch, or no room, is answered without a link.
+    host.short_invite_command(3).unwrap();
+    assert!(matches!(host_events.recv().await.unwrap(), Event::ShortInvite { epoch: 3, ref link, ref status } if link.is_empty() && status == "unavailable"));
+    assert!(host.tasks.is_empty());
+
+    host.short_invite_command(4).unwrap();
+    complete_short(&mut host).await;
+    let Event::ShortInvite { epoch, link, status } = host_events.recv().await.unwrap() else {
+        panic!("expected the short link");
+    };
+    assert_eq!((epoch, status.as_str()), (4, "ready"));
+    assert!(link.starts_with(crate::short_invite::LINK_PREFIX));
+    assert_eq!(link.len(), 42);
+    assert_eq!(crate::short_invite::parse(&link), Some(invite.short_code()));
+    assert_eq!(store.len(), 1);
+    // Asked again, the same link comes back at once.
+    host.short_invite_command(4).unwrap();
+    assert!(host.tasks.is_empty());
+    assert!(matches!(host_events.recv().await.unwrap(), Event::ShortInvite { link: ref again, .. } if *again == link));
+
+    // The guest opens it, in any of the forms a player might paste, and
+    // goes on to dial the host the record names.
+    let code = crate::short_invite::display_code(&invite.short_code());
+    for (epoch, pasted) in [(1, link.clone()), (2, code.to_lowercase()), (3, format!(" {code}\r\n"))] {
+        assert!(guest.command(short_join(epoch, &pasted, "test-build")).unwrap());
+        assert_eq!(guest.room, None);
+        complete_short(&mut guest).await;
+        assert_eq!(guest.room, Some(invite.room()));
+        assert_eq!(guest.host_address.as_ref().map(|address| address.id), Some(host_endpoint.id()));
+        assert!(guest.opening);
+        assert!(guest_events.try_recv().is_err());
+        guest.clear_room();
+    }
+
+    // The joiner still checks its own build against the record.
+    assert_eq!(joined_reason(&mut guest, &mut guest_events, 5, &link, "other-build").await.as_deref(), Some("other_build"));
+
+    // A renewed invitation is stored again under the same link.
+    let renewed_at = start + INVITE_LIFETIME * 3 / 4;
+    host.renew_invitation(renewed_at);
+    let _ = host_events.recv().await.unwrap();
+    host.pump_short_link(renewed_at);
+    assert!(!host.tasks.is_empty());
+    complete_short(&mut host).await;
+    assert!(host_events.try_recv().is_err());
+    let keys = crate::short_invite::derive(&invite.short_code()).unwrap();
+    let stored = crate::short_invite::fetch(&service, &keys).await.unwrap();
+    assert_eq!(stored, host.room_invite.as_ref().unwrap().encode().unwrap());
+    // Unchanged and recently stored: nothing to do.
+    host.pump_short_link(now().unwrap());
+    assert!(host.tasks.is_empty());
+    // Leaving the room forgets the link.
+    host.clear_room();
+    assert!(host.short.room.is_none());
+    host_endpoint.close().await;
+    guest_endpoint.close().await;
+}
+
+#[tokio::test]
+async fn a_short_link_that_cannot_be_opened_says_why() {
+    let (service, _store) = short_service().await;
+    let own = endpoint().await;
+    let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let mut guest = test_actor(own.clone(), events_tx);
+    guest.short.service = service.clone();
+    let host_id = iroh::SecretKey::generate().public();
+    let start = now().unwrap();
+
+    // Nothing stored under this code: mistyped, or its room has closed.
+    let missing = Invite::create(host_id, test_relay(), "test-build".into(), start, 3600).unwrap();
+    let missing_link = crate::short_invite::link(&missing.short_code());
+    assert_eq!(joined_reason(&mut guest, &mut events, 1, &missing_link, "test-build").await.as_deref(), Some("short_unknown"));
+
+    // An invitation that has expired since it was stored.
+    let expired = Invite::create(host_id, test_relay(), "test-build".into(), start - 4000, 3600).unwrap();
+    let keys = crate::short_invite::derive(&expired.short_code()).unwrap();
+    crate::short_invite::publish(&service, &keys, &expired.encode().unwrap(), 600).await.unwrap();
+    let expired_link = crate::short_invite::link(&expired.short_code());
+    assert_eq!(joined_reason(&mut guest, &mut events, 2, &expired_link, "test-build").await.as_deref(), Some("expired"));
+
+    // A record whose invitation belongs to another room is refused, even
+    // though it opens with the code.
+    let other = Invite::create(host_id, test_relay(), "test-build".into(), start, 3600).unwrap();
+    let wanted = Invite::create(host_id, test_relay(), "test-build".into(), start, 3600).unwrap();
+    let keys = crate::short_invite::derive(&wanted.short_code()).unwrap();
+    crate::short_invite::publish(&service, &keys, &other.encode().unwrap(), 600).await.unwrap();
+    let wanted_link = crate::short_invite::link(&wanted.short_code());
+    assert_eq!(joined_reason(&mut guest, &mut events, 3, &wanted_link, "test-build").await.as_deref(), Some("malformed"));
+
+    // The service is down: the player is told to use the full invitation.
+    guest.short.service = "http://127.0.0.1:9/s/v1/".into();
+    assert_eq!(joined_reason(&mut guest, &mut events, 4, &missing_link, "test-build").await.as_deref(), Some("short_unavailable"));
+
+    // A host whose service is down hears so once and keeps no link.
+    let (host_events_tx, mut host_events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let mut host = test_actor(own.clone(), host_events_tx);
+    host.short.service = "http://127.0.0.1:9/s/v1/".into();
+    host.epoch = 6;
+    host.hosted = Some(Invite::create(own.id(), test_relay(), "test-build".into(), start, 3600).unwrap());
+    host.short_invite_command(6).unwrap();
+    complete_short(&mut host).await;
+    assert!(matches!(host_events.recv().await.unwrap(), Event::ShortInvite { epoch: 6, ref link, ref status } if link.is_empty() && status == "unavailable"));
+    assert!(host.short.room.is_none());
+
+    // A Leave while the lookup runs drops its answer.
+    guest.short.service = service;
+    assert!(guest.command(short_join(7, &missing_link, "test-build")).unwrap());
+    guest.clear_room();
+    while let Some(finished) = guest.tasks.join_next().await {
+        if let Ok(completion) = finished {
+            guest.completed(completion).await.unwrap();
+        }
+    }
+    assert!(events.try_recv().is_err());
+    assert_eq!(guest.room, None);
+    own.close().await;
 }

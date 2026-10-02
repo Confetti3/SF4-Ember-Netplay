@@ -1717,6 +1717,12 @@ msgstr "Копировать приглашение"
 msgid "room.copy_invitation.detail"
 msgstr "Поделитесь личным приглашением с друзьями."
 
+msgid "room.copy_short_invitation"
+msgstr "Копировать ссылку"
+
+msgid "room.copy_short_invitation.detail"
+msgstr "Короткая ссылка для чата. Сервис ссылок Ember хранит её, пока зал открыт."
+
 msgid "room.leaving"
 msgstr "Выход из зала..."
 
@@ -1788,6 +1794,24 @@ msgstr "{0} / Вы: {1}\nОчередь: {2} / Зрители: {3}"
 
 msgid "room.invitation_copied"
 msgstr "Приглашение скопировано."
+
+msgid "room.short_invitation_copied"
+msgstr "Короткая ссылка скопирована."
+
+msgid "room.short_invitation_pending"
+msgstr "Создаётся короткая ссылка..."
+
+msgid "room.short_invitation_unavailable"
+msgstr "Сервис ссылок не ответил, поэтому скопировано полное приглашение."
+
+msgid "room.link_joining"
+msgstr "Вход в зал по ссылке."
+
+msgid "room.link_opened"
+msgstr "Открыто по ссылке на зал. Проверьте её и выберите «Войти в зал»."
+
+msgid "room.link_waiting"
+msgstr "Открыта ссылка на зал. Она появится на экране входа, когда вы покинете этот зал."
 
 msgid "room.replacement_opening"
 msgstr "Открывается новый зал. Выберите «Копировать приглашение» и отправьте новую ссылку. Старая больше не работает."
@@ -2375,6 +2399,12 @@ msgstr "У хоста другой пакет SF4 Ember Netplay. Обоим иг
 
 msgid "runtime.invite_malformed"
 msgstr "Текст приглашения неполный. Скопируйте его ещё раз и вставьте целиком."
+
+msgid "runtime.invite_short_unavailable"
+msgstr "Не удалось связаться с сервисом ссылок Ember, поэтому эту короткую ссылку не открыть. Попросите у ведущего полное приглашение и вставьте его вместо ссылки."
+
+msgid "runtime.invite_short_unknown"
+msgstr "Для этой короткой ссылки зал не найден. Проверьте код или, если зал закрыт, попросите у ведущего новую ссылку."
 
 msgid "runtime.room_host_failed"
 msgstr "Не удалось создать зал. Проверьте подключение к интернету и повторите попытку."

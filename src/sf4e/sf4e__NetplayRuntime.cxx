@@ -221,6 +221,19 @@ void StartHelper() {
         } catch (...) { runtime->error = loc::T("runtime.interface_preferences_failed"); }
     }
     runtime->offlineRequested = EnvFlag("SF4E_START_OFFLINE");
+    {
+        // Read once and cleared, so the helper never inherits the code.
+        char link[64] = {};
+        const DWORD length = GetEnvironmentVariableA("SF4E_JOIN_LINK", link, sizeof(link));
+        SetEnvironmentVariableA("SF4E_JOIN_LINK", nullptr);
+        const auto code = length && length < sizeof(link) ? join_link::ParseCode(link) : std::string();
+        if (!code.empty()) {
+            runtime->pendingJoinLink = join_link::ShortLink(code);
+            ++runtime->pendingJoinSequence;
+            spdlog::info("Room: started with a room link");
+        }
+        if (!runtime->joinLinks.Open()) spdlog::warn("Room: room links from the browser cannot reach this game");
+    }
 	runtime->preferences.inputDelay = GetConfig().inputDelay;
 	runtime->preferences.lobby.editionSelect = GetConfig().editionSelect != 0;
 	runtime->preferences.lobby.roundCount = GetConfig().roundCount;
@@ -295,6 +308,16 @@ void StopHelper() {
 	bridge::Reset();
 }
 
+// A room link a later launcher handed over. The shell joins it when the
+// player is free, and otherwise holds it for the Join screen.
+static void TakeJoinLink() {
+	const auto code = runtime->joinLinks.Take();
+	if (code.empty()) return;
+	runtime->pendingJoinLink = join_link::ShortLink(code);
+	++runtime->pendingJoinSequence;
+	spdlog::info("Room: a room link arrived from the browser");
+}
+
 bool SubmitRuntimeCommand(RuntimeCommand command) {
 	if (command.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.command.invitation.size() > 4096 ||
 		command.preferences.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.roomAction.text.size() > room::MaximumChatBytes ||
@@ -305,7 +328,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 	}
 	// Gameplay/update commands join this queue when their effect handlers exist.
 	const auto kind = command.command.kind;
-	if (command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
+	if (command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
 		kind != netplay::CommandKind::LeaveRoom && kind != netplay::CommandKind::StartOffline &&
 		kind != netplay::CommandKind::Ready && kind != netplay::CommandKind::Rematch &&
 		kind != netplay::CommandKind::SavePreferences && kind != netplay::CommandKind::SetLobbySettings &&
@@ -509,6 +532,7 @@ void TickRuntime() {
 	ResolvePendingIntents(helperReady);
 	SettleRoomState(helperReady);
 	CallOutOpponentReady();
+	TakeJoinLink();
 	PublishAndTickDiscordInvite();
 }
 

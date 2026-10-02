@@ -1717,6 +1717,12 @@ msgstr "复制邀请"
 msgid "room.copy_invitation.detail"
 msgstr "将私人邀请分享给朋友。"
 
+msgid "room.copy_short_invitation"
+msgstr "复制短链接"
+
+msgid "room.copy_short_invitation.detail"
+msgstr "用于聊天的短链接。房间开放期间由 Ember 链接服务保存。"
+
 msgid "room.leaving"
 msgstr "正在离开房间..."
 
@@ -1788,6 +1794,24 @@ msgstr "{0}／您：{1}\n排队：{2}／观战：{3}"
 
 msgid "room.invitation_copied"
 msgstr "邀请已复制。"
+
+msgid "room.short_invitation_copied"
+msgstr "短链接已复制。"
+
+msgid "room.short_invitation_pending"
+msgstr "正在生成短链接..."
+
+msgid "room.short_invitation_unavailable"
+msgstr "链接服务没有响应，已改为复制完整邀请。"
+
+msgid "room.link_joining"
+msgstr "正在加入链接中的房间。"
+
+msgid "room.link_opened"
+msgstr "已通过房间链接打开。确认后请选择加入房间。"
+
+msgid "room.link_waiting"
+msgstr "已打开一个房间链接。离开当前房间后，它会出现在加入房间界面。"
 
 msgid "room.replacement_opening"
 msgstr "新房间正在打开。请选择复制邀请并发送新链接，旧链接已失效。"
@@ -2375,6 +2399,12 @@ msgstr "房主使用的是另一个 SF4 Ember Netplay 包。双方需要使用�
 
 msgid "runtime.invite_malformed"
 msgstr "邀请文本不完整。请重新复制并粘贴完整的邀请。"
+
+msgid "runtime.invite_short_unavailable"
+msgstr "无法连接 Ember 链接服务，因此无法打开此短链接。请向房主索取完整邀请并粘贴。"
+
+msgid "runtime.invite_short_unknown"
+msgstr "找不到此短链接对应的房间。请检查代码；如果房间已关闭，请向房主索取新链接。"
 
 msgid "runtime.room_host_failed"
 msgstr "无法创建房间。请检查网络连接后重试。"

@@ -47,6 +47,14 @@ struct ShellView {
     unsigned probeSamples=0, probeLost=0, probeSent=0, probeExpected=0;
     int localSlot = -1;
     std::string invitation, error, settingsError, build;
+    // The room's short link, empty until the helper has one. A failure bumps
+    // the counter; Copy short link then copies the full invitation.
+    std::string shortInvitation;
+    bool shortInvitationPending = false;
+    std::uint64_t shortInvitationFailures = 0;
+    // The newest room link opened from the browser, and its sequence.
+    std::string pendingJoinLink;
+    std::uint64_t pendingJoinSequence = 0;
     std::string languagePreference = "auto";
     // The game's own config.ini as read at launch, and whether the player has
     // already dismissed the card for good.
@@ -92,6 +100,8 @@ struct ShellAction {
     int selectedDelay=-1;
     // Plays the challenger call-out once at this volume (percent); -1 plays nothing.
     int previewSoundVolume=-1;
+    // Asks for the room's short link; nothing else is sent.
+    bool shortInvitation=false;
     // Steps the chosen Ultra or color by delta (the table page's Ultra and
     // Appearance rows); the overlay applies it to the pick, and nothing is sent.
     struct SelectionStep {
@@ -131,6 +141,9 @@ private:
     void UpdateRoomTransitions(const ShellView& view,double now);
     bool UpdateRoomFeedback(const ShellView& view);
     void UpdatePreferenceSave(const ShellView& view,const Submit& submit);
+    void UpdateShortCopy(const ShellView& view,double now);
+    void UpdateJoinLink(const ShellView& view,double now,const Submit& submit);
+    void CopyShortInvitation(const ShellView& view,const Submit& submit);
     std::vector<MenuEntry> BuildRows(const ShellView& view,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title);
     std::pair<std::string,Tone> UpdateStatus(const ShellView& view,const std::string& screen,bool opening,bool healthyRoom,std::string& title);
     void PublishPlayerCard(const ShellView& view);
@@ -206,6 +219,18 @@ private:
     std::array<LiveGame,room::TableCount> liveGames_;
     std::string notice_;
     double noticeUntil_=0;
+    // Copy short link was pressed before the link existed: copy it when it
+    // arrives, or the full invitation on a failure or at the deadline.
+    bool shortCopyPending_=false;
+    double shortCopyUntil_=0;
+    std::uint64_t shortFailuresSeen_=0;
+    // A room link from the browser waits here until no room is open. One
+    // that arrived while the player was free joins by itself until the
+    // deadline, which covers a game still starting up.
+    static constexpr double JoinLinkDirectSeconds=120;
+    std::uint64_t joinLinkSeen_=0;
+    std::string joinLink_;
+    double joinLinkDirectUntil_=0;
     Tone noticeTone_=Tone::Success;
     std::uint64_t roomEpoch_ = 0, rulesRevision_ = 0, nextActionId_ = 1, readyFailureSequence_ = 0;
     int selectedTable_ = 0, roomCapacity_ = 16;

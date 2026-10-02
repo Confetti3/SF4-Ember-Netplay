@@ -1717,6 +1717,12 @@ msgstr "Uitnodiging kopiëren"
 msgid "room.copy_invitation.detail"
 msgstr "Deel de privéuitnodiging met vrienden."
 
+msgid "room.copy_short_invitation"
+msgstr "Korte link kopiëren"
+
+msgid "room.copy_short_invitation.detail"
+msgstr "Een korte link voor de chat. De Ember-linkdienst bewaart hem zolang de kamer open is."
+
 msgid "room.leaving"
 msgstr "Kamer verlaten..."
 
@@ -1788,6 +1794,24 @@ msgstr "{0} / Jij: {1}\nWachtrij: {2} / Kijken: {3}"
 
 msgid "room.invitation_copied"
 msgstr "Uitnodiging gekopieerd."
+
+msgid "room.short_invitation_copied"
+msgstr "Korte link gekopieerd."
+
+msgid "room.short_invitation_pending"
+msgstr "Korte link wordt gemaakt..."
+
+msgid "room.short_invitation_unavailable"
+msgstr "De linkdienst reageerde niet, dus de volledige uitnodiging is gekopieerd."
+
+msgid "room.link_joining"
+msgstr "Bezig de kamer van de link te betreden."
+
+msgid "room.link_opened"
+msgstr "Geopend via een kamerlink. Controleer hem en kies dan Kamer betreden."
+
+msgid "room.link_waiting"
+msgstr "Er is een kamerlink geopend. Zodra je deze kamer verlaat, staat hij klaar op het scherm om mee te doen."
 
 msgid "room.replacement_opening"
 msgstr "Nieuwe kamer wordt geopend. Kopieer de uitnodiging en stuur de nieuwe link. De oude werkt niet meer."
@@ -2375,6 +2399,12 @@ msgstr "De host gebruikt een ander SF4 Ember Netplay-pakket. Beide spelers hebbe
 
 msgid "runtime.invite_malformed"
 msgstr "De uitnodigingstekst is onvolledig. Kopieer hem opnieuw en plak de hele uitnodiging."
+
+msgid "runtime.invite_short_unavailable"
+msgstr "De Ember-linkdienst is niet bereikbaar, dus deze korte link kan niet worden geopend. Vraag de host om de volledige uitnodiging en plak die in plaats daarvan."
+
+msgid "runtime.invite_short_unknown"
+msgstr "Geen kamer gevonden voor deze korte link. Controleer de code, of vraag de host om een nieuwe link als de kamer gesloten is."
 
 msgid "runtime.room_host_failed"
 msgstr "Kon de kamer niet maken. Controleer je internetverbinding en probeer het opnieuw."

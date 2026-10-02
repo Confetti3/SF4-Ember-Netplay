@@ -981,5 +981,63 @@ void IdentityJourneys() {
  SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
 }
-int main(){try{Journeys();IdentityJourneys();KeyboardJourneys();NoticeOverDialogs();LanguageSaveFailure();SessionReports();RecoveryWindow();SelectorPages();SelectorFromHome();DeveloperSelectors();TrainingJourneys();PresentationJourneys();AppearanceGalleries();std::cout<<"Shell journeys through the renderer passed.\n";return 0;}
+// Copy short link copies the link once the helper has one, and the full
+// invitation when it reports a failure. A room link from the browser joins
+// by itself when the player is free; one that arrived during a room fills
+// the Join screen once no room is open, and sends nothing by itself.
+std::string g_clipboard;
+void RoomLinks(){
+ using namespace sf4e;
+ Harness h;
+ auto& platform=ImGui::GetPlatformIO();
+ platform.Platform_SetClipboardTextFn=[](ImGuiContext*,const char* text){g_clipboard=text?text:"";};
+ platform.Platform_GetClipboardTextFn=[](ImGuiContext*){return g_clipboard.c_str();};
+ const std::string full="sf4e3:full-invitation",link="https://embernetplay.link/j#7K3M-0X1R-T9PZ";
+ h.view.session.room=netplay::RoomState::Joined;h.view.invitation=full;
+ h.Screen("room");
+ auto before=h.actions.size();g_clipboard.clear();h.Choose("copy-short");
+ Check(h.actions.size()==before+1&&h.actions.back().shortInvitation,"Copy short link did not ask for the link");
+ Check(g_clipboard.empty(),"Copy short link copied before the link existed");
+ h.view.shortInvitation=link;h.Frame();
+ Check(g_clipboard==link,"The short link was not copied when it arrived");
+ // Once known, it is copied at once and nothing is asked.
+ before=h.actions.size();g_clipboard.clear();h.Choose("copy-short");
+ Check(h.actions.size()==before&&g_clipboard==link,"A known short link was not copied at once");
+ // A failure copies the full invitation instead.
+ h.view.shortInvitation.clear();g_clipboard.clear();h.Choose("copy-short");
+ h.Frame();Check(g_clipboard.empty(),"Copy short link gave up before any answer");
+ ++h.view.shortInvitationFailures;h.Frame();
+ Check(g_clipboard==full,"A failed short link did not copy the full invitation");
+ // A room link waits while the room is open, then fills the Join screen.
+ h.view.pendingJoinLink=link;h.view.pendingJoinSequence=1;h.Frame(0,3);
+ Check(h.shell.Navigation().Screen()=="room","A room link moved the player out of the room");
+ before=h.actions.size();
+ h.view.session.room=netplay::RoomState::Idle;h.view.invitation.clear();h.view.room=room::Snapshot{};h.Frame(0,3);
+ Check(h.shell.Navigation().Screen()=="join","A room link did not open the Join screen");
+ Check(h.actions.size()==before,"A room link sent a command by itself");
+ {
+  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});h.Frame();SetMenuEntriesProbe({});
+  const auto text=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="invite-text";});
+  const auto join=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="join-now";});
+  Check(text!=rows.end()&&text->value==link,"The Join screen does not hold the room link");
+  Check(join!=rows.end()&&join->enabled,"Join room is not available for the room link");
+ }
+ h.Choose("join-now");
+ Check(h.actions.size()==before+1&&h.actions.back().command.kind==Kind::JoinInvite&&h.actions.back().command.invitation==link,
+  "Join room did not join with the room link");
+ // The same link is not offered twice.
+ h.shell.Navigation().Home();h.Frame(0,3);Check(h.shell.Navigation().Screen()=="home","A used room link came back");
+ // A link that arrives while the player is free joins by itself, once a
+ // room can be opened.
+ const std::string second="https://embernetplay.link/j#0X1R-7K3M-T9PZ";
+ before=h.actions.size();h.view.canOpenRoom=false;
+ h.view.pendingJoinLink=second;h.view.pendingJoinSequence=2;h.Frame(0,3);
+ Check(h.actions.size()==before&&h.shell.Navigation().Screen()=="home","A room link joined before a room could be opened");
+ h.view.canOpenRoom=true;h.Frame(0,3);
+ Check(h.shell.Navigation().Screen()=="join","A room link did not open the Join screen while joining");
+ Check(h.actions.size()==before+1&&h.actions.back().command.kind==Kind::JoinInvite&&h.actions.back().command.invitation==second,
+  "A room link did not join its room");
+ h.Frame(0,3);Check(h.actions.size()==before+1,"A room link joined twice");
+}
+int main(){try{Journeys();IdentityJourneys();RoomLinks();KeyboardJourneys();NoticeOverDialogs();LanguageSaveFailure();SessionReports();RecoveryWindow();SelectorPages();SelectorFromHome();DeveloperSelectors();TrainingJourneys();PresentationJourneys();AppearanceGalleries();std::cout<<"Shell journeys through the renderer passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

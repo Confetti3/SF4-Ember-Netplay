@@ -18,7 +18,9 @@ enum class FailureStage {
 	InviteExpired,    // the invitation is past its hour, usually from a room since closed
 	InviteOtherBuild, // the invitation comes from a different package
 	InviteMalformed,  // the pasted text is cut short or is not an invitation
-	InviteOwnRoom     // the invitation names this PC's own helper, copied while it still led the room
+	InviteOwnRoom,    // the invitation names this PC's own helper, copied while it still led the room
+	ShortUnavailable, // a short link was pasted and the link service did not answer
+	ShortUnknown      // a short link was pasted and the link service has no room under it
 };
 
 inline FailureStage FailureStageFromHelper(const std::string& code, const std::string& reason) {
@@ -27,6 +29,8 @@ inline FailureStage FailureStageFromHelper(const std::string& code, const std::s
 		if (reason == "other_build" || reason == "old_version") return FailureStage::InviteOtherBuild;
 		if (reason == "malformed") return FailureStage::InviteMalformed;
 		if (reason == "own_room") return FailureStage::InviteOwnRoom;
+		if (reason == "short_unavailable") return FailureStage::ShortUnavailable;
+		if (reason == "short_unknown") return FailureStage::ShortUnknown;
 		return FailureStage::Unknown;
 	}
 	if (code != "join_failed" && code != "host_unavailable") return FailureStage::Unknown;
@@ -46,6 +50,8 @@ inline const char* FailureStageLabel(FailureStage stage) {
 	case FailureStage::InviteOtherBuild: return "invite_other_build";
 	case FailureStage::InviteMalformed: return "invite_malformed";
 	case FailureStage::InviteOwnRoom: return "invite_own_room";
+	case FailureStage::ShortUnavailable: return "short_unavailable";
+	case FailureStage::ShortUnknown: return "short_unknown";
 	default: return "unknown";
 	}
 }

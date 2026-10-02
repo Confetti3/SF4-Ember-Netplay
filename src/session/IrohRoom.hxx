@@ -117,6 +117,16 @@ public:
 	// when the authority changes, which clears them here first.
 	const std::string& Invitation() const { return state_ == State::Degraded ? NoInvitation() : invitation_; }
 	const std::string& DiscordInvitation() const { return state_ == State::Degraded ? NoInvitation() : discordInvitation_; }
+	// The room's short link (https://embernetplay.link/j#...), once asked for.
+	// The helper answers each request once: the link, which then stays valid
+	// for the room's life, even across a change of leader, or a failure,
+	// which bumps ShortInvitationFailures so the caller can share the full
+	// invitation instead. Returns false, and counts a failure, when no
+	// request could be sent.
+	bool RequestShortInvitation();
+	const std::string& ShortInvitation() const { return state_ == State::Degraded ? NoInvitation() : shortInvitation_; }
+	bool ShortInvitationPending() const { return shortPending_; }
+	std::uint64_t ShortInvitationFailures() const { return shortFailures_; }
 	const std::string& Error() const { return error_; }
 	std::uint64_t Epoch() const { return epoch_; }
 	virtual std::array<std::uint8_t, 16> RoomId() const { return room_; }
@@ -322,6 +332,9 @@ private:
 	std::int64_t serverLocalNextId_ = 2;
 	std::array<std::uint8_t, 16> room_ = {};
 	std::string invitation_, discordInvitation_;
+	std::string shortInvitation_;
+	bool shortPending_ = false;
+	std::uint64_t shortFailures_ = 0;
 	std::string error_;
 	std::string localIdentity_;
 	std::optional<std::uint16_t> localUdpPort_;
