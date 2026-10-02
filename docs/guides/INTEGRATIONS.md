@@ -204,7 +204,9 @@ to `needs_review` (the two games disagree, a report never arrives, a player's
 link ends) is cancelled instead. Posts need BluMint's API key for the
 connection in the integration secrets; a match that ends before the key is
 there is posted once it is. Posts are retried for a day; the match's
-`provider_delivery_state` says how it went. `ember-bridge
+`provider_delivery_state` says how it went. BluMint takes one result per
+match, so once the bridge starts posting it (`delivering`) an organizer can
+no longer correct it. `ember-bridge
 blumint-register <bridge.json> <connection>` registers the three endpoints
 with BluMint, handing over a new provider credential that is never shown.
 `BLUMINT_QUICKSTART.md` is the guide for BluMint's side.

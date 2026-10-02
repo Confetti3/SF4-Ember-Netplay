@@ -249,6 +249,20 @@ pub fn settle(
     } else {
         MatchState::BetweenGames
     };
+    // A platform the bridge sends results to takes one per match (BluMint
+    // answers a second with 409), so from the first send on the result is
+    // final here too, and the bridge never sends a stale one.
+    if correcting
+        && !matches!(
+            found.delivery,
+            DeliveryState::NotRequired | DeliveryState::Queued
+        )
+    {
+        return Err(ApiFailure::new(
+            ErrorCode::LeaseConflict,
+            "The result has been sent to the tournament platform, so it cannot be corrected.",
+        ));
+    }
     // A lobby seats its next set as soon as one ends, so a finished lobby set
     // cannot be reopened.
     if correcting && next != MatchState::Completed && found.lobby_id.is_some() {

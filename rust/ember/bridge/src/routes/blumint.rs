@@ -322,6 +322,8 @@ struct Destination {
 /// connections whose API key is configured. Matches of a connection still
 /// waiting for its key, or disabled, are never leased, so they hold nobody
 /// else's back, and go out once it has its key and is enabled again.
+/// Leasing marks a result `delivering`; from then on it cannot be corrected
+/// (`ledger::settle`), so what is sent is what the match keeps.
 pub struct Results {
     destinations: BTreeMap<String, Destination>,
 }
@@ -361,7 +363,7 @@ impl Queue for Results {
             .prepare(
                 "SELECT m.id, m.connection_id, m.delivery_attempts, m.delivery_first_at
                  FROM matches m JOIN provider_connections c ON c.id = m.connection_id
-                 WHERE m.delivery_state IN ('queued', 'retrying') AND m.delivery_next_at <= ?1
+                 WHERE m.delivery_state IN ('queued', 'retrying', 'delivering') AND m.delivery_next_at <= ?1
                    AND m.state IN ('completed', 'cancelled', 'failed')
                    AND m.connection_id IN (SELECT value FROM json_each(?2)) AND c.enabled = 1
                  ORDER BY m.delivery_next_at, m.id LIMIT ?3",
@@ -379,7 +381,8 @@ impl Queue for Results {
             .collect::<rusqlite::Result<Vec<_>>>()?;
         for row in &rows {
             tx.execute(
-                "UPDATE matches SET delivery_next_at = ?1, delivery_attempts = ?2 WHERE id = ?3",
+                "UPDATE matches SET delivery_state = 'delivering', delivery_next_at = ?1, delivery_attempts = ?2
+                 WHERE id = ?3",
                 params![until, row.attempt, row.item.match_id],
             )?;
         }
@@ -402,9 +405,8 @@ impl Queue for Results {
             .await;
         let body = match body {
             Ok(Some(body)) => body,
-            // Reopened by a correction, or its connection disabled, since the
-            // lease; it is sent when it ends or is enabled again, its attempts
-            // one higher.
+            // Its connection was disabled since the lease; it is sent once the
+            // connection is enabled again, its attempts one higher.
             Ok(None) => return Outcome::Cancelled,
             Err(_) => return retry("database unavailable".into(), None),
         };
@@ -450,7 +452,7 @@ impl Queue for Results {
         let changed = tx.execute(
             "UPDATE matches SET delivery_state = ?1, delivery_next_at = ?2,
                 delivery_first_at = COALESCE(delivery_first_at, ?3)
-             WHERE id = ?4 AND delivery_state IN ('queued', 'retrying') AND delivery_attempts = ?5",
+             WHERE id = ?4 AND delivery_state = 'delivering' AND delivery_attempts = ?5",
             params![
                 state,
                 next,
@@ -624,6 +626,17 @@ mod tests {
         };
         let first = lease(0).await.unwrap().pop().unwrap();
         assert!(lease(30).await.unwrap().is_empty(), "leased twice");
+        let marked: String = db
+            .read(|tx| {
+                Ok(tx.query_row(
+                    "SELECT delivery_state FROM matches WHERE id = 'emt_1'",
+                    [],
+                    |row| row.get(0),
+                )?)
+            })
+            .await
+            .unwrap();
+        assert_eq!(marked, "delivering");
         // The first attempt outlives its lease and is leased again.
         let second = lease(61).await.unwrap().pop().unwrap();
         assert_eq!((first.attempt, second.attempt), (1, 2));

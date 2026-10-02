@@ -194,6 +194,32 @@ async fn win(f: &Fixture, id: &str, slot: u8, key: &str) {
     assert_eq!(status, StatusCode::CREATED, "{decided}");
 }
 
+/// Voids the match's last accepted game, as an organizer correcting it.
+async fn void_last(f: &Fixture, id: &str, key: &str) -> StatusCode {
+    let (_, found) = f
+        .bridge
+        .get(&f.provider, &format!("/v1/matches/{id}"))
+        .await;
+    let last = found["attempts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .rev()
+        .find(|attempt| attempt["state"] == "accepted")
+        .unwrap()["attempt_id"]
+        .clone();
+    let (status, _) = f
+        .bridge
+        .post_keyed(
+            &f.organizer,
+            &format!("/v1/matches/{id}/adjudications"),
+            json!({ "kind": "void_game", "attempt_id": last, "reason": "Wrong game", "expected_revision": found["revision"] }),
+            Some(key),
+        )
+        .await;
+    status
+}
+
 /// A match's `delivery_state` and attempts.
 async fn delivery(f: &Fixture, id: &str) -> (String, u32) {
     let id = id.to_owned();
@@ -341,6 +367,44 @@ async fn a_completed_match_says_its_result_is_to_be_sent() {
         .get(&f.provider, &format!("/v1/matches/{id}"))
         .await;
     assert_eq!(snapshot["provider_delivery_state"], "queued");
+}
+
+#[tokio::test]
+async fn a_result_is_final_once_it_is_being_sent() {
+    // Without a key nothing is sent yet: a correction still reopens the match.
+    let f = fixture_with(Secrets::default()).await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, json!({ "gamesToWin": 1 })).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    win(&f, &id, 0, "game-1").await;
+    assert_eq!(void_last(&f, &id, "void-1").await, StatusCode::CREATED);
+    assert_eq!(match_status(&f, &id).await["status"], "running");
+    win(&f, &id, 1, "game-2").await;
+
+    // Once the bridge starts sending the result, it stands, sent or not.
+    let state = f.bridge.state();
+    let keyed = AppState::new(
+        (*state.config).clone(),
+        Keys::generate(),
+        keyed(),
+        state.db.clone(),
+        f.bridge.clock.clone(),
+    );
+    f.blumint.lock().unwrap().fail = 1;
+    ember_bridge::deliver_to_blumint(&keyed).await;
+    assert_eq!(delivery(&f, &id).await, ("retrying".into(), 1));
+    assert_eq!(void_last(&f, &id, "void-2").await, StatusCode::CONFLICT);
+    f.bridge.clock.advance(11);
+    ember_bridge::deliver_to_blumint(&keyed).await;
+    assert_eq!(delivery(&f, &id).await, ("delivered".into(), 2));
+    assert_eq!(void_last(&f, &id, "void-3").await, StatusCode::CONFLICT);
+    assert_eq!(
+        submitted(&f),
+        vec![json!({ "matchId": id, "teams": [
+            { "score": 0, "players": [ { "inGameId": f.kate.id() } ] },
+            { "score": 1, "players": [ { "inGameId": f.sam.id() } ] },
+        ] })]
+    );
 }
 
 #[tokio::test]

@@ -87,6 +87,8 @@ match is posted as `mustRestart`. When the two games disagree about a game's
 result, or one never reports it, there is no one at BluMint to review it, so
 the bridge cancels the match and posts `mustRestart`; BluMint then creates a
 new match. Posts are retried for a day; `409` counts as already received.
+Once the bridge starts posting a result, it is final on the Ember side too,
+so BluMint never receives a second, different result for a match.
 
 ## Not built yet
 
