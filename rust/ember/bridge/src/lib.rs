@@ -107,9 +107,12 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
         .await;
     });
     let workers = vec![
-        tokio::spawn(delivery::run(state.clone())),
+        tokio::spawn(delivery::run(state.clone(), delivery::webhooks::Webhooks)),
         tokio::spawn(routes::maintenance(state.clone())),
-        tokio::spawn(routes::blumint::run(state.clone())),
+        tokio::spawn(delivery::run(
+            state.clone(),
+            routes::blumint::Results::new(&state),
+        )),
     ];
     Ok(Running {
         address,
@@ -128,7 +131,7 @@ pub async fn maintain(state: &AppState) {
 
 /// One pass of sending finished matches' results to BluMint; tests call it.
 pub async fn deliver_to_blumint(state: &AppState) {
-    routes::blumint::deliver_once(state).await;
+    delivery::pass(state, &Arc::new(routes::blumint::Results::new(state))).await;
 }
 
 /// Tells BluMint where the connection's endpoints are (`routes::blumint`).

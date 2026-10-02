@@ -59,8 +59,8 @@ pub fn check_url(text: &str, allow_private: bool) -> Result<Url> {
     {
         return Err(invalid());
     }
-    if let Some(ip) = delivery::literal_ip(&url)
-        && !delivery::allowed_address(ip, allow_private)
+    if let Some(ip) = delivery::webhooks::literal_ip(&url)
+        && !delivery::webhooks::allowed_address(ip, allow_private)
     {
         return Err(ApiFailure::invalid(
             "That webhook destination is not allowed.",

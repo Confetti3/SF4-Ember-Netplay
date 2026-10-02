@@ -31,10 +31,12 @@ use ember_protocol::{
 use rusqlite::{Transaction, params};
 use serde::Deserialize;
 use serde_json::{Value, json};
+use zeroize::Zeroizing;
 
 use crate::{
     AppState, auth,
     config::{BLUMINT, Connection},
+    delivery::{BATCH, Leased, Outcome, Queue, Record, Settled},
     error::{ApiFailure, Result},
     http::{Body, GENERAL_BODY, ok},
     routes::{
@@ -51,10 +53,6 @@ pub const MATCHES_PATH: &str = "/v1/blumint/matches";
 pub const STATUS_PATH: &str = "/v1/blumint/matches/status";
 /// Set length when BluMint's match settings name none: first to 2.
 const DEFAULT_GAMES_TO_WIN: u8 = 2;
-/// Retry delays for a result BluMint did not take, then hourly for a day.
-const SCHEDULE: &[u64] = &[10, 60, 300, 900];
-const HOURLY: u64 = 3600;
-const ATTEMPTS: u32 = SCHEDULE.len() as u32 + 24;
 
 /// BluMint's API for a connection: `api_base`, or by its environment.
 pub fn api_base(connection: &Connection) -> &str {
@@ -296,104 +294,162 @@ fn submission(tx: &Transaction<'_>, found: &Match) -> Result<Option<Value>> {
     })
 }
 
-struct Due {
-    id: String,
-    connection_id: String,
-    attempts: u32,
+/// Where one connection's results go, with BluMint's API key for it.
+struct Destination {
+    submit_url: String,
+    key: Zeroizing<String>,
 }
 
-/// Sends what is due to BluMint, once. `run` repeats it; tests call it.
-pub async fn deliver_once(state: &AppState) {
-    let ctx = Ctx::of(state);
-    let due = state
-        .db
-        .write(move |tx| {
-            Ok(tx
-                .prepare(
-                    "SELECT id, connection_id, delivery_attempts FROM matches
-                     WHERE delivery_state IN ('queued', 'retrying') AND delivery_next_at <= ?1
-                       AND state IN ('completed', 'cancelled', 'failed') LIMIT 16",
-                )?
-                .query_map([ctx.now], |row| {
-                    Ok(Due {
-                        id: row.get(0)?,
-                        connection_id: row.get(1)?,
-                        attempts: row.get(2)?,
-                    })
-                })?
-                .collect::<rusqlite::Result<Vec<_>>>()?)
-        })
-        .await
-        .unwrap_or_default();
-    state.committed();
-    for item in due {
-        deliver(state, item).await;
+/// Finished matches' results (a `delivery::Queue`), for the BluMint
+/// connections whose API key is configured. Matches of a connection still
+/// waiting for its key are never leased, so they hold nobody else's back,
+/// and go out once the key is there.
+pub struct Results {
+    destinations: BTreeMap<String, Destination>,
+}
+
+impl Results {
+    pub fn new(state: &AppState) -> Self {
+        let destinations = state
+            .config
+            .tenants
+            .iter()
+            .flat_map(|tenant| &tenant.connections)
+            .filter(|connection| connection.kind == BLUMINT)
+            .filter_map(|connection| {
+                let key = state.integrations.api_keys.get(&connection.id)?;
+                let destination = Destination {
+                    submit_url: format!("{}/tournaments/match/submit", api_base(connection)),
+                    key: key.clone(),
+                };
+                Some((connection.id.clone(), destination))
+            })
+            .collect();
+        Self { destinations }
     }
 }
 
-async fn deliver(state: &AppState, item: Due) {
-    let Some(key) = state.integrations.api_keys.get(&item.connection_id) else {
-        return;
-    };
-    let Some((_, connection)) = state.config.connection(&item.connection_id) else {
-        return;
-    };
-    let url = format!("{}/tournaments/match/submit", api_base(connection));
-    let id = item.id.clone();
-    let Ok(Some(body)) = state
-        .db
-        .read(move |tx| match load(tx, &id)? {
-            Some(found) => submission(tx, &found),
-            None => Ok(None),
-        })
-        .await
-    else {
-        return;
-    };
-    let sent = match outbound_client().build() {
-        Ok(client) => client
-            .post(url)
-            .header("x-api-key", key.as_str())
+pub struct Due {
+    match_id: String,
+    connection_id: String,
+}
+
+impl Queue for Results {
+    type Item = Due;
+
+    fn lease(&self, tx: &Transaction<'_>, now: u64, until: u64) -> Result<Vec<Leased<Due>>> {
+        let connections: Vec<&String> = self.destinations.keys().collect();
+        let rows = tx
+            .prepare(
+                "SELECT id, connection_id, delivery_attempts, delivery_first_at FROM matches
+                 WHERE delivery_state IN ('queued', 'retrying') AND delivery_next_at <= ?1
+                   AND state IN ('completed', 'cancelled', 'failed')
+                   AND connection_id IN (SELECT value FROM json_each(?2))
+                 ORDER BY delivery_next_at, id LIMIT ?3",
+            )?
+            .query_map(params![now, json!(connections).to_string(), BATCH], |row| {
+                Ok(Leased {
+                    item: Due {
+                        match_id: row.get(0)?,
+                        connection_id: row.get(1)?,
+                    },
+                    attempts: row.get(2)?,
+                    first_attempt_at: row.get(3)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        for row in &rows {
+            tx.execute(
+                "UPDATE matches SET delivery_next_at = ?1 WHERE id = ?2",
+                params![until, row.item.match_id],
+            )?;
+        }
+        Ok(rows)
+    }
+
+    async fn attempt(&self, state: &AppState, item: &Due) -> Outcome {
+        let retry = |error: String, retry_after: Option<u64>| Outcome::Retry { error, retry_after };
+        let Some(destination) = self.destinations.get(&item.connection_id) else {
+            return Outcome::Cancelled;
+        };
+        let id = item.match_id.clone();
+        let body = state
+            .db
+            .read(move |tx| match load(tx, &id)? {
+                Some(found) => submission(tx, &found),
+                None => Ok(None),
+            })
+            .await;
+        let body = match body {
+            Ok(Some(body)) => body,
+            // Reopened by a correction since the lease; it is sent when it ends.
+            Ok(None) => return Outcome::Cancelled,
+            Err(_) => return retry("database unavailable".into(), None),
+        };
+        let Ok(client) = outbound_client().build() else {
+            return retry("client".into(), None);
+        };
+        let response = client
+            .post(&destination.submit_url)
+            .header("x-api-key", destination.key.as_str())
             .header("content-type", "application/json")
             .body(body.to_string())
             .send()
-            .await
-            .ok()
-            .map(|response| response.status().as_u16()),
-        Err(_) => None,
-    };
-    // 409: BluMint already has this match's result. Other refusals will not
-    // change on a retry; the audit entry says which.
-    let outcome = match sent {
-        Some(200 | 201 | 409) => "delivered",
-        Some(code) if (400..500).contains(&code) && code != 429 => "failed",
-        _ if item.attempts + 1 >= ATTEMPTS => "failed",
-        _ => "retrying",
-    };
-    let delay = SCHEDULE
-        .get(item.attempts as usize)
-        .copied()
-        .unwrap_or(HOURLY);
-    let now = state.now();
-    let detail = sent.map_or_else(|| "unreachable".to_owned(), |code| format!("http {code}"));
-    let _ = state
-        .db
-        .write(move |tx| {
-            tx.execute(
-                "UPDATE matches SET delivery_state = ?1, delivery_attempts = delivery_attempts + 1, delivery_next_at = ?2
-                 WHERE id = ?3",
-                params![outcome, now + delay, item.id],
-            )?;
-            audit(tx, now, ("bridge", "blumint".into()), "blumint.submit", &item.id, outcome, Some(&detail))
-        })
-        .await;
-}
+            .await;
+        let response = match response {
+            Ok(response) => response,
+            Err(error) if error.is_timeout() => return retry("timeout".into(), None),
+            Err(_) => return retry("connection failed".into(), None),
+        };
+        let status = response.status().as_u16();
+        let retry_after = response
+            .headers()
+            .get("retry-after")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<u64>().ok());
+        match status {
+            // 409: BluMint already has this match's result.
+            200..=299 | 409 => Outcome::Delivered,
+            429 => retry(format!("http {status}"), retry_after),
+            // Any other refusal is the same on a retry.
+            400..=499 => Outcome::Refused(format!("http {status}")),
+            _ => retry(format!("http {status}"), retry_after),
+        }
+    }
 
-/// Runs `deliver_once` every few seconds.
-pub async fn run(state: AppState) {
-    loop {
-        deliver_once(&state).await;
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    fn record(&self, tx: &Transaction<'_>, leased: &Leased<Due>, record: &Record) -> Result<()> {
+        let (state, next, error) = match &record.settled {
+            Settled::Delivered => ("delivered", record.at, None),
+            Settled::Retry { at, error } => ("retrying", *at, Some(error.as_str())),
+            Settled::Refused(error) | Settled::Expired(error) => {
+                ("failed", record.at, Some(error.as_str()))
+            }
+        };
+        let changed = tx.execute(
+            "UPDATE matches SET delivery_state = ?1, delivery_attempts = ?2, delivery_next_at = ?3,
+                delivery_first_at = COALESCE(delivery_first_at, ?4)
+             WHERE id = ?5 AND delivery_state IN ('queued', 'retrying') AND delivery_attempts = ?6",
+            params![
+                state,
+                record.attempts,
+                next,
+                record.first_attempt_at,
+                leased.item.match_id,
+                leased.attempts
+            ],
+        )?;
+        if changed == 1 {
+            audit(
+                tx,
+                record.at,
+                ("bridge", BLUMINT.into()),
+                "blumint.submit",
+                &leased.item.match_id,
+                state,
+                error,
+            )?;
+        }
+        Ok(())
     }
 }
 

@@ -22,7 +22,9 @@ CREATE UNIQUE INDEX links_active_account ON links (account_id) WHERE revoked_at 
 CREATE UNIQUE INDEX links_active_identity ON links (ember_id, connection_id) WHERE revoked_at IS NULL;
 
 -- Results the bridge sends to the platform that created the match
--- (matches.delivery_state, spec 18): how often it tried and when it tries next.
+-- (matches.delivery_state, spec 18): how often it tried, when it tries next,
+-- and when it first tried, since retries end a day after that.
 ALTER TABLE matches ADD COLUMN delivery_attempts INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE matches ADD COLUMN delivery_next_at INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE matches ADD COLUMN delivery_first_at INTEGER;
 CREATE INDEX matches_delivery ON matches (delivery_state, delivery_next_at);

@@ -1,437 +1,162 @@
-//! At-least-once webhook delivery from the outbox (spec 20.4, 20.5).
+//! At-least-once delivery (spec 20.4, 20.5). Each queue has one worker: it
+//! leases what is due, oldest first, in one write, sends up to `CONCURRENCY`
+//! at once, and records each outcome only while the item is still as it was
+//! leased, so a concurrent pass can never overwrite a newer outcome. Retries
+//! follow one schedule with jitter until a day has passed since the first
+//! attempt.
 //!
-//! Each attempt re-resolves the destination, refuses loopback, private,
-//! link-local, multicast, metadata and other special addresses, then pins
-//! the connection to the address it checked, so DNS rebinding cannot steer
-//! it elsewhere. Redirects are not followed and responses are read through a
-//! byte cap. The stored event bytes are sent unchanged; only the delivery
-//! timestamp and signature differ between attempts.
-use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-    sync::Arc,
-    time::Duration,
-};
+//! Two queues use it: signed webhooks from the outbox (`webhooks`), and
+//! match results sent to the platform that created the match
+//! (`routes::blumint::Results`).
+pub mod webhooks;
 
-use ember_protocol::webhook::{self, Secret};
-use reqwest::Url;
-use rusqlite::params;
-use tokio::sync::Semaphore;
+use std::{future::Future, sync::Arc, time::Duration};
 
-use crate::{AppState, util::random};
+use futures_util::StreamExt;
+use rusqlite::Transaction;
 
+use crate::{AppState, error::Result, util::random};
+
+/// Items leased per pass.
+pub const BATCH: i64 = 16;
 const CONCURRENCY: usize = 4;
-const BATCH: i64 = 16;
-const MAX_RESPONSE: usize = 64 * 1024;
+/// A leased item is not leased again for this long, longer than a pass of
+/// attempts takes.
+const LEASE_SECS: u64 = 60;
 const BUDGET_SECS: u64 = 24 * 60 * 60;
 const SCHEDULE: &[u64] = &[1, 5, 15, 60, 300, 900];
 const HOURLY: u64 = 3600;
 
-struct Due {
-    outbox_id: i64,
-    attempts: u32,
-    first_attempt_at: Option<u64>,
-    event_id: String,
-    body: Vec<u8>,
-    subscription_id: String,
-    url: String,
-    secret: Vec<u8>,
-    previous: Option<(Vec<u8>, u64)>,
+/// Something a queue sends, as it was leased.
+pub struct Leased<T> {
+    pub item: T,
+    /// Attempts recorded before this one.
+    pub attempts: u32,
+    pub first_attempt_at: Option<u64>,
 }
 
-enum Outcome {
+/// What one attempt came to.
+pub enum Outcome {
     Delivered,
+    /// Worth trying again later.
     Retry {
         error: String,
         retry_after: Option<u64>,
     },
-    /// The receiver said the endpoint is gone (410).
-    Gone,
-    /// Deleted, disabled or revoked after the lease; nothing was sent and
-    /// whatever cancelled it already updated the outbox.
+    /// Refused in a way no retry changes.
+    Refused(String),
+    /// No longer to be sent (deleted, disabled or revoked since the lease);
+    /// nothing was sent, and whatever ended it already updated the queue.
     Cancelled,
 }
 
-pub async fn run(state: AppState) {
-    let permits = Arc::new(Semaphore::new(CONCURRENCY));
+/// Where an item stands after an attempt.
+pub enum Settled {
+    Delivered,
+    Retry {
+        at: u64,
+        error: String,
+    },
+    /// Refused for good.
+    Refused(String),
+    /// Out of retries: a day passed since the first attempt.
+    Expired(String),
+}
+
+/// What a queue records after an attempt.
+pub struct Record {
+    /// When the attempt ended.
+    pub at: u64,
+    /// Attempts including this one.
+    pub attempts: u32,
+    pub first_attempt_at: u64,
+    pub settled: Settled,
+}
+
+pub trait Queue: Send + Sync + 'static {
+    type Item: Send + Sync + 'static;
+
+    /// Up to `BATCH` items due at `now`, the longest due first, each leased
+    /// in this write so no pass takes it again before `until`.
+    fn lease(&self, tx: &Transaction<'_>, now: u64, until: u64) -> Result<Vec<Leased<Self::Item>>>;
+
+    fn attempt(&self, state: &AppState, item: &Self::Item) -> impl Future<Output = Outcome> + Send;
+
+    /// Records `record` if the item is still waiting with the attempts it
+    /// was leased with; otherwise another pass got there first.
+    fn record(
+        &self,
+        tx: &Transaction<'_>,
+        leased: &Leased<Self::Item>,
+        record: &Record,
+    ) -> Result<()>;
+}
+
+/// Runs passes of `queue` forever, waiting for a commit or a second when
+/// nothing was due.
+pub async fn run<Q: Queue>(state: AppState, queue: Q) {
+    let queue = Arc::new(queue);
     loop {
-        let now = state.now();
-        let due = state
-            .db
-            .write(move |tx| {
-                let rows = tx
-                    .prepare(
-                        "SELECT o.id, o.attempts, o.first_attempt_at, e.id, e.body, s.id, s.url, s.secret_sealed,
-                                s.previous_secret_sealed, s.previous_expires_at
-                         FROM delivery_outbox o
-                         JOIN events e ON e.seq = o.event_seq
-                         JOIN webhook_subscriptions s ON s.id = o.subscription_id
-                         JOIN service_credentials c ON c.id = s.owner_credential
-                         WHERE o.state = 'pending' AND o.next_attempt_at <= ?1 AND s.enabled = 1
-                           AND c.revoked_at IS NULL
-                         ORDER BY o.next_attempt_at, o.id LIMIT ?2",
-                    )?
-                    .query_map(params![now, BATCH], |row| {
-                        let previous: Option<Vec<u8>> = row.get(8)?;
-                        let until: Option<u64> = row.get(9)?;
-                        Ok(Due {
-                            outbox_id: row.get(0)?,
-                            attempts: row.get(1)?,
-                            first_attempt_at: row.get(2)?,
-                            event_id: row.get(3)?,
-                            body: row.get(4)?,
-                            subscription_id: row.get(5)?,
-                            url: row.get(6)?,
-                            secret: row.get(7)?,
-                            previous: previous.zip(until),
-                        })
-                    })?
-                    .collect::<rusqlite::Result<Vec<_>>>()?;
-                // Lease the rows so a slow attempt is not picked up twice.
-                for row in &rows {
-                    tx.execute(
-                        "UPDATE delivery_outbox SET next_attempt_at = ?1 WHERE id = ?2",
-                        params![now + 60, row.outbox_id],
-                    )?;
-                }
-                Ok(rows)
-            })
-            .await
-            .unwrap_or_default();
-        let idle = due.is_empty();
-        for item in due {
-            let Ok(permit) = permits.clone().acquire_owned().await else {
-                return;
-            };
-            let state = state.clone();
-            tokio::spawn(async move {
-                let outcome = attempt(&state, &item).await;
-                record(&state, &item, outcome).await;
-                drop(permit);
-            });
-        }
-        if idle {
+        if !pass(&state, &queue).await {
             let _ = tokio::time::timeout(Duration::from_secs(1), state.delivery.notified()).await;
         }
     }
 }
 
-/// Whether a leased delivery may still go out: pending, its subscription
-/// enabled and its owner's credential not revoked.
-async fn still_due(state: &AppState, outbox_id: i64) -> bool {
-    state
+/// One pass: leases what is due and sends it. False when nothing was due.
+pub async fn pass<Q: Queue>(state: &AppState, queue: &Arc<Q>) -> bool {
+    let now = state.now();
+    let leasing = queue.clone();
+    let due = state
         .db
-        .read(move |tx| {
-            Ok(tx.query_row(
-                "SELECT EXISTS (SELECT 1 FROM delivery_outbox o
-                   JOIN webhook_subscriptions s ON s.id = o.subscription_id
-                   JOIN service_credentials c ON c.id = s.owner_credential
-                   WHERE o.id = ?1 AND o.state = 'pending' AND s.enabled = 1 AND c.revoked_at IS NULL)",
-                [outbox_id],
-                |row| row.get::<_, bool>(0),
-            )?)
-        })
+        .write(move |tx| leasing.lease(tx, now, now + LEASE_SECS))
         .await
-        .unwrap_or(false)
-}
-
-async fn attempt(state: &AppState, item: &Due) -> Outcome {
-    let retry = |error: &str| Outcome::Retry {
-        error: error.to_owned(),
-        retry_after: None,
-    };
-    let now = state.now();
-    let Some(current) = state.keys.open(&item.secret).and_then(|text| {
-        std::str::from_utf8(&text)
-            .ok()
-            .and_then(|text| Secret::parse(text).ok())
-    }) else {
-        return retry("secret unavailable");
-    };
-    let previous = item
-        .previous
-        .as_ref()
-        .filter(|(_, until)| *until > now)
-        .and_then(|(sealed, _)| state.keys.open(sealed))
-        .and_then(|text| {
-            std::str::from_utf8(&text)
-                .ok()
-                .and_then(|text| Secret::parse(text).ok())
-        });
-    let mut secrets = vec![&current];
-    if let Some(previous) = &previous {
-        secrets.push(previous);
-    }
-    let Ok(headers) = webhook::sign(&secrets, &item.event_id, now, &item.body) else {
-        return retry("cannot sign");
-    };
-    let allow_private = state.config.allow_private_webhooks;
-    let Ok(url) = Url::parse(&item.url) else {
-        return retry("invalid url");
-    };
-    let address = match destination(&url, allow_private).await {
-        Ok(address) => address,
-        Err(error) => return retry(error),
-    };
-    let mut builder = crate::util::outbound_client();
-    if let Some(host) = url.host_str()
-        && literal_ip(&url).is_none()
-    {
-        builder = builder.resolve(host, address);
-    }
-    if !allow_private {
-        builder = builder.https_only(true);
-    }
-    let Ok(client) = builder.build() else {
-        return retry("client");
-    };
-    // A delete or a revoked owner since the lease, including while the
-    // destination resolved, cancels the delivery. Checked as late as possible.
-    if !still_due(state, item.outbox_id).await {
-        return Outcome::Cancelled;
-    }
-    let response = client
-        .post(url)
-        .header("content-type", "application/json")
-        .header(webhook::HEADER_ID, &headers.id)
-        .header(webhook::HEADER_TIMESTAMP, &headers.timestamp)
-        .header(webhook::HEADER_SIGNATURE, &headers.signature)
-        .body(item.body.clone())
-        .send()
+        .unwrap_or_default();
+    let busy = !due.is_empty();
+    futures_util::stream::iter(due)
+        .for_each_concurrent(CONCURRENCY, |leased| async move {
+            let outcome = queue.attempt(state, &leased.item).await;
+            if let Some(record) = settle(state.now(), &leased, outcome) {
+                let recording = queue.clone();
+                let _ = state
+                    .db
+                    .write(move |tx| recording.record(tx, &leased, &record))
+                    .await;
+            }
+        })
         .await;
-    let mut response = match response {
-        Ok(response) => response,
-        Err(error) => {
-            return retry(if error.is_timeout() {
-                "timeout"
-            } else {
-                "connection failed"
-            });
-        }
-    };
-    let status = response.status();
-    let retry_after = response
-        .headers()
-        .get("retry-after")
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.parse::<u64>().ok());
-    // Drain at most MAX_RESPONSE bytes; a hostile receiver cannot make the
-    // worker buffer more than that.
-    let mut read = 0;
-    while let Ok(Some(chunk)) = response.chunk().await {
-        read += chunk.len();
-        if read > MAX_RESPONSE {
-            break;
-        }
-    }
-    if status.is_success() {
-        Outcome::Delivered
-    } else if status.as_u16() == 410 {
-        Outcome::Gone
-    } else {
-        Outcome::Retry {
-            error: format!("status {}", status.as_u16()),
-            retry_after,
-        }
-    }
+    busy
 }
 
-/// Resolves and checks every address for the URL's host. Any refused
-/// address refuses the destination.
-async fn destination(url: &Url, allow_private: bool) -> Result<SocketAddr, &'static str> {
-    let port = url.port_or_known_default().ok_or("no port")?;
-    if let Some(ip) = literal_ip(url) {
-        return if allowed_address(ip, allow_private) {
-            Ok(SocketAddr::new(ip, port))
-        } else {
-            Err("destination refused")
-        };
-    }
-    let host = url.host_str().ok_or("no host")?;
-    let addresses: Vec<SocketAddr> = tokio::time::timeout(
-        Duration::from_secs(5),
-        tokio::net::lookup_host((host, port)),
-    )
-    .await
-    .map_err(|_| "dns timeout")?
-    .map_err(|_| "dns failed")?
-    .collect();
-    if addresses.is_empty()
-        || addresses
-            .iter()
-            .any(|address| !allowed_address(address.ip(), allow_private))
-    {
-        return Err("destination refused");
-    }
-    Ok(addresses[0])
-}
-
-pub fn literal_ip(url: &Url) -> Option<IpAddr> {
-    match url.host()? {
-        url::Host::Ipv4(ip) => Some(IpAddr::V4(ip)),
-        url::Host::Ipv6(ip) => Some(IpAddr::V6(ip)),
-        url::Host::Domain(_) => None,
-    }
-}
-
-/// True for a public unicast address. `allow_private` admits loopback and
-/// private ranges for local testing; metadata and link-local stay refused.
-pub fn allowed_address(ip: IpAddr, allow_private: bool) -> bool {
-    match ip {
-        IpAddr::V4(ip) => allowed_v4(ip, allow_private),
-        IpAddr::V6(ip) => {
-            if let Some(mapped) = ip.to_ipv4_mapped() {
-                return allowed_v4(mapped, allow_private);
-            }
-            let segments = ip.segments();
-            // 6to4 and NAT64 embed an IPv4 destination; judge that instead.
-            if segments[0] == 0x2002 {
-                let embedded = Ipv4Addr::new(
-                    (segments[1] >> 8) as u8,
-                    segments[1] as u8,
-                    (segments[2] >> 8) as u8,
-                    segments[2] as u8,
-                );
-                return allowed_v4(embedded, allow_private);
-            }
-            if segments[..6] == [0x64, 0xff9b, 0, 0, 0, 0] {
-                let octets = ip.octets();
-                return allowed_v4(
-                    Ipv4Addr::new(octets[12], octets[13], octets[14], octets[15]),
-                    allow_private,
-                );
-            }
-            if ip.is_loopback() {
-                return allow_private;
-            }
-            let unique_local = segments[0] & 0xfe00 == 0xfc00;
-            if unique_local {
-                return allow_private;
-            }
-            !(ip.is_unspecified()
-                || ip.is_multicast()
-                || segments[0] & 0xffc0 == 0xfe80 // link-local
-                || segments[0] & 0xffc0 == 0xfec0 // site-local
-                || (segments[0] == 0x2001 && segments[1] == 0x0db8) // documentation
-                || (segments[0] == 0x2001 && segments[1] == 0) // Teredo
-                || segments[0] == 0x0100 && segments[1..4] == [0, 0, 0]) // discard
-        }
-    }
-}
-
-fn allowed_v4(ip: Ipv4Addr, allow_private: bool) -> bool {
-    let [a, b, c, _] = ip.octets();
-    if ip.is_loopback() || ip.is_private() || (a == 100 && (64..128).contains(&b)) {
-        return allow_private;
-    }
-    !(ip.is_unspecified()
-        || ip.is_link_local() // includes 169.254.169.254 metadata
-        || ip.is_broadcast()
-        || ip.is_multicast()
-        || ip.is_documentation()
-        || a == 0
-        || a >= 240
-        || (a == 192 && b == 0 && c == 0)
-        || (a == 198 && (b == 18 || b == 19)))
-}
-
-async fn record(state: &AppState, item: &Due, outcome: Outcome) {
-    let now = state.now();
-    let first = item.first_attempt_at.unwrap_or(now);
-    let attempts = item.attempts + 1;
-    let (status, next, error, disable) = match outcome {
-        Outcome::Delivered => ("delivered", now, None, false),
-        Outcome::Gone => ("dead", now, Some("gone".to_owned()), true),
-        Outcome::Cancelled => return,
+/// Where an attempt leaves the item, or None when it was cancelled.
+fn settle<T>(now: u64, leased: &Leased<T>, outcome: Outcome) -> Option<Record> {
+    let first_attempt_at = leased.first_attempt_at.unwrap_or(now);
+    let settled = match outcome {
+        Outcome::Cancelled => return None,
+        Outcome::Delivered => Settled::Delivered,
+        Outcome::Refused(error) => Settled::Refused(error),
         Outcome::Retry { error, retry_after } => {
             let base = SCHEDULE
-                .get(item.attempts as usize)
+                .get(leased.attempts as usize)
                 .copied()
                 .unwrap_or(HOURLY);
-            // Up to 20 percent jitter so retries from many events spread out.
+            // Up to 20 percent jitter so retries from many items spread out.
             let jitter = u64::from(random::<1>()[0]) * base / 1275;
             let delay = (base + jitter).max(retry_after.unwrap_or(0).min(HOURLY));
-            if now + delay > first + BUDGET_SECS {
-                ("dead", now, Some(error), false)
+            if now + delay > first_attempt_at + BUDGET_SECS {
+                Settled::Expired(error)
             } else {
-                ("pending", now + delay, Some(error), false)
+                Settled::Retry {
+                    at: now + delay,
+                    error,
+                }
             }
         }
     };
-    let id = item.outbox_id;
-    let subscription = item.subscription_id.clone();
-    let _ = state
-        .db
-        .write(move |tx| {
-            tx.execute(
-                "UPDATE delivery_outbox SET state = ?1, attempts = ?2, next_attempt_at = ?3,
-                    first_attempt_at = COALESCE(first_attempt_at, ?4), last_error = ?5
-                 WHERE id = ?6 AND state = 'pending'",
-                params![status, attempts, next, first, error, id],
-            )?;
-            if disable {
-                tx.execute(
-                    "UPDATE webhook_subscriptions SET enabled = 0, disabled_at = ?1 WHERE id = ?2",
-                    params![now, subscription],
-                )?;
-            }
-            Ok(())
-        })
-        .await;
-    if status == "pending" {
-        state.delivery.notify_one();
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn refuses_special_addresses() {
-        let refused = [
-            "127.0.0.1",
-            "10.1.2.3",
-            "172.16.0.1",
-            "192.168.1.1",
-            "169.254.169.254",
-            "100.64.0.1",
-            "0.0.0.0",
-            "224.0.0.1",
-            "255.255.255.255",
-            "192.0.2.1",
-            "198.18.0.1",
-            "240.0.0.1",
-            "::1",
-            "::",
-            "fe80::1",
-            "fc00::1",
-            "fd12:3456::1",
-            "ff02::1",
-            "::ffff:127.0.0.1",
-            "::ffff:169.254.169.254",
-            "2002:7f00:0001::1",
-            "64:ff9b::a9fe:a9fe",
-            "2001:db8::1",
-            "2001::1",
-        ];
-        for text in refused {
-            assert!(!allowed_address(text.parse().unwrap(), false), "{text}");
-        }
-        for text in [
-            "93.184.216.34",
-            "2606:4700::1111",
-            "::ffff:93.184.216.34",
-            "1.1.1.1",
-        ] {
-            assert!(allowed_address(text.parse().unwrap(), false), "{text}");
-        }
-        // Local testing admits loopback and private ranges, never metadata.
-        assert!(allowed_address("127.0.0.1".parse().unwrap(), true));
-        assert!(allowed_address("::1".parse().unwrap(), true));
-        assert!(!allowed_address("169.254.169.254".parse().unwrap(), true));
-        assert!(!allowed_address(
-            "::ffff:169.254.169.254".parse().unwrap(),
-            true
-        ));
-    }
+    Some(Record {
+        at: now,
+        attempts: leased.attempts + 1,
+        first_attempt_at,
+        settled,
+    })
 }

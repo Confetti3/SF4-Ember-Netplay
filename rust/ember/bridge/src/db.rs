@@ -136,7 +136,7 @@ mod tests {
             .unwrap();
         assert!(links_sql.contains("'discord'"), "{links_sql}");
         connection
-            .prepare("SELECT delivery_attempts, delivery_next_at FROM matches")
+            .prepare("SELECT delivery_attempts, delivery_next_at, delivery_first_at FROM matches")
             .unwrap();
         let versions: Vec<i64> = connection
             .prepare("SELECT version FROM schema_migrations ORDER BY version")
