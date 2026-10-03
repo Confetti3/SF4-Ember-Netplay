@@ -1,4 +1,5 @@
 #include "github_release_client_internal.hxx"
+#include "ArchiveTool.hxx"
 #include "../../platform/Elevation.hxx"
 
 namespace sf4e {
@@ -97,21 +98,20 @@ namespace launcher {
 			const std::function<bool(std::uint64_t, std::uint64_t)>& progress) {
 			// The system tar by full path: a bare name would be searched for in the
 			// application and current directories first.
-			wchar_t tarPath[MAX_PATH] = { 0 };
-			const UINT systemLength = GetSystemDirectoryW(tarPath, MAX_PATH);
-			if (systemLength == 0 || systemLength >= MAX_PATH || FAILED(PathCchAppend(tarPath, MAX_PATH, L"tar.exe"))) {
-				AppendUpdateLog("tar path failed");
+			const std::wstring tarPath = ArchiveToolPath();
+			if (tarPath.empty() || GetFileAttributesW(tarPath.c_str()) == INVALID_FILE_ATTRIBUTES) {
+				AppendUpdateLog("native Windows tar.exe is unavailable");
 				return false;
 			}
 			wchar_t cmdLine[4096] = { 0 };
-			swprintf_s(cmdLine, L"\"%s\" -xf \"%s\" -C \"%s\"", tarPath, zipPath, destDir);
+			swprintf_s(cmdLine, L"\"%s\" -xf \"%s\" -C \"%s\"", tarPath.c_str(), zipPath, destDir);
 
 			char cmdUtf8[4096] = { 0 };
 			WidePathToUtf8(cmdLine, cmdUtf8, sizeof(cmdUtf8));
 			AppendUpdateLog(cmdUtf8);
 
 			DWORD exitCode = 1;
-			if (!RunProcessAndWaitHidden(tarPath, cmdLine, &exitCode, progress)) {
+			if (!RunProcessAndWaitHidden(tarPath.c_str(), cmdLine, &exitCode, progress)) {
 				AppendUpdateLog("tar spawn failed");
 				return false;
 			}
@@ -531,7 +531,9 @@ namespace launcher {
 					if (name.compare(0, strlen(kReleaseZipPrefix), kReleaseZipPrefix) == 0) {
 						result.zipDownloadUrl = asset.value("browser_download_url", "");
 						result.zipApiUrl = asset.value("url", "");
-						result.expectedSha256 = parseSha256Digest(asset.value("digest", ""));
+						const auto digest = asset.find("digest");
+						result.expectedSha256 = digest != asset.end() && digest->is_string()
+							? parseSha256Digest(digest->get<std::string>()) : std::string();
 						break;
 					}
 
