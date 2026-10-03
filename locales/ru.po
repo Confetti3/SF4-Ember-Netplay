@@ -3014,3 +3014,93 @@ msgstr "{0}, {1}     Очередь: {2}     Зрители: {3}"
 
 msgid "room.streak"
 msgstr "Сетов подряд: {0}"
+
+msgid "screen.public_rooms"
+msgstr "Открытые залы"
+
+msgid "online.public_detail"
+msgstr "Просматривайте залы, куда может войти любой игрок с Ember ID, или откройте свой."
+
+msgid "public.create"
+msgstr "Создать открытый зал"
+
+msgid "public.create_detail"
+msgstr "Открывает зал, видимый всем игрокам с Ember ID. Вы его ведущий, а правила задаёте внутри зала."
+
+msgid "public.create_requirements"
+msgstr "Создаёт открытый зал в сервисе Ember ID и входит в него. Правила стола задаются внутри зала."
+
+msgid "public.create_needs_id"
+msgstr "Для открытых залов нужны Ember ID и доверенный сервис. Настройте их в разделе Открытые залы."
+
+msgid "public.refresh_detail"
+msgstr "Запрашивает у сервиса актуальный список залов."
+
+msgid "public.loading"
+msgstr "Загрузка залов..."
+
+msgid "public.none"
+msgstr "Нет открытых залов"
+
+msgid "public.none_detail"
+msgstr "Сейчас ни у кого нет открытого зала. Создайте свой и начните играть."
+
+msgid "public.needs_id"
+msgstr "Для открытых залов нужен Ember ID"
+
+msgid "public.needs_id_detail"
+msgstr "Создайте Ember ID и добавьте доверенный сервис в разделе Привязанные аккаунты. Открытые залы показывает именно этот сервис."
+
+msgid "public.room_playing"
+msgstr "{0}, идёт матч"
+
+msgid "public.room_detail"
+msgstr "{0}\nИгроков: {1}/{2}. Регион: {3}."
+
+msgid "public.room_detail_playing"
+msgstr "{0}\nИгроков: {1}/{2}. Регион: {3}.\nМатчей идёт: {4}."
+
+msgid "public.joining_value"
+msgstr "Вход..."
+
+msgid "public.visibility"
+msgstr "Доступ"
+
+msgid "public.visibility.private"
+msgstr "Закрытый"
+
+msgid "public.visibility.public"
+msgstr "Открытый"
+
+msgid "public.visibility_detail"
+msgstr "В закрытый зал входят по приглашению. Открытый зал виден всем игрокам с Ember ID."
+
+msgid "room.public_status"
+msgstr "Открытый зал / войти может любой игрок с Ember ID"
+
+msgid "room.public_locked_status"
+msgstr "Открытый зал, закрыт / новые игроки не могут войти"
+
+msgid "public.failure.room_full"
+msgstr "Этот зал заполнен."
+
+msgid "public.failure.banned"
+msgstr "Вас удалили из этого зала."
+
+msgid "public.failure.room_not_found"
+msgstr "Этот зал закрыт."
+
+msgid "public.failure.room_not_open"
+msgstr "Этот зал ещё не открыт."
+
+msgid "public.failure.room_limit"
+msgstr "Достигнут лимит открытых залов. Повторите попытку позже."
+
+msgid "public.failure.unsupported_build"
+msgstr "Открытые залы пока недоступны в этой версии."
+
+msgid "public.failure.invalid_name"
+msgstr "Это название зала нельзя использовать. Выберите другое."
+
+msgid "public.failure.rooms_unavailable"
+msgstr "Открытые залы сейчас недоступны."

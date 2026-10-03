@@ -3014,3 +3014,93 @@ msgstr "{0}, {1}     Kolejka: {2}     Widzowie: {3}"
 
 msgid "room.streak"
 msgstr "Sety z rzędu: {0}"
+
+msgid "screen.public_rooms"
+msgstr "Pokoje publiczne"
+
+msgid "online.public_detail"
+msgstr "Przeglądaj pokoje, do których może dołączyć każdy gracz z Ember ID, albo otwórz własny."
+
+msgid "public.create"
+msgstr "Utwórz pokój publiczny"
+
+msgid "public.create_detail"
+msgstr "Otwiera pokój widoczny dla wszystkich graczy z Ember ID. Jesteś jego hostem i ustawiasz zasady w środku pokoju."
+
+msgid "public.create_requirements"
+msgstr "Otwiera pokój publiczny w usłudze Ember ID i dołącza do niego. Zasady stołu ustawisz w pokoju."
+
+msgid "public.create_needs_id"
+msgstr "Pokoje publiczne wymagają Ember ID i zaufanej usługi. Skonfiguruj je w sekcji Pokoje publiczne."
+
+msgid "public.refresh_detail"
+msgstr "Prosi usługę o aktualną listę pokojów."
+
+msgid "public.loading"
+msgstr "Wczytywanie pokojów..."
+
+msgid "public.none"
+msgstr "Brak pokojów publicznych"
+
+msgid "public.none_detail"
+msgstr "Nikt nie ma teraz otwartego pokoju publicznego. Utwórz własny, aby zacząć grać."
+
+msgid "public.needs_id"
+msgstr "Pokoje publiczne wymagają Ember ID"
+
+msgid "public.needs_id_detail"
+msgstr "Utwórz Ember ID i zaufaj usłudze w sekcji Powiązane konta. To ta usługa wyświetla pokoje publiczne."
+
+msgid "public.room_playing"
+msgstr "{0}, trwa mecz"
+
+msgid "public.room_detail"
+msgstr "{0}\nGracze: {1}/{2}. Region: {3}."
+
+msgid "public.room_detail_playing"
+msgstr "{0}\nGracze: {1}/{2}. Region: {3}.\nMecze w toku: {4}."
+
+msgid "public.joining_value"
+msgstr "Dołączanie..."
+
+msgid "public.visibility"
+msgstr "Widoczność"
+
+msgid "public.visibility.private"
+msgstr "Prywatny"
+
+msgid "public.visibility.public"
+msgstr "Publiczny"
+
+msgid "public.visibility_detail"
+msgstr "Do pokoju prywatnego dołącza się z zaproszeniem. Pokój publiczny widzą wszyscy gracze z Ember ID."
+
+msgid "room.public_status"
+msgstr "Pokój publiczny / dołączyć może każdy z Ember ID"
+
+msgid "room.public_locked_status"
+msgstr "Pokój publiczny, zamknięty / nikt nowy nie może dołączyć"
+
+msgid "public.failure.room_full"
+msgstr "Ten pokój jest pełny."
+
+msgid "public.failure.banned"
+msgstr "Usunięto cię z tego pokoju."
+
+msgid "public.failure.room_not_found"
+msgstr "Ten pokój został zamknięty."
+
+msgid "public.failure.room_not_open"
+msgstr "Ten pokój nie jest jeszcze otwarty."
+
+msgid "public.failure.room_limit"
+msgstr "Osiągnięto limit pokojów publicznych. Spróbuj ponownie później."
+
+msgid "public.failure.unsupported_build"
+msgstr "Pokoje publiczne nie są jeszcze dostępne w tej wersji."
+
+msgid "public.failure.invalid_name"
+msgstr "Tej nazwy pokoju nie można użyć. Wybierz inną."
+
+msgid "public.failure.rooms_unavailable"
+msgstr "Pokoje publiczne są teraz niedostępne."

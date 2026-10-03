@@ -191,7 +191,8 @@ static void PublishDiscordPresence(const RuntimeSnapshot& snapshot) {
         input.show = runtime->preferences.discordPresence; input.invites = runtime->preferences.discordInvites;
         input.session = snapshot.session; input.room = snapshot.room;
         input.now = static_cast<std::uint64_t>(std::time(nullptr));
-        if (runtime->room) {
+        // A public room admits by ticket, so its invitation alone would admit nobody.
+        if (runtime->room && !snapshot.room.serverOwned) {
             input.secret = runtime->room->DiscordInvitation();
             if (!discord::TicketMetadata(input.secret,input.party,input.expires)) input.secret.clear();
         }
@@ -311,6 +312,7 @@ PostPublishState Publish() {
     snapshot.identityTicket = runtime->identityTicket; snapshot.identityRequest = runtime->identityRequest;
     snapshot.identityRefusal = runtime->identityRefusal;
     snapshot.tournament = TournamentStatus();
+    snapshot.publicRooms = runtime->publicRooms;
     runtime->services.Observe(diagnostic);
     snapshot.services = runtime->services.Snapshot();
     snapshot.inputDevice = runtime->input.Selected();

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "HelperProcess.hxx"
+#include "../common/TickCount.hxx"
 #include "../netplay/BoundedMailbox.hxx"
 #include "../common/WipeText.hxx"
 #include <atomic>
@@ -24,27 +25,50 @@ enum class HelperState { Stopped, Connecting, Connected, Failed };
 
 // All pipe connection/authentication/I/O happens on this owned worker. Game
 // and UI threads only enqueue bounded commands and consume bounded events.
+// The frames are the same on every platform; Windows talks to the helper's
+// named pipe (HelperClient.cxx), Unix to the stdin and stdout of a helper run
+// as `sf4-net --stdio` (HelperClientPosix.cxx).
 class HelperClient {
 public:
     HelperClient();
     ~HelperClient();
     HelperClient(const HelperClient&) = delete;
     HelperClient& operator=(const HelperClient&) = delete;
+#ifdef _WIN32
     bool Start(const HelperBootstrap& bootstrap);
+    DWORD LastError() const { return error_.load(); }
+#else
+    // The helper's stdout (read here) and stdin (written here); both are owned
+    // and closed by the client. Connected at once: a stdio helper has no
+    // bootstrap or authentication exchange.
+    bool Start(int readFd, int writeFd);
+    int LastError() const { return error_.load(); } // errno, or 0
+#endif
     bool Send(const std::string& payload, uint64_t* requestId = nullptr);
     bool TryReceive(HelperMessage& message) { return incoming_.TryPop(message); }
     HelperState State() const { return state_.load(); }
-    DWORD LastError() const { return error_.load(); }
     void Stop();
 private:
+#ifdef _WIN32
     void Run(HelperBootstrap bootstrap);
     bool Transfer(HANDLE pipe, void* data, DWORD size, bool write);
     bool WriteFrame(HANDLE pipe, const HelperMessage& message);
     bool ReadFrame(HANDLE pipe, HelperMessage& message);
     HANDLE stop_ = nullptr;
+    std::atomic<DWORD> error_{ERROR_SUCCESS};
+#else
+    void Run(int readFd, int writeFd);
+    bool Transfer(int fd, void* data, size_t size, bool write);
+    bool WriteFrame(int fd, const HelperMessage& message);
+    bool ReadFrame(int fd, HelperMessage& message);
+    // The worker polls the read end beside the helper's pipe; Stop writes to
+    // the other end, and the pipe's own fds are closed only once it has gone.
+    int stopPipe_[2] = {-1, -1};
+    int readFd_ = -1, writeFd_ = -1;
+    std::atomic<int> error_{0};
+#endif
     std::thread worker_;
     std::atomic<HelperState> state_{HelperState::Stopped};
-    std::atomic<DWORD> error_{ERROR_SUCCESS};
     std::mutex sendMutex_;
     uint64_t nextId_ = 2;
     bool started_ = false;

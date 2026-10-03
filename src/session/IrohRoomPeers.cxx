@@ -157,7 +157,11 @@ bool IrohRoom::HandleConnected(const json& event) {
 	if (!hosting_ && state_ != State::Joining && !coordination_.active) { Fail("unexpected_peer"); return false; }
 	const auto known = FindPeer(identity);
 	if (coordination_.active && (known != peers_.end() || (!localIdentity_.empty() && identity == localIdentity_))) {
-		if (known != peers_.end()) ControlOpened(known->second, control); // Its control is back.
+		if (known != peers_.end()) {
+			ControlOpened(known->second, control); // Its control is back.
+			const auto account = event.value("account", std::string());
+			if (!account.empty()) known->second.account = account;
+		}
 		return true;
 	}
 	if (known != peers_.end()) { Fail("duplicate_peer"); return false; }
@@ -165,6 +169,7 @@ bool IrohRoom::HandleConnected(const json& event) {
 	auto* peer = AllocatePeer(identity);
 	if (!peer) { Fail("peer_limit"); return false; }
 	ControlOpened(*peer, control);
+	peer->account = event.value("account", std::string());
 	room_ = room;
 	if (coordination_.writable && coordination_.rebound) state_ = State::Ready;
 	return true;
@@ -231,11 +236,13 @@ bool IrohRoom::BeginPeerSession(std::map<Connection, Peer>::iterator peer, std::
 	const auto identity = record.identity;
 	const auto nextId = record.nextId;
 	const auto control = record.control;
+	const auto account = record.account;
 	RetirePeer(peer);
 	auto* fresh = AllocatePeer(identity);
 	if (!fresh) { Fail("peer_limit"); return false; }
 	fresh->nextId = nextId;
 	fresh->incarnation = incarnation;
+	fresh->account = account;
 	if (control) ControlOpened(*fresh, *control);
 	return true;
 }
@@ -286,6 +293,9 @@ bool IrohRoom::ReceiveControlMessage(std::map<Connection, Peer>::iterator peer, 
 	// token; it carries no room mutation, so it is delivered
 	// directly rather than through a checkpoint.
 	const bool leaderVerification = fromLeader && IsVerificationType(messageType);
+	// A public host has no local client to drain the client queue, so a member
+	// sending commit-tagged payloads would fill it and fail the room.
+	if (publicHost_ && (effect || leaderHandshake || leaderVerification)) return true;
 	return Queue((effect || leaderHandshake || leaderVerification) ? clientMessages_ : serverMessages_, {peer->first, id, payload, ""});
 }
 

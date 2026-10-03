@@ -9,6 +9,7 @@ using nlohmann::json;
 using netplay::tournament::Binding;
 using netplay::tournament::ClaimReply;
 using netplay::tournament::PrepareReply;
+using netplay::publicrooms::Room;
 
 // A bounded string field, or an exception the decoder turns into "malformed".
 std::string Text(const json& object, const char* key, std::size_t maximum) {
@@ -44,6 +45,31 @@ bool IsHex(const std::string& text, std::size_t length) {
 		[](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); });
 }
 
+// A bounded unsigned number, or an exception the decoder turns into "malformed".
+unsigned Small(const json& object, const char* key, std::uint64_t maximum) {
+	const auto& value = object.at(key);
+	if (!value.is_number_unsigned() || value.get<std::uint64_t>() > maximum) throw std::invalid_argument(key);
+	return static_cast<unsigned>(value.get<std::uint64_t>());
+}
+
+// A room name is another player's text: kept to one line.
+std::string SingleLine(std::string text) {
+	for (auto& c : text) if (static_cast<unsigned char>(c) < 32 || c == 127) c = ' ';
+	return text;
+}
+
+Room DecodeRoom(const json& view) {
+	Room room;
+	room.id = Text(view, "room_id", 32);
+	room.name = SingleLine(Text(view, "name", 64));
+	room.region = Text(view, "region", 16);
+	room.members = Small(view, "members", 16);
+	room.capacity = Small(view, "capacity", 16);
+	room.playing = Small(view, "tables_playing", 255);
+	if (!IsHex(room.id, 32) || room.name.empty() || room.capacity < 2 || room.members > room.capacity) throw std::invalid_argument("room");
+	return room;
+}
+
 Binding DecodeBinding(const json& view) {
 	Binding binding;
 	binding.roomId = Text(view, "room_id", 32);
@@ -69,7 +95,8 @@ Binding DecodeBinding(const json& view) {
 
 bool IsTournamentPlayOp(const std::string& op) {
 	return op == "match_claim" || op == "room_publish" || op == "game_prepare" || op == "game_report" ||
-		op == "match_leave" || op == "assignment_list";
+		op == "match_leave" || op == "assignment_list" ||
+		op == "room_list" || op == "room_create" || op == "room_ticket";
 }
 
 std::optional<TournamentAnswer> ReadTournamentAnswer(const nlohmann::json& event) {
@@ -174,6 +201,33 @@ std::optional<std::vector<Assignment>> DecodeAssignments(const nlohmann::json& d
 			assignments.push_back(std::move(item));
 		}
 		return assignments;
+	} catch (const std::exception&) {
+		return std::nullopt;
+	}
+}
+
+std::optional<std::vector<Room>> DecodeRoomList(const nlohmann::json& data) {
+	try {
+		const auto& rows = data.at("rooms");
+		if (!rows.is_array() || rows.size() > netplay::publicrooms::MaxRooms) return std::nullopt;
+		std::vector<Room> rooms;
+		for (const auto& row : rows) rooms.push_back(DecodeRoom(row));
+		return rooms;
+	} catch (const std::exception&) {
+		return std::nullopt;
+	}
+}
+
+std::optional<netplay::publicrooms::Admission> DecodeAdmission(const nlohmann::json& data) {
+	try {
+		netplay::publicrooms::Admission admission;
+		admission.room = DecodeRoom(data.at("room"));
+		admission.invitation = Text(data, "invitation", 4096);
+		const auto& ticket = data.at("ticket");
+		if (!ticket.is_object()) return std::nullopt;
+		admission.ticket = ticket.dump();
+		if (admission.invitation.empty() || admission.ticket.size() > netplay::publicrooms::MaxTicketBytes) return std::nullopt;
+		return admission;
 	} catch (const std::exception&) {
 		return std::nullopt;
 	}

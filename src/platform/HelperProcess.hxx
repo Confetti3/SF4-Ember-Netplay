@@ -1,6 +1,8 @@
 #pragma once
 
+#ifdef _WIN32
 #include <windows.h>
+#endif
 #include <cstdint>
 #include <string>
 
@@ -15,8 +17,10 @@ struct HelperBootstrap {
     uint8_t nonce[32] = {};
 };
 
+#ifdef _WIN32
 // Launcher owns this for the full game lifetime, including when its temporary
 // UI closes. A Windows job ensures no orphan helper survives launcher exit.
+// Off Windows the helper is a stdio child of the room host (RoomHostHelperPosix.cxx).
 class HelperProcess {
 public:
     HelperProcess() = default;
@@ -36,5 +40,6 @@ private:
     HANDLE job_ = nullptr;
     DWORD error_ = ERROR_SUCCESS;
 };
+#endif
 
 } }

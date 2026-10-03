@@ -57,12 +57,20 @@ struct Series {
 };
 }
 
+#ifdef _WIN32
+using BenchString = std::wstring;
+#define BENCH_ARG(text) L##text
 int wmain(int argc, wchar_t** argv) {
+#else
+using BenchString = std::string;
+#define BENCH_ARG(text) text
+int main(int argc, char** argv) {
+#endif
 	int iterations = 200;
 	bool legacyClients = false; // clients without roomChatDelta get full chat in every snapshot
 	for (int i = 1; i < argc; ++i) {
-		if (std::wstring(argv[i]) == L"--iterations" && i + 1 < argc) iterations = std::stoi(argv[++i]);
-		else if (std::wstring(argv[i]) == L"--legacy-clients") legacyClients = true;
+		if (BenchString(argv[i]) == BENCH_ARG("--iterations") && i + 1 < argc) iterations = std::stoi(argv[++i]);
+		else if (BenchString(argv[i]) == BENCH_ARG("--legacy-clients")) legacyClients = true;
 		else { std::fprintf(stderr, "usage: RoomHostBench [--iterations N] [--legacy-clients]\n"); return 2; }
 	}
 	auto* transport = new BenchTransport();

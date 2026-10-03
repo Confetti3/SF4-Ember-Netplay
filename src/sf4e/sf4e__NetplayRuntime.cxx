@@ -335,7 +335,8 @@ static void TakeJoinLink() {
 bool SubmitRuntimeCommand(RuntimeCommand command) {
 	if (command.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.command.invitation.size() > 4096 ||
 		command.preferences.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.roomAction.text.size() > room::MaximumChatBytes ||
-		command.preferences.roomName.size() > 64 || !command.identity.Valid() || !command.tournament.Valid()) return false;
+		command.preferences.roomName.size() > 64 || !command.identity.Valid() || !command.tournament.Valid() ||
+		command.publicTicket.size() > netplay::publicrooms::MaxTicketBytes) return false;
 	if (command.identity.op != netplay::IdentityOp::None) {
 		const auto bytes = sizeof(RuntimeCommand) + command.identity.Bytes();
 		return bridge::PushCommand(std::move(command), bytes);
@@ -353,7 +354,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 		kind != netplay::CommandKind::RoomAction && kind != netplay::CommandKind::ReplaceRoom &&
 		kind != netplay::CommandKind::CheckConnection && kind != netplay::CommandKind::ApplyDelay) return false;
 	const auto bytes = sizeof(RuntimeCommand) + command.displayName.size() + command.command.invitation.size() +
-		command.preferences.displayName.size() + command.preferences.roomName.size() + command.roomAction.text.size();
+		command.preferences.displayName.size() + command.preferences.roomName.size() + command.roomAction.text.size() + command.publicTicket.size();
 	return bridge::PushCommand(std::move(command), bytes);
 }
 
@@ -389,6 +390,7 @@ static void ObserveCoordination() {
             const auto appliedAuthority=runtime->room->Coordination();
             const bool connected=appliedAuthority.writable && appliedAuthority.rebound;
             const bool applied=!UserApp::server || runtime->recovery.CaughtUp(appliedAuthority);
+            runtime->controller.SetServerOwned(runtime->room->ServerOwned());
             runtime->controller.ObserveCoordination(appliedAuthority.term,appliedAuthority.revision,
                 connected,GetTickCount64(),applied);
             if(connected || (runtime->attached && runtime->controller.ControlPlaneEstablished()))
@@ -396,6 +398,13 @@ static void ObserveCoordination() {
         }
         runtime->controller.AdvanceRecovery(GetTickCount64());
     }
+}
+
+// The room is over for this player: say so, leave, and tear the session down.
+static void EndClosedRoom(const netplay::Snapshot& state) {
+	runtime->error=loc::T("runtime.room_closed");
+	runtime->controller.Execute({netplay::CommandKind::LeaveRoom,state.generation,{}});
+	CloseRoom();
 }
 
 static void SettleRoomState(bool helperReady) {
@@ -443,15 +452,14 @@ static void SettleRoomState(bool helperReady) {
 	} else if (state.room == netplay::RoomState::Joined && runtime->room &&
 		(runtime->room->GetState() == session::IrohRoom::State::Failed || runtime->room->GetState() == session::IrohRoom::State::Idle ||
 		 runtime->room->GetState() == session::IrohRoom::State::Degraded)) {
-		Apply(netplay::EventKind::ControlLost, loc::T("runtime.room_connection_lost"));
+		// The helper gave up on a server-owned room's host (room_closed after its
+		// grace): nothing replaces that host, so the room is closed.
+		if (runtime->room->ServerOwned() && runtime->room->GetState() == session::IrohRoom::State::Idle) EndClosedRoom(state);
+		else Apply(netplay::EventKind::ControlLost, loc::T("runtime.room_connection_lost"));
 	}
 	state = runtime->controller.GetSnapshot();
 	if (state.room == netplay::RoomState::Joined && runtime->attached && UserApp::netplay &&
-		UserApp::netplay->client.GetRoomSnapshot().closed) {
-        runtime->error=loc::T("runtime.room_closed");
-        runtime->controller.Execute({netplay::CommandKind::LeaveRoom,state.generation,{}});
-        CloseRoom();
-    }
+		UserApp::netplay->client.GetRoomSnapshot().closed) EndClosedRoom(state);
 	state = runtime->controller.GetSnapshot();
 	if (state.room == netplay::RoomState::Joined && runtime->attached && UserApp::netplay &&
 		UserApp::netplay->client.GetRoomSnapshot().roomEpoch &&

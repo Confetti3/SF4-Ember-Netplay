@@ -3014,3 +3014,93 @@ msgstr "{0}、{1}     順番待ち{2}     観戦{3}"
 
 msgid "room.streak"
 msgstr "{0}セット連続"
+
+msgid "screen.public_rooms"
+msgstr "公開ルーム"
+
+msgid "online.public_detail"
+msgstr "Ember IDを持つ誰でも参加できるルームを探すか、自分でルームを開きます。"
+
+msgid "public.create"
+msgstr "公開ルームを作成"
+
+msgid "public.create_detail"
+msgstr "Ember IDを持つ全員に表示されるルームを開きます。あなたがホストとなり、ルールはルーム内で設定します。"
+
+msgid "public.create_requirements"
+msgstr "EmberのIDサービスに公開ルームを作成して入室します。対戦席のルールはルーム内で設定してください。"
+
+msgid "public.create_needs_id"
+msgstr "公開ルームにはEmber IDと信頼済みのサービスが必要です。公開ルームの画面で設定してください。"
+
+msgid "public.refresh_detail"
+msgstr "サービスに現在のルーム一覧を問い合わせます。"
+
+msgid "public.loading"
+msgstr "ルームを読み込み中..."
+
+msgid "public.none"
+msgstr "公開ルームなし"
+
+msgid "public.none_detail"
+msgstr "現在、公開ルームを開いている人はいません。ルームを作成して遊びましょう。"
+
+msgid "public.needs_id"
+msgstr "公開ルームにはEmber IDが必要です"
+
+msgid "public.needs_id_detail"
+msgstr "Ember IDを作成し、連携アカウントで信頼するサービスを登録してください。公開ルームはそのサービスが一覧にします。"
+
+msgid "public.room_playing"
+msgstr "{0}、試合中"
+
+msgid "public.room_detail"
+msgstr "{0}\nプレイヤー: {1}/{2}。リージョン: {3}。"
+
+msgid "public.room_detail_playing"
+msgstr "{0}\nプレイヤー: {1}/{2}。リージョン: {3}。\n進行中の試合: {4}。"
+
+msgid "public.joining_value"
+msgstr "参加中..."
+
+msgid "public.visibility"
+msgstr "公開設定"
+
+msgid "public.visibility.private"
+msgstr "プライベート"
+
+msgid "public.visibility.public"
+msgstr "公開"
+
+msgid "public.visibility_detail"
+msgstr "プライベートルームには招待で参加します。公開ルームはEmber IDを持つ全員に表示されます。"
+
+msgid "room.public_status"
+msgstr "公開ルーム / Ember IDがあれば誰でも参加できます"
+
+msgid "room.public_locked_status"
+msgstr "公開ルーム、ロック中 / 新しい参加者は入れません"
+
+msgid "public.failure.room_full"
+msgstr "このルームは満員です。"
+
+msgid "public.failure.banned"
+msgstr "あなたはこのルームから退出させられました。"
+
+msgid "public.failure.room_not_found"
+msgstr "このルームは閉じられました。"
+
+msgid "public.failure.room_not_open"
+msgstr "このルームはまだ開いていません。"
+
+msgid "public.failure.room_limit"
+msgstr "公開ルームの上限に達しました。しばらくしてからもう一度お試しください。"
+
+msgid "public.failure.unsupported_build"
+msgstr "公開ルームはこのバージョンではまだ利用できません。"
+
+msgid "public.failure.invalid_name"
+msgstr "このルーム名は使用できません。別の名前にしてください。"
+
+msgid "public.failure.rooms_unavailable"
+msgstr "現在、公開ルームは利用できません。"

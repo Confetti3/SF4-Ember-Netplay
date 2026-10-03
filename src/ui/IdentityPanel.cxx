@@ -74,9 +74,6 @@ MenuEntry Secret(std::string id, std::string label, const std::string& secret, s
     auto e = TextRow(std::move(id), std::move(label), SecretValue(secret), 256, enabled);
     e.secret = true; e.detail = std::move(detail); return e;
 }
-MenuEntry Info(std::string id, std::string label, std::string value, std::string detail) {
-    auto e = Row(std::move(id), std::move(label), std::move(detail)); e.value = std::move(value); e.info = true; return e;
-}
 // The two passphrase fields agree and are not empty.
 bool Matching(const std::string& a, const std::string& b) { return !a.empty() && a == b; }
 std::string PairDetail(const std::string& a, const std::string& b, const char* ready) {
@@ -126,6 +123,15 @@ std::string IdentityPanel::TournamentFailure(const std::string& code) {
     if (code == "report_not_saved") return loc::T("tournament.failure.report");
     if (code == "not_found") return loc::T("tournament.failure.not_found");
     return FailureText(code);
+}
+
+std::string IdentityPanel::UsableBridge(const ShellView& v) const {
+    return v.identity.state == "ready" && FindBridge(v, bridge_) ? bridge_ : std::string();
+}
+
+void IdentityPanel::Probe() {
+    IdentityRequest status; status.op = IdentityOp::Status; Queue(std::move(status));
+    IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
 }
 
 bool IdentityPanel::Answered(const ShellView& v) const {
@@ -352,7 +358,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
         else if (ready) { value = id.fingerprint; detail = loc::Tf("identity.state.ready_detail", id.emberId, id.fingerprint); }
         else if (id.state == "recovery_required") { value = loc::T("identity.state.recovery"); detail = loc::T("identity.state.recovery_detail"); }
         else { value = loc::T("identity.state.unavailable"); detail = loc::Tf("identity.state.unavailable_detail", FailureText(id.reason)); }
-        rows.push_back(Info("id-status", loc::T("identity.status"), value, detail));
+        rows.push_back(InfoRow("id-status", loc::T("identity.status"), value, detail));
         if (id.state == "disabled") {
             if (id.passphraseRequired) local(rows);
             const bool secretOk = !id.passphraseRequired || Matching(newPassphrase_, newConfirm_);
@@ -382,7 +388,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
                 PairDetail(backupPassphrase_, backupConfirm_, "identity.repeat_passphrase_detail"), true));
             rows.push_back(ConfirmRow("id-export", loc::T("identity.export"),
                 PairDetail(backupPassphrase_, backupConfirm_, "identity.export_detail"), !busy && Matching(backupPassphrase_, backupConfirm_)));
-            if (!id.exportPath.empty()) rows.push_back(Info("id-export-result", loc::T("identity.export_saved"), {}, id.exportPath));
+            if (!id.exportPath.empty()) rows.push_back(InfoRow("id-export-result", loc::T("identity.export_saved"), {}, id.exportPath));
         }
         rows.push_back(Row("id-restore-paste", loc::T("identity.paste_path"), loc::T("identity.paste_path_detail")));
         rows.back().hint = loc::T("menu.hint.paste");
@@ -401,7 +407,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
             holds += "\n\n";
             holds += alreadyHere ? loc::T("identity.backup_same") : id.previewSame ? loc::T("identity.backup_same_locked") :
                 id.previewReplaces ? loc::T("identity.backup_replaces") : loc::T("identity.backup_new");
-            rows.push_back(Info("id-preview-result", loc::T("identity.backup_holds"), id.previewFingerprint, holds));
+            rows.push_back(InfoRow("id-preview-result", loc::T("identity.backup_holds"), id.previewFingerprint, holds));
             if (!alreadyHere) {
                 if (id.passphraseRequired) local(rows);
                 const bool secretOk = !id.passphraseRequired || Matching(newPassphrase_, newConfirm_);
@@ -413,7 +419,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
     } else if (screen == "linked-accounts") {
         title = loc::T("identity.linked_title");
         if (!ready) {
-            rows.push_back(Info("id-linked-unavailable", loc::T("identity.linked_needs_id"), {}, loc::T("identity.linked_needs_id_detail")));
+            rows.push_back(InfoRow("id-linked-unavailable", loc::T("identity.linked_needs_id"), {}, loc::T("identity.linked_needs_id_detail")));
             return rows;
         }
         if (const auto* bridge = FindBridge(v, bridge_)) {
@@ -431,7 +437,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
                     row.userText = true; row.hint = loc::T("identity.cancel_claim"); rows.push_back(std::move(row));
                 }
                 if (id.links.empty() && id.pending.empty())
-                    rows.push_back(Info("id-no-links", loc::T("identity.no_links"), {}, loc::T("identity.no_links_detail")));
+                    rows.push_back(InfoRow("id-no-links", loc::T("identity.no_links"), {}, loc::T("identity.no_links_detail")));
             }
             if (id.inspected.id == bridge_ && (id.inspectedDiscord || id.inspectedDiscordAccounts))
                 if (auto discord = DiscordRow(v, busy)) rows.push_back(std::move(*discord));
@@ -464,20 +470,20 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
     } else if (screen == "tournament-matches") {
         title = loc::T("screen.tournament_matches");
         if (!ready) {
-            rows.push_back(Info("id-linked-unavailable", loc::T("identity.linked_needs_id"), {}, loc::T("identity.linked_needs_id_detail")));
+            rows.push_back(InfoRow("id-linked-unavailable", loc::T("identity.linked_needs_id"), {}, loc::T("identity.linked_needs_id_detail")));
             return rows;
         }
         const auto& t = v.tournament;
         const bool playing = Playing(t);
         if (!t.matchId.empty() && t.phase != netplay::tournament::Phase::Idle) {
             const bool failed = t.phase == netplay::tournament::Phase::Failed;
-            rows.push_back(Info("tm-current", loc::T("tournament.current"), PlayState(t),
+            rows.push_back(InfoRow("tm-current", loc::T("tournament.current"), PlayState(t),
                 failed ? TournamentFailure(t.reason) : std::string(loc::T("tournament.current_detail"))));
             if (playing) rows.push_back(ConfirmRow("tm-stop", loc::T("tournament.stop"), loc::T("tournament.stop_detail")));
         }
         const auto* bridge = FindBridge(v, bridge_);
         if (!bridge) {
-            rows.push_back(Info("tm-no-service", loc::T("tournament.needs_service"), {}, loc::T("tournament.needs_service_detail")));
+            rows.push_back(InfoRow("tm-no-service", loc::T("tournament.needs_service"), {}, loc::T("tournament.needs_service_detail")));
             rows.push_back(Row("linked-accounts", loc::T("screen.linked_accounts"), loc::T("identity.linked_detail")));
             return rows;
         }
@@ -503,7 +509,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
                 rows.push_back(std::move(row));
             }
             if (t.list.items.empty() && !t.list.loading && t.list.error.empty())
-                rows.push_back(Info("tm-none", loc::T("tournament.none"), {}, loc::T("tournament.none_detail")));
+                rows.push_back(InfoRow("tm-none", loc::T("tournament.none"), {}, loc::T("tournament.none_detail")));
         }
         rows.push_back(Row("tm-refresh", loc::T("identity.refresh"), loc::T("tournament.refresh_detail"), !t.list.loading));
         rows.push_back(Row("tm-paste", loc::T("tournament.paste_link"), loc::T("tournament.paste_link_detail")));

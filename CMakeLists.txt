@@ -126,7 +126,7 @@ if(BUILD_TESTING)
     set_tests_properties(HeapCorruptionCapture PROPERTIES TIMEOUT 90)
 endif()
 
-add_library(sf4e_room_model STATIC "src/session/RoomModel.cxx" "src/session/RoomModelActions.cxx" "src/session/RoomModelJson.cxx" "src/session/RoomModelTournament.cxx" "src/session/RoomDigest.cxx")
+add_library(sf4e_room_model STATIC "src/session/RoomModel.cxx" "src/session/RoomModelActions.cxx" "src/session/RoomModelJson.cxx" "src/session/RoomModelTournament.cxx" "src/session/RoomModelServerOwned.cxx" "src/session/RoomDigest.cxx")
 target_compile_features(sf4e_room_model PUBLIC cxx_std_14)
 target_link_libraries(sf4e_room_model PUBLIC nlohmann_json::nlohmann_json "bcrypt")
 # Playing a bridge-run tournament match: a pure state machine the runtime ticks.
@@ -192,6 +192,13 @@ if(BUILD_TESTING)
     target_link_libraries(RoomLifecycleTest PRIVATE sf4e_room_model)
     add_test(NAME RoomLifecycle COMMAND RoomLifecycleTest)
     set_tests_properties(RoomLifecycle PROPERTIES TIMEOUT 30)
+    add_executable(RoomServerOwnedTest "src/tests/room_server_owned_test.cxx")
+    target_link_libraries(RoomServerOwnedTest PRIVATE sf4e_room_model)
+    add_test(NAME RoomServerOwned COMMAND RoomServerOwnedTest)
+    add_executable(RoomPrivateGoldenTest "src/tests/room_private_golden_test.cxx")
+    target_link_libraries(RoomPrivateGoldenTest PRIVATE sf4e_room_model)
+    add_test(NAME RoomPrivateGolden COMMAND RoomPrivateGoldenTest)
+    set_tests_properties(RoomServerOwned PROPERTIES TIMEOUT 30)
     add_executable(RoomSpectatorLockTest "src/tests/room_spectator_lock_test.cxx")
     target_link_libraries(RoomSpectatorLockTest PRIVATE sf4e_room_model)
     add_test(NAME RoomSpectatorLock COMMAND RoomSpectatorLockTest)
@@ -281,7 +288,7 @@ install(DIRECTORY "assets/brand" DESTINATION "assets" FILES_MATCHING PATTERN "*.
 install(DIRECTORY "assets/input" DESTINATION "assets" FILES_MATCHING PATTERN "*.png" PATTERN "*.txt")
 target_sources(sf4e_ui PRIVATE src/ui/ControllerNavigation.cxx src/ui/backends/imgui_impl_win32.cpp)
 set_source_files_properties(src/ui/backends/imgui_impl_win32.cpp PROPERTIES COMPILE_DEFINITIONS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
-target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/IdentityPanel.cxx)
+target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/IdentityPanel.cxx src/ui/PublicRoomsPanel.cxx)
 target_compile_features(sf4e_ui PUBLIC cxx_std_17)
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_fonts.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_brand.cmake")
@@ -302,6 +309,10 @@ if(BUILD_TESTING)
     target_link_libraries(IdentityJourneyTest PRIVATE sf4e_ui Dimps)
     add_test(NAME IdentityJourney COMMAND IdentityJourneyTest)
     set_tests_properties(IdentityJourney PROPERTIES TIMEOUT 30)
+    add_executable(PublicRoomsJourneyTest src/tests/public_rooms_journey_test.cxx)
+    target_link_libraries(PublicRoomsJourneyTest PRIVATE sf4e_ui Dimps)
+    add_test(NAME PublicRoomsJourney COMMAND PublicRoomsJourneyTest)
+    set_tests_properties(PublicRoomsJourney PROPERTIES TIMEOUT 30)
     add_executable(RoomPanelNavigationTest src/tests/room_panel_navigation_test.cxx)
     target_link_libraries(RoomPanelNavigationTest PRIVATE sf4e_ui Dimps)
     add_test(NAME RoomPanelNavigation COMMAND RoomPanelNavigationTest)
@@ -458,6 +469,7 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__NetplayRuntime__Match.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Room.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Tournament.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__PublicRooms.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Status.cxx"
     "src/sf4e/sf4e__NetplayPresentation.cxx"
     "src/sf4e/sf4e__RuntimeBridge.hxx"
@@ -500,6 +512,7 @@ add_library(Session STATIC
     "src/session/IrohRoomAdapters.cxx"
     "src/session/IrohRoomCheckpoint.cxx"
     "src/session/IrohRoomPeers.cxx"
+    "src/session/IrohRoomPublic.cxx"
     "src/session/IrohMatchSession.cxx"
     "src/session/IrohRoom.hxx"
     "src/session/SessionTransport.hxx"
@@ -510,6 +523,26 @@ target_link_libraries(
     PRIVATE Dimps sf4e_common sf4e_helper_platform sf4e_room_model
     PUBLIC nlohmann_json::nlohmann_json spdlog::spdlog  "ws2_32" sf4e_tournament_play
 )
+
+# The public room host: the room authority with no game. It compiles the
+# session server and the Iroh room directly and links none of the game
+# libraries (Session would bring Dimps), so the same sources port to Linux.
+add_executable(sf4e-room-host
+    "src/roomhost/main.cxx"
+    "src/roomhost/RoomHost.cxx"
+    "src/roomhost/RoomHostStatus.cxx"
+    "src/roomhost/RoomHostHelperWindows.cxx"
+    ${SF4E_SESSION_SERVER_SOURCES}
+    "src/session/IrohRoom.cxx"
+    "src/session/IrohRoomAdapters.cxx"
+    "src/session/IrohRoomCheckpoint.cxx"
+    "src/session/IrohRoomPeers.cxx"
+    "src/session/IrohRoomPublic.cxx"
+    "src/session/IdentityEvents.cxx"
+    "src/session/TournamentAnswers.cxx")
+target_compile_features(sf4e-room-host PRIVATE cxx_std_17)
+target_link_libraries(sf4e-room-host PRIVATE
+    nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common sf4e_helper_platform "bcrypt")
 
 if(BUILD_TESTING)
     add_executable(SessionClientTransportTest "src/tests/session_client_transport_test.cxx")
@@ -560,8 +593,24 @@ if(BUILD_TESTING)
         add_executable(CustomRoomGameTest "src/tests/custom_room_game_test.cxx")
         target_link_libraries(CustomRoomGameTest PRIVATE Session sf4e Dimps sf4e_room_model ggpo::GGPO "d3d9")
         add_dependencies(CustomRoomGameTest IrohHelper)
+        # End to end: the room host as a child process, real helpers, tickets
+        # minted by the ember-protocol example instead of a bridge.
+        add_executable(PublicRoomHostTest "src/tests/public_room_host_test.cxx")
+        target_link_libraries(PublicRoomHostTest PRIVATE Session sf4e Dimps sf4e_room_model "d3d9")
+        add_dependencies(PublicRoomHostTest IrohHelper sf4e-room-host)
+        set(SF4E_ROOM_TICKET_TOOL "${CMAKE_BINARY_DIR}/rust-ember-target/debug/examples/room_ticket.exe")
+        add_custom_target(RoomTicketTool
+            COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-ember-target"
+                "${SF4E_CARGO_EXECUTABLE}" build --locked --example room_ticket -p ember-protocol
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/rust/ember"
+            BYPRODUCTS "${SF4E_ROOM_TICKET_TOOL}"
+            VERBATIM COMMENT "Build the room ticket test tool")
         option(SF4E_NETWORK_TESTS "Run tests requiring public Iroh relay/address lookup" OFF)
         if(SF4E_NETWORK_TESTS)
+            add_dependencies(PublicRoomHostTest RoomTicketTool)
+            add_test(NAME PublicRoomHost COMMAND PublicRoomHostTest "${SF4E_HELPER_EXECUTABLE}"
+                "$<TARGET_FILE:sf4e-room-host>" "${SF4E_ROOM_TICKET_TOOL}")
+            set_tests_properties(PublicRoomHost PROPERTIES TIMEOUT 300 RUN_SERIAL TRUE)
             add_test(NAME CustomRoomFourTables COMMAND CustomRoomGameTest "${SF4E_HELPER_EXECUTABLE}")
             add_test(NAME CustomRoomSpectators COMMAND CustomRoomGameTest "${SF4E_HELPER_EXECUTABLE}" --single-table)
             add_test(NAME CustomRoomFourTablesRelay COMMAND CustomRoomGameTest "${SF4E_HELPER_EXECUTABLE}" --relay-only)
@@ -619,6 +668,14 @@ if(BUILD_TESTING)
         nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
     target_compile_features(SessionServerTransportTest PRIVATE cxx_std_14)
     add_test(NAME SessionServerTransport COMMAND SessionServerTransportTest)
+    add_executable(SessionServerModerationTest
+        "src/tests/session_server_moderation_test.cxx"
+        "src/roomhost/RoomHostStatus.cxx"
+        ${SF4E_SESSION_SERVER_SOURCES})
+    target_link_libraries(SessionServerModerationTest PRIVATE
+        nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
+    target_compile_features(SessionServerModerationTest PRIVATE cxx_std_17)
+    add_test(NAME SessionServerModeration COMMAND SessionServerModerationTest)
     add_executable(SessionServerTournamentTest
         "src/tests/session_server_tournament_test.cxx"
         ${SF4E_SESSION_SERVER_SOURCES})

@@ -1,10 +1,16 @@
 #include "SessionRecovery.hxx"
 
+#ifdef _WIN32
 #include <windows.h>
 #include <bcrypt.h>
+#endif
 
 namespace sf4e { namespace session { namespace recovery_detail {
 
+#ifndef _WIN32
+// No CNG: the dependency-free implementation is the digest.
+std::string Sha256(const std::string& input) { return Sha256Portable(input); }
+#else
 std::string Sha256(const std::string& input) {
 	// One provider handle for the process; CNG algorithm handles may be used
 	// from several threads at once (the checkpoint decode worker hashes too).
@@ -21,5 +27,6 @@ std::string Sha256(const std::string& input) {
 	for (const auto value : digest) { result.push_back(hex[value >> 4]); result.push_back(hex[value & 0xfU]); }
 	return result;
 }
+#endif
 
 } } }

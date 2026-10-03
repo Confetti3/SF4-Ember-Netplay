@@ -16,7 +16,7 @@ inline const char* MenuScreenName(const std::string& screen) {
         {"main-character",loc::T("screen.main_character")},{"about",loc::T("screen.about")},
         {"profile",loc::T("home.profile")},{"settings",loc::T("home.settings")},{"interface",loc::T("settings.interface")},
         {"discord",loc::T("screen.discord")},{"discord-invitation",loc::T("screen.discord_invitation")},
-        {"identity",loc::T("screen.identity")},{"identity-backup",loc::T("screen.identity_backup")},
+        {"public-rooms",loc::T("screen.public_rooms")},{"identity",loc::T("screen.identity")},{"identity-backup",loc::T("screen.identity_backup")},
         {"linked-accounts",loc::T("screen.linked_accounts")},{"tournament-matches",loc::T("screen.tournament_matches")},
         {"assignment",loc::T("screen.assignment")},{"create",loc::T("online.create")},{"join",loc::T("online.join")},
         {"room",loc::T("screen.room")},{"room-table",loc::T("screen.table")},

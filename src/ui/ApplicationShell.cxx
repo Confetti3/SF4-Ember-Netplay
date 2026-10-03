@@ -156,7 +156,8 @@ void ApplicationShell::UpdateShortCopy(const ShellView& v,double now) {
 // waits, so a link never moves the player out of a room or a match; that
 // link, or one the runtime no longer offers for a direct join, fills the
 // Join screen and joining is the player's own press. Neither happens over
-// a dialog, a notice or an Ember ID screen, whose drafts the move would discard.
+// a dialog, a notice, an Ember ID screen, whose drafts the move would discard,
+// or a public room being asked for.
 void ApplicationShell::UpdateJoinLink(const ShellView& v,double now,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
  const bool free=v.session.room==RoomState::Idle&&v.session.match==MatchState::None;
@@ -169,7 +170,7 @@ void ApplicationShell::UpdateJoinLink(const ShellView& v,double now,const Submit
  if(!free){joinLinkDirect_=false;return;}
  const bool direct=joinLinkDirect_&&v.pendingJoinDirect;
  if(direct&&!v.canOpenRoom)return;
- if(nav.Editing()||nav.Reading()||nav.Confirming()||nav.Choosing()||menu_.NoticeOpen()||IdentityPanel::Owns(nav.Screen()))return;
+ if(nav.Editing()||nav.Reading()||nav.Confirming()||nav.Choosing()||menu_.NoticeOpen()||IdentityPanel::Owns(nav.Screen())||publicRooms_.Busy())return;
  std::snprintf(invitation_,sizeof(invitation_),"%s",joinLink_.c_str());joinLink_.clear();joinLinkDirect_=false;
  nav.Cancel();nav.Home();nav.Push("online");nav.Push("join");
  error_.clear();noticeTone_=Tone::Neutral;noticeUntil_=now+8;
@@ -229,23 +230,32 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    rows.back().hint=loc::T("menu.hint.save_main");}
  }else if(screen=="online"){
   title=loc::T("online.title");rows={Row("create",loc::T("online.create"),loc::T("online.create_detail"),v.canOpenRoom),Row("join",loc::T("online.join"),loc::T("online.join_detail"),v.canOpenRoom),
+   Row("public-rooms",loc::T("screen.public_rooms"),loc::T("online.public_detail"),v.canOpenRoom),
    Row("relay",loc::T("network.relay"),loc::T("network.relay_detail")),Row("network",loc::T("network.status"),DescribeNatDetail(v.netReport))};
   // Where this PC connects and how its network treats a direct path, for information only.
-  rows[2].info=rows[3].info=true;rows[2].value=DescribeRelay(v.netReport);rows[3].value=DescribeNat(v.netReport.nat);
+  rows[3].info=rows[4].info=true;rows[3].value=DescribeRelay(v.netReport);rows[4].value=DescribeNat(v.netReport.nat);
  }else if(screen=="create"||screen=="defaults"){
   title=screen=="create"?loc::T("room.create_title"):loc::T("settings.gameplay_defaults_title");const bool can=screen=="create"?v.canOpenRoom:v.canEditPreferences;
+  // A public room is made by the service with its default rules, which its
+  // moderator changes inside the room, so the rules are not offered here.
+  const bool publicRoom=screen=="create"&&preferences_.roomPublic;
+  const std::string bridge=publicRoom?identity_.UsableBridge(v):std::string();
   if(screen=="defaults")rows.push_back(Value("delay",loc::T("settings.input_delay"),std::to_string(preferences_.inputDelay),reason,can));
+  if(screen=="create")rows.push_back(Value("visibility",loc::T("public.visibility"),loc::T(publicRoom?"public.visibility.public":"public.visibility.private"),loc::T("public.visibility_detail"),can));
   rows.push_back(TextRow("room-name",loc::T("room.name"),preferences_.roomName,64,can));
   rows.push_back(Value("capacity",loc::T("room.capacity"),std::to_string(preferences_.roomCapacity),loc::T("room.capacity_detail"),can));
-  RuleRows(rows,preferences_.tableRules,can,reason);
+  if(!publicRoom)RuleRows(rows,preferences_.tableRules,can,reason);
   if(screen=="create"){rows.push_back(opening?ConfirmRow("cancel-open",loc::T("room.stop_creating_action"),loc::T("room.stop_creating"),true):
-   Row("host",loc::T("online.create"),loc::T("room.create_requirements"),can&&preferences_.Valid()));
-   if(!opening)rows.back().hint=loc::T("online.create");}
+   Row("host",loc::T(publicRoom?"public.create":"online.create"),loc::T(!publicRoom?"room.create_requirements":bridge.empty()?"public.create_needs_id":"public.create_requirements"),
+    can&&preferences_.Valid()&&!publicRooms_.Busy()&&(!publicRoom||!bridge.empty())));
+   if(!opening)rows.back().hint=loc::T(publicRoom?"public.create":"online.create");}
  }else if(screen=="join"){
   title=loc::T("room.join_title");rows={Row("paste",loc::T("room.paste_invitation"),loc::T("room.paste_invitation_detail"),v.canOpenRoom),
    opening?ConfirmRow("cancel-open",loc::T("room.stop_joining_action"),loc::T("room.stop_joining"),true):Row("join-now",loc::T("online.join"),loc::T("room.join_pasted"),v.canOpenRoom&&invitation_[0]),
    TextRow("invite-text",loc::T("room.edit_invitation"),invitation_,sizeof(invitation_)-1,v.canOpenRoom)};
   rows[0].hint=loc::T("menu.hint.paste");if(!opening)rows[1].hint=loc::T("online.join");
+ }else if(PublicRoomsPanel::Owns(screen)){
+  title=loc::T("screen.public_rooms");rows=publicRooms_.Rows(v,identity_.UsableBridge(v),identity_.Waiting());
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
  }else if(screen=="settings"){
   title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),
@@ -318,14 +328,15 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  // feedback channel, so a failure must not render like ordinary text.
  Tone statusTone=saveFailed_?Tone::Error:v.settingsPending||preferencesDirty_||saveQueued_||languageDirty_?Tone::Pending:
   personal?Tone::Success:Tone::Neutral;
- if((screen=="create"||screen=="join"||screen=="home"||screen=="online")&&opening&&status.empty()){
+ if((screen=="create"||screen=="join"||screen=="home"||screen=="online"||screen=="public-rooms")&&opening&&status.empty()){
   status=v.session.isHost?loc::T("room.creating_status"):loc::T("room.joining_status");statusTone=Tone::Pending;
  }
  if(screen=="room"&&status.empty()){
   const bool healthy=v.session.control==Health::Healthy;
   status=!healthy?std::string(loc::T("room.reconnecting")):v.room.tournament.Active()?
    loc::Tf("room.tournament_status",static_cast<int>(v.room.tournament.gamesToWin)):
-   std::string(loc::T(v.room.locked?"room.locked_status":"room.private_status"));
+   std::string(loc::T(v.room.serverOwned?(v.room.locked?"room.public_locked_status":"room.public_status"):
+    v.room.locked?"room.locked_status":"room.private_status"));
   if(!healthy)statusTone=Tone::Pending;
  }
  if(screen=="room-table"){
@@ -374,6 +385,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  // speaks there only, and every other report below outranks it.
  if(!languageSaveError_.empty()&&screen=="interface"){status=languageSaveError_;statusTone=Tone::Error;}
  if(IdentityPanel::Owns(screen)){std::string own;Tone ownTone=Tone::Neutral;if(identity_.Status(own,ownTone,ImGui::GetTime())){status=own;statusTone=ownTone;}}
+ if(PublicRoomsPanel::Owns(screen)||screen=="create"){std::string own;Tone ownTone=Tone::Neutral;if(publicRooms_.Status(v,screen,own,ownTone)){status=own;statusTone=ownTone;}}
  if(v.controllerUnavailable){status=loc::T("controller.disconnected");statusTone=Tone::Error;}
  if(v.session.room==RoomState::Opening&&v.session.openingStalled){status=loc::T("room.opening_stalled");statusTone=Tone::Error;}
  const std::string sessionProblem=SessionProblem(v.session);
@@ -413,13 +425,20 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  using namespace netplay; auto& nav=menu_.navigation;
  // The retry row a failed save adds to every screen stays the shell's.
  if(IdentityPanel::Owns(screen)&&a.id!="retry-save"){identity_.Activate(a,v,nav);return;}
+ if(PublicRoomsPanel::Owns(screen)&&publicRooms_.Activate(a,nav))return;
  // An opening room keeps its own screen, with its Stop row, until it joins.
  if(a.id=="online")nav.Push(idle?"online":v.session.room==RoomState::Opening?OpeningScreen(v):"room");
  else if(a.id=="discord-invitation")nav.Push(a.id);
  else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
- else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="identity"||a.id=="developer")nav.Push(a.id);
+ else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="identity"||a.id=="developer")nav.Push(a.id);
+ else if(a.id=="pr-create"){
+  // Create public room opens Create on Public, which stays the default until changed.
+  if(!preferences_.roomPublic){preferences_.roomPublic=true;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
+  error_.clear();nav.Push("create");
+ }
+ else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity);}
  else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
  else if(a.id=="offline"||a.id=="controls")Send(CommandKind::StartOffline,v,submit);
@@ -456,10 +475,28 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
   else if(a.id=="hud")preferences_.showMatchHud=a.delta>0;else if(a.id=="presence")preferences_.discordPresence=a.delta>0;
-  else if(a.id=="invites")preferences_.discordInvites=a.delta>0;else AdjustRule(preferences_.tableRules,a);
+  else if(a.id=="invites")preferences_.discordInvites=a.delta>0;
+  else if(a.id=="visibility")preferences_.roomPublic=a.delta>0; // UpdatePublicBridge asks the Ember ID for what Public needs
+  else AdjustRule(preferences_.tableRules,a);
   if(!preferences_.Valid()){preferences_=prior;error_=loc::T("error.invalid_value");}
   else{preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();}
  }
+}
+
+// The public-room service is the one the Ember ID panel selects when its
+// service list arrives. Public rooms, and Create while Visibility is Public
+// (restored from the preferences or just chosen), both need it, so this is the
+// one place that asks: once per stay in such a state, when no service is
+// selected, and not over a request the panel is still waiting on.
+void ApplicationShell::UpdatePublicBridge(const ShellView& v,const std::string& screen) {
+ const bool needed=PublicRoomsPanel::Owns(screen)||(screen=="create"&&preferences_.roomPublic);
+ if(!needed){publicBridgeAsked_=false;return;}
+ if(publicBridgeAsked_)return;
+ if(identity_.UsableBridge(v).empty()){
+  if(identity_.Waiting())return;
+  identity_.Probe();
+ }
+ publicBridgeAsked_=true;
 }
 
 void ApplicationShell::SetLanguage(std::string preference) {
@@ -520,6 +557,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v.inputCapture!=input::Capture::Idle&&nav.Screen()!="assignment")nav.Push("assignment");
  if(v.inputCapture==input::Capture::Idle&&nav.Screen()=="assignment")nav.Return();
  identity_.Update(v,nav.Screen(),submit,now);
+ publicRooms_.Update(v,nav.Screen(),identity_.UsableBridge(v),submit,now);
+ UpdatePublicBridge(v,nav.Screen());
+ {std::string said;if(publicRooms_.TakeSaid(said)){notice_=said;noticeTone_=Tone::Error;noticeUntil_=now+6;}}
  // A tournament match that ended is announced wherever the player is: the
  // room it was played in closes with it.
  if(v.tournament.phase!=tournamentPhase_){

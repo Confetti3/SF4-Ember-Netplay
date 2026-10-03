@@ -167,8 +167,9 @@ void SessionServer::HandleRoomAction(session::Connection conn, const json& msg, 
 		}
 		if (event.kind == room::Event::Kind::MemberRemoved && event.member != roomMember->second) {
 			if (actionMessage.action.kind == room::ActionKind::Kick) {
+				// A server-owned room bans the account inside the authority.
 				auto identity = roomPeerIdentities.find(event.member);
-				if (identity != roomPeerIdentities.end()) roomBannedIdentities.insert(identity->second);
+				if (identity != roomPeerIdentities.end() && !priorSnapshot.serverOwned) roomBannedIdentities.insert(identity->second);
 				for (const auto& kicked : roomMembers) {
 					if (kicked.second != event.member) continue;
 					SessionProtocol::RoomResultMessage kickedResponse;

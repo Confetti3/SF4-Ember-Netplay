@@ -112,6 +112,15 @@ static void TestFailureStageFromReason() {
 	CHECK(FailureStageFromHelper("invalid_or_incompatible_invitation", "") == FailureStage::Unknown);
 	CHECK(FailureStageFromHelper("join_failed", "expired") == FailureStage::Unknown);
 	CHECK(std::string(FailureStageLabel(FailureStage::ControlLost)) == "control_lost");
+	// A policy refusal and a stalled handshake read as Unknown to the player but keep their own labels.
+	CHECK(FailureStageFromHelper("join_failed", "refused") == FailureStage::Unknown);
+	CHECK(FailureStageFromHelper("join_failed", "timeout") == FailureStage::Unknown);
+	CHECK(std::string(sf4e::session::FailureReasonLabel("join_failed", "refused")) == "refused");
+	CHECK(std::string(sf4e::session::FailureReasonLabel("join_failed", "timeout")) == "timeout");
+	CHECK(std::string(sf4e::session::FailureReasonLabel("join_failed", "host_unreachable")) == "host_unreachable");
+	CHECK(std::string(sf4e::session::FailureReasonLabel("join_failed", "")).empty());
+	CHECK(std::string(sf4e::session::FailureReasonLabel("join_failed", "https://use1-1.relay.n0.iroh.link./")).empty());
+	CHECK(std::string(sf4e::session::FailureReasonLabel("control_send_failed", "refused")).empty());
 	// The failures that carry a stage are still room-fatal protocol labels.
 	CHECK(Scope("join_failed") == HelperErrorScope::RoomFatal && Labelled("join_failed"));
 	CHECK(Scope("host_unavailable") == HelperErrorScope::RoomFatal && Labelled("host_unavailable"));

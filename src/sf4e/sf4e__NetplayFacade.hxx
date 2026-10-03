@@ -15,6 +15,7 @@
 #include "../netplay/MemberView.hxx"
 #include "../netplay/IdentityView.hxx"
 #include "../netplay/IdentityRequest.hxx"
+#include "../netplay/PublicRooms.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../common/RoomLimits.hxx"
@@ -87,6 +88,8 @@ namespace sf4e {
             bool shortInvitation=false;
             // Refresh the assignment list, play a match or stop; op None otherwise.
             netplay::tournament::Command tournament;
+            // With JoinInvite: the signed ticket (JSON) of a public room's admission, or empty for a private room.
+            std::string publicTicket;
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
@@ -164,6 +167,8 @@ namespace sf4e {
             std::string identityRefusal;
             // The tournament match being played and the player's assignments.
             netplay::tournament::Status tournament;
+            // The bridge's public rooms and the last admission request's answer.
+            netplay::publicrooms::Status publicRooms;
 		};
 		// Everything the overlay draws from, built on the game thread at the end
 		// of each outer tick and never changed afterwards. It owns its values:

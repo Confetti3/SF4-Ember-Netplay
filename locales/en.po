@@ -2699,3 +2699,93 @@ msgstr "{0}, {1}     Queue {2}     Watching {3}"
 
 msgid "room.streak"
 msgstr "{0} sets in a row"
+
+msgid "screen.public_rooms"
+msgstr "Public rooms"
+
+msgid "online.public_detail"
+msgstr "Browse rooms that any player with an Ember ID can join, or open your own."
+
+msgid "public.create"
+msgstr "Create public room"
+
+msgid "public.create_detail"
+msgstr "Opens a room listed for every player with an Ember ID. You are its host, and set its rules inside the room."
+
+msgid "public.create_requirements"
+msgstr "Opens a public room on the Ember ID service and joins it. Set its table rules inside the room."
+
+msgid "public.create_needs_id"
+msgstr "Public rooms need an Ember ID and a trusted service. Set them up under Public rooms."
+
+msgid "public.refresh_detail"
+msgstr "Ask the service for the current list of rooms."
+
+msgid "public.loading"
+msgstr "Loading rooms..."
+
+msgid "public.none"
+msgstr "No public rooms"
+
+msgid "public.none_detail"
+msgstr "No one has a public room open right now. Create one to start playing."
+
+msgid "public.needs_id"
+msgstr "Public rooms need an Ember ID"
+
+msgid "public.needs_id_detail"
+msgstr "Create an Ember ID, then trust a service under Linked accounts. That service lists the public rooms."
+
+msgid "public.room_playing"
+msgstr "{0}, in a match"
+
+msgid "public.room_detail"
+msgstr "{0}\nPlayers: {1}/{2}. Region: {3}."
+
+msgid "public.room_detail_playing"
+msgstr "{0}\nPlayers: {1}/{2}. Region: {3}.\nMatches in progress: {4}."
+
+msgid "public.joining_value"
+msgstr "Joining..."
+
+msgid "public.visibility"
+msgstr "Visibility"
+
+msgid "public.visibility.private"
+msgstr "Private"
+
+msgid "public.visibility.public"
+msgstr "Public"
+
+msgid "public.visibility_detail"
+msgstr "A private room is joined with an invitation. A public room is listed for every player with an Ember ID."
+
+msgid "room.public_status"
+msgstr "Public room / anyone with an Ember ID can join"
+
+msgid "room.public_locked_status"
+msgstr "Public room, locked / no one new can join"
+
+msgid "public.failure.room_full"
+msgstr "That room is full."
+
+msgid "public.failure.banned"
+msgstr "You were removed from this room."
+
+msgid "public.failure.room_not_found"
+msgstr "That room has closed."
+
+msgid "public.failure.room_not_open"
+msgstr "That room is not open yet."
+
+msgid "public.failure.room_limit"
+msgstr "The limit on public rooms was reached. Try again later."
+
+msgid "public.failure.unsupported_build"
+msgstr "Public rooms are not available for this version yet."
+
+msgid "public.failure.invalid_name"
+msgstr "That room name cannot be used. Choose another."
+
+msgid "public.failure.rooms_unavailable"
+msgstr "Public rooms are not available right now."

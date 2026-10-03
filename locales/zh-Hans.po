@@ -3014,3 +3014,93 @@ msgstr "{0}，{1}     排队 {2}     观战 {3}"
 
 msgid "room.streak"
 msgstr "连胜 {0} 组"
+
+msgid "screen.public_rooms"
+msgstr "公开房间"
+
+msgid "online.public_detail"
+msgstr "浏览任何拥有 Ember ID 的玩家都能加入的房间，或开设您自己的房间。"
+
+msgid "public.create"
+msgstr "创建公开房间"
+
+msgid "public.create_detail"
+msgstr "开设一个对所有拥有 Ember ID 的玩家可见的房间。您担任房主，规则在房间内设置。"
+
+msgid "public.create_requirements"
+msgstr "在 Ember ID 服务上创建公开房间并加入。对战席规则请在房间内设置。"
+
+msgid "public.create_needs_id"
+msgstr "公开房间需要 Ember ID 和受信任的服务。请在公开房间页面中设置。"
+
+msgid "public.refresh_detail"
+msgstr "向服务请求当前的房间列表。"
+
+msgid "public.loading"
+msgstr "正在加载房间..."
+
+msgid "public.none"
+msgstr "没有公开房间"
+
+msgid "public.none_detail"
+msgstr "目前没有人开设公开房间。创建一个来开始游戏吧。"
+
+msgid "public.needs_id"
+msgstr "公开房间需要 Ember ID"
+
+msgid "public.needs_id_detail"
+msgstr "请创建 Ember ID，并在已绑定账号中信任一项服务。公开房间由该服务列出。"
+
+msgid "public.room_playing"
+msgstr "{0}，对局中"
+
+msgid "public.room_detail"
+msgstr "{0}\n玩家：{1}/{2}。地区：{3}。"
+
+msgid "public.room_detail_playing"
+msgstr "{0}\n玩家：{1}/{2}。地区：{3}。\n进行中的对局：{4}。"
+
+msgid "public.joining_value"
+msgstr "正在加入..."
+
+msgid "public.visibility"
+msgstr "可见性"
+
+msgid "public.visibility.private"
+msgstr "私人"
+
+msgid "public.visibility.public"
+msgstr "公开"
+
+msgid "public.visibility_detail"
+msgstr "私人房间通过邀请加入。公开房间会向所有拥有 Ember ID 的玩家列出。"
+
+msgid "room.public_status"
+msgstr "公开房间／拥有 Ember ID 的玩家都可加入"
+
+msgid "room.public_locked_status"
+msgstr "公开房间，已锁定／新玩家无法加入"
+
+msgid "public.failure.room_full"
+msgstr "该房间已满。"
+
+msgid "public.failure.banned"
+msgstr "您已被移出此房间。"
+
+msgid "public.failure.room_not_found"
+msgstr "该房间已关闭。"
+
+msgid "public.failure.room_not_open"
+msgstr "该房间尚未开放。"
+
+msgid "public.failure.room_limit"
+msgstr "已达到公开房间数量上限，请稍后再试。"
+
+msgid "public.failure.unsupported_build"
+msgstr "此版本暂不支持公开房间。"
+
+msgid "public.failure.invalid_name"
+msgstr "该房间名称无法使用，请换一个。"
+
+msgid "public.failure.rooms_unavailable"
+msgstr "公开房间目前不可用。"

@@ -107,12 +107,26 @@ public:
 	virtual ~IrohRoom() = default;
 	bool Host(const std::string& build);
 	bool Join(const std::string& invitation, const std::string& build);
+	// Join a server-owned room: like Join, with the bridge's signed ticket as received.
+	bool JoinPublic(const std::string& invitation, const nlohmann::json& ticket, const std::string& build);
+	// Host a server-owned room under the id the bridge issued its tickets for.
+	// Members are admitted by tickets signed with ticketKey under ticketKid;
+	// the creator's ticket is the only one admitted while the room is empty.
+	bool HostPublic(const std::string& build, const std::string& ticketKey, const std::string& ticketKid,
+		const std::string& bridgeId, const std::array<std::uint8_t, 16>& roomId, const std::string& creator);
+	// The Ember ID a public host's helper admitted this connection under; empty
+	// in a private room.
+	std::string PeerAccount(Connection connection) const;
+	// Public host only: refuse this Ember ID for the rest of the room.
+	bool BanAccount(const std::string& account);
 	virtual void Leave(bool abandon = false);
 	// Fatal room control cannot acknowledge a normal Leave/result. Once native
 	// GGPO releases its socket, retire the entire helper epoch and await room_closed.
 	bool CloseFailedRoom(bool ggpoOwnsSocket);
 	void Poll();
 	State GetState() const { return state_; }
+	// A server-owned (public) room, as its host or as a member that joined with JoinPublic.
+	bool ServerOwned() const { return publicHost_ || publicMember_; }
 	// Hidden while the link to the leader is down. They survive that loss: the
 	// helper sends a joiner's invitation once, at join, and refreshes it only
 	// when the authority changes, which clears them here first.
@@ -146,6 +160,10 @@ public:
 	static NetworkSummary ReadNetworkReport(const nlohmann::json& event);
 	// Where the last host or join attempt failed, when the helper said.
 	FailureStage Stage() const { return failureStage_; }
+	// The helper's label for that failure (`refused`, `timeout`, `host_unreachable`,
+	// ...), empty when it gave none or one this build does not know. Diagnostics
+	// only: the player's wording comes from Stage().
+	const std::string& FailureReason() const { return failureReason_; }
 	// The Ember identity and bridge state from the helper's tournament events.
 	// Endpoint-level like the network report: kept with or without a room.
 	const netplay::IdentityView& Identity() const { return identity_; }
@@ -210,6 +228,8 @@ private:
 	// session from the same endpoint agree on which handle owns queued work.
 	struct Peer {
 		std::string identity;
+		// Set by a public host's helper from the admitting ticket.
+		std::string account;
 		// The helper's process incarnation this session belongs to; 0 until
 		// its Admission was accepted.
 		std::uint64_t incarnation = 0;
@@ -312,6 +332,10 @@ private:
 	platform::HelperClient& helper_; // Supervisor outlives this room and its adapters.
 	State state_ = State::Idle;
 	bool hosting_ = false;
+	// Hosting a server-owned room: this process has no local client.
+	bool publicHost_ = false;
+	// Joined a server-owned room through JoinPublic.
+	bool publicMember_ = false;
 	bool roomCommandQueued_ = false;
 	bool leavePending_ = false;
     bool leaveAbandon_=false;
@@ -346,6 +370,7 @@ private:
 	// Bounded: a runtime that stopped draining cannot grow it without limit.
 	std::deque<TournamentAnswer> tournamentAnswers_;
 	FailureStage failureStage_ = FailureStage::Unknown;
+	std::string failureReason_;
 	std::uint64_t closedGeneration_ = 0;
 	std::map<std::string, GameSnapshot> games_;
 	std::map<Connection, Peer> peers_;

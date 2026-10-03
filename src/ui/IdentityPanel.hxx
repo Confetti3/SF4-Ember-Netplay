@@ -31,6 +31,14 @@ public:
     // Play. A service the player does not trust, or a match not in their
     // list, is said instead.
     void OpenMatch(const std::string& bridge, const std::string& match);
+    // The service the Ember ID screens have selected, when the ID is ready and
+    // the service is one the player trusts; empty otherwise. Public rooms use it.
+    std::string UsableBridge(const ShellView& view) const;
+    // Asks for the ID's status and the trusted services, for a screen outside
+    // these that needs to know them.
+    void Probe();
+    // The panel is waiting for an answer from the helper.
+    bool Waiting() const { return sent_ != 0 || !queue_.empty(); }
     // The row the matches screen should focus, once it is among `rows`.
     std::string TakeFocus(const std::vector<MenuEntry>& rows);
     // Every frame, before the rows: notes answers, sends the next request,

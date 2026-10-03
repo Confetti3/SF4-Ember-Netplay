@@ -42,6 +42,41 @@ void SessionServer::EnableCustomRooms(const std::string& name, std::uint8_t capa
 	}
 }
 
+bool SessionServer::EnableServerOwnedRooms(const std::string& name, std::uint8_t capacity,
+	std::uint64_t roomEpoch, room::Rules defaults) {
+	if (_roomAuthority) return false;
+	EnableCustomRooms(name, capacity, roomEpoch, defaults);
+	if (_roomAuthority && _roomAuthority->SetServerOwned()) return true;
+	_roomAuthority.reset();
+	return false;
+}
+
+void SessionServer::SetConnectionAccount(session::Connection connection, std::string account) {
+	if (account.empty()) _connectionAccounts.erase(connection);
+	else _connectionAccounts[connection] = std::move(account);
+}
+
+bool SessionServer::CloseServerOwnedRoom() {
+	if (!_roomAuthority || !_roomAuthority->ServerOwned()) return false;
+	if (_roomAuthority->SnapshotView().closed) return true;
+	if (_recovery.Enabled()) {
+		if (!_recovery.Writable() || _recoveryCandidateReady || _recovery.PendingProposal()) return false;
+		BeginRecoveryCandidate();
+		if (!_recoveryCandidateReady) return false;
+	}
+	const auto closed = _roomAuthority->CloseServerOwned();
+	if (!closed.accepted) return false;
+	for (auto& authority : _roomMatchAuthorities)
+		if (authority && !authority->End(MatchSender())) _transportFailed = true;
+	BroadcastRoomState(closed.events);
+	return true;
+}
+
+std::vector<std::string> SessionServer::BannedAccounts() const {
+	if (!_roomAuthority) return {};
+	return _hasRecoveryProjection ? _recoveryBanned : _roomAuthority->KickedAccounts();
+}
+
 sf4e::session::MatchAuthority* SessionServer::RoomMatchAuthority(std::uint8_t table) {
 	return table < room::TableCount ? _roomMatchAuthorities[table].get() : nullptr;
 }

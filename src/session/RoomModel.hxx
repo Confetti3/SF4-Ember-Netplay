@@ -37,6 +37,10 @@ constexpr std::size_t MaximumMembers = MaxMembers;
 constexpr std::size_t MaximumRoomNameBytes = 64;
 constexpr std::size_t MaximumChatMessages = 100;
 constexpr std::size_t MaximumChatBytes = 256;
+// A server-owned room bans at most this many accounts in its lifetime. Bans are
+// never evicted: the kick that would exceed the cap closes the room. The helper,
+// the supervisor and the bridge use the same number.
+constexpr std::size_t MaximumKickedAccounts = 512;
 // How long two ready fighters wait for a locked-in spectator who is still
 // leaving the previous game. The catalogs quote it as {0} seconds in
 // room.waiting_spectators, room.lock_spectating.detail and
@@ -126,6 +130,9 @@ struct MemberProfile {
 	int mainFighter = -1;
 	NetworkLink link = NetworkLink::Unknown;
 	NatClass nat = NatClass::Unknown;
+	// The player's Ember ID. Only server-owned rooms use it: it is the identity
+	// a kick and a duplicate join are keyed on. Never part of a snapshot.
+	std::string account;
 };
 
 struct ConnectionRef {
@@ -329,6 +336,9 @@ struct Snapshot {
 	std::uint8_t capacity = static_cast<std::uint8_t>(MaximumMembers);
 	bool locked = false;
 	bool closed = false;
+	// No player's game runs this room's authority: the room host process does. It
+	// is serialized only when true, so a private room's wire form is unchanged.
+	bool serverOwned = false;
 	MemberId host = 0;
 	MemberId localMember = 0;
 	std::vector<Member> members;
@@ -447,6 +457,15 @@ public:
 	Snapshot SnapshotCopy() const { return snapshot_; }
 	Snapshot SnapshotFor(MemberId member) const;
 	std::uint64_t NextMemberId() const { return nextMemberId_; }
+
+	// Marks a fresh room server-owned (see RoomModelServerOwned.cxx). False, and
+	// no change, once anyone has joined or the room has closed.
+	bool SetServerOwned();
+	bool ServerOwned() const { return snapshot_.serverOwned; }
+	// Accounts a kick removed for the room's life; empty unless server-owned.
+	std::vector<std::string> KickedAccounts() const;
+	// The room host closes a server-owned room; no member's action is involved.
+	Result CloseServerOwned();
 
 	Result Join(const std::string& name, const ConnectionRef& connection, bool host = false, MemberProfile profile = {});
 	Result Leave(MemberId member);
@@ -628,6 +647,16 @@ private:
 	bool HasOutstandingTerminalReceiptForMember(MemberId member) const;
 	bool ValidRules(const Rules& rules) const;
 	bool ValidTable(std::uint8_t table) const;
+	// Server-owned rules, in RoomModelServerOwned.cxx. Join's account checks,
+	// the departure of the last member, and the checkpoint's account fields.
+	RejectReason CheckServerOwnedJoin(const MemberProfile& profile) const;
+	void RememberAccount(MemberId member, std::string account);
+	void BanAccount(const std::string& account);
+	bool BanWouldExceedCap(const std::string& account) const;
+	void ForgetAccount(MemberId member);
+	void ReopenEmptyRoom();
+	void SaveServerOwned(nlohmann::json& state) const;
+	bool LoadServerOwned(const nlohmann::json& state);
 
 	Snapshot snapshot_;
 	std::uint64_t nextMemberId_ = 1;
@@ -650,6 +679,10 @@ private:
 	std::map<MemberId, std::uint64_t> lastChatMs_;
 	std::map<MemberId, ActionId> lastAcceptedActions_;
 	std::set<ConnectionRef> kicked_;
+	// Server-owned rooms only. Held here rather than on Member so an account
+	// never reaches the snapshot other members see.
+	std::map<MemberId, std::string> memberAccounts_;
+	std::set<std::string> kickedAccounts_;
 	std::uint64_t nowMs_ = 0;
 	bool recoveryPaused_ = false;
 	MemberId activeActionMember_ = 0;

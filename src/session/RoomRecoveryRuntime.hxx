@@ -74,8 +74,17 @@ public:
                 // member has been rebound.  Activate the room journal only
                 // after that native boundary succeeds; a missing peer leaves
                 // this exact head queued for retry and cannot be overtaken.
-                if(needsRebind_ && !Rebind(server,room))
+                if(needsRebind_ && !Rebind(server,room)) {
+                    // A member joining a server-owned room is sent the commits
+                    // from before it joined, one by one. Their rosters can name
+                    // members who have since left, whom this session never
+                    // knew and can never bind. Each commit is the whole room,
+                    // so one the helper has already moved past is skipped.
+                    const auto* restored=server.RoomSnapshot();
+                    if(restored && restored->serverOwned && authority.revision>committed.identity.revision &&
+                        room.DiscardCommittedCheckpoint(committed.identity)) continue;
                     throw std::runtime_error("replicated checkpoint rebind pending");
+                }
                 // Activation retires the staged head, and with it `proposal`.
                 // identity.transfer is the proposal's request, held by value.
                 if(!room.ActivateCommittedCheckpoint(committed.identity))

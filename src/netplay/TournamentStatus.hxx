@@ -23,12 +23,25 @@ struct Assignment {
 	bool Finished() const { return state == "completed" || state == "cancelled" || state == "failed"; }
 };
 
+// The three public room ops ride the same channel as the tournament ones: they
+// are bridge requests the helper answers by request id, and their answers
+// reach the runtime beside the assignment list's (PublicRooms.hxx).
 struct Command {
-	enum class Op : std::uint8_t { None, Refresh, Play, Stop } op = Op::None;
+	enum class Op : std::uint8_t { None, Refresh, Play, Stop, RoomList, RoomCreate, RoomTicket } op = Op::None;
 	std::string bridgeId, matchId;
+	// RoomCreate names and sizes the new room; RoomTicket names the room to join.
+	std::string roomName, roomId;
+	int capacity = 0;
+	// The interface's identity for a public room request, increasing, chosen by
+	// the PublicRoomsPanel. The runtime carries it to the request's answer, and a
+	// newer one supersedes a create or ticket still in flight.
+	std::uint64_t request = 0;
 	static constexpr std::size_t MaxField = 256;
-	bool Valid() const { return bridgeId.size() <= MaxField && matchId.size() <= MaxField; }
-	std::size_t Bytes() const { return bridgeId.size() + matchId.size(); }
+	bool Valid() const {
+		return bridgeId.size() <= MaxField && matchId.size() <= MaxField && roomId.size() <= MaxField &&
+			roomName.size() <= 64 && capacity >= 0 && capacity <= 16;
+	}
+	std::size_t Bytes() const { return bridgeId.size() + matchId.size() + roomName.size() + roomId.size(); }
 };
 
 // The assignment list for `bridge`, from its last refresh.

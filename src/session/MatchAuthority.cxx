@@ -1,5 +1,9 @@
 #include "MatchAuthority.hxx"
+#ifdef _WIN32
 #include <bcrypt.h>
+#else
+#include <sys/random.h>
+#endif
 #include <algorithm>
 #include <limits>
 
@@ -204,12 +208,23 @@ bool MatchAuthority::BeginAtGeneration(const std::vector<Participant>& participa
 	// Each edge has a unique capability shared only with its two endpoints.
 	for (std::size_t peer = 1; peer < participants.size(); ++peer) {
 		std::array<std::uint8_t, 32> capability;
+#ifdef _WIN32
 		if (BCryptGenRandom(nullptr, capability.data(), static_cast<ULONG>(capability.size()), BCRYPT_USE_SYSTEM_PREFERRED_RNG) != 0) {
 			phase_ = Phase::Idle; return false;
 		}
+#else
+		if (getrandom(capability.data(), capability.size(), 0) != static_cast<ssize_t>(capability.size())) {
+			phase_ = Phase::Idle; return false;
+		}
+#endif
 		grants[0]["links"].push_back(json{{"slot", peer}, {"peer", endpoints[peer]}, {"capability", capability}, {"dial", false}});
 		grants[peer]["links"].push_back(json{{"slot", 0}, {"peer", endpoints[0]}, {"capability", capability}, {"dial", true}});
+#ifdef _WIN32
 		SecureZeroMemory(capability.data(), capability.size());
+#else
+		// A volatile write loop the optimizer may not drop.
+		for (volatile std::uint8_t* p = capability.data(); p != capability.data() + capability.size(); ++p) *p = 0;
+#endif
 	}
 	// The grant JSON is still local memory and is discarded after the send
 	// boundary. Only its digest is retained in replicated authority state.

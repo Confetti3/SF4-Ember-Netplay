@@ -3014,3 +3014,93 @@ msgstr "{0}, {1}     Cola {2}     Viendo {3}"
 
 msgid "room.streak"
 msgstr "{0} sets seguidos"
+
+msgid "screen.public_rooms"
+msgstr "Salas públicas"
+
+msgid "online.public_detail"
+msgstr "Explora las salas a las que puede unirse cualquier jugador con un Ember ID, o abre la tuya."
+
+msgid "public.create"
+msgstr "Crear sala pública"
+
+msgid "public.create_detail"
+msgstr "Abre una sala visible para todos los jugadores con un Ember ID. Tú eres el anfitrión y defines sus reglas dentro de la sala."
+
+msgid "public.create_requirements"
+msgstr "Abre una sala pública en el servicio del Ember ID y entra en ella. Define las reglas de la mesa dentro de la sala."
+
+msgid "public.create_needs_id"
+msgstr "Las salas públicas necesitan un Ember ID y un servicio de confianza. Configúralos en Salas públicas."
+
+msgid "public.refresh_detail"
+msgstr "Pide al servicio la lista actual de salas."
+
+msgid "public.loading"
+msgstr "Cargando salas..."
+
+msgid "public.none"
+msgstr "No hay salas públicas"
+
+msgid "public.none_detail"
+msgstr "Ahora mismo nadie tiene una sala pública abierta. Crea una para empezar a jugar."
+
+msgid "public.needs_id"
+msgstr "Las salas públicas necesitan un Ember ID"
+
+msgid "public.needs_id_detail"
+msgstr "Crea un Ember ID y confía en un servicio en Cuentas vinculadas. Ese servicio publica la lista de salas públicas."
+
+msgid "public.room_playing"
+msgstr "{0}, en partida"
+
+msgid "public.room_detail"
+msgstr "{0}\nJugadores: {1}/{2}. Región: {3}."
+
+msgid "public.room_detail_playing"
+msgstr "{0}\nJugadores: {1}/{2}. Región: {3}.\nPartidas en curso: {4}."
+
+msgid "public.joining_value"
+msgstr "Entrando..."
+
+msgid "public.visibility"
+msgstr "Visibilidad"
+
+msgid "public.visibility.private"
+msgstr "Privada"
+
+msgid "public.visibility.public"
+msgstr "Pública"
+
+msgid "public.visibility_detail"
+msgstr "A una sala privada se entra con invitación. Una sala pública aparece en la lista para todos los jugadores con un Ember ID."
+
+msgid "room.public_status"
+msgstr "Sala pública / puede entrar cualquiera con un Ember ID"
+
+msgid "room.public_locked_status"
+msgstr "Sala pública, bloqueada / no puede entrar nadie más"
+
+msgid "public.failure.room_full"
+msgstr "Esa sala está llena."
+
+msgid "public.failure.banned"
+msgstr "Te han sacado de esta sala."
+
+msgid "public.failure.room_not_found"
+msgstr "Esa sala se ha cerrado."
+
+msgid "public.failure.room_not_open"
+msgstr "Esa sala aún no está abierta."
+
+msgid "public.failure.room_limit"
+msgstr "Se ha alcanzado el límite de salas públicas. Inténtalo de nuevo más tarde."
+
+msgid "public.failure.unsupported_build"
+msgstr "Las salas públicas aún no están disponibles en esta versión."
+
+msgid "public.failure.invalid_name"
+msgstr "Ese nombre de sala no se puede usar. Elige otro."
+
+msgid "public.failure.rooms_unavailable"
+msgstr "Las salas públicas no están disponibles ahora mismo."

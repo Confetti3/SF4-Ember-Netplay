@@ -63,6 +63,7 @@ nlohmann::json RoomAuthority::Checkpoint() const {
         {"chat_times", chatTimes}, {"actions", lastAcceptedActions_},
         {"kicked", kicked_}, {"time", recoveryPaused_ ? 0 : nowMs_}};
     state["snapshot"]["local_member"] = std::uint64_t(0);
+    if (snapshot_.serverOwned) SaveServerOwned(state);
     if (state.dump().size() > MaximumCheckpointBytes) throw std::length_error("room checkpoint too large");
     return state;
 }
@@ -266,6 +267,7 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
         if (!state.at("kicked").is_array() || state.at("kicked").size() > MaximumCheckpointBytes / 8) return false;
         for (const auto& entry : state.at("kicked"))
             if (!restored.kicked_.insert(entry.get<ConnectionRef>()).second) return false;
+        if (!restored.LoadServerOwned(state)) return false;
         *this = std::move(restored);
         return true;
     } catch (const std::exception&) { return false; }
@@ -374,7 +376,9 @@ void from_json(const nlohmann::json& json, Table& value) {
 }
 void to_json(nlohmann::json& json, const ChatMessage& value) { json = nlohmann::json{{"sequence", value.sequence}, {"sender", value.sender}, {"text", value.text}}; }
 void from_json(const nlohmann::json& json, ChatMessage& value) { value.sequence = ReadU64(json, "sequence"); value.sender = ReadU64(json, "sender"); if (!value.sender) throw std::invalid_argument("room chat sender"); value.text = ReadText(json, "text", MaximumChatBytes, false); }
-void to_json(nlohmann::json& json, const Snapshot& value) { json = nlohmann::json{{"protocol_version", value.protocolVersion}, {"room_epoch", value.roomEpoch}, {"revision", value.revision}, {"name", value.name}, {"capacity", value.capacity}, {"locked", value.locked}, {"closed", value.closed}, {"host", value.host}, {"local_member", value.localMember}, {"members", value.members}, {"tables", value.tables}, {"terminal_pending", value.terminalPending}, {"local_terminal_pending", value.localTerminalPending}, {"local_terminal_generations", value.localTerminalGenerations}, {"chat", value.chat}, {"tournament", value.tournament}}; }
+void to_json(nlohmann::json& json, const Snapshot& value) { json = nlohmann::json{{"protocol_version", value.protocolVersion}, {"room_epoch", value.roomEpoch}, {"revision", value.revision}, {"name", value.name}, {"capacity", value.capacity}, {"locked", value.locked}, {"closed", value.closed}, {"host", value.host}, {"local_member", value.localMember}, {"members", value.members}, {"tables", value.tables}, {"terminal_pending", value.terminalPending}, {"local_terminal_pending", value.localTerminalPending}, {"local_terminal_generations", value.localTerminalGenerations}, {"chat", value.chat}, {"tournament", value.tournament}};
+	if (value.serverOwned) json["server_owned"] = true;
+}
 void from_json(const nlohmann::json& json, Snapshot& value) {
 	value.protocolVersion = static_cast<std::uint32_t>(ReadInt(json, "protocol_version", 0, 100));
 	if (value.protocolVersion != ProtocolVersion) throw std::invalid_argument("room protocol version");
@@ -382,6 +386,8 @@ void from_json(const nlohmann::json& json, Snapshot& value) {
 	value.name = ReadText(json, "name", MaximumRoomNameBytes, false); const auto capacity = ReadInt(json, "capacity", 2, static_cast<int>(MaximumMembers)); value.capacity = static_cast<std::uint8_t>(capacity);
 	if (!json.at("locked").is_boolean() || !json.at("closed").is_boolean()) throw std::invalid_argument("room state field"); value.locked = json.at("locked").get<bool>(); value.closed = json.at("closed").get<bool>();
 	value.host = ReadU64(json, "host"); value.localMember = ReadU64(json, "local_member");
+		if (json.contains("server_owned") && !json.at("server_owned").is_boolean()) throw std::invalid_argument("room server owned field");
+		value.serverOwned = json.value("server_owned", false);
 	value.terminalPending.fill(false);
 	if (json.contains("terminal_pending")) {
 		const auto& pending = json.at("terminal_pending");

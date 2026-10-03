@@ -7,7 +7,7 @@ namespace sf4e { namespace netplay {
 // Additive settings-v1 extension. Missing room defaults adopt the existing
 // battle preferences; decoding is transactional so malformed data stays intact.
 inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
-    return {{"name", value.roomName}, {"capacity", value.roomCapacity},
+    return {{"name", value.roomName}, {"capacity", value.roomCapacity}, {"public", value.roomPublic},
         {"format", static_cast<int>(value.tableRules.format)},
         {"rotation", static_cast<int>(value.tableRules.rotation)},
         {"editionSelect", value.tableRules.editionSelect},
@@ -27,11 +27,13 @@ inline bool ReadRoomPreferences(const nlohmann::json& document, PlayerPreference
     try {
         for (const char* key : {"capacity", "format", "rotation", "roundCount", "roundTime"})
             if (defaults.contains(key) && !defaults[key].is_number_integer()) return false;
+        if (defaults.contains("public") && !defaults["public"].is_boolean()) return false;
         PlayerPreferences candidate = inherited;
         candidate.roomName = defaults.value("name", candidate.roomName);
         const auto capacity = defaults.value("capacity", static_cast<std::int64_t>(candidate.roomCapacity));
         if (capacity < 2 || capacity > static_cast<std::int64_t>(room::MaxMembers)) return false;
         candidate.roomCapacity = static_cast<int>(capacity);
+        candidate.roomPublic = defaults.value("public", candidate.roomPublic);
         const auto format = defaults.value("format", static_cast<std::int64_t>(candidate.tableRules.format));
         const auto rotation = defaults.value("rotation", static_cast<std::int64_t>(candidate.tableRules.rotation));
         if ((format != 0 && format != 1 && format != 2 && format != 3 && format != 5) || rotation < 0 || rotation > 2) return false;

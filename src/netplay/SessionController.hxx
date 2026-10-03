@@ -68,6 +68,9 @@ struct Snapshot {
     std::uint64_t openingStalledMs = 0;
     bool openingStalled = false;
     Fault fault = Fault::None;
+    // A server-owned (public) room: nothing replaces its host, so a lost room
+    // ends and is never offered a replacement.
+    bool serverOwned = false;
     std::string error;
 };
 
@@ -108,6 +111,7 @@ public:
     // still being created or joined has none yet, so there is nothing to recover.
     bool ControlPlaneEstablished() const { return state_.room != RoomState::Opening; }
     void ShowPage(Page page) { state_.page = page; }
+    void SetServerOwned(bool serverOwned) { state_.serverOwned = serverOwned; }
 
 private:
     Snapshot state_;

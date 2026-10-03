@@ -353,12 +353,18 @@ void RoomAuthority::SetMemberIncarnation(MemberId member, std::uint64_t incarnat
 
 Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connection, bool host, MemberProfile profile) {
 	if(profile.mainFighter < -1 || profile.mainFighter >= 44) return Reject(RejectReason::Unauthorized);
+	// No process hosts a server-owned room as a player: the first joiner is host.
+	if (snapshot_.serverOwned) host = false;
 	if (snapshot_.closed) return Reject(RejectReason::Closed);
 	if (snapshot_.members.size() >= snapshot_.capacity) return Reject(RejectReason::RoomFull);
 	if (snapshot_.locked && !host) return Reject(RejectReason::AdmissionLocked);
-	if (snapshot_.host == 0 && !host) return Reject(RejectReason::Unauthorized);
+	if (snapshot_.host == 0 && !host && !snapshot_.serverOwned) return Reject(RejectReason::Unauthorized);
 	if (name.empty() || name.size() > 32 || !IsValidUtf8(name) || !IsSingleLineText(name)) return Reject(RejectReason::NameTaken);
 	if (kicked_.count(connection)) return Reject(RejectReason::MemberKicked);
+	if (snapshot_.serverOwned) {
+		const auto refused = CheckServerOwnedJoin(profile);
+		if (refused != RejectReason::None) return Reject(refused);
+	}
 	for (const auto& member : snapshot_.members) {
 		if (member.name == name) return Reject(RejectReason::NameTaken);
 		if (member.connection == connection) return Reject(RejectReason::UnknownMember);
@@ -379,6 +385,7 @@ Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connect
 	member.joinOrder = nextJoinOrder_++;
 	if (member.host) snapshot_.host = member.id;
 	snapshot_.members.push_back(member);
+	if (snapshot_.serverOwned) RememberAccount(member.id, profile.account);
 	if (snapshot_.tournament.Active()) SeatBoundFighters();
 	TouchRoom();
 	return Accept({Event{Event::Kind::SnapshotChanged, 0, 0, member.id, MatchResult::Abort}});
@@ -626,8 +633,12 @@ Result RoomAuthority::Leave(MemberId member) {
 	// snapshot readers reject a sender outside the roster.
 	snapshot_.chat.erase(std::remove_if(snapshot_.chat.begin(), snapshot_.chat.end(),
 		[member](const ChatMessage& chat) { return chat.sender == member; }), snapshot_.chat.end());
+	if (snapshot_.serverOwned) {
+		ForgetAccount(member);
+		if (snapshot_.members.empty()) ReopenEmptyRoom();
+	}
 	TouchRoom();
-	if (wasHost && snapshot_.members.empty()) {
+	if (wasHost && snapshot_.members.empty() && !snapshot_.serverOwned) {
 		snapshot_.closed = true;
 		snapshot_.locked = true;
 		snapshot_.host = 0;

@@ -3014,3 +3014,93 @@ msgstr "{0}, {1}     Warteschlange {2}     Zuschauer {3}"
 
 msgid "room.streak"
 msgstr "{0} Sätze in Folge"
+
+msgid "screen.public_rooms"
+msgstr "Öffentliche Räume"
+
+msgid "online.public_detail"
+msgstr "Durchsuchen Sie Räume, denen jeder Spieler mit einer Ember ID beitreten kann, oder eröffnen Sie einen eigenen."
+
+msgid "public.create"
+msgstr "Öffentlichen Raum erstellen"
+
+msgid "public.create_detail"
+msgstr "Eröffnet einen Raum, der für alle Spieler mit einer Ember ID gelistet ist. Sie sind der Host und legen die Regeln im Raum fest."
+
+msgid "public.create_requirements"
+msgstr "Eröffnet einen öffentlichen Raum beim Ember-ID-Dienst und tritt ihm bei. Die Tischregeln legen Sie im Raum fest."
+
+msgid "public.create_needs_id"
+msgstr "Öffentliche Räume brauchen eine Ember ID und einen vertrauten Dienst. Richten Sie beides unter Öffentliche Räume ein."
+
+msgid "public.refresh_detail"
+msgstr "Fragt beim Dienst die aktuelle Raumliste ab."
+
+msgid "public.loading"
+msgstr "Räume werden geladen..."
+
+msgid "public.none"
+msgstr "Keine öffentlichen Räume"
+
+msgid "public.none_detail"
+msgstr "Gerade hat niemand einen öffentlichen Raum offen. Erstellen Sie einen, um loszuspielen."
+
+msgid "public.needs_id"
+msgstr "Öffentliche Räume brauchen eine Ember ID"
+
+msgid "public.needs_id_detail"
+msgstr "Erstellen Sie eine Ember ID und vertrauen Sie einem Dienst unter Verknüpfte Konten. Dieser Dienst listet die öffentlichen Räume."
+
+msgid "public.room_playing"
+msgstr "{0}, im Spiel"
+
+msgid "public.room_detail"
+msgstr "{0}\nSpieler: {1}/{2}. Region: {3}."
+
+msgid "public.room_detail_playing"
+msgstr "{0}\nSpieler: {1}/{2}. Region: {3}.\nLaufende Spiele: {4}."
+
+msgid "public.joining_value"
+msgstr "Beitritt..."
+
+msgid "public.visibility"
+msgstr "Sichtbarkeit"
+
+msgid "public.visibility.private"
+msgstr "Privat"
+
+msgid "public.visibility.public"
+msgstr "Öffentlich"
+
+msgid "public.visibility_detail"
+msgstr "Einem privaten Raum tritt man per Einladung bei. Ein öffentlicher Raum ist für alle Spieler mit einer Ember ID gelistet."
+
+msgid "room.public_status"
+msgstr "Öffentlicher Raum / jeder mit einer Ember ID kann beitreten"
+
+msgid "room.public_locked_status"
+msgstr "Öffentlicher Raum, gesperrt / niemand Neues kann beitreten"
+
+msgid "public.failure.room_full"
+msgstr "Dieser Raum ist voll."
+
+msgid "public.failure.banned"
+msgstr "Sie wurden aus diesem Raum entfernt."
+
+msgid "public.failure.room_not_found"
+msgstr "Dieser Raum wurde geschlossen."
+
+msgid "public.failure.room_not_open"
+msgstr "Dieser Raum ist noch nicht geöffnet."
+
+msgid "public.failure.room_limit"
+msgstr "Das Limit für öffentliche Räume ist erreicht. Versuchen Sie es später erneut."
+
+msgid "public.failure.unsupported_build"
+msgstr "Öffentliche Räume sind für diese Version noch nicht verfügbar."
+
+msgid "public.failure.invalid_name"
+msgstr "Dieser Raumname kann nicht verwendet werden. Wählen Sie einen anderen."
+
+msgid "public.failure.rooms_unavailable"
+msgstr "Öffentliche Räume sind gerade nicht verfügbar."

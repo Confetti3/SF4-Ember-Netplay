@@ -9,8 +9,7 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 
-#include "../Dimps/Dimps__GameEvents.hxx"
-#include "../Dimps/Dimps__Math.hxx"
+#include "SessionPlainTypes.hxx"
 #include "../common/StageValue.hxx"
 #include "RoomModel.hxx"
 
