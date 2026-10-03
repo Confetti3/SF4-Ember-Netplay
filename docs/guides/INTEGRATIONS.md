@@ -277,8 +277,9 @@ this, can run their own bridge and room supervisor. The contract is
   connection's result secret, `webhook-id` `res_<match id>`. `ember-bridge
   result-secret` makes a secret, which the operator gives the platform and
   stores with `set-integration-secret.sh result <connection-id>`. Answer 2xx
-  once stored, or 409 if you have it already; anything else is retried for a
-  day. Once sending starts a result can no longer be corrected. The URL
+  once stored, or 409 if you have it already. 429 and server failures are
+  retried for a day; other 4xx answers refuse the result for good. Once
+  sending starts a result can no longer be corrected. The URL
   follows the same rules as a webhook destination.
 - `rooms`: with the provider credential, `POST /v1/rooms` opens a public room
   for a player linked on the connection (`creator`: their `participant_id`
