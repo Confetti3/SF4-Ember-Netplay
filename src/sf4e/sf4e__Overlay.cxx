@@ -148,6 +148,21 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
 
 }
 
+// Hidden, the shell still takes identity answers and ends a cancelled
+// Discord sign-in on its service.
+static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot) {
+    sf4e::ui::ShellView view;
+    view.session = snapshot.session;
+    view.identity = snapshot.identity;
+    view.identityTicket = snapshot.identityTicket; view.identityRequest = snapshot.identityRequest;
+    view.identityRefusal = snapshot.identityRefusal;
+    shell.Background(view, [](sf4e::ui::ShellAction action) {
+        sf4e::NetplayFacade::RuntimeCommand request;
+        request.command = std::move(action.command);
+        request.identity = std::move(action.identity);
+        return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
+    });
+}
 static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot, const sf4e::NetplayStatus& status) {
 	sf4e::ui::ShellView view;
     view.controllerAvailable = controllerNavigation.Available();
@@ -332,7 +347,7 @@ void Overlay::DrawOverlay() {
     // closed. Pump returns at once when nothing drew art since the last pump.
     if (s_selectionArt) s_selectionArt->Pump();
     if (presentation.Visible()) DrawApplicationHome(snapshot, status);
-    else shell.Conceal();
+    else ConcealApplicationHome(snapshot);
     if (!presentation.Visible() && assigning) {
         sf4e::NetplayFacade::RuntimeCommand cancel;
         cancel.command = {sf4e::netplay::CommandKind::HostRoom, snapshot.session.generation, {}};

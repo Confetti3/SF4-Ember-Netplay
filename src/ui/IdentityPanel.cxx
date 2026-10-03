@@ -263,19 +263,7 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
         (attempt_ == Attempt::Setup || attempt_ == Attempt::Opening)) CancelAttempt();
     onScreens_ = owned; lastScreen_ = screen;
     if (entered) Refresh(v, screen);
-    // An answer from a replaced journey is retired without touching the
-    // new one's status or requests.
-    if (sent_ && Answered(v)) {
-        if (!Superseded()) { finishing_ = true; Finish(v); finishing_ = false; }
-        sent_ = 0;
-    }
-    else if (sent_ && now - sentAt_ > AnswerSeconds) {
-        if (!Superseded() && sentOp_ != IdentityOp::DiscordCancel) {
-            if (Owns(lastScreen_) || !Retirable(sentOp_)) Say(loc::T("identity.failure.timeout"), true);
-            ReadFailed(); DropQueue();
-        }
-        sent_ = 0;
-    }
+    Collect(v, now);
     // Away from these screens, Home learns the state, then the services.
     if (!owned && !sent_ && queue_.empty() && now >= backgroundAt_) {
         if (!v.identity.known) { IdentityRequest status; status.op = IdentityOp::Status; Queue(std::move(status)); }
@@ -292,6 +280,35 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
             IdentityRequest poll; poll.op = IdentityOp::DiscordStatus; poll.bridge = discordWaitBridge_; Queue(std::move(poll));
         }
     }
+    Send(v, submit, now);
+}
+
+void IdentityPanel::Hidden(const ShellView& v, const Submit& submit, double now) {
+    now_ = now;
+    Collect(v, now);
+    // Only a cancelled sign-in's cleanup goes out while Ember is hidden.
+    queue_.clear();
+    Send(v, submit, now);
+}
+
+// The answer to the request in flight, or its timeout. An answer from a
+// replaced journey is retired without touching the new one's status or
+// requests.
+void IdentityPanel::Collect(const ShellView& v, double now) {
+    if (sent_ && Answered(v)) {
+        if (!Superseded()) { finishing_ = true; Finish(v); finishing_ = false; }
+        sent_ = 0;
+    }
+    else if (sent_ && now - sentAt_ > AnswerSeconds) {
+        if (!Superseded() && sentOp_ != IdentityOp::DiscordCancel) {
+            if (Owns(lastScreen_) || !Retirable(sentOp_)) Say(loc::T("identity.failure.timeout"), true);
+            ReadFailed(); DropQueue();
+        }
+        sent_ = 0;
+    }
+}
+
+void IdentityPanel::Send(const ShellView& v, const Submit& submit, double now) {
     if (sent_) return;
     // Ending a cancelled sign-in on its service goes first, whatever cleared
     // the queue since, so it also comes before a new Connect.

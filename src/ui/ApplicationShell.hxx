@@ -137,6 +137,9 @@ public:
         identity_.Conceal();
         if (menu_.navigation.EditingSecret()) menu_.navigation.Cancel();
     }
+    // Every frame Ember is hidden: Conceal, then the identity requests that
+    // must still finish, with only the session and identity of `view` read.
+    void Background(const ShellView& view, const Submit& submit);
     // Where the language preference is written; the platform store unless a
     // test supplies its own to fail it.
     using LanguageSaver = std::function<bool(const std::string& preference, std::string& diagnostic)>;

@@ -470,6 +470,11 @@ void ApplicationShell::SetLanguage(std::string preference) {
  loc::SetActive(platform::ResolveUiLocale(languagePreference_));
  languageDirty_=true;languageSaveError_.clear();languageSaveAt_=ImGui::GetTime()+.45;
 }
+void ApplicationShell::Background(const ShellView& v,const Submit& submit) {
+ Conceal();
+ identity_.Hidden(v,submit,ImGui::GetTime());
+}
+
 void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer) {
  using namespace netplay; auto& nav=menu_.navigation;
  const double now = ImGui::GetTime();

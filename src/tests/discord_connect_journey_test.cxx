@@ -574,12 +574,17 @@ void CancelReachesTheService(){
    h.Choose("dc-cancel");
    if(ending==0)h.answer(false,"service_unavailable");
    else h.Frame(0,7300);
+   h.Frame(0,2);
   }else{
-   h.shell.Conceal();h.Frame();
-   h.shell.Navigation().Home();h.shell.Navigation().Push("discord-connect");h.Frame(0,2);
-   h.answer();
+   // Hidden and left hidden: only the hidden frames run.
+   const auto hidden=[&]{
+    ImGui::GetIO().DeltaTime=1.f/60;ImGui::NewFrame();
+    h.shell.Background(h.view,[&](auto a){h.actions.push_back(a);return h.accept;});ImGui::Render();
+   };
+   hidden();
+   h.view.identityTicket=h.sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=true;id.failure.clear();
+   hidden();hidden();
   }
-  h.Frame(0,2);
   Check(h.sent().back()->op==IdentityOp::DiscordCancel&&h.sent().back()->bridge=="brg_1",
    ending==0?"A failed account read lost the cancellation":ending==1?"A timed-out account read lost the cancellation":"Hiding Ember lost the cancellation");
   Check(h.count(IdentityOp::DiscordCancel)==1,"The cancellation was sent more than once");

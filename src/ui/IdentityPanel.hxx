@@ -66,6 +66,9 @@ public:
     // screens show again.
     // Hiding Ember stops a Connect Discord setup, as leaving its screen does;
     // a wait for the browser goes on.
+    // Ember is hidden (after Conceal): the answer in flight is still taken,
+    // and a cancelled Discord sign-in is still ended on its service.
+    void Hidden(const ShellView& view, const Submit& submit, double now);
     void Conceal() {
         if (attempt_ == Attempt::Setup || attempt_ == Attempt::Opening) CancelAttempt();
         Wipe(); queue_.clear(); play_.reset(); onScreens_ = false; lastScreen_.clear();
@@ -95,6 +98,8 @@ private:
     // unless it came from an earlier journey: those are not its to drop.
     void ProfileRead(const std::string& bridge);
     void DropQueue();
+    void Collect(const ShellView& view, double now);
+    void Send(const ShellView& view, const Submit& submit, double now);
     void Say(std::string text, bool error, double seconds = 6);
     void Wipe();
     void Refresh(const ShellView& view, const std::string& screen);
