@@ -14,7 +14,7 @@ use crate::{
 };
 
 const DEFAULT_ROOM_NAME: &str = "Ember room";
-const BUSY: &str = "Ember could not be reached. Try again in a moment.";
+pub(crate) const BUSY: &str = "Ember could not be reached. Try again in a moment.";
 
 pub(crate) enum Opened {
     /// A new room, or the open one the creator already had.

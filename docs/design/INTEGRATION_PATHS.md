@@ -223,13 +223,15 @@ paste box, either form of the link works.
 - Discord `/room` (slash command over Discord's HTTP interactions endpoint,
   `POST /discord/interactions`, Ed25519-verified with the application's
   public key). The person who runs it is looked up by Discord ID; when found
-  a room is created for them and the reply carries its link; when not, the
-  reply (only they see it) sends them to
+  a room is created for them and its link is posted to the channel; when
+  not, the reply (only they see it) sends them to
   `https://embernetplay.link/start#<bridge id>` to connect Discord. A
   creator who already has a room gets that room's link. `ember-notifier
   discord-register <config>` registers the command.
 - Discord gives an interaction three seconds, so the bot answers at once
-  with a deferred reply and edits it when the bridge has answered.
+  with a deferred reply only the caller sees, before any bridge call, and
+  edits it when the bridge has answered; a room's link follows as a public
+  message. Room creation is given 45 s, as a room host may take 30 to start.
 - Twitch `!room` over EventSub's WebSocket transport (`channel.chat.message`,
   no public endpoint needed): from the broadcaster or a moderator it opens a
   room for the configured creator (`twitch.room_creator`, the streamer's

@@ -1,10 +1,9 @@
 //! Discord's `/room` slash command over HTTP interactions.
 //!
 //! Discord signs each request with the application's key and gives three
-//! seconds to answer. The command is answered at once with a deferred reply;
-//! the bridge calls follow, and the reply is edited when they finish.
-use std::time::Duration;
-
+//! seconds to answer. The command is answered at once with a private deferred
+//! reply; the bridge calls follow. The reply is edited when they finish, and a
+//! room's link is posted to the channel as a followup message.
 use axum::{
     body::Bytes,
     extract::State,
@@ -12,13 +11,14 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use ed25519_dalek::{Signature, VerifyingKey};
-use ember_protocol::rooms::{MAX_CAPACITY, MAX_NAME, MIN_CAPACITY};
+use ember_protocol::rooms::{ConnectionRoom, MAX_CAPACITY, MAX_NAME, MIN_CAPACITY, RoomCreator};
+use reqwest::Method;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::{
     Notifier,
-    bot::{Opened, room_line},
+    bot::{BUSY, Opened, room_line},
     bridge::BridgeError,
     config::{Config, MAX_BODY, resolve},
     format::escape_markdown,
@@ -30,9 +30,7 @@ const SIGNATURE: &str = "x-signature-ed25519";
 const TIMESTAMP: &str = "x-signature-timestamp";
 /// How far a request's timestamp may be from now.
 const MAX_AGE_SECS: u64 = 300;
-/// The lookup runs before the answer so the reply's visibility can follow its
-/// outcome. It must leave room inside Discord's three seconds.
-const LOOKUP_WAIT: Duration = Duration::from_secs(2);
+const ROOM_OPENED: &str = "Your room is open.";
 const EPHEMERAL: u64 = 64;
 
 const PING: u8 = 1;
@@ -72,17 +70,6 @@ struct Member {
 #[derive(Deserialize)]
 struct User {
     id: String,
-}
-
-/// What the deferred reply is edited into once the bridge has answered.
-enum Reply {
-    Open {
-        creator: ember_protocol::rooms::RoomCreator,
-        name: Option<String>,
-        capacity: Option<u8>,
-    },
-    NotLinked,
-    Text(&'static str),
 }
 
 /// The application's public key from its hex form.
@@ -166,10 +153,10 @@ impl Notifier {
             .member
             .map(|member| member.user.id)
             .or(interaction.user.map(|user| user.id));
-        let (Some(data), Some(discord_id), Some(client), true) = (
+        let (Some(data), Some(discord_id), true, true) = (
             interaction.data.filter(|data| data.name == COMMAND),
             discord_id,
-            self.0.bridge.as_ref(),
+            self.0.bridge.is_some(),
             valid_token,
         ) else {
             return StatusCode::BAD_REQUEST.into_response();
@@ -184,59 +171,64 @@ impl Notifier {
         let capacity = option("capacity")
             .and_then(Value::as_u64)
             .map(|value| u8::try_from(value).unwrap_or(u8::MAX));
-        let found = tokio::time::timeout(LOOKUP_WAIT, client.lookup(&discord_id)).await;
-        let (reply, public) = match found {
-            Ok(Ok(Some(player))) => (
-                Reply::Open {
-                    creator: ember_protocol::rooms::RoomCreator {
-                        participant_id: player.participant_id,
-                        ember_id: player.ember_id,
-                    },
-                    name,
-                    capacity,
-                },
-                true,
-            ),
-            Ok(Ok(None)) => (Reply::NotLinked, false),
-            Ok(Err(BridgeError::Refused(_))) => (
-                Reply::Text("This bot is not allowed to look up players."),
-                false,
-            ),
-            _ => (
-                Reply::Text("Ember could not be reached. Try again in a moment."),
-                false,
-            ),
-        };
         let this = self.clone();
         let token = interaction.token;
         tokio::spawn(async move {
-            let text = this.reply_text(reply).await;
-            this.edit_reply(&token, &text).await;
+            this.open_for(&token, &discord_id, name, capacity).await;
         });
-        // The deferred reply is shown to everyone only when a room is coming.
-        let mut answer = json!({ "type": DEFERRED_MESSAGE });
-        if !public {
-            answer["data"] = json!({ "flags": EPHEMERAL });
-        }
-        json_response(answer)
+        // Only the person who asked sees the deferred reply; a room's link is
+        // posted separately once there is one.
+        json_response(json!({ "type": DEFERRED_MESSAGE, "data": { "flags": EPHEMERAL } }))
     }
 
-    async fn reply_text(&self, reply: Reply) -> String {
-        match reply {
-            Reply::Open {
-                creator,
-                name,
-                capacity,
-            } => match self.open_room(creator, name.as_deref(), capacity).await {
-                Opened::Room(room) => format!(
-                    "Room open: {}",
-                    room_line(&escape_markdown(&room.room.name), &room)
-                ),
-                Opened::NotLinked => self.not_linked_text().await,
-                Opened::Failed(text) => text,
-            },
-            Reply::NotLinked => self.not_linked_text().await,
-            Reply::Text(text) => text.to_owned(),
+    /// Looks the person up and opens their room, then settles the deferred
+    /// reply. The bridge is only asked after Discord has its answer, so a slow
+    /// bridge cannot cost the interaction.
+    async fn open_for(
+        &self,
+        token: &str,
+        discord_id: &str,
+        name: Option<String>,
+        capacity: Option<u8>,
+    ) {
+        let Some(client) = self.0.bridge.as_ref() else {
+            return;
+        };
+        let text = match client.lookup(discord_id).await {
+            Ok(Some(player)) => {
+                let creator = RoomCreator {
+                    participant_id: player.participant_id,
+                    ember_id: player.ember_id,
+                };
+                match self.open_room(creator, name.as_deref(), capacity).await {
+                    Opened::Room(room) => return self.announce(token, &room).await,
+                    Opened::NotLinked => self.not_linked_text().await,
+                    Opened::Failed(text) => text,
+                }
+            }
+            Ok(None) => self.not_linked_text().await,
+            Err(BridgeError::Refused(_)) => "This bot is not allowed to look up players.".into(),
+            Err(BridgeError::Unavailable) => BUSY.into(),
+        };
+        self.webhook(Method::PATCH, token, "/messages/@original", &text)
+            .await;
+    }
+
+    /// The room's link goes to the channel; the person who asked keeps a short
+    /// private note.
+    async fn announce(&self, token: &str, room: &ConnectionRoom) {
+        let line = format!(
+            "Room open: {}",
+            room_line(&escape_markdown(&room.room.name), room)
+        );
+        // The reply is settled first: a followup sent while it is still
+        // deferred would fill it in, and be private like it.
+        self.webhook(Method::PATCH, token, "/messages/@original", ROOM_OPENED)
+            .await;
+        if !self.webhook(Method::POST, token, "", &line).await {
+            // The link still reaches the person who asked.
+            self.webhook(Method::PATCH, token, "/messages/@original", &line)
+                .await;
         }
     }
 
@@ -253,8 +245,10 @@ impl Notifier {
         }
     }
 
-    /// Replaces the deferred reply. Mentions in the text never ping anyone.
-    async fn edit_reply(&self, token: &str, text: &str) {
+    /// Sends a message through the interaction's webhook: an edit of the
+    /// original reply, or a followup. Mentions in the text never ping anyone.
+    /// Whether Discord took it.
+    async fn webhook(&self, method: Method, token: &str, tail: &str, text: &str) -> bool {
         let Some(interactions) = self
             .0
             .config
@@ -262,23 +256,27 @@ impl Notifier {
             .as_ref()
             .and_then(|discord| discord.interactions.as_ref())
         else {
-            return;
+            return false;
         };
         let url = format!(
-            "{}/webhooks/{}/{token}/messages/@original",
+            "{}/webhooks/{}/{token}{tail}",
             interactions.api_base.trim_end_matches('/'),
             interactions.application_id
         );
         let body = json!({ "content": text, "allowed_mentions": { "parse": [] } });
         // The URL carries the interaction token, so it is never logged.
-        match self.0.http.patch(url).json(&body).send().await {
-            Ok(response) if response.status().is_success() => {}
-            Ok(response) => eprintln!(
-                "ember-notifier: Discord refused the /{COMMAND} reply: status {}",
-                response.status().as_u16()
-            ),
+        match self.0.http.request(method, url).json(&body).send().await {
+            Ok(response) if response.status().is_success() => true,
+            Ok(response) => {
+                eprintln!(
+                    "ember-notifier: Discord refused the /{COMMAND} reply: status {}",
+                    response.status().as_u16()
+                );
+                false
+            }
             Err(_) => {
-                eprintln!("ember-notifier: Discord could not be reached for the /{COMMAND} reply")
+                eprintln!("ember-notifier: Discord could not be reached for the /{COMMAND} reply");
+                false
             }
         }
     }

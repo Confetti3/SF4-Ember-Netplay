@@ -2,13 +2,15 @@
 //! Discord API.
 mod support;
 
+use std::time::Duration;
+
 use ed25519_dalek::{Signer, SigningKey};
 use ember_notifier::{Config, Discord, Interactions, register_commands};
 use reqwest::Method;
 use serde_json::{Value, json};
 use support::{
-    BRIDGE_ID, Logged, Mock, PLAYER, ROOM_ID, base_config, bot, bridge, created, no_room, notifier,
-    refusal, room,
+    BRIDGE_ID, Logged, Mock, PLAYER, ROOM_ID, base_config, bot, bridge, bridge_slow, created,
+    no_room, notifier, refusal, room,
 };
 
 const APPLICATION: &str = "app1";
@@ -97,6 +99,19 @@ fn edited(request: &Logged) -> String {
     request.body["content"].as_str().unwrap().to_owned()
 }
 
+/// A message posted to the channel through the interaction's webhook.
+fn followup(request: &Logged) -> String {
+    assert_eq!(request.path, format!("/webhooks/{APPLICATION}/{TOKEN}"));
+    assert_eq!(request.body["allowed_mentions"], json!({ "parse": [] }));
+    request.body["content"].as_str().unwrap().to_owned()
+}
+
+/// What Discord is told first, to the person who asked: the deferral is
+/// private, since a room's link is posted separately.
+fn deferred() -> Value {
+    json!({ "type": 5, "data": { "flags": 64 } })
+}
+
 #[tokio::test]
 async fn answers_a_ping_and_refuses_what_was_not_signed() {
     let (bridge, discord) = (bridge(created, no_room).await, discord().await);
@@ -160,16 +175,19 @@ async fn a_linked_player_gets_a_room_and_its_link() {
     );
     let answer = post(&url, now(), &body).await;
     assert_eq!(answer.status(), 200);
-    // A deferred reply everyone sees: a room is coming.
-    assert_eq!(answer.json::<Value>().await.unwrap(), json!({ "type": 5 }));
+    assert_eq!(answer.json::<Value>().await.unwrap(), deferred());
 
-    let reply = edited(&discord.wait_for(Method::PATCH, "/@original").await);
+    // The private reply is settled first, then the link goes to the channel.
+    let announced = followup(&discord.wait_for(Method::POST, TOKEN).await);
     assert!(
-        reply.contains(&format!(
+        announced.contains(&format!(
             "https://embernetplay.link/r#{BRIDGE_ID}/{ROOM_ID}"
         )),
-        "{reply}"
+        "{announced}"
     );
+    let sent = discord.requests();
+    assert_eq!(edited(&sent[0]), "Your room is open.");
+    assert_eq!(sent.len(), 2);
     let requests = bridge.requests();
     let lookup = requests
         .iter()
@@ -186,6 +204,33 @@ async fn a_linked_player_gets_a_room_and_its_link() {
             "creator": { "participant_id": "par_1", "ember_id": PLAYER },
         })
     );
+    for task in tasks {
+        task.abort();
+    }
+}
+
+#[tokio::test]
+async fn a_slow_lookup_still_opens_the_room() {
+    // The bridge takes longer to find the player than Discord allows for an
+    // answer; the deferral must not wait for it.
+    let delay = |request: &Logged| {
+        if request.path == "/v1/players/lookup" {
+            Duration::from_millis(2500)
+        } else {
+            Duration::ZERO
+        }
+    };
+    let (bridge, discord) = (bridge_slow(delay, created, no_room).await, discord().await);
+    let (url, tasks) = serve(&bridge, &discord).await;
+    let body = command(in_guild("42"), json!([]));
+    let answer = tokio::time::timeout(Duration::from_secs(1), post(&url, now(), &body))
+        .await
+        .expect("the deferral waited for the bridge");
+    assert_eq!(answer.json::<Value>().await.unwrap(), deferred());
+    assert!(bridge.requests().iter().all(|r| r.path != "/v1/rooms"));
+
+    let announced = followup(&discord.wait_for(Method::POST, TOKEN).await);
+    assert!(announced.contains(ROOM_ID), "{announced}");
     for task in tasks {
         task.abort();
     }
@@ -215,11 +260,7 @@ async fn someone_not_connected_is_sent_to_connect_discord() {
     let (bridge, discord) = (bridge(created, no_room).await, discord().await);
     let (url, tasks) = serve(&bridge, &discord).await;
     let answer = post(&url, now(), &command(in_guild("77"), json!([]))).await;
-    // Only they see the answer.
-    assert_eq!(
-        answer.json::<Value>().await.unwrap(),
-        json!({ "type": 5, "data": { "flags": 64 } })
-    );
+    assert_eq!(answer.json::<Value>().await.unwrap(), deferred());
     let reply = edited(&discord.wait_for(Method::PATCH, "/@original").await);
     assert!(
         reply.contains(&format!("https://embernetplay.link/start#{BRIDGE_ID}")),
@@ -254,7 +295,7 @@ async fn a_creator_with_a_room_gets_that_room_again() {
             .status(),
         200
     );
-    let reply = edited(&discord.wait_for(Method::PATCH, "/@original").await);
+    let reply = followup(&discord.wait_for(Method::POST, TOKEN).await);
     assert!(reply.contains(ROOM_ID), "{reply}");
     assert!(reply.contains("(3/8)"), "{reply}");
     let get = bridge

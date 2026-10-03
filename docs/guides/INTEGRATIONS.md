@@ -528,15 +528,20 @@ it registers for that server only, which Discord applies at once.
 `api_base` (default `https://discord.com/api/v10`) is for tests.
 
 `/room` takes an optional `name` and `capacity`. Discord allows three seconds
-for an answer, so the notifier looks the person up, answers with a deferred
-reply, and edits it when the bridge has answered:
+for an answer, so the notifier answers at once with a deferred reply only the
+person who ran the command sees, then looks them up and edits that reply when
+the bridge has answered. A slow bridge does not cost the interaction; Discord
+keeps the reply editable for fifteen minutes:
 
-- Found: a room is opened for them and the reply carries its link. It is
-  visible to everyone in the channel.
+- Found: a room is opened for them and its link is posted to the channel for
+  everyone to see. Their own reply becomes a short note that the room is open.
 - Not connected: only they see a reply that sends them to
   `https://embernetplay.link/start#<bridge id>` to connect Discord in Ember.
 - Any other refusal (unsupported build, a name the rules refuse, the bridge
-  not reachable): a short plain message.
+  not reachable): a short plain message, visible only to them.
+
+Opening a room is given up to 45 seconds, since the bridge may need that long
+to start a host.
 
 ### Twitch `!room`
 

@@ -1,6 +1,8 @@
 //! A small typed client for the bridge routes the room bot calls, with the
 //! connection's provider credential: the player lookup, opening a room and
 //! reading one back.
+use std::time::Duration;
+
 use ember_protocol::{
     api::{ApiError, BridgeProfile, ErrorCode, WELL_KNOWN_PATH},
     json,
@@ -14,6 +16,9 @@ use zeroize::Zeroizing;
 use crate::sent::{bounded_body, http_client};
 
 const MAX_ANSWER: usize = 256 * 1024;
+/// The bridge gives the room supervisor 30 s to start a host, and
+/// `docs/design/PUBLIC_ROOMS.md` allows a client 45 s for the request.
+const CREATE_TIMEOUT: Duration = Duration::from_secs(45);
 
 /// The page that connects a Discord account to an Ember ID on a bridge.
 const START_PAGE: &str = "https://embernetplay.link/start#";
@@ -78,12 +83,17 @@ impl BridgeClient {
         &self,
         command: &ConnectionCreateRoom,
     ) -> Result<ConnectionRoom, BridgeError> {
-        let request = self
-            .http
+        self.answer(self.create_room_request(command)).await
+    }
+
+    /// Starting a host can take the bridge longer than the shared client's
+    /// timeout, so this one request is given the longer one.
+    fn create_room_request(&self, command: &ConnectionCreateRoom) -> reqwest::RequestBuilder {
+        self.http
             .post(format!("{}/v1/rooms", self.api))
             .bearer_auth(self.credential.as_str())
-            .json(command);
-        self.answer(request).await
+            .timeout(CREATE_TIMEOUT)
+            .json(command)
     }
 
     pub(crate) async fn room(&self, room_id: &str) -> Result<ConnectionRoom, BridgeError> {
@@ -135,5 +145,30 @@ impl BridgeClient {
             reason: detail("reason"),
             room_id: detail("room_id"),
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+    use zeroize::Zeroizing;
+
+    use super::*;
+
+    #[test]
+    fn only_room_creation_gets_the_long_timeout() {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+        let client =
+            BridgeClient::new("http://bridge.test", Zeroizing::new("credential".into())).unwrap();
+        let command: ConnectionCreateRoom = serde_json::from_value(json!({
+            "name": "Fight Night", "capacity": 8, "build_id": "test-build",
+            "creator": {
+                "participant_id": "par_1",
+                "ember_id": "emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja",
+            },
+        }))
+        .unwrap();
+        let create = client.create_room_request(&command).build().unwrap();
+        assert_eq!(create.timeout(), Some(&Duration::from_secs(45)));
     }
 }

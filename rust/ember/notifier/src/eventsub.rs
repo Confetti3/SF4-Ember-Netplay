@@ -4,7 +4,7 @@
 //! The session id comes from `session_welcome` and a subscription must be
 //! made within ten seconds of it. A `session_reconnect` names a new URL: its
 //! own welcome arrives with the subscriptions already carried over, and the
-//! old connection is dropped only then. Silence for longer than the
+//! old connection is read until then and dropped only after it. Silence for longer than the
 //! welcome's keepalive timeout, a close or any error drops the session; the
 //! next one subscribes again after a backoff.
 use std::{
@@ -114,7 +114,7 @@ impl Notifier {
                     let Some(next) = frame.payload["session"]["reconnect_url"].as_str() else {
                         return "reconnect without a URL".into();
                     };
-                    match open(next).await {
+                    match self.hand_off(&mut socket, keepalive, next, seen).await {
                         Ok((opened, welcome)) => {
                             // The old connection closes as it is replaced.
                             socket = opened;
@@ -127,6 +127,35 @@ impl Notifier {
                 // Keepalives only reset the timer; later message types are
                 // not ones this listener needs.
                 _ => {}
+            }
+        }
+    }
+
+    /// Opens the replacement connection named by a `session_reconnect`.
+    /// Twitch keeps delivering on the old one until the replacement has
+    /// welcomed, so it is read, with the same repeat check, in the meantime.
+    async fn hand_off(
+        &self,
+        old: &mut Socket,
+        keepalive: Duration,
+        next: &str,
+        seen: &mut Seen,
+    ) -> Result<(Socket, Welcome), String> {
+        let opening = open(next);
+        tokio::pin!(opening);
+        loop {
+            tokio::select! {
+                opened = &mut opening => return opened,
+                frame = next_frame(old, keepalive + KEEPALIVE_GRACE) => match frame {
+                    Ok(frame) => match frame.metadata.message_type.as_str() {
+                        "notification" => self.notification(&frame, seen),
+                        "revocation" => return Err("the subscription was revoked".into()),
+                        _ => {}
+                    },
+                    // The old connection ending early only means nothing more
+                    // arrives on it; the replacement is still coming.
+                    Err(_) => return opening.await,
+                },
             }
         }
     }

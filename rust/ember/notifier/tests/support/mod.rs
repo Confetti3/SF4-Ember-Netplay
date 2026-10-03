@@ -50,17 +50,30 @@ pub struct Mock {
     pub log: Arc<Mutex<Vec<Logged>>>,
 }
 
+type Delay = Box<dyn Fn(&Logged) -> Duration + Send + Sync>;
+
 struct MockState {
     log: Arc<Mutex<Vec<Logged>>>,
     answer: Answer,
+    delay: Delay,
 }
 
 impl Mock {
     pub async fn start(answer: impl Fn(&Logged) -> (u16, String) + Send + Sync + 'static) -> Self {
+        Self::start_slow(|_| Duration::ZERO, answer).await
+    }
+
+    /// Like `start`, but each answer is held back by `delay` of its request.
+    /// The request is logged on arrival.
+    pub async fn start_slow(
+        delay: impl Fn(&Logged) -> Duration + Send + Sync + 'static,
+        answer: impl Fn(&Logged) -> (u16, String) + Send + Sync + 'static,
+    ) -> Self {
         let log = Arc::new(Mutex::new(Vec::new()));
         let state = Arc::new(MockState {
             log: log.clone(),
             answer: Box::new(answer),
+            delay: Box::new(delay),
         });
         let app = Router::new().fallback(handle).with_state(state);
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -103,7 +116,9 @@ async fn handle(
         body: serde_json::from_slice(&body).unwrap_or(Value::Null),
     };
     let (status, text) = (state.answer)(&logged);
+    let delay = (state.delay)(&logged);
     state.log.lock().unwrap().push(logged);
+    tokio::time::sleep(delay).await;
     (
         StatusCode::from_u16(status).unwrap(),
         [(header::CONTENT_TYPE, "application/json")],
@@ -189,9 +204,18 @@ pub async fn bridge(
     create: impl Fn() -> (u16, String) + Send + Sync + 'static,
     get: impl Fn() -> (u16, String) + Send + Sync + 'static,
 ) -> Mock {
+    bridge_slow(|_| Duration::ZERO, create, get).await
+}
+
+/// `bridge`, with each answer held back by `delay` of its request.
+pub async fn bridge_slow(
+    delay: impl Fn(&Logged) -> Duration + Send + Sync + 'static,
+    create: impl Fn() -> (u16, String) + Send + Sync + 'static,
+    get: impl Fn() -> (u16, String) + Send + Sync + 'static,
+) -> Mock {
     let origin = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
     let seen = origin.clone();
-    let mock = Mock::start(move |request: &Logged| {
+    let mock = Mock::start_slow(delay, move |request: &Logged| {
         match (request.method.as_str(), request.path.as_str()) {
             ("GET", "/.well-known/ember-bridge.json") => (200, profile(&seen.lock().unwrap())),
             ("POST", "/v1/players/lookup") => {

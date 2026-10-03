@@ -5,7 +5,7 @@ mod support;
 use std::{
     sync::{
         Arc, Mutex,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     time::Duration,
 };
@@ -175,8 +175,13 @@ async fn a_moderator_opens_a_room_and_the_session_survives_a_reconnect_and_a_dro
     let helix = helix().await;
     let old_closed = Arc::new(Mutex::new(false));
     let closed = old_closed.clone();
+    // Set once the old connection has sent its last message, which the new
+    // one waits for before it welcomes.
+    let late_sent = Arc::new(AtomicBool::new(false));
+    let late = late_sent.clone();
     let url = ws_server(move |index, mut ws, base| {
         let closed = closed.clone();
+        let late = late.clone();
         async move {
             match index {
                 0 => {
@@ -196,12 +201,20 @@ async fn a_moderator_opens_a_room_and_the_session_survives_a_reconnect_and_a_dro
                     ))
                     .await
                     .unwrap();
+                    // Twitch goes on delivering here until the new connection
+                    // has welcomed.
+                    ws.send(chat("c4", "!room", &["moderator"])).await.unwrap();
+                    late.store(true, Ordering::SeqCst);
                     // The client drops this connection once the new one has
                     // welcomed it.
                     while ws.next().await.is_some_and(|message| message.is_ok()) {}
                     *closed.lock().unwrap() = true;
                 }
                 1 => {
+                    while !late.load(Ordering::SeqCst) {
+                        tokio::time::sleep(Duration::from_millis(10)).await;
+                    }
+                    tokio::time::sleep(Duration::from_millis(300)).await;
                     // The same session carries over: no new subscription.
                     ws.send(welcome("w2", "sess1", 10)).await.unwrap();
                     ws.send(chat("c3", "!room", &["moderator"])).await.unwrap();
@@ -221,9 +234,11 @@ async fn a_moderator_opens_a_room_and_the_session_survives_a_reconnect_and_a_dro
         .start(TcpListener::bind("127.0.0.1:0").await.unwrap())
         .unwrap();
 
-    // The room, its link again for the broadcaster, and again after the
-    // reconnect; the viewer's request and the repeat were ignored.
-    until(|| chats(&helix).len() == 3).await;
+    // The room, its link again for the broadcaster, again for the moderator
+    // whose message came on the old connection during the handoff, and once
+    // more after the reconnect; the viewer's request and the repeat were
+    // ignored.
+    until(|| chats(&helix).len() == 4).await;
     let posted = chats(&helix);
     for text in posted.iter().map(|body| body["message"].as_str().unwrap()) {
         assert!(text.contains(&link()), "{text}");
@@ -231,7 +246,9 @@ async fn a_moderator_opens_a_room_and_the_session_survives_a_reconnect_and_a_dro
     assert_eq!(posted[0]["broadcaster_id"], "1001");
     assert_eq!(posted[0]["sender_id"], "2002");
     assert!(posted[1]["message"].as_str().unwrap().contains("(2/8)"));
-    assert_eq!(creates.load(Ordering::SeqCst), 3);
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(chats(&helix).len(), 4);
+    assert_eq!(creates.load(Ordering::SeqCst), 4);
     let create = bridge
         .requests()
         .into_iter()
