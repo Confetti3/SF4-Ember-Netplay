@@ -765,17 +765,8 @@ msgstr "Размер HUD матча"
 msgid "settings.match_hud_size_detail"
 msgstr "Меняет размер текста и панелей во время матча."
 
-msgid "settings.bottom_spacing"
-msgstr "Отступ снизу"
-
-msgid "spacing.raised"
-msgstr "Приподнят"
-
 msgid "spacing.normal"
 msgstr "Обычный"
-
-msgid "settings.bottom_spacing_detail"
-msgstr "Приподнимает HUD матча над нижним краем."
 
 msgid "settings.ready_sound"
 msgstr "Объявление соперника"
@@ -1010,9 +1001,6 @@ msgstr "Задержка"
 
 msgid "match.spectating"
 msgstr "Просмотр"
-
-msgid "match.preview_spacing"
-msgstr "Отступ: {0} / пример значений"
 
 msgid "card.player"
 msgstr "ИГРОК"

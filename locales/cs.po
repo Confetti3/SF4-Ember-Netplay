@@ -765,17 +765,8 @@ msgstr "Velikost HUD"
 msgid "settings.match_hud_size_detail"
 msgstr "Mění velikost textu a panelu během zápasu."
 
-msgid "settings.bottom_spacing"
-msgstr "Odstup od spodku"
-
-msgid "spacing.raised"
-msgstr "Výše"
-
 msgid "spacing.normal"
 msgstr "Běžně"
-
-msgid "settings.bottom_spacing_detail"
-msgstr "Posune HUD zápasu výš od spodního okraje."
 
 msgid "settings.ready_sound"
 msgstr "Ohlášení vyzyvatele"
@@ -1010,9 +1001,6 @@ msgstr "Zpoždění"
 
 msgid "match.spectating"
 msgstr "Sledování"
-
-msgid "match.preview_spacing"
-msgstr "Odstup {0} / vzorové hodnoty"
 
 msgid "card.player"
 msgstr "HRÁČ"

@@ -765,17 +765,8 @@ msgstr "Rozmiar HUD"
 msgid "settings.match_hud_size_detail"
 msgstr "Zmienia rozmiar tekstu i paneli podczas walki."
 
-msgid "settings.bottom_spacing"
-msgstr "Odstęp od dołu"
-
-msgid "spacing.raised"
-msgstr "Podniesiony"
-
 msgid "spacing.normal"
 msgstr "Normalny"
-
-msgid "settings.bottom_spacing_detail"
-msgstr "Przesuwa HUD walki w górę od dolnej krawędzi."
 
 msgid "settings.ready_sound"
 msgstr "Zapowiedź pretendenta"
@@ -1010,9 +1001,6 @@ msgstr "Opóźnienie"
 
 msgid "match.spectating"
 msgstr "Oglądasz"
-
-msgid "match.preview_spacing"
-msgstr "{0} odstęp / przykład"
 
 msgid "card.player"
 msgstr "GRACZ"

@@ -765,17 +765,8 @@ msgstr "Match HUD size"
 msgid "settings.match_hud_size_detail"
 msgstr "Changes in-match text and panel size."
 
-msgid "settings.bottom_spacing"
-msgstr "Bottom spacing"
-
-msgid "spacing.raised"
-msgstr "Raised"
-
 msgid "spacing.normal"
 msgstr "Normal"
-
-msgid "settings.bottom_spacing_detail"
-msgstr "Moves the match HUD above the bottom edge."
 
 msgid "settings.ready_sound"
 msgstr "Challenger call"
@@ -1010,9 +1001,6 @@ msgstr "Delay"
 
 msgid "match.spectating"
 msgstr "Spectating"
-
-msgid "match.preview_spacing"
-msgstr "{0} spacing / sample values"
 
 msgid "card.player"
 msgstr "PLAYER"

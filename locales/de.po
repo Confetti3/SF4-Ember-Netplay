@@ -765,17 +765,8 @@ msgstr "Kampf-HUD-Größe"
 msgid "settings.match_hud_size_detail"
 msgstr "Ändert Text- und Panelgröße im Kampf."
 
-msgid "settings.bottom_spacing"
-msgstr "Abstand unten"
-
-msgid "spacing.raised"
-msgstr "Erhöht"
-
 msgid "spacing.normal"
 msgstr "Normal"
-
-msgid "settings.bottom_spacing_detail"
-msgstr "Verschiebt das Kampf-HUD vom unteren Rand weg."
 
 msgid "settings.ready_sound"
 msgstr "Herausforderer-Ansage"
@@ -1010,9 +1001,6 @@ msgstr "Delay"
 
 msgid "match.spectating"
 msgstr "Zuschauer"
-
-msgid "match.preview_spacing"
-msgstr "{0} Abstand / Beispielwerte"
 
 msgid "card.player"
 msgstr "SPIELER"

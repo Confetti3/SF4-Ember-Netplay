@@ -765,17 +765,8 @@ msgstr "对战 HUD 大小"
 msgid "settings.match_hud_size_detail"
 msgstr "调整对战中的文字和面板大小。"
 
-msgid "settings.bottom_spacing"
-msgstr "底部间距"
-
-msgid "spacing.raised"
-msgstr "上移"
-
 msgid "spacing.normal"
 msgstr "正常"
-
-msgid "settings.bottom_spacing_detail"
-msgstr "将对战 HUD 移离屏幕底边。"
 
 msgid "settings.ready_sound"
 msgstr "挑战者播报"
@@ -1010,9 +1001,6 @@ msgstr "输入延迟"
 
 msgid "match.spectating"
 msgstr "观战中"
-
-msgid "match.preview_spacing"
-msgstr "{0} 间距／示例数值"
 
 msgid "card.player"
 msgstr "玩家"

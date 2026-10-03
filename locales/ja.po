@@ -765,17 +765,8 @@ msgstr "対戦HUDのサイズ"
 msgid "settings.match_hud_size_detail"
 msgstr "対戦中の文字とパネルのサイズを変更します。"
 
-msgid "settings.bottom_spacing"
-msgstr "下端からの距離"
-
-msgid "spacing.raised"
-msgstr "高め"
-
 msgid "spacing.normal"
 msgstr "通常"
-
-msgid "settings.bottom_spacing_detail"
-msgstr "対戦HUDを画面の下端から上に移動します。"
 
 msgid "settings.ready_sound"
 msgstr "挑戦者アナウンス"
@@ -1010,9 +1001,6 @@ msgstr "遅延"
 
 msgid "match.spectating"
 msgstr "観戦中"
-
-msgid "match.preview_spacing"
-msgstr "余白{0} / サンプル値"
 
 msgid "card.player"
 msgstr "プレイヤー"

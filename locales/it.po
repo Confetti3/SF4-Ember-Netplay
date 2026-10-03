@@ -765,17 +765,8 @@ msgstr "Dim. HUD partita"
 msgid "settings.match_hud_size_detail"
 msgstr "Regola testo e pannello in partita."
 
-msgid "settings.bottom_spacing"
-msgstr "Distanza dal bordo"
-
-msgid "spacing.raised"
-msgstr "Sollevato"
-
 msgid "spacing.normal"
 msgstr "Normale"
-
-msgid "settings.bottom_spacing_detail"
-msgstr "Sposta l'HUD partita sopra il bordo inferiore."
 
 msgid "settings.ready_sound"
 msgstr "Annuncio sfidante"
@@ -1010,9 +1001,6 @@ msgstr "Ritardo"
 
 msgid "match.spectating"
 msgstr "Spettatore"
-
-msgid "match.preview_spacing"
-msgstr "Distanza {0} / valori di esempio"
 
 msgid "card.player"
 msgstr "GIOCATORE"

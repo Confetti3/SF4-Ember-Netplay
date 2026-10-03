@@ -765,17 +765,8 @@ msgstr "대전 HUD 크기"
 msgid "settings.match_hud_size_detail"
 msgstr "대전 중 글자와 패널 크기를 변경합니다."
 
-msgid "settings.bottom_spacing"
-msgstr "하단 여백"
-
-msgid "spacing.raised"
-msgstr "올림"
-
 msgid "spacing.normal"
 msgstr "보통"
-
-msgid "settings.bottom_spacing_detail"
-msgstr "대전 HUD를 화면 아래쪽에서 위로 올립니다."
 
 msgid "settings.ready_sound"
 msgstr "도전자 알림"
@@ -1010,9 +1001,6 @@ msgstr "지연"
 
 msgid "match.spectating"
 msgstr "관전 중"
-
-msgid "match.preview_spacing"
-msgstr "{0} 여백 / 예시 값"
 
 msgid "card.player"
 msgstr "플레이어"

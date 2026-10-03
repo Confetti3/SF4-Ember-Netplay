@@ -765,17 +765,8 @@ msgstr "Tamaño del HUD"
 msgid "settings.match_hud_size_detail"
 msgstr "Cambia el tamaño del texto y del panel durante la partida."
 
-msgid "settings.bottom_spacing"
-msgstr "Espacio inferior"
-
-msgid "spacing.raised"
-msgstr "Elevado"
-
 msgid "spacing.normal"
 msgstr "Normal"
-
-msgid "settings.bottom_spacing_detail"
-msgstr "Mueve el HUD de partida por encima del borde inferior."
 
 msgid "settings.ready_sound"
 msgstr "Aviso de retador"
@@ -1010,9 +1001,6 @@ msgstr "Retraso"
 
 msgid "match.spectating"
 msgstr "Observando"
-
-msgid "match.preview_spacing"
-msgstr "Espacio {0} / valores de ejemplo"
 
 msgid "card.player"
 msgstr "JUGADOR"

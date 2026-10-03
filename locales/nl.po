@@ -765,17 +765,8 @@ msgstr "Grootte match-HUD"
 msgid "settings.match_hud_size_detail"
 msgstr "Past tekst en panelen in matches aan."
 
-msgid "settings.bottom_spacing"
-msgstr "Ruimte onderaan"
-
-msgid "spacing.raised"
-msgstr "Hoger"
-
 msgid "spacing.normal"
 msgstr "Normaal"
-
-msgid "settings.bottom_spacing_detail"
-msgstr "Zet de match-HUD verder van de onderrand."
 
 msgid "settings.ready_sound"
 msgstr "Uitdager-melding"
@@ -1010,9 +1001,6 @@ msgstr "Vertraging"
 
 msgid "match.spectating"
 msgstr "Toeschouwen"
-
-msgid "match.preview_spacing"
-msgstr "{0} afstand / voorbeeldwaarden"
 
 msgid "card.player"
 msgstr "SPELER"
