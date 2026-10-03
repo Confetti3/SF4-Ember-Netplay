@@ -44,8 +44,9 @@ pub const MAX_SEALED_BYTES: usize = 1024;
 pub const PUT_HEADER_BYTES: usize = 1 + 4 + WRITE_TOKEN_BYTES;
 pub const MAX_BODY_BYTES: usize = PUT_HEADER_BYTES + MAX_SEALED_BYTES;
 pub const MIN_TTL_SECS: u32 = 60;
-/// An invitation lasts an hour and is renewed at half its life, so two
-/// hours covers a renewal that arrives late plus clock skew.
+/// The helper stores a room's record again every ten minutes while the room
+/// is open, so two hours covers stores that fail for a while plus clock skew;
+/// a closed room's link lapses within that.
 pub const MAX_TTL_SECS: u32 = 2 * 60 * 60;
 /// How often expired records are swept at the latest.
 pub const SWEEP_INTERVAL_SECS: u64 = 30;

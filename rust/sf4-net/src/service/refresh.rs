@@ -5,13 +5,15 @@ impl Actor {
     /// An invitation lasts INVITE_LIFETIME from when it was made, and a room
     /// can outlive that: every copy, and every rejoin of a member who left,
     /// would then be refused as expired. While the room is open each member
-    /// re-stamps its own copy once half the lifetime is gone and republishes
-    /// it. Admission checks the leader's copy, so the room stays joinable.
+    /// re-stamps its own copy once a tenth of the lifetime is gone and
+    /// republishes it, so a link copied at any moment stays good for nearly
+    /// the whole lifetime. Admission checks the leader's copy, so the room
+    /// stays joinable.
     pub(super) fn renew_invitation(&mut self, now: u64) {
         let Some(current) = self.room_invite.clone().or_else(|| self.hosted.clone()) else {
             return;
         };
-        if current.expires().saturating_sub(now) > INVITE_LIFETIME / 2 {
+        if current.expires().saturating_sub(now) > INVITE_LIFETIME - INVITE_LIFETIME / 10 {
             return;
         }
         let Ok(updated) = current.renewed(now, INVITE_LIFETIME) else {

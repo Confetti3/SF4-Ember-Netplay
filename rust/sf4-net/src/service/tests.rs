@@ -837,6 +837,19 @@ async fn a_join_through_an_invitation_to_this_helper_says_so() {
     own.close().await;
 }
 
+#[test]
+fn a_copied_invitation_lasts_a_week() {
+    let id = iroh::SecretKey::generate().public();
+    let start = now().unwrap();
+    let invite = Invite::create(id, test_relay(), "test-build".into(), start, INVITE_LIFETIME).unwrap();
+    let text = invite.encode().unwrap();
+    // A link copied today still opens the room six days from now, and not
+    // after its week.
+    let day = 24 * 60 * 60;
+    assert!(Invite::parse_for_build(&text, start + 6 * day, "test-build").is_ok());
+    assert!(Invite::parse_for_build(&text, start + 7 * day + 1, "test-build").is_err());
+}
+
 #[tokio::test]
 async fn an_open_room_renews_its_invitation_before_it_expires() {
     let own = endpoint().await;
@@ -847,12 +860,12 @@ async fn an_open_room_renews_its_invitation_before_it_expires() {
     let invite = Invite::create(own.id(), test_relay(), "test-build".into(), start, INVITE_LIFETIME).unwrap();
     actor.hosted = Some(invite.clone());
     actor.room_invite = Some(invite.clone());
-    // More than half its lifetime left: nothing to do.
-    actor.renew_invitation(start + INVITE_LIFETIME / 4);
+    // Less than a tenth of its lifetime gone: nothing to do.
+    actor.renew_invitation(start + INVITE_LIFETIME / 20);
     assert!(events.try_recv().is_err());
     assert_eq!(actor.room_invite.as_ref().unwrap().expires(), invite.expires());
-    // Past the half: both copies move on and the native side hears of it.
-    let later = start + INVITE_LIFETIME * 3 / 4;
+    // Past a tenth: both copies move on and the native side hears of it.
+    let later = start + INVITE_LIFETIME / 4;
     actor.renew_invitation(later);
     let Event::DiscordInvite { epoch, invitation, .. } = events.recv().await.unwrap() else {
         panic!("expected a refreshed invitation");

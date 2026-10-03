@@ -55,7 +55,9 @@ const CONTROL_POLL_BUDGET: usize = 20;
 /// settles, which would otherwise hold its queue and the replacement forever.
 const CONTROL_REPLACE_DRAIN_LIMIT: Duration = Duration::from_secs(5);
 const LIFECYCLE_EVENT_RESERVE: usize = 8;
-const INVITE_LIFETIME: u64 = 3600;
+/// How long a copied invitation stays good: a week, the longest an
+/// invitation may last.
+const INVITE_LIFETIME: u64 = crate::invite::MAX_INVITE_LIFETIME_SECS;
 const CHECKPOINT_TRANSFER_TIMEOUT: Duration = Duration::from_secs(15);
 const COORDINATION_ADMISSION_TIMEOUT: Duration = Duration::from_secs(12);
 /// One membership reconciliation. A configuration change that needs a member

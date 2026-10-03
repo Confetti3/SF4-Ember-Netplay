@@ -9,7 +9,12 @@ use subtle::ConstantTimeEq;
 use crate::wire::VERSION;
 
 pub const MAX_INVITE_LENGTH: usize = 4096;
-pub const MAX_INVITE_LIFETIME_SECS: u64 = 24 * 60 * 60;
+// Every invitation is stamped with this lifetime, a week, and members renew
+// theirs while the room is open, so a copied link stays good for close to a
+// week. A peer of another build never parses these invitations (the build
+// check refuses them first), so raising the cap from 1.0.0's 24 hours cannot
+// make an older client misread one.
+pub const MAX_INVITE_LIFETIME_SECS: u64 = 7 * 24 * 60 * 60;
 const PREFIX: &str = "sf4e2:";
 const RECOVERY_PREFIX: &str = "sf4e3:";
 const LEGACY_PREFIX: &str = "sf4e1:";
