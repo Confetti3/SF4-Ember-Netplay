@@ -203,6 +203,10 @@ async fn bridge(
                 display_name: "Mock provider".into(),
                 enabled: true,
                 api_base: None,
+                discord_lookup: false,
+                disputes: None,
+                results_url: None,
+                rooms: None,
             }],
         }],
     };
