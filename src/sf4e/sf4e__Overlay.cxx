@@ -376,7 +376,7 @@ void Overlay::DrawOverlay() {
         strip.rollbackFrames = status.rollbackFrames;
         strip.pingMs = status.pingMs; strip.appliedDelay = status.appliedDelay;
         strip.spectator = status.spectator;
-        strip.size = snapshot.preferences.matchHudSize; strip.raised = snapshot.preferences.matchHudRaised;
+        strip.size = snapshot.preferences.matchHudSize; strip.raised = snapshot.preferences.matchHudRaised; strip.position = snapshot.preferences.matchHudPosition;
         strip.notice = status.lastError; strip.noticeSeverity = static_cast<int>(status.lastErrorSeverity);
         strip.connectionWarning = status.connectionWarning; strip.predictionStalled = status.predictionStalled;
         strip.disconnectCountdownMs = status.disconnectCountdownMs;

@@ -209,6 +209,8 @@ void StartHelper() {
             const int hudSize = saved.value("matchHudSize", 1);
             runtime->preferences.matchHudSize = hudSize >= 0 && hudSize <= 2 ? hudSize : 1;
             runtime->preferences.matchHudRaised = saved.value("matchHudRaised", false);
+            const int hudPosition = saved.value("matchHudPosition", 0);
+            runtime->preferences.matchHudPosition = ValidMatchHudPosition(hudPosition) ? hudPosition : 0;
             runtime->preferences.readySound = saved.value("readySound", true);
             const int volume = saved.value("readySoundVolume", 100);
             runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;

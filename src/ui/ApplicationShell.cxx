@@ -219,7 +219,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    std::string(loc::NativeName(loc::ResolveLocale(languagePreference_,{},{})));
   rows={Value("hud",loc::T("settings.match_hud"),preferences_.showMatchHud?loc::T("common.on"):loc::T("common.off"),reason,v.canEditPreferences),
    Value("hud-size",loc::T("settings.match_hud_size"),hudSizes[(std::max)(0,(std::min)(2,preferences_.matchHudSize))],loc::T("settings.match_hud_size_detail"),v.canEditPreferences),
-   Value("hud-spacing",loc::T("settings.bottom_spacing"),preferences_.matchHudRaised?loc::T("spacing.raised"):loc::T("spacing.normal"),loc::T("settings.bottom_spacing_detail"),v.canEditPreferences),
+   Value("hud-position",loc::T("settings.hud_position"),MatchHudPositionName(preferences_.matchHudPosition),loc::T("settings.hud_position_detail"),v.canEditPreferences),
+   Value("hud-spacing",loc::T("settings.hud_spacing"),preferences_.matchHudRaised?loc::T("spacing.extra"):loc::T("spacing.normal"),loc::T("settings.hud_spacing_detail"),v.canEditPreferences),
    Value("ready-sound",loc::T("settings.ready_sound"),preferences_.readySound?loc::T("common.on"):loc::T("common.off"),loc::T("settings.ready_sound_detail"),v.canEditPreferences),
    Value("ready-volume",loc::T("settings.ready_sound_volume"),std::to_string(preferences_.readySoundVolume)+"%",loc::T("settings.ready_sound_volume_detail"),v.canEditPreferences&&preferences_.readySound),
    Row("ready-test",loc::T("settings.ready_sound_test"),loc::T("settings.ready_sound_test_detail"),v.canEditPreferences&&preferences_.readySound),
@@ -394,6 +395,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="invite-lifetime")preferences_.inviteLifetimeHours=StepInviteLifetime(preferences_.inviteLifetimeHours,a.delta);
   else if(a.id=="delay")preferences_.inputDelay=(std::max)(0,(std::min)(10,preferences_.inputDelay+a.delta));
   else if(a.id=="hud-size")preferences_.matchHudSize=(std::max)(0,(std::min)(2,preferences_.matchHudSize+a.delta));
+  else if(a.id=="hud-position")preferences_.matchHudPosition=(std::max)(0,(std::min)(5,preferences_.matchHudPosition+a.delta));
   else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
   else if(a.id=="ready-sound")preferences_.readySound=a.delta>0;
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
@@ -510,7 +512,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   ImGui::TextUnformatted(loc::T("settings.preview"));
   MatchStripView preview;preview.names[0]=loc::T("settings.player_one");preview.names[1]=loc::T("settings.player_two");
   preview.pingMs=68;preview.rollbackFrames=2;preview.appliedDelay=3;
-  preview.size=preferences_.matchHudSize;preview.raised=preferences_.matchHudRaised;
+  preview.size=preferences_.matchHudSize;preview.raised=preferences_.matchHudRaised;preview.position=preferences_.matchHudPosition;
   DrawMatchStripPreview(preview);
  };
  if(screen=="room"&&v.room.roomEpoch)board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawRoomBoard(v,entries,navigation,action,height,feedback);};

@@ -2429,3 +2429,40 @@ msgstr "Error del servidor de sesión. Comprueba tu conexión a internet e inté
 
 msgid "runtime.settings_unreadable"
 msgstr "No se pudieron leer los ajustes guardados; se usan los predeterminados."
+
+# Match HUD placement
+msgid "settings.hud_position"
+msgstr "Posición del HUD de partida"
+
+msgid "settings.hud_position_detail"
+msgstr "Elige una posición sin tapar el combate."
+
+msgid "settings.hud_spacing"
+msgstr "Separación del borde"
+
+msgid "settings.hud_spacing_detail"
+msgstr "Aleja el HUD del borde de pantalla elegido."
+
+msgid "spacing.extra"
+msgstr "Extra"
+
+msgid "match.preview_placement"
+msgstr "Posición: {0}. Separación del borde: {1}."
+
+msgid "hud.position.bottom_center"
+msgstr "Abajo, centro"
+
+msgid "hud.position.top_center"
+msgstr "Arriba, centro"
+
+msgid "hud.position.top_left"
+msgstr "Arriba, izquierda"
+
+msgid "hud.position.top_right"
+msgstr "Arriba, derecha"
+
+msgid "hud.position.bottom_left"
+msgstr "Abajo, izquierda"
+
+msgid "hud.position.bottom_right"
+msgstr "Abajo, derecha"

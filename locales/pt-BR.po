@@ -2006,3 +2006,40 @@ msgstr "Erro do servidor de sessão. Verifique sua internet e tente novamente."
 
 msgid "runtime.settings_unreadable"
 msgstr "Não foi possível ler as configurações salvas; os padrões estão em uso."
+
+# Match HUD placement
+msgid "settings.hud_position"
+msgstr "Match HUD position"
+
+msgid "settings.hud_position_detail"
+msgstr "Choose a screen edge without covering the fight."
+
+msgid "settings.hud_spacing"
+msgstr "Edge spacing"
+
+msgid "settings.hud_spacing_detail"
+msgstr "Move the HUD farther from its chosen screen edge."
+
+msgid "spacing.extra"
+msgstr "Extra"
+
+msgid "match.preview_placement"
+msgstr "Position: {0}. Edge spacing: {1}."
+
+msgid "hud.position.bottom_center"
+msgstr "Bottom center"
+
+msgid "hud.position.top_center"
+msgstr "Top center"
+
+msgid "hud.position.top_left"
+msgstr "Top left"
+
+msgid "hud.position.top_right"
+msgstr "Top right"
+
+msgid "hud.position.bottom_left"
+msgstr "Bottom left"
+
+msgid "hud.position.bottom_right"
+msgstr "Bottom right"
