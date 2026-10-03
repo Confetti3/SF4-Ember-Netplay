@@ -4,6 +4,8 @@
 //! seconds to answer. The command is answered at once with a private deferred
 //! reply; the bridge calls follow. The reply is edited when they finish, and a
 //! room's link is posted to the channel as a followup message.
+use std::time::Duration;
+
 use axum::{
     body::Bytes,
     extract::State,
@@ -22,7 +24,7 @@ use crate::{
     bridge::BridgeError,
     config::{Config, MAX_BODY, resolve},
     format::escape_markdown,
-    sent::http_client,
+    sent::{Reset, Sent, classify, http_client},
 };
 
 const COMMAND: &str = "room";
@@ -30,6 +32,12 @@ const SIGNATURE: &str = "x-signature-ed25519";
 const TIMESTAMP: &str = "x-signature-timestamp";
 /// How far a request's timestamp may be from now.
 const MAX_AGE_SECS: u64 = 300;
+/// How often the deferred reply is edited before giving up, and the pause
+/// before the second try, which then doubles. A `Retry-After` beyond
+/// `MAX_RETRY_AFTER` seconds ends the attempts.
+const EDIT_ATTEMPTS: u32 = 3;
+const RETRY_BASE_MS: u64 = 500;
+const MAX_RETRY_AFTER: u64 = 60;
 const ROOM_OPENED: &str = "Your room is open.";
 const EPHEMERAL: u64 = 64;
 
@@ -210,26 +218,54 @@ impl Notifier {
             Err(BridgeError::Refused(_)) => "This bot is not allowed to look up players.".into(),
             Err(BridgeError::Unavailable) => BUSY.into(),
         };
-        self.webhook(Method::PATCH, token, "/messages/@original", &text)
-            .await;
+        self.edit_original(token, &text).await;
     }
 
     /// The room's link goes to the channel; the person who asked keeps a short
-    /// private note.
+    /// private note. When the channel cannot be reached the link goes into
+    /// that private reply instead.
     async fn announce(&self, token: &str, room: &ConnectionRoom) {
         let line = format!(
             "Room open: {}",
             room_line(&escape_markdown(&room.room.name), room)
         );
-        // The reply is settled first: a followup sent while it is still
-        // deferred would fill it in, and be private like it.
-        self.webhook(Method::PATCH, token, "/messages/@original", ROOM_OPENED)
-            .await;
-        if !self.webhook(Method::POST, token, "", &line).await {
-            // The link still reaches the person who asked.
-            self.webhook(Method::PATCH, token, "/messages/@original", &line)
-                .await;
+        // The reply must be settled before the followup: one sent while the
+        // reply is still deferred fills it in, and is private like it.
+        let posted = self.edit_original(token, ROOM_OPENED).await
+            && match self.webhook(Method::POST, token, "", &line).await {
+                Sent::Done => true,
+                Sent::Retry(error, _) | Sent::Failed(error) => {
+                    eprintln!("ember-notifier: Discord refused the /{COMMAND} followup: {error}");
+                    false
+                }
+            };
+        if !posted {
+            self.edit_original(token, &line).await;
         }
+    }
+
+    /// Replaces the deferred reply, trying again when Discord is busy or rate
+    /// limited. The interaction token outlives these waits by a long way.
+    /// Whether the reply now holds `text`.
+    async fn edit_original(&self, token: &str, text: &str) -> bool {
+        let mut wait = Duration::from_millis(RETRY_BASE_MS);
+        for attempt in 1..=EDIT_ATTEMPTS {
+            match self
+                .webhook(Method::PATCH, token, "/messages/@original", text)
+                .await
+            {
+                Sent::Done => return true,
+                Sent::Retry(_, after) if attempt < EDIT_ATTEMPTS && after <= MAX_RETRY_AFTER => {
+                    tokio::time::sleep(wait.max(Duration::from_secs(after))).await;
+                    wait *= 2;
+                }
+                Sent::Retry(error, _) | Sent::Failed(error) => {
+                    eprintln!("ember-notifier: Discord refused the /{COMMAND} reply: {error}");
+                    return false;
+                }
+            }
+        }
+        false
     }
 
     async fn not_linked_text(&self) -> String {
@@ -247,8 +283,7 @@ impl Notifier {
 
     /// Sends a message through the interaction's webhook: an edit of the
     /// original reply, or a followup. Mentions in the text never ping anyone.
-    /// Whether Discord took it.
-    async fn webhook(&self, method: Method, token: &str, tail: &str, text: &str) -> bool {
+    async fn webhook(&self, method: Method, token: &str, tail: &str, text: &str) -> Sent {
         let Some(interactions) = self
             .0
             .config
@@ -256,7 +291,7 @@ impl Notifier {
             .as_ref()
             .and_then(|discord| discord.interactions.as_ref())
         else {
-            return false;
+            return Sent::Failed("Discord interactions are not configured".into());
         };
         let url = format!(
             "{}/webhooks/{}/{token}{tail}",
@@ -265,20 +300,12 @@ impl Notifier {
         );
         let body = json!({ "content": text, "allowed_mentions": { "parse": [] } });
         // The URL carries the interaction token, so it is never logged.
-        match self.0.http.request(method, url).json(&body).send().await {
-            Ok(response) if response.status().is_success() => true,
-            Ok(response) => {
-                eprintln!(
-                    "ember-notifier: Discord refused the /{COMMAND} reply: status {}",
-                    response.status().as_u16()
-                );
-                false
-            }
-            Err(_) => {
-                eprintln!("ember-notifier: Discord could not be reached for the /{COMMAND} reply");
-                false
-            }
-        }
+        classify(
+            self.0.http.request(method, url).json(&body).send().await,
+            Reset::After("x-ratelimit-reset-after"),
+            self.0.clock.now(),
+        )
+        .await
     }
 }
 

@@ -2,7 +2,13 @@
 //! Discord API.
 mod support;
 
-use std::time::Duration;
+use std::{
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
+    },
+    time::Duration,
+};
 
 use ed25519_dalek::{Signer, SigningKey};
 use ember_notifier::{Config, Discord, Interactions, register_commands};
@@ -110,6 +116,123 @@ fn followup(request: &Logged) -> String {
 /// private, since a room's link is posted separately.
 fn deferred() -> Value {
     json!({ "type": 5, "data": { "flags": 64 } })
+}
+
+/// What reached the channel and what only the person who asked saw.
+#[derive(Default)]
+struct Channel {
+    /// Whether the deferred reply has been filled in yet.
+    settled: bool,
+    public: Vec<String>,
+    private: Vec<String>,
+}
+
+/// A Discord stand-in that tracks the deferred reply as Discord does: the
+/// first message to arrive fills it in and is private, whether it is an edit
+/// or a followup. Edits answer `edit(n)` for the n-th try (from 1); a
+/// followup answers `followup`.
+async fn tracking_discord(
+    edit: impl Fn(usize) -> u16 + Send + Sync + 'static,
+    followup: u16,
+) -> (Mock, Arc<Mutex<Channel>>) {
+    let channel = Arc::new(Mutex::new(Channel::default()));
+    let state = channel.clone();
+    let edits = AtomicUsize::new(0);
+    let mock = Mock::start(move |request| {
+        let text = request.body["content"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned();
+        let mut channel = state.lock().unwrap();
+        let status = if request.method == Method::PATCH {
+            edit(edits.fetch_add(1, Ordering::SeqCst) + 1)
+        } else {
+            followup
+        };
+        if status == 200 {
+            if request.method == Method::PATCH || !channel.settled {
+                channel.private.push(text);
+            } else {
+                channel.public.push(text);
+            }
+            channel.settled = true;
+        }
+        (status, "{}".into())
+    })
+    .await;
+    (mock, channel)
+}
+
+async fn open_a_room(bridge: &Mock, discord: &Mock) -> Vec<tokio::task::JoinHandle<()>> {
+    let (url, tasks) = serve(bridge, discord).await;
+    let body = command(in_guild("42"), json!([]));
+    assert_eq!(post(&url, now(), &body).await.status(), 200);
+    tasks
+}
+
+async fn until(mut done: impl FnMut() -> bool) {
+    for _ in 0..200 {
+        if done() {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    panic!("timed out");
+}
+
+#[tokio::test]
+async fn a_busy_edit_is_retried_before_the_link_is_posted() {
+    for status in [429, 503] {
+        let bridge = bridge(created, no_room).await;
+        // The first edit fails; the followup must wait for one that works,
+        // or it would fill the deferred reply and never reach the channel.
+        let (discord, channel) =
+            tracking_discord(move |attempt| if attempt == 1 { status } else { 200 }, 200).await;
+        let tasks = open_a_room(&bridge, &discord).await;
+        until(|| !channel.lock().unwrap().public.is_empty()).await;
+        let channel = channel.lock().unwrap();
+        assert_eq!(channel.private, ["Your room is open."], "{status}");
+        assert_eq!(channel.public.len(), 1, "{status}");
+        assert!(channel.public[0].contains(ROOM_ID), "{status}");
+        for task in tasks {
+            task.abort();
+        }
+    }
+}
+
+#[tokio::test]
+async fn an_edit_that_keeps_failing_posts_nothing_to_the_channel() {
+    let bridge = bridge(created, no_room).await;
+    let (discord, channel) = tracking_discord(|_| 503, 200).await;
+    let tasks = open_a_room(&bridge, &discord).await;
+    // The edit of the reply, and the try at the link in the private reply.
+    until(|| discord.requests().len() == 6).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let channel = channel.lock().unwrap();
+    assert!(discord.requests().iter().all(|r| r.method == Method::PATCH));
+    assert!(channel.public.is_empty() && channel.private.is_empty());
+    for task in tasks {
+        task.abort();
+    }
+}
+
+#[tokio::test]
+async fn a_followup_that_fails_leaves_the_link_in_the_private_reply() {
+    let bridge = bridge(created, no_room).await;
+    let (discord, channel) = tracking_discord(|_| 200, 500).await;
+    let tasks = open_a_room(&bridge, &discord).await;
+    until(|| channel.lock().unwrap().private.len() == 2).await;
+    let channel = channel.lock().unwrap();
+    assert_eq!(channel.private[0], "Your room is open.");
+    assert!(
+        channel.private[1].contains(ROOM_ID),
+        "{:?}",
+        channel.private
+    );
+    assert!(channel.public.is_empty());
+    for task in tasks {
+        task.abort();
+    }
 }
 
 #[tokio::test]
