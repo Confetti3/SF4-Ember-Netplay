@@ -140,6 +140,10 @@ async fn bridge_with_discord_secret(secrets: Secrets) -> Bridge {
                     display_name: "BluMint (test)".into(),
                     enabled: true,
                     api_base: None,
+                    discord_lookup: false,
+                    disputes: None,
+                    results_url: None,
+                    rooms: None,
                 }],
             });
         },

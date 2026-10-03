@@ -49,6 +49,14 @@ fn main() -> ExitCode {
             println!("BluMint now calls this bridge for {connection}.");
             Ok(())
         }),
+        ["result-secret"] => {
+            // A platform verifies the results sent to its results_url with
+            // this; the operator stores it with set-integration-secret.sh.
+            let secret = ember_protocol::webhook::Secret::from_bytes(random32());
+            println!("{}", secret.reveal().as_str());
+            eprintln!("Give this to the platform and store it with set-integration-secret.sh result <connection-id>.");
+            Ok(())
+        }
         _ => Err(USAGE.into()),
     };
     match result {
@@ -64,7 +72,8 @@ const USAGE: &str = "usage:
   ember-bridge credential <bridge.json> organizer <tenant-id> <label>
   ember-bridge credentials <bridge.json>
   ember-bridge revoke <bridge.json> <credential-id>
-  ember-bridge blumint-register <bridge.json> <connection-id>";
+  ember-bridge blumint-register <bridge.json> <connection-id>
+  ember-bridge result-secret";
 
 fn fail(message: &str) -> ExitCode {
     eprintln!("ember-bridge: {message}");
@@ -102,6 +111,10 @@ fn init(dir: PathBuf) -> Result<(), String> {
                 display_name: "Mock provider".into(),
                 enabled: true,
                 api_base: None,
+                discord_lookup: false,
+                disputes: None,
+                results_url: None,
+                rooms: None,
             }],
         }],
     };
@@ -116,6 +129,12 @@ fn init(dir: PathBuf) -> Result<(), String> {
         config_path.display()
     );
     Ok(())
+}
+
+fn random32() -> [u8; 32] {
+    let mut bytes = [0; 32];
+    getrandom::fill(&mut bytes).expect("operating system RNG");
+    bytes
 }
 
 fn random() -> [u8; 16] {

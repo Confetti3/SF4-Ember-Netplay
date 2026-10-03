@@ -113,7 +113,7 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
         tokio::spawn(routes::maintenance(state.clone())),
         tokio::spawn(delivery::run(
             state.clone(),
-            routes::blumint::Results::new(&state),
+            delivery::results::Results::new(&state),
         )),
     ];
     if routes::rooms::enabled(&state) {
@@ -141,9 +141,10 @@ pub async fn poll_rooms(state: &AppState) {
     routes::rooms::poll(state).await;
 }
 
-/// One pass of sending finished matches' results to BluMint; tests call it.
-pub async fn deliver_to_blumint(state: &AppState) {
-    delivery::pass(state, &Arc::new(routes::blumint::Results::new(state))).await;
+/// One pass of sending finished matches' results to their platforms; tests
+/// call it.
+pub async fn deliver_results(state: &AppState) {
+    delivery::pass(state, &Arc::new(delivery::results::Results::new(state))).await;
 }
 
 /// Tells BluMint where the connection's endpoints are (`routes::blumint`).
@@ -167,9 +168,10 @@ pub async fn sync_config(state: &AppState) -> Result<(), error::ApiFailure> {
                     rusqlite::params![tenant.id, tenant.name],
                 )?;
                 for connection in &tenant.connections {
+                    let disputes = connection.disputes().as_str();
                     tx.execute(
-                        "INSERT INTO provider_connections (id, tenant_id, kind, environment, display_name, enabled)
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                        "INSERT INTO provider_connections (id, tenant_id, kind, environment, display_name, enabled, disputes)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
                          ON CONFLICT (id) DO UPDATE SET display_name = excluded.display_name, enabled = excluded.enabled",
                         rusqlite::params![
                             connection.id,
@@ -177,18 +179,22 @@ pub async fn sync_config(state: &AppState) -> Result<(), error::ApiFailure> {
                             connection.kind,
                             connection.environment,
                             connection.display_name,
-                            connection.enabled
+                            connection.enabled,
+                            disputes
                         ],
                     )?;
-                    let (kind, environment, owner): (String, String, String) = tx.query_row(
-                        "SELECT kind, environment, tenant_id FROM provider_connections WHERE id = ?1",
+                    let stored: (String, String, String, String) = tx.query_row(
+                        "SELECT kind, environment, tenant_id, disputes FROM provider_connections WHERE id = ?1",
                         [&connection.id],
-                        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
                     )?;
-                    // A connection ID never changes provider, environment or
-                    // tenant (spec 22, PROVIDER-05); configure a new one.
-                    if kind != connection.kind || environment != connection.environment || owner != tenant.id {
-                        return Err(error::ApiFailure::invalid("a connection id changed kind, environment or tenant"));
+                    // A connection ID never changes provider, environment,
+                    // tenant (spec 22, PROVIDER-05) or what its disputes do,
+                    // since its matches keep that policy; configure a new one.
+                    if stored != (connection.kind.clone(), connection.environment.clone(), tenant.id.clone(), disputes.to_owned()) {
+                        return Err(error::ApiFailure::invalid(
+                            "a connection id changed kind, environment, tenant or disputes",
+                        ));
                     }
                 }
             }

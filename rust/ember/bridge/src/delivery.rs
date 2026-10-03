@@ -7,7 +7,8 @@
 //!
 //! Two queues use it: signed webhooks from the outbox (`webhooks`), and
 //! match results sent to the platform that created the match
-//! (`routes::blumint::Results`).
+//! (`results`).
+pub mod results;
 pub mod webhooks;
 
 use std::{future::Future, sync::Arc, time::Duration};

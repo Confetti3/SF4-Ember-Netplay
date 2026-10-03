@@ -52,10 +52,14 @@ pub enum Kind {
     TournamentMatchReopened,
     TournamentCompleted,
     TournamentCancelled,
+    RoomCreated,
+    RoomOpened,
+    RoomChanged,
+    RoomClosed,
 }
 
 impl Kind {
-    pub const ALL: [Kind; 34] = [
+    pub const ALL: [Kind; 38] = [
         Self::LinkPending,
         Self::LinkCompleted,
         Self::LinkRemoved,
@@ -90,6 +94,10 @@ impl Kind {
         Self::TournamentMatchReopened,
         Self::TournamentCompleted,
         Self::TournamentCancelled,
+        Self::RoomCreated,
+        Self::RoomOpened,
+        Self::RoomChanged,
+        Self::RoomClosed,
     ];
 
     /// The short family name from spec 20.2.
@@ -129,6 +137,10 @@ impl Kind {
             Self::TournamentMatchReopened => "tournament.match.reopened",
             Self::TournamentCompleted => "tournament.completed",
             Self::TournamentCancelled => "tournament.cancelled",
+            Self::RoomCreated => "room.created",
+            Self::RoomOpened => "room.opened",
+            Self::RoomChanged => "room.changed",
+            Self::RoomClosed => "room.closed",
         }
     }
 

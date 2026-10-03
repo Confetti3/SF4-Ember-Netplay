@@ -29,6 +29,7 @@ use ember_protocol::{
     EmberId,
     challenge::{Action, Method},
     discord::{Account, Connection, SIGN_IN_SECS, SignInStarted, is_user_id},
+    partner::FoundPlayer,
     encoding::b64u,
     event::Kind,
 };
@@ -625,17 +626,17 @@ pub async fn remove(
     Ok(ok(&Connection { account: None }))
 }
 
-/// The Ember IDs connected to these Discord user IDs and linked on
-/// `connection_id`, so its platform can create matches for them, in order and
-/// without repeats. Anything that is not a Discord user ID (BluMint also
-/// sends emails) is skipped, and so is an account `link` cannot link.
+/// The players whose Ember IDs are connected to these Discord user IDs and
+/// linked on `connection_id`, so its platform can create matches for them, in
+/// order and without repeats. Anything that is not a Discord user ID (BluMint
+/// also sends emails) is skipped, and so is an account `link` cannot link.
 pub fn find_and_link(
     tx: &Transaction<'_>,
     ctx: &Ctx,
     connection_id: &str,
     user_ids: &[String],
-) -> Result<Vec<EmberId>> {
-    let mut found = Vec::new();
+) -> Result<Vec<FoundPlayer>> {
+    let mut found: Vec<FoundPlayer> = Vec::new();
     for user_id in user_ids.iter().filter(|id| is_user_id(id)) {
         let account: Option<(String, String)> = tx
             .query_row(
@@ -648,11 +649,24 @@ pub fn find_and_link(
             continue;
         };
         let ember_id = EmberId::parse(&ember_id).map_err(|_| ApiFailure::unavailable())?;
-        if !found.contains(&ember_id)
-            && link(tx, ctx, connection_id, user_id, &username, &ember_id)?
+        if found.iter().any(|player| player.ember_id == ember_id)
+            || !link(tx, ctx, connection_id, user_id, &username, &ember_id)?
         {
-            found.push(ember_id);
+            continue;
         }
+        // The participant the Ember ID is linked as there: this sign-in's
+        // account, or the one a code linked it as earlier.
+        let participant_id: String = tx.query_row(
+            "SELECT a.participant_id FROM links l JOIN external_accounts a ON a.id = l.account_id
+             WHERE l.ember_id = ?1 AND l.connection_id = ?2 AND l.revoked_at IS NULL",
+            params![ember_id.as_str(), connection_id],
+            |row| row.get(0),
+        )?;
+        found.push(FoundPlayer {
+            discord_user_id: user_id.clone(),
+            ember_id,
+            participant_id,
+        });
     }
     Ok(found)
 }

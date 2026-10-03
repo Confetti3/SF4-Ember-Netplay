@@ -44,6 +44,7 @@ async fn registration_works_without_a_running_bridge() {
         mock_browser: false,
         discord: None,
         integration_secrets: None,
+        rooms: None,
         tenants: vec![config::Tenant {
             id: "bm".into(),
             name: "BluMint".into(),
@@ -54,6 +55,10 @@ async fn registration_works_without_a_running_bridge() {
                 display_name: "BluMint (test)".into(),
                 enabled: true,
                 api_base: Some(api_base),
+                discord_lookup: false,
+                disputes: None,
+                results_url: None,
+                rooms: None,
             }],
         }],
     };

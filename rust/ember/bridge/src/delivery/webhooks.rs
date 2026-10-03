@@ -160,13 +160,53 @@ async fn attempt(state: &AppState, item: &Due) -> Outcome {
     let Ok(headers) = webhook::sign(&secrets, &item.event_id, now, &item.body) else {
         return retry("cannot sign");
     };
+    let answer = post_signed(state, &item.url, &headers, item.body.clone(), async {
+        // A delete or a revoked owner since the lease, including while the
+        // destination resolved, cancels the delivery.
+        still_due(state, item.outbox_id).await
+    })
+    .await;
+    match answer {
+        Err(outcome) => outcome,
+        Ok(answer) if (200..300).contains(&answer.status) => Outcome::Delivered,
+        Ok(answer) if answer.status == 410 => Outcome::Refused("gone".to_owned()),
+        Ok(answer) => Outcome::Retry {
+            error: format!("status {}", answer.status),
+            retry_after: answer.retry_after,
+        },
+    }
+}
+
+/// What a destination answered.
+pub struct Answer {
+    pub status: u16,
+    /// `Retry-After` in seconds, when it gave one.
+    pub retry_after: Option<u64>,
+}
+
+/// POSTs a signed JSON body to a destination a platform chose: a webhook
+/// subscription's URL or a connection's `results_url`. The destination is
+/// resolved and checked now and the connection pinned to the address that
+/// passed; `still_due` is asked as late as possible, just before sending, and
+/// false cancels. The answer's body is drained through a byte cap.
+pub async fn post_signed(
+    state: &AppState,
+    url: &str,
+    headers: &webhook::Headers,
+    body: Vec<u8>,
+    still_due: impl std::future::Future<Output = bool>,
+) -> std::result::Result<Answer, Outcome> {
+    let retry = |error: &str| Outcome::Retry {
+        error: error.to_owned(),
+        retry_after: None,
+    };
     let allow_private = state.config.allow_private_webhooks;
-    let Ok(url) = Url::parse(&item.url) else {
-        return retry("invalid url");
+    let Ok(url) = Url::parse(url) else {
+        return Err(retry("invalid url"));
     };
     let address = match destination(&url, allow_private).await {
         Ok(address) => address,
-        Err(error) => return retry(error),
+        Err(error) => return Err(retry(error)),
     };
     let mut builder = crate::util::outbound_client();
     if let Some(host) = url.host_str()
@@ -178,12 +218,10 @@ async fn attempt(state: &AppState, item: &Due) -> Outcome {
         builder = builder.https_only(true);
     }
     let Ok(client) = builder.build() else {
-        return retry("client");
+        return Err(retry("client"));
     };
-    // A delete or a revoked owner since the lease, including while the
-    // destination resolved, cancels the delivery. Checked as late as possible.
-    if !still_due(state, item.outbox_id).await {
-        return Outcome::Cancelled;
+    if !still_due.await {
+        return Err(Outcome::Cancelled);
     }
     let response = client
         .post(url)
@@ -191,20 +229,20 @@ async fn attempt(state: &AppState, item: &Due) -> Outcome {
         .header(webhook::HEADER_ID, &headers.id)
         .header(webhook::HEADER_TIMESTAMP, &headers.timestamp)
         .header(webhook::HEADER_SIGNATURE, &headers.signature)
-        .body(item.body.clone())
+        .body(body)
         .send()
         .await;
     let mut response = match response {
         Ok(response) => response,
         Err(error) => {
-            return retry(if error.is_timeout() {
+            return Err(retry(if error.is_timeout() {
                 "timeout"
             } else {
                 "connection failed"
-            });
+            }));
         }
     };
-    let status = response.status();
+    let status = response.status().as_u16();
     let retry_after = response
         .headers()
         .get("retry-after")
@@ -219,16 +257,10 @@ async fn attempt(state: &AppState, item: &Due) -> Outcome {
             break;
         }
     }
-    if status.is_success() {
-        Outcome::Delivered
-    } else if status.as_u16() == 410 {
-        Outcome::Refused("gone".to_owned())
-    } else {
-        Outcome::Retry {
-            error: format!("status {}", status.as_u16()),
-            retry_after,
-        }
-    }
+    Ok(Answer {
+        status,
+        retry_after,
+    })
 }
 
 /// Resolves and checks every address for the URL's host. Any refused
@@ -262,6 +294,43 @@ async fn destination(
         return Err("destination refused");
     }
     Ok(addresses[0])
+}
+
+const MAX_URL: usize = 2048;
+
+/// Why a destination was refused at registration.
+pub enum UrlRefusal {
+    /// Not an https URL with a host name and no credentials or fragment.
+    Malformed,
+    /// A literal address that is never sent to.
+    Address,
+}
+
+/// Checks a destination when it is registered: a webhook subscription's URL,
+/// or a connection's `results_url`. Each delivery checks it again against
+/// the addresses DNS returns at connection time.
+pub fn check_url(text: &str, allow_private: bool) -> std::result::Result<Url, UrlRefusal> {
+    if text.len() > MAX_URL {
+        return Err(UrlRefusal::Malformed);
+    }
+    let url = Url::parse(text).map_err(|_| UrlRefusal::Malformed)?;
+    let scheme_ok = url.scheme() == "https" || (allow_private && url.scheme() == "http");
+    let port_ok = allow_private || url.port().is_none_or(|port| port == 443);
+    if !scheme_ok
+        || !port_ok
+        || url.host_str().is_none()
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.fragment().is_some()
+    {
+        return Err(UrlRefusal::Malformed);
+    }
+    if let Some(ip) = literal_ip(&url)
+        && !allowed_address(ip, allow_private)
+    {
+        return Err(UrlRefusal::Address);
+    }
+    Ok(url)
 }
 
 pub fn literal_ip(url: &Url) -> Option<IpAddr> {

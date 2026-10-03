@@ -16,6 +16,7 @@ pub mod id;
 pub mod json;
 pub mod lobby;
 pub mod matches;
+pub mod partner;
 pub mod play;
 pub mod report;
 pub mod rooms;

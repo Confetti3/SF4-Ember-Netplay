@@ -44,6 +44,10 @@ fn connection(id: &str) -> config::Connection {
         display_name: format!("Mock {id}"),
         enabled: true,
         api_base: None,
+        discord_lookup: false,
+        disputes: None,
+        results_url: None,
+        rooms: None,
     }
 }
 

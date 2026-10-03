@@ -103,6 +103,10 @@ async fn fixture_with(secrets: Secrets) -> Fixture {
                     display_name: "BluMint (test)".into(),
                     enabled: true,
                     api_base: Some(api_base),
+                    discord_lookup: false,
+                    disputes: None,
+                    results_url: None,
+                    rooms: None,
                 }],
             });
         },
@@ -244,7 +248,7 @@ async fn until(f: &Fixture, id: &str, done: impl Fn((String, u32)) -> bool) {
         if done(delivery(f, id).await) {
             return;
         }
-        ember_bridge::deliver_to_blumint(f.bridge.state()).await;
+        ember_bridge::deliver_results(f.bridge.state()).await;
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     }
     panic!("delivery did not settle");
@@ -357,7 +361,7 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
     assert_eq!(before["teams"][1]["score"], 0);
 
     // Nothing is sent before the match ends.
-    ember_bridge::deliver_to_blumint(f.bridge.state()).await;
+    ember_bridge::deliver_results(f.bridge.state()).await;
     assert!(submitted(&f).is_empty());
     // BluMint is down at first: the result is sent again later, once. The
     // bridge's own worker runs alongside these passes; either may send.
@@ -371,7 +375,7 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
     assert!(submitted(&f).is_empty());
     f.bridge.clock.advance(11);
     until(&f, &id, |(state, _)| state == "delivered").await;
-    ember_bridge::deliver_to_blumint(f.bridge.state()).await;
+    ember_bridge::deliver_results(f.bridge.state()).await;
     assert_eq!(delivery(&f, &id).await, ("delivered".into(), 2));
     assert_eq!(
         submitted(&f),
@@ -428,11 +432,11 @@ async fn a_result_is_final_once_it_is_being_sent() {
         f.bridge.clock.clone(),
     );
     f.blumint.lock().unwrap().fail = 1;
-    ember_bridge::deliver_to_blumint(&keyed).await;
+    ember_bridge::deliver_results(&keyed).await;
     assert_eq!(delivery(&f, &id).await, ("retrying".into(), 1));
     assert_eq!(void_last(&f, &id, "void-2").await, StatusCode::CONFLICT);
     f.bridge.clock.advance(11);
-    ember_bridge::deliver_to_blumint(&keyed).await;
+    ember_bridge::deliver_results(&keyed).await;
     assert_eq!(delivery(&f, &id).await, ("delivered".into(), 2));
     assert_eq!(void_last(&f, &id, "void-3").await, StatusCode::CONFLICT);
     assert_eq!(
@@ -492,7 +496,7 @@ async fn cancelled_and_disputed_matches_are_restarted_on_blumint() {
     assert_eq!(match_status(&f, &second).await["status"], "cancelled");
 
     // Without the key nothing is sent; with it, both restarts are.
-    ember_bridge::deliver_to_blumint(f.bridge.state()).await;
+    ember_bridge::deliver_results(f.bridge.state()).await;
     assert!(submitted(&f).is_empty());
     let state = f.bridge.state();
     let with_key = AppState::new(
@@ -502,7 +506,7 @@ async fn cancelled_and_disputed_matches_are_restarted_on_blumint() {
         state.db.clone(),
         f.bridge.clock.clone(),
     );
-    ember_bridge::deliver_to_blumint(&with_key).await;
+    ember_bridge::deliver_results(&with_key).await;
     let mut sent = submitted(&f);
     sent.sort_by_key(|body| body["matchId"].as_str().unwrap().to_owned());
     let mut restarts = vec![
@@ -626,7 +630,7 @@ async fn a_disabled_connection_sends_nothing_until_enabled_again() {
             .unwrap()
     };
     let issued = credentials().await;
-    ember_bridge::deliver_to_blumint(&disabled).await;
+    ember_bridge::deliver_results(&disabled).await;
     assert!(
         ember_bridge::register_blumint(&disabled, CONNECTION)
             .await
@@ -635,7 +639,7 @@ async fn a_disabled_connection_sends_nothing_until_enabled_again() {
     // A bridge still configured with it enabled finds it disabled when leasing
     // and when registering.
     let stale = keyed_state(true);
-    ember_bridge::deliver_to_blumint(&stale).await;
+    ember_bridge::deliver_results(&stale).await;
     assert!(
         ember_bridge::register_blumint(&stale, CONNECTION)
             .await
@@ -647,7 +651,7 @@ async fn a_disabled_connection_sends_nothing_until_enabled_again() {
 
     let enabled = keyed_state(true);
     ember_bridge::sync_config(&enabled).await.unwrap();
-    ember_bridge::deliver_to_blumint(&enabled).await;
+    ember_bridge::deliver_results(&enabled).await;
     assert_eq!(
         submitted(&f),
         vec![json!({ "matchId": id, "mustRestart": true })]

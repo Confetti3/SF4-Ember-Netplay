@@ -289,7 +289,13 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
         }
     }
     let id = crate::util::new_id("emt");
-    let delivery = if policy::of(tx, new.connection_id)?.sends_results {
+    // Whether the platform is sent the result is decided once, here; from
+    // then on the match's own delivery state says.
+    let sends_results = ctx
+        .config
+        .connection(new.connection_id)
+        .is_some_and(|(_, connection)| connection.sends_results());
+    let delivery = if sends_results {
         "queued"
     } else {
         "not_required"

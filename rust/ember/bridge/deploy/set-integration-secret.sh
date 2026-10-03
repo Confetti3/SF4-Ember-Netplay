@@ -7,6 +7,8 @@
 #       The shared secret of the room supervisor's loopback API (public rooms).
 #   sudo bash ~/ember-bridge/set-integration-secret.sh blumint <connection-id>
 #       The API key BluMint issued for that connection, such as blumint-partner-staging.
+#   sudo bash ~/ember-bridge/set-integration-secret.sh result <connection-id>
+#       The secret that connection's results are signed with (ember-bridge result-secret).
 #
 # The secret is pasted at a hidden prompt, so it never appears on the screen,
 # in the shell history or on a command line. It is written to
@@ -24,7 +26,10 @@ case "${1:-}" in
     blumint)
         [[ "${2:-}" =~ ^[a-z][a-z0-9-]{0,63}$ ]] || { echo "usage: set-integration-secret.sh blumint <connection-id>" >&2; exit 2; }
         what="BluMint API key for $2"; key="api_keys/$2" ;;
-    *) echo "usage: set-integration-secret.sh discord | rooms | blumint <connection-id>" >&2; exit 2 ;;
+    result)
+        [[ "${2:-}" =~ ^[a-z][a-z0-9-]{0,63}$ ]] || { echo "usage: set-integration-secret.sh result <connection-id>" >&2; exit 2; }
+        what="result secret for $2"; key="result_secrets/$2" ;;
+    *) echo "usage: set-integration-secret.sh discord | rooms | blumint <connection-id> | result <connection-id>" >&2; exit 2 ;;
 esac
 [ -d "$STATE" ] || { echo "Install the bridge first (setup.sh)." >&2; exit 1; }
 
@@ -49,10 +54,11 @@ elif key == "rooms":
     if secret:
         data["rooms_supervisor_secret"] = secret
 else:
-    keys = data.setdefault("api_keys", {})
-    keys.pop(key.split("/", 1)[1], None)
+    table, connection = key.split("/", 1)
+    keys = data.setdefault(table, {})
+    keys.pop(connection, None)
     if secret:
-        keys[key.split("/", 1)[1]] = secret
+        keys[connection] = secret
 os.umask(0o077)
 handle, temporary = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".integrations.json.")
 with os.fdopen(handle, "w") as file:

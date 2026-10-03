@@ -3,7 +3,7 @@
 //! owner-only like the others and is written by the deployment scripts.
 use std::{collections::BTreeMap, path::Path};
 
-use ember_protocol::json;
+use ember_protocol::{json, webhook::Secret};
 use serde::Deserialize;
 use zeroize::Zeroizing;
 
@@ -23,6 +23,9 @@ struct File {
     /// Platform API keys by connection ID.
     #[serde(default)]
     api_keys: BTreeMap<String, String>,
+    /// Result signing secrets (`whsec_...`) by connection ID.
+    #[serde(default)]
+    result_secrets: BTreeMap<String, String>,
 }
 
 #[derive(Default)]
@@ -35,6 +38,10 @@ pub struct Secrets {
     /// A platform's API key, by connection ID. A BluMint connection without
     /// one is served but not sent results.
     pub api_keys: BTreeMap<String, Zeroizing<String>>,
+    /// The secret a connection's results are signed with, by connection ID.
+    /// A connection with a `results_url` and none is served but not sent
+    /// results.
+    pub result_secrets: BTreeMap<String, Secret>,
 }
 
 impl Secrets {
@@ -64,6 +71,17 @@ impl Secrets {
                 .filter(|(_, key)| !key.is_empty())
                 .map(|(connection, key)| (connection, Zeroizing::new(key)))
                 .collect(),
+            result_secrets: file
+                .result_secrets
+                .into_iter()
+                .filter(|(_, secret)| !secret.is_empty())
+                .map(|(connection, secret)| {
+                    let secret = Zeroizing::new(secret);
+                    Secret::parse(&secret)
+                        .map(|secret| (connection.clone(), secret))
+                        .map_err(|_| format!("the result secret for {connection} is not a whsec_ secret"))
+                })
+                .collect::<Result<_, String>>()?,
         })
     }
 }

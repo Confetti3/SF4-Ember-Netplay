@@ -25,6 +25,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (10, include_str!("../migrations/010_discord_consent.sql")),
     (11, include_str!("../migrations/011_discord_moves.sql")),
     (12, include_str!("../migrations/012_rooms.sql")),
+    (13, include_str!("../migrations/013_connection_settings.sql")),
 ];
 
 #[derive(Clone)]
@@ -151,7 +152,36 @@ mod tests {
             .unwrap()
             .collect::<rusqlite::Result<_>>()
             .unwrap();
-        assert_eq!(versions, (1..=11).collect::<Vec<_>>());
+        assert_eq!(versions, (1..=MIGRATIONS.len() as i64).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn blumint_connections_from_before_settings_keep_restarting_disputes() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .unwrap();
+        migrate(&mut connection, &MIGRATIONS[..12]).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO tenants (id, name) VALUES ('bm', 'BluMint'), ('local', 'Local');
+                 INSERT INTO provider_connections (id, tenant_id, kind, environment, display_name, enabled)
+                   VALUES ('bm-partner', 'bm', 'blumint', 'staging', 'BluMint', 1),
+                          ('site', 'local', 'direct', 'staging', 'Site', 1);",
+            )
+            .unwrap();
+        migrate(&mut connection, MIGRATIONS).unwrap();
+        let disputes = |id: &str| -> String {
+            connection
+                .query_row(
+                    "SELECT disputes FROM provider_connections WHERE id = ?1",
+                    [id],
+                    |row| row.get(0),
+                )
+                .unwrap()
+        };
+        assert_eq!(disputes("bm-partner"), "restart");
+        assert_eq!(disputes("site"), "review");
     }
 
     #[test]

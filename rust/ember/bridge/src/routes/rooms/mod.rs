@@ -3,18 +3,24 @@
 //! join. The supervisor is the source of truth for which rooms are alive; the
 //! bridge keeps its last report (`poll`) and serves the listing from it.
 //!
+//! A player creates a room for themselves from Ember. A connection whose
+//! configuration has `rooms` creates one for a player linked on it, and sees
+//! and closes the rooms it created, with events on its stream
+//! (docs/design/INTEGRATION_PATHS.md). Each route resolves its `Caller` once.
+//!
 //! On when the configuration has `rooms` and the integration secrets hold the
 //! supervisor's secret; otherwise the routes answer `not_found` and the
 //! `rooms` capability is not offered.
+mod create;
+mod poll;
 mod supervisor;
+mod ticket;
 
 use std::{
-    collections::BTreeSet,
     convert::Infallible,
     fmt::Write as _,
     net::IpAddr,
-    sync::atomic::{AtomicBool, Ordering},
-    time::Duration,
+    sync::atomic::AtomicBool,
 };
 
 use axum::{
@@ -23,41 +29,44 @@ use axum::{
     response::Response,
 };
 use ember_protocol::{
-    EmberId, Error as ProtocolError,
+    EmberId,
     api::ErrorCode,
-    play::{self, MAX_INVITATION},
+    event::Kind,
     rooms::{
-        BANNED, CreateRoom, INVALID_NAME, ROOM_FULL, ROOM_LIMIT, ROOM_NOT_FOUND, ROOM_NOT_OPEN,
-        RoomAdmission, RoomList, RoomSummary, RoomTicket, TICKET_SECS, TicketRequest,
-        UNSUPPORTED_BUILD,
+        BANNED, CloseRoom, CLOSED_BY_CONNECTION, ConnectionCreateRoom, ConnectionRoom,
+        ConnectionRoomList, CreateRoom, INVALID_NAME, NOT_LINKED, ROOM_FULL, ROOM_LIMIT, RoomList,
+        RoomState, RoomSummary, UNSUPPORTED_BUILD, join_url,
     },
 };
 use rusqlite::{OptionalExtension, Row, Transaction, params};
+use serde_json::Value;
 
-use self::supervisor::{Create, Failure, Reported, Supervisor};
+pub use self::{
+    poll::{poll, poll_forever},
+    ticket::ticket,
+};
+use self::{
+    create::{Owner, open},
+    supervisor::Supervisor,
+};
 use crate::{
-    AppState, Keys,
+    AppState,
+    auth::{self, Actor, Player},
+    config::Config,
     error::{ApiFailure, Result},
+    events::{NewEvent, emit},
     http::{Body, GENERAL_BODY, json, ok},
-    routes::play::playing,
-    util::random,
+    routes::play::require_play,
 };
 
 /// The capability this feature is advertised as.
 pub const FEATURE: &str = "rooms";
-/// How often the supervisor is asked which rooms are alive.
-const POLL_SECS: u64 = 5;
-/// Open rooms one address may create.
-const ROOMS_PER_ADDRESS: i64 = 2;
-/// Ticket requests one address may make per window.
-const TICKETS_PER_WINDOW: usize = 30;
-const TICKET_WINDOW_SECS: u64 = 10 * 60;
+/// Connections whose configuration allows it may open rooms for players.
+pub const CONNECTION_FEATURE: &str = "rooms.connections";
 /// Rooms in one listing.
 const LIST_LIMIT: i64 = 100;
 /// A creation the supervisor never answered is given up on after this.
 const PENDING_SECS: u64 = 60;
-/// Closed rooms and their bans are removed after this.
-const RETENTION_SECS: u64 = 24 * 60 * 60;
 const MAX_BUILD: usize = 128;
 
 /// Per-process state of the room routes.
@@ -115,11 +124,44 @@ impl FromRequestParts<AppState> for Address {
             None => b"local".to_vec(),
         };
         let digest = state.keys.keyed_hash("room-address", &bytes);
-        let mut key = String::with_capacity(32);
-        for byte in &digest[..16] {
-            let _ = write!(key, "{byte:02x}");
+        Ok(Self(hex(&digest[..16])))
+    }
+}
+
+/// Who is calling a room route: a player from Ember, or a connection allowed
+/// to open rooms for its players.
+enum Caller {
+    Player(Player),
+    Connection { connection_id: String, max_open: u8 },
+}
+
+impl Caller {
+    async fn of(state: &AppState, headers: &HeaderMap) -> Result<Self> {
+        match auth::any(state, headers).await? {
+            Actor::Player(player) => Ok(Self::Player(require_play(player)?)),
+            Actor::Service(service) => {
+                let connection_id = service.provider_connection()?.to_owned();
+                let max_open = state
+                    .config
+                    .connection(&connection_id)
+                    .and_then(|(_, connection)| connection.rooms.as_ref())
+                    .map(|rooms| rooms.max_open)
+                    .ok_or_else(ApiFailure::forbidden)?;
+                Ok(Self::Connection {
+                    connection_id,
+                    max_open,
+                })
+            }
+            Actor::Browser(_) => Err(ApiFailure::forbidden()),
         }
-        Ok(Self(key))
+    }
+
+    /// The connection, for the routes only a connection may use.
+    fn connection(self) -> Result<String> {
+        match self {
+            Self::Connection { connection_id, .. } => Ok(connection_id),
+            Self::Player(_) => Err(ApiFailure::forbidden()),
+        }
     }
 }
 
@@ -140,6 +182,10 @@ fn refuse(reason: &'static str) -> ApiFailure {
         ),
         ROOM_FULL => (ErrorCode::StaleRevision, "The room is full."),
         BANNED => (ErrorCode::Forbidden, "You were removed from this room."),
+        NOT_LINKED => (
+            ErrorCode::Forbidden,
+            "That player is not linked on this connection.",
+        ),
         _ => (ErrorCode::NotFound, "That room is not open."),
     };
     ApiFailure::new(code, message).detail("reason", reason)
@@ -156,9 +202,14 @@ struct Room {
     created_at: u64,
     region: Option<String>,
     invitation_sealed: Option<Vec<u8>>,
+    creator_ember_id: String,
+    opened_at: Option<u64>,
+    closed_at: Option<u64>,
+    connection_id: Option<String>,
 }
 
-const COLUMNS: &str = "room_id, name, build_id, capacity, members, tables_playing, created_at, region, invitation_sealed";
+const COLUMNS: &str = "room_id, name, build_id, capacity, members, tables_playing, created_at, region, invitation_sealed,
+    creator_ember_id, opened_at, closed_at, connection_id";
 
 fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
     Ok(Room {
@@ -171,7 +222,21 @@ fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
         created_at: row.get(6)?,
         region: row.get(7)?,
         invitation_sealed: row.get(8)?,
+        creator_ember_id: row.get(9)?,
+        opened_at: row.get(10)?,
+        closed_at: row.get(11)?,
+        connection_id: row.get(12)?,
     })
+}
+
+fn load(tx: &Transaction<'_>, room_id: &str) -> Result<Option<Room>> {
+    Ok(tx
+        .query_row(
+            &format!("SELECT {COLUMNS} FROM rooms WHERE room_id = ?1"),
+            [room_id],
+            room_of,
+        )
+        .optional()?)
 }
 
 impl Room {
@@ -190,6 +255,63 @@ impl Room {
         summary.check().map_err(|_| ApiFailure::unavailable())?;
         Ok(summary)
     }
+
+    /// The form the connection that created it sees.
+    fn view(&self, config: &Config) -> Result<ConnectionRoom> {
+        let state = match (self.closed_at, self.opened_at) {
+            (Some(_), _) => RoomState::Closed,
+            (None, Some(_)) => RoomState::Open,
+            (None, None) => RoomState::Waiting,
+        };
+        Ok(ConnectionRoom {
+            room: self.summary()?,
+            state,
+            creator_ember_id: EmberId::parse(&self.creator_ember_id)
+                .map_err(|_| ApiFailure::unavailable())?,
+            join_url: join_url(&config.bridge_id, &self.room_id),
+        })
+    }
+}
+
+/// Records a room event for the connection that created `room`; a room a
+/// player created from Ember has none.
+fn announce(
+    tx: &Transaction<'_>,
+    config: &Config,
+    now: u64,
+    kind: Kind,
+    room: &Room,
+    reason: Option<&str>,
+) -> Result<()> {
+    let Some(connection_id) = &room.connection_id else {
+        return Ok(());
+    };
+    let tenant_id: String = tx.query_row(
+        "SELECT tenant_id FROM provider_connections WHERE id = ?1",
+        [connection_id],
+        |row| row.get(0),
+    )?;
+    let mut data = serde_json::to_value(room.view(config)?).map_err(|_| ApiFailure::unavailable())?;
+    if let (Some(reason), Value::Object(fields)) = (reason, &mut data) {
+        fields.insert("reason".into(), reason.into());
+    }
+    emit(
+        tx,
+        config,
+        now,
+        NewEvent {
+            kind,
+            tenant_id: &tenant_id,
+            connection_id: Some(connection_id),
+            subject: format!("rooms/{}", room.room_id),
+            match_id: None,
+            ember_id: None,
+            lobby_id: None,
+            tournament_id: None,
+            data,
+        },
+    )?;
+    Ok(())
 }
 
 /// A build filter or request build: what the protocol accepts as a build ID.
@@ -203,15 +325,16 @@ pub struct ListQuery {
     build_id: Option<String>,
 }
 
-/// `GET /v1/rooms?build_id=`: open rooms with at least one member, the ones
-/// with the most free seats first.
+/// `GET /v1/rooms?build_id=`: for a player, open rooms with at least one
+/// member, the ones with the most free seats first; for a connection, the
+/// rooms it created that are not closed, newest first.
 pub async fn list(
     State(state): State<AppState>,
     headers: HeaderMap,
     Query(query): Query<ListQuery>,
 ) -> Result<Response> {
     supervisor(&state)?;
-    playing(&state, &headers).await?;
+    let caller = Caller::of(&state, &headers).await?;
     if query
         .build_id
         .as_deref()
@@ -219,29 +342,50 @@ pub async fn list(
     {
         return Err(ApiFailure::invalid("build_id is not a build ID."));
     }
-    let rooms = state
+    let config = state.config.clone();
+    let body = state
         .db
-        .read(move |tx| {
-            let mut statement = tx.prepare(&format!(
-                "SELECT {COLUMNS} FROM rooms
-                 WHERE closed_at IS NULL AND invitation_sealed IS NOT NULL AND members >= 1
-                   AND (?1 IS NULL OR build_id = ?1)
-                 ORDER BY capacity - members DESC, created_at, room_id LIMIT ?2"
-            ))?;
-            let rows = statement.query_map(params![query.build_id, LIST_LIMIT], room_of)?;
-            let mut rooms = Vec::new();
-            for room in rows {
-                rooms.push(room?.summary()?);
+        .read(move |tx| match caller {
+            Caller::Player(_) => {
+                let mut statement = tx.prepare(&format!(
+                    "SELECT {COLUMNS} FROM rooms
+                     WHERE closed_at IS NULL AND invitation_sealed IS NOT NULL AND members >= 1
+                       AND (?1 IS NULL OR build_id = ?1)
+                     ORDER BY capacity - members DESC, created_at, room_id LIMIT ?2"
+                ))?;
+                let rows = statement.query_map(params![query.build_id, LIST_LIMIT], room_of)?;
+                let mut rooms = Vec::new();
+                for room in rows {
+                    rooms.push(room?.summary()?);
+                }
+                Ok(serde_json::to_value(RoomList { rooms }))
             }
-            Ok(rooms)
+            Caller::Connection { connection_id, .. } => {
+                let mut statement = tx.prepare(&format!(
+                    "SELECT {COLUMNS} FROM rooms
+                     WHERE connection_id = ?1 AND closed_at IS NULL AND invitation_sealed IS NOT NULL
+                       AND (?2 IS NULL OR build_id = ?2)
+                     ORDER BY created_at DESC, room_id LIMIT ?3"
+                ))?;
+                let rows =
+                    statement.query_map(params![connection_id, query.build_id, LIST_LIMIT], room_of)?;
+                let mut rooms = Vec::new();
+                for room in rows {
+                    rooms.push(room?.view(&config)?);
+                }
+                Ok(serde_json::to_value(ConnectionRoomList { rooms }))
+            }
         })
-        .await?;
-    Ok(ok(&RoomList { rooms }))
+        .await?
+        .map_err(|_| ApiFailure::unavailable())?;
+    Ok(ok(&body))
 }
 
-/// `POST /v1/rooms`: opens a room on the supervisor and answers its listing
-/// form. The creator then asks for a ticket like any joiner (the contract's
-/// `CreateRoom` has no endpoint to sign a ticket for).
+/// `POST /v1/rooms`: opens a room on the supervisor. A player's room is
+/// their own, answered in its listing form; the creator then asks for a
+/// ticket like any joiner (the contract's `CreateRoom` has no endpoint to
+/// sign a ticket for). A connection's is for the linked player it names,
+/// answered as the connection sees it.
 pub async fn create(
     State(state): State<AppState>,
     Address(address): Address,
@@ -249,373 +393,112 @@ pub async fn create(
     body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
     let supervisor = supervisor(&state)?;
-    let player = playing(&state, &headers).await?;
-    let command: CreateRoom = body.parse()?;
-    command.check().map_err(|error| match error {
-        ProtocolError::InvalidField("name") => refuse(INVALID_NAME),
-        other => other.into(),
-    })?;
-    let room_id = hex(&random::<16>());
-    let now = state.now();
-    let creator = player.ember_id.to_string();
-    // Reserved before the supervisor is asked, so two requests cannot both
-    // pass the limits while the room host starts.
-    {
-        let (room_id, creator, command) = (room_id.clone(), creator.clone(), command.clone());
-        state
-            .db
-            .write(move |tx| reserve(tx, &room_id, &creator, &address, &command, now))
+    match Caller::of(&state, &headers).await? {
+        Caller::Player(player) => {
+            let command: CreateRoom = body.parse()?;
+            let room = open(
+                &state,
+                &supervisor,
+                command,
+                player.ember_id,
+                Owner::Address(address),
+            )
             .await?;
-    }
-    let created = supervisor
-        .create(&Create {
-            room_id: &room_id,
-            name: &command.name,
-            capacity: command.capacity,
-            build_id: &command.build_id,
-            creator: &creator,
-            bridge_id: &state.config.bridge_id,
-            ticket_key: &state.keys.signing_key().to_b64u(),
-            ticket_kid: &state.keys.signing_kid(),
-        })
-        .await;
-    let created = match created {
-        Ok(created) => created,
-        Err(Failure::Refused(reason)) => {
-            forget(&state, &room_id).await;
-            return Err(refuse(reason));
+            Ok(json(StatusCode::CREATED, &room.summary()?))
         }
-        Err(Failure::Unavailable) => {
-            // It may have started the room before the answer was lost.
-            supervisor.delete(&room_id).await;
-            forget(&state, &room_id).await;
-            return Err(ApiFailure::unavailable());
+        Caller::Connection {
+            connection_id,
+            max_open,
+        } => {
+            let command: ConnectionCreateRoom = body.parse()?;
+            command.check().map_err(create::refusal)?;
+            let creator = command.creator.ember_id.clone();
+            let owner = Owner::Connection {
+                connection_id,
+                participant_id: command.creator.participant_id.clone(),
+                max_open,
+            };
+            let room = open(&state, &supervisor, command.room(), creator, owner).await?;
+            Ok(json(StatusCode::CREATED, &room.view(&state.config)?))
         }
-    };
-    let summary = RoomSummary {
-        room_id: room_id.clone(),
-        name: command.name,
-        build_id: command.build_id,
-        members: 0,
-        capacity: command.capacity,
-        tables_playing: 0,
-        region: created.region,
-        created_at: now,
-    };
-    let invitation_valid = !created.invitation.is_empty()
-        && created.invitation.len() <= MAX_INVITATION
-        && created.invitation.is_ascii();
-    let stored = if summary.check().is_ok() && invitation_valid {
-        let sealed = state.keys.seal(created.invitation.as_bytes());
-        let (room_id, region) = (room_id.clone(), summary.region.clone());
-        state
-            .db
-            .write(move |tx| {
-                Ok(tx.execute(
-                    "UPDATE rooms SET invitation_sealed = ?1, region = ?2
-                     WHERE room_id = ?3 AND closed_at IS NULL",
-                    params![sealed, region, room_id],
-                )? == 1)
-            })
-            .await
-            .unwrap_or(false)
-    } else {
-        false
-    };
-    if !stored {
-        supervisor.delete(&room_id).await;
-        forget(&state, &room_id).await;
-        return Err(ApiFailure::unavailable());
     }
-    Ok(json(StatusCode::CREATED, &summary))
 }
 
-/// Checks the creator's and the address's limits and records the room as
-/// pending, in one write.
-fn reserve(
-    tx: &Transaction<'_>,
-    room_id: &str,
-    creator: &str,
-    address: &str,
-    command: &CreateRoom,
-    now: u64,
-) -> Result<()> {
-    tx.execute(
-        "UPDATE rooms SET closed_at = ?1, creator_address = NULL
-         WHERE closed_at IS NULL AND invitation_sealed IS NULL AND created_at + ?2 <= ?1",
-        params![now, PENDING_SECS],
-    )?;
-    let open = |column: &str, value: &str| -> Result<i64> {
-        Ok(tx.query_row(
-            &format!("SELECT COUNT(*) FROM rooms WHERE {column} = ?1 AND closed_at IS NULL"),
-            [value],
-            |row| row.get(0),
-        )?)
-    };
-    if open("creator_ember_id", creator)? >= 1
-        || open("creator_address", address)? >= ROOMS_PER_ADDRESS
-    {
-        return Err(refuse(ROOM_LIMIT));
-    }
-    tx.execute(
-        "INSERT INTO rooms (room_id, name, capacity, build_id, creator_ember_id, creator_address, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        params![
-            room_id,
-            command.name,
-            command.capacity,
-            command.build_id,
-            creator,
-            address,
-            now
-        ],
-    )?;
-    Ok(())
-}
-
-/// Drops a room that never became hosted.
-async fn forget(state: &AppState, room_id: &str) {
-    let room_id = room_id.to_owned();
-    let _ = state
-        .db
-        .write(move |tx| {
-            tx.execute(
-                "DELETE FROM rooms WHERE room_id = ?1 AND invitation_sealed IS NULL",
-                [room_id],
-            )?;
-            Ok(())
-        })
-        .await;
-}
-
-/// `POST /v1/rooms/{room_id}/tickets`: a signed ticket for the caller's
-/// helper endpoint, and the room's current invitation. A room that has never
-/// had a member admits only its creator.
-pub async fn ticket(
+/// `GET /v1/rooms/{room_id}`: one of the calling connection's rooms, closed
+/// ones included while the bridge keeps them.
+pub async fn get(
     State(state): State<AppState>,
-    Address(address): Address,
+    headers: HeaderMap,
+    Path(room_id): Path<String>,
+) -> Result<Response> {
+    supervisor(&state)?;
+    let connection_id = Caller::of(&state, &headers).await?.connection()?;
+    let config = state.config.clone();
+    let view = state
+        .db
+        .read(move |tx| owned(tx, &room_id, &connection_id)?.view(&config))
+        .await?;
+    Ok(ok(&view))
+}
+
+/// A hosted room the connection created, or `room_not_found`.
+fn owned(tx: &Transaction<'_>, room_id: &str, connection_id: &str) -> Result<Room> {
+    load(tx, room_id)?
+        .filter(|room| {
+            room.connection_id.as_deref() == Some(connection_id) && room.region.is_some()
+        })
+        .ok_or_else(|| refuse(ember_protocol::rooms::ROOM_NOT_FOUND))
+}
+
+/// `POST /v1/rooms/{room_id}/close`: the supervisor closes the room, then it
+/// is recorded closed. Closing a closed room answers it again.
+pub async fn close(
+    State(state): State<AppState>,
     headers: HeaderMap,
     Path(room_id): Path<String>,
     body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
-    supervisor(&state)?;
-    let player = playing(&state, &headers).await?;
-    let request: TicketRequest = body.parse()?;
-    request.check()?;
-    let now = state.now();
-    state
-        .rate
-        .check(
-            &format!("rooms-ticket:{address}"),
-            TICKETS_PER_WINDOW,
-            TICKET_WINDOW_SECS,
-            now,
-        )
-        .map_err(ApiFailure::rate_limited)?;
-    let ember_id = player.ember_id.clone();
-    let looked_up = room_id.clone();
-    let TicketRequest {
-        endpoint_id,
-        build_id,
-    } = request;
-    let (room, sealed) = state
+    let supervisor = supervisor(&state)?;
+    let connection_id = Caller::of(&state, &headers).await?.connection()?;
+    let command: CloseRoom = body.parse()?;
+    command.check()?;
+    let (looked_up, owner) = (room_id.clone(), connection_id.clone());
+    let room = state
         .db
-        .read(move |tx| {
-            let room = tx
-                .query_row(
-                    &format!(
-                        "SELECT {COLUMNS} FROM rooms
-                         WHERE room_id = ?1 AND closed_at IS NULL AND invitation_sealed IS NOT NULL"
-                    ),
-                    [&looked_up],
-                    room_of,
-                )
-                .optional()?
-                .ok_or_else(|| refuse(ROOM_NOT_FOUND))?;
-            // Until the supervisor has reported a member the room is not
-            // public, and only its creator may go in first. Once it has had
-            // one, that does not come back when the room empties.
-            let (creator, opened): (String, Option<u64>) = tx.query_row(
-                "SELECT creator_ember_id, opened_at FROM rooms WHERE room_id = ?1",
-                [&looked_up],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )?;
-            if opened.is_none() && creator != ember_id.as_str() {
-                return Err(refuse(ROOM_NOT_OPEN));
+        .read(move |tx| owned(tx, &looked_up, &owner))
+        .await?;
+    // No poll judges the room between its host going and its record closing,
+    // so the close is this connection's, with its reason.
+    let _one_at_a_time = state.rooms.poll.lock().await;
+    if room.closed_at.is_none() {
+        // The room is recorded closed only once the supervisor has told its
+        // host to close, so a room recorded closed is on its way out.
+        supervisor
+            .delete(&room_id)
+            .await
+            .map_err(|_| ApiFailure::unavailable())?;
+    }
+    let config = state.config.clone();
+    let now = state.now();
+    let view = state
+        .db
+        .write(move |tx| {
+            let mut room = owned(tx, &room_id, &connection_id)?;
+            if room.closed_at.is_none() {
+                tx.execute(
+                    "UPDATE rooms SET closed_at = ?2, members = 0, tables_playing = 0, closed_reason = ?3,
+                         creator_address = NULL
+                     WHERE room_id = ?1",
+                    params![room_id, now, CLOSED_BY_CONNECTION],
+                )?;
+                (room.closed_at, room.members, room.tables_playing) = (Some(now), 0, 0);
+                announce(tx, &config, now, Kind::RoomClosed, &room, Some(CLOSED_BY_CONNECTION))?;
             }
-            if room.build_id != build_id {
-                return Err(refuse(UNSUPPORTED_BUILD));
-            }
-            let banned: bool = tx.query_row(
-                "SELECT EXISTS (SELECT 1 FROM room_bans WHERE room_id = ?1 AND ember_id = ?2)",
-                params![looked_up, ember_id.as_str()],
-                |row| row.get(0),
-            )?;
-            if banned {
-                return Err(refuse(BANNED));
-            }
-            if room.members >= room.capacity {
-                return Err(refuse(ROOM_FULL));
-            }
-            let sealed = room.invitation_sealed.clone().unwrap_or_default();
-            Ok((room, sealed))
+            room.view(&config)
         })
         .await?;
-    let invitation = state
-        .keys
-        .open(&sealed)
-        .and_then(|plain| String::from_utf8(plain.to_vec()).ok())
-        .ok_or_else(ApiFailure::unavailable)?;
-    let signed = state
-        .keys
-        .sign_ticket(&RoomTicket {
-            version: play::VERSION,
-            bridge_id: state.config.bridge_id.clone(),
-            room_id,
-            ember_id: player.ember_id,
-            endpoint_id,
-            issued_at: now,
-            expires_at: now + TICKET_SECS,
-        })
-        .map_err(|_| ApiFailure::unavailable())?;
-    let admission = RoomAdmission {
-        room: room.summary()?,
-        invitation,
-        ticket: signed,
-    };
-    admission.check().map_err(|_| ApiFailure::unavailable())?;
-    Ok(json(StatusCode::CREATED, &admission))
-}
-
-/// Runs `poll` every few seconds, first at once so rooms left open in the
-/// database are reconciled as soon as the bridge starts.
-pub async fn poll_forever(state: AppState) {
-    loop {
-        poll(&state).await;
-        tokio::time::sleep(Duration::from_secs(POLL_SECS)).await;
-    }
-}
-
-/// Asks the supervisor which rooms are alive and brings the database in line:
-/// member counts, invitations and kicks come in, and an open room it no
-/// longer reports is closed. A failed poll changes nothing.
-pub async fn poll(state: &AppState) {
-    let Some(supervisor) = Supervisor::of(state) else {
-        return;
-    };
-    let _one_at_a_time = state.rooms.poll.lock().await;
-    // Only a room that was already published (its creation finished) before
-    // the supervisor is asked can be judged by its answer: one published
-    // since may not be in it. Rooms still being created are left to their
-    // creators' requests.
-    let published = published_rooms(state).await;
-    let reported = match supervisor.list().await {
-        Ok(reported) => reported,
-        Err(_) => {
-            if !state.rooms.down.swap(true, Ordering::Relaxed) {
-                eprintln!("ember-bridge: the room supervisor did not answer");
-            }
-            return;
-        }
-    };
-    if state.rooms.down.swap(false, Ordering::Relaxed) {
-        eprintln!("ember-bridge: the room supervisor answers again");
-    }
-    let now = state.now();
-    let keys = state.keys.clone();
-    let _ = state
-        .db
-        .write(move |tx| apply(tx, &keys, &reported, &published, now))
-        .await;
-}
-
-/// The ids of the open rooms whose creation has finished.
-async fn published_rooms(state: &AppState) -> BTreeSet<String> {
-    state
-        .db
-        .read(|tx| {
-            let mut statement = tx.prepare(
-                "SELECT room_id FROM rooms WHERE closed_at IS NULL AND invitation_sealed IS NOT NULL",
-            )?;
-            let ids = statement
-                .query_map([], |row| row.get(0))?
-                .collect::<rusqlite::Result<BTreeSet<String>>>()?;
-            Ok(ids)
-        })
-        .await
-        // Nothing is judged without it: an empty set closes no room.
-        .unwrap_or_default()
-}
-
-/// Applies one report. `published` is what `published_rooms` returned before
-/// the report was requested; only those rooms are closed when it omits them.
-fn apply(
-    tx: &Transaction<'_>,
-    keys: &Keys,
-    reported: &[Reported],
-    published: &BTreeSet<String>,
-    now: u64,
-) -> Result<()> {
-    let mut alive = BTreeSet::new();
-    for room in reported {
-        alive.insert(room.room_id.as_str());
-        // A room still being created (no invitation stored yet) is left to
-        // its creator's request to finish.
-        let sealed = (room.invitation.len() <= MAX_INVITATION
-            && room.invitation.is_ascii()
-            && !room.invitation.is_empty())
-        .then(|| keys.seal(room.invitation.as_bytes()));
-        tx.execute(
-            "UPDATE rooms SET members = MIN(?2, capacity), tables_playing = ?3,
-                 invitation_sealed = COALESCE(?4, invitation_sealed),
-                 opened_at = COALESCE(opened_at, CASE WHEN ?6 THEN ?5 END)
-             WHERE room_id = ?1 AND closed_at IS NULL AND invitation_sealed IS NOT NULL",
-            params![
-                room.room_id,
-                room.members.min(u32::from(u8::MAX)),
-                room.tables_playing.min(u32::from(u8::MAX)),
-                sealed,
-                now,
-                // The supervisor's latch, not the count this poll saw: a member who
-                // came and went between polls has already ended creator-only entry.
-                room.opened.unwrap_or(room.members >= 1),
-            ],
-        )?;
-        // Bans last for the room's life and are never evicted: the supervisor
-        // reports at most `MAX_ROOM_BANS` per room, and the table keeps all.
-        for banned in &room.banned {
-            if EmberId::parse(banned).is_ok() {
-                tx.execute(
-                    "INSERT OR IGNORE INTO room_bans (room_id, ember_id, created_at)
-                     SELECT room_id, ?2, ?3 FROM rooms WHERE room_id = ?1",
-                    params![room.room_id, banned, now],
-                )?;
-            }
-        }
-    }
-    // A room that was published before the supervisor was asked and is not
-    // in its answer has ended. A room published since is not judged by this
-    // report, whatever its reservation time.
-    for room_id in published.iter().filter(|id| !alive.contains(id.as_str())) {
-        tx.execute(
-            "UPDATE rooms SET closed_at = ?2, members = 0, creator_address = NULL
-             WHERE room_id = ?1 AND closed_at IS NULL",
-            params![room_id, now],
-        )?;
-    }
-    // Creations that never finished.
-    tx.execute(
-        "UPDATE rooms SET closed_at = ?1, creator_address = NULL
-         WHERE closed_at IS NULL AND invitation_sealed IS NULL AND created_at + ?2 <= ?1",
-        params![now, PENDING_SECS],
-    )?;
-    let cutoff = now.saturating_sub(RETENTION_SECS);
-    tx.execute(
-        "DELETE FROM room_bans WHERE room_id IN (SELECT room_id FROM rooms WHERE closed_at <= ?1)",
-        [cutoff],
-    )?;
-    tx.execute("DELETE FROM rooms WHERE closed_at <= ?1", [cutoff])?;
-    Ok(())
+    state.committed();
+    Ok(ok(&view))
 }
 
 fn hex(bytes: &[u8]) -> String {

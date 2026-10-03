@@ -167,13 +167,19 @@ impl<'a> Supervisor<'a> {
 
     /// Best effort: a room that outlives this call closes on its own when
     /// nobody arrives.
-    pub async fn delete(&self, room_id: &str) {
-        if let Ok(client) = Self::client() {
-            let _ = client
-                .delete(format!("{}/rooms/{room_id}", self.base))
-                .bearer_auth(self.secret)
-                .send()
-                .await;
+    /// Closes a room; a room the supervisor no longer has counts as closed.
+    pub async fn delete(&self, room_id: &str) -> Result<(), Failure> {
+        let response = Self::client()?
+            .delete(format!("{}/rooms/{room_id}", self.base))
+            .bearer_auth(self.secret)
+            .send()
+            .await
+            .map_err(|_| Failure::Unavailable)?;
+        let status = response.status();
+        if status.is_success() || status == reqwest::StatusCode::NOT_FOUND {
+            Ok(())
+        } else {
+            Err(Failure::Unavailable)
         }
     }
 }

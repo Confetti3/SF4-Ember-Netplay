@@ -95,33 +95,137 @@ pub struct Connection {
     /// kind's default for its environment is not the one (tests).
     #[serde(default)]
     pub api_base: Option<String>,
+    /// The connection may find players by Discord user ID
+    /// (`POST /v1/players/lookup`). Kind `blumint` always may.
+    #[serde(default)]
+    pub discord_lookup: bool,
+    /// What a disputed match does. Stored with the connection's record the
+    /// first time it is seen and never changed. Kind `blumint` restarts.
+    #[serde(default)]
+    pub disputes: Option<Disputes>,
+    /// Where each finished match's result is sent, signed with the
+    /// connection's result secret (`integrations::Secrets::result_secrets`).
+    #[serde(default)]
+    pub results_url: Option<String>,
+    /// The connection may open public rooms for its linked players.
+    #[serde(default)]
+    pub rooms: Option<ConnectionRooms>,
 }
 
 fn enabled() -> bool {
     true
 }
 
-/// What a connection's platform expects of its matches, by the connection's
-/// kind.
+/// What a match that would wait in `needs_review` does instead, or not.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Disputes {
+    /// It waits for an organizer.
+    Review,
+    /// It is cancelled, and the platform replays it.
+    Restart,
+}
+
+impl Disputes {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Review => "review",
+            Self::Restart => "restart",
+        }
+    }
+
+    pub fn parse(text: &str) -> Option<Self> {
+        match text {
+            "review" => Some(Self::Review),
+            "restart" => Some(Self::Restart),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConnectionRooms {
+    /// Rooms open at once, 1 to `MAX_OPEN_ROOMS`.
+    pub max_open: u8,
+}
+
+pub const MAX_OPEN_ROOMS: u8 = 64;
+
+impl Connection {
+    pub fn is_blumint(&self) -> bool {
+        self.kind == BLUMINT
+    }
+
+    /// Whether the connection may find players by Discord user ID.
+    pub fn discord_lookup(&self) -> bool {
+        self.is_blumint() || self.discord_lookup
+    }
+
+    /// What its disputed matches do; recorded with the connection.
+    pub fn disputes(&self) -> Disputes {
+        match (self.is_blumint(), self.disputes) {
+            (true, _) => Disputes::Restart,
+            (false, disputes) => disputes.unwrap_or(Disputes::Review),
+        }
+    }
+
+    /// Whether finished results are sent to the platform: BluMint's API, or
+    /// the connection's `results_url`.
+    pub fn sends_results(&self) -> bool {
+        self.is_blumint() || self.results_url.is_some()
+    }
+
+    /// The settings a platform may ask for (`docs/design/INTEGRATION_PATHS.md`).
+    /// BluMint's are fixed by its kind.
+    fn validate_settings(&self, config: &Config) -> Result<(), String> {
+        let chosen = self.discord_lookup || self.disputes.is_some() || self.results_url.is_some();
+        if self.is_blumint() && chosen {
+            return Err(format!(
+                "{}: a blumint connection's lookup, disputes and results are fixed by its kind",
+                self.id
+            ));
+        }
+        if let Some(url) = &self.results_url
+            && crate::delivery::webhooks::check_url(url, config.allow_private_webhooks).is_err()
+        {
+            return Err(format!(
+                "{}: results_url must be an https URL a webhook could use",
+                self.id
+            ));
+        }
+        if let Some(rooms) = &self.rooms
+            && !(1..=MAX_OPEN_ROOMS).contains(&rooms.max_open)
+        {
+            return Err(format!(
+                "{}: rooms.max_open must be 1 to {MAX_OPEN_ROOMS}",
+                self.id
+            ));
+        }
+        Ok(())
+    }
+}
+
+/// What a connection's platform expects of its matches, from the
+/// connection's stored record (`routes::policy::of`), so a match keeps its
+/// policy after the connection leaves the configuration.
 #[derive(Clone, Copy, Debug)]
 pub struct Policy {
-    /// The bridge sends each finished match's result to the platform
-    /// (BluMint). Other platforms read results from the API and events.
-    /// Such a platform makes its matches through its own API only, so every
-    /// match on its connection is one it knows.
-    pub sends_results: bool,
+    /// The platform makes its matches through its own API only (BluMint), so
+    /// every match on its connection is one it knows; the generic match,
+    /// lobby and tournament routes refuse it.
+    pub own_api_only: bool,
     /// A disputed match waits in `needs_review` for an organizer, unless the
-    /// platform has no review (BluMint): it is cancelled instead, which the
+    /// connection restarts disputes: it is cancelled instead, which the
     /// platform hears as a restart.
     pub reviews_disputes: bool,
 }
 
 impl Policy {
-    pub fn of(kind: &str) -> Self {
-        let blumint = kind == BLUMINT;
+    pub fn of(kind: &str, disputes: Disputes) -> Self {
         Self {
-            sends_results: blumint,
-            reviews_disputes: !blumint,
+            own_api_only: kind == BLUMINT,
+            reviews_disputes: disputes == Disputes::Review,
         }
     }
 }
@@ -203,6 +307,7 @@ impl Config {
                 ) {
                     return Err(format!("invalid environment for {}", connection.id));
                 }
+                connection.validate_settings(self)?;
                 // Only a connection the bridge calls out for has an API.
                 match &connection.api_base {
                     Some(_) if connection.kind != BLUMINT => {

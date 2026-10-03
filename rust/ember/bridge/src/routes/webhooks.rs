@@ -24,7 +24,6 @@ use crate::{
     util::{new_id, random},
 };
 
-const MAX_URL: usize = 2048;
 const MAX_SUBSCRIPTIONS: i64 = 20;
 const DEFAULT_OVERLAP_SECS: u64 = 24 * 60 * 60;
 const MAX_OVERLAP_SECS: u64 = 7 * 24 * 60 * 60;
@@ -36,37 +35,16 @@ struct CreateCommand {
     event_types: Vec<String>,
 }
 
-/// Checks a destination at registration. Delivery checks it again against
-/// the addresses DNS returns at connection time.
-pub fn check_url(text: &str, allow_private: bool) -> Result<Url> {
-    let invalid = || {
-        ApiFailure::invalid(
+/// Checks a destination at registration (`delivery::webhooks::check_url`).
+fn check_url(text: &str, allow_private: bool) -> Result<Url> {
+    delivery::webhooks::check_url(text, allow_private).map_err(|refusal| match refusal {
+        delivery::webhooks::UrlRefusal::Malformed => ApiFailure::invalid(
             "The webhook URL must be an https URL with a host name and no credentials.",
-        )
-    };
-    if text.len() > MAX_URL {
-        return Err(invalid());
-    }
-    let url = Url::parse(text).map_err(|_| invalid())?;
-    let scheme_ok = url.scheme() == "https" || (allow_private && url.scheme() == "http");
-    let port_ok = allow_private || url.port().is_none_or(|port| port == 443);
-    if !scheme_ok
-        || !port_ok
-        || url.host_str().is_none()
-        || !url.username().is_empty()
-        || url.password().is_some()
-        || url.fragment().is_some()
-    {
-        return Err(invalid());
-    }
-    if let Some(ip) = delivery::webhooks::literal_ip(&url)
-        && !delivery::webhooks::allowed_address(ip, allow_private)
-    {
-        return Err(ApiFailure::invalid(
-            "That webhook destination is not allowed.",
-        ));
-    }
-    Ok(url)
+        ),
+        delivery::webhooks::UrlRefusal::Address => {
+            ApiFailure::invalid("That webhook destination is not allowed.")
+        }
+    })
 }
 
 fn check_types(service: &Service, types: &[String]) -> Result<Vec<String>> {

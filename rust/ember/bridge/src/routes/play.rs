@@ -90,7 +90,11 @@ fn finished(found: &Match) -> Result<()> {
 
 /// A session that may play: `self:read` alone is not enough.
 pub async fn playing(state: &AppState, headers: &HeaderMap) -> Result<Player> {
-    let player = auth::player(state, headers).await?;
+    require_play(auth::player(state, headers).await?)
+}
+
+/// The player, if their session may play.
+pub fn require_play(player: Player) -> Result<Player> {
     if !player.scopes.iter().any(|scope| scope == SCOPE) {
         return Err(ApiFailure::forbidden());
     }

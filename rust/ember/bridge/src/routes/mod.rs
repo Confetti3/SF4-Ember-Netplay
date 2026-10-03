@@ -5,6 +5,7 @@ pub mod events;
 pub mod ledger;
 pub mod links;
 pub mod lobbies;
+pub mod lookup;
 pub mod matches;
 pub mod play;
 pub mod policy;
@@ -58,6 +59,7 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/links", get(links::list))
         .route("/v1/links/{id}", delete(links::remove))
         .route("/v1/players/resolve", post(links::resolve))
+        .route(ember_protocol::partner::LOOKUP_PATH, post(lookup::lookup))
         .route("/v1/players/{ember_id}/record", get(records::record))
         .route("/v1/matches", post(matches::create))
         .route("/v1/matches/{id}", get(matches::get))
@@ -90,6 +92,8 @@ pub fn router(state: AppState) -> Router {
             get(discord::get).delete(discord::remove),
         )
         .route("/v1/rooms", get(rooms::list).post(rooms::create))
+        .route("/v1/rooms/{room_id}", get(rooms::get))
+        .route("/v1/rooms/{room_id}/close", post(rooms::close))
         .route("/v1/rooms/{room_id}/tickets", post(rooms::ticket))
         .route("/v1/lobbies", post(lobbies::create))
         .route("/v1/lobbies/{id}", get(lobbies::get))
