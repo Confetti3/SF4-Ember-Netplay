@@ -93,6 +93,7 @@ private:
     void ReadFailed();
     // Drops the requests waiting to be sent after the one in flight failed,
     // unless it came from an earlier journey: those are not its to drop.
+    void ProfileRead(const std::string& bridge);
     void DropQueue();
     void Say(std::string text, bool error, double seconds = 6);
     void Wipe();

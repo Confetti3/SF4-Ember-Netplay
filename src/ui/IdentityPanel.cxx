@@ -126,6 +126,13 @@ void IdentityPanel::ReadFailed() {
     }
 }
 
+// A service without Discord accounts: its profile is the whole read, and it
+// worked.
+void IdentityPanel::ProfileRead(const std::string& bridge) {
+    const auto it = discord_.find(bridge);
+    if (it != discord_.end()) it->second.failed = false;
+}
+
 void IdentityPanel::DropQueue() {
     if (sentJourney_ == journey_) queue_.clear();
 }
@@ -292,7 +299,7 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
         sent_ = 0;
     }
     else if (sent_ && now - sentAt_ > AnswerSeconds) {
-        if (!Superseded()) {
+        if (!Superseded() && sentOp_ != IdentityOp::DiscordCancel) {
             if (Owns(lastScreen_) || !Retirable(sentOp_)) Say(loc::T("identity.failure.timeout"), true);
             ReadFailed(); DropQueue();
         }
@@ -323,7 +330,7 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
     const auto ticket = action.identity.ticket;
     sentOp_ = action.identity.op; sentBridge_ = action.identity.bridge; sentOrigin_ = action.identity.origin;
     if (submit(std::move(action))) { sent_ = ticket; sentAt_ = now; }
-    else { Say(loc::T("error.queue_failed"), true); ReadFailed(); DropQueue(); }
+    else if (sentOp_ != IdentityOp::DiscordCancel) { Say(loc::T("error.queue_failed"), true); ReadFailed(); DropQueue(); }
 }
 
 void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen, const Submit& submit) {
@@ -417,10 +424,19 @@ void IdentityPanel::OpenSignIn(const std::string& bridge) {
 }
 
 void IdentityPanel::CancelAttempt() {
+    // A sign-in already asked of the service ends there too, so a Discord
+    // page left open connects nothing.
+    const bool queued = std::any_of(queue_.begin(), queue_.end(), [&](const Queued& q) {
+        return q.journey == journey_ && q.request.op == IdentityOp::DiscordConnect;
+    });
+    const bool asked = attempt_ == Attempt::Waiting || (attempt_ == Attempt::Opening && !queued);
     queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [&](const Queued& q) {
         return q.journey == journey_ && (q.request.op == IdentityOp::Enable || q.request.op == IdentityOp::BridgeApprove ||
             q.request.op == IdentityOp::DiscordConnect);
     }), queue_.end());
+    if (asked && !discordWaitBridge_.empty()) {
+        IdentityRequest r; r.op = IdentityOp::DiscordCancel; r.bridge = discordWaitBridge_; Queue(std::move(r));
+    }
     attempt_ = Attempt::Stopped; discordWaitUntil_ = 0; discordPaused_ = false;
 }
 
@@ -483,7 +499,8 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
         rows.push_back(Row("id-discord-connect", loc::T("connect.change"), loc::T("connect.change_detail"), !busy));
         auto remove = ConfirmRow("id-discord-remove", loc::T("identity.unlink"), loc::T("identity.discord_remove_detail"), !busy);
         remove.hint = loc::T("identity.unlink"); rows.push_back(std::move(remove));
-    } else if (id.inspected.id == target->id && !id.inspectedDiscord) {
+    } else if (id.inspected.id == target->id && !id.inspectedDiscord && !(account != discord_.end() && account->second.failed)) {
+        // Off as the latest read said; a failed read offers Try again below.
         rows.push_back(Info("dc-off", loc::T("connect.off"), {}, loc::T("connect.off_detail")));
     } else {
         rows.push_back(Row("id-discord-connect", loc::T("screen.connect_discord"), loc::T("connect.go_detail"),
@@ -495,6 +512,9 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
 
 void IdentityPanel::Finish(const ShellView& v) {
     const auto& id = v.identity;
+    // Ending a sign-in on the service is tidying up after Cancel, which the
+    // player already saw: a service that cannot does not hold anything back.
+    if (sentOp_ == IdentityOp::DiscordCancel) return;
     if (!v.identityRequest) {
         if (Owns(lastScreen_) || !Retirable(sentOp_))
             Say(v.identityRefusal.empty() ? std::string(loc::T("identity.refused.helper")) : std::string(loc::T(v.identityRefusal.c_str())), true);
@@ -585,7 +605,7 @@ void IdentityPanel::Finish(const ShellView& v) {
         if (!sentAccount_.empty()) {
             if (id.inspected.id == sentAccount_ && (id.inspectedDiscord || id.inspectedDiscordAccounts)) {
                 IdentityRequest discord; discord.op = IdentityOp::DiscordStatus; discord.bridge = sentAccount_; Queue(std::move(discord));
-            }
+            } else if (id.inspected.id == sentAccount_) ProfileRead(sentAccount_);
             break;
         }
         // The selected service's profile, or a look-up of it once trusted.
@@ -594,6 +614,7 @@ void IdentityPanel::Finish(const ShellView& v) {
                 [&](const netplay::IdentityConnection& c) { return c.id == connection_; });
             if (!known) connection_ = id.connections.empty() ? std::string() : id.connections.front().id;
             if (id.inspectedDiscord || id.inspectedDiscordAccounts) { IdentityRequest discord; discord.op = IdentityOp::DiscordStatus; discord.bridge = bridge_; Queue(std::move(discord)); }
+            else ProfileRead(bridge_);
         }
         break;
     case IdentityOp::DiscordStatus:

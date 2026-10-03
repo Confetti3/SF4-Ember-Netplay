@@ -12,7 +12,7 @@ enum class IdentityOp : std::uint8_t {
     None, Status, Enable, Unlock, Export, PreviewImport, Import, Reset,
     BridgeList, BridgeInspect, BridgeApprove, BridgeForget,
     LinkList, LinkClaim, LinkCancel, LinkRemove,
-    DiscordStatus, DiscordConnect, DiscordRemove,
+    DiscordStatus, DiscordConnect, DiscordRemove, DiscordCancel,
 };
 struct IdentityRequest {
     IdentityOp op = IdentityOp::None;

@@ -23,6 +23,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (8, include_str!("../migrations/008_discord.sql")),
     (9, include_str!("../migrations/009_blumint.sql")),
     (10, include_str!("../migrations/010_discord_consent.sql")),
+    (11, include_str!("../migrations/011_discord_moves.sql")),
 ];
 
 #[derive(Clone)]
@@ -139,6 +140,9 @@ mod tests {
         connection
             .prepare("SELECT delivery_attempts, delivery_next_at, delivery_first_at FROM matches")
             .unwrap();
+        connection
+            .prepare("SELECT claimed, pending_user_id, pending_username FROM discord_sign_ins")
+            .unwrap();
         let versions: Vec<i64> = connection
             .prepare("SELECT version FROM schema_migrations ORDER BY version")
             .unwrap()
@@ -146,7 +150,7 @@ mod tests {
             .unwrap()
             .collect::<rusqlite::Result<_>>()
             .unwrap();
-        assert_eq!(versions, (1..=10).collect::<Vec<_>>());
+        assert_eq!(versions, (1..=11).collect::<Vec<_>>());
     }
 
     #[test]

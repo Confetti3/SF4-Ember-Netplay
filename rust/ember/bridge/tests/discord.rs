@@ -1,7 +1,8 @@
 //! Discord sign-in against a stand-in Discord: starting needs a proof, the
-//! callback takes each sign-in once and in time, the latest sign-in wins, a
-//! disconnect ends sign-ins in flight, a platform's links follow the account,
-//! and a bridge without Discord offers none of it.
+//! callback takes each sign-in once and in time, the latest sign-in wins, an
+//! account moves from another Ember ID only once the player confirms it, a
+//! disconnect, cancel or newer sign-in ends sign-ins in flight, a platform's
+//! links follow the account, and a bridge without Discord offers none of it.
 mod common;
 
 use axum::{
@@ -202,6 +203,45 @@ async fn connect(bridge: &Bridge, player: &Player, who: &str) {
     assert!(page.contains("Discord connected"), "{page}");
 }
 
+/// The player's answer on the page that asks before moving an account.
+async fn decide(bridge: &Bridge, state: &str, choice: &str) -> String {
+    let response = bridge
+        .client
+        .post(bridge.url("/v1/discord/callback"))
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(format!("state={state}&choice={choice}"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    response.text().await.unwrap()
+}
+
+/// Signs `player` in as `who`, whose account another Ember ID has, and moves it.
+async fn move_here(bridge: &Bridge, player: &Player, who: &str) {
+    let state = start(bridge, player).await;
+    let page = back(bridge, &format!("code=good-{who}&state={state}")).await;
+    assert!(page.contains("Move this Discord account?"), "{page}");
+    let page = decide(bridge, &state, "move").await;
+    assert!(page.contains("Discord connected"), "{page}");
+}
+
+/// Ends the player's sign-ins in flight, as Ember's Cancel does.
+async fn cancel(bridge: &Bridge, player: &Player) -> (StatusCode, Json) {
+    let body = bridge
+        .prove(
+            player,
+            Action::DiscordCancel,
+            Method::Delete,
+            "/v1/discord/start",
+            json!({}),
+        )
+        .await;
+    bridge
+        .send_proof(player, Method::Delete, "/v1/discord/start", body)
+        .await
+}
+
 async fn disconnect(bridge: &Bridge, player: &Player) -> (StatusCode, Json) {
     let body = bridge
         .prove(
@@ -318,9 +358,9 @@ async fn the_latest_sign_in_wins_and_a_player_can_disconnect() {
     let (one, two) = (player(&bridge, 1).await, player(&bridge, 2).await);
     let state = start(&bridge, &one).await;
     back(&bridge, &format!("code=good-kate&state={state}")).await;
-    // The same Discord account signed in from another Ember ID moves there.
-    let state = start(&bridge, &two).await;
-    back(&bridge, &format!("code=good-kate&state={state}")).await;
+    // The same Discord account signed in from another Ember ID moves there
+    // once the player says so.
+    move_here(&bridge, &two, "kate").await;
     assert_eq!(account(&bridge, &one).await, Json::Null);
     assert_eq!(account(&bridge, &two).await["user_id"], KATE);
     // Another account replaces this Ember ID's.
@@ -428,7 +468,7 @@ async fn a_platforms_links_follow_the_discord_account() {
 
     // Kate's account moves to the second Ember ID, replacing Sam's there: the
     // links both sign-ins approved end at once.
-    connect(&bridge, &two, "kate").await;
+    move_here(&bridge, &two, "kate").await;
     assert_eq!(platform_links(&bridge).await, vec![]);
     assert_eq!(
         lookup(&bridge, &provider, &[KATE, SAM]).await,
@@ -614,6 +654,8 @@ async fn an_account_can_be_disconnected_after_sign_in_is_turned_off() {
         .send_proof(&kate, Method::Post, "/v1/discord/start", body)
         .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
+    // Ending sign-ins in flight needs no offer either.
+    assert_eq!(cancel(&bridge, &kate).await.0, StatusCode::OK);
 
     // An account connected while sign-in was on is still found by BluMint.
     let ember_id = kate.id().to_string();
@@ -643,6 +685,176 @@ async fn an_account_can_be_disconnected_after_sign_in_is_turned_off() {
         json!({ "discord": [] })
     );
     assert_eq!(platform_links(&bridge).await, vec![]);
+}
+
+#[tokio::test]
+async fn moving_an_account_from_another_ember_id_asks_first() {
+    let bridge = bridge_with_discord().await;
+    let provider = bridge.provider(BLUMINT).await;
+    let (one, two) = (player(&bridge, 1).await, player(&bridge, 2).await);
+    let one_id = one.id().to_string();
+    connect(&bridge, &one, "kate").await;
+    lookup(&bridge, &provider, &[KATE]).await;
+    let kept = vec![(one_id.clone(), format!("discord:{KATE}"))];
+
+    // Signing in from the second Ember ID moves nothing yet: the page names
+    // both Ember IDs and what moving ends.
+    let state = start(&bridge, &two).await;
+    let page = back(&bridge, &format!("code=good-kate&state={state}")).await;
+    assert!(
+        page.contains("Move this Discord account?")
+            && page.contains(&one.id().fingerprint())
+            && page.contains(&two.id().fingerprint())
+            && page.contains("links it made"),
+        "{page}"
+    );
+    assert_eq!(account(&bridge, &one).await["user_id"], KATE);
+    assert_eq!(account(&bridge, &two).await, Json::Null);
+    assert_eq!(platform_links(&bridge).await, kept);
+    // The same answer from Discord again is turned away while the page waits.
+    assert!(
+        back(&bridge, &format!("code=good-kate&state={state}"))
+            .await
+            .contains("Sign-in expired")
+    );
+    // Keeping it changes nothing and ends the sign-in.
+    assert!(
+        decide(&bridge, &state, "keep")
+            .await
+            .contains("Nothing moved")
+    );
+    assert!(
+        decide(&bridge, &state, "move")
+            .await
+            .contains("Sign-in expired")
+    );
+    assert_eq!(account(&bridge, &one).await["user_id"], KATE);
+    assert_eq!(account(&bridge, &two).await, Json::Null);
+    assert_eq!(platform_links(&bridge).await, kept);
+
+    // A state Discord never issued, or no choice, moves nothing.
+    let state = start(&bridge, &two).await;
+    back(&bridge, &format!("code=good-kate&state={state}")).await;
+    assert!(
+        decide(&bridge, "made-up", "move")
+            .await
+            .contains("Sign-in expired")
+    );
+    assert!(
+        decide(&bridge, &state, "maybe")
+            .await
+            .contains("Sign-in expired")
+    );
+    assert_eq!(account(&bridge, &one).await["user_id"], KATE);
+    // Moving it does what the page said, once.
+    let page = decide(&bridge, &state, "move").await;
+    assert!(
+        page.contains("Discord connected") && page.contains(&two.id().fingerprint()),
+        "{page}"
+    );
+    assert!(
+        decide(&bridge, &state, "move")
+            .await
+            .contains("Sign-in expired")
+    );
+    assert_eq!(account(&bridge, &one).await, Json::Null);
+    assert_eq!(account(&bridge, &two).await["user_id"], KATE);
+    assert_eq!(platform_links(&bridge).await, vec![]);
+    assert_eq!(
+        lookup(&bridge, &provider, &[KATE]).await,
+        json!({ "discord": [two.id()] })
+    );
+}
+
+#[tokio::test]
+async fn a_move_waiting_for_its_answer_can_end() {
+    let bridge = bridge_with_discord().await;
+    let (one, two) = (player(&bridge, 1).await, player(&bridge, 2).await);
+    connect(&bridge, &one, "kate").await;
+    // A newer sign-in, Cancel in Ember, a disconnect, or ten minutes.
+    for ending in 0..4 {
+        let state = start(&bridge, &two).await;
+        let page = back(&bridge, &format!("code=good-kate&state={state}")).await;
+        assert!(page.contains("Move this Discord account?"), "{page}");
+        match ending {
+            0 => {
+                start(&bridge, &two).await;
+            }
+            1 => assert_eq!(cancel(&bridge, &two).await.0, StatusCode::OK),
+            2 => assert_eq!(disconnect(&bridge, &two).await.0, StatusCode::OK),
+            _ => bridge.clock.advance(10 * 60 + 1),
+        }
+        assert!(
+            decide(&bridge, &state, "move")
+                .await
+                .contains("Sign-in expired"),
+            "ending {ending}"
+        );
+        // Read as stored: ten minutes on, the players' sessions have lapsed too.
+        let owners: Vec<(String, String)> = bridge
+            .state()
+            .db
+            .read(|tx| {
+                Ok(tx
+                    .prepare("SELECT user_id, ember_id FROM discord_accounts")?
+                    .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+                    .collect::<rusqlite::Result<_>>()?)
+            })
+            .await
+            .unwrap();
+        assert_eq!(owners, vec![(KATE.to_string(), one.id().to_string())]);
+    }
+}
+
+#[tokio::test]
+async fn only_the_latest_sign_in_connects_and_ember_can_end_it() {
+    let bridge = bridge_with_discord().await;
+    let kate = player(&bridge, 1).await;
+    // A newer sign-in ends the older one: a page left open connects nothing.
+    let old = start(&bridge, &kate).await;
+    let new = start(&bridge, &kate).await;
+    assert!(
+        back(&bridge, &format!("code=good-sam&state={old}"))
+            .await
+            .contains("Sign-in expired")
+    );
+    connect_with(&bridge, &new, "kate").await;
+    // Cancelled from Ember: the page then connects nothing, and the account
+    // stays as it was.
+    let state = start(&bridge, &kate).await;
+    assert_eq!(cancel(&bridge, &kate).await.0, StatusCode::OK);
+    assert!(
+        back(&bridge, &format!("code=good-sam&state={state}"))
+            .await
+            .contains("Sign-in expired")
+    );
+    assert_eq!(account(&bridge, &kate).await["user_id"], KATE);
+    // Cancelling needs a proof made for it.
+    let refused = bridge
+        .client
+        .post(bridge.url("/v1/auth/challenges"))
+        .bearer_auth(kate.token())
+        .header("content-type", "application/json")
+        .body(
+            json!({
+                "public_key": kate.identity.public_key(),
+                "action": Action::DiscordConnect,
+                "method": Method::Delete,
+                "path": "/v1/discord/start",
+                "request_digest": "0".repeat(43),
+            })
+            .to_string(),
+        )
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), StatusCode::BAD_REQUEST);
+}
+
+/// Finishes the sign-in `state` as `who`, whose account no other Ember ID has.
+async fn connect_with(bridge: &Bridge, state: &str, who: &str) {
+    let page = back(bridge, &format!("code=good-{who}&state={state}")).await;
+    assert!(page.contains("Discord connected"), "{page}");
 }
 
 #[tokio::test]

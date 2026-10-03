@@ -132,6 +132,7 @@ fn route_matches(action: Action, method: Method, path: &str) -> bool {
         }
         (Action::DiscordConnect, Method::Post) => path == super::discord::START_PATH,
         (Action::DiscordRemove, Method::Delete) => path == super::discord::ACCOUNT_PATH,
+        (Action::DiscordCancel, Method::Delete) => path == super::discord::START_PATH,
         _ => false,
     }
 }

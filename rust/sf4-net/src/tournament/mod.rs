@@ -109,6 +109,9 @@ pub enum Request {
     DiscordRemove {
         bridge_id: String,
     },
+    DiscordCancel {
+        bridge_id: String,
+    },
     AssignmentList {
         bridge_id: String,
     },
@@ -163,6 +166,7 @@ impl Request {
             Self::DiscordStatus { .. } => "discord_status",
             Self::DiscordConnect { .. } => "discord_connect",
             Self::DiscordRemove { .. } => "discord_remove",
+            Self::DiscordCancel { .. } => "discord_cancel",
             Self::AssignmentList { .. } => "assignment_list",
             Self::MatchClaim { .. } => "match_claim",
             Self::RoomPublish { .. } => "room_publish",
@@ -605,6 +609,7 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
         Request::DiscordStatus { bridge_id } => discord::status(shared, &bridge_id).await,
         Request::DiscordConnect { bridge_id } => discord::connect(shared, &bridge_id).await,
         Request::DiscordRemove { bridge_id } => discord::remove(shared, &bridge_id).await,
+        Request::DiscordCancel { bridge_id } => discord::cancel(shared, &bridge_id).await,
         Request::AssignmentList { bridge_id } => play::assignments(shared, &bridge_id).await,
         Request::MatchClaim {
             bridge_id,

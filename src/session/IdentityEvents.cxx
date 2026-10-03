@@ -133,6 +133,7 @@ std::string BuildTournamentRequest(const netplay::IdentityRequest& r) {
     case IdentityOp::DiscordStatus: body["op"] = "discord_status"; complete = need({{"bridge_id", &r.bridge}}); break;
     case IdentityOp::DiscordConnect: body["op"] = "discord_connect"; complete = need({{"bridge_id", &r.bridge}}); break;
     case IdentityOp::DiscordRemove: body["op"] = "discord_remove"; complete = need({{"bridge_id", &r.bridge}}); break;
+    case IdentityOp::DiscordCancel: body["op"] = "discord_cancel"; complete = need({{"bridge_id", &r.bridge}}); break;
     default: complete = false; break;
     }
     std::string text;

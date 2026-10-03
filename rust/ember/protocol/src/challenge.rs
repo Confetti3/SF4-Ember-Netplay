@@ -38,6 +38,8 @@ pub enum Action {
     DiscordConnect,
     #[serde(rename = "discord.remove")]
     DiscordRemove,
+    #[serde(rename = "discord.cancel")]
+    DiscordCancel,
 }
 
 impl Action {
@@ -53,6 +55,7 @@ impl Action {
             Self::AttemptPrepare => "attempt.prepare",
             Self::DiscordConnect => "discord.connect",
             Self::DiscordRemove => "discord.remove",
+            Self::DiscordCancel => "discord.cancel",
         }
     }
 }

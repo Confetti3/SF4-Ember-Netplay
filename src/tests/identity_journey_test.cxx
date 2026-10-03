@@ -929,6 +929,18 @@ void OnboardingSteps(){
    Check(until(IdentityOp::DiscordStatus),"Unlocking did not go on to read the account");
    id.discordUser.clear();id.discordName.clear();answer();
    Check(sent().back()->op==IdentityOp::DiscordConnect,"Unlocking did not go on to open Discord");
+   // Cancel while Discord's page is open ends the sign-in on the service
+   // too. A service that cannot end it says nothing, and Connect works again.
+   answer();Check(row("dc-waiting")&&row("dc-cancel"),"Not waiting for Discord");
+   h.Choose("dc-cancel");h.Frame(0,2);
+   // An account read may still be out from the wait.
+   Check(until(IdentityOp::DiscordCancel)&&sent().back()->bridge=="brg_1","Cancel did not end the sign-in on the service");
+   h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=false;id.failure="bridge_unavailable";h.Frame(0,2);
+   id.ok=true;id.failure.clear();
+   Check(status==loc::T("connect.cancelled"),"A service that could not end the sign-in was reported");
+   Check(row("id-discord-connect")&&row("id-discord-connect")->enabled&&!row("dc-waiting"),"Connect is not offered again after Cancel");
+   h.Choose("id-discord-connect");h.Frame(0,2);
+   Check(sent().back()->op==IdentityOp::DiscordConnect,"Connect did not open Discord again after Cancel");
   }else if(part==1){
    // Cancel at each step: creating the ID, looking up and trusting the service.
    Check(row("dc-cancel")!=nullptr,"No Cancel while the state is read");
@@ -940,6 +952,7 @@ void OnboardingSteps(){
    h.Choose("dc-cancel");id.bridges={{"brg_1",ember,"Ember"}};for(int i=0;i<8;++i)answer();
    // The trust already sent finishes; nothing goes on to open Discord.
    Check(count(IdentityOp::DiscordConnect)==0&&row("id-discord-connect")&&!row("dc-cancel"),"Cancel did not stop the setup");
+   Check(count(IdentityOp::DiscordCancel)==0,"Cancel before Discord's page asked the service to end a sign-in");
   }else{
    // Hiding Ember while the state is read stops the setup.
    Check(sent().back()->op==IdentityOp::Status,"The link did not read the state");
@@ -956,13 +969,14 @@ void OnboardingSteps(){
 }
 // A link whose first read of the state fails offers Try again, which goes on
 // by itself. Visiting the Ember ID screen reads Ember's Discord account
-// without changing the tournament service the player selected.
+// without changing the tournament service the player selected. A failed read
+// of a service whose sign-in is off offers Try again, not "off".
 void OnboardingRecovers(){
  using namespace sf4e;using netplay::IdentityOp;using netplay::tournament::Command;
  const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
  std::vector<MenuEntry> rows;std::string status;
  const auto row=[&](const char* name)->const MenuEntry*{const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;});return it==rows.end()?nullptr:&*it;};
- for(int part=0;part<2;++part){
+ for(int part=0;part<3;++part){
   Harness h;auto& id=h.view.identity;
   SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});SetMenuStatusProbe([&](const char* s,Tone){status=s;});
   const auto sent=[&]{std::vector<const netplay::IdentityRequest*> out;for(const auto& a:h.actions)if(a.identity.op!=IdentityOp::None)out.push_back(&a.identity);return out;};
@@ -986,6 +1000,28 @@ void OnboardingRecovers(){
    Check(sent().back()->op==IdentityOp::Status,"Try again did not read the state");
    id.known=true;id.state="disabled";
    Check(until(IdentityOp::Enable),"Try again did not go on by itself");
+  }else if(part==2){
+   id.known=true;id.state="ready";id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
+   id.bridges={{"brg_1",ember,"Ember"}};h.Frame();
+   const auto next=[&](IdentityOp op){
+    const auto from=sent().size();
+    for(int i=0;i<12&&!(sent().size()>from&&sent().back()->op==op);++i)answer();
+    return sent().size()>from&&sent().back()->op==op;
+   };
+   h.view.tournament.connect.bridge="brg_1";h.view.tournament.connect.sequence=1;h.view.tournament.connect.confirm=true;h.Frame(0,2);
+   Check(until(IdentityOp::BridgeInspect),"Connect Discord did not read the service");
+   id.inspected=id.bridges[0];id.inspectedDiscord=false;id.inspectedDiscordAccounts=false;answer();
+   Check(row("dc-off")&&!row("dc-retry"),"A service without sign-in was not said");
+   // The next visit's read fails.
+   h.Screen("home");h.Screen("discord-connect");
+   Check(next(IdentityOp::BridgeInspect),"Connect Discord did not read the service again");
+   h.view.identityTicket=sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=false;id.failure="bridge_unavailable";h.Frame(0,2);
+   id.ok=true;id.failure.clear();
+   Check(row("dc-retry")&&!row("dc-off"),"A failed read of a service without sign-in said it is off");
+   h.Choose("dc-retry");
+   Check(next(IdentityOp::BridgeInspect),"Try again did not read the service");
+   answer();
+   Check(row("dc-off")&&!row("dc-retry"),"A good read after a failed one did not say off");
   }else{
    id.known=true;id.state="ready";id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.fingerprint="j25zrhe6-pmdhvlja";
    id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};h.Frame();

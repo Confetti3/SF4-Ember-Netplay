@@ -263,6 +263,12 @@ async fn link_an_identity_through_the_helper() {
         .ask(json!({ "op": "link_list", "bridge_id": bridge_id }))
         .await;
     assert_eq!(links["links"], json!([]));
+    // Cancel in Connect Discord ends the player's sign-ins on the bridge with
+    // its own proof; a bridge that offers no sign-in takes it too.
+    let (ok, reason, _, _) = worker
+        .ask(json!({ "op": "discord_cancel", "bridge_id": bridge_id }))
+        .await;
+    assert!(ok, "{reason:?}");
 
     // A new worker on the same stores has the same identity and bridge.
     worker.task.abort();

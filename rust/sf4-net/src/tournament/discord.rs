@@ -99,6 +99,34 @@ pub async fn remove(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
     .await
 }
 
+/// Ends the player's sign-ins in flight on the bridge, so a Discord page the
+/// player left open connects nothing.
+pub async fn cancel(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
+    with_session(shared, bridge_id, |bridge, token| async move {
+        let body = prove(
+            shared,
+            &bridge,
+            Some(&token),
+            Action::DiscordCancel,
+            Method::Delete,
+            START_PATH,
+            json!({}),
+        )
+        .await?;
+        let (status, response) = shared
+            .client
+            .call(
+                reqwest::Method::DELETE,
+                &format!("{}{START_PATH}", bridge.origin),
+                Some(&token),
+                Some(body),
+            )
+            .await?;
+        Ok(Some(answer(status, &response, &[200])?))
+    })
+    .await
+}
+
 /// Discord's own sign-in page, with nothing that could break out of a URL.
 fn is_sign_in_page(url: &str) -> bool {
     url.starts_with(SIGN_IN_PAGE)

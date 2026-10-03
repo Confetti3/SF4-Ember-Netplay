@@ -76,8 +76,14 @@ pub fn router(state: AppState) -> Router {
             blumint::STATUS_PATH,
             get(blumint::status).post(blumint::status),
         )
-        .route(discord::START_PATH, post(discord::start))
-        .route(discord::CALLBACK_PATH, get(discord::callback))
+        .route(
+            discord::START_PATH,
+            post(discord::start).delete(discord::cancel),
+        )
+        .route(
+            discord::CALLBACK_PATH,
+            get(discord::callback).post(discord::decide),
+        )
         .route(
             discord::ACCOUNT_PATH,
             get(discord::get).delete(discord::remove),

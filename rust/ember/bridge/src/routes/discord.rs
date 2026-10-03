@@ -13,7 +13,13 @@
 //! account again where it now belongs. A link the player (or the platform
 //! account's holder) removes stays removed (`withdraw`): lookup does not link
 //! it again until the player completes a Discord sign-in started after that.
+//!
+//! A sign-in by an account connected to another Ember ID moves nothing by
+//! itself: the browser page says what moving it ends and asks first.
+//! Starting a sign-in ends the Ember ID's earlier ones, and the player can
+//! end the one in flight (`cancel`), so only the latest can connect.
 use axum::{
+    Form,
     extract::{Query, State},
     http::{HeaderMap, StatusCode},
     response::Response,
@@ -136,6 +142,11 @@ pub async fn start(
         START_PATH,
         move |tx, ctx, ember_id| {
             expire(tx, ctx.now)?;
+            // Only the latest sign-in can connect an account.
+            tx.execute(
+                "DELETE FROM discord_sign_ins WHERE ember_id = ?1",
+                [ember_id],
+            )?;
             tx.execute(
                 "INSERT INTO discord_sign_ins (state_hash, ember_id, expires_at) VALUES (?1, ?2, ?3)",
                 params![hash.as_slice(), ember_id, expires_at],
@@ -179,8 +190,48 @@ pub struct Answer {
     error: Option<String>,
 }
 
+/// `DELETE /v1/discord/start`: ends the player's sign-ins in flight, so a
+/// page left open in the browser connects nothing. Needs no sign-in offer,
+/// like disconnecting.
+pub async fn cancel(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: Body<PROOF_BODY>,
+) -> Result<Response> {
+    let player = auth::player(&state, &headers).await?;
+    proven(
+        &state,
+        player,
+        &body,
+        Action::DiscordCancel,
+        Method::Delete,
+        START_PATH,
+        |tx, _, ember_id| {
+            tx.execute(
+                "DELETE FROM discord_sign_ins WHERE ember_id = ?1",
+                [ember_id],
+            )?;
+            Ok(())
+        },
+    )
+    .await?;
+    Ok(ok(&json!({})))
+}
+
+/// What the callback did with a sign-in Discord confirmed.
+enum Stored {
+    Connected(String),
+    /// The account is connected to `from`; the player decides.
+    Moving {
+        from: String,
+        to: String,
+    },
+    Gone,
+}
+
 /// `GET /v1/discord/callback`: Discord's answer, in the player's browser.
-/// The page says what happened; the player goes back to Ember.
+/// The page says what happened, or asks before moving an account connected
+/// to another Ember ID; the player goes back to their tournament site.
 pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer>) -> Response {
     let Ok(discord) = enabled(&state).cloned() else {
         return finished(
@@ -193,7 +244,8 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
     // claimer takes it, whatever Discord answered, in the same write that
     // stores the account, so a sign-in a disconnect ended meanwhile connects
     // nothing.
-    let hash = state_hash(&state, answer.state.as_deref().unwrap_or_default());
+    let secret = answer.state.unwrap_or_default();
+    let hash = state_hash(&state, &secret);
     let now = state.now();
     let claimed = state
         .db
@@ -230,54 +282,198 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
     let stored = state
         .db
         .write(move |tx| {
-            let Some(ember_id) = take(tx, &hash, ctx.now)? else {
-                return Ok(None);
+            let Some(ember_id) = tx
+                .query_row(
+                    "SELECT ember_id FROM discord_sign_ins
+                     WHERE state_hash = ?1 AND expires_at > ?2 AND claimed = 1 AND pending_user_id IS NULL",
+                    params![hash.as_slice(), ctx.now],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?
+            else {
+                return Ok(Stored::Gone);
             };
-            // The latest sign-in wins: this account leaves any other Ember ID,
-            // and this Ember ID leaves any other account.
-            let replaced: Vec<(String, String)> = tx
-                .prepare(
-                    "DELETE FROM discord_accounts WHERE user_id = ?1 OR ember_id = ?2 RETURNING user_id, ember_id",
-                )?
-                .query_map(params![user.id, ember_id], |row| Ok((row.get(0)?, row.get(1)?)))?
-                .collect::<rusqlite::Result<_>>()?;
-            for (user_id, owner) in replaced {
-                if (user_id.as_str(), owner.as_str()) != (user.id.as_str(), ember_id.as_str()) {
-                    end_links(tx, &ctx, &user_id, "replaced")?;
-                }
+            let owner: Option<String> = tx
+                .query_row(
+                    "SELECT ember_id FROM discord_accounts WHERE user_id = ?1",
+                    [&user.id],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            if let Some(owner) = owner.filter(|owner| *owner != ember_id) {
+                tx.execute(
+                    "UPDATE discord_sign_ins SET pending_user_id = ?2, pending_username = ?3 WHERE state_hash = ?1",
+                    params![hash.as_slice(), user.id, user.username],
+                )?;
+                return Ok(Stored::Moving {
+                    from: owner,
+                    to: ember_id,
+                });
             }
-            // A new account row is fresh consent: the withdrawals of the old
-            // one went with it.
-            tx.execute(
-                "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, ?3, ?4)",
-                params![user.id, ember_id, user.username, ctx.now],
-            )?;
-            Ok(Some(ember_id))
+            take(tx, &hash, ctx.now)?;
+            store(tx, &ctx, &ember_id, &user.id, &user.username)?;
+            Ok(Stored::Connected(ember_id))
         })
         .await;
-    let ember_id = match stored {
-        Ok(Some(ember_id)) => ember_id,
-        Ok(None) => return not_waiting(),
-        Err(_) => {
-            return finished(
-                "Not connected",
-                "The Ember service could not save the account. Try again later.",
-            );
+    match stored {
+        Ok(Stored::Connected(ember_id)) => {
+            state.committed();
+            connected(&shown, &ember_id)
         }
+        Ok(Stored::Moving { from, to }) => {
+            state.committed();
+            moving(&secret, &shown, &from, &to)
+        }
+        Ok(Stored::Gone) => not_waiting(),
+        Err(_) => not_saved(),
+    }
+}
+
+#[derive(Deserialize)]
+pub struct MoveAnswer {
+    state: String,
+    choice: String,
+}
+
+/// `POST /v1/discord/callback`: the player's answer to moving an account
+/// connected to another Ember ID, from the page `callback` showed. Either
+/// way the sign-in is done.
+pub async fn decide(State(state): State<AppState>, Form(answer): Form<MoveAnswer>) -> Response {
+    if enabled(&state).is_err() {
+        return finished(
+            "Discord sign-in is off",
+            "This Ember service does not offer Discord sign-in.",
+        );
+    }
+    let moves = match answer.choice.as_str() {
+        "move" => true,
+        "keep" => false,
+        _ => return not_waiting(),
+    };
+    let hash = state_hash(&state, &answer.state);
+    let ctx = Ctx::of(&state);
+    let decided = state
+        .db
+        .write(move |tx| {
+            let Some((ember_id, user_id, username)) = tx
+                .query_row(
+                    "DELETE FROM discord_sign_ins
+                     WHERE state_hash = ?1 AND expires_at > ?2 AND claimed = 1 AND pending_user_id IS NOT NULL
+                     RETURNING ember_id, pending_user_id, pending_username",
+                    params![hash.as_slice(), ctx.now],
+                    |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?)),
+                )
+                .optional()?
+            else {
+                return Ok(None);
+            };
+            if moves {
+                store(tx, &ctx, &ember_id, &user_id, &username)?;
+            }
+            Ok(Some((ember_id, username)))
+        })
+        .await;
+    let (ember_id, username) = match decided {
+        Ok(Some(decided)) => decided,
+        Ok(None) => return not_waiting(),
+        Err(_) => return not_saved(),
     };
     state.committed();
-    let fingerprint = EmberId::parse(&ember_id)
+    if moves {
+        connected(&username, &ember_id)
+    } else {
+        finished(
+            "Nothing moved",
+            &format!(
+                "Discord account <strong>{}</strong> stays connected to its other Ember ID. \
+                 You can close this tab.",
+                html(&username)
+            ),
+        )
+    }
+}
+
+/// Connects Discord account `user_id` to `ember_id`. The latest sign-in wins:
+/// this account leaves any other Ember ID, and this Ember ID leaves any other
+/// account, each ending the links its sign-in approved.
+fn store(
+    tx: &Transaction<'_>,
+    ctx: &Ctx,
+    ember_id: &str,
+    user_id: &str,
+    username: &str,
+) -> Result<()> {
+    let replaced: Vec<(String, String)> = tx
+        .prepare(
+            "DELETE FROM discord_accounts WHERE user_id = ?1 OR ember_id = ?2 RETURNING user_id, ember_id",
+        )?
+        .query_map(params![user_id, ember_id], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })?
+        .collect::<rusqlite::Result<_>>()?;
+    for (replaced_user, owner) in replaced {
+        if (replaced_user.as_str(), owner.as_str()) != (user_id, ember_id) {
+            end_links(tx, ctx, &replaced_user, "replaced")?;
+        }
+    }
+    // A new account row is fresh consent: the withdrawals of the old one
+    // went with it.
+    tx.execute(
+        "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, ?3, ?4)",
+        params![user_id, ember_id, username, ctx.now],
+    )?;
+    Ok(())
+}
+
+fn fingerprint(ember_id: &str) -> String {
+    EmberId::parse(ember_id)
         .map(|id| id.fingerprint())
-        .unwrap_or_default();
+        .unwrap_or_default()
+}
+
+fn connected(username: &str, ember_id: &str) -> Response {
     finished(
         "Discord connected",
         &format!(
             "Discord account <strong>{}</strong> is now connected to Ember ID <strong>{}</strong>. \
              Tournament sites that use this Ember service can find your Ember ID from this Discord account. \
              You can close this tab and go back to your tournament site; Ember shows the connection too.",
-            html(&shown),
-            html(&fingerprint)
+            html(username),
+            html(&fingerprint(ember_id))
         ),
+    )
+}
+
+/// Asks before moving the account from Ember ID `from` to `to`. The form
+/// carries the sign-in's state, which only this browser has.
+fn moving(secret: &str, username: &str, from: &str, to: &str) -> Response {
+    let (username, from, to) = (
+        html(username),
+        html(&fingerprint(from)),
+        html(&fingerprint(to)),
+    );
+    page(
+        "Move this Discord account?",
+        &format!(
+            "<h1>Move this Discord account?</h1>\
+             <p>Discord account <strong>{username}</strong> is connected to another Ember ID, <strong>{from}</strong>. \
+             Moving it connects it to Ember ID <strong>{to}</strong> instead.</p>\
+             <div class=\"box warn\"><p>Tournament sites will find <strong>{to}</strong> from this Discord account, \
+             and the tournament links it made for <strong>{from}</strong> end.</p>\
+             <p>Move it only if both Ember IDs are yours, for example on a new PC.</p></div>\
+             <form method=\"post\" action=\"{CALLBACK_PATH}\"><input type=\"hidden\" name=\"state\" value=\"{}\">\
+             <button name=\"choice\" value=\"move\">Move it to {to}</button>\
+             <button name=\"choice\" value=\"keep\">Keep it on {from}</button></form>",
+            html(secret)
+        ),
+        false,
+    )
+}
+
+fn not_saved() -> Response {
+    finished(
+        "Not connected",
+        "The Ember service could not save the account. Try again later.",
     )
 }
 

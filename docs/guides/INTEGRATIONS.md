@@ -165,12 +165,13 @@ A bridge whose configuration has `discord` (the Discord application's
 `client_id`, with `<origin>/v1/discord/callback` in its redirect list) and
 whose integration secrets hold the client secret lists `discord` in its
 capabilities `features`. A player then connects their Discord account from
-Ember (Settings, Ember ID, Connect Discord, or the Discord row under Linked
-accounts). A platform can send the player there directly: the link
-`ember://discord/connect?bridge=<bridge_id>`, offered by the page
-`https://embernetplay.link/start#<bridge_id>`, opens Ember's Connect Discord
-screen for that bridge, which creates the Ember ID if needed, offers to trust
-Ember's own bridge, and connects Discord when the player presses Connect.
+Ember (Ember ID on the home menu, then Discord). A platform can send the
+player there directly: the link `ember://discord/connect?bridge=<bridge_id>`,
+offered by the page `https://embernetplay.link/start#<bridge_id>`, opens
+Ember's Connect Discord screen for that bridge. At an idle menu it creates the
+Ember ID if needed, trusts Ember's own bridge unless the player removed it,
+and opens Discord's page by itself; a link that arrives during play asks
+first.
 Where the browser cannot open Ember, the player pastes the page's link into
 Connect Discord (Paste link) instead. The link names a bridge only; Ember
 never trusts one by itself. The sign-in:
@@ -180,12 +181,20 @@ never trusts one by itself. The sign-in:
 2. Discord sends the browser to `GET /v1/discord/callback`. The bridge
    exchanges the code itself, with the `identify` scope only, and keeps the
    Discord user ID and username. The sign-in is one-use and lapses after ten
-   minutes.
-3. `GET /v1/discord` (player session) shows the connected account and
+   minutes. Starting a sign-in ends the Ember ID's earlier ones, and
+   `DELETE /v1/discord/start` (a `discord.cancel` proof, sent by Cancel in
+   Ember) ends the one in flight, so a page left open connects nothing.
+3. If that Discord account is connected to another Ember ID, nothing moves
+   yet: the page names both Ember IDs, says that the tournament links the
+   account made for the other one end, and asks. The player's answer
+   (`POST /v1/discord/callback`, carrying the sign-in's state) moves it or
+   keeps it where it is.
+4. `GET /v1/discord` (player session) shows the connected account and
    `DELETE /v1/discord` (a `discord.remove` proof) disconnects it.
 
 One Discord account belongs to one Ember ID and the other way round; the
-latest sign-in replaces both. A platform's links that a sign-in approved
+latest sign-in replaces both, once the player confirms moving an account
+from another Ember ID. A platform's links that a sign-in approved
 (`approved_via` `discord`) end when that account moves to another Ember ID or
 is disconnected, and the platform's next lookup links it where it now
 belongs. A link the player removes stays removed: lookups do not make it
