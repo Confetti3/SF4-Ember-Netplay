@@ -15,6 +15,11 @@ pub const MAX_INVITE_LENGTH: usize = 4096;
 // check refuses them first), so raising the cap from 1.0.0's 24 hours cannot
 // make an older client misread one.
 pub const MAX_INVITE_LIFETIME_SECS: u64 = 7 * 24 * 60 * 60;
+/// How far behind the issuer's clock a reader's may be. An invitation is
+/// stamped with up to a week from the issuer's clock, so a reader whose clock
+/// is slower sees more than a week left; up to a day more is still taken as
+/// a real invitation. Expiry itself is never relaxed.
+pub const MAX_CLOCK_SKEW_SECS: u64 = 24 * 60 * 60;
 const PREFIX: &str = "sf4e2:";
 const RECOVERY_PREFIX: &str = "sf4e3:";
 const LEGACY_PREFIX: &str = "sf4e1:";
@@ -186,7 +191,7 @@ impl Invite {
             || self.room == [0; 16]
             || self.capability == [0; 32]
             || self.expires <= now
-            || self.expires - now > MAX_INVITE_LIFETIME_SECS
+            || self.expires - now > MAX_INVITE_LIFETIME_SECS + MAX_CLOCK_SKEW_SECS
             || self.build.is_empty()
             || self.build.len() > 128
             || !relay_allowed(&self.relay)
@@ -523,6 +528,29 @@ mod tests {
         assert!(Invite::parse_for_build(&renewed.encode().unwrap(), 3700, &build).is_ok());
         assert!(original.clone().renewed(3000, 0).is_err());
         assert!(original.renewed(3000, MAX_INVITE_LIFETIME_SECS + 1).is_err());
+    }
+
+    #[test]
+    fn a_reader_with_a_slower_clock_still_takes_a_fresh_week_long_invitation() {
+        let id = iroh::SecretKey::generate().public();
+        let relay = iroh::defaults::prod::default_relay_map()
+            .urls::<Vec<_>>()
+            .remove(0);
+        let issued = 1_000_000;
+        let fresh = Invite::create(id, relay, "build".into(), issued, MAX_INVITE_LIFETIME_SECS).unwrap();
+        let renewed = fresh.clone().renewed(issued + 100, MAX_INVITE_LIFETIME_SECS).unwrap();
+        for invite in [&fresh, &renewed] {
+            for text in [invite.encode().unwrap(), invite.encode_discord().unwrap()] {
+                // Two minutes and most of a day behind the issuer: still a
+                // real invitation.
+                assert!(Invite::parse_for_build(&text, issued - 120, "build").is_ok());
+                assert!(Invite::parse_for_build(&text, issued - 23 * 60 * 60, "build").is_ok());
+                // More than a day behind: not one this build issues.
+                assert!(Invite::parse_for_build(&text, issued - 25 * 60 * 60, "build").is_err());
+                // Expiry is exact: past the week it is refused.
+                assert!(Invite::parse_for_build(&text, invite.expires(), "build").is_err());
+            }
+        }
     }
 
     #[test]

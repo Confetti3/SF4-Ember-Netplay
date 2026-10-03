@@ -13,7 +13,7 @@ The code is the 12 symbols after `#`. The game's Paste invitation box accepts th
 1. In a room, the player chooses Copy short link. The game asks the helper (`short_invite` command).
 2. The helper derives the room's code from its room ID and capability, so every member of the room gets the same code. It derives a locator, a sealing key and a write token from the code (below), seals the current full invitation with the key and stores it at `https://embernetplay.link/s/v1/<locator>`.
 3. The helper answers with the link (`short_invite` event, status `ready`) and the game copies it. If the service did not take it, the answer is `unavailable` and the game copies the full invitation instead, with a notice saying so.
-4. While the room is open the helper stores the invitation again whenever it changes (renewal every half hour, a new leader) and at least every ten minutes, so the link follows the room and survives a restart of the service.
+4. While the room is open the helper stores the invitation again whenever it changes (a renewal once a tenth of its week has passed, a new leader) and at least every ten minutes, so the link follows the room and survives a restart of the service.
 5. A joiner pastes the link or code. Their helper derives the same locator and key, fetches the record, opens it, and checks that the invitation inside derives the same code. Then it joins exactly as with a pasted full invitation: the build, expiry and own-room checks are unchanged.
 
 ## Opening the link in a browser
