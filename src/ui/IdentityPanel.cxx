@@ -292,7 +292,14 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
             IdentityRequest poll; poll.op = IdentityOp::DiscordStatus; poll.bridge = discordWaitBridge_; Queue(std::move(poll));
         }
     }
-    if (sent_ || queue_.empty()) return;
+    if (sent_) return;
+    // Ending a cancelled sign-in on its service goes first, whatever cleared
+    // the queue since, so it also comes before a new Connect.
+    if (!cancelBridge_.empty()) {
+        IdentityRequest cancel; cancel.op = IdentityOp::DiscordCancel; cancel.bridge = cancelBridge_; cancelBridge_.clear();
+        queue_.push_front(Queued{std::move(cancel), false, journey_, {}});
+    }
+    if (queue_.empty()) return;
     ShellAction action;
     action.command.generation = v.session.generation;
     sentLookUp_ = queue_.front().lookUp; sentJourney_ = queue_.front().journey; sentAccount_ = queue_.front().account;

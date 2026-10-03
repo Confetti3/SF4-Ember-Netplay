@@ -75,9 +75,7 @@ void IdentityPanel::CancelAttempt() {
         return q.journey == journey_ && (q.request.op == IdentityOp::Enable || q.request.op == IdentityOp::BridgeApprove ||
             q.request.op == IdentityOp::DiscordConnect);
     }), queue_.end());
-    if (asked && !discordWaitBridge_.empty()) {
-        IdentityRequest r; r.op = IdentityOp::DiscordCancel; r.bridge = discordWaitBridge_; Queue(std::move(r));
-    }
+    if (asked && !discordWaitBridge_.empty()) cancelBridge_ = discordWaitBridge_;
     attempt_ = Attempt::Stopped; discordWaitUntil_ = 0; discordPaused_ = false;
 }
 

@@ -553,6 +553,38 @@ void OnboardingGuards(){
   }
  }
 }
+// Cancel reaches the service even when something clears the requests first:
+// an account read out when Cancel is pressed fails or times out, or Ember is
+// hidden while Discord's page is being opened.
+void CancelReachesTheService(){
+ using namespace sf4e;using netplay::IdentityOp;
+ const std::string ember="https://bridge.embernetplay.link";
+ for(int ending=0;ending<3;++ending){
+  Journey h;auto& id=h.view.identity;id.known=true;h.ready();id.bridges={{"brg_1",ember,"Ember"}};h.Frame();
+  h.untilLimit=12;
+  h.view.tournament.connect.bridge="brg_1";h.view.tournament.connect.sequence=1;h.Frame(0,2);
+  Check(h.until(IdentityOp::BridgeInspect),"The link did not read the service");
+  id.inspected={"brg_1",ember,"Ember"};id.inspectedDiscord=true;h.answer();
+  Check(h.until(IdentityOp::DiscordStatus),"The link did not read the account");
+  id.discordUser.clear();id.discordName.clear();h.answer();
+  Check(h.sent().back()->op==IdentityOp::DiscordConnect,"The link did not open Discord");
+  if(ending<2){
+   h.answer();h.Frame(0,300);
+   Check(h.sent().back()->op==IdentityOp::DiscordStatus,"The account was not read while waiting");
+   h.Choose("dc-cancel");
+   if(ending==0)h.answer(false,"service_unavailable");
+   else h.Frame(0,7300);
+  }else{
+   h.shell.Conceal();h.Frame();
+   h.shell.Navigation().Home();h.shell.Navigation().Push("discord-connect");h.Frame(0,2);
+   h.answer();
+  }
+  h.Frame(0,2);
+  Check(h.sent().back()->op==IdentityOp::DiscordCancel&&h.sent().back()->bridge=="brg_1",
+   ending==0?"A failed account read lost the cancellation":ending==1?"A timed-out account read lost the cancellation":"Hiding Ember lost the cancellation");
+  Check(h.count(IdentityOp::DiscordCancel)==1,"The cancellation was sent more than once");
+ }
+}
 // A link meets a locked Ember ID: Unlock shows, not an endless Setting up,
 // and unlocking goes on to Discord by itself. Cancel is there at every step
 // of setup. Hiding Ember during setup stops it: reopening sends nothing more.
@@ -690,5 +722,5 @@ void OnboardingRecovers(){
 }
 void RunDiscordConnectJourneys(){
  DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();ConnectReadsRecover();
- RetainedChangesStayTheirs();EmberIdFromHome();HomeGuides();OnboardingGuards();OnboardingSteps();OnboardingRecovers();DiscordConnectPastedLink();
+ RetainedChangesStayTheirs();EmberIdFromHome();HomeGuides();OnboardingGuards();OnboardingSteps();CancelReachesTheService();OnboardingRecovers();DiscordConnectPastedLink();
 }

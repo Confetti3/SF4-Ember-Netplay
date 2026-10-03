@@ -134,6 +134,9 @@ private:
     bool Superseded() const;
 
     std::deque<Queued> queue_;
+    // A cancelled sign-in's service, to be told before anything else is
+    // sent. Held apart from the queue, which failures and hiding clear.
+    std::string cancelBridge_;
     std::uint64_t nextTicket_ = 0, sent_ = 0;
     netplay::IdentityOp sentOp_ = netplay::IdentityOp::None;
     bool sentLookUp_ = false;
