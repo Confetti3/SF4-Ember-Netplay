@@ -3110,3 +3110,93 @@ msgstr "{0}, {1}     Wachtrij {2}     Kijken {3}"
 
 msgid "room.streak"
 msgstr "{0} sets op rij"
+
+msgid "screen.public_rooms"
+msgstr "Openbare kamers"
+
+msgid "online.public_detail"
+msgstr "Bekijk kamers waar elke speler met een Ember ID in kan, of maak er zelf een."
+
+msgid "public.create"
+msgstr "Openbare kamer maken"
+
+msgid "public.create_detail"
+msgstr "Opent een kamer die voor alle spelers met een Ember ID in de lijst staat. Jij bent de host en stelt de regels in de kamer in."
+
+msgid "public.create_requirements"
+msgstr "Opent een openbare kamer bij de Ember ID-dienst en gaat erin. Stel de tafelregels in de kamer in."
+
+msgid "public.create_needs_id"
+msgstr "Openbare kamers hebben een Ember ID en een vertrouwde dienst nodig. Richt ze in via Openbare kamers."
+
+msgid "public.refresh_detail"
+msgstr "Vraagt de dienst om de actuele lijst met kamers."
+
+msgid "public.loading"
+msgstr "Kamers laden..."
+
+msgid "public.none"
+msgstr "Geen openbare kamers"
+
+msgid "public.none_detail"
+msgstr "Er is nu geen openbare kamer open. Maak er een om te gaan spelen."
+
+msgid "public.needs_id"
+msgstr "Openbare kamers hebben een Ember ID nodig"
+
+msgid "public.needs_id_detail"
+msgstr "Maak een Ember ID en vertrouw een dienst via Gekoppelde accounts. Die dienst toont de openbare kamers."
+
+msgid "public.room_playing"
+msgstr "{0}, in een wedstrijd"
+
+msgid "public.room_detail"
+msgstr "{0}\nSpelers: {1}/{2}. Regio: {3}."
+
+msgid "public.room_detail_playing"
+msgstr "{0}\nSpelers: {1}/{2}. Regio: {3}.\nLopende wedstrijden: {4}."
+
+msgid "public.joining_value"
+msgstr "Betreden..."
+
+msgid "public.visibility"
+msgstr "Zichtbaarheid"
+
+msgid "public.visibility.private"
+msgstr "Privé"
+
+msgid "public.visibility.public"
+msgstr "Openbaar"
+
+msgid "public.visibility_detail"
+msgstr "Een privékamer betreed je met een uitnodiging. Een openbare kamer staat in de lijst voor alle spelers met een Ember ID."
+
+msgid "room.public_status"
+msgstr "Openbare kamer / iedereen met een Ember ID kan erin"
+
+msgid "room.public_locked_status"
+msgstr "Openbare kamer, op slot / niemand nieuws kan erin"
+
+msgid "public.failure.room_full"
+msgstr "Deze kamer is vol."
+
+msgid "public.failure.banned"
+msgstr "Je bent uit deze kamer verwijderd."
+
+msgid "public.failure.room_not_found"
+msgstr "Deze kamer is gesloten."
+
+msgid "public.failure.room_not_open"
+msgstr "Deze kamer is nog niet open."
+
+msgid "public.failure.room_limit"
+msgstr "De limiet voor openbare kamers is bereikt. Probeer het later opnieuw."
+
+msgid "public.failure.unsupported_build"
+msgstr "Openbare kamers zijn voor deze versie nog niet beschikbaar."
+
+msgid "public.failure.invalid_name"
+msgstr "Deze kamernaam kan niet worden gebruikt. Kies een andere."
+
+msgid "public.failure.rooms_unavailable"
+msgstr "Openbare kamers zijn op dit moment niet beschikbaar."

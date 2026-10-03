@@ -118,6 +118,26 @@ pub(super) fn host_failure_reason(error: &io::Error) -> Option<&'static str> {
     (error.to_string() == "relay_unavailable").then_some("relay_unreachable")
 }
 
+/// Why the first control connection of a join failed, from the error it ended
+/// with. A public host's refusal (`PublicRefused`) is `refused`; a handshake
+/// that ran out of time after the connection opened is `timeout`; no connection
+/// at all is as `join_failure_reason` says. A connection the host closed
+/// without an answer has no reason of its own. A private join (`public` false)
+/// is classified by `join_failure_reason` alone, as it always was.
+pub(super) fn join_error_reason(
+    error: &io::Error,
+    relay_connected: bool,
+    public: bool,
+) -> Option<&'static str> {
+    if public && transport::is_admission_refused(error) {
+        Some("refused")
+    } else if public && transport::is_handshake_timeout(error) {
+        Some("timeout")
+    } else {
+        join_failure_reason(transport::is_host_unreachable(error), relay_connected)
+    }
+}
+
 /// Why the first control connection of a join failed. `dial_failed` is true
 /// when no connection to the host ever opened. Without a connected home relay
 /// that is on this side; with one it is the host that could not be reached. A
@@ -202,6 +222,37 @@ mod tests {
         assert_eq!(join_failure_reason(true, true), Some("host_unreachable"));
         assert_eq!(join_failure_reason(false, true), None);
         assert_eq!(join_failure_reason(false, false), None);
+        // Each way a join's first control can end has its own reason, whether
+        // or not the home relay is connected.
+        for relay in [false, true] {
+            assert_eq!(
+                join_error_reason(&transport::admission_refused(), relay, true),
+                Some("refused")
+            );
+            assert_eq!(
+                join_error_reason(&io::Error::other("closed"), relay, true),
+                None
+            );
+            // A private join has neither of the public reasons.
+            assert_eq!(
+                join_error_reason(&transport::admission_refused(), relay, false),
+                None
+            );
+        }
+        let timed_out = io::Error::new(io::ErrorKind::TimedOut, transport::HANDSHAKE_TIMED_OUT);
+        assert_eq!(join_error_reason(&timed_out, true, true), Some("timeout"));
+        assert_eq!(join_error_reason(&timed_out, true, false), None);
+        let unreachable = io::Error::new(io::ErrorKind::ConnectionAborted, transport::HOST_UNREACHABLE);
+        for public in [false, true] {
+            assert_eq!(
+                join_error_reason(&unreachable, true, public),
+                Some("host_unreachable")
+            );
+            assert_eq!(
+                join_error_reason(&unreachable, false, public),
+                Some("relay_unreachable")
+            );
+        }
         assert_eq!(
             host_failure_reason(&failed("relay_unavailable")),
             Some("relay_unreachable")

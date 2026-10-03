@@ -39,6 +39,8 @@ struct PlayerPreferences {
     LobbySettings lobby;
     std::string roomName = "Private room";
     int roomCapacity = 16;
+    // Whether Create opens a public room on the Ember ID service instead of a private one.
+    bool roomPublic = false;
     room::Rules tableRules;
     bool Valid() const {
         if (displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < 0 || inputDelay > MaximumInputDelay ||

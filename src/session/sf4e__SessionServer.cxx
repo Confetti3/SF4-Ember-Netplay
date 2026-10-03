@@ -196,6 +196,7 @@ int SessionServer::Step()
 	for (auto connection : closed) {
 		_departingConnections.insert(connection);
 		cidMap.erase(connection);
+		_connectionAccounts.erase(connection);
 		if (_roomAuthority) {
 			const auto roomMember = roomMembers.find(connection);
 			const auto priorSnapshot = _roomAuthority->SnapshotCopy();
@@ -208,7 +209,9 @@ int SessionServer::Step()
 				// MatchAuthority tears down the native generation first. End the
 				// corresponding room generation before Leave clears the seat, so a
 				// fighter disconnect cannot strand the table in Paused.
-				if (roomMember != roomMembers.end() && priorSnapshot.host != roomMember->second) {
+				// A private room's host leaving ends the room; a server-owned room's
+				// host is an ordinary player whose game ends like anyone else's.
+				if (roomMember != roomMembers.end() && (priorSnapshot.host != roomMember->second || priorSnapshot.serverOwned)) {
 					const auto& oldTable = priorSnapshot.tables[table];
 					const bool fighter = oldTable.p1 == roomMember->second || oldTable.p2 == roomMember->second;
 					const bool matchEnded = authority == nullptr || authority->GetPhase() == session::MatchAuthority::Phase::Idle;
@@ -446,6 +449,7 @@ int SessionServer::Close()
 	roomFrozenMembers.clear();
 	roomBannedIdentities.clear();
 	_departingConnections.clear();
+	_connectionAccounts.clear();
 	return 0;
 }
 
@@ -499,7 +503,16 @@ SessionProtocol::JoinResult SessionServer::RegisterToWait(
 		if (iter.data.name == name) return SessionProtocol::JR_NAME_TAKEN;
 	}
 	if (_roomAuthority) {
-		const bool isHost = conn == 1;
+		const bool serverOwned = _roomAuthority->ServerOwned();
+		// Connection 1 is the hosting player's own client, except where no player
+		// hosts: a server-owned room's first joiner becomes host in the model.
+		const bool isHost = !serverOwned && conn == 1;
+		room::MemberProfile joinProfile = profile;
+		if (serverOwned) {
+			const auto account = _connectionAccounts.find(conn);
+			if (account == _connectionAccounts.end()) return SessionProtocol::JR_REQUEST_INVALID;
+			joinProfile.account = account->second;
+		}
 		std::string peerIdentity = cid.user;
 		if (_matchAuthorizationConfigured && _matchAuthorizationIdentity) {
 			const auto stable = _matchAuthorizationIdentity(conn);
@@ -511,7 +524,7 @@ SessionProtocol::JoinResult SessionServer::RegisterToWait(
 		// Member.connection remains the protocol CID. The stable peer identity
 		// above is only an admission/kick ban key.
 		const room::ConnectionRef connectionRef{cid.host, cid.user};
-		auto joined = _roomAuthority->Join(name, connectionRef, isHost, profile);
+		auto joined = _roomAuthority->Join(name, connectionRef, isHost, joinProfile);
 		if (!joined.accepted) {
 			switch (joined.reason) {
 			case room::RejectReason::RoomFull: return SessionProtocol::JR_LOBBY_FULL;

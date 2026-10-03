@@ -193,7 +193,7 @@ int main() {
     CHECK(sf4e::netplay::ReadRoomPreferences(Json::object(), defaults));
     CHECK(defaults.roomCapacity == 16 && defaults.tableRules.format == sf4e::room::SetFormat::Unlimited &&
         defaults.tableRules.rotation == sf4e::room::RotationMode::WinnerStays);
-    defaults.roomName = "Friday room"; defaults.roomCapacity = 12;
+    defaults.roomName = "Friday room"; defaults.roomCapacity = 12; defaults.roomPublic = true;
     defaults.tableRules.format = sf4e::room::SetFormat::Ft5;
     defaults.tableRules.rotation = sf4e::room::RotationMode::BothRotate;
     CHECK(asyncStore.SaveLauncher({{"roomDefaults", sf4e::netplay::RoomPreferences(defaults)}}, error));
@@ -201,10 +201,10 @@ int main() {
     CHECK(asyncStore.LoadLauncher(result, error));
     sf4e::netplay::PlayerPreferences restored;
     CHECK(sf4e::netplay::ReadRoomPreferences(result, restored));
-    CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12 &&
+    CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12 && restored.roomPublic &&
         restored.tableRules.format == sf4e::room::SetFormat::Ft5 && restored.tableRules.rotation == sf4e::room::RotationMode::BothRotate);
     for (const Json& invalid : {Json{{"capacity", 17}}, Json{{"capacity", 258}}, Json{{"capacity", 2.5}},
-        Json{{"format", 257}}, Json{{"format", 4}}, Json{{"rotation", -1}}, Json{{"rotation", 3}}, Json{{"name", std::string(65, 'x')}}}) {
+        Json{{"format", 257}}, Json{{"format", 4}}, Json{{"rotation", -1}}, Json{{"rotation", 3}}, Json{{"name", std::string(65, 'x')}}, Json{{"public", "yes"}}}) {
         CHECK(!sf4e::netplay::ReadRoomPreferences({{"roomDefaults", invalid}}, restored));
         CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12);
     }

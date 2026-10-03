@@ -5,10 +5,6 @@
 #include <algorithm>
 
 namespace sf4e { namespace ui {
-// A row that only shows something.
-inline MenuEntry Info(std::string id, std::string label, std::string value, std::string detail) {
-    auto e = Row(std::move(id), std::move(label), std::move(detail)); e.value = std::move(value); e.info = true; return e;
-}
 // A trusted service by its bridge ID, or null.
 inline const netplay::IdentityBridge* FindBridge(const ShellView& v, const std::string& id) {
     const auto it = std::find_if(v.identity.bridges.begin(), v.identity.bridges.end(),

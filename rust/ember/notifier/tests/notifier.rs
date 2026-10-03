@@ -285,6 +285,7 @@ async fn announces_a_set_on_discord_and_twitch() {
         mock_browser: false,
         discord: None,
         integration_secrets: None,
+        rooms: None,
         tenants: vec![config::Tenant {
             id: "local".into(),
             name: "Local".into(),

@@ -2679,3 +2679,93 @@ msgstr "{0}, {1}     Fila {2}     Assistindo {3}"
 
 msgid "room.streak"
 msgstr "{0} sets seguidos"
+
+msgid "screen.public_rooms"
+msgstr "Salas públicas"
+
+msgid "online.public_detail"
+msgstr "Veja as salas em que qualquer jogador com um Ember ID pode entrar ou abra a sua."
+
+msgid "public.create"
+msgstr "Criar sala pública"
+
+msgid "public.create_detail"
+msgstr "Abre uma sala listada para todos os jogadores com um Ember ID. Você é o anfitrião e define as regras dentro da sala."
+
+msgid "public.create_requirements"
+msgstr "Abre uma sala pública no serviço do Ember ID e entra nela. Defina as regras da mesa dentro da sala."
+
+msgid "public.create_needs_id"
+msgstr "As salas públicas exigem um Ember ID e um serviço confiável. Configure-os em Salas públicas."
+
+msgid "public.refresh_detail"
+msgstr "Pede ao serviço a lista atual de salas."
+
+msgid "public.loading"
+msgstr "Carregando salas..."
+
+msgid "public.none"
+msgstr "Nenhuma sala pública"
+
+msgid "public.none_detail"
+msgstr "Ninguém tem uma sala pública aberta agora. Crie uma para começar a jogar."
+
+msgid "public.needs_id"
+msgstr "Salas públicas exigem um Ember ID"
+
+msgid "public.needs_id_detail"
+msgstr "Crie um Ember ID e confie em um serviço em Contas vinculadas. Esse serviço lista as salas públicas."
+
+msgid "public.room_playing"
+msgstr "{0}, em partida"
+
+msgid "public.room_detail"
+msgstr "{0}\nJogadores: {1}/{2}. Região: {3}."
+
+msgid "public.room_detail_playing"
+msgstr "{0}\nJogadores: {1}/{2}. Região: {3}.\nPartidas em andamento: {4}."
+
+msgid "public.joining_value"
+msgstr "Entrando..."
+
+msgid "public.visibility"
+msgstr "Visibilidade"
+
+msgid "public.visibility.private"
+msgstr "Privada"
+
+msgid "public.visibility.public"
+msgstr "Pública"
+
+msgid "public.visibility_detail"
+msgstr "Em uma sala privada, entra-se com um convite. Uma sala pública aparece para todos os jogadores com um Ember ID."
+
+msgid "room.public_status"
+msgstr "Sala pública / qualquer pessoa com um Ember ID pode entrar"
+
+msgid "room.public_locked_status"
+msgstr "Sala pública, bloqueada / ninguém novo pode entrar"
+
+msgid "public.failure.room_full"
+msgstr "Essa sala está cheia."
+
+msgid "public.failure.banned"
+msgstr "Você foi removido desta sala."
+
+msgid "public.failure.room_not_found"
+msgstr "Essa sala foi encerrada."
+
+msgid "public.failure.room_not_open"
+msgstr "Essa sala ainda não está aberta."
+
+msgid "public.failure.room_limit"
+msgstr "O limite de salas públicas foi atingido. Tente novamente mais tarde."
+
+msgid "public.failure.unsupported_build"
+msgstr "As salas públicas ainda não estão disponíveis nesta versão."
+
+msgid "public.failure.invalid_name"
+msgstr "Esse nome de sala não pode ser usado. Escolha outro."
+
+msgid "public.failure.rooms_unavailable"
+msgstr "As salas públicas não estão disponíveis no momento."

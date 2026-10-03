@@ -225,6 +225,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.identityTicket = snapshot.identityTicket; view.identityRequest = snapshot.identityRequest;
     view.identityRefusal = snapshot.identityRefusal;
     view.tournament = snapshot.tournament;
+    view.publicRooms = snapshot.publicRooms;
     const auto* fighter = sf4e::selection::FindFighter(lobbyMenuCharaID);
     view.selectedFighter=lobbyMenuCharaID;
     auto summaryPick = sf4e::selection::FromNative(lobbyConditions); summaryPick.fighter = lobbyMenuCharaID;
@@ -273,6 +274,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
         request.identity = std::move(action.identity);
         request.shortInvitation=action.shortInvitation;
         request.tournament = std::move(action.tournament);
+        request.publicTicket = std::move(action.publicTicket);
 		request.character = lobbyConditions;
 		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
 		request.stage = lobbyStageID;

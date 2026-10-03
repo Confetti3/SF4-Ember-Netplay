@@ -36,10 +36,12 @@ impl Actor {
     }
 
     pub(super) async fn setup_host_recovery(&mut self, invite: Invite) -> io::Result<Invite> {
-        let session = crate::recovery::RecoverySession::host(
+        let session = crate::recovery::RecoverySession::host_in(
             invite.room(),
             self.endpoint.id(),
             self.relay_only,
+            self.coordination_port,
+            self.is_public_host(),
         )
         .await?;
         let authority = session.state().await;
@@ -58,12 +60,13 @@ impl Actor {
         let coordination_address = invite
             .coordination_address()
             .ok_or_else(|| failed("invitation has no coordination route"))?;
-        let session = crate::recovery::RecoverySession::join(
+        let session = crate::recovery::RecoverySession::join_in(
             invite.room(),
             self.endpoint.id(),
             invite.authority_incarnation(),
             coordination_address,
             self.relay_only,
+            self.server_owned(),
         )
         .await?;
         let own = session.advertise().await;
@@ -185,11 +188,11 @@ impl Actor {
         self.applied_admission_members
             .extend(applied_history.iter().copied());
         let retired_for_broadcast = self.pending_retired_incarnations.clone();
-        if let Some(retained) = committed_primary_endpoints(committed.checkpoint.as_bytes()) {
+        if let Some(retained) = self.committed_roster(committed.checkpoint.as_bytes()) {
             // A leave hands authority to a single voter; the leader restores
             // the stable voter count from here until it has.
-            let restore_voters = state.leader_local
-                && state.voter_count < crate::recovery::stable_voter_count(retained.len());
+            let restore_voters =
+                state.leader_local && state.voter_count < self.desired_voters(retained.len());
             self.schedule_membership_reconciliation(
                 retained,
                 state.term,
@@ -404,6 +407,7 @@ impl Actor {
             && committed_now.term == refresh.committed.term
             && committed_now.request == refresh.committed.request
             && committed_now.checkpoint == refresh.committed.checkpoint;
+        let grace = self.leader_loss_grace();
         let failed_leader = if current && !refresh.state.writable {
             current_leader
                 .filter(|leader| *leader != recovery.incarnation)
@@ -411,7 +415,7 @@ impl Actor {
                     let now = Instant::now();
                     match self.unwritable_leader_since {
                         Some((term, failed, since)) if term == current_term && failed == leader => {
-                            if now.duration_since(since) >= RECOVERY_ELECTION_GRACE {
+                            if now.duration_since(since) >= grace {
                                 // Rate-limit repeated triggers while an election is in
                                 // progress. A later committed term or healthy proof
                                 // clears this marker.
@@ -436,7 +440,7 @@ impl Actor {
         if current {
             self.apply_coordination_refresh(refresh)?;
             if let Some(leader) = failed_leader {
-                self.trigger_recovery_election_for_leader(leader).await;
+                self.handle_failed_leader(leader).await?;
             }
         } else {
             // A read that crossed a leadership or applied-revision

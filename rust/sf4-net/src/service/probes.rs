@@ -41,7 +41,10 @@ impl Actor {
         };
         let id = self.next_transport_message;
         self.next_transport_message = self.next_transport_message.saturating_add(1);
-        if let Some(control) = self.controls.get(&peer) {
+        // A member of a server-owned room has no control to another member;
+        // its host relays the reservation (`relay_probe_reservation`).
+        let route = self.probe_reservation_route(peer);
+        if let Some(control) = route.and_then(|route| self.controls.get(&route)) {
             let _ = control.try_send(ControlFrame {
                 message_id: id,
                 payload: payload.into_bytes(),
@@ -122,7 +125,7 @@ impl Actor {
         if self.tasks.len() >= MAX_TASKS {
             return self.probe_error(2);
         }
-        if !self.controls.contains_key(&peer) {
+        if self.probe_reservation_route(peer).is_none() {
             return self.probe_error(3);
         }
         if self.own_probes.contains_key(&peer) {
@@ -418,12 +421,36 @@ impl Actor {
         term: u64,
         expires: u64,
     ) -> io::Result<bool> {
+        if self.is_public_host() {
+            let frame = CoordinationControl::ProbeReservation {
+                room,
+                source: claimed_source,
+                source_incarnation,
+                target_incarnation,
+                request,
+                pair_revision,
+                term,
+                expires,
+            };
+            return if self.relay_probe_reservation(peer, frame) {
+                Ok(true)
+            } else {
+                Err(failed("invalid probe reservation"))
+            };
+        }
         let Some(recovery) = self.recovery.clone() else {
             return Ok(false);
         };
         let state = recovery.state().await;
+        // In a server-owned room the frame arrives from the host, which
+        // relayed it from the source's own control; anywhere else it must
+        // arrive on the source's control. Either way the reservation counts
+        // only once this replica holds its committed entry.
+        let relayed = self.server_owned() && self.host_endpoint() == Some(peer);
+        let via = peer;
+        let peer = claimed_source;
         if room != recovery.room
-            || claimed_source != peer
+            || (!relayed && claimed_source != via)
             || request == 0
             || state.term != term
             || !state.writable
@@ -448,6 +475,11 @@ impl Actor {
                 )
                 .await
         {
+            // A refused frame closes the control it came on. A relayed one came
+            // on the host's, which did not write it: it is dropped instead.
+            if relayed {
+                return Ok(true);
+            }
             return Err(failed("invalid probe reservation"));
         }
         let reserved = move |recovery: crate::recovery::RecoverySession| async move {
@@ -474,11 +506,16 @@ impl Actor {
         // its completion installs the permission or closes the
         // control.
         if self.tasks.len() >= MAX_TASKS {
+            if relayed {
+                return Ok(true);
+            }
             return Err(failed("probe reservation busy"));
         }
         let key = ProbeReservationKey {
             epoch: self.epoch,
             peer,
+            // A relayed reservation that never applies closes nothing: the
+            // host's control is not the route that vouched for it.
             control: self.controls.get(&peer).map(ControlWorker::id).unwrap_or(0),
             request,
             pair_revision,

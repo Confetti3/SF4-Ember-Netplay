@@ -39,7 +39,12 @@ fn start() -> std::io::Result<()> {
         })
 }
 
-#[cfg(not(windows))]
+#[cfg(unix)]
+fn main() {
+    std::process::exit(sf4_net::stdio::main(std::env::args().skip(1)));
+}
+
+#[cfg(not(any(windows, unix)))]
 fn main() {
     eprintln!("sf4-net requires 64-bit Windows and supervised launcher startup");
     std::process::exit(1);

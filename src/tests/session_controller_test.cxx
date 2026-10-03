@@ -123,8 +123,45 @@ static void TestOpeningIsNotRecovery() {
     CHECK(failed.GetSnapshot().error == "Could not join");
 }
 
+// A server-owned room has no replacement host: its recovery never offers one,
+// and a ReplaceRoom command is refused. Leaving still closes the room.
+static void TestServerOwnedRoomIsNeverReplaced() {
+    SessionController room;
+    CHECK(CommandNow(room, CommandKind::JoinInvite, "sf4e3:invitation").accepted);
+    room.SetServerOwned(true);
+    CHECK(room.ObserveCoordination(1, 1, true, 100));
+    CHECK(EventNow(room, EventKind::RoomJoined).accepted);
+    CHECK(room.ObserveCoordination(1, 1, false, 1000));
+    CHECK(room.GetSnapshot().recovery == Recovery::Recovering && room.GetSnapshot().fault == Fault::ControlRecovering);
+    room.AdvanceRecovery(16000);
+    CHECK(room.GetSnapshot().recovery == Recovery::Recovering);
+    CHECK(room.ObserveCoordination(1, 1, false, 40000));
+    CHECK(room.GetSnapshot().recovery == Recovery::Recovering);
+    CHECK(!CommandNow(room, CommandKind::ReplaceRoom).accepted);
+    // A connected stream whose checkpoint never applies offers nothing either.
+    CHECK(room.ObserveCoordination(1, 2, true, 41000));
+    CHECK(room.ObserveCoordination(1, 3, true, 42000, false));
+    CHECK(room.ObserveCoordination(1, 4, true, 80000, false));
+    CHECK(room.GetSnapshot().recovery == Recovery::None && room.GetSnapshot().fault == Fault::CatchingUp);
+    CHECK(!CommandNow(room, CommandKind::ReplaceRoom).accepted);
+    CHECK(CommandNow(room, CommandKind::LeaveRoom).effect == Effect::CloseSession);
+    CHECK(EventNow(room, EventKind::RoomClosed).accepted);
+    CHECK(!room.GetSnapshot().serverOwned && room.GetSnapshot().room == RoomState::Idle);
+
+    // A private room keeps its offer.
+    SessionController priv;
+    CHECK(CommandNow(priv, CommandKind::JoinInvite, "sf4e3:invitation").accepted);
+    priv.SetServerOwned(false);
+    CHECK(priv.ObserveCoordination(1, 1, true, 100));
+    CHECK(EventNow(priv, EventKind::RoomJoined).accepted);
+    CHECK(priv.ObserveCoordination(1, 1, false, 1000));
+    priv.AdvanceRecovery(16000);
+    CHECK(CommandNow(priv, CommandKind::ReplaceRoom).effect == Effect::ReplaceRoom);
+}
+
 int main() {
     TestMatchEndedFromPreparing();
+    TestServerOwnedRoomIsNeverReplaced();
     TestNextGrantNeedsTheOldMatchEnded();
     TestOpeningIsNotRecovery();
     // Ordinary checkpoint delivery can trail the healthy coordination watch.

@@ -183,8 +183,9 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    rows.push_back(Row("room-status",loc::T("room.connection_status"),loc::T(v.session.room==netplay::RoomState::Opening?"room.opening":"room.waiting_state"),false));
   }
   // A tournament room admits only its two fighters, who reach it through the
-  // tournament service, so there is no invitation to hand out.
-  if(!tournamentRoom){
+  // tournament service, so there is no invitation to hand out. A public room
+  // admits by the service's ticket, so its invitation would admit nobody.
+  if(!tournamentRoom&&!s.serverOwned){
    rows.push_back(Row("copy",loc::T("room.copy_invitation"),loc::T("room.copy_invitation.detail"),!v.invitation.empty()));
    // Once made, the detail shows the link itself so it can be read out.
    rows.push_back(Row("copy-short",loc::T("room.copy_short_invitation"),v.shortInvitation.empty()?std::string(loc::T("room.copy_short_invitation.detail")):
@@ -192,7 +193,8 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   }
   rows.push_back(ConfirmRow("leave",loc::T(v.session.room==netplay::RoomState::Closing?"room.leaving":"room.leave"),
    LeaveRoomDetail(v),v.session.room!=netplay::RoomState::Closing));
-  if(v.session.recovery==netplay::Recovery::ReplacementOffered)
+  // A public room has no replacement: when its host is gone the room closes.
+  if(v.session.recovery==netplay::Recovery::ReplacementOffered&&!s.serverOwned)
    rows.push_back(ConfirmRow("replace-room",loc::T("room.replace"),loc::T(v.canReplaceRoom?"room.replace.detail":"room.replace.waiting"),v.canReplaceRoom));
   for(std::size_t i=0;i<rows.size();++i){auto& e=rows[i];
    if(e.id.compare(0,6,"table-")==0)e.right=s.members.empty()?"room-members":"member-"+std::to_string(s.members.front().id);

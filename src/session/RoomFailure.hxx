@@ -40,6 +40,16 @@ inline FailureStage FailureStageFromHelper(const std::string& code, const std::s
 	return FailureStage::Unknown;
 }
 
+// The helper's own reason for a failed join or host, when it is one of the
+// labels it defines; empty otherwise. For logs and fixtures: the runtime's
+// wording comes from FailureStage, which leaves `timeout` and `refused` Unknown.
+inline const char* FailureReasonLabel(const std::string& code, const std::string& reason) {
+	if (code != "join_failed" && code != "host_unavailable") return "";
+	for (const char* label : {"relay_unreachable", "host_unreachable", "timeout", "refused", "control_lost"})
+		if (reason == label) return label;
+	return "";
+}
+
 // Untranslated names for logs.
 inline const char* FailureStageLabel(FailureStage stage) {
 	switch (stage) {

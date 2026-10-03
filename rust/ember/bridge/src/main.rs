@@ -91,6 +91,7 @@ fn init(dir: PathBuf) -> Result<(), String> {
         mock_browser: true,
         discord: None,
         integration_secrets: None,
+        rooms: None,
         tenants: vec![config::Tenant {
             id: "local".into(),
             name: "Local tournaments".into(),

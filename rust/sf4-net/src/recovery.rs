@@ -16,7 +16,7 @@ use sha2::{Digest, Sha256};
 use tokio::task::JoinHandle;
 
 use crate::{
-    coordination::{AdminEntry, Committed, Coordinator, ProbeReservation, Proposal},
+    coordination::{AdminEntry, Committed, Coordinator, Ownership, ProbeReservation, Proposal},
     coordination_iroh::IrohRpc,
 };
 
@@ -79,10 +79,39 @@ impl RecoverySession {
         primary_endpoint: EndpointId,
         relay_only: bool,
     ) -> io::Result<Self> {
+        Self::host_on(room, primary_endpoint, relay_only, None).await
+    }
+
+    /// `host` with the coordination endpoint on exactly `port`, or the default
+    /// policy for `None`. A port that cannot be bound fails the host.
+    pub async fn host_on(
+        room: [u8; 16],
+        primary_endpoint: EndpointId,
+        relay_only: bool,
+        port: Option<u16>,
+    ) -> io::Result<Self> {
+        Self::host_in(room, primary_endpoint, relay_only, port, false).await
+    }
+
+    /// `host_on` for the host of a server-owned room when `server_owned`: its
+    /// only voter for the room's whole life.
+    pub async fn host_in(
+        room: [u8; 16],
+        primary_endpoint: EndpointId,
+        relay_only: bool,
+        port: Option<u16>,
+        server_owned: bool,
+    ) -> io::Result<Self> {
+        let ownership = if server_owned {
+            Ownership::Host
+        } else {
+            Ownership::Private
+        };
         let incarnation = fresh_incarnation();
-        let rpc = IrohRpc::bind(room, incarnation, relay_only).await?;
-        let coordinator =
-            std::sync::Arc::new(Coordinator::new_for_room(room, incarnation, rpc.clone()).await?);
+        let rpc = IrohRpc::bind_owned(room, incarnation, relay_only, port, ownership).await?;
+        let coordinator = std::sync::Arc::new(
+            Coordinator::new_owned(room, incarnation, rpc.clone(), ownership).await?,
+        );
         coordinator
             .raft()
             .initialize(std::collections::BTreeMap::from([(
@@ -122,14 +151,43 @@ impl RecoverySession {
         host_coordination: EndpointAddr,
         relay_only: bool,
     ) -> io::Result<Self> {
+        Self::join_in(
+            room,
+            primary_endpoint,
+            host_incarnation,
+            host_coordination,
+            relay_only,
+            false,
+        )
+        .await
+    }
+
+    /// `join` into a server-owned room when `server_owned`: the learner takes
+    /// the log from `host_incarnation` only, and never votes or campaigns.
+    pub async fn join_in(
+        room: [u8; 16],
+        primary_endpoint: EndpointId,
+        host_incarnation: u64,
+        host_coordination: EndpointAddr,
+        relay_only: bool,
+        server_owned: bool,
+    ) -> io::Result<Self> {
         if host_incarnation == 0 || room == [0; 16] {
             return Err(io::Error::other("invalid coordination admission"));
         }
+        let ownership = if server_owned {
+            Ownership::Member {
+                host: host_incarnation,
+            }
+        } else {
+            Ownership::Private
+        };
         let incarnation = fresh_incarnation();
-        let rpc = IrohRpc::bind(room, incarnation, relay_only).await?;
+        let rpc = IrohRpc::bind_owned(room, incarnation, relay_only, None, ownership).await?;
         rpc.admit(host_incarnation, host_coordination).await?;
-        let coordinator =
-            std::sync::Arc::new(Coordinator::new_for_room(room, incarnation, rpc.clone()).await?);
+        let coordinator = std::sync::Arc::new(
+            Coordinator::new_owned(room, incarnation, rpc.clone(), ownership).await?,
+        );
         let task_rpc = rpc.clone();
         let task_coordinator = coordinator.clone();
         let serve_task = tokio::spawn(async move {
@@ -241,10 +299,25 @@ impl RecoverySession {
         Ok(())
     }
 
+    /// A server-owned room has one voter, its host: no other voter set is
+    /// ever committed, whoever asks.
+    fn require_voters_allowed(&self, voters: &BTreeSet<u64>) -> io::Result<()> {
+        if self
+            .coordinator
+            .ownership()
+            .permits_voters(self.incarnation, voters)
+        {
+            Ok(())
+        } else {
+            Err(io::Error::other("a server-owned room has one voter"))
+        }
+    }
+
     pub async fn promote_voters(&self, voters: BTreeSet<u64>) -> io::Result<()> {
         if voters.is_empty() || voters.len() > MAX_VOTERS {
             return Err(io::Error::other("invalid stable voter set"));
         }
+        self.require_voters_allowed(&voters)?;
         let _membership = self.coordinator.membership_operations.lock().await;
         let applied = self.coordinator.applied_member_ids().await;
         if !voters.is_subset(&applied) {
@@ -291,6 +364,7 @@ impl RecoverySession {
         if voters.is_empty() || voters.len() > MAX_VOTERS {
             return Err(io::Error::other("invalid replacement voter set"));
         }
+        self.require_voters_allowed(&voters)?;
         let _membership = self.coordinator.membership_operations.lock().await;
         self.coordinator
             .raft()

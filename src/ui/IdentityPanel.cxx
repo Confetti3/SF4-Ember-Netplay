@@ -199,6 +199,15 @@ std::string IdentityPanel::TournamentFailure(const std::string& code) {
     return FailureText(code);
 }
 
+std::string IdentityPanel::UsableBridge(const ShellView& v) const {
+    return v.identity.state == "ready" && FindBridge(v, bridge_) ? bridge_ : std::string();
+}
+
+void IdentityPanel::Probe() {
+    IdentityRequest status; status.op = IdentityOp::Status; Queue(std::move(status));
+    IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
+}
+
 bool IdentityPanel::Answered(const ShellView& v) const {
     return v.identityTicket == sent_ && (!v.identityRequest || v.identity.requestId == v.identityRequest);
 }
@@ -591,7 +600,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
         else if (ready) { value = id.fingerprint; detail = loc::Tf("identity.state.ready_detail", id.emberId, id.fingerprint); }
         else if (id.state == "recovery_required") { value = loc::T("identity.state.recovery"); detail = loc::T("identity.state.recovery_detail"); }
         else { value = loc::T("identity.state.unavailable"); detail = loc::Tf("identity.state.unavailable_detail", FailureText(id.reason)); }
-        rows.push_back(Info("id-status", loc::T("identity.status"), value, detail));
+        rows.push_back(InfoRow("id-status", loc::T("identity.status"), value, detail));
         if (id.state == "disabled") {
             // Most players come for Discord: Connect Discord creates the ID on the way.
             auto discord = Row("discord-connect", loc::T("identity.discord"), loc::T("identity.connect_discord_detail"));
@@ -636,7 +645,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
                 PairDetail(backupPassphrase_, backupConfirm_, "identity.repeat_passphrase_detail"), true));
             rows.push_back(ConfirmRow("id-export", loc::T("identity.export"),
                 PairDetail(backupPassphrase_, backupConfirm_, "identity.export_detail"), !busy && Matching(backupPassphrase_, backupConfirm_)));
-            if (!id.exportPath.empty()) rows.push_back(Info("id-export-result", loc::T("identity.export_saved"), {}, id.exportPath));
+            if (!id.exportPath.empty()) rows.push_back(InfoRow("id-export-result", loc::T("identity.export_saved"), {}, id.exportPath));
         }
         rows.push_back(Row("id-restore-paste", loc::T("identity.paste_path"), loc::T("identity.paste_path_detail")));
         rows.back().hint = loc::T("menu.hint.paste");
@@ -655,7 +664,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
             holds += "\n\n";
             holds += alreadyHere ? loc::T("identity.backup_same") : id.previewSame ? loc::T("identity.backup_same_locked") :
                 id.previewReplaces ? loc::T("identity.backup_replaces") : loc::T("identity.backup_new");
-            rows.push_back(Info("id-preview-result", loc::T("identity.backup_holds"), id.previewFingerprint, holds));
+            rows.push_back(InfoRow("id-preview-result", loc::T("identity.backup_holds"), id.previewFingerprint, holds));
             if (!alreadyHere) {
                 if (id.passphraseRequired) local(rows);
                 const bool secretOk = !id.passphraseRequired || Matching(newPassphrase_, newConfirm_);
@@ -667,7 +676,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
     } else if (screen == "linked-accounts") {
         title = loc::T("identity.linked_title");
         if (!ready) {
-            rows.push_back(Info("id-linked-unavailable", loc::T("identity.linked_needs_id"), {}, loc::T("identity.linked_needs_id_detail")));
+            rows.push_back(InfoRow("id-linked-unavailable", loc::T("identity.linked_needs_id"), {}, loc::T("identity.linked_needs_id_detail")));
             return rows;
         }
         if (const auto* bridge = FindBridge(v, bridge_)) {
@@ -685,7 +694,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
                     row.userText = true; row.hint = loc::T("identity.cancel_claim"); rows.push_back(std::move(row));
                 }
                 if (id.links.empty() && id.pending.empty())
-                    rows.push_back(Info("id-no-links", loc::T("identity.no_links"), {}, loc::T("identity.no_links_detail")));
+                    rows.push_back(InfoRow("id-no-links", loc::T("identity.no_links"), {}, loc::T("identity.no_links_detail")));
             }
             if (id.inspected.id == bridge_ && (id.inspectedDiscord || id.inspectedDiscordAccounts))
                 if (auto discord = DiscordRow(v, busy)) rows.push_back(std::move(*discord));
@@ -724,7 +733,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
             // The first read of the state failed: nothing is out to wait for.
             rows.push_back(Row("dc-retry", loc::T("connect.retry"), loc::T("connect.retry_detail")));
         } else if (!id.known || working && !ready) {
-            rows.push_back(Info("dc-progress", loc::T("connect.setting_up"), {}, loc::T("connect.setting_up_detail")));
+            rows.push_back(InfoRow("dc-progress", loc::T("connect.setting_up"), {}, loc::T("connect.setting_up_detail")));
         } else if (id.state == "disabled") {
             // Connect creates the Ember ID first; only Wine and Proton need a passphrase for it.
             if (id.passphraseRequired) local(rows);
@@ -749,7 +758,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
     } else if (screen == "tournament-matches") {
         title = loc::T("screen.tournament_matches");
         if (!ready) {
-            rows.push_back(Info("id-linked-unavailable", loc::T("identity.linked_needs_id"), {}, loc::T("identity.linked_needs_id_detail")));
+            rows.push_back(InfoRow("id-linked-unavailable", loc::T("identity.linked_needs_id"), {}, loc::T("identity.linked_needs_id_detail")));
             // Connect Discord creates the Ember ID on the way.
             rows.push_back(Row("discord-connect", loc::T("screen.connect_discord"), loc::T("identity.connect_discord_detail")));
             return rows;
@@ -758,13 +767,13 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
         const bool playing = Playing(t);
         if (!t.matchId.empty() && t.phase != netplay::tournament::Phase::Idle) {
             const bool failed = t.phase == netplay::tournament::Phase::Failed;
-            rows.push_back(Info("tm-current", loc::T("tournament.current"), PlayState(t),
+            rows.push_back(InfoRow("tm-current", loc::T("tournament.current"), PlayState(t),
                 failed ? TournamentFailure(t.reason) : std::string(loc::T("tournament.current_detail"))));
             if (playing) rows.push_back(ConfirmRow("tm-stop", loc::T("tournament.stop"), loc::T("tournament.stop_detail")));
         }
         const auto* bridge = FindBridge(v, bridge_);
         if (!bridge) {
-            rows.push_back(Info("tm-no-service", loc::T("tournament.needs_service"), {}, loc::T("tournament.needs_discord_detail")));
+            rows.push_back(InfoRow("tm-no-service", loc::T("tournament.needs_service"), {}, loc::T("tournament.needs_discord_detail")));
             // Connect Discord sets up Ember's own service; Linked accounts any other.
             rows.push_back(Row("discord-connect", loc::T("screen.connect_discord"), loc::T("identity.connect_discord_detail")));
             rows.push_back(Row("linked-accounts", loc::T("screen.linked_accounts"), loc::T("identity.linked_detail")));
@@ -792,7 +801,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
                 rows.push_back(std::move(row));
             }
             if (t.list.items.empty() && !t.list.loading && t.list.error.empty())
-                rows.push_back(Info("tm-none", loc::T("tournament.none"), {}, loc::T("tournament.none_detail")));
+                rows.push_back(InfoRow("tm-none", loc::T("tournament.none"), {}, loc::T("tournament.none_detail")));
         }
         rows.push_back(Row("tm-refresh", loc::T("identity.refresh"), loc::T("tournament.refresh_detail"), !t.list.loading));
         rows.push_back(Row("tm-paste", loc::T("tournament.paste_link"), loc::T("tournament.paste_link_detail")));

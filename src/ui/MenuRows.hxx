@@ -7,7 +7,7 @@ namespace sf4e { namespace ui {
 inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::PlayerPreferences& b) {
     return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.showMatchHud==b.showMatchHud&&
         a.matchHudSize==b.matchHudSize&&a.matchHudRaised==b.matchHudRaised&&a.readySound==b.readySound&&a.readySoundVolume==b.readySoundVolume&&a.discordPresence==b.discordPresence&&a.discordInvites==b.discordInvites&&a.interfaceScale==b.interfaceScale&&
-        a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.tableRules==b.tableRules;
+        a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.roomPublic==b.roomPublic&&a.tableRules==b.tableRules;
 }
 inline MenuEntry Row(std::string id,std::string label,std::string detail,bool enabled=true) {
     return {std::move(id),std::move(label),std::move(detail),{},enabled};
@@ -18,6 +18,10 @@ inline MenuEntry Value(std::string id,std::string label,std::string value,std::s
 // A value shown for information: it cannot be focused for adjustment.
 inline MenuEntry ReadOnlyValue(std::string id,std::string label,std::string value,std::string detail) {
     auto e=Value(std::move(id),std::move(label),std::move(value),std::move(detail),false); e.adjustable=false; return e;
+}
+// A row that only informs: it can be focused, its value and detail read, and Select does nothing.
+inline MenuEntry InfoRow(std::string id,std::string label,std::string value,std::string detail) {
+    auto e=Row(std::move(id),std::move(label),std::move(detail)); e.value=std::move(value); e.info=true; return e;
 }
 inline MenuEntry TextRow(std::string id,std::string label,std::string value,std::size_t limit,bool enabled=true) {
     auto e=Value(std::move(id),std::move(label),value,enabled?loc::T("menu.edit_detail"):loc::T("menu.edit_unavailable"),enabled);

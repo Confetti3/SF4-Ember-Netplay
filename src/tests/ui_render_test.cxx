@@ -837,7 +837,25 @@ int main(int argc, char** argv) {
                 t=netplay::tournament::Status{};t.list.bridge=id.bridges[0].id;
                 page("tournament-matches");draw(nullptr,0,4);draw("tournament-matches-none");
                 id.state="disabled";page("linked-accounts");draw("linked-accounts-no-id");
-                view.identity=netplay::IdentityView{};view.tournament=netplay::tournament::Status{};
+                // Public rooms: the list (one room with a match on, one named in
+                // kanji, one with the longest name), none, no Ember ID, and Create on Public.
+                id=netplay::IdentityView{};id.known=true;id.state="ready";id.fingerprint="j25zrhe6-pmdhvlja";
+                id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.bridges={{"brg_00000000-0000-4000-8000-000000000001","https://bridge.example","Example"}};
+                auto& publicRooms=view.publicRooms;publicRooms=netplay::publicrooms::Status{};
+                publicRooms.bridge=id.bridges[0].id;publicRooms.listed=1;
+                const auto listed=[](const char* roomId,std::string name,unsigned members,unsigned capacity,unsigned playing){
+                    netplay::publicrooms::Room room;room.id=roomId;room.name=std::move(name);room.members=members;room.capacity=capacity;room.playing=playing;room.region="use1";return room;};
+                publicRooms.rooms={listed("a","Friday Night Fights",3,8,0),listed("b","金曜ルーム",2,4,1),
+                    listed("c",std::string(64,'W'),16,16,2)};
+                page("public-rooms");draw(nullptr,0,8);draw("public-rooms");
+                Require(shell.Navigation().Screen()=="public-rooms","Public rooms did not open");
+                publicRooms.rooms.clear();page("public-rooms");draw(nullptr,0,8);draw("public-rooms-none");
+                id.state="disabled";id.bridges.clear();page("public-rooms");draw(nullptr,0,8);draw("public-rooms-no-id");
+                id.state="ready";id.bridges={{"brg_00000000-0000-4000-8000-000000000001","https://bridge.example","Example"}};
+                view.preferences.roomPublic=true;view.preferences.roomName="Open Mic";shell.Navigation().Home();draw(nullptr,0,4);
+                page("create");draw(nullptr,0,8);draw("create-public");
+                view.preferences.roomPublic=false;view.preferences.roomName="Private room";shell.Navigation().Home();draw(nullptr,0,4);
+                view.identity=netplay::IdentityView{};view.tournament=netplay::tournament::Status{};view.publicRooms=netplay::publicrooms::Status{};
             }
             mode=1;TrainingNavigation().Home();draw("training-home");
             Require(TrainingNavigation().Focus()=="recording","Removed practice position still occupies training root");

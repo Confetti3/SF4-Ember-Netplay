@@ -159,7 +159,9 @@ impl Actor {
                 }
                 notice_offered = true;
             }
-            if voters.contains(&recovery.incarnation) && voters.len() > 1 {
+            // A server-owned room has no successor to hand authority to: its
+            // host is the only voter, and the room ends with it.
+            if !self.server_owned() && voters.contains(&recovery.incarnation) && voters.len() > 1 {
                 if state.leader_local {
                     // Hand authority to one successor. OpenRaft 0.9 voters
                     // refuse votes for the leader lease (election_timeout_max,
@@ -325,7 +327,9 @@ impl Actor {
         let became_successor = self.recovery.as_ref().is_some_and(|recovery| {
             recovery.coordinator.current_leader() == Some(recovery.incarnation)
         });
-        if retain_departure_authority || became_successor {
+        // No peer waits for a public host's authority proof, so its room
+        // closes at once.
+        if (retain_departure_authority || became_successor) && !self.is_public_host() {
             self.enter_departure_grace();
         } else {
             self.clear_room();
@@ -477,7 +481,9 @@ impl Actor {
                         // A refused room opening names the epoch it asked for:
                         // the native client filters events by its own epoch.
                         Command::Host { epoch: requested, .. }
-                        | Command::Join { epoch: requested, .. } => {
+                        | Command::HostPublic { epoch: requested, .. }
+                        | Command::Join { epoch: requested, .. }
+                        | Command::JoinPublic { epoch: requested, .. } => {
                             let _ = events.try_send(Event::Error {
                                 probe_failure: None,
                                 request_id: request.id,
@@ -547,6 +553,7 @@ impl Actor {
         self.own_probes.clear();
         self.pending_probe_authorizations.clear();
         self.pending_probe_reservations.clear();
+        self.public = None;
         self.retirement_started = Some(Instant::now());
     }
 
@@ -565,7 +572,7 @@ impl Actor {
     /// leader still needs this vote to commit the removal, and in a two-voter
     /// room losing it unannounced would leave the leader unwritable.
     pub(super) fn abandon_room(&mut self) {
-        if self.recovery.is_some() {
+        if self.recovery.is_some() && !self.is_public_host() {
             self.enter_departure_grace();
         } else {
             self.clear_room();

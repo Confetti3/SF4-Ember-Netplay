@@ -1793,7 +1793,83 @@ static void TestCustomRoomDepartures() {
 	CHECK(server.roomIncarnations.empty());
 }
 
+// A server-owned room has no local host: every join needs an account the
+// embedding process vouched for, the first joiner moderates, and a kick bans
+// the account rather than the connection.
+static void TestServerOwnedRoom() {
+	auto* transport = new MockTransport();
+	SessionServer server("public-room", "build", true, 3, {0, 99},
+		std::unique_ptr<session::ServerTransport>(transport));
+	CHECK(server.EnableServerOwnedRooms("Public", 8, 95));
+	CHECK(!server.EnableServerOwnedRooms("Again"));
+	CHECK(server.Listen(0) == 0);
+	auto step = [&]() { CHECK(server.Step() == 0); };
+	auto hello = [&](session::Connection connection) {
+		transport->Push(connection, json(protocol::SessionHelloMsg()));
+		step();
+	};
+	// True when the server took the join.
+	auto join = [&](session::Connection connection, const char* name) {
+		protocol::SessionJoinRequest request;
+		request.username = name; request.sidecarHash = "build"; request.port = 30000;
+		request.customRooms = true; request.roomProtocol = room::ProtocolVersion;
+		transport->outgoing.clear();
+		transport->Push(connection, json(request));
+		step();
+		return server.roomMembers.count(connection) == 1;
+	};
+	const auto isHost = [&](session::Connection connection) {
+		return server.RoomSnapshot()->host == server.roomMembers.at(connection);
+	};
+
+	hello(1);
+	CHECK(!join(1, "NoAccount") && transport->Contains("join_rej") && server.RoomSnapshot()->members.empty());
+	// Connection 1 is not the hosting player here: whoever joins first moderates.
+	hello(2);
+	server.SetConnectionAccount(2, "ember-2");
+	CHECK(join(2, "First") && isHost(2) && server.RoomSnapshot()->serverOwned);
+	server.SetConnectionAccount(1, "ember-1");
+	CHECK(join(1, "Second") && !isHost(1) && isHost(2));
+	// One member per account, however it connects.
+	hello(3);
+	server.SetConnectionAccount(3, "ember-1");
+	CHECK(!join(3, "Twin") && transport->Contains("join_rej"));
+
+	// The host kicks the second member. The ban is the account.
+	const auto kickedMember = server.roomMembers.at(1);
+	room::Action kick;
+	const auto* snapshot = server.RoomSnapshot();
+	kick.kind = room::ActionKind::Kick; kick.roomEpoch = snapshot->roomEpoch; kick.revision = snapshot->revision;
+	kick.tableRevision = snapshot->tables[0].revision; kick.actionId = 1; kick.target = kickedMember;
+	protocol::RoomActionMessage message; message.action = kick;
+	transport->outgoing.clear();
+	transport->Push(2, json(message));
+	step();
+	CHECK(server.roomMembers.count(1) == 0);
+	CHECK(server.BannedAccounts() == std::vector<std::string>{"ember-1"} && server.roomBannedIdentities.empty());
+	hello(4);
+	server.SetConnectionAccount(4, "ember-1");
+	CHECK(!join(4, "Returned") && transport->Contains("join_rej"));
+	server.SetConnectionAccount(4, "ember-4");
+	CHECK(join(4, "Fresh") && !isHost(4));
+
+	// An account lives as long as its connection, and an empty room stays open.
+	CHECK(server._connectionAccounts.count(2) == 1);
+	transport->disconnected.push_back(2);
+	step();
+	CHECK(server._connectionAccounts.count(2) == 0 && isHost(4));
+	transport->disconnected.push_back(4);
+	step();
+	CHECK(server.RoomSnapshot()->members.empty() && server.RoomSnapshot()->host == 0 && !server.RoomSnapshot()->closed);
+	hello(5);
+	server.SetConnectionAccount(5, "ember-5");
+	CHECK(join(5, "Next") && isHost(5));
+	server.Close();
+	CHECK(server._connectionAccounts.empty());
+}
+
 int main() {
+	TestServerOwnedRoom();
 	auto* transport = new MockTransport();
 	SessionServer server("room", "build", true, 3, {0, 99},
 		std::unique_ptr<session::ServerTransport>(transport));

@@ -324,8 +324,12 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		}
 		runtime->displayName = runtime->preferences.displayName;
 		runtime->error.clear(); runtime->offlineRequested = false;
+		// A public room's admission carries the bridge's signed ticket, which the
+		// helper presents to the room host; a ticket that is not an object is no admission.
+		const auto ticket = command.publicTicket.empty() ? nlohmann::json() : nlohmann::json::parse(command.publicTicket, nullptr, false);
 		const bool started = decision.effect == netplay::Effect::HostRoom ? runtime->room->Host(sf4e::sidecarHash) :
-			runtime->room->Join(decision.invitation, sf4e::sidecarHash);
+			command.publicTicket.empty() ? runtime->room->Join(decision.invitation, sf4e::sidecarHash) :
+			ticket.is_object() && runtime->room->JoinPublic(decision.invitation, ticket, sf4e::sidecarHash);
 		if (!started) Apply(netplay::EventKind::RoomFailed, loc::T("runtime.room_open_failed"));
 		break;
 	}

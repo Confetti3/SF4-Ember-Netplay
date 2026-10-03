@@ -144,6 +144,19 @@ impl Invite {
         now: u64,
         lifetime: u64,
     ) -> io::Result<Self> {
+        Self::create_in_room(endpoint, relay, build, now, lifetime, rand::random())
+    }
+
+    /// `create` for a room whose id the caller chose, as a public room's is.
+    /// The capability is still random. An all-zero room id is refused.
+    pub fn create_in_room(
+        endpoint: EndpointId,
+        relay: RelayUrl,
+        build: String,
+        now: u64,
+        lifetime: u64,
+        room: [u8; 16],
+    ) -> io::Result<Self> {
         if lifetime == 0 || lifetime > MAX_INVITE_LIFETIME_SECS {
             return Err(invalid());
         }
@@ -151,7 +164,7 @@ impl Invite {
             version: VERSION,
             endpoint,
             relay,
-            room: rand::random(),
+            room,
             capability: rand::random(),
             expires: now.checked_add(lifetime).ok_or_else(invalid)?,
             build,

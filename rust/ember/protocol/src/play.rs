@@ -39,7 +39,7 @@ pub fn is_hex(text: &str, len: usize) -> bool {
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
-fn check_build(build_id: &str) -> Result<()> {
+pub(crate) fn check_build(build_id: &str) -> Result<()> {
     if build_id.is_empty() || build_id.len() > MAX_BUILD || !build_id.is_ascii() {
         return Err(Error::InvalidField("build_id"));
     }

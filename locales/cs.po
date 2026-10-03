@@ -3110,3 +3110,93 @@ msgstr "{0}, {1}     Fronta: {2}     Sleduje: {3}"
 
 msgid "room.streak"
 msgstr "Sety v řadě: {0}"
+
+msgid "screen.public_rooms"
+msgstr "Veřejné místnosti"
+
+msgid "online.public_detail"
+msgstr "Procházejte místnosti, do kterých se může připojit každý hráč s Ember ID, nebo otevřete vlastní."
+
+msgid "public.create"
+msgstr "Vytvořit veřejnou místnost"
+
+msgid "public.create_detail"
+msgstr "Otevře místnost viditelnou pro všechny hráče s Ember ID. Jste jejím hostitelem a pravidla nastavíte přímo v ní."
+
+msgid "public.create_requirements"
+msgstr "Otevře veřejnou místnost ve službě Ember ID a připojí vás do ní. Pravidla stolu nastavte v místnosti."
+
+msgid "public.create_needs_id"
+msgstr "Veřejné místnosti vyžadují Ember ID a důvěryhodnou službu. Nastavíte je v části Veřejné místnosti."
+
+msgid "public.refresh_detail"
+msgstr "Vyžádá si od služby aktuální seznam místností."
+
+msgid "public.loading"
+msgstr "Načítání místností..."
+
+msgid "public.none"
+msgstr "Žádné veřejné místnosti"
+
+msgid "public.none_detail"
+msgstr "Nikdo teď nemá otevřenou veřejnou místnost. Vytvořte si vlastní a začněte hrát."
+
+msgid "public.needs_id"
+msgstr "Veřejné místnosti vyžadují Ember ID"
+
+msgid "public.needs_id_detail"
+msgstr "Vytvořte si Ember ID a v části Propojené účty důvěřujte nějaké službě. Veřejné místnosti uvádí právě ta služba."
+
+msgid "public.room_playing"
+msgstr "{0}, probíhá zápas"
+
+msgid "public.room_detail"
+msgstr "{0}\nHráči: {1}/{2}. Region: {3}."
+
+msgid "public.room_detail_playing"
+msgstr "{0}\nHráči: {1}/{2}. Region: {3}.\nProbíhající zápasy: {4}."
+
+msgid "public.joining_value"
+msgstr "Připojování..."
+
+msgid "public.visibility"
+msgstr "Viditelnost"
+
+msgid "public.visibility.private"
+msgstr "Soukromá"
+
+msgid "public.visibility.public"
+msgstr "Veřejná"
+
+msgid "public.visibility_detail"
+msgstr "Do soukromé místnosti se vstupuje s pozvánkou. Veřejnou místnost vidí všichni hráči s Ember ID."
+
+msgid "room.public_status"
+msgstr "Veřejná místnost / může se připojit každý s Ember ID"
+
+msgid "room.public_locked_status"
+msgstr "Veřejná místnost, uzamčená / nikdo další se nemůže připojit"
+
+msgid "public.failure.room_full"
+msgstr "Tato místnost je plná."
+
+msgid "public.failure.banned"
+msgstr "Z této místnosti jste byli odebráni."
+
+msgid "public.failure.room_not_found"
+msgstr "Tato místnost byla zavřena."
+
+msgid "public.failure.room_not_open"
+msgstr "Tato místnost zatím není otevřená."
+
+msgid "public.failure.room_limit"
+msgstr "Byl dosažen limit veřejných místností. Zkuste to znovu později."
+
+msgid "public.failure.unsupported_build"
+msgstr "Veřejné místnosti zatím nejsou v této verzi dostupné."
+
+msgid "public.failure.invalid_name"
+msgstr "Tento název místnosti nelze použít. Zvolte jiný."
+
+msgid "public.failure.rooms_unavailable"
+msgstr "Veřejné místnosti teď nejsou dostupné."

@@ -8,6 +8,7 @@
 //   sf4e__NetplayRuntime__Input.cxx    controller capture and the gameplay device
 //   sf4e__NetplayRuntime__Status.cxx   the published snapshot, errors, Discord
 //   sf4e__NetplayRuntime__Tournament.cxx  playing a bridge-run tournament match
+//   sf4e__NetplayRuntime__PublicRooms.cxx the bridge's public room list and admissions
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__RuntimeBridge.hxx"
 #include "sf4e__InputDevices.hxx"
@@ -30,6 +31,7 @@
 #include "../netplay/MatchEndRules.hxx"
 #include "../netplay/ParkedIntent.hxx"
 #include "../netplay/TournamentPlay.hxx"
+#include "../netplay/PublicRooms.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
@@ -156,6 +158,12 @@ struct Runtime {
     std::map<std::uint64_t, netplay::tournament::Output::Kind> tournamentRequests;
     std::uint64_t assignmentRequest=0;
     netplay::tournament::AssignmentList assignmentList;
+    // The public room list and the last create or ticket request: their helper
+    // request ids (0 when none is in flight), when each was sent, and what
+    // the interface sees.
+    std::uint64_t roomListRequest=0, admissionRequest=0;
+    std::uint64_t roomListSentMs=0, admissionSentMs=0;
+    netplay::publicrooms::Status publicRooms;
     // Match links from the browser (ember://tournament/open), from a later
     // launcher or the start argument, and the last one the interface was given.
     platform::MatchLinkMailbox matchLinks;
@@ -285,6 +293,13 @@ void OpenConnectLink(const std::string& bridge, bool launched = false);
 // A table's end as the room committed it, with how it compares to this game's own capture.
 void ObserveTournamentTerminal(const room::Event& event, netplay::MatchResultOutbox::TerminalResult terminal);
 netplay::tournament::Status TournamentStatus();
+
+// Public rooms (sf4e__NetplayRuntime__PublicRooms.cxx).
+void DispatchPublicRooms(const netplay::tournament::Command& command, bool helperReady);
+// True when the answer was to a public room request, which it then took.
+bool TakePublicRoomsAnswer(const session::TournamentAnswer& answer);
+// Gives up on a request the helper never answered.
+void ExpirePublicRooms(std::uint64_t nowMs);
 
 // Controllers (sf4e__NetplayRuntime__Input.cxx).
 std::string DeviceName(const input::Device& device);

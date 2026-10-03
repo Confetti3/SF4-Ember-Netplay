@@ -87,14 +87,14 @@ void SessionController::AdvanceCatchUp(std::uint64_t nowMs) {
     if (nowMs < state_.authorityStalledMs) { state_.authorityStalledMs = nowMs ? nowMs : 1; return; }
     const auto stalled = nowMs - state_.authorityStalledMs;
     if (stalled >= 10000) state_.fault = Fault::CatchingUp;
-    if (stalled >= 30000 && state_.recovery == Recovery::None) {
+    if (stalled >= 30000 && state_.recovery == Recovery::None && !state_.serverOwned) {
         state_.recovery = Recovery::ReplacementOffered;
         state_.recoveryStartedMs = state_.authorityStalledMs;
     }
 }
 
 void SessionController::AdvanceRecovery(std::uint64_t nowMs) {
-    if (state_.recovery == Recovery::Recovering && nowMs >= state_.recoveryStartedMs &&
+    if (state_.recovery == Recovery::Recovering && !state_.serverOwned && nowMs >= state_.recoveryStartedMs &&
         nowMs - state_.recoveryStartedMs >= 15000) state_.recovery = Recovery::ReplacementOffered;
 }
 
@@ -137,7 +137,7 @@ Decision SessionController::Execute(const Command& command) {
         // before a new room, Offline, or any update installation may begin.
         return Accept(Effect::CloseSession);
     case CommandKind::ReplaceRoom:
-        if (state_.recovery != Recovery::ReplacementOffered || state_.room == RoomState::Closing ||
+        if (state_.recovery != Recovery::ReplacementOffered || state_.serverOwned || state_.room == RoomState::Closing ||
             state_.match == MatchState::Playing) return Decision();
         state_.room = RoomState::Closing;
         state_.readyPending = false;

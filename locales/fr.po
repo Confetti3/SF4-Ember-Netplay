@@ -3110,3 +3110,93 @@ msgstr "{0}, {1}     File {2}     Spect. {3}"
 
 msgid "room.streak"
 msgstr "{0} sets d'affilée"
+
+msgid "screen.public_rooms"
+msgstr "Salons publics"
+
+msgid "online.public_detail"
+msgstr "Parcourez les salons que tout joueur avec un Ember ID peut rejoindre, ou ouvrez le vôtre."
+
+msgid "public.create"
+msgstr "Créer un salon public"
+
+msgid "public.create_detail"
+msgstr "Ouvre un salon visible par tous les joueurs avec un Ember ID. Vous en êtes l'hôte et fixez ses règles dans le salon."
+
+msgid "public.create_requirements"
+msgstr "Ouvre un salon public sur le service de l'Ember ID et le rejoint. Fixez les règles de la table dans le salon."
+
+msgid "public.create_needs_id"
+msgstr "Les salons publics demandent un Ember ID et un service de confiance. Configurez-les dans Salons publics."
+
+msgid "public.refresh_detail"
+msgstr "Demande au service la liste actuelle des salons."
+
+msgid "public.loading"
+msgstr "Chargement des salons..."
+
+msgid "public.none"
+msgstr "Aucun salon public"
+
+msgid "public.none_detail"
+msgstr "Personne n'a de salon public ouvert pour le moment. Créez-en un pour commencer à jouer."
+
+msgid "public.needs_id"
+msgstr "Les salons publics demandent un Ember ID"
+
+msgid "public.needs_id_detail"
+msgstr "Créez un Ember ID, puis faites confiance à un service dans Comptes associés. Ce service liste les salons publics."
+
+msgid "public.room_playing"
+msgstr "{0}, en match"
+
+msgid "public.room_detail"
+msgstr "{0}\nJoueurs : {1}/{2}. Région : {3}."
+
+msgid "public.room_detail_playing"
+msgstr "{0}\nJoueurs : {1}/{2}. Région : {3}.\nMatchs en cours : {4}."
+
+msgid "public.joining_value"
+msgstr "Connexion..."
+
+msgid "public.visibility"
+msgstr "Visibilité"
+
+msgid "public.visibility.private"
+msgstr "Privé"
+
+msgid "public.visibility.public"
+msgstr "Public"
+
+msgid "public.visibility_detail"
+msgstr "On rejoint un salon privé sur invitation. Un salon public est listé pour tous les joueurs avec un Ember ID."
+
+msgid "room.public_status"
+msgstr "Salon public / ouvert à tout joueur avec un Ember ID"
+
+msgid "room.public_locked_status"
+msgstr "Salon public, verrouillé / plus personne ne peut entrer"
+
+msgid "public.failure.room_full"
+msgstr "Ce salon est complet."
+
+msgid "public.failure.banned"
+msgstr "Vous avez été retiré de ce salon."
+
+msgid "public.failure.room_not_found"
+msgstr "Ce salon est fermé."
+
+msgid "public.failure.room_not_open"
+msgstr "Ce salon n'est pas encore ouvert."
+
+msgid "public.failure.room_limit"
+msgstr "La limite de salons publics est atteinte. Réessayez plus tard."
+
+msgid "public.failure.unsupported_build"
+msgstr "Les salons publics ne sont pas encore disponibles pour cette version."
+
+msgid "public.failure.invalid_name"
+msgstr "Ce nom de salon est inutilisable. Choisissez-en un autre."
+
+msgid "public.failure.rooms_unavailable"
+msgstr "Les salons publics ne sont pas disponibles pour le moment."

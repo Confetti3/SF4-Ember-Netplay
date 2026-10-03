@@ -14,6 +14,7 @@ use ember_protocol::{
     encoding::{b64u, decode_b64u},
     json,
     play::{Binding, Permit, SignedBinding, SignedPermit},
+    rooms::{RoomTicket, SignedRoomTicket},
 };
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
@@ -147,6 +148,11 @@ impl Keys {
     /// Signs a room binding with the bridge key.
     pub fn sign_binding(&self, binding: &Binding) -> ember_protocol::Result<SignedBinding> {
         binding.sign(&self.signing, &self.signing_kid())
+    }
+
+    /// Signs a public room ticket with the bridge key.
+    pub fn sign_ticket(&self, ticket: &RoomTicket) -> ember_protocol::Result<SignedRoomTicket> {
+        ticket.sign(&self.signing, &self.signing_kid())
     }
 
     /// Signs a game permit with the bridge key.

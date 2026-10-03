@@ -111,28 +111,28 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
         } else if (offered && !busy) {
             rows.push_back(Row("dc-go", loc::T("screen.connect_discord"), loc::T("connect.go_detail")));
         } else if (busy && (attempt_ == Attempt::Setup || attempt_ == Attempt::Opening)) {
-            rows.push_back(Info("dc-progress", loc::T("connect.setting_up"), {}, loc::T("connect.setting_up_detail")));
+            rows.push_back(InfoRow("dc-progress", loc::T("connect.setting_up"), {}, loc::T("connect.setting_up_detail")));
         } else if (busy) {
-            rows.push_back(Info("dc-looking", loc::T("connect.looking_up"), {}, loc::T("connect.looking_up_detail")));
+            rows.push_back(InfoRow("dc-looking", loc::T("connect.looking_up"), {}, loc::T("connect.looking_up_detail")));
         } else {
-            rows.push_back(Info("dc-unknown", loc::T("connect.unknown"), {}, loc::T("connect.unknown_detail")));
+            rows.push_back(InfoRow("dc-unknown", loc::T("connect.unknown"), {}, loc::T("connect.unknown_detail")));
             rows.push_back(Row("dc-retry", loc::T("connect.retry"), loc::T("connect.retry_detail")));
             rows.push_back(Row("linked-accounts", loc::T("screen.linked_accounts"), loc::T("identity.linked_detail")));
         }
         return;
     }
-    auto service = Info("dc-service", loc::T("identity.service"), target->name.empty() ? target->origin : target->name, target->origin);
+    auto service = InfoRow("dc-service", loc::T("identity.service"), target->name.empty() ? target->origin : target->name, target->origin);
     service.userText = true; rows.push_back(std::move(service));
     // Read, and the latest read did not fail.
     const auto account = discord_.find(target->id);
     const bool read = bridge_ == target->id && account != discord_.end() && account->second.read && !account->second.failed;
     const bool waiting = discordWaitUntil_ > 0 && !discordPaused_ && discordWaitBridge_ == target->id;
     if (waiting) {
-        rows.push_back(Info("dc-waiting", loc::T("connect.waiting_label"), {}, loc::T("connect.waiting_detail")));
+        rows.push_back(InfoRow("dc-waiting", loc::T("connect.waiting_label"), {}, loc::T("connect.waiting_detail")));
     } else if ((attempt_ == Attempt::Setup || attempt_ == Attempt::Opening) && busy) {
-        rows.push_back(Info("dc-progress", loc::T("connect.setting_up"), {}, loc::T("connect.setting_up_detail")));
+        rows.push_back(InfoRow("dc-progress", loc::T("connect.setting_up"), {}, loc::T("connect.setting_up_detail")));
     } else if (read && !account->second.user.empty()) {
-        auto connected = Info("dc-connected", loc::T("connect.connected"), account->second.name, loc::T("connect.connected_detail"));
+        auto connected = InfoRow("dc-connected", loc::T("connect.connected"), account->second.name, loc::T("connect.connected_detail"));
         connected.userText = true; rows.push_back(std::move(connected));
         // Another account, or none: both here, not only under Linked accounts.
         rows.push_back(Row("id-discord-connect", loc::T("connect.change"), loc::T("connect.change_detail"), !busy));
@@ -140,7 +140,7 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
         remove.hint = loc::T("identity.unlink"); rows.push_back(std::move(remove));
     } else if (id.inspected.id == target->id && !id.inspectedDiscord && !(account != discord_.end() && account->second.failed)) {
         // Off as the latest read said; a failed read offers Try again below.
-        rows.push_back(Info("dc-off", loc::T("connect.off"), {}, loc::T("connect.off_detail")));
+        rows.push_back(InfoRow("dc-off", loc::T("connect.off"), {}, loc::T("connect.off_detail")));
     } else {
         rows.push_back(Row("id-discord-connect", loc::T("screen.connect_discord"), loc::T("connect.go_detail"),
             !busy && read));

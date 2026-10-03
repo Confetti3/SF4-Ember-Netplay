@@ -28,8 +28,35 @@ Result RoomAuthority::ApplyKick(MemberId member, const Action& action) {
 	if (!IsHost(member) || action.target == 0 || action.target == snapshot_.host) return Reject(RejectReason::Unauthorized);
 	const auto* targetMember = Find(action.target);
 	if (!targetMember) return Reject(RejectReason::UnknownMember);
-	kicked_.insert(targetMember->connection);
+	// A server-owned room bans the player's identity, not this connection.
+	// The kick that would exceed the ban cap removes the member, bans nobody and
+	// closes the room, so every member sees the room closed.
+	// The ban is recorded only after the member is gone: Leave can refuse (a full
+	// terminal ledger), and a refused kick must leave the member and the ban set
+	// unchanged. Leave forgets the account, so it is read first.
+	bool closeRoom = false;
+	std::string bannedAccount;
+	if (snapshot_.serverOwned) {
+		const auto account = memberAccounts_.find(action.target);
+		if (account != memberAccounts_.end()) {
+			bannedAccount = account->second;
+			closeRoom = BanWouldExceedCap(bannedAccount);
+		}
+	}
+	const auto connection = targetMember->connection;
 	auto result = Leave(action.target);
+	if (result.accepted) {
+		if (!snapshot_.serverOwned) kicked_.insert(connection);
+		else if (!bannedAccount.empty() && !closeRoom) BanAccount(bannedAccount);
+	}
+	if (result.accepted && closeRoom) {
+		auto closed = CloseServerOwned();
+		if (closed.accepted) {
+			result.snapshot = std::move(closed.snapshot);
+			result.events.insert(result.events.end(), closed.events.begin(), closed.events.end());
+		}
+		return result;
+	}
 	if (result.accepted && !snapshot_.closed) result.events.push_back(Event{Event::Kind::MemberRemoved, 0, 0, action.target, MatchResult::Abort});
 	return result;
 }

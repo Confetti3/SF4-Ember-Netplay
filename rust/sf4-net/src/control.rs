@@ -5,6 +5,7 @@ use std::sync::{
     atomic::{AtomicU64, Ordering},
 };
 
+use ember_protocol::EmberId;
 use iroh::endpoint::Connection;
 use tokio::{
     sync::mpsc,
@@ -60,6 +61,7 @@ pub struct ControlWorker {
     tasks: [JoinHandle<()>; 2],
     rejected: Arc<AtomicU64>,
     session: Session,
+    account: Option<EmberId>,
 }
 
 impl ControlWorker {
@@ -67,6 +69,7 @@ impl ControlWorker {
         let (outgoing, mut send_queue) = mpsc::channel(CONTROL_QUEUE_CAPACITY);
         let (recv_queue, incoming) = mpsc::channel(CONTROL_QUEUE_CAPACITY);
         let rejected = Arc::new(AtomicU64::new(0));
+        let account = channel.account;
         let connection = channel.connection;
         let mut sender = channel.sender;
         let mut receiver = channel.receiver;
@@ -109,7 +112,13 @@ impl ControlWorker {
             tasks,
             rejected,
             session: Session::Unbound,
+            account,
         }
+    }
+
+    /// The Ember ID a public room's ticket admitted this connection under.
+    pub fn account(&self) -> Option<&EmberId> {
+        self.account.as_ref()
     }
 
     pub fn session(&self) -> Session {

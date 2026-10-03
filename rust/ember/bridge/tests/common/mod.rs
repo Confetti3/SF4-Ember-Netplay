@@ -78,6 +78,7 @@ impl Bridge {
             mock_browser: true,
             discord: None,
             integration_secrets: None,
+            rooms: None,
             tenants: vec![
                 config::Tenant {
                     id: "t1".into(),
@@ -95,7 +96,10 @@ impl Bridge {
         config.validate().unwrap();
         let db = Db::open(&config.database).unwrap();
         let clock = Clock::default();
-        let state = AppState::new(config, Keys::generate(), integrations, db, clock.clone());
+        // Saved so `restart` can load the same keys, as a real restart does.
+        let keys = Keys::generate();
+        keys.save_new(&config.secrets).unwrap();
+        let state = AppState::new(config, keys, integrations, db, clock.clone());
         ember_bridge::sync_config(&state).await.unwrap();
         let running = ember_bridge::start(state, listener).unwrap();
         Self {
@@ -109,6 +113,21 @@ impl Bridge {
             clock,
             dir,
         }
+    }
+
+    /// Stops the service and starts a new one over the same database, secrets
+    /// file and configuration, on a new port, as a process restart would. The
+    /// per-process state starts empty; sessions and rooms are as stored.
+    pub async fn restart(&mut self, integrations: ember_bridge::integrations::Secrets) {
+        let running = self.running.take().unwrap();
+        let config = (*running.state.config).clone();
+        running.abort();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        self.origin = format!("http://{}", listener.local_addr().unwrap());
+        let keys = Keys::load(&config.secrets).unwrap();
+        let db = Db::open(&config.database).unwrap();
+        let state = AppState::new(config, keys, integrations, db, self.clock.clone());
+        self.running = Some(ember_bridge::start(state, listener).unwrap());
     }
 
     pub fn state(&self) -> &AppState {

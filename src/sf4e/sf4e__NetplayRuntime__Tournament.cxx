@@ -139,6 +139,7 @@ void TakeAssignments(const session::TournamentAnswer& answer) {
 
 void TakeAnswer(const session::TournamentAnswer& answer, std::uint64_t nowMs) {
 	if (answer.requestId && answer.requestId == runtime->assignmentRequest) { TakeAssignments(answer); return; }
+	if (TakePublicRoomsAnswer(answer)) return;
 	const auto found = runtime->tournamentRequests.find(answer.requestId);
 	if (found == runtime->tournamentRequests.end()) return;
 	const auto kind = found->second;
@@ -247,12 +248,18 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 		spdlog::info("Tournament: stopped by the player");
 		play.Stop();
 		return;
+	case Op::RoomList:
+	case Op::RoomCreate:
+	case Op::RoomTicket:
+		DispatchPublicRooms(command, helperReady);
+		return;
 	default:
 		return;
 	}
 }
 
 void TickTournament(bool helperReady) {
+	ExpirePublicRooms(GetTickCount64());
 	if (!runtime->room) return;
 	OpenMatchLink(runtime->matchLinks.Take());
 	OpenConnectLink(runtime->connectLinks.Take());

@@ -44,6 +44,14 @@ public:
     // waits for Connect. A link for the sign-in already waited for only
     // shows it.
     void OpenDiscord(const std::string& bridge, bool automatic = false);
+    // The service the Ember ID screens have selected, when the ID is ready and
+    // the service is one the player trusts; empty otherwise. Public rooms use it.
+    std::string UsableBridge(const ShellView& view) const;
+    // Asks for the ID's status and the trusted services, for a screen outside
+    // these that needs to know them.
+    void Probe();
+    // The panel is waiting for an answer from the helper.
+    bool Waiting() const { return sent_ != 0 || !queue_.empty(); }
     // The row the matches screen should focus, once it is among `rows`.
     std::string TakeFocus(const std::vector<MenuEntry>& rows);
     // The Home entry's line: where to start, how many matches are ready to

@@ -277,6 +277,8 @@ fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Actor {
         retirement_started: None,
         departure_failed: false,
         short: ShortLinks::default(),
+        public: None,
+        coordination_port: None,
     }
 }
 
@@ -3684,6 +3686,8 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
             retirement_started: None,
             departure_failed: false,
             short: ShortLinks::default(),
+            public: None,
+            coordination_port: None,
         };
         let mut host_actor = make_actor(host.clone(), host_events_tx);
         let invite = host_actor.setup_host_recovery(seed).await.unwrap();
@@ -3973,6 +3977,8 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
         retirement_started: None,
         departure_failed: false,
         short: ShortLinks::default(),
+        public: None,
+        coordination_port: None,
     };
     actor
         .command(Request {
@@ -4099,6 +4105,8 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
             retirement_started: None,
             departure_failed: false,
             short: ShortLinks::default(),
+            public: None,
+            coordination_port: None,
         };
         let service = tokio::spawn(async move {
             let result = actor.run(command_rx, failure).await;
@@ -4450,6 +4458,8 @@ async fn actor_admits_full_sixteen_member_room_and_fifteen_game_links() {
             retirement_started: None,
             departure_failed: false,
             short: ShortLinks::default(),
+            public: None,
+            coordination_port: None,
         };
         let service = tokio::spawn(async move {
             let result = actor.run(command_rx, failure).await;
@@ -4791,6 +4801,60 @@ async fn failed_attempts_say_at_which_stage_they_failed() {
         next_error(&mut receiver).await,
         Event::Error { epoch: 2, ref code, reason: None, .. } if code == "join_failed"
     ));
+    // A public host's refusal, and a handshake that ran out of time, each have
+    // their own reason, apart from the generic close above and from each other.
+    let invite = Invite::create(local.id(), test_relay(), "stage".into(), now().unwrap(), 3600)
+        .unwrap();
+    let ticket = public_support::ticket_for(&invite, &public_support::identity(1), &local);
+    for (epoch, error, expected) in [
+        (
+            4,
+            transport::admission_refused(),
+            "refused",
+        ),
+        (
+            5,
+            io::Error::new(io::ErrorKind::TimedOut, transport::HANDSHAKE_TIMED_OUT),
+            "timeout",
+        ),
+    ] {
+        actor.epoch = epoch;
+        actor.opening = true;
+        // A failed join clears the room, and its public marker with it.
+        actor.public = Some(crate::public_room::PublicRoom::Member {
+            ticket: ticket.clone(),
+        });
+        actor
+            .completed_control(epoch, Err(error), None)
+            .await
+            .unwrap();
+        assert!(matches!(
+            next_error(&mut receiver).await,
+            Event::Error { epoch: seen, ref code, ref reason, .. }
+                if seen == epoch && code == "join_failed" && reason.as_deref() == Some(expected)
+        ));
+    }
+    // A private join never reports either: the same errors are the generic one.
+    actor.public = None;
+    for (epoch, error) in [
+        (6, transport::admission_refused()),
+        (
+            7,
+            io::Error::new(io::ErrorKind::TimedOut, transport::HANDSHAKE_TIMED_OUT),
+        ),
+    ] {
+        actor.epoch = epoch;
+        actor.opening = true;
+        actor
+            .completed_control(epoch, Err(error), None)
+            .await
+            .unwrap();
+        assert!(matches!(
+            next_error(&mut receiver).await,
+            Event::Error { epoch: seen, ref code, reason: None, .. }
+                if seen == epoch && code == "join_failed"
+        ));
+    }
     // A host attempt whose relay never came online.
     actor.epoch = 3;
     actor.opening = true;
@@ -6589,3 +6653,9 @@ async fn a_short_link_that_cannot_be_opened_says_why() {
     assert_eq!(guest.room, None);
     own.close().await;
 }
+
+mod join_deadline;
+mod public_admission;
+mod public_rooms;
+mod public_support;
+mod server_owned;

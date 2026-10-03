@@ -73,6 +73,8 @@ bool IrohRoom::Begin(bool host) {
     pendingTerminalReplayEffects_.clear(); terminalReplayInFlight_.clear();
     deliveredTerminalReplays_.clear();
 	hosting_ = host;
+	publicHost_ = false;
+	publicMember_ = false;
 	roomCommandQueued_ = false;
 	leavePending_ = false;
     leaveAbandon_=false;
@@ -95,6 +97,7 @@ bool IrohRoom::Begin(bool host) {
 	invitation_.clear(); discordInvitation_.clear(); shortInvitation_.clear(); shortPending_ = false;
 	error_.clear();
 	failureStage_ = FailureStage::Unknown;
+	failureReason_.clear();
 	state_ = host ? State::Hosting : State::Joining;
 	return Command("{\"type\":\"status\"}");
 }
@@ -121,6 +124,15 @@ bool IrohRoom::Join(const std::string& invitation, const std::string& build) {
 	if (!Begin(false)) return false;
 	roomCommandQueued_ = Command(json{{"type", "join"}, {"epoch", epoch_},
 		{"invitation", invitation}, {"build", build}}.dump());
+	return roomCommandQueued_;
+}
+
+bool IrohRoom::JoinPublic(const std::string& invitation, const json& ticket, const std::string& build) {
+	if (build.empty() || build.size() > 128) return false;
+	if (!Begin(false)) return false;
+	publicMember_ = true;
+	roomCommandQueued_ = Command(json{{"type", "join_public"}, {"epoch", epoch_},
+		{"invitation", invitation}, {"ticket", ticket}, {"build", build}}.dump());
 	return roomCommandQueued_;
 }
 
@@ -405,7 +417,8 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
     if (type=="control_rebound") {
         if (event.at("leader")!=coordination_.leader || !coordination_.active) return true;
         const auto incarnations=event.at("member_incarnations").get<std::map<std::string,std::uint64_t>>();
-        if(incarnations.size()>room::MaxMembers) return true;
+        // A server-owned room's host is a coordination node but not a member.
+        if(incarnations.size()>room::MaxMembers+(ServerOwned()?1:0)) return true;
         for(const auto& member:incarnations)
             if(!IsEndpointIdentity(member.first) || !member.second) return true;
         for(const auto& member:event.at("members"))
@@ -672,6 +685,7 @@ bool IrohRoom::HandleHelperError(const json& event) {
 	}
 	// Which stage a failed host or join reached; the runtime words it.
 	failureStage_ = FailureStageFromHelper(code, event.value("reason", std::string()));
+	failureReason_ = FailureReasonLabel(code, event.value("reason", std::string()));
 	// Only protocol-defined labels may enter UI diagnostics.
 	Fail(verdict.codeIsProtocolLabel ? code.c_str() : "helper_room_error");
 	return false;

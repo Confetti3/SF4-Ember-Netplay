@@ -7,6 +7,7 @@
 #include "../netplay/MemberView.hxx"
 #include "../netplay/IdentityView.hxx"
 #include "../netplay/IdentityRequest.hxx"
+#include "../netplay/PublicRooms.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../session/RoomModel.hxx"
@@ -17,6 +18,7 @@
 #include <map>
 #include "GameMenu.hxx"
 #include "IdentityPanel.hxx"
+#include "PublicRoomsPanel.hxx"
 
 namespace sf4e { namespace ui {
 
@@ -93,6 +95,8 @@ struct ShellView {
     std::string identityRefusal;
     // The tournament match being played and the assignment list (RuntimeSnapshot::tournament).
     netplay::tournament::Status tournament;
+    // The bridge's public rooms and the answer to the last create or ticket request.
+    netplay::publicrooms::Status publicRooms;
 };
 
 struct ShellAction {
@@ -118,6 +122,8 @@ struct ShellAction {
     netplay::IdentityRequest identity;
     // Refresh the assignment list, play a match or stop; op None for everything else.
     netplay::tournament::Command tournament;
+    // With a JoinInvite: the signed ticket (JSON) of a public room's admission.
+    std::string publicTicket;
 };
 
 class ApplicationShell {
@@ -135,6 +141,8 @@ public:
     // a passphrase field may wait in it until it next opens.
     void Conceal() {
         identity_.Conceal();
+        publicRooms_.Conceal();
+        publicBridgeAsked_ = false;
         if (menu_.navigation.EditingSecret()) menu_.navigation.Cancel();
     }
     // Every frame Ember is hidden: Conceal, then the identity requests that
@@ -148,12 +156,14 @@ private:
     LanguageSaver languageSaver_;
     GameMenu menu_;
     IdentityPanel identity_;
+    PublicRoomsPanel publicRooms_;
     // Parts of Draw, in the order it runs them.
     void UpdateRoomTransitions(const ShellView& view,double now);
     bool UpdateRoomFeedback(const ShellView& view);
     void UpdatePreferenceSave(const ShellView& view,const Submit& submit);
     void UpdateShortCopy(const ShellView& view,double now);
     void UpdateJoinLink(const ShellView& view,double now,const Submit& submit);
+    void UpdatePublicBridge(const ShellView& view,const std::string& screen);
     void CopyShortInvitation(const ShellView& view,const Submit& submit);
     std::vector<MenuEntry> BuildRows(const ShellView& view,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title);
     std::pair<std::string,Tone> UpdateStatus(const ShellView& view,const std::string& screen,bool opening,bool healthyRoom,std::string& title);
@@ -205,6 +215,7 @@ private:
     std::map<std::string,std::string> roomDetails_;
     char invitation_[4097] = {};
     bool preferencesDirty_ = false;
+    bool publicBridgeAsked_ = false; // the public-room service was asked for in this stay on a screen that needs it
     // The language is stored in its own file, so it debounces on its own
     // deadline rather than sharing saveAt_ with the netplay preferences.
     double languageSaveAt_ = 0;

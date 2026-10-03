@@ -1,12 +1,21 @@
 #pragma once
-#include <windows.h>
-#include <bcrypt.h>
 #include <cstdint>
 #include <string>
 #include <vector>
 #include <limits>
+#ifdef _WIN32
+#include <windows.h>
+#include <bcrypt.h>
+#else
+// Off Windows the room host has no CNG; the session layer's dependency-free
+// SHA-256 (the reference the Windows path is tested against) is the digest.
+#include "../session/SessionRecovery.hxx"
+#endif
 
 namespace sf4e { namespace coordination {
+#ifndef _WIN32
+inline std::string Sha256(const std::string& bytes) { return session::recovery_detail::Sha256Portable(bytes); }
+#else
 inline std::string Sha256(const std::string& bytes) {
     if (bytes.size() > (std::numeric_limits<ULONG>::max)()) return {};
     BCRYPT_ALG_HANDLE algorithm = nullptr;
@@ -22,6 +31,7 @@ inline std::string Sha256(const std::string& bytes) {
     for (auto value : digest) { result += hex[value >> 4]; result += hex[value & 15]; }
     return result;
 }
+#endif
 inline std::string Encode(const std::string& bytes) {
     const char* alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     std::string result; result.reserve((bytes.size() * 4 + 2) / 3);
