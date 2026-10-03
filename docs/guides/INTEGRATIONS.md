@@ -33,6 +33,12 @@ implemented, and how it differs from the draft, is in `STATUS.md` there.
   "BluMint" below).
 - Optionally, a player connects their Discord account to their Ember ID, so a
   platform that finds players by Discord account gets their Ember ID.
+- A connection's settings give any platform what BluMint has: finding players
+  by Discord account, results sent to it, and disputed matches restarted
+  rather than reviewed. With rooms allowed, a platform or bot opens public
+  rooms for its players and hears what happens to them (see "Connection
+  settings" below). The notifier is a ready-made room bot for Discord and
+  Twitch.
 - A staging bridge runs at `https://bridge.embernetplay.link`. Platforms get a
   connection and credentials on it from the Ember team; BluMint starts from
   `BLUMINT_QUICKSTART.md`.
@@ -238,6 +244,61 @@ match on it is one BluMint knows.
 
 BluMint's bodies are parsed as ordinary JSON, since its match settings carry
 decimals; every other route keeps the strict profile.
+
+## Connection settings
+
+The bridge's operator gives a connection its settings in `bridge.json`, and
+issues its credential as usual. Anyone who wants other settings, or none of
+this, can run their own bridge and room supervisor. The contract is
+`docs/design/INTEGRATION_PATHS.md`; in short:
+
+```json
+{
+  "id": "night-bot", "kind": "direct", "environment": "production",
+  "display_name": "Fight Night bot",
+  "discord_lookup": true,
+  "disputes": "restart",
+  "results_url": "https://bot.example/ember/results",
+  "rooms": { "max_open": 8 }
+}
+```
+
+- `discord_lookup`: `POST /v1/players/lookup` with `{"discord": [...]}` (at
+  most 32 Discord user IDs) answers the players connected to them, with their
+  Ember ID and `participant_id`, and links them on the connection the way
+  BluMint's lookup does. A link the player removed is not made again until
+  they sign in with Discord again.
+- `disputes`: `"review"` (the default) or `"restart"`, which cancels a match
+  that would wait in `needs_review`. It is recorded with the connection the
+  first time it is seen and never changes; use a new connection to change it.
+- `results_url`: each finished match is POSTed there as
+  `io.ember.tournament.match.result.v1` (outcome `completed` with the scores
+  and winner, or `restart`), signed exactly like a webhook with the
+  connection's result secret, `webhook-id` `res_<match id>`. `ember-bridge
+  result-secret` makes a secret, which the operator gives the platform and
+  stores with `set-integration-secret.sh result <connection-id>`. Answer 2xx
+  once stored, or 409 if you have it already; anything else is retried for a
+  day. Once sending starts a result can no longer be corrected. The URL
+  follows the same rules as a webhook destination.
+- `rooms`: with the provider credential, `POST /v1/rooms` opens a public room
+  for a player linked on the connection (`creator`: their `participant_id`
+  and Ember ID), who goes in first and moderates it. It counts as their one
+  open room, and the connection has at most `max_open` open. `GET /v1/rooms`
+  lists the connection's open rooms, `GET /v1/rooms/{id}` reads one, and
+  `POST /v1/rooms/{id}/close` closes one. Each answer carries the room's
+  `state` (`waiting`, `open`, `closed`) and `join_url`
+  (`https://embernetplay.link/r#<bridge id>/<room id>`), which opens the room
+  in Ember. That page goes live with the embernetplay.link update for the
+  1.1 release; until then use `ember://room/open?bridge=<id>&room=<id>` or
+  Ember's Paste room link. A creator who already has a room the connection opened is refused
+  `room_limit` with that room's ID in `details.room_id`. The connection's
+  stream carries `room.created`, `room.opened`, `room.changed` and
+  `room.closed` (with `reason` `closed_by_connection` or `ended`) for its
+  rooms only.
+
+A bridge with these lists `players.lookup` and `results.signed` in its
+capabilities `features`, and `rooms.connections` when public rooms are on.
+BluMint's connection kind has the first three settings built in.
 
 ## Run a lobby (first-to-N, king of the hill)
 
