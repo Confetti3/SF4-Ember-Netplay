@@ -140,6 +140,10 @@ ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat) {
     if (control.detail.empty()) {
         control.kind = postMatch ? ReadyControl::Rematch : ReadyControl::Ready;
         control.detail = std::string(loc::T("room.ready.lock_detail")) + "\n" + v.selectionSummary;
+        const auto opponent = seat == 0 ? t.p2 : t.p1;
+        const auto* member = room::FindMember(v.room, opponent);
+        if (member && member->fighter >= 0 && member->fighter < selection::FighterCount)
+            control.detail += "\n" + loc::Tf("room.ready.opponent", selection::FindFighter(member->fighter)->name);
     }
     return control;
 }

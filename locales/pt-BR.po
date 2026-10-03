@@ -2043,3 +2043,9 @@ msgstr "Bottom left"
 
 msgid "hud.position.bottom_right"
 msgstr "Bottom right"
+
+msgid "runtime.ready.opponent_changed"
+msgstr "Opponent changed fighter. Check your Ultra and press Ready again."
+
+msgid "room.ready.opponent"
+msgstr "Opponent: {0}. Check your Ultra before Ready."

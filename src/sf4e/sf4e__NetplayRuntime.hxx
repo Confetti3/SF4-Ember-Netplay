@@ -168,6 +168,7 @@ struct Runtime {
 	// Outlives the helper's teardown bound: a match that fails to close ends the
 	// room with its own message before a parked Ready can blame it (F-008).
 	Intent readyIntent{session::MatchTeardownTiming::HelperTimeoutMs + 5000, Intent::Completion::OnCommit};
+    room::ReadyOpponent readyOpponent;
 	room::ReadyChime readyChime;
 	Intent lobbyEditIntent{15000, Intent::Completion::OnDispatch};
 	std::string readyFailure;

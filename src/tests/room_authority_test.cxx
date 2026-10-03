@@ -1,5 +1,30 @@
 #include "room_authority_support.hxx"
 
+
+static void TestFighterChangeRequiresFreshReady() {
+    RoomAuthority room("Matchup", 16, 77);
+    const auto p1 = Join(room, 0, true), p2 = Join(room, 1), spectator = Join(room, 2);
+    for (auto player : {p1, p2}) CHECK(room.Apply(player, TableAction(room, player, 0, ActionKind::Queue)).accepted);
+    CHECK(room.SetMemberFighter(p1, 0)); CHECK(room.SetMemberFighter(p2, 1));
+    CHECK(room.Apply(p1, TableAction(room, p1, 0, ActionKind::Ready)).accepted);
+    const auto oldReady = TableAction(room, p2, 0, ActionKind::Ready);
+    const auto before = room.SnapshotView().tables[0];
+    CHECK(room.SetMemberFighter(spectator, 43));
+    CHECK(room.SnapshotView().tables[0].revision == before.revision);
+    CHECK(!room.SetMemberFighter(p2, 1));
+    CHECK(room.SnapshotView().tables[0].ready[0]);
+    CHECK(room.SetMemberFighter(p2, 2));
+    const auto after = room.SnapshotView().tables[0];
+    CHECK(!after.ready[0] && !after.ready[1]);
+    CHECK(after.revision > before.revision && after.matchGeneration == before.matchGeneration);
+    CHECK(after.score[0] == before.score[0] && after.score[1] == before.score[1] && after.queue == before.queue);
+    CHECK(!FindMember(room.SnapshotView(), p1)->delayLocked);
+    const auto stale = room.Apply(p2, oldReady);
+    CHECK(!stale.accepted && stale.reason == RejectReason::StaleTable);
+    for (auto player : {p1, p2}) CHECK(room.Apply(player, TableAction(room, player, 0, ActionKind::Ready)).accepted);
+    CHECK(room.SnapshotView().tables[0].phase == TablePhase::Ready);
+}
+
 static void TestCommittedDepartureCheckpoint() {
     RoomAuthority source("Departure", 16, 92);
     const auto host = Join(source, 0, true), guest = Join(source, 1);
@@ -831,6 +856,7 @@ int main() {
 	const auto rejected = authority.Join("Guest renamed", Peer(1));
 	CHECK(!rejected.accepted && rejected.reason == RejectReason::MemberKicked);
 
+    TestFighterChangeRequiresFreshReady();
 	TestUnlimitedRematch();
 	TestMatchFinishedAndSeatLifecycle();
 	TestTerminalLifecycleGate();

@@ -243,6 +243,8 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		request.displayName = snapshot.preferences.displayName;
 		request.preferences = std::move(action.preferences);
 		request.roomAction = std::move(action.roomAction);
+        // Consent comes from the frame the player saw, not a newer game-thread snapshot.
+        request.readyOpponent = sf4e::room::CaptureReadyOpponent(snapshot.room);
         request.selectedDelay=action.selectedDelay;
         request.previewSoundVolume=action.previewSoundVolume;
 		request.character = lobbyConditions;

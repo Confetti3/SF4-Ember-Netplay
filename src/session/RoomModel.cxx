@@ -42,7 +42,20 @@ Snapshot RoomAuthority::SnapshotFor(MemberId member) const {
 bool RoomAuthority::SetMemberFighter(MemberId member,int fighter) {
     auto* value=Find(member);
     if(!value||fighter<0||fighter>=44||value->fighter==fighter)return false;
-    value->fighter=fighter;TouchRoom();return true;
+    value->fighter=fighter;
+    for (auto& table : snapshot_.tables) {
+        if (table.p1 != member && table.p2 != member) continue;
+        if (table.phase == TablePhase::Waiting) {
+            // A changed matchup needs both players to review their Ultra.
+            // Touch even when neither is ready: fence packets already queued
+            // with the old fighter, without resetting scores or the queue.
+            ClearReadiness(table);
+            NormalizeMemberStatus(table.p1); NormalizeMemberStatus(table.p2);
+            Touch(table); return true;
+        }
+        break;
+    }
+    TouchRoom();return true;
 }
 
 template <typename Visit> void RoomAuthority::ForEachTableTimer(Visit&& visit) {

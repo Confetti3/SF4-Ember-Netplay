@@ -2466,3 +2466,9 @@ msgstr "Abajo, izquierda"
 
 msgid "hud.position.bottom_right"
 msgstr "Abajo, derecha"
+
+msgid "runtime.ready.opponent_changed"
+msgstr "El rival cambió de personaje. Revisa tu Ultra y vuelve a pulsar Listo."
+
+msgid "room.ready.opponent"
+msgstr "Rival: {0}. Revisa tu Ultra antes de pulsar Listo."

@@ -406,6 +406,23 @@ int main() {
 				CHECK(!roomClient.TakeActionReply(actionReply));
 			}
 		}
+        // A different opponent fighter is not just a newer revision. Do not
+        // silently retry the old Ready with a new matchup.
+        CHECK(roomClient.Lobby_Ready() == session::SendResult::Queued);
+        protocol::RoomResultMessage changed;
+        changed.actionId = roomTransport->sent.back().at("action").at("action_id").get<std::uint64_t>();
+        changed.result.accepted = false; changed.result.reason = room::RejectReason::StaleTable;
+        const auto opponent = room::CaptureReadyOpponent(current).opponent;
+        CHECK(opponent != 0);
+        for (auto& member : current.members)
+            if (member.id == opponent) member.fighter = member.fighter == 0 ? 1 : 0;
+        ++current.revision; ++current.tables[0].revision;
+        changed.result.snapshot = current;
+        const auto beforeChanged = roomTransport->sent.size();
+        roomTransport->Push(json(changed)); CHECK(roomClient.Step() == 0);
+        CHECK(roomTransport->sent.size() == beforeChanged);
+        CHECK(roomClient.TakeActionReply(actionReply) && !actionReply.accepted && actionReply.kind == room::ActionKind::Ready);
+        CHECK(roomClient.RoomError() == "runtime.ready.opponent_changed");
 		// The budget belongs to that press: an unrelated one still resends.
 		{
 			room::Action seat;
