@@ -58,14 +58,14 @@ static const std::string Flat = R"vdf("LibraryFolders"
 )vdf";
 
 static void TestManifestSearch() {
-    const std::wstring steam = L"C:\Program Files (x86)\Steam";
-    const std::wstring library = L"D:\Steam Library";
-    const std::wstring game = library + L"\steamapps\common\My Ultra Install";
-    const std::wstring standard = library + L"\steamapps\common\Super Street Fighter IV - Arcade Edition";
-    const auto exists = [&](const std::wstring& path) { return path == game + L"\SSFIV.exe"; };
+    const std::wstring steam = L"C:\\Program Files (x86)\\Steam";
+    const std::wstring library = L"D:\\Steam Library";
+    const std::wstring game = library + L"\\steamapps\\common\\My Ultra Install";
+    const std::wstring standard = library + L"\\steamapps\\common\\Super Street Fighter IV - Arcade Edition";
+    const auto exists = [&](const std::wstring& path) { return path == game + L"\\SSFIV.exe"; };
     const auto from = [&](const std::string& manifest) {
         return sf4e::launcher::FindGameInLibraries({steam, library}, [&](const std::wstring& path) {
-            return path == library + L"\steamapps\appmanifest_45760.acf" ? manifest : std::string();
+            return path == library + L"\\steamapps\\appmanifest_45760.acf" ? manifest : std::string();
         }, exists);
     };
     const std::string valid = R"acf("AppState" { "appid" "45760" "installdir" "My Ultra Install" "UserConfig" { "installdir" "Ignore me" } })acf";
@@ -78,7 +78,7 @@ static void TestManifestSearch() {
     CHECK(from(R"acf("AppState" { "appid" "45760" "installdir" "My Ultra Install" "installdir" "Other" })acf").empty());
     for (const auto& manifest : {std::string(), std::string("broken"), valid}) {
         const auto found = sf4e::launcher::FindGameInLibraries({steam, library}, [&](const std::wstring&) { return manifest; },
-            [&](const std::wstring& path) { return path == standard + L"\SSFIV.exe"; });
+            [&](const std::wstring& path) { return path == standard + L"\\SSFIV.exe"; });
         CHECK(found == standard);
     }
 }
