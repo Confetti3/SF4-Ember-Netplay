@@ -128,7 +128,7 @@ bool PublicRoomsPanel::TakeSaid(std::string& text) {
 // Dropping the request is what abandons it: its answer, whenever it comes, is
 // to a request the panel no longer holds. The runtime lets the next one replace it.
 void PublicRoomsPanel::Conceal() {
-    pending_.reset(); link_.reset(); service_.clear(); wantList_ = false; lastScreen_.clear(); said_.clear();
+    pending_.reset(); service_.clear(); wantList_ = false; lastScreen_.clear(); said_.clear();
 }
 
 bool PublicRoomsPanel::Status(const ShellView& v, const std::string& screen, std::string& status, Tone& tone) const {

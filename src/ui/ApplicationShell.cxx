@@ -189,12 +189,14 @@ void ApplicationShell::UpdatePublicRoomLink(const ShellView& v,double now) {
   roomLinkSeen_=link.sequence;
   roomLinkOpening_=link.free&&v.session.room==RoomState::Idle&&v.session.match==MatchState::None;
   publicRooms_.OpenLink(link.bridge,link.room,roomLinkOpening_);
-  if(roomLinkOpening_)identity_.Probe(); // the trusted services, fresh, before the link is judged
-  else{notice_=loc::T("public.link_waiting");noticeTone_=Tone::Pending;noticeUntil_=now+15;}
+  if(!roomLinkOpening_){notice_=loc::T("public.link_waiting");noticeTone_=Tone::Pending;noticeUntil_=now+15;}
  }
  if(!roomLinkOpening_)return;
+ // Busy by the time it can go on (a hidden menu, a dialog): it waits as a row instead.
+ if(v.session.room!=RoomState::Idle||v.session.match!=MatchState::None){roomLinkOpening_=false;publicRooms_.HoldLink();return;}
  if(nav.Editing()||nav.Reading()||nav.Confirming()||nav.Choosing()||menu_.NoticeOpen()||IdentityPanel::Owns(nav.Screen()))return;
  roomLinkOpening_=false;
+ identity_.Probe(); // the trusted services, fresh, before the link is judged
  if(nav.Screen()!="public-rooms"){nav.Cancel();nav.Home();nav.Push("online");nav.Push("public-rooms");}
  error_.clear();
 }

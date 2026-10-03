@@ -427,6 +427,56 @@ void LinkWaitsJourney(){
  j.Admit("",LinkRoom);Check(j.joins()==1,"The waiting link's admission did not join");
 }
 
+// Hiding Ember abandons a ticket request in flight, but a link nobody has
+// followed yet stays the player's: a link that waited for them, one that waits
+// behind a dialog, and one still waiting for the Ember ID all come back.
+void LinkSurvivesHidingJourney(){
+ {
+  Journey j;auto& h=j.h;h.view.identity.bridges={{LinkBridge,"https://bridge.example","Example"}};h.Frame(0,2);
+  h.view.session.generation.room=1;h.view.session.room=netplay::RoomState::Joined;h.view.session.control=netplay::Health::Healthy;h.Screen("home");
+  OpenLink(j,LinkBridge,LinkRoom,false);
+  Check(j.status==loc::T("public.link_waiting"),"A room link in a room did not say it waits");
+  h.shell.Conceal();h.Frame(0,2);h.shell.Conceal();
+  h.view.session.room=netplay::RoomState::Idle;h.view.session.generation.room=0;
+  h.Screen("online");h.Choose("public-rooms");h.Frame(0,2);j.answerIdentityUntilIdle();
+  Check(tickets(j)==0&&j.row("pr-link")&&j.row("pr-link")->enabled,"Hiding Ember lost a room link that waited for the player");
+  h.Choose("pr-link");h.Frame(0,2);
+  Check(tickets(j)==1&&lastTicketIs(j,LinkBridge,LinkRoom),"The kept room link did not ask for its room");
+  // A request in flight is abandoned by hiding, though: its admission does not join.
+  h.shell.Conceal();j.Admit("",LinkRoom);
+  Check(j.joins()==0,"An admission that arrived while Ember was hidden joined");
+ }
+ {
+  // Behind a dialog: the link goes on once it is closed, though Ember was hidden meanwhile.
+  Journey j;auto& h=j.h;h.view.identity.bridges={{LinkBridge,"https://bridge.example","Example"}};h.Frame(0,2);h.Screen("home");
+  h.view.readyFailure="Something to read";++h.view.readyFailureSequence;h.Frame(0,2);
+  OpenLink(j,LinkBridge,LinkRoom);
+  Check(h.shell.Navigation().Screen()=="home"&&tickets(j)==0,"A room link moved the player over a dialog");
+  h.shell.Conceal();h.Frame(0,2);h.shell.Conceal();h.Frame(0,2);
+  Check(h.shell.Navigation().Screen()=="home"&&tickets(j)==0,"A room link went on over a dialog after Ember was hidden");
+  h.view.readyFailure.clear();h.Press(MenuInput::Select);h.Frame(0,4);j.answerIdentityUntilIdle();
+  Check(h.shell.Navigation().Screen()=="public-rooms"&&tickets(j)==1&&lastTicketIs(j,LinkBridge,LinkRoom),("Hiding Ember lost a room link that waited behind a dialog "+h.shell.Navigation().Screen()+std::to_string(tickets(j))).c_str());
+ }
+ {
+  // Hidden while the Ember ID was still being asked: it is asked again and the link goes on.
+  Journey j;auto& h=j.h;h.view.identity.bridges={{LinkBridge,"https://bridge.example","Example"}};h.Frame(0,2);h.Screen("home");
+  OpenLink(j,LinkBridge,LinkRoom);
+  Check(h.shell.Navigation().Screen()=="public-rooms"&&tickets(j)==0,"A room link did not wait for the Ember ID");
+  h.shell.Conceal();h.Frame(0,2);h.shell.Conceal();
+  h.Frame(0,4);j.answerIdentityUntilIdle();
+  Check(tickets(j)==1&&lastTicketIs(j,LinkBridge,LinkRoom),"Hiding Ember lost a room link that waited for the Ember ID");
+  }
+  {
+  // Busy by the time Ember returns: it waits as a row and moves no one.
+  Journey k;auto& g=k.h;g.view.identity.bridges={{LinkBridge,"https://bridge.example","Example"}};g.Frame(0,2);g.Screen("home");
+  g.view.session.room=netplay::RoomState::Joined;g.view.session.generation.room=1;g.Frame(0,2);
+  g.view.session.room=netplay::RoomState::Idle;g.view.session.generation.room=0;g.Frame(0,2);
+  OpenLink(k,LinkBridge,LinkRoom);g.shell.Conceal();g.view.session.room=netplay::RoomState::Joined;g.view.session.generation.room=1;
+  g.Frame(0,4);
+  Check(tickets(k)==0,"A room link asked for a ticket for a player who became busy while Ember was hidden");
+ }
+}
+
 // Pasting a room link: either form, with spaces or quotes around it; something
 // else says it is no room link, and a service not trusted is refused.
 void PasteJourney(){
@@ -488,5 +538,5 @@ void RoomLostJourney(){
  Check(!j.row("replace-room")&&j.row("leave"),"A public room offered to replace its room");
 }
 }
-int main(){try{ListJourney();JoinJourney();NoIdentityJourney();CreateJourney();RestoredCreateJourney();AbandonedRequestJourney();AbandonedCreateJourney();RoomJourney();RoomLostJourney();LinkJourney();LinkRefusalJourney();LinkUntrustedJourney();LinkWaitsJourney();PasteJourney();std::cout<<"Public rooms journeys passed.\n";return 0;}
+int main(){try{ListJourney();JoinJourney();NoIdentityJourney();CreateJourney();RestoredCreateJourney();AbandonedRequestJourney();AbandonedCreateJourney();RoomJourney();RoomLostJourney();LinkJourney();LinkRefusalJourney();LinkUntrustedJourney();LinkWaitsJourney();LinkSurvivesHidingJourney();PasteJourney();std::cout<<"Public rooms journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

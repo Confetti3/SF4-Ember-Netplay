@@ -48,8 +48,14 @@ public:
     bool Status(const ShellView& view, const std::string& screen, std::string& status, Tone& tone) const;
     // What the panel has to say, once, wherever the player is.
     bool TakeSaid(std::string& text);
-    // The shell is hidden: an admission that arrives meanwhile must not join later.
+    // The shell is hidden: an admission that arrives meanwhile must not join
+    // later, so the request in flight is abandoned. A room link nobody has
+    // followed yet is kept: it is the player's, until followed or replaced.
     void Conceal();
+    // A link that goes on by itself is waiting to be asked for.
+    bool FollowingLink() const { return link_ && link_->direct; }
+    // That link waits for the player's choice instead: they are busy now.
+    void HoldLink() { if (link_) link_->direct = false; }
 private:
     // The one create or ticket request the panel will act on. It is identified
     // by Command::request, which the panel picks when it sends it; the runtime

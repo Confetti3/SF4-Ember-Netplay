@@ -142,6 +142,9 @@ public:
     void Conceal() {
         identity_.Conceal();
         publicRooms_.Conceal();
+        // A link that was going on by itself starts again when Ember reopens,
+        // with the services read again (identity_.Conceal dropped that read).
+        roomLinkOpening_ = roomLinkOpening_ || publicRooms_.FollowingLink();
         publicBridgeAsked_ = false;
         if (menu_.navigation.EditingSecret()) menu_.navigation.Cancel();
     }
