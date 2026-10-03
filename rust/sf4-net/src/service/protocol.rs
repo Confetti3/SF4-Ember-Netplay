@@ -15,6 +15,34 @@ pub enum Command {
         invitation: String,
         build: String,
     },
+    /// Host a public (server-owned) room. `ticket_key` is the bridge's public
+    /// key as `/v1/signing-keys` publishes it; members are admitted by tickets
+    /// it signed under `ticket_kid` for `bridge_id`. The room id is the
+    /// caller's, since the tickets already name it; it is never all zero.
+    /// `creator` is the Ember ID the room was created for: until a member has
+    /// been admitted, only a ticket for that account is.
+    HostPublic {
+        epoch: u64,
+        build: String,
+        room: [u8; 16],
+        ticket_key: String,
+        ticket_kid: String,
+        bridge_id: String,
+        creator: String,
+    },
+    /// Join a public room with the ticket the bridge issued for this endpoint.
+    JoinPublic {
+        epoch: u64,
+        invitation: String,
+        ticket: ember_protocol::rooms::SignedRoomTicket,
+        build: String,
+    },
+    /// Refuse an Ember ID for the rest of this public room, closing any
+    /// control admitted under it.
+    BanAccount {
+        epoch: u64,
+        account: String,
+    },
     Leave {
         epoch: u64,
         /// Replacement-room teardown may retire local state without trying
@@ -251,6 +279,10 @@ pub enum Event {
         room: [u8; 16],
         /// The control connection this event is about, echoed by its close.
         control: u64,
+        /// The Ember ID a public host's ticket admitted this connection
+        /// under. Absent in a private room.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        account: Option<String>,
     },
     Message {
         epoch: u64,

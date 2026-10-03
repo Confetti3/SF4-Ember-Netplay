@@ -722,3 +722,5 @@ async fn sixteen_members_commit_with_one_failed_host() {
 mod transfer;
 // Departed-member history and its bound.
 mod history;
+// Server-owned rooms: one voter, learners that follow the host only.
+mod server_owned;

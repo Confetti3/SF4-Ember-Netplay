@@ -6,6 +6,17 @@ pub async fn run<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     endpoint: Endpoint,
     relay_only: bool,
 ) -> io::Result<()> {
+    run_on_port(stream, endpoint, relay_only, None).await
+}
+
+/// `run` with the exact UDP port the coordination endpoint binds when this
+/// process hosts a room. Hosting fails if the port cannot be bound.
+pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
+    stream: S,
+    endpoint: Endpoint,
+    relay_only: bool,
+    coordination_port: Option<u16>,
+) -> io::Result<()> {
     let (mut reader, mut writer) = tokio::io::split(stream);
     let (commands, receiver) = mpsc::channel(IPC_QUEUE_CAPACITY);
     let (events, mut outbound) = mpsc::channel::<Event>(IPC_QUEUE_CAPACITY);
@@ -133,6 +144,8 @@ pub async fn run<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         retirement_started: None,
         departure_failed: false,
         short: ShortLinks::default(),
+        public: None,
+        coordination_port,
     };
     let result = actor.run(receiver, failure).await;
     actor.clear_room();

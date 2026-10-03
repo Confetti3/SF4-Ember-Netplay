@@ -158,6 +158,10 @@ impl Actor {
         {
             return;
         }
+        // A public host has no leader to follow and never dials a member.
+        if self.is_public_host() {
+            return;
+        }
         let Some(invite) = self.room_invite.clone() else {
             return;
         };
@@ -175,13 +179,19 @@ impl Actor {
             .map(|relay| EndpointAddr::new(target).with_relay_url(relay))
             .unwrap_or_else(|| EndpointAddr::new(target));
         self.reconnect_target = Some(target);
+        // A server-owned member redials with the ticket it joined with. Past
+        // its minute the host still takes it from an endpoint it holds as a
+        // member (`AdmissionPolicy::check`).
+        let ticket = self.member_ticket();
         self.tasks.spawn(async move {
             tokio::time::sleep(Duration::from_millis(250)).await;
-            Completion::Reconnect(
-                epoch,
-                target,
-                transport::connect_control_to(&endpoint, address, &invite).await,
-            )
+            let result = match &ticket {
+                Some(ticket) => {
+                    crate::public_room::connect_public_to(&endpoint, address, &invite, ticket).await
+                }
+                None => transport::connect_control_to(&endpoint, address, &invite).await,
+            };
+            Completion::Reconnect(epoch, target, result)
         });
     }
 
@@ -227,13 +237,32 @@ impl Actor {
         let Some(parked) = self.parked_controls.remove(&peer) else {
             return Ok(());
         };
-        self.controls.remove(&peer);
+        let replaced = self.controls.remove(&peer);
         if parked.epoch != self.epoch || self.room.is_none() {
             parked
                 .channel
                 .connection
                 .close(1u32.into(), b"room unavailable");
             return Ok(());
+        }
+        // The install is the admission boundary: the candidate is decided on
+        // the room as it stands now, with a fresh clock and with neither its
+        // own reservation nor the worker it replaces counted, and becomes a
+        // member only here. Nothing is awaited between this and the install.
+        if self.refuse_public_control(&parked.channel) {
+            parked.channel.connection.close(1u32.into(), b"admission ended");
+            // The replaced worker was announced and will not be replaced.
+            if let Some(old) = replaced {
+                self.emit(Event::ControlClosed {
+                    epoch: self.epoch,
+                    peer,
+                    control: old.id(),
+                })?;
+            }
+            return Ok(());
+        }
+        if let Some(account) = parked.channel.account.as_ref() {
+            self.remember_public_member(peer, account);
         }
         self.install_control(parked.epoch, parked.channel, parked.joined_invite)
             .await
@@ -254,7 +283,9 @@ impl Actor {
         let Some(recovery) = self.recovery.as_ref() else {
             return;
         };
-        if lost_leader == recovery.incarnation
+        // A server-owned room has no voter to campaign.
+        if self.server_owned()
+            || lost_leader == recovery.incarnation
             || recovery.coordinator.current_leader() != Some(lost_leader)
         {
             return;
@@ -278,12 +309,13 @@ impl Actor {
         let mut retired = retired_before_retry.clone();
         retired.extend(self.pending_retired_incarnations.iter().copied());
         retired.extend(self.retired_incarnations.iter().copied());
-        let admissions = self
-            .admissions
-            .values()
-            .filter(|admission| !retired.contains(&admission.incarnation))
-            .cloned()
-            .collect();
+        let admissions = self.membership_view(
+            self.admissions
+                .values()
+                .filter(|admission| !retired.contains(&admission.incarnation))
+                .cloned()
+                .collect(),
+        );
         let Ok(payload) = serde_json::to_string(&CoordinationControl::Membership {
             admissions,
             retired: retired.into_iter().collect(),
@@ -392,12 +424,13 @@ impl Actor {
                     {
                         return Err(failed("invalid coordination authority response"));
                     }
-                    let session = crate::recovery::RecoverySession::join(
+                    let session = crate::recovery::RecoverySession::join_in(
                         admission.room,
                         self.endpoint.id(),
                         admission.incarnation,
                         admission.coordination_address.clone(),
                         self.relay_only,
+                        self.server_owned(),
                     )
                     .await?;
                     self.remember_admission(admission.clone());
@@ -799,9 +832,18 @@ impl Actor {
                 let replacing = self.controls.contains_key(&peer);
                 if epoch != self.epoch
                     || self.room.is_none()
-                    || (!replacing && self.controls.len() >= MAX_CONTROL_PEERS)
+                    || (!replacing && self.controls.len() >= self.max_control_peers())
                 {
                     channel.connection.close(1u32.into(), b"room unavailable");
+                    return Ok(());
+                }
+                // An early check, for a prompt refusal. The candidate is a
+                // reservation while it waits; the install decides again.
+                // `Accepted` has gone out, so the joiner sees a refusal here
+                // (and at the install) as its control closing, not as
+                // `refused`.
+                if self.refuse_public_control(&channel) {
+                    channel.connection.close(1u32.into(), b"admission ended");
                     return Ok(());
                 }
                 // The QUIC identity and room proof authenticate this
@@ -839,9 +881,10 @@ impl Actor {
                 self.settle_parked_control(peer).await
             }
             Err(error) if epoch == self.epoch && self.opening => {
-                let reason = network::join_failure_reason(
-                    transport::is_host_unreachable(&error),
+                let reason = network::join_error_reason(
+                    &error,
                     network::home_relay_connected(&self.endpoint),
+                    self.server_owned(),
                 );
                 self.clear_room();
                 self.error_because(0, "join_failed", reason)
@@ -887,11 +930,17 @@ impl Actor {
             return Ok(());
         };
         let control = self.controls.get(&peer).map(ControlWorker::id).unwrap_or(0);
+        let account = self
+            .controls
+            .get(&peer)
+            .and_then(ControlWorker::account)
+            .map(ToString::to_string);
         self.emit(Event::Connected {
             epoch,
             peer,
             room,
             control,
+            account,
         })?;
         if let Some(invite) = joined_invite {
             self.emit(Event::DiscordInvite {

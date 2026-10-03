@@ -13,7 +13,9 @@ impl Actor {
                 return Ok(());
             }
             let peer = connection.remote_id();
-            if connection.alpn() == CONTROL_ALPN {
+            if connection.alpn() == CONTROL_ALPN && self.server_owned() {
+                self.accept_public_incoming(epoch, connection);
+            } else if connection.alpn() == CONTROL_ALPN {
                 if let Some(invite) = self
                     .room_invite
                     .clone()

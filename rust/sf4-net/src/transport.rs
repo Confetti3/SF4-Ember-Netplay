@@ -6,6 +6,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+use ember_protocol::{EmberId, rooms::RoomTicket};
 use iroh::{
     Endpoint, EndpointAddr, EndpointId,
     endpoint::{Connection, ConnectionError, PortmapperConfig, RecvStream, SendStream, presets},
@@ -20,6 +21,8 @@ use crate::{
 };
 
 pub mod fixed_port;
+mod with_proof;
+pub(crate) use with_proof::{accept_control_with, connect_public_on_proof};
 
 pub const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 /// A prepared listener precedes the separately committed game-connect phase.
@@ -66,8 +69,7 @@ pub async fn bind_endpoint_with_policy(relay_only: bool) -> io::Result<Endpoint>
     // cannot reach each other directly are hitting. Take iroh's default
     // (enabled) for gameplay; relay-only keeps it off, where it is moot
     // because that diagnostic clears the IP transports anyway.
-    let builder =
-        || Endpoint::builder(presets::N0).alpns(vec![CONTROL_ALPN.to_vec(), GAME_ALPN.to_vec()]);
+    let builder = production_builder;
     let bound = if relay_only {
         builder()
             .clear_ip_transports()
@@ -80,10 +82,32 @@ pub async fn bind_endpoint_with_policy(relay_only: bool) -> io::Result<Endpoint>
     bound.map_err(|_| failed())
 }
 
+fn production_builder() -> iroh::endpoint::Builder {
+    Endpoint::builder(presets::N0).alpns(vec![CONTROL_ALPN.to_vec(), GAME_ALPN.to_vec()])
+}
+
+/// Binds the primary endpoint's IPv4 socket on exactly this UDP port, with no
+/// fallback to another one. The headless room host passes the port it was
+/// given, so an unusable port must stop the helper rather than move it.
+pub async fn bind_endpoint_on_port(port: u16) -> io::Result<Endpoint> {
+    production_builder()
+        .bind_addr((std::net::Ipv4Addr::UNSPECIFIED, port))
+        .map_err(|error| failed_at("bind address", error))?
+        .bind()
+        .await
+        .map_err(|error| failed_at(&format!("cannot bind UDP port {port}"), error))
+}
+
 pub struct ControlChannel {
     pub connection: Connection,
     pub sender: ControlSender,
     pub receiver: ControlReceiver,
+    /// The Ember ID a public room's ticket named for this connection. A
+    /// private room has none.
+    pub account: Option<EmberId>,
+    /// The verified ticket that admitted it, kept so the room can decide
+    /// again before the channel is installed.
+    pub ticket: Option<RoomTicket>,
 }
 
 pub struct ControlSender {
@@ -152,6 +176,8 @@ fn control_channel(connection: Connection, stream: (SendStream, RecvStream)) -> 
             last_id: 1,
             poisoned: false,
         },
+        account: None,
+        ticket: None,
     }
 }
 
@@ -179,6 +205,24 @@ async fn read_handshake<T: serde::de::DeserializeOwned>(recv: &mut RecvStream) -
 #[serde(deny_unknown_fields)]
 struct Accepted {
     version: u16,
+}
+
+/// What a public host sends in place of `Accepted` when its admission policy
+/// refuses a well-formed proof. It names no reason. The wire name differs from
+/// `Accepted`'s so that neither parses as the other.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PublicRefused {
+    #[serde(rename = "refused")]
+    version: u16,
+}
+
+/// What a joiner presenting a public proof reads: the host's answer.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum PublicReply {
+    Accepted(Accepted),
+    Refused(PublicRefused),
 }
 
 /// Drops an in-flight connection on timeout, cancellation, or admission failure.
@@ -248,18 +292,74 @@ pub fn is_host_unreachable(error: &io::Error) -> bool {
     error.to_string() == HOST_UNREACHABLE
 }
 
+/// The message of the error a joiner gets when a public host read its proof
+/// and answered with `PublicRefused`: the connection opened and the host's
+/// admission policy turned it away. A silent close, a timeout and an
+/// unreachable host are never this.
+pub const ADMISSION_REFUSED: &str = "admission_refused";
+
+pub(crate) fn admission_refused() -> io::Error {
+    io::Error::new(io::ErrorKind::ConnectionAborted, ADMISSION_REFUSED)
+}
+
+pub fn is_admission_refused(error: &io::Error) -> bool {
+    error.to_string() == ADMISSION_REFUSED
+}
+
+/// The message of the error a join gets when the connection opened and the
+/// handshake then ran out of time.
+pub const HANDSHAKE_TIMED_OUT: &str = "handshake_timeout";
+
+fn timed_out() -> io::Error {
+    io::Error::new(io::ErrorKind::TimedOut, HANDSHAKE_TIMED_OUT)
+}
+
+pub fn is_handshake_timeout(error: &io::Error) -> bool {
+    error.to_string() == HANDSHAKE_TIMED_OUT
+}
+
 pub async fn connect_control(endpoint: &Endpoint, invite: &Invite) -> io::Result<ControlChannel> {
+    connect_control_with(endpoint, invite, &invite.proof(), false).await
+}
+
+/// `connect_control` presenting `proof` in place of the invitation's own.
+/// `public` is whether `proof` is a public room's, whose host may answer with
+/// `PublicRefused`.
+pub(crate) async fn connect_control_with<P: Serialize + Sync>(
+    endpoint: &Endpoint,
+    invite: &Invite,
+    proof: &P,
+    public: bool,
+) -> io::Result<ControlChannel> {
+    connect_control_at(endpoint, invite.address(), invite, proof, public).await
+}
+
+/// `connect_control_with` dialing `address` in place of the invitation's own,
+/// which the local harness uses to reach a loopback host. The invitation still
+/// names the endpoint the connection must end at.
+pub(crate) async fn connect_control_at<P: Serialize + Sync>(
+    endpoint: &Endpoint,
+    address: EndpointAddr,
+    invite: &Invite,
+    proof: &P,
+    public: bool,
+) -> io::Result<ControlChannel> {
     let unreachable = || io::Error::new(io::ErrorKind::ConnectionAborted, HOST_UNREACHABLE);
     // Set once the connection opens, so a timeout says which stage ran out.
     let dialed = std::sync::atomic::AtomicBool::new(false);
     let result = timeout(HANDSHAKE_TIMEOUT, async {
         let connection = endpoint
-            .connect(invite.address(), CONTROL_ALPN)
+            .connect(address, CONTROL_ALPN)
             .await
             .map_err(|_| unreachable())?;
         dialed.store(true, std::sync::atomic::Ordering::Relaxed);
         let mut pending = PendingConnection(Some(connection.clone()));
-        let result = connect_control_on(connection, invite).await;
+        let expected = Some(invite.endpoint());
+        let result = if public {
+            connect_public_on_proof(connection, proof, expected).await
+        } else {
+            connect_control_on_proof(connection, proof, expected).await
+        };
         if result.is_ok() {
             pending.0 = None;
         }
@@ -269,6 +369,9 @@ pub async fn connect_control(endpoint: &Endpoint, invite: &Invite) -> io::Result
     match result {
         Ok(result) => result,
         Err(_) if !dialed.load(std::sync::atomic::Ordering::Relaxed) => Err(unreachable()),
+        // Only a public join says the handshake timed out; a private room's
+        // host keeps the generic failure.
+        Err(_) if public => Err(timed_out()),
         Err(_) => Err(failed()),
     }
 }
@@ -289,12 +392,25 @@ pub async fn connect_control_to(
     address: EndpointAddr,
     invite: &Invite,
 ) -> io::Result<ControlChannel> {
+    connect_control_to_with(endpoint, address, &invite.proof(), false).await
+}
+
+pub(crate) async fn connect_control_to_with<P: Serialize + Sync>(
+    endpoint: &Endpoint,
+    address: EndpointAddr,
+    proof: &P,
+    public: bool,
+) -> io::Result<ControlChannel> {
     timeout(HANDSHAKE_TIMEOUT, async {
         let connection = endpoint
             .connect(address.clone(), CONTROL_ALPN)
             .await
             .map_err(|_| failed())?;
-        connect_control_on_expected(connection, invite, Some(address.id)).await
+        if public {
+            connect_public_on_proof(connection, proof, Some(address.id)).await
+        } else {
+            connect_control_on_proof(connection, proof, Some(address.id)).await
+        }
     })
     .await
     .map_err(|_| failed())?
@@ -305,6 +421,14 @@ async fn connect_control_on_expected(
     invite: &Invite,
     expected: Option<EndpointId>,
 ) -> io::Result<ControlChannel> {
+    connect_control_on_proof(connection, &invite.proof(), expected).await
+}
+
+pub(crate) async fn connect_control_on_proof<P: Serialize + Sync>(
+    connection: Connection,
+    proof: &P,
+    expected: Option<EndpointId>,
+) -> io::Result<ControlChannel> {
     let mut pending = PendingConnection(Some(connection.clone()));
     let result = timeout(HANDSHAKE_TIMEOUT, async {
         if connection.alpn() != CONTROL_ALPN
@@ -313,7 +437,7 @@ async fn connect_control_on_expected(
             return Err(failed());
         }
         let (mut send, mut recv) = connection.open_bi().await.map_err(|_| failed())?;
-        send_handshake(&mut send, &invite.proof()).await?;
+        send_handshake(&mut send, proof).await?;
         let accepted: Accepted = read_handshake(&mut recv).await?;
         if accepted.version != VERSION {
             return Err(failed());

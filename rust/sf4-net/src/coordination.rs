@@ -32,6 +32,9 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
 use tokio::sync::Mutex;
 
+mod server_owned;
+pub use server_owned::Ownership;
+
 pub const MAX_CHECKPOINT: usize = 1024 * 1024;
 pub const MAX_MEMBERS: usize = 16;
 /// Applied-membership provenance: at most 128 retired process incarnations
@@ -304,13 +307,26 @@ impl Machine {
         }
     }
 }
-#[derive(Default)]
 struct Memory {
     vote: Option<Vote<u64>>,
     purged: Option<LogId<u64>>,
     log: BTreeMap<u64, Entry<RoomTypes>>,
     machine: Machine,
     snapshot: Option<(SnapshotMeta<u64, BasicNode>, Vec<u8>)>,
+    /// The most nodes an installed snapshot's membership may hold.
+    max_nodes: usize,
+}
+impl Memory {
+    fn new(max_nodes: usize) -> Self {
+        Self {
+            vote: None,
+            purged: None,
+            log: BTreeMap::new(),
+            machine: Machine::default(),
+            snapshot: None,
+            max_nodes,
+        }
+    }
 }
 
 fn encode_snapshot(machine: &Machine) -> io::Result<Vec<u8>> {
@@ -368,9 +384,18 @@ fn decode_snapshot(encoded: &[u8]) -> io::Result<Machine> {
     }
     serde_json::from_slice(&raw).map_err(io::Error::other)
 }
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct Store(Arc<Mutex<Memory>>);
+impl Default for Store {
+    fn default() -> Self {
+        Self::with_node_limit(MAX_MEMBERS)
+    }
+}
 impl Store {
+    fn with_node_limit(max_nodes: usize) -> Self {
+        Self(Arc::new(Mutex::new(Memory::new(max_nodes))))
+    }
+
     pub async fn committed(&self) -> Committed {
         self.0.lock().await.machine.committed.clone()
     }
@@ -764,6 +789,7 @@ impl RaftStorage<RoomTypes> for Store {
         data: Box<Cursor<Vec<u8>>>,
     ) -> Result<(), StoreError> {
         let bytes = data.into_inner();
+        let max_nodes = self.0.lock().await.max_nodes;
         if bytes.len() > MAX_SNAPSHOT {
             return Err(StorageIOError::write_state_machine(&io::Error::other(
                 "room snapshot too large",
@@ -777,7 +803,7 @@ impl RaftStorage<RoomTypes> for Store {
             || machine.committed.checkpoint.len() > MAX_CHECKPOINT
             || machine.recent.len() > RECENT_REQUESTS
             || machine.probes.len() > MAX_MEMBERS
-            || machine.membership.nodes().count() > MAX_MEMBERS
+            || machine.membership.nodes().count() > max_nodes
             || machine.member_history.len() > MAX_MEMBER_HISTORY
             || machine.departed_order.len() > MAX_RETIRED_MEMBER_HISTORY
             || machine
@@ -920,6 +946,7 @@ impl RaftNetwork<RoomTypes> for Peer {
 pub struct Coordinator {
     room: [u8; 16],
     incarnation: u64,
+    ownership: Ownership,
     raft: RoomRaft,
     store: Store,
     network: Network,
@@ -945,6 +972,16 @@ impl Coordinator {
         room: [u8; 16],
         incarnation: u64,
         transport: Arc<dyn RpcTransport>,
+    ) -> io::Result<Self> {
+        Self::new_owned(room, incarnation, transport, Ownership::Private).await
+    }
+
+    /// `new_for_room` for a node that takes part in its room as `ownership`.
+    pub async fn new_owned(
+        room: [u8; 16],
+        incarnation: u64,
+        transport: Arc<dyn RpcTransport>,
+        ownership: Ownership,
     ) -> io::Result<Self> {
         if incarnation == 0 {
             return Err(io::Error::other("invalid room incarnation"));
@@ -972,11 +1009,12 @@ impl Coordinator {
             // checkpoint credit window so relay RTT is paid once per window,
             // while each underlying write and the total snapshot stay bounded.
             snapshot_max_chunk_size: (SNAPSHOT_FRAGMENT_BYTES * SNAPSHOT_CREDIT_WINDOW) as u64,
+            enable_elect: ownership.campaigns(),
             ..Config::default()
         }
         .validate()
         .map_err(|_| io::Error::other("invalid room coordination configuration"))?;
-        let store = Store::default();
+        let store = Store::with_node_limit(ownership.max_nodes());
         let (log, machine) = Adaptor::new(store.clone());
         let network = Network(transport);
         let raft = Raft::new(incarnation, Arc::new(config), network.clone(), log, machine)
@@ -985,6 +1023,7 @@ impl Coordinator {
         Ok(Self {
             room,
             incarnation,
+            ownership,
             raft,
             store,
             network,
@@ -997,6 +1036,10 @@ impl Coordinator {
     }
     pub fn raft(&self) -> &RoomRaft {
         &self.raft
+    }
+
+    pub fn ownership(&self) -> Ownership {
+        self.ownership
     }
 
     /// A read barrier is required before helper advertises a writable native
@@ -1244,6 +1287,9 @@ impl Coordinator {
         if source == 0 || bytes.len() > MAX_SNAPSHOT {
             return Err(bad());
         }
+        if !self.ownership.serves(source, method) {
+            return Err(bad());
+        }
         match method {
             "propose" => {
                 let proposal: Proposal = serde_json::from_slice(bytes).map_err(|_| bad())?;
@@ -1337,7 +1383,7 @@ impl Coordinator {
                         return Err(bad());
                     }
                     if let EntryPayload::Membership(membership) = &entry.payload
-                        && membership.nodes().count() > MAX_MEMBERS
+                        && membership.nodes().count() > self.ownership.max_nodes()
                     {
                         return Err(bad());
                     }
@@ -1370,7 +1416,7 @@ impl Coordinator {
                         .offset
                         .checked_add(request.data.len() as u64)
                         .is_none_or(|end| end > MAX_SNAPSHOT as u64)
-                    || request.meta.last_membership.nodes().count() > MAX_MEMBERS
+                    || request.meta.last_membership.nodes().count() > self.ownership.max_nodes()
                 {
                     return Err(bad());
                 }

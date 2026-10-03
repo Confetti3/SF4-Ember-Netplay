@@ -9,6 +9,7 @@ mod bridges;
 mod client;
 mod discord;
 mod play;
+mod rooms;
 mod spool;
 
 use std::{
@@ -122,6 +123,24 @@ pub enum Request {
         match_id: String,
         room: PublishRoom,
     },
+    /// The open public rooms of `build` on a bridge.
+    RoomList {
+        bridge_id: String,
+        build: String,
+    },
+    /// Opens a public room and takes its creator's ticket.
+    RoomCreate {
+        bridge_id: String,
+        name: String,
+        capacity: u8,
+        build: String,
+    },
+    /// The ticket and invitation for joining an open public room.
+    RoomTicket {
+        bridge_id: String,
+        room_id: String,
+        build: String,
+    },
     GamePrepare {
         bridge_id: String,
         match_id: String,
@@ -166,6 +185,9 @@ impl Request {
             Self::AssignmentList { .. } => "assignment_list",
             Self::MatchClaim { .. } => "match_claim",
             Self::RoomPublish { .. } => "room_publish",
+            Self::RoomList { .. } => "room_list",
+            Self::RoomCreate { .. } => "room_create",
+            Self::RoomTicket { .. } => "room_ticket",
             Self::GamePrepare { .. } => "game_prepare",
             Self::GameReport { .. } => "game_report",
             Self::MatchLeave { .. } => "match_leave",
@@ -614,6 +636,18 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             match_id,
             room,
         } => play::publish_room(shared, &bridge_id, &match_id, room).await,
+        Request::RoomList { bridge_id, build } => rooms::list(shared, &bridge_id, &build).await,
+        Request::RoomCreate {
+            bridge_id,
+            name,
+            capacity,
+            build,
+        } => rooms::create(shared, &bridge_id, &name, capacity, &build).await,
+        Request::RoomTicket {
+            bridge_id,
+            room_id,
+            build,
+        } => rooms::ticket(shared, &bridge_id, &room_id, &build).await,
         Request::GamePrepare {
             bridge_id,
             match_id,

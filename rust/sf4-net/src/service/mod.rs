@@ -98,14 +98,16 @@ mod members;
 mod network;
 mod probes;
 mod protocol;
+mod public;
 mod refresh;
+mod server_owned;
 mod short_links;
 mod stall;
 #[cfg(test)]
 mod tests;
 
 use entry::TaskScope;
-pub use entry::run;
+pub use entry::{run, run_on_port};
 use events::EventOutbox;
 use probes::{selected_probe_route, serve_probe};
 use protocol::NativeControlMessage;
@@ -471,6 +473,12 @@ fn status(request_id: u64, endpoint: &Endpoint, epoch: u64, peers: usize, games:
 /// authenticated room-member map; Rust only uses a complete, validated list
 /// to reconcile Raft membership after commit.
 fn committed_primary_endpoints(bytes: &[u8]) -> Option<BTreeSet<EndpointId>> {
+    primary_endpoints(bytes, false)
+}
+
+/// `committed_primary_endpoints`, with an empty roster accepted when
+/// `allow_empty`: a server-owned room can stand with no member in it.
+fn primary_endpoints(bytes: &[u8], allow_empty: bool) -> Option<BTreeSet<EndpointId>> {
     let envelope: serde_json::Value = serde_json::from_slice(bytes).ok()?;
     let members = envelope.get("checkpoint")?.get("members")?.as_array()?;
     // A recovery checkpoint may retain started spectator tombstones in
@@ -478,7 +486,9 @@ fn committed_primary_endpoints(bytes: &[u8]) -> Option<BTreeSet<EndpointId>> {
     // from the active roster so a valid 16-member room plus frozen entries is
     // still reconcilable without allowing an unbounded snapshot projection.
     const MAX_FROZEN_MEMBERS: usize = 4 * (MAX_CONTROL_PEERS + 1);
-    if members.is_empty() || members.len() > MAX_CONTROL_PEERS + 1 + MAX_FROZEN_MEMBERS {
+    if (members.is_empty() && !allow_empty)
+        || members.len() > MAX_CONTROL_PEERS + 1 + MAX_FROZEN_MEMBERS
+    {
         return None;
     }
     let mut endpoints = BTreeSet::new();
@@ -499,7 +509,7 @@ fn committed_primary_endpoints(bytes: &[u8]) -> Option<BTreeSet<EndpointId>> {
         let endpoint = text.parse::<EndpointId>().ok()?;
         endpoints.insert(endpoint);
     }
-    (!endpoints.is_empty()).then_some(endpoints)
+    (allow_empty || !endpoints.is_empty()).then_some(endpoints)
 }
 
 /// Build the native endpoint-to-incarnation view from the membership this
@@ -635,6 +645,10 @@ struct Actor {
     departure_failed: bool,
     /// The room's short link, once the native side asked for one.
     short: ShortLinks,
+    /// Set for a public (server-owned) room; see `public.rs`.
+    public: Option<crate::public_room::PublicRoom>,
+    /// Exact UDP port for this process's coordination endpoint when hosting.
+    coordination_port: Option<u16>,
 }
 
 impl Actor {
@@ -660,8 +674,8 @@ impl Actor {
     }
 
     /// An error whose `reason` says at which stage it failed (`relay_unreachable`,
-    /// `host_unreachable`, `control_lost`). The code is unchanged, so a native
-    /// client that ignores reasons behaves as before.
+    /// `host_unreachable`, `timeout`, `refused`, `control_lost`). The code is
+    /// unchanged, so a native client that ignores reasons behaves as before.
     fn error_because(&self, request_id: u64, code: &str, reason: Option<&str>) -> io::Result<()> {
         self.emit(Event::Error {
             probe_failure: None,
@@ -761,6 +775,7 @@ impl Actor {
         self.join_first_loss = None;
         self.retirement_started = None;
         self.departure_failed = false;
+        self.public = None;
     }
     fn begin(&mut self, epoch: u64, build: &str) -> bool {
         if epoch <= self.epoch || epoch > i64::MAX as u64 || build.is_empty() || build.len() > 128 {
@@ -807,23 +822,30 @@ impl Actor {
                     self.error_at(id, epoch, "invalid_room_state")?;
                     return Ok(true);
                 }
-                let endpoint = self.endpoint.clone();
-                self.tasks.spawn(async move {
-                    let result = timeout(transport::HANDSHAKE_TIMEOUT, async {
-                        endpoint.online().await;
-                        let relay = endpoint
-                            .addr()
-                            .relay_urls()
-                            .next()
-                            .cloned()
-                            .ok_or_else(|| failed("relay_unavailable"))?;
-                        Invite::create(endpoint.id(), relay, build, now()?, INVITE_LIFETIME)
-                    })
-                    .await
-                    .unwrap_or_else(|_| Err(failed("relay_unavailable")));
-                    Completion::Hosted(epoch, result)
-                });
+                self.spawn_host(epoch, build, None);
             }
+            Command::HostPublic {
+                epoch,
+                build,
+                room,
+                ticket_key,
+                ticket_kid,
+                bridge_id,
+                creator,
+            } => self.host_public(
+                id,
+                epoch,
+                build,
+                room,
+                (&ticket_key, &ticket_kid, &bridge_id, &creator),
+            )?,
+            Command::JoinPublic {
+                epoch,
+                invitation,
+                ticket,
+                build,
+            } => self.join_public(id, epoch, &invitation, build, ticket)?,
+            Command::BanAccount { epoch, account } => self.ban_account(id, epoch, &account)?,
             Command::Join {
                 epoch,
                 invitation,
@@ -1120,8 +1142,12 @@ impl Actor {
         self.room = Some(invite.room());
         self.host_address = Some(invite.address());
         let endpoint = self.endpoint.clone();
+        let ticket = self.member_ticket();
         self.tasks.spawn(async move {
-            let result = transport::connect_control(&endpoint, &invite).await;
+            let result = match &ticket {
+                Some(ticket) => crate::public_room::connect_public(&endpoint, &invite, ticket).await,
+                None => transport::connect_control(&endpoint, &invite).await,
+            };
             Completion::GuestControl(epoch, invite, result)
         });
         Ok(())

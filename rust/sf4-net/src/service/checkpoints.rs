@@ -289,7 +289,7 @@ impl Actor {
             committed.revision,
             committed.checkpoint.into_bytes(),
         )?;
-        if let Some(retained) = committed_primary_endpoints(&transfer.bytes) {
+        if let Some(retained) = self.committed_roster(&transfer.bytes) {
             self.schedule_membership_reconciliation(
                 retained,
                 committed.term,
@@ -556,7 +556,7 @@ impl Actor {
             && transfer.bytes.len() == key.length
             && transfer.digest == key.digest;
         if committed_exact {
-            if let Some(retained) = committed_primary_endpoints(&transfer.bytes) {
+            if let Some(retained) = self.committed_roster(&transfer.bytes) {
                 self.schedule_membership_reconciliation(
                     retained,
                     committed.term,

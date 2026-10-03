@@ -1,9 +1,10 @@
 //! Authenticated, bounded room-consensus transport. This endpoint is separate
 //! from the gameplay endpoint: shutting down consensus cannot retire GGPO links.
 use crate::coordination::{
-    AuthorityClaim, Coordinator, MAX_MEMBERS, MAX_PROPOSE_REQUEST, MAX_RPC_RESPONSE, MAX_SNAPSHOT,
-    MAX_SNAPSHOT_REQUEST, MAX_VOTE_REQUEST, RpcTransport, SNAPSHOT_FRAGMENT_BYTES,
+    AuthorityClaim, Coordinator, MAX_PROPOSE_REQUEST, MAX_RPC_RESPONSE, MAX_SNAPSHOT,
+    MAX_SNAPSHOT_REQUEST, MAX_VOTE_REQUEST, Ownership, RpcTransport, SNAPSHOT_FRAGMENT_BYTES,
 };
+use retired::RetiredFilter;
 use iroh::{
     Endpoint, EndpointAddr, EndpointId,
     endpoint::{Connection, PortmapperConfig, presets},
@@ -38,8 +39,7 @@ const PEER_BODY_BUDGET: usize = 2 * MAX_RPC;
 const BODY_BUDGET: usize = 4 * MAX_RPC;
 const RELAY_READY_TIMEOUT: Duration = Duration::from_secs(10);
 const CHUNK: usize = SNAPSHOT_FRAGMENT_BYTES;
-const RETIRED_FILTER_WORDS: usize = 128;
-const RETIRED_FILTER_HASHES: u64 = 3;
+mod retired;
 fn failure() -> io::Error {
     io::Error::other("room coordination transport unavailable")
 }
@@ -54,7 +54,10 @@ pub struct IrohRpc {
     // A fixed-size tombstone filter lets expired route records be evicted
     // without ever making the exact retired incarnation admissible again.
     // False positives fail closed; the filter has no false negatives.
-    retired_filter: RwLock<[u64; RETIRED_FILTER_WORDS]>,
+    retired_filter: RwLock<RetiredFilter>,
+    /// The room's size limit applies to the connections and bindings this
+    /// endpoint holds; see `Ownership::max_nodes`.
+    limit: usize,
     connections: RwLock<BTreeMap<u64, Connection>>,
     /// One dial gate per target. Only its holder opens the target's
     /// connection, so concurrent RPCs share one cached connection instead of
@@ -154,6 +157,28 @@ impl Drop for ConnectionUseGuard {
 }
 impl IrohRpc {
     pub async fn bind(room: [u8; 16], incarnation: u64, relay_only: bool) -> io::Result<Arc<Self>> {
+        Self::bind_on(room, incarnation, relay_only, None).await
+    }
+
+    /// `bind` with the IPv4 socket on exactly `port`, with no fallback to
+    /// another one. A headless room host is given the port it must hold.
+    pub async fn bind_on(
+        room: [u8; 16],
+        incarnation: u64,
+        relay_only: bool,
+        port: Option<u16>,
+    ) -> io::Result<Arc<Self>> {
+        Self::bind_owned(room, incarnation, relay_only, port, Ownership::Private).await
+    }
+
+    /// `bind_on` for a node that takes part in its room as `ownership`.
+    pub async fn bind_owned(
+        room: [u8; 16],
+        incarnation: u64,
+        relay_only: bool,
+        port: Option<u16>,
+        ownership: Ownership,
+    ) -> io::Result<Arc<Self>> {
         if incarnation == 0 || room == [0; 16] {
             return Err(failure());
         }
@@ -167,6 +192,12 @@ impl IrohRpc {
                 .portmapper_config(PortmapperConfig::Disabled)
         } else {
             builder
+        };
+        let builder = match port {
+            Some(port) => builder
+                .bind_addr((std::net::Ipv4Addr::UNSPECIFIED, port))
+                .map_err(|_| failure())?,
+            None => builder,
         };
         let endpoint = builder.bind().await.map_err(|_| failure())?;
         // Binding only allocates the local socket. In relay-only mode an
@@ -187,10 +218,11 @@ impl IrohRpc {
             room,
             incarnation,
             members: RwLock::new(BTreeMap::new()),
-            retired_filter: RwLock::new([0; RETIRED_FILTER_WORDS]),
+            retired_filter: RwLock::new(RetiredFilter::new(room, ownership)),
+            limit: ownership.max_nodes(),
             connections: RwLock::new(BTreeMap::new()),
             dials: std::sync::Mutex::new(BTreeMap::new()),
-            in_flight: Semaphore::new(MAX_MEMBERS),
+            in_flight: Semaphore::new(ownership.max_nodes()),
             peers: std::sync::Mutex::new(BTreeMap::new()),
             body_budget: Semaphore::new(BODY_BUDGET),
         }))
@@ -252,7 +284,7 @@ impl IrohRpc {
                 .values()
                 .filter(|known| known.retired_until.is_none())
                 .count()
-                >= MAX_MEMBERS
+                >= self.limit
                 && !members.contains_key(&incarnation))
             || members
                 .iter()
@@ -372,29 +404,12 @@ impl IrohRpc {
         Ok(connection)
     }
 
-    fn retired_filter_index(&self, incarnation: u64, round: u64) -> usize {
-        let mut value = incarnation ^ round.wrapping_mul(0x9e37_79b9_7f4a_7c15);
-        value ^= u64::from_le_bytes(self.room[..8].try_into().unwrap()).rotate_left(17);
-        value = value.wrapping_mul(0xbf58_476d_1ce4_e5b9).rotate_left(23);
-        value ^= u64::from_le_bytes(self.room[8..].try_into().unwrap()).rotate_left(17);
-        value = value.wrapping_mul(0xbf58_476d_1ce4_e5b9).rotate_left(23);
-        (value as usize) % (RETIRED_FILTER_WORDS * u64::BITS as usize)
-    }
-
     async fn retired_filter_contains(&self, incarnation: u64) -> bool {
-        let filter = self.retired_filter.read().await;
-        (0..RETIRED_FILTER_HASHES).all(|round| {
-            let bit = self.retired_filter_index(incarnation, round);
-            filter[bit / u64::BITS as usize] & (1u64 << (bit % u64::BITS as usize)) != 0
-        })
+        self.retired_filter.read().await.contains(incarnation)
     }
 
     async fn retired_filter_insert(&self, incarnation: u64) {
-        let mut filter = self.retired_filter.write().await;
-        for round in 0..RETIRED_FILTER_HASHES {
-            let bit = self.retired_filter_index(incarnation, round);
-            filter[bit / u64::BITS as usize] |= 1u64 << (bit % u64::BITS as usize);
-        }
+        self.retired_filter.write().await.insert(incarnation);
     }
 
     pub async fn primary_members(&self) -> Vec<EndpointId> {
@@ -485,7 +500,7 @@ impl IrohRpc {
             tokio::select! {
                 incoming = self.endpoint.accept() => {
                     let Some(incoming) = incoming else { return Ok(()); };
-                    if tasks.len() >= MAX_MEMBERS { incoming.refuse(); continue; }
+                    if tasks.len() >= self.limit { incoming.refuse(); continue; }
                     let owner = self.clone(); let coordinator = coordinator.clone();
                     tasks.spawn(async move {
                         let Ok(Ok(connection)) = timeout(RPC_TIMEOUT, incoming).await else { return; };

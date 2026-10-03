@@ -42,6 +42,7 @@ async fn bridge(dir: &std::path::Path) -> (ember_bridge::Running, String) {
         mock_browser: false,
         discord: None,
         integration_secrets: None,
+        rooms: None,
         tenants: vec![config::Tenant {
             id: "local".into(),
             name: "Local".into(),

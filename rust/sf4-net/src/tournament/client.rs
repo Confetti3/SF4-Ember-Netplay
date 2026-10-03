@@ -23,6 +23,11 @@ use zeroize::Zeroizing;
 use super::{Failure, Outcome, Shared, bridges::Approved};
 
 const MAX_RESPONSE: usize = 64 * 1024;
+/// How long creating a room may take. The bridge waits up to 30 s for the
+/// supervisor, and the room host it starts may take up to 25 s to report
+/// hosted, so the ordinary request timeout would give up on a room that is
+/// then opened.
+pub(super) const CREATE_TIMEOUT: Duration = Duration::from_secs(45);
 const POLICY: OriginPolicy = OriginPolicy::AllowLoopbackHttp;
 /// Renew a cached session this long before it expires.
 const SESSION_MARGIN_SECS: u64 = 30;
@@ -98,8 +103,24 @@ impl Client {
         token: Option<&str>,
         body: Option<Vec<u8>>,
     ) -> Result<(u16, Vec<u8>), Failure> {
+        self.call_within(method, url, token, body, None).await
+    }
+
+    /// `call` with `timeout` as the request's total time in place of the
+    /// client's own.
+    pub(super) async fn call_within(
+        &self,
+        method: reqwest::Method,
+        url: &str,
+        token: Option<&str>,
+        body: Option<Vec<u8>>,
+        timeout: Option<Duration>,
+    ) -> Result<(u16, Vec<u8>), Failure> {
         let http = self.http.as_ref().ok_or_else(unreachable)?;
         let mut request = http.request(method, url);
+        if let Some(timeout) = timeout {
+            request = request.timeout(timeout);
+        }
         if let Some(token) = token {
             request = request.bearer_auth(token);
         }

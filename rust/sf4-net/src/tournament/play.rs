@@ -42,7 +42,7 @@ fn check_match_id(match_id: &str) -> Result<(), Failure> {
 
 /// The approved bridge's key `kid`, fetching the bridge's current keys from
 /// its approved origin once if this one is not known yet.
-async fn bridge_key(
+pub(super) async fn bridge_key(
     shared: &Arc<Shared>,
     bridge: &Approved,
     kid: &str,

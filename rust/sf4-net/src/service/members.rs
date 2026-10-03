@@ -188,6 +188,8 @@ impl Actor {
         let pending = self.pending_retired_incarnations.clone();
         let admissions = self.admissions.values().cloned().collect::<Vec<_>>();
         let reachable = self.controls.keys().copied().collect::<BTreeSet<_>>();
+        // A server-owned room's voter is its host, so no voter is ever restored.
+        let restore = !self.server_owned();
         self.pending_membership_operation = Some(key.clone());
         self.tasks.spawn(async move {
             let operation = async {
@@ -258,15 +260,17 @@ impl Actor {
                         .copied()
                         .collect::<BTreeSet<_>>();
                     recovery.remove_nodes(learner_removals).await?;
-                    restore_stable_voters(
-                        &recovery,
-                        &retained,
-                        &reachable,
-                        &admissions,
-                        &pending,
-                        revision,
-                    )
-                    .await?;
+                    if restore {
+                        restore_stable_voters(
+                            &recovery,
+                            &retained,
+                            &reachable,
+                            &admissions,
+                            &pending,
+                            revision,
+                        )
+                        .await?;
+                    }
                 }
                 let members = recovery.applied_member_ids().await;
                 let confirmed_retirements = pending
@@ -324,7 +328,7 @@ impl Actor {
             deferred.bindings.extend(binding);
             return Ok(());
         }
-        if self.deferred_admissions.len() >= MAX_CONTROL_PEERS {
+        if self.deferred_admissions.len() >= self.max_control_peers() {
             return Err(failed("coordination admission busy"));
         }
         self.deferred_admissions.push_back(DeferredAdmission {
@@ -374,7 +378,7 @@ impl Actor {
                 candidates.push(admission.incarnation);
             }
         }
-        let desired = crate::recovery::stable_voter_count(
+        let desired = self.desired_voters(
             self.admissions
                 .keys()
                 .copied()
@@ -382,6 +386,8 @@ impl Actor {
                 .collect::<BTreeSet<_>>()
                 .len(),
         );
+        // Members of a server-owned room are learners for good.
+        let promote = !self.server_owned();
         self.pending_admission_operation = Some(key.clone());
         self.tasks.spawn(async move {
             let operation = async {
@@ -410,7 +416,10 @@ impl Actor {
                                 voters.insert(id);
                             }
                         }
-                        if !voters.is_empty() && voters.len() <= crate::recovery::MAX_VOTERS {
+                        if promote
+                            && !voters.is_empty()
+                            && voters.len() <= crate::recovery::MAX_VOTERS
+                        {
                             // Admission is already durable once AddLearner
                             // succeeds. Preserve that authenticated binding if
                             // a later voter promotion loses authority or fails;

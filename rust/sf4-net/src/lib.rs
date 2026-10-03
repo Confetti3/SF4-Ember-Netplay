@@ -8,9 +8,11 @@ pub mod invite;
 #[cfg(windows)]
 pub mod ipc;
 pub mod probe;
+pub(crate) mod public_room;
 pub mod recovery;
 pub mod service;
 pub mod short_invite;
+pub mod stdio;
 pub mod tournament;
 pub mod transport;
 pub mod wire;
