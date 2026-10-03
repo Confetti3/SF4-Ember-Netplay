@@ -325,6 +325,14 @@ void Overlay::DrawOverlay() {
     if (snapshot.tournament.connect.sequence!=connectLinkShown && snapshot.atMainMenu && presentation.Available()) {
         presentation.Open(); connectLinkShown=snapshot.tournament.connect.sequence;
     }
+    // A public room link the player was free to follow opens the menu, where
+    // the shell takes them to Public rooms; during play it waits until the
+    // player opens Ember, and the shell says so.
+    static std::uint64_t roomLinkShown=0;
+    if (snapshot.tournament.roomLink.sequence!=roomLinkShown && snapshot.atMainMenu && presentation.Available()) {
+        if (snapshot.tournament.roomLink.free) presentation.Open();
+        roomLinkShown=snapshot.tournament.roomLink.sequence;
+    }
     sf4e::ui::SetOverlayCursorOwnership(focused && presentation.Visible());
     const bool assigning = snapshot.inputCapture != sf4e::input::Capture::Idle;
     // Player navigation is semantic, not ImGui spatial scoring. Text input is

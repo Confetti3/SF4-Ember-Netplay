@@ -3200,3 +3200,24 @@ msgstr "Ce nom de salon est inutilisable. Choisissez-en un autre."
 
 msgid "public.failure.rooms_unavailable"
 msgstr "Les salons publics ne sont pas disponibles pour le moment."
+
+msgid "public.link_row"
+msgstr "Rejoindre le salon du lien"
+
+msgid "public.link_row_detail"
+msgstr "Un lien de salon est arrivé plus tôt. Choisissez ceci pour demander ce salon maintenant."
+
+msgid "public.paste_link"
+msgstr "Coller le lien du salon"
+
+msgid "public.paste_link_detail"
+msgstr "Copiez le lien du salon depuis le bot ou le site, puis choisissez ceci pour rejoindre ce salon."
+
+msgid "public.failure.link"
+msgstr "Ce n'est pas un lien de salon. Copiez-le à nouveau depuis le bot ou le site."
+
+msgid "public.failure.link_service"
+msgstr "Faites confiance à ce service dans Comptes associés, puis rouvrez le lien du salon."
+
+msgid "public.link_waiting"
+msgstr "Un lien de salon public est arrivé. Quittez votre salon, puis choisissez-le dans Salons publics."

@@ -1,6 +1,7 @@
 // The public room journeys: the list a player opens from Online play, a ticket
 // for the room they press, the join that follows its admission, a refusal in
-// words, and Create on Public. The runtime's answers are the view's fields.
+// words, Create on Public, and a room link from a bot or site. The runtime's
+// answers are the view's fields.
 #include "shell_journey_support.hxx"
 namespace {
 using namespace sf4e;
@@ -108,7 +109,7 @@ void ListJourney(){
  Check(j.row("pr-create")&&j.row("pr-refresh")&&j.row("pr-refresh")->enabled,"The list lacks Create or Refresh");
  // Create and Refresh first, then the rooms as received.
  std::vector<std::string> order;for(const auto& r:j.rows)order.push_back(r.id);
- Check(order==std::vector<std::string>({"pr-create","pr-refresh","pr-room:a","pr-room:b","pr-room:c"}),"The list is not Create, Refresh and then the rooms as received");
+ Check(order==std::vector<std::string>({"pr-create","pr-refresh","pr-paste","pr-room:a","pr-room:b","pr-room:c"}),"The list is not Create, Refresh, Paste room link and then the rooms as received");
  const auto* friday=j.row("pr-room:a");const auto* match=j.row("pr-room:b");
  Check(friday->label=="Friday Night"&&friday->userText&&friday->value=="3/8"&&friday->hint==loc::T("online.join"),"A room does not show its name, players and Join");
  Check(match->label=="金曜ルーム"&&match->userText,"A room name is not drawn as player text");
@@ -316,6 +317,144 @@ void RestoredCreateJourney(){
  Check(k.row("host")&&k.row("host")->enabled&&k.requests().empty(),"Choosing Public did not select the service");
 }
 
+// The room links a bot or site hands out (ember://room/open, or the /r page's
+// own link). A link names a service and a room, and asks for that room's ticket
+// through the request a pressed room sends, so the admission, the refusals and
+// the join are the list's own.
+const char* const LinkBridge="brg_0dbc0598-2312-4ce3-9df8-e160330565e6";
+const char* const LinkRoom="0123456789abcdef0123456789abcdef";
+const char* const OtherBridge="brg_5d1f3c0a-7b2e-4c11-8a3d-1f2e3d4c5b6a";
+
+// Delivers a link the way the runtime does: the status's room link, a new sequence.
+void OpenLink(Journey& j,const char* bridge,const char* room,bool free=true){
+ auto& link=j.h.view.tournament.roomLink;link.bridge=bridge;link.room=room;link.free=free;++link.sequence;j.h.Frame(0,2);
+}
+// The clipboard the player pastes from.
+std::string g_clipboard;
+void Clipboard(const std::string& text){
+ g_clipboard=text;ImGui::GetPlatformIO().Platform_GetClipboardTextFn=[](ImGuiContext*){return g_clipboard.c_str();};
+}
+// Ticket requests for a room, as sent.
+std::vector<const Command*> ticketRequests(const Journey& j){
+ std::vector<const Command*> out;for(const auto* c:j.requests())if(c->op==Op::RoomTicket)out.push_back(c);return out;
+}
+std::size_t tickets(const Journey& j){return ticketRequests(j).size();}
+// Whether the newest ticket request asked `bridge` for `room`.
+bool lastTicketIs(const Journey& j,const char* bridge,const char* room){
+ const auto sent=ticketRequests(j);return !sent.empty()&&sent.back()->bridgeId==bridge&&sent.back()->roomId==room;
+}
+
+// A link at the menus opens Public rooms on the link's service, waits for the
+// Ember ID to answer, asks that service for that room's ticket, and the
+// admission joins; the list that follows is the link's service's.
+void LinkJourney(){
+ Journey j;auto& h=j.h;h.view.identity.bridges={{LinkBridge,"https://bridge.example","Example"},{OtherBridge,"https://other.example","Other"}};
+ h.Frame(0,2);h.Screen("home");
+ OpenLink(j,OtherBridge,LinkRoom);
+ Check(h.shell.Navigation().Screen()=="public-rooms","A room link did not open Public rooms");
+ Check(tickets(j)==0,"A room link asked for its ticket before the Ember ID answered");
+ j.answerIdentityUntilIdle();
+ Check(tickets(j)==1&&lastTicketIs(j,OtherBridge,LinkRoom),"A room link did not ask its service for its room's ticket");
+ Check(j.status==loc::T("room.joining_status")&&j.joins()==0,"A room link joined before its admission arrived");
+ j.Admit("",LinkRoom);
+ Check(j.joins()==1&&h.actions.back().command.invitation=="sf4e3:host-invitation"&&!h.actions.back().publicTicket.empty()&&
+  h.actions.back().command.generation==h.view.session.generation,"The admission of a linked room did not join with its invitation and ticket");
+ h.Frame(0,5);Check(j.joins()==1&&tickets(j)==1,"A room link was followed twice");
+ // The list on screen is the link's service's, not the selected one's.
+ const auto listed=[&]{for(const auto* r:j.requests())if(r->op==Op::RoomList)return r->bridgeId;return std::string();};
+ Check(listed()==OtherBridge,"Public rooms listed the selected service after a link named another");
+ // Pressing Refresh keeps asking the link's service.
+ h.Choose("pr-refresh");Check(j.requests().back()->op==Op::RoomList&&j.requests().back()->bridgeId==OtherBridge,"Refresh left the link's service");
+ // Leaving Public rooms returns to the selected service.
+ h.Screen("home");h.Choose("online");h.Choose("public-rooms");h.Frame(0,2);
+ Check(j.requests().back()->op==Op::RoomList&&j.requests().back()->bridgeId==LinkBridge,"The link's service stayed selected after leaving Public rooms");
+}
+
+// A refused room is said in words and joins nothing, and the list stays usable;
+// the same link can be followed again.
+void LinkRefusalJourney(){
+ Journey j;auto& h=j.h;h.view.identity.bridges={{LinkBridge,"https://bridge.example","Example"}};h.Frame(0,2);
+ OpenLink(j,LinkBridge,LinkRoom);j.answerIdentityUntilIdle();
+ Check(tickets(j)==1,"A room link did not ask for its ticket");
+ const std::pair<const char*,const char*> refusals[]={
+  {"room_full","public.failure.room_full"},{"banned","public.failure.banned"},{"room_not_found","public.failure.room_not_found"},
+  {"room_not_open","public.failure.room_not_open"},{"unsupported_build","public.failure.unsupported_build"}};
+ for(const auto& refusal:refusals){
+  j.Admit(refusal.first);
+  Check(j.status==loc::T(refusal.second),"A refused room link did not say why");
+  Check(j.joins()==0&&j.row("pr-create")&&j.row("pr-create")->enabled,"A refused room link left Public rooms blocked");
+  OpenLink(j,LinkBridge,LinkRoom);j.answerIdentityUntilIdle();
+ }
+ Check(j.joins()==0,"A refused room link joined");
+ j.Admit();Check(j.joins()==1,"A link followed again did not join");
+}
+
+// A link for a service the player does not trust says so and sends nothing; a
+// link never makes a service trusted. Without an Ember ID it says what is needed.
+void LinkUntrustedJourney(){
+ {
+  Journey j;auto& h=j.h;
+  OpenLink(j,OtherBridge,LinkRoom);j.answerIdentityUntilIdle();
+  Check(h.shell.Navigation().Screen()=="public-rooms"&&j.status==loc::T("public.failure.link_service"),"A link to an untrusted service did not say so");
+  Check(tickets(j)==0&&j.joins()==0,"A link to an untrusted service asked for a ticket or joined");
+  h.Frame(0,10);Check(tickets(j)==0&&j.joins()==0,"A link to an untrusted service went on later");
+ }
+ Journey k(false);
+ OpenLink(k,LinkBridge,LinkRoom);k.answerIdentityUntilIdle();
+ Check(k.status==loc::T("public.needs_id_detail")&&k.requests().empty()&&k.joins()==0,"A link without an Ember ID did not say what is needed");
+}
+
+// A link that arrives in a room or a game moves no one: it says so, and waits as
+// a row on Public rooms for the player's choice.
+void LinkWaitsJourney(){
+ Journey j;auto& h=j.h;h.view.identity.bridges={{LinkBridge,"https://bridge.example","Example"}};h.Frame(0,2);
+ h.view.session.generation.room=1;h.view.session.room=netplay::RoomState::Joined;h.view.session.control=netplay::Health::Healthy;h.Screen("home");
+ OpenLink(j,LinkBridge,LinkRoom,false);
+ Check(h.shell.Navigation().Screen()!="public-rooms","A room link moved a player who is in a room");
+ Check(j.status==loc::T("public.link_waiting"),"A room link in a room did not say it waits");
+ Check(tickets(j)==0&&j.joins()==0,"A room link in a room asked for a ticket");
+ h.Frame(0,10);Check(h.shell.Navigation().Screen()!="public-rooms"&&tickets(j)==0,"A waiting room link acted by itself");
+ // In a game with no room, too.
+ h.view.session.room=netplay::RoomState::Idle;h.view.session.generation.room=0;h.view.session.match=netplay::MatchState::Playing;
+ OpenLink(j,LinkBridge,LinkRoom,false);
+ Check(h.shell.Navigation().Screen()!="public-rooms"&&j.status==loc::T("public.link_waiting")&&tickets(j)==0,"A room link in a game moved the player or asked for a ticket");
+ // Free again: Public rooms offers the link as a row, and choosing it asks.
+ h.view.session.match=netplay::MatchState::None;h.Screen("online");h.Choose("public-rooms");h.Frame(0,2);j.answerIdentityUntilIdle();
+ Check(tickets(j)==0,"A waiting room link asked for a ticket when Public rooms opened");
+ Check(j.row("pr-link")&&j.row("pr-link")->enabled,"A waiting room link is not offered on Public rooms");
+ h.Choose("pr-link");h.Frame(0,2);
+ Check(tickets(j)==1&&lastTicketIs(j,LinkBridge,LinkRoom),"Choosing the waiting link did not ask for its room");
+ j.Admit("",LinkRoom);Check(j.joins()==1,"The waiting link's admission did not join");
+}
+
+// Pasting a room link: either form, with spaces or quotes around it; something
+// else says it is no room link, and a service not trusted is refused.
+void PasteJourney(){
+ Journey j;auto& h=j.h;h.view.identity.bridges={{LinkBridge,"https://bridge.example","Example"}};h.Frame(0,2);
+ j.OpenList();
+ Check(j.row("pr-paste")&&j.row("pr-paste")->enabled&&j.row("pr-paste")->hint==loc::T("menu.hint.paste"),"Public rooms has no Paste room link row");
+ Clipboard("hello");h.Choose("pr-paste");h.Frame(0,2);
+ Check(j.status==loc::T("public.failure.link")&&tickets(j)==0,"Pasting something else did not say it is no room link");
+ Clipboard(std::string("ember://tournament/open?bridge=")+LinkBridge+"&match=emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12");
+ h.Choose("pr-paste");h.Frame(0,2);
+ Check(j.status==loc::T("public.failure.link")&&tickets(j)==0,"A match link was taken for a room link");
+ Clipboard(std::string("  \"https://embernetplay.link/r#")+LinkBridge+"/"+LinkRoom+"\" ");
+ h.Choose("pr-paste");h.Frame(0,2);
+ Check(tickets(j)==1&&lastTicketIs(j,LinkBridge,LinkRoom),"The pasted page link did not ask for its room");
+ j.Admit("room_full");
+ Check(j.status==loc::T("public.failure.room_full")&&j.joins()==0,"A pasted link's refusal was not said");
+ Clipboard(std::string("ember://room/open?room=")+LinkRoom+"&bridge="+LinkBridge);
+ h.Choose("pr-paste");h.Frame(0,2);
+ Check(tickets(j)==2&&lastTicketIs(j,LinkBridge,LinkRoom),"The pasted ember: link did not ask for its room");
+ j.Admit();Check(j.joins()==1&&h.actions.back().command.invitation=="sf4e3:host-invitation","The pasted link's admission did not join");
+ // An untrusted service, pasted: said, and nothing asked.
+ h.Screen("online");h.Choose("public-rooms");h.Frame(0,2);
+ Clipboard(std::string("ember://room/open?bridge=")+OtherBridge+"&room="+LinkRoom);
+ const auto asked=tickets(j);h.Choose("pr-paste");h.Frame(0,2);
+ Check(j.status==loc::T("public.failure.link_service")&&tickets(j)==asked,"A pasted link to an untrusted service asked for a ticket");
+ ImGui::GetPlatformIO().Platform_GetClipboardTextFn=nullptr;
+}
+
 // A public room says so on its board and offers no invitation to copy, since
 // its admission is by ticket; locked says so too.
 void RoomJourney(){
@@ -349,5 +488,5 @@ void RoomLostJourney(){
  Check(!j.row("replace-room")&&j.row("leave"),"A public room offered to replace its room");
 }
 }
-int main(){try{ListJourney();JoinJourney();NoIdentityJourney();CreateJourney();RestoredCreateJourney();AbandonedRequestJourney();AbandonedCreateJourney();RoomJourney();RoomLostJourney();std::cout<<"Public rooms journeys passed.\n";return 0;}
+int main(){try{ListJourney();JoinJourney();NoIdentityJourney();CreateJourney();RestoredCreateJourney();AbandonedRequestJourney();AbandonedCreateJourney();RoomJourney();RoomLostJourney();LinkJourney();LinkRefusalJourney();LinkUntrustedJourney();LinkWaitsJourney();PasteJourney();std::cout<<"Public rooms journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

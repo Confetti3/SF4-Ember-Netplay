@@ -3200,3 +3200,24 @@ msgstr "Это название зала нельзя использовать. 
 
 msgid "public.failure.rooms_unavailable"
 msgstr "Открытые залы сейчас недоступны."
+
+msgid "public.link_row"
+msgstr "Войти в зал по ссылке"
+
+msgid "public.link_row_detail"
+msgstr "Ранее пришла ссылка на зал. Выберите этот пункт, чтобы сейчас запросить этот зал."
+
+msgid "public.paste_link"
+msgstr "Вставить ссылку на зал"
+
+msgid "public.paste_link_detail"
+msgstr "Скопируйте ссылку на зал у бота или на сайте и выберите этот пункт, чтобы войти в этот зал."
+
+msgid "public.failure.link"
+msgstr "Это не ссылка на зал. Скопируйте её снова у бота или на сайте."
+
+msgid "public.failure.link_service"
+msgstr "Доверьтесь этому сервису в разделе «Привязанные аккаунты» и снова откройте ссылку на зал."
+
+msgid "public.link_waiting"
+msgstr "Пришла ссылка на открытый зал. Покиньте свой зал, затем выберите её в разделе «Открытые залы»."

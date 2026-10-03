@@ -1,5 +1,5 @@
-// Unit tests for room links, tournament match links and Discord connect links
-// handed over by a browser (JoinLink.hxx, TournamentLink.hxx) and their
+// Unit tests for room links, tournament match links, public room links and
+// Discord connect links handed over by a browser (JoinLink.hxx, TournamentLink.hxx) and their
 // hand-over from a second launcher to a running game (JoinLinkMailbox.hxx).
 
 #include "../common/JoinLink.hxx"
@@ -54,6 +54,7 @@ static void TestTheJoinScreenGetsTheShortLink() {
 
 static const char* const Bridge = "brg_0dbc0598-2312-4ce3-9df8-e160330565e6";
 static const char* const Match = "emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12";
+static const char* const Room = "0123456789abcdef0123456789abcdef";
 
 static void TestOnlyTheTournamentLinkIsAccepted() {
 	using namespace sf4e::tournament_link;
@@ -96,6 +97,74 @@ static void TestOnlyTheTournamentLinkIsAccepted() {
 	CHECK(ParsePasted("  " + page + " ").bridgeId == bridge);
 	CHECK(!ParsePasted(match).Valid());
 	CHECK(!ParsePasted("hello").Valid());
+}
+
+static void TestOnlyThePublicRoomLinkIsAccepted() {
+	using namespace sf4e::tournament_link;
+	const std::string bridge = Bridge, room = Room;
+	CHECK(IsRoomId(room) && !IsRoomId(bridge) && !IsRoomId(Match) && !IsBridgeId(room));
+	const std::string link = "ember://room/open?bridge=" + bridge + "&room=" + room;
+	const RoomLink parsed = ParseRoomLink(link);
+	CHECK(parsed.Valid() && parsed.bridgeId == bridge && parsed.roomId == room);
+	// Either order, any case of the scheme, a browser's trailing slashes.
+	CHECK(ParseRoomLink("ember://room/open?room=" + room + "&bridge=" + bridge).roomId == room);
+	CHECK(ParseRoomLink("EMBER://ROOM/OPEN/?bridge=" + bridge + "&room=" + room + "/").Valid());
+	CHECK(ParseRoomLink("Ember://Room/Open?bridge=" + bridge + "&room=" + room).bridgeId == bridge);
+	const std::string refused[] = {
+		"", "ember://room/open", "ember://room/open?", "ember://room/open?bridge=" + bridge, "ember://room/open?room=" + room,
+		link + "&extra=1", link + "&room=" + room, "ember://room/open?bridge=" + bridge + "&bridge=" + bridge,
+		"ember://room/open?room=" + room + "&room=" + room, link + "#x", link + " ", link + "\n", " " + link,
+		"ember://room/open?bridge=" + bridge + "&room=" + room.substr(0, 31),
+		"ember://room/open?bridge=" + bridge + "&room=" + room + "0",
+		"ember://room/open?bridge=" + bridge + "&room=0123456789ABCDEF0123456789ABCDEF",
+		"ember://room/open?bridge=" + bridge + "&room=0123456789abcdef0123456789abcdeg",
+		"ember://room/open?bridge=" + bridge + "&room=" + bridge, "ember://room/open?bridge=" + bridge + "&room=" + Match,
+		"ember://room/open?bridge=" + bridge + "&room=0123456789abcdef0123456789abcde%66",
+		"ember://room/open?bridge=BRG_0DBC0598-2312-4CE3-9DF8-E160330565E6&room=" + room,
+		"ember://room/open?bridge=brg_0dbc0598-2312-3ce3-9df8-e160330565e6&room=" + room,
+		"ember://room/open?bridge=" + std::string(Match) + "&room=" + room, "ember://room/open?bridge=" + room + "&room=" + room,
+		"ember://room/open?bridge=" + bridge + "&match=" + room, "ember://room/open?Bridge=" + bridge + "&room=" + room,
+		"ember://room/open?bridge=" + bridge + "&&room=" + room, "ember://room/open?bridge==" + bridge + "&room=" + room,
+		"ember://room/open?bridge=" + bridge + "&handoff=" + room, "ember://room/open?bridge=" + bridge + "&room=",
+		"ember://room/join?bridge=" + bridge + "&room=" + room, "ember://room/openx?bridge=" + bridge + "&room=" + room,
+		"ember://user@room/open?bridge=" + bridge + "&room=" + room, "ember://room:80/open?bridge=" + bridge + "&room=" + room,
+		"ember://room/open/../open?bridge=" + bridge + "&room=" + room, "ember:room/open?bridge=" + bridge + "&room=" + room,
+		"ember://tournament/open?bridge=" + bridge + "&room=" + room, "ember://tournament/open?bridge=" + bridge + "&match=" + Match,
+		"ember://discord/connect?bridge=" + bridge, "ember://join/7K3M-0X1R-T9PZ", link + std::string(200, 'A'),
+	};
+	for (const auto& uri : refused) CHECK(!ParseRoomLink(uri).Valid());
+	std::string nul = link;
+	nul.insert(nul.begin() + 20, '\0');
+	CHECK(!ParseRoomLink(nul).Valid());
+	// The page's own link, as its Copy button gives it.
+	const std::string page = std::string(RoomPagePrefix()) + bridge + "/" + room;
+	CHECK(ParseRoomPageLink(page).roomId == room && ParseRoomPageLink(page).bridgeId == bridge);
+	CHECK(ParseRoomPageLink("HTTPS://EmberNetplay.link/R#" + bridge + "/" + room + "/").Valid());
+	const std::string refusedPages[] = {
+		"https://embernetplay.link/r#", "https://embernetplay.link/r#" + bridge, "https://embernetplay.link/r#" + room,
+		"https://embernetplay.link/r#" + room + "/" + bridge, "https://embernetplay.link/r#" + bridge + "/" + Match,
+		"https://embernetplay.link/r#" + bridge + "/" + room.substr(0, 31), "https://embernetplay.link/r#" + bridge + "/" + room + "0",
+		"https://embernetplay.link/r#" + bridge + "/0123456789ABCDEF0123456789ABCDEF",
+		"https://embernetplay.link/m#" + bridge + "/" + room, "https://embernetplay.link/j#" + bridge + "/" + room,
+		"https://embernetplay.link/start#" + bridge, "https://example.com/r#" + bridge + "/" + room,
+		"http://embernetplay.link/r#" + bridge + "/" + room, "https://embernetplay.link/r/" + bridge + "/" + room,
+		page + "/x", page + " x", page + "?x=1", "https://embernetplay.link/r#" + bridge + "//" + room,
+		"https://embernetplay.link/r#" + bridge + "/%30" + room.substr(1), "https://embernetplay.link/r#" + bridge + "/" + room + std::string(200, 'A'),
+	};
+	for (const auto& text : refusedPages) CHECK(!ParseRoomPageLink(text).Valid());
+	// Pasted text may have spaces or quotes around either link.
+	CHECK(ParseRoomPasted("\"" + link + "\"").roomId == room);
+	CHECK(ParseRoomPasted("  " + page + " ").bridgeId == bridge);
+	CHECK(ParseRoomPasted(" \"" + page + "/\" ").roomId == room);
+	CHECK(!ParseRoomPasted("").Valid() && !ParseRoomPasted("hello").Valid() && !ParseRoomPasted(room).Valid());
+	CHECK(!ParseRoomPasted("a " + link).Valid() && !ParseRoomPasted(link + " b").Valid());
+	// A room link is no match, connect or room-code link, and none of them is a room link.
+	const std::string match = "ember://tournament/open?bridge=" + bridge + "&match=" + Match;
+	CHECK(!ParseLink(link).Valid() && !ParsePasted(link).Valid() && !ParsePasted(page).Valid());
+	CHECK(ParseConnectLink(link).empty() && ParseConnectPasted(link).empty() && ParseConnectPasted(page).empty());
+	CHECK(ParseUri(link).empty());
+	CHECK(!ParseRoomPasted(match).Valid() && !ParseRoomPasted(std::string(PagePrefix()) + bridge + "/" + Match).Valid());
+	CHECK(!ParseRoomPasted("ember://discord/connect?bridge=" + bridge).Valid());
 }
 
 static void TestOnlyTheConnectLinkIsAccepted() {
@@ -180,6 +249,39 @@ static void TestARunningGameReceivesTheLink() {
 	std::memcpy(forged.match, "x", 1);
 	CHECK(sf4e::platform::DeliverSlot(forged, matchSection.c_str(), matchReady.c_str()));
 	CHECK(!links.Take().Valid());
+	// So does a public room link, checked on both ends.
+	using sf4e::platform::DeliverPublicRoomLink;
+	using sf4e::platform::PublicRoomLinkMailbox;
+	const std::wstring roomSection = L"Local\\SF4EmberPublicRoomLinkTest" + id, roomReady = L"Local\\SF4EmberPublicRoomLinkTestReady" + id;
+	const auto roomLink = sf4e::tournament_link::CheckedRoom(Bridge, Room);
+	CHECK(roomLink.Valid());
+	CHECK(!DeliverPublicRoomLink(roomLink, roomSection.c_str(), roomReady.c_str()));
+	PublicRoomLinkMailbox roomLinks(roomSection.c_str(), roomReady.c_str());
+	CHECK(roomLinks.Open() && !roomLinks.Take().Valid());
+	CHECK(DeliverPublicRoomLink(roomLink, roomSection.c_str(), roomReady.c_str()));
+	const auto takenRoom = roomLinks.Take();
+	CHECK(takenRoom.bridgeId == Bridge && takenRoom.roomId == Room);
+	CHECK(!roomLinks.Take().Valid());
+	// The newest of two wins.
+	CHECK(DeliverPublicRoomLink(roomLink, roomSection.c_str(), roomReady.c_str()));
+	CHECK(DeliverPublicRoomLink(sf4e::tournament_link::CheckedRoom(Bridge, "fedcba9876543210fedcba9876543210"), roomSection.c_str(), roomReady.c_str()));
+	CHECK(roomLinks.Take().roomId == "fedcba9876543210fedcba9876543210" && !roomLinks.Take().Valid());
+	sf4e::tournament_link::RoomLink badRoom = roomLink;
+	badRoom.roomId = "not-a-room";
+	CHECK(!DeliverPublicRoomLink(badRoom, roomSection.c_str(), roomReady.c_str()));
+	badRoom = roomLink;
+	badRoom.bridgeId = Match;
+	CHECK(!DeliverPublicRoomLink(badRoom, roomSection.c_str(), roomReady.c_str()));
+	// Another process of the player's could write the slot: a match ID or a
+	// room ID of the wrong length is dropped.
+	sf4e::platform::PublicRoomLinkSlot forgedRoom = {};
+	std::memcpy(forgedRoom.bridge, Bridge, 40);
+	std::memcpy(forgedRoom.room, Match, 40);
+	CHECK(sf4e::platform::DeliverSlot(forgedRoom, roomSection.c_str(), roomReady.c_str()));
+	CHECK(!roomLinks.Take().Valid());
+	std::memset(forgedRoom.room, 'a', sizeof(forgedRoom.room));
+	CHECK(sf4e::platform::DeliverSlot(forgedRoom, roomSection.c_str(), roomReady.c_str()));
+	CHECK(!roomLinks.Take().Valid());
 	// A connect link travels in a slot of its own too.
 	using sf4e::platform::ConnectLinkMailbox;
 	using sf4e::platform::DeliverConnectLink;
@@ -202,6 +304,7 @@ int main() {
 	TestOnlyTheJoinLinkIsAccepted();
 	TestTheJoinScreenGetsTheShortLink();
 	TestOnlyTheTournamentLinkIsAccepted();
+	TestOnlyThePublicRoomLinkIsAccepted();
 	TestOnlyTheConnectLinkIsAccepted();
 #ifdef _WIN32
 	TestARunningGameReceivesTheLink();

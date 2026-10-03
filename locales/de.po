@@ -3200,3 +3200,24 @@ msgstr "Dieser Raumname kann nicht verwendet werden. Wählen Sie einen anderen."
 
 msgid "public.failure.rooms_unavailable"
 msgstr "Öffentliche Räume sind gerade nicht verfügbar."
+
+msgid "public.link_row"
+msgstr "Dem Raum aus dem Link beitreten"
+
+msgid "public.link_row_detail"
+msgstr "Ein Raumlink ist zuvor eingegangen. Wählen Sie dies, um diesen Raum jetzt anzufragen."
+
+msgid "public.paste_link"
+msgstr "Raumlink einfügen"
+
+msgid "public.paste_link_detail"
+msgstr "Kopieren Sie den Raumlink vom Bot oder der Seite und wählen Sie dies, um diesem Raum beizutreten."
+
+msgid "public.failure.link"
+msgstr "Das ist kein Raumlink. Kopieren Sie ihn erneut vom Bot oder von der Seite."
+
+msgid "public.failure.link_service"
+msgstr "Vertrauen Sie diesem Dienst unter Verknüpfte Konten und öffnen Sie den Raumlink dann erneut."
+
+msgid "public.link_waiting"
+msgstr "Ein Link zu einem öffentlichen Raum ist eingegangen. Verlassen Sie Ihren Raum und wählen Sie ihn dann unter Öffentliche Räume."

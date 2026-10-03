@@ -3200,3 +3200,24 @@ msgstr "Tento název místnosti nelze použít. Zvolte jiný."
 
 msgid "public.failure.rooms_unavailable"
 msgstr "Veřejné místnosti teď nejsou dostupné."
+
+msgid "public.link_row"
+msgstr "Připojit se k místnosti z odkazu"
+
+msgid "public.link_row_detail"
+msgstr "Dříve dorazil odkaz na místnost. Zvolte tuto možnost a požádejte o tuto místnost hned."
+
+msgid "public.paste_link"
+msgstr "Vložit odkaz na místnost"
+
+msgid "public.paste_link_detail"
+msgstr "Zkopírujte odkaz na místnost od bota nebo ze stránky a zvolte tuto možnost, abyste se k místnosti připojili."
+
+msgid "public.failure.link"
+msgstr "Toto není odkaz na místnost. Zkopírujte ho znovu od bota nebo ze stránky."
+
+msgid "public.failure.link_service"
+msgstr "Důvěřujte této službě v části Propojené účty a pak odkaz na místnost otevřete znovu."
+
+msgid "public.link_waiting"
+msgstr "Dorazil odkaz na veřejnou místnost. Opusťte svou místnost a pak ho zvolte v části Veřejné místnosti."

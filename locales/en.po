@@ -2885,3 +2885,24 @@ msgstr "That room name cannot be used. Choose another."
 
 msgid "public.failure.rooms_unavailable"
 msgstr "Public rooms are not available right now."
+
+msgid "public.link_row"
+msgstr "Join the room from the link"
+
+msgid "public.link_row_detail"
+msgstr "A room link arrived earlier. Choose this to ask for that room now."
+
+msgid "public.paste_link"
+msgstr "Paste room link"
+
+msgid "public.paste_link_detail"
+msgstr "Copy the room link from the bot or site, then choose this to join that room."
+
+msgid "public.failure.link"
+msgstr "That is not a room link. Copy it again from the bot or site."
+
+msgid "public.failure.link_service"
+msgstr "Trust this service under Linked accounts, then open the room link again."
+
+msgid "public.link_waiting"
+msgstr "A public room link arrived. Leave your room, then choose it under Public rooms."

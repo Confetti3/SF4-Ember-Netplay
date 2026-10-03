@@ -3200,3 +3200,24 @@ msgstr "Ese nombre de sala no se puede usar. Elige otro."
 
 msgid "public.failure.rooms_unavailable"
 msgstr "Las salas públicas no están disponibles ahora mismo."
+
+msgid "public.link_row"
+msgstr "Unirse a la sala del enlace"
+
+msgid "public.link_row_detail"
+msgstr "Ha llegado antes un enlace de sala. Elige esta opción para pedir esa sala ahora."
+
+msgid "public.paste_link"
+msgstr "Pegar enlace de sala"
+
+msgid "public.paste_link_detail"
+msgstr "Copia el enlace de sala del bot o de la web y elige esta opción para unirte a esa sala."
+
+msgid "public.failure.link"
+msgstr "Eso no es un enlace de sala. Vuelve a copiarlo del bot o de la web."
+
+msgid "public.failure.link_service"
+msgstr "Confía en este servicio en Cuentas vinculadas y vuelve a abrir el enlace de sala."
+
+msgid "public.link_waiting"
+msgstr "Ha llegado un enlace de sala pública. Sal de tu sala y elígelo en Salas públicas."

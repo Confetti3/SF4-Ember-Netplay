@@ -3200,3 +3200,24 @@ msgstr "이 방 이름은 사용할 수 없습니다. 다른 이름을 고르세
 
 msgid "public.failure.rooms_unavailable"
 msgstr "지금은 공개 방을 사용할 수 없습니다."
+
+msgid "public.link_row"
+msgstr "링크의 방에 참가"
+
+msgid "public.link_row_detail"
+msgstr "먼저 방 링크가 도착했습니다. 이것을 선택하면 그 방에 지금 참가를 요청합니다."
+
+msgid "public.paste_link"
+msgstr "방 링크 붙여넣기"
+
+msgid "public.paste_link_detail"
+msgstr "봇이나 사이트에서 방 링크를 복사한 다음 이것을 선택하면 그 방에 참가합니다."
+
+msgid "public.failure.link"
+msgstr "방 링크가 아닙니다. 봇이나 사이트에서 다시 복사하세요."
+
+msgid "public.failure.link_service"
+msgstr "연동된 계정에서 이 서비스를 신뢰한 다음 방 링크를 다시 여세요."
+
+msgid "public.link_waiting"
+msgstr "공개 방 링크가 도착했습니다. 방을 나간 다음 공개 방에서 선택하세요."

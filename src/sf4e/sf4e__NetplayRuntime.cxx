@@ -246,6 +246,16 @@ void StartHelper() {
         if (!runtime->matchLinks.Open()) spdlog::warn("Tournament: match links from the browser cannot reach this game");
     }
     {
+        // A public room link likewise, as "<bridge id> <room id>".
+        char text[128] = {};
+        const DWORD length = GetEnvironmentVariableA("SF4E_PUBLIC_ROOM_LINK", text, sizeof(text));
+        SetEnvironmentVariableA("SF4E_PUBLIC_ROOM_LINK", nullptr);
+        const std::string value = length && length < sizeof(text) ? std::string(text, length) : std::string();
+        const auto split = value.find(' ');
+        if (split != std::string::npos) OpenPublicRoomLink(tournament_link::CheckedRoom(value.substr(0, split), value.substr(split + 1)), true);
+        if (!runtime->publicRoomLinks.Open()) spdlog::warn("Public rooms: room links from the browser cannot reach this game");
+    }
+    {
         // A Discord connect link likewise: the service's ID.
         char text[64] = {};
         const DWORD length = GetEnvironmentVariableA("SF4E_CONNECT_LINK", text, sizeof(text));

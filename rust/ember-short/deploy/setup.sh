@@ -6,18 +6,18 @@
 # `cargo build --release` in ~/ember-short/src), ember-short.service,
 # nginx/ and site/. Running it again installs a newer binary or page.
 #
-# The page's match links (/m) and getting-started steps (/start) need the
-# Ember release that opens match links and has Ember ID. Install a page with
-# them once that release is the latest public one; until then they are for
-# testers with the test build.
+# The page's match links (/m), public room links (/r) and getting-started
+# steps (/start) need the Ember release that opens them and has Ember ID.
+# Install a page with them once that release is the latest public one; until
+# then they are for testers with the test build.
 #
 # What it changes:
 #   /usr/local/lib/ember-short/ember-short      the service binary (root-owned)
 #   /etc/systemd/system/ember-short.service     runs it as a transient user on 127.0.0.1:47810
 #   /etc/nginx/conf.d/ember-short.conf          request rate zone for /s/
-#   /etc/nginx/snippets/ember-short.conf        /s/ proxy and the /j and /m page, without access logs
+#   /etc/nginx/snippets/ember-short.conf        /s/ proxy and the /j, /m and /r page, without access logs
 #   /etc/nginx/sites-available/embernetplay.link  one include line in the 443 server
-#   /var/www/embernetplay.link/open.html, assets/  the page room and match links open
+#   /var/www/embernetplay.link/open.html, assets/  the page room, match and public room links open
 # Nothing is opened in ufw: the service listens on loopback only.
 set -euo pipefail
 
@@ -107,7 +107,7 @@ for attempt in 1 2 3 4 5; do
 done
 echo "service: $(curl -fsS http://127.0.0.1:47810/s/health || echo 'no answer')"
 echo "public:  $(curl -fsS --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/s/health || echo 'no answer')"
-for page in j j/K7QM-4XRT-9PZD m start; do
+for page in j j/K7QM-4XRT-9PZD m r start; do
     echo "/$page:  $(curl -fsS -o /dev/null -w '%{http_code}' --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/$page)"
 done
 echo "=== done ==="

@@ -163,6 +163,7 @@ private:
     void UpdatePreferenceSave(const ShellView& view,const Submit& submit);
     void UpdateShortCopy(const ShellView& view,double now);
     void UpdateJoinLink(const ShellView& view,double now,const Submit& submit);
+    void UpdatePublicRoomLink(const ShellView& view,double now);
     void UpdatePublicBridge(const ShellView& view,const std::string& screen);
     void CopyShortInvitation(const ShellView& view,const Submit& submit);
     std::vector<MenuEntry> BuildRows(const ShellView& view,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title);
@@ -262,6 +263,10 @@ private:
     std::uint64_t joinLinkSeen_=0;
     std::string joinLink_;
     bool joinLinkDirect_=false;
+    // A public room link from the browser: the last one seen, and whether
+    // Public rooms still has to open for it.
+    std::uint64_t roomLinkSeen_=0;
+    bool roomLinkOpening_=false;
     Tone noticeTone_=Tone::Success;
     std::uint64_t roomEpoch_ = 0, rulesRevision_ = 0, nextActionId_ = 1, readyFailureSequence_ = 0;
     int selectedTable_ = 0, roomCapacity_ = 16;

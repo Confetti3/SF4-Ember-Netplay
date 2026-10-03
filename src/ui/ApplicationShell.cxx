@@ -177,6 +177,27 @@ void ApplicationShell::UpdateJoinLink(const ShellView& v,double now,const Submit
  if(direct&&Send(CommandKind::JoinInvite,v,submit)){notice_=loc::T("room.link_joining");noticeTone_=Tone::Pending;}
  else notice_=loc::T("room.link_opened");
 }
+// A public room link opens Public rooms on its service and asks for its room
+// (PublicRoomsPanel). Like a match link it never moves a player who is in a
+// room or a game: it waits there as a row, and says so. A link that arrived
+// while the player was free also waits, for as long as a dialog, a notice or
+// an Ember ID screen, whose drafts the move would discard, is open.
+void ApplicationShell::UpdatePublicRoomLink(const ShellView& v,double now) {
+ using namespace netplay; auto& nav=menu_.navigation;
+ const auto& link=v.tournament.roomLink;
+ if(link.sequence!=roomLinkSeen_){
+  roomLinkSeen_=link.sequence;
+  roomLinkOpening_=link.free&&v.session.room==RoomState::Idle&&v.session.match==MatchState::None;
+  publicRooms_.OpenLink(link.bridge,link.room,roomLinkOpening_);
+  if(roomLinkOpening_)identity_.Probe(); // the trusted services, fresh, before the link is judged
+  else{notice_=loc::T("public.link_waiting");noticeTone_=Tone::Pending;noticeUntil_=now+15;}
+ }
+ if(!roomLinkOpening_)return;
+ if(nav.Editing()||nav.Reading()||nav.Confirming()||nav.Choosing()||menu_.NoticeOpen()||IdentityPanel::Owns(nav.Screen()))return;
+ roomLinkOpening_=false;
+ if(nav.Screen()!="public-rooms"){nav.Cancel();nav.Home();nav.Push("online");nav.Push("public-rooms");}
+ error_.clear();
+}
 void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
  if(saveQueued_&&!v.settingsPending){
@@ -553,6 +574,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  UpdatePreferenceSave(v,submit);
  UpdateShortCopy(v,now);
  UpdateJoinLink(v,now,submit);
+ UpdatePublicRoomLink(v,now);
  if(v.readyFailureSequence!=readyFailureSequence_){
   readyFailureSequence_=v.readyFailureSequence;
   if(readyFailureSequence_&&!v.readyFailure.empty())menu_.ShowNotice(v.readyFailure);
@@ -562,7 +584,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v.inputCapture!=input::Capture::Idle&&nav.Screen()!="assignment")nav.Push("assignment");
  if(v.inputCapture==input::Capture::Idle&&nav.Screen()=="assignment")nav.Return();
  identity_.Update(v,nav.Screen(),submit,now);
- publicRooms_.Update(v,nav.Screen(),identity_.UsableBridge(v),submit,now);
+ publicRooms_.Update(v,nav.Screen(),identity_.UsableBridge(v),identity_.Waiting(),submit,now);
  UpdatePublicBridge(v,nav.Screen());
  {std::string said;if(publicRooms_.TakeSaid(said)){notice_=said;noticeTone_=Tone::Error;noticeUntil_=now+6;}}
  // A tournament match that ended is announced wherever the player is: the

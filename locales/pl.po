@@ -3200,3 +3200,24 @@ msgstr "Tej nazwy pokoju nie można użyć. Wybierz inną."
 
 msgid "public.failure.rooms_unavailable"
 msgstr "Pokoje publiczne są teraz niedostępne."
+
+msgid "public.link_row"
+msgstr "Dołącz do pokoju z linku"
+
+msgid "public.link_row_detail"
+msgstr "Wcześniej dotarł link do pokoju. Wybierz tę opcję, aby teraz poprosić o ten pokój."
+
+msgid "public.paste_link"
+msgstr "Wklej link do pokoju"
+
+msgid "public.paste_link_detail"
+msgstr "Skopiuj link do pokoju od bota lub ze strony, a potem wybierz tę opcję, aby dołączyć do tego pokoju."
+
+msgid "public.failure.link"
+msgstr "To nie jest link do pokoju. Skopiuj go ponownie od bota lub ze strony."
+
+msgid "public.failure.link_service"
+msgstr "Zaufaj temu serwisowi w sekcji Powiązane konta, a potem otwórz link do pokoju ponownie."
+
+msgid "public.link_waiting"
+msgstr "Dotarł link do pokoju publicznego. Opuść swój pokój, a potem wybierz go w sekcji Pokoje publiczne."

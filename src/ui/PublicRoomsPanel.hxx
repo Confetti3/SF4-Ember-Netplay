@@ -16,7 +16,10 @@ enum class Tone;
 // create or a pressed room to joining it. A request for a ticket or a new room
 // is answered with an admission, which the panel joins with at once. It needs
 // the Ember ID and a service the player trusts, which the Ember ID panel
-// selects, so it works from the service it is given.
+// selects, so it works from the service it is given. A room link names its own
+// service and room: the panel asks that service for that room's ticket, like a
+// pressed room, once the Ember ID has answered and the service is one the
+// player trusts, and shows that service's list until the player leaves.
 class PublicRoomsPanel {
 public:
     using Submit = std::function<bool(ShellAction)>;
@@ -25,9 +28,15 @@ public:
     static std::string FailureText(const std::string& code);
     // Every frame, before the rows: asks for the list on entering the screen,
     // sends what is waiting, and joins with an admission that arrives.
-    void Update(const ShellView& view, const std::string& screen, const std::string& bridge, const Submit& submit, double now);
     // `bridge` is the usable service, empty without one; `identityPending`
     // says the Ember ID is still being asked about.
+    void Update(const ShellView& view, const std::string& screen, const std::string& bridge, bool identityPending,
+                const Submit& submit, double now);
+    // A room link opened from the browser, or pasted. `direct`: the player was
+    // free when it arrived, so it asks for the room by itself once on this
+    // screen; otherwise it waits as a row until the player chooses it.
+    void OpenLink(const std::string& bridge, const std::string& room, bool direct);
+    // `bridge` and `identityPending` as for Update.
     std::vector<MenuEntry> Rows(const ShellView& view, const std::string& bridge, bool identityPending) const;
     // True when the row was the panel's own.
     bool Activate(const MenuAction& action, MenuNavigation& navigation);
@@ -53,10 +62,19 @@ private:
         double sentAt = 0;
     };
     void Begin(netplay::tournament::Command command);
+    void AskForLink(const ShellView& view, bool identityPending);
     void Joined(const ShellView& view, const Submit& submit);
     void Say(std::string text) { said_ = std::move(text); }
 
     std::string bridge_, lastScreen_, said_, listError_;
+    // The service a trusted room link named, in place of the selected one on
+    // these screens until the player leaves them.
+    std::string service_;
+    struct Link {
+        std::string bridge, room;
+        bool direct = false;
+    };
+    std::optional<Link> link_;
     bool wantList_ = false;
     std::optional<Pending> pending_;
     // The newest identity given to a request; it only grows.

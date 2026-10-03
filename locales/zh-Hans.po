@@ -3200,3 +3200,24 @@ msgstr "该房间名称无法使用，请换一个。"
 
 msgid "public.failure.rooms_unavailable"
 msgstr "公开房间目前不可用。"
+
+msgid "public.link_row"
+msgstr "加入链接中的房间"
+
+msgid "public.link_row_detail"
+msgstr "之前收到了一个房间链接。选择此项即可立即申请加入那个房间。"
+
+msgid "public.paste_link"
+msgstr "粘贴房间链接"
+
+msgid "public.paste_link_detail"
+msgstr "从机器人或网站复制房间链接，然后选择此项即可加入该房间。"
+
+msgid "public.failure.link"
+msgstr "这不是房间链接。请从机器人或网站重新复制。"
+
+msgid "public.failure.link_service"
+msgstr "请先在已绑定账号中信任此服务，然后再次打开房间链接。"
+
+msgid "public.link_waiting"
+msgstr "收到了一个公开房间的链接。请先离开当前房间，然后在公开房间中选择它。"

@@ -3200,3 +3200,24 @@ msgstr "Deze kamernaam kan niet worden gebruikt. Kies een andere."
 
 msgid "public.failure.rooms_unavailable"
 msgstr "Openbare kamers zijn op dit moment niet beschikbaar."
+
+msgid "public.link_row"
+msgstr "De kamer uit de link betreden"
+
+msgid "public.link_row_detail"
+msgstr "Eerder kwam er een kamerlink binnen. Kies dit om die kamer nu aan te vragen."
+
+msgid "public.paste_link"
+msgstr "Kamerlink plakken"
+
+msgid "public.paste_link_detail"
+msgstr "Kopieer de kamerlink van de bot of site en kies dit om die kamer te betreden."
+
+msgid "public.failure.link"
+msgstr "Dat is geen kamerlink. Kopieer hem opnieuw van de bot of site."
+
+msgid "public.failure.link_service"
+msgstr "Vertrouw deze dienst bij Gekoppelde accounts en open de kamerlink dan opnieuw."
+
+msgid "public.link_waiting"
+msgstr "Er is een link naar een openbare kamer binnengekomen. Verlaat je kamer en kies hem dan bij Openbare kamers."

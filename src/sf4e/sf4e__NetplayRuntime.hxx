@@ -171,6 +171,9 @@ struct Runtime {
     // Discord connect links (ember://discord/connect) likewise: the service.
     platform::ConnectLinkMailbox connectLinks;
     netplay::tournament::OpenedLink openedConnect;
+    // Public room links (ember://room/open) likewise: the service and the room.
+    platform::PublicRoomLinkMailbox publicRoomLinks;
+    netplay::tournament::OpenedRoomLink openedRoomLink;
     session::RoomRecoveryRuntime recovery;
     std::uint64_t observedAuthorityTerm=0;
 	// A terminal receipt is released only after its local outcome has been
@@ -290,6 +293,9 @@ void TickTournament(bool helperReady);
 void OpenMatchLink(const tournament_link::MatchLink& link);
 // `launched`: the link started Ember, so it was just clicked.
 void OpenConnectLink(const std::string& bridge, bool launched = false);
+// Hands a public room link to the interface, which asks for the room's ticket
+// when the player is free. `launched` as for OpenConnectLink.
+void OpenPublicRoomLink(const tournament_link::RoomLink& link, bool launched = false);
 // A table's end as the room committed it, with how it compares to this game's own capture.
 void ObserveTournamentTerminal(const room::Event& event, netplay::MatchResultOutbox::TerminalResult terminal);
 netplay::tournament::Status TournamentStatus();

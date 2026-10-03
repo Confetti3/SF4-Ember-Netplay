@@ -206,6 +206,18 @@ void OpenConnectLink(const std::string& bridge, bool launched) {
 	spdlog::info("Tournament: a link asked to connect Discord on service {}", bridge);
 }
 
+void OpenPublicRoomLink(const tournament_link::RoomLink& link, bool launched) {
+	if (!link.Valid()) return;
+	auto& opened = runtime->openedRoomLink;
+	opened.bridge = link.bridgeId;
+	opened.room = link.roomId;
+	++opened.sequence;
+	// A link that started Ember was just clicked; otherwise only at the main
+	// menu with no room is the player free to be taken to Public rooms.
+	opened.free = launched || (AtMainMenu() && runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && !UserApp::netplay);
+	spdlog::info("Public rooms: a link asked for a room");
+}
+
 void DispatchTournament(const netplay::tournament::Command& command, bool helperReady) {
 	using Op = netplay::tournament::Command::Op;
 	const auto now = GetTickCount64();
@@ -263,6 +275,7 @@ void TickTournament(bool helperReady) {
 	if (!runtime->room) return;
 	OpenMatchLink(runtime->matchLinks.Take());
 	OpenConnectLink(runtime->connectLinks.Take());
+	OpenPublicRoomLink(runtime->publicRoomLinks.Take());
 	const auto now = GetTickCount64();
 	// The helper is not restarted while the game runs, and the binding names
 	// its endpoint: without it the match cannot go on from this game.
@@ -299,6 +312,7 @@ netplay::tournament::Status TournamentStatus() {
 	status.list = runtime->assignmentList;
 	status.link = runtime->openedLink;
 	status.connect = runtime->openedConnect;
+	status.roomLink = runtime->openedRoomLink;
 	const auto& play = runtime->tournament;
 	status.phase = play.GetPhase();
 	status.bridgeId = play.BridgeId();

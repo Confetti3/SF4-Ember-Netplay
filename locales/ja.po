@@ -3200,3 +3200,24 @@ msgstr "このルーム名は使用できません。別の名前にしてくだ
 
 msgid "public.failure.rooms_unavailable"
 msgstr "現在、公開ルームは利用できません。"
+
+msgid "public.link_row"
+msgstr "リンクのルームに参加"
+
+msgid "public.link_row_detail"
+msgstr "先にルームのリンクが届いています。これを選ぶと、そのルームに今すぐ参加を申し込みます。"
+
+msgid "public.paste_link"
+msgstr "ルームのリンクを貼り付け"
+
+msgid "public.paste_link_detail"
+msgstr "ボットやサイトでルームのリンクをコピーし、これを選ぶとそのルームに参加します。"
+
+msgid "public.failure.link"
+msgstr "これはルームのリンクではありません。ボットやサイトからもう一度コピーしてください。"
+
+msgid "public.failure.link_service"
+msgstr "連携アカウントでこのサービスを信頼してから、ルームのリンクをもう一度開いてください。"
+
+msgid "public.link_waiting"
+msgstr "公開ルームのリンクが届きました。ルームから退出し、公開ルームで選んでください。"

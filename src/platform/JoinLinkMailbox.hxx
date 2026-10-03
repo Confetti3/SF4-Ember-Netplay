@@ -2,8 +2,9 @@
 
 // Hands a link from a second Launcher.exe (started by the browser for an
 // ember: link) to the game that is already running: a room link
-// (ember://join/...), a tournament match link (ember://tournament/open) or a
-// Discord connect link (ember://discord/connect).
+// (ember://join/...), a tournament match link (ember://tournament/open), a
+// public room link (ember://room/open) or a Discord connect link
+// (ember://discord/connect).
 // The game holds, for each, a small named section, an auto-reset event and a
 // mutex in this session's Local namespace; the launcher writes the slot and
 // signals. All are created with the default security of the player's own
@@ -27,6 +28,8 @@ inline const wchar_t* JoinLinkSectionName() { return L"Local\\SF4EmberJoinLink";
 inline const wchar_t* JoinLinkEventName() { return L"Local\\SF4EmberJoinLinkReady"; }
 inline const wchar_t* MatchLinkSectionName() { return L"Local\\SF4EmberMatchLink"; }
 inline const wchar_t* MatchLinkEventName() { return L"Local\\SF4EmberMatchLinkReady"; }
+inline const wchar_t* PublicRoomLinkSectionName() { return L"Local\\SF4EmberPublicRoomLink"; }
+inline const wchar_t* PublicRoomLinkEventName() { return L"Local\\SF4EmberPublicRoomLinkReady"; }
 inline const wchar_t* ConnectLinkSectionName() { return L"Local\\SF4EmberConnectLink"; }
 inline const wchar_t* ConnectLinkEventName() { return L"Local\\SF4EmberConnectLinkReady"; }
 inline std::wstring JoinLinkLockName(const wchar_t* section) { return std::wstring(section) + L"Lock"; }
@@ -39,6 +42,11 @@ struct JoinLinkSlot {
 struct MatchLinkSlot {
 	char bridge[48];
 	char match[48];
+};
+
+struct PublicRoomLinkSlot {
+	char bridge[48];
+	char room[40];
 };
 
 struct ConnectLinkSlot {
@@ -171,6 +179,34 @@ inline bool DeliverMatchLink(const tournament_link::MatchLink& link,
 	MatchLinkSlot slot = {};
 	std::memcpy(slot.bridge, link.bridgeId.data(), link.bridgeId.size());
 	std::memcpy(slot.match, link.matchId.data(), link.matchId.size());
+	return DeliverSlot(slot, sectionName, readyName);
+}
+
+// Public room links: the bridge and the room.
+class PublicRoomLinkMailbox {
+public:
+	PublicRoomLinkMailbox(const wchar_t* section = PublicRoomLinkSectionName(), const wchar_t* ready = PublicRoomLinkEventName())
+		: slots_(section, ready) {}
+	bool Open() { return slots_.Open(); }
+	// The newest link since the last call, or an invalid one.
+	tournament_link::RoomLink Take() {
+		PublicRoomLinkSlot slot;
+		if (!slots_.Take(slot)) return tournament_link::RoomLink();
+		char bridge[sizeof(slot.bridge) + 1] = {}, room[sizeof(slot.room) + 1] = {};
+		std::memcpy(bridge, slot.bridge, sizeof(slot.bridge));
+		std::memcpy(room, slot.room, sizeof(slot.room));
+		return tournament_link::CheckedRoom(bridge, room);
+	}
+private:
+	SlotMailbox<PublicRoomLinkSlot> slots_;
+};
+
+inline bool DeliverPublicRoomLink(const tournament_link::RoomLink& link,
+	const wchar_t* sectionName = PublicRoomLinkSectionName(), const wchar_t* readyName = PublicRoomLinkEventName()) {
+	if (!tournament_link::CheckedRoom(link.bridgeId, link.roomId).Valid()) return false;
+	PublicRoomLinkSlot slot = {};
+	std::memcpy(slot.bridge, link.bridgeId.data(), link.bridgeId.size());
+	std::memcpy(slot.room, link.roomId.data(), link.roomId.size());
 	return DeliverSlot(slot, sectionName, readyName);
 }
 

@@ -179,6 +179,38 @@ static void FuzzLinks(Random& random) {
 	CHECK(accepted > 0);
 }
 
+// The same for a public room link: a canonical bridge and 32-digit room, or nothing,
+// and never one that is also a match link.
+static void FuzzRoomLinks(Random& random) {
+	const std::string bridge = "brg_0dbc0598-2312-4ce3-9df8-e160330565e6", room = "0123456789abcdef0123456789abcdef";
+	const std::string goods[] = { "ember://room/open?bridge=" + bridge + "&room=" + room,
+		std::string(tournament_link::RoomPagePrefix()) + bridge + "/" + room };
+	for (const auto& good : goods) CHECK(tournament_link::ParseRoomPasted(good).Valid() && !tournament_link::ParsePasted(good).Valid());
+	int accepted = 0;
+	for (int round = 0, rounds = Rounds(50000); round < rounds; ++round) {
+		std::string text = goods[random.Below(2)];
+		for (std::uint64_t i = 1 + random.Below(3); i; --i) {
+			const auto at = random.Below(text.size() + 1);
+			switch (random.Below(4)) {
+			case 0: if (!text.empty() && at < text.size()) text.erase(at, 1 + random.Below(3)); break;
+			case 1: text.insert(at, 1, static_cast<char>(random.Below(256))); break;
+			case 2: if (at < text.size()) text[at] = static_cast<char>(random.Below(256)); break;
+			default: text.insert(at, random.Pick(std::vector<std::string>{"&", "=", "?", "/", "%2F", "#", " ", "\"", "bridge=", "room=", "&room=" + room, "&match=" + room})); break;
+			}
+		}
+		const auto parsed = tournament_link::ParseRoomPasted(text);
+		if (!parsed.Valid()) continue;
+		++accepted;
+		CHECK(tournament_link::IsBridgeId(parsed.bridgeId) && tournament_link::IsRoomId(parsed.roomId));
+		// What was accepted is exactly a link the bridge could have written, and no other kind of link.
+		const auto again = tournament_link::ParseRoomLink("ember://room/open?bridge=" + parsed.bridgeId + "&room=" + parsed.roomId);
+		CHECK(again.bridgeId == parsed.bridgeId && again.roomId == parsed.roomId);
+		CHECK(text.size() <= tournament_link::MaximumUriLength);
+		CHECK(!tournament_link::ParsePasted(text).Valid() && tournament_link::ParseConnectPasted(text).empty());
+	}
+	CHECK(accepted > 0);
+}
+
 // The state machine under any order of answers: at most one claim, prepare
 // and publish in flight; a bind only to the leader of the bound room; a
 // report only for a game with a permit, once; and Forget only after every
@@ -406,6 +438,7 @@ int main() {
 	Random random(Seed());
 	FuzzAnswers(random);
 	FuzzLinks(random);
+	FuzzRoomLinks(random);
 	FuzzPlay(random);
 	FuzzBoundRoom(random);
 	if (failures) std::printf("%d failure(s)\n", failures);

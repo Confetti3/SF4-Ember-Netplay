@@ -1,5 +1,6 @@
-// Opens an Ember link: a room invitation (/j#CODE) or a tournament match
-// (/m#BRIDGE/MATCH), or, at /start, tells a player new to Ember how to get it
+// Opens an Ember link: a room invitation (/j#CODE), a tournament match
+// (/m#BRIDGE/MATCH), a public room of a service (/r#BRIDGE/ROOM), or, at
+// /start, tells a player new to Ember how to get it
 // and connect Discord for tournament sites. A site that names its service
 // (/start#BRIDGE) gets a button that opens Ember's Connect Discord screen for
 // it. It reads the link from the URL
@@ -11,6 +12,8 @@
   var ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
   // brg_ or emt_ and a lowercase version 4 UUID, as the bridge writes them.
   var ID = /^[a-z]{3}_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+  // A public room's ID: 16 bytes in lowercase hex, as the bridge writes it.
+  var ROOM = /^[0-9a-f]{32}$/;
 
   // The canonical 12-symbol room code, or null. Same rules as the game:
   // dashes and spaces ignored, any case, O read as 0 and I or L as 1.
@@ -68,6 +71,24 @@
     };
   }
 
+  // A public room: the service and room a bot or site's link names.
+  function publicRoom(path, fragment) {
+    var parts = fragment.replace(/\/$/, '').split('/');
+    if (path.replace(/\/$/, '') !== '/r' || parts.length !== 2 || !ID.test(parts[0]) || parts[0].slice(0, 4) !== 'brg_' ||
+      !ROOM.test(parts[1])) return null;
+    return {
+      title: 'Join a public room',
+      lead: 'Someone invited you to a public room in SF4 Ember Netplay.',
+      code: null,
+      ember: 'ember://room/open?bridge=' + parts[0] + '&room=' + parts[1],
+      link: 'https://embernetplay.link/r#' + parts[0] + '/' + parts[1],
+      after: 'Ember opens Public rooms and asks to join this room. Your browser may ask first whether to open Ember.',
+      steps: ['Start SF4 Ember Netplay.', 'Choose <strong>Online play</strong>, then <strong>Public rooms</strong>.',
+        'Choose <strong>Paste room link</strong>.'],
+      lasts: 'You need an Ember ID, and the room must still be open. Anyone with an Ember ID can join a public room, so it is safe to share this link.'
+    };
+  }
+
   function copy(text, done) {
     var status = document.getElementById('status');
     function fallback() {
@@ -119,7 +140,8 @@
     var fragment = location.hash.replace(/^#/, '');
     var path = location.pathname.replace(/\/$/, '');
     var found = path === '/start' ? connect(fragment) || GETTING_STARTED :
-      path.indexOf('/m') === 0 ? match(path, fragment) : room(path, fragment);
+      path.indexOf('/m') === 0 ? match(path, fragment) :
+      path.indexOf('/r') === 0 ? publicRoom(path, fragment) : room(path, fragment);
     if (!found) {
       document.getElementById('missing').hidden = false;
       return;

@@ -67,6 +67,16 @@ struct OpenedLink {
 	bool confirm = false;
 };
 
+// The last public room link a browser opened: the service and room it named.
+// The sequence changes with each link. `free` says the player was idle at the
+// main menu when it arrived, so asking for the room's ticket is not an
+// interruption.
+struct OpenedRoomLink {
+	std::string bridge, room;
+	std::uint64_t sequence = 0;
+	bool free = false;
+};
+
 struct Status {
 	// The match being played, and how far it got.
 	Phase phase = Phase::Idle;
@@ -76,6 +86,7 @@ struct Status {
 	bool waitingForOpponent = false, waitingForPermit = false;
 	AssignmentList list;
 	OpenedLink link, connect;
+	OpenedRoomLink roomLink;
 };
 
 } } }
