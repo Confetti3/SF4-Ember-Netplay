@@ -72,6 +72,9 @@ namespace Dimps {
 				{
 					static void Locate(HMODULE peRoot);
 					static std::string* GetNameTmp(Object* o);
+
+					static BYTE* recordCopyCount;
+					static BYTE* restoreCopyCount;
 				};
 
 				struct ObjectContainer : IContainer
