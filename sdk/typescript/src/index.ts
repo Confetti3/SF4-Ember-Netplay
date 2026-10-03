@@ -40,7 +40,17 @@ export {
   type RoomSummary,
 } from "./events.ts";
 export { base64url, decodeBase64url, emberIdFromPublicKey, EncodingError, fingerprint, isEmberId, verifyEd25519 } from "./identity.ts";
-export { parseResult, ResultError, RESULT_TYPE, verifyResult, type MatchResult, type ResultOutcome, type ResultParticipant } from "./results.ts";
+export {
+  parseResult,
+  ResultError,
+  RESULT_TYPE,
+  verifyResult,
+  type CompletedResult,
+  type MatchResult,
+  type RestartResult,
+  type ResultOutcome,
+  type ResultParticipant,
+} from "./results.ts";
 export {
   CHALLENGE_DOMAIN,
   checkChallenge,

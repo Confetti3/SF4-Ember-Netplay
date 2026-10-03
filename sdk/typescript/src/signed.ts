@@ -114,12 +114,13 @@ const REPORT_FIELDS = [
 ];
 const OUTCOMES = ["p1_win", "p2_win", "draw", "abort", "cancel"];
 
-function prefixedId(value: Json | undefined, prefix: string): boolean {
+/** Whether `value` is a string made of `<prefix>_` and a lowercase version 4 UUID. */
+export function prefixedId(value: unknown, prefix: string): boolean {
   return typeof value === "string" && value.startsWith(`${prefix}_`) && PREFIXED_UUID.test(value.slice(prefix.length + 1));
 }
 
 /** A canonical counter as a bigint, or null when the value is not one. */
-function counter(value: Json | undefined): bigint | null {
+export function counter(value: unknown): bigint | null {
   if (typeof value !== "string" || !COUNTER.test(value)) return null;
   const parsed = BigInt(value);
   return parsed > 2n ** 64n - 1n ? null : parsed;

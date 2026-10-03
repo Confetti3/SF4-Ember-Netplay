@@ -67,6 +67,8 @@ if (player) {
     reply((await bridge.getRoom(error.details.room_id)).join_url);
   }
 }
+// createRoom waits up to 45 s for the room's host to start, other requests 15 s.
+// A `timeoutMs` in the client options replaces both.
 await bridge.closeRoom(roomId, "Night over");
 
 // Room events (room.created, room.opened, room.changed, room.closed) are for

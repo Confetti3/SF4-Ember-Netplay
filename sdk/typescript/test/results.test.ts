@@ -39,19 +39,45 @@ test("a result parses, and a malformed one is refused", () => {
   const { winner_participant_id: _winner, ...rest } = sample();
   assert.equal(parseResult(JSON.stringify({ ...rest, outcome: "restart" })).winner_participant_id, undefined);
 
+  // The outcome narrows the result: a completed one has its winner as a string.
+  const narrowed = parseResult(JSON.stringify(sample()));
+  if (narrowed.outcome === "completed") {
+    const winner: string = narrowed.winner_participant_id;
+    assert.equal(winner, "par_a");
+  } else {
+    assert.fail("a completed result narrows to completed");
+  }
+
   const refused = (change: Record<string, unknown>) => assert.throws(() => parseResult(JSON.stringify({ ...sample(), ...change })), ResultError);
   refused({ type: "io.ember.tournament.match.completed.v1" });
   refused({ extra: true });
   refused({ outcome: "forfeit" });
   refused({ revision: "09" });
   refused({ match_id: "emt_nope" });
+  // Values of the wrong type are refused, not read as their text.
+  refused({ revision: 9 });
+  refused({ revision: ["9"] });
+  refused({ bridge_id: [sample().bridge_id] });
+  refused({ match_id: [MATCH] });
+  refused({ connection_id: ["night-bot"] });
+  refused({ external_match_id: 3 });
+  // Prefixed lowercase version 4 UUIDs only.
+  refused({ match_id: "emt_0b9c1e3a-5d27-1f58-8a41-6c3e9d7f2b10" });
+  refused({ match_id: "emt_0b9c1e3a-5d27-4f58-ca41-6c3e9d7f2b10" });
+  refused({ match_id: "emt_0B9C1E3A-5D27-4F58-8A41-6C3E9D7F2B10" });
+  refused({ match_id: "emt_----------------------------------------" });
+  refused({ bridge_id: "emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a11" });
+  refused({ revision: "18446744073709551616" });
+  // A completed result without a winner.
+  assert.throws(() => parseResult(JSON.stringify(rest)), ResultError);
+  refused({ winner_participant_id: null });
+  refused({ winner_participant_id: ["par_a"] });
   refused({ winner_participant_id: "par_c" });
   refused({ outcome: "restart" });
   refused({ participants: [] });
   refused({ participants: [{ participant_id: "par_a", ember_id: EMBER_A, slot: 1, score: 2 }, { participant_id: "par_b", ember_id: EMBER_B, slot: 1, score: 1 }] });
   refused({ participants: [{ participant_id: "par_a", ember_id: "emb1_nope", slot: 0, score: 2 }, { participant_id: "par_b", ember_id: EMBER_B, slot: 1, score: 1 }] });
   assert.throws(() => parseResult("[]"), ResultError);
-  assert.throws(() => parseResult(JSON.stringify(rest)), ResultError);
 });
 
 test("verifyResult checks the signature and that the delivery is for the match", () => {

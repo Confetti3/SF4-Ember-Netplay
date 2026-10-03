@@ -9,7 +9,11 @@ export interface BridgeClientOptions {
   origin: string;
   /** A provider or organizer credential (`emk_...`). */
   credential: string;
-  /** Per-request timeout. Default 15 seconds. */
+  /**
+   * Per-request timeout, `createRoom` included. Default 15 seconds, except
+   * that `createRoom` waits 45: the bridge gives a room's host up to 30
+   * seconds to start.
+   */
   timeoutMs?: number;
   fetch?: typeof fetch;
 }
@@ -210,10 +214,14 @@ export interface RoomSpec {
 
 type Body = { [key: string]: Json };
 
+const REQUEST_TIMEOUT_MS = 15_000;
+const CREATE_ROOM_TIMEOUT_MS = 45_000;
+
 export class BridgeClient {
   readonly origin: string;
   readonly #credential: string;
   readonly #timeoutMs: number;
+  readonly #createRoomTimeoutMs: number;
   readonly #fetch: typeof fetch;
 
   constructor(options: BridgeClientOptions) {
@@ -222,15 +230,22 @@ export class BridgeClient {
     }
     this.origin = options.origin;
     this.#credential = options.credential;
-    this.#timeoutMs = options.timeoutMs ?? 15_000;
+    this.#timeoutMs = options.timeoutMs ?? REQUEST_TIMEOUT_MS;
+    this.#createRoomTimeoutMs = options.timeoutMs ?? CREATE_ROOM_TIMEOUT_MS;
     this.#fetch = options.fetch ?? fetch;
   }
 
-  async #request(method: string, path: string, body?: Body, headers: Record<string, string> = {}): Promise<{ status: number; text: string }> {
+  async #request(
+    method: string,
+    path: string,
+    body?: Body,
+    headers: Record<string, string> = {},
+    timeoutMs: number = this.#timeoutMs,
+  ): Promise<{ status: number; text: string }> {
     const response = await this.#fetch(`${this.origin}${path}`, {
       method,
       redirect: "error",
-      signal: AbortSignal.timeout(this.#timeoutMs),
+      signal: AbortSignal.timeout(timeoutMs),
       headers: {
         authorization: `Bearer ${this.#credential}`,
         ...(body ? { "content-type": "application/json" } : {}),
@@ -258,8 +273,8 @@ export class BridgeClient {
     return { status: response.status, text };
   }
 
-  async #json<T>(method: string, path: string, body?: Body, headers?: Record<string, string>): Promise<T> {
-    const { text } = await this.#request(method, path, body, headers);
+  async #json<T>(method: string, path: string, body?: Body, headers?: Record<string, string>, timeoutMs?: number): Promise<T> {
+    const { text } = await this.#request(method, path, body, headers, timeoutMs);
     return parseStrict(text) as T;
   }
 
@@ -506,14 +521,22 @@ export class BridgeClient {
    * Refusals carry `error.details.reason`: `not_linked`, `room_limit`,
    * `unsupported_build` or `invalid_name`. When the creator already has a room
    * this connection opened, `room_limit` has its ID in `error.details.room_id`.
+   * Starting the room's host can take up to 30 seconds, so this request waits
+   * 45 unless the client's `timeoutMs` says otherwise.
    */
   createRoom(spec: RoomSpec): Promise<ConnectionRoom> {
-    return this.#json("POST", "/v1/rooms", {
-      name: spec.name,
-      capacity: spec.capacity,
-      build_id: spec.buildId,
-      creator: { participant_id: spec.creator.participantId, ember_id: spec.creator.emberId },
-    });
+    return this.#json(
+      "POST",
+      "/v1/rooms",
+      {
+        name: spec.name,
+        capacity: spec.capacity,
+        build_id: spec.buildId,
+        creator: { participant_id: spec.creator.participantId, ember_id: spec.creator.emberId },
+      },
+      undefined,
+      this.#createRoomTimeoutMs,
+    );
   }
 
   /** The rooms your connection opened that are not closed, newest first. */

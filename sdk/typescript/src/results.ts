@@ -2,6 +2,7 @@
 // (docs/design/INTEGRATION_PATHS.md, "Result secret and result body").
 import { parseStrict, type Json } from "./canonical.ts";
 import { isEmberId } from "./identity.ts";
+import { counter, prefixedId } from "./signed.ts";
 import { header, verifyWebhook, WebhookError, type WebhookHeaders } from "./webhook.ts";
 
 /** The `type` of a result body. */
@@ -18,19 +19,30 @@ export interface ResultParticipant {
   score: number;
 }
 
-export interface MatchResult {
+interface ResultFields {
   type: typeof RESULT_TYPE;
   bridge_id: string;
   connection_id: string;
   match_id: string;
   external_match_id: string;
-  outcome: ResultOutcome;
   /** The match revision, as a decimal string. */
   revision: string;
   participants: [ResultParticipant, ResultParticipant];
-  /** Present when `outcome` is `completed`. */
-  winner_participant_id?: string;
 }
+
+export interface CompletedResult extends ResultFields {
+  outcome: "completed";
+  /** One of the two participants. */
+  winner_participant_id: string;
+}
+
+export interface RestartResult extends ResultFields {
+  outcome: "restart";
+  winner_participant_id?: never;
+}
+
+/** Narrow on `outcome`: only a completed result has a winner. */
+export type MatchResult = CompletedResult | RestartResult;
 
 export class ResultError extends Error {}
 
@@ -75,33 +87,42 @@ export function parseResult(payload: string | Uint8Array | Json): MatchResult {
   if (!hasFields(value, FIELDS, ["winner_participant_id"])) throw new ResultError("unexpected result fields");
   const { bridge_id, connection_id, match_id, external_match_id, outcome, revision, participants, winner_participant_id } = value;
   const text = (field: unknown): field is string => typeof field === "string" && field !== "";
-  const valid =
-    /^brg_[0-9a-f-]{36}$/.test(String(bridge_id)) &&
-    text(connection_id) &&
-    /^emt_[0-9a-f-]{36}$/.test(String(match_id)) &&
-    text(external_match_id) &&
-    (outcome === "completed" || outcome === "restart") &&
-    /^(0|[1-9][0-9]{0,19})$/.test(String(revision)) &&
-    Array.isArray(participants) &&
-    participants.length === 2;
-  if (!valid) throw new ResultError("invalid result");
-  const pair = [parseParticipant(participants[0]), parseParticipant(participants[1])] as [ResultParticipant, ResultParticipant];
-  if (pair[0].slot !== 0 || pair[1].slot !== 1) throw new ResultError("participants are in slots 0 and 1");
-  const winner = winner_participant_id;
-  if (outcome === "completed" ? !text(winner) || !pair.some((p) => p.participant_id === winner) : winner !== undefined) {
-    throw new ResultError("a completed result names one of its participants as the winner, a restart none");
+  const id = (field: unknown, prefix: string): field is string => typeof field === "string" && prefixedId(field, prefix);
+  if (
+    !(
+      id(bridge_id, "brg") &&
+      text(connection_id) &&
+      id(match_id, "emt") &&
+      text(external_match_id) &&
+      typeof revision === "string" &&
+      counter(revision) !== null &&
+      Array.isArray(participants) &&
+      participants.length === 2
+    )
+  ) {
+    throw new ResultError("invalid result");
   }
-  return {
+  const first = parseParticipant(participants[0]);
+  const second = parseParticipant(participants[1]);
+  if (first.slot !== 0 || second.slot !== 1) throw new ResultError("participants are in slots 0 and 1");
+  const fields: ResultFields = {
     type: RESULT_TYPE,
-    bridge_id: bridge_id as string,
-    connection_id: connection_id as string,
-    match_id: match_id as string,
-    external_match_id: external_match_id as string,
-    outcome,
-    revision: revision as string,
-    participants: pair,
-    ...(winner === undefined ? {} : { winner_participant_id: winner as string }),
+    bridge_id,
+    connection_id,
+    match_id,
+    external_match_id,
+    revision,
+    participants: [first, second],
   };
+  if (outcome === "completed") {
+    if (!text(winner_participant_id) || ![first, second].some((p) => p.participant_id === winner_participant_id)) {
+      throw new ResultError("a completed result names one of its participants as the winner");
+    }
+    return { ...fields, outcome, winner_participant_id };
+  }
+  if (outcome !== "restart") throw new ResultError("invalid result");
+  if (winner_participant_id !== undefined) throw new ResultError("a restart has no winner");
+  return { ...fields, outcome };
 }
 
 /**
