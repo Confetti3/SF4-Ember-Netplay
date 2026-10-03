@@ -262,8 +262,9 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		}
 		runtime->displayName = runtime->preferences.displayName;
 		runtime->error.clear(); runtime->offlineRequested = false;
-		const bool started = decision.effect == netplay::Effect::HostRoom ? runtime->room->Host(sf4e::sidecarHash) :
-			runtime->room->Join(decision.invitation, sf4e::sidecarHash);
+		const auto inviteLifetime = netplay::InviteLifetimeSeconds(runtime->preferences.inviteLifetimeHours);
+		const bool started = decision.effect == netplay::Effect::HostRoom ? runtime->room->Host(sf4e::sidecarHash, inviteLifetime) :
+			runtime->room->Join(decision.invitation, sf4e::sidecarHash, inviteLifetime);
 		if (!started) Apply(netplay::EventKind::RoomFailed, loc::T("runtime.room_open_failed"));
 		break;
 	}

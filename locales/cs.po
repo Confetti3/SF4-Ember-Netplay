@@ -654,6 +654,27 @@ msgstr "Kapacita"
 msgid "room.capacity_detail"
 msgstr "Nejvyšší počet členů včetně diváků."
 
+msgid "room.invite_lifetime"
+msgstr "Platnost odkazů"
+
+msgid "room.invite_lifetime_detail"
+msgstr "Jak dlouho bude fungovat odkaz na místnost, který zkopírujete. Dokud je místnost otevřená, odkazy se obnovují."
+
+msgid "room.invite_lifetime.hour"
+msgstr "1 hodina"
+
+msgid "room.invite_lifetime.hours"
+msgstr "{0} h"
+
+msgid "room.invite_lifetime.day"
+msgstr "1 den"
+
+msgid "room.invite_lifetime.days"
+msgstr "{0} dní"
+
+msgid "room.invite_lifetime.until_closed"
+msgstr "Do zavření místnosti"
+
 msgid "room.stop_creating"
 msgstr "Zrušit tvorbu místnosti."
 

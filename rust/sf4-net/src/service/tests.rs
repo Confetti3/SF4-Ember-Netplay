@@ -229,6 +229,7 @@ fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Actor {
         room: None,
         hosted: None,
         room_invite: None,
+        invite_lifetime: DEFAULT_INVITE_LIFETIME,
         host_address: None,
         controls: BTreeMap::new(),
         parked_controls: BTreeMap::new(),
@@ -821,6 +822,7 @@ async fn a_join_through_an_invitation_to_this_helper_says_so() {
                     epoch: 1,
                     invitation,
                     build: "test-build".into(),
+                    invite_lifetime: None,
                 },
             })
             .unwrap()
@@ -840,30 +842,65 @@ async fn an_open_room_renews_its_invitation_before_it_expires() {
     let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);
     let mut actor = test_actor(own.clone(), events_tx);
     actor.epoch = 4;
+    let lifetime = actor.invite_lifetime;
     let start = now().unwrap();
-    let invite = Invite::create(own.id(), test_relay(), "test-build".into(), start, INVITE_LIFETIME).unwrap();
+    let invite = Invite::create(own.id(), test_relay(), "test-build".into(), start, lifetime).unwrap();
     actor.hosted = Some(invite.clone());
     actor.room_invite = Some(invite.clone());
-    // More than half its lifetime left: nothing to do.
-    actor.renew_invitation(start + INVITE_LIFETIME / 4);
+    // Less than a tenth of its lifetime gone: nothing to do.
+    actor.renew_invitation(start + lifetime / 20);
     assert!(events.try_recv().is_err());
     assert_eq!(actor.room_invite.as_ref().unwrap().expires(), invite.expires());
-    // Past the half: both copies move on and the native side hears of it.
-    let later = start + INVITE_LIFETIME * 3 / 4;
+    // Past a tenth: both copies move on and the native side hears of it.
+    let later = start + lifetime / 4;
     actor.renew_invitation(later);
     let Event::DiscordInvite { epoch, invitation, .. } = events.recv().await.unwrap() else {
         panic!("expected a refreshed invitation");
     };
     assert_eq!(epoch, 4);
-    assert_eq!(actor.room_invite.as_ref().unwrap().expires(), later + INVITE_LIFETIME);
-    assert_eq!(actor.hosted.as_ref().unwrap().expires(), later + INVITE_LIFETIME);
+    assert_eq!(actor.room_invite.as_ref().unwrap().expires(), later + lifetime);
+    assert_eq!(actor.hosted.as_ref().unwrap().expires(), later + lifetime);
     let parsed = Invite::parse_for_build(&invitation, invite.expires() + 1, "test-build").unwrap();
     assert_eq!(parsed.room(), invite.room());
     // Out of a room there is nothing to renew.
     actor.hosted = None;
     actor.room_invite = None;
-    actor.renew_invitation(later + INVITE_LIFETIME);
+    actor.renew_invitation(later + lifetime);
     assert!(events.try_recv().is_err());
+    own.close().await;
+}
+
+#[tokio::test]
+async fn a_chosen_invite_lifetime_stamps_and_renews_the_copy() {
+    let own = endpoint().await;
+    let (events_tx, mut events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let mut actor = test_actor(own.clone(), events_tx);
+    actor.epoch = 4;
+    let start = now().unwrap();
+    // A joiner arrives with the host's one-hour stamp but chose a week: its
+    // copy is past half of its own lifetime at once, so it renews to a week.
+    let week = 7 * 24 * 60 * 60;
+    actor.invite_lifetime = invite_lifetime_or_default(Some(week));
+    let given = Invite::create(own.id(), test_relay(), "test-build".into(), start, 3600).unwrap();
+    actor.room_invite = Some(given);
+    actor.renew_invitation(start);
+    let Event::DiscordInvite { invitation, .. } = events.recv().await.unwrap() else {
+        panic!("expected a refreshed invitation");
+    };
+    assert_eq!(actor.room_invite.as_ref().unwrap().expires(), start + week);
+    // A joiner six days later still gets in with that copy.
+    assert!(Invite::parse_for_build(&invitation, start + 6 * 24 * 60 * 60, "test-build").is_ok());
+    // "Until the room closes" is the cap, and a copy stamped with it parses.
+    actor.invite_lifetime = invite_lifetime_or_default(Some(u64::MAX));
+    assert_eq!(actor.invite_lifetime, MAX_INVITE_LIFETIME_SECS);
+    actor.renew_invitation(start);
+    let Event::DiscordInvite { invitation, .. } = events.recv().await.unwrap() else {
+        panic!("expected a refreshed invitation");
+    };
+    assert!(Invite::parse_for_build(&invitation, start + 300 * 24 * 60 * 60, "test-build").is_ok());
+    // Out-of-range requests are held to the range; none means the default.
+    assert_eq!(invite_lifetime_or_default(Some(0)), MIN_INVITE_LIFETIME_SECS);
+    assert_eq!(invite_lifetime_or_default(None), DEFAULT_INVITE_LIFETIME);
     own.close().await;
 }
 
@@ -882,6 +919,7 @@ async fn a_refused_join_names_the_epoch_it_asked_for() {
         epoch,
         invitation: "not-an-invitation".into(),
         build: "test-build".into(),
+        invite_lifetime: None,
     };
     assert!(
         actor
@@ -3635,6 +3673,7 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
             room: None,
             hosted: None,
             room_invite: None,
+            invite_lifetime: DEFAULT_INVITE_LIFETIME,
             host_address: None,
             controls: BTreeMap::new(),
             parked_controls: BTreeMap::new(),
@@ -3923,6 +3962,7 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
         room: Some(old.room()),
         hosted: Some(old.clone()),
         room_invite: Some(old.clone()),
+        invite_lifetime: DEFAULT_INVITE_LIFETIME,
         host_address: None,
         controls: BTreeMap::new(),
         parked_controls: BTreeMap::new(),
@@ -4048,6 +4088,7 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
             room: Some(room),
             hosted: Some(invite.clone()),
             room_invite: Some(invite.clone()),
+            invite_lifetime: DEFAULT_INVITE_LIFETIME,
             host_address: None,
             controls: BTreeMap::new(),
             parked_controls: BTreeMap::new(),
@@ -4334,6 +4375,7 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
                 command: Command::Host {
                     epoch: 2,
                     build: "test-build".into(),
+                    invite_lifetime: None,
                 },
             })
             .await
@@ -4398,6 +4440,7 @@ async fn actor_admits_full_sixteen_member_room_and_fifteen_game_links() {
             room: Some(room),
             hosted: Some(invite.clone()),
             room_invite: Some(invite.clone()),
+            invite_lifetime: DEFAULT_INVITE_LIFETIME,
             host_address: None,
             controls: BTreeMap::new(),
             parked_controls: BTreeMap::new(),

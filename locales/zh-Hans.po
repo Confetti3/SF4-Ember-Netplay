@@ -654,6 +654,27 @@ msgstr "人数上限"
 msgid "room.capacity_detail"
 msgstr "包括观战者在内的最多成员数。"
 
+msgid "room.invite_lifetime"
+msgstr "邀请链接有效期"
+
+msgid "room.invite_lifetime_detail"
+msgstr "你复制的房间链接可使用的时长。房间开着时链接会自动更新。"
+
+msgid "room.invite_lifetime.hour"
+msgstr "1 小时"
+
+msgid "room.invite_lifetime.hours"
+msgstr "{0} 小时"
+
+msgid "room.invite_lifetime.day"
+msgstr "1 天"
+
+msgid "room.invite_lifetime.days"
+msgstr "{0} 天"
+
+msgid "room.invite_lifetime.until_closed"
+msgstr "直到房间关闭"
+
 msgid "room.stop_creating"
 msgstr "停止创建此房间。"
 

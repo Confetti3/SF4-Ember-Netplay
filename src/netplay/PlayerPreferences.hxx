@@ -21,6 +21,30 @@ struct LobbySettings {
     }
 };
 
+// How long a room link this player copies stays valid, in hours. Zero means
+// until the room closes: the link is renewed while the room is open, and a
+// closed room cannot be reached anyway.
+constexpr int InviteLifetimeChoices[] = {1, 3, 6, 12, 24, 72, 168, 720, 0};
+constexpr int DefaultInviteLifetimeHours = 24;
+inline bool ValidInviteLifetime(int hours) {
+    for (int choice : InviteLifetimeChoices) if (choice == hours) return true;
+    return false;
+}
+// The next choice `delta` steps along the list, stopping at either end.
+inline int StepInviteLifetime(int hours, int delta) {
+    constexpr int count = static_cast<int>(sizeof(InviteLifetimeChoices) / sizeof(InviteLifetimeChoices[0]));
+    int index = 0;
+    while (index < count && InviteLifetimeChoices[index] != hours) ++index;
+    if (index == count) index = 4;
+    index = index + delta < 0 ? 0 : index + delta >= count ? count - 1 : index + delta;
+    return InviteLifetimeChoices[index];
+}
+// Seconds for the helper. Until the room closes asks for more than any
+// choice; the helper holds it to its own cap.
+inline unsigned long long InviteLifetimeSeconds(int hours) {
+    return hours == 0 ? 366ull * 24 * 60 * 60 : static_cast<unsigned long long>(hours) * 60 * 60;
+}
+
 struct PlayerPreferences {
     std::string displayName = "Player";
     int mainFighter = 0;
@@ -39,11 +63,12 @@ struct PlayerPreferences {
     LobbySettings lobby;
     std::string roomName = "Private room";
     int roomCapacity = 16;
+    int inviteLifetimeHours = DefaultInviteLifetimeHours;
     room::Rules tableRules;
     bool Valid() const {
         if (displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < 0 || inputDelay > MaximumInputDelay ||
             matchHudSize < 0 || matchHudSize > 2 || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || !lobby.Valid() ||
-            roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;
+            roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers) || !ValidInviteLifetime(inviteLifetimeHours)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;
         if (tableRules.format != room::SetFormat::Unlimited || tableRules.rotation != room::RotationMode::WinnerStays) return false;

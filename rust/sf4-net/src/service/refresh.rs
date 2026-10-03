@@ -2,19 +2,23 @@
 use super::*;
 
 impl Actor {
-    /// An invitation lasts INVITE_LIFETIME from when it was made, and a room
-    /// can outlive that: every copy, and every rejoin of a member who left,
-    /// would then be refused as expired. While the room is open each member
-    /// re-stamps its own copy once half the lifetime is gone and republishes
-    /// it. Admission checks the leader's copy, so the room stays joinable.
+    /// An invitation lasts the lifetime this player chose from when it was
+    /// made, and a room can outlive that: every copy, and every rejoin of a
+    /// member who left, would then be refused as expired. While the room is
+    /// open each member re-stamps its own copy once a tenth of its own
+    /// lifetime is gone and republishes it, so a link copied at any moment
+    /// lasts nearly the whole lifetime the player chose. Admission checks the
+    /// leader's copy, so the room stays joinable. A joiner's copy starts with
+    /// the stamp it was given, so it renews at once when that is shorter than
+    /// its own choice.
     pub(super) fn renew_invitation(&mut self, now: u64) {
         let Some(current) = self.room_invite.clone().or_else(|| self.hosted.clone()) else {
             return;
         };
-        if current.expires().saturating_sub(now) > INVITE_LIFETIME / 2 {
+        if current.expires().saturating_sub(now) > self.invite_lifetime - self.invite_lifetime / 10 {
             return;
         }
-        let Ok(updated) = current.renewed(now, INVITE_LIFETIME) else {
+        let Ok(updated) = current.renewed(now, self.invite_lifetime) else {
             return;
         };
         let (Ok(invitation), Ok(secret)) = (updated.encode(), updated.encode_discord()) else {

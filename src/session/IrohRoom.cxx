@@ -98,18 +98,21 @@ bool IrohRoom::Begin(bool host) {
 	return Command("{\"type\":\"status\"}");
 }
 
-bool IrohRoom::Host(const std::string& build) {
+bool IrohRoom::Host(const std::string& build, unsigned long long inviteLifetime) {
 	if (build.empty() || build.size() > 128) return false;
 	if (!Begin(true)) return false;
-	roomCommandQueued_ = Command(json{{"type", "host"}, {"epoch", epoch_}, {"build", build}}.dump());
+	json command{{"type", "host"}, {"epoch", epoch_}, {"build", build}};
+	if (inviteLifetime) command["invite_lifetime"] = inviteLifetime;
+	roomCommandQueued_ = Command(command.dump());
 	return roomCommandQueued_;
 }
 
-bool IrohRoom::Join(const std::string& invitation, const std::string& build) {
+bool IrohRoom::Join(const std::string& invitation, const std::string& build, unsigned long long inviteLifetime) {
 	if (build.empty() || build.size() > 128) return false;
 	if (!Begin(false)) return false;
-	roomCommandQueued_ = Command(json{{"type", "join"}, {"epoch", epoch_},
-		{"invitation", invitation}, {"build", build}}.dump());
+	json command{{"type", "join"}, {"epoch", epoch_}, {"invitation", invitation}, {"build", build}};
+	if (inviteLifetime) command["invite_lifetime"] = inviteLifetime;
+	roomCommandQueued_ = Command(command.dump());
 	return roomCommandQueued_;
 }
 

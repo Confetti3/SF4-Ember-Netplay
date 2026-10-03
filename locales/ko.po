@@ -654,6 +654,27 @@ msgstr "정원"
 msgid "room.capacity_detail"
 msgstr "관전자를 포함한 최대 참가 인원입니다."
 
+msgid "room.invite_lifetime"
+msgstr "초대 링크 유효 기간"
+
+msgid "room.invite_lifetime_detail"
+msgstr "복사한 방 링크가 작동하는 기간입니다. 방이 열려 있는 동안 링크가 갱신됩니다."
+
+msgid "room.invite_lifetime.hour"
+msgstr "1시간"
+
+msgid "room.invite_lifetime.hours"
+msgstr "{0}시간"
+
+msgid "room.invite_lifetime.day"
+msgstr "1일"
+
+msgid "room.invite_lifetime.days"
+msgstr "{0}일"
+
+msgid "room.invite_lifetime.until_closed"
+msgstr "방이 닫힐 때까지"
+
 msgid "room.stop_creating"
 msgstr "방 만들기를 중단합니다."
 

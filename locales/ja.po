@@ -654,6 +654,27 @@ msgstr "定員"
 msgid "room.capacity_detail"
 msgstr "観戦者を含む最大人数。"
 
+msgid "room.invite_lifetime"
+msgstr "招待リンクの有効期間"
+
+msgid "room.invite_lifetime_detail"
+msgstr "コピーしたルームリンクが使える期間です。ルームが開いている間、リンクは更新されます。"
+
+msgid "room.invite_lifetime.hour"
+msgstr "1時間"
+
+msgid "room.invite_lifetime.hours"
+msgstr "{0}時間"
+
+msgid "room.invite_lifetime.day"
+msgstr "1日"
+
+msgid "room.invite_lifetime.days"
+msgstr "{0}日"
+
+msgid "room.invite_lifetime.until_closed"
+msgstr "ルームを閉じるまで"
+
 msgid "room.stop_creating"
 msgstr "ルームの作成を中止します。"
 

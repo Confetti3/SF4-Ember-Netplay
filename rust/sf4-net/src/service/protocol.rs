@@ -9,11 +9,17 @@ pub enum Command {
     Host {
         epoch: u64,
         build: String,
+        /// Seconds the invitations this player copies stay valid. Absent
+        /// from an older native side, which takes the helper default.
+        #[serde(default)]
+        invite_lifetime: Option<u64>,
     },
     Join {
         epoch: u64,
         invitation: String,
         build: String,
+        #[serde(default)]
+        invite_lifetime: Option<u64>,
     },
     Leave {
         epoch: u64,

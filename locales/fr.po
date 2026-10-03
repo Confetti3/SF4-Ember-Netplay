@@ -654,6 +654,27 @@ msgstr "Capacité"
 msgid "room.capacity_detail"
 msgstr "Nombre maximal de membres, spectateurs compris."
 
+msgid "room.invite_lifetime"
+msgstr "Durée des liens"
+
+msgid "room.invite_lifetime_detail"
+msgstr "Durée de validité d'un lien de salon que vous copiez. Les liens sont renouvelés tant que le salon est ouvert."
+
+msgid "room.invite_lifetime.hour"
+msgstr "1 heure"
+
+msgid "room.invite_lifetime.hours"
+msgstr "{0} heures"
+
+msgid "room.invite_lifetime.day"
+msgstr "1 jour"
+
+msgid "room.invite_lifetime.days"
+msgstr "{0} jours"
+
+msgid "room.invite_lifetime.until_closed"
+msgstr "Jusqu'à la fermeture du salon"
+
 msgid "room.stop_creating"
 msgstr "Annuler la création du salon."
 

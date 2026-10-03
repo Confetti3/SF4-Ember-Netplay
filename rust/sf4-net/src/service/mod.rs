@@ -24,7 +24,7 @@ use tokio::{
 use crate::{
     bridge::{Bridge, BridgeStats},
     control::{ControlWorker, QueueError, Session},
-    invite::Invite,
+    invite::{Invite, MAX_INVITE_LIFETIME_SECS, MIN_INVITE_LIFETIME_SECS},
     recovery::{
         self, Admission, AuthorityState, CHECKPOINT_CHUNK_BYTES, CHECKPOINT_WINDOW,
         CheckpointTransfer, IncomingTransfer,
@@ -55,7 +55,9 @@ const CONTROL_POLL_BUDGET: usize = 20;
 /// settles, which would otherwise hold its queue and the replacement forever.
 const CONTROL_REPLACE_DRAIN_LIMIT: Duration = Duration::from_secs(5);
 const LIFECYCLE_EVENT_RESERVE: usize = 8;
-const INVITE_LIFETIME: u64 = 3600;
+/// How long a copied invitation stays valid when the native side names no
+/// lifetime of its own.
+const DEFAULT_INVITE_LIFETIME: u64 = 24 * 60 * 60;
 const CHECKPOINT_TRANSFER_TIMEOUT: Duration = Duration::from_secs(15);
 const COORDINATION_ADMISSION_TIMEOUT: Duration = Duration::from_secs(12);
 /// One membership reconciliation. A configuration change that needs a member
@@ -432,6 +434,13 @@ impl Drop for GameSlot {
 fn failed(code: &'static str) -> io::Error {
     io::Error::other(code)
 }
+/// The lifetime a Host or Join asked for, held to the range a player can
+/// choose; none at all means the default.
+fn invite_lifetime_or_default(requested: Option<u64>) -> u64 {
+    requested.map_or(DEFAULT_INVITE_LIFETIME, |seconds| {
+        seconds.clamp(MIN_INVITE_LIFETIME_SECS, MAX_INVITE_LIFETIME_SECS)
+    })
+}
 fn now() -> io::Result<u64> {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -528,6 +537,9 @@ struct Actor {
     room: Option<[u8; 16]>,
     hosted: Option<Invite>,
     room_invite: Option<Invite>,
+    /// The lifetime this player chose for the invitations it hands out,
+    /// from its last Host or Join.
+    invite_lifetime: u64,
     host_address: Option<EndpointAddr>,
     controls: BTreeMap<EndpointId, ControlWorker>,
     /// The replacement for each control whose worker is still draining.
@@ -784,11 +796,17 @@ impl Actor {
                 self.games.len(),
             ))?,
             Command::Shutdown => return Ok(false),
-            Command::Host { epoch, build } => {
+            Command::Host {
+                epoch,
+                build,
+                invite_lifetime,
+            } => {
                 if !self.begin(epoch, &build) {
                     self.error_at(id, epoch, "invalid_room_state")?;
                     return Ok(true);
                 }
+                self.invite_lifetime = invite_lifetime_or_default(invite_lifetime);
+                let lifetime = self.invite_lifetime;
                 let endpoint = self.endpoint.clone();
                 self.tasks.spawn(async move {
                     let result = timeout(transport::HANDSHAKE_TIMEOUT, async {
@@ -799,7 +817,7 @@ impl Actor {
                             .next()
                             .cloned()
                             .ok_or_else(|| failed("relay_unavailable"))?;
-                        Invite::create(endpoint.id(), relay, build, now()?, INVITE_LIFETIME)
+                        Invite::create(endpoint.id(), relay, build, now()?, lifetime)
                     })
                     .await
                     .unwrap_or_else(|_| Err(failed("relay_unavailable")));
@@ -810,6 +828,7 @@ impl Actor {
                 epoch,
                 invitation,
                 build,
+                invite_lifetime,
             } => {
                 // Consume an accepted room epoch before parsing the invitation.
                 // Rejection then belongs to the caller's attempt and Leave can
@@ -818,6 +837,7 @@ impl Actor {
                     self.error_at(id, epoch, "invalid_room_state")?;
                     return Ok(true);
                 }
+                self.invite_lifetime = invite_lifetime_or_default(invite_lifetime);
                 let time = now().ok();
                 let invite =
                     time.and_then(|time| Invite::parse_for_build(&invitation, time, &build).ok());

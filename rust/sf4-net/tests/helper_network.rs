@@ -170,11 +170,11 @@ async fn exercise_helpers(relay_only: bool) {
                 _ => unreachable!(),
             }
         }
-        host.send(Command::Host { epoch: 1, build: "process-test-build".into() }).await.unwrap();
+        host.send(Command::Host { epoch: 1, build: "process-test-build".into(), invite_lifetime: None }).await.unwrap();
         let (invitation, room) = match host.next("hosted").await.unwrap() {
             Event::Hosted { invitation, room, .. } => (invitation, room), _ => unreachable!(),
         };
-        guest.send(Command::Join { epoch: 7, invitation, build: "process-test-build".into() }).await.unwrap();
+        guest.send(Command::Join { epoch: 7, invitation, build: "process-test-build".into(), invite_lifetime: None }).await.unwrap();
         let guest_id = match host.next("connected").await.unwrap() { Event::Connected { peer, .. } => peer, _ => unreachable!() };
         let host_id = match guest.next("connected").await.unwrap() { Event::Connected { peer, .. } => peer, _ => unreachable!() };
         // Leave and successor tests below are valid only after the exact

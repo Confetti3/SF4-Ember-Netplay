@@ -654,6 +654,27 @@ msgstr "Kapazität"
 msgid "room.capacity_detail"
 msgstr "Maximale Mitgliederzahl einschließlich Zuschauer."
 
+msgid "room.invite_lifetime"
+msgstr "Einladungslinks gültig"
+
+msgid "room.invite_lifetime_detail"
+msgstr "Wie lange ein kopierter Raumlink funktioniert. Solange der Raum offen ist, werden Links erneuert."
+
+msgid "room.invite_lifetime.hour"
+msgstr "1 Stunde"
+
+msgid "room.invite_lifetime.hours"
+msgstr "{0} Stunden"
+
+msgid "room.invite_lifetime.day"
+msgstr "1 Tag"
+
+msgid "room.invite_lifetime.days"
+msgstr "{0} Tage"
+
+msgid "room.invite_lifetime.until_closed"
+msgstr "Bis der Raum schließt"
+
 msgid "room.stop_creating"
 msgstr "Raumerstellung stoppen."
 

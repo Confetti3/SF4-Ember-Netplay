@@ -654,6 +654,27 @@ msgstr "Capienza"
 msgid "room.capacity_detail"
 msgstr "Numero massimo di membri, spettatori inclusi."
 
+msgid "room.invite_lifetime"
+msgstr "Durata dei link"
+
+msgid "room.invite_lifetime_detail"
+msgstr "Per quanto tempo funziona un link della stanza che copi. I link si rinnovano finché la stanza è aperta."
+
+msgid "room.invite_lifetime.hour"
+msgstr "1 ora"
+
+msgid "room.invite_lifetime.hours"
+msgstr "{0} ore"
+
+msgid "room.invite_lifetime.day"
+msgstr "1 giorno"
+
+msgid "room.invite_lifetime.days"
+msgstr "{0} giorni"
+
+msgid "room.invite_lifetime.until_closed"
+msgstr "Fino alla chiusura della stanza"
+
 msgid "room.stop_creating"
 msgstr "Ferma la creazione della sala."
 

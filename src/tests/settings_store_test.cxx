@@ -192,8 +192,9 @@ int main() {
     sf4e::netplay::PlayerPreferences defaults;
     CHECK(sf4e::netplay::ReadRoomPreferences(Json::object(), defaults));
     CHECK(defaults.roomCapacity == 16 && defaults.tableRules.format == sf4e::room::SetFormat::Unlimited &&
-        defaults.tableRules.rotation == sf4e::room::RotationMode::WinnerStays);
-    defaults.roomName = "Friday room"; defaults.roomCapacity = 12;
+        defaults.tableRules.rotation == sf4e::room::RotationMode::WinnerStays &&
+        defaults.inviteLifetimeHours == sf4e::netplay::DefaultInviteLifetimeHours);
+    defaults.roomName = "Friday room"; defaults.roomCapacity = 12; defaults.inviteLifetimeHours = 168;
     defaults.tableRules.format = sf4e::room::SetFormat::Ft5;
     defaults.tableRules.rotation = sf4e::room::RotationMode::BothRotate;
     CHECK(asyncStore.SaveLauncher({{"roomDefaults", sf4e::netplay::RoomPreferences(defaults)}}, error));
@@ -201,13 +202,22 @@ int main() {
     CHECK(asyncStore.LoadLauncher(result, error));
     sf4e::netplay::PlayerPreferences restored;
     CHECK(sf4e::netplay::ReadRoomPreferences(result, restored));
-    CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12 &&
+    CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12 && restored.inviteLifetimeHours == 168 &&
         restored.tableRules.format == sf4e::room::SetFormat::Unlimited && restored.tableRules.rotation == sf4e::room::RotationMode::WinnerStays);
     for (const Json& invalid : {Json{{"capacity", 17}}, Json{{"capacity", 258}}, Json{{"capacity", 2.5}},
-        Json{{"format", 257}}, Json{{"rotation", -1}}, Json{{"name", std::string(65, 'x')}}}) {
+        Json{{"format", 257}}, Json{{"rotation", -1}}, Json{{"name", std::string(65, 'x')}},
+        Json{{"inviteLifetimeHours", 2}}, Json{{"inviteLifetimeHours", -1}}, Json{{"inviteLifetimeHours", 1.5}}}) {
         CHECK(!sf4e::netplay::ReadRoomPreferences({{"roomDefaults", invalid}}, restored));
-        CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12);
+        CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12 && restored.inviteLifetimeHours == 168);
     }
+    // "Until the room closes" saves as zero and survives a reload.
+    defaults.inviteLifetimeHours = 0;
+    CHECK(sf4e::netplay::ReadRoomPreferences({{"roomDefaults", sf4e::netplay::RoomPreferences(defaults)}}, restored) &&
+        restored.inviteLifetimeHours == 0);
+    // The menu steps along the choices and stops at either end.
+    CHECK(sf4e::netplay::StepInviteLifetime(24, 1) == 72 && sf4e::netplay::StepInviteLifetime(24, -1) == 12);
+    CHECK(sf4e::netplay::StepInviteLifetime(1, -1) == 1 && sf4e::netplay::StepInviteLifetime(0, 1) == 0);
+    CHECK(sf4e::netplay::StepInviteLifetime(720, 1) == 0);
     RemoveTempRoot(root);
     std::cout << "Settings migration, preservation, independent updates and atomic failure checks passed\n";
 }

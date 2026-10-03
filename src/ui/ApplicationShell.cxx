@@ -42,6 +42,14 @@ std::string SessionProblem(const netplay::Snapshot& session) {
     default:return {};
     }
 }
+// A room link lifetime as the menu shows it: hours under a day, days above.
+std::string InviteLifetimeLabel(int hours) {
+    if(hours==0)return loc::T("room.invite_lifetime.until_closed");
+    if(hours==1)return loc::T("room.invite_lifetime.hour");
+    if(hours<24)return loc::Tf("room.invite_lifetime.hours",hours);
+    if(hours==24)return loc::T("room.invite_lifetime.day");
+    return loc::Tf("room.invite_lifetime.days",hours/24);
+}
 // "Automatic" first, then every locale by its own name.
 std::vector<MenuChoice> LanguageChoices() {
     std::vector<MenuChoice> choices;std::string preference="auto";
@@ -186,6 +194,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   if(screen=="defaults")rows.push_back(Value("delay",loc::T("settings.input_delay"),std::to_string(preferences_.inputDelay),reason,can));
   rows.push_back(TextRow("room-name",loc::T("room.name"),preferences_.roomName,64,can));
   rows.push_back(Value("capacity",loc::T("room.capacity"),std::to_string(preferences_.roomCapacity),loc::T("room.capacity_detail"),can));
+  rows.push_back(Value("invite-lifetime",loc::T("room.invite_lifetime"),InviteLifetimeLabel(preferences_.inviteLifetimeHours),loc::T("room.invite_lifetime_detail"),can));
   RuleRows(rows,preferences_.tableRules,can,reason);
   if(screen=="create"){rows.push_back(opening?ConfirmRow("cancel-open",loc::T("room.stop_creating_action"),loc::T("room.stop_creating"),true):
    Row("host",loc::T("online.create"),loc::T("room.create_requirements"),can&&preferences_.Valid()));
@@ -382,6 +391,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   auto prior=preferences_;
   if(a.id=="name")preferences_.displayName=a.text;else if(a.id=="room-name")preferences_.roomName=a.text;
   else if(a.id=="capacity")preferences_.roomCapacity=(std::max)(2,(std::min)(16,preferences_.roomCapacity+a.delta));
+  else if(a.id=="invite-lifetime")preferences_.inviteLifetimeHours=StepInviteLifetime(preferences_.inviteLifetimeHours,a.delta);
   else if(a.id=="delay")preferences_.inputDelay=(std::max)(0,(std::min)(10,preferences_.inputDelay+a.delta));
   else if(a.id=="hud-size")preferences_.matchHudSize=(std::max)(0,(std::min)(2,preferences_.matchHudSize+a.delta));
   else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;

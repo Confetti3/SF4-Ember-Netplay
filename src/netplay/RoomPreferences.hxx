@@ -7,7 +7,7 @@ namespace sf4e { namespace netplay {
 // Additive settings-v1 extension. Missing room defaults adopt the existing
 // battle preferences; decoding is transactional so malformed data stays intact.
 inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
-    return {{"name", value.roomName}, {"capacity", value.roomCapacity},
+    return {{"name", value.roomName}, {"capacity", value.roomCapacity}, {"inviteLifetimeHours", value.inviteLifetimeHours},
         // Keep the legacy keys in the persisted shape for migration readers,
         // but always write the only supported custom-room rule set.
         {"format", static_cast<int>(room::SetFormat::Unlimited)},
@@ -27,13 +27,17 @@ inline bool ReadRoomPreferences(const nlohmann::json& document, PlayerPreference
     const auto& defaults = document["roomDefaults"];
     if (!defaults.is_object()) return false;
     try {
-        for (const char* key : {"capacity", "format", "rotation", "roundCount", "roundTime"})
+        for (const char* key : {"capacity", "inviteLifetimeHours", "format", "rotation", "roundCount", "roundTime"})
             if (defaults.contains(key) && !defaults[key].is_number_integer()) return false;
         PlayerPreferences candidate = inherited;
         candidate.roomName = defaults.value("name", candidate.roomName);
         const auto capacity = defaults.value("capacity", static_cast<std::int64_t>(candidate.roomCapacity));
         if (capacity < 2 || capacity > static_cast<std::int64_t>(room::MaxMembers)) return false;
         candidate.roomCapacity = static_cast<int>(capacity);
+        // Added in 1.0.1; a 1.0.0 profile has none and takes the default.
+        const auto lifetime = defaults.value("inviteLifetimeHours", static_cast<std::int64_t>(candidate.inviteLifetimeHours));
+        if (lifetime < 0 || lifetime > 720 || !ValidInviteLifetime(static_cast<int>(lifetime))) return false;
+        candidate.inviteLifetimeHours = static_cast<int>(lifetime);
         const auto format = defaults.value("format", static_cast<std::int64_t>(candidate.tableRules.format));
         const auto rotation = defaults.value("rotation", static_cast<std::int64_t>(candidate.tableRules.rotation));
         if ((format != 0 && format != 1 && format != 2 && format != 3 && format != 5) || rotation < 0 || rotation > 2) return false;

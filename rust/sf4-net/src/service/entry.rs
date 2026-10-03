@@ -74,6 +74,7 @@ pub async fn run<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         room: None,
         hosted: None,
         room_invite: None,
+        invite_lifetime: DEFAULT_INVITE_LIFETIME,
         host_address: None,
         controls: BTreeMap::new(),
         parked_controls: BTreeMap::new(),

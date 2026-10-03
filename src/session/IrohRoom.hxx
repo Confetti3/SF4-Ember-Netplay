@@ -103,8 +103,10 @@ public:
 	// IrohMatchSessionTest; the destructor follows them so a subclass is never
 	// deleted through this base without running its own.
 	virtual ~IrohRoom() = default;
-	bool Host(const std::string& build);
-	bool Join(const std::string& invitation, const std::string& build);
+	// inviteLifetime: seconds the links this player copies stay valid; zero
+	// leaves it to the helper default.
+	bool Host(const std::string& build, unsigned long long inviteLifetime = 0);
+	bool Join(const std::string& invitation, const std::string& build, unsigned long long inviteLifetime = 0);
 	virtual void Leave(bool abandon = false);
 	// Fatal room control cannot acknowledge a normal Leave/result. Once native
 	// GGPO releases its socket, retire the entire helper epoch and await room_closed.
