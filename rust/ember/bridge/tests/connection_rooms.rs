@@ -364,6 +364,18 @@ async fn max_open_limits_the_connection_and_the_address_limit_does_not_apply() {
         "{body}"
     );
     assert!(body["error"]["details"].get("room_id").is_none(), "{body}");
+    // A full connection still hands back a creator's own room, so a repeated
+    // command gets its link.
+    let (status, body) = f.create(&f.provider, &f.members[0], "Again").await;
+    assert_eq!(
+        (status, reason(&body)),
+        (StatusCode::CONFLICT, "room_limit"),
+        "{body}"
+    );
+    assert_eq!(
+        body["error"]["details"]["room_id"],
+        rooms[0].room.room_id.as_str()
+    );
     // Another connection counts its own.
     f.open(&f.neighbour, &f.zed).await;
     // Closing one frees a place.

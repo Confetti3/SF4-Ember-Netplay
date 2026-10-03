@@ -155,26 +155,20 @@ fn reserve(
         )?)
     };
     let (address, connection_id) = match owner {
-        Owner::Address(address) => {
-            if open("creator_address", address)? >= ROOMS_PER_ADDRESS {
-                return Err(refuse(ROOM_LIMIT));
-            }
-            (Some(address.as_str()), None)
-        }
+        Owner::Address(address) => (Some(address.as_str()), None),
         Owner::Connection {
             connection_id,
             participant_id,
-            max_open,
+            ..
         } => {
             if !matches::linked(tx, connection_id, participant_id, creator)? {
                 return Err(refuse(NOT_LINKED));
             }
-            if open("connection_id", connection_id)? >= i64::from(*max_open) {
-                return Err(refuse(ROOM_LIMIT));
-            }
             (None, Some(connection_id.as_str()))
         }
     };
+    // The creator's open room comes first, so a connection that opened it can
+    // hand out its link instead, whatever its own limit says.
     let existing: Option<(String, Option<String>)> = tx
         .query_row(
             "SELECT room_id, connection_id FROM rooms WHERE creator_ember_id = ?1 AND closed_at IS NULL",
@@ -184,14 +178,24 @@ fn reserve(
         .optional()?;
     if let Some((existing, created_by)) = existing {
         let refusal = refuse(ROOM_LIMIT);
-        // A connection may hand out the link of a room it opened for this
-        // player instead.
         return Err(match connection_id {
             Some(connection_id) if created_by.as_deref() == Some(connection_id) => {
                 refusal.detail("room_id", existing)
             }
             _ => refusal,
         });
+    }
+    // Only then the owner's limit, which a new room would count against.
+    let full = match owner {
+        Owner::Address(address) => open("creator_address", address)? >= ROOMS_PER_ADDRESS,
+        Owner::Connection {
+            connection_id,
+            max_open,
+            ..
+        } => open("connection_id", connection_id)? >= i64::from(*max_open),
+    };
+    if full {
+        return Err(refuse(ROOM_LIMIT));
     }
     tx.execute(
         "INSERT INTO rooms (room_id, name, capacity, build_id, creator_ember_id, creator_address, created_at,
