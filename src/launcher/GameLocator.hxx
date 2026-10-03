@@ -21,6 +21,13 @@ std::vector<std::wstring> ParseLibraryFolders(const std::string& vdfUtf8);
 // case or a trailing separator count as the same folder.
 std::vector<std::wstring> LibraryCandidates(const std::wstring& steamPath, const std::string& vdfUtf8);
 
+// Search each Steam library using appmanifest_45760.acf's installdir, then
+// the conventional game folder. A missing or invalid manifest never hides
+// the fallback or later libraries. readText returns empty for unreadable files.
+std::wstring FindGameInLibraries(const std::vector<std::wstring>& libraries,
+    const std::function<std::string(const std::wstring&)>& readText,
+    const std::function<bool(const std::wstring&)>& exists);
+
 // The full path of the game executable in directory when exists reports it
 // there, otherwise empty. An empty directory never resolves.
 std::wstring GameExecutable(const std::wstring& directory, const std::function<bool(const std::wstring&)>& exists);

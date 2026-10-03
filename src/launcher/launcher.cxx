@@ -40,8 +40,6 @@
 #include "update/github_release_client.hxx"
 #include "BuildIdentity.hxx"
 
-LPCWCH szLibrarySuffix = L"steamapps\\common\\Super Street Fighter IV - Arcade Edition";
-
 // Where the launcher and the game both log; the crash dump goes here too.
 wchar_t g_logsDir[MAX_PATH] = { 0 };
 
@@ -162,32 +160,19 @@ int FindSF4ByEstimatedSteamPath(
 	const std::vector<std::wstring> libraries = sf4e::launcher::LibraryCandidates(szSteamPath, libraryFolders);
 	spdlog::info(L"FindSF4ByEstimatedSteamPath: searching {} Steam libraries", libraries.size());
 
-	// Search the discovered libraries
-	for (const std::wstring& library : libraries) {
-		if (!PathIsDirectoryW(library.c_str())) {
-			spdlog::warn(L"FindSF4ByEstimatedSteamPath: detected library {} does not exist", library.c_str());
-			continue;
-		}
-
-		if ((res = PathCchCombine(szGameDirectory, nGameDirSize, library.c_str(), szLibrarySuffix)) != S_OK) {
-			spdlog::warn(L"FindSF4ByEstimatedSteamPath: szGameDirectory PathCchCombine for {} failed: {}", library.c_str(), res);
-			continue;
-		}
-
-		if (!PathIsDirectoryW(szGameDirectory)) {
-			// A common case- any given library may not contain SF4, so logging would
-			// add more noise than signal.
-			continue;
-		}
-
-		if ((res = PathCchCombine(szExePath, nExeSize, szGameDirectory, sf4e::launcher::kGameExecutableName)) != S_OK) {
-			spdlog::warn(L"FindSF4ByEstimatedSteamPath: szExePath PathCchCombine failed: {}", res);
-			continue;
-		}
-
-		if (PathFileExistsW(szExePath)) {
-			return 1;
-		}
+	const auto readText = [](const std::wstring& path) {
+		std::ifstream file(path, std::ios::binary);
+		return file ? std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()) : std::string();
+	};
+	const auto exists = [](const std::wstring& path) {
+		const DWORD attributes = GetFileAttributesW(path.c_str());
+		return attributes != INVALID_FILE_ATTRIBUTES && !(attributes & FILE_ATTRIBUTE_DIRECTORY);
+	};
+	const auto found = sf4e::launcher::FindGameInLibraries(libraries, readText, exists);
+	if (!found.empty() && SUCCEEDED(StringCchCopyW(szGameDirectory, nGameDirSize, found.c_str())) &&
+		SUCCEEDED(PathCchCombine(szExePath, nExeSize, found.c_str(), sf4e::launcher::kGameExecutableName))) {
+		spdlog::info(L"Steam library game directory: {}", found.c_str());
+		return 1;
 	}
 
 	return 0;

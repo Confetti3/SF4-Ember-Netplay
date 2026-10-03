@@ -97,6 +97,59 @@ std::vector<std::wstring> LibraryCandidates(const std::wstring& steamPath, const
     return candidates;
 }
 
+namespace {
+std::wstring ManifestInstallDirectory(const std::string& text) {
+    std::vector<Token> tokens;
+    if (!steam::Tokenize(text, tokens) || tokens.size() < 2 || tokens[0].kind != Token::Text ||
+        _stricmp(tokens[0].text.c_str(), "AppState") != 0 || tokens[1].kind != Token::Open) return {};
+    int depth = 1;
+    std::size_t i = 2;
+    std::string appId, folder;
+    bool haveId = false, haveFolder = false;
+    while (depth && i < tokens.size()) {
+        if (tokens[i].kind == Token::Close) { --depth; ++i; continue; }
+        if (tokens[i].kind != Token::Text || i + 1 >= tokens.size()) return {};
+        const auto& key = tokens[i++].text;
+        const auto& value = tokens[i++];
+        if (value.kind == Token::Open) { ++depth; continue; }
+        if (value.kind != Token::Text) return {};
+        if (depth != 1) continue;
+        if (_stricmp(key.c_str(), "appid") == 0) {
+            if (haveId) return {};
+            haveId = true; appId = value.text;
+        } else if (_stricmp(key.c_str(), "installdir") == 0) {
+            if (haveFolder) return {};
+            haveFolder = true; folder = value.text;
+        }
+    }
+    // installdir is one directory below steamapps/common, not an arbitrary
+    // path. Do not let damaged metadata select a different executable tree.
+    if (depth || i != tokens.size() || appId != "45760" || folder.empty() ||
+        folder == "." || folder == ".." || folder.back() == '.' || folder.back() == ' ' ||
+        folder.find_first_of("\\/:*?\"<>|") != std::string::npos ||
+        std::any_of(folder.begin(), folder.end(), [](unsigned char c) { return c < 32; })) return {};
+    return platform::Utf8ToWide(folder.c_str());
+}
+}
+
+std::wstring FindGameInLibraries(const std::vector<std::wstring>& libraries,
+    const std::function<std::string(const std::wstring&)>& readText,
+    const std::function<bool(const std::wstring&)>& exists) {
+    if (!exists) return {};
+    for (const auto& library : libraries) {
+        if (library.empty()) continue;
+        const auto prefix = library + (library.back() == L'\\' || library.back() == L'/' ? L"" : L"\\");
+        const auto manifest = readText ? readText(prefix + L"steamapps\\appmanifest_45760.acf") : std::string();
+        const auto folder = ManifestInstallDirectory(manifest);
+        for (const auto& name : {folder, std::wstring(L"Super Street Fighter IV - Arcade Edition")}) {
+            if (name.empty()) continue;
+            const auto directory = prefix + L"steamapps\\common\\" + name;
+            if (!GameExecutable(directory, exists).empty()) return directory;
+        }
+    }
+    return {};
+}
+
 std::wstring GameExecutable(const std::wstring& directory, const std::function<bool(const std::wstring&)>& exists) {
     if (directory.empty() || !exists) return {};
     std::wstring path = directory;
