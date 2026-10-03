@@ -85,15 +85,17 @@ netplay::publicrooms::Room MakeRoom(const char* id,const char* name,unsigned mem
  netplay::publicrooms::Room room;room.id=id;room.name=name;room.members=members;room.capacity=capacity;room.playing=playing;room.region="use1";return room;
 }
 
-// Online play offers Public rooms; opening it asks the Ember ID about itself
-// and then the service for the list; rooms show their name, players and
+// Online play offers Public rooms; opening it waits for the Ember ID's services
+// and then asks the service for the list; rooms show their name, players and
 // whether a match is on; an empty list and a failed one say so.
 void ListJourney(){
  Journey j;auto& h=j.h;
  h.Screen("online");Check(j.row("public-rooms")&&j.row("public-rooms")->enabled,"Online play does not offer Public rooms");
  Check(j.row("relay")&&j.row("relay")->info&&j.row("network")&&j.row("network")->info,"The route rows lost their information role");
  h.Choose("public-rooms");h.Frame(0,2);
- Check(j.identity().size()==1&&j.identity().back()->op==IdentityOp::Status,"Opening Public rooms did not ask for the Ember ID's status");
+ // Home already asks for the trusted services in the background; Public rooms
+ // waits for that answer rather than asking again.
+ Check(j.identity().size()==1&&j.identity().back()->op==IdentityOp::BridgeList,"Opening Public rooms did not wait for the Ember ID's services");
  Check(j.row("pr-checking")&&!j.row("pr-create"),"A list was offered before the Ember ID answered");
  Check(j.requests().empty(),"The list was asked for before a service was known");
  j.answerIdentityUntilIdle();
@@ -279,15 +281,16 @@ void CreateJourney(){
  Check(j.hosts()==1&&j.requests().size()==asked,"A private room did not host as before");
 }
 
-// After a restart with Public saved, going straight to Create asks the Ember ID
-// for the service itself: the host row waits, then enables and creates on the
-// approved service. With Private saved nothing is asked, until Public is chosen.
+// After a restart with Public saved, going straight to Create waits for the
+// Ember ID's services, which Home reads by itself: the host row waits, then
+// enables and creates on the approved service. With Private saved nothing more
+// is asked, and choosing Public waits for the same read.
 void RestoredCreateJourney(){
  {
   Journey j;auto& h=j.h;
   h.view.preferences.roomPublic=true;h.view.preferences.roomName="Open Mic";h.view.preferences.roomCapacity=6;h.Frame(0,2);
   h.Screen("create");h.Frame(0,2);
-  Check(j.identity().size()==1&&j.identity().back()->op==IdentityOp::Status,"Create on a saved Public did not ask for the Ember ID's status");
+  Check(j.identity().size()==1&&j.identity().back()->op==IdentityOp::BridgeList,"Create on a saved Public did not wait for the Ember ID's services");
   Check(j.row("host")&&!j.row("host")->enabled&&j.row("host")->detail==loc::T("public.create_needs_id"),"Create public room was offered before the service was known");
   j.answerIdentityUntilIdle();
   Check(h.shell.Navigation().Screen()=="create"&&j.row("host")&&j.row("host")->enabled&&j.row("host")->label==loc::T("public.create"),
@@ -303,11 +306,12 @@ void RestoredCreateJourney(){
  Journey k;auto& h=k.h;
  k.h.view.preferences.roomPublic=false;h.Frame(0,2);
  h.Screen("create");h.Frame(0,10);
- Check(k.identity().empty()&&k.requests().empty(),"Create on Private asked the Ember ID or the service");
- // Choosing Public here asks, once.
+ // Only Home's own read of the services is in flight.
+ Check(k.identity().size()==1&&k.requests().empty(),"Create on Private asked the Ember ID or the service");
+ // Choosing Public here waits for that read rather than asking again.
  h.FocusOn("visibility");h.Press(MenuInput::Right);h.Frame(0,2);
- Check(k.row("visibility")->value==loc::T("public.visibility.public")&&k.identity().size()==1&&k.identity().back()->op==IdentityOp::Status,
-  "Choosing Public did not ask for the Ember ID's status");
+ Check(k.row("visibility")->value==loc::T("public.visibility.public")&&k.identity().size()==1&&k.identity().back()->op==IdentityOp::BridgeList,
+  "Choosing Public did not wait for the Ember ID's services");
  k.answerIdentityUntilIdle();h.Frame(0,10);
  Check(k.row("host")&&k.row("host")->enabled&&k.requests().empty(),"Choosing Public did not select the service");
 }

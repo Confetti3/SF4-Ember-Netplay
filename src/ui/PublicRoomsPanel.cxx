@@ -121,7 +121,7 @@ std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::str
             rows.push_back(InfoRow("pr-checking", loc::T("screen.identity"), loc::T("identity.state.checking"), loc::T("identity.state.checking_detail")));
         else {
             rows.push_back(InfoRow("pr-needs-id", loc::T("public.needs_id"), {}, loc::T("public.needs_id_detail")));
-            rows.push_back(Row("identity", loc::T("screen.identity"), loc::T("settings.identity_detail")));
+            rows.push_back(Row("identity", loc::T("screen.identity"), loc::T("home.identity_detail")));
         }
         return rows;
     }
