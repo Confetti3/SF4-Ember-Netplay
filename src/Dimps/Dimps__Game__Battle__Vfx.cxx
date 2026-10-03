@@ -74,7 +74,17 @@ void ColorFadeUnit::Locate(HMODULE peRoot){
 	staticMethods.GetSingleton = (ColorFadeUnit* (*)())(peRootOffset + 0x1cdc40);
 }
 
-void Object::Locate(HMODULE peRoot){ }
+BYTE* Object::recordCopyCount = nullptr;
+BYTE* Object::restoreCopyCount = nullptr;
+
+void Object::Locate(HMODULE peRoot){
+	unsigned int peRootOffset = (unsigned int)peRoot;
+
+	// The `mov ecx, 0E4h` before each rep movsd in the memento record
+	// (0x5BBC60) and restore (0x5BBCB0).
+	recordCopyCount = (BYTE*)(peRootOffset + 0x1bbc7d);
+	restoreCopyCount = (BYTE*)(peRootOffset + 0x1bbccd);
+}
 
 std::string* Object::GetNameTmp(Object* o) {
 	return (std::string*)((unsigned int)o + 0x174);
