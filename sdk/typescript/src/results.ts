@@ -1,0 +1,124 @@
+// A finished match's result, as a connection with a `results_url` receives it
+// (docs/design/INTEGRATION_PATHS.md, "Result secret and result body").
+import { parseStrict, type Json } from "./canonical.ts";
+import { isEmberId } from "./identity.ts";
+import { header, verifyWebhook, WebhookError, type WebhookHeaders } from "./webhook.ts";
+
+/** The `type` of a result body. */
+export const RESULT_TYPE = "io.ember.tournament.match.result.v1";
+
+/** `completed`, or `restart` for a cancelled or failed match: play it again. */
+export type ResultOutcome = "completed" | "restart";
+
+export interface ResultParticipant {
+  participant_id: string;
+  ember_id: string;
+  slot: 0 | 1;
+  /** Games won that count. */
+  score: number;
+}
+
+export interface MatchResult {
+  type: typeof RESULT_TYPE;
+  bridge_id: string;
+  connection_id: string;
+  match_id: string;
+  external_match_id: string;
+  outcome: ResultOutcome;
+  /** The match revision, as a decimal string. */
+  revision: string;
+  participants: [ResultParticipant, ResultParticipant];
+  /** Present when `outcome` is `completed`. */
+  winner_participant_id?: string;
+}
+
+export class ResultError extends Error {}
+
+const FIELDS = ["type", "bridge_id", "connection_id", "match_id", "external_match_id", "outcome", "revision", "participants"];
+const PARTICIPANT_FIELDS = ["participant_id", "ember_id", "slot", "score"];
+
+function isObject(value: unknown): value is { [key: string]: unknown } {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasFields(value: { [key: string]: unknown }, fields: string[], optional: string[] = []): boolean {
+  const keys = Object.keys(value);
+  return fields.every((field) => keys.includes(field)) && keys.every((key) => fields.includes(key) || optional.includes(key));
+}
+
+function parseParticipant(value: unknown): ResultParticipant {
+  if (!isObject(value) || !hasFields(value, PARTICIPANT_FIELDS)) throw new ResultError("invalid result participant");
+  const { participant_id, ember_id, slot, score } = value;
+  const valid =
+    typeof participant_id === "string" &&
+    participant_id !== "" &&
+    typeof ember_id === "string" &&
+    isEmberId(ember_id) &&
+    (slot === 0 || slot === 1) &&
+    typeof score === "number" &&
+    Number.isInteger(score) &&
+    score >= 0;
+  if (!valid) throw new ResultError("invalid result participant");
+  return { participant_id, ember_id, slot, score };
+}
+
+/**
+ * Parses a match result body and checks its shape: the type, the fields, two
+ * participants in slots 0 and 1, and a winner exactly when it completed. It
+ * does not authenticate anything; use `verifyResult` on a delivery.
+ */
+export function parseResult(payload: string | Uint8Array | Json): MatchResult {
+  const value =
+    typeof payload === "string" ? parseStrict(payload) : payload instanceof Uint8Array ? parseStrict(Buffer.from(payload).toString("utf8")) : payload;
+  if (!isObject(value)) throw new ResultError("a result is an object");
+  if (value.type !== RESULT_TYPE) throw new ResultError("not a match result");
+  if (!hasFields(value, FIELDS, ["winner_participant_id"])) throw new ResultError("unexpected result fields");
+  const { bridge_id, connection_id, match_id, external_match_id, outcome, revision, participants, winner_participant_id } = value;
+  const text = (field: unknown): field is string => typeof field === "string" && field !== "";
+  const valid =
+    /^brg_[0-9a-f-]{36}$/.test(String(bridge_id)) &&
+    text(connection_id) &&
+    /^emt_[0-9a-f-]{36}$/.test(String(match_id)) &&
+    text(external_match_id) &&
+    (outcome === "completed" || outcome === "restart") &&
+    /^(0|[1-9][0-9]{0,19})$/.test(String(revision)) &&
+    Array.isArray(participants) &&
+    participants.length === 2;
+  if (!valid) throw new ResultError("invalid result");
+  const pair = [parseParticipant(participants[0]), parseParticipant(participants[1])] as [ResultParticipant, ResultParticipant];
+  if (pair[0].slot !== 0 || pair[1].slot !== 1) throw new ResultError("participants are in slots 0 and 1");
+  const winner = winner_participant_id;
+  if (outcome === "completed" ? !text(winner) || !pair.some((p) => p.participant_id === winner) : winner !== undefined) {
+    throw new ResultError("a completed result names one of its participants as the winner, a restart none");
+  }
+  return {
+    type: RESULT_TYPE,
+    bridge_id: bridge_id as string,
+    connection_id: connection_id as string,
+    match_id: match_id as string,
+    external_match_id: external_match_id as string,
+    outcome,
+    revision: revision as string,
+    participants: pair,
+    ...(winner === undefined ? {} : { winner_participant_id: winner as string }),
+  };
+}
+
+/**
+ * Verifies a delivery to your `results_url` with the connection's result
+ * secret, then parses it. It is `verifyWebhook` (a result is signed the same
+ * way) plus the two checks that tie the delivery to its body: the type, and
+ * `webhook-id` being `res_` and the match ID. Answer 2xx once the result is
+ * stored, or 409 if you already have it: the bridge may send it again.
+ */
+export function verifyResult(
+  rawBody: Uint8Array | string,
+  headers: WebhookHeaders | Headers | Record<string, string | string[] | undefined>,
+  secrets: string[],
+  now?: number,
+): MatchResult {
+  verifyWebhook(rawBody, headers, secrets, now);
+  const result = parseResult(rawBody);
+  if (header(headers, "webhook-id") !== `res_${result.match_id}`) throw new WebhookError("webhook-id is not this result's");
+  return result;
+}

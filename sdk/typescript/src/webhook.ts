@@ -20,7 +20,7 @@ function secretBytes(secret: string): Buffer {
   return bytes;
 }
 
-function header(headers: WebhookHeaders | Headers | Record<string, string | string[] | undefined>, name: string): string {
+export function header(headers: WebhookHeaders | Headers | Record<string, string | string[] | undefined>, name: string): string {
   if (typeof (headers as Headers).get === "function") return (headers as Headers).get(name) ?? "";
   const value = (headers as Record<string, string | string[] | undefined>)[name];
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");

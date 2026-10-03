@@ -36,12 +36,16 @@ export const EVENT_TYPES = [
   "tournament.match.reopened",
   "tournament.completed",
   "tournament.cancelled",
+  "room.created",
+  "room.opened",
+  "room.changed",
+  "room.closed",
 ] as const;
 
 export type EventName = (typeof EVENT_TYPES)[number];
 
 /** `io.ember.tournament.<name>.v1`. */
-export function eventType(name: EventName): string {
+export function eventType<Name extends EventName>(name: Name): `io.ember.tournament.${Name}.v1` {
   return `io.ember.tournament.${name}.v1`;
 }
 
@@ -84,4 +88,78 @@ export function parseEvent(payload: string | Uint8Array | Json): BridgeEvent {
     !Array.isArray(event.data);
   if (!valid) throw new EventError("invalid event envelope");
   return event;
+}
+
+/** One open room, as the room routes list it. */
+export interface RoomSummary {
+  room_id: string;
+  name: string;
+  build_id: string;
+  members: number;
+  capacity: number;
+  tables_playing: number;
+  /** The host's relay region code, such as `use1`. */
+  region: string;
+  created_at: number;
+}
+
+/** `waiting` until the creator is in, then `open`, then `closed`. */
+export type RoomState = "waiting" | "open" | "closed";
+
+/** A room as the connection that created it sees it. */
+export interface ConnectionRoom {
+  room: RoomSummary;
+  state: RoomState;
+  creator_ember_id: string;
+  /** The page that opens the room in Ember, or offers to install Ember first. */
+  join_url: string;
+}
+
+/** Why a room closed: your `closeRoom`, or it ended on its own (it emptied, its creator never came, or its host stopped). */
+export type RoomCloseReason = "closed_by_connection" | "ended";
+
+const ROOM_STATES: readonly string[] = ["waiting", "open", "closed"];
+const ROOM_CLOSE_REASONS: readonly string[] = ["closed_by_connection", "ended"];
+
+/** `room.created`, `room.opened` and `room.changed` carry the room as it stands; `room.closed` adds why. */
+export type RoomEvent =
+  | (BridgeEvent & { type: `io.ember.tournament.room.${"created" | "opened" | "changed"}.v1`; data: ConnectionRoom })
+  | (BridgeEvent & { type: "io.ember.tournament.room.closed.v1"; data: ConnectionRoom & { reason: RoomCloseReason } });
+
+function isRoomSummary(value: unknown): value is RoomSummary {
+  const room = value as { [key: string]: unknown } | null;
+  return (
+    typeof room === "object" &&
+    room !== null &&
+    typeof room.room_id === "string" &&
+    typeof room.name === "string" &&
+    typeof room.build_id === "string" &&
+    typeof room.members === "number" &&
+    typeof room.capacity === "number" &&
+    typeof room.tables_playing === "number" &&
+    typeof room.region === "string" &&
+    typeof room.created_at === "number"
+  );
+}
+
+/**
+ * Whether `event` is one of the room events (for rooms your connection
+ * created) with the data its type promises, so its `data` can be read as a
+ * `ConnectionRoom`. Other events, and room events with unexpected data, are
+ * not.
+ */
+export function isRoomEvent(event: BridgeEvent): event is RoomEvent {
+  const kind = event.type;
+  const room = event.data;
+  const known =
+    kind === eventType("room.created") || kind === eventType("room.opened") || kind === eventType("room.changed") || kind === eventType("room.closed");
+  return (
+    known &&
+    isRoomSummary(room.room) &&
+    typeof room.state === "string" &&
+    ROOM_STATES.includes(room.state) &&
+    typeof room.creator_ember_id === "string" &&
+    typeof room.join_url === "string" &&
+    (kind !== eventType("room.closed") || (typeof room.reason === "string" && ROOM_CLOSE_REASONS.includes(room.reason)))
+  );
 }

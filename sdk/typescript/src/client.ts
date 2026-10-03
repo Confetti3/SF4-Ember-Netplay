@@ -2,7 +2,7 @@
 import { randomUUID } from "node:crypto";
 
 import { parseStrict, type Json } from "./canonical.ts";
-import { parseEvent, type BridgeEvent } from "./events.ts";
+import { parseEvent, type BridgeEvent, type ConnectionRoom } from "./events.ts";
 
 export interface BridgeClientOptions {
   /** The bridge origin, e.g. `https://bridge.example`. */
@@ -190,6 +190,24 @@ export interface ResolvedPlayer {
   ember_id?: string;
 }
 
+/** A player found by Discord account and linked on your connection. */
+export interface FoundPlayer {
+  discord_user_id: string;
+  ember_id: string;
+  participant_id: string;
+}
+
+/** A public room to open for a player linked on your connection. */
+export interface RoomSpec {
+  /** 1 to 64 characters on one line. */
+  name: string;
+  /** Seats in the room. */
+  capacity: number;
+  buildId: string;
+  /** Goes in first and moderates the room; must be linked on your connection. */
+  creator: { participantId: string; emberId: string };
+}
+
 type Body = { [key: string]: Json };
 
 export class BridgeClient {
@@ -252,6 +270,16 @@ export class BridgeClient {
   /** This connection's own subjects only; unknown subjects are unlinked. */
   async resolvePlayers(subjects: string[]): Promise<ResolvedPlayer[]> {
     const result = await this.#json<{ players: ResolvedPlayer[] }>("POST", "/v1/players/resolve", { subjects });
+    return result.players;
+  }
+
+  /**
+   * Finds players by Discord user ID (at most 32), for a connection that may
+   * (`discord_lookup`). Each one found is linked on your connection, in the
+   * order asked; an ID with no connected account is left out.
+   */
+  async lookupPlayers(discordIds: string[]): Promise<FoundPlayer[]> {
+    const result = await this.#json<{ players: FoundPlayer[] }>("POST", "/v1/players/lookup", { discord: discordIds });
     return result.players;
   }
 
@@ -471,6 +499,38 @@ export class BridgeClient {
       { reason, expected_revision: expectedRevision },
       { "idempotency-key": idempotencyKey },
     );
+  }
+
+  /**
+   * Opens a public room for a linked player, on a connection with `rooms`.
+   * Refusals carry `error.details.reason`: `not_linked`, `room_limit`,
+   * `unsupported_build` or `invalid_name`. When the creator already has a room
+   * this connection opened, `room_limit` has its ID in `error.details.room_id`.
+   */
+  createRoom(spec: RoomSpec): Promise<ConnectionRoom> {
+    return this.#json("POST", "/v1/rooms", {
+      name: spec.name,
+      capacity: spec.capacity,
+      build_id: spec.buildId,
+      creator: { participant_id: spec.creator.participantId, ember_id: spec.creator.emberId },
+    });
+  }
+
+  /** The rooms your connection opened that are not closed, newest first. */
+  async listRooms(buildId?: string): Promise<ConnectionRoom[]> {
+    const query = buildId === undefined ? "" : `?build_id=${encodeURIComponent(buildId)}`;
+    const result = await this.#json<{ rooms: ConnectionRoom[] }>("GET", `/v1/rooms${query}`);
+    return result.rooms;
+  }
+
+  /** One of your connection's rooms, closed ones included for a day. */
+  getRoom(roomId: string): Promise<ConnectionRoom> {
+    return this.#json("GET", `/v1/rooms/${encodeURIComponent(roomId)}`);
+  }
+
+  /** Closes a room your connection opened (`reason` is 1 to 256 characters). Closing a closed room answers it again. */
+  closeRoom(roomId: string, reason: string): Promise<ConnectionRoom> {
+    return this.#json("POST", `/v1/rooms/${encodeURIComponent(roomId)}/close`, { reason });
   }
 
   /** Events after `after`, oldest first, with the cursor to continue from. */

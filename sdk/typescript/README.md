@@ -45,6 +45,48 @@ if (event.type === eventType("match.completed")) { /* advance the bracket */ }
 (five minutes) and the HMAC over the exact bytes received. Deduplicate on
 `event.id`, and answer 2xx only after the event is stored.
 
+## Room bots and results
+
+A connection the bridge's operator set up for it can find players by Discord
+account, open public rooms for them, and receive each finished match's result.
+The contract is [docs/design/INTEGRATION_PATHS.md](../../docs/design/INTEGRATION_PATHS.md).
+
+```ts
+import { BridgeError, eventType, isRoomEvent, verifyResult } from "@ember/bridge-sdk";
+
+// A chat command: find the person who typed it, and open a room for them.
+const [player] = await bridge.lookupPlayers([discordUserId]);
+if (player) {
+  const creator = { participantId: player.participant_id, emberId: player.ember_id };
+  try {
+    const room = await bridge.createRoom({ name: "Fight Night", capacity: 8, buildId: build, creator });
+    reply(room.join_url);
+  } catch (error) {
+    // The creator already has a room this connection opened: hand out its link.
+    if (!(error instanceof BridgeError) || error.details.reason !== "room_limit" || typeof error.details.room_id !== "string") throw error;
+    reply((await bridge.getRoom(error.details.room_id)).join_url);
+  }
+}
+await bridge.closeRoom(roomId, "Night over");
+
+// Room events (room.created, room.opened, room.changed, room.closed) are for
+// the rooms your connection opened; isRoomEvent narrows them.
+if (isRoomEvent(event) && event.type === eventType("room.closed")) reply(`closed: ${event.data.reason}`);
+
+// A connection with a results_url gets each finished match's result, signed
+// like a webhook. verifyResult checks the signature and that the delivery is
+// for the match it carries, then parses it. Answer 2xx once it is stored, or
+// 409 if you already have it.
+const result = verifyResult(rawBody, request.headers, [resultSecret]);
+if (result.outcome === "completed") advance(result.external_match_id, result.winner_participant_id);
+else replay(result.external_match_id); // cancelled or failed: play it again
+```
+
+`lookupPlayers` needs `discord_lookup` on the connection, and the room calls
+need `rooms`; without them the bridge answers `forbidden` (`not_found` when it has
+no public rooms at all). `parseResult` checks a result body's shape without a
+signature, for tests.
+
 The package also implements the identity and signature rules shared with
 Ember (`emberIdFromPublicKey`, `verifyProof`, `verifyReport`, `canonicalize`).
 Its tests check them against the specification's public fixtures.
@@ -57,9 +99,9 @@ publishes a room, asks for game permits and signs reports the way Ember does.
 npm test
 ```
 
-`test/bridge.test.ts` runs against the real bridge when
-`rust/ember/target/debug/ember-bridge` exists (`cargo build -p ember-bridge`)
-and is skipped otherwise. Node 22.18 or later runs the TypeScript sources
+The tests that use a bridge (`bridge`, `play`, `lookup`, `rooms` and `results`)
+run against the real one when `rust/ember/target/debug/ember-bridge` exists
+(`cargo build -p ember-bridge`) and are skipped otherwise. Node 22.18 or later runs the TypeScript sources
 directly, as long as it was built with TypeScript support: some Linux
 distribution packages leave it out (`node -p process.features.typescript`
 prints `false`), so use the nodejs.org build there. `npm run build` emits

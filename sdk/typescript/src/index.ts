@@ -4,6 +4,7 @@ export {
   BridgeClient,
   BridgeError,
   type BridgeClientOptions,
+  type FoundPlayer,
   type Lobby,
   type LobbyPlayer,
   type LobbyStanding,
@@ -14,6 +15,7 @@ export {
   type RecentMatch,
   type ResolvedPlayer,
   type Rotation,
+  type RoomSpec,
   type RulesProfile,
   type Tournament,
   type TournamentEntrant,
@@ -23,8 +25,22 @@ export {
   type TournamentSpec,
 } from "./client.ts";
 export { canonicalize, parseStrict, StrictJsonError, type Json } from "./canonical.ts";
-export { EVENT_TYPES, EventError, eventType, parseEvent, type BridgeEvent, type EventName } from "./events.ts";
+export {
+  EVENT_TYPES,
+  EventError,
+  eventType,
+  isRoomEvent,
+  parseEvent,
+  type BridgeEvent,
+  type ConnectionRoom,
+  type EventName,
+  type RoomCloseReason,
+  type RoomEvent,
+  type RoomState,
+  type RoomSummary,
+} from "./events.ts";
 export { base64url, decodeBase64url, emberIdFromPublicKey, EncodingError, fingerprint, isEmberId, verifyEd25519 } from "./identity.ts";
+export { parseResult, ResultError, RESULT_TYPE, verifyResult, type MatchResult, type ResultOutcome, type ResultParticipant } from "./results.ts";
 export {
   CHALLENGE_DOMAIN,
   checkChallenge,

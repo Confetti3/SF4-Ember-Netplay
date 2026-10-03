@@ -118,6 +118,18 @@ export class TestPlayer {
     return (await this.#send("/v1/link-claims", token, body, 201)) as unknown as LinkClaim;
   }
 
+  /**
+   * Starts connecting a Discord account, as Ember's Connect Discord does. The
+   * bridge answers with the Discord address the player's browser goes to; the
+   * account is connected when Discord sends the browser back to the bridge.
+   */
+  async startDiscordConnect(): Promise<{ authorize_url: string; expires_at: number }> {
+    const token = await this.#sessionToken();
+    const path = "/v1/discord/start";
+    const body = await this.#prove(token, "discord.connect", path, {});
+    return (await this.#send(path, token, body, 201)) as unknown as { authorize_url: string; expires_at: number };
+  }
+
   /** The player's own links, as Ember lists them. */
   async links(): Promise<Json> {
     const token = await this.#sessionToken();
