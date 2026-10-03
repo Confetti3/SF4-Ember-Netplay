@@ -8,10 +8,10 @@ Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by A
 
 - **Choose how long invite links last.** Create room and Settings > Gameplay defaults have a new Invite links last row: 1, 3, 6 or 12 hours, 1, 3, 7 or 30 days, or Until the room closes. The default is now 1 day instead of 1 hour.
 - **Links keep their full time while the room is open.** Ember renews the link it shows as the room stays open, so a link you copy lasts close to the time you chose, not as little as half of it.
-- **The setting covers the links you copy.** Hosts and guests each choose their own. A guest's copy follows the guest's setting once they are in the room.
+- **The setting covers the links you copy.** Hosts and guests each choose their own. A guest's copy is renewed to the guest's setting when that is longer than the link they joined with; a shorter setting never cuts a link short.
 
 Everyone in a room needs v1.0.1. v1.0.0 and v1.0.1 cannot join each other's rooms, as with any other package change.
 
 ## Testing
 
-See the package's build receipt for the automated test results.
+The full build passed all 87 automated tests. The new setting has not yet had a two-PC test.
