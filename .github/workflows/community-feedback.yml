@@ -2,59 +2,11 @@ name: Community feedback validation
 on:
   push:
     branches: ['codex/community-feedback-20261003']
+    paths: ['src/**', 'locales/**', 'CMakeLists.txt', 'cmake/**', 'vcpkg*', 'vcpkg-overlays/**']
 permissions:
   contents: read
 jobs:
-  apply-reviewed-changes:
-    if: github.repository == 'Confetti3/SF4-Ember-Netplay' && github.ref == 'refs/heads/codex/community-feedback-20261003' && github.event.head_commit.message == 'Apply reviewed community feedback patch series'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: write
-    outputs:
-      sha: ${{ steps.apply.outputs.sha }}
-    steps:
-      - name: Check out the review branch
-        run: |
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --depth=1 origin "$GITHUB_SHA"
-          git checkout --detach FETCH_HEAD
-      - name: Apply the verified source patches to this branch only
-        id: apply
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          python - <<'PY'
-          import base64, gzip, hashlib, json, os, subprocess, urllib.request
-          parts = ['d5a52197df7205fde9a15f06380618c56d5f0660', '3753bee7e3929550bdf6d6e6fee0a6003c320f05', '57948a9c987122a363f4edd7e465d63ece6ae3b7', '0a67018360f3acc9cf2a98c7583a4e54a3f2c168', '3c622580b9336bd00f1c65098d9925a45ad1a719', 'edb2825af7ed81af708e12204e3aa6cd39016079', 'ff8fd3babc767d4e92507f33a5d4f8b389677e9d', 'c6c8f193b9ecbe69fb100ebea88a7be75e8852e4', 'd166522691f377f44549dde4eab3c3a1bc6a1417', 'fc9d9da088abc7d484415ee4903bb6ea2b17799c']
-          def blob_sha(data):
-              return hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
-          bundle = b''
-          for sha in parts:
-              req = urllib.request.Request('https://api.github.com/repos/Confetti3/SF4-Ember-Netplay/git/blobs/' + sha, headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
-              with urllib.request.urlopen(req, timeout=30) as response:
-                  data = base64.b64decode(json.load(response)['content'])
-              assert blob_sha(data) == sha, 'Patch part changed'
-              bundle += data
-          assert blob_sha(bundle) == 'ac9532db78bbd25ff8e989487565a6acd1a9754e', 'Patch series changed'
-          patches = json.loads(gzip.decompress(bundle))
-          subprocess.run(['git', 'config', 'user.name', 'github-actions[bot]'], check=True)
-          subprocess.run(['git', 'config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'], check=True)
-          for entry in patches:
-              patch = entry['patch'].encode('utf-8')
-              subprocess.run(['git', 'apply', '--check', '--unidiff-zero', '--index'], input=patch, check=True)
-              subprocess.run(['git', 'apply', '--unidiff-zero', '--index'], input=patch, check=True)
-              subprocess.run(['git', 'commit', '-m', entry['subject']], check=True)
-          auth = base64.b64encode(('x-access-token:' + os.environ['GH_TOKEN']).encode()).decode()
-          subprocess.run(['git', '-c', 'http.extraheader=AUTHORIZATION: basic ' + auth, 'push', 'origin', 'HEAD:refs/heads/codex/community-feedback-20261003'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-          sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              output.write('sha=' + sha + '\n')
-          print('Review branch updated to ' + sha)
-          PY
   core-tests:
-    needs: apply-reviewed-changes
     strategy:
       fail-fast: false
       matrix:
@@ -65,13 +17,11 @@ jobs:
       run:
         shell: bash
     steps:
-      - name: Check out the reviewed source
-        env:
-          REVIEW_SHA: ${{ needs.apply-reviewed-changes.outputs.sha }}
+      - name: Check out the exact review commit
         run: |
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --depth=1 origin "$REVIEW_SHA"
+          git fetch --depth=1 origin "$GITHUB_SHA"
           git checkout --detach FETCH_HEAD
       - name: Configure game-independent tests
         run: cmake -S . -B build/core -DSF4E_CORE_TESTS_ONLY=ON -DCMAKE_BUILD_TYPE=Release ${{ runner.os == 'Windows' && '-A Win32' || '' }}
@@ -80,18 +30,15 @@ jobs:
       - name: Run game-independent tests
         run: ctest --test-dir build/core -C Release --output-on-failure
   native-windows:
-    needs: apply-reviewed-changes
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
-      - name: Check out the reviewed source
+      - name: Check out the exact review commit
         shell: bash
-        env:
-          REVIEW_SHA: ${{ needs.apply-reviewed-changes.outputs.sha }}
         run: |
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --depth=1 origin "$REVIEW_SHA"
+          git fetch --depth=1 origin "$GITHUB_SHA"
           git checkout --detach FETCH_HEAD
       - name: Build x86 binaries and test affected native paths
         shell: pwsh
