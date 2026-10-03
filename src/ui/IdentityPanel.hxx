@@ -124,6 +124,8 @@ private:
     // Stops the attempt: what it queued and has not sent goes too, and an
     // answer already out no longer advances it.
     void CancelAttempt();
+    // Connect Discord's own rows: true when `a` was one of them.
+    bool ConnectActivate(const MenuAction& a, const ShellView& view);
     bool Active() const { return attempt_ == Attempt::Setup || attempt_ == Attempt::Opening || attempt_ == Attempt::Waiting; }
     // Connect Discord starts over: a sign-in an earlier visit opened is no
     // longer waited for, and its late answers start no wait.
