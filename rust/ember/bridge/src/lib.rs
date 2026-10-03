@@ -135,7 +135,9 @@ pub async fn deliver_to_blumint(state: &AppState) {
 }
 
 /// Tells BluMint where the connection's endpoints are (`routes::blumint`).
+/// The command line runs it without `start`, so it sets up TLS itself.
 pub async fn register_blumint(state: &AppState, connection_id: &str) -> Result<(), String> {
+    install_crypto_provider();
     routes::blumint::register(state, connection_id).await
 }
 
