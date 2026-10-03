@@ -12,7 +12,7 @@ use axum::{
     http::{HeaderMap, StatusCode as AxumStatus, Uri},
     routing::post,
 };
-use common::{Bridge, Player};
+use common::{Bridge, Player, results};
 use ember_bridge::{AppState, Keys, config, integrations::Secrets};
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
@@ -186,72 +186,13 @@ fn submitted(f: &Fixture) -> Vec<Json> {
 }
 
 async fn win(f: &Fixture, id: &str, slot: u8, key: &str) {
-    let (status, decided) = f
-        .bridge
-        .post_keyed(
-            &f.organizer,
-            &format!("/v1/matches/{id}/adjudications"),
-            json!({ "kind": "game_result", "winner_slot": slot, "reason": "test", "expected_revision": status_revision(f, id).await }),
-            Some(key),
-        )
-        .await;
-    assert_eq!(status, StatusCode::CREATED, "{decided}");
+    results::win(&f.bridge, &f.provider, &f.organizer, id, slot, key).await;
 }
 
-/// Voids the match's last accepted game, as an organizer correcting it.
 async fn void_last(f: &Fixture, id: &str, key: &str) -> StatusCode {
-    let (_, found) = f
-        .bridge
-        .get(&f.provider, &format!("/v1/matches/{id}"))
-        .await;
-    let last = found["attempts"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .rev()
-        .find(|attempt| attempt["state"] == "accepted")
-        .unwrap()["attempt_id"]
-        .clone();
-    let (status, _) = f
-        .bridge
-        .post_keyed(
-            &f.organizer,
-            &format!("/v1/matches/{id}/adjudications"),
-            json!({ "kind": "void_game", "attempt_id": last, "reason": "Wrong game", "expected_revision": found["revision"] }),
-            Some(key),
-        )
-        .await;
-    status
-}
-
-/// A match's `delivery_state` and attempts.
-async fn delivery(f: &Fixture, id: &str) -> (String, u32) {
-    let id = id.to_owned();
-    f.bridge
-        .state()
-        .db
-        .read(move |tx| {
-            Ok(tx.query_row(
-                "SELECT delivery_state, delivery_attempts FROM matches WHERE id = ?1",
-                [&id],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )?)
-        })
+    results::void_last(&f.bridge, &f.provider, &f.organizer, id, key)
         .await
-        .unwrap()
-}
-
-/// Runs delivery passes until the match's delivery is `done`, for at most
-/// five seconds.
-async fn until(f: &Fixture, id: &str, done: impl Fn((String, u32)) -> bool) {
-    for _ in 0..250 {
-        if done(delivery(f, id).await) {
-            return;
-        }
-        ember_bridge::deliver_results(f.bridge.state()).await;
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    }
-    panic!("delivery did not settle");
+        .0
 }
 
 async fn status_revision(f: &Fixture, id: &str) -> String {
@@ -368,15 +309,18 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
     f.blumint.lock().unwrap().fail = 1;
     win(&f, &id, 1, "game-1").await;
     assert_eq!(match_status(&f, &id).await["status"], "complete");
-    until(&f, &id, |(state, attempts)| {
+    results::until(&f.bridge, &id, |(state, attempts)| {
         state == "retrying" && attempts == 1
     })
     .await;
     assert!(submitted(&f).is_empty());
     f.bridge.clock.advance(11);
-    until(&f, &id, |(state, _)| state == "delivered").await;
+    results::until(&f.bridge, &id, |(state, _)| state == "delivered").await;
     ember_bridge::deliver_results(f.bridge.state()).await;
-    assert_eq!(delivery(&f, &id).await, ("delivered".into(), 2));
+    assert_eq!(
+        results::delivery(&f.bridge, &id).await,
+        ("delivered".into(), 2)
+    );
     assert_eq!(
         submitted(&f),
         vec![json!({ "matchId": id, "teams": [
@@ -433,11 +377,17 @@ async fn a_result_is_final_once_it_is_being_sent() {
     );
     f.blumint.lock().unwrap().fail = 1;
     ember_bridge::deliver_results(&keyed).await;
-    assert_eq!(delivery(&f, &id).await, ("retrying".into(), 1));
+    assert_eq!(
+        results::delivery(&f.bridge, &id).await,
+        ("retrying".into(), 1)
+    );
     assert_eq!(void_last(&f, &id, "void-2").await, StatusCode::CONFLICT);
     f.bridge.clock.advance(11);
     ember_bridge::deliver_results(&keyed).await;
-    assert_eq!(delivery(&f, &id).await, ("delivered".into(), 2));
+    assert_eq!(
+        results::delivery(&f.bridge, &id).await,
+        ("delivered".into(), 2)
+    );
     assert_eq!(void_last(&f, &id, "void-3").await, StatusCode::CONFLICT);
     assert_eq!(
         submitted(&f),
@@ -647,7 +597,10 @@ async fn a_disabled_connection_sends_nothing_until_enabled_again() {
     );
     assert!(f.blumint.lock().unwrap().calls.is_empty());
     assert_eq!(credentials().await, issued);
-    assert_eq!(delivery(&f, &id).await, ("queued".into(), 0));
+    assert_eq!(
+        results::delivery(&f.bridge, &id).await,
+        ("queued".into(), 0)
+    );
 
     let enabled = keyed_state(true);
     ember_bridge::sync_config(&enabled).await.unwrap();

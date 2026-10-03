@@ -4,166 +4,24 @@
 //! kicks, rooms gone) move the bridge's view of each room.
 mod common;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-use axum::{
-    Router,
-    body::Bytes,
-    extract::{Path, State},
-    http::{HeaderMap, StatusCode as AxumStatus},
-    routing::post,
+use common::{
+    Bridge, Player, code,
+    supervisor::{BUILD, ENDPOINT, Gate, Supervisor, enable, fake_supervisor, report, secrets},
 };
-use common::{Bridge, Player, code};
-use ember_bridge::{config, integrations::Secrets};
+use ember_bridge::config;
 use ember_protocol::{
     PublicKey, SigningIdentity,
     rooms::{MAX_ROOM_BANS, RoomAdmission, RoomList, RoomSummary, TICKET_SECS},
 };
 use reqwest::StatusCode;
 use serde_json::{Value as Json_, json};
-use tokio::sync::Notify;
 use zeroize::Zeroizing;
-
-const SECRET: &str = "test-secret";
-const BUILD: &str = "build-1";
-const ENDPOINT: &str = "ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12";
-
-/// What the stand-in supervisor holds and how it answers.
-#[derive(Default)]
-struct Fake {
-    /// `POST /rooms` bodies, as received.
-    created: Vec<Json_>,
-    /// What `GET /rooms` lists.
-    rooms: Vec<Json_>,
-    /// Refuses `POST /rooms` with this reason.
-    refuse: Option<&'static str>,
-    /// Fails `GET /rooms`.
-    down: bool,
-    /// Holds `POST /rooms` until released.
-    hold: Option<Arc<Gate>>,
-    /// Holds the answer to `GET /rooms` until released. The list is read
-    /// before the hold, so the answer is as of the moment it arrived.
-    list_hold: Option<Arc<Gate>>,
-    deleted: Vec<String>,
-}
-
-#[derive(Default)]
-struct Gate {
-    arrived: Notify,
-    release: Notify,
-}
-
-type Supervisor = Arc<Mutex<Fake>>;
-
-fn authorized(headers: &HeaderMap) -> bool {
-    headers
-        .get("authorization")
-        .and_then(|value| value.to_str().ok())
-        == Some(&format!("Bearer {SECRET}"))
-}
-
-async fn fake_supervisor() -> (Supervisor, String) {
-    async fn create(
-        State(fake): State<Supervisor>,
-        headers: HeaderMap,
-        body: Bytes,
-    ) -> (AxumStatus, String) {
-        if !authorized(&headers) {
-            return (AxumStatus::UNAUTHORIZED, "{}".into());
-        }
-        let body: Json_ = serde_json::from_slice(&body).unwrap();
-        let hold = fake.lock().unwrap().hold.clone();
-        if let Some(gate) = hold {
-            gate.arrived.notify_one();
-            gate.release.notified().await;
-        }
-        let mut fake = fake.lock().unwrap();
-        if let Some(reason) = fake.refuse {
-            return (
-                AxumStatus::CONFLICT,
-                json!({ "reason": reason }).to_string(),
-            );
-        }
-        let room_id = body["room_id"].as_str().unwrap().to_owned();
-        fake.created.push(body.clone());
-        fake.rooms.push(json!({
-            "room_id": room_id, "members": 0, "capacity": body["capacity"],
-            "tables_playing": 0, "invitation": format!("sf4e3:{room_id}"), "banned": [],
-            "opened": false,
-        }));
-        (
-            AxumStatus::CREATED,
-            json!({ "invitation": format!("sf4e3:{room_id}"), "region": "use1" }).to_string(),
-        )
-    }
-    async fn list(State(fake): State<Supervisor>, headers: HeaderMap) -> (AxumStatus, String) {
-        let (answer, hold) = {
-            let fake = fake.lock().unwrap();
-            if !authorized(&headers) || fake.down {
-                return (AxumStatus::INTERNAL_SERVER_ERROR, "{}".into());
-            }
-            (
-                Json_::Array(fake.rooms.clone()).to_string(),
-                fake.list_hold.clone(),
-            )
-        };
-        if let Some(gate) = hold {
-            gate.arrived.notify_one();
-            gate.release.notified().await;
-        }
-        (AxumStatus::OK, answer)
-    }
-    async fn delete(State(fake): State<Supervisor>, Path(id): Path<String>) -> AxumStatus {
-        let mut fake = fake.lock().unwrap();
-        fake.rooms.retain(|room| room["room_id"] != id.as_str());
-        fake.deleted.push(id);
-        AxumStatus::NO_CONTENT
-    }
-    let fake = Supervisor::default();
-    let app = Router::new()
-        .route("/rooms", post(create).get(list))
-        .route("/rooms/{id}", axum::routing::delete(delete))
-        .with_state(fake.clone());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let url = format!("http://{}", listener.local_addr().unwrap());
-    tokio::spawn(async move { axum::serve(listener, app).await });
-    (fake, url)
-}
-
-/// What the stand-in reports for `room_id`.
-fn report(fake: &Supervisor, room_id: &str, members: u32, tables: u32, banned: &[&str]) {
-    let mut fake = fake.lock().unwrap();
-    let room = fake
-        .rooms
-        .iter_mut()
-        .find(|room| room["room_id"] == room_id)
-        .expect("the supervisor hosts the room");
-    room["members"] = json!(members);
-    // The supervisor latches the first member it sees.
-    room["opened"] = json!(room["opened"] == true || members >= 1);
-    room["tables_playing"] = json!(tables);
-    room["banned"] = json!(banned);
-}
-
-fn secrets() -> Secrets {
-    Secrets {
-        rooms_supervisor_secret: Some(Zeroizing::new(SECRET.into())),
-        ..Default::default()
-    }
-}
 
 async fn start() -> (Bridge, Supervisor) {
     let (fake, url) = fake_supervisor().await;
-    let bridge = Bridge::start_with(
-        |config| {
-            config.rooms = Some(config::Rooms {
-                supervisor_url: url,
-            });
-            config.integration_secrets = Some("unused-in-tests.json".into());
-        },
-        secrets(),
-    )
-    .await;
+    let bridge = Bridge::start_with(|config| enable(config, url), secrets()).await;
     (bridge, fake)
 }
 
@@ -280,16 +138,7 @@ async fn a_bridge_without_a_supervisor_offers_no_rooms() {
 
     // A supervisor address without its secret is as good as none.
     let (_, url) = fake_supervisor().await;
-    let bridge = Bridge::start_with(
-        |config| {
-            config.rooms = Some(config::Rooms {
-                supervisor_url: url,
-            });
-            config.integration_secrets = Some("unused-in-tests.json".into());
-        },
-        Default::default(),
-    )
-    .await;
+    let bridge = Bridge::start_with(|config| enable(config, url), Default::default()).await;
     let kate = player(&bridge, 1).await;
     let (_, capabilities) = bridge.get(kate.token(), "/v1/capabilities").await;
     assert!(!capabilities["features"].to_string().contains("rooms"));

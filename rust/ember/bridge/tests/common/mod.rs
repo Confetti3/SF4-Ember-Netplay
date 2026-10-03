@@ -4,6 +4,9 @@
 #![allow(dead_code)]
 
 pub mod league;
+pub mod receiver;
+pub mod results;
+pub mod supervisor;
 
 use std::path::PathBuf;
 

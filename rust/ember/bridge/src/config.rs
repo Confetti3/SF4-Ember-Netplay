@@ -380,10 +380,26 @@ pub fn is_slug(text: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
 
-    fn with_api_base(kind: &str, api_base: &str, loopback: bool) -> Result<(), String> {
-        let config: Config = serde_json::from_value(serde_json::json!({
+    /// Whether a configuration with one connection of `kind` and these extra
+    /// settings is accepted.
+    fn validated(
+        kind: &str,
+        extra: serde_json::Value,
+        loopback: bool,
+        allow_private_webhooks: bool,
+    ) -> Result<(), String> {
+        let mut connection = json!({
+            "id": "bm-partner", "kind": kind, "environment": "staging", "display_name": "BluMint",
+        });
+        connection
+            .as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        let config: Config = serde_json::from_value(json!({
             "bridge_id": ember_protocol::encoding::prefixed_id("brg", [7; 16]),
             "display_name": "Test bridge",
             "origin": "https://bridge.example",
@@ -391,13 +407,29 @@ mod tests {
             "database": "bridge.sqlite3",
             "secrets": "secrets.json",
             "allow_loopback_http": loopback,
-            "tenants": [{ "id": "bm", "name": "BluMint", "connections": [{
-                "id": "bm-partner", "kind": kind, "environment": "staging",
-                "display_name": "BluMint", "api_base": api_base,
-            }] }],
+            "allow_private_webhooks": allow_private_webhooks,
+            "tenants": [{ "id": "bm", "name": "BluMint", "connections": [connection] }],
         }))
         .unwrap();
         config.validate()
+    }
+
+    fn with_api_base(kind: &str, api_base: &str, loopback: bool) -> Result<(), String> {
+        validated(kind, json!({ "api_base": api_base }), loopback, false)
+    }
+
+    fn with_settings(kind: &str, settings: serde_json::Value) -> Result<(), String> {
+        validated(kind, settings, false, false)
+    }
+
+    /// A direct connection with this `results_url`.
+    fn with_results_url(url: &str, allow_private_webhooks: bool) -> Result<(), String> {
+        validated(
+            "direct",
+            json!({ "results_url": url }),
+            false,
+            allow_private_webhooks,
+        )
     }
 
     #[test]
@@ -419,5 +451,62 @@ mod tests {
         assert!(with_api_base(BLUMINT, "http://staging.blumint.io/api", true).is_err());
         // A kind that calls no API takes none.
         assert!(with_api_base("direct", "https://staging.blumint.io/api", false).is_err());
+    }
+
+    #[test]
+    fn blumints_lookup_disputes_and_results_are_fixed_by_its_kind() {
+        assert!(with_settings(BLUMINT, json!({})).is_ok());
+        for chosen in [
+            json!({ "discord_lookup": true }),
+            json!({ "disputes": "restart" }),
+            json!({ "disputes": "review" }),
+            json!({ "results_url": "https://bot.example/results" }),
+        ] {
+            assert!(with_settings(BLUMINT, chosen.clone()).is_err(), "{chosen}");
+        }
+        // A mock connection, for local testing, may set all of them.
+        let all = json!({
+            "discord_lookup": true, "disputes": "restart", "results_url": "https://bot.example/results",
+            "rooms": { "max_open": 8 },
+        });
+        for kind in ["direct", "mock"] {
+            assert!(with_settings(kind, all.clone()).is_ok(), "{kind}");
+        }
+    }
+
+    #[test]
+    fn a_results_url_follows_the_rules_of_a_webhook_url() {
+        assert!(with_results_url("https://bot.example/ember/results", false).is_ok());
+        let too_long = format!("https://bot.example/{}", "a".repeat(2100));
+        for refused in [
+            "http://bot.example/results",
+            "https://user:secret@bot.example/results",
+            "https://bot.example:8443/results",
+            "https://bot.example/results#fragment",
+            "https://127.0.0.1/results",
+            "https://169.254.169.254/results",
+            "not a url",
+            too_long.as_str(),
+        ] {
+            assert!(with_results_url(refused, false).is_err(), "{refused}");
+        }
+        // Local receivers are for tests only; metadata addresses and
+        // credentials stay refused.
+        assert!(with_results_url("http://127.0.0.1:9000/results", true).is_ok());
+        assert!(with_results_url("https://bot.example:8443/results", true).is_ok());
+        assert!(with_results_url("http://169.254.169.254/results", true).is_err());
+        assert!(with_results_url("http://user:secret@127.0.0.1:9000/results", true).is_err());
+    }
+
+    #[test]
+    fn a_connections_open_rooms_are_one_to_sixty_four() {
+        let rooms =
+            |max_open: u32| with_settings("direct", json!({ "rooms": { "max_open": max_open } }));
+        for accepted in [1, 8, 64] {
+            assert!(rooms(accepted).is_ok(), "{accepted}");
+        }
+        for refused in [0, 65] {
+            assert!(rooms(refused).is_err(), "{refused}");
+        }
     }
 }

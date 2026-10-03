@@ -2,16 +2,16 @@
 //! RESULT-10, RESULT-19, PROVIDER-02, WEB-01 to WEB-06).
 mod common;
 
-use std::{
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::time::Duration;
 
-use axum::{Router, body::Bytes, http::HeaderMap, routing::post};
-use common::{Bridge, Player, code, types};
+use common::{
+    Bridge, Player, code,
+    receiver::{receiver, wait_for},
+    types,
+};
 use ember_protocol::{
     matches::{DeliveryState, MatchCompleted},
-    webhook::{self, Headers, Secret},
+    webhook::{self, Secret},
 };
 use reqwest::StatusCode;
 use serde_json::{Value, json};
@@ -410,62 +410,6 @@ async fn cancel_and_unlink_follow_policy() {
     assert_eq!(cancelled["state"], "cancelled");
 }
 
-type Delivery = (Headers, Vec<u8>);
-
-#[derive(Clone, Default)]
-struct Receiver {
-    deliveries: Arc<Mutex<Vec<Delivery>>>,
-    /// Status codes to answer with before succeeding.
-    failures: Arc<Mutex<Vec<u16>>>,
-}
-
-async fn receiver() -> (String, Receiver) {
-    let state = Receiver::default();
-    let shared = state.clone();
-    let app = Router::new().route(
-        "/hook",
-        post(move |headers: HeaderMap, body: Bytes| {
-            let shared = shared.clone();
-            async move {
-                let get = |name: &str| {
-                    headers
-                        .get(name)
-                        .map(|v| v.to_str().unwrap().to_owned())
-                        .unwrap_or_default()
-                };
-                shared.deliveries.lock().unwrap().push((
-                    Headers {
-                        id: get("webhook-id"),
-                        timestamp: get("webhook-timestamp"),
-                        signature: get("webhook-signature"),
-                    },
-                    body.to_vec(),
-                ));
-                let status = shared.failures.lock().unwrap().pop().unwrap_or(200);
-                axum::http::StatusCode::from_u16(status).unwrap()
-            }
-        }),
-    );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let address = listener.local_addr().unwrap();
-    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
-    (format!("http://{address}/hook"), state)
-}
-
-async fn wait_for(receiver: &Receiver, count: usize) -> Vec<Delivery> {
-    for _ in 0..200 {
-        let deliveries = receiver.deliveries.lock().unwrap().clone();
-        if deliveries.len() >= count {
-            return deliveries;
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    panic!(
-        "expected {count} deliveries, got {}",
-        receiver.deliveries.lock().unwrap().len()
-    );
-}
-
 // WEB-01, WEB-02, WEB-03, WEB-04
 #[tokio::test]
 async fn webhooks_are_signed_retried_and_rotated() {
@@ -525,7 +469,7 @@ async fn webhooks_are_signed_retried_and_rotated() {
     assert_eq!(replay["secret_redacted"], true);
 
     // The first delivery fails, the retry carries the same ID and body.
-    hook.failures.lock().unwrap().push(503);
+    hook.answer_with(&[503]);
     let (id, _) = create_match(&f).await;
     let deliveries = wait_for(&hook, 2).await;
     let (first, second) = (&deliveries[0], &deliveries[1]);
@@ -720,7 +664,7 @@ async fn a_revoked_owners_webhook_receives_nothing() {
     create_match(&f).await;
     wait_for(&control, 1).await;
     tokio::time::sleep(Duration::from_millis(300)).await;
-    assert!(hook.deliveries.lock().unwrap().is_empty());
+    assert!(hook.received().is_empty());
     // And a revoked credential cannot create another subscription.
     let (status, _) = f
         .bridge
