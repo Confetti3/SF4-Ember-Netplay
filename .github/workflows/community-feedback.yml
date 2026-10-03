@@ -1,0 +1,41 @@
+name: Community feedback validation
+on:
+  push:
+    branches: ['codex/community-feedback-20261003']
+permissions:
+  contents: read
+jobs:
+  core-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the exact review commit
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "$GITHUB_SHA"
+          git checkout --detach FETCH_HEAD
+      - name: Capture the source used for validation
+        if: runner.os == 'Linux'
+        run: |
+          git archive --format=tar --output=review-source.tar HEAD src scripts cmake locales docs .github CMakeLists.txt CMakePresets.json build-target.json vcpkg.json vcpkg-configuration.json vcpkg-overlays
+      - name: Upload review source
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: community-feedback-source
+          path: review-source.tar
+          retention-days: 1
+      - name: Configure game-independent tests
+        run: cmake -S . -B build/core -DSF4E_CORE_TESTS_ONLY=ON -DCMAKE_BUILD_TYPE=Release ${{ runner.os == 'Windows' && '-A Win32' || '' }}
+      - name: Build game-independent tests
+        run: cmake --build build/core --config Release
+      - name: Run game-independent tests
+        run: ctest --test-dir build/core -C Release --output-on-failure
