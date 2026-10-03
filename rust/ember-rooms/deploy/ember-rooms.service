@@ -1,0 +1,69 @@
+[Unit]
+Description=Ember public room supervisor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/lib/ember-rooms/ember-rooms /etc/ember-rooms/config.json
+Restart=on-failure
+RestartSec=2
+User=ember-rooms
+Group=ember-rooms
+
+# Helper state and logs. The supervisor starts every room host here and
+# gives the host a HOME it can write to.
+StateDirectory=ember-rooms
+StateDirectoryMode=0700
+WorkingDirectory=/var/lib/ember-rooms
+Environment=HOME=/var/lib/ember-rooms
+UMask=0077
+
+# SIGTERM starts a drain: no new rooms, existing ones run until empty or
+# drain_secs (600 in config.json). The stop timeout must stay above
+# drain_secs plus the 10 s the supervisor gives a host to exit, so a restart
+# waits for the drain instead of killing rooms. Raise both together.
+TimeoutStopSec=660
+# Only the supervisor gets the SIGTERM, so it can drain; the room hosts keep
+# running until it closes them. If the unit is still up at TimeoutStopSec,
+# SIGKILL goes to everything left in the cgroup, so no room host outlives the
+# supervisor. (control-group would send the SIGTERM to every room host at
+# once and defeat the drain.)
+KillMode=mixed
+# If the kernel kills one room host for memory, keep the other rooms: the
+# supervisor reaps the dead child and removes only that room.
+OOMPolicy=continue
+
+# Room hosts open UDP sockets to the Internet (iroh QUIC, relays over HTTPS,
+# DNS), so there is no address filter and no system call filter. The
+# supervisor starts two processes per room, so process spawning must work.
+# AF_NETLINK is for the network interface watcher in the helper.
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+
+# The box has 1.8 GB and also runs the bridge and the short-link service.
+# This limit covers the supervisor and every room host together.
+MemoryMax=700M
+# About 64 tasks per room (room host plus helper threads) for max_rooms 8.
+# Raise it with max_rooms; setup.sh warns when the config asks for more.
+TasksMax=512
+
+[Install]
+WantedBy=multi-user.target

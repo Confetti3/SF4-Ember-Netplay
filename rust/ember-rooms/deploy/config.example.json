@@ -1,0 +1,9 @@
+{
+  "bind": "127.0.0.1:47830",
+  "secret_file": "/etc/ember-rooms/supervisor.secret",
+  "max_rooms": 4,
+  "port_range": [45800, 45899],
+  "empty_close_secs": 120,
+  "drain_secs": 600,
+  "builds": {}
+}
