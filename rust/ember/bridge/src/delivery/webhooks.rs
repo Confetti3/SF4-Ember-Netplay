@@ -232,24 +232,25 @@ pub async fn post_signed(
         .body(body)
         .send()
         .await;
-    let mut response = match response {
-        Ok(response) => response,
-        Err(error) => {
-            return Err(retry(if error.is_timeout() {
-                "timeout"
-            } else {
-                "connection failed"
-            }));
-        }
-    };
+    match response {
+        Ok(response) => Ok(answer(response).await),
+        Err(error) => Err(retry(if error.is_timeout() {
+            "timeout"
+        } else {
+            "connection failed"
+        })),
+    }
+}
+
+/// A destination's status and `Retry-After`, with its body drained through
+/// a byte cap: a hostile receiver cannot make the worker buffer more.
+pub async fn answer(mut response: reqwest::Response) -> Answer {
     let status = response.status().as_u16();
     let retry_after = response
         .headers()
         .get("retry-after")
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.parse::<u64>().ok());
-    // Drain at most MAX_RESPONSE bytes; a hostile receiver cannot make the
-    // worker buffer more than that.
     let mut read = 0;
     while let Ok(Some(chunk)) = response.chunk().await {
         read += chunk.len();
@@ -257,10 +258,10 @@ pub async fn post_signed(
             break;
         }
     }
-    Ok(Answer {
+    Answer {
         status,
         retry_after,
-    })
+    }
 }
 
 /// Resolves and checks every address for the URL's host. Any refused

@@ -38,10 +38,11 @@ use crate::{
     error::{ApiFailure, Result},
     http::{Body, GENERAL_BODY, ok},
     routes::{
-        discord, policy,
+        discord,
         ledger::{Match, load, participants, scores},
         links::Ctx,
         matches::{NewMatch, insert_match},
+        policy,
     },
     util::{new_id, outbound_client},
 };

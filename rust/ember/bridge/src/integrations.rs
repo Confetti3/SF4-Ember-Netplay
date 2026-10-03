@@ -79,7 +79,9 @@ impl Secrets {
                     let secret = Zeroizing::new(secret);
                     Secret::parse(&secret)
                         .map(|secret| (connection.clone(), secret))
-                        .map_err(|_| format!("the result secret for {connection} is not a whsec_ secret"))
+                        .map_err(|_| {
+                            format!("the result secret for {connection} is not a whsec_ secret")
+                        })
                 })
                 .collect::<Result<_, String>>()?,
         })

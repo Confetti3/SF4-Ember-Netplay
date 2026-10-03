@@ -54,7 +54,9 @@ fn main() -> ExitCode {
             // this; the operator stores it with set-integration-secret.sh.
             let secret = ember_protocol::webhook::Secret::from_bytes(random32());
             println!("{}", secret.reveal().as_str());
-            eprintln!("Give this to the platform and store it with set-integration-secret.sh result <connection-id>.");
+            eprintln!(
+                "Give this to the platform and store it with set-integration-secret.sh result <connection-id>."
+            );
             Ok(())
         }
         _ => Err(USAGE.into()),

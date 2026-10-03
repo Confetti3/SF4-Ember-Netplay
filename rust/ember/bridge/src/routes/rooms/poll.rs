@@ -3,12 +3,7 @@
 //! closed. A connection's rooms announce what changed on its stream.
 use std::{collections::BTreeSet, sync::atomic::Ordering, time::Duration};
 
-use ember_protocol::{
-    EmberId,
-    event::Kind,
-    play::MAX_INVITATION,
-    rooms::ENDED,
-};
+use ember_protocol::{EmberId, event::Kind, play::MAX_INVITATION, rooms::ENDED};
 use rusqlite::{Transaction, params};
 
 use super::{PENDING_SECS, announce, load, supervisor::Reported, supervisor::Supervisor};
@@ -136,7 +131,9 @@ fn apply(
             // At most one event per poll: opening says the counts too.
             let kind = if before.opened_at.is_none() && after.opened_at.is_some() {
                 Some(Kind::RoomOpened)
-            } else if (before.members, before.tables_playing) != (after.members, after.tables_playing) {
+            } else if (before.members, before.tables_playing)
+                != (after.members, after.tables_playing)
+            {
                 Some(Kind::RoomChanged)
             } else {
                 None

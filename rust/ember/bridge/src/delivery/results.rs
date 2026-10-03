@@ -20,7 +20,7 @@ use zeroize::Zeroizing;
 
 use super::{
     BATCH, Leased, Outcome, Queue, Record, Settled,
-    webhooks::{Answer, post_signed},
+    webhooks::{Answer, answer, post_signed},
 };
 use crate::{
     AppState,
@@ -62,7 +62,12 @@ impl Destination {
         }
     }
 
-    async fn send(&self, state: &AppState, match_id: &str, body: Vec<u8>) -> std::result::Result<Answer, Outcome> {
+    async fn send(
+        &self,
+        state: &AppState,
+        match_id: &str,
+        body: Vec<u8>,
+    ) -> std::result::Result<Answer, Outcome> {
         match self {
             Self::BluMint { submit_url, key } => {
                 let retry = |error: &str| Outcome::Retry {
@@ -79,18 +84,19 @@ impl Destination {
                     .body(body)
                     .send()
                     .await
-                    .map_err(|error| retry(if error.is_timeout() { "timeout" } else { "connection failed" }))?;
-                Ok(Answer {
-                    status: response.status().as_u16(),
-                    retry_after: response
-                        .headers()
-                        .get("retry-after")
-                        .and_then(|value| value.to_str().ok())
-                        .and_then(|value| value.parse::<u64>().ok()),
-                })
+                    .map_err(|error| {
+                        retry(if error.is_timeout() {
+                            "timeout"
+                        } else {
+                            "connection failed"
+                        })
+                    })?;
+                Ok(answer(response).await)
             }
             Self::Signed { url, secret } => {
-                let Ok(headers) = webhook::sign(&[secret], &result_id(match_id), state.now(), &body) else {
+                let Ok(headers) =
+                    webhook::sign(&[secret], &result_id(match_id), state.now(), &body)
+                else {
                     return Err(Outcome::Retry {
                         error: "cannot sign".into(),
                         retry_after: None,
@@ -186,7 +192,11 @@ impl Results {
                 } else {
                     Destination::Signed {
                         url: connection.results_url.clone()?,
-                        secret: state.integrations.result_secrets.get(&connection.id)?.clone(),
+                        secret: state
+                            .integrations
+                            .result_secrets
+                            .get(&connection.id)?
+                            .clone(),
                     }
                 };
                 Some((connection.id.clone(), destination))
@@ -260,18 +270,18 @@ impl Queue for Results {
             Ok(None) => return Outcome::Cancelled,
             Err(_) => return retry("database unavailable".into(), None),
         };
-        let answer = match destination.send(state, &item.match_id, body).await {
-            Ok(answer) => answer,
+        let answered = match destination.send(state, &item.match_id, body).await {
+            Ok(answered) => answered,
             Err(outcome) => return outcome,
         };
-        let status = answer.status;
+        let status = answered.status;
         match status {
             // 409: the platform already has this match's result.
             200..=299 | 409 => Outcome::Delivered,
-            429 => retry(format!("http {status}"), answer.retry_after),
+            429 => retry(format!("http {status}"), answered.retry_after),
             // Any other refusal is the same on a retry.
             400..=499 => Outcome::Refused(format!("http {status}")),
-            _ => retry(format!("http {status}"), answer.retry_after),
+            _ => retry(format!("http {status}"), answered.retry_after),
         }
     }
 

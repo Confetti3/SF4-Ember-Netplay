@@ -29,7 +29,9 @@ pub async fn lookup(
     }
     let request: Lookup = body.parse()?;
     if request.discord.len() > MAX_LOOKUP {
-        return Err(ApiFailure::invalid("A lookup names at most 32 Discord user IDs."));
+        return Err(ApiFailure::invalid(
+            "A lookup names at most 32 Discord user IDs.",
+        ));
     }
     let ctx = Ctx::of(&state);
     let players = state

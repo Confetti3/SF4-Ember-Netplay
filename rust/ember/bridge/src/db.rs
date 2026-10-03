@@ -25,7 +25,10 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (10, include_str!("../migrations/010_discord_consent.sql")),
     (11, include_str!("../migrations/011_discord_moves.sql")),
     (12, include_str!("../migrations/012_rooms.sql")),
-    (13, include_str!("../migrations/013_connection_settings.sql")),
+    (
+        13,
+        include_str!("../migrations/013_connection_settings.sql"),
+    ),
 ];
 
 #[derive(Clone)]

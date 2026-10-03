@@ -29,9 +29,9 @@ use ember_protocol::{
     EmberId,
     challenge::{Action, Method},
     discord::{Account, Connection, SIGN_IN_SECS, SignInStarted, is_user_id},
-    partner::FoundPlayer,
     encoding::b64u,
     event::Kind,
+    partner::FoundPlayer,
 };
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::Deserialize;

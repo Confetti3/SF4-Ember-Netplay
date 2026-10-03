@@ -83,8 +83,10 @@ now < expires_at`.
 
 ## Bridge API
 
-All three need a player session (`ems_`). Errors use the bridge's existing
-error body.
+All three need a player session (`ems_`). A connection whose configuration
+allows it also creates, lists, reads and closes rooms for its linked players
+with its provider credential; that is in `INTEGRATION_PATHS.md`. Errors use
+the bridge's existing error body.
 
 `GET /v1/rooms?build_id=` returns at most 100 open rooms that have at least
 one member, fullest last. A new room is listed once its creator is inside, so

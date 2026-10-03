@@ -16,12 +16,7 @@ mod poll;
 mod supervisor;
 mod ticket;
 
-use std::{
-    convert::Infallible,
-    fmt::Write as _,
-    net::IpAddr,
-    sync::atomic::AtomicBool,
-};
+use std::{convert::Infallible, fmt::Write as _, net::IpAddr, sync::atomic::AtomicBool};
 
 use axum::{
     extract::{FromRequestParts, Path, Query, State},
@@ -33,7 +28,7 @@ use ember_protocol::{
     api::ErrorCode,
     event::Kind,
     rooms::{
-        BANNED, CloseRoom, CLOSED_BY_CONNECTION, ConnectionCreateRoom, ConnectionRoom,
+        BANNED, CLOSED_BY_CONNECTION, CloseRoom, ConnectionCreateRoom, ConnectionRoom,
         ConnectionRoomList, CreateRoom, INVALID_NAME, NOT_LINKED, ROOM_FULL, ROOM_LIMIT, RoomList,
         RoomState, RoomSummary, UNSUPPORTED_BUILD, join_url,
     },
@@ -41,13 +36,13 @@ use ember_protocol::{
 use rusqlite::{OptionalExtension, Row, Transaction, params};
 use serde_json::Value;
 
-pub use self::{
-    poll::{poll, poll_forever},
-    ticket::ticket,
-};
 use self::{
     create::{Owner, open},
     supervisor::Supervisor,
+};
+pub use self::{
+    poll::{poll, poll_forever},
+    ticket::ticket,
 };
 use crate::{
     AppState,
@@ -291,7 +286,8 @@ fn announce(
         [connection_id],
         |row| row.get(0),
     )?;
-    let mut data = serde_json::to_value(room.view(config)?).map_err(|_| ApiFailure::unavailable())?;
+    let mut data =
+        serde_json::to_value(room.view(config)?).map_err(|_| ApiFailure::unavailable())?;
     if let (Some(reason), Value::Object(fields)) = (reason, &mut data) {
         fields.insert("reason".into(), reason.into());
     }
