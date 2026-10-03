@@ -38,6 +38,12 @@ const MAX_PEER_CONNECTIONS: usize = 2;
 const PEER_BODY_BUDGET: usize = 2 * MAX_RPC;
 const BODY_BUDGET: usize = 4 * MAX_RPC;
 const RELAY_READY_TIMEOUT: Duration = Duration::from_secs(10);
+/// How long the address handed to a peer waits for this endpoint's relay
+/// route. A new endpoint registers with its relay about a second after it
+/// binds; an address taken before then can leave a peer with no path that
+/// works, and its first Raft RPC to us then waits out OpenRaft's deadline.
+/// Past this the address goes out with what it has (its direct addresses).
+const ADVERTISE_READY_TIMEOUT: Duration = Duration::from_secs(3);
 const CHUNK: usize = SNAPSHOT_FRAGMENT_BYTES;
 mod retired;
 fn failure() -> io::Error {
@@ -228,6 +234,12 @@ impl IrohRpc {
         }))
     }
     pub fn address(&self) -> EndpointAddr {
+        self.endpoint.addr()
+    }
+    /// This endpoint's address for a peer to dial: as it is once the relay
+    /// route is in, or after `ADVERTISE_READY_TIMEOUT` as it is then.
+    pub async fn advertised_address(&self) -> EndpointAddr {
+        let _ = timeout(ADVERTISE_READY_TIMEOUT, self.endpoint.online()).await;
         self.endpoint.addr()
     }
     pub fn identity(&self) -> EndpointId {

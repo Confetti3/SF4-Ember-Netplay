@@ -63,6 +63,8 @@ pub struct RecoverySession {
     pub rpc: std::sync::Arc<IrohRpc>,
     pub coordinator: std::sync::Arc<Coordinator>,
     pub coordination_endpoint: EndpointId,
+    /// The route when the endpoint was bound, which may not have its relay
+    /// yet; peers are given `advertise`'s instead.
     pub coordination_address: EndpointAddr,
     pub primary_endpoint: EndpointId,
     pub phase: RecoveryPhase,
@@ -238,7 +240,9 @@ impl RecoverySession {
             incarnation: self.incarnation,
             authority_term,
             coordination_endpoint: self.coordination_endpoint,
-            coordination_address: self.coordination_address.clone(),
+            // Taken now, not at bind: the route a peer dials must include
+            // the relay, which registers after the endpoint binds.
+            coordination_address: self.rpc.advertised_address().await,
             primary_endpoint: self.primary_endpoint,
         }
     }
