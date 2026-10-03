@@ -166,7 +166,7 @@ pub struct ConnectionRoom {
 Refusals are the player route's (`room_limit`, `unsupported_build`,
 `invalid_name`), plus `not_linked` for a creator not linked on the
 connection. `room_limit` because the creator already has an open room
-carries that room's ID in `detail.room_id` when the connection created it,
+carries that room's ID in `details.room_id` when the connection created it,
 so a bot can hand out the existing link instead.
 
 - `GET /v1/rooms` (provider): the connection's rooms that are not closed,

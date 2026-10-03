@@ -385,8 +385,10 @@ events, and players their own matches, links, lobbies and tournaments.
 
 ## Discord and Twitch
 
-`rust/ember/notifier` is a ready-made subscriber that posts match news to a
-Discord channel and to Twitch chat. Configure it with a JSON file:
+`rust/ember/notifier` is a ready-made subscriber that posts news to a
+Discord channel and to Twitch chat. With a `bot` section it is also a room
+bot: `/room` in Discord and `!room` in Twitch chat open a public Ember room
+and answer with its link. Configure it with a JSON file:
 
 ```json
 {
@@ -394,26 +396,114 @@ Discord channel and to Twitch chat. Configure it with a JSON file:
   "bridge_origin": "http://127.0.0.1:8787",
   "secrets": ["env:EMBER_WEBHOOK_SECRET"],
   "database": "notifier.sqlite3",
-  "discord": { "webhook_url": "env:DISCORD_WEBHOOK_URL" },
+  "discord": {
+    "webhook_url": "env:DISCORD_WEBHOOK_URL",
+    "interactions": {
+      "application_id": "your application id",
+      "public_key": "64 hex characters from the Discord developer portal",
+      "bot_token": "env:DISCORD_BOT_TOKEN"
+    }
+  },
   "twitch": {
     "client_id": "your-app-client-id",
     "token": "env:TWITCH_TOKEN",
     "broadcaster_id": "channel user id",
-    "sender_id": "bot user id"
+    "sender_id": "bot user id",
+    "room_creator": { "participant_id": "par_...", "ember_id": "emb1_..." }
+  },
+  "bot": {
+    "bridge_api": "https://bridge.example",
+    "credential": "env:EMBER_PROVIDER_CREDENTIAL",
+    "build_id": "the build rooms are created for",
+    "capacity": 8,
+    "room_name": "Fight Night"
   },
   "names": { "emb1_...": "Player name" }
 }
 ```
 
+`discord`, `twitch` and `bot` are each optional. Without `discord.webhook_url`
+nothing is posted to a channel and only `/room` is served.
+
 Subscribe it to `match.created`, `match.score.changed`, `match.completed`,
 `match.cancelled`, `match.needs_review` and `match.corrected`, for lobbies
-`lobby.created`, `lobby.set.completed` and `lobby.closed`, and for tournaments
+`lobby.created`, `lobby.set.completed` and `lobby.closed`, for tournaments
 `tournament.created`, `tournament.started`, `tournament.match.completed`,
-`tournament.completed` and `tournament.cancelled`, then run
-`cargo run -p ember-notifier -- serve notifier.json`. The Twitch token is a
-user access token with the `user:write:chat` scope for the sender account.
-Discord posts never mention anyone. Players show by name when `names` lists
-them, otherwise by their short fingerprint.
+`tournament.completed` and `tournament.cancelled`, and for rooms a connection
+opened `room.created`, `room.opened` and `room.closed`, then run
+`cargo run -p ember-notifier -- serve notifier.json`. Room news names the room,
+how full it is and its link (`room.closed` says how it ended and has no link).
+The Twitch token is a user access token for the sender account; its scopes
+are listed under "Twitch `!room`" below. Discord posts never mention anyone.
+Players show by name when `names` lists them, otherwise by their short
+fingerprint.
+
+### The room bot
+
+`bot` is the provider credential of a bridge connection that has `rooms` and
+`discord_lookup` in its settings (see `docs/design/INTEGRATION_PATHS.md`):
+
+- `bridge_api`: the bridge's origin.
+- `credential`: the provider credential, or `env:NAME`.
+- `build_id`: the build rooms are created for.
+- `capacity`: players per room when a command gives none (default 8).
+- `room_name`: the name when a command gives none (default "Ember room").
+
+The bot finds a person by Discord ID (`POST /v1/players/lookup`), opens the
+room for them (`POST /v1/rooms`) and reads one back (`GET /v1/rooms/{id}`).
+Someone who already has a room the connection opened gets that room's link
+again instead of a refusal.
+
+### Discord `/room`
+
+Set the application's Interactions Endpoint URL to
+`https://<your host>/discord/interactions`, which the notifier serves on its
+`listen` address (put it behind HTTPS). `discord.interactions` takes the
+application's `application_id` and `public_key`; every request is checked
+against the key (Ed25519 over the timestamp and the body) and refused with
+401 when it does not match. `ember-notifier discord-register notifier.json`
+registers the command, using `bot_token` (or `env:NAME`); with `guild_id` set
+it registers for that server only, which Discord applies at once.
+`api_base` (default `https://discord.com/api/v10`) is for tests.
+
+`/room` takes an optional `name` and `capacity`. Discord allows three seconds
+for an answer, so the notifier looks the person up, answers with a deferred
+reply, and edits it when the bridge has answered:
+
+- Found: a room is opened for them and the reply carries its link. It is
+  visible to everyone in the channel.
+- Not connected: only they see a reply that sends them to
+  `https://embernetplay.link/start#<bridge id>` to connect Discord in Ember.
+- Any other refusal (unsupported build, a name the rules refuse, the bridge
+  not reachable): a short plain message.
+
+### Twitch `!room`
+
+With `twitch.room_creator` (the streamer's linked player on the connection)
+and `bot` set, the notifier opens an EventSub WebSocket session
+(`eventsub_url`, default `wss://eventsub.wss.twitch.tv/ws`) and subscribes to
+`channel.chat.message` for `broadcaster_id`, read as `sender_id`. No public
+endpoint is needed. A `!room` message from the broadcaster or a moderator
+opens a room for the creator and posts its link in chat as the sender; a
+second `!room` while the room is open posts the same link. Messages from
+anyone else are ignored. The session follows Twitch's reconnect requests and
+reconnects with a growing delay after a drop or a silence longer than the
+keepalive timeout.
+
+The token is the sender account's user access token (EventSub WebSocket
+subscriptions need a user token whose user is the subscription's `user_id`).
+Twitch's reference for `channel.chat.message` asks for these scopes:
+
+- `user:read:chat`, to read chat.
+- `user:write:chat`, to post the news and the link.
+
+Twitch lists `user:bot` and `channel:bot` (or the sender being a moderator in
+the channel) only for subscriptions made with an app access token, which this
+notifier does not use. The reference at
+`https://dev.twitch.tv/docs/eventsub/eventsub-subscription-types/` is the
+authority if that changes. A subscription Twitch refuses (a missing scope
+shows as status 401 or 403) is logged by status and retried with the same
+delay as a dropped session.
 
 ## TypeScript SDK
 
