@@ -257,7 +257,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   rows[2].opens=true;rows[2].adjustable=editable&&AllowedUltras(pick.fighter,pick.edition).size()>1;
  }else if(screen=="roster"){
   page_=Page::Fighter;title=loc::T("selection.choose_fighter");
-  for(int id=0;id<FighterCount;++id)rows.push_back(Saving(Row("fighter-"+std::to_string(id),FindFighter(id)->name,locked,editable),"menu.hint.save_fighter",editable));
+  for(int id:AlphabeticalFighters())rows.push_back(Saving(Row("fighter-"+std::to_string(id),FindFighter(id)->name,locked,editable),"menu.hint.save_fighter",editable));
   columns=(std::max)(3,(std::min)(8,static_cast<int>(ImGui::GetContentRegionAvail().x/(170*Scale()))));
  }else if(screen=="appearance"){
   page_=Page::Appearance;title=loc::T("selection.appearance_title");
@@ -364,7 +364,11 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   d->AddRectFilled(ImVec2(min.x,max.y-labelHeight),max,IM_COL32(16,15,14,230));
   const float font=(std::min)(ImGui::GetFontSize(),(max.x-min.x-6)*ImGui::GetFontSize()/(std::max)(1.f,ImGui::CalcTextSize(label.c_str()).x));
   d->AddText(ImGui::GetFont(),font,ImVec2(min.x+3,max.y-labelHeight),saved?palette::Ember:palette::Ivory,label.c_str());
-  if(saved)DrawCardBadge(ImVec2(min.x+3,min.y+2),max.x-min.x-6,loc::T("selection.saved"),"saved-badge");
+  // Keep the familiar marker visible even when the move name is long or
+  // the preview could not load. It is text, not a new asset dependency.
+  const float symbolWidth=40*Scale();
+  DrawCardBadge(ImVec2(max.x-symbolWidth-3,min.y+2),symbolWidth,UltraSymbol(ultra),"ultra-symbol");
+  if(saved)DrawCardBadge(ImVec2(min.x+3,min.y+2),(std::max)(1.f,max.x-min.x-symbolWidth-12),loc::T("selection.saved"),"saved-badge");
   return true;
  };
  if(screen=="roster"||screen=="stage"||pool||screen=="costumes"||screen=="colors")card=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){

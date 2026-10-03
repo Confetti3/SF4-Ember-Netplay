@@ -23,6 +23,10 @@ struct Edition {
 
 // A lookup failure is explicit: invalid input must not index the native tables.
 const Fighter* FindFighter(int nativeId);
+// Presentation order only. Native IDs, saved picks and wire values never move.
+const std::array<int, FighterCount>& AlphabeticalFighters();
+// The game's familiar Ultra markers, independent of translated move names.
+const char* UltraSymbol(int ultraId);
 const std::array<Edition, 6>& EditionList();
 const Edition* FindEdition(int nativeId);
 std::vector<int> AllowedEditions(int fighterId, bool editionSelect);

@@ -9,6 +9,22 @@
 #include "test_support.hxx"
 
 int main() {
+    const auto& ordered = sf4e::selection::AlphabeticalFighters();
+    std::array<bool, sf4e::selection::FighterCount> seen{};
+    std::string previous;
+    for (int id : ordered) {
+        CHECK(id >= 0 && id < sf4e::selection::FighterCount && !seen[id]);
+        seen[id] = true;
+        const auto* fighter = sf4e::selection::FindFighter(id);
+        CHECK(fighter && previous <= fighter->name);
+        previous = fighter->name;
+    }
+    CHECK(std::string(sf4e::selection::FindFighter(0)->name) == "Ryu");
+    CHECK(std::string(sf4e::selection::FindFighter(43)->name) == "Decapre");
+    CHECK(std::string(sf4e::selection::UltraSymbol(0)) == "I");
+    CHECK(std::string(sf4e::selection::UltraSymbol(1)) == "II");
+    CHECK(std::string(sf4e::selection::UltraSymbol(2)) == "W");
+    CHECK(std::string(sf4e::selection::UltraSymbol(-1)) == "?");
     using namespace sf4e::selection;
     CHECK(StageList().size() == 28);
     std::set<int> stageIds;

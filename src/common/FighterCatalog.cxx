@@ -1,5 +1,7 @@
 #include "FighterCatalog.hxx"
 #include <algorithm>
+#include <cstring>
+#include <numeric>
 
 namespace sf4e { namespace selection {
 namespace {
@@ -19,6 +21,20 @@ const std::array<Edition, 6> editions = {{
 
 const Fighter* FindFighter(int nativeId) {
     return nativeId >= 0 && nativeId < FighterCount ? &fighters[nativeId] : nullptr;
+}
+const std::array<int, FighterCount>& AlphabeticalFighters() {
+    static const auto order = [] {
+        std::array<int, FighterCount> ids{};
+        std::iota(ids.begin(), ids.end(), 0);
+        std::sort(ids.begin(), ids.end(), [](int a, int b) {
+            return std::strcmp(fighters[a].name, fighters[b].name) < 0;
+        });
+        return ids;
+    }();
+    return order;
+}
+const char* UltraSymbol(int ultraId) {
+    return ultraId == 0 ? "I" : ultraId == 1 ? "II" : ultraId == 2 ? "W" : "?";
 }
 const std::array<Edition, 6>& EditionList() { return editions; }
 const Edition* FindEdition(int nativeId) {
