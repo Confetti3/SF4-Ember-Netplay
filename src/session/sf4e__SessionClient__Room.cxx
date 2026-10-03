@@ -245,7 +245,7 @@ void SessionClient::RememberSentRoomAction(const room::Action& action) {
 		if (sent.actionId == action.actionId) return;
 	if (_sentRoomActions.size() >= 32) _sentRoomActions.pop_front();
 	_sentRoomActions.push_back({action.actionId, action.kind, action.table, action.matchGeneration,
-		action.inputDelay, action.seat, action.actionId});
+		action.inputDelay, action.seat, action.actionId, 0, room::CaptureReadyOpponent(_roomSnapshot)});
 }
 
 sf4e::room::Action SessionClient::TableAction(room::ActionKind kind, std::uint8_t table, std::uint8_t inputDelay, std::int8_t seat) const {
@@ -431,7 +431,9 @@ bool SessionClient::HandleRoomResult(json& msg) {
 	// carries a table revision the authority has already moved past. The
 	// rejection brings the current snapshot, so resend from it instead of
 	// leaving the press parked until its timeout.
-	if (resendable && !result.result.accepted && result.result.reason == room::RejectReason::StaleTable &&
+    const bool opponentChanged = sent != _sentRoomActions.end() && sent->kind == room::ActionKind::Ready &&
+        sent->readyOpponent != room::CaptureReadyOpponent(_roomSnapshot);
+	if (resendable && !opponentChanged && !result.result.accepted && result.result.reason == room::RejectReason::StaleTable &&
 		sent->staleRetries < 3) {
 		// Resend the same request (kind, table, input delay, seat) from the
 		// fresher snapshot. Copy first: sending may evict `sent`.
@@ -465,7 +467,7 @@ bool SessionClient::HandleRoomResult(json& msg) {
 		const bool staleReport = sent != _sentRoomActions.end() &&
 			(sent->kind == room::ActionKind::MatchFinished || sent->kind == room::ActionKind::RecordResult) &&
 			(result.result.reason == room::RejectReason::WrongGeneration || result.result.reason == room::RejectReason::DuplicateResult);
-		const char* text = RoomRejectText(result.result.reason);
+		const char* text = opponentChanged ? "runtime.ready.opponent_changed" : RoomRejectText(result.result.reason);
 		if (text[0] && !staleReport && !superseded) _roomError = text;
 	}
 	else { _roomError.clear(); }

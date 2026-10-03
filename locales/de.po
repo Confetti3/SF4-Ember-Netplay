@@ -765,17 +765,8 @@ msgstr "Kampf-HUD-Größe"
 msgid "settings.match_hud_size_detail"
 msgstr "Ändert Text- und Panelgröße im Kampf."
 
-msgid "settings.bottom_spacing"
-msgstr "Abstand unten"
-
-msgid "spacing.raised"
-msgstr "Erhöht"
-
 msgid "spacing.normal"
 msgstr "Normal"
-
-msgid "settings.bottom_spacing_detail"
-msgstr "Verschiebt das Kampf-HUD vom unteren Rand weg."
 
 msgid "settings.ready_sound"
 msgstr "Herausforderer-Ansage"
@@ -1010,9 +1001,6 @@ msgstr "Delay"
 
 msgid "match.spectating"
 msgstr "Zuschauer"
-
-msgid "match.preview_spacing"
-msgstr "{0} Abstand / Beispielwerte"
 
 msgid "card.player"
 msgstr "SPIELER"
@@ -2429,3 +2417,46 @@ msgstr "Fehler des Sitzungsservers. Prüfen Sie Ihre Internetverbindung und vers
 
 msgid "runtime.settings_unreadable"
 msgstr "Die gespeicherten Einstellungen konnten nicht gelesen werden; Vorgaben werden genutzt."
+
+# Match HUD placement
+msgid "settings.hud_position"
+msgstr "Match HUD position"
+
+msgid "settings.hud_position_detail"
+msgstr "Choose a screen edge without covering the fight."
+
+msgid "settings.hud_spacing"
+msgstr "Edge spacing"
+
+msgid "settings.hud_spacing_detail"
+msgstr "Move the HUD farther from its chosen screen edge."
+
+msgid "spacing.extra"
+msgstr "Extra"
+
+msgid "match.preview_placement"
+msgstr "Position: {0}. Edge spacing: {1}."
+
+msgid "hud.position.bottom_center"
+msgstr "Bottom center"
+
+msgid "hud.position.top_center"
+msgstr "Top center"
+
+msgid "hud.position.top_left"
+msgstr "Top left"
+
+msgid "hud.position.top_right"
+msgstr "Top right"
+
+msgid "hud.position.bottom_left"
+msgstr "Bottom left"
+
+msgid "hud.position.bottom_right"
+msgstr "Bottom right"
+
+msgid "runtime.ready.opponent_changed"
+msgstr "Opponent changed fighter. Check your Ultra and press Ready again."
+
+msgid "room.ready.opponent"
+msgstr "Opponent: {0}. Check your Ultra before Ready."

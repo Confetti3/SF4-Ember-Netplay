@@ -765,17 +765,8 @@ msgstr "对战 HUD 大小"
 msgid "settings.match_hud_size_detail"
 msgstr "调整对战中的文字和面板大小。"
 
-msgid "settings.bottom_spacing"
-msgstr "底部间距"
-
-msgid "spacing.raised"
-msgstr "上移"
-
 msgid "spacing.normal"
 msgstr "正常"
-
-msgid "settings.bottom_spacing_detail"
-msgstr "将对战 HUD 移离屏幕底边。"
 
 msgid "settings.ready_sound"
 msgstr "挑战者播报"
@@ -1010,9 +1001,6 @@ msgstr "输入延迟"
 
 msgid "match.spectating"
 msgstr "观战中"
-
-msgid "match.preview_spacing"
-msgstr "{0} 间距／示例数值"
 
 msgid "card.player"
 msgstr "玩家"
@@ -2429,3 +2417,46 @@ msgstr "会话服务器出错。请检查网络后重试。"
 
 msgid "runtime.settings_unreadable"
 msgstr "无法读取已保存的设置，正在使用默认设置。"
+
+# Match HUD placement
+msgid "settings.hud_position"
+msgstr "Match HUD position"
+
+msgid "settings.hud_position_detail"
+msgstr "Choose a screen edge without covering the fight."
+
+msgid "settings.hud_spacing"
+msgstr "Edge spacing"
+
+msgid "settings.hud_spacing_detail"
+msgstr "Move the HUD farther from its chosen screen edge."
+
+msgid "spacing.extra"
+msgstr "Extra"
+
+msgid "match.preview_placement"
+msgstr "Position: {0}. Edge spacing: {1}."
+
+msgid "hud.position.bottom_center"
+msgstr "Bottom center"
+
+msgid "hud.position.top_center"
+msgstr "Top center"
+
+msgid "hud.position.top_left"
+msgstr "Top left"
+
+msgid "hud.position.top_right"
+msgstr "Top right"
+
+msgid "hud.position.bottom_left"
+msgstr "Bottom left"
+
+msgid "hud.position.bottom_right"
+msgstr "Bottom right"
+
+msgid "runtime.ready.opponent_changed"
+msgstr "Opponent changed fighter. Check your Ultra and press Ready again."
+
+msgid "room.ready.opponent"
+msgstr "Opponent: {0}. Check your Ultra before Ready."

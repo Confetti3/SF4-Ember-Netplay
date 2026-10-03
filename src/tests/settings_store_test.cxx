@@ -65,8 +65,8 @@ int main() {
     discordDefaults.matchHudSize=-1;CHECK(!discordDefaults.Valid());
     discordDefaults.matchHudSize=3;CHECK(!discordDefaults.Valid());
     discordDefaults.matchHudSize=2;CHECK(discordDefaults.Valid());
-    CHECK(store.SaveLauncher({{"matchHudSize",2},{"matchHudRaised",true}},error));
-    CHECK(store.LoadLauncher(result,error)&&result["matchHudSize"]==2&&result["matchHudRaised"]==true);
+    CHECK(store.SaveLauncher({{"matchHudSize",2},{"matchHudRaised",true},{"matchHudPosition",3}},error));
+    CHECK(store.LoadLauncher(result,error)&&result["matchHudSize"]==2&&result["matchHudRaised"]==true&&result["matchHudPosition"]==3);
     CHECK(Json::parse(Read(path / L"settings.json"))["netplay"]["matchHudSize"]==2);
     CHECK(discordDefaults.discordPresence && discordDefaults.discordInvites);
     CHECK(discordDefaults.inputDelay == 2);

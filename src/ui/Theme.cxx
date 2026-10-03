@@ -494,9 +494,10 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
             (std::max)(view.noticeSeverity,view.connectionWarning||view.predictionStalled?1:0):0;
         const ImU32 colors[]={IM_COL32(181,169,155,255),IM_COL32(255,196,96,255),IM_COL32(255,118,96,255)};
         const float h=MatchStateHeight*s;
-        draw->AddRectFilled(ImVec2(p.x,p.y-h-4*s),ImVec2(p.x+w,p.y-4*s),IM_COL32(20,19,18,235),4*s);
+        const float noticeY=MatchHudNoticeY(p.y,MatchHeight*s,h,4*s,view.position);
+        draw->AddRectFilled(ImVec2(p.x,noticeY),ImVec2(p.x+w,noticeY+h),IM_COL32(20,19,18,235),4*s);
         const auto line=fit(state,w-16*s,16*s);
-        text(p.x+8*s,p.y-h-4*s+(h-16*s)*.5f,line,16*s,colors[(std::max)(0,(std::min)(2,severity))]);
+        text(p.x+8*s,noticeY+(h-16*s)*.5f,line,16*s,colors[(std::max)(0,(std::min)(2,severity))]);
     }
     // One centred "A vs B" line. Anchoring each name to a fixed "vs" made the
     // pair lopsided whenever the names differed in length.
@@ -555,12 +556,23 @@ void DrawNetworkLinkGlyph(ImDrawList* draw, ImVec2 min, float size, NetworkLink 
 const char* NetworkLinkName(NetworkLink link) {
     return loc::T(link==NetworkLink::Wired?"room.link_wired":link==NetworkLink::Wireless?"room.link_wireless":"room.link_unknown");
 }
+const char* MatchHudPositionName(int position) {
+    switch(position) {
+    case 1: return loc::T("hud.position.top_center");
+    case 2: return loc::T("hud.position.top_left");
+    case 3: return loc::T("hud.position.top_right");
+    case 4: return loc::T("hud.position.bottom_left");
+    case 5: return loc::T("hud.position.bottom_right");
+    default: return loc::T("hud.position.bottom_center");
+    }
+}
 float MatchStripScale(const MatchStripView& view) { return MatchScale(view); }
 void DrawMatchStrip(const MatchStripView& view) {
     const auto* vp=ImGui::GetMainViewport();const float s=MatchScale(view);
     const float w=(std::min)(MatchWidth*s,vp->Size.x*.8f);
     const float gap=(view.raised?48.f:12.f)*(std::max)(.8f,vp->Size.y/1080.f);
-    PaintMatchStrip(view,ImGui::GetForegroundDrawList(),ImVec2(vp->Pos.x+(vp->Size.x-w)*.5f,vp->Pos.y+vp->Size.y-gap-MatchHeight*s),w,s);
+    const auto origin=PlaceMatchHud(vp->Size.x,vp->Size.y,w,MatchHeight*s,gap,view.position);
+    PaintMatchStrip(view,ImGui::GetForegroundDrawList(),ImVec2(vp->Pos.x+origin.x,vp->Pos.y+origin.y),w,s);
 }
 void DrawMatchStripPreview(const MatchStripView& view) {
     const auto available=ImGui::GetContentRegionAvail();
@@ -568,7 +580,7 @@ void DrawMatchStripPreview(const MatchStripView& view) {
     const auto p=ImGui::GetCursorScreenPos();
     PaintMatchStrip(view,ImGui::GetWindowDrawList(),p,MatchWidth*s,s);
     ImGui::Dummy(ImVec2(MatchWidth*s,MatchHeight*s));
-    ImGui::TextDisabled("%s",loc::Tf("match.preview_spacing",view.raised?loc::T("spacing.raised"):loc::T("spacing.normal")).c_str());
+    ImGui::TextDisabled("%s",loc::Tf("match.preview_placement",MatchHudPositionName(view.position),view.raised?loc::T("spacing.extra"):loc::T("spacing.normal")).c_str());
 }
 void DrawDiagnosticStrip(const DiagnosticStripView& view) {
     const auto* viewport = ImGui::GetMainViewport();

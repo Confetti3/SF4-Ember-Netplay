@@ -27,6 +27,9 @@ int main(int argc, char** argv) {
     CHECK(result.expectedSha256 == digest);
     CHECK(!ParseGithubReleaseResponse(release.dump(), "0.8.3").updateAvailable);
     CHECK(!ParseGithubReleaseResponse(release.dump(), "0.9.0").updateAvailable);
+    release["assets"][3]["digest"] = nullptr;
+    result = ParseGithubReleaseResponse(release.dump(), "0.8.2");
+    CHECK(result.ok && result.updateAvailable && result.expectedSha256.empty());
     release["assets"][3].erase("digest");
     CHECK(ParseGithubReleaseResponse(release.dump(), "0.8.2").expectedSha256.empty());
     release["assets"].erase(3);

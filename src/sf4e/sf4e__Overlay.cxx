@@ -243,6 +243,8 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		request.displayName = snapshot.preferences.displayName;
 		request.preferences = std::move(action.preferences);
 		request.roomAction = std::move(action.roomAction);
+        // Consent comes from the frame the player saw, not a newer game-thread snapshot.
+        request.readyOpponent = sf4e::room::CaptureReadyOpponent(snapshot.room);
         request.selectedDelay=action.selectedDelay;
         request.previewSoundVolume=action.previewSoundVolume;
 		request.character = lobbyConditions;
@@ -376,7 +378,7 @@ void Overlay::DrawOverlay() {
         strip.rollbackFrames = status.rollbackFrames;
         strip.pingMs = status.pingMs; strip.appliedDelay = status.appliedDelay;
         strip.spectator = status.spectator;
-        strip.size = snapshot.preferences.matchHudSize; strip.raised = snapshot.preferences.matchHudRaised;
+        strip.size = snapshot.preferences.matchHudSize; strip.raised = snapshot.preferences.matchHudRaised; strip.position = snapshot.preferences.matchHudPosition;
         strip.notice = status.lastError; strip.noticeSeverity = static_cast<int>(status.lastErrorSeverity);
         strip.connectionWarning = status.connectionWarning; strip.predictionStalled = status.predictionStalled;
         strip.disconnectCountdownMs = status.disconnectCountdownMs;

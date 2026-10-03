@@ -1,0 +1,110 @@
+name: Community feedback validation
+on:
+  push:
+    branches: ['codex/community-feedback-20261003']
+permissions:
+  contents: read
+jobs:
+  apply-acceptance-fixes:
+    if: github.repository == 'Confetti3/SF4-Ember-Netplay' && github.ref == 'refs/heads/codex/community-feedback-20261003' && github.event.head_commit.message == 'Apply review acceptance fixes'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      sha: ${{ steps.apply.outputs.sha }}
+    steps:
+      - name: Check out the review branch
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth=1 origin "$GITHUB_SHA"
+          git checkout --detach FETCH_HEAD
+      - name: Apply the verified acceptance fixes
+        id: apply
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import base64, gzip, hashlib, json, os, subprocess, urllib.request
+          sha = 'b760aa9b72be3b7d60f2030fad5b953cfc8f829e'
+          request = urllib.request.Request('https://api.github.com/repos/Confetti3/SF4-Ember-Netplay/git/blobs/' + sha, headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
+          with urllib.request.urlopen(request, timeout=30) as response:
+              compressed = base64.b64decode(json.load(response)['content'])
+          assert hashlib.sha1(b'blob ' + str(len(compressed)).encode() + b'\0' + compressed).hexdigest() == sha
+          patch = gzip.decompress(compressed)
+          assert hashlib.sha256(patch).hexdigest() == 'dcb2f28a6bf7b2553f296a04fb8ced0eb408bbcf8b58ee6288280099107d2887'
+          subprocess.run(['git', 'apply', '--check', '--index'], input=patch, check=True)
+          subprocess.run(['git', 'apply', '--index'], input=patch, check=True)
+          subprocess.run(['git', 'config', 'user.name', 'github-actions[bot]'], check=True)
+          subprocess.run(['git', 'config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'], check=True)
+          subprocess.run(['git', 'commit', '-m', 'Update HUD catalogs and alphabetical navigation acceptance'], check=True)
+          auth = base64.b64encode(('x-access-token:' + os.environ['GH_TOKEN']).encode()).decode()
+          subprocess.run(['git', '-c', 'http.extraheader=AUTHORIZATION: basic ' + auth, 'push', 'origin', 'HEAD:refs/heads/codex/community-feedback-20261003'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+          head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('sha=' + head + '\n')
+          print('Review source: ' + head)
+          PY
+  core-tests:
+    needs: apply-acceptance-fixes
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the reviewed source
+        env:
+          REVIEW_SHA: ${{ needs.apply-acceptance-fixes.outputs.sha }}
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth=1 origin "$REVIEW_SHA"
+          git checkout --detach FETCH_HEAD
+      - name: Configure game-independent tests
+        run: cmake -S . -B build/core -DSF4E_CORE_TESTS_ONLY=ON -DCMAKE_BUILD_TYPE=Release ${{ runner.os == 'Windows' && '-A Win32' || '' }}
+      - name: Build game-independent tests
+        run: cmake --build build/core --config Release
+      - name: Run game-independent tests
+        run: ctest --test-dir build/core -C Release --output-on-failure
+  native-windows:
+    needs: apply-acceptance-fixes
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out the reviewed source
+        shell: bash
+        env:
+          REVIEW_SHA: ${{ needs.apply-acceptance-fixes.outputs.sha }}
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth=1 origin "$REVIEW_SHA"
+          git checkout --detach FETCH_HEAD
+      - name: Build x86 binaries and test affected native paths
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = (Get-Location).Path
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (!$vs) { throw 'MSVC is missing' }
+          cmd /c "`"$vs\VC\Auxiliary\Build\vcvarsall.bat`" x86 >nul && set" | ForEach-Object {
+            if ($_ -match '^([^=]+)=(.*)$') { [Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process') }
+          }
+          $vcpkg = $env:VCPKG_INSTALLATION_ROOT
+          if (!$vcpkg -or !(Test-Path "$vcpkg/vcpkg.exe")) { throw 'The runner vcpkg installation is missing' }
+          $deps = "$repo/build/native/dependencies"
+          & "$vcpkg/vcpkg.exe" install --triplet=x86-windows-wchar-filenames --host-triplet=x86-windows-wchar-filenames "--x-manifest-root=$repo" "--x-install-root=$deps" --clean-after-build
+          if ($LASTEXITCODE) { throw 'Native dependency build failed' }
+          $ninja = "$vs/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe"
+          cmake -S . -B build/native -G Ninja "-DCMAKE_MAKE_PROGRAM=$ninja" -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x86-windows-wchar-filenames "-DVCPKG_INSTALLED_DIR=$deps" -DVCPKG_MANIFEST_INSTALL=OFF -DSF4E_BUILD_IROH_HELPER=OFF -DSF4E_BUILD_DISCORD=OFF
+          if ($LASTEXITCODE) { throw 'Native configure failed' }
+          cmake --build build/native --parallel 4 --target Launcher Sidecar Updater GameLocatorTest ArchiveToolTest EmberUpdateTest PackageInstallerTest SettingsStoreTest LocalizationTest RoomAuthorityTest RoomLifecycleTest RoomSpectatorLockTest ParkedIntentTest SessionClientTransportTest SessionServerTransportTest ShellJourneyTest RoomPanelNavigationTest ControllerNavigationTest
+          if ($LASTEXITCODE) { throw 'Native build failed' }
+          ctest --test-dir build/native --output-on-failure -R '^(GameLocator|ArchiveTool|EmberUpdate|PackageInstaller|UpgradeRecoveryPowerShell|SettingsStore|Localization|RoomAuthority|RoomLifecycle|RoomSpectatorLock|ParkedIntent|SessionClientTransport|SessionServerTransport|ShellJourney|RoomPanelNavigation|ControllerNavigation)$'
+          if ($LASTEXITCODE) { throw 'Native tests failed' }

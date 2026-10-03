@@ -1,4 +1,5 @@
 #pragma once
+#include "../common/ReadyOpponent.hxx"
 #include "../ui/ControllerNavigation.hxx"
 #include "../common/MenuInputCapture.hxx"
 #include "../common/FighterCatalog.hxx"
@@ -76,6 +77,7 @@ namespace sf4e {
 			selection::StageMask randomStageExcluded = 0;
 			netplay::PlayerPreferences preferences;
 			room::Action roomAction;
+            room::ReadyOpponent readyOpponent;
             int selectedDelay=-1;
             int previewSoundVolume=-1;
 		};

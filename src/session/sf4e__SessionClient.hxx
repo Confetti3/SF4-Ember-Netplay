@@ -1,4 +1,5 @@
 #pragma once
+#include "../common/ReadyOpponent.hxx"
 
 #include <string>
 #include <vector>
@@ -204,6 +205,7 @@ namespace sf4e {
 			// Stale-table resends of this one press, bounded so a real conflict
 			// still surfaces.
 			std::uint8_t staleRetries = 0;
+            room::ReadyOpponent readyOpponent;
 		};
 		std::deque<SentRoomAction> _sentRoomActions;
 		// Retried actions keep their id; log each id/reason pair once.

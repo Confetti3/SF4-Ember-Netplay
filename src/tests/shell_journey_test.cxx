@@ -409,6 +409,8 @@ void Journeys() {
  Check(h.actions.back().preferences.matchHudSize==1,"HUD size did not save"); // Small by default; Right steps to Standard.
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-spacing");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudRaised,"HUD spacing did not save");
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-position");h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.matchHudPosition==1,"Top-center HUD position did not save");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("scale");h.Press(MenuInput::Right);
  h.view.settingsError="Disk unavailable";h.Frame(0,45);
  {std::vector<MenuEntry> saveRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){saveRows=rows;});h.Frame();SetMenuEntriesProbe({});
@@ -504,8 +506,11 @@ void KeyboardJourneys(){
  key(ImGuiKey_F);
  Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="roster"&&selector.Navigation().Focus()=="fighter-4",
   "F did not open the roster at the current fighter");
- key(ImGuiKey_RightArrow);key(ImGuiKey_Enter);
- Check(pick.fighter==5&&selector.Navigation().Screen()=="ultra","Picking a fighter did not go on to its Ultra");
+ // Blanka is followed by C. Viper in the displayed roster, not by native ID 5.
+ key(ImGuiKey_RightArrow);
+ Check(selector.Navigation().Focus()=="fighter-12","Right from Blanka did not reach C. Viper");
+ key(ImGuiKey_Enter);
+ Check(pick.fighter==12&&selector.Navigation().Screen()=="ultra","Picking a fighter did not go on to its Ultra");
  key(ImGuiKey_RightArrow);key(ImGuiKey_KeypadEnter);
  Check(pick.ultra==1&&h.shell.Navigation().Screen()=="room","Picking the Ultra did not return to the room");
  // Back from the roster returns to the room as well.

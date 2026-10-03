@@ -765,17 +765,8 @@ msgstr "Velikost HUD"
 msgid "settings.match_hud_size_detail"
 msgstr "Mění velikost textu a panelu během zápasu."
 
-msgid "settings.bottom_spacing"
-msgstr "Odstup od spodku"
-
-msgid "spacing.raised"
-msgstr "Výše"
-
 msgid "spacing.normal"
 msgstr "Běžně"
-
-msgid "settings.bottom_spacing_detail"
-msgstr "Posune HUD zápasu výš od spodního okraje."
 
 msgid "settings.ready_sound"
 msgstr "Ohlášení vyzyvatele"
@@ -1010,9 +1001,6 @@ msgstr "Zpoždění"
 
 msgid "match.spectating"
 msgstr "Sledování"
-
-msgid "match.preview_spacing"
-msgstr "Odstup {0} / vzorové hodnoty"
 
 msgid "card.player"
 msgstr "HRÁČ"
@@ -2429,3 +2417,46 @@ msgstr "Chyba serveru relace. Zkontrolujte internet a zkuste to znovu."
 
 msgid "runtime.settings_unreadable"
 msgstr "Uložená nastavení se nepodařilo načíst; používají se výchozí hodnoty."
+
+# Match HUD placement
+msgid "settings.hud_position"
+msgstr "Match HUD position"
+
+msgid "settings.hud_position_detail"
+msgstr "Choose a screen edge without covering the fight."
+
+msgid "settings.hud_spacing"
+msgstr "Edge spacing"
+
+msgid "settings.hud_spacing_detail"
+msgstr "Move the HUD farther from its chosen screen edge."
+
+msgid "spacing.extra"
+msgstr "Extra"
+
+msgid "match.preview_placement"
+msgstr "Position: {0}. Edge spacing: {1}."
+
+msgid "hud.position.bottom_center"
+msgstr "Bottom center"
+
+msgid "hud.position.top_center"
+msgstr "Top center"
+
+msgid "hud.position.top_left"
+msgstr "Top left"
+
+msgid "hud.position.top_right"
+msgstr "Top right"
+
+msgid "hud.position.bottom_left"
+msgstr "Bottom left"
+
+msgid "hud.position.bottom_right"
+msgstr "Bottom right"
+
+msgid "runtime.ready.opponent_changed"
+msgstr "Opponent changed fighter. Check your Ultra and press Ready again."
+
+msgid "room.ready.opponent"
+msgstr "Opponent: {0}. Check your Ultra before Ready."

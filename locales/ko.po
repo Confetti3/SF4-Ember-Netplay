@@ -765,17 +765,8 @@ msgstr "대전 HUD 크기"
 msgid "settings.match_hud_size_detail"
 msgstr "대전 중 글자와 패널 크기를 변경합니다."
 
-msgid "settings.bottom_spacing"
-msgstr "하단 여백"
-
-msgid "spacing.raised"
-msgstr "올림"
-
 msgid "spacing.normal"
 msgstr "보통"
-
-msgid "settings.bottom_spacing_detail"
-msgstr "대전 HUD를 화면 아래쪽에서 위로 올립니다."
 
 msgid "settings.ready_sound"
 msgstr "도전자 알림"
@@ -1010,9 +1001,6 @@ msgstr "지연"
 
 msgid "match.spectating"
 msgstr "관전 중"
-
-msgid "match.preview_spacing"
-msgstr "{0} 여백 / 예시 값"
 
 msgid "card.player"
 msgstr "플레이어"
@@ -2429,3 +2417,46 @@ msgstr "세션 서버 오류입니다. 인터넷 연결을 확인하고 다시 �
 
 msgid "runtime.settings_unreadable"
 msgstr "저장된 설정을 읽지 못해 기본값을 사용합니다."
+
+# Match HUD placement
+msgid "settings.hud_position"
+msgstr "Match HUD position"
+
+msgid "settings.hud_position_detail"
+msgstr "Choose a screen edge without covering the fight."
+
+msgid "settings.hud_spacing"
+msgstr "Edge spacing"
+
+msgid "settings.hud_spacing_detail"
+msgstr "Move the HUD farther from its chosen screen edge."
+
+msgid "spacing.extra"
+msgstr "Extra"
+
+msgid "match.preview_placement"
+msgstr "Position: {0}. Edge spacing: {1}."
+
+msgid "hud.position.bottom_center"
+msgstr "Bottom center"
+
+msgid "hud.position.top_center"
+msgstr "Top center"
+
+msgid "hud.position.top_left"
+msgstr "Top left"
+
+msgid "hud.position.top_right"
+msgstr "Top right"
+
+msgid "hud.position.bottom_left"
+msgstr "Bottom left"
+
+msgid "hud.position.bottom_right"
+msgstr "Bottom right"
+
+msgid "runtime.ready.opponent_changed"
+msgstr "Opponent changed fighter. Check your Ultra and press Ready again."
+
+msgid "room.ready.opponent"
+msgstr "Opponent: {0}. Check your Ultra before Ready."

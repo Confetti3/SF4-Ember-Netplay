@@ -765,17 +765,8 @@ msgstr "Tamaño del HUD"
 msgid "settings.match_hud_size_detail"
 msgstr "Cambia el tamaño del HUD durante la partida."
 
-msgid "settings.bottom_spacing"
-msgstr "Espacio inferior"
-
-msgid "spacing.raised"
-msgstr "Elevado"
-
 msgid "spacing.normal"
 msgstr "Normal"
-
-msgid "settings.bottom_spacing_detail"
-msgstr "Mueve el HUD de partida por encima del borde inferior."
 
 msgid "settings.ready_sound"
 msgstr "Aviso de retador"
@@ -1010,9 +1001,6 @@ msgstr "Retraso"
 
 msgid "match.spectating"
 msgstr "Espectador"
-
-msgid "match.preview_spacing"
-msgstr "Separación {0} / valores de ejemplo"
 
 msgid "card.player"
 msgstr "JUGADOR"
@@ -2429,3 +2417,46 @@ msgstr "Error del servidor de sesión. Comprueba tu conexión a internet e inté
 
 msgid "runtime.settings_unreadable"
 msgstr "No se pudieron leer los ajustes guardados; se usan los predeterminados."
+
+# Match HUD placement
+msgid "settings.hud_position"
+msgstr "Posición del HUD de partida"
+
+msgid "settings.hud_position_detail"
+msgstr "Elige una posición sin tapar el combate."
+
+msgid "settings.hud_spacing"
+msgstr "Separación del borde"
+
+msgid "settings.hud_spacing_detail"
+msgstr "Aleja el HUD del borde de pantalla elegido."
+
+msgid "spacing.extra"
+msgstr "Extra"
+
+msgid "match.preview_placement"
+msgstr "Posición: {0}. Separación del borde: {1}."
+
+msgid "hud.position.bottom_center"
+msgstr "Abajo, centro"
+
+msgid "hud.position.top_center"
+msgstr "Arriba, centro"
+
+msgid "hud.position.top_left"
+msgstr "Arriba, izquierda"
+
+msgid "hud.position.top_right"
+msgstr "Arriba, derecha"
+
+msgid "hud.position.bottom_left"
+msgstr "Abajo, izquierda"
+
+msgid "hud.position.bottom_right"
+msgstr "Abajo, derecha"
+
+msgid "runtime.ready.opponent_changed"
+msgstr "El rival cambió de personaje. Revisa tu Ultra y vuelve a pulsar Listo."
+
+msgid "room.ready.opponent"
+msgstr "Rival: {0}. Revisa tu Ultra antes de pulsar Listo."

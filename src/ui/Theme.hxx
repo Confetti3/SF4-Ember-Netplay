@@ -2,6 +2,7 @@
 #include <functional>
 #include <imgui.h>
 #include "../common/NetworkLink.hxx"
+#include "../common/MatchHudPlacement.hxx"
 #include "MenuNavigation.hxx"
 #include <chrono>
 #include <cstdint>
@@ -105,6 +106,7 @@ struct MatchStripView {
     unsigned rollbackFrames = 0;
     int pingMs = -1, appliedDelay = -1, size = 1;
     bool spectator = false, raised = false;
+    int position = static_cast<int>(MatchHudPosition::BottomCenter);
     // Link state and the latest netplay notice, drawn on a line above the
     // telemetry. Severity: 0 info, 1 warning, 2 error (matches NoticeSeverity).
     std::string notice;
@@ -113,6 +115,7 @@ struct MatchStripView {
     int disconnectCountdownMs = -1;
 };
 void DrawMatchStrip(const MatchStripView& view);
+const char* MatchHudPositionName(int position);
 // "2 - 1": a room pair's running win count, as the table card and HUD show it.
 std::string SetScoreText(const std::uint32_t (&score)[2]);
 // The single line the strip shows for the link state, or empty. Exposed so

@@ -171,7 +171,9 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 				(published.localSlot >= 0 && published.localSlot < 2 && client->LocalSelectionLocked(published.localSlot))));
 		if (inFlight) return DispatchOutcome::Dropped;
 		const char* refusal = nullptr;
-		if (!runtime->input.Ready()) refusal = loc::T("runtime.ready.assign_controller");
+        if (client && command.readyOpponent != room::CaptureReadyOpponent(client->GetRoomSnapshot()))
+            refusal = loc::T("runtime.ready.opponent_changed");
+		else if (!runtime->input.Ready()) refusal = loc::T("runtime.ready.assign_controller");
 		else if (!selection::IsRandomStage(command.stage) && !selection::FindStage(command.stage)) refusal = loc::T("runtime.ready.stage_unavailable");
 		else if (command.character.charaID >= 44) refusal = loc::T("runtime.ready.fighter_unavailable");
 		else if (!selection::Available(selection::FromNative(command.character), published.lobbySettings.editionSelect,
@@ -184,6 +186,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		// controller accepts Ready in either state.
 		if (kind == netplay::CommandKind::Rematch && runtime->controller.GetSnapshot().match != netplay::MatchState::PostMatch)
 			command.command.kind = netplay::CommandKind::Ready;
+        runtime->readyOpponent = command.readyOpponent;
 		runtime->readyIntent.Arm(GetTickCount64(), command.command.generation);
 		const bool draining = runtime->match &&
 			(runtime->match->GetPhase() != session::IrohMatchSession::Phase::Idle || Game::Battle::System::ggpo);
@@ -524,6 +527,11 @@ void ResolvePendingIntents(bool helperReady) {
 	if (runtime->attached && UserApp::netplay &&
 		netplay::DropReadyWithoutSeat(runtime->readyIntent, UserApp::netplay->client.GetRoomSnapshot()))
 		spdlog::info("Ready: dropped, the seat it was pressed from is gone");
+    // An old press must not revive after an opponent changes while it is
+    // parked behind teardown or while a stale-table reply is in flight.
+    if (runtime->readyIntent.Active() && runtime->attached && UserApp::netplay &&
+        runtime->readyOpponent != room::CaptureReadyOpponent(UserApp::netplay->client.GetRoomSnapshot()))
+        FailReady(loc::T("runtime.ready.opponent_changed"));
 	// A parked Ready or lobby edit that never gets its turn is reported, not
 	// forgotten: the player pressed it and GGPO was already retired for it.
 	if (runtime->readyIntent.Expired(now)) FailReady(loc::T("runtime.ready.previous_match_timeout"));
