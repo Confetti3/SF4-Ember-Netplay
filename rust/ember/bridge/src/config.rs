@@ -42,6 +42,10 @@ pub struct Config {
     /// (`integrations::Secrets`). Needed when `discord` is set.
     #[serde(default)]
     pub integration_secrets: Option<PathBuf>,
+    /// Public rooms, listed by this bridge and hosted by a supervisor on this
+    /// machine. Off when absent.
+    #[serde(default)]
+    pub rooms: Option<Rooms>,
     pub tenants: Vec<Tenant>,
 }
 
@@ -58,6 +62,15 @@ pub struct Discord {
 
 fn discord_api() -> String {
     "https://discord.com/api".into()
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Rooms {
+    /// The room supervisor's loopback API, such as `http://127.0.0.1:8790`.
+    /// Its bearer secret is `rooms_supervisor_secret` in the integration
+    /// secrets.
+    pub supervisor_url: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -161,6 +174,14 @@ impl Config {
                 return Err("discord needs integration_secrets for its client secret".into());
             }
         }
+        if let Some(rooms) = &self.rooms {
+            if !is_loopback_origin(&rooms.supervisor_url) {
+                return Err("rooms.supervisor_url must be a loopback http origin".into());
+            }
+            if self.integration_secrets.is_none() {
+                return Err("rooms needs integration_secrets for the supervisor secret".into());
+            }
+        }
         let mut seen = std::collections::BTreeSet::new();
         for tenant in &self.tenants {
             if !is_slug(&tenant.id) || !seen.insert(tenant.id.clone()) {
@@ -219,6 +240,26 @@ impl Config {
                 .map(|connection| (tenant, connection))
         })
     }
+}
+
+/// `http://` plus a loopback host and an optional port, nothing else.
+fn is_loopback_origin(text: &str) -> bool {
+    let Ok(url) = url::Url::parse(text) else {
+        return false;
+    };
+    let host_is_loopback = match url.host() {
+        Some(url::Host::Domain(name)) => name == "localhost",
+        Some(url::Host::Ipv4(address)) => address.is_loopback(),
+        Some(url::Host::Ipv6(address)) => address.is_loopback(),
+        None => false,
+    };
+    url.scheme() == "http"
+        && host_is_loopback
+        && url.username().is_empty()
+        && url.password().is_none()
+        && matches!(url.path(), "" | "/")
+        && url.query().is_none()
+        && url.fragment().is_none()
 }
 
 /// `^[a-z][a-z0-9-]{0,63}$`.

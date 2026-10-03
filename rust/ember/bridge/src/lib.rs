@@ -40,6 +40,7 @@ pub struct AppState {
     /// Wakes event streams and the delivery worker after a commit.
     events: Arc<Notify>,
     delivery: Arc<Notify>,
+    rooms: Arc<routes::rooms::Shared>,
     stream_signal: tokio::sync::watch::Sender<u64>,
 }
 
@@ -60,6 +61,7 @@ impl AppState {
             rate: Arc::new(rate::Limiter::default()),
             events: Arc::new(Notify::new()),
             delivery: Arc::new(Notify::new()),
+            rooms: Arc::new(routes::rooms::Shared::default()),
             stream_signal: tokio::sync::watch::channel(0).0,
         }
     }
@@ -106,7 +108,7 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
         )
         .await;
     });
-    let workers = vec![
+    let mut workers = vec![
         tokio::spawn(delivery::run(state.clone(), delivery::webhooks::Webhooks)),
         tokio::spawn(routes::maintenance(state.clone())),
         tokio::spawn(delivery::run(
@@ -114,6 +116,9 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
             routes::blumint::Results::new(&state),
         )),
     ];
+    if routes::rooms::enabled(&state) {
+        workers.push(tokio::spawn(routes::rooms::poll_forever(state.clone())));
+    }
     Ok(Running {
         address,
         state,
@@ -127,6 +132,13 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
 /// runs it every few seconds; tests call it after moving the clock.
 pub async fn maintain(state: &AppState) {
     routes::maintenance_once(state).await;
+}
+
+/// One poll of the room supervisor: member counts, invitations and kicks
+/// come in, and rooms it no longer reports are closed. `start` polls every
+/// few seconds; tests call it after changing what their supervisor reports.
+pub async fn poll_rooms(state: &AppState) {
+    routes::rooms::poll(state).await;
 }
 
 /// One pass of sending finished matches' results to BluMint; tests call it.

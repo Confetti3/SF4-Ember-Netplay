@@ -8,13 +8,14 @@ pub const KEY_BACKUP_DOMAIN: &[u8] = b"EMBER:KEY-BACKUP:1\n";
 
 /// What a signature is for. There is deliberately no variant for arbitrary
 /// bytes. Players sign challenges and game reports; a bridge signs room
-/// bindings and game permits with its own key.
+/// bindings, room tickets and game permits with its own key.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Domain {
     Challenge,
     GameReport,
     Binding,
     Permit,
+    RoomTicket,
 }
 
 impl Domain {
@@ -24,6 +25,7 @@ impl Domain {
             Self::GameReport => b"EMBER:GAME-REPORT:1\n",
             Self::Binding => b"EMBER:BINDING:1\n",
             Self::Permit => b"EMBER:PERMIT:1\n",
+            Self::RoomTicket => b"EMBER:ROOM-TICKET:1\n",
         }
     }
 

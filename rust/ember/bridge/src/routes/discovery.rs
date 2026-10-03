@@ -44,6 +44,9 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
     if crate::routes::discord::sign_in(&state).is_some() {
         features.push(ember_protocol::discord::FEATURE.into());
     }
+    if crate::routes::rooms::enabled(&state) {
+        features.push(crate::routes::rooms::FEATURE.into());
+    }
     ok(&Capabilities {
         api_version: API_VERSION.into(),
         event_version: "v1".into(),

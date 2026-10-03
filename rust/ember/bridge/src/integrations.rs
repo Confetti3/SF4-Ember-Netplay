@@ -18,6 +18,8 @@ struct File {
     version: u8,
     #[serde(default)]
     discord_client_secret: Option<String>,
+    #[serde(default)]
+    rooms_supervisor_secret: Option<String>,
     /// Platform API keys by connection ID.
     #[serde(default)]
     api_keys: BTreeMap<String, String>,
@@ -27,6 +29,9 @@ struct File {
 pub struct Secrets {
     /// Discord's client secret. Without it Discord sign-in stays off.
     pub discord_client_secret: Option<Zeroizing<String>>,
+    /// The bearer secret of the room supervisor's API. Without it public
+    /// rooms stay off.
+    pub rooms_supervisor_secret: Option<Zeroizing<String>>,
     /// A platform's API key, by connection ID. A BluMint connection without
     /// one is served but not sent results.
     pub api_keys: BTreeMap<String, Zeroizing<String>>,
@@ -47,6 +52,10 @@ impl Secrets {
         Ok(Self {
             discord_client_secret: file
                 .discord_client_secret
+                .filter(|secret| !secret.is_empty())
+                .map(Zeroizing::new),
+            rooms_supervisor_secret: file
+                .rooms_supervisor_secret
                 .filter(|secret| !secret.is_empty())
                 .map(Zeroizing::new),
             api_keys: file

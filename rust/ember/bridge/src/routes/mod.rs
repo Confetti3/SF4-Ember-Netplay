@@ -10,6 +10,7 @@ pub mod play;
 pub mod policy;
 pub mod records;
 pub mod reports;
+pub mod rooms;
 pub mod sessions;
 pub mod tournaments;
 pub mod webhooks;
@@ -82,6 +83,8 @@ pub fn router(state: AppState) -> Router {
             discord::ACCOUNT_PATH,
             get(discord::get).delete(discord::remove),
         )
+        .route("/v1/rooms", get(rooms::list).post(rooms::create))
+        .route("/v1/rooms/{room_id}/tickets", post(rooms::ticket))
         .route("/v1/lobbies", post(lobbies::create))
         .route("/v1/lobbies/{id}", get(lobbies::get))
         .route("/v1/lobbies/{id}/queue", post(lobbies::join))

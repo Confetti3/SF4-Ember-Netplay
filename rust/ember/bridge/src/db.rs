@@ -23,6 +23,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (8, include_str!("../migrations/008_discord.sql")),
     (9, include_str!("../migrations/009_blumint.sql")),
     (10, include_str!("../migrations/010_discord_consent.sql")),
+    (11, include_str!("../migrations/011_rooms.sql")),
 ];
 
 #[derive(Clone)]
@@ -146,7 +147,7 @@ mod tests {
             .unwrap()
             .collect::<rusqlite::Result<_>>()
             .unwrap();
-        assert_eq!(versions, (1..=10).collect::<Vec<_>>());
+        assert_eq!(versions, (1..=11).collect::<Vec<_>>());
     }
 
     #[test]
