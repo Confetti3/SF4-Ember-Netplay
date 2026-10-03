@@ -9,4 +9,7 @@ bool AssignToSide(const Device& device, int side, bool fight);
 // or a native side mapping that no longer matches the established owner.
 bool ReadAssignedInput(const Device& device, int side, unsigned& mapped, unsigned& raw);
 Device MenuDevice(const std::vector<Device>& devices);
+// Logs the game's pads, the HID controllers behind them and whether Steam's
+// overlay (without which Steam Input cannot apply) is in the game, on change.
+void LogInventory(const std::vector<Device>& devices);
 } }

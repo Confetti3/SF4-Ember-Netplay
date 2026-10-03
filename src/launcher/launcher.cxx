@@ -550,9 +550,19 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     app.add_flag("--update-error", updateError, "Show updater recovery after an installation failure.");
     app.add_option("--wait-pid", waitPid, "Wait for the current game to exit before opening update controls.");
     app.add_option("--locale", localeOverride, "Use a language for this launcher run only.");
+    // Steam's launch options put the game's own command after the launcher
+    // ("Launcher.exe" %command%), arguments included; Ember starts the game
+    // itself, so all of it is unused. An unknown option before it is still an error.
+    app.prefix_command();
     int argc = 0; auto** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
     try { app.parse(argc, argv); } catch (const CLI::ParseError& e) { LocalFree(argv); return app.exit(e); }
     LocalFree(argv);
+    const auto steamCommand = app.remaining();
+    if (!steamCommand.empty() && steamCommand.front().rfind("-", 0) == 0) return app.exit(CLI::ExtrasError(steamCommand));
+    // Steam Input applies only when Steam starts the launcher, which then has
+    // Steam's overlay module; sf4e.log's HID list shows whether it took effect.
+    spdlog::info("Started {} Steam{}", GetModuleHandleW(L"GameOverlayRenderer.dll") ? "by" : "outside",
+        steamCommand.empty() ? "" : " with the game command");
     if (!localeOverride.empty() && sf4e::loc::ValidPreference(localeOverride)) {
         languagePreference = localeOverride;
         sf4e::loc::SetActive(sf4e::platform::ResolveUiLocale(languagePreference));

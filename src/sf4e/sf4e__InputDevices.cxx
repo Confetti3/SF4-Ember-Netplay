@@ -1,9 +1,57 @@
 #include "sf4e__InputDevices.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
+#include <spdlog/spdlog.h>
 #include <algorithm>
+#include <cstdio>
+#include <cwctype>
 
 namespace sf4e { namespace input {
 namespace {
+// Physical HID joysticks and gamepads by vendor:product. The device path also
+// names the instance, so all that is kept from it is whether it is an XInput
+// interface (IG_). Xbox 360 pads use a non-HID driver and appear only natively.
+std::string HidControllers() {
+    std::string result;
+    UINT count = 0;
+    if (GetRawInputDeviceList(nullptr, &count, sizeof(RAWINPUTDEVICELIST)) != 0 || !count) return result;
+    std::vector<RAWINPUTDEVICELIST> list(count);
+    const UINT read = GetRawInputDeviceList(list.data(), &count, sizeof(RAWINPUTDEVICELIST));
+    if (read == UINT(-1)) return result;
+    for (UINT i = 0; i < read; ++i) {
+        if (list[i].dwType != RIM_TYPEHID) continue;
+        RID_DEVICE_INFO info{}; info.cbSize = sizeof(info);
+        UINT size = sizeof(info);
+        if (GetRawInputDeviceInfoW(list[i].hDevice, RIDI_DEVICEINFO, &info, &size) == UINT(-1)) continue;
+        // Generic Desktop page: joystick (4) or gamepad (5).
+        if (info.hid.usUsagePage != 1 || (info.hid.usUsage != 4 && info.hid.usUsage != 5)) continue;
+        bool xinput = false;
+        UINT chars = 0;
+        if (GetRawInputDeviceInfoW(list[i].hDevice, RIDI_DEVICENAME, nullptr, &chars) == 0 && chars) {
+            std::wstring path(chars, L'\0');
+            if (GetRawInputDeviceInfoW(list[i].hDevice, RIDI_DEVICENAME, &path[0], &chars) != UINT(-1)) {
+                for (auto& c : path) c = static_cast<wchar_t>(std::towupper(c));
+                xinput = path.find(L"IG_") != std::wstring::npos;
+            }
+        }
+        char entry[32];
+        std::snprintf(entry, sizeof(entry), " %04X:%04X%s", static_cast<unsigned>(info.hid.dwVendorId & 0xFFFF),
+            static_cast<unsigned>(info.hid.dwProductId & 0xFFFF), xinput ? "/xinput" : "");
+        result += entry;
+    }
+    return result;
+}
+// What has to differ for the inventory to be logged again. ReadDevices runs
+// every main-menu frame, so this decides between a quiet log and a flood.
+std::string InventoryKey(const std::vector<Device>& devices) {
+    // Pads only, held buttons never: the keyboard reports a button for any key.
+    // A disconnect counts as a change. HID is read only when this changes, so a
+    // pad the game cannot see is listed at the next change, not when plugged in.
+    std::string key;
+    for (const auto& device : devices) if (device.type != PadKeyboard)
+        key += std::to_string(device.type) + ':' + std::to_string(device.index) + (device.connected ? '+' : '-') +
+            device.name + '\n';
+    return key;
+}
 bool Connected(const Device& device) {
     using namespace Dimps::Pad;
     if(!device.connected)return false;
@@ -109,5 +157,26 @@ bool ReadAssignedInput(const Device& device,int side,unsigned& mapped,unsigned& 
         (pad->*methods.GetDeviceIndexForPlayer)(side)!=device.index)return false;
     mapped=(pad->*methods.GetButtons_MappedOn)(side);raw=(pad->*methods.GetButtons_RawOn)(side);
     return true;
+}
+void LogInventory(const std::vector<Device>& devices) {
+    // ReadDevices lists the keyboard once the provider is ready; before that
+    // there is nothing to report. The first list is logged even with no pads.
+    if (devices.empty()) return;
+    static bool first = true;
+    static std::string logged;
+    std::string key = InventoryKey(devices);
+    if (!first && key == logged) return;
+    first = false;
+    logged = key;
+    std::string pads;
+    for (const auto& device : devices) if (device.connected && device.type != PadKeyboard)
+        pads += " [" + std::to_string(device.index) + (device.type == PadXInput ? " xinput '" : " dinput '") + device.name + "']";
+    const std::string hid = HidControllers();
+    // Steam's overlay loads even into a game Steam did not start, so this alone
+    // does not mean Steam Input applies; Steam's virtual pad (28DE:11FF) in the
+    // HID list does, and Steam then hides the real pad from the game.
+    const bool steam = GetModuleHandleW(L"GameOverlayRenderer.dll") != nullptr;
+    spdlog::info("Input: game pads{} | hid{} | steam overlay {}", pads.empty() ? " none" : pads,
+        hid.empty() ? " none" : hid, steam ? "loaded" : "absent");
 }
 } }

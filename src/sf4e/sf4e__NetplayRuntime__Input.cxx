@@ -19,6 +19,7 @@ std::string ControllerLabel(const input::Device& device) {
 void CaptureMenuInput() {
     if (AtMainMenu()) {
         runtime->inputDevices = input::ReadDevices();
+        input::LogInventory(runtime->inputDevices);
         if (!runtime->inputInitialized && runtime->input.State()==input::Capture::Idle &&
             runtime->controller.GetSnapshot().room==netplay::RoomState::Idle) {
             auto device = input::MenuDevice(runtime->inputDevices);
@@ -58,6 +59,9 @@ bool BindRuntimeInput(int localSlot) {
         runtime->error=loc::T("runtime.controller_assignment_unverified");return false;
     }
     runtime->matchInput=device;runtime->matchInputSide=localSlot;runtime->matchInputFault=false;
+    spdlog::info("Input: P{} plays with {} {} '{}'", localSlot + 1,
+        device.type == input::PadKeyboard ? "keyboard" : device.type == input::PadXInput ? "xinput" : "dinput",
+        device.index, device.name);
     return true;
 }
 
