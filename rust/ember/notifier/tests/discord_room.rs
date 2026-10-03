@@ -483,9 +483,47 @@ async fn other_refusals_get_a_short_plain_message() {
     }
 }
 
+/// Each scope's registered commands, by the scope's path.
+type Scopes = Arc<Mutex<Vec<(String, Vec<Value>)>>>;
+
+/// A stand-in for Discord's command registry: each scope's list, which a PUT
+/// replaces and a POST adds to or updates by name and type.
+fn registry(scopes: Scopes) -> impl Fn(&Logged) -> (u16, String) {
+    move |request| {
+        let mut scopes = scopes.lock().unwrap();
+        let index = match scopes.iter().position(|(path, _)| *path == request.path) {
+            Some(index) => index,
+            None => {
+                scopes.push((request.path.clone(), Vec::new()));
+                scopes.len() - 1
+            }
+        };
+        let list = &mut scopes[index].1;
+        if request.method == Method::PUT {
+            *list = request.body.as_array().cloned().unwrap_or_default();
+        } else if request.method == Method::POST {
+            let same =
+                |c: &Value| c["name"] == request.body["name"] && c["type"] == request.body["type"];
+            list.retain(|c| !same(c));
+            list.push(request.body.clone());
+        }
+        (200, request.body.to_string())
+    }
+}
+
 #[tokio::test]
 async fn the_command_is_registered_for_the_application_or_a_server() {
-    let discord = Mock::start(|_| (200, "[]".into())).await;
+    let others = || {
+        vec![
+            json!({ "name": "rank", "type": 1, "description": "Another bot's command" }),
+            json!({ "name": "Report", "type": 3 }),
+        ]
+    };
+    let scopes = Arc::new(Mutex::new(vec![
+        ("/applications/app1/commands".to_owned(), others()),
+        ("/applications/app1/guilds/g9/commands".to_owned(), others()),
+    ]));
+    let discord = Mock::start(registry(scopes.clone())).await;
     let mut config: Config = base_config("register");
     config.discord = Some(Discord {
         webhook_url: None,
@@ -498,14 +536,30 @@ async fn the_command_is_registered_for_the_application_or_a_server() {
             guild_id: None,
         }),
     });
-    register_commands(&config).await.unwrap();
+    let names = |path: &str| -> Vec<String> {
+        let scopes = scopes.lock().unwrap();
+        let (_, list) = scopes.iter().find(|(p, _)| p == path).unwrap();
+        let mut names: Vec<String> = list
+            .iter()
+            .map(|c| c["name"].as_str().unwrap().to_owned())
+            .collect();
+        names.sort();
+        names
+    };
+    let expected = vec!["Report".to_owned(), "rank".to_owned(), "room".to_owned()];
+    // Registered twice in each scope: the second updates /room, and the
+    // application's other commands stay.
+    for _ in 0..2 {
+        register_commands(&config).await.unwrap();
+    }
     let request = discord
-        .wait_for(Method::PUT, "/applications/app1/commands")
+        .wait_for(Method::POST, "/applications/app1/commands")
         .await;
     assert_eq!(request.headers["authorization"], "Bot test-bot-token");
-    assert_eq!(request.body[0]["name"], "room");
-    assert_eq!(request.body[0]["options"][0]["name"], "name");
-    assert_eq!(request.body[0]["options"][1]["max_value"], 16);
+    assert_eq!(request.body["name"], "room");
+    assert_eq!(request.body["options"][0]["name"], "name");
+    assert_eq!(request.body["options"][1]["max_value"], 16);
+    assert_eq!(names("/applications/app1/commands"), expected);
 
     config
         .discord
@@ -513,10 +567,14 @@ async fn the_command_is_registered_for_the_application_or_a_server() {
         .and_then(|d| d.interactions.as_mut())
         .unwrap()
         .guild_id = Some("g9".into());
-    register_commands(&config).await.unwrap();
-    discord
-        .wait_for(Method::PUT, "/applications/app1/guilds/g9/commands")
-        .await;
+    for _ in 0..2 {
+        register_commands(&config).await.unwrap();
+    }
+    assert_eq!(names("/applications/app1/guilds/g9/commands"), expected);
+    assert!(
+        discord.requests().iter().all(|r| r.method == Method::POST),
+        "registration replaced a command list"
+    );
 
     let refused = Mock::start(|_| (401, "{}".into())).await;
     config

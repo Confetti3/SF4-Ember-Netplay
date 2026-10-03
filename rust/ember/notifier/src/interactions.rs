@@ -330,7 +330,10 @@ pub async fn register_commands(config: &Config) -> Result<(), String> {
         Some(guild) => format!("{api}/applications/{application}/guilds/{guild}/commands"),
         None => format!("{api}/applications/{application}/commands"),
     };
-    let commands = json!([{
+    // One command POSTed: Discord creates it, or updates the command of the
+    // same name and type, and leaves the application's other commands alone
+    // (a PUT of the list would replace them all).
+    let command = json!({
         "name": COMMAND,
         "description": "Open a public Ember room",
         "type": 1,
@@ -340,11 +343,11 @@ pub async fn register_commands(config: &Config) -> Result<(), String> {
             { "type": 4, "name": "capacity", "description": "How many players it holds",
               "required": false, "min_value": MIN_CAPACITY, "max_value": MAX_CAPACITY },
         ],
-    }]);
+    });
     let response = http_client()?
-        .put(url)
+        .post(url)
         .header("authorization", format!("Bot {}", token.as_str()))
-        .json(&commands)
+        .json(&command)
         .send()
         .await
         .map_err(|_| "Discord could not be reached".to_owned())?;
