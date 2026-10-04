@@ -6,6 +6,8 @@
 #include "test_support.hxx"
 
 using sf4e::launcher::GameExecutable;
+using sf4e::launcher::GameFoldersInLibrary;
+using sf4e::launcher::ManifestInstallDir;
 using sf4e::launcher::LibraryCandidates;
 using sf4e::launcher::LocateGame;
 using sf4e::launcher::ParseLibraryFolders;
@@ -239,5 +241,28 @@ int main() {
     const auto record = [&probed](const std::wstring& path) { probed.push_back(path); return false; };
     CHECK(ShadowingRuntimeLibraries(package, {L"D:\\Games\\Ultra"}, record).empty());
     CHECK((probed == Paths{L"D:\\Games\\Ultra\\GGPO.dll", L"D:\\Games\\Ultra\\spdlog.dll", L"D:\\Games\\Ultra\\fmt.dll", L"D:\\Games\\Ultra\\zlib1.dll"}));
+
+    // The manifest's installdir comes first, then the usual folder.
+    const std::string manifest = "\"AppState\"\n{\n\t\"appid\"\t\t\"45760\"\n\t\"name\"\t\t\"Ultra Street Fighter IV\"\n"
+        "\t\"installdir\"\t\t\"USF4\"\n\t\"UserConfig\"\n\t{\n\t\t\"language\"\t\t\"english\"\n\t}\n}\n";
+    CHECK(ManifestInstallDir(manifest) == L"USF4");
+    CHECK((GameFoldersInLibrary(L"D:/SteamLibrary/", manifest) ==
+        Paths{L"D:\\SteamLibrary\\steamapps\\common\\USF4", L"D:\\SteamLibrary\\steamapps\\common\\Super Street Fighter IV - Arcade Edition"}));
+    const Paths usualOnly{L"D:\\SteamLibrary\\steamapps\\common\\Super Street Fighter IV - Arcade Edition"};
+    CHECK(GameFoldersInLibrary(L"D:\\SteamLibrary", "") == usualOnly);
+    // The usual name in the manifest is not tried twice, in any letter case.
+    CHECK(GameFoldersInLibrary(L"D:\\SteamLibrary", "\"AppState\" { \"installdir\" \"super street fighter iv - arcade edition\" }").size() == 1);
+    CHECK(GameFoldersInLibrary(L"", manifest).empty());
+    // Accented names survive; another app, a path or a damaged file are ignored.
+    CHECK(ManifestInstallDir("\"AppState\" { \"installdir\" \"Jogos \xc3\xa7\" }") == L"Jogos \u00e7");
+    CHECK(ManifestInstallDir("\"AppState\" { \"appid\" \"271590\" \"installdir\" \"GTAV\" }").empty());
+    CHECK(ManifestInstallDir("\"AppState\" { \"installdir\" \"..\" }").empty());
+    CHECK(ManifestInstallDir("\"AppState\" { \"installdir\" \"..\\\\Windows\" }").empty());
+    CHECK(ManifestInstallDir("\"AppState\" { \"installdir\" \"C:Elsewhere\" }").empty());
+    CHECK(ManifestInstallDir("\"AppState\" { \"installdir\" \"\" }").empty());
+    CHECK(ManifestInstallDir("\"Other\" { \"installdir\" \"USF4\" }").empty());
+    for (std::size_t length = 0; length < manifest.rfind('}'); ++length)
+        CHECK(ManifestInstallDir(manifest.substr(0, length)).empty());
+    CHECK((GameFoldersInLibrary(L"D:\\Lib", "garbage {") == Paths{L"D:\\Lib\\steamapps\\common\\Super Street Fighter IV - Arcade Edition"}));
     return 0;
 }

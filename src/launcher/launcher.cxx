@@ -42,7 +42,6 @@
 #include "update/github_release_client.hxx"
 #include "BuildIdentity.hxx"
 
-LPCWCH szLibrarySuffix = L"steamapps\\common\\Super Street Fighter IV - Arcade Edition";
 
 // Where the launcher and the game both log; the crash dump goes here too.
 wchar_t g_logsDir[MAX_PATH] = { 0 };
@@ -171,24 +170,26 @@ int FindSF4ByEstimatedSteamPath(
 			continue;
 		}
 
-		if ((res = PathCchCombine(szGameDirectory, nGameDirSize, library.c_str(), szLibrarySuffix)) != S_OK) {
-			spdlog::warn(L"FindSF4ByEstimatedSteamPath: szGameDirectory PathCchCombine for {} failed: {}", library.c_str(), res);
-			continue;
-		}
-
-		if (!PathIsDirectoryW(szGameDirectory)) {
-			// A common case- any given library may not contain SF4, so logging would
-			// add more noise than signal.
-			continue;
-		}
-
-		if ((res = PathCchCombine(szExePath, nExeSize, szGameDirectory, sf4e::launcher::kGameExecutableName)) != S_OK) {
-			spdlog::warn(L"FindSF4ByEstimatedSteamPath: szExePath PathCchCombine failed: {}", res);
-			continue;
-		}
-
-		if (PathFileExistsW(szExePath)) {
-			return 1;
+		// Steam's manifest names the install folder, which need not be the
+		// usual one; the usual folder is still tried after it.
+		std::string manifest;
+		std::ifstream manifestFile(std::filesystem::path(library) / L"steamapps" / L"appmanifest_45760.acf", std::ios::binary);
+		if (manifestFile.is_open()) manifest.assign(std::istreambuf_iterator<char>(manifestFile), std::istreambuf_iterator<char>());
+		for (const std::wstring& folder : sf4e::launcher::GameFoldersInLibrary(library, manifest)) {
+			// Most libraries do not hold SF4, so a missing folder is not logged.
+			if (!PathIsDirectoryW(folder.c_str())) continue;
+			if (wcscpy_s(szGameDirectory, nGameDirSize, folder.c_str()) != 0) {
+				spdlog::warn(L"FindSF4ByEstimatedSteamPath: game folder {} is too long", folder);
+				continue;
+			}
+			if ((res = PathCchCombine(szExePath, nExeSize, szGameDirectory, sf4e::launcher::kGameExecutableName)) != S_OK) {
+				spdlog::warn(L"FindSF4ByEstimatedSteamPath: szExePath PathCchCombine failed: {}", res);
+				continue;
+			}
+			if (PathFileExistsW(szExePath)) {
+				spdlog::info(L"FindSF4ByEstimatedSteamPath: found the game in {}", folder);
+				return 1;
+			}
 		}
 	}
 

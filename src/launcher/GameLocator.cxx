@@ -97,6 +97,46 @@ std::vector<std::wstring> LibraryCandidates(const std::wstring& steamPath, const
     return candidates;
 }
 
+std::wstring ManifestInstallDir(const std::string& acfUtf8) {
+    // One root block, AppState; installdir and appid sit directly inside it.
+    std::vector<Token> t;
+    if (!steam::Tokenize(acfUtf8, t) || t.size() < 2 || t[0].kind != Token::Text ||
+        CompareStringOrdinal(sf4e::platform::Utf8ToWide(t[0].text.c_str()).c_str(), -1, L"AppState", -1, TRUE) != CSTR_EQUAL ||
+        t[1].kind != Token::Open) return {};
+    std::string installDir, appId;
+    std::size_t i = 2;
+    for (int depth = 1; depth > 0;) {
+        if (i >= t.size()) return {};
+        if (t[i].kind == Token::Close) { --depth; ++i; continue; }
+        if (t[i].kind != Token::Text || i + 1 >= t.size()) return {};
+        const std::string& key = t[i].text;
+        const Token& value = t[i + 1];
+        i += 2;
+        if (value.kind == Token::Open) { ++depth; continue; }
+        if (value.kind != Token::Text) return {};
+        if (depth == 1 && key == "installdir") installDir = value.text;
+        if (depth == 1 && key == "appid") appId = value.text;
+    }
+    if (i != t.size() || (!appId.empty() && appId != "45760")) return {};
+    // A folder name only: the manifest must not steer the search elsewhere.
+    if (installDir.empty() || installDir == "." || installDir == ".." ||
+        installDir.find_first_of("\\/:") != std::string::npos) return {};
+    return sf4e::platform::Utf8ToWide(installDir.c_str());
+}
+
+std::vector<std::wstring> GameFoldersInLibrary(const std::wstring& library, const std::string& manifestUtf8) {
+    std::wstring common = library;
+    std::replace(common.begin(), common.end(), L'/', L'\\');
+    if (FolderKey(common).empty()) return {};
+    common = FolderKey(common) + L"\\steamapps\\common\\";
+    std::vector<std::wstring> folders;
+    const std::wstring named = ManifestInstallDir(manifestUtf8);
+    if (!named.empty()) folders.push_back(common + named);
+    const std::wstring usual = common + L"Super Street Fighter IV - Arcade Edition";
+    if (folders.empty() || !SameFolder(folders.front(), usual)) folders.push_back(usual);
+    return folders;
+}
+
 std::wstring GameExecutable(const std::wstring& directory, const std::function<bool(const std::wstring&)>& exists) {
     if (directory.empty() || !exists) return {};
     std::wstring path = directory;

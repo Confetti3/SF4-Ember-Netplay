@@ -37,6 +37,9 @@ namespace launcher {
 			wcsncpy_s(mutableCmd, cmdLine, _TRUNCATE);
 			if (!CreateProcessW(application, mutableCmd, NULL, NULL, FALSE, CREATE_NO_WINDOW | CREATE_SUSPENDED,
 				NULL, NULL, &si, &pi)) {
+				char buf[64] = { 0 };
+				snprintf(buf, sizeof(buf), "CreateProcess failed (Win32 %lu)", GetLastError());
+				AppendUpdateLog(buf);
 				CloseHandle(job);
 				return false;
 			}

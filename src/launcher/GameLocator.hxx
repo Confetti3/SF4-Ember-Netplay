@@ -21,6 +21,16 @@ std::vector<std::wstring> ParseLibraryFolders(const std::string& vdfUtf8);
 // case or a trailing separator count as the same folder.
 std::vector<std::wstring> LibraryCandidates(const std::wstring& steamPath, const std::string& vdfUtf8);
 
+// The install folder name from the text of a library's appmanifest_45760.acf:
+// AppState's "installdir", when the manifest parses, names app 45760 (or
+// names no app) and the value is a plain folder name. Anything else is empty.
+std::wstring ManifestInstallDir(const std::string& acfUtf8);
+
+// The folders to try for the game in one library, best first: the folder the
+// manifest names, then the usual "Super Street Fighter IV - Arcade Edition".
+// manifestUtf8 is the manifest's text, or empty when the library has none.
+std::vector<std::wstring> GameFoldersInLibrary(const std::wstring& library, const std::string& manifestUtf8);
+
 // The full path of the game executable in directory when exists reports it
 // there, otherwise empty. An empty directory never resolves.
 std::wstring GameExecutable(const std::wstring& directory, const std::function<bool(const std::wstring&)>& exists);
