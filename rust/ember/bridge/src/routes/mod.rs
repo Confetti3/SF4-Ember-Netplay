@@ -28,7 +28,7 @@ use axum::{
 };
 use rusqlite::params;
 
-use crate::{AppState, mock};
+use crate::{AppState, ctx::Ctx, linking, mock};
 
 /// Form bodies (mock pages only); JSON routes cap their own bodies.
 const FORM_LIMIT: usize = 16 * 1024;
@@ -178,13 +178,13 @@ pub async fn maintenance(state: AppState) {
 pub async fn maintenance_once(state: &AppState) {
     let now = state.now();
     let cutoff = now.saturating_sub(RETENTION_SECS);
-    let ctx = links::Ctx::of(state);
+    let ctx = Ctx::of(state);
     let done = state
         .db
         .write(move |tx| {
             reports::expire(tx, &ctx)?;
             expiry::expire_stale(tx, &ctx)?;
-            links::expire(tx, now)?;
+            linking::expire(tx, now)?;
             discord::expire(tx, now)?;
             tx.execute(
                 "DELETE FROM auth_challenges WHERE expires_at <= ?1",

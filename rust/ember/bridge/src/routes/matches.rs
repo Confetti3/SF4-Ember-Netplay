@@ -23,16 +23,18 @@ use std::collections::BTreeMap;
 
 use crate::{
     AppState,
+    audit::audit,
     auth::{self, Actor, Role, Service},
+    ctx::Ctx,
     error::{ApiFailure, Result},
     events,
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key, ok},
     routes::{
         expiry::{self, EXPIRED_LISTED_SECS},
         ledger::{Cause, Match, bump, load, match_event, release, settle, stale},
-        links::{Ctx, audit},
-        lobbies, policy, tournaments,
+        lobbies, policy,
     },
+    tournament,
 };
 
 pub use crate::routes::ledger::{busy, participants, release_players, scores};
@@ -147,7 +149,7 @@ pub async fn create(
     if command.external_match_id.starts_with(lobbies::MATCH_PREFIX)
         || command
             .external_match_id
-            .starts_with(tournaments::MATCH_PREFIX)
+            .starts_with(tournament::MATCH_PREFIX)
     {
         return Err(ApiFailure::invalid(
             "external_match_id values starting with lobby: or tournament: are reserved for lobby and tournament sets.",
@@ -622,7 +624,7 @@ pub fn cancel_lobby_set(
             .into_iter()
             .map(|p| p.ember_id)
             .collect();
-        tournaments::on_players_free(tx, ctx, &found.connection_id, &players)?;
+        tournament::on_players_free(tx, ctx, &found.connection_id, &players)?;
     }
     Ok(())
 }
@@ -936,7 +938,7 @@ pub fn on_unlink(
     ember_id: &EmberId,
 ) -> Result<()> {
     lobbies::on_unlink(tx, ctx, connection_id, ember_id)?;
-    tournaments::on_unlink(tx, ctx, connection_id, ember_id)?;
+    tournament::on_unlink(tx, ctx, connection_id, ember_id)?;
     let ids = tx
         .prepare(
             "SELECT m.id FROM matches m JOIN match_participants p

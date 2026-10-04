@@ -14,9 +14,10 @@ use serde::Deserialize;
 use crate::{
     AppState,
     auth::{self, BROWSER_COOKIE, BROWSER_SECS, Browser},
+    ctx::Ctx,
     error::{ApiFailure, Result},
     http::page,
-    routes::links::{self, ApproveCommand, Ctx, IntentCreated, Owner},
+    linking::{self, ApproveCommand, IntentCreated, Owner},
     util::html,
 };
 
@@ -89,7 +90,7 @@ pub async fn login(
         .db
         .write(move |tx| {
             let (account_id, _) =
-                links::account(tx, &target, &form.subject, &form.display_label, now)?;
+                linking::account(tx, &target, &form.subject, &form.display_label, now)?;
             auth::start_browser_session(tx, &keys, &target, &account_id, now)
         })
         .await?;
@@ -135,8 +136,13 @@ async fn render(
     let (intent, linked) = state
         .db
         .read(move |tx| {
-            let intent = match links::browser_intent(tx, &lookup, ctx.now)? {
-                Some(id) => Some(links::view_intent(tx, &ctx, &Owner::Browser(&lookup), &id)?),
+            let intent = match linking::browser_intent(tx, &lookup, ctx.now)? {
+                Some(id) => Some(linking::view_intent(
+                    tx,
+                    &ctx,
+                    &Owner::Browser(&lookup),
+                    &id,
+                )?),
                 None => None,
             };
             let linked: Option<(String, String)> =
@@ -255,7 +261,7 @@ pub async fn create(
     let created = state
         .db
         .write(move |tx| {
-            links::create_intent(
+            linking::create_intent(
                 tx,
                 &ctx,
                 &owner.connection_id,
@@ -294,7 +300,7 @@ pub async fn approve(
     let ctx = Ctx::of(&state);
     state
         .db
-        .write(move |tx| links::approve(tx, &ctx, &Owner::Browser(&browser), &intent, &command))
+        .write(move |tx| linking::approve(tx, &ctx, &Owner::Browser(&browser), &intent, &command))
         .await?;
     state.committed();
     Ok(Redirect::to(&format!("/mock/{connection}/link")).into_response())
@@ -312,7 +318,7 @@ pub async fn reject(
     state
         .db
         .write(move |tx| {
-            links::reject(tx, &ctx, &Owner::Browser(&browser), &intent, &form.claim_id)
+            linking::reject(tx, &ctx, &Owner::Browser(&browser), &intent, &form.claim_id)
         })
         .await?;
     Ok(Redirect::to(&format!("/mock/{connection}/link")).into_response())
@@ -330,10 +336,10 @@ pub async fn remove(
     state
         .db
         .write(move |tx| {
-            links::unlink(
+            linking::unlink(
                 tx,
                 &ctx,
-                &links::Unlinker::Account(Owner::Browser(&browser)),
+                &linking::Unlinker::Account(Owner::Browser(&browser)),
                 &link,
             )
         })

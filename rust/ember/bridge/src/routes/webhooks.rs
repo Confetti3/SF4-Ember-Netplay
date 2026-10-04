@@ -13,14 +13,12 @@ use serde_json::json;
 
 use crate::{
     AppState,
+    audit::audit,
     auth::{self, Role, Service},
     delivery,
     error::{ApiFailure, Result},
     http::{Body, PROOF_BODY, idempotency_key, ok},
-    routes::{
-        links::audit,
-        matches::{idempotent as idempotent_request, into_response},
-    },
+    routes::matches::{idempotent as idempotent_request, into_response},
     util::{new_id, random},
 };
 

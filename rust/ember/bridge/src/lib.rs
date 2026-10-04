@@ -5,18 +5,22 @@
 //! publishes signed events. It is not a gameplay relay. Every request body
 //! goes through `ember_protocol::json`'s strict profile; there is no lenient
 //! JSON extractor anywhere in this crate.
+mod audit;
 mod auth;
 pub mod config;
+mod ctx;
 mod db;
 mod delivery;
 mod error;
 mod events;
 mod http;
 pub mod integrations;
+mod linking;
 mod mock;
 mod rate;
 mod routes;
 mod secrets;
+mod tournament;
 mod util;
 
 use std::{net::SocketAddr, sync::Arc};

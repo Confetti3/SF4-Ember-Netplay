@@ -8,9 +8,10 @@ use ember_protocol::partner::{Lookup, LookupAnswer, MAX_LOOKUP};
 
 use crate::{
     AppState, auth,
+    ctx::Ctx,
     error::{ApiFailure, Result},
     http::{Body, GENERAL_BODY, ok},
-    routes::{discord, links::Ctx},
+    routes::discord,
 };
 
 pub async fn lookup(

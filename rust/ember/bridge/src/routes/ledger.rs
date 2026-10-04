@@ -13,9 +13,11 @@ use serde::Serialize;
 use serde_json::json;
 
 use crate::{
+    ctx::Ctx,
     error::{ApiFailure, Result},
     events::{NewEvent, emit},
-    routes::{expiry, links::Ctx, lobbies, tournaments},
+    routes::{expiry, lobbies},
+    tournament,
 };
 
 #[derive(Clone, Debug, Serialize)]
@@ -205,7 +207,7 @@ pub fn release_players(
     connection_id: &str,
     players: &[EmberId],
 ) -> Result<()> {
-    tournaments::on_players_free(tx, ctx, connection_id, players)?;
+    tournament::on_players_free(tx, ctx, connection_id, players)?;
     lobbies::on_players_free(tx, ctx, connection_id, players)
 }
 
@@ -276,9 +278,9 @@ pub fn settle(
     let mut freed = Vec::new();
     if correcting && let Some(tournament_id) = &found.tournament_id {
         if next == MatchState::Completed {
-            tournaments::check_correction(tx, tournament_id)?;
+            tournament::check_correction(tx, tournament_id)?;
         } else {
-            freed = tournaments::on_reopen(tx, ctx, tournament_id, &found.id)?;
+            freed = tournament::on_reopen(tx, ctx, tournament_id, &found.id)?;
         }
     }
     // A correction that reopens the match makes its players busy again, so it
@@ -378,7 +380,7 @@ pub fn settle(
                 lobbies::on_set_completed(tx, ctx, lobby_id, &found.id, slot as u8, &score_rows)?;
             }
             if let Some(tournament_id) = &found.tournament_id {
-                tournaments::on_match_completed(
+                tournament::on_match_completed(
                     tx,
                     ctx,
                     tournament_id,
