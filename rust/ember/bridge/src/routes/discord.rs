@@ -72,6 +72,14 @@ fn state_hash(state: &AppState, text: &str) -> [u8; 32] {
     state.keys.keyed_hash("discord-sign-in", text.as_bytes())
 }
 
+/// The key of a sign-in waiting on the move question: a secret of its own,
+/// made when the question is asked and shown only on that page. The sign-in's
+/// state was handed to the Ember that started it, so it does not answer the
+/// question.
+fn confirmation_hash(state: &AppState, text: &str) -> [u8; 32] {
+    state.keys.keyed_hash("discord-move", text.as_bytes())
+}
+
 fn redirect_uri(state: &AppState) -> String {
     format!("{}{CALLBACK_PATH}", state.config.origin)
 }
@@ -226,6 +234,7 @@ enum Stored {
     Moving {
         from: String,
         to: String,
+        confirmation: String,
     },
     Gone,
 }
@@ -279,6 +288,8 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
         );
     };
     let shown = user.username.clone();
+    let confirmation = b64u(&random::<32>());
+    let confirmation_key = confirmation_hash(&state, &confirmation);
     let ctx = Ctx::of(&state);
     let stored = state
         .db
@@ -302,13 +313,21 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
                 )
                 .optional()?;
             if let Some(owner) = owner.filter(|owner| *owner != ember_id) {
+                // The question is answered with its own secret from here on;
+                // the state stops naming this sign-in.
                 tx.execute(
-                    "UPDATE discord_sign_ins SET pending_user_id = ?2, pending_username = ?3 WHERE state_hash = ?1",
-                    params![hash.as_slice(), user.id, user.username],
+                    "UPDATE discord_sign_ins SET state_hash = ?4, pending_user_id = ?2, pending_username = ?3 WHERE state_hash = ?1",
+                    params![
+                        hash.as_slice(),
+                        user.id,
+                        user.username,
+                        confirmation_key.as_slice()
+                    ],
                 )?;
                 return Ok(Stored::Moving {
                     from: owner,
                     to: ember_id,
+                    confirmation,
                 });
             }
             take(tx, &hash, ctx.now)?;
@@ -321,9 +340,13 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
             state.committed();
             connected(&shown, &ember_id)
         }
-        Ok(Stored::Moving { from, to }) => {
+        Ok(Stored::Moving {
+            from,
+            to,
+            confirmation,
+        }) => {
             state.committed();
-            moving(&secret, &shown, &from, &to)
+            moving(&confirmation, &shown, &from, &to)
         }
         Ok(Stored::Gone) => not_waiting(),
         Err(_) => not_saved(),
@@ -332,7 +355,7 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
 
 #[derive(Deserialize)]
 pub struct MoveAnswer {
-    state: String,
+    confirmation: String,
     choice: String,
 }
 
@@ -351,7 +374,7 @@ pub async fn decide(State(state): State<AppState>, Form(answer): Form<MoveAnswer
         "keep" => false,
         _ => return not_waiting(),
     };
-    let hash = state_hash(&state, &answer.state);
+    let hash = confirmation_hash(&state, &answer.confirmation);
     let ctx = Ctx::of(&state);
     let decided = state
         .db
@@ -446,8 +469,8 @@ fn connected(username: &str, ember_id: &str) -> Response {
 }
 
 /// Asks before moving the account from Ember ID `from` to `to`. The form
-/// carries the sign-in's state, which only this browser has.
-fn moving(secret: &str, username: &str, from: &str, to: &str) -> Response {
+/// carries the question's confirmation secret, which only this page has.
+fn moving(confirmation: &str, username: &str, from: &str, to: &str) -> Response {
     let (username, from, to) = (
         html(username),
         html(&fingerprint(from)),
@@ -462,10 +485,10 @@ fn moving(secret: &str, username: &str, from: &str, to: &str) -> Response {
              <div class=\"box warn\"><p>Tournament sites will find <strong>{to}</strong> from this Discord account, \
              and the tournament links it made for <strong>{from}</strong> end.</p>\
              <p>Move it only if both Ember IDs are yours, for example on a new PC.</p></div>\
-             <form method=\"post\" action=\"{CALLBACK_PATH}\"><input type=\"hidden\" name=\"state\" value=\"{}\">\
+             <form method=\"post\" action=\"{CALLBACK_PATH}\"><input type=\"hidden\" name=\"confirmation\" value=\"{}\">\
              <button name=\"choice\" value=\"move\">Move it to {to}</button>\
              <button name=\"choice\" value=\"keep\">Keep it on {from}</button></form>",
-            html(secret)
+            html(confirmation)
         ),
         false,
     )

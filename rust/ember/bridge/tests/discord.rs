@@ -207,13 +207,21 @@ async fn connect(bridge: &Bridge, player: &Player, who: &str) {
     assert!(page.contains("Discord connected"), "{page}");
 }
 
+/// The confirmation secret on the page that asks before moving an account.
+fn confirmation(page: &str) -> String {
+    let marker = "name=\"confirmation\" value=\"";
+    let start = page.find(marker).expect("the page asks for a confirmation") + marker.len();
+    let end = page[start..].find('"').unwrap();
+    page[start..start + end].to_string()
+}
+
 /// The player's answer on the page that asks before moving an account.
-async fn decide(bridge: &Bridge, state: &str, choice: &str) -> String {
+async fn decide(bridge: &Bridge, confirmation: &str, choice: &str) -> String {
     let response = bridge
         .client
         .post(bridge.url("/v1/discord/callback"))
         .header("content-type", "application/x-www-form-urlencoded")
-        .body(format!("state={state}&choice={choice}"))
+        .body(format!("confirmation={confirmation}&choice={choice}"))
         .send()
         .await
         .unwrap();
@@ -226,7 +234,7 @@ async fn move_here(bridge: &Bridge, player: &Player, who: &str) {
     let state = start(bridge, player).await;
     let page = back(bridge, &format!("code=good-{who}&state={state}")).await;
     assert!(page.contains("Move this Discord account?"), "{page}");
-    let page = decide(bridge, &state, "move").await;
+    let page = decide(bridge, &confirmation(&page), "move").await;
     assert!(page.contains("Discord connected"), "{page}");
 }
 
@@ -721,12 +729,10 @@ async fn moving_an_account_from_another_ember_id_asks_first() {
             .await
             .contains("Sign-in expired")
     );
-    // Keeping it changes nothing and ends the sign-in.
-    assert!(
-        decide(&bridge, &state, "keep")
-            .await
-            .contains("Nothing moved")
-    );
+    // Only the page's own secret answers: the state, which the Ember that
+    // started the sign-in also has, moves nothing.
+    let asked = confirmation(&page);
+    assert_ne!(asked, state);
     assert!(
         decide(&bridge, &state, "move")
             .await
@@ -734,30 +740,43 @@ async fn moving_an_account_from_another_ember_id_asks_first() {
     );
     assert_eq!(account(&bridge, &one).await["user_id"], KATE);
     assert_eq!(account(&bridge, &two).await, Json::Null);
+    // Keeping it changes nothing and ends the sign-in.
+    assert!(
+        decide(&bridge, &asked, "keep")
+            .await
+            .contains("Nothing moved")
+    );
+    assert!(
+        decide(&bridge, &asked, "move")
+            .await
+            .contains("Sign-in expired")
+    );
+    assert_eq!(account(&bridge, &one).await["user_id"], KATE);
+    assert_eq!(account(&bridge, &two).await, Json::Null);
     assert_eq!(platform_links(&bridge).await, kept);
 
-    // A state Discord never issued, or no choice, moves nothing.
+    // A secret the page never showed, or no choice, moves nothing.
     let state = start(&bridge, &two).await;
-    back(&bridge, &format!("code=good-kate&state={state}")).await;
+    let asked = confirmation(&back(&bridge, &format!("code=good-kate&state={state}")).await);
     assert!(
         decide(&bridge, "made-up", "move")
             .await
             .contains("Sign-in expired")
     );
     assert!(
-        decide(&bridge, &state, "maybe")
+        decide(&bridge, &asked, "maybe")
             .await
             .contains("Sign-in expired")
     );
     assert_eq!(account(&bridge, &one).await["user_id"], KATE);
     // Moving it does what the page said, once.
-    let page = decide(&bridge, &state, "move").await;
+    let page = decide(&bridge, &asked, "move").await;
     assert!(
         page.contains("Discord connected") && page.contains(&two.id().fingerprint()),
         "{page}"
     );
     assert!(
-        decide(&bridge, &state, "move")
+        decide(&bridge, &asked, "move")
             .await
             .contains("Sign-in expired")
     );
@@ -780,6 +799,7 @@ async fn a_move_waiting_for_its_answer_can_end() {
         let state = start(&bridge, &two).await;
         let page = back(&bridge, &format!("code=good-kate&state={state}")).await;
         assert!(page.contains("Move this Discord account?"), "{page}");
+        let asked = confirmation(&page);
         match ending {
             0 => {
                 start(&bridge, &two).await;
@@ -789,7 +809,7 @@ async fn a_move_waiting_for_its_answer_can_end() {
             _ => bridge.clock.advance(10 * 60 + 1),
         }
         assert!(
-            decide(&bridge, &state, "move")
+            decide(&bridge, &asked, "move")
                 .await
                 .contains("Sign-in expired"),
             "ending {ending}"
