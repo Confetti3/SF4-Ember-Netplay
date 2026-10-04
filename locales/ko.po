@@ -1769,10 +1769,10 @@ msgid "chat.event.host"
 msgstr "{0}님이 새 방장이 되었습니다"
 
 msgid "chat.event.game_won"
-msgstr "{0}님이 테이블 {1}에서 한 판을 이겼습니다 ({2})"
+msgstr "{0}님이 대전 슬롯 {1}에서 한 판을 이겼습니다 ({2})"
 
 msgid "chat.event.set_won"
-msgstr "{0}님이 테이블 {1}에서 세트를 이겼습니다 ({2})"
+msgstr "{0}님이 대전 슬롯 {1}에서 세트를 이겼습니다 ({2})"
 
 msgid "room.fighter_options"
 msgstr "캐릭터 옵션"

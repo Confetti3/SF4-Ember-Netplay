@@ -1769,10 +1769,10 @@ msgid "chat.event.host"
 msgstr "{0} 现在是房主"
 
 msgid "chat.event.game_won"
-msgstr "{0} 在对战席 {1} 赢下一局 ({2})"
+msgstr "{0} 在对战位 {1} 赢下一局 ({2})"
 
 msgid "chat.event.set_won"
-msgstr "{0} 在对战席 {1} 赢下对战组 ({2})"
+msgstr "{0} 在对战位 {1} 赢下对战组 ({2})"
 
 msgid "room.fighter_options"
 msgstr "角色选项"
