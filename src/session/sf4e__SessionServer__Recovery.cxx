@@ -371,8 +371,12 @@ bool SessionServer::RestoreRecoveryState(const json& value,
 		legacy["legacy_authority"] = convertAuthority(value.value("legacy_authority", json(nullptr)));
 		if (legacy["legacy_authority"].is_discarded()) return false;
 		const auto previousAuthorityTerm = _recovery.Authority().term;
+		// A commit made before an outage must not take back the time a
+		// permit's window has already run here.
+		const auto permitAges = _roomAuthority ? _roomAuthority->PermitAges() : room::RoomAuthority::PermitAgeList{};
 		if (!RestoreCheckpoint(legacy)) return false;
 		if (_roomAuthority && !_roomAuthority->RecoveryPaused()) _roomAuthority->PauseForRecovery();
+		if (_roomAuthority) _roomAuthority->KeepPermitAges(permitAges);
 		_committedEffectHistory = std::move(incomingHistory);
 		_committedEffectSizes.clear();
 		_incarnation = value.value("incarnation", 1ULL);

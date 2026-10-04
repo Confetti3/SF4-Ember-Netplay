@@ -214,7 +214,8 @@ void TournamentPlay::TrackPermits(std::uint64_t nowMs, const RoomView& room, std
 			if (!told || nowMs - told >= PrepareIntervalMs) {
 				auto ready = Make(Output::Kind::PermitReady);
 				ready.generation = generation;
-				ready.permitId = held->second;
+				ready.permitId = held->second.id;
+				ready.startWindowMs = held->second.startWindowMs;
 				out.push_back(ready);
 				told = nowMs;
 			}
@@ -281,7 +282,7 @@ void TournamentPlay::OnRoom(Output::Kind request, const ClaimReply& reply, std::
 void TournamentPlay::OnPrepare(const PrepareReply& reply, std::uint64_t nowMs) {
 	prepareInFlight_ = false;
 	if (reply.permitted && reply.generation && !reply.permitId.empty()) {
-		permits_[reply.generation] = reply.permitId;
+		permits_[reply.generation] = {reply.permitId, reply.startWindowMs};
 		permitToldMs_[reply.generation] = 0;
 		return;
 	}

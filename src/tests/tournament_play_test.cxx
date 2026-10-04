@@ -160,10 +160,12 @@ static void TestPermitsAndReports() {
 	permitted.permitted = true;
 	permitted.generation = 7;
 	permitted.permitId = "per_x";
+	permitted.startWindowMs = 90000;
 	play.OnPrepare(permitted, 2400);
 	out = play.Tick(2500, Joined(RoomA, &snapshot, false));
+	// The room hears the permit's start window with it.
 	const auto* ready = Find(out, Kind::PermitReady);
-	CHECK(ready && ready->generation == 7 && ready->permitId == "per_x");
+	CHECK(ready && ready->generation == 7 && ready->permitId == "per_x" && ready->startWindowMs == 90000);
 	CHECK(Count(play.Tick(3000, Joined(RoomA, &snapshot, false)), Kind::PermitReady) == 0);
 	CHECK(Count(play.Tick(4600, Joined(RoomA, &snapshot, false)), Kind::PermitReady) == 1);
 	table.permits[1] = "per_x";

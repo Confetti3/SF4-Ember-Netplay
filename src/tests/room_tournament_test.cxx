@@ -31,10 +31,12 @@ static bool HasEvent(const Result& result, Event::Kind kind) {
 	return std::any_of(result.events.begin(), result.events.end(), [kind](const Event& event) { return event.kind == kind; });
 }
 
-static Action Permit(const RoomAuthority& authority, MemberId member, const std::string& permit) {
+static Action Permit(const RoomAuthority& authority, MemberId member, const std::string& permit,
+	std::uint64_t window = PermitStartMs) {
 	Action action = TableAction(authority, member, 0, ActionKind::PermitReady);
 	action.matchGeneration = authority.SnapshotView().tables[0].permitGeneration;
 	action.text = permit;
+	action.startWindowMs = window;
 	return action;
 }
 
@@ -140,8 +142,7 @@ static void TestPermitHoldEnds() {
 	CHECK(authority.HasDueTimerTransition(1000 + PermitHoldMs));
 	{
 		// The other permit at the last moment of the hold still starts the
-		// game, inside the bridge's start window (PermitHoldMs + the spectator
-		// hold fit in PermitStartMs); once the hold ends it cannot.
+		// game, inside the permit's start window; once the hold ends it cannot.
 		RoomAuthority late("Match", 8, 1);
 		CHECK(late.RestoreCheckpoint(authority.Checkpoint()));
 		late.AdvanceTime(1000 + PermitHoldMs - 1);
@@ -181,15 +182,160 @@ static void TestCheckpoint() {
 	CHECK(restored.SnapshotView().tournament.Active());
 	CHECK(restored.SnapshotView().tables[0].permitGeneration == reserved);
 	CHECK(restored.SnapshotView().tables[0].permits[0] == "per_one");
+	CHECK(restored.SnapshotView().tables[0].permitWindows[0] == PermitStartMs);
 	CHECK(!JoinAs(restored, "C", EndpointC));
 	// The wire form carries the binding to every member.
 	Snapshot copy;
 	nlohmann::json(authority.SnapshotView()).get_to(copy);
 	CHECK(copy.tournament.matchId == Binding().matchId && copy.tournament.fighters[1].endpoint == EndpointB);
+	CHECK(copy.tables[0].permitWindows[0] == PermitStartMs && copy.tables[0].permitWindows[1] == 0);
+	// A window needs its permit.
+	auto windowless = checkpoint;
+	windowless["snapshot"]["tables"][0]["permit_windows"] = {PermitStartMs, PermitStartMs};
+	CHECK(!restored.RestoreCheckpoint(windowless));
 	// A permit hold without a binding is not a room state.
 	auto forged = checkpoint;
 	forged["snapshot"]["tournament"] = nlohmann::json::object();
 	CHECK(!restored.RestoreCheckpoint(forged));
+}
+
+// A bound room whose fighters readied at 1000 and whose first fighter gave its
+// permit at `permitAt`. Returns the reserved generation.
+static std::uint64_t HoldOnePermit(RoomAuthority& authority, MemberId& a, MemberId& b, std::uint64_t permitAt,
+	std::uint64_t window = PermitStartMs) {
+	authority.AdvanceTime(1000);
+	a = JoinAs(authority, "A", EndpointA, true);
+	CHECK(authority.BindTournament(Binding()).accepted);
+	b = JoinAs(authority, "B", EndpointB);
+	ReadyBoth(authority);
+	authority.AdvanceTime(permitAt);
+	CHECK(authority.Apply(a, Permit(authority, a, "per_one", window)).accepted);
+	return authority.SnapshotView().tables[0].permitGeneration;
+}
+
+// What a recovering owner holds: the room paused, its timers as ages, as a
+// session's recovery checkpoint carries it.
+static nlohmann::json PausedCheckpoint(const RoomAuthority& authority) {
+	RoomAuthority paused = authority;
+	paused.PauseForRecovery();
+	return paused.Checkpoint();
+}
+
+// The permit's own window ends a start, whatever the hold allows: the game
+// must begin before the shorter window of the two seats, less the margin,
+// runs out from the reservation. A start past it is called off, and the
+// fighters ready again for a new generation and a new permit.
+static void TestPermitWindowGate() {
+	RoomAuthority authority("Match", 8, 1);
+	MemberId a = 0, b = 0;
+	const auto reserved = HoldOnePermit(authority, a, b, 11000, 30000);
+	const auto due = 1000 + 30000 - PermitStartMarginMs;
+	// A permit with no window, or a window too long to be the bridge's, is refused.
+	CHECK(!authority.Apply(b, Permit(authority, b, "per_one", 0)).accepted);
+	CHECK(!authority.Apply(b, Permit(authority, b, "per_one", MaximumPermitWindowMs + 1)).accepted);
+	CHECK(!authority.HasDueTimerTransition(due - 1));
+	CHECK(authority.HasDueTimerTransition(due));
+	{
+		// The other permit just inside the window starts the game.
+		RoomAuthority inTime("Match", 8, 1);
+		CHECK(inTime.RestoreCheckpoint(authority.Checkpoint()));
+		inTime.AdvanceTime(due - 1);
+		const auto agreed = inTime.Apply(b, Permit(inTime, b, "per_one"));
+		CHECK(agreed.accepted && HasEvent(agreed, Event::Kind::MatchReady));
+		CHECK(inTime.BeginMatch(0, a, b).accepted && inTime.SnapshotView().tables[0].matchGeneration == reserved);
+	}
+	{
+		// Arriving after it, even with a longer window of its own, it starts
+		// nothing: the shorter window holds.
+		RoomAuthority late("Match", 8, 1);
+		CHECK(late.RestoreCheckpoint(authority.Checkpoint()));
+		late.PauseForRecovery();
+		late.AgePermitHolds(1);
+		late.AgePermitHolds(1 + due - 11000);
+		late.ResumeRecovery(due);
+		const auto agreed = late.Apply(b, Permit(late, b, "per_one"));
+		CHECK(agreed.accepted && !HasEvent(agreed, Event::Kind::MatchReady));
+		CHECK(!late.BeginMatch(0, a, b).accepted);
+		CHECK(late.HasDueTimerTransition(due));
+	}
+	authority.AdvanceTime(due);
+	{
+		const auto& table = authority.SnapshotView().tables[0];
+		CHECK(table.phase == TablePhase::Waiting && !table.ready[0] && !table.ready[1]);
+		CHECK(table.permitGeneration == 0 && table.permitWindows[0] == 0);
+	}
+	ReadyBoth(authority);
+	CHECK(authority.SnapshotView().tables[0].permitGeneration > reserved);
+}
+
+// A permit held while the room's coordination is lost. Its window keeps
+// running on a paused replica whether coordination is healthy or not, so a new
+// owner after a long outage calls the start off and a short one still starts.
+static void TestPermitWindowAcrossRecovery() {
+	for (const std::uint64_t outage : {std::uint64_t(100000), std::uint64_t(20000)}) {
+		RoomAuthority leader("Match", 8, 1);
+		MemberId a = 0, b = 0;
+		// The first permit 30 s into the reservation.
+		const auto reserved = HoldOnePermit(leader, a, b, 31000);
+		RoomAuthority owner("Other", 8, 1);
+		CHECK(owner.RestoreCheckpoint(PausedCheckpoint(leader)));
+		CHECK(owner.PermitAges()[0].first == reserved && owner.PermitAges()[0].second == 30000);
+		// Healthy for 5 s: the room's own timers and the permit age once each.
+		owner.AgePermitHolds(500);
+		owner.AdvancePausedTimers(5000);
+		owner.AgePermitHolds(5500);
+		CHECK(owner.PermitAges()[0].second == 35000);
+		// Then the outage: no healthy time, but the permit's window runs on.
+		owner.AgePermitHolds(5500 + outage);
+		CHECK(owner.PermitAges()[0].second == 35000 + outage);
+		// The new owner's clock is its own, here lower than the old one's.
+		owner.ResumeRecovery(7000);
+		const bool expired = 35000 + outage + PermitStartMarginMs >= PermitStartMs;
+		CHECK(expired == (outage == 100000));
+		CHECK(owner.HasDueTimerTransition(7000) == expired);
+		const auto agreed = owner.Apply(b, Permit(owner, b, "per_one"));
+		CHECK(agreed.accepted && HasEvent(agreed, Event::Kind::MatchReady) == !expired);
+		CHECK(owner.BeginMatch(0, a, b).accepted == !expired);
+		if (!expired) {
+			CHECK(owner.SnapshotView().tables[0].matchGeneration == reserved);
+			continue;
+		}
+		owner.AdvanceTime(7000);
+		const auto& table = owner.SnapshotView().tables[0];
+		CHECK(table.phase == TablePhase::Waiting && table.permitGeneration == 0 && !table.ready[0] && !table.ready[1]);
+		ReadyBoth(owner);
+		CHECK(owner.SnapshotView().tables[0].permitGeneration > reserved);
+	}
+}
+
+// A replica restoring a commit made before an outage keeps the age its own
+// clock gave the same reservation; another reservation's age is not carried.
+static void TestRestoreKeepsPermitAge() {
+	RoomAuthority leader("Match", 8, 1);
+	MemberId a = 0, b = 0;
+	const auto reserved = HoldOnePermit(leader, a, b, 31000);
+	const auto stale = PausedCheckpoint(leader);
+	RoomAuthority replica("Other", 8, 1);
+	CHECK(replica.RestoreCheckpoint(stale));
+	replica.AgePermitHolds(1);
+	replica.AgePermitHolds(100001);
+	const auto aged = replica.PermitAges();
+	CHECK(aged[0].first == reserved && aged[0].second == 130000);
+	RoomAuthority restored("Other", 8, 1);
+	CHECK(restored.RestoreCheckpoint(stale));
+	restored.KeepPermitAges(aged);
+	CHECK(restored.PermitAges()[0].second == 130000);
+	// A younger age does not take it back.
+	auto younger = aged;
+	younger[0].second = 1000;
+	restored.KeepPermitAges(younger);
+	CHECK(restored.PermitAges()[0].second == 130000);
+	RoomAuthority other("Other", 8, 1);
+	CHECK(other.RestoreCheckpoint(stale));
+	auto elsewhere = aged;
+	elsewhere[0].first = reserved + 1;
+	other.KeepPermitAges(elsewhere);
+	CHECK(other.PermitAges()[0].second == 30000);
 }
 
 // Casual rooms are unchanged: Ready starts the game with no permit.
@@ -209,6 +355,9 @@ int main() {
 	TestPermitGate();
 	TestPermitHoldEnds();
 	TestCheckpoint();
+	TestPermitWindowGate();
+	TestPermitWindowAcrossRecovery();
+	TestRestoreKeepsPermitAge();
 	TestCasualRoomsNeedNoPermit();
 	if (failures) std::printf("%d failure(s)\n", failures);
 	else std::printf("room tournament tests passed\n");

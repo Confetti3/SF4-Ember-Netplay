@@ -77,6 +77,7 @@ void SendPermitReady(const Output& output) {
 	action.tableRevision = snapshot.tables[room::TournamentTable].revision;
 	action.matchGeneration = output.generation;
 	action.text = output.permitId;
+	action.startWindowMs = output.startWindowMs;
 	// Sent again until the room shows it, so a failed send needs no retry here.
 	if (client.SendRoomAction(action) != session::SendResult::Queued)
 		spdlog::info("Tournament: permit for generation {} not sent yet", output.generation);
