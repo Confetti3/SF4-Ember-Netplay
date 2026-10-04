@@ -21,6 +21,16 @@ spdlog::sink_ptr RingSink();
 // once, after the logger exists, on the game thread.
 void Install(const wchar_t* logsDirectory);
 
+// Points the import of `function` from `dll` in `module` at `replacement`,
+// handing back the previous target in `original`. False when the module does
+// not import it by name.
+bool PatchImport(HMODULE module, const char* dll, const char* function, void* replacement, void** original);
+
+// Records a non-zero ExitProcess from the game's own code, such as its C
+// runtime's _exit(255) after a fatal runtime error, as kind=exit with a dump.
+// Call once after Install.
+void WatchGameExit();
+
 // The launcher's dump channel from the payload. Without it the game writes
 // the dump itself.
 void ConfigureDumpChannel(HANDLE request, HANDLE done, HANDLE mailbox);

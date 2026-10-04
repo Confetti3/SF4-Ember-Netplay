@@ -352,6 +352,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
             wchar_t logsDirectory[MAX_PATH];
             PathCombineW(logsDirectory, path, L"sf4e/logs");
             sf4e::crash::Install(logsDirectory);
+            sf4e::crash::WatchGameExit();
             LogVSyncForced();
             spdlog::info("Sidecar logging initialized; install hooks are active");
         }

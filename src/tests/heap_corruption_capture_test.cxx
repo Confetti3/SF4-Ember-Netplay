@@ -79,6 +79,11 @@ int RunChild(char** argv) {
 	Install(logs);
 	ConfigureDumpChannel(HandleArgument(argv[4]), HandleArgument(argv[5]), HandleArgument(argv[6]));
 	Sleep(300); // the logger's worker puts the line in the ring
+	if (std::string(argv[2]) == "exit") {
+		// The game's C runtime ends a fatal runtime error this way.
+		WatchGameExit();
+		ExitProcess(255);
+	}
 	LeaveUnreferencedMarker();
 	HeapSetInformation(nullptr, HeapEnableTerminationOnCorruption, nullptr, 0);
 	HANDLE heap = std::string(argv[2]) == "process" ? GetProcessHeap() : HeapCreate(0, 0, 0);
@@ -191,6 +196,44 @@ void TestHandlerRecordsAndLauncherDumps(const wchar_t* heap) {
 	record << in.rdbuf();
 	in.close();
 	CHECK(Count(record.str(), "kind=heap_corruption code=0xC0000374") == 1);
+	CHECK(record.str().find("the last line before the corruption") != std::string::npos);
+	DeleteFileW(dump.c_str());
+	DeleteFileW((logs + L"\\sf4e-crash.log").c_str());
+	RemoveDirectoryW(logs.c_str());
+}
+
+// A non-zero ExitProcess through the module's own import leaves a record
+// naming the exit and a dump of the exiting thread, then exits as asked.
+void TestNonZeroExitIsRecorded() {
+	DumpChannel channel;
+	CHECK(channel.Create(true));
+	const std::wstring logs = TempDirectory();
+	wchar_t self[MAX_PATH] = {};
+	GetModuleFileNameW(nullptr, self, MAX_PATH);
+	wchar_t command[2048] = {};
+	swprintf_s(command, L"\"%s\" child exit \"%s\" %p %p %p", self, logs.c_str(), channel.request, channel.done, channel.mailbox);
+	STARTUPINFOW startup = { sizeof(startup) };
+	PROCESS_INFORMATION process = {};
+	CHECK(CreateProcessW(self, command, nullptr, nullptr, TRUE, 0, nullptr, nullptr, &startup, &process));
+	std::wstring dump;
+	int written = 0;
+	channel.ServeUntilExit(process.hProcess, logs.c_str(), [&](bool ok) { written += ok ? 1 : 0; if (ok) dump = channel.written; });
+	DWORD exitCode = 0;
+	GetExitCodeProcess(process.hProcess, &exitCode);
+	CloseHandle(process.hThread);
+	CloseHandle(process.hProcess);
+	channel.Close();
+	CHECK(exitCode == 255);
+	CHECK(written == 1);
+	ULONGLONG size = 0;
+	CHECK(DumpedExceptionCode(dump, size) == 255);
+	std::ifstream in(Narrow(logs + L"\\sf4e-crash.log"), std::ios::binary);
+	std::stringstream record;
+	record << in.rdbuf();
+	in.close();
+	// The header leads the record; the last lines repeat it once logged.
+	CHECK(record.str().find("kind=exit code=0x000000FF") == 0);
+	CHECK(record.str().find("ExitProcess(255)") != std::string::npos);
 	CHECK(record.str().find("the last line before the corruption") != std::string::npos);
 	DeleteFileW(dump.c_str());
 	DeleteFileW((logs + L"\\sf4e-crash.log").c_str());
@@ -321,6 +364,7 @@ int main(int argc, char** argv) {
 	TestHeapDumpsAreKeptApart();
 	TestHandlerRecordsAndLauncherDumps(L"private");
 	TestHandlerRecordsAndLauncherDumps(L"process");
+	TestNonZeroExitIsRecorded();
 	std::printf("heap_corruption_capture_test: all tests passed\n");
 	return 0;
 }

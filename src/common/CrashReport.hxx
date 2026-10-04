@@ -63,6 +63,7 @@ inline const char* ExitCodeName(uint32_t code) {
 	case 0: return "clean exit";
 	case 1: return "exit(1), which is how a GGPO assertion ends the process";
 	case 3: return "abort()";
+	case 255: return "_exit(255), how the game's C runtime ends after a fatal runtime error";
 	case 0xC0000005u: return "access violation";
 	case 0xC0000374u: return "heap corruption";
 	case 0xC0000409u: return "fail-fast (stack buffer overrun or __fastfail)";
@@ -78,11 +79,11 @@ inline const char* ExitCodeName(uint32_t code) {
 // recorded, as opposed to a clean exit or a loader failure before Sidecar ran.
 inline bool IsCrashExit(uint32_t code) {
 	if (code == 0xC0000135u || code == 0xC0000139u) return false;
-	return (code & 0xF0000000u) == 0xC0000000u || code == 0xE06D7363u || code == 3;
+	return (code & 0xF0000000u) == 0xC0000000u || code == 0xE06D7363u || code == 3 || code == 255;
 }
 
 struct CrashFacts {
-	const char* kind;         // unhandled_exception, heap_corruption, ggpo_assertion, terminate, purecall, invalid_parameter
+	const char* kind;         // unhandled_exception, heap_corruption, ggpo_assertion, terminate, purecall, invalid_parameter, exit
 	uint32_t code;            // exception code, or 0
 	uint64_t address;         // faulting address, or 0
 	const char* module;       // file name of the module containing address, or ""

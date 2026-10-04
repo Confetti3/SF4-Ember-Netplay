@@ -62,6 +62,8 @@ static void TestExitCodeNames() {
 	CHECK(!IsCrashExit(0));
 	CHECK(!IsCrashExit(0xC0000139u));
 	CHECK(!IsCrashExit(0xC0000135u));
+	CHECK(IsCrashExit(255));
+	CHECK(std::string(ExitCodeName(255)).find("fatal runtime error") != std::string::npos);
 }
 
 static void TestHeaderNamesTheFault() {
