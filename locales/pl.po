@@ -747,18 +747,6 @@ msgstr "Duży"
 msgid "settings.match_hud"
 msgstr "HUD walki"
 
-msgid "settings.match_hud_names"
-msgstr "Nazwy graczy"
-
-msgid "settings.match_hud_names_detail"
-msgstr "Tylko układ podzielony. Pokazuje każdą nazwę pod lub nad jej paskiem życia."
-
-msgid "hud_names.below"
-msgstr "Pod paskami życia"
-
-msgid "hud_names.above"
-msgstr "Nad paskami życia"
-
 msgid "settings.match_hud_layout"
 msgstr "Układ HUD"
 

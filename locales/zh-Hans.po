@@ -747,18 +747,6 @@ msgstr "大"
 msgid "settings.match_hud"
 msgstr "对战 HUD"
 
-msgid "settings.match_hud_names"
-msgstr "玩家名字"
-
-msgid "settings.match_hud_names_detail"
-msgstr "仅限分开布局。将每个名字显示在其体力条下方或上方。"
-
-msgid "hud_names.below"
-msgstr "体力条下方"
-
-msgid "hud_names.above"
-msgstr "体力条上方"
-
 msgid "settings.match_hud_layout"
 msgstr "对战 HUD 布局"
 
