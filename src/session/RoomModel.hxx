@@ -46,6 +46,10 @@ constexpr std::size_t MaximumKickedAccounts = 512;
 // room.waiting_spectators, room.lock_spectating.detail and
 // room.unlock_spectating.detail; the UI passes SpectatorStartHoldMs / 1000.
 constexpr std::uint64_t SpectatorStartHoldMs = 10000;
+// A tournament game starts by the end of the permit hold plus a spectator's
+// start hold, with a few seconds for the commits that start it.
+static_assert(PermitHoldMs + SpectatorStartHoldMs + 5000 <= PermitStartMs,
+	"a start the room allows must fall inside the permit's start window");
 
 enum class MemberStatus : std::uint8_t {
 	Idle = 0,

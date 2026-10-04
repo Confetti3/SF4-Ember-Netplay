@@ -138,6 +138,16 @@ static void TestPermitHoldEnds() {
 	CHECK(authority.Apply(a, Permit(authority, a, "per_one")).accepted);
 	CHECK(!authority.HasDueTimerTransition(1000 + PermitHoldMs - 1));
 	CHECK(authority.HasDueTimerTransition(1000 + PermitHoldMs));
+	{
+		// The other permit at the last moment of the hold still starts the
+		// game, inside the bridge's start window (PermitHoldMs + the spectator
+		// hold fit in PermitStartMs); once the hold ends it cannot.
+		RoomAuthority late("Match", 8, 1);
+		CHECK(late.RestoreCheckpoint(authority.Checkpoint()));
+		late.AdvanceTime(1000 + PermitHoldMs - 1);
+		const auto inTime = late.Apply(b, Permit(late, b, "per_one"));
+		CHECK(inTime.accepted && HasEvent(inTime, Event::Kind::MatchReady));
+	}
 	authority.AdvanceTime(1000 + PermitHoldMs);
 	{
 		const auto& table = authority.SnapshotView().tables[0];

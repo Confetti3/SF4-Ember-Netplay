@@ -14,10 +14,16 @@ namespace sf4e { namespace room {
 
 // The table a bound match plays on.
 constexpr std::uint8_t TournamentTable = 0;
+// How long a game may start after the bridge issues its permit
+// (ember_protocol::play::PERMIT_START_SECS).
+constexpr std::uint64_t PermitStartMs = 120000;
 // How long two ready fighters wait for the bridge's permit for their next
-// game before the start is called off. The bridge gives a permit two minutes
-// to start; the room waits a little longer so a late answer is not wasted.
-constexpr std::uint64_t PermitHoldMs = 150000;
+// game before the start is called off. The bridge issues a permit only after
+// the room reserved its game, so the permit's start window ends after this
+// hold does, and a start that becomes possible at the end of the hold still
+// begins inside it, even when a locked-in spectator holds it (static_assert
+// in RoomModel.hxx).
+constexpr std::uint64_t PermitHoldMs = 105000;
 // Longest permit ID the room carries (`per_` and a UUID).
 constexpr std::size_t MaximumPermitBytes = 64;
 
