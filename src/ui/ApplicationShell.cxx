@@ -583,7 +583,7 @@ void ApplicationShell::SetLanguage(std::string preference) {
 void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,const Submit& submit) {
  Conceal();
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
- ObserveChat(v,room,ImGui::GetTime());
+ ObserveChat(v,room);
  identity_.Hidden(v,submit,ImGui::GetTime());
 }
 
@@ -624,7 +624,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }
  UpdateRoomTransitions(v,now);
  TrackLiveGames(v,now);
- UpdateChat(v,now);
+ UpdateChat(v);
  const bool healthyRoom=UpdateRoomFeedback(v);
  UpdatePreferenceSave(v,submit);
  UpdateShortCopy(v,now);

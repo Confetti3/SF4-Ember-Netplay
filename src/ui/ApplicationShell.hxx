@@ -239,15 +239,19 @@ private:
     // The room chat: what the room said and did, kept here (ChatTranscript). The Chat screen is its
     // own body (DrawChatScreen); the board's Recent chat panel shows the same lines. ObserveChat takes
     // in the room every frame, drawn or hidden; UpdateChat is the drawn frame's, which also reads it.
-    void ObserveChat(const ShellView& view,const room::Snapshot& room,double now);
-    void UpdateChat(const ShellView& view,double now);
+    void ObserveChat(const ShellView& view,const room::Snapshot& room);
+    void UpdateChat(const ShellView& view);
     void DrawChatLog(const ShellView& view,bool compact);
     void DrawChatScreen(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                         const MenuVisualFeedback& feedback);
     ChatTranscript transcript_;
-    // A message sent and not yet seen in the room's chat. The draft stays in the box until it is.
+    // A message sent and not yet seen in the room's chat. The draft stays in the box until it is, however
+    // late, or until the room changes; `after` is the newest message already looked at. For 8 seconds
+    // from `since` the same text is not sent again (ChatInFlight); after that it may be, and is still
+    // looked for.
     struct PendingChat { std::string text; std::uint64_t after = 0; double since = 0; };
     std::optional<PendingChat> pendingChat_;
+    bool ChatInFlight(double now) const { return pendingChat_ && now >= pendingChat_->since && now - pendingChat_->since <= 8; }
     // The Chat screen has been drawn since the player last left it.
     bool chatOpen_=false;
     // The text the message box last held. ImGui ignores the buffer it is given while the box has the

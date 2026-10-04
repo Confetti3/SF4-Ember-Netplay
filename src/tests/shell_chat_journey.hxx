@@ -220,6 +220,27 @@ void ChatJourneys(){
  Check(row("room-chat").value=="1"&&h.shell.Transcript().Lines().size()==6,"Reopening Ember lost what arrived while hidden, or read it on the board");
  h.Screen("room-chat");h.Frame(0,2);
  Check(h.shell.Transcript().Unread({})==0,"Opening Chat after Ember was hidden did not read it");
+ // A message sent just before Ember is hidden takes the draft when it arrives, even past its 8 seconds.
+ io.AddInputCharactersUTF8("Sent then hidden");h.Frame(0,2);
+ sent=h.actions.size();key(ImGuiKey_Enter);
+ Check(h.actions.size()==sent+1,"The message before hiding was not sent");
+ hidden(1,9);say(1,"Sent then hidden");hidden(1,1.f/60);h.Frame(0,2);
+ Check(row("compose").value.empty()&&h.actions.size()==sent+1,"A message that arrived while Ember was hidden stayed in the draft");
+ // Past its 8 seconds the same text may be sent again, and either arrival takes the draft.
+ io.AddInputCharactersUTF8("Slow one");h.Frame(0,2);
+ sent=h.actions.size();key(ImGuiKey_Enter);
+ h.Wait(9);h.Frame();
+ Check(row("compose").value=="Slow one"&&row("compose").enabled,"A message past its 8 seconds could not be sent again");
+ key(ImGuiKey_Enter);key(ImGuiKey_Enter);
+ Check(h.actions.size()==sent+2,"A message past its 8 seconds was not sent again once, or was sent twice");
+ say(1,"Slow one");h.Frame(0,2);
+ Check(row("compose").value.empty(),"A message that arrived after its 8 seconds stayed in the draft");
+ // A late arrival leaves a draft the player has since changed.
+ io.AddInputCharactersUTF8("Edited later");h.Frame(0,2);
+ key(ImGuiKey_Enter);h.Wait(9);h.Frame();
+ io.AddInputCharactersUTF8(" more");h.Frame(0,2);
+ say(1,"Edited later");h.Frame(0,2);
+ Check(row("compose").value=="Edited later more","A late arrival took a draft the player had changed");
  SetMenuEntriesProbe({});
 }
 }

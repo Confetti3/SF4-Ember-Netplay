@@ -362,7 +362,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   // The one row: the message box is drawn by DrawChatScreen, and Enter in it is this row's Select. It is
   // there to send once there is something to send, and not again while that same text is on its way.
   rows.push_back(Row("compose",loc::T("room.compose_message"),loc::T("chat.detail"),
-   mutableRoom&&HasChatText(chat_)&&!(pendingChat_&&pendingChat_->text==chat_)));
+   mutableRoom&&HasChatText(chat_)&&!(ChatInFlight(ImGui::GetTime())&&pendingChat_->text==chat_)));
   rows.back().value=chat_;rows.back().hint=loc::T("chat.send");
  }else if(screen=="room-admin"){
   rows.push_back(TextRow("rename",loc::T("room.name"),roomName_,64,host));
@@ -864,8 +864,8 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  else if(a.id=="apply-capacity"){request.kind=ActionKind::SetCapacity;request.capacity=static_cast<std::uint8_t>(roomCapacity_);}
  else if(a.id=="lock"){request.kind=ActionKind::Lock;request.locked=a.delta<0;}
  else if(a.id=="compose"){
-  // The draft stays in the box until the room's chat has it (UpdateChat); the same text is not sent twice while it is on its way.
-  if(!HasChatText(chat_)||(pendingChat_&&pendingChat_->text==chat_))return;
+  // The draft stays in the box until the room's chat has it (ObserveChat); the same text is not sent twice while it is on its way.
+  if(!HasChatText(chat_)||(ChatInFlight(ImGui::GetTime())&&pendingChat_->text==chat_))return;
   request.kind=ActionKind::Chat;request.text=chat_;
  }
  else if(a.id=="ready"){ToggleReady(v,submit);return;}

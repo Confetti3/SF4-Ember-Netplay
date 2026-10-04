@@ -53,30 +53,30 @@ void DrawUnreadBadge(float right, float top, unsigned count) {
 // snapshot whatever the player has open: the room drops a departed member's
 // messages, and a join, a leave or a game won shows only as a difference
 // between two snapshots. Only the session's room state is read from `v`.
-void ApplicationShell::ObserveChat(const ShellView& v, const room::Snapshot& room, double now) {
+void ApplicationShell::ObserveChat(const ShellView& v, const room::Snapshot& room) {
     if (v.session.room == netplay::RoomState::Idle || !room.roomEpoch) { transcript_.Clear(); pendingChat_.reset(); return; }
     if (transcript_.Update(room)) pendingChat_.reset();
     // The draft goes once the room's chat has the message, and not before: a send the room refuses,
-    // or one that never arrives, leaves what was typed where it was.
-    if (pendingChat_) {
-        if (now - pendingChat_->since > 8 || now < pendingChat_->since) pendingChat_.reset();
-        else for (auto line = transcript_.Lines().rbegin(); line != transcript_.Lines().rend(); ++line) {
-            if (line->kind != ChatLine::Kind::Message) continue;
-            if (line->sequence <= pendingChat_->after) break;
-            if (line->own && line->text == pendingChat_->text) {
-                if (pendingChat_->text == chat_) chat_[0] = 0;
-                pendingChat_.reset();
-                break;
-            }
+    // or one that never arrives, leaves what was typed where it was. One that arrives after its
+    // 8 seconds (ChatInFlight) still takes it, so what was delivered is not left to be sent again.
+    if (!pendingChat_) return;
+    for (auto line = transcript_.Lines().rbegin(); line != transcript_.Lines().rend(); ++line) {
+        if (line->kind != ChatLine::Kind::Message) continue;
+        if (line->sequence <= pendingChat_->after) break;
+        if (line->own && line->text == pendingChat_->text) {
+            if (pendingChat_->text == chat_) chat_[0] = 0;
+            pendingChat_.reset();
+            return;
         }
     }
+    pendingChat_->after = transcript_.LastSequence();
 }
 // The drawn frame's, wherever the player is, so a message that arrives while
 // they are on Home still counts. Only the Chat screen on view reads it.
-void ApplicationShell::UpdateChat(const ShellView& v, double now) {
+void ApplicationShell::UpdateChat(const ShellView& v) {
     const bool onChat = menu_.navigation.Screen() == "room-chat";
     if (!onChat) chatOpen_ = false;
-    ObserveChat(v, v.room, now);
+    ObserveChat(v, v.room);
     if (onChat) transcript_.MarkRead();
 }
 
@@ -161,7 +161,7 @@ void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<Menu
     std::string note = loc::T("chat.detail");
     Tone noteTone = Tone::Neutral;
     if (!canSend) { note = RoomWaitReason(v); noteTone = Tone::Pending; }
-    else if (pendingChat_) { note = loc::T("chat.sending"); noteTone = Tone::Pending; }
+    else if (ChatInFlight(ImGui::GetTime())) { note = loc::T("chat.sending"); noteTone = Tone::Pending; }
     const float wrap = (std::max)(1.f, width - counterWidth - 12 * s);
     const float lineHeight = ImGui::GetTextLineHeight();
     const float boxHeight = ImGui::GetFrameHeight();
