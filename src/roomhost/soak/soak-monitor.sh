@@ -10,8 +10,9 @@
 # found by name), the main interface's byte counters, and UDP socket counts.
 # <out.csv>.rooms.csv has the same time with one row per room: that room's host
 # and helper memory, CPU and open files. Only processes recorded by
-# soak-hosts.sh under $SOAK_DIR (default /tmp/sf4-soak) count as the soak's, so
-# the supervisor's own room hosts are not mixed in. CPU is a percentage of one
+# soak-hosts.sh under $SOAK_DIR (default /tmp/sf4-soak), and only while their
+# record still names them (soak-lib.sh), count as the soak's, so neither the
+# supervisor's own room hosts nor a process that reused a pid are mixed in. CPU is a percentage of one
 # core over the interval. Needs no root.
 #
 # The watchdog checks every 5 s. If MemAvailable drops below SOAK_MIN_AVAIL_MB
@@ -23,6 +24,8 @@ set -uo pipefail
 
 if [ $# -lt 1 ]; then echo "usage: $0 <out.csv> [interval-seconds]" >&2; exit 2; fi
 HERE="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=soak-lib.sh
+. "$HERE/soak-lib.sh"
 OUT="$1"
 INTERVAL="${2:-30}"
 RUN="${SOAK_DIR:-/tmp/sf4-soak}"
@@ -81,8 +84,8 @@ pcpu() { # pid ticks dt_cs
 fmt() { printf '%d.%02d' $(( $1 / 100 )) $(( $1 % 100 )); }
 
 alive_hosts() {
-    local n=0 pidfile
-    for pidfile in "$RUN"/room-*/host.pid; do kill -0 "$(cat "$pidfile")" 2>/dev/null && n=$((n + 1)); done
+    local n=0 record
+    for record in "$RUN"/room-*/host.proc; do soak_owns "$record" && n=$((n + 1)); done
     echo "$n"
 }
 
@@ -123,8 +126,9 @@ sample() {
     local host_rss=0 host_cpu=0 help_rss=0 help_cpu=0 fds=0 alive=0 dir number hostpid helper hrss hcpu hfds
     for dir in "$RUN"/room-*; do
         number="${dir##*/room-}"
-        hostpid="$(cat "$dir/host.pid" 2>/dev/null)"
-        [ -n "$hostpid" ] && pstat "$hostpid" || continue
+        soak_owns "$dir/host.proc" || continue
+        hostpid="$SOAK_PID"
+        pstat "$hostpid" || continue
         pcpu "$hostpid" "$P_TICKS" "$DT_CS"
         alive=$((alive + 1))
         host_rss=$((host_rss + P_RSS)); host_cpu=$((host_cpu + P_CPU))

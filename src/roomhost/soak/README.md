@@ -15,7 +15,11 @@ PublicRoomSoakTest.exe   ---- iroh ---->   soak-hosts.sh   -> 8 x sf4e-room-host
 
 Nothing here touches the bridge, the supervisor or the live public rooms. The
 soak's processes are recorded under `/tmp/sf4-soak` (change it with
-`SOAK_DIR`), and the scripts only ever signal those.
+`SOAK_DIR`), each with its pid, start time, boot id and executable
+(`room-N/host.proc`, `holder.proc` and `filter.proc`; `soak-lib.sh`). The
+scripts only ever signal or count a process while its record still matches
+all four, so a pid the system has since given to another process, such as a
+live ember service, is left alone.
 
 ## What the client does
 
@@ -176,7 +180,10 @@ cd ~/soak
 ```
 
 That closes each host's stdin (the order to close the room and exit), waits 15 s
-(change it with the first argument), and only then ends stragglers. Collect:
+(change it with the first argument), and only then ends stragglers. It then
+removes the records of the processes that are gone, so running it again does
+nothing. A record whose pid now belongs to another process is reported in
+`stop.log` and removed without a signal. Collect:
 
 ```
 scp vps:soak-mon.csv vps:soak-mon.csv.rooms.csv vps:soak-mon.log .
