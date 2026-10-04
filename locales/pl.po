@@ -1736,7 +1736,43 @@ msgid "room.chat"
 msgstr "Czat"
 
 msgid "room.chat.detail"
-msgstr "Czytaj wiadomości i pisz je ręcznie na klawiaturze."
+msgstr "Czytaj i wysyłaj wiadomości. Pisanie wymaga klawiatury."
+
+msgid "room.chat.unread"
+msgstr "Nieprzeczytane: {0}."
+
+msgid "chat.detail"
+msgstr "Pisanie wymaga klawiatury. Enter wysyła; strzałki w górę i w dół przewijają czat."
+
+msgid "chat.hint"
+msgstr "Napisz wiadomość"
+
+msgid "chat.send"
+msgstr "Wyślij"
+
+msgid "chat.sending"
+msgstr "Wysyłanie..."
+
+msgid "chat.remaining"
+msgstr "Zostało {0}"
+
+msgid "chat.empty"
+msgstr "Brak wiadomości. Zacznij pisać poniżej."
+
+msgid "chat.event.joined"
+msgstr "{0} dołączył(a) do pokoju"
+
+msgid "chat.event.left"
+msgstr "{0} opuścił(a) pokój"
+
+msgid "chat.event.host"
+msgstr "{0} jest teraz hostem"
+
+msgid "chat.event.game_won"
+msgstr "{0}: wygrana walka przy stole {1} ({2})"
+
+msgid "chat.event.set_won"
+msgstr "{0}: wygrany set przy stole {1} ({2})"
 
 msgid "room.fighter_options"
 msgstr "Opcje postaci"
@@ -2129,12 +2165,6 @@ msgstr "Uczyń {0} hostem pokoju."
 
 msgid "room.compose_message"
 msgstr "Napisz wiadomość"
-
-msgid "room.send_message"
-msgstr "Wyślij wiadomość"
-
-msgid "room.send_message.detail"
-msgstr "Wyślij zatwierdzony tekst. Enter w edytorze nie wysyła wiadomości."
 
 msgid "room.capacity.detail"
 msgstr "Limit nie może być niższy niż liczba uczestników."

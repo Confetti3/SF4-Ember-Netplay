@@ -372,7 +372,8 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  if((screen=="create"||screen=="join"||screen=="home"||screen=="online"||screen=="public-rooms")&&opening&&status.empty()){
   status=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");statusTone=Tone::Pending;
  }
- if(screen=="room"&&status.empty()){
+ // Chat keeps the board's line, so a lost connection shows while typing.
+ if((screen=="room"||screen=="room-chat")&&status.empty()){
   const bool healthy=v.session.control==Health::Healthy;
   status=!healthy?std::string(loc::T("room.reconnecting")):v.room.tournament.Active()?
    loc::Tf("room.tournament_status",static_cast<int>(v.room.tournament.gamesToWin)):
@@ -579,8 +580,10 @@ void ApplicationShell::SetLanguage(std::string preference) {
  loc::SetActive(platform::ResolveUiLocale(languagePreference_));
  languageDirty_=true;languageSaveError_.clear();languageSaveAt_=ImGui::GetTime()+.45;
 }
-void ApplicationShell::Background(const ShellView& v,const Submit& submit) {
+void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,const Submit& submit) {
  Conceal();
+ // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
+ ObserveChat(v,room);
  identity_.Hidden(v,submit,ImGui::GetTime());
 }
 
@@ -621,6 +624,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }
  UpdateRoomTransitions(v,now);
  TrackLiveGames(v,now);
+ UpdateChat(v);
  const bool healthyRoom=UpdateRoomFeedback(v);
  UpdatePreferenceSave(v,submit);
  UpdateShortCopy(v,now);
@@ -697,7 +701,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const bool inRoom=v.session.room!=RoomState::Idle&&v.room.roomEpoch;
  const bool keys=KeyboardPrompts();
  std::vector<LegendHint> roomHints=keys?std::vector<LegendHint>{{"F",loc::T("room.legend_fighter")},{"T",loc::T("room.legend_options")},{"C",loc::T("room.chat")}}:
-  std::vector<LegendHint>{{"X",loc::T("room.legend_fighter")},{"Y",loc::T("room.legend_options")},{"Back/Select",loc::T("room.chat")}};
+  std::vector<LegendHint>{{"X",loc::T("room.legend_fighter")},{"Y",loc::T("room.legend_options")},{"View",loc::T("room.chat")}};
  if(nav.Screen()=="selection"&&selection){
   // The selector names where its Back goes and shows the room's shortcuts it hands back.
   SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),inRoom?roomHints:std::vector<LegendHint>{},selectionFresh_,selectionOpenOn_});
@@ -762,6 +766,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   DrawMatchStripPreview(preview);
  };
  if(screen=="room"&&v.room.roomEpoch)board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawRoomBoard(v,entries,navigation,action,height,feedback);};
+ if(screen=="room-chat"&&v.room.roomEpoch)board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawChatScreen(v,entries,navigation,action,height,feedback);};
  // Visual grace cannot grant permission: enabled and all dispatch checks stay live.
  const bool checkpointPending=roomScreen && RoomCheckpointPending(v) && !v.controllerUnavailable &&
   SessionProblem(v.session).empty() && v.error.empty() && error_.empty();
@@ -770,7 +775,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // grows can never displace the list under a highlight or a mouse click.
  // Home renders its status in the small-print line below the list instead.
  const bool stableFeedback=screen!="home";
- if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=roomHints;
+ // With the message box holding the keyboard, F, T and C type letters, so the keys are not offered there.
+ if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=screen=="room-chat"&&keys&&RoomActionsAvailable(v)?std::vector<LegendHint>{}:roomHints;
  else if(PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))menu_.shortcutHints={{keys?"T":"Y",loc::T("legend.refresh")}};
  else menu_.shortcutHints.clear();
  // The keyboard leaves a seat with Delete, so Escape keeps its own word.

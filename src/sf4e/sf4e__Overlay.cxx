@@ -149,15 +149,16 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
 
 }
 
-// Hidden, the shell still takes identity answers and ends a cancelled
-// Discord sign-in on its service.
+// Hidden, the shell still takes identity answers, ends a cancelled Discord
+// sign-in on its service and keeps the room chat. The room is read where the
+// published snapshot holds it, not copied, since this runs every match frame.
 static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot) {
     sf4e::ui::ShellView view;
     view.session = snapshot.session;
     view.identity = snapshot.identity;
     view.identityTicket = snapshot.identityTicket; view.identityRequest = snapshot.identityRequest;
     view.identityRefusal = snapshot.identityRefusal;
-    shell.Background(view, [](sf4e::ui::ShellAction action) {
+    shell.Background(view, snapshot.room, [](sf4e::ui::ShellAction action) {
         sf4e::NetplayFacade::RuntimeCommand request;
         request.command = std::move(action.command);
         request.identity = std::move(action.identity);

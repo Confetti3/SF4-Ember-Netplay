@@ -25,7 +25,7 @@ inline const char* PromptAsset(const char* glyph) {
     if(!std::strcmp(glyph,"RB"))return "xbox_rb";
     if(!std::strcmp(glyph,"LT"))return "xbox_lt";
     if(!std::strcmp(glyph,"RT"))return "xbox_rt";
-    if(!std::strcmp(glyph,"Back/Select"))return "xbox_button_back";
+    if(!std::strcmp(glyph,"View"))return "xbox_button_back";
     if(!std::strcmp(glyph,"Start"))return "xbox_button_start";
     if(!std::strcmp(glyph,"Enter"))return "keyboard_enter";
     if(!std::strcmp(glyph,"Esc"))return "keyboard_escape";

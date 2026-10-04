@@ -1736,7 +1736,43 @@ msgid "room.chat"
 msgstr "Chat"
 
 msgid "room.chat.detail"
-msgstr "Leggi i messaggi e scrivi con la tastiera quando scegli di farlo."
+msgstr "Leggi e invia messaggi. Per scrivere serve una tastiera."
+
+msgid "room.chat.unread"
+msgstr "{0} da leggere."
+
+msgid "chat.detail"
+msgstr "Per scrivere serve una tastiera. Invio manda il messaggio; Su e Giù scorrono la chat."
+
+msgid "chat.hint"
+msgstr "Scrivi un messaggio"
+
+msgid "chat.send"
+msgstr "Invia"
+
+msgid "chat.sending"
+msgstr "Invio..."
+
+msgid "chat.remaining"
+msgstr "{0} rimasti"
+
+msgid "chat.empty"
+msgstr "Nessun messaggio. Scrivi qui sotto per iniziare."
+
+msgid "chat.event.joined"
+msgstr "{0} è entrato nella sala"
+
+msgid "chat.event.left"
+msgstr "{0} ha lasciato la sala"
+
+msgid "chat.event.host"
+msgstr "{0} è ora l'host"
+
+msgid "chat.event.game_won"
+msgstr "{0} ha vinto una partita al tavolo {1} ({2})"
+
+msgid "chat.event.set_won"
+msgstr "{0} ha vinto il set al tavolo {1} ({2})"
 
 msgid "room.fighter_options"
 msgstr "Opzioni personaggio"
@@ -2129,12 +2165,6 @@ msgstr "Rendi {0} l'host della sala."
 
 msgid "room.compose_message"
 msgstr "Scrivi messaggio"
-
-msgid "room.send_message"
-msgstr "Invia messaggio"
-
-msgid "room.send_message.detail"
-msgstr "Invia la bozza confermata. Enter nell'editor non invia il messaggio."
 
 msgid "room.capacity.detail"
 msgstr "Non può essere inferiore al numero di membri attuali."

@@ -115,6 +115,9 @@ public:
         noticeAlternativeAction_=std::move(onAlternative); noticeAlternativeSelected_=false;
     }
     bool NoticeOpen() const { return !notice_.empty(); }
+    // The menu buttons held this frame (a notice that owns the input holds none), for a body
+    // that scrolls with them.
+    unsigned Held() const { return held_; }
 private:
     // Home's help line and status line, reserved whether or not they are empty.
     static constexpr float HomeStatusHeight=36;
@@ -146,6 +149,7 @@ private:
     bool noticeAlternativeSelected_=false;
     unsigned noticePrevious_=~0u;
     int lastFrame_ = -2;
+    unsigned held_ = 0;
     std::size_t lastChoice_ = ~std::size_t(0);
     UiClock clock_;
     MenuVisualFeedback feedback_;

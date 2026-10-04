@@ -1736,7 +1736,43 @@ msgid "room.chat"
 msgstr "Chat"
 
 msgid "room.chat.detail"
-msgstr "Lire les messages et écrire au clavier."
+msgstr "Lisez et envoyez des messages. Il faut un clavier pour écrire."
+
+msgid "room.chat.unread"
+msgstr "{0} non lu(s)."
+
+msgid "chat.detail"
+msgstr "Il faut un clavier pour écrire. Entrée envoie ; haut et bas font défiler le chat."
+
+msgid "chat.hint"
+msgstr "Écrire un message"
+
+msgid "chat.send"
+msgstr "Envoyer"
+
+msgid "chat.sending"
+msgstr "Envoi..."
+
+msgid "chat.remaining"
+msgstr "{0} restants"
+
+msgid "chat.empty"
+msgstr "Aucun message. Écrivez ci-dessous pour commencer."
+
+msgid "chat.event.joined"
+msgstr "{0} a rejoint le salon"
+
+msgid "chat.event.left"
+msgstr "{0} a quitté le salon"
+
+msgid "chat.event.host"
+msgstr "{0} est maintenant l'hôte"
+
+msgid "chat.event.game_won"
+msgstr "{0} a gagné un combat à la table {1} ({2})"
+
+msgid "chat.event.set_won"
+msgstr "{0} a remporté le set à la table {1} ({2})"
 
 msgid "room.fighter_options"
 msgstr "Options du personnage"
@@ -2129,12 +2165,6 @@ msgstr "Faire de {0} l'hôte du salon."
 
 msgid "room.compose_message"
 msgstr "Écrire un message"
-
-msgid "room.send_message"
-msgstr "Envoyer le message"
-
-msgid "room.send_message.detail"
-msgstr "Envoyer le brouillon validé. Enter dans l'éditeur n'envoie pas le message."
 
 msgid "room.capacity.detail"
 msgstr "Minimum : nombre actuel de membres."

@@ -174,10 +174,10 @@ int main() try {
         for (unsigned i = 0; i < 40; ++i) {
             std::string text = "Old message ";
             for (unsigned k = 0; k < 15; ++k) text += encode(0x4E00 + i * 15 + k);
-            view.room.chat.push_back({i + 1, 2, text});
+            view.room.chat.push_back({101 + i, 2, text});
         }
-        view.room.chat.push_back({41, 3, "Muted sender " + encode(0x6000) + encode(0x6001)});
-        view.room.chat.push_back({42, 2, "Recent " + encode(0x6708) + encode(0x65E5)});
+        view.room.chat.push_back({141, 3, "Muted sender " + encode(0x6000) + encode(0x6001)});
+        view.room.chat.push_back({142, 2, "Recent " + encode(0x6708) + encode(0x65E5)});
         for (int i = 0; i < 6; ++i) frame();
         ImGuiWindow* recent = nullptr;
         for (auto* window : GImGui->Windows) if (window->Active && std::strstr(window->Name, "Recent chat")) recent = window;
@@ -192,7 +192,7 @@ int main() try {
             "Chat scrolled out of view kept holding its glyphs while it stayed in the snapshot");
         Check(!drawable(0x6000) && !drawable(0x6001), "A muted sender's message held glyphs");
         // The retained old messages no longer starve a message that becomes visible.
-        view.room.chat.push_back({43, 2, "Later " + encode(0x6C34) + encode(0x706B)});
+        view.room.chat.push_back({143, 2, "Later " + encode(0x6C34) + encode(0x706B)});
         for (int i = 0; i < 3; ++i) frame();
         Check(ApplyTheme(1.f), "A newly visible chat message did not rebuild the atlas");
         io.Fonts->Build();
@@ -914,15 +914,15 @@ int main() try {
     for (auto& table : view.room.tables) ++table.matchGeneration;
     frame();
     Check(!shell.Navigation().Confirming(), "A new game left a confirmation about the last one open");
-    shell.Navigation().Home(); shell.Navigation().Push("room-chat"); frame();
-    focus("compose"); shell.Navigation().Choose(rows);
-    Check(shell.Navigation().Editing(), "Chat draft fixture did not enter the editor");
-    shell.Navigation().Draft("draft survives a new game");
+    const auto draft = [&] { return std::find_if(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "compose"; })->value; };
+    shell.Navigation().Home(); shell.Navigation().Push("room-chat");
+    for (int i = 0; i < 4; ++i) frame();
+    io.AddInputCharactersUTF8("draft survives a new game"); frame(); frame();
+    Check(draft() == "draft survives a new game", "Chat draft fixture did not take typed text");
     for (auto& table : view.room.tables) ++table.matchGeneration;
     frame(); frame();
-    Check(shell.Navigation().Editing() && shell.Navigation().Draft() == "draft survives a new game",
+    Check(shell.Navigation().Screen() == "room-chat" && draft() == "draft survives a new game",
         "A new game at the selected table discarded the chat being typed");
-    shell.Navigation().Cancel();
     shell.Navigation().Home(); shell.Navigation().Push("room-admin"); frame();
     focus("rename"); shell.Navigation().Choose(rows);
     Check(shell.Navigation().Editing(), "Room name fixture did not enter the editor");
@@ -930,21 +930,20 @@ int main() try {
     frame(); frame();
     Check(shell.Navigation().Editing(), "A new game discarded the room name being typed");
     shell.Navigation().Cancel();
-    shell.Navigation().Home(); shell.Navigation().Push("room-chat"); frame();
-    focus("compose"); shell.Navigation().Choose(rows);
-    Check(shell.Navigation().Editing(), "Chat draft fixture did not enter the editor");
-    shell.Navigation().Draft("draft survives locale switch");
+    shell.Navigation().Home(); shell.Navigation().Push("room-chat");
+    for (int i = 0; i < 4; ++i) frame();
+    io.AddInputCharactersUTF8(" and a locale switch"); frame(); frame();
     const auto localeScreen = shell.Navigation().Screen();
     const auto localeFocus = shell.Navigation().Focus();
-    const auto localeDraft = shell.Navigation().Draft();
+    const auto localeDraft = draft();
+    Check(localeDraft == "draft survives a new game and a locale switch", "Chat draft fixture did not keep adding to the draft");
     const auto localeActions = actions.size();
     const auto localeEpoch = view.room.roomEpoch;
     const auto localeMembers = view.room.members.size();
     sf4e::loc::SetActive(sf4e::loc::Locale::PtBR); frame();
     Check(shell.Navigation().Screen() == localeScreen && shell.Navigation().Focus() == localeFocus,
         "Locale switch changed room screen or focus");
-    Check(shell.Navigation().Editing() && shell.Navigation().Draft() == localeDraft,
-        "Locale switch discarded the chat draft");
+    Check(draft() == localeDraft, "Locale switch discarded the chat draft");
     Check(actions.size() == localeActions && view.room.roomEpoch == localeEpoch && view.room.members.size() == localeMembers,
         "Locale switch mutated room state or submitted a command");
     // Scripts Inter lacks rebuild the atlas mid-screen; the room keeps its place.
@@ -953,7 +952,7 @@ int main() try {
         Check(ApplyTheme(1.f), "A language needing other glyphs kept the old atlas");
         io.Fonts->Build(); frame();
         Check(shell.Navigation().Screen() == localeScreen && shell.Navigation().Focus() == localeFocus &&
-            shell.Navigation().Editing() && shell.Navigation().Draft() == localeDraft,
+            draft() == localeDraft,
             "Atlas rebuild for a language switch lost the screen, focus or draft");
         Check(!ApplyTheme(1.f), "An unchanged language rebuilt the atlas again");
     }

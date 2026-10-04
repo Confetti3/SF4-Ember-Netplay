@@ -169,11 +169,11 @@ unsigned KeyboardMenuBits() {
     struct Mapping { ImGuiKey key; unsigned bit; };
     static const Mapping always[]={
         {ImGuiKey_UpArrow,MenuInput::Up},{ImGuiKey_DownArrow,MenuInput::Down},{ImGuiKey_LeftArrow,MenuInput::Left},
-        {ImGuiKey_RightArrow,MenuInput::Right},{ImGuiKey_Enter,MenuInput::Select},{ImGuiKey_Escape,MenuInput::Back}};
+        {ImGuiKey_RightArrow,MenuInput::Right},{ImGuiKey_Enter,MenuInput::Select},{ImGuiKey_KeypadEnter,MenuInput::Select},{ImGuiKey_Escape,MenuInput::Back}};
     // Letters, Space, Backspace and Delete belong to a text field while one
     // is being typed in.
     static const Mapping menuOnly[]={
-        {ImGuiKey_KeypadEnter,MenuInput::Select},{ImGuiKey_Space,MenuInput::Select},{ImGuiKey_Backspace,MenuInput::Back},
+        {ImGuiKey_Space,MenuInput::Select},{ImGuiKey_Backspace,MenuInput::Back},
         {ImGuiKey_F,MenuInput::Fighter},{ImGuiKey_T,MenuInput::Options},{ImGuiKey_C,MenuInput::Chat},{ImGuiKey_Delete,MenuInput::Leave}};
     unsigned bits=0;
     for(const auto& mapping:always) if(ImGui::IsKeyDown(mapping.key)) bits|=mapping.bit;
@@ -239,6 +239,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             DismissNotice(noticeAlternativeSelected_&&!(pressed&MenuInput::Back));
         menuInput.held=0; menuInput.acceptText=false;
     } else noticePrevious_=~0u;
+    held_=menuInput.held;
     // InputText consumes this frame's characters before the requested acceptance.
     // The navigation model still owns the neutral gate and Back/Enter ordering.
     auto action=navigation.Update(menuInput,entries,columns,true,true);

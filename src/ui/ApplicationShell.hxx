@@ -16,6 +16,8 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <optional>
+#include "ChatTranscript.hxx"
 #include "GameMenu.hxx"
 #include "IdentityPanel.hxx"
 #include "PublicRoomsPanel.hxx"
@@ -105,6 +107,11 @@ struct ShellView {
     netplay::publicrooms::Status publicRooms;
 };
 
+// The count on a Chat control: a rounded badge ending at `right` (screen x), its top at `top`, the
+// height of a line of text. UnreadBadgeWidth is what it takes, for the text beside it to leave room.
+float UnreadBadgeWidth(unsigned count);
+void DrawUnreadBadge(float right,float top,unsigned count);
+
 struct ShellAction {
     netplay::Command command{netplay::CommandKind::HostRoom};
     platform::ServiceAction service = platform::ServiceAction::None;
@@ -143,6 +150,8 @@ public:
         if(previousRoomState_==netplay::RoomState::Idle)menu_.navigation.Home();
     }
     MenuNavigation& Navigation() { return menu_.navigation; }
+    // What this client keeps of the room chat (for tests).
+    const ChatTranscript& Transcript() const { return transcript_; }
     // The shell is not being drawn (the overlay is hidden): nothing typed into
     // a passphrase field may wait in it until it next opens.
     void Conceal() {
@@ -155,8 +164,9 @@ public:
         if (menu_.navigation.EditingSecret()) menu_.navigation.Cancel();
     }
     // Every frame Ember is hidden: Conceal, then the identity requests that
-    // must still finish, with only the session and identity of `view` read.
-    void Background(const ShellView& view, const Submit& submit);
+    // must still finish, with only the session and identity of `view` read,
+    // and `room` taken into the chat transcript as a drawn frame takes it.
+    void Background(const ShellView& view, const room::Snapshot& room, const Submit& submit);
     // Where the language preference is written; the platform store unless a
     // test supplies its own to fail it.
     using LanguageSaver = std::function<bool(const std::string& preference, std::string& diagnostic)>;
@@ -226,7 +236,28 @@ private:
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
     std::string roomBoardFocus_;
-    std::uint64_t chatSequence_=0;
+    // The room chat: what the room said and did, kept here (ChatTranscript). The Chat screen is its
+    // own body (DrawChatScreen); the board's Recent chat panel shows the same lines. ObserveChat takes
+    // in the room every frame, drawn or hidden; UpdateChat is the drawn frame's, which also reads it.
+    void ObserveChat(const ShellView& view,const room::Snapshot& room);
+    void UpdateChat(const ShellView& view);
+    void DrawChatLog(const ShellView& view,bool compact);
+    void DrawChatScreen(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
+                        const MenuVisualFeedback& feedback);
+    ChatTranscript transcript_;
+    // A message sent and not yet seen in the room's chat. The draft stays in the box until it is, however
+    // late, or until the room changes; `after` is the newest message already looked at. For 8 seconds
+    // from `since` the same text is not sent again (ChatInFlight); after that it may be, and is still
+    // looked for.
+    struct PendingChat { std::string text; std::uint64_t after = 0; double since = 0; };
+    std::optional<PendingChat> pendingChat_;
+    bool ChatInFlight(double now) const { return pendingChat_ && now >= pendingChat_->since && now - pendingChat_->since <= 8; }
+    // The Chat screen has been drawn since the player last left it.
+    bool chatOpen_=false;
+    // The text the message box last held. ImGui ignores the buffer it is given while the box has the
+    // keyboard, so a draft the shell changed (sent, or a new room) is handed to the box again.
+    std::string chatBoxText_;
+    std::size_t chatShown_=0;
     double saveAt_ = 0;
     double lastUiTime_ = -1;
     bool saveFailed_ = false;

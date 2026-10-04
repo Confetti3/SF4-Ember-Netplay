@@ -1736,7 +1736,43 @@ msgid "room.chat"
 msgstr "チャット"
 
 msgid "room.chat.detail"
-msgstr "メッセージを読み、キーボードで入力します。"
+msgstr "メッセージを読み、送信できます。入力にはキーボードが必要です。"
+
+msgid "room.chat.unread"
+msgstr "未読 {0} 件"
+
+msgid "chat.detail"
+msgstr "入力にはキーボードが必要です。Enterで送信、上下キーでチャットをスクロールします。"
+
+msgid "chat.hint"
+msgstr "メッセージを入力"
+
+msgid "chat.send"
+msgstr "送信"
+
+msgid "chat.sending"
+msgstr "送信中..."
+
+msgid "chat.remaining"
+msgstr "残り{0}"
+
+msgid "chat.empty"
+msgstr "メッセージはまだありません。下に入力して始めましょう。"
+
+msgid "chat.event.joined"
+msgstr "{0}がルームに参加しました"
+
+msgid "chat.event.left"
+msgstr "{0}がルームから退出しました"
+
+msgid "chat.event.host"
+msgstr "{0}が新しいホストになりました"
+
+msgid "chat.event.game_won"
+msgstr "{0}が対戦席{1}で1戦勝利しました ({2})"
+
+msgid "chat.event.set_won"
+msgstr "{0}が対戦席{1}でセットを獲得しました ({2})"
 
 msgid "room.fighter_options"
 msgstr "キャラオプション"
@@ -2129,12 +2165,6 @@ msgstr "{0}をルームのホストにします。"
 
 msgid "room.compose_message"
 msgstr "メッセージを作成"
-
-msgid "room.send_message"
-msgstr "メッセージを送信"
-
-msgid "room.send_message.detail"
-msgstr "確定した下書きを送信します。編集欄でEnterを押しても送信されません。"
 
 msgid "room.capacity.detail"
 msgstr "現在のメンバー数より小さくできません。"

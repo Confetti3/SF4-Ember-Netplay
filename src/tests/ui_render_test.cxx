@@ -281,6 +281,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 
 #include "ui_render_public_rooms.hxx"
 #include "ui_render_match_hud.hxx"
+#include "ui_render_chat.hxx"
 
 int main(int argc, char** argv) {
     SetUnhandledExceptionFilter(ReportCrash);
@@ -451,8 +452,11 @@ int main(int argc, char** argv) {
         const bool translations = localeRun && std::string(localeRun) == "translations";
         // SF4E_UI_RENDER_QUICK=1 is for a quick look at a change: English at 1920x1080 only.
         const char* quickRun = std::getenv("SF4E_UI_RENDER_QUICK");
-        const bool quick = quickRun && std::string(quickRun) == "1";
-        const std::vector<Size> sizes = quick ? std::vector<Size>{{1920,1080,1}} : translations ?
+        const std::string quickMode = quickRun ? quickRun : "";
+        const bool quick = quickMode == "1" || quickMode == "narrow";
+        // SF4E_UI_RENDER_QUICK=narrow is the same at 640x720, and SF4E_UI_RENDER_SHOTS=text writes only the shots whose name has it.
+        const char* shotFilter = std::getenv("SF4E_UI_RENDER_SHOTS");
+        const std::vector<Size> sizes = quickMode == "narrow" ? std::vector<Size>{{640,720,1.5f}} : quick ? std::vector<Size>{{1920,1080,1}} : translations ?
             std::vector<Size>{{640,720,1.5f}, {1280,720,1}, {1920,1080,1.5f}} :
             std::vector<Size>{{1280,720,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1}, {3840,2160,1}, {3840,2160,1.5f}, {1280,720,2}};
         int frames = 0;
@@ -557,7 +561,7 @@ int main(int argc, char** argv) {
                         std::string(shot).find("table-spectator-locked")==0 ||
                         std::string(shot).find("table-recover")==0 || std::string(shot).find("table-replacement")==0);
                     const bool matchShot=shot&&mode==3&&MatchHudShotCaptured(shot,size.w,size.h,size.dpi);
-                    if(i==settle-1&&shot&&!output.empty()&&(!trainingShotsOnly||mode==1||mode==2)&&
+                    if(i==settle-1&&shot&&!output.empty()&&(!shotFilter||std::string(shot).find(shotFilter)!=std::string::npos)&&(!trainingShotsOnly||mode==1||mode==2)&&
                         (!recoveryShotsOnly||recoveryShot)&&(!matchShotsOnly||matchShot) && (!uxShotsOnly ||
                             ((std::string(shot)=="table-delay-checking" || std::string(shot)=="table-delay-retry" ||
                               std::string(shot)=="table-recover-updating" || std::string(shot)=="table-recover-leaving") &&
@@ -666,6 +670,7 @@ int main(int argc, char** argv) {
             const char* sampleChat[]={"Welcome! Grab a table or join a queue.","Good games. I'll watch the next one.","Ready for another set?","Let's run it back!"};
             for(int i=0;i<20;++i)view.room.chat.push_back({static_cast<std::uint64_t>(i+1),static_cast<room::MemberId>(i%16+1),readmeShots?sampleChat[i%4]:"Ready for the next set? This is a longer chat message for narrow-layout inspection."});
             draw();for(const char* screen:{"room","room-table","room-members","room-chat","room-admin"})page(screen);
+            ShootChat(shell,view,draw);
             // The seat chooser on an empty table, for a member with no seat.
             view.room.tables[0].p1=5;view.room.members[0].table=-1;view.room.members[0].seat=-1;
             page("room");

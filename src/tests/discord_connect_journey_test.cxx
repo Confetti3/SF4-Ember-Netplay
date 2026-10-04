@@ -746,7 +746,7 @@ void CancelReachesTheService(){
    // Hidden and left hidden: only the hidden frames run.
    const auto hidden=[&]{
     ImGui::GetIO().DeltaTime=1.f/60;ImGui::NewFrame();
-    h.shell.Background(h.view,[&](auto a){h.actions.push_back(a);return h.accept;});ImGui::Render();
+    h.shell.Background(h.view,h.view.room,[&](auto a){h.actions.push_back(a);return h.accept;});ImGui::Render();
    };
    hidden();
    h.view.identityTicket=h.sent().back()->ticket;h.view.identityRequest=id.requestId=h.view.identityTicket+100;id.ok=true;id.failure.clear();

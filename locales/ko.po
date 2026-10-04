@@ -1736,7 +1736,43 @@ msgid "room.chat"
 msgstr "채팅"
 
 msgid "room.chat.detail"
-msgstr "메시지를 읽고 키보드로 직접 작성합니다."
+msgstr "메시지를 읽고 보낼 수 있습니다. 입력하려면 키보드가 필요합니다."
+
+msgid "room.chat.unread"
+msgstr "읽지 않음 {0}"
+
+msgid "chat.detail"
+msgstr "입력하려면 키보드가 필요합니다. Enter로 보내고, 위/아래 키로 채팅을 스크롤합니다."
+
+msgid "chat.hint"
+msgstr "메시지 입력"
+
+msgid "chat.send"
+msgstr "보내기"
+
+msgid "chat.sending"
+msgstr "보내는 중..."
+
+msgid "chat.remaining"
+msgstr "{0} 남음"
+
+msgid "chat.empty"
+msgstr "아직 메시지가 없습니다. 아래에 입력해 시작하세요."
+
+msgid "chat.event.joined"
+msgstr "{0}님이 방에 들어왔습니다"
+
+msgid "chat.event.left"
+msgstr "{0}님이 방을 나갔습니다"
+
+msgid "chat.event.host"
+msgstr "{0}님이 새 방장이 되었습니다"
+
+msgid "chat.event.game_won"
+msgstr "{0}님이 대전 슬롯 {1}에서 한 판을 이겼습니다 ({2})"
+
+msgid "chat.event.set_won"
+msgstr "{0}님이 대전 슬롯 {1}에서 세트를 이겼습니다 ({2})"
 
 msgid "room.fighter_options"
 msgstr "캐릭터 옵션"
@@ -2129,12 +2165,6 @@ msgstr "{0} 님을 방장으로 지정합니다."
 
 msgid "room.compose_message"
 msgstr "메시지 작성"
-
-msgid "room.send_message"
-msgstr "메시지 보내기"
-
-msgid "room.send_message.detail"
-msgstr "확정된 초안을 보냅니다. 편집기에서 Enter를 눌러도 채팅은 전송되지 않습니다."
 
 msgid "room.capacity.detail"
 msgstr "현재 참가 인원보다 적게 설정할 수 없습니다."

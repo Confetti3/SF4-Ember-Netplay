@@ -130,7 +130,7 @@ table's battle rules, and kick members. Capacity cannot be reduced below current
 membership. A kicked peer cannot rejoin the same room under another name.
 
 Room chat retains the latest 100 messages, with a limit of 256 UTF-8 bytes per
-message. A member's messages are removed when they leave the room. **Mute member** hides that member's messages on your screen only.
+message. The room removes a member's messages when they leave, but your own Chat screen keeps the messages it has already received (the latest 200 lines, with the room's join, leave, host and result lines among them) under the name the member had. **Mute member** hides that member's messages on your screen only.
 
 Both fighters report the game's native outcome. A win is counted only when the
 reports agree. Conflicting reports, or missing reports after the result deadline,
