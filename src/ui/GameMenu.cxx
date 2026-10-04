@@ -80,7 +80,7 @@ void DrawPlayerCard(ImVec2 p,float width,bool compact) {
 }
 }
 void SetMenuPlayerCard(PlayerCardView view){playerCard=std::move(view);}
-void DrawCardBadge(ImVec2 p,float width,const char* text,const char* probe){
+float DrawCardBadge(ImVec2 p,float width,const char* text,const char* probe,bool rightAligned){
     // Shrunk to the card like its caption, so a long translation stays whole.
     const float s=Scale(),pad=4*s,natural=ImGui::GetFontSize();
     const float measured=ImGui::GetFont()->CalcTextSizeA(natural,FLT_MAX,0,text).x;
@@ -88,8 +88,25 @@ void DrawCardBadge(ImVec2 p,float width,const char* text,const char* probe){
     const float textWidth=ImGui::GetFont()->CalcTextSizeA(font,FLT_MAX,0,text).x;
     ReportMenuText(probe,font,natural,textWidth+2*pad,width);
     auto* d=ImGui::GetWindowDrawList();
+    if(rightAligned)p.x-=textWidth+2*pad;
     d->AddRectFilled(p,ImVec2(p.x+textWidth+2*pad,p.y+natural+2*s),IM_COL32(16,15,14,230));
     d->AddText(ImGui::GetFont(),font,ImVec2(p.x+pad,p.y+(natural-font)*.5f),palette::Ember,text);
+    return textWidth+2*pad;
+}
+RosterGrid LayOutRosterGrid(float windowWidth){
+    const float s=Scale(),gap=8*s,columns=selection::RosterGridColumns,share=.8f;
+    // GameMenu::Draw splits a window of 820 or more into list and detail; the list's
+    // cards are what has to be wide enough, so the 15 columns ask for a bigger share.
+    const float list=(windowWidth>=820*s?windowWidth*share:windowWidth)-ImGui::GetStyle().ScrollbarSize;
+    const float card=(list-gap*(columns-1))/columns;
+    RosterGrid grid;
+    if(card>=56*s){
+        // Portraits are about square; the caption strip and its padding come on top.
+        grid.columns=selection::RosterGridColumns;grid.cardHeight=(std::min)(100.f,card/s*.9f+26);grid.listShare=share;
+    }else{
+        grid.columns=(std::max)(3,(std::min)(8,static_cast<int>(windowWidth/(170*s))));grid.cardHeight=100;grid.listShare=.53f;
+    }
+    return grid;
 }
 void SetMenuTextProbe(MenuTextProbe probe){textProbe=std::move(probe);}
 void ReportMenuText(const char* id,float textHeight,float interiorHeight,float textWidth,float availableWidth){
@@ -116,9 +133,11 @@ void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max){
     auto* d=ImGui::GetWindowDrawList();const float footer=22*Scale();
     if(menuArt){const auto art=menuArt->Portrait(fighter);if(art.texture){const float factor=(std::min)((max.x-min.x)/art.width,(max.y-min.y-footer)/art.height);
         const float w=art.width*factor,h=art.height*factor;d->AddImage(art.texture,ImVec2(min.x+(max.x-min.x-w)*.5f,min.y),ImVec2(min.x+(max.x-min.x+w)*.5f,min.y+h),art.uvMin,art.uvMax);}}
-    const std::string label=FitLabel(selection::FindFighter(fighter)->name,max.x-min.x-8*Scale());
+    // The name shrinks to the card, as the roster's captions do, so narrow cards keep it whole.
+    const char* name=selection::FindFighter(fighter)->name;
+    const float font=(std::min)(ImGui::GetFontSize(),(max.x-min.x-8*Scale())*ImGui::GetFontSize()/(std::max)(1.f,ImGui::CalcTextSize(name).x));
     d->AddRectFilled(ImVec2(min.x,max.y-footer),max,IM_COL32(16,15,14,235));
-    d->AddText(ImVec2(min.x+4*Scale(),max.y-footer),saved?palette::Ember:palette::Ivory,label.c_str());
+    d->AddText(ImGui::GetFont(),font,ImVec2(min.x+4*Scale(),max.y-footer+(ImGui::GetFontSize()-font)*.5f),saved?palette::Ember:palette::Ivory,name);
     if(saved)DrawCardBadge(ImVec2(min.x+4*Scale(),min.y+4*Scale()),max.x-min.x-8*Scale(),loc::T("profile.main_badge"),"main-badge");
 }
 // The legend follows whatever last moved the menu: a player with a pad
@@ -385,7 +404,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         preview(); ImGui::EndChild();
         ImGui::PopStyleColor();
     }
-    const float listWidth=home?(roomy?windowSize.x*.40f:windowSize.x-2*homeMargin):wide?available.x*.53f:available.x;
+    const float listWidth=home?(roomy?windowSize.x*.40f:windowSize.x-2*homeMargin):wide?available.x*wideListShare:available.x;
     if(changed) ImGui::SetNextWindowScroll(ImVec2(0,navigation.Scroll()));
     ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(0,0,0,0));
     ImGui::BeginChild("Menu list",ImVec2(listWidth,(std::max)(60.f,ImGui::GetContentRegionAvail().y-footer)),0,ImGuiWindowFlags_NoNavInputs);

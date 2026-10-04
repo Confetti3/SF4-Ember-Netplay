@@ -93,6 +93,8 @@ void UltraMoveInput(int fighterId, int ultra, int edition) {
     for (const auto& command : selection::UltraCommands(fighterId, ultra, edition)) {
         if (*command.condition) ImGui::TextWrapped("%s", command.condition);
         CommandSymbols(command.symbols);
+        // The same input in words, with no left or right in it, for a player facing the other way.
+        ImGui::TextDisabled("%s", selection::UltraNotation(command.symbols).c_str());
     }
 }
 void ImageInRect(const SelectionImage& image, ImVec2 min, ImVec2 max) {
@@ -247,7 +249,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  // The option rows step with Left and Right and save as they change; Select does nothing on them.
  const char* adjusts=loc::T(editable?"selection.adjust_saves":"selection.locked_detail");
  std::vector<MenuEntry> rows;
- std::string title=loc::T("selection.title");int columns=1;
+ std::string title=loc::T("selection.title");int columns=1;float cardHeight=100;menu_.wideListShare=.53f;
  if(screen=="home"){
   rows={Row("roster",loc::T("selection.fighter"),FindFighter(pick.fighter)->name),Row("appearance",loc::T("selection.appearance"),loc::Tf("selection.appearance_value",CostumeLabel(pick),pick.color+1)),
    Value("ultra",loc::T("selection.ultra_combo"),UltraName(pick),loc::T(editable?"selection.ultra_row.detail":"selection.locked_detail")),
@@ -257,8 +259,10 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   rows[2].opens=true;rows[2].adjustable=editable&&AllowedUltras(pick.fighter,pick.edition).size()>1;
  }else if(screen=="roster"){
   page_=Page::Fighter;title=loc::T("selection.choose_fighter");
-  for(int id=0;id<FighterCount;++id)rows.push_back(Saving(Row("fighter-"+std::to_string(id),FindFighter(id)->name,locked,editable),"menu.hint.save_fighter",editable));
-  columns=(std::max)(3,(std::min)(8,static_cast<int>(ImGui::GetContentRegionAvail().x/(170*Scale()))));
+  // USFIV's own select order, 15 across when the list has the room for it.
+  for(const int id:RosterDisplayOrder)rows.push_back(Saving(Row("fighter-"+std::to_string(id),FindFighter(id)->name,locked,editable),"menu.hint.save_fighter",editable));
+  const auto grid=LayOutRosterGrid(ImGui::GetContentRegionAvail().x);
+  columns=grid.columns;cardHeight=grid.cardHeight;menu_.wideListShare=grid.listShare;
  }else if(screen=="appearance"){
   page_=Page::Appearance;title=loc::T("selection.appearance_title");
   rows={Row("costumes",loc::T("selection.costume_gallery"),CostumeLabel(pick)),
@@ -348,16 +352,20 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  };
  GameMenu::Card card;
  const bool pool=screen=="random-pool";
- // An Ultra's card is its photo; Ultra Double shows both side by side.
+ // An Ultra's card is its photo; Ultra Double is one large W on a dark panel.
+ // A badge in the top-right corner names the Ultra (I, II or W); SAVED stays top-left.
  if(screen=="ultra")card=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){
   const int ultra=std::stoi(e.id.substr(6));
   const float labelHeight=ImGui::GetTextLineHeight()+4*Scale();
   const ImVec2 top(min.x+3,min.y+3),bottom(max.x-3,max.y-labelHeight);
   if(ultra==2){
-   const float middle=(top.x+bottom.x)*.5f;
-   ImageInRect(art?art->Ultra(pick.fighter,0):Missing(),top,ImVec2(middle-1,bottom.y));
-   ImageInRect(art?art->Ultra(pick.fighter,1):Missing(),ImVec2(middle+1,top.y),bottom);
+   auto* panel=ImGui::GetWindowDrawList();
+   panel->AddRectFilled(top,bottom,IM_COL32(26,22,19,255));
+   const float font=(std::max)(1.f,(std::min)((bottom.y-top.y)*.8f,(bottom.x-top.x)*.7f));
+   const auto glyph=ImGui::GetFont()->CalcTextSizeA(font,FLT_MAX,0,"W");
+   panel->AddText(ImGui::GetFont(),font,ImVec2((top.x+bottom.x-glyph.x)*.5f,(top.y+bottom.y-glyph.y)*.5f),palette::Ember,"W");
   }else ImageInRect(art?art->Ultra(pick.fighter,ultra):Missing(),top,bottom);
+  DrawCardBadge(ImVec2(max.x-3,min.y+2),max.x-min.x-6,ultra==2?"W":ultra==1?"II":"I","ultra-badge",true);
   const bool saved=ultra==pick.ultra;
   const std::string label=ultra==2?e.label:e.label+": "+FindFighter(pick.fighter)->ultras[ultra];
   auto* d=ImGui::GetWindowDrawList();
@@ -395,7 +403,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  // stableStatus: the galleries must not shift under a highlight when the
  // status grows from one line to two.
  const auto a=menu_.Draw(title.c_str(),rows,status.c_str(),preview,columns,card,{},0,
-  screen=="costumes"||screen=="colors"?180.f:100.f,true,selectionError.empty()?Tone::Neutral:Tone::Error);
+  screen=="costumes"||screen=="colors"?180.f:cardHeight,true,selectionError.empty()?Tone::Neutral:Tone::Error);
  if(a.kind==MenuAction::Close||a.kind==MenuAction::Shortcut)ForwardMenuAction(a);
  // Opened for one change, Back from its page goes back to where it came from.
  if(!openOn_.empty()&&a.kind==MenuAction::Returned&&screen==openOn_)ForwardMenuAction({MenuAction::Close});

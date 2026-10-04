@@ -1,5 +1,6 @@
 #include "FighterCatalog.hxx"
 #include <algorithm>
+#include <sstream>
 
 namespace sf4e { namespace selection {
 namespace {
@@ -94,7 +95,7 @@ std::vector<UltraCommand> UltraCommands(int fighterId, int ultraId, int editionI
         {"236 236 + KKK", "214 214 + KKK"}, // El Fuerte
         {"236 236 + PPP", "236 236 + KKK"}, // Abel
         {"236 236 + PPP", "214 214 + PPP"}, // Seth
-        {"LP LP 4 LK HP", "8 8 + KKK"}, // Akuma
+        {"LP LP 6 LK HP", "8 8 + KKK"}, // Akuma
         {"236 236 + PPP", "236 236 + KKK"}, // Gouken
         {"360 360 + PPP", "63214 63214 + KKK"}, // T. Hawk
         {"236 236 + KKK", "214 214 + PPP"}, // Cammy
@@ -149,6 +150,35 @@ std::vector<UltraCommand> UltraCommands(int fighterId, int ultraId, int editionI
     if (fighterId == 15 && ultraId == 1) condition = "Hold kicks to delay; punch to cancel";
     if (fighterId == 40 && ultraId == 1) condition = "Press PPP again to stop healing";
     return {{commands[fighterId][ultraId], condition}};
+}
+std::string UltraNotation(const std::string& tokens) {
+    std::istringstream stream(tokens);
+    std::vector<std::string> parts;
+    for (std::string token; stream >> token;) parts.push_back(token);
+    std::string result;
+    for (std::size_t i = 0; i < parts.size(); ++i) {
+        std::string token = parts[i];
+        const bool charge = token[0] == '~';
+        if (charge) token.erase(0, 1);
+        const bool digits = !token.empty() && token.find_first_not_of("0123456789") == std::string::npos;
+        std::string word = token;
+        if (digits && token.size() > 1) {
+            // A full motion; the same one twice in a row is a double.
+            word = token == "236" ? "QCF" : token == "214" ? "QCB" : token == "63214" ? "HCB" : token;
+            if (i + 1 < parts.size() && parts[i + 1] == parts[i]) { word += " x2"; ++i; }
+        } else if (digits) {
+            static const char* const directions[] = {"", "DB", "D", "DF", "B", "", "F", "UB", "U", "UF"};
+            const int digit = token[0] - '0';
+            if (*directions[digit]) word = directions[digit];
+        }
+        if (charge) word = "Charge " + word;
+        // The plus sign joins a motion to its buttons; everything else is a list.
+        if (word == "+") result += " +";
+        else if (result.empty()) result = word;
+        else if (result.back() == '+') result += " " + word;
+        else result += ", " + word;
+    }
+    return result;
 }
 std::vector<int> AllowedCostumes(int fighterId, const Availability& availability) {
     std::vector<int> result;

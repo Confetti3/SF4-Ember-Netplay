@@ -2,6 +2,7 @@
 #include "../common/SelectionAssetPath.hxx"
 #include <climits>
 #include <cstdlib>
+#include <iterator>
 #include <iostream>
 #include <set>
 #include <string>
@@ -99,6 +100,37 @@ int main() {
                 CHECK(ultra == 2 ? commands.empty() : !commands.empty());
                 for (const auto& command : commands) CHECK(command.symbols && *command.symbols);
             }
+    // The roster's display order is a permutation of the native IDs, 15 to a row.
+    {
+        std::set<int> shown(std::begin(RosterDisplayOrder), std::end(RosterDisplayOrder));
+        CHECK(shown.size() == static_cast<std::size_t>(FighterCount) && *shown.begin() == 0 && *shown.rbegin() == FighterCount - 1);
+        CHECK(RosterGridColumns == 15 && RosterDisplayOrder[0] == 43 && RosterDisplayOrder[14] == 40 && RosterDisplayOrder[15] == 35);
+        CHECK(RosterDisplayOrder[RosterGridColumns * 2] == 37 && RosterDisplayOrder[FighterCount - 1] == 42);
+    }
+    // Akuma's Ultra I is two light punches, forward, a light kick and a heavy punch.
+    CHECK(std::string(UltraCommands(17, 0, 14)[0].symbols) == "LP LP 6 LK HP");
+    CHECK(UltraNotation("LP LP 6 LK HP") == "LP, LP, F, LK, HP");
+    CHECK(UltraNotation("236 236 + PPP") == "QCF x2 + PPP");
+    CHECK(UltraNotation("214 214 + KKK") == "QCB x2 + KKK");
+    CHECK(UltraNotation("63214 63214 + KKK") == "HCB x2 + KKK");
+    CHECK(UltraNotation("360 360 + PPP") == "360 x2 + PPP");
+    CHECK(UltraNotation("~4 6 4 6 + PPP") == "Charge B, F, B, F + PPP");
+    CHECK(UltraNotation("~1 3 1 9 + KKK") == "Charge DB, DF, DB, UF + KKK");
+    CHECK(UltraNotation("~1 6 4 6 + KKK") == "Charge DB, F, B, F + KKK");
+    CHECK(UltraNotation("8 8 + KKK") == "U, U + KKK");
+    CHECK(UltraNotation("2 2 2 + KKK") == "D, D, D + KKK");
+    CHECK(UltraNotation("") == "");
+    // Every input in the catalog turns into words; only the 360 motion keeps its number.
+    for (int fighter = 0; fighter < FighterCount; ++fighter)
+        for (int edition : AllowedEditions(fighter, true))
+            for (int ultra : {0, 1})
+                for (const auto& command : UltraCommands(fighter, ultra, edition)) {
+                    std::string notation = UltraNotation(command.symbols);
+                    CHECK(!notation.empty());
+                    for (const char* kept : {"360 x2", " x2"})
+                        for (std::size_t at; (at = notation.find(kept)) != std::string::npos;) notation.erase(at, std::string(kept).size());
+                    CHECK(notation.find_first_of("0123456789~") == std::string::npos);
+                }
     CHECK(UltraCommands(-1, 0, 14).empty());
     CHECK(UltraCommands(0, 1, 13).empty());
     CHECK(UltraCommands(43, 0, 1).empty());

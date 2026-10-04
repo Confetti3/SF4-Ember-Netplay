@@ -1,12 +1,21 @@
 #pragma once
 #include <array>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace sf4e { namespace selection {
 
 constexpr int FighterCount = 44;
 constexpr int UltraEdition = 14;
+// Native fighter IDs in USFIV's own character-select order, row-major with 15 to
+// a row (the game's last cell is Random, which Ember has no card for). Display
+// only: native IDs and everything saved or sent stay as they are.
+constexpr int RosterDisplayOrder[FighterCount] = {
+    43, 0, 1, 3, 29, 30, 31, 16, 18, 17, 25, 26, 23, 38, 40,
+    35, 34, 2, 7, 15, 12, 11, 10, 20, 22, 28, 27, 33, 39, 41,
+    37, 6, 4, 5, 13, 14, 9, 8, 21, 19, 32, 24, 36, 42};
+constexpr int RosterGridColumns = 15;
 
 struct Fighter {
     const char* code;
@@ -62,6 +71,9 @@ struct UltraCommand {
 // Space-separated motion/button tokens, facing right. A leading ~ means charge.
 // Double has no independent input; ask for each constituent Ultra instead.
 std::vector<UltraCommand> UltraCommands(int fighterId, int ultraId, int editionId);
+// Facing-neutral short notation for a token string: "236 236 + PPP" is
+// "QCF x2 + PPP", "~4 6 4 6 + KKK" is "Charge B, F, B, F + KKK".
+std::string UltraNotation(const std::string& tokens);
 std::vector<int> AllowedCostumes(int fighterId, const Availability& availability);
 std::vector<int> AllowedColors(int fighterId, int costumeId, const Availability& availability);
 std::vector<int> AllowedPersonalActions(const Availability& availability);
