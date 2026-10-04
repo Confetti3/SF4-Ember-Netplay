@@ -43,23 +43,13 @@
 #include <optional>
 #include <thread>
 
-#include "test_support.hxx"
+#include "public_room_support.hxx"
 using namespace sf4e;
+using namespace sf4e::test::publicroom;
 using nlohmann::json;
 
 namespace {
-const char* const Build = "public-room-host-test";
-const char* const Bridge = "brg_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a11";
-const char* const RoomIdHex = "5f1e0d3c2b4a69788796a5b4c3d2e1f0";
 std::uint64_t globalTimeoutMs = 240000;
-
-std::string Utf8(const std::wstring& text) {
-	if (text.empty()) return {};
-	const int length = WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr);
-	std::string out(static_cast<std::size_t>(length), '\0');
-	WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), &out[0], length, nullptr, nullptr);
-	return out;
-}
 
 // The room host child: stdin and stdout piped as the supervisor pipes them,
 // stderr left on this process's, and a job so it never outlives the test.
@@ -156,25 +146,6 @@ private:
 	json hosted_, status_, closed_;
 	bool protocolError_ = false;
 };
-
-std::wstring ticketTool;
-// Runs the ticket tool and returns its trimmed stdout lines.
-std::vector<std::string> Tool(const std::string& arguments) {
-	const std::wstring command = L"\"\"" + ticketTool + L"\" " + std::wstring(arguments.begin(), arguments.end()) + L"\"";
-	FILE* pipe = _wpopen(command.c_str(), L"rt");
-	CHECK(pipe != nullptr);
-	std::vector<std::string> lines;
-	char buffer[2048];
-	while (std::fgets(buffer, sizeof(buffer), pipe)) {
-		std::string line(buffer);
-		while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) line.pop_back();
-		if (!line.empty()) lines.push_back(line);
-	}
-	CHECK(_pclose(pipe) == 0);
-	return lines;
-}
-
-std::string Seed(char digit) { return std::string(64, digit); }
 
 int clientErrors = 0;
 
