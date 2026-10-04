@@ -600,6 +600,12 @@ if(BUILD_TESTING)
         add_executable(PublicRoomHostTest "src/tests/public_room_host_test.cxx")
         target_link_libraries(PublicRoomHostTest PRIVATE Session sf4e Dimps sf4e_room_model "d3d9")
         add_dependencies(PublicRoomHostTest IrohHelper sf4e-room-host)
+        # The soak harness for public rooms on a remote host (src/roomhost/soak).
+        # Not a test: it needs room hosts running elsewhere, so it is not
+        # registered with add_test.
+        add_executable(PublicRoomSoakTest "src/tests/public_room_soak_test.cxx")
+        target_link_libraries(PublicRoomSoakTest PRIVATE Session sf4e Dimps sf4e_room_model "d3d9" psapi)
+        add_dependencies(PublicRoomSoakTest IrohHelper)
         set(SF4E_ROOM_TICKET_TOOL "${CMAKE_BINARY_DIR}/rust-ember-target/debug/examples/room_ticket.exe")
         add_custom_target(RoomTicketTool
             COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-ember-target"
