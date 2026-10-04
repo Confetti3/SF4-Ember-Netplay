@@ -39,7 +39,8 @@ std::vector<Check> Evaluate(const Stats& st, const RoomTally& room, const Limits
 		const double failedPct = 100.0 * st.matchesFailed / st.matchesStarted;
 		add("matches that failed or never started", failedPct, limits.maxMatchFailPct, failedPct <= limits.maxMatchFailPct, "%");
 	}
-	const double drops = static_cast<double>(st.controlLosses + st.helperCrashes) / (room.members * (std::max)(hours, 0.25));
+	// Every dropped member is one control loss; helper crashes are already among them.
+	const double drops = static_cast<double>(st.controlLosses) / (room.members * (std::max)(hours, 0.25));
 	add("members dropped per member-hour", drops, limits.maxDropsPerMemberHour, drops <= limits.maxDropsPerMemberHour);
 	const double joinFailPct = st.joins + st.joinFailures ? 100.0 * st.joinFailures / (st.joins + st.joinFailures) : 0;
 	add("join attempts that failed", joinFailPct, limits.maxJoinFailPct, joinFailPct <= limits.maxJoinFailPct, "%");

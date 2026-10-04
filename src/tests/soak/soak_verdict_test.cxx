@@ -77,6 +77,11 @@ int main() {
 	CHECK(Ok(Evaluate(st, Full(), limits, 1.0), drops));
 	st.controlLosses = 5;
 	CHECK(!Ok(Evaluate(st, Full(), limits, 1.0), drops));
+	// A helper crash is a control loss with a cause, not a second drop.
+	st.controlLosses = 4;
+	st.helperCrashes = 4;
+	CHECK(Ok(Evaluate(st, Full(), limits, 1.0), drops));
+	st.helperCrashes = 0;
 	// A short run counts as a quarter of an hour: one drop in 6 minutes is 0.25.
 	st.controlLosses = 1;
 	CHECK(Ok(Evaluate(st, Full(), limits, 0.1), drops));

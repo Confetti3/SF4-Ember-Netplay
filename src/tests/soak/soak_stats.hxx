@@ -40,6 +40,9 @@ inline double Average(const std::vector<std::uint64_t>& values) {
 inline std::uint64_t Maximum(const std::vector<std::uint64_t>& values) { return values.empty() ? 0 : *std::max_element(values.begin(), values.end()); }
 
 struct Stats {
+	// controlLosses counts every member dropped, whatever the cause (lossReasons
+	// says which). helperCrashes is the part of it where the helper process had
+	// exited: a subset for diagnosis, never added to controlLosses.
 	std::uint64_t joins = 0, rejoins = 0, joinFailures = 0, refused = 0, degraded = 0, controlLosses = 0, helperCrashes = 0;
 	std::uint64_t actionsSent = 0, actionsAccepted = 0, actionsRejected = 0, actionsSuperseded = 0, actionTimeouts = 0, sendFailures = 0;
 	std::uint64_t chatSent = 0, chatSampled = 0, chatSeen = 0, chatLost = 0, clientErrors = 0;

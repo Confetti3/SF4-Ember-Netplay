@@ -163,8 +163,8 @@ early. Output:
 The run fails if any room breaks one of: stayed up (not lost), 50 percent of its
 members connected on average, at most 2 percent of actions timing out, p95 chat
 round trip at most 5 s, at most 5 percent of timed chat lines never seen, at most
-25 percent of matches failing, at most 0.25 dropped members (control losses plus
-helper crashes) per member-hour, at most 20 percent of join attempts failing, and
+25 percent of matches failing, at most 0.25 dropped members (control losses,
+helper crashes included) per member-hour, at most 20 percent of join attempts failing, and
 the client loop not saturated for more than 20 percent of the minutes (a
 saturated client makes the numbers about the client). Each limit has an option
 (`--max-timeout-pct`, `--max-chat-p95-ms`, `--max-chat-lost-pct`,
@@ -202,7 +202,7 @@ network from the byte counters' differences.
 | --- | --- |
 | `members_active`, `view_members_min/max` | members connected, and the member count they see |
 | `joins_total`, `rejoins_total`, `join_failures_total`, `refused_total` | admissions and failures; refused is the host turning a proof away |
-| `control_losses_total`, `helper_crashes_total`, `degraded_total` | a member's room control or helper went away; degraded is a control that came back in time |
+| `control_losses_total`, `helper_crashes_total`, `degraded_total` | members dropped because their room control or helper went away; helper crashes are the part of the control losses where the helper process exited, not extra drops; degraded is a control that came back in time |
 | `actions_*`, `rejects_by_reason` | room actions sent, answered, rejected by reason, and unanswered after 15 s |
 | `chat_rtt_*_ms` | send until the line is in another member's snapshot (one line in four is timed) |
 | `stale_*_ms` | time since a member's last snapshot; it grows in a quiet room, `behind_members` is the better lag signal |

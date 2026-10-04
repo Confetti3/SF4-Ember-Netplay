@@ -20,7 +20,7 @@ void PrintSummary(const std::vector<std::unique_ptr<Room>>& rooms, Clock ranMs, 
 		failed = failed || bad;
 		std::cout << "room " << room.number << (bad ? "  FAILED" : "  ok") << ": avg members connected " << std::fixed << std::setprecision(1) << average * room.members.size()
 			<< "/" << room.members.size() << ", joins " << st.joins << " (rejoins " << st.rejoins << "), join failures " << st.joinFailures << ", refused " << st.refused
-			<< ", control losses " << st.controlLosses << ", helper crashes " << st.helperCrashes << ", degraded " << st.degraded << "\n"
+			<< ", control losses " << st.controlLosses << " (helper crashes " << st.helperCrashes << "), degraded " << st.degraded << "\n"
 			<< "    actions " << st.actionsSent << " sent, " << st.actionsAccepted << " accepted, " << st.actionsRejected << " rejected, " << st.actionTimeouts << " timed out"
 			<< "; rejects: " << (st.rejects.empty() ? "none" : Flat(st.rejects)) << "\n"
 			<< "    chat " << st.chatSent << " sent, " << st.chatSampled << " timed, " << st.chatSeen << " seen, " << st.chatLost << " lost; rtt p50 " << Percentile(st.chatRttAll, 0.5)
@@ -33,8 +33,8 @@ void PrintSummary(const std::vector<std::unique_ptr<Room>>& rooms, Clock ranMs, 
 		for (const auto& check : checks) if (!check.ok) std::cout << "    FAILED criterion: " << check.name << " " << check.measured << " (limit " << check.limit << ")\n";
 		total.joins += st.joins; total.joinFailures += st.joinFailures; total.controlLosses += st.controlLosses; total.helperCrashes += st.helperCrashes;
 	}
-	std::cout << "total: " << total.joins << " joins, " << total.joinFailures << " join failures, " << total.controlLosses << " control losses, "
-		<< total.helperCrashes << " helper crashes\n" << (failed ? "RESULT: FAILED (see the failed criteria above)"
+	std::cout << "total: " << total.joins << " joins, " << total.joinFailures << " join failures, " << total.controlLosses << " control losses ("
+		<< total.helperCrashes << " of them helper crashes)\n" << (failed ? "RESULT: FAILED (see the failed criteria above)"
 		: "RESULT: PASSED (every room met every criterion)") << std::endl;
 }
 

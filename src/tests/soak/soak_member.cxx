@@ -153,6 +153,7 @@ void Member::Drain(Clock now) {
 }
 
 void Member::Health(Clock now) {
+	// A crash is a control loss too: ControlLoss counts it, helperCrashes notes the cause.
 	if (!s->process.IsRunning()) { ++room->st.helperCrashes; ControlLoss("helper_crash", now); return; }
 	if (s->failed) { ControlLoss(s->failure.empty() ? "pump_failed" : s->failure, now); return; }
 	const auto state = s->Room().GetState();
