@@ -495,6 +495,8 @@ public:
     // other seat's Ready is taken back as an Unready would
     // (*withdrewOpponentReady). False when nothing changed.
     bool SetMemberFighter(MemberId member,int fighter,bool* withdrewOpponentReady=nullptr);
+    // Members whose last activity is tracked; never more than the roster.
+    std::size_t TrackedActivity() const { return lastActiveMs_.size(); }
 
     // Authority recovery is deliberately distinct from the public UI snapshot.
     // Import validates into a temporary owner and leaves this owner unchanged

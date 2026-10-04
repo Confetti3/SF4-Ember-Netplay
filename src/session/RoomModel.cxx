@@ -17,6 +17,9 @@ RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint6
 }
 
 void RoomAuthority::NoteActive(MemberId member) {
+	// Only a member still in the room: an accepted Leave must not leave one
+	// behind, so the map stays bounded by the roster.
+	if (!Find(member)) return;
 	lastActiveMs_[member] = recoveryPaused_ ? 0 : nowMs_;
 }
 

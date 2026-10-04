@@ -236,6 +236,12 @@ static void TestIdleTimeIsStampedPerSnapshot() {
 	CHECK(authority.BeginMatch(0, authority.SnapshotView().tables[0].p1, authority.SnapshotView().tables[0].p2).accepted);
 	authority.AdvanceTime(500 + 600 * 1000);
 	CHECK(idleOf(guest) == 0 && idleOf(other) == 0 && idleOf(host) == 600);
+	// Members who come and go leave no activity behind.
+	for (int cycle = 0; cycle < 20; ++cycle) {
+		const MemberId visitor = Join(authority, 10 + cycle);
+		CHECK(authority.Apply(visitor, TableAction(authority, visitor, 0, ActionKind::Leave)).accepted);
+	}
+	CHECK(authority.TrackedActivity() == authority.SnapshotView().members.size());
 	// A huge gap reads as the cap.
 	authority.AdvanceTime(500 + 600 * 1000 + 30ull * 24 * 60 * 60 * 1000);
 	CHECK(idleOf(host) == MaximumIdleSeconds);
