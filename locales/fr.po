@@ -747,6 +747,18 @@ msgstr "Grand"
 msgid "settings.match_hud"
 msgstr "HUD du combat"
 
+msgid "settings.match_hud_names"
+msgstr "Noms des joueurs"
+
+msgid "settings.match_hud_names_detail"
+msgstr "Disposition séparée seulement. Place chaque nom sous ou au-dessus de sa barre de vie."
+
+msgid "hud_names.below"
+msgstr "Sous les barres de vie"
+
+msgid "hud_names.above"
+msgstr "Au-dessus des barres"
+
 msgid "settings.match_hud_layout"
 msgstr "Disposition en combat"
 

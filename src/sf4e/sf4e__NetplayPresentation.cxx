@@ -69,6 +69,7 @@ namespace sf4e {
 					// one; its final score stays on screen until the next game begins.
 					const auto& table = room.tables[m.table];
 						st.spectators = static_cast<int>(table.spectators.size());
+						st.setFormat = static_cast<int>(table.rules.format);
 					const bool decided = table.lastSet.generation != 0 && table.lastSet.generation == table.matchGeneration;
 					for (int side = 0; side < 2; ++side) liveScore[side] = decided ? table.lastSet.score[side] : table.score[side];
 				}

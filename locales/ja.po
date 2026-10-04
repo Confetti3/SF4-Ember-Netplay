@@ -747,6 +747,18 @@ msgstr "大"
 msgid "settings.match_hud"
 msgstr "対戦HUD"
 
+msgid "settings.match_hud_names"
+msgstr "プレイヤー名"
+
+msgid "settings.match_hud_names_detail"
+msgstr "分割レイアウトのみ。各名前を体力ゲージの下か上に表示します。"
+
+msgid "hud_names.below"
+msgstr "体力ゲージの下"
+
+msgid "hud_names.above"
+msgstr "体力ゲージの上"
+
 msgid "settings.match_hud_layout"
 msgstr "対戦HUDのレイアウト"
 

@@ -747,6 +747,18 @@ msgstr "크게"
 msgid "settings.match_hud"
 msgstr "대전 HUD"
 
+msgid "settings.match_hud_names"
+msgstr "플레이어 이름"
+
+msgid "settings.match_hud_names_detail"
+msgstr "분할 배치 전용입니다. 각 이름을 체력 게이지 아래나 위에 표시합니다."
+
+msgid "hud_names.below"
+msgstr "체력 게이지 아래"
+
+msgid "hud_names.above"
+msgstr "체력 게이지 위"
+
 msgid "settings.match_hud_layout"
 msgstr "대전 HUD 배치"
 

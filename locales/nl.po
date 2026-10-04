@@ -747,6 +747,18 @@ msgstr "Groot"
 msgid "settings.match_hud"
 msgstr "Match-HUD"
 
+msgid "settings.match_hud_names"
+msgstr "Spelersnamen"
+
+msgid "settings.match_hud_names_detail"
+msgstr "Alleen gesplitste indeling. Toont elke naam onder of boven zijn levensbalk."
+
+msgid "hud_names.below"
+msgstr "Onder de levensbalken"
+
+msgid "hud_names.above"
+msgstr "Boven de levensbalken"
+
 msgid "settings.match_hud_layout"
 msgstr "Indeling match-HUD"
 

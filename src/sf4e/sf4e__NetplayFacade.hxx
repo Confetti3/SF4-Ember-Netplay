@@ -49,6 +49,8 @@ namespace sf4e {
         bool spectator = false;
         // Members watching the local member's table (the HUD's "Watching N"); from the room snapshot.
         int spectators = 0;
+        // The table's first-to count (room::SetFormat: 0 unlimited, 1, 2, 3, 5); 0 outside a room.
+        int setFormat = 0;
         // Live GGPO link state for the match HUD.
         bool connectionWarning = false;   // GGPO CONNECTION_INTERRUPTED active
         bool predictionStalled = false;   // GGPO refused local input this frame

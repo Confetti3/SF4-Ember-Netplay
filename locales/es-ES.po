@@ -747,6 +747,18 @@ msgstr "Grande"
 msgid "settings.match_hud"
 msgstr "HUD partida"
 
+msgid "settings.match_hud_names"
+msgstr "Nombres"
+
+msgid "settings.match_hud_names_detail"
+msgstr "Solo diseño dividido. Muestra cada nombre debajo o encima de su barra de vida."
+
+msgid "hud_names.below"
+msgstr "Bajo las barras de vida"
+
+msgid "hud_names.above"
+msgstr "Sobre las barras de vida"
+
 msgid "settings.match_hud_layout"
 msgstr "Diseño del HUD"
 
