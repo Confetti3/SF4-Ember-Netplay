@@ -28,17 +28,19 @@ use serde_json::json;
 
 use crate::{
     AppState,
+    audit::audit,
     auth::{self, Role},
+    ctx::Ctx,
     error::{ApiFailure, Result},
     events::{self, NewEvent, Viewer, emit},
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key, ok},
     routes::{
-        links::{Ctx, audit},
         matches::{
             self, NewMatch, ORGANIZER_PROFILE, idempotent, into_response, service_viewer, viewer_of,
         },
-        policy, records, tournaments,
+        policy, records,
     },
+    tournament,
 };
 
 /// `external_match_id` prefix of lobby sets; providers cannot create one.
@@ -219,7 +221,7 @@ fn set_entry(
 /// before the lobby, so its set can start as soon as both players are free.
 fn unavailable(tx: &Transaction<'_>, connection_id: &str, ember_id: &EmberId) -> Result<bool> {
     Ok(matches::busy(tx, connection_id, ember_id, "")?
-        || tournaments::waiting(tx, connection_id, ember_id)?)
+        || tournament::waiting(tx, connection_id, ember_id)?)
 }
 
 /// The next set when both seats can be filled and none is running. Empty

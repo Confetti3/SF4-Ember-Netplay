@@ -40,13 +40,12 @@ use serde_json::json;
 use crate::{
     AppState, auth,
     config::Discord,
+    ctx::Ctx,
     error::{ApiFailure, Result},
     events::{NewEvent, emit},
     http::{Body, PROOF_BODY, json, ok, page},
-    routes::{
-        links::{Ctx, account, revoke_link},
-        sessions::{self, Target},
-    },
+    linking::{account, revoke_link},
+    routes::sessions::{self, Target},
     util::{html, new_id, outbound_client, random},
 };
 

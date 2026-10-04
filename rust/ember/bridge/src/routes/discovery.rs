@@ -8,7 +8,7 @@ use ember_protocol::{
 };
 use serde_json::json;
 
-use crate::{AppState, auth, http::ok, routes::links::CODE_LIFETIME_SECS};
+use crate::{AppState, auth, http::ok, linking::CODE_LIFETIME_SECS};
 
 pub async fn well_known(State(state): State<AppState>) -> Response {
     let origin = &state.config.origin;

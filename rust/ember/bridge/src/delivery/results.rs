@@ -24,12 +24,12 @@ use super::{
 };
 use crate::{
     AppState,
+    audit::audit,
     config::BLUMINT,
     error::Result,
     routes::{
         blumint,
         ledger::{Match, load, participants, scores},
-        links::audit,
         policy,
     },
     util::outbound_client,

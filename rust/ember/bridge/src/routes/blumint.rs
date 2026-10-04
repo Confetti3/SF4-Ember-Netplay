@@ -38,12 +38,12 @@ use serde_json::{Value, json};
 use crate::{
     AppState, auth,
     config::{BLUMINT, Connection},
+    ctx::Ctx,
     error::{ApiFailure, Result},
     http::{Body, GENERAL_BODY, ok},
     routes::{
         discord,
         ledger::{Match, load, participants, scores},
-        links::Ctx,
         matches::{NewMatch, insert_match},
         policy,
     },
