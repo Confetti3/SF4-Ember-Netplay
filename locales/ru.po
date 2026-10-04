@@ -747,6 +747,18 @@ msgstr "Большой"
 msgid "settings.match_hud"
 msgstr "HUD матча"
 
+msgid "settings.match_hud_names"
+msgstr "Имена игроков"
+
+msgid "settings.match_hud_names_detail"
+msgstr "Только раздельный вид. Показывает каждое имя под или над полоской здоровья."
+
+msgid "hud_names.below"
+msgstr "Под полосками"
+
+msgid "hud_names.above"
+msgstr "Над полосками"
+
 msgid "settings.match_hud_layout"
 msgstr "Вид HUD матча"
 

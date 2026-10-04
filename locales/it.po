@@ -747,6 +747,18 @@ msgstr "Grande"
 msgid "settings.match_hud"
 msgstr "HUD partita"
 
+msgid "settings.match_hud_names"
+msgstr "Nomi giocatori"
+
+msgid "settings.match_hud_names_detail"
+msgstr "Solo layout diviso. Mostra ogni nome sotto o sopra la sua barra della vita."
+
+msgid "hud_names.below"
+msgstr "Sotto le barre"
+
+msgid "hud_names.above"
+msgstr "Sopra le barre"
+
 msgid "settings.match_hud_layout"
 msgstr "Layout HUD"
 

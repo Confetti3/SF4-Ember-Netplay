@@ -114,6 +114,14 @@ struct MatchStripView {
     int layout = 0;
     // Members watching this match; the split layout shows "Watching N" when above zero.
     int spectators = 0;
+    // Split layout: names in banners above the life bars (true) or under them (false).
+    bool namesAbove = false;
+    // The set's games won by each side, when the table has a running count; shown in
+    // the banners' score boxes. `score` carries the same pair as text for the other layouts.
+    bool hasScores = false;
+    int scores[2] = {};
+    // The table's first-to count (0 unlimited); shown as "FT5" above the timer when above 0.
+    int setFormat = 0;
     // Link state and the latest netplay notice, drawn on a line above the
     // telemetry. Severity: 0 info, 1 warning, 2 error (matches NoticeSeverity).
     std::string notice;
@@ -136,10 +144,14 @@ void DrawMatchStripPreview(const MatchStripView& view);
 // harness: the two name plates and the telemetry panel with its state line.
 // `valid` is false for the Ember strip, which has no separate name plates.
 struct MatchStripBox { float x0 = 0, y0 = 0, x1 = 0, y1 = 0; bool valid = false; };
-struct MatchStripBounds { MatchStripBox names[2], panel; };
+// With names above the life bars, `names` are the two banners and `setTag` is the
+// "FT5" tag above the timer (invalid when the table has no set length).
+struct MatchStripBounds { MatchStripBox names[2], panel, setTag; };
 MatchStripBounds MatchStripGeometry(const MatchStripView& view);
 // The settings label for a MatchStripView::layout value ("Ember strip", "Split").
 const char* MatchStripLayoutName(int layout);
+// The settings label for a MatchStripView::namesAbove value ("Under the life bars", "Above the life bars").
+const char* MatchStripNamesName(int names);
 // The settings label for a MatchStripView::anchor value ("Bottom center", "Top right").
 const char* MatchStripAnchorName(int anchor);
 void DrawControllerWarning(const std::string& message);

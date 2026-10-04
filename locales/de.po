@@ -747,6 +747,18 @@ msgstr "Groß"
 msgid "settings.match_hud"
 msgstr "Kampf-HUD"
 
+msgid "settings.match_hud_names"
+msgstr "Spielernamen"
+
+msgid "settings.match_hud_names_detail"
+msgstr "Nur geteiltes Layout. Zeigt jeden Namen unter oder über seiner Lebensleiste."
+
+msgid "hud_names.below"
+msgstr "Unter den Lebensleisten"
+
+msgid "hud_names.above"
+msgstr "Über den Lebensleisten"
+
 msgid "settings.match_hud_layout"
 msgstr "Kampf-HUD-Layout"
 

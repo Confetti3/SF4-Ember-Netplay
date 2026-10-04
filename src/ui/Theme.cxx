@@ -586,13 +586,68 @@ void DrawPlate(ImDrawList* draw,const Plate& p){
     draw->AddText(font,p.font,ImVec2(nameX+k,p.y0+3*k+k),IM_COL32(0,0,0,190),p.name.c_str());
     draw->AddText(font,p.font,ImVec2(nameX,p.y0+3*k),palette::Ivory,p.name.c_str());
 }
+// Names above the life bars: one banner per side across the top strip, the name
+// and link glyph inside, and the side's games won in a square box at the outer end.
+struct Banner {
+    std::string name;NetworkLink link=NetworkLink::Unknown;
+    float x0=0,y0=0,x1=0,y1=0,k=1,font=SplitName;bool right=false,hasScore=false;int score=0;
+};
+constexpr float BannerHeight=34.f;
+Banner MakeBanner(const MatchStripView& view,int side,float x0,float x1,float yMid,float k){
+    Banner b;b.right=side==1;b.k=k;b.font=SplitName*k;b.link=view.links[side];b.hasScore=view.hasScores;b.score=view.scores[side];
+    const float h=BannerHeight*k,box=h-8*k,glyph=b.font*.9f;
+    b.x0=x0;b.x1=x1;b.y0=yMid-h*.5f;b.y1=yMid+h*.5f;
+    const float outer=b.hasScore?4*k+box+8*k:12*k,inner=8*k+glyph+6*k;
+    b.name=FitText(view.names[side],(std::max)(0.f,x1-x0-outer-inner),b.font);
+    return b;
+}
+void DrawBanner(ImDrawList* draw,const Banner& b){
+    const float k=b.k,h=b.y1-b.y0,box=h-8*k,glyph=b.font*.9f;
+    auto* font=DiagnosticFont();
+    draw->AddRectFilled(ImVec2(b.x0,b.y0),ImVec2(b.x1,b.y1),IM_COL32(20,19,18,200),6*k);
+    draw->AddRect(ImVec2(b.x0,b.y0),ImVec2(b.x1,b.y1),IM_COL32(88,76,65,110),6*k);
+    // The Ember rule along the lower edge, the banner's accent.
+    draw->AddRectFilled(ImVec2(b.x0+6*k,b.y1-2.5f*k),ImVec2(b.x1-6*k,b.y1-.5f*k),palette::Ember,1*k);
+    float nameLeft=b.x0+12*k,nameRight=b.x1-8*k-glyph-6*k;
+    if(b.right){nameLeft=b.x0+8*k+glyph+6*k;nameRight=b.x1-12*k;}
+    if(b.hasScore){
+        const float bx=b.right?b.x1-4*k-box:b.x0+4*k,by=b.y0+4*k;
+        draw->AddRectFilled(ImVec2(bx,by),ImVec2(bx+box,by+box),IM_COL32(12,11,10,235),4*k);
+        draw->AddRect(ImVec2(bx,by),ImVec2(bx+box,by+box),palette::Ember,4*k,0,1.5f*k);
+        const auto digits=std::to_string(b.score);const float size=b.font*1.05f,w=TextWidth(size,digits);
+        draw->AddText(font,size,ImVec2(bx+(box-w)*.5f,by+(box-size)*.5f),palette::Ember,digits.c_str());
+        if(b.right)nameRight=bx-8*k;else nameLeft=bx+box+8*k;
+    }
+    const float glyphX=b.right?b.x0+8*k:b.x1-8*k-glyph;
+    DrawNetworkLinkGlyph(draw,ImVec2(glyphX,b.y0+(h-glyph)*.5f-1*k),glyph,b.link);
+    if(b.name.empty())return;
+    const float x=b.right?nameRight-TextWidth(b.font,b.name):nameLeft,y=b.y0+(h-b.font)*.5f-1*k;
+    draw->AddText(font,b.font,ImVec2(x+k,y+k),IM_COL32(0,0,0,190),b.name.c_str());
+    draw->AddText(font,b.font,ImVec2(x,y),palette::Ivory,b.name.c_str());
+}
+// "FT5" centered above the timer.
+struct SetTag{std::string text;float x0=0,y0=0,x1=0,y1=0,k=1,font=12;bool valid=false;};
+SetTag MakeSetTag(const MatchStripView& view,float centerX,float y,float k){
+    SetTag t;if(view.setFormat<=0)return t;
+    t.k=k;t.font=12*k;t.text="FT"+std::to_string(view.setFormat);t.valid=true;
+    const float w=TextWidth(t.font,t.text)+14*k;
+    t.x0=centerX-w*.5f;t.x1=centerX+w*.5f;t.y0=y;t.y1=y+t.font+6*k;
+    return t;
+}
+void DrawSetTag(ImDrawList* draw,const SetTag& t){
+    if(!t.valid)return;
+    draw->AddRectFilled(ImVec2(t.x0,t.y0),ImVec2(t.x1,t.y1),IM_COL32(20,19,18,200),4*t.k);
+    draw->AddRect(ImVec2(t.x0,t.y0),ImVec2(t.x1,t.y1),IM_COL32(255,135,56,120),4*t.k);
+    draw->AddText(DiagnosticFont(),t.font,ImVec2(t.x0+7*t.k,t.y0+3*t.k),palette::Ember,t.text.c_str());
+}
 struct Cell{std::string label,value;float width=0;ImU32 color=palette::Ivory;};
 struct Telemetry{std::vector<Cell> cells;float w=0,h=SplitHeight,s=1;};
 Telemetry MakeTelemetry(const MatchStripView& view,float s,float maxWidth){
     Telemetry t;t.s=s;t.h=SplitHeight*s;
     struct Spec{std::string label,value,reserve;ImU32 color;};
     std::vector<Spec> specs;
-    if(!view.score.empty())specs.push_back({"",view.score,"",IM_COL32(255,135,56,230)});
+    // Names above the life bars carry the score in their boxes.
+    if(!view.score.empty()&&!view.namesAbove)specs.push_back({"",view.score,"",IM_COL32(255,135,56,230)});
     specs.push_back({loc::T("match.ping"),view.pingMs<0?"\xe2\x80\x94":std::to_string(view.pingMs)+" ms","999 ms",palette::Ivory});
     specs.push_back({loc::T("match.rollback"),std::to_string(view.rollbackFrames)+"f","99f",palette::Ivory});
     specs.push_back(view.spectator?Spec{"",loc::T("match.spectating"),"",palette::Ivory}:
@@ -642,7 +697,8 @@ void DrawStateLine(const MatchStripView& view,ImDrawList* draw,ImVec2 p,float w,
     draw->AddText(DiagnosticFont(),16*s,ImVec2(p.x+8*s,top+(h-16*s)*.5f),colors[(std::max)(0,(std::min)(2,severity))],line.c_str());
 }
 struct SplitPlaced {
-    Plate plates[2];Telemetry tel;ImVec2 pos;bool hasState=false;float stateTop=0;
+    Plate plates[2];Banner banners[2];SetTag tag;bool above=false;
+    Telemetry tel;ImVec2 pos;bool hasState=false;float stateTop=0;
 };
 SplitPlaced PlaceSplit(const MatchStripView& view){
     const auto* vp=ImGui::GetMainViewport();
@@ -652,15 +708,26 @@ SplitPlaced PlaceSplit(const MatchStripView& view){
     // stay beside the life bars on an ultrawide screen.
     const float gs=(std::min)(vp->Size.y/720.f,vp->Size.x/1280.f),gameW=1280*gs;
     const float gx0=vp->Pos.x+(vp->Size.x-gameW)*.5f,gy0=vp->Pos.y+(vp->Size.y-720*gs)*.5f;
-    // The game's own HUD fills the rest of the strip under each life bar: the character
-    // logo (x 91..230 and 1050..1189) and the round markers (to x 474 and from x 806).
-    // The plates take the gap between them, y 121..143 at most, so Large is the full 22
-    // and the other sizes shrink: the plate is 25 units high (19 of text), 22 gs at Large.
-    const float plateSizes[]={.78f,.89f,1.f};
-    const float k=gs*.88f*plateSizes[(std::max)(0,(std::min)(2,view.size))],maxName=238*gs;
-    SplitPlaced out;
-    out.plates[0]=MakePlate(view,0,gx0+236*gs,gy0+121*gs,k,maxName);
-    out.plates[1]=MakePlate(view,1,gx0+1044*gs,gy0+121*gs,k,maxName);
+    SplitPlaced out;out.above=view.namesAbove;
+    if(out.above){
+        // The top strip above the life bars (y about 6..44 of 720, centre line 26), between the
+        // portraits (to x 102 and from x 1178) and clear of the timer box (x 562..718).
+        const float sizes[]={.85f,1.f,1.25f};
+        const float k=gs*sizes[(std::max)(0,(std::min)(2,view.size))];
+        out.banners[0]=MakeBanner(view,0,gx0+112*gs,gx0+556*gs,gy0+26*gs,k);
+        out.banners[1]=MakeBanner(view,1,gx0+724*gs,gx0+1168*gs,gy0+26*gs,k);
+        // Ends above the game's K.O. sign, which starts at y 26.
+        out.tag=MakeSetTag(view,gx0+640*gs,gy0+3*gs,k);
+    }else{
+        // The game's own HUD fills the rest of the strip under each life bar: the character
+        // logo (x 91..230 and 1050..1189) and the round markers (to x 474 and from x 806).
+        // The plates take the gap between them, y 121..143 at most, so Large is the full 22
+        // and the other sizes shrink: the plate is 25 units high (19 of text), 22 gs at Large.
+        const float plateSizes[]={.78f,.89f,1.f};
+        const float k=gs*.88f*plateSizes[(std::max)(0,(std::min)(2,view.size))],maxName=238*gs;
+        out.plates[0]=MakePlate(view,0,gx0+236*gs,gy0+121*gs,k,maxName);
+        out.plates[1]=MakePlate(view,1,gx0+1044*gs,gy0+121*gs,k,maxName);
+    }
     out.tel=MakeTelemetry(view,s,vp->Size.x*.8f);
     const float w=out.tel.w,h=out.tel.h;
     const float gap=(view.raised?48.f:12.f)*(std::max)(.8f,vp->Size.y/1080.f);
@@ -679,7 +746,10 @@ MatchStripBounds MatchStripGeometry(const MatchStripView& view){
     MatchStripBounds bounds;
     if(view.layout!=1)return bounds;
     const auto placed=PlaceSplit(view);
-    for(int side=0;side<2;++side){const auto& p=placed.plates[side];bounds.names[side]={p.x0,p.y0,p.x1,p.y1,true};}
+    if(placed.above){
+        for(int side=0;side<2;++side){const auto& b=placed.banners[side];bounds.names[side]={b.x0,b.y0,b.x1,b.y1,true};}
+        const auto& t=placed.tag;bounds.setTag={t.x0,t.y0,t.x1,t.y1,t.valid};
+    }else for(int side=0;side<2;++side){const auto& p=placed.plates[side];bounds.names[side]={p.x0,p.y0,p.x1,p.y1,true};}
     const float s=placed.tel.s;
     bounds.panel={placed.pos.x,placed.pos.y,placed.pos.x+placed.tel.w,placed.pos.y+placed.tel.h,true};
     if(placed.hasState){
@@ -719,7 +789,8 @@ float MatchStripScale(const MatchStripView& view) { return MatchScale(view); }
 void DrawMatchStrip(const MatchStripView& view) {
     if(view.layout==1){
         const auto placed=PlaceSplit(view);auto* draw=ImGui::GetForegroundDrawList();
-        for(const auto& plate:placed.plates)DrawPlate(draw,plate);
+        if(placed.above){for(const auto& banner:placed.banners)DrawBanner(draw,banner);DrawSetTag(draw,placed.tag);}
+        else for(const auto& plate:placed.plates)DrawPlate(draw,plate);
         DrawTelemetry(draw,placed.tel,placed.pos);
         if(placed.hasState)DrawStateLine(view,draw,placed.pos,placed.tel.w,placed.tel.s,placed.stateTop);
         return;
@@ -744,10 +815,21 @@ void DrawMatchStripPreview(const MatchStripView& view) {
         // The names on one row, left and right, with the telemetry panel under them.
         NoteUserText(view.names[0]);NoteUserText(view.names[1]);
         auto* draw=ImGui::GetWindowDrawList();const float width=MatchWidth*s,k=.75f*s;
-        const Plate plates[2]={MakePlate(view,0,p.x,p.y,k,width*.48f),MakePlate(view,1,p.x+width,p.y,k,width*.48f)};
-        for(const auto& plate:plates)DrawPlate(draw,plate);
+        float top=0;
+        if(view.namesAbove){
+            // The set tag on its own row, then the two banners at the top of the picture.
+            const auto tag=MakeSetTag(view,p.x+width*.5f,p.y,k);
+            DrawSetTag(draw,tag);
+            const float rowTop=tag.valid?tag.y1-p.y+4*s:0.f,h=BannerHeight*k;
+            const Banner banners[2]={MakeBanner(view,0,p.x,p.x+width*.46f,p.y+rowTop+h*.5f,k),MakeBanner(view,1,p.x+width*.54f,p.x+width,p.y+rowTop+h*.5f,k)};
+            for(const auto& banner:banners)DrawBanner(draw,banner);
+            top=rowTop+h+8*s;
+        }else{
+            const Plate plates[2]={MakePlate(view,0,p.x,p.y,k,width*.48f),MakePlate(view,1,p.x+width,p.y,k,width*.48f)};
+            for(const auto& plate:plates)DrawPlate(draw,plate);
+            top=plates[0].y1-p.y+8*s;
+        }
         const auto tel=MakeTelemetry(view,s,width);
-        const float top=plates[0].y1-p.y+8*s;
         DrawTelemetry(draw,tel,ImVec2(p.x+(width-tel.w)*.5f,p.y+top));
         ImGui::Dummy(ImVec2(width,top+tel.h));
     }else{
@@ -759,6 +841,9 @@ void DrawMatchStripPreview(const MatchStripView& view) {
 }
 const char* MatchStripLayoutName(int layout) {
     return loc::T(layout==1?"hud_layout.split":"hud_layout.strip");
+}
+const char* MatchStripNamesName(int names) {
+    return loc::T(names==1?"hud_names.above":"hud_names.below");
 }
 const char* MatchStripAnchorName(int anchor) {
     const char* names[]={loc::T("hud_position.bottom_center"),loc::T("hud_position.bottom_left"),loc::T("hud_position.bottom_right"),loc::T("hud_position.top_left"),loc::T("hud_position.top_right")};

@@ -84,6 +84,14 @@ int main() {
     CHECK(store.LoadLauncher(result,error)&&result["matchHudLayout"]==1);
     CHECK(Json::parse(Read(path / L"settings.json"))["netplay"]["matchHudLayout"]==1);
     discordDefaults.matchHudLayout=1;
+    CHECK(discordDefaults.matchHudNames==0); // Under the life bars by default.
+    discordDefaults.matchHudNames=-1;CHECK(!discordDefaults.Valid());
+    discordDefaults.matchHudNames=2;CHECK(!discordDefaults.Valid());
+    discordDefaults.matchHudNames=1;CHECK(discordDefaults.Valid());
+    CHECK(store.SaveLauncher({{"matchHudNames",1}},error));
+    CHECK(store.LoadLauncher(result,error)&&result["matchHudNames"]==1);
+    CHECK(Json::parse(Read(path / L"settings.json"))["netplay"]["matchHudNames"]==1);
+    discordDefaults.matchHudNames=0;
     CHECK(discordDefaults.discordPresence && discordDefaults.discordInvites);
     CHECK(discordDefaults.inputDelay == 2);
     discordDefaults.inputDelay = 0; CHECK(discordDefaults.Valid());

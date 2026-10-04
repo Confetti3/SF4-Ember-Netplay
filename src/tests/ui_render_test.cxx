@@ -540,19 +540,31 @@ int main(int argc, char** argv) {
                             const float gs=(std::min)(size.h/720.f,size.w/1280.f),gameW=1280*gs,gx0=(size.w-gameW)*.5f,gy0=(size.h-720*gs)*.5f;
                             const auto inside=[](const MatchStripBox& r,const ImVec2& p){return p.x>=r.x0-2&&p.x<=r.x1+2&&p.y>=r.y0-2&&p.y<=r.y1+2;};
                             for(const auto& vertex:list->VtxBuffer)
-                                Require(inside(bounds.panel,vertex.pos)||inside(bounds.names[0],vertex.pos)||inside(bounds.names[1],vertex.pos),
+                                Require(inside(bounds.panel,vertex.pos)||inside(bounds.names[0],vertex.pos)||inside(bounds.names[1],vertex.pos)||
+                                    (bounds.setTag.valid&&inside(bounds.setTag,vertex.pos)),
                                     "Split match HUD drew outside its name plates and telemetry panel");
                             for(const auto& name:bounds.names){
                                 Require(name.x0>=gx0-1&&name.x1<=gx0+gameW+1&&name.y0>=0&&name.y1<=size.h,"Match HUD name left the game image");
-                                Require(name.x1-name.x0<=.35f*gameW+1,"Match HUD name plate wider than 35% of the game");
+                                Require(name.x1-name.x0<=(matchStrip.namesAbove?.37f:.35f)*gameW+1,"Match HUD name plate too wide for the game");
                             }
-                            // Each plate stays in the gap between the game's character logo and its round markers.
-                            Require(std::abs(bounds.names[0].x0-(gx0+236*gs))<=1&&std::abs(bounds.names[1].x1-(gx0+1044*gs))<=1,
-                                "Match HUD names are not anchored under the life bars");
-                            Require(bounds.names[0].x1<=gx0+474*gs+1&&bounds.names[1].x0>=gx0+806*gs-1,"Match HUD name plate covers the round markers");
-                            for(const auto& name:bounds.names)
-                                Require(name.y0>=gy0+121*gs-1&&name.y1<=gy0+143*gs+1,"Match HUD name plate left y 121..143 of the game frame");
                             Require(bounds.names[0].x1<bounds.names[1].x0,"Match HUD names meet");
+                            if(matchStrip.namesAbove){
+                                // Banners fill the top strip above the life bars, clear of the portraits and the timer.
+                                Require(bounds.names[0].x0>=gx0+112*gs-1&&bounds.names[0].x1<=gx0+556*gs+1&&
+                                    bounds.names[1].x0>=gx0+724*gs-1&&bounds.names[1].x1<=gx0+1168*gs+1,"Match HUD banners cover the portraits or the timer");
+                                for(const auto& name:bounds.names)Require(name.y1<=95*gs+gy0,"Match HUD banner reaches the life bars");
+                                Require(bounds.setTag.valid==(matchStrip.setFormat>0),"Set length tag shown without a set length, or missing with one");
+                                if(bounds.setTag.valid)Require(bounds.setTag.x0>=gx0+600*gs&&bounds.setTag.x1<=gx0+680*gs&&bounds.setTag.y0>=0&&bounds.setTag.y1<=gy0+24*gs,
+                                    "Set length tag left the area above the K.O. sign");
+                            }else{
+                                Require(!bounds.setTag.valid,"Under-the-bars names reported a set tag");
+                                // Each plate stays in the gap between the game's character logo and its round markers.
+                                Require(std::abs(bounds.names[0].x0-(gx0+236*gs))<=1&&std::abs(bounds.names[1].x1-(gx0+1044*gs))<=1,
+                                    "Match HUD names are not anchored under the life bars");
+                                Require(bounds.names[0].x1<=gx0+474*gs+1&&bounds.names[1].x0>=gx0+806*gs-1,"Match HUD name plate covers the round markers");
+                                for(const auto& name:bounds.names)
+                                    Require(name.y0>=gy0+121*gs-1&&name.y1<=gy0+143*gs+1,"Match HUD name plate left y 121..143 of the game frame");
+                            }
                             Require(bounds.panel.x0>=size.w*.1f-2&&bounds.panel.x1<=size.w*.9f+2&&bounds.panel.y0>=0&&bounds.panel.y1<=size.h,
                                 "Match HUD telemetry escaped safe viewport bounds");
                             Require(topEdge?bounds.panel.y1<=size.h*.5f:bounds.panel.y0>=size.h*.5f,"Match HUD telemetry left its anchored edge");
@@ -996,7 +1008,29 @@ int main(int argc, char** argv) {
                 matchStrip.score="12 - 10";matchStrip.spectators=3;matchStrip.size=1;
                 matchStrip.pingMs=9999;matchStrip.rollbackFrames=999;matchStrip.appliedDelay=10;draw("match-hud-split-long");
                 matchStrip.spectator=true;matchStrip.size=1;draw("match-hud-split-spectator");
-                matchStrip.layout=0;matchStrip.spectator=false;matchStrip.size=0;
+                // Names above the life bars: banners across the top strip with the games won in boxes.
+                matchStrip=split;matchStrip.namesAbove=true;matchStrip.hasScores=true;matchStrip.scores[0]=2;matchStrip.scores[1]=1;
+                draw("match-hud-split-above");
+                matchStrip.setFormat=5;draw("match-hud-split-above-ft5");
+                matchStrip.setFormat=0;matchStrip.hasScores=false;draw("match-hud-split-above-noscore");
+                matchStrip.hasScores=true;
+                matchStrip.names[0]="Long player name with UTF-8 \xc3\xa9\xc3\xa9\xc3\xa9 and more";matchStrip.names[1]="Another very long player name that keeps going";
+                matchStrip.scores[0]=12;matchStrip.scores[1]=10;matchStrip.spectators=3;draw("match-hud-split-above-long");
+                matchStrip.setFormat=3;matchStrip.size=2;draw("match-hud-split-above-long-large");
+                float bannerHeight[3]={0,0,0};
+                for(int hudSize=0;hudSize<3;++hudSize){
+                    matchStrip.size=hudSize;
+                    const auto shot="match-hud-split-above-size-"+std::to_string(hudSize);draw(shot.c_str());
+                    const auto bounds=MatchStripGeometry(matchStrip);bannerHeight[hudSize]=bounds.names[0].y1-bounds.names[0].y0;
+                }
+                Require(bannerHeight[0]<bannerHeight[1]&&bannerHeight[1]<bannerHeight[2],"Split match HUD banner sizes collapse");
+                for(int anchor=1;anchor<5;++anchor){
+                    matchStrip.anchor=anchor;matchStrip.size=1;
+                    const auto shot="match-hud-split-above-anchor-"+std::to_string(anchor);draw(shot.c_str());
+                }
+                matchStrip.anchor=0;matchStrip.notice="Opponent disconnected. The match is over.";matchStrip.noticeSeverity=2;draw("match-hud-split-above-notice");
+                matchStrip.layout=0;matchStrip.namesAbove=false;matchStrip.notice.clear();matchStrip.noticeSeverity=0;
+                matchStrip.spectator=false;matchStrip.size=0;
             }
             mode=5;draw("controller-warning");
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Controller warning captured input");

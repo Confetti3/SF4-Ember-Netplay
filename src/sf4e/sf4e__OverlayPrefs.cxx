@@ -242,7 +242,7 @@ namespace OverlayPrefs {
 			{"editionSelect", preferences.lobby.editionSelect ? 1 : 0}, {"roundCount", preferences.lobby.roundCount},
 			{"roundTimeIntegral", preferences.lobby.roundTime}, {"showMatchHud", preferences.showMatchHud},
 			{"discordPresence", preferences.discordPresence}, {"discordInvites", preferences.discordInvites},
-            {"matchHudSize",preferences.matchHudSize},{"matchHudRaised",preferences.matchHudRaised},{"matchHudAnchor",preferences.matchHudAnchor},{"matchHudLayout",preferences.matchHudLayout},{"readySound",preferences.readySound},{"readySoundVolume",preferences.readySoundVolume},
+            {"matchHudSize",preferences.matchHudSize},{"matchHudRaised",preferences.matchHudRaised},{"matchHudAnchor",preferences.matchHudAnchor},{"matchHudLayout",preferences.matchHudLayout},{"matchHudNames",preferences.matchHudNames},{"readySound",preferences.readySound},{"readySoundVolume",preferences.readySoundVolume},
             {"interfaceScale", preferences.interfaceScale}, {"roomDefaults", netplay::RoomPreferences(preferences)}};
         if(preferences.record.available)values["onlineRecord"]=netplay::ProfileRecordJson(preferences.record);
         return writer->QueueLauncher(std::move(values));

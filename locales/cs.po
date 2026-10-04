@@ -747,6 +747,18 @@ msgstr "Velké"
 msgid "settings.match_hud"
 msgstr "HUD zápasu"
 
+msgid "settings.match_hud_names"
+msgstr "Jména hráčů"
+
+msgid "settings.match_hud_names_detail"
+msgstr "Jen rozdělené rozložení. Ukáže každé jméno pod jeho ukazatelem zdraví, nebo nad ním."
+
+msgid "hud_names.below"
+msgstr "Pod ukazateli zdraví"
+
+msgid "hud_names.above"
+msgstr "Nad ukazateli zdraví"
+
 msgid "settings.match_hud_layout"
 msgstr "Rozložení HUD"
 

@@ -439,6 +439,9 @@ void Overlay::DrawOverlay() {
         strip.spectator = status.spectator;
         strip.size = snapshot.preferences.matchHudSize; strip.raised = snapshot.preferences.matchHudRaised; strip.anchor = snapshot.preferences.matchHudAnchor;
         strip.layout = snapshot.preferences.matchHudLayout; strip.spectators = status.spectators;
+        strip.namesAbove = snapshot.preferences.matchHudNames == 1; strip.setFormat = status.setFormat;
+        strip.hasScores = status.hasMatchScore;
+        for (int side = 0; side < 2; ++side) strip.scores[side] = static_cast<int>(status.matchScore[side]);
         strip.notice = status.lastError; strip.noticeSeverity = static_cast<int>(status.lastErrorSeverity);
         strip.connectionWarning = status.connectionWarning; strip.predictionStalled = status.predictionStalled;
         strip.disconnectCountdownMs = status.disconnectCountdownMs;
