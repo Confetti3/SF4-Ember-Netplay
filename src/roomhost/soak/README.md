@@ -237,9 +237,14 @@ the public relays:
   run shows where it falls with real round trips. If a run fails on
   timeouts, compare `backlog_msgs_max` and `helper_lag_ms_max` (client side) with
   the host rows in `soak-mon.csv.rooms.csv` before blaming either.
-- One to five percent of the chat lines the host accepted (the client got an
-  accepted reply) never appeared in any member's snapshot, the sender's included,
-  and the share grew with load. `chat_lines_missing_total` counts them and the
-  events log names the lines. The run fails on it by default
-  (`--max-chat-missing-pct 1`); raise the limit to see the other criteria on their
-  own.
+- Early runs reported accepted chat lines missing from every snapshot and up to
+  a fifth of the timed lines never seen. Both were the client's own counting,
+  not the room. The missing lines were all said by members who later left for
+  a planned rejoin, and the room drops a leaver's lines; the checks now skip
+  them. The unseen lines were stamped later in the client's loop than the time
+  the check compared them with, so the unsigned difference wrapped and the line
+  counted as never seen in the tick it was sent; every one of them had been
+  accepted within a few seconds. With both fixed, a run at 3 times the rate
+  shows neither. `chat_lines_missing_total` and `chat_lost_total` still fail
+  the run (`--max-chat-missing-pct 1`, `--max-chat-lost-pct 5`), and an unseen
+  line's event says whether and when the host accepted it.

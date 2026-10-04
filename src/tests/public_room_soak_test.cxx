@@ -287,7 +287,7 @@ struct Room {
 	std::size_t ActiveCount() const { std::size_t n = 0; for (const auto& m : members) n += m->IsActive(); return n; }
 	void Tick(Clock now);
 	void TickFlows(Clock now);
-	bool StartFlow(Flow::Kind kind, std::uint8_t table, Member* a, Member* b);
+	bool StartFlow(Flow::Kind kind, std::uint8_t table, Member* a, Member* b, Clock now);
 	void EndFlow(std::uint8_t table);
 	void FailFlow(Flow& flow, const std::string& step, const std::string& detail);
 	int AdvanceFlow(Flow& flow, Clock now); // 0 running, 1 done, 2 failed
@@ -459,13 +459,16 @@ void Member::Chat(Clock now) {
 	action.text = text.str();
 	if (!Send(action)) return;
 	++room->st.chatSent;
-	// One message in four is timed to another member's snapshot.
+	// One message in four is timed to another member's snapshot. The sample
+	// is stamped with this tick's time, not Now(): Room::Tick checks it later
+	// in the same tick against that time, and a later stamp made the clock
+	// difference wrap, so the line counted as never seen as soon as it was sent.
 	if (Chance(0.25)) {
 		std::vector<Member*> others;
 		for (auto& other : room->members) if (other.get() != this && other->IsActive()) others.push_back(other.get());
 		if (!others.empty()) {
 			auto* observer = others[Uniform(0, others.size() - 1)];
-			room->samples.push_back(ChatSample{action.text, Now(), observer, observer->activeSince, this, activeSince});
+			room->samples.push_back(ChatSample{action.text, now, observer, observer->activeSince, this, activeSince});
 			++room->st.chatSampled;
 		}
 	}
@@ -500,9 +503,9 @@ void Member::Act(Clock now) {
 			fighterSentAt = now;
 			if (s->peer.client->PreBattle_SetChara(chara) != session::SendResult::Queued) { ++room->st.fighterRefused; fighterWanted = -1; }
 		} else if (roll < 0.55) {
-			if (opponent && idle) room->StartFlow(Flow::Kind::Ready, static_cast<std::uint8_t>(place.table), this, opponent);
+			if (opponent && idle) room->StartFlow(Flow::Kind::Ready, static_cast<std::uint8_t>(place.table), this, opponent, now);
 		} else if (roll < 0.70) {
-			if (opponent && idle) room->StartFlow(Flow::Kind::Probe, static_cast<std::uint8_t>(place.table), this, opponent);
+			if (opponent && idle) room->StartFlow(Flow::Kind::Probe, static_cast<std::uint8_t>(place.table), this, opponent, now);
 		} else if (roll < 0.85) {
 			if (idle && !room->flows[place.table]) simple(room::ActionKind::Unqueue, place.table);
 		}
@@ -623,11 +626,13 @@ void Member::Tick(Clock now) {
 
 // ---- Flows ---------------------------------------------------------------
 
-bool Room::StartFlow(Flow::Kind kind, std::uint8_t table, Member* a, Member* b) {
+// A flow is stamped with the tick's time for the same reason as a chat sample:
+// TickFlows checks its age later in that tick.
+bool Room::StartFlow(Flow::Kind kind, std::uint8_t table, Member* a, Member* b, Clock now) {
 	if (flows[table] || !a || !b || a->busy || b->busy) return false;
 	flows[table].reset(new Flow());
 	auto& flow = *flows[table];
-	flow.kind = kind; flow.table = table; flow.a = a; flow.b = b; flow.since = Now();
+	flow.kind = kind; flow.table = table; flow.a = a; flow.b = b; flow.since = now;
 	a->busy = b->busy = true;
 	if (kind == Flow::Kind::Match) ++st.matchesStarted;
 	return true;
@@ -891,8 +896,13 @@ void Room::Tick(Clock now) {
 					for (const auto& chat : member->View().chat) if (chat.text == it->text) return std::string("yes");
 					return std::string("no");
 				};
+				// Whether the host answered the send, and when: a line with no
+				// accepted reply was never in the room to be seen.
+				std::string reply = "none";
+				for (const auto& line : chatLog)
+					if (line.text == it->text) reply = "accepted " + std::to_string((now - line.at) / 1000) + " s ago";
 				const auto& view = it->observer->View();
-				Event(number, it->observer->index, "chat not seen within 30 s: " + it->text.substr(0, 24) + " | sender has it: " + has(it->sender) +
+				Event(number, it->observer->index, "chat not seen within 30 s: " + it->text.substr(0, 24) + " | reply: " + reply + ", sender has it: " + has(it->sender) +
 					", observer has it: " + has(it->observer) + ", observer chat lines " + std::to_string(view.chat.size()) + " revision " +
 					std::to_string(view.revision) + " snapshot age " + std::to_string(it->observer->s->peer.client->RoomSnapshotReceivedMs() <= now ? now - it->observer->s->peer.client->RoomSnapshotReceivedMs() : 0) + " ms");
 				done = true;
@@ -913,7 +923,7 @@ void Room::Tick(Clock now) {
 		Member* b = ByMemberId(table.p2);
 		if (a && b && !flows[0] && !a->busy && !b->busy && table.phase == room::TablePhase::Waiting && !table.ready[0] && !table.ready[1] &&
 			table.spectators.empty() && table.queue.empty() && !a->View().localTerminalPending && !b->View().localTerminalPending)
-			StartFlow(Flow::Kind::Match, 0, a, b);
+			StartFlow(Flow::Kind::Match, 0, a, b, now);
 		else nextMatchAt = now + 20000; // the fighters are not both seated and free yet
 	}
 
