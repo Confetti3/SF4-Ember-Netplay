@@ -1736,7 +1736,43 @@ msgid "room.chat"
 msgstr "Chat"
 
 msgid "room.chat.detail"
-msgstr "Lees berichten en schrijf zelf tekst met een toetsenbord."
+msgstr "Lees en verstuur berichten. Typen vereist een toetsenbord."
+
+msgid "room.chat.unread"
+msgstr "{0} ongelezen."
+
+msgid "chat.detail"
+msgstr "Typen vereist een toetsenbord. Enter verstuurt; omhoog en omlaag scrollen door de chat."
+
+msgid "chat.hint"
+msgstr "Schrijf een bericht"
+
+msgid "chat.send"
+msgstr "Versturen"
+
+msgid "chat.sending"
+msgstr "Versturen..."
+
+msgid "chat.remaining"
+msgstr "Nog {0}"
+
+msgid "chat.empty"
+msgstr "Nog geen berichten. Typ hieronder om te beginnen."
+
+msgid "chat.event.joined"
+msgstr "{0} is de kamer binnengekomen"
+
+msgid "chat.event.left"
+msgstr "{0} heeft de kamer verlaten"
+
+msgid "chat.event.host"
+msgstr "{0} is nu de host"
+
+msgid "chat.event.game_won"
+msgstr "{0} heeft een partij gewonnen aan tafel {1} ({2})"
+
+msgid "chat.event.set_won"
+msgstr "{0} heeft de set gewonnen aan tafel {1} ({2})"
 
 msgid "room.fighter_options"
 msgstr "Personage-opties"
@@ -2129,12 +2165,6 @@ msgstr "Maak {0} de host."
 
 msgid "room.compose_message"
 msgstr "Bericht schrijven"
-
-msgid "room.send_message"
-msgstr "Bericht verzenden"
-
-msgid "room.send_message.detail"
-msgstr "Verzend het bevestigde concept. Enter in de editor verstuurt geen chatbericht."
 
 msgid "room.capacity.detail"
 msgstr "Kan niet lager zijn dan het huidige aantal leden."

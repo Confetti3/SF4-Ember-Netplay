@@ -6,6 +6,7 @@
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <cmath>
@@ -57,6 +58,11 @@ const char* PhaseName(room::TablePhase phase) {
 int OptionsTable(const ShellView& v, int selected) {
     const auto* local = Member(v.room, v.room.localMember);
     return local && local->table >= 0 && local->table < static_cast<int>(v.room.tables.size()) ? local->table : selected;
+}
+// A draft with something in it besides spaces.
+bool HasChatText(const char* text) {
+    for(;*text;++text)if(!std::isspace(static_cast<unsigned char>(*text)))return true;
+    return false;
 }
 // A member with no seat and no queue place anywhere gets the chooser from a
 // table card. Watching elsewhere is no obstacle: sitting down ends it.
@@ -185,7 +191,9 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    for(const auto& m:s.members){rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),loc::Tf(m.host?"room.member_status_host":"room.member_status",StatusName(m.status))));
     rows.back().userText=true;}
    rows.push_back(Row("room-members",loc::T("room.members"),loc::Tf("room.member_count",s.members.size(),s.capacity)));
-   rows.push_back(Row("room-chat",loc::T("room.chat"),loc::T("room.chat.detail")));
+   const unsigned unread=transcript_.Unread(muted_);
+   rows.push_back(Row("room-chat",loc::T("room.chat"),(unread?loc::Tf("room.chat.unread",unread)+" ":std::string())+loc::T("room.chat.detail")));
+   if(unread)rows.back().value=std::to_string(unread);
    // Changing fighter needs a seat, so it lives in the table options (and X).
    rows.push_back(Row("options",loc::T("room.table_options"),loc::Tf("room.table_options.detail",OptionsTable(v,selectedTable_)+1)));
    rows.push_back(Row("room-admin",loc::T("room.settings"),loc::T(host?"room.settings.detail":"room.settings.host_only"),host));
@@ -351,10 +359,11 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    rows.push_back(ConfirmRow("transfer-host",loc::T("room.transfer_host"),m?loc::Tf("room.transfer_host.detail",m->name):loc::T("room.member_left.detail"),host&&other));
    rows.back().detailText=DetailText::Name;
  }else if(screen=="room-chat"){
-   rows.push_back(TextRow("compose",loc::T("room.compose_message"),chat_,MaximumChatBytes,mutableRoom));
-   rows.push_back(Row("send-chat",loc::T("room.send_message"),loc::T("room.send_message.detail"),mutableRoom&&chat_[0]));
-  for(auto it=s.chat.rbegin();it!=s.chat.rend();++it)if(!muted_.count(it->sender)){
-   rows.push_back(Row("message-"+std::to_string(it->sequence),Name(s,it->sender),it->text));rows.back().userText=true;rows.back().detailText=DetailText::Chat;}
+  // The one row: the message box is drawn by DrawChatScreen, and Enter in it is this row's Select. It is
+  // there to send once there is something to send, and not again while that same text is on its way.
+  rows.push_back(Row("compose",loc::T("room.compose_message"),loc::T("chat.detail"),
+   mutableRoom&&HasChatText(chat_)&&!(pendingChat_&&pendingChat_->text==chat_)));
+  rows.back().value=chat_;rows.back().hint=loc::T("chat.send");
  }else if(screen=="room-admin"){
   rows.push_back(TextRow("rename",loc::T("room.name"),roomName_,64,host));
   rows.push_back(Value("room-capacity",loc::T("room.capacity"),std::to_string(roomCapacity_),loc::T("room.capacity.detail"),host));
@@ -383,6 +392,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
                                      const MenuVisualFeedback& feedback) {
  const float s=Scale(),gap=12*s;const bool wide=ImGui::GetContentRegionAvail().x>=820*s;
  const auto focus=nav.Focus();const bool changed=focus!=roomBoardFocus_;
+ const unsigned unread=transcript_.Unread(muted_);
  // The board renders in place of the menu list, so it uses the same smoothed
  // verdict and the same wording. Presentation only: nav.Choose still gates on
  // the live entry and SendRoom still re-checks room authority at dispatch.
@@ -585,10 +595,13 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  };
  const auto button=[&](const MenuEntry& e,float width){
   const auto p=ImGui::GetCursorScreenPos();press(e,ImVec2(width,40*s));
+  // The unread count rides the Chat row's right edge, and the label leaves room for it.
+  const float badge=e.id=="room-chat"&&unread?UnreadBadgeWidth(unread)+8*s:0;
+  if(badge)DrawUnreadBadge(p.x+width-8*s,p.y+11*s,unread);
   // Our own action labels must fit; only player-supplied text may elide.
   ReportMenuText(("board-"+e.id).c_str(),16*s,40*s,
-   ImGui::GetFont()->CalcTextSizeA(16*s,FLT_MAX,0,e.label.c_str()).x,width-24*s);
-  text(ImVec2(p.x+12*s,p.y+11*s),width-24*s,e.label,16*s,shown(e)?palette::Ivory:palette::Muted);
+   ImGui::GetFont()->CalcTextSizeA(16*s,FLT_MAX,0,e.label.c_str()).x,width-24*s-badge);
+  text(ImVec2(p.x+12*s,p.y+11*s),width-24*s-badge,e.label,16*s,shown(e)?palette::Ivory:palette::Muted);
   tip();
  };
  std::vector<const MenuEntry*> toolbar;
@@ -618,20 +631,15 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   ImGui::BeginChild("Member list",ImVec2(0,memberRows*cardPitch-ImGui::GetStyle().ItemSpacing.y+childPadding),0,ImGuiWindowFlags_NoNavInputs);
   for(const auto& e:rows)if(e.id.compare(0,7,"member-")==0)memberCard(e);
   ImGui::EndChild();ImGui::TextUnformatted(loc::T("room.chat_heading"));
+  if(unread){const auto heading=ImGui::GetItemRectMin();const float lineHeight=ImGui::GetItemRectMax().y-heading.y;
+   DrawUnreadBadge(ImGui::GetItemRectMax().x+8*s+UnreadBadgeWidth(unread),heading.y+(lineHeight-18*s)*.5f,unread);}
   ImGui::BeginChild("Recent chat",ImVec2(0,0),0,ImGuiWindowFlags_NoNavInputs);
-  if(v.room.chat.empty())ImGui::TextWrapped("%s",loc::T("room.no_messages"));
   // A message asks the atlas for its glyphs only while it is drawn inside the
   // clip: a muted sender's, and one scrolled out of view, hold none.
-  for(const auto& message:v.room.chat)if(!muted_.count(message.sender)){
-   const auto* sender=Member(v.room,message.sender);
-   ImGui::PushStyleColor(ImGuiCol_Text,ToneColor(Tone::Pending));
-   ImGui::TextWrapped("%s",Name(v.room,message.sender));if(sender&&ImGui::IsItemVisible())NoteUserText(sender->name);
-   ImGui::PopStyleColor();
-   ImGui::TextWrapped("%s",message.text.c_str());if(ImGui::IsItemVisible())NoteUserText(message.text,UserTextRole::Chat);
-  }
+  DrawChatLog(v,true);
   // Follow new messages only while the reader is already at the bottom.
-  if(ImGui::GetScrollY()>=ImGui::GetScrollMaxY()-1||chatSequence_==0)ImGui::SetScrollHereY(1.f);
-  chatSequence_=v.room.chat.empty()?0:v.room.chat.back().sequence;
+  if(ImGui::GetScrollY()>=ImGui::GetScrollMaxY()-1||chatShown_==0)ImGui::SetScrollHereY(1.f);
+  chatShown_=transcript_.Lines().size();
   ImGui::EndChild();ImGui::EndChild();
   ImGui::SetCursorScreenPos(ImVec2(origin.x+leftWidth+gap,origin.y+communityHeight+gap));
   ImGui::BeginChild("Room actions",ImVec2(rightWidth,toolsHeight),0,ImGuiWindowFlags_NoNavInputs);
@@ -831,7 +839,6 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   }
  if(a.id=="leave"){Send(netplay::CommandKind::LeaveRoom,v,submit);return;}
  if(a.id=="mute"){if(muted_.count(selectedMember_))muted_.erase(selectedMember_);else muted_.insert(selectedMember_);return;}
- if(a.id=="compose"){std::snprintf(chat_,sizeof(chat_),"%s",a.text.c_str());return;}
  if(a.id=="rename"){std::snprintf(roomName_,sizeof(roomName_),"%s",a.text.c_str());return;}
  if(a.id=="room-capacity"){roomCapacity_=(std::max)(2,(std::min)(16,roomCapacity_+a.delta));return;}
  if(AdjustRule(tableRules_,a)){rulesDirty_=!(tableRules_==v.room.tables[selectedTable_].rules);return;}
@@ -856,11 +863,15 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  else if(a.id=="apply-name"){request.kind=ActionKind::Rename;request.text=roomName_;}
  else if(a.id=="apply-capacity"){request.kind=ActionKind::SetCapacity;request.capacity=static_cast<std::uint8_t>(roomCapacity_);}
  else if(a.id=="lock"){request.kind=ActionKind::Lock;request.locked=a.delta<0;}
- else if(a.id=="send-chat"){request.kind=ActionKind::Chat;request.text=chat_;}
+ else if(a.id=="compose"){
+  // The draft stays in the box until the room's chat has it (UpdateChat); the same text is not sent twice while it is on its way.
+  if(!HasChatText(chat_)||(pendingChat_&&pendingChat_->text==chat_))return;
+  request.kind=ActionKind::Chat;request.text=chat_;
+ }
  else if(a.id=="ready"){ToggleReady(v,submit);return;}
  else return;
  if(SendRoom(std::move(request),v,submit)){
-  if(a.id=="send-chat")chat_[0]=0;
+  if(a.id=="compose")pendingChat_=PendingChat{chat_,transcript_.LastSequence(),ImGui::GetTime()};
   if(a.id=="apply-rules")rulesDirty_=false;
  }else if(error_.empty())error_=loc::T("room.action_rejected");
 }

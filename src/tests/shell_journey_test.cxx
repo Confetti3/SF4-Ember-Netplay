@@ -1,4 +1,5 @@
 #include "shell_journey_support.hxx"
+#include "shell_chat_journey.hxx"
 #include <algorithm>
 #include <iterator>
 namespace {
@@ -358,10 +359,10 @@ void Journeys() {
  h.Choose("leave");h.Press(MenuInput::Right);h.Press(MenuInput::Select);Check(h.actions.size()==count+1&&h.actions.back().command.kind==Kind::LeaveRoom,"Confirmed leave");
   h.Screen("room");h.Choose("room-members");h.Choose("member-2");h.Choose("kick");
   h.view.room.members.pop_back();h.Frame();h.Press(MenuInput::Right);h.Press(MenuInput::Select);Check(h.actions.back().command.kind==Kind::LeaveRoom,"Removed member was kicked");
- h.Screen("room");h.Choose("room-chat");h.Choose("compose");ImGui::GetIO().AddInputCharactersUTF8("Hello");h.Frame();
+ h.Screen("room");h.Choose("room-chat");h.Frame(0,4);ImGui::GetIO().AddInputCharactersUTF8("Hello");h.Frame();
+ count=h.actions.size();h.Press(MenuInput::Down);Check(h.actions.size()==count,"Scrolling the chat sent it");
  ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,true);h.Frame();ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,false);h.Frame();
- count=h.actions.size();h.Press(MenuInput::Down);Check(h.actions.size()==count,"Text acceptance sent chat");
- h.Choose("send-chat");Check(h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text=="Hello","Explicit chat send");
+ Check(h.actions.size()==count+1&&h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text=="Hello","Enter in the chat box did not send");
   h.view.session.control=netplay::Health::Lost;h.Screen("room");count=h.actions.size();h.Choose("table-2");Check(h.actions.size()==count,"Lost connection submitted Ready");
  h.view={};h.view.controllerReady=h.view.canEditPreferences=h.view.canOpenRoom=true;h.Frame();h.Screen("interface");h.Choose("hud");h.Press(MenuInput::Left);
  count=h.actions.size();h.Frame(0,20);Check(h.actions.size()==count,"Autosave not coalesced");
@@ -459,13 +460,11 @@ void KeyboardJourneys(){
  key(ImGuiKey_T);Check(h.shell.Navigation().Screen()=="room-table","T did not open the table options");
  key(ImGuiKey_T);Check(h.shell.Navigation().Screen()=="room","T again did not return to the board");
  key(ImGuiKey_C);Check(h.shell.Navigation().Screen()=="room-chat","C did not open chat");
- // Typing a message keeps every key for the text: F, T, C and Backspace
- // neither open anything nor cancel the draft.
- h.Choose("compose");Check(h.shell.Navigation().Editing(),"Compose did not open the editor");
- h.Frame();io.AddInputCharactersUTF8("fct");key(ImGuiKey_F);key(ImGuiKey_T);key(ImGuiKey_Backspace);key(ImGuiKey_Space);
- Check(h.shell.Navigation().Editing()&&h.shell.Navigation().Screen()=="room-chat","Typing in chat pressed a menu key");
- key(ImGuiKey_Escape);Check(!h.shell.Navigation().Editing(),"Escape did not close the editor");
- key(ImGuiKey_C);Check(h.shell.Navigation().Screen()=="room","C again did not return to the board");
+ // The message box has the keyboard from the start, so F, T, C and Backspace
+ // are text and neither open anything nor cancel the draft; Escape goes back.
+ h.Frame(0,4);io.AddInputCharactersUTF8("fct");h.Frame();key(ImGuiKey_F);key(ImGuiKey_T);key(ImGuiKey_Backspace);key(ImGuiKey_Space);
+ Check(h.shell.Navigation().Screen()=="room-chat","Typing in chat pressed a menu key");
+ key(ImGuiKey_Escape);Check(h.shell.Navigation().Screen()=="room","Escape did not return to the board");
  // F opens fighter select on the roster, at the current fighter; picking
  // one goes on to its Ultra, and the Ultra returns to the room.
  FighterSelector selector;selection::Pick pick;pick.fighter=4;pick.edition=14;
@@ -531,8 +530,8 @@ void KeyboardJourneys(){
  key(ImGuiKey_UpArrow);Check(KeyboardPrompts(),"A key press kept the pad's prompts");
  // Typing in a text field counts too, though its keys press no menu bit.
  h.Press(MenuInput::Down);Check(!KeyboardPrompts(),"A pad press left keyboard prompts up");
- h.Screen("room-chat");h.Choose("compose");Check(h.shell.Navigation().Editing(),"Compose did not open by pad");
- h.Frame();io.AddInputCharactersUTF8("x");h.Frame();h.Frame();
+ h.Screen("room-chat");h.Frame(0,4);
+ io.AddInputCharactersUTF8("x");h.Frame();h.Frame();
  Check(KeyboardPrompts(),"Typing with a pad assigned kept the pad's prompts");
  key(ImGuiKey_Escape);
  h.selection=[]{};
@@ -876,5 +875,5 @@ void TrainingJourneys() {
  TakeForwardedMenuAction();
 }
 }
-int main(){try{Journeys();KeyboardJourneys();NoticeOverDialogs();LanguageSaveFailure();SessionReports();RecoveryWindow();SelectorPages();SelectorFromHome();DeveloperSelectors();TrainingJourneys();PresentationJourneys();AppearanceGalleries();std::cout<<"Shell journeys through the renderer passed.\n";return 0;}
+int main(){try{Journeys();KeyboardJourneys();ChatJourneys();NoticeOverDialogs();LanguageSaveFailure();SessionReports();RecoveryWindow();SelectorPages();SelectorFromHome();DeveloperSelectors();TrainingJourneys();PresentationJourneys();AppearanceGalleries();std::cout<<"Shell journeys through the renderer passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

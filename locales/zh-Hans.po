@@ -1736,7 +1736,43 @@ msgid "room.chat"
 msgstr "聊天"
 
 msgid "room.chat.detail"
-msgstr "阅读消息，并使用键盘主动编写文字。"
+msgstr "阅读并发送消息。输入需要键盘。"
+
+msgid "room.chat.unread"
+msgstr "{0} 条未读"
+
+msgid "chat.detail"
+msgstr "输入需要键盘。按 Enter 发送；上下方向键滚动聊天。"
+
+msgid "chat.hint"
+msgstr "输入消息"
+
+msgid "chat.send"
+msgstr "发送"
+
+msgid "chat.sending"
+msgstr "发送中..."
+
+msgid "chat.remaining"
+msgstr "剩余 {0}"
+
+msgid "chat.empty"
+msgstr "暂无消息。在下方输入即可开始。"
+
+msgid "chat.event.joined"
+msgstr "{0} 加入了房间"
+
+msgid "chat.event.left"
+msgstr "{0} 离开了房间"
+
+msgid "chat.event.host"
+msgstr "{0} 现在是房主"
+
+msgid "chat.event.game_won"
+msgstr "{0} 在对战席 {1} 赢下一局 ({2})"
+
+msgid "chat.event.set_won"
+msgstr "{0} 在对战席 {1} 赢下对战组 ({2})"
 
 msgid "room.fighter_options"
 msgstr "角色选项"
@@ -2129,12 +2165,6 @@ msgstr "让 {0} 成为房主。"
 
 msgid "room.compose_message"
 msgstr "编写消息"
-
-msgid "room.send_message"
-msgstr "发送消息"
-
-msgid "room.send_message.detail"
-msgstr "发送已确认的草稿。在编辑框中按 Enter 不会发送聊天消息。"
 
 msgid "room.capacity.detail"
 msgstr "不能小于当前成员数。"

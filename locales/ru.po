@@ -1736,7 +1736,43 @@ msgid "room.chat"
 msgstr "Чат"
 
 msgid "room.chat.detail"
-msgstr "Читайте сообщения и вводите текст с клавиатуры."
+msgstr "Читайте и отправляйте сообщения. Для ввода нужна клавиатура."
+
+msgid "room.chat.unread"
+msgstr "Непрочитано: {0}."
+
+msgid "chat.detail"
+msgstr "Для ввода нужна клавиатура. Enter отправляет; стрелки вверх и вниз прокручивают чат."
+
+msgid "chat.hint"
+msgstr "Напишите сообщение"
+
+msgid "chat.send"
+msgstr "Отправить"
+
+msgid "chat.sending"
+msgstr "Отправка..."
+
+msgid "chat.remaining"
+msgstr "Осталось: {0}"
+
+msgid "chat.empty"
+msgstr "Сообщений пока нет. Начните писать ниже."
+
+msgid "chat.event.joined"
+msgstr "{0} вошёл(а) в зал"
+
+msgid "chat.event.left"
+msgstr "{0} покинул(а) зал"
+
+msgid "chat.event.host"
+msgstr "{0} теперь ведущий"
+
+msgid "chat.event.game_won"
+msgstr "{0}: победа в бою за столом {1} ({2})"
+
+msgid "chat.event.set_won"
+msgstr "{0}: победа в сете за столом {1} ({2})"
 
 msgid "room.fighter_options"
 msgstr "Настройки персонажа"
@@ -2129,12 +2165,6 @@ msgstr "Назначить {0} ведущим зала."
 
 msgid "room.compose_message"
 msgstr "Написать сообщение"
-
-msgid "room.send_message"
-msgstr "Отправить"
-
-msgid "room.send_message.detail"
-msgstr "Отправить подтверждённый текст. Enter в редакторе не отправляет сообщение."
 
 msgid "room.capacity.detail"
 msgstr "Не может быть меньше текущего числа участников."

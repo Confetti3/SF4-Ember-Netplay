@@ -1736,7 +1736,43 @@ msgid "room.chat"
 msgstr "Chat"
 
 msgid "room.chat.detail"
-msgstr "Číst zprávy a psát text na klávesnici."
+msgstr "Čtěte a odesílejte zprávy. Psaní vyžaduje klávesnici."
+
+msgid "room.chat.unread"
+msgstr "Nepřečtené: {0}."
+
+msgid "chat.detail"
+msgstr "Psaní vyžaduje klávesnici. Enter odešle zprávu; šipky nahoru a dolů posouvají chat."
+
+msgid "chat.hint"
+msgstr "Napište zprávu"
+
+msgid "chat.send"
+msgstr "Odeslat"
+
+msgid "chat.sending"
+msgstr "Odesílání..."
+
+msgid "chat.remaining"
+msgstr "Zbývá {0}"
+
+msgid "chat.empty"
+msgstr "Zatím žádné zprávy. Začněte psát dole."
+
+msgid "chat.event.joined"
+msgstr "{0} se připojil(a) do místnosti"
+
+msgid "chat.event.left"
+msgstr "{0} opustil(a) místnost"
+
+msgid "chat.event.host"
+msgstr "{0} je nyní hostitel"
+
+msgid "chat.event.game_won"
+msgstr "{0} vyhrál(a) hru u stolu {1} ({2})"
+
+msgid "chat.event.set_won"
+msgstr "{0} vyhrál(a) set u stolu {1} ({2})"
 
 msgid "room.fighter_options"
 msgstr "Možnosti postavy"
@@ -2129,12 +2165,6 @@ msgstr "Předat vedení místnosti: {0}."
 
 msgid "room.compose_message"
 msgstr "Napsat zprávu"
-
-msgid "room.send_message"
-msgstr "Odeslat zprávu"
-
-msgid "room.send_message.detail"
-msgstr "Odeslat přijatý koncept. Enter v editoru zprávu neodešle."
 
 msgid "room.capacity.detail"
 msgstr "Nesmí být nižší než současný počet členů."

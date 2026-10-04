@@ -1736,7 +1736,43 @@ msgid "room.chat"
 msgstr "Chat"
 
 msgid "room.chat.detail"
-msgstr "Nachrichten lesen und Text gezielt per Tastatur verfassen."
+msgstr "Nachrichten lesen und senden. Zum Tippen wird eine Tastatur benötigt."
+
+msgid "room.chat.unread"
+msgstr "{0} ungelesen."
+
+msgid "chat.detail"
+msgstr "Zum Tippen wird eine Tastatur benötigt. Enter sendet; Pfeil hoch und runter scrollen den Chat."
+
+msgid "chat.hint"
+msgstr "Nachricht schreiben"
+
+msgid "chat.send"
+msgstr "Senden"
+
+msgid "chat.sending"
+msgstr "Wird gesendet..."
+
+msgid "chat.remaining"
+msgstr "Noch {0}"
+
+msgid "chat.empty"
+msgstr "Noch keine Nachrichten. Unten tippen, um zu beginnen."
+
+msgid "chat.event.joined"
+msgstr "{0} ist dem Raum beigetreten"
+
+msgid "chat.event.left"
+msgstr "{0} hat den Raum verlassen"
+
+msgid "chat.event.host"
+msgstr "{0} ist jetzt Host"
+
+msgid "chat.event.game_won"
+msgstr "{0} hat ein Spiel an Tisch {1} gewonnen ({2})"
+
+msgid "chat.event.set_won"
+msgstr "{0} hat den Satz an Tisch {1} gewonnen ({2})"
 
 msgid "room.fighter_options"
 msgstr "Charakter-Optionen"
@@ -2129,12 +2165,6 @@ msgstr "{0} zum Raum-Host machen."
 
 msgid "room.compose_message"
 msgstr "Nachricht verfassen"
-
-msgid "room.send_message"
-msgstr "Nachricht senden"
-
-msgid "room.send_message.detail"
-msgstr "Bestätigten Entwurf senden. Enter im Editor sendet keine Chatnachricht."
 
 msgid "room.capacity.detail"
 msgstr "Nicht kleiner als die aktuelle Mitgliederzahl."

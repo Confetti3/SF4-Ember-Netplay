@@ -16,6 +16,8 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <optional>
+#include "ChatTranscript.hxx"
 #include "GameMenu.hxx"
 #include "IdentityPanel.hxx"
 #include "PublicRoomsPanel.hxx"
@@ -105,6 +107,11 @@ struct ShellView {
     netplay::publicrooms::Status publicRooms;
 };
 
+// The count on a Chat control: a rounded badge ending at `right` (screen x), its top at `top`, the
+// height of a line of text. UnreadBadgeWidth is what it takes, for the text beside it to leave room.
+float UnreadBadgeWidth(unsigned count);
+void DrawUnreadBadge(float right,float top,unsigned count);
+
 struct ShellAction {
     netplay::Command command{netplay::CommandKind::HostRoom};
     platform::ServiceAction service = platform::ServiceAction::None;
@@ -143,6 +150,8 @@ public:
         if(previousRoomState_==netplay::RoomState::Idle)menu_.navigation.Home();
     }
     MenuNavigation& Navigation() { return menu_.navigation; }
+    // What this client keeps of the room chat (for tests).
+    const ChatTranscript& Transcript() const { return transcript_; }
     // The shell is not being drawn (the overlay is hidden): nothing typed into
     // a passphrase field may wait in it until it next opens.
     void Conceal() {
@@ -226,7 +235,22 @@ private:
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
     std::string roomBoardFocus_;
-    std::uint64_t chatSequence_=0;
+    // The room chat: what the room said and did, kept here (ChatTranscript). The Chat screen is its
+    // own body (DrawChatScreen); the board's Recent chat panel shows the same lines.
+    void UpdateChat(const ShellView& view,double now);
+    void DrawChatLog(const ShellView& view,bool compact);
+    void DrawChatScreen(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
+                        const MenuVisualFeedback& feedback);
+    ChatTranscript transcript_;
+    // A message sent and not yet seen in the room's chat. The draft stays in the box until it is.
+    struct PendingChat { std::string text; std::uint64_t after = 0; double since = 0; };
+    std::optional<PendingChat> pendingChat_;
+    // The Chat screen has been drawn since the player last left it.
+    bool chatOpen_=false;
+    // The text the message box last held. ImGui ignores the buffer it is given while the box has the
+    // keyboard, so a draft the shell changed (sent, or a new room) is handed to the box again.
+    std::string chatBoxText_;
+    std::size_t chatShown_=0;
     double saveAt_ = 0;
     double lastUiTime_ = -1;
     bool saveFailed_ = false;
