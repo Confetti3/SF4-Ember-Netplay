@@ -44,10 +44,22 @@ static void TestJoinRejectionBelongsToOneConnection() {
 	CHECK(!client.JoinRejection());
 }
 
+// A public room's refusals have their own words; every other refusal reads as before.
+static void TestPublicJoinRejectionWording() {
+	using Error = SessionClient::ErrorType;
+	CHECK(std::string(SessionClient::PublicJoinRejectionKey(Error::SCE_JOIN_REJECTED_LOBBY_FULL)) == "public.failure.full_or_locked");
+	CHECK(std::string(SessionClient::PublicJoinRejectionKey(Error::SCE_JOIN_REJECTED_REQUEST_INVALID)) == "public.failure.turned_away");
+	CHECK(std::string(SessionClient::PublicJoinRejectionKey(Error::SCE_JOIN_REJECTED_HASH_INVALID)) == "runtime.build_mismatch");
+	CHECK(std::string(SessionClient::PublicJoinRejectionKey(Error::SCE_JOIN_REJECTED_NAME_TAKEN)) == "room.reject.name_taken");
+	CHECK(std::string(SessionClient::JoinRejectionKey(Error::SCE_JOIN_REJECTED_LOBBY_FULL)) == "runtime.room_full");
+	CHECK(std::string(SessionClient::JoinRejectionKey(Error::SCE_JOIN_REJECTED_REQUEST_INVALID)) == "runtime.room_request_failed");
+}
+
 struct Observer { int ready = 0, synced = 0, error = 0; };
 int main() {
 	TestFailedRoomCanLeaveAfterNativeTeardown();
 	TestJoinRejectionBelongsToOneConnection();
+	TestPublicJoinRejectionWording();
 	Observer observer;
 	SessionClient::Callbacks callbacks = {};
 	callbacks.data = &observer;

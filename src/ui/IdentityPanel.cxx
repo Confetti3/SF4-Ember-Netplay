@@ -57,6 +57,7 @@ std::string FailureText(const std::string& code) {
     for (const auto& entry : table) if (code == entry.first) return loc::T(entry.second);
     return loc::Tf("identity.failure.other", code.empty() ? std::string("?") : code);
 }
+
 bool Playing(const netplay::tournament::Status& t) {
     using netplay::tournament::Phase;
     return t.phase == Phase::Claiming || t.phase == Phase::Opening || t.phase == Phase::InRoom;
@@ -102,6 +103,7 @@ static bool Retirable(IdentityOp op) {
 }
 
 bool IdentityPanel::Superseded() const {
+    if (sentOwner_ == Owner::PublicSetup) return sentJourney_ != setup_.Run();
     return sentJourney_ != journey_ && Retirable(sentOp_);
 }
 
@@ -127,7 +129,8 @@ void IdentityPanel::ProfileRead(const std::string& bridge) {
 }
 
 void IdentityPanel::DropQueue() {
-    if (sentJourney_ == journey_) queue_.clear();
+    if (sentJourney_ != journey_) return;
+    queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [](const Queued& q) { return q.owner == Owner::Screens; }), queue_.end());
 }
 
 void IdentityPanel::NewJourney() {
@@ -135,7 +138,10 @@ void IdentityPanel::NewJourney() {
     discordWaitUntil_ = 0; discordPaused_ = false;
     attempt_ = Attempt::None; attemptBefore_.clear();
     discordWaitBridge_.clear();
-    queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [](const Queued& q) { return Retirable(q.request.op); }), queue_.end());
+    // The public rooms setup's requests are not the journey's.
+    queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [](const Queued& q) {
+        return q.owner == Owner::Screens && Retirable(q.request.op);
+    }), queue_.end());
 }
 
 void IdentityPanel::OpenMatch(const std::string& bridge, const std::string& match) {
@@ -146,31 +152,21 @@ void IdentityPanel::OpenMatch(const std::string& bridge, const std::string& matc
     IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
 }
 
-namespace {
-// A match the player can play from the list now.
-bool Playable(const netplay::tournament::Assignment& match) { return match.PlayedInEmber() && !match.Finished(); }
-}
-
 std::string IdentityPanel::HomeDetail(const ShellView& v) const {
     const auto& id = v.identity;
     if (id.known && id.state == "disabled") return loc::T("home.identity_start");
     if (id.known && id.state == "ready") {
         if (servicesKnown_ && id.bridges.empty()) return loc::T("home.identity_start");
         const auto& list = v.tournament.list;
-        const auto ready = list.bridge == bridge_ ? std::count_if(list.items.begin(), list.items.end(), Playable) : 0;
+        const auto ready = list.bridge == bridge_ ? std::count_if(list.items.begin(), list.items.end(),
+            [&](const netplay::tournament::Assignment& match) { return match.Playable(v.unixNow); }) : 0;
         if (ready > 0) return loc::Tf("home.identity_matches", static_cast<int>(ready));
     }
     return loc::T("home.identity_detail");
 }
 
 bool IdentityPanel::TakeAssigned(const ShellView& v) {
-    bool fresh = false;
-    for (const auto& match : v.tournament.list.items) {
-        if (!Playable(match) || std::find(told_.begin(), told_.end(), match.matchId) != told_.end()) continue;
-        told_.push_back(match.matchId);
-        fresh = true;
-    }
-    return fresh && lastScreen_ != "tournament-matches";
+    return announced_.Take(v.tournament.list, v.unixNow) && lastScreen_ != "tournament-matches";
 }
 
 std::string IdentityPanel::TakeFocus(const std::vector<MenuEntry>& rows) {
@@ -199,6 +195,13 @@ std::string IdentityPanel::TournamentFailure(const std::string& code) {
     return FailureText(code);
 }
 
+bool IdentityPanel::CanPlay(const ShellView& v, const std::string& id) const {
+    const auto& t = v.tournament;
+    if (t.list.bridge != bridge_ || v.session.room != netplay::RoomState::Idle || Playing(t)) return false;
+    return std::any_of(t.list.items.begin(), t.list.items.end(),
+        [&](const netplay::tournament::Assignment& match) { return match.matchId == id && match.Playable(v.unixNow); });
+}
+
 std::string IdentityPanel::UsableBridge(const ShellView& v) const {
     return v.identity.state == "ready" && FindBridge(v, bridge_) ? bridge_ : std::string();
 }
@@ -206,6 +209,29 @@ std::string IdentityPanel::UsableBridge(const ShellView& v) const {
 void IdentityPanel::Probe() {
     IdentityRequest status; status.op = IdentityOp::Status; Queue(std::move(status));
     IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
+}
+
+void IdentityPanel::SetUpPublicRooms(const ShellView&) {
+    if (!setup_.Running()) QueueSetup(setup_.Start());
+}
+
+void IdentityPanel::QueueSetup(IdentityRequest request) {
+    if (queue_.size() < 8) queue_.push_back(Queued{std::move(request), false, setup_.Run(), {}, Owner::PublicSetup});
+}
+
+bool IdentityPanel::SetupPending() const {
+    return (sent_ && sentOwner_ == Owner::PublicSetup) ||
+        std::any_of(queue_.begin(), queue_.end(), [](const Queued& q) { return q.owner == Owner::PublicSetup; });
+}
+
+// Only the setup moves on its answers; the services it reads are fresh for Home too, and the one it trusts is selected.
+void IdentityPanel::SetupFinish(const ShellView& v) {
+    const auto& id = v.identity;
+    if (!v.identityRequest) { setup_.Fail(v.identityRefusal.empty() ? std::string(loc::T("identity.refused.helper")) : std::string(loc::T(v.identityRefusal.c_str()))); return; }
+    if (!id.ok) { setup_.Failed(id.failure, FailureText(id.failure)); return; }
+    if (sentOp_ == IdentityOp::BridgeList) servicesKnown_ = true;
+    if (auto next = setup_.Answered(v, sentOp_)) QueueSetup(std::move(*next));
+    if (setup_.View().step == PublicSetupStep::Done) bridge_ = setup_.Service();
 }
 
 bool IdentityPanel::Answered(const ShellView& v) const {
@@ -218,18 +244,18 @@ void IdentityPanel::Say(std::string text, bool error, double seconds) {
 }
 
 void IdentityPanel::Queue(IdentityRequest request, bool lookUp, std::string account) {
-    const auto owner = finishing_ ? sentJourney_ : journey_;
+    const auto owner = finishing_ && sentOwner_ == Owner::Screens ? sentJourney_ : journey_;
     // The new journey reads everything again itself.
     if (owner != journey_ && Retirable(request.op)) return;
-    // A read the same as one waiting or out for this journey adds nothing:
-    // its answer is handled for whichever screen is open when it comes.
+    // A read the same as one of the screens' waiting or out for this journey
+    // adds nothing: its answer is handled for whichever screen is open when it comes.
     const bool read = request.op == IdentityOp::Status || request.op == IdentityOp::BridgeList ||
         request.op == IdentityOp::BridgeInspect || request.op == IdentityOp::LinkList || request.op == IdentityOp::DiscordStatus;
     if (read) {
-        if (sent_ && sentJourney_ == owner && sentOp_ == request.op && sentBridge_ == request.bridge &&
+        if (sent_ && sentOwner_ == Owner::Screens && sentJourney_ == owner && sentOp_ == request.op && sentBridge_ == request.bridge &&
             sentOrigin_ == request.origin && sentLookUp_ == lookUp && sentAccount_ == account) return;
         const bool waiting = std::any_of(queue_.begin(), queue_.end(), [&](const Queued& q) {
-            return q.journey == owner && q.request.op == request.op && q.request.bridge == request.bridge &&
+            return q.owner == Owner::Screens && q.journey == owner && q.request.op == request.op && q.request.bridge == request.bridge &&
                 q.request.origin == request.origin && q.lookUp == lookUp && q.account == account;
         });
         if (waiting) return;
@@ -263,6 +289,7 @@ void IdentityPanel::SelectBridge(const ShellView& v, const std::string& id) {
 
 void IdentityPanel::Update(const ShellView& v, const std::string& screen, const Submit& submit, double now) {
     now_ = now;
+    announced_.Save(now);
     const bool owned = Owns(screen);
     if (!owned && onScreens_) Wipe();
     const bool entered = owned && screen != lastScreen_;
@@ -271,6 +298,7 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
     if (lastScreen_ == "discord-connect" && screen != "discord-connect" &&
         (attempt_ == Attempt::Setup || attempt_ == Attempt::Opening)) CancelAttempt();
     onScreens_ = owned; lastScreen_ = screen;
+    if (screen != "public-rooms") setup_.Unseen();
     if (entered) Refresh(v, screen);
     Collect(v, now);
     // Away from these screens, Home learns the state, then the services.
@@ -290,6 +318,8 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
         }
     }
     Send(v, submit, now);
+    // Whatever dropped the setup's next request (a full queue, hiding Ember) must not leave it waiting for good.
+    if (setup_.Running() && !SetupPending()) setup_.Fail(loc::T("identity.failure.timeout"));
 }
 
 void IdentityPanel::Hidden(const ShellView& v, const Submit& submit, double now) {
@@ -300,16 +330,22 @@ void IdentityPanel::Hidden(const ShellView& v, const Submit& submit, double now)
     Send(v, submit, now);
 }
 
-// The answer to the request in flight, or its timeout. An answer from a
-// replaced journey is retired without touching the new one's status or
-// requests.
+// The answer to the request in flight, or its timeout, for its owner. An
+// answer from a replaced journey or setup run is retired without touching the
+// new one's status or requests.
 void IdentityPanel::Collect(const ShellView& v, double now) {
     if (sent_ && Answered(v)) {
-        if (!Superseded()) { finishing_ = true; Finish(v); finishing_ = false; }
+        if (!Superseded()) {
+            finishing_ = true;
+            if (sentOwner_ == Owner::PublicSetup) SetupFinish(v); else Finish(v);
+            finishing_ = false;
+        }
         sent_ = 0;
     }
     else if (sent_ && now - sentAt_ > AnswerSeconds) {
-        if (!Superseded() && sentOp_ != IdentityOp::DiscordCancel) {
+        const bool current = !Superseded();
+        if (current && sentOwner_ == Owner::PublicSetup) setup_.Fail(loc::T("identity.failure.timeout"));
+        else if (current && sentOp_ != IdentityOp::DiscordCancel) {
             if (Owns(lastScreen_) || !Retirable(sentOp_)) Say(loc::T("identity.failure.timeout"), true);
             ReadFailed(); DropQueue();
         }
@@ -323,17 +359,19 @@ void IdentityPanel::Send(const ShellView& v, const Submit& submit, double now) {
     // the queue since, so it also comes before a new Connect.
     if (!cancelBridge_.empty()) {
         IdentityRequest cancel; cancel.op = IdentityOp::DiscordCancel; cancel.bridge = cancelBridge_; cancelBridge_.clear();
-        queue_.push_front(Queued{std::move(cancel), false, journey_, {}});
+        queue_.push_front(Queued{std::move(cancel), false, journey_, {}, Owner::Screens});
     }
     if (queue_.empty()) return;
     ShellAction action;
     action.command.generation = v.session.generation;
     sentLookUp_ = queue_.front().lookUp; sentJourney_ = queue_.front().journey; sentAccount_ = queue_.front().account;
+    sentOwner_ = queue_.front().owner;
     action.identity = std::move(queue_.front().request); queue_.pop_front();
     action.identity.ticket = ++nextTicket_;
     const auto ticket = action.identity.ticket;
     sentOp_ = action.identity.op; sentBridge_ = action.identity.bridge; sentOrigin_ = action.identity.origin;
     if (submit(std::move(action))) { sent_ = ticket; sentAt_ = now; }
+    else if (sentOwner_ == Owner::PublicSetup) setup_.Fail(loc::T("error.queue_failed"));
     else if (sentOp_ != IdentityOp::DiscordCancel) { Say(loc::T("error.queue_failed"), true); ReadFailed(); DropQueue(); }
 }
 
@@ -403,8 +441,8 @@ void IdentityPanel::Finish(const ShellView& v) {
     // player already saw: a service that cannot does not hold anything back.
     if (sentOp_ == IdentityOp::DiscordCancel) return;
     if (!v.identityRequest) {
-        if (Owns(lastScreen_) || !Retirable(sentOp_))
-            Say(v.identityRefusal.empty() ? std::string(loc::T("identity.refused.helper")) : std::string(loc::T(v.identityRefusal.c_str())), true);
+        const std::string refusal = v.identityRefusal.empty() ? std::string(loc::T("identity.refused.helper")) : std::string(loc::T(v.identityRefusal.c_str()));
+        if (Owns(lastScreen_) || !Retirable(sentOp_)) Say(refusal, true);
         ReadFailed(); DropQueue(); return;
     }
     if (!id.ok) {
@@ -789,12 +827,16 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
                 std::string detail = loc::Tf("tournament.row_detail",
                     match.opponentFingerprint.empty() ? std::string("?") : match.opponentFingerprint, match.slot + 1);
                 detail += "\n\n";
-                const bool playable = match.PlayedInEmber() && !match.Finished();
-                detail += match.Finished() ? loc::T("tournament.finished_detail") : !match.PlayedInEmber() ? loc::T("tournament.organizer_detail") :
+                // Expired by the bridge's word, or by this PC's clock while it waits for its players; a
+                // match running or in review keeps the bridge's state and has no Play until it waits again.
+                const bool expired = match.ExpiredBy(v.unixNow);
+                const bool playable = match.Playable(v.unixNow);
+                detail += expired ? loc::T("tournament.expired_detail") : match.Finished() ? loc::T("tournament.finished_detail") :
+                    !match.PlayedInEmber() ? loc::T("tournament.organizer_detail") : !playable ? loc::T("tournament.state.waiting_permit") :
                     free ? loc::T("tournament.play_detail") : loc::T("tournament.leave_room_detail");
                 auto row = Row("tm-play:" + match.matchId, match.roundLabel.empty() ? std::string(loc::T("tournament.match")) : match.roundLabel,
                     std::move(detail), playable && free);
-                row.value = loc::Tf("tournament.score", own, other, match.gamesToWin);
+                row.value = expired ? std::string(loc::T("tournament.expired")) : loc::Tf("tournament.score", own, other, match.gamesToWin);
                 row.userText = !match.roundLabel.empty();
                 row.hint = loc::T("tournament.play");
                 if (!playable) row.info = true;
@@ -832,6 +874,8 @@ void IdentityPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
     }
     if (a.id == "tm-stop") { play_ = netplay::tournament::Command{netplay::tournament::Command::Op::Stop, {}, {}}; return; }
     if (a.id.compare(0, 8, "tm-play:") == 0) {
+        // The row may be older than the list: the match is played only if it still can be.
+        if (!CanPlay(v, a.id.substr(8))) return;
         play_ = netplay::tournament::Command{netplay::tournament::Command::Op::Play, bridge_, a.id.substr(8)};
         message_.clear();
         return;

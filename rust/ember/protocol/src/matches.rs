@@ -172,11 +172,17 @@ pub enum MatchState {
     Completed,
     Cancelled,
     Failed,
+    /// Nobody played it before its `expires_at`. Unlike `cancelled`, nothing
+    /// called it off, and it is not a request to play it again.
+    Expired,
 }
 
 impl MatchState {
     pub fn is_terminal(self) -> bool {
-        matches!(self, Self::Completed | Self::Cancelled | Self::Failed)
+        matches!(
+            self,
+            Self::Completed | Self::Cancelled | Self::Failed | Self::Expired
+        )
     }
 
     pub fn as_str(self) -> &'static str {
@@ -192,6 +198,7 @@ impl MatchState {
             Self::Completed => "completed",
             Self::Cancelled => "cancelled",
             Self::Failed => "failed",
+            Self::Expired => "expired",
         }
     }
 

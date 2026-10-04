@@ -47,9 +47,11 @@ public:
 	// is the reason for the closed line.
 	bool Tick(std::uint64_t nowMs);
 	bool Hosted() const { return hosted_; }
-	// True once the room model itself closed the room (a kick at the ban cap),
-	// so the host should run the close sequence and exit.
+	// True once the room ends on its own: the room model closed it (a kick at the
+	// ban cap) or its last member left with a Leave. The host then says closed
+	// with CloseReason(), runs the close sequence and exits.
 	bool Closing() const { return closing_; }
+	const std::string& CloseReason() const { return closeReason_; }
 	const std::string& Error() const { return error_; }
 	// Closing, in order: BeginClose, then keep ticking until CloseDelivered
 	// (the room model's Close has committed and had a moment to reach the
@@ -77,7 +79,7 @@ private:
 	bool closing_ = false, closeApplied_ = false;
 	std::uint64_t closeStartedMs_ = 0, closeCommittedMs_ = 0;
 	std::uint64_t readySinceMs_ = 0, recoveryFailedSinceMs_ = 0;
-	std::string error_, recoveryError_;
+	std::string error_, recoveryError_, closeReason_;
 	// The supervisor treats an empty invitation as a protocol error, and the
 	// room hides its invitation while control reconnects: keep the last one.
 	std::string invitation_;
@@ -88,9 +90,10 @@ private:
 		std::size_t members = 0, tablesPlaying = 0;
 		std::string invitation;
 		std::vector<std::string> banned;
+		RoomDetails details;
 		bool operator==(const Reported& other) const {
 			return members == other.members && tablesPlaying == other.tablesPlaying &&
-				invitation == other.invitation && banned == other.banned;
+				invitation == other.invitation && banned == other.banned && details == other.details;
 		}
 	} reported_;
 	bool haveReported_ = false;

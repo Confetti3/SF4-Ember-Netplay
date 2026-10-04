@@ -659,3 +659,53 @@ async fn registration_tells_blumint_where_to_call_with_a_working_credential() {
             .is_err()
     );
 }
+
+// BluMint's result format has no way to say a match was never played, and a
+// restart would be a request it never made, so an expired match is sent
+// nothing. Its status reads `cancelled` and its players can be matched again.
+#[tokio::test]
+async fn an_expired_match_is_not_sent_to_blumint_and_reads_as_cancelled() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, json!({})).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    assert_eq!(
+        results::delivery(&f.bridge, &id).await,
+        ("queued".into(), 0)
+    );
+
+    f.bridge.clock.advance(24 * 60 * 60 - 1);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(match_status(&f, &id).await["status"], "pending");
+    // The same request while it is open still answers with the same match.
+    let (_, again) = create(&f, json!({})).await;
+    assert_eq!(again["matchId"], id.as_str());
+
+    f.bridge.clock.advance(1);
+    ember_bridge::maintain(f.bridge.state()).await;
+    let status = match_status(&f, &id).await;
+    assert_eq!(status["status"], "cancelled");
+    assert_eq!(status["teams"][0]["players"][0]["status"], "absent");
+    // Nothing is queued for BluMint, however many passes run.
+    assert_eq!(
+        results::delivery(&f.bridge, &id).await,
+        ("not_required".into(), 0)
+    );
+    for _ in 0..3 {
+        ember_bridge::deliver_results(f.bridge.state()).await;
+    }
+    assert_eq!(submitted(&f), Vec::<Json>::new());
+    assert_eq!(
+        results::delivery(&f.bridge, &id).await,
+        ("not_required".into(), 0)
+    );
+
+    // A new request is a new match, not the expired one.
+    let (status, next) = create(&f, json!({})).await;
+    assert_eq!(status, StatusCode::OK, "{next}");
+    assert_ne!(next["matchId"], id.as_str());
+    assert_eq!(
+        match_status(&f, next["matchId"].as_str().unwrap()).await["status"],
+        "pending"
+    );
+}

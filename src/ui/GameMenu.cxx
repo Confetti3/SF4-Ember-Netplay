@@ -100,10 +100,10 @@ void ReportMenuCard(const char* id,ImVec2 min,ImVec2 max){if(cardProbe)cardProbe
 void SetMenuStatusProbe(MenuStatusProbe probe){statusProbe=std::move(probe);}
 void SetMenuEntriesProbe(MenuEntriesProbe probe){entriesProbe=std::move(probe);}
 void SetPortraitProbe(PortraitProbe probe){portraitProbe=std::move(probe);}
-void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max){
+void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing){
     if(portraitProbe)portraitProbe(fighter,min,max);
     auto* d=ImGui::GetWindowDrawList();
-    d->AddRectFilled(min,max,IM_COL32(38,34,30,255));
+    d->AddRectFilled(min,max,backing);
     if(menuArt){const auto art=menuArt->PortraitFor(fighter,max.y-min.y);if(art.texture){
         const float factor=(std::min)((max.x-min.x)/art.width,(max.y-min.y)/art.height);
         const float w=art.width*factor,h=art.height*factor;
@@ -341,6 +341,10 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         }
         ImGui::BeginChild("Command feedback",ImVec2(0,feedbackHeight));
         ImGui::PushStyleColor(ImGuiCol_Text,ToneColor(statusTone));
+        // One line beside the Back button sits in the middle of its band, with a margin from the band's edge.
+        if(inlineFeedback){
+            ImGui::SetCursorPos(ImVec2(8*unit,(std::max)(0.f,(feedbackHeight-ImGui::CalcTextSize(status,nullptr,false,wrapWidth).y)*.5f)));
+        }
         if(fitFeedback){ImGui::PushTextWrapPos(wrapWidth);ImGui::TextUnformatted(status);ImGui::PopTextWrapPos();}
         else ImGui::TextWrapped("%s",status);
         ImGui::PopStyleColor();ImGui::EndChild();
@@ -348,6 +352,8 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const float bodyTop=ImGui::GetCursorScreenPos().y;
     const auto available=ImGui::GetContentRegionAvail();
     const bool compactGallery=cardHeight>100&&!wide;
+    // A list that wants the room: its detail pane keeps to a few lines of the row's own detail.
+    const bool leanDetail=compactDetailLines>0&&!wide&&!home&&!flyout;
     auto preview=[&] {
         auto it=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.Focus();});
         if(it!=entries.end()) {
@@ -356,11 +362,11 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             // A compact gallery's card already carries its label, so its two
             // lines go to what the label does not say: the explanation, then
             // what is saved.
-            if(!compactGallery){if(it->userText)NoteUserText(it->label);ImGui::TextWrapped("%s",it->label.c_str());}
+            if(!compactGallery&&!leanDetail){if(it->userText)NoteUserText(it->label);ImGui::TextWrapped("%s",it->label.c_str());}
             ImGui::PopStyleColor();
             if(!it->detail.empty()){NoteDetailText(it->detail,it->detailText);ImGui::TextWrapped("%s",it->detail.c_str());}
             if(!it->value.empty()){if(it->userText||it->text)NoteUserText(it->value);ImGui::TextWrapped("%s",it->value.c_str());}
-            if(!visualEnabled) ImGui::TextDisabled("%s",loc::T(feedback_.Pending(*it)?"room.updating":"common.unavailable"));
+            if(!visualEnabled&&!it->quiet) ImGui::TextDisabled("%s",loc::T(feedback_.Pending(*it)?"room.updating":"common.unavailable"));
             if(detail) detail(it->id);
         }
     };
@@ -374,6 +380,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     if(!wide&&!home) {
         ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(.1f,.09f,.08f,.52f));
         ImGui::BeginChild("Menu detail",ImVec2(0,compactGallery?2*ImGui::GetTextLineHeightWithSpacing()+4*unit:
+            leanDetail?(std::min)(compactDetailLines*ImGui::GetTextLineHeightWithSpacing()+4*unit,(available.y-footer)*.48f):
             (std::min)((available.y-footer)*(flyout?.4f:.48f),(flyout?110:145)*unit)));
         preview(); ImGui::EndChild();
         ImGui::PopStyleColor();
@@ -400,10 +407,10 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         const float textSize=home?28*Scale():ImGui::GetFontSize();
         const bool valueRow=!card&&(e.adjustable||e.text||!e.value.empty());
         const bool stackedValue=valueRow&&rowWidth<420*unit;
-        const float height=gridCell?gridHeight:(std::max)(home?44*Scale():(stackedValue?64:flyout?42:52)*unit,textSize+2*ImGui::GetStyle().FramePadding.y);
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,0);ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,0);
+        const float height=gridCell?gridHeight:e.height>0?e.height*unit:(std::max)(home?44*Scale():(stackedValue?64:flyout?42:52)*unit,textSize+2*ImGui::GetStyle().FramePadding.y);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,0);ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,card?cardRounding*unit:0);
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign,ImVec2(.03f,.5f));
-        ImGui::PushStyleColor(ImGuiCol_Button,focused?ImVec4(.47f,.28f,.16f,.6f):ImVec4(.105f,.10f,.095f,home?0.f:.45f));
+        ImGui::PushStyleColor(ImGuiCol_Button,focused?(card&&cardRounding>0?ImVec4(.30f,.17f,.09f,.55f):ImVec4(.47f,.28f,.16f,.6f)):ImVec4(.105f,.10f,.095f,home?0.f:.45f));
         ImGui::PushStyleColor(ImGuiCol_Text,EntryTextColor(visualEnabled));
         if(home)ImGui::PushFont(HeadingFont());
         const float textWidth=rowWidth-2*ImGui::GetStyle().FramePadding.x;
@@ -457,8 +464,9 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         if(home)ImGui::PopFont();ImGui::PopStyleColor(2);ImGui::PopStyleVar(3);
         if(cardProbe)cardProbe(e.id.c_str(),start,ImVec2(start.x+rowWidth,start.y+height));
         if(focused) {
-            if(gridCell)ImGui::GetWindowDrawList()->AddRect(start,ImVec2(start.x+rowWidth,start.y+height),palette::Ember,0,0,2*Scale());
-            else ImGui::GetWindowDrawList()->AddRectFilled(start,ImVec2(start.x+3*Scale(),start.y+height),palette::Ember);
+            // A card with rounded corners draws its own outline; the bar would stick out of them.
+            if(gridCell)ImGui::GetWindowDrawList()->AddRect(start,ImVec2(start.x+rowWidth,start.y+height),palette::Ember,card?cardRounding*unit:0,0,2*Scale());
+            else if(!(drawnCard&&cardRounding>0))ImGui::GetWindowDrawList()->AddRectFilled(start,ImVec2(start.x+3*Scale(),start.y+height),palette::Ember);
             if(lastFocus_!=e.id||changed) ImGui::SetScrollHereY(.5f);
         }
         ImGui::PopID();

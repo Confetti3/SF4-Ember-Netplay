@@ -43,12 +43,15 @@ pub fn result_id(match_id: &str) -> String {
     format!("res_{match_id}")
 }
 
-/// How a match ended, for the platform: a result, or play it again.
+/// How a match ended, for the platform: a result, play it again, or never
+/// played before it expired. `expired` is not a request to restart; what to
+/// do about it is the platform's decision.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Outcome {
     Completed,
     Restart,
+    Expired,
 }
 
 /// One finished match's result.

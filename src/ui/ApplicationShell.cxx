@@ -4,11 +4,13 @@
 #include "RoomFeedback.hxx"
 #include "NetworkFeedback.hxx"
 #include "MenuPresentation.hxx"
+#include "PublicRoomsCards.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include "../platform/LocaleWindows.hxx"
 #include "../platform/UiPreferencesStore.hxx"
 #include <imgui.h>
+#include <cfloat>
 #include <cstdio>
 #include <cstring>
 #include <utility>
@@ -52,6 +54,17 @@ std::vector<MenuChoice> LanguageChoices() {
     } while(preference!="auto"&&choices.size()<64);
     return choices;
 }
+// `text` cut to at most `limit` bytes, never inside a character.
+std::string CutUtf8(std::string text,std::size_t limit) {
+    if(text.size()<=limit)return text;
+    while(limit>0&&(static_cast<unsigned char>(text[limit])&0xC0)==0x80)--limit;
+    text.resize(limit);return text;
+}
+// The width of the list: the whole window on a narrow one, else the left pane.
+float PublicListWidth() {
+    const float available=ImGui::GetContentRegionAvail().x;
+    return available>=820*Scale()?available*.53f:available;
+}
 }
 bool ApplicationShell::Service(platform::ServiceAction kind, const ShellView& view, const Submit& submit) {
     ShellAction action; action.service = kind; action.command.generation = view.session.generation;
@@ -75,6 +88,8 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
         action.preferences.lobby.roundTime = action.preferences.tableRules.roundTime;
     }
     if (kind == netplay::CommandKind::JoinInvite) action.command.invitation = invitation_;
+    // A room opened here is not the public one the panel joined.
+    if (kind == netplay::CommandKind::JoinInvite || kind == netplay::CommandKind::HostRoom) publicRooms_.ForgetCurrent();
     if (!submit(std::move(action))) { error_ = loc::T("error.queue_failed"); return false; }
     error_.clear();
     if (kind == netplay::CommandKind::JoinInvite || kind == netplay::CommandKind::LeaveRoom)
@@ -233,7 +248,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Row("identity",loc::T("screen.identity"),identity_.HomeDetail(v)),
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
    Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle)};
-  if(opening)rows[0].detail=v.session.isHost?loc::T("room.creating_status"):loc::T("room.joining_status");
+  if(opening)rows[0].detail=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");
   if(!v.controllerReady)rows.insert(rows.begin(),Row("player",loc::T("home.choose_controller"),loc::T("home.choose_controller_detail")));
   // Back leaves a pending invitation's screen without answering it, so Home
   // keeps a way back to it until it is answered or expires.
@@ -278,7 +293,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    TextRow("invite-text",loc::T("room.edit_invitation"),invitation_,sizeof(invitation_)-1,v.canOpenRoom)};
   rows[0].hint=loc::T("menu.hint.paste");if(!opening)rows[1].hint=loc::T("online.join");
  }else if(PublicRoomsPanel::Owns(screen)){
-  title=loc::T("screen.public_rooms");rows=publicRooms_.Rows(v,identity_.UsableBridge(v),identity_.Waiting());
+  title=loc::T("screen.public_rooms");rows=publicRooms_.Rows(v,identity_.UsableBridge(v),identity_.Waiting(),identity_.PublicSetup(),PublicListWidth());
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
  }else if(screen=="settings"){
   title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),
@@ -352,7 +367,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  Tone statusTone=saveFailed_?Tone::Error:v.settingsPending||preferencesDirty_||saveQueued_||languageDirty_?Tone::Pending:
   personal?Tone::Success:Tone::Neutral;
  if((screen=="create"||screen=="join"||screen=="home"||screen=="online"||screen=="public-rooms")&&opening&&status.empty()){
-  status=v.session.isHost?loc::T("room.creating_status"):loc::T("room.joining_status");statusTone=Tone::Pending;
+  status=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");statusTone=Tone::Pending;
  }
  if(screen=="room"&&status.empty()){
   const bool healthy=v.session.control==Health::Healthy;
@@ -408,7 +423,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  // speaks there only, and every other report below outranks it.
  if(!languageSaveError_.empty()&&screen=="interface"){status=languageSaveError_;statusTone=Tone::Error;}
  if(IdentityPanel::Owns(screen)){std::string own;Tone ownTone=Tone::Neutral;if(identity_.Status(own,ownTone,ImGui::GetTime())){status=own;statusTone=ownTone;}}
- if(PublicRoomsPanel::Owns(screen)||screen=="create"){std::string own;Tone ownTone=Tone::Neutral;if(publicRooms_.Status(v,screen,own,ownTone)){status=own;statusTone=ownTone;}}
+ if(PublicRoomsPanel::Owns(screen)||screen=="create"){std::string own=status;Tone ownTone=statusTone;if(publicRooms_.Status(v,screen,own,ownTone,ImGui::GetTime())){status=own;statusTone=ownTone;}}
  if(v.controllerUnavailable){status=loc::T("controller.disconnected");statusTone=Tone::Error;}
  if(v.session.room==RoomState::Opening&&v.session.openingStalled){status=loc::T("room.opening_stalled");statusTone=Tone::Error;}
  const std::string sessionProblem=SessionProblem(v.session);
@@ -448,7 +463,13 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  using namespace netplay; auto& nav=menu_.navigation;
  // The retry row a failed save adds to every screen stays the shell's.
  if(IdentityPanel::Owns(screen)&&a.id!="retry-save"){identity_.Activate(a,v,nav);return;}
- if(PublicRoomsPanel::Owns(screen)&&publicRooms_.Activate(a,nav))return;
+ if(PublicRoomsPanel::Owns(screen)){
+  if(a.id=="pr-quick"){QuickJoin(v);return;}
+  // The confirmed setup runs in the Ember ID panel; a locked ID is unlocked on its own screen first.
+  if(a.id=="pr-setup"){identity_.SetUpPublicRooms(v);error_.clear();return;}
+  if(a.id=="pr-setup-id"){identity_.ClearPublicSetup();nav.Push("identity");return;}
+  if(publicRooms_.Activate(a,nav))return;
+ }
  // An opening room keeps its own screen, with its Stop row, until it joins.
  if(a.id=="online")nav.Push(idle?"online":v.session.room==RoomState::Opening?OpeningScreen(v):"room");
  else if(a.id=="discord-invitation")nav.Push(a.id);
@@ -456,11 +477,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
  else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="identity"||a.id=="developer")nav.Push(a.id);
- else if(a.id=="pr-create"){
-  // Create public room opens Create on Public, which stays the default until changed.
-  if(!preferences_.roomPublic){preferences_.roomPublic=true;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
-  error_.clear();nav.Push("create");
- }
+ else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
  else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity);}
  else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
@@ -499,7 +516,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
   else if(a.id=="hud")preferences_.showMatchHud=a.delta>0;else if(a.id=="presence")preferences_.discordPresence=a.delta>0;
   else if(a.id=="invites")preferences_.discordInvites=a.delta>0;
-  else if(a.id=="visibility")preferences_.roomPublic=a.delta>0; // UpdatePublicBridge asks the Ember ID for what Public needs
+  else if(a.id=="visibility"){preferences_.roomPublic=a.delta>0;if(preferences_.roomPublic)ApplyPublicDefaultName();} // UpdatePublicBridge asks the Ember ID for what Public needs
   else AdjustRule(preferences_.tableRules,a);
   if(!preferences_.Valid()){preferences_=prior;error_=loc::T("error.invalid_value");}
   else{preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();}
@@ -520,6 +537,33 @@ void ApplicationShell::UpdatePublicBridge(const ShellView& v,const std::string& 
   identity_.Probe();
  }
  publicBridgeAsked_=true;
+}
+
+// Create public room opens Create on Public, which stays the default until changed.
+void ApplicationShell::OpenPublicCreate() {
+ if(!preferences_.roomPublic){preferences_.roomPublic=true;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
+ ApplyPublicDefaultName();
+ error_.clear();menu_.navigation.Push("create");
+}
+// The room still has the private default name, which would list as "Private room":
+// a public room is named for its host instead, within the name's own limit.
+void ApplicationShell::ApplyPublicDefaultName() {
+ if(preferences_.roomName!=netplay::PlayerPreferences{}.roomName)return;
+ const std::size_t overhead=loc::Tf("public.default_name","").size();
+ const std::string name=CutUtf8(preferences_.displayName,overhead<64?64-overhead:0);
+ if(name.empty())return;
+ preferences_.roomName=loc::Tf("public.default_name",name);
+ preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;
+}
+// Quick join asks for the first room with a free seat, in the player's region when it is known.
+// With none it offers to create one, which the next frame opens.
+void ApplicationShell::QuickJoin(const ShellView& v) {
+ error_.clear();
+ if(const auto id=publicRooms_.QuickPick(v,PublicRoomsPanel::KnownRegion(v))){
+  if(publicRooms_.Join(*id))menu_.navigation.Prefer("pr-room:"+*id);
+  return;
+ }
+ menu_.ShowNotice(loc::T("public.quick_none"),loc::T("public.quick"),loc::T("public.create_room"),[this]{openPublicCreate_=true;});
 }
 
 void ApplicationShell::SetLanguage(std::string preference) {
@@ -577,6 +621,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  UpdateShortCopy(v,now);
  UpdateJoinLink(v,now,submit);
  UpdatePublicRoomLink(v,now);
+ if(openPublicCreate_){
+  openPublicCreate_=false;
+  if(v.session.room==RoomState::Idle&&v.canOpenRoom&&nav.Screen()=="public-rooms")OpenPublicCreate();
+ }
  if(v.readyFailureSequence!=readyFailureSequence_){
   readyFailureSequence_=v.readyFailureSequence;
   if(readyFailureSequence_&&!v.readyFailure.empty())menu_.ShowNotice(v.readyFailure);
@@ -589,6 +637,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  publicRooms_.Update(v,nav.Screen(),identity_.UsableBridge(v),identity_.Waiting(),submit,now);
  UpdatePublicBridge(v,nav.Screen());
  {std::string said;if(publicRooms_.TakeSaid(said)){notice_=said;noticeTone_=Tone::Error;noticeUntil_=now+6;}}
+ // The setup finished while the player waited or looked away: say so once, and the list is already on its way.
+ if(identity_.PublicSetup().step==PublicSetupStep::Done){identity_.ClearPublicSetup();notice_=loc::T("public.setup_done");noticeTone_=Tone::Success;noticeUntil_=now+4;}
  // A tournament match that ended is announced wherever the player is: the
  // room it was played in closes with it.
  if(v.tournament.phase!=tournamentPhase_){
@@ -664,8 +714,22 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const std::string& status=feedback.first;const Tone statusTone=feedback.second;
  const bool roomScreen=screen.compare(0,4,"room")==0;
  PublishPlayerCard(v);
- const int columns=screen=="main-character"?(std::max)(3,(std::min)(8,static_cast<int>(ImGui::GetContentRegionAvail().x/(170*Scale())))):1;
+ // Public rooms lead with a toolbar of four cells, in one row on a wide list and two on a narrow one.
+ const bool publicToolbar=PublicRoomsPanel::Owns(screen)&&!rows.empty()&&rows[0].id=="pr-quick";
+ const int columns=screen=="main-character"?(std::max)(3,(std::min)(8,static_cast<int>(ImGui::GetContentRegionAvail().x/(170*Scale())))):
+  publicToolbar?(PublicListWidth()>=600*Scale()?4:2):1;
  GameMenu::Card portraits;
+ // The public rooms' toolbar, room cards and state cards are drawn by PublicRoomsCards; the rest stay plain rows.
+ // The cards get the setup and each card's phase from the panels that own them, not from the rows.
+ const PublicSetupView publicSetup=PublicRoomsPanel::Owns(screen)?identity_.PublicSetup():PublicSetupView{};
+ menu_.cardRounding=0;menu_.compactDetailLines=0;
+ if(PublicRoomsPanel::Owns(screen)){
+  menu_.cardRounding=PublicCardRounding;
+  // With the toolbar and the cards to show, a narrow layout gives them the screen, not the detail text.
+  menu_.compactDetailLines=publicToolbar?2:0;
+  portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){
+   return DrawPublicCard(v,publicRooms_,publicSetup,publicRooms_.PhaseOf(e.id),e,min,max,e.id==menu_.navigation.Focus(),now);};
+ }
  if(screen=="main-character")portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){
   if(e.id.compare(0,5,"main-")!=0)return false;
   const int id=std::stoi(e.id.substr(5));DrawMainPortrait(id,id==v.preferences.mainFighter,min,max);return true;
@@ -676,6 +740,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   const auto space=ImGui::GetContentRegionAvail();const float size=(std::min)(220*Scale(),(std::min)(space.x,space.y-12*Scale()));
   if(size>=48*Scale()){const auto p=ImGui::GetCursorScreenPos();DrawCharacterPortrait(fighter,p,ImVec2(p.x+size,p.y+size));ImGui::Dummy(ImVec2(size,size));}
  };
+ if(PublicRoomsPanel::Owns(screen))profilePreview=[&](const std::string& id){DrawPublicPreview(v,publicRooms_,id);};
  GameMenu::Body board;
  if(screen=="interface")profilePreview=[&](const std::string&){
   ImGui::TextUnformatted(loc::T("settings.preview"));
@@ -694,6 +759,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Home renders its status in the small-print line below the list instead.
  const bool stableFeedback=screen!="home";
  if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=roomHints;
+ else if(PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))menu_.shortcutHints={{keys?"T":"Y",loc::T("legend.refresh")}};
  else menu_.shortcutHints.clear();
  // The keyboard leaves a seat with Delete, so Escape keeps its own word.
  const char* placeExit=screen=="room"&&v.room.roomEpoch?PlaceExitLabel(v):"";
@@ -708,7 +774,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // While a controller is being captured it cannot drive the menu, so the
  // legend shows the keyboard and names the cancel.
  if(v.inputCapture!=input::Capture::Idle){SetMenuGlyphs(input::PadKeyboard,0,0);menu_.backHint=loc::T("common.cancel");}
- auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,100,stableFeedback,statusTone,screen=="home");
+ // An opening public room's card is information, so the cursor waits on its Stop row.
+ if(PublicRoomsPanel::Owns(screen)&&opening&&nav.Focus()=="pr-opening")nav.Focus("cancel-open",rows);
+ auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,publicToolbar?46:100,stableFeedback,statusTone,screen=="home");
  if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){
   ShellAction r;r.command.generation=v.session.generation;r.inputAction=input::Action::Cancel;submit(std::move(r));
  }else if(a.kind==MenuAction::Close&&opening){
@@ -719,9 +787,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(open)*open=false;
  }else if(a.kind==MenuAction::Shortcut){
   if(inRoom)RoomShortcut(a,v);
+  else if(PublicRoomsPanel::Owns(screen))publicRooms_.Shortcut(a,v);
  }else if(a.kind==MenuAction::Chosen){
   if(roomScreen)RoomAction(a,v,submit);
   else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
+  else if(PublicRoomsPanel::Owns(screen))publicRooms_.Choose(a);
   else if(a.id=="language")SetLanguage(a.text);
  }else if(a.kind==MenuAction::Activate){
   HandleActivate(a,v,screen,idle,submit);

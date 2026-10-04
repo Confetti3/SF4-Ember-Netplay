@@ -547,7 +547,7 @@ msgid "home.online"
 msgstr "Игра по сети"
 
 msgid "home.online_detail"
-msgstr "Создайте закрытый зал или войдите по приглашению."
+msgstr "Создайте зал, войдите в зал или просмотрите открытые залы."
 
 msgid "home.return_room"
 msgstr "Вернуться в текущий зал"
@@ -3003,6 +3003,12 @@ msgstr "Результаты этого матча вносит организа
 msgid "tournament.finished_detail"
 msgstr "Этот матч окончен."
 
+msgid "tournament.expired"
+msgstr "Истёк"
+
+msgid "tournament.expired_detail"
+msgstr "Срок этого матча истёк, а он так и не был сыгран."
+
 msgid "tournament.leave_room_detail"
 msgstr "Чтобы сыграть этот матч, выйдите из своего зала."
 
@@ -3115,7 +3121,7 @@ msgid "screen.public_rooms"
 msgstr "Открытые залы"
 
 msgid "online.public_detail"
-msgstr "Просматривайте залы, куда может войти любой игрок с Ember ID, или откройте свой."
+msgstr "Просматривайте открытые залы, куда может войти любой, или быстро войдите в зал поблизости."
 
 msgid "public.create"
 msgstr "Создать открытый зал"
@@ -3129,26 +3135,11 @@ msgstr "Создаёт открытый зал в сервисе Ember ID и в�
 msgid "public.create_needs_id"
 msgstr "Для открытых залов нужны Ember ID и доверенный сервис. Настройте их в разделе Открытые залы."
 
-msgid "public.refresh_detail"
-msgstr "Запрашивает у сервиса актуальный список залов."
-
 msgid "public.loading"
 msgstr "Загрузка залов..."
 
-msgid "public.none"
-msgstr "Нет открытых залов"
-
-msgid "public.none_detail"
-msgstr "Сейчас ни у кого нет открытого зала. Создайте свой и начните играть."
-
-msgid "public.needs_id"
-msgstr "Для открытых залов нужен Ember ID"
-
 msgid "public.needs_id_detail"
 msgstr "Создайте Ember ID и добавьте доверенный сервис в разделе Привязанные аккаунты. Открытые залы показывает именно этот сервис."
-
-msgid "public.room_playing"
-msgstr "{0}, идёт матч"
 
 msgid "public.room_detail"
 msgstr "{0}\nИгроков: {1}/{2}. Регион: {3}."
@@ -3221,3 +3212,189 @@ msgstr "Доверьтесь этому сервису в разделе «Пр�
 
 msgid "public.link_waiting"
 msgstr "Пришла ссылка на открытый зал. Покиньте свой зал, затем выберите её в разделе «Открытые залы»."
+
+msgid "public.quick"
+msgstr "Быстрый вход"
+
+msgid "public.quick_detail"
+msgstr "Входит в открытый зал поблизости, где больше всего свободных мест."
+
+msgid "public.quick_none"
+msgstr "Сейчас рядом нет открытых залов со свободными местами. Создайте свой, и игроки поблизости его найдут."
+
+msgid "public.create_room"
+msgstr "Создать зал"
+
+msgid "public.filter"
+msgstr "Показать"
+
+msgid "public.filter_detail"
+msgstr "Выберите, какие залы показывать: все, ближайшие или только со свободными местами."
+
+msgid "public.filter_label"
+msgstr "Показать: {0}"
+
+msgid "public.filter.all"
+msgstr "Все залы"
+
+msgid "public.filter.near"
+msgstr "Рядом"
+
+msgid "public.filter.seats"
+msgstr "Свободные места"
+
+msgid "public.filter_near_unknown"
+msgstr "Ember пока не знает ваш регион, поэтому не может определить, какие залы рядом."
+
+msgid "public.near_you"
+msgstr "Рядом"
+
+msgid "public.in_match"
+msgstr "Идёт матч"
+
+msgid "public.locked"
+msgstr "Закрыт"
+
+msgid "public.full"
+msgstr "Заполнен"
+
+msgid "public.card_meta"
+msgstr "{0} · {1}"
+
+msgid "public.players"
+msgstr "Игроки"
+
+msgid "public.open_for"
+msgstr "Открыт уже {0}"
+
+msgid "public.age_minutes"
+msgstr "{0} мин"
+
+msgid "public.age_hours"
+msgstr "{0} ч"
+
+msgid "public.room_detail2"
+msgstr "Ведущий {0}, {1}. Занято мест: {2} из {3}."
+
+msgid "public.room_detail_match"
+msgstr " Идёт матч."
+
+msgid "public.room_detail_locked"
+msgstr " Зал закрыт."
+
+msgid "public.room_detail_full"
+msgstr " Зал заполнен."
+
+msgid "public.status_listed"
+msgstr "Открытых залов: {0}. Обновлено {1}."
+
+msgid "public.status_filtered"
+msgstr "Показано {0} из {1}. Обновлено {2}."
+
+msgid "public.updated_now"
+msgstr "только что"
+
+msgid "public.updated_seconds"
+msgstr "{0} с назад"
+
+msgid "public.updated_minutes"
+msgstr "{0} мин назад"
+
+msgid "public.updating"
+msgstr "Обновление..."
+
+msgid "public.loading_card"
+msgstr "Поиск залов..."
+
+msgid "public.none_all"
+msgstr "Сейчас нет открытых залов. Создайте свой, и другие смогут его найти."
+
+msgid "public.none_filtered"
+msgstr "Нет залов, подходящих под этот фильтр."
+
+msgid "public.show_all"
+msgstr "Показать все залы"
+
+msgid "public.try_again"
+msgstr "Повторить"
+
+msgid "public.stop_joining"
+msgstr "Отменить вход"
+
+msgid "public.connecting"
+msgstr "Подключение..."
+
+msgid "public.setup"
+msgstr "Настроить открытые залы"
+
+msgid "public.setup_detail"
+msgstr "Ember создаст ваш Ember ID на этом ПК, если у вас его ещё нет, и будет доверять сервису залов Ember (bridge.embernetplay.link), который показывает залы и пускает вас в них. Убрать его можно в любой момент в разделе «Ember ID > Привязанные аккаунты»."
+
+msgid "public.setup_title"
+msgstr "Играйте в открытых залах"
+
+msgid "public.setup_body"
+msgstr "Открытые залы, куда может войти любой игрок с Ember. Одно нажатие, и всё готово."
+
+msgid "public.setup_step.checking"
+msgstr "Проверка вашего Ember ID..."
+
+msgid "public.setup_step.creating"
+msgstr "Создание вашего Ember ID..."
+
+msgid "public.setup_step.finding"
+msgstr "Поиск сервиса залов Ember..."
+
+msgid "public.setup_step.trusting"
+msgstr "Добавление сервиса залов Ember в доверенные..."
+
+msgid "public.setup_retry"
+msgstr "Повторить настройку"
+
+msgid "public.setup_done"
+msgstr "Открытые залы готовы."
+
+msgid "public.setup_needs_id"
+msgstr "Сначала разблокируйте ваш Ember ID"
+
+msgid "public.setup_needs_id_detail"
+msgstr "Ваш Ember ID заблокирован. Разблокируйте его в разделе «Ember ID», а затем снова настройте открытые залы."
+
+msgid "public.copy_link"
+msgstr "Копировать ссылку на зал"
+
+msgid "public.copy_link_detail"
+msgstr "Копирует {0}, чтобы друзья могли войти из браузера или Discord."
+
+msgid "public.link_copied"
+msgstr "Ссылка на зал скопирована."
+
+msgid "public.default_name"
+msgstr "Зал игрока {0}"
+
+msgid "public.failure.room_locked"
+msgstr "Ведущий закрыл этот зал. Выберите другой."
+
+msgid "public.failure.unavailable"
+msgstr "Сервис залов не ответил вовремя. Повторите через минуту."
+
+msgid "public.failure.untrusted"
+msgstr "Ember не смог проверить ответ сервиса залов и поэтому не вошёл. Повторите; если это повторяется, сообщите нам в Discord."
+
+msgid "public.failure.internal"
+msgstr "Внутри Ember что-то пошло не так. Повторите попытку."
+
+msgid "public.failure.helper"
+msgstr "Сетевой компонент Ember не запущен. Перезапустите игру, если это не проходит."
+
+msgid "public.failure.full_or_locked"
+msgstr "Этот зал только что заполнился или был закрыт. Выберите другой."
+
+msgid "public.failure.turned_away"
+msgstr "Зал отклонил вход. Возможно, вас из него удалили."
+
+msgid "public.failure.join_failed"
+msgstr "Не удалось войти в зал. Возможно, он только что закрылся. Обновите список и выберите другой."
+
+msgid "legend.refresh"
+msgstr "Обновить"

@@ -26,6 +26,8 @@ pub const ROOM_NOT_FOUND: &str = "room_not_found";
 pub const ROOM_NOT_OPEN: &str = "room_not_open";
 pub const ROOM_FULL: &str = "room_full";
 pub const BANNED: &str = "banned";
+/// A ticket asked for while the room's moderator has the room locked.
+pub const ROOM_LOCKED: &str = "room_locked";
 
 /// How long a ticket is good for.
 pub const TICKET_SECS: u64 = 60;
@@ -34,6 +36,16 @@ pub const TICKET_SKEW_SECS: u64 = 30;
 pub const MAX_NAME: usize = 64;
 pub const MIN_CAPACITY: u8 = 2;
 pub const MAX_CAPACITY: u8 = 16;
+/// The longest moderator name a listing carries, in bytes.
+pub const MAX_HOST_NAME: usize = 32;
+/// A fighter slot with no known character.
+pub const NO_FIGHTER: u8 = 255;
+/// Character IDs below this are fighters; `NO_FIGHTER` is the only other value.
+pub const FIGHTER_LIMIT: u8 = 64;
+/// Set formats a table can play: 0 is unlimited, otherwise first to N.
+pub const SET_FORMATS: [u8; 5] = [0, 1, 2, 3, 5];
+/// Winner stays, loser stays, both rotate.
+pub const MAX_ROTATION: u8 = 2;
 /// Accounts a server-owned room may ban in its lifetime. Bans are never
 /// evicted: the room authority closes the room instead of exceeding this.
 /// The same number is in `src/roomhost` (the C++ room model),
@@ -55,6 +67,25 @@ pub fn check_room_name(name: &str) -> Result<()> {
     } else {
         Err(Error::InvalidField("name"))
     }
+}
+
+/// A moderator's name: 1 to 32 bytes of single-line text with no control
+/// characters and no leading or trailing whitespace.
+pub fn check_host_name(name: &str) -> Result<()> {
+    let valid = !name.is_empty()
+        && name.len() <= MAX_HOST_NAME
+        && !name.chars().any(char::is_control)
+        && name.trim() == name;
+    if valid {
+        Ok(())
+    } else {
+        Err(Error::InvalidField("host_name"))
+    }
+}
+
+/// Whether `format` is one a table can play (`SET_FORMATS`).
+pub fn set_format_valid(format: u8) -> bool {
+    SET_FORMATS.contains(&format)
 }
 
 fn check_capacity(capacity: u8) -> Result<()> {
@@ -157,9 +188,63 @@ pub struct RoomSummary {
     /// The host's relay region code, such as `use1`.
     pub region: String,
     pub created_at: u64,
+    /// What follows is the room host's own report and is only in a listing
+    /// that asked for it (`detail=1`); a bridge that does not know it, or a
+    /// room host that has not said, leaves each one out.
+    ///
+    /// The moderator's name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host_name: Option<String>,
+    /// The members' main characters, the moderator first and then in join
+    /// order; `NO_FIGHTER` where there is none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fighters: Option<Vec<u8>>,
+    /// The moderator has the room locked: nobody new gets in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub locked: Option<bool>,
+    /// The first table's set format (`SET_FORMATS`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub set_format: Option<u8>,
+    /// The first table's rotation: 0 to `MAX_ROTATION`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rotation: Option<u8>,
 }
 
 impl RoomSummary {
+    /// The room host's optional report, field by field.
+    fn check_details(&self) -> Result<()> {
+        if let Some(name) = &self.host_name {
+            check_host_name(name)?;
+        }
+        if let Some(fighters) = &self.fighters
+            && (fighters.len() > usize::from(self.members)
+                || fighters
+                    .iter()
+                    .any(|fighter| *fighter >= FIGHTER_LIMIT && *fighter != NO_FIGHTER))
+        {
+            return Err(Error::InvalidField("fighters"));
+        }
+        if self
+            .set_format
+            .is_some_and(|format| !set_format_valid(format))
+        {
+            return Err(Error::InvalidField("set_format"));
+        }
+        if self
+            .rotation
+            .is_some_and(|rotation| rotation > MAX_ROTATION)
+        {
+            return Err(Error::InvalidField("rotation"));
+        }
+        Ok(())
+    }
+
+    /// Whether the optional fields the room host reported are well formed.
+    /// A bridge that finds them not drops all of them from the listing.
+    pub fn details_valid(&self) -> bool {
+        self.check_details().is_ok()
+    }
+
     pub fn check(&self) -> Result<()> {
         if !is_hex(&self.room_id, 32) {
             return Err(Error::InvalidField("room_id"));
@@ -179,15 +264,20 @@ impl RoomSummary {
         if !region_valid {
             return Err(Error::InvalidField("region"));
         }
-        Ok(())
+        self.check_details()
     }
 }
 
-/// `GET /v1/rooms`: at most 100 open rooms, fullest last.
+/// `GET /v1/rooms`: at most 100 open rooms, joinable ones with the most free
+/// seats first.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RoomList {
     pub rooms: Vec<RoomSummary>,
+    /// When the bridge made this listing (unix seconds), so a client can age
+    /// each room by `listed_at - created_at`. Only with `detail=1`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub listed_at: Option<u64>,
 }
 
 /// `POST /v1/rooms`.
@@ -389,6 +479,22 @@ mod tests {
             tables_playing: 1,
             region: "use1".into(),
             created_at: 900,
+            host_name: None,
+            fighters: None,
+            locked: None,
+            set_format: None,
+            rotation: None,
+        }
+    }
+
+    fn detailed() -> RoomSummary {
+        RoomSummary {
+            host_name: Some("Kate".into()),
+            fighters: Some(vec![3, NO_FIGHTER, 0]),
+            locked: Some(false),
+            set_format: Some(3),
+            rotation: Some(1),
+            ..summary()
         }
     }
 
@@ -597,6 +703,143 @@ mod tests {
             ..summary()
         };
         assert!(bad.check().is_err());
+    }
+
+    #[test]
+    fn the_old_summary_shape_still_parses_and_serializes_unchanged() {
+        let old = r#"{"room_id":"0123456789abcdef0123456789abcdef","name":"Friendly matches","build_id":"build","members":3,"capacity":8,"tables_playing":1,"region":"use1","created_at":900}"#;
+        let parsed: RoomSummary = serde_json::from_str(old).unwrap();
+        assert_eq!(parsed, summary());
+        parsed.check().unwrap();
+        assert_eq!(serde_json::to_string(&parsed).unwrap(), old);
+        let old_list = format!(r#"{{"rooms":[{old}]}}"#);
+        let list: RoomList = serde_json::from_str(&old_list).unwrap();
+        assert_eq!((list.rooms.len(), list.listed_at), (1, None));
+        assert_eq!(serde_json::to_string(&list).unwrap(), old_list);
+    }
+
+    #[test]
+    fn the_detailed_shape_round_trips() {
+        let room = detailed();
+        room.check().unwrap();
+        assert!(room.details_valid());
+        let text = serde_json::to_string(&room).unwrap();
+        assert!(text.contains(r#""fighters":[3,255,0]"#), "{text}");
+        assert!(text.contains(r#""locked":false"#), "{text}");
+        assert_eq!(serde_json::from_str::<RoomSummary>(&text).unwrap(), room);
+        let list = RoomList {
+            rooms: vec![room],
+            listed_at: Some(1234),
+        };
+        let text = serde_json::to_string(&list).unwrap();
+        assert!(text.ends_with(r#""listed_at":1234}"#), "{text}");
+        assert_eq!(serde_json::from_str::<RoomList>(&text).unwrap(), list);
+        // Unknown fields are still refused.
+        let extra = text.replacen('{', r#"{"total":1,"#, 1);
+        assert!(serde_json::from_str::<RoomList>(&extra).is_err());
+    }
+
+    #[test]
+    fn each_invalid_detail_fails_the_summary() {
+        let bad = [
+            (
+                "host_name",
+                RoomSummary {
+                    host_name: Some("".into()),
+                    ..detailed()
+                },
+            ),
+            (
+                "host_name",
+                RoomSummary {
+                    host_name: Some(" Kate".into()),
+                    ..detailed()
+                },
+            ),
+            (
+                "host_name",
+                RoomSummary {
+                    host_name: Some(
+                        "Ka
+te"
+                        .into(),
+                    ),
+                    ..detailed()
+                },
+            ),
+            (
+                "host_name",
+                RoomSummary {
+                    host_name: Some("k".repeat(33)),
+                    ..detailed()
+                },
+            ),
+            (
+                "fighters",
+                RoomSummary {
+                    fighters: Some(vec![64]),
+                    ..detailed()
+                },
+            ),
+            (
+                "fighters",
+                RoomSummary {
+                    fighters: Some(vec![254]),
+                    ..detailed()
+                },
+            ),
+            (
+                "fighters",
+                RoomSummary {
+                    fighters: Some(vec![1; 4]),
+                    ..detailed()
+                },
+            ),
+            (
+                "set_format",
+                RoomSummary {
+                    set_format: Some(4),
+                    ..detailed()
+                },
+            ),
+            (
+                "set_format",
+                RoomSummary {
+                    set_format: Some(7),
+                    ..detailed()
+                },
+            ),
+            (
+                "rotation",
+                RoomSummary {
+                    rotation: Some(3),
+                    ..detailed()
+                },
+            ),
+        ];
+        for (field, room) in bad {
+            assert_eq!(room.check(), Err(Error::InvalidField(field)), "{room:?}");
+            assert!(!room.details_valid(), "{room:?}");
+        }
+        for format in SET_FORMATS {
+            let room = RoomSummary {
+                set_format: Some(format),
+                ..detailed()
+            };
+            assert!(room.check().is_ok(), "{format}");
+        }
+        let edge = RoomSummary {
+            host_name: Some("k".repeat(32)),
+            fighters: Some(vec![63, 0, 255]),
+            rotation: Some(2),
+            ..detailed()
+        };
+        assert!(edge.check().is_ok());
+        let empty = RoomSummary {
+            fighters: Some(Vec::new()),
+            ..detailed()
+        };
+        assert!(empty.check().is_ok());
     }
 
     #[test]

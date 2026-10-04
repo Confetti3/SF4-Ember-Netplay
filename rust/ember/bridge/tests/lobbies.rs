@@ -515,3 +515,31 @@ async fn standings_rank_the_lobby() {
         }
     }
 }
+
+// A lobby set ends with its lobby, not with a clock: it never expires, and
+// its assignment has no `expires_at`.
+#[tokio::test]
+async fn a_lobby_set_never_expires() {
+    let f = fixture(2).await;
+    let lobby = f.create("hill", 2, "winner_stays").await;
+    let id = lobby["lobby_id"].as_str().unwrap().to_owned();
+    for index in 0..2 {
+        let (status, body) = f.join(&id, index).await;
+        assert_eq!(status, StatusCode::CREATED, "{body}");
+    }
+    let set = f.lobby(&id).await["current_match_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let (_, listed) = f.bridge.get(f.players[0].token(), "/v1/assignments").await;
+    assert_eq!(listed["assignments"][0]["match_id"], set.as_str());
+    assert!(listed["assignments"][0]["expires_at"].is_null());
+    f.bridge.clock.advance(30 * 24 * 60 * 60);
+    ember_bridge::maintain(f.bridge.state()).await;
+    let (_, found) = f
+        .bridge
+        .get(&f.organizer, &format!("/v1/matches/{set}"))
+        .await;
+    assert_eq!(found["state"], "awaiting_players");
+    assert!(found["expires_at"].is_null(), "{found}");
+}

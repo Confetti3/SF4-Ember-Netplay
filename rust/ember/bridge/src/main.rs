@@ -103,6 +103,7 @@ fn init(dir: PathBuf) -> Result<(), String> {
         discord: None,
         integration_secrets: None,
         rooms: None,
+        match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
         tenants: vec![config::Tenant {
             id: "local".into(),
             name: "Local tournaments".into(),

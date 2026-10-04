@@ -102,6 +102,14 @@ int main() try {
         failure(true, FailureStage::HostUnreachable) == sf4e::loc::T("runtime.room_host_failed"),
         "A failed host says it could not join");
     Check(failure(true, FailureStage::Unknown) != failure(false, FailureStage::Unknown), "Host and join failures read the same");
+    // A public room's join says what an unnamed failure likely was; a named stage is the same sentence as for any join.
+    const auto publicFailure = [](FailureStage stage, const char* region = "") { return DescribePublicOpeningFailure(stage, region); };
+    Check(publicFailure(FailureStage::Unknown) == sf4e::loc::T("public.failure.join_failed") &&
+        publicFailure(FailureStage::Unknown) != failure(false, FailureStage::Unknown), "A public join without a stage lost its own sentence");
+    Check(publicFailure(FailureStage::RelayUnreachable, "usw1") == failure(false, FailureStage::RelayUnreachable, "usw1") &&
+        publicFailure(FailureStage::HostUnreachable) == failure(false, FailureStage::HostUnreachable) &&
+        publicFailure(FailureStage::ControlLost) == failure(false, FailureStage::ControlLost),
+        "A public join changed the wording of a failure with a named stage");
 
     std::cout << "Connection check, blocked-path and opening-failure wording passed.\n";
     return 0;

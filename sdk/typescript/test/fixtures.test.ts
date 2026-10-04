@@ -14,6 +14,7 @@ import {
   parseEvent,
   parseStrict,
   publicKeyFromSeed,
+  SIGN_SKEW_SECS,
   signChallenge,
   signingBytes,
   signWebhook,
@@ -81,6 +82,15 @@ test("challenge rejections", () => {
   assert.throws(() => verifyProof(challenge, proof, publicKey, expected, challenge.expires_at), /expired/);
   assert.throws(() => verifyProof(challenge, proof, vectors.identities[1]!.public_key_base64url, expected, now), /key does not match/);
   assert.throws(() => signChallenge(seed, challenge, { ...expected, action: "link.claim" }, now), /action/);
+});
+
+test("a signer's clock a little off still signs, and a day off does not", () => {
+  for (const clock of [challenge.issued_at - 90, challenge.expires_at + 600, challenge.issued_at - SIGN_SKEW_SECS, challenge.expires_at + SIGN_SKEW_SECS - 1]) {
+    verifyProof(challenge, signChallenge(seed, challenge, expected, clock), publicKey, expected, now);
+  }
+  for (const clock of [challenge.issued_at - SIGN_SKEW_SECS - 1, challenge.expires_at + SIGN_SKEW_SECS]) {
+    assert.throws(() => signChallenge(seed, challenge, expected, clock), /expired/);
+  }
 });
 
 test("reports verify, agree, and reject tampering", () => {

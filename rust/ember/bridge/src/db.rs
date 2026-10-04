@@ -29,6 +29,8 @@ const MIGRATIONS: &[(i64, &str)] = &[
         13,
         include_str!("../migrations/013_connection_settings.sql"),
     ),
+    (14, include_str!("../migrations/014_room_details.sql")),
+    (15, include_str!("../migrations/015_match_expiry.sql")),
 ];
 
 #[derive(Clone)]
@@ -185,6 +187,47 @@ mod tests {
         };
         assert_eq!(disputes("bm-partner"), "restart");
         assert_eq!(disputes("site"), "review");
+    }
+
+    #[test]
+    fn matches_still_open_before_expiry_existed_get_a_day_from_their_last_change() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .unwrap();
+        migrate(&mut connection, &MIGRATIONS[..14]).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO tenants (id, name) VALUES ('t', 'Tenant');
+                 INSERT INTO provider_connections (id, tenant_id, kind, environment, display_name, enabled)
+                   VALUES ('c', 't', 'direct', 'staging', 'Site', 1);
+                 INSERT INTO lobbies (id, tenant_id, connection_id, external_lobby_id, create_digest, revision, state,
+                                      games_to_win, rotation, required_build_id, metadata, sets_started, sets_completed,
+                                      next_position, streak, created_at, updated_at)
+                   VALUES ('lob_1', 't', 'c', 'l1', '', 1, 'open', 2, 'winner_stays', '', '{}', 1, 0, 1, 0, 0, 0);
+                 INSERT INTO matches (id, tenant_id, connection_id, external_match_id, create_digest, revision,
+                   assignment_generation, state, games_to_win, rules, required_build_id, metadata,
+                   delivery_state, created_at, updated_at, lobby_id)
+                   VALUES ('emt_open', 't', 'c', 'open', '', 1, 1, 'awaiting_players', 2, '{}', '', '{}', 'not_required', 1000, 1000, NULL),
+                          ('emt_played', 't', 'c', 'played', '', 4, 1, 'between_games', 2, '{}', '', '{}', 'not_required', 1000, 5000, NULL),
+                          ('emt_done', 't', 'c', 'done', '', 3, 1, 'completed', 2, '{}', '', '{}', 'not_required', 1000, 1500, NULL),
+                          ('emt_set', 't', 'c', 'lobby:set', '', 1, 1, 'awaiting_players', 2, '{}', '', '{}', 'not_required', 1000, 1000, 'lob_1');",
+            )
+            .unwrap();
+        migrate(&mut connection, MIGRATIONS).unwrap();
+        let expires = |id: &str| -> (Option<i64>, Option<i64>) {
+            connection
+                .query_row(
+                    "SELECT expires_at, expiry_secs FROM matches WHERE id = ?1",
+                    [id],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .unwrap()
+        };
+        assert_eq!(expires("emt_open"), (Some(1000 + 86400), Some(86400)));
+        assert_eq!(expires("emt_played"), (Some(5000 + 86400), Some(86400)));
+        assert_eq!(expires("emt_done"), (None, None));
+        assert_eq!(expires("emt_set"), (None, None));
     }
 
     #[test]

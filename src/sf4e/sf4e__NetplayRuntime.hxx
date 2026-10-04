@@ -145,6 +145,9 @@ struct Runtime {
 	std::optional<room::Action> matchFinishedAction;
     bool replacementPending=false;
     bool leaveRequested=false, leaveAcknowledged=false;
+    // The room being opened is a public one joined with a ticket, so a refusal or
+    // failure is worded for it. Set with the join, cleared when the room closes.
+    bool publicJoin=false;
     std::uint64_t leaveActionId=0, leaveRetryAt=0, leaveDeadline=0;
     int selectedDelay=2;
     std::uint64_t nextProbeRequest=1;

@@ -89,9 +89,12 @@ void DispatchPublicRooms(const Command& command, bool helperReady) {
 bool TakePublicRoomsAnswer(const session::TournamentAnswer& answer) {
 	if (!answer.requestId) return false;
 	if (answer.requestId == runtime->roomListRequest) {
-		auto rooms = answer.ok ? session::DecodeRoomList(answer.data) : std::nullopt;
-		if (rooms) runtime->publicRooms.rooms = std::move(*rooms);
-		FinishList(!answer.ok ? Reason(answer) : rooms ? std::string() : "bridge_invalid_response");
+		auto list = answer.ok ? session::DecodeRoomList(answer.data) : std::nullopt;
+		if (list) {
+			runtime->publicRooms.rooms = std::move(list->rooms);
+			runtime->publicRooms.listedAt = list->listedAt;
+		}
+		FinishList(!answer.ok ? Reason(answer) : list ? std::string() : "bridge_invalid_response");
 		return true;
 	}
 	if (answer.requestId == runtime->admissionRequest) {

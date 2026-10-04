@@ -8,8 +8,12 @@ import { header, verifyWebhook, WebhookError, type WebhookHeaders } from "./webh
 /** The `type` of a result body. */
 export const RESULT_TYPE = "io.ember.tournament.match.result.v1";
 
-/** `completed`, or `restart` for a cancelled or failed match: play it again. */
-export type ResultOutcome = "completed" | "restart";
+/**
+ * `completed`, `restart` for a cancelled or failed match (play it again), or
+ * `expired` for a match nobody played before it expired. `expired` is not a
+ * request to restart: whether to schedule the match again is yours to decide.
+ */
+export type ResultOutcome = "completed" | "restart" | "expired";
 
 export interface ResultParticipant {
   participant_id: string;
@@ -41,8 +45,13 @@ export interface RestartResult extends ResultFields {
   winner_participant_id?: never;
 }
 
+export interface ExpiredResult extends ResultFields {
+  outcome: "expired";
+  winner_participant_id?: never;
+}
+
 /** Narrow on `outcome`: only a completed result has a winner. */
-export type MatchResult = CompletedResult | RestartResult;
+export type MatchResult = CompletedResult | RestartResult | ExpiredResult;
 
 export class ResultError extends Error {}
 
@@ -120,8 +129,8 @@ export function parseResult(payload: string | Uint8Array | Json): MatchResult {
     }
     return { ...fields, outcome, winner_participant_id };
   }
-  if (outcome !== "restart") throw new ResultError("invalid result");
-  if (winner_participant_id !== undefined) throw new ResultError("a restart has no winner");
+  if (outcome !== "restart" && outcome !== "expired") throw new ResultError("invalid result");
+  if (winner_participant_id !== undefined) throw new ResultError(`${outcome === "restart" ? "a restart" : "an expired match"} has no winner`);
   return { ...fields, outcome };
 }
 

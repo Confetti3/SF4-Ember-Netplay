@@ -547,7 +547,7 @@ msgid "home.online"
 msgstr "Gra online"
 
 msgid "home.online_detail"
-msgstr "Utwórz prywatny pokój lub dołącz przez zaproszenie."
+msgstr "Utwórz pokój, dołącz do pokoju albo przeglądaj pokoje publiczne."
 
 msgid "home.return_room"
 msgstr "Wróć do bieżącego pokoju."
@@ -3003,6 +3003,12 @@ msgstr "Wyniki tego meczu wpisuje organizator. Nie rozgrywa się go przez Ember.
 msgid "tournament.finished_detail"
 msgstr "Ten mecz się zakończył."
 
+msgid "tournament.expired"
+msgstr "Wygasł"
+
+msgid "tournament.expired_detail"
+msgstr "Ten mecz wygasł, zanim został rozegrany."
+
 msgid "tournament.leave_room_detail"
 msgstr "Opuść swój pokój, aby rozegrać ten mecz."
 
@@ -3115,7 +3121,7 @@ msgid "screen.public_rooms"
 msgstr "Pokoje publiczne"
 
 msgid "online.public_detail"
-msgstr "Przeglądaj pokoje, do których może dołączyć każdy gracz z Ember ID, albo otwórz własny."
+msgstr "Przeglądaj otwarte pokoje, do których może dołączyć każdy, albo szybko dołącz do jednego w pobliżu."
 
 msgid "public.create"
 msgstr "Utwórz pokój publiczny"
@@ -3129,26 +3135,11 @@ msgstr "Otwiera pokój publiczny w usłudze Ember ID i dołącza do niego. Zasad
 msgid "public.create_needs_id"
 msgstr "Pokoje publiczne wymagają Ember ID i zaufanej usługi. Skonfiguruj je w sekcji Pokoje publiczne."
 
-msgid "public.refresh_detail"
-msgstr "Prosi usługę o aktualną listę pokojów."
-
 msgid "public.loading"
 msgstr "Wczytywanie pokojów..."
 
-msgid "public.none"
-msgstr "Brak pokojów publicznych"
-
-msgid "public.none_detail"
-msgstr "Nikt nie ma teraz otwartego pokoju publicznego. Utwórz własny, aby zacząć grać."
-
-msgid "public.needs_id"
-msgstr "Pokoje publiczne wymagają Ember ID"
-
 msgid "public.needs_id_detail"
 msgstr "Utwórz Ember ID i zaufaj usłudze w sekcji Powiązane konta. To ta usługa wyświetla pokoje publiczne."
-
-msgid "public.room_playing"
-msgstr "{0}, trwa mecz"
 
 msgid "public.room_detail"
 msgstr "{0}\nGracze: {1}/{2}. Region: {3}."
@@ -3221,3 +3212,189 @@ msgstr "Zaufaj temu serwisowi w sekcji Powiązane konta, a potem otwórz link do
 
 msgid "public.link_waiting"
 msgstr "Dotarł link do pokoju publicznego. Opuść swój pokój, a potem wybierz go w sekcji Pokoje publiczne."
+
+msgid "public.quick"
+msgstr "Szybkie dołączenie"
+
+msgid "public.quick_detail"
+msgstr "Dołącza do otwartego pokoju w pobliżu, w którym jest najwięcej wolnych miejsc."
+
+msgid "public.quick_none"
+msgstr "W pobliżu nie ma teraz otwartego pokoju z wolnym miejscem. Utwórz własny, a gracze z okolicy go znajdą."
+
+msgid "public.create_room"
+msgstr "Utwórz pokój"
+
+msgid "public.filter"
+msgstr "Pokaż"
+
+msgid "public.filter_detail"
+msgstr "Wybierz, które pokoje są widoczne: wszystkie, pobliskie albo tylko z wolnymi miejscami."
+
+msgid "public.filter_label"
+msgstr "Pokaż: {0}"
+
+msgid "public.filter.all"
+msgstr "Wszystkie pokoje"
+
+msgid "public.filter.near"
+msgstr "W pobliżu"
+
+msgid "public.filter.seats"
+msgstr "Wolne miejsca"
+
+msgid "public.filter_near_unknown"
+msgstr "Ember nie zna jeszcze twojego regionu, więc nie wie, które pokoje są w pobliżu."
+
+msgid "public.near_you"
+msgstr "W pobliżu"
+
+msgid "public.in_match"
+msgstr "Trwa mecz"
+
+msgid "public.locked"
+msgstr "Zamknięty"
+
+msgid "public.full"
+msgstr "Pełny"
+
+msgid "public.card_meta"
+msgstr "{0} · {1}"
+
+msgid "public.players"
+msgstr "Gracze"
+
+msgid "public.open_for"
+msgstr "Otwarty od {0}"
+
+msgid "public.age_minutes"
+msgstr "{0} min"
+
+msgid "public.age_hours"
+msgstr "{0} godz."
+
+msgid "public.room_detail2"
+msgstr "Host {0}, {1}. Zajęte miejsca: {2} z {3}."
+
+msgid "public.room_detail_match"
+msgstr " Trwa mecz."
+
+msgid "public.room_detail_locked"
+msgstr " Pokój jest zamknięty."
+
+msgid "public.room_detail_full"
+msgstr " Pokój jest pełny."
+
+msgid "public.status_listed"
+msgstr "Otwarte pokoje: {0}. Odświeżono {1}."
+
+msgid "public.status_filtered"
+msgstr "Widoczne: {0} z {1}. Odświeżono {2}."
+
+msgid "public.updated_now"
+msgstr "przed chwilą"
+
+msgid "public.updated_seconds"
+msgstr "{0} s temu"
+
+msgid "public.updated_minutes"
+msgstr "{0} min temu"
+
+msgid "public.updating"
+msgstr "Odświeżanie..."
+
+msgid "public.loading_card"
+msgstr "Szukanie pokojów..."
+
+msgid "public.none_all"
+msgstr "Teraz nie ma otwartych pokojów. Utwórz własny, a inni go znajdą."
+
+msgid "public.none_filtered"
+msgstr "Żaden pokój nie pasuje do tego filtra."
+
+msgid "public.show_all"
+msgstr "Pokaż wszystkie pokoje"
+
+msgid "public.try_again"
+msgstr "Spróbuj ponownie"
+
+msgid "public.stop_joining"
+msgstr "Przerwij dołączanie"
+
+msgid "public.connecting"
+msgstr "Łączenie..."
+
+msgid "public.setup"
+msgstr "Skonfiguruj pokoje publiczne"
+
+msgid "public.setup_detail"
+msgstr "Ember utworzy twoje Ember ID na tym komputerze, jeśli jeszcze go nie masz, i zaufa serwisowi pokoi Ember (bridge.embernetplay.link), który wyświetla listę pokoi i wpuszcza cię do nich. Możesz go usunąć w dowolnej chwili w sekcji Ember ID > Powiązane konta."
+
+msgid "public.setup_title"
+msgstr "Graj w pokojach publicznych"
+
+msgid "public.setup_body"
+msgstr "Otwarte pokoje, do których może dołączyć każdy z Ember. Jedno naciśnięcie i gotowe."
+
+msgid "public.setup_step.checking"
+msgstr "Sprawdzanie twojego Ember ID..."
+
+msgid "public.setup_step.creating"
+msgstr "Tworzenie twojego Ember ID..."
+
+msgid "public.setup_step.finding"
+msgstr "Szukanie serwisu pokoi Ember..."
+
+msgid "public.setup_step.trusting"
+msgstr "Dodawanie zaufanego serwisu pokoi Ember..."
+
+msgid "public.setup_retry"
+msgstr "Spróbuj skonfigurować ponownie"
+
+msgid "public.setup_done"
+msgstr "Pokoje publiczne są gotowe."
+
+msgid "public.setup_needs_id"
+msgstr "Najpierw odblokuj swoje Ember ID"
+
+msgid "public.setup_needs_id_detail"
+msgstr "Twoje Ember ID jest zablokowane. Odblokuj je w sekcji Ember ID, a potem ponownie skonfiguruj pokoje publiczne."
+
+msgid "public.copy_link"
+msgstr "Kopiuj link do pokoju"
+
+msgid "public.copy_link_detail"
+msgstr "Kopiuje {0}, aby znajomi mogli dołączyć z przeglądarki lub Discorda."
+
+msgid "public.link_copied"
+msgstr "Skopiowano link do pokoju."
+
+msgid "public.default_name"
+msgstr "Pokój gracza {0}"
+
+msgid "public.failure.room_locked"
+msgstr "Host zamknął ten pokój. Wybierz inny."
+
+msgid "public.failure.unavailable"
+msgstr "Serwis pokoi nie odpowiedział na czas. Spróbuj ponownie za chwilę."
+
+msgid "public.failure.untrusted"
+msgstr "Ember nie mógł zweryfikować odpowiedzi serwisu pokoi, więc nie dołączył. Spróbuj ponownie; jeśli problem wraca, daj nam znać na Discordzie."
+
+msgid "public.failure.internal"
+msgstr "Coś poszło nie tak w Ember. Spróbuj ponownie."
+
+msgid "public.failure.helper"
+msgstr "Moduł sieciowy Ember nie działa. Uruchom grę ponownie, jeśli to się utrzymuje."
+
+msgid "public.failure.full_or_locked"
+msgstr "Ten pokój właśnie się zapełnił albo został zamknięty. Wybierz inny."
+
+msgid "public.failure.turned_away"
+msgstr "Pokój odrzucił próbę dołączenia. Być może cię z niego usunięto."
+
+msgid "public.failure.join_failed"
+msgstr "Nie udało się wejść do pokoju. Mógł się właśnie zamknąć. Odśwież listę i wybierz inny."
+
+msgid "legend.refresh"
+msgstr "Odśwież"

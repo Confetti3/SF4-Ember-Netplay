@@ -26,7 +26,7 @@ A public room is "server-owned". The differences from a private room:
 | Admission | room capability | signed ticket naming the Ember ID and endpoint |
 | Kick | until the helper restarts | by Ember ID, for the room's life |
 | Moderator (`host`) | hosting player, then oldest member | first member in (the creator), then oldest member |
-| Empty room | closes | closes after a grace period |
+| Empty room | closes | closes at once when the last member leaves, after a grace period when they dropped |
 
 Bans follow one rule. A server-owned room may ban at most 512 accounts in its
 lifetime (`MAX_ROOM_BANS`), counted per room and not per session. A ban is
@@ -153,7 +153,12 @@ passes it to its helper as `HostPublic.creator`.
 
 The supervisor starts `sf4e-room-host` with a JSON config on stdin and reads
 one JSON status line per change on its stdout. It closes a room that has been
-empty for 120 s, and a room whose creator never arrived within 120 s.
+empty for 120 s, and a room whose creator never arrived within 120 s. When the
+last member leaves with a Leave action (not a dropped connection), the room
+host closes the room itself and says `closed` at once, so the room stops
+counting as its creator's open room; a create the bridge would refuse for
+`room_limit` asks the supervisor once before refusing, instead of waiting for
+the next 5 s poll.
 
 ## Helper IPC additions
 

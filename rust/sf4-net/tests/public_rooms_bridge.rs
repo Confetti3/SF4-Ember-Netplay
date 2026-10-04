@@ -170,6 +170,17 @@ fn report(fake: &Supervisor, room_id: &str, members: u32, banned: &[&str]) {
     room["banned"] = json!(banned);
 }
 
+/// What the stand-in reports as the room host's `details` for `room_id`.
+fn set_details(fake: &Supervisor, room_id: &str, details: Value) {
+    let mut fake = fake.lock().unwrap();
+    let room = fake
+        .rooms
+        .iter_mut()
+        .find(|room| room["room_id"] == room_id)
+        .expect("the supervisor hosts the room");
+    room["details"] = details;
+}
+
 /// A bridge on loopback, with public rooms when `supervisor` names one.
 async fn bridge(
     dir: &std::path::Path,
@@ -193,6 +204,7 @@ async fn bridge(
         discord: None,
         integration_secrets: rooms.then(|| "unused-in-tests.json".into()),
         rooms: supervisor.map(|supervisor_url| config::Rooms { supervisor_url }),
+        match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
         tenants: vec![config::Tenant {
             id: "local".into(),
             name: "Local".into(),
@@ -434,6 +446,37 @@ async fn create_list_and_join_a_public_room() {
     assert_eq!(rooms[0]["capacity"], 2);
     // Only the build asked for, written as a query value.
     assert!(listed(&ok(joiner.list(&bridge_id, "build 2&x=y").await)).is_empty());
+
+    // The helper asks for details: what the room host reported comes back
+    // checked and whole, with the time the bridge listed the rooms.
+    set_details(
+        &supervisor,
+        &room_id,
+        json!({ "name": "Friendly matches", "capacity": 2, "locked": true, "host_name": "Kate",
+            "fighters": [3], "set_format": 3, "rotation": 1 }),
+    );
+    ember_bridge::poll_rooms(&running.state).await;
+    let data = ok(joiner.list(&bridge_id, BUILD).await);
+    assert!(data["listed_at"].as_u64().is_some(), "{data}");
+    let room = &listed(&data)[0];
+    assert_eq!(room["host_name"], "Kate");
+    assert_eq!(room["fighters"], json!([3]));
+    assert_eq!(room["locked"], true);
+    assert_eq!(
+        (&room["set_format"], &room["rotation"]),
+        (&json!(3), &json!(1))
+    );
+    assert_eq!(
+        refused(joiner.ticket(&bridge_id, &room_id, BUILD).await),
+        "room_locked"
+    );
+    set_details(
+        &supervisor,
+        &room_id,
+        json!({ "name": "Friendly matches", "capacity": 2, "locked": false, "host_name": "Kate",
+            "fighters": [3], "set_format": 3, "rotation": 1 }),
+    );
+    ember_bridge::poll_rooms(&running.state).await;
 
     // Another player joins with a ticket for their own endpoint and ID.
     let admission = ok(joiner.ticket(&bridge_id, &room_id, BUILD).await);

@@ -15,10 +15,13 @@ use crate::{AppState, util::outbound_client};
 const CREATE_TIMEOUT: Duration = Duration::from_secs(30);
 /// What a supervisor's answer to a create request may weigh.
 const MAX_ANSWER: usize = 1024 * 1024;
+/// The most a room's `details` can weigh in `GET /rooms` (`MAX_DETAILS_BYTES`
+/// in ember-rooms, a separate crate; keep them equal).
+const MAX_DETAILS_REPORT: usize = 2048;
 /// The most one room can weigh in `GET /rooms`: `MAX_ROOM_BANS` Ember IDs (57
-/// bytes, 60 with quotes and a comma), its invitation and about 300 bytes for
-/// the other fields.
-const MAX_ROOM_REPORT: usize = MAX_ROOM_BANS * 60 + MAX_INVITATION + 300;
+/// bytes, 60 with quotes and a comma), its invitation, its details and about
+/// 300 bytes for the other fields.
+const MAX_ROOM_REPORT: usize = MAX_ROOM_BANS * 60 + MAX_INVITATION + MAX_DETAILS_REPORT + 300;
 /// The most rooms a supervisor can be configured for (`MAX_ROOMS_LIMIT` in
 /// ember-rooms).
 const MAX_ROOMS_REPORTED: usize = 1024;
@@ -74,6 +77,11 @@ pub struct Reported {
     /// that does not say is judged by the current count.
     #[serde(default)]
     pub opened: Option<bool>,
+    /// What the room host said about its room, as the supervisor passed it
+    /// on. Any JSON value parses, so what is wrong with it is judged per
+    /// field later (`details`) and never fails the report.
+    #[serde(default)]
+    pub details: Option<serde_json::Value>,
 }
 
 /// A refusal's body: `{"reason": "..."}`, or `{"error": "..."}`.

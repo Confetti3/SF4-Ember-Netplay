@@ -86,7 +86,9 @@ The answer:
 
 Send the returned `matchUrl` to both players. It is the same for both and
 safe to send in your messages: only the two assigned Ember IDs can play the
-match, and anyone else's Ember finds no such match. The link does not expire.
+match, and anyone else's Ember finds no such match. The link itself does not expire, but
+a match nobody plays does: 24 hours after you created it the bridge ends it
+(see "Match status" and "Results").
 
 The match page will open the match in Ember or show how to get Ember first.
 It currently returns 404. Testers can paste `matchUrl` into Ember instead,
@@ -102,7 +104,11 @@ be retried.
 
 `status` is `pending` while players join and the room is prepared, `running`
 while they play, `complete` when someone reaches the set length, and
-`cancelled` when the match was called off. Each player is `absent` until
+`cancelled` when the match was called off or expired. A match that nobody
+played within 24 hours of its creation also reads `cancelled`, because that is
+the only ended-without-a-result status the API has; the players are free and a
+new creation for them makes a new match. (A set with games already recorded
+is ended only after 24 hours with no game started or decided.) Each player is `absent` until
 their Ember claims the match, `present-not-ready` while the room is being
 set up, and `present-ready` from then on. Each team's `score` is games won.
 
@@ -117,7 +123,10 @@ API key. The body contains `matchId` and `teams` with `score` and `inGameId`.
 A cancelled match is posted as `mustRestart`. When the two games disagree
 about a game's result, or one never reports it, BluMint has no review step,
 so the bridge cancels the match and posts `mustRestart`; BluMint then
-creates a new match. Retryable failures are retried for a day; `409` counts
+creates a new match. A match nobody plays within 24 hours is not posted at
+all: your result format has no way to say "not played", and `mustRestart`
+would ask you to restart a match you may have meant to drop. See the
+questions below. Retryable failures are retried for a day; `409` counts
 as already received. Once the bridge starts posting a result, it is final
 on the Ember side too, so BluMint never receives a second, different result
 for a match.
@@ -168,3 +177,7 @@ Already sent; still open:
    method BluMint uses is pending.
 3. **Restarts.** Confirmation that `mustRestart` is the intended response
    for a disputed game is pending.
+4. **Unplayed matches.** Ember ends a match nobody played after 24 hours. It
+   sends you nothing and answers status `cancelled`. Does your API have a way
+   to say "not played" (a result field or a status), and does a polled
+   `cancelled` status make you restart or reschedule the match by itself?

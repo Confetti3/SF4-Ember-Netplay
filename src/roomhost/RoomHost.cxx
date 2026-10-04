@@ -199,12 +199,13 @@ void RoomHost::Report(std::uint64_t nowMs) {
 	// Committed bans only: a kick still in an uncommitted candidate could be
 	// discarded, and neither the bridge nor the helper can take a ban back.
 	current.banned = server_->BannedAccounts();
+	current.details = DetailsOf(*snapshot);
 	ForwardBans(current.banned, nowMs);
 	// The model can close the room on its own; treat it like a close request
 	// whose commit has already been applied.
-	if (snapshot->closed && !closing_) { closing_ = true; closeApplied_ = true; closeStartedMs_ = nowMs; }
+	if (snapshot->closed && !closing_) { closing_ = true; closeApplied_ = true; closeStartedMs_ = nowMs; closeReason_ = "room_closed"; }
 	if (haveReported_ && current == reported_) return;
-	const auto line = StatusLine(current.members, current.tablesPlaying, current.invitation, current.banned);
+	const auto line = StatusLine(current.members, current.tablesPlaying, current.invitation, current.banned, current.details);
 	// The supervisor kills a child whose line is over its limit; end the room instead.
 	if (line.size() > MaximumStatusLineBytes) { Fail("status_too_large"); return; }
 	emit_(line);
@@ -241,6 +242,13 @@ bool RoomHost::Tick(std::uint64_t nowMs) {
 	if (room_->GetState() == State::Failed) return Fail(room_->Error());
 	server_->AdvanceCustomRoom(nowMs);
 	if (server_->Step() != 0) return Fail(room_->Error().empty() ? "server_step_failed" : room_->Error());
+	// The last member left on purpose: nobody is coming back, so the room ends
+	// now and stops counting as its creator's open room. A member who dropped
+	// leaves the room to the supervisor's grace instead.
+	if (!closing_ && server_->ServerOwnedRoomLeftEmpty()) {
+		closing_ = true; closeStartedMs_ = nowMs; closeReason_ = "last_member_left";
+		spdlog::info("RoomHost: the last member left; closing the room");
+	}
 	// Refused while a commit is in flight; asked again next tick.
 	if (closing_ && !closeApplied_) closeApplied_ = server_->CloseServerOwnedRoom();
 	Report(nowMs);

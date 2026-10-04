@@ -224,6 +224,12 @@ inline RoomLink ParseRoomLink(const std::string& text) {
 // the web server never sees which one.
 inline const char* RoomPagePrefix() { return "https://embernetplay.link/r#"; }
 
+// That page's link for a room of a service, as a player shares it; empty unless
+// both IDs are well formed, so ParseRoomPageLink always reads back what it gave.
+inline std::string RoomPageUrl(const std::string& bridgeId, const std::string& roomId) {
+	return CheckedRoom(bridgeId, roomId).Valid() ? std::string(RoomPagePrefix()) + bridgeId + "/" + roomId : std::string();
+}
+
 // The room the page's own link names, or an invalid RoomLink.
 inline RoomLink ParseRoomPageLink(const std::string& text) {
 	std::string bridge, room;

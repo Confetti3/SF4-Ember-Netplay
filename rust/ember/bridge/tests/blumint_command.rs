@@ -45,6 +45,7 @@ async fn registration_works_without_a_running_bridge() {
         discord: None,
         integration_secrets: None,
         rooms: None,
+        match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
         tenants: vec![config::Tenant {
             id: "bm".into(),
             name: "BluMint".into(),

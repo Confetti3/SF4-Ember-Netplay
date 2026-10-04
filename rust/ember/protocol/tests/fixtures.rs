@@ -5,7 +5,9 @@ use std::{fs, path::PathBuf};
 
 use ember_protocol::{
     EmberId, Error, PublicKey, SigningIdentity,
-    challenge::{Action, Challenge, Expected, Method, Proof, ProvenRequest, command_digest},
+    challenge::{
+        Action, Challenge, Expected, Method, Proof, ProvenRequest, SIGN_SKEW_SECS, command_digest,
+    },
     encoding::{Counter, OriginPolicy, b64u, decode_b64u},
     event::Event,
     json::{self, MAX_BODY, Value},
@@ -282,11 +284,30 @@ fn challenge_rejections() {
     );
     // The helper refuses to sign a challenge that does not match its operation.
     assert!(challenge.sign(&identity, &link, now, POLICY).is_err());
-    assert!(
-        challenge
-            .sign(&identity, &expected, challenge.expires_at, POLICY)
-            .is_err()
-    );
+    // A player's clock a little behind or ahead of the bridge's still signs,
+    // and the bridge, on its own clock, accepts the proof; one more than a day
+    // off does not sign at all.
+    for clock in [
+        challenge.issued_at - 90,
+        challenge.expires_at + 600,
+        challenge.issued_at - SIGN_SKEW_SECS,
+        challenge.expires_at + SIGN_SKEW_SECS - 1,
+    ] {
+        let proof = challenge.sign(&identity, &expected, clock, POLICY).unwrap();
+        assert_eq!(
+            challenge.verify(&expected, &proof, &key, now, POLICY),
+            Ok(())
+        );
+    }
+    for clock in [
+        challenge.issued_at - SIGN_SKEW_SECS - 1,
+        challenge.expires_at + SIGN_SKEW_SECS,
+    ] {
+        assert_eq!(
+            challenge.sign(&identity, &expected, clock, POLICY).err(),
+            Some(Error::Expired)
+        );
+    }
 }
 
 fn identity_one_key() -> PublicKey {

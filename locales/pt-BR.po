@@ -547,7 +547,7 @@ msgid "home.online"
 msgstr "Jogo online"
 
 msgid "home.online_detail"
-msgstr "Crie uma sala privada ou entre por convite."
+msgstr "Crie uma sala, entre em uma ou veja as salas públicas."
 
 msgid "home.return_room"
 msgstr "Volte para sua sala atual."
@@ -2572,6 +2572,12 @@ msgstr "O organizador registra os resultados desta partida. Ela não é jogada p
 msgid "tournament.finished_detail"
 msgstr "Esta partida terminou."
 
+msgid "tournament.expired"
+msgstr "Expirada"
+
+msgid "tournament.expired_detail"
+msgstr "Esta partida expirou antes de ser jogada."
+
 msgid "tournament.leave_room_detail"
 msgstr "Saia da sua sala para jogar esta partida."
 
@@ -2684,7 +2690,7 @@ msgid "screen.public_rooms"
 msgstr "Salas públicas"
 
 msgid "online.public_detail"
-msgstr "Veja as salas em que qualquer jogador com um Ember ID pode entrar ou abra a sua."
+msgstr "Veja salas abertas em que qualquer pessoa pode entrar ou entre rápido em uma perto de você."
 
 msgid "public.create"
 msgstr "Criar sala pública"
@@ -2698,26 +2704,11 @@ msgstr "Abre uma sala pública no serviço do Ember ID e entra nela. Defina as r
 msgid "public.create_needs_id"
 msgstr "As salas públicas exigem um Ember ID e um serviço confiável. Configure-os em Salas públicas."
 
-msgid "public.refresh_detail"
-msgstr "Pede ao serviço a lista atual de salas."
-
 msgid "public.loading"
 msgstr "Carregando salas..."
 
-msgid "public.none"
-msgstr "Nenhuma sala pública"
-
-msgid "public.none_detail"
-msgstr "Ninguém tem uma sala pública aberta agora. Crie uma para começar a jogar."
-
-msgid "public.needs_id"
-msgstr "Salas públicas exigem um Ember ID"
-
 msgid "public.needs_id_detail"
 msgstr "Crie um Ember ID e confie em um serviço em Contas vinculadas. Esse serviço lista as salas públicas."
-
-msgid "public.room_playing"
-msgstr "{0}, em partida"
 
 msgid "public.room_detail"
 msgstr "{0}\nJogadores: {1}/{2}. Região: {3}."
@@ -2790,3 +2781,189 @@ msgstr "Confie neste serviço em Contas vinculadas e abra o link da sala de novo
 
 msgid "public.link_waiting"
 msgstr "Um link de sala pública chegou. Saia da sua sala e escolha-o em Salas públicas."
+
+msgid "public.quick"
+msgstr "Entrada rápida"
+
+msgid "public.quick_detail"
+msgstr "Entra na sala aberta perto de você com mais lugares livres."
+
+msgid "public.quick_none"
+msgstr "Nenhuma sala aberta perto de você tem lugar livre agora. Crie uma e os jogadores próximos vão encontrá-la."
+
+msgid "public.create_room"
+msgstr "Criar sala"
+
+msgid "public.filter"
+msgstr "Mostrar"
+
+msgid "public.filter_detail"
+msgstr "Escolha quais salas aparecem: todas, as perto de você ou só as com lugares livres."
+
+msgid "public.filter_label"
+msgstr "Mostrar: {0}"
+
+msgid "public.filter.all"
+msgstr "Todas as salas"
+
+msgid "public.filter.near"
+msgstr "Perto de mim"
+
+msgid "public.filter.seats"
+msgstr "Lugares livres"
+
+msgid "public.filter_near_unknown"
+msgstr "O Ember ainda não sabe sua região e não consegue dizer quais salas estão perto de você."
+
+msgid "public.near_you"
+msgstr "Perto de você"
+
+msgid "public.in_match"
+msgstr "Em partida"
+
+msgid "public.locked"
+msgstr "Bloqueada"
+
+msgid "public.full"
+msgstr "Cheia"
+
+msgid "public.card_meta"
+msgstr "{0} · {1}"
+
+msgid "public.players"
+msgstr "Jogadores"
+
+msgid "public.open_for"
+msgstr "Aberta há {0}"
+
+msgid "public.age_minutes"
+msgstr "{0} min"
+
+msgid "public.age_hours"
+msgstr "{0} h"
+
+msgid "public.room_detail2"
+msgstr "Anfitrião {0}, {1}. {2} de {3} lugares ocupados."
+
+msgid "public.room_detail_match"
+msgstr " Há uma partida em andamento."
+
+msgid "public.room_detail_locked"
+msgstr " A sala está bloqueada."
+
+msgid "public.room_detail_full"
+msgstr " A sala está cheia."
+
+msgid "public.status_listed"
+msgstr "Salas abertas: {0}. Atualizado {1}."
+
+msgid "public.status_filtered"
+msgstr "Mostrando {0} de {1}. Atualizado {2}."
+
+msgid "public.updated_now"
+msgstr "agora mesmo"
+
+msgid "public.updated_seconds"
+msgstr "há {0} s"
+
+msgid "public.updated_minutes"
+msgstr "há {0} min"
+
+msgid "public.updating"
+msgstr "Atualizando..."
+
+msgid "public.loading_card"
+msgstr "Procurando salas..."
+
+msgid "public.none_all"
+msgstr "Nenhuma sala aberta agora. Crie uma e outros jogadores poderão encontrá-la."
+
+msgid "public.none_filtered"
+msgstr "Nenhuma sala corresponde a este filtro."
+
+msgid "public.show_all"
+msgstr "Mostrar todas as salas"
+
+msgid "public.try_again"
+msgstr "Tentar de novo"
+
+msgid "public.stop_joining"
+msgstr "Cancelar entrada"
+
+msgid "public.connecting"
+msgstr "Conectando..."
+
+msgid "public.setup"
+msgstr "Configurar salas públicas"
+
+msgid "public.setup_detail"
+msgstr "O Ember criará seu Ember ID neste PC, se você ainda não tiver um, e confiará no serviço de salas do Ember (bridge.embernetplay.link) para listar as salas e deixar você entrar. Você pode removê-lo a qualquer momento em Ember ID > Contas vinculadas."
+
+msgid "public.setup_title"
+msgstr "Jogue em salas públicas"
+
+msgid "public.setup_body"
+msgstr "Salas abertas em que qualquer pessoa com Ember pode entrar. Um único toque e tudo fica pronto."
+
+msgid "public.setup_step.checking"
+msgstr "Verificando seu Ember ID..."
+
+msgid "public.setup_step.creating"
+msgstr "Criando seu Ember ID..."
+
+msgid "public.setup_step.finding"
+msgstr "Procurando o serviço de salas do Ember..."
+
+msgid "public.setup_step.trusting"
+msgstr "Autorizando o serviço de salas do Ember..."
+
+msgid "public.setup_retry"
+msgstr "Tentar configurar de novo"
+
+msgid "public.setup_done"
+msgstr "As salas públicas estão prontas."
+
+msgid "public.setup_needs_id"
+msgstr "Desbloqueie seu Ember ID primeiro"
+
+msgid "public.setup_needs_id_detail"
+msgstr "Seu Ember ID está bloqueado. Desbloqueie-o em Ember ID e configure as salas públicas de novo."
+
+msgid "public.copy_link"
+msgstr "Copiar link da sala"
+
+msgid "public.copy_link_detail"
+msgstr "Copia {0} para que amigos entrem pelo navegador ou pelo Discord."
+
+msgid "public.link_copied"
+msgstr "Link da sala copiado."
+
+msgid "public.default_name"
+msgstr "Sala de {0}"
+
+msgid "public.failure.room_locked"
+msgstr "O anfitrião bloqueou esta sala. Escolha outra."
+
+msgid "public.failure.unavailable"
+msgstr "O serviço de salas não respondeu a tempo. Tente de novo em instantes."
+
+msgid "public.failure.untrusted"
+msgstr "O Ember não conseguiu verificar a resposta do serviço de salas e por isso não entrou. Tente de novo; se continuar, avise-nos no Discord."
+
+msgid "public.failure.internal"
+msgstr "Algo deu errado dentro do Ember. Tente de novo."
+
+msgid "public.failure.helper"
+msgstr "O auxiliar de rede do Ember não está em execução. Reinicie o jogo se continuar assim."
+
+msgid "public.failure.full_or_locked"
+msgstr "Esta sala acabou de lotar ou ser bloqueada. Escolha outra."
+
+msgid "public.failure.turned_away"
+msgstr "A sala recusou a entrada. Você pode ter sido removido dela."
+
+msgid "public.failure.join_failed"
+msgstr "Não foi possível entrar na sala. Ela pode ter acabado de fechar. Atualize e escolha outra."
+
+msgid "legend.refresh"
+msgstr "Atualizar"

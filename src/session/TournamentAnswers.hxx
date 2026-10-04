@@ -39,7 +39,7 @@ using Assignment = netplay::tournament::Assignment;
 std::optional<std::vector<Assignment>> DecodeAssignments(const nlohmann::json& data);
 
 // A room_list answer's rooms, and a room_create or room_ticket answer's admission.
-std::optional<std::vector<netplay::publicrooms::Room>> DecodeRoomList(const nlohmann::json& data);
+std::optional<netplay::publicrooms::RoomList> DecodeRoomList(const nlohmann::json& data);
 std::optional<netplay::publicrooms::Admission> DecodeAdmission(const nlohmann::json& data);
 
 } }

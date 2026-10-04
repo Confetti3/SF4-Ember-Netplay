@@ -426,6 +426,91 @@ async fn disagreement_holds_the_match_for_an_organizer() {
     );
 }
 
+const DAY: u64 = 24 * 60 * 60;
+
+/// The match's `expires_at`, which must lie a whole lifetime after some moment
+/// in `[from, to]` (the clock is the wall clock, so a request is checked
+/// against the window around it rather than one reading).
+async fn assert_deadline(f: &Fixture, id: &str, from: u64, to: u64) {
+    let expires = state(f, id).await["expires_at"].as_u64().unwrap();
+    assert!(
+        (from + DAY..=to + DAY).contains(&expires),
+        "{expires} outside {}..={}",
+        from + DAY,
+        to + DAY
+    );
+}
+
+// A game the fighters could not settle waits for the organizer, who may
+// decide it long after the match's first deadline. The decision is game
+// activity: the match gets a whole lifetime from it and is not expired by the
+// next maintenance pass.
+#[tokio::test]
+async fn an_old_review_game_decided_late_leaves_a_full_lifetime() {
+    let f = fixture().await;
+    let id = create(&f, "play-expiry-1", "ember-room-v1", 2).await;
+    let binding = bound(&f, &id).await;
+    let permit = permit(&f, &id, &binding, 51).await;
+    report(&f, &f.a, &f.a, &id, &permit, 1, Outcome::P1Win).await;
+    let (_, held) = report(&f, &f.b, &f.b, &id, &permit, 2, Outcome::P2Win).await;
+    assert_eq!(held["match_state"], "needs_review");
+
+    // The original deadline passes while the organizer has not looked.
+    f.bridge.clock.advance(DAY as i64 + 3600);
+    ember_bridge::maintain(f.bridge.state()).await;
+    let waiting = state(&f, &id).await;
+    assert_eq!(waiting["state"], "needs_review");
+
+    let before = f.bridge.clock.now();
+    let (status, decided) = f
+        .bridge
+        .post_keyed(
+            &f.organizer,
+            &format!("/v1/matches/{id}/adjudications"),
+            json!({
+                "kind": "game_result", "winner_slot": 0, "reason": "Stream VOD",
+                "attempt_id": permit.permit.attempt_id, "expected_revision": waiting["revision"],
+            }),
+            Some("decide-late"),
+        )
+        .await;
+    let after = f.bridge.clock.now();
+    assert_eq!(status, StatusCode::CREATED, "{decided}");
+    assert_eq!(decided["state"], "between_games");
+
+    // The next pass finds a match that was just decided, not an old one.
+    ember_bridge::maintain(f.bridge.state()).await;
+    let found = state(&f, &id).await;
+    assert_eq!(found["state"], "between_games");
+    assert_eq!(found["scores"][0]["wins"], 1);
+    assert_deadline(&f, &id, before, after).await;
+}
+
+// Starting a game and settling it by the fighters' agreeing reports each move
+// the deadline to a whole lifetime from then.
+#[tokio::test]
+async fn a_permit_and_agreeing_reports_each_extend_the_deadline() {
+    let f = fixture().await;
+    let id = create(&f, "play-expiry-2", "ember-room-v1", 2).await;
+    let binding = bound(&f, &id).await;
+    let created = state(&f, &id).await["created_at"].as_u64().unwrap();
+    assert_eq!(state(&f, &id).await["expires_at"], created + DAY);
+
+    f.bridge.clock.advance(120);
+    let before = f.bridge.clock.now();
+    let permit = permit(&f, &id, &binding, 61).await;
+    let after = f.bridge.clock.now();
+    assert_deadline(&f, &id, before, after).await;
+
+    f.bridge.clock.advance(120);
+    let before = f.bridge.clock.now();
+    report(&f, &f.a, &f.a, &id, &permit, 1, Outcome::P1Win).await;
+    let (_, second) = report(&f, &f.b, &f.b, &id, &permit, 2, Outcome::P1Win).await;
+    let after = f.bridge.clock.now();
+    assert_eq!(second["attempt_state"], "accepted");
+    assert_deadline(&f, &id, before, after).await;
+}
+
 #[tokio::test]
 async fn a_lone_report_or_a_silent_game_goes_to_review() {
     let f = fixture().await;

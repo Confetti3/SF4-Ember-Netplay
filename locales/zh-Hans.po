@@ -547,7 +547,7 @@ msgid "home.online"
 msgstr "在线对战"
 
 msgid "home.online_detail"
-msgstr "创建私人房间或通过邀请加入。"
+msgstr "创建或加入房间，或浏览公开房间。"
 
 msgid "home.return_room"
 msgstr "返回当前房间。"
@@ -3003,6 +3003,12 @@ msgstr "此对局的结果由主办方录入，不通过 Ember 进行。"
 msgid "tournament.finished_detail"
 msgstr "此对局已结束。"
 
+msgid "tournament.expired"
+msgstr "已过期"
+
+msgid "tournament.expired_detail"
+msgstr "此对局在开始前已过期。"
+
 msgid "tournament.leave_room_detail"
 msgstr "请先离开当前房间再进行此对局。"
 
@@ -3115,7 +3121,7 @@ msgid "screen.public_rooms"
 msgstr "公开房间"
 
 msgid "online.public_detail"
-msgstr "浏览任何拥有 Ember ID 的玩家都能加入的房间，或开设您自己的房间。"
+msgstr "浏览任何人都能加入的开放房间，或快速加入附近的房间。"
 
 msgid "public.create"
 msgstr "创建公开房间"
@@ -3129,26 +3135,11 @@ msgstr "在 Ember ID 服务上创建公开房间并加入。对战席规则请�
 msgid "public.create_needs_id"
 msgstr "公开房间需要 Ember ID 和受信任的服务。请在公开房间页面中设置。"
 
-msgid "public.refresh_detail"
-msgstr "向服务请求当前的房间列表。"
-
 msgid "public.loading"
 msgstr "正在加载房间..."
 
-msgid "public.none"
-msgstr "没有公开房间"
-
-msgid "public.none_detail"
-msgstr "目前没有人开设公开房间。创建一个来开始游戏吧。"
-
-msgid "public.needs_id"
-msgstr "公开房间需要 Ember ID"
-
 msgid "public.needs_id_detail"
 msgstr "请创建 Ember ID，并在已绑定账号中信任一项服务。公开房间由该服务列出。"
-
-msgid "public.room_playing"
-msgstr "{0}，对局中"
 
 msgid "public.room_detail"
 msgstr "{0}\n玩家：{1}/{2}。地区：{3}。"
@@ -3221,3 +3212,189 @@ msgstr "请先在已绑定账号中信任此服务，然后再次打开房间链
 
 msgid "public.link_waiting"
 msgstr "收到了一个公开房间的链接。请先离开当前房间，然后在公开房间中选择它。"
+
+msgid "public.quick"
+msgstr "快速加入"
+
+msgid "public.quick_detail"
+msgstr "加入附近空位最多的公开房间。"
+
+msgid "public.quick_none"
+msgstr "附近的公开房间目前都没有空位。创建一个，附近的玩家就能找到。"
+
+msgid "public.create_room"
+msgstr "创建房间"
+
+msgid "public.filter"
+msgstr "显示"
+
+msgid "public.filter_detail"
+msgstr "选择显示哪些房间：全部、附近的房间，或只显示有空位的房间。"
+
+msgid "public.filter_label"
+msgstr "显示：{0}"
+
+msgid "public.filter.all"
+msgstr "所有房间"
+
+msgid "public.filter.near"
+msgstr "附近"
+
+msgid "public.filter.seats"
+msgstr "有空位"
+
+msgid "public.filter_near_unknown"
+msgstr "Ember 尚不知道您所在的地区，因此无法判断哪些房间在附近。"
+
+msgid "public.near_you"
+msgstr "附近"
+
+msgid "public.in_match"
+msgstr "对局中"
+
+msgid "public.locked"
+msgstr "已锁定"
+
+msgid "public.full"
+msgstr "已满"
+
+msgid "public.card_meta"
+msgstr "{0} · {1}"
+
+msgid "public.players"
+msgstr "玩家"
+
+msgid "public.open_for"
+msgstr "已开放 {0}"
+
+msgid "public.age_minutes"
+msgstr "{0} 分钟"
+
+msgid "public.age_hours"
+msgstr "{0} 小时"
+
+msgid "public.room_detail2"
+msgstr "房主 {0}，{1}。{3} 个位置中已占 {2} 个。"
+
+msgid "public.room_detail_match"
+msgstr "对战正在进行。"
+
+msgid "public.room_detail_locked"
+msgstr "房间已锁定。"
+
+msgid "public.room_detail_full"
+msgstr "房间已满。"
+
+msgid "public.status_listed"
+msgstr "开放房间：{0} 个。更新：{1}。"
+
+msgid "public.status_filtered"
+msgstr "显示 {1} 个中的 {0} 个。更新：{2}。"
+
+msgid "public.updated_now"
+msgstr "刚刚"
+
+msgid "public.updated_seconds"
+msgstr "{0} 秒前"
+
+msgid "public.updated_minutes"
+msgstr "{0} 分钟前"
+
+msgid "public.updating"
+msgstr "正在更新..."
+
+msgid "public.loading_card"
+msgstr "正在查找房间..."
+
+msgid "public.none_all"
+msgstr "目前没有开放的房间。创建一个，其他人就能找到。"
+
+msgid "public.none_filtered"
+msgstr "没有符合此筛选条件的房间。"
+
+msgid "public.show_all"
+msgstr "显示所有房间"
+
+msgid "public.try_again"
+msgstr "重试"
+
+msgid "public.stop_joining"
+msgstr "取消加入"
+
+msgid "public.connecting"
+msgstr "正在连接..."
+
+msgid "public.setup"
+msgstr "设置公开房间"
+
+msgid "public.setup_detail"
+msgstr "如果您还没有 Ember ID，Ember 会在这台电脑上创建一个，并信任 Ember 的房间服务（bridge.embernetplay.link），用来列出房间并让您加入。您可以随时在 Ember ID > 已绑定账号 中移除它。"
+
+msgid "public.setup_title"
+msgstr "在公开房间里对战"
+
+msgid "public.setup_body"
+msgstr "拥有 Ember 的玩家都能加入的开放房间。只需按一下即可完成设置。"
+
+msgid "public.setup_step.checking"
+msgstr "正在检查您的 Ember ID..."
+
+msgid "public.setup_step.creating"
+msgstr "正在创建您的 Ember ID..."
+
+msgid "public.setup_step.finding"
+msgstr "正在查找 Ember 的房间服务..."
+
+msgid "public.setup_step.trusting"
+msgstr "正在添加受信任的 Ember 房间服务..."
+
+msgid "public.setup_retry"
+msgstr "重试设置"
+
+msgid "public.setup_done"
+msgstr "公开房间已准备就绪。"
+
+msgid "public.setup_needs_id"
+msgstr "请先解锁您的 Ember ID"
+
+msgid "public.setup_needs_id_detail"
+msgstr "您的 Ember ID 已锁定。请先在 Ember ID 中解锁，然后重新设置公开房间。"
+
+msgid "public.copy_link"
+msgstr "复制房间链接"
+
+msgid "public.copy_link_detail"
+msgstr "复制 {0}，好友即可通过浏览器或 Discord 加入。"
+
+msgid "public.link_copied"
+msgstr "房间链接已复制。"
+
+msgid "public.default_name"
+msgstr "{0}的房间"
+
+msgid "public.failure.room_locked"
+msgstr "房主已锁定此房间，请选择其他房间。"
+
+msgid "public.failure.unavailable"
+msgstr "房间服务没有及时响应，请稍后再试。"
+
+msgid "public.failure.untrusted"
+msgstr "Ember 无法验证房间服务的响应，因此没有加入。请重试；如果问题持续，请到 Discord 告诉我们。"
+
+msgid "public.failure.internal"
+msgstr "Ember 内部出了问题，请重试。"
+
+msgid "public.failure.helper"
+msgstr "Ember 的网络辅助程序没有运行。如果持续出现，请重启游戏。"
+
+msgid "public.failure.full_or_locked"
+msgstr "此房间刚刚已满或被锁定，请选择其他房间。"
+
+msgid "public.failure.turned_away"
+msgstr "房间拒绝了加入请求。您可能已被移出该房间。"
+
+msgid "public.failure.join_failed"
+msgstr "无法进入房间，它可能刚刚关闭。请刷新后选择其他房间。"
+
+msgid "legend.refresh"
+msgstr "刷新"

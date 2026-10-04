@@ -72,6 +72,7 @@ pub struct Policy {
     pub results: Results,          // None | BluMint | Signed
     pub own_api_only: bool,        // kind blumint
     pub reviews_disputes: bool,    // disputes == "review"
+    pub silent_expiry: bool,       // kind blumint: told nothing of an expired match
 }
 ```
 
@@ -110,12 +111,47 @@ construction as event webhooks, so `verifyWebhook` in the SDK checks it.
 }
 ```
 
-`outcome` is `completed`, or `restart` for a cancelled or failed match (no
-`winner_participant_id` then; scores are what was accepted before it ended).
-The platform answers 2xx once it has stored the result, or 409 when it
+`outcome` is `completed`, `restart` for a cancelled or failed match, or
+`expired` for a match nobody played before it expired (no
+`winner_participant_id` for either of the last two; scores are what was
+accepted before it ended). `expired` is not a request to restart: the platform
+decides for itself whether to schedule the match again. The platform answers 2xx once it has stored the result, or 409 when it
 already has it; both settle the result. 429 and 5xx are retried for a day,
 any other 4xx is a refusal. The match's `provider_delivery_state` shows how
 it went.
+
+## Match expiry
+
+A match nobody plays must not hold its players for ever. `matches.expires_at`
+(unix seconds) is the match's current deadline and `matches.expiry_secs` its
+lifetime; both are null for lobby and tournament sets and for matches that were
+finished before the columns existed. At creation the lifetime is
+`match_expiry_hours` and the deadline is that long after creation.
+`match_expiry_hours` is a top-level `bridge.json` setting: 24 when absent, 1 to
+336. A per-match value from the provider (a field of `CreateMatch`) is a
+possible follow-up and is not part of the contract yet.
+
+The deadline moves with the set: in the same transaction that issues a game's
+permit or settles a game (agreeing reports, an organizer's result, a voided
+game, a correction), `expires_at` becomes the later of itself and that moment
+plus `expiry_secs`. So a set the players are working through is cut off only
+after a whole lifetime without a game, even when an organizer decides a held
+game after the old deadline. The maintenance pass moves a match to the terminal
+state `expired` when `expires_at` has passed, it is not `needs_review`, it has
+no open game (`permitted` or `review` attempt) and no live provisioning lease.
+The match then follows the cancellation path: revision bumped, its
+players freed, `match.expired` emitted (`match_id`, `match_revision`, `state`,
+`reason: "not_played"`, `expires_at`). It is never `cancelled`, and a platform
+is never sent `restart` for it.
+
+Delivery: a `results_url` connection gets outcome `expired`. BluMint's result
+format takes a score or `mustRestart` only, so a BluMint match that expires is
+sent nothing (its `delivery_state` becomes `not_required`) and its status
+reads `cancelled`, the only ended-without-a-result word its API has. To be
+confirmed with BluMint.
+
+`GET /v1/assignments` rows and `GET /v1/matches/{id}` carry `created_at` and
+`expires_at`, and an expired match stays in the assignments for a day.
 
 ## Player lookup
 

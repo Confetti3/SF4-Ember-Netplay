@@ -3,9 +3,11 @@
 #include "../common/Localization.hxx"
 #include "../netplay/JsonFileStore.hxx"
 #include "../netplay/SettingsStore.hxx"
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <cstring>
+#include <map>
 
 namespace sf4e { namespace platform {
 namespace {
@@ -16,6 +18,9 @@ using netplay::json_file::Handle;
 constexpr int SchemaVersion = 1;
 const wchar_t* Filename = L"ui-preferences.json";
 const char* HideGameSettingsCard = "hideGameSettingsCard";
+const char* AnnouncedMatches = "announcedMatches";
+// A match id and a service id are never longer than this on the wire.
+constexpr std::size_t MaxMatchIdBytes = 64, MaxBridgeIdBytes = 256;
 
 bool ValidDocument(const Json& value, std::string& preference) {
     if (!value.is_object() || !value.contains("schemaVersion") ||
@@ -129,6 +134,74 @@ bool SaveLanguageTo(const Path& directory, std::string_view preference, std::str
 bool HideCardIn(const Path& directory, std::string& error) noexcept {
     return SaveTo(directory, {{HideGameSettingsCard, true}}, error);
 }
+
+bool ValidAnnounced(const AnnouncedMatch& match) {
+    return !match.id.empty() && match.id.size() <= MaxMatchIdBytes && match.bridge.size() <= MaxBridgeIdBytes;
+}
+
+// Absent from files written before matches were remembered.
+std::vector<AnnouncedMatch> AnnouncedFrom(const Path& directory) noexcept {
+    std::vector<AnnouncedMatch> matches;
+    try {
+        const Json value = LoadValid(directory);
+        if (!value.is_object()) return matches;
+        const auto found = value.find(AnnouncedMatches);
+        if (found == value.end() || !found->is_array()) return matches;
+        for (const auto& item : *found) {
+            if (!item.is_object() || !item.contains("id") || !item["id"].is_string() ||
+                !item.contains("bridge") || !item["bridge"].is_string()) continue;
+            AnnouncedMatch match{item["bridge"].get<std::string>(), item["id"].get<std::string>(), 0};
+            if (item.contains("until") && item["until"].is_number_unsigned()) match.until = item["until"].get<std::uint64_t>();
+            if (ValidAnnounced(match)) matches.push_back(std::move(match));
+        }
+        TrimAnnouncedMatches(matches);
+    } catch (...) { matches.clear(); }
+    return matches;
+}
+
+bool SaveAnnouncedTo(const Path& directory, const std::vector<AnnouncedMatch>& matches, std::string& error) noexcept {
+    error.clear();
+    try {
+        std::vector<AnnouncedMatch> valid;
+        for (const auto& match : matches) if (ValidAnnounced(match)) valid.push_back(match);
+        TrimAnnouncedMatches(valid);
+        Json list = Json::array();
+        for (const auto& match : valid) list.push_back({{"bridge", match.bridge}, {"id", match.id}, {"until", match.until}});
+        return SaveTo(directory, {{AnnouncedMatches, std::move(list)}}, error);
+    } catch (...) {
+        error = "The announced matches could not be saved.";
+        return false;
+    }
+}
+}
+
+void TrimAnnouncedMatches(std::vector<AnnouncedMatch>& matches, const std::string& keep) {
+    // Older first: the entry its service showed longest ago (0, written with no clock,
+    // the oldest of all), then the one written earlier.
+    const auto older = [&](std::size_t a, std::size_t b) { return matches[a].until != matches[b].until ? matches[a].until < matches[b].until : a < b; };
+    std::map<std::string, std::vector<std::size_t>> services;
+    for (std::size_t i = 0; i < matches.size(); ++i) services[matches[i].bridge].push_back(i);
+    std::vector<bool> drop(matches.size());
+    for (auto& [bridge, at] : services) {
+        if (at.size() <= MaxAnnouncedPerService) continue;
+        std::vector<std::size_t> order = at;
+        std::sort(order.begin(), order.end(), older);
+        for (std::size_t i = 0; i < order.size() - MaxAnnouncedPerService; ++i) drop[order[i]] = true;
+        at.erase(std::remove_if(at.begin(), at.end(), [&](std::size_t i) { return drop[i]; }), at.end());
+    }
+    while (services.size() > MaxAnnouncedServices) {
+        // A service's age is its newest entry's.
+        const auto newest = [&](const std::vector<std::size_t>& at) { return *std::max_element(at.begin(), at.end(), older); };
+        auto oldest = services.end();
+        for (auto it = services.begin(); it != services.end(); ++it)
+            if (it->first != keep && (oldest == services.end() || older(newest(it->second), newest(oldest->second)))) oldest = it;
+        if (oldest == services.end()) break;
+        for (const auto i : oldest->second) drop[i] = true;
+        services.erase(oldest);
+    }
+    std::size_t kept = 0;
+    for (std::size_t i = 0; i < matches.size(); ++i) if (!drop[i]) { if (kept != i) matches[kept] = std::move(matches[i]); ++kept; }
+    matches.resize(kept);
 }
 
 std::string LoadLanguagePreference() {
@@ -140,6 +213,12 @@ bool SaveLanguagePreference(std::string_view preference, std::string& error) {
 }
 
 bool GameSettingsCardHidden() { return HiddenFrom(netplay::SettingsStore::DefaultDirectory()); }
+
+std::vector<AnnouncedMatch> LoadAnnouncedMatches() { return AnnouncedFrom(netplay::SettingsStore::DefaultDirectory()); }
+
+bool SaveAnnouncedMatches(const std::vector<AnnouncedMatch>& matches, std::string& error) {
+    return SaveAnnouncedTo(netplay::SettingsStore::DefaultDirectory(), matches, error);
+}
 
 bool HideGameSettingsCardForever(std::string& error) {
     return HideCardIn(netplay::SettingsStore::DefaultDirectory(), error);
@@ -153,6 +232,10 @@ bool SaveLanguagePreferenceTo(const std::wstring& directory, std::string_view pr
 bool GameSettingsCardHiddenIn(const std::wstring& directory) { return HiddenFrom(directory); }
 bool HideGameSettingsCardIn(const std::wstring& directory, std::string& error) {
     return HideCardIn(directory, error);
+}
+std::vector<AnnouncedMatch> LoadAnnouncedMatchesFrom(const std::wstring& directory) { return AnnouncedFrom(directory); }
+bool SaveAnnouncedMatchesTo(const std::wstring& directory, const std::vector<AnnouncedMatch>& matches, std::string& error) {
+    return SaveAnnouncedTo(directory, matches, error);
 }
 }
 

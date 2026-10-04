@@ -2,6 +2,10 @@
 // it, a tournament site's connect link, the wait for a sign-in, and the steps a
 // brand-new player's link takes. Run from the identity journey test's main.
 #include "identity_journey_support.hxx"
+#include "../platform/UiPreferencesStore.hxx"
+#include <chrono>
+#include <cstdio>
+#include <filesystem>
 namespace {
 // Discord on a service that offers it: optional, connected from the Linked
 // accounts screen through the browser, read back with Refresh, disconnected
@@ -493,6 +497,169 @@ void HomeGuides(){
  Check(fresh.row("tm-no-service")&&fresh.row("tm-no-service")->detail==loc::T("tournament.needs_discord_detail")&&fresh.row("discord-connect"),
   "Without a service the matches screen does not lead to Connect Discord");
 }
+// Matches that are stale do not nag: only a match a player can go and play
+// counts on Home and is announced (a clock a few minutes fast does not hide a
+// live one); and a match told once is not told again after a restart, the file
+// forgetting it once its service's list no longer holds it. The store is a real file.
+void StaleMatches(){
+ using namespace sf4e;using netplay::tournament::Assignment;
+ const std::string ember="https://bridge.embernetplay.link";
+ const auto root=std::filesystem::temp_directory_path()/("sf4e-stale-matches-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+ std::filesystem::create_directories(root);
+ const auto load=[&]{return platform::testing::LoadAnnouncedMatchesFrom(root.wstring());};
+ const auto save=[&](const std::vector<platform::AnnouncedMatch>& told){std::string error;return platform::testing::SaveAnnouncedMatchesTo(root.wstring(),told,error);};
+ const std::uint64_t now=2000000000,hour=3600;
+ const auto match=[&](const char* id,const char* state,std::uint64_t expires){
+  Assignment a;a.matchId=id;a.state=state;a.profile="ember-room-v1";a.gamesToWin=2;a.expiresAt=expires;return a;};
+ // Home with Ember's service and its matches read, as a launch finds them.
+ const auto start=[&](Journey& h){
+  h.shell.SetAnnouncedStore(load,save);h.view.unixNow=now;
+  auto& id=h.view.identity;id.known=true;h.Screen("home");h.ready();id.bridges={{"brg_1",ember,"Ember"}};h.Frame(0,2);
+  Check(h.sent().back()->op==netplay::IdentityOp::BridgeList,"Home did not learn the services");
+  h.answer();h.Frame(0,2);h.view.tournament.list.bridge="brg_1";
+ };
+ const auto told=[](const Journey& h){return h.status==loc::T("tournament.assigned_notice");};
+ const auto count=[](const Journey& h,int n){return h.row("identity")->detail==(n?loc::Tf("home.identity_matches",n):std::string(loc::T("home.identity_detail")));};
+ {
+ Journey h;start(h);auto& t=h.view.tournament;
+ // None of these is a match to go and play.
+ t.list.items={match("emt_a","expired",now-hour),match("emt_b","needs_review",0),match("emt_c","awaiting_reports",0),match("emt_d","running",0),
+  match("emt_e","completed",0),match("emt_f","cancelled",0),match("emt_g","ready",now-hour),match("emt_h","created",0)};
+ auto organizer=match("emt_i","ready",0);organizer.profile="organizer-reported-v1";t.list.items.push_back(organizer);
+ h.Frame(0,3);
+ Check(count(h,0)&&!told(h),"A match nobody can play was counted or announced");
+ Check(load().empty(),"Matches nobody can play were remembered as announced");
+ // A match that is expired by the bridge's word or past its time by this PC's clock goes the moment it is.
+ t.list.items={match("emt_live","ready",now+hour),match("emt_skew","between_games",now-100),match("emt_open","provisioning",0),match("emt_wait","awaiting_players",now+hour)};
+ h.Frame(0,3);
+ Check(count(h,4)&&told(h),"Matches a player can play were not counted and announced");
+ Check(load().size()==4,"The matches told were not saved");
+ // Every match told is kept a month past the list that showed it, whatever its own expiry says.
+ for(const auto& entry:load())Check(entry.until==now+30*24*hour&&entry.bridge=="brg_1","A told match was not kept a month");
+ // A match that was not ready becomes ready: then it is announced.
+ t.list.items.push_back(match("emt_late","needs_review",0));h.Wait(20);h.Frame(0,3);
+ Check(count(h,4)&&!told(h),"A match in review was counted or announced");
+ t.list.items.back().state="ready";h.Frame(0,3);
+ Check(count(h,5)&&told(h)&&load().size()==5,"A match that became ready was not announced");
+ // Another minute on the clock, nothing changed: no second notice.
+ h.Wait(20);h.Frame(0,3);Check(!told(h),"A match was announced twice");
+ }
+ // A restart: a new shell reads the file. Nothing told is told again; a new match is.
+ {
+ Journey h;start(h);auto& t=h.view.tournament;
+ t.list.items={match("emt_live","ready",now+hour),match("emt_skew","between_games",now-100),match("emt_open","provisioning",0),match("emt_wait","awaiting_players",now+hour),
+  match("emt_late","ready",0)};
+ h.Frame(0,3);
+ Check(count(h,5)&&!told(h),"A restart announced the matches again");
+ t.list.items.push_back(match("emt_new","ready",now+hour));h.Frame(0,3);
+ Check(count(h,6)&&told(h),"A new match after a restart was not announced");
+ // A list that was read and no longer holds a match forgets it; one that failed to read forgets nothing.
+ t.list.items={match("emt_new","ready",now+hour)};t.list.finished=1;t.list.error="unavailable";h.Frame(0,3);
+ Check(load().size()==6,"A failed read forgot matches");
+ t.list.error.clear();h.Frame(0,3);
+ Check(load().size()==1&&load()[0].id=="emt_new","A match the service no longer lists was kept");
+ // Another service's list does not forget this one's.
+ t.list.bridge="brg_2";t.list.items.clear();h.Frame(0,3);
+ Check(load().size()==1,"Another service's list forgot a match");
+ t.list.bridge="brg_1";
+ // Past its expiry (and the skew), the match is not playable, but stays remembered while its service
+ // lists it: the expiry can move later. The list dropping it forgets it.
+ t.list.items={match("emt_new","ready",now+hour)};h.view.unixNow=now+hour+400;h.Wait(20);h.Frame(0,3);
+ Check(count(h,0)&&!told(h)&&load().size()==1,"A match past its expiry was counted or told, or forgotten while listed");
+ t.list.items.clear();h.Frame(0,3);
+ Check(load().empty(),"A match its service no longer lists was kept");
+ }
+ // A match told once stays told while its service lists it live: a new game moving its
+ // expiry later, or a running game holding it past its time, does not tell it again. The
+ // same match ID from another service is another match.
+ {
+ Journey h;start(h);auto& t=h.view.tournament;
+ const auto relist=[&](std::vector<Assignment> items){t.list.items=std::move(items);++t.list.finished;h.Wait(20);h.Frame(0,3);};
+ relist({match("emt_long","ready",now+hour)});
+ Check(told(h)&&load().size()==1,"A new match was not announced");
+ h.view.unixNow=now+hour+400;relist({match("emt_long","between_games",now+3*hour)});
+ Check(count(h,1)&&!told(h)&&load().size()==1&&load()[0].until==now+30*24*hour,"A match whose expiry moved later was told again");
+ h.view.unixNow=now+4*hour;relist({match("emt_long","running",now+3*hour)});
+ Check(count(h,0)&&!told(h)&&load().size()==1,"A running match past its time was counted, told or forgotten");
+ relist({match("emt_long","between_games",now+6*hour)});
+ Check(count(h,1)&&!told(h)&&load().size()==1,"A match waiting again after its game was told again");
+ t.list.bridge="brg_2";relist({match("emt_long","ready",now+6*hour)});
+ Check(told(h)&&load().size()==2,"A match with another service's match ID was not announced");
+ t.list.bridge="brg_1";relist({match("emt_long","between_games",now+6*hour)});
+ Check(!told(h)&&load().size()==2,"Two services' matches with one ID were confused");
+ }
+ // Told with an expiry D; this PC is away past D while a game moves it later. Back, the
+ // service's list loads, then fails, another service is read meanwhile: nothing is forgotten,
+ // and the list that answers at last, with the later expiry, does not tell the match again.
+ {
+ std::error_code ec;std::filesystem::remove(root/L"ui-preferences.json",ec);
+ Journey h;start(h);auto& t=h.view.tournament;
+ const auto relist=[&](std::vector<Assignment> items){t.list.items=std::move(items);t.list.loading=false;t.list.error.clear();++t.list.finished;h.Wait(20);h.Frame(0,3);};
+ relist({match("emt_d","ready",now+hour)});
+ Check(told(h)&&load().size()==1,"A new match was not announced");
+ h.view.unixNow=now+5*hour;t.list.loading=true;h.Wait(20);h.Frame(0,3);
+ Check(load().size()==1,"A list still loading forgot a match past its old expiry");
+ t.list.loading=false;t.list.error="unavailable";++t.list.finished;h.Wait(20);h.Frame(0,3);
+ Check(load().size()==1,"A failed list forgot a match past its old expiry");
+ t.list.bridge="brg_2";relist({});
+ Check(load().size()==1,"Another service's list forgot a match past its old expiry");
+ t.list.bridge="brg_1";relist({match("emt_d","between_games",now+9*hour)});
+ Check(count(h,1)&&!told(h)&&load().size()==1,"A match whose expiry moved later while this PC was away was told again");
+ // A service not heard from for a month: its entries go, and a match still live then is told again.
+ h.view.unixNow=now+5*hour+31*24*hour;t.list.error="unavailable";++t.list.finished;h.Wait(20);h.Frame(0,3);
+ Check(load().empty(),"A service not heard from for a month kept its entries");
+ relist({match("emt_d","ready",h.view.unixNow+hour)});
+ Check(told(h)&&load().size()==1,"A match forgotten after a month was not told again");
+ }
+ // Two services with 50 live matches each, the most a list holds, read in turn and after a
+ // restart: nothing one tells pushes the other's out, so going back tells nothing.
+ {
+ std::error_code ec;std::filesystem::remove(root/L"ui-preferences.json",ec);
+ const auto many=[&](const char* prefix){
+  std::vector<Assignment> items;
+  for(int i=0;i<50;++i)items.push_back(match((prefix+std::to_string(i)).c_str(),"ready",now+hour));
+  return items;};
+ const auto read=[&](Journey& h,const char* bridge,const char* prefix){
+  auto& t=h.view.tournament;t.list.bridge=bridge;t.list.items=many(prefix);t.list.loading=false;t.list.error.clear();++t.list.finished;
+  h.Wait(20);h.Frame(0,3);return told(h);};
+ {
+ Journey h;start(h);
+ Check(read(h,"brg_1","emt_a")&&read(h,"brg_2","emt_b"),"Two services' matches were not announced");
+ Check(!read(h,"brg_1","emt_a")&&!read(h,"brg_2","emt_b")&&load().size()==100,"Going back to a service told its matches again");
+ }
+ Journey h;start(h);
+ Check(!read(h,"brg_1","emt_a")&&!read(h,"brg_2","emt_b")&&!read(h,"brg_1","emt_a")&&load().size()==100,"A restart told two services' matches again");
+ }
+ std::filesystem::remove_all(root);
+}
+// A write the preferences file refused (busy or locked) keeps the change: it is
+// tried again a few seconds on with nothing new to tell, and a restart then
+// tells nothing again.
+void AnnouncementSaveRetries(){
+ using namespace sf4e;using netplay::tournament::Assignment;
+ const std::string ember="https://bridge.embernetplay.link";
+ std::vector<platform::AnnouncedMatch> stored;int refusals=1,writes=0;
+ const auto load=[&]{return stored;};
+ const auto save=[&](const std::vector<platform::AnnouncedMatch>& told){++writes;if(refusals>0){--refusals;return false;}stored=told;return true;};
+ const std::uint64_t now=2000000000;
+ Assignment ready;ready.matchId="emt_a";ready.state="ready";ready.profile="ember-room-v1";ready.gamesToWin=2;ready.expiresAt=now+3600;
+ const auto start=[&](Journey& h){
+  h.shell.SetAnnouncedStore(load,save);h.view.unixNow=now;
+  auto& id=h.view.identity;id.known=true;h.Screen("home");h.ready();id.bridges={{"brg_1",ember,"Ember"}};h.Frame(0,2);
+  h.answer();h.Frame(0,2);
+  auto& t=h.view.tournament;t.list.bridge="brg_1";t.list.items={ready};t.list.finished=1;h.Frame(0,3);
+ };
+ {
+ Journey h;start(h);
+ Check(h.status==loc::T("tournament.assigned_notice"),"The match was not announced");
+ Check(stored.empty()&&writes==1,"The first write was not the refused one");
+ h.Frame(0,3);Check(writes==1,"A refused write was tried again at once");
+ h.Wait(6);h.Frame(0,2);
+ Check(stored.size()==1&&writes==2,"A refused write was not tried again with nothing new to tell");
+ }
+ Journey h;start(h);
+ Check(h.status!=loc::T("tournament.assigned_notice"),"A restart announced a match whose first write was refused");
+}
 // The one-link attempt's guards: a second link while Discord's page is being
 // opened opens no second page; Cancel during setup stops it, and a later link
 // for the same service shows it rather than starting again; changing account
@@ -727,5 +894,5 @@ void OnboardingRecovers(){
 }
 void RunDiscordConnectJourneys(){
  DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();ConnectReadsRecover();
- RetainedChangesStayTheirs();EmberIdFromHome();HomeGuides();OnboardingGuards();OnboardingSteps();CancelReachesTheService();OnboardingRecovers();DiscordConnectPastedLink();
+ RetainedChangesStayTheirs();EmberIdFromHome();HomeGuides();StaleMatches();AnnouncementSaveRetries();OnboardingGuards();OnboardingSteps();CancelReachesTheService();OnboardingRecovers();DiscordConnectPastedLink();
 }

@@ -6,7 +6,9 @@ mod common;
 
 use common::{
     Bridge, Player, code,
-    supervisor::{BUILD, ENDPOINT, Supervisor, enable, fake_supervisor, report, secrets},
+    supervisor::{
+        BUILD, ENDPOINT, Supervisor, enable, fake_supervisor, report, report_details, secrets,
+    },
 };
 use ember_bridge::config;
 use ember_protocol::rooms::{
@@ -675,4 +677,48 @@ async fn tickets_for_a_connections_room_go_to_its_creator_first_then_anyone() {
         (StatusCode::NOT_FOUND, "room_not_found"),
         "{body}"
     );
+}
+
+/// The host's name and capacity are in a connection's view, so changing them
+/// is a `room.changed`; the listing details are not, so changing only those
+/// says nothing, and the view never carries them.
+#[tokio::test]
+async fn a_rename_or_new_capacity_is_a_change_but_listing_details_are_not() {
+    let f = fixture().await;
+    let room = f.open(&f.provider, &f.members[0]).await;
+    let id = room.room.room_id.clone();
+    f.reported(&id, 1, 0).await;
+    assert_eq!(f.kinds(&f.provider).await, ["room.created", "room.opened"]);
+
+    report_details(&f.fake, &id, json!({ "name": "Renamed", "capacity": 4 }));
+    f.poll().await;
+    let events = f.room_events(&f.provider).await;
+    assert_eq!(events.len(), 3, "{events:?}");
+    assert_eq!(events[2].0, "room.changed");
+    assert_eq!(events[2].1["data"]["room"]["name"], "Renamed");
+
+    report_details(&f.fake, &id, json!({ "name": "Renamed", "capacity": 6 }));
+    f.poll().await;
+    let events = f.room_events(&f.provider).await;
+    assert_eq!(events.len(), 4, "{events:?}");
+    assert_eq!(events[3].1["data"]["room"]["capacity"], 6);
+
+    // Only the extras change: nothing is said, and they are not in the view.
+    report_details(
+        &f.fake,
+        &id,
+        json!({ "name": "Renamed", "capacity": 6, "locked": true, "host_name": "Kate",
+            "fighters": [3], "set_format": 2, "rotation": 1 }),
+    );
+    f.poll().await;
+    let events = f.room_events(&f.provider).await;
+    assert_eq!(events.len(), 4, "{events:?}");
+    let (status, body) = f.bridge.get(&f.provider, &format!("/v1/rooms/{id}")).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["room"]["name"], "Renamed");
+    let listed = f.listing(&f.provider).await;
+    let view = serde_json::to_value(&listed[0]).unwrap();
+    for key in ["host_name", "fighters", "locked", "set_format", "rotation"] {
+        assert!(view["room"].get(key).is_none(), "{key}");
+    }
 }

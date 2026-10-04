@@ -69,6 +69,11 @@ struct MenuEntry {
     // A text row for a passphrase: the editor masks it and opens empty, and
     // its draft is wiped when the editor closes.
     bool secret = false;
+    // Row height in unscaled pixels for a list or footer row; 0 keeps the standard
+    // height. Grid cells always use the grid's card height.
+    float height = 0;
+    // A disabled row's pane says nothing more than its detail does: no "Unavailable".
+    bool quiet = false;
 };
 // What Select does on an entry, decided in one place so navigation and the
 // legend agree. A reader wins over text, text over choices, choices over a

@@ -208,6 +208,9 @@ namespace sf4e {
 		// or no runtime is accepting commands.
 		bool SubmitRuntimeCommand(RuntimeCommand command);
 		bool IsRuntimeRoomActive();
+		// The room being opened is a public one joined with a ticket, so the host's
+		// refusals are worded for it.
+		bool IsRuntimePublicJoin();
         bool IsRuntimeRecoveryEnabled();
 		void NotifyRuntimeMatchEnded();
 		// A netplay battle closed after its GGPO session was already retired, so

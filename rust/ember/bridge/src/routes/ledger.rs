@@ -15,7 +15,7 @@ use serde_json::json;
 use crate::{
     error::{ApiFailure, Result},
     events::{NewEvent, emit},
-    routes::{links::Ctx, lobbies, tournaments},
+    routes::{expiry, links::Ctx, lobbies, tournaments},
 };
 
 #[derive(Clone, Debug, Serialize)]
@@ -92,7 +92,7 @@ pub fn busy(
         "SELECT EXISTS (SELECT 1 FROM matches m JOIN match_participants p
            ON p.match_id = m.id AND p.assignment_generation = m.assignment_generation
           WHERE m.connection_id = ?1 AND p.ember_id = ?2 AND m.id != ?3
-            AND m.state NOT IN ('completed', 'cancelled', 'failed'))",
+            AND m.state NOT IN ('completed', 'cancelled', 'failed', 'expired'))",
         params![connection_id, ember_id.as_str(), except],
         |row| row.get(0),
     )?)
@@ -295,6 +295,8 @@ pub fn settle(
         }
     }
     let revision = bump(tx, found, next, ctx.now)?;
+    // A decided game is activity: the match gets a whole lifetime from now.
+    expiry::extend(tx, ctx.now, &found.id)?;
     // The reopened match now holds its players; the ones a bracket
     // correction released from later sets can be picked up elsewhere.
     if !freed.is_empty() {

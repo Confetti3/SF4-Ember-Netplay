@@ -139,6 +139,10 @@ static void TestOnlyThePublicRoomLinkIsAccepted() {
 	// The page's own link, as its Copy button gives it.
 	const std::string page = std::string(RoomPagePrefix()) + bridge + "/" + room;
 	CHECK(ParseRoomPageLink(page).roomId == room && ParseRoomPageLink(page).bridgeId == bridge);
+	// The link a room shares reads back as the room, through the pasted form too.
+	CHECK(RoomPageUrl(bridge, room) == page);
+	CHECK(ParseRoomPasted(RoomPageUrl(bridge, room)).bridgeId == bridge && ParseRoomPasted(RoomPageUrl(bridge, room)).roomId == room);
+	CHECK(RoomPageUrl("", room).empty() && RoomPageUrl(bridge, "").empty() && RoomPageUrl(bridge, "b").empty() && RoomPageUrl("brg_1", room).empty());
 	CHECK(ParseRoomPageLink("HTTPS://EmberNetplay.link/R#" + bridge + "/" + room + "/").Valid());
 	const std::string refusedPages[] = {
 		"https://embernetplay.link/r#", "https://embernetplay.link/r#" + bridge, "https://embernetplay.link/r#" + room,

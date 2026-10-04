@@ -43,6 +43,16 @@ const char* SessionClient::JoinRejectionKey(ErrorType type) {
 	}
 }
 
+// A public room's host locks the room by refusing as full, and removes or
+// turns away a player by an invalid request: both say so in the room's own words.
+const char* SessionClient::PublicJoinRejectionKey(ErrorType type) {
+	switch (type) {
+	case SCE_JOIN_REJECTED_LOBBY_FULL: return "public.failure.full_or_locked";
+	case SCE_JOIN_REJECTED_REQUEST_INVALID: return "public.failure.turned_away";
+	default: return JoinRejectionKey(type);
+	}
+}
+
 // Bound for buffered remote v2 hashes (matches the checkpoint ring span).
 static const size_t MAX_PENDING_REMOTE_HASHES = 64;
 // The opponent is at most a rollback window ahead, a few snapshots, so a

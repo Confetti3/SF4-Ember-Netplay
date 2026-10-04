@@ -111,6 +111,11 @@ impl Notifier {
                 )
             }
             Kind::MatchCancelled => (self.label(match_id), "Match cancelled.".into(), 0xED4245),
+            Kind::MatchExpired => (
+                self.label(match_id),
+                "Match expired, not played.".into(),
+                0x99AAB5,
+            ),
             Kind::NeedsReview => (
                 self.label(match_id),
                 "Waiting for an organizer to review the result.".into(),

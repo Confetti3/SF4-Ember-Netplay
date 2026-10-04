@@ -35,6 +35,7 @@ pub enum Kind {
     MatchCompleted,
     MatchCancelled,
     MatchFailed,
+    MatchExpired,
     MatchCorrected,
     DeliverySucceeded,
     DeliveryFailed,
@@ -59,7 +60,7 @@ pub enum Kind {
 }
 
 impl Kind {
-    pub const ALL: [Kind; 38] = [
+    pub const ALL: [Kind; 39] = [
         Self::LinkPending,
         Self::LinkCompleted,
         Self::LinkRemoved,
@@ -77,6 +78,7 @@ impl Kind {
         Self::MatchCompleted,
         Self::MatchCancelled,
         Self::MatchFailed,
+        Self::MatchExpired,
         Self::MatchCorrected,
         Self::DeliverySucceeded,
         Self::DeliveryFailed,
@@ -120,6 +122,7 @@ impl Kind {
             Self::MatchCompleted => "match.completed",
             Self::MatchCancelled => "match.cancelled",
             Self::MatchFailed => "match.failed",
+            Self::MatchExpired => "match.expired",
             Self::MatchCorrected => "match.corrected",
             Self::DeliverySucceeded => "provider.delivery.succeeded",
             Self::DeliveryFailed => "provider.delivery.failed",

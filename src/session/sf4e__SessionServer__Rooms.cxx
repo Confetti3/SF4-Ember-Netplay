@@ -72,6 +72,15 @@ bool SessionServer::CloseServerOwnedRoom() {
 	return true;
 }
 
+// Read once the Leave has committed: a candidate could still be discarded, and
+// RoomSnapshot is the committed view while one is open.
+bool SessionServer::ServerOwnedRoomLeftEmpty() const {
+	if (!_serverOwnedLeftEmpty || !_roomAuthority || !_roomAuthority->ServerOwned()) return false;
+	if (_recoveryCandidateReady || _recovery.PendingProposal()) return false;
+	const auto* snapshot = RoomSnapshot();
+	return snapshot && snapshot->members.empty() && !snapshot->closed;
+}
+
 std::vector<std::string> SessionServer::BannedAccounts() const {
 	if (!_roomAuthority) return {};
 	return _hasRecoveryProjection ? _recoveryBanned : _roomAuthority->KickedAccounts();

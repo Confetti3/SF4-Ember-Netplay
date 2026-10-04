@@ -1,5 +1,7 @@
 #pragma once
 #include "MenuNavigation.hxx"
+#include "MatchAnnouncements.hxx"
+#include "PublicRoomsSetup.hxx"
 #include "../netplay/IdentityRequest.hxx"
 #include "../netplay/IdentityView.hxx"
 #include "../netplay/TournamentStatus.hxx"
@@ -52,14 +54,28 @@ public:
     void Probe();
     // The panel is waiting for an answer from the helper.
     bool Waiting() const { return sent_ != 0 || !queue_.empty(); }
+    // Public rooms, in one press: reads the Ember ID, creates it when nothing must
+    // be typed, finds Ember's own service and trusts it. Where the setup stands is
+    // PublicSetup(); the player's screens say it, since this panel's own status
+    // line is silent off the Ember ID screens. The setup's requests are its own,
+    // and so are their answers (see Owner).
+    void SetUpPublicRooms(const ShellView& view);
+    PublicSetupView PublicSetup() const { return setup_.View(); }
+    // The setup's end (Done, NeedsId or Failed) has been shown.
+    void ClearPublicSetup() { setup_.Clear(); }
     // The row the matches screen should focus, once it is among `rows`.
     std::string TakeFocus(const std::vector<MenuEntry>& rows);
     // The Home entry's line: where to start, how many matches are ready to
     // play, or what the screens hold.
     std::string HomeDetail(const ShellView& view) const;
     // A playable match the player has not been told about yet: true once for
-    // each new one, except while the matches screen already shows them.
+    // each new one, except while the matches screen already shows them (see
+    // MatchAnnouncements, which remembers them across restarts).
     bool TakeAssigned(const ShellView& view);
+    // Where the matches told are kept; the platform store unless a test supplies its own.
+    using AnnouncedLoader = MatchAnnouncements::Loader;
+    using AnnouncedSaver = MatchAnnouncements::Saver;
+    void SetAnnouncedStore(AnnouncedLoader loader, AnnouncedSaver saver) { announced_.SetStore(std::move(loader), std::move(saver)); }
     // Every frame, before the rows: notes answers, sends the next request,
     // and wipes what the player typed once they leave these screens.
     void Update(const ShellView& view, const std::string& screen, const Submit& submit, double now);
@@ -79,14 +95,22 @@ public:
     void Hidden(const ShellView& view, const Submit& submit, double now);
     void Conceal() {
         if (attempt_ == Attempt::Setup || attempt_ == Attempt::Opening) CancelAttempt();
-        Wipe(); queue_.clear(); play_.reset(); onScreens_ = false; lastScreen_.clear();
+        Wipe(); queue_.clear(); play_.reset(); onScreens_ = false; lastScreen_.clear(); setup_.Stop();
     }
 private:
+    // Whose answer a request's is. The Ember ID screens, Connect Discord and
+    // Home's reads in the background are one flow, whose answer is handled for
+    // whichever of them is open when it comes (Finish). The one-press setup of
+    // public rooms owns its requests: only it moves on their answers, which no
+    // screen sees, and it sees no other answer (SetupFinish).
+    enum class Owner { Screens, PublicSetup };
     // A request waiting to be sent. A look-up's answer is a service the
     // player may trust, not the selected one's profile. Every request names
-    // the Connect Discord journey it was queued in: once a new journey
-    // starts, an earlier read (or Connect) is retired without effect, and an
-    // earlier change still finishes but leaves the new journey's requests.
+    // the run of its owner it was queued in: for the screens, the Connect
+    // Discord journey; once a new journey starts, an earlier read (or
+    // Connect) is retired without effect, and an earlier change still
+    // finishes but leaves the new journey's requests. For the setup, its own
+    // run, which a restart or hiding Ember retires.
     struct Queued {
         netplay::IdentityRequest request;
         bool lookUp = false;
@@ -94,11 +118,19 @@ private:
         // An inspection only to read this service's Discord account, which
         // leaves the selected service as it is.
         std::string account;
+        Owner owner = Owner::Screens;
     };
     bool Busy(const ShellView& view) const;
     bool Answered(const ShellView& view) const;
     void Finish(const ShellView& view);
+    // The answer to the setup's own request in flight.
+    void SetupFinish(const ShellView& view);
     void Queue(netplay::IdentityRequest request, bool lookUp = false, std::string account = {});
+    void QueueSetup(netplay::IdentityRequest request);
+    // A request of the setup's is waiting or out.
+    bool SetupPending() const;
+    // The match `id` in the selected service's list is one the player can play now.
+    bool CanPlay(const ShellView& view, const std::string& id) const;
     // The read in flight failed: its service's account is not trusted, and a
     // sign-in waiting on it pauses its polls.
     void ReadFailed();
@@ -152,6 +184,7 @@ private:
     std::string cancelBridge_;
     std::uint64_t nextTicket_ = 0, sent_ = 0;
     netplay::IdentityOp sentOp_ = netplay::IdentityOp::None;
+    Owner sentOwner_ = Owner::Screens;
     bool sentLookUp_ = false;
     std::string sentAccount_;
     // The Connect Discord journey, and the one the request in flight was
@@ -207,13 +240,14 @@ private:
     std::string previewPath_;
     // A service the player looked up and may now trust.
     netplay::IdentityBridge found_;
+    PublicRoomsSetup setup_;
     // Away from these screens, Home learns the Ember ID's state and the
     // services (again after a failure, quietly), then the matches every
     // minute: whether the services are known, when to read next, and the
     // matches told.
     bool servicesKnown_ = false;
     double backgroundAt_ = 0, assignmentsAt_ = 0;
-    std::vector<std::string> told_;
+    MatchAnnouncements announced_;
     // The assignment list is wanted for the selected service; a Play or Stop
     // waiting to be sent; and what the last refresh said, to report a failure once.
     bool wantAssignments_ = false, loadingAssignments_ = false;

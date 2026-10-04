@@ -279,6 +279,8 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 }
 }
 
+#include "ui_render_public_rooms.hxx"
+
 int main(int argc, char** argv) {
     SetUnhandledExceptionFilter(ReportCrash);
     try {
@@ -495,7 +497,8 @@ int main(int argc, char** argv) {
             matchStrip.links[0]=NetworkLink::Wired;matchStrip.links[1]=NetworkLink::Wireless;
             matchStrip.pingMs=68;matchStrip.rollbackFrames=2;matchStrip.appliedDelay=3;
             training::Command trainingCommand;
-            bool acceptTraining=false;
+            bool acceptTraining=false,answerTickets=false,holdIdentity=false;
+            std::uint64_t heldTicket=0;
             GameMenu recoveryMenu;recoveryMenu.navigation=RecoveryNavigation(false);
             platform::ServiceSnapshot recoveryState;bool recoveryUpdates=false;
             const auto draw=[&](const char* shot=nullptr,unsigned buttons=0,int settle=3){
@@ -507,10 +510,17 @@ int main(int argc, char** argv) {
                     if(mode==0)shell.Draw(view,&open,[&](ShellAction a){
                         // An identity request is answered at once, successfully.
                         if(a.identity.op!=netplay::IdentityOp::None){
+                            // Held: the helper has not answered, so a setup stays on its step until the shot answers by hand.
+                            if(holdIdentity){heldTicket=a.identity.ticket;return true;}
                             view.identityTicket=a.identity.ticket;view.identityRequest=view.identity.requestId=view.identityTicket+1000;
                             view.identity.ok=true;view.identity.failure.clear();return true;
                         }
                         if(a.command.kind==netplay::CommandKind::SavePreferences&&view.settingsError.empty())view.preferences=a.preferences;
+                        // A public room's ticket is answered with an admission to the room it asked for.
+                        if(answerTickets&&a.tournament.op==netplay::tournament::Command::Op::RoomTicket){
+                            view.publicRooms.answered=a.tournament.request;view.publicRooms.failure.clear();
+                            view.publicRooms.admission.room.id=a.tournament.roomId;
+                        }
                         return true;},[&]{selector.Draw(pick,true,art.get(),availability,&stage,view.canEditSelection,{},&stagePool);});
                     else if(mode==1)DrawTrainingFlyout(training,[&](training::Command c){trainingCommand=c;return acceptTraining;});
                     else if(mode==2)(void)DrawTrainingHud(training);
@@ -837,21 +847,8 @@ int main(int argc, char** argv) {
                 t=netplay::tournament::Status{};t.list.bridge=id.bridges[0].id;
                 page("tournament-matches");draw(nullptr,0,4);draw("tournament-matches-none");
                 id.state="disabled";page("linked-accounts");draw("linked-accounts-no-id");
-                // Public rooms: the list (one room with a match on, one named in
-                // kanji, one with the longest name), none, no Ember ID, and Create on Public.
-                id=netplay::IdentityView{};id.known=true;id.state="ready";id.fingerprint="j25zrhe6-pmdhvlja";
-                id.emberId="emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja";id.bridges={{"brg_00000000-0000-4000-8000-000000000001","https://bridge.example","Example"}};
-                auto& publicRooms=view.publicRooms;publicRooms=netplay::publicrooms::Status{};
-                publicRooms.bridge=id.bridges[0].id;publicRooms.listed=1;
-                const auto listed=[](const char* roomId,std::string name,unsigned members,unsigned capacity,unsigned playing){
-                    netplay::publicrooms::Room room;room.id=roomId;room.name=std::move(name);room.members=members;room.capacity=capacity;room.playing=playing;room.region="use1";return room;};
-                publicRooms.rooms={listed("a","Friday Night Fights",3,8,0),listed("b","金曜ルーム",2,4,1),
-                    listed("c",std::string(64,'W'),16,16,2)};
-                page("public-rooms");draw(nullptr,0,8);draw("public-rooms");
-                Require(shell.Navigation().Screen()=="public-rooms","Public rooms did not open");
-                publicRooms.rooms.clear();page("public-rooms");draw(nullptr,0,8);draw("public-rooms-none");
-                id.state="disabled";id.bridges.clear();page("public-rooms");draw(nullptr,0,8);draw("public-rooms-no-id");
-                id.state="ready";id.bridges={{"brg_00000000-0000-4000-8000-000000000001","https://bridge.example","Example"}};
+                // Public rooms: the list, the card states, the setup cards and the room link (ui_render_public_rooms.hxx).
+                ShootPublicRooms(shell,view,draw,page,[&]{if(ApplyTheme(size.dpi))ImGui_ImplDX9_InvalidateDeviceObjects();},answerTickets,holdIdentity,heldTicket);
                 view.preferences.roomPublic=true;view.preferences.roomName="Open Mic";shell.Navigation().Home();draw(nullptr,0,4);
                 page("create");draw(nullptr,0,8);draw("create-public");
                 view.preferences.roomPublic=false;view.preferences.roomName="Private room";shell.Navigation().Home();draw(nullptr,0,4);

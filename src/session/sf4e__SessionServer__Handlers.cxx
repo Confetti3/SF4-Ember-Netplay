@@ -209,6 +209,7 @@ void SessionServer::HandleRoomAction(session::Connection conn, const json& msg, 
 	if (result.accepted && actionMessage.action.kind == room::ActionKind::Leave) {
 		const auto leavingConnection = conn;
 		const auto leavingMember = roomMember->second;
+		_serverOwnedLeftEmpty = _roomAuthority->ServerOwned() && _roomAuthority->SnapshotView().members.empty();
 		roomPeerIdentities.erase(leavingMember);
 		roomIncarnations.erase(leavingMember);
 		roomSelectedTables.erase(conn);

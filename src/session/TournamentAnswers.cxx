@@ -40,6 +40,13 @@ std::uint64_t Seconds(const json& object, const char* key) {
 	return value.get<std::uint64_t>();
 }
 
+// A time the bridge may or may not send: absent or not an unsigned number is 0
+// (unknown), so a newer or older bridge never costs the player a row.
+std::uint64_t OptionalSeconds(const json& object, const char* key) {
+	const auto found = object.find(key);
+	return found != object.end() && found->is_number_unsigned() ? found->get<std::uint64_t>() : 0;
+}
+
 bool IsHex(const std::string& text, std::size_t length) {
 	return text.size() == length && std::all_of(text.begin(), text.end(),
 		[](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); });
@@ -58,6 +65,72 @@ std::string SingleLine(std::string text) {
 	return text;
 }
 
+// Unicode White_Space the bridge's own trim removes, as it appears in UTF-8:
+// the ASCII ones and U+00A0, U+3000.
+bool IsPad(const std::string& text, std::size_t at, std::size_t& length) {
+	const auto byte = [&](std::size_t i) { return static_cast<unsigned char>(text[i]); };
+	if (byte(at) == ' ') { length = 1; return true; }
+	if (at + 1 < text.size() && byte(at) == 0xC2 && byte(at + 1) == 0xA0) { length = 2; return true; }
+	if (at + 2 < text.size() && byte(at) == 0xE3 && byte(at + 1) == 0x80 && byte(at + 2) == 0x80) { length = 3; return true; }
+	return false;
+}
+
+// A moderator's name is another player's text: one line, trimmed, and cut to
+// MaxHostNameBytes on a character boundary.
+std::string HostName(std::string text) {
+	text = SingleLine(std::move(text));
+	std::size_t length = 0, start = 0;
+	while (start < text.size() && IsPad(text, start, length)) start += length;
+	text.erase(0, start);
+	if (text.size() > netplay::publicrooms::MaxHostNameBytes) {
+		std::size_t cut = netplay::publicrooms::MaxHostNameBytes;
+		while (cut > 0 && (static_cast<unsigned char>(text[cut]) & 0xC0) == 0x80) --cut;
+		text.erase(cut);
+	}
+	for (bool trimmed = true; trimmed && !text.empty();) {
+		trimmed = false;
+		if (text.back() == ' ') { text.pop_back(); trimmed = true; }
+		else if (text.size() >= 2 && static_cast<unsigned char>(text[text.size() - 2]) == 0xC2 && static_cast<unsigned char>(text.back()) == 0xA0) { text.resize(text.size() - 2); trimmed = true; }
+		else if (text.size() >= 3 && static_cast<unsigned char>(text[text.size() - 3]) == 0xE3 && static_cast<unsigned char>(text[text.size() - 2]) == 0x80 && static_cast<unsigned char>(text.back()) == 0x80) { text.resize(text.size() - 3); trimmed = true; }
+	}
+	return text;
+}
+
+// The optional details of a RoomSummary. Each field stands alone: one that is
+// missing, of the wrong type or out of range is ignored and the row still
+// decodes, so a newer bridge's details never cost a player the list.
+void DecodeDetails(const json& view, Room& room) {
+	if (const auto found = view.find("host_name"); found != view.end() && found->is_string()) {
+		room.hostName = HostName(found->get<std::string>());
+		room.hasDetails = true;
+	}
+	if (const auto found = view.find("locked"); found != view.end() && found->is_boolean()) {
+		room.locked = found->get<bool>();
+		room.hasDetails = true;
+	}
+	if (const auto found = view.find("fighters"); found != view.end() && found->is_array() &&
+		found->size() <= netplay::publicrooms::MaxRoomFighters && found->size() <= room.members) {
+		// The bridge's 255 is no fighter; ids it validates are below 64.
+		std::vector<int> faces;
+		for (const auto& item : *found) {
+			if (!item.is_number_unsigned()) { faces.clear(); break; }
+			const auto id = item.get<std::uint64_t>();
+			if (id == 255) faces.push_back(-1);
+			else if (id < 64) faces.push_back(static_cast<int>(id));
+			else { faces.clear(); break; }
+		}
+		if (faces.size() == found->size()) { room.fighters = std::move(faces); room.hasDetails = true; }
+	}
+	if (const auto found = view.find("set_format"); found != view.end() && found->is_number_unsigned()) {
+		const auto value = found->get<std::uint64_t>();
+		if (value <= 3 || value == 5) { room.setFormat = static_cast<int>(value); room.hasDetails = true; }
+	}
+	if (const auto found = view.find("rotation"); found != view.end() && found->is_number_unsigned() && found->get<std::uint64_t>() <= 2) {
+		room.rotation = static_cast<int>(found->get<std::uint64_t>());
+		room.hasDetails = true;
+	}
+}
+
 Room DecodeRoom(const json& view) {
 	Room room;
 	room.id = Text(view, "room_id", 32);
@@ -66,7 +139,9 @@ Room DecodeRoom(const json& view) {
 	room.members = Small(view, "members", 16);
 	room.capacity = Small(view, "capacity", 16);
 	room.playing = Small(view, "tables_playing", 255);
+	room.createdAt = Seconds(view, "created_at");
 	if (!IsHex(room.id, 32) || room.name.empty() || room.capacity < 2 || room.members > room.capacity) throw std::invalid_argument("room");
+	DecodeDetails(view, room);
 	return room;
 }
 
@@ -180,6 +255,8 @@ std::optional<std::vector<Assignment>> DecodeAssignments(const nlohmann::json& d
 			item.provider = OptionalText(row, "provider", 64);
 			item.roundLabel = OptionalText(row, "round_label", 128);
 			item.profile = OptionalText(row, "native_rules_profile", 64);
+			item.createdAt = OptionalSeconds(row, "created_at");
+			item.expiresAt = OptionalSeconds(row, "expires_at");
 			const auto& slot = row.at("slot");
 			if (!slot.is_number_unsigned() || slot.get<std::uint64_t>() > 1) return std::nullopt;
 			item.slot = static_cast<int>(slot.get<std::uint64_t>());
@@ -206,13 +283,16 @@ std::optional<std::vector<Assignment>> DecodeAssignments(const nlohmann::json& d
 	}
 }
 
-std::optional<std::vector<Room>> DecodeRoomList(const nlohmann::json& data) {
+std::optional<netplay::publicrooms::RoomList> DecodeRoomList(const nlohmann::json& data) {
 	try {
 		const auto& rows = data.at("rooms");
 		if (!rows.is_array() || rows.size() > netplay::publicrooms::MaxRooms) return std::nullopt;
-		std::vector<Room> rooms;
-		for (const auto& row : rows) rooms.push_back(DecodeRoom(row));
-		return rooms;
+		netplay::publicrooms::RoomList list;
+		for (const auto& row : rows) list.rooms.push_back(DecodeRoom(row));
+		// The bridge's clock, only from a bridge that sends details; an invalid one is ignored.
+		if (const auto found = data.find("listed_at"); found != data.end() && found->is_number_unsigned())
+			list.listedAt = found->get<std::uint64_t>();
+		return list;
 	} catch (const std::exception&) {
 		return std::nullopt;
 	}

@@ -14,7 +14,10 @@
 //! restart a cancelled match, once BluMint's API key for the connection is
 //! configured. A match whose result the two games disputed is cancelled where
 //! it would wait for review (`matches::needs_review`), since BluMint has no
-//! organizer review; a restart is its way to replay. `register` tells BluMint
+//! organizer review; a restart is its way to replay. A match nobody played
+//! expires (`expiry::expire_stale`) and is sent nothing: BluMint's result
+//! format cannot say it, and a restart would be a request it never made; its
+//! status reads `cancelled`. `register` tells BluMint
 //! where the three endpoints are.
 use std::collections::BTreeMap;
 
@@ -222,7 +225,7 @@ fn active(
              JOIN match_participants b
                ON b.match_id = m.id AND b.assignment_generation = m.assignment_generation AND b.slot = 1
              WHERE m.connection_id = ?1 AND a.ember_id = ?2 AND b.ember_id = ?3 AND m.games_to_win = ?4
-               AND m.state NOT IN ('completed', 'cancelled', 'failed')",
+               AND m.state NOT IN ('completed', 'cancelled', 'failed', 'expired')",
             params![connection_id, players[0].as_str(), players[1].as_str(), games_to_win],
             |row| row.get(0),
         )
@@ -289,7 +292,9 @@ pub fn match_status(state: MatchState) -> &'static str {
         Created | AwaitingPlayers | Provisioning | Ready => "pending",
         Running | BetweenGames | AwaitingReports | NeedsReview => "running",
         Completed => "complete",
-        Cancelled | Failed => "cancelled",
+        // BluMint has no word for a match nobody played; "cancelled" is its
+        // only ended-without-a-result status. It is never sent a restart.
+        Cancelled | Failed | Expired => "cancelled",
     }
 }
 
@@ -319,6 +324,10 @@ pub fn submission(tx: &Transaction<'_>, found: &Match) -> Result<Option<Value>> 
         MatchState::Cancelled | MatchState::Failed => {
             Some(json!({ "matchId": found.id, "mustRestart": true }))
         }
+        // Nothing BluMint accepts says "not played", and a restart would
+        // start a match nobody asked for; it is told through its status
+        // (`match_status`) only.
+        MatchState::Expired => None,
         _ => None,
     })
 }
@@ -415,6 +424,7 @@ mod tests {
             (Completed, "complete"),
             (Cancelled, "cancelled"),
             (Failed, "cancelled"),
+            (Expired, "cancelled"),
         ];
         for (state, status) in table {
             assert_eq!(match_status(state), status, "{state:?}");

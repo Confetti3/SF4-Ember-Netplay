@@ -127,9 +127,14 @@ int main() {
 		if (spent < TickMs) std::this_thread::sleep_for(std::chrono::milliseconds(TickMs - spent));
 	}
 
-	// The supervisor closed stdin, or the model closed the room: finish the
-	// close, stop the helper, exit 0.
-	spdlog::info(host.Closing() ? "Room host: room closed by the model; leaving" : "Room host: stdin closed; closing the room");
+	// The supervisor closed stdin, or the room ended on its own: finish the
+	// close, stop the helper, exit 0. A room that ended on its own says closed
+	// first, so the supervisor stops listing it now rather than at exit; that
+	// closes stdin and starts the same 10 s allowance as above.
+	if (host.Closing() && !input.ended) {
+		spdlog::info("Room host: room ended ({}); leaving", host.CloseReason());
+		Emit(roomhost::ClosedLine(host.CloseReason()));
+	} else spdlog::info("Room host: stdin closed; closing the room");
 	host.BeginClose(NowMs());
 	while (!host.CloseDelivered(NowMs()) && host.Tick(NowMs())) std::this_thread::sleep_for(std::chrono::milliseconds(5));
 	host.Leave();

@@ -38,6 +38,11 @@ test("a result parses, and a malformed one is refused", () => {
   // A restart has no winner.
   const { winner_participant_id: _winner, ...rest } = sample();
   assert.equal(parseResult(JSON.stringify({ ...rest, outcome: "restart" })).winner_participant_id, undefined);
+  // So does one nobody played before it expired, which is not a restart.
+  const expired = parseResult(JSON.stringify({ ...rest, outcome: "expired" }));
+  assert.equal(expired.outcome, "expired");
+  assert.equal(expired.winner_participant_id, undefined);
+  assert.throws(() => parseResult(JSON.stringify({ ...sample(), outcome: "expired" })), ResultError);
 
   // The outcome narrows the result: a completed one has its winner as a string.
   const narrowed = parseResult(JSON.stringify(sample()));

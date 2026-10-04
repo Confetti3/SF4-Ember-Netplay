@@ -46,7 +46,20 @@ pub struct Config {
     /// machine. Off when absent.
     #[serde(default)]
     pub rooms: Option<Rooms>,
+    /// Hours a match nobody plays stays open, counted from its creation, within
+    /// `MIN_MATCH_EXPIRY_HOURS` to `MAX_MATCH_EXPIRY_HOURS`. Lobby and
+    /// tournament sets never expire this way.
+    #[serde(default = "default_match_expiry_hours")]
+    pub match_expiry_hours: u64,
     pub tenants: Vec<Tenant>,
+}
+
+pub const DEFAULT_MATCH_EXPIRY_HOURS: u64 = 24;
+pub const MIN_MATCH_EXPIRY_HOURS: u64 = 1;
+pub const MAX_MATCH_EXPIRY_HOURS: u64 = 14 * 24;
+
+fn default_match_expiry_hours() -> u64 {
+    DEFAULT_MATCH_EXPIRY_HOURS
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -219,6 +232,9 @@ pub struct Policy {
     /// connection restarts disputes: it is cancelled instead, which the
     /// platform hears as a restart.
     pub reviews_disputes: bool,
+    /// The platform's result format has no way to say a match expired unplayed
+    /// (BluMint's takes a score or a restart), so it is sent nothing for one.
+    pub silent_expiry: bool,
 }
 
 impl Policy {
@@ -226,6 +242,7 @@ impl Policy {
         Self {
             own_api_only: kind == BLUMINT,
             reviews_disputes: disputes == Disputes::Review,
+            silent_expiry: kind == BLUMINT,
         }
     }
 }
@@ -248,6 +265,11 @@ impl Config {
         }
         config.validate()?;
         Ok(config)
+    }
+
+    /// How long a match nobody plays stays open, in seconds.
+    pub fn match_expiry_secs(&self) -> u64 {
+        self.match_expiry_hours * 3600
     }
 
     pub fn policy(&self) -> OriginPolicy {
@@ -285,6 +307,11 @@ impl Config {
             if self.integration_secrets.is_none() {
                 return Err("rooms needs integration_secrets for the supervisor secret".into());
             }
+        }
+        if !(MIN_MATCH_EXPIRY_HOURS..=MAX_MATCH_EXPIRY_HOURS).contains(&self.match_expiry_hours) {
+            return Err(format!(
+                "match_expiry_hours must be {MIN_MATCH_EXPIRY_HOURS} to {MAX_MATCH_EXPIRY_HOURS}"
+            ));
         }
         let mut seen = std::collections::BTreeSet::new();
         for tenant in &self.tenants {

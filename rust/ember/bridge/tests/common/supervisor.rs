@@ -149,6 +149,18 @@ pub fn report(fake: &Supervisor, room_id: &str, members: u32, tables: u32, banne
     room["banned"] = json!(banned);
 }
 
+/// What the stand-in reports as the room host's `details` for `room_id`, as
+/// the supervisor would pass it on: any JSON value.
+pub fn report_details(fake: &Supervisor, room_id: &str, details: Json) {
+    let mut fake = fake.lock().unwrap();
+    let room = fake
+        .rooms
+        .iter_mut()
+        .find(|room| room["room_id"] == room_id)
+        .expect("the supervisor hosts the room");
+    room["details"] = details;
+}
+
 /// The integration secrets of a bridge whose supervisor is this one.
 pub fn secrets() -> Secrets {
     Secrets {

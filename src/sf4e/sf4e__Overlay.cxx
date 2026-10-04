@@ -21,6 +21,7 @@
 #include <imgui_impl_dx9.h>
 #include <imgui_impl_win32.h>
 #include <spdlog/spdlog.h>
+#include <ctime>
 #include <memory>
 #include <atomic>
 
@@ -64,7 +65,7 @@ bool Overlay::HasInputFocus() { return focused.load(); }
 void Overlay::RequestMainControls() { if(focused) { capture=true; s_openRequests.Post(sf4e::ui::OpenRequests::Kind::Controls); } }
 void Overlay::PushNetplayAlert(const char* message) { if (message) sf4e::NetplayFacade::SetLastError(message); }
 void Overlay::OnClientError(SessionClient::ErrorType type, SessionClient* const, const SessionClient::Callbacks&) {
-    PushNetplayAlert(sf4e::loc::T(SessionClient::JoinRejectionKey(type)));
+    PushNetplayAlert(sf4e::loc::T(sf4e::NetplayFacade::IsRuntimePublicJoin() ? SessionClient::PublicJoinRejectionKey(type) : SessionClient::JoinRejectionKey(type)));
 }
 // Game thread: the native menu's Network item opens the room shell instead.
 static int OnMainMenuModeSelected(int mode) {
@@ -206,6 +207,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.error = snapshot.helperError;
 	view.settingsError = snapshot.settingsError;
 	view.languagePreference = snapshot.languagePreference;
+	view.unixNow = static_cast<std::uint64_t>(std::time(nullptr));
 	// Both read their file once; the card's own outcome decides whether to ask.
 	static const bool showGameSettingsCard = !sf4e::platform::GameSettingsCardHidden();
 	view.gameSettings = sf4e::platform::GameDisplaySettings();

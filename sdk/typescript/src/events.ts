@@ -19,6 +19,7 @@ export const EVENT_TYPES = [
   "match.completed",
   "match.cancelled",
   "match.failed",
+  "match.expired",
   "match.corrected",
   "provider.delivery.succeeded",
   "provider.delivery.failed",

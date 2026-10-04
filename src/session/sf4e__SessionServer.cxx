@@ -232,6 +232,8 @@ int SessionServer::Step()
 				if (leave.accepted) {
 					// A rejected Leave keeps the member on the roster, which still reads its incarnation.
 					roomIncarnations.erase(departedMember);
+					// A dropped member may come back: this departure keeps the room's grace.
+					_serverOwnedLeftEmpty = false;
 					departureEvents.insert(departureEvents.end(), leave.events.begin(), leave.events.end());
 					// A departed locked-in spectator can release a held start.
 					const auto started = StartReadyTables(leave.events);

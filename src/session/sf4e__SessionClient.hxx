@@ -58,6 +58,8 @@ namespace sf4e {
 		std::optional<ErrorType> JoinRejection() const { return _joinRejection; }
 		// Catalog key for the player-facing reason a host refused a join.
 		static const char* JoinRejectionKey(ErrorType type);
+		// The same for a join of a public room, whose host's refusals read differently.
+		static const char* PublicJoinRejectionKey(ErrorType type);
 		void RequireMatchAuthorization() { _matchAuthorizationRequired = true; }
 		bool TakeGameplayMessage(nlohmann::json& message);
 		void SetGameplayGeneration(std::uint64_t generation) { _gameplayGeneration = generation; }

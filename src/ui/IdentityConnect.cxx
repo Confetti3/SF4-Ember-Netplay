@@ -24,11 +24,7 @@ void IdentityPanel::OpenDiscord(const std::string& bridge, bool automatic) {
     lastScreen_.clear();
 }
 
-const netplay::IdentityBridge* IdentityPanel::EmberBridge(const ShellView& v) const {
-    const auto it = std::find_if(v.identity.bridges.begin(), v.identity.bridges.end(),
-        [](const netplay::IdentityBridge& bridge) { return bridge.origin == EmberService; });
-    return it == v.identity.bridges.end() ? nullptr : &*it;
-}
+const netplay::IdentityBridge* IdentityPanel::EmberBridge(const ShellView& v) const { return FindOrigin(v, EmberService); }
 
 const netplay::IdentityBridge* IdentityPanel::ConnectTarget(const ShellView& v) const {
     return connectBridge_.empty() ? EmberBridge(v) : FindBridge(v, connectBridge_);
@@ -71,8 +67,9 @@ void IdentityPanel::CancelAttempt() {
         return q.journey == journey_ && q.request.op == IdentityOp::DiscordConnect;
     });
     const bool asked = attempt_ == Attempt::Waiting || (attempt_ == Attempt::Opening && !queued);
+    // The public rooms setup's own requests are not the attempt's to stop.
     queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [&](const Queued& q) {
-        return q.journey == journey_ && (q.request.op == IdentityOp::Enable || q.request.op == IdentityOp::BridgeApprove ||
+        return q.owner == Owner::Screens && q.journey == journey_ && (q.request.op == IdentityOp::Enable || q.request.op == IdentityOp::BridgeApprove ||
             q.request.op == IdentityOp::DiscordConnect);
     }), queue_.end());
     if (asked && !discordWaitBridge_.empty()) cancelBridge_ = discordWaitBridge_;

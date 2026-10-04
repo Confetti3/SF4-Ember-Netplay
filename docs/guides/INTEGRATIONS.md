@@ -66,6 +66,10 @@ and `allow_private_webhooks` for local work. A deployed bridge uses an
 `rust/ember/bridge/deploy` holds the staging deployment: a systemd unit, an
 nginx site, a daily backup and `setup.sh`.
 
+`bridge.json` also takes `match_expiry_hours`, how long a match nobody plays
+stays open (24 when absent; 1 to 336, which is 14 days). See "Matches nobody
+plays" below.
+
 ## Link a player
 
 1. Your service, having verified who the user is, creates a link intent:
@@ -116,6 +120,47 @@ end to end against any bridge.
 Every write names the revision it expects, as the decimal string the match
 shows, so two people acting at once cannot both win.
 
+### Matches nobody plays
+
+A match does not wait forever. Its `created_at` and `expires_at` (unix
+seconds) are on `GET /v1/matches/{id}` and in the players' assignments, and
+`expires_at` is the match's current deadline: `match_expiry_hours` after
+creation, a day unless the operator changed it, and again that long after each
+game that starts or is decided. A provider cannot choose it per match yet.
+
+Once `expires_at` has passed, the bridge's maintenance pass (every ten
+seconds) moves the match to the terminal state `expired`, frees its players,
+and writes `match.expired` (`state`, `reason: "not_played"`, `expires_at`,
+`match_revision`). `expired` is not `cancelled`: nothing called the match off,
+and it is not a request to play it again. Whether to schedule it again is your
+decision. Ember never creates a replacement.
+
+A match is only expired when nothing is happening in it:
+
+- no game is open (started and waiting for its reports) and no player's game
+  holds the room's provisioning lease;
+- a match with games recorded, such as a set at 1-0 that the players left,
+  expires only after a whole lifetime with no game started or decided (a game
+  started, or settled by agreeing reports, an organizer's result, a voided game
+  or a correction), so `expires_at` moves to a full lifetime after each of those
+  and a set being played is never cut off, even when an organizer decides a
+  held game after the old deadline;
+- a match waiting for an organizer in `needs_review` never expires, since a
+  person owns it;
+- lobby and tournament sets never expire (their `expires_at` is null); they
+  end with their lobby or bracket.
+
+An expired match cannot be cancelled or adjudicated, and it stays in the
+players' assignments, as `expired`, for a day after it expired. Matches that
+were still open when this was added got a day from the later of their creation
+and their last update, so old stale ones expired the first time the bridge ran
+its maintenance.
+
+A platform with a `results_url` is sent the result with outcome `expired`
+(no winner; scores are what was recorded), never `restart`. BluMint is sent
+nothing for an expired match, because its result format has only a score or a
+restart; its status call answers `cancelled`.
+
 ## Matches played in Ember
 
 With `native_rules_profile: "ember-room-v1"` the players play the set in Ember
@@ -153,7 +198,8 @@ The answer to `POST /v1/matches`, and `GET /v1/matches/{id}`, carry the
 match's `play_url`: `https://embernetplay.link/m#<bridge id>/<match id>`. It is
 the same for both players and safe to put in messages: only the match's two
 assigned Ember IDs can claim the match, and anyone else's Ember finds no such
-match in their list. It does not expire, so you can store it.
+match in their list. The link itself does not expire, so you can store it;
+the match it opens does if nobody plays it (see "Matches nobody plays").
 
 The page asks the player to choose Open in Ember, which hands Ember
 `ember://tournament/open?bridge=...&match=...`. Below that it shows how to get
@@ -223,12 +269,15 @@ the connection's provider credential as `Authorization: Bearer`:
   one and answers `matchId` and the match's `play_url` as `matchUrl`.
 - `GET` (or `POST`) `/v1/blumint/matches/status?matchId=` maps the match to
   `pending`, `running`, `complete` or `cancelled`, with each player's presence
-  and score.
+  and score. A match nobody played before it expired reads `cancelled`.
 
 The bridge posts each completed match's score to BluMint, and `mustRestart`
 for a cancelled match. BluMint has no review step, so a match that would go
 to `needs_review` (the two games disagree, a report never arrives, a player's
-link ends) is cancelled instead. Posts need BluMint's API key for the
+link ends) is cancelled instead. A match nobody plays expires after a day and
+is sent nothing: BluMint's result format has no way to say "not played", and
+`mustRestart` would ask it to restart a match it may have meant to drop.
+Posts need BluMint's API key for the
 connection in the integration secrets; a match that ends before the key is
 there is posted once it is. Posts are retried for a day; the match's
 `provider_delivery_state` says how it went. BluMint takes one result per
@@ -273,7 +322,8 @@ this, can run their own bridge and room supervisor. The contract is
   first time it is seen and never changes; use a new connection to change it.
 - `results_url`: each finished match is POSTed there as
   `io.ember.tournament.match.result.v1` (outcome `completed` with the scores
-  and winner, or `restart`), signed exactly like a webhook with the
+  and winner, `restart` for a cancelled match, or `expired` for a match nobody
+  played, which is not a request to restart), signed exactly like a webhook with the
   connection's result secret, `webhook-id` `res_<match id>`. `ember-bridge
   result-secret` makes a secret, which the operator gives the platform and
   stores with `set-integration-secret.sh result <connection-id>`. Answer 2xx
@@ -488,7 +538,8 @@ and answer with its link. Configure it with a JSON file:
 nothing is posted to a channel and only `/room` is served.
 
 Subscribe it to `match.created`, `match.score.changed`, `match.completed`,
-`match.cancelled`, `match.needs_review` and `match.corrected`, for lobbies
+`match.cancelled`, `match.expired` (announced as "Match expired, not played."),
+`match.needs_review` and `match.corrected`, for lobbies
 `lobby.created`, `lobby.set.completed` and `lobby.closed`, for tournaments
 `tournament.created`, `tournament.started`, `tournament.match.completed`,
 `tournament.completed` and `tournament.cancelled`, and for rooms a connection

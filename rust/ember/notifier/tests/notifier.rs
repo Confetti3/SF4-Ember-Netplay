@@ -105,6 +105,36 @@ fn lobby_event(kind: &str, data: Value) -> Event {
 }
 
 #[test]
+fn announces_a_match_nobody_played_as_expired() {
+    let fixture: Value =
+        serde_json::from_slice(&std::fs::read(examples().join("webhook-fixture.json")).unwrap())
+            .unwrap();
+    let dir = temp("expired");
+    let notifier = Notifier::new(
+        Config {
+            listen: "127.0.0.1:0".into(),
+            bridge_origin: "https://bridge.ember.example".into(),
+            secrets: vec![fixture["secret_base64"].as_str().unwrap().into()],
+            database: dir.join("inbox.sqlite3"),
+            discord: None,
+            twitch: None,
+            bot: None,
+            names: Default::default(),
+        },
+        Clock::default(),
+    )
+    .unwrap();
+    let expired = notifier
+        .render(&lobby_event(
+            "match.expired",
+            json!({ "match_id": "emt_1", "state": "expired", "reason": "not_played" }),
+        ))
+        .unwrap();
+    assert_eq!(expired.text, "Match expired, not played.");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn announces_lobby_rotations() {
     let fixture: Value =
         serde_json::from_slice(&std::fs::read(examples().join("webhook-fixture.json")).unwrap())
@@ -289,6 +319,7 @@ async fn announces_a_set_on_discord_and_twitch() {
         discord: None,
         integration_secrets: None,
         rooms: None,
+        match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
         tenants: vec![config::Tenant {
             id: "local".into(),
             name: "Local".into(),

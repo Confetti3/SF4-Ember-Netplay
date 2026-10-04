@@ -215,10 +215,19 @@ bool ApplyTheme(float dpiScale) {
             // extra density is for the scaled match strip; CJK glyphs take it
             // only up to 2x so a Japanese atlas stays a fraction of the size.
             merged.OversampleH = merged.OversampleV = 1;
-            merged.RasterizerDensity = (std::min)(config.RasterizerDensity, (std::max)(2.f, dpiScale));
-            std::snprintf(merged.Name, sizeof(merged.Name), "Noto Sans CJK %.0fpx", sizes[i]*dpiScale);
+            // Noto Sans CJK sets more line space per em than Inter, so at Inter's
+            // size its glyphs look small beside Latin text. Matching the line
+            // span (capped, so one odd font cannot balloon the atlas) sizes both
+            // scripts alike, with no vertical shift between them.
             const auto& source = fonts::ScriptFonts[font];
-            io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(source.data), static_cast<int>(source.bytes), sizes[i], &merged);
+            const float interSpan = FontLineSpanEm(data, static_cast<std::size_t>(bytes));
+            const float cjkSpan = FontLineSpanEm(source.data, source.bytes);
+            const float fit = interSpan > 0 && cjkSpan > 0 ? (std::max)(1.f, (std::min)(cjkSpan / interSpan, 1.3f)) : 1.f;
+            const float mergedSize = sizes[i] * fit;
+            merged.GlyphOffset.y = 0;
+            merged.RasterizerDensity = (std::min)(config.RasterizerDensity, (std::max)(2.f, dpiScale));
+            std::snprintf(merged.Name, sizeof(merged.Name), "Noto Sans CJK %.0fpx", mergedSize*dpiScale);
+            io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(source.data), static_cast<int>(source.bytes), mergedSize, &merged);
         }
     }
     io.FontGlobalScale = dpiScale;

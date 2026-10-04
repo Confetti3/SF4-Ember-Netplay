@@ -79,6 +79,36 @@ void IdentityJourneys() {
  Check(h.row("tm-play:emt_1")&&h.row("tm-play:emt_1")->enabled&&h.row("tm-play:emt_1")->value==loc::Tf("tournament.score",1u,2u,3),
   "A playable match does not show its score from the player's side");
  Check(h.row("tm-play:emt_2")&&!h.row("tm-play:emt_2")->enabled,"A match the organizer enters can be played");
+ // A match that expired shows as information, by the bridge's word or by this PC's clock, and cannot be played.
+ {
+  h.view.unixNow=5000;
+  auto expired=playable;expired.matchId="emt_3";expired.state="expired";expired.expiresAt=100;
+  auto lapsed=playable;lapsed.matchId="emt_4";lapsed.expiresAt=4000;
+  auto skewed=playable;skewed.matchId="emt_5";skewed.expiresAt=4800;
+  t.list.items={playable,organizer,expired,lapsed,skewed};h.Frame();
+  for(const char* id:{"tm-play:emt_3","tm-play:emt_4"}){
+   Check(h.row(id)&&h.row(id)->info&&!h.row(id)->enabled,"An expired match can be played");
+   Check(h.row(id)->value==loc::T("tournament.expired")&&h.row(id)->detail.find(loc::T("tournament.expired_detail"))!=std::string::npos,"An expired match is not labelled Expired");
+  }
+  Check(h.row("tm-play:emt_5")->enabled&&h.row("tm-play:emt_5")->value!=loc::T("tournament.expired"),"A match within the clock skew was taken for expired");
+  Check(h.row("tm-play:emt_1")->enabled,"A match with no expiry cannot be played");
+  // Running, awaiting reports, in review, or a state Ember does not know: the bridge's
+  // state stands, with no Play, and past the match's time too, which the bridge holds it beyond.
+  std::vector<netplay::tournament::Assignment> busy;
+  for(const char* state:{"running","awaiting_reports","needs_review","created"})
+   for(const std::uint64_t expires:{std::uint64_t(0),std::uint64_t(4000)}){
+    auto m=playable;m.matchId="emt_"+std::string(state)+std::to_string(expires);m.state=state;m.expiresAt=expires;busy.push_back(m);
+   }
+  t.list.items=busy;h.Frame();
+  for(const auto& m:busy){
+   const auto* row=h.row(("tm-play:"+m.matchId).c_str());
+   Check(row&&row->info&&!row->enabled,"A match running or in review can be played");
+   Check(row->value==loc::Tf("tournament.score",1u,2u,3)&&row->detail.find(loc::T("tournament.state.waiting_permit"))!=std::string::npos,
+    "A match running or in review does not show its score and that it waits for the service");
+   Check(row->detail.find(loc::T("tournament.expired_detail"))==std::string::npos,"A match the bridge holds past its time is labelled Expired");
+  }
+  t.list.items={playable,organizer};h.view.unixNow=0;h.Frame();
+ }
  h.Choose("tm-play:emt_1");h.Frame();
  Check(h.played().back()->op==Command::Op::Play&&h.played().back()->matchId=="emt_1"&&h.played().back()->bridgeId=="brg_1",
   "Play did not name its match and service");
@@ -127,6 +157,32 @@ void IdentityJourneys() {
   "A match link moved a player who is in a room");
  h.view.session.room=netplay::RoomState::Idle;
 }
+}
+// Play looks at the match again when pressed: a row older than the list, for a
+// match no longer waiting for its players, past its time or gone, or pressed while
+// the player is in a room, sends nothing; a match that can be played sends Play.
+void PlayRechecks(){
+ using namespace sf4e;using netplay::tournament::Command;
+ IdentityPanel panel;ShellView v;MenuNavigation nav;std::vector<ShellAction> sent;double now=0;
+ const auto submit=[&](ShellAction a){sent.push_back(std::move(a));return true;};
+ v.identity.known=true;v.identity.state="ready";v.identity.bridges={{"brg_1","https://bridge.example","Example"}};v.unixNow=5000;
+ panel.OpenMatch("brg_1","emt_1");
+ netplay::tournament::Assignment match;match.matchId="emt_1";match.profile="ember-room-v1";match.gamesToWin=2;
+ v.tournament.list.bridge="brg_1";
+ const auto press=[&](const char* state,std::uint64_t expires,bool listed){
+  match.state=state;match.expiresAt=expires;v.tournament.list.items.clear();if(listed)v.tournament.list.items.push_back(match);
+  MenuAction a;a.kind=MenuAction::Activate;a.id="tm-play:emt_1";panel.Activate(a,v,nav);
+  sent.clear();panel.Update(v,"tournament-matches",submit,now+=1);
+  return std::any_of(sent.begin(),sent.end(),[](const ShellAction& s){return s.tournament.op==Command::Op::Play;});
+ };
+ for(const char* state:{"running","awaiting_reports","needs_review","created","expired","completed"})
+  Check(!press(state,0,true),"Play went out for a match that is not waiting for its players");
+ Check(!press("running",4000,true),"Play went out for a match the bridge holds past its time");
+ Check(!press("ready",4000,true),"Play went out for a match past its time");
+ Check(!press("ready",0,false),"Play went out for a match the list no longer holds");
+ v.session.room=netplay::RoomState::Joined;Check(!press("ready",0,true),"Play went out while the player is in a room");
+ v.session.room=netplay::RoomState::Idle;
+ Check(press("between_games",9000,true)&&sent.back().tournament.matchId=="emt_1"&&sent.back().tournament.bridgeId=="brg_1","Play did not go out for a match that can be played");
 }
 // A room bound to a tournament match offers no seat, rules or kick changes at
 // its table, and its status says what the next game waits for.
@@ -224,5 +280,5 @@ void RoomLinks(){
  h.view.pendingJoinDirect=false;h.shell.Navigation().Home();h.Frame(0,3);
  Check(h.shell.Navigation().Screen()=="join"&&h.actions.size()==before,"A stale room link did not just fill the Join screen");
 }
-int main(){try{IdentityJourneys();TournamentRoom();RoomLinks();RunDiscordConnectJourneys();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
+int main(){try{IdentityJourneys();PlayRechecks();TournamentRoom();RoomLinks();RunDiscordConnectJourneys();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

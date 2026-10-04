@@ -51,6 +51,7 @@ void CloseRoom() {
     runtime->recovery=session::RoomRecoveryRuntime{};
     runtime->observedAuthorityTerm=0;
     runtime->leaveRequested=runtime->leaveAcknowledged=false;
+    runtime->publicJoin=false;
     runtime->leaveActionId=runtime->leaveRetryAt=runtime->leaveDeadline=0;
     runtime->matchInput={};runtime->matchInputSide=-1;runtime->matchInputFault=false;
 	runtime->match.reset();
@@ -377,6 +378,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 }
 
 bool IsRuntimeRoomActive() { return runtime && runtime->attached; }
+bool IsRuntimePublicJoin() { return runtime && runtime->publicJoin; }
 bool IsRuntimeRecoveryEnabled() { return runtime && runtime->room && runtime->room->Coordination().active; }
 
 // TickRuntime runs these phases in order on the game thread. Each one reads and
@@ -464,7 +466,10 @@ static void SettleRoomState(bool helperReady) {
 			// The host's refusal (name taken, room full) says what to fix; the generic text does not.
 			const auto rejection = UserApp::netplay ? UserApp::netplay->client.JoinRejection() : std::nullopt;
 			// Without a rejection, the helper's stage says where it failed; hosting has its own wording.
-			Apply(netplay::EventKind::RoomFailed, rejection ? std::string(loc::T(SessionClient::JoinRejectionKey(*rejection))) :
+			// A public room's join is worded for it: the host locking the room or turning the player away, and a failure no stage explains.
+			Apply(netplay::EventKind::RoomFailed, rejection ?
+				std::string(loc::T(runtime->publicJoin ? SessionClient::PublicJoinRejectionKey(*rejection) : SessionClient::JoinRejectionKey(*rejection))) :
+				runtime->publicJoin ? ui::DescribePublicOpeningFailure(runtime->room->Stage(), runtime->room->Network().relay) :
 				ui::DescribeOpeningFailure(state.isHost, runtime->room->Stage(), runtime->room->Network().relay));
 		}
 	} else if (state.room == netplay::RoomState::Joined && runtime->room &&

@@ -22,6 +22,7 @@ use crate::{
     config::{Settings, Tuning},
     protocol::{
         ChildConfig, ChildMessage, CreateRoom, LineReader, MAX_ROOM_BANS, ReadError, parse_line,
+        usable_details,
     },
 };
 
@@ -44,6 +45,11 @@ pub struct RoomInfo {
     /// Whether the room has ever reported a member. It is latched here, so a
     /// member who came and went between two polls still counts.
     pub opened: bool,
+    /// What the room host last said about the room for its listing: a JSON
+    /// object passed on as it came (see `protocol`), not read here. Left out
+    /// when the host has not sent one or sent one that does not qualify.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<serde_json::Value>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -65,6 +71,7 @@ struct Live {
     banned: Vec<String>,
     /// Set by the first status with a member and kept for the room's life.
     opened: bool,
+    details: Option<serde_json::Value>,
 }
 
 struct Room {
@@ -234,6 +241,7 @@ impl Supervisor {
                         invitation: live.invitation.clone(),
                         banned: live.banned.clone(),
                         opened: live.opened,
+                        details: live.details.clone(),
                     },
                 ))
             })
@@ -518,6 +526,7 @@ fn apply(
                         invitation: invitation.clone(),
                         banned: Vec::new(),
                         opened: false,
+                        details: None,
                     },
                 );
                 if let Some(sender) = hosted_tx.take() {
@@ -530,6 +539,7 @@ fn apply(
             tables_playing,
             invitation,
             banned,
+            details,
         } => {
             if !*hosted {
                 return Some("status before hosted".to_owned());
@@ -554,6 +564,9 @@ fn apply(
                         invitation,
                         banned,
                         opened: members >= 1,
+                        // Not an object or too big: this status says nothing
+                        // about the room's details and the room stays up.
+                        details: usable_details(details),
                     },
                 );
             }

@@ -792,3 +792,34 @@ async fn a_connections_disputes_setting_cannot_change_once_recorded() {
         .await
         .unwrap();
 }
+
+// An unplayed match is not a request to play it again: its platform is sent
+// `expired`, once, with no winner and the scores that were recorded.
+#[tokio::test]
+async fn an_expired_match_is_sent_as_expired_never_as_a_restart() {
+    let f = fixture("night-bot").await;
+    let id = f.create("set-1", "organizer-reported-v1", 2).await;
+    f.bridge.clock.advance(24 * 60 * 60 - 1);
+    ember_bridge::maintain(f.bridge.state()).await;
+    ember_bridge::deliver_results(f.bridge.state()).await;
+    assert_eq!(f.snapshot(&id).await["state"], "awaiting_players");
+    assert!(f.receiver.received().is_empty());
+
+    f.bridge.clock.advance(1);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(f.snapshot(&id).await["state"], "expired");
+    f.until(&id, |(state, _)| state == "delivered").await;
+
+    let received = f.receiver.received();
+    assert_eq!(received.len(), 1);
+    let raw: Json = serde_json::from_slice(&received[0].1).unwrap();
+    assert_eq!(raw["outcome"], "expired");
+    assert!(raw.get("winner_participant_id").is_none(), "{raw}");
+    let result = &f.results(&id)[0];
+    assert_eq!(result.outcome, Outcome::Expired);
+    let scores: Vec<_> = result.participants.iter().map(|p| p.score).collect();
+    assert_eq!(scores, [0, 0]);
+    // The pair can play again, and the new match is a new one.
+    let next = f.create("set-2", "organizer-reported-v1", 2).await;
+    assert_ne!(next, id);
+}

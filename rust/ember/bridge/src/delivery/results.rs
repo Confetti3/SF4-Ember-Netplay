@@ -134,6 +134,7 @@ fn result(tx: &Transaction<'_>, bridge_id: &str, found: &Match) -> Result<Option
     let outcome = match found.state {
         MatchState::Completed => Ended::Completed,
         MatchState::Cancelled | MatchState::Failed => Ended::Restart,
+        MatchState::Expired => Ended::Expired,
         _ => return Ok(None),
     };
     let (wins, _) = scores(tx, &found.id)?;
@@ -221,7 +222,7 @@ impl Queue for Results {
                 "SELECT m.id, m.connection_id, m.delivery_attempts, m.delivery_first_at
                  FROM matches m JOIN provider_connections c ON c.id = m.connection_id
                  WHERE m.delivery_state IN ('queued', 'retrying', 'delivering') AND m.delivery_next_at <= ?1
-                   AND m.state IN ('completed', 'cancelled', 'failed')
+                   AND m.state IN ('completed', 'cancelled', 'failed', 'expired')
                    AND m.connection_id IN (SELECT value FROM json_each(?2)) AND c.enabled = 1
                  ORDER BY m.delivery_next_at, m.id LIMIT ?3",
             )?

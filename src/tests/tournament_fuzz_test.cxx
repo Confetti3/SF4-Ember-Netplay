@@ -96,6 +96,128 @@ static json GoodRoom() {
 		{"fighters", json::array({{{"endpoint_id", EndpointA}, {"ember_id", "emb1_a"}}, {{"endpoint_id", EndpointB}, {"ember_id", "emb1_b"}}})}}}};
 }
 
+// A room_list row as an old bridge sends it, which the details extend. Counters
+// are unsigned as parsed JSON gives them; the decoder rejects signed ones.
+static json Row(const std::string& id = Hex32) {
+	return {{"room_id", id}, {"name", "Friendly matches"}, {"build_id", "b"}, {"members", 3u}, {"capacity", 8u},
+		{"tables_playing", 1u}, {"region", "use1"}, {"created_at", 900u}};
+}
+
+// The public room list decodes old rows unchanged, reads the optional details
+// field by field, and never fails a row over a detail.
+static void TestRoomListDetails() {
+	using netplay::publicrooms::Room;
+	const auto decode = [](json row, const json& extra = json::object()) {
+		for (auto it = extra.begin(); it != extra.end(); ++it) row[it.key()] = it.value();
+		return session::DecodeRoomList({{"rooms", json::array({row})}});
+	};
+	// The one room of a list that must decode.
+	const auto room = [&](const json& extra) {
+		const auto list = decode(Row(), extra);
+		CHECK(list && list->rooms.size() == 1);
+		return list && list->rooms.size() == 1 ? list->rooms[0] : Room();
+	};
+	// An old bridge: no details, no listed_at.
+	const auto old = decode(Row());
+	CHECK(old && old->listedAt == 0);
+	const auto plain = room(json::object());
+	CHECK(plain.createdAt == 900 && plain.hostName.empty() && plain.fighters.empty() && !plain.locked && !plain.hasDetails &&
+		plain.setFormat == -1 && plain.rotation == -1);
+	// created_at is required, and is a number.
+	auto bare = Row(); bare.erase("created_at");
+	CHECK(!decode(bare));
+	CHECK(!decode(Row(), {{"created_at", "900"}}));
+	// A full set of details, with the bridge's 255 read as no fighter.
+	auto detailedRow = Row();
+	detailedRow["host_name"] = "Kate"; detailedRow["fighters"] = json::array({3u, 255u, 12u});
+	detailedRow["locked"] = true; detailedRow["set_format"] = 5u; detailedRow["rotation"] = 2u;
+	const auto full = session::DecodeRoomList({{"listed_at", 1234u}, {"rooms", json::array({detailedRow})}});
+	CHECK(full && full->listedAt == 1234 && full->rooms.size() == 1);
+	const auto detailed = full ? full->rooms[0] : Room();
+	CHECK(detailed.hasDetails && detailed.hostName == "Kate" && detailed.locked && detailed.setFormat == 5 && detailed.rotation == 2);
+	CHECK((detailed.fighters == std::vector<int>{3, -1, 12}));
+	// Each bad field is ignored on its own; the rest of the row stands.
+	const auto lenient = room({{"host_name", 7}, {"fighters", json::array({3u, "x"})}, {"locked", "yes"}, {"set_format", 4u}, {"rotation", 3u}});
+	CHECK(lenient.hostName.empty() && lenient.fighters.empty() && !lenient.locked && lenient.setFormat == -1 &&
+		lenient.rotation == -1 && !lenient.hasDetails && lenient.id == Hex32 && lenient.members == 3);
+	CHECK(room({{"fighters", json::array({64u})}}).fighters.empty());
+	CHECK(room({{"fighters", json::array({-1})}}).fighters.empty());
+	// More faces than members (3) is not a roster; a roster as long as the room is.
+	CHECK(room({{"fighters", json::array({1u, 2u, 3u, 4u})}}).fighters.empty());
+	CHECK((room({{"fighters", json::array({1u, 2u, 3u})}}).fighters == std::vector<int>{1, 2, 3}));
+	CHECK(room({{"fighters", json::array()}}).hasDetails);
+	CHECK(room({{"set_format", 0u}}).setFormat == 0 && room({{"rotation", 0u}}).rotation == 0);
+	for (const unsigned format : {1u, 2u, 3u, 5u}) CHECK(room({{"set_format", format}}).setFormat == static_cast<int>(format));
+	CHECK(room({{"set_format", 4u}}).setFormat == -1);
+	// listed_at that is not a number is ignored.
+	const auto text = session::DecodeRoomList({{"listed_at", "soon"}, {"rooms", json::array({Row()})}});
+	CHECK(text && text->listedAt == 0);
+	// A moderator name is one line, trimmed, and at most 32 bytes on a character boundary.
+	CHECK(room({{"host_name", "  Ka\nte  "}}).hostName == "Ka te");
+	std::string han;
+	for (int i = 0; i < 12; ++i) han += "\xE6\x97\xA5";
+	CHECK(room({{"host_name", han}}).hostName.size() == 30);
+	CHECK(room({{"host_name", std::string(60, 'a')}}).hostName.size() == 32);
+	CHECK(room({{"host_name", "   "}}).hostName.empty());
+	// A room that fails its own checks still fails the list, as before.
+	CHECK(!decode(Row(), {{"members", 9u}}));
+	// An admission carries the same row.
+	const auto admission = session::DecodeAdmission({{"room", Row()}, {"invitation", "sf4e3:x"}, {"ticket", {{"k", 1}}}});
+	CHECK(admission && admission->room.createdAt == 900);
+}
+
+// The assignment rows' times and states: the bridge's created_at and expires_at
+// are read when they are unsigned numbers and are 0 (unknown) otherwise, never a
+// reason to lose the row; and the states say what a player can still do.
+static void TestAssignmentTimes() {
+	using netplay::tournament::Assignment;
+	const auto decode = [](const json& extra) {
+		json row = {{"match_id", "emt_1"}, {"state", "ready"}, {"slot", 0u}};
+		for (auto it = extra.begin(); it != extra.end(); ++it) row[it.key()] = it.value();
+		const auto list = session::DecodeAssignments({{"assignments", json::array({row})}});
+		CHECK(list && list->size() == 1);
+		return list && list->size() == 1 ? (*list)[0] : Assignment();
+	};
+	const auto plain = decode(json::object());
+	CHECK(plain.createdAt == 0 && plain.expiresAt == 0 && plain.matchId == "emt_1");
+	const auto timed = decode({{"created_at", 1000u}, {"expires_at", 87400u}});
+	CHECK(timed.createdAt == 1000 && timed.expiresAt == 87400);
+	// Each time stands alone, and a wrong one is unknown, not an error.
+	CHECK(decode({{"created_at", 1000u}}).expiresAt == 0 && decode({{"expires_at", 5u}}).createdAt == 0);
+	for (const json& bad : {json("soon"), json(-5), json(1.5), json(nullptr), json(true), json::array(), json::object()}) {
+		const auto odd = decode({{"created_at", bad}, {"expires_at", bad}});
+		CHECK(odd.createdAt == 0 && odd.expiresAt == 0 && odd.state == "ready");
+	}
+	// Expired is over, like a result or a cancellation; only these four states are waiting for a player.
+	Assignment match;
+	for (const char* state : {"completed", "cancelled", "failed", "expired"}) { match.state = state; CHECK(match.Finished() && !match.Waiting()); }
+	CHECK((match.state = "expired", match.Expired()));
+	for (const char* state : {"awaiting_players", "provisioning", "ready", "between_games"}) { match.state = state; CHECK(!match.Finished() && match.Waiting()); }
+	for (const char* state : {"created", "running", "awaiting_reports", "needs_review", "nonsense", ""}) { match.state = state; CHECK(!match.Finished() && !match.Waiting()); }
+	// Past its expiry by this PC's clock only beyond the skew allowance; never when either time is unknown.
+	match.expiresAt = 1000;
+	CHECK(!match.Lapsed(0) && !match.Lapsed(999) && !match.Lapsed(1000) && !match.Lapsed(1000 + Assignment::ExpirySkewSeconds) &&
+		match.Lapsed(1000 + Assignment::ExpirySkewSeconds + 1));
+	match.expiresAt = 0;
+	CHECK(!match.Lapsed(1ull << 40));
+	// Playable: through Ember, waiting, and not lapsed. Expired by this PC's clock only while
+	// waiting; a running or review state past its time keeps the bridge's word.
+	const std::uint64_t late = 1000 + Assignment::ExpirySkewSeconds + 1;
+	match.profile = "ember-room-v1"; match.expiresAt = 1000;
+	for (const char* state : {"awaiting_players", "provisioning", "ready", "between_games"}) {
+		match.state = state;
+		CHECK(match.Playable(1000) && !match.ExpiredBy(1000) && !match.Playable(late) && match.ExpiredBy(late) && match.Playable(0));
+	}
+	for (const char* state : {"created", "running", "awaiting_reports", "needs_review", "completed", "cancelled", "failed", ""}) {
+		match.state = state;
+		CHECK(!match.Playable(1000) && !match.Playable(late) && !match.ExpiredBy(late));
+	}
+	match.state = "expired";
+	CHECK(!match.Playable(0) && match.ExpiredBy(0) && match.ExpiredBy(1000));
+	match.state = "ready"; match.profile = "organizer-reported-v1";
+	CHECK(!match.Playable(1000));
+}
+
 static void Mutate(Random& random, json& value, int depth = 0) {
 	if (value.is_object() && !value.empty() && depth < 4 && random.Chance(70)) {
 		auto it = value.begin();
@@ -436,6 +558,8 @@ int main() {
 		CHECK(session::ReadTournamentAnswer({{"op", op}, {"request_id", 7u}, {"ok", true}, {"data", {{"match_id", "emt_x"}}}}).has_value());
 	CHECK(!session::ReadTournamentAnswer({{"op", "link_list"}, {"request_id", 7u}, {"ok", true}}).has_value());
 	Random random(Seed());
+	TestRoomListDetails();
+	TestAssignmentTimes();
 	FuzzAnswers(random);
 	FuzzLinks(random);
 	FuzzRoomLinks(random);

@@ -132,6 +132,10 @@ namespace sf4e {
 		// with the Close action: every member's snapshot shows it closed. False
 		// while the authority cannot take a mutation (retry next tick).
 		bool CloseServerOwnedRoom();
+		// True when a server-owned room is empty in the committed view because its
+		// last member left with a Leave action. A member who dropped may come back,
+		// so a room emptied that way is false and waits out the supervisor's grace.
+		bool ServerOwnedRoomLeftEmpty() const;
 		bool CustomRoomsEnabled() const { return static_cast<bool>(_roomAuthority); }
 		const room::Snapshot* RoomSnapshot() const { return !_roomAuthority ? nullptr : (_hasRecoveryProjection ? &_recoveryProjection : &_roomAuthority->SnapshotView()); }
 		void AdvanceCustomRoom(std::uint64_t nowMs);
@@ -305,6 +309,8 @@ namespace sf4e {
 		SessionProtocol::MatchData _matchData;
 		bool _punchReady[2] = { false, false };
 		std::unique_ptr<room::RoomAuthority> _roomAuthority;
+		// The last departure from a server-owned room was a Leave that emptied it.
+		bool _serverOwnedLeftEmpty = false;
 		std::map<std::uint8_t, SessionProtocol::MatchData> _roomMatchData;
 		std::array<std::set<session::Connection>, room::TableCount> _roomBattleLoaded{};
 		std::array<std::set<session::Connection>, room::TableCount> _roomPunchReady{};

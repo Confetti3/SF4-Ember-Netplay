@@ -3,6 +3,7 @@
 #include <imgui.h>
 #include "../common/NetworkLink.hxx"
 #include "MenuNavigation.hxx"
+#include "FontMetrics.hxx"
 #include <chrono>
 #include <cstdint>
 #include <string>

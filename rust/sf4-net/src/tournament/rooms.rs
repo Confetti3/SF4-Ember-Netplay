@@ -13,8 +13,8 @@ use ember_protocol::{
     Error as ProtocolError,
     api::ApiError,
     rooms::{
-        BANNED, CreateRoom, INVALID_NAME, ROOM_FULL, ROOM_LIMIT, ROOM_NOT_FOUND, ROOM_NOT_OPEN,
-        RoomAdmission, RoomList, RoomSummary, TicketRequest, UNSUPPORTED_BUILD,
+        BANNED, CreateRoom, INVALID_NAME, ROOM_FULL, ROOM_LIMIT, ROOM_LOCKED, ROOM_NOT_FOUND,
+        ROOM_NOT_OPEN, RoomAdmission, RoomList, RoomSummary, TicketRequest, UNSUPPORTED_BUILD,
     },
 };
 use serde_json::Value;
@@ -31,7 +31,7 @@ const MAX_LISTED: usize = 100;
 /// The longest build ID the bridge accepts.
 const MAX_BUILD: usize = 128;
 /// Refusals of the room routes that the game acts on.
-const REASONS: [&str; 7] = [
+const REASONS: [&str; 8] = [
     ROOM_LIMIT,
     UNSUPPORTED_BUILD,
     INVALID_NAME,
@@ -39,6 +39,7 @@ const REASONS: [&str; 7] = [
     ROOM_NOT_OPEN,
     ROOM_FULL,
     BANNED,
+    ROOM_LOCKED,
 ];
 
 fn invalid_request() -> Failure {
@@ -90,6 +91,15 @@ fn build_query(build: &str) -> Result<String, Failure> {
     Ok(query)
 }
 
+/// The listing's path and query: the build, and `detail=1` for what the room
+/// hosts reported. An older bridge ignores the parameter it does not know.
+fn list_path(build: &str) -> Result<String, Failure> {
+    Ok(format!(
+        "/v1/rooms?build_id={}&detail=1",
+        build_query(build)?
+    ))
+}
+
 fn check_room_id(room_id: &str) -> Result<(), Failure> {
     let hex = room_id.len() == 32
         && room_id
@@ -106,11 +116,11 @@ fn parse<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, Failure> {
     serde_json::from_value(value).map_err(|_| invalid_response())
 }
 
-/// The open rooms of `build`, each checked. One invalid summary fails the
-/// whole listing.
+/// The open rooms of `build`, each checked, with the details their room hosts
+/// reported (`detail=1`; a bridge that does not know it leaves them out). One
+/// invalid summary fails the whole listing.
 pub async fn list(shared: &Arc<Shared>, bridge_id: &str, build: &str) -> Outcome {
-    let query = build_query(build)?;
-    let url_tail = format!("/v1/rooms?build_id={query}");
+    let url_tail = list_path(build)?;
     client::with_session(shared, bridge_id, |bridge, token| {
         let url = format!("{}{url_tail}", bridge.origin);
         async move {
@@ -304,6 +314,8 @@ mod tests {
             }}))
             .unwrap()
         };
+        assert_eq!(REASONS.len(), 8);
+        assert!(REASONS.contains(&"room_locked"));
         for reason in REASONS {
             let body = refusal("stale_revision", Some(reason));
             assert_eq!(reply(409, &body, 201).unwrap_err().0, reason);
@@ -330,6 +342,19 @@ mod tests {
         );
         // Only the success status counts as success.
         assert_eq!(reply(200, b"{}", 201).unwrap_err().0, "http_200");
+    }
+
+    #[test]
+    fn the_listing_asks_for_details() {
+        assert_eq!(
+            list_path("build-1").unwrap(),
+            "/v1/rooms?build_id=build-1&detail=1"
+        );
+        assert_eq!(
+            list_path("a b").unwrap(),
+            "/v1/rooms?build_id=a%20b&detail=1"
+        );
+        assert!(list_path("").is_err());
     }
 
     #[test]

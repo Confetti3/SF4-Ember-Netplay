@@ -547,7 +547,7 @@ msgid "home.online"
 msgstr "Jeu en ligne"
 
 msgid "home.online_detail"
-msgstr "Créez un salon privé ou rejoignez-en un par invitation."
+msgstr "Créez un salon, rejoignez-en un ou parcourez les salons publics."
 
 msgid "home.return_room"
 msgstr "Retourner à votre salon actuel."
@@ -3003,6 +3003,12 @@ msgstr "L'organisateur saisit les résultats de ce match. Il ne se joue pas via 
 msgid "tournament.finished_detail"
 msgstr "Ce match est terminé."
 
+msgid "tournament.expired"
+msgstr "Expiré"
+
+msgid "tournament.expired_detail"
+msgstr "Ce match a expiré avant d'être joué."
+
 msgid "tournament.leave_room_detail"
 msgstr "Quittez votre salon pour jouer ce match."
 
@@ -3115,7 +3121,7 @@ msgid "screen.public_rooms"
 msgstr "Salons publics"
 
 msgid "online.public_detail"
-msgstr "Parcourez les salons que tout joueur avec un Ember ID peut rejoindre, ou ouvrez le vôtre."
+msgstr "Parcourez les salons ouverts à tous, ou rejoignez vite un salon proche de chez vous."
 
 msgid "public.create"
 msgstr "Créer un salon public"
@@ -3129,26 +3135,11 @@ msgstr "Ouvre un salon public sur le service de l'Ember ID et le rejoint. Fixez 
 msgid "public.create_needs_id"
 msgstr "Les salons publics demandent un Ember ID et un service de confiance. Configurez-les dans Salons publics."
 
-msgid "public.refresh_detail"
-msgstr "Demande au service la liste actuelle des salons."
-
 msgid "public.loading"
 msgstr "Chargement des salons..."
 
-msgid "public.none"
-msgstr "Aucun salon public"
-
-msgid "public.none_detail"
-msgstr "Personne n'a de salon public ouvert pour le moment. Créez-en un pour commencer à jouer."
-
-msgid "public.needs_id"
-msgstr "Les salons publics demandent un Ember ID"
-
 msgid "public.needs_id_detail"
 msgstr "Créez un Ember ID, puis faites confiance à un service dans Comptes associés. Ce service liste les salons publics."
-
-msgid "public.room_playing"
-msgstr "{0}, en match"
 
 msgid "public.room_detail"
 msgstr "{0}\nJoueurs : {1}/{2}. Région : {3}."
@@ -3221,3 +3212,189 @@ msgstr "Faites confiance à ce service dans Comptes associés, puis rouvrez le l
 
 msgid "public.link_waiting"
 msgstr "Un lien de salon public est arrivé. Quittez votre salon, puis choisissez-le dans Salons publics."
+
+msgid "public.quick"
+msgstr "Accès rapide"
+
+msgid "public.quick_detail"
+msgstr "Rejoint le salon ouvert proche de vous qui a le plus de places libres."
+
+msgid "public.quick_none"
+msgstr "Aucun salon ouvert près de chez vous n'a de place libre pour le moment. Créez-en un et les joueurs proches le trouveront."
+
+msgid "public.create_room"
+msgstr "Créer un salon"
+
+msgid "public.filter"
+msgstr "Afficher"
+
+msgid "public.filter_detail"
+msgstr "Choisissez les salons affichés : tous, ceux près de chez vous ou seulement ceux qui ont des places libres."
+
+msgid "public.filter_label"
+msgstr "Afficher : {0}"
+
+msgid "public.filter.all"
+msgstr "Tous les salons"
+
+msgid "public.filter.near"
+msgstr "Près de moi"
+
+msgid "public.filter.seats"
+msgstr "Places libres"
+
+msgid "public.filter_near_unknown"
+msgstr "Ember ne connaît pas encore votre région et ne peut pas dire quels salons sont proches de vous."
+
+msgid "public.near_you"
+msgstr "Près de vous"
+
+msgid "public.in_match"
+msgstr "En match"
+
+msgid "public.locked"
+msgstr "Verrouillé"
+
+msgid "public.full"
+msgstr "Complet"
+
+msgid "public.card_meta"
+msgstr "{0} · {1}"
+
+msgid "public.players"
+msgstr "Joueurs"
+
+msgid "public.open_for"
+msgstr "Ouvert depuis {0}"
+
+msgid "public.age_minutes"
+msgstr "{0} min"
+
+msgid "public.age_hours"
+msgstr "{0} h"
+
+msgid "public.room_detail2"
+msgstr "Hôte {0}, {1}. {2} places occupées sur {3}."
+
+msgid "public.room_detail_match"
+msgstr " Un match est en cours."
+
+msgid "public.room_detail_locked"
+msgstr " Le salon est verrouillé."
+
+msgid "public.room_detail_full"
+msgstr " Le salon est complet."
+
+msgid "public.status_listed"
+msgstr "Salons ouverts : {0}. Mis à jour {1}."
+
+msgid "public.status_filtered"
+msgstr "Affichage de {0} sur {1}. Mis à jour {2}."
+
+msgid "public.updated_now"
+msgstr "à l'instant"
+
+msgid "public.updated_seconds"
+msgstr "il y a {0} s"
+
+msgid "public.updated_minutes"
+msgstr "il y a {0} min"
+
+msgid "public.updating"
+msgstr "Actualisation..."
+
+msgid "public.loading_card"
+msgstr "Recherche de salons..."
+
+msgid "public.none_all"
+msgstr "Aucun salon ouvert pour le moment. Créez-en un et les autres le trouveront."
+
+msgid "public.none_filtered"
+msgstr "Aucun salon ne correspond à ce filtre."
+
+msgid "public.show_all"
+msgstr "Afficher tous les salons"
+
+msgid "public.try_again"
+msgstr "Réessayer"
+
+msgid "public.stop_joining"
+msgstr "Annuler la connexion"
+
+msgid "public.connecting"
+msgstr "Connexion..."
+
+msgid "public.setup"
+msgstr "Configurer les salons publics"
+
+msgid "public.setup_detail"
+msgstr "Ember créera votre Ember ID sur ce PC si vous n'en avez pas encore, et fera confiance au service de salons d'Ember (bridge.embernetplay.link) pour lister les salons et vous y faire entrer. Vous pouvez le retirer à tout moment dans Ember ID > Comptes associés."
+
+msgid "public.setup_title"
+msgstr "Jouez dans les salons publics"
+
+msgid "public.setup_body"
+msgstr "Des salons ouverts à tous les joueurs avec Ember. Une seule pression et c'est prêt."
+
+msgid "public.setup_step.checking"
+msgstr "Vérification de votre Ember ID..."
+
+msgid "public.setup_step.creating"
+msgstr "Création de votre Ember ID..."
+
+msgid "public.setup_step.finding"
+msgstr "Recherche du service de salons d'Ember..."
+
+msgid "public.setup_step.trusting"
+msgstr "Autorisation du service de salons d'Ember..."
+
+msgid "public.setup_retry"
+msgstr "Réessayer la configuration"
+
+msgid "public.setup_done"
+msgstr "Les salons publics sont prêts."
+
+msgid "public.setup_needs_id"
+msgstr "Déverrouillez d'abord votre Ember ID"
+
+msgid "public.setup_needs_id_detail"
+msgstr "Votre Ember ID est verrouillé. Déverrouillez-le dans Ember ID, puis configurez de nouveau les salons publics."
+
+msgid "public.copy_link"
+msgstr "Copier le lien du salon"
+
+msgid "public.copy_link_detail"
+msgstr "Copie {0} pour que vos amis rejoignent depuis un navigateur ou Discord."
+
+msgid "public.link_copied"
+msgstr "Lien du salon copié."
+
+msgid "public.default_name"
+msgstr "Salon de {0}"
+
+msgid "public.failure.room_locked"
+msgstr "L'hôte a verrouillé ce salon. Choisissez-en un autre."
+
+msgid "public.failure.unavailable"
+msgstr "Le service de salons n'a pas répondu à temps. Réessayez dans un instant."
+
+msgid "public.failure.untrusted"
+msgstr "Ember n'a pas pu vérifier la réponse du service de salons et n'a donc pas rejoint le salon. Réessayez ; si cela continue, dites-le-nous sur Discord."
+
+msgid "public.failure.internal"
+msgstr "Une erreur s'est produite dans Ember. Réessayez."
+
+msgid "public.failure.helper"
+msgstr "L'assistant réseau d'Ember n'est pas lancé. Redémarrez le jeu si cela dure."
+
+msgid "public.failure.full_or_locked"
+msgstr "Ce salon vient de se remplir ou d'être verrouillé. Choisissez-en un autre."
+
+msgid "public.failure.turned_away"
+msgstr "Le salon a refusé votre entrée. Vous en avez peut-être été retiré."
+
+msgid "public.failure.join_failed"
+msgstr "Impossible d'entrer dans le salon. Il vient peut-être de fermer. Actualisez et choisissez-en un autre."
+
+msgid "legend.refresh"
+msgstr "Actualiser"

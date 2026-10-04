@@ -93,4 +93,10 @@ inline std::string DescribeOpeningFailure(bool hosting, session::FailureStage st
     }
 }
 
+// The same for a join of a public room: a stage the helper did not name says what
+// that likely means for such a room, and every named one reads as for any join.
+inline std::string DescribePublicOpeningFailure(session::FailureStage stage, const std::string& region) {
+    return stage == session::FailureStage::Unknown ? std::string(loc::T("public.failure.join_failed")) : DescribeOpeningFailure(false, stage, region);
+}
+
 } }

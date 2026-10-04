@@ -15,8 +15,9 @@
 //!   `unsupported_build`, 409 `exists`, 400 `invalid_request` and 502
 //!   `host_failed`.
 //! - `GET /rooms` answers 200 with `[{ room_id, members, capacity,
-//!   tables_playing, invitation, banned, opened }]` for live rooms; `opened`
-//!   latches the first time the host reports a member.
+//!   tables_playing, invitation, banned, opened, details? }]` for live rooms;
+//!   `opened` latches the first time the host reports a member and `details`
+//!   is the host's latest listing details, when it sent usable ones.
 //! - `DELETE /rooms/{room_id}` asks the host to close and answers 204, or 404.
 //! - `GET /health` answers `ok`.
 //!

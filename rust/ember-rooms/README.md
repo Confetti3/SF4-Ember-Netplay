@@ -45,14 +45,16 @@ in constant time. Refusals are JSON `{ "reason": "..." }`.
 | | 409 `room_limit` (room limit, no free port, or draining) |
 | | 409 `unsupported_build`, 409 `exists`, 400 `invalid_request` (names the `field`) |
 | | 502 `host_failed` (the host exited, broke the protocol or took over 30 s) |
-| `GET /rooms` | 200 `[{ room_id, members, capacity, tables_playing, invitation, banned, opened }]` |
+| `GET /rooms` | 200 `[{ room_id, members, capacity, tables_playing, invitation, banned, opened, details? }]` |
 | `DELETE /rooms/{room_id}` | 204 once the host has been asked to close, or 404 |
 | `GET /health` | `ok` |
 
 `opened` is false until the host has reported a status with at least one member
 and true from then on, even after the room empties; `members` is the latest
 count. The bridge reads it so a member who came and went between two polls still
-opens the room.
+opens the room. `details` is the host's latest `details` object, passed on as it
+came; it is left out when the host sent none or sent one that is not a JSON
+object or is over 2 KB.
 
 `room_id` is 32 hex characters (compared case-insensitively), `name` 1 to 64
 bytes on one line, `capacity` 2 to 16. A room holds two UDP ports, the two lowest in
@@ -81,10 +83,21 @@ The child writes one JSON object per line to stdout:
 
 - `{ "type": "hosted", "invitation": "...", "region": "..." }`, once, first.
 - `{ "type": "status", "members": 0, "tables_playing": 0, "invitation": "...",
-  "banned": ["emb_..."] }` whenever something changes. The invitation changes
-  as it renews, so every status carries the current one.
+  "banned": ["emb_..."], "details": { ... } }` whenever something changes. The
+  invitation changes as it renews, so every status carries the current one.
+  `details` is optional: `{ "name", "capacity", "locked", "host_name",
+  "fighters", "set_format", "rotation" }` as the room host sees its room. The
+  supervisor does not interpret it. A JSON object of at most 2 KB (unknown keys
+  included) goes to the bridge in `GET /rooms`; anything else (another type, a
+  larger object, one nested more than 8 levels deep, even past the JSON
+  parser's own limit) is dropped, never an error. It must still be well-formed
+  JSON: the line is one JSON object, and a syntax error anywhere in it
+  (`details` included) or a member named twice is a protocol error.
 - `{ "type": "closed", "reason": "..." }`, optionally, before exiting on its
-  own.
+  own. The room leaves the list at once and the child's stdin is closed, so
+  it has the same 10 s to finish. `sf4e-room-host` says it when its last
+  member leaves on purpose (`last_member_left`) or its room model closes the
+  room; a member who dropped leaves the room to `empty_close_secs`.
 
 Closing the child's stdin means "close the room and exit". A child that has
 not exited 10 s after that is killed. A child that exits for any reason is

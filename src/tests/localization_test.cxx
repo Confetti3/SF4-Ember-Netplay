@@ -78,6 +78,26 @@ static bool Covered(Locale locale, unsigned codepoint) {
 
 int main(int argc, char** argv) {
     using namespace sf4e::loc;
+    {
+        // Merged CJK glyphs are sized by the fonts' line spans, so both must
+        // parse from the bytes that ship and sit in the range the cap expects.
+        namespace ui = sf4e::ui;
+        const float inter = ui::FontLineSpanEm(ui::fonts::Body, sizeof(ui::fonts::Body));
+        CHECK(inter > 1.f && inter < 1.5f);
+        CHECK(ui::FontLineSpanEm(ui::fonts::Heading, sizeof(ui::fonts::Heading)) > 1.f);
+        for (const auto& font : ui::fonts::ScriptFonts) {
+            const float span = ui::FontLineSpanEm(font.data, font.bytes);
+            CHECK(span > 0.f);
+            const float ratio = span / inter;
+            CHECK(ratio >= 1.15f && ratio <= 1.25f);
+        }
+        // Unreadable data reads as 0, and a truncated table never reads past the end.
+        CHECK(ui::FontLineSpanEm(nullptr, 0) == 0.f);
+        CHECK(ui::FontLineSpanEm(ui::fonts::Body, 8) == 0.f);
+        CHECK(ui::FontLineSpanEm(ui::fonts::Body, 200) == 0.f);
+        const unsigned char garbage[16] = {1, 2, 3};
+        CHECK(ui::FontLineSpanEm(garbage, sizeof(garbage)) == 0.f);
+    }
     CHECK(ResolveLocale("en", "", {"pt-BR"}) == Locale::En);
     CHECK(ResolveLocale("pt-BR", "JPN", {"en-US"}) == Locale::PtBR);
     CHECK(ResolveLocale("es-419", "", {}) == Locale::Es419);

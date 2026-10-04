@@ -12,6 +12,9 @@ use crate::{
 
 pub const VERSION: u8 = 1;
 pub const LIFETIME_SECS: u64 = 60;
+/// How far the signer's clock may be from the bridge's (a day, as for
+/// invitations); the bridge still holds the challenge to its own window.
+pub const SIGN_SKEW_SECS: u64 = 24 * 60 * 60;
 /// Link and proof request bodies (spec 25.1).
 pub const MAX_PROOF_BODY: usize = 8 * 1024;
 const MAX_PATH: usize = 512;
@@ -156,6 +159,15 @@ impl Challenge {
 
     /// Shape, binding to `expected`, and time window.
     pub fn check(&self, expected: &Expected<'_>, now: u64, policy: OriginPolicy) -> Result<()> {
+        self.check_bound(expected, policy)?;
+        if now < self.issued_at || now >= self.expires_at {
+            return Err(Error::Expired);
+        }
+        Ok(())
+    }
+
+    /// Shape and binding to `expected`, without the time window.
+    fn check_bound(&self, expected: &Expected<'_>, policy: OriginPolicy) -> Result<()> {
         self.check_shape(policy)?;
         let binding = [
             (self.bridge_id == expected.bridge_id, "bridge_id"),
@@ -172,9 +184,6 @@ impl Challenge {
         if let Some((_, field)) = binding.iter().find(|(matches, _)| !matches) {
             return Err(Error::Mismatch(field));
         }
-        if now < self.issued_at || now >= self.expires_at {
-            return Err(Error::Expired);
-        }
         Ok(())
     }
 
@@ -184,6 +193,11 @@ impl Challenge {
 
     /// Signs after checking the challenge against the operation the user
     /// actually started. This is the only way to produce a challenge proof.
+    ///
+    /// The bridge holds the challenge to its own clock when the proof comes
+    /// back, so the signer's clock only has to rule out a challenge that is
+    /// plainly stale: within `SIGN_SKEW_SECS` either way it signs, and a player
+    /// whose clock is a few seconds or minutes off can still sign in.
     pub fn sign(
         &self,
         identity: &SigningIdentity,
@@ -194,7 +208,12 @@ impl Challenge {
         if expected.ember_id != identity.ember_id() {
             return Err(Error::Mismatch("ember_id"));
         }
-        self.check(expected, now, policy)?;
+        self.check_bound(expected, policy)?;
+        if now.saturating_add(SIGN_SKEW_SECS) < self.issued_at
+            || now >= self.expires_at.saturating_add(SIGN_SKEW_SECS)
+        {
+            return Err(Error::Expired);
+        }
         Ok(Proof {
             challenge_id: self.challenge_id.clone(),
             signature: identity.sign(Domain::Challenge, &self.to_value()?),

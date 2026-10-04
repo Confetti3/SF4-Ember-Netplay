@@ -24,7 +24,8 @@ void SetMenuPlayerCard(PlayerCardView view);
 void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max);
 // A card's corner marker (SAVED, MAIN), fitted to the card's width.
 void DrawCardBadge(ImVec2 at,float width,const char* text,const char* probe);
-void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max);
+// `backing` fills the tile behind the art, which is transparent around the fighter.
+void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing=IM_COL32(38,34,30,255));
 // Set once per overlay frame. Only the visible player screen consumes it.
 void SetMenuInput(MenuInput input);
 MenuInput ReadMenuInput();
@@ -73,6 +74,12 @@ public:
     // text (up to most of the window, then it scrolls), so a long launcher
     // message keeps the paths and steps it names.
     bool fitStatus=false;
+    // The corner radius, in unscaled pixels, of the rows and grid cells that a Card
+    // draws; 0 keeps them square. A card of rounded corners paints its own focus outline.
+    float cardRounding=0;
+    // When above 0, a narrow layout's detail pane (above the list) takes at most this
+    // many lines and leaves out the row's label, which its card already shows.
+    int compactDetailLines=0;
     using Detail = std::function<void(const std::string&)>;
     // Return false for ordinary actions embedded in an artwork grid, so their
     // labels still render (for example, Retry saving after a portrait failure).

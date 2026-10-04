@@ -62,6 +62,8 @@ struct ShellView {
     // enough to join by itself.
     bool pendingJoinDirect = false;
     std::string languagePreference = "auto";
+    // This PC's clock, unix seconds, to tell a match past its expiry (0 when unknown).
+    std::uint64_t unixNow = 0;
     // The game's own config.ini as read at launch, and whether the player has
     // already dismissed the card for good.
     gameconfig::DisplaySettings gameSettings;
@@ -155,6 +157,10 @@ public:
     // test supplies its own to fail it.
     using LanguageSaver = std::function<bool(const std::string& preference, std::string& diagnostic)>;
     void SetLanguageSaver(LanguageSaver saver) { languageSaver_ = std::move(saver); }
+    // Where the tournament matches already announced are kept; the platform store unless a test supplies its own.
+    void SetAnnouncedStore(IdentityPanel::AnnouncedLoader loader, IdentityPanel::AnnouncedSaver saver) {
+        identity_.SetAnnouncedStore(std::move(loader), std::move(saver));
+    }
 private:
     LanguageSaver languageSaver_;
     GameMenu menu_;
@@ -183,7 +189,21 @@ private:
     // The screen an opening room was started from, as the controller recorded
     // it when it accepted the command: hosting, or joining (an invitation
     // or a Discord join). Read only while the room is opening.
-    static const char* OpeningScreen(const ShellView& view) { return view.session.isHost?"create":"join"; }
+    // A public room's own kind says it: its create opens from Create, its join from Public rooms.
+    const char* OpeningScreen(const ShellView& view) const {
+        if(const auto kind=publicRooms_.OpeningKind())return *kind==PublicRoomsPanel::OpenKind::Create?"create":"public-rooms";
+        return view.session.isHost?"create":"join";
+    }
+    // Whether the room being opened is being created, for the words that say so.
+    bool OpeningCreates(const ShellView& view) const {
+        const auto kind=publicRooms_.OpeningKind();
+        return kind?*kind==PublicRoomsPanel::OpenKind::Create:view.session.isHost;
+    }
+    // Create on Public: Create public room, the empty list's card and Quick join's notice all open it.
+    void OpenPublicCreate();
+    // A public room still named with the default is named for its host.
+    void ApplyPublicDefaultName();
+    void QuickJoin(const ShellView& view);
     std::vector<MenuEntry> RoomEntries(const ShellView& view);
     void RoomAction(const MenuAction& action, const ShellView& view, const Submit& submit);
     void RoomShortcut(const MenuAction& action, const ShellView& view);
@@ -220,6 +240,8 @@ private:
     char invitation_[4097] = {};
     bool preferencesDirty_ = false;
     bool publicBridgeAsked_ = false; // the public-room service was asked for in this stay on a screen that needs it
+    // Quick join's notice chose Create room: Draw opens it on the next frame, outside the menu's own draw.
+    bool openPublicCreate_ = false;
     // The language is stored in its own file, so it debounces on its own
     // deadline rather than sharing saveAt_ with the netplay preferences.
     double languageSaveAt_ = 0;

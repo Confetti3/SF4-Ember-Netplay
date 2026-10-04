@@ -1,7 +1,10 @@
 //! Public rooms (docs/design/PUBLIC_ROOMS.md): a listing of the rooms a room
 //! supervisor hosts on this machine, creating one, and a signed ticket per
 //! join. The supervisor is the source of truth for which rooms are alive; the
-//! bridge keeps its last report (`poll`) and serves the listing from it.
+//! bridge keeps its last report (`poll`) and serves the listing from it. The
+//! report also carries what the room host says about its room (`details`): its
+//! name and capacity as the moderator last set them, and the extras a player's
+//! listing shows when it asks for `detail=1`.
 //!
 //! A player creates a room for themselves from Ember. A connection whose
 //! configuration has `rooms` creates one for a player linked on it, and sees
@@ -12,6 +15,7 @@
 //! supervisor's secret; otherwise the routes answer `not_found` and the
 //! `rooms` capability is not offered.
 mod create;
+mod details;
 mod poll;
 mod supervisor;
 mod ticket;
@@ -29,8 +33,8 @@ use ember_protocol::{
     event::Kind,
     rooms::{
         BANNED, CLOSED_BY_CONNECTION, CloseRoom, ConnectionCreateRoom, ConnectionRoom,
-        ConnectionRoomList, CreateRoom, INVALID_NAME, NOT_LINKED, ROOM_FULL, ROOM_LIMIT, RoomList,
-        RoomState, RoomSummary, UNSUPPORTED_BUILD, join_url,
+        ConnectionRoomList, CreateRoom, INVALID_NAME, NOT_LINKED, ROOM_FULL, ROOM_LIMIT,
+        ROOM_LOCKED, RoomList, RoomState, RoomSummary, UNSUPPORTED_BUILD, join_url,
     },
 };
 use rusqlite::{OptionalExtension, Row, Transaction, params};
@@ -176,6 +180,7 @@ fn refuse(reason: &'static str) -> ApiFailure {
             "You or your network already have as many open rooms as are allowed.",
         ),
         ROOM_FULL => (ErrorCode::StaleRevision, "The room is full."),
+        ROOM_LOCKED => (ErrorCode::StaleRevision, "The room is locked."),
         BANNED => (ErrorCode::Forbidden, "You were removed from this room."),
         NOT_LINKED => (
             ErrorCode::Forbidden,
@@ -201,10 +206,17 @@ struct Room {
     opened_at: Option<u64>,
     closed_at: Option<u64>,
     connection_id: Option<String>,
+    /// What the room host last reported for the listing; NULL until it has,
+    /// and for any one the bridge found invalid (`details`).
+    host_name: Option<String>,
+    fighters: Option<Vec<u8>>,
+    locked: Option<bool>,
+    set_format: Option<u8>,
+    rotation: Option<u8>,
 }
 
 const COLUMNS: &str = "room_id, name, build_id, capacity, members, tables_playing, created_at, region, invitation_sealed,
-    creator_ember_id, opened_at, closed_at, connection_id";
+    creator_ember_id, opened_at, closed_at, connection_id, host_name, fighters, locked, set_format, rotation";
 
 fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
     Ok(Room {
@@ -221,6 +233,11 @@ fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
         opened_at: row.get(10)?,
         closed_at: row.get(11)?,
         connection_id: row.get(12)?,
+        host_name: row.get(13)?,
+        fighters: row.get(14)?,
+        locked: row.get(15)?,
+        set_format: row.get(16)?,
+        rotation: row.get(17)?,
     })
 }
 
@@ -246,8 +263,32 @@ impl Room {
             tables_playing: self.tables_playing,
             region: self.region.clone().ok_or_else(ApiFailure::unavailable)?,
             created_at: self.created_at,
+            host_name: None,
+            fighters: None,
+            locked: None,
+            set_format: None,
+            rotation: None,
         };
         summary.check().map_err(|_| ApiFailure::unavailable())?;
+        Ok(summary)
+    }
+
+    /// The listing form a player asks for with `detail=1`: the summary and
+    /// whatever the room host reported. A report that does not hold together
+    /// is left out whole, and the room is listed as it would be without one.
+    fn listing(&self) -> Result<RoomSummary> {
+        let mut summary = self.summary()?;
+        let detailed = RoomSummary {
+            host_name: self.host_name.clone(),
+            fighters: self.fighters.clone(),
+            locked: self.locked,
+            set_format: self.set_format,
+            rotation: self.rotation,
+            ..summary.clone()
+        };
+        if detailed.details_valid() {
+            summary = detailed;
+        }
         Ok(summary)
     }
 
@@ -319,11 +360,15 @@ fn build_ok(build_id: &str) -> bool {
 pub struct ListQuery {
     #[serde(default)]
     build_id: Option<String>,
+    /// 1 adds what the room hosts reported, and when the listing was made.
+    #[serde(default)]
+    detail: Option<u8>,
 }
 
-/// `GET /v1/rooms?build_id=`: for a player, open rooms with at least one
-/// member, the ones with the most free seats first; for a connection, the
-/// rooms it created that are not closed, newest first.
+/// `GET /v1/rooms?build_id=&detail=`: for a player, open rooms with at least
+/// one member, unlocked ones first and those with the most free seats first
+/// (with `detail=1` also what the room hosts reported and `listed_at`); for a
+/// connection, the rooms it created that are not closed, newest first.
 pub async fn list(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -339,6 +384,8 @@ pub async fn list(
         return Err(ApiFailure::invalid("build_id is not a build ID."));
     }
     let config = state.config.clone();
+    let detailed = query.detail == Some(1);
+    let now = state.now();
     let body = state
         .db
         .read(move |tx| match caller {
@@ -347,14 +394,22 @@ pub async fn list(
                     "SELECT {COLUMNS} FROM rooms
                      WHERE closed_at IS NULL AND invitation_sealed IS NOT NULL AND members >= 1
                        AND (?1 IS NULL OR build_id = ?1)
-                     ORDER BY capacity - members DESC, created_at, room_id LIMIT ?2"
+                     ORDER BY COALESCE(locked, 0), capacity - members DESC, created_at, room_id LIMIT ?2"
                 ))?;
                 let rows = statement.query_map(params![query.build_id, LIST_LIMIT], room_of)?;
                 let mut rooms = Vec::new();
                 for room in rows {
-                    rooms.push(room?.summary()?);
+                    let room = room?;
+                    rooms.push(if detailed {
+                        room.listing()?
+                    } else {
+                        room.summary()?
+                    });
                 }
-                Ok(serde_json::to_value(RoomList { rooms }))
+                Ok(serde_json::to_value(RoomList {
+                    rooms,
+                    listed_at: detailed.then_some(now),
+                }))
             }
             Caller::Connection { connection_id, .. } => {
                 let mut statement = tx.prepare(&format!(

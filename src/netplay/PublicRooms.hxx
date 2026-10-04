@@ -15,10 +15,39 @@ namespace sf4e { namespace netplay { namespace publicrooms {
 constexpr std::size_t MaxTicketBytes = 4096;
 constexpr std::size_t MaxRooms = 100;
 
-// One row of the bridge's RoomSummary the interface shows.
+// The most faces a listed room shows, and the longest moderator name.
+constexpr std::size_t MaxRoomFighters = 16;
+constexpr std::size_t MaxHostNameBytes = 32;
+
+// One row of the bridge's RoomSummary the interface shows. The details after
+// `playing` come from a bridge new enough to send them (a list asked for with
+// detail=1) and are decoded leniently: a field that is absent or invalid keeps
+// its default here, never failing the row.
 struct Room {
 	std::string id, name, region;
 	unsigned members = 0, capacity = 0, playing = 0;
+	// When the room opened, in the bridge's seconds; Status::listedAt is the
+	// bridge's clock for the same list, so the difference is the room's age.
+	std::uint64_t createdAt = 0;
+	// The moderator's name, one line of at most MaxHostNameBytes; empty when the
+	// room has none or the bridge sent none.
+	std::string hostName;
+	// Main fighter ids, moderator first and then in join order, -1 for a member
+	// with none (the bridge's 255). At most MaxRoomFighters.
+	std::vector<int> fighters;
+	bool locked = false;
+	// True when the bridge sent any of the details above or below.
+	bool hasDetails = false;
+	// Table 0's set length (0 unlimited, 1, 2, 3 or 5) and rotation (0 winner
+	// stays, 1 loser stays, 2 both rotate); -1 when unknown.
+	int setFormat = -1, rotation = -1;
+};
+
+// A room_list answer: the rooms in the order received and the bridge's clock
+// when it listed them (0 when it sent none).
+struct RoomList {
+	std::vector<Room> rooms;
+	std::uint64_t listedAt = 0;
 };
 
 // What creating or joining a room returns: the room, the room host's
@@ -39,6 +68,9 @@ struct Status {
 	std::string error;
 	// Refreshes finished so far, answered or not.
 	std::uint64_t listed = 0;
+	// The bridge's clock for the last list that carried one, in the same seconds
+	// as Room::createdAt; 0 before one arrives or from a bridge that sends none.
+	std::uint64_t listedAt = 0;
 	// The identity (Command::request) of the create or ticket request in flight,
 	// 0 when none. Only one is: a newer request supersedes it, and its answer is
 	// never published.

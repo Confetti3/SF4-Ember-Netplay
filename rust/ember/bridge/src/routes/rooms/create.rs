@@ -26,6 +26,7 @@ const ROOMS_PER_ADDRESS: i64 = 2;
 
 /// Whose limits a new room counts against, besides its creator's one open
 /// room.
+#[derive(Clone)]
 pub enum Owner {
     /// A player's own room: their network address (`super::Address`).
     Address(String),
@@ -57,12 +58,30 @@ pub async fn open(
     command.check().map_err(refusal)?;
     let room_id = hex(&random::<16>());
     let now = state.now();
-    {
-        let (room_id, creator, command) = (room_id.clone(), creator.clone(), command.clone());
+    let attempt = || {
+        let (room_id, creator, owner, command) = (
+            room_id.clone(),
+            creator.clone(),
+            owner.clone(),
+            command.clone(),
+        );
         state
             .db
             .write(move |tx| reserve(tx, &room_id, &creator, &owner, &command, now))
-            .await?;
+    };
+    if let Err(refused) = attempt().await {
+        // The rooms in the way may have ended since the last poll: a room
+        // whose last member just left is gone from the supervisor at once,
+        // but up to a poll interval later here. Ask it once before refusing.
+        let reason = refused
+            .details
+            .get("reason")
+            .and_then(|reason| reason.as_str());
+        if reason != Some(ROOM_LIMIT) {
+            return Err(refused);
+        }
+        super::poll(state).await;
+        attempt().await?;
     }
     let created = supervisor
         .create(&Create {

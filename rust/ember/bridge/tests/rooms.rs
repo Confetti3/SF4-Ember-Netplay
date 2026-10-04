@@ -7,112 +7,18 @@ mod common;
 use std::sync::Arc;
 
 use common::{
-    Bridge, Player, code,
-    supervisor::{BUILD, ENDPOINT, Gate, Supervisor, enable, fake_supervisor, report, secrets},
+    Bridge, code,
+    public_rooms::{create_room, listing, open_room, player, reason, send, start, ticket},
+    supervisor::{BUILD, ENDPOINT, Gate, enable, fake_supervisor, report, secrets},
 };
 use ember_bridge::config;
 use ember_protocol::{
     PublicKey, SigningIdentity,
-    rooms::{MAX_ROOM_BANS, RoomAdmission, RoomList, RoomSummary, TICKET_SECS},
+    rooms::{MAX_ROOM_BANS, RoomAdmission, RoomSummary, TICKET_SECS},
 };
 use reqwest::StatusCode;
-use serde_json::{Value as Json_, json};
+use serde_json::json;
 use zeroize::Zeroizing;
-
-async fn start() -> (Bridge, Supervisor) {
-    let (fake, url) = fake_supervisor().await;
-    let bridge = Bridge::start_with(|config| enable(config, url), secrets()).await;
-    (bridge, fake)
-}
-
-async fn player(bridge: &Bridge, byte: u8) -> Player {
-    let mut player = bridge.player(byte);
-    bridge.open_session(&mut player).await;
-    player
-}
-
-/// A request as nginx would pass it on: with the client's address.
-async fn send(
-    bridge: &Bridge,
-    method: reqwest::Method,
-    token: &str,
-    ip: &str,
-    path: &str,
-    body: Option<Json_>,
-) -> (StatusCode, Json_) {
-    let mut request = bridge
-        .client
-        .request(method, bridge.url(path))
-        .bearer_auth(token)
-        .header("x-real-ip", ip);
-    if let Some(body) = body {
-        request = request
-            .header("content-type", "application/json")
-            .body(serde_json::to_vec(&body).unwrap());
-    }
-    common::read(request.send().await.unwrap()).await
-}
-
-async fn create_room(
-    bridge: &Bridge,
-    player: &Player,
-    ip: &str,
-    name: &str,
-    capacity: u8,
-) -> (StatusCode, Json_) {
-    send(
-        bridge,
-        reqwest::Method::POST,
-        player.token(),
-        ip,
-        "/v1/rooms",
-        Some(json!({ "name": name, "capacity": capacity, "build_id": BUILD })),
-    )
-    .await
-}
-
-async fn ticket(
-    bridge: &Bridge,
-    player: &Player,
-    ip: &str,
-    room_id: &str,
-    build: &str,
-) -> (StatusCode, Json_) {
-    send(
-        bridge,
-        reqwest::Method::POST,
-        player.token(),
-        ip,
-        &format!("/v1/rooms/{room_id}/tickets"),
-        Some(json!({ "endpoint_id": ENDPOINT, "build_id": build })),
-    )
-    .await
-}
-
-async fn listing(bridge: &Bridge, player: &Player, query: &str) -> Vec<RoomSummary> {
-    let (status, body) = send(
-        bridge,
-        reqwest::Method::GET,
-        player.token(),
-        "198.51.100.1",
-        &format!("/v1/rooms{query}"),
-        None,
-    )
-    .await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    serde_json::from_value::<RoomList>(body).unwrap().rooms
-}
-
-/// Creates a room as `creator` from its own address.
-async fn open_room(bridge: &Bridge, creator: &Player, ip: &str, capacity: u8) -> String {
-    let (status, room) = create_room(bridge, creator, ip, "Friendly matches", capacity).await;
-    assert_eq!(status, StatusCode::CREATED, "{room}");
-    room["room_id"].as_str().unwrap().to_owned()
-}
-
-fn reason(body: &Json_) -> &str {
-    body["error"]["details"]["reason"].as_str().unwrap_or("")
-}
 
 #[tokio::test]
 async fn a_bridge_without_a_supervisor_offers_no_rooms() {
@@ -265,6 +171,51 @@ async fn one_open_room_per_creator_and_two_per_address() {
     bridge.clock.advance(2);
     ember_bridge::poll_rooms(bridge.state()).await;
     open_room(&bridge, &kate, "198.51.100.1", 4).await;
+}
+
+/// A room whose last member left is gone from the supervisor at once, but the
+/// bridge only hears of it on its next poll. A create the room would refuse
+/// asks the supervisor first, so the creator need not wait for that poll; a
+/// room the supervisor still hosts still refuses.
+#[tokio::test]
+async fn a_create_right_after_the_creators_room_ended_does_not_wait_for_the_poll() {
+    let (bridge, fake) = start().await;
+    let (kate, sam, kim, lee) = (
+        player(&bridge, 1).await,
+        player(&bridge, 2).await,
+        player(&bridge, 3).await,
+        player(&bridge, 4).await,
+    );
+    let first = open_room(&bridge, &kate, "198.51.100.1", 4).await;
+    ember_bridge::poll_rooms(bridge.state()).await;
+    report(&fake, &first, 1, 0, &[]);
+    ember_bridge::poll_rooms(bridge.state()).await;
+    // Still hosted: refused, after asking.
+    let (status, body) = create_room(&bridge, &kate, "198.51.100.1", "Again", 4).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    assert_eq!(reason(&body), "room_limit");
+    // Its last member leaves and its host closes it; no poll runs.
+    fake.lock()
+        .unwrap()
+        .rooms
+        .retain(|room| room["room_id"] != first.as_str());
+    let second = open_room(&bridge, &kate, "198.51.100.1", 4).await;
+    assert_ne!(second, first);
+    assert_eq!(fake.lock().unwrap().created.len(), 2);
+
+    // The same for an address limit a room that has just ended was filling.
+    let sams = open_room(&bridge, &sam, "198.51.100.2", 4).await;
+    open_room(&bridge, &kim, "198.51.100.2", 4).await;
+    let (status, body) = create_room(&bridge, &lee, "198.51.100.2", "Third", 4).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    assert_eq!(reason(&body), "room_limit");
+    fake.lock()
+        .unwrap()
+        .rooms
+        .retain(|room| room["room_id"] != sams.as_str());
+    open_room(&bridge, &lee, "198.51.100.2", 4).await;
+    // Sam's room is recorded closed, and Sam may open another.
+    open_room(&bridge, &sam, "198.51.100.3", 4).await;
 }
 
 #[tokio::test]

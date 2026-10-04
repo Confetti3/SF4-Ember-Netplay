@@ -52,6 +52,18 @@ export function signingBytes(domain: string, value: Json): Buffer {
 
 /** Checks a challenge against the operation it should authorize. */
 export function checkChallenge(challenge: Challenge, expected: Expected, now: number): void {
+  checkBound(challenge, expected);
+  if (now < challenge.issued_at || now >= challenge.expires_at) throw new ProofError("challenge expired");
+}
+
+/**
+ * How far a signer's clock may be from the bridge's (a day, as for invitations).
+ * The bridge still holds the challenge to its own clock when the proof returns.
+ */
+export const SIGN_SKEW_SECS = 24 * 60 * 60;
+
+/** Shape and binding to `expected`, without the time window. */
+function checkBound(challenge: Challenge, expected: Expected): void {
   const mismatches: [boolean, string][] = [
     [challenge.version === 1, "version"],
     [challenge.bridge_id === expected.bridgeId, "bridge_id"],
@@ -66,7 +78,6 @@ export function checkChallenge(challenge: Challenge, expected: Expected, now: nu
   if (failed) throw new ProofError(`challenge ${failed[1]} does not match`);
   const lifetime = challenge.expires_at - challenge.issued_at;
   if (lifetime <= 0 || lifetime > 60) throw new ProofError("challenge lifetime is invalid");
-  if (now < challenge.issued_at || now >= challenge.expires_at) throw new ProofError("challenge expired");
   decodeBase64url(challenge.nonce, 32);
 }
 
@@ -85,7 +96,11 @@ export function verifyProof(challenge: Challenge, proof: Proof, publicKey: strin
  * and bots that hold their own identity; Ember players sign in the helper.
  */
 export function signChallenge(seed: Uint8Array, challenge: Challenge, expected: Expected, now: number): Proof {
-  checkChallenge(challenge, expected, now);
+  checkBound(challenge, expected);
+  // Only a plainly stale challenge is refused: a clock a little off still signs.
+  if (now + SIGN_SKEW_SECS < challenge.issued_at || now >= challenge.expires_at + SIGN_SKEW_SECS) {
+    throw new ProofError("challenge expired");
+  }
   const key = createPrivateKey({ key: Buffer.concat([PKCS8_PREFIX, Buffer.from(seed)]), format: "der", type: "pkcs8" });
   return {
     challenge_id: challenge.challenge_id,

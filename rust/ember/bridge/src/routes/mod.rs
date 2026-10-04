@@ -2,6 +2,7 @@ pub mod blumint;
 pub mod discord;
 pub mod discovery;
 pub mod events;
+pub mod expiry;
 pub mod ledger;
 pub mod links;
 pub mod lobbies;
@@ -171,8 +172,8 @@ pub async fn maintenance(state: AppState) {
     }
 }
 
-/// Expires link intents, holds games whose reports did not arrive, and
-/// removes stale challenges, sessions and replay records. Durable domain
+/// Expires link intents, holds games whose reports did not arrive, expires
+/// matches nobody played, and removes stale challenges, sessions and replay records. Durable domain
 /// records (links, matches, attempts, reports, events) stay.
 pub async fn maintenance_once(state: &AppState) {
     let now = state.now();
@@ -182,6 +183,7 @@ pub async fn maintenance_once(state: &AppState) {
         .db
         .write(move |tx| {
             reports::expire(tx, &ctx)?;
+            expiry::expire_stale(tx, &ctx)?;
             links::expire(tx, now)?;
             discord::expire(tx, now)?;
             tx.execute(

@@ -547,7 +547,7 @@ msgid "home.online"
 msgstr "Hra online"
 
 msgid "home.online_detail"
-msgstr "Vytvořte soukromou místnost nebo přijměte pozvánku."
+msgstr "Vytvořte místnost, připojte se k nějaké nebo procházejte veřejné místnosti."
 
 msgid "home.return_room"
 msgstr "Vrátit se do aktuální místnosti."
@@ -3003,6 +3003,12 @@ msgstr "Výsledky tohoto zápasu zadává organizátor. Nehraje se přes Ember."
 msgid "tournament.finished_detail"
 msgstr "Tento zápas skončil."
 
+msgid "tournament.expired"
+msgstr "Vypršel"
+
+msgid "tournament.expired_detail"
+msgstr "Platnost tohoto zápasu vypršela, než se odehrál."
+
 msgid "tournament.leave_room_detail"
 msgstr "Pro hraní tohoto zápasu opusťte svou místnost."
 
@@ -3115,7 +3121,7 @@ msgid "screen.public_rooms"
 msgstr "Veřejné místnosti"
 
 msgid "online.public_detail"
-msgstr "Procházejte místnosti, do kterých se může připojit každý hráč s Ember ID, nebo otevřete vlastní."
+msgstr "Procházejte otevřené místnosti, do kterých se může připojit kdokoli, nebo se rychle připojte k jedné poblíž."
 
 msgid "public.create"
 msgstr "Vytvořit veřejnou místnost"
@@ -3129,26 +3135,11 @@ msgstr "Otevře veřejnou místnost ve službě Ember ID a připojí vás do ní
 msgid "public.create_needs_id"
 msgstr "Veřejné místnosti vyžadují Ember ID a důvěryhodnou službu. Nastavíte je v části Veřejné místnosti."
 
-msgid "public.refresh_detail"
-msgstr "Vyžádá si od služby aktuální seznam místností."
-
 msgid "public.loading"
 msgstr "Načítání místností..."
 
-msgid "public.none"
-msgstr "Žádné veřejné místnosti"
-
-msgid "public.none_detail"
-msgstr "Nikdo teď nemá otevřenou veřejnou místnost. Vytvořte si vlastní a začněte hrát."
-
-msgid "public.needs_id"
-msgstr "Veřejné místnosti vyžadují Ember ID"
-
 msgid "public.needs_id_detail"
 msgstr "Vytvořte si Ember ID a v části Propojené účty důvěřujte nějaké službě. Veřejné místnosti uvádí právě ta služba."
-
-msgid "public.room_playing"
-msgstr "{0}, probíhá zápas"
 
 msgid "public.room_detail"
 msgstr "{0}\nHráči: {1}/{2}. Region: {3}."
@@ -3221,3 +3212,189 @@ msgstr "Důvěřujte této službě v části Propojené účty a pak odkaz na m
 
 msgid "public.link_waiting"
 msgstr "Dorazil odkaz na veřejnou místnost. Opusťte svou místnost a pak ho zvolte v části Veřejné místnosti."
+
+msgid "public.quick"
+msgstr "Rychlé připojení"
+
+msgid "public.quick_detail"
+msgstr "Připojí vás do otevřené místnosti ve vašem okolí s nejvíce volnými místy."
+
+msgid "public.quick_none"
+msgstr "V okolí teď nemá žádná otevřená místnost volné místo. Vytvořte si vlastní a hráči poblíž ji najdou."
+
+msgid "public.create_room"
+msgstr "Vytvořit místnost"
+
+msgid "public.filter"
+msgstr "Zobrazit"
+
+msgid "public.filter_detail"
+msgstr "Zvolte, které místnosti se zobrazí: všechny, ty ve vašem okolí, nebo jen s volnými místy."
+
+msgid "public.filter_label"
+msgstr "Zobrazit: {0}"
+
+msgid "public.filter.all"
+msgstr "Všechny místnosti"
+
+msgid "public.filter.near"
+msgstr "Poblíž"
+
+msgid "public.filter.seats"
+msgstr "Volná místa"
+
+msgid "public.filter_near_unknown"
+msgstr "Ember zatím nezná váš region, a proto nepozná, které místnosti jsou poblíž."
+
+msgid "public.near_you"
+msgstr "Poblíž"
+
+msgid "public.in_match"
+msgstr "Probíhá zápas"
+
+msgid "public.locked"
+msgstr "Uzamčeno"
+
+msgid "public.full"
+msgstr "Plná"
+
+msgid "public.card_meta"
+msgstr "{0} · {1}"
+
+msgid "public.players"
+msgstr "Hráči"
+
+msgid "public.open_for"
+msgstr "Otevřeno už {0}"
+
+msgid "public.age_minutes"
+msgstr "{0} min"
+
+msgid "public.age_hours"
+msgstr "{0} h"
+
+msgid "public.room_detail2"
+msgstr "Hostitel {0}, {1}. Obsazená místa: {2} z {3}."
+
+msgid "public.room_detail_match"
+msgstr " Probíhá zápas."
+
+msgid "public.room_detail_locked"
+msgstr " Místnost je uzamčena."
+
+msgid "public.room_detail_full"
+msgstr " Místnost je plná."
+
+msgid "public.status_listed"
+msgstr "Otevřené místnosti: {0}. Aktualizováno {1}."
+
+msgid "public.status_filtered"
+msgstr "Zobrazeno {0} z {1}. Aktualizováno {2}."
+
+msgid "public.updated_now"
+msgstr "právě teď"
+
+msgid "public.updated_seconds"
+msgstr "před {0} s"
+
+msgid "public.updated_minutes"
+msgstr "před {0} min"
+
+msgid "public.updating"
+msgstr "Aktualizace..."
+
+msgid "public.loading_card"
+msgstr "Hledání místností..."
+
+msgid "public.none_all"
+msgstr "Teď nejsou otevřené žádné místnosti. Vytvořte si vlastní a ostatní ji najdou."
+
+msgid "public.none_filtered"
+msgstr "Tomuto filtru neodpovídá žádná místnost."
+
+msgid "public.show_all"
+msgstr "Zobrazit všechny místnosti"
+
+msgid "public.try_again"
+msgstr "Zkusit znovu"
+
+msgid "public.stop_joining"
+msgstr "Zrušit připojování"
+
+msgid "public.connecting"
+msgstr "Připojování..."
+
+msgid "public.setup"
+msgstr "Nastavit veřejné místnosti"
+
+msgid "public.setup_detail"
+msgstr "Ember vytvoří vaše Ember ID v tomto počítači, pokud ještě žádné nemáte, a bude důvěřovat službě místností Ember (bridge.embernetplay.link), která místnosti vypisuje a pouští vás do nich. Kdykoli ji můžete odebrat v části Ember ID > Propojené účty."
+
+msgid "public.setup_title"
+msgstr "Hrajte ve veřejných místnostech"
+
+msgid "public.setup_body"
+msgstr "Otevřené místnosti, do kterých se může připojit každý s Ember. Jedním stiskem je vše nastaveno."
+
+msgid "public.setup_step.checking"
+msgstr "Kontrola vašeho Ember ID..."
+
+msgid "public.setup_step.creating"
+msgstr "Vytváření vašeho Ember ID..."
+
+msgid "public.setup_step.finding"
+msgstr "Hledání služby místností Ember..."
+
+msgid "public.setup_step.trusting"
+msgstr "Přidávání důvěryhodné služby místností Ember..."
+
+msgid "public.setup_retry"
+msgstr "Zkusit nastavení znovu"
+
+msgid "public.setup_done"
+msgstr "Veřejné místnosti jsou připraveny."
+
+msgid "public.setup_needs_id"
+msgstr "Nejprve odemkněte své Ember ID"
+
+msgid "public.setup_needs_id_detail"
+msgstr "Vaše Ember ID je uzamčeno. Odemkněte ho v části Ember ID a pak veřejné místnosti nastavte znovu."
+
+msgid "public.copy_link"
+msgstr "Kopírovat odkaz místnosti"
+
+msgid "public.copy_link_detail"
+msgstr "Zkopíruje {0}, aby se přátelé mohli připojit z prohlížeče nebo Discordu."
+
+msgid "public.link_copied"
+msgstr "Odkaz na místnost zkopírován."
+
+msgid "public.default_name"
+msgstr "Místnost hráče {0}"
+
+msgid "public.failure.room_locked"
+msgstr "Hostitel tuto místnost uzamkl. Vyberte jinou."
+
+msgid "public.failure.unavailable"
+msgstr "Služba místností neodpověděla včas. Zkuste to za chvíli znovu."
+
+msgid "public.failure.untrusted"
+msgstr "Ember nedokázal ověřit odpověď služby místností, a proto se nepřipojil. Zkuste to znovu; pokud se to opakuje, napište nám na Discord."
+
+msgid "public.failure.internal"
+msgstr "Něco se pokazilo uvnitř Ember. Zkuste to znovu."
+
+msgid "public.failure.helper"
+msgstr "Síťový pomocník Ember neběží. Pokud to potrvá, restartujte hru."
+
+msgid "public.failure.full_or_locked"
+msgstr "Tato místnost se právě zaplnila nebo byla uzamčena. Vyberte jinou."
+
+msgid "public.failure.turned_away"
+msgstr "Místnost odmítla vaše připojení. Možná jste z ní byli odebráni."
+
+msgid "public.failure.join_failed"
+msgstr "Do místnosti se nepodařilo vstoupit. Možná se právě zavřela. Aktualizujte seznam a vyberte jinou."
+
+msgid "legend.refresh"
+msgstr "Aktualizovat"

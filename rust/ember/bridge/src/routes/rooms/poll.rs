@@ -1,12 +1,21 @@
 //! Keeping the bridge's rooms in line with the supervisor: member counts,
-//! invitations and kicks come in, and an open room it no longer reports is
-//! closed. A connection's rooms announce what changed on its stream.
+//! invitations, kicks and what the room host says about its room (name,
+//! capacity, lock, listing details) come in, and an open room it no longer
+//! reports is closed. A connection's rooms announce what changed on its
+//! stream.
 use std::{collections::BTreeSet, sync::atomic::Ordering, time::Duration};
 
-use ember_protocol::{EmberId, event::Kind, play::MAX_INVITATION, rooms::ENDED};
+use ember_protocol::{
+    EmberId,
+    event::Kind,
+    play::MAX_INVITATION,
+    rooms::{ENDED, MAX_CAPACITY},
+};
 use rusqlite::{Transaction, params};
 
-use super::{PENDING_SECS, announce, load, supervisor::Reported, supervisor::Supervisor};
+use super::{
+    PENDING_SECS, announce, details::Details, load, supervisor::Reported, supervisor::Supervisor,
+};
 use crate::{AppState, Keys, config::Config, error::Result};
 
 /// How often the supervisor is asked which rooms are alive.
@@ -96,20 +105,49 @@ fn apply(
             && room.invitation.is_ascii()
             && !room.invitation.is_empty())
         .then(|| keys.seal(room.invitation.as_bytes()));
+        // The host's own report, each field only if it holds. Its name and
+        // capacity replace the ones the room was created with; a capacity
+        // that would not hold the members it reports is not taken. A report
+        // that is not an object leaves everything as it was. The member
+        // count stored is worked out once, here, from the capacity the room
+        // ends up with, and the fighters were judged against that same count.
+        let reported = u8::try_from(room.members).unwrap_or(u8::MAX);
+        let held = before
+            .as_ref()
+            .map_or(MAX_CAPACITY, |before| before.capacity);
+        let details = room.details.as_ref().filter(|details| details.is_object());
+        let has_details = details.is_some();
+        let details = match details {
+            Some(details) => Details::from_value(details, reported, held),
+            None => Details::absent(reported, held),
+        };
         tx.execute(
-            "UPDATE rooms SET members = MIN(?2, capacity), tables_playing = ?3,
+            "UPDATE rooms SET name = COALESCE(?8, name), capacity = COALESCE(?9, capacity),
+                 members = ?2, tables_playing = ?3,
+                 locked = CASE WHEN ?7 THEN COALESCE(?10, locked) ELSE locked END,
+                 host_name = CASE WHEN ?7 THEN ?11 ELSE host_name END,
+                 fighters = CASE WHEN ?7 THEN ?12 ELSE fighters END,
+                 set_format = COALESCE(?13, set_format), rotation = COALESCE(?14, rotation),
                  invitation_sealed = COALESCE(?4, invitation_sealed),
                  opened_at = COALESCE(opened_at, CASE WHEN ?6 THEN ?5 END)
              WHERE room_id = ?1 AND closed_at IS NULL AND invitation_sealed IS NOT NULL",
             params![
                 room.room_id,
-                room.members.min(u32::from(u8::MAX)),
+                details.members,
                 room.tables_playing.min(u32::from(u8::MAX)),
                 sealed,
                 now,
                 // The supervisor's latch, not the count this poll saw: a member who
                 // came and went between polls has already ended creator-only entry.
                 room.opened.unwrap_or(room.members >= 1),
+                has_details,
+                details.name,
+                details.capacity,
+                details.locked,
+                details.host_name,
+                details.fighters,
+                details.set_format,
+                details.rotation,
             ],
         )?;
         // Bans last for the room's life and are never evicted: the supervisor
@@ -128,12 +166,22 @@ fn apply(
             && after.closed_at.is_none()
             && after.region.is_some()
         {
-            // At most one event per poll: opening says the counts too.
+            // At most one event per poll: opening says the counts too. What a
+            // connection's view carries is the counts, the name and the
+            // capacity; the listing details are not in it.
             let kind = if before.opened_at.is_none() && after.opened_at.is_some() {
                 Some(Kind::RoomOpened)
-            } else if (before.members, before.tables_playing)
-                != (after.members, after.tables_playing)
-            {
+            } else if (
+                &before.name,
+                before.capacity,
+                before.members,
+                before.tables_playing,
+            ) != (
+                &after.name,
+                after.capacity,
+                after.members,
+                after.tables_playing,
+            ) {
                 Some(Kind::RoomChanged)
             } else {
                 None

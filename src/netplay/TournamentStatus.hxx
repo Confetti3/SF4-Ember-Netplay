@@ -18,9 +18,32 @@ struct Assignment {
 	int slot = -1;
 	int gamesToWin = 0;
 	std::array<unsigned, 2> wins = {};
+	// The bridge's clock, unix seconds, when the match was assigned and when
+	// nobody having played it expires it; 0 when the bridge did not say.
+	std::uint64_t createdAt = 0, expiresAt = 0;
+	// How far this PC's clock may run ahead of the bridge's before a match is
+	// taken for expired: a clock a few minutes fast must not hide a live match.
+	static constexpr std::uint64_t ExpirySkewSeconds = 300;
 	// Played through Ember (ember-room-v1) rather than entered by an organizer.
 	bool PlayedInEmber() const { return profile == "ember-room-v1"; }
-	bool Finished() const { return state == "completed" || state == "cancelled" || state == "failed"; }
+	// Nothing more will happen to it: it ended, was called off or failed, or
+	// nobody played it in time.
+	bool Finished() const { return state == "completed" || state == "cancelled" || state == "failed" || Expired(); }
+	bool Expired() const { return state == "expired"; }
+	// Past its expiry by `unixNow`, this PC's clock (0 when unknown, never past).
+	bool Lapsed(std::uint64_t unixNow) const { return expiresAt != 0 && unixNow > expiresAt + ExpirySkewSeconds; }
+	// A player can go and play it now: its players are being gathered, its room
+	// provisioned or open, or between games. Not one still running, awaiting
+	// reports or in review, which have nothing for a player to start.
+	bool Waiting() const { return state == "awaiting_players" || state == "provisioning" || state == "ready" || state == "between_games"; }
+	// The one rule for whether a player can go and play it now (Home's count, the
+	// announcements, the matches rows and Play): played through Ember, waiting for
+	// its players, and not past its expiry by this PC's clock (with the skew allowed).
+	bool Playable(std::uint64_t unixNow) const { return PlayedInEmber() && Waiting() && !Lapsed(unixNow); }
+	// Nobody played it in time: the bridge says so, or this PC's clock does before
+	// the bridge has, but only while it waits for its players. A running match or
+	// one in review is kept alive by the bridge past its time, so it shows as the bridge says.
+	bool ExpiredBy(std::uint64_t unixNow) const { return Expired() || (Waiting() && Lapsed(unixNow)); }
 };
 
 // The three public room ops ride the same channel as the tournament ones: they

@@ -677,3 +677,179 @@ async fn a_revoked_owners_webhook_receives_nothing() {
         .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
+
+const DAY: i64 = 24 * 60 * 60;
+
+/// The first player's assignments, after a new session (the clock moves by days).
+async fn assignment_rows(f: &mut Fixture) -> Vec<Value> {
+    f.bridge.open_session(&mut f.a).await;
+    let (status, listed) = f.bridge.get(f.a.token(), "/v1/assignments").await;
+    assert_eq!(status, StatusCode::OK, "{listed}");
+    listed["assignments"].as_array().unwrap().clone()
+}
+
+async fn snapshot_of(f: &Fixture, id: &str) -> Value {
+    let (status, found) = f
+        .bridge
+        .get(&f.provider, &format!("/v1/matches/{id}"))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{found}");
+    found
+}
+
+// A match nobody plays expires a day after it was created, not before.
+#[tokio::test]
+async fn a_match_nobody_plays_expires_after_a_day_and_frees_its_players() {
+    let mut f = fixture().await;
+    let before = f.bridge.clock.now();
+    let (id, _) = create_match(&f).await;
+    // The clock is the wall clock, so the stored creation time is checked
+    // against the window around the request rather than one reading.
+    let created_at = snapshot_of(&f, &id).await["created_at"].as_u64().unwrap();
+    assert!((before..=f.bridge.clock.now()).contains(&created_at));
+
+    let rows = assignment_rows(&mut f).await;
+    assert_eq!(rows[0]["created_at"], created_at);
+    assert_eq!(rows[0]["expires_at"], created_at + DAY as u64);
+    let snapshot = snapshot_of(&f, &id).await;
+    assert_eq!(snapshot["created_at"], created_at);
+    assert_eq!(snapshot["expires_at"], created_at + DAY as u64);
+
+    f.bridge.clock.advance(DAY - 1);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(snapshot_of(&f, &id).await["state"], "awaiting_players");
+    // Still holding its players.
+    let (status, busy) = f
+        .bridge
+        .post_keyed(
+            &f.provider,
+            "/v1/matches",
+            create_body(&f, "set-2", "organizer-reported-v1"),
+            Some("create-2"),
+        )
+        .await;
+    assert_eq!(
+        (status, code(&busy)),
+        (StatusCode::CONFLICT, "lease_conflict")
+    );
+
+    f.bridge.clock.advance(1);
+    ember_bridge::maintain(f.bridge.state()).await;
+    let expired = snapshot_of(&f, &id).await;
+    assert_eq!(expired["state"], "expired");
+    // Its own event, not a cancellation.
+    let logged = f.bridge.events(&f.organizer, "0").await;
+    let kinds = types(&logged);
+    assert!(
+        kinds.contains(&"io.ember.tournament.match.expired.v1".to_owned()),
+        "{kinds:?}"
+    );
+    assert!(!kinds.contains(&"io.ember.tournament.match.cancelled.v1".to_owned()));
+    let event = logged
+        .iter()
+        .find(|e| e["type"] == "io.ember.tournament.match.expired.v1")
+        .unwrap();
+    assert_eq!(event["data"]["state"], "expired");
+    assert_eq!(event["data"]["reason"], "not_played");
+    assert_eq!(event["data"]["expires_at"], created_at + DAY as u64);
+    assert_eq!(event["data"]["match_revision"], expired["revision"]);
+    // Maintenance again changes nothing.
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(f.bridge.events(&f.organizer, "0").await.len(), logged.len());
+
+    // It stays in the assignments, as expired, for a day.
+    let rows = assignment_rows(&mut f).await;
+    assert_eq!(rows[0]["match_id"], id.as_str());
+    assert_eq!(rows[0]["state"], "expired");
+    assert_eq!(rows[0]["expires_at"], created_at + DAY as u64);
+    // The players are free: the pair can have a new match. An expired one is
+    // finished, so it cannot be cancelled.
+    let (status, created) = f
+        .bridge
+        .post_keyed(
+            &f.provider,
+            "/v1/matches",
+            create_body(&f, "set-2", "organizer-reported-v1"),
+            Some("create-2"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let (status, _) = f
+        .bridge
+        .post_keyed(
+            &f.provider,
+            &format!("/v1/matches/{id}/cancel"),
+            json!({ "reason": "late", "expected_revision": expired["revision"] }),
+            Some("cancel-expired"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    let rows = assignment_rows(&mut f).await;
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0]["match_id"], created["match_id"]);
+    assert_eq!(rows[1]["state"], "expired");
+
+    // A day after it expired it is no longer listed.
+    f.bridge.clock.advance(DAY + 1);
+    let rows = assignment_rows(&mut f).await;
+    assert!(
+        rows.iter().all(|row| row["match_id"] != id.as_str()),
+        "{rows:?}"
+    );
+}
+
+// A set the players are working through is not cut off: a match with a game
+// recorded expires only after a whole day without a game, and never while a
+// provisioning lease is live.
+#[tokio::test]
+async fn a_match_with_games_expires_only_after_a_quiet_day() {
+    let mut f = fixture().await;
+    let (id, _) = create_match(&f).await;
+    f.bridge.clock.advance(3600);
+    // The clock is the wall clock: the decision time lies in this window.
+    let deciding = f.bridge.clock.now();
+    adjudicate(&f, &id, "g1", json!({ "kind": "game_result", "winner_slot": 0, "reason": "VOD", "expected_revision": "1" })).await;
+    let decided = f.bridge.clock.now();
+    assert_eq!(snapshot_of(&f, &id).await["state"], "between_games");
+
+    // Past its original expiry, but a game was decided less than a day ago.
+    f.bridge.clock.advance(DAY - 3600 + 1);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(snapshot_of(&f, &id).await["state"], "between_games");
+    let expires = assignment_rows(&mut f).await[0]["expires_at"]
+        .as_u64()
+        .unwrap();
+    assert!(
+        (deciding + DAY as u64..=decided + DAY as u64).contains(&expires),
+        "{expires}"
+    );
+
+    // A live provisioning lease holds it, a lapsed one does not.
+    f.bridge.clock.advance(3600);
+    let lease_ends = f.bridge.clock.now() + 60;
+    let match_id = id.clone();
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "INSERT OR IGNORE INTO match_rooms (match_id) VALUES (?1)",
+                [&match_id],
+            )?;
+            tx.execute(
+                "UPDATE match_rooms SET lease_expires_at = ?1 WHERE match_id = ?2",
+                rusqlite::params![lease_ends, match_id],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(snapshot_of(&f, &id).await["state"], "between_games");
+    f.bridge.clock.advance(61);
+    ember_bridge::maintain(f.bridge.state()).await;
+    let expired = snapshot_of(&f, &id).await;
+    assert_eq!(expired["state"], "expired");
+    // What was decided stays on the record.
+    assert_eq!(expired["scores"][0]["wins"], 1);
+}

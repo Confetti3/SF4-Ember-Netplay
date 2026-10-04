@@ -214,6 +214,71 @@ async fn the_list_carries_the_hosts_latest_status() {
     assert_eq!(rooms[0]["banned"], json!(["banned-4"]));
 }
 
+#[tokio::test]
+async fn the_list_carries_the_hosts_details_whole() {
+    let harness = harness(|_, _| {});
+    harness.create(1, "details").await;
+    for _ in 0..200 {
+        if harness.list().await[0].get("details").is_some() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    let rooms = harness.list().await;
+    assert_eq!(rooms[0]["members"], 1);
+    // The supervisor's own capacity is the creation one; the details are the host's.
+    assert_eq!(rooms[0]["capacity"], 8);
+    assert_eq!(
+        rooms[0]["details"],
+        json!({ "name": "Renamed", "capacity": 6, "locked": true, "host_name": "Kate",
+            "fighters": [3, 255], "set_format": 3, "rotation": 1, "future": { "x": 1 } })
+    );
+}
+
+/// Details that are not an object, or too big, are left out: the room stays up
+/// and the list answers.
+#[tokio::test]
+async fn malformed_details_leave_the_room_up_and_the_list_answering() {
+    let harness = harness(|_, _| {});
+    let (code, _) = harness.create(1, "bad-details").await;
+    assert_eq!(code, StatusCode::CREATED);
+    for _ in 0..200 {
+        if harness.list().await[0]["members"] == 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let rooms = harness.list().await;
+    assert_eq!(rooms.len(), 1);
+    assert_eq!(rooms[0]["members"], 1);
+    assert!(rooms[0].get("details").is_none(), "{}", rooms[0]);
+    assert_eq!(harness.supervisor.room_count(), 1);
+}
+
+/// Details nested past the JSON parser's recursion limit are as droppable as
+/// any other bad details: the status around them still counts, and the room
+/// is not killed for them.
+#[tokio::test]
+async fn deeply_nested_details_leave_the_room_up_and_the_list_answering() {
+    let harness = harness(|_, _| {});
+    let (code, _) = harness.create(1, "deep-details").await;
+    assert_eq!(code, StatusCode::CREATED);
+    for _ in 0..200 {
+        if harness.list().await[0]["members"] == 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let rooms = harness.list().await;
+    assert_eq!(rooms.len(), 1);
+    assert_eq!(rooms[0]["members"], 1);
+    assert_eq!(rooms[0]["opened"], true);
+    assert!(rooms[0].get("details").is_none(), "{}", rooms[0]);
+    assert_eq!(harness.supervisor.room_count(), 1);
+}
+
 /// A member who came and went before the bridge polled still opened the room:
 /// the list shows the room empty and opened.
 #[tokio::test]
@@ -548,6 +613,34 @@ async fn a_room_with_members_is_left_open() {
     tokio::time::sleep(Duration::from_millis(1200)).await;
     assert_eq!(harness.supervisor.room_count(), 1);
     assert_eq!(harness.list().await.len(), 1);
+}
+
+/// The room host says `closed` when its last member leaves on purpose: the
+/// room leaves the list at once, long before the empty grace, while a room
+/// whose last member dropped stays listed for that grace.
+#[tokio::test]
+async fn a_room_its_host_closes_leaves_the_list_at_once() {
+    let harness = harness(|_, _| {});
+    let (code, _) = harness.create(1, "occupied-then-empty").await;
+    assert_eq!(code, StatusCode::CREATED);
+    let (code, _) = harness.create(2, "last-member-left").await;
+    assert_eq!(code, StatusCode::CREATED);
+    let mut listed = Vec::new();
+    for _ in 0..100 {
+        listed = harness.list().await;
+        if listed.len() == 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    // Out of the list while its host is still closing, then off the books.
+    assert_eq!(harness.supervisor.room_count(), 2);
+    assert_eq!(listed.len(), 1, "{listed:?}");
+    assert_eq!(listed[0]["room_id"], room_id(1));
+    harness.rooms_settle_at(1).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let listed = harness.list().await;
+    assert_eq!((listed.len(), &listed[0]["members"]), (1, &json!(0)));
 }
 
 #[tokio::test]

@@ -13,6 +13,15 @@
 //! - `unknown-types`: prints messages of unknown type around `hosted`.
 //! - `members:<n>`: reports `hosted` and `n` members, `n / 2` playing tables
 //!   and one banned id, `banned-<n>`.
+//! - `occupied-then-empty`: reports `hosted`, one member, then none.
+//! - `last-member-left`: like `occupied-then-empty`, then says `closed` on its
+//!   own and exits 0 half a second later, whatever its stdin does.
+//! - `details`: reports `hosted`, then one member with listing details, an
+//!   unknown key among them.
+//! - `bad-details`: reports `hosted`, then one member with details that are
+//!   not an object, then a larger one than allowed, then none.
+//! - `deep-details`: reports `hosted`, then one member whose details nest 200
+//!   arrays deep, past the JSON parser's own recursion limit.
 //! - `max-status`: reports `hosted`, then the largest valid status: 512 banned
 //!   Ember IDs and an invitation of 4096 bytes.
 //! - `too-many-bans`: like `max-status` with 513 banned IDs, which is a
@@ -138,6 +147,38 @@ fn main() -> ExitCode {
         "occupied-then-empty" => {
             send(&status(1, 0, Vec::new()));
             send(&status(0, 0, Vec::new()));
+        }
+        "last-member-left" => {
+            send(&status(1, 0, Vec::new()));
+            send(&status(0, 0, Vec::new()));
+            send(&json!({ "type": "closed", "reason": "last_member_left" }));
+            // The real host takes a moment to close the room before it exits.
+            std::thread::sleep(Duration::from_millis(500));
+            return ExitCode::SUCCESS;
+        }
+        "details" => send(&json!({
+            "type": "status", "members": 1, "tables_playing": 0, "invitation": invitation,
+            "details": { "name": "Renamed", "capacity": 6, "locked": true,
+                "host_name": "Kate", "fighters": [3, 255], "set_format": 3, "rotation": 1,
+                "future": { "x": 1 } },
+        })),
+        "bad-details" => {
+            for details in [json!("nope"), json!({ "name": "n".repeat(3000) })] {
+                send(
+                    &json!({ "type": "status", "members": 1, "invitation": invitation,
+                    "details": details }),
+                );
+            }
+            send(&status(1, 0, Vec::new()));
+        }
+        "deep-details" => {
+            let (open, close) = ("[".repeat(200), "]".repeat(200));
+            let line = format!(
+                r#"{{"type":"status","members":1,"invitation":{invitation:?},"details":{{"fighters":{open}{close}}}}}"#
+            );
+            let mut out = std::io::stdout().lock();
+            let _ = writeln!(out, "{line}");
+            let _ = out.flush();
         }
         "max-status" | "too-many-bans" => {
             let count = if name == "max-status" { 512 } else { 513 };

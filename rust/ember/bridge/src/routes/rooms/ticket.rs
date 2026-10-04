@@ -8,8 +8,8 @@ use axum::{
 use ember_protocol::{
     play,
     rooms::{
-        BANNED, ROOM_FULL, ROOM_NOT_FOUND, ROOM_NOT_OPEN, RoomAdmission, RoomTicket, TICKET_SECS,
-        TicketRequest, UNSUPPORTED_BUILD,
+        BANNED, ROOM_FULL, ROOM_LOCKED, ROOM_NOT_FOUND, ROOM_NOT_OPEN, RoomAdmission, RoomTicket,
+        TICKET_SECS, TicketRequest, UNSUPPORTED_BUILD,
     },
 };
 use rusqlite::params;
@@ -76,6 +76,11 @@ pub async fn ticket(
             )?;
             if banned {
                 return Err(refuse(BANNED));
+            }
+            // The moderator locked the room: it would turn the join away at
+            // the door, so say so here.
+            if room.locked == Some(true) {
+                return Err(refuse(ROOM_LOCKED));
             }
             if room.members >= room.capacity {
                 return Err(refuse(ROOM_FULL));

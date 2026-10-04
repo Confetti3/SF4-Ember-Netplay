@@ -1034,6 +1034,19 @@ int main() try {
     SetUserGlyphRetention(std::chrono::seconds(10));
     SetUserGlyphRebuildInterval(std::chrono::milliseconds(250));
 
+    // The room link row belongs to a public room this shell joined from the list: a private room
+    // and a server-owned room reached any other way offer none (the journeys cover the row itself).
+    const auto offers = [&](const char* id) {
+        return std::any_of(rows.begin(), rows.end(), [&](const MenuEntry& entry) { return entry.id == id; });
+    };
+    view.session.room = netplay::RoomState::Joined; view.canEditSelection = true;
+    shell.Navigation().Home(); frame(); shell.Navigation().Push("room"); frame(); frame();
+    Check(offers("copy") && !offers("copy-room-link"), "A private room offers a room link or lost its invitation row");
+    view.room.serverOwned = true; frame(); frame();
+    Check(!offers("copy") && !offers("copy-short") && !offers("copy-room-link") && offers("leave"),
+        "A server-owned room not joined from the list offers an invitation or a room link");
+    view.room.serverOwned = false;
+
     SetMenuStatusProbe({}); SetMenuCardProbe({}); SetMenuEntriesProbe({});
     std::cout << "Room controls and uninterrupted controller, keyboard, mouse and queue frames passed.\n";
     return 0;

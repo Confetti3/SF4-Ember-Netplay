@@ -32,6 +32,7 @@ use crate::{
     error::{ApiFailure, Result},
     http::{Body, PROOF_BODY, json as respond},
     routes::{
+        expiry,
         ledger::{Match, Participant, bump, load, match_event, participants},
         links::Ctx,
         sessions::{self, Target},
@@ -716,6 +717,8 @@ fn issue(
         [match_id],
     )?;
     let revision = bump(tx, &fighter.found, MatchState::Running, ctx.now)?;
+    // A game starting is activity: the match gets a whole lifetime from now.
+    expiry::extend(tx, ctx.now, match_id)?;
     match_event(
         tx,
         ctx,

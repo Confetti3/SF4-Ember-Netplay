@@ -547,7 +547,7 @@ msgid "home.online"
 msgstr "Online spelen"
 
 msgid "home.online_detail"
-msgstr "Maak een privékamer of gebruik een uitnodiging."
+msgstr "Maak een kamer, doe mee aan een kamer of bekijk de openbare kamers."
 
 msgid "home.return_room"
 msgstr "Keer terug naar je huidige kamer."
@@ -3003,6 +3003,12 @@ msgstr "De organisator voert de uitslagen van deze wedstrijd in. Hij wordt niet 
 msgid "tournament.finished_detail"
 msgstr "Deze wedstrijd is voorbij."
 
+msgid "tournament.expired"
+msgstr "Verlopen"
+
+msgid "tournament.expired_detail"
+msgstr "Deze wedstrijd is verlopen voordat hij gespeeld werd."
+
 msgid "tournament.leave_room_detail"
 msgstr "Verlaat je kamer om deze wedstrijd te spelen."
 
@@ -3115,7 +3121,7 @@ msgid "screen.public_rooms"
 msgstr "Openbare kamers"
 
 msgid "online.public_detail"
-msgstr "Bekijk kamers waar elke speler met een Ember ID in kan, of maak er zelf een."
+msgstr "Bekijk open kamers waar iedereen in kan, of doe snel mee aan een kamer bij jou in de buurt."
 
 msgid "public.create"
 msgstr "Openbare kamer maken"
@@ -3129,26 +3135,11 @@ msgstr "Opent een openbare kamer bij de Ember ID-dienst en gaat erin. Stel de ta
 msgid "public.create_needs_id"
 msgstr "Openbare kamers hebben een Ember ID en een vertrouwde dienst nodig. Richt ze in via Openbare kamers."
 
-msgid "public.refresh_detail"
-msgstr "Vraagt de dienst om de actuele lijst met kamers."
-
 msgid "public.loading"
 msgstr "Kamers laden..."
 
-msgid "public.none"
-msgstr "Geen openbare kamers"
-
-msgid "public.none_detail"
-msgstr "Er is nu geen openbare kamer open. Maak er een om te gaan spelen."
-
-msgid "public.needs_id"
-msgstr "Openbare kamers hebben een Ember ID nodig"
-
 msgid "public.needs_id_detail"
 msgstr "Maak een Ember ID en vertrouw een dienst via Gekoppelde accounts. Die dienst toont de openbare kamers."
-
-msgid "public.room_playing"
-msgstr "{0}, in een wedstrijd"
 
 msgid "public.room_detail"
 msgstr "{0}\nSpelers: {1}/{2}. Regio: {3}."
@@ -3221,3 +3212,189 @@ msgstr "Vertrouw deze dienst bij Gekoppelde accounts en open de kamerlink dan op
 
 msgid "public.link_waiting"
 msgstr "Er is een link naar een openbare kamer binnengekomen. Verlaat je kamer en kies hem dan bij Openbare kamers."
+
+msgid "public.quick"
+msgstr "Snel meedoen"
+
+msgid "public.quick_detail"
+msgstr "Neemt je mee naar de open kamer bij jou in de buurt met de meeste vrije plekken."
+
+msgid "public.quick_none"
+msgstr "Er is nu geen open kamer bij jou in de buurt met een vrije plek. Maak er een en spelers in de buurt vinden hem."
+
+msgid "public.create_room"
+msgstr "Kamer maken"
+
+msgid "public.filter"
+msgstr "Tonen"
+
+msgid "public.filter_detail"
+msgstr "Kies welke kamers je ziet: alle, kamers bij jou in de buurt of alleen kamers met vrije plekken."
+
+msgid "public.filter_label"
+msgstr "Tonen: {0}"
+
+msgid "public.filter.all"
+msgstr "Alle kamers"
+
+msgid "public.filter.near"
+msgstr "Bij mij in de buurt"
+
+msgid "public.filter.seats"
+msgstr "Vrije plekken"
+
+msgid "public.filter_near_unknown"
+msgstr "Ember kent je regio nog niet en kan dus niet zeggen welke kamers bij jou in de buurt zijn."
+
+msgid "public.near_you"
+msgstr "In de buurt"
+
+msgid "public.in_match"
+msgstr "In een wedstrijd"
+
+msgid "public.locked"
+msgstr "Vergrendeld"
+
+msgid "public.full"
+msgstr "Vol"
+
+msgid "public.card_meta"
+msgstr "{0} · {1}"
+
+msgid "public.players"
+msgstr "Spelers"
+
+msgid "public.open_for"
+msgstr "Open sinds {0}"
+
+msgid "public.age_minutes"
+msgstr "{0} min"
+
+msgid "public.age_hours"
+msgstr "{0} u"
+
+msgid "public.room_detail2"
+msgstr "Host {0}, {1}. {2} van {3} plekken bezet."
+
+msgid "public.room_detail_match"
+msgstr " Er is een wedstrijd bezig."
+
+msgid "public.room_detail_locked"
+msgstr " De kamer is vergrendeld."
+
+msgid "public.room_detail_full"
+msgstr " De kamer is vol."
+
+msgid "public.status_listed"
+msgstr "Open kamers: {0}. Bijgewerkt {1}."
+
+msgid "public.status_filtered"
+msgstr "{0} van {1} getoond. Bijgewerkt {2}."
+
+msgid "public.updated_now"
+msgstr "zojuist"
+
+msgid "public.updated_seconds"
+msgstr "{0} s geleden"
+
+msgid "public.updated_minutes"
+msgstr "{0} min geleden"
+
+msgid "public.updating"
+msgstr "Bijwerken..."
+
+msgid "public.loading_card"
+msgstr "Kamers zoeken..."
+
+msgid "public.none_all"
+msgstr "Er zijn nu geen open kamers. Maak er een en anderen kunnen hem vinden."
+
+msgid "public.none_filtered"
+msgstr "Geen kamers komen overeen met dit filter."
+
+msgid "public.show_all"
+msgstr "Alle kamers tonen"
+
+msgid "public.try_again"
+msgstr "Opnieuw proberen"
+
+msgid "public.stop_joining"
+msgstr "Betreden annuleren"
+
+msgid "public.connecting"
+msgstr "Verbinden..."
+
+msgid "public.setup"
+msgstr "Openbare kamers instellen"
+
+msgid "public.setup_detail"
+msgstr "Ember maakt je Ember ID op deze pc als je er nog geen hebt, en vertrouwt de kamerdienst van Ember (bridge.embernetplay.link) om kamers te tonen en je binnen te laten. Je kunt hem altijd verwijderen via Ember ID > Gekoppelde accounts."
+
+msgid "public.setup_title"
+msgstr "Speel in openbare kamers"
+
+msgid "public.setup_body"
+msgstr "Open kamers waar iedereen met Ember in kan. Eén druk en je bent klaar."
+
+msgid "public.setup_step.checking"
+msgstr "Je Ember ID controleren..."
+
+msgid "public.setup_step.creating"
+msgstr "Je Ember ID maken..."
+
+msgid "public.setup_step.finding"
+msgstr "De kamerdienst van Ember zoeken..."
+
+msgid "public.setup_step.trusting"
+msgstr "De kamerdienst van Ember vertrouwen..."
+
+msgid "public.setup_retry"
+msgstr "Instellen opnieuw proberen"
+
+msgid "public.setup_done"
+msgstr "Openbare kamers zijn klaar."
+
+msgid "public.setup_needs_id"
+msgstr "Ontgrendel eerst je Ember ID"
+
+msgid "public.setup_needs_id_detail"
+msgstr "Je Ember ID is vergrendeld. Ontgrendel hem bij Ember ID en stel de openbare kamers daarna opnieuw in."
+
+msgid "public.copy_link"
+msgstr "Kamerlink kopiëren"
+
+msgid "public.copy_link_detail"
+msgstr "Kopieert {0} zodat vrienden via een browser of Discord kunnen meedoen."
+
+msgid "public.link_copied"
+msgstr "Kamerlink gekopieerd."
+
+msgid "public.default_name"
+msgstr "Kamer van {0}"
+
+msgid "public.failure.room_locked"
+msgstr "De host heeft deze kamer vergrendeld. Kies een andere."
+
+msgid "public.failure.unavailable"
+msgstr "De kamerdienst antwoordde niet op tijd. Probeer het zo opnieuw."
+
+msgid "public.failure.untrusted"
+msgstr "Ember kon het antwoord van de kamerdienst niet verifiëren en is daarom niet binnengegaan. Probeer het opnieuw; blijft het gebeuren, laat het ons weten op Discord."
+
+msgid "public.failure.internal"
+msgstr "Er ging iets mis in Ember. Probeer het opnieuw."
+
+msgid "public.failure.helper"
+msgstr "De netwerkhelper van Ember draait niet. Start het spel opnieuw als dit blijft."
+
+msgid "public.failure.full_or_locked"
+msgstr "Deze kamer is net vol geraakt of vergrendeld. Kies een andere."
+
+msgid "public.failure.turned_away"
+msgstr "De kamer weigerde je toegang. Je bent er misschien uit verwijderd."
+
+msgid "public.failure.join_failed"
+msgstr "Kon de kamer niet in. Misschien is hij net gesloten. Vernieuw en kies een andere."
+
+msgid "legend.refresh"
+msgstr "Vernieuwen"

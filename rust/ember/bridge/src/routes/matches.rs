@@ -28,6 +28,7 @@ use crate::{
     events,
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key, ok},
     routes::{
+        expiry::{self, EXPIRED_LISTED_SECS},
         ledger::{Cause, Match, bump, load, match_event, release, settle, stale},
         links::{Ctx, audit},
         lobbies, policy, tournaments,
@@ -300,11 +301,13 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
     } else {
         "not_required"
     };
+    let lifetime = expiry::lifetime(ctx, new.lobby_id.is_some() || new.tournament_id.is_some());
+    let expires_at = lifetime.map(|secs| ctx.now + secs);
     tx.execute(
         "INSERT INTO matches (id, tenant_id, connection_id, external_match_id, create_digest, revision,
             assignment_generation, state, games_to_win, rules, required_build_id, metadata, delivery_state,
-            created_at, updated_at, lobby_id, tournament_id)
-         VALUES (?1, ?2, ?3, ?4, ?5, 1, 1, 'awaiting_players', ?6, ?7, ?8, ?9, ?13, ?10, ?10, ?11, ?12)",
+            created_at, updated_at, lobby_id, tournament_id, expires_at, expiry_secs)
+         VALUES (?1, ?2, ?3, ?4, ?5, 1, 1, 'awaiting_players', ?6, ?7, ?8, ?9, ?13, ?10, ?10, ?11, ?12, ?14, ?15)",
         params![
             id,
             new.tenant_id,
@@ -318,7 +321,9 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
             ctx.now,
             new.lobby_id,
             new.tournament_id,
-            delivery
+            delivery,
+            expires_at,
+            lifetime
         ],
     )?;
     for participant in new.participants {
@@ -364,11 +369,12 @@ fn created_body(ctx: &Ctx, found: &Match) -> serde_json::Value {
 fn snapshot(tx: &Transaction<'_>, bridge_id: &str, found: &Match) -> Result<serde_json::Value> {
     let roster = participants(tx, &found.id, found.generation)?;
     let (wins, _) = scores(tx, &found.id)?;
-    let (rules, metadata): (String, String) = tx.query_row(
-        "SELECT rules, metadata FROM matches WHERE id = ?1",
-        [&found.id],
-        |row| Ok((row.get(0)?, row.get(1)?)),
-    )?;
+    let (rules, metadata, created_at, expires_at): (String, String, u64, Option<u64>) = tx
+        .query_row(
+            "SELECT m.rules, m.metadata, m.created_at, m.expires_at FROM matches m WHERE m.id = ?1",
+            [&found.id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )?;
     let attempts = tx
         .prepare(
             "SELECT id, seq, outcome, state, source, adjudication_id FROM attempts WHERE match_id = ?1 ORDER BY seq",
@@ -401,6 +407,8 @@ fn snapshot(tx: &Transaction<'_>, bridge_id: &str, found: &Match) -> Result<serd
         "scores": scores,
         "attempts": attempts,
         "provider_delivery_state": found.delivery,
+        "created_at": created_at,
+        "expires_at": expires_at,
         "metadata": serde_json::from_str::<serde_json::Value>(&metadata).unwrap_or_default(),
         "event_cursor": events::head(tx)?.to_string(),
     }))
@@ -429,25 +437,30 @@ pub async fn get(
 
 /// `GET /v1/assignments`: the caller's own matches only, with what a player
 /// needs to pick one: the set length and score, the round, the opponent's
-/// fingerprint and whether the game is played through Ember.
+/// fingerprint and whether the game is played through Ember. Each row has the
+/// match's `created_at` and `expires_at` (unix seconds; `expires_at` is null
+/// for a lobby or bracket set). An expired match stays listed, as `expired`,
+/// for a day.
 pub async fn assignments(State(state): State<AppState>, headers: HeaderMap) -> Result<Response> {
     let player = auth::player(&state, &headers).await?;
     let config = state.config.clone();
+    let listed_since = state.now().saturating_sub(EXPIRED_LISTED_SECS);
     let body = state
         .db
         .read(move |tx| {
             let rows = tx
                 .prepare(
                     "SELECT m.id, m.connection_id, m.state, m.revision, p.slot, m.games_to_win, m.rules, m.metadata,
-                            o.ember_id
+                            o.ember_id, m.created_at, m.expires_at
                      FROM matches m
                      JOIN match_participants p ON p.match_id = m.id AND p.assignment_generation = m.assignment_generation
                      JOIN match_participants o ON o.match_id = m.id AND o.assignment_generation = m.assignment_generation
                        AND o.slot != p.slot
-                     WHERE p.ember_id = ?1 ORDER BY (m.state IN ('completed', 'cancelled', 'failed')), m.updated_at DESC
+                     WHERE p.ember_id = ?1 AND (m.state != 'expired' OR m.updated_at > ?2)
+                     ORDER BY (m.state IN ('completed', 'cancelled', 'failed', 'expired')), m.updated_at DESC
                      LIMIT 50",
                 )?
-                .query_map([player.ember_id.as_str()], |row| {
+                .query_map(params![player.ember_id.as_str(), listed_since], |row| {
                     Ok((
                         row.get::<_, String>(0)?,
                         row.get::<_, String>(1)?,
@@ -458,11 +471,13 @@ pub async fn assignments(State(state): State<AppState>, headers: HeaderMap) -> R
                         row.get::<_, String>(6)?,
                         row.get::<_, String>(7)?,
                         row.get::<_, String>(8)?,
+                        row.get::<_, u64>(9)?,
+                        row.get::<_, Option<u64>>(10)?,
                     ))
                 })?
                 .collect::<rusqlite::Result<Vec<_>>>()?;
             let mut assignments = Vec::with_capacity(rows.len());
-            for (id, connection, state, revision, slot, games_to_win, rules, metadata, opponent) in rows {
+            for (id, connection, state, revision, slot, games_to_win, rules, metadata, opponent, created_at, expires_at) in rows {
                 let (wins, _) = scores(tx, &id)?;
                 let rules: serde_json::Value = serde_json::from_str(&rules).unwrap_or_default();
                 let metadata: serde_json::Value = serde_json::from_str(&metadata).unwrap_or_default();
@@ -478,6 +493,8 @@ pub async fn assignments(State(state): State<AppState>, headers: HeaderMap) -> R
                     "round_label": metadata.get("round_label"),
                     "opponent": { "ember_id": opponent, "fingerprint": opponent.fingerprint() },
                     "wins": wins,
+                    "created_at": created_at,
+                    "expires_at": expires_at,
                 }));
             }
             Ok(json!({ "assignments": assignments, "event_cursor": events::head(tx)?.to_string() }))
@@ -831,7 +848,7 @@ fn apply_adjudication(
             if found.state.is_terminal() && !correcting {
                 return Err(ApiFailure::new(
                     ErrorCode::StaleRevision,
-                    "A cancelled or failed match cannot change.",
+                    "A cancelled, failed or expired match cannot change.",
                 ));
             }
             record_adjudication(tx, ctx, service, found, &adjudication_id, command, expected)?;
@@ -925,7 +942,7 @@ pub fn on_unlink(
             "SELECT m.id FROM matches m JOIN match_participants p
                ON p.match_id = m.id AND p.assignment_generation = m.assignment_generation
              WHERE m.connection_id = ?1 AND p.ember_id = ?2 AND m.lobby_id IS NULL AND m.tournament_id IS NULL
-               AND m.state NOT IN ('completed', 'cancelled', 'failed', 'needs_review')",
+               AND m.state NOT IN ('completed', 'cancelled', 'failed', 'expired', 'needs_review')",
         )?
         .query_map(params![connection_id, ember_id.as_str()], |row| {
             row.get::<_, String>(0)
