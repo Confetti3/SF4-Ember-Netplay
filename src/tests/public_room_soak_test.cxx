@@ -166,7 +166,7 @@ int wmain(int argc, wchar_t** argv) {
 		if (now >= nextCpu) {
 			nextCpu += 60000;
 			const auto self = ProcessTime(GetCurrentProcess());
-			processCpuPct = 100.0 * (self - lastSelf) / (std::max<Clock>)(1, now - lastCpuAt);
+			processCpuPct = 100.0 * (self - lastSelf) / (std::max<Clock>)(1, Elapsed(now, lastCpuAt));
 			lastSelf = self; lastCpuAt = now;
 		}
 		if (now >= nextStatus) {
@@ -174,7 +174,7 @@ int wmain(int argc, wchar_t** argv) {
 			std::size_t active = 0, total = 0;
 			for (auto* room : allRooms) { active += room->activeNow; total += room->members.size(); }
 			std::lock_guard<std::mutex> lock(outputMutex);
-			std::cout << "[+" << Hms(now - runStart) << "] " << active << "/" << total << " members connected" << std::endl;
+			std::cout << "[+" << Hms(Elapsed(now, runStart)) << "] " << active << "/" << total << " members connected" << std::endl;
 		}
 	}
 	// Leave cleanly: every room thread ends its members and helpers.
@@ -182,7 +182,7 @@ int wmain(int argc, wchar_t** argv) {
 	stopRequested = true;
 	for (auto& thread : threads) thread.join();
 	bool failed = false;
-	PrintSummary(rooms, Now() - runStart, failed);
+	PrintSummary(rooms, Elapsed(Now(), runStart), failed);
 	Event(0, -1, std::string("soak end: ") + (failed ? "FAILED" : "PASSED"), false);
 	return failed ? 1 : 0;
 }

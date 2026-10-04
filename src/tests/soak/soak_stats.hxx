@@ -13,6 +13,12 @@ namespace sf4e { namespace test { namespace soak {
 
 using Clock = std::uint64_t; // GetTickCount64 milliseconds
 
+// The time from since to now, or 0 when since is the later one. Every elapsed
+// time in the soak goes through here: its stamps come from different points of
+// a loop pass (the pass's own time, a fresh Now(), a helper's receive time),
+// and a plain unsigned difference of a later stamp wraps to a huge age.
+inline Clock Elapsed(Clock now, Clock since) { return now > since ? now - since : 0; }
+
 using Counts = std::map<std::string, std::uint64_t>;
 inline std::string Flat(const Counts& counts) {
 	std::string out;

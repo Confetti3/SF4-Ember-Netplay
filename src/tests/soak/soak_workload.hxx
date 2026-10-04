@@ -103,16 +103,16 @@ struct Member {
 	int HomeTable() const { return index < 2 ? 0 : 1 + index % 3; }
 
 	void Tick(Clock now);
-	void StartSession();
-	void FailJoin(const std::string& reason, const std::string& detail);
+	void StartSession(Clock now);
+	void FailJoin(const std::string& reason, const std::string& detail, Clock now);
 	void Activated(Clock now);
-	void BeginLeave(const std::string& why, Clock retryInMs);
-	void ControlLoss(const std::string& why);
+	void BeginLeave(const std::string& why, Clock retryInMs, Clock now);
+	void ControlLoss(const std::string& why, Clock now);
 	void Health(Clock now);
 	void Drain(Clock now);
 	void Act(Clock now);
 	void Chat(Clock now);
-	bool Send(room::Action action, std::uint64_t* id = nullptr);
+	bool Send(room::Action action, Clock now, std::uint64_t* id = nullptr);
 	int Outcome(std::uint64_t id) const { const auto found = pending.find(id); return found == pending.end() ? 3 : found->second.outcome; }
 	room::RejectReason Reason(std::uint64_t id) const { const auto found = pending.find(id); return found == pending.end() ? room::RejectReason::None : found->second.reason; }
 };

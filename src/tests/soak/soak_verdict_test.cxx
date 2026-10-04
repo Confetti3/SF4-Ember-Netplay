@@ -1,5 +1,5 @@
-// Checks the soak's verdict arithmetic (Evaluate) on made-up rooms, without
-// helpers or room hosts.
+// Checks the soak's verdict arithmetic (Evaluate) on made-up rooms, and its
+// Elapsed clock difference, without helpers or room hosts.
 #include "soak_verdict.hxx"
 #include "../test_support.hxx"
 #include <iostream>
@@ -103,6 +103,10 @@ int main() {
 	st = Clean();
 	st.actionTimeouts = 1;
 	CHECK(!Ok(Evaluate(st, Full(), strict, 1.0), "actions timed out"));
+
+	// An elapsed time never wraps when the stamp is later than now.
+	CHECK(Elapsed(5000, 3000) == 2000);
+	CHECK(Elapsed(3000, 5000) == 0);
 
 	std::cout << "Soak verdict passed" << std::endl;
 	return 0;

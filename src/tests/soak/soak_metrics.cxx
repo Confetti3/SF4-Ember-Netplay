@@ -44,7 +44,7 @@ double RoomHelperCpu(Room& room, Clock now) {
 			CloseHandle(process);
 		}
 	}
-	const double wall = static_cast<double>(now - room.cpuAt);
+	const double wall = static_cast<double>(Elapsed(now, room.cpuAt));
 	room.cpuAt = now;
 	return wall > 0 ? 100.0 * used / wall : 0;
 }
@@ -73,7 +73,7 @@ void WriteRow(std::ofstream& csv, Room& room, Clock now) {
 		if (!member->IsActive()) continue;
 		viewMin = (std::min)(viewMin, member->View().members.size());
 		viewMax = (std::max)(viewMax, member->View().members.size());
-		if (member->behindSince && now - member->behindSince > 5000) ++behind;
+		if (member->behindSince && Elapsed(now, member->behindSince) > 5000) ++behind;
 	}
 	if (viewMin == SIZE_MAX) viewMin = 0;
 	const auto mine = HelperMemory(room);
@@ -84,16 +84,16 @@ void WriteRow(std::ofstream& csv, Room& room, Clock now) {
 	for (const auto* other : allRooms) { allHelpers += other->helpersNow; allWs += other->helpersWs; allCpu += other->helpersCpuPct; }
 	const auto active = room.ActiveCount();
 	const double fraction = static_cast<double>(active) / room.members.size();
-	const double busy = 100.0 * room.loop.sum / (std::max<Clock>)(1, now - room.lastRowAt);
+	const double busy = 100.0 * room.loop.sum / (std::max<Clock>)(1, Elapsed(now, room.lastRowAt));
 	++room.rows;
 	room.fractionSum += fraction;
 	if (busy > 90) ++room.saturatedRows;
 	if (fraction >= 0.5) room.reachedHalf = true;
 	room.emptyRows = active == 0 ? room.emptyRows + 1 : 0;
 	if (room.reachedHalf && room.emptyRows >= 3 && !room.lost) { room.lost = true; Event(room.number, -1, "ROOM LOST: no member connected for 3 minutes"); }
-	if (!room.reachedHalf && now - room.started > 15 * 60000ull && !room.lost) { room.lost = true; Event(room.number, -1, "ROOM LOST: never filled to half in 15 minutes"); }
+	if (!room.reachedHalf && Elapsed(now, room.started) > 15 * 60000ull && !room.lost) { room.lost = true; Event(room.number, -1, "ROOM LOST: never filled to half in 15 minutes"); }
 	std::lock_guard<std::mutex> lock(csvMutex);
-	csv << std::fixed << std::setprecision(1) << UtcStamp() << ',' << (now - runStart) / 1000 << ',' << room.number << ',' << active << ',' << room.members.size()
+	csv << std::fixed << std::setprecision(1) << UtcStamp() << ',' << Elapsed(now, runStart) / 1000 << ',' << room.number << ',' << active << ',' << room.members.size()
 		<< ',' << viewMin << ',' << viewMax << ',' << behind
 		<< ',' << st.joins << ',' << st.rejoins << ',' << st.joinFailures << ',' << st.refused << ',' << st.degraded << ',' << st.controlLosses << ',' << st.helperCrashes
 		<< ',' << Average(st.joinMs) << ',' << Maximum(st.joinMs)

@@ -33,7 +33,7 @@ void Event(int room, int member, const std::string& what, bool console) {
 	char tag[32];
 	if (member >= 0) std::snprintf(tag, sizeof(tag), "r%02d m%02d", room, member);
 	else std::snprintf(tag, sizeof(tag), "r%02d    ", room);
-	const std::string line = "[+" + Hms(Now() - runStart) + "] " + tag + " " + what;
+	const std::string line = "[+" + Hms(Elapsed(Now(), runStart)) + "] " + tag + " " + what;
 	std::lock_guard<std::mutex> lock(outputMutex);
 	if (eventsFile.is_open()) eventsFile << UtcStamp() << ' ' << line << std::endl;
 	if (console) std::cout << line << std::endl;

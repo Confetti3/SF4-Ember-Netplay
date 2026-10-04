@@ -35,7 +35,7 @@ void Event(int room, int member, const std::string& what, bool console = true);
 // there delays the chat round trips measured on it.
 struct SlowCall {
 	const char* what; int room, member; Clock began = Now();
-	~SlowCall() { const auto took = Now() - began; if (took > 400) Event(room, member, std::string("slow call: ") + what + " took " + std::to_string(took) + " ms", false); }
+	~SlowCall() { const auto took = Elapsed(Now(), began); if (took > 400) Event(room, member, std::string("slow call: ") + what + " took " + std::to_string(took) + " ms", false); }
 };
 
 struct Options {
