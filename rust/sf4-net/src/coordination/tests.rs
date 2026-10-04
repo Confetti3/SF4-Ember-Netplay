@@ -719,7 +719,7 @@ async fn sixteen_members_commit_with_one_failed_host() {
 }
 
 #[tokio::test]
-async fn an_abandoned_membership_change_is_finished_from_its_joint_goal() {
+async fn an_abandoned_joint_membership_is_finished_without_its_old_quorum() {
     let (bus, nodes) = cluster(1).await;
     let mut learners = Vec::new();
     for id in [2, 3] {
@@ -742,20 +742,23 @@ async fn an_abandoned_membership_change_is_finished_from_its_joint_goal() {
             .unwrap();
         learners.push(learner);
     }
-    // The caller gives up while the new voters cannot answer. Its joint
-    // entry stays in the log and commits once they can, and nothing then
-    // proposes the uniform half.
-    bus.isolated.lock().await.extend([2, 3]);
-    let goal = BTreeSet::from([1, 2, 3]);
+    nodes[0]
+        .raft
+        .change_membership(BTreeSet::from([1, 2, 3]), true)
+        .await
+        .unwrap();
+    // The caller of a shrink to one voter gives up before its joint entry
+    // commits. The entry commits later and nothing proposes the uniform half.
+    bus.append_delay_ms.store(400, Ordering::Relaxed);
+    let goal = BTreeSet::from([1]);
     assert!(
         tokio::time::timeout(
-            Duration::from_millis(300),
+            Duration::from_millis(100),
             nodes[0].raft.change_membership(goal.clone(), true),
         )
         .await
         .is_err()
     );
-    bus.isolated.lock().await.clear();
     tokio::time::timeout(Duration::from_secs(10), async {
         while nodes[0].applied_joint_goal().await.is_none() {
             tokio::time::sleep(Duration::from_millis(25)).await;
@@ -763,16 +766,28 @@ async fn an_abandoned_membership_change_is_finished_from_its_joint_goal() {
     })
     .await
     .expect("the abandoned joint configuration commits");
-    tokio::time::sleep(Duration::from_millis(500)).await;
     assert_eq!(nodes[0].applied_joint_goal().await, Some(goal.clone()));
-    // Proposing the goal again commits the uniform half.
-    nodes[0]
-        .raft
-        .change_membership(goal.clone(), true)
-        .await
-        .unwrap();
+    // Then the other two drop: the old half has lost its quorum, so a read
+    // that needs both halves cannot finish it.
+    bus.append_delay_ms.store(0, Ordering::Relaxed);
+    bus.isolated.lock().await.extend([2, 3]);
+    assert!(!matches!(
+        tokio::time::timeout(Duration::from_secs(1), nodes[0].raft.ensure_linearizable()).await,
+        Ok(Ok(_))
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_secs(5), nodes[0].finish_joint_membership())
+            .await
+            .expect("the uniform half commits with the goal's own quorum")
+            .unwrap()
+    );
     assert_eq!(nodes[0].applied_joint_goal().await, None);
     assert_eq!(nodes[0].applied_voter_ids().await, goal);
+    tokio::time::timeout(Duration::from_secs(5), nodes[0].raft.ensure_linearizable())
+        .await
+        .expect("the room commits again")
+        .unwrap();
+    assert!(!nodes[0].finish_joint_membership().await.unwrap());
     for learner in learners {
         let _ = learner.raft.shutdown().await;
     }

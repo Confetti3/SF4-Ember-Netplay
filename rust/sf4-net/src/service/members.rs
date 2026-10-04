@@ -195,6 +195,9 @@ impl Actor {
                     return Err(failed("obsolete membership operation"));
                 }
                 if recovery.coordinator.current_leader() == Some(recovery.incarnation) {
+                    // An abandoned joint configuration first: every other
+                    // change below commits through its quorum.
+                    recovery.finish_joint_membership().await?;
                     let applied_voters = recovery.applied_voter_ids().await;
                     let voter_removals = pending
                         .intersection(&applied_voters)
@@ -580,12 +583,6 @@ async fn restore_stable_voters(
     pending: &BTreeSet<u64>,
     revision: u64,
 ) -> io::Result<()> {
-    if let Some(goal) = recovery.applied_joint_goal().await {
-        // Proposing the joint configuration's own goal makes OpenRaft commit
-        // its uniform half; the counts below are settled on the next pass.
-        recovery.promote_voters_at_revision(revision, goal).await?;
-        return Ok(());
-    }
     let desired = crate::recovery::stable_voter_count(retained.len());
     let current = recovery.applied_voter_ids().await;
     if current.len() > desired {

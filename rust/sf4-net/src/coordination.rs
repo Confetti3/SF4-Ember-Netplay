@@ -1110,6 +1110,24 @@ impl Coordinator {
         self.store.applied_joint_goal().await
     }
 
+    /// Commit the uniform half of an applied joint configuration that its
+    /// caller abandoned. The goal is already fixed by an applied entry, so no
+    /// roster read is needed, and none is made: a read would need quorums of
+    /// both halves, which is what a stuck joint configuration may have lost.
+    /// OpenRaft commits the uniform entry with the goal's own quorum.
+    /// Returns whether there was one to finish.
+    pub async fn finish_joint_membership(&self) -> io::Result<bool> {
+        let _membership = self.membership_operations.lock().await;
+        let Some(goal) = self.store.applied_joint_goal().await else {
+            return Ok(false);
+        };
+        self.raft
+            .change_membership(goal, true)
+            .await
+            .map_err(|_| io::Error::other("coordination joint membership not finished"))?;
+        Ok(true)
+    }
+
     pub async fn applied_member_ids(&self) -> std::collections::BTreeSet<u64> {
         self.store.applied_members().await
     }

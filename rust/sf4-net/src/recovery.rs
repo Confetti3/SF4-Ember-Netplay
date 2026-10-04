@@ -391,6 +391,10 @@ impl RecoverySession {
         self.coordinator.applied_joint_goal().await
     }
 
+    pub async fn finish_joint_membership(&self) -> io::Result<bool> {
+        self.coordinator.finish_joint_membership().await
+    }
+
     pub async fn applied_member_ids(&self) -> BTreeSet<u64> {
         self.coordinator.applied_member_ids().await
     }
