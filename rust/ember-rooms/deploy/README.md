@@ -60,6 +60,15 @@ service and checks `/health`. It never overwrites an existing `config.json`
 or secret. With no builds staged the service runs but refuses every room as
 `unsupported_build`.
 
+If the install, the restart or the health check fails, setup.sh puts back the
+supervisor binary, unit and `config.json` it had saved before replacing them,
+removes the builds this run added, restarts the previous service and checks
+`/health` again. It then exits with an error saying whether the previous
+installation came back. On a first install there is nothing to restore, so it
+stops the service and removes what it added. `test-setup.sh` in this folder
+runs these paths against a mocked server (no root, no systemd): `bash
+test-setup.sh`.
+
 Then connect the bridge, once the bridge build that supports public rooms is
 installed:
 
@@ -94,7 +103,10 @@ its players have moved on.
 
 To add a build, stage `~/ember-rooms/builds/<build_id>/` and run setup.sh
 again. It copies the files, adds the `builds` entry and restarts the service.
-Existing builds stay as they are.
+Existing builds stay as they are: a build id names one exact pair of binaries,
+so if the staged files for an installed id differ from the installed ones,
+setup.sh refuses before changing anything (running rooms use those files).
+Stage changed binaries under a new build id.
 
 To remove an old build, delete its folder from `~/ember-rooms/builds/` and run:
 
