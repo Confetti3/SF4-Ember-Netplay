@@ -8,6 +8,8 @@ use ember_protocol::{
     play::MAX_INVITATION,
     rooms::{CreateRoom, INVALID_NAME, NOT_LINKED, ROOM_LIMIT},
 };
+use std::time::Duration;
+
 use rusqlite::{OptionalExtension, Transaction, params};
 
 use super::{
@@ -20,6 +22,9 @@ use crate::{
     routes::matches,
     util::random,
 };
+
+/// How long a create refused for the room limit waits for a fresh poll.
+const RECONCILE_SECS: u64 = 5;
 
 /// Open rooms one address may create.
 const ROOMS_PER_ADDRESS: i64 = 2;
@@ -80,7 +85,17 @@ pub async fn open(
         if reason != Some(ROOM_LIMIT) {
             return Err(refused);
         }
-        super::poll(state).await;
+        // Creates refused together share one poll, and a slow supervisor
+        // costs this request a bounded wait, after which the refusal stands.
+        let seen = super::poll::polls_started(state);
+        let reconciled = tokio::time::timeout(
+            Duration::from_secs(RECONCILE_SECS),
+            super::poll::poll_since(state, seen),
+        )
+        .await;
+        if reconciled.is_err() {
+            return Err(refused);
+        }
         attempt().await?;
     }
     let created = supervisor

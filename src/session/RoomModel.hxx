@@ -480,11 +480,12 @@ public:
 	Result Join(const std::string& name, const ConnectionRef& connection, bool host = false, MemberProfile profile = {});
 	Result Leave(MemberId member);
 	Result Apply(MemberId member, const Action& action);
-    bool SetMemberFighter(MemberId member,int fighter);
-    // A seated fighter who has not readied changed fighter: the other seat's
-    // Ready was given against the old matchup, so it is taken back as an
-    // Unready would. True when a Ready was taken back.
-    bool WithdrawOpponentReady(MemberId changed);
+    // The fighter a member last showed. When a seated member who has not
+    // readied changes a fighter it already showed, the table revision moves,
+    // so no Ready given against the old matchup is accepted later, and the
+    // other seat's Ready is taken back as an Unready would
+    // (*withdrewOpponentReady). False when nothing changed.
+    bool SetMemberFighter(MemberId member,int fighter,bool* withdrewOpponentReady=nullptr);
 
     // Authority recovery is deliberately distinct from the public UI snapshot.
     // Import validates into a temporary owner and leaves this owner unchanged
@@ -567,6 +568,10 @@ private:
 	Result ApplyUnwatch(MemberId member, Table* table);
 	Result ApplyLeaveGame(MemberId member, Table* table);
 	Result ApplyReadiness(MemberId member, const Action& action, Table* table, Member* item);
+	// Unready's change to one seat, and the phase, holds, permits and revision
+	// that follow any readiness change.
+	void ReleaseReady(Table& table, int seat, Member& item);
+	Result SettleReadiness(Table& table, MemberId member);
 	Result ApplyRecordResult(MemberId member, const Action& action, Table* table);
 	Result ApplyMatchFinished(MemberId member, const Action& action, Table* table);
 	Result ApplyCancelResult(MemberId member, const Action& action, Table* table);

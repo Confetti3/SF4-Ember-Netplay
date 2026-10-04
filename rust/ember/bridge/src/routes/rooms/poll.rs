@@ -38,7 +38,38 @@ pub async fn poll(state: &AppState) {
     let Some(supervisor) = Supervisor::of(state) else {
         return;
     };
-    let _one_at_a_time = state.rooms.poll.lock().await;
+    let one_at_a_time = state.rooms.poll.lock().await;
+    poll_locked(state, &supervisor).await;
+    drop(one_at_a_time);
+}
+
+/// The number of polls started so far; pass it to `poll_since`.
+pub(super) fn polls_started(state: &AppState) -> u64 {
+    state.rooms.polls.load(Ordering::Acquire)
+}
+
+/// A poll that started after `seen`. Polls run one at a time, so once this
+/// caller holds the lock, any poll started since `seen` has finished and its
+/// answer is reused: concurrent callers share one supervisor listing instead
+/// of queueing one each, and none reuses a listing taken before it asked.
+pub(super) async fn poll_since(state: &AppState, seen: u64) {
+    let Some(supervisor) = Supervisor::of(state) else {
+        return;
+    };
+    let one_at_a_time = state.rooms.poll.lock().await;
+    if polls_started(state) == seen {
+        poll_locked(state, &supervisor).await;
+    }
+    drop(one_at_a_time);
+}
+
+/// The poll itself; the caller holds `state.rooms.poll`.
+async fn poll_locked(state: &AppState, supervisor: &Supervisor<'_>) {
+    state.rooms.polls.fetch_add(1, Ordering::AcqRel);
+    poll_once(state, supervisor).await;
+}
+
+async fn poll_once(state: &AppState, supervisor: &Supervisor<'_>) {
     // Only a room that was already published (its creation finished) before
     // the supervisor is asked can be judged by its answer: one published
     // since may not be in it. Rooms still being created are left to their

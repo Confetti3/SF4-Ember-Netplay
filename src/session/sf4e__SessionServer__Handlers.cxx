@@ -369,14 +369,9 @@ void SessionServer::HandleSetChara(session::Connection conn, const json& msg) {
 	}
 	matchData.chara[side] = request.chara;
     const room::MemberId sender=side==0?table.p1:table.p2;
-    const auto* before=_roomAuthority?room::FindMember(_roomAuthority->SnapshotView(),sender):nullptr;
-    const int previous=before?before->fighter:-1;
-    if(_roomAuthority&&_roomAuthority->SetMemberFighter(sender,request.chara.charaID)){
-        // The other seat readied against the fighter this seat showed before.
-        // The first fighter a member ever shows takes nothing back, so a first
-        // game still starts on one press each.
-        if(previous>=0&&_roomAuthority->WithdrawOpponentReady(sender))
-            spdlog::info("Server: table {} seat {} changed fighter {} -> {}; the other seat's Ready was taken back",tableId,side,previous,request.chara.charaID);
+    bool withdrew=false;
+    if(_roomAuthority&&_roomAuthority->SetMemberFighter(sender,request.chara.charaID,&withdrew)){
+        if(withdrew)spdlog::info("Server: table {} seat {} changed fighter to {}; the other seat's Ready was taken back",tableId,side,request.chara.charaID);
         BroadcastRoomState({});
     }
 	_dataDirty = true;

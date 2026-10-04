@@ -20,7 +20,12 @@ mod poll;
 mod supervisor;
 mod ticket;
 
-use std::{convert::Infallible, fmt::Write as _, net::IpAddr, sync::atomic::AtomicBool};
+use std::{
+    convert::Infallible,
+    fmt::Write as _,
+    net::IpAddr,
+    sync::atomic::{AtomicBool, AtomicU64},
+};
 
 use axum::{
     extract::{FromRequestParts, Path, Query, State},
@@ -75,6 +80,9 @@ pub struct Shared {
     poll: tokio::sync::Mutex<()>,
     /// The last poll failed; it is logged on the way down and on the way up.
     down: AtomicBool,
+    /// Polls started, counted so a create refused for the room limit can
+    /// reuse a poll that began after its refusal instead of queueing another.
+    polls: AtomicU64,
 }
 
 impl Default for Shared {
@@ -82,6 +90,7 @@ impl Default for Shared {
         Self {
             poll: tokio::sync::Mutex::new(()),
             down: AtomicBool::new(false),
+            polls: AtomicU64::new(0),
         }
     }
 }

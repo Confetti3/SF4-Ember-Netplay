@@ -218,6 +218,53 @@ async fn a_create_right_after_the_creators_room_ended_does_not_wait_for_the_poll
     open_room(&bridge, &sam, "198.51.100.3", 4).await;
 }
 
+/// Creates refused for the room limit at the same time share one poll of
+/// the supervisor instead of queueing one each, and a supervisor that does
+/// not answer costs a refused create a bounded wait, not the full timeout.
+#[tokio::test]
+async fn refused_creates_share_one_poll_and_wait_a_bounded_time() {
+    let (bridge, fake) = start().await;
+    let kate = player(&bridge, 1).await;
+    open_room(&bridge, &kate, "198.51.100.1", 4).await;
+    ember_bridge::poll_rooms(bridge.state()).await;
+    let gate = Arc::new(Gate::default());
+    fake.lock().unwrap().list_hold = Some(gate.clone());
+    let before = fake.lock().unwrap().listed;
+    let creates = async {
+        tokio::join!(
+            create_room(&bridge, &kate, "198.51.100.1", "One", 4),
+            create_room(&bridge, &kate, "198.51.100.1", "Two", 4),
+            create_room(&bridge, &kate, "198.51.100.1", "Three", 4),
+            create_room(&bridge, &kate, "198.51.100.1", "Four", 4),
+        )
+    };
+    let release = async {
+        gate.arrived.notified().await;
+        // Give the other refusals time to queue behind this poll.
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        fake.lock().unwrap().list_hold = None;
+        gate.release.notify_one();
+    };
+    let ((one, two, three, four), ()) = tokio::join!(creates, release);
+    for (status, body) in [one, two, three, four] {
+        assert_eq!(status, StatusCode::CONFLICT, "{body}");
+        assert_eq!(reason(&body), "room_limit");
+    }
+    // One shared listing, and at most one more from the background poll.
+    assert!(fake.lock().unwrap().listed - before <= 2);
+
+    // A listing that never comes back: the refusal arrives after the bound.
+    let stuck = Arc::new(Gate::default());
+    fake.lock().unwrap().list_hold = Some(stuck.clone());
+    let started = std::time::Instant::now();
+    let (status, body) = create_room(&bridge, &kate, "198.51.100.1", "Late", 4).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    assert_eq!(reason(&body), "room_limit");
+    assert!(started.elapsed() < std::time::Duration::from_secs(12));
+    fake.lock().unwrap().list_hold = None;
+    stuck.release.notify_waiters();
+}
+
 #[tokio::test]
 async fn the_address_limit_survives_a_bridge_restart() {
     let (mut bridge, fake) = start().await;

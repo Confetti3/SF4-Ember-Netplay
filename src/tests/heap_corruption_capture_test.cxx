@@ -240,6 +240,34 @@ void TestNonZeroExitIsRecorded() {
 	RemoveDirectoryW(logs.c_str());
 }
 
+// Without the launcher's channel the exit still records and ends promptly,
+// and writes no dump of its own from inside the exiting process.
+void TestNonZeroExitWithoutChannel() {
+	const std::wstring logs = TempDirectory();
+	wchar_t self[MAX_PATH] = {};
+	GetModuleFileNameW(nullptr, self, MAX_PATH);
+	wchar_t command[2048] = {};
+	swprintf_s(command, L"\"%s\" child exit \"%s\" 0 0 0", self, logs.c_str());
+	STARTUPINFOW startup = { sizeof(startup) };
+	PROCESS_INFORMATION process = {};
+	CHECK(CreateProcessW(self, command, nullptr, nullptr, FALSE, 0, nullptr, nullptr, &startup, &process));
+	CHECK(WaitForSingleObject(process.hProcess, 30000) == WAIT_OBJECT_0);
+	DWORD exitCode = 0;
+	GetExitCodeProcess(process.hProcess, &exitCode);
+	if (exitCode == STILL_ACTIVE) TerminateProcess(process.hProcess, 1);
+	CloseHandle(process.hThread);
+	CloseHandle(process.hProcess);
+	CHECK(exitCode == 255);
+	CHECK(CountDumps(logs) == 0);
+	std::ifstream in(Narrow(logs + L"\\sf4e-crash.log"), std::ios::binary);
+	std::stringstream record;
+	record << in.rdbuf();
+	in.close();
+	CHECK(record.str().find("kind=exit code=0x000000FF") == 0);
+	DeleteFileW((logs + L"\\sf4e-crash.log").c_str());
+	RemoveDirectoryW(logs.c_str());
+}
+
 DWORD WINAPI ReturnAtOnce(void*) { return 0; }
 
 // Every crash keeps a dump of its own; a failed write leaves nothing behind,
@@ -365,6 +393,7 @@ int main(int argc, char** argv) {
 	TestHandlerRecordsAndLauncherDumps(L"private");
 	TestHandlerRecordsAndLauncherDumps(L"process");
 	TestNonZeroExitIsRecorded();
+	TestNonZeroExitWithoutChannel();
 	std::printf("heap_corruption_capture_test: all tests passed\n");
 	return 0;
 }

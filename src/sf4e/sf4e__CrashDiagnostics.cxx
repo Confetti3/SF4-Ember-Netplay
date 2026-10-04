@@ -96,7 +96,10 @@ sf4e::crash::CrashFacts FactsFor(const char* kind, EXCEPTION_POINTERS* pointers,
 	return facts;
 }
 
-void WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* message) {
+// dumpInProcess=false never falls back to MiniDumpWriteDump in this process,
+// which can deadlock on the loader lock; the launcher's bounded request is
+// the only dump then.
+void WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* message, bool dumpInProcess = true) {
 	if (s_recording.exchange(true)) return;
 	// With the heap corrupt, anything that allocates may fault again and end
 	// the process before the dump, so ask the launcher for it first; the
@@ -126,6 +129,7 @@ void WriteRecord(const char* kind, EXCEPTION_POINTERS* pointers, const char* mes
 	}
 	if (!pointers || dumped) return;
 	if (!heapCorrupt && s_dumpClient.Request(pointers)) return;
+	if (!dumpInProcess) return;
 	sf4e::crash::WriteDump(GetCurrentProcess(), GetCurrentProcessId(), s_logsDirectory, GetCurrentThreadId(), pointers, false, s_dumpPath);
 }
 
@@ -157,7 +161,8 @@ void OnInvalidParameter(const wchar_t*, const wchar_t*, const wchar_t*, unsigned
 // The game's own ExitProcess import. Its C runtime ends a fatal runtime
 // error with _exit(255), which raises no exception, so the handlers above
 // never see it and the player is left with an exit code and nothing else.
-decltype(&ExitProcess) s_exitProcess = nullptr;
+// Set before the hook is published, so the hook never finds it empty.
+std::atomic<void*> s_exitProcess(nullptr);
 
 __declspec(noinline) void WINAPI OnExitProcess(UINT code) {
 	if (code != 0) {
@@ -170,10 +175,45 @@ __declspec(noinline) void WINAPI OnExitProcess(UINT code) {
 		record.ExceptionCode = code;
 		record.ExceptionAddress = _ReturnAddress();
 		EXCEPTION_POINTERS pointers = { &record, &context };
-		snprintf(s_detail, sizeof(s_detail), "ExitProcess(%u)", code);
-		WriteRecord("exit", &pointers, s_detail);
+		char message[32];
+		snprintf(message, sizeof(message), "ExitProcess(%u)", code);
+		WriteRecord("exit", &pointers, message, false);
 	}
-	s_exitProcess(code);
+	void* original = s_exitProcess.load();
+	if (!original) original = (void*)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "ExitProcess");
+	reinterpret_cast<decltype(&ExitProcess)>(original)(code);
+}
+
+// Points the import of `function` from `dll` in `module` at `replacement`.
+// The previous target is stored in `original` before the slot changes.
+// False when the module does not import it by name.
+bool PatchImport(HMODULE module, const char* dll, const char* function, void* replacement, std::atomic<void*>& original) {
+	if (!module || !dll || !function || !replacement) return false;
+	const auto* base = reinterpret_cast<const BYTE*>(module);
+	const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
+	if (dos->e_magic != IMAGE_DOS_SIGNATURE) return false;
+	const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
+	if (nt->Signature != IMAGE_NT_SIGNATURE) return false;
+	const IMAGE_DATA_DIRECTORY& directory = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+	if (!directory.VirtualAddress) return false;
+	for (auto* entry = reinterpret_cast<const IMAGE_IMPORT_DESCRIPTOR*>(base + directory.VirtualAddress); entry->Name; ++entry) {
+		if (_stricmp(reinterpret_cast<const char*>(base + entry->Name), dll) != 0 || !entry->OriginalFirstThunk) continue;
+		const auto* names = reinterpret_cast<const IMAGE_THUNK_DATA*>(base + entry->OriginalFirstThunk);
+		auto* slots = reinterpret_cast<IMAGE_THUNK_DATA*>(const_cast<BYTE*>(base) + entry->FirstThunk);
+		for (; names->u1.AddressOfData; ++names, ++slots) {
+			if (IMAGE_SNAP_BY_ORDINAL(names->u1.Ordinal)) continue;
+			const auto* byName = reinterpret_cast<const IMAGE_IMPORT_BY_NAME*>(base + names->u1.AddressOfData);
+			if (strcmp(reinterpret_cast<const char*>(byName->Name), function) != 0) continue;
+			DWORD protection = 0;
+			if (!VirtualProtect(&slots->u1.Function, sizeof(slots->u1.Function), PAGE_READWRITE, &protection)) return false;
+			original.store(reinterpret_cast<void*>(slots->u1.Function));
+			// One aligned pointer write: a thread calling through the slot sees the old or the new target.
+			InterlockedExchangePointer(reinterpret_cast<PVOID volatile*>(&slots->u1.Function), replacement);
+			VirtualProtect(&slots->u1.Function, sizeof(slots->u1.Function), protection, &protection);
+			return true;
+		}
+	}
+	return false;
 }
 
 unsigned CountThreads() {
@@ -275,41 +315,10 @@ void Install(const wchar_t* logsDirectory) {
 	spdlog::info("Crash record: sf4e-crash.log and sf4e-crash-*.dmp beside sf4e.log");
 }
 
-bool PatchImport(HMODULE module, const char* dll, const char* function, void* replacement, void** original) {
-	if (!module || !dll || !function || !replacement) return false;
-	const auto* base = reinterpret_cast<const BYTE*>(module);
-	const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
-	if (dos->e_magic != IMAGE_DOS_SIGNATURE) return false;
-	const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
-	if (nt->Signature != IMAGE_NT_SIGNATURE) return false;
-	const IMAGE_DATA_DIRECTORY& directory = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
-	if (!directory.VirtualAddress) return false;
-	for (auto* entry = reinterpret_cast<const IMAGE_IMPORT_DESCRIPTOR*>(base + directory.VirtualAddress); entry->Name; ++entry) {
-		if (_stricmp(reinterpret_cast<const char*>(base + entry->Name), dll) != 0 || !entry->OriginalFirstThunk) continue;
-		const auto* names = reinterpret_cast<const IMAGE_THUNK_DATA*>(base + entry->OriginalFirstThunk);
-		auto* slots = reinterpret_cast<IMAGE_THUNK_DATA*>(const_cast<BYTE*>(base) + entry->FirstThunk);
-		for (; names->u1.AddressOfData; ++names, ++slots) {
-			if (IMAGE_SNAP_BY_ORDINAL(names->u1.Ordinal)) continue;
-			const auto* byName = reinterpret_cast<const IMAGE_IMPORT_BY_NAME*>(base + names->u1.AddressOfData);
-			if (strcmp(reinterpret_cast<const char*>(byName->Name), function) != 0) continue;
-			DWORD protection = 0;
-			if (!VirtualProtect(&slots->u1.Function, sizeof(slots->u1.Function), PAGE_READWRITE, &protection)) return false;
-			if (original) *original = reinterpret_cast<void*>(slots->u1.Function);
-			slots->u1.Function = reinterpret_cast<decltype(slots->u1.Function)>(replacement);
-			VirtualProtect(&slots->u1.Function, sizeof(slots->u1.Function), protection, &protection);
-			return true;
-		}
-	}
-	return false;
-}
-
 void WatchGameExit() {
-	void* original = nullptr;
-	if (s_exitProcess || !PatchImport(GetModuleHandleW(nullptr), "KERNEL32.dll", "ExitProcess", (void*)&OnExitProcess, &original)) {
-		if (!s_exitProcess) spdlog::warn("Crash record: the game's ExitProcess import was not found; a non-zero exit is not recorded");
-		return;
-	}
-	s_exitProcess = reinterpret_cast<decltype(&ExitProcess)>(original);
+	if (s_exitProcess.load()) return;
+	if (!PatchImport(GetModuleHandleW(nullptr), "KERNEL32.dll", "ExitProcess", (void*)&OnExitProcess, s_exitProcess))
+		spdlog::warn("Crash record: the game's ExitProcess import was not found; a non-zero exit is not recorded");
 }
 
 void ConfigureDumpChannel(HANDLE request, HANDLE done, HANDLE mailbox) {

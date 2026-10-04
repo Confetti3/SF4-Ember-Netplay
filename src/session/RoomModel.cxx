@@ -35,28 +35,26 @@ Snapshot RoomAuthority::SnapshotFor(MemberId member) const {
 	return result;
 }
 
-bool RoomAuthority::SetMemberFighter(MemberId member,int fighter) {
+bool RoomAuthority::SetMemberFighter(MemberId member,int fighter,bool* withdrewOpponentReady) {
+    if(withdrewOpponentReady)*withdrewOpponentReady=false;
     auto* value=Find(member);
     if(!value||fighter<0||fighter>=44||value->fighter==fighter)return false;
-    value->fighter=fighter;TouchRoom();return true;
-}
-
-bool RoomAuthority::WithdrawOpponentReady(MemberId changed) {
-	const auto* member = Find(changed);
-	Table* table = member ? FindTable(static_cast<std::uint8_t>(member->table)) : nullptr;
-	if (!table || (table->p1 != changed && table->p2 != changed)) return false;
-	const int seat = table->p1 == changed ? 1 : 0;
-	auto* opponent = Find(seat == 0 ? table->p1 : table->p2);
-	if (!opponent || table->ready[1 - seat] || !ReadyCancellable(*table, seat)) return false;
-	table->ready[seat] = false;
-	opponent->delayLocked = false;
-	table->inputDelay[seat] = opponent->selectedDelay;
-	table->phase = TablePhase::Waiting;
-	table->spectatorHold = false;
-	startHeldSince_[table->id] = 0;
-	ClearPermit(*table);
-	Touch(*table); NormalizeMemberStatus(opponent->id);
-	return true;
+    const int previous=value->fighter;
+    value->fighter=fighter;
+    Table* table=FindTable(static_cast<std::uint8_t>(value->table));
+    const bool seated=table&&(table->p1==member||table->p2==member);
+    // A first fighter changes no matchup. A known one does: a Ready given
+    // against the old fighter, ready already or still in flight under the
+    // old table revision, must not start the game.
+    if(previous<0||!seated){TouchRoom();return true;}
+    const int seat=table->p1==member?0:1, other=1-seat;
+    auto* opponent=Find(other==0?table->p1:table->p2);
+    if(opponent&&!table->ready[seat]&&ReadyCancellable(*table,other)){
+        ReleaseReady(*table,other,*opponent);
+        SettleReadiness(*table,opponent->id);
+        if(withdrewOpponentReady)*withdrewOpponentReady=true;
+    } else Touch(*table);
+    return true;
 }
 
 template <typename Visit> void RoomAuthority::ForEachTableTimer(Visit&& visit) {

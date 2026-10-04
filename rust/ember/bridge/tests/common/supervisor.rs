@@ -39,6 +39,8 @@ pub struct Fake {
     pub deleted: Vec<String>,
     /// Fails `DELETE /rooms/{id}`.
     pub fail_delete: bool,
+    /// `GET /rooms` requests received.
+    pub listed: usize,
 }
 
 #[derive(Default)]
@@ -92,7 +94,8 @@ pub async fn fake_supervisor() -> (Supervisor, String) {
     }
     async fn list(State(fake): State<Supervisor>, headers: HeaderMap) -> (AxumStatus, String) {
         let (answer, hold) = {
-            let fake = fake.lock().unwrap();
+            let mut fake = fake.lock().unwrap();
+            fake.listed += 1;
             if !authorized(&headers) || fake.down {
                 return (AxumStatus::INTERNAL_SERVER_ERROR, "{}".into());
             }

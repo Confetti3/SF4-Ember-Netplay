@@ -119,9 +119,12 @@ std::wstring ManifestInstallDir(const std::string& acfUtf8) {
     }
     if (i != t.size() || (!appId.empty() && appId != "45760")) return {};
     // A folder name only: the manifest must not steer the search elsewhere.
-    if (installDir.empty() || installDir == "." || installDir == ".." ||
-        installDir.find_first_of("\\/:") != std::string::npos) return {};
-    return sf4e::platform::Utf8ToWide(installDir.c_str());
+    // A NUL would end the name early in the conversion below, so the name
+    // checked here would not be the name used.
+    if (installDir.find('\0') != std::string::npos) return {};
+    std::wstring name = sf4e::platform::Utf8ToWide(installDir.c_str());
+    if (name.empty() || name == L"." || name == L".." || name.find_first_of(L"\\/:") != std::wstring::npos) return {};
+    return name;
 }
 
 std::vector<std::wstring> GameFoldersInLibrary(const std::wstring& library, const std::string& manifestUtf8) {

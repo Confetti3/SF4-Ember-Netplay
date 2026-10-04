@@ -268,28 +268,37 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 	if (action.kind == ActionKind::Ready && table->phase == TablePhase::Waiting &&
 		table->ready[seat == 0 ? 1 : 0] && HasOutstandingTerminalReceipt(table->id))
 		return Reject(RejectReason::TerminalLedgerFull);
-	table->ready[seat] = action.kind == ActionKind::Ready;
 	if (action.kind == ActionKind::Ready) {
+		table->ready[seat] = true;
 		item->selectedDelay = action.inputDelay;
 		item->frozenDelay = action.inputDelay;
 		item->delayLocked = true;
 		table->inputDelay[seat] = action.inputDelay;
 	} else {
-		item->delayLocked = false;
-		table->inputDelay[seat] = item->selectedDelay;
+		ReleaseReady(*table, seat, *item);
 	}
-	table->phase = table->ready[0] && table->ready[1] ? TablePhase::Ready : TablePhase::Waiting;
+	return SettleReadiness(*table, member);
+}
+
+void RoomAuthority::ReleaseReady(Table& table, int seat, Member& item) {
+	table.ready[seat] = false;
+	item.delayLocked = false;
+	table.inputDelay[seat] = item.selectedDelay;
+}
+
+Result RoomAuthority::SettleReadiness(Table& table, MemberId member) {
+	table.phase = table.ready[0] && table.ready[1] ? TablePhase::Ready : TablePhase::Waiting;
 	// A locked-in spectator still retiring the last game gets a bounded wait
 	// before the start; ReleaseHeldStarts ends it.
-	table->spectatorHold = table->phase == TablePhase::Ready && LockedSpectatorReturning(*table);
-	startHeldSince_[table->id] = table->spectatorHold ? nowMs_ : 0;
+	table.spectatorHold = table.phase == TablePhase::Ready && LockedSpectatorReturning(table);
+	startHeldSince_[table.id] = table.spectatorHold ? nowMs_ : 0;
 	// A bound table's ready fighters wait for the bridge's permit for the
 	// game reserved now; taking Ready back calls that game off.
-	if (BoundTable(*table) && table->phase == TablePhase::Ready && !table->permitGeneration) ReservePermit(*table);
-	if (table->phase != TablePhase::Ready) ClearPermit(*table);
-	Touch(*table); NormalizeMemberStatus(member);
-	if (table->phase == TablePhase::Ready && !table->spectatorHold && !PermitPending(*table))
-		return Accept({Event{Event::Kind::MatchReady, table->id, table->matchGeneration, 0, MatchResult::Abort}});
+	if (BoundTable(table) && table.phase == TablePhase::Ready && !table.permitGeneration) ReservePermit(table);
+	if (table.phase != TablePhase::Ready) ClearPermit(table);
+	Touch(table); NormalizeMemberStatus(member);
+	if (table.phase == TablePhase::Ready && !table.spectatorHold && !PermitPending(table))
+		return Accept({Event{Event::Kind::MatchReady, table.id, table.matchGeneration, 0, MatchResult::Abort}});
 	return Accept();
 }
 

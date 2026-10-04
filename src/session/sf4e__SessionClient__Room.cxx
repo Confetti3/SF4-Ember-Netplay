@@ -437,12 +437,15 @@ bool SessionClient::HandleRoomResult(json& msg) {
 	// rejection brings the current snapshot, so resend from it instead of
 	// leaving the press parked until its timeout.
 	// A Ready given against one opponent's fighter is not resent once the
-	// fresher snapshot shows a different opponent or fighter: the player
-	// decides again, and the rejection reaches them.
+	// fresher snapshot shows another opponent, or the same opponent on a
+	// different fighter than the one it showed: the player decides again,
+	// and the rejection reaches them. An opponent showing its first fighter
+	// changes no matchup the player saw.
 	const auto* opponentNow = sent != _sentRoomActions.end() ?
 		room::SeatOpponent(_roomSnapshot, sent->table, _roomSnapshot.localMember) : nullptr;
 	const bool matchupChanged = sent != _sentRoomActions.end() && sent->kind == room::ActionKind::Ready && sent->opponent &&
-		(!opponentNow || opponentNow->id != sent->opponent || opponentNow->fighter != sent->opponentFighter);
+		(!opponentNow || opponentNow->id != sent->opponent ||
+			(sent->opponentFighter >= 0 && opponentNow->fighter != sent->opponentFighter));
 	if (resendable && !matchupChanged && !result.result.accepted && result.result.reason == room::RejectReason::StaleTable &&
 		sent->staleRetries < 3) {
 		// Resend the same request (kind, table, input delay, seat) from the

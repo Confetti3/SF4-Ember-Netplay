@@ -163,27 +163,44 @@ static void TestFighterChangeWithdrawsOpponentReady() {
 	const MemberId p2 = Join(authority, 2);
 	for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	const auto seated = authority.SnapshotView().tables[0];
-	CHECK(!authority.WithdrawOpponentReady(seated.p2)); // nobody ready
+	bool withdrew = true;
+	// A first fighter changes no matchup: the table revision stays.
+	auto revision = authority.SnapshotView().tables[0].revision;
+	CHECK(authority.SetMemberFighter(seated.p1, 0, &withdrew) && !withdrew);
+	CHECK(authority.SetMemberFighter(seated.p2, 1, &withdrew) && !withdrew);
+	CHECK(authority.SnapshotView().tables[0].revision == revision);
+	CHECK(!authority.SetMemberFighter(seated.p2, 1, &withdrew) && !withdrew); // unchanged
+	// p1 readies; p2 changes a fighter it showed: p1's Ready is taken back.
 	Action ready = TableAction(authority, seated.p1, 0, ActionKind::Ready);
 	ready.inputDelay = 2;
 	CHECK(authority.Apply(seated.p1, ready).accepted);
-	const auto revision = authority.SnapshotView().tables[0].revision;
-	CHECK(authority.WithdrawOpponentReady(seated.p2));
-	const auto& after = authority.SnapshotView().tables[0];
-	CHECK(!after.ready[0] && !after.ready[1] && after.phase == TablePhase::Waiting);
-	CHECK(after.revision > revision);
-	CHECK(!FindMember(authority.SnapshotView(), seated.p1)->delayLocked);
+	revision = authority.SnapshotView().tables[0].revision;
+	CHECK(authority.SetMemberFighter(seated.p2, 3, &withdrew) && withdrew);
+	{
+		const auto& after = authority.SnapshotView().tables[0];
+		CHECK(!after.ready[0] && !after.ready[1] && after.phase == TablePhase::Waiting);
+		CHECK(after.revision > revision);
+		CHECK(!FindMember(authority.SnapshotView(), seated.p1)->delayLocked);
+	}
 	// A Ready pressed before the withdrawal carries the old table revision.
 	Action late = ready; late.actionId += 7;
 	CHECK(authority.Apply(seated.p1, late).reason == RejectReason::StaleTable);
+	// The race: p1 presses Ready against p2's fighter 3, then p2's change
+	// to 4 arrives first with nobody ready. The Ready still cannot pass.
+	Action raced = TableAction(authority, seated.p1, 0, ActionKind::Ready);
+	CHECK(authority.SetMemberFighter(seated.p2, 4, &withdrew) && !withdrew);
+	CHECK(authority.Apply(seated.p1, raced).reason == RejectReason::StaleTable);
+	CHECK(!authority.SnapshotView().tables[0].ready[0]);
 	// A seat that is itself ready takes nothing back, the other direction
 	// works the same way, and a member without a seat changes nothing.
 	CHECK(authority.Apply(seated.p2, TableAction(authority, seated.p2, 0, ActionKind::Ready)).accepted);
-	CHECK(!authority.WithdrawOpponentReady(seated.p2));
+	CHECK(authority.SetMemberFighter(seated.p2, 5, &withdrew) && !withdrew);
 	CHECK(authority.SnapshotView().tables[0].ready[1]);
-	CHECK(authority.WithdrawOpponentReady(seated.p1));
+	CHECK(authority.SetMemberFighter(seated.p1, 6, &withdrew) && withdrew);
 	CHECK(!authority.SnapshotView().tables[0].ready[1]);
-	CHECK(!authority.WithdrawOpponentReady(Join(authority, 3)));
+	const MemberId bystander = Join(authority, 3);
+	CHECK(authority.SetMemberFighter(bystander, 7, &withdrew) && !withdrew);
+	CHECK(authority.SetMemberFighter(bystander, 8, &withdrew) && !withdrew);
 }
 
 static void TestMatchFinishedAndSeatLifecycle() {

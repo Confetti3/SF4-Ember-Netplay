@@ -503,19 +503,37 @@ int main() {
 		// another: when the fresher snapshot shows the opponent changed
 		// fighter, the rejection reaches the player instead of a resend.
 		{
-			CHECK(roomClient.Lobby_Ready() == session::SendResult::Queued);
-			protocol::RoomResultMessage staleMatchup;
-			staleMatchup.actionId = roomTransport->sent.back().at("action").at("action_id").get<std::uint64_t>();
-			staleMatchup.result.accepted = false;
-			staleMatchup.result.reason = room::RejectReason::StaleTable;
-			++current.revision; ++current.tables[0].revision;
 			CHECK(current.members.size() == 2 && current.members[1].id == 2);
-			current.members[1].fighter = current.members[1].fighter == 3 ? 4 : 3;
-			staleMatchup.result.snapshot = current;
-			const auto sentBeforeMatchup = roomTransport->sent.size();
-			roomTransport->Push(json(staleMatchup));
-			CHECK(roomClient.Step() == 0);
-			CHECK(roomTransport->sent.size() == sentBeforeMatchup);
+			const auto show = [&](int fighter) {
+				++current.revision; current.members[1].fighter = fighter;
+				protocol::RoomSnapshotMessage shown; shown.snapshot = current;
+				roomTransport->Push(json(shown)); CHECK(roomClient.Step() == 0);
+			};
+			const auto staleWith = [&](int fighter) {
+				protocol::RoomResultMessage stale;
+				stale.actionId = roomTransport->sent.back().at("action").at("action_id").get<std::uint64_t>();
+				stale.result.accepted = false;
+				stale.result.reason = room::RejectReason::StaleTable;
+				++current.revision; ++current.tables[0].revision; current.members[1].fighter = fighter;
+				stale.result.snapshot = current;
+				const auto before = roomTransport->sent.size();
+				roomTransport->Push(json(stale));
+				CHECK(roomClient.Step() == 0);
+				return roomTransport->sent.size() - before;
+			};
+			// The opponent showing its first fighter is no change: resent.
+			show(-1);
+			CHECK(roomClient.Lobby_Ready() == session::SendResult::Queued);
+			CHECK(staleWith(5) == 1);
+			protocol::RoomResultMessage firstAccepted;
+			firstAccepted.actionId = roomTransport->sent.back().at("action").at("action_id").get<std::uint64_t>();
+			firstAccepted.result.accepted = true; firstAccepted.result.snapshot = current;
+			roomTransport->Push(json(firstAccepted)); CHECK(roomClient.Step() == 0);
+			CHECK(roomClient.TakeActionReply(actionReply) && actionReply.accepted);
+			// A fighter the opponent already showed, changed: not resent.
+			show(3);
+			CHECK(roomClient.Lobby_Ready() == session::SendResult::Queued);
+			CHECK(staleWith(4) == 0);
 			CHECK(roomClient.TakeActionReply(actionReply) && !actionReply.accepted && actionReply.kindKnown &&
 				actionReply.kind == room::ActionKind::Ready && actionReply.reason == room::RejectReason::StaleTable);
 		}

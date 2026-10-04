@@ -260,6 +260,13 @@ int main() {
     CHECK(ManifestInstallDir("\"AppState\" { \"installdir\" \"..\\\\Windows\" }").empty());
     CHECK(ManifestInstallDir("\"AppState\" { \"installdir\" \"C:Elsewhere\" }").empty());
     CHECK(ManifestInstallDir("\"AppState\" { \"installdir\" \"\" }").empty());
+    // A NUL inside the value must not shorten "..\0ignored" to "..".
+    static const char dotsNul[] = "\"AppState\" { \"installdir\" \"..\0ignored\" }";
+    static const char nameNul[] = "\"AppState\" { \"installdir\" \"USF4\0x\" }";
+    const std::string withNul(dotsNul, sizeof(dotsNul) - 1);
+    CHECK(withNul.find('\0') != std::string::npos && withNul.back() == '}');
+    CHECK(ManifestInstallDir(withNul).empty());
+    CHECK(ManifestInstallDir(std::string(nameNul, sizeof(nameNul) - 1)).empty());
     CHECK(ManifestInstallDir("\"Other\" { \"installdir\" \"USF4\" }").empty());
     for (std::size_t length = 0; length < manifest.rfind('}'); ++length)
         CHECK(ManifestInstallDir(manifest.substr(0, length)).empty());
