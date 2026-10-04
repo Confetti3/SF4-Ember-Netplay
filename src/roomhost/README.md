@@ -88,6 +88,9 @@ the client was built from.
    `g++ -std=c++17 -O2`, in parallel, and links the C++ runtime statically.
    About 25 s on 20 cores. `ldd ./sf4e-room-host` should list only libc.
 
+   `bash src/roomhost/test-linux.sh .` builds and runs the helper client pipe test
+   (about 30 s, most of it waiting out a 15 s write deadline).
+
 3. Build the helper from the same tree (its path dependencies `rust/ember` and
    `rust/ember-short` are in the archive):
 
