@@ -8,6 +8,7 @@
 #include <cstring>
 #include <limits>
 #include <vector>
+#include <fcntl.h>
 #include <poll.h>
 #include <unistd.h>
 
@@ -20,6 +21,10 @@ const uint64_t IoTimeoutMs = 15000;
 const size_t HeaderSize = 14;
 
 void CloseFd(int& fd) { if (fd >= 0) { close(fd); fd = -1; } }
+bool SetNonBlocking(int fd) {
+    const int flags = fcntl(fd, F_GETFL);
+    return flags >= 0 && fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0;
+}
 }
 
 HelperClient::HelperClient() : outgoing_(MaxMessages, MaxQueuedBytes), incoming_(MaxMessages, MaxQueuedBytes) {
@@ -29,6 +34,11 @@ HelperClient::~HelperClient() { Stop(); CloseFd(stopPipe_[0]); CloseFd(stopPipe_
 
 bool HelperClient::Start(int readFd, int writeFd) {
     if (stopPipe_[0] < 0 || started_ || worker_.joinable() || state_ != HelperState::Stopped || readFd < 0 || writeFd < 0) { return false; }
+    // Blocking descriptors would let one write of a large frame wait on a helper
+    // that has stopped reading, past the deadline and the stop signal. With these
+    // two nonblocking, Transfer takes what the pipe has room for and polls again.
+    // The flag is on this process's open files only; the helper's ends stay blocking.
+    if (!SetNonBlocking(readFd) || !SetNonBlocking(writeFd)) { error_ = errno; return false; }
     // A helper that has gone must fail a write, not end this process.
     signal(SIGPIPE, SIG_IGN);
     started_ = true;
