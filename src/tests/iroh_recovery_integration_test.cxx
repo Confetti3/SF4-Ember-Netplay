@@ -72,7 +72,7 @@ private:
 // None stops the technical leader's helper. Departure is a graceful leader
 // Leave; FollowerKilled closes a seated follower's pipe without one.
 // HostRejoin hands host to a follower, leaves, and rejoins as a guest.
-enum class Fault { None, Departure, HostRejoin, FollowerKilled, KilledThenLeaderLeaves, Preparing, PreparingMinority, SameTermPreparation, Started, CommittedResult };
+enum class Fault { None, Departure, HostRejoin, FollowerKilled, KilledThenLeaderLeaves, ShrinkThenGuestKilled, ShrinkWhileGuestKilled, PairLeaderLeaves, Preparing, PreparingMinority, SameTermPreparation, Started, CommittedResult };
 static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t count, Fault fault) {
     std::array<platform::HelperProcess,3> processes;
     std::array<platform::HelperClient,3> helpers;
@@ -113,7 +113,7 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
                 << " voters=" << a.voterCount << " learners=" << a.learnerCount
                 << " rebound=" << a.rebound << " applied=" << peers[i].recovery.AppliedRevision()
                 << " caught_up=" << peers[i].recovery.CaughtUp(a)
-                << " error=" << peers[i].room->Error();
+                << " error=" << peers[i].room->Error() << " recovery_error='" << peers[i].recovery.Error() << "'";
             if(peers[i].client) {
                 const auto& snapshot=peers[i].client->GetRoomSnapshot();
                 std::cerr << " client_members=" << snapshot.members.size()
@@ -273,11 +273,12 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
                 leaders+=authority.leaderLocal?1:0;
             }return leaders==1;},6000); // Well inside OpenRaft's 12 s leader lease: the handoff must not wait it out.
         CHECK(processes[0].IsRunning());
-        phase="successor restores the stable voter count";
-        // The handoff goes to one voter; the successor promotes the other
-        // survivor so a later departure still has somewhere to hand off to.
-        wait([&](){pump();for(auto* peer:live) if(peer->room->Coordination().voterCount!=2 ||
-            peer->room->Coordination().learnerCount!=0) return false;return true;});
+        phase="successor keeps the stable voter count";
+        // The handoff goes to one voter. A room of two keeps only its leader
+        // as a voter, so the other survivor stays a learner; a later leader
+        // departure hands its vote to that learner.
+        wait([&](){pump();for(auto* peer:live) if(peer->room->Coordination().voterCount!=1 ||
+            peer->room->Coordination().learnerCount!=1) return false;return true;});
         phase="new native command after graceful transfer";
         // Recovery rebases the existing one-second chat cooldown. A fast
         // transfer must not turn this authority check into a rate-limit test.
@@ -351,7 +352,7 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
         wait([&](){pump();for(auto* peer:live) {
             const auto& authority=peer->room->Coordination();const auto& snapshot=peer->client->GetRoomSnapshot();
             if(!authority.writable || !peer->recovery.CaughtUp(authority) || snapshot.members.size()!=2 ||
-                snapshot.tables[0].p1==ghost || snapshot.tables[0].p2==ghost || authority.voterCount!=2) return false;
+                snapshot.tables[0].p1==ghost || snapshot.tables[0].p2==ghost || authority.voterCount!=1) return false;
         }return true;},45000); // 15 s departure grace, then the commit and voter removal.
         phase="freed seat is usable";
         action(1,room::ActionKind::Queue);
@@ -389,6 +390,87 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
         phase="killed-then-leader-leaves fixture shutdown";
         wait([&](){for(std::size_t i=0;i<2;++i) if(processes[i].IsRunning()) return false;return true;});
         std::cout << "Successor removed a follower killed before the leader left; relay-only=" << relayOnly << '\n';
+        return;
+    }
+    if(fault==Fault::ShrinkThenGuestKilled || fault==Fault::ShrinkWhileGuestKilled) {
+        // Field report 2026-10-04: a long-lived lobby lost every room action
+        // for good after it shrank to two players and one of them dropped,
+        // and nobody could rejoin. Two voters cannot lose one, so a room that
+        // shrinks to two keeps only its leader as a voter. The overlapping
+        // case kills the guest before the voter change can settle, so the
+        // shrink must not commit two voters on its way to one.
+        const bool overlap=fault==Fault::ShrinkWhileGuestKilled;
+        phase="seat the guest";
+        action(1,room::ActionKind::Queue);
+        const auto ghost=peers[1].client->GetRoomSnapshot().localMember;
+        CHECK(ghost!=0);
+        wait([&](){pump();const auto& table=peers[0].client->GetRoomSnapshot().tables[0];return table.p1==ghost || table.p2==ghost;});
+        phase="third member leaves";
+        action(2,room::ActionKind::Leave);
+        live.pop_back();
+        peers[2].client.reset();peers[2].server.reset();peers[2].room->Leave(false);
+        if(overlap) {
+            phase="the guest's game is killed during the shrink";
+            live.pop_back();helpers[1].Stop();
+        }
+        wait([&](){pump();return peers[2].room->GetState()==session::IrohRoom::State::Idle;});
+        if(!overlap) {
+            phase="a room of two keeps one voter";
+            wait([&](){pump();for(auto* peer:live) {
+                const auto& authority=peer->room->Coordination();
+                if(!authority.writable || authority.voterCount!=1 || authority.learnerCount!=1 ||
+                    peer->client->GetRoomSnapshot().members.size()!=2) return false;
+            }return true;});
+            phase="the guest's game is killed";
+            live.pop_back();helpers[1].Stop();
+        }
+        wait([&](){return !processes[1].IsRunning();});
+        phase="leader commits the killed guest's departure";
+        wait([&](){pump();
+            const auto& authority=peers[0].room->Coordination();const auto& snapshot=peers[0].client->GetRoomSnapshot();
+            return authority.writable && authority.leaderLocal && peers[0].recovery.CaughtUp(authority) &&
+                authority.voterCount==1 && authority.learnerCount==0 && snapshot.members.size()==1 &&
+                snapshot.tables[0].p1!=ghost && snapshot.tables[0].p2!=ghost;
+        },45000); // 15 s departure grace, then the commit and learner removal.
+        action(0,room::ActionKind::Chat,"After the guest dropped");
+        phase="a former member rejoins";
+        CHECK(peers[2].room->Join(peers[0].room->Invitation(),"recovery-integration"));
+        wait([&](){pump();return peers[2].room->GetState()==session::IrohRoom::State::Ready;});
+        CHECK(peers[2].room->RoomId()==oldRoom);
+        peers[2].recovery=session::RoomRecoveryRuntime{};
+        CHECK(test::ConfigureIrohIntegrationPeer(peers[2],callbacks,"recovery-integration",31002));
+        live.push_back(&peers[2]);
+        wait([&](){pump();return test::AllIrohRoomMembers(live,2);});
+        action(2,room::ActionKind::Chat,"Back after the drop");
+        for(std::size_t i:{std::size_t(0),std::size_t(2)}) CHECK(helpers[i].Send("{\"type\":\"shutdown\"}"));
+        phase="shrink fixture shutdown";
+        wait([&](){for(std::size_t i=0;i<count;++i) if(processes[i].IsRunning()) return false;return true;});
+        std::cout << "A room that shrank to two kept working after the guest's game was killed, and took a rejoin; relay-only=" << relayOnly << '\n';
+        return;
+    }
+    if(fault==Fault::PairLeaderLeaves) {
+        // The leader of a room of two is its only voter. Leaving, it hands
+        // the vote to the other member, which then leads the room alone.
+        phase="leader of two leaves";
+        action(0,room::ActionKind::Leave);
+        CHECK(peers[0].client->GetRoomSnapshot().localMember==0);
+        live.erase(live.begin());
+        peers[0].client.reset();peers[0].server.reset();peers[0].room->Leave(false);
+        wait([&](){pump();if(peers[0].room->GetState()!=session::IrohRoom::State::Idle) return false;
+            const auto& authority=peers[1].room->Coordination();const auto& snapshot=peers[1].client->GetRoomSnapshot();
+            return authority.writable && authority.leaderLocal && peers[1].recovery.CaughtUp(authority) &&
+                authority.voterCount==1 && !snapshot.closed && snapshot.members.size()==1 &&
+                peers[1].room->RoomId()==oldRoom;
+        },12000); // Inside OpenRaft's 12 s leader lease: the handoff must not wait it out.
+        CHECK(processes[0].IsRunning());
+        phase="new native command after the handoff";
+        const auto chatReadyAt=GetTickCount64()+1010;
+        wait([&](){pump();return GetTickCount64()>=chatReadyAt;});
+        action(1,room::ActionKind::Chat,"After the leader of two left");
+        for(std::size_t i=0;i<count;++i) CHECK(helpers[i].Send("{\"type\":\"shutdown\"}"));
+        phase="pair-leader-leaves fixture shutdown";
+        wait([&](){for(std::size_t i=0;i<count;++i) if(processes[i].IsRunning()) return false;return true;});
+        std::cout << "The leader of a room of two handed the room to the other member; relay-only=" << relayOnly << '\n';
         return;
     }
 
@@ -938,7 +1020,9 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
         }
         std::cout << "Majority recovered the original room and committed new C++ actions; relay-only=" << relayOnly << '\n';
     } else {
-        phase="two-voter minority remains frozen";
+        // The leader of a room of two is its only voter, so the guest left
+        // behind when the leader's helper dies cannot elect itself.
+        phase="guest of two remains frozen";
         const auto until=GetTickCount64()+16000;
         do {pump();CHECK(!peers[1].room->Coordination().writable);CHECK(peers[1].room->RoomId()==oldRoom);Sleep(10);} while(GetTickCount64()<until);
         CHECK(peers[1].recovery.AppliedRevision()==oldRevision);
@@ -956,7 +1040,7 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
         live.push_back(&peers[1]);
         wait([&](){pump();return peers[1].client->GetRoomSnapshot().members.size()==1;});
         action(1,room::ActionKind::Chat,"Replacement is usable");
-        std::cout << "Two-voter minority stayed frozen; explicit replacement created fresh authority; relay-only=" << relayOnly << '\n';
+        std::cout << "Guest of two stayed frozen; explicit replacement created fresh authority; relay-only=" << relayOnly << '\n';
     }
     for(std::size_t i=1;i<count;++i) CHECK(helpers[i].Send("{\"type\":\"shutdown\"}"));
     phase="fixture shutdown";
@@ -981,7 +1065,8 @@ int wmain(int argc,wchar_t** argv) {
         {L"started",3,Fault::Started},{L"preparing",3,Fault::Preparing},
         {L"preparing-minority",3,Fault::PreparingMinority},{L"same-term-preparing",3,Fault::SameTermPreparation},
         {L"committed-result",3,Fault::CommittedResult},{L"follower-killed",3,Fault::FollowerKilled},
-        {L"killed-then-leader-leaves",3,Fault::KilledThenLeaderLeaves}};
+        {L"killed-then-leader-leaves",3,Fault::KilledThenLeaderLeaves},
+        {L"shrink-then-guest-killed",3,Fault::ShrinkThenGuestKilled},{L"shrink-while-guest-killed",3,Fault::ShrinkWhileGuestKilled},{L"pair-leader-leaves",2,Fault::PairLeaderLeaves}};
     CHECK(scenario==L"all" || std::any_of(std::begin(cases),std::end(cases),[&](const Case& c){return scenario==c.name;}));
     for(const auto& c:cases) if(scenario==L"all" || scenario==c.name) RunRecovery(argv[1],relayOnly,c.count,c.fault);
     std::cout << "Helper recovery integration passed. No native SF4 gameplay tested.\n";

@@ -29,7 +29,17 @@ public:
                 // previous process incarnation. That member has left; the
                 // commit removing it follows. It can never be rebound to this
                 // session, so it is skipped rather than left blocking the head.
-                if(CheckpointPredatesSession(proposal.checkpoint,room.LocalIdentity(),authority.incarnation)) {
+                // A session that has not imported anything yet can also be
+                // handed commits from before its admission, which list members
+                // that left or dropped before it arrived. It never connected
+                // to them, so rebinding such a commit waits forever. Once a
+                // newer commit is staged behind it, the older one is skipped:
+                // it carries nothing for this session, and the newer commit
+                // is a complete room. Should the newest still list a dropped
+                // member, the session waits for the removal commit as before.
+                const bool predatesAdmission=appliedRevision_==0 && room.CommittedCheckpointsBehindHead()>0 &&
+                    CheckpointOmitsSession(proposal.checkpoint,room.LocalIdentity());
+                if(predatesAdmission || CheckpointPredatesSession(proposal.checkpoint,room.LocalIdentity(),authority.incarnation)) {
                     if(!room.DiscardCommittedCheckpoint(committed.identity))
                         throw std::runtime_error("committed checkpoint activation pending");
                     continue;

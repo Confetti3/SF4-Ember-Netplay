@@ -197,6 +197,9 @@ impl Actor {
                     return Err(failed("obsolete membership operation"));
                 }
                 if recovery.coordinator.current_leader() == Some(recovery.incarnation) {
+                    // An abandoned joint configuration first: every other
+                    // change below commits through its quorum.
+                    recovery.finish_joint_membership().await?;
                     let applied_voters = recovery.applied_voter_ids().await;
                     let voter_removals = pending
                         .intersection(&applied_voters)
@@ -210,7 +213,7 @@ impl Actor {
                         // A voter with no control link cannot acknowledge the
                         // joint configuration, and the change would never
                         // commit.
-                        let replacement = remaining
+                        let answering = remaining
                             .iter()
                             .copied()
                             .filter(|id| {
@@ -223,16 +226,31 @@ impl Actor {
                                         })
                             })
                             .collect::<BTreeSet<_>>();
+                        // Go straight to the stable count for the retained
+                        // roster. Shrinking to two members through a commit of
+                        // two voters first would leave a window in which the
+                        // other one dropping freezes the room.
+                        let desired = crate::recovery::stable_voter_count(retained.len());
+                        let replacement = std::iter::once(recovery.incarnation)
+                            .filter(|id| answering.contains(id))
+                            .chain(
+                                answering
+                                    .iter()
+                                    .copied()
+                                    .filter(|id| *id != recovery.incarnation),
+                            )
+                            .take(desired)
+                            .collect::<BTreeSet<_>>();
                         if replacement.is_empty() {
                             return Err(failed("empty replacement membership"));
                         }
-                        if replacement.len() == remaining.len() {
+                        if replacement == remaining {
                             recovery.remove_members(replacement).await?;
                         } else {
-                            // Dropping the unreachable voters as well would
-                            // remove their incarnations for good. They stay
-                            // learners instead, and the leaving ones are
-                            // removed below; the stable count is restored
+                            // Dropping the unreachable or surplus voters as
+                            // well would remove their incarnations for good.
+                            // They stay learners instead, and the leaving ones
+                            // are removed below; the stable count is restored
                             // once they answer again.
                             recovery.promote_voters(replacement).await?;
                         }
@@ -405,7 +423,8 @@ impl Actor {
                     {
                         let current = recovery.applied_voter_ids().await;
                         let mut voters = current
-                            .into_iter()
+                            .iter()
+                            .copied()
                             .filter(|id| !pending_retired.contains(id) && !retired.contains(id))
                             .collect::<BTreeSet<_>>();
                         for id in candidates {
@@ -416,9 +435,13 @@ impl Actor {
                                 voters.insert(id);
                             }
                         }
+                        // A room of two keeps its single voter, so the set is
+                        // often unchanged; an identical change would only add
+                        // a membership entry.
                         if promote
                             && !voters.is_empty()
                             && voters.len() <= crate::recovery::MAX_VOTERS
+                            && voters != current
                         {
                             // Admission is already durable once AddLearner
                             // succeeds. Preserve that authenticated binding if
@@ -554,9 +577,11 @@ impl Actor {
 
 /// A departing leader hands authority to a single voter so it can elect itself
 /// at once. The new leader brings the retained members back up to the stable
-/// voter count. `retained` is the committed roster at `revision`; a newer
-/// commit may have removed a candidate, so promotion is skipped then and the
-/// next refresh retries from the newer roster.
+/// voter count, or down to it once the room has shrunk: a room that falls to
+/// two members would otherwise keep two voters and freeze when either one
+/// drops. `retained` is the committed roster at `revision`; a newer commit may
+/// have removed a candidate, so the change is skipped then and the next
+/// refresh retries from the newer roster.
 async fn restore_stable_voters(
     recovery: &crate::recovery::RecoverySession,
     retained: &BTreeSet<EndpointId>,
@@ -567,7 +592,33 @@ async fn restore_stable_voters(
 ) -> io::Result<()> {
     let desired = crate::recovery::stable_voter_count(retained.len());
     let current = recovery.applied_voter_ids().await;
-    if current.len() >= desired {
+    if current.len() > desired {
+        // The leader keeps its vote, then the voters that still answer. The
+        // joint change commits through the current voters, so a set that
+        // keeps only reachable ones adds no new way to stall.
+        let own = recovery.incarnation;
+        let answers = |id: u64| {
+            admissions
+                .iter()
+                .find(|admission| admission.incarnation == id)
+                .is_some_and(|admission| {
+                    retained.contains(&admission.primary_endpoint)
+                        && reachable.contains(&admission.primary_endpoint)
+                        && !pending.contains(&id)
+                })
+        };
+        let voters = std::iter::once(own)
+            .chain(current.iter().copied().filter(|id| *id != own && answers(*id)))
+            .take(desired)
+            .collect::<BTreeSet<_>>();
+        if current.contains(&own) && voters.len() < current.len() {
+            recovery
+                .promote_voters_at_revision(revision, voters)
+                .await?;
+        }
+        return Ok(());
+    }
+    if current.len() == desired {
         return Ok(());
     }
     let members = recovery.applied_member_ids().await;

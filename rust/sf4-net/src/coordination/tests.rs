@@ -718,6 +718,82 @@ async fn sixteen_members_commit_with_one_failed_host() {
     stop(nodes).await;
 }
 
+#[tokio::test]
+async fn an_abandoned_joint_membership_is_finished_without_its_old_quorum() {
+    let (bus, nodes) = cluster(1).await;
+    let mut learners = Vec::new();
+    for id in [2, 3] {
+        let learner = Arc::new(
+            Coordinator::new(
+                id,
+                Arc::new(TestNetwork {
+                    source: id,
+                    bus: bus.clone(),
+                }),
+            )
+            .await
+            .unwrap(),
+        );
+        bus.peers.lock().await.insert(id, Arc::downgrade(&learner));
+        nodes[0]
+            .raft
+            .add_learner(id, BasicNode::new(id.to_string()), true)
+            .await
+            .unwrap();
+        learners.push(learner);
+    }
+    nodes[0]
+        .raft
+        .change_membership(BTreeSet::from([1, 2, 3]), true)
+        .await
+        .unwrap();
+    // The caller of a shrink to one voter gives up before its joint entry
+    // commits. The entry commits later and nothing proposes the uniform half.
+    bus.append_delay_ms.store(400, Ordering::Relaxed);
+    let goal = BTreeSet::from([1]);
+    assert!(
+        tokio::time::timeout(
+            Duration::from_millis(100),
+            nodes[0].raft.change_membership(goal.clone(), true),
+        )
+        .await
+        .is_err()
+    );
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while nodes[0].applied_joint_goal().await.is_none() {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("the abandoned joint configuration commits");
+    assert_eq!(nodes[0].applied_joint_goal().await, Some(goal.clone()));
+    // Then the other two drop: the old half has lost its quorum, so a read
+    // that needs both halves cannot finish it.
+    bus.append_delay_ms.store(0, Ordering::Relaxed);
+    bus.isolated.lock().await.extend([2, 3]);
+    assert!(!matches!(
+        tokio::time::timeout(Duration::from_secs(1), nodes[0].raft.ensure_linearizable()).await,
+        Ok(Ok(_))
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_secs(5), nodes[0].finish_joint_membership())
+            .await
+            .expect("the uniform half commits with the goal's own quorum")
+            .unwrap()
+    );
+    assert_eq!(nodes[0].applied_joint_goal().await, None);
+    assert_eq!(nodes[0].applied_voter_ids().await, goal);
+    tokio::time::timeout(Duration::from_secs(5), nodes[0].raft.ensure_linearizable())
+        .await
+        .expect("the room commits again")
+        .unwrap();
+    assert!(!nodes[0].finish_joint_membership().await.unwrap());
+    for learner in learners {
+        let _ = learner.raft.shutdown().await;
+    }
+    stop(nodes).await;
+}
+
 // Relay-sized appends and snapshot transfer to new replicas.
 mod transfer;
 // Departed-member history and its bound.

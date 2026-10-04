@@ -130,6 +130,7 @@ impl Actor {
             }
             let state = recovery.state().await;
             let committed = recovery.committed().await;
+            let joint = recovery.applied_joint_goal().await.is_some();
             let leader = recovery.coordinator.current_leader();
             Completion::CoordinationRefresh(
                 key,
@@ -140,6 +141,7 @@ impl Actor {
                     applied_history,
                     retired,
                     committed,
+                    joint,
                 },
             )
         });
@@ -159,6 +161,7 @@ impl Actor {
             applied_history,
             retired,
             committed,
+            joint,
             ..
         } = refresh;
         // Derive retirement provenance from the locally applied membership as
@@ -191,10 +194,13 @@ impl Actor {
             .extend(applied_history.iter().copied());
         let retired_for_broadcast = self.pending_retired_incarnations.clone();
         if let Some(retained) = self.committed_roster(committed.checkpoint.as_bytes()) {
-            // A leave hands authority to a single voter; the leader restores
-            // the stable voter count from here until it has.
-            let restore_voters =
-                state.leader_local && state.voter_count < self.desired_voters(retained.len());
+            // A leave hands authority to a single voter, and a room that
+            // shrinks keeps the voters it had; the leader moves the voter
+            // count to the one the room should have from here until it
+            // matches. A joint membership counts the voters of both halves, so
+            // it is finished whatever the count says.
+            let restore_voters = state.leader_local
+                && (joint || state.voter_count != self.desired_voters(retained.len()));
             self.schedule_membership_reconciliation(
                 retained,
                 state.term,
@@ -278,6 +284,8 @@ impl Actor {
             state.revision,
             state.writable,
             state.leader_local,
+            state.voter_count,
+            state.learner_count,
         );
         if self.last_coordination_state != Some(marker) {
             if !self.emit_bulk(Event::CoordinationState {

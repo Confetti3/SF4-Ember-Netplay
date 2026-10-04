@@ -475,4 +475,17 @@ inline bool CheckpointPredatesSession(const nlohmann::json& checkpoint, const st
 	return false;
 }
 
+// Whether a commit's active roster has no row for this endpoint at all: it
+// was committed before this session was admitted. Frozen rows are history and
+// do not count as membership.
+inline bool CheckpointOmitsSession(const nlohmann::json& checkpoint, const std::string& localIdentity) {
+	if (localIdentity.empty() || !checkpoint.is_object() ||
+		!checkpoint.contains("members") || !checkpoint.at("members").is_array()) return false;
+	for (const auto& row : checkpoint.at("members")) {
+		if (!row.is_object() || !row.contains("data") || row.value("frozen", false)) continue;
+		if (row.at("data").value("authenticatedEndpoint", std::string()) == localIdentity) return false;
+	}
+	return true;
+}
+
 } }

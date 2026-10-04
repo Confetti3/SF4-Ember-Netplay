@@ -1228,9 +1228,11 @@ async fn a_binding_the_operation_rejects_closes_the_control_without_a_session() 
             .await
             .unwrap();
         let _ = next(&mut fixture.events, "connected").await;
-        // No coordination session answers at this address, so the learner
-        // can never be added; the bounded operation fails and the control
-        // closes with nothing native read from it.
+        // The host's coordination route refuses this incarnation, so the
+        // learner can never be added; the bounded operation fails and the
+        // control closes with nothing native read from it. (An unreachable
+        // learner is not enough: OpenRaft counts a fresh learner as caught up
+        // while the log is short, and a room of two promotes nobody.)
         let nobody = endpoint().await;
         let admission = Admission {
             room: fixture.room,
@@ -1241,6 +1243,7 @@ async fn a_binding_the_operation_rejects_closes_the_control_without_a_session() 
             primary_endpoint: fixture.remote.id(),
         };
         nobody.close().await;
+        fixture.recovery.rpc.retire(admission.incarnation).await;
         send_admission(&mut control, 2, admission).await;
         control
             .sender
