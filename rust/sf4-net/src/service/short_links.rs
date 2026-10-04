@@ -1,5 +1,6 @@
 //! Short invitation links: publishing this room's sealed invitation to the
-//! link service on request, keeping it current, and opening a pasted link.
+//! link service on request, keeping it current (a new leader takes over a
+//! link someone shared), and opening a pasted link.
 use super::*;
 use crate::short_invite::{self, Keys, ShortError};
 
@@ -8,11 +9,21 @@ use crate::short_invite::{self, Keys, ShortError};
 const REPUBLISH_SECS: u64 = 10 * 60;
 /// After a background store fails, wait this long before the next try.
 const RETRY_SECS: u64 = 60;
+/// How many times a new leader looks its room's record up when the service
+/// does not answer.
+const ADOPT_TRIES: u8 = 3;
 
 pub(super) struct ShortLinks {
     /// Base URL of the service, `short_invite::service_base()`.
     pub(super) service: String,
     pub(super) room: Option<ShortRoom>,
+    /// A lookup of this room's record is under way (`adopt_short_link`).
+    pub(super) adopting: bool,
+    /// When to look the record up again after the service did not answer;
+    /// zero when no lookup is due.
+    pub(super) adopt_at: u64,
+    /// Lookups made since this game took the room over.
+    pub(super) adopt_tries: u8,
 }
 
 impl Default for ShortLinks {
@@ -20,7 +31,20 @@ impl Default for ShortLinks {
         Self {
             service: short_invite::service_base(),
             room: None,
+            adopting: false,
+            adopt_at: 0,
+            adopt_tries: 0,
         }
+    }
+}
+
+impl ShortLinks {
+    /// Leaving a room forgets its link and any lookup of it.
+    pub(super) fn clear(&mut self) {
+        self.room = None;
+        self.adopting = false;
+        self.adopt_at = 0;
+        self.adopt_tries = 0;
     }
 }
 
@@ -177,10 +201,89 @@ impl Actor {
         Ok(())
     }
 
+    /// The room passed to this game from another member. A shared short link
+    /// stays current only while the room's leader stores the invitation
+    /// again, and whoever copied it may have left, so the new leader takes
+    /// the link over when the link service holds one for this room. A room
+    /// nobody shared a link for has no record there, and nothing is published
+    /// for it. The code comes from the room's own secrets, so a record under
+    /// it is this room's.
+    pub(super) fn adopt_short_link(&mut self) {
+        self.short.adopt_at = 0;
+        if self.short.room.is_some()
+            || self.short.adopting
+            || self.short.adopt_tries >= ADOPT_TRIES
+            || self.tasks.len() >= MAX_TASKS
+        {
+            return;
+        }
+        let Some(current) = self.current_invite() else {
+            return;
+        };
+        let code = current.short_code();
+        self.short.adopting = true;
+        self.short.adopt_tries += 1;
+        let (service, epoch) = (self.short.service.clone(), self.epoch);
+        self.tasks.spawn(async move {
+            let found = match short_invite::derive_async(code.clone()).await {
+                Ok(keys) => short_invite::fetch(&service, &keys)
+                    .await
+                    .map(|invitation| (keys, invitation)),
+                Err(error) => Err(error),
+            };
+            Completion::ShortAdopted(epoch, code, found)
+        });
+    }
+
+    pub(super) fn completed_short_adopt(
+        &mut self,
+        epoch: u64,
+        code: String,
+        found: Result<(Keys, String), ShortError>,
+    ) -> io::Result<()> {
+        if epoch != self.epoch {
+            return Ok(());
+        }
+        self.short.adopting = false;
+        let time = now().unwrap_or(0);
+        let current = self.current_invite().map(|invite| invite.short_code());
+        if self.short.room.is_some() || current.as_deref() != Some(code.as_str()) {
+            return Ok(());
+        }
+        match found {
+            Ok((keys, invitation)) => {
+                // Stored again on the next pump: the record still names the
+                // leader that published it.
+                self.short.room = Some(ShortRoom {
+                    code,
+                    keys: Some(keys),
+                    published: Some(invitation),
+                    published_at: 0,
+                    retry_at: 0,
+                    in_flight: false,
+                    announced: true,
+                });
+            }
+            // Nobody shared a link for this room.
+            Err(ShortError::Unknown) => {}
+            Err(_) if self.short.adopt_tries < ADOPT_TRIES => {
+                self.short.adopt_at = time + RETRY_SECS
+            }
+            Err(_) => {}
+        }
+        Ok(())
+    }
+
     /// Once a second: store the room's invitation again when it has changed
     /// (renewal, a new leader) or has not been stored for a while.
     pub(super) fn pump_short_link(&mut self, time: u64) {
         let Some(room) = self.short.room.as_ref() else {
+            let leading = self
+                .last_coordination_state
+                .is_some_and(|marker| marker.3);
+            if self.short.adopt_at != 0 && time >= self.short.adopt_at && leading {
+                self.adopt_short_link();
+            }
             return;
         };
         if !room.announced || room.in_flight || time < room.retry_at {

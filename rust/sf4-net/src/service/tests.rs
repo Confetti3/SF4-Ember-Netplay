@@ -6485,7 +6485,9 @@ async fn complete_short(actor: &mut Actor) {
         };
         let short = matches!(
             completion,
-            Completion::ShortPublished(..) | Completion::ShortResolved(..)
+            Completion::ShortPublished(..)
+                | Completion::ShortResolved(..)
+                | Completion::ShortAdopted(..)
         );
         actor.completed(completion).await.unwrap();
         if short {
@@ -6606,6 +6608,83 @@ async fn a_short_link_opens_the_room_it_was_made_for() {
     // Leaving the room forgets the link.
     host.clear_room();
     assert!(host.short.room.is_none());
+    host_endpoint.close().await;
+    guest_endpoint.close().await;
+}
+
+#[tokio::test]
+async fn a_new_leader_keeps_a_shared_short_link_current() {
+    let (service, store) = short_service().await;
+    let host_endpoint = endpoint().await;
+    let guest_endpoint = endpoint().await;
+    let (host_events_tx, mut host_events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let (guest_events_tx, mut guest_events) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let mut host = test_actor(host_endpoint.clone(), host_events_tx);
+    let mut guest = test_actor(guest_endpoint.clone(), guest_events_tx);
+    host.short.service = service.clone();
+    guest.short.service = service.clone();
+    host.epoch = 4;
+    guest.epoch = 7;
+    let start = now().unwrap();
+    let invite = Invite::create(host_endpoint.id(), test_relay(), "test-build".into(), start, INVITE_LIFETIME).unwrap();
+    // The guest leads the room now: its invitation names its own endpoint.
+    let coordination = iroh::SecretKey::generate().public();
+    let led = invite
+        .clone()
+        .with_authority_route(guest_endpoint.id(), coordination, 2, 9)
+        .unwrap();
+    guest.room_invite = Some(led.clone());
+
+    // Nobody shared a link yet: the new leader finds no record and publishes
+    // nothing.
+    guest.adopt_short_link();
+    complete_short(&mut guest).await;
+    assert!(guest.short.room.is_none() && guest.short.adopt_at == 0);
+    guest.pump_short_link(now().unwrap());
+    assert!(guest.tasks.is_empty());
+    assert_eq!(store.len(), 0);
+
+    // The host shares one, then leaves.
+    host.hosted = Some(invite.clone());
+    host.room_invite = Some(invite.clone());
+    host.short_invite_command(4).unwrap();
+    complete_short(&mut host).await;
+    assert!(matches!(host_events.recv().await.unwrap(), Event::ShortInvite { ref status, .. } if status == "ready"));
+    host.clear_room();
+
+    // The new leader takes the link over and stores its own invitation under
+    // it, without telling the native side anything new.
+    guest.adopt_short_link();
+    complete_short(&mut guest).await;
+    assert!(guest.short.room.is_some());
+    guest.pump_short_link(now().unwrap());
+    assert!(!guest.tasks.is_empty());
+    complete_short(&mut guest).await;
+    assert!(guest_events.try_recv().is_err());
+    let keys = crate::short_invite::derive(&invite.short_code()).unwrap();
+    let stored = crate::short_invite::fetch(&service, &keys).await.unwrap();
+    assert_eq!(stored, led.encode().unwrap());
+    // Asked for the link, the leader gives the same one at once.
+    guest.short_invite_command(7).unwrap();
+    assert!(guest.tasks.is_empty());
+    assert!(matches!(guest_events.recv().await.unwrap(), Event::ShortInvite { ref link, .. } if crate::short_invite::parse(link) == Some(invite.short_code())));
+    // Leaving forgets it.
+    guest.clear_room();
+    assert!(guest.short.room.is_none() && !guest.short.adopting);
+
+    // A lookup the service does not answer is tried again later, a few
+    // times at most.
+    let mut lone = test_actor(endpoint().await, mpsc::channel(IPC_QUEUE_CAPACITY).0);
+    lone.short.service = "http://127.0.0.1:9/s/v1/".into();
+    lone.room_invite = Some(led.clone());
+    for _ in 0..3 {
+        lone.adopt_short_link();
+        complete_short(&mut lone).await;
+        assert!(lone.short.room.is_none());
+    }
+    assert_eq!(lone.short.adopt_at, 0);
+    lone.adopt_short_link();
+    assert!(lone.tasks.is_empty());
     host_endpoint.close().await;
     guest_endpoint.close().await;
 }

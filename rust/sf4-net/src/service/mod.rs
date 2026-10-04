@@ -158,6 +158,13 @@ enum Completion {
     Probe(u64, io::Result<ProbeCompletion>),
     /// A store of this room's sealed invitation at the link service.
     ShortPublished(u64, ShortPublished),
+    /// This room's short link record looked up by a new leader: epoch, code,
+    /// and the keys and invitation the service holds.
+    ShortAdopted(
+        u64,
+        String,
+        Result<(crate::short_invite::Keys, String), crate::short_invite::ShortError>,
+    ),
     /// A pasted short link looked up: request, epoch, build, code, and the
     /// invitation it stands for.
     ShortResolved(
@@ -737,7 +744,7 @@ impl Actor {
         }
         self.hosted = None;
         self.room_invite = None;
-        self.short.room = None;
+        self.short.clear();
         self.host_address = None;
         self.room = None;
         self.opening = false;
@@ -1251,6 +1258,9 @@ impl Actor {
             }
             Completion::ShortResolved(id, epoch, build, code, result) => {
                 self.completed_short_resolve(id, epoch, build, code, result)
+            }
+            Completion::ShortAdopted(epoch, code, found) => {
+                self.completed_short_adopt(epoch, code, found)
             }
         }
     }

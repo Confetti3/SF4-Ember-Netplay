@@ -145,6 +145,7 @@ pub(super) fn completion_stage(completion: &Completion) -> &'static str {
         Completion::ProbeReservation(..) => "task:probe_reservation",
         Completion::ShortPublished(..) => "task:short_published",
         Completion::ShortResolved(..) => "task:short_resolved",
+        Completion::ShortAdopted(..) => "task:short_adopted",
     }
 }
 
