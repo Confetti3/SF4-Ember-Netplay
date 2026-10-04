@@ -213,8 +213,6 @@ void StartHelper() {
             runtime->preferences.matchHudAnchor = hudAnchor >= 0 && hudAnchor <= 4 ? hudAnchor : 0;
             const int hudLayout = saved.contains("matchHudLayout") && saved["matchHudLayout"].is_number_integer() ? saved["matchHudLayout"].get<int>() : 1;
             runtime->preferences.matchHudLayout = hudLayout >= 0 && hudLayout <= 1 ? hudLayout : 1;
-            const int hudNames = saved.contains("matchHudNames") && saved["matchHudNames"].is_number_integer() ? saved["matchHudNames"].get<int>() : 0;
-            runtime->preferences.matchHudNames = hudNames >= 0 && hudNames <= 1 ? hudNames : 0;
             runtime->preferences.readySound = saved.value("readySound", true);
             const int volume = saved.value("readySoundVolume", 100);
             runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;

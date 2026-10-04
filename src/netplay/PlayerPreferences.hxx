@@ -34,8 +34,6 @@ struct PlayerPreferences {
     int matchHudAnchor = 0;
     // 0 the Ember strip (one panel), 1 split: names under the life bars and a small telemetry panel.
     int matchHudLayout = 1;
-    // Split layout only: 0 names under the life bars, 1 above them.
-    int matchHudNames = 0;
     // The announcer calls out when the other fighter at this player's table readies.
     bool readySound = true;
     // Percent of the game's own voice volume, in steps of ten.
@@ -50,7 +48,7 @@ struct PlayerPreferences {
     room::Rules tableRules;
     bool Valid() const {
         if (displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < 0 || inputDelay > MaximumInputDelay ||
-            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > 4 || matchHudLayout < 0 || matchHudLayout > 1 || matchHudNames < 0 || matchHudNames > 1 || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || !lobby.Valid() ||
+            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > 4 || matchHudLayout < 0 || matchHudLayout > 1 || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || !lobby.Valid() ||
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;

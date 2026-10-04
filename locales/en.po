@@ -747,18 +747,6 @@ msgstr "Large"
 msgid "settings.match_hud"
 msgstr "Match HUD"
 
-msgid "settings.match_hud_names"
-msgstr "Player names"
-
-msgid "settings.match_hud_names_detail"
-msgstr "Split layout only. Shows each name under or above its life bar."
-
-msgid "hud_names.below"
-msgstr "Under the life bars"
-
-msgid "hud_names.above"
-msgstr "Above the life bars"
-
 msgid "settings.match_hud_layout"
 msgstr "Match HUD layout"
 

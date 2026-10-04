@@ -372,10 +372,6 @@ void Journeys() {
  Check(h.actions.back().preferences.matchHudLayout==0,"HUD layout did not save"); // Split by default; Left steps to the Ember strip.
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudLayout==1,"HUD layout did not step back to Split");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-names");h.Press(MenuInput::Right);h.Frame(0,45);
- Check(h.actions.back().preferences.matchHudNames==1,"HUD names did not save"); // Under the life bars by default; Right steps to Above.
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
- Check(h.actions.back().preferences.matchHudNames==0,"HUD names did not step back to Under the life bars");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-position");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudAnchor==1,"HUD position did not save"); // Bottom center by default; Right steps to Bottom left.
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
