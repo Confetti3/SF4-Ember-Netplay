@@ -158,7 +158,8 @@ struct Runtime {
     // The tournament match being played, its helper requests still awaiting
     // an answer (by request id), and the assignment list's last refresh.
     netplay::tournament::TournamentPlay tournament;
-    std::map<std::uint64_t, netplay::tournament::Output::Kind> tournamentRequests;
+    struct TournamentRequest { netplay::tournament::Output::Kind kind; std::uint64_t generation = 0; };
+    std::map<std::uint64_t, TournamentRequest> tournamentRequests;
     std::uint64_t assignmentRequest=0;
     netplay::tournament::AssignmentList assignmentList;
     // The public room list and the last create or ticket request: their helper

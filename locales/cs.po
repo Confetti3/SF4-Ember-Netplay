@@ -2280,6 +2280,9 @@ msgstr "Akci diváka se nepodařilo odeslat; zkouší se znovu."
 msgid "runtime.return_main_menu"
 msgstr "Před otevřením místnosti se vraťte do hlavní nabídky hry."
 
+msgid "runtime.tournament_result_saving"
+msgstr "Ukládá se výsledek poslední hry. Zkuste to znovu za několik sekund."
+
 msgid "runtime.room_action_failed"
 msgstr "Akci v místnosti se nepodařilo odeslat. Zkuste to znovu."
 

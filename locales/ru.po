@@ -2280,6 +2280,9 @@ msgstr "Не удалось отправить действие зрителя; 
 msgid "runtime.return_main_menu"
 msgstr "Вернитесь в главное меню игры, прежде чем открывать зал."
 
+msgid "runtime.tournament_result_saving"
+msgstr "Сохраняется результат последней игры. Повторите попытку через несколько секунд."
+
 msgid "runtime.room_action_failed"
 msgstr "Не удалось отправить действие в зал. Повторите попытку."
 

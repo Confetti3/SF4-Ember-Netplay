@@ -2280,6 +2280,9 @@ msgstr "관전 작업을 보내지 못해 다시 시도합니다."
 msgid "runtime.return_main_menu"
 msgstr "방을 열기 전에 게임의 메인 메뉴로 돌아가세요."
 
+msgid "runtime.tournament_result_saving"
+msgstr "지난 경기 결과를 저장하는 중입니다. 몇 초 후에 다시 시도하세요."
+
 msgid "runtime.room_action_failed"
 msgstr "방 작업을 보내지 못했습니다. 다시 시도하세요."
 

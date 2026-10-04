@@ -2280,6 +2280,9 @@ msgstr "Nie udało się wysłać działania widza; ponawianie próby."
 msgid "runtime.return_main_menu"
 msgstr "Wróć do menu głównego gry przed otwarciem pokoju."
 
+msgid "runtime.tournament_result_saving"
+msgstr "Zapisywanie wyniku ostatniej gry. Spróbuj ponownie za kilka sekund."
+
 msgid "runtime.room_action_failed"
 msgstr "Nie udało się wysłać działania w pokoju. Spróbuj ponownie."
 

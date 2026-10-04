@@ -2280,6 +2280,9 @@ msgstr "観戦の操作を送信できませんでした。再試行中です。
 msgid "runtime.return_main_menu"
 msgstr "ルームを開く前にゲーム本体のメインメニューに戻ってください。"
 
+msgid "runtime.tournament_result_saving"
+msgstr "前の試合の結果を保存しています。数秒後にもう一度お試しください。"
+
 msgid "runtime.room_action_failed"
 msgstr "ルームの操作を送信できませんでした。再試行してください。"
 

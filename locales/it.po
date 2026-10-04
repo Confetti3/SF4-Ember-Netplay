@@ -2280,6 +2280,9 @@ msgstr "Impossibile inviare l'azione spettatore; nuovo tentativo."
 msgid "runtime.return_main_menu"
 msgstr "Torna al menu principale del gioco prima di aprire una sala."
 
+msgid "runtime.tournament_result_saving"
+msgstr "Salvataggio del risultato dell'ultima partita. Riprova tra qualche secondo."
+
 msgid "runtime.room_action_failed"
 msgstr "Impossibile inviare l'azione alla sala. Riprova."
 

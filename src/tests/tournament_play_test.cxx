@@ -268,7 +268,7 @@ static void TestOrderingAndLeases() {
 	play.OnFailure(Kind::Claim, "stale_revision", 400);
 	auto out = play.Tick(500, {});
 	CHECK(Count(out, Kind::Leave) == 1 && Count(out, Kind::Forget) == 0);
-	play.OnReported();
+	play.OnReported(3);
 	CHECK(Count(play.Tick(600, {}), Kind::Forget) == 1);
 
 	TournamentPlay late;
@@ -304,11 +304,36 @@ static void TestOrderingAndLeases() {
 	stopping.Stop();
 	out = stopping.Tick(300, {});
 	CHECK(Count(out, Kind::Report) == 1 && Count(out, Kind::Forget) == 0);
-	stopping.OnReported();
+	stopping.OnReported(3);
 	CHECK(Count(stopping.Tick(400, {}), Kind::Forget) == 1);
 
-	// A report the helper could not save stops the match: it leaves the room
-	// and starts no further game.
+	// A helper busy for a moment (another identity task, a full queue): the
+	// same report goes again, no further game is prepared meanwhile, and once
+	// saved the match goes on.
+	TournamentPlay busy;
+	busy.Start("brg_x", "emt_x", 0);
+	busy.Tick(0, {});
+	busy.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 0)), 0);
+	busy.Tick(100, Joined(RoomA, &snapshot, false));
+	busy.OnPrepare(permitted, 200);
+	busy.OnTerminal(3, room::MatchResult::P1Win, 10, 9);
+	CHECK(Count(busy.Tick(300, Joined(RoomA, &snapshot, false)), Kind::Report) == 1);
+	CHECK(busy.SavingReports());
+	busy.OnReportFailed(3, "identity_busy", 400);
+	room::Snapshot next = snapshot;
+	next.tables[room::TournamentTable].permitGeneration = 4;
+	out = busy.Tick(500, Joined(RoomA, &next, false));
+	CHECK(Count(out, Kind::Report) == 0 && Count(out, Kind::Prepare) == 0);
+	out = busy.Tick(400 + RetryMs, Joined(RoomA, &next, false));
+	const auto* again = Find(out, Kind::Report);
+	CHECK(again && again->generation == 3 && again->result == "p1_win" && again->captureFrame == 10);
+	CHECK(Count(out, Kind::Prepare) == 0);
+	busy.OnReported(3);
+	CHECK(!busy.SavingReports() && busy.GetPhase() == Phase::InRoom);
+	CHECK(Count(busy.Tick(500 + RetryMs, Joined(RoomA, &next, false)), Kind::Prepare) == 1);
+
+	// A report the helper never saves stops the match once its tries run out:
+	// it leaves the room and starts no further game.
 	TournamentPlay lost;
 	lost.Start("brg_x", "emt_x", 0);
 	lost.Tick(0, {});
@@ -316,11 +341,32 @@ static void TestOrderingAndLeases() {
 	lost.Tick(100, Joined(RoomA, &snapshot, false));
 	lost.OnPrepare(permitted, 200);
 	lost.OnTerminal(3, room::MatchResult::P1Win, 10, 9);
-	CHECK(Count(lost.Tick(300, Joined(RoomA, &snapshot, false)), Kind::Report) == 1);
-	lost.OnFailure(Kind::Report, "report_not_saved", 400);
-	CHECK(lost.GetPhase() == Phase::Failed && lost.Reason() == "report_not_saved");
-	out = lost.Tick(500, Joined(RoomA, &snapshot, false));
-	CHECK(Count(out, Kind::Leave) == 1 && Count(out, Kind::Prepare) == 0 && Count(out, Kind::Claim) == 0);
+	std::uint64_t now = 300;
+	CHECK(Count(lost.Tick(now, Joined(RoomA, &snapshot, false)), Kind::Report) == 1);
+	for (int attempt = 1; attempt < MaxReportAttempts; ++attempt) {
+		lost.OnReportFailed(3, "report_not_saved", now);
+		CHECK(lost.GetPhase() == Phase::InRoom);
+		now += RetryMs;
+		CHECK(Count(lost.Tick(now, Joined(RoomA, &snapshot, false)), Kind::Report) == 1);
+	}
+	lost.OnReportFailed(3, "report_not_saved", now);
+	CHECK(lost.GetPhase() == Phase::Failed && lost.Reason() == "report_not_saved" && !lost.SavingReports());
+	out = lost.Tick(now + 100, Joined(RoomA, &snapshot, false));
+	CHECK(Count(out, Kind::Leave) == 1 && Count(out, Kind::Prepare) == 0 && Count(out, Kind::Claim) == 0 &&
+		Count(out, Kind::Report) == 0 && Count(out, Kind::Forget) == 1);
+
+	// A report the helper refuses outright (it holds no permit for the game)
+	// cannot succeed on another try.
+	TournamentPlay refused;
+	refused.Start("brg_x", "emt_x", 0);
+	refused.Tick(0, {});
+	refused.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 0)), 0);
+	refused.Tick(100, Joined(RoomA, &snapshot, false));
+	refused.OnPrepare(permitted, 200);
+	refused.OnTerminal(3, room::MatchResult::P1Win, 10, 9);
+	CHECK(Count(refused.Tick(300, Joined(RoomA, &snapshot, false)), Kind::Report) == 1);
+	refused.OnReportFailed(3, "unknown_permit", 400);
+	CHECK(refused.GetPhase() == Phase::Failed && refused.Reason() == "report_not_saved");
 }
 
 int main() {

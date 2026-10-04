@@ -26,6 +26,11 @@ bool Final(const std::string& code) {
 	return code == "stale_revision" || code == "not_found" || code == "unsupported_rules" ||
 		code == "incompatible_build" || code == "forbidden" || code == "bridge_not_approved";
 }
+
+// Report answers after which handing the same report over again cannot help.
+bool ReportRefused(const std::string& code) {
+	return code == "unknown_permit" || code == "invalid_request" || code == "identity_unavailable";
+}
 }
 
 void TournamentPlay::Start(std::string bridgeId, std::string matchId, std::uint64_t nowMs) {
@@ -48,8 +53,8 @@ void TournamentPlay::Abandon(const std::string& reason) {
 void TournamentPlay::Fail(Phase phase, const std::string& reason) {
 	const bool active = phase_ == Phase::Claiming || phase_ == Phase::Opening || phase_ == Phase::InRoom;
 	if (active && (hostRequested_ || joinRequested_ || !targetRoom_.empty())) pending_.push_back(Make(Output::Kind::Leave));
-	// A report still on its way needs the permit the helper would forget.
-	if (active && reportsInFlight_) forgetAfterReports_ = true;
+	// A report the helper has not saved needs the permit it would forget.
+	if (active && !unsaved_.empty()) forgetAfterReports_ = true;
 	else if (active) pending_.push_back(Make(Output::Kind::Forget));
 	phase_ = phase;
 	reason_ = reason;
@@ -59,6 +64,9 @@ void TournamentPlay::Fail(Phase phase, const std::string& reason) {
 std::vector<Output> TournamentPlay::Tick(std::uint64_t nowMs, const RoomView& room) {
 	std::vector<Output> out = std::move(pending_);
 	pending_.clear();
+	// A report is the game's result: it is handed over again whatever the
+	// match does meanwhile.
+	ResendReports(nowMs, out);
 	if (phase_ == Phase::Claiming || phase_ == Phase::Opening || phase_ == Phase::InRoom) {
 		if (!claimInFlight_ && nowMs >= nextClaimMs_) {
 			out.push_back(Make(Output::Kind::Claim));
@@ -70,9 +78,49 @@ std::vector<Output> TournamentPlay::Tick(std::uint64_t nowMs, const RoomView& ro
 	return out;
 }
 
-void TournamentPlay::OnReported() {
-	if (reportsInFlight_) --reportsInFlight_;
-	if (!reportsInFlight_ && forgetAfterReports_) {
+void TournamentPlay::SendReport(Output report, std::vector<Output>& out) {
+	auto& entry = unsaved_[report.generation];
+	entry.report = report;
+	entry.attempts = 1;
+	entry.inFlight = true;
+	out.push_back(std::move(report));
+}
+
+void TournamentPlay::ResendReports(std::uint64_t nowMs, std::vector<Output>& out) {
+	for (auto& [generation, entry] : unsaved_) {
+		if (entry.inFlight || nowMs < entry.retryAtMs) continue;
+		++entry.attempts;
+		entry.inFlight = true;
+		out.push_back(entry.report);
+	}
+}
+
+void TournamentPlay::OnReported(std::uint64_t generation) {
+	unsaved_.erase(generation);
+	ReportsSettled();
+}
+
+void TournamentPlay::OnReportFailed(std::uint64_t generation, const std::string& code, std::uint64_t nowMs) {
+	const auto entry = unsaved_.find(generation);
+	if (entry == unsaved_.end()) return;
+	// The helper may be busy for a moment (another identity task, a full
+	// queue): the same report goes again shortly.
+	if (!ReportRefused(code) && entry->second.attempts < MaxReportAttempts) {
+		entry->second.inFlight = false;
+		entry->second.retryAtMs = nowMs + RetryMs;
+		return;
+	}
+	unsaved_.erase(entry);
+	// A result that could not be saved stops the match here (spec 16.7):
+	// no further official game starts until the organizer has reconciled
+	// it, and the player sees why. The other fighter's report sends the
+	// game to review on the bridge.
+	if (phase_ == Phase::Claiming || phase_ == Phase::Opening || phase_ == Phase::InRoom) Fail(Phase::Failed, "report_not_saved");
+	ReportsSettled();
+}
+
+void TournamentPlay::ReportsSettled() {
+	if (unsaved_.empty() && forgetAfterReports_) {
 		forgetAfterReports_ = false;
 		pending_.push_back(Make(Output::Kind::Forget));
 	}
@@ -157,7 +205,8 @@ void TournamentPlay::TrackPermits(std::uint64_t nowMs, const RoomView& room, std
 	if (table.phase == room::TablePhase::Playing && table.matchGeneration) started_.insert(table.matchGeneration);
 	const auto generation = table.permitGeneration;
 	if (generation) waitingForPermit_ = room::PermitPending(table);
-	if (generation && table.permits[slot].empty()) {
+	// No further game is prepared while a result is unsaved.
+	if (generation && table.permits[slot].empty() && unsaved_.empty()) {
 		const auto held = permits_.find(generation);
 		if (held != permits_.end()) {
 			// Tell the room until its snapshot shows this seat's permit.
@@ -184,9 +233,8 @@ void TournamentPlay::TrackPermits(std::uint64_t nowMs, const RoomView& room, std
 		auto cancel = Make(Output::Kind::Report);
 		cancel.generation = held;
 		cancel.result = ResultName(room::MatchResult::Cancel);
-		out.push_back(cancel);
 		reported_.insert(held);
-		++reportsInFlight_;
+		SendReport(std::move(cancel), out);
 	}
 }
 
@@ -260,14 +308,6 @@ void TournamentPlay::OnFailure(Output::Kind request, const std::string& code, st
 		// A stale binding: a claim brings the current one.
 		if (code == "stale_revision") nextClaimMs_ = nowMs;
 		break;
-	case Output::Kind::Report:
-		OnReported();
-		// A result that could not be saved stops the match here (spec 16.7):
-		// no further official game starts until the organizer has reconciled
-		// it, and the player sees why. The other fighter's report sends the
-		// game to review on the bridge.
-		if (code == "report_not_saved") Fail(Phase::Failed, code);
-		break;
 	default:
 		break;
 	}
@@ -281,12 +321,11 @@ void TournamentPlay::OnTerminal(std::uint64_t generation, room::MatchResult resu
 	const bool native = result == room::MatchResult::P1Win || result == room::MatchResult::P2Win || result == room::MatchResult::Draw;
 	report.captureFrame = native ? captureFrame : 0;
 	report.confirmedFrame = native ? confirmedFrame : 0;
-	pending_.push_back(report);
 	reported_.insert(generation);
 	started_.insert(generation);
-	// Counted now, not when sent: a Stop before the next tick must still
-	// hold the helper's Forget until this report is answered.
-	++reportsInFlight_;
+	// Kept now, not when sent: a Stop before the next tick must still hold
+	// the helper's Forget until this report is saved.
+	SendReport(std::move(report), pending_);
 }
 
 } } }

@@ -55,12 +55,13 @@ void SendRequest(const Output& output, std::uint64_t nowMs) {
 	std::string text;
 	try { text = request.dump(); } catch (const json::exception&) { text.clear(); }
 	if (!text.empty() && runtime->room && runtime->room->SendTournament(text, &id)) {
-		runtime->tournamentRequests[id] = output.kind;
+		runtime->tournamentRequests[id] = {output.kind, output.generation};
 		return;
 	}
 	spdlog::warn("Tournament: {} request not sent", KindName(output.kind));
-	// A report the helper never saw is lost; the room says so.
-	if (output.kind == Output::Kind::Report) runtime->tournament.OnFailure(output.kind, "report_not_saved", nowMs);
+	// A report the helper never saw goes again; the state machine stops the
+	// match if it never gets saved.
+	if (output.kind == Output::Kind::Report) runtime->tournament.OnReportFailed(output.generation, "helper_unavailable", nowMs);
 	else if (output.kind != Output::Kind::Forget) runtime->tournament.OnFailure(output.kind, "helper_unavailable", nowMs);
 }
 
@@ -142,13 +143,15 @@ void TakeAnswer(const session::TournamentAnswer& answer, std::uint64_t nowMs) {
 	if (TakePublicRoomsAnswer(answer)) return;
 	const auto found = runtime->tournamentRequests.find(answer.requestId);
 	if (found == runtime->tournamentRequests.end()) return;
-	const auto kind = found->second;
+	const auto kind = found->second.kind;
+	const auto generation = found->second.generation;
 	runtime->tournamentRequests.erase(found);
 	auto& play = runtime->tournament;
 	if (!answer.ok) {
 		const auto code = answer.reason.empty() ? std::string("unavailable") : answer.reason;
 		spdlog::info("Tournament: {} refused: {}", KindName(kind), code);
-		play.OnFailure(kind, code, nowMs);
+		if (kind == Output::Kind::Report) play.OnReportFailed(generation, code, nowMs);
+		else play.OnFailure(kind, code, nowMs);
 		return;
 	}
 	switch (kind) {
@@ -162,7 +165,7 @@ void TakeAnswer(const session::TournamentAnswer& answer, std::uint64_t nowMs) {
 		else play.OnFailure(kind, "bridge_invalid_response", nowMs);
 		break;
 	case Output::Kind::Report:
-		play.OnReported();
+		play.OnReported(generation);
 		break;
 	default:
 		break;
@@ -248,6 +251,10 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 		if (command.bridgeId.empty() || command.matchId.empty() || active) return;
 		if (!helperReady || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle) {
 			runtime->error = loc::T("runtime.return_main_menu");
+			return;
+		}
+		if (play.SavingReports()) {
+			runtime->error = loc::T("runtime.tournament_result_saving");
 			return;
 		}
 		spdlog::info("Tournament: playing match {}", command.matchId);

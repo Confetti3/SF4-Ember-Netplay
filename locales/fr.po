@@ -2280,6 +2280,9 @@ msgstr "Impossible d'envoyer l'action spectateur ; nouvelle tentative."
 msgid "runtime.return_main_menu"
 msgstr "Revenez au menu principal du jeu avant d'ouvrir un salon."
 
+msgid "runtime.tournament_result_saving"
+msgstr "Enregistrement du résultat de la dernière partie. Réessayez dans quelques secondes."
+
 msgid "runtime.room_action_failed"
 msgstr "Impossible d'envoyer l'action au salon. Réessayez."
 

@@ -2280,6 +2280,9 @@ msgstr "Zuschaueraktion konnte nicht gesendet werden; erneuter Versuch."
 msgid "runtime.return_main_menu"
 msgstr "Kehren Sie vor dem Öffnen eines Raums zum Hauptmenü zurück."
 
+msgid "runtime.tournament_result_saving"
+msgstr "Das Ergebnis des letzten Spiels wird gespeichert. Versuchen Sie es in ein paar Sekunden erneut."
+
 msgid "runtime.room_action_failed"
 msgstr "Raumaktion konnte nicht gesendet werden. Erneut versuchen."
 

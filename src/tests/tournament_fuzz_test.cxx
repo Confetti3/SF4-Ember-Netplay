@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -344,9 +345,9 @@ static void FuzzPlay(Random& random) {
 		netplay::tournament::TournamentPlay play;
 		play.Start("brg_x", "emt_x", 0);
 		std::uint64_t now = 0;
-		int claims = 0, prepares = 0, publishes = 0, reports = 0;
+		int claims = 0, prepares = 0, publishes = 0;
 		std::vector<std::uint64_t> permitted;
-		std::vector<std::uint64_t> reported;
+		std::set<std::uint64_t> reportsInFlight, savedReports;
 		room::Snapshot snapshot;
 		netplay::tournament::Binding binding;
 		binding.roomId = Hex32;
@@ -381,13 +382,14 @@ static void FuzzPlay(Random& random) {
 				case Kind::Publish: ++publishes; CHECK(publishes <= 1); CHECK(out.roomId == view.roomId); break;
 				case Kind::Bind: ++binds; CHECK(view.authorityWritable && view.roomId == binding.roomId); break;
 				case Kind::Report:
-					++reports;
 					++sentReports;
 					CHECK(std::find(permitted.begin(), permitted.end(), out.generation) != permitted.end());
-					CHECK(std::find(reported.begin(), reported.end(), out.generation) == reported.end());
-					reported.push_back(out.generation);
+					// Sent again only after the helper did not save it, never twice at once
+					// and never once saved.
+					CHECK(!reportsInFlight.count(out.generation) && !savedReports.count(out.generation));
+					reportsInFlight.insert(out.generation);
 					break;
-				case Kind::Forget: ++forgets; CHECK(reports == 0); break;
+				case Kind::Forget: ++forgets; CHECK(reportsInFlight.empty()); break;
 				default: break;
 				}
 			}
@@ -428,10 +430,13 @@ static void FuzzPlay(Random& random) {
 				if (random.Chance(10)) { play.OnFailure(Kind::Prepare, "stale_revision", now); if (reply.permitted) permitted.pop_back(); }
 				else play.OnPrepare(reply, now);
 			}
-			if (reports && random.Chance(50)) {
-				--reports;
-				if (random.Chance(20)) play.OnFailure(Kind::Report, "report_not_saved", now);
-				else play.OnReported();
+			if (!reportsInFlight.empty() && random.Chance(50)) {
+				auto answered = reportsInFlight.begin();
+				std::advance(answered, static_cast<long>(random.Below(reportsInFlight.size())));
+				const auto generation = *answered;
+				reportsInFlight.erase(answered);
+				if (random.Chance(20)) play.OnReportFailed(generation, random.Chance(20) ? "unknown_permit" : "identity_busy", now);
+				else { play.OnReported(generation); savedReports.insert(generation); }
 			}
 			if (random.Chance(10) && table.matchGeneration)
 				play.OnTerminal(table.matchGeneration, static_cast<room::MatchResult>(random.Below(5)), random.Below(900), random.Below(900));

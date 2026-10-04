@@ -29,6 +29,9 @@ constexpr std::uint64_t RetryMs = 5000;
 constexpr std::uint64_t PrepareIntervalMs = 2000;
 // How long a host or join may take before it is tried again.
 constexpr std::uint64_t OpenTimeoutMs = 30000;
+// How many times a game's report is handed to the helper before the match
+// stops as unsaved; the tries are RetryMs apart.
+constexpr int MaxReportAttempts = 6;
 
 // The bridge's binding, as the fighter's own helper checked it.
 struct Binding {
@@ -97,9 +100,12 @@ public:
 	// The answer to a Claim or a Publish: both name the match's room.
 	void OnRoom(Output::Kind request, const ClaimReply& reply, std::uint64_t nowMs);
 	void OnPrepare(const PrepareReply& reply, std::uint64_t nowMs);
+	// A Claim, Publish or Prepare failed. Reports have their own answers.
 	void OnFailure(Output::Kind request, const std::string& code, std::uint64_t nowMs);
-	// The helper saved (and perhaps sent) a report.
-	void OnReported();
+	// The helper saved (and perhaps sent) generation's report.
+	void OnReported(std::uint64_t generation);
+	// The helper did not save generation's report.
+	void OnReportFailed(std::uint64_t generation, const std::string& code, std::uint64_t nowMs);
 	// A rollback-confirmed native result of the bound table's game.
 	void OnTerminal(std::uint64_t generation, room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame);
 
@@ -111,11 +117,18 @@ public:
 	// Waiting for the other fighter's room, or for the bridge's permit.
 	bool WaitingForOpponent() const { return waitingForOpponent_; }
 	bool WaitingForPermit() const { return waitingForPermit_; }
+	// A game's report is not saved yet. Reports go out under the current
+	// match, so another match waits until they are.
+	bool SavingReports() const { return !unsaved_.empty(); }
 
 private:
 	void Fail(Phase phase, const std::string& reason);
 	void FollowClaim(std::uint64_t nowMs, const RoomView& room, std::vector<Output>& out);
 	void TrackPermits(std::uint64_t nowMs, const RoomView& room, std::vector<Output>& out);
+	// Hands `report` to the helper and keeps it until the helper saved it.
+	void SendReport(Output report, std::vector<Output>& out);
+	void ResendReports(std::uint64_t nowMs, std::vector<Output>& out);
+	void ReportsSettled();
 
 	Phase phase_ = Phase::Idle;
 	std::string bridgeId_, matchId_, reason_;
@@ -137,9 +150,12 @@ private:
 	std::map<std::uint64_t, std::string> permits_;
 	std::map<std::uint64_t, std::uint64_t> permitToldMs_;
 	std::set<std::uint64_t> started_, reported_;
-	// Reports sent and not yet answered: the helper keeps the match's permits
-	// until they are, so Forget waits for them.
-	std::size_t reportsInFlight_ = 0;
+	// Reports the helper has not saved yet, by generation: sent and waiting for
+	// the answer, or waiting to be sent again. The helper keeps the match's
+	// permits until they are saved, so Forget waits for them, and no further
+	// game is prepared while one is unsaved.
+	struct UnsavedReport { Output report; int attempts = 0; bool inFlight = false; std::uint64_t retryAtMs = 0; };
+	std::map<std::uint64_t, UnsavedReport> unsaved_;
 	bool forgetAfterReports_ = false;
 };
 
