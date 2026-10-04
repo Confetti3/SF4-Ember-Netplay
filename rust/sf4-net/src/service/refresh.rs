@@ -129,6 +129,7 @@ impl Actor {
             }
             let state = recovery.state().await;
             let committed = recovery.committed().await;
+            let joint = recovery.applied_joint_goal().await.is_some();
             let leader = recovery.coordinator.current_leader();
             Completion::CoordinationRefresh(
                 key,
@@ -139,6 +140,7 @@ impl Actor {
                     applied_history,
                     retired,
                     committed,
+                    joint,
                 },
             )
         });
@@ -158,6 +160,7 @@ impl Actor {
             applied_history,
             retired,
             committed,
+            joint,
             ..
         } = refresh;
         // Derive retirement provenance from the locally applied membership as
@@ -192,9 +195,13 @@ impl Actor {
         if let Some(retained) = committed_primary_endpoints(committed.checkpoint.as_bytes()) {
             // A leave hands authority to a single voter, and a room that
             // shrinks keeps the voters it had; the leader moves the voter
-            // count to the stable one from here until it matches.
+            // count to the stable one from here until it matches. A joint
+            // membership counts the voters of both halves, so it is finished
+            // whatever the count says.
             let restore_voters = state.leader_local
-                && state.voter_count != crate::recovery::stable_voter_count(retained.len());
+                && (joint
+                    || state.voter_count
+                        != crate::recovery::stable_voter_count(retained.len()));
             self.schedule_membership_reconciliation(
                 retained,
                 state.term,

@@ -185,6 +185,8 @@ struct CoordinationRefresh {
     applied_history: BTreeSet<u64>,
     retired: BTreeSet<u64>,
     committed: crate::coordination::Committed,
+    /// The applied membership is a joint configuration nobody finished.
+    joint: bool,
 }
 
 #[derive(Clone, PartialEq, Eq)]

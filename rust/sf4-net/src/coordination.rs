@@ -383,6 +383,16 @@ impl Store {
         self.0.lock().await.machine.membership.voter_ids().collect()
     }
 
+    /// The voter set an applied joint configuration is heading to, if the
+    /// applied membership is joint. OpenRaft proposes the uniform half only
+    /// from the caller of the change; a caller that gave up leaves the group
+    /// joint, and the old half then keeps every one of its voters needed.
+    pub async fn applied_joint_goal(&self) -> Option<BTreeSet<u64>> {
+        let memory = self.0.lock().await;
+        let configs = memory.machine.membership.membership().get_joint_config();
+        (configs.len() > 1).then(|| configs.last().cloned()).flatten()
+    }
+
     /// Return the durable applied membership, including learners.  Raft's
     /// effective metrics can contain an appended joint configuration; route
     /// retirement must wait for this state-machine view instead.
@@ -1096,6 +1106,10 @@ impl Coordinator {
         self.store.applied_voters().await
     }
 
+    pub async fn applied_joint_goal(&self) -> Option<std::collections::BTreeSet<u64>> {
+        self.store.applied_joint_goal().await
+    }
+
     pub async fn applied_member_ids(&self) -> std::collections::BTreeSet<u64> {
         self.store.applied_members().await
     }
@@ -1304,12 +1318,23 @@ impl Coordinator {
                     if voters.len() <= 1 {
                         return Err(bad());
                     }
-                    let mut replacement = voters;
-                    replacement.remove(&source);
-                    self.raft
-                        .change_membership(replacement, false)
-                        .await
-                        .map_err(|_| bad())?;
+                    // Two members left keep only this leader as a voter. Going
+                    // there in one change, keeping the others as learners,
+                    // never commits two voters on the way.
+                    let staying = members.len().saturating_sub(1);
+                    if crate::recovery::stable_voter_count(staying) == 1 {
+                        self.raft
+                            .change_membership(BTreeSet::from([self.incarnation]), true)
+                            .await
+                            .map_err(|_| bad())?;
+                    } else {
+                        let mut replacement = voters;
+                        replacement.remove(&source);
+                        self.raft
+                            .change_membership(replacement, false)
+                            .await
+                            .map_err(|_| bad())?;
+                    }
                 }
                 // `retain=false` demotes a removed voter to a learner. Commit
                 // its exact node removal under the same operation lock before

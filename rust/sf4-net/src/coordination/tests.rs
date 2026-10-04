@@ -718,6 +718,67 @@ async fn sixteen_members_commit_with_one_failed_host() {
     stop(nodes).await;
 }
 
+#[tokio::test]
+async fn an_abandoned_membership_change_is_finished_from_its_joint_goal() {
+    let (bus, nodes) = cluster(1).await;
+    let mut learners = Vec::new();
+    for id in [2, 3] {
+        let learner = Arc::new(
+            Coordinator::new(
+                id,
+                Arc::new(TestNetwork {
+                    source: id,
+                    bus: bus.clone(),
+                }),
+            )
+            .await
+            .unwrap(),
+        );
+        bus.peers.lock().await.insert(id, Arc::downgrade(&learner));
+        nodes[0]
+            .raft
+            .add_learner(id, BasicNode::new(id.to_string()), true)
+            .await
+            .unwrap();
+        learners.push(learner);
+    }
+    // The caller gives up while the new voters cannot answer. Its joint
+    // entry stays in the log and commits once they can, and nothing then
+    // proposes the uniform half.
+    bus.isolated.lock().await.extend([2, 3]);
+    let goal = BTreeSet::from([1, 2, 3]);
+    assert!(
+        tokio::time::timeout(
+            Duration::from_millis(300),
+            nodes[0].raft.change_membership(goal.clone(), true),
+        )
+        .await
+        .is_err()
+    );
+    bus.isolated.lock().await.clear();
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while nodes[0].applied_joint_goal().await.is_none() {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("the abandoned joint configuration commits");
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert_eq!(nodes[0].applied_joint_goal().await, Some(goal.clone()));
+    // Proposing the goal again commits the uniform half.
+    nodes[0]
+        .raft
+        .change_membership(goal.clone(), true)
+        .await
+        .unwrap();
+    assert_eq!(nodes[0].applied_joint_goal().await, None);
+    assert_eq!(nodes[0].applied_voter_ids().await, goal);
+    for learner in learners {
+        let _ = learner.raft.shutdown().await;
+    }
+    stop(nodes).await;
+}
+
 // Relay-sized appends and snapshot transfer to new replicas.
 mod transfer;
 // Departed-member history and its bound.

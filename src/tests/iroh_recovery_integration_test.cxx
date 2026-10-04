@@ -72,7 +72,7 @@ private:
 // None stops the technical leader's helper. Departure is a graceful leader
 // Leave; FollowerKilled closes a seated follower's pipe without one.
 // HostRejoin hands host to a follower, leaves, and rejoins as a guest.
-enum class Fault { None, Departure, HostRejoin, FollowerKilled, KilledThenLeaderLeaves, ShrinkThenGuestKilled, PairLeaderLeaves, Preparing, PreparingMinority, SameTermPreparation, Started, CommittedResult };
+enum class Fault { None, Departure, HostRejoin, FollowerKilled, KilledThenLeaderLeaves, ShrinkThenGuestKilled, ShrinkWhileGuestKilled, PairLeaderLeaves, Preparing, PreparingMinority, SameTermPreparation, Started, CommittedResult };
 static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t count, Fault fault) {
     std::array<platform::HelperProcess,3> processes;
     std::array<platform::HelperClient,3> helpers;
@@ -392,29 +392,38 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
         std::cout << "Successor removed a follower killed before the leader left; relay-only=" << relayOnly << '\n';
         return;
     }
-    if(fault==Fault::ShrinkThenGuestKilled) {
+    if(fault==Fault::ShrinkThenGuestKilled || fault==Fault::ShrinkWhileGuestKilled) {
         // Field report 2026-10-04: a long-lived lobby lost every room action
         // for good after it shrank to two players and one of them dropped,
         // and nobody could rejoin. Two voters cannot lose one, so a room that
-        // shrinks to two keeps only its leader as a voter.
-        phase="third member leaves";
-        action(2,room::ActionKind::Leave);
-        live.pop_back();
-        peers[2].client.reset();peers[2].server.reset();peers[2].room->Leave(false);
-        wait([&](){pump();return peers[2].room->GetState()==session::IrohRoom::State::Idle;});
-        phase="a room of two keeps one voter";
-        wait([&](){pump();for(auto* peer:live) {
-            const auto& authority=peer->room->Coordination();
-            if(!authority.writable || authority.voterCount!=1 || authority.learnerCount!=1 ||
-                peer->client->GetRoomSnapshot().members.size()!=2) return false;
-        }return true;});
+        // shrinks to two keeps only its leader as a voter. The overlapping
+        // case kills the guest before the voter change can settle, so the
+        // shrink must not commit two voters on its way to one.
+        const bool overlap=fault==Fault::ShrinkWhileGuestKilled;
         phase="seat the guest";
         action(1,room::ActionKind::Queue);
         const auto ghost=peers[1].client->GetRoomSnapshot().localMember;
         CHECK(ghost!=0);
         wait([&](){pump();const auto& table=peers[0].client->GetRoomSnapshot().tables[0];return table.p1==ghost || table.p2==ghost;});
-        phase="the guest's game is killed";
-        live.pop_back();helpers[1].Stop();
+        phase="third member leaves";
+        action(2,room::ActionKind::Leave);
+        live.pop_back();
+        peers[2].client.reset();peers[2].server.reset();peers[2].room->Leave(false);
+        if(overlap) {
+            phase="the guest's game is killed during the shrink";
+            live.pop_back();helpers[1].Stop();
+        }
+        wait([&](){pump();return peers[2].room->GetState()==session::IrohRoom::State::Idle;});
+        if(!overlap) {
+            phase="a room of two keeps one voter";
+            wait([&](){pump();for(auto* peer:live) {
+                const auto& authority=peer->room->Coordination();
+                if(!authority.writable || authority.voterCount!=1 || authority.learnerCount!=1 ||
+                    peer->client->GetRoomSnapshot().members.size()!=2) return false;
+            }return true;});
+            phase="the guest's game is killed";
+            live.pop_back();helpers[1].Stop();
+        }
         wait([&](){return !processes[1].IsRunning();});
         phase="leader commits the killed guest's departure";
         wait([&](){pump();
@@ -434,7 +443,7 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
         wait([&](){pump();return test::AllIrohRoomMembers(live,2);});
         action(2,room::ActionKind::Chat,"Back after the drop");
         for(std::size_t i:{std::size_t(0),std::size_t(2)}) CHECK(helpers[i].Send("{\"type\":\"shutdown\"}"));
-        phase="shrink-then-guest-killed fixture shutdown";
+        phase="shrink fixture shutdown";
         wait([&](){for(std::size_t i=0;i<count;++i) if(processes[i].IsRunning()) return false;return true;});
         std::cout << "A room that shrank to two kept working after the guest's game was killed, and took a rejoin; relay-only=" << relayOnly << '\n';
         return;
@@ -1057,7 +1066,7 @@ int wmain(int argc,wchar_t** argv) {
         {L"preparing-minority",3,Fault::PreparingMinority},{L"same-term-preparing",3,Fault::SameTermPreparation},
         {L"committed-result",3,Fault::CommittedResult},{L"follower-killed",3,Fault::FollowerKilled},
         {L"killed-then-leader-leaves",3,Fault::KilledThenLeaderLeaves},
-        {L"shrink-then-guest-killed",3,Fault::ShrinkThenGuestKilled},{L"pair-leader-leaves",2,Fault::PairLeaderLeaves}};
+        {L"shrink-then-guest-killed",3,Fault::ShrinkThenGuestKilled},{L"shrink-while-guest-killed",3,Fault::ShrinkWhileGuestKilled},{L"pair-leader-leaves",2,Fault::PairLeaderLeaves}};
     CHECK(scenario==L"all" || std::any_of(std::begin(cases),std::end(cases),[&](const Case& c){return scenario==c.name;}));
     for(const auto& c:cases) if(scenario==L"all" || scenario==c.name) RunRecovery(argv[1],relayOnly,c.count,c.fault);
     std::cout << "Helper recovery integration passed. No native SF4 gameplay tested.\n";

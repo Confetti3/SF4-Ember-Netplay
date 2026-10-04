@@ -208,7 +208,7 @@ impl Actor {
                         // A voter with no control link cannot acknowledge the
                         // joint configuration, and the change would never
                         // commit.
-                        let replacement = remaining
+                        let answering = remaining
                             .iter()
                             .copied()
                             .filter(|id| {
@@ -221,16 +221,31 @@ impl Actor {
                                         })
                             })
                             .collect::<BTreeSet<_>>();
+                        // Go straight to the stable count for the retained
+                        // roster. Shrinking to two members through a commit of
+                        // two voters first would leave a window in which the
+                        // other one dropping freezes the room.
+                        let desired = crate::recovery::stable_voter_count(retained.len());
+                        let replacement = std::iter::once(recovery.incarnation)
+                            .filter(|id| answering.contains(id))
+                            .chain(
+                                answering
+                                    .iter()
+                                    .copied()
+                                    .filter(|id| *id != recovery.incarnation),
+                            )
+                            .take(desired)
+                            .collect::<BTreeSet<_>>();
                         if replacement.is_empty() {
                             return Err(failed("empty replacement membership"));
                         }
-                        if replacement.len() == remaining.len() {
+                        if replacement == remaining {
                             recovery.remove_members(replacement).await?;
                         } else {
-                            // Dropping the unreachable voters as well would
-                            // remove their incarnations for good. They stay
-                            // learners instead, and the leaving ones are
-                            // removed below; the stable count is restored
+                            // Dropping the unreachable or surplus voters as
+                            // well would remove their incarnations for good.
+                            // They stay learners instead, and the leaving ones
+                            // are removed below; the stable count is restored
                             // once they answer again.
                             recovery.promote_voters(replacement).await?;
                         }
@@ -565,6 +580,12 @@ async fn restore_stable_voters(
     pending: &BTreeSet<u64>,
     revision: u64,
 ) -> io::Result<()> {
+    if let Some(goal) = recovery.applied_joint_goal().await {
+        // Proposing the joint configuration's own goal makes OpenRaft commit
+        // its uniform half; the counts below are settled on the next pass.
+        recovery.promote_voters_at_revision(revision, goal).await?;
+        return Ok(());
+    }
     let desired = crate::recovery::stable_voter_count(retained.len());
     let current = recovery.applied_voter_ids().await;
     if current.len() > desired {

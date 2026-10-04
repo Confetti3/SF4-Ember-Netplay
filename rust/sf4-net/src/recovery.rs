@@ -387,6 +387,10 @@ impl RecoverySession {
         self.coordinator.applied_voter_ids().await
     }
 
+    pub async fn applied_joint_goal(&self) -> Option<BTreeSet<u64>> {
+        self.coordinator.applied_joint_goal().await
+    }
+
     pub async fn applied_member_ids(&self) -> BTreeSet<u64> {
         self.coordinator.applied_member_ids().await
     }
