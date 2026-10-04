@@ -139,6 +139,8 @@ void DrawMatchStripPreview(const MatchStripView& view);
 struct MatchStripBox { float x0 = 0, y0 = 0, x1 = 0, y1 = 0; bool valid = false; };
 struct MatchStripBounds { MatchStripBox names[2], panel; };
 MatchStripBounds MatchStripGeometry(const MatchStripView& view);
+// The same on a screen of any size, for checking placement on screens the harness does not render.
+MatchStripBounds MatchStripGeometry(const MatchStripView& view,ImVec2 screenPos,ImVec2 screenSize);
 // The settings label for a MatchStripView::layout value ("Ember strip", "Split").
 const char* MatchStripLayoutName(int layout);
 // The settings label for a MatchStripView::anchor value ("Bottom center", "Top right").

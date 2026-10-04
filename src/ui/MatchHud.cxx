@@ -40,14 +40,17 @@ constexpr float MatchWidth=520.f;
 constexpr float MatchHeight=62.f;
 constexpr float MatchStateHeight=24.f;
 constexpr float SplitHeight=34.f,SplitLabel=13.f,SplitValue=18.f,SplitName=19.f;
-float MatchScale(const MatchStripView& view) {
-    const float sizes[]={.85f,1.f,1.25f};
-    // The readability floor belongs to the viewport term alone. Flooring the
-    // product made Small and Standard identical at 720p and collapsed all three
-    // at 480p, so two of the three settings did nothing.
-    const float viewport=(std::max)(.8f,ImGui::GetMainViewport()->Size.y/1080.f);
-    return viewport*sizes[(std::max)(0,(std::min)(2,view.size))];
-}
+// The HUD scale is a viewport term times the size setting's factor. The readability
+// floor belongs to the viewport term alone. Flooring the product made Small and
+// Standard identical at 720p and collapsed all three at 480p, so two of the three
+// settings did nothing.
+constexpr float SizeFactors[]={.85f,1.f,1.25f};
+float ViewportScale(float height){return (std::max)(.8f,height/1080.f);}
+float SizeFactor(const MatchStripView& view){return SizeFactors[(std::max)(0,(std::min)(2,view.size))];}
+// The screen the HUD is laid out on: the main viewport when drawing, any size in the tests.
+struct Screen{ImVec2 pos,size;};
+Screen MainScreen(){const auto* vp=ImGui::GetMainViewport();return {vp->Pos,vp->Size};}
+float MatchScale(const MatchStripView& view){return ViewportScale(MainScreen().size.y)*SizeFactor(view);}
 float TextWidth(float size,const std::string& t){return DiagnosticFont()->CalcTextSizeA(size,FLT_MAX,0,t.c_str()).x;}
 // `t` cut on a character boundary with an ellipsis to fit `maxWidth`; empty when not even that fits.
 std::string FitText(std::string t,float maxWidth,float size){
@@ -82,16 +85,16 @@ struct PanelSpot{ImVec2 pos;float stateTop=0;};
 // top of its state line: above the panel at the bottom anchors, below it at the top ones, so
 // it stays on screen. At a top anchor the panel and the room for its state line end by
 // `topLimit`, clear of anything drawn below them.
-PanelSpot PlacePanel(const MatchStripView& view,float w,float h,float s,float topLimit){
-    const auto* vp=ImGui::GetMainViewport();
-    const float gap=(view.raised?48.f:12.f)*(std::max)(.8f,vp->Size.y/1080.f);
+PanelSpot PlacePanel(const MatchStripView& view,const Screen& screen,float w,float h,float s,float topLimit){
+    const ImVec2 pos=screen.pos,size=screen.size;
+    const float gap=(view.raised?48.f:12.f)*ViewportScale(size.y);
     // The side anchors keep the 10% margins the strip has always stayed within.
     const int anchor=(std::max)(0,(std::min)(4,view.anchor));
     const bool top=anchor>=3,left=anchor==1||anchor==3,right=anchor==2||anchor==4;
-    const float x=left?vp->Pos.x+vp->Size.x*.1f:right?vp->Pos.x+vp->Size.x*.9f-w:vp->Pos.x+(vp->Size.x-w)*.5f;
+    const float x=left?pos.x+size.x*.1f:right?pos.x+size.x*.9f-w:pos.x+(size.x-w)*.5f;
     // The state line takes the room on the side facing the screen centre; keep it on screen.
-    const float stateRoom=(MatchStateHeight+4)*s,low=vp->Pos.y+(top?0.f:stateRoom),high=top?(std::min)(vp->Pos.y+vp->Size.y,topLimit)-h-stateRoom:vp->Pos.y+vp->Size.y-h;
-    const float wanted=top?vp->Pos.y+gap:vp->Pos.y+vp->Size.y-gap-h;
+    const float stateRoom=(MatchStateHeight+4)*s,low=pos.y+(top?0.f:stateRoom),high=top?(std::min)(pos.y+size.y,topLimit)-h-stateRoom:pos.y+size.y-h;
+    const float wanted=top?pos.y+gap:pos.y+size.y-gap-h;
     PanelSpot spot;spot.pos=ImVec2(x,(std::max)(low,(std::min)(high,wanted)));
     spot.stateTop=top?spot.pos.y+h+4*s:spot.pos.y-MatchStateHeight*s-4*s;
     return spot;
@@ -219,14 +222,12 @@ void DrawTelemetry(ImDrawList* draw,const Telemetry& t,ImVec2 p){
 struct SplitPlaced {
     Plate plates[2];Telemetry tel;PanelSpot spot;bool hasState=false;
 };
-SplitPlaced PlaceSplit(const MatchStripView& view){
-    const auto* vp=ImGui::GetMainViewport();
+SplitPlaced PlaceSplit(const MatchStripView& view,const Screen& screen){
     NoteUserText(view.names[0]);NoteUserText(view.names[1]);
-    const float s=MatchScale(view);
     // The game keeps 16:9 inside the window: measure from its image so the names
     // stay beside the life bars on an ultrawide screen.
-    const float gs=(std::min)(vp->Size.y/720.f,vp->Size.x/1280.f),gameW=1280*gs;
-    const float gx0=vp->Pos.x+(vp->Size.x-gameW)*.5f,gy0=vp->Pos.y+(vp->Size.y-720*gs)*.5f;
+    const float gs=(std::min)(screen.size.y/720.f,screen.size.x/1280.f),gameW=1280*gs;
+    const float gx0=screen.pos.x+(screen.size.x-gameW)*.5f,gy0=screen.pos.y+(screen.size.y-720*gs)*.5f;
     SplitPlaced out;
     // Each plate covers the game's own PLAYER label (measured on a 720p versus frame: "PLAYER 1"
     // at x 151..248, "PLAYER 2" at 1030..1130, both y 76..93) and runs toward the timer, short of
@@ -237,18 +238,28 @@ SplitPlaced PlaceSplit(const MatchStripView& view){
     const float y=gy0+74*gs,height=21*gs,maxName=274*gs,minName=108*gs;
     out.plates[0]=MakePlate(view,0,gx0+146*gs,y,k,maxName,minName,height);
     out.plates[1]=MakePlate(view,1,gx0+1134*gs,y,k,maxName,minName,height);
-    out.tel=MakeTelemetry(view,s,vp->Size.x*.8f);
-    // A top-anchored panel and its state line end above the plates.
-    out.spot=PlacePanel(view,out.tel.w,out.tel.h,s,y-4*gs);
+    // A top-anchored panel and its state line end above the plates. On a short screen
+    // the band above them is too low for that at the usual scale, so the viewport term
+    // shrinks until the Large footprint fits; the three sizes stay distinct.
+    const float topLimit=y-4*gs;
+    float viewport=ViewportScale(screen.size.y);
+    if(view.anchor>=3)viewport=(std::min)(viewport,(topLimit-screen.pos.y)/((SplitHeight+MatchStateHeight+4)*SizeFactors[2]));
+    const float s=viewport*SizeFactor(view);
+    out.tel=MakeTelemetry(view,s,screen.size.x*.8f);
+    out.spot=PlacePanel(view,screen,out.tel.w,out.tel.h,s,topLimit);
     out.hasState=!MatchStripStateLine(view).empty();
     return out;
 }
 }
 float MatchStripScale(const MatchStripView& view) { return MatchScale(view); }
 MatchStripBounds MatchStripGeometry(const MatchStripView& view){
+    const auto screen=MainScreen();
+    return MatchStripGeometry(view,screen.pos,screen.size);
+}
+MatchStripBounds MatchStripGeometry(const MatchStripView& view,ImVec2 screenPos,ImVec2 screenSize){
     MatchStripBounds bounds;
     if(view.layout!=1)return bounds;
-    const auto placed=PlaceSplit(view);
+    const auto placed=PlaceSplit(view,{screenPos,screenSize});
     for(int side=0;side<2;++side){const auto& p=placed.plates[side];bounds.names[side]={p.x0,p.y0,p.x1,p.y1,true};}
     const float s=placed.tel.s;
     bounds.panel={placed.spot.pos.x,placed.spot.pos.y,placed.spot.pos.x+placed.tel.w,placed.spot.pos.y+placed.tel.h,true};
@@ -261,15 +272,15 @@ MatchStripBounds MatchStripGeometry(const MatchStripView& view){
 void DrawMatchStrip(const MatchStripView& view) {
     auto* draw=ImGui::GetForegroundDrawList();
     if(view.layout==1){
-        const auto placed=PlaceSplit(view);
+        const auto placed=PlaceSplit(view,MainScreen());
         for(const auto& plate:placed.plates)DrawPlate(draw,plate);
         DrawTelemetry(draw,placed.tel,placed.spot.pos);
         DrawStateLine(view,draw,placed.spot.pos.x,placed.tel.w,placed.spot.stateTop,placed.tel.s);
         return;
     }
-    const auto* vp=ImGui::GetMainViewport();const float s=MatchScale(view);
-    const float w=(std::min)(MatchWidth*s,vp->Size.x*.8f);
-    const auto spot=PlacePanel(view,w,MatchHeight*s,s,FLT_MAX);
+    const auto screen=MainScreen();const float s=MatchScale(view);
+    const float w=(std::min)(MatchWidth*s,screen.size.x*.8f);
+    const auto spot=PlacePanel(view,screen,w,MatchHeight*s,s,FLT_MAX);
     PaintMatchStrip(view,draw,spot.pos,w,s);
     DrawStateLine(view,draw,spot.pos.x,w,spot.stateTop,s);
 }
