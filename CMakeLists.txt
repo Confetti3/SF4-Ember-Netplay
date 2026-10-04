@@ -81,6 +81,11 @@ if(BUILD_TESTING)
     target_compile_features(MementoGuardsTest PRIVATE cxx_std_14)
     add_test(NAME MementoGuards COMMAND MementoGuardsTest)
     set_tests_properties(MementoGuards PROPERTIES TIMEOUT 15)
+    # The public room soak's verdict (src/tests/soak), on made-up rooms.
+    add_executable(SoakVerdictTest "src/tests/soak/soak_verdict_test.cxx" "src/tests/soak/soak_verdict.cxx")
+    target_compile_features(SoakVerdictTest PRIVATE cxx_std_17)
+    add_test(NAME SoakVerdict COMMAND SoakVerdictTest)
+    set_tests_properties(SoakVerdict PROPERTIES TIMEOUT 15)
     # The recorder layout is the 32-bit engine's.
     if(CMAKE_SIZEOF_VOID_P EQUAL 4)
         add_executable(ReplayRecorderTest "src/tests/replay_recorder_test.cxx")
@@ -603,7 +608,9 @@ if(BUILD_TESTING)
         # The soak harness for public rooms on a remote host (src/roomhost/soak).
         # Not a test: it needs room hosts running elsewhere, so it is not
         # registered with add_test.
-        add_executable(PublicRoomSoakTest "src/tests/public_room_soak_test.cxx")
+        add_executable(PublicRoomSoakTest "src/tests/public_room_soak_test.cxx" "src/tests/soak/soak_common.cxx"
+            "src/tests/soak/soak_member.cxx" "src/tests/soak/soak_room.cxx" "src/tests/soak/soak_metrics.cxx"
+            "src/tests/soak/soak_verdict.cxx" "src/tests/soak/soak_summary.cxx")
         target_link_libraries(PublicRoomSoakTest PRIVATE Session sf4e Dimps sf4e_room_model "d3d9" psapi)
         add_dependencies(PublicRoomSoakTest IrohHelper)
         set(SF4E_ROOM_TICKET_TOOL "${CMAKE_BINARY_DIR}/rust-ember-target/debug/examples/room_ticket.exe")
