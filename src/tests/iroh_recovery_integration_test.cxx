@@ -113,7 +113,7 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
                 << " voters=" << a.voterCount << " learners=" << a.learnerCount
                 << " rebound=" << a.rebound << " applied=" << peers[i].recovery.AppliedRevision()
                 << " caught_up=" << peers[i].recovery.CaughtUp(a)
-                << " error=" << peers[i].room->Error();
+                << " error=" << peers[i].room->Error() << " recovery_error='" << peers[i].recovery.Error() << "'";
             if(peers[i].client) {
                 const auto& snapshot=peers[i].client->GetRoomSnapshot();
                 std::cerr << " client_members=" << snapshot.members.size()

@@ -151,6 +151,10 @@ public:
     // Drops the staged head without activating it: a commit that predates
     // this session, which the following commit supersedes.
     bool DiscardCommittedCheckpoint(const coordination::TransferIdentity& identity);
+    // Received commits waiting behind the staged head, not counting the head.
+    std::size_t CommittedCheckpointsBehindHead() const {
+        return committedCheckpoints_.empty() ? 0 : committedCheckpoints_.size() - 1;
+    }
     virtual bool ReadyForMatch() const;
     bool ProposalInFlight() const { return !proposalBytes_.empty(); }
     bool RequestProbe(const std::string& peer, std::uint64_t request, std::uint64_t pairRevision, bool benchmark=false);

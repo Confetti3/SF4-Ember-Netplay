@@ -318,6 +318,15 @@ int main() {
 		assert(!CheckpointPredatesSession(checkpoint({row("host", 7, false), row(self.c_str(), 5, false)}), self, 0));
 		assert(!CheckpointPredatesSession(checkpoint({row("host", 7, false)}), self, 9));
 		assert(!CheckpointPredatesSession(nlohmann::json::object(), self, 9));
+		// A commit from before this session was admitted has no active row
+		// for the endpoint; a frozen row is history, not membership.
+		using sf4e::session::CheckpointOmitsSession;
+		assert(CheckpointOmitsSession(checkpoint({row("host", 7, false), row("dropped", 3, false)}), self));
+		assert(CheckpointOmitsSession(checkpoint({row("host", 7, false), row(self.c_str(), 5, true)}), self));
+		assert(!CheckpointOmitsSession(checkpoint({row("host", 7, false), row(self.c_str(), 9, false)}), self));
+		assert(!CheckpointOmitsSession(checkpoint({row("host", 7, false), row(self.c_str(), 5, false)}), self));
+		assert(!CheckpointOmitsSession(nlohmann::json::object(), self));
+		assert(!CheckpointOmitsSession(checkpoint({row("host", 7, false)}), ""));
 	}
 	std::cout << "Session recovery gate test passed\n";
 	return 0;
