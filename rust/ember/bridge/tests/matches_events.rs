@@ -715,7 +715,9 @@ async fn a_match_nobody_plays_expires_after_a_day_and_frees_its_players() {
     assert_eq!(snapshot["created_at"], created_at);
     assert_eq!(snapshot["expires_at"], created_at + DAY as u64);
 
-    f.bridge.clock.advance(DAY - 1);
+    // The test clock follows the wall clock, so stay a few seconds clear of
+    // the deadline: a second that passes during the test must not end it early.
+    f.bridge.clock.advance(DAY - 10);
     ember_bridge::maintain(f.bridge.state()).await;
     assert_eq!(snapshot_of(&f, &id).await["state"], "awaiting_players");
     // Still holding its players.
@@ -733,7 +735,7 @@ async fn a_match_nobody_plays_expires_after_a_day_and_frees_its_players() {
         (StatusCode::CONFLICT, "lease_conflict")
     );
 
-    f.bridge.clock.advance(1);
+    f.bridge.clock.advance(10);
     ember_bridge::maintain(f.bridge.state()).await;
     let expired = snapshot_of(&f, &id).await;
     assert_eq!(expired["state"], "expired");

@@ -799,13 +799,15 @@ async fn a_connections_disputes_setting_cannot_change_once_recorded() {
 async fn an_expired_match_is_sent_as_expired_never_as_a_restart() {
     let f = fixture("night-bot").await;
     let id = f.create("set-1", "organizer-reported-v1", 2).await;
-    f.bridge.clock.advance(24 * 60 * 60 - 1);
+    // The test clock follows the wall clock, so stay a few seconds clear of
+    // the deadline: a second that passes during the test must not end it early.
+    f.bridge.clock.advance(24 * 60 * 60 - 10);
     ember_bridge::maintain(f.bridge.state()).await;
     ember_bridge::deliver_results(f.bridge.state()).await;
     assert_eq!(f.snapshot(&id).await["state"], "awaiting_players");
     assert!(f.receiver.received().is_empty());
 
-    f.bridge.clock.advance(1);
+    f.bridge.clock.advance(10);
     ember_bridge::maintain(f.bridge.state()).await;
     assert_eq!(f.snapshot(&id).await["state"], "expired");
     f.until(&id, |(state, _)| state == "delivered").await;

@@ -674,14 +674,16 @@ async fn an_expired_match_is_not_sent_to_blumint_and_reads_as_cancelled() {
         ("queued".into(), 0)
     );
 
-    f.bridge.clock.advance(24 * 60 * 60 - 1);
+    // The test clock follows the wall clock, so stay a few seconds clear of
+    // the day: a second that passes during the test must not end it early.
+    f.bridge.clock.advance(24 * 60 * 60 - 10);
     ember_bridge::maintain(f.bridge.state()).await;
     assert_eq!(match_status(&f, &id).await["status"], "pending");
     // The same request while it is open still answers with the same match.
     let (_, again) = create(&f, json!({})).await;
     assert_eq!(again["matchId"], id.as_str());
 
-    f.bridge.clock.advance(1);
+    f.bridge.clock.advance(10);
     ember_bridge::maintain(f.bridge.state()).await;
     let status = match_status(&f, &id).await;
     assert_eq!(status["status"], "cancelled");

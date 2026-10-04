@@ -690,10 +690,12 @@ async fn a_publish_retry_and_a_silent_game() {
     let binding = again["binding"]["binding"].clone();
     // A permitted game nobody reports goes to review half an hour after its start window.
     permit(&f, &id, &binding, 81).await;
-    f.bridge.clock.advance(120 + 30 * 60 - 1);
+    // The test clock follows the wall clock, so stay a few seconds clear of
+    // the deadline: a second that passes during the test must not end it early.
+    f.bridge.clock.advance(120 + 30 * 60 - 10);
     ember_bridge::maintain(f.bridge.state()).await;
     assert_eq!(state(&f, &id).await["state"], "running");
-    f.bridge.clock.advance(2);
+    f.bridge.clock.advance(11);
     ember_bridge::maintain(f.bridge.state()).await;
     assert_eq!(state(&f, &id).await["state"], "needs_review");
 }
