@@ -80,8 +80,9 @@ void DrawStateLine(const MatchStripView& view,ImDrawList* draw,float x,float w,f
 struct PanelSpot{ImVec2 pos;float stateTop=0;};
 // Where the telemetry panel (w by h) sits by the anchor and spacing preferences, and the
 // top of its state line: above the panel at the bottom anchors, below it at the top ones, so
-// it stays on screen.
-PanelSpot PlacePanel(const MatchStripView& view,float w,float h,float s){
+// it stays on screen. At a top anchor the panel and the room for its state line end by
+// `topLimit`, clear of anything drawn below them.
+PanelSpot PlacePanel(const MatchStripView& view,float w,float h,float s,float topLimit){
     const auto* vp=ImGui::GetMainViewport();
     const float gap=(view.raised?48.f:12.f)*(std::max)(.8f,vp->Size.y/1080.f);
     // The side anchors keep the 10% margins the strip has always stayed within.
@@ -89,7 +90,7 @@ PanelSpot PlacePanel(const MatchStripView& view,float w,float h,float s){
     const bool top=anchor>=3,left=anchor==1||anchor==3,right=anchor==2||anchor==4;
     const float x=left?vp->Pos.x+vp->Size.x*.1f:right?vp->Pos.x+vp->Size.x*.9f-w:vp->Pos.x+(vp->Size.x-w)*.5f;
     // The state line takes the room on the side facing the screen centre; keep it on screen.
-    const float stateRoom=(MatchStateHeight+4)*s,low=vp->Pos.y+(top?0.f:stateRoom),high=vp->Pos.y+vp->Size.y-h-(top?stateRoom:0.f);
+    const float stateRoom=(MatchStateHeight+4)*s,low=vp->Pos.y+(top?0.f:stateRoom),high=top?(std::min)(vp->Pos.y+vp->Size.y,topLimit)-h-stateRoom:vp->Pos.y+vp->Size.y-h;
     const float wanted=top?vp->Pos.y+gap:vp->Pos.y+vp->Size.y-gap-h;
     PanelSpot spot;spot.pos=ImVec2(x,(std::max)(low,(std::min)(high,wanted)));
     spot.stateTop=top?spot.pos.y+h+4*s:spot.pos.y-MatchStateHeight*s-4*s;
@@ -154,8 +155,8 @@ Plate MakePlate(const MatchStripView& view,int side,float edge,float y,float k,f
 }
 void DrawPlate(ImDrawList* draw,const Plate& p){
     const float k=p.k,glyph=p.font*.9f,gap=6*k;
-    // Nearly opaque: the plate covers the game's own PLAYER label.
-    draw->AddRectFilled(ImVec2(p.x0,p.y0),ImVec2(p.x1,p.y1),IM_COL32(20,19,18,245),5*k);
+    // Opaque: the plate hides the game's own PLAYER label.
+    draw->AddRectFilled(ImVec2(p.x0,p.y0),ImVec2(p.x1,p.y1),IM_COL32(20,19,18,255),5*k);
     draw->AddRect(ImVec2(p.x0,p.y0),ImVec2(p.x1,p.y1),IM_COL32(88,76,65,110),5*k);
     // The Ember rule on the outer edge, in line with the life bar's end.
     const float rule=p.right?p.x1-7*k:p.x0+4*k;
@@ -237,7 +238,8 @@ SplitPlaced PlaceSplit(const MatchStripView& view){
     out.plates[0]=MakePlate(view,0,gx0+146*gs,y,k,maxName,minName,height);
     out.plates[1]=MakePlate(view,1,gx0+1134*gs,y,k,maxName,minName,height);
     out.tel=MakeTelemetry(view,s,vp->Size.x*.8f);
-    out.spot=PlacePanel(view,out.tel.w,out.tel.h,s);
+    // A top-anchored panel and its state line end above the plates.
+    out.spot=PlacePanel(view,out.tel.w,out.tel.h,s,y-4*gs);
     out.hasState=!MatchStripStateLine(view).empty();
     return out;
 }
@@ -267,7 +269,7 @@ void DrawMatchStrip(const MatchStripView& view) {
     }
     const auto* vp=ImGui::GetMainViewport();const float s=MatchScale(view);
     const float w=(std::min)(MatchWidth*s,vp->Size.x*.8f);
-    const auto spot=PlacePanel(view,w,MatchHeight*s,s);
+    const auto spot=PlacePanel(view,w,MatchHeight*s,s,FLT_MAX);
     PaintMatchStrip(view,draw,spot.pos,w,s);
     DrawStateLine(view,draw,spot.pos.x,w,spot.stateTop,s);
 }

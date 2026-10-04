@@ -33,6 +33,7 @@ void CheckMatchHudFrame(const sf4e::ui::MatchStripView& matchStrip,int w,int h){
     Require(bounds.panel.valid&&bounds.names[0].valid&&bounds.names[1].valid,"Split match HUD reported no geometry");
     const float gs=(std::min)(h/720.f,w/1280.f),gameW=1280*gs,gx0=(w-gameW)*.5f,gy0=(h-720*gs)*.5f;
     const auto inside=[](const MatchStripBox& r,const ImVec2& p){return p.x>=r.x0-2&&p.x<=r.x1+2&&p.y>=r.y0-2&&p.y<=r.y1+2;};
+    const auto overlap=[](const MatchStripBox& a,const MatchStripBox& b){return a.x0<b.x1&&b.x0<a.x1&&a.y0<b.y1&&b.y0<a.y1;};
     for(const auto& vertex:list->VtxBuffer)
         Require(inside(bounds.panel,vertex.pos)||inside(bounds.names[0],vertex.pos)||inside(bounds.names[1],vertex.pos),
             "Split match HUD drew outside its name plates and telemetry panel");
@@ -43,6 +44,8 @@ void CheckMatchHudFrame(const sf4e::ui::MatchStripView& matchStrip,int w,int h){
         Require(std::abs(name.y0-(gy0+74*gs))<=1&&std::abs(name.y1-(gy0+95*gs))<=1,"Match HUD name plate does not fill y 74..95 of the game frame");
     }
     Require(bounds.names[0].x1<bounds.names[1].x0,"Match HUD names meet");
+    // The telemetry panel and its state line, at any anchor, never sit on a name plate.
+    for(const auto& name:bounds.names)Require(!overlap(bounds.panel,name),"Match HUD telemetry covers a name plate");
     // P1 from x 146 and P2 to x 1134, each covering its PLAYER label (x 151..248 and 1030..1130) and
     // stopping short of the "N WINS" streak text and the timer (to x 420 and from x 860).
     Require(std::abs(bounds.names[0].x0-(gx0+146*gs))<=1&&std::abs(bounds.names[1].x1-(gx0+1134*gs))<=1,
@@ -136,6 +139,13 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
     matchStrip.anchor=4;matchStrip.raised=true;matchStrip.connectionWarning=false;matchStrip.disconnectCountdownMs=-1;
     matchStrip.notice="Opponent disconnected. The match is over.";matchStrip.noticeSeverity=2;draw("match-hud-split-anchor-top-notice");
     matchStrip.anchor=0;matchStrip.raised=false;draw("match-hud-split-notice");
+    // A top anchor keeps the panel and its state line above the plates at every size and spacing,
+    // with a warning and with a notice (CheckMatchHudFrame rejects an overlap in each frame).
+    for(const bool warning:{true,false})for(const int anchor:{3,4})for(int hudSize=0;hudSize<3;++hudSize)for(const bool raised:{false,true}){
+        matchStrip.connectionWarning=warning;matchStrip.disconnectCountdownMs=warning?1400:-1;
+        matchStrip.anchor=anchor;matchStrip.size=hudSize;matchStrip.raised=raised;draw(nullptr,0,1);
+    }
+    matchStrip.connectionWarning=false;matchStrip.disconnectCountdownMs=-1;matchStrip.anchor=0;matchStrip.size=0;matchStrip.raised=false;
     matchStrip.notice.clear();matchStrip.noticeSeverity=0;
     float plateHeight[3]={0,0,0},panelWidth[3]={0,0,0};
     for(int hudSize=0;hudSize<3;++hudSize){
