@@ -49,14 +49,13 @@ void DrawUnreadBadge(float right, float top, unsigned count) {
     d->AddText(ImGui::GetFont(), size, ImVec2(min.x + (width - measured.x) * .5f, min.y + (height - measured.y) * .5f), IM_COL32(20, 19, 18, 255), text.c_str());
 }
 
-// Called every frame the shell is drawn, wherever the player is, so a message
-// that arrives while they are on Home still counts.
-void ApplicationShell::UpdateChat(const ShellView& v, double now) {
-    const bool inRoom = v.session.room != netplay::RoomState::Idle && v.room.roomEpoch;
-    const bool onChat = menu_.navigation.Screen() == "room-chat";
-    if (!onChat) chatOpen_ = false;
-    if (!inRoom) { transcript_.Clear(); pendingChat_.reset(); return; }
-    if (transcript_.Update(v.room)) pendingChat_.reset();
+// Every frame, drawn or hidden (Background), so the transcript sees each room
+// snapshot whatever the player has open: the room drops a departed member's
+// messages, and a join, a leave or a game won shows only as a difference
+// between two snapshots. Only the session's room state is read from `v`.
+void ApplicationShell::ObserveChat(const ShellView& v, const room::Snapshot& room, double now) {
+    if (v.session.room == netplay::RoomState::Idle || !room.roomEpoch) { transcript_.Clear(); pendingChat_.reset(); return; }
+    if (transcript_.Update(room)) pendingChat_.reset();
     // The draft goes once the room's chat has the message, and not before: a send the room refuses,
     // or one that never arrives, leaves what was typed where it was.
     if (pendingChat_) {
@@ -71,6 +70,13 @@ void ApplicationShell::UpdateChat(const ShellView& v, double now) {
             }
         }
     }
+}
+// The drawn frame's, wherever the player is, so a message that arrives while
+// they are on Home still counts. Only the Chat screen on view reads it.
+void ApplicationShell::UpdateChat(const ShellView& v, double now) {
+    const bool onChat = menu_.navigation.Screen() == "room-chat";
+    if (!onChat) chatOpen_ = false;
+    ObserveChat(v, v.room, now);
     if (onChat) transcript_.MarkRead();
 }
 

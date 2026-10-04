@@ -580,8 +580,10 @@ void ApplicationShell::SetLanguage(std::string preference) {
  loc::SetActive(platform::ResolveUiLocale(languagePreference_));
  languageDirty_=true;languageSaveError_.clear();languageSaveAt_=ImGui::GetTime()+.45;
 }
-void ApplicationShell::Background(const ShellView& v,const Submit& submit) {
+void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,const Submit& submit) {
  Conceal();
+ // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
+ ObserveChat(v,room,ImGui::GetTime());
  identity_.Hidden(v,submit,ImGui::GetTime());
 }
 

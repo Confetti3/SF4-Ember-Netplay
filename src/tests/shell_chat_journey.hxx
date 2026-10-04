@@ -186,6 +186,40 @@ void ChatJourneys(){
  // The room's own epoch change empties the transcript.
  JoinChatRoom(h,23);h.Frame(0,2);
  Check(h.shell.Transcript().Lines().empty(),"A different room kept the old chat");
+ // With Ember hidden only Background runs, and it keeps the chat as a drawn frame does.
+ const auto hidden=[&](int count,float seconds){
+  for(int i=0;i<count;++i){
+   io.DeltaTime=seconds;ImGui::NewFrame();
+   h.shell.Background(h.view,h.view.room,[&](ShellAction a){h.actions.push_back(a);return h.accept;});ImGui::Render();
+  }
+ };
+ // The room drops a member's messages when they go, as the real one does.
+ const auto leave=[&](room::MemberId id){
+  auto& r=h.view.room;
+  r.members.erase(std::remove_if(r.members.begin(),r.members.end(),[&](const room::Member& m){return m.id==id;}),r.members.end());
+  r.chat.erase(std::remove_if(r.chat.begin(),r.chat.end(),[&](const room::ChatMessage& m){return m.sender==id;}),r.chat.end());
+ };
+ // Hidden on the Chat screen: a member who speaks and goes, a visit and two games all land, and none of it is read.
+ sequence=0;JoinChatRoom(h,24);h.view.room.tables[0].p1=1;h.view.room.tables[0].p2=2;
+ h.Screen("room-chat");h.Frame(0,3);
+ hidden(1,1.f/60);say(3,"Before I go");hidden(1,1.f/60);leave(3);hidden(1,1.f/60);
+ room::Member fourth;fourth.id=4;fourth.name="Fourth";h.view.room.members.push_back(fourth);hidden(1,1.f/60);leave(4);hidden(1,1.f/60);
+ h.view.room.tables[0].score[1]=1;hidden(1,1.f/60);h.view.room.tables[0].score[0]=1;hidden(1,1.f/60);
+ {
+  using ui::ChatLine;
+  const auto& lines=h.shell.Transcript().Lines();
+  Check(lines.size()==6&&lines[0].kind==ChatLine::Kind::Message&&lines[0].text=="Before I go"&&lines[0].name=="Third"&&
+   lines[1].kind==ChatLine::Kind::Left&&lines[1].name=="Third","A message sent and taken back by leaving while Ember was hidden was lost");
+  Check(lines[2].kind==ChatLine::Kind::Joined&&lines[2].name=="Fourth"&&lines[3].kind==ChatLine::Kind::Left&&lines[3].name=="Fourth",
+   "A member who came and went while Ember was hidden was not announced");
+  Check(lines[4].kind==ChatLine::Kind::GameWon&&lines[4].name=="Peer"&&lines[5].kind==ChatLine::Kind::GameWon&&lines[5].name=="Local"&&
+   lines[5].score[0]==1&&lines[5].score[1]==1,"Games won while Ember was hidden were not announced");
+ }
+ Check(h.shell.Transcript().Unread({})==1,"Hiding Ember on Chat read the messages that arrived while hidden");
+ h.Screen("room");h.Frame();
+ Check(row("room-chat").value=="1"&&h.shell.Transcript().Lines().size()==6,"Reopening Ember lost what arrived while hidden, or read it on the board");
+ h.Screen("room-chat");h.Frame(0,2);
+ Check(h.shell.Transcript().Unread({})==0,"Opening Chat after Ember was hidden did not read it");
  SetMenuEntriesProbe({});
 }
 }
