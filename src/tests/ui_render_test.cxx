@@ -537,7 +537,7 @@ int main(int argc, char** argv) {
                             // the telemetry panel keeps the strip's safe band and anchored half.
                             const auto bounds=MatchStripGeometry(matchStrip);
                             Require(bounds.panel.valid&&bounds.names[0].valid&&bounds.names[1].valid,"Split match HUD reported no geometry");
-                            const float gs=(std::min)(size.h/720.f,size.w/1280.f),gameW=1280*gs,gx0=(size.w-gameW)*.5f;
+                            const float gs=(std::min)(size.h/720.f,size.w/1280.f),gameW=1280*gs,gx0=(size.w-gameW)*.5f,gy0=(size.h-720*gs)*.5f;
                             const auto inside=[](const MatchStripBox& r,const ImVec2& p){return p.x>=r.x0-2&&p.x<=r.x1+2&&p.y>=r.y0-2&&p.y<=r.y1+2;};
                             for(const auto& vertex:list->VtxBuffer)
                                 Require(inside(bounds.panel,vertex.pos)||inside(bounds.names[0],vertex.pos)||inside(bounds.names[1],vertex.pos),
@@ -546,8 +546,12 @@ int main(int argc, char** argv) {
                                 Require(name.x0>=gx0-1&&name.x1<=gx0+gameW+1&&name.y0>=0&&name.y1<=size.h,"Match HUD name left the game image");
                                 Require(name.x1-name.x0<=.35f*gameW+1,"Match HUD name plate wider than 35% of the game");
                             }
-                            Require(std::abs(bounds.names[0].x0-(gx0+120*gs))<=1&&std::abs(bounds.names[1].x1-(gx0+1160*gs))<=1,
-                                "Match HUD names are not under the life bars");
+                            // Each plate stays in the gap between the game's character logo and its round markers.
+                            Require(std::abs(bounds.names[0].x0-(gx0+236*gs))<=1&&std::abs(bounds.names[1].x1-(gx0+1044*gs))<=1,
+                                "Match HUD names are not anchored under the life bars");
+                            Require(bounds.names[0].x1<=gx0+474*gs+1&&bounds.names[1].x0>=gx0+806*gs-1,"Match HUD name plate covers the round markers");
+                            for(const auto& name:bounds.names)
+                                Require(name.y0>=gy0+121*gs-1&&name.y1<=gy0+143*gs+1,"Match HUD name plate left y 121..143 of the game frame");
                             Require(bounds.names[0].x1<bounds.names[1].x0,"Match HUD names meet");
                             Require(bounds.panel.x0>=size.w*.1f-2&&bounds.panel.x1<=size.w*.9f+2&&bounds.panel.y0>=0&&bounds.panel.y1<=size.h,
                                 "Match HUD telemetry escaped safe viewport bounds");

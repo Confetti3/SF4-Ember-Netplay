@@ -544,7 +544,6 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
 // glyphs, an Ember rule), only arranged around the game's own HUD.
 namespace {
 constexpr float SplitHeight=34.f,SplitLabel=13.f,SplitValue=18.f,SplitName=19.f;
-float MatchSizeFactor(int size){const float sizes[]={.85f,1.f,1.25f};return sizes[(std::max)(0,(std::min)(2,size))];}
 float TextWidth(float size,const std::string& t){return DiagnosticFont()->CalcTextSizeA(size,FLT_MAX,0,t.c_str()).x;}
 std::string FitText(std::string t,float maxWidth,float size){
     if(TextWidth(size,t)<=maxWidth)return t;
@@ -556,16 +555,19 @@ std::string FitText(std::string t,float maxWidth,float size){
 }
 struct Plate {
     std::string name;NetworkLink link=NetworkLink::Unknown;
-    float x0=0,y0=0,x1=0,y1=0,k=1,font=SplitName;bool right=false;
+    float x0=0,y0=0,x1=0,y1=0,k=1,font=SplitName;bool right=false,showGlyph=true;
 };
 // `edge` is the plate's outer edge (its left side for P1, right for P2); the
-// link glyph sits on the inner side of the name.
+// link glyph sits on the inner side of the name. The glyph is dropped when its
+// room would truncate the name; the name is then cut only if it still does not fit.
 Plate MakePlate(const MatchStripView& view,int side,float edge,float y,float k,float maxWidth){
     Plate p;p.right=side==1;p.k=k;p.font=SplitName*k;p.link=view.links[side];
-    const float glyph=p.font*.9f,gap=6*k,chrome=21*k+gap+glyph;
-    p.name=FitText(view.names[side],(std::max)(0.f,maxWidth-chrome),p.font);
-    const float w=chrome+TextWidth(p.font,p.name);
-    p.x0=p.right?edge-w:edge;p.x1=p.x0+w;p.y0=y;p.y1=y+p.font+8*k;
+    const float glyph=p.font*.9f,gap=6*k,withGlyph=21*k+gap+glyph,without=21*k;
+    p.name=FitText(view.names[side],(std::max)(0.f,maxWidth-withGlyph),p.font);
+    p.showGlyph=p.name==view.names[side];
+    if(!p.showGlyph)p.name=FitText(view.names[side],(std::max)(0.f,maxWidth-without),p.font);
+    const float w=(p.showGlyph?withGlyph:without)+TextWidth(p.font,p.name);
+    p.x0=p.right?edge-w:edge;p.x1=p.x0+w;p.y0=y;p.y1=y+p.font+6*k;
     return p;
 }
 void DrawPlate(ImDrawList* draw,const Plate& p){
@@ -575,14 +577,14 @@ void DrawPlate(ImDrawList* draw,const Plate& p){
     // The Ember rule on the outer edge, in line with the life bar's end.
     const float rule=p.right?p.x1-7*k:p.x0+4*k;
     draw->AddRectFilled(ImVec2(rule,p.y0+4*k),ImVec2(rule+3*k,p.y1-4*k),palette::Ember,1.5f*k);
-    const float nameWidth=p.x1-p.x0-21*k-gap-glyph;
-    const float nameX=p.right?p.x0+7*k+glyph+gap:p.x0+14*k;
+    const float nameWidth=p.x1-p.x0-21*k-(p.showGlyph?gap+glyph:0.f);
+    const float nameX=p.right?p.x0+7*k+(p.showGlyph?glyph+gap:0.f):p.x0+14*k;
     const float glyphX=p.right?p.x0+7*k:nameX+nameWidth+gap;
-    DrawNetworkLinkGlyph(draw,ImVec2(glyphX,p.y0+(p.y1-p.y0-glyph)*.5f),glyph,p.link);
+    if(p.showGlyph)DrawNetworkLinkGlyph(draw,ImVec2(glyphX,p.y0+(p.y1-p.y0-glyph)*.5f),glyph,p.link);
     if(p.name.empty())return;
     auto* font=DiagnosticFont();
-    draw->AddText(font,p.font,ImVec2(nameX+k,p.y0+4*k+k),IM_COL32(0,0,0,190),p.name.c_str());
-    draw->AddText(font,p.font,ImVec2(nameX,p.y0+4*k),palette::Ivory,p.name.c_str());
+    draw->AddText(font,p.font,ImVec2(nameX+k,p.y0+3*k+k),IM_COL32(0,0,0,190),p.name.c_str());
+    draw->AddText(font,p.font,ImVec2(nameX,p.y0+3*k),palette::Ivory,p.name.c_str());
 }
 struct Cell{std::string label,value;float width=0;ImU32 color=palette::Ivory;};
 struct Telemetry{std::vector<Cell> cells;float w=0,h=SplitHeight,s=1;};
@@ -650,10 +652,15 @@ SplitPlaced PlaceSplit(const MatchStripView& view){
     // stay beside the life bars on an ultrawide screen.
     const float gs=(std::min)(vp->Size.y/720.f,vp->Size.x/1280.f),gameW=1280*gs;
     const float gx0=vp->Pos.x+(vp->Size.x-gameW)*.5f,gy0=vp->Pos.y+(vp->Size.y-720*gs)*.5f;
-    const float k=gs*MatchSizeFactor(view.size),maxName=.35f*gameW;
+    // The game's own HUD fills the rest of the strip under each life bar: the character
+    // logo (x 91..230 and 1050..1189) and the round markers (to x 474 and from x 806).
+    // The plates take the gap between them, y 121..143 at most, so Large is the full 22
+    // and the other sizes shrink: the plate is 25 units high (19 of text), 22 gs at Large.
+    const float plateSizes[]={.78f,.89f,1.f};
+    const float k=gs*.88f*plateSizes[(std::max)(0,(std::min)(2,view.size))],maxName=238*gs;
     SplitPlaced out;
-    out.plates[0]=MakePlate(view,0,gx0+120*gs,gy0+137*gs,k,maxName);
-    out.plates[1]=MakePlate(view,1,gx0+1160*gs,gy0+137*gs,k,maxName);
+    out.plates[0]=MakePlate(view,0,gx0+236*gs,gy0+121*gs,k,maxName);
+    out.plates[1]=MakePlate(view,1,gx0+1044*gs,gy0+121*gs,k,maxName);
     out.tel=MakeTelemetry(view,s,vp->Size.x*.8f);
     const float w=out.tel.w,h=out.tel.h;
     const float gap=(view.raised?48.f:12.f)*(std::max)(.8f,vp->Size.y/1080.f);
