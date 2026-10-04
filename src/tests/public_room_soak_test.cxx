@@ -811,13 +811,16 @@ void Room::TickFlows(Clock now) {
 
 // Every accepted line should reach every member that was in the room when it
 // was said: not just the few that are timed. Each line is checked once per
-// member, when it is 20 to 80 s old (a row is written every 60 s).
+// member, when it is 20 to 80 s old (a row is written every 60 s). The room
+// drops a member's lines when they leave, so a line whose sender has since
+// left (a planned rejoin counts) is not expected in any snapshot.
 void Room::CheckChat(Clock now) {
 	for (auto& member : members) {
 		if (!member->IsActive()) continue;
 		const auto& chat = member->View().chat;
 		for (const auto& line : chatLog) {
 			if (line.at + 80000 <= now || line.at + 20000 > now || line.at < member->activeSince + 10000) continue;
+			if (!line.sender->IsActive() || line.sender->activeSince != line.senderSince) continue;
 			++st.chatChecked;
 			if (std::any_of(chat.begin(), chat.end(), [&](const room::ChatMessage& value) { return value.text == line.text; })) continue;
 			++st.chatMissing;
@@ -871,6 +874,7 @@ void Room::Tick(Clock now) {
 	for (auto it = samples.begin(); it != samples.end();) {
 		bool done = false;
 		if (!it->observer->IsActive() || it->observer->activeSince != it->observerSince) done = true; // the observer's session ended
+		else if (it->sender && (!it->sender->IsActive() || it->sender->activeSince != it->senderSince)) done = true; // the room dropped the leaver's lines
 		else {
 			for (const auto& chat : it->observer->View().chat)
 				if (chat.text == it->text) {
