@@ -129,6 +129,7 @@ struct MatchStripView {
     bool connectionWarning = false, predictionStalled = false;
     int disconnectCountdownMs = -1;
 };
+// The match HUD functions below, MatchStripGeometry and the label helpers are defined in MatchHud.cxx.
 void DrawMatchStrip(const MatchStripView& view);
 // "2 - 1": a room pair's running win count, as the table card and HUD show it.
 std::string SetScoreText(const std::uint32_t (&score)[2]);

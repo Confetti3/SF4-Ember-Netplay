@@ -283,7 +283,7 @@ if(BUILD_TESTING)
     add_test(NAME UiPreferencesStore COMMAND UiPreferencesStoreTest)
 endif()
 
-add_library(sf4e_ui STATIC "src/ui/ApplicationShell.cxx" "src/ui/RoomPanel.cxx" "src/ui/RoomControls.cxx" "src/ui/Theme.cxx" "src/ui/SelectionArt.cxx" "src/ui/FighterSelector.cxx")
+add_library(sf4e_ui STATIC "src/ui/ApplicationShell.cxx" "src/ui/RoomPanel.cxx" "src/ui/RoomControls.cxx" "src/ui/Theme.cxx" "src/ui/MatchHud.cxx" "src/ui/SelectionArt.cxx" "src/ui/FighterSelector.cxx")
 target_sources(sf4e_ui PRIVATE src/ui/Win32Input.cxx src/ui/Win32InputBridge.cxx)
 target_sources(sf4e_ui PRIVATE src/ui/GameMenu.cxx src/ui/MenuDialogs.cxx)
 install(DIRECTORY "assets/brand" DESTINATION "assets" FILES_MATCHING PATTERN "*.png")

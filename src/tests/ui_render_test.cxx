@@ -280,6 +280,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 }
 
 #include "ui_render_public_rooms.hxx"
+#include "ui_render_match_hud.hxx"
 
 int main(int argc, char** argv) {
     SetUnhandledExceptionFilter(ReportCrash);
@@ -528,53 +529,7 @@ int main(int argc, char** argv) {
                     else if(mode==4)DrawRecoveryMenu(recoveryMenu,recoveryState,"The selected folder does not contain SSFIV.exe. Choose the installed game folder or close recovery without starting SF4.",recoveryUpdates);
                     else DrawMatchStrip(matchStrip);
                     CheckStacks();ImGui::Render();renderer.Draw();++frames;
-                    if(mode==3){
-                        Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Match HUD captured gameplay input");
-                        const auto* list=ImGui::GetForegroundDrawList();
-                        const bool topEdge=matchStrip.anchor>=3;
-                        if(matchStrip.layout==1){
-                            // Split layout: name plates are checked against the 16:9 game image,
-                            // the telemetry panel keeps the strip's safe band and anchored half.
-                            const auto bounds=MatchStripGeometry(matchStrip);
-                            Require(bounds.panel.valid&&bounds.names[0].valid&&bounds.names[1].valid,"Split match HUD reported no geometry");
-                            const float gs=(std::min)(size.h/720.f,size.w/1280.f),gameW=1280*gs,gx0=(size.w-gameW)*.5f,gy0=(size.h-720*gs)*.5f;
-                            const auto inside=[](const MatchStripBox& r,const ImVec2& p){return p.x>=r.x0-2&&p.x<=r.x1+2&&p.y>=r.y0-2&&p.y<=r.y1+2;};
-                            for(const auto& vertex:list->VtxBuffer)
-                                Require(inside(bounds.panel,vertex.pos)||inside(bounds.names[0],vertex.pos)||inside(bounds.names[1],vertex.pos)||
-                                    (bounds.setTag.valid&&inside(bounds.setTag,vertex.pos)),
-                                    "Split match HUD drew outside its name plates and telemetry panel");
-                            for(const auto& name:bounds.names){
-                                Require(name.x0>=gx0-1&&name.x1<=gx0+gameW+1&&name.y0>=0&&name.y1<=size.h,"Match HUD name left the game image");
-                                Require(name.x1-name.x0<=(matchStrip.namesAbove?.37f:.35f)*gameW+1,"Match HUD name plate too wide for the game");
-                            }
-                            Require(bounds.names[0].x1<bounds.names[1].x0,"Match HUD names meet");
-                            if(matchStrip.namesAbove){
-                                // Banners fill the top strip above the life bars, clear of the portraits and the timer.
-                                Require(bounds.names[0].x0>=gx0+112*gs-1&&bounds.names[0].x1<=gx0+556*gs+1&&
-                                    bounds.names[1].x0>=gx0+724*gs-1&&bounds.names[1].x1<=gx0+1168*gs+1,"Match HUD banners cover the portraits or the timer");
-                                for(const auto& name:bounds.names)Require(name.y1<=95*gs+gy0,"Match HUD banner reaches the life bars");
-                                Require(bounds.setTag.valid==(matchStrip.setFormat>0),"Set length tag shown without a set length, or missing with one");
-                                if(bounds.setTag.valid)Require(bounds.setTag.x0>=gx0+600*gs&&bounds.setTag.x1<=gx0+680*gs&&bounds.setTag.y0>=0&&bounds.setTag.y1<=gy0+24*gs,
-                                    "Set length tag left the area above the K.O. sign");
-                            }else{
-                                Require(!bounds.setTag.valid,"Under-the-bars names reported a set tag");
-                                // Each plate stays in the gap between the game's character logo and its round markers.
-                                Require(std::abs(bounds.names[0].x0-(gx0+236*gs))<=1&&std::abs(bounds.names[1].x1-(gx0+1044*gs))<=1,
-                                    "Match HUD names are not anchored under the life bars");
-                                Require(bounds.names[0].x1<=gx0+474*gs+1&&bounds.names[1].x0>=gx0+806*gs-1,"Match HUD name plate covers the round markers");
-                                for(const auto& name:bounds.names)
-                                    Require(name.y0>=gy0+121*gs-1&&name.y1<=gy0+143*gs+1,"Match HUD name plate left y 121..143 of the game frame");
-                            }
-                            Require(bounds.panel.x0>=size.w*.1f-2&&bounds.panel.x1<=size.w*.9f+2&&bounds.panel.y0>=0&&bounds.panel.y1<=size.h,
-                                "Match HUD telemetry escaped safe viewport bounds");
-                            Require(topEdge?bounds.panel.y1<=size.h*.5f:bounds.panel.y0>=size.h*.5f,"Match HUD telemetry left its anchored edge");
-                        }else
-                        for(const auto& vertex:list->VtxBuffer){
-                            Require(vertex.pos.x>=size.w*.1f-2&&vertex.pos.x<=size.w*.9f+2&&
-                                vertex.pos.y>=0&&vertex.pos.y<=size.h,"Match HUD escaped safe viewport bounds");
-                            Require(topEdge?vertex.pos.y<=size.h*.5f:vertex.pos.y>=size.h*.5f,"Match HUD left its anchored edge");
-                        }
-                    }
+                    if(mode==3)CheckMatchHudFrame(matchStrip,size.w,size.h);
                     if((mode==0||mode==4)&&i==settle-1&&settle>=3){
                         const auto* root=FindWindow(mode==0?"EmberShell":"###EmberRecovery");
                         if(root->ScrollMax.y>=1)throw std::runtime_error(std::string("Player menu footer escaped on ")+(mode==0?shell.Navigation().Screen():"recovery")+" by "+std::to_string(root->ScrollMax.y)+" pixels");
@@ -597,15 +552,7 @@ int main(int argc, char** argv) {
                         std::string(shot).find("table-terminal-pending")==0 ||
                         std::string(shot).find("table-spectator-locked")==0 ||
                         std::string(shot).find("table-recover")==0 || std::string(shot).find("table-replacement")==0);
-                    const bool matchShot=shot&&mode==3&&(
-                        ((std::string(shot)=="match-hud"||std::string(shot)=="match-hud-split")&&((size.w==1280&&size.h==720&&size.dpi==1)||
-                         (size.w==1920&&size.h==1080&&size.dpi==1)||(size.w==2560&&size.h==1440)||
-                         (size.w==3440&&size.h==1440)||(size.w==3840&&size.h==2160&&size.dpi==1)))||
-                        (size.w==1920&&size.h==1080&&size.dpi==1&&
-                         (std::string(shot)=="match-hud-size-0"||std::string(shot)=="match-hud-size-2"||
-                          std::string(shot)=="match-hud-raised"||std::string(shot)=="match-hud-long"||
-                          std::string(shot)=="match-hud-unavailable"||std::string(shot)=="match-hud-spectator"||
-                          std::string(shot)=="match-hud-reset"||std::string(shot).find("match-hud-anchor-")==0||std::string(shot).find("match-hud-split-")==0)));
+                    const bool matchShot=shot&&mode==3&&MatchHudShotCaptured(shot,size.w,size.h,size.dpi);
                     if(i==settle-1&&shot&&!output.empty()&&(!trainingShotsOnly||mode==1||mode==2)&&
                         (!recoveryShotsOnly||recoveryShot)&&(!matchShotsOnly||matchShot) && (!uxShotsOnly ||
                             ((std::string(shot)=="table-delay-checking" || std::string(shot)=="table-delay-retry" ||
@@ -920,118 +867,14 @@ int main(int argc, char** argv) {
             training.ready=true;training.mode=training::Mode::Recording;draw("training-recording-suspended");training.mode=training::Mode::Idle;
             mode=2;draw("training-hud");
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Passive training HUD captured input");
-            {
-                MatchStripView strip;strip.names[0]="P1";strip.names[1]="P2";
-                // 'small' is a windows.h macro; never name a local that.
-                strip.size=0;const float sizeSmall=MatchStripScale(strip);
-                strip.size=1;const float sizeStandard=MatchStripScale(strip);
-                strip.size=2;const float sizeLarge=MatchStripScale(strip);
-                Require(sizeSmall<sizeStandard&&sizeStandard<sizeLarge,
-                    "Match HUD size settings collapse at this viewport; two of the three choices do nothing");
-            }
+            CheckMatchHudScales();
             auto* hud=FindWindow("Training frame meter");Require(hud->Size.x<=size.w*.76f&&hud->Size.y<size.h*.13f,"Passive HUD too large");
             Require(hud->Pos.y+hud->Size.y<=size.h*.83f,"Training HUD covers the game's super meters");
             SetMenuGlyphs(4,0,0);draw("training-hud-directinput");
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"DirectInput HUD captured input");
             SetMenuGlyphs(0,0,0);draw("training-hud-keyboard");SetMenuGlyphs(3,0x40000,0x20000);
             mode=3;draw("match-hud");
-            {
-                // The strip's link-state line: the most urgent condition wins,
-                // a stall names itself, a warning carries the drop countdown.
-                MatchStripView strip;strip.names[0]="P1";strip.names[1]="P2";
-                Require(MatchStripStateLine(strip).empty(),"Match HUD shows a state line with nothing to say");
-                strip.notice="Connection restored.";strip.noticeSeverity=0;
-                Require(MatchStripStateLine(strip)=="Connection restored.","Info notice not shown on the match HUD");
-                strip.connectionWarning=true;strip.disconnectCountdownMs=2100;
-                Require(MatchStripStateLine(strip)==sf4e::loc::Tf("match.connection_countdown",3),"Connection warning countdown missing or wrong rounding");
-                strip.disconnectCountdownMs=-1;
-                Require(MatchStripStateLine(strip)==sf4e::loc::T("match.connection_unstable"),"Connection warning without a countdown");
-                strip.predictionStalled=true;
-                Require(MatchStripStateLine(strip)==sf4e::loc::T("match.waiting_opponent"),"A prediction stall must be named on the match HUD");
-                strip.notice="Opponent disconnected. The match is over.";strip.noticeSeverity=2;
-                Require(MatchStripStateLine(strip)=="Opponent disconnected. The match is over.","An error notice must outrank the stall and warning lines");
-                strip.pingMs=68;strip.rollbackFrames=7;strip.appliedDelay=2;
-                matchStrip=strip;mode=3;draw("match-hud-disconnected");
-                matchStrip.notice.clear();matchStrip.noticeSeverity=0;matchStrip.predictionStalled=false;
-                matchStrip.connectionWarning=true;matchStrip.disconnectCountdownMs=1400;draw("match-hud-warning");
-                matchStrip.connectionWarning=false;matchStrip.disconnectCountdownMs=-1;matchStrip.predictionStalled=true;draw("match-hud-stalled");
-                matchStrip.predictionStalled=false;
-            }
-            // Each anchor stays inside the safe bounds and on its own edge (checked per frame in mode 3).
-            for(int anchor=1;anchor<5;++anchor){
-                matchStrip.anchor=anchor;
-                const auto shot="match-hud-anchor-"+std::to_string(anchor);draw(shot.c_str());
-            }
-            // A top anchor draws the state line below the panel so it stays on screen; raised moves in from the top.
-            matchStrip.anchor=3;matchStrip.connectionWarning=true;matchStrip.disconnectCountdownMs=1400;draw("match-hud-anchor-top-warning");
-            matchStrip.anchor=4;matchStrip.raised=true;matchStrip.connectionWarning=false;matchStrip.disconnectCountdownMs=-1;
-            matchStrip.notice="Opponent disconnected. The match is over.";matchStrip.noticeSeverity=2;draw("match-hud-anchor-top-notice");
-            matchStrip.anchor=2;draw("match-hud-anchor-bottom-notice");
-            matchStrip.anchor=0;matchStrip.raised=false;matchStrip.notice.clear();matchStrip.noticeSeverity=0;
-            for(int hudSize=0;hudSize<3;++hudSize){
-                matchStrip.size=hudSize;
-                const auto shot="match-hud-size-"+std::to_string(hudSize);draw(shot.c_str());
-            }
-            matchStrip.raised=true;draw("match-hud-raised");
-            matchStrip.names[0]="Long player name with UTF-8 \xc3\xa9\xc3\xa9\xc3\xa9";matchStrip.names[1]="Another very long player name";
-            matchStrip.pingMs=9999;matchStrip.rollbackFrames=999;matchStrip.appliedDelay=10;draw("match-hud-long");
-            matchStrip.pingMs=-1;matchStrip.appliedDelay=-1;draw("match-hud-unavailable");
-            matchStrip.spectator=true;draw("match-hud-spectator");
-            matchStrip.score="12 - 10";draw("match-hud-score");
-            ImGui_ImplDX9_InvalidateDeviceObjects();draw("match-hud-reset");
-            {
-                // The split layout: names under the life bars, a small telemetry panel by anchor.
-                MatchStripView split;split.names[0]="Player One";split.names[1]="Player Two";
-                split.links[0]=NetworkLink::Wired;split.links[1]=NetworkLink::Wireless;
-                split.pingMs=68;split.rollbackFrames=2;split.appliedDelay=3;split.layout=1;
-                matchStrip=split;draw("match-hud-split");
-                for(int anchor=1;anchor<5;++anchor){
-                    matchStrip.anchor=anchor;
-                    const auto shot="match-hud-split-anchor-"+std::to_string(anchor);draw(shot.c_str());
-                }
-                matchStrip.anchor=3;matchStrip.connectionWarning=true;matchStrip.disconnectCountdownMs=1400;draw("match-hud-split-anchor-top-warning");
-                matchStrip.anchor=4;matchStrip.raised=true;matchStrip.connectionWarning=false;matchStrip.disconnectCountdownMs=-1;
-                matchStrip.notice="Opponent disconnected. The match is over.";matchStrip.noticeSeverity=2;draw("match-hud-split-anchor-top-notice");
-                matchStrip.anchor=0;matchStrip.raised=false;draw("match-hud-split-notice");
-                matchStrip.notice.clear();matchStrip.noticeSeverity=0;
-                float plateHeight[3]={0,0,0},panelWidth[3]={0,0,0};
-                for(int hudSize=0;hudSize<3;++hudSize){
-                    matchStrip.size=hudSize;
-                    const auto shot="match-hud-split-size-"+std::to_string(hudSize);draw(shot.c_str());
-                    const auto bounds=MatchStripGeometry(matchStrip);
-                    plateHeight[hudSize]=bounds.names[0].y1-bounds.names[0].y0;panelWidth[hudSize]=bounds.panel.x1-bounds.panel.x0;
-                }
-                Require(plateHeight[0]<plateHeight[1]&&plateHeight[1]<plateHeight[2]&&panelWidth[0]<panelWidth[1]&&panelWidth[1]<panelWidth[2],
-                    "Split match HUD size settings collapse; two of the three choices do nothing");
-                // Long names and a watching count: the plates truncate and never meet, the panel stays in its band.
-                matchStrip.names[0]="Long player name with UTF-8 \xc3\xa9\xc3\xa9\xc3\xa9 and more";matchStrip.names[1]="Another very long player name that keeps going";
-                matchStrip.score="12 - 10";matchStrip.spectators=3;matchStrip.size=1;
-                matchStrip.pingMs=9999;matchStrip.rollbackFrames=999;matchStrip.appliedDelay=10;draw("match-hud-split-long");
-                matchStrip.spectator=true;matchStrip.size=1;draw("match-hud-split-spectator");
-                // Names above the life bars: banners across the top strip with the games won in boxes.
-                matchStrip=split;matchStrip.namesAbove=true;matchStrip.hasScores=true;matchStrip.scores[0]=2;matchStrip.scores[1]=1;
-                draw("match-hud-split-above");
-                matchStrip.setFormat=5;draw("match-hud-split-above-ft5");
-                matchStrip.setFormat=0;matchStrip.hasScores=false;draw("match-hud-split-above-noscore");
-                matchStrip.hasScores=true;
-                matchStrip.names[0]="Long player name with UTF-8 \xc3\xa9\xc3\xa9\xc3\xa9 and more";matchStrip.names[1]="Another very long player name that keeps going";
-                matchStrip.scores[0]=12;matchStrip.scores[1]=10;matchStrip.spectators=3;draw("match-hud-split-above-long");
-                matchStrip.setFormat=3;matchStrip.size=2;draw("match-hud-split-above-long-large");
-                float bannerHeight[3]={0,0,0};
-                for(int hudSize=0;hudSize<3;++hudSize){
-                    matchStrip.size=hudSize;
-                    const auto shot="match-hud-split-above-size-"+std::to_string(hudSize);draw(shot.c_str());
-                    const auto bounds=MatchStripGeometry(matchStrip);bannerHeight[hudSize]=bounds.names[0].y1-bounds.names[0].y0;
-                }
-                Require(bannerHeight[0]<bannerHeight[1]&&bannerHeight[1]<bannerHeight[2],"Split match HUD banner sizes collapse");
-                for(int anchor=1;anchor<5;++anchor){
-                    matchStrip.anchor=anchor;matchStrip.size=1;
-                    const auto shot="match-hud-split-above-anchor-"+std::to_string(anchor);draw(shot.c_str());
-                }
-                matchStrip.anchor=0;matchStrip.notice="Opponent disconnected. The match is over.";matchStrip.noticeSeverity=2;draw("match-hud-split-above-notice");
-                matchStrip.layout=0;matchStrip.namesAbove=false;matchStrip.notice.clear();matchStrip.noticeSeverity=0;
-                matchStrip.spectator=false;matchStrip.size=0;
-            }
+            ShootMatchHud(matchStrip,draw,[&]{ImGui_ImplDX9_InvalidateDeviceObjects();});
             mode=5;draw("controller-warning");
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Controller warning captured input");
             auto* warning=FindWindow("Controller warning");
