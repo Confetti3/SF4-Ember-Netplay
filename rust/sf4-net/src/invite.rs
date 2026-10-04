@@ -16,6 +16,11 @@ pub const MAX_INVITE_LENGTH: usize = 4096;
 pub const MAX_INVITE_LIFETIME_SECS: u64 = 366 * 24 * 60 * 60;
 /// The shortest lifetime a player can choose.
 pub const MIN_INVITE_LIFETIME_SECS: u64 = 60 * 60;
+/// How far behind the issuer's clock a reader's may be. A link that lasts
+/// until the room closes is stamped with the full cap on the issuer's clock,
+/// so a reader whose clock is slower sees more than the cap left; up to a day
+/// more is still taken as a real invitation. Expiry itself is never relaxed.
+pub const MAX_CLOCK_SKEW_SECS: u64 = 24 * 60 * 60;
 const PREFIX: &str = "sf4e2:";
 const RECOVERY_PREFIX: &str = "sf4e3:";
 const LEGACY_PREFIX: &str = "sf4e1:";
@@ -174,7 +179,7 @@ impl Invite {
             || self.room == [0; 16]
             || self.capability == [0; 32]
             || self.expires <= now
-            || self.expires - now > MAX_INVITE_LIFETIME_SECS
+            || self.expires - now > MAX_INVITE_LIFETIME_SECS + MAX_CLOCK_SKEW_SECS
             || self.build.is_empty()
             || self.build.len() > 128
             || !relay_allowed(&self.relay)
@@ -486,6 +491,34 @@ mod tests {
             "{LEGACY_PREFIX}{}",
             URL_SAFE_NO_PAD.encode(serde_json::to_vec(invite).unwrap())
         )
+    }
+
+    #[test]
+    fn a_link_that_lasts_until_the_room_closes_reads_on_a_slower_clock() {
+        let id = iroh::SecretKey::generate().public();
+        let relay = iroh::defaults::prod::default_relay_map()
+            .urls::<Vec<_>>()
+            .remove(0);
+        let created = 1_000_000;
+        let original = Invite::create(
+            id,
+            relay,
+            "test-sidecar-hash".into(),
+            created,
+            MAX_INVITE_LIFETIME_SECS,
+        )
+        .unwrap();
+        for text in [original.encode().unwrap(), original.encode_discord().unwrap()] {
+            for behind in [1, 60 * 60, MAX_CLOCK_SKEW_SECS] {
+                assert!(
+                    Invite::parse_for_build(&text, created - behind, original.build()).is_ok()
+                );
+            }
+            assert!(
+                Invite::parse_for_build(&text, created - MAX_CLOCK_SKEW_SECS - 1, original.build())
+                    .is_err()
+            );
+        }
     }
 
     #[test]

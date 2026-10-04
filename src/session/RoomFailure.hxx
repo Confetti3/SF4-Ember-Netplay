@@ -15,7 +15,7 @@ enum class FailureStage {
 	RelayUnreachable, // this PC's home relay never came online
 	HostUnreachable,  // no connection to the host opened, directly or through a relay
 	ControlLost,      // connected to the host, then the link kept dropping
-	InviteExpired,    // the invitation is past its hour, usually from a room since closed
+	InviteExpired,    // the invitation is past its lifetime, usually from a room since closed
 	InviteOtherBuild, // the invitation comes from a different package
 	InviteMalformed,  // the pasted text is cut short or is not an invitation
 	InviteOwnRoom     // the invitation names this PC's own helper, copied while it still led the room
