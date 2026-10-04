@@ -1,5 +1,9 @@
 #include "shell_journey_support.hxx"
+#include <algorithm>
+#include <iterator>
 namespace {
+// The fighter drawn right of `fighter` in USFIV's select order, which is where Right goes.
+int DisplayedAfter(int fighter){const int* at=std::find(std::begin(sf4e::selection::RosterDisplayOrder),std::end(sf4e::selection::RosterDisplayOrder),fighter);return at[1];}
 void Journeys() {
  using namespace sf4e;
  Harness h;h.Frame();
@@ -364,6 +368,10 @@ void Journeys() {
  h.Frame(0,20);Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.showMatchHud,"Autosave did not queue");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-size");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudSize==1,"HUD size did not save"); // Small by default; Right steps to Standard.
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-position");h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(h.actions.back().preferences.matchHudAnchor==1,"HUD position did not save"); // Bottom center by default; Right steps to Bottom left.
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(h.actions.back().preferences.matchHudAnchor==0,"HUD position did not step back to Bottom center");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-spacing");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudRaised,"HUD spacing did not save");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("scale");h.Press(MenuInput::Right);
@@ -378,7 +386,7 @@ void Journeys() {
  h.Choose("invite-switch");h.Press(MenuInput::Select);Check(h.actions.back().discordAction==discord::InviteAction::None,"Switch default not Cancel");
  h.Choose("invite-cancel");Check(h.actions.back().discordAction==discord::InviteAction::Cancel&&h.actions.back().discordRevision==9,"Discord cancellation");
  h.view.discordPending=false;h.Frame();h.Screen("home");h.Choose("profile");h.Choose("main-character");h.Press(MenuInput::Right);h.Press(MenuInput::Select);h.Frame(0,40);
- Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.mainFighter==1,"Profile main was not saved");
+ Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.mainFighter==sf4e::selection::RosterDisplayOrder[1],"Profile main was not saved");
  h.view.preferences=h.actions.back().preferences;h.Frame();
  h.Screen("profile");h.Choose("main-character");count=h.actions.size();
  h.Press(MenuInput::Right);
@@ -388,7 +396,7 @@ void Journeys() {
   profilePad.Update(sample,true,true,true);h.Frame(profilePad.Buttons());
  };
  physical(0,0);physical(0,0);physical(0x40,0x40000);physical(0,0);h.Frame(0,40);
- Check(h.actions.size()>count&&h.actions.back().preferences.mainFighter==2,"Physical A did not save profile portrait");
+ Check(h.actions.size()>count&&h.actions.back().preferences.mainFighter==sf4e::selection::RosterDisplayOrder[2],"Physical A did not save profile portrait");
  h.view.preferences=h.actions.back().preferences;h.Frame();
  Check(h.shell.Navigation().Screen()=="profile","Accepted portrait save did not return to Profile");
  h.Choose("main-character");count=h.actions.size();
@@ -409,7 +417,7 @@ void Journeys() {
  h.Frame();SetMenuTextProbe({});
  Check(retryLabel,"Portrait save retry has no visible label");
  h.accept=true;h.Choose("retry-save");h.Frame();
- Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.mainFighter==4,"Portrait retry lost the selected main");
+ Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.mainFighter==DisplayedAfter(3),"Portrait retry lost the selected main");
  h.view.preferences=h.actions.back().preferences;h.Frame();
  Check(h.shell.Navigation().Screen()=="profile","Retried portrait save did not return to Profile");
 }
@@ -462,7 +470,7 @@ void KeyboardJourneys(){
  Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="roster"&&selector.Navigation().Focus()=="fighter-4",
   "F did not open the roster at the current fighter");
  key(ImGuiKey_RightArrow);key(ImGuiKey_Enter);
- Check(pick.fighter==5&&selector.Navigation().Screen()=="ultra","Picking a fighter did not go on to its Ultra");
+ Check(pick.fighter==DisplayedAfter(4)&&selector.Navigation().Screen()=="ultra","Picking a fighter did not go on to its Ultra");
  key(ImGuiKey_RightArrow);key(ImGuiKey_KeypadEnter);
  Check(pick.ultra==1&&h.shell.Navigation().Screen()=="room","Picking the Ultra did not return to the room");
  // Back from the roster returns to the room as well.

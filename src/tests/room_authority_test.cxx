@@ -153,6 +153,39 @@ static void TestUnlimitedRematch() {
 	CHECK(authority.SnapshotView().tables[0].queue.size() == 2);
 }
 
+// A seat that changes fighter takes back the other seat's Ready, as an
+// Unready would, so the match cannot start against a matchup the other
+// player never saw. Nothing else is taken back.
+static void TestFighterChangeWithdrawsOpponentReady() {
+	RoomAuthority authority("Matchup", 8, 1);
+	Join(authority, 0, true);
+	const MemberId p1 = Join(authority, 1);
+	const MemberId p2 = Join(authority, 2);
+	for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	const auto seated = authority.SnapshotView().tables[0];
+	CHECK(!authority.WithdrawOpponentReady(seated.p2)); // nobody ready
+	Action ready = TableAction(authority, seated.p1, 0, ActionKind::Ready);
+	ready.inputDelay = 2;
+	CHECK(authority.Apply(seated.p1, ready).accepted);
+	const auto revision = authority.SnapshotView().tables[0].revision;
+	CHECK(authority.WithdrawOpponentReady(seated.p2));
+	const auto& after = authority.SnapshotView().tables[0];
+	CHECK(!after.ready[0] && !after.ready[1] && after.phase == TablePhase::Waiting);
+	CHECK(after.revision > revision);
+	CHECK(!FindMember(authority.SnapshotView(), seated.p1)->delayLocked);
+	// A Ready pressed before the withdrawal carries the old table revision.
+	Action late = ready; late.actionId += 7;
+	CHECK(authority.Apply(seated.p1, late).reason == RejectReason::StaleTable);
+	// A seat that is itself ready takes nothing back, the other direction
+	// works the same way, and a member without a seat changes nothing.
+	CHECK(authority.Apply(seated.p2, TableAction(authority, seated.p2, 0, ActionKind::Ready)).accepted);
+	CHECK(!authority.WithdrawOpponentReady(seated.p2));
+	CHECK(authority.SnapshotView().tables[0].ready[1]);
+	CHECK(authority.WithdrawOpponentReady(seated.p1));
+	CHECK(!authority.SnapshotView().tables[0].ready[1]);
+	CHECK(!authority.WithdrawOpponentReady(Join(authority, 3)));
+}
+
 static void TestMatchFinishedAndSeatLifecycle() {
 	RoomAuthority authority("Lifecycle", 8, 1);
 	const MemberId host = Join(authority, 0, true);
@@ -755,6 +788,7 @@ static void TestReadyDelaysShareTheHigherValue() {
 int main() {
     TestProfileMain();
     TestReadyDelaysShareTheHigherValue();
+    TestFighterChangeWithdrawsOpponentReady();
 	RoomAuthority authority("Test room", 16, 77);
 	const MemberId host = Join(authority, 0, true);
 	const MemberId guest = Join(authority, 1);

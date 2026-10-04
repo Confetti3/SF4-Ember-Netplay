@@ -753,8 +753,29 @@ msgstr "対戦HUDのサイズ"
 msgid "settings.match_hud_size_detail"
 msgstr "対戦中の文字とパネルのサイズを変更します。"
 
-msgid "settings.bottom_spacing"
-msgstr "下端からの距離"
+msgid "settings.match_hud_position"
+msgstr "対戦HUDの位置"
+
+msgid "settings.match_hud_position_detail"
+msgstr "対戦HUDを画面の別の場所に移動します。"
+
+msgid "hud_position.bottom_center"
+msgstr "下中央"
+
+msgid "hud_position.bottom_left"
+msgstr "左下"
+
+msgid "hud_position.bottom_right"
+msgstr "右下"
+
+msgid "hud_position.top_left"
+msgstr "左上"
+
+msgid "hud_position.top_right"
+msgstr "右上"
+
+msgid "settings.edge_spacing"
+msgstr "端からの距離"
 
 msgid "spacing.raised"
 msgstr "高め"
@@ -762,8 +783,8 @@ msgstr "高め"
 msgid "spacing.normal"
 msgstr "通常"
 
-msgid "settings.bottom_spacing_detail"
-msgstr "対戦HUDを画面の下端から上に移動します。"
+msgid "settings.edge_spacing_detail"
+msgstr "対戦HUDを配置している画面の端から離します。"
 
 msgid "settings.ready_sound"
 msgstr "挑戦者アナウンス"
@@ -1004,6 +1025,9 @@ msgstr "観戦中"
 
 msgid "match.preview_spacing"
 msgstr "余白{0} / サンプル値"
+
+msgid "match.preview_position"
+msgstr "位置: {0}"
 
 msgid "card.player"
 msgstr "プレイヤー"
@@ -1860,6 +1884,9 @@ msgstr "キャラを確定中です。両プレイヤーが準備完了になる
 
 msgid "room.ready.lock_detail"
 msgstr "選択するとキャラが確定します。両プレイヤーが準備完了になると対戦が始まります。"
+
+msgid "room.opponent_changed_fighter"
+msgstr "相手が{0}に変更しました。準備完了の前にウルトラを確認してください。"
 
 msgid "room.both_ready"
 msgstr "両プレイヤーの準備が完了しました。対戦を開始します。"

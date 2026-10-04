@@ -246,6 +246,11 @@ void SessionClient::RememberSentRoomAction(const room::Action& action) {
 	if (_sentRoomActions.size() >= 32) _sentRoomActions.pop_front();
 	_sentRoomActions.push_back({action.actionId, action.kind, action.table, action.matchGeneration,
 		action.inputDelay, action.seat, action.actionId});
+	if (action.kind == room::ActionKind::Ready)
+		if (const auto* opponent = room::SeatOpponent(_roomSnapshot, action.table, _roomSnapshot.localMember)) {
+			_sentRoomActions.back().opponent = opponent->id;
+			_sentRoomActions.back().opponentFighter = opponent->fighter;
+		}
 }
 
 sf4e::room::Action SessionClient::TableAction(room::ActionKind kind, std::uint8_t table, std::uint8_t inputDelay, std::int8_t seat) const {
@@ -431,18 +436,29 @@ bool SessionClient::HandleRoomResult(json& msg) {
 	// carries a table revision the authority has already moved past. The
 	// rejection brings the current snapshot, so resend from it instead of
 	// leaving the press parked until its timeout.
-	if (resendable && !result.result.accepted && result.result.reason == room::RejectReason::StaleTable &&
+	// A Ready given against one opponent's fighter is not resent once the
+	// fresher snapshot shows a different opponent or fighter: the player
+	// decides again, and the rejection reaches them.
+	const auto* opponentNow = sent != _sentRoomActions.end() ?
+		room::SeatOpponent(_roomSnapshot, sent->table, _roomSnapshot.localMember) : nullptr;
+	const bool matchupChanged = sent != _sentRoomActions.end() && sent->kind == room::ActionKind::Ready && sent->opponent &&
+		(!opponentNow || opponentNow->id != sent->opponent || opponentNow->fighter != sent->opponentFighter);
+	if (resendable && !matchupChanged && !result.result.accepted && result.result.reason == room::RejectReason::StaleTable &&
 		sent->staleRetries < 3) {
 		// Resend the same request (kind, table, input delay, seat) from the
 		// fresher snapshot. Copy first: sending may evict `sent`.
 		const auto kind = sent->kind;
 		const auto callerId = sent->callerId;
+		const auto opponent = sent->opponent;
+		const auto opponentFighter = sent->opponentFighter;
 		const std::uint8_t attempt = sent->staleRetries + 1;
 		const auto resent = SendRoomAction(TableAction(kind, sent->table, sent->inputDelay, sent->seat));
 		if (resent == session::SendResult::Queued) {
 			// SendRoomAction just remembered the resend as the newest entry.
 			_sentRoomActions.back().callerId = callerId;
 			_sentRoomActions.back().staleRetries = attempt;
+			_sentRoomActions.back().opponent = opponent;
+			_sentRoomActions.back().opponentFighter = opponentFighter;
 			spdlog::info("Client: action kind={} raced the table revision; resent (attempt {})",
 				static_cast<int>(kind), attempt);
 			if (_callbacks.OnRoomSnapshot) _callbacks.OnRoomSnapshot(this, _roomSnapshot, _callbacks);

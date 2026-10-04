@@ -71,4 +71,6 @@ ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat);
 // Why a fighter cannot change fighter or appearance now, or empty when they can.
 // The board's X, the table options row and the fighter screen all read it.
 std::string SelectionBlocker(const ShellView& v);
+// "Opponent changed to <fighter>. Check your Ultra before Ready."
+std::string OpponentChangedText(int fighter);
 } } }

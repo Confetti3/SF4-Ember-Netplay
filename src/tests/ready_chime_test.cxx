@@ -16,6 +16,17 @@ static Snapshot Seated(MemberId local, MemberId p1, MemberId p2) {
 	return room;
 }
 
+// members[0] is the local player and members[1] the one in the other seat
+// of table 1 (seat 1's member when the local player is not seated).
+static Snapshot WithFighters(Snapshot room, int localFighter, int opponentFighter) {
+	Member local, other;
+	room.tables[1].phase = TablePhase::Waiting;
+	local.id = room.localMember; local.fighter = localFighter;
+	other.id = room.tables[1].p1 == room.localMember ? room.tables[1].p2 : room.tables[1].p1; other.fighter = opponentFighter;
+	room.members = {local, other};
+	return room;
+}
+
 int main() {
 	{
 		// The opponent readies first: one call-out, not one per tick.
@@ -68,6 +79,47 @@ int main() {
 		// once the quiet time has passed.
 		room.tables[1].p1 = 5;
 		CHECK(chime.Update(room, 5200));
+	}
+	{
+		// The opponent shows a new fighter between games: said once, held
+		// until the local player readies.
+		OpponentFighterWatch watch;
+		auto room = WithFighters(Seated(2, 1, 2), 0, 31);
+		CHECK(!watch.Update(room) && watch.Pending() == -1);
+		room.members[0].fighter = 31;
+		CHECK(!watch.Update(room) && watch.Pending() == -1); // the local fighter is not the opponent's
+		room.members[1].fighter = 3;
+		CHECK(watch.Update(room) && watch.Pending() == 3);
+		CHECK(!watch.Update(room) && watch.Pending() == 3);
+		room.tables[1].ready[1] = true;
+		CHECK(!watch.Update(room) && watch.Pending() == -1);
+	}
+	{
+		// A first fighter, a new opponent, a game in progress and no seat say nothing.
+		OpponentFighterWatch watch;
+		auto room = WithFighters(Seated(2, 1, 2), 0, -1);
+		CHECK(!watch.Update(room));
+		room.members[1].fighter = 4;
+		CHECK(!watch.Update(room) && watch.Pending() == -1);
+		room.tables[1].p1 = 3; room.members[1].id = 3; room.members[1].fighter = 5;
+		CHECK(!watch.Update(room) && watch.Pending() == -1);
+		room.tables[1].phase = TablePhase::Playing;
+		room.members[1].fighter = 6;
+		CHECK(!watch.Update(room) && watch.Pending() == -1);
+		auto apart = WithFighters(Seated(9, 1, 2), 0, 1);
+		CHECK(!watch.Update(apart));
+		apart.members[1].fighter = 2;
+		CHECK(!watch.Update(apart) && watch.Pending() == -1);
+	}
+	{
+		// The opponent leaving the seat clears what was pending.
+		OpponentFighterWatch watch;
+		auto room = WithFighters(Seated(2, 1, 2), 0, 1);
+		watch.Update(room);
+		room.members[1].fighter = 7;
+		CHECK(watch.Update(room) && watch.Pending() == 7);
+		room.tables[1].p1 = 0;
+		CHECK(!watch.Update(room) && watch.Pending() == -1);
 	}
 	if (failures == 0) std::printf("ready chime: all checks passed\n");
 	return failures == 0 ? 0 : 1;

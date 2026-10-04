@@ -286,9 +286,10 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->match ? static_cast<std::uint64_t>(runtime->match->GetPhase()) : 0);
     mix(runtime->readyIntent.Parked() != nullptr); mix(runtime->lobbyEditIntent.Parked() != nullptr); mix(runtime->pendingAbort != nullptr);
     mix(runtime->readyIntent.Armed()); mix(runtime->readyFailureSequence);
+    mix(runtime->opponentChangeSequence); mix(static_cast<std::uint64_t>(runtime->opponentFighterWatch.Pending() + 1));
     mix(runtime->recoveringMatch); mix(OverlayPrefs::PersistencePending()); mixString(OverlayPrefs::PersistenceError());
     mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
-    mix(runtime->preferences.showMatchHud); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudRaised); mix(runtime->preferences.readySound); mix(runtime->preferences.readySoundVolume);
+    mix(runtime->preferences.showMatchHud); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudRaised); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.readySound); mix(runtime->preferences.readySoundVolume);
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mix(AtMainMenu());
     return h;
@@ -376,6 +377,7 @@ PostPublishState Publish() {
     snapshot.canReady = snapshot.canReady && snapshot.readyGate;
     snapshot.readyRequested = runtime->readyIntent.Armed();
     snapshot.readyFailure = runtime->readyFailure; snapshot.readyFailureSequence = runtime->readyFailureSequence;
+    snapshot.opponentChangedFighter = runtime->opponentFighterWatch.Pending(); snapshot.opponentChangeSequence = runtime->opponentChangeSequence;
 	FillLockReasons(snapshot);
     snapshot.discordPending = runtime->discordInvite.Active();
     snapshot.discordConfirm = runtime->discordInvite.NeedsConfirmation();

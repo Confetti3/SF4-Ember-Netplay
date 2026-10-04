@@ -209,6 +209,8 @@ void StartHelper() {
             const int hudSize = saved.value("matchHudSize", 1);
             runtime->preferences.matchHudSize = hudSize >= 0 && hudSize <= 2 ? hudSize : 1;
             runtime->preferences.matchHudRaised = saved.value("matchHudRaised", false);
+            const int hudAnchor = saved.contains("matchHudAnchor") && saved["matchHudAnchor"].is_number_integer() ? saved["matchHudAnchor"].get<int>() : 0;
+            runtime->preferences.matchHudAnchor = hudAnchor >= 0 && hudAnchor <= 4 ? hudAnchor : 0;
             runtime->preferences.readySound = saved.value("readySound", true);
             const int volume = saved.value("readySoundVolume", 100);
             runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
@@ -506,9 +508,14 @@ static void SettleRoomState(bool helperReady) {
 // The other fighter at this player's table readied first: the game's own
 // announcer says a challenger is here, unless the player turned it off.
 static void CallOutOpponentReady() {
-	if (!runtime->attached || !UserApp::netplay) { runtime->readyChime = {}; return; }
-	if (runtime->readyChime.Update(UserApp::netplay->client.GetRoomSnapshot(), GetTickCount64()) && runtime->preferences.readySound)
+	if (!runtime->attached || !UserApp::netplay) { runtime->readyChime = {}; runtime->opponentFighterWatch = {}; return; }
+	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+	if (runtime->readyChime.Update(room, GetTickCount64()) && runtime->preferences.readySound)
 		PlayChallengerCall(runtime->preferences.readySoundVolume);
+	if (runtime->opponentFighterWatch.Update(room)) {
+		++runtime->opponentChangeSequence;
+		spdlog::info("Room: the opponent changed fighter to {}", runtime->opponentFighterWatch.Pending());
+	}
 }
 // Every challenger call, the ready one and the settings preview, comes
 // through here. It drives the game's sound system from outside the game's own

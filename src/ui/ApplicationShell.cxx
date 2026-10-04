@@ -5,6 +5,7 @@
 #include "NetworkFeedback.hxx"
 #include "MenuPresentation.hxx"
 #include "PublicRoomsCards.hxx"
+#include "RoomControls.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include "../platform/LocaleWindows.hxx"
@@ -264,7 +265,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows[2].value=record.available?loc::Tf("profile.record_value",record.wins,record.losses):loc::T("common.unavailable");
  }else if(screen=="main-character"){
   title=loc::T("profile.choose_main_title");
-  for(int id=0;id<selection::FighterCount;++id){rows.push_back(Row("main-"+std::to_string(id),selection::FindFighter(id)->name,v.canEditPreferences?loc::T("profile.choose_main_detail"):loc::T("profile.leave_room_to_edit"),v.canEditPreferences));
+  for(const int id:selection::RosterDisplayOrder){rows.push_back(Row("main-"+std::to_string(id),selection::FindFighter(id)->name,v.canEditPreferences?loc::T("profile.choose_main_detail"):loc::T("profile.leave_room_to_edit"),v.canEditPreferences));
    rows.back().hint=loc::T("menu.hint.save_main");}
  }else if(screen=="online"){
   title=loc::T("online.title");rows={Row("create",loc::T("online.create"),loc::T("online.create_detail"),v.canOpenRoom),Row("join",loc::T("online.join"),loc::T("online.join_detail"),v.canOpenRoom),
@@ -310,7 +311,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    std::string(loc::NativeName(loc::ResolveLocale(languagePreference_,{},{})));
   rows={Value("hud",loc::T("settings.match_hud"),preferences_.showMatchHud?loc::T("common.on"):loc::T("common.off"),reason,v.canEditPreferences),
    Value("hud-size",loc::T("settings.match_hud_size"),hudSizes[(std::max)(0,(std::min)(2,preferences_.matchHudSize))],loc::T("settings.match_hud_size_detail"),v.canEditPreferences),
-   Value("hud-spacing",loc::T("settings.bottom_spacing"),preferences_.matchHudRaised?loc::T("spacing.raised"):loc::T("spacing.normal"),loc::T("settings.bottom_spacing_detail"),v.canEditPreferences),
+   Value("hud-position",loc::T("settings.match_hud_position"),MatchStripAnchorName(preferences_.matchHudAnchor),loc::T("settings.match_hud_position_detail"),v.canEditPreferences),
+   Value("hud-spacing",loc::T("settings.edge_spacing"),preferences_.matchHudRaised?loc::T("spacing.raised"):loc::T("spacing.normal"),loc::T("settings.edge_spacing_detail"),v.canEditPreferences),
    Value("ready-sound",loc::T("settings.ready_sound"),preferences_.readySound?loc::T("common.on"):loc::T("common.off"),loc::T("settings.ready_sound_detail"),v.canEditPreferences),
    Value("ready-volume",loc::T("settings.ready_sound_volume"),std::to_string(preferences_.readySoundVolume)+"%",loc::T("settings.ready_sound_volume_detail"),v.canEditPreferences&&preferences_.readySound),
    Row("ready-test",loc::T("settings.ready_sound_test"),loc::T("settings.ready_sound_test_detail"),v.canEditPreferences&&preferences_.readySound),
@@ -510,6 +512,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="capacity")preferences_.roomCapacity=(std::max)(2,(std::min)(16,preferences_.roomCapacity+a.delta));
   else if(a.id=="delay")preferences_.inputDelay=(std::max)(0,(std::min)(10,preferences_.inputDelay+a.delta));
   else if(a.id=="hud-size")preferences_.matchHudSize=(std::max)(0,(std::min)(2,preferences_.matchHudSize+a.delta));
+  else if(a.id=="hud-position")preferences_.matchHudAnchor=(std::max)(0,(std::min)(4,preferences_.matchHudAnchor+a.delta));
   else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
   else if(a.id=="ready-sound")preferences_.readySound=a.delta>0;
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
@@ -629,6 +632,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   readyFailureSequence_=v.readyFailureSequence;
   if(readyFailureSequence_&&!v.readyFailure.empty())menu_.ShowNotice(v.readyFailure);
  }
+ if(v.opponentChangeSequence!=opponentChangeSequence_){
+  opponentChangeSequence_=v.opponentChangeSequence;
+  if(opponentChangeSequence_&&v.opponentChangedFighter>=0)menu_.ShowNotice(room_controls::OpponentChangedText(v.opponentChangedFighter));
+ }
  if(v.discordPending&&inviteRevision_!=v.discordRevision){inviteRevision_=v.discordRevision;nav.Push("discord-invitation");}
  if(!v.discordPending&&nav.Screen()=="discord-invitation")nav.Return();
  if(v.inputCapture!=input::Capture::Idle&&nav.Screen()!="assignment")nav.Push("assignment");
@@ -716,13 +723,15 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  PublishPlayerCard(v);
  // Public rooms lead with a toolbar of four cells, in one row on a wide list and two on a narrow one.
  const bool publicToolbar=PublicRoomsPanel::Owns(screen)&&!rows.empty()&&rows[0].id=="pr-quick";
- const int columns=screen=="main-character"?(std::max)(3,(std::min)(8,static_cast<int>(ImGui::GetContentRegionAvail().x/(170*Scale())))):
+ // The main-character grid follows USFIV's select screen, as fighter select does.
+ const RosterGrid roster=LayOutRosterGrid(ImGui::GetContentRegionAvail().x);
+ const int columns=screen=="main-character"?roster.columns:
   publicToolbar?(PublicListWidth()>=600*Scale()?4:2):1;
  GameMenu::Card portraits;
  // The public rooms' toolbar, room cards and state cards are drawn by PublicRoomsCards; the rest stay plain rows.
  // The cards get the setup and each card's phase from the panels that own them, not from the rows.
  const PublicSetupView publicSetup=PublicRoomsPanel::Owns(screen)?identity_.PublicSetup():PublicSetupView{};
- menu_.cardRounding=0;menu_.compactDetailLines=0;
+ menu_.cardRounding=0;menu_.compactDetailLines=0;menu_.wideListShare=screen=="main-character"?roster.listShare:.53f;
  if(PublicRoomsPanel::Owns(screen)){
   menu_.cardRounding=PublicCardRounding;
   // With the toolbar and the cards to show, a narrow layout gives them the screen, not the detail text.
@@ -746,7 +755,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   ImGui::TextUnformatted(loc::T("settings.preview"));
   MatchStripView preview;preview.names[0]=loc::T("settings.player_one");preview.names[1]=loc::T("settings.player_two");
   preview.pingMs=68;preview.rollbackFrames=2;preview.appliedDelay=3;
-  preview.size=preferences_.matchHudSize;preview.raised=preferences_.matchHudRaised;
+  preview.size=preferences_.matchHudSize;preview.raised=preferences_.matchHudRaised;preview.anchor=preferences_.matchHudAnchor;
   DrawMatchStripPreview(preview);
  };
  if(screen=="room"&&v.room.roomEpoch)board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawRoomBoard(v,entries,navigation,action,height,feedback);};
@@ -776,7 +785,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v.inputCapture!=input::Capture::Idle){SetMenuGlyphs(input::PadKeyboard,0,0);menu_.backHint=loc::T("common.cancel");}
  // An opening public room's card is information, so the cursor waits on its Stop row.
  if(PublicRoomsPanel::Owns(screen)&&opening&&nav.Focus()=="pr-opening")nav.Focus("cancel-open",rows);
- auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,publicToolbar?46:100,stableFeedback,statusTone,screen=="home");
+ auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,publicToolbar?46:screen=="main-character"?roster.cardHeight:100,stableFeedback,statusTone,screen=="home");
  if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){
   ShellAction r;r.command.generation=v.session.generation;r.inputAction=input::Action::Cancel;submit(std::move(r));
  }else if(a.kind==MenuAction::Close&&opening){

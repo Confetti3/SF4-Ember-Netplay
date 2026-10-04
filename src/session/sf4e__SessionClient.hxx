@@ -206,6 +206,11 @@ namespace sf4e {
 			// Stale-table resends of this one press, bounded so a real conflict
 			// still surfaces.
 			std::uint8_t staleRetries = 0;
+			// For a Ready, the opponent and the fighter it showed when the
+			// player pressed: a resend never carries the Ready to another
+			// matchup.
+			room::MemberId opponent = 0;
+			int opponentFighter = -1;
 		};
 		std::deque<SentRoomAction> _sentRoomActions;
 		// Retried actions keep their id; log each id/reason pair once.

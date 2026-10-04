@@ -753,8 +753,29 @@ msgstr "Tamaño del HUD"
 msgid "settings.match_hud_size_detail"
 msgstr "Cambia el tamaño del texto y del panel durante la partida."
 
-msgid "settings.bottom_spacing"
-msgstr "Espacio inferior"
+msgid "settings.match_hud_position"
+msgstr "Posición del HUD"
+
+msgid "settings.match_hud_position_detail"
+msgstr "Mueve el HUD de partida a otra parte de la pantalla."
+
+msgid "hud_position.bottom_center"
+msgstr "Abajo al centro"
+
+msgid "hud_position.bottom_left"
+msgstr "Abajo a la izquierda"
+
+msgid "hud_position.bottom_right"
+msgstr "Abajo a la derecha"
+
+msgid "hud_position.top_left"
+msgstr "Arriba a la izquierda"
+
+msgid "hud_position.top_right"
+msgstr "Arriba a la derecha"
+
+msgid "settings.edge_spacing"
+msgstr "Espacio al borde"
 
 msgid "spacing.raised"
 msgstr "Elevado"
@@ -762,8 +783,8 @@ msgstr "Elevado"
 msgid "spacing.normal"
 msgstr "Normal"
 
-msgid "settings.bottom_spacing_detail"
-msgstr "Mueve el HUD de partida por encima del borde inferior."
+msgid "settings.edge_spacing_detail"
+msgstr "Aleja el HUD de partida del borde de la pantalla donde está."
 
 msgid "settings.ready_sound"
 msgstr "Aviso de retador"
@@ -1004,6 +1025,9 @@ msgstr "Observando"
 
 msgid "match.preview_spacing"
 msgstr "Espacio {0} / valores de ejemplo"
+
+msgid "match.preview_position"
+msgstr "Posición: {0}"
 
 msgid "card.player"
 msgstr "JUGADOR"
@@ -1605,6 +1629,9 @@ msgid "room.ready.locking"
 msgstr "Confirmando tu luchador. La partida comienza cuando ambos jugadores estén listos."
 msgid "room.ready.lock_detail"
 msgstr "Selecciona para confirmar tu luchador. La partida comienza cuando ambos estén listos."
+
+msgid "room.opponent_changed_fighter"
+msgstr "Tu oponente cambió a {0}. Revisa tu Ultra antes de marcar Listo."
 msgid "room.both_ready"
 msgstr "Ambos luchadores están listos. La partida está comenzando."
 msgid "room.waiting_spectators"

@@ -205,6 +205,9 @@ struct Runtime {
 	// room with its own message before a parked Ready can blame it (F-008).
 	Intent readyIntent{session::MatchTeardownTiming::HelperTimeoutMs + 5000, Intent::Completion::OnCommit};
 	room::ReadyChime readyChime;
+	// The opponent's fighter changed between games; the sequence moves per change.
+	room::OpponentFighterWatch opponentFighterWatch;
+	std::uint64_t opponentChangeSequence = 0;
 	Intent lobbyEditIntent{15000, Intent::Completion::OnDispatch};
 	std::string readyFailure;
 	std::uint64_t readyFailureSequence = 0;

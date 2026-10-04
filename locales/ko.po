@@ -753,8 +753,29 @@ msgstr "대전 HUD 크기"
 msgid "settings.match_hud_size_detail"
 msgstr "대전 중 글자와 패널 크기를 변경합니다."
 
-msgid "settings.bottom_spacing"
-msgstr "하단 여백"
+msgid "settings.match_hud_position"
+msgstr "대전 HUD 위치"
+
+msgid "settings.match_hud_position_detail"
+msgstr "대전 HUD를 화면의 다른 곳으로 옮깁니다."
+
+msgid "hud_position.bottom_center"
+msgstr "하단 중앙"
+
+msgid "hud_position.bottom_left"
+msgstr "왼쪽 아래"
+
+msgid "hud_position.bottom_right"
+msgstr "오른쪽 아래"
+
+msgid "hud_position.top_left"
+msgstr "왼쪽 위"
+
+msgid "hud_position.top_right"
+msgstr "오른쪽 위"
+
+msgid "settings.edge_spacing"
+msgstr "가장자리 여백"
 
 msgid "spacing.raised"
 msgstr "올림"
@@ -762,8 +783,8 @@ msgstr "올림"
 msgid "spacing.normal"
 msgstr "보통"
 
-msgid "settings.bottom_spacing_detail"
-msgstr "대전 HUD를 화면 아래쪽에서 위로 올립니다."
+msgid "settings.edge_spacing_detail"
+msgstr "대전 HUD를 붙어 있는 화면 가장자리에서 띄웁니다."
 
 msgid "settings.ready_sound"
 msgstr "도전자 알림"
@@ -1004,6 +1025,9 @@ msgstr "관전 중"
 
 msgid "match.preview_spacing"
 msgstr "{0} 여백 / 예시 값"
+
+msgid "match.preview_position"
+msgstr "위치: {0}"
 
 msgid "card.player"
 msgstr "플레이어"
@@ -1860,6 +1884,9 @@ msgstr "캐릭터를 확정하는 중입니다. 두 플레이어가 준비되면
 
 msgid "room.ready.lock_detail"
 msgstr "선택해 캐릭터를 확정하세요. 두 플레이어가 준비되면 대전이 시작됩니다."
+
+msgid "room.opponent_changed_fighter"
+msgstr "상대가 {0}(으)로 바꿨습니다. 준비하기 전에 울트라를 확인하세요."
 
 msgid "room.both_ready"
 msgstr "두 플레이어 모두 준비됐습니다. 대전을 시작합니다."

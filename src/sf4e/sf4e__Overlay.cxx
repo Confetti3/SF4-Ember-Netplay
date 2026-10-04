@@ -184,6 +184,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.selectionLockReason = snapshot.selectionLockReason;
     view.readyRequested = snapshot.readyRequested; view.readyFailure = snapshot.readyFailure;
     view.readyFailureSequence = snapshot.readyFailureSequence;
+    view.opponentChangedFighter = snapshot.opponentChangedFighter; view.opponentChangeSequence = snapshot.opponentChangeSequence;
 	view.canEditPreferences = snapshot.canEditPreferences;
 	view.canEditLobby = snapshot.canEditLobby;
 	view.settingsPending = snapshot.settingsPending;
@@ -429,7 +430,7 @@ void Overlay::DrawOverlay() {
         strip.rollbackFrames = status.rollbackFrames;
         strip.pingMs = status.pingMs; strip.appliedDelay = status.appliedDelay;
         strip.spectator = status.spectator;
-        strip.size = snapshot.preferences.matchHudSize; strip.raised = snapshot.preferences.matchHudRaised;
+        strip.size = snapshot.preferences.matchHudSize; strip.raised = snapshot.preferences.matchHudRaised; strip.anchor = snapshot.preferences.matchHudAnchor;
         strip.notice = status.lastError; strip.noticeSeverity = static_cast<int>(status.lastErrorSeverity);
         strip.connectionWarning = status.connectionWarning; strip.predictionStalled = status.predictionStalled;
         strip.disconnectCountdownMs = status.disconnectCountdownMs;

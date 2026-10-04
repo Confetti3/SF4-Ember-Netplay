@@ -476,7 +476,7 @@ float MatchScale(const MatchStripView& view) {
 }
 }
 namespace {
-void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, float w, float s) {
+void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, float w, float s, bool stateBelow=false) {
     NoteUserText(view.names[0]);NoteUserText(view.names[1]);
     const float glyph=16*s,glyphGap=6*s,glyphSpace=glyph+glyphGap;
     auto* font=DiagnosticFont();
@@ -495,7 +495,8 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
     draw->AddRectFilled(p,ImVec2(p.x+w,p.y+MatchHeight*s),IM_COL32(20,19,18,200),6*s);
     draw->AddRect(p,ImVec2(p.x+w,p.y+MatchHeight*s),IM_COL32(88,76,65,100),6*s);
     const auto text=[&](float x,float y,const std::string& t,float size,ImU32 color){draw->AddText(font,size,ImVec2(x,y),color,t.c_str());};
-    // Link state / notice line above the panel. Same width, own background so
+    // Link state / notice line above the panel (below it when the strip is anchored
+    // to the top edge, so it stays on screen). Same width, own background so
     // it reads against any stage; colour follows severity.
     const auto state=MatchStripStateLine(view);
     if(!state.empty()){
@@ -503,9 +504,10 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
             (std::max)(view.noticeSeverity,view.connectionWarning||view.predictionStalled?1:0):0;
         const ImU32 colors[]={IM_COL32(181,169,155,255),IM_COL32(255,196,96,255),IM_COL32(255,118,96,255)};
         const float h=MatchStateHeight*s;
-        draw->AddRectFilled(ImVec2(p.x,p.y-h-4*s),ImVec2(p.x+w,p.y-4*s),IM_COL32(20,19,18,235),4*s);
+        const float top=stateBelow?p.y+MatchHeight*s+4*s:p.y-h-4*s;
+        draw->AddRectFilled(ImVec2(p.x,top),ImVec2(p.x+w,top+h),IM_COL32(20,19,18,235),4*s);
         const auto line=fit(state,w-16*s,16*s);
-        text(p.x+8*s,p.y-h-4*s+(h-16*s)*.5f,line,16*s,colors[(std::max)(0,(std::min)(2,severity))]);
+        text(p.x+8*s,top+(h-16*s)*.5f,line,16*s,colors[(std::max)(0,(std::min)(2,severity))]);
     }
     // One centred "A vs B" line. Anchoring each name to a fixed "vs" made the
     // pair lopsided whenever the names differed in length.
@@ -569,7 +571,14 @@ void DrawMatchStrip(const MatchStripView& view) {
     const auto* vp=ImGui::GetMainViewport();const float s=MatchScale(view);
     const float w=(std::min)(MatchWidth*s,vp->Size.x*.8f);
     const float gap=(view.raised?48.f:12.f)*(std::max)(.8f,vp->Size.y/1080.f);
-    PaintMatchStrip(view,ImGui::GetForegroundDrawList(),ImVec2(vp->Pos.x+(vp->Size.x-w)*.5f,vp->Pos.y+vp->Size.y-gap-MatchHeight*s),w,s);
+    // The side anchors keep the 10% margins the strip has always stayed within.
+    const int anchor=(std::max)(0,(std::min)(4,view.anchor));
+    const bool top=anchor>=3,left=anchor==1||anchor==3,right=anchor==2||anchor==4;
+    const float x=left?vp->Pos.x+vp->Size.x*.1f:right?vp->Pos.x+vp->Size.x*.9f-w:vp->Pos.x+(vp->Size.x-w)*.5f;
+    // The state line takes the room on the side facing the screen centre; keep it on screen.
+    const float stateRoom=(MatchStateHeight+4)*s,low=vp->Pos.y+(top?0.f:stateRoom),high=vp->Pos.y+vp->Size.y-MatchHeight*s-(top?stateRoom:0.f);
+    const float wanted=top?vp->Pos.y+gap:vp->Pos.y+vp->Size.y-gap-MatchHeight*s;
+    PaintMatchStrip(view,ImGui::GetForegroundDrawList(),ImVec2(x,(std::max)(low,(std::min)(high,wanted))),w,s,top);
 }
 void DrawMatchStripPreview(const MatchStripView& view) {
     const auto available=ImGui::GetContentRegionAvail();
@@ -578,6 +587,11 @@ void DrawMatchStripPreview(const MatchStripView& view) {
     PaintMatchStrip(view,ImGui::GetWindowDrawList(),p,MatchWidth*s,s);
     ImGui::Dummy(ImVec2(MatchWidth*s,MatchHeight*s));
     ImGui::TextDisabled("%s",loc::Tf("match.preview_spacing",view.raised?loc::T("spacing.raised"):loc::T("spacing.normal")).c_str());
+    ImGui::TextDisabled("%s",loc::Tf("match.preview_position",MatchStripAnchorName(view.anchor)).c_str());
+}
+const char* MatchStripAnchorName(int anchor) {
+    const char* names[]={loc::T("hud_position.bottom_center"),loc::T("hud_position.bottom_left"),loc::T("hud_position.bottom_right"),loc::T("hud_position.top_left"),loc::T("hud_position.top_right")};
+    return names[(std::max)(0,(std::min)(4,anchor))];
 }
 void DrawDiagnosticStrip(const DiagnosticStripView& view) {
     const auto* viewport = ImGui::GetMainViewport();

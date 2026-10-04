@@ -753,7 +753,28 @@ msgstr "Dim. HUD partita"
 msgid "settings.match_hud_size_detail"
 msgstr "Regola testo e pannello in partita."
 
-msgid "settings.bottom_spacing"
+msgid "settings.match_hud_position"
+msgstr "Posizione HUD"
+
+msgid "settings.match_hud_position_detail"
+msgstr "Sposta l'HUD partita in un'altra parte dello schermo."
+
+msgid "hud_position.bottom_center"
+msgstr "In basso al centro"
+
+msgid "hud_position.bottom_left"
+msgstr "In basso a sinistra"
+
+msgid "hud_position.bottom_right"
+msgstr "In basso a destra"
+
+msgid "hud_position.top_left"
+msgstr "In alto a sinistra"
+
+msgid "hud_position.top_right"
+msgstr "In alto a destra"
+
+msgid "settings.edge_spacing"
 msgstr "Distanza dal bordo"
 
 msgid "spacing.raised"
@@ -762,8 +783,8 @@ msgstr "Sollevato"
 msgid "spacing.normal"
 msgstr "Normale"
 
-msgid "settings.bottom_spacing_detail"
-msgstr "Sposta l'HUD partita sopra il bordo inferiore."
+msgid "settings.edge_spacing_detail"
+msgstr "Allontana l'HUD partita dal bordo dello schermo a cui è ancorato."
 
 msgid "settings.ready_sound"
 msgstr "Annuncio sfidante"
@@ -1004,6 +1025,9 @@ msgstr "Spettatore"
 
 msgid "match.preview_spacing"
 msgstr "Distanza {0} / valori di esempio"
+
+msgid "match.preview_position"
+msgstr "Posizione: {0}"
 
 msgid "card.player"
 msgstr "GIOCATORE"
@@ -1860,6 +1884,9 @@ msgstr "Blocco del personaggio. La partita inizia quando entrambi sono pronti."
 
 msgid "room.ready.lock_detail"
 msgstr "Seleziona per bloccare il personaggio. La partita inizia quando entrambi sono pronti."
+
+msgid "room.opponent_changed_fighter"
+msgstr "L'avversario è passato a {0}. Controlla la tua Ultra prima di metterti pronto."
 
 msgid "room.both_ready"
 msgstr "Entrambi pronti. La partita sta per iniziare."

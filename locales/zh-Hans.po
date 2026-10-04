@@ -753,8 +753,29 @@ msgstr "对战 HUD 大小"
 msgid "settings.match_hud_size_detail"
 msgstr "调整对战中的文字和面板大小。"
 
-msgid "settings.bottom_spacing"
-msgstr "底部间距"
+msgid "settings.match_hud_position"
+msgstr "对战 HUD 位置"
+
+msgid "settings.match_hud_position_detail"
+msgstr "将对战 HUD 移到屏幕的其他位置。"
+
+msgid "hud_position.bottom_center"
+msgstr "底部居中"
+
+msgid "hud_position.bottom_left"
+msgstr "左下"
+
+msgid "hud_position.bottom_right"
+msgstr "右下"
+
+msgid "hud_position.top_left"
+msgstr "左上"
+
+msgid "hud_position.top_right"
+msgstr "右上"
+
+msgid "settings.edge_spacing"
+msgstr "边缘间距"
 
 msgid "spacing.raised"
 msgstr "上移"
@@ -762,8 +783,8 @@ msgstr "上移"
 msgid "spacing.normal"
 msgstr "正常"
 
-msgid "settings.bottom_spacing_detail"
-msgstr "将对战 HUD 移离屏幕底边。"
+msgid "settings.edge_spacing_detail"
+msgstr "将对战 HUD 移离其所在的屏幕边缘。"
 
 msgid "settings.ready_sound"
 msgstr "挑战者播报"
@@ -1004,6 +1025,9 @@ msgstr "观战中"
 
 msgid "match.preview_spacing"
 msgstr "{0} 间距／示例数值"
+
+msgid "match.preview_position"
+msgstr "位置：{0}"
 
 msgid "card.player"
 msgstr "玩家"
@@ -1860,6 +1884,9 @@ msgstr "正在锁定角色。双方准备好后开始对战。"
 
 msgid "room.ready.lock_detail"
 msgstr "选择以锁定角色。双方准备好后开始对战。"
+
+msgid "room.opponent_changed_fighter"
+msgstr "对手换成了{0}。准备前请检查你的 Ultra。"
 
 msgid "room.both_ready"
 msgstr "双方均已准备，对战即将开始。"

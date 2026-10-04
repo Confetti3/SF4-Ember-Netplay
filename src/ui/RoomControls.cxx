@@ -1,6 +1,7 @@
 #include "RoomControls.hxx"
 #include "RoomFeedback.hxx"
 #include "Theme.hxx"
+#include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 
 namespace sf4e { namespace ui { namespace room_controls {
@@ -143,8 +144,13 @@ ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat) {
     if (control.detail.empty()) {
         control.kind = postMatch ? ReadyControl::Rematch : ReadyControl::Ready;
         control.detail = std::string(loc::T("room.ready.lock_detail")) + "\n" + v.selectionSummary;
+        if (v.opponentChangedFighter >= 0) control.detail = OpponentChangedText(v.opponentChangedFighter) + "\n" + control.detail;
     }
     return control;
+}
+std::string OpponentChangedText(int fighter) {
+    const auto* found = selection::FindFighter(fighter);
+    return loc::Tf("room.opponent_changed_fighter", found ? found->name : "?");
 }
 std::string SelectionBlocker(const ShellView& v) {
     using room::TablePhase;

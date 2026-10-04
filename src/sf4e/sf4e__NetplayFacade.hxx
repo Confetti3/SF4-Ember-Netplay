@@ -113,6 +113,10 @@ namespace sf4e {
 			// Set when a press could not be honoured; the sequence changes per failure.
 			std::string readyFailure;
 			std::uint64_t readyFailureSequence = 0;
+			// The fighter the opponent changed to since this player last
+			// readied (-1: none); the sequence changes per change.
+			int opponentChangedFighter = -1;
+			std::uint64_t opponentChangeSequence = 0;
 			bool canEditSelection = false;
             std::string selectionLockReason;
 			bool canEditPreferences = false;

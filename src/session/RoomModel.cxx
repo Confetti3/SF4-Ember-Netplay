@@ -41,6 +41,24 @@ bool RoomAuthority::SetMemberFighter(MemberId member,int fighter) {
     value->fighter=fighter;TouchRoom();return true;
 }
 
+bool RoomAuthority::WithdrawOpponentReady(MemberId changed) {
+	const auto* member = Find(changed);
+	Table* table = member ? FindTable(static_cast<std::uint8_t>(member->table)) : nullptr;
+	if (!table || (table->p1 != changed && table->p2 != changed)) return false;
+	const int seat = table->p1 == changed ? 1 : 0;
+	auto* opponent = Find(seat == 0 ? table->p1 : table->p2);
+	if (!opponent || table->ready[1 - seat] || !ReadyCancellable(*table, seat)) return false;
+	table->ready[seat] = false;
+	opponent->delayLocked = false;
+	table->inputDelay[seat] = opponent->selectedDelay;
+	table->phase = TablePhase::Waiting;
+	table->spectatorHold = false;
+	startHeldSince_[table->id] = 0;
+	ClearPermit(*table);
+	Touch(*table); NormalizeMemberStatus(opponent->id);
+	return true;
+}
+
 template <typename Visit> void RoomAuthority::ForEachTableTimer(Visit&& visit) {
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		if (snapshot_.tables[i].resultPending) visit(resultPendingSince_[i], ResultDisputeTimeoutMs);

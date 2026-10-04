@@ -90,6 +90,10 @@ struct ShellView {
     bool readyRequested = false;
     std::string readyFailure;
     std::uint64_t readyFailureSequence = 0;
+    // The fighter the opponent changed to since the player last readied
+    // (-1: none), and a sequence that changes per change.
+    int opponentChangedFighter = -1;
+    std::uint64_t opponentChangeSequence = 0;
     int selectedFighter = 0;
     // The Ember identity (RuntimeSnapshot::identity and its request fields).
     netplay::IdentityView identity;
@@ -293,7 +297,7 @@ private:
     std::uint64_t roomLinkSeen_=0;
     bool roomLinkOpening_=false;
     Tone noticeTone_=Tone::Success;
-    std::uint64_t roomEpoch_ = 0, rulesRevision_ = 0, nextActionId_ = 1, readyFailureSequence_ = 0;
+    std::uint64_t roomEpoch_ = 0, rulesRevision_ = 0, nextActionId_ = 1, readyFailureSequence_ = 0, opponentChangeSequence_ = 0;
     int selectedTable_ = 0, roomCapacity_ = 16;
     char roomName_[65] = {}, chat_[257] = {};
     room::Rules tableRules_;

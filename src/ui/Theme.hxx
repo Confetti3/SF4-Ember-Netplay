@@ -106,6 +106,9 @@ struct MatchStripView {
     unsigned rollbackFrames = 0;
     int pingMs = -1, appliedDelay = -1, size = 1;
     bool spectator = false, raised = false;
+    // Where the strip sits: 0 bottom center, 1 bottom left, 2 bottom right, 3 top left, 4 top right.
+    // Raised moves it further in from whichever edge it is anchored to.
+    int anchor = 0;
     // Link state and the latest netplay notice, drawn on a line above the
     // telemetry. Severity: 0 info, 1 warning, 2 error (matches NoticeSeverity).
     std::string notice;
@@ -124,6 +127,8 @@ void DrawMatchNotice(const std::string& message, int severity);
 // Exposed for the render harness: Small/Standard/Large must not collapse.
 float MatchStripScale(const MatchStripView& view);
 void DrawMatchStripPreview(const MatchStripView& view);
+// The settings label for a MatchStripView::anchor value ("Bottom center", "Top right").
+const char* MatchStripAnchorName(int anchor);
 void DrawControllerWarning(const std::string& message);
 struct DiagnosticStripView {
     bool hasRemote = false, networkAvailable = false;

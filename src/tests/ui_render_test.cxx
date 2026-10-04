@@ -531,8 +531,12 @@ int main(int argc, char** argv) {
                     if(mode==3){
                         Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Match HUD captured gameplay input");
                         const auto* list=ImGui::GetForegroundDrawList();
-                        for(const auto& vertex:list->VtxBuffer)Require(vertex.pos.x>=size.w*.1f-2&&vertex.pos.x<=size.w*.9f+2&&
-                            vertex.pos.y>=0&&vertex.pos.y<=size.h,"Match HUD escaped safe viewport bounds");
+                        const bool topEdge=matchStrip.anchor>=3;
+                        for(const auto& vertex:list->VtxBuffer){
+                            Require(vertex.pos.x>=size.w*.1f-2&&vertex.pos.x<=size.w*.9f+2&&
+                                vertex.pos.y>=0&&vertex.pos.y<=size.h,"Match HUD escaped safe viewport bounds");
+                            Require(topEdge?vertex.pos.y<=size.h*.5f:vertex.pos.y>=size.h*.5f,"Match HUD left its anchored edge");
+                        }
                     }
                     if((mode==0||mode==4)&&i==settle-1&&settle>=3){
                         const auto* root=FindWindow(mode==0?"EmberShell":"###EmberRecovery");
@@ -564,7 +568,7 @@ int main(int argc, char** argv) {
                          (std::string(shot)=="match-hud-size-0"||std::string(shot)=="match-hud-size-2"||
                           std::string(shot)=="match-hud-raised"||std::string(shot)=="match-hud-long"||
                           std::string(shot)=="match-hud-unavailable"||std::string(shot)=="match-hud-spectator"||
-                          std::string(shot)=="match-hud-reset")));
+                          std::string(shot)=="match-hud-reset"||std::string(shot).find("match-hud-anchor-")==0)));
                     if(i==settle-1&&shot&&!output.empty()&&(!trainingShotsOnly||mode==1||mode==2)&&
                         (!recoveryShotsOnly||recoveryShot)&&(!matchShotsOnly||matchShot) && (!uxShotsOnly ||
                             ((std::string(shot)=="table-delay-checking" || std::string(shot)=="table-delay-retry" ||
@@ -652,7 +656,8 @@ int main(int argc, char** argv) {
             draw(nullptr,MenuInput::Select,1);draw();
             Require(stagePool==(1u<<15),"Select did not put a skipped stage back in the Random pool");
             selector.Navigation().Home();selector.Navigation().Push("roster");draw();
-            const int saved=pick.fighter;draw(nullptr,MenuInput::Right,1);draw("fighter-focus");
+            // The grid opens on its first card (not Ryu in USFIV's order), so two steps right land on a fighter other than the saved Ryu.
+            const int saved=pick.fighter;draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);draw(nullptr,MenuInput::Right,1);draw("fighter-focus");
             Require(pick.fighter==saved,"Grid movement committed fighter");
             draw(nullptr,MenuInput::Select,1);draw();Require(pick.fighter!=saved,"Select did not commit focused fighter");
             const int lockedFighter=pick.fighter;
@@ -913,6 +918,17 @@ int main(int argc, char** argv) {
                 matchStrip.connectionWarning=false;matchStrip.disconnectCountdownMs=-1;matchStrip.predictionStalled=true;draw("match-hud-stalled");
                 matchStrip.predictionStalled=false;
             }
+            // Each anchor stays inside the safe bounds and on its own edge (checked per frame in mode 3).
+            for(int anchor=1;anchor<5;++anchor){
+                matchStrip.anchor=anchor;
+                const auto shot="match-hud-anchor-"+std::to_string(anchor);draw(shot.c_str());
+            }
+            // A top anchor draws the state line below the panel so it stays on screen; raised moves in from the top.
+            matchStrip.anchor=3;matchStrip.connectionWarning=true;matchStrip.disconnectCountdownMs=1400;draw("match-hud-anchor-top-warning");
+            matchStrip.anchor=4;matchStrip.raised=true;matchStrip.connectionWarning=false;matchStrip.disconnectCountdownMs=-1;
+            matchStrip.notice="Opponent disconnected. The match is over.";matchStrip.noticeSeverity=2;draw("match-hud-anchor-top-notice");
+            matchStrip.anchor=2;draw("match-hud-anchor-bottom-notice");
+            matchStrip.anchor=0;matchStrip.raised=false;matchStrip.notice.clear();matchStrip.noticeSeverity=0;
             for(int hudSize=0;hudSize<3;++hudSize){
                 matchStrip.size=hudSize;
                 const auto shot="match-hud-size-"+std::to_string(hudSize);draw(shot.c_str());

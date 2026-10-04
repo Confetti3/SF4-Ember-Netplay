@@ -388,6 +388,16 @@ inline Place PlaceOf(const Snapshot& snapshot, MemberId id) {
 	return place;
 }
 
+// The member in the other seat of `table` from `local`'s point of view, or
+// nullptr when `local` is not seated there or the seat is empty.
+inline const Member* SeatOpponent(const Snapshot& snapshot, std::uint8_t table, MemberId local) {
+	if (table >= snapshot.tables.size() || !local) return nullptr;
+	const Table& at = snapshot.tables[table];
+	if (at.p1 != local && at.p2 != local) return nullptr;
+	const MemberId other = at.p1 == local ? at.p2 : at.p1;
+	return other ? FindMember(snapshot, other) : nullptr;
+}
+
 // True when a custom room's snapshot gives this client no seat: it stood up,
 // waits in a queue, or is no longer a member. A legacy lobby (no epoch) has no
 // seats to lose.
@@ -471,6 +481,10 @@ public:
 	Result Leave(MemberId member);
 	Result Apply(MemberId member, const Action& action);
     bool SetMemberFighter(MemberId member,int fighter);
+    // A seated fighter who has not readied changed fighter: the other seat's
+    // Ready was given against the old matchup, so it is taken back as an
+    // Unready would. True when a Ready was taken back.
+    bool WithdrawOpponentReady(MemberId changed);
 
     // Authority recovery is deliberately distinct from the public UI snapshot.
     // Import validates into a temporary owner and leaves this owner unchanged

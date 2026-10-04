@@ -499,6 +499,26 @@ int main() {
 		roomTransport->Push(json(explicitAccepted));
 		CHECK(roomClient.Step() == 0);
 		CHECK(roomClient.TakeActionReply(actionReply) && actionReply.accepted && actionReply.actionId == callerId);
+		// A Ready given against one opponent fighter is never carried to
+		// another: when the fresher snapshot shows the opponent changed
+		// fighter, the rejection reaches the player instead of a resend.
+		{
+			CHECK(roomClient.Lobby_Ready() == session::SendResult::Queued);
+			protocol::RoomResultMessage staleMatchup;
+			staleMatchup.actionId = roomTransport->sent.back().at("action").at("action_id").get<std::uint64_t>();
+			staleMatchup.result.accepted = false;
+			staleMatchup.result.reason = room::RejectReason::StaleTable;
+			++current.revision; ++current.tables[0].revision;
+			CHECK(current.members.size() == 2 && current.members[1].id == 2);
+			current.members[1].fighter = current.members[1].fighter == 3 ? 4 : 3;
+			staleMatchup.result.snapshot = current;
+			const auto sentBeforeMatchup = roomTransport->sent.size();
+			roomTransport->Push(json(staleMatchup));
+			CHECK(roomClient.Step() == 0);
+			CHECK(roomTransport->sent.size() == sentBeforeMatchup);
+			CHECK(roomClient.TakeActionReply(actionReply) && !actionReply.accepted && actionReply.kindKnown &&
+				actionReply.kind == room::ActionKind::Ready && actionReply.reason == room::RejectReason::StaleTable);
+		}
 		// Taking a seat races a table update the same way, e.g. right after
 		// room control recovers, and resends from the fresher snapshot.
 		room::Action queue;
