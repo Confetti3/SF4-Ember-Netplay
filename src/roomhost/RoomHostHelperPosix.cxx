@@ -91,7 +91,10 @@ std::unique_ptr<HelperLink> StartHelper(const Config& config, std::string& error
 	posix_spawn_file_actions_destroy(&actions);
 	if (spawned != 0) { link->pid = 0; error = "helper_start_" + std::to_string(spawned); return {}; }
 	toHelper.Close(0); fromHelper.Close(1);
-	if (!link->client.Start(fromHelper.Take(0), toHelper.Take(1))) { error = "helper_pipe"; return {}; }
+	// The pipes keep their ends until the client has them, so a failed start
+	// closes them (and the link's destructor ends the helper).
+	if (!link->client.Start(fromHelper.fds[0], toHelper.fds[1])) { error = "helper_pipe"; return {}; }
+	fromHelper.Take(0); toHelper.Take(1);
 	spdlog::info("Helper started pid={} port={} coordination_port={}", link->pid, config.port, config.coordinationPort);
 	return std::unique_ptr<HelperLink>(link.release());
 }
