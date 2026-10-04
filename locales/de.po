@@ -1660,6 +1660,12 @@ msgstr "Schaut nächstes Spiel"
 msgid "room.status.idle"
 msgstr "Inaktiv"
 
+msgid "room.idle_minutes"
+msgstr "Inaktiv seit {0} Min."
+
+msgid "room.idle_hours"
+msgstr "Inaktiv seit {0} Std. {1} Min."
+
 msgid "room.phase.waiting"
 msgstr "Warten auf Charaktere"
 

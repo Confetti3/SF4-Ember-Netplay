@@ -203,6 +203,44 @@ static void TestFighterChangeWithdrawsOpponentReady() {
 	CHECK(authority.SetMemberFighter(bystander, 8, &withdrew) && !withdrew);
 }
 
+// Idle time: counted from a member's last room action or join, reported in
+// each sent snapshot, held at zero in a game, never in the room's own state.
+static void TestIdleTimeIsStampedPerSnapshot() {
+	RoomAuthority authority("Idle", 8, 1);
+	const MemberId host = Join(authority, 0, true);
+	const MemberId guest = Join(authority, 1);
+	authority.AdvanceTime(500); // members joined at 0
+	const auto idleOf = [&](MemberId member) {
+		return FindMember(authority.SnapshotFor(host), member)->idleSeconds;
+	};
+	CHECK(idleOf(guest) == 0);
+	authority.AdvanceTime(500 + 125 * 1000);
+	CHECK(idleOf(guest) == 125 && idleOf(host) == 125);
+	CHECK(FindMember(authority.SnapshotCopy(), guest)->idleSeconds == 0);
+	CHECK(authority.Apply(guest, TableAction(authority, guest, 0, ActionKind::Queue)).accepted);
+	CHECK(idleOf(guest) == 0 && idleOf(host) == 125);
+	// Sent as idle_s only when there is something to say.
+	const auto sent = nlohmann::json(authority.SnapshotFor(host));
+	bool sawHost = false, sawGuest = false;
+	for (const auto& member : sent.at("members")) {
+		if (member.at("id") == host) { sawHost = member.at("idle_s") == 125; }
+		if (member.at("id") == guest) { sawGuest = !member.contains("idle_s"); }
+	}
+	CHECK(sawHost && sawGuest);
+	CHECK(sent.get<Snapshot>().members.size() == 2);
+	CHECK(FindMember(sent.get<Snapshot>(), host)->idleSeconds == 125);
+	// A member in a game stays active however long the game runs.
+	const MemberId other = Join(authority, 2);
+	CHECK(authority.Apply(other, TableAction(authority, other, 0, ActionKind::Queue)).accepted);
+	for (const auto member : {guest, other}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+	CHECK(authority.BeginMatch(0, authority.SnapshotView().tables[0].p1, authority.SnapshotView().tables[0].p2).accepted);
+	authority.AdvanceTime(500 + 600 * 1000);
+	CHECK(idleOf(guest) == 0 && idleOf(other) == 0 && idleOf(host) == 600);
+	// A huge gap reads as the cap.
+	authority.AdvanceTime(500 + 600 * 1000 + 30ull * 24 * 60 * 60 * 1000);
+	CHECK(idleOf(host) == MaximumIdleSeconds);
+}
+
 static void TestMatchFinishedAndSeatLifecycle() {
 	RoomAuthority authority("Lifecycle", 8, 1);
 	const MemberId host = Join(authority, 0, true);
@@ -806,6 +844,7 @@ int main() {
     TestProfileMain();
     TestReadyDelaysShareTheHigherValue();
     TestFighterChangeWithdrawsOpponentReady();
+    TestIdleTimeIsStampedPerSnapshot();
 	RoomAuthority authority("Test room", 16, 77);
 	const MemberId host = Join(authority, 0, true);
 	const MemberId guest = Join(authority, 1);

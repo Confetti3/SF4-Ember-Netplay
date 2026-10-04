@@ -390,6 +390,7 @@ bool SessionClient::HandleRoomSnapshot(json& msg) {
     if(_roomSnapshot.roomEpoch && (snapshot.snapshot.roomEpoch!=_roomSnapshot.roomEpoch ||
         snapshot.snapshot.revision<_roomSnapshot.revision)) return true;
 	_roomSnapshot = std::move(snapshot.snapshot);
+	_roomSnapshotReceivedMs = GetTickCount64();
 	_customRoomsSeen = true;
 	if (_roomSnapshot.localMember != 0) _joinRequestPending = false;
 	ReconcileTerminalAcks();
@@ -427,6 +428,7 @@ bool SessionClient::HandleRoomResult(json& msg) {
 	if (result.result.snapshot.roomEpoch != 0 && (!_roomSnapshot.roomEpoch ||
         (result.result.snapshot.roomEpoch==_roomSnapshot.roomEpoch && result.result.snapshot.revision>=_roomSnapshot.revision))) {
 		_roomSnapshot = std::move(result.result.snapshot);
+		_roomSnapshotReceivedMs = GetTickCount64();
 		_customRoomsSeen = true;
 		if (_roomSnapshot.localMember != 0) _joinRequestPending = false;
 		ReconcileTerminalAcks();

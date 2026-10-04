@@ -1660,6 +1660,12 @@ msgstr "Suit le prochain combat"
 msgid "room.status.idle"
 msgstr "Inactif"
 
+msgid "room.idle_minutes"
+msgstr "Inactif depuis {0} min"
+
+msgid "room.idle_hours"
+msgstr "Inactif depuis {0} h {1} min"
+
 msgid "room.phase.waiting"
 msgstr "Attente des combattants"
 

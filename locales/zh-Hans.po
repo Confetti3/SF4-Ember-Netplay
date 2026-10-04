@@ -1660,6 +1660,12 @@ msgstr "观看下场对战"
 msgid "room.status.idle"
 msgstr "空闲"
 
+msgid "room.idle_minutes"
+msgstr "已闲置 {0} 分钟"
+
+msgid "room.idle_hours"
+msgstr "已闲置 {0} 小时 {1} 分钟"
+
 msgid "room.phase.waiting"
 msgstr "等待对战玩家"
 

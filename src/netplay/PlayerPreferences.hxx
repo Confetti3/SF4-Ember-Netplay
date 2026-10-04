@@ -33,7 +33,7 @@ struct PlayerPreferences {
     // Where the strip sits: 0 bottom center, 1 bottom left, 2 bottom right, 3 top left, 4 top right.
     int matchHudAnchor = 0;
     // 0 the Ember strip (one panel), 1 split: names under the life bars and a small telemetry panel.
-    int matchHudLayout = 0;
+    int matchHudLayout = 1;
     // The announcer calls out when the other fighter at this player's table readies.
     bool readySound = true;
     // Percent of the game's own voice volume, in steps of ten.

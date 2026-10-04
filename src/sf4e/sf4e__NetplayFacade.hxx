@@ -99,6 +99,8 @@ namespace sf4e {
             std::array<selection::Availability,selection::FighterCount> fighterAvailability;
 			netplay::Snapshot session;
 			room::Snapshot room;
+			// When `room` arrived (GetTickCount64); idle times count on from it.
+			std::uint64_t roomReceivedMs = 0;
 			bool helperReady = false;
 			bool atMainMenu = false;
 			// A started match is waiting for the player to return to the main menu.

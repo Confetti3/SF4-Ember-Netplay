@@ -369,6 +369,7 @@ Result RoomAuthority::ApplyAbortMatch(MemberId member, const Action& action, Tab
 
 Result RoomAuthority::Apply(MemberId member, const Action& action) {
 	Result result = ApplyAction(member, action);
+	if (result.accepted) NoteActive(member);
 	// Any accepted action can be the one a start hold waits for: the
 	// spectator's receipt acknowledgement, its Unwatch or unlock, an Unready.
 	if (result.accepted && ReleaseHeldStarts(result.events)) result.snapshot = snapshot_;

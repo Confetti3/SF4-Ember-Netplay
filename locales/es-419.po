@@ -1481,6 +1481,12 @@ msgid "room.status.watching_next"
 msgstr "Observará el próximo juego"
 msgid "room.status.idle"
 msgstr "Inactivo"
+
+msgid "room.idle_minutes"
+msgstr "Inactivo {0} min"
+
+msgid "room.idle_hours"
+msgstr "Inactivo {0} h {1} min"
 msgid "room.phase.waiting"
 msgstr "Esperando luchadores"
 msgid "room.phase.preparing"

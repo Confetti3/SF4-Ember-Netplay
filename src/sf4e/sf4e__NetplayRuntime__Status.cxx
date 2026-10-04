@@ -55,6 +55,7 @@ std::string RoomErrorText(const std::string& error) {
 static void FillRoomView(RuntimeSnapshot& snapshot) {
 	if (runtime->attached && UserApp::netplay) {
 		snapshot.room = UserApp::netplay->client.GetRoomSnapshot();
+		snapshot.roomReceivedMs = UserApp::netplay->client.RoomSnapshotReceivedMs();
 		if (snapshot.room.roomEpoch) {
 			for (const auto& member : snapshot.room.members) {
 				netplay::MemberView view(member.name);

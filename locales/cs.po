@@ -1660,6 +1660,12 @@ msgstr "Sleduje další zápas"
 msgid "room.status.idle"
 msgstr "Nečinný"
 
+msgid "room.idle_minutes"
+msgstr "Nečinný {0} min"
+
+msgid "room.idle_hours"
+msgstr "Nečinný {0} h {1} min"
+
 msgid "room.phase.waiting"
 msgstr "Čekání na hráče"
 

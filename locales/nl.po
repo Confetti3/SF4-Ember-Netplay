@@ -1660,6 +1660,12 @@ msgstr "Kijkt straks mee"
 msgid "room.status.idle"
 msgstr "Inactief"
 
+msgid "room.idle_minutes"
+msgstr "{0} min inactief"
+
+msgid "room.idle_hours"
+msgstr "{0} u {1} min inactief"
+
 msgid "room.phase.waiting"
 msgstr "Wachten op spelers"
 

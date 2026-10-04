@@ -1597,6 +1597,12 @@ msgid "room.status.watching_next"
 msgstr "Watching next game"
 msgid "room.status.idle"
 msgstr "Idle"
+
+msgid "room.idle_minutes"
+msgstr "Idle {0} min"
+
+msgid "room.idle_hours"
+msgstr "Idle {0} h {1} min"
 msgid "room.phase.waiting"
 msgstr "Waiting for fighters"
 msgid "room.phase.preparing"

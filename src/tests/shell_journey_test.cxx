@@ -368,10 +368,10 @@ void Journeys() {
  h.Frame(0,20);Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.showMatchHud,"Autosave did not queue");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-size");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudSize==1,"HUD size did not save"); // Small by default; Right steps to Standard.
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-layout");h.Press(MenuInput::Right);h.Frame(0,45);
- Check(h.actions.back().preferences.matchHudLayout==1,"HUD layout did not save"); // Ember strip by default; Right steps to Split.
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
- Check(h.actions.back().preferences.matchHudLayout==0,"HUD layout did not step back to the Ember strip");
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-layout");h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(h.actions.back().preferences.matchHudLayout==0,"HUD layout did not save"); // Split by default; Left steps to the Ember strip.
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(h.actions.back().preferences.matchHudLayout==1,"HUD layout did not step back to Split");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-position");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudAnchor==1,"HUD position did not save"); // Bottom center by default; Right steps to Bottom left.
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);

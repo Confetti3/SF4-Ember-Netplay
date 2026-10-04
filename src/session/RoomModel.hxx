@@ -146,6 +146,9 @@ struct ConnectionRef {
 	}
 };
 
+// The longest idle time a snapshot reports (a week); longer reads the same.
+constexpr std::uint32_t MaximumIdleSeconds = 7u * 24 * 60 * 60;
+
 struct Member {
 	MemberId id = 0;
 	std::string name;
@@ -175,6 +178,12 @@ struct Member {
     // time for it to finish retiring the previous game. Cleared when it stops
     // watching that table.
     bool spectatorLocked = false;
+    // Seconds since the member last did anything in the room (joined, sent a
+    // room action, showed a fighter), as of the moment the snapshot was sent;
+    // a member in a game counts as active. Stamped per recipient when sent,
+    // so the room's own state and checkpoints keep zero, and zero is not
+    // serialized.
+    std::uint32_t idleSeconds = 0;
 };
 
 // The set a table finished last: who sat where for its deciding game, and the
@@ -696,6 +705,12 @@ private:
 	std::deque<TerminalReceipt> terminalReceipts_;
 	std::deque<TerminalAckTombstone> terminalAckTombstones_;
 	std::map<MemberId, std::uint64_t> lastChatMs_;
+	// When each member last did anything (an age while recovery is paused,
+	// like lastChatMs_). Presentation only: not checkpointed; a restored
+	// room counts from its next tick.
+	std::map<MemberId, std::uint64_t> lastActiveMs_;
+	void NoteActive(MemberId member);
+	std::uint32_t IdleSeconds(MemberId member) const;
 	std::map<MemberId, ActionId> lastAcceptedActions_;
 	std::set<ConnectionRef> kicked_;
 	// Server-owned rooms only. Held here rather than on Member so an account

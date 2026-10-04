@@ -1660,6 +1660,12 @@ msgstr "Guarda la prossima"
 msgid "room.status.idle"
 msgstr "Inattivo"
 
+msgid "room.idle_minutes"
+msgstr "Inattivo da {0} min"
+
+msgid "room.idle_hours"
+msgstr "Inattivo da {0} h {1} min"
+
 msgid "room.phase.waiting"
 msgstr "In attesa dei giocatori"
 

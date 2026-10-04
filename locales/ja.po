@@ -1660,6 +1660,12 @@ msgstr "次の対戦を観戦"
 msgid "room.status.idle"
 msgstr "待機中"
 
+msgid "room.idle_minutes"
+msgstr "{0}分間操作なし"
+
+msgid "room.idle_hours"
+msgstr "{0}時間{1}分間操作なし"
+
 msgid "room.phase.waiting"
 msgstr "対戦者を待機中"
 

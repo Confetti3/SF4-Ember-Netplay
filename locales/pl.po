@@ -1660,6 +1660,12 @@ msgstr "Ogląda następną walkę"
 msgid "room.status.idle"
 msgstr "Bezczynny"
 
+msgid "room.idle_minutes"
+msgstr "Bezczynny od {0} min"
+
+msgid "room.idle_hours"
+msgstr "Bezczynny od {0} h {1} min"
+
 msgid "room.phase.waiting"
 msgstr "Czekanie na graczy"
 

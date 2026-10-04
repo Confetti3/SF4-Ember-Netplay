@@ -172,6 +172,13 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.controllerBack = controllerNavigation.BackRequested();
 	view.session = snapshot.session;
 	view.room = snapshot.room;
+	// Idle times were stamped when the snapshot was sent; count on since.
+	if (snapshot.roomReceivedMs) {
+		const auto since = static_cast<std::uint32_t>((std::min<std::uint64_t>)((GetTickCount64() - snapshot.roomReceivedMs) / 1000, sf4e::room::MaximumIdleSeconds));
+		for (auto& member : view.room.members)
+			if (member.status != sf4e::room::MemberStatus::Playing)
+				member.idleSeconds = (std::min)(member.idleSeconds + since, sf4e::room::MaximumIdleSeconds);
+	}
 	view.preferences = snapshot.preferences;
 	view.lobbySettings = snapshot.lobbySettings;
 	view.helperReady = snapshot.helperReady;

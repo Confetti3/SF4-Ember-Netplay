@@ -1660,6 +1660,12 @@ msgstr "Смотрит следующий бой"
 msgid "room.status.idle"
 msgstr "Ожидает"
 
+msgid "room.idle_minutes"
+msgstr "Бездействует {0} мин"
+
+msgid "room.idle_hours"
+msgstr "Бездействует {0} ч {1} мин"
+
 msgid "room.phase.waiting"
 msgstr "Ожидание бойцов"
 

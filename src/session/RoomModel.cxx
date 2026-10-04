@@ -16,9 +16,21 @@ RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint6
 	for (std::size_t i = 0; i < TableCount; ++i) { snapshot_.tables[i].id = static_cast<std::uint8_t>(i); snapshot_.tables[i].rules = defaults; }
 }
 
+void RoomAuthority::NoteActive(MemberId member) {
+	lastActiveMs_[member] = recoveryPaused_ ? 0 : nowMs_;
+}
+
+std::uint32_t RoomAuthority::IdleSeconds(MemberId member) const {
+	const auto found = lastActiveMs_.find(member);
+	if (found == lastActiveMs_.end()) return 0;
+	const std::uint64_t ms = recoveryPaused_ ? found->second : (nowMs_ >= found->second ? nowMs_ - found->second : 0);
+	return static_cast<std::uint32_t>((std::min)(ms / 1000, static_cast<std::uint64_t>(MaximumIdleSeconds)));
+}
+
 Snapshot RoomAuthority::SnapshotFor(MemberId member) const {
 	Snapshot result = snapshot_;
 	result.localMember = Find(member) ? member : 0;
+	for (auto& item : result.members) item.idleSeconds = IdleSeconds(item.id);
 	result.terminalPending.fill(false);
 	result.localTerminalPending = false;
 	result.localTerminalGenerations.fill(0);
@@ -38,6 +50,7 @@ Snapshot RoomAuthority::SnapshotFor(MemberId member) const {
 bool RoomAuthority::SetMemberFighter(MemberId member,int fighter,bool* withdrewOpponentReady) {
     if(withdrewOpponentReady)*withdrewOpponentReady=false;
     auto* value=Find(member);
+    if(value)NoteActive(member);
     if(!value||fighter<0||fighter>=44||value->fighter==fighter)return false;
     const int previous=value->fighter;
     value->fighter=fighter;
@@ -70,6 +83,8 @@ void RoomAuthority::PauseForRecovery() {
     ForEachTableTimer([&](std::uint64_t& since, std::uint64_t) { since = nowMs_ >= since ? nowMs_ - since : 0; });
     for (auto& entry : lastChatMs_)
         entry.second = nowMs_ >= entry.second ? nowMs_ - entry.second : 0;
+    for (auto& entry : lastActiveMs_)
+        entry.second = nowMs_ >= entry.second ? nowMs_ - entry.second : 0;
     recoveryPaused_ = true;
 }
 
@@ -80,6 +95,7 @@ void RoomAuthority::AdvancePausedTimers(std::uint64_t elapsedMs) {
 	};
 	ForEachTableTimer([&](std::uint64_t& age, std::uint64_t timeout) { age = add(age, timeout); });
 	for (auto& entry : lastChatMs_) entry.second = add(entry.second, 1000);
+	for (auto& entry : lastActiveMs_) entry.second = add(entry.second, MaximumIdleSeconds * 1000ull);
 }
 
 void RoomAuthority::ResumeRecovery(std::uint64_t nowMs) {
@@ -93,8 +109,10 @@ void RoomAuthority::ResumeRecovery(std::uint64_t nowMs) {
 		const auto age = entry.second;
 		rebasedNow = (std::max)(rebasedNow, age);
 	}
+	for (auto& entry : lastActiveMs_) rebasedNow = (std::max)(rebasedNow, entry.second);
 	ForEachTableTimer([&](std::uint64_t& age, std::uint64_t) { age = rebasedNow - age; });
 	for (auto& entry : lastChatMs_) entry.second = rebasedNow - entry.second;
+	for (auto& entry : lastActiveMs_) entry.second = rebasedNow - entry.second;
 	nowMs_ = rebasedNow;
     recoveryPaused_ = false;
 }
@@ -401,6 +419,7 @@ Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connect
 	member.joinOrder = nextJoinOrder_++;
 	if (member.host) snapshot_.host = member.id;
 	snapshot_.members.push_back(member);
+	NoteActive(member.id);
 	if (snapshot_.serverOwned) RememberAccount(member.id, profile.account);
 	if (snapshot_.tournament.Active()) SeatBoundFighters();
 	TouchRoom();
@@ -610,6 +629,7 @@ Result RoomAuthority::Leave(MemberId member) {
 	RetireTerminalReceipts(member);
 	lastAcceptedActions_.erase(member);
 	lastChatMs_.erase(member);
+	lastActiveMs_.erase(member);
 	const bool wasHost = item->host || member == snapshot_.host;
 	std::vector<Event> departureEvents;
 	// A Ready table has no live game: its matchGeneration still names the last
@@ -778,6 +798,10 @@ std::vector<Event> RoomAuthority::AdvanceTime(std::uint64_t nowMs) {
 	}
 	nowMs = (std::max)(nowMs, nowMs_);
 	nowMs_ = nowMs;
+	// A fighter in a game is busy, not idle, and a member the room has no
+	// activity for (after a checkpoint restore) counts from now.
+	for (const auto& member : snapshot_.members)
+		if (member.status == MemberStatus::Playing || !lastActiveMs_.count(member.id)) NoteActive(member.id);
 	std::vector<Event> events;
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		Table& table = snapshot_.tables[i];

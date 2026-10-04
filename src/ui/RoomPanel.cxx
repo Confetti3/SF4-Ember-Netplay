@@ -32,6 +32,16 @@ const char* StatusName(room::MemberStatus status) {
     default: return loc::T("room.status.idle");
     }
 }
+// "Idle 4 min" for a member who has done nothing in the room for a minute
+// or more while waiting (not in a game, not ready, not watching one), else
+// empty.
+std::string IdleText(const room::Member& member) {
+    const bool waiting = member.status == room::MemberStatus::Idle || member.status == room::MemberStatus::Queued ||
+        member.status == room::MemberStatus::Seated;
+    if (!waiting || member.idleSeconds < 60) return {};
+    const unsigned minutes = member.idleSeconds / 60;
+    return minutes < 60 ? loc::Tf("room.idle_minutes", minutes) : loc::Tf("room.idle_hours", minutes / 60, minutes % 60);
+}
 const char* PhaseName(room::TablePhase phase) {
     switch (phase) {
     case room::TablePhase::Waiting: return loc::T("room.phase.waiting");
@@ -518,6 +528,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    if(!caption.empty())text(ImVec2(tx,top+23*s),tw,caption,14*s,palette::Muted,true);
    // The fighter who has won sets back to back at this table.
    if(m&&t.streakHolder==m->id&&t.streak>=2)text(ImVec2(tx,top+40*s),tw,loc::Tf("room.streak",t.streak),13*s,palette::Ember,true);
+   else if(m&&!t.ready[side]){const auto idle=IdleText(*m);if(!idle.empty())text(ImVec2(tx,top+40*s),tw,idle,13*s,palette::Muted,true);}
   }
   text(ImVec2(p.x+12*s+half,top+16*s),gap,middle,18*s,palette::Ember,true);
   // An option strip covers the footer, so the footer gives way to it.
@@ -568,7 +579,8 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   elided+=(elided.empty()?"":"\n")+std::string(NetworkLinkName(m->link));
   const auto status=loc::Tf(m->table>=0?(m->host?"room.board_status_host_slot":"room.board_status_slot"):(m->host?"room.board_status_host":"room.board_status"),StatusName(m->status),m->table+1)+
    (m->spectatorLocked?loc::T("room.suffix_locked_in"):"");
-  text(ImVec2(p.x+64*s,p.y+31*s),width-76*s,status,14*s,palette::Muted);
+  const auto idle=IdleText(*m);
+  text(ImVec2(p.x+64*s,p.y+31*s),width-76*s,idle.empty()?status:status+" \xC2\xB7 "+idle,14*s,palette::Muted);
   tip();
  };
  const auto button=[&](const MenuEntry& e,float width){

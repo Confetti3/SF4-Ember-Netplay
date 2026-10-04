@@ -65,6 +65,9 @@ namespace sf4e {
 		void SetGameplayGeneration(std::uint64_t generation) { _gameplayGeneration = generation; }
 		void NotifyAuthorizedReady() { if (_callbacks.OnReady) _callbacks.OnReady(this, _callbacks); }
 		const room::Snapshot& GetRoomSnapshot() const { return _roomSnapshot; }
+		// GetTickCount64 when the room snapshot last arrived; members' idle
+		// times count on from it.
+		std::uint64_t RoomSnapshotReceivedMs() const { return _roomSnapshotReceivedMs; }
 		// Menu readiness uses live room authority, not the immutable projection
 		// retained by native gameplay while the previous match drains.
 		bool LocalSelectionLocked(int slot) const;
@@ -182,6 +185,7 @@ namespace sf4e {
 		std::deque<PendingTerminalAck> _pendingTerminalAcks;
 		std::uint64_t _stepCounter = 0;
 		room::Snapshot _roomSnapshot;
+		std::uint64_t _roomSnapshotReceivedMs = 0;
 		std::string _roomError;
 		std::uint64_t _nextRoomActionId = 1;
 		struct RetainedRoomRetry {
