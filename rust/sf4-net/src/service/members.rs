@@ -399,7 +399,8 @@ impl Actor {
                     {
                         let current = recovery.applied_voter_ids().await;
                         let mut voters = current
-                            .into_iter()
+                            .iter()
+                            .copied()
                             .filter(|id| !pending_retired.contains(id) && !retired.contains(id))
                             .collect::<BTreeSet<_>>();
                         for id in candidates {
@@ -410,7 +411,13 @@ impl Actor {
                                 voters.insert(id);
                             }
                         }
-                        if !voters.is_empty() && voters.len() <= crate::recovery::MAX_VOTERS {
+                        // A room of two keeps its single voter, so the set is
+                        // often unchanged; an identical change would only add
+                        // a membership entry.
+                        if !voters.is_empty()
+                            && voters.len() <= crate::recovery::MAX_VOTERS
+                            && voters != current
+                        {
                             // Admission is already durable once AddLearner
                             // succeeds. Preserve that authenticated binding if
                             // a later voter promotion loses authority or fails;
@@ -545,9 +552,11 @@ impl Actor {
 
 /// A departing leader hands authority to a single voter so it can elect itself
 /// at once. The new leader brings the retained members back up to the stable
-/// voter count. `retained` is the committed roster at `revision`; a newer
-/// commit may have removed a candidate, so promotion is skipped then and the
-/// next refresh retries from the newer roster.
+/// voter count, or down to it once the room has shrunk: a room that falls to
+/// two members would otherwise keep two voters and freeze when either one
+/// drops. `retained` is the committed roster at `revision`; a newer commit may
+/// have removed a candidate, so the change is skipped then and the next
+/// refresh retries from the newer roster.
 async fn restore_stable_voters(
     recovery: &crate::recovery::RecoverySession,
     retained: &BTreeSet<EndpointId>,
@@ -558,7 +567,33 @@ async fn restore_stable_voters(
 ) -> io::Result<()> {
     let desired = crate::recovery::stable_voter_count(retained.len());
     let current = recovery.applied_voter_ids().await;
-    if current.len() >= desired {
+    if current.len() > desired {
+        // The leader keeps its vote, then the voters that still answer. The
+        // joint change commits through the current voters, so a set that
+        // keeps only reachable ones adds no new way to stall.
+        let own = recovery.incarnation;
+        let answers = |id: u64| {
+            admissions
+                .iter()
+                .find(|admission| admission.incarnation == id)
+                .is_some_and(|admission| {
+                    retained.contains(&admission.primary_endpoint)
+                        && reachable.contains(&admission.primary_endpoint)
+                        && !pending.contains(&id)
+                })
+        };
+        let voters = std::iter::once(own)
+            .chain(current.iter().copied().filter(|id| *id != own && answers(*id)))
+            .take(desired)
+            .collect::<BTreeSet<_>>();
+        if current.contains(&own) && voters.len() < current.len() {
+            recovery
+                .promote_voters_at_revision(revision, voters)
+                .await?;
+        }
+        return Ok(());
+    }
+    if current.len() == desired {
         return Ok(());
     }
     let members = recovery.applied_member_ids().await;

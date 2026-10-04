@@ -595,7 +595,10 @@ struct Actor {
     pending_admission_bindings: Vec<ControlBinding>,
     deferred_admissions: VecDeque<DeferredAdmission>,
     pending_membership_publications: BTreeSet<EndpointId>,
-    last_coordination_state: Option<(u64, u64, bool, bool)>,
+    /// Term, revision, writable, leader_local, voter and learner count of
+    /// the last CoordinationState sent. A membership change alone moves
+    /// neither term nor revision, so the counts are part of it.
+    last_coordination_state: Option<(u64, u64, bool, bool, usize, usize)>,
     coordination_writable: bool,
     last_control_rebound: Option<(String, Vec<String>, BTreeMap<String, u64>)>,
     unwritable_leader_since: Option<(u64, u64, Instant)>,

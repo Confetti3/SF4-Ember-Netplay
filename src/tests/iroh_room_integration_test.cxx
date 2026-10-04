@@ -271,8 +271,9 @@ int wmain(int argc, wchar_t** argv) {
 			// Committed: the runtime's normal Leave. Uncommitted: the client and
 			// server are torn down first, as when the room is not writable, so the
 			// helper must announce the departure itself. Unconfirmed: the host's
-			// native room is not stepped while the guest leaves, so nothing can
-			// confirm the departure and the runtime's bound abandons it.
+			// native room is not stepped while the guest leaves. A guest of two
+			// does not vote, so it needs no quorum proof and leaves at once; the
+			// host retires the seat once it steps again.
 			enum class Departure { Committed, Uncommitted, Unconfirmed };
 			const Departure departures[]={Departure::Committed, Departure::Uncommitted, Departure::Unconfirmed, Departure::Committed};
 			const auto ticket=host->DiscordInvitation();
@@ -281,10 +282,9 @@ int wmain(int argc, wchar_t** argv) {
 			int attempt=0;
 			for(const auto departure:departures) {
 				++attempt;
-				// Leave as a promoted voter every time: a learner's departure
-				// needs no quorum proof, which is what the unconfirmed case
-				// withholds.
-				wait([&]() { pump(); return host->Coordination().voterCount==2; });
+				// A room of two keeps only its leader as a voter, so the guest
+				// leaves as an admitted learner every time.
+				wait([&]() { pump(); return host->Coordination().voterCount==1 && host->Coordination().learnerCount==1; });
 				if(departure==Departure::Committed) {
 					waitAction(guestClient(), makeAction(guestClient(), room::ActionKind::Leave));
 					wait([&]() { pump(); return guestClient().GetRoomSnapshot().localMember == 0; });
@@ -308,16 +308,12 @@ int wmain(int argc, wchar_t** argv) {
 					<< " host_state=" << static_cast<int>(host->GetState()) << " host_error=" << host->Error()
 					<< " host_writable=" << host->Coordination().writable << " voters=" << host->Coordination().voterCount
 					<< " learners=" << host->Coordination().learnerCount << " ticket_length=" << host->DiscordInvitation().size() << std::endl;
+				CHECK(guest->Error().empty());
+				CHECK(departureMs<session::IrohRoom::LeaveTimeoutMs/2);
 				if(departure==Departure::Unconfirmed) {
-					// The room's bound starts inside Leave(), a poll or two before this clock.
-					CHECK(departureMs+250>=session::IrohRoom::LeaveTimeoutMs);
-					CHECK(guest->Error()=="The room did not confirm your departure. You have left locally.");
-					// The host resumes: the departure notice and the abandoned control
+					// The host resumes: the departure notice and the closed control
 					// retire the seat before the guest is admitted again.
 					wait([&]() { CHECK(test::PumpIrohIntegrationPeers(hostOnly)); return hostClient().GetRoomSnapshot().members.size()==1; });
-				} else {
-					CHECK(guest->Error().empty());
-					CHECK(departureMs<session::IrohRoom::LeaveTimeoutMs/2);
 				}
 				CHECK(host->GetState()==session::IrohRoom::State::Ready && host->Coordination().writable);
 				CHECK(guest->Join(ticket, "cpp-room-test"));

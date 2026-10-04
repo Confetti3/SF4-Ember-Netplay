@@ -159,7 +159,31 @@ impl Actor {
                 }
                 notice_offered = true;
             }
-            if voters.contains(&recovery.incarnation) && voters.len() > 1 {
+            // A room of two keeps only its leader as a voter. A departing
+            // leader then hands its vote to the other member, which does not
+            // vote yet; only one that still has a control link can take it.
+            let learner_handoff = state.leader_local
+                && voters.len() == 1
+                && voters.contains(&recovery.incarnation);
+            let successors = if learner_handoff {
+                applied_members
+                    .iter()
+                    .copied()
+                    .filter(|id| {
+                        *id != recovery.incarnation
+                            && !self.pending_retired_incarnations.contains(id)
+                            && !self.retired_incarnations.contains(id)
+                            && self.admissions.get(id).is_some_and(|admission| {
+                                self.controls.contains_key(&admission.primary_endpoint)
+                            })
+                    })
+                    .collect::<BTreeSet<_>>()
+            } else {
+                voters.clone()
+            };
+            if voters.contains(&recovery.incarnation)
+                && successors.iter().any(|id| *id != recovery.incarnation)
+            {
                 if state.leader_local {
                     // Hand authority to one successor. OpenRaft 0.9 voters
                     // refuse votes for the leader lease (election_timeout_max,
@@ -169,7 +193,7 @@ impl Actor {
                     // the stable voter count (spawn_membership_operation).
                     // OpenRaft commits joint old/new membership through the
                     // old quorum before the helper retires its route.
-                    let successor = handoff_successor(&voters, recovery.incarnation, |id| {
+                    let successor = handoff_successor(&successors, recovery.incarnation, |id| {
                         self.admissions.get(&id).is_some_and(|admission| {
                             self.controls.contains_key(&admission.primary_endpoint)
                         })
@@ -182,6 +206,33 @@ impl Actor {
                     .await
                     {
                         Ok(Ok(())) => true,
+                        Ok(Err(_)) | Err(_) if learner_handoff => {
+                            // This helper was already the only voter, so the
+                            // singleton check below proves nothing. The vote
+                            // has passed once this helper no longer holds it;
+                            // a successor still linked is retried by the next
+                            // Leave, and one that has gone leaves nobody to
+                            // hand the room to.
+                            if !recovery
+                                .applied_voter_ids()
+                                .await
+                                .contains(&recovery.incarnation)
+                            {
+                                true
+                            } else if successor
+                                .and_then(|id| self.admissions.get(&id))
+                                .is_some_and(|admission| {
+                                    self.controls.contains_key(&admission.primary_endpoint)
+                                })
+                            {
+                                self.error(0, "leave_membership_failed")?;
+                                false
+                            } else {
+                                self.enter_departure_grace();
+                                self.emit(Event::RoomClosed { epoch })?;
+                                return Ok(Departure::Completed);
+                            }
+                        }
                         Ok(Err(_)) | Err(_) => {
                             // A simultaneous non-native learner Leave may
                             // have committed the complementary singleton

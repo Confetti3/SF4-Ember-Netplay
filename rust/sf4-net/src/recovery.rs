@@ -796,10 +796,14 @@ impl IncomingTransfer {
     }
 }
 
+/// How many voters a room of `member_count` keeps. Two voters tolerate no
+/// loss at all: when either one's game or connection dies the other can never
+/// commit again, so the room freezes for good. A room of two therefore keeps
+/// only its leader as a voter; the other member losing its game then costs
+/// nothing, and a departing leader hands its vote over first.
 pub fn stable_voter_count(member_count: usize) -> usize {
     match member_count {
-        0 | 1 => 1,
-        2 => 2,
+        0..=2 => 1,
         3 | 4 => 3,
         _ => MAX_VOTERS,
     }
@@ -959,10 +963,10 @@ mod tests {
     }
 
     #[test]
-    fn stable_voters_skip_four_and_cap_at_five() {
+    fn stable_voters_skip_two_and_four_and_cap_at_five() {
         assert_eq!(stable_voter_count(0), 1);
         assert_eq!(stable_voter_count(1), 1);
-        assert_eq!(stable_voter_count(2), 2);
+        assert_eq!(stable_voter_count(2), 1);
         assert_eq!(stable_voter_count(3), 3);
         assert_eq!(stable_voter_count(4), 3);
         assert_eq!(stable_voter_count(16), 5);
